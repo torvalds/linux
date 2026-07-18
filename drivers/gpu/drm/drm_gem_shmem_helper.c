@@ -159,6 +159,30 @@ struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t
 EXPORT_SYMBOL_GPL(drm_gem_shmem_create);
 
 /**
+ * __drm_gem_shmem_release_sgt_locked - Unpin and DMA unmap pages, and release the
+ * cached scatter/gather table for an shmem GEM object.
+ * @shmem: shmem GEM object
+ *
+ * If the passed shmem object has an active scatter/gather table for driver
+ * usage, this function will unmap it and release the memory associated with it.
+ * It is the responsibility of the caller to ensure it holds the dma_resv_lock
+ * for this object.
+ *
+ * Drivers should not need to call this function themselves, it is mainly
+ * intended for usage in the Rust shmem bindings.
+ */
+void __drm_gem_shmem_free_sgt_locked(struct drm_gem_shmem_object *shmem)
+{
+	dma_resv_assert_held(shmem->base.resv);
+
+	dma_unmap_sgtable(shmem->base.dev->dev, shmem->sgt, DMA_BIDIRECTIONAL, 0);
+	sg_free_table(shmem->sgt);
+	kfree(shmem->sgt);
+	shmem->sgt = NULL;
+}
+EXPORT_SYMBOL_GPL(__drm_gem_shmem_free_sgt_locked);
+
+/**
  * drm_gem_shmem_release - Release resources associated with a shmem GEM object.
  * @shmem: shmem GEM object
  *
@@ -176,12 +200,8 @@ void drm_gem_shmem_release(struct drm_gem_shmem_object *shmem)
 
 		drm_WARN_ON(obj->dev, refcount_read(&shmem->vmap_use_count));
 
-		if (shmem->sgt) {
-			dma_unmap_sgtable(obj->dev->dev, shmem->sgt,
-					  DMA_BIDIRECTIONAL, 0);
-			sg_free_table(shmem->sgt);
-			kfree(shmem->sgt);
-		}
+		if (shmem->sgt)
+			__drm_gem_shmem_free_sgt_locked(shmem);
 		if (shmem->pages)
 			drm_gem_shmem_put_pages_locked(shmem);
 
@@ -453,10 +473,23 @@ void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_vunmap_locked);
 
-static int
-drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
-				 struct drm_device *dev, size_t size,
-				 uint32_t *handle)
+/**
+ * drm_gem_shmem_create_with_handle - Allocate an object with the given size and
+ *	returns a GEM handle
+ * @file_priv: DRM file structure to create the dumb buffer for
+ * @dev: DRM device
+ * @size: Size of the object to allocate
+ * @handle: Returns the GEM handle on success
+ *
+ * Allocates an shmem GEM buffer using drm_gem_shmem_create() and returns
+ * a GEM handle to it.
+ *
+ * Returns:
+ * Zero on success, or an error code otherwise.
+ */
+int drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
+				     struct drm_device *dev, size_t size,
+				     uint32_t *handle)
 {
 	struct drm_gem_shmem_object *shmem;
 	int ret;
@@ -475,6 +508,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(drm_gem_shmem_create_with_handle);
 
 /* Update madvise status, returns true if not purged, else
  * false or -errno.

@@ -324,6 +324,9 @@ command line arguments:
 - ``--json``: If set, stores the test results in a JSON format and prints to `stdout` or
   saves to a file if a filename is specified.
 
+- ``--junit``: If set, stores the test results in JUnit XML format and prints to `stdout` or
+  saves to a file if a filename is specified.
+
 - ``--filter``: Specifies filters on test attributes, for example, ``speed!=slow``.
   Multiple filters can be used by wrapping input in quotes and separating filters
   by commas. Example: ``--filter "speed>slow, module=example"``.

@@ -596,8 +596,8 @@ static void lm3630a_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm3630a_id[] = {
-	{ LM3630A_NAME },
-	{}
+	{ .name = LM3630A_NAME },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, lm3630a_id);

@@ -246,4 +246,8 @@ void dccg401_set_physymclk(
 	enum physymclk_clock_source clk_src,
 	bool force_enable);
 
+void dccg401_set_hdmistreamclk(struct dccg *dccg, enum streamclk_source src, uint32_t otg_inst);
+void dccg401_enable_hdmicharclk(struct dccg *dccg, int hpo_inst, int phypll_inst);
+void dccg401_disable_hdmicharclk(struct dccg *dccg, int hpo_inst);
+
 #endif //__DCN401_DCCG_H__

@@ -68,6 +68,7 @@ enum amd_hw_ip_block_type {
 	ISP_HWIP,
 	ATU_HWIP,
 	AIGC_HWIP,
+	UMSCH_HWIP,
 	MAX_HWIP
 };
 
@@ -83,6 +84,9 @@ enum amd_hw_ip_block_type {
 #define IP_VERSION_VARIANT(ver) (((ver) >> 4) & 0xF)
 #define IP_VERSION_SUBREV(ver) ((ver) & 0xF)
 #define IP_VERSION_MAJ_MIN_REV(ver) ((ver) >> 8)
+
+struct amdgpu_ring;
+struct amdgpu_fence;
 
 struct amdgpu_ip_map_info {
 	/* Map of logical to actual dev instances/mask */
@@ -146,9 +150,9 @@ void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
 					    u64 *flags);
 int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 				   enum amd_ip_block_type block_type);
-bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
-			    enum amd_ip_block_type block_type);
 bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
 			       enum amd_ip_block_type block_type);
+int amdgpu_device_ip_soft_reset(struct amdgpu_ring *guilty_ring,
+				struct amdgpu_fence *guilty_fence);
 
 #endif /* __AMDGPU_IP_H__ */

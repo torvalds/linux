@@ -141,6 +141,12 @@ int main(int argc, char *argv[])
 
 	ksft_print_msg("Starting risc-v tests\n");
 
+	/* Test unknown PR_CFI bits */
+	ret = my_syscall5(__NR_prctl, PR_SET_CFI, PR_CFI_BRANCH_LANDING_PADS,
+			  PR_CFI_ENABLE | 0xffff0, 0, 0);
+	if (!ret)
+		ksft_exit_fail_msg("PR_SET_CFI accepted reserved branch landing pad bits\n");
+
 	/*
 	 * Landing pad test. Not a lot of kernel changes to support landing
 	 * pads for user mode except lighting up a bit in senvcfg via a prctl.

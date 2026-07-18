@@ -51,7 +51,7 @@
 #define S35390A_INT2_MODE_PMIN		(BIT(3) | BIT(2)) /* INT2FE | INT2ME */
 
 static const struct i2c_device_id s35390a_id[] = {
-	{ "s35390a" },
+	{ .name = "s35390a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s35390a_id);
@@ -297,7 +297,7 @@ static int s35390a_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	else
 		sts = S35390A_INT2_MODE_NOINTR;
 
-	/* set interupt mode*/
+	/* set interrupt mode*/
 	err = s35390a_set_reg(s35390a, S35390A_CMD_STATUS2, &sts, sizeof(sts));
 	if (err < 0)
 		return err;

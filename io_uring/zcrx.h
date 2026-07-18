@@ -9,7 +9,9 @@
 #include <net/net_trackers.h>
 
 #define ZCRX_SUPPORTED_REG_FLAGS	(ZCRX_REG_IMPORT | ZCRX_REG_NODEV)
-#define ZCRX_FEATURES			(ZCRX_FEATURE_RX_PAGE_SIZE)
+#define ZCRX_FEATURES			(ZCRX_FEATURE_RX_PAGE_SIZE |\
+					 ZCRX_FEATURE_NOTIFICATION)
+#define ZCRX_NOTIF_TYPE_MASK		((1U << ZCRX_NOTIF_NO_BUFFERS) | (1U << ZCRX_NOTIF_COPY))
 
 struct io_zcrx_mem {
 	unsigned long			size;
@@ -72,6 +74,13 @@ struct io_zcrx_ifq {
 	 */
 	struct mutex			pp_lock;
 	struct io_mapped_region		rq_region;
+
+	spinlock_t			ctx_lock;
+	struct io_ring_ctx		*master_ctx;
+	u32				allowed_notif_mask;
+	u32				fired_notifs;
+	u64				notif_data;
+	struct zcrx_notif_stats		*notif_stats;
 };
 
 #if defined(CONFIG_IO_URING_ZCRX)

@@ -2,10 +2,10 @@
 /* Copyright © 2025 Intel Corporation */
 
 #include <drm/drm_print.h>
+#include <drm/intel/mchbar_regs.h>
 
 #include "i915_drv.h"
 #include "i915_freq.h"
-#include "intel_mchbar_regs.h"
 
 unsigned int i9xx_fsb_freq(struct drm_i915_private *i915)
 {

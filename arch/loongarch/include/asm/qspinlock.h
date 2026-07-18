@@ -3,12 +3,9 @@
 #define _ASM_LOONGARCH_QSPINLOCK_H
 
 #include <asm/kvm_para.h>
-#include <linux/jump_label.h>
+#include <asm/paravirt.h>
 
 #ifdef CONFIG_PARAVIRT
-DECLARE_STATIC_KEY_FALSE(virt_preempt_key);
-DECLARE_STATIC_KEY_FALSE(virt_spin_lock_key);
-DECLARE_PER_CPU(struct kvm_steal_time, steal_time);
 
 #define virt_spin_lock virt_spin_lock
 

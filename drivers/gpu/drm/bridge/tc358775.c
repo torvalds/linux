@@ -287,7 +287,7 @@ static inline struct tc_data *bridge_to_tc(struct drm_bridge *b)
 }
 
 static void tc_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	struct device *dev = &tc->dsi->dev;
@@ -311,7 +311,7 @@ static void tc_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void tc_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	struct device *dev = &tc->dsi->dev;
@@ -371,7 +371,7 @@ static void d2l_write(struct i2c_client *i2c, u16 addr, u32 val)
 }
 
 static void tc_bridge_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	u32 hback_porch, hsync_len, hfront_porch, hactive, htime1, htime2;
@@ -598,7 +598,7 @@ static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.atomic_enable = tc_bridge_atomic_enable,
 	.mode_valid = tc_mode_valid,
 	.atomic_post_disable = tc_bridge_atomic_post_disable,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 };

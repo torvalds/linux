@@ -1128,9 +1128,9 @@ static const struct ads1015_chip_data tla2024_data = {
 };
 
 static const struct i2c_device_id ads1015_id[] = {
-	{ "ads1015", (kernel_ulong_t)&ads1015_data },
-	{ "ads1115", (kernel_ulong_t)&ads1115_data },
-	{ "tla2024", (kernel_ulong_t)&tla2024_data },
+	{ .name = "ads1015", .driver_data = (kernel_ulong_t)&ads1015_data },
+	{ .name = "ads1115", .driver_data = (kernel_ulong_t)&ads1115_data },
+	{ .name = "tla2024", .driver_data = (kernel_ulong_t)&tla2024_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads1015_id);

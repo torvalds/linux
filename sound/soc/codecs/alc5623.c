@@ -963,10 +963,10 @@ static const struct regmap_config alc5623_regmap = {
 };
 
 static const struct i2c_device_id alc5623_i2c_table[] = {
-	{"alc5621", 0x21},
-	{"alc5622", 0x22},
-	{"alc5623", 0x23},
-	{}
+	{ .name = "alc5621", .driver_data = 0x21 },
+	{ .name = "alc5622", .driver_data = 0x22 },
+	{ .name = "alc5623", .driver_data = 0x23 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, alc5623_i2c_table);
 

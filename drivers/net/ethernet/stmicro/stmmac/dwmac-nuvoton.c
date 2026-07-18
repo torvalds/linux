@@ -8,7 +8,6 @@
  */
 
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/platform_device.h>
@@ -99,6 +98,8 @@ static int nvt_gmac_probe(struct platform_device *pdev)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return dev_err_probe(dev, -ENOMEM, "Failed to allocate private data\n");
+
+	priv->dev = dev;
 
 	priv->regmap = syscon_regmap_lookup_by_phandle_args(dev->of_node, "nuvoton,sys",
 							    1, &priv->macid);

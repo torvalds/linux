@@ -66,27 +66,29 @@ static int bond_fill_slave_info(struct sk_buff *skb,
 		const struct port *ad_port;
 
 		ad_port = &SLAVE_AD_INFO(slave)->port;
-		agg = SLAVE_AD_INFO(slave)->port.aggregator;
+		rcu_read_lock();
+		agg = rcu_dereference(SLAVE_AD_INFO(slave)->port.aggregator);
 		if (agg) {
 			if (nla_put_u16(skb, IFLA_BOND_SLAVE_AD_AGGREGATOR_ID,
 					agg->aggregator_identifier))
-				goto nla_put_failure;
+				goto nla_put_failure_rcu;
 			if (nla_put_u8(skb,
 				       IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE,
 				       ad_port->actor_oper_port_state))
-				goto nla_put_failure;
+				goto nla_put_failure_rcu;
 			if (nla_put_u16(skb,
 					IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE,
 					ad_port->partner_oper.port_state))
-				goto nla_put_failure;
+				goto nla_put_failure_rcu;
 
 			if (nla_put_u8(skb, IFLA_BOND_SLAVE_AD_CHURN_ACTOR_STATE,
-				       ad_port->sm_churn_actor_state))
-				goto nla_put_failure;
+				       READ_ONCE(ad_port->sm_churn_actor_state)))
+				goto nla_put_failure_rcu;
 			if (nla_put_u8(skb, IFLA_BOND_SLAVE_AD_CHURN_PARTNER_STATE,
-				       ad_port->sm_churn_partner_state))
-				goto nla_put_failure;
+				       READ_ONCE(ad_port->sm_churn_partner_state)))
+				goto nla_put_failure_rcu;
 		}
+		rcu_read_unlock();
 
 		if (nla_put_u16(skb, IFLA_BOND_SLAVE_ACTOR_PORT_PRIO,
 				SLAVE_AD_INFO(slave)->port_priority))
@@ -95,6 +97,8 @@ static int bond_fill_slave_info(struct sk_buff *skb,
 
 	return 0;
 
+nla_put_failure_rcu:
+	rcu_read_unlock();
 nla_put_failure:
 	return -EMSGSIZE;
 }
@@ -139,6 +143,7 @@ static const struct nla_policy bond_policy[IFLA_BOND_MAX + 1] = {
 	[IFLA_BOND_NS_IP6_TARGET]	= { .type = NLA_NESTED },
 	[IFLA_BOND_COUPLED_CONTROL]	= { .type = NLA_U8 },
 	[IFLA_BOND_BROADCAST_NEIGH]	= { .type = NLA_U8 },
+	[IFLA_BOND_LACP_STRICT]		= { .type = NLA_U8 },
 };
 
 static const struct nla_policy bond_slave_policy[IFLA_BOND_SLAVE_MAX + 1] = {
@@ -595,6 +600,16 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 			return err;
 	}
 
+	if (data[IFLA_BOND_LACP_STRICT]) {
+		int fallback_mode = nla_get_u8(data[IFLA_BOND_LACP_STRICT]);
+
+		bond_opt_initval(&newval, fallback_mode);
+		err = __bond_opt_set(bond, BOND_OPT_LACP_STRICT, &newval,
+				     data[IFLA_BOND_LACP_STRICT], extack);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -667,6 +682,7 @@ static size_t bond_get_size(const struct net_device *bond_dev)
 		nla_total_size(sizeof(struct in6_addr)) * BOND_MAX_NS_TARGETS +
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_COUPLED_CONTROL */
 		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_BROADCAST_NEIGH */
+		nla_total_size(sizeof(u8)) +	/* IFLA_BOND_LACP_STRICT */
 		0;
 }
 
@@ -832,6 +848,10 @@ static int bond_fill_info(struct sk_buff *skb,
 
 	if (nla_put_u8(skb, IFLA_BOND_BROADCAST_NEIGH,
 		       bond->params.broadcast_neighbor))
+		goto nla_put_failure;
+
+	if (nla_put_u8(skb, IFLA_BOND_LACP_STRICT,
+		       bond->params.lacp_strict))
 		goto nla_put_failure;
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {

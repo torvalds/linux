@@ -10,6 +10,7 @@ menuconfig ARCH_PXA
 	select CPU_XSCALE if !CPU_XSC3
 	select GPIO_PXA
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select PLAT_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.

@@ -51,11 +51,21 @@ def _resolve_dmac(cfg, ipver):
     return getattr(cfg, attr)
 
 
+def _require_ntuple(cfg):
+    features = ethtool(f"-k {cfg.ifname}", json=True)[0]
+    if not features["ntuple-filters"]["active"]:
+        if features["ntuple-filters"]["fixed"]:
+            raise KsftSkipEx("Device does not support ntuple-filters")
+        ethtool(f"-K {cfg.ifname} ntuple-filters on")
+        defer(ethtool, f"-K {cfg.ifname} ntuple-filters off")
+
+
 def _setup_isolated_queue(cfg):
     """Set up an isolated queue for testing using ntuple filter.
 
     Remove queue 1 from the default RSS context and steer test traffic to it.
     """
+    _require_ntuple(cfg)
     test_queue = 1
 
     qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/rx-*"))

@@ -1,0 +1,79 @@
+bench_insert_vec_zeroed:
+	push rbp
+	push r15
+	push r14
+	push r13
+	push r12
+	push rbx
+	sub rsp, 24
+	mov r12, qword ptr [rdi + 16]
+	mov r13, r12
+	sub r13, rsi
+	jb .LBB6_10
+	mov rbx, rdi
+	mov rax, qword ptr [rdi]
+	mov rcx, rax
+	sub rcx, r12
+	cmp rdx, rcx
+	jbe .LBB6_4
+	add r12, rdx
+	jae .LBB6_7
+.LBB6_3:
+	xor eax, eax
+	jmp .LBB6_6
+.LBB6_4:
+	mov rax, qword ptr [rbx + 8]
+	add r12, rdx
+.LBB6_5:
+	lea rcx, [rsi + 2*rsi]
+	lea r14, [rax + 2*rcx]
+	add rdx, rdx
+	lea r15, [rdx + 2*rdx]
+	lea rdi, [r14 + r15]
+	add r13, r13
+	lea rdx, [2*r13]
+	add rdx, r13
+	mov rsi, r14
+	call qword ptr [rip + memmove@GOTPCREL]
+	mov rdi, r14
+	xor esi, esi
+	mov rdx, r15
+	call qword ptr [rip + memset@GOTPCREL]
+	mov qword ptr [rbx + 16], r12
+	mov al, 1
+.LBB6_6:
+	add rsp, 24
+	pop rbx
+	pop r12
+	pop r13
+	pop r14
+	pop r15
+	pop rbp
+	ret
+.LBB6_7:
+	mov r15, rsi
+	mov rbp, rdx
+	lea rcx, [rax + rax]
+	cmp r12, rcx
+	cmova rcx, r12
+	cmp rcx, 5
+	mov r14d, 4
+	cmovae r14, rcx
+	mov rdx, qword ptr [rbx + 8]
+	mov rdi, rsp
+	mov rsi, rax
+	mov rcx, r14
+	call <alloc::raw_vec::RawVecInner>::finish_grow
+	cmp dword ptr [rsp], 1
+	je .LBB6_3
+	mov rax, qword ptr [rsp + 8]
+	mov qword ptr [rbx + 8], rax
+	mov qword ptr [rbx], r14
+	mov rdx, rbp
+	mov rsi, r15
+	jmp .LBB6_5
+.LBB6_10:
+	lea rdi, [rip + .Lanon.HASH.1]
+	lea rdx, [rip + .Lanon.HASH.3]
+	mov esi, 37
+	call qword ptr [rip + core::panicking::panic@GOTPCREL]

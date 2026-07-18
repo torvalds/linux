@@ -581,35 +581,6 @@ extern void swift_flush_tlb_range(struct vm_area_struct *vma,
 				  unsigned long start, unsigned long end);
 extern void swift_flush_tlb_page(struct vm_area_struct *vma, unsigned long page);
 
-#if 0  /* P3: deadwood to debug precise flushes on Swift. */
-void swift_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
-{
-	int cctx, ctx1;
-
-	page &= PAGE_MASK;
-	if ((ctx1 = vma->vm_mm->context) != -1) {
-		cctx = srmmu_get_context();
-/* Is context # ever different from current context? P3 */
-		if (cctx != ctx1) {
-			printk("flush ctx %02x curr %02x\n", ctx1, cctx);
-			srmmu_set_context(ctx1);
-			swift_flush_page(page);
-			__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
-					"r" (page), "i" (ASI_M_FLUSH_PROBE));
-			srmmu_set_context(cctx);
-		} else {
-			 /* Rm. prot. bits from virt. c. */
-			/* swift_flush_cache_all(); */
-			/* swift_flush_cache_page(vma, page); */
-			swift_flush_page(page);
-
-			__asm__ __volatile__("sta %%g0, [%0] %1\n\t" : :
-				"r" (page), "i" (ASI_M_FLUSH_PROBE));
-			/* same as above: srmmu_flush_tlb_page() */
-		}
-	}
-}
-#endif
 
 /*
  * The following are all MBUS based SRMMU modules, and therefore could

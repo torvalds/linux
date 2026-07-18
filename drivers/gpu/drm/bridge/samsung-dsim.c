@@ -1640,7 +1640,7 @@ static int samsung_dsim_init(struct samsung_dsim *dsi)
 }
 
 static void samsung_dsim_atomic_pre_enable(struct drm_bridge *bridge,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 	int ret;
@@ -1668,7 +1668,7 @@ static void samsung_dsim_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
@@ -1679,7 +1679,7 @@ static void samsung_dsim_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
@@ -1691,7 +1691,7 @@ static void samsung_dsim_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void samsung_dsim_atomic_post_disable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct samsung_dsim *dsi = bridge_to_dsi(bridge);
 
@@ -1835,7 +1835,7 @@ static int samsung_dsim_attach(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs samsung_dsim_bridge_funcs = {
 	.atomic_duplicate_state		= drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state		= drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset			= drm_atomic_helper_bridge_reset,
+	.atomic_create_state			= drm_atomic_helper_bridge_create_state,
 	.atomic_get_input_bus_fmts	= samsung_dsim_atomic_get_input_bus_fmts,
 	.atomic_check			= samsung_dsim_atomic_check,
 	.atomic_pre_enable		= samsung_dsim_atomic_pre_enable,
@@ -1919,7 +1919,7 @@ static int samsung_dsim_host_attach(struct mipi_dsi_host *host,
 	/*
 	 * of_graph_get_remote_node() produces a noisy error message if port
 	 * node isn't found and the absence of the port is a legit case here,
-	 * so at first we silently check whether graph presents in the
+	 * so at first we silently check whether a graph is present in the
 	 * device-tree node.
 	 */
 	if (!of_graph_is_present(np))

@@ -21,13 +21,13 @@ call at each patchable function entry, and patches it dynamically at runtime to
 enable or disable the redirection. In the case of RISC-V, 2 instructions,
 AUIPC + JALR, are required to compose a function call. However, it is impossible
 to patch 2 instructions and expect that a concurrent read-side executes them
-without a race condition. This series makes atmoic code patching possible in
+without a race condition. This series makes atomic code patching possible in
 RISC-V ftrace. Kernel preemption makes things even worse as it allows the old
 state to persist across the patching process with stop_machine().
 
 In order to get rid of stop_machine() and run dynamic ftrace with full kernel
 preemption, we partially initialize each patchable function entry at boot-time,
-setting the first instruction to AUIPC, and the second to NOP. Now, atmoic
+setting the first instruction to AUIPC, and the second to NOP. Now, atomic
 patching is possible because the kernel only has to update one instruction.
 According to Ziccif, as long as an instruction is naturally aligned, the ISA
 guarantee an  atomic update.
@@ -36,8 +36,8 @@ By fixing down the first instruction, AUIPC, the range of the ftrace trampoline
 is limited to +-2K from the predetermined target, ftrace_caller, due to the lack
 of immediate encoding space in RISC-V. To address the issue, we introduce
 CALL_OPS, where an 8B naturally align metadata is added in front of each
-pacthable function. The metadata is resolved at the first trampoline, then the
-execution can be derect to another custom trampoline.
+patchable function. The metadata is resolved at the first trampoline, then the
+execution can be directed to another custom trampoline.
 
 CMODX in the User Space
 -----------------------

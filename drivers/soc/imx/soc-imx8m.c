@@ -247,7 +247,7 @@ static int imx8m_soc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data = device_get_match_data(dev);
+	data = of_machine_get_match_data(imx8_soc_match);
 	if (data) {
 		soc_dev_attr->soc_id = data->name;
 		ret = imx8m_soc_prepare(pdev, data->ocotp_compatible);

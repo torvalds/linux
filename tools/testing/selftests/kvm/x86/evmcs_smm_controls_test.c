@@ -29,13 +29,13 @@
  * SMI handler: runs in real-address mode.
  * Reports SMRAM_STAGE via port IO, then does RSM.
  */
-static uint8_t smi_handler[] = {
+static u8 smi_handler[] = {
 	0xb0, SMRAM_STAGE,    /* mov $SMRAM_STAGE, %al */
 	0xe4, SYNC_PORT,      /* in $SYNC_PORT, %al */
 	0x0f, 0xaa,           /* rsm */
 };
 
-static inline void sync_with_host(uint64_t phase)
+static inline void sync_with_host(u64 phase)
 {
 	asm volatile("in $" XSTR(SYNC_PORT) ", %%al \n"
 		     : "+a" (phase));
@@ -73,7 +73,7 @@ static void guest_code(struct vmx_pages *vmx_pages,
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva = 0, hv_pages_gva = 0;
+	gva_t vmx_pages_gva = 0, hv_pages_gva = 0;
 	struct hyperv_test_pages *hv;
 	struct hv_enlightened_vmcs *evmcs;
 	struct kvm_vcpu *vcpu;

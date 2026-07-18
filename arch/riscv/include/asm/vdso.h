@@ -12,12 +12,15 @@
  * All systems with an MMU have a VDSO, but systems without an MMU don't
  * support shared libraries and therefore don't have one.
  */
-#ifdef CONFIG_MMU
 
 #define __VDSO_PAGES    4
 
 #ifndef __ASSEMBLER__
+
+#ifdef CONFIG_MMU
 #include <generated/vdso-offsets.h>
+#endif
+
 #ifdef CONFIG_RISCV_USER_CFI
 #include <generated/vdso-cfi-offsets.h>
 #endif
@@ -38,15 +41,12 @@
 #define COMPAT_VDSO_SYMBOL(base, name)						\
 	(void __user *)((unsigned long)(base) + compat__vdso_##name##_offset)
 
-extern char compat_vdso_start[], compat_vdso_end[];
-
 #endif /* CONFIG_COMPAT */
 
 extern char vdso_start[], vdso_end[];
 extern char vdso_cfi_start[], vdso_cfi_end[];
+extern char compat_vdso_start[], compat_vdso_end[];
 
 #endif /* !__ASSEMBLER__ */
-
-#endif /* CONFIG_MMU */
 
 #endif /* _ASM_RISCV_VDSO_H */

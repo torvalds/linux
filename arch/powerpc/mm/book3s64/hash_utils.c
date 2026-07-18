@@ -1299,9 +1299,7 @@ static void stress_hpt_timer_fn(struct timer_list *timer)
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		tlbiel_all();
 
-	next_cpu = cpumask_next(raw_smp_processor_id(), cpu_online_mask);
-	if (next_cpu >= nr_cpu_ids)
-		next_cpu = cpumask_first(cpu_online_mask);
+	next_cpu = cpumask_next_wrap(raw_smp_processor_id(), cpu_online_mask);
 	stress_hpt_timer.expires = jiffies + msecs_to_jiffies(10);
 	add_timer_on(&stress_hpt_timer, next_cpu);
 }

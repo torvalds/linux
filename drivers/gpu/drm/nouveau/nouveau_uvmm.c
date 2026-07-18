@@ -1779,10 +1779,10 @@ nouveau_uvmm_vm_bind_ucopy(struct nouveau_uvmm_bind_job_args *args,
 
 	return 0;
 
-err_free_ops:
-	u_free(args->op.s);
 err_free_ins:
 	u_free(args->in_sync.s);
+err_free_ops:
+	u_free(args->op.s);
 	return ret;
 }
 

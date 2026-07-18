@@ -105,26 +105,60 @@ static void rtw8922d_set_syn01(struct rtw89_dev *rtwdev, enum _rf_syn_pow syn)
 	}
 }
 
-static void rtw8922d_chlk_ktbl_sel(struct rtw89_dev *rtwdev, u8 kpath, u8 idx)
+void rtw8922d_chlk_ktbl_ctl_mld(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx, bool manual)
 {
-	bool mlo_linking = false;
+	if (manual) {
+		struct rtw89_rfk_mcc_info_data *rfk_mcc = rtwdev->rfk_mcc.data;
+		u8 path = phy_idx; /* numerical equal for target */
+		u8 idx = rfk_mcc[path].table_idx;
 
-	if (idx > 2) {
-		rtw89_warn(rtwdev, "[DBCC][ERROR]indx is out of limit!! index(%d)", idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_RST, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_RST, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_IDX0, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_IDX1, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_IDX0, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_IDX1, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL1A_BE4, B_KTBL1_TBL0, idx & BIT(0));
+		rtw89_phy_write32_mask(rtwdev, R_KTBL1A_BE4, B_KTBL1_TBL1, (idx & BIT(1)) >> 1);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL1B_BE4, B_KTBL1_TBL0, idx & BIT(0));
+		rtw89_phy_write32_mask(rtwdev, R_KTBL1B_BE4, B_KTBL1_TBL1, (idx & BIT(1)) >> 1);
 		return;
 	}
 
-	if (mlo_linking) {
-		if (kpath & RF_A) {
-			rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT, RR_SW_SEL, 0x0);
-			rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT_V1, RR_SW_SEL, 0x0);
-		}
+	rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_RST, 0x0);
+	rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_RST, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT, RR_SW_SEL, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT_V1, RR_SW_SEL, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT, RR_SW_SEL, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT_V1, RR_SW_SEL, 0x0);
+}
 
-		if (kpath & RF_B) {
-			rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT, RR_SW_SEL, 0x0);
-			rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT_V1, RR_SW_SEL, 0x0);
-		}
+static void rtw8922d_chlk_ktbl_sel_mld(struct rtw89_dev *rtwdev,
+				       enum rtw89_phy_idx phy_idx, u8 idx)
+{
+	if (phy_idx == RTW89_PHY_0) {
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_MLD_IDX0, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_MLD_IDX0, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT, RR_TBL_SEL_IDX0, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT_V1, RR_TBL_SEL_IDX0, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT, RR_TBL_SEL_IDX0, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT_V1, RR_TBL_SEL_IDX0, idx);
+	} else if (phy_idx == RTW89_PHY_1) {
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0A_BE4, B_KTBL0_MLD_IDX1, idx);
+		rtw89_phy_write32_mask(rtwdev, R_KTBL0B_BE4, B_KTBL0_MLD_IDX1, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT, RR_TBL_SEL_IDX1, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_MODOPT_V1, RR_TBL_SEL_IDX1, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT, RR_TBL_SEL_IDX1, idx);
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_MODOPT_V1, RR_TBL_SEL_IDX1, idx);
+	}
 
+	rtw8922d_chlk_ktbl_ctl_mld(rtwdev, phy_idx, false);
+}
+
+static void rtw8922d_chlk_ktbl_sel(struct rtw89_dev *rtwdev, u8 kpath, u8 idx)
+{
+	if (idx > 2) {
+		rtw89_warn(rtwdev, "[DBCC][ERROR]indx is out of limit!! index(%d)", idx);
 		return;
 	}
 
@@ -187,30 +221,26 @@ static u8 rtw8922d_chlk_reload_sel_tbl(struct rtw89_dev *rtwdev,
 
 static void rtw8922d_chlk_reload(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan0, *chan1;
+	struct rtw89_entity_conf conf;
 	u8 s0_tbl, s1_tbl;
 
-	switch (rtwdev->mlo_dbcc_mode) {
-	default:
-	case MLO_2_PLUS_0_1RF:
-		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
-		chan1 = chan0;
-		break;
-	case MLO_0_PLUS_2_1RF:
-		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
-		chan0 = chan1;
-		break;
-	case MLO_1_PLUS_1_1RF:
-		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
-		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
-		break;
-	}
+	rtw89_entity_get_conf(rtwdev, &conf);
 
-	s0_tbl = rtw8922d_chlk_reload_sel_tbl(rtwdev, chan0, 0);
-	s1_tbl = rtw8922d_chlk_reload_sel_tbl(rtwdev, chan1, 1);
+	s0_tbl = rtw8922d_chlk_reload_sel_tbl(rtwdev, conf.chans[0], 0);
+	s1_tbl = rtw8922d_chlk_reload_sel_tbl(rtwdev, conf.chans[1], 1);
+
+	if (conf.is_mld)
+		goto mld;
 
 	rtw8922d_chlk_ktbl_sel(rtwdev, RF_A, s0_tbl);
 	rtw8922d_chlk_ktbl_sel(rtwdev, RF_B, s1_tbl);
+	return;
+
+mld:
+	if (test_bit(RTW89_PHY_0, conf.hw_bitmap))
+		rtw8922d_chlk_ktbl_sel_mld(rtwdev, RTW89_PHY_0, s0_tbl);
+	if (test_bit(RTW89_PHY_1, conf.hw_bitmap))
+		rtw8922d_chlk_ktbl_sel_mld(rtwdev, RTW89_PHY_1, s1_tbl);
 }
 
 static enum _rf_syn_pow rtw8922d_get_syn_pow(struct rtw89_dev *rtwdev)

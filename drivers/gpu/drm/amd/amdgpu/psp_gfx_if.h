@@ -107,6 +107,7 @@ enum psp_gfx_cmd_id
     GFX_CMD_ID_CONFIG_SQ_PERFMON  = 0x00000046,   /* Config CGTT_SQ_CLK_CTRL */
     /* Dynamic memory partitioninig (NPS mode change)*/
     GFX_CMD_ID_FB_NPS_MODE        = 0x00000048,  /* Configure memory partitioning mode */
+    GFX_CMD_ID_PERF_HW            = 0x0000004C,   /* performance monitor */
     GFX_CMD_ID_FB_FW_RESERV_ADDR  = 0x00000050,  /* Query FW reservation addr */
     GFX_CMD_ID_FB_FW_RESERV_EXT_ADDR = 0x00000051,  /* Query FW reservation extended addr */
 };
@@ -373,6 +374,13 @@ struct psp_gfx_cmd_fb_memory_part {
 	uint32_t resvd;
 };
 
+struct psp_gfx_cmd_req_perf_hw {
+	uint32_t req;
+	uint32_t ptl_state;
+	uint32_t pref_format1;
+	uint32_t pref_format2;
+};
+
 /* All GFX ring buffer commands. */
 union psp_gfx_commands
 {
@@ -389,6 +397,7 @@ union psp_gfx_commands
     struct psp_gfx_cmd_sriov_spatial_part cmd_spatial_part;
     struct psp_gfx_cmd_config_sq_perfmon config_sq_perfmon;
     struct psp_gfx_cmd_fb_memory_part cmd_memory_part;
+    struct psp_gfx_cmd_req_perf_hw     cmd_req_perf_hw;
 };
 
 struct psp_gfx_uresp_reserved
@@ -415,12 +424,20 @@ struct psp_gfx_uresp_fw_reserve_info {
     uint32_t reserve_size;
 };
 
+struct psp_gfx_uresp_perf_hw {
+	uint32_t resp;
+	uint32_t ptl_state;
+	uint32_t pref_format1;
+	uint32_t pref_format2;
+};
+
 /* Union of command-specific responses for GPCOM ring. */
 union psp_gfx_uresp {
 	struct psp_gfx_uresp_reserved		reserved;
 	struct psp_gfx_uresp_bootcfg		boot_cfg;
 	struct psp_gfx_uresp_fwar_db_info	fwar_db_info;
 	struct psp_gfx_uresp_fw_reserve_info	fw_reserve_info;
+	struct psp_gfx_uresp_perf_hw		perf_hw_info;
 };
 
 /* Structure of GFX Response buffer.

@@ -24,23 +24,23 @@
  * void nodes_setall(mask)		set all bits
  * void nodes_clear(mask)		clear all bits
  * int node_isset(node, mask)		true iff bit 'node' set in mask
- * int node_test_and_set(node, mask)	test and set bit 'node' in mask
+ * bool node_test_and_set(node, mask)	test and set bit 'node' in mask
  *
- * void nodes_and(dst, src1, src2)	dst = src1 & src2  [intersection]
+ * bool nodes_and(dst, src1, src2)	dst = src1 & src2  [intersection]
  * void nodes_or(dst, src1, src2)	dst = src1 | src2  [union]
  * void nodes_xor(dst, src1, src2)	dst = src1 ^ src2
- * void nodes_andnot(dst, src1, src2)	dst = src1 & ~src2
+ * bool nodes_andnot(dst, src1, src2)	dst = src1 & ~src2
  * void nodes_complement(dst, src)	dst = ~src
  *
- * int nodes_equal(mask1, mask2)	Does mask1 == mask2?
- * int nodes_intersects(mask1, mask2)	Do mask1 and mask2 intersect?
- * int nodes_subset(mask1, mask2)	Is mask1 a subset of mask2?
- * int nodes_empty(mask)		Is mask empty (no bits sets)?
- * int nodes_full(mask)			Is mask full (all bits sets)?
+ * bool nodes_equal(mask1, mask2)	Does mask1 == mask2?
+ * bool nodes_intersects(mask1, mask2)	Do mask1 and mask2 intersect?
+ * bool nodes_subset(mask1, mask2)	Is mask1 a subset of mask2?
+ * bool nodes_empty(mask)		Is mask empty (no bits sets)?
+ * bool nodes_full(mask)		Is mask full (all bits sets)?
  * int nodes_weight(mask)		Hamming weight - number of set bits
  *
  * unsigned int first_node(mask)	Number lowest set bit, or MAX_NUMNODES
- * unsigend int next_node(node, mask)	Next node past 'node', or MAX_NUMNODES
+ * unsigned int next_node(node, mask)	Next node past 'node', or MAX_NUMNODES
  * unsigned int next_node_in(node, mask) Next node past 'node', or wrap to first,
  *					or MAX_NUMNODES
  * unsigned int first_unset_node(mask)	First node not set in mask, or

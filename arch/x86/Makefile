@@ -77,6 +77,10 @@ KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -mno-avx -mno-sse4a
 KBUILD_RUSTFLAGS += --target=$(objtree)/scripts/target.json
 KBUILD_RUSTFLAGS += -Ctarget-feature=-sse,-sse2,-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2
 
+# The target.json file is not available when invoking rustc-option, so use the
+# built-in target when checking whether flags are supported instead.
+KBUILD_RUSTFLAGS_OPTION_CHKS += --target=x86_64-unknown-none
+
 #
 # CFLAGS for compiling floating point code inside the kernel.
 #
@@ -123,11 +127,6 @@ ifeq ($(CONFIG_X86_32),y)
         # CPU-specific tuning. Anything which can be shared with UML should go here.
         include $(srctree)/arch/x86/Makefile_32.cpu
         KBUILD_CFLAGS += $(cflags-y)
-
-    ifneq ($(call clang-min-version, 160000),y)
-        # https://github.com/llvm/llvm-project/issues/53645
-        KBUILD_CFLAGS += -ffreestanding
-    endif
 
         percpu_seg := fs
 else
@@ -276,7 +275,6 @@ archprepare: $(cpufeaturemasks.hdr)
 libs-y  += arch/x86/lib/
 
 # drivers-y are linked after core-y
-drivers-$(CONFIG_MATH_EMULATION) += arch/x86/math-emu/
 drivers-$(CONFIG_PCI)            += arch/x86/pci/
 
 # suspend and hibernation support

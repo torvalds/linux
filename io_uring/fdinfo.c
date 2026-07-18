@@ -190,8 +190,9 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 			get_task_struct(tsk);
 			rcu_read_unlock();
 			usec = io_sq_cpu_usec(tsk);
+			sq_pid = task_pid_nr_ns(tsk,
+						proc_pid_ns(file_inode(m->file)->i_sb));
 			put_task_struct(tsk);
-			sq_pid = sq->task_pid;
 			sq_cpu = sq->sq_cpu;
 			sq_total_time = usec;
 			sq_work_time = sq->work_time;
@@ -223,7 +224,7 @@ static void __io_uring_show_fdinfo(struct io_ring_ctx *ctx, struct seq_file *m)
 		if (ctx->buf_table.nodes[i])
 			buf = ctx->buf_table.nodes[i]->buf;
 		if (buf)
-			seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, buf->len);
+			seq_printf(m, "%5u: 0x%llx/%zu\n", i, buf->ubuf, buf->len);
 		else
 			seq_printf(m, "%5u: <none>\n", i);
 	}

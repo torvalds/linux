@@ -605,15 +605,12 @@ static umode_t acpi_tad_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static const struct attribute_group acpi_tad_attr_group = {
+static const struct attribute_group acpi_tad_group = {
 	.attrs	= acpi_tad_attrs,
 	.is_visible = acpi_tad_attr_is_visible,
 };
 
-static const struct attribute_group *acpi_tad_attr_groups[] = {
-	&acpi_tad_attr_group,
-	NULL,
-};
+__ATTRIBUTE_GROUPS(acpi_tad);
 
 #ifdef CONFIG_RTC_CLASS
 /* RTC class device interface */
@@ -683,9 +680,8 @@ static int acpi_tad_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 		acpi_tad_rt_to_tm(&rt, &tm_now);
 
-		value = ktime_divns(ktime_sub(rtc_tm_to_ktime(t->time),
-					      rtc_tm_to_ktime(tm_now)), NSEC_PER_SEC);
-		if (value <= 0 || value > U32_MAX)
+		value = rtc_tm_to_time64(&t->time) - rtc_tm_to_time64(&tm_now);
+		if (value <= 0 || value >= U32_MAX)
 			return -EINVAL;
 	}
 
@@ -748,8 +744,7 @@ static int acpi_tad_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 
 	if (retval != ACPI_TAD_WAKE_DISABLED) {
 		t->enabled = 1;
-		t->time = rtc_ktime_to_tm(ktime_add_ns(rtc_tm_to_ktime(tm_now),
-						       (u64)retval * NSEC_PER_SEC));
+		rtc_time64_to_tm(rtc_tm_to_time64(&tm_now) + retval, &t->time);
 	} else {
 		t->enabled = 0;
 		t->time = tm_now;
@@ -795,9 +790,9 @@ static int acpi_tad_disable_timer(struct device *dev, u32 timer_id)
 	return acpi_tad_wake_set(dev, "_STV", timer_id, ACPI_TAD_WAKE_DISABLED);
 }
 
-static void acpi_tad_remove(struct platform_device *pdev)
+static void acpi_tad_remove(void *data)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = data;
 	struct acpi_tad_driver_data *dd = dev_get_drvdata(dev);
 
 	device_init_wakeup(dev, false);
@@ -820,10 +815,15 @@ static void acpi_tad_remove(struct platform_device *pdev)
 static int acpi_tad_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_tad_driver_data *dd;
+	acpi_handle handle;
 	acpi_status status;
 	unsigned long long caps;
+	int ret;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return -ENODEV;
 
 	/*
 	 * Initialization failure messages are mostly about firmware issues, so
@@ -856,19 +856,27 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	 * runtime suspend.  Everything else should be taken care of by the ACPI
 	 * PM domain callbacks.
 	 */
-	if (ACPI_TAD_AC_WAKE) {
+	if (caps & ACPI_TAD_AC_WAKE) {
 		device_init_wakeup(dev, true);
 		dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND |
 					     DPM_FLAG_MAY_SKIP_RESUME);
 	}
 
 	/*
-	 * The platform bus type layer tells the ACPI PM domain powers up the
-	 * device, so set the runtime PM status of it to "active".
+	 * The platform bus type probe callback tells the ACPI PM domain to
+	 * power up the device, so set the runtime PM status of it to "active".
 	 */
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_suspend(dev);
+
+	/*
+	 * acpi_tad_remove() needs to run after unregistering the RTC class
+	 * device to avoid racing with the latter's callbacks.
+	 */
+	ret = devm_add_action_or_reset(&pdev->dev, acpi_tad_remove, &pdev->dev);
+	if (ret)
+		return ret;
 
 	if (caps & ACPI_TAD_RT)
 		acpi_tad_register_rtc(dev, caps);
@@ -885,10 +893,9 @@ static struct platform_driver acpi_tad_driver = {
 	.driver = {
 		.name = "acpi-tad",
 		.acpi_match_table = acpi_tad_ids,
-		.dev_groups = acpi_tad_attr_groups,
+		.dev_groups = acpi_tad_groups,
 	},
 	.probe = acpi_tad_probe,
-	.remove = acpi_tad_remove,
 };
 MODULE_DEVICE_TABLE(acpi, acpi_tad_ids);
 

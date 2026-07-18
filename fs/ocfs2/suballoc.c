@@ -231,13 +231,35 @@ static int ocfs2_validate_gd_parent(struct super_block *sb,
 				    int resize)
 {
 	unsigned int max_bits;
+	unsigned int max_bitmap_bits;
+	unsigned int max_bitmap_size;
+	int suballocator;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
+
+	suballocator = le64_to_cpu(di->i_blkno) != OCFS2_SB(sb)->bitmap_blkno;
+	max_bitmap_size = ocfs2_group_bitmap_size(sb, suballocator,
+						  OCFS2_SB(sb)->s_feature_incompat);
+	max_bitmap_bits = max_bitmap_size * 8;
 
 	if (di->i_blkno != gd->bg_parent_dinode) {
 		do_error("Group descriptor #%llu has bad parent pointer (%llu, expected %llu)\n",
 			 (unsigned long long)bh->b_blocknr,
 			 (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
 			 (unsigned long long)le64_to_cpu(di->i_blkno));
+	}
+
+	if (le16_to_cpu(gd->bg_size) > max_bitmap_size) {
+		do_error("Group descriptor #%llu has bitmap size %u but physical max of %u\n",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_size),
+			 max_bitmap_size);
+	}
+
+	if (le16_to_cpu(gd->bg_bits) > max_bitmap_bits) {
+		do_error("Group descriptor #%llu has bit count %u but physical max of %u\n",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits),
+			 max_bitmap_bits);
 	}
 
 	max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) * le16_to_cpu(di->id2.i_chain.cl_bpc);

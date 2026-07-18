@@ -168,8 +168,8 @@ static int ina233_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina233_id[] = {
-	{"ina233", 0},
-	{}
+	{ .name = "ina233" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina233_id);
 

@@ -26,6 +26,7 @@ struct cs35l56_hda {
 	struct work_struct dsp_work;
 
 	int index;
+	int num_amps;
 	const char *system_name;
 	const char *amp_name;
 

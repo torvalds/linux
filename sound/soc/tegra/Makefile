@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # Tegra platform Support
 snd-soc-tegra-pcm-y := tegra_pcm.o
-snd-soc-tegra-utils-y += tegra_asoc_utils.o
 snd-soc-tegra20-ac97-y := tegra20_ac97.o
 snd-soc-tegra20-das-y := tegra20_das.o
 snd-soc-tegra20-i2s-y := tegra20_i2s.o

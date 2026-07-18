@@ -2031,11 +2031,11 @@ static int b44_set_pauseparam(struct net_device *dev,
 
 static void b44_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
-	switch(stringset) {
-	case ETH_SS_STATS:
-		memcpy(data, *b44_gstrings, sizeof(b44_gstrings));
-		break;
-	}
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (int i = 0; i < ARRAY_SIZE(b44_gstrings); i++)
+		ethtool_puts(&data, b44_gstrings[i]);
 }
 
 static int b44_get_sset_count(struct net_device *dev, int sset)

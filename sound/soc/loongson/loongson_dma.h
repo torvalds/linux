@@ -9,8 +9,8 @@
 #ifndef _LOONGSON_DMA_H
 #define _LOONGSON_DMA_H
 
-#include <sound/soc.h>
-
-extern const struct snd_soc_component_driver loongson_i2s_component;
+extern const struct snd_soc_component_driver loongson_i2s_idma_component;
+extern const struct snd_soc_component_driver loongson_i2s_edma_component;
+extern const struct snd_dmaengine_pcm_config loongson_dmaengine_pcm_config;
 
 #endif

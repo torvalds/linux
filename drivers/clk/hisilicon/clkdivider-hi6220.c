@@ -26,8 +26,8 @@
  * @shift:	shift to the divider bit field
  * @width:	width of the divider bit field
  * @mask:	mask for setting divider rate
- * @table:	the div table that the divider supports
  * @lock:	register lock
+ * @table:	the div table that the divider supports
  */
 struct hi6220_clk_divider {
 	struct clk_hw	hw;
@@ -35,8 +35,8 @@ struct hi6220_clk_divider {
 	u8		shift;
 	u8		width;
 	u32		mask;
-	const struct clk_div_table *table;
 	spinlock_t	*lock;
+	struct clk_div_table table[];
 };
 
 #define to_hi6220_clk_divider(_hw)	\
@@ -108,24 +108,19 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 	u32 max_div, min_div;
 	int i;
 
-	/* allocate the divider */
-	div = kzalloc_obj(*div);
-	if (!div)
-		return ERR_PTR(-ENOMEM);
-
 	/* Init the divider table */
 	max_div = div_mask(width) + 1;
 	min_div = 1;
 
-	table = kzalloc_objs(*table, max_div + 1);
-	if (!table) {
-		kfree(div);
+	/* allocate the divider */
+	div = kzalloc_flex(*div, table, max_div + 1);
+	if (!div)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	for (i = 0; i < max_div; i++) {
-		table[i].div = min_div + i;
-		table[i].val = table[i].div - 1;
+		table = &div->table[i];
+		table->div = min_div + i;
+		table->val = table->div - 1;
 	}
 
 	init.name = name;
@@ -141,14 +136,11 @@ struct clk *hi6220_register_clkdiv(struct device *dev, const char *name,
 	div->mask = mask_bit ? BIT(mask_bit) : 0;
 	div->lock = lock;
 	div->hw.init = &init;
-	div->table = table;
 
 	/* register the clock */
 	clk = clk_register(dev, &div->hw);
-	if (IS_ERR(clk)) {
-		kfree(table);
+	if (IS_ERR(clk))
 		kfree(div);
-	}
 
 	return clk;
 }

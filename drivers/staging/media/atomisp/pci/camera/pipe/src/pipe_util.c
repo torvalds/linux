@@ -26,9 +26,8 @@ void ia_css_pipe_util_create_output_frames(
 	unsigned int i;
 
 	assert(frames);
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		frames[i] = NULL;
-	}
 }
 
 void ia_css_pipe_util_set_output_frames(

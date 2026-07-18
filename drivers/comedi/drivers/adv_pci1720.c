@@ -167,8 +167,8 @@ static int adv_pci1720_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id adv_pci1720_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADVANTECH, 0x1720) },
-	{ 0 }
+	{ PCI_VDEVICE(ADVANTECH, 0x1720) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, adv_pci1720_pci_table);
 

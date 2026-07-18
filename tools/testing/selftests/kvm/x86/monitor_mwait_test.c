@@ -67,7 +67,7 @@ static void guest_monitor_wait(void *arg)
 
 int main(int argc, char *argv[])
 {
-	uint64_t disabled_quirks;
+	u64 disabled_quirks;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;

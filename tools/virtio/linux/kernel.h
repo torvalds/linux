@@ -65,6 +65,12 @@ static inline void *kmalloc_array(unsigned n, size_t s, gfp_t gfp)
 	return kmalloc(n * s, gfp);
 }
 
+#define kmalloc_obj(VAR_OR_TYPE, ...) \
+	((typeof(VAR_OR_TYPE) *)kmalloc(sizeof(typeof(VAR_OR_TYPE)), 0))
+
+#define kmalloc_objs(VAR_OR_TYPE, COUNT, ...) \
+	((typeof(VAR_OR_TYPE) *)kmalloc(sizeof(typeof(VAR_OR_TYPE)) * (COUNT), 0))
+
 static inline void *kzalloc(size_t s, gfp_t gfp)
 {
 	void *p = kmalloc(s, gfp);

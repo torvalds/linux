@@ -11,7 +11,6 @@
 
 #include <linux/clk-provider.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 

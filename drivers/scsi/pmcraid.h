@@ -657,7 +657,7 @@ struct pmcraid_hostrcb {
  */
 struct pmcraid_instance {
 	/* Array of allowed-to-be-exposed resources, initialized from
-	 * Configutation Table, later updated with CCNs
+	 * Configuration Table, later updated with CCNs
 	 */
 	struct pmcraid_resource_entry *res_entries;
 

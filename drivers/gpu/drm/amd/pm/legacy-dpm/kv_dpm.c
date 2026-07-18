@@ -1233,14 +1233,14 @@ static void kv_update_requested_ps(struct amdgpu_device *adev,
 	adev->pm.dpm.requested_ps = &pi->requested_rps;
 }
 
-static void kv_dpm_enable_bapm(void *handle, bool enable)
+static void kv_dpm_enable_bapm(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct kv_power_info *pi = kv_get_pi(adev);
 	int ret;
 
 	if (pi->bapm_enable) {
-		ret = amdgpu_kv_smc_bapm_enable(adev, enable);
+		ret = amdgpu_kv_smc_bapm_enable(adev, adev->pm.ac_power);
 		if (ret)
 			drm_err(adev_to_drm(adev), "amdgpu_kv_smc_bapm_enable failed\n");
 	}
@@ -3341,7 +3341,7 @@ static const struct amd_pm_funcs kv_dpm_funcs = {
 	.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = &kv_dpm_force_performance_level,
 	.set_powergating_by_smu = kv_set_powergating_by_smu,
-	.enable_bapm = &kv_dpm_enable_bapm,
+	.notify_ac_dc = &kv_dpm_enable_bapm,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.check_state_equal = kv_check_state_equal,
 	.read_sensor = &kv_dpm_read_sensor,

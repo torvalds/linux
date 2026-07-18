@@ -580,14 +580,7 @@ static const struct bus_type rbd_bus_type = {
 	.bus_groups	= rbd_bus_groups,
 };
 
-static void rbd_root_dev_release(struct device *dev)
-{
-}
-
-static struct device rbd_root_dev = {
-	.init_name =    "rbd",
-	.release =      rbd_root_dev_release,
-};
+static struct device *rbd_root_dev;
 
 static __printf(2, 3)
 void rbd_warn(struct rbd_device *rbd_dev, const char *fmt, ...)
@@ -3672,7 +3665,7 @@ static void __rbd_lock(struct rbd_device *rbd_dev, const char *cookie)
 	struct rbd_client_id cid = rbd_get_cid(rbd_dev);
 
 	rbd_dev->lock_state = RBD_LOCK_STATE_LOCKED;
-	strcpy(rbd_dev->lock_cookie, cookie);
+	strscpy(rbd_dev->lock_cookie, cookie);
 	rbd_set_owner_cid(rbd_dev, &cid);
 	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
 }
@@ -4565,24 +4558,12 @@ out:
 	return ret;
 }
 
-static void cancel_tasks_sync(struct rbd_device *rbd_dev)
-{
-	dout("%s rbd_dev %p\n", __func__, rbd_dev);
-
-	cancel_work_sync(&rbd_dev->acquired_lock_work);
-	cancel_work_sync(&rbd_dev->released_lock_work);
-	cancel_delayed_work_sync(&rbd_dev->lock_dwork);
-	cancel_work_sync(&rbd_dev->unlock_work);
-}
-
 /*
  * header_rwsem must not be held to avoid a deadlock with
  * rbd_dev_refresh() when flushing notifies.
  */
 static void rbd_unregister_watch(struct rbd_device *rbd_dev)
 {
-	cancel_tasks_sync(rbd_dev);
-
 	mutex_lock(&rbd_dev->watch_mutex);
 	if (rbd_dev->watch_state == RBD_WATCH_STATE_REGISTERED)
 		__rbd_unregister_watch(rbd_dev);
@@ -5390,7 +5371,7 @@ static struct rbd_device *__rbd_dev_create(struct rbd_spec *spec)
 
 	rbd_dev->dev.bus = &rbd_bus_type;
 	rbd_dev->dev.type = &rbd_device_type;
-	rbd_dev->dev.parent = &rbd_root_dev;
+	rbd_dev->dev.parent = rbd_root_dev;
 	device_initialize(&rbd_dev->dev);
 
 	return rbd_dev;
@@ -6094,12 +6075,9 @@ static int rbd_dev_v2_snap_context(struct rbd_device *rbd_dev,
 
 	/*
 	 * Make sure the reported number of snapshot ids wouldn't go
-	 * beyond the end of our buffer.  But before checking that,
-	 * make sure the computed size of the snapshot context we
-	 * allocate is representable in a size_t.
+	 * beyond the end of our buffer.
 	 */
-	if (snap_count > (SIZE_MAX - sizeof (struct ceph_snap_context))
-				 / sizeof (u64)) {
+	if (snap_count > RBD_MAX_SNAP_COUNT) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -6548,10 +6526,18 @@ out_err:
 
 static void rbd_dev_image_unlock(struct rbd_device *rbd_dev)
 {
+	dout("%s rbd_dev %p\n", __func__, rbd_dev);
+
+	disable_delayed_work_sync(&rbd_dev->lock_dwork);
+	disable_work_sync(&rbd_dev->unlock_work);
+
 	down_write(&rbd_dev->lock_rwsem);
 	if (__rbd_is_lock_owner(rbd_dev))
 		__rbd_release_lock(rbd_dev);
 	up_write(&rbd_dev->lock_rwsem);
+
+	flush_work(&rbd_dev->acquired_lock_work);
+	flush_work(&rbd_dev->released_lock_work);
 }
 
 /*
@@ -7331,15 +7317,13 @@ static int __init rbd_sysfs_init(void)
 {
 	int ret;
 
-	ret = device_register(&rbd_root_dev);
-	if (ret < 0) {
-		put_device(&rbd_root_dev);
-		return ret;
-	}
+	rbd_root_dev = root_device_register("rbd");
+	if (IS_ERR(rbd_root_dev))
+		return PTR_ERR(rbd_root_dev);
 
 	ret = bus_register(&rbd_bus_type);
 	if (ret < 0)
-		device_unregister(&rbd_root_dev);
+		root_device_unregister(rbd_root_dev);
 
 	return ret;
 }
@@ -7347,7 +7331,7 @@ static int __init rbd_sysfs_init(void)
 static void __exit rbd_sysfs_cleanup(void)
 {
 	bus_unregister(&rbd_bus_type);
-	device_unregister(&rbd_root_dev);
+	root_device_unregister(rbd_root_dev);
 }
 
 static int __init rbd_slab_init(void)

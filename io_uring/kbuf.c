@@ -21,7 +21,7 @@
 #define MAX_BIDS_PER_BGID (1 << 16)
 
 /* Mapped buffer ring, return io_uring_buf from head */
-#define io_ring_head_to_buf(br, head, mask)	&(br)->bufs[(head) & (mask)]
+#define io_ring_head_to_buf(br, head, mask)	(&(br)->bufs[(head) & (mask)])
 
 struct io_provide_buf {
 	struct file			*file;
@@ -47,7 +47,7 @@ static bool io_kbuf_inc_commit(struct io_buffer_list *bl, int len)
 		this_len = min_t(u32, len, buf_len);
 		buf_len -= this_len;
 		/* Stop looping for invalid buffer length of 0 */
-		if (buf_len || !this_len) {
+		if (buf_len > bl->min_left_sub_one || !this_len) {
 			WRITE_ONCE(buf->addr, READ_ONCE(buf->addr) + this_len);
 			WRITE_ONCE(buf->len, buf_len);
 			return false;
@@ -210,10 +210,14 @@ static struct io_br_sel io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	buf_len = READ_ONCE(buf->len);
 	if (*len == 0 || *len > buf_len)
 		*len = buf_len;
+	sel.addr = u64_to_user_ptr(READ_ONCE(buf->addr));
+	if (unlikely(!access_ok(sel.addr, *len))) {
+		sel.addr = NULL;
+		return sel;
+	}
 	req->flags |= REQ_F_BUFFER_RING | REQ_F_BUFFERS_COMMIT;
 	req->buf_index = READ_ONCE(buf->bid);
 	sel.buf_list = bl;
-	sel.addr = u64_to_user_ptr(READ_ONCE(buf->addr));
 
 	if (io_should_commit(req, issue_flags)) {
 		if (!io_kbuf_commit(req, sel.buf_list, *len, 1))
@@ -250,6 +254,7 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 				struct io_buffer_list *bl)
 {
 	struct io_uring_buf_ring *br = bl->buf_ring;
+	struct iovec *org_iovs = arg->iovs;
 	struct iovec *iov = arg->iovs;
 	int nr_iovs = arg->nr_iovs;
 	__u16 nr_avail, tail, head;
@@ -305,12 +310,16 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 				arg->partial_map = 1;
 				if (iov != arg->iovs)
 					break;
-				WRITE_ONCE(buf->len, len);
 			}
 		}
 
 		iov->iov_base = u64_to_user_ptr(READ_ONCE(buf->addr));
 		iov->iov_len = len;
+		if (unlikely(!access_ok(iov->iov_base, len))) {
+			if (arg->iovs != org_iovs)
+				kfree(arg->iovs);
+			return -EFAULT;
+		}
 		iov++;
 
 		arg->out_len += len;
@@ -541,11 +550,11 @@ static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 
 	for (i = 0; i < pbuf->nbufs; i++) {
 		/*
-		 * Nonsensical to have more than sizeof(bid) buffers in a
+		 * Nonsensical to have more than MAX_BIDS_PER_BGID buffers in a
 		 * buffer list, as the application then has no way of knowing
 		 * which duplicate bid refers to what buffer.
 		 */
-		if (bl->nbufs == USHRT_MAX) {
+		if (bl->nbufs == MAX_BIDS_PER_BGID) {
 			ret = -EOVERFLOW;
 			break;
 		}
@@ -637,6 +646,10 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (reg.ring_entries >= 65536)
 		return -EINVAL;
 
+	/* minimum left byte count is a property of incremental buffers */
+	if (!(reg.flags & IOU_PBUF_RING_INC) && reg.min_left)
+		return -EINVAL;
+
 	bl = io_buffer_get_list(ctx, reg.bgid);
 	if (bl) {
 		/* if mapped buffer ring OR classic exists, don't allow */
@@ -680,10 +693,11 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	}
 #endif
 
-	bl->nr_entries = reg.ring_entries;
 	bl->mask = reg.ring_entries - 1;
 	bl->flags |= IOBL_BUF_RING;
 	bl->buf_ring = br;
+	if (reg.min_left)
+		bl->min_left_sub_one = reg.min_left - 1;
 	if (reg.flags & IOU_PBUF_RING_INC)
 		bl->flags |= IOBL_INC;
 	ret = io_buffer_add_list(ctx, bl, reg.bgid);

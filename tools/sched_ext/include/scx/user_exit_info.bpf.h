@@ -32,6 +32,9 @@
 				  __uei_name##_dump_len, (__ei)->dump);		\
 	if (bpf_core_field_exists((__ei)->exit_code))				\
 		__uei_name.exit_code = (__ei)->exit_code;			\
+	__uei_name.exit_cpu = -1;						\
+	if (bpf_core_field_exists((__ei)->exit_cpu))				\
+		__uei_name.exit_cpu = (__ei)->exit_cpu;				\
 	/* use __sync to force memory barrier */				\
 	__sync_val_compare_and_swap(&__uei_name.kind, __uei_name.kind,		\
 				    (__ei)->kind);				\

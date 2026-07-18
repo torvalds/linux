@@ -46,13 +46,13 @@ module_param_array(rear_switch, bool, NULL, 0444);
 MODULE_PARM_DESC(rear_switch, "Enable shared rear/line-in switch");
 
 static const struct pci_device_id snd_ymfpci_ids[] = {
-	{ PCI_VDEVICE(YAMAHA, 0x0004), 0, },   /* YMF724 */
-	{ PCI_VDEVICE(YAMAHA, 0x000d), 0, },   /* YMF724F */
-	{ PCI_VDEVICE(YAMAHA, 0x000a), 0, },   /* YMF740 */
-	{ PCI_VDEVICE(YAMAHA, 0x000c), 0, },   /* YMF740C */
-	{ PCI_VDEVICE(YAMAHA, 0x0010), 0, },   /* YMF744 */
-	{ PCI_VDEVICE(YAMAHA, 0x0012), 0, },   /* YMF754 */
-	{ 0, }
+	{ PCI_VDEVICE(YAMAHA, 0x0004) },   /* YMF724 */
+	{ PCI_VDEVICE(YAMAHA, 0x000d) },   /* YMF724F */
+	{ PCI_VDEVICE(YAMAHA, 0x000a) },   /* YMF740 */
+	{ PCI_VDEVICE(YAMAHA, 0x000c) },   /* YMF740C */
+	{ PCI_VDEVICE(YAMAHA, 0x0010) },   /* YMF744 */
+	{ PCI_VDEVICE(YAMAHA, 0x0012) },   /* YMF754 */
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_ymfpci_ids);

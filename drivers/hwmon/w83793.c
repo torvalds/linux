@@ -291,7 +291,7 @@ static void w83793_update_nonvolatile(struct device *dev);
 static struct w83793_data *w83793_update_device(struct device *dev);
 
 static const struct i2c_device_id w83793_id[] = {
-	{ "w83793" },
+	{ .name = "w83793" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83793_id);
@@ -1917,6 +1917,7 @@ exit_remove:
 
 	for (i = 0; i < ARRAY_SIZE(w83793_vid); i++)
 		device_remove_file(dev, &w83793_vid[i].dev_attr);
+	device_remove_file(dev, &dev_attr_vrm);
 
 	for (i = 0; i < ARRAY_SIZE(w83793_left_fan); i++)
 		device_remove_file(dev, &w83793_left_fan[i].dev_attr);

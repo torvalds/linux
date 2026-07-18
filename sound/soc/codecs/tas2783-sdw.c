@@ -100,6 +100,8 @@ struct tas2783_prv {
 	wait_queue_head_t fw_wait;
 	bool fw_dl_task_done;
 	bool fw_dl_success;
+	/* use fallback fw name */
+	bool fw_use_fallback;
 };
 
 static const struct reg_default tas2783_reg_default[] = {
@@ -740,11 +742,19 @@ static void tas2783_fw_ready(const struct firmware *fmw, void *context)
 		goto out;
 	}
 
+	/* firmware binary not found*/
 	if (!fmw || !fmw->data) {
-		/* firmware binary not found*/
-		dev_err(tas_dev->dev,
-			"Failed to read fw binary %s\n",
-			tas_dev->rca_binaryname);
+		if (!tas_dev->fw_use_fallback) {
+			tas_dev->fw_use_fallback = true;
+			dev_info(tas_dev->dev,
+				"Failed to read preferred fw binary: %s, attempting fallback binary load\n",
+				tas_dev->rca_binaryname);
+		} else {
+			dev_err(tas_dev->dev,
+				"Failed to read fallback fw binary %s\n",
+				tas_dev->rca_binaryname);
+		}
+
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1011,7 +1021,6 @@ static s32 tas_component_probe(struct snd_soc_component *component)
 		snd_soc_component_get_drvdata(component);
 
 	tas_dev->component = component;
-	tas25xx_register_misc(tas_dev->sdw_peripheral);
 
 	return 0;
 }
@@ -1020,7 +1029,6 @@ static void tas_component_remove(struct snd_soc_component *codec)
 {
 	struct tas2783_prv *tas_dev =
 			snd_soc_component_get_drvdata(codec);
-	tas25xx_deregister_misc();
 	tas_dev->component = NULL;
 }
 
@@ -1082,22 +1090,14 @@ static s32 tas2783_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
-	unsigned long t;
+	int ret;
 
-	if (!slave->unattach_request)
-		goto regmap_sync;
-
-	t = wait_for_completion_timeout(&slave->initialization_complete,
-					msecs_to_jiffies(TAS2783_PROBE_TIMEOUT));
-	if (!t) {
-		dev_err(&slave->dev, "resume: initialization timed out\n");
+	ret = sdw_slave_wait_for_init(slave, TAS2783_PROBE_TIMEOUT);
+	if (ret) {
 		sdw_show_ping_status(slave->bus, true);
-		return -ETIMEDOUT;
+		return ret;
 	}
 
-	slave->unattach_request = 0;
-
-regmap_sync:
 	regcache_cache_only(tas_dev->regmap, false);
 	regcache_sync(tas_dev->regmap);
 	return 0;
@@ -1115,13 +1115,16 @@ static void tas_generate_fw_name(struct sdw_slave *slave, char *name, size_t siz
 	bool pci_found = false;
 #if IS_ENABLED(CONFIG_PCI)
 	struct device *dev = &slave->dev;
+	struct tas2783_prv *tas_dev = dev_get_drvdata(&slave->dev);
 	struct pci_dev *pci = NULL;
+	const char *fw_uid_prefix = tas_dev->fw_use_fallback ? "" : "0x";
 
 	for (; dev; dev = dev->parent) {
 		if (dev->bus == &pci_bus_type) {
 			pci = to_pci_dev(dev);
-			scnprintf(name, size, "%04X-%1X-%1X.bin",
-				  pci->subsystem_device, bus->link_id, unique_id);
+			scnprintf(name, size, "%04X-%1X-%s%1X.bin",
+				  pci->subsystem_device, bus->link_id,
+				  fw_uid_prefix, unique_id);
 			pci_found = true;
 			break;
 		}
@@ -1133,28 +1136,15 @@ static void tas_generate_fw_name(struct sdw_slave *slave, char *name, size_t siz
 			  bus->link_id, unique_id);
 }
 
-static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
+static s32 tas_fw_load(struct tas2783_prv *tas_dev, struct sdw_slave *slave)
 {
-	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
 	s32 ret;
 	u8 unique_id = tas_dev->sdw_peripheral->id.unique_id;
-
-	if (tas_dev->hw_init)
-		return 0;
-
-	tas_dev->fw_dl_task_done = false;
-	tas_dev->fw_dl_success = false;
-
-	ret = regmap_write(tas_dev->regmap, TAS2783_SW_RESET, 0x1);
-	if (ret) {
-		dev_err(dev, "sw reset failed, err=%d", ret);
-		return ret;
-	}
-	usleep_range(2000, 2200);
 
 	tas_generate_fw_name(slave, tas_dev->rca_binaryname,
 			     sizeof(tas_dev->rca_binaryname));
 
+	tas_dev->fw_dl_task_done = false;
 	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      tas_dev->rca_binaryname, tas_dev->dev,
 				      GFP_KERNEL, tas_dev, tas2783_fw_ready);
@@ -1169,8 +1159,35 @@ static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
 				 msecs_to_jiffies(TIMEOUT_FW_DL_MS));
 	if (!ret) {
 		dev_err(tas_dev->dev, "fw request, wait_event timeout\n");
-		ret = -EAGAIN;
-	} else {
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+static s32 tas_io_init(struct device *dev, struct sdw_slave *slave)
+{
+	struct tas2783_prv *tas_dev = dev_get_drvdata(dev);
+	s32 ret;
+
+	if (tas_dev->hw_init)
+		return 0;
+
+	tas_dev->fw_dl_success = false;
+
+	ret = regmap_write(tas_dev->regmap, TAS2783_SW_RESET, 0x1);
+	if (ret) {
+		dev_err(dev, "sw reset failed, err=%d", ret);
+		return ret;
+	}
+	usleep_range(2000, 2200);
+
+	tas_dev->fw_use_fallback = false;
+	ret = tas_fw_load(tas_dev, slave);
+	if (!ret && tas_dev->fw_use_fallback)
+		ret = tas_fw_load(tas_dev, slave);
+
+	if (!ret) {
 		if (tas_dev->sa_func_data)
 			ret = sdca_regmap_write_init(dev, tas_dev->regmap,
 						     tas_dev->sa_func_data);
@@ -1310,10 +1327,10 @@ static s32 tas_sdw_probe(struct sdw_slave *peripheral,
 			return dev_err_probe(dev, -ENOMEM,
 					     "failed to parse sdca functions");
 
+		function_data->desc = &peripheral->sdca_data.function[i];
+
 		/* Parse the function */
-		ret = sdca_parse_function(dev, peripheral,
-					  &peripheral->sdca_data.function[i],
-					  function_data);
+		ret = sdca_parse_function(dev, peripheral, function_data);
 		if (!ret)
 			tas_dev->sa_func_data = function_data;
 		else

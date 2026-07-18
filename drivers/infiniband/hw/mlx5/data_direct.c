@@ -88,7 +88,7 @@ int mlx5_data_direct_ib_reg(struct mlx5_ib_dev *ibdev, char *vuid)
 		return -ENOMEM;
 
 	reg->ibdev = ibdev;
-	strcpy(reg->vuid, vuid);
+	strscpy(reg->vuid, vuid);
 
 	mutex_lock(&mlx5_data_direct_mutex);
 	list_for_each_entry(dev, &mlx5_data_direct_dev_list, list) {

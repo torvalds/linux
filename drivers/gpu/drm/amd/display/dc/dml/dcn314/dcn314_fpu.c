@@ -185,7 +185,7 @@ void dcn314_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_p
 	struct _vcs_dpi_voltage_scaling_st *clock_limits =
 		dcn3_14_soc.clock_limits;
 	unsigned int i, closest_clk_lvl;
-	int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
+	unsigned int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
 	int j;
 
 	dc_assert_fp_enabled();
@@ -284,11 +284,11 @@ static bool is_dual_plane(enum surface_pixel_format format)
 static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_timing *timing)
 {
 	unsigned int num_lines = 0;
-	unsigned int lines_time_in_ns = 1000.0 *
-			(((float)timing->h_total * 1000.0) /
-			 ((float)timing->pix_clk_100hz / 10.0));
+	double lines_time_in_ns = 1000.0 *
+			(((double)timing->h_total * 1000.0) /
+			 ((double)timing->pix_clk_100hz / 10.0));
 
-	num_lines = dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+	num_lines = (unsigned int)dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
 
 	return num_lines;
 }
@@ -308,7 +308,8 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 					       display_e2e_pipe_params_st *pipes,
 					       enum dc_validate_mode validate_mode)
 {
-	int i, pipe_cnt;
+	int pipe_cnt;
+	unsigned int i;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe = 0;
 	bool upscaled = false;
@@ -409,15 +410,15 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 		context->bw_ctx.dml.ip.odm_combine_4to1_supported = true;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *cur_pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
+		if (!cur_pipe->stream)
 			continue;
 
-		if (pipe->stream->signal == SIGNAL_TYPE_EDP && dc->debug.seamless_boot_odm_combine &&
-				pipe->stream->apply_seamless_boot_optimization) {
+		if (cur_pipe->stream->signal == SIGNAL_TYPE_EDP && dc->debug.seamless_boot_odm_combine &&
+				cur_pipe->stream->apply_seamless_boot_optimization) {
 
-			if (pipe->stream->apply_boot_odm_mode == dm_odm_combine_policy_2to1) {
+			if (cur_pipe->stream->apply_boot_odm_mode == dm_odm_combine_policy_2to1) {
 				context->bw_ctx.dml.vba.ODMCombinePolicy = dm_odm_combine_policy_2to1;
 				break;
 			}

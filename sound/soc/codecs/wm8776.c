@@ -9,7 +9,6 @@
  * TODO: Input ALC/limiter support
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -513,8 +512,8 @@ static int wm8776_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8776_i2c_id[] = {
-	{ "wm8775", WM8775 },
-	{ "wm8776", WM8776 },
+	{ .name = "wm8775", .driver_data = WM8775 },
+	{ .name = "wm8776", .driver_data = WM8776 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8776_i2c_id);

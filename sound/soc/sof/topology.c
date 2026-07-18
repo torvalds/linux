@@ -23,6 +23,13 @@ static bool disable_function_topology;
 module_param(disable_function_topology, bool, 0444);
 MODULE_PARM_DESC(disable_function_topology, "Disable function topology loading");
 
+#define MAX_FEATURE_TPLG_COUNT 16
+
+static char *feature_topologies[MAX_FEATURE_TPLG_COUNT];
+static int feature_tplg_cnt;
+module_param_array(feature_topologies, charp, &feature_tplg_cnt, 0444);
+MODULE_PARM_DESC(feature_topologies, "Topology list for virtual loop DAI link");
+
 #define COMP_ID_UNASSIGNED		0xffffffff
 /*
  * Constants used in the computation of linear volume gain
@@ -733,10 +740,13 @@ static int sof_parse_token_sets(struct snd_soc_component *scomp,
 	int ret;
 
 	while (array_size > 0 && total < count * token_instance_num) {
+		if (array_size < (int)sizeof(*array))
+			return -EINVAL;
+
 		asize = le32_to_cpu(array->size);
 
 		/* validate asize */
-		if (asize < sizeof(*array)) {
+		if (asize < (int)sizeof(*array)) {
 			dev_err(scomp->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
@@ -1567,8 +1577,15 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 		int core = sof_get_token_value(SOF_TKN_COMP_CORE_ID, swidget->tuples,
 					       swidget->num_tuples);
 
-		if (core >= 0)
+		if (core >= 0) {
+			if (core > sdev->num_cores - 1) {
+				dev_info(scomp->dev,
+					 "out of range core id for %s, moving it %d -> %d\n",
+					 swidget->widget->name, core, SOF_DSP_PRIMARY_CORE);
+				core = SOF_DSP_PRIMARY_CORE;
+			}
 			swidget->core = core;
+		}
 	}
 
 	/* bind widget to external event */
@@ -2534,6 +2551,8 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 		if (strstr(file, "dummy")) {
 			dev_err(scomp->dev,
 				"Function topology is required, please upgrade sof-firmware\n");
+
+			kfree(tplg_files);
 			return -EINVAL;
 		}
 		tplg_files[0] = file;
@@ -2571,6 +2590,54 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 		if (ret < 0) {
 			dev_err(scomp->dev, "tplg %s component load failed %d\n",
 				tplg_files[i], ret);
+			goto out;
+		}
+	}
+
+	/* Loading user defined topologies */
+	for (i = 0; i < feature_tplg_cnt; i++) {
+		const char *feature_topology = devm_kasprintf(scomp->dev, GFP_KERNEL, "%s/%s",
+							   tplg_filename_prefix,
+							   feature_topologies[i]);
+
+		if (!feature_topology) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		dev_info(scomp->dev, "loading feature topology %d: %s\n", i, feature_topology);
+		ret = request_firmware(&fw, feature_topology, scomp->dev);
+		if (ret < 0) {
+			/*
+			 * snd_soc_tplg_component_remove(scomp) will be called
+			 * if snd_soc_tplg_component_load(scomp) failed and all
+			 * objects in the scomp will be removed. No need to call
+			 * snd_soc_tplg_component_remove(scomp) here.
+			 */
+			dev_warn(scomp->dev, "feature tplg request firmware %s failed err: %d\n",
+				 feature_topologies[i], ret);
+			/*
+			 * We don't return error here because we can still have the basic
+			 * audio feature when the function topology load complete. No need
+			 * to convert the error code because we will get new 'ret' out of the
+			 * loop.
+			 */
+			continue;
+		}
+
+		if (sdev->dspless_mode_selected)
+			ret = snd_soc_tplg_component_load(scomp, &sof_dspless_tplg_ops, fw);
+		else
+			ret = snd_soc_tplg_component_load(scomp, &sof_tplg_ops, fw);
+
+		release_firmware(fw);
+
+		if (ret < 0) {
+			dev_err(scomp->dev, "feature tplg %s component load failed %d\n",
+				feature_topologies[i], ret);
+			/*
+			 * We need to return error here because it may lead to kernel NULL pointer
+			 * dereference if we continue the remaining tasks.
+			 */
 			goto out;
 		}
 	}

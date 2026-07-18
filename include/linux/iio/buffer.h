@@ -34,8 +34,16 @@ static inline int iio_push_to_buffers_with_timestamp(struct iio_dev *indio_dev,
 	void *data, int64_t timestamp)
 {
 	if (ACCESS_PRIVATE(indio_dev, scan_timestamp)) {
-		size_t ts_offset = indio_dev->scan_bytes / sizeof(int64_t) - 1;
-		((int64_t *)data)[ts_offset] = timestamp;
+		size_t ts_offset = ACCESS_PRIVATE(indio_dev, scan_timestamp_offset);
+
+		/*
+		 * The size of indio_dev->scan_bytes is always aligned to the
+		 * largest scan element's alignment (see iio_compute_scan_bytes()).
+		 * So there may be padding after the timestamp. ts_offset contains
+		 * the offset in bytes that was already computed for correctly
+		 * aligning the timestamp.
+		 */
+		*(int64_t *)(data + ts_offset) = timestamp;
 	}
 
 	return iio_push_to_buffers(indio_dev, data);
@@ -71,7 +79,7 @@ static inline int iio_push_to_buffers_with_ts(struct iio_dev *indio_dev,
 
 int iio_push_to_buffers_with_ts_unaligned(struct iio_dev *indio_dev,
 					  const void *data, size_t data_sz,
-					  int64_t timestamp);
+					  s64 timestamp);
 
 bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 				   const unsigned long *mask);

@@ -10,7 +10,6 @@
 
 struct ethnl_req_info;
 
-u32 ethnl_bcast_seq_next(void);
 int ethnl_parse_header_dev_get(struct ethnl_req_info *req_info,
 			       const struct nlattr *nest, struct net *net,
 			       struct netlink_ext_ack *extack,
@@ -276,14 +275,15 @@ static inline void ethnl_parse_header_dev_put(struct ethnl_req_info *req_info)
 
 /**
  * ethnl_req_get_phydev() - Gets the phy_device targeted by this request,
- *			    if any. Must be called under rntl_lock().
+ *			    if any.
  * @req_info:	The ethnl request to get the phy from.
  * @tb:		The netlink attributes array, for error reporting.
  * @header:	The netlink header index, used for error reporting.
  * @extack:	The netlink extended ACK, for error reporting.
  *
- * The caller must hold RTNL, until it's done interacting with the returned
- * phy_device.
+ * If a phy_device is returned the caller must hold rtnl_lock when calling
+ * this function, and until it's done interacting with the returned phy_device.
+ * IOW caller must hold rtnl_lock unless they know netdev has no phy_device.
  *
  * Return: A phy_device pointer corresponding either to the passed phy_index
  *	   if one is provided. If not, the phy_device attached to the
@@ -318,12 +318,12 @@ enum ethnl_sock_type {
 };
 
 struct ethnl_sock_priv {
-	struct net_device *dev;
+	struct net *net;
 	u32 portid;
 	enum ethnl_sock_type type;
 };
 
-int ethnl_sock_priv_set(struct sk_buff *skb, struct net_device *dev, u32 portid,
+int ethnl_sock_priv_set(struct sk_buff *skb, struct net *net, u32 portid,
 			enum ethnl_sock_type type);
 
 /**
@@ -333,7 +333,9 @@ int ethnl_sock_priv_set(struct sk_buff *skb, struct net_device *dev, u32 portid,
  * @hdr_attr:         attribute type for request header
  * @req_info_size:    size of request info
  * @reply_data_size:  size of reply data
- * @allow_nodev_do:   allow non-dump request with no device identification
+ * @allow_nodev_do:
+ *	Allow non-dump request with no device identification.
+ *	Note that locks (rtnl_lock etc.) are only taken if device is set.
  * @set_ntf_cmd:      notification to generate on changes (SET)
  * @parse_request:
  *	Parse request except common header (struct ethnl_req_info). Common

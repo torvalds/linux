@@ -860,10 +860,10 @@ exit_regulators_disable:
 }
 
 static const struct i2c_device_id adau1701_i2c_id[] = {
-	{ "adau1401" },
-	{ "adau1401a" },
-	{ "adau1701" },
-	{ "adau1702" },
+	{ .name = "adau1401" },
+	{ .name = "adau1401a" },
+	{ .name = "adau1701" },
+	{ .name = "adau1702" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adau1701_i2c_id);

@@ -214,7 +214,7 @@ void xe_sched_job_set_error(struct xe_sched_job *job, int error)
 
 	trace_xe_sched_job_set_error(job);
 
-	dma_fence_enable_sw_signaling(job->fence);
+	dma_fence_enable_signaling(job->fence);
 	xe_hw_fence_irq_run(job->q->fence_irq);
 }
 

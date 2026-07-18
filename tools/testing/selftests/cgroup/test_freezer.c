@@ -642,7 +642,7 @@ cleanup:
  */
 static int proc_check_stopped(int pid)
 {
-	char buf[PAGE_SIZE];
+	char buf[BUF_SIZE];
 	int len;
 
 	len = proc_read_text(pid, 0, "stat", buf, sizeof(buf));
@@ -1353,7 +1353,7 @@ static int test_cgfreezer_time_child(const char *root)
 	}
 
 	if (ctime <= ptime) {
-		debug("Expect ctime (%ld) <= ptime (%ld)\n", ctime, ptime);
+		debug("Expect ctime (%ld) > ptime (%ld)\n", ctime, ptime);
 		goto cleanup;
 	}
 

@@ -334,9 +334,6 @@ int xe_i2c_probe(struct xe_device *xe)
 	if (!xe->info.has_i2c)
 		return 0;
 
-	if (IS_SRIOV_VF(xe))
-		return 0;
-
 	xe_i2c_read_endpoint(xe_root_tile_mmio(xe), &ep);
 	if (ep.cookie != XE_I2C_EP_COOKIE_DEVICE)
 		return 0;

@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/test-bad-trailing-comment.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Test fixture with properties out of order behind trailing comments
+
+maintainers:
+  - Test User <test@example.com>
+
+properties:
+  compatible:
+    const: example,test-trailing-comment
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    foo@0 {  /* the device node */
+        reg = <0x0 0x4>;  /* registers */
+        compatible = "example,test-trailing-comment";  // misplaced
+    };

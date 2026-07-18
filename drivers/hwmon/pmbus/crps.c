@@ -10,8 +10,8 @@
 #include "pmbus.h"
 
 static const struct i2c_device_id crps_id[] = {
-	{ "intel_crps185" },
-	{}
+	{ .name = "intel_crps185" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, crps_id);
 

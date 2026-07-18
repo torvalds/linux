@@ -98,7 +98,7 @@
 				clock-output-names = "cpu", "ddr", "ahb";
 			};
 
-			wdt: wdt@18060008 {
+			wdt: watchdog@18060008 {
 				compatible = "qca,ar7130-wdt";
 				reg = <0x18060008 0x8>;
 

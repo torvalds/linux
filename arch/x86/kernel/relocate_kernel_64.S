@@ -136,6 +136,14 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	 * %r13 original CR4 when relocate_kernel() was invoked
 	 */
 
+	/*
+	 * Set return address to 0 if not preserving context. The purgatory
+	 * shipped in kexec-tools will unconditionally look for the return
+	 * address on the stack and set a kexec_jump_back_entry= command
+	 * line option if it's non-zero. There's no other way that it can
+	 * tell a preserve-context (kjump) kexec from a normal one.
+	 */
+	pushq	$0
 	/* store the start address on the stack */
 	pushq   %rdx
 

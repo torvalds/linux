@@ -23,7 +23,7 @@ struct pv_muxing_priv {
 };
 
 static bool check_fifo_conflict(struct kunit *test,
-				const struct drm_atomic_state *state)
+				const struct drm_atomic_commit *state)
 {
 	struct vc4_hvs_state *hvs_state;
 	unsigned int used_fifos = 0;
@@ -119,7 +119,7 @@ static bool check_vc5_encoder_constraints(enum vc4_encoder_type type, unsigned i
 
 static struct vc4_crtc_state *
 get_vc4_crtc_state_for_encoder(struct kunit *test,
-			       const struct drm_atomic_state *state,
+			       const struct drm_atomic_commit *state,
 			       enum vc4_encoder_type type)
 {
 	struct drm_device *drm = state->dev;
@@ -141,7 +141,7 @@ get_vc4_crtc_state_for_encoder(struct kunit *test,
 }
 
 static bool check_channel_for_encoder(struct kunit *test,
-				      const struct drm_atomic_state *state,
+				      const struct drm_atomic_commit *state,
 				      enum vc4_encoder_type type,
 				      bool (*check_fn)(enum vc4_encoder_type type, unsigned int channel))
 {
@@ -677,7 +677,7 @@ static void drm_vc4_test_pv_muxing(struct kunit *test)
 	const struct pv_muxing_param *params = test->param_value;
 	const struct pv_muxing_priv *priv = test->priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
 	unsigned int i;
@@ -696,7 +696,7 @@ retry:
 
 		ret = vc4_mock_atomic_add_output(test, state, enc_type);
 		if (ret == -EDEADLK) {
-			drm_atomic_state_clear(state);
+			drm_atomic_commit_clear(state);
 			ret = drm_modeset_backoff(&ctx);
 			if (!ret)
 				goto retry;
@@ -706,7 +706,7 @@ retry:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
@@ -732,7 +732,7 @@ static void drm_vc4_test_pv_muxing_invalid(struct kunit *test)
 	const struct pv_muxing_param *params = test->param_value;
 	const struct pv_muxing_priv *priv = test->priv;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
 	unsigned int i;
@@ -752,7 +752,7 @@ retry:
 
 		ret = vc4_mock_atomic_add_output(test, state, enc_type);
 		if (ret == -EDEADLK) {
-			drm_atomic_state_clear(state);
+			drm_atomic_commit_clear(state);
 			ret = drm_modeset_backoff(&ctx);
 			if (!ret)
 				goto retry;
@@ -762,7 +762,7 @@ retry:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
@@ -826,7 +826,7 @@ static struct kunit_suite vc5_pv_muxing_test_suite = {
 static void drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable(struct kunit *test)
 {
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct vc4_crtc_state *new_vc4_crtc_state;
 	struct vc4_hvs_state *new_hvs_state;
 	unsigned int hdmi0_channel;
@@ -847,7 +847,7 @@ retry_first:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -856,7 +856,7 @@ retry_first:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -883,7 +883,7 @@ retry_second:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI1);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;
@@ -892,7 +892,7 @@ retry_second:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;
@@ -926,7 +926,7 @@ retry_second:
 static void drm_test_vc5_pv_muxing_bugs_stable_fifo(struct kunit *test)
 {
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct vc4_crtc_state *new_vc4_crtc_state;
 	struct vc4_hvs_state *new_hvs_state;
 	unsigned int old_hdmi0_channel;
@@ -947,7 +947,7 @@ retry_first:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -956,7 +956,7 @@ retry_first:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI1);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -965,7 +965,7 @@ retry_first:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -1000,7 +1000,7 @@ retry_second:
 
 	ret = vc4_mock_atomic_del_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;
@@ -1009,7 +1009,7 @@ retry_second:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;
@@ -1055,7 +1055,7 @@ static void
 drm_test_vc5_pv_muxing_bugs_subsequent_crtc_enable_too_many_crtc_state(struct kunit *test)
 {
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct vc4_crtc_state *new_vc4_crtc_state;
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
@@ -1073,7 +1073,7 @@ retry_first:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI0);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -1082,7 +1082,7 @@ retry_first:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_first;
@@ -1097,7 +1097,7 @@ retry_second:
 
 	ret = vc4_mock_atomic_add_output(test, state, VC4_ENCODER_TYPE_HDMI1);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;
@@ -1106,7 +1106,7 @@ retry_second:
 
 	ret = drm_atomic_check_only(state);
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry_second;

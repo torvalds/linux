@@ -70,7 +70,7 @@ static inline void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool en
 #endif
 
 int dpu_assign_plane_resources(struct dpu_global_state *global_state,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       struct drm_crtc *crtc,
 			       struct drm_plane_state **states,
 			       unsigned int num_planes);

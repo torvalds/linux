@@ -49,6 +49,7 @@
 
 #include <asm/fred.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/processor.h>
 #include <asm/traps.h>
 #include <asm/tlbflush.h>
@@ -66,8 +67,6 @@ static DEFINE_MUTEX(mce_sysfs_mutex);
 #include <trace/events/mce.h>
 
 #define SPINUNIT		100	/* 100ns */
-
-DEFINE_PER_CPU(unsigned, mce_exception_count);
 
 DEFINE_PER_CPU_READ_MOSTLY(unsigned int, mce_num_banks);
 
@@ -90,7 +89,6 @@ struct mca_config mca_cfg __read_mostly = {
 };
 
 static DEFINE_PER_CPU(struct mce_hw_err, hw_errs_seen);
-static unsigned long mce_need_notify;
 
 /*
  * MCA banks polled by the period polling timer for corrected events.
@@ -152,8 +150,10 @@ EXPORT_PER_CPU_SYMBOL_GPL(injectm);
 
 void mce_log(struct mce_hw_err *err)
 {
-	if (mce_gen_pool_add(err))
+	if (mce_gen_pool_add(err)) {
+		pr_info(HW_ERR "Machine check events logged\n");
 		irq_work_queue(&mce_irq_work);
+	}
 }
 EXPORT_SYMBOL_GPL(mce_log);
 
@@ -585,28 +585,6 @@ bool mce_is_correctable(struct mce *m)
 }
 EXPORT_SYMBOL_GPL(mce_is_correctable);
 
-/*
- * Notify the user(s) about new machine check events.
- * Can be called from interrupt context, but not from machine check/NMI
- * context.
- */
-static bool mce_notify_irq(void)
-{
-	/* Not more than two messages every minute */
-	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
-
-	if (test_and_clear_bit(0, &mce_need_notify)) {
-		mce_work_trigger();
-
-		if (__ratelimit(&ratelimit))
-			pr_info(HW_ERR "Machine check events logged\n");
-
-		return true;
-	}
-
-	return false;
-}
-
 static int mce_early_notifier(struct notifier_block *nb, unsigned long val,
 			      void *data)
 {
@@ -618,9 +596,7 @@ static int mce_early_notifier(struct notifier_block *nb, unsigned long val,
 	/* Emit the trace record: */
 	trace_mce_record(err);
 
-	set_bit(0, &mce_need_notify);
-
-	mce_notify_irq();
+	mce_work_trigger();
 
 	return NOTIFY_DONE;
 }
@@ -715,8 +691,6 @@ static noinstr void mce_read_aux(struct mce_hw_err *err, int i)
 		}
 	}
 }
-
-DEFINE_PER_CPU(unsigned, mce_poll_count);
 
 /*
  * We have three scenarios for checking for Deferred errors:
@@ -820,7 +794,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	struct mce *m;
 	int i;
 
-	this_cpu_inc(mce_poll_count);
+	inc_irq_stat(MCE_POLL);
 
 	mce_gather_info(&err, NULL);
 	m = &err.m;
@@ -1595,7 +1569,7 @@ noinstr void do_machine_check(struct pt_regs *regs)
 	 */
 	lmce = 1;
 
-	this_cpu_inc(mce_exception_count);
+	inc_irq_stat(MCE_EXCEPTION);
 
 	mce_gather_info(&err, regs);
 	m = &err.m;
@@ -1804,7 +1778,7 @@ static void mce_timer_fn(struct timer_list *t)
 	 * Alert userspace if needed. If we logged an MCE, reduce the polling
 	 * interval, otherwise increase the polling interval.
 	 */
-	if (mce_notify_irq())
+	if (!mce_gen_pool_empty())
 		iv = max(iv / 2, (unsigned long) HZ/100);
 	else
 		iv = min(iv * 2, round_jiffies_relative(check_interval * HZ));

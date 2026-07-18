@@ -145,6 +145,7 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 	fs_info->csum_size = 4;
 	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) /
 		fs_info->csum_size;
+	fs_info->use_bitmap = btrfs_use_bitmap;
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
 	test_mnt->mnt_sb->s_fs_info = fs_info;

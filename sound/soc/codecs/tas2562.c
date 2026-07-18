@@ -711,9 +711,9 @@ static int tas2562_parse_dt(struct tas2562_data *tas2562)
 }
 
 static const struct i2c_device_id tas2562_id[] = {
-	{ "tas2562", TAS2562 },
-	{ "tas2564", TAS2564 },
-	{ "tas2110", TAS2110 },
+	{ .name = "tas2562", .driver_data = TAS2562 },
+	{ .name = "tas2564", .driver_data = TAS2564 },
+	{ .name = "tas2110", .driver_data = TAS2110 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas2562_id);

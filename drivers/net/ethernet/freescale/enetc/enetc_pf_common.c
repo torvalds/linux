@@ -7,13 +7,13 @@
 
 #include "enetc_pf_common.h"
 
-static void enetc_set_si_hw_addr(struct enetc_pf *pf, int si,
-				 const u8 *mac_addr)
+void enetc_set_si_hw_addr(struct enetc_pf *pf, int si, const u8 *mac_addr)
 {
 	struct enetc_hw *hw = &pf->si->hw;
 
 	pf->ops->set_si_primary_mac(hw, si, mac_addr);
 }
+EXPORT_SYMBOL_GPL(enetc_set_si_hw_addr);
 
 static void enetc_get_si_hw_addr(struct enetc_pf *pf, int si, u8 *mac_addr)
 {
@@ -434,6 +434,33 @@ int enetc_vlan_rx_del_vid(struct net_device *ndev, __be16 prot, u16 vid)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(enetc_vlan_rx_del_vid);
+
+int enetc_init_sriov_resources(struct enetc_pf *pf)
+{
+	struct device *dev = &pf->si->pdev->dev;
+
+	pf->total_vfs = pci_sriov_get_totalvfs(pf->si->pdev);
+	if (!pf->total_vfs)
+		return 0;
+
+	pf->rxmsg = devm_kcalloc(dev, pf->total_vfs,
+				 sizeof(struct enetc_msg_swbd),
+				 GFP_KERNEL);
+	if (!pf->rxmsg)
+		return -ENOMEM;
+
+	pf->vf_state = devm_kcalloc(dev, pf->total_vfs,
+				    sizeof(struct enetc_vf_state),
+				    GFP_KERNEL);
+	if (!pf->vf_state)
+		return -ENOMEM;
+
+	for (int i = 0; i < pf->total_vfs; i++)
+		mutex_init(&pf->vf_state[i].lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_init_sriov_resources);
 
 MODULE_DESCRIPTION("NXP ENETC PF common functionality driver");
 MODULE_LICENSE("Dual BSD/GPL");

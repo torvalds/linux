@@ -48,20 +48,20 @@
  * Incremented in the IPI handler. Provides evidence to the sender that the IPI
  * arrived at the destination
  */
-static volatile uint64_t ipis_rcvd;
+static volatile u64 ipis_rcvd;
 
 /* Data struct shared between host main thread and vCPUs */
 struct test_data_page {
-	uint32_t halter_apic_id;
-	volatile uint64_t hlt_count;
-	volatile uint64_t wake_count;
-	uint64_t ipis_sent;
-	uint64_t migrations_attempted;
-	uint64_t migrations_completed;
-	uint32_t icr;
-	uint32_t icr2;
-	uint32_t halter_tpr;
-	uint32_t halter_ppr;
+	u32 halter_apic_id;
+	volatile u64 hlt_count;
+	volatile u64 wake_count;
+	u64 ipis_sent;
+	u64 migrations_attempted;
+	u64 migrations_completed;
+	u32 icr;
+	u32 icr2;
+	u32 halter_tpr;
+	u32 halter_ppr;
 
 	/*
 	 *  Record local version register as a cross-check that APIC access
@@ -69,19 +69,19 @@ struct test_data_page {
 	 *  arch/x86/kvm/lapic.c). If test is failing, check that values match
 	 *  to determine whether APIC access exits are working.
 	 */
-	uint32_t halter_lvr;
+	u32 halter_lvr;
 };
 
 struct thread_params {
 	struct test_data_page *data;
 	struct kvm_vcpu *vcpu;
-	uint64_t *pipis_rcvd; /* host address of ipis_rcvd global */
+	u64 *pipis_rcvd; /* host address of ipis_rcvd global */
 };
 
 void verify_apic_base_addr(void)
 {
-	uint64_t msr = rdmsr(MSR_IA32_APICBASE);
-	uint64_t base = GET_APIC_BASE(msr);
+	u64 msr = rdmsr(MSR_IA32_APICBASE);
+	u64 base = GET_APIC_BASE(msr);
 
 	GUEST_ASSERT(base == APIC_DEFAULT_GPA);
 }
@@ -125,12 +125,12 @@ static void guest_ipi_handler(struct ex_regs *regs)
 
 static void sender_guest_code(struct test_data_page *data)
 {
-	uint64_t last_wake_count;
-	uint64_t last_hlt_count;
-	uint64_t last_ipis_rcvd_count;
-	uint32_t icr_val;
-	uint32_t icr2_val;
-	uint64_t tsc_start;
+	u64 last_wake_count;
+	u64 last_hlt_count;
+	u64 last_ipis_rcvd_count;
+	u32 icr_val;
+	u32 icr2_val;
+	u64 tsc_start;
 
 	verify_apic_base_addr();
 	xapic_enable();
@@ -248,7 +248,7 @@ static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 }
 
 void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
-		   uint64_t *pipis_rcvd)
+		   u64 *pipis_rcvd)
 {
 	long pages_not_moved;
 	unsigned long nodemask = 0;
@@ -259,9 +259,9 @@ void do_migrations(struct test_data_page *data, int run_secs, int delay_usecs,
 	int i;
 	int from, to;
 	unsigned long bit;
-	uint64_t hlt_count;
-	uint64_t wake_count;
-	uint64_t ipis_sent;
+	u64 hlt_count;
+	u64 wake_count;
+	u64 ipis_sent;
 
 	fprintf(stderr, "Calling migrate_pages every %d microseconds\n",
 		delay_usecs);
@@ -393,12 +393,12 @@ int main(int argc, char *argv[])
 	int run_secs = 0;
 	int delay_usecs = 0;
 	struct test_data_page *data;
-	vm_vaddr_t test_data_page_vaddr;
+	gva_t test_data_page_gva;
 	bool migrate = false;
 	pthread_t threads[2];
 	struct thread_params params[2];
 	struct kvm_vm *vm;
-	uint64_t *pipis_rcvd;
+	u64 *pipis_rcvd;
 
 	get_cmdline_args(argc, argv, &run_secs, &migrate, &delay_usecs);
 	if (run_secs <= 0)
@@ -414,16 +414,16 @@ int main(int argc, char *argv[])
 
 	params[1].vcpu = vm_vcpu_add(vm, 1, sender_guest_code);
 
-	test_data_page_vaddr = vm_vaddr_alloc_page(vm);
-	data = addr_gva2hva(vm, test_data_page_vaddr);
+	test_data_page_gva = vm_alloc_page(vm);
+	data = addr_gva2hva(vm, test_data_page_gva);
 	memset(data, 0, sizeof(*data));
 	params[0].data = data;
 	params[1].data = data;
 
-	vcpu_args_set(params[0].vcpu, 1, test_data_page_vaddr);
-	vcpu_args_set(params[1].vcpu, 1, test_data_page_vaddr);
+	vcpu_args_set(params[0].vcpu, 1, test_data_page_gva);
+	vcpu_args_set(params[1].vcpu, 1, test_data_page_gva);
 
-	pipis_rcvd = (uint64_t *)addr_gva2hva(vm, (uint64_t)&ipis_rcvd);
+	pipis_rcvd = (u64 *)addr_gva2hva(vm, (u64)&ipis_rcvd);
 	params[0].pipis_rcvd = pipis_rcvd;
 	params[1].pipis_rcvd = pipis_rcvd;
 

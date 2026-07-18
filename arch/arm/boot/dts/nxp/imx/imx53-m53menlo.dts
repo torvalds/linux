@@ -84,6 +84,7 @@
 		pinctrl-0 = <&pinctrl_display_gpio>;
 		pinctrl-names = "default";
 		enable-gpios = <&gpio6 0 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3p2v>;
 
 		port {
 			panel_in: endpoint {
@@ -96,6 +97,13 @@
 		compatible = "gpio-beeper";
 		pinctrl-0 = <&pinctrl_beeper>;
 		gpios = <&gpio6 3 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_usbh1_vbus: regulator-usbh1-vbus {
@@ -240,7 +248,7 @@
 	status = "okay";
 
 	touchscreen@38 {
-		compatible = "edt,edt-ft5x06";
+		compatible = "edt,edt-ft5206";
 		reg = <0x38>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_edt_ft5x06>;
@@ -259,6 +267,7 @@
 	dac@60 {
 		compatible = "microchip,mcp4725";
 		reg = <0x60>;
+		vdd-supply = <&reg_3v3>;
 	};
 };
 

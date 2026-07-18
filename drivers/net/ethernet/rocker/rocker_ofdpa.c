@@ -1924,6 +1924,9 @@ static int ofdpa_port_fdb(struct ofdpa_port *ofdpa_port,
 		flags |= OFDPA_OP_FLAG_REFRESH;
 	}
 
+	if (found && removing)
+		kfree(found);
+
 	return ofdpa_port_fdb_learn(ofdpa_port, flags, addr, vlan_id);
 }
 

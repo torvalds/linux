@@ -449,7 +449,7 @@ int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
 }
 EXPORT_SYMBOL(drm_plane_create_zpos_immutable_property);
 
-static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
+static int drm_atomic_commit_zpos_cmp(const void *a, const void *b)
 {
 	const struct drm_plane_state *sa = *(struct drm_plane_state **)a;
 	const struct drm_plane_state *sb = *(struct drm_plane_state **)b;
@@ -463,7 +463,7 @@ static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
 static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 					  struct drm_crtc_state *crtc_state)
 {
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct drm_device *dev = crtc->dev;
 	int total_planes = dev->mode_config.num_total_plane;
 	struct drm_plane_state **states;
@@ -494,7 +494,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 			       plane->base.id, plane->name, plane_state->zpos);
 	}
 
-	sort(states, n, sizeof(*states), drm_atomic_state_zpos_cmp, NULL);
+	sort(states, n, sizeof(*states), drm_atomic_commit_zpos_cmp, NULL);
 
 	for (i = 0; i < n; i++) {
 		plane = states[i]->plane;
@@ -529,7 +529,7 @@ done:
  * Zero for success or -errno
  */
 int drm_atomic_normalize_zpos(struct drm_device *dev,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
@@ -563,10 +563,10 @@ EXPORT_SYMBOL(drm_atomic_normalize_zpos);
 /**
  * drm_plane_create_blend_mode_property - create a new blend mode property
  * @plane: drm plane
- * @supported_modes: bitmask of supported modes, must include
- *		     BIT(DRM_MODE_BLEND_PREMULTI). Current DRM assumption is
- *		     that alpha is premultiplied, and old userspace can break if
- *		     the property defaults to anything else.
+ * @supported_modes: bitmask of supported modes. When
+ *		     BIT(DRM_MODE_BLEND_PREMULTI) is included, it will be used
+ *		     as the default. Otherwise, the default will fallback to one
+ *		     of the supported modes.
  *
  * This creates a new property describing the blend mode.
  *
@@ -599,13 +599,14 @@ int drm_plane_create_blend_mode_property(struct drm_plane *plane,
 		{ DRM_MODE_BLEND_PREMULTI, "Pre-multiplied" },
 		{ DRM_MODE_BLEND_COVERAGE, "Coverage" },
 	};
+	unsigned int default_mode;
 	unsigned int valid_mode_mask = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 				       BIT(DRM_MODE_BLEND_PREMULTI)   |
 				       BIT(DRM_MODE_BLEND_COVERAGE);
 	int i;
 
 	if (WARN_ON((supported_modes & ~valid_mode_mask) ||
-		    ((supported_modes & BIT(DRM_MODE_BLEND_PREMULTI)) == 0)))
+		    (supported_modes == 0)))
 		return -EINVAL;
 
 	prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
@@ -630,7 +631,14 @@ int drm_plane_create_blend_mode_property(struct drm_plane *plane,
 		}
 	}
 
-	drm_object_attach_property(&plane->base, prop, DRM_MODE_BLEND_PREMULTI);
+	if (supported_modes & BIT(DRM_MODE_BLEND_PREMULTI))
+		default_mode = DRM_MODE_BLEND_PREMULTI;
+	else if (supported_modes & BIT(DRM_MODE_BLEND_COVERAGE))
+		default_mode = DRM_MODE_BLEND_COVERAGE;
+	else
+		default_mode = DRM_MODE_BLEND_PIXEL_NONE;
+
+	drm_object_attach_property(&plane->base, prop, default_mode);
 	plane->blend_mode_property = prop;
 
 	return 0;

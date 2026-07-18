@@ -380,31 +380,6 @@ static void check_listen_socket(void)
 	close(sk);
 }
 
-static const char *fips_fpath = "/proc/sys/crypto/fips_enabled";
-static bool is_fips_enabled(void)
-{
-	static int fips_checked = -1;
-	FILE *fenabled;
-	int enabled;
-
-	if (fips_checked >= 0)
-		return !!fips_checked;
-	if (access(fips_fpath, R_OK)) {
-		if (errno != ENOENT)
-			test_error("Can't open %s", fips_fpath);
-		fips_checked = 0;
-		return false;
-	}
-	fenabled = fopen(fips_fpath, "r");
-	if (!fenabled)
-		test_error("Can't open %s", fips_fpath);
-	if (fscanf(fenabled, "%d", &enabled) != 1)
-		test_error("Can't read from %s", fips_fpath);
-	fclose(fenabled);
-	fips_checked = !!enabled;
-	return !!fips_checked;
-}
-
 struct test_key {
 	char password[TCP_AO_MAXKEYLEN];
 	const char *alg;
@@ -430,14 +405,7 @@ struct key_collection {
 static struct key_collection collection;
 
 #define TEST_MAX_MACLEN		16
-const char *test_algos[] = {
-	"cmac(aes128)",
-	"hmac(sha1)", "hmac(sha512)", "hmac(sha384)", "hmac(sha256)",
-	"hmac(sha224)", "hmac(sha3-512)",
-	/* only if !CONFIG_FIPS */
-#define TEST_NON_FIPS_ALGOS	2
-	"hmac(rmd160)", "hmac(md5)"
-};
+const char *test_algos[] = { "cmac(aes128)", "hmac(sha1)", "hmac(sha256)" };
 const unsigned int test_maclens[] = { 1, 4, 12, 16 };
 #define MACLEN_SHIFT		2
 #define ALGOS_SHIFT		4
@@ -452,7 +420,7 @@ static unsigned int make_mask(unsigned int shift, unsigned int prev_shift)
 static void init_key_in_collection(unsigned int index, bool randomized)
 {
 	struct test_key *key = &collection.keys[index];
-	unsigned int algos_nr, algos_index;
+	unsigned int algos_index;
 
 	/* Same for randomized and non-randomized test flows */
 	key->client_keyid = index;
@@ -474,10 +442,7 @@ static void init_key_in_collection(unsigned int index, bool randomized)
 		key->maclen = test_maclens[index & make_mask(shift, 0)];
 		algos_index = index & make_mask(ALGOS_SHIFT, shift);
 	}
-	algos_nr = ARRAY_SIZE(test_algos);
-	if (is_fips_enabled())
-		algos_nr -= TEST_NON_FIPS_ALGOS;
-	key->alg = test_algos[algos_index % algos_nr];
+	key->alg = test_algos[algos_index % ARRAY_SIZE(test_algos)];
 }
 
 static int init_default_key_collection(unsigned int nr_keys, bool randomized)

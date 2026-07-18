@@ -66,8 +66,8 @@ static void hydra_block_output(struct net_device *dev, int count,
 static void hydra_remove_one(struct zorro_dev *z);
 
 static struct zorro_device_id hydra_zorro_tbl[] = {
-    { ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
-    { 0 }
+    { .id = ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
+    { }
 };
 MODULE_DEVICE_TABLE(zorro, hydra_zorro_tbl);
 

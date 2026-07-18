@@ -43,6 +43,8 @@
 #include "intel_dp_tunnel.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
+#include "intel_dram.h"
+#include "intel_encoder.h"
 #include "intel_fb.h"
 #include "intel_fbc.h"
 #include "intel_fbdev.h"
@@ -64,6 +66,8 @@
 #include "intel_vga.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
+
+static int __intel_display_driver_pm_suspend(struct intel_display *display, bool shutdown);
 
 bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 {
@@ -200,11 +204,23 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 {
 	int ret;
 
+	intel_opregion_setup(display);
+
+	/*
+	 * Fill the dram structure to get the system dram info. This will be
+	 * used for memory latency calculation.
+	 */
+	ret = intel_dram_detect(display);
+	if (ret)
+		goto cleanup_opregion;
+
+	intel_bw_init_hw(display);
+
 	if (HAS_DISPLAY(display)) {
 		ret = drm_vblank_init(display->drm,
 				      INTEL_NUM_PIPES(display));
 		if (ret)
-			return ret;
+			goto cleanup_opregion;
 	}
 
 	intel_bios_init(display);
@@ -212,13 +228,13 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	intel_psr_dc5_dc6_wa_init(display);
 
 	/* FIXME: completely on the wrong abstraction layer */
-	ret = intel_power_domains_init(display);
+	ret = intel_display_power_init(display);
 	if (ret < 0)
 		goto cleanup_bios;
 
 	intel_pmdemand_init_early(display);
 
-	intel_power_domains_init_hw(display, false);
+	intel_display_power_init_hw(display);
 
 	if (!HAS_DISPLAY(display))
 		return 0;
@@ -300,9 +316,11 @@ cleanup_wq_dp:
 	destroy_workqueue(display->hotplug.dp_wq);
 cleanup_pw_domain_dmc:
 	intel_dmc_fini(display);
-	intel_power_domains_driver_remove(display);
+	intel_display_power_driver_remove(display);
 cleanup_bios:
 	intel_bios_driver_remove(display);
+cleanup_opregion:
+	intel_opregion_cleanup(display);
 
 	return ret;
 }
@@ -604,6 +622,8 @@ void intel_display_driver_remove_noirq(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return;
 
+	intel_hpd_cancel_work(display);
+
 	intel_display_driver_suspend_access(display);
 
 	/*
@@ -641,9 +661,11 @@ void intel_display_driver_remove_nogem(struct intel_display *display)
 {
 	intel_dmc_fini(display);
 
-	intel_power_domains_driver_remove(display);
+	intel_display_power_driver_remove(display);
 
 	intel_bios_driver_remove(display);
+
+	intel_opregion_cleanup(display);
 }
 
 void intel_display_driver_unregister(struct intel_display *display)
@@ -674,37 +696,105 @@ void intel_display_driver_unregister(struct intel_display *display)
 	intel_vga_unregister(display);
 }
 
+void intel_display_driver_shutdown(struct intel_display *display)
+{
+	if (!HAS_DISPLAY(display))
+		return;
+
+	__intel_display_driver_pm_suspend(display, true);
+
+	intel_encoder_shutdown_all(display);
+}
+
+void intel_display_driver_shutdown_late(struct intel_display *display)
+{
+	if (!HAS_DISPLAY(display))
+		return;
+
+	/*
+	 * The only requirement is to reboot with display DC states disabled,
+	 * for now leaving all display power wells in the INIT power domain
+	 * enabled.
+	 */
+	intel_display_power_driver_remove(display);
+}
+
 /*
  * turn all crtc's off, but do not adjust state
  * This has to be paired with a call to intel_modeset_setup_hw_state.
  */
-int intel_display_driver_suspend(struct intel_display *display)
+static int __intel_display_driver_pm_suspend(struct intel_display *display, bool shutdown)
 {
-	struct drm_atomic_state *state;
-	int ret;
+	int ret = 0;
 
 	if (!HAS_DISPLAY(display))
 		return 0;
 
-	state = drm_atomic_helper_suspend(display->drm);
-	ret = PTR_ERR_OR_ZERO(state);
-	if (ret)
-		drm_err(display->drm, "Suspending crtc's failed with %i\n",
-			ret);
-	else
-		display->restore.modeset_state = state;
+	/*
+	 * We do a lot of poking in a lot of registers, make sure they work
+	 * properly.
+	 */
+	intel_display_power_disable(display);
+
+	drm_client_dev_suspend(display->drm);
+
+	drm_kms_helper_poll_disable(display->drm);
+	intel_display_driver_disable_user_access(display);
+
+	if (shutdown) {
+		drm_atomic_helper_shutdown(display->drm);
+	} else {
+		struct drm_atomic_commit *state;
+
+		state = drm_atomic_helper_suspend(display->drm);
+		ret = PTR_ERR_OR_ZERO(state);
+		if (ret)
+			drm_err(display->drm, "Suspending crtc's failed with %i\n",
+				ret);
+		else
+			display->restore.modeset_state = state;
+	}
 
 	/* ensure all DPT VMAs have been unpinned for intel_dpt_suspend() */
 	flush_workqueue(display->wq.cleanup);
 
 	intel_dp_mst_suspend(display);
 
+	intel_encoder_block_all_hpds(display);
+
+	intel_hpd_cancel_work(display);
+
+	intel_display_driver_suspend_access(display);
+
+	intel_encoder_suspend_all(display);
+
 	return ret;
+}
+
+int intel_display_driver_pm_suspend(struct intel_display *display)
+{
+	return __intel_display_driver_pm_suspend(display, false);
+}
+
+void intel_display_driver_pm_suspend_late(struct intel_display *display, bool s2idle)
+{
+	if (!HAS_DISPLAY(display))
+		return;
+
+	intel_display_power_suspend_late(display, s2idle);
+}
+
+void intel_display_driver_pm_resume_early(struct intel_display *display)
+{
+	if (!HAS_DISPLAY(display))
+		return;
+
+	intel_display_power_resume_early(display);
 }
 
 int
 __intel_display_driver_resume(struct intel_display *display,
-			      struct drm_atomic_state *state,
+			      struct drm_atomic_commit *state,
 			      struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc_state *crtc_state;
@@ -741,14 +831,20 @@ __intel_display_driver_resume(struct intel_display *display,
 	return ret;
 }
 
-void intel_display_driver_resume(struct intel_display *display)
+void intel_display_driver_pm_resume(struct intel_display *display)
 {
-	struct drm_atomic_state *state = display->restore.modeset_state;
+	struct drm_atomic_commit *state = display->restore.modeset_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
 	if (!HAS_DISPLAY(display))
 		return;
+
+	intel_display_driver_resume_access(display);
+
+	intel_hpd_init(display);
+
+	intel_encoder_unblock_all_hpds(display);
 
 	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(display);
@@ -778,5 +874,16 @@ void intel_display_driver_resume(struct intel_display *display)
 		drm_err(display->drm,
 			"Restoring old state failed with %i\n", ret);
 	if (state)
-		drm_atomic_state_put(state);
+		drm_atomic_commit_put(state);
+
+	intel_display_driver_enable_user_access(display);
+	drm_kms_helper_poll_enable(display->drm);
+
+	intel_hpd_poll_disable(display);
+
+	intel_opregion_resume(display);
+
+	drm_client_dev_resume(display->drm);
+
+	intel_display_power_enable(display);
 }

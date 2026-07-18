@@ -658,6 +658,8 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		if (!(hinfo->cfg.mode &
 		      (XT_HASHLIMIT_HASH_DPT | XT_HASHLIMIT_HASH_SPT)))
 			return 0;
+		if (ntohs(ip_hdr(skb)->frag_off) & IP_OFFSET)
+			return -1;
 		nexthdr = ip_hdr(skb)->protocol;
 		break;
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
@@ -681,7 +683,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 			return 0;
 		nexthdr = ipv6_hdr(skb)->nexthdr;
 		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr, &frag_off);
-		if ((int)protoff < 0)
+		if ((int)protoff < 0 || ntohs(frag_off) & IP6_OFFSET)
 			return -1;
 		break;
 	}

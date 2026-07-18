@@ -152,15 +152,15 @@ static void hgt_configure_stream(struct vsp1_entity *entity,
 		       (crop->width << VI6_HGT_SIZE_HSIZE_SHIFT) |
 		       (crop->height << VI6_HGT_SIZE_VSIZE_SHIFT));
 
-	mutex_lock(hgt->ctrls.lock);
-	for (i = 0; i < HGT_NUM_HUE_AREAS; ++i) {
-		lower = hgt->hue_areas[i*2 + 0];
-		upper = hgt->hue_areas[i*2 + 1];
-		vsp1_hgt_write(hgt, dlb, VI6_HGT_HUE_AREA(i),
-			       (lower << VI6_HGT_HUE_AREA_LOWER_SHIFT) |
-			       (upper << VI6_HGT_HUE_AREA_UPPER_SHIFT));
+	scoped_guard(mutex, hgt->ctrls.lock) {
+		for (i = 0; i < HGT_NUM_HUE_AREAS; ++i) {
+			lower = hgt->hue_areas[i*2 + 0];
+			upper = hgt->hue_areas[i*2 + 1];
+			vsp1_hgt_write(hgt, dlb, VI6_HGT_HUE_AREA(i),
+				       (lower << VI6_HGT_HUE_AREA_LOWER_SHIFT) |
+				       (upper << VI6_HGT_HUE_AREA_UPPER_SHIFT));
+		}
 	}
-	mutex_unlock(hgt->ctrls.lock);
 
 	hratio = crop->width * 2 / compose->width / 3;
 	vratio = crop->height * 2 / compose->height / 3;

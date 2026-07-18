@@ -37,6 +37,18 @@ extern "C" {
 
 LIBBPF_API int libbpf_set_memlock_rlim(size_t memlock_bytes);
 
+struct bpf_log_opts {
+	size_t sz; /* size of this struct for forward/backward compatibility */
+
+	char *buf;
+	__u32 size;
+	__u32 level;
+	__u32 true_size; /* out parameter set by kernel */
+
+	size_t :0;
+};
+#define bpf_log_opts__last_field true_size
+
 struct bpf_map_create_opts {
 	size_t sz; /* size of this struct for forward/backward compatibility */
 
@@ -57,9 +69,12 @@ struct bpf_map_create_opts {
 
 	const void *excl_prog_hash;
 	__u32 excl_prog_hash_size;
+
+	struct bpf_log_opts *log_opts;
+
 	size_t :0;
 };
-#define bpf_map_create_opts__last_field excl_prog_hash_size
+#define bpf_map_create_opts__last_field log_opts
 
 LIBBPF_API int bpf_map_create(enum bpf_map_type map_type,
 			      const char *map_name,
@@ -429,6 +444,7 @@ struct bpf_link_create_opts {
 			const unsigned long *ref_ctr_offsets;
 			const __u64 *cookies;
 			__u32 pid;
+			__u32 path_fd;
 		} uprobe_multi;
 		struct {
 			__u64 cookie;
@@ -454,10 +470,15 @@ struct bpf_link_create_opts {
 			__u32 relative_id;
 			__u64 expected_revision;
 		} cgroup;
+		struct {
+			const __u32 *ids;
+			const __u64 *cookies;
+			__u32 cnt;
+		} tracing_multi;
 	};
 	size_t :0;
 };
-#define bpf_link_create_opts__last_field uprobe_multi.pid
+#define bpf_link_create_opts__last_field uprobe_multi.path_fd
 
 LIBBPF_API int bpf_link_create(int prog_fd, int target_fd,
 			       enum bpf_attach_type attach_type,

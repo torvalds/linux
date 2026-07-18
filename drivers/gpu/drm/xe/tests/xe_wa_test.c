@@ -9,6 +9,8 @@
 #include <kunit/test.h>
 
 #include "xe_device.h"
+#include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_kunit_helpers.h"
 #include "xe_pci_test.h"
 #include "xe_reg_sr.h"
@@ -19,8 +21,10 @@ static int xe_wa_test_init(struct kunit *test)
 {
 	const struct xe_pci_fake_data *param = test->param_value;
 	struct xe_pci_fake_data data = *param;
-	struct xe_device *xe;
 	struct device *dev;
+	struct xe_device *xe;
+	struct xe_gt *gt;
+	int id;
 	int ret;
 
 	dev = drm_kunit_helper_alloc_device(test);
@@ -33,8 +37,11 @@ static int xe_wa_test_init(struct kunit *test)
 	ret = xe_pci_fake_device_init(xe);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	if (!param->graphics_verx100)
-		xe->info.step = param->step;
+	/* Needed for sanitize_mcr(). */
+	for_each_gt(gt, xe, id) {
+		xe_gt_mcr_init_early(gt);
+		xe_gt_mmio_init(gt);
+	}
 
 	/* TODO: init hw engines for engine/LRC WAs */
 	xe->drm.dev = dev;
@@ -55,7 +62,7 @@ static void xe_wa_gt(struct kunit *test)
 		xe_wa_process_gt(gt);
 		xe_tuning_process_gt(gt);
 
-		KUNIT_ASSERT_EQ(test, gt->reg_sr.errors, 0);
+		KUNIT_EXPECT_EQ(test, gt->reg_sr.errors, 0);
 	}
 }
 

@@ -98,7 +98,7 @@ static inline void check_tsc_msr_tsc_page(struct ms_hyperv_tsc_page *tsc_page)
 	GUEST_ASSERT(r2 >= t1 && r2 - t2 < 100000);
 }
 
-static void guest_main(struct ms_hyperv_tsc_page *tsc_page, vm_paddr_t tsc_page_gpa)
+static void guest_main(struct ms_hyperv_tsc_page *tsc_page, gpa_t tsc_page_gpa)
 {
 	u64 tsc_scale, tsc_offset;
 
@@ -208,7 +208,7 @@ int main(void)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	vm_vaddr_t tsc_page_gva;
+	gva_t tsc_page_gva;
 	int stage;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TIME));
@@ -218,7 +218,7 @@ int main(void)
 
 	vcpu_set_hv_cpuid(vcpu);
 
-	tsc_page_gva = vm_vaddr_alloc_page(vm);
+	tsc_page_gva = vm_alloc_page(vm);
 	memset(addr_gva2hva(vm, tsc_page_gva), 0x0, getpagesize());
 	TEST_ASSERT((addr_gva2gpa(vm, tsc_page_gva) & (getpagesize() - 1)) == 0,
 		"TSC page has to be page aligned");

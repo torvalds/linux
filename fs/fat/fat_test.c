@@ -20,6 +20,37 @@ static void fat_checksum_test(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, fat_checksum("ABCDEFGHA  "), (u8)98);
 }
 
+static void fat_clus_to_blknr_test(struct kunit *test)
+{
+	struct msdos_sb_info sbi = {
+		.sec_per_clus = 4,
+		.data_start = 100,
+	};
+
+	KUNIT_EXPECT_EQ(test, (sector_t)100,
+			fat_clus_to_blknr(&sbi, FAT_START_ENT));
+	KUNIT_EXPECT_EQ(test, (sector_t)112, fat_clus_to_blknr(&sbi, 5));
+}
+
+static void fat_get_blknr_offset_test(struct kunit *test)
+{
+	struct msdos_sb_info sbi = {
+		.dir_per_block = 16,
+		.dir_per_block_bits = 4,
+	};
+
+	sector_t blknr;
+	int offset;
+
+	fat_get_blknr_offset(&sbi, 0, &blknr, &offset);
+	KUNIT_EXPECT_EQ(test, (sector_t)0, blknr);
+	KUNIT_EXPECT_EQ(test, 0, offset);
+
+	fat_get_blknr_offset(&sbi, (10 << 4) | 7, &blknr, &offset);
+	KUNIT_EXPECT_EQ(test, (sector_t)10, blknr);
+	KUNIT_EXPECT_EQ(test, 7, offset);
+}
+
 struct fat_timestamp_testcase {
 	const char *name;
 	struct timespec64 ts;
@@ -341,6 +372,8 @@ static void fat_truncate_atime_test(struct kunit *test)
 
 static struct kunit_case fat_test_cases[] = {
 	KUNIT_CASE(fat_checksum_test),
+	KUNIT_CASE(fat_clus_to_blknr_test),
+	KUNIT_CASE(fat_get_blknr_offset_test),
 	KUNIT_CASE_PARAM(fat_time_fat2unix_test, fat_time_gen_params),
 	KUNIT_CASE_PARAM(fat_time_unix2fat_test, fat_time_gen_params),
 	KUNIT_CASE_PARAM(fat_time_unix2fat_clamp_test,

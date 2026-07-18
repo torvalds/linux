@@ -97,13 +97,44 @@ static void destroy_all_handles_in_queue(struct ib_device *device,
 	}
 }
 
+/*
+ * Bulk-move all handles from @src into @dst without allocating new pages.
+ * If @dst has a partial tail page, fill it handle-by-handle from @src first
+ * to preserve the invariant that only the tail page is partial, then splice
+ * the remaining @src pages onto @dst. On return @src is empty.
+ *
+ * Caller must hold the lock protecting both queues.
+ */
+static void splice_frmr_queue_locked(struct frmr_queue *dst,
+				     struct frmr_queue *src)
+{
+	u32 free_in_tail = dst->ci % NUM_HANDLES_PER_PAGE;
+	u32 handle;
+
+	if (free_in_tail) {
+		free_in_tail = NUM_HANDLES_PER_PAGE - free_in_tail;
+		while (free_in_tail && src->ci) {
+			handle = pop_handle_from_queue_locked(src);
+			push_handle_to_queue_locked(dst, handle);
+			free_in_tail--;
+		}
+	}
+
+	if (src->ci > 0) {
+		list_splice_tail_init(&src->pages_list, &dst->pages_list);
+		dst->num_pages += src->num_pages;
+		dst->ci += src->ci;
+		src->num_pages = 0;
+		src->ci = 0;
+	}
+}
+
 static bool age_pinned_pool(struct ib_device *device, struct ib_frmr_pool *pool)
 {
 	struct ib_frmr_pools *pools = device->frmr_pools;
 	u32 total, to_destroy, destroyed = 0;
 	bool has_work = false;
 	u32 *handles;
-	u32 handle;
 
 	spin_lock(&pool->lock);
 	total = pool->queue.ci + pool->inactive_queue.ci + pool->in_use;
@@ -112,7 +143,7 @@ static bool age_pinned_pool(struct ib_device *device, struct ib_frmr_pool *pool)
 		return false;
 	}
 
-	to_destroy = total - pool->pinned_handles;
+	to_destroy = min(total - pool->pinned_handles, pool->inactive_queue.ci);
 
 	handles = kcalloc(to_destroy, sizeof(*handles), GFP_ATOMIC);
 	if (!handles) {
@@ -121,15 +152,13 @@ static bool age_pinned_pool(struct ib_device *device, struct ib_frmr_pool *pool)
 	}
 
 	/* Destroy all excess handles in the inactive queue */
-	while (pool->inactive_queue.ci && destroyed < to_destroy) {
-		handles[destroyed++] = pop_handle_from_queue_locked(
+	for (; destroyed < to_destroy; destroyed++)
+		handles[destroyed] = pop_handle_from_queue_locked(
 			&pool->inactive_queue);
-	}
 
 	/* Move all handles from regular queue to inactive queue */
-	while (pool->queue.ci) {
-		handle = pop_handle_from_queue_locked(&pool->queue);
-		push_handle_to_queue_locked(&pool->inactive_queue, handle);
+	if (pool->queue.ci > 0) {
+		splice_frmr_queue_locked(&pool->inactive_queue, &pool->queue);
 		has_work = true;
 	}
 
@@ -158,13 +187,7 @@ static void pool_aging_work(struct work_struct *work)
 	/* Move all pages from regular queue to inactive queue */
 	spin_lock(&pool->lock);
 	if (pool->queue.ci > 0) {
-		list_splice_tail_init(&pool->queue.pages_list,
-				      &pool->inactive_queue.pages_list);
-		pool->inactive_queue.num_pages = pool->queue.num_pages;
-		pool->inactive_queue.ci = pool->queue.ci;
-
-		pool->queue.num_pages = 0;
-		pool->queue.ci = 0;
+		splice_frmr_queue_locked(&pool->inactive_queue, &pool->queue);
 		has_work = true;
 	}
 	spin_unlock(&pool->lock);
@@ -426,7 +449,7 @@ int ib_frmr_pools_set_pinned(struct ib_device *device, struct ib_frmr_key *key,
 	if (!handles)
 		return -ENOMEM;
 
-	ret = pools->pool_ops->create_frmrs(device, key, handles,
+	ret = pools->pool_ops->create_frmrs(device, &driver_key, handles,
 					    needed_handles);
 	if (ret) {
 		kfree(handles);
@@ -438,11 +461,16 @@ int ib_frmr_pools_set_pinned(struct ib_device *device, struct ib_frmr_key *key,
 		ret = push_handle_to_queue_locked(&pool->queue,
 						  handles[i]);
 		if (ret)
-			goto end;
+			break;
+	}
+	spin_unlock(&pool->lock);
+
+	if (ret) {
+		/* Destroy handles created but never pushed to the pool. */
+		pools->pool_ops->destroy_frmrs(device, &handles[i],
+				needed_handles - i);
 	}
 
-end:
-	spin_unlock(&pool->lock);
 	kfree(handles);
 
 schedule_aging:
@@ -501,7 +529,9 @@ int ib_frmr_pool_pop(struct ib_device *device, struct ib_mr *mr)
 	struct ib_frmr_pools *pools = device->frmr_pools;
 	struct ib_frmr_pool *pool;
 
-	WARN_ON_ONCE(!device->frmr_pools);
+	if (WARN_ON_ONCE(!pools))
+		return -EINVAL;
+
 	pool = ib_frmr_pool_find(pools, &mr->frmr.key);
 	if (!pool) {
 		pool = create_frmr_pool(device, &mr->frmr.key);
@@ -519,9 +549,8 @@ EXPORT_SYMBOL(ib_frmr_pool_pop);
  * @device: The device to push the FRMR handle to.
  * @mr: The MR containing the FRMR handle to push back to the pool.
  *
- * Returns 0 on success, negative error code on failure.
  */
-int ib_frmr_pool_push(struct ib_device *device, struct ib_mr *mr)
+void ib_frmr_pool_push(struct ib_device *device, struct ib_mr *mr)
 {
 	struct ib_frmr_pool *pool = mr->frmr.pool;
 	struct ib_frmr_pools *pools = device->frmr_pools;
@@ -529,19 +558,38 @@ int ib_frmr_pool_push(struct ib_device *device, struct ib_mr *mr)
 	int ret;
 
 	spin_lock(&pool->lock);
-	/* Schedule aging every time an empty pool becomes non-empty */
-	if (pool->queue.ci == 0)
-		schedule_aging = true;
+	pool->in_use--;
 	ret = push_handle_to_queue_locked(&pool->queue, mr->frmr.handle);
-	if (ret == 0)
-		pool->in_use--;
+
+	/* Schedule aging every time an empty pool becomes non-empty */
+	if (!ret && pool->queue.ci == 1)
+		schedule_aging = true;
 
 	spin_unlock(&pool->lock);
 
-	if (ret == 0 && schedule_aging)
+	if (ret) {
+		pools->pool_ops->destroy_frmrs(device, &mr->frmr.handle, 1);
+		return;
+	}
+
+	if (schedule_aging)
 		queue_delayed_work(pools->aging_wq, &pool->aging_work,
 			secs_to_jiffies(READ_ONCE(pools->aging_period_sec)));
 
-	return ret;
 }
 EXPORT_SYMBOL(ib_frmr_pool_push);
+
+/*
+ * Drop a handle previously popped from the pool without returning it for
+ * reuse. The caller is responsible for destroying the underlying hardware
+ * resource.
+ */
+void ib_frmr_pool_drop(struct ib_mr *mr)
+{
+	struct ib_frmr_pool *pool = mr->frmr.pool;
+
+	spin_lock(&pool->lock);
+	pool->in_use--;
+	spin_unlock(&pool->lock);
+}
+EXPORT_SYMBOL(ib_frmr_pool_drop);

@@ -176,7 +176,7 @@ static void dpp401_program_cursor_csc(
 	struct color_matrices_reg cur_matrix_regs;
 	unsigned int i;
 	const uint16_t *regval = NULL;
-	int arr_size = sizeof(dpp_input_csc_matrix) / sizeof(struct dpp_input_csc_matrix);
+	unsigned int arr_size = sizeof(dpp_input_csc_matrix) / sizeof(struct dpp_input_csc_matrix);
 
 	if (color_space < COLOR_SPACE_YCBCR601) {
 		REG_SET(CUR0_MATRIX_MODE, 0, CUR0_MATRIX_MODE, CUR_MATRIX_BYPASS);

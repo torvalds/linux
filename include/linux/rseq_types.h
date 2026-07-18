@@ -9,6 +9,12 @@
 #ifdef CONFIG_RSEQ
 struct rseq;
 
+/*
+ * rseq_event::has_rseq contains the ABI version number so preserving it
+ * in AND operations requires a mask.
+ */
+#define RSEQ_HAS_RSEQ_VERSION_MASK	0xff
+
 /**
  * struct rseq_event - Storage for rseq related event management
  * @all:		Compound to initialize and clear the data efficiently
@@ -17,7 +23,8 @@ struct rseq;
  *			exit to user
  * @ids_changed:	Indicator that IDs need to be updated
  * @user_irq:		True on interrupt entry from user mode
- * @has_rseq:		True if the task has a rseq pointer installed
+ * @has_rseq:		Greater than 0 if the task has a rseq pointer installed.
+ *			Contains the RSEQ version number
  * @error:		Compound error code for the slow path to analyze
  * @fatal:		User space data corrupted or invalid
  * @slowpath:		Indicator that slow path processing via TIF_NOTIFY_RESUME
@@ -59,8 +66,9 @@ struct rseq_event {
  *		compiler emit a single compare on 64-bit
  * @cpu_id:	The CPU ID which was written last to user space
  * @mm_cid:	The MM CID which was written last to user space
+ * @node_id:	The node ID which was written last to user space
  *
- * @cpu_id and @mm_cid are updated when the data is written to user space.
+ * @cpu_id, @mm_cid and @node_id are updated when the data is written to user space.
  */
 struct rseq_ids {
 	union {
@@ -70,6 +78,7 @@ struct rseq_ids {
 			u32	mm_cid;
 		};
 	};
+	u32			node_id;
 };
 
 /**

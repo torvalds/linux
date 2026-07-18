@@ -398,7 +398,6 @@ struct cdns_i3c_data {
 };
 
 struct cdns_i3c_master {
-	struct work_struct hj_work;
 	struct i3c_master_controller base;
 	u32 free_rr_slots;
 	unsigned int maxdevs;
@@ -1357,7 +1356,7 @@ static void cnds_i3c_master_demux_ibis(struct cdns_i3c_master *master)
 
 		case IBIR_TYPE_HJ:
 			WARN_ON(IBIR_XFER_BYTES(ibir) || (ibir & IBIR_ERROR));
-			queue_work(master->base.wq, &master->hj_work);
+			i3c_master_queue_hotjoin(&master->base);
 			break;
 
 		case IBIR_TYPE_MR:
@@ -1528,15 +1527,6 @@ static const struct i3c_master_controller_ops cdns_i3c_master_ops = {
 	.recycle_ibi_slot = cdns_i3c_master_recycle_ibi_slot,
 };
 
-static void cdns_i3c_master_hj(struct work_struct *work)
-{
-	struct cdns_i3c_master *master = container_of(work,
-						      struct cdns_i3c_master,
-						      hj_work);
-
-	i3c_master_do_daa(&master->base);
-}
-
 static struct cdns_i3c_data cdns_i3c_devdata = {
 	.thd_delay_ns = 10,
 };
@@ -1584,7 +1574,6 @@ static int cdns_i3c_master_probe(struct platform_device *pdev)
 	spin_lock_init(&master->xferqueue.lock);
 	INIT_LIST_HEAD(&master->xferqueue.list);
 
-	INIT_WORK(&master->hj_work, cdns_i3c_master_hj);
 	writel(0xffffffff, master->regs + MST_IDR);
 	writel(0xffffffff, master->regs + SLV_IDR);
 	ret = devm_request_irq(&pdev->dev, irq, cdns_i3c_master_interrupt, 0,
@@ -1627,7 +1616,6 @@ static void cdns_i3c_master_remove(struct platform_device *pdev)
 {
 	struct cdns_i3c_master *master = platform_get_drvdata(pdev);
 
-	cancel_work_sync(&master->hj_work);
 	i3c_master_unregister(&master->base);
 }
 

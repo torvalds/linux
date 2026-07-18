@@ -17,6 +17,7 @@ config TEGRA20_EMC
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select PM_DEVFREQ
 	select DDR
+	select TEGRA_EMC_COMMON
 	help
 	  This driver is for the External Memory Controller (EMC) found on
 	  Tegra20 chips. The EMC controls the external DRAM on the board.
@@ -29,9 +30,23 @@ config TEGRA30_EMC
 	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
 	select PM_OPP
 	select DDR
+	select TEGRA_EMC_COMMON
 	help
 	  This driver is for the External Memory Controller (EMC) found on
 	  Tegra30 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
+
+config TEGRA114_EMC
+	tristate "NVIDIA Tegra114 External Memory Controller driver"
+	default ARCH_TEGRA_114_SOC
+	depends on ARCH_TEGRA_114_SOC || COMPILE_TEST
+	select TEGRA124_CLK_EMC if ARCH_TEGRA
+	select PM_OPP
+	select TEGRA_EMC_COMMON
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra114 chips. The EMC controls the external DRAM on the board.
 	  This driver is required to change memory timings / clock rate for
 	  external memory.
 
@@ -41,6 +56,7 @@ config TEGRA124_EMC
 	depends on ARCH_TEGRA_124_SOC || COMPILE_TEST
 	select TEGRA124_CLK_EMC if ARCH_TEGRA
 	select PM_OPP
+	select TEGRA_EMC_COMMON
 	help
 	  This driver is for the External Memory Controller (EMC) found on
 	  Tegra124 chips. The EMC controls the external DRAM on the board.
@@ -60,5 +76,8 @@ config TEGRA210_EMC
 	  Tegra210 chips. The EMC controls the external DRAM on the board.
 	  This driver is required to change memory timings / clock rate for
 	  external memory.
+
+config TEGRA_EMC_COMMON
+	tristate
 
 endif

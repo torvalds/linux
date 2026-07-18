@@ -232,6 +232,7 @@ struct dml2_configuration_options {
 	/* Only for debugging purposes when initializing SOCBB params via tool for DML21. */
 	struct socbb_ip_params_external *external_socbb_ip_params;
 	struct {
+		bool force_mandatory_uclk_pstate_support;
 		bool force_pstate_method_enable;
 		enum dml2_force_pstate_methods force_pstate_method_values[MAX_PIPES];
 	} pmo;

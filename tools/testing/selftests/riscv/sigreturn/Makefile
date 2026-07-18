@@ -9,4 +9,4 @@ TEST_GEN_PROGS := sigreturn
 include ../../lib.mk
 
 $(OUTPUT)/sigreturn: sigreturn.c
-	$(CC) -static -o$@ $(CFLAGS) $(LDFLAGS) $^
+	$(CC) -static -o $@ $(CFLAGS) $(LDFLAGS) $^

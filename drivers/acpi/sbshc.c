@@ -237,10 +237,14 @@ static int smbus_alarm(void *context)
 
 static int acpi_smbus_hc_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	int status;
 	unsigned long long val;
 	struct acpi_smb_hc *hc;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	status = acpi_evaluate_integer(device->handle, "_EC", NULL, &val);
 	if (ACPI_FAILURE(status)) {

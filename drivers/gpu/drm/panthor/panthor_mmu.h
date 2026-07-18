@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 or MIT */
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 /* Copyright 2023 Collabora ltd. */
+/* Copyright 2025 ARM Limited. All rights reserved. */
 
 #ifndef __PANTHOR_MMU_H__
 #define __PANTHOR_MMU_H__
@@ -46,6 +47,13 @@ struct panthor_vm *panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 				     u64 kernel_auto_va_start,
 				     u64 kernel_auto_va_size);
 
+void panthor_vm_update_bo_reclaim_lru_locked(struct panthor_gem_object *bo);
+int panthor_vm_evict_bo_mappings_locked(struct panthor_gem_object *bo);
+unsigned long
+panthor_mmu_reclaim_priv_bos(struct panthor_device *ptdev,
+			     unsigned int nr_to_scan, unsigned long *remaining,
+			     bool (*shrink)(struct drm_gem_object *,
+					    struct ww_acquire_ctx *));
 int panthor_vm_prepare_mapped_bos_resvs(struct drm_exec *exec,
 					struct panthor_vm *vm,
 					u32 slot_count);

@@ -152,7 +152,7 @@ err:
 	if (WARN_ON(!ovpn_peer_hold(peer)))
 		goto err_nopeer;
 	schedule_work(&peer->tcp.defer_del_work);
-	dev_dstats_rx_dropped(peer->ovpn->dev);
+	ovpn_dev_dstats_rx_dropped(peer->ovpn->dev);
 err_nopeer:
 	kfree_skb(skb);
 }
@@ -298,9 +298,9 @@ static void ovpn_tcp_send_sock(struct ovpn_peer *peer, struct sock *sk)
 	} while (peer->tcp.out_msg.len > 0);
 
 	if (!peer->tcp.out_msg.len) {
-		preempt_disable();
+		local_bh_disable();
 		dev_dstats_tx_add(peer->ovpn->dev, skb->len);
-		preempt_enable();
+		local_bh_enable();
 	}
 
 	kfree_skb(peer->tcp.out_msg.skb);
@@ -331,7 +331,7 @@ static void ovpn_tcp_send_sock_skb(struct ovpn_peer *peer, struct sock *sk,
 		ovpn_tcp_send_sock(peer, sk);
 
 	if (peer->tcp.out_msg.skb) {
-		dev_dstats_tx_dropped(peer->ovpn->dev);
+		ovpn_dev_dstats_tx_dropped(peer->ovpn->dev);
 		kfree_skb(skb);
 		return;
 	}
@@ -353,7 +353,7 @@ void ovpn_tcp_send_skb(struct ovpn_peer *peer, struct sock *sk,
 	if (sock_owned_by_user(sk)) {
 		if (skb_queue_len(&peer->tcp.out_queue) >=
 		    READ_ONCE(net_hotdata.max_backlog)) {
-			dev_dstats_tx_dropped(peer->ovpn->dev);
+			ovpn_dev_dstats_tx_dropped(peer->ovpn->dev);
 			kfree_skb(skb);
 			goto unlock;
 		}
@@ -581,14 +581,19 @@ static void ovpn_tcp_close(struct sock *sk, long timeout)
 
 	rcu_read_lock();
 	sock = rcu_dereference_sk_user_data(sk);
-	if (!sock || !sock->peer || !ovpn_peer_hold(sock->peer)) {
+	if (!sock) {
 		rcu_read_unlock();
 		return;
 	}
+
 	peer = sock->peer;
+	if (!peer || !ovpn_peer_hold(peer)) {
+		rcu_read_unlock();
+		return;
+	}
 	rcu_read_unlock();
 
-	ovpn_peer_del(sock->peer, OVPN_DEL_PEER_REASON_TRANSPORT_DISCONNECT);
+	ovpn_peer_del(peer, OVPN_DEL_PEER_REASON_TRANSPORT_DISCONNECT);
 	peer->tcp.sk_cb.prot->close(sk, timeout);
 	ovpn_peer_put(peer);
 }

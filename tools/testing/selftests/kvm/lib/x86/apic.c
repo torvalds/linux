@@ -14,7 +14,7 @@ void apic_disable(void)
 
 void xapic_enable(void)
 {
-	uint64_t val = rdmsr(MSR_IA32_APICBASE);
+	u64 val = rdmsr(MSR_IA32_APICBASE);
 
 	/* Per SDM: to enable xAPIC when in x2APIC must first disable APIC */
 	if (val & MSR_IA32_APICBASE_EXTD) {

@@ -646,6 +646,9 @@ failure:
 enum gpio_ddc_line dal_ddc_get_line(
 	const struct ddc *ddc)
 {
+	if (!ddc)
+		return GPIO_DDC_LINE_UNKNOWN;
+
 	return (enum gpio_ddc_line)dal_gpio_get_enum(ddc->pin_data);
 }
 

@@ -189,9 +189,9 @@ The Linux kernel supports the following types of credentials:
      be searched for the desired key.  Each process may subscribe to a number
      of keyrings:
 
-	Per-thread keying
-	Per-process keyring
-	Per-session keyring
+	- Per-thread keyring
+	- Per-process keyring
+	- Per-session keyring
 
      When a process accesses a key, if not already present, it will normally be
      cached on one of these keyrings for future accesses to find.

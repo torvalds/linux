@@ -29,6 +29,7 @@ struct klp_reloc {
 	u32 type;
 };
 
+int cmd_klp_checksum(int argc, const char **argv);
 int cmd_klp_diff(int argc, const char **argv);
 int cmd_klp_post_link(int argc, const char **argv);
 

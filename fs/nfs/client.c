@@ -914,6 +914,7 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
  */
 static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, struct nfs_fattr *fattr)
 {
+	struct nfs_pathconf pathinfo = { };
 	struct nfs_fsinfo fsinfo;
 	struct nfs_client *clp = server->nfs_client;
 	int error;
@@ -933,15 +934,28 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 
 	nfs_server_set_fsinfo(server, &fsinfo);
 
-	/* Get some general file system info */
-	if (server->namelen == 0) {
-		struct nfs_pathconf pathinfo;
+	pathinfo.fattr = fattr;
+	nfs_fattr_init(fattr);
 
-		pathinfo.fattr = fattr;
-		nfs_fattr_init(fattr);
+	if (clp->rpc_ops->version < 4 || server->namelen == 0) {
+		if (clp->rpc_ops->pathconf(server, mntfh, &pathinfo) >= 0) {
+			if (server->namelen == 0)
+				server->namelen = pathinfo.max_namelen;
+			if (clp->rpc_ops->version < 4) {
+				unsigned int caps = server->caps;
 
-		if (clp->rpc_ops->pathconf(server, mntfh, &pathinfo) >= 0)
-			server->namelen = pathinfo.max_namelen;
+				caps &= ~(NFS_CAP_CASE_INSENSITIVE |
+					  NFS_CAP_CASE_NONPRESERVING);
+				if (pathinfo.case_insensitive)
+					caps |= NFS_CAP_CASE_INSENSITIVE;
+				if (!pathinfo.case_preserving)
+					caps |= NFS_CAP_CASE_NONPRESERVING;
+				server->caps = caps;
+			}
+		} else if (clp->rpc_ops->version < 4) {
+			server->caps &= ~(NFS_CAP_CASE_INSENSITIVE |
+					  NFS_CAP_CASE_NONPRESERVING);
+		}
 	}
 
 	if (clp->rpc_ops->discover_trunking != NULL &&
@@ -1049,10 +1063,8 @@ struct nfs_server *nfs_alloc_server(void)
 		return NULL;
 
 	server->s_sysfs_id = ida_alloc(&s_sysfs_ids, GFP_KERNEL);
-	if (server->s_sysfs_id < 0) {
-		kfree(server);
-		return NULL;
-	}
+	if (server->s_sysfs_id < 0)
+		goto free_server;
 
 	server->client = server->client_acl = ERR_PTR(-EINVAL);
 
@@ -1074,8 +1086,8 @@ struct nfs_server *nfs_alloc_server(void)
 
 	server->io_stats = nfs_alloc_iostats();
 	if (!server->io_stats) {
-		kfree(server);
-		return NULL;
+		ida_free(&s_sysfs_ids, server->s_sysfs_id);
+		goto free_server;
 	}
 
 	server->change_attr_type = NFS4_CHANGE_TYPE_IS_UNDEFINED;
@@ -1089,6 +1101,10 @@ struct nfs_server *nfs_alloc_server(void)
 	rpc_init_wait_queue(&server->uoc_rpcwaitq, "NFS UOC");
 
 	return server;
+
+free_server:
+	kfree(server);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(nfs_alloc_server);
 

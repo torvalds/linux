@@ -355,10 +355,10 @@ sin=$(mktemp)
 sout=$(mktemp)
 cin=$(mktemp)
 cout=$(mktemp)
+trap cleanup EXIT
 init
 make_file "$cin" "client" 1
 make_file "$sin" "server" 1
-trap cleanup EXIT
 mptcp_lib_subtests_last_ts_reset
 
 run_tests $ns1 $ns2 10.0.1.1

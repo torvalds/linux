@@ -68,7 +68,7 @@ static irqreturn_t wx_msix_misc_vf(int __always_unused irq, void *data)
 
 	set_bit(WX_FLAG_NEED_UPDATE_LINK, wx->flags);
 	/* Clear the interrupt */
-	if (netif_running(wx->netdev))
+	if (!test_bit(WX_STATE_DOWN, wx->state))
 		wr32(wx, WX_VXIMC, wx->eims_other);
 
 	return IRQ_HANDLED;
@@ -99,8 +99,8 @@ int wx_request_msix_irqs_vf(struct wx *wx)
 		}
 	}
 
-	err = request_threaded_irq(wx->msix_entry->vector, wx_msix_misc_vf,
-				   NULL, IRQF_ONESHOT, netdev->name, wx);
+	err = request_irq(wx->msix_entry->vector, wx_msix_misc_vf,
+			  0, netdev->name, wx);
 	if (err) {
 		wx_err(wx, "request_irq for msix_other failed: %d\n", err);
 		goto free_queue_irqs;
@@ -278,6 +278,7 @@ static void wxvf_up_complete(struct wx *wx)
 
 	wx_configure_msix_vf(wx);
 	smp_mb__before_atomic();
+	clear_bit(WX_STATE_DOWN, wx->state);
 	wx_napi_enable_all(wx);
 
 	/* clear any pending interrupts, may auto mask */
@@ -327,6 +328,9 @@ static void wxvf_down(struct wx *wx)
 {
 	struct net_device *netdev = wx->netdev;
 
+	if (test_and_set_bit(WX_STATE_DOWN, wx->state))
+		return;
+
 	timer_delete_sync(&wx->service_timer);
 	netif_tx_stop_all_queues(netdev);
 	netif_tx_disable(netdev);
@@ -360,7 +364,7 @@ static void wxvf_reset_subtask(struct wx *wx)
 
 	rtnl_lock();
 	if (test_bit(WX_STATE_RESETTING, wx->state) ||
-	    !(netif_running(wx->netdev))) {
+	    test_bit(WX_STATE_DOWN, wx->state)) {
 		rtnl_unlock();
 		return;
 	}

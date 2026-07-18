@@ -1994,7 +1994,7 @@ int rio_init_mports(void)
 	 * TODO: Implement restart of discovery process for all or
 	 * individual discovering mports.
 	 */
-	rio_wq = alloc_workqueue("riodisc", 0, 0);
+	rio_wq = alloc_workqueue("riodisc", WQ_PERCPU, 0);
 	if (!rio_wq) {
 		pr_err("RIO: unable allocate rio_wq\n");
 		goto no_disc;

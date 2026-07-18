@@ -70,7 +70,6 @@ void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter)
 
 	struct txpwrtrack_cfg c;
 
-
 	/* 4 1. The following TWO tables decide the final index of OFDM/CCK swing table. */
 	u8 *deltaSwingTableIdx_TUP_A;
 	u8 *deltaSwingTableIdx_TDOWN_A;

@@ -39,7 +39,6 @@ struct sm_ftl {
 	int cis_block;			/* CIS block location */
 	int cis_boffset;		/* CIS offset in the block */
 	int cis_page_offset;		/* CIS offset in the page */
-	void *cis_buffer;		/* tmp buffer for cis reads */
 
 	/* Cache */
 	int cache_block;		/* block number of cached block */
@@ -56,6 +55,7 @@ struct sm_ftl {
 	int cylinders;
 
 	struct attribute_group *disk_attributes;
+	u8 cis_buffer[];		/* tmp buffer for cis reads */
 };
 
 struct chs_entry {

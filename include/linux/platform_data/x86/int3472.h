@@ -13,6 +13,7 @@
 #include <linux/leds.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/device-id/dmi.h>
 #include <linux/types.h>
 
 /* FIXME drop this once the I2C_DEV_NAME_FORMAT macro has been added to include/linux/i2c.h */
@@ -72,7 +73,6 @@
 	container_of(clk, struct int3472_discrete_device, clock)
 
 struct acpi_device;
-struct dmi_system_id;
 struct i2c_client;
 struct platform_device;
 

@@ -2048,7 +2048,7 @@ static void it6505_start_hdcp(struct it6505 *it6505)
 
 	DRM_DEV_DEBUG_DRIVER(dev, "start");
 	it6505_reset_hdcp(it6505);
-	queue_delayed_work(system_wq, &it6505->hdcp_work,
+	queue_delayed_work(system_percpu_wq, &it6505->hdcp_work,
 			   msecs_to_jiffies(2400));
 }
 
@@ -3119,7 +3119,7 @@ it6505_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_enable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3173,7 +3173,7 @@ static void it6505_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3187,7 +3187,7 @@ static void it6505_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3198,7 +3198,7 @@ static void it6505_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void it6505_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct it6505 *it6505 = bridge_to_it6505(bridge);
 	struct device *dev = it6505->dev;
@@ -3239,7 +3239,7 @@ static const struct drm_edid *it6505_bridge_edid_read(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs it6505_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.attach = it6505_bridge_attach,
 	.detach = it6505_bridge_detach,
 	.mode_valid = it6505_bridge_mode_valid,

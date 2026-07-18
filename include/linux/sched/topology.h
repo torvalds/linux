@@ -67,7 +67,25 @@ struct sched_domain_shared {
 	atomic_t	ref;
 	atomic_t	nr_busy_cpus;
 	int		has_idle_cores;
-	int		nr_idle_scan;
+	union {
+		int	nr_idle_scan;
+		/*
+		 * Used during allocation to claim the sched_domain_shared
+		 * object at multiple levels.
+		 *
+		 * Note: between build and the first periodic LB tick, which
+		 * rewrites the union via update_idle_cpu_scan(), readers of
+		 * nr_idle_scan may observe the transient SD_* flag value as
+		 * the scan bound. The flag bits are small positive integers,
+		 * so the effect is just a slightly relaxed scan bound for one
+		 * window and self-heals on the first tick.
+		 */
+		int	alloc_flags;
+	};
+#ifdef CONFIG_SCHED_CACHE
+	unsigned long	util_avg;
+	unsigned long	capacity;
+#endif
 };
 
 struct sched_domain {
@@ -98,6 +116,12 @@ struct sched_domain {
 	u64 newidle_stamp;
 	u64 max_newidle_lb_cost;
 	unsigned long last_decay_max_lb_cost;
+
+#ifdef CONFIG_SCHED_CACHE
+	unsigned int llc_max;
+	unsigned int *llc_counts __counted_by_ptr(llc_max);
+	unsigned long llc_bytes;
+#endif
 
 #ifdef CONFIG_SCHEDSTATS
 	/* sched_balance_rq() stats */
@@ -255,5 +279,11 @@ static inline int task_node(const struct task_struct *p)
 {
 	return cpu_to_node(task_cpu(p));
 }
+
+#ifdef CONFIG_SCHED_CACHE
+extern void sched_update_llc_bytes(unsigned int cpu);
+#else
+static inline void sched_update_llc_bytes(unsigned int cpu) { }
+#endif
 
 #endif /* _LINUX_SCHED_TOPOLOGY_H */

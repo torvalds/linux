@@ -64,10 +64,8 @@ int adf_heartbeat_inject_error(struct adf_accel_dev *accel_dev)
 	if (ret)
 		return ret;
 
-	/* Configure worker threads to stop processing any packet */
-	ret = adf_disable_arb_thd(accel_dev, rand_ae, rand_thr);
-	if (ret)
-		return ret;
+	/* Disable arbiter to stop processing any packet */
+	hw_device->exit_arb(accel_dev);
 
 	/* Change HB counters memory to simulate a hang */
 	adf_set_hb_counters_fail(accel_dev, rand_ae, rand_thr);

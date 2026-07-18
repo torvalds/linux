@@ -252,8 +252,8 @@ static const struct of_device_id of_nfcmrvl_i2c_match[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, of_nfcmrvl_i2c_match);
 
 static const struct i2c_device_id nfcmrvl_i2c_id_table[] = {
-	{ "nfcmrvl_i2c" },
-	{}
+	{ .name = "nfcmrvl_i2c" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nfcmrvl_i2c_id_table);
 

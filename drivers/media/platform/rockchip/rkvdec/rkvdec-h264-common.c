@@ -21,51 +21,6 @@
 
 #define RKVDEC_NUM_REFLIST		3
 
-static void set_dpb_info(struct rkvdec_rps_entry *entries,
-			 u8 reflist,
-			 u8 refnum,
-			 u8 info,
-			 bool bottom)
-{
-	struct rkvdec_rps_entry *entry = &entries[(reflist * 4) + refnum / 8];
-	u8 idx = refnum % 8;
-
-	switch (idx) {
-	case 0:
-		entry->dpb_info0 = info;
-		entry->bottom_flag0 = bottom;
-		break;
-	case 1:
-		entry->dpb_info1 = info;
-		entry->bottom_flag1 = bottom;
-		break;
-	case 2:
-		entry->dpb_info2 = info;
-		entry->bottom_flag2 = bottom;
-		break;
-	case 3:
-		entry->dpb_info3 = info;
-		entry->bottom_flag3 = bottom;
-		break;
-	case 4:
-		entry->dpb_info4 = info;
-		entry->bottom_flag4 = bottom;
-		break;
-	case 5:
-		entry->dpb_info5 = info;
-		entry->bottom_flag5 = bottom;
-		break;
-	case 6:
-		entry->dpb_info6 = info;
-		entry->bottom_flag6 = bottom;
-		break;
-	case 7:
-		entry->dpb_info7 = info;
-		entry->bottom_flag7 = bottom;
-		break;
-	}
-}
-
 void lookup_ref_buf_idx(struct rkvdec_ctx *ctx,
 			struct rkvdec_h264_run *run)
 {
@@ -111,7 +66,7 @@ void assemble_hw_rps(struct v4l2_h264_reflist_builder *builder,
 		if (!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE))
 			continue;
 
-		hw_rps->frame_num[i] = builder->refs[i].frame_num;
+		rkvdec_set_bw_field(hw_rps->info, RPS_FRAME_NUM(i), builder->refs[i].frame_num);
 	}
 
 	for (j = 0; j < RKVDEC_NUM_REFLIST; j++) {
@@ -138,7 +93,9 @@ void assemble_hw_rps(struct v4l2_h264_reflist_builder *builder,
 			dpb_valid = !!(run->ref_buf[ref->index]);
 			bottom = ref->fields == V4L2_H264_BOTTOM_FIELD_REF;
 
-			set_dpb_info(hw_rps->entries, j, i, ref->index | (dpb_valid << 4), bottom);
+			rkvdec_set_bw_field(hw_rps->info, RPS_ENTRY_DPB_INFO(j, i),
+					    ref->index | (dpb_valid << 4));
+			rkvdec_set_bw_field(hw_rps->info, RPS_ENTRY_BOTTOM_FLAG(j, i), bottom);
 		}
 	}
 }

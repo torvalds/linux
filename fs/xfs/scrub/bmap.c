@@ -205,7 +205,7 @@ xchk_bmap_xref_rmap(
 {
 	struct xfs_rmap_irec	rmap;
 	unsigned long long	rmap_end;
-	uint64_t		owner = info->sc->ip->i_ino;
+	uint64_t		owner = I_INO(info->sc->ip);
 
 	if (xchk_skip_xref(info->sc->sm))
 		return;
@@ -352,7 +352,7 @@ xchk_bmap_rt_iextent_xref(
 	case XFS_DATA_FORK:
 		xchk_bmap_xref_rmap(info, irec, rgbno);
 		if (!xfs_is_reflink_inode(info->sc->ip)) {
-			xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
+			xfs_rmap_inode_owner(&oinfo, info->sc->ip,
 					info->whichfork, irec->br_startoff);
 			xchk_xref_is_only_rt_owned_by(info->sc, rgbno,
 					irec->br_blockcount, &oinfo);
@@ -407,7 +407,7 @@ xchk_bmap_iextent_xref(
 	case XFS_DATA_FORK:
 		xchk_bmap_xref_rmap(info, irec, agbno);
 		if (!xfs_is_reflink_inode(info->sc->ip)) {
-			xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
+			xfs_rmap_inode_owner(&oinfo, info->sc->ip,
 					info->whichfork, irec->br_startoff);
 			xchk_xref_is_only_owned_by(info->sc, agbno,
 					irec->br_blockcount, &oinfo);
@@ -419,7 +419,7 @@ xchk_bmap_iextent_xref(
 		break;
 	case XFS_ATTR_FORK:
 		xchk_bmap_xref_rmap(info, irec, agbno);
-		xfs_rmap_ino_owner(&oinfo, info->sc->ip->i_ino,
+		xfs_rmap_inode_owner(&oinfo, info->sc->ip,
 				info->whichfork, irec->br_startoff);
 		xchk_xref_is_only_owned_by(info->sc, agbno, irec->br_blockcount,
 				&oinfo);
@@ -543,7 +543,7 @@ xchk_bmapbt_rec(
 		for (i = 0; i < bs->cur->bc_nlevels - 1; i++) {
 			block = xfs_btree_get_block(bs->cur, i, &bp);
 			owner = be64_to_cpu(block->bb_u.l.bb_owner);
-			if (owner != ip->i_ino)
+			if (owner != I_INO(ip))
 				xchk_fblock_set_corrupt(bs->sc,
 						info->whichfork, 0);
 		}
@@ -600,7 +600,7 @@ xchk_bmap_btree(
 
 	/* Check the btree structure. */
 	cur = xfs_bmbt_init_cursor(mp, sc->tp, ip, whichfork);
-	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, whichfork);
+	xfs_rmap_inode_bmbt_owner(&oinfo, ip, whichfork);
 	error = xchk_btree(sc, cur, xchk_bmapbt_rec, &oinfo, info);
 	xfs_btree_del_cursor(cur, error);
 out:
@@ -628,7 +628,7 @@ xchk_bmap_check_rmap(
 	bool				have_map;
 
 	/* Is this even the right fork? */
-	if (rec->rm_owner != sc->ip->i_ino)
+	if (rec->rm_owner != I_INO(sc->ip))
 		return 0;
 	if ((sbcri->whichfork == XFS_ATTR_FORK) ^
 	    !!(rec->rm_flags & XFS_RMAP_ATTR_FORK))
@@ -1003,7 +1003,7 @@ xchk_bmap_iext_iter(
 	 */
 	if (nr > 1 && info->whichfork != XFS_COW_FORK &&
 	    howmany_64(irec->br_blockcount, XFS_MAX_BMBT_EXTLEN) < nr)
-		xchk_ino_set_preen(info->sc, info->sc->ip->i_ino);
+		xchk_ino_set_preen(info->sc, I_INO(info->sc->ip));
 
 	return true;
 }
@@ -1040,7 +1040,7 @@ xchk_bmap(
 	case XFS_COW_FORK:
 		/* No CoW forks filesystem doesn't support out of place writes */
 		if (!xfs_has_reflink(mp) && !xfs_has_zoned(mp)) {
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ip_set_corrupt(sc, sc->ip);
 			return 0;
 		}
 		break;
@@ -1052,7 +1052,7 @@ xchk_bmap(
 		 * attr here.
 		 */
 		if (!xfs_has_attr(mp))
-			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+			xchk_ip_set_corrupt(sc, sc->ip);
 		break;
 	default:
 		ASSERT(whichfork == XFS_DATA_FORK);
@@ -1137,7 +1137,7 @@ xchk_bmap_data(
 	int			error;
 
 	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_BMBTD_ZAPPED)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		return 0;
 	}
 
@@ -1165,7 +1165,7 @@ xchk_bmap_attr(
 	 * returning immediately.
 	 */
 	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_BMBTA_ZAPPED)) {
-		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		xchk_ip_set_corrupt(sc, sc->ip);
 		return 0;
 	}
 

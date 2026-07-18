@@ -32,6 +32,7 @@
 
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
+#include <rdma/uverbs_ioctl.h>
 #include "hns_roce_device.h"
 #include "hns_roce_hw_v2.h"
 
@@ -112,8 +113,7 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		resp.priority = ah->av.sl;
 		resp.tc_mode = tc_mode;
 		memcpy(resp.dmac, ah_attr->roce.dmac, ETH_ALEN);
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
+		ret = ib_respond_udata(udata, resp);
 	}
 
 err_out:

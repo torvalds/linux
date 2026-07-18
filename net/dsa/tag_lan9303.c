@@ -85,6 +85,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!pskb_may_pull(skb, LAN9303_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
 				     "Dropping packet, cannot pull\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -102,6 +103,7 @@ static struct sk_buff *lan9303_rcv(struct sk_buff *skb, struct net_device *dev)
 	skb->dev = dsa_conduit_find_user(dev, 0, source_port);
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 

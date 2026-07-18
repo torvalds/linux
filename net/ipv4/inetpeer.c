@@ -179,7 +179,8 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 	seq = read_seqbegin(&base->lock);
 	p = lookup(daddr, base, seq, NULL, &gc_cnt, &parent, &pp);
 
-	if (p)
+	/* Make sure tree was not modified during our lookup. */
+	if (p && !read_seqretry(&base->lock, seq))
 		return p;
 
 	/* retry an exact lookup, taking the lock before.

@@ -450,7 +450,7 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 	if (WARN_ON(!parent))
 		return ERR_PTR(-EINVAL);
 
-	ctrl = kzalloc(sizeof(*ctrl) + size, GFP_KERNEL);
+	ctrl = kzalloc_flex(*ctrl, priv, size);
 	if (!ctrl)
 		return ERR_PTR(-ENOMEM);
 
@@ -459,7 +459,7 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 	ctrl->dev.bus = &spmi_bus_type;
 	ctrl->dev.parent = parent;
 	ctrl->dev.of_node = parent->of_node;
-	spmi_controller_set_drvdata(ctrl, &ctrl[1]);
+	spmi_controller_set_drvdata(ctrl, ctrl->priv);
 
 	id = ida_alloc(&ctrl_ida, GFP_KERNEL);
 	if (id < 0) {

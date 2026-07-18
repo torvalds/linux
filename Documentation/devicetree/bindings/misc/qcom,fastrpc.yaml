@@ -25,6 +25,7 @@ properties:
       - items:
           - enum:
               - qcom,glymur-fastrpc
+              - qcom,hawi-fastrpc
           - const: qcom,kaanapali-fastrpc
 
   label:

@@ -366,7 +366,8 @@ reload:
 	if (state >= RXRPC_CALL_COMPLETE)
 		goto maybe_error;
 	ret = -EPROTO;
-	if (state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
+	if (state != RXRPC_CALL_CLIENT_PRE_SEND &&
+	    state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
 	    state != RXRPC_CALL_SERVER_ACK_REQUEST &&
 	    state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		/* Request phase complete for this client call */

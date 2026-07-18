@@ -6,6 +6,7 @@
  ******************************************************************************/
 #include <drv_types.h>
 #include <hal_btcoex.h>
+#include <hal_data.h>
 #include <linux/jiffies.h>
 
 #ifndef dev_to_sdio_func
@@ -144,9 +145,8 @@ static void sdio_deinit(struct dvobj_priv *dvobj)
 		sdio_claim_host(func);
 		sdio_disable_func(func);
 
-		if (dvobj->irq_alloc) {
+		if (dvobj->irq_alloc)
 			sdio_release_irq(func);
-		}
 
 		sdio_release_host(func);
 	}
@@ -203,8 +203,7 @@ static void sd_intf_start(struct adapter *padapter)
 	if (!padapter)
 		return;
 
-	/*  hal dep */
-	rtw_hal_enable_interrupt(padapter);
+	rtw_sdio_enable_interrupt(padapter);
 }
 
 static void sd_intf_stop(struct adapter *padapter)
@@ -212,8 +211,7 @@ static void sd_intf_stop(struct adapter *padapter)
 	if (!padapter)
 		return;
 
-	/*  hal dep */
-	rtw_hal_disable_interrupt(padapter);
+	rtw_sdio_disable_interrupt(padapter);
 }
 
 
@@ -263,14 +261,14 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	if (rtw_init_io_priv(padapter, sdio_set_intf_ops) == _FAIL)
 		goto free_hal_data;
 
-	rtw_hal_read_chip_version(padapter);
+	rtl8723b_read_chip_version(padapter);
 
-	rtw_hal_chip_configure(padapter);
+	rtl8723bs_interface_configure(padapter);
 
 	hal_btcoex_Initialize((void *)padapter);
 
 	/* 3 6. read efuse/eeprom data */
-	rtw_hal_read_chip_info(padapter);
+	rtw_read_adapter_info(padapter);
 
 	/* 3 7. init driver common data */
 	if (rtw_init_drv_sw(padapter) == _FAIL)
@@ -282,7 +280,7 @@ static struct adapter *rtw_sdio_if1_init(struct dvobj_priv *dvobj, const struct 
 	/*  set mac addr */
 	rtw_macaddr_cfg(&psdio->func->dev, padapter->eeprompriv.mac_addr);
 
-	rtw_hal_disable_interrupt(padapter);
+	rtw_sdio_disable_interrupt(padapter);
 
 	status = _SUCCESS;
 
@@ -401,7 +399,7 @@ static void rtw_dev_remove(struct sdio_func *func)
 
 	LeaveAllPowerSaveMode(padapter);
 
-	rtw_btcoex_HaltNotify(padapter);
+	rtw_btcoex_halt_notify(padapter);
 
 	rtw_sdio_if1_deinit(padapter);
 

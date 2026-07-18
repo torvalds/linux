@@ -566,18 +566,6 @@ static int imx334_update_exp_gain(struct imx334 *imx334, u32 exposure, u32 gain)
 	return ret;
 }
 
-/**
- * imx334_set_ctrl() - Set subdevice control
- * @ctrl: pointer to v4l2_ctrl structure
- *
- * Supported controls:
- * - V4L2_CID_VBLANK
- * - cluster controls:
- *   - V4L2_CID_ANALOGUE_GAIN
- *   - V4L2_CID_EXPOSURE
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx334 *imx334 =
@@ -678,14 +666,6 @@ static int imx334_get_format_code(struct imx334 *imx334, u32 code)
 	return imx334_mbus_codes[0];
 }
 
-/**
- * imx334_enum_mbus_code() - Enumerate V4L2 sub-device mbus codes
- * @sd: pointer to imx334 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device state
- * @code: V4L2 sub-device code enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -698,14 +678,6 @@ static int imx334_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx334_enum_frame_size() - Enumerate V4L2 sub-device frame sizes
- * @sd: pointer to imx334 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device state
- * @fsize: V4L2 sub-device size enumeration need to be filled
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fsize)
@@ -749,14 +721,6 @@ static void imx334_fill_pad_format(struct imx334 *imx334,
 	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
-/**
- * imx334_get_pad_format() - Get subdevice pad format
- * @sd: pointer to imx334 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device state
- * @fmt: V4L2 sub-device format need to be set
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_get_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -776,14 +740,6 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * imx334_set_pad_format() - Set subdevice pad format
- * @sd: pointer to imx334 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device state
- * @fmt: V4L2 sub-device format need to be set
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_set_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -815,13 +771,6 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 	return ret;
 }
 
-/**
- * imx334_init_state() - Initialize sub-device state
- * @sd: pointer to imx334 V4L2 sub-device structure
- * @sd_state: V4L2 sub-device state
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_init_state(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state)
 {
@@ -856,15 +805,6 @@ static int imx334_set_framefmt(struct imx334 *imx334)
 	return -EINVAL;
 }
 
-/**
- * imx334_enable_streams() - Enable specified streams for the sensor
- * @sd: pointer to the V4L2 subdevice
- * @state: pointer to the subdevice state
- * @pad: pad number for which streams are enabled
- * @streams_mask: bitmask specifying the streams to enable
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_enable_streams(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state, u32 pad,
 				 u64 streams_mask)
@@ -929,15 +869,6 @@ err_rpm_put:
 	return ret;
 }
 
-/**
- * imx334_disable_streams() - Enable specified streams for the sensor
- * @sd: pointer to the V4L2 subdevice
- * @state: pointer to the subdevice state
- * @pad: pad number for which streams are disabled
- * @streams_mask: bitmask specifying the streams to disable
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_disable_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state, u32 pad,
 				  u64 streams_mask)
@@ -1067,12 +998,6 @@ static const struct v4l2_subdev_internal_ops imx334_internal_ops = {
 	.init_state = imx334_init_state,
 };
 
-/**
- * imx334_power_on() - Sensor power on sequence
- * @dev: pointer to i2c device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_power_on(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1101,12 +1026,6 @@ error_reset:
 	return ret;
 }
 
-/**
- * imx334_power_off() - Sensor power off sequence
- * @dev: pointer to i2c device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_power_off(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1206,12 +1125,6 @@ static int imx334_init_controls(struct imx334 *imx334)
 	return 0;
 }
 
-/**
- * imx334_probe() - I2C client device binding
- * @client: pointer to i2c client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static int imx334_probe(struct i2c_client *client)
 {
 	struct imx334 *imx334;
@@ -1311,12 +1224,6 @@ error_power_off:
 	return ret;
 }
 
-/**
- * imx334_remove() - I2C client device unbinding
- * @client: pointer to I2C client device
- *
- * Return: 0 if successful, error code otherwise.
- */
 static void imx334_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

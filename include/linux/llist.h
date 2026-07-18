@@ -26,8 +26,8 @@
  *
  *           |   add    | del_first |  del_all
  * add       |    -     |     -     |     -
- * del_first |          |     L     |     L
- * del_all   |          |           |     -
+ * del_first |    -     |     L     |     L
+ * del_all   |    -     |     -     |     -
  *
  * Where, a particular row's operation can happen concurrently with a column's
  * operation, with "-" being no lock needed, while "L" being lock is needed.

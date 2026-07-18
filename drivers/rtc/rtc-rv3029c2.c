@@ -807,8 +807,8 @@ static int rv3029_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rv3029_id[] = {
-	{ "rv3029" },
-	{ "rv3029c2" },
+	{ .name = "rv3029" },
+	{ .name = "rv3029c2" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv3029_id);

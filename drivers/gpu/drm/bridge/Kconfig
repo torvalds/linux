@@ -205,6 +205,8 @@ config DRM_LONTIUM_LT8713SX
 config DRM_ITE_IT66121
 	tristate "ITE IT66121 HDMI bridge"
 	depends on OF
+	select DRM_DISPLAY_HDMI_STATE_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	help
@@ -261,6 +263,16 @@ config DRM_NXP_PTN3460
 	select DRM_PANEL
 	help
 	  NXP PTN3460 eDP-LVDS bridge chip driver.
+
+config DRM_OF_DISPLAY_MODE_BRIDGE
+	tristate
+	depends on DRM_BRIDGE && OF
+	help
+	  This is a DRM bridge implementation that uses of_get_drm_display_mode
+	  to acquire display mode.
+
+	  It exists for compatibility with legacy display mode parsing, in order
+	  to conform to the panel-bridge framework.
 
 config DRM_PARADE_PS8622
 	tristate "Parade eDP/LVDS bridge"

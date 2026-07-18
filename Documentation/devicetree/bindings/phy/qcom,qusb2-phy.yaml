@@ -32,6 +32,10 @@ properties:
               - qcom,sm6115-qusb2-phy
       - items:
           - enum:
+              - qcom,ipq5210-qusb2-phy
+          - const: qcom,ipq6018-qusb2-phy
+      - items:
+          - enum:
               - qcom,sc7180-qusb2-phy
               - qcom,sdm670-qusb2-phy
               - qcom,sdm845-qusb2-phy

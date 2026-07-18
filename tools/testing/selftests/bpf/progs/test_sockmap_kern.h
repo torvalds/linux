@@ -85,13 +85,6 @@ struct {
 	__type(value, int);
 } sock_skb_opts SEC(".maps");
 
-struct {
-	__uint(type, TEST_MAP_TYPE);
-	__uint(max_entries, 20);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
-} tls_sock_map SEC(".maps");
-
 SEC("sk_skb/stream_parser")
 int bpf_prog1(struct __sk_buff *skb)
 {
@@ -133,55 +126,6 @@ int bpf_prog2(struct __sk_buff *skb)
 	return bpf_sk_redirect_hash(skb, &sock_map, &ret, flags);
 #endif
 
-}
-
-static inline void bpf_write_pass(struct __sk_buff *skb, int offset)
-{
-	int err = bpf_skb_pull_data(skb, 6 + offset);
-	void *data_end;
-	char *c;
-
-	if (err)
-		return;
-
-	c = (char *)(long)skb->data;
-	data_end = (void *)(long)skb->data_end;
-
-	if (c + 5 + offset < data_end)
-		memcpy(c + offset, "PASS", 4);
-}
-
-SEC("sk_skb/stream_verdict")
-int bpf_prog3(struct __sk_buff *skb)
-{
-	int err, *f, ret = SK_PASS;
-	const int one = 1;
-
-	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
-	if (f && *f) {
-		__u64 flags = 0;
-
-		ret = 0;
-		flags = *f;
-
-		err = bpf_skb_adjust_room(skb, -13, 0, 0);
-		if (err)
-			return SK_DROP;
-		err = bpf_skb_adjust_room(skb, 4, 0, 0);
-		if (err)
-			return SK_DROP;
-		bpf_write_pass(skb, 0);
-#ifdef SOCKMAP
-		return bpf_sk_redirect_map(skb, &tls_sock_map, ret, flags);
-#else
-		return bpf_sk_redirect_hash(skb, &tls_sock_map, &ret, flags);
-#endif
-	}
-	err = bpf_skb_adjust_room(skb, 4, 0, 0);
-	if (err)
-		return SK_DROP;
-	bpf_write_pass(skb, 13);
-	return ret;
 }
 
 SEC("sockops")

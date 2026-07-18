@@ -238,10 +238,10 @@ static void hubp21_set_vm_system_aperture_settings(struct hubp *hubp,
 	mc_vm_apt_high.quad_part = apt->sys_high.quad_part >> 18;
 
 	REG_SET(DCN_VM_SYSTEM_APERTURE_LOW_ADDR, 0,
-			MC_VM_SYSTEM_APERTURE_LOW_ADDR, mc_vm_apt_low.quad_part);
+			MC_VM_SYSTEM_APERTURE_LOW_ADDR, mc_vm_apt_low.low_part);
 
 	REG_SET(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR, 0,
-			MC_VM_SYSTEM_APERTURE_HIGH_ADDR, mc_vm_apt_high.quad_part);
+			MC_VM_SYSTEM_APERTURE_HIGH_ADDR, mc_vm_apt_high.low_part);
 
 	REG_SET_2(DCN_VM_MX_L1_TLB_CNTL, 0,
 			ENABLE_L1_TLB, 1,

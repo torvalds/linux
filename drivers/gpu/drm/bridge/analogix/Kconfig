@@ -15,6 +15,7 @@ config DRM_ANALOGIX_ANX6345
 
 config DRM_ANALOGIX_ANX78XX
 	tristate "Analogix ANX78XX bridge"
+	depends on OF
 	select DRM_ANALOGIX_DP
 	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HELPER
@@ -29,6 +30,8 @@ config DRM_ANALOGIX_ANX78XX
 config DRM_ANALOGIX_DP
 	tristate
 	depends on DRM
+	depends on OF
+	select DRM_DISPLAY_DP_AUX_BUS
 
 config DRM_ANALOGIX_ANX7625
 	tristate "Analogix Anx7625 MIPI to DP interface support"

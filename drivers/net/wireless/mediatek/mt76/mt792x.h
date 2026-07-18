@@ -46,12 +46,14 @@
 #define MT7921_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7922_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7922_1.bin"
 #define MT7925_FIRMWARE_WM	"mediatek/mt7925/WIFI_RAM_CODE_MT7925_1_1.bin"
+#define MT7927_FIRMWARE_WM	"mediatek/mt7927/WIFI_RAM_CODE_MT6639_2_1.bin"
 
 #define MT7902_ROM_PATCH	"mediatek/WIFI_MT7902_patch_mcu_1_1_hdr.bin"
 #define MT7920_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1a_2_hdr.bin"
 #define MT7921_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
 #define MT7922_ROM_PATCH	"mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin"
 #define MT7925_ROM_PATCH	"mediatek/mt7925/WIFI_MT7925_PATCH_MCU_1_1_hdr.bin"
+#define MT7927_ROM_PATCH	"mediatek/mt7927/WIFI_MT6639_PATCH_MCU_2_1_hdr.bin"
 
 #define MT792x_SDIO_HDR_TX_BYTES	GENMASK(15, 0)
 #define MT792x_SDIO_HDR_PKT_TYPE	GENMASK(17, 16)
@@ -204,6 +206,23 @@ struct mt792x_irq_map {
 	} rx;
 };
 
+struct mt792x_dma_ring {
+	u8 qid;
+	u16 n_desc;
+	u32 ring_base;
+};
+
+struct mt792x_dma_layout {
+	struct mt792x_dma_ring tx_data0;
+	struct mt792x_dma_ring tx_mcu;
+	struct mt792x_dma_ring tx_fwdl;
+	struct mt792x_dma_ring rx_data;
+	struct mt792x_dma_ring rx_mcu;
+};
+
+#define mt792x_dma_ring(_qid, _n_desc, _ring_base) \
+	{ .qid = (_qid), .n_desc = (_n_desc), .ring_base = (_ring_base) }
+
 #define mt792x_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
 #define mt792x_dev_reset(dev)		((dev)->hif_ops->reset(dev))
 #define mt792x_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
@@ -243,6 +262,8 @@ struct mt792x_dev {
 	wait_queue_head_t wait;
 
 	struct work_struct init_work;
+	struct work_struct usb_reset_work;
+	atomic_t usb_reset_pending;
 
 	u8 fw_debug;
 	u8 fw_features;
@@ -397,6 +418,8 @@ void mt792x_roc_timer(struct timer_list *timer);
 void mt792x_csa_timer(struct timer_list *timer);
 void mt792x_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop);
+int mt792x_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       unsigned int link_id, int *dbm);
 int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *link_conf,
@@ -419,6 +442,8 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 void mt792x_set_coverage_class(struct ieee80211_hw *hw, int radio_idx,
 			       s16 coverage_class);
 void mt792x_dma_cleanup(struct mt792x_dev *dev);
+int mt792x_dma_alloc_queues(struct mt792x_dev *dev,
+			    const struct mt792x_dma_layout *layout);
 int mt792x_dma_enable(struct mt792x_dev *dev);
 int mt792x_wpdma_reset(struct mt792x_dev *dev, bool force);
 int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev);
@@ -459,6 +484,8 @@ static inline char *mt792x_ram_name(struct mt792x_dev *dev)
 		return MT7922_FIRMWARE_WM;
 	case 0x7925:
 		return MT7925_FIRMWARE_WM;
+	case 0x7927:
+		return MT7927_FIRMWARE_WM;
 	default:
 		return MT7921_FIRMWARE_WM;
 	}
@@ -475,6 +502,8 @@ static inline char *mt792x_patch_name(struct mt792x_dev *dev)
 		return MT7922_ROM_PATCH;
 	case 0x7925:
 		return MT7925_ROM_PATCH;
+	case 0x7927:
+		return MT7927_ROM_PATCH;
 	default:
 		return MT7921_ROM_PATCH;
 	}
@@ -489,6 +518,10 @@ int mt792xu_dma_init(struct mt792x_dev *dev, bool resume);
 int mt792xu_mcu_power_on(struct mt792x_dev *dev);
 int mt792xu_wfsys_reset(struct mt792x_dev *dev);
 int mt792xu_init_reset(struct mt792x_dev *dev);
+void mt792xu_reset_work_init(struct mt792x_dev *dev);
+void mt792xu_reset_work_cleanup(struct mt792x_dev *dev);
+int mt792xu_check_bus(struct mt792x_dev *dev);
+int mt792xu_reset_on_bus_error(struct mt792x_dev *dev);
 u32 mt792xu_rr(struct mt76_dev *dev, u32 addr);
 void mt792xu_wr(struct mt76_dev *dev, u32 addr, u32 val);
 u32 mt792xu_rmw(struct mt76_dev *dev, u32 addr, u32 mask, u32 val);

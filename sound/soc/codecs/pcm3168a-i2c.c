@@ -10,7 +10,6 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 
 #include <sound/soc.h>
 
@@ -33,7 +32,7 @@ static void pcm3168a_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id pcm3168a_i2c_id[] = {
-	{ "pcm3168a", },
+	{ .name = "pcm3168a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcm3168a_i2c_id);

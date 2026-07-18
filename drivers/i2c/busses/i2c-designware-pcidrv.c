@@ -308,58 +308,72 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id i2c_designware_pci_ids[] = {
 	/* Medfield */
-	{ PCI_VDEVICE(INTEL, 0x0817), medfield },
-	{ PCI_VDEVICE(INTEL, 0x0818), medfield },
-	{ PCI_VDEVICE(INTEL, 0x0819), medfield },
-	{ PCI_VDEVICE(INTEL, 0x082C), medfield },
-	{ PCI_VDEVICE(INTEL, 0x082D), medfield },
-	{ PCI_VDEVICE(INTEL, 0x082E), medfield },
+	{ PCI_VDEVICE(INTEL, 0x0817), .driver_data = medfield },
+	{ PCI_VDEVICE(INTEL, 0x0818), .driver_data = medfield },
+	{ PCI_VDEVICE(INTEL, 0x0819), .driver_data = medfield },
+	{ PCI_VDEVICE(INTEL, 0x082C), .driver_data = medfield },
+	{ PCI_VDEVICE(INTEL, 0x082D), .driver_data = medfield },
+	{ PCI_VDEVICE(INTEL, 0x082E), .driver_data = medfield },
 	/* Merrifield */
-	{ PCI_VDEVICE(INTEL, 0x1195), merrifield },
-	{ PCI_VDEVICE(INTEL, 0x1196), merrifield },
+	{ PCI_VDEVICE(INTEL, 0x1195), .driver_data = merrifield },
+	{ PCI_VDEVICE(INTEL, 0x1196), .driver_data = merrifield },
 	/* Baytrail */
-	{ PCI_VDEVICE(INTEL, 0x0F41), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F42), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F43), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F44), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F45), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F46), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x0F47), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F41), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F42), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F43), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F44), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F45), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F46), .driver_data = baytrail },
+	{ PCI_VDEVICE(INTEL, 0x0F47), .driver_data = baytrail },
 	/* Haswell */
-	{ PCI_VDEVICE(INTEL, 0x9c61), haswell },
-	{ PCI_VDEVICE(INTEL, 0x9c62), haswell },
+	{ PCI_VDEVICE(INTEL, 0x9c61), .driver_data = haswell },
+	{ PCI_VDEVICE(INTEL, 0x9c62), .driver_data = haswell },
 	/* Braswell / Cherrytrail */
-	{ PCI_VDEVICE(INTEL, 0x22C1), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C2), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C3), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C4), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C5), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C6), cherrytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C7), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C1), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C2), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C3), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C4), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C5), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C6), .driver_data = cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C7), .driver_data = cherrytrail },
 	/* Elkhart Lake (PSE I2C) */
-	{ PCI_VDEVICE(INTEL, 0x4bb9), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bba), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bbb), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bbc), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bbd), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bbe), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bbf), elkhartlake },
-	{ PCI_VDEVICE(INTEL, 0x4bc0), elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bb9), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bba), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbb), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbc), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbd), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbe), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bbf), .driver_data = elkhartlake },
+	{ PCI_VDEVICE(INTEL, 0x4bc0), .driver_data = elkhartlake },
 	/* AMD NAVI */
-	{ PCI_VDEVICE(ATI,  0x7314), navi_amd },
-	{ PCI_VDEVICE(ATI,  0x73a4), navi_amd },
-	{ PCI_VDEVICE(ATI,  0x73e4), navi_amd },
-	{ PCI_VDEVICE(ATI,  0x73c4), navi_amd },
-	{ PCI_VDEVICE(ATI,  0x7444), navi_amd },
-	{ PCI_VDEVICE(ATI,  0x7464), navi_amd },
-	{}
+	{ PCI_VDEVICE(ATI,  0x7314), .driver_data = navi_amd },
+	{ PCI_VDEVICE(ATI,  0x73a4), .driver_data = navi_amd },
+	{ PCI_VDEVICE(ATI,  0x73e4), .driver_data = navi_amd },
+	{ PCI_VDEVICE(ATI,  0x73c4), .driver_data = navi_amd },
+	{ PCI_VDEVICE(ATI,  0x7444), .driver_data = navi_amd },
+	{ PCI_VDEVICE(ATI,  0x7464), .driver_data = navi_amd },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, i2c_designware_pci_ids);
+
+static void i2c_dw_pci_shutdown(struct pci_dev *pdev)
+{
+	struct dw_i2c_dev *i_dev;
+
+	i_dev = pci_get_drvdata(pdev);
+	if (!i_dev)
+		return;
+
+	pm_runtime_disable(&pdev->dev);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		i2c_dw_shutdown(i_dev);
+}
 
 static struct pci_driver dw_i2c_driver = {
 	.name		= DRIVER_NAME,
 	.probe		= i2c_dw_pci_probe,
 	.remove		= i2c_dw_pci_remove,
+	.shutdown	= i2c_dw_pci_shutdown,
 	.driver         = {
 		.pm	= pm_ptr(&i2c_dw_dev_pm_ops),
 	},

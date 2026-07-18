@@ -236,11 +236,6 @@ static int __init rseq_debugfs_init(void)
 }
 __initcall(rseq_debugfs_init);
 
-static bool rseq_set_ids(struct task_struct *t, struct rseq_ids *ids, u32 node_id)
-{
-	return rseq_set_ids_get_csaddr(t, ids, node_id, NULL);
-}
-
 static bool rseq_handle_cs(struct task_struct *t, struct pt_regs *regs)
 {
 	struct rseq __user *urseq = t->rseq.usrptr;
@@ -258,14 +253,16 @@ efault:
 static void rseq_slowpath_update_usr(struct pt_regs *regs)
 {
 	/*
-	 * Preserve rseq state and user_irq state. The generic entry code
-	 * clears user_irq on the way out, the non-generic entry
-	 * architectures are not having user_irq.
+	 * Preserve has_rseq and user_irq state. The generic entry code clears
+	 * user_irq on the way out, the non-generic entry architectures are not
+	 * setting user_irq.
 	 */
-	const struct rseq_event evt_mask = { .has_rseq = true, .user_irq = true, };
+	const struct rseq_event evt_mask = {
+		.has_rseq	= RSEQ_HAS_RSEQ_VERSION_MASK,
+		.user_irq	= true,
+	};
 	struct task_struct *t = current;
 	struct rseq_ids ids;
-	u32 node_id;
 	bool event;
 
 	if (unlikely(t->flags & PF_EXITING))
@@ -301,9 +298,9 @@ static void rseq_slowpath_update_usr(struct pt_regs *regs)
 	if (!event)
 		return;
 
-	node_id = cpu_to_node(ids.cpu_id);
+	ids.node_id = cpu_to_node(ids.cpu_id);
 
-	if (unlikely(!rseq_update_usr(t, regs, &ids, node_id))) {
+	if (unlikely(!rseq_update_usr(t, regs, &ids))) {
 		/*
 		 * Clear the errors just in case this might survive magically, but
 		 * leave the rest intact.
@@ -335,8 +332,9 @@ void __rseq_handle_slowpath(struct pt_regs *regs)
 void __rseq_signal_deliver(int sig, struct pt_regs *regs)
 {
 	rseq_stat_inc(rseq_stats.signal);
+
 	/*
-	 * Don't update IDs, they are handled on exit to user if
+	 * Don't update IDs yet, they are handled on exit to user if
 	 * necessary. The important thing is to abort a critical section of
 	 * the interrupted context as after this point the instruction
 	 * pointer in @regs points to the signal handler.
@@ -349,6 +347,13 @@ void __rseq_signal_deliver(int sig, struct pt_regs *regs)
 		current->rseq.event.error = 0;
 		force_sigsegv(sig);
 	}
+
+	/*
+	 * In legacy mode, force the update of IDs before returning to user
+	 * space to stay compatible.
+	 */
+	if (!rseq_v2(current))
+		rseq_force_update();
 }
 
 /*
@@ -384,19 +389,22 @@ void rseq_syscall(struct pt_regs *regs)
 
 static bool rseq_reset_ids(void)
 {
-	struct rseq_ids ids = {
-		.cpu_id		= RSEQ_CPU_ID_UNINITIALIZED,
-		.mm_cid		= 0,
-	};
+	struct rseq __user *rseq = current->rseq.usrptr;
 
 	/*
 	 * If this fails, terminate it because this leaves the kernel in
 	 * stupid state as exit to user space will try to fixup the ids
 	 * again.
 	 */
-	if (rseq_set_ids(current, &ids, 0))
-		return true;
+	scoped_user_rw_access(rseq, efault) {
+		unsafe_put_user(0, &rseq->cpu_id_start, efault);
+		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id, efault);
+		unsafe_put_user(0, &rseq->node_id, efault);
+		unsafe_put_user(0, &rseq->mm_cid, efault);
+	}
+	return true;
 
+efault:
 	force_sig(SIGSEGV);
 	return false;
 }
@@ -404,70 +412,29 @@ static bool rseq_reset_ids(void)
 /* The original rseq structure size (including padding) is 32 bytes. */
 #define ORIG_RSEQ_SIZE		32
 
-/*
- * sys_rseq - setup restartable sequences for caller thread.
- */
-SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
+static long rseq_register(struct rseq __user * rseq, u32 rseq_len, int flags, u32 sig)
 {
 	u32 rseqfl = 0;
+	u8 version = 1;
 
-	if (flags & RSEQ_FLAG_UNREGISTER) {
-		if (flags & ~RSEQ_FLAG_UNREGISTER)
-			return -EINVAL;
-		/* Unregister rseq for current thread. */
-		if (current->rseq.usrptr != rseq || !current->rseq.usrptr)
-			return -EINVAL;
-		if (rseq_len != current->rseq.len)
-			return -EINVAL;
-		if (current->rseq.sig != sig)
-			return -EPERM;
-		if (!rseq_reset_ids())
-			return -EFAULT;
-		rseq_reset(current);
-		return 0;
-	}
-
-	if (unlikely(flags & ~(RSEQ_FLAG_SLICE_EXT_DEFAULT_ON)))
-		return -EINVAL;
-
-	if (current->rseq.usrptr) {
-		/*
-		 * If rseq is already registered, check whether
-		 * the provided address differs from the prior
-		 * one.
-		 */
-		if (current->rseq.usrptr != rseq || rseq_len != current->rseq.len)
-			return -EINVAL;
-		if (current->rseq.sig != sig)
-			return -EPERM;
-		/* Already registered. */
-		return -EBUSY;
-	}
-
-	/*
-	 * If there was no rseq previously registered, ensure the provided rseq
-	 * is properly aligned, as communcated to user-space through the ELF
-	 * auxiliary vector AT_RSEQ_ALIGN. If rseq_len is the original rseq
-	 * size, the required alignment is the original struct rseq alignment.
-	 *
-	 * The rseq_len is required to be greater or equal to the original rseq
-	 * size. In order to be valid, rseq_len is either the original rseq size,
-	 * or large enough to contain all supported fields, as communicated to
-	 * user-space through the ELF auxiliary vector AT_RSEQ_FEATURE_SIZE.
-	 */
-	if (rseq_len < ORIG_RSEQ_SIZE ||
-	    (rseq_len == ORIG_RSEQ_SIZE && !IS_ALIGNED((unsigned long)rseq, ORIG_RSEQ_SIZE)) ||
-	    (rseq_len != ORIG_RSEQ_SIZE && (!IS_ALIGNED((unsigned long)rseq, rseq_alloc_align()) ||
-					    rseq_len < offsetof(struct rseq, end))))
-		return -EINVAL;
 	if (!access_ok(rseq, rseq_len))
 		return -EFAULT;
 
-	if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION)) {
-		rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE;
-		if (rseq_slice_extension_enabled() &&
-		    (flags & RSEQ_FLAG_SLICE_EXT_DEFAULT_ON))
-			rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_ENABLED;
+	/*
+	 * Architectures, which use the generic IRQ entry code (at least) enable
+	 * registrations with a size greater than the original v1 fixed sized
+	 * @rseq_len, which has been validated already to utilize the optimized
+	 * v2 ABI mode which also enables extended RSEQ features beyond MMCID.
+	 */
+	if (IS_ENABLED(CONFIG_GENERIC_IRQ_ENTRY) && rseq_len > ORIG_RSEQ_SIZE)
+		version = 2;
+
+	if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION) && version > 1) {
+		if (rseq_slice_extension_enabled()) {
+			rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_AVAILABLE;
+			if (flags & RSEQ_FLAG_SLICE_EXT_DEFAULT_ON)
+				rseqfl |= RSEQ_CS_FLAG_SLICE_EXT_ENABLED;
+		}
 	}
 
 	scoped_user_write_access(rseq, efault) {
@@ -485,7 +452,15 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 		unsafe_put_user(RSEQ_CPU_ID_UNINITIALIZED, &rseq->cpu_id, efault);
 		unsafe_put_user(0U, &rseq->node_id, efault);
 		unsafe_put_user(0U, &rseq->mm_cid, efault);
-		unsafe_put_user(0U, &rseq->slice_ctrl.all, efault);
+
+		/*
+		 * All fields past mm_cid are only valid for non-legacy v2
+		 * registrations.
+		 */
+		if (version > 1) {
+			if (IS_ENABLED(CONFIG_RSEQ_SLICE_EXTENSION))
+				unsafe_put_user(0U, &rseq->slice_ctrl.all, efault);
+		}
 	}
 
 	/*
@@ -501,16 +476,89 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32
 #endif
 
 	/*
-	 * If rseq was previously inactive, and has just been
-	 * registered, ensure the cpu_id_start and cpu_id fields
-	 * are updated before returning to user-space.
+	 * Ensure the cpu_id_start and cpu_id fields are updated before
+	 * returning to user-space.
 	 */
-	current->rseq.event.has_rseq = true;
+	current->rseq.event.has_rseq = version;
 	rseq_force_update();
 	return 0;
 
 efault:
 	return -EFAULT;
+}
+
+static long rseq_unregister(struct rseq __user * rseq, u32 rseq_len, int flags, u32 sig)
+{
+	if (flags & ~RSEQ_FLAG_UNREGISTER)
+		return -EINVAL;
+	if (current->rseq.usrptr != rseq || !current->rseq.usrptr)
+		return -EINVAL;
+	if (rseq_len != current->rseq.len)
+		return -EINVAL;
+	if (current->rseq.sig != sig)
+		return -EPERM;
+	if (!rseq_reset_ids())
+		return -EFAULT;
+	rseq_reset(current);
+	return 0;
+}
+
+static long rseq_reregister(struct rseq __user * rseq, u32 rseq_len, u32 sig)
+{
+	/*
+	 * If rseq is already registered, check whether the provided address
+	 * differs from the prior one.
+	 */
+	if (current->rseq.usrptr != rseq || rseq_len != current->rseq.len)
+		return -EINVAL;
+	if (current->rseq.sig != sig)
+		return -EPERM;
+	/* Already registered. */
+	return -EBUSY;
+}
+
+static bool rseq_length_valid(struct rseq __user *rseq, unsigned int rseq_len)
+{
+	/*
+	 * Ensure the provided rseq is properly aligned, as communicated to
+	 * user-space through the ELF auxiliary vector AT_RSEQ_ALIGN. If
+	 * rseq_len is the original rseq size, the required alignment is the
+	 * original struct rseq alignment.
+	 *
+	 * In order to be valid, rseq_len is either the original rseq size, or
+	 * large enough to contain all supported fields, as communicated to
+	 * user-space through the ELF auxiliary vector AT_RSEQ_FEATURE_SIZE.
+	 */
+	if (rseq_len < ORIG_RSEQ_SIZE)
+		return false;
+
+	if (rseq_len == ORIG_RSEQ_SIZE)
+		return IS_ALIGNED((unsigned long)rseq, ORIG_RSEQ_SIZE);
+
+	return IS_ALIGNED((unsigned long)rseq, rseq_alloc_align()) &&
+		rseq_len >= offsetof(struct rseq, end);
+}
+
+#define RSEQ_FLAGS_SUPPORTED	(RSEQ_FLAG_SLICE_EXT_DEFAULT_ON)
+
+/*
+ * sys_rseq - Register or unregister restartable sequences for the caller thread.
+ */
+SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len, int, flags, u32, sig)
+{
+	if (flags & RSEQ_FLAG_UNREGISTER)
+		return rseq_unregister(rseq, rseq_len, flags, sig);
+
+	if (unlikely(flags & ~RSEQ_FLAGS_SUPPORTED))
+		return -EINVAL;
+
+	if (current->rseq.usrptr)
+		return rseq_reregister(rseq, rseq_len, sig);
+
+	if (!rseq_length_valid(rseq, rseq_len))
+		return -EINVAL;
+
+	return rseq_register(rseq, rseq_len, flags, sig);
 }
 
 #ifdef CONFIG_RSEQ_SLICE_EXTENSION
@@ -713,6 +761,8 @@ int rseq_slice_extension_prctl(unsigned long arg2, unsigned long arg3)
 			return -ENOTSUPP;
 		if (!current->rseq.usrptr)
 			return -ENXIO;
+		if (!rseq_v2(current))
+			return -ENOTSUPP;
 
 		/* No change? */
 		if (enable == !!current->rseq.slice.state.enabled)

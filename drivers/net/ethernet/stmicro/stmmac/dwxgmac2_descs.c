@@ -27,6 +27,7 @@ static int dwxgmac2_get_rx_status(struct stmmac_extra_stats *x,
 				  struct dma_desc *p)
 {
 	u32 rdes3 = le32_to_cpu(p->des3);
+	u32 rdes2 = le32_to_cpu(p->des2);
 
 	if (unlikely(rdes3 & XGMAC_RDES3_OWN))
 		return dma_own;
@@ -36,6 +37,11 @@ static int dwxgmac2_get_rx_status(struct stmmac_extra_stats *x,
 		return rx_not_ls;
 	if (unlikely((rdes3 & XGMAC_RDES3_ES) && (rdes3 & XGMAC_RDES3_LD)))
 		return discard_frame;
+
+	if (rdes2 & XGMAC_RDES2_L3FM)
+		x->l3_filter_match++;
+	if (rdes2 & XGMAC_RDES2_L4FM)
+		x->l4_filter_match++;
 
 	return good_frame;
 }

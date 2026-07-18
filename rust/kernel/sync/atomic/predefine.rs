@@ -2,9 +2,7 @@
 
 //! Pre-defined atomic types
 
-use crate::static_assert;
-use core::mem::{align_of, size_of};
-use ffi::c_void;
+use crate::prelude::*;
 
 // Ensure size and alignment requirements are checked.
 static_assert!(size_of::<bool>() == size_of::<i8>());
@@ -154,9 +152,8 @@ unsafe impl super::AtomicAdd<usize> for usize {
     }
 }
 
-use crate::macros::kunit_tests;
-
-#[kunit_tests(rust_atomics)]
+#[cfg(CONFIG_RUST_ATOMICS_KUNIT_TEST)]
+#[macros::kunit_tests(rust_atomics)]
 mod tests {
     use super::super::*;
 

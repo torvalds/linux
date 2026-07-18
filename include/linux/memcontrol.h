@@ -29,6 +29,7 @@ struct obj_cgroup;
 struct page;
 struct mm_struct;
 struct kmem_cache;
+struct swap_cluster_info;
 
 /* Cgroup-specific page state, on top of universal node page state */
 enum memcg_stat_item {
@@ -275,10 +276,6 @@ struct mem_cgroup {
 	struct list_head cgwb_list;
 	struct wb_domain cgwb_domain;
 	struct memcg_cgwb_frn cgwb_frn[MEMCG_CGWB_FRN_CNT];
-#endif
-
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	struct deferred_split deferred_split_queue;
 #endif
 
 #ifdef CONFIG_LRU_GEN_WALKS_MMU
@@ -646,8 +643,8 @@ static inline int mem_cgroup_charge(struct folio *folio, struct mm_struct *mm,
 
 int mem_cgroup_charge_hugetlb(struct folio* folio, gfp_t gfp);
 
-int mem_cgroup_swapin_charge_folio(struct folio *folio, struct mm_struct *mm,
-				  gfp_t gfp, swp_entry_t entry);
+int mem_cgroup_swapin_charge_folio(struct folio *folio, unsigned short id,
+				   struct mm_struct *mm, gfp_t gfp);
 
 void __mem_cgroup_uncharge(struct folio *folio);
 
@@ -1137,7 +1134,7 @@ static inline int mem_cgroup_charge_hugetlb(struct folio* folio, gfp_t gfp)
 }
 
 static inline int mem_cgroup_swapin_charge_folio(struct folio *folio,
-			struct mm_struct *mm, gfp_t gfp, swp_entry_t entry)
+		 unsigned short id, struct mm_struct *mm, gfp_t gfp)
 {
 	return 0;
 }
@@ -1899,9 +1896,6 @@ static inline void mem_cgroup_exit_user_fault(void)
 	current->in_user_fault = 0;
 }
 
-void memcg1_swapout(struct folio *folio, swp_entry_t entry);
-void memcg1_swapin(swp_entry_t entry, unsigned int nr_pages);
-
 #else /* CONFIG_MEMCG_V1 */
 static inline
 unsigned long memcg1_soft_limit_reclaim(pg_data_t *pgdat, int order,
@@ -1929,14 +1923,23 @@ static inline void mem_cgroup_exit_user_fault(void)
 {
 }
 
-static inline void memcg1_swapout(struct folio *folio, swp_entry_t entry)
-{
-}
-
-static inline void memcg1_swapin(swp_entry_t entry, unsigned int nr_pages)
-{
-}
-
 #endif /* CONFIG_MEMCG_V1 */
+
+#if defined(CONFIG_MEMCG_V1) && defined(CONFIG_SWAP)
+
+void __memcg1_swapout(struct folio *folio, struct swap_cluster_info *ci);
+void memcg1_swapin(struct folio *folio);
+
+#else
+
+static inline void __memcg1_swapout(struct folio *folio,
+		struct swap_cluster_info *ci)
+{
+}
+
+static inline void memcg1_swapin(struct folio *folio)
+{
+}
+#endif
 
 #endif /* _LINUX_MEMCONTROL_H */

@@ -226,7 +226,7 @@ static bool __init dmtimer_is_preferred(struct device_node *np)
  * Some omap3 boards with unreliable oscillator must not use the counter_32k
  * or dmtimer1 with 32 KiHz source. Additionally, the boards with unreliable
  * oscillator should really set counter_32k as disabled, and delete dmtimer1
- * ti,always-on property, but let's not count on it. For these quirky cases,
+ * ti,timer-alwon property, but let's not count on it. For these quirky cases,
  * we prefer using the always-on secure dmtimer12 with the internal 32 KiHz
  * clock as the clocksource, and any available dmtimer as clockevent.
  *

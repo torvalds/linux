@@ -457,7 +457,8 @@ static void lt8912_bridge_mode_set(struct drm_bridge *bridge,
 	drm_display_mode_to_videomode(adj, &lt->mode);
 }
 
-static void lt8912_bridge_enable(struct drm_bridge *bridge)
+static void lt8912_bridge_enable(struct drm_bridge *bridge,
+				 struct drm_atomic_commit *commit)
 {
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
@@ -493,6 +494,7 @@ static int lt8912_attach_dsi(struct lt8912 *lt)
 
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_MODE_LPM |
+			  MIPI_DSI_MODE_VIDEO_NO_HFP |
 			  MIPI_DSI_MODE_NO_EOT_PACKET;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
@@ -633,11 +635,14 @@ static const struct drm_edid *lt8912_bridge_edid_read(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs lt8912_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = lt8912_bridge_attach,
 	.detach = lt8912_bridge_detach,
 	.mode_valid = lt8912_bridge_mode_valid,
 	.mode_set = lt8912_bridge_mode_set,
-	.enable = lt8912_bridge_enable,
+	.atomic_enable = lt8912_bridge_enable,
 	.detect = lt8912_bridge_detect,
 	.edid_read = lt8912_bridge_edid_read,
 };

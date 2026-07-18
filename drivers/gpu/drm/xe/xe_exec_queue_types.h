@@ -214,7 +214,7 @@ struct xe_exec_queue {
 		 */
 		struct xe_dep_scheduler *dep_scheduler;
 		/**
-		 * @last_fence: last fence for tlb invalidation, protected by
+		 * @tlb_inval.last_fence: last fence for tlb invalidation, protected by
 		 * vm->lock in write mode
 		 */
 		struct dma_fence *last_fence;
@@ -318,8 +318,6 @@ struct xe_exec_queue_ops {
 	void (*resume)(struct xe_exec_queue *q);
 	/** @reset_status: check exec queue reset status */
 	bool (*reset_status)(struct xe_exec_queue *q);
-	/** @active: check exec queue is active */
-	bool (*active)(struct xe_exec_queue *q);
 };
 
 #endif

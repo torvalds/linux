@@ -4,6 +4,7 @@
 #include <linux/coreboot.h>
 #include <linux/minmax.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
@@ -18,6 +19,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_modeset_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -286,6 +288,24 @@ static struct drm_driver corebootdrm_drm_driver = {
  * Coreboot driver
  */
 
+static int corebootdrm_pm_suspend(struct device *dev)
+{
+	struct corebootdrm_device *cdev = dev_get_drvdata(dev);
+	struct drm_device *drm = &cdev->sysfb.dev;
+
+	return drm_mode_config_helper_suspend(drm);
+}
+
+static int corebootdrm_pm_resume(struct device *dev)
+{
+	struct corebootdrm_device *cdev = dev_get_drvdata(dev);
+	struct drm_device *drm = &cdev->sysfb.dev;
+
+	return drm_mode_config_helper_resume(drm);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(corebootdrm_pm_ops, corebootdrm_pm_suspend, corebootdrm_pm_resume);
+
 static int corebootdrm_probe(struct platform_device *pdev)
 {
 	const struct lb_framebuffer *fb = dev_get_platdata(&pdev->dev);
@@ -423,6 +443,7 @@ static void corebootdrm_remove(struct platform_device *pdev)
 static struct platform_driver corebootdrm_platform_driver = {
 	.driver = {
 		.name = "coreboot-framebuffer",
+		.pm = pm_sleep_ptr(&corebootdrm_pm_ops),
 	},
 	.probe = corebootdrm_probe,
 	.remove = corebootdrm_remove,

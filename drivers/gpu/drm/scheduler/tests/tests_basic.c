@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2025 Valve Corporation */
 
+#include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/minmax.h>
+#include <linux/time.h>
+#include <linux/workqueue.h>
 
 #include "sched_tests.h"
 
@@ -234,6 +238,360 @@ static void drm_sched_basic_cancel(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, job->hw_fence.error, -ECANCELED);
 }
+
+struct sched_concurrent_context {
+	struct drm_mock_scheduler *sched;
+	struct workqueue_struct *sub_wq;
+	struct kunit *test;
+	struct completion wait_go;
+};
+
+KUNIT_DEFINE_ACTION_WRAPPER(drm_mock_sched_fini_wrap, drm_mock_sched_fini,
+			    struct drm_mock_scheduler *);
+
+KUNIT_DEFINE_ACTION_WRAPPER(drm_mock_sched_entity_free_wrap, drm_mock_sched_entity_free,
+			    struct drm_mock_sched_entity *);
+
+static void complete_destroy_workqueue(void *context)
+{
+	struct sched_concurrent_context *ctx = context;
+
+	complete_all(&ctx->wait_go);
+
+	destroy_workqueue(ctx->sub_wq);
+}
+
+static int drm_sched_concurrent_init(struct kunit *test)
+{
+	struct sched_concurrent_context *ctx;
+	int ret;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	init_completion(&ctx->wait_go);
+
+	ctx->sched = drm_mock_sched_new(test, MAX_SCHEDULE_TIMEOUT);
+
+	ret = kunit_add_action_or_reset(test, drm_mock_sched_fini_wrap, ctx->sched);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	/* Use an unbounded workqueue to maximize job submission concurrency */
+	ctx->sub_wq = alloc_workqueue("drm-sched-submitters-wq", WQ_UNBOUND,
+				      WQ_UNBOUND_MAX_ACTIVE);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->sub_wq);
+
+	ret = kunit_add_action_or_reset(test, complete_destroy_workqueue, ctx);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ctx->test = test;
+	test->priv = ctx;
+
+	return 0;
+}
+
+struct drm_sched_parallel_params {
+	const char *description;
+	unsigned int num_jobs;
+	unsigned int num_workers;
+};
+
+static const struct drm_sched_parallel_params drm_sched_parallel_cases[] = {
+	{
+		.description = "Parallel submission of multiple jobs per worker",
+		.num_jobs = 8,
+		.num_workers = 16,
+	},
+};
+
+static void
+drm_sched_parallel_desc(const struct drm_sched_parallel_params *params, char *desc)
+{
+	strscpy(desc, params->description, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(drm_sched_parallel, drm_sched_parallel_cases, drm_sched_parallel_desc);
+
+struct parallel_worker {
+	struct work_struct work;
+	struct sched_concurrent_context *ctx;
+	struct drm_mock_sched_entity *entity;
+	struct drm_mock_sched_job **jobs;
+	unsigned int id;
+};
+
+static void drm_sched_parallel_worker(struct work_struct *work)
+{
+	const struct drm_sched_parallel_params *params;
+	struct sched_concurrent_context *test_ctx;
+	struct parallel_worker *worker;
+	unsigned int i;
+
+	worker = container_of(work, struct parallel_worker, work);
+	test_ctx = worker->ctx;
+	params = test_ctx->test->param_value;
+
+	wait_for_completion(&test_ctx->wait_go);
+
+	kunit_info(test_ctx->test, "Parallel worker %u submitting %u jobs started\n",
+		   worker->id, params->num_jobs);
+
+	for (i = 0; i < params->num_jobs; i++)
+		drm_mock_sched_job_submit(worker->jobs[i]);
+}
+
+/*
+ * Spawns workers that submit a sequence of jobs to the mock scheduler.
+ * Once all jobs are submitted, the timeline is manually advanced.
+ */
+static void drm_sched_parallel_submit_test(struct kunit *test)
+{
+	struct sched_concurrent_context *ctx = test->priv;
+	const struct drm_sched_parallel_params *params = test->param_value;
+	struct parallel_worker *workers, *worker;
+	struct drm_mock_sched_job *job;
+	unsigned int i, j, completed_jobs, total_jobs;
+	bool done;
+	int ret;
+
+	KUNIT_ASSERT_GT(test, params->num_workers, 0);
+	KUNIT_ASSERT_GT(test, params->num_jobs, 0);
+
+	workers = kunit_kcalloc(test, params->num_workers, sizeof(*workers),
+				GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, workers);
+
+	/*
+	 * Init workers only after all jobs and entities have been successfully
+	 * allocated. In this way, the cleanup logic for when an assertion fail
+	 * can be simplified.
+	 */
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		worker->id = i;
+		worker->ctx = ctx;
+		worker->entity = drm_mock_sched_entity_new(test,
+							   DRM_SCHED_PRIORITY_NORMAL,
+							   ctx->sched);
+
+		worker->jobs = kunit_kcalloc(test, params->num_jobs,
+					     sizeof(*worker->jobs), GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, worker->jobs);
+
+		for (j = 0; j < params->num_jobs; j++) {
+			job = drm_mock_sched_job_new(test, worker->entity);
+			worker->jobs[j] = job;
+		}
+
+		ret = kunit_add_action_or_reset(test, drm_mock_sched_entity_free_wrap,
+						worker->entity);
+		KUNIT_ASSERT_EQ(test, ret, 0);
+	}
+
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		INIT_WORK(&worker->work, drm_sched_parallel_worker);
+		queue_work(ctx->sub_wq, &worker->work);
+	}
+
+	complete_all(&ctx->wait_go);
+	flush_workqueue(ctx->sub_wq);
+
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		for (j = 0; j < params->num_jobs; j++) {
+			job = worker->jobs[j];
+			done = drm_mock_sched_job_wait_scheduled(job, HZ);
+			KUNIT_EXPECT_TRUE(test, done);
+		}
+	}
+
+	total_jobs = params->num_workers * params->num_jobs;
+	completed_jobs = drm_mock_sched_advance(ctx->sched, total_jobs);
+	KUNIT_EXPECT_EQ(test, completed_jobs, total_jobs);
+
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		for (j = 0; j < params->num_jobs; j++) {
+			job = worker->jobs[j];
+			done = drm_mock_sched_job_wait_finished(job, HZ);
+			KUNIT_EXPECT_TRUE(test, done);
+		}
+	}
+}
+
+struct drm_sched_interleaved_params {
+	const char *description;
+	unsigned int test_duration_ms;
+	unsigned int job_base_duration_us;
+	unsigned int num_workers;
+	unsigned int num_in_flight_jobs;
+};
+
+static const struct drm_sched_interleaved_params drm_sched_interleaved_cases[] = {
+	{
+		.description = "Interleaved submission of multiple jobs per worker",
+		.test_duration_ms = 1000,
+		.job_base_duration_us = 100,
+		.num_workers = 16,
+		.num_in_flight_jobs = 8,
+	},
+};
+
+static void
+drm_sched_interleaved_desc(const struct drm_sched_interleaved_params *params, char *desc)
+{
+	strscpy(desc, params->description, KUNIT_PARAM_DESC_SIZE);
+}
+
+KUNIT_ARRAY_PARAM(drm_sched_interleaved, drm_sched_interleaved_cases,
+		  drm_sched_interleaved_desc);
+
+struct interleaved_worker {
+	struct work_struct work;
+	struct sched_concurrent_context *ctx;
+	struct drm_mock_sched_entity *entity;
+	struct drm_mock_sched_job **jobs;
+	unsigned int id;
+	unsigned int job_count;
+	unsigned int job_duration_us;
+};
+
+static void drm_sched_interleaved_worker(struct work_struct *work)
+{
+	struct sched_concurrent_context *test_ctx;
+	const struct drm_sched_interleaved_params *params;
+	struct interleaved_worker *worker;
+	unsigned int i, j, max_in_flight_job;
+	unsigned long timeout;
+	bool done;
+
+	worker = container_of(work, struct interleaved_worker, work);
+	test_ctx = worker->ctx;
+	params = test_ctx->test->param_value;
+
+	wait_for_completion(&test_ctx->wait_go);
+
+	kunit_info(test_ctx->test, "Worker %u submitting %u jobs of %u us started\n",
+		   worker->id, worker->job_count, worker->job_duration_us);
+
+	timeout = msecs_to_jiffies(params->test_duration_ms * 2);
+
+	/* Fill the submission window */
+	max_in_flight_job = min(worker->job_count, params->num_in_flight_jobs);
+	for (i = 0; i < max_in_flight_job; i++)
+		drm_mock_sched_job_submit(worker->jobs[i]);
+
+	/* Keep the window full by submitting a new job at once until done */
+	for (i = 0; i < worker->job_count; i++) {
+		done = drm_mock_sched_job_wait_finished(worker->jobs[i], timeout);
+		if (!done)
+			kunit_info(test_ctx->test, "Job %u of worker %u timed out\n",
+				   i, worker->id);
+
+		j = i + max_in_flight_job;
+		if (j < worker->job_count)
+			drm_mock_sched_job_submit(worker->jobs[j]);
+	}
+}
+
+/*
+ * Spawns workers that submit a sequence of jobs to the mock scheduler. Job
+ * durations are chosen as multiples of a base duration value specified as
+ * a test parameter. Since the scheduler serializes jobs from all workers,
+ * the total test duration budget is divided into equal shares among workers.
+ * These shares are then used to compute the number of jobs that each worker
+ * can submit.
+ */
+static void drm_sched_interleaved_submit_test(struct kunit *test)
+{
+	const struct drm_sched_interleaved_params *params = test->param_value;
+	struct sched_concurrent_context *ctx = test->priv;
+	struct interleaved_worker *workers, *worker;
+	struct drm_mock_sched_job *job;
+	unsigned int worker_share_us;
+	unsigned int i, j;
+	bool done;
+	int ret;
+
+	KUNIT_ASSERT_GT(test, params->num_workers, 0);
+	KUNIT_ASSERT_GT(test, params->job_base_duration_us, 0);
+
+	workers = kunit_kcalloc(test, params->num_workers, sizeof(*workers),
+				GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, workers);
+
+	/* Divide the available test time into equal shares among the workers */
+	worker_share_us = (params->test_duration_ms * USEC_PER_MSEC) /
+			  params->num_workers;
+
+	/*
+	 * Init workers only after all jobs and entities have been successfully
+	 * allocated. In this way, the cleanup logic for when an assertion fails
+	 * can be simplified.
+	 */
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		worker->id = i;
+		worker->ctx = ctx;
+
+		worker->job_duration_us = params->job_base_duration_us * (i + 1);
+		worker->job_count = worker_share_us / worker->job_duration_us;
+		worker->job_count = max(1U, worker->job_count);
+
+		worker->entity = drm_mock_sched_entity_new(test,
+							   DRM_SCHED_PRIORITY_NORMAL,
+							   ctx->sched);
+
+		worker->jobs = kunit_kcalloc(test, worker->job_count,
+					     sizeof(*worker->jobs), GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, worker->jobs);
+
+		for (j = 0; j < worker->job_count; j++) {
+			job = drm_mock_sched_job_new(test, worker->entity);
+			drm_mock_sched_job_set_duration_us(job, worker->job_duration_us);
+
+			worker->jobs[j] = job;
+		}
+
+		ret = kunit_add_action_or_reset(test, drm_mock_sched_entity_free_wrap,
+						worker->entity);
+		KUNIT_ASSERT_EQ(test, ret, 0);
+	}
+
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		INIT_WORK(&worker->work, drm_sched_interleaved_worker);
+		queue_work(ctx->sub_wq, &worker->work);
+	}
+
+	complete_all(&ctx->wait_go);
+	flush_workqueue(ctx->sub_wq);
+
+	for (i = 0; i < params->num_workers; i++) {
+		worker = &workers[i];
+		for (j = 0; j < worker->job_count; j++) {
+			job = worker->jobs[j];
+			done = drm_mock_sched_job_is_finished(job);
+			KUNIT_EXPECT_TRUE(test, done);
+		}
+	}
+}
+
+static struct kunit_case drm_sched_concurrent_tests[] = {
+	KUNIT_CASE_PARAM(drm_sched_parallel_submit_test, drm_sched_parallel_gen_params),
+	KUNIT_CASE_PARAM(drm_sched_interleaved_submit_test, drm_sched_interleaved_gen_params),
+	{}
+};
+
+static struct kunit_suite drm_sched_concurrent = {
+	.name = "drm_sched_concurrent_tests",
+	.init = drm_sched_concurrent_init,
+	.test_cases = drm_sched_concurrent_tests,
+	.attr = {
+		.speed = KUNIT_SPEED_SLOW,
+	},
+};
 
 static struct kunit_case drm_sched_cancel_tests[] = {
 	KUNIT_CASE(drm_sched_basic_cancel),
@@ -556,6 +914,7 @@ static struct kunit_suite drm_sched_credits = {
 };
 
 kunit_test_suites(&drm_sched_basic,
+		  &drm_sched_concurrent,
 		  &drm_sched_timeout,
 		  &drm_sched_cancel,
 		  &drm_sched_priority,

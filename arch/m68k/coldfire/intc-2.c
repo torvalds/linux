@@ -61,8 +61,8 @@ static void intc_irq_mask(struct irq_data *d)
 	imraddr += (irq & 0x20) ? MCFINTC_IMRH : MCFINTC_IMRL;
 	imrbit = 0x1 << (irq & 0x1f);
 
-	val = __raw_readl(imraddr);
-	__raw_writel(val | imrbit, imraddr);
+	val = mcf_read32(imraddr);
+	mcf_write32(val | imrbit, imraddr);
 }
 
 static void intc_irq_unmask(struct irq_data *d)
@@ -83,8 +83,8 @@ static void intc_irq_unmask(struct irq_data *d)
 	if ((irq & 0x20) == 0)
 		imrbit |= 0x1;
 
-	val = __raw_readl(imraddr);
-	__raw_writel(val & ~imrbit, imraddr);
+	val = mcf_read32(imraddr);
+	mcf_write32(val & ~imrbit, imraddr);
 }
 
 /*
@@ -97,7 +97,7 @@ static void intc_irq_ack(struct irq_data *d)
 {
 	unsigned int irq = d->irq;
 
-	__raw_writeb(0x1 << (irq - EINT0), MCFEPORT_EPFR);
+	mcf_write8(0x1 << (irq - EINT0), MCFEPORT_EPFR);
 }
 
 /*
@@ -120,8 +120,8 @@ static unsigned int intc_irq_startup(struct irq_data *d)
 	icraddr = MCFICM_INTC0;
 #endif
 	icraddr += MCFINTC_ICR0 + (irq & 0x3f);
-	if (__raw_readb(icraddr) == 0)
-		__raw_writeb(intc_intpri--, icraddr);
+	if (mcf_read8(icraddr) == 0)
+		mcf_write8(intc_intpri--, icraddr);
 
 	irq = d->irq;
 	if ((irq >= EINT1) && (irq <= EINT7)) {
@@ -130,12 +130,12 @@ static unsigned int intc_irq_startup(struct irq_data *d)
 		irq -= EINT0;
 
 		/* Set EPORT line as input */
-		v = __raw_readb(MCFEPORT_EPDDR);
-		__raw_writeb(v & ~(0x1 << irq), MCFEPORT_EPDDR);
+		v = mcf_read8(MCFEPORT_EPDDR);
+		mcf_write8(v & ~(0x1 << irq), MCFEPORT_EPDDR);
 
 		/* Set EPORT line as interrupt source */
-		v = __raw_readb(MCFEPORT_EPIER);
-		__raw_writeb(v | (0x1 << irq), MCFEPORT_EPIER);
+		v = mcf_read8(MCFEPORT_EPIER);
+		mcf_write8(v | (0x1 << irq), MCFEPORT_EPIER);
 	}
 
 	intc_irq_unmask(d);
@@ -167,9 +167,9 @@ static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 		irq_set_handler(irq, handle_edge_irq);
 
 	irq -= EINT0;
-	pa = __raw_readw(MCFEPORT_EPPAR);
+	pa = mcf_read16(MCFEPORT_EPPAR);
 	pa = (pa & ~(0x3 << (irq * 2))) | (tb << (irq * 2));
-	__raw_writew(pa, MCFEPORT_EPPAR);
+	mcf_write16(pa, MCFEPORT_EPPAR);
 	
 	return 0;
 }
@@ -195,9 +195,9 @@ void __init init_IRQ(void)
 	int irq;
 
 	/* Mask all interrupt sources */
-	__raw_writel(0x1, MCFICM_INTC0 + MCFINTC_IMRL);
+	mcf_write32(0x1, MCFICM_INTC0 + MCFINTC_IMRL);
 #ifdef MCFICM_INTC1
-	__raw_writel(0x1, MCFICM_INTC1 + MCFINTC_IMRL);
+	mcf_write32(0x1, MCFICM_INTC1 + MCFINTC_IMRL);
 #endif
 
 	for (irq = MCFINT_VECBASE; (irq < MCFINT_VECBASE + NR_VECS); irq++) {

@@ -28,7 +28,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		return AE_OK;
 
 	/* It needs to reference this NHI */
-	if (dev_fwnode(&nhi->pdev->dev) != fwnode)
+	if (dev_fwnode(nhi->dev) != fwnode)
 		goto out_put;
 
 	/*
@@ -57,16 +57,16 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		 */
 		pm_runtime_get_sync(&pdev->dev);
 
-		link = device_link_add(&pdev->dev, &nhi->pdev->dev,
+		link = device_link_add(&pdev->dev, nhi->dev,
 				       DL_FLAG_AUTOREMOVE_SUPPLIER |
 				       DL_FLAG_RPM_ACTIVE |
 				       DL_FLAG_PM_RUNTIME);
 		if (link) {
-			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
+			dev_dbg(nhi->dev, "created link from %s\n",
 				dev_name(&pdev->dev));
 			*(bool *)ret = true;
 		} else {
-			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
+			dev_warn(nhi->dev, "device link creation from %s failed\n",
 				 dev_name(&pdev->dev));
 		}
 
@@ -93,7 +93,7 @@ bool tb_acpi_add_links(struct tb_nhi *nhi)
 	acpi_status status;
 	bool ret = false;
 
-	if (!has_acpi_companion(&nhi->pdev->dev))
+	if (!has_acpi_companion(nhi->dev))
 		return false;
 
 	/*
@@ -103,7 +103,7 @@ bool tb_acpi_add_links(struct tb_nhi *nhi)
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, 32,
 				     tb_acpi_add_link, NULL, nhi, (void **)&ret);
 	if (ACPI_FAILURE(status)) {
-		dev_warn(&nhi->pdev->dev, "failed to enumerate tunneled ports\n");
+		dev_warn(nhi->dev, "failed to enumerate tunneled ports\n");
 		return false;
 	}
 
@@ -305,7 +305,7 @@ static struct acpi_device *tb_acpi_switch_find_companion(struct tb_switch *sw)
 		struct tb_nhi *nhi = sw->tb->nhi;
 		struct acpi_device *parent_adev;
 
-		parent_adev = ACPI_COMPANION(&nhi->pdev->dev);
+		parent_adev = ACPI_COMPANION(nhi->dev);
 		if (parent_adev)
 			adev = acpi_find_child_device(parent_adev, 0, false);
 	}

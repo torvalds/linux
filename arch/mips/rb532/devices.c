@@ -240,6 +240,25 @@ static struct platform_device *rb532_devs[] = {
 	&rb532_wdt
 };
 
+#define GPIOBASE 0x050000
+
+static struct resource rb532_gpio_reg0_res[] = {
+	{
+		.name	= "gpio_reg0",
+		.start	= REGBASE + GPIOBASE,
+		.end	= REGBASE + GPIOBASE + sizeof(struct rb532_gpio_reg) - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device_info rb532_gpio_devinfo = {
+	.name		= "rb532-gpio",
+	.id		= PLATFORM_DEVID_NONE,
+	.res		= rb532_gpio_reg0_res,
+	.num_res	= ARRAY_SIZE(rb532_gpio_reg0_res),
+	.swnode		= &rb532_gpio0_node,
+};
+
 static const struct property_entry rb532_button_properties[] = {
 	PROPERTY_ENTRY_GPIO("button-gpios", &rb532_gpio0_node,
 			    GPIO_BTN_S1, GPIO_ACTIVE_LOW),
@@ -309,16 +328,17 @@ static int __init plat_setup_devices(void)
 	/* set the uart clock to the current cpu frequency */
 	rb532_uart_res[0].uartclk = idt_cpu_freq;
 
+	pd = platform_device_register_full(&rb532_gpio_devinfo);
+	ret = PTR_ERR_OR_ZERO(pd);
+	if (ret) {
+		pr_err("failed to create the GPIO device: %d\n", ret);
+		return ret;
+	}
+
 	gpiod_add_lookup_table(&cf_slot0_gpio_table);
 	ret = platform_add_devices(rb532_devs, ARRAY_SIZE(rb532_devs));
 	if (ret)
 		return ret;
-
-	/*
-	 * Stack devices using full info and properties here, after we
-	 * register the node for the GPIO chip.
-	 */
-	software_node_register(&rb532_gpio0_node);
 
 	pd = platform_device_register_full(&nand0_info);
 	ret = PTR_ERR_OR_ZERO(pd);

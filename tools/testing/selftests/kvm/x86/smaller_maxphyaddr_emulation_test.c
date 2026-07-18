@@ -20,8 +20,8 @@
 
 static void guest_code(bool tdp_enabled)
 {
-	uint64_t error_code;
-	uint64_t vector;
+	u64 error_code;
+	u64 vector;
 
 	vector = kvm_asm_safe_ec(FLDS_MEM_EAX, error_code, "a"(MEM_REGION_GVA));
 
@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	uint64_t *hva;
-	uint64_t gpa;
+	u64 *hva;
+	gpa_t gpa;
 	int rc;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_SMALLER_MAXPHYADDR));

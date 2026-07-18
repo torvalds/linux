@@ -31,7 +31,7 @@
 
 static inline double dml_min(double a, double b)
 {
-	return (double) dcn_bw_min2(a, b);
+	return (double)dcn_bw_min2((float)a, (float)b);
 }
 
 static inline double dml_min3(double a, double b, double c)
@@ -46,7 +46,7 @@ static inline double dml_min4(double a, double b, double c, double d)
 
 static inline double dml_max(double a, double b)
 {
-	return (double) dcn_bw_max2(a, b);
+	return (double)dcn_bw_max2((float)a, (float)b);
 }
 
 static inline double dml_max3(double a, double b, double c)
@@ -68,14 +68,14 @@ static inline double dml_ceil(double a, double granularity)
 {
 	if (granularity == 0)
 		return 0;
-	return (double) dcn_bw_ceil2(a, granularity);
+	return (double)dcn_bw_ceil2((float)a, (float)granularity);
 }
 
 static inline double dml_floor(double a, double granularity)
 {
 	if (granularity == 0)
 		return 0;
-	return (double) dcn_bw_floor2(a, granularity);
+	return (double)dcn_bw_floor2((float)a, (float)granularity);
 }
 
 static inline double dml_round(double a)
@@ -103,31 +103,31 @@ static inline int dml_log2(double x)
 
 static inline double dml_pow(double a, int exp)
 {
-	return (double) dcn_bw_pow(a, exp);
+	return (double)dcn_bw_pow((float)a, (float)exp);
 }
 
 static inline double dml_fmod(double f, int val)
 {
-	return (double) dcn_bw_mod(f, val);
+	return (double)dcn_bw_mod((float)f, (float)val);
 }
 
 static inline double dml_ceil_2(double f)
 {
-	return (double) dcn_bw_ceil2(f, 2);
+	return (double)dcn_bw_ceil2((float)f, 2.0f);
 }
 
 static inline double dml_ceil_ex(double x, double granularity)
 {
 	if (granularity == 0)
 		return 0;
-	return (double) dcn_bw_ceil2(x, granularity);
+	return (double)dcn_bw_ceil2((float)x, (float)granularity);
 }
 
 static inline double dml_floor_ex(double x, double granularity)
 {
 	if (granularity == 0)
 		return 0;
-	return (double) dcn_bw_floor2(x, granularity);
+	return (double)dcn_bw_floor2((float)x, (float)granularity);
 }
 
 static inline unsigned int dml_round_to_multiple(unsigned int num,

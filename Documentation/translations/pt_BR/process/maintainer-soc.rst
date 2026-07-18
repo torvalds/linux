@@ -8,7 +8,7 @@ Visão Geral
 -----------
 
 O subsistema SoC é um local de agregação para códigos específicos de SoC
-System on Chip). Os principais componentes do subsistema são:
+(System on Chip). Os principais componentes do subsistema são:
 
 * Devicetrees (DTS) para ARM de 32 e 64 bits e RISC-V.
 * Arquivos de placa (board files) ARM de 32 bits (arch/arm/mach*).
@@ -220,3 +220,13 @@ A linha de assunto de um pull request deve começar com "[GIT PULL]" e ser feita
 usando uma tag assinada, em vez de um branch. Esta tag deve conter uma breve
 descrição resumindo as alterações no pull request. Para mais detalhes sobre o
 envio de pull requests, consulte ``Documentation/maintainer/pull-requests.rst``.
+
+Propósito dos Defconfigs
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Defconfigs são usados principalmente pelos desenvolvedores do kernel, porque as
+distribuições têm suas próprias configurações. Uma mudança que adiciona novas
+opções CONFIG a um defconfig deve explicar por que os desenvolvedores do kernel
+em geral gostariam de tal opção, por exemplo, fornecendo o nome de uma máquina/placa
+suportada usando essa nova opção. Isso implica que habilitar opções em defconfig
+para máquinas não upstream não deve ser aceito.

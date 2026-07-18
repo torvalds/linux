@@ -419,41 +419,19 @@ void bnxt_ptp_reapply_pps(struct bnxt *bp)
 	}
 }
 
-static int bnxt_get_target_cycles(struct bnxt_ptp_cfg *ptp, u64 target_ns,
-				  u64 *cycles_delta)
-{
-	u64 cycles_now;
-	u64 nsec_now, nsec_delta;
-	int rc;
-
-	rc = bnxt_refclk_read(ptp->bp, NULL, &cycles_now);
-	if (rc)
-		return rc;
-
-	nsec_now = bnxt_timecounter_cyc2time(ptp, cycles_now);
-
-	nsec_delta = target_ns - nsec_now;
-	*cycles_delta = div64_u64(nsec_delta << ptp->cc.shift, ptp->cc.mult);
-	return 0;
-}
-
 static int bnxt_ptp_perout_cfg(struct bnxt_ptp_cfg *ptp,
 			       struct ptp_clock_request *rq)
 {
 	struct hwrm_func_ptp_cfg_input *req;
 	struct bnxt *bp = ptp->bp;
 	struct timespec64 ts;
-	u64 target_ns, delta;
+	u64 target_ns;
 	u16 enables;
 	int rc;
 
 	ts.tv_sec = rq->perout.start.sec;
 	ts.tv_nsec = rq->perout.start.nsec;
 	target_ns = timespec64_to_ns(&ts);
-
-	rc = bnxt_get_target_cycles(ptp, target_ns, &delta);
-	if (rc)
-		return rc;
 
 	rc = hwrm_req_init(bp, req, HWRM_FUNC_PTP_CFG);
 	if (rc)
@@ -468,7 +446,10 @@ static int bnxt_ptp_perout_cfg(struct bnxt_ptp_cfg *ptp,
 	req->ptp_freq_adj_dll_phase = 0;
 	req->ptp_freq_adj_ext_period = cpu_to_le32(NSEC_PER_SEC);
 	req->ptp_freq_adj_ext_up = 0;
-	req->ptp_freq_adj_ext_phase_lower = cpu_to_le32(delta);
+	req->ptp_freq_adj_ext_phase_lower =
+		cpu_to_le32(lower_32_bits(target_ns));
+	req->ptp_freq_adj_ext_phase_upper =
+		cpu_to_le32(upper_32_bits(target_ns));
 
 	return hwrm_req_send(bp, req);
 }

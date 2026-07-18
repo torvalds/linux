@@ -11,7 +11,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 
 #define FEIYANG_INIT_CMD_LEN	2
@@ -98,9 +97,7 @@ static int feiyang_enable(struct drm_panel *panel)
 	/* T12 (video & logic signal rise + backlight rise) T12 >= 200ms */
 	msleep(200);
 
-	mipi_dsi_dcs_set_display_on(ctx->dsi);
-
-	return 0;
+	return mipi_dsi_dcs_set_display_on(ctx->dsi);
 }
 
 static int feiyang_disable(struct drm_panel *panel)

@@ -382,7 +382,7 @@ static const struct of_device_id arcxcnn_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, arcxcnn_dt_ids);
 
 static const struct i2c_device_id arcxcnn_ids[] = {
-	{"arc2c0608", ARC2C0608},
+	{ .name = "arc2c0608", .driver_data = ARC2C0608 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, arcxcnn_ids);

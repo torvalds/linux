@@ -380,9 +380,9 @@ static struct proto_ops algif_hash_ops_nokey = {
 	.accept		=	hash_accept_nokey,
 };
 
-static void *hash_bind(const char *name, u32 type, u32 mask)
+static void *hash_bind(const char *name)
 {
-	return crypto_alloc_ahash(name, type, mask);
+	return crypto_alloc_ahash(name, 0, AF_ALG_CRYPTOAPI_MASK);
 }
 
 static void hash_release(void *private)

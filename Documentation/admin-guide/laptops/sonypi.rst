@@ -89,7 +89,7 @@ statically linked into the kernel). Those options are:
 			set to 0xffffffff, meaning that all possible events
 			will be tried. You can use the following bits to
 			construct your own event mask (from
-			drivers/char/sonypi.h)::
+			include/linux/sonypi.h)::
 
 				SONYPI_JOGGER_MASK		0x0001
 				SONYPI_CAPTURE_MASK		0x0002

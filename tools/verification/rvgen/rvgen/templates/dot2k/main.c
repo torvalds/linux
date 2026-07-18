@@ -35,7 +35,7 @@ static int enable_%%MODEL_NAME%%(void)
 {
 	int retval;
 
-	retval = da_monitor_init();
+	retval = %%MONITOR_CLASS%%_monitor_init();
 	if (retval)
 		return retval;
 
@@ -50,7 +50,7 @@ static void disable_%%MODEL_NAME%%(void)
 
 %%TRACEPOINT_DETACH%%
 
-	da_monitor_destroy();
+	%%MONITOR_CLASS%%_monitor_destroy();
 }
 
 /*

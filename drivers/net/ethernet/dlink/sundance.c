@@ -192,13 +192,13 @@ IVc. Errata
 #endif
 
 static const struct pci_device_id sundance_pci_tbl[] = {
-	{ 0x1186, 0x1002, 0x1186, 0x1002, 0, 0, 0 },
-	{ 0x1186, 0x1002, 0x1186, 0x1003, 0, 0, 1 },
-	{ 0x1186, 0x1002, 0x1186, 0x1012, 0, 0, 2 },
-	{ 0x1186, 0x1002, 0x1186, 0x1040, 0, 0, 3 },
-	{ 0x1186, 0x1002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4 },
-	{ 0x13F0, 0x0201, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 5 },
-	{ 0x13F0, 0x0200, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 6 },
+	{ PCI_DEVICE_SUB(0x1186, 0x1002, 0x1186, 0x1002), .driver_data = 0 },
+	{ PCI_DEVICE_SUB(0x1186, 0x1002, 0x1186, 0x1003), .driver_data = 1 },
+	{ PCI_DEVICE_SUB(0x1186, 0x1002, 0x1186, 0x1012), .driver_data = 2 },
+	{ PCI_DEVICE_SUB(0x1186, 0x1002, 0x1186, 0x1040), .driver_data = 3 },
+	{ PCI_DEVICE(0x1186, 0x1002), .driver_data = 4 },
+	{ PCI_DEVICE(0x13F0, 0x0201), .driver_data = 5 },
+	{ PCI_DEVICE(0x13F0, 0x0200), .driver_data = 6 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, sundance_pci_tbl);

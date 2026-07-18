@@ -25,6 +25,7 @@
 #include <linux/mm.h>
 
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/setup.h>
@@ -137,6 +138,9 @@ static u32 intel_cpuid_vfm(void)
 u32 intel_get_platform_id(void)
 {
 	unsigned int val[2];
+
+	if (x86_hypervisor_present)
+		return 0;
 
 	/*
 	 * This can be called early. Use CPUID directly instead of

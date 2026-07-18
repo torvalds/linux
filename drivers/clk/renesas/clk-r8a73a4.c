@@ -42,6 +42,8 @@ static struct div4_clk div4_clks[] = {
 	{ "b",	CPG_FRQCRA,  8 },
 	{ "m1", CPG_FRQCRA,  4 },
 	{ "m2", CPG_FRQCRA,  0 },
+	{ "ztr", CPG_FRQCRB, 20 },
+	{ "zt", CPG_FRQCRB, 16 },
 	{ "zx", CPG_FRQCRB, 12 },
 	{ "zs", CPG_FRQCRB,  8 },
 	{ "hp", CPG_FRQCRB,  4 },

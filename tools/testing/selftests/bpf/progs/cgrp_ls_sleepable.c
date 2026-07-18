@@ -4,6 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
+#include "err.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -16,6 +17,7 @@ struct {
 
 __s32 target_pid;
 __u64 cgroup_id;
+long update_err;
 int target_hid;
 bool is_cgroup1;
 
@@ -121,5 +123,21 @@ int yes_rcu_lock(void *ctx)
 	if (ptr)
 		cgroup_id = cgrp->kn->id;
 	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("fexit/bpf_local_storage_update")
+int BPF_PROG(fexit_update, void *owner, struct bpf_local_storage_map *smap,
+	     void *value, u64 map_flags, bool swap_uptrs,
+	     struct bpf_local_storage_data *ret)
+{
+	struct task_struct *task = bpf_get_current_task_btf();
+
+	if (task->pid != target_pid)
+		return 0;
+
+	if (IS_ERR_VALUE(ret))
+		update_err = PTR_ERR(ret);
+
 	return 0;
 }

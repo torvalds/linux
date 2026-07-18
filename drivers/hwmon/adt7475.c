@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/jiffies.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/util_macros.h>
 
 #include <dt-bindings/pwm/pwm.h>
@@ -165,15 +166,15 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 enum chips { adt7473, adt7475, adt7476, adt7490 };
 
 static const struct i2c_device_id adt7475_id[] = {
-	{ "adt7473", adt7473 },
-	{ "adt7475", adt7475 },
-	{ "adt7476", adt7476 },
-	{ "adt7490", adt7490 },
+	{ .name = "adt7473", .driver_data = adt7473 },
+	{ .name = "adt7475", .driver_data = adt7475 },
+	{ .name = "adt7476", .driver_data = adt7476 },
+	{ .name = "adt7490", .driver_data = adt7490 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7475_id);
 
-static const struct of_device_id __maybe_unused adt7475_of_match[] = {
+static const struct of_device_id adt7475_of_match[] = {
 	{
 		.compatible = "adi,adt7473",
 		.data = (void *)adt7473
@@ -1995,7 +1996,7 @@ static struct i2c_driver adt7475_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adt7475",
-		.of_match_table = of_match_ptr(adt7475_of_match),
+		.of_match_table = adt7475_of_match,
 	},
 	.probe		= adt7475_probe,
 	.id_table	= adt7475_id,

@@ -219,9 +219,9 @@ static int __init ei_debugfs_init(void)
 	dir = debugfs_create_dir("error_injection", NULL);
 
 	file = debugfs_create_file("list", 0444, dir, NULL, &ei_fops);
-	if (!file) {
+	if (IS_ERR(file)) {
 		debugfs_remove(dir);
-		return -ENOMEM;
+		return PTR_ERR(file);
 	}
 
 	return 0;

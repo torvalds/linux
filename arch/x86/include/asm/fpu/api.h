@@ -119,12 +119,6 @@ extern void fpu__init_system(void);
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
-#ifdef CONFIG_MATH_EMULATION
-extern void fpstate_init_soft(struct swregs_state *soft);
-#else
-static inline void fpstate_init_soft(struct swregs_state *soft) {}
-#endif
-
 /* State tracking */
 DECLARE_PER_CPU(bool, kernel_fpu_allowed);
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);

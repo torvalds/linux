@@ -75,3 +75,5 @@ SoC-specific documents
    sti/overview
 
    vfp/release-notes
+
+   zte/index

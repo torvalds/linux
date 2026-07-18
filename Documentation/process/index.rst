@@ -86,6 +86,7 @@ regressions and security problems.
    debugging/index
    handling-regressions
    security-bugs
+   threat-model
    cve
    embargoed-hardware-issues
 

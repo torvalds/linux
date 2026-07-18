@@ -84,7 +84,7 @@
  * the 6 functions (copy_{to,from}_user(), __copy_{to,from}_user_inatomic())
  * that are used instead.  Out of those, __... ones are inlined.  Plain
  * copy_{to,from}_user() might or might not be inlined.  If you want them
- * inlined, have asm/uaccess.h define INLINE_COPY_{TO,FROM}_USER.
+ * inlined, have asm/uaccess.h define INLINE_COPY_USER.
  *
  * NOTE: only copy_from_user() zero-pads the destination in case of short copy.
  * Neither __copy_from_user() nor __copy_from_user_inatomic() zero anything
@@ -157,7 +157,7 @@ __copy_to_user(void __user *to, const void *from, unsigned long n)
 }
 
 /*
- * Architectures that #define INLINE_COPY_TO_USER use this function
+ * Architectures that #define INLINE_COPY_USER use this function
  * directly in the normal copy_to/from_user(), the other ones go
  * through an extern _copy_to/from_user(), which expands the same code
  * here.
@@ -190,10 +190,6 @@ fail:
 	memset(to + (n - res), 0, res);
 	return res;
 }
-#ifndef INLINE_COPY_FROM_USER
-extern __must_check unsigned long
-_copy_from_user(void *, const void __user *, unsigned long);
-#endif
 
 static inline __must_check unsigned long
 _inline_copy_to_user(void __user *to, const void *from, unsigned long n)
@@ -207,7 +203,13 @@ _inline_copy_to_user(void __user *to, const void *from, unsigned long n)
 	}
 	return n;
 }
-#ifndef INLINE_COPY_TO_USER
+#ifdef INLINE_COPY_USER
+# define _copy_to_user _inline_copy_to_user
+# define _copy_from_user _inline_copy_from_user
+#else
+extern __must_check unsigned long
+_copy_from_user(void *, const void __user *, unsigned long);
+
 extern __must_check unsigned long
 _copy_to_user(void __user *, const void *, unsigned long);
 #endif
@@ -217,11 +219,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (!check_copy_size(to, n, false))
 		return n;
-#ifdef INLINE_COPY_FROM_USER
-	return _inline_copy_from_user(to, from, n);
-#else
 	return _copy_from_user(to, from, n);
-#endif
 }
 
 static __always_inline unsigned long __must_check
@@ -229,12 +227,7 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (!check_copy_size(from, n, true))
 		return n;
-
-#ifdef INLINE_COPY_TO_USER
-	return _inline_copy_to_user(to, from, n);
-#else
 	return _copy_to_user(to, from, n);
-#endif
 }
 
 #ifndef copy_mc_to_kernel
@@ -510,11 +503,74 @@ copy_struct_to_user(void __user *dst, size_t usize, const void *src,
 			return -EFAULT;
 	}
 	if (ignored_trailing)
-		*ignored_trailing = ksize < usize &&
+		*ignored_trailing = usize < ksize &&
 			memchr_inv(src + size, 0, rest) != NULL;
 	/* Copy the interoperable parts of the struct. */
 	if (copy_to_user(dst, src, size))
 		return -EFAULT;
+	return 0;
+}
+
+static __always_inline void
+__copy_struct_generic_bounce_buffer(void *dst, size_t dstsize,
+				    const void *src, size_t srcsize,
+				    bool *ignored_trailing)
+{
+	size_t size = min(dstsize, srcsize);
+	size_t rest = max(dstsize, srcsize) - size;
+
+	/* Deal with trailing bytes. */
+	if (dstsize > srcsize)
+		memset(dst + size, 0, rest);
+	if (ignored_trailing)
+		*ignored_trailing = dstsize < srcsize &&
+			memchr_inv(src + size, 0, rest) != NULL;
+	/* Copy the interoperable parts of the struct. */
+	memcpy(dst, src, size);
+}
+
+/**
+ * This is like copy_struct_from_user(), but the
+ * src buffer was already copied into a kernel
+ * bounce buffer, so it will never return -EFAULT.
+ */
+static __always_inline __must_check int
+copy_struct_from_bounce_buffer(void *dst, size_t dstsize,
+			       const void *src, size_t srcsize)
+{
+	bool ignored_trailing;
+
+	/* Double check if ksize is larger than a known object size. */
+	if (WARN_ON_ONCE(dstsize > __builtin_object_size(dst, 1)))
+		return -E2BIG;
+
+	__copy_struct_generic_bounce_buffer(dst, dstsize,
+					    src, srcsize,
+					    &ignored_trailing);
+	if (unlikely(ignored_trailing))
+		return -E2BIG;
+
+	return 0;
+}
+
+/**
+ * This is like copy_struct_to_user(), but the
+ * dst buffer is a kernel bounce buffer instead
+ * of a direct userspace buffer, so it will never return -EFAULT.
+ */
+static __always_inline __must_check int
+copy_struct_to_bounce_buffer(void *dst, size_t dstsize,
+			     const void *src,
+			     size_t srcsize,
+			     bool *ignored_trailing)
+{
+	/* Double check if srcsize is larger than a known object size. */
+	if (WARN_ON_ONCE(srcsize > __builtin_object_size(src, 1)))
+		return -E2BIG;
+
+	__copy_struct_generic_bounce_buffer(dst, dstsize,
+					    src, srcsize,
+					    ignored_trailing);
 	return 0;
 }
 
@@ -647,6 +703,17 @@ static inline void user_access_restore(unsigned long flags) { }
 #ifndef user_read_access_begin
 #define user_read_access_begin user_access_begin
 #define user_read_access_end user_access_end
+#endif
+
+#ifndef unsafe_atomic_store_release_user
+# define unsafe_atomic_store_release_user(val, uptr, elbl)	\
+	do {							\
+		if (!IS_ENABLED(CONFIG_ARCH_MEMORY_ORDER_TSO))	\
+			smp_mb();				\
+		else						\
+			barrier();				\
+		unsafe_put_user(val, uptr, elbl);		\
+	} while (0)
 #endif
 
 /* Define RW variant so the below _mode macro expansion works */

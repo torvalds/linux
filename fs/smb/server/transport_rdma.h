@@ -25,6 +25,6 @@ static inline void init_smbd_max_io_size(unsigned int sz) { }
 static inline unsigned int get_smbd_max_read_write_size(struct ksmbd_transport *kt) { return 0; }
 #endif
 
-#include "../smbdirect/smbdirect.h"
+#include <linux/smbdirect.h>
 
 #endif /* __KSMBD_TRANSPORT_RDMA_H__ */

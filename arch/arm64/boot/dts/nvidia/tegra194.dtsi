@@ -1722,7 +1722,7 @@
 			nvidia,apbmisc = <&apbmisc>;
 		};
 
-		iommu@10000000 {
+		smmu_iso: iommu@10000000 {
 			compatible = "nvidia,tegra194-smmu", "nvidia,smmu-500";
 			reg = <0x0 0x10000000 0x0 0x800000>;
 			interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
@@ -1795,7 +1795,7 @@
 			#iommu-cells = <1>;
 
 			nvidia,memory-controller = <&mc>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		smmu: iommu@12000000 {
@@ -1962,6 +1962,7 @@
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
 					interconnect-names = "dma-mem", "read-1";
+					iommus = <&smmu_iso TEGRA194_SID_NVDISPLAY>;
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <0>;
@@ -1980,6 +1981,7 @@
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
 					interconnect-names = "dma-mem", "read-1";
+					iommus = <&smmu_iso TEGRA194_SID_NVDISPLAY>;
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <1>;
@@ -1998,6 +2000,7 @@
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
 					interconnect-names = "dma-mem", "read-1";
+					iommus = <&smmu_iso TEGRA194_SID_NVDISPLAY>;
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <2>;
@@ -2016,6 +2019,7 @@
 					interconnects = <&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR &emc>,
 							<&mc TEGRA194_MEMORY_CLIENT_NVDISPLAYR1 &emc>;
 					interconnect-names = "dma-mem", "read-1";
+					iommus = <&smmu_iso TEGRA194_SID_NVDISPLAY>;
 
 					nvidia,outputs = <&sor0 &sor1 &sor2 &sor3>;
 					nvidia,head = <3>;
@@ -2382,6 +2386,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2434,6 +2439,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2486,6 +2492,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2538,6 +2545,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2583,6 +2591,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE4R &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_PCIE4W &emc>;
@@ -2629,6 +2638,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2674,6 +2684,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE0R &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_PCIE0W &emc>;
@@ -2723,6 +2734,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			bus-range = <0x0 0xff>;
 
@@ -2771,6 +2783,7 @@
 			nvidia,aspm-cmrt-us = <60>;
 			nvidia,aspm-pwr-on-t-us = <20>;
 			nvidia,aspm-l0s-entrance-latency-us = <3>;
+			aspm-l1-entry-delay-ns = <8000>;
 
 			interconnects = <&mc TEGRA194_MEMORY_CLIENT_PCIE5R &emc>,
 					<&mc TEGRA194_MEMORY_CLIENT_PCIE5W &emc>;

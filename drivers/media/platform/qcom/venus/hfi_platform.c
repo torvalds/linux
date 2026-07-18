@@ -2,9 +2,7 @@
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
-#include <linux/of.h>
 #include "hfi_platform.h"
-#include "core.h"
 
 const struct hfi_platform *hfi_platform_get(enum hfi_version version)
 {
@@ -73,25 +71,3 @@ hfi_platform_get_codec_lp_freq(struct venus_core *core,
 
 	return freq;
 }
-
-int
-hfi_platform_get_codecs(struct venus_core *core, u32 *enc_codecs,
-			u32 *dec_codecs, u32 *count)
-{
-	const struct hfi_platform *plat;
-
-	plat = hfi_platform_get(core->res->hfi_version);
-	if (!plat)
-		return -EINVAL;
-
-	if (plat->codecs)
-		plat->codecs(core, enc_codecs, dec_codecs, count);
-
-	if (IS_IRIS2_1(core)) {
-		*enc_codecs &= ~HFI_VIDEO_CODEC_VP8;
-		*dec_codecs &= ~HFI_VIDEO_CODEC_VP8;
-	}
-
-	return 0;
-}
-

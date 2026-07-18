@@ -221,7 +221,7 @@ static int tidss_oldi_config(struct tidss_oldi *oldi)
 }
 
 static void tidss_oldi_atomic_pre_enable(struct drm_bridge *bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct tidss_oldi *oldi = drm_bridge_to_tidss_oldi(bridge);
 	struct drm_connector *connector;
@@ -258,7 +258,7 @@ static void tidss_oldi_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void tidss_oldi_atomic_post_disable(struct drm_bridge *bridge,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct tidss_oldi *oldi = drm_bridge_to_tidss_oldi(bridge);
 
@@ -335,7 +335,7 @@ static const struct drm_bridge_funcs tidss_oldi_bridge_funcs = {
 	.atomic_get_input_bus_fmts = tidss_oldi_atomic_get_input_bus_fmts,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.mode_valid = tidss_oldi_mode_valid,
 };
 

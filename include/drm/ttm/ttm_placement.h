@@ -81,8 +81,8 @@
  * Structure indicating a possible place to put an object.
  */
 struct ttm_place {
-	unsigned	fpfn;
-	unsigned	lpfn;
+	uint64_t	fpfn;
+	uint64_t	lpfn;
 	uint32_t	mem_type;
 	uint32_t	flags;
 };

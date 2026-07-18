@@ -296,7 +296,7 @@ static const uint64_t cirrus_primary_plane_format_modifiers[] = {
 };
 
 static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
-						    struct drm_atomic_state *state)
+						    struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_framebuffer *fb = new_plane_state->fb;
@@ -326,7 +326,7 @@ static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
 }
 
 static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
-						      struct drm_atomic_state *state)
+						      struct drm_atomic_commit *state)
 {
 	struct cirrus_device *cirrus = to_cirrus(plane->dev);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
@@ -374,7 +374,7 @@ static const struct drm_plane_funcs cirrus_primary_plane_funcs = {
 	DRM_GEM_SHADOW_PLANE_FUNCS,
 };
 
-static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
@@ -390,7 +390,7 @@ static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_ato
 }
 
 static void cirrus_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct cirrus_device *cirrus = to_cirrus(crtc->dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);

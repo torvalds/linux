@@ -538,9 +538,9 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id me_daq_pci_table[] = {
-	{ PCI_VDEVICE(MEILHAUS, 0x2600), BOARD_ME2600 },
-	{ PCI_VDEVICE(MEILHAUS, 0x2000), BOARD_ME2000 },
-	{ 0 }
+	{ PCI_VDEVICE(MEILHAUS, 0x2600), .driver_data = BOARD_ME2600 },
+	{ PCI_VDEVICE(MEILHAUS, 0x2000), .driver_data = BOARD_ME2000 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, me_daq_pci_table);
 

@@ -89,6 +89,14 @@ struct amdgpu_reg_access {
 	struct amdgpu_reg_smn_ext smn;
 };
 
+/*
+ * ASIC specific register table accessible by UMD
+ */
+struct amdgpu_allowed_register_entry {
+	uint32_t reg_offset;
+	bool grbm_indexed;
+};
+
 void amdgpu_reg_access_init(struct amdgpu_device *adev);
 uint32_t amdgpu_reg_smc_rd32(struct amdgpu_device *adev, uint32_t reg);
 void amdgpu_reg_smc_wr32(struct amdgpu_device *adev, uint32_t reg, uint32_t v);
@@ -159,5 +167,8 @@ void amdgpu_device_pcie_port_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev, uint32_t inst,
 				    uint32_t reg_addr, char reg_name[],
 				    uint32_t expected_value, uint32_t mask);
+
+uint32_t amdgpu_read_indexed_register(struct amdgpu_device *adev,
+					u32 se_num, u32 sh_num, u32 reg_offset);
 
 #endif /* __AMDGPU_REG_ACCESS_H__ */

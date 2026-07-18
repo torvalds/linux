@@ -99,7 +99,20 @@ static int mp1_v13_0_dump_bank(struct ras_core_context *ras_core,
 	return sys_func->mp1_dump_valid_bank(ras_core, msg, idx, reg_idx, val);
 }
 
+static int mp1_v13_0_set_debug_mode(struct ras_core_context *ras_core, bool enable)
+{
+	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
+	const struct ras_mp1_sys_func *sys_func = mp1->sys_func;
+
+	if (!sys_func || !sys_func->mp1_set_debug_mode)
+		return -RAS_CORE_NOT_SUPPORTED;
+
+	return sys_func->mp1_set_debug_mode(ras_core, enable);
+}
+
+
 const struct ras_mp1_ip_func mp1_ras_func_v13_0 = {
 	.get_valid_bank_count = mp1_v13_0_get_bank_count,
 	.dump_valid_bank = mp1_v13_0_dump_bank,
+	.set_debug_mode = mp1_v13_0_set_debug_mode,
 };

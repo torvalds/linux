@@ -432,13 +432,9 @@ static unsigned int gpmc_clk_ticks_to_ns(unsigned int ticks, int cs,
  *
  */
 static int get_gpmc_timing_reg(
-	/* timing specifiers */
 	int cs, int reg, int st_bit, int end_bit, int max,
 	const char *name, const enum gpmc_clk_domain cd,
-	/* value transform */
-	int shift,
-	/* format specifiers */
-	bool raw, bool noval)
+	int shift, bool raw, bool noval)
 {
 	u32 l;
 	int nr_bits;

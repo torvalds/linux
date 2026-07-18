@@ -218,13 +218,13 @@ struct dc_state *dc_state_create(struct dc *dc, struct dc_state_create_params *p
 		}
 
 		if (dc->caps.dcmode_power_limits_present) {
-			bool status;
+			bool dc_power_status;
 
 			DC_FP_START();
-			status = dml2_create(dc, &dc->dml2_dc_power_options, &state->bw_ctx.dml2_dc_power_source);
+			dc_power_status = dml2_create(dc, &dc->dml2_dc_power_options, &state->bw_ctx.dml2_dc_power_source);
 			DC_FP_END();
 
-			if (!status) {
+			if (!dc_power_status) {
 				dc_state_release(state);
 				return NULL;
 			}
@@ -953,7 +953,7 @@ bool dc_state_remove_phantom_streams_and_planes(
 	const struct dc *dc,
 	struct dc_state *state)
 {
-	int i;
+	unsigned int i;
 	bool removed_phantom = false;
 	struct dc_stream_state *phantom_stream = NULL;
 
@@ -978,7 +978,7 @@ void dc_state_release_phantom_streams_and_planes(
 	unsigned int phantom_count;
 	struct dc_stream_state *phantom_streams[MAX_PHANTOM_PIPES];
 	struct dc_plane_state *phantom_planes[MAX_PHANTOM_PIPES];
-	int i;
+	unsigned int i;
 
 	phantom_count = state->phantom_stream_count;
 	memcpy(phantom_streams, state->phantom_streams, sizeof(struct dc_stream_state *) * MAX_PHANTOM_PIPES);

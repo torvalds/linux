@@ -13,7 +13,6 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
 #include <linux/syscore_ops.h>

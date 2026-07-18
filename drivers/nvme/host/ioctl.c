@@ -102,7 +102,16 @@ static struct request *nvme_alloc_user_request(struct request_queue *q,
 		struct nvme_command *cmd, blk_opf_t rq_flags,
 		blk_mq_req_flags_t blk_flags)
 {
+	struct nvme_ns *ns = q->queuedata;
 	struct request *req;
+
+	/*
+	 * The NVME_MPATH flag is set only for IO commands sent to a namespace
+	 * with a multipath enabled head. The request is not eligible for
+	 * failover as passthrough requests also append REQ_FAILFAST_DRIVER.
+	 */
+	if (ns && nvme_ns_head_multipath(ns->head))
+		rq_flags |= REQ_NVME_MPATH;
 
 	req = blk_mq_alloc_request(q, nvme_req_op(cmd) | rq_flags, blk_flags);
 	if (IS_ERR(req))
@@ -120,21 +129,11 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 	struct nvme_ns *ns = q->queuedata;
 	struct block_device *bdev = ns ? ns->disk->part0 : NULL;
 	bool supports_metadata = bdev && blk_get_integrity(bdev->bd_disk);
-	struct nvme_ctrl *ctrl = nvme_req(req)->ctrl;
 	bool has_metadata = meta_buffer && meta_len;
-	struct bio *bio = NULL;
 	int ret;
 
-	if (!nvme_ctrl_sgl_supported(ctrl))
-		dev_warn_once(ctrl->device, "using unchecked data buffer\n");
-	if (has_metadata) {
-		if (!supports_metadata)
-			return -EINVAL;
-
-		if (!nvme_ctrl_meta_sgl_supported(ctrl))
-			dev_warn_once(ctrl->device,
-				      "using unchecked metadata buffer\n");
-	}
+	if (has_metadata && !supports_metadata)
+		return -EINVAL;
 
 	if (iter)
 		ret = blk_rq_map_user_iov(q, req, NULL, iter, GFP_KERNEL);
@@ -154,8 +153,8 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 	return ret;
 
 out_unmap:
-	if (bio)
-		blk_rq_unmap_user(bio);
+	if (req->bio)
+		blk_rq_unmap_user(req->bio);
 	return ret;
 }
 

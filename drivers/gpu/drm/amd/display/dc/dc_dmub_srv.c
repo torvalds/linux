@@ -151,7 +151,7 @@ static bool dc_dmub_srv_reg_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_s
 	struct dc_context *dc_ctx;
 	struct dmub_srv *dmub;
 	enum dmub_status status = DMUB_STATUS_OK;
-	int i;
+	unsigned int i;
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
@@ -193,7 +193,7 @@ static bool dc_dmub_srv_fb_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_sr
 	struct dc_context *dc_ctx;
 	struct dmub_srv *dmub;
 	enum dmub_status status;
-	int i;
+	unsigned int i;
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
@@ -336,7 +336,7 @@ bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
 		return false;
 	}
 
-	return boot_status.bits.optimized_init_done;
+	return (bool)boot_status.bits.optimized_init_done;
 }
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
@@ -346,7 +346,7 @@ bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 		return false;
 
 	return dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
-					 stream_mask, NULL, DM_DMUB_WAIT_TYPE_WAIT);
+				 (uint16_t)stream_mask, NULL, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
@@ -368,7 +368,7 @@ bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
 		return false;
 	}
 
-	return boot_status.bits.restore_required;
+	return (bool)boot_status.bits.restore_required;
 }
 
 bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_buf_entry *entry)
@@ -415,7 +415,7 @@ void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst)
 static uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	uint8_t pipes = 0;
-	int i = 0;
+	uint8_t i = 0;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -430,25 +430,26 @@ static void dc_dmub_srv_populate_fams_pipe_info(struct dc *dc, struct dc_state *
 		struct pipe_ctx *head_pipe,
 		struct dmub_cmd_fw_assisted_mclk_switch_pipe_data *fams_pipe_data)
 {
-	int j;
+	unsigned int j;
 	int pipe_idx = 0;
 
-	fams_pipe_data->pipe_index[pipe_idx++] = head_pipe->plane_res.hubp->inst;
+	fams_pipe_data->pipe_index[pipe_idx++] = (uint8_t)head_pipe->plane_res.hubp->inst;
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *split_pipe = &context->res_ctx.pipe_ctx[j];
 
 		if (split_pipe->stream == head_pipe->stream && (split_pipe->top_pipe || split_pipe->prev_odm_pipe)) {
-			fams_pipe_data->pipe_index[pipe_idx++] = split_pipe->plane_res.hubp->inst;
+			fams_pipe_data->pipe_index[pipe_idx++] = (uint8_t)split_pipe->plane_res.hubp->inst;
 		}
 	}
-	fams_pipe_data->pipe_count = pipe_idx;
+	fams_pipe_data->pipe_count = (uint8_t)pipe_idx;
 }
 
 bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, struct dc_state *context)
 {
 	union dmub_rb_cmd cmd = { 0 };
 	struct dmub_cmd_fw_assisted_mclk_switch_config *config_data = &cmd.fw_assisted_mclk_switch.config_data;
-	int i = 0, k = 0;
+	unsigned int i = 0;
+	int k = 0;
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
 	uint8_t visual_confirm_enabled;
 	struct dc_stream_status *stream_status = NULL;
@@ -456,7 +457,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	if (dc == NULL)
 		return false;
 
-	visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
+	visual_confirm_enabled = (uint8_t)(dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS);
 
 	// Format command.
 	cmd.fw_assisted_mclk_switch.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
@@ -477,7 +478,8 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 			 */
 			stream_status = dc_state_get_stream_status(context, pipe->stream);
 			if (stream_status && !stream_status->fpo_in_use) {
-				cmd.fw_assisted_mclk_switch.config_data.vactive_stretch_margin_us = dc->debug.fpo_vactive_margin_us;
+				cmd.fw_assisted_mclk_switch.config_data.vactive_stretch_margin_us =
+					(uint16_t)dc->debug.fpo_vactive_margin_us;
 				break;
 			}
 		}
@@ -486,17 +488,18 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!resource_is_pipe_type(pipe, OTG_MASTER))
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) || !pipe->stream)
 			continue;
 
 		stream_status = dc_state_get_stream_status(context, pipe->stream);
 		if (stream_status && stream_status->fpo_in_use) {
-			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-			uint8_t min_refresh_in_hz = (pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000;
+			uint8_t min_refresh_in_hz;
+
+			min_refresh_in_hz = (uint8_t)((pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000);
 
 			config_data->pipe_data[k].pix_clk_100hz = pipe->stream->timing.pix_clk_100hz;
 			config_data->pipe_data[k].min_refresh_in_hz = min_refresh_in_hz;
-			config_data->pipe_data[k].max_ramp_step = ramp_up_num_steps;
+			config_data->pipe_data[k].max_ramp_step = (uint8_t)ramp_up_num_steps;
 			config_data->pipe_data[k].pipes = dc_dmub_srv_get_pipes_for_stream(dc, pipe->stream);
 			dc_dmub_srv_populate_fams_pipe_info(dc, context, pipe, &config_data->pipe_data[k]);
 			k++;
@@ -514,9 +517,6 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 {
 	union dmub_rb_cmd cmd = { 0 };
-
-	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
-		return;
 
 	memset(&cmd, 0, sizeof(cmd));
 
@@ -551,7 +551,7 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 	cmd.visual_confirm_color.header.sub_type = 0;
 	cmd.visual_confirm_color.header.ret_status = 1;
 	cmd.visual_confirm_color.header.payload_bytes = sizeof(struct dmub_cmd_visual_confirm_color_data);
-	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
+	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = (uint16_t)panel_inst;
 
 	// If command was processed, copy feature caps to dmub srv
 	if (dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
@@ -589,17 +589,17 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing;
 	struct dc_crtc_timing *drr_timing = &vblank_pipe->stream->timing;
-	uint16_t drr_frame_us = 0;
-	uint16_t min_drr_supported_us = 0;
-	uint16_t max_drr_supported_us = 0;
-	uint16_t max_drr_vblank_us = 0;
-	uint16_t max_drr_mallregion_us = 0;
-	uint16_t mall_region_us = 0;
-	uint16_t prefetch_us = 0;
-	uint16_t subvp_active_us = 0;
-	uint16_t drr_active_us = 0;
-	uint16_t min_vtotal_supported = 0;
-	uint16_t max_vtotal_supported = 0;
+	uint64_t drr_frame_us = 0;
+	uint64_t min_drr_supported_us = 0;
+	uint64_t max_drr_supported_us = 0;
+	uint64_t max_drr_vblank_us = 0;
+	uint64_t max_drr_mallregion_us = 0;
+	uint64_t mall_region_us = 0;
+	uint64_t prefetch_us = 0;
+	uint64_t subvp_active_us = 0;
+	uint64_t drr_active_us = 0;
+	uint64_t min_vtotal_supported = 0;
+	uint64_t max_vtotal_supported = 0;
 
 	if (!phantom_stream)
 		return;
@@ -639,9 +639,10 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	 */
 	max_vtotal_supported = max_vtotal_supported - dc->caps.subvp_drr_max_vblank_margin_us;
 
-	pipe_data->pipe_config.vblank_data.drr_info.min_vtotal_supported = min_vtotal_supported;
-	pipe_data->pipe_config.vblank_data.drr_info.max_vtotal_supported = max_vtotal_supported;
-	pipe_data->pipe_config.vblank_data.drr_info.drr_vblank_start_margin = dc->caps.subvp_drr_vblank_start_margin_us;
+	pipe_data->pipe_config.vblank_data.drr_info.min_vtotal_supported = (uint16_t)min_vtotal_supported;
+	pipe_data->pipe_config.vblank_data.drr_info.max_vtotal_supported = (uint16_t)max_vtotal_supported;
+	pipe_data->pipe_config.vblank_data.drr_info.drr_vblank_start_margin =
+		(uint16_t)dc->caps.subvp_drr_vblank_start_margin_us;
 }
 
 /**
@@ -686,14 +687,15 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 
 	pipe_data->mode = VBLANK;
 	pipe_data->pipe_config.vblank_data.pix_clk_100hz = vblank_pipe->stream->timing.pix_clk_100hz;
-	pipe_data->pipe_config.vblank_data.vblank_start = vblank_pipe->stream->timing.v_total -
-							vblank_pipe->stream->timing.v_front_porch;
-	pipe_data->pipe_config.vblank_data.vtotal = vblank_pipe->stream->timing.v_total;
-	pipe_data->pipe_config.vblank_data.htotal = vblank_pipe->stream->timing.h_total;
+	pipe_data->pipe_config.vblank_data.vblank_start = (uint16_t)(vblank_pipe->stream->timing.v_total -
+							vblank_pipe->stream->timing.v_front_porch);
+	pipe_data->pipe_config.vblank_data.vtotal = (uint16_t)vblank_pipe->stream->timing.v_total;
+	pipe_data->pipe_config.vblank_data.htotal = (uint16_t)vblank_pipe->stream->timing.h_total;
 	pipe_data->pipe_config.vblank_data.vblank_pipe_index = vblank_pipe->pipe_idx;
-	pipe_data->pipe_config.vblank_data.vstartup_start = vblank_pipe->pipe_dlg_param.vstartup_start;
+	pipe_data->pipe_config.vblank_data.vstartup_start = (uint16_t)vblank_pipe->pipe_dlg_param.vstartup_start;
 	pipe_data->pipe_config.vblank_data.vblank_end =
-			vblank_pipe->stream->timing.v_total - vblank_pipe->stream->timing.v_front_porch - vblank_pipe->stream->timing.v_addressable;
+			(uint16_t)(vblank_pipe->stream->timing.v_total -
+			vblank_pipe->stream->timing.v_front_porch - vblank_pipe->stream->timing.v_addressable);
 
 	if (vblank_pipe->stream->ignore_msa_timing_param &&
 		(vblank_pipe->stream->allow_freesync || vblank_pipe->stream->vrr_active_variable || vblank_pipe->stream->vrr_active_fixed))
@@ -739,10 +741,10 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	phantom_timing0 = &phantom_stream0->timing;
 	phantom_timing1 = &phantom_stream1->timing;
 
-	subvp0_prefetch_us = div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
+	subvp0_prefetch_us = (uint32_t)div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
 			(uint64_t)phantom_timing0->h_total * 1000000),
 			(((uint64_t)phantom_timing0->pix_clk_100hz * 100) + dc->caps.subvp_prefetch_end_to_mall_start_us));
-	subvp1_prefetch_us = div64_u64(((uint64_t)(phantom_timing1->v_total - phantom_timing1->v_front_porch) *
+	subvp1_prefetch_us = (uint32_t)div64_u64(((uint64_t)(phantom_timing1->v_total - phantom_timing1->v_front_porch) *
 			(uint64_t)phantom_timing1->h_total * 1000000),
 			(((uint64_t)phantom_timing1->pix_clk_100hz * 100) + dc->caps.subvp_prefetch_end_to_mall_start_us));
 
@@ -751,8 +753,8 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	if (subvp0_prefetch_us > subvp1_prefetch_us) {
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[1];
 		prefetch_delta_us = subvp0_prefetch_us - subvp1_prefetch_us;
-		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-				div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
+pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
+				(uint16_t)div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
 					((uint64_t)phantom_timing1->pix_clk_100hz * 100) + ((uint64_t)phantom_timing1->h_total * 1000000 - 1)),
 					((uint64_t)phantom_timing1->h_total * 1000000));
 
@@ -760,7 +762,7 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[0];
 		prefetch_delta_us = subvp1_prefetch_us - subvp0_prefetch_us;
 		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-				div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
+				(uint16_t)div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
 					((uint64_t)phantom_timing0->pix_clk_100hz * 100) + ((uint64_t)phantom_timing0->h_total * 1000000 - 1)),
 					((uint64_t)phantom_timing0->h_total * 1000000));
 	}
@@ -800,14 +802,14 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;
-	pipe_data->pipe_config.subvp_data.htotal = subvp_pipe->stream->timing.h_total;
-	pipe_data->pipe_config.subvp_data.vtotal = subvp_pipe->stream->timing.v_total;
+	pipe_data->pipe_config.subvp_data.htotal = (uint16_t)subvp_pipe->stream->timing.h_total;
+	pipe_data->pipe_config.subvp_data.vtotal = (uint16_t)subvp_pipe->stream->timing.v_total;
 	pipe_data->pipe_config.subvp_data.main_vblank_start =
-			main_timing->v_total - main_timing->v_front_porch;
+			(uint16_t)(main_timing->v_total - main_timing->v_front_porch);
 	pipe_data->pipe_config.subvp_data.main_vblank_end =
-			main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable;
-	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
-	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->stream_res.tg->inst;
+			(uint16_t)(main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable);
+	pipe_data->pipe_config.subvp_data.mall_region_lines = (uint16_t)phantom_timing->v_addressable;
+	pipe_data->pipe_config.subvp_data.main_pipe_index = (uint8_t)subvp_pipe->stream_res.tg->inst;
 	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param &&
 		(subvp_pipe->stream->allow_freesync || subvp_pipe->stream->vrr_active_variable || subvp_pipe->stream->vrr_active_fixed);
 
@@ -822,25 +824,25 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	reduce_fraction(subvp_pipe->plane_state->src_rect.height, subvp_pipe->plane_state->dst_rect.height,
 			&out_num_plane, &out_den_plane);
 	reduce_fraction(out_num_stream * out_num_plane, out_den_stream * out_den_plane, &out_num, &out_den);
-	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
-	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
+	pipe_data->pipe_config.subvp_data.scale_factor_numerator = (uint8_t)out_num;
+	pipe_data->pipe_config.subvp_data.scale_factor_denominator = (uint8_t)out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =
-			phantom_timing->v_total - phantom_timing->v_front_porch;
+			(uint16_t)(phantom_timing->v_total - phantom_timing->v_front_porch);
 
 	// Round up
 	pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-			div64_u64(((uint64_t)dc->caps.subvp_prefetch_end_to_mall_start_us * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
+			(uint16_t)div64_u64(((uint64_t)dc->caps.subvp_prefetch_end_to_mall_start_us * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
 					((uint64_t)phantom_timing->h_total * 1000000 - 1)), ((uint64_t)phantom_timing->h_total * 1000000));
 	pipe_data->pipe_config.subvp_data.processing_delay_lines =
-			div64_u64(((uint64_t)(dc->caps.subvp_fw_processing_delay_us) * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
+			(uint16_t)div64_u64(((uint64_t)(dc->caps.subvp_fw_processing_delay_us) * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
 					((uint64_t)phantom_timing->h_total * 1000000 - 1)), ((uint64_t)phantom_timing->h_total * 1000000));
 
 	if (subvp_pipe->bottom_pipe) {
-		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->bottom_pipe->pipe_idx;
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = (uint8_t)subvp_pipe->bottom_pipe->pipe_idx;
 	} else if (subvp_pipe->next_odm_pipe) {
-		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->next_odm_pipe->pipe_idx;
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = (uint8_t)subvp_pipe->next_odm_pipe->pipe_idx;
 	} else {
 		pipe_data->pipe_config.subvp_data.main_split_pipe_index = 0xF;
 	}
@@ -851,11 +853,11 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 
 		if (resource_is_pipe_type(phantom_pipe, OTG_MASTER) &&
 				phantom_pipe->stream == dc_state_get_paired_subvp_stream(context, subvp_pipe->stream)) {
-			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->stream_res.tg->inst;
+			pipe_data->pipe_config.subvp_data.phantom_pipe_index = (uint8_t)phantom_pipe->stream_res.tg->inst;
 			if (phantom_pipe->bottom_pipe) {
-				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->plane_res.hubp->inst;
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = (uint8_t)phantom_pipe->bottom_pipe->plane_res.hubp->inst;
 			} else if (phantom_pipe->next_odm_pipe) {
-				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->next_odm_pipe->plane_res.hubp->inst;
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = (uint8_t)phantom_pipe->next_odm_pipe->plane_res.hubp->inst;
 			} else {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0xF;
 			}
@@ -933,15 +935,15 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		if (subvp_count == 2) {
 			update_subvp_prefetch_end_to_mall_start(dc, context, &cmd, subvp_pipes);
 		}
-		cmd.fw_assisted_mclk_switch_v2.config_data.pstate_allow_width_us = dc->caps.subvp_pstate_allow_width_us;
-		cmd.fw_assisted_mclk_switch_v2.config_data.vertical_int_margin_us = dc->caps.subvp_vertical_int_margin_us;
+		cmd.fw_assisted_mclk_switch_v2.config_data.pstate_allow_width_us = (uint8_t)dc->caps.subvp_pstate_allow_width_us;
+		cmd.fw_assisted_mclk_switch_v2.config_data.vertical_int_margin_us = (uint8_t)dc->caps.subvp_vertical_int_margin_us;
 
 		// Store the original watermark value for this SubVP config so we can lower it when the
 		// MCLK switch starts
 		wm_val_refclk = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns *
 				(dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000) / 1000;
 
-		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
+		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = (uint16_t)(wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF);
 	}
 
 	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
@@ -1060,10 +1062,10 @@ static void dc_build_cursor_update_payload0(
 	payload->cursor_rect.width  = hubp->cur_rect.w;
 	payload->cursor_rect.height = hubp->cur_rect.h;
 
-	payload->enable      = hubp->pos.cur_ctl.bits.cur_enable;
+	payload->enable      = (uint8_t)hubp->pos.cur_ctl.bits.cur_enable;
 	payload->pipe_idx    = p_idx;
-	payload->panel_inst  = panel_inst;
-	payload->otg_inst    = pipe_ctx->stream_res.tg->inst;
+	payload->panel_inst  = (uint8_t)panel_inst;
+	payload->otg_inst    = (uint8_t)pipe_ctx->stream_res.tg->inst;
 }
 
 static void dc_build_cursor_position_update_payload0(
@@ -1297,9 +1299,6 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return true;
 
-	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
-		return true;
-
 	dc_ctx = dc_dmub_srv->ctx;
 
 	if (wait) {
@@ -1339,9 +1338,6 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	volatile const struct dmub_shared_state_ips_fw *ips_fw;
 	struct dc_dmub_srv *dc_dmub_srv;
 	union dmub_rb_cmd cmd = {0};
-
-	if (dc->debug.dmcub_emulation)
-		return;
 
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
@@ -1460,9 +1456,6 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
 	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0, ips1z8_exit_count = 0;
-
-	if (dc->debug.dmcub_emulation)
-		return;
 
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
@@ -1645,7 +1638,7 @@ bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv)
 	if (dc_dmub_srv->dmub->shared_state &&
 	    dc_dmub_srv->dmub->meta_info.feature_bits.bits.shared_state_link_detection) {
 		ips_fw = &dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
-		return ips_fw->signals.bits.detection_required;
+		return (bool)ips_fw->signals.bits.detection_required;
 	}
 
 	/* Detection may require reading scratch 0 - exit out of idle prior to the read. */
@@ -1807,7 +1800,7 @@ static void dc_dmub_srv_rb_based_fams2_update_config(struct dc *dc,
 		struct dc_state *context,
 		bool enable)
 {
-	uint8_t num_cmds = 1;
+	uint32_t num_cmds = 1;
 	uint32_t i;
 	union dmub_rb_cmd cmd[2 * MAX_STREAMS + 1];
 	struct dmub_rb_cmd_fams2 *global_cmd = &cmd[0].fams2_config;
@@ -1915,6 +1908,8 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 	config->global.features.bits.enable = enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
 	config->global.features.bits.enable_ppt_check = dc->debug.fams2_config.bits.enable_ppt_check;
 
+	dmub_srv_flush_buffer_mem(dc->ctx->dmub_srv->dmub, &dc->ctx->dmub_srv->dmub->ib_mem_gart);
+
 	dm_execute_dmub_cmd_list(dc->ctx, 1, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
@@ -1940,7 +1935,7 @@ void dc_dmub_srv_fams2_drr_update(struct dc *dc,
 
 	cmd.fams2_drr_update.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 	cmd.fams2_drr_update.header.sub_type = DMUB_CMD__FAMS2_DRR_UPDATE;
-	cmd.fams2_drr_update.dmub_optc_state_req.tg_inst = tg_inst;
+	cmd.fams2_drr_update.dmub_optc_state_req.tg_inst = (uint8_t)tg_inst;
 	cmd.fams2_drr_update.dmub_optc_state_req.v_total_max = vtotal_max;
 	cmd.fams2_drr_update.dmub_optc_state_req.v_total_min = vtotal_min;
 	cmd.fams2_drr_update.dmub_optc_state_req.v_total_mid = vtotal_mid;
@@ -1991,10 +1986,10 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		cmds[num_cmds].fams2_flip.header.multi_cmd_pending = 1;
 
 		/* set topology info */
-		cmds[num_cmds].fams2_flip.flip_info.pipe_mask = dc_plane_get_pipe_mask(state, plane_state);
-		if (stream_status)
-			cmds[num_cmds].fams2_flip.flip_info.otg_inst = stream_status->primary_otg_inst;
-
+		cmds[num_cmds].fams2_flip.flip_info.pipe_mask = (uint8_t)dc_plane_get_pipe_mask(state, plane_state);
+		if (stream_status) {
+			cmds[num_cmds].fams2_flip.flip_info.otg_inst = (uint8_t)stream_status->primary_otg_inst;
+		}
 		cmds[num_cmds].fams2_flip.flip_info.config.bits.is_immediate = plane_state->flip_immediate;
 
 		/* build address info for command */
@@ -2080,7 +2075,7 @@ bool dc_dmub_srv_ips_query_residency_info(const struct dc_context *ctx, uint8_t 
 	union dmub_rb_cmd cmd;
 	uint32_t bytes = sizeof(struct dmub_ips_residency_info);
 
-	dmub_flush_buffer_mem(&ctx->dmub_srv->dmub->scratch_mem_fb);
+	dmub_srv_flush_buffer_mem(ctx->dmub_srv->dmub, &ctx->dmub_srv->dmub->scratch_mem_fb);
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.ips_query_residency_info.header.type = DMUB_CMD__IPS;
@@ -2132,9 +2127,7 @@ bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
 
 bool dmub_lsdma_send_linear_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
-	uint64_t src_addr,
-	uint64_t dst_addr,
-	uint32_t count
+	struct lsdma_linear_copy_params copy_data
 )
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
@@ -2149,11 +2142,20 @@ bool dmub_lsdma_send_linear_copy_command(
 	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_LINEAR_COPY;
 	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
 
-	lsdma_data->u.linear_copy_data.count   = count - 1; // LSDMA controller expects bytes to copy -1
-	lsdma_data->u.linear_copy_data.src_lo  = src_addr & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.src_hi  = (src_addr >> 32) & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.dst_lo  = dst_addr & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.dst_hi  = (dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.count   = copy_data.count;
+	lsdma_data->u.linear_copy_data.src_lo  = copy_data.src_lo;
+	lsdma_data->u.linear_copy_data.src_hi  = copy_data.src_hi;
+	lsdma_data->u.linear_copy_data.dst_lo  = copy_data.dst_lo;
+	lsdma_data->u.linear_copy_data.dst_hi  = copy_data.dst_hi;
+	lsdma_data->u.linear_copy_data.tmz     = copy_data.tmz;
+	lsdma_data->u.linear_copy_data.data_format = copy_data.data_format;
+	lsdma_data->u.linear_copy_data.num_type = copy_data.num_type;
+	lsdma_data->u.linear_copy_data.read_compress = copy_data.read_compress;
+	lsdma_data->u.linear_copy_data.write_compress = copy_data.write_compress;
+	lsdma_data->u.linear_copy_data.max_com = copy_data.max_com;
+	lsdma_data->u.linear_copy_data.max_uncom = copy_data.max_uncom;
+	lsdma_data->u.linear_copy_data.cache_policy_src = copy_data.cache_policy_src;
+	lsdma_data->u.linear_copy_data.cache_policy_dst = copy_data.cache_policy_dst;
 
 	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
 
@@ -2198,6 +2200,12 @@ bool dmub_lsdma_send_linear_sub_window_copy_command(
 	lsdma_data->u.linear_sub_window_copy_data.rect_y           = copy_data.rect_y;
 	lsdma_data->u.linear_sub_window_copy_data.src_cache_policy = copy_data.src_cache_policy;
 	lsdma_data->u.linear_sub_window_copy_data.dst_cache_policy = copy_data.dst_cache_policy;
+	lsdma_data->u.linear_sub_window_copy_data.data_format      = copy_data.data_format;
+	lsdma_data->u.linear_sub_window_copy_data.num_type         = copy_data.num_type;
+	lsdma_data->u.linear_sub_window_copy_data.read_compress    = copy_data.read_compress;
+	lsdma_data->u.linear_sub_window_copy_data.write_compress   = copy_data.write_compress;
+	lsdma_data->u.linear_sub_window_copy_data.max_com          = copy_data.max_com;
+	lsdma_data->u.linear_sub_window_copy_data.max_uncom        = copy_data.max_uncom;
 
 	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
 
@@ -2249,6 +2257,8 @@ bool dmub_lsdma_send_tiled_to_tiled_copy_command(
 	lsdma_data->u.tiled_copy_data.data_format      = params.data_format;
 	lsdma_data->u.tiled_copy_data.max_com          = params.max_com;
 	lsdma_data->u.tiled_copy_data.max_uncom        = params.max_uncom;
+	lsdma_data->u.tiled_copy_data.cache_policy_src = params.src_cache_policy;
+	lsdma_data->u.tiled_copy_data.cache_policy_dst = params.dst_cache_policy;
 
 	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
 

@@ -21,25 +21,33 @@ struct mlx5_sf_hwc_table {
 	struct mlx5_sf_hw *sfs;
 	int max_fn;
 	u16 start_fn_id;
+	u32 controller;
 };
 
-enum mlx5_sf_hwc_index {
+enum {
 	MLX5_SF_HWC_LOCAL,
-	MLX5_SF_HWC_EXTERNAL,
-	MLX5_SF_HWC_MAX,
+	MLX5_SF_HWC_EXT_HOST,
+	MLX5_SF_HWC_FIRST_SPF,
 };
 
 struct mlx5_sf_hw_table {
 	struct mutex table_lock; /* Serializes sf deletion and vhca state change handler. */
-	struct mlx5_sf_hwc_table hwc[MLX5_SF_HWC_MAX];
+	struct mlx5_sf_hwc_table *hwc;
+	int num_hwc;
 };
 
 static struct mlx5_sf_hwc_table *
 mlx5_sf_controller_to_hwc(struct mlx5_core_dev *dev, u32 controller)
 {
-	int idx = !!controller;
+	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+	int i;
 
-	return &dev->priv.sf_hw_table->hwc[idx];
+	for (i = MLX5_SF_HWC_FIRST_SPF; i < table->num_hwc; i++) {
+		if (table->hwc[i].controller == controller)
+			return &table->hwc[i];
+	}
+
+	return &table->hwc[!!controller];
 }
 
 u16 mlx5_sf_sw_to_hw_id(struct mlx5_core_dev *dev, u32 controller, u16 sw_id)
@@ -60,7 +68,7 @@ mlx5_sf_table_fn_to_hwc(struct mlx5_sf_hw_table *table, u16 fn_id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(table->hwc); i++) {
+	for (i = 0; i < table->num_hwc; i++) {
 		if (table->hwc[i].max_fn &&
 		    fn_id >= table->hwc[i].start_fn_id &&
 		    fn_id < (table->hwc[i].start_fn_id + table->hwc[i].max_fn))
@@ -221,9 +229,10 @@ static void mlx5_sf_hw_table_hwc_dealloc_all(struct mlx5_core_dev *dev,
 static void mlx5_sf_hw_table_dealloc_all(struct mlx5_core_dev *dev,
 					 struct mlx5_sf_hw_table *table)
 {
-	mlx5_sf_hw_table_hwc_dealloc_all(dev,
-					 &table->hwc[MLX5_SF_HWC_EXTERNAL]);
-	mlx5_sf_hw_table_hwc_dealloc_all(dev, &table->hwc[MLX5_SF_HWC_LOCAL]);
+	int i;
+
+	for (i = 0; i < table->num_hwc; i++)
+		mlx5_sf_hw_table_hwc_dealloc_all(dev, &table->hwc[i]);
 }
 
 static int mlx5_sf_hw_table_hwc_init(struct mlx5_sf_hwc_table *hwc, u16 max_fn, u16 base_id)
@@ -277,11 +286,13 @@ static int mlx5_sf_hw_table_res_register(struct mlx5_core_dev *dev, u16 max_fn,
 int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_hw_table *table;
+	int num_spfs, num_hwc;
 	u16 max_ext_fn = 0;
 	u16 ext_base_id = 0;
 	u16 base_id;
 	u16 max_fn;
 	int err;
+	int i;
 
 	if (!mlx5_vhca_event_supported(dev))
 		return 0;
@@ -295,7 +306,7 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	if (mlx5_sf_hw_table_res_register(dev, max_fn, max_ext_fn))
 		mlx5_core_dbg(dev, "failed to register max SFs resources");
 
-	if (!max_fn && !max_ext_fn)
+	if (!max_fn && !max_ext_fn && !mlx5_esw_has_spf_sfs(dev))
 		return 0;
 
 	table = kzalloc_obj(*table);
@@ -304,26 +315,62 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 		goto alloc_err;
 	}
 
+	num_spfs = mlx5_esw_get_num_spfs(dev);
+	num_hwc = MLX5_SF_HWC_FIRST_SPF + num_spfs;
+	table->hwc = kcalloc(num_hwc, sizeof(*table->hwc), GFP_KERNEL);
+	if (!table->hwc) {
+		err = -ENOMEM;
+		goto hwc_alloc_err;
+	}
+	table->num_hwc = num_hwc;
+
 	mutex_init(&table->table_lock);
 	dev->priv.sf_hw_table = table;
 
+	table->hwc[MLX5_SF_HWC_LOCAL].controller = 0;
 	base_id = mlx5_sf_start_function_id(dev);
 	err = mlx5_sf_hw_table_hwc_init(&table->hwc[MLX5_SF_HWC_LOCAL], max_fn, base_id);
 	if (err)
-		goto table_err;
+		goto hwc_init_err;
 
-	err = mlx5_sf_hw_table_hwc_init(&table->hwc[MLX5_SF_HWC_EXTERNAL],
+	table->hwc[MLX5_SF_HWC_EXT_HOST].controller =
+		mlx5_esw_get_hpf_host_number(dev) + 1;
+	err = mlx5_sf_hw_table_hwc_init(&table->hwc[MLX5_SF_HWC_EXT_HOST],
 					max_ext_fn, ext_base_id);
 	if (err)
-		goto ext_err;
+		goto hwc_init_err;
 
-	mlx5_core_dbg(dev, "SF HW table: max sfs = %d, ext sfs = %d\n", max_fn, max_ext_fn);
+	for (i = 0; i < num_spfs; i++) {
+		u16 spf_max_sfs, spf_base_id, host_number;
+		int hwc_idx = MLX5_SF_HWC_FIRST_SPF + i;
+
+		err = mlx5_esw_spf_get_host_number(dev, i, &host_number);
+		if (err)
+			goto hwc_init_err;
+
+		err = mlx5_esw_sf_max_spf_functions(dev, i, &spf_max_sfs,
+						    &spf_base_id);
+		if (err)
+			goto hwc_init_err;
+
+		table->hwc[hwc_idx].controller = host_number + 1;
+		err = mlx5_sf_hw_table_hwc_init(&table->hwc[hwc_idx],
+						spf_max_sfs, spf_base_id);
+		if (err)
+			goto hwc_init_err;
+	}
+
+	mlx5_core_dbg(dev, "SF HW table: max sfs = %d, ext sfs = %d, num spfs = %d\n",
+		      max_fn, max_ext_fn, num_spfs);
 	return 0;
 
-ext_err:
-	mlx5_sf_hw_table_hwc_cleanup(&table->hwc[MLX5_SF_HWC_LOCAL]);
-table_err:
+hwc_init_err:
+	dev->priv.sf_hw_table = NULL;
+	for (i = 0; i < num_hwc; i++)
+		mlx5_sf_hw_table_hwc_cleanup(&table->hwc[i]);
 	mutex_destroy(&table->table_lock);
+	kfree(table->hwc);
+hwc_alloc_err:
 	kfree(table);
 alloc_err:
 	mlx5_sf_hw_table_res_unregister(dev);
@@ -333,13 +380,15 @@ alloc_err:
 void mlx5_sf_hw_table_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_sf_hw_table *table = dev->priv.sf_hw_table;
+	int i;
 
 	if (!table)
 		goto res_unregister;
 
-	mlx5_sf_hw_table_hwc_cleanup(&table->hwc[MLX5_SF_HWC_EXTERNAL]);
-	mlx5_sf_hw_table_hwc_cleanup(&table->hwc[MLX5_SF_HWC_LOCAL]);
+	for (i = 0; i < table->num_hwc; i++)
+		mlx5_sf_hw_table_hwc_cleanup(&table->hwc[i]);
 	mutex_destroy(&table->table_lock);
+	kfree(table->hwc);
 	kfree(table);
 	dev->priv.sf_hw_table = NULL;
 res_unregister:

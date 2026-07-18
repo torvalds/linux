@@ -31,12 +31,19 @@
 #include "hdcp.h"
 #include "dc.h"
 #include "dm_cp_psp.h"
-#include "amdgpu.h"
+
+/*
+ * Minimal declarations needed by this header.
+ * Full amdgpu/DM definitions come from amdgpu_dm.h included by each .c file.
+ */
+#define AMDGPU_DM_MAX_DISPLAY_INDEX 31
+struct amdgpu_dm_connector;
 
 struct mod_hdcp;
 struct mod_hdcp_link;
 struct mod_hdcp_display;
 struct cp_psp;
+struct amdgpu_device;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
@@ -86,5 +93,26 @@ void hdcp_handle_cpirq(struct hdcp_workqueue *work, unsigned int link_index);
 void hdcp_destroy(struct kobject *kobj, struct hdcp_workqueue *work);
 
 struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct cp_psp *cp_psp, struct dc *dc);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void process_output(struct hdcp_workqueue *hdcp_work);
+bool hdcp_get_content_protection_from_status(
+	unsigned int hdcp_content_type,
+	enum mod_hdcp_encryption_status encryption_status,
+	unsigned int *content_protection);
+void hdcp_get_link_display_adjustments(
+	bool enable_encryption,
+	u8 content_type,
+	bool fused_io_supported,
+	bool hdcp_lc_force_fw_enable,
+	bool hdcp_lc_enable_sw_fallback,
+	struct mod_hdcp_link_adjustment *link_adjust,
+	struct mod_hdcp_display_adjustment *display_adjust);
+void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
+					    struct hdcp_workqueue *hdcp_w,
+					    unsigned int conn_index,
+					    bool enable_encryption);
+void event_property_update(struct work_struct *work);
+#endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */

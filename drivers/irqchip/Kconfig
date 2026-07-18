@@ -51,12 +51,6 @@ config ARM_GIC_V3_ITS
 	default ARM_GIC_V3
 	select IRQ_MSI_IOMMU
 
-config ARM_GIC_V3_ITS_FSL_MC
-	bool
-	depends on ARM_GIC_V3_ITS
-	depends on FSL_MC_BUS
-	default ARM_GIC_V3_ITS
-
 config ARM_GIC_V5
 	bool
 	select IRQ_DOMAIN_HIERARCHY
@@ -109,6 +103,29 @@ config AL_FIC
 	select IRQ_DOMAIN
 	help
 	  Support Amazon's Annapurna Labs Fabric Interrupt Controller.
+
+config ASPEED_AST2700_INTC
+	bool "ASPEED AST2700 Interrupt Controller support"
+	depends on OF
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	  Enable support for the ASPEED AST2700 interrupt controller.
+	  This driver handles interrupt, routing and merged interrupt
+	  sources to upstream parent interrupt controllers.
+
+	  If unsure, say N.
+
+config ASPEED_AST2700_INTC_TEST
+	bool "Tests for the ASPEED AST2700 Interrupt Controller"
+	depends on ASPEED_AST2700_INTC && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Enable KUnit tests for AST2700 INTC route resolution.
+	  The tests exercise error handling and route selection paths.
+	  This option is intended for test builds.
+
+	  If unsure, say N.
 
 config ATMEL_AIC_IRQ
 	bool
@@ -476,7 +493,7 @@ config STM32_EXTI
 	select GENERIC_IRQ_CHIP
 
 config QCOM_IRQ_COMBINER
-	bool "QCOM IRQ combiner support"
+	bool "Qualcomm IRQ combiner support"
 	depends on ARCH_QCOM && ACPI
 	select IRQ_DOMAIN_HIERARCHY
 	help
@@ -509,7 +526,7 @@ config GOLDFISH_PIC
          for Goldfish based virtual platforms.
 
 config QCOM_PDC
-	tristate "QCOM PDC"
+	tristate "Qualcomm PDC"
 	depends on ARCH_QCOM
 	select IRQ_DOMAIN_HIERARCHY
 	help
@@ -517,7 +534,7 @@ config QCOM_PDC
 	  IRQs for Qualcomm Technologies Inc (QTI) mobile chips.
 
 config QCOM_MPM
-	tristate "QCOM MPM"
+	tristate "Qualcomm MPM"
 	depends on ARCH_QCOM
 	depends on MAILBOX
 	select IRQ_DOMAIN_HIERARCHY
@@ -654,13 +671,13 @@ config SIFIVE_PLIC
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK if SMP
 
-config STARFIVE_JH8100_INTC
-	bool "StarFive JH8100 External Interrupt Controller"
+config STARFIVE_JHB100_INTC
+	bool "StarFive JHB100 External Interrupt Controller"
 	depends on ARCH_STARFIVE || COMPILE_TEST
 	default ARCH_STARFIVE
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  This enables support for the INTC chip found in StarFive JH8100
+	  This enables support for the INTC chip found in StarFive JHB100
 	  SoC.
 
 	  If you don't know what to do here, say Y.

@@ -121,9 +121,12 @@ size_t crypto_krb5_how_much_buffer(const struct krb5_enctype *krb5,
 size_t crypto_krb5_how_much_data(const struct krb5_enctype *krb5,
 				 enum krb5_crypto_mode mode,
 				 size_t *_buffer_size, size_t *_offset);
-void crypto_krb5_where_is_the_data(const struct krb5_enctype *krb5,
-				   enum krb5_crypto_mode mode,
-				   size_t *_offset, size_t *_len);
+int crypto_krb5_where_is_the_data(const struct krb5_enctype *krb5,
+				  enum krb5_crypto_mode mode,
+				  size_t *_offset, size_t *_len);
+int crypto_krb5_check_data_len(const struct krb5_enctype *krb5,
+			       enum krb5_crypto_mode mode,
+			       size_t len, size_t min_content);
 struct crypto_aead *crypto_krb5_prepare_encryption(const struct krb5_enctype *krb5,
 						   const struct krb5_buffer *TK,
 						   u32 usage, gfp_t gfp);

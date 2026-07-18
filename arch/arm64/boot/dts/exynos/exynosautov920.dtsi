@@ -1426,6 +1426,12 @@
 				      "ethernet";
 		};
 
+		syscon_hsi2: syscon@16c00000 {
+			compatible = "samsung,exynosautov920-hsi2-sysreg",
+				     "syscon";
+			reg = <0x16c00000 0x800>;
+		};
+
 		pinctrl_hsi2: pinctrl@16c10000 {
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x16c10000 0x10000>;
@@ -1436,6 +1442,27 @@
 			compatible = "samsung,exynosautov920-pinctrl";
 			reg = <0x16d20000 0x10000>;
 			interrupts = <GIC_SPI 603 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		ufs_0: ufs@16e00000 {
+			compatible = "samsung,exynosautov920-ufs";
+			reg = <0x16e00000 0x100>,
+			      <0x16e01100 0x400>,
+			      <0x16e80000 0x8000>,
+			      <0x16d08000 0x800>;
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 613 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_hsi2 CLK_MOUT_HSI2_UFS_EMBD_USER>,
+				 <&cmu_hsi2 CLK_MOUT_HSI2_NOC_UFS_USER>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
+			phys = <&ufs_0_phy>;
+			phy-names = "ufs-phy";
+			samsung,sysreg = <&syscon_hsi2 0x710>;
+			dma-coherent;
+			status = "disabled";
 		};
 
 		ufs_0_phy: phy@16e04000 {

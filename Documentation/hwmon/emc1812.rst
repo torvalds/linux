@@ -1,0 +1,67 @@
+.. SPDX-License-Identifier: GPL-2.0-or-later
+
+Kernel driver emc1812
+=====================
+
+Supported chips:
+
+  * Microchip EMC1812, EMC1813, EMC1814, EMC1815, EMC1833
+
+    Prefix: 'emc1812'
+
+    Datasheets:
+
+	- https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/EMC1812-3-4-5-33-Data-Sheet-DS20005751.pdf
+
+Author:
+    Marius Cristea <marius.cristea@microchip.com>
+
+
+Description
+-----------
+
+The Microchip EMC181x/33 chips contain up to 4 remote temperature sensors
+and one internal.
+- The EMC1812 is a single channel remote temperature sensor.
+- The EMC1813 and EMC1833 are dual channel remote temperature sensor. The
+remote channels for this selection of devices can support substrate diodes,
+discrete diode-connected transistors or CPU/GPU thermal diodes.
+- The EMC1814 is a three channel remote temperature sensor that supports
+Anti-Parallel Diode (APD) only on one channel. For the channel that does not
+support APD functionality, substrate diodes, discrete diode-connected
+transistors or CPU/GPU thermal diodes are supported. For the channel that
+supports APD, only discrete diode-connected transistors may be implemented.
+However, if APD is disabled on the EMC1814, then the channel that supports
+APD will be functional with substrate diodes, discrete diode-connected
+transistors and CPU/GPU thermal diodes.
+- The EMC1815 is a four channel remote temperature sensor.
+
+The EMC1815 and EMC1833 support APD on all channels. When APD is enabled,
+the channels support only diode-connected transistors. If APD is disabled,
+then the channels will support substrate transistors, discrete diode-connected
+transistors and CPU/GPU thermal diodes.
+
+Note: Disabling APD functionality to implement substrate diodes on devices
+that support APD eliminates the benefit of APD (two diodes on one channel).
+
+The chips implement three limits for each sensor: low (tempX_min), high
+(tempX_max) and critical (tempX_crit). The chips also implement an
+hysteresis mechanism which applies to all limits. The relative difference
+is stored in a single register on the chip, which means that the relative
+difference between the limit and its hysteresis is always the same for
+all three limits.
+
+This implementation detail implies the following:
+
+* When setting a limit, its hysteresis will automatically follow, the
+  difference staying unchanged. For example, if the old critical limit was
+  80 degrees C, and the hysteresis was 75 degrees C, and you change the
+  critical limit to 90 degrees C, then the hysteresis will automatically
+  change to 85 degrees C.
+* The hysteresis values can't be set independently. We decided to make
+  only tempX_crit_hyst writable, while all other hysteresis attributes
+  are read-only. Setting tempX_crit_hyst writes the difference between
+  tempX_crit_hyst and tempX_crit into the chip, and the same relative
+  hysteresis applies automatically to all other limits.
+* The limits should be set before the hysteresis. At power up the device
+  starts with 10 degree hysteresis.

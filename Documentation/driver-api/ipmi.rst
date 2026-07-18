@@ -495,7 +495,7 @@ tuned to the user's desired performance.
 
 The driver supports a hot add and remove of interfaces.  This way,
 interfaces can be added or removed after the kernel is up and running.
-This is done using /sys/modules/ipmi_si/parameters/hotmod, which is a
+This is done using /sys/module/ipmi_si/parameters/hotmod, which is a
 write-only parameter.  You write a string to this interface.  The string
 has the format::
 

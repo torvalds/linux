@@ -32,9 +32,6 @@ struct fwnode_handle;
 #define NMK_GPIO_RWIMSC	0x50
 #define NMK_GPIO_FWIMSC	0x54
 #define NMK_GPIO_WKS	0x58
-/* These appear in DB8540 and later ASICs */
-#define NMK_GPIO_EDGELEVEL 0x5C
-#define NMK_GPIO_LEVEL	0x60
 
 /* Pull up/down values */
 enum nmk_gpio_pull {
@@ -231,19 +228,6 @@ void nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc);
 
 static inline void
 nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc)
-{
-}
-
-#endif
-
-#ifdef CONFIG_PINCTRL_DB8540
-
-void nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc);
-
-#else
-
-static inline void
-nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc)
 {
 }
 

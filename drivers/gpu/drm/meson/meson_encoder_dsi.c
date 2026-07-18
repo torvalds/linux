@@ -42,7 +42,7 @@ static int meson_encoder_dsi_attach(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_dsi_atomic_enable(struct drm_bridge *bridge,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct meson_encoder_dsi *encoder_dsi = bridge_to_meson_encoder_dsi(bridge);
 	struct meson_drm *priv = encoder_dsi->priv;
@@ -79,7 +79,7 @@ static void meson_encoder_dsi_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_dsi_atomic_disable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct meson_encoder_dsi *meson_encoder_dsi =
 					bridge_to_meson_encoder_dsi(bridge);
@@ -96,7 +96,7 @@ static const struct drm_bridge_funcs meson_encoder_dsi_bridge_funcs = {
 	.atomic_disable	= meson_encoder_dsi_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 int meson_encoder_dsi_probe(struct meson_drm *priv)

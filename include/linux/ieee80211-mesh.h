@@ -28,11 +28,72 @@ struct ieee80211s_hdr {
 	u8 eaddr2[ETH_ALEN];
 } __packed __aligned(2);
 
+struct ieee80211_mesh_hwmp_preq_target {
+	u8 flags;
+	u8 addr[ETH_ALEN];
+	__le32 sn;
+} __packed;
+
+struct ieee80211_mesh_hwmp_preq_top {
+	u8 flags;
+	u8 hopcount;
+	u8 ttl;
+	__le32 preq_id;
+	u8 orig_addr[ETH_ALEN];
+	__le32 orig_sn;
+
+	/* optional AE, lifetime, metric, target */
+	u8 variable[];
+} __packed;
+
+struct ieee80211_mesh_hwmp_preq_bottom {
+	__le32 lifetime;
+	__le32 metric;
+	u8 target_count;
+	struct ieee80211_mesh_hwmp_preq_target targets[];
+} __packed;
+
+struct ieee80211_mesh_hwmp_prep_top {
+	u8 flags;
+	u8 hopcount;
+	u8 ttl;
+	u8 target_addr[ETH_ALEN];
+	__le32 target_sn;
+
+	/* optional Target External Address */
+	u8 variable[];
+} __packed;
+
+struct ieee80211_mesh_hwmp_prep_bottom {
+	__le32 lifetime;
+	__le32 metric;
+	u8 orig_addr[ETH_ALEN];
+	__le32 orig_sn;
+} __packed;
+
+struct ieee80211_mesh_hwmp_perr_dst {
+	u8 flags;
+	u8 addr[ETH_ALEN];
+	__le32 sn;
+	/* optional Destination External Address */
+	u8 variable[];
+} __packed;
+
+struct ieee80211_mesh_hwmp_perr {
+	u8 ttl;
+	u8 number_of_dst;
+	/* Destinations */
+	u8 variable[];
+} __packed;
+
 /* Mesh flags */
 #define MESH_FLAGS_AE_A4 	0x1
 #define MESH_FLAGS_AE_A5_A6	0x2
 #define MESH_FLAGS_AE		0x3
 #define MESH_FLAGS_PS_DEEP	0x4
+
+/* HWMP IE processing macros */
+#define AE_F			(1<<6)
 
 /**
  * enum ieee80211_preq_flags - mesh PREQ element flags
@@ -226,5 +287,156 @@ enum ieee80211_root_mode_identifier {
 	IEEE80211_PROACTIVE_PREQ_WITH_PREP = 3,
 	IEEE80211_PROACTIVE_RANN = 4,
 };
+
+static inline bool ieee80211_mesh_preq_prep_ae_enabled(const u8 *ie)
+{
+	return ie[0] & AE_F;
+}
+
+static inline struct ieee80211_mesh_hwmp_preq_bottom *
+ieee80211_mesh_hwmp_preq_get_bottom(const u8 *ie)
+{
+	struct ieee80211_mesh_hwmp_preq_top *top = (void *)ie;
+
+	return (void *)&top->variable[
+		ieee80211_mesh_preq_prep_ae_enabled(ie) ? ETH_ALEN : 0];
+}
+
+static inline struct ieee80211_mesh_hwmp_prep_bottom *
+ieee80211_mesh_hwmp_prep_get_bottom(const u8 *ie)
+{
+	struct ieee80211_mesh_hwmp_prep_top *top = (void *)ie;
+
+	return (void *)&top->variable[
+		ieee80211_mesh_preq_prep_ae_enabled(ie) ? ETH_ALEN : 0];
+}
+
+static inline struct ieee80211_mesh_hwmp_perr_dst *
+ieee80211_mesh_hwmp_perr_get_dst(const u8 *ie, u8 dst_idx)
+{
+	struct ieee80211_mesh_hwmp_perr *perr_ie = (void *)ie;
+	struct ieee80211_mesh_hwmp_perr_dst *dst;
+	u8 *pos = perr_ie->variable;
+	int i;
+
+	for (i = 0; i < dst_idx + 1; i++) {
+		dst = (void *)pos;
+		pos += sizeof(struct ieee80211_mesh_hwmp_perr_dst) +
+			  ((dst->flags & AE_F) ? ETH_ALEN : 0)
+			  /* Destination External Address */ +
+			  2 /* Reason Code */;
+	}
+
+	return dst;
+}
+
+static inline u8 *
+ieee80211_mesh_hwmp_perr_get_addr(const u8 *ie, u8 dst_idx)
+{
+	struct ieee80211_mesh_hwmp_perr_dst *dst =
+		ieee80211_mesh_hwmp_perr_get_dst(ie, dst_idx);
+
+	return dst->addr;
+}
+
+static inline u32
+ieee80211_mesh_hwmp_perr_get_sn(const u8 *ie, u8 dst_idx)
+{
+	struct ieee80211_mesh_hwmp_perr_dst *dst =
+		ieee80211_mesh_hwmp_perr_get_dst(ie, dst_idx);
+
+	return le32_to_cpu(dst->sn);
+}
+
+static inline u16
+ieee80211_mesh_hwmp_perr_get_rcode(const u8 *ie, u8 dst_idx)
+{
+	struct ieee80211_mesh_hwmp_perr_dst *dst =
+		ieee80211_mesh_hwmp_perr_get_dst(ie, dst_idx);
+
+	return get_unaligned_le16(&dst->variable[
+		(dst->flags & AE_F) ? ETH_ALEN : 0]);
+}
+
+/* IEEE Std 802.11-2016 9.4.2.113 PREQ element */
+static inline bool ieee80211_mesh_preq_size_ok(const u8 *pos, u8 elen)
+{
+	struct ieee80211_mesh_hwmp_preq_bottom *preq_elem_bottom =
+		ieee80211_mesh_hwmp_preq_get_bottom(pos);
+	u8 target_count;
+	int needed;
+
+	/* Check if the element contains flags */
+	needed = sizeof(struct ieee80211_mesh_hwmp_preq_top);
+	if (elen < needed)
+		return false;
+
+	/* Check if the element contains target_count */
+	needed += (ieee80211_mesh_preq_prep_ae_enabled(pos) ? ETH_ALEN : 0)
+		 /* Originator External Address */ +
+		 sizeof(struct ieee80211_mesh_hwmp_preq_bottom);
+	if (elen < needed)
+		return false;
+
+	target_count = preq_elem_bottom->target_count;
+	/* IEEE Std 802.11-2016 Table 14-10 to 14-16 */
+	if (target_count < 1)
+		return false;
+
+	needed += target_count * sizeof(struct ieee80211_mesh_hwmp_preq_target);
+	return elen == needed;
+}
+
+/* IEEE Std 802.11-2016 9.4.2.114 PREP element */
+static inline bool ieee80211_mesh_prep_size_ok(const u8 *pos, u8 elen)
+{
+	u8 needed;
+
+	/* Check if the element contains flags */
+	needed = sizeof(struct ieee80211_mesh_hwmp_prep_top);
+	if (elen < needed)
+		return false;
+
+	needed += (ieee80211_mesh_preq_prep_ae_enabled(pos) ? ETH_ALEN : 0)
+		 /* Target External Address */ +
+		 sizeof(struct ieee80211_mesh_hwmp_prep_bottom);
+	return elen == needed;
+}
+
+/* IEEE Std 802.11-2016 9.4.2.115 PERR element */
+static inline bool ieee80211_mesh_perr_size_ok(const u8 *pos, u8 elen)
+{
+	struct ieee80211_mesh_hwmp_perr *perr_elem = (void *)pos;
+	const u8 *start = pos;
+	u8 number_of_dst;
+	int needed;
+	int i;
+
+	needed = sizeof(struct ieee80211_mesh_hwmp_perr);
+
+	/* Check if the element contains number of dst */
+	if (elen < needed)
+		return false;
+
+	pos += sizeof(struct ieee80211_mesh_hwmp_perr);
+	number_of_dst = perr_elem->number_of_dst;
+
+	for (i = 0; i < number_of_dst; i++) {
+		struct ieee80211_mesh_hwmp_perr_dst *dst = (void *)pos;
+		u8 dst_len = sizeof(struct ieee80211_mesh_hwmp_perr_dst);
+
+		/* Check if the element contains flags */
+		if (elen < pos - start + dst_len)
+			return false;
+
+		dst_len += ((dst->flags & AE_F) ? ETH_ALEN : 0)
+			  /* Destination External Address */ +
+			  2 /* Reason Code */;
+		needed += dst_len;
+		pos += dst_len;
+	}
+
+	return elen == needed;
+}
 
 #endif /* LINUX_IEEE80211_MESH_H */

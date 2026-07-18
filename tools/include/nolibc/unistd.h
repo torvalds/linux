@@ -48,6 +48,30 @@ int access(const char *path, int amode)
 	return faccessat(AT_FDCWD, path, amode, 0);
 }
 
+#if !defined(_sys_ftruncate64) && defined(__NR_ftruncate64)
+static __attribute__((unused))
+int _sys_ftruncate64(int fd, uint32_t length0, uint32_t length1)
+{
+	return __nolibc_syscall3(__NR_ftruncate64, fd, length0, length1);
+}
+#define _sys_ftruncate64 _sys_ftruncate64
+#endif
+
+static __attribute__((unused))
+int _sys_ftruncate(int fd, off_t length)
+{
+#if defined(_sys_ftruncate64)
+	return _sys_ftruncate64(fd, __NOLIBC_LLARGPART(length, 0), __NOLIBC_LLARGPART(length, 1));
+#else
+	return __nolibc_syscall2(__NR_ftruncate, fd, length);
+#endif
+}
+
+static __attribute__((unused))
+int ftruncate(int fd, off_t length)
+{
+	return __sysret(_sys_ftruncate(fd, length));
+}
 
 static __attribute__((unused))
 int msleep(unsigned int msecs)

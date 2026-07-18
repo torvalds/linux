@@ -58,6 +58,7 @@
 
 /* Fuse bits */
 #define ADF_GEN6_ANTI_RB_FUSE_BIT	BIT(24)
+#define ADF_GEN6_KPT_FUSE_BIT		BIT(16)
 
 /*
  * Watchdog timers
@@ -163,6 +164,14 @@
 
 /* Clock frequency */
 #define ADF_6XXX_AE_FREQ			(1000 * HZ_PER_MHZ)
+
+/* KPT */
+#define ADF_6XXX_KPT_MAX_SWK_COUNT_PER_FNPASID	128
+#define ADF_6XXX_KPT_MAX_SWK_TTL		31536000
+#define ADF_6XXX_KPT_DEFAULT_SWK_SHARED_MODE	1
+#define ADF_6XXX_KPT_DEFAULT_SWK_TTL		0
+#define ADF_6XXX_KPT_DEFAULT_SWK_CNT_PER_FN	0
+#define ADF_6XXX_KPT_DEFAULT_SWK_CNT_PER_PASID	0
 
 enum icp_qat_gen6_slice_mask {
 	ICP_ACCEL_GEN6_MASK_UCS_SLICE = BIT(0),

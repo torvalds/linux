@@ -23,6 +23,7 @@
 #include "build-id.h"
 #include "debug.h"
 #include "config.h"
+#include "unwind.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -524,6 +525,9 @@ int perf_default_config(const char *var, const char *value,
 
 	if (strstarts(var, "addr2line."))
 		return addr2line_configure(var, value, dummy);
+
+	if (strstarts(var, "unwind."))
+		return unwind__configure(var, value, dummy);
 
 	/* Add other config variables here. */
 	return 0;

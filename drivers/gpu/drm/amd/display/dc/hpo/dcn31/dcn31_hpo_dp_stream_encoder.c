@@ -468,7 +468,7 @@ static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 				&info_frame->spd,
 				true);
 
-	if (info_frame->hdrsmd.valid)
+	if (info_frame->hdrsmd.valid && !info_frame->firmware_controlled_hdr_info_packet)
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				3,  /* packetIndex */

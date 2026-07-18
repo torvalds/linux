@@ -155,4 +155,19 @@ static inline bool xe_gt_recovery_pending(struct xe_gt *gt)
 		xe_gt_sriov_vf_recovery_pending(gt);
 }
 
+/**
+ * xe_gt_supports_multi_queue() - Check if gt supports multi queue for the
+ * specified engine class.
+ *
+ * @gt: the GT object
+ * @class: hwe class type
+ *
+ * Return: true if the hw engine class supports multi queue, else false
+ */
+static inline bool xe_gt_supports_multi_queue(const struct xe_gt *gt,
+					      enum xe_engine_class class)
+{
+	return gt->info.multi_queue_engine_class_mask & BIT(class);
+}
+
 #endif

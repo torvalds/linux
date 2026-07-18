@@ -20,8 +20,6 @@ void init_mlme_ap_info(struct adapter *padapter)
 	INIT_LIST_HEAD(&pacl_list->acl_node_q.queue);
 	spin_lock_init(&pacl_list->acl_node_q.lock);
 
-	/* pmlmeext->bstart_bss = false; */
-
 	start_ap_mode(padapter);
 }
 
@@ -31,8 +29,6 @@ void free_mlme_ap_info(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
-
-	/* stop_ap_mode(padapter); */
 
 	pmlmepriv->update_bcn = false;
 	pmlmeext->bstart_bss = false;
@@ -60,7 +56,7 @@ static void update_BCNTIM(struct adapter *padapter)
 	/* update TIM IE */
 	u8 *p, *dst_ie, *premainder_ie = NULL, *pbackup_remainder_ie = NULL;
 	__le16 tim_bitmap_le;
-	uint offset, tmp_len, tim_ielen, tim_ie_offset, remainder_ielen;
+	unsigned int offset, tmp_len, tim_ielen, tim_ie_offset, remainder_ielen;
 
 	tim_bitmap_le = cpu_to_le16(pstapriv->tim_bitmap);
 
@@ -156,7 +152,7 @@ static void update_BCNTIM(struct adapter *padapter)
 		kfree(pbackup_remainder_ie);
 	}
 
-	offset =  (uint)(dst_ie - pie);
+	offset =  (unsigned int)(dst_ie - pie);
 	pnetwork_mlmeext->ie_length = offset + remainder_ielen;
 }
 
@@ -301,7 +297,7 @@ void expire_timeout_chk(struct adapter *padapter)
 
 			psta->keep_alive_trycnt = 0;
 			spin_lock_bh(&pstapriv->asoc_list_lock);
-			if (list_empty(&psta->asoc_list) == false) {
+			if (!list_empty(&psta->asoc_list)) {
 				list_del_init(&psta->asoc_list);
 				pstapriv->asoc_list_cnt--;
 				updated = ap_free_sta(padapter, psta, false,
@@ -377,7 +373,6 @@ void update_bmc_sta(struct adapter *padapter)
 
 	if (psta) {
 		psta->aid = 0;/* default set to 0 */
-		/* psta->mac_id = psta->aid+4; */
 		psta->mac_id = psta->aid + 1;/* mac_id = 1 for bc/mc stainfo */
 
 		pmlmeinfo->FW_sta_info[psta->mac_id].psta = psta;
@@ -448,12 +443,6 @@ void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta)
 	struct ht_priv *phtpriv_ap = &pmlmepriv->htpriv;
 	struct ht_priv *phtpriv_sta = &psta->htpriv;
 	u8 cur_ldpc_cap = 0, cur_stbc_cap = 0, cur_beamform_cap = 0;
-	/* set intf_tag to if1 */
-	/* psta->intf_tag = 0; */
-
-	/* psta->mac_id = psta->aid+4; */
-	/* psta->mac_id = psta->aid+1;//alloc macid when call rtw_alloc_stainfo(), */
-	/* release macid when call rtw_free_stainfo() */
 
 	/* ap mode */
 	rtw_hal_set_odm_var(padapter, HAL_ODM_STA_INFO, psta, true);
@@ -544,9 +533,6 @@ void update_sta_info_apmode(struct adapter *padapter, struct sta_info *psta)
 
 	memset(&psta->sta_stats, 0, sizeof(struct stainfo_stats));
 
-	/* add ratid */
-	/* add_ratid(padapter, psta); move to ap_sta_info_defer_update() */
-
 	spin_lock_bh(&psta->lock);
 	psta->state |= _FW_LINKED;
 	spin_unlock_bh(&psta->lock);
@@ -567,9 +553,6 @@ static void update_ap_info(struct adapter *padapter, struct sta_info *psta)
 
 	/* HT related cap */
 	if (phtpriv_ap->ht_option) {
-		/* check if sta supports rx ampdu */
-		/* phtpriv_ap->ampdu_enable = phtpriv_ap->ampdu_enable; */
-
 		/* check if sta support s Short GI 20M */
 		if ((phtpriv_ap->ht_cap.cap_info) & cpu_to_le16(IEEE80211_HT_CAP_SGI_20))
 			phtpriv_ap->sgi_20m = true;
@@ -621,11 +604,6 @@ static void update_hw_ht_param(struct adapter *padapter)
 	pmlmeinfo->SM_PS =
 		(le16_to_cpu(pmlmeinfo->HT_caps.u.HT_cap_element.HT_caps_info) &
 		 0x0C) >> 2;
-
-	/*  */
-	/*  Config current HT Protection mode. */
-	/*  */
-	/* pmlmeinfo->HT_protection = pmlmeinfo->HT_info.infos[1] & 0x3; */
 }
 
 void start_bss_network(struct adapter *padapter)
@@ -662,16 +640,11 @@ void start_bss_network(struct adapter *padapter)
 		pmlmeext->bstart_bss = true;
 
 	/* todo: update wmm, ht cap */
-	/* pmlmeinfo->WMM_enable; */
-	/* pmlmeinfo->HT_enable; */
 	if (pmlmepriv->qospriv.qos_option)
 		pmlmeinfo->WMM_enable = true;
 	if (pmlmepriv->htpriv.ht_option) {
 		pmlmeinfo->WMM_enable = true;
 		pmlmeinfo->HT_enable = true;
-		/* pmlmeinfo->HT_info_enable = true; */
-		/* pmlmeinfo->HT_caps_enable = true; */
-
 		update_hw_ht_param(padapter);
 	}
 
@@ -694,7 +667,6 @@ void start_bss_network(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VO, (u8 *)(&acparm));
 	acparm = 0x005E4317; /*  VI */
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_VI, (u8 *)(&acparm));
-	/* acparm = 0x00105320; // BE */
 	acparm = 0x005ea42b;
 	rtw_hal_set_hwreg(padapter, HW_VAR_AC_PARAM_BE, (u8 *)(&acparm));
 	acparm = 0x0000A444; /*  BK */
@@ -711,18 +683,8 @@ void start_bss_network(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, NULL);
 
 	if (!pmlmepriv->cur_network.join_res) { /* setting only at  first time */
-		/* u32 initialgain; */
-
-		/* initialgain = 0x1e; */
-
-		/* disable dynamic functions, such as high power, DIG */
-		/* Save_DM_Func_Flag(padapter); */
-		/* Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, false); */
-
 		/* turn on all dynamic functions */
 		Switch_DM_Func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true);
-
-		/* rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain)); */
 	}
 
 	/* set channel, bwmode */
@@ -739,21 +701,17 @@ void start_bss_network(struct adapter *padapter)
 
 		if ((cbw40_enable) &&	 (pht_info->infos[0] & BIT(2))) {
 			/* switch to the 40M Hz mode */
-			/* pmlmeext->cur_bwmode = CHANNEL_WIDTH_40; */
 			cur_bwmode = CHANNEL_WIDTH_40;
 			switch (pht_info->infos[0] & 0x3) {
 			case 1:
-				/* pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER; */
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_LOWER;
 				break;
 
 			case 3:
-				/* pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER; */
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_UPPER;
 				break;
 
 			default:
-				/* pmlmeext->cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE; */
 				cur_ch_offset = HAL_PRIME_CHNL_OFFSET_DONT_CARE;
 				break;
 			}
@@ -789,8 +747,6 @@ void start_bss_network(struct adapter *padapter)
 
 	/* update bc/mc sta_info */
 	update_bmc_sta(padapter);
-
-	/* pmlmeext->bstart_bss = true; */
 }
 
 int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
@@ -798,10 +754,10 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	int ret = _SUCCESS;
 	u8 *p;
 	u8 *ht_caps_ie = NULL;
-	u8 *pHT_info_ie = NULL;
+	u8 *ht_info_ie = NULL;
 	struct sta_info *psta = NULL;
 	u16 cap, ht_cap = false;
-	uint ie_len = 0;
+	unsigned int ie_len = 0;
 	int group_cipher, pairwise_cipher;
 	u8 channel, network_type, support_rate[NDIS_802_11_LENGTH_RATES_EX];
 	int support_rate_num = 0;
@@ -836,12 +792,9 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	/* beacon interval */
 	/* ie + 8;	8: TimeStamp, 2: Beacon Interval 2:Capability */
 	p = rtw_get_beacon_interval_from_ie(ie);
-	/* pbss_network->configuration.beacon_period = le16_to_cpu(*(unsigned short*)p); */
 	pbss_network->configuration.beacon_period = get_unaligned_le16(p);
 
 	/* capability */
-	/* cap = *(unsigned short *)rtw_get_capability_from_ie(ie); */
-	/* cap = le16_to_cpu(cap); */
 	cap = get_unaligned_le16(ie);
 
 	/* SSID */
@@ -1054,7 +1007,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 		       &ie_len,
 		       (pbss_network->ie_length - _BEACON_IE_OFFSET_));
 	if (p && ie_len > 0)
-		pHT_info_ie = p;
+		ht_info_ie = p;
 
 	switch (network_type) {
 	case WIRELESS_11B:
@@ -1075,12 +1028,6 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	pmlmepriv->htpriv.ht_option = false;
 
-	if ((psecuritypriv->wpa2_pairwise_cipher & WPA_CIPHER_TKIP) ||
-	    (psecuritypriv->wpa_pairwise_cipher & WPA_CIPHER_TKIP)) {
-		/* todo: */
-		/* ht_cap = false; */
-	}
-
 	/* ht_cap */
 	if (pregistrypriv->ht_enable && ht_cap) {
 		pmlmepriv->htpriv.ht_option = true;
@@ -1091,14 +1038,13 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 		HT_caps_handler(padapter, (struct ndis_80211_var_ie *)ht_caps_ie);
 
-		HT_info_handler(padapter, (struct ndis_80211_var_ie *)pHT_info_ie);
+		HT_info_handler(padapter, (struct ndis_80211_var_ie *)ht_info_ie);
 	}
 
 	pbss_network->length =
 		get_wlan_bssid_ex_sz((struct wlan_bssid_ex *)pbss_network);
 
 	/* issue beacon to start bss network */
-	/* start_bss_network(padapter, (u8 *)pbss_network); */
 	rtw_startbss_cmd(padapter, RTW_CMDF_WAIT_ACK);
 
 	/* alloc sta_info for ap itself */
@@ -1116,9 +1062,6 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 	rtw_indicate_connect(padapter);
 
 	pmlmepriv->cur_network.join_res = true;/* for check if already set beacon */
-
-	/* update bc/mc sta_info */
-	/* update_bmc_sta(padapter); */
 
 	return ret;
 }
@@ -1408,7 +1351,7 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	u8 *premainder_ie;
 	u8 *pbackup_remainder_ie = NULL;
 
-	uint wps_ielen = 0, wps_offset, remainder_ielen;
+	unsigned int wps_ielen = 0, wps_offset, remainder_ielen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
@@ -1428,7 +1371,7 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	if (!pwps_ie_src)
 		return;
 
-	wps_offset = (uint)(pwps_ie - ie);
+	wps_offset = (unsigned int)(pwps_ie - ie);
 
 	premainder_ie = pwps_ie + wps_ielen;
 
@@ -1437,7 +1380,7 @@ static void update_bcn_wps_ie(struct adapter *padapter)
 	if (remainder_ielen)
 		pbackup_remainder_ie = kmemdup(premainder_ie, remainder_ielen, GFP_ATOMIC);
 
-	wps_ielen = (uint)pwps_ie_src[1];/* to get ie data len */
+	wps_ielen = (unsigned int)pwps_ie_src[1];/* to get ie data len */
 	if ((wps_offset + wps_ielen + 2 + remainder_ielen) <= MAX_IE_SZ) {
 		memcpy(pwps_ie, pwps_ie_src, wps_ielen + 2);
 		pwps_ie += (wps_ielen + 2);
@@ -1475,14 +1418,12 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 {
 	struct mlme_priv *pmlmepriv;
 	struct mlme_ext_priv *pmlmeext;
-	/* struct mlme_ext_info *pmlmeinfo; */
 
 	if (!padapter)
 		return;
 
 	pmlmepriv = &padapter->mlmepriv;
 	pmlmeext = &padapter->mlmeextpriv;
-	/* pmlmeinfo = &(pmlmeext->mlmext_info); */
 
 	if (!pmlmeext->bstart_bss)
 		return;
@@ -1540,10 +1481,8 @@ void update_beacon(struct adapter *padapter, u8 ie_id, u8 *oui, u8 tx)
 
 	spin_unlock_bh(&pmlmepriv->bcn_update_lock);
 
-	if (tx) {
-		/* send_beacon(padapter);//send_beacon must execute on TSR level */
+	if (tx)
 		set_tx_beacon_cmd(padapter);
-	}
 }
 
 /*
@@ -1847,8 +1786,6 @@ u8 ap_free_sta(struct adapter *padapter,
 	psta->htpriv.agg_enable_bitmap = 0x0;/* reset */
 	psta->htpriv.candidate_tid_bitmap = 0x0;/* reset */
 
-	/* report_del_sta_event(padapter, psta->hwaddr, reason); */
-
 	/* clear cam entry / key */
 	rtw_clearstakey_cmd(padapter, psta, true);
 
@@ -1888,9 +1825,7 @@ void rtw_sta_flush(struct adapter *padapter)
 		list_del_init(&psta->asoc_list);
 		pstapriv->asoc_list_cnt--;
 
-		/* spin_unlock_bh(&pstapriv->asoc_list_lock); */
 		ap_free_sta(padapter, psta, true, WLAN_REASON_DEAUTH_LEAVING);
-		/* spin_lock_bh(&pstapriv->asoc_list_lock); */
 	}
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 
@@ -2017,7 +1952,6 @@ void start_ap_mode(struct adapter *padapter)
 
 	pmlmepriv->update_bcn = false;
 
-	/* init_mlme_ap_info(padapter); */
 	pmlmeext->bstart_bss = false;
 
 	pmlmepriv->num_sta_non_erp = 0;
@@ -2105,5 +2039,5 @@ void stop_ap_mode(struct adapter *padapter)
 
 	rtw_free_mlme_priv_ie_data(pmlmepriv);
 
-	rtw_btcoex_MediaStatusNotify(padapter, 0); /* disconnect */
+	rtw_btcoex_media_status_notify(padapter, 0); /* disconnect */
 }

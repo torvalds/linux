@@ -78,7 +78,7 @@ the program.
 
 Per-task indirect branch tracking state can be monitored and
 controlled via the :c:macro:`PR_GET_CFI` and :c:macro:`PR_SET_CFI`
-``prctl()` arguments (respectively), by supplying
+``prctl()`` arguments (respectively), by supplying
 :c:macro:`PR_CFI_BRANCH_LANDING_PADS` as the second argument.  These
 are architecture-agnostic, and will return -EINVAL if the underlying
 functionality is not supported.

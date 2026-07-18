@@ -718,8 +718,6 @@ extern bool console_suspend_enabled;
 extern void console_suspend_all(void);
 extern void console_resume_all(void);
 
-int mda_console_init(void);
-
 void vcs_make_sysfs(int index);
 void vcs_remove_sysfs(int index);
 

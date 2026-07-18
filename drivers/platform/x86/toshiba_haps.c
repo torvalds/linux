@@ -182,12 +182,16 @@ static int toshiba_haps_available(acpi_handle handle)
 
 static int toshiba_haps_probe(struct platform_device *pdev)
 {
-	struct acpi_device *acpi_dev = ACPI_COMPANION(&pdev->dev);
 	struct toshiba_haps_dev *haps;
+	struct acpi_device *acpi_dev;
 	int ret;
 
 	if (toshiba_haps)
 		return -EBUSY;
+
+	acpi_dev = ACPI_COMPANION(&pdev->dev);
+	if (!acpi_dev)
+		return -ENODEV;
 
 	if (!toshiba_haps_available(acpi_dev->handle))
 		return -ENODEV;

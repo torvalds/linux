@@ -143,10 +143,11 @@
 };
 
 &hdmi0 {
-	pinctrl-names = "default";
+	frl-enable-gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
 	pinctrl-0 = <&hdmim0_tx0_cec &hdmim0_tx0_hpd
 		     &hdmim0_tx0_scl &hdmim0_tx0_sda
-		     &hdmi_frl_pin>;
+		     &hdmi0_tx_on_h>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -172,6 +173,7 @@
 
 &i2c1 {
 	pinctrl-0 = <&i2c1m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	rtc@51 {
@@ -245,8 +247,8 @@
 	};
 
 	hdmi {
-		hdmi_frl_pin: hdmi-frl-pin {
-			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		hdmi0_tx_on_h: hdmi0-tx-on-h {
+			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -279,6 +281,7 @@
 
 &pwm5 {
 	pinctrl-0 = <&pwm5m1_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -319,6 +322,7 @@
 
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

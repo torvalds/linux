@@ -315,10 +315,10 @@ EXPORT_SYMBOL_NS_GPL(zl3073x_devm_alloc, "ZL3073X");
 
 static int
 zl3073x_devlink_param_clock_id_validate(struct devlink *devlink, u32 id,
-					union devlink_param_value val,
+					union devlink_param_value *val,
 					struct netlink_ext_ack *extack)
 {
-	if (!val.vu64) {
+	if (!val->vu64) {
 		NL_SET_ERR_MSG_MOD(extack, "'clock_id' must be non-zero");
 		return -EINVAL;
 	}
@@ -377,7 +377,7 @@ int zl3073x_devlink_register(struct zl3073x_dev *zldev)
 	value.vu64 = zldev->clock_id;
 	devl_param_driverinit_value_set(devlink,
 					DEVLINK_PARAM_GENERIC_ID_CLOCK_ID,
-					value);
+					&value);
 
 	/* Register devlink instance */
 	devl_register(devlink);

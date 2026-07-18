@@ -308,15 +308,6 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	enum plane_id plane_id;
 	int max_level = INT_MAX;
 
-	if (!intel_has_sagv(display))
-		return false;
-
-	if (!crtc_state->hw.active)
-		return true;
-
-	if (crtc_state->hw.pipe_mode.flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
-
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
@@ -359,9 +350,6 @@ static bool tgl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum plane_id plane_id;
 
-	if (!crtc_state->hw.active)
-		return true;
-
 	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane_id];
@@ -377,6 +365,9 @@ bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
+	if (!display->sagv.block_time_us)
+		return false;
+
 	if (!display->params.enable_sagv)
 		return false;
 
@@ -388,7 +379,13 @@ bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->inherited)
 		return false;
 
-	if (DISPLAY_VER(display) >= 12)
+	if (!crtc_state->hw.active)
+		return true;
+
+	if (crtc_state->hw.pipe_mode.flags & DRM_MODE_FLAG_INTERLACE)
+		return false;
+
+	if (HAS_SAGV_WM(display))
 		return tgl_crtc_can_enable_sagv(crtc_state);
 	else
 		return skl_crtc_can_enable_sagv(crtc_state);
@@ -1939,7 +1936,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	result->enable = true;
 	result->auto_min_alloc_wm_enable = xe3_auto_min_alloc_capable(plane, level);
 
-	if (DISPLAY_VER(display) < 12 && display->sagv.block_time_us)
+	if (!HAS_SAGV_WM(display) && display->sagv.block_time_us)
 		result->can_sagv = latency >= display->sagv.block_time_us;
 }
 
@@ -2065,7 +2062,7 @@ static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
 	skl_compute_transition_wm(display, &wm->trans_wm,
 				  &wm->wm[0], &wm_params);
 
-	if (DISPLAY_VER(display) >= 12) {
+	if (HAS_SAGV_WM(display)) {
 		tgl_compute_sagv_wm(crtc_state, plane, &wm_params, wm);
 
 		skl_compute_transition_wm(display, &wm->sagv.trans_wm,
@@ -2324,7 +2321,7 @@ static int skl_wm_check_vblank(struct intel_crtc_state *crtc_state)
 		}
 	}
 
-	if (DISPLAY_VER(display) >= 12 &&
+	if (HAS_SAGV_WM(display) &&
 	    display->sagv.block_time_us &&
 	    skl_prefill_vblank_too_short(&ctx, crtc_state,
 					 display->sagv.block_time_us)) {
@@ -2498,9 +2495,9 @@ skl_compute_ddb(struct intel_atomic_state *state)
 	struct intel_dbuf_state *new_dbuf_state = NULL;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
-	int ret, i;
+	int ret;
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state) {
 		new_dbuf_state = intel_atomic_get_dbuf_state(state);
 		if (IS_ERR(new_dbuf_state))
 			return PTR_ERR(new_dbuf_state);
@@ -2532,7 +2529,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 		}
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		enum pipe pipe = crtc->pipe;
 
 		new_dbuf_state->slices[pipe] =
@@ -2564,7 +2561,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			    str_yes_no(new_dbuf_state->joined_mbus));
 	}
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state) {
 		enum pipe pipe = crtc->pipe;
 
 		new_dbuf_state->weight[pipe] = intel_crtc_ddb_weight(new_crtc_state);
@@ -2577,13 +2574,13 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		ret = skl_crtc_allocate_ddb(state, crtc);
 		if (ret)
 			return ret;
 	}
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state) {
 		ret = skl_crtc_allocate_plane_ddb(state, crtc);
 		if (ret)
 			return ret;
@@ -2616,6 +2613,26 @@ skl_print_plane_ddb_changes(struct intel_plane *plane,
 		    skl_ddb_entry_size(old), skl_ddb_entry_size(new));
 }
 
+#define PLANE_WM_EN_FMT "%cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
+#define PLANE_WM_EN_ARGS(__wm) \
+	enast((__wm)->wm[0].enable), enast((__wm)->wm[1].enable), \
+	enast((__wm)->wm[2].enable), enast((__wm)->wm[3].enable), \
+	enast((__wm)->wm[4].enable), enast((__wm)->wm[5].enable), \
+	enast((__wm)->wm[6].enable), enast((__wm)->wm[7].enable), \
+	enast((__wm)->trans_wm.enable), \
+	enast((__wm)->sagv.wm0.enable), \
+	enast((__wm)->sagv.trans_wm.enable)
+
+#define PLANE_WM_FMT "%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
+#define PLANE_WM_ARGS(__wm, __field) \
+	(__wm)->wm[0].__field, (__wm)->wm[1].__field, \
+	(__wm)->wm[2].__field, (__wm)->wm[3].__field, \
+	(__wm)->wm[4].__field, (__wm)->wm[5].__field, \
+	(__wm)->wm[6].__field, (__wm)->wm[7].__field, \
+	(__wm)->trans_wm.__field, \
+	(__wm)->sagv.wm0.__field, \
+	(__wm)->sagv.trans_wm.__field
+
 static noinline_for_stack void
 skl_print_plane_wm_changes(struct intel_plane *plane,
 			   const struct skl_plane_wm *old_wm,
@@ -2624,111 +2641,43 @@ skl_print_plane_wm_changes(struct intel_plane *plane,
 	struct intel_display *display = to_intel_display(plane);
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]      level %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm"
-		    " -> %cwm0,%cwm1,%cwm2,%cwm3,%cwm4,%cwm5,%cwm6,%cwm7,%ctwm,%cswm,%cstwm\n",
+		    "[PLANE:%d:%s]      level " PLANE_WM_EN_FMT " -> " PLANE_WM_EN_FMT "\n",
 		    plane->base.base.id, plane->base.name,
-		    enast(old_wm->wm[0].enable), enast(old_wm->wm[1].enable),
-		    enast(old_wm->wm[2].enable), enast(old_wm->wm[3].enable),
-		    enast(old_wm->wm[4].enable), enast(old_wm->wm[5].enable),
-		    enast(old_wm->wm[6].enable), enast(old_wm->wm[7].enable),
-		    enast(old_wm->trans_wm.enable),
-		    enast(old_wm->sagv.wm0.enable),
-		    enast(old_wm->sagv.trans_wm.enable),
-		    enast(new_wm->wm[0].enable), enast(new_wm->wm[1].enable),
-		    enast(new_wm->wm[2].enable), enast(new_wm->wm[3].enable),
-		    enast(new_wm->wm[4].enable), enast(new_wm->wm[5].enable),
-		    enast(new_wm->wm[6].enable), enast(new_wm->wm[7].enable),
-		    enast(new_wm->trans_wm.enable),
-		    enast(new_wm->sagv.wm0.enable),
-		    enast(new_wm->sagv.trans_wm.enable));
+		    PLANE_WM_EN_ARGS(old_wm),
+		    PLANE_WM_EN_ARGS(new_wm));
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]      lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d"
-		      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%4d\n",
+		    "[PLANE:%d:%s]      lines " PLANE_WM_FMT " -> " PLANE_WM_FMT "\n",
 		    plane->base.base.id, plane->base.name,
-		    enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].lines,
-		    enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].lines,
-		    enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].lines,
-		    enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].lines,
-		    enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].lines,
-		    enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].lines,
-		    enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].lines,
-		    enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].lines,
-		    enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.lines,
-		    enast(old_wm->sagv.wm0.ignore_lines), old_wm->sagv.wm0.lines,
-		    enast(old_wm->sagv.trans_wm.ignore_lines), old_wm->sagv.trans_wm.lines,
-		    enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].lines,
-		    enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].lines,
-		    enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].lines,
-		    enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].lines,
-		    enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].lines,
-		    enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].lines,
-		    enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].lines,
-		    enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].lines,
-		    enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.lines,
-		    enast(new_wm->sagv.wm0.ignore_lines), new_wm->sagv.wm0.lines,
-		    enast(new_wm->sagv.trans_wm.ignore_lines), new_wm->sagv.trans_wm.lines);
+		    PLANE_WM_ARGS(old_wm, lines),
+		    PLANE_WM_ARGS(new_wm, lines));
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]     blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
-		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
+		    "[PLANE:%d:%s]     blocks " PLANE_WM_FMT " -> " PLANE_WM_FMT "\n",
 		    plane->base.base.id, plane->base.name,
-		    old_wm->wm[0].blocks, old_wm->wm[1].blocks,
-		    old_wm->wm[2].blocks, old_wm->wm[3].blocks,
-		    old_wm->wm[4].blocks, old_wm->wm[5].blocks,
-		    old_wm->wm[6].blocks, old_wm->wm[7].blocks,
-		    old_wm->trans_wm.blocks,
-		    old_wm->sagv.wm0.blocks,
-		    old_wm->sagv.trans_wm.blocks,
-		    new_wm->wm[0].blocks, new_wm->wm[1].blocks,
-		    new_wm->wm[2].blocks, new_wm->wm[3].blocks,
-		    new_wm->wm[4].blocks, new_wm->wm[5].blocks,
-		    new_wm->wm[6].blocks, new_wm->wm[7].blocks,
-		    new_wm->trans_wm.blocks,
-		    new_wm->sagv.wm0.blocks,
-		    new_wm->sagv.trans_wm.blocks);
+		    PLANE_WM_ARGS(old_wm, blocks),
+		    PLANE_WM_ARGS(new_wm, blocks));
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s]    min_ddb %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
-		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
+		    "[PLANE:%d:%s]    min_ddb " PLANE_WM_FMT " -> " PLANE_WM_FMT "\n",
 		    plane->base.base.id, plane->base.name,
-		    old_wm->wm[0].min_ddb_alloc, old_wm->wm[1].min_ddb_alloc,
-		    old_wm->wm[2].min_ddb_alloc, old_wm->wm[3].min_ddb_alloc,
-		    old_wm->wm[4].min_ddb_alloc, old_wm->wm[5].min_ddb_alloc,
-		    old_wm->wm[6].min_ddb_alloc, old_wm->wm[7].min_ddb_alloc,
-		    old_wm->trans_wm.min_ddb_alloc,
-		    old_wm->sagv.wm0.min_ddb_alloc,
-		    old_wm->sagv.trans_wm.min_ddb_alloc,
-		    new_wm->wm[0].min_ddb_alloc, new_wm->wm[1].min_ddb_alloc,
-		    new_wm->wm[2].min_ddb_alloc, new_wm->wm[3].min_ddb_alloc,
-		    new_wm->wm[4].min_ddb_alloc, new_wm->wm[5].min_ddb_alloc,
-		    new_wm->wm[6].min_ddb_alloc, new_wm->wm[7].min_ddb_alloc,
-		    new_wm->trans_wm.min_ddb_alloc,
-		    new_wm->sagv.wm0.min_ddb_alloc,
-		    new_wm->sagv.trans_wm.min_ddb_alloc);
+		    PLANE_WM_ARGS(old_wm, min_ddb_alloc),
+		    PLANE_WM_ARGS(new_wm, min_ddb_alloc));
 
 	if (DISPLAY_VER(display) >= 11)
 		return;
 
 	drm_dbg_kms(display->drm,
-		    "[PLANE:%d:%s] min_ddb_uv %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d"
-		    " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%5d\n",
+		    "[PLANE:%d:%s] min_ddb_uv " PLANE_WM_FMT " -> " PLANE_WM_FMT "\n",
 		    plane->base.base.id, plane->base.name,
-		    old_wm->wm[0].min_ddb_alloc_uv, old_wm->wm[1].min_ddb_alloc_uv,
-		    old_wm->wm[2].min_ddb_alloc_uv, old_wm->wm[3].min_ddb_alloc_uv,
-		    old_wm->wm[4].min_ddb_alloc_uv, old_wm->wm[5].min_ddb_alloc_uv,
-		    old_wm->wm[6].min_ddb_alloc_uv, old_wm->wm[7].min_ddb_alloc_uv,
-		    old_wm->trans_wm.min_ddb_alloc_uv,
-		    old_wm->sagv.wm0.min_ddb_alloc_uv,
-		    old_wm->sagv.trans_wm.min_ddb_alloc_uv,
-		    new_wm->wm[0].min_ddb_alloc_uv, new_wm->wm[1].min_ddb_alloc_uv,
-		    new_wm->wm[2].min_ddb_alloc_uv, new_wm->wm[3].min_ddb_alloc_uv,
-		    new_wm->wm[4].min_ddb_alloc_uv, new_wm->wm[5].min_ddb_alloc_uv,
-		    new_wm->wm[6].min_ddb_alloc_uv, new_wm->wm[7].min_ddb_alloc_uv,
-		    new_wm->trans_wm.min_ddb_alloc_uv,
-		    new_wm->sagv.wm0.min_ddb_alloc_uv,
-		    new_wm->sagv.trans_wm.min_ddb_alloc_uv);
+		    PLANE_WM_ARGS(old_wm, min_ddb_alloc_uv),
+		    PLANE_WM_ARGS(new_wm, min_ddb_alloc_uv));
 }
+
+#undef PLANE_WM_EN_FMT
+#undef PLANE_WM_EN_ARGS
+#undef PLANE_WM_FMT
+#undef PLANE_WM_ARGS
 
 static void
 skl_print_wm_changes(struct intel_atomic_state *state)
@@ -2738,13 +2687,11 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	const struct intel_crtc_state *new_crtc_state;
 	struct intel_plane *plane;
 	struct intel_crtc *crtc;
-	int i;
 
 	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state) {
 		const struct skl_pipe_wm *old_pipe_wm, *new_pipe_wm;
 
 		old_pipe_wm = &old_crtc_state->wm.skl.optimal;
@@ -2884,19 +2831,19 @@ static int pkgc_max_linetime(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
-	int i, max_linetime;
+	int max_linetime;
 
 	/*
 	 * Apparenty the hardware uses WM_LINETIME internally for
 	 * this stuff, compute everything based on that.
 	 */
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state) {
 		display->pkgc.disable[crtc->pipe] = crtc_state->vrr.enable;
 		display->pkgc.linetime[crtc->pipe] = DIV_ROUND_UP(crtc_state->linetime, 8);
 	}
 
 	max_linetime = 0;
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		if (display->pkgc.disable[crtc->pipe])
 			return 0;
 
@@ -2960,9 +2907,9 @@ skl_compute_wm(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state __maybe_unused *new_crtc_state;
-	int ret, i;
+	int ret;
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state) {
 		ret = skl_build_pipe_wm(state, crtc);
 		if (ret)
 			return ret;
@@ -2977,7 +2924,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	 * based on how much ddb is available. Now we can actually
 	 * check if the final watermarks changed.
 	 */
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state) {
 		struct skl_pipe_wm *pipe_wm = &new_crtc_state->wm.skl.optimal;
 
 		/*
@@ -2997,8 +2944,9 @@ skl_compute_wm(struct intel_atomic_state *state)
 		 * other crtcs can't be allowed to use the more optimal
 		 * normal (ie. non-SAGV) watermarks.
 		 */
-		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(display) &&
-			DISPLAY_VER(display) >= 12 &&
+		pipe_wm->use_sagv_wm =
+			HAS_SAGV_WM(display) &&
+			!HAS_HW_SAGV_WM(display) &&
 			intel_crtc_can_enable_sagv(new_crtc_state);
 
 		ret = skl_wm_add_affected_planes(state, crtc);
@@ -3064,7 +3012,7 @@ static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 				val = intel_de_read(display, CUR_WM_SAGV_TRANS(pipe));
 
 			skl_wm_level_from_reg_val(display, val, &wm->sagv.trans_wm);
-		} else if (DISPLAY_VER(display) >= 12) {
+		} else if (HAS_SAGV_WM(display)) {
 			wm->sagv.wm0 = wm->wm[0];
 			wm->sagv.trans_wm = wm->trans_wm;
 		}
@@ -3083,7 +3031,7 @@ static void skl_wm_get_hw_state(struct intel_display *display)
 	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(display, &display->cdclk.hw);
 	dbuf_state->active_pipes = 0;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		enum pipe pipe = crtc->pipe;
@@ -3496,7 +3444,7 @@ static void pipe_mbus_dbox_ctl_update(struct intel_display *display,
 {
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, dbuf_state->active_pipes)
+	for_each_intel_crtc_in_pipe_mask(display, crtc, dbuf_state->active_pipes)
 		intel_de_write(display, PIPE_MBUS_DBOX_CTL(crtc->pipe),
 			       pipe_mbus_dbox_ctl(crtc, dbuf_state));
 }
@@ -3808,14 +3756,14 @@ static bool skl_dbuf_is_misconfigured(struct intel_display *display)
 	struct skl_ddb_entry entries[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 
 		entries[crtc->pipe] = crtc_state->wm.skl.ddb;
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		u8 slices;
@@ -3853,7 +3801,7 @@ static void skl_dbuf_sanitize(struct intel_display *display)
 
 	drm_dbg_kms(display->drm, "BIOS has misprogrammed the DBUF, disabling all planes\n");
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_plane *plane = to_intel_plane(crtc->base.primary);
 		const struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
@@ -3919,6 +3867,40 @@ void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
 	       sizeof(crtc_state->wm.skl.optimal.planes[plane->id]));
 }
 
+static void skl_wm_level_verify(struct intel_plane *plane,
+				const char *wm_name,
+				const struct skl_wm_level *hw_wm_level,
+				const struct skl_wm_level *sw_wm_level)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	if (skl_wm_level_equals(hw_wm_level, sw_wm_level))
+		return;
+
+	drm_err(display->drm,
+		"[PLANE:%d:%s] mismatch in %s (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
+		plane->base.base.id, plane->base.name, wm_name,
+		sw_wm_level->enable, sw_wm_level->blocks, sw_wm_level->lines,
+		hw_wm_level->enable, hw_wm_level->blocks, hw_wm_level->lines);
+}
+
+static void skl_ddb_entry_verify(struct intel_plane *plane,
+				 const char *ddb_name,
+				 const struct skl_ddb_entry *hw_ddb_entry,
+				 const struct skl_ddb_entry *sw_ddb_entry)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	if (skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry))
+		return;
+
+	drm_err(display->drm,
+		"[PLANE:%d:%s] mismatch in %s (expected (%u,%u), found (%u,%u))\n",
+		plane->base.base.id, plane->base.name, ddb_name,
+		sw_ddb_entry->start, sw_ddb_entry->end,
+		hw_ddb_entry->start, hw_ddb_entry->end);
+}
+
 void intel_wm_state_verify(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
@@ -3958,86 +3940,42 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 			hw_enabled_slices);
 
 	for_each_intel_plane_on_crtc(display->drm, crtc, plane) {
-		const struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
-		const struct skl_wm_level *hw_wm_level, *sw_wm_level;
+		const struct skl_plane_wm *hw_plane_wm =
+			&hw->wm.planes[plane->id];
+		const struct skl_plane_wm *sw_plane_wm =
+			&sw_wm->planes[plane->id];
 
-		/* Watermarks */
 		for (level = 0; level < display->wm.num_levels; level++) {
-			hw_wm_level = &hw->wm.planes[plane->id].wm[level];
-			sw_wm_level = skl_plane_wm_level(sw_wm, plane->id, level);
+			char wm_name[16];
 
-			if (skl_wm_level_equals(hw_wm_level, sw_wm_level))
-				continue;
+			snprintf(wm_name, sizeof(wm_name), "WM%d", level);
 
-			drm_err(display->drm,
-				"[PLANE:%d:%s] mismatch in WM%d (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				plane->base.base.id, plane->base.name, level,
-				sw_wm_level->enable,
-				sw_wm_level->blocks,
-				sw_wm_level->lines,
-				hw_wm_level->enable,
-				hw_wm_level->blocks,
-				hw_wm_level->lines);
+			skl_wm_level_verify(plane, wm_name,
+					    &hw_plane_wm->wm[level],
+					    skl_plane_wm_level(sw_wm, plane->id, level));
 		}
 
-		hw_wm_level = &hw->wm.planes[plane->id].trans_wm;
-		sw_wm_level = skl_plane_trans_wm(sw_wm, plane->id);
+		skl_wm_level_verify(plane, "trans WM",
+				    &hw_plane_wm->trans_wm,
+				    skl_plane_trans_wm(sw_wm, plane->id));
 
-		if (!skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
-			drm_err(display->drm,
-				"[PLANE:%d:%s] mismatch in trans WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				plane->base.base.id, plane->base.name,
-				sw_wm_level->enable,
-				sw_wm_level->blocks,
-				sw_wm_level->lines,
-				hw_wm_level->enable,
-				hw_wm_level->blocks,
-				hw_wm_level->lines);
+		if (HAS_HW_SAGV_WM(display)) {
+			skl_wm_level_verify(plane, "SAGV WM",
+					    &hw_plane_wm->sagv.wm0,
+					    &sw_plane_wm->sagv.wm0);
+
+			skl_wm_level_verify(plane, "SAGV trans WM",
+					    &hw_plane_wm->sagv.trans_wm,
+					    &sw_plane_wm->sagv.trans_wm);
 		}
 
-		hw_wm_level = &hw->wm.planes[plane->id].sagv.wm0;
-		sw_wm_level = &sw_wm->planes[plane->id].sagv.wm0;
+		skl_ddb_entry_verify(plane, "DDB",
+				     &hw->ddb[plane->id],
+				     &new_crtc_state->wm.skl.plane_ddb[plane->id]);
 
-		if (HAS_HW_SAGV_WM(display) &&
-		    !skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
-			drm_err(display->drm,
-				"[PLANE:%d:%s] mismatch in SAGV WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				plane->base.base.id, plane->base.name,
-				sw_wm_level->enable,
-				sw_wm_level->blocks,
-				sw_wm_level->lines,
-				hw_wm_level->enable,
-				hw_wm_level->blocks,
-				hw_wm_level->lines);
-		}
-
-		hw_wm_level = &hw->wm.planes[plane->id].sagv.trans_wm;
-		sw_wm_level = &sw_wm->planes[plane->id].sagv.trans_wm;
-
-		if (HAS_HW_SAGV_WM(display) &&
-		    !skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
-			drm_err(display->drm,
-				"[PLANE:%d:%s] mismatch in SAGV trans WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
-				plane->base.base.id, plane->base.name,
-				sw_wm_level->enable,
-				sw_wm_level->blocks,
-				sw_wm_level->lines,
-				hw_wm_level->enable,
-				hw_wm_level->blocks,
-				hw_wm_level->lines);
-		}
-
-		/* DDB */
-		hw_ddb_entry = &hw->ddb[plane->id];
-		sw_ddb_entry = &new_crtc_state->wm.skl.plane_ddb[plane->id];
-
-		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
-			drm_err(display->drm,
-				"[PLANE:%d:%s] mismatch in DDB (expected (%u,%u), found (%u,%u))\n",
-				plane->base.base.id, plane->base.name,
-				sw_ddb_entry->start, sw_ddb_entry->end,
-				hw_ddb_entry->start, hw_ddb_entry->end);
-		}
+		skl_ddb_entry_verify(plane, "DDB Y",
+				     &hw->ddb_y[plane->id],
+				     &new_crtc_state->wm.skl.plane_ddb_y[plane->id]);
 	}
 
 	kfree(hw);
@@ -4055,7 +3993,7 @@ void skl_wm_init(struct intel_display *display)
 
 	skl_setup_wm_latency(display);
 
-	display->funcs.wm = &skl_wm_funcs;
+	display->wm.funcs = &skl_wm_funcs;
 }
 
 static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)

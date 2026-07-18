@@ -798,6 +798,43 @@ static void ih_v7_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 
 	return;
 }
 
+/*
+ * ih_v7_0_node_id_to_die_name - Decode IH cookie node_id to a die name string
+ *
+ * Currently, only applies to IH v7_1. For other IH versions returns NULL.
+ *
+ * IH v7_1 node_id encoding:
+ * node_id[N:3] = MID index
+ * node_id[2:0] = sub-slot: 0=MID, 1=AID, 2-5=AID.XCD, 6-7=RSV
+ */
+static const char *ih_v7_0_node_id_to_die_name(struct amdgpu_device *adev,
+					       unsigned int node_id,
+					       char *buf, size_t size)
+{
+	int mid_id, sub_slot;
+
+	/* Node ID to die name decoding is only defined for IH v7_1 currenlty. */
+	if (amdgpu_ip_version(adev, OSSSYS_HWIP, 0) != IP_VERSION(7, 1, 0))
+		return NULL;
+
+	mid_id = node_id >> 3;
+	sub_slot = node_id & 0x7;
+
+	if (mid_id > 1)
+		return "UNKNOWN";
+
+	if (sub_slot == 0)
+		snprintf(buf, size, "MID%d", mid_id);
+	else if (sub_slot == 1)
+		snprintf(buf, size, "AID%d", mid_id);
+	else if (sub_slot <= 5)
+		snprintf(buf, size, "AID%d.XCD%d", mid_id, sub_slot - 2);
+	else
+		snprintf(buf, size, "RSV");
+
+	return buf;
+}
+
 static const struct amd_ip_funcs ih_v7_0_ip_funcs = {
 	.name = "ih_v7_0",
 	.early_init = ih_v7_0_early_init,
@@ -819,7 +856,8 @@ static const struct amdgpu_ih_funcs ih_v7_0_funcs = {
 	.get_wptr = ih_v7_0_get_wptr,
 	.decode_iv = amdgpu_ih_decode_iv_helper,
 	.decode_iv_ts = amdgpu_ih_decode_iv_ts_helper,
-	.set_rptr = ih_v7_0_set_rptr
+	.set_rptr = ih_v7_0_set_rptr,
+	.node_id_to_die_name = ih_v7_0_node_id_to_die_name,
 };
 
 static void ih_v7_0_set_interrupt_funcs(struct amdgpu_device *adev)

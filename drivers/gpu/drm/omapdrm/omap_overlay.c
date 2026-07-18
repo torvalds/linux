@@ -66,7 +66,7 @@ omap_plane_find_free_overlay(struct drm_device *dev, struct drm_plane *hwoverlay
  * This should be called from the plane atomic_check() in order to prepare the
  * next global overlay_map to be enabled when atomic transaction is valid.
  */
-int omap_overlay_assign(struct drm_atomic_state *s, struct drm_plane *plane,
+int omap_overlay_assign(struct drm_atomic_commit *s, struct drm_plane *plane,
 			u32 caps, u32 fourcc, struct omap_hw_overlay **overlay,
 			struct omap_hw_overlay **r_overlay)
 {
@@ -111,7 +111,7 @@ int omap_overlay_assign(struct drm_atomic_state *s, struct drm_plane *plane,
  * This should be called from the plane atomic_check() in order to prepare the
  * next global overlay_map to be enabled when atomic transaction is valid.
  */
-void omap_overlay_release(struct drm_atomic_state *s, struct omap_hw_overlay *overlay)
+void omap_overlay_release(struct drm_atomic_commit *s, struct omap_hw_overlay *overlay)
 {
 	/* Get the global state of the current atomic transaction */
 	struct omap_global_state *state = omap_get_global_state(s);

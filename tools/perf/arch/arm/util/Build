@@ -1,3 +1,1 @@
-perf-util-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
-
 perf-util-y += pmu.o auxtrace.o cs-etm.o

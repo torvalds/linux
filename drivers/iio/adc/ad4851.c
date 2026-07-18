@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pwm.h>

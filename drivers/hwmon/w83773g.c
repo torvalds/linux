@@ -34,7 +34,7 @@ static const u8 W83773_OFFSET_MSB[2] = { 0x11, 0x15 };
 
 /* this is the number of sensors in the device */
 static const struct i2c_device_id w83773_id[] = {
-	{ "w83773g" },
+	{ .name = "w83773g" },
 	{ }
 };
 

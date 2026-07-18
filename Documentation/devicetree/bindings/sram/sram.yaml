@@ -34,6 +34,7 @@ properties:
         - nvidia,tegra186-sysram
         - nvidia,tegra194-sysram
         - nvidia,tegra234-sysram
+        - qcom,eliza-imem
         - qcom,hawi-imem
         - qcom,kaanapali-imem
         - qcom,milos-imem
@@ -83,6 +84,7 @@ patternProperties:
             - allwinner,sun4i-a10-sram-d
             - allwinner,sun9i-a80-smp-sram
             - allwinner,sun50i-a64-sram-c
+            - allwinner,sun50i-h616-ve-sram
             - amlogic,meson8-ao-arc-sram
             - amlogic,meson8b-ao-arc-sram
             - amlogic,meson8-smp-sram

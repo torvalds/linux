@@ -82,11 +82,11 @@ __drm_kunit_helper_alloc_drm_device_with_driver(struct kunit *test,
 }
 EXPORT_SYMBOL_GPL(__drm_kunit_helper_alloc_drm_device_with_driver);
 
-static void kunit_action_drm_atomic_state_put(void *ptr)
+static void kunit_action_drm_atomic_commit_put(void *ptr)
 {
-	struct drm_atomic_state *state = ptr;
+	struct drm_atomic_commit *state = ptr;
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 }
 
 /**
@@ -98,25 +98,25 @@ static void kunit_action_drm_atomic_state_put(void *ptr)
  * Allocates a empty atomic state.
  *
  * The state is tied to the kunit test context, so we must not call
- * drm_atomic_state_put() on it, it will be done so automatically.
+ * drm_atomic_commit_put() on it, it will be done so automatically.
  *
  * Returns:
  * An ERR_PTR on error, a pointer to the newly allocated state otherwise
  */
-struct drm_atomic_state *
+struct drm_atomic_commit *
 drm_kunit_helper_atomic_state_alloc(struct kunit *test,
 				    struct drm_device *drm,
 				    struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int ret;
 
-	state = drm_atomic_state_alloc(drm);
+	state = drm_atomic_commit_alloc(drm);
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
 	ret = kunit_add_action_or_reset(test,
-					kunit_action_drm_atomic_state_put,
+					kunit_action_drm_atomic_commit_put,
 					state);
 	if (ret)
 		return ERR_PTR(ret);
@@ -297,7 +297,7 @@ int drm_kunit_helper_enable_crtc_connector(struct kunit *test,
 					   const struct drm_display_mode *mode,
 					   struct drm_modeset_acquire_ctx *ctx)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
 	int ret;

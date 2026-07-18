@@ -199,6 +199,83 @@ err_out:
 	bpf_link__destroy(getsockopt_link);
 }
 
+static int connect_to_v4mapped_v6_fd(int server_fd)
+{
+	struct sockaddr_storage addr;
+	struct sockaddr_in *addr4 = (void *)&addr;
+	socklen_t addrlen = sizeof(addr);
+	struct sockaddr_in6 addr6 = {};
+	int fd = -1, v6only = 0, err;
+
+	err = getsockname(server_fd, (struct sockaddr *)&addr, &addrlen);
+	if (!ASSERT_OK(err, "getsockname"))
+		return -1;
+
+	fd = socket(AF_INET6, SOCK_STREAM, 0);
+	if (!ASSERT_GE(fd, 0, "socket"))
+		return -1;
+
+	err = settimeo(fd, 0);
+	if (!ASSERT_OK(err, "settimeo"))
+		goto err_out;
+
+	err = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &v6only, sizeof(v6only));
+	if (!ASSERT_OK(err, "clear_v6only"))
+		goto err_out;
+
+	addr6.sin6_family = AF_INET6;
+	addr6.sin6_port = addr4->sin_port;
+	addr6.sin6_addr.s6_addr[10] = 0xff;
+	addr6.sin6_addr.s6_addr[11] = 0xff;
+	memcpy(&addr6.sin6_addr.s6_addr[12], &addr4->sin_addr, sizeof(addr4->sin_addr));
+
+	err = connect(fd, (struct sockaddr *)&addr6, sizeof(addr6));
+	if (!ASSERT_OK(err, "connect"))
+		goto err_out;
+
+	return fd;
+
+err_out:
+	close(fd);
+	return -1;
+}
+
+static void test_v4mapped_v6_ip_tos(void)
+{
+	struct setget_sockopt__bss *bss = skel->bss;
+	int sfd = -1, fd = -1, got = 0, exp = 0x1c;
+	socklen_t optlen;
+
+	memset(bss, 0, sizeof(*bss));
+	bss->v4mapped_v6_ip_tos_enable = 1;
+	bss->v4mapped_v6_ip_tos_ret = -1;
+	bss->v4mapped_v6_ip_tos_val = exp;
+
+	sfd = start_server(AF_INET, SOCK_STREAM, addr4_str, 0, 0);
+	if (!ASSERT_GE(sfd, 0, "start_server"))
+		goto err_out;
+
+	fd = connect_to_v4mapped_v6_fd(sfd);
+	if (!ASSERT_GE(fd, 0, "connect_to_v4mapped_v6_fd"))
+		goto err_out;
+
+	ASSERT_GT(bss->v4mapped_v6_ip_tos_cnt, 0, "v4mapped_v6_ip_tos_cnt");
+	ASSERT_EQ(bss->v4mapped_v6_ip_tos_ret, 0, "v4mapped_v6_ip_tos_ret");
+
+	optlen = sizeof(got);
+	if (!ASSERT_OK(getsockopt(fd, SOL_IP, IP_TOS, &got, &optlen), "getsockopt_ip_tos"))
+		goto err_out;
+
+	ASSERT_EQ(got, exp, "ip_tos");
+
+err_out:
+	bss->v4mapped_v6_ip_tos_enable = 0;
+	if (fd >= 0)
+		close(fd);
+	if (sfd >= 0)
+		close(sfd);
+}
+
 void test_setget_sockopt(void)
 {
 	cg_fd = test__join_cgroup(CG_NAME);
@@ -238,6 +315,7 @@ void test_setget_sockopt(void)
 	test_ktls(AF_INET);
 	test_nonstandard_opt(AF_INET);
 	test_nonstandard_opt(AF_INET6);
+	test_v4mapped_v6_ip_tos();
 
 done:
 	setget_sockopt__destroy(skel);

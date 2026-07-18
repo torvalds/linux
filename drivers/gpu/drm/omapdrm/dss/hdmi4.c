@@ -342,7 +342,7 @@ static void hdmi4_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void hdmi4_bridge_enable(struct drm_bridge *bridge,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
 	struct drm_connector_state *conn_state;
@@ -410,7 +410,7 @@ done:
 }
 
 static void hdmi4_bridge_disable(struct drm_bridge *bridge,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	struct omap_hdmi *hdmi = drm_bridge_to_hdmi(bridge);
 	unsigned long flags;
@@ -497,7 +497,7 @@ static const struct drm_bridge_funcs hdmi4_bridge_funcs = {
 	.mode_set = hdmi4_bridge_mode_set,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_enable = hdmi4_bridge_enable,
 	.atomic_disable = hdmi4_bridge_disable,
 	.hpd_notify = hdmi4_bridge_hpd_notify,

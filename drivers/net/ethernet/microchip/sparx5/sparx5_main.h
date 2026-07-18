@@ -31,11 +31,11 @@ enum spx5_target_chiptype {
 	SPX5_TARGET_CT_7552       = 0x7552,  /* SparX-5-128 Enterprise */
 	SPX5_TARGET_CT_7556       = 0x7556,  /* SparX-5-160 Enterprise */
 	SPX5_TARGET_CT_7558       = 0x7558,  /* SparX-5-200 Enterprise */
-	SPX5_TARGET_CT_7546TSN    = 0x47546, /* SparX-5-64i Industrial */
-	SPX5_TARGET_CT_7549TSN    = 0x47549, /* SparX-5-90i Industrial */
-	SPX5_TARGET_CT_7552TSN    = 0x47552, /* SparX-5-128i Industrial */
-	SPX5_TARGET_CT_7556TSN    = 0x47556, /* SparX-5-160i Industrial */
-	SPX5_TARGET_CT_7558TSN    = 0x47558, /* SparX-5-200i Industrial */
+	SPX5_TARGET_CT_7546TSN    = 0x0546,  /* SparX-5-64i Industrial */
+	SPX5_TARGET_CT_7549TSN    = 0x0549,  /* SparX-5-90i Industrial */
+	SPX5_TARGET_CT_7552TSN    = 0x0552,  /* SparX-5-128i Industrial */
+	SPX5_TARGET_CT_7556TSN    = 0x0556,  /* SparX-5-160i Industrial */
+	SPX5_TARGET_CT_7558TSN    = 0x0558,  /* SparX-5-200i Industrial */
 	SPX5_TARGET_CT_LAN9694    = 0x9694,  /* lan969x-40 */
 	SPX5_TARGET_CT_LAN9691VAO = 0x9691,  /* lan969x-40-VAO */
 	SPX5_TARGET_CT_LAN9694TSN = 0x9695,  /* lan969x-40-TSN */

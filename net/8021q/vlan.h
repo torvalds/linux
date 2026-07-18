@@ -125,6 +125,17 @@ static inline netdev_features_t vlan_tnl_features(struct net_device *real_dev)
 int vlan_filter_push_vids(struct vlan_info *vlan_info, __be16 proto);
 void vlan_filter_drop_vids(struct vlan_info *vlan_info, __be16 proto);
 
+/* netdev_work events propagated from the real device, see vlan_dev_work(). */
+enum {
+	VLAN_WORK_LINK_STATE	= BIT(0), /* sync up/down with real_dev */
+	VLAN_WORK_MTU		= BIT(1), /* clamp mtu to real_dev's */
+	VLAN_WORK_FEATURES	= BIT(2), /* re-inherit real_dev features */
+};
+
+void vlan_stacked_transfer_operstate(const struct net_device *rootdev,
+				     struct net_device *dev,
+				     struct vlan_dev_priv *vlan);
+
 /* found in vlan_dev.c */
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);

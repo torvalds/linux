@@ -13,7 +13,7 @@ bool dell_privacy_has_mic_mute(void);
 bool dell_privacy_process_event(int type, int code, int status);
 int dell_privacy_register_driver(void);
 void dell_privacy_unregister_driver(void);
-#else /* CONFIG_DELL_PRIVACY */
+#else /* CONFIG_DELL_WMI_PRIVACY */
 static inline bool dell_privacy_has_mic_mute(void)
 {
 	return false;
@@ -32,5 +32,5 @@ static inline int dell_privacy_register_driver(void)
 static inline void dell_privacy_unregister_driver(void)
 {
 }
-#endif /* CONFIG_DELL_PRIVACY */
+#endif /* CONFIG_DELL_WMI_PRIVACY */
 #endif

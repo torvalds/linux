@@ -28,6 +28,8 @@
 #define __AMDGPU_DM_PLANE_H__
 
 #include "dc.h"
+#include <drm/drm_plane.h>
+#include "amdgpu.h"
 
 int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
 					struct dc_cursor_position *position);
@@ -65,4 +67,62 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 				    bool *global_alpha, int *global_alpha_value);
 
 bool amdgpu_dm_plane_is_video_format(uint32_t format);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+void amdgpu_dm_plane_add_modifier(uint64_t **mods, uint64_t *size,
+				  uint64_t *cap, uint64_t mod);
+void amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(struct dc_tiling_info *tiling_info,
+						      uint64_t tiling_flags);
+void amdgpu_dm_plane_fill_gfx9_tiling_info_from_device(const struct amdgpu_device *adev,
+						       struct dc_tiling_info *tiling_info);
+void amdgpu_dm_plane_fill_gfx9_tiling_info_from_modifier(const struct amdgpu_device *adev,
+							 struct dc_tiling_info *tiling_info,
+							 uint64_t modifier);
+int amdgpu_dm_plane_validate_dcc(struct amdgpu_device *adev,
+				 const enum surface_pixel_format format,
+				 const enum dc_rotation_angle rotation,
+				 const struct dc_tiling_info *tiling_info,
+				 const struct dc_plane_dcc_param *dcc,
+				 const struct dc_plane_address *address,
+				 const struct plane_size *plane_size);
+bool amdgpu_dm_plane_modifier_has_dcc(uint64_t modifier);
+unsigned int amdgpu_dm_plane_modifier_gfx9_swizzle_mode(uint64_t modifier);
+int amdgpu_dm_plane_get_plane_modifiers(struct amdgpu_device *adev,
+					unsigned int plane_type, uint64_t **mods);
+int amdgpu_dm_plane_get_plane_formats(const struct drm_plane *plane,
+				      const struct dc_plane_cap *plane_cap,
+				      uint32_t *formats, int max_formats);
+int amdgpu_dm_plane_fill_gfx9_attrs_from_modifiers(struct amdgpu_device *adev,
+							      const struct amdgpu_framebuffer *afb,
+							      const enum surface_pixel_format format,
+							      const enum dc_rotation_angle rotation,
+							      const struct plane_size *plane_size,
+							      struct dc_tiling_info *tiling_info,
+							      struct dc_plane_dcc_param *dcc,
+							      struct dc_plane_address *address);
+int amdgpu_dm_plane_fill_gfx12_attrs_from_modifiers(struct amdgpu_device *adev,
+							       const struct amdgpu_framebuffer *afb,
+							       const enum surface_pixel_format format,
+							       const enum dc_rotation_angle rotation,
+							       const struct plane_size *plane_size,
+							       struct dc_tiling_info *tiling_info,
+							       struct dc_plane_dcc_param *dcc,
+							       struct dc_plane_address *address);
+bool amdgpu_dm_plane_format_mod_supported(struct drm_plane *plane,
+					  uint32_t format,
+					  uint64_t modifier);
+void amdgpu_dm_plane_get_min_max_dc_plane_scaling(struct drm_device *dev,
+						  struct drm_framebuffer *fb,
+						  int *min_downscale,
+						  int *max_upscale);
+int amdgpu_dm_plane_atomic_async_check(struct drm_plane *plane,
+				       struct drm_atomic_commit *state, bool flip);
+int amdgpu_dm_plane_atomic_check(struct drm_plane *plane,
+				 struct drm_atomic_commit *state);
+void amdgpu_dm_plane_panic_flush(struct drm_plane *plane);
+void amdgpu_dm_plane_drm_plane_reset(struct drm_plane *plane);
+struct drm_plane_state *amdgpu_dm_plane_drm_plane_duplicate_state(struct drm_plane *plane);
+void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
+					     struct drm_plane_state *state);
+#endif
 #endif

@@ -929,7 +929,7 @@ out:
 }
 
 static const struct i2c_device_id wm2000_i2c_id[] = {
-	{ "wm2000" },
+	{ .name = "wm2000" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm2000_i2c_id);

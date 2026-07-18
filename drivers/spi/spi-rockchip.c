@@ -98,7 +98,6 @@
 #define CR0_FRF_MICROWIRE			0x2
 
 #define CR0_XFM_OFFSET				18
-#define CR0_XFM_MASK				(0x03 << SPI_XFM_OFFSET)
 #define CR0_XFM_TR					0x0
 #define CR0_XFM_TO					0x1
 #define CR0_XFM_RO					0x2
@@ -108,8 +107,6 @@
 #define CR0_OPM_TARGET				0x1
 
 #define CR0_SOI_OFFSET				23
-
-#define CR0_MTM_OFFSET				0x21
 
 /* Bit fields in SER, 2bit */
 #define SER_MASK					0x3
@@ -357,7 +354,8 @@ static irqreturn_t rockchip_spi_isr(int irq, void *dev_id)
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 
 	/* When int_cs_inactive comes, spi target abort */
-	if (rs->cs_inactive && readl_relaxed(rs->regs + ROCKCHIP_SPI_IMR) & INT_CS_INACTIVE) {
+	if (rs->cs_inactive &&
+	    (readl_relaxed(rs->regs + ROCKCHIP_SPI_ISR) & INT_CS_INACTIVE)) {
 		ctlr->target_abort(ctlr);
 		writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
 		writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);

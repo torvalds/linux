@@ -27,6 +27,30 @@ endif
 RTLA		:= $(OUTPUT)rtla
 RTLA_IN		:= $(RTLA)-in.o
 
+LIBSUBCMD_DIR = $(srctree)/tools/lib/subcmd/
+ifneq ($(OUTPUT),)
+  LIBSUBCMD_OUTPUT = $(abspath $(OUTPUT))/libsubcmd
+else
+  LIBSUBCMD_OUTPUT = $(CURDIR)/libsubcmd
+endif
+LIBSUBCMD = $(LIBSUBCMD_OUTPUT)/libsubcmd.a
+LIBSUBCMD_INCLUDES = $(LIBSUBCMD_OUTPUT)/include
+LIBSUBCMD_MAKEFLAGS = O=$(LIBSUBCMD_OUTPUT) DESTDIR=$(LIBSUBCMD_OUTPUT) prefix= subdir=
+
+TOOLS_INCLUDES = -I$(srctree)/tools/include
+
+ifneq ($(OUTPUT),)
+  LIB_OUTPUT = $(abspath $(OUTPUT))/lib
+else
+  LIB_OUTPUT = $(CURDIR)/lib
+endif
+
+LIB_STRING = $(LIB_OUTPUT)/string.o
+LIB_STRING_SRC = $(srctree)/tools/lib/string.c
+
+LIB_STR_ERROR_R = $(LIB_OUTPUT)/str_error_r.o
+LIB_STR_ERROR_R_SRC = $(srctree)/tools/lib/str_error_r.c
+
 VERSION		:= $(shell sh -c "make -sC ../../.. kernelversion | grep -v make")
 DOCSRC		:= ../../../Documentation/tools/rtla/
 
@@ -66,7 +90,7 @@ ifeq ($(config),1)
   include Makefile.config
 endif
 
-CFLAGS		+= $(INCLUDES) $(LIB_INCLUDES)
+CFLAGS		+= $(INCLUDES) $(LIB_INCLUDES) $(TOOLS_INCLUDES) -I$(LIBSUBCMD_INCLUDES)
 
 export CFLAGS OUTPUT srctree
 
@@ -93,20 +117,48 @@ tests/bpf/bpf_action_map.o: tests/bpf/bpf_action_map.c
 	$(Q)echo "BPF skeleton support is disabled, skipping tests/bpf/bpf_action_map.o"
 endif
 
-$(RTLA): $(RTLA_IN)
-	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $(RTLA) $(RTLA_IN) $(EXTLIBS)
+$(RTLA): $(RTLA_IN) $(LIBSUBCMD) $(LIB_STRING) $(LIB_STR_ERROR_R)
+	$(QUIET_LINK)$(CC) $(LDFLAGS) -o $(RTLA) $(RTLA_IN) $(LIBSUBCMD) $(LIB_STRING) $(LIB_STR_ERROR_R) $(EXTLIBS)
 
-static: $(RTLA_IN)
+static: $(RTLA_IN) $(LIBSUBCMD) $(LIB_STRING) $(LIB_STR_ERROR_R)
 	$(eval LDFLAGS += -static)
-	$(QUIET_LINK)$(CC) -static $(LDFLAGS) -o $(RTLA)-static $(RTLA_IN)  $(EXTLIBS)
+	$(QUIET_LINK)$(CC) -static $(LDFLAGS) -o $(RTLA)-static $(RTLA_IN) $(LIBSUBCMD) $(LIB_STRING) $(LIB_STR_ERROR_R) $(EXTLIBS)
 
 rtla.%: fixdep FORCE
 	make -f $(srctree)/tools/build/Makefile.build dir=. $@
 
-$(RTLA_IN): fixdep FORCE src/timerlat.skel.h
+$(RTLA_IN): fixdep FORCE src/timerlat.skel.h $(LIBSUBCMD_INCLUDES)
 	make $(build)=rtla
 
-clean: doc_clean fixdep-clean
+$(LIBSUBCMD_OUTPUT):
+	$(Q)$(MKDIR) -p $@
+
+$(LIBSUBCMD_INCLUDES): FORCE | $(LIBSUBCMD_OUTPUT)
+	$(Q)$(MAKE) -C $(LIBSUBCMD_DIR) $(LIBSUBCMD_MAKEFLAGS) \
+		install_headers
+
+$(LIBSUBCMD): FORCE | $(LIBSUBCMD_OUTPUT)
+	$(Q)$(MAKE) -C $(LIBSUBCMD_DIR) $(LIBSUBCMD_MAKEFLAGS) \
+		$@
+
+$(LIB_OUTPUT):
+	$(Q)$(MKDIR) -p $@
+
+$(LIB_STR_ERROR_R): $(LIB_STR_ERROR_R_SRC) | $(LIB_OUTPUT)
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
+
+$(LIB_STRING): $(LIB_STRING_SRC) | $(LIB_OUTPUT)
+	$(QUIET_CC)$(CC) $(CFLAGS) -c -o $@ $<
+
+libsubcmd-clean:
+	$(call QUIET_CLEAN, libsubcmd)
+	$(Q)$(RM) -r -- $(LIBSUBCMD_OUTPUT)
+
+lib-clean:
+	$(call QUIET_CLEAN, lib)
+	$(Q)$(RM) -r -- $(LIB_OUTPUT)
+
+clean: doc_clean fixdep-clean libsubcmd-clean lib-clean
 	$(call QUIET_CLEAN, rtla)
 	$(Q)find . -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)rm -f rtla rtla-static fixdep FEATURE-DUMP rtla-*

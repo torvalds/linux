@@ -205,7 +205,7 @@ static bool update_cfg_data(
 static bool dcn21_link_encoder_acquire_phy(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	int value;
+	uint32_t value;
 
 	if (enc->features.flags.bits.DP_IS_USB_C) {
 		REG_GET(RDPCSTX_PHY_CNTL6,

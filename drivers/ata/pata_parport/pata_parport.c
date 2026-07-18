@@ -459,19 +459,11 @@ static void pata_parport_dev_release(struct device *dev)
 	kfree(pi);
 }
 
-static void pata_parport_bus_release(struct device *dev)
-{
-	/* nothing to do here but required to avoid warning on device removal */
-}
-
 static const struct bus_type pata_parport_bus_type = {
 	.name = DRV_NAME,
 };
 
-static struct device pata_parport_bus = {
-	.init_name = DRV_NAME,
-	.release = pata_parport_bus_release,
-};
+static struct device *pata_parport_bus;
 
 static const struct scsi_host_template pata_parport_sht = {
 	PATA_PARPORT_SHT("pata_parport")
@@ -518,7 +510,7 @@ static struct pi_adapter *pi_init_one(struct parport *parport,
 	}
 
 	/* set up pi->dev before pi_probe_unit() so it can use dev_printk() */
-	pi->dev.parent = &pata_parport_bus;
+	pi->dev.parent = pata_parport_bus;
 	pi->dev.bus = &pata_parport_bus_type;
 	pi->dev.driver = &pr->driver;
 	pi->dev.release = pata_parport_dev_release;
@@ -780,8 +772,9 @@ static __init int pata_parport_init(void)
 		return error;
 	}
 
-	error = device_register(&pata_parport_bus);
-	if (error) {
+	pata_parport_bus = root_device_register(DRV_NAME);
+	if (IS_ERR(pata_parport_bus)) {
+		error = PTR_ERR(pata_parport_bus);
 		pr_err("failed to register pata_parport bus, error: %d\n", error);
 		goto out_unregister_bus;
 	}
@@ -811,7 +804,7 @@ out_remove_del:
 out_remove_new:
 	bus_remove_file(&pata_parport_bus_type, &bus_attr_new_device);
 out_unregister_dev:
-	device_unregister(&pata_parport_bus);
+	root_device_unregister(pata_parport_bus);
 out_unregister_bus:
 	bus_unregister(&pata_parport_bus_type);
 	return error;
@@ -822,7 +815,7 @@ static __exit void pata_parport_exit(void)
 	parport_unregister_driver(&pata_parport_driver);
 	bus_remove_file(&pata_parport_bus_type, &bus_attr_new_device);
 	bus_remove_file(&pata_parport_bus_type, &bus_attr_delete_device);
-	device_unregister(&pata_parport_bus);
+	root_device_unregister(pata_parport_bus);
 	bus_unregister(&pata_parport_bus_type);
 }
 

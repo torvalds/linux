@@ -101,6 +101,9 @@ font_data_t *font_data_import(const struct console_font *font, unsigned int vpit
 void font_data_get(font_data_t *fd);
 bool font_data_put(font_data_t *fd);
 unsigned int font_data_size(font_data_t *fd);
+const unsigned char *font_data_glyph_buf(font_data_t *fd,
+					 unsigned int width, unsigned int vpitch,
+					 unsigned int c);
 bool font_data_is_equal(font_data_t *lhs, font_data_t *rhs);
 int font_data_export(font_data_t *fd, struct console_font *font, unsigned int vpitch);
 

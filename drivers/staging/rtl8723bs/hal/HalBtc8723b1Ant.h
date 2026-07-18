@@ -5,17 +5,17 @@
  *
  ******************************************************************************/
 /*  The following is for 8723B 1ANT BT Co-exist definition */
-#define	BT_INFO_8723B_1ANT_B_FTP		BIT7
-#define	BT_INFO_8723B_1ANT_B_A2DP		BIT6
-#define	BT_INFO_8723B_1ANT_B_HID		BIT5
-#define	BT_INFO_8723B_1ANT_B_SCO_BUSY		BIT4
-#define	BT_INFO_8723B_1ANT_B_ACL_BUSY		BIT3
-#define	BT_INFO_8723B_1ANT_B_INQ_PAGE		BIT2
-#define	BT_INFO_8723B_1ANT_B_SCO_ESCO		BIT1
-#define	BT_INFO_8723B_1ANT_B_CONNECTION		BIT0
+#define	BT_INFO_8723B_1ANT_B_FTP		BIT(7)
+#define	BT_INFO_8723B_1ANT_B_A2DP		BIT(6)
+#define	BT_INFO_8723B_1ANT_B_HID		BIT(5)
+#define	BT_INFO_8723B_1ANT_B_SCO_BUSY		BIT(4)
+#define	BT_INFO_8723B_1ANT_B_ACL_BUSY		BIT(3)
+#define	BT_INFO_8723B_1ANT_B_INQ_PAGE		BIT(2)
+#define	BT_INFO_8723B_1ANT_B_SCO_ESCO		BIT(1)
+#define	BT_INFO_8723B_1ANT_B_CONNECTION		BIT(0)
 
 #define	BT_INFO_8723B_1ANT_A2DP_BASIC_RATE(_BT_INFO_EXT_)	\
-		(((_BT_INFO_EXT_ & BIT0)) ? true : false)
+		(((_BT_INFO_EXT_ & BIT(0))) ? true : false)
 
 #define	BTC_RSSI_COEX_THRESH_TOL_8723B_1ANT 2
 

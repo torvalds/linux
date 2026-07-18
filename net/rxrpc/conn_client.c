@@ -449,7 +449,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	trace_rxrpc_connect_call(call);
 	call->tx_last_sent = ktime_get_real();
 	rxrpc_start_call_timer(call);
-	rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_SEND_REQUEST);
+	rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_PRE_SEND);
 	wake_up(&call->waitq);
 }
 

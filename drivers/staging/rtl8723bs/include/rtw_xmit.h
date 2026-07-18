@@ -94,23 +94,9 @@ struct tx_desc {
 	__le32 txdw6;
 	__le32 txdw7;
 
-#if defined(TXDESC_40_BYTES) || defined(TXDESC_64_BYTES)
+#ifdef TXDESC_40_BYTES
 	__le32 txdw8;
 	__le32 txdw9;
-#endif /*  TXDESC_40_BYTES */
-
-#ifdef TXDESC_64_BYTES
-	__le32 txdw10;
-	__le32 txdw11;
-
-	/*  2008/05/15 MH Because PCIE HW memory R/W 4K limit. And now,  our descriptor */
-	/*  size is 40 bytes. If you use more than 102 descriptor(103*40>4096), HW will execute */
-	/*  memoryR/W CRC error. And then all DMA fetch will fail. We must decrease descriptor */
-	/*  number or enlarge descriptor size as 64 bytes. */
-	__le32 txdw12;
-	__le32 txdw13;
-	__le32 txdw14;
-	__le32 txdw15;
 #endif
 };
 
@@ -254,11 +240,6 @@ struct xmit_buf {
 	u32 ff_hwaddr;
 	u8 pg_num;
 	u8 agg_num;
-
-#if defined(DBG_XMIT_BUF) || defined(DBG_XMIT_BUF_EXT)
-	u8 no;
-#endif
-
 };
 
 
@@ -438,9 +419,8 @@ struct xmit_frame *rtw_alloc_xmitframe_once(struct xmit_priv *pxmitpriv);
 extern s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 extern void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, struct __queue *pframequeue);
 struct tx_servq *rtw_get_sta_pending(struct adapter *padapter, struct sta_info *psta, signed int up, u8 *ac);
-extern s32 rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe);
+int rtw_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe);
 
-extern s32 rtw_xmit_classifier(struct adapter *padapter, struct xmit_frame *pxmitframe);
 extern u32 rtw_calculate_wlan_pkt_size_by_attribue(struct pkt_attrib *pattrib);
 #define rtw_wlan_pkt_size(f) rtw_calculate_wlan_pkt_size_by_attribue(&f->attrib)
 extern s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct xmit_frame *pxmitframe);
@@ -457,7 +437,6 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
 void _rtw_free_xmit_priv(struct xmit_priv *pxmitpriv);
 
 
-s32 rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 
 

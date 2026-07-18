@@ -28,7 +28,52 @@ struct io_rsrc_update {
 };
 
 static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
-			struct iovec *iov, struct page **last_hpage);
+						   struct iovec *iov);
+
+static int hpage_acct_ref(struct io_ring_ctx *ctx, struct page *hpage,
+			  bool *acct_new)
+{
+	unsigned long key = (unsigned long) hpage;
+	unsigned long count;
+	void *entry;
+	int ret;
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	entry = xa_load(&ctx->hpage_acct, key);
+	if (entry) {
+		*acct_new = false;
+		count = xa_to_value(entry) + 1;
+	} else {
+		ret = xa_reserve(&ctx->hpage_acct, key, GFP_KERNEL_ACCOUNT);
+		if (ret)
+			return ret;
+		*acct_new = true;
+		count = 1;
+	}
+	xa_store(&ctx->hpage_acct, key, xa_mk_value(count), GFP_KERNEL_ACCOUNT);
+	return 0;
+}
+
+static bool hpage_acct_unref(struct io_ring_ctx *ctx, struct page *hpage)
+{
+	unsigned long key = (unsigned long) hpage;
+	unsigned long count;
+	void *entry;
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	entry = xa_load(&ctx->hpage_acct, key);
+	if (WARN_ON_ONCE(!entry))
+		return false;
+	count = xa_to_value(entry);
+	if (count == 1) {
+		xa_erase(&ctx->hpage_acct, key);
+		return true;
+	}
+	xa_store(&ctx->hpage_acct, key, xa_mk_value(count - 1), GFP_KERNEL_ACCOUNT);
+	return false;
+}
 
 /* only define max */
 #define IORING_MAX_FIXED_FILES	(1U << 20)
@@ -88,9 +133,14 @@ int io_validate_user_buf_range(u64 uaddr, u64 ulen)
 	unsigned long tmp, base = (unsigned long)uaddr;
 	unsigned long acct_len = (unsigned long)PAGE_ALIGN(ulen);
 
-	/* arbitrary limit, but we need something */
-	if (ulen > SZ_1G || !ulen)
+	if (!ulen)
 		return -EFAULT;
+	/* 32-bit sanity checking */
+	if (ulen > ULONG_MAX || uaddr > ULONG_MAX)
+		return -EFAULT;
+	/* cap to 1TB for 64-bit */
+	if (ulen > SZ_1T)
+		return -EINVAL;
 	if (check_add_overflow(base, acct_len, &tmp))
 		return -EOVERFLOW;
 	return 0;
@@ -102,7 +152,7 @@ static void io_release_ubuf(void *priv)
 	unsigned int i;
 
 	for (i = 0; i < imu->nr_bvecs; i++) {
-		struct folio *folio = page_folio(imu->bvec[i].bv_page);
+		struct folio *folio = bvec_folio(&imu->bvec[i]);
 
 		unpin_user_folio(folio, 1);
 	}
@@ -124,15 +174,53 @@ static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 		kvfree(imu);
 }
 
+static unsigned long io_buffer_unaccount_pages(struct io_ring_ctx *ctx,
+					       struct io_mapped_ubuf *imu)
+{
+	struct page *seen = NULL;
+	unsigned long acct = 0;
+	int i;
+
+	if (imu->flags & IO_REGBUF_F_KBUF || !ctx->user)
+		return 0;
+
+	for (i = 0; i < imu->nr_bvecs; i++) {
+		struct page *page = imu->bvec[i].bv_page;
+		struct page *hpage;
+
+		if (!PageCompound(page)) {
+			acct++;
+			continue;
+		}
+
+		hpage = compound_head(page);
+		if (hpage == seen)
+			continue;
+		seen = hpage;
+
+		/* Unaccount on last reference */
+		if (hpage_acct_unref(ctx, hpage))
+			acct += page_size(hpage) >> PAGE_SHIFT;
+		cond_resched();
+	}
+
+	return acct;
+}
+
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
+	unsigned long acct_pages = 0;
+
+	/* Always decrement, so it works for cloned buffers too */
+	acct_pages = io_buffer_unaccount_pages(ctx, imu);
+
 	if (unlikely(refcount_read(&imu->refs) > 1)) {
 		if (!refcount_dec_and_test(&imu->refs))
 			return;
 	}
 
-	if (imu->acct_pages)
-		io_unaccount_mem(ctx->user, ctx->mm_account, imu->acct_pages);
+	if (acct_pages)
+		io_unaccount_mem(ctx->user, ctx->mm_account, acct_pages);
 	imu->release(imu->priv);
 	io_free_imu(ctx, imu);
 }
@@ -282,7 +370,6 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 {
 	u64 __user *tags = u64_to_user_ptr(up->tags);
 	struct iovec fast_iov, *iov;
-	struct page *last_hpage = NULL;
 	struct iovec __user *uvec;
 	u64 user_data = up->data;
 	__u32 done;
@@ -307,7 +394,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			err = -EFAULT;
 			break;
 		}
-		node = io_sqe_buffer_register(ctx, iov, &last_hpage);
+		node = io_sqe_buffer_register(ctx, iov);
 		if (IS_ERR(node)) {
 			err = PTR_ERR(node);
 			break;
@@ -605,76 +692,79 @@ int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 }
 
 /*
- * Not super efficient, but this is just a registration time. And we do cache
- * the last compound head, so generally we'll only do a full search if we don't
- * match that one.
- *
- * We check if the given compound head page has already been accounted, to
- * avoid double accounting it. This allows us to account the full size of the
- * page, not just the constituent pages of a huge page.
+ * Undo hpage_acct_ref() calls made during io_buffer_account_pin() on failure.
+ * This operates on the pages array since imu->bvec isn't populated yet.
  */
-static bool headpage_already_acct(struct io_ring_ctx *ctx, struct page **pages,
-				  int nr_pages, struct page *hpage)
+static void io_buffer_unaccount_hpages(struct io_ring_ctx *ctx,
+				       struct page **pages, int nr_pages)
 {
-	int i, j;
+	struct page *seen = NULL;
+	int i;
 
-	/* check current page array */
+	if (!ctx->user)
+		return;
+
 	for (i = 0; i < nr_pages; i++) {
+		struct page *hpage;
+
 		if (!PageCompound(pages[i]))
 			continue;
-		if (compound_head(pages[i]) == hpage)
-			return true;
-	}
 
-	/* check previously registered pages */
-	for (i = 0; i < ctx->buf_table.nr; i++) {
-		struct io_rsrc_node *node = ctx->buf_table.nodes[i];
-		struct io_mapped_ubuf *imu;
-
-		if (!node)
+		hpage = compound_head(pages[i]);
+		if (hpage == seen)
 			continue;
-		imu = node->buf;
-		for (j = 0; j < imu->nr_bvecs; j++) {
-			if (!PageCompound(imu->bvec[j].bv_page))
-				continue;
-			if (compound_head(imu->bvec[j].bv_page) == hpage)
-				return true;
-		}
-	}
+		seen = hpage;
 
-	return false;
+		hpage_acct_unref(ctx, hpage);
+		cond_resched();
+	}
 }
 
 static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
-				 int nr_pages, struct io_mapped_ubuf *imu,
-				 struct page **last_hpage)
+				 int nr_pages)
 {
+	unsigned long acct_pages = 0;
+	struct page *seen = NULL;
 	int i, ret;
 
-	imu->acct_pages = 0;
-	for (i = 0; i < nr_pages; i++) {
-		if (!PageCompound(pages[i])) {
-			imu->acct_pages++;
-		} else {
-			struct page *hpage;
+	if (!ctx->user)
+		return 0;
 
-			hpage = compound_head(pages[i]);
-			if (hpage == *last_hpage)
-				continue;
-			*last_hpage = hpage;
-			if (headpage_already_acct(ctx, pages, i, hpage))
-				continue;
-			imu->acct_pages += page_size(hpage) >> PAGE_SHIFT;
+	for (i = 0; i < nr_pages; i++) {
+		struct page *hpage;
+		bool acct_new;
+
+		if (!PageCompound(pages[i])) {
+			acct_pages++;
+			continue;
+		}
+
+		hpage = compound_head(pages[i]);
+		if (hpage == seen)
+			continue;
+		seen = hpage;
+
+		ret = hpage_acct_ref(ctx, hpage, &acct_new);
+		if (ret) {
+			io_buffer_unaccount_hpages(ctx, pages, i);
+			return ret;
+		}
+		if (acct_new)
+			acct_pages += page_size(hpage) >> PAGE_SHIFT;
+		cond_resched();
+	}
+
+	/* Try to account the memory */
+	if (acct_pages) {
+		ret = io_account_mem(ctx->user, ctx->mm_account, acct_pages);
+		if (ret) {
+			/* Undo the refs we just added */
+			io_buffer_unaccount_hpages(ctx, pages, nr_pages);
+			return ret;
 		}
 	}
 
-	if (!imu->acct_pages)
-		return 0;
-
-	ret = io_account_mem(ctx->user, ctx->mm_account, imu->acct_pages);
-	if (ret)
-		imu->acct_pages = 0;
-	return ret;
+	return 0;
 }
 
 static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
@@ -763,8 +853,7 @@ bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
 }
 
 static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
-						   struct iovec *iov,
-						   struct page **last_hpage)
+						   struct iovec *iov)
 {
 	struct io_mapped_ubuf *imu = NULL;
 	struct page **pages = NULL;
@@ -811,7 +900,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 		goto done;
 
 	imu->nr_bvecs = nr_pages;
-	ret = io_buffer_account_pin(ctx, pages, nr_pages, imu, last_hpage);
+	ret = io_buffer_account_pin(ctx, pages, nr_pages);
 	if (ret)
 		goto done;
 
@@ -861,7 +950,6 @@ done:
 int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			    unsigned int nr_args, u64 __user *tags)
 {
-	struct page *last_hpage = NULL;
 	struct io_rsrc_data data;
 	struct iovec fast_iov, *iov = &fast_iov;
 	const struct iovec __user *uvec;
@@ -904,7 +992,7 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			}
 		}
 
-		node = io_sqe_buffer_register(ctx, iov, &last_hpage);
+		node = io_sqe_buffer_register(ctx, iov);
 		if (IS_ERR(node)) {
 			ret = PTR_ERR(node);
 			break;
@@ -971,7 +1059,6 @@ int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
 
 	imu->ubuf = 0;
 	imu->len = blk_rq_bytes(rq);
-	imu->acct_pages = 0;
 	imu->folio_shift = PAGE_SHIFT;
 	refcount_set(&imu->refs, 1);
 	imu->release = release;
@@ -1136,6 +1223,56 @@ int io_import_reg_buf(struct io_kiocb *req, struct iov_iter *iter,
 	return io_import_fixed(ddir, iter, node->buf, buf_addr, len);
 }
 
+static int io_buffer_acct_cloned_hpages(struct io_ring_ctx *ctx,
+					struct io_mapped_ubuf *imu)
+{
+	struct page *seen = NULL;
+	int i, ret = 0;
+
+	if (imu->flags & IO_REGBUF_F_KBUF || !ctx->user)
+		return 0;
+
+	for (i = 0; i < imu->nr_bvecs; i++) {
+		struct page *page = imu->bvec[i].bv_page;
+		struct page *hpage;
+		bool acct_new;
+
+		if (!PageCompound(page))
+			continue;
+
+		hpage = compound_head(page);
+		if (hpage == seen)
+			continue;
+		seen = hpage;
+
+		/* Atomically add reference for cloned buffer */
+		ret = hpage_acct_ref(ctx, hpage, &acct_new);
+		if (ret)
+			break;
+
+		cond_resched();
+	}
+
+	if (!ret)
+		return 0;
+
+	/* Undo refs we added for bvecs [0..i) */
+	seen = NULL;
+	for (int j = 0; j < i; j++) {
+		struct page *p = imu->bvec[j].bv_page;
+		struct page *hp;
+
+		if (!PageCompound(p))
+			continue;
+		hp = compound_head(p);
+		if (hp == seen)
+			continue;
+		seen = hp;
+		hpage_acct_unref(ctx, hp);
+	}
+	return ret;
+}
+
 /* Lock two rings at once. The rings must be different! */
 static void lock_two_rings(struct io_ring_ctx *ctx1, struct io_ring_ctx *ctx2)
 {
@@ -1218,6 +1355,14 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 
 			refcount_inc(&src_node->buf->refs);
 			dst_node->buf = src_node->buf;
+			/* track compound references to clones */
+			ret = io_buffer_acct_cloned_hpages(ctx, src_node->buf);
+			if (ret) {
+				refcount_dec(&src_node->buf->refs);
+				io_cache_free(&ctx->node_cache, dst_node);
+				io_rsrc_data_free(ctx, &data);
+				return ret;
+			}
 		}
 		data.nodes[off++] = dst_node;
 		i++;

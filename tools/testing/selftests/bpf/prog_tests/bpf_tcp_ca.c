@@ -112,6 +112,10 @@ static void test_cubic(void)
 
 	ASSERT_EQ(cubic_skel->bss->bpf_cubic_acked_called, 1, "pkts_acked called");
 
+	ASSERT_TRUE(cubic_skel->bss->nodelay_init_reject, "init reject nodelay option");
+	ASSERT_TRUE(cubic_skel->bss->nodelay_cwnd_event_tx_start_reject,
+		    "cwnd_event_tx_start reject nodelay option");
+
 	bpf_link__destroy(link);
 	bpf_cubic__destroy(cubic_skel);
 }

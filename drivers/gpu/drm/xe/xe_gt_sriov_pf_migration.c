@@ -385,10 +385,10 @@ static int pf_migration_mmio_save(struct xe_gt *gt, unsigned int vfid, void *buf
 
 	if (xe_gt_is_media_type(gt))
 		for (n = 0; n < MED_VF_SW_FLAG_COUNT; n++)
-			regs[n] = xe_mmio_read32(&gt->mmio, MED_VF_SW_FLAG(n));
+			regs[n] = xe_mmio_read32(&mmio, MED_VF_SW_FLAG(n));
 	else
 		for (n = 0; n < VF_SW_FLAG_COUNT; n++)
-			regs[n] = xe_mmio_read32(&gt->mmio, VF_SW_FLAG(n));
+			regs[n] = xe_mmio_read32(&mmio, VF_SW_FLAG(n));
 
 	return 0;
 }
@@ -407,10 +407,10 @@ static int pf_migration_mmio_restore(struct xe_gt *gt, unsigned int vfid,
 
 	if (xe_gt_is_media_type(gt))
 		for (n = 0; n < MED_VF_SW_FLAG_COUNT; n++)
-			xe_mmio_write32(&gt->mmio, MED_VF_SW_FLAG(n), regs[n]);
+			xe_mmio_write32(&mmio, MED_VF_SW_FLAG(n), regs[n]);
 	else
 		for (n = 0; n < VF_SW_FLAG_COUNT; n++)
-			xe_mmio_write32(&gt->mmio, VF_SW_FLAG(n), regs[n]);
+			xe_mmio_write32(&mmio, VF_SW_FLAG(n), regs[n]);
 
 	return 0;
 }

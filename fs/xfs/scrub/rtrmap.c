@@ -244,7 +244,6 @@ int
 xchk_rtrmapbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode	*ip = rtg_rmap(sc->sr.rtg);
 	struct xfs_owner_info	oinfo;
 	struct xchk_rtrmap	cr = { };
 	int			error;
@@ -253,7 +252,7 @@ xchk_rtrmapbt(
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, XFS_DATA_FORK);
+	xfs_rmap_inode_bmbt_owner(&oinfo, rtg_rmap(sc->sr.rtg), XFS_DATA_FORK);
 	return xchk_btree(sc, sc->sr.rmap_cur, xchk_rtrmapbt_rec, &oinfo, &cr);
 }
 

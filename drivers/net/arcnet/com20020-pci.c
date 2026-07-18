@@ -127,7 +127,8 @@ static int com20020pci_probe(struct pci_dev *pdev,
 	struct net_device *dev;
 	struct arcnet_local *lp;
 	struct com20020_priv *priv;
-	int i, ioaddr, ret;
+	int ioaddr, ret;
+	u8 i;
 	struct resource *r;
 
 	ret = 0;
@@ -195,8 +196,8 @@ static int com20020pci_probe(struct pci_dev *pdev,
 		 * ARCNET controller needs
 		 * this access to detect bustype
 		 */
-		arcnet_outb(0x00, ioaddr, COM20020_REG_W_COMMAND);
-		arcnet_inb(ioaddr, COM20020_REG_R_DIAGSTAT);
+		outb(0x00, ioaddr + COM20020_REG_W_COMMAND);
+		inb(ioaddr + COM20020_REG_R_DIAGSTAT);
 
 		SET_NETDEV_DEV(dev, &pdev->dev);
 		dev->base_addr = ioaddr;
@@ -224,7 +225,7 @@ static int com20020pci_probe(struct pci_dev *pdev,
 			snprintf(dev->name, sizeof(dev->name), "arc%d-%d", dev->dev_id, i);
 		}
 
-		if (arcnet_inb(ioaddr, COM20020_REG_R_STATUS) == 0xFF) {
+		if (inb(ioaddr + COM20020_REG_R_STATUS) == 0xFF) {
 			pr_err("IO address %Xh is empty!\n", ioaddr);
 			ret = -EIO;
 			goto err_free_arcdev;
@@ -459,168 +460,88 @@ static struct com20020_pci_card_info card_info_eae_fb2 = {
 
 static const struct pci_device_id com20020pci_id_table[] = {
 	{
-		0x1571, 0xa001,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0,
+		PCI_DEVICE(0x1571, 0xa001),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa002),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa003),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa004),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa005),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa006),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa007),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa008),
+		.driver_data = 0,
+	}, {
+		PCI_DEVICE(0x1571, 0xa009),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa00a),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa00b),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa00c),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa00d),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa00e),
+		.driver_data = (kernel_ulong_t)&card_info_5mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa201),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa202),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa203),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa204),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa205),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x1571, 0xa206),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE_SUB(0x10B5, 0x9030, 0x10B5, 0x2978),
+		.driver_data = (kernel_ulong_t)&card_info_sohard,
+	}, {
+		PCI_DEVICE_SUB(0x10B5, 0x9050, 0x10B5, 0x2273),
+		.driver_data = (kernel_ulong_t)&card_info_sohard,
+	}, {
+		PCI_DEVICE_SUB(0x10B5, 0x9050, 0x10B5, 0x3263),
+		.driver_data = (kernel_ulong_t)&card_info_eae_arc1,
+	}, {
+		PCI_DEVICE_SUB(0x10B5, 0x9050, 0x10B5, 0x3292),
+		.driver_data = (kernel_ulong_t)&card_info_eae_ma1,
+	}, {
+		PCI_DEVICE_SUB(0x10B5, 0x9050, 0x10B5, 0x3294),
+		.driver_data = (kernel_ulong_t)&card_info_eae_fb2,
+	}, {
+		PCI_DEVICE(0x14BA, 0x6000),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
+	}, {
+		PCI_DEVICE(0x10B5, 0x2200),
+		.driver_data = (kernel_ulong_t)&card_info_10mbit,
 	},
-	{
-		0x1571, 0xa002,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0,
-	},
-	{
-		0x1571, 0xa003,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0
-	},
-	{
-		0x1571, 0xa004,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0,
-	},
-	{
-		0x1571, 0xa005,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0
-	},
-	{
-		0x1571, 0xa006,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0
-	},
-	{
-		0x1571, 0xa007,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0
-	},
-	{
-		0x1571, 0xa008,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		0
-	},
-	{
-		0x1571, 0xa009,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa00a,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa00b,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa00c,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa00d,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa00e,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_5mbit
-	},
-	{
-		0x1571, 0xa201,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x1571, 0xa202,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x1571, 0xa203,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x1571, 0xa204,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x1571, 0xa205,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x1571, 0xa206,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x10B5, 0x9030,
-		0x10B5, 0x2978,
-		0, 0,
-		(kernel_ulong_t)&card_info_sohard
-	},
-	{
-		0x10B5, 0x9050,
-		0x10B5, 0x2273,
-		0, 0,
-		(kernel_ulong_t)&card_info_sohard
-	},
-	{
-		0x10B5, 0x9050,
-		0x10B5, 0x3263,
-		0, 0,
-		(kernel_ulong_t)&card_info_eae_arc1
-	},
-	{
-		0x10B5, 0x9050,
-		0x10B5, 0x3292,
-		0, 0,
-		(kernel_ulong_t)&card_info_eae_ma1
-	},
-	{
-		0x10B5, 0x9050,
-		0x10B5, 0x3294,
-		0, 0,
-		(kernel_ulong_t)&card_info_eae_fb2
-	},
-	{
-		0x14BA, 0x6000,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{
-		0x10B5, 0x2200,
-		PCI_ANY_ID, PCI_ANY_ID,
-		0, 0,
-		(kernel_ulong_t)&card_info_10mbit
-	},
-	{ 0, }
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, com20020pci_id_table);

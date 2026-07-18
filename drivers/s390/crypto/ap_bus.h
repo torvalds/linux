@@ -134,8 +134,6 @@ struct ap_message;
 
 struct ap_driver {
 	struct device_driver driver;
-	struct ap_device_id *ids;
-	unsigned int flags;
 
 	int (*probe)(struct ap_device *);
 	void (*remove)(struct ap_device *);
@@ -156,6 +154,9 @@ struct ap_driver {
 	 */
 	void (*on_scan_complete)(struct ap_config_info *new_config_info,
 				 struct ap_config_info *old_config_info);
+
+	struct ap_device_id *ids;
+	unsigned int flags;
 };
 
 #define to_ap_drv(x) container_of_const((x), struct ap_driver, driver)
@@ -173,11 +174,11 @@ struct ap_device {
 struct ap_card {
 	struct ap_device ap_dev;
 	struct ap_tapq_hwinfo hwinfo;	/* TAPQ GR2 content */
-	int id;				/* AP card number. */
+	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 	unsigned int maxmsgsize;	/* AP msg limit for this card */
+	int id;				/* AP card number. */
 	bool config;			/* configured state */
 	bool chkstop;			/* checkstop state */
-	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 };
 
 #define TAPQ_CARD_HWINFO_MASK 0xFFFF0000FFFF0F0FUL
@@ -190,16 +191,14 @@ struct ap_queue {
 	struct hlist_node hnode;	/* Node for the ap_queues hashtable */
 	struct ap_card *card;		/* Ptr to assoc. AP card. */
 	spinlock_t lock;		/* Per device lock. */
+	u64 total_request_count;	/* # requests ever for this AP device.*/
 	enum ap_dev_state dev_state;	/* queue device state */
-	bool config;			/* configured state */
-	bool chkstop;			/* checkstop state */
 	ap_qid_t qid;			/* AP queue id. */
 	unsigned int se_bstate;		/* SE bind state (BS) */
 	unsigned int assoc_idx;		/* SE association index */
 	int queue_count;		/* # messages currently on AP queue. */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
-	u64 total_request_count;	/* # requests ever for this AP device.*/
 	int request_timeout;		/* Request timeout in jiffies. */
 	struct timer_list timeout;	/* Timer for request timeouts. */
 	struct list_head pendingq;	/* List of message sent to AP queue. */
@@ -208,6 +207,8 @@ struct ap_queue {
 	enum ap_sm_state sm_state;	/* ap queue state machine state */
 	int rapq_fbit;			/* fbit arg for next rapq invocation */
 	int last_err_rc;		/* last error state response code */
+	bool config;			/* configured state */
+	bool chkstop;			/* checkstop state */
 };
 
 #define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
@@ -225,12 +226,12 @@ struct ap_message {
 	void *msg;			/* Pointer to message buffer. */
 	size_t len;			/* actual msg len in msg buffer */
 	size_t bufsize;			/* allocated msg buffer size */
-	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
-	int rc;				/* Return code for this message */
-	struct ap_response_type response;
 	/* receive is called from tasklet context */
 	void (*receive)(struct ap_queue *, struct ap_message *,
 			struct ap_message *);
+	struct ap_response_type response;
+	int rc;				/* Return code for this message */
+	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
 };
 
 #define AP_MSG_FLAG_SPECIAL  0x0001	/* flag msg as 'special' with NQAP */
@@ -373,5 +374,7 @@ int ap_wait_apqn_bindings_complete(unsigned long timeout);
 
 void ap_send_config_uevent(struct ap_device *ap_dev, bool cfg);
 void ap_send_online_uevent(struct ap_device *ap_dev, int online);
+void ap_send_se_bind_uevent(struct ap_device *ap_dev);
+void ap_send_se_assoc_uevent(struct ap_device *ap_dev, unsigned int assoc_idx);
 
 #endif /* _AP_BUS_H_ */

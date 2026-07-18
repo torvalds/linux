@@ -10,7 +10,7 @@
 #include "dpaa2-eth.h"
 
 /* To be kept in sync with DPNI statistics */
-static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
+static const char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 	"[hw] rx frames",
 	"[hw] rx bytes",
 	"[hw] rx mcast frames",
@@ -37,7 +37,7 @@ static char dpaa2_ethtool_stats[][ETH_GSTRING_LEN] = {
 
 #define DPAA2_ETH_NUM_STATS	ARRAY_SIZE(dpaa2_ethtool_stats)
 
-static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
+static const char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	/* per-cpu stats */
 	"[drv] tx conf frames",
 	"[drv] tx conf bytes",

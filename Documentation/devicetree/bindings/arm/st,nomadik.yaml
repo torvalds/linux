@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/st,nomadik.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST Nomadik SoC based Boards
+
+maintainers:
+  - Linus Walleij <linusw@kernel.org>
+
+description:
+  Boards using the Nomadik SoC platform
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    enum:
+      - st,nomadik-nhk-15
+      - calaosystems,usb-s8815
+
+additionalProperties: true

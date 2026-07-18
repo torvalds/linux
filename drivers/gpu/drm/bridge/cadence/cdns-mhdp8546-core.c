@@ -1750,7 +1750,7 @@ static void cdns_mhdp_sst_enable(struct cdns_mhdp_device *mhdp,
 }
 
 static void cdns_mhdp_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
 	struct cdns_mhdp_bridge_state *mhdp_state;
@@ -1841,7 +1841,7 @@ out:
 }
 
 static void cdns_mhdp_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
 	u32 resp;
@@ -1921,15 +1921,15 @@ cdns_mhdp_bridge_atomic_destroy_state(struct drm_bridge *bridge,
 }
 
 static struct drm_bridge_state *
-cdns_mhdp_bridge_atomic_reset(struct drm_bridge *bridge)
+cdns_mhdp_bridge_atomic_create_state(struct drm_bridge *bridge)
 {
 	struct cdns_mhdp_bridge_state *cdns_mhdp_state;
 
 	cdns_mhdp_state = kzalloc_obj(*cdns_mhdp_state);
 	if (!cdns_mhdp_state)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	__drm_atomic_helper_bridge_reset(bridge, &cdns_mhdp_state->base);
+	__drm_atomic_helper_bridge_state_init(&cdns_mhdp_state->base, bridge);
 
 	return &cdns_mhdp_state->base;
 }
@@ -1963,7 +1963,7 @@ static int cdns_mhdp_atomic_check(struct drm_bridge *bridge,
 	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
 	const struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	struct drm_connector_state *old_state, *new_state;
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct drm_connector *conn = mhdp->connector;
 	u64 old_cp, new_cp;
 
@@ -2051,7 +2051,7 @@ static const struct drm_bridge_funcs cdns_mhdp_bridge_funcs = {
 	.detach = cdns_mhdp_detach,
 	.atomic_duplicate_state = cdns_mhdp_bridge_atomic_duplicate_state,
 	.atomic_destroy_state = cdns_mhdp_bridge_atomic_destroy_state,
-	.atomic_reset = cdns_mhdp_bridge_atomic_reset,
+	.atomic_create_state = cdns_mhdp_bridge_atomic_create_state,
 	.atomic_get_input_bus_fmts = cdns_mhdp_get_input_bus_fmts,
 	.detect = cdns_mhdp_bridge_detect,
 	.edid_read = cdns_mhdp_bridge_edid_read,

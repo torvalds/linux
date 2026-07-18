@@ -423,6 +423,38 @@ static inline struct aa_label *aa_get_newest_label(struct aa_label *l)
 	return aa_get_label(l);
 }
 
+/**
+ * aa_get_newest_label_condref - find the newest version of @l
+ * @l: the label to check for newer versions of
+ * @needput: returns whether the reference needs put
+ *
+ * Returns: refcounted newest version of @l taking into account
+ *          replacement, renames and removals
+ *          return @l.
+ */
+static inline struct aa_label *aa_get_newest_label_condref(struct aa_label *l,
+							   bool *needput)
+{
+	if (l && unlikely(label_is_stale(l))) {
+		struct aa_label *tmp;
+
+		AA_BUG(!l->proxy);
+		AA_BUG(!l->proxy->label);
+		/* BUG: only way this can happen is @l ref count and its
+		 * replacement count have gone to 0 and are on their way
+		 * to destruction. ie. we have a refcounting error
+		 */
+		tmp = aa_get_label_rcu(&l->proxy->label);
+		AA_BUG(!tmp);
+
+		*needput = true;
+		return tmp;
+	}
+
+	*needput = false;
+	return l;
+}
+
 static inline void aa_put_label(struct aa_label *l)
 {
 	if (l)

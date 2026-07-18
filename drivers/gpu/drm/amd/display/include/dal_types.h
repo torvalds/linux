@@ -66,6 +66,7 @@ enum dce_version {
 	DCN_VERSION_3_6,
 	DCN_VERSION_4_01,
 	DCN_VERSION_4_2,
+	DCN_VERSION_4_2B,
 	DCN_VERSION_MAX
 };
 

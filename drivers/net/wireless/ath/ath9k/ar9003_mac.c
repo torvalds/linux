@@ -352,6 +352,19 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked,
 	return true;
 }
 
+static void ath9k_hw_clear_txstatus(struct ar9003_txs *ads)
+{
+	WRITE_ONCE(ads->ds_info, 0);
+	WRITE_ONCE(ads->status1, 0);
+	WRITE_ONCE(ads->status2, 0);
+	WRITE_ONCE(ads->status3, 0);
+	WRITE_ONCE(ads->status4, 0);
+	WRITE_ONCE(ads->status5, 0);
+	WRITE_ONCE(ads->status6, 0);
+	WRITE_ONCE(ads->status7, 0);
+	WRITE_ONCE(ads->status8, 0);
+}
+
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
@@ -370,7 +383,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
 		ath_dbg(ath9k_hw_common(ah), XMIT,
 			"Tx Descriptor error %x\n", ads->ds_info);
-		memset(ads, 0, sizeof(*ads));
+		ath9k_hw_clear_txstatus(ads);
 		return -EIO;
 	}
 
@@ -427,7 +440,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_rssi_ext1 = MS(status, AR_TxRSSIAnt11);
 	ts->ts_rssi_ext2 = MS(status, AR_TxRSSIAnt12);
 
-	memset(ads, 0, sizeof(*ads));
+	ath9k_hw_clear_txstatus(ads);
 
 	return 0;
 }
@@ -591,10 +604,12 @@ EXPORT_SYMBOL(ath9k_hw_process_rxdesc_edma);
 
 void ath9k_hw_reset_txstatus_ring(struct ath_hw *ah)
 {
+	int i;
+
 	ah->ts_tail = 0;
 
-	memset((void *) ah->ts_ring, 0,
-		ah->ts_size * sizeof(struct ar9003_txs));
+	for (i = 0; i < ah->ts_size; i++)
+		ath9k_hw_clear_txstatus(&ah->ts_ring[i]);
 
 	ath_dbg(ath9k_hw_common(ah), XMIT,
 		"TS Start 0x%x End 0x%x Virt %p, Size %d\n",

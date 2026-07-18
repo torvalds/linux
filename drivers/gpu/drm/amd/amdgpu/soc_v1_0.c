@@ -29,6 +29,7 @@
 #include "gfxhub_v12_1.h"
 #include "sdma_v7_1.h"
 #include "gfx_v12_1.h"
+#include "amdgpu_video_codecs.h"
 
 #include "gc/gc_12_1_0_offset.h"
 #include "gc/gc_12_1_0_sh_mask.h"
@@ -184,31 +185,13 @@ static struct soc15_allowed_register_entry soc_v1_0_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, regGB_ADDR_CONFIG_1) },
 };
 
-static uint32_t soc_v1_0_read_indexed_register(struct amdgpu_device *adev,
-					       u32 se_num,
-					       u32 sh_num,
-					       u32 reg_offset)
-{
-	uint32_t val;
-
-	mutex_lock(&adev->grbm_idx_mutex);
-	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, se_num, sh_num, 0xffffffff, 0);
-
-	val = RREG32(reg_offset);
-
-	if (se_num != 0xffffffff || sh_num != 0xffffffff)
-		amdgpu_gfx_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff, 0);
-	mutex_unlock(&adev->grbm_idx_mutex);
-	return val;
-}
 
 static uint32_t soc_v1_0_get_register_value(struct amdgpu_device *adev,
 					    bool indexed, u32 se_num,
 					    u32 sh_num, u32 reg_offset)
 {
 	if (indexed) {
-		return soc_v1_0_read_indexed_register(adev, se_num, sh_num, reg_offset);
+		return amdgpu_read_indexed_register(adev, se_num, sh_num, reg_offset);
 	} else {
 		if (reg_offset == SOC15_REG_OFFSET(GC, 0, regGB_ADDR_CONFIG_1) &&
 		    adev->gfx.config.gb_addr_config)
@@ -239,15 +222,6 @@ static int soc_v1_0_read_register(struct amdgpu_device *adev,
 		return 0;
 	}
 	return -EINVAL;
-}
-
-static bool soc_v1_0_need_full_reset(struct amdgpu_device *adev)
-{
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(12, 1, 0):
-	default:
-		return true;
-	}
 }
 
 static bool soc_v1_0_need_reset_on_init(struct amdgpu_device *adev)
@@ -289,7 +263,6 @@ static const struct amdgpu_asic_funcs soc_v1_0_asic_funcs = {
 	.read_register = &soc_v1_0_read_register,
 	.get_config_memsize = &soc_v1_0_get_config_memsize,
 	.get_xclk = &soc_v1_0_get_xclk,
-	.need_full_reset = &soc_v1_0_need_full_reset,
 	.init_doorbell_index = &soc_v1_0_doorbell_index_init,
 	.need_reset_on_init = &soc_v1_0_need_reset_on_init,
 	.encode_ext_smn_addressing = &soc_v1_0_encode_ext_smn_addressing,
@@ -329,6 +302,8 @@ static int soc_v1_0_common_early_init(struct amdgpu_ip_block *ip_block)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	adev->nbio.funcs->init_registers(adev);
 
 	return 0;
 }
@@ -616,8 +591,10 @@ static int soc_v1_0_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
 	xcp_cfg->num_res = ARRAY_SIZE(max_res);
 
 	for (i = 0; i < xcp_cfg->num_res; i++) {
-		res_lt_xcp = max_res[i] < num_xcp;
 		xcp_cfg->xcp_res[i].id = i;
+		if (!max_res[i])
+			continue;
+		res_lt_xcp = max_res[i] < num_xcp;
 		xcp_cfg->xcp_res[i].num_inst =
 			res_lt_xcp ? 1 : max_res[i] / num_xcp;
 		xcp_cfg->xcp_res[i].num_inst =
@@ -737,15 +714,8 @@ static int soc_v1_0_switch_partition_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 
 	num_xcc_per_xcp = __soc_v1_0_get_xcc_per_xcp(xcp_mgr, mode);
 	if (adev->gfx.imu.funcs &&
-	    adev->gfx.imu.funcs->switch_compute_partition) {
-		ret = adev->gfx.imu.funcs->switch_compute_partition(xcp_mgr->adev, num_xcc_per_xcp, mode);
-		if (ret)
-			goto out;
-	}
-	if (adev->gfx.imu.funcs &&
-	    adev->gfx.imu.funcs->init_mcm_addr_lut &&
-	    amdgpu_emu_mode)
-		adev->gfx.imu.funcs->init_mcm_addr_lut(adev);
+	    adev->gfx.imu.funcs->switch_compute_partition)
+		adev->gfx.imu.funcs->switch_compute_partition(xcp_mgr->adev, num_xcc_per_xcp, mode);
 
 	/* Init info about new xcps */
 	*num_xcps = num_xcc / num_xcc_per_xcp;

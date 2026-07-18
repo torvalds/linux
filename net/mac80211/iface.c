@@ -648,6 +648,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 
 			spin_unlock_bh(&sdata->u.nan.de.func_lock);
 		}
+
+		/*
+		 * Free the remaining keys that might be associated with the
+		 * NAN interface, e.g., IGTK and BIGTK used for Tx.
+		 */
+		ieee80211_free_keys(sdata, true);
 		break;
 	case NL80211_IFTYPE_NAN_DATA:
 		RCU_INIT_POINTER(sdata->u.nan_data.nmi, NULL);
@@ -1400,6 +1406,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_P2P_DEVICE:
 	case NL80211_IFTYPE_OCB:
 	case NL80211_IFTYPE_NAN:
+	case NL80211_IFTYPE_PD:
 		/* no special treatment */
 		break;
 	case NL80211_IFTYPE_NAN_DATA:
@@ -1532,7 +1539,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 						FIF_PROBE_REQ);
 
 		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
-		    sdata->vif.type != NL80211_IFTYPE_NAN)
+		    sdata->vif.type != NL80211_IFTYPE_NAN &&
+		    sdata->vif.type != NL80211_IFTYPE_PD)
 			changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  changed);
@@ -1548,6 +1556,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_NAN:
+		case NL80211_IFTYPE_PD:
 			break;
 		default:
 			/* not reached */
@@ -1713,50 +1722,6 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 		default:
 			break;
 		}
-	} else if (ieee80211_is_action(mgmt->frame_control) &&
-		   mgmt->u.action.category == WLAN_CATEGORY_PROTECTED_EHT) {
-		if (sdata->vif.type == NL80211_IFTYPE_AP) {
-			switch (mgmt->u.action.action_code) {
-			case WLAN_PROTECTED_EHT_ACTION_EML_OP_MODE_NOTIF:
-				ieee80211_rx_eml_op_mode_notif(sdata, skb);
-				break;
-			default:
-				break;
-			}
-		} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			switch (mgmt->u.action.action_code) {
-			case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
-				ieee80211_process_neg_ttlm_req(sdata, mgmt,
-							       skb->len);
-				break;
-			case WLAN_PROTECTED_EHT_ACTION_TTLM_RES:
-				ieee80211_process_neg_ttlm_res(sdata, mgmt,
-							       skb->len);
-				break;
-			case WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN:
-				ieee80211_process_ttlm_teardown(sdata);
-				break;
-			case WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_RESP:
-				ieee80211_process_ml_reconf_resp(sdata, mgmt,
-								 skb->len);
-				break;
-			case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_RESP:
-				ieee80211_process_epcs_ena_resp(sdata, mgmt,
-								skb->len);
-				break;
-			case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN:
-				ieee80211_process_epcs_teardown(sdata, mgmt,
-								skb->len);
-				break;
-			default:
-				break;
-			}
-		}
-	} else if (ieee80211_is_ext(mgmt->frame_control)) {
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
-			ieee80211_sta_rx_queued_ext(sdata, skb);
-		else
-			WARN_ON(1);
 	} else if (ieee80211_is_data_qos(mgmt->frame_control)) {
 		struct ieee80211_hdr *hdr = (void *)mgmt;
 		struct sta_info *sta;
@@ -1788,8 +1753,11 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 				true);
 		}
 	} else switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+		ieee80211_ap_rx_queued_frame(sdata, skb);
+		break;
 	case NL80211_IFTYPE_STATION:
-		ieee80211_sta_rx_queued_mgmt(sdata, skb);
+		ieee80211_sta_rx_queued_frame(sdata, skb);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		ieee80211_ibss_rx_queued_mgmt(sdata, skb);
@@ -1988,6 +1956,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.bssid = sdata->vif.addr;
 		break;
 	case NL80211_IFTYPE_NAN_DATA:
+	case NL80211_IFTYPE_PD:
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_WDS:
@@ -2280,7 +2249,12 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 		sdata->dev = NULL;
 		strscpy(sdata->name, name, IFNAMSIZ);
-		ieee80211_assign_perm_addr(local, wdev->address, type);
+
+		if (is_valid_ether_addr(params->macaddr))
+			memcpy(wdev->address, params->macaddr, ETH_ALEN);
+		else
+			ieee80211_assign_perm_addr(local, wdev->address, type);
+
 		memcpy(sdata->vif.addr, wdev->address, ETH_ALEN);
 		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
 

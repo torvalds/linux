@@ -426,9 +426,6 @@ extern int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 extern int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		const struct amd_pp_display_configuration *display_config);
 
-extern int phm_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_simple_clock_info *info);
-
 extern int phm_set_cpu_power_state(struct pp_hwmgr *hwmgr);
 
 extern int phm_power_down_asic(struct pp_hwmgr *hwmgr);

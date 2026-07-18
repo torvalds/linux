@@ -22,7 +22,7 @@
 #include "kselftest_harness.h"
 
 #define __DEV_FULL "/sys/devices/virtual/mem/full/uevent"
-#define __UEVENT_BUFFER_SIZE (2048 * 2)
+#define __UEVENT_BUFFER_SIZE (1024 * 1024)
 #define __UEVENT_HEADER "add@/devices/virtual/mem/full"
 #define __UEVENT_HEADER_LEN sizeof("add@/devices/virtual/mem/full")
 #define __UEVENT_LISTEN_ALL -1

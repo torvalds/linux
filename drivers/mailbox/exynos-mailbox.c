@@ -16,15 +16,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#define EXYNOS_MBOX_MCUCTRL		0x0	/* Mailbox Control Register */
-#define EXYNOS_MBOX_INTCR0		0x24	/* Interrupt Clear Register 0 */
 #define EXYNOS_MBOX_INTMR0		0x28	/* Interrupt Mask Register 0 */
-#define EXYNOS_MBOX_INTSR0		0x2c	/* Interrupt Status Register 0 */
-#define EXYNOS_MBOX_INTMSR0		0x30	/* Interrupt Mask Status Register 0 */
 #define EXYNOS_MBOX_INTGR1		0x40	/* Interrupt Generation Register 1 */
-#define EXYNOS_MBOX_INTMR1		0x48	/* Interrupt Mask Register 1 */
-#define EXYNOS_MBOX_INTSR1		0x4c	/* Interrupt Status Register 1 */
-#define EXYNOS_MBOX_INTMSR1		0x50	/* Interrupt Mask Status Register 1 */
 
 #define EXYNOS_MBOX_INTMR0_MASK		GENMASK(15, 0)
 #define EXYNOS_MBOX_INTGR1_MASK		GENMASK(15, 0)
@@ -99,7 +92,6 @@ static int exynos_mbox_probe(struct platform_device *pdev)
 	struct mbox_controller *mbox;
 	struct mbox_chan *chans;
 	struct clk *pclk;
-	int i;
 
 	exynos_mbox = devm_kzalloc(dev, sizeof(*exynos_mbox), GFP_KERNEL);
 	if (!exynos_mbox)
@@ -128,9 +120,6 @@ static int exynos_mbox_probe(struct platform_device *pdev)
 	mbox->dev = dev;
 	mbox->ops = &exynos_mbox_chan_ops;
 	mbox->of_xlate = exynos_mbox_of_xlate;
-
-	for (i = 0; i < EXYNOS_MBOX_CHAN_COUNT; i++)
-		chans[i].mbox = mbox;
 
 	exynos_mbox->mbox = mbox;
 

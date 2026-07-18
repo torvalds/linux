@@ -9,7 +9,7 @@ from lib.py import ksft_disruptive
 from lib.py import ksft_run, ksft_pr, ksft_exit
 from lib.py import ksft_eq, ksft_ne, ksft_ge, ksft_in, ksft_lt, ksft_true, ksft_raises
 from lib.py import NetDrvEpEnv
-from lib.py import EthtoolFamily, NetdevFamily
+from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import KsftSkipEx, KsftFailEx
 from lib.py import rand_port, rand_ports
 from lib.py import cmd, ethtool, ip, defer, CmdExitFailure, wait_file
@@ -57,9 +57,10 @@ def ethtool_create(cfg, act, opts):
 def require_ntuple(cfg):
     features = ethtool(f"-k {cfg.ifname}", json=True)[0]
     if not features["ntuple-filters"]["active"]:
-        # ntuple is more of a capability than a config knob, don't bother
-        # trying to enable it (until some driver actually needs it).
-        raise KsftSkipEx("Ntuple filters not enabled on the device: " + str(features["ntuple-filters"]))
+        if features["ntuple-filters"]["fixed"]:
+            raise KsftSkipEx("Device does not support ntuple-filters")
+        ethtool(f"-K {cfg.ifname} ntuple-filters on")
+        defer(ethtool, f"-K {cfg.ifname} ntuple-filters off")
 
 
 def require_context_cnt(cfg, need_cnt):
@@ -828,6 +829,94 @@ def test_rss_default_context_rule(cfg):
                           'noise' : (0, 1) })
 
 
+def _set_flow_hash(cfg, fl_type, fields, context=0):
+    req = {"header": {"dev-index": cfg.ifindex},
+           "flow-hash": {fl_type: fields}}
+    if context:
+        req["context"] = context
+    cfg.ethnl.rss_set(req)
+
+
+def _get_flow_hash(cfg, fl_type, context=0):
+    req = {"header": {"dev-index": cfg.ifindex}}
+    if context:
+        req["context"] = context
+    rss = cfg.ethnl.rss_get(req)
+    return rss.get("flow-hash", {}).get(fl_type, set())
+
+
+def test_rss_context_flow_hash(cfg):
+    """
+    Validate, with traffic, that an additional RSS context honors the
+    flow-hash field selection. If the driver lacks per-context field
+    configuration ("ops->rxfh_per_ctx_fields") fall back to setting the
+    fields on the main context, which the kernel applies device-wide.
+    """
+
+    require_ntuple(cfg)
+
+    queue_cnt = len(_get_rx_cnts(cfg))
+    if queue_cnt < 6:
+        try:
+            ksft_pr(f"Increasing queue count {queue_cnt} -> 6")
+            ethtool(f"-L {cfg.ifname} combined 6")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
+        except CmdExitFailure as exc:
+            raise KsftSkipEx("Not enough queues for the test") from exc
+
+    fl_type = f"tcp{cfg.addr_ipver}"
+    if not _get_flow_hash(cfg, fl_type):
+        raise KsftSkipEx(f"Device does not report flow-hash for {fl_type}")
+
+    # Reserve queues 0/1 for main, build a new context spanning 2..5
+    ethtool(f"-X {cfg.ifname} equal 2")
+    defer(ethtool, f"-X {cfg.ifname} default")
+    ctx_id = ethtool_create(cfg, "-X", "context new start 2 equal 4")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    port = rand_port()
+    flow = f"flow-type {fl_type} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
+    ntuple = ethtool_create(cfg, "-N", flow)
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
+
+    ip_only = {"ip-src", "ip-dst"}
+    ip_l4   = ip_only | {"l4-b-0-1", "l4-b-2-3"}
+
+    # Try per-context flow-hash; fall back to main context if unsupported.
+    cfg_ctx = ctx_id
+    try:
+        orig = _get_flow_hash(cfg, fl_type, context=ctx_id)
+        _set_flow_hash(cfg, fl_type, ip_only, context=ctx_id)
+    except NlError:
+        ksft_pr("Per-context flow-hash not supported, using device-wide")
+        cfg_ctx = 0
+        orig = _get_flow_hash(cfg, fl_type)
+        _set_flow_hash(cfg, fl_type, ip_only)
+    defer(_set_flow_hash, cfg, fl_type, orig, context=cfg_ctx)
+
+    def measure():
+        cnts = _get_rx_cnts(cfg)
+        GenerateTraffic(cfg, port=port).wait_pkts_and_stop(20000)
+        cnts = _get_rx_cnts(cfg, prev=cnts)
+        ctx_cnts = cnts[2:6]
+        directed = sum(ctx_cnts)
+        used = sum(1 for c in ctx_cnts if c > directed / 200)
+        return cnts, directed, used
+
+    # IP-only hash: iperf3 streams share src/dst IP, all should land on the
+    # same queue inside the context's range.
+    cnts, directed, used = measure()
+    ksft_ge(directed, 20000, f"traffic on context {ctx_id} (IP-only): {cnts}")
+    ksft_eq(used, 1, f"IP-only hash should use one queue in context {ctx_id}, got: {cnts}")
+
+    # IP+L4 hash: streams have distinct src ports, traffic should spread.
+    _set_flow_hash(cfg, fl_type, ip_l4, context=cfg_ctx)
+
+    cnts, directed, used = measure()
+    ksft_ge(directed, 20000, f"traffic on context {ctx_id} (IP+L4): {cnts}")
+    ksft_ge(used, 2, f"IP+L4 hash should spread across context {ctx_id} queues, got: {cnts}")
+
+
 @ksft_disruptive
 def test_rss_context_persist_ifupdown(cfg, pre_down=False):
     """
@@ -935,6 +1024,7 @@ def main() -> None:
                   test_flow_add_context_missing,
                   test_delete_rss_context_busy, test_rss_ntuple_addition,
                   test_rss_default_context_rule,
+                  test_rss_context_flow_hash,
                   test_rss_context_persist_create_and_ifdown,
                   test_rss_context_persist_ifdown_and_create],
                  args=(cfg, ))

@@ -5,7 +5,7 @@ The userio Protocol
 ===================
 
 
-:Copyright: |copy| 2015 Stephen Chandler Paul <thatslyude@gmail.com>
+:Copyright: |copy| 2015 Lyude Paul <thatslyude@gmail.com>
 
 Sponsored by Red Hat
 
@@ -66,8 +66,27 @@ USERIO_CMD_SET_PORT_TYPE
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Sets the type of port we're emulating, where ``data`` is the port type being
-set. Can be any of the macros from <linux/serio.h>. For example: SERIO_8042
-would set the port type to be a normal PS/2 port.
+set. Can be any of the serio type macros from <linux/serio.h>. For example:
+SERIO_8042 would set the port type to be a normal PS/2 port.
+
+USERIO_CMD_SET_PORT_PROTO
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sets the protocol of port we're emulating, where ``data`` is the protocol being
+set. Can be any of the serio proto macros from <linux/serio.h>. For example:
+SERIO_IFORCE would set the port type to be an I-Force serial joystick.
+
+USERIO_CMD_SET_PORT_ID
+~~~~~~~~~~~~~~~~~~~~~~
+
+Sets the ``id`` value on the identification of port we're emulating, where
+``data`` is the value being set.
+
+USERIO_CMD_SET_PORT_EXTRA
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sets the ``extra`` value on the identification of port we're emulating, where
+``data`` is the value being set.
 
 USERIO_CMD_SEND_INTERRUPT
 ~~~~~~~~~~~~~~~~~~~~~~~~~

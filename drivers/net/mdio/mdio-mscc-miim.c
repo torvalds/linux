@@ -330,7 +330,7 @@ static int mscc_miim_probe(struct platform_device *pdev)
 
 	ret = of_mdiobus_register(bus, np);
 	if (ret < 0) {
-		dev_err(dev, "Cannot register MDIO bus (%d)\n", ret);
+		dev_err_probe(dev, ret, "Cannot register MDIO bus\n");
 		goto out_disable_clk;
 	}
 

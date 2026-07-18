@@ -8,10 +8,10 @@
 
 #include "arch_timer.h"
 
-static inline void __delay(uint64_t cycles)
+static inline void __delay(u64 cycles)
 {
 	enum arch_timer timer = VIRTUAL;
-	uint64_t start = timer_get_cntct(timer);
+	u64 start = timer_get_cntct(timer);
 
 	while ((timer_get_cntct(timer) - start) < cycles)
 		cpu_relax();

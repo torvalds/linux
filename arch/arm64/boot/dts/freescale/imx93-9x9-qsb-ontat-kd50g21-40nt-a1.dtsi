@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2026 NXP
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx93-pinfunc.h"
+
+&{/} {
+	backlight: backlight {
+		compatible = "gpio-backlight";
+		gpios = <&pcal6524 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	panel {
+		compatible = "ontat,kd50g21-40nt-a1";
+		backlight = <&backlight>;
+		power-supply = <&reg_rpi_3v3>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&dpi_to_panel>;
+			};
+		};
+	};
+};
+
+&dpi_bridge {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lcdif>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			dpi_to_panel: endpoint {
+				remote-endpoint = <&panel_in>;
+				bus-width = <18>;
+			};
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl_lcdif: lcdifgrp {
+		fsl,pins = <
+			MX93_PAD_GPIO_IO00__MEDIAMIX_DISP_CLK		0x31e
+			MX93_PAD_GPIO_IO01__MEDIAMIX_DISP_DE		0x31e
+			MX93_PAD_GPIO_IO02__MEDIAMIX_DISP_VSYNC		0x31e
+			MX93_PAD_GPIO_IO03__MEDIAMIX_DISP_HSYNC		0x31e
+			MX93_PAD_GPIO_IO04__MEDIAMIX_DISP_DATA00	0x31e
+			MX93_PAD_GPIO_IO05__MEDIAMIX_DISP_DATA01	0x31e
+			MX93_PAD_GPIO_IO06__MEDIAMIX_DISP_DATA02	0x31e
+			MX93_PAD_GPIO_IO07__MEDIAMIX_DISP_DATA03	0x31e
+			MX93_PAD_GPIO_IO08__MEDIAMIX_DISP_DATA04	0x31e
+			MX93_PAD_GPIO_IO09__MEDIAMIX_DISP_DATA05	0x31e
+			MX93_PAD_GPIO_IO10__MEDIAMIX_DISP_DATA06	0x31e
+			MX93_PAD_GPIO_IO11__MEDIAMIX_DISP_DATA07	0x31e
+			MX93_PAD_GPIO_IO12__MEDIAMIX_DISP_DATA08	0x31e
+			MX93_PAD_GPIO_IO13__MEDIAMIX_DISP_DATA09	0x31e
+			MX93_PAD_GPIO_IO14__MEDIAMIX_DISP_DATA10	0x31e
+			MX93_PAD_GPIO_IO15__MEDIAMIX_DISP_DATA11	0x31e
+			MX93_PAD_GPIO_IO16__MEDIAMIX_DISP_DATA12	0x31e
+			MX93_PAD_GPIO_IO17__MEDIAMIX_DISP_DATA13	0x31e
+			MX93_PAD_GPIO_IO18__MEDIAMIX_DISP_DATA14	0x31e
+			MX93_PAD_GPIO_IO19__MEDIAMIX_DISP_DATA15	0x31e
+			MX93_PAD_GPIO_IO20__MEDIAMIX_DISP_DATA16	0x31e
+			MX93_PAD_GPIO_IO21__MEDIAMIX_DISP_DATA17	0x31e
+		>;
+	};
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&media_blk_ctrl {
+	status = "okay";
+};
+
+&pcal6524 {
+	/*
+	 * exp-sel-hog has property 'output-low' while DT overlay doesn't
+	 * support /delete-property/. Both 'output-low' and 'output-high'
+	 * will exist under hog nodes if DT overlay file sets 'output-high'.
+	 * Workaround is to disable this hog and create new hog with
+	 * 'output-high'.
+	 */
+	exp-sel-hog {
+		status = "disabled";
+	};
+
+	exp-high-sel-hog {
+		gpio-hog;
+		gpios = <22 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+};
+
+&sai3 {
+	/* disable due to GPIO12 and GPIO17~20 pin conflicts with LCDIF */
+	status = "disabled";
+};

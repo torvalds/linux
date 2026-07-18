@@ -42,8 +42,48 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+void dccg3_enable_hdmicharclk(struct dccg *dccg, int hpo_inst, int phypll_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	ASSERT(hpo_inst >= 0 && phypll_inst >= 0);
+	REG_UPDATE_2(HDMICHARCLK_CLOCK_CNTL[hpo_inst],
+			HDMICHARCLK0_EN, 1,
+			HDMICHARCLK0_SRC_SEL, phypll_inst);
+
+	/* Enable FORCE_EN for SYMCLK */
+	switch (phypll_inst) {
+	case 0:
+		REG_UPDATE_2(PHYASYMCLK_CLOCK_CNTL,
+				PHYASYMCLK_FORCE_EN, 1,
+				PHYASYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	case 1:
+		REG_UPDATE_2(PHYBSYMCLK_CLOCK_CNTL,
+				PHYBSYMCLK_FORCE_EN, 1,
+				PHYBSYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	case 2:
+		REG_UPDATE_2(PHYCSYMCLK_CLOCK_CNTL,
+				PHYCSYMCLK_FORCE_EN, 1,
+				PHYCSYMCLK_FORCE_SRC_SEL, 1);
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
+void dccg3_disable_hdmicharclk(struct dccg *dccg, int hpo_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	REG_WRITE(HDMICHARCLK_CLOCK_CNTL[hpo_inst], 0);
+}
 
 static const struct dccg_funcs dccg3_funcs = {
+	.enable_hdmicharclk = dccg3_enable_hdmicharclk,
+	.disable_hdmicharclk = dccg3_disable_hdmicharclk,
 	.update_dpp_dto = dccg2_update_dpp_dto,
 	.get_dccg_ref_freq = dccg2_get_dccg_ref_freq,
 	.set_fifo_errdet_ovr_en = dccg2_set_fifo_errdet_ovr_en,

@@ -110,9 +110,9 @@ static struct trace_buffer_desc *remote_test_load(unsigned long size, void *unus
 	return remote_test_buffer_desc;
 
 err_unload:
-	for_each_ring_buffer_desc(rb_desc, cpu, remote_test_buffer_desc)
+	for_each_ring_buffer_desc(rb_desc, cpu, desc)
 		remote_test_unload_simple_rb(rb_desc->cpu);
-	trace_remote_free_buffer(remote_test_buffer_desc);
+	trace_remote_free_buffer(desc);
 
 err_free_desc:
 	kfree(desc);

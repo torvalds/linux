@@ -322,13 +322,13 @@ struct dma_buf {
 	 * @vmapping_counter:
 	 *
 	 * Used internally to refcnt the vmaps returned by dma_buf_vmap().
-	 * Protected by @lock.
+	 * Protected by @resv.
 	 */
 	unsigned vmapping_counter;
 
 	/**
 	 * @vmap_ptr:
-	 * The current vmap ptr if @vmapping_counter > 0. Protected by @lock.
+	 * The current vmap ptr if @vmapping_counter > 0. Protected by @resv.
 	 */
 	struct iosys_map vmap_ptr;
 

@@ -153,6 +153,10 @@ struct embedded_panel_info {
 	uint32_t drr_enabled;
 	uint32_t min_drr_refresh_rate;
 	bool realtek_eDPToLVDS;
+	uint16_t panel_width_mm;
+	uint16_t panel_height_mm;
+	uint16_t fake_edid_size;
+	const uint8_t *fake_edid;
 };
 
 struct dc_firmware_info {
@@ -269,7 +273,6 @@ struct transmitter_configuration {
 #define NUMBER_OF_UCHAR_FOR_GUID 16
 #define MAX_NUMBER_OF_EXT_DISPLAY_PATH 7
 #define NUMBER_OF_CSR_M3_ARB 10
-#define NUMBER_OF_DISP_CLK_VOLTAGE 4
 #define NUMBER_OF_AVAILABLE_SCLK 5
 
 struct i2c_reg_info {
@@ -298,14 +301,6 @@ struct edp_info {
 
 /* V6 */
 struct integrated_info {
-	struct clock_voltage_caps {
-		/* The Voltage Index indicated by FUSE, same voltage index
-		shared with SCLK DPM fuse table */
-		uint32_t voltage_index;
-		/* Maximum clock supported with specified voltage index */
-		uint32_t max_supported_clk; /* in KHz */
-	} disp_clk_voltage[NUMBER_OF_DISP_CLK_VOLTAGE];
-
 	struct display_connection_info {
 		struct external_display_path {
 			/* A bit vector to show what devices are supported */

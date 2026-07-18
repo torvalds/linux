@@ -238,7 +238,7 @@ u8 smbdirect_netdev_rdma_capable_node_type(struct net_device *netdev)
 
 	return RDMA_NODE_UNSPECIFIED;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_netdev_rdma_capable_node_type);
+EXPORT_SYMBOL_GPL(smbdirect_netdev_rdma_capable_node_type);
 
 __init int smbdirect_devices_init(void)
 {

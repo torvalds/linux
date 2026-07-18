@@ -252,7 +252,6 @@ void inet_put_port(struct sock *sk)
 	__inet_put_port(sk);
 	local_bh_enable();
 }
-EXPORT_SYMBOL(inet_put_port);
 
 int __inet_inherit_port(const struct sock *sk, struct sock *child)
 {
@@ -331,7 +330,6 @@ error:
 	spin_unlock(&head->lock);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL_GPL(__inet_inherit_port);
 
 static struct inet_listen_hashbucket *
 inet_lhash2_bucket_sk(struct inet_hashinfo *h, struct sock *sk)

@@ -24,7 +24,7 @@
 #ifdef __NR_userfaultfd
 
 static int nr_vcpus = 1;
-static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
+static u64 guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
 static size_t demand_paging_size;
 static char *guest_data_prototype;
@@ -58,7 +58,7 @@ static int handle_uffd_page_request(int uffd_mode, int uffd,
 		struct uffd_msg *msg)
 {
 	pid_t tid = syscall(__NR_gettid);
-	uint64_t addr = msg->arg.pagefault.address;
+	u64 addr = msg->arg.pagefault.address;
 	struct timespec start;
 	struct timespec ts_diff;
 	int r;
@@ -68,7 +68,7 @@ static int handle_uffd_page_request(int uffd_mode, int uffd,
 	if (uffd_mode == UFFDIO_REGISTER_MODE_MISSING) {
 		struct uffdio_copy copy;
 
-		copy.src = (uint64_t)guest_data_prototype;
+		copy.src = (u64)guest_data_prototype;
 		copy.dst = addr;
 		copy.len = demand_paging_size;
 		copy.mode = 0;
@@ -138,7 +138,7 @@ struct test_params {
 	bool partition_vcpu_memory_access;
 };
 
-static void prefault_mem(void *alias, uint64_t len)
+static void prefault_mem(void *alias, u64 len)
 {
 	size_t p;
 
@@ -154,7 +154,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct memstress_vcpu_args *vcpu_args;
 	struct test_params *p = arg;
 	struct uffd_desc **uffd_descs = NULL;
-	uint64_t uffd_region_size;
+	u64 uffd_region_size;
 	struct timespec start;
 	struct timespec ts_diff;
 	double vcpu_paging_rate;

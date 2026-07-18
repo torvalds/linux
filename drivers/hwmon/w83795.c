@@ -2243,8 +2243,8 @@ static void w83795_remove(struct i2c_client *client)
 
 
 static const struct i2c_device_id w83795_id[] = {
-	{ "w83795g", w83795g },
-	{ "w83795adg", w83795adg },
+	{ .name = "w83795g", .driver_data = w83795g },
+	{ .name = "w83795adg", .driver_data = w83795adg },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83795_id);

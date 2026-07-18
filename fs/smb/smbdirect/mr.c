@@ -269,7 +269,7 @@ smbdirect_connection_register_mr_io(struct smbdirect_socket *sc,
 {
 	const struct smbdirect_socket_parameters *sp = &sc->parameters;
 	struct smbdirect_mr_io *mr;
-	int ret, num_pages;
+	int ret, num_pages, num_mapped;
 	struct ib_reg_wr *reg_wr;
 
 	num_pages = iov_iter_npages(iter, sp->max_frmr_depth + 1);
@@ -300,19 +300,22 @@ smbdirect_connection_register_mr_io(struct smbdirect_socket *sc,
 		num_pages, iov_iter_count(iter), sp->max_frmr_depth);
 	smbdirect_iter_to_sgt(iter, &mr->sgt, sp->max_frmr_depth);
 
-	ret = ib_dma_map_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
-	if (!ret) {
+	num_mapped = ib_dma_map_sg(sc->ib.dev, mr->sgt.sgl, mr->sgt.nents, mr->dir);
+	if (!num_mapped) {
 		smbdirect_log_rdma_mr(sc, SMBDIRECT_LOG_ERR,
-			"ib_dma_map_sg num_pages=%u dir=%x ret=%d (%1pe)\n",
-			num_pages, mr->dir, ret, SMBDIRECT_DEBUG_ERR_PTR(ret));
+			"ib_dma_map_sg num_pages=%u dir=%x num_mapped=%d\n",
+			num_pages, mr->dir, num_mapped);
+		ret = -EIO;
 		goto dma_map_error;
 	}
 
-	ret = ib_map_mr_sg(mr->mr, mr->sgt.sgl, mr->sgt.nents, NULL, PAGE_SIZE);
-	if (ret != mr->sgt.nents) {
+	ret = ib_map_mr_sg(mr->mr, mr->sgt.sgl, num_mapped, NULL, PAGE_SIZE);
+	if (ret != num_mapped) {
 		smbdirect_log_rdma_mr(sc, SMBDIRECT_LOG_ERR,
-			"ib_map_mr_sg failed ret = %d nents = %u\n",
-			ret, mr->sgt.nents);
+			"ib_map_mr_sg failed ret = %d num_mapped = %u\n",
+			ret, num_mapped);
+		if (ret >= 0)
+			ret = -EIO;
 		goto map_mr_error;
 	}
 
@@ -380,7 +383,7 @@ dma_map_error:
 		mutex_unlock(&mr->mutex);
 	return NULL;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_register_mr_io);
+EXPORT_SYMBOL_GPL(smbdirect_connection_register_mr_io);
 
 void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
 					    struct smbdirect_buffer_descriptor_v1 *v1)
@@ -397,7 +400,7 @@ void smbdirect_mr_io_fill_buffer_descriptor(struct smbdirect_mr_io *mr,
 	}
 	mutex_unlock(&mr->mutex);
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_mr_io_fill_buffer_descriptor);
+EXPORT_SYMBOL_GPL(smbdirect_mr_io_fill_buffer_descriptor);
 
 /*
  * Deregister a MR after I/O is done
@@ -490,4 +493,4 @@ put_kref:
 	if (!kref_put(&mr->kref, smbdirect_mr_io_free_locked))
 		mutex_unlock(&mr->mutex);
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_deregister_mr_io);
+EXPORT_SYMBOL_GPL(smbdirect_connection_deregister_mr_io);

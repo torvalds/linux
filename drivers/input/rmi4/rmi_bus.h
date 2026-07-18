@@ -49,6 +49,7 @@ struct rmi_function {
 
 bool rmi_is_function_device(struct device *dev);
 
+struct rmi_function *rmi_alloc_function(struct rmi_device *rmi_dev, u8 id);
 int __must_check rmi_register_function(struct rmi_function *);
 void rmi_unregister_function(struct rmi_function *);
 

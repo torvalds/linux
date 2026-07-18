@@ -31,7 +31,7 @@ struct clock_event_device *global_clock_event;
  */
 static bool __init use_pit(void)
 {
-	if (!IS_ENABLED(CONFIG_X86_TSC) || !boot_cpu_has(X86_FEATURE_TSC))
+	if (!boot_cpu_has(X86_FEATURE_TSC))
 		return true;
 
 	/* This also returns true when APIC is disabled */

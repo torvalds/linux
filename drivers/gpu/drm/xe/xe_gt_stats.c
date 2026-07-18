@@ -9,6 +9,47 @@
 #include "xe_device.h"
 #include "xe_gt_stats.h"
 
+/**
+ * DOC: Xe GT Statistics
+ *
+ * Overview
+ * ========
+ *
+ * The Xe driver exposes per-GT statistics through the debugfs filesystem at::
+ *
+ *   /sys/kernel/debug/dri/<device>/gt<id>/stats
+ *
+ * This interface requires the kernel to be built with ``CONFIG_DEBUG_FS=y``.
+ *
+ * Reading statistics
+ * ==================
+ *
+ * Reading the file prints all available statistics, one per line, in
+ * ``name: value`` format::
+ *
+ *   $ cat /sys/kernel/debug/dri/0/gt0/stats
+ *   svm_pagefault_count: 0
+ *   tlb_inval_count: 1234
+ *   ...
+ *
+ * All values are 64-bit unsigned integers aggregated across all CPUs.
+ * Counters accumulate since the driver was loaded or since the last explicit
+ * reset.  Timing counters use microseconds as their unit; data volume counters
+ * use KiB.
+ *
+ * Resetting statistics
+ * ====================
+ *
+ * Writing a boolean true value to the file resets all counters to zero::
+ *
+ *   echo 1 > /sys/kernel/debug/dri/0/gt0/stats
+ *
+ * Any value accepted by ``kstrtobool()`` (e.g. ``1``, ``y``, ``yes``,
+ * ``on``) triggers the reset.  Resetting while the GPU is active may yield
+ * unpredictable intermediate values; it is recommended to reset only when
+ * the GPU is idle.
+ */
+
 static void xe_gt_stats_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_gt *gt = arg;

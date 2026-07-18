@@ -231,13 +231,13 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 }
 
 /* Find an unused file structure and return a pointer to it.
- * Returns an error pointer if some error happend e.g. we over file
+ * Returns an error pointer if some error happened, e.g., we exceed the file
  * structures limit, run out of memory or operation is not permitted.
  *
  * Be very careful using this.  You are responsible for
  * getting write access to any mount that you might assign
  * to this filp, if it is opened for write.  If this is not
- * done, you will imbalance int the mount's writer count
+ * done, the mount's writer count will be wrong
  * and a warning at __fput() time.
  */
 struct file *alloc_empty_file(int flags, const struct cred *cred)
@@ -402,6 +402,8 @@ static struct file *alloc_file(const struct path *path, int flags,
 static inline int alloc_path_pseudo(const char *name, struct inode *inode,
 				    struct vfsmount *mnt, struct path *path)
 {
+	if (WARN_ON_ONCE(S_ISDIR(inode->i_mode)))
+		return -EINVAL;
 	path->dentry = d_alloc_pseudo(mnt->mnt_sb, &QSTR(name));
 	if (!path->dentry)
 		return -ENOMEM;

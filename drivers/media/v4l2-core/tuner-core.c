@@ -1401,7 +1401,7 @@ static const struct dev_pm_ops tuner_pm_ops = {
 };
 
 static const struct i2c_device_id tuner_id[] = {
-	{ "tuner", }, /* autodetect */
+	{ .name = "tuner" }, /* autodetect */
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tuner_id);

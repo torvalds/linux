@@ -57,13 +57,12 @@ enum {
 struct azx_dev {
 	struct hdac_stream core;
 
-	unsigned int irq_pending:1;
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
 	 *  when link position is not greater than FIFO size
 	 */
-	unsigned int insufficient:1;
+	bool insufficient;
 };
 
 #define azx_stream(dev)		(&(dev)->core)
@@ -79,6 +78,8 @@ struct hda_controller_ops {
 	int (*position_check)(struct azx *chip, struct azx_dev *azx_dev);
 	/* enable/disable the link power */
 	int (*link_power)(struct azx *chip, bool enable);
+	/* additional hook for PCM */
+	void (*pcm_close)(struct azx *chip, struct azx_dev *azx_dev);
 };
 
 struct azx_pcm {
@@ -206,6 +207,15 @@ int azx_bus_init(struct azx *chip, const char *model);
 int azx_probe_codecs(struct azx *chip, unsigned int max_slots);
 int azx_codec_configure(struct azx *chip);
 int azx_init_streams(struct azx *chip);
+void azx_add_stream(struct azx *chip, struct azx_dev *s, int idx, int tag);
 void azx_free_streams(struct azx *chip);
+
+static inline int azx_stream_direction(struct azx *chip, unsigned char index)
+{
+	if (index >= chip->capture_index_offset &&
+	    index < chip->capture_index_offset + chip->capture_streams)
+		return SNDRV_PCM_STREAM_CAPTURE;
+	return SNDRV_PCM_STREAM_PLAYBACK;
+}
 
 #endif /* __SOUND_HDA_CONTROLLER_H */

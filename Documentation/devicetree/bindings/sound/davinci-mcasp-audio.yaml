@@ -248,13 +248,13 @@ examples:
       reg-names = "mpu";
       interrupts = <82>, <83>;
       interrupt-names = "tx", "rx";
-      op-mode = <0>;		/* MCASP_IIS_MODE */
+      op-mode = <0>; /* MCASP_IIS_MODE */
       tdm-slots = <2>;
       ti,async-mode;
       dmas = <&main_udmap 0xc400>, <&main_udmap 0x4400>;
       dma-names = "tx", "rx";
       serial-dir = <
-          0 0 0 0	/* 0: INACTIVE, 1: TX, 2: RX */
+          0 0 0 0 /* 0: INACTIVE, 1: TX, 2: RX */
           0 0 0 0
           0 0 0 1
           2 0 0 0 >;

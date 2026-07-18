@@ -40,7 +40,7 @@ static __always_inline void __pmr_local_irq_enable(void)
 	barrier();
 }
 
-static inline void arch_local_irq_enable(void)
+static __always_inline void arch_local_irq_enable(void)
 {
 	if (system_uses_irq_prio_masking()) {
 		__pmr_local_irq_enable();
@@ -68,7 +68,7 @@ static __always_inline void __pmr_local_irq_disable(void)
 	barrier();
 }
 
-static inline void arch_local_irq_disable(void)
+static __always_inline void arch_local_irq_disable(void)
 {
 	if (system_uses_irq_prio_masking()) {
 		__pmr_local_irq_disable();
@@ -90,7 +90,7 @@ static __always_inline unsigned long __pmr_local_save_flags(void)
 /*
  * Save the current interrupt enable state.
  */
-static inline unsigned long arch_local_save_flags(void)
+static __always_inline unsigned long arch_local_save_flags(void)
 {
 	if (system_uses_irq_prio_masking()) {
 		return __pmr_local_save_flags();
@@ -109,7 +109,7 @@ static __always_inline bool __pmr_irqs_disabled_flags(unsigned long flags)
 	return flags != GIC_PRIO_IRQON;
 }
 
-static inline bool arch_irqs_disabled_flags(unsigned long flags)
+static __always_inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
 	if (system_uses_irq_prio_masking()) {
 		return __pmr_irqs_disabled_flags(flags);
@@ -128,7 +128,7 @@ static __always_inline bool __pmr_irqs_disabled(void)
 	return __pmr_irqs_disabled_flags(__pmr_local_save_flags());
 }
 
-static inline bool arch_irqs_disabled(void)
+static __always_inline bool arch_irqs_disabled(void)
 {
 	if (system_uses_irq_prio_masking()) {
 		return __pmr_irqs_disabled();
@@ -160,7 +160,7 @@ static __always_inline unsigned long __pmr_local_irq_save(void)
 	return flags;
 }
 
-static inline unsigned long arch_local_irq_save(void)
+static __always_inline unsigned long arch_local_irq_save(void)
 {
 	if (system_uses_irq_prio_masking()) {
 		return __pmr_local_irq_save();
@@ -187,7 +187,7 @@ static __always_inline void __pmr_local_irq_restore(unsigned long flags)
 /*
  * restore saved IRQ state
  */
-static inline void arch_local_irq_restore(unsigned long flags)
+static __always_inline void arch_local_irq_restore(unsigned long flags)
 {
 	if (system_uses_irq_prio_masking()) {
 		__pmr_local_irq_restore(flags);

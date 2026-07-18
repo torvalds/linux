@@ -312,7 +312,7 @@ void cpuset1_hotplug_update_tasks(struct cpuset *cs,
 	 * This is full cgroup operation which will also call back into
 	 * cpuset. Execute it asynchronously using workqueue.
 	 */
-	if (is_empty && cs->css.cgroup->nr_populated_csets &&
+	if (is_empty && cgroup_has_tasks(cs->css.cgroup) &&
 	    css_tryget_online(&cs->css)) {
 		struct cpuset_remove_tasks_struct *s;
 

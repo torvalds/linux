@@ -91,7 +91,7 @@ xfs_exchrange_check_freshness(
 	trace_xfs_exchrange_freshness(fxr, ip2);
 
 	/* Check that file2 hasn't otherwise been modified. */
-	if (fxr->file2_ino != ip2->i_ino ||
+	if (fxr->file2_ino != inode2->i_ino ||
 	    fxr->file2_gen != inode2->i_generation ||
 	    !timespec64_equal(&fxr->file2_ctime, &ctime) ||
 	    !timespec64_equal(&fxr->file2_mtime, &mtime))
@@ -863,7 +863,7 @@ xfs_ioc_start_commit(
 	kern_f->file2_ctime_nsec	= kstat.ctime.tv_nsec;
 	kern_f->file2_mtime		= kstat.mtime.tv_sec;
 	kern_f->file2_mtime_nsec	= kstat.mtime.tv_nsec;
-	kern_f->file2_ino		= ip2->i_ino;
+	kern_f->file2_ino		= inode2->i_ino;
 	kern_f->file2_gen		= inode2->i_generation;
 	kern_f->magic			= XCR_FRESH_MAGIC;
 	xfs_iunlock(ip2, lockflags);

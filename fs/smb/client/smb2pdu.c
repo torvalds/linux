@@ -636,10 +636,16 @@ build_compression_ctxt(struct smb2_compression_capabilities_context *pneg_ctxt)
 	pneg_ctxt->DataLength =
 		cpu_to_le16(sizeof(struct smb2_compression_capabilities_context)
 			  - sizeof(struct smb2_neg_context));
-	pneg_ctxt->CompressionAlgorithmCount = cpu_to_le16(3);
+	/*
+	 * Pattern_V1 is useful only as part of a chained transform. LZ77 remains
+	 * the preferred general-purpose algorithm selected by this client.
+	 */
+	pneg_ctxt->CompressionAlgorithmCount = cpu_to_le16(4);
+	pneg_ctxt->Flags = SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED;
 	pneg_ctxt->CompressionAlgorithms[0] = SMB3_COMPRESS_LZ77;
 	pneg_ctxt->CompressionAlgorithms[1] = SMB3_COMPRESS_LZ77_HUFF;
 	pneg_ctxt->CompressionAlgorithms[2] = SMB3_COMPRESS_LZNT1;
+	pneg_ctxt->CompressionAlgorithms[3] = SMB3_COMPRESS_PATTERN;
 }
 
 static unsigned int
@@ -827,9 +833,12 @@ static void decode_compress_ctx(struct TCP_Server_Info *server,
 			 struct smb2_compression_capabilities_context *ctxt)
 {
 	unsigned int len = le16_to_cpu(ctxt->DataLength);
-	__le16 alg;
+	unsigned int count, i;
 
 	server->compression.enabled = false;
+	server->compression.chained = false;
+	server->compression.pattern = false;
+	server->compression.alg = SMB3_COMPRESS_NONE;
 
 	/*
 	 * Caller checked that DataLength remains within SMB boundary. We still
@@ -841,20 +850,37 @@ static void decode_compress_ctx(struct TCP_Server_Info *server,
 		return;
 	}
 
-	if (le16_to_cpu(ctxt->CompressionAlgorithmCount) != 1) {
+	count = le16_to_cpu(ctxt->CompressionAlgorithmCount);
+	if (!count || count > ARRAY_SIZE(ctxt->CompressionAlgorithms) ||
+	    len < 8 + count * sizeof(__le16)) {
 		pr_warn_once("invalid SMB3 compress algorithm count\n");
 		return;
 	}
 
-	alg = ctxt->CompressionAlgorithms[0];
-
-	/* 'NONE' (0) compressor type is never negotiated */
-	if (alg == 0 || le16_to_cpu(alg) > 3) {
-		pr_warn_once("invalid compression algorithm '%u'\n", alg);
+	if (ctxt->Flags != SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE &&
+	    ctxt->Flags != SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED) {
+		pr_warn_once("invalid SMB3 compression flags\n");
 		return;
 	}
 
-	server->compression.alg = alg;
+	for (i = 0; i < count; i++) {
+		/* Record the intersection supported by the shared SMB codec. */
+		if (ctxt->CompressionAlgorithms[i] == SMB3_COMPRESS_LZ77)
+			server->compression.alg = SMB3_COMPRESS_LZ77;
+		else if (ctxt->CompressionAlgorithms[i] == SMB3_COMPRESS_PATTERN)
+			server->compression.pattern = true;
+	}
+	if (server->compression.alg != SMB3_COMPRESS_LZ77)
+		return;
+
+	/*
+	 * Pattern_V1 cannot appear in an unchained transform even if a broken
+	 * peer lists it in the algorithm array.
+	 */
+	server->compression.chained =
+		ctxt->Flags == SMB2_COMPRESSION_CAPABILITIES_FLAG_CHAINED;
+	if (!server->compression.chained)
+		server->compression.pattern = false;
 	server->compression.enabled = true;
 }
 
@@ -1713,17 +1739,30 @@ SMB2_auth_kerberos(struct SMB2_sess_data *sess_data)
 	is_binding = (ses->ses_status == SES_GOOD);
 	spin_unlock(&ses->ses_lock);
 
+	/*
+	 * Per MS-SMB2 3.2.5.3, Session.SessionKey is the first 16 bytes of the
+	 * GSS cryptographic key, right-padded with zero bytes if shorter.
+	 * Allocate at least SMB2_NTLMV2_SESSKEY_SIZE bytes (zeroed) so the KDF
+	 * input buffer is always valid for HMAC-SHA256 even with deprecated
+	 * Kerberos enctypes that return a short session key.
+	 */
+	if (unlikely(msg->sesskey_len < SMB2_NTLMV2_SESSKEY_SIZE))
+		cifs_dbg(VFS,
+			 "short GSS session key (%u bytes); zero-padding per MS-SMB2 3.2.5.3\n",
+			 msg->sesskey_len);
+
 	kfree_sensitive(ses->auth_key.response);
-	ses->auth_key.response = kmemdup(msg->data,
-					 msg->sesskey_len,
-					 GFP_KERNEL);
+	ses->auth_key.len = max_t(unsigned int, msg->sesskey_len,
+				  SMB2_NTLMV2_SESSKEY_SIZE);
+	ses->auth_key.response = kzalloc(ses->auth_key.len, GFP_KERNEL);
 	if (!ses->auth_key.response) {
 		cifs_dbg(VFS, "%s: can't allocate (%u bytes) memory\n",
-			 __func__, msg->sesskey_len);
+			 __func__, ses->auth_key.len);
+		ses->auth_key.len = 0;
 		rc = -ENOMEM;
 		goto out_put_spnego_key;
 	}
-	ses->auth_key.len = msg->sesskey_len;
+	memcpy(ses->auth_key.response, msg->data, msg->sesskey_len);
 
 	sess_data->iov[1].iov_base = msg->data + msg->sesskey_len;
 	sess_data->iov[1].iov_len = msg->secblob_len;
@@ -2116,8 +2155,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 
 	unc_path_len = cifs_strtoUTF16(unc_path, tree, strlen(tree), cp);
 	if (unc_path_len <= 0) {
-		kfree(unc_path);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto free_unc_path;
 	}
 	unc_path_len *= 2;
 
@@ -2126,10 +2165,8 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	atomic_set(&tcon->num_remote_opens, 0);
 	rc = smb2_plain_req_init(SMB2_TREE_CONNECT, tcon, server,
 				 (void **) &req, &total_len);
-	if (rc) {
-		kfree(unc_path);
-		return rc;
-	}
+	if (rc)
+		goto free_unc_path;
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -2220,6 +2257,7 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 tcon_exit:
 
 	free_rsp_buf(resp_buftype, rsp);
+free_unc_path:
 	kfree(unc_path);
 	return rc;
 
@@ -2358,9 +2396,9 @@ parse_posix_ctxt(struct create_context *cc, struct smb2_file_all_info *info,
 
 	memset(posix, 0, sizeof(*posix));
 
-	posix->nlink = le32_to_cpu(*(__le32 *)(beg + 0));
-	posix->reparse_tag = le32_to_cpu(*(__le32 *)(beg + 4));
-	posix->mode = le32_to_cpu(*(__le32 *)(beg + 8));
+	posix->nlink = get_unaligned_le32(beg);
+	posix->reparse_tag = get_unaligned_le32(beg + 4);
+	posix->mode = get_unaligned_le32(beg + 8);
 
 	sid = beg + 12;
 	sid_len = posix_info_sid_size(sid, end);
@@ -3267,6 +3305,8 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
 	oparms->replay = !!(retries);
@@ -3492,6 +3532,8 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
 
@@ -3613,14 +3655,14 @@ ioctl_exit:
 
 int
 SMB2_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
-		     u64 persistent_fid, u64 volatile_fid)
+		     u64 persistent_fid, u64 volatile_fid,
+		     __u16 compression_state)
 {
 	int rc;
 	struct  compress_ioctl fsctl_input;
 	char *ret_data = NULL;
 
-	fsctl_input.CompressionState =
-			cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+	fsctl_input.CompressionState = cpu_to_le16(compression_state);
 
 	rc = SMB2_ioctl(xid, tcon, persistent_fid, volatile_fid,
 			FSCTL_SET_COMPRESSION,
@@ -3686,6 +3728,8 @@ __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	query_attrs = false;
 	server = cifs_pick_channel(ses);
@@ -3898,6 +3942,8 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	allocated = false;
 	server = cifs_pick_channel(ses);
@@ -4070,6 +4116,8 @@ SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
 
@@ -4412,6 +4460,8 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
 
@@ -4595,6 +4645,7 @@ smb2_readv_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	struct netfs_inode *ictx = netfs_inode(rdata->rreq->inode);
 	struct cifs_tcon *tcon = tlink_tcon(rdata->req->cfile->tlink);
 	struct smb2_hdr *shdr = (struct smb2_hdr *)rdata->iov[0].iov_base;
+	struct inode *inode = &ictx->inode;
 	struct cifs_credits credits = {
 		.value = 0,
 		.instance = 0,
@@ -4708,7 +4759,7 @@ do_retry:
 	} else {
 		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
 		if (trans < rdata->subreq.len &&
-		    rdata->subreq.start + trans >= ictx->remote_i_size) {
+		    rdata->subreq.start + trans >= netfs_read_remote_i_size(inode)) {
 			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 			rdata->result = 0;
 		}
@@ -4941,7 +4992,7 @@ smb2_writev_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	unsigned int rreq_debug_id = wdata->rreq->debug_id;
 	unsigned int subreq_debug_index = wdata->subreq.debug_index;
 	ssize_t result = 0;
-	size_t written;
+	size_t written = 0;
 
 	WARN_ONCE(wdata->server != server,
 		  "wdata server %p != mid server %p",
@@ -5354,7 +5405,7 @@ int posix_info_sid_size(const void *beg, const void *end)
 	size_t subauth;
 	int total;
 
-	if (beg + 1 > end)
+	if (beg + 2 > end)
 		return -1;
 
 	subauth = *(u8 *)(beg+1);
@@ -5622,6 +5673,8 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	if (srch_inf->ntwrk_buf_start) {
 		if (srch_inf->smallBuf)
 			cifs_small_buf_release(srch_inf->ntwrk_buf_start);
+		else if (srch_inf->is_dynamic_buf)
+			kfree(srch_inf->ntwrk_buf_start);
 		else
 			cifs_buf_release(srch_inf->ntwrk_buf_start);
 	}
@@ -5641,12 +5694,18 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	cifs_dbg(FYI, "num entries %d last_index %lld srch start %p srch end %p\n",
 		 srch_inf->entries_in_buffer, srch_inf->index_of_last_entry,
 		 srch_inf->srch_entries_start, srch_inf->last_entry);
-	if (resp_buftype == CIFS_LARGE_BUFFER)
+	if (resp_buftype == CIFS_LARGE_BUFFER) {
 		srch_inf->smallBuf = false;
-	else if (resp_buftype == CIFS_SMALL_BUFFER)
+		srch_inf->is_dynamic_buf = false;
+	} else if (resp_buftype == CIFS_SMALL_BUFFER) {
 		srch_inf->smallBuf = true;
-	else
+		srch_inf->is_dynamic_buf = false;
+	} else if (resp_buftype == CIFS_DYNAMIC_BUFFER) {
+		srch_inf->smallBuf = false;
+		srch_inf->is_dynamic_buf = true;
+	} else {
 		cifs_tcon_dbg(VFS, "Invalid search buffer type\n");
+	}
 
 	return 0;
 }
@@ -5669,6 +5728,8 @@ SMB2_query_directory(const unsigned int xid, struct cifs_tcon *tcon,
 
 replay_again:
 	/* reinitialize for possible replay */
+	resp_buftype = CIFS_NO_BUFFER;
+	memset(&rsp_iov, 0, sizeof(rsp_iov));
 	flags = 0;
 	server = cifs_pick_channel(ses);
 

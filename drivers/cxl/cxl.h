@@ -91,7 +91,7 @@ static inline int cxl_hdm_decoder_count(u32 cap_hdr)
 }
 
 /* Encode defined in CXL 2.0 8.2.5.12.7 HDM Decoder Control Register */
-static inline int eig_to_granularity(u16 eig, unsigned int *granularity)
+static inline int eig_to_granularity(u16 eig, int *granularity)
 {
 	if (eig > CXL_DECODER_MAX_ENCODED_IG)
 		return -EINVAL;
@@ -100,7 +100,7 @@ static inline int eig_to_granularity(u16 eig, unsigned int *granularity)
 }
 
 /* Encode defined in CXL ECN "3, 6, 12 and 16-way memory Interleaving" */
-static inline int eiw_to_ways(u8 eiw, unsigned int *ways)
+static inline int eiw_to_ways(u8 eiw, int *ways)
 {
 	switch (eiw) {
 	case 0 ... 4:
@@ -118,6 +118,7 @@ static inline int eiw_to_ways(u8 eiw, unsigned int *ways)
 
 static inline int granularity_to_eig(int granularity, u16 *eig)
 {
+	*eig = 0;
 	if (granularity > SZ_16K || granularity < CXL_DECODER_MIN_GRANULARITY ||
 	    !is_power_of_2(granularity))
 		return -EINVAL;
@@ -127,6 +128,7 @@ static inline int granularity_to_eig(int granularity, u16 *eig)
 
 static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 {
+	*eiw = 0;
 	if (ways > 16)
 		return -EINVAL;
 	if (is_power_of_2(ways)) {
@@ -158,8 +160,18 @@ static inline int ways_to_eiw(unsigned int ways, u8 *eiw)
 #define CXL_RAS_CAP_CONTROL_FE_MASK GENMASK(5, 0)
 #define CXL_RAS_HEADER_LOG_OFFSET 0x18
 #define CXL_RAS_CAPABILITY_LENGTH 0x58
-#define CXL_HEADERLOG_SIZE SZ_512
-#define CXL_HEADERLOG_SIZE_U32 SZ_512 / sizeof(u32)
+#define CXL_HEADERLOG_SIZE SZ_64
+#define CXL_HEADERLOG_SIZE_U32 (CXL_HEADERLOG_SIZE / sizeof(u32))
+
+/*
+ * The RAS UCE trace event header array was originally sized at SZ_512/sizeof(u32)
+ * = 128 u32s due to a bug. Userspace tools (rasdaemon) have grown a dependency
+ * on that 512-byte layout. Keep the trace array at 128 u32s to preserve the
+ * ABI; only CXL_HEADERLOG_SIZE_U32 (16) dwords are valid hardware data, the
+ * remainder are zero-filled.
+ */
+#define CXL_HEADERLOG_TRACE_SIZE SZ_512
+#define CXL_HEADERLOG_TRACE_SIZE_U32 (CXL_HEADERLOG_TRACE_SIZE / sizeof(u32))
 
 /* CXL 2.0 8.2.8.1 Device Capabilities Array Register */
 #define CXLDEV_CAP_ARRAY_OFFSET 0x0
@@ -359,7 +371,9 @@ struct cxl_rd_ops {
  * @cache_size: extended linear cache size if exists, otherwise zero.
  * @region_id: region id for next region provisioning event
  * @platform_data: platform specific configuration data
- * @range_lock: sync region autodiscovery by address range
+ * @regions_lock: sync region discovery, construction, and deletion
+ * @regions: regions to remove at root decoder destruct time
+ * @dead: root decoder dead to region creation
  * @qos_class: QoS performance class cookie
  * @ops: CXL root decoder operations
  * @cxlsd: base cxl switch decoder
@@ -369,7 +383,9 @@ struct cxl_root_decoder {
 	resource_size_t cache_size;
 	atomic_t region_id;
 	void *platform_data;
-	struct mutex range_lock;
+	struct mutex regions_lock;
+	struct xarray regions;
+	bool dead;
 	int qos_class;
 	struct cxl_rd_ops ops;
 	struct cxl_switch_decoder cxlsd;

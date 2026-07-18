@@ -565,8 +565,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
 		total_freeable += freeable;
 	}
 
-	seq_puts(s, "\n");
-	seq_printf(s, " %5s %5s ", "Total", "");
+	seq_printf(s, "\n %5s %5s ", "Total", "");
 
 	for (fg = ZS_INUSE_RATIO_10; fg < NR_FULLNESS_GROUPS; fg++)
 		seq_printf(s, "%9lu ", inuse_totals[fg]);

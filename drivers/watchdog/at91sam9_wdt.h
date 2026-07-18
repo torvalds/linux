@@ -9,6 +9,8 @@
  * Watchdog Timer (WDT) - System peripherals regsters.
  * Based on AT91SAM9261 datasheet revision D.
  * Based on SAM9X60 datasheet.
+ * Based on SAMA7G5 datasheet.
+ * Based on SAM9X75 datasheet.
  *
  */
 
@@ -27,10 +29,10 @@
 #define  AT91_SAM9X60_PERIODRST	BIT(4)		/* Period Reset */
 #define  AT91_SAM9X60_RPTHRST	BIT(5)		/* Minimum Restart Period */
 #define  AT91_WDT_WDFIEN	BIT(12)		/* Fault Interrupt Enable */
-#define  AT91_SAM9X60_WDDIS	BIT(12)		/* Watchdog Disable */
+#define  AT91_SAM9X60_WDDIS	BIT(12)		/* Watchdog Disable (SAM9X60, SAMA7G5, SAM9X75) */
 #define  AT91_WDT_WDRSTEN	BIT(13)		/* Reset Processor */
 #define  AT91_WDT_WDRPROC	BIT(14)		/* Timer Restart */
-#define  AT91_WDT_WDDIS		BIT(15)		/* Watchdog Disable */
+#define  AT91_WDT_WDDIS		BIT(15)		/* Watchdog Disable (SAMA5, AT91SAM9261) */
 #define  AT91_WDT_WDD		(0xfffUL << 16)		/* Delta Value */
 #define  AT91_WDT_SET_WDD(x)	(((x) << 16) & AT91_WDT_WDD)
 #define  AT91_WDT_WDDBGHLT	BIT(28)		/* Debug Halt */

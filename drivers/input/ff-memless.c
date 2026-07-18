@@ -484,15 +484,29 @@ static void ml_ff_destroy(struct ff_device *ff)
 	struct ml_device *ml = ff->private;
 
 	/*
-	 * Even though we stop all playing effects when tearing down
-	 * an input device (via input_device_flush() that calls into
-	 * input_ff_flush() that stops and erases all effects), we
-	 * do not actually stop the timer, and therefore we should
-	 * do it here.
+	 * The timer is normally shut down in ml_ff_stop() when the device
+	 * is unregistered. However, we still shut it down here as a safety
+	 * net and for cases where the device was never registered (e.g.
+	 * error paths during probe).
 	 */
-	timer_delete_sync(&ml->timer);
+	timer_shutdown_sync(&ml->timer);
 
 	kfree(ml->private);
+}
+
+static void ml_ff_stop(struct ff_device *ff)
+{
+	struct ml_device *ml = ff->private;
+
+	/*
+	 * Even though we stop all playing effects when tearing down an
+	 * input device (by the way of evdev calling input_flush_device()
+	 * that calls into input_ff_flush() that stops and erases all
+	 * effects), we do not actually shutdown the timer, and therefore
+	 * we should do it here to prevent it firing after the input
+	 * device is unregistered and its associated resources are freed.
+	 */
+	timer_shutdown_sync(&ml->timer);
 }
 
 /**
@@ -529,6 +543,7 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 	ff->playback = ml_ff_playback;
 	ff->set_gain = ml_ff_set_gain;
 	ff->destroy = ml_ff_destroy;
+	ff->stop = ml_ff_stop;
 
 	/* we can emulate periodic effects with RUMBLE */
 	if (test_bit(FF_RUMBLE, ff->ffbit)) {

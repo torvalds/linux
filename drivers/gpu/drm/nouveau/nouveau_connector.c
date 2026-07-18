@@ -1132,7 +1132,7 @@ nouveau_connector_best_encoder(struct drm_connector *connector)
 }
 
 static int
-nouveau_connector_atomic_check(struct drm_connector *connector, struct drm_atomic_state *state)
+nouveau_connector_atomic_check(struct drm_connector *connector, struct drm_atomic_commit *state)
 {
 	struct nouveau_connector *nv_conn = nouveau_connector(connector);
 	struct drm_connector_state *conn_state =

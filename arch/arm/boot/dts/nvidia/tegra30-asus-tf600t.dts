@@ -23,6 +23,7 @@
 		rtc0 = &pmic;
 		rtc1 = "/rtc@7000e000";
 
+		display0 = &lcd;
 		display1 = &hdmi;
 
 		serial1 = &uartc; /* Bluetooth */
@@ -55,6 +56,37 @@
 	};
 
 	host1x@50000000 {
+		vi@54080000 {
+			status = "okay";
+
+			csi@800 {
+				status = "okay";
+
+				avdd-dsi-csi-supply = <&avdd_dsi_csi>;
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					vi_ppa_input: endpoint {
+						/* Link to the rear camera */
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					vi_ppb_input: endpoint {
+						/* Link to the front camera */
+					};
+				};
+			};
+		};
+
 		hdmi: hdmi@54280000 {
 			status = "okay";
 
@@ -66,6 +98,22 @@
 				hdmi_out: endpoint {
 					remote-endpoint = <&hdmi_connector_in>;
 				};
+			};
+		};
+
+		lcd: dsi@54300000 {
+			status = "okay";
+
+			avdd-dsi-csi-supply = <&avdd_dsi_csi>;
+
+			panel@0 {
+				compatible = "hydis,hv101hd1";
+				reg = <0>;
+
+				vdd-supply = <&vdd_panel>;
+				vio-supply = <&vio_panel>;
+
+				backlight = <&backlight>;
 			};
 		};
 	};
@@ -1043,9 +1091,9 @@
 			vdd-supply   = <&vdd_3v3_sys>;
 			vddio-supply = <&vdd_1v8_vio>;
 
-			mount-matrix =	 "0", "-1",  "0",
-					"-1",  "0",  "0",
-					 "0",  "0", "-1";
+			mount-matrix =	 "0",  "1",  "0",
+					 "1",  "0",  "0",
+					 "0",  "0",  "1";
 
 			/* External I2C interface */
 			i2c-gate {
@@ -1123,11 +1171,10 @@
 			};
 
 			regulators {
-				vdd_lcd: vdd1 {
+				vio_panel: vdd1 {
 					regulator-name = "vddio_ddr_1v2";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
-					regulator-always-on;
 					regulator-boot-on;
 					ti,regulator-ext-sleep-control = <8>;
 				};
@@ -2145,7 +2192,7 @@
 		compatible = "pwm-backlight";
 
 		enable-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_HIGH>;
-		power-supply = <&vdd_5v0_bl>;
+		power-supply = <&vdd_5v0_sys>;
 		pwms = <&pwm 0 71428>;
 
 		brightness-levels = <1 255>;
@@ -2375,15 +2422,15 @@
 		vin-supply = <&vdd_3v3_sys>;
 	};
 
-	vdd_5v0_bl: regulator-bl {
+	vdd_panel: regulator-panel {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_5v0_bl";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
+		regulator-name = "vdd_panel";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-		gpio = <&gpio TEGRA_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio TEGRA_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-		vin-supply = <&vdd_5v0_bat>;
+		vin-supply = <&vdd_3v3_sys>;
 	};
 
 	hdmi_5v0_sys: regulator-hdmi {

@@ -70,11 +70,11 @@
 
 #include <drm/drm_print.h>
 #include <drm/intel/intel_lpe_audio.h>
+#include <drm/intel/pci_config.h>
 
 #include "intel_audio_regs.h"
 #include "intel_de.h"
 #include "intel_lpe_audio.h"
-#include "intel_pci_config.h"
 
 #define HAS_LPE_AUDIO(display) ((display)->audio.lpe.platdev)
 
@@ -262,10 +262,10 @@ void intel_lpe_audio_irq_handler(struct intel_display *display)
 	if (!HAS_LPE_AUDIO(display))
 		return;
 
-	ret = generic_handle_irq(display->audio.lpe.irq);
+	ret = generic_handle_irq_safe(display->audio.lpe.irq);
 	if (ret)
 		drm_err_ratelimited(display->drm,
-				    "error handling LPE audio irq: %d\n", ret);
+				    "LPE audio: irq handling failed (%pe)\n", ERR_PTR(ret));
 }
 
 /**

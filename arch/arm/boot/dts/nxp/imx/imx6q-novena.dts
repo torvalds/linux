@@ -109,6 +109,7 @@
 	panel: panel {
 		compatible = "innolux,n133hse-ea1";
 		backlight = <&backlight>;
+		power-supply = <&reg_lvds_lcd>;
 	};
 
 	reg_2p5v: regulator-2p5v {

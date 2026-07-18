@@ -397,7 +397,7 @@
 
 #else
 
-#ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
+#ifdef SCSI_NCR53C8XX_NO_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
 #define INW_OFF(o)		(readb((char __iomem *)np->reg + ncr_offw(o)) << 8 | readb((char __iomem *)np->reg + ncr_offw(o) + 1))
 #else
@@ -405,7 +405,7 @@
 #endif
 #define INL_OFF(o)		readl_raw((char __iomem *)np->reg + (o))
 
-#ifdef CONFIG_SCSI_NCR53C8XX_NO_WORD_TRANSFERS
+#ifdef SCSI_NCR53C8XX_NO_WORD_TRANSFERS
 /* Only 8 or 32 bit transfers allowed */
 #define OUTW_OFF(o, val)	do { writeb((char)((val) >> 8), (char __iomem *)np->reg + ncr_offw(o)); writeb((char)(val), (char __iomem *)np->reg + ncr_offw(o) + 1); } while (0)
 #else

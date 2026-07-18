@@ -42,7 +42,7 @@ static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 
 static const struct pci_device_id sch_pci_tbl[] = {
 	/* Intel SCH PATA Controller */
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_SCH_IDE), 0 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_SCH_IDE) },
 	{ }	/* terminate list */
 };
 

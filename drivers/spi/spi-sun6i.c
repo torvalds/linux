@@ -633,7 +633,7 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int ret = 0, irq;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(struct sun6i_spi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct sun6i_spi));
 	if (!host) {
 		dev_err(&pdev->dev, "Unable to allocate SPI Host\n");
 		return -ENOMEM;
@@ -643,22 +643,18 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	sspi = spi_controller_get_devdata(host);
 
 	sspi->base_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
-	if (IS_ERR(sspi->base_addr)) {
-		ret = PTR_ERR(sspi->base_addr);
-		goto err_free_host;
-	}
+	if (IS_ERR(sspi->base_addr))
+		return PTR_ERR(sspi->base_addr);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = -ENXIO;
-		goto err_free_host;
-	}
+	if (irq < 0)
+		return -ENXIO;
 
 	ret = devm_request_irq(&pdev->dev, irq, sun6i_spi_handler,
 			       0, "sun6i-spi", sspi);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request IRQ\n");
-		goto err_free_host;
+		return ret;
 	}
 
 	sspi->host = host;
@@ -679,15 +675,13 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	sspi->hclk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(sspi->hclk)) {
 		dev_err(&pdev->dev, "Unable to acquire AHB clock\n");
-		ret = PTR_ERR(sspi->hclk);
-		goto err_free_host;
+		return PTR_ERR(sspi->hclk);
 	}
 
 	sspi->mclk = devm_clk_get(&pdev->dev, "mod");
 	if (IS_ERR(sspi->mclk)) {
 		dev_err(&pdev->dev, "Unable to acquire module clock\n");
-		ret = PTR_ERR(sspi->mclk);
-		goto err_free_host;
+		return PTR_ERR(sspi->mclk);
 	}
 
 	init_completion(&sspi->done);
@@ -696,17 +690,14 @@ static int sun6i_spi_probe(struct platform_device *pdev)
 	sspi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(sspi->rstc)) {
 		dev_err(&pdev->dev, "Couldn't get reset controller\n");
-		ret = PTR_ERR(sspi->rstc);
-		goto err_free_host;
+		return PTR_ERR(sspi->rstc);
 	}
 
 	host->dma_tx = dma_request_chan(&pdev->dev, "tx");
 	if (IS_ERR(host->dma_tx)) {
 		/* Check tx to see if we need defer probing driver */
-		if (PTR_ERR(host->dma_tx) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto err_free_host;
-		}
+		if (PTR_ERR(host->dma_tx) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
 		dev_warn(&pdev->dev, "Failed to request TX DMA channel\n");
 		host->dma_tx = NULL;
 	}
@@ -759,16 +750,13 @@ err_free_dma_rx:
 err_free_dma_tx:
 	if (host->dma_tx)
 		dma_release_channel(host->dma_tx);
-err_free_host:
-	spi_controller_put(host);
+
 	return ret;
 }
 
 static void sun6i_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
-
-	spi_controller_get(host);
 
 	spi_unregister_controller(host);
 
@@ -778,8 +766,6 @@ static void sun6i_spi_remove(struct platform_device *pdev)
 		dma_release_channel(host->dma_tx);
 	if (host->dma_rx)
 		dma_release_channel(host->dma_rx);
-
-	spi_controller_put(host);
 }
 
 static const struct sun6i_spi_cfg sun6i_a31_spi_cfg = {

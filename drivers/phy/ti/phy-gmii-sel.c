@@ -252,6 +252,15 @@ struct phy_gmii_sel_soc_data phy_gmii_sel_soc_am654 = {
 };
 
 static const
+struct phy_gmii_sel_soc_data phy_gmii_sel_soc_j722s = {
+	.use_of_data = true,
+	.features = BIT(PHY_GMII_SEL_RGMII_ID_MODE) |
+		    BIT(PHY_GMII_SEL_FIXED_TX_DELAY),
+	.regfields = phy_gmii_sel_fields_am654,
+	.extra_modes = BIT(PHY_INTERFACE_MODE_SGMII),
+};
+
+static const
 struct phy_gmii_sel_soc_data phy_gmii_sel_cpsw5g_soc_j7200 = {
 	.use_of_data = true,
 	.features = BIT(PHY_GMII_SEL_RGMII_ID_MODE) |
@@ -306,6 +315,10 @@ static const struct of_device_id phy_gmii_sel_id_table[] = {
 	{
 		.compatible	= "ti,am654-phy-gmii-sel",
 		.data		= &phy_gmii_sel_soc_am654,
+	},
+	{
+		.compatible	= "ti,j722s-phy-gmii-sel",
+		.data		= &phy_gmii_sel_soc_j722s,
 	},
 	{
 		.compatible	= "ti,j7200-cpsw5g-phy-gmii-sel",

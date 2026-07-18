@@ -37,8 +37,6 @@ static void rtrs_clt_path_stats_release(struct kobject *kobj)
 	stats = container_of(kobj, struct rtrs_clt_stats, kobj_stats);
 
 	free_percpu(stats->pcpu_stats);
-
-	kfree(stats);
 }
 
 static struct kobj_type ktype_stats = {

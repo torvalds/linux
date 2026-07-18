@@ -13,7 +13,6 @@
 #include <linux/cleanup.h>
 #include <linux/init.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/property.h>

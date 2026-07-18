@@ -12,8 +12,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include "mailbox.h"
-
 /*
  * The maximum transmission size is 32 words or 128 bytes.
  */
@@ -405,7 +403,7 @@ static int cix_mbox_startup(struct mbox_chan *chan)
 	int index = cp->index, ret;
 	u32 val;
 
-	ret = request_irq(priv->irq, cix_mbox_isr, 0,
+	ret = request_irq(priv->irq, cix_mbox_isr, IRQF_NO_SUSPEND,
 			  dev_name(priv->dev), chan);
 	if (ret) {
 		dev_err(priv->dev, "Unable to acquire IRQ %d\n", priv->irq);
@@ -415,7 +413,7 @@ static int cix_mbox_startup(struct mbox_chan *chan)
 	switch (cp->type) {
 	case CIX_MBOX_TYPE_DB:
 		/* Overwrite txdone_method for DB channel */
-		chan->txdone_method = TXDONE_BY_ACK;
+		chan->txdone_method = MBOX_TXDONE_BY_ACK;
 		fallthrough;
 	case CIX_MBOX_TYPE_REG:
 		if (priv->dir == CIX_MBOX_TX) {

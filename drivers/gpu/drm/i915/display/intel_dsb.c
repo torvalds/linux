@@ -210,6 +210,18 @@ static int dsb_scanline_to_hw(struct intel_atomic_state *state,
 	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
+static
+bool pre_commit_use_safe_window(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc->base.dev);
+
+	if (intel_vrr_always_use_vrr_tg(display))
+		return true;
+
+	return pre_commit_is_vrr_active(state, crtc);
+}
+
 /*
  * Bspec suggests that we should always set DSB_SKIP_WAITS_EN. We have approach
  * different from what is explained in Bspec on how flip is considered being
@@ -229,7 +241,7 @@ static u32 dsb_chicken(struct intel_atomic_state *state,
 	u32 chicken = intel_psr_use_trans_push(new_crtc_state) ?
 		DSB_SKIP_WAITS_EN : 0;
 
-	if (pre_commit_is_vrr_active(state, crtc))
+	if (pre_commit_use_safe_window(state, crtc))
 		chicken |= DSB_CTRL_WAIT_SAFE_WINDOW |
 			DSB_CTRL_NO_WAIT_VBLANK |
 			DSB_INST_WAIT_SAFE_WINDOW |
@@ -326,7 +338,7 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 }
 
 static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
-					u32 opcode, i915_reg_t reg)
+					u32 opcode, intel_reg_t reg)
 {
 	u32 prev_opcode, prev_reg;
 
@@ -341,10 +353,10 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	prev_opcode = dsb->ins[1] & ~DSB_REG_VALUE_MASK;
 	prev_reg =  dsb->ins[1] & DSB_REG_VALUE_MASK;
 
-	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
+	return prev_opcode == opcode && prev_reg == intel_reg_offset(reg);
 }
 
-static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
+static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, intel_reg_t reg)
 {
 	return intel_dsb_prev_ins_is_write(dsb,
 					   DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT,
@@ -365,7 +377,7 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
  * register.
  */
 void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
-				 i915_reg_t reg, u32 val)
+				 intel_reg_t reg, u32 val)
 {
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
@@ -386,7 +398,7 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 	if (!intel_dsb_prev_ins_is_indexed_write(dsb, reg))
 		intel_dsb_emit(dsb, 0, /* count */
 			       (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
-			       i915_mmio_reg_offset(reg));
+			       intel_reg_offset(reg));
 
 	if (!assert_dsb_has_room(dsb))
 		return;
@@ -402,12 +414,12 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 }
 
 void intel_dsb_reg_write(struct intel_dsb *dsb,
-			 i915_reg_t reg, u32 val)
+			 intel_reg_t reg, u32 val)
 {
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
 		       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 static u32 intel_dsb_mask_to_byte_en(u32 mask)
@@ -420,12 +432,12 @@ static u32 intel_dsb_mask_to_byte_en(u32 mask)
 
 /* Note: mask implemented via byte enables! */
 void intel_dsb_reg_write_masked(struct intel_dsb *dsb,
-				i915_reg_t reg, u32 mask, u32 val)
+				intel_reg_t reg, u32 mask, u32 val)
 {
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
 		       (intel_dsb_mask_to_byte_en(mask) << DSB_BYTE_EN_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 void intel_dsb_noop(struct intel_dsb *dsb, int count)
@@ -550,7 +562,7 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 }
 
 void intel_dsb_poll(struct intel_dsb *dsb,
-		    i915_reg_t reg, u32 mask, u32 val,
+		    intel_reg_t reg, u32 mask, u32 val,
 		    int wait_us, int count)
 {
 	struct intel_crtc *crtc = dsb->crtc;
@@ -565,7 +577,7 @@ void intel_dsb_poll(struct intel_dsb *dsb,
 
 	intel_dsb_emit(dsb, val,
 		       (DSB_OPCODE_POLL << DSB_OPCODE_SHIFT) |
-		       i915_mmio_reg_offset(reg));
+		       intel_reg_offset(reg));
 }
 
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
@@ -798,6 +810,12 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 		end = intel_vrr_vmax_vblank_start(crtc_state);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	} else if (pre_commit_use_safe_window(state, crtc)) {
+		int vblank_delay = crtc_state->set_context_latency;
+
+		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
 	} else {
 		int vblank_delay = intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 
@@ -891,7 +909,7 @@ void intel_dsb_wait_for_delayed_vblank(struct intel_atomic_state *state,
 		&crtc_state->hw.adjusted_mode;
 	int wait_scanlines;
 
-	if (pre_commit_is_vrr_active(state, crtc)) {
+	if (pre_commit_use_safe_window(state, crtc)) {
 		/*
 		 * If the push happened before the vmin decision boundary
 		 * we don't know how far we are from the undelayed vblank.
@@ -902,9 +920,17 @@ void intel_dsb_wait_for_delayed_vblank(struct intel_atomic_state *state,
 		 * the hardware itself guarantees that we're SCL lines
 		 * away from the delayed vblank, and we won't be inside
 		 * the vmin safe window so this extra wait does nothing.
+		 *
+		 * Experimentally, DSB may observe a slightly stale
+		 * PIPEDSL value. When the actual scanline has just reached
+		 * safe_window_start, WAIT_DSL_OUT may complete immediately
+		 * due to the stale value.
+		 *
+		 * Shift the start back by one scanline to ensure the wait
+		 * window is entered reliably.
 		 */
 		intel_dsb_wait_scanline_out(state, dsb,
-					    intel_vrr_safe_window_start(crtc_state),
+					    intel_vrr_safe_window_start(crtc_state) - 1,
 					    intel_vrr_vmin_safe_window_end(crtc_state));
 		/*
 		 * When the push is sent during vblank it will trigger

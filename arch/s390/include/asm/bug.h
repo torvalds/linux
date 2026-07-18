@@ -4,6 +4,7 @@
 
 #include <linux/compiler.h>
 #include <linux/const.h>
+#include <linux/stringify.h>
 
 #define	MONCODE_BUG	_AC(0, U)
 #define	MONCODE_BUG_ARG _AC(1, U)
@@ -12,12 +13,11 @@
 #if defined(CONFIG_BUG) && defined(CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS)
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
-#define __BUG_ENTRY_VERBOSE(format, file, line)				\
-	"	.long	" format " - .	# bug_entry::format\n"		\
+#define __BUG_ENTRY_VERBOSE(file, line)					\
 	"	.long	" file " - .	# bug_entry::file\n"		\
 	"	.short	" line "	# bug_entry::line\n"
 #else
-#define __BUG_ENTRY_VERBOSE(format, file, line)
+#define __BUG_ENTRY_VERBOSE(file, line)
 #endif
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE_DETAILED
@@ -28,9 +28,10 @@
 
 #define __BUG_ENTRY(format, file, line, flags, size)			\
 		"	.section __bug_table,\"aw\"\n"			\
-		"1:	.long	0b - .	# bug_entry::bug_addr\n"	\
-		__BUG_ENTRY_VERBOSE(format, file, line)			\
-		"	.short	"flags"	# bug_entry::flags\n"		\
+		"1:	.long	0b - .		# bug_entry::bug_addr\n"\
+		"	.long	" format " - .	# bug_entry::format\n"	\
+		__BUG_ENTRY_VERBOSE(file, line)				\
+		"	.short	"flags"		# bug_entry::flags\n"	\
 		"	.org	1b+"size"\n"				\
 		"	.previous"
 
@@ -120,6 +121,17 @@ do {									\
 #define HAVE_ARCH_BUG
 #define HAVE_ARCH_BUG_FORMAT
 #define HAVE_ARCH_BUG_FORMAT_ARGS
+
+#define ARCH_WARN_ASM(file, line, flags, size)				\
+	".section .rodata.str,\"aMS\",@progbits,1\n"			\
+	"9:\n"								\
+	".asciz \"\"\n"		/* Empty string for compatibility */	\
+	".previous\n"							\
+	"0:\n"								\
+	__stringify(mc 0(%r0),0) "\n"					\
+	__BUG_ENTRY("9b", file, line, flags, size)
+
+#define ARCH_WARN_REACHABLE
 
 #endif /* CONFIG_BUG && CONFIG_CC_HAS_ASM_IMMEDIATE_STRINGS */
 #endif /* __ASSEMBLER__ */

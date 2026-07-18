@@ -44,8 +44,8 @@ static int irps5401_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id irps5401_id[] = {
-	{"irps5401"},
-	{}
+	{ .name = "irps5401" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, irps5401_id);

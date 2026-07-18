@@ -140,17 +140,14 @@ ia_css_eed1_8_vmem_encode(
 	assert(tcinv_x[0] == 0);
 	assert(fcinv_x[0] == 0);
 
-	for (j = 1; j < NUMBER_OF_CHGRINV_POINTS; j++) {
+	for (j = 1; j < NUMBER_OF_CHGRINV_POINTS; j++)
 		assert(chgrinv_x[j] > chgrinv_x[j - 1]);
-	}
 
-	for (j = 1; j < NUMBER_OF_TCINV_POINTS; j++) {
+	for (j = 1; j < NUMBER_OF_TCINV_POINTS; j++)
 		assert(tcinv_x[j] > tcinv_x[j - 1]);
-	}
 
-	for (j = 1; j < NUMBER_OF_FCINV_POINTS; j++) {
+	for (j = 1; j < NUMBER_OF_FCINV_POINTS; j++)
 		assert(fcinv_x[j] > fcinv_x[j - 1]);
-	}
 
 	/* The implementation of the calculating 1/x is based on the availability
 	 * of the OP_vec_shuffle16 operation.
@@ -260,9 +257,9 @@ ia_css_eed1_8_encode(
 	to->margin_neg_diff = (from->neg_margin1 - from->neg_margin0);
 
 	/* Encode DEWEnhance exp (e_dew_enh_asr) */
-	for (i = 0; i < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); i++) {
+	for (i = 0; i < (IA_CSS_NUMBER_OF_DEW_ENHANCE_SEGMENTS - 1); i++)
 		min_exp = max(min_exp, from->dew_enhance_seg_exp[i]);
-	}
+
 	to->e_dew_enh_asr = 13 - clamp(min_exp, 0, 13);
 
 	to->dedgew_max = from->dedgew_max;

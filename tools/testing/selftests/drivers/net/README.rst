@@ -211,8 +211,8 @@ Avoid libraries and frameworks
 
 Test files should be relatively self contained. The libraries should
 only include very core or non-trivial code.
-It may be tempting to "factor out" the common code, but fight that urge.
-Library code increases the barrier of entry, and complexity in general.
+It may be tempting to "factor out" the common code to lib/py/, but fight that
+urge. Library code increases the barrier of entry, and complexity in general.
 
 Avoid mixing test code and boilerplate
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -289,6 +289,12 @@ or::
   @ksft_variants(_gro_variants())
   def test(cfg, mode, protocol):
       pass
+
+Linters
+~~~~~~~
+
+We expect clean ``ruff check`` and ``pylint --disable=R``.
+The code should be clean, avoid disabling pylint warnings explicitly!
 
 Running tests CI-style
 ======================

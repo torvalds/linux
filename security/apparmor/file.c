@@ -157,10 +157,10 @@ static int path_name(const char *op, const struct cred *subj_cred,
 
 	/* don't reaudit files closed during inheritance */
 	if (unlikely(path->dentry == aa_null.dentry))
-		error = -EACCES;
-	else
-		error = aa_path_name(path, flags, buffer, name, &info,
-				     labels_profile(label)->disconnected);
+		return -EACCES;
+
+	error = aa_path_name(path, flags, buffer, name, &info,
+			     labels_profile(label)->disconnected);
 	if (error) {
 		fn_for_each_confined(label, profile,
 			aa_audit_file(subj_cred,
@@ -250,7 +250,7 @@ static int profile_path_perm(const char *op, const struct cred *subj_cred,
 			     struct path_cond *cond, int flags,
 			     struct aa_perms *perms)
 {
-	const char *name;
+	const char *name = NULL;
 	int error;
 
 	if (profile_unconfined(profile))
@@ -328,7 +328,7 @@ static int profile_path_link(const struct cred *subj_cred,
 			     struct path_cond *cond)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
-	const char *lname, *tname = NULL;
+	const char *lname = NULL, *tname = NULL;
 	struct aa_perms lperms = {}, perms;
 	const char *info = NULL;
 	u32 request = AA_MAY_LINK;

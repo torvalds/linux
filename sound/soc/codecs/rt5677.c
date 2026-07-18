@@ -5210,7 +5210,7 @@ static const struct acpi_device_id rt5677_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt5677_acpi_match);
 
 static const struct i2c_device_id rt5677_i2c_id[] = {
-	{ "rt5677", RT5677 },
+	{ .name = "rt5677", .driver_data = RT5677 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5677_i2c_id);

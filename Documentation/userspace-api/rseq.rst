@@ -24,6 +24,97 @@ Quick access to CPU number, node ID
 Allows to implement per CPU data efficiently. Documentation is in code and
 selftests. :(
 
+Optimized RSEQ V2
+-----------------
+
+On architectures which utilize the generic entry code and generic TIF bits
+the kernel supports runtime optimizations for RSEQ, which also enable
+enhanced features like scheduler time slice extensions.
+
+To enable them a task has to register the RSEQ region with at least the
+length advertised by getauxval(AT_RSEQ_FEATURE_SIZE).
+
+If existing binaries register with RSEQ_ORIG_SIZE (32 bytes), the kernel
+keeps the legacy low performance mode enabled to fulfil the expectations
+of existing users regarding the original RSEQ implementation behaviour.
+
+The following table documents the ABI and behavioral guarantees of the
+legacy and the optimized V2 mode.
+
+.. list-table:: RSEQ modes
+   :header-rows: 1
+
+   * - Nr
+     - What
+
+     - Legacy
+     - Optimized V2
+
+   * - 1
+     - The cpu_id_start, cpu_id, node_id and mm_cid fields (User mode read
+       only)
+       .. Legacy
+     - Updated by the kernel unconditionally after each context switch and
+       before signal delivery
+       .. Optimized V2
+     - Updated by the kernel if and only if they change, i.e. if the task
+       is migrated or mm_cid changes
+
+   * - 2
+     - The rseq_cs critical section field
+       .. Legacy
+     - Evaluated and handled unconditionally after each context switch and
+       before signal delivery
+       .. Optimized V2
+     - Evaluated and handled conditionally only when user space was
+       interrupted and was scheduled out or before delivering a signal in
+       the interrupted context.
+
+   * - 3
+     - Read only fields
+       .. Legacy
+     - No strict enforcement except in debug mode
+       .. Optimized V2
+     - Strict enforcement
+
+   * - 4
+     - membarrier(...RSEQ)
+       .. Legacy
+     - All running threads of the process are interrupted and the ID fields
+       are rewritten and eventually active critical sections are aborted
+       before they return to user space.  All threads which are scheduled
+       out whether voluntary or not are covered by #1/#2 above.
+       .. Optimized V2
+     - All running threads of the process are interrupted and eventually
+       active critical sections are aborted before these threads return to
+       user space. The ID fields are only updated if changed as a
+       consequence of the interrupt. All threads which are scheduled out
+       whether voluntary or not are covered by #1/#2 above.
+
+   * - 5
+     - Time slice extensions
+       .. Legacy
+     - Not supported
+       .. Optimized V2
+     - Supported
+
+The legacy mode is obviously less performant as it does unconditional
+updates and critical section checks even if not strictly required by the
+ABI contract. That can't be changed anymore as some users depend on that
+observed behavior, which in turn enables them to violate the ABI and
+overwrite the cpu_id_start field for their own purposes. This is obviously
+discouraged as it renders RSEQ incompatible with the intended usage and
+breaks the expectation of other libraries in the same application.
+
+The ABI compliant optimized v2 mode, which respects the read only fields,
+does not require unconditional updates and therefore is way more
+performant. The kernel validates the read only fields for compliance. If
+user space modifies them, the process is killed. Compliant usage allows
+multiple libraries in the same application to benefit from the RSEQ
+functionality without disturbing each other. The ABI compliant optimized v2
+mode also enables extended RSEQ features like time slice extensions.
+
+
 Scheduler time slice extensions
 -------------------------------
 
@@ -37,7 +128,8 @@ The prerequisites for this functionality are:
 
     * Enabled at boot time (default is enabled)
 
-    * A rseq userspace pointer has been registered for the thread
+    * A rseq userspace pointer has been registered for the thread in
+      optimized V2 mode
 
 The thread has to enable the functionality via prctl(2)::
 

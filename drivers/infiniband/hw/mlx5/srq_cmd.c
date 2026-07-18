@@ -683,7 +683,14 @@ int mlx5_cmd_destroy_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq)
 		xa_cmpxchg_irq(&table->array, srq->srqn, XA_ZERO_ENTRY, srq, 0);
 		return err;
 	}
-	xa_erase_irq(&table->array, srq->srqn);
+
+	/*
+	 * A race can occur where a concurrent create gets the same srqn
+	 * (after hardware released it) and overwrites XA_ZERO_ENTRY with
+	 * its new SRQ before we reach here. In that case, we must not erase
+	 * the entry as it now belongs to the new SRQ.
+	 */
+	xa_cmpxchg_irq(&table->array, srq->srqn, XA_ZERO_ENTRY, NULL, 0);
 
 	mlx5_core_res_put(&srq->common);
 	wait_for_completion(&srq->common.free);

@@ -230,9 +230,8 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	if (MREF_ERR(mref) == -ENOENT) {
 		ntfs_debug("Entry was not found, adding negative dentry.");
 		/* The dcache will handle negative entries. */
-		d_add(dent, NULL);
 		ntfs_debug("Done.");
-		return NULL;
+		return d_splice_alias(NULL, dent);
 	}
 	ntfs_error(vol->sb, "ntfs_lookup_ino_by_name() failed with error code %i.",
 			-MREF_ERR(mref));
@@ -344,9 +343,9 @@ static int ntfs_sd_add_everyone(struct ntfs_inode *ni)
 	sd_len = sizeof(struct security_descriptor_relative) + 2 *
 		(sizeof(struct ntfs_sid) + 8) + sizeof(struct ntfs_acl) +
 		sizeof(struct ntfs_ace) + 4;
-	sd = kmalloc(sd_len, GFP_NOFS);
+	sd = kzalloc(sd_len, GFP_NOFS);
 	if (!sd)
-		return -1;
+		return -ENOMEM;
 
 	sd->revision = 1;
 	sd->control = SE_DACL_PRESENT | SE_SELF_RELATIVE;
@@ -394,7 +393,7 @@ static int ntfs_sd_add_everyone(struct ntfs_inode *ni)
 
 static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *dir,
 		__le16 *name, u8 name_len, mode_t mode, dev_t dev,
-		__le16 *target, int target_len)
+		const char *target, int target_len)
 {
 	struct ntfs_inode *dir_ni = NTFS_I(dir);
 	struct ntfs_volume *vol = dir_ni->vol;
@@ -608,7 +607,10 @@ static struct ntfs_inode *__ntfs_create(struct mnt_idmap *idmap, struct inode *d
 			goto err_out;
 
 		if (S_ISLNK(mode)) {
-			err = ntfs_reparse_set_wsl_symlink(ni, target, target_len);
+			if (NVolSymlinkNative(vol))
+				err = ntfs_reparse_set_native_symlink(ni, target, target_len);
+			else
+				err = ntfs_reparse_set_wsl_symlink(ni, target, target_len);
 			if (!err)
 				rollback_reparse = true;
 		} else if (S_ISBLK(mode) || S_ISCHR(mode) || S_ISSOCK(mode) ||
@@ -945,7 +947,8 @@ search:
 
 	ni_mrec = actx->base_mrec ? actx->base_mrec : actx->mrec;
 	ni_mrec->link_count = cpu_to_le16(le16_to_cpu(ni_mrec->link_count) - 1);
-	drop_nlink(VFS_I(ni));
+	if (!S_ISDIR(VFS_I(ni)->i_mode))
+		drop_nlink(VFS_I(ni));
 
 	mark_mft_record_dirty(ni);
 	if (looking_for_dos_name) {
@@ -954,6 +957,13 @@ search:
 		ntfs_attr_reinit_search_ctx(actx);
 		goto search;
 	}
+
+	/*
+	 * For directories, Drop VFS nlink only when mft record link count
+	 * becomes zero. Because we fixes VFS nlink to 1 for directories.
+	 */
+	if (S_ISDIR(VFS_I(ni)->i_mode) && !le16_to_cpu(ni_mrec->link_count))
+		drop_nlink(VFS_I(ni));
 
 	/*
 	 * If hard link count is not equal to zero then we are done. In other
@@ -1221,7 +1231,8 @@ static int __ntfs_link(struct ntfs_inode *ni, struct ntfs_inode *dir_ni,
 	}
 	/* Increment hard links count. */
 	ni_mrec->link_count = cpu_to_le16(le16_to_cpu(ni_mrec->link_count) + 1);
-	inc_nlink(VFS_I(ni));
+	if (!S_ISDIR(vi->i_mode))
+		inc_nlink(VFS_I(ni));
 
 	/* Done! */
 	mark_mft_record_dirty(ni);
@@ -1400,9 +1411,7 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	int err = 0;
 	struct ntfs_inode *ni;
 	__le16 *usrc;
-	__le16 *utarget;
 	int usrc_len;
-	int utarget_len;
 	int symlen = strlen(symname);
 
 	if (NVolShutdown(vol))
@@ -1423,23 +1432,12 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		goto out;
 	}
 
-	utarget_len = ntfs_nlstoucs(vol, symname, symlen, &utarget,
-				    PATH_MAX);
-	if (utarget_len < 0) {
-		if (utarget_len != -ENAMETOOLONG)
-			ntfs_error(sb, "Failed to convert target name to Unicode.");
-		err =  -ENOMEM;
-		kmem_cache_free(ntfs_name_cache, usrc);
-		goto out;
-	}
-
 	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
 		ntfs_set_volume_flags(vol, VOLUME_IS_DIRTY);
 
 	ni = __ntfs_create(idmap, dir, usrc, usrc_len, S_IFLNK | 0777, 0,
-			utarget, utarget_len);
+			   symname, symlen);
 	kmem_cache_free(ntfs_name_cache, usrc);
-	kvfree(utarget);
 	if (IS_ERR(ni)) {
 		err = PTR_ERR(ni);
 		goto out;
@@ -1523,8 +1521,7 @@ static int ntfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (uname_len < 0) {
 		if (uname_len != -ENAMETOOLONG)
 			ntfs_error(sb, "Failed to convert name to unicode.");
-		err = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	if (!(vol->vol_flags & VOLUME_IS_DIRTY))
@@ -1554,7 +1551,7 @@ static int ntfs_link(struct dentry *old_dentry, struct inode *dir,
 	mutex_unlock(&ni->mrec_lock);
 
 out:
-	kfree(uname);
+	kmem_cache_free(ntfs_name_cache, uname);
 	return err;
 }
 

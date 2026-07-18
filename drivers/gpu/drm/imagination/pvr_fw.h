@@ -295,8 +295,11 @@ struct pvr_fw_device {
 	/** @mem: Structure containing objects representing firmware memory allocations. */
 	struct pvr_fw_mem mem;
 
-	/** @booted: %true if the firmware has been booted, %false otherwise. */
-	bool booted;
+	/**
+	 * @initialised: %true if the firmware has been successfully initialised,
+	 *               %false otherwise.
+	 */
+	bool initialised;
 
 	/**
 	 * @processor_type: FW processor type for this device. Must be one of

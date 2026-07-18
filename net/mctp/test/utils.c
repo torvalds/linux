@@ -116,7 +116,7 @@ void mctp_test_destroy_dev(struct mctp_test_dev *dev)
 static int mctp_test_dst_output(struct mctp_dst *dst, struct sk_buff *skb)
 {
 	skb->dev = dst->dev->dev;
-	dev_queue_xmit(skb);
+	dev_direct_xmit(skb, 0);
 
 	return 0;
 }

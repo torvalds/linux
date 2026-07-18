@@ -237,6 +237,9 @@ Both ``kcov_remote_start`` and ``kcov_remote_stop`` annotations and the
 collection sections. The way a handle is used depends on the context where the
 matching code section executes.
 
+A thread can use two separate KCOV instances to collect remote coverage and
+normal coverage at the same time.
+
 KCOV supports collecting remote coverage from the following contexts:
 
 1. Global kernel background tasks. These are the tasks that are spawned during
@@ -262,6 +265,9 @@ gets saved to the ``kcov_handle`` field in the current ``task_struct`` and
 needs to be passed to the newly spawned local tasks via custom kernel code
 modifications. Those tasks should in turn use the passed handle in their
 ``kcov_remote_start`` and ``kcov_remote_stop`` annotations.
+In the kernel, common handles are wrapped in a ``kcov_common_handle_id``, which
+consumes no space in builds without ``CONFIG_KCOV``; subsystems that integrate
+with this mechanism should not need to use any ``#ifdef CONFIG_KCOV`` or such.
 
 KCOV follows a predefined format for both global and common handles. Each
 handle is a ``u64`` integer. Currently, only the one top and the lower 4 bytes

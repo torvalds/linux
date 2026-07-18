@@ -544,13 +544,6 @@ int ibopen(struct inode *inode, struct file *filep)
 	priv = filep->private_data;
 	init_gpib_file_private((struct gpib_file_private *)filep->private_data);
 
-	if (board->use_count == 0) {
-		int retval;
-
-		retval = request_module("gpib%i", minor);
-		if (retval)
-			dev_dbg(board->gpib_dev, "request module returned %i\n", retval);
-	}
 	if (board->interface) {
 		if (!try_module_get(board->provider_module)) {
 			dev_err(board->gpib_dev, "try_module_get() failed\n");
@@ -613,7 +606,7 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	unsigned int minor = iminor(file_inode(filep));
 	struct gpib_board *board;
 	struct gpib_file_private *file_priv = filep->private_data;
-	long retval = -ENOTTY;
+	long retval = -EBADRQC;
 
 	if (minor >= GPIB_MAX_NUM_BOARDS) {
 		pr_err("gpib: invalid minor number of device file\n");
@@ -806,7 +799,6 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&board->big_gpib_mutex);
 		return write_ioctl(file_priv, board, arg);
 	default:
-		retval = -ENOTTY;
 		goto done;
 	}
 
@@ -1018,7 +1010,6 @@ static int command_ioctl(struct gpib_file_private *file_priv,
 		userbuf += bytes_written;
 		if (retval < 0) {
 			atomic_set(&desc->io_in_progress, 0);
-			atomic_dec(&desc->descriptor_busy);
 
 			wake_up_interruptible(&board->wait);
 			break;

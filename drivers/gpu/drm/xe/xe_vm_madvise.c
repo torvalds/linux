@@ -186,147 +186,6 @@ static void madvise_pat_index(struct xe_device *xe, struct xe_vm *vm,
 }
 
 /**
- * xe_bo_is_dmabuf_shared() - Check if BO is shared via dma-buf
- * @bo: Buffer object
- *
- * Prevent marking imported or exported dma-bufs as purgeable.
- * For imported BOs, Xe doesn't own the backing store and cannot
- * safely reclaim pages (exporter or other devices may still be
- * using them). For exported BOs, external devices may have active
- * mappings we cannot track.
- *
- * Return: true if BO is imported or exported, false otherwise
- */
-static bool xe_bo_is_dmabuf_shared(struct xe_bo *bo)
-{
-	struct drm_gem_object *obj = &bo->ttm.base;
-
-	/* Imported: exporter owns backing store */
-	if (drm_gem_is_imported(obj))
-		return true;
-
-	/* Exported: external devices may be accessing */
-	if (obj->dma_buf)
-		return true;
-
-	return false;
-}
-
-/**
- * enum xe_bo_vmas_purge_state - VMA purgeable state aggregation
- *
- * Distinguishes whether a BO's VMAs are all DONTNEED, have at least
- * one WILLNEED, or have no VMAs at all.
- *
- * Enum values align with XE_MADV_PURGEABLE_* states for consistency.
- */
-enum xe_bo_vmas_purge_state {
-	/** @XE_BO_VMAS_STATE_WILLNEED: At least one VMA is WILLNEED */
-	XE_BO_VMAS_STATE_WILLNEED = 0,
-	/** @XE_BO_VMAS_STATE_DONTNEED: All VMAs are DONTNEED */
-	XE_BO_VMAS_STATE_DONTNEED = 1,
-	/** @XE_BO_VMAS_STATE_NO_VMAS: BO has no VMAs */
-	XE_BO_VMAS_STATE_NO_VMAS = 2,
-};
-
-/*
- * xe_bo_recompute_purgeable_state() casts between xe_bo_vmas_purge_state and
- * xe_madv_purgeable_state. Enforce that WILLNEED=0 and DONTNEED=1 match across
- * both enums so the single-line cast is always valid.
- */
-static_assert(XE_BO_VMAS_STATE_WILLNEED == (int)XE_MADV_PURGEABLE_WILLNEED,
-	      "VMA purge state WILLNEED must equal madv purgeable WILLNEED");
-static_assert(XE_BO_VMAS_STATE_DONTNEED == (int)XE_MADV_PURGEABLE_DONTNEED,
-	      "VMA purge state DONTNEED must equal madv purgeable DONTNEED");
-
-/**
- * xe_bo_all_vmas_dontneed() - Determine BO VMA purgeable state
- * @bo: Buffer object
- *
- * Check all VMAs across all VMs to determine aggregate purgeable state.
- * Shared BOs require unanimous DONTNEED state from all mappings.
- *
- * Caller must hold BO dma-resv lock.
- *
- * Return: XE_BO_VMAS_STATE_DONTNEED if all VMAs are DONTNEED,
- *         XE_BO_VMAS_STATE_WILLNEED if at least one VMA is not DONTNEED,
- *         XE_BO_VMAS_STATE_NO_VMAS if BO has no VMAs
- */
-static enum xe_bo_vmas_purge_state xe_bo_all_vmas_dontneed(struct xe_bo *bo)
-{
-	struct drm_gpuvm_bo *vm_bo;
-	struct drm_gpuva *gpuva;
-	struct drm_gem_object *obj = &bo->ttm.base;
-	bool has_vmas = false;
-
-	xe_bo_assert_held(bo);
-
-	/* Shared dma-bufs cannot be purgeable */
-	if (xe_bo_is_dmabuf_shared(bo))
-		return XE_BO_VMAS_STATE_WILLNEED;
-
-	drm_gem_for_each_gpuvm_bo(vm_bo, obj) {
-		drm_gpuvm_bo_for_each_va(gpuva, vm_bo) {
-			struct xe_vma *vma = gpuva_to_vma(gpuva);
-
-			has_vmas = true;
-
-			/* Any non-DONTNEED VMA prevents purging */
-			if (vma->attr.purgeable_state != XE_MADV_PURGEABLE_DONTNEED)
-				return XE_BO_VMAS_STATE_WILLNEED;
-		}
-	}
-
-	/*
-	 * No VMAs => preserve existing BO purgeable state.
-	 * Avoids incorrectly flipping DONTNEED -> WILLNEED when last VMA unmapped.
-	 */
-	if (!has_vmas)
-		return XE_BO_VMAS_STATE_NO_VMAS;
-
-	return XE_BO_VMAS_STATE_DONTNEED;
-}
-
-/**
- * xe_bo_recompute_purgeable_state() - Recompute BO purgeable state from VMAs
- * @bo: Buffer object
- *
- * Walk all VMAs to determine if BO should be purgeable or not.
- * Shared BOs require unanimous DONTNEED state from all mappings.
- * If the BO has no VMAs the existing state is preserved.
- *
- * Locking: Caller must hold BO dma-resv lock. When iterating GPUVM lists,
- * VM lock must also be held (write) to prevent concurrent VMA modifications.
- * This is satisfied at both call sites:
- * - xe_vma_destroy(): holds vm->lock write
- * - madvise_purgeable(): holds vm->lock write (from madvise ioctl path)
- *
- * Return: nothing
- */
-void xe_bo_recompute_purgeable_state(struct xe_bo *bo)
-{
-	enum xe_bo_vmas_purge_state vma_state;
-
-	if (!bo)
-		return;
-
-	xe_bo_assert_held(bo);
-
-	/*
-	 * Once purged, always purged. Cannot transition back to WILLNEED.
-	 * This matches i915 semantics where purged BOs are permanently invalid.
-	 */
-	if (bo->madv_purgeable == XE_MADV_PURGEABLE_PURGED)
-		return;
-
-	vma_state = xe_bo_all_vmas_dontneed(bo);
-
-	if (vma_state != (enum xe_bo_vmas_purge_state)bo->madv_purgeable &&
-	    vma_state != XE_BO_VMAS_STATE_NO_VMAS)
-		xe_bo_set_purgeable_state(bo, (enum xe_madv_purgeable_state)vma_state);
-}
-
-/**
  * madvise_purgeable - Handle purgeable buffer object advice
  * @xe: XE device
  * @vm: VM
@@ -359,12 +218,6 @@ static void madvise_purgeable(struct xe_device *xe, struct xe_vm *vm,
 		/* BO must be locked before modifying madv state */
 		xe_bo_assert_held(bo);
 
-		/* Skip shared dma-bufs - no PTEs to zap */
-		if (xe_bo_is_dmabuf_shared(bo)) {
-			vmas[i]->skip_invalidation = true;
-			continue;
-		}
-
 		/*
 		 * Once purged, always purged. Cannot transition back to WILLNEED.
 		 * This matches i915 semantics where purged BOs are permanently invalid.
@@ -377,13 +230,14 @@ static void madvise_purgeable(struct xe_device *xe, struct xe_vm *vm,
 
 		switch (op->purge_state_val.val) {
 		case DRM_XE_VMA_PURGEABLE_STATE_WILLNEED:
-			vmas[i]->attr.purgeable_state = XE_MADV_PURGEABLE_WILLNEED;
 			vmas[i]->skip_invalidation = true;
-
-			xe_bo_recompute_purgeable_state(bo);
+			/* Only act on a real DONTNEED -> WILLNEED transition. */
+			if (vmas[i]->attr.purgeable_state == XE_MADV_PURGEABLE_DONTNEED) {
+				vmas[i]->attr.purgeable_state = XE_MADV_PURGEABLE_WILLNEED;
+				xe_bo_willneed_get_locked(bo);
+			}
 			break;
 		case DRM_XE_VMA_PURGEABLE_STATE_DONTNEED:
-			vmas[i]->attr.purgeable_state = XE_MADV_PURGEABLE_DONTNEED;
 			/*
 			 * Don't zap PTEs at DONTNEED time -- pages are still
 			 * alive. The zap happens in xe_bo_move_notify() right
@@ -391,7 +245,11 @@ static void madvise_purgeable(struct xe_device *xe, struct xe_vm *vm,
 			 */
 			vmas[i]->skip_invalidation = true;
 
-			xe_bo_recompute_purgeable_state(bo);
+			/* Only act on a real WILLNEED -> DONTNEED transition. */
+			if (vmas[i]->attr.purgeable_state == XE_MADV_PURGEABLE_WILLNEED) {
+				vmas[i]->attr.purgeable_state = XE_MADV_PURGEABLE_DONTNEED;
+				xe_bo_willneed_put_locked(bo);
+			}
 			break;
 		default:
 			/* Should never hit - values validated in madvise_args_are_sane() */
@@ -472,6 +330,20 @@ static int xe_vm_invalidate_madvise_range(struct xe_vm *vm, u64 start, u64 end)
 		xe_tlb_inval_batch_wait(&batch);
 
 	return err;
+}
+
+/**
+ * madvise_range_needs_invalidation() - Check whether madvise needs invalidation
+ * @args: madvise ioctl arguments
+ *
+ * Purgeable state updates only touch VMA/BO metadata. PTEs stay valid and are
+ * zapped only if the BO is later purged.
+ *
+ * Return: true when the update needs PTE invalidation.
+ */
+static bool madvise_range_needs_invalidation(const struct drm_xe_madvise *args)
+{
+	return args->type != DRM_XE_VMA_ATTR_PURGEABLE_STATE;
 }
 
 static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madvise *args)
@@ -621,6 +493,45 @@ static int xe_madvise_purgeable_retained_to_user(const struct xe_madvise_details
 	return 0;
 }
 
+static bool check_pat_args_are_sane(struct xe_device *xe,
+				    struct xe_vmas_in_madvise_range *madvise_range,
+				    u16 pat_index)
+{
+	u16 coh_mode = xe_pat_index_get_coh_mode(xe, pat_index);
+	int i;
+
+	/*
+	 * Using coh_none with CPU cached buffers is not allowed on iGPU.
+	 * On iGPU the GPU shares the LLC with the CPU, so with coh_none
+	 * the GPU bypasses CPU caches and reads directly from DRAM,
+	 * potentially seeing stale sensitive data from previously freed
+	 * pages. On dGPU this restriction does not apply, because the
+	 * platform does not provide a non-coherent system memory access
+	 * path that would violate the DMA coherency contract.
+	 */
+	if (coh_mode != XE_COH_NONE || IS_DGFX(xe))
+		return true;
+
+	for (i = 0; i < madvise_range->num_vmas; i++) {
+		struct xe_vma *vma = madvise_range->vmas[i];
+		struct xe_bo *bo = xe_vma_bo(vma);
+
+		if (bo) {
+			/* BO with WB caching + COH_NONE is not allowed */
+			if (XE_IOCTL_DBG(xe, bo->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB))
+				return false;
+			/* Imported dma-buf without caching info, assume cached */
+			if (XE_IOCTL_DBG(xe, !bo->cpu_caching))
+				return false;
+		} else if (XE_IOCTL_DBG(xe, xe_vma_is_cpu_addr_mirror(vma) ||
+					    xe_vma_is_userptr(vma)))
+			/* System memory (userptr/SVM) is always CPU cached */
+			return false;
+	}
+
+	return true;
+}
+
 static bool check_bo_args_are_sane(struct xe_vm *vm, struct xe_vma **vmas,
 				   int num_vmas, u32 atomic_val)
 {
@@ -750,6 +661,14 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 		}
 	}
 
+	if (args->type == DRM_XE_MEM_RANGE_ATTR_PAT) {
+		if (!check_pat_args_are_sane(xe, &madvise_range,
+					     args->pat_index.val)) {
+			err = -EINVAL;
+			goto free_vmas;
+		}
+	}
+
 	if (madvise_range.has_bo_vmas) {
 		if (args->type == DRM_XE_MEM_RANGE_ATTR_ATOMIC) {
 			if (!check_bo_args_are_sane(vm, madvise_range.vmas,
@@ -803,8 +722,9 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	madvise_funcs[attr_type](xe, vm, madvise_range.vmas, madvise_range.num_vmas, args,
 				 &details);
 
-	err = xe_vm_invalidate_madvise_range(vm, madvise_range.addr,
-					     madvise_range.addr + args->range);
+	if (madvise_range_needs_invalidation(args))
+		err = xe_vm_invalidate_madvise_range(vm, madvise_range.addr,
+						     madvise_range.addr + args->range);
 
 	if (madvise_range.has_svm_userptr_vmas)
 		xe_svm_notifier_unlock(vm);

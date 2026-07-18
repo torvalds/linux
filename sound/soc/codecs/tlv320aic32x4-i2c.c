@@ -38,9 +38,9 @@ static void aic32x4_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id aic32x4_i2c_id[] = {
-	{ "tlv320aic32x4", (kernel_ulong_t)AIC32X4_TYPE_AIC32X4 },
-	{ "tlv320aic32x6", (kernel_ulong_t)AIC32X4_TYPE_AIC32X6 },
-	{ "tas2505", (kernel_ulong_t)AIC32X4_TYPE_TAS2505 },
+	{ .name = "tlv320aic32x4", .driver_data = (kernel_ulong_t)AIC32X4_TYPE_AIC32X4 },
+	{ .name = "tlv320aic32x6", .driver_data = (kernel_ulong_t)AIC32X4_TYPE_AIC32X6 },
+	{ .name = "tas2505", .driver_data = (kernel_ulong_t)AIC32X4_TYPE_TAS2505 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, aic32x4_i2c_id);

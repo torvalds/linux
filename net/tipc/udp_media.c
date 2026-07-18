@@ -40,6 +40,7 @@
 #include <linux/igmp.h>
 #include <linux/kernel.h>
 #include <linux/workqueue.h>
+#include <linux/wait_bit.h>
 #include <linux/list.h>
 #include <net/sock.h>
 #include <net/ip.h>
@@ -89,14 +90,14 @@ struct udp_replicast {
 /**
  * struct udp_bearer - ip/udp bearer data structure
  * @bearer:	associated generic tipc bearer
- * @ubsock:	bearer associated socket
+ * @sk:		bearer associated socket
  * @ifindex:	local address scope
  * @work:	used to schedule deferred work on a bearer
  * @rcast:	associated udp_replicast container
  */
 struct udp_bearer {
 	struct tipc_bearer __rcu *bearer;
-	struct socket *ubsock;
+	struct sock *sk;
 	u32 ifindex;
 	struct work_struct work;
 	struct udp_replicast rcast;
@@ -194,7 +195,7 @@ static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
 		}
 
 		ttl = ip4_dst_hoplimit(&rt->dst);
-		udp_tunnel_xmit_skb(rt, ub->ubsock->sk, skb, src->ipv4.s_addr,
+		udp_tunnel_xmit_skb(rt, ub->sk, skb, src->ipv4.s_addr,
 				    dst->ipv4.s_addr, 0, ttl, 0, src->port,
 				    dst->port, false, true, 0);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -206,7 +207,7 @@ static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
 				.saddr = src->ipv6,
 				.flowi6_proto = IPPROTO_UDP
 			};
-			ndst = ip6_dst_lookup_flow(net, ub->ubsock->sk,
+			ndst = ip6_dst_lookup_flow(net, ub->sk,
 						   &fl6, NULL);
 			if (IS_ERR(ndst)) {
 				err = PTR_ERR(ndst);
@@ -215,7 +216,7 @@ static int tipc_udp_xmit(struct net *net, struct sk_buff *skb,
 			dst_cache_set_ip6(cache, ndst, &fl6.saddr);
 		}
 		ttl = ip6_dst_hoplimit(ndst);
-		udp_tunnel6_xmit_skb(ndst, ub->ubsock->sk, skb, NULL,
+		udp_tunnel6_xmit_skb(ndst, ub->sk, skb, NULL,
 				     &src->ipv6, &dst->ipv6, 0, ttl, 0,
 				     src->port, dst->port, false, 0);
 #endif
@@ -405,9 +406,9 @@ out:
 
 static int enable_mcast(struct udp_bearer *ub, struct udp_media_addr *remote)
 {
-	int err = 0;
+	struct sock *sk = ub->sk;
 	struct ip_mreqn mreqn;
-	struct sock *sk = ub->ubsock->sk;
+	int err = 0;
 
 	if (ntohs(remote->proto) == ETH_P_IP) {
 		mreqn.imr_multiaddr = remote->ipv4;
@@ -670,6 +671,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
 	u8 node_id[NODE_ID_LEN] = {0,};
 	struct net_device *dev;
+	struct socket *sock;
 	int rmcast = 0;
 
 	ub = kzalloc_obj(*ub, GFP_ATOMIC);
@@ -764,14 +766,16 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 		goto err;
 	}
 	udp_conf.local_udp_port = local.port;
-	err = udp_sock_create(net, &udp_conf, &ub->ubsock);
+	err = udp_sock_create(net, &udp_conf, &sock);
 	if (err)
 		goto err;
+
+	ub->sk = sock->sk;
 	tuncfg.sk_user_data = ub;
 	tuncfg.encap_type = 1;
 	tuncfg.encap_rcv = tipc_udp_recv;
 	tuncfg.encap_destroy = NULL;
-	setup_udp_tunnel_sock(net, ub->ubsock, &tuncfg);
+	setup_udp_tunnel_sock(net, ub->sk, &tuncfg);
 
 	err = dst_cache_init(&ub->rcast.dst_cache, GFP_ATOMIC);
 	if (err)
@@ -793,10 +797,19 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 
 free:
 	dst_cache_destroy(&ub->rcast.dst_cache);
-	udp_tunnel_sock_release(ub->ubsock);
+	udp_tunnel_sock_release(ub->sk);
+	synchronize_rcu();
 err:
 	kfree(ub);
 	return err;
+}
+
+static void rcast_free_rcu(struct rcu_head *rcu)
+{
+	struct udp_replicast *rcast = container_of(rcu, struct udp_replicast, rcu);
+
+	dst_cache_destroy(&rcast->dst_cache);
+	kfree(rcast);
 }
 
 /* cleanup_bearer - break the socket/bearer association */
@@ -807,19 +820,19 @@ static void cleanup_bearer(struct work_struct *work)
 	struct tipc_net *tn;
 
 	list_for_each_entry_safe(rcast, tmp, &ub->rcast.list, list) {
-		dst_cache_destroy(&rcast->dst_cache);
 		list_del_rcu(&rcast->list);
-		kfree_rcu(rcast, rcu);
+		call_rcu_hurry(&rcast->rcu, rcast_free_rcu);
 	}
 
-	tn = tipc_net(sock_net(ub->ubsock->sk));
+	tn = tipc_net(sock_net(ub->sk));
+
+	udp_tunnel_sock_release(ub->sk);
+
+	synchronize_net();
 
 	dst_cache_destroy(&ub->rcast.dst_cache);
-	udp_tunnel_sock_release(ub->ubsock);
-
-	/* Note: could use a call_rcu() to avoid another synchronize_net() */
-	synchronize_net();
-	atomic_dec(&tn->wq_count);
+	if (atomic_dec_and_test(&tn->wq_count))
+		wake_up_var(&tn->wq_count);
 	kfree(ub);
 }
 
@@ -833,11 +846,11 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 		pr_err("UDP bearer instance not found\n");
 		return;
 	}
-	sock_set_flag(ub->ubsock->sk, SOCK_DEAD);
+	sock_set_flag(ub->sk, SOCK_DEAD);
 	RCU_INIT_POINTER(ub->bearer, NULL);
 
 	/* sock_release need to be done outside of rtnl lock */
-	atomic_inc(&tipc_net(sock_net(ub->ubsock->sk))->wq_count);
+	atomic_inc(&tipc_net(sock_net(ub->sk))->wq_count);
 	INIT_WORK(&ub->work, cleanup_bearer);
 	schedule_work(&ub->work);
 }

@@ -73,6 +73,7 @@ static const struct rtw89_driver_info rtw89_8851be_info = {
 	.chip = &rtw8851b_chip_info,
 	.variant = NULL,
 	.quirks = NULL,
+	.dev_id_quirks = 0,
 	.bus = {
 		.pci = &rtw8851b_pci_info,
 	},

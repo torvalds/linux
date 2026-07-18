@@ -22,6 +22,7 @@
 #include <linux/string.h>
 #include <linux/sys_soc.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 
 #include "dss.h"
@@ -482,7 +483,8 @@ static void dpi_bridge_mode_set(struct drm_bridge *bridge,
 	dpi->pixelclock = adjusted_mode->clock * 1000;
 }
 
-static void dpi_bridge_enable(struct drm_bridge *bridge)
+static void dpi_bridge_enable(struct drm_bridge *bridge,
+			      struct drm_atomic_commit *commit)
 {
 	struct dpi_data *dpi = drm_bridge_to_dpi(bridge);
 	int r;
@@ -533,7 +535,8 @@ err_get_dispc:
 		regulator_disable(dpi->vdds_dsi_reg);
 }
 
-static void dpi_bridge_disable(struct drm_bridge *bridge)
+static void dpi_bridge_disable(struct drm_bridge *bridge,
+			       struct drm_atomic_commit *commit)
 {
 	struct dpi_data *dpi = drm_bridge_to_dpi(bridge);
 
@@ -552,12 +555,15 @@ static void dpi_bridge_disable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs dpi_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = dpi_bridge_attach,
 	.mode_valid = dpi_bridge_mode_valid,
 	.mode_fixup = dpi_bridge_mode_fixup,
 	.mode_set = dpi_bridge_mode_set,
-	.enable = dpi_bridge_enable,
-	.disable = dpi_bridge_disable,
+	.atomic_enable = dpi_bridge_enable,
+	.atomic_disable = dpi_bridge_disable,
 };
 
 static void dpi_bridge_init(struct dpi_data *dpi)

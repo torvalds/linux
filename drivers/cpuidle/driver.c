@@ -195,14 +195,6 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 			s->exit_latency_ns =  0;
 		else
 			s->exit_latency = div_u64(s->exit_latency_ns, NSEC_PER_USEC);
-
-		/*
-		 * Warn if the exit latency of a CPU idle state exceeds its
-		 * target residency which is assumed to never happen in cpuidle
-		 * in multiple places.
-		 */
-		if (s->exit_latency_ns > s->target_residency_ns)
-			pr_warn("Idle state %d target residency too low\n", i);
 	}
 }
 

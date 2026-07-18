@@ -22,6 +22,16 @@
 /*----------------------------------------------------------------*/
 
 /*
+ * Maximum number of concurrent background work items (promotions,
+ * demotions, writebacks) that can be queued in the background tracker.
+ * Tuneable via the module parameter smq_max_background_work.
+ * Only affects newly created cache devices.
+ */
+static unsigned int smq_max_background_work = 4096;
+module_param(smq_max_background_work, uint, 0644);
+MODULE_PARM_DESC(smq_max_background_work, "Max concurrent background work items");
+
+/*
  * Safe division functions that return zero on divide by zero.
  */
 static unsigned int safe_div(unsigned int n, unsigned int d)
@@ -1590,18 +1600,22 @@ static int smq_invalidate_mapping(struct dm_cache_policy *p, dm_cblock_t cblock)
 	struct smq_policy *mq = to_smq_policy(p);
 	struct entry *e = get_entry(&mq->cache_alloc, from_cblock(cblock));
 	unsigned long flags;
-
-	if (!e->allocated)
-		return -ENODATA;
+	int r = 0;
 
 	spin_lock_irqsave(&mq->lock, flags);
+	if (!e->allocated) {
+		r = -ENODATA;
+		goto out;
+	}
 	// FIXME: what if this block has pending background work?
 	del_queue(mq, e);
 	h_remove(&mq->table, e);
 	free_entry(&mq->cache_alloc, e);
+
+out:
 	spin_unlock_irqrestore(&mq->lock, flags);
 
-	return 0;
+	return r;
 }
 
 static uint32_t smq_get_hint(struct dm_cache_policy *p, dm_cblock_t cblock)
@@ -1816,7 +1830,7 @@ __smq_create(dm_cblock_t cache_size, sector_t origin_size, sector_t cache_block_
 	mq->next_hotspot_period = jiffies;
 	mq->next_cache_period = jiffies;
 
-	mq->bg_work = btracker_create(4096); /* FIXME: hard coded value */
+	mq->bg_work = btracker_create(max(1u, smq_max_background_work));
 	if (!mq->bg_work)
 		goto bad_btracker;
 

@@ -3094,8 +3094,12 @@ static void vc_con_rewind(struct vc_data *vc)
 static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 {
 	u32 prev_c, curr_c = *c;
+	unsigned int w = ucs_get_width(curr_c);
 
-	if (ucs_is_double_width(curr_c)) {
+	if (likely(w == 1))
+		return 1;
+
+	if (w == 2) {
 		/*
 		 * The Unicode screen memory is allocated only when
 		 * required. This is one such case as we need to remember
@@ -3105,12 +3109,9 @@ static int vc_process_ucs(struct vc_data *vc, int *c, int *tc)
 		return 2;
 	}
 
-	if (!ucs_is_zero_width(curr_c))
-		return 1;
-
 	/* From here curr_c is known to be zero-width. */
 
-	if (ucs_is_double_width(vc_uniscr_getc(vc, -2))) {
+	if (ucs_get_width(vc_uniscr_getc(vc, -2)) == 2) {
 		/*
 		 * Let's merge this zero-width code point with the preceding
 		 * double-width code point by replacing the existing
@@ -3978,9 +3979,6 @@ int __init vty_init(const struct file_operations *console_fops)
 		panic("Couldn't register console driver\n");
 	kbd_init();
 	console_map_init();
-#ifdef CONFIG_MDA_CONSOLE
-	mda_console_init();
-#endif
 	return 0;
 }
 

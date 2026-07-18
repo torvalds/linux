@@ -2240,18 +2240,14 @@ static int s2255_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 	dev_dbg(&interface->dev, "num EP: %d\n",
 		iface_desc->desc.bNumEndpoints);
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (!dev->read_endpoint && usb_endpoint_is_bulk_in(endpoint)) {
-			/* we found the bulk in endpoint */
-			dev->read_endpoint = endpoint->bEndpointAddress;
-		}
-	}
 
-	if (!dev->read_endpoint) {
+	if (usb_find_bulk_in_endpoint(iface_desc, &endpoint)) {
 		dev_err(&interface->dev, "Could not find bulk-in endpoint\n");
 		goto errorEP;
 	}
+
+	dev->read_endpoint = endpoint->bEndpointAddress;
+
 	timer_setup(&dev->timer, s2255_timer, 0);
 	init_waitqueue_head(&dev->fw_data->wait_fw);
 	for (i = 0; i < MAX_CHANNELS; i++) {

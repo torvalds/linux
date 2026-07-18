@@ -71,9 +71,10 @@ test_ftrace_profile() {
     grep ^# "${output}"
     time_re="[[:space:]]+1[[:digit:]]{5}\.[[:digit:]]{3}"
     # 100283.000 100283.000 100283.000          1   __x64_sys_clock_nanosleep
-    # Check for one *clock_nanosleep line with a Count of just 1 that takes a bit more than 0.1 seconds
-    # Strip the _x64_sys part to work with other architectures
-    grep -E "^${time_re}${time_re}${time_re}[[:space:]]+1[[:space:]]+.*clock_nanosleep" "${output}"
+    # Check for one *sys_*nanosleep line with a Count of just 1 that takes a bit more than 0.1 seconds
+    # Strip the _x64_ part to work with other architectures, strip the clock part to support
+    # C libraries that use the nanosleep syscall instead of clock_nanosleep
+    grep -E "^${time_re}${time_re}${time_re}[[:space:]]+1[[:space:]]+.*sys_.*nanosleep" "${output}"
     echo "perf ftrace profile test  [Success]"
 }
 

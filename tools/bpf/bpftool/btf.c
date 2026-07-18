@@ -179,8 +179,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION: {
 		const struct btf_member *m = (const void *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
-		int i;
+		__u32 i, vlen = BTF_INFO_VLEN(t->info);
 
 		if (json_output) {
 			jsonw_uint_field(w, "size", t->size);
@@ -225,9 +224,8 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	}
 	case BTF_KIND_ENUM: {
 		const struct btf_enum *v = (const void *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
+		__u32 i, vlen = BTF_INFO_VLEN(t->info);
 		const char *encoding;
-		int i;
 
 		encoding = btf_kflag(t) ? "SIGNED" : "UNSIGNED";
 		if (json_output) {
@@ -263,9 +261,8 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	}
 	case BTF_KIND_ENUM64: {
 		const struct btf_enum64 *v = btf_enum64(t);
-		__u16 vlen = btf_vlen(t);
+		__u32 i, vlen = btf_vlen(t);
 		const char *encoding;
-		int i;
 
 		encoding = btf_kflag(t) ? "SIGNED" : "UNSIGNED";
 		if (json_output) {
@@ -325,8 +322,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	}
 	case BTF_KIND_FUNC_PROTO: {
 		const struct btf_param *p = (const void *)(t + 1);
-		__u16 vlen = BTF_INFO_VLEN(t->info);
-		int i;
+		__u32 i, vlen = BTF_INFO_VLEN(t->info);
 
 		if (json_output) {
 			jsonw_uint_field(w, "ret_type_id", t->type);
@@ -369,8 +365,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 	case BTF_KIND_DATASEC: {
 		const struct btf_var_secinfo *v = (const void *)(t + 1);
 		const struct btf_type *vt;
-		__u16 vlen = BTF_INFO_VLEN(t->info);
-		int i;
+		__u32 i, vlen = BTF_INFO_VLEN(t->info);
 
 		if (json_output) {
 			jsonw_uint_field(w, "size", t->size);
@@ -675,7 +670,7 @@ static __u64 btf_name_hasher(__u64 hash, const struct btf *btf, __u32 name_off)
 static __u64 btf_type_disambig_hash(const struct btf *btf, __u32 id, bool include_members)
 {
 	const struct btf_type *t = btf__type_by_id(btf, id);
-	int i;
+	__u32 i;
 	size_t hash = 0;
 
 	hash = btf_name_hasher(hash, btf, t->name_off);

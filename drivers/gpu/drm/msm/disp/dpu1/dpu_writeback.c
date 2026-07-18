@@ -27,7 +27,7 @@ static int dpu_wb_conn_get_modes(struct drm_connector *connector)
 }
 
 static int dpu_wb_conn_atomic_check(struct drm_connector *connector,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_writeback_connector *wb_conn = drm_connector_to_writeback(connector);
 	struct dpu_wb_connector *dpu_wb_conn = to_dpu_wb_conn(wb_conn);

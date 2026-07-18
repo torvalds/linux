@@ -43,7 +43,7 @@
 
 #undef FN
 #define FN(reg_name, field_name) \
-	enc1->se_shift->field_name, enc1->se_mask->field_name
+	(uint8_t)enc1->se_shift->field_name, enc1->se_mask->field_name
 
 #define VBI_LINE_0 0
 #define HDMI_CLOCK_CHANNEL_RATE_MORE_340M 340000

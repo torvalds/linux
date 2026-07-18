@@ -61,8 +61,16 @@ static inline void eventpoll_release(struct file *file)
 	eventpoll_release_file(file);
 }
 
+struct epoll_key {
+	struct file *file;
+	int fd;
+} __packed;
+
+int do_epoll_ctl_file(struct file *f, int op, struct epoll_key *tf,
+		      struct epoll_event *epds, bool nonblock);
 int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 		 bool nonblock);
+bool is_file_epoll(struct file *f);
 
 /* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
 static inline int ep_op_has_event(int op)

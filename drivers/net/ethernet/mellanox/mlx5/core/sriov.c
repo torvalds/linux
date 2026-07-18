@@ -273,6 +273,7 @@ void mlx5_sriov_detach(struct mlx5_core_dev *dev)
 
 static u16 mlx5_get_max_vfs(struct mlx5_core_dev *dev)
 {
+	struct mlx5_esw_pf_info host_pf_info;
 	u16 host_total_vfs;
 	const u32 *out;
 
@@ -284,8 +285,8 @@ static u16 mlx5_get_max_vfs(struct mlx5_core_dev *dev)
 		 */
 		if (IS_ERR(out))
 			goto done;
-		host_total_vfs = MLX5_GET(query_esw_functions_out, out,
-					  host_params_context.host_total_vfs);
+		host_pf_info = mlx5_esw_get_host_pf_info(dev, out);
+		host_total_vfs = host_pf_info.total_vfs;
 		kvfree(out);
 		return host_total_vfs;
 	}

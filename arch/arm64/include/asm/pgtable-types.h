@@ -17,13 +17,13 @@
  * Generic page table descriptor format from which
  * all level specific descriptors can be derived.
  */
-typedef u64 ptdesc_t;
+typedef u64 ptval_t;
 
-typedef ptdesc_t pteval_t;
-typedef ptdesc_t pmdval_t;
-typedef ptdesc_t pudval_t;
-typedef ptdesc_t p4dval_t;
-typedef ptdesc_t pgdval_t;
+typedef ptval_t pteval_t;
+typedef ptval_t pmdval_t;
+typedef ptval_t pudval_t;
+typedef ptval_t p4dval_t;
+typedef ptval_t pgdval_t;
 
 /*
  * These are used to make use of C type-checking..
@@ -54,7 +54,7 @@ typedef struct { pgdval_t pgd; } pgd_t;
 #define pgd_val(x)	((x).pgd)
 #define __pgd(x)	((pgd_t) { (x) } )
 
-typedef struct { ptdesc_t pgprot; } pgprot_t;
+typedef struct { ptval_t pgprot; } pgprot_t;
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
 

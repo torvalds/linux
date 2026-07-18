@@ -2546,6 +2546,8 @@ static const struct dpcd_quirk dpcd_quirk_list[] = {
 	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
 	/* Synaptics DP1.4 MST hubs can support DSC without virtual DPCD */
 	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
+	/* Realtek DP1.4 MST hubs can support DSC without virtual DPCD */
+	{ OUI(0x00, 0xe0, 0x4c), DEVICE_ID('D', 'p', '1', '.', '4', 0), true, BIT(DP_DPCD_QUIRK_DSC_WITHOUT_VIRTUAL_DPCD) },
 	/* Synaptics DP1.4 MST hubs require DSC for some modes on which it applies HBLANK expansion. */
 	{ OUI(0x90, 0xCC, 0x24), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC) },
 	/* MediaTek panels (at least in U3224KBA) require DSC for modes with a short HBLANK on UHBR links. */
@@ -3487,31 +3489,64 @@ static const char *dp_content_type_get_name(enum dp_content_type content_type)
 	}
 }
 
+static const char *dp_sdp_type_get_name(unsigned char type)
+{
+	switch (type) {
+	case DP_SDP_AUDIO_TIMESTAMP:
+		return "Audio_TimeStamp";
+	case DP_SDP_AUDIO_STREAM:
+		return "Audio_Stream";
+	case DP_SDP_EXTENSION:
+		return "Extension";
+	case DP_SDP_AUDIO_COPYMANAGEMENT:
+		return "Audio_CopyManagement";
+	case DP_SDP_ISRC:
+		return "ISRC";
+	case DP_SDP_VSC:
+		return "VSC";
+	case DP_SDP_PPS:
+		return "PPS";
+	case DP_SDP_VSC_EXT_VESA:
+		return "VSC_EXT_VESA";
+	case DP_SDP_VSC_EXT_CEA:
+		return "VSC_EXT_CEA";
+	case DP_SDP_ADAPTIVE_SYNC:
+		return "Adaptive-Sync";
+	default:
+		return "Unknown";
+	}
+}
+
 void drm_dp_vsc_sdp_log(struct drm_printer *p, const struct drm_dp_vsc_sdp *vsc)
 {
-	drm_printf(p, "DP SDP: VSC, revision %u, length %u\n",
-		   vsc->revision, vsc->length);
-	drm_printf(p, "    pixelformat: %s\n",
-		   dp_pixelformat_get_name(vsc->pixelformat));
-	drm_printf(p, "    colorimetry: %s\n",
-		   dp_colorimetry_get_name(vsc->pixelformat, vsc->colorimetry));
-	drm_printf(p, "    bpc: %u\n", vsc->bpc);
-	drm_printf(p, "    dynamic range: %s\n",
-		   dp_dynamic_range_get_name(vsc->dynamic_range));
-	drm_printf(p, "    content type: %s\n",
-		   dp_content_type_get_name(vsc->content_type));
+	drm_printf(p, "DP SDP: %s, revision %u, length %u\n",
+		   dp_sdp_type_get_name(vsc->sdp_type), vsc->revision, vsc->length);
+
+	drm_printf_indent(p, 1, "pixelformat: %s\n",
+			  dp_pixelformat_get_name(vsc->pixelformat));
+	drm_printf_indent(p, 1, "colorimetry: %s\n",
+			  dp_colorimetry_get_name(vsc->pixelformat, vsc->colorimetry));
+	drm_printf_indent(p, 1, "bpc: %u\n", vsc->bpc);
+	drm_printf_indent(p, 1, "dynamic range: %s\n",
+			  dp_dynamic_range_get_name(vsc->dynamic_range));
+	drm_printf_indent(p, 1, "content type: %s\n",
+			  dp_content_type_get_name(vsc->content_type));
 }
 EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
 
 void drm_dp_as_sdp_log(struct drm_printer *p, const struct drm_dp_as_sdp *as_sdp)
 {
-	drm_printf(p, "DP SDP: AS_SDP, revision %u, length %u\n",
-		   as_sdp->revision, as_sdp->length);
-	drm_printf(p, "    vtotal: %d\n", as_sdp->vtotal);
-	drm_printf(p, "    target_rr: %d\n", as_sdp->target_rr);
-	drm_printf(p, "    duration_incr_ms: %d\n", as_sdp->duration_incr_ms);
-	drm_printf(p, "    duration_decr_ms: %d\n", as_sdp->duration_decr_ms);
-	drm_printf(p, "    operation_mode: %d\n", as_sdp->mode);
+	drm_printf(p, "DP SDP: %s, revision %u, length %u\n",
+		   dp_sdp_type_get_name(as_sdp->sdp_type), as_sdp->revision, as_sdp->length);
+
+	drm_printf_indent(p, 1, "vtotal: %d\n", as_sdp->vtotal);
+	drm_printf_indent(p, 1, "target rr: %d\n", as_sdp->target_rr);
+	drm_printf_indent(p, 1, "duration increase ms: %d\n", as_sdp->duration_incr_ms);
+	drm_printf_indent(p, 1, "duration decrease ms: %d\n", as_sdp->duration_decr_ms);
+	drm_printf_indent(p, 1, "operation mode: %d\n", as_sdp->mode);
+	drm_printf_indent(p, 1, "target rr divider: %s\n",
+			  as_sdp->target_rr_divider ? "1.001" : "1.000");
+	drm_printf_indent(p, 1, "coasting vtotal: %d\n", as_sdp->coasting_vtotal);
 }
 EXPORT_SYMBOL(drm_dp_as_sdp_log);
 
@@ -4625,8 +4660,6 @@ static const struct backlight_ops dp_aux_bl_ops = {
  * control over DP AUX will call this function at probe time.
  * Backlight will then be handled transparently without requiring
  * any intervention from the driver.
- *
- * drm_panel_dp_aux_backlight() must be called after the call to drm_panel_init().
  *
  * Return: 0 on success or a negative error code on failure.
  */

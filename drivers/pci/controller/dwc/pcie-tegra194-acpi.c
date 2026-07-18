@@ -86,11 +86,11 @@ static void __iomem *tegra194_map_bus(struct pci_bus *bus,
 
 	if (bus->parent->number == cfg->busr.start) {
 		if (PCI_SLOT(devfn) == 0)
-			type = PCIE_ATU_TYPE_CFG0;
+			type = PCIE_TLP_TYPE_CFG0_RDWR;
 		else
 			return NULL;
 	} else {
-		type = PCIE_ATU_TYPE_CFG1;
+		type = PCIE_TLP_TYPE_CFG1_RDWR;
 	}
 
 	program_outbound_atu(pcie_ecam, 0, type, cfg->res.start, busdev,

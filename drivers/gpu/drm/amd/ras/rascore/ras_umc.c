@@ -193,11 +193,28 @@ static void ras_umc_reserve_eeprom_record(struct ras_core_context *ras_core,
 }
 
 /* When gpu reset is ongoing, ecc logging operations will be pended.
+ *
+ * The pending list is bounded by RAS_UMC_PENDING_ECC_MAX so that an ECC
+ * storm or repeated UMC error injection cannot make this list (and the
+ * kernel allocations behind it) grow without bound. Once the limit is
+ * reached, additional events are dropped and counted in
+ * pending_ecc_dropped, with a rate-limited warning emitted.
  */
 int ras_umc_log_bad_bank_pending(struct ras_core_context *ras_core, struct ras_bank_ecc *bank)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct ras_bank_ecc_node *ecc_node;
+
+	mutex_lock(&ras_umc->pending_ecc_lock);
+	if (ras_umc->pending_ecc_count >= RAS_UMC_PENDING_ECC_MAX) {
+		ras_umc->pending_ecc_dropped++;
+		mutex_unlock(&ras_umc->pending_ecc_lock);
+		RAS_DEV_WARN_RATELIMITED(ras_core->dev,
+			"pending ECC list full (%u), dropping bad bank event (total dropped:%u)\n",
+			RAS_UMC_PENDING_ECC_MAX, ras_umc->pending_ecc_dropped);
+		return -ENOSPC;
+	}
+	mutex_unlock(&ras_umc->pending_ecc_lock);
 
 	ecc_node = kzalloc_obj(*ecc_node);
 	if (!ecc_node)
@@ -206,7 +223,15 @@ int ras_umc_log_bad_bank_pending(struct ras_core_context *ras_core, struct ras_b
 	memcpy(&ecc_node->ecc, bank, sizeof(ecc_node->ecc));
 
 	mutex_lock(&ras_umc->pending_ecc_lock);
+	/* re-check under the lock to honor the cap across concurrent callers */
+	if (ras_umc->pending_ecc_count >= RAS_UMC_PENDING_ECC_MAX) {
+		ras_umc->pending_ecc_dropped++;
+		mutex_unlock(&ras_umc->pending_ecc_lock);
+		kfree(ecc_node);
+		return -ENOSPC;
+	}
 	list_add_tail(&ecc_node->node, &ras_umc->pending_ecc_list);
+	ras_umc->pending_ecc_count++;
 	mutex_unlock(&ras_umc->pending_ecc_lock);
 
 	return 0;
@@ -225,7 +250,15 @@ int ras_umc_log_pending_bad_bank(struct ras_core_context *ras_core)
 		if (!ras_umc_log_bad_bank(ras_core, &ecc_node->ecc)) {
 			list_del(&ecc_node->node);
 			kfree(ecc_node);
+			if (ras_umc->pending_ecc_count)
+				ras_umc->pending_ecc_count--;
 		}
+	}
+	if (ras_umc->pending_ecc_dropped) {
+		RAS_DEV_WARN(ras_core->dev,
+			"%u pending ECC bad-bank events were dropped during GPU reset\n",
+			ras_umc->pending_ecc_dropped);
+		ras_umc->pending_ecc_dropped = 0;
 	}
 	mutex_unlock(&ras_umc->pending_ecc_lock);
 
@@ -373,7 +406,7 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
 	uint64_t page_pfn[16];
-	int count = 0, j;
+	int count = 0, i, j;
 
 	if (!data->space_left &&
 		ras_umc_realloc_err_data_space(ras_core, data, 256)) {
@@ -385,18 +418,38 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 					bps, bps->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
 	if (count > 0) {
 		for (j = 0; j < count; j++) {
+			if (ras_core_check_address_sanity(ras_core,
+				page_pfn[j] << AMDGPU_GPU_PAGE_SHIFT)) {
+
+				for (i = 0; i < data->count; i++)
+					if (page_pfn[j] == data->bps[i].cur_nps_retired_row_pfn)
+						break;
+				data->bps[data->count].cur_nps_retired_row_pfn = U64_MAX;
+				data->count++;
+				data->space_left--;
+				continue;
+			}
+
 			bps->cur_nps_retired_row_pfn = page_pfn[j];
 			memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
 			data->count++;
 			data->space_left--;
+			data->bad_page_num++;
 		}
 	} else {
-		memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
-		data->count++;
-		data->space_left--;
+		RAS_DEV_ERR(ras_core->dev, "Failed to convert record to nps pages!");
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static void ras_umc_update_bad_pages(struct ras_core_context *ras_core)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
+
+	data->bad_page_num_old = data->bad_page_num;
 }
 
 /* it deal with vram only. */
@@ -474,6 +527,7 @@ int ras_umc_load_bad_pages(struct ras_core_context *ras_core)
 	} else {
 		ras_core->ras_umc.umc_err_data.last_retired_pfn = UMC_INV_MEM_PFN;
 		ret = ras_umc_add_bad_pages(ras_core, bps, ras_num_recs, true);
+		ras_umc_update_bad_pages(ras_core);
 	}
 
 	kfree(bps);
@@ -489,7 +543,8 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.rom_data;
-	uint32_t eeprom_record_num;
+	struct eeprom_store_record *ram_data = &ras_umc->umc_err_data.ram_data;
+	uint32_t eeprom_record_num, logical_count = 0;
 	int save_count;
 	int ret = 0;
 
@@ -502,6 +557,7 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 		eeprom_record_num = ras_eeprom_get_record_count(ras_core);
 	mutex_lock(&ras_umc->umc_lock);
 	save_count = data->count - eeprom_record_num;
+	logical_count = ram_data->bad_page_num - ram_data->bad_page_num_old;
 	/* only new entries are saved */
 	if (save_count > 0) {
 		if (ras_fw_eeprom_supported(ras_core))
@@ -515,8 +571,8 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 			ret = -EIO;
 			goto exit;
 		}
-
-		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n", save_count);
+		ras_umc_update_bad_pages(ras_core);
+		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n", logical_count);
 	}
 
 exit:
@@ -610,6 +666,8 @@ int ras_umc_sw_fini(struct ras_core_context *ras_core)
 		list_del(&ecc_node->node);
 		kfree(ecc_node);
 	}
+	ras_umc->pending_ecc_count = 0;
+	ras_umc->pending_ecc_dropped = 0;
 	mutex_unlock(&ras_umc->pending_ecc_lock);
 
 	mutex_destroy(&ras_umc->tree_lock);

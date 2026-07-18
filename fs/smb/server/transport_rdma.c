@@ -18,7 +18,6 @@
 #include "smb_common.h"
 #include "../common/smb2status.h"
 #include "transport_rdma.h"
-#include "../smbdirect/public.h"
 
 
 #define SMB_DIRECT_PORT_IWARP		5445
@@ -540,3 +539,5 @@ static const struct ksmbd_transport_ops ksmbd_smb_direct_transport_ops = {
 	.rdma_write	= smb_direct_rdma_write,
 	.free_transport = smb_direct_free_transport,
 };
+
+MODULE_IMPORT_NS("SMBDIRECT");

@@ -9,7 +9,6 @@
 #include <linux/kobject.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
 #include <linux/of.h>
@@ -182,10 +181,6 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 		}
 
 		fuse->soc->init(fuse);
-
-		err = tegra_fuse_add_lookups(fuse);
-		if (err)
-			return dev_err_probe(&pdev->dev, err, "failed to add FUSE lookups\n");
 	}
 
 	fuse->clk = devm_clk_get_optional(&pdev->dev, "fuse");
@@ -230,6 +225,10 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 			err);
 		return err;
 	}
+
+	err = tegra_fuse_add_lookups(fuse);
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "failed to add FUSE lookups\n");
 
 	fuse->rst = devm_reset_control_get_optional(&pdev->dev, "fuse");
 	if (IS_ERR(fuse->rst))
@@ -473,7 +472,7 @@ static int __init tegra_init_fuse(void)
 	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource regs;
-	int err;
+	int err = 0;
 
 	tegra_init_apbmisc();
 
@@ -565,10 +564,6 @@ static int __init tegra_init_fuse(void)
 	fuse->soc->init(fuse);
 
 	tegra_fuse_print_sku_info(&tegra_sku_info);
-
-	err = tegra_fuse_add_lookups(fuse);
-	if (err)
-		pr_err("failed to add FUSE lookups\n");
 
 	return err;
 }

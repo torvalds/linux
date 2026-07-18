@@ -37,7 +37,7 @@
 		clock-div = <3>;
 	};
 
-	bsc: bus {
+	bsc: bus@0 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

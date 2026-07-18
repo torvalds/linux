@@ -299,6 +299,6 @@ struct ras_cper_fatal_record {
 struct ras_core_context;
 struct ras_log_info;
 int ras_cper_generate_cper(struct ras_core_context *ras_core,
-		struct ras_log_info **trace_list, uint32_t count,
+		struct ras_log_info *trace_list, uint32_t count,
 		uint8_t *buf, uint32_t buf_len, uint32_t *real_data_len);
 #endif

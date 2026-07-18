@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/platform_data/tsc2007.h>
 #include "tsc2007.h"
@@ -61,10 +60,8 @@ static void tsc2007_read_values(struct tsc2007 *tsc, struct ts_event *tc)
 
 	/* turn y+ off, x- on; we'll use formula #1 */
 	tc->z1 = tsc2007_xfer(tsc, READ_Z1);
-	tc->z2 = tsc2007_xfer(tsc, READ_Z2);
-
-	/* Prepare for next touch reading - power down ADC, enable PENIRQ */
-	tsc2007_xfer(tsc, PWRDOWN);
+	/* Read Z2 and power down ADC after A/D conversion, enable PENIRQ */
+	tc->z2 = tsc2007_xfer(tsc, (TSC2007_POWER_OFF_IRQ_EN | TSC2007_MEASURE_Z2));
 }
 
 u32 tsc2007_calculate_resistance(struct tsc2007 *tsc, struct ts_event *tc)
@@ -407,7 +404,7 @@ static int tsc2007_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsc2007_idtable[] = {
-	{ "tsc2007" },
+	{ .name = "tsc2007" },
 	{ }
 };
 

@@ -396,10 +396,14 @@ static void rbtn_cleanup(struct device *dev)
 
 static int rbtn_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct rbtn_data *rbtn_data;
+	struct acpi_device *device;
 	enum rbtn_type type;
 	int ret = 0;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	type = rbtn_check(device);
 	if (type == RBTN_UNKNOWN) {

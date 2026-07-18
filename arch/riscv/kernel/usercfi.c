@@ -109,15 +109,16 @@ void set_indir_lp_lock(struct task_struct *task, bool lock)
 	task->thread_info.user_cfi_state.ufcfi_locked = lock;
 }
 /*
- * If size is 0, then to be compatible with regular stack we want it to be as big as
- * regular stack. Else PAGE_ALIGN it and return back
+ * The shadow stack only stores the return address and not any variables
+ * this should be more than sufficient for most applications.
+ * Else PAGE_ALIGN it and return back
  */
 static unsigned long calc_shstk_size(unsigned long size)
 {
 	if (size)
 		return PAGE_ALIGN(size);
 
-	return PAGE_ALIGN(min_t(unsigned long long, rlimit(RLIMIT_STACK), SZ_4G));
+	return PAGE_ALIGN(min(rlimit(RLIMIT_STACK) / 2, SZ_2G));
 }
 
 /*
@@ -464,6 +465,9 @@ int arch_prctl_get_branch_landing_pad_state(struct task_struct *t,
 int arch_prctl_set_branch_landing_pad_state(struct task_struct *t, unsigned long state)
 {
 	if (!is_user_lpad_enabled())
+		return -EINVAL;
+
+	if (state & ~PR_CFI_SUPPORTED_STATUS_MASK)
 		return -EINVAL;
 
 	/* indirect branch tracking is locked and further can't be modified by user */

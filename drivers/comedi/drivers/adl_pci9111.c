@@ -727,9 +727,9 @@ static int pci9111_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id pci9111_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x9111) },
-	/* { PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID) }, */
-	{ 0 }
+	{ PCI_VDEVICE(ADLINK, 0x9111) },
+	/* { PCI_VDEVICE(ADLINK, PCI9111_HG_DEVICE_ID) }, */
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
 

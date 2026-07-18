@@ -166,13 +166,13 @@ static int ninja32_reinit_one(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id ninja32[] = {
-	{ 0x10FC, 0x0003, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1145, 0x8008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1145, 0xf008, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1145, 0xf021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1145, 0xf024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ 0x1145, 0xf02C, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ },
+	{ PCI_DEVICE(0x10FC, 0x0003) },
+	{ PCI_DEVICE(0x1145, 0x8008) },
+	{ PCI_DEVICE(0x1145, 0xf008) },
+	{ PCI_DEVICE(0x1145, 0xf021) },
+	{ PCI_DEVICE(0x1145, 0xf024) },
+	{ PCI_DEVICE(0x1145, 0xf02C) },
+	{ }
 };
 
 static struct pci_driver ninja32_pci_driver = {

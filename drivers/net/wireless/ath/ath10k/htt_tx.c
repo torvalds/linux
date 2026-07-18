@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
@@ -1353,7 +1352,7 @@ static int ath10k_htt_tx_hl(struct ath10k_htt *htt, enum ath10k_hw_txrx_mode txm
 		msdu_id = res;
 	}
 
-	/* As msdu is freed by mac80211 (in ieee80211_tx_status()) and by
+	/* As msdu is freed by mac80211 (in ieee80211_tx_status_skb()) and by
 	 * ath10k (in ath10k_htt_htc_tx_complete()) we have to increase
 	 * reference by one to avoid a use-after-free case and a double
 	 * free.

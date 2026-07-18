@@ -288,8 +288,8 @@ kms_cursor_edge_walk@128x128-left-edge
 #  ? __pfx_drm_property_free_blob+0x10/0x10
 #  ? vkms_atomic_crtc_destroy_state+0x31/0x40 [vkms]
 #  ? vkms_atomic_crtc_destroy_state+0x10/0x40 [vkms]
-#  drm_atomic_state_default_clear+0x137/0x2f0
-#  __drm_atomic_state_free+0x6c/0xb0
+#  drm_atomic_commit_default_clear+0x137/0x2f0
+#  __drm_atomic_commit_free+0x6c/0xb0
 #  drm_atomic_helper_update_plane+0x100/0x150
 #  drm_mode_cursor_universal+0x10e/0x270
 #  drm_mode_cursor_common+0x115/0x240
@@ -394,8 +394,8 @@ kms_cursor_edge_walk@128x128-left-edge
 #  ? __pfx_drm_property_free_blob+0x10/0x10
 #  ? vkms_atomic_crtc_destroy_state+0x31/0x40 [vkms]
 #  ? vkms_atomic_crtc_destroy_state+0x10/0x40 [vkms]
-#  drm_atomic_state_default_clear+0x137/0x2f0
-#  __drm_atomic_state_free+0x6c/0xb0
+#  drm_atomic_commit_default_clear+0x137/0x2f0
+#  __drm_atomic_commit_free+0x6c/0xb0
 #  drm_atomic_helper_update_plane+0x100/0x150
 #  drm_mode_cursor_universal+0x10e/0x270
 #  drm_mode_cursor_common+0x115/0x240
@@ -500,8 +500,8 @@ kms_cursor_edge_walk@128x128-left-edge
 #  ? __pfx_drm_property_free_blob+0x10/0x10
 #  ? vkms_atomic_crtc_destroy_state+0x31/0x40 [vkms]
 #  ? vkms_atomic_crtc_destroy_state+0x10/0x40 [vkms]
-#  drm_atomic_state_default_clear+0x137/0x2f0
-#  __drm_atomic_state_free+0x6c/0xb0
+#  drm_atomic_commit_default_clear+0x137/0x2f0
+#  __drm_atomic_commit_free+0x6c/0xb0
 #  drm_atomic_helper_update_plane+0x100/0x150
 #  drm_mode_cursor_universal+0x10e/0x270
 #  drm_mode_cursor_common+0x115/0x240
@@ -606,8 +606,8 @@ kms_cursor_edge_walk@128x128-left-edge
 #  ? __pfx_drm_property_free_blob+0x10/0x10
 #  ? vkms_atomic_crtc_destroy_state+0x31/0x40 [vkms]
 #  ? vkms_atomic_crtc_destroy_state+0x10/0x40 [vkms]
-#  drm_atomic_state_default_clear+0x137/0x2f0
-#  __drm_atomic_state_free+0x6c/0xb0
+#  drm_atomic_commit_default_clear+0x137/0x2f0
+#  __drm_atomic_commit_free+0x6c/0xb0
 #  drm_atomic_helper_update_plane+0x100/0x150
 #  drm_mode_cursor_universal+0x10e/0x270
 #  drm_mode_cursor_common+0x115/0x240
@@ -712,8 +712,8 @@ kms_cursor_edge_walk@128x128-left-edge
 #  ? __pfx_drm_property_free_blob+0x10/0x10
 #  ? vkms_atomic_crtc_destroy_state+0x31/0x40 [vkms]
 #  ? vkms_atomic_crtc_destroy_state+0x10/0x40 [vkms]
-#  drm_atomic_state_default_clear+0x137/0x2f0
-#  __drm_atomic_state_free+0x6c/0xb0
+#  drm_atomic_commit_default_clear+0x137/0x2f0
+#  __drm_atomic_commit_free+0x6c/0xb0
 #  drm_atomic_helper_update_plane+0x100/0x150
 #  drm_mode_cursor_universal+0x10e/0x270
 #  drm_mode_cursor_common+0x115/0x240

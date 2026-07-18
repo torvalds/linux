@@ -311,6 +311,8 @@
 		i2c2: i2c@1fe21000 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1fe21000 0x0 0x8>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&liointc0>;
 			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -319,6 +321,8 @@
 		i2c3: i2c@1fe21800 {
 			compatible = "loongson,ls2k-i2c";
 			reg = <0x0 0x1fe21800 0x0 0x8>;
+			clock-frequency = <100000>;
+			clocks = <&clk LOONGSON2_APB_CLK>;
 			interrupt-parent = <&liointc0>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";

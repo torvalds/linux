@@ -63,4 +63,12 @@ struct dccg *dccg30_create(
 	const struct dccg_shift *dccg_shift,
 	const struct dccg_mask *dccg_mask);
 
+void dccg3_enable_hdmicharclk(
+	struct dccg *dccg,
+	int hpo_inst,
+	int phypll_inst);
+
+void dccg3_disable_hdmicharclk(
+	struct dccg *dccg,
+	int hpo_inst);
 #endif //__DCN30_DCCG_H__

@@ -2121,6 +2121,157 @@ static int hclge_dbg_dump_fd_counter(struct seq_file *s, void *data)
 	return 0;
 }
 
+__printf(4, 5)
+static void hclge_fd_dump_item(struct seq_file *s, const char *name,
+			       const char *suffix, const char *fmt, ...)
+{
+	va_list args;
+
+	seq_printf(s, "\t\t%s%s: ", name, suffix);
+
+	va_start(args, fmt);
+	seq_vprintf(s, fmt, args);
+	va_end(args);
+
+	seq_putc(s, '\n');
+}
+
+#define hclge_fd_dump_any(s, rule, type, name, fmt, key, mask)		\
+do {									\
+	typeof(s) _s = (s);						\
+	typeof(name) _name = (name);					\
+	typeof(fmt) _fmt = (fmt);					\
+									\
+	if (!((rule)->unused_tuple & BIT(type))) {			\
+		hclge_fd_dump_item(_s, _name, "", _fmt, key);		\
+		hclge_fd_dump_item(_s, _name, "_mask", _fmt, mask);	\
+	}								\
+} while (0)
+#define hclge_fd_dump_u32  hclge_fd_dump_any
+#define hclge_fd_dump_ptr  hclge_fd_dump_any
+
+static void hclge_fd_dump_ip(struct seq_file *s,
+			     struct hclge_fd_rule *rule,
+			     u32 type, const char *name,
+			     const u32 *ip, const u32 *mask)
+{
+	__be32 be_mask[IPV6_ADDR_WORDS];
+	__be32 be_ip[IPV6_ADDR_WORDS];
+
+	if (rule->unused_tuple & BIT(type) ||
+	    rule->unused_tuple & BIT(INNER_ETH_TYPE))
+		return;
+
+	ipv6_addr_cpu_to_be32(be_ip, ip);
+	ipv6_addr_cpu_to_be32(be_mask, mask);
+
+	if (rule->tuples.ether_proto == ETH_P_IPV6)
+		hclge_fd_dump_ptr(s, rule, type, name, "%pI6",
+				  be_ip, be_mask);
+	else
+		hclge_fd_dump_ptr(s, rule, type, name, "%pI4",
+				  &be_ip[IPV4_INDEX], &be_mask[IPV4_INDEX]);
+}
+
+static void hclge_dbg_dump_fd_tuples(struct seq_file *s,
+				     struct hclge_fd_rule *rule)
+{
+	seq_puts(s, "\trule tuples:\n");
+
+	hclge_fd_dump_ptr(s, rule, INNER_DST_MAC, "dst_mac", "%pM",
+			  rule->tuples.dst_mac, rule->tuples_mask.dst_mac);
+	hclge_fd_dump_ptr(s, rule, INNER_SRC_MAC, "src_mac", "%pM",
+			  rule->tuples.src_mac, rule->tuples_mask.src_mac);
+	hclge_fd_dump_u32(s, rule, INNER_VLAN_TAG_FST, "vlan_tag", "0x%04x",
+			  rule->tuples.vlan_tag1, rule->tuples_mask.vlan_tag1);
+	hclge_fd_dump_u32(s, rule, INNER_ETH_TYPE, "ether_proto", "0x%04x",
+			  rule->tuples.ether_proto,
+			  rule->tuples_mask.ether_proto);
+	hclge_fd_dump_u32(s, rule, INNER_L2_RSV, "l2_user_def", "0x%04x",
+			  rule->tuples.l2_user_def,
+			  rule->tuples_mask.l2_user_def);
+	hclge_fd_dump_ip(s, rule, INNER_SRC_IP, "src_ip",
+			 rule->tuples.src_ip, rule->tuples_mask.src_ip);
+	hclge_fd_dump_ip(s, rule, INNER_DST_IP, "dst_ip",
+			 rule->tuples.dst_ip, rule->tuples_mask.dst_ip);
+	hclge_fd_dump_u32(s, rule, INNER_IP_TOS, "ip_tos", "0x%02x",
+			  rule->tuples.ip_tos, rule->tuples_mask.ip_tos);
+	hclge_fd_dump_u32(s, rule, INNER_IP_PROTO, "ip_proto", "0x%02x",
+			  rule->tuples.ip_proto, rule->tuples_mask.ip_proto);
+	hclge_fd_dump_u32(s, rule, INNER_L3_RSV, "l3_user_def", "0x%04x",
+			  rule->tuples.l3_user_def,
+			  rule->tuples_mask.l3_user_def);
+	hclge_fd_dump_u32(s, rule, INNER_SRC_PORT, "src_port", "0x%04x",
+			  rule->tuples.src_port, rule->tuples_mask.src_port);
+	hclge_fd_dump_u32(s, rule, INNER_DST_PORT, "dst_port", "0x%04x",
+			  rule->tuples.dst_port, rule->tuples_mask.dst_port);
+	hclge_fd_dump_u32(s, rule, INNER_L4_RSV, "l4_user_def", "0x%08x",
+			  rule->tuples.l4_user_def,
+			  rule->tuples_mask.l4_user_def);
+	hclge_fd_dump_u32(s, rule, OUTER_TUN_VNI, "outer_tun_vni", "0x%06x",
+			  rule->tuples.outer_tun_vni,
+			  rule->tuples_mask.outer_tun_vni);
+}
+
+static void hclge_dbg_dump_fd_action(struct seq_file *s,
+				     struct hclge_fd_rule *rule)
+{
+	static const char * const action_str[] = {
+		[HCLGE_FD_ACTION_SELECT_QUEUE] = "select_queue",
+		[HCLGE_FD_ACTION_DROP_PACKET]  = "drop_packet",
+		[HCLGE_FD_ACTION_SELECT_TC]    = "select_tc",
+	};
+
+	if (rule->action <= HCLGE_FD_ACTION_SELECT_TC)
+		seq_printf(s, "\taction: %s\n", action_str[rule->action]);
+	else
+		seq_printf(s, "\taction: %s\n", "unknown");
+
+	if (rule->action == HCLGE_FD_ACTION_SELECT_QUEUE)
+		seq_printf(s, "\tqueue_id: %u\n", rule->queue_id);
+	else if (rule->action == HCLGE_FD_ACTION_SELECT_TC)
+		seq_printf(s, "\ttc: %u\n", rule->cls_flower.tc);
+}
+
+static void hclge_dbg_dump_fd_type(struct hclge_dev *hdev, struct seq_file *s)
+{
+	static const char * const type_str[] = {
+		[HCLGE_FD_RULE_NONE]        = "none",
+		[HCLGE_FD_ARFS_ACTIVE]      = "arfs",
+		[HCLGE_FD_EP_ACTIVE]        = "ep",
+		[HCLGE_FD_TC_FLOWER_ACTIVE] = "tc_flow"
+	};
+
+	if (hdev->fd_active_type <= HCLGE_FD_TC_FLOWER_ACTIVE)
+		seq_printf(s, "fd type: %s\n", type_str[hdev->fd_active_type]);
+	else
+		seq_printf(s, "fd type: %s\n", "unknown");
+}
+
+static int hclge_dbg_dump_fd_rule(struct seq_file *s, void *data)
+{
+	struct hclge_dev *hdev = hclge_seq_file_to_hdev(s);
+	struct hclge_fd_rule *rule;
+
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
+		return -EOPNOTSUPP;
+
+	spin_lock_bh(&hdev->fd_rule_lock);
+	hclge_dbg_dump_fd_type(hdev, s);
+	hlist_for_each_entry(rule, &hdev->fd_rule_list, rule_node) {
+		if (rule->state != HCLGE_FD_ACTIVE)
+			continue;
+
+		seq_printf(s, "location: %u\n", rule->location);
+		seq_printf(s, "vport_id: %u\n", rule->vf_id);
+		hclge_dbg_dump_fd_action(s, rule);
+		hclge_dbg_dump_fd_tuples(s, rule);
+	}
+	spin_unlock_bh(&hdev->fd_rule_lock);
+
+	return 0;
+}
+
 static const struct hclge_dbg_status_dfx_info hclge_dbg_rst_info[] = {
 	{HCLGE_MISC_VECTOR_REG_BASE, "vector0 interrupt enable status"},
 	{HCLGE_MISC_RESET_STS_REG,   "reset interrupt source"},
@@ -2912,6 +3063,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_FD_TCAM,
 		.dbg_read_func = hclge_dbg_dump_fd_tcam,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_FD_RULE,
+		.dbg_read_func = hclge_dbg_dump_fd_rule,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_MAC_TNL_STATUS,

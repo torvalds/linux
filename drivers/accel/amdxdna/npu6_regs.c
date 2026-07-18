@@ -66,8 +66,8 @@ static const struct amdxdna_dev_priv npu6_dev_priv = {
 	.fw_path        = "amdnpu/17f0_10/",
 	.rt_config	= npu4_default_rt_cfg,
 	.dpm_clk_tbl	= npu4_dpm_clk_table,
-	.fw_feature_tbl = npu4_fw_feature_table,
 	.col_align	= COL_ALIGN_NATURE,
+	.col_opc	= 4096,
 	.mbox_dev_addr  = NPU6_MBOX_BAR_BASE,
 	.mbox_size      = 0, /* Use BAR size */
 	.sram_dev_addr  = NPU6_SRAM_BAR_BASE,
@@ -93,9 +93,7 @@ static const struct amdxdna_dev_priv npu6_dev_priv = {
 		DEFINE_BAR_OFFSET(SMU_RESP_REG, NPU6_SMU, MP1_C2PMSG_61),
 		DEFINE_BAR_OFFSET(SMU_OUT_REG,  NPU6_SMU, MP1_C2PMSG_60),
 	},
-	.hw_ops         = {
-		.set_dpm = npu4_set_dpm,
-	},
+	.hw_ops         = &npu4_hw_ops
 
 };
 
@@ -109,8 +107,11 @@ const struct amdxdna_dev_info dev_npu6_info = {
 	.dev_mem_buf_shift = 15, /* 32 KiB aligned */
 	.dev_mem_base      = AIE2_DEVM_BASE,
 	.dev_mem_size      = AIE2_DEVM_SIZE,
-	.vbnv              = "RyzenAI-npu6",
+	.default_vbnv      = "RyzenAI-npu6",
+	.dev_heap_max_size = AIE2_DEVM_MAX_SIZE,
 	.device_type       = AMDXDNA_DEV_TYPE_KMQ,
+	.rev_vbnv_tbl      = npu4_rev_vbnv_tbl,
 	.dev_priv          = &npu6_dev_priv,
+	.fw_feature_tbl    = npu4_fw_feature_table,
 	.ops               = &aie2_ops,
 };

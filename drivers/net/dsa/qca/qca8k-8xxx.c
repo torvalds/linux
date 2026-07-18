@@ -1538,7 +1538,7 @@ static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 {
 	struct qca8k_priv *priv = pcs_to_qca8k_pcs(pcs)->priv;
 	int cpu_port_index, ret, port;
-	u32 reg, val;
+	u32 mask, reg, val;
 
 	port = pcs_to_qca8k_pcs(pcs)->port;
 	switch (port) {
@@ -1611,11 +1611,21 @@ static int qca8k_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	if (priv->ports_config.sgmii_tx_clk_falling_edge)
 		val |= QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE;
 
-	if (val)
-		ret = qca8k_rmw(priv, reg,
-				QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
-				QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE,
-				val);
+	mask = (val) ? (QCA8K_PORT0_PAD_SGMII_RXCLK_FALLING_EDGE |
+			QCA8K_PORT0_PAD_SGMII_TXCLK_FALLING_EDGE) : 0;
+
+	/*
+	 * (Un)set force mode on QCA8337 only, don't include it in the mask for
+	 * others. It is written to the PORT0 PAD register for both port 0 and 6.
+	 */
+	if (priv->switch_id == QCA8K_ID_QCA8337) {
+		if (neg_mode == PHYLINK_PCS_NEG_OUTBAND)
+			val |= QCA8K_PORT_PAD_SGMII_FORCE_MODE;
+		mask |= QCA8K_PORT_PAD_SGMII_FORCE_MODE;
+	}
+
+	if (mask)
+		ret = qca8k_rmw(priv, reg, mask, val);
 
 	return 0;
 }

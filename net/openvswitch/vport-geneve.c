@@ -97,6 +97,9 @@ static struct vport *geneve_tnl_create(const struct vport_parms *parms)
 		goto error;
 	}
 
+	vport->dev = dev;
+	netdev_hold(vport->dev, &vport->dev_tracker, GFP_KERNEL);
+
 	rtnl_unlock();
 	return vport;
 error:
@@ -111,7 +114,7 @@ static struct vport *geneve_create(const struct vport_parms *parms)
 	if (IS_ERR(vport))
 		return vport;
 
-	return ovs_netdev_link(vport, parms->name);
+	return ovs_netdev_link(vport, true);
 }
 
 static struct vport_ops ovs_geneve_vport_ops = {

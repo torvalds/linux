@@ -24,6 +24,7 @@
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
+#include "generic.h"
 
 #include "ca0132_regs.h"
 
@@ -1060,6 +1061,8 @@ enum dsp_download_state {
  */
 
 struct ca0132_spec {
+	struct hda_gen_spec gen;
+
 	const struct snd_kcontrol_new *mixers[5];
 	unsigned int num_mixers;
 	const struct hda_verb *base_init_verbs;
@@ -1174,6 +1177,7 @@ enum {
 	QUIRK_R3D,
 	QUIRK_AE5,
 	QUIRK_AE7,
+	QUIRK_GENERIC,
 	QUIRK_NONE = HDA_FIXUP_ID_NOT_SET,
 };
 
@@ -1292,6 +1296,20 @@ static const struct hda_pintbl ae7_pincfgs[] = {
 	{}
 };
 
+static const struct hda_pintbl ca0132_generic_pincfgs[] = {
+	{ 0x0b, 0x41014111 },
+	{ 0x0c, 0x414520f0 }, /* SPDIF out */
+	{ 0x0d, 0x01014010 }, /* lineout */
+	{ 0x0e, 0x41c501f0 },
+	{ 0x0f, 0x411111f0 }, /* disabled */
+	{ 0x10, 0x411111f0 }, /* disabled */
+	{ 0x11, 0x41012014 },
+	{ 0x12, 0x37a790f0 }, /* mic */
+	{ 0x13, 0x77a701f0 },
+	{ 0x18, 0x500000f0 },
+	{}
+};
+
 static const struct hda_quirk ca0132_quirks[] = {
 	SND_PCI_QUIRK(0x1028, 0x057b, "Alienware M17x R4", QUIRK_ALIENWARE_M17XR4),
 	SND_PCI_QUIRK(0x1028, 0x0685, "Alienware 15 2015", QUIRK_ALIENWARE),
@@ -1304,6 +1322,7 @@ static const struct hda_quirk ca0132_quirks[] = {
 	SND_PCI_QUIRK(0x1458, 0xA016, "Recon3Di", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA026, "Gigabyte G1.Sniper Z97", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA036, "Gigabyte GA-Z170X-Gaming 7", QUIRK_R3DI),
+	SND_PCI_QUIRK(0x1458, 0xA046, "Gigabyte GA-Z170X-Gaming G1", QUIRK_GENERIC),
 	SND_PCI_QUIRK(0x3842, 0x1038, "EVGA X99 Classified", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x3842, 0x104b, "EVGA X299 Dark", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x3842, 0x1055, "EVGA Z390 DARK", QUIRK_R3DI),
@@ -1325,6 +1344,7 @@ static const struct hda_model_fixup ca0132_quirk_models[] = {
 	{ .id = QUIRK_R3D, .name = "r3d" },
 	{ .id = QUIRK_AE5, .name = "ae5" },
 	{ .id = QUIRK_AE7, .name = "ae7" },
+	{ .id = QUIRK_GENERIC, .name = "generic" },
 	{}
 };
 
@@ -5498,6 +5518,30 @@ static int zxr_headphone_gain_set(struct hda_codec *codec, long val)
 	return 0;
 }
 
+/*
+ * Manual output selection (HP/Speaker Playback Switch or alt Output Select)
+ * is meaningful only when HP/Speaker auto-detect is disabled, since the
+ * select_out path always prefers jack presence when auto-detect is on. When
+ * the user explicitly chooses an output, turn auto-detect off so the manual
+ * choice actually takes effect, and notify userspace so the auto-detect
+ * control reflects the new state.
+ */
+static void ca0132_disable_hp_auto_detect(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	struct snd_kcontrol *kctl;
+
+	if (!spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID])
+		return;
+
+	spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID] = 0;
+	kctl = snd_hda_find_mixer_ctl(codec,
+				      "HP/Speaker Auto Detect Playback Switch");
+	if (kctl)
+		snd_ctl_notify(codec->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &kctl->id);
+}
+
 static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -5510,14 +5554,11 @@ static int ca0132_vnode_switch_set(struct snd_kcontrol *kcontrol,
 	int auto_jack;
 
 	if (nid == VNID_HP_SEL) {
-		auto_jack =
-			spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
-		if (!auto_jack) {
-			if (ca0132_use_alt_functions(spec))
-				ca0132_alt_select_out(codec);
-			else
-				ca0132_select_out(codec);
-		}
+		ca0132_disable_hp_auto_detect(codec);
+		if (ca0132_use_alt_functions(spec))
+			ca0132_alt_select_out(codec);
+		else
+			ca0132_select_out(codec);
 		return 1;
 	}
 
@@ -5978,7 +6019,6 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
 	struct ca0132_spec *spec = codec->spec;
 	int sel = ucontrol->value.enumerated.item[0];
 	unsigned int items = NUM_OF_OUTPUTS;
-	unsigned int auto_jack;
 
 	if (sel >= items)
 		return 0;
@@ -5988,10 +6028,8 @@ static int ca0132_alt_output_select_put(struct snd_kcontrol *kcontrol,
 
 	spec->out_enum_val = sel;
 
-	auto_jack = spec->vnode_lswitch[VNID_HP_ASEL - VNODE_START_NID];
-
-	if (!auto_jack)
-		ca0132_alt_select_out(codec);
+	ca0132_disable_hp_auto_detect(codec);
+	ca0132_alt_select_out(codec);
 
 	return 1;
 }
@@ -9879,14 +9917,57 @@ static void sbz_detect_quirk(struct hda_codec *codec)
 	}
 }
 
+static void ca0132_generic_init_hook(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+
+	snd_hda_sequence_write(codec, spec->spec_init_verbs);
+}
+
+static int ca0132_generic_probe(struct hda_codec *codec)
+{
+	struct ca0132_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->gen.autocfg;
+	int err;
+
+	snd_hda_gen_spec_init(&spec->gen);
+
+	snd_hda_apply_pincfgs(codec, ca0132_generic_pincfgs);
+
+	ca0132_init_chip(codec);
+
+	err = ca0132_prepare_verbs(codec);
+	if (err < 0)
+		return err;
+
+	err = snd_hda_parse_pin_def_config(codec, cfg, NULL);
+	if (err < 0)
+		return err;
+	err = snd_hda_gen_parse_auto_config(codec, cfg);
+	if (err < 0)
+		return err;
+
+	spec->gen.init_hook = ca0132_generic_init_hook;
+	spec->gen.automute_speaker = 0;
+	spec->gen.automute_lo = 0;
+
+	snd_hda_sequence_write(codec, spec->spec_init_verbs);
+	return 0;
+}
+
 static void ca0132_codec_remove(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_GENERIC:
+		snd_hda_gen_remove(codec);
+		return;
+	case QUIRK_ZXR_DBPRO:
 		return dbpro_free(codec);
-	else
+	default:
 		return ca0132_free(codec);
+	}
 }
 
 static int ca0132_codec_probe(struct hda_codec *codec,
@@ -9903,14 +9984,21 @@ static int ca0132_codec_probe(struct hda_codec *codec,
 	codec->spec = spec;
 	spec->codec = codec;
 
-	/* Detect codec quirk */
-	snd_hda_pick_fixup(codec, ca0132_quirk_models, ca0132_quirks, NULL);
-	if (ca0132_quirk(spec) == QUIRK_SBZ)
-		sbz_detect_quirk(codec);
-
+	/* These must be set before any path is taken */
 	codec->pcm_format_first = 1;
 	codec->no_sticky_stream = 1;
 
+	/* Detect codec quirk */
+	snd_hda_pick_fixup(codec, ca0132_quirk_models, ca0132_quirks, NULL);
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_SBZ:
+		sbz_detect_quirk(codec);
+		break;
+	case QUIRK_GENERIC:
+		return ca0132_generic_probe(codec);
+	default:
+		break;
+	}
 
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
@@ -10011,35 +10099,50 @@ static int ca0132_codec_build_controls(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_GENERIC:
+		return snd_hda_gen_build_controls(codec);
+	case QUIRK_ZXR_DBPRO:
 		return dbpro_build_controls(codec);
-	else
+	default:
 		return ca0132_build_controls(codec);
+	}
 }
 
 static int ca0132_codec_build_pcms(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_GENERIC:
+		return snd_hda_gen_build_pcms(codec);
+	case QUIRK_ZXR_DBPRO:
 		return dbpro_build_pcms(codec);
-	else
+	default:
 		return ca0132_build_pcms(codec);
+	}
 }
 
 static int ca0132_codec_init(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
 
-	if (ca0132_quirk(spec) == QUIRK_ZXR_DBPRO)
+	switch (ca0132_quirk(spec)) {
+	case QUIRK_GENERIC:
+		return snd_hda_gen_init(codec);
+	case QUIRK_ZXR_DBPRO:
 		return dbpro_init(codec);
-	else
+	default:
 		return ca0132_init(codec);
+	}
 }
 
 static int ca0132_codec_suspend(struct hda_codec *codec)
 {
 	struct ca0132_spec *spec = codec->spec;
+
+	if (ca0132_quirk(spec) == QUIRK_GENERIC)
+		return 0;
 
 	cancel_delayed_work_sync(&spec->unsol_hp_work);
 	return 0;

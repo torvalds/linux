@@ -27,7 +27,7 @@ void *_sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	n = __NR_mmap;
 #endif
 
-	return (void *)__nolibc_syscall6(n, addr, length, prot, flags, fd, offset);
+	return (void *)(unsigned long)__nolibc_syscall6(n, addr, length, prot, flags, fd, offset);
 }
 #endif
 
@@ -46,8 +46,8 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 static __attribute__((unused))
 void *_sys_mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address)
 {
-	return (void *)__nolibc_syscall5(__NR_mremap, old_address, old_size,
-					 new_size, flags, new_address);
+	return (void *)(unsigned long)__nolibc_syscall5(__NR_mremap, old_address, old_size,
+							new_size, flags, new_address);
 }
 
 static __attribute__((unused))

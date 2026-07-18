@@ -1002,12 +1002,13 @@ static void cmd_work_handler(struct work_struct *work)
 				ent->callback(-EBUSY, ent->context);
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
+				complete(&ent->slotted);
 				cmd_ent_put(ent);
 			} else {
 				ent->ret = -EBUSY;
 				complete(&ent->done);
+				complete(&ent->slotted);
 			}
-			complete(&ent->slotted);
 			return;
 		}
 		alloc_ret = cmd_alloc_index(cmd, ent);
@@ -1017,13 +1018,14 @@ static void cmd_work_handler(struct work_struct *work)
 				ent->callback(-EAGAIN, ent->context);
 				mlx5_free_cmd_msg(dev, ent->out);
 				free_msg(dev, ent->in);
+				complete(&ent->slotted);
 				cmd_ent_put(ent);
 			} else {
 				ent->ret = -EAGAIN;
 				complete(&ent->done);
+				complete(&ent->slotted);
 			}
 			up(&cmd->vars.sem);
-			complete(&ent->slotted);
 			return;
 		}
 	} else {
@@ -2306,6 +2308,7 @@ int mlx5_cmd_alias_obj_create(struct mlx5_core_dev *dev,
 
 	attr = MLX5_ADDR_OF(create_alias_obj_in, in, alias_ctx);
 	MLX5_SET(alias_context, attr, vhca_id_to_be_accessed, alias_attr->vhca_id);
+	MLX5_SET(alias_context, attr, vhca_id_type, alias_attr->vhca_id_type);
 	MLX5_SET(alias_context, attr, object_id_to_be_accessed, alias_attr->obj_id);
 
 	key = MLX5_ADDR_OF(alias_context, attr, access_key);

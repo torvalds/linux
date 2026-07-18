@@ -340,7 +340,7 @@ static bool trb_in_td(struct xhci_td *td, dma_addr_t suspect_dma)
  * Only for transfer and command rings where driver is the producer, not for
  * event rings.
  */
-static unsigned int xhci_num_trbs_free(struct xhci_ring *ring)
+unsigned int xhci_num_trbs_free(struct xhci_ring *ring)
 {
 	struct xhci_segment *enq_seg = ring->enq_seg;
 	union xhci_trb *enq = ring->enqueue;
@@ -609,7 +609,7 @@ static struct xhci_virt_ep *xhci_get_virt_ep(struct xhci_hcd *xhci,
 					     unsigned int slot_id,
 					     unsigned int ep_index)
 {
-	if (slot_id == 0 || slot_id >= MAX_HC_SLOTS) {
+	if (slot_id == 0 || slot_id > xhci->max_slots) {
 		xhci_warn(xhci, "Invalid slot_id %u\n", slot_id);
 		return NULL;
 	}
@@ -1613,7 +1613,7 @@ static void xhci_handle_cmd_disable_slot(struct xhci_hcd *xhci, int slot_id,
 		/* Delete default control endpoint resources */
 		xhci_free_device_endpoint_resources(xhci, virt_dev, true);
 	if (cmd_comp_code == COMP_SUCCESS) {
-		xhci->dcbaa->dev_context_ptrs[slot_id] = 0;
+		xhci->dcbaa.ctx_array[slot_id] = 0;
 		xhci->devs[slot_id] = NULL;
 	}
 }
@@ -1804,7 +1804,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	struct xhci_command *cmd;
 	u32 cmd_type;
 
-	if (slot_id >= MAX_HC_SLOTS) {
+	if (slot_id > xhci->max_slots) {
 		xhci_warn(xhci, "Invalid slot_id %u\n", slot_id);
 		return;
 	}
@@ -2395,7 +2395,6 @@ static void process_isoc_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 	u32 trb_comp_code;
 	bool sum_trbs_for_length = false;
 	u32 remaining, requested, ep_trb_len;
-	int short_framestatus;
 
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	urb_priv = td->urb->hcpriv;
@@ -2404,8 +2403,6 @@ static void process_isoc_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 	requested = frame->length;
 	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
 	ep_trb_len = TRB_LEN(le32_to_cpu(ep_trb->generic.field[2]));
-	short_framestatus = td->urb->transfer_flags & URB_SHORT_NOT_OK ?
-		-EREMOTEIO : 0;
 
 	/* handle completion code */
 	switch (trb_comp_code) {
@@ -2413,15 +2410,12 @@ static void process_isoc_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		/* Don't overwrite status if TD had an error, see xHCI 4.9.1 */
 		if (td->error_mid_td)
 			break;
-		if (remaining) {
-			frame->status = short_framestatus;
+		if (remaining)
 			sum_trbs_for_length = true;
-			break;
-		}
 		frame->status = 0;
 		break;
 	case COMP_SHORT_PACKET:
-		frame->status = short_framestatus;
+		frame->status = 0;
 		sum_trbs_for_length = true;
 		break;
 	case COMP_BANDWIDTH_OVERRUN_ERROR:
@@ -2456,7 +2450,7 @@ static void process_isoc_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		break;
 	case COMP_STOPPED_SHORT_PACKET:
 		/* field normally containing residue now contains transferred */
-		frame->status = short_framestatus;
+		frame->status = 0;
 		requested = remaining;
 		break;
 	case COMP_STOPPED_LENGTH_INVALID:
@@ -2492,26 +2486,6 @@ finish_td:
 	finish_td(xhci, ep, ep_ring, td, trb_comp_code);
 }
 
-static void skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
-			 struct xhci_virt_ep *ep, int status)
-{
-	struct urb_priv *urb_priv;
-	struct usb_iso_packet_descriptor *frame;
-	int idx;
-
-	urb_priv = td->urb->hcpriv;
-	idx = urb_priv->num_tds_done;
-	frame = &td->urb->iso_frame_desc[idx];
-
-	/* The transfer is partly done. */
-	frame->status = -EXDEV;
-
-	/* calc actual length */
-	frame->actual_length = 0;
-
-	xhci_dequeue_td(xhci, td, ep->ring, status);
-}
-
 /*
  * Process bulk and interrupt tds, update urb status and actual_length.
  */
@@ -2542,6 +2516,7 @@ static void process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep,
 		td->status = 0;
 		break;
 	case COMP_SHORT_PACKET:
+		ep->err_count = 0;
 		td->status = 0;
 		break;
 	case COMP_STOPPED_SHORT_PACKET:
@@ -2854,7 +2829,11 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				if (trb_comp_code == COMP_STOPPED_LENGTH_INVALID)
 					return 0;
 
-				skip_isoc_td(xhci, td, ep, status);
+				/*
+				 * TD was missed, skip it. Core already initialized frame->status
+				 * to -EXDEV and frame->actual_length to 0, nothing more to do.
+				 */
+				xhci_dequeue_td(xhci, td, ep_ring, 0);
 
 				if (!list_empty(&ep_ring->td_list)) {
 					if (ring_xrun_event) {
@@ -4353,12 +4332,18 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 			 u32 field3, u32 field4, bool command_must_succeed)
 {
 	int reserved_trbs = xhci->cmd_ring_reserved_trbs;
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	int ret;
 
 	if ((xhci->xhc_state & XHCI_STATE_DYING) ||
 		(xhci->xhc_state & XHCI_STATE_HALTED)) {
 		xhci_dbg(xhci, "xHCI dying or halted, can't queue_command. state: 0x%x\n",
 			 xhci->xhc_state);
+		return -ESHUTDOWN;
+	}
+
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
+		xhci_warn(xhci, "Can't queue command, xHC not accessible\n");
 		return -ESHUTDOWN;
 	}
 

@@ -429,6 +429,24 @@ void rockchip_clk_of_add_provider(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_of_add_provider);
 
+int rockchip_clk_add_grf(struct rockchip_clk_provider *ctx,
+			 struct regmap *grf,
+			 enum rockchip_grf_type type)
+{
+	struct rockchip_aux_grf *aux_grf;
+
+	aux_grf = kzalloc_obj(*aux_grf);
+	if (!aux_grf)
+		return -ENOMEM;
+
+	aux_grf->grf = grf;
+	aux_grf->type = type;
+	hash_add(ctx->aux_grf_table, &aux_grf->node, type);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_clk_add_grf);
+
 void rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				struct rockchip_pll_clock *list,
 				unsigned int nr_pll, int grf_lock_offset)
@@ -509,10 +527,9 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 		clk = NULL;
 
 		/* for GRF-dependent branches, choose the right grf first */
-		if ((list->branch_type == branch_grf_mux ||
-		     list->branch_type == branch_grf_gate ||
-		     list->branch_type == branch_grf_mmc) &&
-		    list->grf_type != grf_type_sys) {
+		if (list->branch_type == branch_grf_mux ||
+		    list->branch_type == branch_grf_gate ||
+		    list->branch_type == branch_grf_mmc) {
 			hash_for_each_possible(ctx->aux_grf_table, agrf, node, list->grf_type) {
 				if (agrf->type == list->grf_type) {
 					grf = agrf->grf;

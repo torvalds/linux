@@ -9,11 +9,14 @@
 
 #include <linux/acpi.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
+#include <linux/compiler_attributes.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/list.h>
 #include <linux/leds.h>
 #include <linux/module.h>
+#include <linux/types.h>
 #include <linux/wmi.h>
 
 #include "dell-wmi-privacy.h"
@@ -24,6 +27,26 @@
 #define DELL_PRIVACY_AUDIO_EVENT  0x1
 #define DELL_PRIVACY_CAMERA_EVENT 0x2
 #define led_to_priv(c)       container_of(c, struct privacy_wmi_data, cdev)
+
+/*
+ * Describes the Device State class exposed by BIOS which can be consumed by
+ * various applications interested in knowing the Privacy feature capabilities.
+ * class DeviceState
+ * {
+ *  [key, read] string InstanceName;
+ *  [read] boolean ReadOnly;
+ *
+ *  [WmiDataId(1), read] uint32 DevicesSupported;
+ *   0 - None; 0x1 - Microphone; 0x2 - Camera; 0x4 - ePrivacy  Screen
+ *
+ *  [WmiDataId(2), read] uint32 CurrentState;
+ *   0 - Off; 1 - On; Bit0 - Microphone; Bit1 - Camera; Bit2 - ePrivacyScreen
+ * };
+ */
+struct device_state {
+	__le32 devices_supported;
+	__le32 current_state;
+} __packed;
 
 /*
  * The wmi_list is used to store the privacy_priv struct with mutex protecting
@@ -185,60 +208,28 @@ static struct attribute *privacy_attrs[] = {
 };
 ATTRIBUTE_GROUPS(privacy);
 
-/*
- * Describes the Device State class exposed by BIOS which can be consumed by
- * various applications interested in knowing the Privacy feature capabilities.
- * class DeviceState
- * {
- *  [key, read] string InstanceName;
- *  [read] boolean ReadOnly;
- *
- *  [WmiDataId(1), read] uint32 DevicesSupported;
- *   0 - None; 0x1 - Microphone; 0x2 - Camera; 0x4 - ePrivacy  Screen
- *
- *  [WmiDataId(2), read] uint32 CurrentState;
- *   0 - Off; 1 - On; Bit0 - Microphone; Bit1 - Camera; Bit2 - ePrivacyScreen
- * };
- */
 static int get_current_status(struct wmi_device *wdev)
 {
 	struct privacy_wmi_data *priv = dev_get_drvdata(&wdev->dev);
-	union acpi_object *obj_present;
-	u32 *buffer;
-	int ret = 0;
+	struct wmi_buffer buffer;
+	int ret;
 
 	if (!priv) {
 		dev_err(&wdev->dev, "dell privacy priv is NULL\n");
 		return -EINVAL;
 	}
+
 	/* check privacy support features and device states */
-	obj_present = wmidev_block_query(wdev, 0);
-	if (!obj_present) {
-		dev_err(&wdev->dev, "failed to read Binary MOF\n");
-		return -EIO;
-	}
+	ret = wmidev_query_block(wdev, 0, &buffer, sizeof(struct device_state));
+	if (ret < 0)
+		return ret;
 
-	if (obj_present->type != ACPI_TYPE_BUFFER) {
-		dev_err(&wdev->dev, "Binary MOF is not a buffer!\n");
-		ret = -EIO;
-		goto obj_free;
-	}
-	/*  Although it's not technically a failure, this would lead to
-	 *  unexpected behavior
-	 */
-	if (obj_present->buffer.length != 8) {
-		dev_err(&wdev->dev, "Dell privacy buffer has unexpected length (%d)!\n",
-				obj_present->buffer.length);
-		ret = -EINVAL;
-		goto obj_free;
-	}
-	buffer = (u32 *)obj_present->buffer.pointer;
-	priv->features_present = buffer[0];
-	priv->last_status = buffer[1];
+	struct device_state *state __free(kfree) = buffer.data;
 
-obj_free:
-	kfree(obj_present);
-	return ret;
+	priv->features_present = le32_to_cpu(state->devices_supported);
+	priv->last_status = le32_to_cpu(state->current_state);
+
+	return 0;
 }
 
 static int dell_privacy_micmute_led_set(struct led_classdev *led_cdev,

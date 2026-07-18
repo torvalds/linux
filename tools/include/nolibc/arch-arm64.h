@@ -143,7 +143,7 @@
 
 #ifndef NOLIBC_NO_RUNTIME
 /* startup code */
-void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _start(void)
+void __attribute__((weak, noreturn)) __nolibc_entrypoint __nolibc_no_stack_protector _start(void)
 {
 	__asm__ volatile (
 		"mov x0, sp\n"          /* save stack pointer to x0, as arg1 of _start_c */

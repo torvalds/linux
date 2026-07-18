@@ -17,6 +17,7 @@
 #include <asm/io_apic.h>
 #include <asm/acpi.h>
 #include <asm/cpu.h>
+#include <asm/cpuid/api.h>
 #include <asm/hypervisor.h>
 #include <asm/i8259.h>
 #include <asm/irqdomain.h>

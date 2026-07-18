@@ -61,15 +61,15 @@
  * support that.  So, if an abort is received before trf7970a_send_cmd()
  * has sent the command to the tag, it simply returns -ECANCELED.  If the
  * command has already been sent to the tag, then the driver continues
- * normally and recieves the response data (or error) but just before
+ * normally and receives the response data (or error) but just before
  * sending the data upstream, it frees the rx_skb and sends -ECANCELED
  * upstream instead.  If the command failed, that error will be sent
  * upstream.
  *
- * When recieving data from a tag and the interrupt status register has
+ * When receiving data from a tag and the interrupt status register has
  * only the SRX bit set, it means that all of the data has been received
  * (once what's in the fifo has been read).  However, depending on timing
- * an interrupt status with only the SRX bit set may not be recived.  In
+ * an interrupt status with only the SRX bit set may not be received.  In
  * those cases, the timeout mechanism is used to wait 20 ms in case more
  * data arrives.  After 20 ms, it is assumed that all of the data has been
  * received and the accumulated rx data is sent upstream.  The
@@ -317,6 +317,7 @@
 #define TRF7970A_RSSI_OSC_STATUS_RSSI_MASK	(BIT(2) | BIT(1) | BIT(0))
 #define TRF7970A_RSSI_OSC_STATUS_RSSI_X_MASK	(BIT(5) | BIT(4) | BIT(3))
 #define TRF7970A_RSSI_OSC_STATUS_RSSI_OSC_OK	BIT(6)
+#define TRF7970A_RSSI_OSC_STATUS_RSSI_NOISE_LEVEL	1
 
 #define TRF7970A_SPECIAL_FCN_REG1_COL_7_6		BIT(0)
 #define TRF7970A_SPECIAL_FCN_REG1_14_ANTICOLL		BIT(1)
@@ -1300,7 +1301,7 @@ static int trf7970a_is_rf_field(struct trf7970a *trf, bool *is_rf_field)
 	if (ret)
 		return ret;
 
-	if (rssi & TRF7970A_RSSI_OSC_STATUS_RSSI_MASK)
+	if ((rssi & TRF7970A_RSSI_OSC_STATUS_RSSI_MASK) > TRF7970A_RSSI_OSC_STATUS_RSSI_NOISE_LEVEL)
 		*is_rf_field = true;
 	else
 		*is_rf_field = false;

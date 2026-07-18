@@ -45,8 +45,12 @@ properties:
     description: Phandles to the I2S controllers.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: Phandle to I2S0.
-      - description: Phandle to I2S1.
+      - items:
+          - description: Phandle to I2S0
+          - description: Unused
+      - items:
+          - description: Phandle to I2S1
+          - description: Unused
 
   mic-bias-gpios:
     description: GPIO pin that enables the Main Mic bias regulator.

@@ -65,5 +65,5 @@ examples:
         interrupt-parent = <&vic1>;
         interrupts = <6>;
         sampling-frequency = <5000000>;
-        vref-external = <2500>;	/* 2.5V VRef */
+        vref-external = <2500>; /* 2.5V VRef */
     };

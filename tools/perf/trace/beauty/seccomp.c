@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1
+#include "trace/beauty/beauty.h"
+
 #ifndef SECCOMP_SET_MODE_STRICT
 #define SECCOMP_SET_MODE_STRICT 0
 #endif
@@ -6,7 +8,7 @@
 #define SECCOMP_SET_MODE_FILTER 1
 #endif
 
-static size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct syscall_arg *arg)
 {
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "SECCOMP_SET_MODE_";
@@ -24,14 +26,14 @@ static size_t syscall_arg__scnprintf_seccomp_op(char *bf, size_t size, struct sy
 	return printed;
 }
 
-#define SCA_SECCOMP_OP  syscall_arg__scnprintf_seccomp_op
+
 
 #ifndef SECCOMP_FILTER_FLAG_TSYNC
 #define SECCOMP_FILTER_FLAG_TSYNC 1
 #endif
 
-static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
-						   struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
+					    struct syscall_arg *arg)
 {
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "SECCOMP_FILTER_FLAG_";
@@ -51,5 +53,3 @@ static size_t syscall_arg__scnprintf_seccomp_flags(char *bf, size_t size,
 
 	return printed;
 }
-
-#define SCA_SECCOMP_FLAGS syscall_arg__scnprintf_seccomp_flags

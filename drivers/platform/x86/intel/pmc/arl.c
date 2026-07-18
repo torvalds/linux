@@ -672,6 +672,9 @@ static struct pmc_info arl_pmc_info_list[] = {
 	{}
 };
 
+static const u8 arl_pmc_list[] = {PMC_IDX_MAIN, PMC_IDX_IOE, PMC_IDX_PCH};
+static const u8 arl_h_pmc_list[] = {PMC_IDX_MAIN, PMC_IDX_IOE};
+
 #define ARL_NPU_PCI_DEV			0xad1d
 #define ARL_GNA_PCI_DEV			0xae4c
 #define ARL_H_NPU_PCI_DEV		0x7d1d
@@ -720,8 +723,9 @@ static int arl_h_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_
 
 static u32 ARL_PMT_DMU_GUIDS[] = {ARL_PMT_DMU_GUID, 0x0};
 struct pmc_dev_info arl_pmc_dev = {
-	.pci_func = 0,
 	.dmu_guids = ARL_PMT_DMU_GUIDS,
+	.num_pmcs = ARRAY_SIZE(arl_pmc_list),
+	.pmc_list = arl_pmc_list,
 	.regmap_list = arl_pmc_info_list,
 	.map = &arl_socs_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,
@@ -729,12 +733,15 @@ struct pmc_dev_info arl_pmc_dev = {
 	.resume = arl_resume,
 	.init = arl_core_init,
 	.sub_req = pmc_core_pmt_get_lpm_req,
+	.ssram_hidden = true,
+	.die_c6_offset = MTL_PMT_DMU_DIE_C6_OFFSET,
 };
 
 static u32 ARL_H_PMT_DMU_GUIDS[] = {ARL_PMT_DMU_GUID, ARL_H_PMT_DMU_GUID, 0x0};
 struct pmc_dev_info arl_h_pmc_dev = {
-	.pci_func = 2,
 	.dmu_guids = ARL_H_PMT_DMU_GUIDS,
+	.num_pmcs = ARRAY_SIZE(arl_h_pmc_list),
+	.pmc_list = arl_h_pmc_list,
 	.regmap_list = arl_pmc_info_list,
 	.map = &mtl_socm_reg_map,
 	.sub_req_show = &pmc_core_substate_req_regs_fops,
@@ -742,4 +749,6 @@ struct pmc_dev_info arl_h_pmc_dev = {
 	.resume = arl_h_resume,
 	.init = arl_h_core_init,
 	.sub_req = pmc_core_pmt_get_lpm_req,
+	.ssram_hidden = true,
+	.die_c6_offset = MTL_PMT_DMU_DIE_C6_OFFSET,
 };

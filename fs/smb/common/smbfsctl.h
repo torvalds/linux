@@ -61,8 +61,8 @@
 #define FSCTL_LOCK_VOLUME            0x00090018
 #define FSCTL_UNLOCK_VOLUME          0x0009001C
 #define FSCTL_IS_PATHNAME_VALID      0x0009002C /* BB add struct */
-#define FSCTL_GET_COMPRESSION        0x0009003C /* BB add struct */
-#define FSCTL_SET_COMPRESSION        0x0009C040 /* BB add struct */
+#define FSCTL_GET_COMPRESSION        0x0009003C
+#define FSCTL_SET_COMPRESSION        0x0009C040
 #define FSCTL_QUERY_FAT_BPB          0x00090058 /* BB add struct */
 /* Verify the next FSCTL number, we had it as 0x00090090 before */
 #define FSCTL_FILESYSTEM_GET_STATS   0x00090060 /* BB add struct */
@@ -158,6 +158,12 @@
 #define IO_REPARSE_TAG_LX_FIFO	     0x80000024
 #define IO_REPARSE_TAG_LX_CHR	     0x80000025
 #define IO_REPARSE_TAG_LX_BLK	     0x80000026
+
+#define IO_REPARSE_TAG_LX_SYMLINK_LE   cpu_to_le32(IO_REPARSE_TAG_LX_SYMLINK)
+#define IO_REPARSE_TAG_AF_UNIX_LE      cpu_to_le32(IO_REPARSE_TAG_AF_UNIX)
+#define IO_REPARSE_TAG_LX_FIFO_LE      cpu_to_le32(IO_REPARSE_TAG_LX_FIFO)
+#define IO_REPARSE_TAG_LX_CHR_LE       cpu_to_le32(IO_REPARSE_TAG_LX_CHR)
+#define IO_REPARSE_TAG_LX_BLK_LE       cpu_to_le32(IO_REPARSE_TAG_LX_BLK)
 
 /* If Name Surrogate Bit is set, the file or directory represents another named entity in the system. */
 #define IS_REPARSE_TAG_NAME_SURROGATE(tag) (!!((tag) & 0x20000000))

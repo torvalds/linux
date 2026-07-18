@@ -60,14 +60,6 @@ struct atm_dev_stats {
 					/* get interface type name */
 #define ATM_GETESI	_IOW('a',ATMIOC_ITF+5,struct atmif_sioc)
 					/* get interface ESI */
-#define ATM_GETADDR	_IOW('a',ATMIOC_ITF+6,struct atmif_sioc)
-					/* get itf's local ATM addr. list */
-#define ATM_RSTADDR	_IOW('a',ATMIOC_ITF+7,struct atmif_sioc)
-					/* reset itf's ATM address list */
-#define ATM_ADDADDR	_IOW('a',ATMIOC_ITF+8,struct atmif_sioc)
-					/* add a local ATM address */
-#define ATM_DELADDR	_IOW('a',ATMIOC_ITF+9,struct atmif_sioc)
-					/* remove a local ATM address */
 #define ATM_GETCIRANGE	_IOW('a',ATMIOC_ITF+10,struct atmif_sioc)
 					/* get connection identifier range */
 #define ATM_SETCIRANGE	_IOW('a',ATMIOC_ITF+11,struct atmif_sioc)
@@ -76,12 +68,6 @@ struct atm_dev_stats {
 					/* set interface ESI */
 #define ATM_SETESIF	_IOW('a',ATMIOC_ITF+13,struct atmif_sioc)
 					/* force interface ESI */
-#define ATM_ADDLECSADDR	_IOW('a', ATMIOC_ITF+14, struct atmif_sioc)
-					/* register a LECS address */
-#define ATM_DELLECSADDR	_IOW('a', ATMIOC_ITF+15, struct atmif_sioc)
-					/* unregister a LECS address */
-#define ATM_GETLECSADDR	_IOW('a', ATMIOC_ITF+16, struct atmif_sioc)
-					/* retrieve LECS address(es) */
 
 #define ATM_GETSTAT	_IOW('a',ATMIOC_SARCOM+0,struct atmif_sioc)
 					/* get AAL layer statistics */
@@ -99,10 +85,6 @@ struct atm_dev_stats {
 					/* set backend handler */
 #define ATM_NEWBACKENDIF _IOW('a',ATMIOC_SPECIAL+3,atm_backend_t)
 					/* use backend to make new if */
-#define ATM_ADDPARTY  	_IOW('a', ATMIOC_SPECIAL+4,struct atm_iobuf)
- 					/* add party to p2mp call */
-#define ATM_DROPPARTY 	_IOW('a', ATMIOC_SPECIAL+5,int)
-					/* drop party from p2mp call */
 
 /*
  * These are backend handkers that can be set via the ATM_SETBACKEND call

@@ -1171,7 +1171,6 @@ out:
 	bh_unlock_sock(sk);
 	dst_release(odst);
 }
-EXPORT_SYMBOL_GPL(ipv4_sk_update_pmtu);
 
 void ipv4_redirect(struct sk_buff *skb, struct net *net,
 		   int oif, u8 protocol)
@@ -1203,7 +1202,6 @@ void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk)
 		ip_rt_put(rt);
 	}
 }
-EXPORT_SYMBOL_GPL(ipv4_sk_redirect);
 
 INDIRECT_CALLABLE_SCOPE struct dst_entry *ipv4_dst_check(struct dst_entry *dst,
 							 u32 cookie)
@@ -1272,7 +1270,7 @@ static int ip_rt_bug(struct net *net, struct sock *sk, struct sk_buff *skb)
 		 __func__, &ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
 		 skb->dev ? skb->dev->name : "?");
 	kfree_skb(skb);
-	WARN_ON(1);
+	WARN_ON_ONCE(1);
 	return 0;
 }
 
@@ -1701,7 +1699,6 @@ struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt)
 	}
 	return new_rt;
 }
-EXPORT_SYMBOL(rt_dst_clone);
 
 /* called in rcu_read_lock() section */
 enum skb_drop_reason

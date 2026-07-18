@@ -72,6 +72,7 @@ enum mlx5_qp_optpar {
 	MLX5_QP_OPTPAR_CQN_RCV			= 1 << 19,
 	MLX5_QP_OPTPAR_DC_HS			= 1 << 20,
 	MLX5_QP_OPTPAR_DC_KEY			= 1 << 21,
+	MLX5_QP_OPTPAR_PP_INDEX			= 1 << 22,
 	MLX5_QP_OPTPAR_COUNTER_SET_ID		= 1 << 25,
 };
 

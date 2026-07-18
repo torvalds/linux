@@ -68,7 +68,6 @@ int wave5_vpu_release_device(struct file *filp,
 	int ret = 0;
 	unsigned long flags;
 
-	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 	/*
 	 * To prevent Null reference exception, the existing irq handler were
 	 * separated to two modules.
@@ -89,6 +88,9 @@ int wave5_vpu_release_device(struct file *filp,
 	list_del_init(&inst->list);
 	spin_unlock_irqrestore(&inst->dev->irq_spinlock, flags);
 	mutex_unlock(&inst->dev->irq_lock);
+
+	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
+
 	if (inst->state != VPU_INST_STATE_NONE) {
 		u32 fail_res;
 

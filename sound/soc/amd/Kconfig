@@ -174,5 +174,15 @@ config SND_SOC_AMD_PS_MACH
           Say m if you have such a device.
           If unsure select "N".
 
+config SND_SOC_AMD_ACP7X
+        tristate "AMD Audio Coprocessor-v7.x support"
+        depends on X86 && PCI && ACPI
+        help
+	  This option enables Audio Coprocessor i.e ACP7.x
+	  variants support(ACP7.D/7.E/7.F). By enabling this flag build
+	  will be triggered for ACP PCI driver.
+	  Say m if you have such a device.
+	  If unsure select "N".
+
 endif
 endmenu

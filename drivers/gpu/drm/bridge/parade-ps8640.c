@@ -437,7 +437,7 @@ static const struct dev_pm_ops ps8640_pm_ops = {
 };
 
 static void ps8640_atomic_pre_enable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 	struct regmap *map = ps_bridge->regmap[PAGE2_TOP_CNTL];
@@ -472,7 +472,7 @@ static void ps8640_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void ps8640_atomic_post_disable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 
@@ -556,7 +556,7 @@ static const struct drm_bridge_funcs ps8640_bridge_funcs = {
 	.atomic_pre_enable = ps8640_atomic_pre_enable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int ps8640_bridge_get_dsi_resources(struct device *dev, struct ps8640 *ps_bridge)

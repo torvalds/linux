@@ -213,7 +213,7 @@ static int aca_parse_umc_bank(struct ras_core_context *ras_core,
 	struct aca_bank_reg *bank = (struct aca_bank_reg *)data;
 	struct aca_bank_ecc *ecc = (struct aca_bank_ecc *)buf;
 	struct aca_ecc_info bank_info;
-	uint32_t ext_error_code;
+	uint32_t ext_error_code, misc0_errcnt;
 	uint64_t status0;
 
 	status0 = bank->regs[ACA_REG_IDX__STATUS];
@@ -228,15 +228,14 @@ static int aca_parse_umc_bank(struct ras_core_context *ras_core,
 	ecc->bank_info.addr = bank->regs[ACA_REG_IDX__ADDR];
 
 	ext_error_code = ACA_REG_STATUS_ERRORCODEEXT(status0);
+	misc0_errcnt = ACA_REG_MISC0_ERRCNT(bank->regs[ACA_REG_IDX__MISC0]);
 
 	if (aca_check_umc_de(ras_core, status0))
-		ecc->de_count = 1;
+		ecc->de_count = misc0_errcnt ? misc0_errcnt : 1;
 	else if (aca_check_umc_ue(ras_core, status0))
-		ecc->ue_count = ext_error_code ?
-			1 : ACA_REG_MISC0_ERRCNT(bank->regs[ACA_REG_IDX__MISC0]);
+		ecc->ue_count = ext_error_code ? 1 : misc0_errcnt;
 	else if (aca_check_umc_ce(ras_core, status0))
-		ecc->ce_count = ext_error_code ?
-			1 : ACA_REG_MISC0_ERRCNT(bank->regs[ACA_REG_IDX__MISC0]);
+		ecc->ce_count = ext_error_code ? 1 : misc0_errcnt;
 
 	return 0;
 }
@@ -266,7 +265,7 @@ static int aca_parse_bank_default(struct ras_core_context *ras_core,
 	ecc->bank_info.addr = bank->regs[ACA_REG_IDX__ADDR];
 
 	if (aca_check_bank_is_de(ras_core, status)) {
-		ecc->de_count = 1;
+		ecc->de_count = 0;
 	} else {
 		if (bank->ecc_type == RAS_ERR_TYPE__UE)
 			ecc->ue_count = 1;

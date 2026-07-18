@@ -1632,6 +1632,7 @@ static const struct of_device_id sm8350_tlmm_of_match[] = {
 	{ .compatible = "qcom,sm8350-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm8350_tlmm_of_match);
 
 static struct platform_driver sm8350_tlmm_driver = {
 	.driver = {
@@ -1655,4 +1656,3 @@ module_exit(sm8350_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI SM8350 TLMM driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, sm8350_tlmm_of_match);

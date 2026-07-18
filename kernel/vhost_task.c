@@ -123,7 +123,6 @@ struct vhost_task *vhost_task_create(bool (*fn)(void *),
 	struct kernel_clone_args args = {
 		.flags		= CLONE_FS | CLONE_UNTRACED | CLONE_VM |
 				  CLONE_THREAD | CLONE_SIGHAND,
-		.exit_signal	= 0,
 		.fn		= vhost_task_fn,
 		.name		= name,
 		.user_worker	= 1,

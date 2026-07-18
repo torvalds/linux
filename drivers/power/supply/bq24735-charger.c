@@ -489,8 +489,8 @@ static int bq24735_charger_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq24735_charger_id[] = {
-	{ "bq24735-charger" },
-	{}
+	{ .name = "bq24735-charger" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq24735_charger_id);
 

@@ -1307,7 +1307,8 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 			goto out_free;
 	}
 
-	if (pt->synth_opts.last_branch || pt->synth_opts.other_events) {
+	if (pt->synth_opts.last_branch || pt->synth_opts.add_last_branch ||
+	    pt->synth_opts.other_events) {
 		unsigned int entry_cnt = max(LBRS_MAX, pt->br_stack_sz);
 
 		ptq->last_branch = intel_pt_alloc_br_stack(entry_cnt);
@@ -1728,11 +1729,30 @@ static void intel_pt_prep_b_sample(struct intel_pt *pt,
 	event->sample.header.misc = sample->cpumode;
 }
 
-static int intel_pt_inject_event(union perf_event *event,
+static int intel_pt_inject_event(struct intel_pt *pt, union perf_event *event,
 				 struct perf_sample *sample, u64 type)
 {
-	event->header.size = perf_event__sample_event_size(sample, type, 0);
-	return perf_event__synthesize_sample(event, type, 0, sample);
+	struct evsel *evsel = sample->evsel;
+	u64 branch_sample_type = 0;
+	size_t sz;
+
+	if (!evsel && pt->session && pt->session->evlist)
+		evsel = evlist__id2evsel(pt->session->evlist, sample->id);
+
+	if (evsel)
+		branch_sample_type = evsel->core.attr.branch_sample_type;
+
+	event->header.type = PERF_RECORD_SAMPLE;
+	sz = perf_event__sample_event_size(sample, type, /*read_format=*/0,
+					   branch_sample_type);
+	if (sz >= PERF_SAMPLE_MAX_SIZE) {
+		pr_err("Sample size %zu exceeds max size %d\n", sz, PERF_SAMPLE_MAX_SIZE);
+		return -EFAULT;
+	}
+	event->header.size = sz;
+
+	return perf_event__synthesize_sample(event, type, /*read_format=*/0,
+					     branch_sample_type, sample);
 }
 
 static inline int intel_pt_opt_inject(struct intel_pt *pt,
@@ -1742,7 +1762,7 @@ static inline int intel_pt_opt_inject(struct intel_pt *pt,
 	if (!pt->synth_opts.inject)
 		return 0;
 
-	return intel_pt_inject_event(event, sample, type);
+	return intel_pt_inject_event(pt, event, sample, type);
 }
 
 static int intel_pt_deliver_synth_event(struct intel_pt *pt,
@@ -2486,7 +2506,7 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 		intel_pt_add_xmm(intr_regs, pos, items, regs_mask);
 	}
 
-	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
+	if ((sample_type | evsel->synth_sample_type) & PERF_SAMPLE_BRANCH_STACK) {
 		if (items->mask[INTEL_PT_LBR_0_POS] ||
 		    items->mask[INTEL_PT_LBR_1_POS] ||
 		    items->mask[INTEL_PT_LBR_2_POS]) {
@@ -2557,7 +2577,8 @@ static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evse
 		sample.transaction = txn;
 	}
 
-	ret = intel_pt_deliver_synth_event(pt, event, &sample, sample_type);
+	ret = intel_pt_deliver_synth_event(pt, event, &sample,
+					   sample_type | evsel->synth_sample_type);
 	perf_sample__exit(&sample);
 	return ret;
 }
@@ -2979,7 +3000,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	start = dso__first_symbol(map__dso(map));
 
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
-		if (sym->binding == STB_GLOBAL &&
+		if (symbol__binding(sym) == STB_GLOBAL &&
 		    !strcmp(sym->name, "__switch_to")) {
 			ip = map__unmap_ip(map, sym->start);
 			if (ip >= map__start(map) && ip < map__end(map)) {
@@ -3426,7 +3447,7 @@ static int intel_pt_process_switch(struct intel_pt *pt,
 	if (evsel != pt->switch_evsel)
 		return 0;
 
-	tid = evsel__intval(evsel, sample, "next_pid");
+	tid = perf_sample__intval(sample, "next_pid");
 	cpu = sample->cpu;
 
 	intel_pt_log("sched_switch: cpu %d tid %d time %"PRIu64" tsc %#"PRIx64"\n",

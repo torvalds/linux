@@ -4,12 +4,12 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/pci_config.h>
 
 #include "i915_drv.h"
 #include "i915_pci.h"
 #include "i915_reg.h"
 #include "intel_memory_region.h"
-#include "intel_pci_config.h"
 #include "intel_region_lmem.h"
 #include "intel_region_ttm.h"
 #include "gem/i915_gem_lmem.h"

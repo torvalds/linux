@@ -59,16 +59,6 @@ static void release_lpi(u32 lpi)
 	ida_free(&lpi_ida, lpi);
 }
 
-int gicv5_alloc_lpi(void)
-{
-	return alloc_lpi();
-}
-
-void gicv5_free_lpi(u32 lpi)
-{
-	release_lpi(lpi);
-}
-
 static void gicv5_ppi_priority_init(void)
 {
 	write_sysreg_s(REPEAT_BYTE(GICV5_IRQ_PRI_MI), SYS_ICC_PPI_PRIORITYR0_EL1);
@@ -218,17 +208,13 @@ static void gicv5_hwirq_eoi(u32 hwirq_id, u8 hwirq_type)
 	       FIELD_PREP(GICV5_GIC_CDDI_TYPE_MASK, hwirq_type);
 
 	gic_insn(cddi, CDDI);
-
-	gic_insn(0, CDEOI);
 }
 
 static void gicv5_ppi_irq_eoi(struct irq_data *d)
 {
 	/* Skip deactivate for forwarded PPI interrupts */
-	if (irqd_is_forwarded_to_vcpu(d)) {
-		gic_insn(0, CDEOI);
+	if (irqd_is_forwarded_to_vcpu(d))
 		return;
-	}
 
 	gicv5_hwirq_eoi(d->hwirq, GICV5_HWIRQ_TYPE_PPI);
 }
@@ -806,38 +792,64 @@ static void gicv5_lpi_config_reset(struct irq_data *d)
 	gicv5_lpi_irq_write_pending_state(d, false);
 }
 
+static void gicv5_irq_lpi_domain_free(struct irq_domain *domain, unsigned int virq,
+				      unsigned int nr_irqs)
+{
+	struct irq_data *d;
+
+	for (unsigned int i = 0; i < nr_irqs; i++, virq++) {
+		d = irq_domain_get_irq_data(domain, virq);
+
+		release_lpi(d->hwirq);
+
+		irq_set_handler(virq, NULL);
+		irq_domain_reset_irq_data(d);
+	}
+}
+
 static int gicv5_irq_lpi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				      unsigned int nr_irqs, void *arg)
 {
 	irq_hw_number_t hwirq;
 	struct irq_data *irqd;
-	u32 *lpi = arg;
+	unsigned int i;
 	int ret;
 
-	if (WARN_ON_ONCE(nr_irqs != 1))
-		return -EINVAL;
+	for (i = 0; i < nr_irqs; i++) {
+		ret = alloc_lpi();
+		if (ret < 0)
+			goto out_free_lpis;
+		hwirq = ret;
 
-	hwirq = *lpi;
+		ret = gicv5_irs_iste_alloc(hwirq);
+		if (ret < 0) {
+			/* Undo partial state first, then clean up the rest */
+			release_lpi(hwirq);
+			goto out_free_lpis;
+		}
 
-	irqd = irq_domain_get_irq_data(domain, virq);
+		irqd = irq_domain_get_irq_data(domain, virq + i);
 
-	irq_domain_set_info(domain, virq, hwirq, &gicv5_lpi_irq_chip, NULL,
-			    handle_fasteoi_irq, NULL, NULL);
-	irqd_set_single_target(irqd);
+		irq_domain_set_info(domain, virq + i, hwirq, &gicv5_lpi_irq_chip,
+				    NULL, handle_fasteoi_irq, NULL, NULL);
+		irqd_set_single_target(irqd);
 
-	ret = gicv5_irs_iste_alloc(hwirq);
-	if (ret < 0)
-		return ret;
-
-	gicv5_hwirq_init(hwirq, GICV5_IRQ_PRI_MI, GICV5_HWIRQ_TYPE_LPI);
-	gicv5_lpi_config_reset(irqd);
+		gicv5_hwirq_init(hwirq, GICV5_IRQ_PRI_MI, GICV5_HWIRQ_TYPE_LPI);
+		gicv5_lpi_config_reset(irqd);
+	}
 
 	return 0;
+
+out_free_lpis:
+	if (i)
+		gicv5_irq_lpi_domain_free(domain, virq, i);
+
+	return ret;
 }
 
 static const struct irq_domain_ops gicv5_irq_lpi_domain_ops = {
 	.alloc	= gicv5_irq_lpi_domain_alloc,
-	.free	= gicv5_irq_domain_free,
+	.free	= gicv5_irq_lpi_domain_free,
 };
 
 void __init gicv5_init_lpi_domain(void)
@@ -858,30 +870,21 @@ static int gicv5_irq_ipi_domain_alloc(struct irq_domain *domain, unsigned int vi
 				      unsigned int nr_irqs, void *arg)
 {
 	struct irq_data *irqd;
-	int ret, i;
-	u32 lpi;
+	int ret;
 
-	for (i = 0; i < nr_irqs; i++) {
-		ret = gicv5_alloc_lpi();
-		if (ret < 0)
-			return ret;
+	ret = irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, arg);
+	if (ret)
+		return ret;
 
-		lpi = ret;
+	for (unsigned int i = 0; i < nr_irqs; i++, virq++) {
+		irqd = irq_domain_get_irq_data(domain, virq);
 
-		ret = irq_domain_alloc_irqs_parent(domain, virq + i, 1, &lpi);
-		if (ret) {
-			gicv5_free_lpi(lpi);
-			return ret;
-		}
-
-		irqd = irq_domain_get_irq_data(domain, virq + i);
-
-		irq_domain_set_hwirq_and_chip(domain, virq + i, i,
-				&gicv5_ipi_irq_chip, NULL);
+		irq_domain_set_hwirq_and_chip(domain, virq, i,
+					      &gicv5_ipi_irq_chip, NULL);
 
 		irqd_set_single_target(irqd);
 
-		irq_set_handler(virq + i, handle_percpu_irq);
+		irq_set_handler(virq, handle_percpu_irq);
 	}
 
 	return 0;
@@ -899,12 +902,11 @@ static void gicv5_irq_ipi_domain_free(struct irq_domain *domain, unsigned int vi
 		if (!d)
 			return;
 
-		gicv5_free_lpi(d->parent_data->hwirq);
-
 		irq_set_handler(virq + i, NULL);
 		irq_domain_reset_irq_data(d);
-		irq_domain_free_irqs_parent(domain, virq + i, 1);
 	}
+
+	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
 
 static const struct irq_domain_ops gicv5_irq_ipi_domain_ops = {
@@ -962,6 +964,13 @@ static void __exception_irq_entry gicv5_handle_irq(struct pt_regs *regs)
 	 * instructions in the IRQ handler using an ISB.
 	 */
 	isb();
+
+	/*
+	 * Ensure that we can receive the next interrupts in the event that we
+	 * have a long running handler or directly enter a guest by doing the
+	 * priority drop immediately.
+	 */
+	gic_insn(0, CDEOI);
 
 	hwirq = FIELD_GET(GICV5_HWIRQ_INTID, ia);
 

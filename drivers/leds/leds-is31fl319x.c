@@ -11,7 +11,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
@@ -565,17 +564,17 @@ static int is31fl319x_probe(struct i2c_client *client)
  * even though it is not used for DeviceTree based instantiation.
  */
 static const struct i2c_device_id is31fl319x_id[] = {
-	{ "is31fl3190" },
-	{ "is31fl3191" },
-	{ "is31fl3193" },
-	{ "is31fl3196" },
-	{ "is31fl3199" },
-	{ "sn3190" },
-	{ "sn3191" },
-	{ "sn3193" },
-	{ "sn3196" },
-	{ "sn3199" },
-	{},
+	{ .name = "is31fl3190" },
+	{ .name = "is31fl3191" },
+	{ .name = "is31fl3193" },
+	{ .name = "is31fl3196" },
+	{ .name = "is31fl3199" },
+	{ .name = "sn3190" },
+	{ .name = "sn3191" },
+	{ .name = "sn3193" },
+	{ .name = "sn3196" },
+	{ .name = "sn3199" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, is31fl319x_id);
 

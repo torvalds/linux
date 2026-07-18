@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_print.h>
 
@@ -16,27 +18,22 @@
 #include "intel_hotplug.h"
 #include "intel_pps.h"
 
-bool intel_display_reset_test(struct intel_display *display)
+bool intel_display_reset_supported(struct intel_display *display)
 {
-	return display->params.force_reset_modeset_test;
+	return display && HAS_DISPLAY(display);
 }
 
-/* returns true if intel_display_reset_finish() needs to be called */
-bool intel_display_reset_prepare(struct intel_display *display,
-				 modeset_stuck_fn modeset_stuck, void *context)
+bool intel_display_reset_test(struct intel_display *display)
+{
+	return display && HAS_DISPLAY(display) &&
+		display->params.force_reset_modeset_test;
+}
+
+void intel_display_reset_prepare(struct intel_display *display)
 {
 	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int ret;
-
-	if (!HAS_DISPLAY(display))
-		return false;
-
-	if (atomic_read(&display->restore.pending_fb_pin)) {
-		drm_dbg_kms(display->drm,
-			    "Modeset potentially stuck, unbreaking through wedging\n");
-		modeset_stuck(context);
-	}
 
 	/*
 	 * Need mode_config.mutex so that we don't
@@ -60,31 +57,27 @@ bool intel_display_reset_prepare(struct intel_display *display,
 		ret = PTR_ERR(state);
 		drm_err(display->drm, "Duplicating state failed with %i\n",
 			ret);
-		return true;
+		return;
 	}
 
 	ret = drm_atomic_helper_disable_all(display->drm, ctx);
 	if (ret) {
 		drm_err(display->drm, "Suspending crtc's failed with %i\n",
 			ret);
-		drm_atomic_state_put(state);
-		return true;
+		drm_atomic_commit_put(state);
+		return;
 	}
 
+	display->reset.count++;
 	display->restore.modeset_state = state;
 	state->acquire_ctx = ctx;
-
-	return true;
 }
 
 void intel_display_reset_finish(struct intel_display *display, bool test_only)
 {
 	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	int ret;
-
-	if (!HAS_DISPLAY(display))
-		return;
 
 	state = fetch_and_zero(&display->restore.modeset_state);
 	if (!state)
@@ -118,9 +111,16 @@ void intel_display_reset_finish(struct intel_display *display, bool test_only)
 		intel_hpd_poll_disable(display);
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 unlock:
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&display->drm->mode_config.mutex);
+}
+
+void intel_display_reset_debugfs_register(struct intel_display *display)
+{
+	debugfs_create_u32("intel_display_reset_count", 0400,
+			   display->drm->debugfs_root,
+			   &display->reset.count);
 }

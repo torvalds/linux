@@ -19,6 +19,7 @@ Abhinav Kumar <quic_abhinavk@quicinc.com> <abhinavk@codeaurora.org>
 Ahmad Masri <quic_amasri@quicinc.com> <amasri@codeaurora.org>
 Adam Oldham <oldhamca@gmail.com>
 Adam Radford <aradford@gmail.com>
+Aditya Garg <gargaditya08@proton.me> <gargaditya08@live.com>
 Adriana Reus <adi.reus@gmail.com> <adriana.reus@intel.com>
 Adrian Bunk <bunk@stusta.de>
 Ajay Kaher <ajay.kaher@broadcom.com> <akaher@vmware.com>
@@ -35,13 +36,14 @@ Alexander Lobakin <alobakin@pm.me> <bloodyreaper@yandex.ru>
 Alexander Mikhalitsyn <alexander@mihalicyn.com> <alexander.mikhalitsyn@virtuozzo.com>
 Alexander Mikhalitsyn <alexander@mihalicyn.com> <aleksandr.mikhalitsyn@canonical.com>
 Alexander Mikhalitsyn <alexander@mihalicyn.com> <aleksandr.mikhalitsyn@futurfusion.io>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin.ext@nsn.com>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin@gmx.de>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin@nokia.com>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin@nsn.com>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin@siemens.com>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <alexander.sverdlin@sysgo.com>
-Alexander Sverdlin <alexander.sverdlin@gmail.com> <subaparts@yandex.ru>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin.ext@nsn.com>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin@gmail.com>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin@gmx.de>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin@nokia.com>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin@nsn.com>
+Alexander Sverdlin <alex@sverdlin.org> <alexander.sverdlin@sysgo.com>
+Alexander Sverdlin <alex@sverdlin.org> <asv@kernel.org>
+Alexander Sverdlin <alex@sverdlin.org> <subaparts@yandex.ru>
 Alexandre Belloni <alexandre.belloni@bootlin.com> <alexandre.belloni@free-electrons.com>
 Alexandre Ghiti <alex@ghiti.fr> <alexandre.ghiti@canonical.com>
 Alexei Avshalom Lazar <quic_ailizaro@quicinc.com> <ailizaro@codeaurora.org>
@@ -116,6 +118,7 @@ Asutosh Das <quic_asutoshd@quicinc.com> <asutoshd@codeaurora.org>
 Atish Patra <atish.patra@linux.dev> <atishp@atishpatra.org>
 Atish Patra <atish.patra@linux.dev> <atish.patra@wdc.com>
 Avaneesh Kumar Dwivedi <quic_akdwived@quicinc.com> <akdwived@codeaurora.org>
+Avri Altman <avri.altman@sandisk.com> <avri.altman@wdc.com>
 Axel Dyks <xl@xlsigned.net>
 Axel Lin <axel.lin@gmail.com>
 Balakrishna Godavarthi <quic_bgodavar@quicinc.com> <bgodavar@codeaurora.org>
@@ -125,6 +128,7 @@ Baolin Wang <baolin.wang@linux.alibaba.com> <baolin.wang@linaro.org>
 Baolin Wang <baolin.wang@linux.alibaba.com> <baolin.wang@spreadtrum.com>
 Baolin Wang <baolin.wang@linux.alibaba.com> <baolin.wang@unisoc.com>
 Baolin Wang <baolin.wang@linux.alibaba.com> <baolin.wang7@gmail.com>
+Baoquan He <baoquan.he@linux.dev> <bhe@redhat.com>
 Barry Song <baohua@kernel.org> <21cnbao@gmail.com>
 Barry Song <baohua@kernel.org> <v-songbaohua@oppo.com>
 Barry Song <baohua@kernel.org> <song.bao.hua@hisilicon.com>
@@ -200,13 +204,14 @@ Christophe Ricard <christophe.ricard@gmail.com>
 Christopher Obbard <christopher.obbard@linaro.org> <chris.obbard@collabora.com>
 Christoph Hellwig <hch@lst.de>
 Christoph Manszewski <c.manszewski@gmail.com> <christoph.manszewski@intel.com>
-Chuck Lever <chuck.lever@oracle.com> <cel@kernel.org>
-Chuck Lever <chuck.lever@oracle.com> <cel@netapp.com>
-Chuck Lever <chuck.lever@oracle.com> <cel@citi.umich.edu>
+Chuck Lever <cel@kernel.org> <chuck.lever@oracle.com>
+Chuck Lever <cel@kernel.org> <cel@netapp.com>
+Chuck Lever <cel@kernel.org> <cel@citi.umich.edu>
 Claudiu Beznea <claudiu.beznea@tuxon.dev> <claudiu.beznea@microchip.com>
 Colin Ian King <colin.i.king@gmail.com> <colin.king@canonical.com>
 Corey Minyard <minyard@acm.org>
 Damian Hobson-Garcia <dhobsong@igel.co.jp>
+Dan Carpenter <error27@gmail.com> <dan.carpenter@linaro.org>
 Dan Carpenter <error27@gmail.com> <dan.carpenter@oracle.com>
 Dan Williams <djbw@kernel.org> <dan.j.williams@intel.com>
 Daniel Borkmann <daniel@iogearbox.net> <danborkmann@googlemail.com>
@@ -261,8 +266,9 @@ Enric Balletbo i Serra <eballetbo@kernel.org> <enric.balletbo@collabora.com>
 Enric Balletbo i Serra <eballetbo@kernel.org> <eballetbo@iseebcn.com>
 Erik Kaneda <erik.kaneda@intel.com> <erik.schmauss@intel.com>
 Ethan Carter Edwards <ethan@ethancedwards.com> Ethan Edwards <ethancarteredwards@gmail.com>
-Eugen Hristev <eugen.hristev@linaro.org> <eugen.hristev@microchip.com>
-Eugen Hristev <eugen.hristev@linaro.org> <eugen.hristev@collabora.com>
+Eugen Hristev <ehristev@kernel.org> <eugen.hristev@microchip.com>
+Eugen Hristev <ehristev@kernel.org> <eugen.hristev@linaro.org>
+Eugen Hristev <ehristev@kernel.org> <eugen.hristev@collabora.com>
 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
 Ezequiel Garcia <ezequiel@vanguardiasur.com.ar> <ezequiel@collabora.com>
 Faith Ekstrand <faith.ekstrand@collabora.com> <jason@jlekstrand.net>
@@ -337,6 +343,7 @@ Henrik Rydberg <rydberg@bitmath.org>
 Herbert Xu <herbert@gondor.apana.org.au>
 Huacai Chen <chenhuacai@kernel.org> <chenhc@lemote.com>
 Huacai Chen <chenhuacai@kernel.org> <chenhuacai@loongson.cn>
+Ian Ray <ian.ray@gehealthcare.com> <ian.ray@ge.com>
 Ignat Korchagin <ignat@linux.win> <ignat@cloudflare.com>
 Igor Korotin <igor.korotin@linux.dev> <igor.korotin.linux@gmail.com>
 Ike Panhc <ikepanhc@gmail.com> <ike.pan@canonical.com>
@@ -366,6 +373,7 @@ Jarkko Sakkinen <jarkko@kernel.org> <jarkko.sakkinen@opinsys.com>
 Jason Gunthorpe <jgg@ziepe.ca> <jgg@mellanox.com>
 Jason Gunthorpe <jgg@ziepe.ca> <jgg@nvidia.com>
 Jason Gunthorpe <jgg@ziepe.ca> <jgunthorpe@obsidianresearch.com>
+Jason Wang <jasowangio@gmail.com> <jasowang@redhat.com>
 Jason Xing <kerneljasonxing@gmail.com>  <kernelxing@tencent.com>
 <javier@osg.samsung.com> <javier.martinez@collabora.co.uk>
 Javi Merino <javi.merino@kernel.org> <javi.merino@arm.com>
@@ -397,6 +405,7 @@ Jesper Dangaard Brouer <hawk@kernel.org> <hawk@comx.dk>
 Jesper Dangaard Brouer <hawk@kernel.org> <jbrouer@redhat.com>
 Jesper Dangaard Brouer <hawk@kernel.org> <jdb@comx.dk>
 Jesper Dangaard Brouer <hawk@kernel.org> <netoptimizer@brouer.com>
+Jesse Brandeburg <jbrandeb@kernel.org> <jesse.brandeburg@intel.com>
 Jessica Zhang <jesszhan0024@gmail.com> <jesszhan@codeaurora.org>
 Jessica Zhang <jesszhan0024@gmail.com> <quic_jesszhan@quicinc.com>
 Jessica Zhang <jesszhan0024@gmail.com> <jessica.zhang@oss.qualcomm.com>
@@ -431,6 +440,7 @@ John Stultz <johnstul@us.ibm.com>
 Jonas Gorski <jonas.gorski@gmail.com> <jogo@openwrt.org>
 Jonathan Cameron <jic23@kernel.org> <jonathan.cameron@huawei.com>
 Jordan Crouse <jordan@cosmicpenguin.net> <jcrouse@codeaurora.org>
+Jorge Ramirez-Ortiz <jorge.ramirez@oss.qualcomm.com> <jorge.ramirez-ortiz@linaro.org>
 <josh@joshtriplett.org> <josh@freedesktop.org>
 <josh@joshtriplett.org> <josh@kernel.org>
 <josh@joshtriplett.org> <josht@linux.vnet.ibm.com>
@@ -444,6 +454,7 @@ Juha Yrjola <juha.yrjola@nokia.com>
 Juha Yrjola <juha.yrjola@solidboot.com>
 Julien Thierry <julien.thierry.kdev@gmail.com> <julien.thierry@arm.com>
 Justin Iurman <justin.iurman@gmail.com> <justin.iurman@uliege.be>
+Ira Weiny <iweiny@kernel.org> <ira.weiny@intel.com>
 Iskren Chernev <me@iskren.info> <iskren.chernev@gmail.com>
 Kalle Valo <kvalo@kernel.org> <kvalo@codeaurora.org>
 Kalle Valo <kvalo@kernel.org> <quic_kvalo@quicinc.com>
@@ -495,6 +506,7 @@ Leon Romanovsky <leon@kernel.org> <leon@leon.nu>
 Leon Romanovsky <leon@kernel.org> <leonro@mellanox.com>
 Leon Romanovsky <leon@kernel.org> <leonro@nvidia.com>
 Leo Yan <leo.yan@linux.dev> <leo.yan@linaro.org>
+Liam R. Howlett <liam@infradead.org> <Liam.Howlett@oracle.com>
 Liam Mark <quic_lmark@quicinc.com> <lmark@codeaurora.org>
 Linas Vepstas <linas@austin.ibm.com>
 Linus Lüssing <linus.luessing@c0d3.blue> <linus.luessing@ascom.ch>
@@ -505,6 +517,8 @@ Linus Walleij <linusw@kernel.org> <linus.walleij@stericsson.com>
 Linus Walleij <linusw@kernel.org> <linus.walleij@linaro.org>
 Linus Walleij <linusw@kernel.org> <triad@df.lth.se>
 <linux-hardening@vger.kernel.org> <kernel-hardening@lists.openwall.com>
+Li Wang <li.wang@linux.dev> <liwang@redhat.com>
+Li Wang <li.wang@linux.dev> <wangli.ahau@gmail.com>
 Li Yang <leoyang.li@nxp.com> <leoli@freescale.com>
 Li Yang <leoyang.li@nxp.com> <leo@zh-kernel.org>
 Lior David <quic_liord@quicinc.com> <liord@codeaurora.org>
@@ -517,7 +531,8 @@ Luca Ceresoli <luca.ceresoli@bootlin.com> <luca@lucaceresoli.net>
 Luca Weiss <luca@lucaweiss.eu> <luca@z3ntu.xyz>
 Lucas De Marchi <demarchi@kernel.org> <lucas.demarchi@intel.com>
 Lukasz Luba <lukasz.luba@arm.com> <l.luba@partner.samsung.com>
-Luo Jie <quic_luoj@quicinc.com> <luoj@codeaurora.org>
+Luo Jie <jie.luo@oss.qualcomm.com> <luoj@codeaurora.org>
+Luo Jie <jie.luo@oss.qualcomm.com> <quic_luoj@quicinc.com>
 Lance Yang <lance.yang@linux.dev> <ioworker0@gmail.com>
 Lance Yang <lance.yang@linux.dev> <mingzhe.yang@ly.com>
 Maciej W. Rozycki <macro@mips.com> <macro@imgtec.com>
@@ -544,6 +559,7 @@ Martyna Szapar-Mudlaw <martyna.szapar-mudlaw@linux.intel.com> <martyna.szapar-mu
 Mathieu Othacehe <othacehe@gnu.org> <m.othacehe@gmail.com>
 Mat Martineau <martineau@kernel.org> <mathew.j.martineau@linux.intel.com>
 Mat Martineau <martineau@kernel.org> <mathewm@codeaurora.org>
+Matt Coster <opensource@mtcoster.net> <matt.coster@imgtec.com>
 Matthew Wilcox <willy@infradead.org> <matthew.r.wilcox@intel.com>
 Matthew Wilcox <willy@infradead.org> <matthew@wil.cx>
 Matthew Wilcox <willy@infradead.org> <mawilcox@linuxonhyperv.com>
@@ -579,6 +595,8 @@ Mayuresh Janorkar <mayur@ti.com>
 Md Sadre Alam <quic_mdalam@quicinc.com> <mdalam@codeaurora.org>
 Miaoqing Pan <quic_miaoqing@quicinc.com> <miaoqing@codeaurora.org>
 Michael Buesch <m@bues.ch>
+Michal Grzeschik <mgr@kernel.org> <m.grzeschik@pengutronix.de>
+Michal Grzeschik <mgr@kernel.org> <mgr@pengutronix.de>
 Michael Riesch <michael.riesch@collabora.com> <michael.riesch@wolfvision.net>
 Michal Simek <michal.simek@amd.com> <michal.simek@xilinx.com>
 Michel Dänzer <michel@tungstengraphics.com>
@@ -677,6 +695,7 @@ Peter A Jonsson <pj@ludd.ltu.se>
 Peter Hilber <peter.hilber@oss.qualcomm.com> <quic_philber@quicinc.com>
 Peter Oruba <peter.oruba@amd.com>
 Peter Oruba <peter@oruba.de>
+Peter Rosin <peda@lysator.liu.se> <peda@axentia.se>
 Pierre-Louis Bossart <pierre-louis.bossart@linux.dev> <pierre-louis.bossart@linux.intel.com>
 Pratyush Anand <pratyush.anand@gmail.com> <pratyush.anand@st.com>
 Pratyush Yadav <pratyush@kernel.org> <ptyadav@amazon.de>
@@ -687,6 +706,7 @@ Punit Agrawal <punitagrawal@gmail.com> <punit.agrawal@arm.com>
 Puranjay Mohan <puranjay@kernel.org> <puranjay12@gmail.com>
 Qais Yousef <qyousef@layalina.io> <qais.yousef@imgtec.com>
 Qais Yousef <qyousef@layalina.io> <qais.yousef@arm.com>
+Qi Zheng <qi.zheng@linux.dev> <zhengqi.arch@bytedance.com>
 Quentin Monnet <qmo@kernel.org> <quentin.monnet@netronome.com>
 Quentin Monnet <qmo@kernel.org> <quentin@isovalent.com>
 Quentin Perret <qperret@qperret.net> <quentin.perret@arm.com>
@@ -850,6 +870,7 @@ Tobias Klauser <tklauser@distanz.ch> <klto@zhaw.ch>
 Tobias Klauser <tklauser@distanz.ch> <tklauser@nuerscht.ch>
 Tobias Klauser <tklauser@distanz.ch> <tklauser@xenon.tklauser.home>
 Todor Tomov <todor.too@gmail.com> <todor.tomov@linaro.org>
+Tomasz Jeznach <tomasz.jeznach@linux.dev> <tjeznach@rivosinc.com>
 Tony Luck <tony.luck@intel.com>
 Trilok Soni <quic_tsoni@quicinc.com> <tsoni@codeaurora.org>
 TripleX Chung <xxx.phy@gmail.com> <triplex@zh-kernel.org>

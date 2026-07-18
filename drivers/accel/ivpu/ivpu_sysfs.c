@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 
 #include <linux/device.h>
@@ -82,8 +82,7 @@ static DEVICE_ATTR_RO(npu_memory_utilization);
  * - "OS"		- Operating System Scheduler mode
  *
  */
-static ssize_t
-sched_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t sched_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
@@ -94,47 +93,162 @@ sched_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR_RO(sched_mode);
 
 /**
- * DOC: npu_max_frequency
+ * DOC: NPU frequency control and information
  *
- * The npu_max_frequency shows maximum frequency in MHz of the NPU's data
- * processing unit
+ * Hardware frequency capabilities:
+ * freq/hw_min_freq - Minimum frequency supported by the NPU hardware.
+ * freq/hw_max_freq - Maximum frequency supported by the NPU hardware.
+ * freq/hw_efficient_freq - Most efficient operating frequency for the NPU.
+ *
+ * Configurable frequency limits (50XX devices and newer):
+ * freq/set_min_freq - Configured minimum operating frequency.
+ * freq/set_max_freq - Configured maximum operating frequency.
+ *
+ * Clamping behavior: Values written to set_min_freq and set_max_freq are
+ * clamped to hardware limits. If set_min_freq exceeds set_max_freq, the driver
+ * clamps set_min_freq to set_max_freq when selecting the operating frequency.
+ *
+ * Current operating frequency:
+ * freq/current_freq - Current frequency in MHz. Valid only when the device is
+ * active; returns 0 when idle. May be lower than the requested range due to
+ * power or thermal constraints.
+ *
+ * Legacy attributes (backward compatibility):
+ * npu_max_frequency_mhz - Alias for freq/hw_max_freq.
+ * npu_current_frequency_mhz - Alias for freq/current_freq.
  */
-static ssize_t
-npu_max_frequency_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+
+static ssize_t hw_min_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
-	u32 freq = ivpu_hw_dpu_max_freq_get(vdev);
+	u32 freq_mhz = ivpu_hw_btrs_pll_ratio_to_mhz(vdev, vdev->hw->pll.min_ratio);
 
-	return sysfs_emit(buf, "%lu\n", freq / HZ_PER_MHZ);
+	return sysfs_emit(buf, "%u\n", freq_mhz);
 }
 
-static DEVICE_ATTR_RO(npu_max_frequency_mhz);
+static DEVICE_ATTR_RO(hw_min_freq);
 
-/**
- * DOC: npu_current_frequency_mhz
- *
- * The npu_current_frequency_mhz shows current frequency in MHz of the NPU's
- * data processing unit
- */
-static ssize_t
-npu_current_frequency_mhz_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t hw_efficient_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
-	u32 freq = 0;
+	u32 freq_mhz = ivpu_hw_btrs_pll_ratio_to_mhz(vdev, vdev->hw->pll.pn_ratio);
+
+	return sysfs_emit(buf, "%u\n", freq_mhz);
+}
+
+static DEVICE_ATTR_RO(hw_efficient_freq);
+
+static ssize_t hw_max_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz = ivpu_hw_btrs_pll_ratio_to_mhz(vdev, vdev->hw->pll.max_ratio);
+
+	return sysfs_emit(buf, "%u\n", freq_mhz);
+}
+
+static DEVICE_ATTR_RO(hw_max_freq);
+
+static ssize_t set_min_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz = ivpu_hw_btrs_pll_ratio_to_mhz(vdev, vdev->hw->pll.cfg_min_ratio);
+
+	return sysfs_emit(buf, "%u\n", freq_mhz);
+}
+
+static ssize_t
+set_min_freq_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &freq_mhz);
+	if (ret)
+		return ret;
+
+	ret = ivpu_hw_btrs_cfg_min_freq_set(vdev, freq_mhz);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(set_min_freq);
+
+static ssize_t set_max_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz = ivpu_hw_btrs_pll_ratio_to_mhz(vdev, vdev->hw->pll.cfg_max_ratio);
+
+	return sysfs_emit(buf, "%u\n", freq_mhz);
+}
+
+static ssize_t
+set_max_freq_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &freq_mhz);
+	if (ret)
+		return ret;
+
+	/* Convert MHz to Hz and set max frequency */
+	ret = ivpu_hw_btrs_cfg_max_freq_set(vdev, freq_mhz);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(set_max_freq);
+
+static ssize_t current_freq_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+	u32 freq_mhz = 0;
 
 	/* Read frequency only if device is active, otherwise frequency is 0 */
 	if (pm_runtime_get_if_active(vdev->drm.dev) > 0) {
-		freq = ivpu_hw_dpu_freq_get(vdev);
+		freq_mhz = ivpu_hw_btrs_current_freq_get(vdev);
 
 		pm_runtime_put_autosuspend(vdev->drm.dev);
 	}
 
-	return sysfs_emit(buf, "%lu\n", freq / HZ_PER_MHZ);
+	return sysfs_emit(buf, "%u\n", freq_mhz);
 }
 
-static DEVICE_ATTR_RO(npu_current_frequency_mhz);
+static DEVICE_ATTR_RO(current_freq);
+
+/* Alias to current_freq for legacy compat */
+static struct device_attribute dev_attr_npu_max_frequency_mhz =
+	__ATTR(npu_max_frequency_mhz, 0444, hw_max_freq_show, NULL);
+
+static struct device_attribute dev_attr_npu_current_frequency_mhz =
+	__ATTR(npu_current_frequency_mhz, 0444, current_freq_show, NULL);
+
+static struct attribute *ivpu_freq_attrs[] = {
+	&dev_attr_hw_min_freq.attr,
+	&dev_attr_hw_efficient_freq.attr,
+	&dev_attr_hw_max_freq.attr,
+	&dev_attr_current_freq.attr,
+	NULL,
+};
+
+static struct attribute_group ivpu_freq_attr_group = {
+	.name = "freq",
+	.attrs = ivpu_freq_attrs,
+};
 
 static struct attribute *ivpu_dev_attrs[] = {
 	&dev_attr_npu_busy_time_us.attr,
@@ -154,6 +268,32 @@ void ivpu_sysfs_init(struct ivpu_device *vdev)
 	int ret;
 
 	ret = devm_device_add_group(vdev->drm.dev, &ivpu_dev_attr_group);
-	if (ret)
-		ivpu_warn(vdev, "Failed to add group to device, ret %d", ret);
+	if (ret) {
+		ivpu_warn(vdev, "Failed to add sysfs group to device, ret %d", ret);
+		return;
+	}
+
+	ret = devm_device_add_group(vdev->drm.dev, &ivpu_freq_attr_group);
+	if (ret) {
+		ivpu_warn(vdev, "Failed to add sysfs freq group, ret %d", ret);
+		return;
+	}
+
+	if (ivpu_hw_ip_gen(vdev) >= IVPU_HW_IP_50XX) {
+		ret = sysfs_add_file_to_group(&vdev->drm.dev->kobj,
+					      &dev_attr_set_min_freq.attr,
+					      "freq");
+		if (ret) {
+			ivpu_warn(vdev, "Failed to add sysfs set_min_freq to device, ret %d", ret);
+			return;
+		}
+
+		ret = sysfs_add_file_to_group(&vdev->drm.dev->kobj,
+					      &dev_attr_set_max_freq.attr,
+					      "freq");
+		if (ret) {
+			ivpu_warn(vdev, "Failed to add sysfs set_max_freq to device, ret %d", ret);
+			return;
+		}
+	}
 }

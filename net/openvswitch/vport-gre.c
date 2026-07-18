@@ -63,6 +63,9 @@ static struct vport *gre_tnl_create(const struct vport_parms *parms)
 		return ERR_PTR(err);
 	}
 
+	vport->dev = dev;
+	netdev_hold(vport->dev, &vport->dev_tracker, GFP_KERNEL);
+
 	rtnl_unlock();
 	return vport;
 }
@@ -75,7 +78,7 @@ static struct vport *gre_create(const struct vport_parms *parms)
 	if (IS_ERR(vport))
 		return vport;
 
-	return ovs_netdev_link(vport, parms->name);
+	return ovs_netdev_link(vport, true);
 }
 
 static struct vport_ops ovs_gre_vport_ops = {

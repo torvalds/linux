@@ -13,6 +13,7 @@ menuconfig ARCH_SA1100
 	select CPU_FREQ
 	select CPU_SA1100
 	select GPIOLIB
+	select GPIOLIB_LEGACY
 	select IRQ_DOMAIN
 	select ISA
 	select NEED_MACH_MEMORY_H

@@ -43,8 +43,6 @@
 
 #include <net/snmp.h>
 #include <net/tls.h>
-#include <net/tls_toe.h>
-
 #include "tls.h"
 
 MODULE_AUTHOR("Mellanox Technologies");
@@ -404,7 +402,6 @@ static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
 	struct tls_sw_context_rx *ctx;
 	struct tls_context *tls_ctx;
 	struct sock *sk = sock->sk;
-	struct sk_psock *psock;
 	__poll_t mask = 0;
 	u8 shutdown;
 	int state;
@@ -418,16 +415,11 @@ static __poll_t tls_sk_poll(struct file *file, struct socket *sock,
 
 	tls_ctx = tls_get_ctx(sk);
 	ctx = tls_sw_ctx_rx(tls_ctx);
-	psock = sk_psock_get(sk);
 
 	if ((skb_queue_empty_lockless(&ctx->rx_list) &&
-	     !tls_strp_msg_ready(ctx) &&
-	     sk_psock_queue_empty(psock)) ||
+	     !tls_strp_msg_ready(ctx)) ||
 	    READ_ONCE(ctx->key_update_pending))
 		mask &= ~(EPOLLIN | EPOLLRDNORM);
-
-	if (psock)
-		sk_psock_put(sk, psock);
 
 	return mask;
 }
@@ -645,6 +637,17 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	int rc = 0;
 	int conf;
 
+	/* TLS and sockmap are mutually exclusive. A socket already in a
+	 * sockmap (i.e. with a psock attached) cannot be upgraded to TLS.
+	 * sockmap rejects TLS sockets already (see sk_psock_init()).
+	 */
+	rcu_read_lock();
+	if (sk_psock(sk)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	rcu_read_unlock();
+
 	if (sockptr_is_null(optval) || (optlen < sizeof(*crypto_info)))
 		return -EINVAL;
 
@@ -769,7 +772,7 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	} else {
 		struct tls_sw_context_rx *rx_ctx = tls_sw_ctx_rx(ctx);
 
-		tls_strp_check_rcv(&rx_ctx->strp);
+		tls_strp_check_rcv(&rx_ctx->strp, true);
 	}
 	return 0;
 
@@ -963,9 +966,6 @@ static void build_proto_ops(struct proto_ops ops[TLS_NUM_CONFIG][TLS_NUM_CONFIG]
 
 	ops[TLS_HW  ][TLS_HW  ] = ops[TLS_HW  ][TLS_SW  ];
 #endif
-#ifdef CONFIG_TLS_TOE
-	ops[TLS_HW_RECORD][TLS_HW_RECORD] = *base;
-#endif
 }
 
 static void tls_build_proto(struct sock *sk)
@@ -1037,11 +1037,6 @@ static void build_protos(struct proto prot[TLS_NUM_CONFIG][TLS_NUM_CONFIG],
 
 	prot[TLS_HW][TLS_HW] = prot[TLS_HW][TLS_SW];
 #endif
-#ifdef CONFIG_TLS_TOE
-	prot[TLS_HW_RECORD][TLS_HW_RECORD] = *base;
-	prot[TLS_HW_RECORD][TLS_HW_RECORD].hash		= tls_toe_hash;
-	prot[TLS_HW_RECORD][TLS_HW_RECORD].unhash	= tls_toe_unhash;
-#endif
 }
 
 static int tls_init(struct sock *sk)
@@ -1050,11 +1045,6 @@ static int tls_init(struct sock *sk)
 	int rc = 0;
 
 	tls_build_proto(sk);
-
-#ifdef CONFIG_TLS_TOE
-	if (tls_toe_bypass(sk))
-		return 0;
-#endif
 
 	/* The TLS ulp is currently supported only for TCP sockets
 	 * in ESTABLISHED state.
@@ -1111,8 +1101,6 @@ static u16 tls_user_config(struct tls_context *ctx, bool tx)
 		return TLS_CONF_SW;
 	case TLS_HW:
 		return TLS_CONF_HW;
-	case TLS_HW_RECORD:
-		return TLS_CONF_HW_RECORD;
 	}
 	return 0;
 }

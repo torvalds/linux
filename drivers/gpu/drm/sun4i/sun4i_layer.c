@@ -61,7 +61,7 @@ static void sun4i_backend_layer_destroy_state(struct drm_plane *plane,
 }
 
 static void sun4i_backend_layer_atomic_disable(struct drm_plane *plane,
-					       struct drm_atomic_state *state)
+					       struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -81,7 +81,7 @@ static void sun4i_backend_layer_atomic_disable(struct drm_plane *plane,
 }
 
 static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);

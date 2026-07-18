@@ -107,6 +107,12 @@ static void show_stacktrace(struct task_struct *task,
 	unsigned long stackdata;
 	unsigned long *sp = (unsigned long *)regs->regs[3];
 
+	if (!task)
+		task = current;
+
+	if (!try_get_task_stack(task))
+		return;
+
 	printk("%sStack :", loglvl);
 	i = 0;
 	while ((unsigned long) sp & (PAGE_SIZE - 1)) {
@@ -129,6 +135,8 @@ static void show_stacktrace(struct task_struct *task,
 	}
 	pr_cont("\n");
 	show_backtrace(task, regs, loglvl, user);
+
+	put_task_stack(task);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)

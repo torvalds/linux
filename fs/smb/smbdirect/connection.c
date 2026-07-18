@@ -706,7 +706,7 @@ bool smbdirect_connection_is_connected(struct smbdirect_socket *sc)
 		return false;
 	return true;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_is_connected);
+EXPORT_SYMBOL_GPL(smbdirect_connection_is_connected);
 
 int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 {
@@ -779,7 +779,7 @@ int smbdirect_connection_wait_for_connected(struct smbdirect_socket *sc)
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_wait_for_connected);
+EXPORT_SYMBOL_GPL(smbdirect_connection_wait_for_connected);
 
 void smbdirect_connection_idle_timer_work(struct work_struct *work)
 {
@@ -958,7 +958,7 @@ release_credit:
 
 	return ret;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_batch_flush);
+EXPORT_SYMBOL_GPL(smbdirect_connection_send_batch_flush);
 
 struct smbdirect_send_batch *
 smbdirect_init_send_batch_storage(struct smbdirect_send_batch_storage *storage,
@@ -976,7 +976,7 @@ smbdirect_init_send_batch_storage(struct smbdirect_send_batch_storage *storage,
 
 	return batch;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_init_send_batch_storage);
+EXPORT_SYMBOL_GPL(smbdirect_init_send_batch_storage);
 
 static int smbdirect_connection_wait_for_send_bcredit(struct smbdirect_socket *sc,
 						      struct smbdirect_send_batch *batch)
@@ -1263,7 +1263,7 @@ lcredit_failed:
 bcredit_failed:
 	return ret;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_single_iter);
+EXPORT_SYMBOL_GPL(smbdirect_connection_send_single_iter);
 
 int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
 {
@@ -1288,7 +1288,7 @@ int smbdirect_connection_send_wait_zero_pending(struct smbdirect_socket *sc)
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_wait_zero_pending);
+EXPORT_SYMBOL_GPL(smbdirect_connection_send_wait_zero_pending);
 
 int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
 				   struct iov_iter *iter,
@@ -1373,7 +1373,7 @@ int smbdirect_connection_send_iter(struct smbdirect_socket *sc,
 
 	return total_count;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_send_iter);
+EXPORT_SYMBOL_GPL(smbdirect_connection_send_iter);
 
 static void smbdirect_connection_send_io_done(struct ib_cq *cq, struct ib_wc *wc)
 {
@@ -1937,7 +1937,7 @@ read_rfc1002_done:
 
 	goto again;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_recvmsg);
+EXPORT_SYMBOL_GPL(smbdirect_connection_recvmsg);
 
 static bool smbdirect_map_sges_single_page(struct smbdirect_map_sges *state,
 					   struct page *page, size_t off, size_t len)
@@ -2168,7 +2168,7 @@ static ssize_t smbdirect_map_sges_from_iter(struct iov_iter *iter, size_t len,
 
 	if (ret < 0) {
 		while (state->num_sge > before) {
-			struct ib_sge *sge = &state->sge[state->num_sge--];
+			struct ib_sge *sge = &state->sge[--state->num_sge];
 
 			ib_dma_unmap_page(state->device,
 					  sge->addr,

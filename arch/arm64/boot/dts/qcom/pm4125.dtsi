@@ -61,7 +61,6 @@
 					  "attach-detach",
 					  "legacy-cable-detect",
 					  "try-snk-src-detect";
-			vdd-vbus-supply = <&pm4125_vbus>;
 
 			status = "disabled";
 		};

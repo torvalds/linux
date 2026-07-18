@@ -47,6 +47,17 @@
 		reg = <0 0x40000000 0 0x80000000>;
 	};
 
+	/* system critical LDO 1.8V power rail */
+	pp1800_ldo_z2: regulator-pp1800-ldo-z2 {
+		compatible = "regulator-fixed";
+		regulator-name = "pp1800_ldo_z2";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&pp3300_z2>;
+	};
+
 	pp3300_disp_x: regulator-pp3300-disp-x {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300_disp_x";
@@ -138,6 +149,53 @@
 		regulator-boot-on;
 	};
 
+	usb_vbus: regulator-5v0-usb-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-vbus";
+		enable-active-high;
+		regulator-always-on;
+		vin-supply = <&pp5000_s5>;
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		scp_mem: memory@50000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x50000000 0 0x2900000>;
+			no-map;
+		};
+
+		adsp_mem: memory@60000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60000000 0 0xd80000>;
+			no-map;
+		};
+
+		afe_mem: memory@60d80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60d80000 0 0x100000>;
+			no-map;
+		};
+
+		adsp_device_mem: memory@60e80000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x60e80000 0 0x280000>;
+			no-map;
+		};
+	};
+
+	spk_amplifier: rt1019p {
+		compatible = "realtek,rt1019p";
+		label = "rt1019p";
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rt1019p_pins_default>;
+		sdb-gpios = <&pio 100 GPIO_ACTIVE_HIGH>;
+	};
+
 	/* Murata NCP03WF104F05RL */
 	tboard_thermistor1: thermal-sensor-t1 {
 		compatible = "generic-adc-thermal";
@@ -207,54 +265,6 @@
 						115000 59
 						120000 51
 						125000 44>;
-	};
-
-	usb_vbus: regulator-5v0-usb-vbus {
-		compatible = "regulator-fixed";
-		regulator-name = "usb-vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		enable-active-high;
-		regulator-always-on;
-	};
-
-	reserved_memory: reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		scp_mem: memory@50000000 {
-			compatible = "shared-dma-pool";
-			reg = <0 0x50000000 0 0x2900000>;
-			no-map;
-		};
-
-		adsp_mem: memory@60000000 {
-			compatible = "shared-dma-pool";
-			reg = <0 0x60000000 0 0xd80000>;
-			no-map;
-		};
-
-		afe_mem: memory@60d80000 {
-			compatible = "shared-dma-pool";
-			reg = <0 0x60d80000 0 0x100000>;
-			no-map;
-		};
-
-		adsp_device_mem: memory@60e80000 {
-			compatible = "shared-dma-pool";
-			reg = <0 0x60e80000 0 0x280000>;
-			no-map;
-		};
-	};
-
-	spk_amplifier: rt1019p {
-		compatible = "realtek,rt1019p";
-		label = "rt1019p";
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rt1019p_pins_default>;
-		sdb-gpios = <&pio 100 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -707,8 +717,8 @@
 	pinctrl-1 = <&mmc1_pins_default>;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	vmmc-supply = <&mt_pmic_vmch_ldo_reg>;
-	vqmmc-supply = <&mt_pmic_vmc_ldo_reg>;
+	vmmc-supply = <&pp3000_sd>;
+	vqmmc-supply = <&pp3000_vmc_pmu>;
 };
 
 &mt6359codec {
@@ -763,6 +773,7 @@
 		spi-max-frequency = <52000000>;
 		spi-rx-bus-width = <2>;
 		spi-tx-bus-width = <2>;
+		vcc-supply = <&pp1800_ldo_z2>;
 	};
 };
 
@@ -1312,6 +1323,23 @@
 
 &pmic {
 	interrupts-extended = <&pio 222 IRQ_TYPE_LEVEL_HIGH>;
+	vsys-smps-supply = <&pp4200_z2>;
+	vsys-vcore-supply = <&pp4200_z2>;
+	vsys-vgpu11-supply = <&pp4200_z2>;
+	vsys-vgpu12-supply = <&pp4200_z2>;
+	vsys-vpa-supply = <&pp4200_z2>;
+	vsys-vproc1-supply = <&pp4200_z2>;
+	vsys-vproc2-supply = <&pp4200_z2>;
+	vsys-vpu-supply = <&pp4200_z2>;
+	vsys-vs1-supply = <&pp4200_z2>;
+	vsys-vs2-supply = <&pp4200_z2>;
+	vsys-vmodem-supply = <&pp4200_z2>;
+	vsys-ldo1-supply = <&pp4200_z2>;
+	vsys-ldo2-supply = <&pp4200_z2>;
+	vs1-ldo1-supply = <&mt6359_vs1_buck_reg>;
+	vs1-ldo2-supply = <&mt6359_vs1_buck_reg>;
+	vs2-ldo1-supply = <&mt6359_vs2_buck_reg>;
+	vs2-ldo2-supply = <&mt6359_vs2_buck_reg>;
 };
 
 &scp {
@@ -1408,20 +1436,22 @@
 			#size-cells = <0>;
 		};
 
-		mt_pmic_vmc_ldo_reg: regulator@0 {
+		pp3000_vmc_pmu: regulator@0 {
 			compatible = "google,cros-ec-regulator";
 			reg = <0>;
-			regulator-name = "mt_pmic_vmc_ldo";
+			regulator-name = "pp3000_vmc_pmu";
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <3600000>;
+			vin-supply = <&pp4200_z2>;
 		};
 
-		mt_pmic_vmch_ldo_reg: regulator@1 {
+		pp3000_sd: regulator@1 {
 			compatible = "google,cros-ec-regulator";
 			reg = <1>;
-			regulator-name = "mt_pmic_vmch_ldo";
+			regulator-name = "pp3000_sd";
 			regulator-min-microvolt = <2700000>;
 			regulator-max-microvolt = <3600000>;
+			vin-supply = <&pp4200_z2>;
 		};
 
 		typec {
@@ -1455,6 +1485,10 @@
 	mt6315@6 {
 		compatible = "mediatek,mt6315-regulator";
 		reg = <0x6 SPMI_USID>;
+		pvdd1-supply = <&pp4200_z2>;
+		pvdd2-supply = <&pp4200_z2>;
+		pvdd3-supply = <&pp4200_z2>;
+		pvdd4-supply = <&pp4200_z2>;
 
 		regulators {
 			mt6315_6_vbuck1: vbuck1 {
@@ -1472,6 +1506,10 @@
 	mt6315@7 {
 		compatible = "mediatek,mt6315-regulator";
 		reg = <0x7 SPMI_USID>;
+		pvdd1-supply = <&pp4200_z2>;
+		pvdd2-supply = <&pp4200_z2>;
+		pvdd3-supply = <&pp4200_z2>;
+		pvdd4-supply = <&pp4200_z2>;
 
 		regulators {
 			mt6315_7_vbuck1: vbuck1 {
@@ -1584,21 +1622,23 @@
 };
 
 &xhci0 {
-	status = "okay";
-
 	rx-fifo-depth = <3072>;
 	vbus-supply = <&usb_vbus>;
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	status = "okay";
 };
 
 &xhci2 {
-	status = "okay";
 	vbus-supply = <&usb_vbus>;
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	status = "okay";
 };
 
 &xhci3 {
 	/* MT7921's USB Bluetooth has issues with USB2 LPM */
 	usb2-lpm-disable;
 	vbus-supply = <&pp3300_wlan>;
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };
 

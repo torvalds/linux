@@ -52,10 +52,10 @@ struct vc4_dev *vc4_mock_device(struct kunit *test);
 struct vc4_dev *vc5_mock_device(struct kunit *test);
 
 int vc4_mock_atomic_add_output(struct kunit *test,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       enum vc4_encoder_type type);
 int vc4_mock_atomic_del_output(struct kunit *test,
-			       struct drm_atomic_state *state,
+			       struct drm_atomic_commit *state,
 			       enum vc4_encoder_type type);
 
 #endif // VC4_MOCK_H_

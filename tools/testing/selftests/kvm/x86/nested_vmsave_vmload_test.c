@@ -128,7 +128,7 @@ static void l1_guest_code(struct svm_test_data *svm)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t nested_gva = 0;
+	gva_t nested_gva = 0;
 	struct vmcb *test_vmcb[2];
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;

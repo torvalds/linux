@@ -25,7 +25,7 @@ struct uffd_reader_args {
 
 struct uffd_desc {
 	int uffd;
-	uint64_t num_readers;
+	u64 num_readers;
 	/* Holds the write ends of the pipes for killing the readers. */
 	int *pipefds;
 	pthread_t *readers;
@@ -33,8 +33,8 @@ struct uffd_desc {
 };
 
 struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
-					   void *hva, uint64_t len,
-					   uint64_t num_readers,
+					   void *hva, u64 len,
+					   u64 num_readers,
 					   uffd_handler_t handler);
 
 void uffd_stop_demand_paging(struct uffd_desc *uffd);

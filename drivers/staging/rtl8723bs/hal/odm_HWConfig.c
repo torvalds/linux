@@ -7,9 +7,6 @@
 
 #include "odm_precomp.h"
 
-#define READ_AND_CONFIG_MP(ic, txt) (ODM_ReadAndConfig_MP_##ic##txt(pDM_Odm))
-#define READ_AND_CONFIG     READ_AND_CONFIG_MP
-
 static u8 odm_query_rx_pwr_percentage(s8 ant_power)
 {
 	if ((ant_power <= -100) || (ant_power >= 20))
@@ -115,7 +112,6 @@ static void odm_rx_phy_status_parsing(struct dm_odm_t *dm_odm,
 	is_cck_rate = pkt_info->data_rate <= DESC_RATE11M;
 	phy_info->rx_mimo_signal_quality[RF_PATH_A] = -1;
 	phy_info->rx_mimo_signal_quality[RF_PATH_B] = -1;
-
 
 	if (is_cck_rate) {
 		u8 cck_agc_rpt;
@@ -258,7 +254,6 @@ static void odm_Process_RSSIForDM(
 	u32 Weighting = 0;
 	PSTA_INFO_T pEntry;
 
-
 	if (pPktinfo->station_id == 0xFF)
 		return;
 
@@ -335,7 +330,7 @@ static void odm_Process_RSSIForDM(
 				}
 			}
 
-			pEntry->rssi_stat.PacketMap = (pEntry->rssi_stat.PacketMap<<1) | BIT0;
+			pEntry->rssi_stat.PacketMap = (pEntry->rssi_stat.PacketMap<<1) | BIT(0);
 
 		} else {
 			RSSI_Ave = pPhyInfo->rx_pwd_ba11;
@@ -369,7 +364,7 @@ static void odm_Process_RSSIForDM(
 				pEntry->rssi_stat.ValidBit++;
 
 			for (i = 0; i < pEntry->rssi_stat.ValidBit; i++)
-				OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap>>i)&BIT0;
+				OFDM_pkt += (u8)(pEntry->rssi_stat.PacketMap>>i)&BIT(0);
 
 			if (pEntry->rssi_stat.ValidBit == 64) {
 				Weighting = ((OFDM_pkt<<4) > 64)?64:(OFDM_pkt<<4);
@@ -388,7 +383,6 @@ static void odm_Process_RSSIForDM(
 
 	}
 }
-
 
 /*  */
 /*  Endianness before calling this API */
@@ -415,9 +409,9 @@ enum hal_status ODM_ConfigRFWithHeaderFile(
 )
 {
 	if (ConfigType == CONFIG_RF_RADIO)
-		READ_AND_CONFIG(8723B, _RadioA);
+		ODM_ReadAndConfig_MP_8723B_RadioA(pDM_Odm);
 	else if (ConfigType == CONFIG_RF_TXPWR_LMT)
-		READ_AND_CONFIG(8723B, _TXPWR_LMT);
+		ODM_ReadAndConfig_MP_8723B_TXPWR_LMT(pDM_Odm);
 
 	return HAL_STATUS_SUCCESS;
 }
@@ -425,7 +419,7 @@ enum hal_status ODM_ConfigRFWithHeaderFile(
 enum hal_status ODM_ConfigRFWithTxPwrTrackHeaderFile(struct dm_odm_t *pDM_Odm)
 {
 	if (pDM_Odm->SupportInterface == ODM_ITRF_SDIO)
-		READ_AND_CONFIG(8723B, _TxPowerTrack_SDIO);
+		ODM_ReadAndConfig_MP_8723B_TxPowerTrack_SDIO(pDM_Odm);
 
 	return HAL_STATUS_SUCCESS;
 }
@@ -435,11 +429,11 @@ enum hal_status ODM_ConfigBBWithHeaderFile(
 )
 {
 	if (ConfigType == CONFIG_BB_PHY_REG)
-		READ_AND_CONFIG(8723B, _PHY_REG);
+		ODM_ReadAndConfig_MP_8723B_PHY_REG(pDM_Odm);
 	else if (ConfigType == CONFIG_BB_AGC_TAB)
-		READ_AND_CONFIG(8723B, _AGC_TAB);
+		ODM_ReadAndConfig_MP_8723B_AGC_TAB(pDM_Odm);
 	else if (ConfigType == CONFIG_BB_PHY_REG_PG)
-		READ_AND_CONFIG(8723B, _PHY_REG_PG);
+		ODM_ReadAndConfig_MP_8723B_PHY_REG_PG(pDM_Odm);
 
 	return HAL_STATUS_SUCCESS;
 }

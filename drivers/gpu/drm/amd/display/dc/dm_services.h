@@ -127,10 +127,6 @@ uint32_t generic_reg_update_ex(const struct dc_context *ctx,
 struct dc_dmub_srv *dc_dmub_srv_create(struct dc *dc, struct dmub_srv *dmub);
 void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv);
 
-void reg_sequence_start_gather(const struct dc_context *ctx);
-void reg_sequence_start_execute(const struct dc_context *ctx);
-void reg_sequence_wait_done(const struct dc_context *ctx);
-
 #define FD(reg_field)	reg_field ## __SHIFT, \
 						reg_field ## _MASK
 
@@ -224,17 +220,9 @@ bool dm_pp_apply_display_requirements(
 	const struct dc_context *ctx,
 	const struct dm_pp_display_configuration *pp_display_cfg);
 
-bool dm_pp_apply_power_level_change_request(
-	const struct dc_context *ctx,
-	struct dm_pp_power_level_change_request *level_change_req);
-
 bool dm_pp_apply_clock_for_voltage_request(
 	const struct dc_context *ctx,
 	struct dm_pp_clock_for_voltage_req *clock_for_voltage_req);
-
-bool dm_pp_get_static_clocks(
-	const struct dc_context *ctx,
-	struct dm_pp_static_clock_info *static_clk_info);
 
 /****** end of PP interfaces ******/
 

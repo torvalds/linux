@@ -55,6 +55,8 @@
 #define HPRE_RAS_FE_ENB			0x301418
 #define HPRE_OOO_SHUTDOWN_SEL		0x301a3c
 #define HPRE_HAC_RAS_FE_ENABLE		0
+#define HPRE_RAS_MASK_ALL		GENMASK(31, 0)
+#define HPRE_RAS_CLEAR_ALL		GENMASK(31, 0)
 
 #define HPRE_CORE_ENB		(HPRE_CLSTR_BASE + HPRE_CORE_EN_OFFSET)
 #define HPRE_CORE_INI_CFG	(HPRE_CLSTR_BASE + HPRE_CORE_INI_CFG_OFFSET)
@@ -820,11 +822,8 @@ static void hpre_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
 
 static void hpre_hw_error_disable(struct hisi_qm *qm)
 {
-	struct hisi_qm_err_mask *dev_err = &qm->err_info.dev_err;
-	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
-
 	/* disable hpre hw error interrupts */
-	writel(err_mask, qm->io_base + HPRE_INT_MASK);
+	writel(HPRE_RAS_MASK_ALL, qm->io_base + HPRE_INT_MASK);
 	/* disable HPRE block master OOO when nfe occurs on Kunpeng930 */
 	hpre_master_ooo_ctrl(qm, false);
 }
@@ -835,7 +834,7 @@ static void hpre_hw_error_enable(struct hisi_qm *qm)
 	u32 err_mask = dev_err->ce | dev_err->nfe | dev_err->fe;
 
 	/* clear HPRE hw error source if having */
-	writel(err_mask, qm->io_base + HPRE_HAC_SOURCE_INT);
+	writel(HPRE_RAS_CLEAR_ALL, qm->io_base + HPRE_HAC_SOURCE_INT);
 
 	/* configure error type */
 	writel(dev_err->ce, qm->io_base + HPRE_RAS_CE_ENB);
@@ -1631,12 +1630,10 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_qm_del_list;
 	}
 
-	if (qm->uacce) {
-		ret = uacce_register(qm->uacce);
-		if (ret) {
-			pci_err(pdev, "failed to register uacce (%d)!\n", ret);
-			goto err_with_alg_register;
-		}
+	ret = hisi_qm_register_uacce(qm);
+	if (ret) {
+		pci_err(pdev, "failed to register uacce (%d)!\n", ret);
+		goto err_with_alg_register;
 	}
 
 	if (qm->fun_type == QM_HW_PF && vfs_num) {

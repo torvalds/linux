@@ -624,7 +624,7 @@ static int tas2770_read_die_temp(struct tas2770_priv *tas2770, long *result)
 	/*
 	 * As per datasheet: divide register by 16 and subtract 93 to get
 	 * degrees Celsius. hwmon requires millidegrees. Let's avoid rounding
-	 * errors by subtracting 93 * 16 then multiplying by 1000 / 16.
+	 * errors by subtracting 93 * 16 and scaling before dividing.
 	 *
 	 * NOTE: The ADC registers are initialised to 0 on reset. This means
 	 * that the temperature will read -93 *C until the chip is brought out
@@ -633,8 +633,25 @@ static int tas2770_read_die_temp(struct tas2770_priv *tas2770, long *result)
 	 * value read back from its registers will be the last value sampled
 	 * before entering software shutdown.
 	 */
-	*result = (reading - (93 * 16)) * (1000 / 16);
+	if (reading == 0)
+		return -ENODATA;
+
+	*result = (reading - (93 * 16)) * 1000 / 16;
 	return 0;
+}
+
+static int tas2770_hwmon_is_fault(struct tas2770_priv *tas2770, long *result)
+{
+	int ret;
+	long temp;
+
+	ret = tas2770_read_die_temp(tas2770, &temp);
+	if (ret == -ENODATA) {
+		*result = true;
+		return 0;
+	}
+
+	return ret;
 }
 
 static umode_t tas2770_hwmon_is_visible(const void *data,
@@ -646,6 +663,7 @@ static umode_t tas2770_hwmon_is_visible(const void *data,
 
 	switch (attr) {
 	case hwmon_temp_input:
+	case hwmon_temp_fault:
 		return 0444;
 	default:
 		break;
@@ -665,6 +683,9 @@ static int tas2770_hwmon_read(struct device *dev,
 	case hwmon_temp_input:
 		ret = tas2770_read_die_temp(tas2770, val);
 		break;
+	case hwmon_temp_fault:
+		ret = tas2770_hwmon_is_fault(tas2770, val);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -674,7 +695,7 @@ static int tas2770_hwmon_read(struct device *dev,
 }
 
 static const struct hwmon_channel_info *const tas2770_hwmon_info[] = {
-	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_FAULT),
 	NULL
 };
 
@@ -937,7 +958,7 @@ static int tas2770_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas2770_i2c_id[] = {
-	{ "tas2770"},
+	{ .name = "tas2770" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas2770_i2c_id);

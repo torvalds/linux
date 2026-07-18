@@ -234,7 +234,7 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 	/*
 	 * keep dirname for generating files and mmap records
 	 */
-	strncpy(jd->dir, name, PATH_MAX);
+	strncpy(jd->dir, name, PATH_MAX - 1);
 	jd->dir[PATH_MAX - 1] = '\0';
 	dirname(jd->dir);
 	free(buf);
@@ -409,7 +409,7 @@ static uint64_t convert_timestamp(struct jit_buf_desc *jd, uint64_t timestamp)
 	 * checks the event size and assigns these extended fields if these
 	 * fields are contained in the event.
 	 */
-	if (event_contains(*time_conv, time_cycles)) {
+	if (event_contains(*time_conv, cap_user_time_short)) {
 		tc.time_cycles	       = time_conv->time_cycles;
 		tc.time_mask	       = time_conv->time_mask;
 		tc.cap_user_time_zero  = time_conv->cap_user_time_zero;
@@ -642,7 +642,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 
 	ret = jit_inject_event(jd, event);
 	if (!ret)
-		build_id__mark_dso_hit(tool, event, &sample, NULL, jd->machine);
+		build_id__mark_dso_hit(tool, event, &sample, jd->machine);
 out:
 	perf_sample__exit(&sample);
 	return ret;

@@ -637,7 +637,7 @@ static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 				  struct ufs_hw_queue *hwq, int task_tag)
 {
 	struct scsi_cmnd *cmd = ufshcd_tag_to_cmd(hba, task_tag);
-	struct ufshcd_lrb *lrbp = scsi_cmd_priv(cmd);
+	struct ufshcd_lrb *lrbp;
 	struct utp_transfer_req_desc *utrd;
 	__le64  cmd_desc_base_addr;
 	bool ret = false;
@@ -646,6 +646,11 @@ static bool ufshcd_mcq_sqe_search(struct ufs_hba *hba,
 
 	if (hba->quirks & UFSHCD_QUIRK_MCQ_BROKEN_RTC)
 		return true;
+
+	if (!cmd)
+		return false;
+
+	lrbp = scsi_cmd_priv(cmd);
 
 	mutex_lock(&hwq->sq_mutex);
 

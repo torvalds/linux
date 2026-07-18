@@ -39,7 +39,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	/* Don't change the state of the ports if they are driven by a different
 	 * protocol.
 	 */
-	if (p->flags & BR_MRP_AWARE)
+	if (test_bit(BR_MRP_AWARE_BIT, &p->flags))
 		return;
 
 	p->state = state;
@@ -102,8 +102,9 @@ struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no)
 static int br_should_become_root_port(const struct net_bridge_port *p,
 				      u16 root_port)
 {
-	struct net_bridge *br;
+	u32 p_path_cost, rp_path_cost, p_designated_cost, rp_designated_cost;
 	struct net_bridge_port *rp;
+	struct net_bridge *br;
 	int t;
 
 	br = p->br;
@@ -125,11 +126,16 @@ static int br_should_become_root_port(const struct net_bridge_port *p,
 	else if (t > 0)
 		return 0;
 
-	if (p->designated_cost + p->path_cost <
-	    rp->designated_cost + rp->path_cost)
+	p_path_cost = READ_ONCE(p->path_cost);
+	rp_path_cost = READ_ONCE(rp->path_cost);
+	p_designated_cost = READ_ONCE(p->designated_cost);
+	rp_designated_cost = READ_ONCE(rp->designated_cost);
+
+	if (p_designated_cost + p_path_cost <
+	    rp_designated_cost + rp_path_cost)
 		return 1;
-	else if (p->designated_cost + p->path_cost >
-		 rp->designated_cost + rp->path_cost)
+	else if (p_designated_cost + p_path_cost >
+		 rp_designated_cost + rp_path_cost)
 		return 0;
 
 	t = memcmp(&p->designated_bridge, &rp->designated_bridge, 8);
@@ -173,7 +179,7 @@ static void br_root_selection(struct net_bridge *br)
 		if (!br_should_become_root_port(p, root_port))
 			continue;
 
-		if (p->flags & BR_ROOT_BLOCK)
+		if (test_bit(BR_ROOT_BLOCK_BIT, &p->flags))
 			br_root_port_block(br, p);
 		else
 			root_port = p->port_no;
@@ -187,7 +193,8 @@ static void br_root_selection(struct net_bridge *br)
 	} else {
 		p = br_get_port(br, root_port);
 		br->designated_root = p->designated_root;
-		br->root_path_cost = p->designated_cost + p->path_cost;
+		br->root_path_cost = READ_ONCE(p->designated_cost) +
+				     READ_ONCE(p->path_cost);
 	}
 }
 
@@ -213,7 +220,7 @@ void br_transmit_config(struct net_bridge_port *p)
 	struct net_bridge *br;
 
 	if (timer_pending(&p->hold_timer)) {
-		p->config_pending = 1;
+		WRITE_ONCE(p->config_pending, 1);
 		return;
 	}
 
@@ -240,7 +247,7 @@ void br_transmit_config(struct net_bridge_port *p)
 	if (bpdu.message_age < br->max_age) {
 		br_send_config_bpdu(p, &bpdu);
 		p->topology_change_ack = 0;
-		p->config_pending = 0;
+		WRITE_ONCE(p->config_pending, 0);
 		if (p->br->stp_enabled == BR_KERNEL_STP)
 			mod_timer(&p->hold_timer,
 				  round_jiffies(jiffies + BR_HOLD_TIME));
@@ -252,9 +259,9 @@ static void br_record_config_information(struct net_bridge_port *p,
 					 const struct br_config_bpdu *bpdu)
 {
 	p->designated_root = bpdu->root;
-	p->designated_cost = bpdu->root_path_cost;
+	WRITE_ONCE(p->designated_cost, bpdu->root_path_cost);
 	p->designated_bridge = bpdu->bridge_id;
-	p->designated_port = bpdu->port_id;
+	WRITE_ONCE(p->designated_port, bpdu->port_id);
 	p->designated_age = jiffies - bpdu->message_age;
 
 	mod_timer(&p->message_age_timer, jiffies
@@ -288,6 +295,7 @@ void br_transmit_tcn(struct net_bridge *br)
 static int br_should_become_designated_port(const struct net_bridge_port *p)
 {
 	struct net_bridge *br;
+	u32 p_designated_cost;
 	int t;
 
 	br = p->br;
@@ -297,9 +305,10 @@ static int br_should_become_designated_port(const struct net_bridge_port *p)
 	if (memcmp(&p->designated_root, &br->designated_root, 8))
 		return 1;
 
-	if (br->root_path_cost < p->designated_cost)
+	p_designated_cost = READ_ONCE(p->designated_cost);
+	if (br->root_path_cost < p_designated_cost)
 		return 1;
-	else if (br->root_path_cost > p->designated_cost)
+	else if (br->root_path_cost > p_designated_cost)
 		return 0;
 
 	t = memcmp(&br->bridge_id, &p->designated_bridge, 8);
@@ -331,6 +340,7 @@ static void br_designated_port_selection(struct net_bridge *br)
 static int br_supersedes_port_info(const struct net_bridge_port *p,
 				   const struct br_config_bpdu *bpdu)
 {
+	u32 p_designated_cost;
 	int t;
 
 	t = memcmp(&bpdu->root, &p->designated_root, 8);
@@ -339,9 +349,10 @@ static int br_supersedes_port_info(const struct net_bridge_port *p,
 	else if (t > 0)
 		return 0;
 
-	if (bpdu->root_path_cost < p->designated_cost)
+	p_designated_cost = READ_ONCE(p->designated_cost);
+	if (bpdu->root_path_cost < p_designated_cost)
 		return 1;
-	else if (bpdu->root_path_cost > p->designated_cost)
+	else if (bpdu->root_path_cost > p_designated_cost)
 		return 0;
 
 	t = memcmp(&bpdu->bridge_id, &p->designated_bridge, 8);
@@ -371,7 +382,8 @@ void br_topology_change_detection(struct net_bridge *br)
 {
 	int isroot = br_is_root_bridge(br);
 
-	if (br->stp_enabled != BR_KERNEL_STP)
+	if (br->stp_enabled != BR_KERNEL_STP ||
+	    !(br->dev->flags & IFF_UP))
 		return;
 
 	br_info(br, "topology change detected, %s\n",
@@ -421,9 +433,9 @@ void br_become_designated_port(struct net_bridge_port *p)
 
 	br = p->br;
 	p->designated_root = br->designated_root;
-	p->designated_cost = br->root_path_cost;
+	WRITE_ONCE(p->designated_cost, br->root_path_cost);
 	p->designated_bridge = br->bridge_id;
-	p->designated_port = p->port_id;
+	WRITE_ONCE(p->designated_port, p->port_id);
 }
 
 
@@ -479,14 +491,14 @@ void br_port_state_selection(struct net_bridge *br)
 		/* Don't change port states if userspace is handling STP */
 		if (br->stp_enabled != BR_USER_STP) {
 			if (p->port_no == br->root_port) {
-				p->config_pending = 0;
+				WRITE_ONCE(p->config_pending, 0);
 				p->topology_change_ack = 0;
 				br_make_forwarding(p);
 			} else if (br_is_designated_port(p)) {
 				timer_delete(&p->message_age_timer);
 				br_make_forwarding(p);
 			} else {
-				p->config_pending = 0;
+				WRITE_ONCE(p->config_pending, 0);
 				p->topology_change_ack = 0;
 				br_make_blocking(p);
 			}

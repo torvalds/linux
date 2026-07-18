@@ -77,6 +77,7 @@ static void ltl_monitor_destroy(void)
 {
 	rv_detach_trace_probe(name, task_newtask, handle_task_newtask);
 
+	tracepoint_synchronize_unregister();
 	rv_put_task_monitor_slot(ltl_monitor_slot);
 	ltl_monitor_slot = RV_PER_TASK_MONITOR_INIT;
 }

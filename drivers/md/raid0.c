@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <trace/events/block.h>
 #include "md.h"
 #include "raid0.h"
@@ -43,7 +44,7 @@ static void dump_zones(struct mddev *mddev)
 	int raid_disks = conf->strip_zone[0].nb_dev;
 	pr_debug("md: RAID0 configuration for %s - %d zone%s\n",
 		 mdname(mddev),
-		 conf->nr_strip_zones, conf->nr_strip_zones==1?"":"s");
+		 conf->nr_strip_zones, str_plural(conf->nr_strip_zones));
 	for (j = 0; j < conf->nr_strip_zones; j++) {
 		char line[200];
 		int len = 0;
@@ -392,6 +393,7 @@ static int raid0_set_limits(struct mddev *mddev)
 	lim.io_opt = lim.io_min * mddev->raid_disks;
 	lim.chunk_sectors = mddev->chunk_sectors;
 	lim.features |= BLK_FEAT_ATOMIC_WRITES;
+	lim.features |= BLK_FEAT_PCI_P2PDMA;
 	err = mddev_stack_rdev_limits(mddev, &lim, MDDEV_STACK_INTEGRITY);
 	if (err)
 		return err;

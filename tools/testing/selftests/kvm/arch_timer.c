@@ -78,9 +78,9 @@ static void *test_vcpu_run(void *arg)
 	return NULL;
 }
 
-static uint32_t test_get_pcpu(void)
+static u32 test_get_pcpu(void)
 {
-	uint32_t pcpu;
+	u32 pcpu;
 	unsigned int nproc_conf;
 	cpu_set_t online_cpuset;
 
@@ -98,7 +98,7 @@ static uint32_t test_get_pcpu(void)
 static int test_migrate_vcpu(unsigned int vcpu_idx)
 {
 	int ret;
-	uint32_t new_pcpu = test_get_pcpu();
+	u32 new_pcpu = test_get_pcpu();
 
 	pr_debug("Migrating vCPU: %u to pCPU: %u\n", vcpu_idx, new_pcpu);
 

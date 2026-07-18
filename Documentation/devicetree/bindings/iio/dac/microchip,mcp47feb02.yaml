@@ -161,8 +161,8 @@ patternProperties:
     properties:
       reg:
         description: The channel number.
-        minItems: 1
-        maxItems: 8
+        minimum: 0
+        maximum: 7
 
       label:
         description: Unique name to identify which channel this is.
@@ -280,23 +280,23 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <0>;
-        dac@0 {
-          compatible = "microchip,mcp47feb02";
-          reg = <0>;
-          vdd-supply = <&vdac_vdd>;
-          vref-supply = <&vref_reg>;
+        dac@60 {
+            compatible = "microchip,mcp47feb02";
+            reg = <0x60>;
+            vdd-supply = <&vdac_vdd>;
+            vref-supply = <&vref_reg>;
 
-          #address-cells = <1>;
-          #size-cells = <0>;
-          channel@0 {
-            reg = <0>;
-            label = "Adjustable_voltage_ch0";
-          };
+            #address-cells = <1>;
+            #size-cells = <0>;
+            channel@0 {
+                reg = <0>;
+                label = "Adjustable_voltage_ch0";
+            };
 
-          channel@1 {
-            reg = <0x1>;
-            label = "Adjustable_voltage_ch1";
-          };
-      };
+            channel@1 {
+                reg = <0x1>;
+                label = "Adjustable_voltage_ch1";
+            };
+        };
     };
 ...

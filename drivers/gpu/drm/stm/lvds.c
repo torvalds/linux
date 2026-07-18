@@ -887,7 +887,7 @@ static int lvds_connector_get_modes(struct drm_connector *connector)
 }
 
 static int lvds_connector_atomic_check(struct drm_connector *connector,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	const struct drm_display_mode *panel_mode;
 	struct drm_connector_state *conn_state;
@@ -981,7 +981,7 @@ static int lvds_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
 }
 
 static void lvds_atomic_enable(struct drm_bridge *bridge,
-			       struct drm_atomic_state *state)
+			       struct drm_atomic_commit *state)
 {
 	struct stm_lvds *lvds = bridge_to_stm_lvds(bridge);
 	struct drm_connector_state *conn_state;
@@ -1017,7 +1017,7 @@ static void lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void lvds_atomic_disable(struct drm_bridge *bridge,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	struct stm_lvds *lvds = bridge_to_stm_lvds(bridge);
 
@@ -1038,7 +1038,7 @@ static const struct drm_bridge_funcs lvds_bridge_funcs = {
 	.atomic_disable = lvds_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int lvds_probe(struct platform_device *pdev)

@@ -70,13 +70,48 @@ static void reg_sr_inc_error(struct xe_reg_sr *sr)
 #endif
 }
 
+static struct xe_reg sanitize_mcr(struct xe_reg_sr *sr,
+				  const struct xe_reg_sr_entry *e,
+				  struct xe_gt *gt)
+{
+	struct xe_reg reg = e->reg;
+	bool is_mcr;
+
+	/*
+	 * We need the gt structure to check MCR ranges.
+	 */
+	if (!gt)
+		return reg;
+
+	is_mcr = xe_gt_mcr_check_reg(gt, reg);
+
+	if (is_mcr && !reg.mcr) {
+		reg.mcr = 1;
+		xe_gt_notice(gt, "xe_reg_sr_entry using non-MCR register for address 0x%x, forcing MCR\n",
+			     reg.addr);
+		reg_sr_inc_error(sr);
+	}
+
+	if (!is_mcr && reg.mcr) {
+		reg.mcr = 0;
+		xe_gt_notice(gt, "xe_reg_sr_entry using MCR register for address 0x%x, forcing non-MCR\n",
+			     reg.addr);
+		reg_sr_inc_error(sr);
+	}
+
+	return reg;
+}
+
 int xe_reg_sr_add(struct xe_reg_sr *sr,
 		  const struct xe_reg_sr_entry *e,
 		  struct xe_gt *gt)
 {
 	unsigned long idx = e->reg.addr;
 	struct xe_reg_sr_entry *pentry = xa_load(&sr->xa, idx);
+	struct xe_reg reg;
 	int ret;
+
+	reg = sanitize_mcr(sr, e, gt);
 
 	if (pentry) {
 		if (!compatible_entries(pentry, e)) {
@@ -98,6 +133,7 @@ int xe_reg_sr_add(struct xe_reg_sr *sr,
 	}
 
 	*pentry = *e;
+	pentry->reg = reg;
 	ret = xa_err(xa_store(&sr->xa, idx, pentry, GFP_KERNEL));
 	if (ret)
 		goto fail_free;

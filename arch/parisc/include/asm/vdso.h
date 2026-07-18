@@ -6,13 +6,14 @@
 
 #ifdef CONFIG_64BIT
 #include <generated/vdso64-offsets.h>
+#define VDSO64_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso64_offset_##name))
 #endif
 #if !defined(CONFIG_64BIT) || defined(CONFIG_COMPAT)
 #include <generated/vdso32-offsets.h>
-#endif
-
-#define VDSO64_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso64_offset_##name))
 #define VDSO32_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso32_offset_##name))
+#else
+#define VDSO32_SYMBOL(tsk, name) 0UL
+#endif
 
 #endif /* __ASSEMBLER__ */
 

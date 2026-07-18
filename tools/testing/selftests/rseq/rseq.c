@@ -56,6 +56,7 @@ ptrdiff_t rseq_offset;
  * unsuccessful.
  */
 unsigned int rseq_size = -1U;
+static unsigned int rseq_alloc_size;
 
 /* Flags used during rseq registration.  */
 unsigned int rseq_flags;
@@ -115,29 +116,17 @@ bool rseq_available(void)
 	}
 }
 
-/* The rseq areas need to be at least 32 bytes. */
-static
-unsigned int get_rseq_min_alloc_size(void)
-{
-	unsigned int alloc_size = rseq_size;
-
-	if (alloc_size < ORIG_RSEQ_ALLOC_SIZE)
-		alloc_size = ORIG_RSEQ_ALLOC_SIZE;
-	return alloc_size;
-}
-
 /*
  * Return the feature size supported by the kernel.
  *
  * Depending on the value returned by getauxval(AT_RSEQ_FEATURE_SIZE):
  *
- * 0:   Return ORIG_RSEQ_FEATURE_SIZE (20)
+ *   0: Return ORIG_RSEQ_FEATURE_SIZE (20)
  * > 0: Return the value from getauxval(AT_RSEQ_FEATURE_SIZE).
  *
  * It should never return a value below ORIG_RSEQ_FEATURE_SIZE.
  */
-static
-unsigned int get_rseq_kernel_feature_size(void)
+static unsigned int get_rseq_kernel_feature_size(void)
 {
 	unsigned long auxv_rseq_feature_size, auxv_rseq_align;
 
@@ -152,15 +141,24 @@ unsigned int get_rseq_kernel_feature_size(void)
 		return ORIG_RSEQ_FEATURE_SIZE;
 }
 
-int rseq_register_current_thread(void)
+int __rseq_register_current_thread(bool nolibc, bool legacy)
 {
+	unsigned int size;
 	int rc;
 
 	if (!rseq_ownership) {
 		/* Treat libc's ownership as a successful registration. */
-		return 0;
+		return nolibc ? -EBUSY : 0;
 	}
-	rc = sys_rseq(&__rseq.abi, get_rseq_min_alloc_size(), 0, RSEQ_SIG);
+
+	/* The minimal allocation size is 32, which is the legacy allocation size */
+	size = get_rseq_kernel_feature_size();
+	if (legacy || size < ORIG_RSEQ_ALLOC_SIZE)
+		rseq_alloc_size = ORIG_RSEQ_ALLOC_SIZE;
+	else
+		rseq_alloc_size = size;
+
+	rc = sys_rseq(&__rseq.abi, rseq_alloc_size, 0, RSEQ_SIG);
 	if (rc) {
 		/*
 		 * After at least one thread has registered successfully
@@ -179,9 +177,8 @@ int rseq_register_current_thread(void)
 	 * The first thread to register sets the rseq_size to mimic the libc
 	 * behavior.
 	 */
-	if (RSEQ_READ_ONCE(rseq_size) == 0) {
-		RSEQ_WRITE_ONCE(rseq_size, get_rseq_kernel_feature_size());
-	}
+	if (RSEQ_READ_ONCE(rseq_size) == 0)
+		RSEQ_WRITE_ONCE(rseq_size, size);
 
 	return 0;
 }
@@ -194,7 +191,7 @@ int rseq_unregister_current_thread(void)
 		/* Treat libc's ownership as a successful unregistration. */
 		return 0;
 	}
-	rc = sys_rseq(&__rseq.abi, get_rseq_min_alloc_size(), RSEQ_ABI_FLAG_UNREGISTER, RSEQ_SIG);
+	rc = sys_rseq(&__rseq.abi, rseq_alloc_size, RSEQ_ABI_FLAG_UNREGISTER, RSEQ_SIG);
 	if (rc)
 		return -1;
 	return 0;

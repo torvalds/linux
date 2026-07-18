@@ -11,19 +11,20 @@
 #include <kvm_util.h>
 #include <processor.h>
 #include <pthread.h>
+#include <ucall_common.h>
 
 /* Arbitrarily chosen values */
 #define TEST_SIZE		(SZ_2M + PAGE_SIZE)
 #define TEST_NPAGES		(TEST_SIZE / PAGE_SIZE)
 #define TEST_SLOT		10
 
-static void guest_code(uint64_t base_gva)
+static void guest_code(u64 base_gva)
 {
-	volatile uint64_t val __used;
+	volatile u64 val __used;
 	int i;
 
 	for (i = 0; i < TEST_NPAGES; i++) {
-		uint64_t *src = (uint64_t *)(base_gva + i * PAGE_SIZE);
+		u64 *src = (u64 *)(base_gva + i * PAGE_SIZE);
 
 		val = *src;
 	}
@@ -33,8 +34,8 @@ static void guest_code(uint64_t base_gva)
 
 struct slot_worker_data {
 	struct kvm_vm *vm;
-	u64 gpa;
-	uint32_t flags;
+	gpa_t gpa;
+	u32 flags;
 	bool worker_ready;
 	bool prefault_ready;
 	bool recreate_slot;
@@ -161,13 +162,12 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
 
 static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 {
-	uint64_t gpa, gva, alignment, guest_page_size;
+	gpa_t gpa, gva, alignment, guest_page_size;
 	const struct vm_shape shape = {
 		.mode = VM_MODE_DEFAULT,
 		.type = vm_type,
 	};
 	struct kvm_vcpu *vcpu;
-	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct ucall uc;
 
@@ -192,11 +192,6 @@ static void __test_pre_fault_memory(unsigned long vm_type, bool private)
 
 	vcpu_args_set(vcpu, 1, gva);
 	vcpu_run(vcpu);
-
-	run = vcpu->run;
-	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-		    "Wanted KVM_EXIT_IO, got exit reason: %u (%s)",
-		    run->exit_reason, exit_reason_str(run->exit_reason));
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:

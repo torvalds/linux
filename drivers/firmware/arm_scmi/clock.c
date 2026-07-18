@@ -5,6 +5,7 @@
  * Copyright (C) 2018-2022 ARM Ltd.
  */
 
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/limits.h>
 #include <linux/sort.h>
@@ -156,13 +157,26 @@ struct scmi_clock_rate_notify_payld {
 	__le32 rate_high;
 };
 
+struct scmi_clock_desc {
+	u32 id;
+	unsigned int tot_rates;
+	struct scmi_clock_rates r;
+#define	RATE_MIN	0
+#define	RATE_MAX	1
+#define	RATE_STEP	2
+	struct scmi_clock_info info;
+};
+
+#define to_desc(p)	(container_of(p, struct scmi_clock_desc, info))
+
 struct clock_info {
 	int num_clocks;
 	int max_async_req;
 	bool notify_rate_changed_cmd;
 	bool notify_rate_change_requested_cmd;
 	atomic_t cur_async_req;
-	struct scmi_clock_info *clk;
+	struct scmi_clock_desc *clkds;
+#define CLOCK_INFO(c, i)	(&(((c)->clkds + (i))->info))
 	int (*clock_config_set)(const struct scmi_protocol_handle *ph,
 				u32 clk_id, enum clk_state state,
 				enum scmi_clock_oem_config oem_type,
@@ -184,7 +198,7 @@ scmi_clock_domain_lookup(struct clock_info *ci, u32 clk_id)
 	if (clk_id >= ci->num_clocks)
 		return ERR_PTR(-EINVAL);
 
-	return ci->clk + clk_id;
+	return CLOCK_INFO(ci, clk_id);
 }
 
 static int
@@ -225,8 +239,7 @@ scmi_clock_protocol_attributes_get(const struct scmi_protocol_handle *ph,
 
 struct scmi_clk_ipriv {
 	struct device *dev;
-	u32 clk_id;
-	struct scmi_clock_info *clk;
+	struct scmi_clock_desc *clkd;
 };
 
 static void iter_clk_possible_parents_prepare_message(void *message, unsigned int desc_index,
@@ -235,7 +248,7 @@ static void iter_clk_possible_parents_prepare_message(void *message, unsigned in
 	struct scmi_msg_clock_possible_parents *msg = message;
 	const struct scmi_clk_ipriv *p = priv;
 
-	msg->id = cpu_to_le32(p->clk_id);
+	msg->id = cpu_to_le32(p->clkd->id);
 	/* Set the number of OPPs to be skipped/already read */
 	msg->skip_parents = cpu_to_le32(desc_index);
 }
@@ -245,7 +258,6 @@ static int iter_clk_possible_parents_update_state(struct scmi_iterator_state *st
 {
 	const struct scmi_msg_resp_clock_possible_parents *r = response;
 	struct scmi_clk_ipriv *p = priv;
-	struct device *dev = ((struct scmi_clk_ipriv *)p)->dev;
 	u32 flags;
 
 	flags = le32_to_cpu(r->num_parent_flags);
@@ -257,14 +269,15 @@ static int iter_clk_possible_parents_update_state(struct scmi_iterator_state *st
 	 * assume it's returned+remaining on first call.
 	 */
 	if (!st->max_resources) {
-		p->clk->num_parents = st->num_returned + st->num_remaining;
-		p->clk->parents = devm_kcalloc(dev, p->clk->num_parents,
-					       sizeof(*p->clk->parents),
-					       GFP_KERNEL);
-		if (!p->clk->parents) {
-			p->clk->num_parents = 0;
+		int num_parents = st->num_returned + st->num_remaining;
+
+		p->clkd->info.parents = devm_kcalloc(p->dev, num_parents,
+						     sizeof(*p->clkd->info.parents),
+						     GFP_KERNEL);
+		if (!p->clkd->info.parents)
 			return -ENOMEM;
-		}
+
+		/* max_resources is used by the iterators to control bounds */
 		st->max_resources = st->num_returned + st->num_remaining;
 	}
 
@@ -279,29 +292,29 @@ static int iter_clk_possible_parents_process_response(const struct scmi_protocol
 	const struct scmi_msg_resp_clock_possible_parents *r = response;
 	struct scmi_clk_ipriv *p = priv;
 
-	u32 *parent = &p->clk->parents[st->desc_index + st->loop_idx];
+	p->clkd->info.parents[st->desc_index + st->loop_idx] =
+		le32_to_cpu(r->possible_parents[st->loop_idx]);
 
-	*parent = le32_to_cpu(r->possible_parents[st->loop_idx]);
+	/* Count only effectively discovered parents */
+	p->clkd->info.num_parents++;
 
 	return 0;
 }
 
-static int scmi_clock_possible_parents(const struct scmi_protocol_handle *ph, u32 clk_id,
-				       struct scmi_clock_info *clk)
+static int scmi_clock_possible_parents(const struct scmi_protocol_handle *ph,
+				       u32 clk_id, struct clock_info *cinfo)
 {
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_clk_possible_parents_prepare_message,
 		.update_state = iter_clk_possible_parents_update_state,
 		.process_response = iter_clk_possible_parents_process_response,
 	};
-
+	struct scmi_clock_desc *clkd = &cinfo->clkds[clk_id];
 	struct scmi_clk_ipriv ppriv = {
-		.clk_id = clk_id,
-		.clk = clk,
+		.clkd = clkd,
 		.dev = ph->dev,
 	};
 	void *iter;
-	int ret;
 
 	iter = ph->hops->iter_response_init(ph, &ops, 0,
 					    CLOCK_POSSIBLE_PARENTS_GET,
@@ -310,9 +323,7 @@ static int scmi_clock_possible_parents(const struct scmi_protocol_handle *ph, u3
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	ret = ph->hops->iter_response_run(iter);
-
-	return ret;
+	return ph->hops->iter_response_run(iter);
 }
 
 static int
@@ -351,7 +362,7 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 	u32 attributes;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_clock_attributes *attr;
-	struct scmi_clock_info *clk = cinfo->clk + clk_id;
+	struct scmi_clock_info *clk = CLOCK_INFO(cinfo, clk_id);
 
 	ret = ph->xops->xfer_get_init(ph, CLOCK_ATTRIBUTES,
 				      sizeof(clk_id), sizeof(*attr), &t);
@@ -393,7 +404,7 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 			clk->rate_change_requested_notifications = true;
 		if (PROTOCOL_REV_MAJOR(ph->version) >= 0x3) {
 			if (SUPPORTS_PARENT_CLOCK(attributes))
-				scmi_clock_possible_parents(ph, clk_id, clk);
+				scmi_clock_possible_parents(ph, clk_id, cinfo);
 			if (SUPPORTS_GET_PERMISSIONS(attributes))
 				scmi_clock_get_permissions(ph, clk_id, clk);
 			if (SUPPORTS_EXTENDED_CONFIG(attributes))
@@ -423,7 +434,7 @@ static void iter_clk_describe_prepare_message(void *message,
 	struct scmi_msg_clock_describe_rates *msg = message;
 	const struct scmi_clk_ipriv *p = priv;
 
-	msg->id = cpu_to_le32(p->clk_id);
+	msg->id = cpu_to_le32(p->clkd->id);
 	/* Set the number of rates to be skipped/already read */
 	msg->rate_index = cpu_to_le32(desc_index);
 }
@@ -456,18 +467,31 @@ iter_clk_describe_update_state(struct scmi_iterator_state *st,
 	flags = le32_to_cpu(r->num_rates_flags);
 	st->num_remaining = NUM_REMAINING(flags);
 	st->num_returned = NUM_RETURNED(flags);
-	p->clk->rate_discrete = RATE_DISCRETE(flags);
+	p->clkd->r.rate_discrete = RATE_DISCRETE(flags);
 
 	/* Warn about out of spec replies ... */
-	if (!p->clk->rate_discrete &&
+	if (!p->clkd->r.rate_discrete &&
 	    (st->num_returned != 3 || st->num_remaining != 0)) {
 		dev_warn(p->dev,
 			 "Out-of-spec CLOCK_DESCRIBE_RATES reply for %s - returned:%d remaining:%d rx_len:%zd\n",
-			 p->clk->name, st->num_returned, st->num_remaining,
+			 p->clkd->info.name, st->num_returned, st->num_remaining,
 			 st->rx_len);
 
 		SCMI_QUIRK(clock_rates_triplet_out_of_spec,
 			   QUIRK_OUT_OF_SPEC_TRIPLET);
+	}
+
+	if (!st->max_resources) {
+		unsigned int tot_rates = st->num_returned + st->num_remaining;
+
+		p->clkd->r.rates = devm_kcalloc(p->dev, tot_rates,
+						sizeof(*p->clkd->r.rates), GFP_KERNEL);
+		if (!p->clkd->r.rates)
+			return -ENOMEM;
+
+		/* max_resources is used by the iterators to control bounds */
+		p->clkd->tot_rates = tot_rates;
+		st->max_resources = tot_rates;
 	}
 
 	return 0;
@@ -478,38 +502,20 @@ iter_clk_describe_process_response(const struct scmi_protocol_handle *ph,
 				   const void *response,
 				   struct scmi_iterator_state *st, void *priv)
 {
-	int ret = 0;
 	struct scmi_clk_ipriv *p = priv;
 	const struct scmi_msg_resp_clock_describe_rates *r = response;
 
-	if (!p->clk->rate_discrete) {
-		switch (st->desc_index + st->loop_idx) {
-		case 0:
-			p->clk->range.min_rate = RATE_TO_U64(r->rate[0]);
-			break;
-		case 1:
-			p->clk->range.max_rate = RATE_TO_U64(r->rate[1]);
-			break;
-		case 2:
-			p->clk->range.step_size = RATE_TO_U64(r->rate[2]);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-	} else {
-		u64 *rate = &p->clk->list.rates[st->desc_index + st->loop_idx];
+	p->clkd->r.rates[p->clkd->r.num_rates] = RATE_TO_U64(r->rate[st->loop_idx]);
 
-		*rate = RATE_TO_U64(r->rate[st->loop_idx]);
-		p->clk->list.num_rates++;
-	}
+	/* Count only effectively discovered rates */
+	p->clkd->r.num_rates++;
 
-	return ret;
+	return 0;
 }
 
 static int
-scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      struct scmi_clock_info *clk)
+scmi_clock_describe_rates_get_full(const struct scmi_protocol_handle *ph,
+				   struct scmi_clock_desc *clkd)
 {
 	int ret;
 	void *iter;
@@ -519,12 +525,16 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 		.process_response = iter_clk_describe_process_response,
 	};
 	struct scmi_clk_ipriv cpriv = {
-		.clk_id = clk_id,
-		.clk = clk,
+		.clkd = clkd,
 		.dev = ph->dev,
 	};
 
-	iter = ph->hops->iter_response_init(ph, &ops, SCMI_MAX_NUM_RATES,
+	/*
+	 * Using tot_rates as max_resources parameter here so as to trigger
+	 * the dynamic allocation only when strictly needed: when trying a
+	 * full enumeration after a lazy one tot_rates will be non-zero.
+	 */
+	iter = ph->hops->iter_response_init(ph, &ops, clkd->tot_rates,
 					    CLOCK_DESCRIBE_RATES,
 					    sizeof(struct scmi_msg_clock_describe_rates),
 					    &cpriv);
@@ -535,16 +545,97 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 	if (ret)
 		return ret;
 
-	if (!clk->rate_discrete) {
-		dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
-			clk->range.min_rate, clk->range.max_rate,
-			clk->range.step_size);
-	} else if (clk->list.num_rates) {
-		sort(clk->list.rates, clk->list.num_rates,
-		     sizeof(clk->list.rates[0]), rate_cmp_func, NULL);
+	/* empty set ? */
+	if (!clkd->r.num_rates)
+		return 0;
+
+	if (clkd->r.rate_discrete && PROTOCOL_REV_MAJOR(ph->version) == 0x1)
+		sort(clkd->r.rates, clkd->r.num_rates,
+		     sizeof(clkd->r.rates[0]), rate_cmp_func, NULL);
+
+	return 0;
+}
+
+static int
+scmi_clock_describe_rates_get_lazy(const struct scmi_protocol_handle *ph,
+				   struct scmi_clock_desc *clkd)
+{
+	struct scmi_iterator_ops ops = {
+		.prepare_message = iter_clk_describe_prepare_message,
+		.update_state = iter_clk_describe_update_state,
+		.process_response = iter_clk_describe_process_response,
+	};
+	struct scmi_clk_ipriv cpriv = {
+		.clkd = clkd,
+		.dev = ph->dev,
+	};
+	unsigned int first, last;
+	void *iter;
+	int ret;
+
+	iter = ph->hops->iter_response_init(ph, &ops, 0, CLOCK_DESCRIBE_RATES,
+					    sizeof(struct scmi_msg_clock_describe_rates),
+					    &cpriv);
+	if (IS_ERR(iter))
+		return PTR_ERR(iter);
+
+	/* Try to grab a triplet, so that in case is NON-discrete we are done */
+	first = 0;
+	last = 2;
+	ret = ph->hops->iter_response_run_bound(iter, &first, &last);
+	if (ret)
+		goto out;
+
+	/*
+	 * If discrete and we don't already have it, grab the last value, which
+	 * should be the max
+	 */
+	if (clkd->r.rate_discrete && clkd->tot_rates > clkd->r.num_rates) {
+		first = clkd->tot_rates - 1;
+		last = clkd->tot_rates - 1;
+		ret = ph->hops->iter_response_run_bound(iter, &first, &last);
 	}
 
+out:
+	ph->hops->iter_response_bound_cleanup(iter);
+
 	return ret;
+}
+
+static int
+scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph,
+			      u32 clk_id, struct clock_info *cinfo)
+{
+	struct scmi_clock_desc *clkd = &cinfo->clkds[clk_id];
+	int ret;
+
+	/*
+	 * Since only after SCMI Clock v1.0 the returned rates are guaranteed to
+	 * be discovered in ascending order, lazy enumeration cannot be use for
+	 * SCMI Clock v1.0 protocol.
+	 */
+	if (PROTOCOL_REV_MAJOR(ph->version) > 0x1)
+		ret = scmi_clock_describe_rates_get_lazy(ph, clkd);
+	else
+		ret = scmi_clock_describe_rates_get_full(ph, clkd);
+
+	if (ret)
+		return ret;
+
+	clkd->info.min_rate = clkd->r.rates[RATE_MIN];
+	if (!clkd->r.rate_discrete) {
+		clkd->info.max_rate = clkd->r.rates[RATE_MAX];
+		dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
+			clkd->r.rates[RATE_MIN], clkd->r.rates[RATE_MAX],
+			clkd->r.rates[RATE_STEP]);
+	} else {
+		clkd->info.max_rate = clkd->r.rates[clkd->r.num_rates - 1];
+		dev_dbg(ph->dev, "Clock:%s Num_Rates:%u -> Min %llu Max %llu\n",
+			clkd->info.name, clkd->tot_rates,
+			clkd->info.min_rate, clkd->info.max_rate);
+	}
+
+	return 0;
 }
 
 static int
@@ -622,6 +713,75 @@ static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 
 	ph->xops->xfer_put(ph, t);
 	return ret;
+}
+
+static int scmi_clock_determine_rate(const struct scmi_protocol_handle *ph,
+				     u32 clk_id, unsigned long *rate)
+{
+	u64 fmin, fmax, ftmp;
+	struct scmi_clock_info *clk;
+	struct scmi_clock_desc *clkd;
+	struct clock_info *ci = ph->get_priv(ph);
+
+	if (!rate)
+		return -EINVAL;
+
+	clk = scmi_clock_domain_lookup(ci, clk_id);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	clkd = to_desc(clk);
+
+	/*
+	 * If we can't figure out what rate it will be, so just return the
+	 * rate back to the caller.
+	 */
+	if (clkd->r.rate_discrete)
+		return 0;
+
+	fmin = clk->min_rate;
+	fmax = clk->max_rate;
+	if (*rate <= fmin) {
+		*rate = fmin;
+		return 0;
+	} else if (*rate >= fmax) {
+		*rate = fmax;
+		return 0;
+	}
+
+	ftmp = *rate - fmin;
+	ftmp += clkd->r.rates[RATE_STEP] - 1; /* to round up */
+	ftmp = div64_ul(ftmp, clkd->r.rates[RATE_STEP]);
+
+	*rate = ftmp * clkd->r.rates[RATE_STEP] + fmin;
+
+	return 0;
+}
+
+static const struct scmi_clock_rates *
+scmi_clock_all_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id)
+{
+	struct clock_info *ci = ph->get_priv(ph);
+	struct scmi_clock_desc *clkd;
+	struct scmi_clock_info *clk;
+
+	clk = scmi_clock_domain_lookup(ci, clk_id);
+	if (IS_ERR(clk) || !clk->name[0])
+		return NULL;
+
+	clkd = to_desc(clk);
+	/* Needs full enumeration ? */
+	if (clkd->r.rate_discrete && clkd->tot_rates != clkd->r.num_rates) {
+		int ret;
+
+		/* rates[] is already allocated BUT we need to re-enumerate */
+		clkd->r.num_rates = 0;
+		ret = scmi_clock_describe_rates_get_full(ph, clkd);
+		if (ret)
+			return NULL;
+	}
+
+	return &clkd->r;
 }
 
 static int
@@ -936,6 +1096,8 @@ static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.info_get = scmi_clock_info_get,
 	.rate_get = scmi_clock_rate_get,
 	.rate_set = scmi_clock_rate_set,
+	.determine_rate = scmi_clock_determine_rate,
+	.all_rates_get = scmi_clock_all_rates_get,
 	.enable = scmi_clock_enable,
 	.disable = scmi_clock_disable,
 	.state_get = scmi_clock_state_get,
@@ -1080,17 +1242,16 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	cinfo->clk = devm_kcalloc(ph->dev, cinfo->num_clocks,
-				  sizeof(*cinfo->clk), GFP_KERNEL);
-	if (!cinfo->clk)
+	cinfo->clkds = devm_kcalloc(ph->dev, cinfo->num_clocks,
+				    sizeof(*cinfo->clkds), GFP_KERNEL);
+	if (!cinfo->clkds)
 		return -ENOMEM;
 
 	for (clkid = 0; clkid < cinfo->num_clocks; clkid++) {
-		struct scmi_clock_info *clk = cinfo->clk + clkid;
-
+		cinfo->clkds[clkid].id = clkid;
 		ret = scmi_clock_attributes_get(ph, clkid, cinfo);
 		if (!ret)
-			scmi_clock_describe_rates_get(ph, clkid, clk);
+			scmi_clock_describe_rates_get(ph, clkid, cinfo);
 	}
 
 	if (PROTOCOL_REV_MAJOR(ph->version) >= 0x3) {

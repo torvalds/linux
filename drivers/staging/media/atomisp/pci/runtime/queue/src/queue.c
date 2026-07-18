@@ -167,7 +167,7 @@ int ia_css_queue_dequeue(ia_css_queue_t *qhandle, uint32_t *item)
 
 		*item = cb_elem.val;
 
-		cb_desc.start = OP_std_modadd(cb_desc.start, 1, cb_desc.size);
+		cb_desc.start = (cb_desc.start + 1) % cb_desc.size;
 
 		/* c. Store the queue object */
 		/* Set only fields requiring update with
@@ -315,7 +315,7 @@ int ia_css_queue_peek(ia_css_queue_t *qhandle, u32 offset, uint32_t *element)
 		if (offset > num_elems)
 			return -EINVAL;
 
-		offset = OP_std_modadd(cb_desc.start, offset, cb_desc.size);
+		offset = (cb_desc.start + offset) % cb_desc.size;
 		error = ia_css_queue_item_load(qhandle, (uint8_t)offset, &cb_elem);
 		if (error != 0)
 			return error;

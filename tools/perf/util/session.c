@@ -160,11 +160,12 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 	session->decomp_data.zstd_decomp = &session->zstd_data;
 	session->active_decomp = &session->decomp_data;
 	INIT_LIST_HEAD(&session->auxtrace_index);
-	machines__init(&session->machines);
+	perf_env__init(&session->header.env);
+	if (machines__init(&session->machines))
+		goto out_delete;
+
 	ordered_events__init(&session->ordered_events,
 			     ordered_events__deliver_event, NULL);
-
-	perf_env__init(&session->header.env);
 	if (data) {
 		ret = perf_data__open(data);
 		if (ret < 0)
@@ -276,34 +277,58 @@ void perf_session__delete(struct perf_session *session)
 static void swap_sample_id_all(union perf_event *event, void *data)
 {
 	void *end = (void *) event + event->header.size;
-	int size = end - data;
+	int size;
 
-	BUG_ON(size % sizeof(u64));
-	mem_bswap_64(data, size);
+	if (data >= end)
+		return;
+
+	size = end - data;
+	if (size % sizeof(u64)) {
+		pr_warning("swap_sample_id_all: unaligned sample_id_all remainder (%d), skipping swap\n", size);
+		return;
+	}
+	if (size > 0)
+		mem_bswap_64(data, size);
 }
 
-static void perf_event__all64_swap(union perf_event *event,
-				   bool sample_id_all __maybe_unused)
+static int perf_event__all64_swap(union perf_event *event,
+				  bool sample_id_all __maybe_unused)
 {
 	struct perf_event_header *hdr = &event->header;
-	mem_bswap_64(hdr + 1, event->header.size - sizeof(*hdr));
+	size_t size = event->header.size - sizeof(*hdr);
+
+	/* mem_bswap_64 rounds up to 8-byte chunks — unaligned size overruns the buffer */
+	if (size % sizeof(u64))
+		return -1;
+	mem_bswap_64(hdr + 1, size);
+	return 0;
 }
 
-static void perf_event__comm_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__comm_swap(union perf_event *event, bool sample_id_all)
 {
 	event->comm.pid = bswap_32(event->comm.pid);
 	event->comm.tid = bswap_32(event->comm.tid);
 
 	if (sample_id_all) {
 		void *data = &event->comm.comm;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
 
-		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
+		/*
+		 * No NUL within the event boundary — can't locate where
+		 * sample_id_all starts.  Reject so the event is skipped
+		 * rather than swapping garbage.
+		 */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
+	return 0;
 }
 
-static void perf_event__mmap_swap(union perf_event *event,
-				  bool sample_id_all)
+static int perf_event__mmap_swap(union perf_event *event,
+				 bool sample_id_all)
 {
 	event->mmap.pid	  = bswap_32(event->mmap.pid);
 	event->mmap.tid	  = bswap_32(event->mmap.tid);
@@ -313,13 +338,19 @@ static void perf_event__mmap_swap(union perf_event *event,
 
 	if (sample_id_all) {
 		void *data = &event->mmap.filename;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
 
-		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
+		/* See comment in perf_event__comm_swap() */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
+	return 0;
 }
 
-static void perf_event__mmap2_swap(union perf_event *event,
+static int perf_event__mmap2_swap(union perf_event *event,
 				  bool sample_id_all)
 {
 	event->mmap2.pid   = bswap_32(event->mmap2.pid);
@@ -337,12 +368,19 @@ static void perf_event__mmap2_swap(union perf_event *event,
 
 	if (sample_id_all) {
 		void *data = &event->mmap2.filename;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
 
-		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
+		/* See comment in perf_event__comm_swap() */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
+	return 0;
 }
-static void perf_event__task_swap(union perf_event *event, bool sample_id_all)
+
+static int perf_event__task_swap(union perf_event *event, bool sample_id_all)
 {
 	event->fork.pid	 = bswap_32(event->fork.pid);
 	event->fork.tid	 = bswap_32(event->fork.tid);
@@ -352,22 +390,31 @@ static void perf_event__task_swap(union perf_event *event, bool sample_id_all)
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->fork + 1);
+	return 0;
 }
 
-static void perf_event__read_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__read_swap(union perf_event *event,
+				 bool sample_id_all __maybe_unused)
 {
+	size_t tail;
+
 	event->read.pid		 = bswap_32(event->read.pid);
 	event->read.tid		 = bswap_32(event->read.tid);
-	event->read.value	 = bswap_64(event->read.value);
-	event->read.time_enabled = bswap_64(event->read.time_enabled);
-	event->read.time_running = bswap_64(event->read.time_running);
-	event->read.id		 = bswap_64(event->read.id);
-
-	if (sample_id_all)
-		swap_sample_id_all(event, &event->read + 1);
+	/*
+	 * Everything after pid/tid is u64: the read values (variable
+	 * set determined by attr.read_format, which we don't have
+	 * here) optionally followed by sample_id_all fields.
+	 * Since all are u64, swap the entire remaining tail at once.
+	 */
+	tail = event->header.size - offsetof(struct perf_record_read, value);
+	/* mem_bswap_64 rounds up to 8-byte chunks — unaligned tail overruns the buffer */
+	if (tail % sizeof(u64))
+		return -1;
+	mem_bswap_64(&event->read.value, tail);
+	return 0;
 }
 
-static void perf_event__aux_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__aux_swap(union perf_event *event, bool sample_id_all)
 {
 	event->aux.aux_offset = bswap_64(event->aux.aux_offset);
 	event->aux.aux_size   = bswap_64(event->aux.aux_size);
@@ -375,19 +422,21 @@ static void perf_event__aux_swap(union perf_event *event, bool sample_id_all)
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->aux + 1);
+	return 0;
 }
 
-static void perf_event__itrace_start_swap(union perf_event *event,
-					  bool sample_id_all)
+static int perf_event__itrace_start_swap(union perf_event *event,
+					 bool sample_id_all)
 {
 	event->itrace_start.pid	 = bswap_32(event->itrace_start.pid);
 	event->itrace_start.tid	 = bswap_32(event->itrace_start.tid);
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->itrace_start + 1);
+	return 0;
 }
 
-static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__switch_swap(union perf_event *event, bool sample_id_all)
 {
 	if (event->header.type == PERF_RECORD_SWITCH_CPU_WIDE) {
 		event->context_switch.next_prev_pid =
@@ -396,30 +445,45 @@ static void perf_event__switch_swap(union perf_event *event, bool sample_id_all)
 				bswap_32(event->context_switch.next_prev_tid);
 	}
 
-	if (sample_id_all)
-		swap_sample_id_all(event, &event->context_switch + 1);
+	if (sample_id_all) {
+		/*
+		 * PERF_RECORD_SWITCH has no fields beyond the header;
+		 * SWITCH_CPU_WIDE adds pid/tid.  Use the right offset
+		 * so sample_id starts at the correct position.
+		 */
+		if (event->header.type == PERF_RECORD_SWITCH)
+			swap_sample_id_all(event, (void *)event + sizeof(event->header));
+		else
+			swap_sample_id_all(event, &event->context_switch + 1);
+	}
+	return 0;
 }
 
-static void perf_event__text_poke_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__text_poke_swap(union perf_event *event, bool sample_id_all)
 {
 	event->text_poke.addr    = bswap_64(event->text_poke.addr);
 	event->text_poke.old_len = bswap_16(event->text_poke.old_len);
 	event->text_poke.new_len = bswap_16(event->text_poke.new_len);
 
 	if (sample_id_all) {
+		void *data = &event->text_poke.old_len;
+		void *end = (void *)event + event->header.size;
 		size_t len = sizeof(event->text_poke.old_len) +
 			     sizeof(event->text_poke.new_len) +
 			     event->text_poke.old_len +
 			     event->text_poke.new_len;
-		void *data = &event->text_poke.old_len;
 
+		/* old_len + new_len exceeds event — can't find sample_id_all */
+		if (data + len > end)
+			return -1;
 		data += PERF_ALIGN(len, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
+	return 0;
 }
 
-static void perf_event__throttle_swap(union perf_event *event,
-				      bool sample_id_all)
+static int perf_event__throttle_swap(union perf_event *event,
+				     bool sample_id_all)
 {
 	event->throttle.time	  = bswap_64(event->throttle.time);
 	event->throttle.id	  = bswap_64(event->throttle.id);
@@ -427,18 +491,41 @@ static void perf_event__throttle_swap(union perf_event *event,
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->throttle + 1);
+	return 0;
 }
 
-static void perf_event__namespaces_swap(union perf_event *event,
-					bool sample_id_all)
+static int perf_event__namespaces_swap(union perf_event *event,
+				       bool sample_id_all)
 {
-	u64 i;
+	u64 i, nr, max_nr;
 
 	event->namespaces.pid		= bswap_32(event->namespaces.pid);
 	event->namespaces.tid		= bswap_32(event->namespaces.tid);
 	event->namespaces.nr_namespaces	= bswap_64(event->namespaces.nr_namespaces);
 
-	for (i = 0; i < event->namespaces.nr_namespaces; i++) {
+	nr = event->namespaces.nr_namespaces;
+	/*
+	 * Cannot underflow: perf_event__min_size[] guarantees header.size >= sizeof.
+	 * When sample_id_all is present max_nr slightly overestimates the
+	 * array space because header.size includes the trailing sample_id.
+	 * Harmless: both the per-element bswap_64 loop and swap_sample_id_all()
+	 * perform the same u64 byte swap, so the result is correct regardless
+	 * of where the boundary between array and sample_id falls.
+	 */
+	max_nr = (event->header.size - sizeof(event->namespaces)) /
+		 sizeof(event->namespaces.link_info[0]);
+	/*
+	 * Safe to clamp: each namespace entry is indexed by type;
+	 * missing entries just won't be resolved.
+	 */
+	if (nr > max_nr) {
+		pr_warning("WARNING: PERF_RECORD_NAMESPACES: nr_namespaces %" PRIu64 " exceeds payload (max %" PRIu64 "), clamping\n",
+			   nr, max_nr);
+		nr = max_nr;
+		event->namespaces.nr_namespaces = nr;
+	}
+
+	for (i = 0; i < nr; i++) {
 		struct perf_ns_link_info *ns = &event->namespaces.link_info[i];
 
 		ns->dev = bswap_64(ns->dev);
@@ -447,18 +534,25 @@ static void perf_event__namespaces_swap(union perf_event *event,
 
 	if (sample_id_all)
 		swap_sample_id_all(event, &event->namespaces.link_info[i]);
+	return 0;
 }
 
-static void perf_event__cgroup_swap(union perf_event *event, bool sample_id_all)
+static int perf_event__cgroup_swap(union perf_event *event, bool sample_id_all)
 {
 	event->cgroup.id = bswap_64(event->cgroup.id);
 
 	if (sample_id_all) {
 		void *data = &event->cgroup.path;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
 
-		data += PERF_ALIGN(strlen(data) + 1, sizeof(u64));
+		/* See comment in perf_event__comm_swap() */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
 		swap_sample_id_all(event, data);
 	}
+	return 0;
 }
 
 static u8 revbyte(u8 b)
@@ -499,9 +593,19 @@ void perf_event__attr_swap(struct perf_event_attr *attr)
 	attr->type		= bswap_32(attr->type);
 	attr->size		= bswap_32(attr->size);
 
-#define bswap_safe(f, n) 					\
-	(attr->size > (offsetof(struct perf_event_attr, f) + 	\
-		       sizeof(attr->f) * (n)))
+	/*
+	 * ABI0: size == 0 means the producer didn't set it.
+	 * Assume PERF_ATTR_SIZE_VER0 so bswap_safe() below
+	 * correctly swaps the VER0 fields instead of skipping
+	 * everything.  Same convention as read_attr().
+	 */
+	if (!attr->size)
+		attr->size = PERF_ATTR_SIZE_VER0;
+
+/* Verify the full field extent fits, not just its start offset */
+#define bswap_safe(f, n)					\
+	(attr->size >= (offsetof(struct perf_event_attr, f) +	\
+			sizeof(attr->f) * ((n) + 1)))
 #define bswap_field(f, sz) 			\
 do { 						\
 	if (bswap_safe(f, 0))			\
@@ -539,40 +643,189 @@ do { 						\
 #undef bswap_safe
 }
 
-static void perf_event__hdr_attr_swap(union perf_event *event,
-				      bool sample_id_all __maybe_unused)
+static int perf_event__hdr_attr_swap(union perf_event *event,
+				     bool sample_id_all __maybe_unused)
 {
+	u32 attr_size, payload_size;
 	size_t size;
+
+	/*
+	 * Validate attr.size (still foreign-endian) before calling
+	 * perf_event__attr_swap(), which uses it via bswap_safe()
+	 * to decide which fields to swap.  A crafted attr.size
+	 * larger than the event payload would swap past the event
+	 * boundary and corrupt adjacent memory.
+	 *
+	 * header.size alignment is already validated by
+	 * perf_session__process_event().  The min_size table
+	 * guarantees header.size >= sizeof(header) +
+	 * PERF_ATTR_SIZE_VER0, so attr.size is safe to access.
+	 */
+	attr_size = bswap_32(event->attr.attr.size);
+	/*
+	 * ABI0: size field not set.  This only happens in pipe/inject
+	 * mode where HEADER_ATTR events carry their own attr.  For
+	 * regular perf.data files, read_attr() uses f_header.attr_size
+	 * from the file header instead.  Assume PERF_ATTR_SIZE_VER0.
+	 */
+	if (!attr_size)
+		attr_size = PERF_ATTR_SIZE_VER0;
+	payload_size = event->header.size - sizeof(event->header);
+
+	if (attr_size < PERF_ATTR_SIZE_VER0 || attr_size % sizeof(u64) ||
+	    attr_size > payload_size) {
+		pr_err("PERF_RECORD_HEADER_ATTR: invalid attr.size %u (min: %d, max: %u, 8-byte aligned)\n",
+		       attr_size, PERF_ATTR_SIZE_VER0, payload_size);
+		return -1;
+	}
 
 	perf_event__attr_swap(&event->attr.attr);
 
 	size = event->header.size;
 	size -= perf_record_header_attr_id(event) - (void *)event;
 	mem_bswap_64(perf_record_header_attr_id(event), size);
+	return 0;
 }
 
-static void perf_event__event_update_swap(union perf_event *event,
-					  bool sample_id_all __maybe_unused)
+static int perf_event__build_id_swap(union perf_event *event,
+				     bool sample_id_all)
 {
-	event->event_update.type = bswap_64(event->event_update.type);
-	event->event_update.id   = bswap_64(event->event_update.id);
+	event->build_id.pid = bswap_32(event->build_id.pid);
+
+	if (sample_id_all) {
+		void *data = &event->build_id.filename;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
+
+		/* See comment in perf_event__comm_swap() */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
+	return 0;
 }
 
-static void perf_event__event_type_swap(union perf_event *event,
-					bool sample_id_all __maybe_unused)
+static int perf_event__event_update_swap(union perf_event *event,
+					 bool sample_id_all __maybe_unused)
+{
+	struct perf_record_event_update *ev = &event->event_update;
+
+	ev->type = bswap_64(ev->type);
+	ev->id   = bswap_64(ev->id);
+
+	/*
+	 * Swap variant-specific fields so the processing path
+	 * sees native byte order.
+	 */
+	if (ev->type == PERF_EVENT_UPDATE__SCALE) {
+		if (event->header.size < offsetof(struct perf_record_event_update, scale) +
+					 sizeof(ev->scale))
+			return -1;
+		mem_bswap_64(&ev->scale.scale, sizeof(ev->scale.scale));
+	} else if (ev->type == PERF_EVENT_UPDATE__CPUS) {
+		u32 cpus_payload;
+		struct perf_record_cpu_map_data *data = &ev->cpus.cpus;
+
+		/* CPUS fields start at the same offset as scale (union) */
+		if (event->header.size < offsetof(struct perf_record_event_update, cpus) +
+					 sizeof(__u16) + sizeof(struct perf_record_range_cpu_map))
+			return -1;
+		cpus_payload = event->header.size - offsetof(struct perf_record_event_update, cpus);
+		data->type = bswap_16(data->type);
+		/*
+		 * Full swap including array elements — same logic as
+		 * perf_event__cpu_map_swap() but scoped to the
+		 * embedded cpu_map_data within EVENT_UPDATE.
+		 */
+		switch (data->type) {
+		case PERF_CPU_MAP__CPUS: {
+			u16 nr, max_nr;
+
+			data->cpus_data.nr = bswap_16(data->cpus_data.nr);
+			nr = data->cpus_data.nr;
+			max_nr = (cpus_payload - offsetof(struct perf_record_cpu_map_data,
+							  cpus_data.cpu)) /
+				 sizeof(data->cpus_data.cpu[0]);
+			if (nr > max_nr) {
+				nr = max_nr;
+				data->cpus_data.nr = nr;
+			}
+			for (unsigned int i = 0; i < nr; i++)
+				data->cpus_data.cpu[i] = bswap_16(data->cpus_data.cpu[i]);
+			break;
+		}
+		case PERF_CPU_MAP__MASK:
+			data->mask32_data.long_size = bswap_16(data->mask32_data.long_size);
+			switch (data->mask32_data.long_size) {
+			case 4: {
+				u16 nr, max_nr;
+
+				data->mask32_data.nr = bswap_16(data->mask32_data.nr);
+				nr = data->mask32_data.nr;
+				max_nr = (cpus_payload - offsetof(struct perf_record_cpu_map_data,
+								  mask32_data.mask)) /
+					 sizeof(data->mask32_data.mask[0]);
+				if (nr > max_nr) {
+					nr = max_nr;
+					data->mask32_data.nr = nr;
+				}
+				for (unsigned int i = 0; i < nr; i++)
+					data->mask32_data.mask[i] = bswap_32(data->mask32_data.mask[i]);
+				break;
+			}
+			case 8: {
+				u16 nr, max_nr;
+
+				data->mask64_data.nr = bswap_16(data->mask64_data.nr);
+				nr = data->mask64_data.nr;
+				if (cpus_payload < offsetof(struct perf_record_cpu_map_data, mask64_data.mask)) {
+					data->mask64_data.nr = 0;
+					break;
+				}
+				max_nr = (cpus_payload - offsetof(struct perf_record_cpu_map_data,
+								  mask64_data.mask)) /
+					 sizeof(data->mask64_data.mask[0]);
+				if (nr > max_nr) {
+					nr = max_nr;
+					data->mask64_data.nr = nr;
+				}
+				for (unsigned int i = 0; i < nr; i++)
+					data->mask64_data.mask[i] = bswap_64(data->mask64_data.mask[i]);
+				break;
+			}
+			default:
+				break;
+			}
+			break;
+		case PERF_CPU_MAP__RANGE_CPUS:
+			data->range_cpu_data.start_cpu = bswap_16(data->range_cpu_data.start_cpu);
+			data->range_cpu_data.end_cpu = bswap_16(data->range_cpu_data.end_cpu);
+			break;
+		default:
+			break;
+		}
+	}
+	return 0;
+}
+
+static int perf_event__event_type_swap(union perf_event *event,
+				       bool sample_id_all __maybe_unused)
 {
 	event->event_type.event_type.event_id =
 		bswap_64(event->event_type.event_type.event_id);
+	return 0;
 }
 
-static void perf_event__tracing_data_swap(union perf_event *event,
-					  bool sample_id_all __maybe_unused)
+static int perf_event__tracing_data_swap(union perf_event *event,
+					 bool sample_id_all __maybe_unused)
 {
 	event->tracing_data.size = bswap_32(event->tracing_data.size);
+	return 0;
 }
 
-static void perf_event__auxtrace_info_swap(union perf_event *event,
-					   bool sample_id_all __maybe_unused)
+static int perf_event__auxtrace_info_swap(union perf_event *event,
+					  bool sample_id_all __maybe_unused)
 {
 	size_t size;
 
@@ -581,10 +834,11 @@ static void perf_event__auxtrace_info_swap(union perf_event *event,
 	size = event->header.size;
 	size -= (void *)&event->auxtrace_info.priv - (void *)event;
 	mem_bswap_64(event->auxtrace_info.priv, size);
+	return 0;
 }
 
-static void perf_event__auxtrace_swap(union perf_event *event,
-				      bool sample_id_all __maybe_unused)
+static int perf_event__auxtrace_swap(union perf_event *event,
+				     bool sample_id_all __maybe_unused)
 {
 	event->auxtrace.size      = bswap_64(event->auxtrace.size);
 	event->auxtrace.offset    = bswap_64(event->auxtrace.offset);
@@ -592,10 +846,11 @@ static void perf_event__auxtrace_swap(union perf_event *event,
 	event->auxtrace.idx       = bswap_32(event->auxtrace.idx);
 	event->auxtrace.tid       = bswap_32(event->auxtrace.tid);
 	event->auxtrace.cpu       = bswap_32(event->auxtrace.cpu);
+	return 0;
 }
 
-static void perf_event__auxtrace_error_swap(union perf_event *event,
-					    bool sample_id_all __maybe_unused)
+static int perf_event__auxtrace_error_swap(union perf_event *event,
+					   bool sample_id_all __maybe_unused)
 {
 	event->auxtrace_error.type = bswap_32(event->auxtrace_error.type);
 	event->auxtrace_error.code = bswap_32(event->auxtrace_error.code);
@@ -607,52 +862,128 @@ static void perf_event__auxtrace_error_swap(union perf_event *event,
 	if (event->auxtrace_error.fmt)
 		event->auxtrace_error.time = bswap_64(event->auxtrace_error.time);
 	if (event->auxtrace_error.fmt >= 2) {
-		event->auxtrace_error.machine_pid = bswap_32(event->auxtrace_error.machine_pid);
-		event->auxtrace_error.vcpu = bswap_32(event->auxtrace_error.vcpu);
+		/*
+		 * fmt >= 2 adds machine_pid and vcpu after msg[64].
+		 * Older files may have fmt >= 2 but an event size
+		 * that doesn't include these fields — downgrade to
+		 * avoid swapping out of bounds.
+		 */
+		if (event->header.size < offsetof(typeof(event->auxtrace_error), vcpu) +
+					 sizeof(event->auxtrace_error.vcpu)) {
+			pr_warning("WARNING: PERF_RECORD_AUXTRACE_ERROR: fmt %u but event too small for machine_pid/vcpu (%u bytes), downgrading fmt\n",
+				   event->auxtrace_error.fmt,
+				   event->header.size);
+			event->auxtrace_error.fmt = 1;
+		} else {
+			event->auxtrace_error.machine_pid = bswap_32(event->auxtrace_error.machine_pid);
+			event->auxtrace_error.vcpu = bswap_32(event->auxtrace_error.vcpu);
+		}
 	}
+	return 0;
 }
 
-static void perf_event__thread_map_swap(union perf_event *event,
-					bool sample_id_all __maybe_unused)
+static int perf_event__thread_map_swap(union perf_event *event,
+				       bool sample_id_all __maybe_unused)
 {
-	unsigned i;
+	unsigned int i;
+	u64 nr;
 
 	event->thread_map.nr = bswap_64(event->thread_map.nr);
 
-	for (i = 0; i < event->thread_map.nr; i++)
+	/*
+	 * Reject rather than clamp: unlike namespaces (indexed by type)
+	 * or stat_config (self-describing tags), a truncated thread map
+	 * is structurally broken — downstream would get a wrong map.
+	 */
+	/* Cannot underflow: perf_event__min_size[] guarantees header.size >= sizeof */
+	nr = event->thread_map.nr;
+	if (nr > (event->header.size - sizeof(event->thread_map)) /
+		  sizeof(event->thread_map.entries[0]))
+		return -1;
+
+	for (i = 0; i < nr; i++)
 		event->thread_map.entries[i].pid = bswap_64(event->thread_map.entries[i].pid);
+	return 0;
 }
 
-static void perf_event__cpu_map_swap(union perf_event *event,
-				     bool sample_id_all __maybe_unused)
+static int perf_event__cpu_map_swap(union perf_event *event,
+				    bool sample_id_all __maybe_unused)
 {
 	struct perf_record_cpu_map_data *data = &event->cpu_map.data;
+	u32 payload = event->header.size - sizeof(event->header);
 
 	data->type = bswap_16(data->type);
 
+	/*
+	 * Safe to clamp: a shorter CPU map just means some CPUs
+	 * are absent; tools process the CPUs that are present.
+	 */
 	switch (data->type) {
-	case PERF_CPU_MAP__CPUS:
-		data->cpus_data.nr = bswap_16(data->cpus_data.nr);
+	case PERF_CPU_MAP__CPUS: {
+		u16 nr, max_nr;
 
-		for (unsigned i = 0; i < data->cpus_data.nr; i++)
+		data->cpus_data.nr = bswap_16(data->cpus_data.nr);
+		nr = data->cpus_data.nr;
+		max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+					     cpus_data.cpu)) /
+			 sizeof(data->cpus_data.cpu[0]);
+		if (nr > max_nr) {
+			pr_warning("WARNING: PERF_RECORD_CPU_MAP: nr %u exceeds payload (max %u), clamping\n",
+				   nr, max_nr);
+			nr = max_nr;
+			data->cpus_data.nr = nr;
+		}
+		for (unsigned int i = 0; i < nr; i++)
 			data->cpus_data.cpu[i] = bswap_16(data->cpus_data.cpu[i]);
 		break;
+	}
 	case PERF_CPU_MAP__MASK:
 		data->mask32_data.long_size = bswap_16(data->mask32_data.long_size);
 
 		switch (data->mask32_data.long_size) {
-		case 4:
+		case 4: {
+			u16 nr, max_nr;
+
 			data->mask32_data.nr = bswap_16(data->mask32_data.nr);
-			for (unsigned i = 0; i < data->mask32_data.nr; i++)
+			nr = data->mask32_data.nr;
+			max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+						     mask32_data.mask)) /
+				 sizeof(data->mask32_data.mask[0]);
+			if (nr > max_nr) {
+				pr_warning("WARNING: PERF_RECORD_CPU_MAP mask32: nr %u exceeds payload (max %u), clamping\n",
+					   nr, max_nr);
+				nr = max_nr;
+				data->mask32_data.nr = nr;
+			}
+			for (unsigned int i = 0; i < nr; i++)
 				data->mask32_data.mask[i] = bswap_32(data->mask32_data.mask[i]);
 			break;
-		case 8:
+		}
+		case 8: {
+			u16 nr, max_nr;
+
 			data->mask64_data.nr = bswap_16(data->mask64_data.nr);
-			for (unsigned i = 0; i < data->mask64_data.nr; i++)
+			nr = data->mask64_data.nr;
+			if (payload < offsetof(struct perf_record_cpu_map_data, mask64_data.mask)) {
+				data->mask64_data.nr = 0;
+				break;
+			}
+			max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+						     mask64_data.mask)) /
+				 sizeof(data->mask64_data.mask[0]);
+			if (nr > max_nr) {
+				pr_warning("WARNING: PERF_RECORD_CPU_MAP mask64: nr %u exceeds payload (max %u), clamping\n",
+					   nr, max_nr);
+				nr = max_nr;
+				data->mask64_data.nr = nr;
+			}
+			for (unsigned int i = 0; i < nr; i++)
 				data->mask64_data.mask[i] = bswap_64(data->mask64_data.mask[i]);
 			break;
+		}
 		default:
-			pr_err("cpu_map swap: unsupported long size\n");
+			pr_err("cpu_map swap: unsupported long size %u\n",
+			       data->mask32_data.long_size);
 		}
 		break;
 	case PERF_CPU_MAP__RANGE_CPUS:
@@ -662,20 +993,38 @@ static void perf_event__cpu_map_swap(union perf_event *event,
 	default:
 		break;
 	}
+	return 0;
 }
 
-static void perf_event__stat_config_swap(union perf_event *event,
-					 bool sample_id_all __maybe_unused)
+static int perf_event__stat_config_swap(union perf_event *event,
+					bool sample_id_all __maybe_unused)
 {
-	u64 size;
+	u64 nr, max_nr, size;
 
-	size  = bswap_64(event->stat_config.nr) * sizeof(event->stat_config.data[0]);
-	size += 1; /* nr item itself */
+	nr = bswap_64(event->stat_config.nr);
+	/* Cannot underflow: perf_event__min_size[] guarantees header.size >= sizeof */
+	max_nr = (event->header.size - sizeof(event->stat_config)) /
+		 sizeof(event->stat_config.data[0]);
+	/*
+	 * Safe to clamp: each config entry is self-describing
+	 * via its tag; missing entries keep their defaults.
+	 */
+	if (nr > max_nr) {
+		pr_warning("WARNING: PERF_RECORD_STAT_CONFIG: nr %" PRIu64 " exceeds payload (max %" PRIu64 "), clamping\n",
+			   nr, max_nr);
+		nr = max_nr;
+	}
+	size = nr * sizeof(event->stat_config.data[0]);
+	/* The swap starts at &nr, so add its size to cover the full range */
+	size += sizeof(event->stat_config.nr);
 	mem_bswap_64(&event->stat_config.nr, size);
+	/* Persist the clamped value in native byte order */
+	event->stat_config.nr = nr;
+	return 0;
 }
 
-static void perf_event__stat_swap(union perf_event *event,
-				  bool sample_id_all __maybe_unused)
+static int perf_event__stat_swap(union perf_event *event,
+				 bool sample_id_all __maybe_unused)
 {
 	event->stat.id     = bswap_64(event->stat.id);
 	event->stat.thread = bswap_32(event->stat.thread);
@@ -683,44 +1032,140 @@ static void perf_event__stat_swap(union perf_event *event,
 	event->stat.val    = bswap_64(event->stat.val);
 	event->stat.ena    = bswap_64(event->stat.ena);
 	event->stat.run    = bswap_64(event->stat.run);
+	return 0;
 }
 
-static void perf_event__stat_round_swap(union perf_event *event,
-					bool sample_id_all __maybe_unused)
+static int perf_event__stat_round_swap(union perf_event *event,
+				       bool sample_id_all __maybe_unused)
 {
 	event->stat_round.type = bswap_64(event->stat_round.type);
 	event->stat_round.time = bswap_64(event->stat_round.time);
+	return 0;
 }
 
-static void perf_event__time_conv_swap(union perf_event *event,
-				       bool sample_id_all __maybe_unused)
+static int perf_event__time_conv_swap(union perf_event *event,
+				      bool sample_id_all __maybe_unused)
 {
 	event->time_conv.time_shift = bswap_64(event->time_conv.time_shift);
 	event->time_conv.time_mult  = bswap_64(event->time_conv.time_mult);
 	event->time_conv.time_zero  = bswap_64(event->time_conv.time_zero);
 
-	if (event_contains(event->time_conv, time_cycles)) {
+	if (event_contains(event->time_conv, time_cycles))
 		event->time_conv.time_cycles = bswap_64(event->time_conv.time_cycles);
+	if (event_contains(event->time_conv, time_mask))
 		event->time_conv.time_mask = bswap_64(event->time_conv.time_mask);
-	}
+	return 0;
 }
 
-static void
+static int perf_event__compressed2_swap(union perf_event *event,
+					bool sample_id_all __maybe_unused)
+{
+	/* Only data_size needs swapping — compressed payload is a raw byte stream */
+	event->pack2.data_size = bswap_64(event->pack2.data_size);
+	return 0;
+}
+
+static int perf_event__bpf_metadata_swap(union perf_event *event,
+					 bool sample_id_all __maybe_unused)
+{
+	u64 i, nr, max_nr;
+
+	/* Fixed header must fit before accessing nr_entries or prog_name */
+	if (event->header.size < sizeof(event->bpf_metadata))
+		return -1;
+
+	event->bpf_metadata.nr_entries = bswap_64(event->bpf_metadata.nr_entries);
+
+	/*
+	 * Ensure NUL-termination on the cross-endian path where the
+	 * mapping is writable (MAP_PRIVATE + PROT_WRITE).  Fixing
+	 * the string in place is preferred over rejecting because it
+	 * preserves the event for downstream processing — only the
+	 * last byte is lost.
+	 *
+	 * The native-endian path (MAP_SHARED + PROT_READ) cannot
+	 * write, so it validates and skips unterminated events in
+	 * perf_session__process_user_event() instead.  The two
+	 * strategies produce different outcomes for the same
+	 * malformed input (fix vs skip), which is inherent in the
+	 * writable-vs-read-only mapping model.
+	 */
+	event->bpf_metadata.prog_name[BPF_PROG_NAME_LEN - 1] = '\0';
+
+	nr = event->bpf_metadata.nr_entries;
+	max_nr = (event->header.size - sizeof(event->bpf_metadata)) /
+		 sizeof(event->bpf_metadata.entries[0]);
+	if (nr > max_nr) {
+		/* Persist clamped value so the native path processes entries, not skips */
+		nr = max_nr;
+		event->bpf_metadata.nr_entries = nr;
+	}
+
+	for (i = 0; i < nr; i++) {
+		event->bpf_metadata.entries[i].key[BPF_METADATA_KEY_LEN - 1] = '\0';
+		event->bpf_metadata.entries[i].value[BPF_METADATA_VALUE_LEN - 1] = '\0';
+	}
+	return 0;
+}
+static int
 perf_event__schedstat_cpu_swap(union perf_event *event __maybe_unused,
 			       bool sample_id_all __maybe_unused)
 {
 	/* FIXME */
+	return 0;
 }
 
-static void
+static int
 perf_event__schedstat_domain_swap(union perf_event *event __maybe_unused,
 				  bool sample_id_all __maybe_unused)
 {
 	/* FIXME */
+	return 0;
 }
 
-typedef void (*perf_event__swap_op)(union perf_event *event,
-				    bool sample_id_all);
+static int perf_event__ksymbol_swap(union perf_event *event,
+				    bool sample_id_all)
+{
+	event->ksymbol.addr = bswap_64(event->ksymbol.addr);
+	event->ksymbol.len = bswap_32(event->ksymbol.len);
+	event->ksymbol.ksym_type = bswap_16(event->ksymbol.ksym_type);
+	event->ksymbol.flags = bswap_16(event->ksymbol.flags);
+
+	if (sample_id_all) {
+		void *data = &event->ksymbol.name;
+		void *end = (void *)event + event->header.size;
+		size_t len = strnlen(data, end - data);
+
+		/* See comment in perf_event__comm_swap() */
+		if (len == (size_t)(end - data))
+			return -1;
+		data += PERF_ALIGN(len + 1, sizeof(u64));
+		swap_sample_id_all(event, data);
+	}
+	return 0;
+}
+
+static int perf_event__bpf_event_swap(union perf_event *event,
+				      bool sample_id_all)
+{
+	event->bpf.type  = bswap_16(event->bpf.type);
+	event->bpf.flags = bswap_16(event->bpf.flags);
+	event->bpf.id    = bswap_32(event->bpf.id);
+
+	if (sample_id_all)
+		swap_sample_id_all(event, &event->bpf + 1);
+	return 0;
+}
+
+static int perf_event__header_feature_swap(union perf_event *event,
+					   bool sample_id_all __maybe_unused)
+{
+	event->feat.feat_id = bswap_64(event->feat.feat_id);
+	return 0;
+}
+
+typedef int (*perf_event__swap_op)(union perf_event *event,
+				   bool sample_id_all);
 
 static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_MMAP]		  = perf_event__mmap_swap,
@@ -740,13 +1185,16 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_SWITCH_CPU_WIDE]	  = perf_event__switch_swap,
 	[PERF_RECORD_NAMESPACES]	  = perf_event__namespaces_swap,
 	[PERF_RECORD_CGROUP]		  = perf_event__cgroup_swap,
+	[PERF_RECORD_KSYMBOL]		  = perf_event__ksymbol_swap,
+	[PERF_RECORD_BPF_EVENT]		  = perf_event__bpf_event_swap,
 	[PERF_RECORD_TEXT_POKE]		  = perf_event__text_poke_swap,
 	[PERF_RECORD_AUX_OUTPUT_HW_ID]	  = perf_event__all64_swap,
 	[PERF_RECORD_CALLCHAIN_DEFERRED]  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
-	[PERF_RECORD_HEADER_BUILD_ID]	  = NULL,
+	[PERF_RECORD_HEADER_BUILD_ID]	  = perf_event__build_id_swap,
+	[PERF_RECORD_HEADER_FEATURE]	  = perf_event__header_feature_swap,
 	[PERF_RECORD_ID_INDEX]		  = perf_event__all64_swap,
 	[PERF_RECORD_AUXTRACE_INFO]	  = perf_event__auxtrace_info_swap,
 	[PERF_RECORD_AUXTRACE]		  = perf_event__auxtrace_swap,
@@ -758,6 +1206,8 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_STAT_ROUND]	  = perf_event__stat_round_swap,
 	[PERF_RECORD_EVENT_UPDATE]	  = perf_event__event_update_swap,
 	[PERF_RECORD_TIME_CONV]		  = perf_event__time_conv_swap,
+	[PERF_RECORD_COMPRESSED2]	  = perf_event__compressed2_swap,
+	[PERF_RECORD_BPF_METADATA]	  = perf_event__bpf_metadata_swap,
 	[PERF_RECORD_SCHEDSTAT_CPU]	  = perf_event__schedstat_cpu_swap,
 	[PERF_RECORD_SCHEDSTAT_DOMAIN]	  = perf_event__schedstat_domain_swap,
 	[PERF_RECORD_HEADER_MAX]	  = NULL,
@@ -1117,9 +1567,10 @@ char *get_page_size_name(u64 size, char *str)
 	return str;
 }
 
-static void dump_sample(struct machine *machine, struct evsel *evsel, union perf_event *event,
+static void dump_sample(struct machine *machine, union perf_event *event,
 			struct perf_sample *sample)
 {
+	struct evsel *evsel = sample->evsel;
 	u64 sample_type;
 	char str[PAGE_SIZE_NAME_LEN];
 	uint16_t e_machine = EM_NONE;
@@ -1183,9 +1634,10 @@ static void dump_sample(struct machine *machine, struct evsel *evsel, union perf
 		sample_read__printf(sample, evsel->core.attr.read_format);
 }
 
-static void dump_deferred_callchain(struct evsel *evsel, union perf_event *event,
-				    struct perf_sample *sample)
+static void dump_deferred_callchain(union perf_event *event, struct perf_sample *sample)
 {
+	struct evsel *evsel = sample->evsel;
+
 	if (!dump_trace)
 		return;
 
@@ -1198,8 +1650,9 @@ static void dump_deferred_callchain(struct evsel *evsel, union perf_event *event
 
 static void dump_read(struct evsel *evsel, union perf_event *event)
 {
-	struct perf_record_read *read_event = &event->read;
 	u64 read_format;
+	__u64 *array;
+	void *end;
 
 	if (!dump_trace)
 		return;
@@ -1211,18 +1664,37 @@ static void dump_read(struct evsel *evsel, union perf_event *event)
 		return;
 
 	read_format = evsel->core.attr.read_format;
+	/*
+	 * The kernel packs only the enabled read_format fields
+	 * after value, with no gaps.  Walk the packed array
+	 * instead of using fixed struct offsets.
+	 */
+	array = &event->read.value + 1;
+	end = (void *)event + event->header.size;
 
-	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
-		printf("... time enabled : %" PRI_lu64 "\n", read_event->time_enabled);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		if ((void *)(array + 1) > end)
+			return;
+		printf("... time enabled : %" PRI_lu64 "\n", *array++);
+	}
 
-	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
-		printf("... time running : %" PRI_lu64 "\n", read_event->time_running);
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		if ((void *)(array + 1) > end)
+			return;
+		printf("... time running : %" PRI_lu64 "\n", *array++);
+	}
 
-	if (read_format & PERF_FORMAT_ID)
-		printf("... id           : %" PRI_lu64 "\n", read_event->id);
+	if (read_format & PERF_FORMAT_ID) {
+		if ((void *)(array + 1) > end)
+			return;
+		printf("... id           : %" PRI_lu64 "\n", *array++);
+	}
 
-	if (read_format & PERF_FORMAT_LOST)
-		printf("... lost         : %" PRI_lu64 "\n", read_event->lost);
+	if (read_format & PERF_FORMAT_LOST) {
+		if ((void *)(array + 1) > end)
+			return;
+		printf("... lost         : %" PRI_lu64 "\n", *array++);
+	}
 }
 
 static struct machine *machines__find_for_cpumode(struct machines *machines,
@@ -1291,7 +1763,7 @@ static int deliver_sample_value(struct evlist *evlist,
 		return 0;
 
 	sample->evsel = container_of(sid->evsel, struct evsel, core);
-	ret = tool->sample(tool, event, sample, sample->evsel, machine);
+	ret = tool->sample(tool, event, sample, machine);
 	sample->evsel = saved_evsel;
 	return ret;
 }
@@ -1323,8 +1795,9 @@ static int deliver_sample_group(struct evlist *evlist,
 
 static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool *tool,
 				  union  perf_event *event, struct perf_sample *sample,
-				  struct evsel *evsel, struct machine *machine)
+				  struct machine *machine)
 {
+	struct evsel *evsel = sample->evsel;
 	/* We know evsel != NULL. */
 	u64 sample_type = evsel->core.attr.sample_type;
 	u64 read_format = evsel->core.attr.read_format;
@@ -1332,7 +1805,7 @@ static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool 
 
 	/* Standard sample delivery. */
 	if (!(sample_type & PERF_SAMPLE_READ))
-		return tool->sample(tool, event, sample, evsel, machine);
+		return tool->sample(tool, event, sample, machine);
 
 	/* For PERF_SAMPLE_READ we have either single or group mode. */
 	if (read_format & PERF_FORMAT_GROUP)
@@ -1352,6 +1825,7 @@ static int evlist__deliver_sample(struct evlist *evlist, const struct perf_tool 
 struct deferred_event {
 	struct list_head list;
 	union perf_event *event;
+	u64 file_offset;
 };
 
 /*
@@ -1371,8 +1845,7 @@ static int evlist__deliver_deferred_callchain(struct evlist *evlist,
 		struct evsel *saved_evsel = sample->evsel;
 
 		sample->evsel = evlist__id2evsel(evlist, sample->id);
-		ret = tool->callchain_deferred(tool, event, sample,
-					       sample->evsel, machine);
+		ret = tool->callchain_deferred(tool, event, sample, machine);
 		sample->evsel = saved_evsel;
 		return ret;
 	}
@@ -1387,6 +1860,7 @@ static int evlist__deliver_deferred_callchain(struct evlist *evlist,
 			perf_sample__exit(&orig_sample);
 			break;
 		}
+		orig_sample.file_offset = de->file_offset;
 
 		if (sample->tid != orig_sample.tid) {
 			perf_sample__exit(&orig_sample);
@@ -1400,7 +1874,7 @@ static int evlist__deliver_deferred_callchain(struct evlist *evlist,
 
 		orig_sample.evsel = evlist__id2evsel(evlist, orig_sample.id);
 		ret = evlist__deliver_sample(evlist, tool, de->event,
-					     &orig_sample, orig_sample.evsel, machine);
+					     &orig_sample, machine);
 
 		perf_sample__exit(&orig_sample);
 		list_del(&de->list);
@@ -1435,10 +1909,11 @@ static int session__flush_deferred_samples(struct perf_session *session,
 			perf_sample__exit(&sample);
 			break;
 		}
+		sample.file_offset = de->file_offset;
 
 		sample.evsel = evlist__id2evsel(evlist, sample.id);
 		ret = evlist__deliver_sample(evlist, tool, de->event,
-					     &sample, sample.evsel, machine);
+					     &sample, machine);
 
 		perf_sample__exit(&sample);
 		list_del(&de->list);
@@ -1451,6 +1926,26 @@ static int session__flush_deferred_samples(struct perf_session *session,
 	return ret;
 }
 
+/*
+ * Return true if the string field is properly null-terminated
+ * within the event boundary.  Native-endian files are mapped
+ * read-only (MAP_SHARED + PROT_READ) so we cannot write a
+ * null byte in place; skip the event instead.
+ */
+static bool perf_event__check_nul(const char *str, const void *end,
+				  const char *event_name, u64 file_offset)
+{
+	size_t max_len = (const char *)end - str;
+
+	if (max_len == 0 || strnlen(str, max_len) == max_len) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_%s: string not null-terminated, skipping event\n",
+			   file_offset, event_name);
+		return false;
+	}
+
+	return true;
+}
+
 static int machines__deliver_event(struct machines *machines,
 				   struct evlist *evlist,
 				   union perf_event *event,
@@ -1458,7 +1953,6 @@ static int machines__deliver_event(struct machines *machines,
 				   const struct perf_tool *tool, u64 file_offset,
 				   const char *file_path)
 {
-	struct evsel *evsel;
 	struct machine *machine;
 
 	dump_event(evlist, event, file_offset, sample, file_path);
@@ -1468,21 +1962,20 @@ static int machines__deliver_event(struct machines *machines,
 	else
 		assert(sample->evsel == evlist__id2evsel(evlist, sample->id));
 
-	evsel = sample->evsel;
 	machine = machines__find_for_cpumode(machines, event, sample);
 
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		if (evsel == NULL) {
+		if (sample->evsel == NULL) {
 			++evlist->stats.nr_unknown_id;
 			return 0;
 		}
 		if (machine == NULL) {
 			++evlist->stats.nr_unprocessable_samples;
-			dump_sample(machine, evsel, event, sample);
+			dump_sample(machine, event, sample);
 			return 0;
 		}
-		dump_sample(machine, evsel, event, sample);
+		dump_sample(machine, event, sample);
 		if (sample->deferred_callchain && tool->merge_deferred_callchains) {
 			struct deferred_event *de = malloc(sizeof(*de));
 			size_t sz = event->header.size;
@@ -1496,21 +1989,57 @@ static int machines__deliver_event(struct machines *machines,
 				return -ENOMEM;
 			}
 			memcpy(de->event, event, sz);
+			de->file_offset = sample->file_offset;
 			list_add_tail(&de->list, &evlist->deferred_samples);
 			return 0;
 		}
-		return evlist__deliver_sample(evlist, tool, event, sample, evsel, machine);
+		return evlist__deliver_sample(evlist, tool, event, sample, machine);
 	case PERF_RECORD_MMAP:
+		if (!perf_event__check_nul(event->mmap.filename,
+					   (void *)event + event->header.size,
+					   "MMAP", file_offset))
+			return 0;
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
 		if (event->header.misc & PERF_RECORD_MISC_PROC_MAP_PARSE_TIMEOUT)
 			++evlist->stats.nr_proc_map_timeout;
+		if (!perf_event__check_nul(event->mmap2.filename,
+					   (void *)event + event->header.size,
+					   "MMAP2", file_offset))
+			return 0;
 		return tool->mmap2(tool, event, sample, machine);
 	case PERF_RECORD_COMM:
+		if (!perf_event__check_nul(event->comm.comm,
+					   (void *)event + event->header.size,
+					   "COMM", file_offset))
+			return 0;
 		return tool->comm(tool, event, sample, machine);
-	case PERF_RECORD_NAMESPACES:
+	case PERF_RECORD_NAMESPACES: {
+		/*
+		 * Cannot underflow: perf_event__min_size[] guarantees header.size >= sizeof.
+		 * Includes trailing sample_id space when present, but prevents OOB.
+		 */
+		u64 max_nr = (event->header.size - sizeof(event->namespaces)) /
+			     sizeof(event->namespaces.link_info[0]);
+
+		/*
+		 * Native-endian events are mmap'd read-only, so we
+		 * cannot clamp nr in place.  Skip the event instead.
+		 * The swap handler already clamps on the writable
+		 * cross-endian path.
+		 */
+		if (event->namespaces.nr_namespaces > max_nr) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_NAMESPACES: nr_namespaces %" PRIu64 " exceeds payload (max %" PRIu64 "), skipping\n",
+				   file_offset, (u64)event->namespaces.nr_namespaces, max_nr);
+			return 0;
+		}
 		return tool->namespaces(tool, event, sample, machine);
+	}
 	case PERF_RECORD_CGROUP:
+		if (!perf_event__check_nul(event->cgroup.path,
+					   (void *)event + event->header.size,
+					   "CGROUP", file_offset))
+			return 0;
 		return tool->cgroup(tool, event, sample, machine);
 	case PERF_RECORD_FORK:
 		return tool->fork(tool, event, sample, machine);
@@ -1527,8 +2056,8 @@ static int machines__deliver_event(struct machines *machines,
 			evlist->stats.total_lost_samples += event->lost_samples.lost;
 		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:
-		dump_read(evsel, event);
-		return tool->read(tool, event, sample, evsel, machine);
+		dump_read(sample->evsel, event);
+		return tool->read(tool, event, sample, machine);
 	case PERF_RECORD_THROTTLE:
 		return tool->throttle(tool, event, sample, machine);
 	case PERF_RECORD_UNTHROTTLE:
@@ -1549,15 +2078,30 @@ static int machines__deliver_event(struct machines *machines,
 	case PERF_RECORD_SWITCH_CPU_WIDE:
 		return tool->context_switch(tool, event, sample, machine);
 	case PERF_RECORD_KSYMBOL:
+		if (!perf_event__check_nul(event->ksymbol.name,
+					   (void *)event + event->header.size,
+					   "KSYMBOL", file_offset))
+			return 0;
 		return tool->ksymbol(tool, event, sample, machine);
 	case PERF_RECORD_BPF_EVENT:
 		return tool->bpf(tool, event, sample, machine);
-	case PERF_RECORD_TEXT_POKE:
+	case PERF_RECORD_TEXT_POKE: {
+		/* offsetof(bytes), not sizeof — sizeof includes padding past the flexible array */
+		size_t text_poke_len = offsetof(struct perf_record_text_poke_event, bytes) +
+				       event->text_poke.old_len +
+				       event->text_poke.new_len;
+
+		if (event->header.size < text_poke_len) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_TEXT_POKE: old_len+new_len exceeds event, skipping\n",
+				   file_offset);
+			return 0;
+		}
 		return tool->text_poke(tool, event, sample, machine);
+	}
 	case PERF_RECORD_AUX_OUTPUT_HW_ID:
 		return tool->aux_output_hw_id(tool, event, sample, machine);
 	case PERF_RECORD_CALLCHAIN_DEFERRED:
-		dump_deferred_callchain(evsel, event, sample);
+		dump_deferred_callchain(event, sample);
 		return evlist__deliver_deferred_callchain(evlist, tool, event,
 							  sample, machine);
 	default:
@@ -1573,13 +2117,103 @@ static int perf_session__deliver_event(struct perf_session *session,
 				       const char *file_path)
 {
 	struct perf_sample sample;
+	struct evsel *evsel;
 	int ret;
 
 	perf_sample__init(&sample, /*all=*/false);
-	ret = evlist__parse_sample(session->evlist, event, &sample);
-	if (ret) {
-		pr_err("Can't parse sample, err = %d\n", ret);
+	evsel = evlist__event2evsel(session->evlist, event);
+	if (!evsel) {
+		pr_err("ERROR: at offset %#" PRIx64 ": no evsel found for %s (%u) event\n",
+		       file_offset, perf_event__name(event->header.type),
+		       event->header.type);
+		ret = -EFAULT;
 		goto out;
+	}
+	ret = evsel__parse_sample(evsel, event, &sample);
+	if (ret) {
+		pr_err("ERROR: at offset %#" PRIx64 ": can't parse %s (%u) sample, err = %d\n",
+		       file_offset, perf_event__name(event->header.type),
+		       event->header.type, ret);
+		goto out;
+	}
+	sample.file_offset = file_offset;
+	/*
+	 * evsel__parse_sample() doesn't populate machine_pid/vcpu,
+	 * which are needed by machines__find_for_cpumode() to
+	 * attribute samples to guest VMs.  The SID table maps
+	 * sample IDs to the guest that owns the event.
+	 */
+	if (perf_guest && sample.id) {
+		struct perf_sample_id *sid = evlist__id2sid(session->evlist, sample.id);
+
+		if (sid) {
+			sample.machine_pid = sid->machine_pid;
+			sample.vcpu = sid->vcpu.cpu;
+		}
+	}
+
+	/*
+	 * Validate sample.cpu before any callback can use it as an
+	 * array index (kwork cpus_runtime, timechart cpus_cstate_*,
+	 * sched cpu_last_switched).
+	 *
+	 * When PERF_SAMPLE_CPU is absent, evsel__parse_sample() leaves
+	 * sample.cpu as (u32)-1 — a sentinel that downstream tools
+	 * (script, inject) check to identify events without CPU info.
+	 * Only check when sample.cpu was actually populated from event
+	 * data: PERF_RECORD_SAMPLE always has it when PERF_SAMPLE_CPU
+	 * is set; non-sample events only have it when sample_id_all is
+	 * enabled.  Otherwise sample.cpu is the (u32)-1 sentinel from
+	 * evsel__parse_sample() and must not be validated or clamped.
+	 */
+	if ((evsel->core.attr.sample_type & PERF_SAMPLE_CPU) &&
+	    (event->header.type == PERF_RECORD_SAMPLE ||
+	     evsel->core.attr.sample_id_all)) {
+		int nr_cpus_avail = perf_session__env(session)->nr_cpus_avail;
+
+		/*
+		 * For perf.data files the MAX_NR_CPUS fallback in
+		 * perf_session__read_header() guarantees this is set.
+		 * For pipe mode, HEADER_NRCPUS may arrive late or not
+		 * at all (pre-2017 perf, third-party tools).  Fall
+		 * back to MAX_NR_CPUS so the bounds check still works
+		 * against fixed-size downstream arrays.
+		 *
+		 * Do NOT write back to env: this function runs during
+		 * recording (synthesized events) when nr_cpus_avail is
+		 * legitimately 0.  Writing MAX_NR_CPUS would cause
+		 * write_cpu_topology() to emit 4096 core_id/socket_id
+		 * pairs instead of the real CPU count, corrupting the
+		 * topology section in the generated perf.data.
+		 */
+		if (nr_cpus_avail <= 0)
+			nr_cpus_avail = MAX_NR_CPUS;
+		/*
+		 * Cap at MAX_NR_CPUS for the bounds check — downstream
+		 * consumers use fixed-size arrays of that size.  Keep
+		 * the true nr_cpus_avail in env for header parsing
+		 * (e.g. process_cpu_topology) which needs the real count.
+		 */
+		if (nr_cpus_avail > MAX_NR_CPUS)
+			nr_cpus_avail = MAX_NR_CPUS;
+		if (sample.cpu >= (u32)nr_cpus_avail &&
+		    sample.cpu != (u32)-1) {
+			/*
+			 * Warn rather than abort: synthesized events
+			 * (MMAP, COMM) lack sample_id_all data, so
+			 * parse_id_sample reads garbage from the event
+			 * payload.  Clamping to 0 protects downstream
+			 * array indexing while keeping the session alive.
+			 *
+			 * Preserve (u32)-1: perf script and perf inject
+			 * use it as a sentinel for "CPU not applicable."
+			 * Downstream array users (timechart, kwork) have
+			 * their own per-callback bounds checks.
+			 */
+			pr_warning_once("WARNING: at offset %#" PRIx64 ": sample CPU %u >= nr_cpus_avail %u, clamping to 0\n",
+					file_offset, sample.cpu, nr_cpus_avail);
+			sample.cpu = 0;
+		}
 	}
 
 	ret = auxtrace__process_event(session, event, &sample, tool);
@@ -1607,6 +2241,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 {
 	struct ordered_events *oe = &session->ordered_events;
 	const struct perf_tool *tool = session->tool;
+	const u32 event_size = READ_ONCE(event->header.size);
 	struct perf_sample sample;
 	int fd = perf_data__fd(session->data);
 	s64 err;
@@ -1647,6 +2282,12 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		err = tool->tracing_data(tool, session, event);
 		break;
 	case PERF_RECORD_HEADER_BUILD_ID:
+		if (!perf_event__check_nul(event->build_id.filename,
+					   (void *)event + event_size,
+					   "HEADER_BUILD_ID", file_offset)) {
+			err = 0;
+			break;
+		}
 		err = tool->build_id(tool, session, event);
 		break;
 	case PERF_RECORD_FINISHED_ROUND:
@@ -1665,22 +2306,119 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 * place already.
 		 */
 		if (!perf_data__is_pipe(session->data))
-			lseek(fd, file_offset + event->header.size, SEEK_SET);
+			lseek(fd, file_offset + event_size, SEEK_SET);
 		err = tool->auxtrace(tool, session, event);
 		break;
 	case PERF_RECORD_AUXTRACE_ERROR:
 		perf_session__auxtrace_error_inc(session, event);
 		err = tool->auxtrace_error(tool, session, event);
 		break;
-	case PERF_RECORD_THREAD_MAP:
+	case PERF_RECORD_THREAD_MAP: {
+		u64 max_nr;
+
+		if (event_size < sizeof(event->thread_map)) {
+			pr_err("ERROR: at offset %#" PRIx64 ": PERF_RECORD_THREAD_MAP: header.size (%u) too small\n",
+			       file_offset, event_size);
+			err = -EINVAL;
+			break;
+		}
+
+		max_nr = (event_size - sizeof(event->thread_map)) /
+			 sizeof(event->thread_map.entries[0]);
+		if (event->thread_map.nr > max_nr) {
+			pr_err("ERROR: at offset %#" PRIx64 ": PERF_RECORD_THREAD_MAP: nr %" PRIu64 " exceeds max %" PRIu64 "\n",
+			       file_offset, (u64)event->thread_map.nr, max_nr);
+			err = -EINVAL;
+			break;
+		}
+
 		err = tool->thread_map(tool, session, event);
 		break;
-	case PERF_RECORD_CPU_MAP:
+	}
+	case PERF_RECORD_CPU_MAP: {
+		struct perf_record_cpu_map_data *data = &event->cpu_map.data;
+		u32 payload = event_size - sizeof(event->header);
+
+		/*
+		 * Native-endian events are mmap'd read-only, so we
+		 * cannot clamp nr fields in place.  Skip the event
+		 * if any variant overflows.
+		 */
+		switch (data->type) {
+		case PERF_CPU_MAP__CPUS: {
+			u16 max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+							 cpus_data.cpu)) /
+				     sizeof(data->cpus_data.cpu[0]);
+
+			if (data->cpus_data.nr > max_nr) {
+				pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_CPU_MAP: nr %u exceeds payload (max %u), skipping\n",
+					   file_offset, data->cpus_data.nr, max_nr);
+				err = 0;
+				goto out;
+			}
+			break;
+		}
+		case PERF_CPU_MAP__MASK:
+			if (data->mask32_data.long_size == 4) {
+				u16 max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+								 mask32_data.mask)) /
+					     sizeof(data->mask32_data.mask[0]);
+
+				if (data->mask32_data.nr > max_nr) {
+					pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_CPU_MAP mask32: nr %u exceeds payload (max %u), skipping\n",
+						   file_offset, data->mask32_data.nr, max_nr);
+					err = 0;
+					goto out;
+				}
+			} else if (data->mask64_data.long_size == 8) {
+				u16 max_nr;
+
+				if (payload < offsetof(struct perf_record_cpu_map_data, mask64_data.mask)) {
+					err = 0;
+					goto out;
+				}
+				max_nr = (payload - offsetof(struct perf_record_cpu_map_data,
+							     mask64_data.mask)) /
+					 sizeof(data->mask64_data.mask[0]);
+				if (data->mask64_data.nr > max_nr) {
+					pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_CPU_MAP mask64: nr %u exceeds payload (max %u), skipping\n",
+						   file_offset, data->mask64_data.nr, max_nr);
+					err = 0;
+					goto out;
+				}
+			} else {
+				pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_CPU_MAP: unsupported long_size %u, skipping\n",
+					   file_offset, data->mask32_data.long_size);
+				err = 0;
+				goto out;
+			}
+			break;
+		default:
+			break;
+		}
+
 		err = tool->cpu_map(tool, session, event);
 		break;
-	case PERF_RECORD_STAT_CONFIG:
+	}
+	case PERF_RECORD_STAT_CONFIG: {
+		/* Cannot underflow: perf_event__min_size[] guarantees event_size >= sizeof */
+		u64 max_nr = (event_size - sizeof(event->stat_config)) /
+			     sizeof(event->stat_config.data[0]);
+
+		/*
+		 * Native-endian events are mmap'd read-only, so we
+		 * cannot clamp nr in place.  Skip the event instead.
+		 */
+		if (event->stat_config.nr > max_nr) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_STAT_CONFIG: nr %" PRIu64 " exceeds payload (max %" PRIu64 "), skipping\n",
+				   file_offset, (u64)event->stat_config.nr, max_nr);
+			err = 0;
+			goto out;
+		}
+
 		err = tool->stat_config(tool, session, event);
 		break;
+	}
 	case PERF_RECORD_STAT:
 		err = tool->stat(tool, session, event);
 		break;
@@ -1688,7 +2426,14 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		err = tool->stat_round(tool, session, event);
 		break;
 	case PERF_RECORD_TIME_CONV:
-		session->time_conv = event->time_conv;
+		/*
+		 * Bounded copy: older kernels emit a shorter struct
+		 * without time_cycles/time_mask/cap_user_time_*.
+		 * Zero the rest so extended fields default to off.
+		 */
+		memset(&session->time_conv, 0, sizeof(session->time_conv));
+		memcpy(&session->time_conv, &event->time_conv,
+		       min((size_t)event_size, sizeof(session->time_conv)));
 		err = tool->time_conv(tool, session, event);
 		break;
 	case PERF_RECORD_HEADER_FEATURE:
@@ -1703,9 +2448,53 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	case PERF_RECORD_FINISHED_INIT:
 		err = tool->finished_init(tool, session, event);
 		break;
-	case PERF_RECORD_BPF_METADATA:
+	case PERF_RECORD_BPF_METADATA: {
+		u64 nr_entries, max_entries;
+
+		if (event_size < sizeof(event->bpf_metadata)) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_BPF_METADATA: header.size (%u) too small, skipping\n",
+				   file_offset, event_size);
+			err = 0;
+			break;
+		}
+
+		/*
+		 * Native-endian files are mmap'd read-only — validate
+		 * NUL-termination instead of writing.
+		 */
+		if (strnlen(event->bpf_metadata.prog_name,
+			    BPF_PROG_NAME_LEN) == BPF_PROG_NAME_LEN) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_BPF_METADATA: prog_name not null-terminated, skipping\n",
+				   file_offset);
+			err = 0;
+			break;
+		}
+
+		nr_entries = READ_ONCE(event->bpf_metadata.nr_entries);
+		max_entries = (event_size - sizeof(event->bpf_metadata)) /
+			      sizeof(event->bpf_metadata.entries[0]);
+		if (nr_entries > max_entries) {
+			pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_BPF_METADATA: nr_entries %" PRIu64 " exceeds max %" PRIu64 ", skipping\n",
+				   file_offset, nr_entries, max_entries);
+			err = 0;
+			break;
+		}
+
+		for (u64 i = 0; i < nr_entries; i++) {
+			if (strnlen(event->bpf_metadata.entries[i].key,
+				    BPF_METADATA_KEY_LEN) == BPF_METADATA_KEY_LEN ||
+			    strnlen(event->bpf_metadata.entries[i].value,
+				    BPF_METADATA_VALUE_LEN) == BPF_METADATA_VALUE_LEN) {
+				pr_warning("WARNING: at offset %#" PRIx64 ": PERF_RECORD_BPF_METADATA: entry %" PRIu64 " key/value not null-terminated, skipping\n",
+					   file_offset, i);
+				err = 0;
+				goto out;
+			}
+		}
+
 		err = tool->bpf_metadata(tool, session, event);
 		break;
+	}
 	case PERF_RECORD_SCHEDSTAT_CPU:
 		err = tool->schedstat_cpu(tool, session, event);
 		break;
@@ -1716,6 +2505,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		err = -EINVAL;
 		break;
 	}
+out:
 	perf_sample__exit(&sample);
 	return err;
 }
@@ -1759,15 +2549,142 @@ int perf_session__deliver_synth_attr_event(struct perf_session *session,
 	return perf_session__deliver_synth_event(session, &ev.ev, NULL);
 }
 
-static void event_swap(union perf_event *event, bool sample_id_all)
+/* Caller must ensure event->header.type < PERF_RECORD_HEADER_MAX */
+static int event_swap(union perf_event *event, bool sample_id_all)
 {
-	perf_event__swap_op swap;
+	perf_event__swap_op swap = perf_event__swap_ops[event->header.type];
 
-	swap = perf_event__swap_ops[event->header.type];
 	if (swap)
-		swap(event, sample_id_all);
+		return swap(event, sample_id_all);
+	return 0;
 }
 
+/*
+ * Minimum event sizes indexed by type.  Checked before swap and
+ * processing so that both cross-endian and native-endian paths
+ * are protected from accessing fields past the event boundary.
+ * Zero means no minimum beyond the 8-byte header (already
+ * enforced by the reader).
+ *
+ * These values represent the smallest event the kernel has ever
+ * emitted for each type, so they do not reject legitimate legacy
+ * perf.data files from older kernels.  Variable-length events
+ * use offsetof() to the first variable field; the variable
+ * content is validated separately (e.g., perf_event__check_nul).
+ */
+static const u32 perf_event__min_size[PERF_RECORD_HEADER_MAX] = {
+	/*
+	 * offsetof() + 1 for types with a trailing variable-length
+	 * string (filename, comm, path, name, msg): the +1 ensures
+	 * room for at least a null terminator.  Full null-termination
+	 * within the event boundary is checked separately.
+	 *
+	 * PERF_RECORD_SAMPLE is omitted: all64_swap is bounded by
+	 * header.size, and the internal layout varies by sample_type
+	 * so a fixed minimum is not meaningful.
+	 */
+	[PERF_RECORD_MMAP]		  = offsetof(struct perf_record_mmap, filename) + 1,
+	[PERF_RECORD_LOST]		  = sizeof(struct perf_record_lost),
+	[PERF_RECORD_COMM]		  = offsetof(struct perf_record_comm, comm) + 1,
+	[PERF_RECORD_EXIT]		  = sizeof(struct perf_record_fork),
+	[PERF_RECORD_THROTTLE]		  = sizeof(struct perf_record_throttle),
+	[PERF_RECORD_UNTHROTTLE]	  = sizeof(struct perf_record_throttle),
+	[PERF_RECORD_FORK]		  = sizeof(struct perf_record_fork),
+	/*
+	 * The kernel dynamically sizes PERF_RECORD_READ based on
+	 * attr.read_format — only the enabled fields are emitted,
+	 * packed with no gaps.  The minimum valid event has just
+	 * pid + tid + one u64 value (no optional fields).
+	 */
+	[PERF_RECORD_READ]		  = offsetof(struct perf_record_read, time_enabled),
+	[PERF_RECORD_MMAP2]		  = offsetof(struct perf_record_mmap2, filename) + 1,
+	[PERF_RECORD_LOST_SAMPLES]	  = sizeof(struct perf_record_lost_samples),
+	[PERF_RECORD_AUX]		  = sizeof(struct perf_record_aux),
+	[PERF_RECORD_ITRACE_START]	  = sizeof(struct perf_record_itrace_start),
+	[PERF_RECORD_SWITCH]		  = sizeof(struct perf_event_header),
+	[PERF_RECORD_SWITCH_CPU_WIDE]	  = sizeof(struct perf_record_switch),
+	[PERF_RECORD_NAMESPACES]	  = sizeof(struct perf_record_namespaces),
+	[PERF_RECORD_CGROUP]		  = offsetof(struct perf_record_cgroup, path) + 1,
+	[PERF_RECORD_TEXT_POKE]		  = sizeof(struct perf_record_text_poke_event),
+	[PERF_RECORD_KSYMBOL]		  = offsetof(struct perf_record_ksymbol, name) + 1,
+	[PERF_RECORD_BPF_EVENT]		  = sizeof(struct perf_record_bpf_event),
+	[PERF_RECORD_HEADER_ATTR]	  = sizeof(struct perf_event_header) + PERF_ATTR_SIZE_VER0,
+	[PERF_RECORD_HEADER_EVENT_TYPE]	  = sizeof(struct perf_record_header_event_type),
+	/* Legacy events predate the __u32 pad field, accept 12-byte records */
+	[PERF_RECORD_HEADER_TRACING_DATA] = offsetof(struct perf_record_header_tracing_data, pad),
+	[PERF_RECORD_AUX_OUTPUT_HW_ID]	  = sizeof(struct perf_record_aux_output_hw_id),
+	[PERF_RECORD_AUXTRACE_INFO]	  = sizeof(struct perf_record_auxtrace_info),
+	[PERF_RECORD_AUXTRACE]		  = sizeof(struct perf_record_auxtrace),
+	[PERF_RECORD_AUXTRACE_ERROR]	  = offsetof(struct perf_record_auxtrace_error, msg) + 1,
+	[PERF_RECORD_THREAD_MAP]	  = sizeof(struct perf_record_thread_map),
+	/*
+	 * sizeof(perf_record_cpu_map) is 20 because the outer struct
+	 * isn't packed and GCC adds 2 bytes of trailing padding.
+	 * The smallest valid variant (RANGE_CPUS) is only 16 bytes:
+	 * header(8) + type(2) + range_cpu_data(6).  Per-variant
+	 * bounds are checked in the swap handler via payload.
+	 */
+	[PERF_RECORD_CPU_MAP]		  = sizeof(struct perf_event_header) +
+					    sizeof(__u16) +
+					    sizeof(struct perf_record_range_cpu_map),
+	[PERF_RECORD_STAT_CONFIG]	  = sizeof(struct perf_record_stat_config),
+	[PERF_RECORD_STAT]		  = sizeof(struct perf_record_stat),
+	[PERF_RECORD_STAT_ROUND]	  = sizeof(struct perf_record_stat_round),
+	/*
+	 * EVENT_UPDATE has a union whose largest member (cpus)
+	 * inflates sizeof to 40, but SCALE events are only 32
+	 * and UNIT/NAME events can be even smaller.  Use the
+	 * fixed header fields (header + type + id) as minimum.
+	 */
+	[PERF_RECORD_EVENT_UPDATE]	  = offsetof(struct perf_record_event_update, scale),
+	[PERF_RECORD_TIME_CONV]		  = offsetof(struct perf_record_time_conv, time_cycles),
+	[PERF_RECORD_ID_INDEX]		  = sizeof(struct perf_record_id_index),
+	[PERF_RECORD_HEADER_BUILD_ID]	  = sizeof(struct perf_record_header_build_id),
+	[PERF_RECORD_HEADER_FEATURE]	  = sizeof(struct perf_record_header_feature),
+	[PERF_RECORD_COMPRESSED2]	  = sizeof(struct perf_record_compressed2),
+	[PERF_RECORD_BPF_METADATA]	  = sizeof(struct perf_record_bpf_metadata),
+	[PERF_RECORD_CALLCHAIN_DEFERRED]  = sizeof(struct perf_event_header) + sizeof(__u64),
+	/*
+	 * SCHEDSTAT events have a version-dependent union after the
+	 * fixed header fields; the minimum is the base (pre-union)
+	 * portion so old and new versions both pass.
+	 */
+	[PERF_RECORD_SCHEDSTAT_CPU]	  = offsetof(struct perf_record_schedstat_cpu, v15),
+	[PERF_RECORD_SCHEDSTAT_DOMAIN]	  = offsetof(struct perf_record_schedstat_domain, v15),
+};
+
+/*
+ * Return true if the event is too small for its declared type.
+ * Caller must ensure event->header.type < PERF_RECORD_HEADER_MAX.
+ * If min is non-NULL, stores the required minimum on failure.
+ */
+static bool perf_event__too_small(const union perf_event *event, u32 *min)
+{
+	u32 min_sz = perf_event__min_size[event->header.type];
+
+	if (min_sz && event->header.size < min_sz) {
+		if (min)
+			*min = min_sz;
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * Read and validate the event at @file_offset.
+ *
+ * Returns:
+ *   0  — success: *event_ptr is set and safe to access.
+ *  -1  — error; check *event_ptr to decide whether to advance or abort:
+ *          *event_ptr set  — event header was read but the event is
+ *                            malformed (too small for its type, or byte-swap
+ *                            failed).  header.size is still valid, so the
+ *                            caller can advance past the event.
+ *          *event_ptr NULL — fatal: couldn't read the header at all
+ *                            (I/O error, offset out of range, pipe mode).
+ *                            Caller must abort.
+ */
 int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 			     void *buf, size_t buf_sz,
 			     union perf_event **event_ptr,
@@ -1775,51 +2692,107 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 {
 	union perf_event *event;
 	size_t hdr_sz, rest;
+	u32 min_sz;
 	int fd;
 
+	*event_ptr = NULL;
+
 	if (session->one_mmap && !session->header.needs_swap) {
-		event = file_offset - session->one_mmap_offset +
-			session->one_mmap_addr;
-		goto out_parse_sample;
+		u64 offset_in_mmap;
+
+		/* Validate offset with integer arithmetic to avoid pointer UB */
+		if ((u64)file_offset < session->one_mmap_offset)
+			return -1;
+
+		offset_in_mmap = (u64)file_offset - session->one_mmap_offset;
+
+		/* Use subtraction to avoid addition overflow */
+		if (offset_in_mmap >= session->one_mmap_size ||
+		    session->one_mmap_size - offset_in_mmap < sizeof(struct perf_event_header))
+			return -1;
+
+		event = session->one_mmap_addr + offset_in_mmap;
+
+		if (event->header.size < sizeof(struct perf_event_header))
+			return -1;
+
+		/* Ensure full event is within the mmap region */
+		if (session->one_mmap_size - offset_in_mmap < event->header.size)
+			return -1;
+	} else {
+		if (perf_data__is_pipe(session->data))
+			return -1;
+
+		fd = perf_data__fd(session->data);
+		hdr_sz = sizeof(struct perf_event_header);
+
+		if (buf_sz < hdr_sz)
+			return -1;
+
+		if (lseek(fd, file_offset, SEEK_SET) == (off_t)-1 ||
+		    readn(fd, buf, hdr_sz) != (ssize_t)hdr_sz)
+			return -1;
+
+		event = (union perf_event *)buf;
+
+		if (session->header.needs_swap)
+			perf_event_header__bswap(&event->header);
+
+		if (event->header.size < hdr_sz || event->header.size > buf_sz)
+			return -1;
+
+		buf += hdr_sz;
+		rest = event->header.size - hdr_sz;
+
+		if (readn(fd, buf, rest) != (ssize_t)rest)
+			return -1;
 	}
 
-	if (perf_data__is_pipe(session->data))
+	/* Event data is fully loaded — expose so callers can advance */
+	*event_ptr = event;
+
+	/*
+	 * Check alignment before type: an unaligned size misaligns the
+	 * stream for all subsequent reads regardless of event type.
+	 * Three legacy user events predate the 8-byte rule — exempt them.
+	 */
+	if (event->header.size % sizeof(u64) &&
+	    event->header.type != PERF_RECORD_HEADER_TRACING_DATA &&
+	    event->header.type != PERF_RECORD_COMPRESSED &&
+	    event->header.type != PERF_RECORD_HEADER_FEATURE) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": %s (%u) event size %u not aligned to %zu\n",
+			   (u64)file_offset, perf_event__name(event->header.type),
+			   event->header.type, event->header.size, sizeof(u64));
 		return -1;
+	}
 
-	fd = perf_data__fd(session->data);
-	hdr_sz = sizeof(struct perf_event_header);
+	if (event->header.type >= PERF_RECORD_HEADER_MAX) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": unsupported event type %u, skipping\n",
+			   (u64)file_offset, event->header.type);
+		return 0;
+	}
 
-	if (buf_sz < hdr_sz)
+	if (perf_event__too_small(event, &min_sz)) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": %s (%u) event size %u too small (min %u)\n",
+			   (u64)file_offset, perf_event__name(event->header.type),
+			   event->header.type, event->header.size, min_sz);
 		return -1;
+	}
 
-	if (lseek(fd, file_offset, SEEK_SET) == (off_t)-1 ||
-	    readn(fd, buf, hdr_sz) != (ssize_t)hdr_sz)
+	if (session->header.needs_swap &&
+	    event_swap(event, evlist__sample_id_all(session->evlist))) {
+		/*
+		 * The header was already swapped so header.size is
+		 * valid — expose the event so callers can advance
+		 * past this malformed entry instead of aborting.
+		 */
+		*event_ptr = event;
 		return -1;
-
-	event = (union perf_event *)buf;
-
-	if (session->header.needs_swap)
-		perf_event_header__bswap(&event->header);
-
-	if (event->header.size < hdr_sz || event->header.size > buf_sz)
-		return -1;
-
-	buf += hdr_sz;
-	rest = event->header.size - hdr_sz;
-
-	if (readn(fd, buf, rest) != (ssize_t)rest)
-		return -1;
-
-	if (session->header.needs_swap)
-		event_swap(event, evlist__sample_id_all(session->evlist));
-
-out_parse_sample:
+	}
 
 	if (sample && event->header.type < PERF_RECORD_USER_TYPE_START &&
 	    evlist__parse_sample(session->evlist, event, sample))
 		return -1;
-
-	*event_ptr = event;
 
 	return 0;
 }
@@ -1833,11 +2806,37 @@ int perf_session__peek_events(struct perf_session *session, u64 offset,
 	int err;
 
 	do {
+		event = NULL;
 		err = perf_session__peek_event(session, offset, buf,
 					       PERF_SAMPLE_MAX_SIZE, &event,
 					       NULL);
-		if (err)
-			return err;
+		if (err) {
+			/*
+			 * Recoverable error: peek_event returns -1 but
+			 * sets event_ptr when the header was read
+			 * successfully but the event is malformed (too
+			 * small or swap failed).  Skip past it using
+			 * header.size — don't invoke the callback since
+			 * type-specific fields may be truncated.
+			 *
+			 * Must abort if: event_ptr is NULL (I/O error),
+			 * size is 0 (can't advance), type is AUXTRACE
+			 * (payload extends beyond header.size), or size
+			 * is unaligned (would misalign all subsequent reads).
+			 *
+			 * Direct callers (auxtrace, cs-etm) treat any
+			 * non-zero return as fatal — only this loop skips.
+			 */
+			if (event && event->header.size &&
+			    event->header.type != PERF_RECORD_AUXTRACE &&
+			    event->header.size % sizeof(u64) == 0) {
+				offset += event->header.size;
+				err = 0;
+			} else {
+				return err;
+			}
+			continue;
+		}
 
 		err = cb(session, event, offset, data);
 		if (err)
@@ -1858,21 +2857,74 @@ static s64 perf_session__process_event(struct perf_session *session,
 {
 	struct evlist *evlist = session->evlist;
 	const struct perf_tool *tool = session->tool;
+	u32 min_sz;
 	int ret;
 
-	if (session->header.needs_swap)
-		event_swap(event, evlist__sample_id_all(evlist));
+	/*
+	 * The kernel aligns all event sizes to sizeof(u64) — see
+	 * perf_event_comm_event() (ALIGN), perf_event_mmap_event(),
+	 * perf_event_cgroup(), perf_event_ksymbol() (IS_ALIGNED loops),
+	 * and perf_event_text_poke() (ALIGN) in kernel/events/core.c.
+	 *
+	 * An unaligned size means the file is corrupted or crafted.
+	 * Abort: there is no point continuing to read unaligned records
+	 * because the caller advances rd->head by event->header.size,
+	 * so every subsequent read would start at a misaligned offset,
+	 * producing garbage headers for the rest of the file.
+	 *
+	 * Exempt three legacy user events that predate the alignment rule:
+	 *
+	 * TRACING_DATA (66): struct tracing_data_event was 12 bytes before
+	 *   b39c915a4f36 ("libperf event: Ensure tracing data is multiple
+	 *   of 8 sized") added __u32 pad; old perf.data files still contain
+	 *   12-byte records.
+	 *   TODO: introduce HEADER_TRACING_DATA2 with guaranteed alignment.
+	 *
+	 * COMPRESSED (81): raw ZSTD output, arbitrary length.  Already
+	 *   superseded by COMPRESSED2 (83) with PERF_ALIGN.
+	 *
+	 * HEADER_FEATURE (80): do_write_string() uses a 4-byte length
+	 *   prefix with no padding to 8-byte total.
+	 *   TODO: introduce HEADER_FEATURE2 with guaranteed alignment.
+	 */
+	if (event->header.size % sizeof(u64) &&
+	    event->header.type != PERF_RECORD_HEADER_TRACING_DATA &&
+	    event->header.type != PERF_RECORD_COMPRESSED &&
+	    event->header.type != PERF_RECORD_HEADER_FEATURE) {
+		pr_err("ERROR: at offset %#" PRIx64 ": %s (%u) event size %u is not 8-byte aligned, aborting\n",
+		       file_offset, perf_event__name(event->header.type),
+		       event->header.type, event->header.size);
+		return -EINVAL;
+	}
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX) {
-		/* perf should not support unaligned event, stop here. */
-		if (event->header.size % sizeof(u64))
-			return -EINVAL;
-
 		/* This perf is outdated and does not support the latest event type. */
 		ui__warning("Unsupported header type %u, please consider updating perf.\n",
 			    event->header.type);
-		/* Skip unsupported event by returning its size. */
-		return event->header.size;
+		/*
+		 * Return 0 to skip: the caller (reader__read_event)
+		 * already advances by event->header.size.
+		 */
+		return 0;
+	}
+
+	/*
+	 * Skip rather than abort: a too-small-but-aligned event
+	 * can be safely stepped over without misaligning the stream.
+	 */
+	if (perf_event__too_small(event, &min_sz)) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": %s (%u) event size %u too small (min %u), skipping\n",
+			   file_offset, perf_event__name(event->header.type),
+			   event->header.type, event->header.size, min_sz);
+		return 0;
+	}
+
+	if (session->header.needs_swap &&
+	    event_swap(event, evlist__sample_id_all(evlist))) {
+		pr_warning("WARNING: at offset %#" PRIx64 ": swap failed for %s (%u) event, skipping\n",
+			   file_offset, perf_event__name(event->header.type),
+			   event->header.type);
+		return 0;
 	}
 
 	events_stats__inc(&evlist->stats, event->header.type);
@@ -2342,6 +3394,17 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 	char *buf, **mmaps = rd->mmaps;
 	u64 page_offset;
 
+	/*
+	 * Native-endian: MAP_SHARED + PROT_READ — the kernel
+	 * guarantees page-level coherence but a concurrent writer
+	 * could modify the file between validation and use.  This
+	 * is a theoretical TOCTOU that affects the entire perf.data
+	 * processing pipeline; fixing it would require copying each
+	 * event to a private buffer before processing.
+	 *
+	 * Cross-endian: MAP_PRIVATE + PROT_WRITE — swap handlers
+	 * get a copy-on-write snapshot immune to concurrent writes.
+	 */
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
 
@@ -2373,6 +3436,14 @@ reader__mmap(struct reader *rd, struct perf_session *session)
 	if (session->one_mmap) {
 		session->one_mmap_addr = buf;
 		session->one_mmap_offset = rd->file_offset;
+		/*
+		 * mmap_size was set to the full file extent (data_offset +
+		 * data_size) but file_offset was shifted forward by
+		 * page_offset for page alignment.  Reduce by page_offset
+		 * so the bounds check reflects the file-backed portion
+		 * of the mapping — pages beyond the file cause SIGBUS.
+		 */
+		session->one_mmap_size = rd->mmap_size - page_offset;
 	}
 
 	return 0;
@@ -3023,14 +4094,19 @@ uint16_t perf_session__e_machine(struct perf_session *session, uint32_t *e_flags
 		return EM_HOST;
 	}
 
+	/*
+	 * Is the env caching an e_machine? If not we want to compute from the
+	 * more accurate threads.
+	 */
 	env = perf_session__env(session);
-	if (env && env->e_machine != EM_NONE) {
-		if (e_flags)
-			*e_flags = env->e_flags;
+	if (env && env->e_machine != EM_NONE)
+		return perf_env__e_machine(env, e_flags);
 
-		return env->e_machine;
-	}
-
+	/*
+	 * Compute from threads, note this is more accurate than
+	 * perf_env__e_machine that falls back on EM_HOST and doesn't consider
+	 * mixed 32-bit and 64-bit threads.
+	 */
 	machines__for_each_thread(&session->machines,
 				  perf_session__e_machine_cb,
 				  &args);
@@ -3048,10 +4124,9 @@ uint16_t perf_session__e_machine(struct perf_session *session, uint32_t *e_flags
 
 	/*
 	 * Couldn't determine from the perf_env or current set of
-	 * threads. Default to the host.
+	 * threads. Potentially use logic that uses the arch string otherwise
+	 * default to the host. Don't cache in the perf_env in case later
+	 * threads indicate a better ELF machine type.
 	 */
-	if (e_flags)
-		*e_flags = EF_HOST;
-
-	return EM_HOST;
+	return perf_env__e_machine_nocache(env, e_flags);
 }

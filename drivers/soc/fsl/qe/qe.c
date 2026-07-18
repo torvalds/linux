@@ -24,7 +24,6 @@
 #include <linux/ioport.h>
 #include <linux/iopoll.h>
 #include <linux/crc32.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <soc/fsl/qe/immap_qe.h>
@@ -88,6 +87,9 @@ void qe_reset(void)
 {
 	if (qe_immr == NULL)
 		qe_immr = ioremap(get_qe_base(), QE_IMMAP_SIZE);
+
+	if (!qe_immr)
+		panic("QE:ioremap failed!");
 
 	qe_snums_init();
 

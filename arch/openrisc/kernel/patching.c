@@ -49,6 +49,9 @@ static int __patch_insn_write(void *addr, u32 insn)
 	waddr = patch_map(addr, FIX_TEXT_POKE0);
 
 	ret = copy_to_kernel_nofault(waddr, &insn, OPENRISC_INSN_SIZE);
+	if (!IS_ENABLED(CONFIG_DCACHE_WRITETHROUGH))
+		local_dcache_range_flush((unsigned long)waddr,
+					 (unsigned long)waddr + OPENRISC_INSN_SIZE);
 	local_icache_range_inv((unsigned long)waddr,
 			       (unsigned long)waddr + OPENRISC_INSN_SIZE);
 

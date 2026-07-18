@@ -1255,6 +1255,7 @@ void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 {
 	size_t i;
 	struct sdma_engine *sde;
+	struct sdma_vl_map *map;
 
 	if (dd->sdma_pad_dma) {
 		dma_free_coherent(&dd->pcidev->dev, SDMA_PAD,
@@ -1291,10 +1292,11 @@ void sdma_clean(struct hfi1_devdata *dd, size_t num_engines)
 	}
 	if (rcu_access_pointer(dd->sdma_map)) {
 		spin_lock_irq(&dd->sde_map_lock);
-		sdma_map_free(rcu_access_pointer(dd->sdma_map));
+		map = rcu_access_pointer(dd->sdma_map);
 		RCU_INIT_POINTER(dd->sdma_map, NULL);
 		spin_unlock_irq(&dd->sde_map_lock);
 		synchronize_rcu();
+		sdma_map_free(map);
 	}
 	kfree(dd->per_sdma);
 	dd->per_sdma = NULL;

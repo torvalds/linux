@@ -18,7 +18,6 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
@@ -686,13 +685,6 @@ static int tvp514x_s_routing(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * tvp514x_s_ctrl() - V4L2 decoder interface handler for s_ctrl
- * @ctrl: pointer to v4l2_ctrl structure
- *
- * If the requested control is supported, sets the control's current
- * value in HW. Otherwise, returns -EINVAL if the control is not supported.
- */
 static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
@@ -789,13 +781,6 @@ tvp514x_set_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * tvp514x_s_stream() - V4L2 decoder i/f handler for s_stream
- * @sd: pointer to standard V4L2 sub-device structure
- * @enable: streaming enable or disable
- *
- * Sets streaming to enable or disable, if possible.
- */
 static int tvp514x_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	int err = 0;
@@ -850,14 +835,6 @@ static const struct v4l2_ctrl_ops tvp514x_ctrl_ops = {
 	.s_ctrl = tvp514x_s_ctrl,
 };
 
-/**
- * tvp514x_enum_mbus_code() - V4L2 decoder interface handler for enum_mbus_code
- * @sd: pointer to standard V4L2 sub-device structure
- * @sd_state: subdev state
- * @code: pointer to v4l2_subdev_mbus_code_enum structure
- *
- * Enumertaes mbus codes supported
- */
 static int tvp514x_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_mbus_code_enum *code)
@@ -877,14 +854,6 @@ static int tvp514x_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * tvp514x_get_pad_format() - V4L2 decoder interface handler for get pad format
- * @sd: pointer to standard V4L2 sub-device structure
- * @sd_state: subdev state
- * @format: pointer to v4l2_subdev_format structure
- *
- * Retrieves pad format which is active or tried based on requirement
- */
 static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *format)
@@ -909,14 +878,6 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * tvp514x_set_pad_format() - V4L2 decoder interface handler for set pad format
- * @sd: pointer to standard V4L2 sub-device structure
- * @sd_state: subdev state
- * @fmt: pointer to v4l2_subdev_format structure
- *
- * Set pad format for the output pad
- */
 static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_format *fmt)
@@ -1014,15 +975,7 @@ done:
 	return pdata;
 }
 
-/**
- * tvp514x_probe() - decoder driver i2c probe handler
- * @client: i2c driver client device structure
- *
- * Register decoder as an i2c client device and V4L2
- * device.
- */
-static int
-tvp514x_probe(struct i2c_client *client)
+static int tvp514x_probe(struct i2c_client *client)
 {
 	struct tvp514x_platform_data *pdata = tvp514x_get_pdata(client);
 	struct tvp514x_decoder *decoder;
@@ -1113,13 +1066,6 @@ done:
 	return ret;
 }
 
-/**
- * tvp514x_remove() - decoder driver i2c remove handler
- * @client: i2c driver client device structure
- *
- * Unregister decoder as an i2c client device and V4L2
- * device. Complement of tvp514x_probe().
- */
 static void tvp514x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1182,10 +1128,10 @@ static const struct tvp514x_reg tvp514xm_init_reg_seq[] = {
  * driver_data - Driver data
  */
 static const struct i2c_device_id tvp514x_id[] = {
-	{"tvp5146", (kernel_ulong_t)tvp5146_init_reg_seq },
-	{"tvp5146m2", (kernel_ulong_t)tvp514xm_init_reg_seq },
-	{"tvp5147", (kernel_ulong_t)tvp5147_init_reg_seq },
-	{"tvp5147m1", (kernel_ulong_t)tvp514xm_init_reg_seq },
+	{ .name = "tvp5146", .driver_data = (kernel_ulong_t)tvp5146_init_reg_seq },
+	{ .name = "tvp5146m2", .driver_data = (kernel_ulong_t)tvp514xm_init_reg_seq },
+	{ .name = "tvp5147", .driver_data = (kernel_ulong_t)tvp5147_init_reg_seq },
+	{ .name = "tvp5147m1", .driver_data = (kernel_ulong_t)tvp514xm_init_reg_seq },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, tvp514x_id);

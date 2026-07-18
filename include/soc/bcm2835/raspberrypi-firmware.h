@@ -156,6 +156,31 @@ enum rpi_firmware_clk_id {
 	RPI_FIRMWARE_NUM_CLK_ID,
 };
 
+enum rpi_firmware_volt_id {
+	RPI_FIRMWARE_VOLT_ID_CORE = 1,
+	RPI_FIRMWARE_VOLT_ID_SDRAM_C = 2,
+	RPI_FIRMWARE_VOLT_ID_SDRAM_P = 3,
+	RPI_FIRMWARE_VOLT_ID_SDRAM_I = 4,
+	RPI_FIRMWARE_NUM_VOLT_ID,
+};
+
+/**
+ * struct rpi_firmware_get_voltage_request - Firmware request for a voltage
+ * @id:		ID of the voltage being queried
+ * @value:	Voltage in microvolts. Set by the firmware.
+ *
+ * Used by @RPI_FIRMWARE_GET_VOLTAGE.
+ */
+struct rpi_firmware_get_voltage_request {
+	__le32 id;
+	__le32 value;
+} __packed;
+
+#define RPI_FIRMWARE_GET_VOLTAGE_REQUEST(_id)	\
+	{					\
+		.id = cpu_to_le32(_id),		\
+	}
+
 /**
  * struct rpi_firmware_clk_rate_request - Firmware Request for a rate
  * @id:	ID of the clock being queried

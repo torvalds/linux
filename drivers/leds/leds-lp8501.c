@@ -130,7 +130,7 @@ static struct lp55xx_device_config lp8501_cfg = {
 };
 
 static const struct i2c_device_id lp8501_id[] = {
-	{ "lp8501",  .driver_data = (kernel_ulong_t)&lp8501_cfg, },
+	{ .name = "lp8501", .driver_data = (kernel_ulong_t)&lp8501_cfg },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp8501_id);

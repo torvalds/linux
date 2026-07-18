@@ -226,7 +226,7 @@ static void sun8i_vi_layer_update_buffer(struct sun8i_layer *layer,
 }
 
 static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -266,7 +266,7 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 }
 
 static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);

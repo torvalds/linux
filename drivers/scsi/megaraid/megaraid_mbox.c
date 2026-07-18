@@ -3396,7 +3396,7 @@ static int
 megaraid_cmm_register(adapter_t *adapter)
 {
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
-	mraid_mmadp_t	adp;
+	mraid_mmadp_t	*adp;
 	scb_t		*scb;
 	mbox_ccb_t	*ccb;
 	int		rval;
@@ -3404,11 +3404,16 @@ megaraid_cmm_register(adapter_t *adapter)
 
 	// Allocate memory for the base list of scb for management module.
 	adapter->uscb_list = kzalloc_objs(scb_t, MBOX_MAX_USER_CMDS);
+	adp = kzalloc_obj(*adp);
 
-	if (adapter->uscb_list == NULL) {
+	if (!adapter->uscb_list || !adp) {
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid: out of memory, %s %d\n", __func__,
 			__LINE__));
+
+		kfree(adapter->uscb_list);
+		kfree(adp);
+
 		return -1;
 	}
 
@@ -3452,20 +3457,21 @@ megaraid_cmm_register(adapter_t *adapter)
 		list_add_tail(&scb->list, &adapter->uscb_pool);
 	}
 
-	adp.unique_id		= adapter->unique_id;
-	adp.drvr_type		= DRVRTYPE_MBOX;
-	adp.drvr_data		= (unsigned long)adapter;
-	adp.pdev		= adapter->pdev;
-	adp.issue_uioc		= megaraid_mbox_mm_handler;
-	adp.timeout		= MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT;
-	adp.max_kioc		= MBOX_MAX_USER_CMDS;
+	adp->unique_id		= adapter->unique_id;
+	adp->drvr_type		= DRVRTYPE_MBOX;
+	adp->drvr_data		= (unsigned long)adapter;
+	adp->pdev		= adapter->pdev;
+	adp->issue_uioc		= megaraid_mbox_mm_handler;
+	adp->timeout		= MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT;
+	adp->max_kioc		= MBOX_MAX_USER_CMDS;
 
-	if ((rval = mraid_mm_register_adp(&adp)) != 0) {
+	if ((rval = mraid_mm_register_adp(adp)) != 0) {
 
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid mbox: did not register with CMM\n"));
 
 		kfree(adapter->uscb_list);
+		kfree(adp);
 	}
 
 	return rval;

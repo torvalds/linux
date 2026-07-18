@@ -47,8 +47,6 @@ extern inline void *__memset(void *s, int c, size_t n)
 
 #define __HAVE_ARCH_STRCPY
 extern char * strcpy(char *,const char *);
-#define __HAVE_ARCH_STRNCPY
-extern char * strncpy(char *, const char *, size_t);
 #define __HAVE_ARCH_STRCAT
 extern char * strcat(char *, const char *);
 #define __HAVE_ARCH_STRNCAT

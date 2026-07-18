@@ -142,12 +142,12 @@ struct rtrs_clt_path {
 	u32			flags;
 	struct kobject		kobj;
 	u8			for_new_clt;
-	struct rtrs_clt_stats	*stats;
 	/* cache hca_port and hca_name to display in sysfs */
 	u8			hca_port;
 	char                    hca_name[IB_DEVICE_NAME_MAX];
 	struct list_head __percpu
 				*mp_skip_entry;
+	struct rtrs_clt_stats	stats[];
 };
 
 struct rtrs_clt_sess {

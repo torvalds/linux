@@ -252,4 +252,4 @@ free_msg:
 	kfree(msg);
 	goto out;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connection_rdma_xmit);
+EXPORT_SYMBOL_GPL(smbdirect_connection_rdma_xmit);

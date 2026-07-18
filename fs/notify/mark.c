@@ -238,7 +238,12 @@ static struct inode *fsnotify_update_iref(struct fsnotify_mark_connector *conn,
 	return inode;
 }
 
-static void *__fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
+/*
+ * Calculate mask of events for a list of marks.
+ *
+ * Return true if any of the attached marks want to hold an inode reference.
+ */
+static bool __fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 {
 	u32 new_mask = 0;
 	bool want_iref = false;
@@ -261,6 +266,34 @@ static void *__fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 	 * confusing readers not holding conn->lock with partial updates.
 	 */
 	WRITE_ONCE(*fsnotify_conn_mask_p(conn), new_mask);
+
+	return want_iref;
+}
+
+/*
+ * Calculate mask of events for a list of marks after attach/modify mark
+ * and get an inode reference for the connector if needed.
+ *
+ * A concurrent add of evictable mark and detach of non-evictable mark can
+ * lead to __fsnotify_recalc_mask() returning false want_iref, but in this
+ * case we defer clearing iref to fsnotify_recalc_mask_clear_iref() called
+ * from fsnotify_put_mark().
+ */
+static void fsnotify_recalc_mask_set_iref(struct fsnotify_mark_connector *conn)
+{
+	bool has_iref = conn->flags & FSNOTIFY_CONN_FLAG_HAS_IREF;
+	bool want_iref = __fsnotify_recalc_mask(conn) || has_iref;
+
+	(void) fsnotify_update_iref(conn, want_iref);
+}
+
+/*
+ * Calculate mask of events for a list of marks after detach mark
+ * and return the inode object if its reference is no longer needed.
+ */
+static void *fsnotify_recalc_mask_clear_iref(struct fsnotify_mark_connector *conn)
+{
+	bool want_iref = __fsnotify_recalc_mask(conn);
 
 	return fsnotify_update_iref(conn, want_iref);
 }
@@ -298,7 +331,7 @@ void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 
 	spin_lock(&conn->lock);
 	update_children = !fsnotify_conn_watches_children(conn);
-	__fsnotify_recalc_mask(conn);
+	fsnotify_recalc_mask_set_iref(conn);
 	update_children &= fsnotify_conn_watches_children(conn);
 	spin_unlock(&conn->lock);
 	/*
@@ -309,6 +342,35 @@ void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn)
 	if (update_children)
 		fsnotify_conn_set_children_dentry_flags(conn);
 }
+
+/**
+ * fsnotify_modify_mark_mask - set and/or clear flags in a mark's mask
+ * @mark: mark to be modified
+ * @set: bits to be set in mask
+ * @clear: bits to be cleared in mask
+ *
+ * Modify a fsnotify_mark mask as directed, and update its associated conn.
+ * The caller is expected to hold a reference to the mark.
+ */
+void fsnotify_modify_mark_mask(struct fsnotify_mark *mark, u32 set, u32 clear)
+{
+	bool recalc = false;
+	u32 mask;
+
+	WARN_ON_ONCE(clear & set);
+
+	spin_lock(&mark->lock);
+	mask = mark->mask;
+	mark->mask |= set;
+	mark->mask &= ~clear;
+	if (mark->mask != mask)
+		recalc = true;
+	spin_unlock(&mark->lock);
+
+	if (recalc)
+		fsnotify_recalc_mask(mark->connector);
+}
+EXPORT_SYMBOL_GPL(fsnotify_modify_mark_mask);
 
 /* Free all connectors queued for freeing once SRCU period ends */
 static void fsnotify_connector_destroy_workfn(struct work_struct *work)
@@ -419,7 +481,7 @@ void fsnotify_put_mark(struct fsnotify_mark *mark)
 		/* Update watched objects after detaching mark */
 		if (sb)
 			fsnotify_update_sb_watchers(sb, conn);
-		objp = __fsnotify_recalc_mask(conn);
+		objp = fsnotify_recalc_mask_clear_iref(conn);
 		type = conn->type;
 	}
 	WRITE_ONCE(mark->connector, NULL);
@@ -457,9 +519,6 @@ EXPORT_SYMBOL_GPL(fsnotify_put_mark);
  */
 static bool fsnotify_get_mark_safe(struct fsnotify_mark *mark)
 {
-	if (!mark)
-		return true;
-
 	if (refcount_inc_not_zero(&mark->refcnt)) {
 		spin_lock(&mark->lock);
 		if (mark->flags & FSNOTIFY_MARK_FLAG_ATTACHED) {
@@ -500,15 +559,22 @@ bool fsnotify_prepare_user_wait(struct fsnotify_iter_info *iter_info)
 	int type;
 
 	fsnotify_foreach_iter_type(type) {
+		struct fsnotify_mark *mark = iter_info->marks[type];
+
 		/* This can fail if mark is being removed */
-		if (!fsnotify_get_mark_safe(iter_info->marks[type])) {
-			__release(&fsnotify_mark_srcu);
-			goto fail;
+		while (mark && !fsnotify_get_mark_safe(mark)) {
+			if (mark->group == iter_info->current_group) {
+				__release(&fsnotify_mark_srcu);
+				goto fail;
+			}
+			/* This is a mark in an unrelated group, skip */
+			mark = fsnotify_next_mark(mark);
+			iter_info->marks[type] = mark;
 		}
 	}
 
 	/*
-	 * Now that both marks are pinned by refcount in the inode / vfsmount
+	 * Now that all marks are pinned by refcount in the inode / vfsmount / etc
 	 * lists, we can drop SRCU lock, and safely resume the list iteration
 	 * once userspace returns.
 	 */

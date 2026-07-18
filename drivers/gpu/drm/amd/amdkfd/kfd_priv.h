@@ -32,6 +32,7 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/iosys-map.h>
 #include <uapi/linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
@@ -215,8 +216,7 @@ enum cache_policy {
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(12, 1, 0)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
 
 struct kfd_node;
 
@@ -384,6 +384,11 @@ struct kfd_dev {
 	int kfd_dev_lock;
 
 	atomic_t kfd_processes_count;
+
+	/* Lock for profiler process */
+	struct mutex profiler_lock;
+	/* Process currently holding the lock */
+	struct kfd_process *profiler_process;
 };
 
 enum kfd_mempool {
@@ -395,6 +400,7 @@ enum kfd_mempool {
 /* Character device interface */
 int kfd_chardev_init(void);
 void kfd_chardev_exit(void);
+void kfd_dev_unmap_mapping_range(loff_t const holebegin, loff_t const holelen);
 
 /**
  * enum kfd_unmap_queues_filter - Enum for queue filters.
@@ -435,7 +441,8 @@ enum kfd_queue_type  {
 	KFD_QUEUE_TYPE_SDMA,
 	KFD_QUEUE_TYPE_HIQ,
 	KFD_QUEUE_TYPE_SDMA_XGMI,
-	KFD_QUEUE_TYPE_SDMA_BY_ENG_ID
+	KFD_QUEUE_TYPE_SDMA_BY_ENG_ID,
+	KFD_QUEUE_TYPE_MAX,
 };
 
 enum kfd_queue_format {
@@ -523,6 +530,7 @@ struct queue_properties {
 	uint32_t pm4_target_xcc;
 	bool is_dbg_wa;
 	bool is_user_cu_masked;
+	bool is_reset;
 	/* Not relevant for user mode queues in cp scheduling */
 	unsigned int vmid;
 	/* Relevant only for sdma queues*/
@@ -556,6 +564,8 @@ enum mqd_update_flag {
 	UPDATE_FLAG_DBG_WA_ENABLE = 1,
 	UPDATE_FLAG_DBG_WA_DISABLE = 2,
 	UPDATE_FLAG_IS_GWS = 4, /* quirk for gfx9 IP */
+	UPDATE_FLAG_PERFCOUNT_ENABLE = 5,
+	UPDATE_FLAG_PERFCOUNT_DISABLE = 6,
 };
 
 struct mqd_update_info {
@@ -702,7 +712,7 @@ struct qcm_process_device {
 
 	/* CWSR memory */
 	struct kgd_mem *cwsr_mem;
-	void *cwsr_kaddr;
+	struct iosys_map cwsr_map;
 	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
@@ -865,6 +875,8 @@ struct kfd_process_device {
 	bool has_reset_queue;
 
 	u32 pasid;
+	/* Indicates this process has requested PTL stay disabled */
+	bool ptl_disable_req;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -942,10 +954,31 @@ struct kfd_process {
 	struct idr event_idr;
 	/* Event page */
 	u64 signal_handle;
-	struct kfd_signal_page *signal_page;
+	/*
+	 * Each signal event needs a 64-bit signal slot where the signaler will
+	 * write a 1 before sending an interrupt. (This is needed because some
+	 * interrupts do not contain enough spare data bits to identify an
+	 * event.) The signal page is allocated in user mode and mapped to the
+	 * kernel; individual signal events use their event_id as slot index.
+	 */
+	uint64_t *signal_page;
 	size_t signal_mapped_size;
 	size_t signal_event_count;
 	bool signal_event_limit_reached;
+
+	/**
+	 * @kfd_sigbus_delay_ms: Per-process KFD SIGBUS delivery option for
+	 * poison/RAS events (set via DRM_IOCTL_AMDGPU_PROC_OPTIONS /
+	 * AMDGPU_PROC_OPTIONS_OP_KFD_SIGBUS_DELAY).
+	 *
+	 *   0          - send SIGBUS immediately (default)
+	 *   0xFFFFFFFF - suppress SIGBUS delivery
+	 *   other      - delay SIGBUS delivery by this many milliseconds
+	 */
+	atomic_t kfd_sigbus_delay_ms;
+
+	/* Delayed signal delivery to user */
+	struct delayed_work signal_work;
 
 	/* Information used for memory eviction */
 	void *kgd_process_info;
@@ -985,9 +1018,6 @@ struct kfd_process {
 	struct kobject *kobj;
 	struct kobject *kobj_queues;
 	struct attribute attr_pasid;
-
-	/* Keep track cwsr init */
-	bool has_cwsr;
 
 	/* Exception code enable mask and status */
 	uint64_t exception_enable_mask;
@@ -1047,10 +1077,13 @@ extern struct srcu_struct kfd_processes_srcu;
 typedef int amdkfd_ioctl_t(struct file *filep, struct kfd_process *p,
 				void *data);
 
+typedef int amdkfd_ioctl_validate_t(void *kdata, unsigned int usize);
+
 struct amdkfd_ioctl_desc {
 	unsigned int cmd;
 	int flags;
 	amdkfd_ioctl_t *func;
+	amdkfd_ioctl_validate_t *validate;
 	unsigned int cmd_drv;
 	const char *name;
 };
@@ -1101,8 +1134,6 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_node *dev,
 
 bool kfd_process_xnack_mode(struct kfd_process *p, bool supported);
 
-int kfd_reserved_mem_mmap(struct kfd_node *dev, struct kfd_process *process,
-			  struct vm_area_struct *vma);
 void kfd_process_notifier_release_internal(struct kfd_process *p);
 
 /* KFD process API for creating and translating handles */
@@ -1218,9 +1249,6 @@ void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
 				  uint64_t tma_addr);
 void kfd_process_set_trap_debug_flag(struct qcm_process_device *qpd,
 				     bool enabled);
-
-/* CWSR initialization */
-int kfd_process_init_cwsr_apu(struct kfd_process *process, struct file *filep);
 
 /* CRIU */
 /*
@@ -1520,7 +1548,6 @@ extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
 int kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
-int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
 		       bool all, uint32_t *user_timeout_ms,
@@ -1549,15 +1576,16 @@ void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 void kfd_signal_reset_event(struct kfd_node *dev);
 
 void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid);
+void kfd_signal_sigbus_delayed_fn(struct work_struct *work);
 void kfd_signal_process_terminate_event(struct kfd_process *p);
 
-static inline void kfd_flush_tlb(struct kfd_process_device *pdd,
-				 enum TLB_FLUSH_TYPE type)
+static inline void kfd_flush_tlb(struct kfd_process_device *pdd)
 {
 	struct amdgpu_device *adev = pdd->dev->adev;
 	struct amdgpu_vm *vm = drm_priv_to_vm(pdd->drm_priv);
 
-	amdgpu_vm_flush_compute_tlb(adev, vm, type, pdd->dev->xcc_mask);
+	amdgpu_vm_flush_compute_tlb(adev, vm, TLB_FLUSH_HEAVYWEIGHT,
+				    pdd->dev->xcc_mask);
 }
 
 static inline bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
@@ -1601,6 +1629,12 @@ static inline bool kfd_is_first_node(struct kfd_node *node)
 	return (node == node->kfd->nodes[0]);
 }
 
+/* PTL support */
+int kfd_ptl_disable_request(struct kfd_process_device *pdd,
+		struct kfd_process *p);
+int kfd_ptl_disable_release(struct kfd_process_device *pdd,
+		struct kfd_process *p);
+
 /* Debugfs */
 #if defined(CONFIG_DEBUG_FS)
 
@@ -1617,14 +1651,14 @@ int kfd_debugfs_hang_hws(struct kfd_node *dev);
 int pm_debugfs_hang_hws(struct packet_manager *pm);
 int dqm_debugfs_hang_hws(struct device_queue_manager *dqm);
 
-void kfd_debugfs_add_process(struct kfd_process *p);
+int kfd_debugfs_add_process(struct kfd_process *p);
 void kfd_debugfs_remove_process(struct kfd_process *p);
 
 #else
 
 static inline void kfd_debugfs_init(void) {}
 static inline void kfd_debugfs_fini(void) {}
-static inline void kfd_debugfs_add_process(struct kfd_process *p) {}
+static inline int kfd_debugfs_add_process(struct kfd_process *p) { return 0; }
 static inline void kfd_debugfs_remove_process(struct kfd_process *p) {}
 
 #endif

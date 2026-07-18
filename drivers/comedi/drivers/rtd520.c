@@ -1345,9 +1345,9 @@ static int rtd520_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id rtd520_pci_table[] = {
-	{ PCI_VDEVICE(RTD, 0x7520), BOARD_DM7520 },
-	{ PCI_VDEVICE(RTD, 0x4520), BOARD_PCI4520 },
-	{ 0 }
+	{ PCI_VDEVICE(RTD, 0x7520), .driver_data = BOARD_DM7520 },
+	{ PCI_VDEVICE(RTD, 0x4520), .driver_data = BOARD_PCI4520 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
 

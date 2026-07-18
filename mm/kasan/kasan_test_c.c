@@ -874,6 +874,16 @@ static void kmalloc_double_kzfree(struct kunit *test)
 	char *ptr;
 	size_t size = 16;
 
+	/*
+	 * With the tag-based KASAN modes, if the memory happens to be
+	 * reallocated between the two frees and the new allocation tag happens
+	 * to match the old one, the second free will cause a memory corruption.
+	 * Resolving https://bugzilla.kernel.org/show_bug.cgi?id=212177 would
+	 * help to deal with this. With Generic KASAN, it's effectively
+	 * impossible for the memory to get reallocated due to the quarantine.
+	 */
+	KASAN_TEST_NEEDS_CONFIG_ON(test, CONFIG_KASAN_GENERIC);
+
 	ptr = kmalloc(size, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ptr);
 
@@ -1215,14 +1225,13 @@ static void kmem_cache_bulk(struct kunit *test)
 	struct kmem_cache *cache;
 	size_t size = 200;
 	char *p[10];
-	bool ret;
 	int i;
 
 	cache = kmem_cache_create("test_cache", size, 0, 0, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, cache);
 
-	ret = kmem_cache_alloc_bulk(cache, GFP_KERNEL, ARRAY_SIZE(p), (void **)&p);
-	if (!ret) {
+	if (!kmem_cache_alloc_bulk(cache, GFP_KERNEL, ARRAY_SIZE(p),
+			(void **)&p)) {
 		kunit_err(test, "Allocation failed: %s\n", __func__);
 		kmem_cache_destroy(cache);
 		return;

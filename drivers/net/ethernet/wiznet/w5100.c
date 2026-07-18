@@ -11,7 +11,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
-#include <linux/platform_data/wiznet.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
@@ -23,7 +22,6 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 
 #include "w5100.h"
 
@@ -156,8 +154,6 @@ struct w5100_priv {
 	u16 s0_rx_buf_size;
 
 	int irq;
-	int link_irq;
-	int link_gpio;
 
 	struct napi_struct napi;
 	struct net_device *ndev;
@@ -171,311 +167,6 @@ struct w5100_priv {
 	struct work_struct setrx_work;
 	struct work_struct restart_work;
 };
-
-/************************************************************************
- *
- *  Lowlevel I/O functions
- *
- ***********************************************************************/
-
-struct w5100_mmio_priv {
-	void __iomem *base;
-	/* Serialize access in indirect address mode */
-	spinlock_t reg_lock;
-};
-
-static inline struct w5100_mmio_priv *w5100_mmio_priv(struct net_device *dev)
-{
-	return w5100_ops_priv(dev);
-}
-
-static inline void __iomem *w5100_mmio(struct net_device *ndev)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-
-	return mmio_priv->base;
-}
-
-/*
- * In direct address mode host system can directly access W5100 registers
- * after mapping to Memory-Mapped I/O space.
- *
- * 0x8000 bytes are required for memory space.
- */
-static inline int w5100_read_direct(struct net_device *ndev, u32 addr)
-{
-	return ioread8(w5100_mmio(ndev) + (addr << CONFIG_WIZNET_BUS_SHIFT));
-}
-
-static inline int __w5100_write_direct(struct net_device *ndev, u32 addr,
-				       u8 data)
-{
-	iowrite8(data, w5100_mmio(ndev) + (addr << CONFIG_WIZNET_BUS_SHIFT));
-
-	return 0;
-}
-
-static inline int w5100_write_direct(struct net_device *ndev, u32 addr, u8 data)
-{
-	__w5100_write_direct(ndev, addr, data);
-
-	return 0;
-}
-
-static int w5100_read16_direct(struct net_device *ndev, u32 addr)
-{
-	u16 data;
-	data  = w5100_read_direct(ndev, addr) << 8;
-	data |= w5100_read_direct(ndev, addr + 1);
-	return data;
-}
-
-static int w5100_write16_direct(struct net_device *ndev, u32 addr, u16 data)
-{
-	__w5100_write_direct(ndev, addr, data >> 8);
-	__w5100_write_direct(ndev, addr + 1, data);
-
-	return 0;
-}
-
-static int w5100_readbulk_direct(struct net_device *ndev, u32 addr, u8 *buf,
-				 int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++, addr++)
-		*buf++ = w5100_read_direct(ndev, addr);
-
-	return 0;
-}
-
-static int w5100_writebulk_direct(struct net_device *ndev, u32 addr,
-				  const u8 *buf, int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++, addr++)
-		__w5100_write_direct(ndev, addr, *buf++);
-
-	return 0;
-}
-
-static int w5100_mmio_init(struct net_device *ndev)
-{
-	struct platform_device *pdev = to_platform_device(ndev->dev.parent);
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-
-	spin_lock_init(&mmio_priv->reg_lock);
-
-	mmio_priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(mmio_priv->base))
-		return PTR_ERR(mmio_priv->base);
-
-	return 0;
-}
-
-static const struct w5100_ops w5100_mmio_direct_ops = {
-	.chip_id = W5100,
-	.read = w5100_read_direct,
-	.write = w5100_write_direct,
-	.read16 = w5100_read16_direct,
-	.write16 = w5100_write16_direct,
-	.readbulk = w5100_readbulk_direct,
-	.writebulk = w5100_writebulk_direct,
-	.init = w5100_mmio_init,
-};
-
-/*
- * In indirect address mode host system indirectly accesses registers by
- * using Indirect Mode Address Register (IDM_AR) and Indirect Mode Data
- * Register (IDM_DR), which are directly mapped to Memory-Mapped I/O space.
- * Mode Register (MR) is directly accessible.
- *
- * Only 0x04 bytes are required for memory space.
- */
-#define W5100_IDM_AR		0x01   /* Indirect Mode Address Register */
-#define W5100_IDM_DR		0x03   /* Indirect Mode Data Register */
-
-static int w5100_read_indirect(struct net_device *ndev, u32 addr)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-	u8 data;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-	data = w5100_read_direct(ndev, W5100_IDM_DR);
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return data;
-}
-
-static int w5100_write_indirect(struct net_device *ndev, u32 addr, u8 data)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-	w5100_write_direct(ndev, W5100_IDM_DR, data);
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return 0;
-}
-
-static int w5100_read16_indirect(struct net_device *ndev, u32 addr)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-	u16 data;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-	data  = w5100_read_direct(ndev, W5100_IDM_DR) << 8;
-	data |= w5100_read_direct(ndev, W5100_IDM_DR);
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return data;
-}
-
-static int w5100_write16_indirect(struct net_device *ndev, u32 addr, u16 data)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-	__w5100_write_direct(ndev, W5100_IDM_DR, data >> 8);
-	w5100_write_direct(ndev, W5100_IDM_DR, data);
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return 0;
-}
-
-static int w5100_readbulk_indirect(struct net_device *ndev, u32 addr, u8 *buf,
-				   int len)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-
-	for (i = 0; i < len; i++)
-		*buf++ = w5100_read_direct(ndev, W5100_IDM_DR);
-
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return 0;
-}
-
-static int w5100_writebulk_indirect(struct net_device *ndev, u32 addr,
-				    const u8 *buf, int len)
-{
-	struct w5100_mmio_priv *mmio_priv = w5100_mmio_priv(ndev);
-	unsigned long flags;
-	int i;
-
-	spin_lock_irqsave(&mmio_priv->reg_lock, flags);
-	w5100_write16_direct(ndev, W5100_IDM_AR, addr);
-
-	for (i = 0; i < len; i++)
-		__w5100_write_direct(ndev, W5100_IDM_DR, *buf++);
-
-	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
-
-	return 0;
-}
-
-static int w5100_reset_indirect(struct net_device *ndev)
-{
-	w5100_write_direct(ndev, W5100_MR, MR_RST);
-	mdelay(5);
-	w5100_write_direct(ndev, W5100_MR, MR_PB | MR_AI | MR_IND);
-
-	return 0;
-}
-
-static const struct w5100_ops w5100_mmio_indirect_ops = {
-	.chip_id = W5100,
-	.read = w5100_read_indirect,
-	.write = w5100_write_indirect,
-	.read16 = w5100_read16_indirect,
-	.write16 = w5100_write16_indirect,
-	.readbulk = w5100_readbulk_indirect,
-	.writebulk = w5100_writebulk_indirect,
-	.init = w5100_mmio_init,
-	.reset = w5100_reset_indirect,
-};
-
-#if defined(CONFIG_WIZNET_BUS_DIRECT)
-
-static int w5100_read(struct w5100_priv *priv, u32 addr)
-{
-	return w5100_read_direct(priv->ndev, addr);
-}
-
-static int w5100_write(struct w5100_priv *priv, u32 addr, u8 data)
-{
-	return w5100_write_direct(priv->ndev, addr, data);
-}
-
-static int w5100_read16(struct w5100_priv *priv, u32 addr)
-{
-	return w5100_read16_direct(priv->ndev, addr);
-}
-
-static int w5100_write16(struct w5100_priv *priv, u32 addr, u16 data)
-{
-	return w5100_write16_direct(priv->ndev, addr, data);
-}
-
-static int w5100_readbulk(struct w5100_priv *priv, u32 addr, u8 *buf, int len)
-{
-	return w5100_readbulk_direct(priv->ndev, addr, buf, len);
-}
-
-static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
-			   int len)
-{
-	return w5100_writebulk_direct(priv->ndev, addr, buf, len);
-}
-
-#elif defined(CONFIG_WIZNET_BUS_INDIRECT)
-
-static int w5100_read(struct w5100_priv *priv, u32 addr)
-{
-	return w5100_read_indirect(priv->ndev, addr);
-}
-
-static int w5100_write(struct w5100_priv *priv, u32 addr, u8 data)
-{
-	return w5100_write_indirect(priv->ndev, addr, data);
-}
-
-static int w5100_read16(struct w5100_priv *priv, u32 addr)
-{
-	return w5100_read16_indirect(priv->ndev, addr);
-}
-
-static int w5100_write16(struct w5100_priv *priv, u32 addr, u16 data)
-{
-	return w5100_write16_indirect(priv->ndev, addr, data);
-}
-
-static int w5100_readbulk(struct w5100_priv *priv, u32 addr, u8 *buf, int len)
-{
-	return w5100_readbulk_indirect(priv->ndev, addr, buf, len);
-}
-
-static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
-			   int len)
-{
-	return w5100_writebulk_indirect(priv->ndev, addr, buf, len);
-}
-
-#else /* CONFIG_WIZNET_BUS_ANY */
 
 static int w5100_read(struct w5100_priv *priv, u32 addr)
 {
@@ -507,8 +198,6 @@ static int w5100_writebulk(struct w5100_priv *priv, u32 addr, const u8 *buf,
 {
 	return priv->ops->writebulk(priv->ndev, addr, buf, len);
 }
-
-#endif
 
 static int w5100_readbuf(struct w5100_priv *priv, u16 offset, u8 *buf, int len)
 {
@@ -725,16 +414,6 @@ static void w5100_get_drvinfo(struct net_device *ndev,
 		sizeof(info->bus_info));
 }
 
-static u32 w5100_get_link(struct net_device *ndev)
-{
-	struct w5100_priv *priv = netdev_priv(ndev);
-
-	if (gpio_is_valid(priv->link_gpio))
-		return !!gpio_get_value(priv->link_gpio);
-
-	return 1;
-}
-
 static u32 w5100_get_msglevel(struct net_device *ndev)
 {
 	struct w5100_priv *priv = netdev_priv(ndev);
@@ -937,24 +616,6 @@ static irqreturn_t w5100_interrupt(int irq, void *ndev_instance)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t w5100_detect_link(int irq, void *ndev_instance)
-{
-	struct net_device *ndev = ndev_instance;
-	struct w5100_priv *priv = netdev_priv(ndev);
-
-	if (netif_running(ndev)) {
-		if (gpio_get_value(priv->link_gpio) != 0) {
-			netif_info(priv, link, ndev, "link is up\n");
-			netif_carrier_on(ndev);
-		} else {
-			netif_info(priv, link, ndev, "link is down\n");
-			netif_carrier_off(ndev);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
 static void w5100_setrx_work(struct work_struct *work)
 {
 	struct w5100_priv *priv = container_of(work, struct w5100_priv,
@@ -998,9 +659,6 @@ static int w5100_open(struct net_device *ndev)
 	w5100_hw_start(priv);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
-	if (!gpio_is_valid(priv->link_gpio) ||
-	    gpio_get_value(priv->link_gpio) != 0)
-		netif_carrier_on(ndev);
 	return 0;
 }
 
@@ -1020,7 +678,6 @@ static const struct ethtool_ops w5100_ethtool_ops = {
 	.get_drvinfo		= w5100_get_drvinfo,
 	.get_msglevel		= w5100_get_msglevel,
 	.set_msglevel		= w5100_set_msglevel,
-	.get_link		= w5100_get_link,
 	.get_regs_len		= w5100_get_regs_len,
 	.get_regs		= w5100_get_regs,
 };
@@ -1035,38 +692,6 @@ static const struct net_device_ops w5100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static int w5100_mmio_probe(struct platform_device *pdev)
-{
-	struct wiznet_platform_data *data = dev_get_platdata(&pdev->dev);
-	const void *mac_addr = NULL;
-	struct resource *mem;
-	const struct w5100_ops *ops;
-	int irq;
-
-	if (data && is_valid_ether_addr(data->mac_addr))
-		mac_addr = data->mac_addr;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		return -EINVAL;
-	if (resource_size(mem) < W5100_BUS_DIRECT_SIZE)
-		ops = &w5100_mmio_indirect_ops;
-	else
-		ops = &w5100_mmio_direct_ops;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	return w5100_probe(&pdev->dev, ops, sizeof(struct w5100_mmio_priv),
-			   mac_addr, irq, data ? data->link_gpio : -EINVAL);
-}
-
-static void w5100_mmio_remove(struct platform_device *pdev)
-{
-	w5100_remove(&pdev->dev);
-}
-
 void *w5100_ops_priv(const struct net_device *ndev)
 {
 	return netdev_priv(ndev) +
@@ -1075,8 +700,7 @@ void *w5100_ops_priv(const struct net_device *ndev)
 EXPORT_SYMBOL_GPL(w5100_ops_priv);
 
 int w5100_probe(struct device *dev, const struct w5100_ops *ops,
-		int sizeof_ops_priv, const void *mac_addr, int irq,
-		int link_gpio)
+		int sizeof_ops_priv, const void *mac_addr, int irq)
 {
 	struct w5100_priv *priv;
 	struct net_device *ndev;
@@ -1127,7 +751,6 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	priv->ndev = ndev;
 	priv->ops = ops;
 	priv->irq = irq;
-	priv->link_gpio = link_gpio;
 
 	ndev->netdev_ops = &w5100_netdev_ops;
 	ndev->ethtool_ops = &w5100_ethtool_ops;
@@ -1180,26 +803,8 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	if (err)
 		goto err_hw;
 
-	if (gpio_is_valid(priv->link_gpio)) {
-		char *link_name = devm_kzalloc(dev, 16, GFP_KERNEL);
-
-		if (!link_name) {
-			err = -ENOMEM;
-			goto err_gpio;
-		}
-		snprintf(link_name, 16, "%s-link", netdev_name(ndev));
-		priv->link_irq = gpio_to_irq(priv->link_gpio);
-		if (request_any_context_irq(priv->link_irq, w5100_detect_link,
-					    IRQF_TRIGGER_RISING |
-					    IRQF_TRIGGER_FALLING,
-					    link_name, priv->ndev) < 0)
-			priv->link_gpio = -EINVAL;
-	}
-
 	return 0;
 
-err_gpio:
-	free_irq(priv->irq, ndev);
 err_hw:
 	destroy_workqueue(priv->xfer_wq);
 err_wq:
@@ -1217,8 +822,6 @@ void w5100_remove(struct device *dev)
 
 	w5100_hw_reset(priv);
 	free_irq(priv->irq, ndev);
-	if (gpio_is_valid(priv->link_gpio))
-		free_irq(priv->link_irq, ndev);
 
 	flush_work(&priv->setrx_work);
 	flush_work(&priv->restart_work);
@@ -1254,9 +857,6 @@ static int w5100_resume(struct device *dev)
 		w5100_hw_start(priv);
 
 		netif_device_attach(ndev);
-		if (!gpio_is_valid(priv->link_gpio) ||
-		    gpio_get_value(priv->link_gpio) != 0)
-			netif_carrier_on(ndev);
 	}
 	return 0;
 }
@@ -1264,13 +864,3 @@ static int w5100_resume(struct device *dev)
 
 SIMPLE_DEV_PM_OPS(w5100_pm_ops, w5100_suspend, w5100_resume);
 EXPORT_SYMBOL_GPL(w5100_pm_ops);
-
-static struct platform_driver w5100_mmio_driver = {
-	.driver		= {
-		.name	= DRV_NAME,
-		.pm	= &w5100_pm_ops,
-	},
-	.probe		= w5100_mmio_probe,
-	.remove		= w5100_mmio_remove,
-};
-module_platform_driver(w5100_mmio_driver);

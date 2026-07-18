@@ -70,6 +70,9 @@ void svsm_pval_pages(struct snp_psc_desc *desc);
 int svsm_perform_call_protocol(struct svsm_call *call);
 bool snp_svsm_vtpm_probe(void);
 
+noinstr void kernel_exc_vmm_communication(struct pt_regs *regs, unsigned long error_code);
+noinstr void user_exc_vmm_communication(struct pt_regs *regs, unsigned long error_code);
+
 static inline u64 sev_es_rd_ghcb_msr(void)
 {
 	return native_rdmsrq(MSR_AMD64_SEV_ES_GHCB);

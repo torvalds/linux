@@ -89,12 +89,10 @@ properties:
       - const: rxm2m
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description: |
-      Phandles to a reserved SRAM region which is used as temporary
-      storage memory between DMA and MDMA engines.
-      The region should be defined as child node of the AHB SRAM node
-      as per the generic bindings in Documentation/devicetree/bindings/sram/sram.yaml
+    maxItems: 1
+    description:
+      SRAM region which is used as temporary storage memory between DMA and
+      MDMA engines.
 
   power-domains:
     maxItems: 1

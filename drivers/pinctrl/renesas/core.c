@@ -1380,40 +1380,40 @@ static int sh_pfc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id sh_pfc_id_table[] = {
 #ifdef CONFIG_PINCTRL_PFC_SH7203
-	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },
+	{ .name = "pfc-sh7203", .driver_data = (kernel_ulong_t)&sh7203_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7264
-	{ "pfc-sh7264", (kernel_ulong_t)&sh7264_pinmux_info },
+	{ .name = "pfc-sh7264", .driver_data = (kernel_ulong_t)&sh7264_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7269
-	{ "pfc-sh7269", (kernel_ulong_t)&sh7269_pinmux_info },
+	{ .name = "pfc-sh7269", .driver_data = (kernel_ulong_t)&sh7269_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7720
-	{ "pfc-sh7720", (kernel_ulong_t)&sh7720_pinmux_info },
+	{ .name = "pfc-sh7720", .driver_data = (kernel_ulong_t)&sh7720_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7722
-	{ "pfc-sh7722", (kernel_ulong_t)&sh7722_pinmux_info },
+	{ .name = "pfc-sh7722", .driver_data = (kernel_ulong_t)&sh7722_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7723
-	{ "pfc-sh7723", (kernel_ulong_t)&sh7723_pinmux_info },
+	{ .name = "pfc-sh7723", .driver_data = (kernel_ulong_t)&sh7723_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7724
-	{ "pfc-sh7724", (kernel_ulong_t)&sh7724_pinmux_info },
+	{ .name = "pfc-sh7724", .driver_data = (kernel_ulong_t)&sh7724_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7734
-	{ "pfc-sh7734", (kernel_ulong_t)&sh7734_pinmux_info },
+	{ .name = "pfc-sh7734", .driver_data = (kernel_ulong_t)&sh7734_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7757
-	{ "pfc-sh7757", (kernel_ulong_t)&sh7757_pinmux_info },
+	{ .name = "pfc-sh7757", .driver_data = (kernel_ulong_t)&sh7757_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7785
-	{ "pfc-sh7785", (kernel_ulong_t)&sh7785_pinmux_info },
+	{ .name = "pfc-sh7785", .driver_data = (kernel_ulong_t)&sh7785_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7786
-	{ "pfc-sh7786", (kernel_ulong_t)&sh7786_pinmux_info },
+	{ .name = "pfc-sh7786", .driver_data = (kernel_ulong_t)&sh7786_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SHX3
-	{ "pfc-shx3", (kernel_ulong_t)&shx3_pinmux_info },
+	{ .name = "pfc-shx3", .driver_data = (kernel_ulong_t)&shx3_pinmux_info },
 #endif
 	{ /* sentinel */ }
 };

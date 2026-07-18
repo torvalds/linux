@@ -327,7 +327,7 @@ int io_futex_wake(struct io_kiocb *req, unsigned int issue_flags)
 	 * Strict flags - ensure that waking 0 futexes yields a 0 result.
 	 * See commit 43adf8449510 ("futex: FLAGS_STRICT") for details.
 	 */
-	ret = futex_wake(iof->uaddr, FLAGS_STRICT | iof->futex_flags,
+	ret = futex_wake(iof->uaddr, FLAGS_STRICT | iof->futex_flags, NULL,
 			 iof->futex_val, iof->futex_mask);
 	if (ret < 0)
 		req_set_fail(req);

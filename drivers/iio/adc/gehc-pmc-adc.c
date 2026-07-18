@@ -207,7 +207,7 @@ static const struct of_device_id pmc_adc_of_match[] = {
 MODULE_DEVICE_TABLE(of, pmc_adc_of_match);
 
 static const struct i2c_device_id pmc_adc_id_table[] = {
-	{ "pmc-adc" },
+	{ .name = "pmc-adc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pmc_adc_id_table);

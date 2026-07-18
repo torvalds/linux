@@ -368,6 +368,427 @@ INSERT_STASH_READ(true, "insert_stash_read: remove from tree");
 INSERT_STASH_READ(false, "insert_stash_read: don't remove from tree");
 
 SEC("tc")
+__description("list_empty_test: list empty before add, non-empty after add")
+__success __retval(0)
+int list_empty_test(void *ctx)
+{
+	struct node_data *node_new;
+
+	bpf_spin_lock(&lock);
+	if (!bpf_list_empty(&head)) {
+		bpf_spin_unlock(&lock);
+		return -1;
+	}
+	bpf_spin_unlock(&lock);
+
+	node_new = bpf_obj_new(typeof(*node_new));
+	if (!node_new)
+		return -2;
+
+	bpf_spin_lock(&lock);
+	bpf_list_push_front(&head, &node_new->l);
+
+	if (bpf_list_empty(&head)) {
+		bpf_spin_unlock(&lock);
+		return -3;
+	}
+	bpf_spin_unlock(&lock);
+	return 0;
+}
+
+static struct node_data *__add_in_list(struct bpf_list_head *head,
+				       struct bpf_spin_lock *lock)
+{
+	struct node_data *node_new, *node_ref;
+
+	node_new = bpf_obj_new(typeof(*node_new));
+	if (!node_new)
+		return NULL;
+
+	node_ref = bpf_refcount_acquire(node_new);
+
+	bpf_spin_lock(lock);
+	bpf_list_push_front(head, &node_new->l);
+	bpf_spin_unlock(lock);
+	return node_ref;
+}
+
+SEC("tc")
+__description("list_is_edge_test1: is_first on first node, is_last on last node")
+__success __retval(0)
+int list_is_edge_test1(void *ctx)
+{
+	struct node_data *node_first, *node_last;
+	int err = 0;
+
+	node_last = __add_in_list(&head, &lock);
+	if (!node_last)
+		return -1;
+
+	node_first = __add_in_list(&head, &lock);
+	if (!node_first) {
+		bpf_obj_drop(node_last);
+		return -2;
+	}
+
+	bpf_spin_lock(&lock);
+	if (!bpf_list_is_first(&head, &node_first->l)) {
+		err = -3;
+		goto fail;
+	}
+	if (!bpf_list_is_last(&head, &node_last->l))
+		err = -4;
+
+fail:
+	bpf_spin_unlock(&lock);
+	bpf_obj_drop(node_first);
+	bpf_obj_drop(node_last);
+	return err;
+}
+
+SEC("tc")
+__description("list_is_edge_test2: accept list_front/list_back return value")
+__success __retval(0)
+int list_is_edge_test2(void *ctx)
+{
+	struct bpf_list_node *front, *back;
+	struct node_data *a, *b;
+	long err = 0;
+
+	a = __add_in_list(&head, &lock);
+	if (!a)
+		return -1;
+
+	b = __add_in_list(&head, &lock);
+	if (!b) {
+		bpf_obj_drop(a);
+		return -2;
+	}
+
+	bpf_spin_lock(&lock);
+	front = bpf_list_front(&head);
+	back = bpf_list_back(&head);
+	if (!front || !back) {
+		err = -3;
+		goto out_unlock;
+	}
+
+	if (!bpf_list_is_first(&head, front) || bpf_list_is_last(&head, front)) {
+		err = -4;
+		goto out_unlock;
+	}
+
+	if (!bpf_list_is_last(&head, back) || bpf_list_is_first(&head, back)) {
+		err = -5;
+		goto out_unlock;
+	}
+
+out_unlock:
+	bpf_spin_unlock(&lock);
+	bpf_obj_drop(a);
+	bpf_obj_drop(b);
+	return err;
+}
+
+SEC("tc")
+__description("list_is_edge_test3: single node is both first and last")
+__success __retval(0)
+int list_is_edge_test3(void *ctx)
+{
+	struct node_data *tmp;
+	struct bpf_list_node *node;
+	long err = 0;
+
+	tmp = __add_in_list(&head, &lock);
+	if (!tmp)
+		return -1;
+
+	bpf_spin_lock(&lock);
+	node = bpf_list_front(&head);
+	if (!node) {
+		bpf_spin_unlock(&lock);
+		bpf_obj_drop(tmp);
+		return -2;
+	}
+
+	if (!bpf_list_is_first(&head, node) || !bpf_list_is_last(&head, node))
+		err = -3;
+	bpf_spin_unlock(&lock);
+
+	bpf_obj_drop(tmp);
+	return err;
+}
+
+SEC("tc")
+__description("list_del_test1: del returns removed nodes")
+__success __retval(0)
+int list_del_test1(void *ctx)
+{
+	struct node_data *node_first, *node_last;
+	struct bpf_list_node *bpf_node_first, *bpf_node_last;
+	int err = 0;
+
+	node_last = __add_in_list(&head, &lock);
+	if (!node_last)
+		return -1;
+
+	node_first = __add_in_list(&head, &lock);
+	if (!node_first) {
+		bpf_obj_drop(node_last);
+		return -2;
+	}
+
+	bpf_spin_lock(&lock);
+	bpf_node_last = bpf_list_del(&head, &node_last->l);
+	bpf_node_first = bpf_list_del(&head, &node_first->l);
+	bpf_spin_unlock(&lock);
+
+	if (bpf_node_first)
+		bpf_obj_drop(container_of(bpf_node_first, struct node_data, l));
+	else
+		err = -3;
+
+	if (bpf_node_last)
+		bpf_obj_drop(container_of(bpf_node_last, struct node_data, l));
+	else
+		err = -4;
+
+	bpf_obj_drop(node_first);
+	bpf_obj_drop(node_last);
+	return err;
+}
+
+SEC("tc")
+__description("list_del_test2: remove an arbitrary node from the list")
+__success __retval(0)
+int list_del_test2(void *ctx)
+{
+	struct bpf_rb_node *rb;
+	struct bpf_list_node *l;
+	struct node_data *n;
+	long err;
+
+	err = __insert_in_tree_and_list(&head, &root, &lock);
+	if (err)
+		return err;
+
+	bpf_spin_lock(&lock);
+	rb = bpf_rbtree_first(&root);
+	if (!rb) {
+		bpf_spin_unlock(&lock);
+		return -4;
+	}
+
+	rb = bpf_rbtree_remove(&root, rb);
+	if (!rb) {
+		bpf_spin_unlock(&lock);
+		return -5;
+	}
+
+	n = container_of(rb, struct node_data, r);
+	l = bpf_list_del(&head, &n->l);
+	bpf_spin_unlock(&lock);
+	bpf_obj_drop(n);
+	if (!l)
+		return -6;
+
+	bpf_obj_drop(container_of(l, struct node_data, l));
+	return 0;
+}
+
+SEC("tc")
+__description("list_del_test3: list_del accepts list_front return value as node")
+__success __retval(0)
+int list_del_test3(void *ctx)
+{
+	struct node_data *tmp;
+	struct bpf_list_node *bpf_node, *l;
+	long err = 0;
+
+	tmp = __add_in_list(&head, &lock);
+	if (!tmp)
+		return -1;
+
+	bpf_spin_lock(&lock);
+	bpf_node = bpf_list_front(&head);
+	if (!bpf_node) {
+		bpf_spin_unlock(&lock);
+		err = -2;
+		goto fail;
+	}
+
+	l = bpf_list_del(&head, bpf_node);
+	bpf_spin_unlock(&lock);
+	if (!l) {
+		err = -3;
+		goto fail;
+	}
+
+	bpf_obj_drop(container_of(l, struct node_data, l));
+	bpf_obj_drop(tmp);
+	return 0;
+
+fail:
+	bpf_obj_drop(tmp);
+	return err;
+}
+
+SEC("tc")
+__description("list_add_test1: insert new node after prev")
+__success __retval(0)
+int list_add_test1(void *ctx)
+{
+	struct node_data *node_first;
+	struct node_data *new_node;
+	long err = 0;
+
+	node_first = __add_in_list(&head, &lock);
+	if (!node_first)
+		return -1;
+
+	new_node = bpf_obj_new(typeof(*new_node));
+	if (!new_node) {
+		err = -2;
+		goto fail;
+	}
+
+	bpf_spin_lock(&lock);
+	err = bpf_list_add(&head, &new_node->l, &node_first->l);
+	bpf_spin_unlock(&lock);
+	if (err) {
+		err = -3;
+		goto fail;
+	}
+
+fail:
+	bpf_obj_drop(node_first);
+	return err;
+}
+
+SEC("tc")
+__description("list_add_test2: list_add accepts list_front return value as prev")
+__success __retval(0)
+int list_add_test2(void *ctx)
+{
+	struct node_data *new_node, *tmp;
+	struct bpf_list_node *bpf_node;
+	long err = 0;
+
+	tmp = __add_in_list(&head, &lock);
+	if (!tmp)
+		return -1;
+
+	new_node = bpf_obj_new(typeof(*new_node));
+	if (!new_node) {
+		err = -2;
+		goto fail;
+	}
+
+	bpf_spin_lock(&lock);
+	bpf_node = bpf_list_front(&head);
+	if (!bpf_node) {
+		bpf_spin_unlock(&lock);
+		bpf_obj_drop(new_node);
+		err = -3;
+		goto fail;
+	}
+
+	err = bpf_list_add(&head, &new_node->l, bpf_node);
+	bpf_spin_unlock(&lock);
+	if (err) {
+		err = -4;
+		goto fail;
+	}
+
+fail:
+	bpf_obj_drop(tmp);
+	return err;
+}
+
+struct uninit_head_val {
+	struct bpf_spin_lock lock;
+	struct bpf_list_head head __contains(node_data, l);
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, struct uninit_head_val);
+	__uint(max_entries, 1);
+} uninit_head_map SEC(".maps");
+
+SEC("tc")
+__description("list_push_back_uninit_head: push_back on 0-initialized list head")
+__success __retval(0)
+int list_push_back_uninit_head(void *ctx)
+{
+	struct uninit_head_val *st;
+	struct node_data *node;
+	int ret = -1, key = 0;
+
+	st = bpf_map_lookup_elem(&uninit_head_map, &key);
+	if (!st)
+		return -1;
+
+	node = bpf_obj_new(typeof(*node));
+	if (!node)
+		return -1;
+
+	bpf_spin_lock(&st->lock);
+	ret = bpf_list_push_back(&st->head, &node->l);
+	bpf_spin_unlock(&st->lock);
+
+	return ret;
+}
+
+SEC("?tc")
+__failure __msg("bpf_spin_lock at off=32 must be held for bpf_list_head")
+long list_del_without_lock_fail(void *ctx)
+{
+	struct node_data *n;
+	struct bpf_list_node *l;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return -1;
+
+	/* Error case: delete list node without holding lock */
+	l = bpf_list_del(&head, &n->l);
+	bpf_obj_drop(n);
+	if (!l)
+		return -2;
+	bpf_obj_drop(container_of(l, struct node_data, l));
+
+	return 0;
+}
+
+SEC("?tc")
+__failure __msg("bpf_spin_lock at off=32 must be held for bpf_list_head")
+long list_add_without_lock_fail(void *ctx)
+{
+	struct node_data *n, *prev;
+	long err;
+
+	n = bpf_obj_new(typeof(*n));
+	if (!n)
+		return -1;
+
+	prev = bpf_obj_new(typeof(*prev));
+	if (!prev) {
+		bpf_obj_drop(n);
+		return -1;
+	}
+
+	/* Error case: add list node without holding lock */
+	err = bpf_list_add(&head, &n->l, &prev->l);
+	bpf_obj_drop(prev);
+	if (err)
+		return -2;
+
+	return 0;
+}
+
+SEC("tc")
 __success
 long rbtree_refcounted_node_ref_escapes(void *ctx)
 {
@@ -615,11 +1036,29 @@ int percpu_hash_refcount_leak(void *ctx)
 	struct map_value *v;
 	int key = 0;
 
-	v = bpf_map_lookup_elem(&percpu_hash, &key);
+	v = bpf_map_lookup_percpu_elem(&percpu_hash, &key, 0);
 	if (!v)
 		return 0;
 
 	return __insert_in_list(&head, &lock, &v->node);
+}
+
+SEC("syscall")
+int clear_percpu_hash_kptr(void *ctx)
+{
+	struct node_data *n;
+	struct map_value *v;
+	int key = 0;
+
+	v = bpf_map_lookup_percpu_elem(&percpu_hash, &key, 0);
+	if (!v)
+		return 0;
+
+	n = bpf_kptr_xchg(&v->node, NULL);
+	if (!n)
+		return 0;
+	bpf_obj_drop(n);
+	return probe_read_refcount();
 }
 
 SEC("tc")

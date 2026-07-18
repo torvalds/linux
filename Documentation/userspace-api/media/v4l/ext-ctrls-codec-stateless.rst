@@ -1877,7 +1877,7 @@ params syntax' of the :ref:`vp9` specification for more details.
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - __u8
+    * - __s16
       - ``feature_data[8][4]``
       - Data attached to each feature. Data entry is only valid if the feature
         is enabled. The array shall be indexed with segment number as the first dimension

@@ -144,7 +144,7 @@ xrep_symlink_salvage_remote(
 		fa = bp->b_ops->verify_struct(bp);
 		dsl = bp->b_addr;
 		magic_ok = dsl->sl_magic == cpu_to_be32(XFS_SYMLINK_MAGIC);
-		hdr_ok = xfs_symlink_hdr_ok(ip->i_ino, offset, byte_cnt, bp);
+		hdr_ok = xfs_symlink_hdr_ok(I_INO(ip), offset, byte_cnt, bp);
 		if (!hdr_ok || (fa != NULL && !magic_ok))
 			break;
 
@@ -259,7 +259,7 @@ xrep_symlink_local_to_remote(
 	if (!xfs_has_crc(sc->mp))
 		return;
 
-	dsl->sl_owner = cpu_to_be64(sc->ip->i_ino);
+	dsl->sl_owner = cpu_to_be64(I_INO(sc->ip));
 	xfs_trans_log_buf(tp, bp, 0,
 			  sizeof(struct xfs_dsymlink_hdr) + ifp->if_bytes - 1);
 }
@@ -375,7 +375,7 @@ xrep_symlink_reset_fork(
 
 	/* Reset the temp symlink target to dummy content. */
 	xfs_idestroy_fork(ifp);
-	return xfs_symlink_write_target(sc->tp, sc->tempip, sc->tempip->i_ino,
+	return xfs_symlink_write_target(sc->tp, sc->tempip, I_INO(sc->tempip),
 			"?", 1, 0, 0);
 }
 
@@ -434,7 +434,7 @@ xrep_symlink_rebuild(
 	sc->tempip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
 
 	/* Write the salvaged target to the temporary link. */
-	error = xfs_symlink_write_target(sc->tp, sc->tempip, sc->ip->i_ino,
+	error = xfs_symlink_write_target(sc->tp, sc->tempip, I_INO(sc->ip),
 			target_buf, target_len, fs_blocks, resblks);
 	if (error)
 		return error;

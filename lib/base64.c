@@ -122,7 +122,7 @@ EXPORT_SYMBOL_GPL(base64_encode);
  * @src: the string to decode.  Doesn't need to be NUL-terminated.
  * @srclen: the length of @src in bytes
  * @dst: (output) the decoded binary data
- * @padding: whether to append '=' padding characters
+ * @padding: whether the input is expected to include '=' padding characters
  * @variant: which base64 variant to use
  *
  * Decodes a string using the selected Base64 variant.
@@ -168,15 +168,16 @@ int base64_decode(const char *src, int srclen, u8 *dst, bool padding, enum base6
 		return -1;
 
 	val = (base64_rev_tables[s[0]] << 12) | (base64_rev_tables[s[1]] << 6);
-	*bp++ = val >> 10;
 
 	if (srclen == 2) {
 		if (val & 0x800003ff)
 			return -1;
+		*bp++ = val >> 10;
 	} else {
 		val |= base64_rev_tables[s[2]];
 		if (val & 0x80000003)
 			return -1;
+		*bp++ = val >> 10;
 		*bp++ = val >> 2;
 	}
 	return bp - dst;

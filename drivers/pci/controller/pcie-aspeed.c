@@ -127,19 +127,19 @@
 #define CFG0_READ_FMTTYPE                                        \
 	FIELD_PREP(ASPEED_TLP_COMMON_FIELDS,                     \
 		   ASPEED_TLP_FMT_TYPE(PCIE_TLP_FMT_3DW_NO_DATA, \
-				       PCIE_TLP_TYPE_CFG0_RD))
+				       PCIE_TLP_TYPE_CFG0_RDWR))
 #define CFG0_WRITE_FMTTYPE                                    \
 	FIELD_PREP(ASPEED_TLP_COMMON_FIELDS,                  \
 		   ASPEED_TLP_FMT_TYPE(PCIE_TLP_FMT_3DW_DATA, \
-				       PCIE_TLP_TYPE_CFG0_WR))
+				       PCIE_TLP_TYPE_CFG0_RDWR))
 #define CFG1_READ_FMTTYPE                                        \
 	FIELD_PREP(ASPEED_TLP_COMMON_FIELDS,                     \
 		   ASPEED_TLP_FMT_TYPE(PCIE_TLP_FMT_3DW_NO_DATA, \
-				       PCIE_TLP_TYPE_CFG1_RD))
+				       PCIE_TLP_TYPE_CFG1_RDWR))
 #define CFG1_WRITE_FMTTYPE                                    \
 	FIELD_PREP(ASPEED_TLP_COMMON_FIELDS,                  \
 		   ASPEED_TLP_FMT_TYPE(PCIE_TLP_FMT_3DW_DATA, \
-				       PCIE_TLP_TYPE_CFG1_WR))
+				       PCIE_TLP_TYPE_CFG1_RDWR))
 #define CFG_PAYLOAD_SIZE		0x01 /* 1 DWORD */
 #define TLP_HEADER_BYTE_EN(x, y)	((GENMASK((x) - 1, 0) << ((y) % 4)))
 #define TLP_GET_VALUE(x, y, z)	\

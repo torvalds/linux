@@ -295,6 +295,15 @@
 			clocks = <&dcxo>;
 		};
 
+		hstimer@3008000 {
+			compatible = "allwinner,sun20i-d1-hstimer";
+			reg = <0x03008000 0x1000>;
+			interrupts = <SOC_PERIPHERAL_IRQ(55) IRQ_TYPE_LEVEL_HIGH>,
+				     <SOC_PERIPHERAL_IRQ(56) IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_HSTIMER>;
+			resets = <&ccu RST_BUS_HSTIMER>;
+		};
+
 		wdt: watchdog@20500a0 {
 			compatible = "allwinner,sun20i-d1-wdt-reset",
 				     "allwinner,sun20i-d1-wdt";

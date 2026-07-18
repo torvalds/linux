@@ -38,6 +38,12 @@ struct regmap;
  *			offset to a register/bitmask pair. If not
  *			given the default gpio_regmap_simple_xlate()
  *			is used.
+ * @fixed_direction_mask:
+ *			(Optional) Bitmap representing the GPIO lines that
+ *			make use of the @fixed_direction_output list to
+ *			enforce direction of the GPIO. If this is NULL
+ *			and @fixed_direction_output is defined, ALL GPIOs
+ *			are assumed to be fixed direction (out or in).
  * @fixed_direction_output:
  *			(Optional) Bitmap representing the fixed direction of
  *			the GPIO lines. Useful when there are GPIO lines with a
@@ -89,6 +95,7 @@ struct gpio_regmap_config {
 	int reg_stride;
 	int ngpio_per_reg;
 	struct irq_domain *irq_domain;
+	unsigned long *fixed_direction_mask;
 	unsigned long *fixed_direction_output;
 
 #ifdef CONFIG_REGMAP_IRQ

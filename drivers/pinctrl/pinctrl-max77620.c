@@ -10,7 +10,6 @@
  */
 
 #include <linux/mfd/max77620.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -645,9 +644,9 @@ static const struct dev_pm_ops max77620_pinctrl_pm_ops = {
 };
 
 static const struct platform_device_id max77620_pinctrl_devtype[] = {
-	{ .name = "max77620-pinctrl", },
-	{ .name = "max20024-pinctrl", },
-	{},
+	{ .name = "max77620-pinctrl" },
+	{ .name = "max20024-pinctrl" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, max77620_pinctrl_devtype);
 

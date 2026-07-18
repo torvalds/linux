@@ -13,9 +13,9 @@
 #include "linux/psp-sev.h"
 #include "sev.h"
 
-static void guest_sev_test_msr(uint32_t msr)
+static void guest_sev_test_msr(u32 msr)
 {
-	uint64_t val = rdmsr(msr);
+	u64 val = rdmsr(msr);
 
 	wrmsr(msr, val);
 	GUEST_ASSERT(val == rdmsr(msr));
@@ -23,7 +23,7 @@ static void guest_sev_test_msr(uint32_t msr)
 
 #define guest_sev_test_reg(reg)			\
 do {						\
-	uint64_t val = get_##reg();		\
+	u64 val = get_##reg();			\
 						\
 	set_##reg(val);				\
 	GUEST_ASSERT(val == get_##reg());	\
@@ -42,7 +42,7 @@ static void guest_sev_test_regs(void)
 
 static void guest_snp_code(void)
 {
-	uint64_t sev_msr = rdmsr(MSR_AMD64_SEV);
+	u64 sev_msr = rdmsr(MSR_AMD64_SEV);
 
 	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_ENABLED);
 	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_ES_ENABLED);
@@ -104,19 +104,19 @@ static void compare_xsave(u8 *from_host, u8 *from_guest)
 		abort();
 }
 
-static void test_sync_vmsa(uint32_t type, uint64_t policy)
+static void test_sync_vmsa(u32 type, u64 policy)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	vm_vaddr_t gva;
+	gva_t gva;
 	void *hva;
 
 	double x87val = M_PI;
 	struct kvm_xsave __attribute__((aligned(64))) xsave = { 0 };
 
 	vm = vm_sev_create_with_one_vcpu(type, guest_code_xsave, &vcpu);
-	gva = vm_vaddr_alloc_shared(vm, PAGE_SIZE, KVM_UTIL_MIN_VADDR,
-				    MEM_REGION_TEST_DATA);
+	gva = vm_alloc_shared(vm, PAGE_SIZE, KVM_UTIL_MIN_VADDR,
+			      MEM_REGION_TEST_DATA);
 	hva = addr_gva2hva(vm, gva);
 
 	vcpu_args_set(vcpu, 1, gva);
@@ -150,7 +150,7 @@ static void test_sync_vmsa(uint32_t type, uint64_t policy)
 	kvm_vm_free(vm);
 }
 
-static void test_sev(void *guest_code, uint32_t type, uint64_t policy)
+static void test_sev(void *guest_code, u32 type, u64 policy)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -201,7 +201,7 @@ static void guest_shutdown_code(void)
 	__asm__ __volatile__("ud2");
 }
 
-static void test_sev_shutdown(uint32_t type, uint64_t policy)
+static void test_sev_shutdown(u32 type, u64 policy)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -218,7 +218,7 @@ static void test_sev_shutdown(uint32_t type, uint64_t policy)
 	kvm_vm_free(vm);
 }
 
-static void test_sev_smoke(void *guest, uint32_t type, uint64_t policy)
+static void test_sev_smoke(void *guest, u32 type, u64 policy)
 {
 	const u64 xf_mask = XFEATURE_MASK_X87_AVX;
 
@@ -249,10 +249,10 @@ int main(int argc, char *argv[])
 
 	test_sev_smoke(guest_sev_code, KVM_X86_SEV_VM, 0);
 
-	if (kvm_cpu_has(X86_FEATURE_SEV_ES))
+	if (kvm_check_cap(KVM_CAP_VM_TYPES) & BIT(KVM_X86_SEV_ES_VM))
 		test_sev_smoke(guest_sev_es_code, KVM_X86_SEV_ES_VM, SEV_POLICY_ES);
 
-	if (kvm_cpu_has(X86_FEATURE_SEV_SNP))
+	if (kvm_check_cap(KVM_CAP_VM_TYPES) & BIT(KVM_X86_SNP_VM))
 		test_sev_smoke(guest_snp_code, KVM_X86_SNP_VM, snp_default_policy());
 
 	return 0;

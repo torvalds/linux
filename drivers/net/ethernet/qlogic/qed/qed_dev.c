@@ -5103,6 +5103,13 @@ static int qed_init_wfq_param(struct qed_hwfn *p_hwfn,
 		return -EINVAL;
 	}
 
+	/* All vports are already or become configured, nothing to distribute */
+	if (non_requested_count == 0) {
+		p_hwfn->qm_info.wfq_data[vport_id].min_speed = req_rate;
+		p_hwfn->qm_info.wfq_data[vport_id].configured = true;
+		return 0;
+	}
+
 	total_left_rate	= min_pf_rate - total_req_min_rate;
 
 	left_rate_per_vp = total_left_rate / non_requested_count;

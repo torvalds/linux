@@ -164,6 +164,14 @@ static const char *const hwcap_str[] = {
 	[KERNEL_HWCAP_MTE_FAR]		= "mtefar",
 	[KERNEL_HWCAP_MTE_STORE_ONLY]	= "mtestoreonly",
 	[KERNEL_HWCAP_LSFE]		= "lsfe",
+	[KERNEL_HWCAP_SVE_B16MM]	= "sveb16mm",
+	[KERNEL_HWCAP_SVE2P3]		= "sve2p3",
+	[KERNEL_HWCAP_SME_LUT6]		= "smelut6",
+	[KERNEL_HWCAP_SME2P3]		= "sme2p3",
+	[KERNEL_HWCAP_F16MM]		= "f16mm",
+	[KERNEL_HWCAP_F16F32DOT]	= "f16f32dot",
+	[KERNEL_HWCAP_F16F32MM]		= "f16f32mm",
+	[KERNEL_HWCAP_SVE_LUT6]		= "svelut6",
 };
 
 #ifdef CONFIG_COMPAT

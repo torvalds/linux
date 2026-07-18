@@ -29,12 +29,10 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/if_vlan.h>
+#include <linux/udp.h>
 #include <net/tcp.h>
-#include <net/udp.h>
 #include <net/addrconf.h>
 #include <net/ndisc.h>
-#include <net/ip6_checksum.h>
-#include <linux/unaligned.h>
 #include <trace/events/napi.h>
 #include <linux/kconfig.h>
 
@@ -43,17 +41,8 @@
  * message gets out even in extreme OOM situations.
  */
 
-#define MAX_UDP_CHUNK 1460
 #define MAX_SKBS 32
 #define USEC_PER_POLL	50
-
-#define MAX_SKB_SIZE							\
-	(sizeof(struct ethhdr) +					\
-	 sizeof(struct iphdr) +						\
-	 sizeof(struct udphdr) +					\
-	 MAX_UDP_CHUNK)
-
-static void zap_completion_queue(void);
 
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
@@ -201,7 +190,7 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	up(&ni->dev_lock);
 
-	zap_completion_queue();
+	netpoll_zap_completion_queue();
 }
 EXPORT_SYMBOL(netpoll_poll_dev);
 
@@ -240,7 +229,7 @@ static void refill_skbs(struct netpoll *np)
 	}
 }
 
-static void zap_completion_queue(void)
+void netpoll_zap_completion_queue(void)
 {
 	unsigned long flags;
 	struct softnet_data *sd = &get_cpu_var(softnet_data);
@@ -267,33 +256,7 @@ static void zap_completion_queue(void)
 
 	put_cpu_var(softnet_data);
 }
-
-static struct sk_buff *find_skb(struct netpoll *np, int len, int reserve)
-{
-	int count = 0;
-	struct sk_buff *skb;
-
-	zap_completion_queue();
-repeat:
-
-	skb = alloc_skb(len, GFP_ATOMIC);
-	if (!skb) {
-		skb = skb_dequeue(&np->skb_pool);
-		schedule_work(&np->refill_wq);
-	}
-
-	if (!skb) {
-		if (++count < 10) {
-			netpoll_poll_dev(np->dev);
-			goto repeat;
-		}
-		return NULL;
-	}
-
-	refcount_set(&skb->users, 1);
-	skb_reserve(skb, reserve);
-	return skb;
-}
+EXPORT_SYMBOL_NS_GPL(netpoll_zap_completion_queue, "NETDEV_INTERNAL");
 
 static int netpoll_owner_active(struct net_device *dev)
 {
@@ -319,6 +282,8 @@ static netdev_tx_t __netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	lockdep_assert_irqs_disabled();
 
 	dev = np->dev;
+	/* npinfo->txq belongs to np->dev, so retries must stay bound to it. */
+	skb->dev = dev;
 	rcu_read_lock();
 	npinfo = rcu_dereference_bh(dev->npinfo);
 
@@ -369,31 +334,6 @@ out:
 	return ret;
 }
 
-static void netpoll_udp_checksum(struct netpoll *np, struct sk_buff *skb,
-				 int len)
-{
-	struct udphdr *udph;
-	int udp_len;
-
-	udp_len = len + sizeof(struct udphdr);
-	udph = udp_hdr(skb);
-
-	/* check needs to be set, since it will be consumed in csum_partial */
-	udph->check = 0;
-	if (np->ipv6)
-		udph->check = csum_ipv6_magic(&np->local_ip.in6,
-					      &np->remote_ip.in6,
-					      udp_len, IPPROTO_UDP,
-					      csum_partial(udph, udp_len, 0));
-	else
-		udph->check = csum_tcpudp_magic(np->local_ip.ip,
-						np->remote_ip.ip,
-						udp_len, IPPROTO_UDP,
-						csum_partial(udph, udp_len, 0));
-	if (udph->check == 0)
-		udph->check = CSUM_MANGLED_0;
-}
-
 netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	unsigned long flags;
@@ -410,125 +350,6 @@ netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	return ret;
 }
 EXPORT_SYMBOL(netpoll_send_skb);
-
-static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
-{
-	struct ipv6hdr *ip6h;
-
-	skb_push(skb, sizeof(struct ipv6hdr));
-	skb_reset_network_header(skb);
-	ip6h = ipv6_hdr(skb);
-
-	/* ip6h->version = 6; ip6h->priority = 0; */
-	*(unsigned char *)ip6h = 0x60;
-	ip6h->flow_lbl[0] = 0;
-	ip6h->flow_lbl[1] = 0;
-	ip6h->flow_lbl[2] = 0;
-
-	ip6h->payload_len = htons(sizeof(struct udphdr) + len);
-	ip6h->nexthdr = IPPROTO_UDP;
-	ip6h->hop_limit = 32;
-	ip6h->saddr = np->local_ip.in6;
-	ip6h->daddr = np->remote_ip.in6;
-
-	skb->protocol = htons(ETH_P_IPV6);
-}
-
-static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
-{
-	static atomic_t ip_ident;
-	struct iphdr *iph;
-	int ip_len;
-
-	ip_len = len + sizeof(struct udphdr) + sizeof(struct iphdr);
-
-	skb_push(skb, sizeof(struct iphdr));
-	skb_reset_network_header(skb);
-	iph = ip_hdr(skb);
-
-	/* iph->version = 4; iph->ihl = 5; */
-	*(unsigned char *)iph = 0x45;
-	iph->tos = 0;
-	put_unaligned(htons(ip_len), &iph->tot_len);
-	iph->id = htons(atomic_inc_return(&ip_ident));
-	iph->frag_off = 0;
-	iph->ttl = 64;
-	iph->protocol = IPPROTO_UDP;
-	iph->check = 0;
-	put_unaligned(np->local_ip.ip, &iph->saddr);
-	put_unaligned(np->remote_ip.ip, &iph->daddr);
-	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
-	skb->protocol = htons(ETH_P_IP);
-}
-
-static void push_udp(struct netpoll *np, struct sk_buff *skb, int len)
-{
-	struct udphdr *udph;
-	int udp_len;
-
-	udp_len = len + sizeof(struct udphdr);
-
-	skb_push(skb, sizeof(struct udphdr));
-	skb_reset_transport_header(skb);
-
-	udph = udp_hdr(skb);
-	udph->source = htons(np->local_port);
-	udph->dest = htons(np->remote_port);
-	udph->len = htons(udp_len);
-
-	netpoll_udp_checksum(np, skb, len);
-}
-
-static void push_eth(struct netpoll *np, struct sk_buff *skb)
-{
-	struct ethhdr *eth;
-
-	eth = skb_push(skb, ETH_HLEN);
-	skb_reset_mac_header(skb);
-	ether_addr_copy(eth->h_source, np->dev->dev_addr);
-	ether_addr_copy(eth->h_dest, np->remote_mac);
-	if (np->ipv6)
-		eth->h_proto = htons(ETH_P_IPV6);
-	else
-		eth->h_proto = htons(ETH_P_IP);
-}
-
-int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
-{
-	int total_len, ip_len, udp_len;
-	struct sk_buff *skb;
-
-	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
-		WARN_ON_ONCE(!irqs_disabled());
-
-	udp_len = len + sizeof(struct udphdr);
-	if (np->ipv6)
-		ip_len = udp_len + sizeof(struct ipv6hdr);
-	else
-		ip_len = udp_len + sizeof(struct iphdr);
-
-	total_len = ip_len + LL_RESERVED_SPACE(np->dev);
-
-	skb = find_skb(np, total_len + np->dev->needed_tailroom,
-		       total_len - len);
-	if (!skb)
-		return -ENOMEM;
-
-	skb_copy_to_linear_data(skb, msg, len);
-	skb_put(skb, len);
-
-	push_udp(np, skb, len);
-	if (np->ipv6)
-		push_ipv6(np, skb, len);
-	else
-		push_ipv4(np, skb, len);
-	push_eth(np, skb);
-	skb->dev = np->dev;
-
-	return (int)netpoll_send_skb(np, skb);
-}
-EXPORT_SYMBOL(netpoll_send_udp);
-
 
 static void skb_pool_flush(struct netpoll *np)
 {
@@ -608,14 +429,16 @@ EXPORT_SYMBOL_GPL(__netpoll_setup);
 /*
  * Returns a pointer to a string representation of the identifier used
  * to select the egress interface for the given netpoll instance. buf
- * must be a buffer of length at least MAC_ADDR_STR_LEN + 1.
+ * is used to format np->dev_mac when np->dev_name is empty; bufsz must
+ * be at least MAC_ADDR_STR_LEN + 1 to fit the formatted MAC address
+ * and its NUL terminator.
  */
-static char *egress_dev(struct netpoll *np, char *buf)
+static char *egress_dev(struct netpoll *np, char *buf, size_t bufsz)
 {
 	if (np->dev_name[0])
 		return np->dev_name;
 
-	snprintf(buf, MAC_ADDR_STR_LEN, "%pM", np->dev_mac);
+	snprintf(buf, bufsz, "%pM", np->dev_mac);
 	return buf;
 }
 
@@ -645,7 +468,7 @@ static int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
 
 	if (!IS_ENABLED(CONFIG_IPV6)) {
 		np_err(np, "IPv6 is not supported %s, aborting\n",
-		       egress_dev(np, buf));
+		       egress_dev(np, buf, sizeof(buf)));
 		return -EINVAL;
 	}
 
@@ -667,7 +490,7 @@ static int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
 	}
 	if (err) {
 		np_err(np, "no IPv6 address for %s, aborting\n",
-		       egress_dev(np, buf));
+		       egress_dev(np, buf, sizeof(buf)));
 		return err;
 	}
 
@@ -687,14 +510,14 @@ static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
 	in_dev = __in_dev_get_rtnl(ndev);
 	if (!in_dev) {
 		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf));
+		       egress_dev(np, buf, sizeof(buf)));
 		return -EDESTADDRREQ;
 	}
 
 	ifa = rtnl_dereference(in_dev->ifa_list);
 	if (!ifa) {
 		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf));
+		       egress_dev(np, buf, sizeof(buf)));
 		return -EDESTADDRREQ;
 	}
 
@@ -702,6 +525,23 @@ static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
 	np_info(np, "local IP %pI4\n", &np->local_ip.ip);
 
 	return 0;
+}
+
+/*
+ * Test whether the caller left np->local_ip unset, so that
+ * netpoll_setup() should auto-populate it from the egress device.
+ *
+ * np->local_ip is a union of __be32 (IPv4) and struct in6_addr (IPv6),
+ * so an IPv6 address whose first 4 bytes are zero (e.g. ::1, ::2,
+ * IPv4-mapped ::ffff:a.b.c.d) must not be tested via the IPv4 arm —
+ * doing so would misclassify a caller-supplied address as unset and
+ * silently overwrite it with whatever address the device exposes.
+ */
+static bool netpoll_local_ip_unset(const struct netpoll *np)
+{
+	if (np->ipv6)
+		return ipv6_addr_any(&np->local_ip.in6);
+	return !np->local_ip.ip;
 }
 
 int netpoll_setup(struct netpoll *np)
@@ -719,7 +559,8 @@ int netpoll_setup(struct netpoll *np)
 		ndev = dev_getbyhwaddr(net, ARPHRD_ETHER, np->dev_mac);
 
 	if (!ndev) {
-		np_err(np, "%s doesn't exist, aborting\n", egress_dev(np, buf));
+		np_err(np, "%s doesn't exist, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
 		err = -ENODEV;
 		goto unlock;
 	}
@@ -727,14 +568,14 @@ int netpoll_setup(struct netpoll *np)
 
 	if (netdev_master_upper_dev_get(ndev)) {
 		np_err(np, "%s is a slave device, aborting\n",
-		       egress_dev(np, buf));
+		       egress_dev(np, buf, sizeof(buf)));
 		err = -EBUSY;
 		goto put;
 	}
 
 	if (!netif_running(ndev)) {
 		np_info(np, "device %s not up yet, forcing it\n",
-			egress_dev(np, buf));
+			egress_dev(np, buf, sizeof(buf)));
 
 		err = dev_open(ndev, NULL);
 		if (err) {
@@ -747,7 +588,7 @@ int netpoll_setup(struct netpoll *np)
 		rtnl_lock();
 	}
 
-	if (!np->local_ip.ip) {
+	if (netpoll_local_ip_unset(np)) {
 		if (!np->ipv6) {
 			err = netpoll_take_ipv4(np, ndev);
 			if (err)
@@ -792,14 +633,6 @@ static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 			container_of(rcu_head, struct netpoll_info, rcu);
 
 	skb_queue_purge(&npinfo->txq);
-
-	/* we can't call cancel_delayed_work_sync here, as we are in softirq */
-	cancel_delayed_work(&npinfo->tx_work);
-
-	/* clean after last, unfinished work */
-	__skb_queue_purge(&npinfo->txq);
-	/* now cancel it again */
-	cancel_delayed_work(&npinfo->tx_work);
 	kfree(npinfo);
 }
 
@@ -823,6 +656,7 @@ static void __netpoll_cleanup(struct netpoll *np)
 			ops->ndo_netpoll_cleanup(np->dev);
 
 		RCU_INIT_POINTER(np->dev->npinfo, NULL);
+		disable_delayed_work_sync(&npinfo->tx_work);
 		call_rcu(&npinfo->rcu, rcu_cleanup_netpoll_info);
 	}
 

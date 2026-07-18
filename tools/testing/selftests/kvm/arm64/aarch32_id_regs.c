@@ -66,7 +66,7 @@ static void test_guest_raz(struct kvm_vcpu *vcpu)
 	}
 }
 
-static uint64_t raz_wi_reg_ids[] = {
+static u64 raz_wi_reg_ids[] = {
 	KVM_ARM64_SYS_REG(SYS_ID_PFR0_EL1),
 	KVM_ARM64_SYS_REG(SYS_ID_PFR1_EL1),
 	KVM_ARM64_SYS_REG(SYS_ID_DFR0_EL1),
@@ -94,8 +94,8 @@ static void test_user_raz_wi(struct kvm_vcpu *vcpu)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(raz_wi_reg_ids); i++) {
-		uint64_t reg_id = raz_wi_reg_ids[i];
-		uint64_t val;
+		u64 reg_id = raz_wi_reg_ids[i];
+		u64 val;
 
 		val = vcpu_get_reg(vcpu, reg_id);
 		TEST_ASSERT_EQ(val, 0);
@@ -111,7 +111,7 @@ static void test_user_raz_wi(struct kvm_vcpu *vcpu)
 	}
 }
 
-static uint64_t raz_invariant_reg_ids[] = {
+static u64 raz_invariant_reg_ids[] = {
 	KVM_ARM64_SYS_REG(SYS_ID_AFR0_EL1),
 	KVM_ARM64_SYS_REG(sys_reg(3, 0, 0, 3, 3)),
 	KVM_ARM64_SYS_REG(SYS_ID_DFR1_EL1),
@@ -123,8 +123,8 @@ static void test_user_raz_invariant(struct kvm_vcpu *vcpu)
 	int i, r;
 
 	for (i = 0; i < ARRAY_SIZE(raz_invariant_reg_ids); i++) {
-		uint64_t reg_id = raz_invariant_reg_ids[i];
-		uint64_t val;
+		u64 reg_id = raz_invariant_reg_ids[i];
+		u64 val;
 
 		val = vcpu_get_reg(vcpu, reg_id);
 		TEST_ASSERT_EQ(val, 0);
@@ -142,7 +142,7 @@ static void test_user_raz_invariant(struct kvm_vcpu *vcpu)
 
 static bool vcpu_aarch64_only(struct kvm_vcpu *vcpu)
 {
-	uint64_t val, el0;
+	u64 val, el0;
 
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 

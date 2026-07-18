@@ -124,6 +124,8 @@ static const struct of_device_id sifive_ccache_ids[] = {
 	{ .compatible = "sifive,fu740-c000-ccache" },
 	{ .compatible = "starfive,jh7100-ccache",
 	  .data = (void *)(QUIRK_NONSTANDARD_CACHE_OPS | QUIRK_BROKEN_DATA_UNCORR) },
+	{ .compatible = "starfive,jh7110-ccache",
+	  .data = (void *)(QUIRK_NONSTANDARD_CACHE_OPS) },
 	{ .compatible = "sifive,ccache0" },
 	{ /* end of table */ }
 };

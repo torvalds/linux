@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-hex-case.yaml:28: example 0 [hex-case] hex literal '0xABCD' must be lowercase

@@ -6,6 +6,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/soc/renesas,r8a78000-mfis.h>
 #include "r8a78000.dtsi"
 
 / {
@@ -20,10 +21,22 @@
 		stdout-path = "serial0:1843200n8";
 	};
 
-	memory@60600000 {
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi";
+			mboxes = <&mfis_scp 2 MFIS_CHANNEL_TX>,
+				 <&mfis_scp 2 MFIS_CHANNEL_RX>;
+			mbox-names = "tx", "rx";
+			shmem = <&scmi_tx_shmem>, <&scmi_rx_shmem>;
+			arm,no-completion-irq;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	memory@40000000 {
 		device_type = "memory";
-		/* first 518MiB is reserved for other purposes. */
-		reg = <0x0 0x60600000 0x0 0x5fa00000>;
+		reg = <0x0 0x40000000 0x0 0x80000000>;
 	};
 
 	memory@1080000000 {
@@ -65,6 +78,36 @@
 		device_type = "memory";
 		reg = <0x1e 0x00000000 0x1 0x00000000>;
 	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* First 518 MiB is reserved for other purposes. */
+		firmware@40000000 {
+			reg = <0x0 0x40000000 0x0 0x20600000>;
+			no-map;
+		};
+
+		/* Parameters set by IPL. */
+		parameters@8c100000 {
+			reg = <0x0 0x8c100000 0x0 0x00008000>;
+			no-map;
+		};
+
+		/* TFA BL31. */
+		tfa-bl31@8c200000 {
+			reg = <0x0 0x8c200000 0x0 0x00080000>;
+			no-map;
+		};
+
+		/* TEE TZ DRAM. */
+		tee@8c400000 {
+			reg = <0x0 0x8c400000 0x0 0x02000000>;
+			no-map;
+		};
+	};
 };
 
 &extal_clk {
@@ -80,6 +123,22 @@
 	status = "okay";
 };
 
+&mfis_scp {
+	status = "okay";
+};
+
 &scif_clk {
 	clock-frequency = <26000000>;
+};
+
+&stcm_transport {
+	scmi_tx_shmem: sram@1200 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x1200 0x0100>;
+	};
+
+	scmi_rx_shmem: sram@1300 {
+		compatible = "arm,scmi-shmem";
+		reg = <0x1300 0x100>;
+	};
 };

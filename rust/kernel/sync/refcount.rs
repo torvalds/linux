@@ -4,9 +4,11 @@
 //!
 //! C header: [`include/linux/refcount.h`](srctree/include/linux/refcount.h)
 
-use crate::build_assert;
-use crate::sync::atomic::Atomic;
-use crate::types::Opaque;
+use crate::{
+    build_assert::build_assert,
+    sync::atomic::Atomic,
+    types::Opaque, //
+};
 
 /// Atomic reference counter.
 ///

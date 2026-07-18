@@ -50,7 +50,7 @@ static struct mbox_chan *mtk_vcp_mbox_xlate(struct mbox_controller *mbox,
 					    const struct of_phandle_args *sp)
 {
 	if (sp->args_count)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	return &mbox->chans[0];
 }

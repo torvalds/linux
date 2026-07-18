@@ -31,12 +31,12 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_helper.h>
@@ -382,7 +382,7 @@ static void qxl_crtc_update_monitors_config(struct drm_crtc *crtc,
 }
 
 static void qxl_crtc_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
@@ -473,7 +473,7 @@ static const struct drm_framebuffer_funcs qxl_fb_funcs = {
 };
 
 static void qxl_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	qxl_crtc_update_monitors_config(crtc, "enable");
 
@@ -481,7 +481,7 @@ static void qxl_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void qxl_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	drm_crtc_vblank_off(crtc);
 
@@ -495,7 +495,7 @@ static const struct drm_crtc_helper_funcs qxl_crtc_helper_funcs = {
 };
 
 static int qxl_primary_atomic_check(struct drm_plane *plane,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -662,7 +662,7 @@ static void qxl_free_cursor(struct qxl_bo *cursor_bo)
 }
 
 static void qxl_primary_atomic_update(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -695,7 +695,7 @@ static void qxl_primary_atomic_update(struct drm_plane *plane,
 }
 
 static void qxl_primary_atomic_disable(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -712,7 +712,7 @@ static void qxl_primary_atomic_disable(struct drm_plane *plane,
 }
 
 static void qxl_cursor_atomic_update(struct drm_plane *plane,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -729,7 +729,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 }
 
 static void qxl_cursor_atomic_disable(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -1095,6 +1095,10 @@ static const struct drm_connector_helper_funcs qxl_connector_helper_funcs = {
 	.best_encoder = qxl_best_encoder,
 };
 
+static const struct drm_encoder_funcs qxl_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static enum drm_connector_status qxl_conn_detect(
 			struct drm_connector *connector,
 			bool force)
@@ -1169,10 +1173,10 @@ static int qdev_output_init(struct drm_device *dev, int num_output)
 	drm_connector_init(dev, &qxl_output->base,
 			   &qxl_connector_funcs, DRM_MODE_CONNECTOR_VIRTUAL);
 
-	ret = drm_simple_encoder_init(dev, &qxl_output->enc,
-				      DRM_MODE_ENCODER_VIRTUAL);
+	ret = drm_encoder_init(dev, &qxl_output->enc, &qxl_encoder_funcs,
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
 	if (ret) {
-		drm_err(dev, "drm_simple_encoder_init() failed, error %d\n",
+		drm_err(dev, "drm_encoder_init() failed, error %d\n",
 			ret);
 		goto err_drm_connector_cleanup;
 	}

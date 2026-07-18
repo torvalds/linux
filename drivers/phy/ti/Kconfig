@@ -2,53 +2,6 @@
 #
 # Phy drivers for TI platforms
 #
-config PHY_DA8XX_USB
-	tristate "TI DA8xx USB PHY Driver"
-	depends on ARCH_DAVINCI_DA8XX || COMPILE_TEST
-	select GENERIC_PHY
-	select MFD_SYSCON
-	help
-	  Enable this to support the USB PHY on DA8xx SoCs.
-
-	  This driver controls both the USB 1.1 PHY and the USB 2.0 PHY.
-
-config PHY_DM816X_USB
-	tristate "TI dm816x USB PHY driver"
-	depends on ARCH_OMAP2PLUS || COMPILE_TEST
-	depends on USB_SUPPORT
-	select GENERIC_PHY
-	select USB_PHY
-	help
-	  Enable this for dm816x USB to work.
-
-config PHY_AM654_SERDES
-	tristate "TI AM654 SERDES support"
-	depends on OF && (ARCH_K3 || COMPILE_TEST)
-	depends on COMMON_CLK
-	select GENERIC_PHY
-	select MULTIPLEXER
-	select REGMAP_MMIO
-	select MUX_MMIO
-	help
-	  This option enables support for TI AM654 SerDes PHY used for
-	  PCIe.
-
-config PHY_J721E_WIZ
-	tristate "TI J721E WIZ (SERDES Wrapper) support"
-	depends on OF && (ARCH_K3 || COMPILE_TEST)
-	depends on HAS_IOMEM && OF_ADDRESS
-	depends on COMMON_CLK
-	select GENERIC_PHY
-	select MULTIPLEXER
-	select REGMAP_MMIO
-	select MUX_MMIO
-	help
-	  This option enables support for WIZ module present in TI's J721E
-	  SoC. WIZ is a serdes wrapper used to configure some of the input
-	  signals to the SERDES (Sierra/Torrent). This driver configures
-	  three clock selects (pll0, pll1, dig) and resets for each of the
-	  lanes.
-
 config OMAP_CONTROL_PHY
 	tristate "OMAP CONTROL PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
@@ -73,6 +26,78 @@ config OMAP_USB2
 	  The USB OTG controller communicates with the comparator using this
 	  driver.
 
+config PHY_AM654_SERDES
+	tristate "TI AM654 SERDES support"
+	depends on OF && (ARCH_K3 || COMPILE_TEST)
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	select MUX_MMIO
+	help
+	  This option enables support for TI AM654 SerDes PHY used for
+	  PCIe.
+
+config PHY_DA8XX_USB
+	tristate "TI DA8xx USB PHY Driver"
+	depends on ARCH_DAVINCI_DA8XX || COMPILE_TEST
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the USB PHY on DA8xx SoCs.
+
+	  This driver controls both the USB 1.1 PHY and the USB 2.0 PHY.
+
+config PHY_DM816X_USB
+	tristate "TI dm816x USB PHY driver"
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select USB_PHY
+	help
+	  Enable this for dm816x USB to work.
+
+config PHY_J721E_WIZ
+	tristate "TI J721E WIZ (SERDES Wrapper) support"
+	depends on OF && (ARCH_K3 || COMPILE_TEST)
+	depends on HAS_IOMEM && OF_ADDRESS
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	select MUX_MMIO
+	help
+	  This option enables support for WIZ module present in TI's J721E
+	  SoC. WIZ is a serdes wrapper used to configure some of the input
+	  signals to the SERDES (Sierra/Torrent). This driver configures
+	  three clock selects (pll0, pll1, dig) and resets for each of the
+	  lanes.
+
+config PHY_TI_DS125DF111
+	tristate "TI DS125DF111 2-Channel Retimer Driver"
+	depends on OF && I2C
+	select GENERIC_PHY
+	help
+	  Enable this to add support for configuration and runtime management
+	  of the TI DS125DF111 Multi-Protocol 2-Channel Retimer.
+	  The retimer is modeled as a Generic PHY and supports both 10G and 1G
+	  link speeds.
+
+config PHY_TI_GMII_SEL
+	tristate
+	select GENERIC_PHY
+	select REGMAP
+	help
+	  This driver supports configuring of the TI CPSW Port mode depending on
+	  the Ethernet PHY connected to the CPSW Port.
+
+config PHY_TUSB1210
+	tristate "TI TUSB1210 ULPI PHY module"
+	depends on USB_ULPI_BUS
+	select GENERIC_PHY
+	help
+	  Support for TI TUSB1210 USB ULPI PHY.
+
 config TI_PIPE3
 	tristate "TI PIPE3 PHY Driver"
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
@@ -83,13 +108,6 @@ config TI_PIPE3
 	  driver takes care of all the PHY functionality apart from comparator.
 	  This driver interacts with the "OMAP Control PHY Driver" to power
 	  on/off the PHY.
-
-config PHY_TUSB1210
-	tristate "TI TUSB1210 ULPI PHY module"
-	depends on USB_ULPI_BUS
-	select GENERIC_PHY
-	help
-	  Support for TI TUSB1210 USB ULPI PHY.
 
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
@@ -103,11 +121,3 @@ config TWL4030_USB
 	  family chips (including the TWL5030 and TPS659x0 devices).
 	  This transceiver supports high and full speed devices plus,
 	  in host mode, low speed.
-
-config PHY_TI_GMII_SEL
-	tristate
-	select GENERIC_PHY
-	select REGMAP
-	help
-	  This driver supports configuring of the TI CPSW Port mode depending on
-	  the Ethernet PHY connected to the CPSW Port.

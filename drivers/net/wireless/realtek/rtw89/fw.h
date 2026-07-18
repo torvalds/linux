@@ -471,6 +471,28 @@ struct rtw89_h2c_ra_v1 {
 #define RTW89_H2C_RA_V1_W4_RAMASK_UHL16 GENMASK(31, 16)
 #define RTW89_H2C_RA_V1_W5_RAMASK_UHH16 GENMASK(15, 0)
 
+struct rtw89_h2c_ra_tx_history {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_RA_TX_HISTORY_W0_MACID GENMASK(15, 0)
+#define RTW89_H2C_RA_TX_HISTORY_W0_PER_PPDU GENMASK(23, 16)
+
+struct rtw89_h2c_ra_phy_ch_rpt {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+} __packed;
+
+#define RTW89_H2C_RA_PHY_CH_RPT_W1_RPT_TX_COUNT BIT(10)
+
+struct rtw89_h2c_ra_drv_ctrl_fw {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_RA_DRV_CTRL_FW_W0_RPT_TX_COUNT BIT(13)
+
 static inline void RTW89_SET_FWCMD_SEC_IDX(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 0x00, val, GENMASK(7, 0));
@@ -3115,6 +3137,59 @@ struct rtw89_h2c_trx_protect {
 #define RTW89_H2C_TRX_PROTECT_W1_CHINFO_EN BIT(0)
 #define RTW89_H2C_TRX_PROTECT_W1_DFS_EN BIT(1)
 
+enum rtw89_fw_cmd_ofld_arg_src {
+	RTW89_FW_CMD_OFLD_SRC_BB,
+	RTW89_FW_CMD_OFLD_SRC_RF,
+	RTW89_FW_CMD_OFLD_SRC_MAC,
+	RTW89_FW_CMD_OFLD_SRC_RF_DDIE,
+	RTW89_FW_CMD_OFLD_SRC_OTHER,
+};
+
+enum rtw89_fw_cmd_ofld_arg_type {
+	RTW89_FW_CMD_OFLD_WRITE,
+	RTW89_FW_CMD_OFLD_COMPARE,
+	RTW89_FW_CMD_OFLD_DELAY,
+	RTW89_FW_CMD_OFLD_MOVE,
+};
+
+struct rtw89_fw_cmd_ofld_arg {
+	enum rtw89_fw_cmd_ofld_arg_src src;
+	enum rtw89_fw_cmd_ofld_arg_type type;
+	enum rtw89_rf_path rf_path;
+	u32 value;
+	u32 mask;
+	u32 offset;
+	u16 id;
+};
+
+struct rtw89_h2c_cmd_ofld {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+} __packed;
+
+#define RTW89_H2C_CMD_OFLD_W0_SRC GENMASK(1, 0)
+#define RTW89_H2C_CMD_OFLD_W0_TYPE GENMASK(3, 2)
+#define RTW89_H2C_CMD_OFLD_W0_LC BIT(4)
+#define RTW89_H2C_CMD_OFLD_W0_PATH GENMASK(6, 5)
+#define RTW89_H2C_CMD_OFLD_W0_CMD_NUM GENMASK(14, 8)
+#define RTW89_H2C_CMD_OFLD_W0_OFFSET GENMASK(31, 16)
+#define RTW89_H2C_CMD_OFLD_W1_ID GENMASK(15, 0)
+#define RTW89_H2C_CMD_OFLD_W1_BASE_OFFSET GENMASK(31, 16)
+#define RTW89_H2C_CMD_OFLD_W2_VALUE GENMASK(31, 0)
+#define RTW89_H2C_CMD_OFLD_W3_MASK GENMASK(31, 0)
+#define RTW89_W8_MASK_OF_ALIGNED_ADDR(offset) (0xff << (((offset) & 0x3) << 3))
+#define RTW89_W16_MASK_OF_ALIGNED_ADDR(offset) (0xffff << (((offset) & 0x2) * 8))
+
+#define RTW89_FW_CMD_OFLD_NR 125
+struct rtw89_fw_cmd_ofld_info {
+	unsigned int pack_level;
+	u32 cnt;
+	u32 accu_delay;
+	struct rtw89_h2c_cmd_ofld cmds[RTW89_FW_CMD_OFLD_NR];
+};
+
 struct rtw89_h2c_fwips {
 	__le32 w0;
 } __packed;
@@ -3833,14 +3908,16 @@ struct rtw89_c2h_done_ack {
 #define	RTW89_C2H_SCAN_DONE_ACK_RETURN GENMASK(5, 0)
 #define RTW89_C2H_DONE_ACK_W2_H2C_SEQ GENMASK(31, 24)
 
-#define RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
-#define RTW89_GET_MAC_C2H_REV_ACK_CLASS(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 2))
-#define RTW89_GET_MAC_C2H_REV_ACK_FUNC(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(15, 8))
-#define RTW89_GET_MAC_C2H_REV_ACK_H2C_SEQ(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 16))
+struct rtw89_c2h_rev_ack {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_REV_ACK_W2_CAT GENMASK(1, 0)
+#define RTW89_C2H_REV_ACK_W2_CLASS GENMASK(7, 2)
+#define RTW89_C2H_REV_ACK_W2_FUNC GENMASK(15, 8)
+#define RTW89_C2H_REV_ACK_W2_H2C_SEQ GENMASK(23, 16)
 
 struct rtw89_fw_c2h_log_fmt {
 	__le16 signature;
@@ -3916,6 +3993,13 @@ struct rtw89_c2h_lps_rpt {
 	 *   __le32 rfcr_data_a[], size = cnt_rfcr
 	 *   __le32 rfcr_data_b[], size = cnt_rfcr
 	 */
+} __packed;
+
+struct rtw89_c2h_ra_tx_history {
+	struct rtw89_c2h_hdr hdr;
+	__le32 ra_tbtt_cnt;
+	__le32 tx_rate_tot_cnt_hist[RTW89_TX_RATE_NR];
+	__le32 tx_cat_cnt[3];
 } __packed;
 
 struct rtw89_c2h_fw_scan_rpt {
@@ -4464,6 +4548,11 @@ struct rtw89_fw_element_hdr {
 			u8 rsvd[4];
 			u8 rules_and_msgs[];
 		} __packed diag_mac;
+		struct {
+			u8 rfe_type;
+			u8 priv[7];
+			u8 contents[];
+		} __packed tx_comp;
 		struct __rtw89_fw_txpwr_element txpwr;
 		struct __rtw89_fw_regd_element regd;
 	} __packed u;
@@ -4606,6 +4695,7 @@ enum rtw89_fw_ofld_h2c_func {
 	H2C_FUNC_MAC_MACID_PAUSE	= 0x8,
 	H2C_FUNC_USR_EDCA		= 0xF,
 	H2C_FUNC_TSF32_TOGL		= 0x10,
+	H2C_FUNC_CMD_OFLD_PKT		= 0x13,
 	H2C_FUNC_OFLD_CFG		= 0x14,
 	H2C_FUNC_ADD_SCANOFLD_CH	= 0x16,
 	H2C_FUNC_SCANOFLD		= 0x17,
@@ -4715,6 +4805,9 @@ enum rtw89_mrc_h2c_func {
 
 #define H2C_CL_OUTSRC_RA		0x1
 #define H2C_FUNC_OUTSRC_RA_MACIDCFG	0x0
+#define H2C_FUNC_OUTSRC_RA_TX_HISTORY	0x9
+#define H2C_FUNC_OUTSRC_RA_PHY_CH_RPT	0xe
+#define H2C_FUNC_OUTSRC_RA_DRV_CTRL_FW	0xf
 
 #define H2C_CL_OUTSRC_DM		0x2
 #define H2C_FUNC_FW_MCC_DIG		0x6
@@ -5293,6 +5386,9 @@ int rtw89_fw_h2c_rssi_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_rx_phy_ppdu *phy_ppdu);
 int rtw89_fw_h2c_tp_offload(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link);
 int rtw89_fw_h2c_ra(struct rtw89_dev *rtwdev, struct rtw89_ra_info *ra, bool csi);
+int rtw89_fw_h2c_phy_ch_rpt(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_tx_history(struct rtw89_dev *rtwdev, u16 mac_id);
+int rtw89_fw_h2c_drv_ctrl_fw(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type);
@@ -5736,5 +5832,8 @@ enum rtw89_wow_wakeup_ver {
 	RTW89_WOW_REASON_V1,
 	RTW89_WOW_REASON_NUM,
 };
+
+const struct rtw89_io_ops *
+rtw89_fw_cmd_ofld_alloc_and_get_io_ops(struct rtw89_dev *rtwdev);
 
 #endif

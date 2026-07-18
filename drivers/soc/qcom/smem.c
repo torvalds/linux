@@ -85,9 +85,6 @@
 /* Processor/host identifier for the global partition */
 #define SMEM_GLOBAL_HOST	0xfffe
 
-/* Max number of processors/hosts in a system */
-#define SMEM_HOST_COUNT		25
-
 /**
   * struct smem_proc_comm - proc_comm communication struct (legacy)
   * @command:	current command to be executed
@@ -282,7 +279,7 @@ struct qcom_smem {
 	struct platform_device *socinfo;
 	struct smem_ptable *ptable;
 	struct smem_partition global_partition;
-	struct smem_partition partitions[SMEM_HOST_COUNT];
+	struct xarray partitions;
 
 	unsigned num_regions;
 	struct smem_region regions[] __counted_by(num_regions);
@@ -382,7 +379,7 @@ static struct qcom_smem *__smem = INIT_ERR_PTR(-EPROBE_DEFER);
 int qcom_smem_bust_hwspin_lock_by_host(unsigned int host)
 {
 	/* This function is for remote procs, so ignore SMEM_HOST_APPS */
-	if (host == SMEM_HOST_APPS || host >= SMEM_HOST_COUNT)
+	if (host == SMEM_HOST_APPS || !xa_load(&__smem->partitions, host))
 		return -EINVAL;
 
 	return hwspin_lock_bust(__smem->hwlock, SMEM_HOST_ID_TO_HWSPINLOCK_ID(host));
@@ -530,8 +527,8 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 	if (ret)
 		return ret;
 
-	if (host < SMEM_HOST_COUNT && __smem->partitions[host].virt_base) {
-		part = &__smem->partitions[host];
+	part = xa_load(&__smem->partitions, host);
+	if (part) {
 		ret = qcom_smem_alloc_private(__smem, part, item, size);
 	} else if (__smem->global_partition.virt_base) {
 		part = &__smem->global_partition;
@@ -697,8 +694,8 @@ void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 	if (item >= __smem->item_count)
 		return ERR_PTR(-EINVAL);
 
-	if (host < SMEM_HOST_COUNT && __smem->partitions[host].virt_base) {
-		part = &__smem->partitions[host];
+	part = xa_load(&__smem->partitions, host);
+	if (part) {
 		ptr = qcom_smem_get_private(__smem, part, item, size);
 	} else if (__smem->global_partition.virt_base) {
 		part = &__smem->global_partition;
@@ -730,8 +727,8 @@ int qcom_smem_get_free_space(unsigned host)
 	if (IS_ERR(__smem))
 		return PTR_ERR(__smem);
 
-	if (host < SMEM_HOST_COUNT && __smem->partitions[host].virt_base) {
-		part = &__smem->partitions[host];
+	part = xa_load(&__smem->partitions, host);
+	if (part) {
 		phdr = part->virt_base;
 		ret = le32_to_cpu(phdr->offset_free_cached) -
 		      le32_to_cpu(phdr->offset_free_uncached);
@@ -774,12 +771,11 @@ phys_addr_t qcom_smem_virt_to_phys(void *p)
 {
 	struct smem_partition *part;
 	struct smem_region *area;
+	unsigned long index;
 	u64 offset;
 	u32 i;
 
-	for (i = 0; i < SMEM_HOST_COUNT; i++) {
-		part = &__smem->partitions[i];
-
+	xa_for_each(&__smem->partitions, index, part) {
 		if (addr_in_range(part->virt_base, part->size, p)) {
 			offset = p - part->virt_base;
 
@@ -1016,15 +1012,19 @@ static int
 qcom_smem_enumerate_partitions(struct qcom_smem *smem, u16 local_host)
 {
 	struct smem_partition_header *header;
+	struct smem_partition *part;
 	struct smem_ptable_entry *entry;
 	struct smem_ptable *ptable;
 	u16 remote_host;
 	u16 host0, host1;
+	int ret;
 	int i;
 
 	ptable = qcom_smem_get_ptable(smem);
 	if (IS_ERR(ptable))
 		return PTR_ERR(ptable);
+
+	xa_init(&smem->partitions);
 
 	for (i = 0; i < le32_to_cpu(ptable->num_entries); i++) {
 		entry = &ptable->entry[i];
@@ -1042,12 +1042,7 @@ qcom_smem_enumerate_partitions(struct qcom_smem *smem, u16 local_host)
 		else
 			continue;
 
-		if (remote_host >= SMEM_HOST_COUNT) {
-			dev_err(smem->dev, "bad host %u\n", remote_host);
-			return -EINVAL;
-		}
-
-		if (smem->partitions[remote_host].virt_base) {
+		if (xa_load(&smem->partitions, remote_host)) {
 			dev_err(smem->dev, "duplicate host %u\n", remote_host);
 			return -EINVAL;
 		}
@@ -1056,11 +1051,20 @@ qcom_smem_enumerate_partitions(struct qcom_smem *smem, u16 local_host)
 		if (!header)
 			return -EINVAL;
 
-		smem->partitions[remote_host].virt_base = (void __iomem *)header;
-		smem->partitions[remote_host].phys_base = smem->regions[0].aux_base +
-										le32_to_cpu(entry->offset);
-		smem->partitions[remote_host].size = le32_to_cpu(entry->size);
-		smem->partitions[remote_host].cacheline = le32_to_cpu(entry->cacheline);
+		part = devm_kzalloc(smem->dev, sizeof(struct smem_partition), GFP_KERNEL);
+		if (!part)
+			return -ENOMEM;
+
+		part->virt_base = (void __iomem *)header;
+		part->phys_base = smem->regions[0].aux_base + le32_to_cpu(entry->offset);
+		part->size = le32_to_cpu(entry->size);
+		part->cacheline = le32_to_cpu(entry->cacheline);
+
+		ret = xa_insert(&smem->partitions, remote_host, part, GFP_KERNEL);
+		if (ret) {
+			dev_err(smem->dev, "fail to insert host %u\n", remote_host);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1229,7 +1233,6 @@ static int qcom_smem_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	BUILD_BUG_ON(SMEM_HOST_APPS >= SMEM_HOST_COUNT);
 	ret = qcom_smem_enumerate_partitions(smem, SMEM_HOST_APPS);
 	if (ret < 0 && ret != -ENOENT)
 		return ret;
@@ -1249,6 +1252,7 @@ static void qcom_smem_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(__smem->socinfo);
 
+	xa_destroy(&__smem->partitions);
 	/* Set to -EPROBE_DEFER to signal unprobed state */
 	__smem = ERR_PTR(-EPROBE_DEFER);
 }

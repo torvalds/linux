@@ -7,7 +7,7 @@
 
 #include "test_util.h"
 
-#include <bits/endian.h>
+#include <endian.h>
 #include <linux/elf.h>
 
 #include "kvm_util.h"
@@ -156,21 +156,20 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 		TEST_ASSERT(phdr.p_memsz > 0, "Unexpected loadable segment "
 			"memsize of 0,\n"
 			"  phdr index: %u p_memsz: 0x%" PRIx64,
-			n1, (uint64_t) phdr.p_memsz);
-		vm_vaddr_t seg_vstart = align_down(phdr.p_vaddr, vm->page_size);
-		vm_vaddr_t seg_vend = phdr.p_vaddr + phdr.p_memsz - 1;
+			n1, (u64)phdr.p_memsz);
+		gva_t seg_vstart = align_down(phdr.p_vaddr, vm->page_size);
+		gva_t seg_vend = phdr.p_vaddr + phdr.p_memsz - 1;
 		seg_vend |= vm->page_size - 1;
 		size_t seg_size = seg_vend - seg_vstart + 1;
 
-		vm_vaddr_t vaddr = __vm_vaddr_alloc(vm, seg_size, seg_vstart,
-						    MEM_REGION_CODE);
-		TEST_ASSERT(vaddr == seg_vstart, "Unable to allocate "
+		gva_t gva = __vm_alloc(vm, seg_size, seg_vstart, MEM_REGION_CODE);
+		TEST_ASSERT(gva == seg_vstart, "Unable to allocate "
 			"virtual memory for segment at requested min addr,\n"
 			"  segment idx: %u\n"
 			"  seg_vstart: 0x%lx\n"
-			"  vaddr: 0x%lx",
-			n1, seg_vstart, vaddr);
-		memset(addr_gva2hva(vm, vaddr), 0, seg_size);
+			"  gva: 0x%lx",
+			n1, seg_vstart, gva);
+		memset(addr_gva2hva(vm, gva), 0, seg_size);
 		/* TODO(lhuemill): Set permissions of each memory segment
 		 * based on the least-significant 3 bits of phdr.p_flags.
 		 */

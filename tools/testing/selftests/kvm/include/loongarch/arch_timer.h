@@ -70,9 +70,9 @@ static inline void timer_set_next_cmp_ms(unsigned int msec, bool period)
 	csr_write(val, LOONGARCH_CSR_TCFG);
 }
 
-static inline void __delay(uint64_t cycles)
+static inline void __delay(u64 cycles)
 {
-	uint64_t start = timer_get_cycles();
+	u64 start = timer_get_cycles();
 
 	while ((timer_get_cycles() - start) < cycles)
 		cpu_relax();

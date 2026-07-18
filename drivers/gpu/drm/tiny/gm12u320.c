@@ -388,7 +388,7 @@ static void gm12u320_fb_update_work(struct work_struct *work)
 	 * We must draw a frame every 2s otherwise the projector
 	 * switches back to showing its logo.
 	 */
-	queue_delayed_work(system_long_wq, &gm12u320->fb_update.work,
+	queue_delayed_work(system_dfl_long_wq, &gm12u320->fb_update.work,
 			   msecs_to_jiffies(IDLE_TIMEOUT));
 
 	return;
@@ -427,7 +427,8 @@ static void gm12u320_fb_mark_dirty(struct drm_framebuffer *fb,
 	mutex_unlock(&gm12u320->fb_update.lock);
 
 	if (wakeup)
-		mod_delayed_work(system_long_wq, &gm12u320->fb_update.work, 0);
+		mod_delayed_work(system_dfl_long_wq,
+				 &gm12u320->fb_update.work, 0);
 
 	if (old_fb)
 		drm_framebuffer_put(old_fb);

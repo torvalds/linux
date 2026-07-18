@@ -34,6 +34,11 @@ doc: |
 
 definitions:
   -
+    type: const
+    name: max-handle-id
+    value: 0x3fffffe
+    scope: kernel
+  -
     type: enum
     name: scope
     doc: Defines the shaper @id interpretation.
@@ -140,6 +145,8 @@ attribute-sets:
       -
         name: id
         type: u32
+        checks:
+          max: max-handle-id
         doc: |
           Numeric identifier of a shaper. The id semantic depends on
           the scope. For @queue scope it's the queue id and for @node

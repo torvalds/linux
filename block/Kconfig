@@ -221,6 +221,14 @@ config BLOCK_HOLDER_DEPRECATED
 config BLK_MQ_STACKING
 	bool
 
+config BLK_ERROR_INJECTION
+	bool "Enable block layer error injection"
+	select JUMP_LABEL if HAVE_ARCH_JUMP_LABEL
+	help
+	  Enable inserting arbitrary block errors through a debugfs interface.
+
+	  See Documentation/block/error-injection.rst for details.
+
 source "block/Kconfig.iosched"
 
 endif # BLOCK

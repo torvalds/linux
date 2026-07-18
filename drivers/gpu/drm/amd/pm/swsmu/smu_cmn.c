@@ -128,6 +128,61 @@ int smu_cmn_wait_for_response(struct smu_context *smu)
 }
 
 /**
+ * smu_cmn_send_smc_msg_with_params_ext - send an SMU message with 0..N args
+ * @smu: pointer to an SMU context
+ * @msg: message to send
+ * @params: optional input argument array
+ * @num_params: number of input arguments in @params
+ * @read_args: optional output argument array
+ * @num_read_args: number of output arguments to read back
+ * @flags: message flags (SMU_MSG_FLAG_*)
+ * @timeout: per-message timeout in us (0 = use default)
+ *
+ * This helper keeps the raw protocol semantics of struct smu_msg_args while
+ * hiding the per-call boilerplate. It is intended for true multi-parameter
+ * messages. Legacy wrappers such as smu_cmn_send_smc_msg() retain their
+ * existing single-zero-parameter behavior for compatibility.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+int smu_cmn_send_smc_msg_with_params_ext(struct smu_context *smu,
+					 enum smu_message_type msg,
+					 const uint32_t *params,
+					 size_t num_params,
+					 uint32_t *read_args,
+					 size_t num_read_args,
+					 uint32_t flags,
+					 uint32_t timeout)
+{
+	struct smu_msg_ctl *ctl = &smu->msg_ctl;
+	struct smu_msg_args args = {
+		.msg = msg,
+		.num_args = num_params,
+		.num_out_args = num_read_args,
+		.flags = flags,
+		.timeout = timeout,
+	};
+	int ret;
+
+	if ((num_params && !params) || (num_read_args && !read_args))
+		return -EINVAL;
+
+	if (num_params > SMU_MSG_MAX_ARGS || num_read_args > SMU_MSG_MAX_ARGS)
+		return -EINVAL;
+
+	if (num_params)
+		memcpy(args.args, params, num_params * sizeof(*params));
+
+	ret = ctl->ops->send_msg(ctl, &args);
+
+	if (num_read_args)
+		memcpy(read_args, args.out_args,
+		       num_read_args * sizeof(*read_args));
+
+	return ret;
+}
+
+/**
  * smu_cmn_send_smc_msg_with_param -- send a message with parameter
  * @smu: pointer to an SMU context
  * @msg: message to send
@@ -164,23 +219,9 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    uint32_t param,
 				    uint32_t *read_arg)
 {
-	struct smu_msg_ctl *ctl = &smu->msg_ctl;
-	struct smu_msg_args args = {
-		.msg = msg,
-		.args[0] = param,
-		.num_args = 1,
-		.num_out_args = read_arg ? 1 : 0,
-		.flags = 0,
-		.timeout = 0,
-	};
-	int ret;
-
-	ret = ctl->ops->send_msg(ctl, &args);
-
-	if (read_arg)
-		*read_arg = args.out_args[0];
-
-	return ret;
+	return smu_cmn_send_smc_msg_with_params(smu, msg,
+						&param, 1,
+						read_arg, read_arg ? 1 : 0);
 }
 
 int smu_cmn_send_smc_msg(struct smu_context *smu,
@@ -272,11 +313,15 @@ static void __smu_msg_v1_send(struct smu_msg_ctl *ctl, u16 index,
 {
 	struct amdgpu_device *adev = ctl->smu->adev;
 	struct smu_msg_config *cfg = &ctl->config;
+	u32 arg;
 	int i;
 
 	WREG32(cfg->resp_reg, 0);
-	for (i = 0; i < args->num_args; i++)
-		WREG32(cfg->arg_regs[i], args->args[i]);
+	for (i = 0; i < cfg->num_arg_regs; i++) {
+		/* NOTE: Clear unused argument registers to avoid stale values. */
+		arg = i < args->num_args ? args->args[i] : 0;
+		WREG32(cfg->arg_regs[i], arg);
+	}
 	WREG32(cfg->msg_reg, index);
 }
 
@@ -1071,13 +1116,12 @@ int smu_cmn_update_table_read_arg(struct smu_context *smu,
 	struct amdgpu_device *adev = smu->adev;
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *table = &smu_table->driver_table;
-	struct smu_msg_ctl *ctl = &smu->msg_ctl;
-	struct smu_msg_args args;
 	int table_id = smu_cmn_to_asic_specific_index(smu,
 						      CMN2ASIC_MAPPING_TABLE,
 						      table_index);
 	uint32_t table_size;
 	int ret = 0;
+	uint32_t param;
 
 	if (!table_data || table_index >= SMU_TABLE_COUNT || table_id < 0)
 		return -EINVAL;
@@ -1093,18 +1137,14 @@ int smu_cmn_update_table_read_arg(struct smu_context *smu,
 		amdgpu_hdp_flush(adev, NULL);
 	}
 
-	args.msg = drv2smu ? SMU_MSG_TransferTableDram2Smu : SMU_MSG_TransferTableSmu2Dram;
-	args.args[0] = ((argument & 0xFFFF) << 16) | (table_id  & 0xffff);
-	args.num_args = 1;
-	args.out_args[0] = 0;
-	args.num_out_args = read_arg ? 1 : 0;
-	args.flags = read_arg ? SMU_MSG_FLAG_FORCE_READ_ARG : 0;
-	args.timeout = 0;
+	param = ((argument & 0xFFFF) << 16) | (table_id & 0xffff);
 
-	ret = ctl->ops->send_msg(ctl, &args);
-
-	if (read_arg)
-		*read_arg = args.out_args[0];
+	ret = smu_cmn_send_smc_msg_with_params_ext(
+		smu,
+		drv2smu ? SMU_MSG_TransferTableDram2Smu :
+			  SMU_MSG_TransferTableSmu2Dram,
+		&param, 1, read_arg, read_arg ? 1 : 0,
+		read_arg ? SMU_MSG_FLAG_FORCE_READ_ARG : 0, 0);
 
 	if (ret)
 		return ret;
@@ -1370,7 +1410,7 @@ int smu_cmn_print_dpm_clk_levels(struct smu_context *smu,
 		level_index = 1;
 	}
 
-	if (!is_fine_grained) {
+	if (!is_fine_grained || count == 1) {
 		for (i = 0; i < count; i++) {
 			freq_match = !is_deep_sleep &&
 				     smu_cmn_freqs_match(
@@ -1503,4 +1543,144 @@ int smu_cmn_dpm_pcie_width_idx(int width)
 	}
 
 	return ret;
+}
+
+static int smu_cmn_get_pptable_v2_0(struct smu_context *smu, void **table, uint32_t *size)
+{
+	const struct smc_firmware_header_v2_0 *v2;
+	struct amdgpu_device *adev = smu->adev;
+	size_t fw_size = adev->pm.fw->size;
+	uint32_t ppt_offset_bytes;
+	uint32_t ppt_size_bytes;
+
+	if (fw_size < sizeof(*v2)) {
+		dev_err(adev->dev,
+			"SMC firmware too small for v2.0 header: %zu < %zu\n",
+			fw_size, sizeof(*v2));
+		return -EINVAL;
+	}
+
+	v2 = (const struct smc_firmware_header_v2_0 *)adev->pm.fw->data;
+
+	ppt_offset_bytes = le32_to_cpu(v2->ppt_offset_bytes);
+	ppt_size_bytes   = le32_to_cpu(v2->ppt_size_bytes);
+
+	if (ppt_offset_bytes > fw_size ||
+	    ppt_size_bytes > fw_size - ppt_offset_bytes) {
+		dev_err(adev->dev,
+			"pptable v2.0 exceeds firmware binary: offset %u + size %u > %zu\n",
+			ppt_offset_bytes, ppt_size_bytes, fw_size);
+		return -EINVAL;
+	}
+
+	*size  = ppt_size_bytes;
+	*table = (uint8_t *)v2 + ppt_offset_bytes;
+
+	return 0;
+}
+
+static int smu_cmn_get_pptable_v2_1(struct smu_context *smu, void **table,
+				     uint32_t *size, uint32_t pptable_id)
+{
+	const struct smc_firmware_header_v2_1 *v2_1;
+	struct amdgpu_device *adev = smu->adev;
+	struct smc_soft_pptable_entry *entries;
+	size_t fw_size = adev->pm.fw->size;
+	uint32_t pptable_entry_offset;
+	uint32_t ppt_offset_bytes;
+	uint32_t ppt_size_bytes;
+	uint32_t pptable_count;
+	int i;
+
+	if (fw_size < sizeof(*v2_1)) {
+		dev_err(adev->dev,
+			"SMC firmware too small for v2.1 header: %zu < %zu\n",
+			fw_size, sizeof(*v2_1));
+		return -EINVAL;
+	}
+
+	v2_1 = (const struct smc_firmware_header_v2_1 *)adev->pm.fw->data;
+
+	pptable_entry_offset = le32_to_cpu(v2_1->pptable_entry_offset);
+	pptable_count        = le32_to_cpu(v2_1->pptable_count);
+
+	if (pptable_entry_offset > fw_size ||
+	    pptable_count > (fw_size - pptable_entry_offset) / sizeof(*entries)) {
+		dev_err(adev->dev,
+			"pptable v2.1 entry array exceeds firmware binary: offset %u, count %u\n",
+			pptable_entry_offset, pptable_count);
+		return -EINVAL;
+	}
+
+	entries = (struct smc_soft_pptable_entry *)
+		((uint8_t *)v2_1 + pptable_entry_offset);
+
+	for (i = 0; i < pptable_count; i++) {
+		if (le32_to_cpu(entries[i].id) != pptable_id)
+			continue;
+
+		ppt_offset_bytes = le32_to_cpu(entries[i].ppt_offset_bytes);
+		ppt_size_bytes   = le32_to_cpu(entries[i].ppt_size_bytes);
+
+		if (ppt_offset_bytes > fw_size ||
+		    ppt_size_bytes > fw_size - ppt_offset_bytes) {
+			dev_err(adev->dev,
+				"pptable entry %d exceeds firmware binary: offset %u + size %u > %zu\n",
+				i, ppt_offset_bytes, ppt_size_bytes, fw_size);
+			return -EINVAL;
+		}
+
+		*table = (uint8_t *)v2_1 + ppt_offset_bytes;
+		*size  = ppt_size_bytes;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * smu_cmn_get_pptable_from_firmware - locate the soft pptable embedded in the
+ *                                     SMC firmware binary.
+ * @smu:        SMU context
+ * @table:      on success, set to the start of the pptable within the firmware
+ *              blob
+ * @size:       on success, set to the pptable size in bytes
+ * @pptable_id: the entry ID to search for (used only for v2.1 binaries)
+ *
+ * Reads the firmware header version and dispatches to the appropriate v2.x
+ * parser.  Only major version 2 is supported; minor version selects between
+ * the single-entry (v2.0) and multi-entry directory (v2.1) layouts.
+ *
+ * Return: 0 on success, -EINVAL for an unsupported version or if the
+ *         requested pptable cannot be found or exceeds the binary bounds.
+ */
+int smu_cmn_get_pptable_from_firmware(struct smu_context *smu, void **table,
+				      uint32_t *size, uint32_t pptable_id)
+{
+	const struct smc_firmware_header_v1_0 *hdr;
+	struct amdgpu_device *adev = smu->adev;
+	uint16_t version_major, version_minor;
+
+	hdr = (const struct smc_firmware_header_v1_0 *)adev->pm.fw->data;
+	if (!hdr)
+		return -EINVAL;
+
+	dev_info(adev->dev, "use driver provided pptable %d\n", pptable_id);
+
+	version_major = le16_to_cpu(hdr->header.header_version_major);
+	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+	if (version_major != 2) {
+		dev_err(adev->dev, "Unsupported smu firmware version %d.%d\n",
+			version_major, version_minor);
+		return -EINVAL;
+	}
+
+	switch (version_minor) {
+	case 0:
+		return smu_cmn_get_pptable_v2_0(smu, table, size);
+	case 1:
+		return smu_cmn_get_pptable_v2_1(smu, table, size, pptable_id);
+	default:
+		return -EINVAL;
+	}
 }

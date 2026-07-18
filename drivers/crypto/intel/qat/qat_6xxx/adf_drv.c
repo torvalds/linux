@@ -13,6 +13,7 @@
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
 #include <adf_dbgfs.h>
+#include <adf_sysfs_kpt.h>
 
 #include "adf_gen6_shared.h"
 #include "adf_6xxx_hw_data.h"
@@ -189,8 +190,6 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	pci_set_master(pdev);
-
 	/*
 	 * The PCI config space is saved at this point and will be restored
 	 * after a Function Level Reset (FLR) as the FLR does not completely
@@ -219,6 +218,11 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return ret;
 
 	ret = adf_sysfs_init(accel_dev);
+	if (ret)
+		return ret;
+
+	if (!(hw_data->fuses[ADF_FUSECTL0] & ADF_GEN6_KPT_FUSE_BIT))
+		ret = adf_sysfs_init_kpt(accel_dev);
 
 	return ret;
 }

@@ -8,6 +8,8 @@ RXE_NAME="rxe6"
 PORT=4791
 IP6_ADDR="2001:db8::1/64"
 
+source "$(dirname "$0")/../kselftest/ktap_helpers.sh"
+
 exec > /dev/null
 
 # Cleanup function to run on exit (even on failure)
@@ -21,8 +23,8 @@ trap cleanup EXIT
 # 1. Prerequisites check
 for mod in tun veth rdma_rxe; do
     if ! modinfo "$mod" >/dev/null 2>&1; then
-        echo "Error: Kernel module '$mod' not found."
-        exit 1
+        echo "SKIP: Kernel module '$mod' not found." >&2
+        exit $KSFT_SKIP
     fi
 done
 

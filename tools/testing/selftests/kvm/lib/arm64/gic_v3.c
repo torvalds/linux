@@ -50,13 +50,13 @@ static void gicv3_gicd_wait_for_rwp(void)
 	}
 }
 
-static inline volatile void *gicr_base_cpu(uint32_t cpu)
+static inline volatile void *gicr_base_cpu(u32 cpu)
 {
 	/* Align all the redistributors sequentially */
 	return GICR_BASE_GVA + cpu * SZ_64K * 2;
 }
 
-static void gicv3_gicr_wait_for_rwp(uint32_t cpu)
+static void gicv3_gicr_wait_for_rwp(u32 cpu)
 {
 	unsigned int count = 100000; /* 1s */
 
@@ -66,7 +66,7 @@ static void gicv3_gicr_wait_for_rwp(uint32_t cpu)
 	}
 }
 
-static void gicv3_wait_for_rwp(uint32_t cpu_or_dist)
+static void gicv3_wait_for_rwp(u32 cpu_or_dist)
 {
 	if (cpu_or_dist & DIST_BIT)
 		gicv3_gicd_wait_for_rwp();
@@ -91,34 +91,34 @@ static enum gicv3_intid_range get_intid_range(unsigned int intid)
 	return INVALID_RANGE;
 }
 
-static uint64_t gicv3_read_iar(void)
+static u64 gicv3_read_iar(void)
 {
-	uint64_t irqstat = read_sysreg_s(SYS_ICC_IAR1_EL1);
+	u64 irqstat = read_sysreg_s(SYS_ICC_IAR1_EL1);
 
 	dsb(sy);
 	return irqstat;
 }
 
-static void gicv3_write_eoir(uint32_t irq)
+static void gicv3_write_eoir(u32 irq)
 {
 	write_sysreg_s(irq, SYS_ICC_EOIR1_EL1);
 	isb();
 }
 
-static void gicv3_write_dir(uint32_t irq)
+static void gicv3_write_dir(u32 irq)
 {
 	write_sysreg_s(irq, SYS_ICC_DIR_EL1);
 	isb();
 }
 
-static void gicv3_set_priority_mask(uint64_t mask)
+static void gicv3_set_priority_mask(u64 mask)
 {
 	write_sysreg_s(mask, SYS_ICC_PMR_EL1);
 }
 
 static void gicv3_set_eoi_split(bool split)
 {
-	uint32_t val;
+	u32 val;
 
 	/*
 	 * All other fields are read-only, so no need to read CTLR first. In
@@ -129,29 +129,29 @@ static void gicv3_set_eoi_split(bool split)
 	isb();
 }
 
-uint32_t gicv3_reg_readl(uint32_t cpu_or_dist, uint64_t offset)
+u32 gicv3_reg_readl(u32 cpu_or_dist, u64 offset)
 {
 	volatile void *base = cpu_or_dist & DIST_BIT ? GICD_BASE_GVA
 			: sgi_base_from_redist(gicr_base_cpu(cpu_or_dist));
 	return readl(base + offset);
 }
 
-void gicv3_reg_writel(uint32_t cpu_or_dist, uint64_t offset, uint32_t reg_val)
+void gicv3_reg_writel(u32 cpu_or_dist, u64 offset, u32 reg_val)
 {
 	volatile void *base = cpu_or_dist & DIST_BIT ? GICD_BASE_GVA
 			: sgi_base_from_redist(gicr_base_cpu(cpu_or_dist));
 	writel(reg_val, base + offset);
 }
 
-uint32_t gicv3_getl_fields(uint32_t cpu_or_dist, uint64_t offset, uint32_t mask)
+u32 gicv3_getl_fields(u32 cpu_or_dist, u64 offset, u32 mask)
 {
 	return gicv3_reg_readl(cpu_or_dist, offset) & mask;
 }
 
-void gicv3_setl_fields(uint32_t cpu_or_dist, uint64_t offset,
-		uint32_t mask, uint32_t reg_val)
+void gicv3_setl_fields(u32 cpu_or_dist, u64 offset,
+		       u32 mask, u32 reg_val)
 {
-	uint32_t tmp = gicv3_reg_readl(cpu_or_dist, offset) & ~mask;
+	u32 tmp = gicv3_reg_readl(cpu_or_dist, offset) & ~mask;
 
 	tmp |= (reg_val & mask);
 	gicv3_reg_writel(cpu_or_dist, offset, tmp);
@@ -165,14 +165,14 @@ void gicv3_setl_fields(uint32_t cpu_or_dist, uint64_t offset,
  * map that doesn't implement it; like GICR_WAKER's offset of 0x0014 being
  * marked as "Reserved" in the Distributor map.
  */
-static void gicv3_access_reg(uint32_t intid, uint64_t offset,
-		uint32_t reg_bits, uint32_t bits_per_field,
-		bool write, uint32_t *val)
+static void gicv3_access_reg(u32 intid, u64 offset,
+			     u32 reg_bits, u32 bits_per_field,
+			     bool write, u32 *val)
 {
-	uint32_t cpu = guest_get_vcpuid();
+	u32 cpu = guest_get_vcpuid();
 	enum gicv3_intid_range intid_range = get_intid_range(intid);
-	uint32_t fields_per_reg, index, mask, shift;
-	uint32_t cpu_or_dist;
+	u32 fields_per_reg, index, mask, shift;
+	u32 cpu_or_dist;
 
 	GUEST_ASSERT(bits_per_field <= reg_bits);
 	GUEST_ASSERT(!write || *val < (1U << bits_per_field));
@@ -197,32 +197,32 @@ static void gicv3_access_reg(uint32_t intid, uint64_t offset,
 	*val = gicv3_getl_fields(cpu_or_dist, offset, mask) >> shift;
 }
 
-static void gicv3_write_reg(uint32_t intid, uint64_t offset,
-		uint32_t reg_bits, uint32_t bits_per_field, uint32_t val)
+static void gicv3_write_reg(u32 intid, u64 offset,
+			    u32 reg_bits, u32 bits_per_field, u32 val)
 {
 	gicv3_access_reg(intid, offset, reg_bits,
 			bits_per_field, true, &val);
 }
 
-static uint32_t gicv3_read_reg(uint32_t intid, uint64_t offset,
-		uint32_t reg_bits, uint32_t bits_per_field)
+static u32 gicv3_read_reg(u32 intid, u64 offset,
+			  u32 reg_bits, u32 bits_per_field)
 {
-	uint32_t val;
+	u32 val;
 
 	gicv3_access_reg(intid, offset, reg_bits,
 			bits_per_field, false, &val);
 	return val;
 }
 
-static void gicv3_set_priority(uint32_t intid, uint32_t prio)
+static void gicv3_set_priority(u32 intid, u32 prio)
 {
 	gicv3_write_reg(intid, GICD_IPRIORITYR, 32, 8, prio);
 }
 
 /* Sets the intid to be level-sensitive or edge-triggered. */
-static void gicv3_irq_set_config(uint32_t intid, bool is_edge)
+static void gicv3_irq_set_config(u32 intid, bool is_edge)
 {
-	uint32_t val;
+	u32 val;
 
 	/* N/A for private interrupts. */
 	GUEST_ASSERT(get_intid_range(intid) == SPI_RANGE);
@@ -230,57 +230,57 @@ static void gicv3_irq_set_config(uint32_t intid, bool is_edge)
 	gicv3_write_reg(intid, GICD_ICFGR, 32, 2, val);
 }
 
-static void gicv3_irq_enable(uint32_t intid)
+static void gicv3_irq_enable(u32 intid)
 {
 	bool is_spi = get_intid_range(intid) == SPI_RANGE;
-	uint32_t cpu = guest_get_vcpuid();
+	u32 cpu = guest_get_vcpuid();
 
 	gicv3_write_reg(intid, GICD_ISENABLER, 32, 1, 1);
 	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
 }
 
-static void gicv3_irq_disable(uint32_t intid)
+static void gicv3_irq_disable(u32 intid)
 {
 	bool is_spi = get_intid_range(intid) == SPI_RANGE;
-	uint32_t cpu = guest_get_vcpuid();
+	u32 cpu = guest_get_vcpuid();
 
 	gicv3_write_reg(intid, GICD_ICENABLER, 32, 1, 1);
 	gicv3_wait_for_rwp(is_spi ? DIST_BIT : cpu);
 }
 
-static void gicv3_irq_set_active(uint32_t intid)
+static void gicv3_irq_set_active(u32 intid)
 {
 	gicv3_write_reg(intid, GICD_ISACTIVER, 32, 1, 1);
 }
 
-static void gicv3_irq_clear_active(uint32_t intid)
+static void gicv3_irq_clear_active(u32 intid)
 {
 	gicv3_write_reg(intid, GICD_ICACTIVER, 32, 1, 1);
 }
 
-static bool gicv3_irq_get_active(uint32_t intid)
+static bool gicv3_irq_get_active(u32 intid)
 {
 	return gicv3_read_reg(intid, GICD_ISACTIVER, 32, 1);
 }
 
-static void gicv3_irq_set_pending(uint32_t intid)
+static void gicv3_irq_set_pending(u32 intid)
 {
 	gicv3_write_reg(intid, GICD_ISPENDR, 32, 1, 1);
 }
 
-static void gicv3_irq_clear_pending(uint32_t intid)
+static void gicv3_irq_clear_pending(u32 intid)
 {
 	gicv3_write_reg(intid, GICD_ICPENDR, 32, 1, 1);
 }
 
-static bool gicv3_irq_get_pending(uint32_t intid)
+static bool gicv3_irq_get_pending(u32 intid)
 {
 	return gicv3_read_reg(intid, GICD_ISPENDR, 32, 1);
 }
 
 static void gicv3_enable_redist(volatile void *redist_base)
 {
-	uint32_t val = readl(redist_base + GICR_WAKER);
+	u32 val = readl(redist_base + GICR_WAKER);
 	unsigned int count = 100000; /* 1s */
 
 	val &= ~GICR_WAKER_ProcessorSleep;
@@ -293,10 +293,10 @@ static void gicv3_enable_redist(volatile void *redist_base)
 	}
 }
 
-static void gicv3_set_group(uint32_t intid, bool grp)
+static void gicv3_set_group(u32 intid, bool grp)
 {
-	uint32_t cpu_or_dist;
-	uint32_t val;
+	u32 cpu_or_dist;
+	u32 val;
 
 	cpu_or_dist = (get_intid_range(intid) == SPI_RANGE) ? DIST_BIT : guest_get_vcpuid();
 	val = gicv3_reg_readl(cpu_or_dist, GICD_IGROUPR + (intid / 32) * 4);
@@ -424,8 +424,8 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_set_group = gicv3_set_group,
 };
 
-void gic_rdist_enable_lpis(vm_paddr_t cfg_table, size_t cfg_table_size,
-			   vm_paddr_t pend_table)
+void gic_rdist_enable_lpis(gpa_t cfg_table, size_t cfg_table_size,
+			   gpa_t pend_table)
 {
 	volatile void *rdist_base = gicr_base_cpu(guest_get_vcpuid());
 

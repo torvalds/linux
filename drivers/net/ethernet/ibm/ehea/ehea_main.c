@@ -3216,6 +3216,8 @@ static int ehea_create_device_sysfs(struct platform_device *dev)
 		goto out;
 
 	ret = device_create_file(&dev->dev, &dev_attr_remove_port);
+	if (ret)
+		device_remove_file(&dev->dev, &dev_attr_probe_port);
 out:
 	return ret;
 }

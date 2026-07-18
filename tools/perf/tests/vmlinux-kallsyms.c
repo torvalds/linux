@@ -192,7 +192,7 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	struct rb_node *nd;
 	struct symbol *sym;
 	struct map *kallsyms_map;
-	struct machine vmlinux;
+	struct machine vmlinux = { 0 };
 	struct maps *maps;
 	u64 mem_start, mem_end;
 	struct test__vmlinux_matches_kallsyms_cb_args args;
@@ -203,8 +203,10 @@ static int test__vmlinux_matches_kallsyms(struct test_suite *test __maybe_unused
 	 * Init the machines that will hold kernel, modules obtained from
 	 * both vmlinux + .ko files and from /proc/kallsyms split by modules.
 	 */
-	machine__init(&args.kallsyms, "", HOST_KERNEL_ID);
-	machine__init(&vmlinux, "", HOST_KERNEL_ID);
+	if (machine__init(&args.kallsyms, "", HOST_KERNEL_ID))
+		goto out;
+	if (machine__init(&vmlinux, "", HOST_KERNEL_ID))
+		goto out;
 
 	maps = machine__kernel_maps(&vmlinux);
 
@@ -346,7 +348,7 @@ next_pair:
 			 * such as __indirect_thunk_end.
 			 */
 			continue;
-		} else if (is_ignored_symbol(sym->name, sym->type)) {
+		} else if (is_ignored_symbol(sym->name, symbol__type(sym))) {
 			/*
 			 * Ignore hidden symbols, see scripts/kallsyms.c for the details
 			 */

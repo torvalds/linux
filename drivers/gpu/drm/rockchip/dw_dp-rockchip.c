@@ -7,22 +7,21 @@
  */
 
 #include <linux/component.h>
+#include <linux/media-bus-format.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/videodev2.h>
+
 #include <drm/bridge/dw_dp.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
-
-#include <linux/media-bus-format.h>
-#include <linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
-#include "rockchip_drm_vop.h"
 
 struct rockchip_dw_dp {
 	struct dw_dp *base;
@@ -35,7 +34,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
-	struct drm_atomic_state *state = conn_state->state;
+	struct drm_atomic_commit *state = conn_state->state;
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct drm_bridge *bridge  = drm_bridge_chain_get_first_bridge(encoder);
 	struct drm_bridge_state *bridge_state = drm_atomic_get_new_bridge_state(state, bridge);
@@ -82,7 +81,7 @@ static int dw_dp_rockchip_bind(struct device *dev, struct device *master, void *
 	struct drm_connector *connector;
 	int ret;
 
-	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
+	dp = drmm_kzalloc(drm_dev, sizeof(*dp), GFP_KERNEL);
 	if (!dp)
 		return -ENOMEM;
 
@@ -103,38 +102,40 @@ static int dw_dp_rockchip_bind(struct device *dev, struct device *master, void *
 	drm_encoder_helper_add(encoder, &dw_dp_encoder_helper_funcs);
 
 	dp->base = dw_dp_bind(dev, encoder, plat_data);
-	if (IS_ERR(dp->base)) {
-		ret = PTR_ERR(dp->base);
-		return ret;
-	}
+	if (IS_ERR(dp->base))
+		return PTR_ERR(dp->base);
 
 	connector = drm_bridge_connector_init(drm_dev, encoder);
 	if (IS_ERR(connector)) {
-		ret = PTR_ERR(connector);
-		return dev_err_probe(dev, ret, "Failed to init bridge connector");
+		dw_dp_unbind(dp->base);
+		return dev_err_probe(dev, PTR_ERR(connector),
+				     "Failed to init bridge connector\n");
 	}
-
-	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }
 
+static void dw_dp_rockchip_unbind(struct device *dev, struct device *master,
+				  void *data)
+{
+	struct rockchip_dw_dp *dp = dev_get_drvdata(dev);
+
+	dw_dp_unbind(dp->base);
+}
+
 static const struct component_ops dw_dp_rockchip_component_ops = {
 	.bind = dw_dp_rockchip_bind,
+	.unbind = dw_dp_rockchip_unbind,
 };
 
 static int dw_dp_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-
-	return component_add(dev, &dw_dp_rockchip_component_ops);
+	return component_add(&pdev->dev, &dw_dp_rockchip_component_ops);
 }
 
 static void dw_dp_remove(struct platform_device *pdev)
 {
-	struct rockchip_dw_dp *dp = platform_get_drvdata(pdev);
-
-	component_del(dp->dev, &dw_dp_rockchip_component_ops);
+	component_del(&pdev->dev, &dw_dp_rockchip_component_ops);
 }
 
 static const struct dw_dp_plat_data rk3588_dp_plat_data = {

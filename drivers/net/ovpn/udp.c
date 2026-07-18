@@ -125,7 +125,7 @@ static int ovpn_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	return 0;
 
 drop:
-	dev_dstats_rx_dropped(ovpn->dev);
+	ovpn_dev_dstats_rx_dropped(ovpn->dev);
 drop_noovpn:
 	kfree_skb(skb);
 	return 0;
@@ -399,7 +399,7 @@ int ovpn_udp_socket_attach(struct ovpn_socket *ovpn_sock, struct socket *sock,
 	if (!old_data) {
 		/* socket is currently unused - we can take it */
 		rcu_read_unlock();
-		setup_udp_tunnel_sock(sock_net(ovpn_sock->sk), sock, &cfg);
+		setup_udp_tunnel_sock(sock_net(ovpn_sock->sk), sock->sk, &cfg);
 		return 0;
 	}
 

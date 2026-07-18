@@ -20,18 +20,22 @@ static void test_split_simple() {
 	btf__add_struct(btf1, "s1", 4);			/* [3] struct s1 { */
 	btf__add_field(btf1, "f1", 1, 0, 0);		/*      int f1; */
 							/* } */
+	btf__add_typedef(btf1, "t1", 1);		/* [4] typedef int */
 
 	VALIDATE_RAW_BTF(
 		btf1,
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
 		"[2] PTR '(anon)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
-		"\t'f1' type_id=1 bits_offset=0");
+		"\t'f1' type_id=1 bits_offset=0",
+		"[4] TYPEDEF 't1' type_id=1");
 
 	ASSERT_STREQ(btf_type_c_dump(btf1), "\
 struct s1 {\n\
 	int f1;\n\
-};\n\n", "c_dump");
+};\n\
+\n\
+typedef int t1;\n\n", "c_dump");
 
 	btf2 = btf__new_empty_split(btf1);
 	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
@@ -49,19 +53,22 @@ struct s1 {\n\
 	ASSERT_EQ(btf_is_int(t), true, "int_kind");
 	ASSERT_STREQ(btf__str_by_offset(btf2, t->name_off), "int", "int_name");
 
-	btf__add_struct(btf2, "s2", 16);		/* [4] struct s2 {	*/
-	btf__add_field(btf2, "f1", 6, 0, 0);		/*      struct s1 f1;	*/
-	btf__add_field(btf2, "f2", 5, 32, 0);		/*      int f2;		*/
+	btf__add_struct(btf2, "s2", 16);		/* [5] struct s2 {	*/
+	btf__add_field(btf2, "f1", 7, 0, 0);		/*      struct s1 f1;	*/
+	btf__add_field(btf2, "f2", 6, 32, 0);		/*      int f2;		*/
 	btf__add_field(btf2, "f3", 2, 64, 0);		/*      int *f3;	*/
 							/* } */
 
 	/* duplicated int */
-	btf__add_int(btf2, "int", 4, BTF_INT_SIGNED);	/* [5] int */
+	btf__add_int(btf2, "int", 4, BTF_INT_SIGNED);	/* [6] int */
 
 	/* duplicated struct s1 */
-	btf__add_struct(btf2, "s1", 4);			/* [6] struct s1 { */
-	btf__add_field(btf2, "f1", 5, 0, 0);		/*      int f1; */
+	btf__add_struct(btf2, "s1", 4);			/* [7] struct s1 { */
+	btf__add_field(btf2, "f1", 6, 0, 0);		/*      int f1; */
 							/* } */
+
+	/* duplicated typedef t1 */
+	btf__add_typedef(btf2, "t1", 6);		/* [8] typedef int */
 
 	VALIDATE_RAW_BTF(
 		btf2,
@@ -69,18 +76,22 @@ struct s1 {\n\
 		"[2] PTR '(anon)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
-		"[4] STRUCT 's2' size=16 vlen=3\n"
-		"\t'f1' type_id=6 bits_offset=0\n"
-		"\t'f2' type_id=5 bits_offset=32\n"
+		"[4] TYPEDEF 't1' type_id=1",
+		"[5] STRUCT 's2' size=16 vlen=3\n"
+		"\t'f1' type_id=7 bits_offset=0\n"
+		"\t'f2' type_id=6 bits_offset=32\n"
 		"\t'f3' type_id=2 bits_offset=64",
-		"[5] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
-		"[6] STRUCT 's1' size=4 vlen=1\n"
-		"\t'f1' type_id=5 bits_offset=0");
+		"[6] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[7] STRUCT 's1' size=4 vlen=1\n"
+		"\t'f1' type_id=6 bits_offset=0",
+		"[8] TYPEDEF 't1' type_id=6");
 
 	ASSERT_STREQ(btf_type_c_dump(btf2), "\
 struct s1 {\n\
 	int f1;\n\
 };\n\
+\n\
+typedef int t1;\n\
 \n\
 struct s1___2 {\n\
 	int f1;\n\
@@ -90,7 +101,9 @@ struct s2 {\n\
 	struct s1___2 f1;\n\
 	int f2;\n\
 	int *f3;\n\
-};\n\n", "c_dump");
+};\n\
+\n\
+typedef int t1___2;\n\n", "c_dump");
 
 	err = btf__dedup(btf2, NULL);
 	if (!ASSERT_OK(err, "btf_dedup"))
@@ -102,7 +115,8 @@ struct s2 {\n\
 		"[2] PTR '(anon)' type_id=1",
 		"[3] STRUCT 's1' size=4 vlen=1\n"
 		"\t'f1' type_id=1 bits_offset=0",
-		"[4] STRUCT 's2' size=16 vlen=3\n"
+		"[4] TYPEDEF 't1' type_id=1",
+		"[5] STRUCT 's2' size=16 vlen=3\n"
 		"\t'f1' type_id=3 bits_offset=0\n"
 		"\t'f2' type_id=1 bits_offset=32\n"
 		"\t'f3' type_id=2 bits_offset=64");
@@ -111,6 +125,8 @@ struct s2 {\n\
 struct s1 {\n\
 	int f1;\n\
 };\n\
+\n\
+typedef int t1;\n\
 \n\
 struct s2 {\n\
 	struct s1 f1;\n\
@@ -487,9 +503,8 @@ static void test_split_module(void)
 	for (i = 0; i < ARRAY_SIZE(mod_funcs); i++) {
 		const struct btf_param *p;
 		const struct btf_type *t;
-		__u16 vlen;
+		__u32 vlen, j;
 		__u32 id;
-		int j;
 
 		id = btf__find_by_name_kind(btf1, mod_funcs[i], BTF_KIND_FUNC);
 		if (!ASSERT_GE(id, nr_base_types, "func_id"))

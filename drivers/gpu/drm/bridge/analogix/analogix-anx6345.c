@@ -566,7 +566,8 @@ anx6345_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static void anx6345_bridge_disable(struct drm_bridge *bridge)
+static void anx6345_bridge_disable(struct drm_bridge *bridge,
+				   struct drm_atomic_commit *commit)
 {
 	struct anx6345 *anx6345 = bridge_to_anx6345(bridge);
 
@@ -580,7 +581,8 @@ static void anx6345_bridge_disable(struct drm_bridge *bridge)
 		anx6345_poweroff(anx6345);
 }
 
-static void anx6345_bridge_enable(struct drm_bridge *bridge)
+static void anx6345_bridge_enable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct anx6345 *anx6345 = bridge_to_anx6345(bridge);
 	int err;
@@ -600,11 +602,14 @@ static void anx6345_bridge_enable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs anx6345_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = anx6345_bridge_attach,
 	.detach = anx6345_bridge_detach,
 	.mode_valid = anx6345_bridge_mode_valid,
-	.disable = anx6345_bridge_disable,
-	.enable = anx6345_bridge_enable,
+	.atomic_disable = anx6345_bridge_disable,
+	.atomic_enable = anx6345_bridge_enable,
 };
 
 static void unregister_i2c_dummy_clients(struct anx6345 *anx6345)

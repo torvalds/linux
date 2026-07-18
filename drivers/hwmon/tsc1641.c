@@ -721,7 +721,7 @@ static int tsc1641_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsc1641_id[] = {
-	{ "tsc1641", 0 },
+	{ .name = "tsc1641" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tsc1641_id);

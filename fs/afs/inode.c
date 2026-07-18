@@ -25,96 +25,6 @@
 #include "internal.h"
 #include "afs_fs.h"
 
-void afs_init_new_symlink(struct afs_vnode *vnode, struct afs_operation *op)
-{
-	size_t size = strlen(op->create.symlink) + 1;
-	size_t dsize = 0;
-	char *p;
-
-	if (netfs_alloc_folioq_buffer(NULL, &vnode->directory, &dsize, size,
-				      mapping_gfp_mask(vnode->netfs.inode.i_mapping)) < 0)
-		return;
-
-	vnode->directory_size = dsize;
-	p = kmap_local_folio(folioq_folio(vnode->directory, 0), 0);
-	memcpy(p, op->create.symlink, size);
-	kunmap_local(p);
-	set_bit(AFS_VNODE_DIR_READ, &vnode->flags);
-	netfs_single_mark_inode_dirty(&vnode->netfs.inode);
-}
-
-static void afs_put_link(void *arg)
-{
-	struct folio *folio = virt_to_folio(arg);
-
-	kunmap_local(arg);
-	folio_put(folio);
-}
-
-const char *afs_get_link(struct dentry *dentry, struct inode *inode,
-			 struct delayed_call *callback)
-{
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	struct folio *folio;
-	char *content;
-	ssize_t ret;
-
-	if (!dentry) {
-		/* RCU pathwalk. */
-		if (!test_bit(AFS_VNODE_DIR_READ, &vnode->flags) || !afs_check_validity(vnode))
-			return ERR_PTR(-ECHILD);
-		goto good;
-	}
-
-	if (test_bit(AFS_VNODE_DIR_READ, &vnode->flags))
-		goto fetch;
-
-	ret = afs_validate(vnode, NULL);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	if (!test_and_clear_bit(AFS_VNODE_ZAP_DATA, &vnode->flags) &&
-	    test_bit(AFS_VNODE_DIR_READ, &vnode->flags))
-		goto good;
-
-fetch:
-	ret = afs_read_single(vnode, NULL);
-	if (ret < 0)
-		return ERR_PTR(ret);
-	set_bit(AFS_VNODE_DIR_READ, &vnode->flags);
-
-good:
-	folio = folioq_folio(vnode->directory, 0);
-	folio_get(folio);
-	content = kmap_local_folio(folio, 0);
-	set_delayed_call(callback, afs_put_link, content);
-	return content;
-}
-
-int afs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
-{
-	DEFINE_DELAYED_CALL(done);
-	const char *content;
-	int len;
-
-	content = afs_get_link(dentry, d_inode(dentry), &done);
-	if (IS_ERR(content)) {
-		do_delayed_call(&done);
-		return PTR_ERR(content);
-	}
-
-	len = umin(strlen(content), buflen);
-	if (copy_to_user(buffer, content, len))
-		len = -EFAULT;
-	do_delayed_call(&done);
-	return len;
-}
-
-static const struct inode_operations afs_symlink_inode_operations = {
-	.get_link	= afs_get_link,
-	.readlink	= afs_readlink,
-};
-
 static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *parent_vnode)
 {
 	static unsigned long once_only;
@@ -142,9 +52,9 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
 /*
  * Set parameters for the netfs library
  */
-static void afs_set_netfs_context(struct afs_vnode *vnode)
+static void afs_set_netfs_context(struct afs_vnode *vnode, bool is_file)
 {
-	netfs_inode_init(&vnode->netfs, &afs_req_ops, true);
+	netfs_inode_init(&vnode->netfs, &afs_req_ops, is_file);
 }
 
 /*
@@ -183,6 +93,10 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 	inode->i_gid = make_kgid(&init_user_ns, status->group);
 	set_nlink(&vnode->netfs.inode, status->nlink);
 
+	i_size_write(inode, status->size);
+	inode_set_bytes(inode, status->size);
+	afs_set_netfs_context(vnode, status->type == AFS_FTYPE_FILE);
+
 	switch (status->type) {
 	case AFS_FTYPE_FILE:
 		inode->i_mode	= S_IFREG | (status->mode & S_IALLUGO);
@@ -214,18 +128,14 @@ static int afs_inode_init_from_status(struct afs_operation *op,
 			inode->i_mode	= S_IFLNK | status->mode;
 			inode->i_op	= &afs_symlink_inode_operations;
 		}
-		inode->i_mapping->a_ops	= &afs_dir_aops;
+		inode->i_mapping->a_ops	= &afs_symlink_aops;
 		inode_nohighmem(inode);
-		mapping_set_release_always(inode->i_mapping);
 		break;
 	default:
 		dump_vnode(vnode, op->file[0].vnode != vnode ? op->file[0].vnode : NULL);
 		write_sequnlock(&vnode->cb_lock);
 		return afs_protocol_error(NULL, afs_eproto_file_type);
 	}
-
-	afs_set_i_size(vnode, status->size);
-	afs_set_netfs_context(vnode);
 
 	vnode->invalid_before	= status->data_version;
 	trace_afs_set_dv(vnode, status->data_version);
@@ -253,7 +163,8 @@ static void afs_apply_status(struct afs_operation *op,
 {
 	struct afs_file_status *status = &vp->scb.status;
 	struct afs_vnode *vnode = vp->vnode;
-	struct inode *inode = &vnode->netfs.inode;
+	struct netfs_inode *ictx = &vnode->netfs;
+	struct inode *inode = &ictx->inode;
 	struct timespec64 t;
 	umode_t mode;
 	bool unexpected_jump = false;
@@ -336,6 +247,8 @@ static void afs_apply_status(struct afs_operation *op,
 	}
 
 	if (data_changed) {
+		unsigned long long zero_point, size = status->size;
+
 		inode_set_iversion_raw(inode, status->data_version);
 
 		/* Only update the size if the data version jumped.  If the
@@ -343,16 +256,25 @@ static void afs_apply_status(struct afs_operation *op,
 		 * idea of what the size should be that's not the same as
 		 * what's on the server.
 		 */
-		vnode->netfs.remote_i_size = status->size;
-		if (change_size || status->size > i_size_read(inode)) {
-			afs_set_i_size(vnode, status->size);
+		spin_lock(&inode->i_lock);
+
+		if (change_size || size > i_size_read(inode)) {
+			/* We can read the sizes directly as we hold i_lock. */
+			zero_point = ictx->_zero_point;
+
 			if (unexpected_jump)
-				vnode->netfs.zero_point = status->size;
+				zero_point = size;
+			netfs_write_sizes(inode, size, size, zero_point);
+			inode_set_bytes(inode, size);
 			inode_set_ctime_to_ts(inode, t);
 			inode_set_atime_to_ts(inode, t);
+		} else {
+			netfs_write_remote_i_size(inode, size);
 		}
+		spin_unlock(&inode->i_lock);
+
 		if (op->ops == &afs_fetch_data_operation)
-			op->fetch.subreq->rreq->i_size = status->size;
+			op->fetch.subreq->rreq->i_size = size;
 	}
 }
 
@@ -643,7 +565,6 @@ struct inode *afs_root_iget(struct super_block *sb, struct key *key)
 
 	vnode = AFS_FS_I(inode);
 	vnode->cb_v_check = atomic_read(&as->volume->cb_v_break);
-	afs_set_netfs_context(vnode);
 
 	op = afs_alloc_operation(key, as->volume);
 	if (IS_ERR(op)) {
@@ -709,7 +630,7 @@ int afs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 * it, but we need to give userspace the server's size.
 		 */
 		if (S_ISDIR(inode->i_mode))
-			stat->size = vnode->netfs.remote_i_size;
+			stat->size = netfs_read_remote_i_size(inode);
 	} while (read_seqretry(&vnode->cb_lock, seq));
 
 	return 0;
@@ -756,12 +677,15 @@ void afs_evict_inode(struct inode *inode)
 			.range_end = LLONG_MAX,
 		};
 
-		afs_single_writepages(inode->i_mapping, &wbc);
+		inode->i_mapping->a_ops->writepages(inode->i_mapping, &wbc);
 	}
 
+	flush_delayed_work(&vnode->lock_work);
 	netfs_wait_for_outstanding_io(inode);
 	truncate_inode_pages_final(&inode->i_data);
 	netfs_free_folioq_buffer(vnode->directory);
+	if (vnode->symlink)
+		afs_evict_symlink(vnode);
 
 	afs_set_cache_aux(vnode, &aux);
 	netfs_clear_inode_writeback(inode, &aux);
@@ -889,7 +813,7 @@ int afs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 */
 		if (!(attr->ia_valid & (supported & ~ATTR_SIZE & ~ATTR_MTIME)) &&
 		    attr->ia_size < i_size &&
-		    attr->ia_size > vnode->netfs.remote_i_size) {
+		    attr->ia_size > netfs_read_remote_i_size(inode)) {
 			truncate_setsize(inode, attr->ia_size);
 			netfs_resize_file(&vnode->netfs, size, false);
 			fscache_resize_cookie(afs_vnode_cache(vnode),

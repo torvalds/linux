@@ -2,7 +2,7 @@
 /*
  * test_maple_tree.c: Test the maple tree API
  * Copyright (c) 2018-2022 Oracle Corporation
- * Author: Liam R. Howlett <Liam.Howlett@Oracle.com>
+ * Author: Liam R. Howlett <liam@infradead.org>
  *
  * Any tests that only require the interface of the tree.
  */
@@ -4021,6 +4021,6 @@ static void __exit maple_tree_harvest(void)
 
 module_init(maple_tree_seed);
 module_exit(maple_tree_harvest);
-MODULE_AUTHOR("Liam R. Howlett <Liam.Howlett@Oracle.com>");
+MODULE_AUTHOR("Liam R. Howlett <liam@infradead.org>");
 MODULE_DESCRIPTION("maple tree API test module");
 MODULE_LICENSE("GPL");

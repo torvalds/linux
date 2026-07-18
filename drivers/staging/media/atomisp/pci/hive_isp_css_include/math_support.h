@@ -14,10 +14,4 @@
 #define CEIL_MUL(a, b)       (CEIL_DIV(a, b) * (b))
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
 
-/*
- * For SP and ISP, SDK provides the definition of OP_std_modadd.
- * We need it only for host
- */
-#define OP_std_modadd(base, offset, size) ((base + offset) % (size))
-
 #endif /* __MATH_SUPPORT_H */

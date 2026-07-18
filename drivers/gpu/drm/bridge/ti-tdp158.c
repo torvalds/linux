@@ -19,7 +19,7 @@ struct tdp158 {
 };
 
 static void tdp158_enable(struct drm_bridge *bridge,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_commit *state)
 {
 	int err;
 	struct tdp158 *tdp158 = bridge->driver_private;
@@ -36,7 +36,7 @@ static void tdp158_enable(struct drm_bridge *bridge,
 }
 
 static void tdp158_disable(struct drm_bridge *bridge,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	struct tdp158 *tdp158 = bridge->driver_private;
 
@@ -60,7 +60,7 @@ static const struct drm_bridge_funcs tdp158_bridge_funcs = {
 	.atomic_disable = tdp158_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int tdp158_probe(struct i2c_client *client)

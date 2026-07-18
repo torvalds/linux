@@ -659,7 +659,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	void __iomem *base;
 	struct device *dev = &adev->dev;
 	struct cti_drvdata *drvdata = NULL;
-	struct coresight_desc cti_desc;
+	struct coresight_desc cti_desc = { 0 };
 	struct coresight_platform_data *pdata = NULL;
 	struct resource *res = &adev->res;
 
@@ -702,11 +702,14 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	 * eCPU ID. System CTIs will have the name cti_sys<I> where I is an
 	 * index allocated by order of discovery.
 	 */
-	if (drvdata->ctidev.cpu >= 0)
+	if (drvdata->ctidev.cpu >= 0) {
+		cti_desc.cpu = drvdata->ctidev.cpu;
+		cti_desc.flags = CORESIGHT_DESC_CPU_BOUND;
 		cti_desc.name = devm_kasprintf(dev, GFP_KERNEL, "cti_cpu%d",
 					       drvdata->ctidev.cpu);
-	else
+	} else {
 		cti_desc.name = coresight_alloc_device_name("cti_sys", dev);
+	}
 	if (!cti_desc.name)
 		return -ENOMEM;
 

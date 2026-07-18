@@ -137,7 +137,7 @@ static const struct rcar_du_device_info rcar_du_r8a774a1_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(1),
+	.dpll_mask = BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a774b1_info = {
@@ -168,7 +168,7 @@ static const struct rcar_du_device_info rcar_du_r8a774b1_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(1),
+	.dpll_mask = BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a774c0_info = {
@@ -196,7 +196,7 @@ static const struct rcar_du_device_info rcar_du_r8a774c0_info = {
 	},
 	.num_lvds = 2,
 	.num_rpf = 4,
-	.lvds_clk_mask =  BIT(1) | BIT(0),
+	.lvds_clk_mask = BIT(1) | BIT(0),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a774e1_info = {
@@ -227,7 +227,7 @@ static const struct rcar_du_device_info rcar_du_r8a774e1_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(1),
+	.dpll_mask = BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7779_info = {
@@ -385,7 +385,7 @@ static const struct rcar_du_device_info rcar_du_r8a7795_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(2) | BIT(1),
+	.dpll_mask = BIT(2) | BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a7796_info = {
@@ -416,7 +416,7 @@ static const struct rcar_du_device_info rcar_du_r8a7796_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(1),
+	.dpll_mask = BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a77965_info = {
@@ -447,7 +447,7 @@ static const struct rcar_du_device_info rcar_du_r8a77965_info = {
 	},
 	.num_lvds = 1,
 	.num_rpf = 5,
-	.dpll_mask =  BIT(1),
+	.dpll_mask = BIT(1),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a77970_info = {
@@ -502,7 +502,7 @@ static const struct rcar_du_device_info rcar_du_r8a7799x_info = {
 	},
 	.num_lvds = 2,
 	.num_rpf = 5,
-	.lvds_clk_mask =  BIT(1) | BIT(0),
+	.lvds_clk_mask = BIT(1) | BIT(0),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a779a0_info = {
@@ -523,7 +523,7 @@ static const struct rcar_du_device_info rcar_du_r8a779a0_info = {
 		},
 	},
 	.num_rpf = 5,
-	.dsi_clk_mask =  BIT(1) | BIT(0),
+	.dsi_clk_mask = BIT(1) | BIT(0),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a779g0_info = {
@@ -544,7 +544,7 @@ static const struct rcar_du_device_info rcar_du_r8a779g0_info = {
 		},
 	},
 	.num_rpf = 5,
-	.dsi_clk_mask =  BIT(1) | BIT(0),
+	.dsi_clk_mask = BIT(1) | BIT(0),
 };
 
 static const struct rcar_du_device_info rcar_du_r8a779h0_info = {

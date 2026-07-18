@@ -17,7 +17,6 @@
 #include <linux/iio/backend.h>
 #include <linux/iio/iio.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -175,12 +174,12 @@ enum ad7960_mode {
 
 static int ad7625_set_sampling_freq(struct ad7625_state *st, u32 freq)
 {
-	u32 target;
 	struct pwm_waveform clk_gate_wf = { }, cnv_wf = { };
+	unsigned long target;
 	int ret;
 
 	target = DIV_ROUND_UP(NSEC_PER_SEC, freq);
-	cnv_wf.period_length_ns = clamp(target, 100, 10 * KILO);
+	cnv_wf.period_length_ns = clamp(target, 100UL, 10UL * NSEC_PER_USEC);
 
 	/*
 	 * Use the maximum conversion time t_CNVH from the datasheet as

@@ -24,11 +24,32 @@ static int perf_session__process_compressed_event(const struct perf_tool *tool _
 	size_t mmap_len, decomp_len = perf_session__env(session)->comp_mmap_len;
 	struct decomp *decomp, *decomp_last = session->active_decomp->decomp_last;
 
+	if (!decomp_len) {
+		pr_err("Compressed events found but HEADER_COMPRESSED not set\n");
+		return -1;
+	}
+
 	if (decomp_last) {
+		/* Prevent u64 underflow in decomp_last_rem */
+		if (decomp_last->head > decomp_last->size)
+			return -1;
 		decomp_last_rem = decomp_last->size - decomp_last->head;
+		/*
+		 * Check before adding: on 32-bit, size_t += u64
+		 * silently truncates, bypassing the overflow check
+		 * below and producing an undersized buffer.
+		 */
+		if (decomp_last_rem > SIZE_MAX - decomp_len - sizeof(struct decomp)) {
+			pr_err("Decompression buffer size overflow\n");
+			return -1;
+		}
 		decomp_len += decomp_last_rem;
 	}
 
+	if (decomp_len > SIZE_MAX - sizeof(struct decomp)) {
+		pr_err("Decompression buffer size overflow\n");
+		return -1;
+	}
 	mmap_len = sizeof(struct decomp) + decomp_len;
 	decomp = mmap(NULL, mmap_len, PROT_READ|PROT_WRITE,
 		      MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
@@ -47,14 +68,37 @@ static int perf_session__process_compressed_event(const struct perf_tool *tool _
 		decomp->size = decomp_last_rem;
 	}
 
+	/*
+	 * Events are read directly from the mmap'd file; fields could
+	 * theoretically change via a FUSE-backed file, but that applies
+	 * to the entire event processing pipeline, not just here.
+	 */
 	if (event->header.type == PERF_RECORD_COMPRESSED) {
+		if (event->header.size < sizeof(struct perf_record_compressed))
+			goto err_decomp;
 		src = (void *)event + sizeof(struct perf_record_compressed);
 		src_size = event->pack.header.size - sizeof(struct perf_record_compressed);
 	} else if (event->header.type == PERF_RECORD_COMPRESSED2) {
+		/*
+		 * prefetch_event() only guarantees that the 8-byte
+		 * event header fits; validate that header.size covers
+		 * the data_size field before accessing it, otherwise a
+		 * crafted event reads data_size from adjacent memory.
+		 */
+		if (event->header.size < sizeof(struct perf_record_compressed2))
+			goto err_decomp;
 		src = (void *)event + sizeof(struct perf_record_compressed2);
 		src_size = event->pack2.data_size;
+		/*
+		 * data_size is independent of header.size (which
+		 * includes padding); verify it doesn't exceed the
+		 * actual payload to prevent out-of-bounds reads in
+		 * zstd_decompress_stream().
+		 */
+		if (src_size > event->header.size - sizeof(struct perf_record_compressed2))
+			goto err_decomp;
 	} else {
-		return -1;
+		goto err_decomp;
 	}
 
 	decomp_size = zstd_decompress_stream(session->active_decomp->zstd_decomp, src, src_size,
@@ -77,6 +121,11 @@ static int perf_session__process_compressed_event(const struct perf_tool *tool _
 	pr_debug("decomp (B): %zd to %zd\n", src_size, decomp_size);
 
 	return 0;
+
+err_decomp:
+	munmap(decomp, mmap_len);
+	pr_err("Couldn't decompress data\n");
+	return -1;
 }
 #endif
 
@@ -110,7 +159,6 @@ static int process_event_synth_event_update_stub(const struct perf_tool *tool __
 int process_event_sample_stub(const struct perf_tool *tool __maybe_unused,
 			      union perf_event *event __maybe_unused,
 			      struct perf_sample *sample __maybe_unused,
-			      struct evsel *evsel __maybe_unused,
 			      struct machine *machine __maybe_unused)
 {
 	dump_printf(": unhandled!\n");
@@ -285,6 +333,7 @@ void perf_tool__init(struct perf_tool *tool, bool ordered_events)
 	tool->no_warn = false;
 	tool->show_feat_hdr = SHOW_FEAT_NO_HEADER;
 	tool->merge_deferred_callchains = true;
+	tool->dont_split_sample_group = false;
 
 	tool->sample = process_event_sample_stub;
 	tool->mmap = process_event_stub;
@@ -348,12 +397,11 @@ bool perf_tool__compressed_is_stub(const struct perf_tool *tool)
 	static int delegate_ ## name(const struct perf_tool *tool, \
 				     union perf_event *event, \
 				     struct perf_sample *sample, \
-				     struct evsel *evsel, \
 				     struct machine *machine) \
 	{								\
 		struct delegate_tool *del_tool = container_of(tool, struct delegate_tool, tool); \
 		struct perf_tool *delegate = del_tool->delegate;		\
-		return delegate->name(delegate, event, sample, evsel, machine);	\
+		return delegate->name(delegate, event, sample, machine);	\
 	}
 CREATE_DELEGATE_SAMPLE(read);
 CREATE_DELEGATE_SAMPLE(sample);
@@ -433,6 +481,8 @@ CREATE_DELEGATE_OP2(stat_config);
 CREATE_DELEGATE_OP2(stat_round);
 CREATE_DELEGATE_OP2(thread_map);
 CREATE_DELEGATE_OP2(time_conv);
+CREATE_DELEGATE_OP2(schedstat_cpu);
+CREATE_DELEGATE_OP2(schedstat_domain);
 CREATE_DELEGATE_OP2(tracing_data);
 
 #define CREATE_DELEGATE_OP3(name)					\
@@ -470,6 +520,7 @@ void delegate_tool__init(struct delegate_tool *tool, struct perf_tool *delegate)
 	tool->tool.no_warn = delegate->no_warn;
 	tool->tool.show_feat_hdr = delegate->show_feat_hdr;
 	tool->tool.merge_deferred_callchains = delegate->merge_deferred_callchains;
+	tool->tool.dont_split_sample_group = delegate->dont_split_sample_group;
 
 	tool->tool.sample = delegate_sample;
 	tool->tool.read = delegate_read;
@@ -516,4 +567,6 @@ void delegate_tool__init(struct delegate_tool *tool, struct perf_tool *delegate)
 	tool->tool.bpf_metadata = delegate_bpf_metadata;
 	tool->tool.compressed = delegate_compressed;
 	tool->tool.auxtrace = delegate_auxtrace;
+	tool->tool.schedstat_cpu = delegate_schedstat_cpu;
+	tool->tool.schedstat_domain = delegate_schedstat_domain;
 }

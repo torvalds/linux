@@ -46,6 +46,8 @@ void set_ddc_transaction_type(
 		struct ddc_service *ddc,
 		enum ddc_transaction_type type);
 
+uint8_t link_get_ddc_aux_inst(const struct dc_link *link);
+
 uint32_t link_get_aux_defer_delay(struct ddc_service *ddc);
 
 bool link_is_in_aux_transaction_mode(struct ddc_service *ddc);
@@ -94,6 +96,10 @@ void write_scdc_data(
 void read_scdc_data(
 		struct ddc_service *ddc_service);
 
+void write_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *write_buf, uint8_t offset, uint8_t write_len);
+int read_idcc_data(struct ddc_service *ddc_service, enum hdmi_idcc_scope idcc_scope,
+		uint8_t *read_buf, uint8_t offset, uint8_t read_len);
 void set_dongle_type(struct ddc_service *ddc,
 		enum display_dongle_type dongle_type);
 

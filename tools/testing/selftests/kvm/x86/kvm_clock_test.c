@@ -17,8 +17,8 @@
 #include "processor.h"
 
 struct test_case {
-	uint64_t kvmclock_base;
-	int64_t realtime_offset;
+	u64 kvmclock_base;
+	s64 realtime_offset;
 };
 
 static struct test_case test_cases[] = {
@@ -31,7 +31,7 @@ static struct test_case test_cases[] = {
 #define GUEST_SYNC_CLOCK(__stage, __val)			\
 		GUEST_SYNC_ARGS(__stage, __val, 0, 0, 0)
 
-static void guest_main(vm_paddr_t pvti_pa, struct pvclock_vcpu_time_info *pvti)
+static void guest_main(gpa_t pvti_pa, struct pvclock_vcpu_time_info *pvti)
 {
 	int i;
 
@@ -52,7 +52,7 @@ static inline void assert_flags(struct kvm_clock_data *data)
 static void handle_sync(struct ucall *uc, struct kvm_clock_data *start,
 			struct kvm_clock_data *end)
 {
-	uint64_t obs, exp_lo, exp_hi;
+	u64 obs, exp_lo, exp_hi;
 
 	obs = uc->args[2];
 	exp_lo = start->clock;
@@ -135,8 +135,8 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
-	vm_vaddr_t pvti_gva;
-	vm_paddr_t pvti_gpa;
+	gva_t pvti_gva;
+	gpa_t pvti_gpa;
 	struct kvm_vm *vm;
 	int flags;
 
@@ -147,7 +147,7 @@ int main(void)
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 
-	pvti_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000);
+	pvti_gva = vm_alloc(vm, getpagesize(), 0x10000);
 	pvti_gpa = addr_gva2gpa(vm, pvti_gva);
 	vcpu_args_set(vcpu, 2, pvti_gpa, pvti_gva);
 

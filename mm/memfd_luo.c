@@ -50,6 +50,11 @@
  *   memfds are always opened with ``O_RDWR`` and ``O_LARGEFILE``. This property
  *   is maintained.
  *
+ * Seals
+ *   File seals set on the memfd are preserved and re-applied on restore.
+ *   Only seals known to this LUO version (see ``MEMFD_LUO_ALL_SEALS``) may
+ *   be present; preservation fails with ``-EOPNOTSUPP`` otherwise.
+ *
  * Non-Preserved Properties
  * ========================
  *
@@ -61,10 +66,6 @@
  *   A memfd can be created with the ``MFD_CLOEXEC`` flag that sets the
  *   ``FD_CLOEXEC`` on the file. This flag is not preserved and must be set
  *   again after restore via ``fcntl()``.
- *
- * Seals
- *   File seals are not preserved. The file is unsealed on restore and if
- *   needed, must be sealed again via ``fcntl()``.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -259,7 +260,7 @@ static int memfd_luo_preserve(struct liveupdate_file_op_args *args)
 	struct inode *inode = file_inode(args->file);
 	struct memfd_luo_folio_ser *folios_ser;
 	struct memfd_luo_ser *ser;
-	u64 nr_folios;
+	u64 nr_folios, inode_size;
 	int err = 0, seals;
 
 	inode_lock(inode);
@@ -285,7 +286,18 @@ static int memfd_luo_preserve(struct liveupdate_file_op_args *args)
 	}
 
 	ser->pos = args->file->f_pos;
-	ser->size = i_size_read(inode);
+	inode_size = i_size_read(inode);
+
+	/*
+	 * memfd_pin_folios() caps at UINT_MAX folios; refuse larger
+	 * files to avoid silently preserving only a prefix.
+	 */
+	if (DIV_ROUND_UP_ULL(inode_size, PAGE_SIZE) > UINT_MAX) {
+		err = -EFBIG;
+		goto err_free_ser;
+	}
+
+	ser->size = inode_size;
 	ser->seals = seals;
 
 	err = memfd_luo_preserve_folios(args->file, &ser->folios,
@@ -427,6 +439,7 @@ static int memfd_luo_retrieve_folios(struct file *file,
 		if (!folio) {
 			pr_err("Unable to restore folio at physical address: %llx\n",
 			       phys);
+			err = -EIO;
 			goto put_folios;
 		}
 		index = pfolio->index;

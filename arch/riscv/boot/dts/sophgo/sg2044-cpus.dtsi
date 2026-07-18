@@ -14,7 +14,7 @@
 
 		cpu0: cpu@0 {
 			compatible = "thead,c920", "riscv";
-			reg = <0>;
+			reg = <0x0>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -50,7 +50,7 @@
 
 		cpu1: cpu@1 {
 			compatible = "thead,c920", "riscv";
-			reg = <1>;
+			reg = <0x1>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -86,7 +86,7 @@
 
 		cpu2: cpu@2 {
 			compatible = "thead,c920", "riscv";
-			reg = <2>;
+			reg = <0x2>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -122,7 +122,7 @@
 
 		cpu3: cpu@3 {
 			compatible = "thead,c920", "riscv";
-			reg = <3>;
+			reg = <0x3>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -158,7 +158,7 @@
 
 		cpu4: cpu@4 {
 			compatible = "thead,c920", "riscv";
-			reg = <4>;
+			reg = <0x4>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -194,7 +194,7 @@
 
 		cpu5: cpu@5 {
 			compatible = "thead,c920", "riscv";
-			reg = <5>;
+			reg = <0x5>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -230,7 +230,7 @@
 
 		cpu6: cpu@6 {
 			compatible = "thead,c920", "riscv";
-			reg = <6>;
+			reg = <0x6>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -266,7 +266,7 @@
 
 		cpu7: cpu@7 {
 			compatible = "thead,c920", "riscv";
-			reg = <7>;
+			reg = <0x7>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -302,7 +302,7 @@
 
 		cpu8: cpu@8 {
 			compatible = "thead,c920", "riscv";
-			reg = <8>;
+			reg = <0x8>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -338,7 +338,7 @@
 
 		cpu9: cpu@9 {
 			compatible = "thead,c920", "riscv";
-			reg = <9>;
+			reg = <0x9>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -372,9 +372,9 @@
 			};
 		};
 
-		cpu10: cpu@10 {
+		cpu10: cpu@a {
 			compatible = "thead,c920", "riscv";
-			reg = <10>;
+			reg = <0xa>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -408,9 +408,9 @@
 			};
 		};
 
-		cpu11: cpu@11 {
+		cpu11: cpu@b {
 			compatible = "thead,c920", "riscv";
-			reg = <11>;
+			reg = <0xb>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -444,9 +444,9 @@
 			};
 		};
 
-		cpu12: cpu@12 {
+		cpu12: cpu@c {
 			compatible = "thead,c920", "riscv";
-			reg = <12>;
+			reg = <0xc>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -480,9 +480,9 @@
 			};
 		};
 
-		cpu13: cpu@13 {
+		cpu13: cpu@d {
 			compatible = "thead,c920", "riscv";
-			reg = <13>;
+			reg = <0xd>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -516,9 +516,9 @@
 			};
 		};
 
-		cpu14: cpu@14 {
+		cpu14: cpu@e {
 			compatible = "thead,c920", "riscv";
-			reg = <14>;
+			reg = <0xe>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -552,9 +552,9 @@
 			};
 		};
 
-		cpu15: cpu@15 {
+		cpu15: cpu@f {
 			compatible = "thead,c920", "riscv";
-			reg = <15>;
+			reg = <0xf>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -588,9 +588,9 @@
 			};
 		};
 
-		cpu16: cpu@16 {
+		cpu16: cpu@10 {
 			compatible = "thead,c920", "riscv";
-			reg = <16>;
+			reg = <0x10>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -624,9 +624,9 @@
 			};
 		};
 
-		cpu17: cpu@17 {
+		cpu17: cpu@11 {
 			compatible = "thead,c920", "riscv";
-			reg = <17>;
+			reg = <0x11>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -660,9 +660,9 @@
 			};
 		};
 
-		cpu18: cpu@18 {
+		cpu18: cpu@12 {
 			compatible = "thead,c920", "riscv";
-			reg = <18>;
+			reg = <0x12>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -696,9 +696,9 @@
 			};
 		};
 
-		cpu19: cpu@19 {
+		cpu19: cpu@13 {
 			compatible = "thead,c920", "riscv";
-			reg = <19>;
+			reg = <0x13>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -732,9 +732,9 @@
 			};
 		};
 
-		cpu20: cpu@20 {
+		cpu20: cpu@14 {
 			compatible = "thead,c920", "riscv";
-			reg = <20>;
+			reg = <0x14>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -768,9 +768,9 @@
 			};
 		};
 
-		cpu21: cpu@21 {
+		cpu21: cpu@15 {
 			compatible = "thead,c920", "riscv";
-			reg = <21>;
+			reg = <0x15>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -804,9 +804,9 @@
 			};
 		};
 
-		cpu22: cpu@22 {
+		cpu22: cpu@16 {
 			compatible = "thead,c920", "riscv";
-			reg = <22>;
+			reg = <0x16>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -840,9 +840,9 @@
 			};
 		};
 
-		cpu23: cpu@23 {
+		cpu23: cpu@17 {
 			compatible = "thead,c920", "riscv";
-			reg = <23>;
+			reg = <0x17>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -876,9 +876,9 @@
 			};
 		};
 
-		cpu24: cpu@24 {
+		cpu24: cpu@18 {
 			compatible = "thead,c920", "riscv";
-			reg = <24>;
+			reg = <0x18>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -912,9 +912,9 @@
 			};
 		};
 
-		cpu25: cpu@25 {
+		cpu25: cpu@19 {
 			compatible = "thead,c920", "riscv";
-			reg = <25>;
+			reg = <0x19>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -948,9 +948,9 @@
 			};
 		};
 
-		cpu26: cpu@26 {
+		cpu26: cpu@1a {
 			compatible = "thead,c920", "riscv";
-			reg = <26>;
+			reg = <0x1a>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -984,9 +984,9 @@
 			};
 		};
 
-		cpu27: cpu@27 {
+		cpu27: cpu@1b {
 			compatible = "thead,c920", "riscv";
-			reg = <27>;
+			reg = <0x1b>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1020,9 +1020,9 @@
 			};
 		};
 
-		cpu28: cpu@28 {
+		cpu28: cpu@1c {
 			compatible = "thead,c920", "riscv";
-			reg = <28>;
+			reg = <0x1c>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1056,9 +1056,9 @@
 			};
 		};
 
-		cpu29: cpu@29 {
+		cpu29: cpu@1d {
 			compatible = "thead,c920", "riscv";
-			reg = <29>;
+			reg = <0x1d>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1092,9 +1092,9 @@
 			};
 		};
 
-		cpu30: cpu@30 {
+		cpu30: cpu@1e {
 			compatible = "thead,c920", "riscv";
-			reg = <30>;
+			reg = <0x1e>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1128,9 +1128,9 @@
 			};
 		};
 
-		cpu31: cpu@31 {
+		cpu31: cpu@1f {
 			compatible = "thead,c920", "riscv";
-			reg = <31>;
+			reg = <0x1f>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1164,9 +1164,9 @@
 			};
 		};
 
-		cpu32: cpu@32 {
+		cpu32: cpu@20 {
 			compatible = "thead,c920", "riscv";
-			reg = <32>;
+			reg = <0x20>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1200,9 +1200,9 @@
 			};
 		};
 
-		cpu33: cpu@33 {
+		cpu33: cpu@21 {
 			compatible = "thead,c920", "riscv";
-			reg = <33>;
+			reg = <0x21>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1236,9 +1236,9 @@
 			};
 		};
 
-		cpu34: cpu@34 {
+		cpu34: cpu@22 {
 			compatible = "thead,c920", "riscv";
-			reg = <34>;
+			reg = <0x22>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1272,9 +1272,9 @@
 			};
 		};
 
-		cpu35: cpu@35 {
+		cpu35: cpu@23 {
 			compatible = "thead,c920", "riscv";
-			reg = <35>;
+			reg = <0x23>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1308,9 +1308,9 @@
 			};
 		};
 
-		cpu36: cpu@36 {
+		cpu36: cpu@24 {
 			compatible = "thead,c920", "riscv";
-			reg = <36>;
+			reg = <0x24>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1344,9 +1344,9 @@
 			};
 		};
 
-		cpu37: cpu@37 {
+		cpu37: cpu@25 {
 			compatible = "thead,c920", "riscv";
-			reg = <37>;
+			reg = <0x25>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1380,9 +1380,9 @@
 			};
 		};
 
-		cpu38: cpu@38 {
+		cpu38: cpu@26 {
 			compatible = "thead,c920", "riscv";
-			reg = <38>;
+			reg = <0x26>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1416,9 +1416,9 @@
 			};
 		};
 
-		cpu39: cpu@39 {
+		cpu39: cpu@27 {
 			compatible = "thead,c920", "riscv";
-			reg = <39>;
+			reg = <0x27>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1452,9 +1452,9 @@
 			};
 		};
 
-		cpu40: cpu@40 {
+		cpu40: cpu@28 {
 			compatible = "thead,c920", "riscv";
-			reg = <40>;
+			reg = <0x28>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1488,9 +1488,9 @@
 			};
 		};
 
-		cpu41: cpu@41 {
+		cpu41: cpu@29 {
 			compatible = "thead,c920", "riscv";
-			reg = <41>;
+			reg = <0x29>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1524,9 +1524,9 @@
 			};
 		};
 
-		cpu42: cpu@42 {
+		cpu42: cpu@2a {
 			compatible = "thead,c920", "riscv";
-			reg = <42>;
+			reg = <0x2a>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1560,9 +1560,9 @@
 			};
 		};
 
-		cpu43: cpu@43 {
+		cpu43: cpu@2b {
 			compatible = "thead,c920", "riscv";
-			reg = <43>;
+			reg = <0x2b>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1596,9 +1596,9 @@
 			};
 		};
 
-		cpu44: cpu@44 {
+		cpu44: cpu@2c {
 			compatible = "thead,c920", "riscv";
-			reg = <44>;
+			reg = <0x2c>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1632,9 +1632,9 @@
 			};
 		};
 
-		cpu45: cpu@45 {
+		cpu45: cpu@2d {
 			compatible = "thead,c920", "riscv";
-			reg = <45>;
+			reg = <0x2d>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1668,9 +1668,9 @@
 			};
 		};
 
-		cpu46: cpu@46 {
+		cpu46: cpu@2e {
 			compatible = "thead,c920", "riscv";
-			reg = <46>;
+			reg = <0x2e>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1704,9 +1704,9 @@
 			};
 		};
 
-		cpu47: cpu@47 {
+		cpu47: cpu@2f {
 			compatible = "thead,c920", "riscv";
-			reg = <47>;
+			reg = <0x2f>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1740,9 +1740,9 @@
 			};
 		};
 
-		cpu48: cpu@48 {
+		cpu48: cpu@30 {
 			compatible = "thead,c920", "riscv";
-			reg = <48>;
+			reg = <0x30>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1776,9 +1776,9 @@
 			};
 		};
 
-		cpu49: cpu@49 {
+		cpu49: cpu@31 {
 			compatible = "thead,c920", "riscv";
-			reg = <49>;
+			reg = <0x31>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1812,9 +1812,9 @@
 			};
 		};
 
-		cpu50: cpu@50 {
+		cpu50: cpu@32 {
 			compatible = "thead,c920", "riscv";
-			reg = <50>;
+			reg = <0x32>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1848,9 +1848,9 @@
 			};
 		};
 
-		cpu51: cpu@51 {
+		cpu51: cpu@33 {
 			compatible = "thead,c920", "riscv";
-			reg = <51>;
+			reg = <0x33>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1884,9 +1884,9 @@
 			};
 		};
 
-		cpu52: cpu@52 {
+		cpu52: cpu@34 {
 			compatible = "thead,c920", "riscv";
-			reg = <52>;
+			reg = <0x34>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1920,9 +1920,9 @@
 			};
 		};
 
-		cpu53: cpu@53 {
+		cpu53: cpu@35 {
 			compatible = "thead,c920", "riscv";
-			reg = <53>;
+			reg = <0x35>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1956,9 +1956,9 @@
 			};
 		};
 
-		cpu54: cpu@54 {
+		cpu54: cpu@36 {
 			compatible = "thead,c920", "riscv";
-			reg = <54>;
+			reg = <0x36>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -1992,9 +1992,9 @@
 			};
 		};
 
-		cpu55: cpu@55 {
+		cpu55: cpu@37 {
 			compatible = "thead,c920", "riscv";
-			reg = <55>;
+			reg = <0x37>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2028,9 +2028,9 @@
 			};
 		};
 
-		cpu56: cpu@56 {
+		cpu56: cpu@38 {
 			compatible = "thead,c920", "riscv";
-			reg = <56>;
+			reg = <0x38>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2064,9 +2064,9 @@
 			};
 		};
 
-		cpu57: cpu@57 {
+		cpu57: cpu@39 {
 			compatible = "thead,c920", "riscv";
-			reg = <57>;
+			reg = <0x39>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2100,9 +2100,9 @@
 			};
 		};
 
-		cpu58: cpu@58 {
+		cpu58: cpu@3a {
 			compatible = "thead,c920", "riscv";
-			reg = <58>;
+			reg = <0x3a>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2136,9 +2136,9 @@
 			};
 		};
 
-		cpu59: cpu@59 {
+		cpu59: cpu@3b {
 			compatible = "thead,c920", "riscv";
-			reg = <59>;
+			reg = <0x3b>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2172,9 +2172,9 @@
 			};
 		};
 
-		cpu60: cpu@60 {
+		cpu60: cpu@3c {
 			compatible = "thead,c920", "riscv";
-			reg = <60>;
+			reg = <0x3c>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2208,9 +2208,9 @@
 			};
 		};
 
-		cpu61: cpu@61 {
+		cpu61: cpu@3d {
 			compatible = "thead,c920", "riscv";
-			reg = <61>;
+			reg = <0x3d>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2244,9 +2244,9 @@
 			};
 		};
 
-		cpu62: cpu@62 {
+		cpu62: cpu@3e {
 			compatible = "thead,c920", "riscv";
-			reg = <62>;
+			reg = <0x3e>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;
@@ -2280,9 +2280,9 @@
 			};
 		};
 
-		cpu63: cpu@63 {
+		cpu63: cpu@3f {
 			compatible = "thead,c920", "riscv";
-			reg = <63>;
+			reg = <0x3f>;
 			i-cache-block-size = <64>;
 			i-cache-size = <65536>;
 			i-cache-sets = <512>;

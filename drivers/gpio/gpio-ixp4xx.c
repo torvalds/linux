@@ -311,12 +311,7 @@ static int ixp4xx_gpio_probe(struct platform_device *pdev)
 	}
 	g->chip.gc.ngpio = 16;
 	g->chip.gc.label = "IXP4XX_GPIO_CHIP";
-	/*
-	 * TODO: when we have migrated to device tree and all GPIOs
-	 * are fetched using phandles, set this to -1 to get rid of
-	 * the fixed gpiochip base.
-	 */
-	g->chip.gc.base = 0;
+	g->chip.gc.base = -1;
 	g->chip.gc.parent = &pdev->dev;
 	g->chip.gc.owner = THIS_MODULE;
 

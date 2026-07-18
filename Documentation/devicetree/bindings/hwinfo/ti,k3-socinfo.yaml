@@ -15,6 +15,9 @@ description: |
   represented by CTRLMMR_xxx_JTAGID register which contains information about
   SoC id and revision.
 
+  On some SoCs like AM62P, the silicon revision is determined by reading
+  alternative registers via NVMEM cells.
+
 properties:
   $nodename:
     pattern: "^chipid@[0-9a-f]+$"
@@ -25,6 +28,14 @@ properties:
 
   reg:
     maxItems: 1
+
+  nvmem-cells:
+    items:
+      - description: Alternate silicon revision register
+
+  nvmem-cell-names:
+    items:
+      - const: gpsw1
 
 required:
   - compatible

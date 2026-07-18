@@ -1318,7 +1318,7 @@ static ssize_t ucode_load_store(struct device *dev,
 {
 	struct otx_cpt_engines engs[OTX_CPT_MAX_ETYPES_PER_GRP] = { {0} };
 	char *ucode_filename[OTX_CPT_MAX_ETYPES_PER_GRP];
-	char tmp_buf[OTX_CPT_UCODE_NAME_LENGTH] = { 0 };
+	char tmp_buf[OTX_CPT_UCODE_NAME_LENGTH];
 	char *start, *val, *err_msg, *tmp;
 	struct otx_cpt_eng_grps *eng_grps;
 	int grp_idx = 0, ret = -EINVAL;
@@ -1326,12 +1326,11 @@ static ssize_t ucode_load_store(struct device *dev,
 	int del_grp_idx = -1;
 	int ucode_idx = 0;
 
-	if (count >= OTX_CPT_UCODE_NAME_LENGTH)
+	if (strscpy_pad(tmp_buf, buf) < 0)
 		return -EINVAL;
 
 	eng_grps = container_of(attr, struct otx_cpt_eng_grps, ucode_load_attr);
 	err_msg = "Invalid engine group format";
-	strscpy(tmp_buf, buf, OTX_CPT_UCODE_NAME_LENGTH);
 	start = tmp_buf;
 
 	has_se = has_ie = has_ae = false;

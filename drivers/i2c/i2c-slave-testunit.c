@@ -15,7 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <linux/workqueue.h> /* FIXME: is system_long_wq the best choice? */
+#include <linux/workqueue.h>
 
 #define TU_VERSION_MAX_LENGTH 128
 
@@ -124,7 +124,7 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 	case I2C_SLAVE_STOP:
 		if (tu->reg_idx == TU_NUM_REGS) {
 			set_bit(TU_FLAG_IN_PROCESS, &tu->flags);
-			queue_delayed_work(system_long_wq, &tu->worker,
+			queue_delayed_work(system_dfl_long_wq, &tu->worker,
 					   msecs_to_jiffies(10 * tu->regs[TU_REG_DELAY]));
 		}
 
@@ -270,7 +270,7 @@ static void i2c_slave_testunit_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_slave_testunit_id[] = {
-	{ "slave-testunit" },
+	{ .name = "slave-testunit" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_slave_testunit_id);

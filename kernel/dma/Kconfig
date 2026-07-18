@@ -179,7 +179,19 @@ config DMA_NUMA_CMA
 
 	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
 	  or set the node id and its size of CMA by specifying "numa_cma=
-	  <node>:size[,<node>:size]" on the kernel's command line.
+	  <node>:size[,<node>:size]" on the kernel's command line. And in
+	  rare case that the above 2 are both setup, then the "numa_cma="
+	  takes priority for the specified numa nodes.
+
+config CMA_SIZE_PERNUMA
+	bool "Default CMA area per NUMA node"
+	depends on DMA_NUMA_CMA
+	default y
+	help
+	  On systems with more than one NUMA node, the selected CMA
+	  area size will be also allocated on each additional node,
+	  so that most devices may have benefit from better DMA
+	  locality without an explicit command-line opt-in.
 
 comment "Default contiguous memory area size:"
 

@@ -7,9 +7,9 @@ TCP Authentication Option Linux implementation (RFC5925)
 TCP Authentication Option (TCP-AO) provides a TCP extension aimed at verifying
 segments between trusted peers. It adds a new TCP header option with
 a Message Authentication Code (MAC). MACs are produced from the content
-of a TCP segment using a hashing function with a password known to both peers.
+of a TCP segment using a key known to both peers.
 The intent of TCP-AO is to deprecate TCP-MD5 providing better security,
-key rotation and support for a variety of hashing algorithms.
+key rotation and support for a variety of MAC algorithms.
 
 1. Introduction
 ===============
@@ -19,16 +19,18 @@ key rotation and support for a variety of hashing algorithms.
  +----------------------+------------------------+-----------------------+
  |                      |       TCP-MD5          |         TCP-AO        |
  +======================+========================+=======================+
- |Supported hashing     |MD5                     |Must support HMAC-SHA1 |
- |algorithms            |(cryptographically weak)|(chosen-prefix attacks)|
- |                      |                        |and CMAC-AES-128 (only |
- |                      |                        |side-channel attacks). |
- |                      |                        |May support any hashing|
- |                      |                        |algorithm.             |
+ |Supported MAC         |MD5 of data and key     |HMAC-SHA-1-96 and      |
+ |algorithms            |(cryptographically weak)|AES-128-CMAC-96.       |
+ |                      |                        |Implementations are    |
+ |                      |                        |permitted to support   |
+ |                      |                        |additional algorithms. |
  +----------------------+------------------------+-----------------------+
- |Length of MACs (bytes)|16                      |Typically 12-16.       |
- |                      |                        |Other variants that fit|
- |                      |                        |TCP header permitted.  |
+ |Length of MACs (bytes)|16                      |12 for HMAC-SHA-1-96   |
+ |                      |                        |and AES-128-CMAC-96.   |
+ |                      |                        |Implementations are    |
+ |                      |                        |permitted to support   |
+ |                      |                        |any MAC length that    |
+ |                      |                        |fits in the TCP header.|
  +----------------------+------------------------+-----------------------+
  |Number of keys per    |1                       |Many                   |
  |TCP connection        |                        |                       |
@@ -295,6 +297,20 @@ userspace manage TCP-AO on a per-socket basis. In order to add/delete MKTs
 ``TCP_AO_ADD_KEY`` and ``TCP_AO_DEL_KEY`` TCP socket options must be used.
 It is not allowed to add a key on an established non-TCP-AO connection
 as well as to remove the last key from TCP-AO connection.
+
+``TCP_AO_ADD_KEY`` allows the MAC algorithm and MAC length to be selected.
+Linux supports the mandatory-to-implement algorithms HMAC-SHA-1-96 and
+AES-128-CMAC-96. In addition, as Linux extensions, it supports:
+
+- HMAC-SHA256. Linux uses HMAC-SHA256 in the same way as HMAC-SHA1; this
+  includes omitting an explicit entropy extraction step. To work around the
+  missing entropy extraction, users should provide keys with full entropy. The
+  implementation is interoperable with other implementations of HMAC-SHA256 for
+  TCP-AO only when they have implemented the key derivation the same way (and
+  also the same MAC length is selected on each side).
+
+- Any MAC length for any of the supported MAC algorithms, provided it fits in
+  the TCP header and is at least 4 bytes.
 
 ``setsockopt(TCP_AO_DEL_KEY)`` command may specify ``tcp_ao_del::current_key``
 + ``tcp_ao_del::set_current`` and/or ``tcp_ao_del::rnext``

@@ -39,15 +39,15 @@ struct pim4328_data {
 #define PIM4328_MFR_READ_STATUS		0xd0
 
 static const struct i2c_device_id pim4328_id[] = {
-	{"bmr455", pim4328},
-	{"pim4006", pim4006},
-	{"pim4106", pim4006},
-	{"pim4206", pim4006},
-	{"pim4306", pim4006},
-	{"pim4328", pim4328},
-	{"pim4406", pim4006},
-	{"pim4820", pim4820},
-	{}
+	{ .name = "bmr455", .driver_data = pim4328 },
+	{ .name = "pim4006", .driver_data = pim4006 },
+	{ .name = "pim4106", .driver_data = pim4006 },
+	{ .name = "pim4206", .driver_data = pim4006 },
+	{ .name = "pim4306", .driver_data = pim4006 },
+	{ .name = "pim4328", .driver_data = pim4328 },
+	{ .name = "pim4406", .driver_data = pim4006 },
+	{ .name = "pim4820", .driver_data = pim4820 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pim4328_id);
 

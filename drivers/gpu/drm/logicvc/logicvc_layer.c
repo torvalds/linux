@@ -81,7 +81,7 @@ static bool logicvc_layer_format_inverted(uint32_t format)
 }
 
 static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm_dev = drm_plane->dev;
 	struct logicvc_layer *layer = logicvc_layer(drm_plane);
@@ -135,7 +135,7 @@ static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
 }
 
 static void logicvc_plane_atomic_update(struct drm_plane *drm_plane,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct logicvc_layer *layer = logicvc_layer(drm_plane);
 	struct logicvc_drm *logicvc = logicvc_drm(drm_plane->dev);
@@ -232,7 +232,7 @@ static void logicvc_plane_atomic_update(struct drm_plane *drm_plane,
 }
 
 static void logicvc_plane_atomic_disable(struct drm_plane *drm_plane,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct logicvc_layer *layer = logicvc_layer(drm_plane);
 	struct logicvc_drm *logicvc = logicvc_drm(drm_plane->dev);

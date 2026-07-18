@@ -78,6 +78,17 @@ enum btrfs_reserve_flush_enum {
 	BTRFS_RESERVE_FLUSH_ALL_STEAL,
 
 	/*
+	 * This is for relocation on zoned filesystems only. We need to use
+	 * priority flushing for this, because otherwise we can deadlock on
+	 * waiting for a ticket, that cannot be granted, because we cannot do
+	 * any allocations.
+	 *
+	 * Apart from being specific to zoned relocation, it is equal to
+	 * BTRFS_FLUSH_FREE_SPACE_INODE.
+	 */
+	BTRFS_RESERVE_FLUSH_ZONED_RELOCATION,
+
+	/*
 	 * This is for btrfs_use_block_rsv only.  We have exhausted our block
 	 * rsv and our global block rsv.  This can happen for things like
 	 * delalloc where we are overwriting a lot of extents with a single

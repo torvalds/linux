@@ -724,6 +724,7 @@ static bool access_gicv5_ppi_enabler(struct kvm_vcpu *vcpu,
 {
 	unsigned long *mask = vcpu->kvm->arch.vgic.gicv5_vm.vgic_ppi_mask;
 	struct vgic_v5_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v5;
+	unsigned long reg = p->regval;
 	int i;
 
 	/* We never expect to get here with a read! */
@@ -731,27 +732,23 @@ static bool access_gicv5_ppi_enabler(struct kvm_vcpu *vcpu,
 		return undef_access(vcpu, p, r);
 
 	/*
-	 * If we're only handling architected PPIs and the guest writes to the
-	 * enable for the non-architected PPIs, we just return as there's
-	 * nothing to do at all. We don't even allocate the storage for them in
-	 * this case.
+	 * As we're only handling architected PPIs, the guest writes to the
+	 * enable for the non-architected PPIs just return as there's
+	 * nothing to do at all. We don't even allocate the storage for them.
 	 */
-	if (VGIC_V5_NR_PRIVATE_IRQS == 64 && p->Op2 % 2)
+	if (p->Op2 % 2)
 		return true;
 
 	/*
-	 * Merge the raw guest write into out bitmap at an offset of either 0 or
-	 * 64, then and it with our PPI mask.
+	 * Merge the raw guest write into out bitmap, anded with our PPI mask.
 	 */
-	bitmap_write(cpu_if->vgic_ppi_enabler, p->regval, 64 * (p->Op2 % 2), 64);
-	bitmap_and(cpu_if->vgic_ppi_enabler, cpu_if->vgic_ppi_enabler, mask,
-		   VGIC_V5_NR_PRIVATE_IRQS);
+	bitmap_and(cpu_if->vgic_ppi_enabler, &reg, mask, VGIC_V5_NR_PRIVATE_IRQS);
 
 	/*
 	 * Sync the change in enable states to the vgic_irqs. We consider all
 	 * PPIs as we don't expose many to the guest.
 	 */
-	for_each_set_bit(i, mask, VGIC_V5_NR_PRIVATE_IRQS) {
+	for_each_visible_v5_ppi(i, vcpu->kvm) {
 		u32 intid = vgic_v5_make_ppi(i);
 		struct vgic_irq *irq;
 
@@ -2862,21 +2859,16 @@ static bool access_zcr_el2(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *p,
 			   const struct sys_reg_desc *r)
 {
-	unsigned int vq;
-
 	if (guest_hyp_sve_traps_enabled(vcpu)) {
 		kvm_inject_nested_sve_trap(vcpu);
 		return false;
 	}
 
-	if (!p->is_write) {
+	if (!p->is_write)
 		p->regval = __vcpu_sys_reg(vcpu, ZCR_EL2);
-		return true;
-	}
+	else
+		__vcpu_assign_sys_reg(vcpu, ZCR_EL2, p->regval);
 
-	vq = SYS_FIELD_GET(ZCR_ELx, LEN, p->regval) + 1;
-	vq = min(vq, vcpu_sve_max_vq(vcpu));
-	__vcpu_assign_sys_reg(vcpu, ZCR_EL2, vq - 1);
 	return true;
 }
 
@@ -4217,6 +4209,7 @@ static struct sys_reg_desc sys_insn_descs[] = {
 	SYS_INSN(AT_S1E0W, handle_at_s1e01),
 	SYS_INSN(AT_S1E1RP, handle_at_s1e01),
 	SYS_INSN(AT_S1E1WP, handle_at_s1e01),
+	SYS_INSN(AT_S1E1A, handle_at_s1e01),
 
 	{ SYS_DESC(SYS_DC_CSW), access_dcsw },
 	{ SYS_DESC(SYS_DC_CGSW), access_dcgsw },

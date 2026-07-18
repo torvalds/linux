@@ -39,8 +39,7 @@ iwl_mld_fill_phy_data_from_mpdu(struct iwl_mld *mld,
 	}
 
 	phy_data->phy_info = le16_to_cpu(desc->phy_info);
-	phy_data->rate_n_flags = iwl_v3_rate_from_v2_v3(desc->v3.rate_n_flags,
-							mld->fw_rates_ver_3);
+	phy_data->rate_n_flags = le32_to_cpu(desc->v3.rate_n_flags);
 	phy_data->gp2_on_air_rise = le32_to_cpu(desc->v3.gp2_on_air_rise);
 	phy_data->energy_a = desc->v3.energy_a;
 	phy_data->energy_b = desc->v3.energy_b;
@@ -158,7 +157,7 @@ static bool iwl_mld_used_average_energy(struct iwl_mld *mld, int link_id,
 	guard(rcu)();
 
 	link_conf = rcu_dereference(mld->fw_id_to_bss_conf[link_id]);
-	if (!link_conf)
+	if (IS_ERR_OR_NULL(link_conf))
 		return false;
 
 	mld_link = iwl_mld_link_from_mac80211(link_conf);
@@ -1206,6 +1205,13 @@ static void iwl_mld_decode_eht_non_tb(struct iwl_mld_rx_phy_data *phy_data,
 	iwl_mld_eht_set_ru_alloc(rx_status,
 				 le32_get_bits(phy_data->ntfy->sigs.eht.b2,
 					       OFDM_RX_FRAME_EHT_STA_RU));
+
+	if (phy_data->with_data)
+		eht->user_info[0] |=
+			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_STA_ID_KNOWN) |
+			LE32_DEC_ENC(phy_data->ntfy->sigs.eht.user_id,
+				     OFDM_RX_FRAME_EHT_USER_FIELD_ID,
+				     IEEE80211_RADIOTAP_EHT_USER_INFO_STA_ID);
 }
 
 static void iwl_mld_decode_eht_phy_data(struct iwl_mld_rx_phy_data *phy_data,
@@ -1313,14 +1319,6 @@ static void iwl_mld_rx_eht(struct iwl_mld *mld, struct sk_buff *skb,
 
 	if (likely(!phy_data->ntfy))
 		return;
-
-	if (phy_data->with_data) {
-		eht->user_info[0] |=
-			cpu_to_le32(IEEE80211_RADIOTAP_EHT_USER_INFO_STA_ID_KNOWN) |
-			LE32_DEC_ENC(phy_data->ntfy->sigs.eht.user_id,
-				     OFDM_RX_FRAME_EHT_USER_FIELD_ID,
-				     IEEE80211_RADIOTAP_EHT_USER_INFO_STA_ID);
-	}
 
 	iwl_mld_decode_eht_usig(phy_data, skb);
 	iwl_mld_decode_eht_phy_data(phy_data, rx_status, eht);
@@ -2261,6 +2259,30 @@ void iwl_mld_handle_rx_queues_sync_notif(struct iwl_mld *mld,
 	if (READ_ONCE(mld->rxq_sync.state) == 0)
 		wake_up(&mld->rxq_sync.waitq);
 }
+
+#ifdef CONFIG_PM_SLEEP
+void iwl_mld_handle_rsc_notif(struct iwl_mld *mld,
+			      struct iwl_rx_packet *pkt, int queue)
+{
+	const struct iwl_wowlan_all_rsc_tsc_v5 *notif = (void *)pkt->data;
+	u32 len = iwl_rx_packet_payload_len(pkt);
+	struct ieee80211_vif *bss_vif;
+
+	if (IWL_FW_CHECK(mld, len != sizeof(*notif),
+			 "invalid notification size %u (%zu)\n",
+			 len, sizeof(*notif)))
+		return;
+
+	/* for the bss lookup and updating the keys' pn */
+	guard(rcu)();
+
+	bss_vif = iwl_mld_get_bss_vif(mld);
+	if (WARN_ON(!bss_vif))
+		return;
+
+	iwl_mld_process_rsc_notification(mld, bss_vif, notif, queue);
+}
+#endif /* CONFIG_PM_SLEEP */
 
 static void iwl_mld_no_data_rx(struct iwl_mld *mld,
 			       struct napi_struct *napi,

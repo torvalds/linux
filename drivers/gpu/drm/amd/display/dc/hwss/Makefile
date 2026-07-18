@@ -207,4 +207,12 @@ AMD_DAL_HWSS_DCN42 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn42/,$(HWSS_DCN42))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN42)
 
+###############################################################################
+
+HWSS_DCN42B = dcn42b_hwseq.o dcn42b_init.o
+
+AMD_DAL_HWSS_DCN42B = $(addprefix $(AMDDALPATH)/dc/hwss/dcn42b/,$(HWSS_DCN42B))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN42B)
+
 endif

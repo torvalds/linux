@@ -83,7 +83,7 @@ void __aa_proxy_redirect(struct aa_label *orig, struct aa_label *new)
 	tmp = rcu_dereference_protected(orig->proxy->label,
 					&labels_ns(orig)->lock);
 	rcu_assign_pointer(orig->proxy->label, aa_get_label(new));
-	orig->flags |= FLAG_STALE;
+	__label_make_stale(orig);
 	aa_put_label(tmp);
 }
 
@@ -458,7 +458,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	return new;
 
 fail:
-	kfree(new);
+	aa_label_free(new);
 
 	return NULL;
 }
@@ -1176,22 +1176,21 @@ static struct aa_label *__label_find_merge(struct aa_labelset *ls,
 struct aa_label *aa_label_find_merge(struct aa_label *a, struct aa_label *b)
 {
 	struct aa_labelset *ls;
-	struct aa_label *label, *ar = NULL, *br = NULL;
+	struct aa_label *label;
 	unsigned long flags;
+	bool a_needput, b_needput;
 
 	AA_BUG(!a);
 	AA_BUG(!b);
 
-	if (label_is_stale(a))
-		a = ar = aa_get_newest_label(a);
-	if (label_is_stale(b))
-		b = br = aa_get_newest_label(b);
+	a = aa_get_newest_label_condref(a, &a_needput);
+	b = aa_get_newest_label_condref(b, &b_needput);
 	ls = labelset_of_merge(a, b);
 	read_lock_irqsave(&ls->lock, flags);
 	label = __label_find_merge(ls, a, b);
 	read_unlock_irqrestore(&ls->lock, flags);
-	aa_put_label(ar);
-	aa_put_label(br);
+	aa_put_label_condref(a, a_needput);
+	aa_put_label_condref(b, b_needput);
 
 	return label;
 }
@@ -1228,9 +1227,10 @@ struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 
 	if (!label) {
 		struct aa_label *new;
+		bool a_needput, b_needput;
 
-		a = aa_get_newest_label(a);
-		b = aa_get_newest_label(b);
+		a = aa_get_newest_label_condref(a, &a_needput);
+		b = aa_get_newest_label_condref(b, &b_needput);
 
 		/* could use label_merge_len(a, b), but requires double
 		 * comparison for small savings
@@ -1242,8 +1242,8 @@ struct aa_label *aa_label_merge(struct aa_label *a, struct aa_label *b,
 		label = label_merge_insert(new, a, b);
 		label_free_or_put_new(label, new);
 out:
-		aa_put_label(a);
-		aa_put_label(b);
+		aa_put_label_condref(a, a_needput);
+		aa_put_label_condref(b, b_needput);
 	}
 
 	return label;

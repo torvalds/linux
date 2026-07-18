@@ -6,7 +6,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>

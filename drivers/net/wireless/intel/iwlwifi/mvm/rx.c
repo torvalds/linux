@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -757,8 +757,9 @@ iwl_mvm_update_tcm_from_stats(struct iwl_mvm *mvm, __le32 *air_time_le,
 	spin_unlock(&mvm->tcm.lock);
 }
 
-static void iwl_mvm_handle_per_phy_stats(struct iwl_mvm *mvm,
-					 struct iwl_stats_ntfy_per_phy *per_phy)
+static void
+iwl_mvm_handle_per_phy_stats(struct iwl_mvm *mvm,
+			     struct iwl_stats_ntfy_per_phy_v1 *per_phy)
 {
 	int i;
 
@@ -937,7 +938,7 @@ void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 {
 	u8 average_energy[IWL_STATION_COUNT_MAX];
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_system_statistics_notif_oper *stats;
+	struct iwl_system_statistics_notif_oper_v3 *stats;
 	int i;
 	u32 notif_ver = iwl_fw_lookup_notif_ver(mvm->fw, STATISTICS_GROUP,
 						STATISTICS_OPER_NOTIF, 0);

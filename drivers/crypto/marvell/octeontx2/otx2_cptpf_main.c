@@ -867,6 +867,7 @@ static const struct pci_device_id otx2_cpt_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CAVIUM, CN10K_CPT_PCI_PF_DEVICE_ID) },
 	{ 0, }  /* end of table */
 };
+MODULE_DEVICE_TABLE(pci, otx2_cpt_id_table);
 
 static struct pci_driver otx2_cpt_pci_driver = {
 	.name = OTX2_CPT_DRV_NAME,
@@ -883,4 +884,3 @@ MODULE_IMPORT_NS("CRYPTO_DEV_OCTEONTX2_CPT");
 MODULE_AUTHOR("Marvell");
 MODULE_DESCRIPTION(OTX2_CPT_DRV_STRING);
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(pci, otx2_cpt_id_table);

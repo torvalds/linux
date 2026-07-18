@@ -20,7 +20,6 @@
 
 #define XY_FAST_COLOR_BLT_CMD		(2 << 29 | 0x44 << 22)
 #define   XY_FAST_COLOR_BLT_DEPTH_32	(2 << 19)
-#define   XY_FAST_COLOR_BLT_DW		16
 #define   XY_FAST_COLOR_BLT_MOCS_MASK	GENMASK(27, 22)
 #define   XE2_XY_FAST_COLOR_BLT_MOCS_INDEX_MASK	GENMASK(27, 24)
 #define   XY_FAST_COLOR_BLT_MEM_TYPE_SHIFT 31
@@ -31,14 +30,13 @@
 #define   XY_FAST_COPY_BLT_D1_DST_TILE4	REG_BIT(30)
 #define   XE2_XY_FAST_COPY_BLT_MOCS_INDEX_MASK	GENMASK(23, 20)
 
-#define MEM_COPY_CMD (2 << 29 | 0x5a << 22 | 0x8)
+#define MEM_COPY_CMD (2 << 29 | 0x5a << 22)
 #define   MEM_COPY_PAGE_COPY_MODE REG_BIT(19)
 #define   MEM_COPY_MATRIX_COPY REG_BIT(17)
 #define   MEM_COPY_SRC_MOCS_INDEX_MASK	GENMASK(31, 28)
 #define   MEM_COPY_DST_MOCS_INDEX_MASK	GENMASK(6, 3)
 
 #define	PVC_MEM_SET_CMD		(2 << 29 | 0x5b << 22)
-#define   PVC_MEM_SET_CMD_LEN_DW	7
 #define   PVC_MEM_SET_MATRIX		REG_BIT(17)
 #define   PVC_MEM_SET_DATA_FIELD	GENMASK(31, 24)
 /* Bspec lists field as [6:0], but index alone is from [6:1] */

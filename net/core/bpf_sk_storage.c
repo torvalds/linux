@@ -172,7 +172,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 		struct bpf_map *map;
 
 		smap = rcu_dereference(SDATA(selem)->smap);
-		if (!(smap->map.map_flags & BPF_F_CLONE))
+		if (!smap || !(smap->map.map_flags & BPF_F_CLONE))
 			continue;
 
 		/* Note that for lockless listeners adding new element
@@ -531,10 +531,10 @@ err_free:
 }
 EXPORT_SYMBOL_GPL(bpf_sk_storage_diag_alloc);
 
-static int diag_get(struct bpf_local_storage_data *sdata, struct sk_buff *skb)
+static int diag_get(struct bpf_local_storage_map *smap,
+		    struct bpf_local_storage_data *sdata, struct sk_buff *skb)
 {
 	struct nlattr *nla_stg, *nla_value;
-	struct bpf_local_storage_map *smap;
 
 	/* It cannot exceed max nlattr's payload */
 	BUILD_BUG_ON(U16_MAX - NLA_HDRLEN < BPF_LOCAL_STORAGE_MAX_VALUE_SIZE);
@@ -543,7 +543,6 @@ static int diag_get(struct bpf_local_storage_data *sdata, struct sk_buff *skb)
 	if (!nla_stg)
 		return -EMSGSIZE;
 
-	smap = rcu_dereference(sdata->smap);
 	if (nla_put_u32(skb, SK_DIAG_BPF_STORAGE_MAP_ID, smap->map.id))
 		goto errout;
 
@@ -558,6 +557,7 @@ static int diag_get(struct bpf_local_storage_data *sdata, struct sk_buff *skb)
 				      sdata->data, true);
 	else
 		copy_map_value(&smap->map, nla_data(nla_value), sdata->data);
+	check_and_init_map_value(&smap->map, nla_data(nla_value));
 
 	nla_nest_end(skb, nla_stg);
 	return 0;
@@ -596,9 +596,11 @@ static int bpf_sk_storage_diag_put_all(struct sock *sk, struct sk_buff *skb,
 	saved_len = skb->len;
 	hlist_for_each_entry_rcu(selem, &sk_storage->list, snode) {
 		smap = rcu_dereference(SDATA(selem)->smap);
+		if (!smap)
+			continue;
 		diag_size += nla_value_size(smap->map.value_size);
 
-		if (nla_stgs && diag_get(SDATA(selem), skb))
+		if (nla_stgs && diag_get(smap, SDATA(selem), skb))
 			/* Continue to learn diag_size */
 			err = -EMSGSIZE;
 	}
@@ -665,7 +667,7 @@ int bpf_sk_storage_diag_put(struct bpf_sk_storage_diag *diag,
 
 		diag_size += nla_value_size(diag->maps[i]->value_size);
 
-		if (nla_stgs && diag_get(sdata, skb))
+		if (nla_stgs && diag_get((struct bpf_local_storage_map *)diag->maps[i], sdata, skb))
 			/* Continue to learn diag_size */
 			err = -EMSGSIZE;
 	}

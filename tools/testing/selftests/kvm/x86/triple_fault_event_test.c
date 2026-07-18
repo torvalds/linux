@@ -72,13 +72,13 @@ int main(void)
 
 
 	if (has_vmx) {
-		vm_vaddr_t vmx_pages_gva;
+		gva_t vmx_pages_gva;
 
 		vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code_vmx);
 		vcpu_alloc_vmx(vm, &vmx_pages_gva);
 		vcpu_args_set(vcpu, 1, vmx_pages_gva);
 	} else {
-		vm_vaddr_t svm_gva;
+		gva_t svm_gva;
 
 		vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code_svm);
 		vcpu_alloc_svm(vm, &svm_gva);

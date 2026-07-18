@@ -49,7 +49,7 @@ static int __io_run_loop(struct io_ring_ctx *ctx)
 		if (unlikely(!ctx->loop_step))
 			return -EFAULT;
 
-		step_res = ctx->loop_step(ctx, &lp);
+		step_res = ctx->loop_step(io_loop_mangle_ctx(ctx), &lp);
 		if (step_res == IOU_LOOP_STOP)
 			break;
 		if (step_res != IOU_LOOP_CONTINUE)

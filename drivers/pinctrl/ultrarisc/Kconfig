@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PINCTRL_ULTRARISC
+	tristate
+	depends on OF
+	depends on ARCH_ULTRARISC || COMPILE_TEST
+	select GENERIC_PINCTRL
+	select PINMUX
+
+config PINCTRL_ULTRARISC_DP1000
+	tristate "UltraRISC DP1000 SoC Pinctrl driver"
+	select PINCTRL_ULTRARISC
+	depends on OF && HAS_IOMEM
+	depends on ARCH_ULTRARISC || COMPILE_TEST
+	default ARCH_ULTRARISC
+	help
+	  Say Y to select the pinctrl driver for UltraRISC DP1000 SoC.
+	  This pin controller allows selecting the mux function for
+	  each pin. This driver can also be built as a module called
+	  pinctrl-dp1000.

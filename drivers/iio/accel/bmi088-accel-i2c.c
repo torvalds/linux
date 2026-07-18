@@ -9,7 +9,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -45,9 +44,9 @@ static const struct of_device_id bmi088_of_match[] = {
 MODULE_DEVICE_TABLE(of, bmi088_of_match);
 
 static const struct i2c_device_id bmi088_accel_id[] = {
-	{ "bmi085-accel",  BOSCH_BMI085 },
-	{ "bmi088-accel",  BOSCH_BMI088 },
-	{ "bmi090l-accel", BOSCH_BMI090L },
+	{ .name = "bmi085-accel",  .driver_data = BOSCH_BMI085 },
+	{ .name = "bmi088-accel",  .driver_data = BOSCH_BMI088 },
+	{ .name = "bmi090l-accel", .driver_data = BOSCH_BMI090L },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bmi088_accel_id);

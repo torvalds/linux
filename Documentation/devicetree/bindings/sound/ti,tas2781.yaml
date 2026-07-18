@@ -71,6 +71,9 @@ properties:
       ti,tas2572: 6.6-W Digital Input smart amp with I/V sense and integrated
       13-V Class-H Boost
 
+      ti,tas2573: Boosted Class-D Audio Amplifier with Integrated DSP and IV
+      Sense
+
       ti,tas2574: 8.5-W Digital Input smart amp with I/V sense and integrated
       15-V Class-H Boost
 
@@ -121,6 +124,7 @@ properties:
               - ti,tas2568
               - ti,tas2570
               - ti,tas2572
+              - ti,tas2573
               - ti,tas2574
               - ti,tas5802
               - ti,tas5806m
@@ -183,6 +187,7 @@ allOf:
           contains:
             enum:
               - ti,tas2563
+              - ti,tas2573
               - ti,tas5825
     then:
       properties:

@@ -47,6 +47,17 @@ static ssize_t mem_info_preempt_used_show(struct device *dev,
 static DEVICE_ATTR_RO(mem_info_preempt_used);
 
 /**
+ * amdgpu_preempt_mgr_sysfs_fini - remove PREEMPT manager sysfs attributes
+ *
+ * @adev: amdgpu_device pointer
+ */
+void amdgpu_preempt_mgr_sysfs_fini(struct amdgpu_device *adev)
+{
+	if (adev->dev->kobj.sd)
+		device_remove_file(adev->dev, &dev_attr_mem_info_preempt_used);
+}
+
+/**
  * amdgpu_preempt_mgr_new - allocate a new node
  *
  * @man: TTM memory type manager
@@ -136,9 +147,6 @@ void amdgpu_preempt_mgr_fini(struct amdgpu_device *adev)
 	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 	if (ret)
 		return;
-
-	if (adev->dev->kobj.sd)
-		device_remove_file(adev->dev, &dev_attr_mem_info_preempt_used);
 
 	ttm_resource_manager_cleanup(man);
 	ttm_set_driver_manager(&adev->mman.bdev, AMDGPU_PL_PREEMPT, NULL);

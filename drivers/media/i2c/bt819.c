@@ -457,9 +457,9 @@ static void bt819_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static const struct i2c_device_id bt819_id[] = {
-	{ "bt819a" },
-	{ "bt817a" },
-	{ "bt815a" },
+	{ .name = "bt819a" },
+	{ .name = "bt817a" },
+	{ .name = "bt815a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bt819_id);

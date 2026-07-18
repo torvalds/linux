@@ -8,7 +8,7 @@
 
 #define VMBUS_MAX_PACKET_SIZE 0x4000
 
-struct hyperv_drm_device {
+struct hv_drm_device {
 	/* drm */
 	struct drm_device dev;
 	struct drm_plane plane;
@@ -39,17 +39,17 @@ struct hyperv_drm_device {
 	struct hv_device *hdev;
 };
 
-#define to_hv(_dev) container_of(_dev, struct hyperv_drm_device, dev)
+#define to_hv_drm(_dev) container_of(_dev, struct hv_drm_device, dev)
 
 /* hyperv_drm_modeset */
-int hyperv_mode_config_init(struct hyperv_drm_device *hv);
+int hv_drm_mode_config_init(struct hv_drm_device *hv);
 
 /* hyperv_drm_proto */
-int hyperv_update_vram_location(struct hv_device *hdev, phys_addr_t vram_pp);
-int hyperv_update_situation(struct hv_device *hdev, u8 active, u32 bpp,
+int hv_drm_update_vram_location(struct hv_device *hdev, phys_addr_t vram_pp);
+int hv_drm_update_situation(struct hv_device *hdev, u8 active, u32 bpp,
 			    u32 w, u32 h, u32 pitch);
-int hyperv_hide_hw_ptr(struct hv_device *hdev);
-int hyperv_update_dirt(struct hv_device *hdev, struct drm_rect *rect);
-int hyperv_connect_vsp(struct hv_device *hdev);
+int hv_drm_hide_hw_ptr(struct hv_device *hdev);
+int hv_drm_update_dirt(struct hv_device *hdev, struct drm_rect *rect);
+int hv_drm_connect_vsp(struct hv_device *hdev);
 
 #endif

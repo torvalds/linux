@@ -140,7 +140,7 @@ static void assert_global_state_write_locked(struct intel_display *display)
 {
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc)
+	for_each_intel_crtc(display, crtc)
 		drm_modeset_lock_assert_held(&crtc->base.mutex);
 }
 
@@ -163,7 +163,7 @@ static void assert_global_state_read_locked(struct intel_atomic_state *state)
 	struct drm_modeset_acquire_ctx *ctx = state->base.acquire_ctx;
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		if (modeset_lock_is_held(ctx, &crtc->base.mutex))
 			return;
 	}
@@ -301,7 +301,7 @@ int intel_atomic_lock_global_state(struct intel_global_state *obj_state)
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		int ret;
 
 		ret = drm_modeset_lock(&crtc->base.mutex,
@@ -334,7 +334,7 @@ intel_atomic_global_state_is_serialized(struct intel_atomic_state *state)
 	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(display->drm, crtc)
+	for_each_intel_crtc(display, crtc)
 		if (!intel_atomic_get_new_crtc_state(state, crtc))
 			return false;
 	return true;

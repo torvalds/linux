@@ -840,6 +840,7 @@ enum {
 #define RTEXT_FILTER_CFM_CONFIG	(1 << 5)
 #define RTEXT_FILTER_CFM_STATUS	(1 << 6)
 #define RTEXT_FILTER_MST	(1 << 7)
+#define RTEXT_FILTER_NAME_ONLY	(1 << 8)
 
 /* End of information exported to user level */
 

@@ -167,6 +167,7 @@ static const struct ionic_stat_desc ionic_rx_stats_desc[] = {
 #define IONIC_NUM_PORT_STATS ARRAY_SIZE(ionic_port_stats_desc)
 #define IONIC_NUM_TX_STATS ARRAY_SIZE(ionic_tx_stats_desc)
 #define IONIC_NUM_RX_STATS ARRAY_SIZE(ionic_rx_stats_desc)
+#define IONIC_NUM_EXTRA_PORT_STATS	1
 
 #define MAX_Q(lif)   ((lif)->netdev->real_num_tx_queues)
 
@@ -232,6 +233,33 @@ static void ionic_get_lif_stats(struct ionic_lif *lif,
 	stats->hw_tx_aborted_errors = ns.tx_aborted_errors;
 }
 
+static u32 ionic_extra_port_stats_get_count(struct ionic_lif *lif)
+{
+	struct ionic_dev *idev = &lif->ionic->idev;
+	struct ionic_port_extra_stats *pes_cache;
+	u32 count = 0;
+
+	if (!(lif->ionic->ident.dev.capabilities &
+	      cpu_to_le64(IONIC_DEV_CAP_EXTRA_STATS)))
+		return count;
+
+	pes_cache = &idev->port_extra_stats_cache;
+	/* Treat all of the extra port stats as invalid in subsequent calls if
+	 * port_info isn't set; otherwise cache a valid snapshot for them.
+	 */
+	if (!idev->port_info) {
+		memset(pes_cache, 0xff, sizeof(*pes_cache));
+		return count;
+	}
+
+	*pes_cache = idev->port_info->extra_stats;
+
+	if (pes_cache->rx_bits_phy != IONIC_STAT_INVALID)
+		count++;
+
+	return count;
+}
+
 static u64 ionic_sw_stats_get_count(struct ionic_lif *lif)
 {
 	u64 total = 0, tx_queues = MAX_Q(lif), rx_queues = MAX_Q(lif);
@@ -243,7 +271,7 @@ static u64 ionic_sw_stats_get_count(struct ionic_lif *lif)
 		rx_queues += 1;
 
 	total += IONIC_NUM_LIF_STATS;
-	total += IONIC_NUM_PORT_STATS;
+	total += IONIC_NUM_PORT_STATS + ionic_extra_port_stats_get_count(lif);
 
 	total += tx_queues * IONIC_NUM_TX_STATS;
 	total += rx_queues * IONIC_NUM_RX_STATS;
@@ -271,6 +299,20 @@ static void ionic_sw_stats_get_rx_strings(struct ionic_lif *lif, u8 **buf,
 				ionic_rx_stats_desc[i].name);
 }
 
+static void ionic_extra_port_stats_get_strings(struct ionic_lif *lif, u8 **buf)
+{
+	struct ionic_port_extra_stats *pes_cache;
+
+	if (!(lif->ionic->ident.dev.capabilities &
+	    cpu_to_le64(IONIC_DEV_CAP_EXTRA_STATS)))
+		return;
+
+	pes_cache = &lif->ionic->idev.port_extra_stats_cache;
+
+	if (pes_cache->rx_bits_phy != IONIC_STAT_INVALID)
+		ethtool_puts(buf, "rx_bits_phy");
+}
+
 static void ionic_sw_stats_get_strings(struct ionic_lif *lif, u8 **buf)
 {
 	int i, q_num;
@@ -280,6 +322,7 @@ static void ionic_sw_stats_get_strings(struct ionic_lif *lif, u8 **buf)
 
 	for (i = 0; i < IONIC_NUM_PORT_STATS; i++)
 		ethtool_puts(buf, ionic_port_stats_desc[i].name);
+	ionic_extra_port_stats_get_strings(lif, buf);
 
 	for (q_num = 0; q_num < MAX_Q(lif); q_num++)
 		ionic_sw_stats_get_tx_strings(lif, buf, q_num);
@@ -322,6 +365,25 @@ static void ionic_sw_stats_get_rxq_values(struct ionic_lif *lif, u64 **buf,
 	}
 }
 
+static void ionic_extra_port_stats_get_values(struct ionic_lif *lif, u64 **buf)
+{
+	struct ionic_port_extra_stats *pes_cache;
+
+	if (!(lif->ionic->ident.dev.capabilities &
+	      cpu_to_le64(IONIC_DEV_CAP_EXTRA_STATS)))
+		return;
+
+	/* The number of statistics added to @buf here must equal
+	 * ionic_extra_port_stats_get_count().
+	 */
+	pes_cache = &lif->ionic->idev.port_extra_stats_cache;
+
+	if (pes_cache->rx_bits_phy != IONIC_STAT_INVALID) {
+		**buf = le64_to_cpu(pes_cache->rx_bits_phy);
+		(*buf)++;
+	}
+}
+
 static void ionic_sw_stats_get_values(struct ionic_lif *lif, u64 **buf)
 {
 	struct ionic_port_stats *port_stats;
@@ -341,6 +403,7 @@ static void ionic_sw_stats_get_values(struct ionic_lif *lif, u64 **buf)
 					     &ionic_port_stats_desc[i]);
 		(*buf)++;
 	}
+	ionic_extra_port_stats_get_values(lif, buf);
 
 	for (q_num = 0; q_num < MAX_Q(lif); q_num++)
 		ionic_sw_stats_get_txq_values(lif, buf, q_num);

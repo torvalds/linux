@@ -311,8 +311,7 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 
 	bh_lock_sock(sk_atm(atmvcc));
 
-	if (test_bit(ATM_VF_RELEASED, &atmvcc->flags) ||
-	    test_bit(ATM_VF_CLOSE, &atmvcc->flags) ||
+	if (test_bit(ATM_VF_CLOSE, &atmvcc->flags) ||
 	    !test_bit(ATM_VF_READY, &atmvcc->flags)) {
 		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);

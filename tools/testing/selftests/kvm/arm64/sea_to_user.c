@@ -51,18 +51,16 @@
 #define EINJ_OFFSET		0x01234badUL
 #define EINJ_GVA		((START_GVA) + (EINJ_OFFSET))
 
-static vm_paddr_t einj_gpa;
+static gpa_t einj_gpa;
 static void *einj_hva;
-static uint64_t einj_hpa;
+static u64 einj_hpa;
 static bool far_invalid;
 
-static uint64_t translate_to_host_paddr(unsigned long vaddr)
+static u64 translate_hva_to_hpa(unsigned long hva)
 {
-	uint64_t pinfo;
-	int64_t offset = vaddr / getpagesize() * sizeof(pinfo);
+	u64 pinfo;
+	s64 offset = hva / getpagesize() * sizeof(pinfo);
 	int fd;
-	uint64_t page_addr;
-	uint64_t paddr;
 
 	fd = open("/proc/self/pagemap", O_RDONLY);
 	if (fd < 0)
@@ -77,12 +75,11 @@ static uint64_t translate_to_host_paddr(unsigned long vaddr)
 	if ((pinfo & PAGE_PRESENT) == 0)
 		ksft_exit_fail_perror("Page not present");
 
-	page_addr = (pinfo & PAGE_PHYSICAL) << MIN_PAGE_SHIFT;
-	paddr = page_addr + (vaddr & (getpagesize() - 1));
-	return paddr;
+	return ((pinfo & PAGE_PHYSICAL) << MIN_PAGE_SHIFT) +
+	       (hva & (getpagesize() - 1));
 }
 
-static void write_einj_entry(const char *einj_path, uint64_t val)
+static void write_einj_entry(const char *einj_path, u64 val)
 {
 	char cmd[256] = {0};
 	FILE *cmdfile = NULL;
@@ -96,7 +93,7 @@ static void write_einj_entry(const char *einj_path, uint64_t val)
 		ksft_exit_fail_perror("Failed to write EINJ entry");
 }
 
-static void inject_uer(uint64_t paddr)
+static void inject_uer(u64 hpa)
 {
 	if (access("/sys/firmware/acpi/tables/EINJ", R_OK) == -1)
 		ksft_test_result_skip("EINJ table no available in firmware");
@@ -106,7 +103,7 @@ static void inject_uer(uint64_t paddr)
 
 	write_einj_entry(EINJ_ETYPE, ERROR_TYPE_MEMORY_UER);
 	write_einj_entry(EINJ_FLAGS, MASK_MEMORY_UER);
-	write_einj_entry(EINJ_ADDR, paddr);
+	write_einj_entry(EINJ_ADDR, hpa);
 	write_einj_entry(EINJ_MASK, ~0x0UL);
 	write_einj_entry(EINJ_NOTRIGGER, 1);
 	write_einj_entry(EINJ_DOIT, 1);
@@ -145,10 +142,10 @@ static void setup_sigbus_handler(void)
 
 static void guest_code(void)
 {
-	uint64_t guest_data;
+	u64 guest_data;
 
 	/* Consumes error will cause a SEA. */
-	guest_data = *(uint64_t *)EINJ_GVA;
+	guest_data = *(u64 *)EINJ_GVA;
 
 	GUEST_FAIL("Poison not protected by SEA: gva=%#lx, guest_data=%#lx\n",
 		   EINJ_GVA, guest_data);
@@ -253,8 +250,8 @@ static struct kvm_vm *vm_create_with_sea_handler(struct kvm_vcpu **vcpu)
 	size_t backing_page_size;
 	size_t guest_page_size;
 	size_t alignment;
-	uint64_t num_guest_pages;
-	vm_paddr_t start_gpa;
+	u64 num_guest_pages;
+	gpa_t start_gpa;
 	enum vm_mem_backing_src_type src_type = VM_MEM_SRC_ANONYMOUS_HUGETLB_1GB;
 	struct kvm_vm *vm;
 
@@ -278,7 +275,7 @@ static struct kvm_vm *vm_create_with_sea_handler(struct kvm_vcpu **vcpu)
 	vm_userspace_mem_region_add(
 		/*vm=*/vm,
 		/*src_type=*/src_type,
-		/*guest_paddr=*/start_gpa,
+		/*gpa=*/start_gpa,
 		/*slot=*/1,
 		/*npages=*/num_guest_pages,
 		/*flags=*/0);
@@ -292,18 +289,18 @@ static struct kvm_vm *vm_create_with_sea_handler(struct kvm_vcpu **vcpu)
 
 static void vm_inject_memory_uer(struct kvm_vm *vm)
 {
-	uint64_t guest_data;
+	u64 guest_data;
 
 	einj_gpa = addr_gva2gpa(vm, EINJ_GVA);
 	einj_hva = addr_gva2hva(vm, EINJ_GVA);
 
 	/* Populate certain data before injecting UER. */
-	*(uint64_t *)einj_hva = 0xBAADCAFE;
-	guest_data = *(uint64_t *)einj_hva;
+	*(u64 *)einj_hva = 0xBAADCAFE;
+	guest_data = *(u64 *)einj_hva;
 	ksft_print_msg("Before EINJect: data=%#lx\n",
 		guest_data);
 
-	einj_hpa = translate_to_host_paddr((unsigned long)einj_hva);
+	einj_hpa = translate_hva_to_hpa((unsigned long)einj_hva);
 
 	ksft_print_msg("EINJ_GVA=%#lx, einj_gpa=%#lx, einj_hva=%p, einj_hpa=%#lx\n",
 		       EINJ_GVA, einj_gpa, einj_hva, einj_hpa);

@@ -490,7 +490,7 @@ static void malidp_de_prefetch_settings(struct malidp_plane *mp,
 }
 
 static int malidp_de_plane_check(struct drm_plane *plane,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
@@ -779,7 +779,7 @@ static void malidp_de_set_plane_afbc(struct drm_plane *plane)
 }
 
 static void malidp_de_plane_update(struct drm_plane *plane,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
@@ -900,7 +900,7 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 }
 
 static void malidp_de_plane_disable(struct drm_plane *plane,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct malidp_plane *mp = to_malidp_plane(plane);
 

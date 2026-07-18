@@ -355,8 +355,6 @@ int tegra_dc_rgb_init(struct drm_device *drm, struct tegra_dc *dc)
 				connector);
 			return PTR_ERR(connector);
 		}
-
-		drm_connector_attach_encoder(connector, &output->encoder);
 	}
 
 	err = tegra_output_init(drm, output);

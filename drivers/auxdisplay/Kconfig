@@ -327,7 +327,7 @@ config PANEL_CHANGE_MESSAGE
 	  say 'N' and keep the default message with the version.
 
 config PANEL_BOOT_MESSAGE
-	depends on PANEL_CHANGE_MESSAGE="y"
+	depends on PANEL_CHANGE_MESSAGE
 	string "New initialization message"
 	default ""
 	help

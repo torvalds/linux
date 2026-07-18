@@ -41,7 +41,7 @@ int expr_lex(YYSTYPE * yylval_param , void *yyscanner);
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT HAS_EVENT STRCMP_CPUID_STR EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT AGGR_NR HAS_EVENT STRCMP_CPUID_STR EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -87,8 +87,14 @@ static struct ids union_expr(struct ids ids1, struct ids ids2)
 	return result;
 }
 
+enum expr_id_kind {
+	EXPR_ID_KIND__VALUE,
+	EXPR_ID_KIND__SOURCE_COUNT,
+	EXPR_ID_KIND__AGGR_NR,
+};
+
 static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
-			    bool compute_ids, bool source_count)
+			    bool compute_ids, enum expr_id_kind kind)
 {
 	struct ids result;
 
@@ -101,9 +107,12 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 
 		result.val = NAN;
 		if (expr__resolve_id(ctx, id, &data) == 0) {
-			result.val = source_count
-				? expr_id_data__source_count(data)
-				: expr_id_data__value(data);
+			if (kind == EXPR_ID_KIND__SOURCE_COUNT)
+				result.val = expr_id_data__source_count(data);
+			else if (kind == EXPR_ID_KIND__AGGR_NR)
+				result.val = expr_id_data__aggr_nr(data);
+			else
+				result.val = expr_id_data__value(data);
 		}
 		result.ids = NULL;
 		free(id);
@@ -201,8 +210,9 @@ expr: NUMBER
 	$$.val = $1;
 	$$.ids = NULL;
 }
-| ID				{ $$ = handle_id(ctx, $1, compute_ids, /*source_count=*/false); }
-| SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, /*source_count=*/true); }
+| ID				{ $$ = handle_id(ctx, $1, compute_ids, EXPR_ID_KIND__VALUE); }
+| SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, EXPR_ID_KIND__SOURCE_COUNT); }
+| AGGR_NR '(' ID ')'		{ $$ = handle_id(ctx, $3, compute_ids, EXPR_ID_KIND__AGGR_NR); }
 | HAS_EVENT '(' ID ')'
 {
 	$$.val = expr__has_event(ctx, compute_ids, $3);

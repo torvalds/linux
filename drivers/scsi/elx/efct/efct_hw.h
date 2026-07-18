@@ -59,7 +59,7 @@
 #define EFCT_HW_EQ_DEPTH		1024
 
 /*
- * A CQ will be assinged to each WQ
+ * A CQ will be assigned to each WQ
  * (CQ must have 2X entries of the WQ for abort
  * processing), plus a separate one for each RQ PAIR and one for MQ
  */

@@ -23,6 +23,7 @@
  */
 
 #include <drm/drm_prime.h>
+#include <drm/drm_print.h>
 #include <linux/virtio_dma_buf.h>
 
 #include "virtgpu_drv.h"
@@ -216,7 +217,8 @@ static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 	}
 
 	if (bo->created) {
-		virtio_gpu_cmd_unref_resource(vgdev, bo);
+		virtio_gpu_remove_from_restore_list(bo);
+		virtio_gpu_cmd_unref_resource(vgdev, bo, false);
 		virtio_gpu_notify(vgdev);
 		return;
 	}
@@ -262,6 +264,13 @@ static int virtgpu_dma_buf_init_obj(struct drm_device *dev,
 	dma_buf_unpin(attach);
 	dma_resv_unlock(resv);
 
+	/*
+	 * Store the dmabuf imported object with its params to the
+	 * restore list.
+	 */
+	bo->params = params;
+	virtio_gpu_add_object_to_restore_list(vgdev, bo);
+
 	return 0;
 
 err_import:
@@ -270,6 +279,38 @@ err_pin:
 	dma_resv_unlock(resv);
 	virtgpu_dma_buf_free_obj(&bo->base.base);
 	return ret;
+}
+
+int virtgpu_dma_buf_obj_resubmit(struct virtio_gpu_device *vgdev,
+				 struct virtio_gpu_object *bo)
+{
+	struct virtio_gpu_mem_entry *ents;
+	struct scatterlist *sl;
+	int i;
+
+	if (!bo->sgt) {
+		DRM_ERROR("no sgt bound to virtio_gpu_object\n");
+		return -ENOMEM;
+	}
+
+	ents = kvmalloc_array(bo->sgt->nents,
+			      sizeof(struct virtio_gpu_mem_entry),
+			      GFP_KERNEL);
+	if (!ents) {
+		DRM_ERROR("failed to allocate ent list\n");
+		return -ENOMEM;
+	}
+
+	for_each_sgtable_dma_sg(bo->sgt, sl, i) {
+		ents[i].addr = cpu_to_le64(sg_dma_address(sl));
+		ents[i].length = cpu_to_le32(sg_dma_len(sl));
+		ents[i].padding = 0;
+	}
+
+	virtio_gpu_cmd_resource_create_blob(vgdev, bo, &bo->params,
+					    ents, bo->sgt->nents);
+
+	return 0;
 }
 
 static const struct drm_gem_object_funcs virtgpu_gem_dma_buf_funcs = {
@@ -316,6 +357,8 @@ struct drm_gem_object *virtgpu_gem_prime_import(struct drm_device *dev,
 	bo = kzalloc_obj(*bo);
 	if (!bo)
 		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&bo->restore_node);
 
 	obj = &bo->base.base;
 	obj->resv = buf->resv;

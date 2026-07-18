@@ -249,7 +249,7 @@ unsigned long find_nth_bit(const unsigned long *addr, unsigned long size, unsign
  * @n: The number of set bit, which position is needed, counting from 0
  *
  * Returns the bit number of the N'th set bit.
- * If no such, returns @size.
+ * If no such, returns >= @size.
  */
 static __always_inline
 unsigned long find_nth_and_bit(const unsigned long *addr1, const unsigned long *addr2,
@@ -277,7 +277,7 @@ unsigned long find_nth_and_bit(const unsigned long *addr1, const unsigned long *
  * @n: The number of set bit, which position is needed, counting from 0
  *
  * Returns the bit number of the N'th set bit.
- * If no such, returns @size.
+ * If no such, returns >= @size.
  */
 static __always_inline
 unsigned long find_nth_and_andnot_bit(const unsigned long *addr1,
@@ -655,8 +655,8 @@ unsigned long find_next_bit_le(const void *addr, unsigned
 
 /**
  * for_each_clear_bitrange_from - iterate over all unset bit ranges [b; e)
- * @b: bit offset of start of current bitrange (first set bit); must be initialized
- * @e: bit offset of end of current bitrange (first unset bit)
+ * @b: bit offset of start of current bitrange (first unset bit); must be initialized
+ * @e: bit offset of end of current bitrange (first set bit)
  * @addr: bitmap address to base the search on
  * @size: bitmap size in number of bits
  */

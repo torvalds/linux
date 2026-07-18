@@ -30,48 +30,6 @@ void rtw_hal_data_deinit(struct adapter *padapter)
 	}
 }
 
-
-void dump_chip_info(struct hal_version	chip_version)
-{
-	char buf[128];
-	size_t cnt = 0;
-
-	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "Chip Version Info: CHIP_8723B_%s_",
-			IS_NORMAL_CHIP(chip_version) ? "Normal_Chip" : "Test_Chip");
-
-	if (IS_CHIP_VENDOR_TSMC(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "TSMC_");
-	else if (IS_CHIP_VENDOR_UMC(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "UMC_");
-	else if (IS_CHIP_VENDOR_SMIC(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "SMIC_");
-
-	if (IS_A_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "A_CUT_");
-	else if (IS_B_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "B_CUT_");
-	else if (IS_C_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "C_CUT_");
-	else if (IS_D_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "D_CUT_");
-	else if (IS_E_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "E_CUT_");
-	else if (IS_I_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "I_CUT_");
-	else if (IS_J_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "J_CUT_");
-	else if (IS_K_CUT(chip_version))
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "K_CUT_");
-	else
-		cnt += scnprintf(buf + cnt, sizeof(buf) - cnt,
-				"UNKNOWN_CUT(%d)_", chip_version.CUTVersion);
-
-	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "1T1R_");
-
-	cnt += scnprintf(buf + cnt, sizeof(buf) - cnt, "RomVer(%d)\n", chip_version.ROMVer);
-}
-
-
 #define	EEPROM_CHANNEL_PLAN_BY_HW_MASK	0x80
 
 /*
@@ -107,7 +65,7 @@ u8 hal_com_config_channel_plan(
 	pHalData->bDisableSWChannelPlan = false;
 	chnlPlan = def_channel_plan;
 
-	if (0xFF == hw_channel_plan)
+	if (hw_channel_plan == 0xFF)
 		auto_load_fail = true;
 
 	if (!auto_load_fail) {
@@ -136,7 +94,7 @@ bool HAL_IsLegalChannel(struct adapter *adapter, u32 Channel)
 	bool bLegalChannel = true;
 
 	if ((Channel <= 14) && (Channel >= 1)) {
-		if (is_supported_24g(adapter->registrypriv.wireless_mode) == false)
+		if (!is_supported_24g(adapter->registrypriv.wireless_mode))
 			bLegalChannel = false;
 	} else {
 		bLegalChannel = false;
@@ -294,7 +252,6 @@ void HalSetBrateCfg(struct adapter *Adapter, u8 *mBratesOS, u16 *pBrateCfg)
 	u8 i, is_brate, brate;
 
 	for (i = 0; i < NDIS_802_11_LENGTH_RATES_EX; i++) {
-
 		is_brate = mBratesOS[i] & IEEE80211_BASIC_RATE_MASK;
 		brate = mBratesOS[i] & 0x7f;
 
@@ -378,7 +335,6 @@ static void _TwoOutPipeMapping(struct adapter *padapter, bool bWIFICfg)
 
 	} else { /* typical setting */
 
-
 		/* BK,	BE,	VI,	VO,	BCN,	CMD, MGT, HIGH, HCCA */
 		/*   1,		1,	0,	0,	0,	0,	0,	0,		0	}; */
 		/* 0:ep_0 num, 1:ep_1 num */
@@ -418,7 +374,6 @@ static void _ThreeOutPipeMapping(struct adapter *padapter, bool bWIFICfg)
 		pdvobjpriv->Queue2Pipe[7] = pdvobjpriv->RtOutPipe[0];/* TXCMD */
 
 	} else { /* typical setting */
-
 
 		/* 	BK,	BE,	VI,	VO,	BCN,	CMD, MGT, HIGH, HCCA */
 		/*   2,		2,	1,	0,	0,	0,	0,	0,		0	}; */
@@ -478,10 +433,10 @@ void rtw_init_hal_com_default_value(struct adapter *Adapter)
 }
 
 /*
-* C2H event format:
-* Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
-* BITS	 [127:120]	[119:16]      [15:8]		  [7:4]		   [3:0]
-*/
+ * C2H event format:
+ * Field	 TRIGGER		CONTENT	   CMD_SEQ	CMD_LEN		 CMD_ID
+ * BITS	 [127:120]	[119:16]      [15:8]		  [7:4]		   [3:0]
+ */
 
 void c2h_evt_clear(struct adapter *adapter)
 {
@@ -489,10 +444,10 @@ void c2h_evt_clear(struct adapter *adapter)
 }
 
 /*
-* C2H event format:
-* Field    TRIGGER    CMD_LEN    CONTENT    CMD_SEQ    CMD_ID
-* BITS    [127:120]   [119:112]    [111:16]	     [15:8]         [7:0]
-*/
+ * C2H event format:
+ * Field    TRIGGER    CMD_LEN    CONTENT    CMD_SEQ    CMD_ID
+ * BITS    [127:120]   [119:112]    [111:16]	     [15:8]         [7:0]
+ */
 s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 {
 	s32 ret = _FAIL;
@@ -526,9 +481,9 @@ s32 c2h_evt_read_88xx(struct adapter *adapter, u8 *buf)
 
 clear_evt:
 	/*
-	* Clear event to notify FW we have read the command.
-	* If this field isn't clear, the FW won't update the next command message.
-	*/
+	 * Clear event to notify FW we have read the command.
+	 * If this field isn't clear, the FW won't update the next command message.
+	 */
 	c2h_evt_clear(adapter);
 exit:
 	return ret;
@@ -576,7 +531,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 
 	switch (variable) {
 	case HW_VAR_INIT_RTS_RATE:
-		rtw_warn_on(1);
+		WARN_ON(1);
 		break;
 	case HW_VAR_SEC_CFG:
 	{
@@ -605,7 +560,7 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		odm->SupportAbility = *((u32 *)val);
 		break;
 	case HW_VAR_DM_FUNC_OP:
-		if (*((u8 *)val) == true) {
+		if (*((u8 *)val)) {
 			/* save dm flag */
 			odm->BK_SupportAbility = odm->SupportAbility;
 		} else {
@@ -625,9 +580,9 @@ void SetHwReg(struct adapter *adapter, u8 variable, u8 *val)
 		break;
 	case HW_VAR_DM_FUNC_CLR:
 		/*
-		* input is already a mask to clear function
-		* don't invert it again! George, Lucas@20130513
-		*/
+		 * input is already a mask to clear function
+		 * don't invert it again! George, Lucas@20130513
+		 */
 		odm->SupportAbility &= *((u32 *)val);
 		break;
 	case HW_VAR_AMPDU_MIN_SPACE:
@@ -751,7 +706,6 @@ void SetHalODMVar(
 	}
 }
 
-
 bool GetU1ByteIntegerFromStringInDecimal(char *Str, u8 *pInt)
 {
 	u16 i = 0;
@@ -799,7 +753,7 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 	u32 v1 = 0, v2 = 0, target = 0;
 	u32 i = 0;
 
-	if (value & BIT4) {
+	if (value & BIT(4)) {
 		if (padapter->eeprompriv.EEPROMRFGainVal != 0xff) {
 			rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
 
@@ -811,7 +765,7 @@ void rtw_bb_rf_gain_offset(struct adapter *padapter)
 					break;
 				}
 			}
-			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT18|BIT17|BIT16|BIT15, target);
+			PHY_SetRFReg(padapter, RF_PATH_A, REG_RF_BB_GAIN_OFFSET, BIT(18)|BIT(17)|BIT(16)|BIT(15), target);
 
 			rtw_hal_read_rfreg(padapter, RF_PATH_A, 0x7f, 0xffffffff);
 		}

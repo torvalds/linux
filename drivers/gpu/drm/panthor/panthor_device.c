@@ -2,6 +2,7 @@
 /* Copyright 2018 Marty E. Plummer <hanetzer@startmail.com> */
 /* Copyright 2019 Linaro, Ltd, Rob Herring <robh@kernel.org> */
 /* Copyright 2023 Collabora ltd. */
+/* Copyright 2025 ARM Limited. All rights reserved. */
 
 #include <linux/clk.h>
 #include <linux/mm.h>
@@ -18,39 +19,13 @@
 #include "panthor_devfreq.h"
 #include "panthor_device.h"
 #include "panthor_fw.h"
+#include "panthor_fw_regs.h"
 #include "panthor_gem.h"
 #include "panthor_gpu.h"
 #include "panthor_hw.h"
 #include "panthor_mmu.h"
 #include "panthor_pwr.h"
-#include "panthor_regs.h"
 #include "panthor_sched.h"
-
-static int panthor_gpu_coherency_init(struct panthor_device *ptdev)
-{
-	BUILD_BUG_ON(GPU_COHERENCY_NONE != DRM_PANTHOR_GPU_COHERENCY_NONE);
-	BUILD_BUG_ON(GPU_COHERENCY_ACE_LITE != DRM_PANTHOR_GPU_COHERENCY_ACE_LITE);
-	BUILD_BUG_ON(GPU_COHERENCY_ACE != DRM_PANTHOR_GPU_COHERENCY_ACE);
-
-	/* Start with no coherency, and update it if the device is flagged coherent. */
-	ptdev->gpu_info.selected_coherency = GPU_COHERENCY_NONE;
-	ptdev->coherent = device_get_dma_attr(ptdev->base.dev) == DEV_DMA_COHERENT;
-
-	if (!ptdev->coherent)
-		return 0;
-
-	/* Check if the ACE-Lite coherency protocol is actually supported by the GPU.
-	 * ACE protocol has never been supported for command stream frontend GPUs.
-	 */
-	if ((gpu_read(ptdev, GPU_COHERENCY_FEATURES) &
-		      GPU_COHERENCY_PROT_BIT(ACE_LITE))) {
-		ptdev->gpu_info.selected_coherency = GPU_COHERENCY_ACE_LITE;
-		return 0;
-	}
-
-	drm_err(&ptdev->base, "Coherency not supported by the device");
-	return -ENOTSUPP;
-}
 
 static int panthor_clk_init(struct panthor_device *ptdev)
 {
@@ -122,6 +97,7 @@ void panthor_device_unplug(struct panthor_device *ptdev)
 	panthor_sched_unplug(ptdev);
 	panthor_fw_unplug(ptdev);
 	panthor_mmu_unplug(ptdev);
+	panthor_gem_shrinker_unplug(ptdev);
 	panthor_gpu_unplug(ptdev);
 	panthor_pwr_unplug(ptdev);
 
@@ -231,6 +207,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 	*dummy_page_virt = 1;
 
 	INIT_WORK(&ptdev->reset.work, panthor_device_reset_work);
+	disable_work(&ptdev->reset.work);
 	ptdev->reset.wq = alloc_ordered_workqueue("panthor-reset-wq", 0);
 	if (!ptdev->reset.wq)
 		return -ENOMEM;
@@ -291,9 +268,13 @@ int panthor_device_init(struct panthor_device *ptdev)
 	if (ret)
 		goto err_unplug_gpu;
 
-	ret = panthor_mmu_init(ptdev);
+	ret = panthor_gem_shrinker_init(ptdev);
 	if (ret)
 		goto err_unplug_gpu;
+
+	ret = panthor_mmu_init(ptdev);
+	if (ret)
+		goto err_unplug_shrinker;
 
 	ret = panthor_fw_init(ptdev);
 	if (ret)
@@ -304,6 +285,9 @@ int panthor_device_init(struct panthor_device *ptdev)
 		goto err_unplug_fw;
 
 	panthor_gem_init(ptdev);
+
+	/* Now that everything is initialized, we can enable the reset work. */
+	enable_work(&ptdev->reset.work);
 
 	/* ~3 frames */
 	pm_runtime_set_autosuspend_delay(ptdev->base.dev, 50);
@@ -325,6 +309,9 @@ err_unplug_fw:
 
 err_unplug_mmu:
 	panthor_mmu_unplug(ptdev);
+
+err_unplug_shrinker:
+	panthor_gem_shrinker_unplug(ptdev);
 
 err_unplug_gpu:
 	panthor_gpu_unplug(ptdev);

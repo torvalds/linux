@@ -32,18 +32,6 @@
 #include "dce100/dce_clk_mgr.h"
 #include "dce120/dce120_hwseq.h"
 
-static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
-{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
-{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateLow*/
-{ .display_clk_khz = 460000, .pixel_clk_khz = 400000 },
-/*ClocksStateNominal*/
-{ .display_clk_khz = 670000, .pixel_clk_khz = 600000 },
-/*ClocksStatePerformance*/
-{ .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
-
 /**
  * dce121_clock_patch_xgmi_ss_info() - Save XGMI spread spectrum info
  * @clk_mgr_dce: clock manager internal structure
@@ -128,10 +116,6 @@ static struct clk_mgr_funcs dce120_funcs = {
 void dce120_clk_mgr_construct(struct dc_context *ctx, struct clk_mgr_internal *clk_mgr)
 {
 	dce_clk_mgr_construct(ctx, clk_mgr);
-
-	memcpy(clk_mgr->max_clks_by_state,
-		dce120_max_clks_by_state,
-		sizeof(dce120_max_clks_by_state));
 
 	clk_mgr->base.dprefclk_khz = 600000;
 	clk_mgr->base.funcs = &dce120_funcs;

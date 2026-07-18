@@ -530,9 +530,13 @@ static void acpi_fujitsu_bl_notify(acpi_handle handle, u32 event, void *data)
 
 static int acpi_fujitsu_bl_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	struct fujitsu_bl *priv;
 	int ret;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return -ENODEV;
@@ -993,9 +997,13 @@ static void acpi_fujitsu_laptop_notify(acpi_handle handle, u32 event, void *data
 
 static int acpi_fujitsu_laptop_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct fujitsu_laptop *priv;
+	struct acpi_device *device;
 	int ret, i = 0;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

@@ -48,6 +48,11 @@ static int cxl_mem_dpa_show(struct seq_file *file, void *data)
 static int cxl_debugfs_poison_inject(void *data, u64 dpa)
 {
 	struct cxl_memdev *cxlmd = data;
+	int rc;
+
+	ACQUIRE(device_intr, devlock)(&cxlmd->dev);
+	if ((rc = ACQUIRE_ERR(device_intr, &devlock)))
+		return rc;
 
 	return cxl_inject_poison(cxlmd, dpa);
 }
@@ -58,12 +63,37 @@ DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_inject_fops, NULL,
 static int cxl_debugfs_poison_clear(void *data, u64 dpa)
 {
 	struct cxl_memdev *cxlmd = data;
+	int rc;
+
+	ACQUIRE(device_intr, devlock)(&cxlmd->dev);
+	if ((rc = ACQUIRE_ERR(device_intr, &devlock)))
+		return rc;
 
 	return cxl_clear_poison(cxlmd, dpa);
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
 			 cxl_debugfs_poison_clear, "%llx\n");
+
+static void cxl_memdev_poison_enable(struct cxl_memdev_state *mds,
+				     struct cxl_memdev *cxlmd,
+				     struct dentry *dentry)
+{
+	/*
+	 * Avoid poison debugfs for DEVMEM aka accelerators as they rely on
+	 * cxl_memdev_state.
+	 */
+	if (!mds)
+		return;
+
+	if (test_bit(CXL_POISON_ENABLED_INJECT, mds->poison.enabled_cmds))
+		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_inject_fops);
+
+	if (test_bit(CXL_POISON_ENABLED_CLEAR, mds->poison.enabled_cmds))
+		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
+				    &cxl_poison_clear_fops);
+}
 
 static int cxl_mem_probe(struct device *dev)
 {
@@ -92,12 +122,7 @@ static int cxl_mem_probe(struct device *dev)
 	dentry = cxl_debugfs_create_dir(dev_name(dev));
 	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
 
-	if (test_bit(CXL_POISON_ENABLED_INJECT, mds->poison.enabled_cmds))
-		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
-				    &cxl_poison_inject_fops);
-	if (test_bit(CXL_POISON_ENABLED_CLEAR, mds->poison.enabled_cmds))
-		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
-				    &cxl_poison_clear_fops);
+	cxl_memdev_poison_enable(mds, cxlmd, dentry);
 
 	rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
 	if (rc)
@@ -168,27 +193,59 @@ static int cxl_mem_probe(struct device *dev)
 }
 
 /**
- * devm_cxl_add_memdev - Add a CXL memory device
+ * devm_cxl_add_classdev - Add a CXL memory class-code device
  * @cxlds: CXL device state to associate with the memdev
- * @attach: Caller depends on CXL topology attachment
  *
  * Upon return the device will have had a chance to attach to the
  * cxl_mem driver, but may fail to attach if the CXL topology is not ready
  * (hardware CXL link down, or software platform CXL root not attached).
  *
- * When @attach is NULL it indicates the caller wants the memdev to remain
- * registered even if it does not immediately attach to the CXL hierarchy. When
- * @attach is provided a cxl_mem_probe() failure leads to failure of this routine.
+ * The parent of the resulting device and the devm context for allocations is
+ * @cxlds->dev.
+ */
+struct cxl_memdev *devm_cxl_add_classdev(struct cxl_dev_state *cxlds)
+{
+	return __devm_cxl_add_memdev(cxlds, NULL);
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_classdev, "CXL");
+
+/**
+ * devm_cxl_probe_mem - Add a CXL memory device and probe its region
+ * @cxlds: CXL device state to associate with the memdev
+ * @hpa_range: CXL.mem physical address range result
+ *
+ * Upon return the device will have had a chance to attach to the
+ * cxl_mem driver, but may fail to attach if the CXL topology is not ready
+ * (hardware CXL link down, or software platform CXL root not attached).
+ *
+ * Failure to probe the memdev and/or setup a region for the memdev
+ * results in this function failing.
  *
  * The parent of the resulting device and the devm context for allocations is
  * @cxlds->dev.
  */
-struct cxl_memdev *devm_cxl_add_memdev(struct cxl_dev_state *cxlds,
-				       const struct cxl_memdev_attach *attach)
+struct cxl_memdev *devm_cxl_probe_mem(struct cxl_dev_state *cxlds,
+				      struct range *hpa_range)
 {
-	return __devm_cxl_add_memdev(cxlds, attach);
+	struct cxl_attach_region *attach =
+		devm_kmalloc(cxlds->dev, sizeof(*attach), GFP_KERNEL);
+	struct cxl_memdev *cxlmd;
+
+	if (!attach)
+		return ERR_PTR(-ENOMEM);
+
+	*attach = (struct cxl_attach_region) {
+		.attach = {
+			   .probe = cxl_memdev_attach_region,
+		},
+		.hpa_range = { 0, -1 },
+	};
+
+	cxlmd = __devm_cxl_add_memdev(cxlds, &attach->attach);
+	*hpa_range = attach->hpa_range;
+	return cxlmd;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, "CXL");
+EXPORT_SYMBOL_NS_GPL(devm_cxl_probe_mem, "CXL");
 
 static ssize_t trigger_poison_list_store(struct device *dev,
 					 struct device_attribute *attr,
@@ -206,16 +263,24 @@ static ssize_t trigger_poison_list_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(trigger_poison_list);
 
-static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
+static bool cxl_poison_attr_visible(struct kobject *kobj, struct attribute *a)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
-	if (a == &dev_attr_trigger_poison_list.attr)
-		if (!test_bit(CXL_POISON_ENABLED_LIST,
-			      mds->poison.enabled_cmds))
-			return 0;
+	if (!mds ||
+	    !test_bit(CXL_POISON_ENABLED_LIST, mds->poison.enabled_cmds))
+		return false;
+
+	return true;
+}
+
+static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
+{
+	if (a == &dev_attr_trigger_poison_list.attr &&
+	    !cxl_poison_attr_visible(kobj, a))
+		return 0;
 
 	return a->mode;
 }

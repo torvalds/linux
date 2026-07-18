@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DEP
+	bool "DEP"
+	help
+	  Test dependency symbol for Kconfig warning coverage.
+	  This is used by the warn_changed_input selftest.
+	  It intentionally stays unset in the input fragment.
+	  The test checks how dependent user input is adjusted.
+
+config A
+	bool "A"
+	depends on DEP
+	help
+	  Test bool symbol for changed-input diagnostics.
+	  The input fragment requests this symbol as built-in.
+	  The unmet dependency on DEP forces the final value to n.
+	  The warning should report that downgrade.
+
+config NUM
+	int "NUM"
+	range 10 20
+	help
+	  Test integer symbol for changed-input diagnostics.
+	  The input fragment requests a value outside the allowed range.
+	  Kconfig resolves it to the constrained in-range value.
+	  The warning should report that adjustment.
+
+config DUP
+	bool "DUP"
+	depends on DEP
+	help
+	  Test duplicate-definition handling for changed-input diagnostics.
+	  The input fragment requests this symbol as built-in.
+	  The duplicate definition below must not produce a duplicate warning.
+	  This keeps the warning output stable for repeated menu entries.
+
+config DUP
+	bool
+	depends on DEP

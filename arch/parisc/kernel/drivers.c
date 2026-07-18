@@ -41,9 +41,7 @@
 const struct dma_map_ops *hppa_dma_ops __ro_after_init;
 EXPORT_SYMBOL(hppa_dma_ops);
 
-static struct device root = {
-	.init_name = "parisc",
-};
+static struct device *root;
 
 static inline int check_dev(struct device *dev)
 {
@@ -89,7 +87,7 @@ static int for_each_padev(int (*fn)(struct device *, void *), void * data)
 		.obj	= data,
 		.fn	= fn,
 	};
-	return device_for_each_child(&root, &recurse_data, descend_children);
+	return device_for_each_child(root, &recurse_data, descend_children);
 }
 
 /**
@@ -290,7 +288,7 @@ const struct parisc_device *
 find_pa_parent_type(const struct parisc_device *padev, int type)
 {
 	const struct device *dev = &padev->dev;
-	while (dev != &root) {
+	while (dev != root) {
 		struct parisc_device *candidate = to_parisc_device(dev);
 		if (candidate->id.hw_type == type)
 			return candidate;
@@ -319,7 +317,7 @@ static void get_node_path(struct device *dev, struct hardware_path *path)
 		dev = dev->parent;
 	}
 
-	while (dev != &root) {
+	while (dev != root) {
 		if (dev_is_pci(dev)) {
 			unsigned int devfn = to_pci_dev(dev)->devfn;
 			path->bc[i--] = PCI_SLOT(devfn) | (PCI_FUNC(devfn)<< 5);
@@ -482,7 +480,7 @@ static struct parisc_device * __init alloc_tree_node(
 static struct parisc_device *create_parisc_device(struct hardware_path *modpath)
 {
 	int i;
-	struct device *parent = &root;
+	struct device *parent = root;
 	for (i = 0; i < 6; i++) {
 		if (modpath->bc[i] == -1)
 			continue;
@@ -755,7 +753,7 @@ parse_tree_node(struct device *parent, int index, struct hardware_path *modpath)
 struct device *hwpath_to_device(struct hardware_path *modpath)
 {
 	int i;
-	struct device *parent = &root;
+	struct device *parent = root;
 	for (i = 0; i < 6; i++) {
 		if (modpath->bc[i] == -1)
 			continue;
@@ -880,7 +878,7 @@ void __init walk_central_bus(void)
 {
 	walk_native_bus(CENTRAL_BUS_ADDR,
 			CENTRAL_BUS_ADDR + (MAX_NATIVE_DEVICES * NATIVE_DEVICE_OFFSET),
-			&root);
+			root);
 }
 
 static __init void print_parisc_device(struct parisc_device *dev)
@@ -907,9 +905,10 @@ void __init init_parisc_bus(void)
 {
 	if (bus_register(&parisc_bus_type))
 		panic("Could not register PA-RISC bus type\n");
-	if (device_register(&root))
+
+	root = root_device_register("parisc");
+	if (IS_ERR(root))
 		panic("Could not register PA-RISC root device\n");
-	get_device(&root);
 }
 
 static __init void qemu_header(void)

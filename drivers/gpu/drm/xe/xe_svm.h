@@ -31,6 +31,8 @@ struct xe_vram_region;
 struct xe_svm_range {
 	/** @base: base drm_gpusvm_range */
 	struct drm_gpusvm_range base;
+	/** @pages: Page/DMA mapping state for this range (single drm_device). */
+	struct drm_gpusvm_pages pages;
 	/**
 	 * @garbage_collector_link: Link into VM's garbage collect SVM range
 	 * list. Protected by VM's garbage collect lock.
@@ -74,7 +76,7 @@ struct xe_pagemap {
  */
 static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
 {
-	return drm_gpusvm_range_pages_valid(range->base.gpusvm, &range->base);
+	return drm_gpusvm_pages_valid(range->base.gpusvm, &range->pages);
 }
 
 int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr);
@@ -132,7 +134,7 @@ void *xe_svm_private_page_owner(struct xe_vm *vm, bool force_smem);
 static inline bool xe_svm_range_has_dma_mapping(struct xe_svm_range *range)
 {
 	lockdep_assert_held(&range->base.gpusvm->notifier_lock);
-	return range->base.pages.flags.has_dma_mapping;
+	return range->pages.flags.has_dma_mapping;
 }
 
 /**
@@ -210,10 +212,10 @@ struct xe_vram_region;
 struct xe_svm_range {
 	struct {
 		struct interval_tree_node itree;
-		struct {
-			const struct drm_pagemap_addr *dma_addr;
-		} pages;
 	} base;
+	struct {
+		const struct drm_pagemap_addr *dma_addr;
+	} pages;
 	u32 tile_present;
 	u32 tile_invalidated;
 };
@@ -233,7 +235,7 @@ static inline
 int xe_svm_init(struct xe_vm *vm)
 {
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
-	return drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM (simple)", &vm->xe->drm,
+	return drm_gpusvm_init(&vm->svm.gpusvm, "Xe SVM (simple)",
 			       NULL, 0, 0, 0, NULL, NULL, 0);
 #else
 	return 0;
@@ -394,8 +396,19 @@ static inline struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_inst
 #define xe_svm_assert_in_notifier(vm__) \
 	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
 
-#define xe_svm_assert_held_read(vm__) \
+/*
+ * Assert the svm notifier_lock is held. Read mode by default; write mode
+ * when CONFIG_DRM_XE_USERPTR_INVAL_INJECT is on, because that path forces
+ * a userptr invalidation that ends in drm_gpusvm_unmap_pages() with
+ * ctx->in_notifier=true, which requires the lock held for write.
+ */
+#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
+#define xe_svm_assert_held_read_or_inject_write(vm__) \
+	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
+#else
+#define xe_svm_assert_held_read_or_inject_write(vm__) \
 	lockdep_assert_held_read(&(vm__)->svm.gpusvm.notifier_lock)
+#endif
 
 #define xe_svm_notifier_lock(vm__)	\
 	drm_gpusvm_notifier_lock(&(vm__)->svm.gpusvm)
@@ -409,7 +422,7 @@ static inline struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_inst
 #else
 #define xe_svm_assert_in_notifier(...) do {} while (0)
 
-static inline void xe_svm_assert_held_read(struct xe_vm *vm)
+static inline void xe_svm_assert_held_read_or_inject_write(struct xe_vm *vm)
 {
 }
 

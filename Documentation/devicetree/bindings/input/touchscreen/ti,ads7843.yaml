@@ -165,9 +165,9 @@ examples:
 
         touchscreen@0 {
             compatible = "ti,tsc2046";
-            reg = <0>;	/* CS0 */
+            reg = <0>; /* CS0 */
             interrupt-parent = <&gpio1>;
-            interrupts = <8 0>;	/* BOOT6 / GPIO 8 */
+            interrupts = <8 0>; /* BOOT6 / GPIO 8 */
             pendown-gpio = <&gpio1 8 0>;
             spi-max-frequency = <1000000>;
             vcc-supply = <&reg_vcc3>;

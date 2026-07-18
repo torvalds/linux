@@ -37,12 +37,12 @@ struct cs35l56_private {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[CS35L56_NUM_BULK_SUPPLIES];
 	struct sdw_slave *sdw_peripheral;
+	struct regmap *sdw_bus_regmap;
 	const char *fallback_fw_suffix;
 	struct work_struct sdw_irq_work;
 	bool sdw_irq_no_unmask;
 	bool soft_resetting;
 	bool sdw_attached;
-	bool sdw_in_clock_stop_1;
 	struct completion init_completion;
 
 	int speaker_id;
@@ -64,6 +64,11 @@ static inline struct cs35l56_private *cs35l56_private_from_base(struct cs35l56_b
 }
 
 extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;
+
+void cs35l56_mask_soundwire_interrupts(struct sdw_slave *peripheral);
+void cs35l56_unmask_soundwire_interrupts(struct sdw_slave *peripheral);
+void cs35l56_disable_sdw_interrupts(struct cs35l56_private *cs35l56);
+void cs35l56_enable_sdw_interrupts(struct cs35l56_private *cs35l56);
 
 int cs35l56_system_suspend(struct device *dev);
 int cs35l56_system_suspend_late(struct device *dev);

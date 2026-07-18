@@ -77,9 +77,9 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 	return 0;
 }
 
-static void vlan_stacked_transfer_operstate(const struct net_device *rootdev,
-					    struct net_device *dev,
-					    struct vlan_dev_priv *vlan)
+void vlan_stacked_transfer_operstate(const struct net_device *rootdev,
+				     struct net_device *dev,
+				     struct vlan_dev_priv *vlan)
 {
 	if (!(vlan->flags & VLAN_FLAG_BRIDGE_BINDING))
 		netif_stacked_transfer_operstate(rootdev, dev);
@@ -316,29 +316,6 @@ out:
 	ether_addr_copy(vlan->real_dev_addr, dev->dev_addr);
 }
 
-static void vlan_transfer_features(struct net_device *dev,
-				   struct net_device *vlandev)
-{
-	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
-
-	netif_inherit_tso_max(vlandev, dev);
-
-	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
-		vlandev->hard_header_len = dev->hard_header_len;
-	else
-		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
-
-#if IS_ENABLED(CONFIG_FCOE)
-	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
-#endif
-
-	vlandev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
-	vlandev->priv_flags |= (vlan->real_dev->priv_flags & IFF_XMIT_DST_RELEASE);
-	vlandev->hw_enc_features = vlan_tnl_features(vlan->real_dev);
-
-	netdev_update_features(vlandev);
-}
-
 static int __vlan_device_event(struct net_device *dev, unsigned long event)
 {
 	int err = 0;
@@ -391,13 +368,11 @@ static void vlan_vid0_del(struct net_device *dev)
 static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			     void *ptr)
 {
-	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct vlan_group *grp;
 	struct vlan_info *vlan_info;
 	int i, flgs;
 	struct net_device *vlandev;
-	struct vlan_dev_priv *vlan;
 	bool last = false;
 	LIST_HEAD(list);
 	int err;
@@ -447,54 +422,19 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (vlandev->mtu <= dev->mtu)
 				continue;
 
-			dev_set_mtu(vlandev, dev->mtu);
+			netdev_work_sched(vlandev, VLAN_WORK_MTU);
 		}
 		break;
 
 	case NETDEV_FEAT_CHANGE:
-		/* Propagate device features to underlying device */
 		vlan_group_for_each_dev(grp, i, vlandev)
-			vlan_transfer_features(dev, vlandev);
+			netdev_work_sched(vlandev, VLAN_WORK_FEATURES);
 		break;
 
-	case NETDEV_DOWN: {
-		struct net_device *tmp;
-		LIST_HEAD(close_list);
-
-		/* Put all VLANs for this dev in the down state too.  */
-		vlan_group_for_each_dev(grp, i, vlandev) {
-			flgs = vlandev->flags;
-			if (!(flgs & IFF_UP))
-				continue;
-
-			vlan = vlan_dev_priv(vlandev);
-			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
-				list_add(&vlandev->close_list, &close_list);
-		}
-
-		netif_close_many(&close_list, false);
-
-		list_for_each_entry_safe(vlandev, tmp, &close_list, close_list) {
-			vlan_stacked_transfer_operstate(dev, vlandev,
-							vlan_dev_priv(vlandev));
-			list_del_init(&vlandev->close_list);
-		}
-		list_del(&close_list);
-		break;
-	}
+	case NETDEV_DOWN:
 	case NETDEV_UP:
-		/* Put all VLANs for this dev in the up state too.  */
-		vlan_group_for_each_dev(grp, i, vlandev) {
-			flgs = netif_get_flags(vlandev);
-			if (flgs & IFF_UP)
-				continue;
-
-			vlan = vlan_dev_priv(vlandev);
-			if (!(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
-				dev_change_flags(vlandev, flgs | IFF_UP,
-						 extack);
-			vlan_stacked_transfer_operstate(dev, vlandev, vlan);
-		}
+		vlan_group_for_each_dev(grp, i, vlandev)
+			netdev_work_sched(vlandev, VLAN_WORK_LINK_STATE);
 		break;
 
 	case NETDEV_UNREGISTER:

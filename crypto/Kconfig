@@ -464,15 +464,6 @@ config CRYPTO_DES
 	  Triple DES EDE (Encrypt/Decrypt/Encrypt) (FIPS 46-3, ISO/IEC 18033-3)
 	  cipher algorithms
 
-config CRYPTO_FCRYPT
-	tristate "FCrypt"
-	select CRYPTO_ALGAPI
-	select CRYPTO_SKCIPHER
-	help
-	  FCrypt algorithm used by RxRPC
-
-	  See https://ota.polyonymo.us/fcrypt-paper.txt
-
 config CRYPTO_KHAZAD
 	tristate "Khazad"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
@@ -711,15 +702,6 @@ config CRYPTO_LRW
 	  rest is used to tie each cipher block to its logical position.
 
 	  See https://people.csail.mit.edu/rivest/pubs/LRW02.pdf
-
-config CRYPTO_PCBC
-	tristate "PCBC (Propagating Cipher Block Chaining)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  PCBC (Propagating Cipher Block Chaining) mode
-
-	  This block cipher mode is required for RxRPC.
 
 config CRYPTO_XCTR
 	tristate
@@ -1113,44 +1095,16 @@ endmenu
 
 menu "Random number generation"
 
-menuconfig CRYPTO_DRBG_MENU
+config CRYPTO_DRBG
 	tristate "NIST SP800-90A DRBG (Deterministic Random Bit Generator)"
+	select CRYPTO_JITTERENTROPY
+	select CRYPTO_LIB_SHA512
+	select CRYPTO_RNG
 	help
 	  DRBG (Deterministic Random Bit Generator) (NIST SP800-90A)
 
-	  In the following submenu, one or more of the DRBG types must be selected.
-
-if CRYPTO_DRBG_MENU
-
-config CRYPTO_DRBG_HMAC
-	bool
-	default y
-	select CRYPTO_HMAC
-	select CRYPTO_SHA512
-
-config CRYPTO_DRBG_HASH
-	bool "Hash_DRBG"
-	select CRYPTO_SHA256
-	help
-	  Hash_DRBG variant as defined in NIST SP800-90A.
-
-	  This uses the SHA-1, SHA-256, SHA-384, or SHA-512 hash algorithms.
-
-config CRYPTO_DRBG_CTR
-	bool "CTR_DRBG"
-	select CRYPTO_DF80090A
-	help
-	  CTR_DRBG variant as defined in NIST SP800-90A.
-
-	  This uses the AES cipher algorithm with the counter block mode.
-
-config CRYPTO_DRBG
-	tristate
-	default CRYPTO_DRBG_MENU
-	select CRYPTO_RNG
-	select CRYPTO_JITTERENTROPY
-
-endif	# if CRYPTO_DRBG_MENU
+	  Enable this only if you need it for a FIPS 140 certification.
+	  It's otherwise redundant with the kernel's regular RNG.
 
 config CRYPTO_JITTERENTROPY
 	tristate "CPU Jitter Non-Deterministic RNG (Random Number Generator)"
@@ -1274,50 +1228,69 @@ config CRYPTO_KDF800108_CTR
 	select CRYPTO_HMAC
 	select CRYPTO_SHA256
 
-config CRYPTO_DF80090A
-	tristate
-	select CRYPTO_AES
-	select CRYPTO_CTR
-
 endmenu
-menu "Userspace interface"
+menu "Userspace interface (deprecated)"
 
 config CRYPTO_USER_API
 	tristate
 
 config CRYPTO_USER_API_HASH
-	tristate "Hash algorithms"
+	tristate "Hash algorithms (deprecated)"
 	depends on NET
 	select CRYPTO_HASH
 	select CRYPTO_USER_API
 	help
-	  Enable the userspace interface for hash algorithms.
+	  Enable the AF_ALG userspace interface for hash algorithms.  This
+	  provides unprivileged userspace programs access to arbitrary hash
+	  algorithms implemented in the kernel's privileged execution context.
 
-	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  This interface is deprecated and is supported only for backwards
+	  compatibility.  It regularly has vulnerabilities, and the capabilities
+	  it provides are redundant with userspace crypto libraries.
+
+	  Enable this only if needed for support for a program that hasn't yet
+	  been converted to userspace crypto, for example iwd.
+
+	  See also Documentation/crypto/userspace-if.rst
 
 config CRYPTO_USER_API_SKCIPHER
-	tristate "Symmetric key cipher algorithms"
+	tristate "Symmetric key cipher algorithms (deprecated)"
 	depends on NET
 	select CRYPTO_SKCIPHER
 	select CRYPTO_USER_API
 	help
-	  Enable the userspace interface for symmetric key cipher algorithms.
+	  Enable the AF_ALG userspace interface for symmetric key algorithms.
+	  This provides unprivileged userspace programs access to arbitrary
+	  symmetric key algorithms implemented in the kernel's privileged
+	  execution context.
 
-	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  This interface is deprecated and is supported only for backwards
+	  compatibility.  It regularly has vulnerabilities, and the capabilities
+	  it provides are redundant with userspace crypto libraries.
+
+	  Enable this only if needed for support for a program that hasn't yet
+	  been converted to userspace crypto, for example iwd, or cryptsetup
+	  with certain algorithms.
+
+	  See also Documentation/crypto/userspace-if.rst
 
 config CRYPTO_USER_API_RNG
-	tristate "RNG (random number generator) algorithms"
+	tristate "Random number generation algorithms (deprecated)"
 	depends on NET
 	select CRYPTO_RNG
 	select CRYPTO_USER_API
 	help
-	  Enable the userspace interface for RNG (random number generator)
-	  algorithms.
+	  Enable the AF_ALG userspace interface for random number generation
+	  (RNG) algorithms.  This provides unprivileged userspace programs
+	  access to arbitrary RNG algorithms implemented in the kernel's
+	  privileged execution context.
 
-	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  This interface is deprecated and is supported only for backwards
+	  compatibility.  It regularly has vulnerabilities, and the capabilities
+	  it provides are redundant with userspace crypto libraries as well as
+	  the normal kernel RNG (e.g., /dev/urandom and getrandom(2)).
+
+	  See also Documentation/crypto/userspace-if.rst
 
 config CRYPTO_USER_API_RNG_CAVP
 	bool "Enable CAVP testing of DRBG"
@@ -1332,16 +1305,25 @@ config CRYPTO_USER_API_RNG_CAVP
 	  no unless you know what this is.
 
 config CRYPTO_USER_API_AEAD
-	tristate "AEAD cipher algorithms"
+	tristate "AEAD cipher algorithms (deprecated)"
 	depends on NET
 	select CRYPTO_AEAD
 	select CRYPTO_SKCIPHER
 	select CRYPTO_USER_API
 	help
-	  Enable the userspace interface for AEAD cipher algorithms.
+	  Enable the AF_ALG userspace interface for authenticated encryption
+	  with associated data (AEAD) algorithms.  This provides unprivileged
+	  userspace programs access to arbitrary AEAD algorithms implemented in
+	  the kernel's privileged execution context.
 
-	  See Documentation/crypto/userspace-if.rst and
-	  https://www.chronox.de/libkcapi/html/index.html
+	  This interface is deprecated and is supported only for backwards
+	  compatibility.  It regularly has vulnerabilities, and the capabilities
+	  it provides are redundant with userspace crypto libraries.
+
+	  Enable this only if needed for support for a program that hasn't yet
+	  been converted to userspace crypto, for example iwd.
+
+	  See also Documentation/crypto/userspace-if.rst
 
 config CRYPTO_USER_API_ENABLE_OBSOLETE
 	bool "Obsolete cryptographic algorithms"
@@ -1360,12 +1342,6 @@ source "arch/arm/crypto/Kconfig"
 endif
 if ARM64
 source "arch/arm64/crypto/Kconfig"
-endif
-if LOONGARCH
-source "arch/loongarch/crypto/Kconfig"
-endif
-if MIPS
-source "arch/mips/crypto/Kconfig"
 endif
 if PPC
 source "arch/powerpc/crypto/Kconfig"

@@ -59,9 +59,20 @@ int ras_mp1_dump_bank(struct ras_core_context *ras_core,
 	return mp1->ip_func->dump_valid_bank(ras_core, type, idx, reg_idx, val);
 }
 
+int ras_mp1_set_debug_mode(struct ras_core_context *ras_core, bool enable)
+{
+	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
+
+	if (!mp1->ip_func || !mp1->ip_func->set_debug_mode)
+		return -EOPNOTSUPP;
+
+	return mp1->ip_func->set_debug_mode(ras_core, enable);
+}
+
 int ras_mp1_hw_init(struct ras_core_context *ras_core)
 {
 	struct ras_mp1 *mp1 = &ras_core->ras_mp1;
+	int ret = 0;
 
 	mp1->mp1_ip_version = ras_core->config->mp1_ip_version;
 	mp1->sys_func = ras_core->config->mp1_cfg.mp1_sys_fn;
@@ -71,8 +82,14 @@ int ras_mp1_hw_init(struct ras_core_context *ras_core)
 	}
 
 	mp1->ip_func = ras_mp1_get_ip_funcs(ras_core, mp1->mp1_ip_version);
+	if (!mp1->ip_func)
+		return -EINVAL;
 
-	return mp1->ip_func ? RAS_CORE_OK : -EINVAL;
+	ret = ras_mp1_set_debug_mode(ras_core, false);
+	if (ret)
+		return -EINVAL;
+
+	return ret;
 }
 
 int ras_mp1_hw_fini(struct ras_core_context *ras_core)

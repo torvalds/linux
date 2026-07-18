@@ -1,0 +1,3 @@
+bench_transmute:
+	mov rax, rdi
+	ret

@@ -10,6 +10,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   3com/3c509
    3com/vortex
    amazon/ena
    altera/altera_tse
@@ -18,7 +19,6 @@ Contents:
    amd/pds_vfio_pci
    aquantia/atlantic
    chelsio/cxgb
-   cirrus/cs89x0
    dlink/dl2k
    davicom/dm9000
    dec/dmfe

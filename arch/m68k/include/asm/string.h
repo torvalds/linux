@@ -21,23 +21,6 @@ static inline size_t strnlen(const char *s, size_t count)
 	return sc - s;
 }
 
-#define __HAVE_ARCH_STRNCPY
-static inline char *strncpy(char *dest, const char *src, size_t n)
-{
-	char *xdest = dest;
-
-	asm volatile ("\n"
-		"	jra	2f\n"
-		"1:	move.b	(%1),(%0)+\n"
-		"	jeq	2f\n"
-		"	addq.l	#1,%1\n"
-		"2:	subq.l	#1,%2\n"
-		"	jcc	1b\n"
-		: "+a" (dest), "+a" (src), "+d" (n)
-		: : "memory");
-	return xdest;
-}
-
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *, const void *, __kernel_size_t);
 

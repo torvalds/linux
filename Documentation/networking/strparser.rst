@@ -40,8 +40,8 @@ Functions
 
      ::
 
-	strp_init(struct strparser *strp, struct sock *sk,
-		const struct strp_callbacks *cb)
+	int strp_init(struct strparser *strp, struct sock *sk,
+		      const struct strp_callbacks *cb)
 
      Called to initialize a stream parser. strp is a struct of type
      strparser that is allocated by the upper layer. sk is the TCP
@@ -95,7 +95,7 @@ Functions
 
 	void strp_data_ready(struct strparser *strp);
 
-    The upper layer calls strp_tcp_data_ready when data is ready on
+    The upper layer calls strp_data_ready when data is ready on
     the lower socket for strparser to process. This should be called
     from a data_ready callback that is set on the socket. Note that
     maximum messages size is the limit of the receive socket
@@ -123,9 +123,9 @@ There are seven callbacks:
     should parse the sk_buff as containing the headers for the
     next application layer message in the stream.
 
-    The skb->cb in the input skb is a struct strp_msg. Only
-    the offset field is relevant in parse_msg and gives the offset
-    where the message starts in the skb.
+    The strparser metadata in the input skb can be accessed with
+    strp_msg(skb). Only the offset field is relevant in parse_msg and
+    gives the offset where the message starts in the skb.
 
     The return values of this function are:
 
@@ -176,11 +176,11 @@ There are seven callbacks:
     received in rcv_msg (see strp_pause above). This callback
     must be set.
 
-    The skb->cb in the input skb is a struct strp_msg. This
-    struct contains two fields: offset and full_len. Offset is
-    where the message starts in the skb, and full_len is the
-    the length of the message. skb->len - offset may be greater
-    than full_len since strparser does not trim the skb.
+    The strparser metadata in the input skb can be accessed with
+    strp_msg(skb). This struct contains two fields: offset and full_len.
+    Offset is where the message starts in the skb, and full_len is
+    the length of the message. skb->len - offset may be greater than
+    full_len since strparser does not trim the skb.
 
     ::
 

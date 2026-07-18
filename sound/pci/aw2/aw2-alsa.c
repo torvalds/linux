@@ -142,9 +142,8 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Audiowerk2 soundcard.");
 
 static const struct pci_device_id snd_aw2_ids[] = {
-	{PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146, 0, 0,
-	 0, 0, 0},
-	{0}
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA7146, 0, 0) },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, snd_aw2_ids);

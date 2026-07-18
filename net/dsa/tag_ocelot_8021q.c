@@ -33,30 +33,34 @@ static struct sk_buff *ocelot_defer_xmit(struct dsa_port *dp,
 	xmit_work_fn = data->xmit_work_fn;
 	xmit_worker = priv->xmit_worker;
 
-	if (!xmit_work_fn || !xmit_worker)
+	if (!xmit_work_fn || !xmit_worker) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* PTP over IP packets need UDP checksumming. We may have inherited
 	 * NETIF_F_HW_CSUM from the DSA conduit, but these packets are not sent
 	 * through the DSA conduit, so calculate the checksum here.
 	 */
-	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
+	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	xmit_work = kzalloc_obj(*xmit_work, GFP_ATOMIC);
-	if (!xmit_work)
+	if (!xmit_work) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* Calls felix_port_deferred_xmit in felix.c */
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_user_xmit
-	 * won't really free the packet.
-	 */
 	xmit_work->dp = dp;
 	xmit_work->skb = skb_get(skb);
 
 	kthread_queue_work(xmit_worker, &xmit_work->work);
 
+	kfree_skb(skb);
 	return NULL;
 }
 
@@ -84,8 +88,10 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	dsa_8021q_rcv(skb, &src_port, &switch_id, NULL, NULL);
 
 	skb->dev = dsa_conduit_find_user(netdev, switch_id, src_port);
-	if (!skb->dev)
+	if (!skb->dev) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	dsa_default_offload_fwd_mark(skb);
 

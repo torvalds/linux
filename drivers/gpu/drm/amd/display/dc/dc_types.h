@@ -77,6 +77,7 @@ struct dc_perf_trace {
 };
 
 #define NUM_PIXEL_FORMATS 10
+#define DTBCLK_LIMIT 2920
 
 enum tiling_mode {
 	TILING_MODE_INVALID,
@@ -174,6 +175,15 @@ struct dc_panel_patch {
 	unsigned int max_dsc_target_bpp_limit;
 	unsigned int embedded_tiled_slave;
 	unsigned int disable_fams;
+	unsigned int hdmi_spe_handling;
+	unsigned int block_420_Freesync;
+	unsigned int block_10g;
+	unsigned int hdmi_comp_manual;
+	unsigned int hdmi_comp_auto;
+	unsigned int force_frl;
+	unsigned int vsdb_rcc_wa;
+	unsigned int delay_hdmi_link_training;
+	unsigned int skip_frl_pre_training;
 	unsigned int skip_avmute;
 	unsigned int skip_audio_sab_check;
 	unsigned int mst_start_top_delay;
@@ -220,6 +230,17 @@ struct dc_edid_caps {
 	bool rr_capable;
 	bool scdc_present;
 	bool analog;
+
+	/*HDMI 2.1 caps*/
+	uint8_t max_frl_rate;
+	bool frl_dsc_support;
+	bool frl_dsc_10bpc;
+	bool frl_dsc_12bpc;
+	bool frl_dsc_all_bpp;
+	bool frl_dsc_native_420;
+	uint8_t frl_dsc_max_slices;
+	uint8_t frl_dsc_max_frl_rate;
+	uint8_t frl_dsc_total_chunk_kbytes;
 
 	struct dc_panel_patch panel_patch;
 };
@@ -545,6 +566,7 @@ struct audio_info {
 struct audio_check {
 	unsigned int audio_packet_type;
 	unsigned int max_audiosample_rate;
+	unsigned int max_channel_count;
 	unsigned int acat;
 };
 enum dc_infoframe_type {
@@ -790,6 +812,36 @@ struct dc_clock_config {
 	uint32_t current_clock_khz;/*current clock in use*/
 };
 
+enum hubp_dmdata_mode {
+	DMDATA_SW_MODE,
+	DMDATA_HW_MODE
+};
+
+struct dc_dmdata_attributes {
+	/* Specifies whether dynamic meta data will be updated by software
+	 * or has to be fetched by hardware (DMA mode)
+	 */
+	enum hubp_dmdata_mode dmdata_mode;
+	/* Specifies if current dynamic meta data is to be used only for the current frame */
+	bool dmdata_repeat;
+	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means no Dynamic metadata is fetched */
+	uint32_t dmdata_size;
+	/* Specifies if a new dynamic meta data should be fetched for an upcoming frame */
+	bool dmdata_updated;
+	/* If hardware mode is used, the base address where DMDATA surface is located */
+	PHYSICAL_ADDRESS_LOC address;
+	/* Specifies whether QOS level will be provided by TTU or it will come from DMDATA_QOS_LEVEL */
+	bool dmdata_qos_mode;
+	/* If qos_mode = 1, this is the QOS value to be used: */
+	uint32_t dmdata_qos_level;
+	/* Specifies the value in unit of REFCLK cycles to be added to the
+	 * current time to produce the Amortized deadline for Dynamic Metadata chunk request
+	 */
+	uint32_t dmdata_dl_delta;
+	/* An unbounded array of uint32s, represents software dmdata to be loaded */
+	uint32_t *dmdata_sw_data;
+};
+
 struct hw_asic_id {
 	uint32_t chip_id;
 	uint32_t chip_family;
@@ -887,7 +939,7 @@ struct dsc_dec_dpcd_caps {
 	union dsc_slice_caps2 slice_caps2;
 	int32_t lb_bit_depth;
 	bool is_block_pred_supported;
-	int32_t edp_max_bits_per_pixel; /* Valid only in eDP */
+	uint32_t edp_max_bits_per_pixel; /* Valid only in eDP */
 	union dsc_color_formats color_formats;
 	union dsc_color_depth color_depth;
 	int32_t throughput_mode_0_mps; /* In MPs */
@@ -899,6 +951,9 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_overall_throughput_0_mps; /* In MPs */
 	uint32_t branch_overall_throughput_1_mps; /* In MPs */
 	uint32_t branch_max_line_width;
+	bool is_frl; /* Decoded format */
+	bool is_vic_all_bpp;
+	uint32_t total_chunk_kbytes;
 	bool is_dp; /* Decoded format */
 };
 
@@ -1292,6 +1347,14 @@ struct dc_panel_config {
 	struct ilr {
 		bool optimize_edp_link_rate; /* eDP ILR */
 	} ilr;
+	/* CACP*/
+	struct cacp {
+		unsigned int cacp_supported;
+		unsigned int cacp_control_mode;
+		unsigned int strscl_valid;
+		unsigned int strscl_sdr[4];
+		unsigned int strscl_hdr[4];
+	} cacp;
 	/* Adaptive VariBright*/
 	struct adaptive_vb {
 		bool disable_adaptive_vb;
@@ -1343,6 +1406,39 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum dc_cm_lut_swizzle {
+	CM_LUT_3D_SWIZZLE_LINEAR_RGB,
+	CM_LUT_3D_SWIZZLE_LINEAR_BGR,
+	CM_LUT_1D_PACKED_LINEAR
+};
+
+enum dc_cm_lut_pixel_format {
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB,
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12MSB,
+#endif
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB,
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12LSB,
+#endif
+	CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10,
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	CM_LUT_PIXEL_FORMAT_BGRA16161616_FLOAT_FP1_5_10
+#endif
+};
+
+enum dc_cm_lut_size {
+	CM_LUT_SIZE_NONE,
+	CM_LUT_SIZE_999,
+	CM_LUT_SIZE_171717,
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	CM_LUT_SIZE_333333,
+	CM_LUT_SIZE_454545,
+	CM_LUT_SIZE_656565,
+#endif
+};
+
+#ifndef TRIM_CM2
 enum dc_cm2_shaper_3dlut_setting {
 	DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL,
 	DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER,
@@ -1367,6 +1463,16 @@ enum dc_cm2_gpu_mem_format {
 	DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10
 };
 
+enum dc_cm2_gpu_mem_size {
+	DC_CM2_GPU_MEM_SIZE_171717,
+	DC_CM2_GPU_MEM_SIZE_333333,
+	DC_CM2_GPU_MEM_SIZE_454545,
+	DC_CM2_GPU_MEM_SIZE_656565,
+	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
+};
+#endif /* TRIM_CM2 */
+
+#ifndef TRIM_CM2
 struct dc_cm2_gpu_mem_format_parameters {
 	enum dc_cm2_gpu_mem_format format;
 	union {
@@ -1378,14 +1484,6 @@ struct dc_cm2_gpu_mem_format_parameters {
 	};
 };
 
-enum dc_cm2_gpu_mem_size {
-	DC_CM2_GPU_MEM_SIZE_171717,
-	DC_CM2_GPU_MEM_SIZE_333333,
-	DC_CM2_GPU_MEM_SIZE_454545,
-	DC_CM2_GPU_MEM_SIZE_656565,
-	DC_CM2_GPU_MEM_SIZE_TRANSFORMED,
-};
-
 struct dc_cm2_gpu_mem_parameters {
 	struct dc_plane_address addr;
 	enum dc_cm2_gpu_mem_layout layout;
@@ -1394,17 +1492,16 @@ struct dc_cm2_gpu_mem_parameters {
 	enum dc_cm2_gpu_mem_size  size;
 	uint16_t bit_depth;
 };
+#endif /* TRIM_CM2 */
 
+#ifndef TRIM_CM2
 enum dc_cm2_transfer_func_source {
 	DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM,
 	DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
 };
+#endif /* TRIM_CM2 */
 
-struct dc_cm2_component_settings {
-	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting;
-	bool lut1d_enable;
-};
-
+#ifndef TRIM_CM2
 /*
  * All pointers in this struct must remain valid for as long as the 3DLUTs are used
  */
@@ -1424,11 +1521,7 @@ struct dc_cm2_func_luts {
 	} lut3d_data;
 	const struct dc_transfer_func *lut1d_func;
 };
-
-struct dc_cm2_parameters {
-	struct dc_cm2_component_settings component_settings;
-	struct dc_cm2_func_luts cm2_luts;
-};
+#endif /* TRIM_CM2 */
 
 enum mall_stream_type {
 	SUBVP_NONE, // subvp not in use
@@ -1491,30 +1584,6 @@ struct dc_validation_dpia_set {
 	const struct dc_link *link;
 	const struct dc_tunnel_settings *tunnel_settings;
 	uint32_t required_bw;
-};
-
-enum dc_cm_lut_swizzle {
-	CM_LUT_3D_SWIZZLE_LINEAR_RGB,
-	CM_LUT_3D_SWIZZLE_LINEAR_BGR,
-	CM_LUT_1D_PACKED_LINEAR
-};
-
-enum dc_cm_lut_pixel_format {
-	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB,
-	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12MSB,
-	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB,
-	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12LSB,
-	CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10,
-	CM_LUT_PIXEL_FORMAT_BGRA16161616_FLOAT_FP1_5_10
-};
-
-enum dc_cm_lut_size {
-	CM_LUT_SIZE_NONE,
-	CM_LUT_SIZE_999,
-	CM_LUT_SIZE_171717,
-	CM_LUT_SIZE_333333,
-	CM_LUT_SIZE_454545,
-	CM_LUT_SIZE_656565,
 };
 
 #endif /* DC_TYPES_H_ */

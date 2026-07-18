@@ -9,9 +9,6 @@
 struct hda_intel {
 	struct azx chip;
 
-	/* for pending irqs */
-	struct work_struct irq_pending_work;
-
 	/* sync probing */
 	struct completion probe_wait;
 	struct delayed_work probe_work;
@@ -34,5 +31,17 @@ struct hda_intel {
 
 	int probe_retry;	/* being probe-retry */
 };
+
+struct hda_intel_stream {
+	struct azx_dev azx_dev;
+
+	/* for pending irqs */
+	struct hda_intel *hda;
+	struct work_struct irq_pending_work;
+	bool irq_pending;
+};
+
+#define azx_dev_to_istream(azx_dev) \
+	container_of(azx_dev, struct hda_intel_stream, azx_dev)
 
 #endif

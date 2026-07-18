@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: LGPL-2.1
+#include "trace/beauty/beauty.h"
 #include <linux/futex.h>
 
 #ifndef FUTEX_WAIT_BITSET
@@ -17,7 +18,7 @@
 #define FUTEX_CLOCK_REALTIME	256
 #endif
 
-static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct syscall_arg *arg)
+size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct syscall_arg *arg)
 {
 	bool show_prefix = arg->show_string_prefix;
 	const char *prefix = "FUTEX_";
@@ -59,5 +60,3 @@ static size_t syscall_arg__scnprintf_futex_op(char *bf, size_t size, struct sysc
 
 	return printed;
 }
-
-#define SCA_FUTEX_OP  syscall_arg__scnprintf_futex_op

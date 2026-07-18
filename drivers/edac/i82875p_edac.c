@@ -276,7 +276,7 @@ static int i82875p_setup_overfl_dev(struct pci_dev *pdev,
 
 	*ovrfl_pdev = NULL;
 	*ovrfl_window = NULL;
-	dev = pci_get_device(PCI_VEND_DEV(INTEL, 82875_6), NULL);
+	dev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_6, NULL);
 
 	if (dev == NULL) {
 		/* Intel tells BIOS developers to hide device 6 which
@@ -518,11 +518,11 @@ static void i82875p_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id i82875p_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(INTEL, 82875_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 I82875P},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, 82875_0),
+		.driver_data = I82875P,
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, i82875p_pci_tbl);

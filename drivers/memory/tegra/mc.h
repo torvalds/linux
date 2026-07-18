@@ -240,6 +240,14 @@ extern const struct tegra_mc_soc tegra194_mc_soc;
 extern const struct tegra_mc_soc tegra234_mc_soc;
 #endif
 
+#if defined(CONFIG_ARCH_TEGRA_234_SOC) || defined(CONFIG_ARCH_TEGRA_238_SOC)
+extern const struct tegra_mc_icc_ops tegra234_mc_icc_ops;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_238_SOC
+extern const struct tegra_mc_soc tegra238_mc_soc;
+#endif
+
 #ifdef CONFIG_ARCH_TEGRA_264_SOC
 extern const struct tegra_mc_soc tegra264_mc_soc;
 #endif
@@ -256,6 +264,7 @@ extern const struct tegra_mc_ops tegra30_mc_ops;
 #if defined(CONFIG_ARCH_TEGRA_186_SOC) || \
     defined(CONFIG_ARCH_TEGRA_194_SOC) || \
     defined(CONFIG_ARCH_TEGRA_234_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_238_SOC) || \
     defined(CONFIG_ARCH_TEGRA_264_SOC)
 extern const struct tegra_mc_ops tegra186_mc_ops;
 #endif

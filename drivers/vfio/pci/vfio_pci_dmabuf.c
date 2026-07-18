@@ -244,9 +244,11 @@ int vfio_pci_core_feature_dma_buf(struct vfio_pci_core_device *vdev, u32 flags,
 		return -EINVAL;
 
 	/*
-	 * For PCI the region_index is the BAR number like everything else.
+	 * For PCI the region_index is the BAR number like everything
+	 * else.  Check that PCI resources have been claimed for it.
 	 */
-	if (get_dma_buf.region_index >= VFIO_PCI_ROM_REGION_INDEX)
+	if (get_dma_buf.region_index >= VFIO_PCI_ROM_REGION_INDEX ||
+	    IS_ERR(vfio_pci_core_get_iomap(vdev, get_dma_buf.region_index)))
 		return -ENODEV;
 
 	dma_ranges = memdup_array_user(&arg->dma_ranges, get_dma_buf.nr_ranges,
@@ -354,19 +356,18 @@ void vfio_pci_dma_buf_move(struct vfio_pci_core_device *vdev, bool revoked)
 			if (revoked) {
 				kref_put(&priv->kref, vfio_pci_dma_buf_done);
 				wait_for_completion(&priv->comp);
-			} else {
 				/*
-				 * Kref is initialize again, because when revoke
-				 * was performed the reference counter was decreased
-				 * to zero to trigger completion.
+				 * Re-arm the registered kref reference and the
+				 * completion so the post-revoke state matches the
+				 * post-creation state.  An un-revoke followed by a
+				 * new mapping needs the kref to be non-zero before
+				 * kref_get(), and vfio_pci_dma_buf_cleanup()
+				 * delegates its drain back through this revoke
+				 * path on a possibly-already-revoked dma-buf.
 				 */
 				kref_init(&priv->kref);
-				/*
-				 * There is no need to wait as no mapping was
-				 * performed when the previous status was
-				 * priv->revoked == true.
-				 */
 				reinit_completion(&priv->comp);
+			} else {
 				dma_resv_lock(priv->dmabuf->resv, NULL);
 				priv->revoked = false;
 				dma_resv_unlock(priv->dmabuf->resv);
@@ -382,21 +383,22 @@ void vfio_pci_dma_buf_cleanup(struct vfio_pci_core_device *vdev)
 	struct vfio_pci_dma_buf *tmp;
 
 	down_write(&vdev->memory_lock);
+
+	/*
+	 * Drain any active mappings via the revoke path.  The move is
+	 * idempotent for dma-bufs already in the revoked state and
+	 * leaves every priv with the kref re-armed and the completion
+	 * ready, so cleanup itself does not need to participate in kref
+	 * bookkeeping.
+	 */
+	vfio_pci_dma_buf_move(vdev, true);
+
 	list_for_each_entry_safe(priv, tmp, &vdev->dmabufs, dmabufs_elm) {
 		if (!get_file_active(&priv->dmabuf->file))
 			continue;
 
-		dma_resv_lock(priv->dmabuf->resv, NULL);
 		list_del_init(&priv->dmabufs_elm);
 		priv->vdev = NULL;
-		priv->revoked = true;
-		dma_buf_invalidate_mappings(priv->dmabuf);
-		dma_resv_wait_timeout(priv->dmabuf->resv,
-				      DMA_RESV_USAGE_BOOKKEEP, false,
-				      MAX_SCHEDULE_TIMEOUT);
-		dma_resv_unlock(priv->dmabuf->resv);
-		kref_put(&priv->kref, vfio_pci_dma_buf_done);
-		wait_for_completion(&priv->comp);
 		vfio_device_put_registration(&vdev->vdev);
 		fput(priv->dmabuf->file);
 	}

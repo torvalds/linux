@@ -22,6 +22,11 @@ enum uei_sizes {
 
 struct user_exit_info {
 	int		kind;
+	/*
+	 * CPU that triggered the exit, or -1 if unset (e.g. running on an
+	 * older kernel that does not expose this field).
+	 */
+	s32		exit_cpu;
 	s64		exit_code;
 	char		reason[UEI_REASON_LEN];
 	char		msg[UEI_MSG_LEN];

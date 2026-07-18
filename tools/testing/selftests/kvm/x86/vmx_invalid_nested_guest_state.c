@@ -52,7 +52,7 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva;
+	gva_t vmx_pages_gva;
 	struct kvm_sregs sregs;
 	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;

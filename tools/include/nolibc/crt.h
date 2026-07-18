@@ -7,6 +7,10 @@
 #ifndef _NOLIBC_CRT_H
 #define _NOLIBC_CRT_H
 
+#define __nolibc_arg_to_reg(_a)									\
+	__builtin_choose_expr(__builtin_classify_type(_a) == __builtin_classify_type(NULL),	\
+			      (unsigned long)(_a), (_a))
+
 #ifndef NOLIBC_NO_RUNTIME
 
 #include "compiler.h"
@@ -47,7 +51,7 @@ char *__nolibc_program_invocation_short_name(char *long_name)
 #endif /* NOLIBC_IGNORE_ERRNO */
 
 void _start_c(long *sp);
-__attribute__((weak,used)) __nolibc_no_sanitize_undefined
+__attribute__((weak,used)) __nolibc_no_sanitize_undefined __nolibc_no_stack_protector
 void _start_c(long *sp)
 {
 	long argc;
@@ -89,7 +93,7 @@ void _start_c(long *sp)
 
 	/* find _auxv */
 	for (auxv = (void *)envp; *auxv++;)
-		;
+		__asm__("");
 	_auxv = auxv;
 
 #ifndef NOLIBC_IGNORE_ERRNO

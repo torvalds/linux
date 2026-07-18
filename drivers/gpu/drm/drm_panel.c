@@ -28,6 +28,7 @@
 #include <linux/of.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_print.h>
 
@@ -56,8 +57,9 @@ static LIST_HEAD(panel_list);
  * Initialize the panel structure for subsequent registration with
  * drm_panel_add().
  */
-void drm_panel_init(struct drm_panel *panel, struct device *dev,
-		    const struct drm_panel_funcs *funcs, int connector_type)
+static void drm_panel_init(struct drm_panel *panel, struct device *dev,
+			   const struct drm_panel_funcs *funcs,
+			   int connector_type)
 {
 	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 		DRM_WARN("%s: %s: a valid connector type is required!\n", __func__, dev_name(dev));
@@ -69,7 +71,6 @@ void drm_panel_init(struct drm_panel *panel, struct device *dev,
 	panel->funcs = funcs;
 	panel->connector_type = connector_type;
 }
-EXPORT_SYMBOL(drm_panel_init);
 
 /**
  * drm_panel_add - add a panel to the global registry
@@ -100,6 +101,30 @@ void drm_panel_remove(struct drm_panel *panel)
 	mutex_unlock(&panel_lock);
 }
 EXPORT_SYMBOL(drm_panel_remove);
+
+static void drm_panel_add_release(void *data)
+{
+	drm_panel_remove(data);
+}
+
+/**
+ * devm_drm_panel_add - add a panel to the global registry using devres
+ * @dev: device to which the panel is attached
+ * @panel: panel to add
+ *
+ * Add a panel to the global registry so that it can be looked
+ * up by display drivers. The panel to be added must have been
+ * allocated by devm_drm_panel_alloc(). Unlike drm_panel_add() with this
+ * function there is no need to call drm_panel_remove(), it will be called
+ * automatically.
+ */
+int devm_drm_panel_add(struct device *dev, struct drm_panel *panel)
+{
+	drm_panel_add(panel);
+
+	return devm_add_action_or_reset(dev, drm_panel_add_release, panel);
+}
+EXPORT_SYMBOL(devm_drm_panel_add);
 
 /**
  * drm_panel_prepare - power on a panel
@@ -467,49 +492,6 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np)
 	return ERR_PTR(-EPROBE_DEFER);
 }
 EXPORT_SYMBOL(of_drm_find_panel);
-
-/**
- * of_drm_get_panel_orientation - look up the orientation of the panel through
- * the "rotation" binding from a device tree node
- * @np: device tree node of the panel
- * @orientation: orientation enum to be filled in
- *
- * Looks up the rotation of a panel in the device tree. The orientation of the
- * panel is expressed as a property name "rotation" in the device tree. The
- * rotation in the device tree is counter clockwise.
- *
- * Return: 0 when a valid rotation value (0, 90, 180, or 270) is read or the
- * rotation property doesn't exist. Return a negative error code on failure.
- */
-int of_drm_get_panel_orientation(const struct device_node *np,
-				 enum drm_panel_orientation *orientation)
-{
-	int rotation, ret;
-
-	ret = of_property_read_u32(np, "rotation", &rotation);
-	if (ret == -EINVAL) {
-		/* Don't return an error if there's no rotation property. */
-		*orientation = DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
-		return 0;
-	}
-
-	if (ret < 0)
-		return ret;
-
-	if (rotation == 0)
-		*orientation = DRM_MODE_PANEL_ORIENTATION_NORMAL;
-	else if (rotation == 90)
-		*orientation = DRM_MODE_PANEL_ORIENTATION_RIGHT_UP;
-	else if (rotation == 180)
-		*orientation = DRM_MODE_PANEL_ORIENTATION_BOTTOM_UP;
-	else if (rotation == 270)
-		*orientation = DRM_MODE_PANEL_ORIENTATION_LEFT_UP;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-EXPORT_SYMBOL(of_drm_get_panel_orientation);
 #endif
 
 /* Find panel by fwnode. This should be identical to of_drm_find_panel(). */
@@ -708,7 +690,6 @@ EXPORT_SYMBOL(devm_drm_panel_add_follower);
  * A typical implementation for a panel driver supporting device tree
  * will call this function at probe time. Backlight will then be handled
  * transparently without requiring any intervention from the driver.
- * drm_panel_of_backlight() must be called after the call to drm_panel_init().
  *
  * Return: 0 on success or a negative error code on failure.
  */

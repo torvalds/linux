@@ -118,6 +118,7 @@
 
 /* SAI Transmit and Receive Configuration 2 Register */
 #define FSL_SAI_CR2_SYNC	BIT(30)
+#define FSL_SAI_CR2_BCS		BIT(29)
 #define FSL_SAI_CR2_BCI		BIT(28)
 #define FSL_SAI_CR2_MSEL_MASK	(0x3 << 26)
 #define FSL_SAI_CR2_MSEL_BUS	0
@@ -301,6 +302,7 @@ struct fsl_sai {
 	struct fsl_sai_dl_cfg *dl_cfg;
 	unsigned int dl_cfg_cnt;
 	bool mclk_direction_output;
+	bool is_bit_clock_swap;
 
 	unsigned int mclk_id[2];
 	unsigned int mclk_streams;

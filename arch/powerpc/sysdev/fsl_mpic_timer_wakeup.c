@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -61,7 +62,7 @@ static ssize_t fsl_timer_wakeup_show(struct device *dev,
 	}
 	mutex_unlock(&sysfs_lock);
 
-	return sprintf(buf, "%lld\n", interval);
+	return sysfs_emit(buf, "%lld\n", interval);
 }
 
 static ssize_t fsl_timer_wakeup_store(struct device *dev,

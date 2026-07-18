@@ -107,6 +107,22 @@ static inline void writel(u32 value, volatile void __iomem *addr)
 
 #endif /* IOMEMBASE */
 
+#if defined(CONFIG_COLDFIRE)
+/*
+ * The ColdFire internal peripheral registers are big-endian, so you
+ * cannot use the conventional little-endian readb/readw/readl and
+ * writeb/writew/writel access functions. Define a family of access
+ * functions to give correct endian access that can be used by all
+ * architecture code.
+ */
+#define mcf_read8	__raw_readb
+#define mcf_read16	__raw_readw
+#define mcf_read32	__raw_readl
+#define mcf_write8	__raw_writeb
+#define mcf_write16	__raw_writew
+#define mcf_write32	__raw_writel
+#endif /* CONFIG_COLDFIRE */
+
 #if defined(CONFIG_PCI)
 /*
  * Support for PCI bus access uses the asm-generic access functions.

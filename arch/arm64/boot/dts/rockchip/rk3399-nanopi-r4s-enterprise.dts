@@ -16,7 +16,7 @@
 
 &i2c2 {
 	eeprom@51 {
-		compatible = "microchip,24c02", "atmel,24c02";
+		compatible = "microchip,24aa025e48";
 		reg = <0x51>;
 		pagesize = <16>;
 		size = <256>;

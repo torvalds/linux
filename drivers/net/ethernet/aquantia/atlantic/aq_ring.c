@@ -311,6 +311,30 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 		if (likely(!buff->is_eop))
 			goto out;
 
+		if (unlikely(buff->request_ts) &&
+		    self->aq_nic->aq_hw_ops->hw_ring_tx_ptp_get_ts) {
+			u64 ts = self->aq_nic->aq_hw_ops->hw_ring_tx_ptp_get_ts(self);
+
+			if (!ts) {
+				if (time_after(jiffies,
+					       self->ptp_ts_deadline)) {
+					/* Timeout: drain skb_ring head to
+					 * keep in sync with buff_ring
+					 */
+					aq_ptp_tx_skb_drop_head(self->aq_nic);
+					buff->request_ts = 0;
+					dev_kfree_skb_any(buff->skb);
+					buff->skb = NULL;
+					goto out;
+				} else {
+					buff->is_mapped = 0;
+					buff->pa = 0U;
+					break;
+				}
+			}
+
+			aq_ptp_tx_hwtstamp(self->aq_nic, ts);
+		}
 		if (buff->skb) {
 			u64_stats_update_begin(&self->stats.tx.syncp);
 			++self->stats.tx.packets;
@@ -570,7 +594,7 @@ static int __aq_ring_rx_clean(struct aq_ring_s *self, struct napi_struct *napi,
 							    self->hw_head);
 
 				if (unlikely(!is_rsc_completed) ||
-						frag_cnt > MAX_SKB_FRAGS) {
+				    frag_cnt > MAX_SKB_FRAGS) {
 					err = 0;
 					goto err_exit;
 				}

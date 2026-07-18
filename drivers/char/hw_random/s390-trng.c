@@ -20,6 +20,7 @@
 #include <linux/atomic.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
+#include <linux/slab.h>
 #include <asm/debug.h>
 #include <asm/cpacf.h>
 #include <asm/archrandom.h>
@@ -67,7 +68,7 @@ static ssize_t trng_read(struct file *file, char __user *ubuf,
 	 */
 
 	if (nbytes > sizeof(buf)) {
-		p = (u8 *) __get_free_page(GFP_KERNEL);
+		p = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (!p)
 			return -ENOMEM;
 	}
@@ -94,7 +95,7 @@ static ssize_t trng_read(struct file *file, char __user *ubuf,
 	}
 
 	if (p != buf)
-		free_page((unsigned long) p);
+		kfree(p);
 
 	DEBUG_DBG("trng_read()=%zd\n", ret);
 	return ret;

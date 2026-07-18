@@ -46,6 +46,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "a";
+		ddc-i2c-bus = <&hdmi_ddc>;
+		hdmi-pwr-supply = <&hdmi_phy>;
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi0_out>;
+			};
+		};
+	};
+
 	firmware {
 		optee {
 			compatible = "linaro,optee-tz";
@@ -283,6 +297,18 @@
 	remote-endpoint = <&dsi0_in>;
 };
 
+&dpi1 {
+	status = "okay";
+};
+
+&dpi1_in {
+	remote-endpoint = <&merge5_out>;
+};
+
+&dpi1_out {
+	remote-endpoint = <&hdmi0_in>;
+};
+
 &eth {
 	phy-mode ="rgmii-id";
 	phy-handle = <&ethernet_phy0>;
@@ -304,12 +330,61 @@
 	};
 };
 
+&ethdr0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			ethdr0_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&vdosys1_ep_ext>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			ethdr0_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&merge5_in>;
+			};
+		};
+	};
+};
+
 &gamma0_out {
 	remote-endpoint = <&postmask0_in>;
 };
 
 &gpu {
 	mali-supply = <&mt6359_vproc2_buck_reg>;
+	status = "okay";
+};
+
+&hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pins>;
+	status = "okay";
+};
+
+&hdmi0_in {
+	remote-endpoint = <&dpi1_out>;
+};
+
+&hdmi0_out {
+	remote-endpoint = <&hdmi_connector_in>;
+};
+
+&hdmi_phy {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_vreg_pins>;
 	status = "okay";
 };
 
@@ -531,6 +606,35 @@
 	};
 };
 
+&merge5 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			merge5_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ethdr0_out>;
+			};
+		};
+
+		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			merge5_out: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&dpi1_in>;
+			};
+		};
+	};
+};
+
 &mfg0 {
 	domain-supply = <&mt6359_vproc2_buck_reg>;
 };
@@ -592,7 +696,7 @@
 	interrupt-names = "msdc", "sdio_wakeup";
 	interrupts-extended = <&gic GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH 0>,
 			      <&pio 172 IRQ_TYPE_LEVEL_LOW>;
-	vmmc-supply = <&mt6359_vcn33_2_bt_ldo_reg>;
+	vmmc-supply = <&mt6359_vcn33_2_ldo_reg>;
 	vqmmc-supply = <&mt6359_vcn18_ldo_reg>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	status = "okay";
@@ -617,12 +721,12 @@
 	regulator-boot-on;
 };
 
-&mt6359_vcn33_1_bt_ldo_reg {
+&mt6359_vcn33_1_ldo_reg {
 	regulator-name = "vcn33_1_pmu";
 	regulator-always-on;
 };
 
-&mt6359_vcn33_2_bt_ldo_reg {
+&mt6359_vcn33_2_ldo_reg {
 	regulator-name = "vcn33_2_pmu";
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;
@@ -973,6 +1077,18 @@
 		vdosys0_ep_main: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&ovl0_in>;
+		};
+	};
+};
+
+&vdosys1 {
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdosys1_ep_ext: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&ethdr0_in>;
 		};
 	};
 };

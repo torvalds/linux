@@ -143,6 +143,8 @@ static int qca_read_fw_build_info(struct hci_dev *hdev)
 
 	hci_set_fw_info(hdev, "%s", build_label);
 
+	bt_dev_info(hdev, "QCA FW build version: %s", build_label);
+
 	kfree(build_label);
 out:
 	kfree_skb(skb);

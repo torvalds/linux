@@ -1835,6 +1835,20 @@ static const struct usb_ep_ops usb_ep_ops = {
  * GADGET block
  *****************************************************************************/
 
+static void ci_udc_enable_vbus_irq(struct ci_hdrc *ci, bool enable)
+{
+	u32 reg = OTGSC_BSVIS;
+
+	if (!ci->is_otg)
+		return;
+
+	if (enable)
+		reg |= OTGSC_BSVIE;
+
+	/* Clear pending BSVIS and enable/disable BSVIE */
+	hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, reg);
+}
+
 static int ci_udc_get_frame(struct usb_gadget *_gadget)
 {
 	struct ci_hdrc *ci = container_of(_gadget, struct ci_hdrc, gadget);
@@ -2029,6 +2043,8 @@ static const struct usb_gadget_ops usb_gadget_ops = {
 static int init_eps(struct ci_hdrc *ci)
 {
 	int retval = 0, i, j;
+
+	memset(ci->ci_hw_ep, 0, sizeof(ci->ci_hw_ep));
 
 	for (i = 0; i < ci->hw_ep_max/2; i++)
 		for (j = RX; j <= TX; j++) {
@@ -2275,6 +2291,8 @@ static int udc_start(struct ci_hdrc *ci)
 	struct usb_otg_caps *otg_caps = &ci->platdata->ci_otg_caps;
 	int retval = 0;
 
+	memset(&ci->gadget, 0, sizeof(ci->gadget));
+
 	ci->gadget.ops          = &usb_gadget_ops;
 	ci->gadget.speed        = USB_SPEED_UNKNOWN;
 	ci->gadget.max_speed    = USB_SPEED_HIGH;
@@ -2313,10 +2331,15 @@ static int udc_start(struct ci_hdrc *ci)
 
 	ci->gadget.ep0 = &ci->ep0in->ep;
 
+	if (ci->platdata->pins_device)
+		pinctrl_select_state(ci->platdata->pctl,
+				     ci->platdata->pins_device);
+
 	retval = usb_add_gadget_udc(dev, &ci->gadget);
 	if (retval)
 		goto destroy_eps;
 
+	ci_udc_enable_vbus_irq(ci, true);
 	return retval;
 
 destroy_eps:
@@ -2328,48 +2351,20 @@ free_qh_pool:
 	return retval;
 }
 
-/*
- * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
- *
- * No interrupts active, the IRQ has been released
+/**
+ * udc_stop: deinitialize gadget role
+ * @ci: chipidea controller
  */
-void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
+static void udc_stop(struct ci_hdrc *ci)
 {
-	if (!ci->roles[CI_ROLE_GADGET])
-		return;
-
+	ci_udc_enable_vbus_irq(ci, false);
 	usb_del_gadget_udc(&ci->gadget);
+	ci->vbus_active = 0;
 
 	destroy_eps(ci);
 
 	dma_pool_destroy(ci->td_pool);
 	dma_pool_destroy(ci->qh_pool);
-}
-
-static int udc_id_switch_for_device(struct ci_hdrc *ci)
-{
-	if (ci->platdata->pins_device)
-		pinctrl_select_state(ci->platdata->pctl,
-				     ci->platdata->pins_device);
-
-	if (ci->is_otg)
-		/* Clear and enable BSV irq */
-		hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
-					OTGSC_BSVIS | OTGSC_BSVIE);
-
-	return 0;
-}
-
-static void udc_id_switch_for_host(struct ci_hdrc *ci)
-{
-	/*
-	 * host doesn't care B_SESSION_VALID event
-	 * so clear and disable BSV irq
-	 */
-	if (ci->is_otg)
-		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
-
-	ci->vbus_active = 0;
 
 	if (ci->platdata->pins_device && ci->platdata->pins_default)
 		pinctrl_select_state(ci->platdata->pctl,
@@ -2395,9 +2390,7 @@ static void udc_suspend(struct ci_hdrc *ci)
 static void udc_resume(struct ci_hdrc *ci, bool power_lost)
 {
 	if (power_lost) {
-		if (ci->is_otg)
-			hw_write_otgsc(ci, OTGSC_BSVIS | OTGSC_BSVIE,
-					OTGSC_BSVIS | OTGSC_BSVIE);
+		ci_udc_enable_vbus_irq(ci, true);
 		if (ci->vbus_active)
 			usb_gadget_vbus_disconnect(&ci->gadget);
 	} else if (ci->vbus_active && ci->driver &&
@@ -2420,7 +2413,6 @@ static void udc_resume(struct ci_hdrc *ci, bool power_lost)
 int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 {
 	struct ci_role_driver *rdrv;
-	int ret;
 
 	if (!hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_DC))
 		return -ENXIO;
@@ -2429,8 +2421,8 @@ int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 	if (!rdrv)
 		return -ENOMEM;
 
-	rdrv->start	= udc_id_switch_for_device;
-	rdrv->stop	= udc_id_switch_for_host;
+	rdrv->start	= udc_start;
+	rdrv->stop	= udc_stop;
 #ifdef CONFIG_PM_SLEEP
 	rdrv->suspend	= udc_suspend;
 	rdrv->resume	= udc_resume;
@@ -2438,9 +2430,22 @@ int ci_hdrc_gadget_init(struct ci_hdrc *ci)
 	rdrv->irq	= udc_irq;
 	rdrv->name	= "gadget";
 
-	ret = udc_start(ci);
-	if (!ret)
-		ci->roles[CI_ROLE_GADGET] = rdrv;
+	ci->roles[CI_ROLE_GADGET] = rdrv;
 
-	return ret;
+	/* Pull down DP for possible charger detection */
+	hw_write(ci, OP_USBCMD, USBCMD_RS, 0);
+	return 0;
+}
+
+/*
+ * ci_hdrc_gadget_destroy: parent remove must call this to remove UDC
+ *
+ * No interrupts active, the IRQ has been released
+ */
+void ci_hdrc_gadget_destroy(struct ci_hdrc *ci)
+{
+	struct device *dev = &ci->gadget.dev;
+
+	if (ci->roles[CI_ROLE_GADGET] && device_is_registered(dev))
+		udc_stop(ci);
 }

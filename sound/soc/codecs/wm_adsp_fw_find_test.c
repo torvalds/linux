@@ -45,6 +45,34 @@ struct wm_adsp_fw_find_test_params {
 /* Dummy struct firmware to return from wm_adsp_request_firmware_files */
 static const struct firmware wm_adsp_find_test_dummy_firmware;
 
+static void wm_adsp_fw_find_test_release_firmware_files_stub(struct wm_adsp_fw_files *fw)
+{
+	/*
+	 * fw->wmfw.firmware and fw->coeff.firmware allocated by this KUnit
+	 * test are dummies not allocated by the real request_firmware() call
+	 * so they must not be passed to release_firmware().
+	 * This function replaces wm_adsp_release_firmware_files().
+	 */
+
+	if (!fw)
+		return;
+
+	kfree(fw->wmfw.filename);
+	kfree(fw->coeff.filename);
+
+	fw->wmfw.firmware = NULL;
+	fw->coeff.firmware = NULL;
+	fw->wmfw.filename = NULL;
+	fw->coeff.filename = NULL;
+}
+
+static void wm_adsp_free_found_fw(struct kunit *test)
+{
+	struct wm_adsp_fw_find_test *priv = test->priv;
+
+	wm_adsp_fw_find_test_release_firmware_files_stub(&priv->found_fw);
+}
+
 /* Simple lookup of a filename in a list of names */
 static int wm_adsp_fw_find_test_firmware_request_simple_stub(const struct firmware **firmware,
 							     const char *filename,
@@ -97,9 +125,14 @@ static void wm_adsp_fw_find_test_pick_file(struct kunit *test)
 	kunit_activate_static_stub(test,
 				   wm_adsp_firmware_request,
 				   wm_adsp_fw_find_test_firmware_request_simple_stub);
+	kunit_activate_static_stub(test,
+				   wm_adsp_release_firmware_files,
+				   wm_adsp_fw_find_test_release_firmware_files_stub);
 
 	ret = wm_adsp_request_firmware_files(dsp, &priv->found_fw);
 	kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
+	kunit_deactivate_static_stub(test, wm_adsp_release_firmware_files);
+
 	KUNIT_EXPECT_EQ_MSG(test, ret,
 			    (params->expect_wmfw || params->expect_bin) ? 0 : -ENOENT,
 			    "%s\n", priv->searched_fw_files);
@@ -173,10 +206,13 @@ static void wm_adsp_fw_find_test_search_order(struct kunit *test)
 	kunit_activate_static_stub(test,
 				   wm_adsp_firmware_request,
 				   wm_adsp_fw_find_test_firmware_request_stub);
+	kunit_activate_static_stub(test,
+				   wm_adsp_release_firmware_files,
+				   wm_adsp_fw_find_test_release_firmware_files_stub);
 
 	wm_adsp_request_firmware_files(dsp, &priv->found_fw);
-
 	kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
+	kunit_deactivate_static_stub(test, wm_adsp_release_firmware_files);
 
 	KUNIT_EXPECT_STREQ(test, priv->searched_fw_files, params->expected_searches);
 
@@ -201,6 +237,7 @@ static void wm_adsp_fw_find_test_find_firmware_byindex(struct kunit *test)
 
 	dsp->cs_dsp.name = "cs1234";
 	dsp->part = "dsp1";
+
 	for (dsp->fw = 0;; dsp->fw++) {
 		fw_name = wm_adsp_get_fwf_name_by_index(dsp->fw);
 		if (!fw_name)
@@ -209,14 +246,22 @@ static void wm_adsp_fw_find_test_find_firmware_byindex(struct kunit *test)
 		kunit_activate_static_stub(test,
 					   wm_adsp_firmware_request,
 					   wm_adsp_fw_find_test_firmware_request_stub);
+		kunit_activate_static_stub(test,
+					   wm_adsp_release_firmware_files,
+					   wm_adsp_fw_find_test_release_firmware_files_stub);
 
 		wm_adsp_request_firmware_files(dsp, &priv->found_fw);
+
 		kunit_deactivate_static_stub(test, wm_adsp_firmware_request);
+		kunit_deactivate_static_stub(test, wm_adsp_release_firmware_files);
 
 		KUNIT_EXPECT_NOT_NULL_MSG(test,
 					  strstr(priv->searched_fw_files, fw_name),
 					  "fw#%d Did not find '%s' in '%s'\n",
 					  dsp->fw, fw_name, priv->searched_fw_files);
+
+		wm_adsp_free_found_fw(test);
+		memset(priv->searched_fw_files, 0, sizeof(priv->searched_fw_files));
 	}
 }
 
@@ -255,15 +300,7 @@ static int wm_adsp_fw_find_test_case_init(struct kunit *test)
 
 static void wm_adsp_fw_find_test_case_exit(struct kunit *test)
 {
-	struct wm_adsp_fw_find_test *priv = test->priv;
-
-	/*
-	 * priv->found_wmfw_firmware and priv->found_bin_firmware are
-	 * dummies not allocated by the real request_firmware() call they
-	 * must not be passed to release_firmware().
-	 */
-	kfree(priv->found_fw.wmfw.filename);
-	kfree(priv->found_fw.coeff.filename);
+	wm_adsp_free_found_fw(test);
 }
 
 static void wm_adsp_fw_find_test_param_desc(const struct wm_adsp_fw_find_test_params *param,

@@ -41,6 +41,8 @@ struct kimage_arch {
 	unsigned long systable_ptr;
 };
 
+struct kimage;
+
 #ifdef CONFIG_KEXEC_FILE
 extern const struct kexec_file_ops kexec_efi_ops;
 extern const struct kexec_file_ops kexec_elf_ops;
@@ -59,7 +61,6 @@ typedef void (*do_kexec_t)(unsigned long efi_boot,
 			   unsigned long start_addr,
 			   unsigned long first_ind_entry);
 
-struct kimage;
 extern const unsigned char relocate_new_kernel[];
 extern const size_t relocate_new_kernel_size;
 extern void kexec_reboot(void);

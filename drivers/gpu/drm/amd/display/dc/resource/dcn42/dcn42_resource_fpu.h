@@ -29,5 +29,5 @@
 #include "core_types.h"
 
 void dcn42_decide_zstate_support(struct dc *dc, struct dc_state *context);
-
+bool dcn42_decide_odm_override(struct dc *dc, struct dc_state *context);
 #endif /* _DCN42_RESOURCE_FPU_H_ */

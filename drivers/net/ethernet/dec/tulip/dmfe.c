@@ -2076,11 +2076,11 @@ static void dmfe_HPNA_remote_cmd_chk(struct dmfe_board_info * db)
 
 
 static const struct pci_device_id dmfe_pci_tbl[] = {
-	{ 0x1282, 0x9132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9132_ID },
-	{ 0x1282, 0x9102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9102_ID },
-	{ 0x1282, 0x9100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9100_ID },
-	{ 0x1282, 0x9009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PCI_DM9009_ID },
-	{ 0, }
+	{ PCI_DEVICE(0x1282, 0x9132), .driver_data = PCI_DM9132_ID },
+	{ PCI_DEVICE(0x1282, 0x9102), .driver_data = PCI_DM9102_ID },
+	{ PCI_DEVICE(0x1282, 0x9100), .driver_data = PCI_DM9100_ID },
+	{ PCI_DEVICE(0x1282, 0x9009), .driver_data = PCI_DM9009_ID },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, dmfe_pci_tbl);
 
@@ -2101,7 +2101,7 @@ static int __maybe_unused dmfe_suspend(struct device *dev_d)
 	dw32(DCR7, 0);
 	dw32(DCR5, dr32(DCR5));
 
-	/* Fre RX buffers */
+	/* Free RX buffers */
 	dmfe_free_rxbuffer(db);
 
 	/* Enable WOL */

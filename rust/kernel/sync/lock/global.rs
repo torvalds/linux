@@ -85,6 +85,7 @@ impl<B: GlobalLockBackend> GlobalLock<B> {
     }
 
     /// Try to lock this global lock.
+    #[must_use = "if unused, the lock will be immediately unlocked"]
     #[inline]
     pub fn try_lock(&'static self) -> Option<GlobalGuard<B>> {
         Some(GlobalGuard {
@@ -96,6 +97,7 @@ impl<B: GlobalLockBackend> GlobalLock<B> {
 /// A guard for a [`GlobalLock`].
 ///
 /// See [`global_lock!`] for examples.
+#[must_use = "the lock unlocks immediately when the guard is unused"]
 pub struct GlobalGuard<B: GlobalLockBackend> {
     inner: Guard<'static, B::Item, B::Backend>,
 }

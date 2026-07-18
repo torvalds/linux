@@ -7,6 +7,7 @@
  */
 
 #include <linux/cleanup.h>
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -16,9 +17,8 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/property.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
-
-#include "mailbox.h"
 
 static LIST_HEAD(mbox_cons);
 static DEFINE_MUTEX(con_mutex);
@@ -52,7 +52,7 @@ static void msg_submit(struct mbox_chan *chan)
 	int err = -EBUSY;
 
 	scoped_guard(spinlock_irqsave, &chan->lock) {
-		if (!chan->msg_count || chan->active_req)
+		if (!chan->msg_count || chan->active_req != MBOX_NO_MSG)
 			break;
 
 		count = chan->msg_count;
@@ -74,7 +74,7 @@ static void msg_submit(struct mbox_chan *chan)
 		}
 	}
 
-	if (!err && (chan->txdone_method & TXDONE_BY_POLL)) {
+	if (!err && (chan->txdone_method & MBOX_TXDONE_BY_POLL)) {
 		/* kick start the timer immediately to avoid delays */
 		scoped_guard(spinlock_irqsave, &chan->mbox->poll_hrt_lock)
 			hrtimer_start(&chan->mbox->poll_hrt, 0, HRTIMER_MODE_REL);
@@ -87,21 +87,23 @@ static void tx_tick(struct mbox_chan *chan, int r)
 
 	scoped_guard(spinlock_irqsave, &chan->lock) {
 		mssg = chan->active_req;
-		chan->active_req = NULL;
+		chan->active_req = MBOX_NO_MSG;
 	}
 
 	/* Submit next message */
 	msg_submit(chan);
 
-	if (!mssg)
+	if (mssg == MBOX_NO_MSG)
 		return;
 
 	/* Notify the client */
 	if (chan->cl->tx_done)
 		chan->cl->tx_done(chan->cl, mssg, r);
 
-	if (r != -ETIME && chan->cl->tx_block)
+	if (r != -ETIME && chan->cl->tx_block) {
+		chan->tx_status = r;
 		complete(&chan->tx_complete);
+	}
 }
 
 static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
@@ -114,7 +116,7 @@ static enum hrtimer_restart txdone_hrtimer(struct hrtimer *hrtimer)
 	for (i = 0; i < mbox->num_chans; i++) {
 		struct mbox_chan *chan = &mbox->chans[i];
 
-		if (chan->active_req && chan->cl) {
+		if (chan->active_req != MBOX_NO_MSG && chan->cl) {
 			txdone = chan->mbox->ops->last_tx_done(chan);
 			if (txdone)
 				tx_tick(chan, 0);
@@ -164,7 +166,7 @@ EXPORT_SYMBOL_GPL(mbox_chan_received_data);
  */
 void mbox_chan_txdone(struct mbox_chan *chan, int r)
 {
-	if (unlikely(!(chan->txdone_method & TXDONE_BY_IRQ))) {
+	if (unlikely(!(chan->txdone_method & MBOX_TXDONE_BY_IRQ))) {
 		dev_err(chan->mbox->dev,
 		       "Controller can't run the TX ticker\n");
 		return;
@@ -185,7 +187,7 @@ EXPORT_SYMBOL_GPL(mbox_chan_txdone);
  */
 void mbox_client_txdone(struct mbox_chan *chan, int r)
 {
-	if (unlikely(!(chan->txdone_method & TXDONE_BY_ACK))) {
+	if (unlikely(!(chan->txdone_method & MBOX_TXDONE_BY_ACK))) {
 		dev_err(chan->mbox->dev, "Client can't run the TX ticker\n");
 		return;
 	}
@@ -219,6 +221,29 @@ bool mbox_client_peek_data(struct mbox_chan *chan)
 EXPORT_SYMBOL_GPL(mbox_client_peek_data);
 
 /**
+ * mbox_chan_tx_slots_available - Query the number of available TX queue slots.
+ * @chan: Mailbox channel to query.
+ *
+ * Clients may call this to check how many messages can be queued via
+ * mbox_send_message() before the channel's TX queue is full. This helps
+ * clients avoid the -ENOBUFS error without needing to increase
+ * MBOX_TX_QUEUE_LEN.
+ * This can be called from atomic context.
+ *
+ * Return: Number of available slots in the channel's TX queue.
+ */
+unsigned int mbox_chan_tx_slots_available(struct mbox_chan *chan)
+{
+	unsigned int ret;
+
+	guard(spinlock_irqsave)(&chan->lock);
+	ret = MBOX_TX_QUEUE_LEN - chan->msg_count;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mbox_chan_tx_slots_available);
+
+/**
  * mbox_send_message -	For client to submit a message to be
  *				sent to the remote.
  * @chan: Mailbox channel assigned to this client.
@@ -237,6 +262,10 @@ EXPORT_SYMBOL_GPL(mbox_client_peek_data);
  * over the chan, i.e, tx_done() is made.
  * This function could be called from atomic context as it simply
  * queues the data and returns a token against the request.
+ *  In blocking mode, it is caller's responsibility to serialize threads'
+ * access to a channel if multi-threads are to send messages through the
+ * same channel, i.e. caller should not call this function until any
+ * previous call returns.
  *
  * Return: Non-negative integer for successful submission (non-blocking mode)
  *	or transmission over chan (blocking mode).
@@ -246,7 +275,7 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 {
 	int t;
 
-	if (!chan || !chan->cl)
+	if (!chan || !chan->cl || mssg == MBOX_NO_MSG)
 		return -EINVAL;
 
 	t = add_to_rbuf(chan, mssg);
@@ -270,6 +299,8 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 		if (ret == 0) {
 			t = -ETIME;
 			tx_tick(chan, t);
+		} else if (chan->tx_status < 0) {
+			t = chan->tx_status;
 		}
 	}
 
@@ -306,6 +337,19 @@ int mbox_flush(struct mbox_chan *chan, unsigned long timeout)
 }
 EXPORT_SYMBOL_GPL(mbox_flush);
 
+static void mbox_clean_and_put_channel(struct mbox_chan *chan)
+{
+	/* The queued TX requests are simply aborted, no callbacks are made */
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		chan->cl = NULL;
+		chan->active_req = MBOX_NO_MSG;
+		if (chan->txdone_method == MBOX_TXDONE_BY_ACK)
+			chan->txdone_method = MBOX_TXDONE_BY_POLL;
+	}
+
+	module_put(chan->mbox->dev->driver->owner);
+}
+
 static int __mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
 {
 	struct device *dev = cl->dev;
@@ -319,20 +363,19 @@ static int __mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
 	scoped_guard(spinlock_irqsave, &chan->lock) {
 		chan->msg_free = 0;
 		chan->msg_count = 0;
-		chan->active_req = NULL;
+		chan->active_req = MBOX_NO_MSG;
 		chan->cl = cl;
 		init_completion(&chan->tx_complete);
 
-		if (chan->txdone_method	== TXDONE_BY_POLL && cl->knows_txdone)
-			chan->txdone_method = TXDONE_BY_ACK;
+		if (chan->txdone_method	== MBOX_TXDONE_BY_POLL && cl->knows_txdone)
+			chan->txdone_method = MBOX_TXDONE_BY_ACK;
 	}
 
 	if (chan->mbox->ops->startup) {
 		ret = chan->mbox->ops->startup(chan);
-
 		if (ret) {
 			dev_err(dev, "Unable to startup the chan (%d)\n", ret);
-			mbox_free_channel(chan);
+			mbox_clean_and_put_channel(chan);
 			return ret;
 		}
 	}
@@ -341,7 +384,7 @@ static int __mbox_bind_client(struct mbox_chan *chan, struct mbox_client *cl)
 }
 
 /**
- * mbox_bind_client - Request a mailbox channel.
+ * mbox_bind_client - Bind client to a mailbox channel.
  * @chan: The mailbox channel to bind the client to.
  * @cl: Identity of the client requesting the channel.
  *
@@ -474,15 +517,7 @@ void mbox_free_channel(struct mbox_chan *chan)
 	if (chan->mbox->ops->shutdown)
 		chan->mbox->ops->shutdown(chan);
 
-	/* The queued TX requests are simply aborted, no callbacks are made */
-	scoped_guard(spinlock_irqsave, &chan->lock) {
-		chan->cl = NULL;
-		chan->active_req = NULL;
-		if (chan->txdone_method == TXDONE_BY_ACK)
-			chan->txdone_method = TXDONE_BY_POLL;
-	}
-
-	module_put(chan->mbox->dev->driver->owner);
+	mbox_clean_and_put_channel(chan);
 }
 EXPORT_SYMBOL_GPL(mbox_free_channel);
 
@@ -505,18 +540,17 @@ int mbox_controller_register(struct mbox_controller *mbox)
 {
 	int i, txdone;
 
-	/* Sanity check */
-	if (!mbox || !mbox->dev || !mbox->ops || !mbox->num_chans)
+	if (!mbox || !mbox->dev || !mbox->ops || !mbox->chans || !mbox->num_chans)
 		return -EINVAL;
 
 	if (mbox->txdone_irq)
-		txdone = TXDONE_BY_IRQ;
+		txdone = MBOX_TXDONE_BY_IRQ;
 	else if (mbox->txdone_poll)
-		txdone = TXDONE_BY_POLL;
+		txdone = MBOX_TXDONE_BY_POLL;
 	else /* It has to be ACK then */
-		txdone = TXDONE_BY_ACK;
+		txdone = MBOX_TXDONE_BY_ACK;
 
-	if (txdone == TXDONE_BY_POLL) {
+	if (txdone == MBOX_TXDONE_BY_POLL) {
 
 		if (!mbox->ops->last_tx_done) {
 			dev_err(mbox->dev, "last_tx_done method is absent\n");
@@ -532,6 +566,7 @@ int mbox_controller_register(struct mbox_controller *mbox)
 
 		chan->cl = NULL;
 		chan->mbox = mbox;
+		chan->active_req = MBOX_NO_MSG;
 		chan->txdone_method = txdone;
 		spin_lock_init(&chan->lock);
 	}
@@ -611,3 +646,66 @@ int devm_mbox_controller_register(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(devm_mbox_controller_register);
+
+#ifdef CONFIG_DEBUG_FS
+static void *mbox_seq_start(struct seq_file *s, loff_t *pos)
+{
+	mutex_lock(&con_mutex);
+	return seq_list_start(&mbox_cons, *pos);
+}
+
+static void *mbox_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	return seq_list_next(v, &mbox_cons, pos);
+}
+
+static void mbox_seq_stop(struct seq_file *s, void *v)
+{
+	mutex_unlock(&con_mutex);
+}
+
+static int mbox_seq_show(struct seq_file *seq, void *v)
+{
+	const struct mbox_controller *mbox = list_entry(v, struct mbox_controller, node);
+
+	seq_printf(seq, "%s:\n", dev_name(mbox->dev));
+
+	for (unsigned int i = 0; i < mbox->num_chans; i++) {
+		struct mbox_chan *chan = &mbox->chans[i];
+
+		scoped_guard(spinlock_irqsave, &chan->lock) {
+			if (chan->cl) {
+				struct device *cl_dev = chan->cl->dev;
+
+				seq_printf(seq, " %3u: %s\n", i,
+					   cl_dev ? dev_name(cl_dev) : "NULL device");
+			}
+		}
+	}
+
+	return 0;
+}
+
+static const struct seq_operations mbox_sops = {
+	.start = mbox_seq_start,
+	.next = mbox_seq_next,
+	.stop = mbox_seq_stop,
+	.show = mbox_seq_show,
+};
+DEFINE_SEQ_ATTRIBUTE(mbox);
+
+/*
+ * subsys_initcall() is used here but controllers may already have been
+ * registered earlier or will be later. The rationale is that debugfs is
+ * accessed only late, i.e. from userspace. So, files created here must make no
+ * assumptions about initcall ordering.
+ */
+static int __init mbox_init(void)
+{
+	struct dentry *mbox_debugfs = debugfs_create_dir("mailbox", NULL);
+
+	debugfs_create_file("mailbox_summary", 0444, mbox_debugfs, NULL, &mbox_fops);
+	return 0;
+}
+subsys_initcall(mbox_init);
+#endif	/* DEBUG_FS */

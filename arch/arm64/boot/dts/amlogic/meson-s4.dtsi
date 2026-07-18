@@ -59,6 +59,11 @@
 		method = "smc";
 	};
 
+	vrtc: rtc@fe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0x0 0xfe010288 0x0 0x4>;
+	};
+
 	xtal: xtal-clk {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
@@ -75,6 +80,20 @@
 				#power-domain-cells = <1>;
 			};
 		};
+	};
+
+	saradc: adc@fe026000 {
+		compatible = "amlogic,meson-s4-saradc",
+			     "amlogic,meson-g12a-saradc";
+		reg = <0x0 0xfe026000 0x0 0x48>;
+		#io-channel-cells = <1>;
+		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&xtal>,
+			 <&clkc_periphs CLKID_SAR_ADC>,
+			 <&clkc_periphs CLKID_SARADC>,
+			 <&clkc_periphs CLKID_SARADC_SEL>;
+		clock-names = "clkin", "core", "adc_clk", "adc_sel";
+		status = "disabled";
 	};
 
 	soc {
@@ -160,6 +179,22 @@
 						groups = "remote_in";
 						function = "remote_in";
 						bias-disable;
+					};
+				};
+
+				uart_a_pins: uart-a-pins {
+					mux {
+						groups = "uart_a_tx",
+						       "uart_a_rx";
+						function = "uart_a";
+					};
+				};
+
+				uart_a_cts_rts_pins: uart-a-cts-rts-pins {
+					mux {
+						groups = "uart_a_cts",
+						       "uart_a_rts";
+						function = "uart_a";
 					};
 				};
 
@@ -812,6 +847,16 @@
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
 			};
+		};
+
+		uart_a: serial@fe078000 {
+			compatible = "amlogic,meson-s4-uart",
+				     "amlogic,meson-ao-uart";
+			reg = <0x0 0xfe078000 0x0 0x18>;
+			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&xtal>, <&clkc_periphs CLKID_UART_A>, <&xtal>;
+			clock-names = "xtal", "pclk", "baud";
+			status = "disabled";
 		};
 
 		sdio: mmc@fe088000 {

@@ -570,7 +570,7 @@ xrep_rmap_scan_ifork(
 	int			whichfork)
 {
 	struct xrep_rmap_ifork	rf = {
-		.accum		= { .rm_owner = ip->i_ino, },
+		.accum		= { .rm_owner = I_INO(ip), },
 		.rr		= rr,
 		.whichfork	= whichfork,
 	};

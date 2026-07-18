@@ -61,6 +61,7 @@ enum {
 	ALC887_FIXUP_ASUS_HMIC,
 	ALCS1200A_FIXUP_MIC_VREF,
 	ALC888VD_FIXUP_MIC_100VREF,
+	ALC898_FIXUP_CLEVO_P775TM1,
 };
 
 static void alc889_fixup_coef(struct hda_codec *codec,
@@ -234,6 +235,19 @@ static void alc1220_fixup_clevo_pb51ed(struct hda_codec *codec,
 {
 	alc1220_fixup_clevo_p950(codec, fix, action);
 	alc_fixup_headset_mode_no_hp_mic(codec, fix, action);
+}
+
+/* On Clevo P775TM1, VREF of pin 0x1b enables the external headphone amp */
+static void alc898_fixup_clevo_p775tm1(struct hda_codec *codec,
+				       const struct hda_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action != HDA_FIXUP_ACT_PRE_PROBE)
+		return;
+
+	snd_hda_set_pin_ctl_cache(codec, 0x1b, PIN_VREF80);
+	spec->gen.keep_vref_in_automute = 1;
 }
 
 static void alc887_asus_hp_automute_hook(struct hda_codec *codec,
@@ -560,6 +574,12 @@ static const struct hda_fixup alc882_fixups[] = {
 			{}
 		}
 	},
+	[ALC898_FIXUP_CLEVO_P775TM1] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc898_fixup_clevo_p775tm1,
+		.chained = true,
+		.chain_id = ALC882_FIXUP_EAPD,
+	},
 };
 
 static const struct hda_quirk alc882_fixup_tbl[] = {
@@ -664,6 +684,7 @@ static const struct hda_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0x67f1, "Clevo PC70H[PRS]", ALC1220_FIXUP_CLEVO_PB51ED_PINS),
 	SND_PCI_QUIRK(0x1558, 0x67f5, "Clevo PD70PN[NRT]", ALC1220_FIXUP_CLEVO_PB51ED_PINS),
 	SND_PCI_QUIRK(0x1558, 0x70d1, "Clevo PC70[ER][CDF]", ALC1220_FIXUP_CLEVO_PB51ED_PINS),
+	SND_PCI_QUIRK(0x1558, 0x7709, "Clevo P775TM1", ALC898_FIXUP_CLEVO_P775TM1),
 	SND_PCI_QUIRK(0x1558, 0x7714, "Clevo X170SM", ALC1220_FIXUP_CLEVO_PB51ED_PINS),
 	SND_PCI_QUIRK(0x1558, 0x7715, "Clevo X170KM-G", ALC1220_FIXUP_CLEVO_PB51ED),
 	SND_PCI_QUIRK(0x1558, 0x9501, "Clevo P950HR", ALC1220_FIXUP_CLEVO_P950),
@@ -719,6 +740,7 @@ static const struct hda_model_fixup alc882_fixup_models[] = {
 	{.id = ALC1220_FIXUP_GB_DUAL_CODECS, .name = "dual-codecs"},
 	{.id = ALC1220_FIXUP_GB_X570, .name = "gb-x570"},
 	{.id = ALC1220_FIXUP_CLEVO_P950, .name = "clevo-p950"},
+	{.id = ALC898_FIXUP_CLEVO_P775TM1, .name = "clevo-p775tm1"},
 	{}
 };
 

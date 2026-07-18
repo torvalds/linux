@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 config ATH12K
-	tristate "Qualcomm Technologies Wi-Fi 7 support (ath12k)"
+	tristate "Qualcomm Wi-Fi 7 support (ath12k)"
 	depends on MAC80211 && HAS_DMA && PCI
 	select QCOM_QMI_HELPERS
 	select MHI_BUS
@@ -15,7 +15,7 @@ config ATH12K
 	  If you choose to build a module, it'll be called ath12k.
 
 config ATH12K_AHB
-	bool "QTI ath12k AHB support"
+	bool "Qualcomm ath12k AHB support"
 	depends on ATH12K && REMOTEPROC
 	select QCOM_MDT_LOADER
 	select QCOM_SCM
@@ -33,7 +33,7 @@ config ATH12K_DEBUG
 	  you want optimal performance choose N.
 
 config ATH12K_DEBUGFS
-	bool "QTI ath12k debugfs support"
+	bool "Qualcomm ath12k debugfs support"
 	depends on ATH12K && MAC80211_DEBUGFS
 	help
 	  Enable ath12k debugfs support

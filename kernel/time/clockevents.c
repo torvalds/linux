@@ -301,7 +301,7 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 #include <asm/clock_inlined.h>
 #else
 static __always_inline void
-arch_inlined_clockevent_set_next_coupled(u64 u64 cycles, struct clock_event_device *dev) { }
+arch_inlined_clockevent_set_next_coupled(u64 cycles, struct clock_event_device *dev) { }
 #endif
 
 static inline bool clockevent_set_next_coupled(struct clock_event_device *dev, ktime_t expires)

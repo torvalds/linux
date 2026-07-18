@@ -11,6 +11,7 @@
 #include "intel_display_limits.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_link_caps.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_tunnel.h"
@@ -56,8 +57,9 @@ static int kbytes_to_mbits(int kbytes)
 
 static int get_current_link_bw(struct intel_dp *intel_dp)
 {
-	int rate = intel_dp_max_common_rate(intel_dp);
-	int lane_count = intel_dp_max_common_lane_count(intel_dp);
+	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
+	int rate = intel_dp_max_common_rate(link_caps);
+	int lane_count = intel_dp_link_caps_max_common_lane_count(link_caps);
 
 	return intel_dp_max_link_data_rate(intel_dp, rate, lane_count);
 }
@@ -146,7 +148,7 @@ static int allocate_initial_tunnel_bw_for_pipes(struct intel_dp *intel_dp, u8 pi
 	int tunnel_bw = 0;
 	int err;
 
-	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display, crtc, pipe_mask) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		int stream_bw = intel_dp_config_required_rate(crtc_state);
@@ -294,6 +296,24 @@ int intel_dp_tunnel_detect(struct intel_dp *intel_dp, struct drm_modeset_acquire
 bool intel_dp_tunnel_bw_alloc_is_enabled(struct intel_dp *intel_dp)
 {
 	return drm_dp_tunnel_bw_alloc_is_enabled(intel_dp->tunnel);
+}
+
+/**
+ * intel_dp_tunnel_pr_optimization_supported - Query the PR BW optimization support
+ * @intel_dp: DP port object
+ *
+ * Query whether a DP tunnel supports the PR BW optimization.
+ *
+ * Returns %true if the BW allocation mode is supported on @intel_dp.
+ */
+bool intel_dp_tunnel_pr_optimization_supported(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	if (DISPLAY_VER(display) < 35)
+		return false;
+
+	return drm_dp_tunnel_pr_optimization_supported(intel_dp->tunnel);
 }
 
 /**
@@ -722,9 +742,8 @@ static void atomic_decrease_bw(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
-	int i;
 
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state) {
 		const struct drm_dp_tunnel_state *new_tunnel_state;
 		struct drm_dp_tunnel *tunnel;
 		int old_bw;
@@ -777,9 +796,8 @@ static void atomic_increase_bw(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
 	const struct intel_crtc_state *crtc_state;
-	int i;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state) {
 		struct drm_dp_tunnel_state *tunnel_state;
 		struct drm_dp_tunnel *tunnel = crtc_state->dp_tunnel_ref.tunnel;
 		int bw;

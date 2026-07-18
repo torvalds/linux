@@ -4,6 +4,7 @@
 #include <linux/interval_tree.h>
 #include <linux/prandom.h>
 #include <linux/slab.h>
+#include <linux/printk.h>
 #include <asm/timex.h>
 #include <linux/bitmap.h>
 #include <linux/maple_tree.h>
@@ -311,6 +312,27 @@ static inline int span_iteration_check(void) {return 0; }
 
 static int interval_tree_test_init(void)
 {
+	if (nnodes <= 0) {
+		pr_warn("nnodes must be positive\n");
+		return -EINVAL;
+	}
+	if (nsearches <= 0) {
+		pr_warn("nsearches must be positive\n");
+		return -EINVAL;
+	}
+	if (perf_loops <= 0) {
+		pr_warn("perf_loops must be positive\n");
+		return -EINVAL;
+	}
+	if (search_loops <= 0) {
+		pr_warn("search_loops must be positive\n");
+		return -EINVAL;
+	}
+	if (max_endpoint < 2) {
+		pr_warn("max_endpoint must be at least 2\n");
+		return -EINVAL;
+	}
+
 	nodes = kmalloc_objs(struct interval_tree_node, nnodes);
 	if (!nodes)
 		return -ENOMEM;

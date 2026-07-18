@@ -391,6 +391,23 @@
 	firmware-name = "qcom/sdm845/Google/blueline/a630_zap.mbn";
 };
 
+&i2c3 {
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,pn557", "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupts-extended = <&tlmm 63 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&tlmm 25 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 79 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-0 = <&nfc_int_default &nfc_enable_default>;
+		pinctrl-names = "default";
+	};
+};
+
 &i2c12 {
 	/* Bottom spkr (right) CS35L36 @ 40 */
 
@@ -458,6 +475,20 @@
 &tlmm {
 	gpio-reserved-ranges = < 0 4>, /* SPI (Intel MNH Pixel Visual Core) */
 			       <81 4>; /* SPI (most likely Fingerprint Cards FPC1075) */
+
+	nfc_int_default: nfc-int-default-state {
+		pins = "gpio63";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	nfc_enable_default: nfc-enable-default-state {
+		pins = "gpio25", "gpio79";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 
 	touchscreen_reset: ts-reset-state {
 		pins = "gpio99";

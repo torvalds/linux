@@ -27,6 +27,7 @@ ifdef CONFIG_DRM_AMD_DC_FP
 ###############################################################################
 # DCN30
 ###############################################################################
+HPO_DCN30 = dcn30_hpo_frl_link_encoder.o dcn30_hpo_frl_stream_encoder.o
 
 AMD_DAL_HPO_DCN30 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn30/,$(HPO_DCN30))
 
@@ -49,9 +50,18 @@ AMD_DAL_HPO_DCN32 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn32/,$(HPO_DCN32))
 AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN32)
 
 ###############################################################################
+# DCN401
+###############################################################################
+HPO_DCN401 = dcn401_hpo_frl_stream_encoder.o
+
+AMD_DAL_HPO_DCN401 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn401/,$(HPO_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_HPO_DCN401)
+###############################################################################
 # DCN42
 ###############################################################################
 HPO_DCN42 = dcn42_hpo_dp_link_encoder.o
+HPO_DCN42 += dcn42_hpo_frl_stream_encoder.o
 
 AMD_DAL_HPO_DCN42 = $(addprefix $(AMDDALPATH)/dc/hpo/dcn42/,$(HPO_DCN42))
 

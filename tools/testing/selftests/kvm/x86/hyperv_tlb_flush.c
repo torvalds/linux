@@ -61,14 +61,14 @@ struct hv_tlb_flush_ex {
  * - GVAs of the test pages' PTEs
  */
 struct test_data {
-	vm_vaddr_t hcall_gva;
-	vm_paddr_t hcall_gpa;
-	vm_vaddr_t test_pages;
-	vm_vaddr_t test_pages_pte[NTEST_PAGES];
+	gva_t hcall_gva;
+	gpa_t hcall_gpa;
+	gva_t test_pages;
+	gva_t test_pages_pte[NTEST_PAGES];
 };
 
 /* 'Worker' vCPU code checking the contents of the test page */
-static void worker_guest_code(vm_vaddr_t test_data)
+static void worker_guest_code(gva_t test_data)
 {
 	struct test_data *data = (struct test_data *)test_data;
 	u32 vcpu_id = rdmsr(HV_X64_MSR_VP_INDEX);
@@ -133,23 +133,12 @@ static void set_expected_val(void *addr, u64 val, int vcpu_id)
  * Update PTEs swapping two test pages.
  * TODO: use swap()/xchg() when these are provided.
  */
-static void swap_two_test_pages(vm_paddr_t pte_gva1, vm_paddr_t pte_gva2)
+static void swap_two_test_pages(gpa_t pte_gva1, gpa_t pte_gva2)
 {
-	uint64_t tmp = *(uint64_t *)pte_gva1;
+	u64 tmp = *(u64 *)pte_gva1;
 
-	*(uint64_t *)pte_gva1 = *(uint64_t *)pte_gva2;
-	*(uint64_t *)pte_gva2 = tmp;
-}
-
-/*
- * TODO: replace the silly NOP loop with a proper udelay() implementation.
- */
-static inline void do_delay(void)
-{
-	int i;
-
-	for (i = 0; i < 1000000; i++)
-		asm volatile("nop");
+	*(u64 *)pte_gva1 = *(u64 *)pte_gva2;
+	*(u64 *)pte_gva2 = tmp;
 }
 
 /*
@@ -169,7 +158,7 @@ static inline void prepare_to_test(struct test_data *data)
 	wmb();
 
 	/* Make sure workers have enough time to notice */
-	do_delay();
+	udelay(100);
 
 	/* Swap test page mappings */
 	swap_two_test_pages(data->test_pages_pte[0], data->test_pages_pte[1]);
@@ -189,19 +178,19 @@ static inline void post_test(struct test_data *data, u64 exp1, u64 exp2)
 	set_expected_val((void *)data->test_pages, exp2, WORKER_VCPU_ID_2);
 
 	/* Make sure workers have enough time to test */
-	do_delay();
+	udelay(100);
 }
 
 #define TESTVAL1 0x0101010101010101
 #define TESTVAL2 0x0202020202020202
 
 /* Main vCPU doing the test */
-static void sender_guest_code(vm_vaddr_t test_data)
+static void sender_guest_code(gva_t test_data)
 {
 	struct test_data *data = (struct test_data *)test_data;
 	struct hv_tlb_flush *flush = (struct hv_tlb_flush *)data->hcall_gva;
 	struct hv_tlb_flush_ex *flush_ex = (struct hv_tlb_flush_ex *)data->hcall_gva;
-	vm_paddr_t hcall_gpa = data->hcall_gpa;
+	gpa_t hcall_gpa = data->hcall_gpa;
 	int i, stage = 1;
 
 	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
@@ -581,9 +570,9 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu[3];
 	pthread_t threads[2];
-	vm_vaddr_t test_data_page, gva;
-	vm_paddr_t gpa;
-	uint64_t *pte;
+	gva_t test_data_page, gva;
+	gpa_t gpa;
+	u64 *pte;
 	struct test_data *data;
 	struct ucall uc;
 	int stage = 1, r, i;
@@ -593,11 +582,11 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu[0], sender_guest_code);
 
 	/* Test data page */
-	test_data_page = vm_vaddr_alloc_page(vm);
+	test_data_page = vm_alloc_page(vm);
 	data = (struct test_data *)addr_gva2hva(vm, test_data_page);
 
 	/* Hypercall input/output */
-	data->hcall_gva = vm_vaddr_alloc_pages(vm, 2);
+	data->hcall_gva = vm_alloc_pages(vm, 2);
 	data->hcall_gpa = addr_gva2gpa(vm, data->hcall_gva);
 	memset(addr_gva2hva(vm, data->hcall_gva), 0x0, 2 * PAGE_SIZE);
 
@@ -606,7 +595,7 @@ int main(int argc, char *argv[])
 	 * and the test will swap their mappings. The third page keeps the indication
 	 * about the current state of mappings.
 	 */
-	data->test_pages = vm_vaddr_alloc_pages(vm, NTEST_PAGES + 1);
+	data->test_pages = vm_alloc_pages(vm, NTEST_PAGES + 1);
 	for (i = 0; i < NTEST_PAGES; i++)
 		memset(addr_gva2hva(vm, data->test_pages + PAGE_SIZE * i),
 		       (u8)(i + 1), PAGE_SIZE);
@@ -617,7 +606,7 @@ int main(int argc, char *argv[])
 	 * Get PTE pointers for test pages and map them inside the guest.
 	 * Use separate page for each PTE for simplicity.
 	 */
-	gva = vm_vaddr_unused_gap(vm, NTEST_PAGES * PAGE_SIZE, KVM_UTIL_MIN_VADDR);
+	gva = vm_unused_gva_gap(vm, NTEST_PAGES * PAGE_SIZE, KVM_UTIL_MIN_VADDR);
 	for (i = 0; i < NTEST_PAGES; i++) {
 		pte = vm_get_pte(vm, data->test_pages + i * PAGE_SIZE);
 		gpa = addr_hva2gpa(vm, pte);

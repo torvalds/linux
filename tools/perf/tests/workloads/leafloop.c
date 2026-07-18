@@ -6,26 +6,48 @@
 #include "../tests.h"
 
 /* We want to check these symbols in perf script */
-noinline void leaf(volatile int b);
-noinline void parent(volatile int b);
+noinline void leaf(void);
+noinline void parent(void);
 
-static volatile int a;
-static volatile sig_atomic_t done;
+static volatile sig_atomic_t done asm("leafloop_done");
 
 static void sighandler(int sig __maybe_unused)
 {
 	done = 1;
 }
 
-noinline void leaf(volatile int b)
+#if defined(__aarch64__)
+/*
+ * Write leaf() in assembly so it stays as a minimal leaf function with no
+ * stack frame and won't get silently broken in the future by any Perf wide
+ * compilation options like -fstack-protector-all.
+ */
+asm(
+	".pushsection .text,\"ax\",%progbits\n"
+	".global leaf\n"
+	".type leaf, %function\n"
+	"leaf:\n"
+	"	adrp	x1, leafloop_done\n"
+	"	ldr	w2, [x1, #:lo12:leafloop_done]\n"
+	"	cbz	w2, leaf\n"
+	"	ret\n"
+	".size leaf, .-leaf\n"
+	".popsection\n"
+);
+
+#else
+
+noinline void leaf(void)
 {
 	while (!done)
-		a += b;
+		;
 }
 
-noinline void parent(volatile int b)
+#endif
+
+noinline void parent(void)
 {
-	leaf(b);
+	leaf();
 }
 
 static int leafloop(int argc, const char **argv)
@@ -39,7 +61,7 @@ static int leafloop(int argc, const char **argv)
 	signal(SIGALRM, sighandler);
 	alarm(sec);
 
-	parent(sec);
+	parent();
 	return 0;
 }
 

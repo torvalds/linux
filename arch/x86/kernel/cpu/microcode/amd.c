@@ -34,6 +34,7 @@
 
 #include <asm/microcode.h>
 #include <asm/processor.h>
+#include <asm/cpuid/api.h>
 #include <asm/cmdline.h>
 #include <asm/setup.h>
 #include <asm/cpu.h>
@@ -233,11 +234,6 @@ static bool need_sha_check(u32 cur_rev)
 {
 	u32 cutoff;
 
-	if (!cur_rev) {
-		cur_rev = cpuid_to_ucode_rev(bsp_cpuid_1_eax);
-		pr_info_once("No current revision, generating the lowest one: 0x%x\n", cur_rev);
-	}
-
 	cutoff = get_cutoff_revision(cur_rev);
 	if (cutoff)
 		return cur_rev <= cutoff;
@@ -322,7 +318,7 @@ static u32 get_patch_level(void)
 {
 	u32 rev, dummy __always_unused;
 
-	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && hypervisor_present) {
+	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && x86_hypervisor_present) {
 		int cpu = smp_processor_id();
 
 		if (!microcode_rev[cpu]) {
@@ -338,6 +334,13 @@ static u32 get_patch_level(void)
 	}
 
 	native_rdmsr(MSR_AMD64_PATCH_LEVEL, rev, dummy);
+	if (!rev) {
+		if (x86_family(bsp_cpuid_1_eax) < 0x17)
+			return rev;
+
+		rev = cpuid_to_ucode_rev(bsp_cpuid_1_eax);
+		pr_info_once("No current revision, generating the lowest one: 0x%x\n", rev);
+	}
 
 	return rev;
 }
@@ -714,7 +717,7 @@ static bool __apply_microcode_amd(struct microcode_amd *mc, u32 *cur_rev,
 			invlpg(p_addr_end);
 	}
 
-	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && hypervisor_present)
+	if (IS_ENABLED(CONFIG_MICROCODE_DBG) && x86_hypervisor_present)
 		microcode_rev[smp_processor_id()] = mc->hdr.patch_id;
 
 	/* verify patch application was successful */

@@ -137,7 +137,7 @@ static const struct pmc_bit_map *ext_ptl_pcdp_pfear_map[] = {
 	NULL
 };
 
-static const struct pmc_bit_map ptl_pcdp_ltr_show_map[] = {
+const struct pmc_bit_map ptl_pcdp_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -543,6 +543,8 @@ static struct pmc_info ptl_pmc_info_list[] = {
 	{}
 };
 
+static const u8 ptl_pmc_list[] = {PMC_IDX_MAIN};
+
 #define PTL_NPU_PCI_DEV                0xb03e
 #define PTL_IPU_PCI_DEV                0xb05d
 
@@ -569,7 +571,8 @@ static int ptl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_in
 }
 
 struct pmc_dev_info ptl_pmc_dev = {
-	.pci_func = 2,
+	.num_pmcs = ARRAY_SIZE(ptl_pmc_list),
+	.pmc_list = ptl_pmc_list,
 	.regmap_list = ptl_pmc_info_list,
 	.map = &ptl_pcdp_reg_map,
 	.sub_req_show = &pmc_core_substate_blk_req_fops,
@@ -577,4 +580,5 @@ struct pmc_dev_info ptl_pmc_dev = {
 	.resume = ptl_resume,
 	.init = ptl_core_init,
 	.sub_req = pmc_core_pmt_get_blk_sub_req,
+	.ssram_hidden = true,
 };

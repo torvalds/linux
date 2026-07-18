@@ -67,9 +67,6 @@ void *vmemdup_array_user(const void __user *src, size_t n, size_t size)
 #ifndef __HAVE_ARCH_STRCPY
 extern char * strcpy(char *,const char *);
 #endif
-#ifndef __HAVE_ARCH_STRNCPY
-extern char * strncpy(char *,const char *, __kernel_size_t);
-#endif
 ssize_t sized_strscpy(char *, const char *, size_t);
 
 /*

@@ -26,7 +26,6 @@
 #define FORTIFY_WRITE		 1
 
 #define EACH_FORTIFY_FUNC(macro)	\
-	macro(strncpy),			\
 	macro(strnlen),			\
 	macro(strlen),			\
 	macro(strscpy),			\
@@ -95,8 +94,6 @@ extern char *__underlying_strcat(char *p, const char *q) __RENAME(strcat);
 extern char *__underlying_strcpy(char *p, const char *q) __RENAME(strcpy);
 extern __kernel_size_t __underlying_strlen(const char *p) __RENAME(strlen);
 extern char *__underlying_strncat(char *p, const char *q, __kernel_size_t count) __RENAME(strncat);
-extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) __RENAME(strncpy);
-
 #else
 
 #if defined(__SANITIZE_MEMORY__)
@@ -120,7 +117,6 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 #define __underlying_strcpy	__builtin_strcpy
 #define __underlying_strlen	__builtin_strlen
 #define __underlying_strncat	__builtin_strncat
-#define __underlying_strncpy	__builtin_strncpy
 
 #endif
 
@@ -158,50 +154,6 @@ extern char *__underlying_strncpy(char *p, const char *q, __kernel_size_t size) 
 	__builtin_constant_p((bounds) < (length)) &&	\
 	(bounds) < (length)				\
 )
-
-/**
- * strncpy - Copy a string to memory with non-guaranteed NUL padding
- *
- * @p: pointer to destination of copy
- * @q: pointer to NUL-terminated source string to copy
- * @size: bytes to write at @p
- *
- * If strlen(@q) >= @size, the copy of @q will stop after @size bytes,
- * and @p will NOT be NUL-terminated
- *
- * If strlen(@q) < @size, following the copy of @q, trailing NUL bytes
- * will be written to @p until @size total bytes have been written.
- *
- * Do not use this function. While FORTIFY_SOURCE tries to avoid
- * over-reads of @q, it cannot defend against writing unterminated
- * results to @p. Using strncpy() remains ambiguous and fragile.
- * Instead, please choose an alternative, so that the expectation
- * of @p's contents is unambiguous:
- *
- * +--------------------+--------------------+------------+
- * | **p** needs to be: | padded to **size** | not padded |
- * +====================+====================+============+
- * |     NUL-terminated | strscpy_pad()      | strscpy()  |
- * +--------------------+--------------------+------------+
- * | not NUL-terminated | strtomem_pad()     | strtomem() |
- * +--------------------+--------------------+------------+
- *
- * Note strscpy*()'s differing return values for detecting truncation,
- * and strtomem*()'s expectation that the destination is marked with
- * __nonstring when it is a character array.
- *
- */
-__FORTIFY_INLINE __diagnose_as(__builtin_strncpy, 1, 2, 3)
-char *strncpy(char * const POS p, const char *q, __kernel_size_t size)
-{
-	const size_t p_size = __member_size(p);
-
-	if (__compiletime_lessthan(p_size, size))
-		__write_overflow();
-	if (p_size < size)
-		fortify_panic(FORTIFY_FUNC_strncpy, FORTIFY_WRITE, p_size, size, p);
-	return __underlying_strncpy(p, q, size);
-}
 
 extern __kernel_size_t __real_strnlen(const char *, __kernel_size_t) __RENAME(strnlen);
 /**
@@ -809,7 +761,6 @@ char *strcpy(char * const POS p, const char * const POS q)
 #undef __underlying_strcpy
 #undef __underlying_strlen
 #undef __underlying_strncat
-#undef __underlying_strncpy
 
 #undef POS
 #undef POS0

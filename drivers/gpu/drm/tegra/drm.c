@@ -44,7 +44,7 @@
 #define CDMA_GATHER_FETCHES_MAX_NB 16383
 
 static int tegra_atomic_check(struct drm_device *drm,
-			      struct drm_atomic_state *state)
+			      struct drm_atomic_commit *state)
 {
 	int err;
 
@@ -62,7 +62,7 @@ static const struct drm_mode_config_funcs tegra_drm_mode_config_funcs = {
 };
 
 static void tegra_atomic_post_commit(struct drm_device *drm,
-				     struct drm_atomic_state *old_state)
+				     struct drm_atomic_commit *old_state)
 {
 	struct drm_crtc_state *old_crtc_state __maybe_unused;
 	struct drm_crtc *crtc;
@@ -72,7 +72,7 @@ static void tegra_atomic_post_commit(struct drm_device *drm,
 		tegra_crtc_atomic_post_commit(crtc, old_state);
 }
 
-static void tegra_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void tegra_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *drm = old_state->dev;
 	struct tegra_drm *tegra = drm->dev_private;
@@ -1358,10 +1358,12 @@ static SIMPLE_DEV_PM_OPS(host1x_drm_pm_ops, host1x_drm_suspend,
 
 static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra20-dc", },
+	{ .compatible = "nvidia,tegra20-dsi", },
 	{ .compatible = "nvidia,tegra20-hdmi", },
 	{ .compatible = "nvidia,tegra20-gr2d", },
 	{ .compatible = "nvidia,tegra20-gr3d", },
 	{ .compatible = "nvidia,tegra30-dc", },
+	{ .compatible = "nvidia,tegra30-dsi", },
 	{ .compatible = "nvidia,tegra30-hdmi", },
 	{ .compatible = "nvidia,tegra30-gr2d", },
 	{ .compatible = "nvidia,tegra30-gr3d", },

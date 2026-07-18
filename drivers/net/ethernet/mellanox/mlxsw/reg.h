@@ -5651,6 +5651,14 @@ MLXSW_ITEM64(reg, ppcnt, tx_pause_duration,
 MLXSW_ITEM64(reg, ppcnt, tx_pause_transition,
 	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x70, 0, 64);
 
+/* reg_ppcnt_rx_discards
+ * Per-PG (ingress priority group) drop count.
+ * index slot is the PG, switch priority.
+ * Access: RO
+ */
+MLXSW_ITEM64(reg, ppcnt, rx_discards,
+	     MLXSW_REG_PPCNT_COUNTERS_OFFSET + 0x78, 0, 64);
+
 /* Ethernet Per Traffic Class Counters */
 
 /* reg_ppcnt_tc_transmit_queue

@@ -18,17 +18,18 @@
 
 /**
  * backing_file_open - open a backing file for kernel internal use
- * @user_path:	path that the user reuqested to open
+ * @user_file:  file the user requested to open
  * @flags:	open flags
  * @real_path:	path of the backing file
  * @cred:	credentials for open
  *
  * Open a backing file for a stackable filesystem (e.g., overlayfs).
- * @user_path may be on the stackable filesystem and @real_path on the
- * underlying filesystem.  In this case, we want to be able to return the
- * @user_path of the stackable filesystem. This is done by embedding the
- * returned file into a container structure that also stores the stacked
- * file's path, which can be retrieved using backing_file_user_path().
+ * @user_file->f_path may be on the stackable filesystem and @real_path
+ * on the underlying filesystem. In this case, we want to be able to
+ * return the path of the stackable filesystem. This is done by
+ * embedding the returned file into a container structure that also
+ * stores the stacked file's path, which can be retrieved using
+ * backing_file_user_path().
  */
 struct file *backing_file_open(const struct file *user_file, int flags,
 			       const struct path *real_path,

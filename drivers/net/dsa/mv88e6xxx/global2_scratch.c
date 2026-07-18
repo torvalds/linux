@@ -322,18 +322,19 @@ int mv88e6393x_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 }
 
 /**
- * mv88e6352_g2_scratch_port_has_serdes - indicate if a port can have a serdes
+ * mv88e6352_g2_cache_global_scratch_config3 - caches G2 CONFIG3 value
  * @chip: chip private data
- * @port: port number to check for serdes
  *
- * Indicates whether the port may have a serdes attached according to the
- * pin strapping. Returns negative error number, 0 if the port is not
- * configured to have a serdes, and 1 if the port is configured to have a
- * serdes attached.
+ * Reads and stores config3 value of global2 scratch registers, which
+ * can be used to determine if the port is attached to a serdes. The
+ * value does not change once the switch is released from reset and
+ * represents the value of the pin strapping.
+ *
+ * Return: negative error number if the register read fails; otherwise, 0
  */
-int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+int mv88e6352_g2_cache_global_scratch_config3(struct mv88e6xxx_chip *chip)
 {
-	u8 config3, p;
+	u8 config3;
 	int err;
 
 	err = mv88e6xxx_g2_scratch_read(chip, MV88E6352_G2_SCRATCH_CONFIG_DATA3,
@@ -341,7 +342,26 @@ int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	if (config3 & MV88E6352_G2_SCRATCH_CONFIG_DATA3_S_SEL)
+	chip->g2_scratch_config3 = config3;
+
+	return 0;
+}
+
+/**
+ * mv88e6352_g2_scratch_port_has_serdes - indicate if a port has serdes
+ * @chip: chip private data
+ * @port: port number to check for serdes
+ *
+ * Indicates whether the port may have a serdes attached according to the
+ * pin strapping, which is cached at reset (scratch config3). Returns 0 if
+ * the port is not configured to have a serdes, and 1 if the port is
+ * configured to have a serdes attached.
+ */
+int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+{
+	u8 p;
+
+	if (chip->g2_scratch_config3 & MV88E6352_G2_SCRATCH_CONFIG_DATA3_S_SEL)
 		p = 5;
 	else
 		p = 4;

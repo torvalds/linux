@@ -468,6 +468,7 @@ static int ip6_forward_proxy_check(struct sk_buff *skb)
 		default:
 			break;
 		}
+		hdr = ipv6_hdr(skb);
 	}
 
 	/*
@@ -582,6 +583,8 @@ int ip6_forward(struct sk_buff *skb)
 	if (READ_ONCE(net->ipv6.devconf_all->proxy_ndp) &&
 	    pneigh_lookup(&nd_tbl, net, &hdr->daddr, skb->dev)) {
 		int proxied = ip6_forward_proxy_check(skb);
+
+		hdr = ipv6_hdr(skb);
 		if (proxied > 0) {
 			/* It's tempting to decrease the hop limit
 			 * here by 1, as we do at the end of the
@@ -1329,7 +1332,6 @@ struct dst_entry *ip6_sk_dst_lookup_flow(struct sock *sk, struct flowi6 *fl6,
 
 	return dst;
 }
-EXPORT_SYMBOL_GPL(ip6_sk_dst_lookup_flow);
 
 static inline struct ipv6_opt_hdr *ip6_opt_dup(struct ipv6_opt_hdr *src,
 					       gfp_t gfp)
@@ -1665,8 +1667,8 @@ alloc_new_skb:
 				  !(rt->dst.dev->features & NETIF_F_SG)))
 				alloclen = fraglen;
 			else {
-				alloclen = fragheaderlen + transhdrlen;
-				pagedlen = datalen - transhdrlen;
+				alloclen = fragheaderlen + transhdrlen + fraggap;
+				pagedlen = datalen - transhdrlen - fraggap;
 			}
 			alloclen += alloc_extra;
 
@@ -1681,10 +1683,7 @@ alloc_new_skb:
 			fraglen = datalen + fragheaderlen;
 
 			copy = datalen - transhdrlen - fraggap - pagedlen;
-			/* [!] NOTE: copy may be negative if pagedlen>0
-			 * because then the equation may reduces to -fraggap.
-			 */
-			if (copy < 0 && !(flags & MSG_SPLICE_PAGES)) {
+			if (copy < 0) {
 				err = -EINVAL;
 				goto error;
 			}
@@ -1794,6 +1793,8 @@ alloc_new_skb:
 			if (err < 0)
 				goto error;
 			copy = err;
+			if (!(flags & MSG_NO_SHARED_FRAGS))
+				skb_shinfo(skb)->flags |= SKBFL_SHARED_FRAG;
 			wmem_alloc_delta += copy;
 		} else if (!zc) {
 			int i = skb_shinfo(skb)->nr_frags;

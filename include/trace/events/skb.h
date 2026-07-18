@@ -24,14 +24,14 @@ DEFINE_DROP_REASON(FN, FN)
 TRACE_EVENT(kfree_skb,
 
 	TP_PROTO(struct sk_buff *skb, void *location,
-		 enum skb_drop_reason reason, struct sock *rx_sk),
+		 enum skb_drop_reason reason, const struct sock *rx_sk),
 
 	TP_ARGS(skb, location, reason, rx_sk),
 
 	TP_STRUCT__entry(
 		__field(void *,		skbaddr)
 		__field(void *,		location)
-		__field(void *,		rx_sk)
+		__field(const void *,	rx_sk)
 		__field(unsigned short,	protocol)
 		__field(enum skb_drop_reason,	reason)
 	),

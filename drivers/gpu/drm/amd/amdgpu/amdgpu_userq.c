@@ -33,6 +33,7 @@
 #include "amdgpu_userq.h"
 #include "amdgpu_hmm.h"
 #include "amdgpu_userq_fence.h"
+#include "amdgpu_trace.h"
 
 u32 amdgpu_userq_get_supported_ip_mask(struct amdgpu_device *adev)
 {
@@ -82,36 +83,17 @@ static bool amdgpu_userq_is_reset_type_supported(struct amdgpu_device *adev,
 	return false;
 }
 
-static void amdgpu_userq_gpu_reset(struct amdgpu_device *adev)
+static void amdgpu_userq_mgr_reset_work(struct work_struct *work)
 {
-	if (amdgpu_device_should_recover_gpu(adev)) {
-		amdgpu_reset_domain_schedule(adev->reset_domain,
-					     &adev->userq_reset_work);
-		/* Wait for the reset job to complete */
-		flush_work(&adev->userq_reset_work);
-	}
-}
-
-static int
-amdgpu_userq_detect_and_reset_queues(struct amdgpu_userq_mgr *uq_mgr)
-{
+	struct amdgpu_userq_mgr *uq_mgr =
+		container_of(work, struct amdgpu_userq_mgr,
+			     reset_work);
 	struct amdgpu_device *adev = uq_mgr->adev;
-	const int queue_types[] = {
-		AMDGPU_RING_TYPE_COMPUTE,
-		AMDGPU_RING_TYPE_GFX,
-		AMDGPU_RING_TYPE_SDMA
-	};
-	const int num_queue_types = ARRAY_SIZE(queue_types);
-	bool gpu_reset = false;
-	int r = 0;
-	int i;
-
-	/* Warning if current process mutex is not held */
-	WARN_ON(!mutex_is_locked(&uq_mgr->userq_mutex));
+	struct amdgpu_reset_context reset_context;
 
 	if (unlikely(adev->debug_disable_gpu_ring_reset)) {
 		dev_err(adev->dev, "userq reset disabled by debug mask\n");
-		return 0;
+		return;
 	}
 
 	/*
@@ -119,68 +101,73 @@ amdgpu_userq_detect_and_reset_queues(struct amdgpu_userq_mgr *uq_mgr)
 	 * skip all reset detection logic
 	 */
 	if (!amdgpu_gpu_recovery)
-		return 0;
+		return;
 
-	/*
-	 * Iterate through all queue types to detect and reset problematic queues
-	 * Process each queue type in the defined order
-	 */
-	for (i = 0; i < num_queue_types; i++) {
-		int ring_type = queue_types[i];
-		const struct amdgpu_userq_funcs *funcs = adev->userq_funcs[ring_type];
+	memset(&reset_context, 0, sizeof(reset_context));
 
-		if (!amdgpu_userq_is_reset_type_supported(adev, ring_type, AMDGPU_RESET_TYPE_PER_QUEUE))
-				continue;
+	reset_context.method = AMD_RESET_METHOD_NONE;
+	reset_context.reset_req_dev = adev;
+	reset_context.src = AMDGPU_RESET_SRC_USERQ;
+	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+	/*set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);*/
 
-		if (atomic_read(&uq_mgr->userq_count[ring_type]) > 0 &&
-		    funcs && funcs->detect_and_reset) {
-			r = funcs->detect_and_reset(adev, ring_type);
-			if (r) {
-				gpu_reset = true;
-				break;
-			}
-		}
-	}
-
-	if (gpu_reset)
-		amdgpu_userq_gpu_reset(adev);
-
-	return r;
+	amdgpu_device_gpu_recover(adev, NULL, &reset_context);
 }
 
 static void amdgpu_userq_hang_detect_work(struct work_struct *work)
 {
-	struct amdgpu_usermode_queue *queue = container_of(work,
-							  struct amdgpu_usermode_queue,
-							  hang_detect_work.work);
-	struct dma_fence *fence;
-	struct amdgpu_userq_mgr *uq_mgr;
+	struct amdgpu_usermode_queue *queue =
+		container_of(work, struct amdgpu_usermode_queue,
+			     hang_detect_work.work);
+	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
+	struct amdgpu_device *adev = uq_mgr->adev;
+	const struct amdgpu_userq_funcs *userq_funcs =
+		adev->userq_funcs[queue->queue_type];
+	bool gpu_reset = false;
 
-	if (!queue->userq_mgr)
+	if (unlikely(adev->debug_disable_gpu_ring_reset)) {
+		dev_err(adev->dev, "userq reset disabled by debug mask\n");
+		return;
+	}
+
+	/*
+	 * If GPU recovery feature is disabled system-wide,
+	 * skip all reset detection logic
+	 */
+	if (!amdgpu_gpu_recovery)
 		return;
 
-	uq_mgr = queue->userq_mgr;
-	fence = READ_ONCE(queue->hang_detect_fence);
-	/* Fence already signaled – no action needed */
-	if (!fence || dma_fence_is_signaled(fence))
-		return;
+	if (amdgpu_userq_is_reset_type_supported(adev, queue->queue_type,
+						 AMDGPU_RESET_TYPE_PER_QUEUE)) {
+		int r;
 
-	mutex_lock(&uq_mgr->userq_mutex);
-	amdgpu_userq_detect_and_reset_queues(uq_mgr);
-	mutex_unlock(&uq_mgr->userq_mutex);
+		if (queue->queue_type == AMDGPU_HW_IP_COMPUTE)
+			r = amdgpu_gfx_reset_mes_compute(adev, NULL, NULL,
+							 queue, NULL, NULL);
+		else
+			r = userq_funcs->reset(queue);
+		if (r)
+			gpu_reset = true;
+	} else {
+		gpu_reset = true;
+	}
+
+	/*
+	 * Don't schedule the work here! Scheduling or queue work from one reset
+	 * handler to another is illegal if you don't take extra precautions!
+	 */
+	if (gpu_reset)
+		amdgpu_userq_mgr_reset_work(&queue->userq_mgr->reset_work);
 }
 
 /*
  * Start hang detection for a user queue fence. A delayed work will be scheduled
- * to check if the fence is still pending after the timeout period.
-*/
+ * to reset the queues when the fence doesn't signal in time.
+ */
 void amdgpu_userq_start_hang_detect_work(struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_device *adev;
 	unsigned long timeout_ms;
-
-	if (!queue || !queue->userq_mgr || !queue->userq_mgr->adev)
-		return;
 
 	adev = queue->userq_mgr->adev;
 	/* Determine timeout based on queue type */
@@ -199,45 +186,44 @@ void amdgpu_userq_start_hang_detect_work(struct amdgpu_usermode_queue *queue)
 		break;
 	}
 
-	/* Store the fence to monitor and schedule hang detection */
-	WRITE_ONCE(queue->hang_detect_fence, queue->last_fence);
-	schedule_delayed_work(&queue->hang_detect_work,
-		     msecs_to_jiffies(timeout_ms));
+	queue_delayed_work(adev->reset_domain->wq, &queue->hang_detect_work,
+			   msecs_to_jiffies(timeout_ms));
 }
 
-static void amdgpu_userq_init_hang_detect_work(struct amdgpu_usermode_queue *queue)
+void amdgpu_userq_process_fence_irq(struct amdgpu_device *adev, u32 doorbell)
 {
-	INIT_DELAYED_WORK(&queue->hang_detect_work, amdgpu_userq_hang_detect_work);
-	queue->hang_detect_fence = NULL;
-}
+	struct xarray *xa = &adev->userq_doorbell_xa;
+	struct amdgpu_usermode_queue *queue;
+	unsigned long flags;
+	int r;
 
-static int amdgpu_userq_buffer_va_list_add(struct amdgpu_usermode_queue *queue,
-					   struct amdgpu_bo_va_mapping *va_map, u64 addr)
-{
-	struct amdgpu_userq_va_cursor *va_cursor;
-	struct userq_va_list;
+	xa_lock_irqsave(xa, flags);
+	queue = xa_load(xa, doorbell);
+	if (queue) {
+		r = amdgpu_userq_fence_driver_process(queue->fence_drv);
+		/*
+		 * We are in interrupt context here, this *can't* wait for
+		 * reset work to finish.
+		 */
+		if (r >= 0)
+			cancel_delayed_work(&queue->hang_detect_work);
 
-	va_cursor = kzalloc_obj(*va_cursor);
-	if (!va_cursor)
-		return -ENOMEM;
-
-	INIT_LIST_HEAD(&va_cursor->list);
-	va_cursor->gpu_addr = addr;
-	atomic_set(&va_map->bo_va->userq_va_mapped, 1);
-	list_add(&va_cursor->list, &queue->userq_va_list);
-
-	return 0;
+		/* Restart the timer when there are still fences pending */
+		if (r == 1)
+			amdgpu_userq_start_hang_detect_work(queue);
+	}
+	xa_unlock_irqrestore(xa, flags);
 }
 
 int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 				   struct amdgpu_usermode_queue *queue,
-				   u64 addr, u64 expected_size)
+				   u64 addr, u64 expected_size,
+				   u64 *va_out)
 {
 	struct amdgpu_bo_va_mapping *va_map;
 	struct amdgpu_vm *vm = queue->vm;
 	u64 user_addr;
 	u64 size;
-	int r = 0;
 
 	/* Caller must hold vm->root.bo reservation */
 	dma_resv_assert_held(queue->vm->root.bo->tbo.base.resv);
@@ -246,20 +232,18 @@ int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 	size = expected_size >> AMDGPU_GPU_PAGE_SHIFT;
 
 	va_map = amdgpu_vm_bo_lookup_mapping(vm, user_addr);
-	if (!va_map) {
-		r = -EINVAL;
-		goto out_err;
-	}
+	if (!va_map)
+		return -EINVAL;
+
 	/* Only validate the userq whether resident in the VM mapping range */
 	if (user_addr >= va_map->start  &&
 	    va_map->last - user_addr + 1 >= size) {
-		amdgpu_userq_buffer_va_list_add(queue, va_map, user_addr);
+		va_map->bo_va->userq_va_mapped = true;
+		*va_out = user_addr;
 		return 0;
 	}
 
-	r = -EINVAL;
-out_err:
-	return r;
+	return -EINVAL;
 }
 
 static bool amdgpu_userq_buffer_va_mapped(struct amdgpu_vm *vm, u64 addr)
@@ -270,7 +254,7 @@ static bool amdgpu_userq_buffer_va_mapped(struct amdgpu_vm *vm, u64 addr)
 	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
 
 	mapping = amdgpu_vm_bo_lookup_mapping(vm, addr);
-	if (!IS_ERR_OR_NULL(mapping) && atomic_read(&mapping->bo_va->userq_va_mapped))
+	if (!IS_ERR_OR_NULL(mapping) && mapping->bo_va->userq_va_mapped)
 		r = true;
 	else
 		r = false;
@@ -280,14 +264,16 @@ static bool amdgpu_userq_buffer_va_mapped(struct amdgpu_vm *vm, u64 addr)
 
 static bool amdgpu_userq_buffer_vas_mapped(struct amdgpu_usermode_queue *queue)
 {
-	struct amdgpu_userq_va_cursor *va_cursor, *tmp;
-	int r = 0;
+	int i, r = 0;
 
-	list_for_each_entry_safe(va_cursor, tmp, &queue->userq_va_list, list) {
-		r += amdgpu_userq_buffer_va_mapped(queue->vm, va_cursor->gpu_addr);
+	for (i = 0; i < ARRAY_SIZE(queue->userq_vas.va_array); i++) {
+		if (!queue->userq_vas.va_array[i])
+			continue;
+		r += amdgpu_userq_buffer_va_mapped(queue->vm,
+						   queue->userq_vas.va_array[i]);
 		dev_dbg(queue->userq_mgr->adev->dev,
 			"validate the userq mapping:%p va:%llx r:%d\n",
-			queue, va_cursor->gpu_addr, r);
+			queue, queue->userq_vas.va_array[i], r);
 	}
 
 	if (r != 0)
@@ -296,35 +282,7 @@ static bool amdgpu_userq_buffer_vas_mapped(struct amdgpu_usermode_queue *queue)
 	return false;
 }
 
-static void amdgpu_userq_buffer_va_list_del(struct amdgpu_bo_va_mapping *mapping,
-					    struct amdgpu_userq_va_cursor *va_cursor)
-{
-	atomic_set(&mapping->bo_va->userq_va_mapped, 0);
-	list_del(&va_cursor->list);
-	kfree(va_cursor);
-}
 
-static int amdgpu_userq_buffer_vas_list_cleanup(struct amdgpu_device *adev,
-						struct amdgpu_usermode_queue *queue)
-{
-	struct amdgpu_userq_va_cursor *va_cursor, *tmp;
-	struct amdgpu_bo_va_mapping *mapping;
-
-	/* Caller must hold vm->root.bo reservation */
-	dma_resv_assert_held(queue->vm->root.bo->tbo.base.resv);
-
-	list_for_each_entry_safe(va_cursor, tmp, &queue->userq_va_list, list) {
-		mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, va_cursor->gpu_addr);
-		if (!mapping) {
-			return -EINVAL;
-		}
-		dev_dbg(adev->dev, "delete the userq:%p va:%llx\n",
-			queue, va_cursor->gpu_addr);
-		amdgpu_userq_buffer_va_list_del(mapping, va_cursor);
-	}
-
-	return 0;
-}
 
 static int amdgpu_userq_preempt_helper(struct amdgpu_usermode_queue *queue)
 {
@@ -332,23 +290,22 @@ static int amdgpu_userq_preempt_helper(struct amdgpu_usermode_queue *queue)
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *userq_funcs =
 		adev->userq_funcs[queue->queue_type];
-	bool found_hung_queue = false;
-	int r = 0;
+	int r;
 
 	if (queue->state == AMDGPU_USERQ_STATE_MAPPED) {
+		trace_amdgpu_userq_state_start(queue);
+
 		r = userq_funcs->preempt(queue);
 		if (r) {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
-			found_hung_queue = true;
+			return r;
 		} else {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_PREEMPTED);
 			queue->state = AMDGPU_USERQ_STATE_PREEMPTED;
 		}
 	}
-
-	if (found_hung_queue)
-		amdgpu_userq_detect_and_reset_queues(uq_mgr);
-
-	return r;
+	return 0;
 }
 
 static int amdgpu_userq_restore_helper(struct amdgpu_usermode_queue *queue)
@@ -360,10 +317,14 @@ static int amdgpu_userq_restore_helper(struct amdgpu_usermode_queue *queue)
 	int r = 0;
 
 	if (queue->state == AMDGPU_USERQ_STATE_PREEMPTED) {
+		trace_amdgpu_userq_state_start(queue);
+
 		r = userq_funcs->restore(queue);
 		if (r) {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
 		} else {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_MAPPED);
 			queue->state = AMDGPU_USERQ_STATE_MAPPED;
 		}
 	}
@@ -377,24 +338,24 @@ static int amdgpu_userq_unmap_helper(struct amdgpu_usermode_queue *queue)
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *userq_funcs =
 		adev->userq_funcs[queue->queue_type];
-	bool found_hung_queue = false;
-	int r = 0;
+	int r;
 
 	if ((queue->state == AMDGPU_USERQ_STATE_MAPPED) ||
-		(queue->state == AMDGPU_USERQ_STATE_PREEMPTED)) {
+	    (queue->state == AMDGPU_USERQ_STATE_PREEMPTED)) {
+		trace_amdgpu_userq_state_start(queue);
+
 		r = userq_funcs->unmap(queue);
 		if (r) {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
-			found_hung_queue = true;
+			return r;
 		} else {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_UNMAPPED);
 			queue->state = AMDGPU_USERQ_STATE_UNMAPPED;
 		}
 	}
 
-	if (found_hung_queue)
-		amdgpu_userq_detect_and_reset_queues(uq_mgr);
-
-	return r;
+	return 0;
 }
 
 static int amdgpu_userq_map_helper(struct amdgpu_usermode_queue *queue)
@@ -403,19 +364,23 @@ static int amdgpu_userq_map_helper(struct amdgpu_usermode_queue *queue)
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *userq_funcs =
 		adev->userq_funcs[queue->queue_type];
-	int r = 0;
+	int r;
 
 	if (queue->state == AMDGPU_USERQ_STATE_UNMAPPED) {
+		trace_amdgpu_userq_state_start(queue);
+
 		r = userq_funcs->map(queue);
 		if (r) {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
-			amdgpu_userq_detect_and_reset_queues(uq_mgr);
+			return r;
 		} else {
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_MAPPED);
 			queue->state = AMDGPU_USERQ_STATE_MAPPED;
 		}
 	}
 
-	return r;
+	return 0;
 }
 
 static void amdgpu_userq_wait_for_last_fence(struct amdgpu_usermode_queue *queue)
@@ -432,18 +397,14 @@ static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
 	struct amdgpu_device *adev = uq_mgr->adev;
-	const struct amdgpu_userq_funcs *uq_funcs = adev->userq_funcs[queue->queue_type];
 
 	/* Wait for mode-1 reset to complete */
 	down_read(&adev->reset_domain->sem);
 
-	uq_funcs->mqd_destroy(queue);
 	/* Use interrupt-safe locking since IRQ handlers may access these XArrays */
 	xa_erase_irq(&adev->userq_doorbell_xa, queue->doorbell_index);
 	amdgpu_userq_fence_driver_free(queue);
 	queue->fence_drv = NULL;
-	queue->userq_mgr = NULL;
-	list_del(&queue->userq_va_list);
 
 	up_read(&adev->reset_domain->sem);
 }
@@ -482,74 +443,15 @@ retry:
 	dma_fence_put(ev_fence);
 }
 
-int amdgpu_userq_create_object(struct amdgpu_userq_mgr *uq_mgr,
-			       struct amdgpu_userq_obj *userq_obj,
-			       int size)
-{
-	struct amdgpu_device *adev = uq_mgr->adev;
-	struct amdgpu_bo_param bp;
-	int r;
 
-	memset(&bp, 0, sizeof(bp));
-	bp.byte_align = PAGE_SIZE;
-	bp.domain = AMDGPU_GEM_DOMAIN_GTT;
-	bp.flags = AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
-		   AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
-	bp.type = ttm_bo_type_kernel;
-	bp.size = size;
-	bp.resv = NULL;
-	bp.bo_ptr_size = sizeof(struct amdgpu_bo);
 
-	r = amdgpu_bo_create(adev, &bp, &userq_obj->obj);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to allocate BO for userqueue (%d)", r);
-		return r;
-	}
-
-	r = amdgpu_bo_reserve(userq_obj->obj, true);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to reserve BO to map (%d)", r);
-		goto free_obj;
-	}
-
-	r = amdgpu_ttm_alloc_gart(&(userq_obj->obj)->tbo);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to alloc GART for userqueue object (%d)", r);
-		goto unresv;
-	}
-
-	r = amdgpu_bo_kmap(userq_obj->obj, &userq_obj->cpu_ptr);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to map BO for userqueue (%d)", r);
-		goto unresv;
-	}
-
-	userq_obj->gpu_addr = amdgpu_bo_gpu_offset(userq_obj->obj);
-	amdgpu_bo_unreserve(userq_obj->obj);
-	memset(userq_obj->cpu_ptr, 0, size);
-	return 0;
-
-unresv:
-	amdgpu_bo_unreserve(userq_obj->obj);
-
-free_obj:
-	amdgpu_bo_unref(&userq_obj->obj);
-	return r;
-}
-
-void amdgpu_userq_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
-				 struct amdgpu_userq_obj *userq_obj)
-{
-	amdgpu_bo_kunmap(userq_obj->obj);
-	amdgpu_bo_unref(&userq_obj->obj);
-}
-
-uint64_t
+static int
 amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 				struct amdgpu_db_info *db_info,
-				struct drm_file *filp)
+				struct drm_file *filp,
+				u64 *index)
 {
-	uint64_t index;
+	u64 doorbell_index;
 	struct drm_gem_object *gobj;
 	struct amdgpu_userq_obj *db_obj = db_info->db_obj;
 	int r, db_size;
@@ -596,12 +498,13 @@ amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 		goto unpin_bo;
 	}
 
-	index = amdgpu_doorbell_index_on_bar(uq_mgr->adev, db_obj->obj,
-					     db_info->doorbell_offset, db_size);
+	doorbell_index = amdgpu_doorbell_index_on_bar(uq_mgr->adev, db_obj->obj,
+						      db_info->doorbell_offset, db_size);
 	drm_dbg_driver(adev_to_drm(uq_mgr->adev),
-		       "[Usermode queues] doorbell index=%lld\n", index);
+		       "[Usermode queues] doorbell index=%lld\n", doorbell_index);
 	amdgpu_bo_unreserve(db_obj->obj);
-	return index;
+	*index = doorbell_index;
+	return 0;
 
 unpin_bo:
 	amdgpu_bo_unpin(db_obj->obj);
@@ -616,52 +519,46 @@ static int
 amdgpu_userq_destroy(struct amdgpu_userq_mgr *uq_mgr, struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
-	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
-	struct amdgpu_vm *vm = &fpriv->vm;
-
+	const struct amdgpu_userq_funcs *uq_funcs = adev->userq_funcs[queue->queue_type];
 	int r = 0;
+
+	trace_amdgpu_userq_destroy_start(queue);
 
 	cancel_delayed_work_sync(&uq_mgr->resume_work);
 
 	/* Cancel any pending hang detection work and cleanup */
 	cancel_delayed_work_sync(&queue->hang_detect_work);
 
-	r = amdgpu_bo_reserve(vm->root.bo, false);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to reserve root bo during userqueue destroy\n");
-		return r;
-	}
-	amdgpu_userq_buffer_vas_list_cleanup(adev, queue);
-	amdgpu_bo_unreserve(vm->root.bo);
-
 	mutex_lock(&uq_mgr->userq_mutex);
-	queue->hang_detect_fence = NULL;
 	amdgpu_userq_wait_for_last_fence(queue);
 
 #if defined(CONFIG_DEBUG_FS)
 	debugfs_remove_recursive(queue->debugfs_queue);
 #endif
-	amdgpu_userq_detect_and_reset_queues(uq_mgr);
 	r = amdgpu_userq_unmap_helper(queue);
-	/*TODO: It requires a reset for userq hw unmap error*/
-	if (r) {
-		drm_warn(adev_to_drm(uq_mgr->adev), "trying to destroy a HW mapping userq\n");
-		queue->state = AMDGPU_USERQ_STATE_HUNG;
-	}
-
 	atomic_dec(&uq_mgr->userq_count[queue->queue_type]);
 	amdgpu_userq_cleanup(queue);
 	mutex_unlock(&uq_mgr->userq_mutex);
+
+	/*
+	 * A failed unmap means MES could not remove the hung queue and is now
+	 * unresponsive.  Recover the GPU here so the wedged MES does not fail
+	 * the next, unrelated queue submission and trigger a reset attributed
+	 * to an innocent workload.
+	 */
+	if (r)
+		queue_work(adev->reset_domain->wq, &uq_mgr->reset_work);
+
+	cancel_delayed_work_sync(&queue->hang_detect_work);
+	uq_funcs->mqd_destroy(queue);
+	queue->userq_mgr = NULL;
 
 	amdgpu_bo_reserve(queue->db_obj.obj, true);
 	amdgpu_bo_unpin(queue->db_obj.obj);
 	amdgpu_bo_unreserve(queue->db_obj.obj);
 	amdgpu_bo_unref(&queue->db_obj.obj);
 
-	amdgpu_bo_reserve(queue->wptr_obj.obj, true);
-	amdgpu_bo_unpin(queue->wptr_obj.obj);
-	amdgpu_bo_unreserve(queue->wptr_obj.obj);
-	amdgpu_bo_unref(&queue->wptr_obj.obj);
+	trace_amdgpu_userq_destroy_end(queue, r);
 	kfree(queue);
 
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -724,14 +621,14 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	const struct amdgpu_userq_funcs *uq_funcs;
 	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_db_info db_info;
-	bool skip_map_queue;
-	u32 qid;
 	uint64_t index;
-	int r = 0;
-	int priority =
-		(args->in.flags & AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK) >>
-		AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_SHIFT;
+	int priority;
+	u32 qid;
+	int r;
 
+	priority =
+		(args->in.flags & AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK)
+		>> AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_SHIFT;
 	r = amdgpu_userq_priority_permit(filp, priority);
 	if (r)
 		return r;
@@ -744,129 +641,130 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 
 	uq_funcs = adev->userq_funcs[args->in.ip_type];
 	if (!uq_funcs) {
-		drm_file_err(uq_mgr->file, "Usermode queue is not supported for this IP (%u)\n",
-			     args->in.ip_type);
 		r = -EINVAL;
 		goto err_pm_runtime;
 	}
 
 	queue = kzalloc_obj(struct amdgpu_usermode_queue);
 	if (!queue) {
-		drm_file_err(uq_mgr->file, "Failed to allocate memory for queue\n");
 		r = -ENOMEM;
 		goto err_pm_runtime;
 	}
 
-	INIT_LIST_HEAD(&queue->userq_va_list);
+	kref_init(&queue->refcount);
 	queue->doorbell_handle = args->in.doorbell_handle;
 	queue->queue_type = args->in.ip_type;
 	queue->vm = &fpriv->vm;
 	queue->priority = priority;
-
-	db_info.queue_type = queue->queue_type;
-	db_info.doorbell_handle = queue->doorbell_handle;
-	db_info.db_obj = &queue->db_obj;
-	db_info.doorbell_offset = args->in.doorbell_offset;
-
+	queue->xcp_id = (fpriv->xcp_id != AMDGPU_XCP_NO_PARTITION) ?
+				fpriv->xcp_id : 0;
 	queue->userq_mgr = uq_mgr;
+	INIT_DELAYED_WORK(&queue->hang_detect_work,
+			  amdgpu_userq_hang_detect_work);
 
-	/* Validate the userq virtual address.*/
-	r = amdgpu_bo_reserve(fpriv->vm.root.bo, false);
+	r = amdgpu_userq_fence_driver_alloc(adev, &queue->fence_drv);
 	if (r)
 		goto free_queue;
 
-	if (amdgpu_userq_input_va_validate(adev, queue, args->in.queue_va, args->in.queue_size) ||
-	    amdgpu_userq_input_va_validate(adev, queue, args->in.rptr_va, AMDGPU_GPU_PAGE_SIZE) ||
-	    amdgpu_userq_input_va_validate(adev, queue, args->in.wptr_va, AMDGPU_GPU_PAGE_SIZE)) {
+	xa_init_flags(&queue->fence_drv_xa, XA_FLAGS_ALLOC);
+	mutex_init(&queue->fence_drv_lock);
+	/* Make sure the queue can actually run with those virtual addresses. */
+	r = amdgpu_bo_reserve(fpriv->vm.root.bo, false);
+	if (r)
+		goto free_fence_drv;
+
+	if (amdgpu_userq_input_va_validate(adev, queue, args->in.queue_va,
+					   args->in.queue_size,
+					   &queue->userq_vas.va.queue_rb) ||
+	    amdgpu_userq_input_va_validate(adev, queue, args->in.rptr_va,
+					   AMDGPU_GPU_PAGE_SIZE,
+					   &queue->userq_vas.va.rptr) ||
+	    amdgpu_userq_input_va_validate(adev, queue, args->in.wptr_va,
+					   AMDGPU_GPU_PAGE_SIZE,
+					   &queue->userq_vas.va.wptr)) {
 		r = -EINVAL;
 		amdgpu_bo_unreserve(fpriv->vm.root.bo);
-		goto clean_mapping;
+		goto free_fence_drv;
 	}
 	amdgpu_bo_unreserve(fpriv->vm.root.bo);
 
 	/* Convert relative doorbell offset into absolute doorbell index */
-	index = amdgpu_userq_get_doorbell_index(uq_mgr, &db_info, filp);
-	if (index == (uint64_t)-EINVAL) {
+	db_info.queue_type = queue->queue_type;
+	db_info.doorbell_handle = queue->doorbell_handle;
+	db_info.db_obj = &queue->db_obj;
+	db_info.doorbell_offset = args->in.doorbell_offset;
+	r = amdgpu_userq_get_doorbell_index(uq_mgr, &db_info, filp, &index);
+	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to get doorbell for queue\n");
-		r = -EINVAL;
-		goto clean_mapping;
+		goto free_fence_drv;
 	}
 
 	queue->doorbell_index = index;
-	xa_init_flags(&queue->fence_drv_xa, XA_FLAGS_ALLOC);
-	r = amdgpu_userq_fence_driver_alloc(adev, &queue->fence_drv);
-	if (r) {
-		drm_file_err(uq_mgr->file, "Failed to alloc fence driver\n");
-		goto clean_mapping;
-	}
-
+	queue->doorbell_offset = (u32)args->in.doorbell_offset;
+	trace_amdgpu_userq_create_start(queue);
 	r = uq_funcs->mqd_create(queue, &args->in);
 	if (r) {
 		drm_file_err(uq_mgr->file, "Failed to create Queue\n");
-		goto clean_fence_driver;
+		goto clean_doorbell_bo;
 	}
+
+	/* Update VM owner at userq submit-time for page-fault attribution. */
+	amdgpu_vm_set_task_info(&fpriv->vm);
+
+	r = xa_insert_irq(&adev->userq_doorbell_xa, index, queue,
+			  GFP_KERNEL);
+	if (r)
+		goto clean_mqd;
 
 	amdgpu_userq_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
 
 	/* don't map the queue if scheduling is halted */
-	if (adev->userq_halt_for_enforce_isolation &&
-	    ((queue->queue_type == AMDGPU_HW_IP_GFX) ||
-	     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)))
-		skip_map_queue = true;
-	else
-		skip_map_queue = false;
-	if (!skip_map_queue) {
+	if (!adev->userq_halt_for_enforce_isolation ||
+	    ((queue->queue_type != AMDGPU_HW_IP_GFX) &&
+	     (queue->queue_type != AMDGPU_HW_IP_COMPUTE))) {
 		r = amdgpu_userq_map_helper(queue);
 		if (r) {
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
-			goto clean_mqd;
+			trace_amdgpu_userq_create_end(queue, r);
+			mutex_unlock(&uq_mgr->userq_mutex);
+			goto erase_doorbell;
 		}
 	}
 
-	/* drop this refcount during queue destroy */
-	kref_init(&queue->refcount);
-
-	/* Wait for mode-1 reset to complete */
-	down_read(&adev->reset_domain->sem);
-
-	r = xa_alloc(&uq_mgr->userq_xa, &qid, queue,
-		     XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT), GFP_KERNEL);
-	if (r) {
-		if (!skip_map_queue)
-			amdgpu_userq_unmap_helper(queue);
-		r = -ENOMEM;
-		goto clean_reset_domain;
-	}
-
-	r = xa_err(xa_store_irq(&adev->userq_doorbell_xa, index, queue, GFP_KERNEL));
-	if (r) {
-		xa_erase(&uq_mgr->userq_xa, qid);
-		if (!skip_map_queue)
-			amdgpu_userq_unmap_helper(queue);
-		goto clean_reset_domain;
-	}
-	up_read(&adev->reset_domain->sem);
-
-	amdgpu_debugfs_userq_init(filp, queue, qid);
-	amdgpu_userq_init_hang_detect_work(queue);
-
-	args->out.queue_id = qid;
 	atomic_inc(&uq_mgr->userq_count[queue->queue_type]);
 	mutex_unlock(&uq_mgr->userq_mutex);
+
+	r = xa_alloc(&uq_mgr->userq_xa, &qid, queue,
+		     XA_LIMIT(1, AMDGPU_MAX_USERQ_COUNT),
+		     GFP_KERNEL);
+	if (r) {
+		/*
+		 * This drops the last reference which should take care of
+		 * all cleanup.
+		 */
+		trace_amdgpu_userq_create_end(queue, r);
+		amdgpu_userq_put(queue);
+		return r;
+	}
+
+	amdgpu_debugfs_userq_init(filp, queue, qid);
+	trace_amdgpu_userq_create_end(queue, 0);
+	args->out.queue_id = qid;
 	return 0;
 
-clean_reset_domain:
-	up_read(&adev->reset_domain->sem);
+erase_doorbell:
+	xa_erase_irq(&adev->userq_doorbell_xa, index);
 clean_mqd:
-	mutex_unlock(&uq_mgr->userq_mutex);
 	uq_funcs->mqd_destroy(queue);
-clean_fence_driver:
+clean_doorbell_bo:
+	amdgpu_bo_reserve(queue->db_obj.obj, true);
+	amdgpu_bo_unpin(queue->db_obj.obj);
+	amdgpu_bo_unreserve(queue->db_obj.obj);
+	amdgpu_bo_unref(&queue->db_obj.obj);
+free_fence_drv:
 	amdgpu_userq_fence_driver_free(queue);
-clean_mapping:
-	amdgpu_bo_reserve(fpriv->vm.root.bo, true);
-	amdgpu_userq_buffer_vas_list_cleanup(adev, queue);
-	amdgpu_bo_unreserve(fpriv->vm.root.bo);
 free_queue:
+	trace_amdgpu_userq_create_end(queue, r);
 	kfree(queue);
 err_pm_runtime:
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
@@ -999,15 +897,9 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 static int
 amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 {
-	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
-	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_usermode_queue *queue;
 	unsigned long queue_id;
 	int ret = 0, r;
-
-
-	if (amdgpu_bo_reserve(vm->root.bo, false))
-		return false;
 
 	mutex_lock(&uq_mgr->userq_mutex);
 	/* Resume all the queues for this process */
@@ -1016,17 +908,16 @@ amdgpu_userq_restore_all(struct amdgpu_userq_mgr *uq_mgr)
 		if (!amdgpu_userq_buffer_vas_mapped(queue)) {
 			drm_file_err(uq_mgr->file,
 				     "trying restore queue without va mapping\n");
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_INVALID_VA);
 			queue->state = AMDGPU_USERQ_STATE_INVALID_VA;
 			continue;
 		}
 
-		r = amdgpu_userq_restore_helper(queue);
+		r = amdgpu_userq_map_helper(queue);
 		if (r)
 			ret = r;
-
 	}
 	mutex_unlock(&uq_mgr->userq_mutex);
-	amdgpu_bo_unreserve(vm->root.bo);
 
 	if (ret)
 		drm_file_err(uq_mgr->file,
@@ -1052,15 +943,16 @@ amdgpu_userq_bo_validate(struct amdgpu_device *adev, struct drm_exec *exec,
 	struct amdgpu_bo *bo;
 	int ret;
 
-	spin_lock(&vm->status_lock);
-	while (!list_empty(&vm->invalidated)) {
-		bo_va = list_first_entry(&vm->invalidated,
+	spin_lock(&vm->individual_lock);
+	while (!list_empty(&vm->always_valid.evicted)) {
+		bo_va = list_first_entry(&vm->always_valid.evicted,
 					 struct amdgpu_bo_va,
 					 base.vm_status);
-		spin_unlock(&vm->status_lock);
+		spin_unlock(&vm->individual_lock);
 
 		bo = bo_va->base.bo;
-		ret = drm_exec_prepare_obj(exec, &bo->tbo.base, 2);
+		ret = drm_exec_prepare_obj(exec, &bo->tbo.base,
+					   TTM_NUM_MOVE_FENCES + 1);
 		if (unlikely(ret))
 			return ret;
 
@@ -1069,21 +961,21 @@ amdgpu_userq_bo_validate(struct amdgpu_device *adev, struct drm_exec *exec,
 		if (ret)
 			return ret;
 
-		/* This moves the bo_va to the done list */
+		/* This moves the bo_va to the idle list */
 		ret = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (ret)
 			return ret;
 
-		spin_lock(&vm->status_lock);
+		spin_lock(&vm->individual_lock);
 	}
-	spin_unlock(&vm->status_lock);
+	spin_unlock(&vm->individual_lock);
 
 	return 0;
 }
 
 /* Make sure the whole VM is ready to be used */
 static int
-amdgpu_userq_vm_validate(struct amdgpu_userq_mgr *uq_mgr)
+amdgpu_userq_vm_validate_and_restore_queue(struct amdgpu_userq_mgr *uq_mgr)
 {
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
 	bool invalidated = false, new_addition = false;
@@ -1108,7 +1000,7 @@ retry_lock:
 		if (unlikely(ret))
 			goto unlock_all;
 
-		ret = amdgpu_vm_lock_done_list(vm, &exec, 1);
+		ret = amdgpu_vm_lock_individual(vm, &exec, TTM_NUM_MOVE_FENCES + 1);
 		drm_exec_retry_on_contention(&exec);
 		if (unlikely(ret))
 			goto unlock_all;
@@ -1151,7 +1043,7 @@ retry_lock:
 
 	key = 0;
 	/* Validate User Ptr BOs */
-	list_for_each_entry(bo_va, &vm->done, base.vm_status) {
+	list_for_each_entry(bo_va, &vm->always_valid.idle, base.vm_status) {
 		bo = bo_va->base.bo;
 		if (!bo)
 			continue;
@@ -1187,7 +1079,7 @@ retry_lock:
 			bo = range->bo;
 			ret = amdgpu_ttm_tt_get_user_pages(bo, range);
 			if (ret)
-				goto unlock_all;
+				goto free_ranges;
 		}
 
 		invalidated = true;
@@ -1201,19 +1093,24 @@ retry_lock:
 
 	/*
 	 * We need to wait for all VM updates to finish before restarting the
-	 * queues. Using the done list like that is now ok since everything is
+	 * queues. Using the idle list like that is now ok since everything is
 	 * locked in place.
 	 */
-	list_for_each_entry(bo_va, &vm->done, base.vm_status)
+	list_for_each_entry(bo_va, &vm->always_valid.idle, base.vm_status)
 		dma_fence_wait(bo_va->last_pt_update, false);
 	dma_fence_wait(vm->last_update, false);
 
 	ret = amdgpu_evf_mgr_rearm(&fpriv->evf_mgr, &exec);
-	if (ret)
+	if (ret) {
 		drm_file_err(uq_mgr->file, "Failed to replace eviction fence\n");
+		goto unlock_all;
+	}
+
+	ret = amdgpu_userq_restore_all(uq_mgr);
 
 unlock_all:
 	drm_exec_fini(&exec);
+free_ranges:
 	xa_for_each(&xa, tmp_key, range) {
 		if (!range)
 			continue;
@@ -1235,16 +1132,32 @@ static void amdgpu_userq_restore_worker(struct work_struct *work)
 	if (!dma_fence_is_signaled(ev_fence))
 		goto put_fence;
 
-	ret = amdgpu_userq_vm_validate(uq_mgr);
+	ret = amdgpu_userq_vm_validate_and_restore_queue(uq_mgr);
 	if (ret) {
 		drm_file_err(uq_mgr->file, "Failed to validate BOs to restore ret=%d\n", ret);
 		goto put_fence;
 	}
 
-	amdgpu_userq_restore_all(uq_mgr);
-
 put_fence:
 	dma_fence_put(ev_fence);
+}
+
+void amdgpu_userq_process_reset_irq(struct amdgpu_device *adev,
+				    u32 pasid, u32 doorbell_offset)
+{
+	struct xarray *xa = &adev->userq_doorbell_xa;
+	struct amdgpu_usermode_queue *queue;
+	unsigned long flags, idx;
+
+	xa_lock_irqsave(xa, flags);
+	xa_for_each(xa, idx, queue) {
+		if (queue->vm && queue->vm->pasid == pasid &&
+		    queue->doorbell_offset == doorbell_offset) {
+			amdgpu_userq_start_hang_detect_work(queue);
+			break;
+		}
+	}
+	xa_unlock_irqrestore(xa, flags);
 }
 
 static int
@@ -1254,35 +1167,21 @@ amdgpu_userq_evict_all(struct amdgpu_userq_mgr *uq_mgr)
 	unsigned long queue_id;
 	int ret = 0, r;
 
-	amdgpu_userq_detect_and_reset_queues(uq_mgr);
 	/* Try to unmap all the queues in this process ctx */
 	xa_for_each(&uq_mgr->userq_xa, queue_id, queue) {
-		r = amdgpu_userq_preempt_helper(queue);
+		r = amdgpu_userq_unmap_helper(queue);
 		if (r)
 			ret = r;
 	}
 
-	if (ret)
+	if (ret) {
 		drm_file_err(uq_mgr->file,
 			     "Couldn't unmap all the queues, eviction failed ret=%d\n", ret);
+		amdgpu_reset_domain_schedule(uq_mgr->adev->reset_domain,
+					     &uq_mgr->reset_work);
+		flush_work(&uq_mgr->reset_work);
+	}
 	return ret;
-}
-
-void amdgpu_userq_reset_work(struct work_struct *work)
-{
-	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
-						  userq_reset_work);
-	struct amdgpu_reset_context reset_context;
-
-	memset(&reset_context, 0, sizeof(reset_context));
-
-	reset_context.method = AMD_RESET_METHOD_NONE;
-	reset_context.reset_req_dev = adev;
-	reset_context.src = AMDGPU_RESET_SRC_USERQ;
-	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
-	/*set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);*/
-
-	amdgpu_device_gpu_recover(adev, NULL, &reset_context);
 }
 
 static void
@@ -1316,9 +1215,25 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *f
 	xa_init_flags(&userq_mgr->userq_xa, XA_FLAGS_ALLOC);
 	userq_mgr->adev = adev;
 	userq_mgr->file = file_priv;
+	mutex_init(&userq_mgr->proc_ctx_lock);
 
 	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userq_restore_worker);
+	INIT_WORK(&userq_mgr->reset_work, amdgpu_userq_mgr_reset_work);
 	return 0;
+}
+
+void amdgpu_userq_mgr_cancel_reset_work(struct amdgpu_device *adev)
+{
+	struct xarray *xa = &adev->userq_doorbell_xa;
+	struct amdgpu_usermode_queue *queue;
+	unsigned long flags, queue_id;
+
+	xa_lock_irqsave(xa, flags);
+	xa_for_each(xa, queue_id, queue) {
+		cancel_delayed_work(&queue->hang_detect_work);
+		cancel_work(&queue->userq_mgr->reset_work);
+	}
+	xa_unlock_irqrestore(xa, flags);
 }
 
 void amdgpu_userq_mgr_cancel_resume(struct amdgpu_userq_mgr *userq_mgr)
@@ -1346,6 +1261,19 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 	}
 
 	xa_destroy(&userq_mgr->userq_xa);
+
+	/*
+	 * Drain any in-flight reset_work. By this point all queues are freed
+	 * and userq_count is 0, so if reset_work starts now it exits early.
+	 * We still need to wait in case it was already executing gpu_recover.
+	 */
+	cancel_work_sync(&userq_mgr->reset_work);
+
+	amdgpu_bo_free_kernel(&userq_mgr->proc_ctx_obj.obj,
+			      &userq_mgr->proc_ctx_obj.gpu_addr,
+			      &userq_mgr->proc_ctx_obj.cpu_ptr);
+
+	mutex_destroy(&userq_mgr->proc_ctx_lock);
 	mutex_destroy(&userq_mgr->userq_mutex);
 }
 
@@ -1364,7 +1292,6 @@ int amdgpu_userq_suspend(struct amdgpu_device *adev)
 		uqm = queue->userq_mgr;
 		cancel_delayed_work_sync(&uqm->resume_work);
 		guard(mutex)(&uqm->userq_mutex);
-		amdgpu_userq_detect_and_reset_queues(uqm);
 		if (adev->in_s0ix)
 			r = amdgpu_userq_preempt_helper(queue);
 		else
@@ -1423,7 +1350,6 @@ int amdgpu_userq_stop_sched_for_enforce_isolation(struct amdgpu_device *adev,
 		if (((queue->queue_type == AMDGPU_HW_IP_GFX) ||
 		     (queue->queue_type == AMDGPU_HW_IP_COMPUTE)) &&
 		    (queue->xcp_id == idx)) {
-			amdgpu_userq_detect_and_reset_queues(uqm);
 			r = amdgpu_userq_preempt_helper(queue);
 			if (r)
 				ret = r;
@@ -1469,8 +1395,7 @@ int amdgpu_userq_start_sched_for_enforce_isolation(struct amdgpu_device *adev,
 }
 
 void amdgpu_userq_gem_va_unmap_validate(struct amdgpu_device *adev,
-					struct amdgpu_bo_va_mapping *mapping,
-					uint64_t saddr)
+					struct amdgpu_bo_va_mapping *mapping)
 {
 	u32 ip_mask = amdgpu_userq_get_supported_ip_mask(adev);
 	struct amdgpu_bo_va *bo_va = mapping->bo_va;
@@ -1479,12 +1404,9 @@ void amdgpu_userq_gem_va_unmap_validate(struct amdgpu_device *adev,
 	if (!ip_mask)
 		return;
 
-	dev_warn_once(adev->dev, "now unmapping a vital queue va:%llx\n", saddr);
 	/**
-	 * The userq VA mapping reservation should include the eviction fence,
-	 * if the eviction fence can't signal successfully during unmapping,
-	 * then driver will warn to flag this improper unmap of the userq VA.
-	 * Note: The eviction fence may be attached to different BOs, and this
+	 * The userq VA mapping reservation should include the eviction fence.
+	 * Note: The eviction fence may be attached to different BOs and this
 	 * unmap is only for one kind of userq VAs, so at this point suppose
 	 * the eviction fence is always unsignaled.
 	 */
@@ -1496,23 +1418,26 @@ void amdgpu_userq_pre_reset(struct amdgpu_device *adev)
 {
 	const struct amdgpu_userq_funcs *userq_funcs;
 	struct amdgpu_usermode_queue *queue;
-	struct amdgpu_userq_mgr *uqm;
 	unsigned long queue_id;
 
+	/* TODO: We probably need a new lock for the queue state */
 	xa_for_each(&adev->userq_doorbell_xa, queue_id, queue) {
-		uqm = queue->userq_mgr;
-		cancel_delayed_work_sync(&uqm->resume_work);
 		if (queue->state == AMDGPU_USERQ_STATE_MAPPED) {
-			amdgpu_userq_wait_for_last_fence(queue);
+			trace_amdgpu_userq_state_start(queue);
 			userq_funcs = adev->userq_funcs[queue->queue_type];
 			userq_funcs->unmap(queue);
 			/* just mark all queues as hung at this point.
 			 * if unmap succeeds, we could map again
 			 * in amdgpu_userq_post_reset() if vram is not lost
 			 */
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_HUNG);
 			queue->state = AMDGPU_USERQ_STATE_HUNG;
-			amdgpu_userq_fence_driver_force_completion(queue);
 		}
+		/* Force-complete any pending fence regardless of queue state so
+		 * that eviction/suspend and queue teardown waiters don't block
+		 * forever on a fence that will never signal after the reset.
+		 */
+		amdgpu_userq_fence_driver_force_completion(queue);
 	}
 }
 
@@ -1529,6 +1454,8 @@ int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost)
 
 	xa_for_each(&adev->userq_doorbell_xa, queue_id, queue) {
 		if (queue->state == AMDGPU_USERQ_STATE_HUNG && !vram_lost) {
+			trace_amdgpu_userq_state_start(queue);
+
 			userq_funcs = adev->userq_funcs[queue->queue_type];
 			/* Re-map queue */
 			r = userq_funcs->map(queue);
@@ -1536,6 +1463,7 @@ int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost)
 				dev_err(adev->dev, "Failed to remap queue %ld\n", queue_id);
 				continue;
 			}
+			trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_MAPPED);
 			queue->state = AMDGPU_USERQ_STATE_MAPPED;
 		}
 	}

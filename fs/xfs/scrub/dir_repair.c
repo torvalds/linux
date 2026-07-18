@@ -304,7 +304,7 @@ xrep_dir_want_salvage(
 	struct xfs_mount	*mp = rd->sc->mp;
 
 	/* No pointers to ourselves or to garbage. */
-	if (ino == rd->sc->ip->i_ino)
+	if (ino == I_INO(rd->sc->ip))
 		return false;
 	if (!xfs_verify_dir_ino(mp, ino))
 		return false;
@@ -644,14 +644,14 @@ xrep_dir_recover_dirblock(
 	case cpu_to_be32(XFS_DIR3_BLOCK_MAGIC):
 		if (!xrep_buf_verify_struct(bp, &xfs_dir3_block_buf_ops))
 			goto out;
-		if (xfs_dir3_block_header_check(bp, rd->sc->ip->i_ino) != NULL)
+		if (xfs_dir3_block_header_check(bp, I_INO(rd->sc->ip)) != NULL)
 			goto out;
 		break;
 	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
 	case cpu_to_be32(XFS_DIR3_DATA_MAGIC):
 		if (!xrep_buf_verify_struct(bp, &xfs_dir3_data_buf_ops))
 			goto out;
-		if (xfs_dir3_data_header_check(bp, rd->sc->ip->i_ino) != NULL)
+		if (xfs_dir3_data_header_check(bp, I_INO(rd->sc->ip)) != NULL)
 			goto out;
 		break;
 	default:
@@ -676,7 +676,7 @@ xrep_dir_init_args(
 	memset(&rd->args, 0, sizeof(struct xfs_da_args));
 	rd->args.geo = rd->sc->mp->m_dir_geo;
 	rd->args.whichfork = XFS_DATA_FORK;
-	rd->args.owner = rd->sc->ip->i_ino;
+	rd->args.owner = I_INO(rd->sc->ip);
 	rd->args.trans = rd->sc->tp;
 	rd->args.dp = dp;
 	if (!name)
@@ -1125,12 +1125,12 @@ xrep_dir_scan_pptr(
 	if (error)
 		return error;
 
-	if (parent_ino != sc->ip->i_ino ||
+	if (parent_ino != I_INO(sc->ip) ||
 	    parent_gen != VFS_I(sc->ip)->i_generation)
 		return 0;
 
 	mutex_lock(&rd->pscan.lock);
-	error = xrep_dir_stash_createname(rd, &xname, ip->i_ino);
+	error = xrep_dir_stash_createname(rd, &xname, I_INO(ip));
 	mutex_unlock(&rd->pscan.lock);
 	return error;
 }
@@ -1151,7 +1151,7 @@ xrep_dir_scan_dirent(
 	struct xrep_dir		*rd = priv;
 
 	/* Dirent doesn't point to this directory. */
-	if (ino != rd->sc->ip->i_ino)
+	if (ino != I_INO(rd->sc->ip))
 		return 0;
 
 	/* Ignore garbage inum. */
@@ -1168,9 +1168,9 @@ xrep_dir_scan_dirent(
 		return 0;
 
 	trace_xrep_dir_stash_createname(sc->tempip, &xfs_name_dotdot,
-			dp->i_ino);
+			I_INO(dp));
 
-	xrep_findparent_scan_found(&rd->pscan, dp->i_ino);
+	xrep_findparent_scan_found(&rd->pscan, I_INO(dp));
 	return 0;
 }
 
@@ -1281,7 +1281,7 @@ xrep_dir_scan_dirtree(
 
 	/* Roots of directory trees are their own parents. */
 	if (xchk_inode_is_dirtree_root(sc->ip))
-		xrep_findparent_scan_found(&rd->pscan, sc->ip->i_ino);
+		xrep_findparent_scan_found(&rd->pscan, I_INO(sc->ip));
 
 	/*
 	 * Filesystem scans are time consuming.  Drop the directory ILOCK and
@@ -1369,15 +1369,15 @@ xrep_dir_live_update(
 	 * rebuilding.  Stash the update for replay against the temporary
 	 * directory.
 	 */
-	if (p->dp->i_ino == sc->ip->i_ino &&
-	    xchk_iscan_want_live_update(&rd->pscan.iscan, p->ip->i_ino)) {
+	if (I_INO(p->dp) == I_INO(sc->ip) &&
+	    xchk_iscan_want_live_update(&rd->pscan.iscan, I_INO(p->ip))) {
 		mutex_lock(&rd->pscan.lock);
 		if (p->delta > 0)
 			error = xrep_dir_stash_createname(rd, p->name,
-					p->ip->i_ino);
+					I_INO(p->ip));
 		else
 			error = xrep_dir_stash_removename(rd, p->name,
-					p->ip->i_ino);
+					I_INO(p->ip));
 		mutex_unlock(&rd->pscan.lock);
 		if (error)
 			goto out_abort;
@@ -1388,14 +1388,14 @@ xrep_dir_live_update(
 	 * the directory that we're rebuilding, so remember the new dotdot
 	 * target.
 	 */
-	if (p->ip->i_ino == sc->ip->i_ino &&
-	    xchk_iscan_want_live_update(&rd->pscan.iscan, p->dp->i_ino)) {
+	if (I_INO(p->ip) == I_INO(sc->ip) &&
+	    xchk_iscan_want_live_update(&rd->pscan.iscan, I_INO(p->dp))) {
 		if (p->delta > 0) {
 			trace_xrep_dir_stash_createname(sc->tempip,
 					&xfs_name_dotdot,
-					p->dp->i_ino);
+					I_INO(p->dp));
 
-			xrep_findparent_scan_found(&rd->pscan, p->dp->i_ino);
+			xrep_findparent_scan_found(&rd->pscan, I_INO(p->dp));
 		} else {
 			trace_xrep_dir_stash_removename(sc->tempip,
 					&xfs_name_dotdot,
@@ -1468,7 +1468,7 @@ xrep_dir_swap_prep(
 			.whichfork	= XFS_DATA_FORK,
 			.trans		= sc->tp,
 			.total		= 1,
-			.owner		= sc->ip->i_ino,
+			.owner		= I_INO(sc->ip),
 		};
 
 		error = xfs_dir2_sf_to_block(&args);
@@ -1576,7 +1576,7 @@ xrep_dir_set_nlink(
 	 * count.  If the directory has no parent, it will be moved to the
 	 * orphanage.
 	 */
-	pag = xfs_perag_get(sc->mp, XFS_INO_TO_AGNO(sc->mp, dp->i_ino));
+	pag = xfs_perag_get(sc->mp, XFS_INODE_TO_AGNO(dp));
 	if (!pag) {
 		ASSERT(0);
 		return -EFSCORRUPTED;
@@ -1764,7 +1764,7 @@ xrep_dir_rebuild_tree(
 	 * directory to an empty shortform directory because inactivation does
 	 * nothing for directories.
 	 */
-	error = xrep_dir_reset_fork(rd, sc->mp->m_rootip->i_ino);
+	error = xrep_dir_reset_fork(rd, I_INO(sc->mp->m_rootip));
 	if (error)
 		return error;
 

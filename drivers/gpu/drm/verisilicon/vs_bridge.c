@@ -174,7 +174,7 @@ static void vs_bridge_enable_common(struct vs_crtc *crtc,
 }
 
 static void vs_bridge_atomic_enable_dpi(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct drm_bridge_state *br_state =
@@ -192,7 +192,7 @@ static void vs_bridge_atomic_enable_dpi(struct drm_bridge *bridge,
 }
 
 static void vs_bridge_atomic_enable_dp(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct drm_bridge_state *br_state =
@@ -221,7 +221,7 @@ static void vs_bridge_atomic_enable_dp(struct drm_bridge *bridge,
 }
 
 static void vs_bridge_atomic_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct vs_bridge *vbridge = drm_bridge_to_vs_bridge(bridge);
 	struct vs_crtc *crtc = vbridge->crtc;
@@ -246,7 +246,7 @@ static const struct drm_bridge_funcs vs_dpi_bridge_funcs = {
 	.atomic_get_output_bus_fmts = vs_bridge_atomic_get_output_bus_fmts_dpi,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static const struct drm_bridge_funcs vs_dp_bridge_funcs = {
@@ -258,7 +258,7 @@ static const struct drm_bridge_funcs vs_dp_bridge_funcs = {
 	.atomic_get_output_bus_fmts = vs_bridge_atomic_get_output_bus_fmts_dp,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 static int vs_bridge_detect_output_interface(struct device_node *of_node,
@@ -365,7 +365,6 @@ struct vs_bridge *vs_bridge_init(struct drm_device *drm_dev,
 		ret = PTR_ERR(bridge->conn);
 		return ERR_PTR(ret);
 	}
-	drm_connector_attach_encoder(bridge->conn, bridge->enc);
 
 	return bridge;
 }

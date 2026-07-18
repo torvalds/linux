@@ -1465,6 +1465,7 @@ cifs_readv_callback(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	struct cifs_io_subrequest *rdata = mid->callback_data;
 	struct netfs_inode *ictx = netfs_inode(rdata->rreq->inode);
 	struct cifs_tcon *tcon = tlink_tcon(rdata->req->cfile->tlink);
+	struct inode *inode = &ictx->inode;
 	struct smb_rqst rqst = { .rq_iov = rdata->iov,
 				 .rq_nvec = 1,
 				 .rq_iter = rdata->subreq.io_iter };
@@ -1538,7 +1539,7 @@ do_retry:
 	} else {
 		size_t trans = rdata->subreq.transferred + rdata->got_bytes;
 		if (trans < rdata->subreq.len &&
-		    rdata->subreq.start + trans >= ictx->remote_i_size) {
+		    rdata->subreq.start + trans >= netfs_read_remote_i_size(inode)) {
 			rdata->result = 0;
 			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 		} else if (rdata->got_bytes > 0) {
@@ -3206,7 +3207,7 @@ out_close:
 
 int
 CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
-		    __u16 fid)
+		    __u16 fid, __u16 compression_state)
 {
 	int rc = 0;
 	int bytes_returned;
@@ -3221,7 +3222,7 @@ CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
 		return rc;
 	in_len = rc;
 
-	pSMB->compression_state = cpu_to_le16(COMPRESSION_FORMAT_DEFAULT);
+	pSMB->compression_state = cpu_to_le16(compression_state);
 
 	pSMB->TotalParameterCount = 0;
 	pSMB->TotalDataCount = cpu_to_le32(2);

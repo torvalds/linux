@@ -1078,12 +1078,12 @@ static void ina2xx_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ina2xx_id[] = {
-	{ "ina219", ina219 },
-	{ "ina220", ina219 },
-	{ "ina226", ina226 },
-	{ "ina230", ina226 },
-	{ "ina231", ina226 },
-	{ "ina236", ina236 },
+	{ .name = "ina219", .driver_data = ina219 },
+	{ .name = "ina220", .driver_data = ina219 },
+	{ .name = "ina226", .driver_data = ina226 },
+	{ .name = "ina230", .driver_data = ina226 },
+	{ .name = "ina231", .driver_data = ina226 },
+	{ .name = "ina236", .driver_data = ina236 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);

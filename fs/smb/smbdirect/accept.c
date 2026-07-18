@@ -854,4 +854,4 @@ struct smbdirect_socket *smbdirect_socket_accept(struct smbdirect_socket *lsc,
 
 	return nsc;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_accept);
+EXPORT_SYMBOL_GPL(smbdirect_socket_accept);

@@ -36,11 +36,6 @@ static const char * const hec_uncorrected_fw_errors[] = {
 	"Data Corruption"
 };
 
-static const unsigned long xe_hw_error_map[] = {
-	[XE_GT_ERROR]	= DRM_XE_RAS_ERR_COMP_CORE_COMPUTE,
-	[XE_SOC_ERROR]	= DRM_XE_RAS_ERR_COMP_SOC_INTERNAL,
-};
-
 enum gt_vector_regs {
 	ERR_STAT_GT_VECTOR0 = 0,
 	ERR_STAT_GT_VECTOR1,
@@ -63,6 +58,18 @@ static enum drm_xe_ras_error_severity hw_err_to_severity(const enum hardware_err
 
 	/* Uncorrectable errors comprise of both fatal and non-fatal errors */
 	return DRM_XE_RAS_ERR_SEV_UNCORRECTABLE;
+}
+
+static inline u32 err_src_to_id(u32 err_bit)
+{
+	switch (err_bit) {
+	case XE_GT_ERROR:
+		return DRM_XE_RAS_ERR_COMP_CORE_COMPUTE;
+	case XE_SOC_ERROR:
+		return DRM_XE_RAS_ERR_COMP_SOC_INTERNAL;
+	default:
+		return 0;
+	}
 }
 
 static const char * const pvc_master_global_err_reg[] = {
@@ -169,11 +176,8 @@ static void csc_hw_error_work(struct work_struct *work)
 {
 	struct xe_tile *tile = container_of(work, typeof(*tile), csc_hw_error_work);
 	struct xe_device *xe = tile_to_xe(tile);
-	int ret;
 
-	ret = xe_survivability_mode_runtime_enable(xe);
-	if (ret)
-		drm_err(&xe->drm, "Failed to enable runtime survivability mode\n");
+	xe_survivability_mode_runtime_enable(xe);
 }
 
 static void csc_hw_error_handler(struct xe_tile *tile, const enum hardware_error hw_err)
@@ -219,9 +223,9 @@ static void log_hw_error(struct xe_tile *tile, const char *name,
 	struct xe_device *xe = tile_to_xe(tile);
 
 	if (severity == DRM_XE_RAS_ERR_SEV_CORRECTABLE)
-		drm_warn(&xe->drm, "%s %s detected\n", name, severity_str);
+		drm_warn(&xe->drm, HW_ERR "%s %s detected\n", name, severity_str);
 	else
-		drm_err_ratelimited(&xe->drm, "%s %s detected\n", name, severity_str);
+		drm_err_ratelimited(&xe->drm, HW_ERR "%s %s detected\n", name, severity_str);
 }
 
 static void log_gt_err(struct xe_tile *tile, const char *name, int i, u32 err,
@@ -231,10 +235,10 @@ static void log_gt_err(struct xe_tile *tile, const char *name, int i, u32 err,
 	struct xe_device *xe = tile_to_xe(tile);
 
 	if (severity == DRM_XE_RAS_ERR_SEV_CORRECTABLE)
-		drm_warn(&xe->drm, "%s %s detected, ERROR_STAT_GT_VECTOR%d:0x%08x\n",
+		drm_warn(&xe->drm, HW_ERR "%s %s detected, ERROR_STAT_GT_VECTOR%d:0x%08x\n",
 			 name, severity_str, i, err);
 	else
-		drm_err_ratelimited(&xe->drm, "%s %s detected, ERROR_STAT_GT_VECTOR%d:0x%08x\n",
+		drm_err_ratelimited(&xe->drm, HW_ERR "%s %s detected, ERROR_STAT_GT_VECTOR%d:0x%08x\n",
 				    name, severity_str, i, err);
 }
 
@@ -251,9 +255,9 @@ static void log_soc_error(struct xe_tile *tile, const char * const *reg_info,
 
 	if (strcmp(name, "Undefined")) {
 		if (severity == DRM_XE_RAS_ERR_SEV_CORRECTABLE)
-			drm_warn(&xe->drm, "%s SOC %s detected", name, severity_str);
+			drm_warn(&xe->drm, HW_ERR "%s SOC %s detected", name, severity_str);
 		else
-			drm_err_ratelimited(&xe->drm, "%s SOC %s detected", name, severity_str);
+			drm_err_ratelimited(&xe->drm, HW_ERR "%s SOC %s detected", name, severity_str);
 		atomic_inc(&info[index].counter);
 	}
 }
@@ -433,6 +437,16 @@ static void hw_error_source_handler(struct xe_tile *tile, const enum hardware_er
 	if (!IS_DGFX(xe))
 		return;
 
+	/*
+	 * Hardware errors are reported through System Controller on the platforms that
+	 * support it, and never routed as direct IRQ to SGUnit. So we should never be
+	 * here for those platforms.
+	 */
+	if (xe->info.has_sysctrl) {
+		drm_err_ratelimited(&xe->drm, HW_ERR "Invalid error routing\n");
+		return;
+	}
+
 	spin_lock_irqsave(&xe->irq.lock, flags);
 	err_src = xe_mmio_read32(&tile->mmio, DEV_ERR_STAT_REG(hw_err));
 	if (!err_src) {
@@ -459,14 +473,8 @@ static void hw_error_source_handler(struct xe_tile *tile, const enum hardware_er
 		const char *name;
 		u32 error_id;
 
-		/* Check error bit is within bounds */
-		if (err_bit >= ARRAY_SIZE(xe_hw_error_map))
-			break;
-
-		error_id = xe_hw_error_map[err_bit];
-
-		/* Check error component is within max */
-		if (!error_id || error_id >= DRM_XE_RAS_ERR_COMP_MAX)
+		error_id = err_src_to_id(err_bit);
+		if (!error_id)
 			continue;
 
 		name = info[error_id].name;
@@ -518,14 +526,6 @@ void xe_hw_error_irq_handler(struct xe_tile *tile, const u32 master_ctl)
 	}
 }
 
-static int hw_error_info_init(struct xe_device *xe)
-{
-	if (xe->info.platform != XE_PVC)
-		return 0;
-
-	return xe_drm_ras_init(xe);
-}
-
 /*
  * Process hardware errors during boot
  */
@@ -552,16 +552,11 @@ static void process_hw_errors(struct xe_device *xe)
 void xe_hw_error_init(struct xe_device *xe)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
-	int ret;
 
 	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe))
 		return;
 
 	INIT_WORK(&tile->csc_hw_error_work, csc_hw_error_work);
-
-	ret = hw_error_info_init(xe);
-	if (ret)
-		drm_err(&xe->drm, "Failed to initialize XE DRM RAS (%pe)\n", ERR_PTR(ret));
 
 	process_hw_errors(xe);
 }

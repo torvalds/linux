@@ -61,25 +61,26 @@ static void set_chip_clock(unsigned int frequency)
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
-	if (frequency) {
-		/*
-		 * Set up PLL structure to hold the value to be set in clocks.
-		 */
-		pll.input_freq = DEFAULT_INPUT_CLOCK; /* Defined in CLOCK.H */
-		pll.clock_type = MXCLK_PLL;
+	if (!frequency)
+		return;
 
-		/*
-		 * Call sm750_calc_pll_value() to fill the other fields
-		 * of the PLL structure. Sometimes, the chip cannot set
-		 * up the exact clock required by the User.
-		 * Return value of sm750_calc_pll_value gives the actual
-		 * possible clock.
-		 */
-		sm750_calc_pll_value(frequency, &pll);
+	/*
+	 * Set up PLL structure to hold the value to be set in clocks.
+	 */
+	pll.input_freq = DEFAULT_INPUT_CLOCK; /* Defined in CLOCK.H */
+	pll.clock_type = MXCLK_PLL;
 
-		/* Master Clock Control: MXCLK_PLL */
-		poke32(MXCLK_PLL_CTRL, sm750_format_pll_reg(&pll));
-	}
+	/*
+	 * Call sm750_calc_pll_value() to fill the other fields
+	 * of the PLL structure. Sometimes, the chip cannot set
+	 * up the exact clock required by the User.
+	 * Return value of sm750_calc_pll_value gives the actual
+	 * possible clock.
+	 */
+	sm750_calc_pll_value(frequency, &pll);
+
+	/* Master Clock Control: MXCLK_PLL */
+	poke32(MXCLK_PLL_CTRL, sm750_format_pll_reg(&pll));
 }
 
 static void set_memory_clock(unsigned int frequency)
@@ -93,37 +94,38 @@ static void set_memory_clock(unsigned int frequency)
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
-	if (frequency) {
-		/*
-		 * Set the frequency to the maximum frequency
-		 * that the DDR Memory can take which is 336MHz.
-		 */
-		if (frequency > MHz(336))
-			frequency = MHz(336);
+	if (!frequency)
+		return;
 
-		/* Calculate the divisor */
-		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
+	/*
+	 * Set the frequency to the maximum frequency
+	 * that the DDR Memory can take which is 336MHz.
+	 */
+	if (frequency > MHz(336))
+		frequency = MHz(336);
 
-		/* Set the corresponding divisor in the register. */
-		reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
-		switch (divisor) {
-		default:
-		case 1:
-			reg |= CURRENT_GATE_M2XCLK_DIV_1;
-			break;
-		case 2:
-			reg |= CURRENT_GATE_M2XCLK_DIV_2;
-			break;
-		case 3:
-			reg |= CURRENT_GATE_M2XCLK_DIV_3;
-			break;
-		case 4:
-			reg |= CURRENT_GATE_M2XCLK_DIV_4;
-			break;
-		}
+	/* Calculate the divisor */
+	divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
-		sm750_set_current_gate(reg);
+	/* Set the corresponding divisor in the register. */
+	reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_M2XCLK_MASK;
+	switch (divisor) {
+	default:
+	case 1:
+		reg |= CURRENT_GATE_M2XCLK_DIV_1;
+		break;
+	case 2:
+		reg |= CURRENT_GATE_M2XCLK_DIV_2;
+		break;
+	case 3:
+		reg |= CURRENT_GATE_M2XCLK_DIV_3;
+		break;
+	case 4:
+		reg |= CURRENT_GATE_M2XCLK_DIV_4;
+		break;
 	}
+
+	sm750_set_current_gate(reg);
 }
 
 /*
@@ -145,37 +147,38 @@ static void set_master_clock(unsigned int frequency)
 	if (sm750_get_chip_type() == SM750LE)
 		return;
 
-	if (frequency) {
-		/*
-		 * Set the frequency to the maximum frequency
-		 * that the SM750 engine can run, which is about 190 MHz.
-		 */
-		if (frequency > MHz(190))
-			frequency = MHz(190);
+	if (!frequency)
+		return;
 
-		/* Calculate the divisor */
-		divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
+	/*
+	 * Set the frequency to the maximum frequency
+	 * that the SM750 engine can run, which is about 190 MHz.
+	 */
+	if (frequency > MHz(190))
+		frequency = MHz(190);
 
-		/* Set the corresponding divisor in the register. */
-		reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
-		switch (divisor) {
-		default:
-		case 3:
-			reg |= CURRENT_GATE_MCLK_DIV_3;
-			break;
-		case 4:
-			reg |= CURRENT_GATE_MCLK_DIV_4;
-			break;
-		case 6:
-			reg |= CURRENT_GATE_MCLK_DIV_6;
-			break;
-		case 8:
-			reg |= CURRENT_GATE_MCLK_DIV_8;
-			break;
-		}
+	/* Calculate the divisor */
+	divisor = DIV_ROUND_CLOSEST(get_mxclk_freq(), frequency);
 
-		sm750_set_current_gate(reg);
+	/* Set the corresponding divisor in the register. */
+	reg = peek32(CURRENT_GATE) & ~CURRENT_GATE_MCLK_MASK;
+	switch (divisor) {
+	default:
+	case 3:
+		reg |= CURRENT_GATE_MCLK_DIV_3;
+		break;
+	case 4:
+		reg |= CURRENT_GATE_MCLK_DIV_4;
+		break;
+	case 6:
+		reg |= CURRENT_GATE_MCLK_DIV_6;
+		break;
+	case 8:
+		reg |= CURRENT_GATE_MCLK_DIV_8;
+		break;
 	}
+
+	sm750_set_current_gate(reg);
 }
 
 unsigned int ddk750_get_vm_size(void)

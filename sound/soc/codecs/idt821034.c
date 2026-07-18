@@ -860,18 +860,17 @@ static int idt821034_dai_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const u64 idt821034_dai_formats[] = {
+static const u64 idt821034_dai_formats =
 	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
-	SND_SOC_POSSIBLE_DAIFMT_DSP_B,
-};
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
 
 static const struct snd_soc_dai_ops idt821034_dai_ops = {
 	.startup      = idt821034_dai_startup,
 	.hw_params    = idt821034_dai_hw_params,
 	.set_tdm_slot = idt821034_dai_set_tdm_slot,
 	.set_fmt      = idt821034_dai_set_fmt,
-	.auto_selectable_formats     = idt821034_dai_formats,
-	.num_auto_selectable_formats = ARRAY_SIZE(idt821034_dai_formats),
+	.auto_selectable_formats     = &idt821034_dai_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver idt821034_dai_driver = {

@@ -296,7 +296,7 @@ static void configure_dual_link_mode(struct intel_encoder *encoder,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
+	intel_reg_t dss_ctl1_reg, dss_ctl2_reg;
 	u32 dss_ctl1;
 
 	/* FIXME: Move all DSS handling to intel_vdsc.c */
@@ -1657,7 +1657,8 @@ static int gen11_dsi_dsc_compute_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static int gen11_dsi_compute_config(struct intel_encoder *encoder,
+static int gen11_dsi_compute_config(struct intel_atomic_state *state,
+				    struct intel_encoder *encoder,
 				    struct intel_crtc_state *pipe_config,
 				    struct drm_connector_state *conn_state)
 {
@@ -1671,7 +1672,7 @@ static int gen11_dsi_compute_config(struct intel_encoder *encoder,
 	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
-	ret = intel_panel_compute_config(intel_connector, adjusted_mode);
+	ret = intel_panel_compute_config(state, pipe_config, intel_connector);
 	if (ret)
 		return ret;
 

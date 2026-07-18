@@ -112,7 +112,3 @@
 &rtc {
 	status = "okay";
 };
-
-&syscontroller {
-	status = "okay";
-};

@@ -209,8 +209,8 @@ static const struct of_device_id tmp117_of_match[] = {
 MODULE_DEVICE_TABLE(of, tmp117_of_match);
 
 static const struct i2c_device_id tmp117_id[] = {
-	{ "tmp116", (kernel_ulong_t)&tmp116_channels_info },
-	{ "tmp117", (kernel_ulong_t)&tmp117_channels_info },
+	{ .name = "tmp116", .driver_data = (kernel_ulong_t)&tmp116_channels_info },
+	{ .name = "tmp117", .driver_data = (kernel_ulong_t)&tmp117_channels_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp117_id);

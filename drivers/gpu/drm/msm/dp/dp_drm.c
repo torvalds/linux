@@ -52,7 +52,7 @@ static void msm_dp_bridge_debugfs_init(struct drm_bridge *bridge, struct dentry 
 static const struct drm_bridge_funcs msm_dp_bridge_ops = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state   = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset           = drm_atomic_helper_bridge_reset,
+	.atomic_create_state           = drm_atomic_helper_bridge_create_state,
 	.atomic_enable          = msm_dp_bridge_atomic_enable,
 	.atomic_disable         = msm_dp_bridge_atomic_disable,
 	.atomic_post_disable    = msm_dp_bridge_atomic_post_disable,
@@ -91,7 +91,7 @@ static int msm_edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-					 struct drm_atomic_state *state)
+					 struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
@@ -120,7 +120,7 @@ static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
-					  struct drm_atomic_state *atomic_state)
+					  struct drm_atomic_commit *atomic_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL, *old_crtc_state = NULL;
@@ -164,7 +164,7 @@ out:
 }
 
 static void msm_edp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-					       struct drm_atomic_state *atomic_state)
+					       struct drm_atomic_commit *atomic_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
@@ -235,7 +235,7 @@ static const struct drm_bridge_funcs msm_edp_bridge_ops = {
 	.atomic_post_disable = msm_edp_bridge_atomic_post_disable,
 	.mode_set = msm_dp_bridge_mode_set,
 	.mode_valid = msm_edp_bridge_mode_valid,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_check = msm_edp_bridge_atomic_check,
@@ -324,8 +324,6 @@ struct drm_connector *msm_dp_drm_connector_init(struct msm_dp *msm_dp_display,
 
 	if (!msm_dp_display->is_edp)
 		drm_connector_attach_dp_subconnector_property(connector);
-
-	drm_connector_attach_encoder(connector, encoder);
 
 	return connector;
 }

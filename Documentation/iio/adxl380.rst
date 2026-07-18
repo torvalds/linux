@@ -51,7 +51,7 @@ specific device folder path ``/sys/bus/iio/devices/iio:deviceX``.
 +---------------------------------------------------+----------------------------------------------------------+
 | in_accel_x_raw                                    | Raw X-axis accelerometer channel value.                  |
 +---------------------------------------------------+----------------------------------------------------------+
-| in_accel_y_calibbias                              | y-axis acceleration offset correction                    |
+| in_accel_y_calibbias                              | Calibration offset for the Y-axis accelerometer channel. |
 +---------------------------------------------------+----------------------------------------------------------+
 | in_accel_y_raw                                    | Raw Y-axis accelerometer channel value.                  |
 +---------------------------------------------------+----------------------------------------------------------+

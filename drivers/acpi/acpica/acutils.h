@@ -3,7 +3,7 @@
  *
  * Name: acutils.h -- prototypes for the common (subsystem-wide) procedures
  *
- * Copyright (C) 2000 - 2025, Intel Corp.
+ * Copyright (C) 2000 - 2026, Intel Corp.
  *
  *****************************************************************************/
 
@@ -625,8 +625,6 @@ void acpi_ut_repair_name(char *name);
 
 #if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION) || defined (ACPI_DEBUG_OUTPUT)
 u8 acpi_ut_safe_strcpy(char *dest, acpi_size dest_size, char *source);
-
-void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size);
 
 u8 acpi_ut_safe_strcat(char *dest, acpi_size dest_size, char *source);
 

@@ -4084,9 +4084,9 @@ err_disable:
 }
 
 static const struct pci_device_id et131x_pci_table[] = {
-	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_GIG), 0UL},
-	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_FAST), 0UL},
-	{ 0,}
+	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_GIG) },
+	{ PCI_VDEVICE(ATT, ET131X_PCI_DEVICE_ID_FAST) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, et131x_pci_table);
 

@@ -345,12 +345,6 @@ struct iommu_pages_list {
 /**
  * struct iommu_iotlb_gather - Range information for a pending IOTLB flush
  *
- * @start: IOVA representing the start of the range to be flushed
- * @end: IOVA representing the end of the range to be flushed (inclusive)
- * @pgsize: The interval at which to perform the flush
- * @freelist: Removed pages to free after sync
- * @queued: Indicates that the flush will be queued
- *
  * This structure is intended to be updated by multiple calls to the
  * ->unmap() function in struct iommu_ops before eventually being passed
  * into ->iotlb_sync(). Drivers can add pages to @freelist to be freed after
@@ -359,10 +353,44 @@ struct iommu_pages_list {
  * later instead of ->iotlb_sync(), so drivers may optimise accordingly.
  */
 struct iommu_iotlb_gather {
+	/** @start: IOVA representing the start of the range to be flushed */
 	unsigned long		start;
+	/**
+	 * @end: IOVA representing the end of the range to be
+	 *       flushed (inclusive)
+	 */
 	unsigned long		end;
-	size_t			pgsize;
+
+	union {
+		/**
+		 * @pgsize: The interval at which to perform the flush, only
+		 *          used by arm-smmu-v3
+		 */
+		size_t pgsize;
+		struct {
+			/**
+			 * @pt.leaf_levels_bitmap: Bitmap of generic_pt
+			 * levels where leaf entries were unmapped. Bit 0
+			 * means the leaf only level. If 0 no leafs
+			 * were unmapped.
+			 */
+			u8 leaf_levels_bitmap;
+			/**
+			 * @pt.table_levels_bitmap: Bitmap of generic_pt levels
+			 * of table entries that were removed. Bit 0 is never
+			 * set, bit 1 means a table of all leafs was removed.
+			 * When freelist is empty this must be 0.
+			 */
+			u8 table_levels_bitmap;
+		} pt;
+	};
+
+	/**
+	 * @freelist: Removed pages to free after sync, only used by
+	 *            iommupt
+	 */
 	struct iommu_pages_list	freelist;
+	/** @queued: True if the gather will be completed with a flush all */
 	bool			queued;
 };
 
@@ -547,6 +575,7 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
 				   user_array->entry_num *
 					   user_array->entry_len))
 			return -EFAULT;
+		return 0;
 	}
 
 	/* Copy item by item */

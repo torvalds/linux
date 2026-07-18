@@ -27,11 +27,10 @@
 #ifndef __AMDGPU_DM_CRTC_H__
 #define __AMDGPU_DM_CRTC_H__
 
-void amdgpu_dm_crtc_set_panel_sr_feature(
+void amdgpu_dm_crtc_set_static_screen_optimze(
 	struct amdgpu_display_manager *dm,
-	struct amdgpu_crtc *acrtc,
 	struct dc_stream_state *stream,
-	bool vblank_enabled, bool allow_sr_entry);
+	bool sso_enable, bool allow_sr_entry);
 
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc);
 
@@ -42,6 +41,12 @@ bool amdgpu_dm_crtc_modeset_required(struct drm_crtc_state *crtc_state,
 int amdgpu_dm_crtc_set_vupdate_irq(struct drm_crtc *crtc, bool enable);
 
 bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+bool amdgpu_dm_crtc_helper_mode_fixup(struct drm_crtc *crtc,
+				      const struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted_mode);
+#endif
 
 bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state);
 

@@ -37,24 +37,24 @@
 
 #include "kselftest.h"
 #include "vm_util.h"
+#include "hugepage_settings.h"
 
 #define UFFD_FLAGS	(O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY)
 
-#define _err(fmt, ...)						\
-	do {							\
-		int ret = errno;				\
-		fprintf(stderr, "ERROR: " fmt, ##__VA_ARGS__);	\
-		fprintf(stderr, " (errno=%d, @%s:%d)\n",	\
-			ret, __FILE__, __LINE__);		\
+#define _err(fmt, ...)							\
+	do {								\
+		int ret = errno;					\
+		ksft_print_msg("ERROR: " fmt " (errno=%d, @%s:%d)\n",	\
+			       ##__VA_ARGS__, ret, __FILE__, __LINE__); \
 	} while (0)
 
-#define errexit(exitcode, fmt, ...)		\
+#define errexit(fmt, ...)			\
 	do {					\
 		_err(fmt, ##__VA_ARGS__);	\
-		exit(exitcode);			\
+		ksft_exit_fail();		\
 	} while (0)
 
-#define err(fmt, ...) errexit(1, fmt, ##__VA_ARGS__)
+#define err(fmt, ...) errexit(fmt, ##__VA_ARGS__)
 
 struct uffd_global_test_opts {
 	unsigned long nr_parallel, nr_pages, nr_pages_per_cpu, page_size;

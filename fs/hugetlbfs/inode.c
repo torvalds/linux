@@ -96,15 +96,8 @@ static const struct fs_parameter_spec hugetlb_fs_parameters[] = {
 #define PGOFF_LOFFT_MAX \
 	(((1UL << (PAGE_SHIFT + 1)) - 1) <<  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
 
-static int hugetlb_file_mmap_prepare_success(const struct vm_area_struct *vma)
+static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	/* Unfortunate we have to reassign vma->vm_private_data. */
-	return hugetlb_vma_lock_alloc((struct vm_area_struct *)vma);
-}
-
-static int hugetlbfs_file_mmap_prepare(struct vm_area_desc *desc)
-{
-	struct file *file = desc->file;
 	struct inode *inode = file_inode(file);
 	loff_t len, vma_len;
 	int ret;
@@ -119,8 +112,8 @@ static int hugetlbfs_file_mmap_prepare(struct vm_area_desc *desc)
 	 * way when do_mmap unwinds (may be important on powerpc
 	 * and ia64).
 	 */
-	vma_desc_set_flags(desc, VMA_HUGETLB_BIT, VMA_DONTEXPAND_BIT);
-	desc->vm_ops = &hugetlb_vm_ops;
+	vma_set_flags(vma, VMA_HUGETLB_BIT, VMA_DONTEXPAND_BIT);
+	vma->vm_ops = &hugetlb_vm_ops;
 
 	/*
 	 * page based offset in vm_pgoff could be sufficiently large to
@@ -129,16 +122,16 @@ static int hugetlbfs_file_mmap_prepare(struct vm_area_desc *desc)
 	 * sizeof(unsigned long).  So, only check in those instances.
 	 */
 	if (sizeof(unsigned long) == sizeof(loff_t)) {
-		if (desc->pgoff & PGOFF_LOFFT_MAX)
+		if (vma->vm_pgoff & PGOFF_LOFFT_MAX)
 			return -EINVAL;
 	}
 
 	/* must be huge page aligned */
-	if (desc->pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
+	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
 		return -EINVAL;
 
-	vma_len = (loff_t)vma_desc_size(desc);
-	len = vma_len + ((loff_t)desc->pgoff << PAGE_SHIFT);
+	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
+	len = vma_len + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
 	/* check for overflow */
 	if (len < vma_len)
 		return -EINVAL;
@@ -148,7 +141,7 @@ static int hugetlbfs_file_mmap_prepare(struct vm_area_desc *desc)
 
 	ret = -ENOMEM;
 
-	vma_flags = desc->vma_flags;
+	vma_flags = vma->flags;
 	/*
 	 * for SHM_HUGETLB, the pages are reserved in the shmget() call so skip
 	 * reserving here. Note: only for SHM hugetlbfs file, the inode
@@ -158,30 +151,17 @@ static int hugetlbfs_file_mmap_prepare(struct vm_area_desc *desc)
 		vma_flags_set(&vma_flags, VMA_NORESERVE_BIT);
 
 	if (hugetlb_reserve_pages(inode,
-			desc->pgoff >> huge_page_order(h),
-			len >> huge_page_shift(h), desc,
-			vma_flags) < 0)
+				vma->vm_pgoff >> huge_page_order(h),
+				len >> huge_page_shift(h), vma,
+				vma_flags) < 0)
 		goto out;
 
 	ret = 0;
-	if (vma_desc_test(desc, VMA_WRITE_BIT) && inode->i_size < len)
+	if (vma_test(vma, VMA_WRITE_BIT) && inode->i_size < len)
 		i_size_write(inode, len);
 out:
 	inode_unlock(inode);
 
-	if (!ret) {
-		/* Allocate the VMA lock after we set it up. */
-		desc->action.success_hook = hugetlb_file_mmap_prepare_success;
-		/*
-		 * We cannot permit the rmap finding this VMA in the time
-		 * between the VMA being inserted into the VMA tree and the
-		 * completion/success hook being invoked.
-		 *
-		 * This is because we establish a per-VMA hugetlb lock which can
-		 * be raced by rmap.
-		 */
-		desc->action.hide_from_rmap_until_complete = true;
-	}
 	return ret;
 }
 
@@ -634,7 +614,7 @@ static void hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 
 	i_size_write(inode, offset);
 	i_mmap_lock_write(mapping);
-	if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
+	if (mapping_mapped(mapping))
 		hugetlb_vmdelete_list(&mapping->i_mmap, pgoff, 0,
 				      ZAP_FLAG_DROP_MARKER);
 	i_mmap_unlock_write(mapping);
@@ -695,7 +675,7 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 
 	/* Unmap users of full pages in the hole. */
 	if (hole_end > hole_start) {
-		if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
+		if (mapping_mapped(mapping))
 			hugetlb_vmdelete_list(&mapping->i_mmap,
 					      hole_start >> PAGE_SHIFT,
 					      hole_end >> PAGE_SHIFT, 0);
@@ -1227,7 +1207,7 @@ static void init_once(void *foo)
 
 static const struct file_operations hugetlbfs_file_operations = {
 	.read_iter		= hugetlbfs_read_iter,
-	.mmap_prepare		= hugetlbfs_file_mmap_prepare,
+	.mmap			= hugetlbfs_file_mmap,
 	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 	.llseek			= default_llseek,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024, 2026 Intel Corporation
  */
 #ifndef __iwl_ap_h__
 #define __iwl_ap_h__
@@ -13,6 +13,12 @@
 int iwl_mld_update_beacon_template(struct iwl_mld *mld,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *link_conf);
+
+void
+iwl_mld_link_info_changed_ap_ibss(struct iwl_mld *mld,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_bss_conf *link,
+				  u64 changes);
 
 int iwl_mld_start_ap_ibss(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif,

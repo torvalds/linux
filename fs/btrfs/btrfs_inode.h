@@ -128,15 +128,6 @@ struct btrfs_inode {
 	/* which subvolume this inode belongs to */
 	struct btrfs_root *root;
 
-#if BITS_PER_LONG == 32
-	/*
-	 * The objectid of the corresponding BTRFS_INODE_ITEM_KEY.
-	 * On 64 bits platforms we can get it from vfs_inode.i_ino, which is an
-	 * unsigned long and therefore 64 bits on such platforms.
-	 */
-	u64 objectid;
-#endif
-
 	/* Cached value of inode property 'compression'. */
 	u8 prop_compress;
 
@@ -372,29 +363,10 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 	return (unsigned long)h;
 }
 
-#if BITS_PER_LONG == 32
-
-/*
- * On 32 bit systems the i_ino of struct inode is 32 bits (unsigned long), so
- * we use the inode's location objectid which is a u64 to avoid truncation.
- */
-static inline u64 btrfs_ino(const struct btrfs_inode *inode)
-{
-	u64 ino = inode->objectid;
-
-	if (test_bit(BTRFS_INODE_ROOT_STUB, &inode->runtime_flags))
-		ino = inode->vfs_inode.i_ino;
-	return ino;
-}
-
-#else
-
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
 	return inode->vfs_inode.i_ino;
 }
-
-#endif
 
 static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
 				       struct btrfs_key *key)
@@ -406,9 +378,6 @@ static inline void btrfs_get_inode_key(const struct btrfs_inode *inode,
 
 static inline void btrfs_set_inode_number(struct btrfs_inode *inode, u64 ino)
 {
-#if BITS_PER_LONG == 32
-	inode->objectid = ino;
-#endif
 	inode->vfs_inode.i_ino = ino;
 }
 
@@ -531,12 +500,9 @@ static inline void btrfs_set_inode_mapping_order(struct btrfs_inode *inode)
 	/* Metadata inode should not reach here. */
 	ASSERT(is_data_inode(inode));
 
-	/* We only allow BITS_PER_LONGS blocks for each bitmap. */
-#ifdef CONFIG_BTRFS_EXPERIMENTAL
 	mapping_set_folio_order_range(inode->vfs_inode.i_mapping,
 				      inode->root->fs_info->block_min_order,
 				      inode->root->fs_info->block_max_order);
-#endif
 }
 
 void btrfs_calculate_block_csum_folio(struct btrfs_fs_info *fs_info,
@@ -569,6 +535,8 @@ int btrfs_start_delalloc_roots(struct btrfs_fs_info *fs_info, long nr,
 int btrfs_set_extent_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 			      unsigned int extra_bits,
 			      struct extent_state **cached_state);
+int btrfs_reset_extent_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
+				unsigned int extra_bits, struct extent_state **cached_state);
 
 struct btrfs_new_inode_args {
 	/* Input */
@@ -630,7 +598,6 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
 				    loff_t actual_len, u64 *alloc_hint);
 int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct folio *locked_folio,
 			     u64 start, u64 end, struct writeback_control *wbc);
-int btrfs_writepage_cow_fixup(struct folio *folio);
 int btrfs_encoded_io_compression_from_extent(struct btrfs_fs_info *fs_info,
 					     int compress_type);
 int btrfs_encoded_read_regular_fill_pages(struct btrfs_inode *inode,

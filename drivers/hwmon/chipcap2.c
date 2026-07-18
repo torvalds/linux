@@ -736,14 +736,14 @@ static void cc2_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cc2_id[] = {
-	{ "cc2d23" },
-	{ "cc2d23s" },
-	{ "cc2d25" },
-	{ "cc2d25s" },
-	{ "cc2d33" },
-	{ "cc2d33s" },
-	{ "cc2d35" },
-	{ "cc2d35s" },
+	{ .name = "cc2d23" },
+	{ .name = "cc2d23s" },
+	{ .name = "cc2d25" },
+	{ .name = "cc2d25s" },
+	{ .name = "cc2d33" },
+	{ .name = "cc2d33s" },
+	{ .name = "cc2d35" },
+	{ .name = "cc2d35s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cc2_id);

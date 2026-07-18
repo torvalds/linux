@@ -442,7 +442,7 @@ void intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
  *
  * Note that this function does currently not enable runtime pm for the
  * subordinate display power domains. That is done by
- * intel_power_domains_enable().
+ * intel_display_power_enable().
  */
 void intel_runtime_pm_enable(struct intel_runtime_pm *rpm)
 {

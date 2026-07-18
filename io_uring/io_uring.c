@@ -160,7 +160,7 @@ static void io_poison_cached_req(struct io_kiocb *req)
 	req->apoll = IO_URING_PTR_POISON;
 }
 
-static void io_poison_req(struct io_kiocb *req)
+void io_poison_req(struct io_kiocb *req)
 {
 	io_poison_cached_req(req);
 	req->async_data = IO_URING_PTR_POISON;
@@ -233,6 +233,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		return NULL;
 
 	xa_init(&ctx->io_bl_xa);
+	xa_init(&ctx->hpage_acct);
 
 	/*
 	 * Use 5 bits less than the max cq entries, that should give us around
@@ -279,7 +280,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
 	INIT_LIST_HEAD(&ctx->ltimeout_list);
-	init_llist_head(&ctx->work_llist);
+	mpscq_init(&ctx->work_list, &ctx->work_head);
 	INIT_LIST_HEAD(&ctx->tctx_list);
 	mutex_init(&ctx->tctx_lock);
 	ctx->submit_state.free_list.next = NULL;
@@ -288,7 +289,6 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 #ifdef CONFIG_FUTEX
 	INIT_HLIST_HEAD(&ctx->futex_list);
 #endif
-	INIT_DELAYED_WORK(&ctx->fallback_work, io_fallback_req_func);
 	INIT_WQ_LIST(&ctx->submit_state.compl_reqs);
 	INIT_HLIST_HEAD(&ctx->cancelable_uring_cmd);
 	io_napi_init(ctx);
@@ -302,6 +302,7 @@ err:
 	io_free_alloc_caches(ctx);
 	kvfree(ctx->cancel_table.hbs);
 	xa_destroy(&ctx->io_bl_xa);
+	xa_destroy(&ctx->hpage_acct);
 	kfree(ctx);
 	return NULL;
 }
@@ -687,12 +688,26 @@ static struct io_overflow_cqe *io_alloc_ocqe(struct io_ring_ctx *ctx,
 }
 
 /*
+ * Compute queued CQEs for free-space calculation, clamped to cq_entries.
+ */
+static unsigned int io_cqring_queued(struct io_ring_ctx *ctx)
+{
+	struct io_rings *rings = io_get_rings(ctx);
+	int diff;
+
+	diff = (int)(ctx->cached_cq_tail - READ_ONCE(rings->cq.head));
+	if (diff >= 0)
+		return min((unsigned int)diff, ctx->cq_entries);
+	return 0;
+}
+
+/*
  * Fill an empty dummy CQE, in case alignment is off for posting a 32b CQE
  * because the ring is a single 16b entry away from wrapping.
  */
 static bool io_fill_nop_cqe(struct io_ring_ctx *ctx, unsigned int off)
 {
-	if (__io_cqring_events(ctx) < ctx->cq_entries) {
+	if (io_cqring_queued(ctx) < ctx->cq_entries) {
 		struct io_uring_cqe *cqe = &ctx->rings->cqes[off];
 
 		cqe->user_data = 0;
@@ -713,7 +728,7 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
-	unsigned int free, queued, len;
+	unsigned int free, len;
 
 	/*
 	 * Posting into the CQ when there are pending overflowed CQEs may break
@@ -733,9 +748,7 @@ bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow, bool cqe32)
 		off = 0;
 	}
 
-	/* userspace may cheat modifying the tail, be safe and do min */
-	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
-	free = ctx->cq_entries - queued;
+	free = ctx->cq_entries - io_cqring_queued(ctx);
 	/* we need a contiguous range, limit based on the current array offset */
 	len = min(free, ctx->cq_entries - off);
 	if (len < (cqe32 + 1))
@@ -966,29 +979,24 @@ __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 {
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO;
 	void *reqs[IO_REQ_ALLOC_BATCH];
-	int ret;
-
-	ret = kmem_cache_alloc_bulk(req_cachep, gfp, ARRAY_SIZE(reqs), reqs);
+	int nr_reqs = ARRAY_SIZE(reqs);
 
 	/*
-	 * Bulk alloc is all-or-nothing. If we fail to get a batch,
-	 * retry single alloc to be on the safe side.
+	 * Bulk alloc is all-or-nothing. If we fail to get a batch, retry a
+	 * single allocation to be on the safe side.
 	 */
-	if (unlikely(ret <= 0)) {
+	if (!kmem_cache_alloc_bulk(req_cachep, gfp, nr_reqs, reqs)) {
 		reqs[0] = kmem_cache_alloc(req_cachep, gfp);
 		if (!reqs[0])
 			return false;
-		ret = 1;
+		nr_reqs = 1;
 	}
 
-	percpu_ref_get_many(&ctx->refs, ret);
-	ctx->nr_req_allocated += ret;
+	percpu_ref_get_many(&ctx->refs, nr_reqs);
+	ctx->nr_req_allocated += nr_reqs;
 
-	while (ret--) {
-		struct io_kiocb *req = reqs[ret];
-
-		io_req_add_to_cache(req, ctx);
-	}
+	while (nr_reqs--)
+		io_req_add_to_cache(reqs[nr_reqs], ctx);
 	return true;
 }
 
@@ -1190,7 +1198,7 @@ __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 
 	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
-		io_move_task_work_from_local(ctx);
+		io_cancel_local_task_work(ctx);
 }
 
 static int io_iopoll_check(struct io_ring_ctx *ctx, unsigned int min_events)
@@ -1452,8 +1460,13 @@ struct io_wq_work *io_wq_free_work(struct io_wq_work *work)
 	struct io_kiocb *nxt = NULL;
 
 	if (req_ref_put_and_test_atomic(req)) {
-		if (req->flags & IO_REQ_LINK_FLAGS)
+		if (req->flags & IO_REQ_LINK_FLAGS) {
+			struct io_ring_ctx *ctx = req->ctx;
+
+			mutex_lock(&ctx->uring_lock);
 			nxt = io_req_find_next(req);
+			mutex_unlock(&ctx->uring_lock);
+		}
 		io_free_req(req);
 	}
 	return nxt ? &nxt->work : NULL;
@@ -1721,10 +1734,9 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	const struct io_issue_def *def;
 	unsigned int sqe_flags;
 	int personality;
-	u8 opcode;
 
 	req->ctx = ctx;
-	req->opcode = opcode = READ_ONCE(sqe->opcode);
+	req->opcode = READ_ONCE(sqe->opcode);
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
 	sqe_flags = READ_ONCE(sqe->flags);
 	req->flags = (__force io_req_flags_t) sqe_flags;
@@ -1734,13 +1746,13 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->cancel_seq_set = false;
 	req->async_data = NULL;
 
-	if (unlikely(opcode >= IORING_OP_LAST)) {
+	if (unlikely(req->opcode >= IORING_OP_LAST)) {
 		req->opcode = 0;
 		return io_init_fail_req(req, -EINVAL);
 	}
-	opcode = array_index_nospec(opcode, IORING_OP_LAST);
+	req->opcode = array_index_nospec(req->opcode, IORING_OP_LAST);
 
-	def = &io_issue_defs[opcode];
+	def = &io_issue_defs[req->opcode];
 	if (def->is_128 && !(ctx->flags & IORING_SETUP_SQE128)) {
 		/*
 		 * A 128b op on a non-128b SQ requires mixed SQE support as
@@ -2198,6 +2210,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_napi_free(ctx);
 	kvfree(ctx->cancel_table.hbs);
 	xa_destroy(&ctx->io_bl_xa);
+	xa_destroy(&ctx->hpage_acct);
 	kfree(ctx);
 }
 
@@ -2331,7 +2344,7 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 		/* The SQPOLL thread never reaches this path */
 		do {
 			if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
-				io_move_task_work_from_local(ctx);
+				io_cancel_local_task_work(ctx);
 			cond_resched();
 		} while (io_uring_try_cancel_requests(ctx, NULL, true, false));
 
@@ -2416,8 +2429,6 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	xa_for_each(&ctx->personalities, index, creds)
 		io_unregister_personality(ctx, index);
 	mutex_unlock(&ctx->uring_lock);
-
-	flush_delayed_work(&ctx->fallback_work);
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	/*

@@ -839,7 +839,7 @@ xfs_rtrmapbt_from_disk(
 	unsigned int		numrecs;
 	unsigned int		maxrecs;
 
-	xfs_btree_init_block(mp, rblock, &xfs_rtrmapbt_ops, 0, 0, ip->i_ino);
+	xfs_btree_init_block(mp, rblock, &xfs_rtrmapbt_ops, 0, 0, I_INO(ip));
 
 	rblock->bb_level = dblock->bb_level;
 	rblock->bb_numrecs = dblock->bb_numrecs;
@@ -981,7 +981,7 @@ xfs_rtrmapbt_create(
 	broot = xfs_broot_realloc(ifp, xfs_rtrmap_broot_space_calc(mp, 0, 0));
 	if (broot)
 		xfs_btree_init_block(mp, broot, &xfs_rtrmapbt_ops, 0, 0,
-				ip->i_ino);
+				I_INO(ip));
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE | XFS_ILOG_DBROOT);
 
 	return 0;

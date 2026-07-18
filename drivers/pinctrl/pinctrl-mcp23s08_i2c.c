@@ -2,7 +2,6 @@
 /* MCP23S08 I2C GPIO driver */
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -67,9 +66,9 @@ static const struct mcp23s08_info  mcp23018_i2c = {
 };
 
 static const struct i2c_device_id mcp230xx_id[] = {
-	{ "mcp23008", (kernel_ulong_t)&mcp23008_i2c },
-	{ "mcp23017", (kernel_ulong_t)&mcp23017_i2c },
-	{ "mcp23018", (kernel_ulong_t)&mcp23018_i2c },
+	{ .name = "mcp23008", .driver_data = (kernel_ulong_t)&mcp23008_i2c },
+	{ .name = "mcp23017", .driver_data = (kernel_ulong_t)&mcp23017_i2c },
+	{ .name = "mcp23018", .driver_data = (kernel_ulong_t)&mcp23018_i2c },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp230xx_id);

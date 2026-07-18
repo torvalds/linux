@@ -7,7 +7,8 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 
 int snd_usb_add_audio_stream(struct snd_usb_audio *chip,
 			     int stream,
-			     struct audioformat *fp);
+			     struct audioformat *fp,
+			     struct snd_usb_power_domain **pdptr);
 
 #endif /* __USBAUDIO_STREAM_H */
 

@@ -1791,22 +1791,8 @@ static inline int perf_is_paranoid(void)
 }
 
 extern int perf_allow_kernel(void);
-
-static inline int perf_allow_cpu(void)
-{
-	if (sysctl_perf_event_paranoid > 0 && !perfmon_capable())
-		return -EACCES;
-
-	return security_perf_event_open(PERF_SECURITY_CPU);
-}
-
-static inline int perf_allow_tracepoint(void)
-{
-	if (sysctl_perf_event_paranoid > -1 && !perfmon_capable())
-		return -EPERM;
-
-	return security_perf_event_open(PERF_SECURITY_TRACEPOINT);
-}
+extern int perf_allow_cpu(void);
+extern int perf_allow_tracepoint(void);
 
 extern int perf_exclude_event(struct perf_event *event, struct pt_regs *regs);
 
@@ -2022,6 +2008,19 @@ static inline u64
 perf_event_pause(struct perf_event *event, bool reset)			{ return 0; }
 static inline int
 perf_exclude_event(struct perf_event *event, struct pt_regs *regs)	{ return 0; }
+
+static inline int perf_allow_kernel(void)
+{
+	return perfmon_capable() ? 0 : -EACCES;
+}
+static inline int perf_allow_cpu(void)
+{
+	return perfmon_capable() ? 0 : -EACCES;
+}
+static inline int perf_allow_tracepoint(void)
+{
+	return perfmon_capable() ? 0 : -EPERM;
+}
 
 #endif /* !CONFIG_PERF_EVENTS */
 

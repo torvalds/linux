@@ -6,7 +6,6 @@
 // Author: Matt Flax <flatmax@flatmax.com>
 
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -19,7 +18,7 @@ static int src4xxx_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id src4xxx_i2c_ids[] = {
-	{ "src4392" },
+	{ .name = "src4392" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, src4xxx_i2c_ids);

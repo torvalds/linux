@@ -121,6 +121,22 @@ void dcn401_link_encoder_enable_dp_output(
 	const struct dc_link_settings *link_settings,
 	enum clock_source_id clock_source);
 
+void dpcs401_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings);
+
+void dpcs401_get_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+
+void dpcs401_set_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings);
+
 void dcn401_link_encoder_setup(
 	struct link_encoder *enc,
 	enum signal_type signal);

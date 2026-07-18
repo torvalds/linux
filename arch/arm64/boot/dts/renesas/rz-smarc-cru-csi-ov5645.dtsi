@@ -46,7 +46,12 @@
 	status = "okay";
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		port@0 {
+			reg = <0>;
+
 			csi2_in: endpoint {
 				clock-lanes = <0>;
 				data-lanes = <1 2>;

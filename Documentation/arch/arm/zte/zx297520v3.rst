@@ -1,0 +1,166 @@
+.. SPDX-License-Identifier: GPL-2.0-only
+
+====================================
+Booting Linux on ZTE zx297520v3 SoCs
+====================================
+
+Author:	Stefan Dösinger
+
+Date  : 27 Jan 2026
+
+1. Hardware description
+---------------------------
+Zx297520v3 SoCs use a 64-bit capable Cortex-A53 CPU and GICv3, although they
+run in arm32 mode only. The CPU has support EL3, but no hypervisor (EL2) and
+it seems to lack VFP and NEON.
+
+The SoC is used in a number of cheap LTE to WiFi routers, both battery powered
+MiFis and stationary CPEs. In addition to the CPU these devices usually have
+64 MB Ram (although some is shared with the LTE chip), 128 MB NAND flash, an
+SDIO connected RTL8192-type Wifi chip limited to 2.4 ghz operation, USB 2,
+and buttons. Devices with as low as 32 MB or as high as 128 MB ram exist, as
+do devices with 8 or 16 MB of NOR flash.
+
+Some devices, especially the stationary ones, have 100 mbit Ethernet and an
+Ethernet switch.
+
+Usually the devices have LEDs for status indication, although some have SPI or
+I2C connected displays.
+
+Some have an SD card slot. If it exists, it is a better choice for the root
+file system because it easily outperforms the built-in NAND.
+
+The LTE interface runs on a separate DSP called ZSP880. It is probably derived
+from LSI ZSPs and has an undocumented instruction set. The ZSP communicates
+with the main CPU via SRAM and DRAM and a mailbox hardware that can generate
+IRQs on either ends.
+
+There is also a Cortex M0 CPU, which is responsible for early HW initialization
+and starting the Cortex A53 CPU. It does not have any essential purpose once
+U-Boot is started. An SRAM-based handover protocol exists to run custom code on
+this CPU.
+
+2. Booting via USB
+---------------------------
+
+The Boot ROM has support for booting custom code via USB. This mode can be
+entered by connecting a Boot PIN to GND or by modifying the third byte on NAND
+(set it to anything other than 0x5A aka 'Z'). A free software tool to start
+custom U-Boot and kernels can be found here:
+
+https://github.com/zx297520v3-mainline/zx297520v3-loader
+
+If USB download mode is entered but no boot commands are sent through USB, the
+device will proceed to boot normally after a few seconds. It is therefore
+possible to enable USB boot permanently and still leave the default boot files
+in place.
+
+https://github.com/zx297520v3-mainline/u-boot-mainline
+
+Contains an U-Boot version that can be used with the USB loader and sets up the
+CPU and interrupt controller to comply with Linux's booting requirements.
+
+3. Building for built-in U-Boot
+-------------------------------
+The devices come with an ancient U-Boot that loads legacy uImages from NAND and
+boots them without a chance for the user to interrupt. The images are stored in
+files ap_cpuap.bin and ap_recovery.bin on a jffs2 partition named imagefs,
+usually mtd4. A file named "fotaflag" switches between the two modes.
+
+In addition to the uImage header, those files have a 384-byte signature header,
+which is used for authenticating the images on some devices. Most devices have
+this authentication disabled and it is enough to pad the uImage files with 384
+zero bytes.
+
+Builtin U-Boot also poorly sets up the CPU. Read the next section for details
+on this. It has no support for loading DTBs, so CONFIG_ARM_APPENDED_DTB is
+needed.
+
+So to build an image that boots from NAND the following steps are necessary:
+
+1) Patch the assembly code from section 3 into arch/arm/kernel/head.S.
+2) make zx29_defconfig
+3) make [-j x]
+4) cat arch/arm/boot/zImage arch/arm/boot/dts/zte/[device].dtb > kernel+dtb
+5) mkimage -A arm -O linux -T kernel -C none -a 0x20008000 -d kernel+dtb uimg
+6) dd if=/dev/zero bs=1 count=384 of=ap_recovery.bin
+7) cat uimg >> ap_recovery.bin
+8) Place this file onto imagefs on the device. Delete ap_cpuap.bin if the
+   free space is not enough.
+9) Create the file fotaflag: echo -n FOTA-RECOVERY > fotaflag
+
+For development, booting ap_recovery.bin is recommended because the normal boot
+mode arms the watchdog before starting the kernel.
+
+4. CPU and GIC Setup
+---------------------------
+
+Generally CPU and GICv3 need to be set up according to the requirements spelled
+out in Documentation/arch/arm64/booting.rst. For zx297520v3 this means:
+
+1. GICD_CTLR.DS=1 to disable GIC security
+2. Enable access to ICC_SRE
+3. Disable trapping IRQs into monitor mode
+4. Configure EL2 and below to run in insecure mode.
+5. Configure timer PPIs to active-low.
+
+The kernel sources provided by ZTE do not boot either (interrupts do not work
+at all). They are incomplete in other aspects too, so it is assumed that there
+is some workaround similar to the one described in this document somewhere in
+the binary blobs.
+
+The assembly code below is given as an example of how to achieve this:
+
+::
+
+ #include <linux/irqchip/arm-gic-v3.h>
+ #include <asm/assembler.h>
+ #include <asm/cp15.h>
+
+ @ Detect sane bootloaders and skip the hack
+ ldr	r3, =0xf2000000
+ ldr	r3, [r3]
+ ldr	r4, =(GICD_CTLR_ARE_NS | GICD_CTLR_DS)
+ cmp	r3, r4
+ beq	skip_zx_hack
+ @ This allows EL1 to handle ints hat are normally handled by EL2/3.
+ ldr	r3, =0xf2000000
+ str     r4, [r3]
+
+ cps     #MON_MODE
+
+ @ Work in non-secure physical address space: SCR_EL3.NS = 1. At least the UART
+ @ seems to respond only to non-secure addresses. I have taken insipiration from
+ @ Raspberry pi's armstub7.S here.
+ mov	r3, #0x131			@ non-secure, Make F, A bits in CPSR writeable
+ @ Allow hypervisor call.
+ mcr     p15, 0, r3, c1, c1, 0
+
+ @ AP_PPI_MODE_REG: Configure timer PPIs (10, 11, 13, 14) to active-low.
+ ldr	r3, =0xF22020a8
+ ldr	r4, =0x50
+ str	r4, [r3]
+ ldr	r3, =0xF22020ac
+ ldr	r4, =0x14
+ str	r4, [r3]
+
+ @ Enable EL2 access to ICC_SRE (bit 3, ICC_SRE_EL3.Enable). Enable system reg
+ @ access to GICv3 registers (bit 0, ICC_SRE_EL3.SRE) for EL1 and EL3.
+ mrc	p15, 6, r3, c12, c12, 5         @ ICC_SRE_EL3
+ orr	r3, #0x9                        @ FIXME: No defines for SRE_EL3 values?
+ mcr	p15, 6, r3, c12, c12, 5
+ mrc	p15, 0, r3, c12, c12, 5         @ ICC_SRE_EL1
+ orr	r3, #(ICC_SRE_EL1_SRE)
+ mcr	p15, 0, r3, c12, c12, 5
+
+ @ Like ICC_SRE_EL3, enable EL1 access to ICC_SRE and system register access
+ @ for EL2.
+ mrc	p15, 4, r3, c12, c9, 5          @ ICC_SRE_EL2 aka ICC_HSRE
+ orr	r3, r3, #(ICC_SRE_EL2_ENABLE | ICC_SRE_EL2_SRE)
+ mcr	p15, 4, r3, c12, c9, 5
+ isb
+
+ @ Back to SVC mode
+ cps	#SVC_MODE
+ skip_zx_hack:
+

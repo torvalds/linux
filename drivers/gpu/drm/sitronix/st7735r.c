@@ -85,7 +85,7 @@ static const struct drm_plane_funcs st7735r_plane_funcs = {
 };
 
 static void st7735r_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct st7735r_device *st7735r = to_st7735r_device(drm);

@@ -299,7 +299,7 @@ out:
 
 /* called right after the request is allocated for the request_queue */
 static int bsg_init_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx, unsigned int numa_node)
+		       unsigned int hctx_idx, int numa_node)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 

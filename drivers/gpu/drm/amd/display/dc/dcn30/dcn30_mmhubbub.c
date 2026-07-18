@@ -40,8 +40,8 @@
 #define FN(reg_name, field_name) \
 	mcif_wb30->mcif_wb_shift->field_name, mcif_wb30->mcif_wb_mask->field_name
 
-#define MCIF_ADDR(addr) (((unsigned long long)addr & 0xffffffffff) + 0xFE) >> 8
-#define MCIF_ADDR_HIGH(addr) (unsigned long long)addr >> 40
+#define MCIF_ADDR(addr) ((uint32_t)((((unsigned long long)(addr) & 0xffffffffffULL) + 0xFEULL) >> 8))
+#define MCIF_ADDR_HIGH(addr) ((uint32_t)(((unsigned long long)(addr)) >> 40))
 
 /* wbif programming guide:
  * 1. set up wbif parameter:

@@ -519,6 +519,7 @@ static int sof_ipc3_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 static int sof_ipc3_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 {
 	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_pipeline *spipe = swidget->spipe;
 	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_widget *comp_swidget;
@@ -559,8 +560,15 @@ static int sof_ipc3_widget_setup_comp_pipeline(struct snd_sof_widget *swidget)
 	if (ret < 0)
 		goto err;
 
-	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE))
+	if (sof_debug_check_flag(SOF_DBG_DISABLE_MULTICORE)) {
 		pipeline->core = SOF_DSP_PRIMARY_CORE;
+	} else if (pipeline->core > sdev->num_cores - 1) {
+		dev_info(scomp->dev,
+			 "out of range core id for %s, moving it %d -> %d\n",
+			 swidget->widget->name, pipeline->core,
+			 SOF_DSP_PRIMARY_CORE);
+		pipeline->core = SOF_DSP_PRIMARY_CORE;
+	}
 
 	if (sof_debug_check_flag(SOF_DBG_DYNAMIC_PIPELINES_OVERRIDE))
 		swidget->dynamic_pipeline_widget =

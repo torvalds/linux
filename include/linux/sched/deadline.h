@@ -33,6 +33,15 @@ struct root_domain;
 extern void dl_add_task_root_domain(struct task_struct *p);
 extern void dl_clear_root_domain(struct root_domain *rd);
 extern void dl_clear_root_domain_cpu(int cpu);
+/*
+ * Return whether moving DL task @p to @new_mask requires moving DL
+ * bandwidth accounting between root domains. This helper is specific to
+ * DL bandwidth move accounting semantics and is shared by
+ * cpuset_can_attach() and set_cpus_allowed_dl() so both paths use the
+ * same source root-domain test.
+ */
+extern bool dl_task_needs_bw_move(struct task_struct *p,
+				  const struct cpumask *new_mask);
 
 extern u64 dl_cookie;
 extern bool dl_bw_visited(int cpu, u64 cookie);

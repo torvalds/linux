@@ -35,6 +35,9 @@ void trace_clock_update(u32 mult, u32 shift, u64 epoch_ns, u64 epoch_cyc)
 	struct clock_data *clock = &trace_clock_data;
 	u64 bank = clock->cur ^ 1;
 
+	if (!mult || shift >= 64)
+		return;
+
 	clock->data[bank].mult			= mult;
 	clock->data[bank].shift			= shift;
 	clock->data[bank].epoch_ns		= epoch_ns;

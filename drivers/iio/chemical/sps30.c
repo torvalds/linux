@@ -5,6 +5,7 @@
  * Copyright (c) Tomasz Duszynski <tduszyns@gmail.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -69,6 +70,8 @@ static int sps30_do_meas(struct sps30_state *state, s32 *data, int size)
 {
 	int i, ret;
 
+	guard(mutex)(&state->lock);
+
 	if (state->state == RESET) {
 		ret = state->ops->start_meas(state);
 		if (ret)
@@ -111,9 +114,7 @@ static irqreturn_t sps30_trigger_handler(int irq, void *p)
 		aligned_s64 ts;
 	} scan;
 
-	mutex_lock(&state->lock);
 	ret = sps30_do_meas(state, scan.data, ARRAY_SIZE(scan.data));
-	mutex_unlock(&state->lock);
 	if (ret)
 		goto err;
 
@@ -136,7 +137,6 @@ static int sps30_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_MASSCONCENTRATION:
-			mutex_lock(&state->lock);
 			/* read up to the number of bytes actually needed */
 			switch (chan->channel2) {
 			case IIO_MOD_PM1:
@@ -152,7 +152,6 @@ static int sps30_read_raw(struct iio_dev *indio_dev,
 				ret = sps30_do_meas(state, data, 4);
 				break;
 			}
-			mutex_unlock(&state->lock);
 			if (ret)
 				return ret;
 
@@ -197,9 +196,9 @@ static ssize_t start_cleaning_store(struct device *dev,
 	if (kstrtoint(buf, 0, &val) || val != 1)
 		return -EINVAL;
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
+
 	ret = state->ops->clean_fan(state);
-	mutex_unlock(&state->lock);
 	if (ret)
 		return ret;
 
@@ -215,9 +214,9 @@ static ssize_t cleaning_period_show(struct device *dev,
 	__be32 val;
 	int ret;
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
+
 	ret = state->ops->read_cleaning_period(state, &val);
-	mutex_unlock(&state->lock);
 	if (ret)
 		return ret;
 
@@ -238,12 +237,11 @@ static ssize_t cleaning_period_store(struct device *dev, struct device_attribute
 	    (val > SPS30_AUTO_CLEANING_PERIOD_MAX))
 		return -EINVAL;
 
-	mutex_lock(&state->lock);
+	guard(mutex)(&state->lock);
+
 	ret = state->ops->write_cleaning_period(state, cpu_to_be32(val));
-	if (ret) {
-		mutex_unlock(&state->lock);
+	if (ret)
 		return ret;
-	}
 
 	msleep(20);
 
@@ -255,8 +253,6 @@ static ssize_t cleaning_period_store(struct device *dev, struct device_attribute
 	if (ret)
 		dev_warn(dev,
 			 "period changed but reads will return the old value\n");
-
-	mutex_unlock(&state->lock);
 
 	return len;
 }

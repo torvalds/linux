@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 use super::Vmalloc;
+
 use crate::page;
-use core::marker::PhantomData;
-use core::ptr::NonNull;
+
+use core::{
+    marker::PhantomData,
+    ptr::NonNull, //
+};
 
 /// An [`Iterator`] of [`page::BorrowedPage`] items owned by a [`Vmalloc`] allocation.
 ///

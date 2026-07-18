@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2025 Intel Corporation
+ * Copyright (c) 2018 - 2026 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_EHT_H
@@ -394,13 +394,23 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 }
 
 /* must validate ieee80211_eht_oper_size_ok() first */
+static inline const struct ieee80211_eht_operation_info *
+ieee80211_eht_oper_info(const struct ieee80211_eht_operation *eht_oper)
+{
+	if (!(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT))
+		return NULL;
+
+	return (const void *)eht_oper->optional;
+}
+
+/* must validate ieee80211_eht_oper_size_ok() first */
 static inline u16
 ieee80211_eht_oper_dis_subchan_bitmap(const struct ieee80211_eht_operation *eht_oper)
 {
-	const struct ieee80211_eht_operation_info *info =
-		(const void *)eht_oper->optional;
+	const struct ieee80211_eht_operation_info *info;
 
-	if (!(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT))
+	info = ieee80211_eht_oper_info(eht_oper);
+	if (!info)
 		return 0;
 
 	if (!(eht_oper->params & IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT))
@@ -485,26 +495,28 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MED_SYNC_DELAY_DEFAULT		0x10ac
 
 #define IEEE80211_EML_CAP_EMLSR_SUPP			0x0001
-#define IEEE80211_EML_CAP_EMLSR_PADDING_DELAY		0x000e
-#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_0US		0
-#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_32US		1
-#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_64US		2
-#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_128US		3
-#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US		4
-#define IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY	0x0070
+#define IEEE80211_EML_CAP_EML_PADDING_DELAY		0x000e
+/* Described Tables 9-417i & 9-417k in 802.11be-2024, which have the same values */
+#define  IEEE80211_EML_CAP_EML_PADDING_DELAY_0US		0
+#define  IEEE80211_EML_CAP_EML_PADDING_DELAY_32US		1
+#define  IEEE80211_EML_CAP_EML_PADDING_DELAY_64US		2
+#define  IEEE80211_EML_CAP_EML_PADDING_DELAY_128US		3
+#define  IEEE80211_EML_CAP_EML_PADDING_DELAY_256US		4
+#define IEEE80211_EML_CAP_EML_TRANSITION_DELAY	0x0070
+/* Described in Table 9-417j in 802.11be-2024 */
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_0US		0
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_16US		1
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_32US		2
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_64US		3
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_128US		4
 #define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_256US		5
+/* Described in Table 9-417l in 802.11be-2024 */
+#define  IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_0US		0
+#define  IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_32US		1
+#define  IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_64US		2
+#define  IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_128US		3
+#define  IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_256US		4
 #define IEEE80211_EML_CAP_EMLMR_SUPPORT			0x0080
-#define IEEE80211_EML_CAP_EMLMR_DELAY			0x0700
-#define  IEEE80211_EML_CAP_EMLMR_DELAY_0US			0
-#define  IEEE80211_EML_CAP_EMLMR_DELAY_32US			1
-#define  IEEE80211_EML_CAP_EMLMR_DELAY_64US			2
-#define  IEEE80211_EML_CAP_EMLMR_DELAY_128US			3
-#define  IEEE80211_EML_CAP_EMLMR_DELAY_256US			4
 #define IEEE80211_EML_CAP_TRANSITION_TIMEOUT		0x7800
 #define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_0			0
 #define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128US		1
@@ -517,7 +529,6 @@ struct ieee80211_multi_link_elem {
 #define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_16TU		8
 #define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_32TU		9
 #define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_64TU		10
-#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128TU		11
 
 #define IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS		0x000f
 #define IEEE80211_MLD_CAP_OP_SRS_SUPPORT		0x0010
@@ -749,11 +760,13 @@ static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
 }
 
 /* Defined in Figure 9-1074t in P802.11be_D7.0 */
-#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE           0x0001
-#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK    0x001e
-#define IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE               0x0020
-#define IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK     0x0040
-#define IEEE80211_EHT_ML_EXT_MLD_CAPA_BTM_MLD_RECO_MULTI_AP     0x0080
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_PARAM_UPDATE		0x0001
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_OP_RECO_MAX_LINKS_MASK	0x001e
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_NSTR_UPDATE		0x0020
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_EMLSR_ENA_ON_ONE_LINK	0x0040
+#define IEEE80211_EHT_ML_EXT_MLD_CAPA_BTM_MLD_RECO_MULTI_AP	0x0080
+/* defined by UHR Draft P802.11bn_D1.3 Figure 9-1147 */
+#define IEEE80211_UHR_ML_EXT_MLD_CAPA_ML_PM			0x0100
 
 /**
  * ieee80211_mle_get_ext_mld_capa_op - returns the extended MLD capabilities
@@ -1035,13 +1048,17 @@ ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(const struct ieee80211_mle_per_sta
 #define IEEE80211_MLE_STA_RECONF_CONTROL_COMPLETE_PROFILE		0x0010
 #define IEEE80211_MLE_STA_RECONF_CONTROL_STA_MAC_ADDR_PRESENT		0x0020
 #define IEEE80211_MLE_STA_RECONF_CONTROL_AP_REM_TIMER_PRESENT		0x0040
-#define	IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE                 0x0780
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_AP_REM          0
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_OP_PARAM_UPDATE 1
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_ADD_LINK        2
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_DEL_LINK        3
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_NSTR_STATUS     4
-#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT       0x0800
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE			0x0780
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_AP_REM		0
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_OP_PARAM_UPDATE	1
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_ADD_LINK	2
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_DEL_LINK	3
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_NSTR_STATUS	4
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_TYPE_UHR_OMP_UPD	5
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_PARAMS_PRESENT	0x0800
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_NSTR_BMAP_SIZE	0x1000
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_NSTR_IND_BMAP_PRES	0x2000
+#define IEEE80211_MLE_STA_RECONF_CONTROL_OPERATION_DSO_INFO_PRESENT	0x4000
 
 /**
  * ieee80211_mle_reconf_sta_prof_size_ok - validate reconfiguration multi-link
@@ -1121,14 +1138,20 @@ static inline bool ieee80211_tid_to_link_map_size_ok(const u8 *data, size_t len)
 
 static inline u32 ieee80211_emlsr_pad_delay_in_us(u16 eml_cap)
 {
+	u32 emlsr_supp =
+		u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLSR_SUPP);
+
+	if (!emlsr_supp)
+		return 0;
+
 	/* IEEE Std 802.11be-2024 Table 9-417i—Encoding of the EMLSR
 	 * Padding Delay subfield.
 	 */
 	u32 pad_delay = u16_get_bits(eml_cap,
-				     IEEE80211_EML_CAP_EMLSR_PADDING_DELAY);
+				     IEEE80211_EML_CAP_EML_PADDING_DELAY);
 
 	if (!pad_delay ||
-	    pad_delay > IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US)
+	    pad_delay > IEEE80211_EML_CAP_EML_PADDING_DELAY_256US)
 		return 0;
 
 	return 32 * (1 << (pad_delay - 1));
@@ -1145,12 +1168,18 @@ static inline u32 ieee80211_emlsr_pad_delay_in_us(u16 eml_cap)
 
 static inline u32 ieee80211_emlsr_trans_delay_in_us(u16 eml_cap)
 {
+	u32 emlsr_supp =
+		u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLSR_SUPP);
+
+	if (!emlsr_supp)
+		return 0;
+
 	/* IEEE Std 802.11be-2024 Table 9-417j—Encoding of the EMLSR
 	 * Transition Delay subfield.
 	 */
 	u32 trans_delay =
 		u16_get_bits(eml_cap,
-			     IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY);
+			     IEEE80211_EML_CAP_EML_TRANSITION_DELAY);
 
 	/* invalid values also just use 0 */
 	if (!trans_delay ||
@@ -1161,11 +1190,73 @@ static inline u32 ieee80211_emlsr_trans_delay_in_us(u16 eml_cap)
 }
 
 /**
- * ieee80211_eml_trans_timeout_in_us - Fetch the EMLSR Transition
+ * ieee80211_emlmr_pad_delay_in_us - Fetch the EMLMR Padding delay
+ *	in microseconds
+ * @eml_cap: EML capabilities field value from common info field of
+ *	the Multi-link element
+ * Return: the EMLMR Padding delay (in microseconds) encoded in the
+ *	EML Capabilities field
+ */
+
+static inline u32 ieee80211_emlmr_pad_delay_in_us(u16 eml_cap)
+{
+	u32 emlmr_supp =
+		u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLMR_SUPPORT);
+
+	if (!emlmr_supp)
+		return 0;
+
+	/* IEEE Std 802.11be-2024 Table 9-417k—Encoding of the EMLMR
+	 * Padding Delay subfield.
+	 */
+	u32 pad_delay = u16_get_bits(eml_cap,
+				     IEEE80211_EML_CAP_EML_PADDING_DELAY);
+
+	if (!pad_delay ||
+	    pad_delay > IEEE80211_EML_CAP_EML_PADDING_DELAY_256US)
+		return 0;
+
+	return 32 * (1 << (pad_delay - 1));
+}
+
+/**
+ * ieee80211_emlmr_trans_delay_in_us - Fetch the EMLMR Transition
+ *	delay in microseconds
+ * @eml_cap: EML capabilities field value from common info field of
+ *	the Multi-link element
+ * Return: the EMLMR Transition delay (in microseconds) encoded in the
+ *	EML Capabilities field
+ */
+
+static inline u32 ieee80211_emlmr_trans_delay_in_us(u16 eml_cap)
+{
+	u32 emlmr_supp =
+		u16_get_bits(eml_cap, IEEE80211_EML_CAP_EMLMR_SUPPORT);
+
+	if (!emlmr_supp)
+		return 0;
+
+	/* IEEE Std 802.11be-2024 Table 9-417l—Encoding of the EMLMR
+	 * Transition Delay subfield.
+	 */
+	u32 trans_delay =
+		u16_get_bits(eml_cap,
+			     IEEE80211_EML_CAP_EML_TRANSITION_DELAY);
+
+	/* invalid values also just use 0 */
+	if (!trans_delay ||
+	    trans_delay > IEEE80211_EML_CAP_EMLMR_TRANSITION_DELAY_256US)
+		return 0;
+
+	return 32 * (1 << (trans_delay - 1));
+}
+
+/**
+ * ieee80211_eml_trans_timeout_in_us - Fetch the EML Transition
  *	timeout value in microseconds
  * @eml_cap: EML capabilities field value from common info field of
  *	the Multi-link element
- * Return: the EMLSR Transition timeout (in microseconds) encoded in
+ * Return: the EML Transition timeout (in microseconds) encoded in
  *	the EML Capabilities field
  */
 
@@ -1178,7 +1269,7 @@ static inline u32 ieee80211_eml_trans_timeout_in_us(u16 eml_cap)
 				  IEEE80211_EML_CAP_TRANSITION_TIMEOUT);
 
 	/* invalid values also just use 0 */
-	if (!timeout || timeout > IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128TU)
+	if (!timeout || timeout > IEEE80211_EML_CAP_TRANSITION_TIMEOUT_64TU)
 		return 0;
 
 	return 128 * (1 << (timeout - 1));

@@ -36,9 +36,9 @@
 #endif /* defined(__SSP__) ... */
 
 #if __nolibc_has_attribute(no_stack_protector)
-#  define __no_stack_protector __attribute__((no_stack_protector))
+#  define __nolibc_no_stack_protector __attribute__((no_stack_protector))
 #else
-#  define __no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
+#  define __nolibc_no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
 #endif /* __nolibc_has_attribute(no_stack_protector) */
 
 #if __nolibc_has_attribute(__fallthrough__)

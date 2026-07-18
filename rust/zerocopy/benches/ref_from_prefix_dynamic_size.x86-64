@@ -1,0 +1,17 @@
+bench_ref_from_prefix_dynamic_size:
+	xor edx, edx
+	mov eax, 0
+	test dil, 1
+	jne .LBB5_4
+	cmp rsi, 4
+	jae .LBB5_3
+	mov edx, 1
+	xor eax, eax
+	ret
+.LBB5_3:
+	add rsi, -4
+	shr rsi
+	mov rdx, rsi
+	mov rax, rdi
+.LBB5_4:
+	ret

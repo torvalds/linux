@@ -178,6 +178,37 @@ unsigned int font_data_size(font_data_t *fd)
 }
 EXPORT_SYMBOL_GPL(font_data_size);
 
+static unsigned int font_data_num_glyphs(font_data_t *fd, unsigned int width, unsigned int height)
+{
+	return font_data_size(fd) / font_glyph_size(width, height);
+}
+
+/**
+ * font_data_glyph_buf() - Returns the glyph for a specific character as raw bytes
+ * @fd: The font data
+ * @width: The glyph width in bits per scanline
+ * @vpitch: The number of scanlines per glyph
+ * @c: The character
+ *
+ * Glyphs start at fixed intervals within the font data. font_data_glyph_buf()
+ * returns the glyph shape of the specified character. If no such glyph
+ * exists in the font, it returns NULL.
+ *
+ * Returns:
+ * The character's raw glyph shape, or NULL if no glyph exists for the character. The
+ * provided buffer is read-only.
+ */
+const unsigned char *font_data_glyph_buf(font_data_t *fd,
+					 unsigned int width, unsigned int vpitch,
+					 unsigned int c)
+{
+	if (c >= font_data_num_glyphs(fd, width, vpitch))
+		return NULL;
+
+	return font_data_buf(fd) + font_glyph_size(width, vpitch) * c;
+}
+EXPORT_SYMBOL_GPL(font_data_glyph_buf);
+
 /**
  * font_data_is_equal - Compares font data for equality
  * @lhs: Left-hand side font data

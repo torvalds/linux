@@ -42,9 +42,10 @@
 #include "oss/oss_1_0_d.h"
 #include "oss/oss_1_0_sh_mask.h"
 
+#define VCE_V1_0_ALIGNMENT	(32 * 1024)
 #define VCE_V1_0_FW_SIZE	(256 * 1024)
 #define VCE_V1_0_STACK_SIZE	(64 * 1024)
-#define VCE_V1_0_DATA_SIZE	(7808 * (AMDGPU_MAX_VCE_HANDLES + 1))
+#define VCE_V1_0_DATA_SIZE	(ALIGN(7808 * (AMDGPU_MAX_VCE_HANDLES + 1), VCE_V1_0_ALIGNMENT))
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
 static void vce_v1_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -177,7 +178,7 @@ static void vce_v1_0_init_cg(struct amdgpu_device *adev)
 }
 
 /**
- * vce_v1_0_load_fw_signature - load firmware signature into VCPU BO
+ * vce_v1_0_load_fw() - load firmware signature into VCPU BO
  *
  * @adev: amdgpu_device pointer
  *
@@ -185,20 +186,25 @@ static void vce_v1_0_init_cg(struct amdgpu_device *adev)
  * This function finds the signature appropriate for the current
  * ASIC and writes that into the VCPU BO.
  */
-static int vce_v1_0_load_fw_signature(struct amdgpu_device *adev)
+static int vce_v1_0_load_fw(struct amdgpu_device *adev)
 {
 	const struct common_firmware_header *hdr;
 	struct vce_v1_0_fw_signature *sign;
-	unsigned int ucode_offset;
+	u32 ucode_offset;
+	u32 ucode_size;
 	uint32_t chip_id;
 	u32 *cpu_addr;
 	int i;
 
 	hdr = (const struct common_firmware_header *)adev->vce.fw->data;
 	ucode_offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
+	ucode_size = hdr->ucode_size_bytes - sizeof(struct vce_v1_0_fw_signature *);
 	cpu_addr = adev->vce.cpu_addr;
 
 	sign = (void *)adev->vce.fw->data + ucode_offset;
+
+	if (ucode_size > VCE_V1_0_FW_SIZE - AMDGPU_VCE_FIRMWARE_OFFSET)
+		return -EINVAL;
 
 	switch (adev->asic_type) {
 	case CHIP_TAHITI:
@@ -226,12 +232,14 @@ static int vce_v1_0_load_fw_signature(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	memset_io(&cpu_addr[0], 0, amdgpu_bo_size(adev->vce.vcpu_bo));
+
 	cpu_addr += (256 - 64) / 4;
 	memcpy_toio(&cpu_addr[0], &sign->val[i].nonce[0], 16);
 	cpu_addr[4] = cpu_to_le32(le32_to_cpu(sign->length) + 64);
 
 	memset_io(&cpu_addr[5], 0, 44);
-	memcpy_toio(&cpu_addr[16], &sign[1], hdr->ucode_size_bytes - sizeof(*sign));
+	memcpy_toio(&cpu_addr[16], &sign[1], ucode_size);
 
 	cpu_addr += (le32_to_cpu(sign->length) + 64) / 4;
 	memcpy_toio(&cpu_addr[0], &sign->val[i].sigval[0], 16);
@@ -312,18 +320,23 @@ static int vce_v1_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmVCE_VCPU_SCRATCH7, AMDGPU_MAX_VCE_HANDLES);
 
 	offset =  adev->vce.gpu_addr + AMDGPU_VCE_FIRMWARE_OFFSET;
-	size = VCE_V1_0_FW_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset & 0x7fffffff);
+	size = VCE_V1_0_FW_SIZE - AMDGPU_VCE_FIRMWARE_OFFSET;
+	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset);
 	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
 
 	offset += size;
 	size = VCE_V1_0_STACK_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0x7fffffff);
+	WARN_ON(!IS_ALIGNED(offset, VCE_V1_0_ALIGNMENT));
+	WARN_ON(!IS_ALIGNED(size, VCE_V1_0_ALIGNMENT));
+	WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset);
 	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
 
 	offset += size;
 	size = VCE_V1_0_DATA_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0x7fffffff);
+	WARN_ON(!IS_ALIGNED(offset, VCE_V1_0_ALIGNMENT));
+	WARN_ON(!IS_ALIGNED(size, VCE_V1_0_ALIGNMENT));
+	WARN_ON((offset + size - adev->vce.gpu_addr) > amdgpu_bo_size(adev->vce.vcpu_bo));
+	WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset);
 	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
 
 	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
@@ -527,22 +540,31 @@ static int vce_v1_0_early_init(struct amdgpu_ip_block *ip_block)
  * To accomodate that, we put GART to the LOW address range
  * and reserve some GART pages where we map the VCPU BO,
  * so that it gets a 32-bit address.
+ *
+ * The BAR address is zero and we can't change it
+ * due to the firmware validation mechanism.
+ * It seems that it fails to initialize if the address is >= 128 MiB.
  */
 static int vce_v1_0_ensure_vcpu_bo_32bit_addr(struct amdgpu_device *adev)
 {
 	u64 bo_size = amdgpu_bo_size(adev->vce.vcpu_bo);
-	u64 max_vcpu_bo_addr = 0xffffffff - bo_size;
+	u64 max_vcpu_bo_addr = 0x07ffffff - bo_size;
 	u64 num_pages = ALIGN(bo_size, AMDGPU_GPU_PAGE_SIZE) / AMDGPU_GPU_PAGE_SIZE;
 	u64 pa = amdgpu_gmc_vram_pa(adev, adev->vce.vcpu_bo);
 	u64 flags = AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE | AMDGPU_PTE_VALID;
 	u64 vce_gart_start_offs;
 	int r;
 
-	r = amdgpu_gtt_mgr_alloc_entries(&adev->mman.gtt_mgr,
-					 &adev->vce.gart_node, num_pages,
-					 DRM_MM_INSERT_LOW);
-	if (r)
-		return r;
+	if (adev->gmc.vram_start < adev->gmc.gart_start)
+		return amdgpu_bo_gpu_offset(adev->vce.vcpu_bo) <= max_vcpu_bo_addr ? 0 : -EINVAL;
+
+	if (!drm_mm_node_allocated(&adev->vce.gart_node)) {
+		r = amdgpu_gtt_mgr_alloc_entries(&adev->mman.gtt_mgr,
+						 &adev->vce.gart_node, num_pages,
+						 DRM_MM_INSERT_LOW);
+		if (r)
+			return r;
+	}
 
 	vce_gart_start_offs = amdgpu_gtt_node_to_byte_offset(&adev->vce.gart_node);
 
@@ -553,8 +575,6 @@ static int vce_v1_0_ensure_vcpu_bo_32bit_addr(struct amdgpu_device *adev)
 	amdgpu_gart_map_vram_range(adev, pa, adev->vce.gart_node.start,
 				   num_pages, flags, adev->gart.ptr);
 	adev->vce.gpu_addr = adev->gmc.gart_start + vce_gart_start_offs;
-	if (adev->vce.gpu_addr > max_vcpu_bo_addr)
-		return -EINVAL;
 
 	return 0;
 }
@@ -574,10 +594,7 @@ static int vce_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	r = amdgpu_vce_resume(adev);
-	if (r)
-		return r;
-	r = vce_v1_0_load_fw_signature(adev);
+	r = vce_v1_0_load_fw(adev);
 	if (r)
 		return r;
 	r = vce_v1_0_ensure_vcpu_bo_32bit_addr(adev);
@@ -696,10 +713,7 @@ static int vce_v1_0_resume(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
-	r = amdgpu_vce_resume(adev);
-	if (r)
-		return r;
-	r = vce_v1_0_load_fw_signature(adev);
+	r = vce_v1_0_load_fw(adev);
 	if (r)
 		return r;
 	r = vce_v1_0_ensure_vcpu_bo_32bit_addr(adev);

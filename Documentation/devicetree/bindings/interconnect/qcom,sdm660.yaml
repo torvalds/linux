@@ -79,6 +79,19 @@ allOf:
             - const: aggre2_usb3_axi
             - const: cfg_noc_usb2_axi
 
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sdm660-bimc
+            - qcom,sdm660-cnoc
+            - qcom,sdm660-gnoc
+            - qcom,sdm660-snoc
+    then:
+      properties:
+        clocks: false
+        clock-names: false
+
 examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-sdm660.h>

@@ -22,7 +22,6 @@
 #include <drm/drm_print.h>
 
 #include "vc4_drv.h"
-#include "uapi/drm/vc4_drm.h"
 
 static const struct drm_gem_object_funcs vc4_gem_object_funcs;
 

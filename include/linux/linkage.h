@@ -39,6 +39,10 @@
 #define __page_aligned_data	__section(".data..page_aligned") __aligned(PAGE_SIZE)
 #define __page_aligned_bss	__section(".bss..page_aligned") __aligned(PAGE_SIZE)
 
+#ifndef __bss_pgtbl
+#define __bss_pgtbl		__page_aligned_bss
+#endif
+
 /*
  * For assembly routines.
  *

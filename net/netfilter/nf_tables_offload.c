@@ -361,7 +361,7 @@ static int nft_block_setup(struct nft_base_chain *basechain,
 		err = nft_flow_offload_unbind(bo, basechain);
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		DEBUG_NET_WARN_ON_ONCE(1);
 		err = -EOPNOTSUPP;
 	}
 

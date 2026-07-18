@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -262,20 +262,20 @@ struct iwl_mfu_assert_dump_notif {
 } __packed; /* MFU_DUMP_ASSERT_API_S_VER_1 */
 
 /**
- * enum iwl_mvm_marker_id - marker ids
+ * enum iwl_marker_id - marker ids
  *
  * The ids for different type of markers to insert into the usniffer logs
  *
  * @MARKER_ID_TX_FRAME_LATENCY: TX latency marker
  * @MARKER_ID_SYNC_CLOCK: sync FW time and systime
  */
-enum iwl_mvm_marker_id {
+enum iwl_marker_id {
 	MARKER_ID_TX_FRAME_LATENCY = 1,
 	MARKER_ID_SYNC_CLOCK = 2,
 }; /* MARKER_ID_API_E_VER_2 */
 
 /**
- * struct iwl_mvm_marker - mark info into the usniffer logs
+ * struct iwl_marker - mark info into the usniffer logs
  *
  * (MARKER_CMD = 0xcb)
  *
@@ -284,12 +284,12 @@ enum iwl_mvm_marker_id {
  * In the command response the ucode will return the GP2 time.
  *
  * @dw_len: The amount of dwords following this byte including this byte.
- * @marker_id: A unique marker id (iwl_mvm_marker_id).
+ * @marker_id: A unique marker id (iwl_marker_id).
  * @reserved: reserved.
  * @timestamp: in milliseconds since 1970-01-01 00:00:00 UTC
  * @metadata: additional meta data that will be written to the unsiffer log
  */
-struct iwl_mvm_marker {
+struct iwl_marker {
 	u8 dw_len;
 	u8 marker_id;
 	__le16 reserved;
@@ -298,11 +298,11 @@ struct iwl_mvm_marker {
 } __packed; /* MARKER_API_S_VER_1 */
 
 /**
- * struct iwl_mvm_marker_rsp - Response to marker cmd
+ * struct iwl_marker_rsp - Response to marker cmd
  *
  * @gp2: The gp2 clock value in the FW
  */
-struct iwl_mvm_marker_rsp {
+struct iwl_marker_rsp {
 	__le32 gp2;
 } __packed;
 

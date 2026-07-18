@@ -53,9 +53,9 @@ static int clu_set_table(struct vsp1_clu *clu, struct v4l2_ctrl *ctrl)
 	for (i = 0; i < CLU_SIZE; ++i)
 		vsp1_dl_body_write(dlb, VI6_CLU_DATA, ctrl->p_new.p_u32[i]);
 
-	spin_lock_irq(&clu->lock);
-	swap(clu->clu, dlb);
-	spin_unlock_irq(&clu->lock);
+	scoped_guard(spinlock_irq, &clu->lock) {
+		swap(clu->clu, dlb);
+	}
 
 	vsp1_dl_body_put(dlb);
 	return 0;
@@ -162,7 +162,6 @@ static void clu_configure_frame(struct vsp1_entity *entity,
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);
 	struct vsp1_dl_body *clu_dlb;
-	unsigned long flags;
 	u32 ctrl = VI6_CLU_CTRL_AAI | VI6_CLU_CTRL_MVS | VI6_CLU_CTRL_EN;
 
 	/* 2D mode can only be used with the YCbCr pixel encoding. */
@@ -173,10 +172,10 @@ static void clu_configure_frame(struct vsp1_entity *entity,
 
 	vsp1_clu_write(clu, dlb, VI6_CLU_CTRL, ctrl);
 
-	spin_lock_irqsave(&clu->lock, flags);
-	clu_dlb = clu->clu;
-	clu->clu = NULL;
-	spin_unlock_irqrestore(&clu->lock, flags);
+	scoped_guard(spinlock_irqsave, &clu->lock) {
+		clu_dlb = clu->clu;
+		clu->clu = NULL;
+	}
 
 	if (clu_dlb) {
 		vsp1_dl_list_add_body(dl, clu_dlb);

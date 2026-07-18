@@ -432,7 +432,7 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 		return ERR_PTR(-ENOMEM);
 
 	path = of_icc_get(dev, name);
-	if (!IS_ERR(path)) {
+	if (!IS_ERR_OR_NULL(path)) {
 		*ptr = path;
 		devres_add(dev, ptr);
 	} else {
@@ -442,6 +442,26 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 	return path;
 }
 EXPORT_SYMBOL_GPL(devm_of_icc_get);
+
+struct icc_path *devm_of_icc_get_by_index(struct device *dev, int idx)
+{
+	struct icc_path **ptr, *path;
+
+	ptr = devres_alloc(devm_icc_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	path = of_icc_get_by_index(dev, idx);
+	if (!IS_ERR(path)) {
+		*ptr = path;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return path;
+}
+EXPORT_SYMBOL_GPL(devm_of_icc_get_by_index);
 
 /**
  * of_icc_get_by_index() - get a path handle from a DT node based on index

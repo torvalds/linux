@@ -573,8 +573,7 @@ static int rtl8366rb_set_addr(struct realtek_priv *priv)
 
 	eth_random_addr(addr);
 
-	dev_info(priv->dev, "set MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
-		 addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	dev_info(priv->dev, "set MAC: %pM\n", addr);
 	val = addr[0] << 8 | addr[1];
 	ret = regmap_write(priv->map, RTL8366RB_SMAR0, val);
 	if (ret)

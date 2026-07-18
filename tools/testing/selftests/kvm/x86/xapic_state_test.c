@@ -23,7 +23,7 @@ static void xapic_guest_code(void)
 	xapic_enable();
 
 	while (1) {
-		uint64_t val = (u64)xapic_read_reg(APIC_IRR) |
+		u64 val = (u64)xapic_read_reg(APIC_IRR) |
 			       (u64)xapic_read_reg(APIC_IRR + 0x10) << 32;
 
 		xapic_write_reg(APIC_ICR2, val >> 32);
@@ -43,7 +43,7 @@ static void x2apic_guest_code(void)
 	x2apic_enable();
 
 	do {
-		uint64_t val = x2apic_read_reg(APIC_IRR) |
+		u64 val = x2apic_read_reg(APIC_IRR) |
 			       x2apic_read_reg(APIC_IRR + 0x10) << 32;
 
 		if (val & X2APIC_RSVD_BITS_MASK) {
@@ -56,12 +56,12 @@ static void x2apic_guest_code(void)
 	} while (1);
 }
 
-static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
+static void ____test_icr(struct xapic_vcpu *x, u64 val)
 {
 	struct kvm_vcpu *vcpu = x->vcpu;
 	struct kvm_lapic_state xapic;
 	struct ucall uc;
-	uint64_t icr;
+	u64 icr;
 
 	/*
 	 * Tell the guest what ICR value to write.  Use the IRR to pass info,
@@ -93,7 +93,7 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 		TEST_ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
 }
 
-static void __test_icr(struct xapic_vcpu *x, uint64_t val)
+static void __test_icr(struct xapic_vcpu *x, u64 val)
 {
 	/*
 	 * The BUSY bit is reserved on both AMD and Intel, but only AMD treats
@@ -109,7 +109,7 @@ static void __test_icr(struct xapic_vcpu *x, uint64_t val)
 static void test_icr(struct xapic_vcpu *x)
 {
 	struct kvm_vcpu *vcpu = x->vcpu;
-	uint64_t icr, i, j;
+	u64 icr, i, j;
 
 	icr = APIC_DEST_SELF | APIC_INT_ASSERT | APIC_DM_FIXED;
 	for (i = 0; i <= 0xff; i++)
@@ -142,9 +142,9 @@ static void test_icr(struct xapic_vcpu *x)
 	__test_icr(x, -1ull & ~APIC_DM_FIXED_MASK);
 }
 
-static void __test_apic_id(struct kvm_vcpu *vcpu, uint64_t apic_base)
+static void __test_apic_id(struct kvm_vcpu *vcpu, u64 apic_base)
 {
-	uint32_t apic_id, expected;
+	u32 apic_id, expected;
 	struct kvm_lapic_state xapic;
 
 	vcpu_set_msr(vcpu, MSR_IA32_APICBASE, apic_base);
@@ -170,9 +170,9 @@ static void __test_apic_id(struct kvm_vcpu *vcpu, uint64_t apic_base)
  */
 static void test_apic_id(void)
 {
-	const uint32_t NR_VCPUS = 3;
+	const u32 NR_VCPUS = 3;
 	struct kvm_vcpu *vcpus[NR_VCPUS];
-	uint64_t apic_base;
+	u64 apic_base;
 	struct kvm_vm *vm;
 	int i;
 

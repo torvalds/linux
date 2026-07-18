@@ -3,7 +3,7 @@
  * NXP S32G2 SoC family
  *
  * Copyright (c) 2021 SUSE LLC
- * Copyright 2017-2021, 2024-2025 NXP
+ * Copyright 2017-2021, 2024-2026 NXP
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -417,6 +417,15 @@
 			clock-names = "dmamux0", "dmamux1";
 		};
 
+		pit0: timer@40188000 {
+			compatible = "nxp,s32g2-pit";
+			reg = <0x40188000 0x3000>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 61>;
+			clock-names = "pit";
+			status = "disabled";
+		};
+
 		can0: can@401b4000 {
 			compatible = "nxp,s32g2-flexcan";
 			reg = <0x401b4000 0xa000>;
@@ -554,6 +563,29 @@
 			status = "disabled";
 		};
 
+		pwm0: pwm@401f4000 {
+			compatible = "nxp,s32g2-ftm-pwm";
+			reg = <0x401f4000 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&clks 5>,
+				 <&clks 6>,
+				 <&clks 5>,
+				 <&clks 5>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			status = "disabled";
+		};
+
+		adc0: adc@401f8000 {
+			compatible = "nxp,s32g2-sar-adc";
+			reg = <0x401f8000 0x1000>;
+			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 0x41>;
+			dmas = <&edma0 0 32>;
+			dma-names = "rx";
+			status = "disabled";
+		};
+
 		swt4: watchdog@40200000 {
 			compatible = "nxp,s32g2-swt";
 			reg = <0x40200000 0x1000>;
@@ -620,6 +652,15 @@
 					  "err";
 			clocks = <&clks 63>, <&clks 64>;
 			clock-names = "dmamux0", "dmamux1";
+		};
+
+		pit1: timer@40288000 {
+			compatible = "nxp,s32g2-pit";
+			reg = <0x40288000 0x3000>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 61>;
+			clock-names = "pit";
+			status = "disabled";
 		};
 
 		can2: can@402a8000 {
@@ -714,6 +755,29 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clks 40>;
 			clock-names = "ipg";
+			status = "disabled";
+		};
+
+		pwm1: pwm@402e4000 {
+			compatible = "nxp,s32g2-ftm-pwm";
+			reg = <0x402e4000 0x1000>;
+			#pwm-cells = <3>;
+			clocks = <&clks 7>,
+				 <&clks 8>,
+				 <&clks 7>,
+				 <&clks 7>;
+			clock-names = "ftm_sys", "ftm_ext",
+				      "ftm_fix", "ftm_cnt_clk_en";
+			status = "disabled";
+		};
+
+		adc1: adc@402e8000 {
+			compatible = "nxp,s32g2-sar-adc";
+			reg = <0x402e8000 0x1000>;
+			interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clks 0x41>;
+			dmas = <&edma1 1 32>;
+			dma-names = "rx";
 			status = "disabled";
 		};
 

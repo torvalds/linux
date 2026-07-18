@@ -101,7 +101,7 @@ static void optc32_set_odm_combine(struct timing_generator *optc, int *opp_id, i
 void optc32_get_odm_combine_segments(struct timing_generator *tg, int *odm_combine_segments)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(tg);
-	int segments;
+	uint32_t segments;
 
 	REG_GET(OPTC_DATA_SOURCE_SELECT, OPTC_NUM_OF_INPUT_SEGMENT, &segments);
 
@@ -155,15 +155,10 @@ static bool optc32_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
-	REG_SEQ_START();
-
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 2,
 			OTG_MASTER_EN, 1);
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 
 	return true;
 }

@@ -23,7 +23,7 @@
 
 		fb0: framebuffer@17177000 {
 			compatible = "simple-framebuffer";
-			reg = <0 0x17177000 0 (480 * 800 * 4)>;
+			memory-region = <&fb_mem>;
 			power-domains = <&apmu PXA1908_POWER_DOMAIN_DSI>;
 			width = <480>;
 			height = <800>;
@@ -48,8 +48,9 @@
 			reg = <0 0 0 0x1000000>;
 		};
 
-		framebuffer@17000000 {
-			reg = <0 0x17000000 0 0x1800000>;
+		/* The "active buffer" is at 0x17000000 + (size of one buffer). */
+		fb_mem: framebuffer@17177000 {
+			reg = <0 0x17177000 0 (480 * 800 * 4)>;
 			no-map;
 		};
 	};
@@ -460,7 +461,7 @@
 
 		regulators {
 			ldo2: ldo2 {
-				regulator-min-microvolt = <1900000>;
+				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <3100000>;
 			};
 
@@ -523,6 +524,8 @@
 	pinctrl-1 = <&sdh1_fast_pins_0 &sdh1_fast_pins_1 &sdh1_pins_2>;
 	bus-width = <4>;
 	non-removable;
+	keep-power-in-suspend;
+	wakeup-source;
 };
 
 &pwm3 {

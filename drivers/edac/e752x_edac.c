@@ -1414,20 +1414,20 @@ static void e752x_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id e752x_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(INTEL, 7520_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7520},
-	{
-	 PCI_VEND_DEV(INTEL, 7525_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7525},
-	{
-	 PCI_VEND_DEV(INTEL, 7320_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7320},
-	{
-	 PCI_VEND_DEV(INTEL, 3100_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 I3100},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, 7520_0),
+		.driver_data = E7520,
+	}, {
+		PCI_VEND_DEV(INTEL, 7525_0),
+		.driver_data = E7525,
+	}, {
+		PCI_VEND_DEV(INTEL, 7320_0),
+		.driver_data = E7320,
+	}, {
+		PCI_VEND_DEV(INTEL, 3100_0),
+		.driver_data = I3100,
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, e752x_pci_tbl);

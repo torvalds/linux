@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <linux/hw_bitfield.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <drm/drm_blend.h>
@@ -2115,7 +2114,7 @@ static u32 rk3568_vop2_read_layer_cfg(struct vop2 *vop2)
 	return vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
 }
 
-static void rk3568_vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
+static void rk3568_vop2_wait_for_layer_cfg_done(struct vop2 *vop2)
 {
 	u32 atv_layer_cfg;
 	int ret;
@@ -2124,21 +2123,19 @@ static void rk3568_vop2_wait_for_layer_cfg_done(struct vop2 *vop2, u32 cfg)
 	 * Spin until the previous layer configuration is done.
 	 */
 	ret = readx_poll_timeout_atomic(rk3568_vop2_read_layer_cfg, vop2, atv_layer_cfg,
-					atv_layer_cfg == cfg, 10, 50 * 1000);
+					atv_layer_cfg == vop2->old_layer_sel, 10, 50 * 1000);
 	if (ret)
 		drm_err_ratelimited(vop2->drm, "wait layer cfg done timeout: 0x%x--0x%x\n",
-				    atv_layer_cfg, cfg);
+				    atv_layer_cfg, vop2->old_layer_sel);
 }
 
 static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_plane *plane;
-	u32 layer_sel = 0;
+	u32 layer_sel;
 	u32 port_sel;
-	u32 old_layer_sel = 0;
-	u32 atv_layer_sel = 0;
-	u32 old_port_sel = 0;
+	u32 atv_layer_sel;
 	u8 layer_id;
 	u8 old_layer_id;
 	u8 layer_sel_id;
@@ -2161,8 +2158,7 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 	else
 		ovl_ctrl &= ~RK3568_OVL_CTRL__YUV_MODE(vp->id);
 
-	old_port_sel = vop2->old_port_sel;
-	port_sel = old_port_sel;
+	port_sel = vop2->old_port_sel;
 	port_sel &= RK3568_OVL_PORT_SEL__SEL_PORT;
 
 	if (vp0->nlayers)
@@ -2188,8 +2184,7 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 		port_sel |= FIELD_PREP(RK3588_OVL_PORT_SET__PORT3_MUX, 7);
 
 	atv_layer_sel = vop2_readl(vop2, RK3568_OVL_LAYER_SEL);
-	old_layer_sel = vop2->old_layer_sel;
-	layer_sel = old_layer_sel;
+	layer_sel = vop2->old_layer_sel;
 
 	ofs = 0;
 	for (i = 0; i < vp->id; i++)
@@ -2273,8 +2268,6 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 			     old_win->data->layer_sel_id[vp->id]);
 	}
 
-	vop2->old_layer_sel = layer_sel;
-	vop2->old_port_sel = port_sel;
 	/*
 	 * As the RK3568_OVL_LAYER_SEL and RK3568_OVL_PORT_SEL are shared by all Video Ports,
 	 * and the configuration take effect by one Video Port's vsync.
@@ -2289,17 +2282,8 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 	 *    lead to the configuration of the previous VP being take effect along with the VSYNC
 	 *    of the new VP.
 	 */
-	if (layer_sel != old_layer_sel || port_sel != old_port_sel)
-		ovl_ctrl |= FIELD_PREP(RK3568_OVL_CTRL__LAYERSEL_REGDONE_SEL, vp->id);
-	vop2_writel(vop2, RK3568_OVL_CTRL, ovl_ctrl);
 
-	if (port_sel != old_port_sel) {
-		vop2_writel(vop2, RK3568_OVL_PORT_SEL, port_sel);
-		vop2_cfg_done(vp);
-		rk3568_vop2_wait_for_port_mux_done(vop2);
-	}
-
-	if (layer_sel != old_layer_sel && atv_layer_sel != old_layer_sel) {
+	if (layer_sel != vop2->old_layer_sel && atv_layer_sel != vop2->old_layer_sel) {
 		cfg_done = vop2_readl(vop2, RK3568_REG_CFG_DONE);
 		cfg_done &= (BIT(vop2->data->nr_vps) - 1);
 		cfg_done &= ~BIT(vp->id);
@@ -2307,10 +2291,23 @@ static void rk3568_vop2_setup_layer_mixer(struct vop2_video_port *vp)
 		 * Changes of other VPs' overlays have not taken effect
 		 */
 		if (cfg_done)
-			rk3568_vop2_wait_for_layer_cfg_done(vop2, vop2->old_layer_sel);
+			rk3568_vop2_wait_for_layer_cfg_done(vop2);
 	}
 
+	if (layer_sel != vop2->old_layer_sel || port_sel != vop2->old_port_sel)
+		ovl_ctrl |= FIELD_PREP(RK3568_OVL_CTRL__LAYERSEL_REGDONE_SEL, vp->id);
+	vop2_writel(vop2, RK3568_OVL_CTRL, ovl_ctrl);
+
+	if (port_sel != vop2->old_port_sel) {
+		vop2->old_port_sel = port_sel;
+		vop2_writel(vop2, RK3568_OVL_PORT_SEL, port_sel);
+		vop2_cfg_done(vp);
+		rk3568_vop2_wait_for_port_mux_done(vop2);
+	}
+
+	vop2->old_layer_sel = layer_sel;
 	vop2_writel(vop2, RK3568_OVL_LAYER_SEL, layer_sel);
+
 	mutex_unlock(&vop2->ovl_lock);
 }
 

@@ -600,11 +600,11 @@ static SIMPLE_DEV_PM_OPS(ltc294x_pm_ops, ltc294x_suspend, ltc294x_resume);
 
 
 static const struct i2c_device_id ltc294x_i2c_id[] = {
-	{ "ltc2941", LTC2941_ID, },
-	{ "ltc2942", LTC2942_ID, },
-	{ "ltc2943", LTC2943_ID, },
-	{ "ltc2944", LTC2944_ID, },
-	{ },
+	{ .name = "ltc2941", .driver_data = LTC2941_ID },
+	{ .name = "ltc2942", .driver_data = LTC2942_ID },
+	{ .name = "ltc2943", .driver_data = LTC2943_ID },
+	{ .name = "ltc2944", .driver_data = LTC2944_ID },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc294x_i2c_id);
 

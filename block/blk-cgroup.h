@@ -140,6 +140,8 @@ struct blkg_policy_data {
 	struct blkcg_gq			*blkg;
 	int				plid;
 	bool				online;
+
+	struct rcu_head			rcu_head;
 };
 
 /*
@@ -218,12 +220,15 @@ struct blkg_conf_ctx {
 };
 
 void blkg_conf_init(struct blkg_conf_ctx *ctx, char *input);
-int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx);
-unsigned long blkg_conf_open_bdev_frozen(struct blkg_conf_ctx *ctx);
+int blkg_conf_open_bdev(struct blkg_conf_ctx *ctx)
+	__cond_acquires(0, &ctx->bdev->bd_queue->rq_qos_mutex);
 int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
-		   struct blkg_conf_ctx *ctx);
-void blkg_conf_exit(struct blkg_conf_ctx *ctx);
-void blkg_conf_exit_frozen(struct blkg_conf_ctx *ctx, unsigned long memflags);
+		   struct blkg_conf_ctx *ctx)
+	__cond_acquires(0, &ctx->bdev->bd_disk->queue->queue_lock);
+void blkg_conf_unprep(struct blkg_conf_ctx *ctx)
+	__releases(ctx->bdev->bd_disk->queue->queue_lock);
+void blkg_conf_close_bdev(struct blkg_conf_ctx *ctx)
+	__releases(&ctx->bdev->bd_queue->rq_qos_mutex);
 
 /**
  * bio_issue_as_root_blkg - see if this bio needs to be issued as root blkg
@@ -279,9 +284,9 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
  * Return pointer to private data associated with the @blkg-@pol pair.
  */
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
-						  struct blkcg_policy *pol)
+						  const struct blkcg_policy *pol)
 {
-	return blkg ? blkg->pd[pol->plid] : NULL;
+	return blkg ? READ_ONCE(blkg->pd[pol->plid]) : NULL;
 }
 
 static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
@@ -488,7 +493,7 @@ static inline void blkcg_deactivate_policy(struct gendisk *disk,
 					   const struct blkcg_policy *pol) { }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
-						  struct blkcg_policy *pol) { return NULL; }
+						  const struct blkcg_policy *pol) { return NULL; }
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }

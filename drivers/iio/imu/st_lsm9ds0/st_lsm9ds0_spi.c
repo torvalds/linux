@@ -11,7 +11,6 @@
 #include <linux/err.h>
 #include <linux/gfp_types.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 

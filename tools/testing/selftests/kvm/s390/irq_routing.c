@@ -27,7 +27,7 @@ static void test(void)
 	struct kvm_irq_routing *routing;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	vm_paddr_t mem;
+	gpa_t mem;
 	int ret;
 
 	struct kvm_irq_routing_entry ue = {

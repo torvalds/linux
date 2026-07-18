@@ -1801,7 +1801,7 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 	}
 
 	res = blk_rq_map_user_io(rq, md, hp->dxferp, hp->dxfer_len,
-			GFP_ATOMIC, iov_count, iov_count, 1, rw);
+			GFP_KERNEL, iov_count, iov_count, 1, rw);
 	if (!res) {
 		srp->bio = rq->bio;
 

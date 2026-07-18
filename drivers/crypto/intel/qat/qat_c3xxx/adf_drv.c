@@ -162,15 +162,14 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		bar->size = pci_resource_len(pdev, bar_nr);
 		bar->virt_addr = pci_iomap(accel_pci_dev->pci_dev, bar_nr, 0);
 		if (!bar->virt_addr) {
-			dev_err(&pdev->dev, "Failed to map BAR %d\n", bar_nr);
+			pci_err(pdev, "Failed to map BAR %d\n", bar_nr);
 			ret = -EFAULT;
 			goto out_err_free_reg;
 		}
 	}
-	pci_set_master(pdev);
 
 	if (pci_save_state(pdev)) {
-		dev_err(&pdev->dev, "Failed to save pci state\n");
+		pci_err(pdev, "Failed to save pci state\n");
 		ret = -ENOMEM;
 		goto out_err_free_reg;
 	}
@@ -256,5 +255,4 @@ MODULE_AUTHOR("Intel");
 MODULE_FIRMWARE(ADF_C3XXX_FW);
 MODULE_FIRMWARE(ADF_C3XXX_MMP);
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
-MODULE_VERSION(ADF_DRV_VERSION);
 MODULE_IMPORT_NS("CRYPTO_QAT");

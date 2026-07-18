@@ -2513,6 +2513,7 @@ static const struct nvkm_device_chip
 nv170_chipset = {
 	.name = "GA100",
 	.bar      = { 0x00000001, tu102_bar_new },
+	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga100_fb_new },

@@ -353,13 +353,16 @@ static void hdmi_std_setup_channel_mapping(struct hdac_chmap *chmap,
 	if (hdmi_channel_mapping[ca][1] == 0) {
 		int hdmi_slot = 0;
 		/* fill actual channel mappings in ALSA channel (i) order */
-		for (i = 0; i < ch_alloc->channels; i++) {
-			while (!WARN_ON(hdmi_slot >= 8) &&
-			       !ch_alloc->speakers[7 - hdmi_slot])
-				hdmi_slot++; /* skip zero slots */
+		for (i = 0; i < ch_alloc->channels && hdmi_slot < 8; i++) {
+			while (!ch_alloc->speakers[7 - hdmi_slot]) {
+				/* skip zero slots */
+				if (++hdmi_slot >= 8)
+					goto out;
+			}
 
 			hdmi_channel_mapping[ca][i] = (i << 4) | hdmi_slot++;
 		}
+	out:
 		/* fill the rest of the slots with ALSA channel 0xf */
 		for (hdmi_slot = 0; hdmi_slot < 8; hdmi_slot++)
 			if (!ch_alloc->speakers[7 - hdmi_slot])

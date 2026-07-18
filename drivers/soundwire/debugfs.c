@@ -5,7 +5,6 @@
 #include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/soundwire/sdw.h>

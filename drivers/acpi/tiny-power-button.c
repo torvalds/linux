@@ -38,8 +38,12 @@ static u32 acpi_tiny_power_button_event(void *not_used)
 
 static int acpi_tiny_power_button_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	acpi_status status;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON) {
 		status = acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,

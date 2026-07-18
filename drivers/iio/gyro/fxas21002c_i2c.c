@@ -7,7 +7,6 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -39,7 +38,7 @@ static void fxas21002c_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id fxas21002c_i2c_id[] = {
-	{ "fxas21002c" },
+	{ .name = "fxas21002c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxas21002c_i2c_id);

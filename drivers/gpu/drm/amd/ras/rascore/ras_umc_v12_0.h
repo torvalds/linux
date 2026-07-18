@@ -290,6 +290,8 @@
 /* R13 bit shift should be considered, double the number */
 #define UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL (UMC_V12_0_NA_MAP_PA_NUM * 2)
 
+/* UMC register per channel offset */
+#define UMC_V12_0_PER_CHANNEL_OFFSET    0x400
 
 /* C2, C3, C4, R13, four MCA bits are looped in page retirement */
 #define UMC_V12_0_RETIRE_LOOP_BITS 4

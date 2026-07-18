@@ -299,8 +299,8 @@ no_irq:
 }
 
 static const struct platform_device_id max8998_rtc_id[] = {
-	{ "max8998-rtc", TYPE_MAX8998 },
-	{ "lp3974-rtc", TYPE_LP3974 },
+	{ .name = "max8998-rtc", .driver_data = TYPE_MAX8998 },
+	{ .name = "lp3974-rtc", .driver_data = TYPE_LP3974 },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, max8998_rtc_id);

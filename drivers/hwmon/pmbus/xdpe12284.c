@@ -164,10 +164,10 @@ static int xdpe122_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id xdpe122_id[] = {
-	{"xdpe11280"},
-	{"xdpe12254"},
-	{"xdpe12284"},
-	{}
+	{ .name = "xdpe11280" },
+	{ .name = "xdpe12254" },
+	{ .name = "xdpe12284" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, xdpe122_id);

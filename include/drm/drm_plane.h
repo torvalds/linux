@@ -259,8 +259,8 @@ struct drm_plane_state {
 	 */
 	struct drm_crtc_commit *commit;
 
-	/** @state: backpointer to global drm_atomic_state */
-	struct drm_atomic_state *state;
+	/** @state: backpointer to global drm_atomic_commit */
+	struct drm_atomic_commit *state;
 
 	/**
 	 * @color_mgmt_changed: Color management properties have changed. Used
@@ -387,6 +387,22 @@ struct drm_plane_funcs {
 	 */
 	int (*set_property)(struct drm_plane *plane,
 			    struct drm_property *property, uint64_t val);
+
+	/**
+	 * @atomic_create_state:
+	 *
+	 * Allocate a pristine, initialized, state for the plane object
+	 * and return it. This callback must have no side effects: in
+	 * particular, the returned state must not be assigned to the
+	 * object's state pointer and it must not affect the hardware
+	 * state.
+	 *
+	 * RETURNS:
+	 *
+	 * A new, pristine, plane state instance or an error pointer
+	 * on failure.
+	 */
+	struct drm_plane_state *(*atomic_create_state)(struct drm_plane *plane);
 
 	/**
 	 * @atomic_duplicate_state:
@@ -739,7 +755,7 @@ struct drm_plane {
 	 *
 	 * This is protected by @mutex. Note that nonblocking atomic commits
 	 * access the current plane state without taking locks. Either by going
-	 * through the &struct drm_atomic_state pointers, see
+	 * through the &struct drm_atomic_commit pointers, see
 	 * for_each_oldnew_plane_in_state(), for_each_old_plane_in_state() and
 	 * for_each_new_plane_in_state(). Or through careful ordering of atomic
 	 * commit operations as implemented in the atomic helpers, see

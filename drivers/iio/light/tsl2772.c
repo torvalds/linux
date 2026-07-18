@@ -127,6 +127,7 @@ enum {
 	tmd2672,
 	tsl2772,
 	tmd2772,
+	apds9900,
 	apds9930,
 };
 
@@ -221,6 +222,12 @@ static const struct tsl2772_lux tmd2x72_lux_table[TSL2772_DEF_LUX_TABLE_SZ] = {
 	{     0,      0 },
 };
 
+static const struct tsl2772_lux apds9900_lux_table[TSL2772_DEF_LUX_TABLE_SZ] = {
+	{ 52000,  115960 },
+	{ 36400,   73840 },
+	{     0,       0 },
+};
+
 static const struct tsl2772_lux apds9930_lux_table[TSL2772_DEF_LUX_TABLE_SZ] = {
 	{ 52000,  96824 },
 	{ 38792,  67132 },
@@ -238,6 +245,7 @@ static const struct tsl2772_lux *tsl2772_default_lux_table_group[] = {
 	[tmd2672] = tmd2x72_lux_table,
 	[tsl2772] = tsl2x72_lux_table,
 	[tmd2772] = tmd2x72_lux_table,
+	[apds9900] = apds9900_lux_table,
 	[apds9930] = apds9930_lux_table,
 };
 
@@ -289,6 +297,7 @@ static const int tsl2772_int_time_avail[][6] = {
 	[tmd2672] = { 0, 2730, 0, 2730, 0, 699000 },
 	[tsl2772] = { 0, 2730, 0, 2730, 0, 699000 },
 	[tmd2772] = { 0, 2730, 0, 2730, 0, 699000 },
+	[apds9900] = { 0, 2720, 0, 2720, 0, 696000 },
 	[apds9930] = { 0, 2730, 0, 2730, 0, 699000 },
 };
 
@@ -316,6 +325,7 @@ static const u8 device_channel_config[] = {
 	[tmd2672] = PRX2,
 	[tsl2772] = ALSPRX2,
 	[tmd2772] = ALSPRX2,
+	[apds9900] = ALSPRX,
 	[apds9930] = ALSPRX2,
 };
 
@@ -530,6 +540,7 @@ static int tsl2772_get_prox(struct iio_dev *indio_dev)
 	case tmd2672:
 	case tsl2772:
 	case tmd2772:
+	case apds9900:
 	case apds9930:
 		if (!(ret & TSL2772_STA_PRX_VALID)) {
 			ret = -EINVAL;
@@ -1367,6 +1378,7 @@ static int tsl2772_device_id_verif(int id, int target)
 		return (id & 0xf0) == TRITON_ID;
 	case tmd2671:
 	case tmd2771:
+	case apds9900:
 		return (id & 0xf0) == HALIBUT_ID;
 	case tsl2572:
 	case tsl2672:
@@ -1888,17 +1900,19 @@ static int tsl2772_resume(struct device *dev)
 }
 
 static const struct i2c_device_id tsl2772_idtable[] = {
-	{ "tsl2571", tsl2571 },
-	{ "tsl2671", tsl2671 },
-	{ "tmd2671", tmd2671 },
-	{ "tsl2771", tsl2771 },
-	{ "tmd2771", tmd2771 },
-	{ "tsl2572", tsl2572 },
-	{ "tsl2672", tsl2672 },
-	{ "tmd2672", tmd2672 },
-	{ "tsl2772", tsl2772 },
-	{ "tmd2772", tmd2772 },
-	{ "apds9930", apds9930 },
+	{ .name = "tsl2571", .driver_data = tsl2571 },
+	{ .name = "tsl2671", .driver_data = tsl2671 },
+	{ .name = "tmd2671", .driver_data = tmd2671 },
+	{ .name = "tsl2771", .driver_data = tsl2771 },
+	{ .name = "tmd2771", .driver_data = tmd2771 },
+	{ .name = "tsl2572", .driver_data = tsl2572 },
+	{ .name = "tsl2672", .driver_data = tsl2672 },
+	{ .name = "tmd2672", .driver_data = tmd2672 },
+	{ .name = "tsl2772", .driver_data = tsl2772 },
+	{ .name = "tmd2772", .driver_data = tmd2772 },
+	{ .name = "apds9900", .driver_data = apds9900 },
+	{ .name = "apds9901", .driver_data = apds9900 },
+	{ .name = "apds9930", .driver_data = apds9930 },
 	{ }
 };
 
@@ -1915,6 +1929,8 @@ static const struct of_device_id tsl2772_of_match[] = {
 	{ .compatible = "amstaos,tmd2672" },
 	{ .compatible = "amstaos,tsl2772" },
 	{ .compatible = "amstaos,tmd2772" },
+	{ .compatible = "avago,apds9900" },
+	{ .compatible = "avago,apds9901" },
 	{ .compatible = "avago,apds9930" },
 	{ }
 };

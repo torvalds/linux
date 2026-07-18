@@ -14,6 +14,7 @@ struct amdxdna_hwctx_priv;
 
 enum ert_cmd_opcode {
 	ERT_START_CU = 0,
+	ERT_START_DPU = 18,
 	ERT_CMD_CHAIN = 19,
 	ERT_START_NPU = 20,
 	ERT_START_NPU_PREEMPT = 21,
@@ -105,7 +106,10 @@ struct amdxdna_hwctx {
 	u32				*col_list;
 	u32				start_col;
 	u32				num_col;
+	u32				umq_bo_hdl;
+	u32				doorbell_offset;
 	u32				num_unused_col;
+	u32				last_attached_heap;
 
 	struct amdxdna_qos_info		     qos;
 	struct amdxdna_hwctx_param_config_cu *cus;
@@ -119,6 +123,7 @@ struct amdxdna_hwctx {
 	container_of(j, struct amdxdna_sched_job, base)
 
 enum amdxdna_job_opcode {
+	DEFAULT_IO,
 	SYNC_DEBUG_BO,
 	ATTACH_DEBUG_BO,
 	DETACH_DEBUG_BO,
@@ -127,6 +132,7 @@ enum amdxdna_job_opcode {
 struct amdxdna_drv_cmd {
 	enum amdxdna_job_opcode	opcode;
 	u32			result;
+	struct kref		refcnt;
 };
 
 struct app_health_report;
@@ -201,18 +207,17 @@ void amdxdna_hwctx_remove_all(struct amdxdna_client *client);
 int amdxdna_hwctx_walk(struct amdxdna_client *client, void *arg,
 		       int (*walk)(struct amdxdna_hwctx *hwctx, void *arg));
 int amdxdna_hwctx_sync_debug_bo(struct amdxdna_client *client, u32 debug_bo_hdl);
+int amdxdna_update_heap(struct amdxdna_client *client, struct amdxdna_hwctx *hwctx);
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
 		       struct amdxdna_drv_cmd *drv_cmd, u32 cmd_bo_hdls,
 		       u32 *arg_bo_hdls, u32 arg_bo_cnt,
 		       u32 hwctx_hdl, u64 *seq);
 
-int amdxdna_cmd_wait(struct amdxdna_client *client, u32 hwctx_hdl,
-		     u64 seq, u32 timeout);
-
 int amdxdna_drm_create_hwctx_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdxdna_drm_config_hwctx_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 int amdxdna_drm_submit_cmd_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
+int amdxdna_drm_wait_cmd_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 #endif /* _AMDXDNA_CTX_H_ */

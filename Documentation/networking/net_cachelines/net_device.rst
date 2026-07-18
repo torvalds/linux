@@ -10,7 +10,7 @@ Type                                Name                        fastpath_tx_acce
 =================================== =========================== =================== =================== ===================================================================================
 unsigned_long:32                    priv_flags                  read_mostly                             __dev_queue_xmit(tx)
 unsigned_long:1                     lltx                        read_mostly                             HARD_TX_LOCK,HARD_TX_TRYLOCK,HARD_TX_UNLOCK(tx)
-unsigned long:1                     netmem_tx:1;                read_mostly
+unsigned_long:2                     netmem_tx:2;                read_mostly
 char                                name[16]
 struct netdev_name_node*            name_node
 struct dev_ifalias*                 ifalias
@@ -90,8 +90,6 @@ struct inet6_dev*                   ip6_ptr                     read_mostly     
 struct vlan_info*                   vlan_info
 struct dsa_port*                    dsa_ptr
 struct tipc_bearer*                 tipc_ptr
-void*                               atalk_ptr
-void*                               ax25_ptr
 struct wireless_dev*                ieee80211_ptr
 struct wpan_dev*                    ieee802154_ptr
 struct mpls_dev*                    mpls_ptr

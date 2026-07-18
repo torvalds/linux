@@ -3,7 +3,6 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #include <linux/clk-provider.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -421,7 +420,7 @@ static struct clk_alpha_pll *gpu_cc_alpha_plls[] = {
 	&gpu_cc_pll0,
 };
 
-static u32 gpu_cc_sm8750_critical_cbcrs[] = {
+static const u32 gpu_cc_sm8750_critical_cbcrs[] = {
 	0x9004, /* GPU_CC_RSCC_XO_AON_CLK */
 	0x9008, /* GPU_CC_CXO_AON_CLK */
 	0x9064, /* GPU_CC_GX_AHB_FF_CLK */
@@ -430,7 +429,7 @@ static u32 gpu_cc_sm8750_critical_cbcrs[] = {
 	0x93a8, /* GPU_CC_RSCC_HUB_AON_CLK */
 };
 
-static struct qcom_cc_driver_data gpu_cc_sm8750_driver_data = {
+static const struct qcom_cc_driver_data gpu_cc_sm8750_driver_data = {
 	.alpha_plls = gpu_cc_alpha_plls,
 	.num_alpha_plls = ARRAY_SIZE(gpu_cc_alpha_plls),
 	.clk_cbcrs = gpu_cc_sm8750_critical_cbcrs,

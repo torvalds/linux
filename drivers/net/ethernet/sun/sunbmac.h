@@ -205,7 +205,7 @@
 #define FRAME_WRITE           0x50020000
 #define FRAME_READ            0x60020000
 
-/* Tranceiver registers. */
+/* Transceiver registers. */
 #define TCVR_PAL_SERIAL       0x00000001 /* Enable serial mode              */
 #define TCVR_PAL_EXTLBACK     0x00000002 /* Enable external loopback        */
 #define TCVR_PAL_MSENSE       0x00000004 /* Media sense                     */

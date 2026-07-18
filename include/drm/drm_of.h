@@ -20,6 +20,8 @@ struct device_node;
 struct mipi_dsi_device_info;
 struct mipi_dsi_host;
 
+enum drm_panel_orientation;
+
 /**
  * enum drm_lvds_dual_link_pixels - Pixel order of an LVDS dual-link connection
  * @DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS: Even pixels are expected to be generated
@@ -47,6 +49,8 @@ int drm_of_component_probe(struct device *dev,
 int drm_of_encoder_active_endpoint(struct device_node *node,
 				   struct drm_encoder *encoder,
 				   struct of_endpoint *endpoint);
+int drm_of_get_panel_orientation(const struct device_node *np,
+				 enum drm_panel_orientation *orientation);
 int drm_of_find_panel_or_bridge(const struct device_node *np,
 				int port, int endpoint,
 				struct drm_panel **panel,
@@ -62,6 +66,10 @@ int drm_of_get_data_lanes_count_ep(const struct device_node *port,
 				   int port_reg, int reg,
 				   const unsigned int min,
 				   const unsigned int max);
+int drm_of_get_data_lanes_count_remote(const struct device_node *port,
+				       int port_reg, int reg,
+				       const unsigned int min,
+				       const unsigned int max);
 #else
 static inline uint32_t drm_of_crtc_port_mask(struct drm_device *dev,
 					  struct device_node *port)
@@ -97,6 +105,13 @@ static inline int drm_of_encoder_active_endpoint(struct device_node *node,
 {
 	return -EINVAL;
 }
+
+static inline int drm_of_get_panel_orientation(const struct device_node *np,
+					       enum drm_panel_orientation *orientation)
+{
+	return -EINVAL;
+}
+
 static inline int drm_of_find_panel_or_bridge(const struct device_node *np,
 					      int port, int endpoint,
 					      struct drm_panel **panel,
@@ -137,6 +152,15 @@ drm_of_get_data_lanes_count_ep(const struct device_node *port,
 			       int port_reg, int reg,
 			       const unsigned int min,
 			       const unsigned int max)
+{
+	return -EINVAL;
+}
+
+static inline int
+drm_of_get_data_lanes_count_remote(const struct device_node *port,
+				   int port_reg, int reg,
+				   const unsigned int min,
+				   const unsigned int max)
 {
 	return -EINVAL;
 }

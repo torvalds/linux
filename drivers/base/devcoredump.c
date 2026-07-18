@@ -471,10 +471,3 @@ static int __init devcoredump_init(void)
 	return class_register(&devcd_class);
 }
 __initcall(devcoredump_init);
-
-static void __exit devcoredump_exit(void)
-{
-	class_for_each_device(&devcd_class, NULL, NULL, devcd_free);
-	class_unregister(&devcd_class);
-}
-__exitcall(devcoredump_exit);

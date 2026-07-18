@@ -80,7 +80,7 @@ static inline void check_join(pthread_t thread, void **retval)
 	TEST_ASSERT(r == 0, "%s: failed to join thread", __func__);
 }
 
-static void run_test(uint32_t run)
+static void run_test(u32 run)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
@@ -88,7 +88,7 @@ static void run_test(uint32_t run)
 	pthread_t threads[VCPU_NUM];
 	pthread_t throw_away;
 	void *b;
-	uint32_t i, j;
+	u32 i, j;
 
 	CPU_ZERO(&cpu_set);
 	for (i = 0; i < VCPU_NUM; i++)
@@ -149,7 +149,7 @@ void wait_for_child_setup(pid_t pid)
 
 int main(int argc, char **argv)
 {
-	uint32_t i;
+	u32 i;
 	int s, r;
 	pid_t pid;
 

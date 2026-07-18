@@ -230,9 +230,13 @@ static int toshiba_bt_resume(struct device *dev)
 
 static int toshiba_bt_rfkill_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct toshiba_bluetooth_dev *bt_dev;
+	struct acpi_device *device;
 	int result;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	result = toshiba_bluetooth_present(device->handle);
 	if (result)

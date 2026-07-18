@@ -655,7 +655,7 @@ static void __init xen_e820_swap_entry_with_ram(struct e820_entry *swap_entry)
 			/* Fill new entry (keep size and page offset). */
 			entry->type = swap_entry->type;
 			entry->addr = entry_end - swap_size +
-				      swap_addr - swap_entry->addr;
+				      swap_entry->addr - swap_addr;
 			entry->size = swap_entry->size;
 
 			/* Convert old entry to RAM, align to pages. */
@@ -695,17 +695,22 @@ static void __init xen_e820_resolve_conflicts(phys_addr_t start,
 		return;
 
 	end = start + size;
-	entry = xen_e820_table.entries;
+	mapcnt = 0;
 
-	for (mapcnt = 0; mapcnt < xen_e820_table.nr_entries; mapcnt++) {
+	while (mapcnt < xen_e820_table.nr_entries) {
+		entry = xen_e820_table.entries + mapcnt;
 		if (entry->addr >= end)
 			return;
 
 		if (entry->addr + entry->size > start &&
-		    entry->type == E820_TYPE_NVS)
+		    entry->type == E820_TYPE_NVS) {
 			xen_e820_swap_entry_with_ram(entry);
+			/* E820 map has been changed, restart loop! */
+			mapcnt = 0;
+			continue;
+		}
 
-		entry++;
+		mapcnt++;
 	}
 }
 

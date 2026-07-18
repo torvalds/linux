@@ -323,15 +323,17 @@ int xe_pcode_ready(struct xe_device *xe, bool locked)
 }
 
 /**
- * xe_pcode_init: initialize components of PCODE
+ * xe_pcode_init_early() - Initialize components of PCODE
  * @tile: tile instance
  *
  * This function initializes the xe_pcode component.
  * To be called once only during probe.
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
-void xe_pcode_init(struct xe_tile *tile)
+int xe_pcode_init_early(struct xe_tile *tile)
 {
-	drmm_mutex_init(&tile_to_xe(tile)->drm, &tile->pcode.lock);
+	return drmm_mutex_init(&tile_to_xe(tile)->drm, &tile->pcode.lock);
 }
 
 /**

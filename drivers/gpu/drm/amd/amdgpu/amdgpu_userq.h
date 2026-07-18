@@ -48,16 +48,12 @@ struct amdgpu_userq_obj {
 	struct amdgpu_bo *obj;
 };
 
-struct amdgpu_userq_va_cursor {
-	u64			gpu_addr;
-	struct list_head	list;
-};
-
 struct amdgpu_usermode_queue {
 	int			queue_type;
 	enum amdgpu_userq_state state;
 	uint64_t		doorbell_handle;
 	uint64_t		doorbell_index;
+	u32			doorbell_offset;
 	uint64_t		flags;
 	struct amdgpu_mqd_prop	*userq_prop;
 	struct amdgpu_userq_mgr *userq_mgr;
@@ -66,17 +62,47 @@ struct amdgpu_usermode_queue {
 	struct amdgpu_userq_obj	db_obj;
 	struct amdgpu_userq_obj fw_obj;
 	struct amdgpu_userq_obj wptr_obj;
+
+	/**
+	 * @fence_drv_lock: Protecting @fence_drv_xa.
+	 */
+	struct mutex		fence_drv_lock;
+
+	/**
+	 * @fence_drv_xa:
+	 *
+	 * References to the external fence drivers returned by wait_ioctl.
+	 * Dropped on the next signaled dma_fence or queue destruction.
+	 */
 	struct xarray		fence_drv_xa;
 	struct amdgpu_userq_fence_driver *fence_drv;
 	struct dma_fence	*last_fence;
 	u32			xcp_id;
 	int			priority;
 	struct dentry		*debugfs_queue;
-	struct delayed_work hang_detect_work;
-	struct dma_fence *hang_detect_fence;
+
+	/**
+	 * @hang_detect_work:
+	 *
+	 * Delayed work which runs when userq_fences time out.
+	 */
+	struct delayed_work	hang_detect_work;
 	struct kref		refcount;
 
-	struct list_head	userq_va_list;
+	union {
+		struct {
+			u64 queue_rb;
+			u64 wptr;
+			u64 rptr;
+			u64 eop;
+			u64 shadow;
+			u64 csa;
+		} va;
+		u64 va_array[6];
+	} userq_vas;
+
+	uint32_t	proc_ctx_array_index;
+	uint32_t	gang_ctx_array_index;
 };
 
 struct amdgpu_userq_funcs {
@@ -89,8 +115,7 @@ struct amdgpu_userq_funcs {
 	int (*map)(struct amdgpu_usermode_queue *queue);
 	int (*preempt)(struct amdgpu_usermode_queue *queue);
 	int (*restore)(struct amdgpu_usermode_queue *queue);
-	int (*detect_and_reset)(struct amdgpu_device *adev,
-		  int queue_type);
+	int (*reset)(struct amdgpu_usermode_queue *queue);
 };
 
 /* Usermode queues for gfx */
@@ -105,6 +130,15 @@ struct amdgpu_userq_mgr {
 	struct amdgpu_device		*adev;
 	struct delayed_work		resume_work;
 	struct drm_file			*file;
+	struct mutex			proc_ctx_lock;
+	struct amdgpu_userq_obj		proc_ctx_obj;
+
+	/**
+	 * @reset_work:
+	 *
+	 * Reset work which is used when eviction fails.
+	 */
+	struct work_struct		reset_work;
 	atomic_t                        userq_count[AMDGPU_RING_TYPE_MAX];
 };
 
@@ -123,24 +157,14 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data, struct drm_file *filp
 int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *file_priv,
 			  struct amdgpu_device *adev);
 
+void amdgpu_userq_mgr_cancel_reset_work(struct amdgpu_device *adev);
 void amdgpu_userq_mgr_cancel_resume(struct amdgpu_userq_mgr *userq_mgr);
 void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr);
-
-int amdgpu_userq_create_object(struct amdgpu_userq_mgr *uq_mgr,
-			       struct amdgpu_userq_obj *userq_obj,
-			       int size);
-
-void amdgpu_userq_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
-				 struct amdgpu_userq_obj *userq_obj);
 
 void amdgpu_userq_evict(struct amdgpu_userq_mgr *uq_mgr);
 
 void amdgpu_userq_ensure_ev_fence(struct amdgpu_userq_mgr *userq_mgr,
 				  struct amdgpu_eviction_fence_mgr *evf_mgr);
-
-uint64_t amdgpu_userq_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
-					 struct amdgpu_db_info *db_info,
-					     struct drm_file *filp);
 
 u32 amdgpu_userq_get_supported_ip_mask(struct amdgpu_device *adev);
 bool amdgpu_userq_enabled(struct drm_device *dev);
@@ -156,11 +180,22 @@ void amdgpu_userq_reset_work(struct work_struct *work);
 void amdgpu_userq_pre_reset(struct amdgpu_device *adev);
 int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost);
 void amdgpu_userq_start_hang_detect_work(struct amdgpu_usermode_queue *queue);
+void amdgpu_userq_process_fence_irq(struct amdgpu_device *adev, u32 doorbell);
+
+/*
+ * CP packs the per-process doorbell_id of the queue in
+ * CTXID0[9:0] on priv-fault (same encoding KFD uses via
+ * KFD_CTXID0_DOORBELL_ID_MASK)
+ */
+#define AMDGPU_CTXID0_DOORBELL_ID_MASK	0x3ff
+
+void amdgpu_userq_process_reset_irq(struct amdgpu_device *adev,
+				    u32 pasid, u32 doorbell_offset);
 
 int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 				   struct amdgpu_usermode_queue *queue,
-				   u64 addr, u64 expected_size);
+				   u64 addr, u64 expected_size, u64 *va_out);
+
 void amdgpu_userq_gem_va_unmap_validate(struct amdgpu_device *adev,
-					struct amdgpu_bo_va_mapping *mapping,
-					uint64_t saddr);
+					struct amdgpu_bo_va_mapping *mapping);
 #endif

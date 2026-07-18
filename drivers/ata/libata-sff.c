@@ -2053,6 +2053,7 @@ EXPORT_SYMBOL_GPL(ata_sff_drain_fifo);
  *	Kernel thread context (may sleep)
  */
 void ata_sff_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
@@ -2769,6 +2770,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_interrupt);
  *	Kernel thread context (may sleep)
  */
 void ata_bmdma_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ata_queued_cmd *qc;
 	unsigned long flags;

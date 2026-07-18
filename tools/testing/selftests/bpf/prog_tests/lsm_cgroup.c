@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/xattr.h>
 #include <test_progs.h>
 #include <bpf/btf.h>
 
@@ -309,11 +310,89 @@ static void test_lsm_cgroup_nonvoid(void)
 	lsm_cgroup_nonvoid__destroy(skel);
 }
 
+static void test_lsm_cgroup_retval(void)
+{
+	struct lsm_cgroup *skel = NULL;
+	int skipcap_prog_fd1, skipcap_prog_fd2, socket_prog_fd1, socket_prog_fd2;
+	int cgroup_fd = -1;
+	int err, fd;
+	char tmpfile[] = "/tmp/test_lsm_cgroup_retval.XXXXXX";
+
+	fd = mkstemp(tmpfile);
+	if (!ASSERT_OK_FD(fd, "mkstemp"))
+		return;
+	close(fd);
+
+	cgroup_fd = test__join_cgroup("/default_retval");
+	if (!ASSERT_OK_FD(cgroup_fd, "join_cgroup"))
+		goto cleanup_tmpfile;
+
+	skel = lsm_cgroup__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		goto cleanup_cgroup;
+
+	skipcap_prog_fd1 = bpf_program__fd(skel->progs.skipcap_first);
+	skipcap_prog_fd2 = bpf_program__fd(skel->progs.skipcap_second);
+	socket_prog_fd1 = bpf_program__fd(skel->progs.socket_first);
+	socket_prog_fd2 = bpf_program__fd(skel->progs.socket_second);
+
+	err = bpf_prog_attach(skipcap_prog_fd1, cgroup_fd, BPF_LSM_CGROUP, BPF_F_ALLOW_MULTI);
+	if (err == -ENOTSUPP) {
+		test__skip();
+		goto cleanup_skeleton;
+	}
+	if (!ASSERT_OK(err, "attach first skipcap prog"))
+		goto cleanup_skeleton;
+
+	err = bpf_prog_attach(skipcap_prog_fd2, cgroup_fd, BPF_LSM_CGROUP, BPF_F_ALLOW_MULTI);
+	if (!ASSERT_OK(err, "attach second skipcap prog"))
+		goto cleanup_skipcap1;
+
+	err = bpf_prog_attach(socket_prog_fd1, cgroup_fd, BPF_LSM_CGROUP, BPF_F_ALLOW_MULTI);
+	if (!ASSERT_OK(err, "attach first sock_create prog"))
+		goto cleanup_skipcap2;
+
+	err = bpf_prog_attach(socket_prog_fd2, cgroup_fd, BPF_LSM_CGROUP, BPF_F_ALLOW_MULTI);
+	if (!ASSERT_OK(err, "attach second sock_create prog"))
+		goto cleanup_sock_create1;
+
+	/* trigger the bool hook by setxattr */
+	err = setxattr(tmpfile, "user.test", "value", 5, 0);
+	if (!ASSERT_OK(err, "setxattr"))
+		goto cleanup_sock_create2;
+
+	/* trigger the errno hook by creating a socket */
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (!ASSERT_OK_FD(fd, "socket"))
+		goto cleanup_sock_create2;
+	close(fd);
+
+	ASSERT_EQ(skel->data->skipcap_retval, 0, "bool_hook_retval_should_be_0");
+	ASSERT_EQ(skel->data->socket_retval, -EPERM, "errno_hook_retval_should_be_EPERM");
+
+cleanup_sock_create2:
+	bpf_prog_detach2(socket_prog_fd2, cgroup_fd, BPF_LSM_CGROUP);
+cleanup_sock_create1:
+	bpf_prog_detach2(socket_prog_fd1, cgroup_fd, BPF_LSM_CGROUP);
+cleanup_skipcap2:
+	bpf_prog_detach2(skipcap_prog_fd2, cgroup_fd, BPF_LSM_CGROUP);
+cleanup_skipcap1:
+	bpf_prog_detach2(skipcap_prog_fd1, cgroup_fd, BPF_LSM_CGROUP);
+cleanup_skeleton:
+	lsm_cgroup__destroy(skel);
+cleanup_cgroup:
+	close(cgroup_fd);
+cleanup_tmpfile:
+	unlink(tmpfile);
+}
+
 void test_lsm_cgroup(void)
 {
 	if (test__start_subtest("functional"))
 		test_lsm_cgroup_functional();
 	if (test__start_subtest("nonvoid"))
 		test_lsm_cgroup_nonvoid();
+	if (test__start_subtest("retval"))
+		test_lsm_cgroup_retval();
 	btf__free(btf);
 }

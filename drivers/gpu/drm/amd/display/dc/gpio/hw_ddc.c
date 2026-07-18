@@ -36,7 +36,7 @@
 
 #undef FN
 #define FN(reg_name, field_name) \
-	ddc->shifts->field_name, ddc->masks->field_name
+	gpio_reg_shift(ddc->shifts->field_name), ddc->masks->field_name
 
 #define CTX \
 	ddc->base.base.ctx

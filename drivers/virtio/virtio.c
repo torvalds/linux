@@ -435,6 +435,14 @@ static void virtio_dev_shutdown(struct device *_d)
 	dev->config->reset(dev);
 }
 
+static int virtio_dev_num_vf(struct device *dev)
+{
+	struct virtio_device *vdev = dev_to_virtio(dev);
+
+	return dev_num_vf(vdev->dev.parent);
+}
+
+
 static const struct bus_type virtio_bus = {
 	.name  = "virtio",
 	.match = virtio_dev_match,
@@ -444,6 +452,7 @@ static const struct bus_type virtio_bus = {
 	.remove = virtio_dev_remove,
 	.irq_get_affinity = virtio_irq_get_affinity,
 	.shutdown = virtio_dev_shutdown,
+	.num_vf = virtio_dev_num_vf,
 };
 
 int __register_virtio_driver(struct virtio_driver *driver, struct module *owner)

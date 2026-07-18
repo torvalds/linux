@@ -1329,6 +1329,9 @@ struct rockchip_clk_provider *rockchip_clk_init_early(struct device_node *np,
 void rockchip_clk_finalize(struct rockchip_clk_provider *ctx);
 void rockchip_clk_of_add_provider(struct device_node *np,
 				struct rockchip_clk_provider *ctx);
+int rockchip_clk_add_grf(struct rockchip_clk_provider *ctx,
+			 struct regmap *grf,
+			 enum rockchip_grf_type type);
 unsigned long rockchip_clk_find_max_clk_id(struct rockchip_clk_branch *list,
 					   unsigned int nr_clk);
 void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,

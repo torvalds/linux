@@ -350,7 +350,7 @@ xfs_dax_notify_dev_failure(
 	/*
 	 * Shutdown fs from a force umount in pre-remove case which won't fail,
 	 * so errors can be ignored.  Otherwise, shutdown the filesystem with
-	 * CORRUPT flag if error occured or notify.want_shutdown was set during
+	 * CORRUPT flag if error occurred or notify.want_shutdown was set during
 	 * RMAP querying.
 	 */
 	if (mf_flags & MF_MEM_PRE_REMOVE)

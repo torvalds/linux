@@ -582,30 +582,31 @@ int usb6fire_control_init(struct sfire_chip *chip)
 		"Master Playback Volume", vol_elements);
 	if (ret) {
 		dev_err(&chip->dev->dev, "cannot add control.\n");
-		kfree(rt);
-		return ret;
+		goto free_rt;
 	}
 	ret = usb6fire_control_add_virtual(rt, chip->card,
 		"Master Playback Switch", mute_elements);
 	if (ret) {
 		dev_err(&chip->dev->dev, "cannot add control.\n");
-		kfree(rt);
-		return ret;
+		goto free_rt;
 	}
 
 	i = 0;
 	while (elements[i].name) {
 		ret = snd_ctl_add(chip->card, snd_ctl_new1(&elements[i], rt));
 		if (ret < 0) {
-			kfree(rt);
 			dev_err(&chip->dev->dev, "cannot add control.\n");
-			return ret;
+			goto free_rt;
 		}
 		i++;
 	}
 
 	chip->control = rt;
 	return 0;
+
+free_rt:
+	kfree(rt);
+	return ret;
 }
 
 void usb6fire_control_abort(struct sfire_chip *chip)

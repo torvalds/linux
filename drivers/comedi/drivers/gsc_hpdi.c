@@ -703,9 +703,9 @@ static int gsc_hpdi_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id gsc_hpdi_pci_table[] = {
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9080,
-			 PCI_VENDOR_ID_PLX, 0x2400) },
-	{ 0 }
+	{ PCI_VDEVICE_SUB(PLX, PCI_DEVICE_ID_PLX_9080,
+			  PCI_VENDOR_ID_PLX, 0x2400) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, gsc_hpdi_pci_table);
 

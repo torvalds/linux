@@ -4,7 +4,7 @@
 /*
  * Maple Tree - An RCU-safe adaptive tree for storing ranges
  * Copyright (c) 2018-2022 Oracle
- * Authors:     Liam R. Howlett <Liam.Howlett@Oracle.com>
+ * Authors:     Liam R. Howlett <liam@infradead.org>
  *              Matthew Wilcox <willy@infradead.org>
  */
 

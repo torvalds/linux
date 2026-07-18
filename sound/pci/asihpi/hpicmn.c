@@ -276,6 +276,12 @@ static short find_control(u16 control_index,
 		return 0;
 	}
 
+	if (control_index >= p_cache->control_count) {
+		HPI_DEBUG_LOG(VERBOSE, "control_index out of bounce %d\n",
+			control_index);
+		return 0;
+	}
+
 	*pI = p_cache->p_info[control_index];
 	if (!*pI) {
 		HPI_DEBUG_LOG(VERBOSE, "Uncached Control %d\n",
@@ -641,16 +647,11 @@ void hpi_cmn_control_cache_sync_to_msg(struct hpi_control_cache *p_cache,
 struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
 	const u32 size_in_bytes, u8 *p_dsp_control_buffer)
 {
-	struct hpi_control_cache *p_cache = kmalloc_obj(*p_cache);
+	struct hpi_control_cache *p_cache;
+
+	p_cache = kzalloc_flex(*p_cache, p_info, control_count);
 	if (!p_cache)
 		return NULL;
-
-	p_cache->p_info =
-		kzalloc_objs(*p_cache->p_info, control_count);
-	if (!p_cache->p_info) {
-		kfree(p_cache);
-		return NULL;
-	}
 
 	p_cache->cache_size_in_bytes = size_in_bytes;
 	p_cache->control_count = control_count;
@@ -661,10 +662,7 @@ struct hpi_control_cache *hpi_alloc_control_cache(const u32 control_count,
 
 void hpi_free_control_cache(struct hpi_control_cache *p_cache)
 {
-	if (p_cache) {
-		kfree(p_cache->p_info);
-		kfree(p_cache);
-	}
+	kfree(p_cache);
 }
 
 static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)

@@ -243,8 +243,8 @@ struct av7110 {
 	struct dvb_video_events  video_events;
 	video_size_t		 video_size;
 
-	u16			wssMode;
-	u16			wssData;
+	u16			wss_mode;
+	u16			wss_data;
 
 	struct infrared		ir;
 

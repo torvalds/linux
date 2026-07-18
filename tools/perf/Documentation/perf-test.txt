@@ -55,17 +55,33 @@ OPTIONS
 
 -w::
 --workload=::
-	Run a built-in workload, to list them use '--list-workloads', current ones include:
-	noploop, thloop, leafloop, sqrtloop, brstack, datasym and landlock.
+	Run a built-in workload, to list them use '--list-workloads', current
+	ones include: noploop, thloop, leafloop, sqrtloop, brstack, datasym,
+	context_switch_loop, deterministic, named_threads and landlock.
 
 	Used with the shell script regression tests.
 
 	Some accept an extra parameter:
 
 		seconds: leafloop, noploop, sqrtloop, thloop
-		nrloops: brstack
+		nrloops: brstack, context_switch_loop
 
-	The datasym and landlock workloads don't accept any.
+	'named_threads' accepts the number of threads and the number of loops to
+	do in each thread.
+
+	The datasym, landlock and deterministic workloads don't accept any.
 
 --list-workloads::
 	List the available workloads to use with -w/--workload.
+
+--record-ctl=fifo:ctl-fifo[,ack-fifo]::
+	This option is used to communicate with a perf record session in order
+	to control the recording scope to only the workload and avoid recording
+	setup and teardown code. When specifying this option, the same FIFO path
+	must be specified in the record session via:
+
+	  perf record -D -1 --control=fifo:ctl-fifo[,ack-fifo] ...
+
+	Perf test sends 'enable' and 'disable' commands through ctl-fifo to
+	control event recording. If 'ack-fifo' is provided, the workload runner
+	waits for an 'ack' response after each command.

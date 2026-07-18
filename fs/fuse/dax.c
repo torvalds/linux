@@ -113,7 +113,7 @@ __kick_dmap_free_worker(struct fuse_conn_dax *fcd, unsigned long delay_ms)
 	free_threshold = max_t(unsigned long, fcd->nr_ranges * FUSE_DAX_RECLAIM_THRESHOLD / 100,
 			     1);
 	if (fcd->nr_free_ranges < free_threshold)
-		queue_delayed_work(system_long_wq, &fcd->free_work,
+		queue_delayed_work(system_dfl_long_wq, &fcd->free_work,
 				   msecs_to_jiffies(delay_ms));
 }
 

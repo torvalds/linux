@@ -541,7 +541,7 @@
 /* Verdin UART_2 */
 &lpuart8 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart8>;
+	pinctrl-0 = <&pinctrl_uart8>, <&pinctrl_uart8_cts>, <&pinctrl_uart8_rts>;
 	uart-has-rtscts;
 };
 
@@ -1058,12 +1058,20 @@
 			   <IMX95_PAD_GPIO_IO11__LPUART7_RTS_B	0x31e>; /* SODIMM 133 */
 	};
 
-	/* Verdin UART_2 */
+	/* Verdin UART_2 CTS */
+	pinctrl_uart8_cts: uart8ctsgrp {
+		fsl,pins = <IMX95_PAD_GPIO_IO14__LPUART8_CTS_B	0x31e>; /* SODIMM 143 */
+	};
+
+	/* Verdin UART_2 RTS */
+	pinctrl_uart8_rts: uart8rtsgrp {
+		fsl,pins = <IMX95_PAD_GPIO_IO15__LPUART8_RTS_B	0x31e>; /* SODIMM 141 */
+	};
+
+	/* Verdin UART_2 RX/TX */
 	pinctrl_uart8: uart8grp {
 		fsl,pins = <IMX95_PAD_GPIO_IO12__LPUART8_TX	0x31e>, /* SODIMM 139 */
-			   <IMX95_PAD_GPIO_IO13__LPUART8_RX	0x31e>, /* SODIMM 137 */
-			   <IMX95_PAD_GPIO_IO14__LPUART8_CTS_B	0x31e>, /* SODIMM 143 */
-			   <IMX95_PAD_GPIO_IO15__LPUART8_RTS_B	0x31e>; /* SODIMM 141 */
+			   <IMX95_PAD_GPIO_IO13__LPUART8_RX	0x31e>; /* SODIMM 137 */
 	};
 
 	/* On-module eMMC */

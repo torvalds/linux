@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2024 Marvell. */
 
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/module.h>
@@ -8,6 +9,7 @@
 #include "octep_vdpa.h"
 
 #define OCTEP_VDPA_DRIVER_NAME "octep_vdpa"
+#define OCTEP_VDPA_NAME_BUFSIZE 16
 
 struct octep_pf {
 	u8 __iomem *base[PCI_STD_NUM_BARS];
@@ -17,6 +19,11 @@ struct octep_pf {
 	int enabled_vfs;
 	u32 vf_stride;
 	u16 vf_devid;
+};
+
+struct octep_vdpa_event_wk {
+	struct work_struct work;
+	void *ctxptr;
 };
 
 struct octep_vdpa {
@@ -33,6 +40,8 @@ struct octep_vdpa_mgmt_dev {
 	struct work_struct setup_task;
 	/* Device status */
 	atomic_t status;
+	struct octep_vdpa *oct_vdpa;
+	struct octep_vdpa_event_wk event_wk;
 };
 
 static struct octep_hw *vdpa_to_octep_hw(struct vdpa_device *vdpa_dev)
@@ -44,10 +53,31 @@ static struct octep_hw *vdpa_to_octep_hw(struct vdpa_device *vdpa_dev)
 	return oct_vdpa->oct_hw;
 }
 
+static inline void octep_vdpa_dev_event_schedule(struct octep_hw *oct_hw)
+{
+	u8 __iomem *addr = oct_hw->base[OCTEP_HW_MBOX_BAR];
+	struct octep_vdpa_mgmt_dev *mgmt_dev;
+
+	mgmt_dev = container_of(oct_hw, struct octep_vdpa_mgmt_dev, oct_hw);
+	writeb(OCTEP_VDPA_DEV_EVENT_ACTIVE, addr + OCTEP_VF_EVENT_STATE(0));
+	schedule_work(&mgmt_dev->event_wk.work);
+}
+
+static irqreturn_t octep_vdpa_dev_event_handler(int irq, void *data)
+{
+	struct octep_hw *oct_hw = data;
+
+	if (readb(oct_hw->base[OCTEP_HW_MBOX_BAR] + OCTEP_VF_EVENT_STATE(0)) ==
+	    OCTEP_VDPA_DEV_NEW_EVENT)
+		octep_vdpa_dev_event_schedule(oct_hw);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t octep_vdpa_intr_handler(int irq, void *data)
 {
 	struct octep_hw *oct_hw = data;
-	int i;
+	int i, start_ring_idx = -1;
 
 	/* Each device has multiple interrupts (nb_irqs) shared among rings
 	 * (nr_vring). Device interrupts are mapped to the rings in a
@@ -60,7 +90,16 @@ static irqreturn_t octep_vdpa_intr_handler(int irq, void *data)
 	 * 7 -> 7, 15, 23, 31, 39, 47, 55, 63;
 	 */
 
-	for (i = irq - oct_hw->irqs[0]; i < oct_hw->nr_vring; i += oct_hw->nb_irqs) {
+	for (i = 0; i < oct_hw->nb_irqs; i++) {
+		if (oct_hw->irqs[i] == irq) {
+			start_ring_idx = i;
+			break;
+		}
+	}
+	if (start_ring_idx == -1)
+		return IRQ_NONE;
+
+	for (i = start_ring_idx; i < oct_hw->nr_vring; i += oct_hw->nb_irqs) {
 		if (ioread8(oct_hw->vqs[i].cb_notify_addr)) {
 			/* Acknowledge the per ring notification to the device */
 			iowrite8(0, oct_hw->vqs[i].cb_notify_addr);
@@ -72,11 +111,14 @@ static irqreturn_t octep_vdpa_intr_handler(int irq, void *data)
 	}
 
 	/* Check for config interrupt. Config uses the first interrupt */
-	if (unlikely(irq == oct_hw->irqs[0] && ioread8(oct_hw->isr))) {
-		iowrite8(0, oct_hw->isr);
+	if (unlikely(irq == oct_hw->irqs[0])) {
+		if (ioread8(oct_hw->isr)) {
+			iowrite8(0, oct_hw->isr);
 
-		if (oct_hw->config_cb.callback)
-			oct_hw->config_cb.callback(oct_hw->config_cb.private);
+			if (oct_hw->config_cb.callback)
+				oct_hw->config_cb.callback(oct_hw->config_cb.private);
+		}
+		octep_vdpa_dev_event_handler(irq, data);
 	}
 
 	return IRQ_HANDLED;
@@ -100,33 +142,41 @@ static void octep_free_irqs(struct octep_hw *oct_hw)
 	pci_free_irq_vectors(pdev);
 	devm_kfree(&pdev->dev, oct_hw->irqs);
 	oct_hw->irqs = NULL;
+	oct_hw->requested_irqs = 0;
 }
 
-static int octep_request_irqs(struct octep_hw *oct_hw)
+static int octep_request_irqs(struct octep_hw *oct_hw, irqreturn_t (*irq_handler)(int, void *),
+			      int nb_irqs)
 {
 	struct pci_dev *pdev = oct_hw->pdev;
 	int ret, irq, idx;
 
-	oct_hw->irqs = devm_kcalloc(&pdev->dev, oct_hw->nb_irqs, sizeof(int), GFP_KERNEL);
+	if ((oct_hw->requested_irqs != nb_irqs) || (nb_irqs == 1))
+		octep_free_irqs(oct_hw);
+	else
+		return 0;
+
+	oct_hw->irqs = devm_kcalloc(&pdev->dev, nb_irqs, sizeof(int), GFP_KERNEL);
 	if (!oct_hw->irqs)
 		return -ENOMEM;
 
-	ret = pci_alloc_irq_vectors(pdev, 1, oct_hw->nb_irqs, PCI_IRQ_MSIX);
+	ret = pci_alloc_irq_vectors(pdev, 1, nb_irqs, PCI_IRQ_MSIX);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to alloc msix vector");
 		return ret;
 	}
 
-	for (idx = 0; idx < oct_hw->nb_irqs; idx++) {
+	for (idx = 0; idx < nb_irqs; idx++) {
 		irq = pci_irq_vector(pdev, idx);
-		ret = devm_request_irq(&pdev->dev, irq, octep_vdpa_intr_handler, 0,
-				       dev_name(&pdev->dev), oct_hw);
+		ret = devm_request_irq(&pdev->dev, irq, irq_handler, 0, dev_name(&pdev->dev),
+				       oct_hw);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to register interrupt handler\n");
 			goto free_irqs;
 		}
 		oct_hw->irqs[idx] = irq;
 	}
+	oct_hw->requested_irqs = nb_irqs;
 
 	return 0;
 
@@ -188,7 +238,7 @@ static void octep_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 
 	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) &&
 	    !(status_old & VIRTIO_CONFIG_S_DRIVER_OK)) {
-		if (octep_request_irqs(oct_hw))
+		if (octep_request_irqs(oct_hw, octep_vdpa_intr_handler, oct_hw->nb_irqs))
 			status = status_old | VIRTIO_CONFIG_S_FAILED;
 	}
 	octep_hw_set_status(oct_hw, status);
@@ -211,8 +261,10 @@ static int octep_vdpa_reset(struct vdpa_device *vdpa_dev)
 	}
 	octep_hw_reset(oct_hw);
 
-	if (status & VIRTIO_CONFIG_S_DRIVER_OK)
+	if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
 		octep_free_irqs(oct_hw);
+		octep_request_irqs(oct_hw, octep_vdpa_dev_event_handler, 1);
+	}
 
 	return 0;
 }
@@ -477,7 +529,8 @@ static void octep_vdpa_remove_vf(struct pci_dev *pdev)
 	atomic_set(&mgmt_dev->status, OCTEP_VDPA_DEV_STATUS_UNINIT);
 
 	cancel_work_sync(&mgmt_dev->setup_task);
-	if (status == OCTEP_VDPA_DEV_STATUS_READY)
+	if ((status == OCTEP_VDPA_DEV_STATUS_READY) || (status == OCTEP_VDPA_DEV_STATUS_ADDED) ||
+	    (status == OCTEP_VDPA_DEV_STATUS_REMOVED))
 		vdpa_mgmtdev_unregister(&mgmt_dev->mdev);
 
 	if (oct_hw->base[OCTEP_HW_CAPS_BAR])
@@ -487,6 +540,7 @@ static void octep_vdpa_remove_vf(struct pci_dev *pdev)
 		octep_iounmap_region(pdev, oct_hw->base, OCTEP_HW_MBOX_BAR);
 
 	octep_vdpa_vf_bar_shrink(pdev);
+	octep_free_irqs(oct_hw);
 }
 
 static void octep_vdpa_remove(struct pci_dev *pdev)
@@ -520,6 +574,7 @@ static int octep_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	oct_vdpa->vdpa.mdev = mdev;
 	oct_vdpa->oct_hw = oct_hw;
 	vdpa_dev = &oct_vdpa->vdpa;
+	mgmt_dev->oct_vdpa = oct_vdpa;
 
 	device_features = oct_hw->features;
 	if (config->mask & BIT_ULL(VDPA_ATTR_DEV_FEATURES)) {
@@ -553,6 +608,7 @@ static int octep_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 		dev_err(&pdev->dev, "Failed to register to vDPA bus");
 		goto vdpa_dev_put;
 	}
+	atomic_set(&mgmt_dev->status, OCTEP_VDPA_DEV_STATUS_ADDED);
 	return 0;
 
 vdpa_dev_put:
@@ -562,7 +618,9 @@ vdpa_dev_put:
 
 static void octep_vdpa_dev_del(struct vdpa_mgmt_dev *mdev, struct vdpa_device *vdpa_dev)
 {
+	struct octep_vdpa_mgmt_dev *mgmt_dev = container_of(mdev, struct octep_vdpa_mgmt_dev, mdev);
 	_vdpa_unregister_device(vdpa_dev);
+	atomic_set(&mgmt_dev->status, OCTEP_VDPA_DEV_STATUS_REMOVED);
 }
 
 static const struct vdpa_mgmtdev_ops octep_vdpa_mgmt_dev_ops = {
@@ -572,10 +630,10 @@ static const struct vdpa_mgmtdev_ops octep_vdpa_mgmt_dev_ops = {
 
 static bool get_device_ready_status(u8 __iomem *addr)
 {
-	u64 signature = readq(addr + OCTEP_VF_MBOX_DATA(0));
+	u32 signature = readl(addr + OCTEP_VF_MBOX_DATA(0));
 
 	if (signature == OCTEP_DEV_READY_SIGNATURE) {
-		writeq(0, addr + OCTEP_VF_MBOX_DATA(0));
+		writel(0, addr + OCTEP_VF_MBOX_DATA(0));
 		return true;
 	}
 
@@ -586,6 +644,36 @@ static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_NET, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
+
+static void octep_event_work(struct work_struct *work)
+{
+	struct octep_vdpa_event_wk *wk = container_of(work, struct octep_vdpa_event_wk, work);
+	struct octep_vdpa_mgmt_dev *mgmt_dev = (struct octep_vdpa_mgmt_dev *)wk->ctxptr;
+	u8 __iomem *addr = mgmt_dev->oct_hw.base[OCTEP_HW_MBOX_BAR];
+	u8 event = readb(addr + OCTEP_VF_EVENT_REG(0));
+	struct vdpa_dev_set_config config = {0};
+	char name[OCTEP_VDPA_NAME_BUFSIZE];
+	int ret = 0;
+
+	switch (event) {
+	case OCTEP_VDPA_DEV_ADD_EVENT:
+		if (atomic_read(&mgmt_dev->status) != OCTEP_VDPA_DEV_STATUS_ADDED) {
+			snprintf(name, sizeof(name), "%s-%x", "vdpa", mgmt_dev->pdev->devfn);
+			ret = octep_vdpa_dev_add(&mgmt_dev->mdev, name, &config);
+		}
+		break;
+	case OCTEP_VDPA_DEV_DEL_EVENT:
+		if (atomic_read(&mgmt_dev->status) == OCTEP_VDPA_DEV_STATUS_ADDED)
+			octep_vdpa_dev_del(&mgmt_dev->mdev, &mgmt_dev->oct_vdpa->vdpa);
+		break;
+	default:
+		break;
+	}
+
+	event = ret ? OCTEP_VDPA_DEV_EVENT_NACK : OCTEP_VDPA_DEV_EVENT_ACK;
+	writeb(event, addr + OCTEP_VF_EVENT_REG(0));
+	writeb(OCTEP_VDPA_DEV_EVENT_DONE, addr + OCTEP_VF_EVENT_STATE(0));
+}
 
 static void octep_vdpa_setup_task(struct work_struct *work)
 {
@@ -652,6 +740,9 @@ static void octep_vdpa_setup_task(struct work_struct *work)
 	}
 
 	atomic_set(&mgmt_dev->status, OCTEP_VDPA_DEV_STATUS_READY);
+	INIT_WORK(&mgmt_dev->event_wk.work, octep_event_work);
+	mgmt_dev->event_wk.ctxptr = mgmt_dev;
+	octep_request_irqs(&mgmt_dev->oct_hw, octep_vdpa_dev_event_handler, 1);
 
 	return;
 
@@ -722,6 +813,8 @@ static int octep_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	bool done = false;
 	int index = 0;
 	int ret, i;
+	u8 rpvf;
+	u64 val;
 
 	ret = pci_enable_sriov(pdev, num_vfs);
 	if (ret)
@@ -741,9 +834,11 @@ static int octep_sriov_enable(struct pci_dev *pdev, int num_vfs)
 		}
 	}
 
+	val = readq(addr + OCTEP_EPF_RINFO(0));
+	rpvf = FIELD_GET(GENMASK_ULL(35, 32), val);
 	if (done) {
 		for (i = 0; i < pf->enabled_vfs; i++)
-			writeq(OCTEP_DEV_READY_SIGNATURE, addr + OCTEP_PF_MBOX_DATA(i));
+			writel(OCTEP_DEV_READY_SIGNATURE, addr + OCTEP_PF_MBOX_DATA(i * rpvf));
 	}
 
 	return num_vfs;

@@ -54,3 +54,7 @@ obj-$(CONFIG_NET_UDP_TUNNEL) += ip6_udp_tunnel.o
 obj-y += mcast_snoop.o
 obj-$(CONFIG_TCP_AO) += tcp_ao.o
 endif
+
+ifdef CONFIG_GCOV_PROFILE_NETFILTER
+GCOV_PROFILE_netfilter.o := y
+endif

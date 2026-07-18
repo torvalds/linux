@@ -4,6 +4,12 @@
 #ifndef _SHM_CHANNEL_H
 #define _SHM_CHANNEL_H
 
+#define SMC_APERTURE_BITS 256
+#define SMC_BASIC_UNIT (sizeof(u32))
+#define SMC_APERTURE_DWORDS (SMC_APERTURE_BITS / (SMC_BASIC_UNIT * 8))
+#define SMC_LAST_DWORD (SMC_APERTURE_DWORDS - 1)
+#define SMC_APERTURE_SIZE  (SMC_APERTURE_BITS / 8)
+
 struct shm_channel {
 	struct device *dev;
 	void __iomem *base;

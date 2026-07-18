@@ -112,6 +112,18 @@ static u32 mailbox_reg_read(struct mailbox_channel *mb_chann, u32 mbox_reg)
 	return readl(ringbuf_addr);
 }
 
+static inline void mailbox_irq_acknowledge(struct mailbox_channel *mb_chann)
+{
+	if (mb_chann->iohub_int_addr)
+		mailbox_reg_write(mb_chann, mb_chann->iohub_int_addr, 0);
+}
+
+static inline u32 mailbox_irq_status(struct mailbox_channel *mb_chann)
+{
+	return (mb_chann->iohub_int_addr) ?
+		mailbox_reg_read(mb_chann, mb_chann->iohub_int_addr) : 0;
+}
+
 static inline void
 mailbox_set_headptr(struct mailbox_channel *mb_chann, u32 headptr_val)
 {
@@ -198,7 +210,6 @@ mailbox_send_msg(struct mailbox_channel *mb_chann, struct mailbox_msg *mb_msg)
 	ringbuf_size = mailbox_get_ringbuf_size(mb_chann, CHAN_RES_X2I) - sizeof(u32);
 	start_addr = mb_chann->res[CHAN_RES_X2I].rb_start_addr;
 	tmp_tail = tail + mb_msg->pkg_size;
-
 
 check_again:
 	if (tail >= head && tmp_tail > ringbuf_size) {
@@ -350,6 +361,7 @@ static void mailbox_rx_worker(struct work_struct *rx_work)
 	int ret;
 
 	mb_chann = container_of(rx_work, struct mailbox_channel, rx_work);
+	trace_mbox_rx_worker(MAILBOX_NAME, mb_chann->msix_irq);
 
 	if (READ_ONCE(mb_chann->bad_state)) {
 		MB_ERR(mb_chann, "Channel in bad state, work aborted");
@@ -357,7 +369,7 @@ static void mailbox_rx_worker(struct work_struct *rx_work)
 	}
 
 again:
-	mailbox_reg_write(mb_chann, mb_chann->iohub_int_addr, 0);
+	mailbox_irq_acknowledge(mb_chann);
 
 	while (1) {
 		/*
@@ -382,7 +394,7 @@ again:
 	 * the interrupt register to make sure there is not any new response
 	 * before exiting.
 	 */
-	if (mailbox_reg_read(mb_chann, mb_chann->iohub_int_addr))
+	if (mailbox_irq_status(mb_chann))
 		goto again;
 }
 
@@ -485,6 +497,9 @@ free_chann:
 
 void xdna_mailbox_free_channel(struct mailbox_channel *mb_chann)
 {
+	if (!mb_chann)
+		return;
+
 	destroy_workqueue(mb_chann->work_q);
 	kfree(mb_chann);
 }
@@ -520,7 +535,7 @@ xdna_mailbox_start_channel(struct mailbox_channel *mb_chann,
 	}
 
 	mb_chann->bad_state = false;
-	mailbox_reg_write(mb_chann, mb_chann->iohub_int_addr, 0);
+	mailbox_irq_acknowledge(mb_chann);
 
 	MB_DBG(mb_chann, "Mailbox channel started (irq: %d)", mb_chann->msix_irq);
 	return 0;
@@ -531,6 +546,9 @@ void xdna_mailbox_stop_channel(struct mailbox_channel *mb_chann)
 	struct mailbox_msg *mb_msg;
 	unsigned long msg_id;
 
+	if (!mb_chann)
+		return;
+
 	/* Disable an irq and wait. This might sleep. */
 	free_irq(mb_chann->msix_irq, mb_chann);
 
@@ -538,7 +556,9 @@ void xdna_mailbox_stop_channel(struct mailbox_channel *mb_chann)
 	drain_workqueue(mb_chann->work_q);
 
 	/* We can clean up and release resources */
-	xa_for_each(&mb_chann->chan_xa, msg_id, mb_msg)
+	xa_for_each_start(&mb_chann->chan_xa, msg_id, mb_msg, mb_chann->next_msgid)
+		mailbox_release_msg(mb_chann, mb_msg);
+	xa_for_each_range(&mb_chann->chan_xa, msg_id, mb_msg, 0, mb_chann->next_msgid - 1)
 		mailbox_release_msg(mb_chann, mb_msg);
 	xa_destroy(&mb_chann->chan_xa);
 

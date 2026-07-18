@@ -1,5 +1,14 @@
 [
     {
+        "BriefDescription": "Counts the number of requests that were not accepted into the L2Q because the L2Q is FULL.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x31",
+        "EventName": "CORE_REJECT_L2Q.ANY",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full condition which likely indicates back pressure from L2Q. It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link. The L2Q may also reject transactions from a core to ensure fairness between cores, or to delay a core's dirty eviction when the address conflicts with incoming external snoops. Note that L2 prefetcher requests that are dropped are not counted by this event. Counts on a per core basis.",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of cache lines replaced in L0 data cache.",
         "Counter": "0,1,2,3,4,5,6,7,8,9",
         "EventCode": "0x51",
@@ -131,6 +140,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_XQ.ANY",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The IDI link is a central on-die protocol for memory and coherence traffic between the core and the uncore. It is highly optimized for efficiency, bandwidth, and coherency, using multiple channels and flow control mechanisms to manage high-throughput, low-latency data and protocol communication within the chip. The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "SampleAfterValue": "1000003",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of L2 cache accesses from front door requests for Code Read, Data Read, RFO, ITOM, and L2 Prefetches. Does not include rejects or recycles, per core event.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x24",
@@ -159,6 +177,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Code Read requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_CODE_RD_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x84",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Code Read requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x24",
@@ -174,6 +201,15 @@
         "EventName": "L2_REQUEST.DEMAND_DATA_RD",
         "SampleAfterValue": "1000003",
         "UMask": "0xc1",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Data Read requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_DATA_RD_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x81",
         "Unit": "cpu_atom"
     },
     {
@@ -195,6 +231,15 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand RFO requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_RFO_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x82",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of L2 cache accesses from front door Demand RFO requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x24",
@@ -213,12 +258,40 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "All requests that hit L2 cache. [This event is alias to L2_RQSTS.HIT]",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HIT",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_RQSTS.HIT]",
+        "SampleAfterValue": "200003",
+        "UMask": "0x5f",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests. Does not include rejects or recycles, per core event.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.HWPF",
         "SampleAfterValue": "1000003",
         "UMask": "0xc8",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests that result in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HWPF_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x88",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests that result in a miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HWPF_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x48",
         "Unit": "cpu_atom"
     },
     {
@@ -308,6 +381,16 @@
         "PublicDescription": "Counts demand Data Read requests with true-miss in the L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. An access is counted once.",
         "SampleAfterValue": "200003",
         "UMask": "0x21",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "All requests that hit L2 cache. [This event is alias to L2_REQUEST.HIT]",
+        "Counter": "0,1,2,3,4,5,6,7,8,9",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.HIT",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_REQUEST.HIT]",
+        "SampleAfterValue": "200003",
+        "UMask": "0x5f",
         "Unit": "cpu_core"
     },
     {
@@ -1020,6 +1103,19 @@
         "Unit": "cpu_atom"
     },
     {
+        "BriefDescription": "Counts the number of tagged load uops retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY",
+        "MSRIndex": "0x3F6",
+        "MSRValue": "0x1",
+        "PublicDescription": "Counts the number of tagged load uops retired. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x5",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 1024.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
@@ -1033,27 +1129,27 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 128.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_128",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x80",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 128. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 16.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_16",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 16. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
@@ -1072,79 +1168,79 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 256.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_256",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x100",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 256. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 32.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_32",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x20",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 32. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 4.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_4",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x4",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 4. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 512.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_512",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x200",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 512. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 64.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_64",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x40",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 64. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 8.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_8",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x8",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 8. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5",
         "Unit": "cpu_atom"
@@ -1157,6 +1253,26 @@
         "PublicDescription": "Counts the number of load uops retired that performed one or more locks Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x21",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of load uops retired that were correctly predicated by the memory renaming (MRN) feature.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.MRN_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that were correctly predicated by the memory renaming (MRN) feature.  MRN loads are a part of the memory renaming process that optimizes data forwarding between stores and loads, reducing latency and improving performance. This involves tagging stores that forward to loads and copying the physical source (the actual data) directly from the store to the load.  The MRN'd load can complete without accessing the memory, thus reducing load-to-use latency. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x9",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Counts the number of store uops retired that were correctly tagged by the memory renaming (MRN) feature.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.MRN_STORES",
+        "PublicDescription": "Counts the number of store uops retired that were correctly tagged by the memory renaming (MRN) feature.  MRN stores are a part of the memory renaming process that optimizes data forwarding between stores and loads, reducing latency and improving performance. This involves tagging stores that forward to loads and copying the physical source (the actual data) directly from the store to the load.  The MRN store ensures that it's data is accurately forwarded to matching subsequent loads. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xa",
         "Unit": "cpu_atom"
     },
     {
@@ -1220,12 +1336,12 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of  stores uops retired same as MEM_UOPS_RETIRED.ALL_STORES",
+        "BriefDescription": "Counts the number of stores uops retired.",
         "Counter": "0,1,2,3,4,5,6,7",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.STORE_LATENCY",
-        "PublicDescription": "Counts the number of  stores uops retired same as MEM_UOPS_RETIRED.ALL_STORES Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of stores uops retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x6",
         "Unit": "cpu_atom"

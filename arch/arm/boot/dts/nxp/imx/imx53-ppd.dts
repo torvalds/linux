@@ -258,6 +258,7 @@
 		clock-names = "main_clk";
 		clock-frequency = <24000000>;
 		clocks = <&clks IMX5_CLK_CKO2>;
+		#phy-cells = <0>;
 		assigned-clocks = <&clks IMX5_CLK_CKO2_SEL>, <&clks IMX5_CLK_OSC>;
 		assigned-clock-parents = <&clks IMX5_CLK_OSC>;
 	};
@@ -270,6 +271,7 @@
 
 		clock-frequency = <24000000>;
 		clocks = <&clks IMX5_CLK_CKO2>;
+		#phy-cells = <0>;
 		assigned-clocks = <&clks IMX5_CLK_CKO2_SEL>, <&clks IMX5_CLK_OSC>;
 		assigned-clock-parents = <&clks IMX5_CLK_OSC>;
 	};

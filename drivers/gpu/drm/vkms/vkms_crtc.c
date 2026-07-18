@@ -111,7 +111,7 @@ static const struct drm_crtc_funcs vkms_crtc_funcs = {
 };
 
 static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
@@ -157,7 +157,7 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 	__acquires(&vkms_output->lock)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
@@ -169,7 +169,7 @@ static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 	__releases(&vkms_output->lock)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);

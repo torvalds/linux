@@ -15,10 +15,10 @@
  * expression would cause us to quit the loop.
  */
 static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *region,
-			   uint8_t page_type, bool private)
+			   u8 page_type, bool private)
 {
 	const struct sparsebit *protected_phy_pages = region->protected_phy_pages;
-	const vm_paddr_t gpa_base = region->region.guest_phys_addr;
+	const gpa_t gpa_base = region->region.guest_phys_addr;
 	const sparsebit_idx_t lowest_page_in_region = gpa_base >> vm->page_shift;
 	sparsebit_idx_t i, j;
 
@@ -29,15 +29,15 @@ static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *regio
 		sev_register_encrypted_memory(vm, region);
 
 	sparsebit_for_each_set_range(protected_phy_pages, i, j) {
-		const uint64_t size = (j - i + 1) * vm->page_size;
-		const uint64_t offset = (i - lowest_page_in_region) * vm->page_size;
+		const u64 size = (j - i + 1) * vm->page_size;
+		const u64 offset = (i - lowest_page_in_region) * vm->page_size;
 
 		if (private)
 			vm_mem_set_private(vm, gpa_base + offset, size);
 
 		if (is_sev_snp_vm(vm))
 			snp_launch_update_data(vm, gpa_base + offset,
-					       (uint64_t)addr_gpa2hva(vm, gpa_base + offset),
+					       (u64)addr_gpa2hva(vm, gpa_base + offset),
 					       size, page_type);
 		else
 			sev_launch_update_data(vm, gpa_base + offset, size);
@@ -79,7 +79,7 @@ void snp_vm_init(struct kvm_vm *vm)
 	vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 }
 
-void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
+void sev_vm_launch(struct kvm_vm *vm, u32 policy)
 {
 	struct kvm_sev_launch_start launch_start = {
 		.policy = policy,
@@ -103,7 +103,7 @@ void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
 	vm->arch.is_pt_protected = true;
 }
 
-void sev_vm_launch_measure(struct kvm_vm *vm, uint8_t *measurement)
+void sev_vm_launch_measure(struct kvm_vm *vm, u8 *measurement)
 {
 	struct kvm_sev_launch_measure launch_measure;
 	struct kvm_sev_guest_status guest_status;
@@ -131,7 +131,7 @@ void sev_vm_launch_finish(struct kvm_vm *vm)
 	TEST_ASSERT_EQ(status.state, SEV_GUEST_STATE_RUNNING);
 }
 
-void snp_vm_launch_start(struct kvm_vm *vm, uint64_t policy)
+void snp_vm_launch_start(struct kvm_vm *vm, u64 policy)
 {
 	struct kvm_sev_snp_launch_start launch_start = {
 		.policy = policy,
@@ -158,7 +158,7 @@ void snp_vm_launch_finish(struct kvm_vm *vm)
 	vm_sev_ioctl(vm, KVM_SEV_SNP_LAUNCH_FINISH, &launch_finish);
 }
 
-struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t type, void *guest_code,
+struct kvm_vm *vm_sev_create_with_one_vcpu(u32 type, void *guest_code,
 					   struct kvm_vcpu **cpu)
 {
 	struct vm_shape shape = {
@@ -174,7 +174,7 @@ struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t type, void *guest_code,
 	return vm;
 }
 
-void vm_sev_launch(struct kvm_vm *vm, uint64_t policy, uint8_t *measurement)
+void vm_sev_launch(struct kvm_vm *vm, u64 policy, u8 *measurement)
 {
 	if (is_sev_snp_vm(vm)) {
 		vm_enable_cap(vm, KVM_CAP_EXIT_HYPERCALL, BIT(KVM_HC_MAP_GPA_RANGE));

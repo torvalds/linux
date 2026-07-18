@@ -13,7 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -319,8 +318,8 @@ static void lidar_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lidar_id[] = {
-	{ "lidar-lite-v2" },
-	{ "lidar-lite-v3" },
+	{ .name = "lidar-lite-v2" },
+	{ .name = "lidar-lite-v3" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lidar_id);

@@ -12,6 +12,8 @@
 #define AFE_PCM_NAME "mtk-afe-pcm"
 extern const struct snd_soc_component_driver mtk_afe_pcm_platform;
 
+#define MTK_ALIGN_16BYTES(x) ((x) & GENMASK_ULL(39, 4))
+
 struct mtk_base_afe;
 struct snd_pcm;
 struct snd_soc_component;

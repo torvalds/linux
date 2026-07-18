@@ -563,6 +563,15 @@ void bcm_phy_get_stats(struct phy_device *phydev, u64 *shadow,
 }
 EXPORT_SYMBOL_GPL(bcm_phy_get_stats);
 
+void bcm_phy_update_stats_shadow(struct phy_device *phydev, u64 *shadow)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(bcm_phy_hw_stats); i++)
+		bcm_phy_get_stat(phydev, shadow, i);
+}
+EXPORT_SYMBOL_GPL(bcm_phy_update_stats_shadow);
+
 void bcm_phy_r_rc_cal_reset(struct phy_device *phydev)
 {
 	/* Reset R_CAL/RC_CAL Engine */

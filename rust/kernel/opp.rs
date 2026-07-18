@@ -1042,11 +1042,13 @@ unsafe impl Sync for OPP {}
 
 /// SAFETY: The type invariants guarantee that [`OPP`] is always refcounted.
 unsafe impl AlwaysRefCounted for OPP {
+    #[inline]
     fn inc_ref(&self) {
         // SAFETY: The existence of a shared reference means that the refcount is nonzero.
         unsafe { bindings::dev_pm_opp_get(self.0.get()) };
     }
 
+    #[inline]
     unsafe fn dec_ref(obj: ptr::NonNull<Self>) {
         // SAFETY: The safety requirements guarantee that the refcount is nonzero.
         unsafe { bindings::dev_pm_opp_put(obj.cast().as_ptr()) }
@@ -1095,6 +1097,7 @@ impl OPP {
     }
 
     /// Returns the frequency of an [`OPP`].
+    #[inline]
     pub fn freq(&self, index: Option<u32>) -> Hertz {
         let index = index.unwrap_or(0);
 

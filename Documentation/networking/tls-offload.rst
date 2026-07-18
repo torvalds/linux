@@ -13,7 +13,7 @@ Layer Protocol (ULP) and install the cryptographic connection state.
 For details regarding the user-facing interface refer to the TLS
 documentation in :ref:`Documentation/networking/tls.rst <kernel_tls>`.
 
-``ktls`` can operate in three modes:
+``ktls`` can operate in two modes:
 
  * Software crypto mode (``TLS_SW``) - CPU handles the cryptography.
    In most basic cases only crypto operations synchronous with the CPU
@@ -26,11 +26,6 @@ documentation in :ref:`Documentation/networking/tls.rst <kernel_tls>`.
    This mode integrates best with the kernel stack and is described in detail
    in the remaining part of this document
    (``ethtool`` flags ``tls-hw-tx-offload`` and ``tls-hw-rx-offload``).
- * Full TCP NIC offload mode (``TLS_HW_RECORD``) - mode of operation where
-   NIC driver and firmware replace the kernel networking stack
-   with its own TCP handling, it is not usable in production environments
-   making use of the Linux networking stack for example any firewalling
-   abilities or QoS and packet scheduling (``ethtool`` flag ``tls-hw-record``).
 
 The operation mode is selected automatically based on device configuration,
 offload opt-in or opt-out on per-connection basis is not currently supported.
@@ -103,6 +98,29 @@ sequence number from ``crypto_info``. The driver can add its state
 at the end of kernel structures (see :c:member:`driver_state` members
 in ``include/net/tls.h``) to avoid additional allocations and pointer
 dereferences.
+
+When the offloaded connection is destroyed the core calls
+the :c:member:`tls_dev_del` callback so the driver can release per-direction
+state:
+
+.. code-block:: c
+
+	void (*tls_dev_del)(struct net_device *netdev,
+			    struct tls_context *ctx,
+			    enum tls_offload_ctx_dir direction);
+
+``tls_dev_del`` is mandatory whenever ``tls_dev_add`` is provided.
+
+The third TLS device callback is :c:member:`tls_dev_resync`, called by the core
+to synchronize the TCP stream with the record boundaries:
+
+.. code-block:: c
+
+	int (*tls_dev_resync)(struct net_device *netdev,
+			      struct sock *sk, u32 seq, u8 *rcd_sn,
+			      enum tls_offload_ctx_dir direction);
+
+See the `Resync handling`_ section for details.
 
 TX
 --
@@ -255,9 +273,9 @@ Following helper should be used to test if resync is complete:
   bool tls_offload_tx_resync_pending(struct sock *sk)
 
 Next time ``ktls`` pushes a record it will first send its TCP sequence number
-and TLS record number to the driver. Stack will also make sure that
-the new record will start on a segment boundary (like it does when
-the connection is initially added).
+and TLS record number to the driver via the ``tls_dev_resync`` callback.
+The stack will also make sure that the new record will start on a segment
+boundary (like it does when the connection is initially added).
 
 RX
 --
@@ -349,9 +367,10 @@ all TLS record headers that have been logged since the resync request
 started.
 
 The kernel confirms the guessed location was correct and tells the device
-the record sequence number. Meanwhile, the device had been parsing
-and counting all records since the just-confirmed one, it adds the number
-of records it had seen to the record number provided by the kernel.
+the record sequence number via the ``tls_dev_resync`` callback. Meanwhile,
+the device had been parsing and counting all records since the just-confirmed
+one, it adds the number of records it had seen to the record number provided
+by the kernel.
 At this point the device is in sync and can resume decryption at next
 segment boundary.
 
@@ -375,11 +394,18 @@ schedules resynchronization after it has received two completely encrypted
 records.
 
 The stack waits for the socket to drain and informs the device about
-the next expected record number and its TCP sequence number. If the
+the next expected record number and its TCP sequence number via the
+``tls_dev_resync`` callback. If the
 records continue to be received fully encrypted stack retries the
 synchronization with an exponential back off (first after 2 encrypted
 records, then after 4 records, after 8, after 16... up until every
 128 records).
+
+Rekey
+=====
+
+Offload does not currently support TLS 1.3, therefore key rotation
+is not a concern for offloaded connections at this point.
 
 Error handling
 ==============

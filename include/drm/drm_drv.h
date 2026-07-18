@@ -108,12 +108,6 @@ enum drm_driver_feature {
 	 */
 	DRIVER_COMPUTE_ACCEL            = BIT(7),
 	/**
-	 * @DRIVER_GEM_GPUVA:
-	 *
-	 * Driver supports user defined GPU VA bindings for GEM objects.
-	 */
-	DRIVER_GEM_GPUVA		= BIT(8),
-	/**
 	 * @DRIVER_CURSOR_HOTSPOT:
 	 *
 	 * Driver supports and requires cursor hotspot information in the

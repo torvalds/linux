@@ -520,6 +520,7 @@ enum v4l2_pixel_encoding {
  * @vdiv: Vertical chroma subsampling factor
  * @block_w: Per-plane macroblock pixel width (optional)
  * @block_h: Per-plane macroblock pixel height (optional)
+ * @has_alpha: Does the format embeds an alpha component?
  */
 struct v4l2_format_info {
 	u32 format;
@@ -532,6 +533,7 @@ struct v4l2_format_info {
 	u8 vdiv;
 	u8 block_w[4];
 	u8 block_h[4];
+	bool has_alpha;
 };
 
 static inline bool v4l2_is_format_rgb(const struct v4l2_format_info *f)
@@ -556,6 +558,10 @@ int v4l2_fill_pixfmt(struct v4l2_pix_format *pixfmt, u32 pixelformat,
 		     u32 width, u32 height);
 int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
 			u32 width, u32 height);
+/* @stride_alignment is a power of 2 value in bytes */
+int v4l2_fill_pixfmt_mp_aligned(struct v4l2_pix_format_mplane *pixfmt,
+				u32 pixelformat, u32 width, u32 height,
+				u8 stride_alignment);
 
 /**
  * v4l2_get_link_freq - Get link rate from transmitter

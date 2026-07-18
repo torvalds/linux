@@ -294,8 +294,9 @@ union MESAPI_SET_HW_RESOURCES {
 				uint32_t limit_single_process : 1;
 				uint32_t unmapped_doorbell_handling: 2;
 				uint32_t enable_mes_fence_int: 1;
-				uint32_t enable_lr_compute_wa : 1;
-				uint32_t reserved : 9;
+				uint32_t enable_lr_compute_wa : 2;
+				uint32_t enable_compute_pipe_reset : 1;
+				uint32_t reserved : 7;
 			};
 			uint32_t uint32_all;
 		};

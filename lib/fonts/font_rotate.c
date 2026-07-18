@@ -106,7 +106,7 @@ static void __font_glyph_rotate_180(const unsigned char *glyph,
 	for (y = 0; y < height; y++) {
 		for (x = 0; x < width; x++) {
 			if (font_glyph_test_bit(glyph, x, y, bit_pitch)) {
-				font_glyph_set_bit(out, width - (1 + x + shift), height - (1 + y),
+				font_glyph_set_bit(out, bit_pitch - 1 - x - shift, height - 1 - y,
 						   bit_pitch);
 			}
 		}

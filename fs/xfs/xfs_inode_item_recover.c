@@ -99,7 +99,7 @@ xfs_recover_inode_owner_change(
 	if (in_f->ilf_fields & XFS_ILOG_DOWNER) {
 		ASSERT(in_f->ilf_fields & XFS_ILOG_DBROOT);
 		error = xfs_bmbt_change_owner(NULL, ip, XFS_DATA_FORK,
-					      ip->i_ino, buffer_list);
+					      I_INO(ip), buffer_list);
 		if (error)
 			goto out_free_ip;
 	}
@@ -107,7 +107,7 @@ xfs_recover_inode_owner_change(
 	if (in_f->ilf_fields & XFS_ILOG_AOWNER) {
 		ASSERT(in_f->ilf_fields & XFS_ILOG_ABROOT);
 		error = xfs_bmbt_change_owner(NULL, ip, XFS_ATTR_FORK,
-					      ip->i_ino, buffer_list);
+					      I_INO(ip), buffer_list);
 		if (error)
 			goto out_free_ip;
 	}

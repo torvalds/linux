@@ -472,7 +472,9 @@ static inline void dw_spi_abort(struct spi_controller *ctlr)
 	if (dws->dma_mapped)
 		dws->dma_ops->dma_stop(dws);
 
+	disable_irq(dws->irq);
 	dw_spi_reset_chip(dws);
+	enable_irq(dws->irq);
 }
 
 static void dw_spi_handle_err(struct spi_controller *ctlr,
@@ -947,7 +949,7 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 	ret = request_irq(dws->irq, dw_spi_irq, IRQF_SHARED, dev_name(dev),
 			  ctlr);
 	if (ret < 0 && ret != -ENOTCONN) {
-		dev_err(dev, "can not get IRQ\n");
+		dev_err(dev, "can not request IRQ\n");
 		goto err_free_ctlr;
 	}
 
@@ -1032,6 +1034,8 @@ void dw_spi_remove_controller(struct dw_spi *dws)
 	dw_spi_shutdown_chip(dws);
 
 	free_irq(dws->irq, dws->ctlr);
+
+	spi_controller_put(dws->ctlr);
 }
 EXPORT_SYMBOL_NS_GPL(dw_spi_remove_controller, "SPI_DW_CORE");
 

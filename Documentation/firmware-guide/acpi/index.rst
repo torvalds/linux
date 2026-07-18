@@ -11,6 +11,7 @@ ACPI Support
    dsd/graph
    dsd/data-node-references
    dsd/leds
+   dsd/motorcomm-yt8xxx-phy
    dsd/phy
    enumeration
    osi

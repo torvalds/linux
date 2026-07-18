@@ -12,7 +12,7 @@
 
 #include "cifsglob.h"
 
-#include "../smbdirect/smbdirect.h"
+#include <linux/smbdirect.h>
 
 extern int rdma_readwrite_threshold;
 extern int smbd_max_frmr_depth;

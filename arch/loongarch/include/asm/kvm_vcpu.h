@@ -10,22 +10,37 @@
 #include <asm/loongarch.h>
 
 /* Controlled by 0x5 guest estat */
-#define CPU_SIP0			(_ULCAST_(1))
-#define CPU_SIP1			(_ULCAST_(1) << 1)
-#define CPU_PMU				(_ULCAST_(1) << 10)
-#define CPU_TIMER			(_ULCAST_(1) << 11)
-#define CPU_IPI				(_ULCAST_(1) << 12)
-#define CPU_AVEC                        (_ULCAST_(1) << 14)
+#define CPU_SIP0			BIT(INT_SWI0)
+#define CPU_SIP1			BIT(INT_SWI1)
+#define CPU_HWI0			BIT(INT_HWI0)
+#define CPU_HWI1			BIT(INT_HWI1)
+#define CPU_HWI2			BIT(INT_HWI2)
+#define CPU_HWI3			BIT(INT_HWI3)
+#define CPU_HWI4			BIT(INT_HWI4)
+#define CPU_HWI5			BIT(INT_HWI5)
+#define CPU_HWI6			BIT(INT_HWI6)
+#define CPU_HWI7			BIT(INT_HWI7)
+#define CPU_PMU				BIT(INT_PCOV)
+#define CPU_TIMER			BIT(INT_TI)
+#define CPU_IPI				BIT(INT_IPI)
+#define CPU_AVEC			BIT(INT_AVEC)
+#define KVM_ESTAT_INTI_MASK		(CPU_SIP0 | CPU_SIP1 | CPU_PMU | CPU_TIMER \
+						| CPU_IPI | CPU_AVEC)
+#define KVM_ESTAT_EXTI_MASK		(CPU_HWI0 | CPU_HWI1 | CPU_HWI2 | CPU_HWI3 \
+						| CPU_HWI4 | CPU_HWI5 | CPU_HWI6 | CPU_HWI7)
 
 /* Controlled by 0x52 guest exception VIP aligned to estat bit 5~12 */
-#define CPU_IP0				(_ULCAST_(1))
-#define CPU_IP1				(_ULCAST_(1) << 1)
-#define CPU_IP2				(_ULCAST_(1) << 2)
-#define CPU_IP3				(_ULCAST_(1) << 3)
-#define CPU_IP4				(_ULCAST_(1) << 4)
-#define CPU_IP5				(_ULCAST_(1) << 5)
-#define CPU_IP6				(_ULCAST_(1) << 6)
-#define CPU_IP7				(_ULCAST_(1) << 7)
+#define VIP_DELTA			(INT_HWI0 - CSR_GINTC_VIP_SHIFT)
+#define CPU_IP0				BIT(INT_HWI0 - VIP_DELTA)
+#define CPU_IP1				BIT(INT_HWI1 - VIP_DELTA)
+#define CPU_IP2				BIT(INT_HWI2 - VIP_DELTA)
+#define CPU_IP3				BIT(INT_HWI3 - VIP_DELTA)
+#define CPU_IP4				BIT(INT_HWI4 - VIP_DELTA)
+#define CPU_IP5				BIT(INT_HWI5 - VIP_DELTA)
+#define CPU_IP6				BIT(INT_HWI6 - VIP_DELTA)
+#define CPU_IP7				BIT(INT_HWI7 - VIP_DELTA)
+#define KVM_GINTC_IRQ_MASK		(CPU_IP0 | CPU_IP1 | CPU_IP2 | CPU_IP3 \
+						| CPU_IP4 | CPU_IP5 | CPU_IP6 | CPU_IP7)
 
 #define MNSEC_PER_SEC			(NSEC_PER_SEC >> 20)
 

@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-label-in-string.yaml:26: example 0 [unused-labels] label 'foo' defined but never &-referenced

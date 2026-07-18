@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -53,7 +52,7 @@ static const struct of_device_id hts221_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, hts221_i2c_of_match);
 
 static const struct i2c_device_id hts221_i2c_id_table[] = {
-	{ HTS221_DEV_NAME },
+	{ .name = HTS221_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hts221_i2c_id_table);

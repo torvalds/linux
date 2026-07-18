@@ -30,20 +30,20 @@ struct reg_ftr_bits {
 	char *name;
 	bool sign;
 	enum ftr_type type;
-	uint8_t shift;
-	uint64_t mask;
+	u8 shift;
+	u64 mask;
 	/*
 	 * For FTR_EXACT, safe_val is used as the exact safe value.
 	 * For FTR_LOWER_SAFE, safe_val is used as the minimal safe value.
 	 */
-	int64_t safe_val;
+	s64 safe_val;
 
 	/* Allowed to be changed by the host after run */
 	bool mutable;
 };
 
 struct test_feature_reg {
-	uint32_t reg;
+	u32 reg;
 	const struct reg_ftr_bits *ftr_bits;
 };
 
@@ -275,9 +275,9 @@ static void guest_code(void)
 }
 
 /* Return a safe value to a given ftr_bits an ftr value */
-uint64_t get_safe_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
+u64 get_safe_value(const struct reg_ftr_bits *ftr_bits, u64 ftr)
 {
-	uint64_t ftr_max = ftr_bits->mask >> ftr_bits->shift;
+	u64 ftr_max = ftr_bits->mask >> ftr_bits->shift;
 
 	TEST_ASSERT(ftr_max > 1, "This test doesn't support single bit features");
 
@@ -329,16 +329,16 @@ uint64_t get_safe_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
 }
 
 /* Return an invalid value to a given ftr_bits an ftr value */
-uint64_t get_invalid_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
+u64 get_invalid_value(const struct reg_ftr_bits *ftr_bits, u64 ftr)
 {
-	uint64_t ftr_max = ftr_bits->mask >> ftr_bits->shift;
+	u64 ftr_max = ftr_bits->mask >> ftr_bits->shift;
 
 	TEST_ASSERT(ftr_max > 1, "This test doesn't support single bit features");
 
 	if (ftr_bits->sign == FTR_UNSIGNED) {
 		switch (ftr_bits->type) {
 		case FTR_EXACT:
-			ftr = max((uint64_t)ftr_bits->safe_val + 1, ftr + 1);
+			ftr = max((u64)ftr_bits->safe_val + 1, ftr + 1);
 			break;
 		case FTR_LOWER_SAFE:
 			ftr++;
@@ -358,7 +358,7 @@ uint64_t get_invalid_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
 	} else if (ftr != ftr_max) {
 		switch (ftr_bits->type) {
 		case FTR_EXACT:
-			ftr = max((uint64_t)ftr_bits->safe_val + 1, ftr + 1);
+			ftr = max((u64)ftr_bits->safe_val + 1, ftr + 1);
 			break;
 		case FTR_LOWER_SAFE:
 			ftr++;
@@ -382,12 +382,12 @@ uint64_t get_invalid_value(const struct reg_ftr_bits *ftr_bits, uint64_t ftr)
 	return ftr;
 }
 
-static uint64_t test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
-				     const struct reg_ftr_bits *ftr_bits)
+static u64 test_reg_set_success(struct kvm_vcpu *vcpu, u64 reg,
+				const struct reg_ftr_bits *ftr_bits)
 {
-	uint8_t shift = ftr_bits->shift;
-	uint64_t mask = ftr_bits->mask;
-	uint64_t val, new_val, ftr;
+	u8 shift = ftr_bits->shift;
+	u64 mask = ftr_bits->mask;
+	u64 val, new_val, ftr;
 
 	val = vcpu_get_reg(vcpu, reg);
 	ftr = (val & mask) >> shift;
@@ -405,12 +405,12 @@ static uint64_t test_reg_set_success(struct kvm_vcpu *vcpu, uint64_t reg,
 	return new_val;
 }
 
-static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
+static void test_reg_set_fail(struct kvm_vcpu *vcpu, u64 reg,
 			      const struct reg_ftr_bits *ftr_bits)
 {
-	uint8_t shift = ftr_bits->shift;
-	uint64_t mask = ftr_bits->mask;
-	uint64_t val, old_val, ftr;
+	u8 shift = ftr_bits->shift;
+	u64 mask = ftr_bits->mask;
+	u64 val, old_val, ftr;
 	int r;
 
 	val = vcpu_get_reg(vcpu, reg);
@@ -431,7 +431,7 @@ static void test_reg_set_fail(struct kvm_vcpu *vcpu, uint64_t reg,
 	TEST_ASSERT_EQ(val, old_val);
 }
 
-static uint64_t test_reg_vals[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+static u64 test_reg_vals[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 
 #define encoding_to_range_idx(encoding)							\
 	KVM_ARM_FEATURE_ID_RANGE_IDX(sys_reg_Op0(encoding), sys_reg_Op1(encoding),	\
@@ -441,7 +441,7 @@ static uint64_t test_reg_vals[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 
 static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 {
-	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	u64 masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 	struct reg_mask_range range = {
 		.addr = (__u64)masks,
 	};
@@ -458,8 +458,8 @@ static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 
 	for (int i = 0; i < ARRAY_SIZE(test_regs); i++) {
 		const struct reg_ftr_bits *ftr_bits = test_regs[i].ftr_bits;
-		uint32_t reg_id = test_regs[i].reg;
-		uint64_t reg = KVM_ARM64_SYS_REG(reg_id);
+		u32 reg_id = test_regs[i].reg;
+		u64 reg = KVM_ARM64_SYS_REG(reg_id);
 		int idx;
 
 		/* Get the index to masks array for the idreg */
@@ -489,11 +489,11 @@ static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 #define MPAM_IDREG_TEST	6
 static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
 {
-	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	u64 masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 	struct reg_mask_range range = {
 		.addr = (__u64)masks,
 	};
-	uint64_t val;
+	u64 val;
 	int idx, err;
 
 	/*
@@ -584,13 +584,13 @@ static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
 #define MTE_IDREG_TEST 1
 static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 {
-	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	u64 masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
 	struct reg_mask_range range = {
 		.addr = (__u64)masks,
 	};
-	uint64_t val;
-	uint64_t mte;
-	uint64_t mte_frac;
+	u64 val;
+	u64 mte;
+	u64 mte_frac;
 	int idx, err;
 
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1));
@@ -644,7 +644,7 @@ static void test_user_set_mte_reg(struct kvm_vcpu *vcpu)
 		ksft_test_result_pass("ID_AA64PFR1_EL1.MTE_frac no longer 0xF\n");
 }
 
-static uint64_t reset_mutable_bits(uint32_t id, uint64_t val)
+static u64 reset_mutable_bits(u32 id, u64 val)
 {
 	struct test_feature_reg *reg = NULL;
 
@@ -674,7 +674,7 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 	struct ucall uc;
 
 	while (!done) {
-		uint64_t val;
+		u64 val;
 
 		vcpu_run(vcpu);
 
@@ -707,7 +707,7 @@ static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 
 static void test_clidr(struct kvm_vcpu *vcpu)
 {
-	uint64_t clidr;
+	u64 clidr;
 	int level;
 
 	clidr = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_CLIDR_EL1));
@@ -772,10 +772,10 @@ static void test_vcpu_non_ftr_id_regs(struct kvm_vcpu *vcpu)
 	ksft_test_result_pass("%s\n", __func__);
 }
 
-static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, uint32_t encoding)
+static void test_assert_id_reg_unchanged(struct kvm_vcpu *vcpu, u32 encoding)
 {
 	size_t idx = encoding_to_range_idx(encoding);
-	uint64_t observed;
+	u64 observed;
 
 	observed = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(encoding));
 	TEST_ASSERT_EQ(reset_mutable_bits(encoding, test_reg_vals[idx]),
@@ -808,7 +808,7 @@ int main(void)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	bool aarch64_only;
-	uint64_t val, el0;
+	u64 val, el0;
 	int test_cnt, i, j;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SUPPORTED_REG_MASK_RANGES));

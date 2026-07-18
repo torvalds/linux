@@ -230,10 +230,23 @@ static inline int cpu_to_mem(int cpu)
 #define topology_drawer_cpumask(cpu)		cpumask_of(cpu)
 #endif
 
-#if defined(CONFIG_SCHED_SMT) && !defined(cpu_smt_mask)
+/*
+ * Defining cpu_smt_mask as cpumask_of that CPU helps to get
+ * rid of lot of ifdeffery all around the codebase in case of
+ * CONFIG_SCHED_SMT=n. It just means there are no other siblings, which
+ * is what is expected.
+ */
+#if defined(CONFIG_SCHED_SMT)
+# if !defined(cpu_smt_mask)
 static inline const struct cpumask *cpu_smt_mask(int cpu)
 {
 	return topology_sibling_cpumask(cpu);
+}
+# endif
+#else	/* !CONFIG_SCHED_SMT */
+static inline const struct cpumask *cpu_smt_mask(int cpu)
+{
+	return cpumask_of(cpu);
 }
 #endif
 

@@ -22,7 +22,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: apple,t6020-i2c
+          - enum:
+              - apple,t6020-i2c
+              - apple,t8122-i2c
           - const: apple,t8103-i2c
       - items:
           - enum:

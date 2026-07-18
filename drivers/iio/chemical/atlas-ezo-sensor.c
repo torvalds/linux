@@ -8,7 +8,6 @@
 
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
@@ -186,9 +185,9 @@ static const struct iio_info atlas_info = {
 };
 
 static const struct i2c_device_id atlas_ezo_id[] = {
-	{ "atlas-co2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_CO2_EZO] },
-	{ "atlas-o2-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_O2_EZO] },
-	{ "atlas-hum-ezo", (kernel_ulong_t)&atlas_ezo_devices[ATLAS_HUM_EZO] },
+	{ .name = "atlas-co2-ezo", .driver_data = (kernel_ulong_t)&atlas_ezo_devices[ATLAS_CO2_EZO] },
+	{ .name = "atlas-o2-ezo", .driver_data = (kernel_ulong_t)&atlas_ezo_devices[ATLAS_O2_EZO] },
+	{ .name = "atlas-hum-ezo", .driver_data = (kernel_ulong_t)&atlas_ezo_devices[ATLAS_HUM_EZO] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atlas_ezo_id);

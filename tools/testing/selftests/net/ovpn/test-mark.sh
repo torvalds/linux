@@ -66,7 +66,7 @@ ovpn_mark_run_baseline_traffic() {
 
 	for p in $(seq 1 3); do
 		ovpn_cmd_ok "send baseline traffic to peer ${p}" \
-			ip netns exec ovpn_peer0 ping -qfc 500 -w 3 \
+			ip netns exec ovpn_peer0 ping -qfc 100 -w 3 \
 				5.5.5.$((p + 1))
 	done
 }
@@ -101,7 +101,7 @@ ovpn_mark_verify_drop_traffic() {
 	local total_count
 
 	for p in $(seq 1 3); do
-		if ping_output=$(ip netns exec ovpn_peer0 ping -qfc 500 -w 1 \
+		if ping_output=$(ip netns exec ovpn_peer0 ping -qfc 100 -w 1 \
 			5.5.5.$((p + 1)) 2>&1); then
 			printf '%s\n' "expected ping to peer ${p} to fail \
 				after nft drop rule"
@@ -144,7 +144,7 @@ ovpn_mark_verify_traffic_recovery() {
 	sleep 1
 	for p in $(seq 1 3); do
 		ovpn_cmd_ok "send recovery traffic to peer ${p}" \
-			ip netns exec ovpn_peer0 ping -qfc 500 -w 3 \
+			ip netns exec ovpn_peer0 ping -qfc 100 -w 3 \
 				5.5.5.$((p + 1))
 	done
 }

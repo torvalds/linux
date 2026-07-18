@@ -7,12 +7,13 @@
 #ifndef _LINUX_IOMMU_DMA_H
 #define _LINUX_IOMMU_DMA_H
 
+#include <linux/device.h>
 #include <linux/dma-direction.h>
 
 #ifdef CONFIG_IOMMU_DMA
 static inline bool use_dma_iommu(struct device *dev)
 {
-	return dev->dma_iommu;
+	return dev_dma_iommu(dev);
 }
 #else
 static inline bool use_dma_iommu(struct device *dev)

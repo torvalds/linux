@@ -2258,22 +2258,22 @@ int security_inode_setsecurity(struct inode *inode, const char *name,
 /**
  * security_inode_listsecurity() - List the xattr security label names
  * @inode: inode
- * @buffer: buffer
- * @buffer_size: size of buffer
+ * @buffer: pointer to buffer
+ * @remaining_size: pointer to remaining size of buffer
  *
  * Copy the extended attribute names for the security labels associated with
- * @inode into @buffer.  The maximum size of @buffer is specified by
- * @buffer_size.  @buffer may be NULL to request the size of the buffer
- * required.
+ * @inode into *(@buffer).  The remaining size of @buffer is specified by
+ * *(@remaining_size).  *(@buffer) may be NULL to request the size of the
+ * buffer required. Updates *(@buffer) and *(@remaining_size).
  *
- * Return: Returns number of bytes used/required on success.
+ * Return: Returns 0 on success, or -errno on failure.
  */
 int security_inode_listsecurity(struct inode *inode,
-				char *buffer, size_t buffer_size)
+				char **buffer, ssize_t *remaining_size)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
-	return call_int_hook(inode_listsecurity, inode, buffer, buffer_size);
+	return call_int_hook(inode_listsecurity, inode, buffer, remaining_size);
 }
 EXPORT_SYMBOL(security_inode_listsecurity);
 

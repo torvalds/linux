@@ -43,8 +43,6 @@ obj-$(CONFIG_XEN_PVHVM_SMP)  	+= smp_hvm.o
 
 obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= spinlock.o
 
-obj-$(CONFIG_XEN_DEBUG_FS)	+= debugfs.o
-
 obj-$(CONFIG_XEN_DOM0)		+= vga.o
 
 obj-$(CONFIG_XEN_EFI)		+= efi.o

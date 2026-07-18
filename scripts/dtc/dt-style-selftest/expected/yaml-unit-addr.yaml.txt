@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-unit-addr.yaml:26: example 0 [unit-address-format] unit address '01000' has leading zeros

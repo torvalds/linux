@@ -278,8 +278,8 @@ enum chipset {
 };
 
 static const struct pci_device_id starfire_pci_tbl[] = {
-	{ PCI_VDEVICE(ADAPTEC, 0x6915), CH_6915 },
-	{ 0, }
+	{ PCI_VDEVICE(ADAPTEC, 0x6915), .driver_data = CH_6915 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, starfire_pci_tbl);
 

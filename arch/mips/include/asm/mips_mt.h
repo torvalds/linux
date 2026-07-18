@@ -23,7 +23,6 @@ extern void mips_mt_set_cpuoptions(void);
 static inline void mips_mt_set_cpuoptions(void) { }
 #endif
 
-struct class;
 extern const struct class mt_class;
 
 #endif /* __ASM_MIPS_MT_H */

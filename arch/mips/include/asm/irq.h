@@ -54,7 +54,7 @@ static inline int irq_canonicalize(int irq)
 
 asmlinkage void plat_irq_dispatch(void);
 
-extern void do_IRQ(unsigned int irq);
+asmlinkage void do_IRQ(unsigned int irq);
 
 struct irq_domain;
 extern void do_domain_IRQ(struct irq_domain *domain, unsigned int irq);

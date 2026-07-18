@@ -103,8 +103,8 @@ MODULE_PARM_DESC(mpuport, "MPU-401 port # for CMI8330/CMI8329 driver.");
 module_param_hw_array(mpuirq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpuirq, "IRQ # for CMI8330/CMI8329 MPU-401 port.");
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 #endif
 
 #define CMI8330_RMUX3D    16

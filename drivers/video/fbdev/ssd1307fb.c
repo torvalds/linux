@@ -784,10 +784,10 @@ static void ssd1307fb_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ssd1307fb_i2c_id[] = {
-	{ "ssd1305fb" },
-	{ "ssd1306fb" },
-	{ "ssd1307fb" },
-	{ "ssd1309fb" },
+	{ .name = "ssd1305fb" },
+	{ .name = "ssd1306fb" },
+	{ .name = "ssd1307fb" },
+	{ .name = "ssd1309fb" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssd1307fb_i2c_id);

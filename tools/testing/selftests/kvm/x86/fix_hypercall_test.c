@@ -26,18 +26,18 @@ static void guest_ud_handler(struct ex_regs *regs)
 	regs->rip += HYPERCALL_INSN_SIZE;
 }
 
-static const uint8_t vmx_vmcall[HYPERCALL_INSN_SIZE]  = { 0x0f, 0x01, 0xc1 };
-static const uint8_t svm_vmmcall[HYPERCALL_INSN_SIZE] = { 0x0f, 0x01, 0xd9 };
+static const u8 vmx_vmcall[HYPERCALL_INSN_SIZE]  = { 0x0f, 0x01, 0xc1 };
+static const u8 svm_vmmcall[HYPERCALL_INSN_SIZE] = { 0x0f, 0x01, 0xd9 };
 
-extern uint8_t hypercall_insn[HYPERCALL_INSN_SIZE];
-static uint64_t do_sched_yield(uint8_t apic_id)
+extern u8 hypercall_insn[HYPERCALL_INSN_SIZE];
+static u64 do_sched_yield(u8 apic_id)
 {
-	uint64_t ret;
+	u64 ret;
 
 	asm volatile("hypercall_insn:\n\t"
 		     ".byte 0xcc,0xcc,0xcc\n\t"
 		     : "=a"(ret)
-		     : "a"((uint64_t)KVM_HC_SCHED_YIELD), "b"((uint64_t)apic_id)
+		     : "a"((u64)KVM_HC_SCHED_YIELD), "b"((u64)apic_id)
 		     : "memory");
 
 	return ret;
@@ -45,9 +45,9 @@ static uint64_t do_sched_yield(uint8_t apic_id)
 
 static void guest_main(void)
 {
-	const uint8_t *native_hypercall_insn;
-	const uint8_t *other_hypercall_insn;
-	uint64_t ret;
+	const u8 *native_hypercall_insn;
+	const u8 *other_hypercall_insn;
+	u64 ret;
 
 	if (host_cpu_is_intel) {
 		native_hypercall_insn = vmx_vmcall;
@@ -72,7 +72,7 @@ static void guest_main(void)
 	 * the "right" hypercall.
 	 */
 	if (quirk_disabled) {
-		GUEST_ASSERT(ret == (uint64_t)-EFAULT);
+		GUEST_ASSERT(ret == (u64)-EFAULT);
 		GUEST_ASSERT(!memcmp(other_hypercall_insn, hypercall_insn,
 			     HYPERCALL_INSN_SIZE));
 	} else {

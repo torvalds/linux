@@ -12,7 +12,6 @@
 #include "nop.h"
 
 struct io_nop {
-	/* NOTE: kiocb has the file as the first member, so don't do it here */
 	struct file     *file;
 	int             result;
 	int		fd;
@@ -41,6 +40,8 @@ int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		nop->fd = READ_ONCE(sqe->fd);
 	else
 		nop->fd = -1;
+	if (nop->flags & IORING_NOP_FIXED_FILE)
+		req->flags |= REQ_F_FIXED_FILE;
 	if (nop->flags & IORING_NOP_FIXED_BUFFER)
 		req->buf_index = READ_ONCE(sqe->buf_index);
 	if (nop->flags & IORING_NOP_CQE32) {
@@ -60,12 +61,10 @@ int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 	int ret = nop->result;
 
 	if (nop->flags & IORING_NOP_FILE) {
-		if (nop->flags & IORING_NOP_FIXED_FILE) {
+		if (req->flags & REQ_F_FIXED_FILE)
 			req->file = io_file_get_fixed(req, nop->fd, issue_flags);
-			req->flags |= REQ_F_FIXED_FILE;
-		} else {
+		else
 			req->file = io_file_get_normal(req, nop->fd);
-		}
 		if (!req->file) {
 			ret = -EBADF;
 			goto done;
@@ -79,9 +78,9 @@ done:
 	if (ret < 0)
 		req_set_fail(req);
 	if (nop->flags & IORING_NOP_CQE32)
-		io_req_set_res32(req, nop->result, 0, nop->extra1, nop->extra2);
+		io_req_set_res32(req, ret, 0, nop->extra1, nop->extra2);
 	else
-		io_req_set_res(req, nop->result, 0);
+		io_req_set_res(req, ret, 0);
 	if (nop->flags & IORING_NOP_TW) {
 		req->io_task_work.func = io_req_task_complete;
 		io_req_task_work_add(req);

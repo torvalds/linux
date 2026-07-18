@@ -51,8 +51,8 @@ enum {
 
 /* Vport number for each function must keep unchanged */
 enum {
-	MLX5_VPORT_PF			= 0x0,
-	MLX5_VPORT_FIRST_VF		= 0x1,
+	MLX5_VPORT_HOST_PF		= 0x0,
+	MLX5_VPORT_FIRST_HOST_VF	= 0x1,
 	MLX5_VPORT_ECPF			= 0xfffe,
 	MLX5_VPORT_UPLINK		= 0xffff
 };
@@ -102,8 +102,8 @@ int mlx5_query_hca_vport_node_guid(struct mlx5_core_dev *dev,
 int mlx5_query_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				  u16 vport,
 				  enum mlx5_list_type list_type,
-				  u8 addr_list[][ETH_ALEN],
-				  int *list_size);
+				  u8 (**mac_list)[ETH_ALEN],
+				  int *mac_list_size);
 int mlx5_modify_nic_vport_mac_list(struct mlx5_core_dev *dev,
 				   enum mlx5_list_type list_type,
 				   u8 addr_list[][ETH_ALEN],

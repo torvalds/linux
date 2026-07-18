@@ -164,7 +164,7 @@ config IPV6_SIT
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
 	select IPV6_NDISC_NODETYPE
-	default y
+	default m
 	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
@@ -172,7 +172,7 @@ config IPV6_SIT
 	  into IPv4 packets. This is useful if you want to connect two IPv6
 	  networks over an IPv4-only path.
 
-	  Saying M here will produce a module called sit. If unsure, say Y.
+	  Saying M here will produce a module called sit. If unsure, say M.
 
 config IPV6_SIT_6RD
 	bool "IPv6: IPv6 Rapid Deployment (6RD)"

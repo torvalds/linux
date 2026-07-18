@@ -169,8 +169,8 @@ void trace_alt_begin(struct instruction *orig_insn, struct alternative *alt,
 		 */
 		TRACE_ALT_INFO_NOADDR(orig_insn, "/ ", "%s for instruction at 0x%lx <%s+0x%lx>",
 				      alt_name,
-				      orig_insn->offset, orig_insn->sym->name,
-				      orig_insn->offset - orig_insn->sym->offset);
+				      orig_insn->offset, insn_sym(orig_insn)->name,
+				      orig_insn->offset - insn_sym(orig_insn)->offset);
 	} else {
 		TRACE_ALT_INFO_NOADDR(orig_insn, "/ ", "%s", alt_name);
 	}
@@ -185,8 +185,8 @@ void trace_alt_begin(struct instruction *orig_insn, struct alternative *alt,
 		if (orig_insn->type == INSN_NOP) {
 			suffix[0] = (orig_insn->len == 5) ? 'q' : '\0';
 			TRACE_ADDR(orig_insn, "jmp%-3s %lx <%s+0x%lx>", suffix,
-				   alt_insn->offset, alt_insn->sym->name,
-				   alt_insn->offset - alt_insn->sym->offset);
+				   alt_insn->offset, insn_sym(alt_insn)->name,
+				   alt_insn->offset - insn_sym(alt_insn)->offset);
 		} else {
 			TRACE_ADDR(orig_insn, "nop%d", orig_insn->len);
 			trace_depth--;

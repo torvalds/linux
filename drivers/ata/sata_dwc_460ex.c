@@ -1041,6 +1041,7 @@ static unsigned int sata_dwc_qc_issue(struct ata_queued_cmd *qc)
 }
 
 static void sata_dwc_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	ata_sff_error_handler(ap);
 }

@@ -122,10 +122,12 @@ static void drm_log_draw_line(struct drm_log_scanout *scanout, const char *s,
 	iosys_map_incr(&map, r.y1 * fb->pitches[0]);
 	for (i = 0; i < len && i < scanout->columns; i++) {
 		u32 color = (i < prefix_len) ? scanout->prefix_color : scanout->front_color;
-		src = drm_draw_get_char_bitmap(font, s[i], font_pitch);
-		drm_log_blit(&map, fb->pitches[0], src, font_pitch,
-			     scanout->scaled_font_h, scanout->scaled_font_w,
-			     px_width, color);
+		src = font_data_glyph_buf(font->data, font->width, font->height,
+					  (unsigned char)s[i]);
+		if (src)
+			drm_log_blit(&map, fb->pitches[0], src, font_pitch,
+				     scanout->scaled_font_h, scanout->scaled_font_w,
+				     px_width, color);
 		iosys_map_incr(&map, scanout->scaled_font_w * px_width);
 	}
 

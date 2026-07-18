@@ -91,6 +91,21 @@ match_outdev:
 	return (!!ret ^ !(info->invert & XT_PHYSDEV_OP_OUT));
 }
 
+static int physdev_mt_check_hooks(const struct xt_mtchk_param *par)
+{
+	const struct xt_physdev_info *info = par->matchinfo;
+
+	if (info->bitmask & (XT_PHYSDEV_OP_OUT | XT_PHYSDEV_OP_ISOUT) &&
+	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
+	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
+	    par->hook_mask & (1 << NF_INET_LOCAL_OUT)) {
+		pr_info_ratelimited("--physdev-out and --physdev-is-out only supported in the FORWARD and POSTROUTING chains with bridged traffic\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int physdev_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_physdev_info *info = par->matchinfo;
@@ -99,13 +114,6 @@ static int physdev_mt_check(const struct xt_mtchk_param *par)
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
 		return -EINVAL;
-	if (info->bitmask & (XT_PHYSDEV_OP_OUT | XT_PHYSDEV_OP_ISOUT) &&
-	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
-	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
-	    par->hook_mask & (1 << NF_INET_LOCAL_OUT)) {
-		pr_info_ratelimited("--physdev-out and --physdev-is-out only supported in the FORWARD and POSTROUTING chains with bridged traffic\n");
-		return -EINVAL;
-	}
 
 #define X(memb) strnlen(info->memb, sizeof(info->memb)) >= sizeof(info->memb)
 	if (info->bitmask & XT_PHYSDEV_OP_IN) {
@@ -141,6 +149,7 @@ static struct xt_match physdev_mt_reg[] __read_mostly = {
 	{
 		.name		= "physdev",
 		.family		= NFPROTO_IPV4,
+		.check_hooks	= physdev_mt_check_hooks,
 		.checkentry	= physdev_mt_check,
 		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),
@@ -149,6 +158,7 @@ static struct xt_match physdev_mt_reg[] __read_mostly = {
 	{
 		.name		= "physdev",
 		.family		= NFPROTO_IPV6,
+		.check_hooks	= physdev_mt_check_hooks,
 		.checkentry	= physdev_mt_check,
 		.match		= physdev_mt,
 		.matchsize	= sizeof(struct xt_physdev_info),

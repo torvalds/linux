@@ -201,7 +201,8 @@ err_out:
 	return ret;
 }
 
-static int test__pmu_usr_chgs(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
+static int test__pmu_config_helpers(struct test_suite *test __maybe_unused,
+				    int subtest __maybe_unused)
 {
 	const char *event = "perf-pmu-test/config=15,config1=4,krava02=170,"
 			    "krava03=1,krava11=27,krava12=1/";
@@ -235,6 +236,12 @@ static int test__pmu_usr_chgs(struct test_suite *test __maybe_unused, int subtes
 		goto err_out;
 	}
 	evsel = evlist__first(evlist);
+
+	/* Test evsel__config_exists() */
+	TEST_ASSERT_EQUAL("krava01 should exist",
+			  evsel__config_exists(evsel, "krava01"), true);
+	TEST_ASSERT_EQUAL("krava99 should not exist",
+			  evsel__config_exists(evsel, "krava99"), false);
 
 	/*
 	 * Set via config=15, krava01 bits 0-1
@@ -629,7 +636,7 @@ static struct test_case tests__pmu[] = {
 	TEST_CASE("PMU name combining", name_len),
 	TEST_CASE("PMU name comparison", name_cmp),
 	TEST_CASE("PMU cmdline match", pmu_match),
-	TEST_CASE("PMU user config changes", pmu_usr_chgs),
+	TEST_CASE("PMU config helpers", pmu_config_helpers),
 	{	.name = NULL, }
 };
 

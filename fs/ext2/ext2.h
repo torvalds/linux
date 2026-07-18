@@ -114,8 +114,6 @@ struct ext2_sb_info {
 	 */
 	spinlock_t s_lock;
 	struct mb_cache *s_ea_block_cache;
-	struct dax_device *s_daxdev;
-	u64 s_dax_part_off;
 };
 
 static inline spinlock_t *
@@ -373,11 +371,9 @@ struct ext2_inode {
 #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
 #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
 #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
-#define EXT2_MOUNT_XIP			0x010000  /* Obsolete, use DAX */
 #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
 #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
 #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
-#define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
 
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt

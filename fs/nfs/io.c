@@ -109,6 +109,16 @@ static void nfs_block_buffered(struct nfs_inode *nfsi, struct inode *inode)
 	}
 }
 
+static int nfs_block_buffered_nowait(struct nfs_inode *nfsi, struct inode *inode)
+{
+	if (!test_bit(NFS_INO_ODIRECT, &nfsi->flags)) {
+		if (inode->i_mapping->nrpages != 0)
+			return 1;
+		set_bit(NFS_INO_ODIRECT, &nfsi->flags);
+	}
+	return 0;
+}
+
 /**
  * nfs_start_io_direct - declare the file is being used for direct i/o
  * @inode: file inode
@@ -146,6 +156,37 @@ nfs_start_io_direct(struct inode *inode)
 	nfs_block_buffered(nfsi, inode);
 	downgrade_write(&inode->i_rwsem);
 
+	return 0;
+}
+
+/**
+ * nfs_start_io_direct_nowait - non-blocking variant of nfs_start_io_direct()
+ * @inode: file inode
+ *
+ * Try to declare that a direct I/O operation is about to start without
+ * blocking.
+ * Ensure all buffered I/O is blocked.
+ * If this could not be done without blocking then returns -EAGAIN.
+ */
+int
+nfs_start_io_direct_nowait(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	if (!down_read_trylock(&inode->i_rwsem))
+		return -EAGAIN;
+	if (test_bit(NFS_INO_ODIRECT, &nfsi->flags))
+		return 0;
+	up_read(&inode->i_rwsem);
+
+	/* Slow path: try to flip NFS_INO_ODIRECT without blocking. */
+	if (!down_write_trylock(&inode->i_rwsem))
+		return -EAGAIN;
+	if (nfs_block_buffered_nowait(nfsi, inode)) {
+		up_write(&inode->i_rwsem);
+		return -EAGAIN;
+	}
+	downgrade_write(&inode->i_rwsem);
 	return 0;
 }
 

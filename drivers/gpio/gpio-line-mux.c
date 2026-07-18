@@ -8,7 +8,6 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/mux/consumer.h>
 #include <linux/platform_device.h>

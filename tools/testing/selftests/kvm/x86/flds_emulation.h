@@ -12,7 +12,7 @@
  * KVM to emulate the instruction (e.g. by providing an MMIO address) to
  * exercise emulation failures.
  */
-static inline void flds(uint64_t address)
+static inline void flds(u64 address)
 {
 	__asm__ __volatile__(FLDS_MEM_EAX :: "a"(address));
 }
@@ -21,8 +21,8 @@ static inline void handle_flds_emulation_failure_exit(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 	struct kvm_regs regs;
-	uint8_t *insn_bytes;
-	uint64_t flags;
+	u8 *insn_bytes;
+	u64 flags;
 
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_INTERNAL_ERROR);
 

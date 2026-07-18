@@ -8,6 +8,7 @@
 #include "dml2_external_lib_deps.h"
 #include "dml_top_display_cfg_types.h"
 #include "dml_top_types.h"
+#include "lib_frl_cap_check.h"
 
 #define __DML_VBA_DEBUG__
 #define __DML2_CALCS_MAX_VRATIO_PRE_OTO__ 4.0 //<brief max vratio for one-to-one prefetch bw scheduling
@@ -1522,6 +1523,8 @@ struct dml2_core_shared_CalculateSwathAndDETConfiguration_locals {
 };
 
 struct dml2_core_shared_TruncToValidBPP_locals {
+	struct lib_frl_cap_check_params hdmifrlparams;
+	struct lib_frl_cap_check_intermediates hdmifrlinter;
 };
 
 struct dml2_core_shared_CalculateDETBufferSize_locals {
@@ -2326,7 +2329,6 @@ struct dml2_core_calcs_mode_support_ex {
 	const struct dml2_display_cfg *in_display_cfg;
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	int min_clk_index;
-	enum dml2_project_id project_id;
 	//unsigned int in_state_index;
 	struct dml2_core_internal_mode_support_info *out_evaluation_info;
 };
@@ -2339,7 +2341,6 @@ struct dml2_core_calcs_mode_programming_ex {
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	const struct core_display_cfg_support_info *cfg_support_info;
 	int min_clk_index;
-	enum dml2_project_id project_id;
 	struct dml2_display_cfg_programming *programming;
 };
 

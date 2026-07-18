@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
    HIDP implementation for Linux Bluetooth stack (BlueZ).
    Copyright (C) 2003-2004 Marcel Holtmann <marcel@holtmann.org>
    Copyright (C) 2013 David Herrmann <dh.herrmann@gmail.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -179,12 +176,21 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 {
 	struct input_dev *dev = session->input;
 	unsigned char *keys = session->keys;
-	unsigned char *udata = skb->data + 1;
-	signed char *sdata = skb->data + 1;
-	int i, size = skb->len - 1;
+	unsigned char *udata;
+	signed char *sdata;
+	u8 *hdr;
+	int i;
 
-	switch (skb->data[0]) {
+	hdr = skb_pull_data(skb, 1);
+	if (!hdr)
+		return;
+
+	switch (*hdr) {
 	case 0x01:	/* Keyboard report */
+		udata = skb_pull_data(skb, 8);
+		if (!udata)
+			break;
+
 		for (i = 0; i < 8; i++)
 			input_report_key(dev, hidp_keycode[i + 224], (udata[0] >> i) & 1);
 
@@ -213,6 +219,10 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 		break;
 
 	case 0x02:	/* Mouse report */
+		sdata = skb_pull_data(skb, 3);
+		if (!sdata)
+			break;
+
 		input_report_key(dev, BTN_LEFT,   sdata[0] & 0x01);
 		input_report_key(dev, BTN_RIGHT,  sdata[0] & 0x02);
 		input_report_key(dev, BTN_MIDDLE, sdata[0] & 0x04);
@@ -222,7 +232,7 @@ static void hidp_input_report(struct hidp_session *session, struct sk_buff *skb)
 		input_report_rel(dev, REL_X, sdata[1]);
 		input_report_rel(dev, REL_Y, sdata[2]);
 
-		if (size > 3)
+		if (skb->len > 0)
 			input_report_rel(dev, REL_WHEEL, sdata[3]);
 		break;
 	}
@@ -1036,6 +1046,28 @@ static struct hidp_session *hidp_session_find(const bdaddr_t *bdaddr)
 }
 
 /*
+ * Consume session->conn: clear the member under hidp_session_sem, then
+ * l2cap_unregister_user() and l2cap_conn_put() the snapshot outside the
+ * sem.  At most one caller wins; later callers see NULL and skip.  The
+ * reference is the one hidp_session_new() took via l2cap_conn_get().
+ */
+static void hidp_session_unregister_conn(struct hidp_session *session)
+{
+	struct l2cap_conn *conn;
+
+	down_write(&hidp_session_sem);
+	conn = session->conn;
+	if (conn)
+		session->conn = NULL;
+	up_write(&hidp_session_sem);
+
+	if (conn) {
+		l2cap_unregister_user(conn, &session->user);
+		l2cap_conn_put(conn);
+	}
+}
+
+/*
  * Start session synchronously
  * This starts a session thread and waits until initialization
  * is done or returns an error if it couldn't be started.
@@ -1311,8 +1343,7 @@ static int hidp_session_thread(void *arg)
 	 * Instead, this call has the same semantics as if user-space tried to
 	 * delete the session.
 	 */
-	if (session->conn)
-		l2cap_unregister_user(session->conn, &session->user);
+	hidp_session_unregister_conn(session);
 
 	hidp_session_put(session);
 
@@ -1418,7 +1449,7 @@ int hidp_connection_del(struct hidp_conndel_req *req)
 				         HIDP_CTRL_VIRTUAL_CABLE_UNPLUG,
 				       NULL, 0);
 	else
-		l2cap_unregister_user(session->conn, &session->user);
+		hidp_session_unregister_conn(session);
 
 	hidp_session_put(session);
 

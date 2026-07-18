@@ -411,6 +411,9 @@ int wmidev_invoke_method(struct wmi_device *wdev, u8 instance, u32 method_id,
 
 	obj = aout.pointer;
 	if (!obj) {
+		if (min_size != 0)
+			return -ENOMSG;
+
 		out->length = 0;
 		out->data = ZERO_SIZE_PTR;
 
@@ -855,7 +858,8 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "wmi:%pUL\n", &wblock->gblock.guid);
 }
-static DEVICE_ATTR_RO(modalias);
+
+static const DEVICE_ATTR_RO(modalias);
 
 static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
@@ -864,7 +868,8 @@ static ssize_t guid_show(struct device *dev, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "%pUL\n", &wblock->gblock.guid);
 }
-static DEVICE_ATTR_RO(guid);
+
+static const DEVICE_ATTR_RO(guid);
 
 static ssize_t instance_count_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -873,7 +878,8 @@ static ssize_t instance_count_show(struct device *dev,
 
 	return sysfs_emit(buf, "%d\n", (int)wblock->gblock.instance_count);
 }
-static DEVICE_ATTR_RO(instance_count);
+
+static const DEVICE_ATTR_RO(instance_count);
 
 static ssize_t expensive_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -883,9 +889,10 @@ static ssize_t expensive_show(struct device *dev,
 	return sysfs_emit(buf, "%d\n",
 			  (wblock->gblock.flags & ACPI_WMI_EXPENSIVE) != 0);
 }
-static DEVICE_ATTR_RO(expensive);
 
-static struct attribute *wmi_attrs[] = {
+static const DEVICE_ATTR_RO(expensive);
+
+static const struct attribute * const wmi_attrs[] = {
 	&dev_attr_modalias.attr,
 	&dev_attr_guid.attr,
 	&dev_attr_instance_count.attr,
@@ -901,9 +908,10 @@ static ssize_t notify_id_show(struct device *dev, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "%02X\n", (unsigned int)wblock->gblock.notify_id);
 }
-static DEVICE_ATTR_RO(notify_id);
 
-static struct attribute *wmi_event_attrs[] = {
+static const DEVICE_ATTR_RO(notify_id);
+
+static const struct attribute * const wmi_event_attrs[] = {
 	&dev_attr_notify_id.attr,
 	NULL
 };
@@ -917,7 +925,8 @@ static ssize_t object_id_show(struct device *dev, struct device_attribute *attr,
 	return sysfs_emit(buf, "%c%c\n", wblock->gblock.object_id[0],
 			  wblock->gblock.object_id[1]);
 }
-static DEVICE_ATTR_RO(object_id);
+
+static const DEVICE_ATTR_RO(object_id);
 
 static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -926,16 +935,17 @@ static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
 
 	return sysfs_emit(buf, "%d\n", (int)wdev->setable);
 }
-static DEVICE_ATTR_RO(setable);
 
-static struct attribute *wmi_data_attrs[] = {
+static const DEVICE_ATTR_RO(setable);
+
+static const struct attribute * const wmi_data_attrs[] = {
 	&dev_attr_object_id.attr,
 	&dev_attr_setable.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(wmi_data);
 
-static struct attribute *wmi_method_attrs[] = {
+static const struct attribute * const wmi_method_attrs[] = {
 	&dev_attr_object_id.attr,
 	NULL
 };
@@ -1085,7 +1095,7 @@ static void wmi_dev_shutdown(struct device *dev)
 	}
 }
 
-static struct class wmi_bus_class = {
+static const struct class wmi_bus_class = {
 	.name = "wmi_bus",
 };
 

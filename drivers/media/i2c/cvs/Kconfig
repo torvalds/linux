@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config VIDEO_INTEL_CVS
+	tristate "Intel CVS CSI-2 bridge support"
+	depends on I2C && ACPI && VIDEO_DEV
+	depends on IPU_BRIDGE || !IPU_BRIDGE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This adds support for the Intel Computer Vision Sensing (CVS).
+
+	  The driver registers a V4L2 sub-device to arbitrate CSI-2 link
+	  ownership between the host and CVS firmware, and configures the
+	  device for camera sensor streaming.
+
+	  The driver can operate with full I2C transport or in a reduced
+	  platform (GPIO-only) mode when I2C is unavailable.
+
+	  Say Y to build into the kernel, or M to build as a module.
+	  The module will be named intel_cvs. If unsure, say N.

@@ -67,7 +67,7 @@ static void l1_guest_code(void *data)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t guest_gva;
+	gva_t guest_gva;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 

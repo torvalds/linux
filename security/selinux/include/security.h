@@ -236,6 +236,7 @@ int security_read_policy(void **data, size_t *len);
 int security_read_state_kernel(void **data, size_t *len);
 int security_policycap_supported(unsigned int req_cap);
 
+/* Maximum supported number of permissions per class */
 #define SEL_VEC_MAX 32
 struct av_decision {
 	u32 allowed;
@@ -311,8 +312,6 @@ int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 
 int security_context_to_sid_force(const char *scontext, u32 scontext_len,
 				  u32 *sid);
-
-int security_get_user_sids(u32 fromsid, const char *username, u32 **sids, u32 *nel);
 
 int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 

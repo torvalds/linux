@@ -228,6 +228,16 @@ struct dccg_funcs {
 	void (*allow_clock_gating)(struct dccg *dccg, bool allow);
 	void (*enable_memory_low_power)(struct dccg *dccg, bool enable);
 	bool (*is_s0i3_golden_init_wa_done)(struct dccg *dccg);
+	void (*enable_hdmicharclk)(struct dccg *dccg, int hpo_inst, int phypll_inst);
+	void (*disable_hdmicharclk)(struct dccg *dccg, int hpo_inst);
+	void (*set_hdmistreamclk)(
+			struct dccg *dccg,
+			enum streamclk_source src,
+			uint32_t otg_inst);
+
+	void (*set_hdmistreamclk_root_clock_gating)(
+			struct dccg *dccg,
+			bool enable);
 	void (*set_dpstreamclk_root_clock_gating)(
 			struct dccg *dccg,
 			int dp_hpo_inst,
@@ -338,6 +348,7 @@ struct dccg_funcs {
 	void (*dccg_root_gate_disable_control)(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 	void (*dccg_read_reg_state)(struct dccg *dccg, struct dcn_dccg_reg_state *dccg_reg_state);
 	void (*dccg_enable_global_fgcg)(struct dccg *dccg, bool enable);
+	bool (*dccg_get_global_fgcg_status)(struct dccg *dccg);
 };
 
 #endif //__DAL_DCCG_H__

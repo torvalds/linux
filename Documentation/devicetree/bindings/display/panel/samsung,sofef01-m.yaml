@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/samsung,sofef01-m.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung SOFEF01-M DDI for 1080x2520@60Hz 6.0"/6.1" OLED DSI panels
+
+maintainers:
+  - Marijn Suijten <marijn.suijten@somainline.org>
+
+description: |
+  Samsung SOFEF01-M Display-Driver-IC found in multiple Sony smartphones, paired with
+  the following panel:
+   - Sony Xperia 5 (kumano bahamut): amb609tc01
+   - Sony Xperia 10 II (seine pdx201): ams597ut01
+   - Sony Xperia 10 III (lena pdx213): ams597ut04
+   - Sony Xperia 10 IV (murray pdx225): ams597ut05
+   - Sony Xperia 10 V (zambezi pdx235): ams605dk01
+   - Sony Xperia 10 VI (columbia pdx246): ams605dk01
+
+  The assembly features a Samsung touchscreen compatible with
+  samsung,s6sy761.
+
+properties:
+  compatible:
+    enum:
+      - samsung,sofef01-m-amb609tc01 # 6.1"
+      - samsung,sofef01-m-ams597ut01 # 6.0"
+      - samsung,sofef01-m-ams597ut04 # 6.0"
+      - samsung,sofef01-m-ams597ut05 # 6.0"
+      - samsung,sofef01-m-ams605dk01 # 6.1"
+
+  port: true
+
+  reg:
+    maxItems: 1
+    description: DSI virtual channel
+
+  reset-gpios: true
+
+  vci-supply:
+    description: DisplayIC Operation supply (3.0V)
+
+  vddio-supply:
+    description: I/O voltage supply (1.8V)
+
+required:
+  - compatible
+  - port
+  - reg
+  - reset-gpios
+  - vddio-supply
+
+allOf:
+  - $ref: panel-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,sofef01-m-amb609tc01
+    then:
+      required:
+        - vci-supply
+    else:
+      properties:
+        vci-supply: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    dsi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        panel@0 {
+            compatible = "samsung,sofef01-m-amb609tc01";
+            reg = <0>;
+
+            reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+
+            vci-supply = <&vreg_l17a_3p0>;
+            vddio-supply = <&vreg_l14a_1p8>;
+
+            port {
+                endpoint {
+                    remote-endpoint = <&dsi0_out>;
+                };
+            };
+        };
+    };
+...

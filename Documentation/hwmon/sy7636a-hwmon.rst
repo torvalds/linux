@@ -22,5 +22,5 @@ The following sensors are supported
 sysfs-Interface
 ---------------
 
-temp0_input
+temp1_input
 	- Temperature of external NTC (milli-degree C)

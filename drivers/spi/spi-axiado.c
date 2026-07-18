@@ -201,7 +201,7 @@ static void ax_spi_fill_tx_fifo(struct ax_spi *xspi)
 		 * then spi control did't work thoroughly, add one byte delay
 		 */
 		if (ax_spi_read(xspi, AX_SPI_IVR) & AX_SPI_IVR_TFOV)
-			usleep_range(10, 10);
+			udelay(10);
 		if (xspi->tx_buf)
 			ax_spi_write_b(xspi, AX_SPI_TXFIFO, *xspi->tx_buf++);
 		else

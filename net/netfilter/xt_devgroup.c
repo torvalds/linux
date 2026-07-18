@@ -33,13 +33,9 @@ static bool devgroup_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	return true;
 }
 
-static int devgroup_mt_checkentry(const struct xt_mtchk_param *par)
+static int devgroup_mt_check_hooks(const struct xt_mtchk_param *par)
 {
 	const struct xt_devgroup_info *info = par->matchinfo;
-
-	if (info->flags & ~(XT_DEVGROUP_MATCH_SRC | XT_DEVGROUP_INVERT_SRC |
-			    XT_DEVGROUP_MATCH_DST | XT_DEVGROUP_INVERT_DST))
-		return -EINVAL;
 
 	if (info->flags & XT_DEVGROUP_MATCH_SRC &&
 	    par->hook_mask & ~((1 << NF_INET_PRE_ROUTING) |
@@ -56,9 +52,21 @@ static int devgroup_mt_checkentry(const struct xt_mtchk_param *par)
 	return 0;
 }
 
+static int devgroup_mt_checkentry(const struct xt_mtchk_param *par)
+{
+	const struct xt_devgroup_info *info = par->matchinfo;
+
+	if (info->flags & ~(XT_DEVGROUP_MATCH_SRC | XT_DEVGROUP_INVERT_SRC |
+			    XT_DEVGROUP_MATCH_DST | XT_DEVGROUP_INVERT_DST))
+		return -EINVAL;
+
+	return 0;
+}
+
 static struct xt_match devgroup_mt_reg __read_mostly = {
 	.name		= "devgroup",
 	.match		= devgroup_mt,
+	.check_hooks	= devgroup_mt_check_hooks,
 	.checkentry	= devgroup_mt_checkentry,
 	.matchsize	= sizeof(struct xt_devgroup_info),
 	.family		= NFPROTO_UNSPEC,

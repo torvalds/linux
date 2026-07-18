@@ -110,11 +110,11 @@ static struct pmbus_driver_info mpq8785_info = {
 };
 
 static const struct i2c_device_id mpq8785_id[] = {
-	{ "mpm3695", mpm3695 },
-	{ "mpm3695-25", mpm3695_25 },
-	{ "mpm82504", mpm82504 },
-	{ "mpq8785", mpq8785 },
-	{ },
+	{ .name = "mpm3695", .driver_data = mpm3695 },
+	{ .name = "mpm3695-25", .driver_data = mpm3695_25 },
+	{ .name = "mpm82504", .driver_data = mpm82504 },
+	{ .name = "mpq8785", .driver_data = mpq8785 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpq8785_id);
 

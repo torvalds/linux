@@ -7,7 +7,7 @@
 #define _VCHIQ_DEVICE_H
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/vchiq.h>
 
 struct vchiq_drv_mgmt;
 

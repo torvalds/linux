@@ -761,7 +761,8 @@ int efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
  * @return: Returns, if the page fault is not handled. This function
  * will never return if the page fault is handled successfully.
  */
-void efi_crash_gracefully_on_page_fault(unsigned long phys_addr)
+void efi_crash_gracefully_on_page_fault(unsigned long phys_addr,
+					const struct pt_regs *regs)
 {
 	if (!IS_ENABLED(CONFIG_X86_64))
 		return;
@@ -770,7 +771,7 @@ void efi_crash_gracefully_on_page_fault(unsigned long phys_addr)
 	 * If we get an interrupt/NMI while processing an EFI runtime service
 	 * then this is a regular OOPS, not an EFI failure.
 	 */
-	if (in_interrupt())
+	if (!in_task())
 		return;
 
 	/*
@@ -809,6 +810,14 @@ void efi_crash_gracefully_on_page_fault(unsigned long phys_addr)
 		machine_real_restart(MRR_BIOS);
 		return;
 	}
+
+	/*
+	 * The API does not permit entering a kernel mode FPU section with
+	 * interrupts enabled and leaving it with interrupts disabled.  So
+	 * re-enable interrupts now if they were enabled when the page fault
+	 * occurred.
+	 */
+	local_irq_restore(regs->flags);
 
 	/*
 	 * Before calling EFI Runtime Service, the kernel has switched the

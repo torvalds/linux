@@ -824,7 +824,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.ABORT",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.ABORT",
@@ -836,7 +836,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.CONFINED_P2P",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.CONFINED_P2P",
@@ -848,7 +848,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.LOC_P2P",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.LOC_P2P",
@@ -860,7 +860,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MCAST",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MCAST",
@@ -872,7 +872,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MEM",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MEM",
@@ -884,7 +884,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MSGB",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.MSGB",
@@ -896,7 +896,7 @@
         "Unit": "IIO"
     },
     {
-        "BriefDescription": "-",
+        "BriefDescription": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.UBOX",
         "Counter": "0,1,2,3",
         "EventCode": "0x8e",
         "EventName": "UNC_IIO_NUM_REQ_OF_CPU_BY_TGT.UBOX",
@@ -915,7 +915,6 @@
         "FCMask": "0x01",
         "PerPkg": "1",
         "PortMask": "0x0FF",
-        "PublicDescription": "-",
         "UMask": "0x4",
         "Unit": "IIO"
     },

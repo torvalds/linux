@@ -27,7 +27,7 @@ struct hv_vp_assist_page *current_vp_assist;
 
 int vcpu_enable_evmcs(struct kvm_vcpu *vcpu)
 {
-	uint16_t evmcs_ver;
+	u16 evmcs_ver;
 
 	vcpu_enable_cap(vcpu, KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
 			(unsigned long)&evmcs_ver);
@@ -79,39 +79,39 @@ void vm_enable_ept(struct kvm_vm *vm)
  *   Pointer to structure with the addresses of the VMX areas.
  */
 struct vmx_pages *
-vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
+vcpu_alloc_vmx(struct kvm_vm *vm, gva_t *p_vmx_gva)
 {
-	vm_vaddr_t vmx_gva = vm_vaddr_alloc_page(vm);
+	gva_t vmx_gva = vm_alloc_page(vm);
 	struct vmx_pages *vmx = addr_gva2hva(vm, vmx_gva);
 
 	/* Setup of a region of guest memory for the vmxon region. */
-	vmx->vmxon = (void *)vm_vaddr_alloc_page(vm);
+	vmx->vmxon = (void *)vm_alloc_page(vm);
 	vmx->vmxon_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmxon);
 	vmx->vmxon_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmxon);
 
 	/* Setup of a region of guest memory for a vmcs. */
-	vmx->vmcs = (void *)vm_vaddr_alloc_page(vm);
+	vmx->vmcs = (void *)vm_alloc_page(vm);
 	vmx->vmcs_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmcs);
 	vmx->vmcs_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmcs);
 
 	/* Setup of a region of guest memory for the MSR bitmap. */
-	vmx->msr = (void *)vm_vaddr_alloc_page(vm);
+	vmx->msr = (void *)vm_alloc_page(vm);
 	vmx->msr_hva = addr_gva2hva(vm, (uintptr_t)vmx->msr);
 	vmx->msr_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->msr);
 	memset(vmx->msr_hva, 0, getpagesize());
 
 	/* Setup of a region of guest memory for the shadow VMCS. */
-	vmx->shadow_vmcs = (void *)vm_vaddr_alloc_page(vm);
+	vmx->shadow_vmcs = (void *)vm_alloc_page(vm);
 	vmx->shadow_vmcs_hva = addr_gva2hva(vm, (uintptr_t)vmx->shadow_vmcs);
 	vmx->shadow_vmcs_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->shadow_vmcs);
 
 	/* Setup of a region of guest memory for the VMREAD and VMWRITE bitmaps. */
-	vmx->vmread = (void *)vm_vaddr_alloc_page(vm);
+	vmx->vmread = (void *)vm_alloc_page(vm);
 	vmx->vmread_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmread);
 	vmx->vmread_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmread);
 	memset(vmx->vmread_hva, 0, getpagesize());
 
-	vmx->vmwrite = (void *)vm_vaddr_alloc_page(vm);
+	vmx->vmwrite = (void *)vm_alloc_page(vm);
 	vmx->vmwrite_hva = addr_gva2hva(vm, (uintptr_t)vmx->vmwrite);
 	vmx->vmwrite_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->vmwrite);
 	memset(vmx->vmwrite_hva, 0, getpagesize());
@@ -125,8 +125,8 @@ vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva)
 
 bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 {
-	uint64_t feature_control;
-	uint64_t required;
+	u64 feature_control;
+	u64 required;
 	unsigned long cr0;
 	unsigned long cr4;
 
@@ -160,7 +160,7 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 		wrmsr(MSR_IA32_FEAT_CTL, feature_control | required);
 
 	/* Enter VMX root operation. */
-	*(uint32_t *)(vmx->vmxon) = vmcs_revision();
+	*(u32 *)(vmx->vmxon) = vmcs_revision();
 	if (vmxon(vmx->vmxon_gpa))
 		return false;
 
@@ -170,7 +170,7 @@ bool prepare_for_vmx_operation(struct vmx_pages *vmx)
 bool load_vmcs(struct vmx_pages *vmx)
 {
 	/* Load a VMCS. */
-	*(uint32_t *)(vmx->vmcs) = vmcs_revision();
+	*(u32 *)(vmx->vmcs) = vmcs_revision();
 	if (vmclear(vmx->vmcs_gpa))
 		return false;
 
@@ -178,14 +178,14 @@ bool load_vmcs(struct vmx_pages *vmx)
 		return false;
 
 	/* Setup shadow VMCS, do not load it yet. */
-	*(uint32_t *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
+	*(u32 *)(vmx->shadow_vmcs) = vmcs_revision() | 0x80000000ul;
 	if (vmclear(vmx->shadow_vmcs_gpa))
 		return false;
 
 	return true;
 }
 
-static bool ept_vpid_cap_supported(uint64_t mask)
+static bool ept_vpid_cap_supported(u64 mask)
 {
 	return rdmsr(MSR_IA32_VMX_EPT_VPID_CAP) & mask;
 }
@@ -200,7 +200,7 @@ bool ept_1g_pages_supported(void)
  */
 static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 {
-	uint32_t sec_exec_ctl = 0;
+	u32 sec_exec_ctl = 0;
 
 	vmwrite(VIRTUAL_PROCESSOR_ID, 0);
 	vmwrite(POSTED_INTR_NV, 0);
@@ -208,7 +208,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
 	vmwrite(PIN_BASED_VM_EXEC_CONTROL, rdmsr(MSR_IA32_VMX_TRUE_PINBASED_CTLS));
 
 	if (vmx->eptp_gpa) {
-		uint64_t eptp = vmx->eptp_gpa | EPTP_WB | EPTP_PWL_4;
+		u64 eptp = vmx->eptp_gpa | EPTP_WB | EPTP_PWL_4;
 
 		TEST_ASSERT((vmx->eptp_gpa & ~PHYSICAL_PAGE_MASK) == 0,
 			    "Illegal bits set in vmx->eptp_gpa");
@@ -259,7 +259,7 @@ static inline void init_vmcs_control_fields(struct vmx_pages *vmx)
  */
 static inline void init_vmcs_host_state(void)
 {
-	uint32_t exit_controls = vmreadz(VM_EXIT_CONTROLS);
+	u32 exit_controls = vmreadz(VM_EXIT_CONTROLS);
 
 	vmwrite(HOST_ES_SELECTOR, get_es());
 	vmwrite(HOST_CS_SELECTOR, get_cs());
@@ -358,9 +358,9 @@ static inline void init_vmcs_guest_state(void *rip, void *rsp)
 	vmwrite(GUEST_GDTR_BASE, vmreadz(HOST_GDTR_BASE));
 	vmwrite(GUEST_IDTR_BASE, vmreadz(HOST_IDTR_BASE));
 	vmwrite(GUEST_DR7, 0x400);
-	vmwrite(GUEST_RSP, (uint64_t)rsp);
-	vmwrite(GUEST_RIP, (uint64_t)rip);
-	vmwrite(GUEST_RFLAGS, 2);
+	vmwrite(GUEST_RSP, (u64)rsp);
+	vmwrite(GUEST_RIP, (u64)rip);
+	vmwrite(GUEST_RFLAGS, X86_EFLAGS_FIXED);
 	vmwrite(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 	vmwrite(GUEST_SYSENTER_ESP, vmreadz(HOST_IA32_SYSENTER_ESP));
 	vmwrite(GUEST_SYSENTER_EIP, vmreadz(HOST_IA32_SYSENTER_EIP));
@@ -375,7 +375,7 @@ void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp)
 
 bool kvm_cpu_has_ept(void)
 {
-	uint64_t ctrl;
+	u64 ctrl;
 
 	if (!kvm_cpu_has(X86_FEATURE_VMX))
 		return false;
@@ -390,7 +390,7 @@ bool kvm_cpu_has_ept(void)
 
 void prepare_virtualize_apic_accesses(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
-	vmx->apic_access = (void *)vm_vaddr_alloc_page(vm);
+	vmx->apic_access = (void *)vm_alloc_page(vm);
 	vmx->apic_access_hva = addr_gva2hva(vm, (uintptr_t)vmx->apic_access);
 	vmx->apic_access_gpa = addr_gva2gpa(vm, (uintptr_t)vmx->apic_access);
 }

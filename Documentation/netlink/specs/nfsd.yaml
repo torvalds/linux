@@ -6,7 +6,51 @@ uapi-header: linux/nfsd_netlink.h
 
 doc: NFSD configuration over generic netlink.
 
+definitions:
+  -
+    type: flags
+    name: cache-type
+    entries: [svc_export, expkey]
+  -
+    type: flags
+    name: export-flags
+    doc: These flags are ordered to match the NFSEXP_* flags in include/linux/nfsd/export.h
+    entries:
+      - readonly
+      - insecure-port
+      - rootsquash
+      - allsquash
+      - async
+      - gathered-writes
+      - noreaddirplus
+      - security-label
+      - sign-fh
+      - nohide
+      - nosubtreecheck
+      - noauthnlm
+      - msnfs
+      - fsid
+      - crossmount
+      - noacl
+      - v4root
+      - pnfs
+  -
+    type: flags
+    name: xprtsec-mode
+    doc: These flags are ordered to match the NFSEXP_XPRTSEC_* flags in include/linux/nfsd/export.h
+    entries:
+      - none
+      - tls
+      - mtls
+
 attribute-sets:
+  -
+    name: cache-notify
+    attributes:
+      -
+        name: cache-type
+        type: u32
+        enum: cache-type
   -
     name: rpc-status
     attributes:
@@ -132,6 +176,160 @@ attribute-sets:
       -
         name: npools
         type: u32
+  -
+    name: fslocation
+    attributes:
+      -
+        name: host
+        type: string
+      -
+        name: path
+        type: string
+  -
+    name: fslocations
+    attributes:
+      -
+        name: location
+        type: nest
+        nested-attributes: fslocation
+        multi-attr: true
+  -
+    name: auth-flavor
+    attributes:
+      -
+        name: pseudoflavor
+        type: u32
+      -
+        name: flags
+        type: u32
+        enum: export-flags
+        enum-as-flags: true
+  -
+    name: svc-export
+    attributes:
+      -
+        name: seqno
+        type: u64
+      -
+        name: client
+        type: string
+      -
+        name: path
+        type: string
+      -
+        name: negative
+        type: flag
+      -
+        name: expiry
+        type: u64
+      -
+        name: anon-uid
+        type: u32
+      -
+        name: anon-gid
+        type: u32
+      -
+        name: fslocations
+        type: nest
+        nested-attributes: fslocations
+      -
+        name: uuid
+        type: binary
+      -
+        name: secinfo
+        type: nest
+        nested-attributes: auth-flavor
+        multi-attr: true
+      -
+        name: xprtsec
+        type: u32
+        enum: xprtsec-mode
+        multi-attr: true
+      -
+        name: flags
+        type: u32
+        enum: export-flags
+        enum-as-flags: true
+      -
+        name: fsid
+        type: s32
+  -
+    name: svc-export-reqs
+    attributes:
+      -
+        name: requests
+        type: nest
+        nested-attributes: svc-export
+        multi-attr: true
+  -
+    name: expkey
+    attributes:
+      -
+        name: seqno
+        type: u64
+      -
+        name: client
+        type: string
+      -
+        name: fsidtype
+        type: u8
+      -
+        name: fsid
+        type: binary
+      -
+        name: negative
+        type: flag
+      -
+        name: expiry
+        type: u64
+      -
+        name: path
+        type: string
+  -
+    name: expkey-reqs
+    attributes:
+      -
+        name: requests
+        type: nest
+        nested-attributes: expkey
+        multi-attr: true
+  -
+    name: cache-flush
+    attributes:
+      -
+        name: mask
+        type: u32
+        enum: cache-type
+        enum-as-flags: true
+  -
+    name: unlock-ip
+    attributes:
+      -
+        name: address
+        type: binary
+        doc: struct sockaddr_in or struct sockaddr_in6.
+        checks:
+          min-len: 16
+  -
+    name: unlock-filesystem
+    attributes:
+      -
+        name: path
+        type: string
+        doc: Filesystem path whose state should be released.
+  -
+    name: unlock-export
+    attributes:
+      -
+        name: path
+        type: string
+        doc: >-
+          Export path whose NFSv4 state should be revoked.
+          All state (opens, locks, delegations, layouts) acquired
+          through any export of this path is revoked, regardless
+          of which client holds the state. Intended for use after
+          all clients have been unexported from a given path,
+          enabling the underlying filesystem to be unmounted.
 
 operations:
   list:
@@ -233,3 +431,95 @@ operations:
           attributes:
             - mode
             - npools
+    -
+      name: cache-notify
+      doc: Notification that there are cache requests that need servicing
+      attribute-set: cache-notify
+      mcgrp: exportd
+      event:
+        attributes:
+          - cache-type
+    -
+      name: svc-export-get-reqs
+      doc: Dump all pending svc_export requests
+      attribute-set: svc-export-reqs
+      flags: [admin-perm]
+      dump:
+          reply:
+            attributes:
+              - requests
+    -
+      name: svc-export-set-reqs
+      doc: Respond to one or more svc_export requests
+      attribute-set: svc-export-reqs
+      flags: [admin-perm]
+      do:
+          request:
+            attributes:
+              - requests
+    -
+      name: expkey-get-reqs
+      doc: Dump all pending expkey requests
+      attribute-set: expkey-reqs
+      flags: [admin-perm]
+      dump:
+          reply:
+            attributes:
+              - requests
+    -
+      name: expkey-set-reqs
+      doc: Respond to one or more expkey requests
+      attribute-set: expkey-reqs
+      flags: [admin-perm]
+      do:
+          request:
+            attributes:
+              - requests
+    -
+      name: cache-flush
+      doc: Flush nfsd caches (svc_export and/or expkey)
+      attribute-set: cache-flush
+      flags: [admin-perm]
+      do:
+        request:
+          attributes:
+            - mask
+    -
+      name: unlock-ip
+      doc: release NLM locks held by an IP address
+      attribute-set: unlock-ip
+      flags: [admin-perm]
+      do:
+        request:
+          attributes:
+            - address
+    -
+      name: unlock-filesystem
+      doc: revoke NFS state under a filesystem path
+      attribute-set: unlock-filesystem
+      flags: [admin-perm]
+      do:
+        request:
+          attributes:
+            - path
+    -
+      name: unlock-export
+      doc: >-
+        Revoke NFSv4 state acquired through exports of a given path.
+        Unlike unlock-filesystem, which operates at superblock granularity,
+        this command targets only state associated with a specific export
+        path. Userspace (exportfs -u) sends this after removing the last
+        client for a path so the underlying filesystem can be unmounted.
+      attribute-set: unlock-export
+      flags: [admin-perm]
+      do:
+        request:
+          attributes:
+            - path
+
+mcast-groups:
+  list:
+    -
+      name: none
+    -
+      name: exportd

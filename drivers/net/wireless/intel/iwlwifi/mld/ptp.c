@@ -250,7 +250,8 @@ iwl_mld_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 	/* System (wall) time */
 	ktime_t sys_time;
 
-	memset(xtstamp, 0, sizeof(struct system_device_crosststamp));
+	if (xtstamp->clock_id != CLOCK_REALTIME)
+		return -ENOTSUPP;
 
 	ret = iwl_mld_get_crosstimestamp_fw(mld, &gp2, &sys_time);
 	if (ret) {
@@ -270,7 +271,7 @@ iwl_mld_phc_get_crosstimestamp(struct ptp_clock_info *ptp,
 
 	/* System monotonic raw time is not used */
 	xtstamp->device = ns_to_ktime(gp2_ns);
-	xtstamp->sys_realtime = sys_time;
+	xtstamp->sys_systime = sys_time;
 
 	return ret;
 }
@@ -321,10 +322,10 @@ void iwl_mld_ptp_remove(struct iwl_mld *mld)
 			       mld->ptp_data.ptp_clock_info.name,
 			       ptp_clock_index(mld->ptp_data.ptp_clock));
 
+		cancel_delayed_work_sync(&mld->ptp_data.dwork);
 		ptp_clock_unregister(mld->ptp_data.ptp_clock);
 		mld->ptp_data.ptp_clock = NULL;
 		mld->ptp_data.last_gp2 = 0;
 		mld->ptp_data.wrap_counter = 0;
-		cancel_delayed_work_sync(&mld->ptp_data.dwork);
 	}
 }

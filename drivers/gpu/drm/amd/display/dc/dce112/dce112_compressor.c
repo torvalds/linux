@@ -27,8 +27,12 @@
 
 #include "dce/dce_11_2_d.h"
 #include "dce/dce_11_2_sh_mask.h"
-#include "gmc/gmc_8_1_sh_mask.h"
-#include "gmc/gmc_8_1_d.h"
+
+#ifndef mmGMCON_LPT_TARGET
+#define mmGMCON_LPT_TARGET 0x0D53
+#define GMCON_LPT_TARGET__STCTRL_LPT_TARGET__SHIFT 0x00000000
+#define GMCON_LPT_TARGET__STCTRL_LPT_TARGET_MASK 0xffffffffL
+#endif
 
 #include "include/logger_interface.h"
 

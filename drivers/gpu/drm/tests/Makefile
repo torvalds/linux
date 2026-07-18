@@ -5,7 +5,7 @@ obj-$(CONFIG_DRM_KUNIT_TEST_HELPERS) += \
 
 obj-$(CONFIG_DRM_KUNIT_TEST) += \
 	drm_atomic_test.o \
-	drm_atomic_state_test.o \
+	drm_atomic_commit_test.o \
 	drm_bridge_test.o \
 	drm_cmdline_parser_test.o \
 	drm_connector_test.o \
@@ -24,6 +24,7 @@ obj-$(CONFIG_DRM_KUNIT_TEST) += \
 	drm_probe_helper_test.o \
 	drm_rect_test.o \
 	drm_sysfb_modeset_test.o \
-	drm_fixp_test.o
+	drm_fixp_test.o \
+	drm_kunit_edid.o
 
 CFLAGS_drm_mm_test.o := $(DISABLE_STRUCTLEAK_PLUGIN)

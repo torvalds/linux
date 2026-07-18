@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * errors.h - Definitions of errors for DIM2 HAL API
+ * Definitions of errors for DIM2 HAL API
  * (MediaLB, Device Interface Macro IP, OS62420)
  *
  * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG

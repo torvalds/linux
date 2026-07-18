@@ -266,8 +266,7 @@ int sync_file_range(struct file *file, loff_t offset, loff_t nbytes,
 
 	i_mode = file_inode(file)->i_mode;
 	ret = -ESPIPE;
-	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode) &&
-			!S_ISLNK(i_mode))
+	if (!S_ISREG(i_mode) && !S_ISBLK(i_mode) && !S_ISDIR(i_mode))
 		goto out;
 
 	mapping = file->f_mapping;

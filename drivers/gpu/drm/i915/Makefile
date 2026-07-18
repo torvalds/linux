@@ -80,10 +80,10 @@ i915-y += \
 	i915_display_pc8.o \
 	i915_dpt.o \
 	i915_dsb_buffer.o \
+	i915_fb_pin.o \
 	i915_hdcp_gsc.o \
 	i915_initial_plane.o \
-	i915_overlay.o \
-	i915_panic.o
+	i915_overlay.o
 
 # "Graphics Technology" (aka we talk to the gpu)
 gt-y += \
@@ -166,6 +166,7 @@ gem-y += \
 	gem/i915_gem_object.o \
 	gem/i915_gem_object_frontbuffer.o \
 	gem/i915_gem_pages.o \
+	gem/i915_gem_panic.o \
 	gem/i915_gem_phys.o \
 	gem/i915_gem_pm.o \
 	gem/i915_gem_region.o \
@@ -255,6 +256,7 @@ i915-y += \
 	display/intel_cursor.o \
 	display/intel_dbuf_bw.o \
 	display/intel_de.o \
+	display/intel_display_clock_gating.o \
 	display/intel_display.o \
 	display/intel_display_conversion.o \
 	display/intel_display_driver.o \
@@ -279,7 +281,6 @@ i915-y += \
 	display/intel_drrs.o \
 	display/intel_dsb.o \
 	display/intel_fb.o \
-	display/intel_fb_pin.o \
 	display/intel_fbc.o \
 	display/intel_fdi.o \
 	display/intel_fifo_underrun.o \
@@ -295,6 +296,7 @@ i915-y += \
 	display/intel_link_bw.o \
 	display/intel_load_detect.o \
 	display/intel_lpe_audio.o \
+	display/intel_mchbar.o \
 	display/intel_modeset_lock.o \
 	display/intel_modeset_setup.o \
 	display/intel_modeset_verify.o \
@@ -325,8 +327,7 @@ i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o
 i915-$(CONFIG_DRM_FBDEV_EMULATION) += \
-	display/intel_fbdev.o \
-	display/intel_fbdev_fb.o
+	display/intel_fbdev.o
 i915-$(CONFIG_DEBUG_FS) += \
 	display/intel_display_debugfs.o \
 	display/intel_display_debugfs_params.o \
@@ -355,6 +356,7 @@ i915-y += \
 	display/intel_dp_aux.o \
 	display/intel_dp_aux_backlight.o \
 	display/intel_dp_hdcp.o \
+	display/intel_dp_link_caps.o \
 	display/intel_dp_link_training.o \
 	display/intel_dp_mst.o \
 	display/intel_dp_test.o \

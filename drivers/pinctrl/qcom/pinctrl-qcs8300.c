@@ -100,12 +100,6 @@
 		.intr_detection_width = -1,		\
 	}
 
-#define QUP_I3C(qup_mode, qup_offset)			\
-	{						\
-		.mode = qup_mode,			\
-		.offset = qup_offset,			\
-	}
-
 #define QUP_I3C_6_MODE_OFFSET	0xaf000
 #define QUP_I3C_7_MODE_OFFSET	0xb0000
 #define QUP_I3C_13_MODE_OFFSET	0xb1000

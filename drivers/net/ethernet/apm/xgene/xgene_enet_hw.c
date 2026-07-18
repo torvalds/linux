@@ -910,7 +910,9 @@ static int xgene_mdiobus_register(struct xgene_enet_pdata *pdata,
 			return -ENXIO;
 		}
 
-		return of_mdiobus_register(mdio, mdio_np);
+		ret = of_mdiobus_register(mdio, mdio_np);
+		of_node_put(mdio_np);
+		return ret;
 	}
 
 	/* Mask out all PHYs from auto probing. */

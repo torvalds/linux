@@ -41,12 +41,13 @@ properties:
       - const: usb_en
 
   resets:
-    maxItems: 2
+    maxItems: 3
 
   reset-names:
     items:
       - const: vaux
       - const: usb_rst
+      - const: usb_phy
 
   eswin,hsp-sp-csr:
     description:
@@ -85,8 +86,8 @@ examples:
         interrupt-parent = <&plic>;
         interrupts = <85>;
         interrupt-names = "peripheral";
-        resets = <&reset 84>, <&hspcrg 2>;
-        reset-names = "vaux", "usb_rst";
+        resets = <&reset 84>, <&hspcrg 2>, <&hspcrg 4>;
+        reset-names = "vaux", "usb_rst", "usb_phy";
         dr_mode = "peripheral";
         maximum-speed = "high-speed";
         phy_type = "utmi";

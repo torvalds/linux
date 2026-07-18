@@ -37,6 +37,7 @@ config SOC_TX4927
 	select IRQ_TXX9
 	select PCI_TX4927
 	select GPIO_TXX9
+	select GPIOLIB_LEGACY
 
 config SOC_TX4938
 	bool

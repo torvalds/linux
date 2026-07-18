@@ -8,10 +8,14 @@
  * Copyright 2018 Analog Devices Inc.
  */
 
-#include "ad5686.h"
-
+#include <linux/array_size.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
+
+#include <asm/byteorder.h>
+
+#include "ad5686.h"
 
 static int ad5686_spi_write(struct ad5686_state *st,
 			    u8 cmd, u8 addr, u16 val)
@@ -87,38 +91,62 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 	return be32_to_cpu(st->data[2].d32);
 }
 
+static const struct ad5686_bus_ops ad5686_spi_ops = {
+	.write = ad5686_spi_write,
+	.read = ad5686_spi_read,
+};
+
 static int ad5686_spi_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
-
-	return ad5686_probe(&spi->dev, id->driver_data, id->name,
-			    ad5686_spi_write, ad5686_spi_read);
+	return ad5686_probe(&spi->dev, spi_get_device_match_data(spi),
+			    spi->modalias, &ad5686_spi_ops);
 }
 
 static const struct spi_device_id ad5686_spi_id[] = {
-	{"ad5310r", ID_AD5310R},
-	{"ad5672r", ID_AD5672R},
-	{"ad5674r", ID_AD5674R},
-	{"ad5676", ID_AD5676},
-	{"ad5676r", ID_AD5676R},
-	{"ad5679r", ID_AD5679R},
-	{"ad5681r", ID_AD5681R},
-	{"ad5682r", ID_AD5682R},
-	{"ad5683", ID_AD5683},
-	{"ad5683r", ID_AD5683R},
-	{"ad5684", ID_AD5684},
-	{"ad5684r", ID_AD5684R},
-	{"ad5685", ID_AD5685R}, /* Does not exist */
-	{"ad5685r", ID_AD5685R},
-	{"ad5686", ID_AD5686},
-	{"ad5686r", ID_AD5686R},
+	{ .name = "ad5310r", .driver_data = (kernel_ulong_t)&ad5310r_chip_info },
+	{ .name = "ad5672r", .driver_data = (kernel_ulong_t)&ad5672r_chip_info },
+	{ .name = "ad5674r", .driver_data = (kernel_ulong_t)&ad5674r_chip_info },
+	{ .name = "ad5676",  .driver_data = (kernel_ulong_t)&ad5676_chip_info },
+	{ .name = "ad5676r", .driver_data = (kernel_ulong_t)&ad5676r_chip_info },
+	{ .name = "ad5679r", .driver_data = (kernel_ulong_t)&ad5679r_chip_info },
+	{ .name = "ad5681r", .driver_data = (kernel_ulong_t)&ad5681r_chip_info },
+	{ .name = "ad5682r", .driver_data = (kernel_ulong_t)&ad5682r_chip_info },
+	{ .name = "ad5683",  .driver_data = (kernel_ulong_t)&ad5683_chip_info },
+	{ .name = "ad5683r", .driver_data = (kernel_ulong_t)&ad5683r_chip_info },
+	{ .name = "ad5684",  .driver_data = (kernel_ulong_t)&ad5684_chip_info },
+	{ .name = "ad5684r", .driver_data = (kernel_ulong_t)&ad5684r_chip_info },
+	{ .name = "ad5685",  .driver_data = (kernel_ulong_t)&ad5685r_chip_info }, /* nonexistent */
+	{ .name = "ad5685r", .driver_data = (kernel_ulong_t)&ad5685r_chip_info },
+	{ .name = "ad5686",  .driver_data = (kernel_ulong_t)&ad5686_chip_info },
+	{ .name = "ad5686r", .driver_data = (kernel_ulong_t)&ad5686r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5686_spi_id);
 
+static const struct of_device_id ad5686_of_match[] = {
+	{ .compatible = "adi,ad5310r", .data = &ad5310r_chip_info },
+	{ .compatible = "adi,ad5672r", .data = &ad5672r_chip_info },
+	{ .compatible = "adi,ad5674r", .data = &ad5674r_chip_info },
+	{ .compatible = "adi,ad5676",  .data = &ad5676_chip_info },
+	{ .compatible = "adi,ad5676r", .data = &ad5676r_chip_info },
+	{ .compatible = "adi,ad5679r", .data = &ad5679r_chip_info },
+	{ .compatible = "adi,ad5681r", .data = &ad5681r_chip_info },
+	{ .compatible = "adi,ad5682r", .data = &ad5682r_chip_info },
+	{ .compatible = "adi,ad5683",  .data = &ad5683_chip_info },
+	{ .compatible = "adi,ad5683r", .data = &ad5683r_chip_info },
+	{ .compatible = "adi,ad5684",  .data = &ad5684_chip_info },
+	{ .compatible = "adi,ad5684r", .data = &ad5684r_chip_info },
+	{ .compatible = "adi,ad5685r", .data = &ad5685r_chip_info },
+	{ .compatible = "adi,ad5686",  .data = &ad5686_chip_info },
+	{ .compatible = "adi,ad5686r", .data = &ad5686r_chip_info },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, ad5686_of_match);
+
 static struct spi_driver ad5686_spi_driver = {
 	.driver = {
 		.name = "ad5686",
+		.of_match_table = ad5686_of_match,
 	},
 	.probe = ad5686_spi_probe,
 	.id_table = ad5686_spi_id,

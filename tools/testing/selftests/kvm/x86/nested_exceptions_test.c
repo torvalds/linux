@@ -72,7 +72,7 @@ static void l2_ss_injected_tf_test(void)
 }
 
 static void svm_run_l2(struct svm_test_data *svm, void *l2_code, int vector,
-		       uint32_t error_code)
+		       u32 error_code)
 {
 	struct vmcb *vmcb = svm->vmcb;
 	struct vmcb_control_area *ctrl = &vmcb->control;
@@ -111,7 +111,7 @@ static void l1_svm_code(struct svm_test_data *svm)
 	GUEST_DONE();
 }
 
-static void vmx_run_l2(void *l2_code, int vector, uint32_t error_code)
+static void vmx_run_l2(void *l2_code, int vector, u32 error_code)
 {
 	GUEST_ASSERT(!vmwrite(GUEST_RIP, (u64)l2_code));
 
@@ -216,7 +216,7 @@ static void queue_ss_exception(struct kvm_vcpu *vcpu, bool inject)
  */
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t nested_test_data_gva;
+	gva_t nested_test_data_gva;
 	struct kvm_vcpu_events events;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;

@@ -48,9 +48,10 @@
  * - 1.20 - Trap handler support for expert scheduling mode available
  * - 1.21 - Debugger support to subscribe to LDS out-of-address exceptions
  * - 1.22 - Add queue creation with metadata ring base address
+ * - 1.23 - Add profiler control ioctl to enable/disable profiler on a process
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 22
+#define KFD_IOCTL_MINOR_VERSION 23
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -1558,6 +1559,36 @@ struct kfd_ioctl_dbg_trap_args {
 	};
 };
 
+#define KFD_IOC_PROFILER_VERSION_NUM 1
+enum kfd_profiler_ops {
+	KFD_IOC_PROFILER_PMC = 0,
+	KFD_IOC_PROFILER_VERSION = 2,
+	KFD_IOC_PROFILER_PTL_CONTROL = 3,
+};
+
+/**
+ * Enables/Disables GPU Specific profiler settings
+ */
+struct kfd_ioctl_pmc_settings {
+	__u32 gpu_id;             /* This is the user_gpu_id */
+	__u32 lock;               /* Lock GPU for Profiling */
+	__u32 perfcount_enable;   /* Force Perfcount Enable for queues on GPU */
+};
+
+struct kfd_ioctl_ptl_control {
+	__u32 gpu_id; /* user_gpu_id */
+	__u32 enable; /* set 1 to enable PTL, set 0 to disable PTL */
+};
+
+struct kfd_ioctl_profiler_args {
+	__u32 op;						/* kfd_profiler_op */
+	union {
+		struct kfd_ioctl_pmc_settings  pmc;
+		struct kfd_ioctl_ptl_control   ptl;
+		__u32 version;				/* KFD_IOC_PROFILER_VERSION_NUM */
+	};
+};
+
 #define AMDKFD_IOCTL_BASE 'K'
 #define AMDKFD_IO(nr)			_IO(AMDKFD_IOCTL_BASE, nr)
 #define AMDKFD_IOR(nr, type)		_IOR(AMDKFD_IOCTL_BASE, nr, type)
@@ -1681,7 +1712,10 @@ struct kfd_ioctl_dbg_trap_args {
 #define AMDKFD_IOC_CREATE_PROCESS		\
 		AMDKFD_IO(0x27)
 
+#define AMDKFD_IOC_PROFILER			\
+		AMDKFD_IOWR(0x28, struct kfd_ioctl_profiler_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x28
+#define AMDKFD_COMMAND_END		0x29
 
 #endif

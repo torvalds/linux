@@ -40,7 +40,7 @@ static ssize_t elog_id_show(struct elog_obj *elog_obj,
 			    struct elog_attribute *attr,
 			    char *buf)
 {
-	return sprintf(buf, "0x%llx\n", elog_obj->id);
+	return sysfs_emit(buf, "0x%llx\n", elog_obj->id);
 }
 
 static const char *elog_type_to_string(uint64_t type)
@@ -55,16 +55,15 @@ static ssize_t elog_type_show(struct elog_obj *elog_obj,
 			      struct elog_attribute *attr,
 			      char *buf)
 {
-	return sprintf(buf, "0x%llx %s\n",
-		       elog_obj->type,
-		       elog_type_to_string(elog_obj->type));
+	return sysfs_emit(buf, "0x%llx %s\n", elog_obj->type,
+			  elog_type_to_string(elog_obj->type));
 }
 
 static ssize_t elog_ack_show(struct elog_obj *elog_obj,
 			     struct elog_attribute *attr,
 			     char *buf)
 {
-	return sprintf(buf, "ack - acknowledge log message\n");
+	return sysfs_emit(buf, "ack - acknowledge log message\n");
 }
 
 static ssize_t elog_ack_store(struct elog_obj *elog_obj,

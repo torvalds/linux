@@ -14,10 +14,10 @@
 #include <linux/bitmap.h>
 #include <linux/falloc.h>
 #include <linux/sizes.h>
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "kvm_syscalls.h"
 #include "kvm_util.h"
 #include "numaif.h"
 #include "test_util.h"
@@ -171,7 +171,7 @@ static void test_numa_allocation(int fd, size_t total_size)
 	kvm_munmap(mem, total_size);
 }
 
-static void test_collapse(int fd, uint64_t flags)
+static void test_collapse(int fd, u64 flags)
 {
 	const size_t pmd_size = get_trans_hugepagesz();
 	void *reserved_addr;
@@ -345,8 +345,18 @@ static void test_invalid_punch_hole(int fd, size_t total_size)
 	}
 }
 
+static void test_invalid_binding(struct kvm_vm *vm, int fd, size_t size)
+{
+	int r;
+
+	r = __vm_set_user_memory_region2(vm, 0, KVM_MEM_GUEST_MEMFD, 0, size, 0,
+					 fd, ALIGN_DOWN(INT64_MAX, page_size));
+	TEST_ASSERT(r && errno == EINVAL,
+		    "Memslot with out-of-range offset+size should fail");
+}
+
 static void test_create_guest_memfd_invalid_sizes(struct kvm_vm *vm,
-						  uint64_t guest_memfd_flags)
+						  u64 guest_memfd_flags)
 {
 	size_t size;
 	int fd;
@@ -389,8 +399,8 @@ static void test_create_guest_memfd_multiple(struct kvm_vm *vm)
 
 static void test_guest_memfd_flags(struct kvm_vm *vm)
 {
-	uint64_t valid_flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
-	uint64_t flag;
+	u64 valid_flags = vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS);
+	u64 flag;
 	int fd;
 
 	for (flag = BIT(0); flag; flag <<= 1) {
@@ -408,18 +418,27 @@ static void test_guest_memfd_flags(struct kvm_vm *vm)
 	}
 }
 
-#define __gmem_test(__test, __vm, __flags, __gmem_size)			\
+#define ____gmem_test(__test, __vm, __flags, __gmem_size, args...)	\
 do {									\
 	int fd = vm_create_guest_memfd(__vm, __gmem_size, __flags);	\
 									\
-	test_##__test(fd, __gmem_size);					\
+	test_##__test(args);						\
 	close(fd);							\
 } while (0)
+
+#define __gmem_test(__test, __vm, __flags, __gmem_size)			\
+	____gmem_test(__test, __vm, __flags, __gmem_size, fd, __gmem_size)
 
 #define gmem_test(__test, __vm, __flags)				\
 	__gmem_test(__test, __vm, __flags, page_size * 4)
 
-static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
+#define __gmem_test_vm(__test, __vm, __flags, __gmem_size)		\
+	____gmem_test(__test, __vm, __flags, __gmem_size, __vm, fd, __gmem_size)
+
+#define gmem_test_vm(__test, __vm, __flags)				\
+	__gmem_test_vm(__test, __vm, __flags, page_size * 4)
+
+static void __test_guest_memfd(struct kvm_vm *vm, u64 flags)
 {
 	test_create_guest_memfd_multiple(vm);
 	test_create_guest_memfd_invalid_sizes(vm, flags);
@@ -447,12 +466,13 @@ static void __test_guest_memfd(struct kvm_vm *vm, uint64_t flags)
 	gmem_test(file_size, vm, flags);
 	gmem_test(fallocate, vm, flags);
 	gmem_test(invalid_punch_hole, vm, flags);
+	gmem_test_vm(invalid_binding, vm, flags);
 }
 
 static void test_guest_memfd(unsigned long vm_type)
 {
 	struct kvm_vm *vm = vm_create_barebones_type(vm_type);
-	uint64_t flags;
+	u64 flags;
 
 	test_guest_memfd_flags(vm);
 
@@ -470,7 +490,7 @@ static void test_guest_memfd(unsigned long vm_type)
 	kvm_vm_free(vm);
 }
 
-static void guest_code(uint8_t *mem, uint64_t size)
+static void guest_code(u8 *mem, u64 size)
 {
 	size_t i;
 
@@ -489,12 +509,12 @@ static void test_guest_memfd_guest(void)
 	 * the guest's code, stack, and page tables, and low memory contains
 	 * the PCI hole and other MMIO regions that need to be avoided.
 	 */
-	const uint64_t gpa = SZ_4G;
+	const gpa_t gpa = SZ_4G;
 	const int slot = 1;
 
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	uint8_t *mem;
+	u8 *mem;
 	size_t size;
 	int fd, i;
 
@@ -510,7 +530,12 @@ static void test_guest_memfd_guest(void)
 		    "Default VM type should support INIT_SHARED, supported flags = 0x%x",
 		    vm_check_cap(vm, KVM_CAP_GUEST_MEMFD_FLAGS));
 
-	size = vm->page_size;
+	/*
+	 * Use the max of the host or guest page size for all operations, as
+	 * KVM requires guest_memfd files and memslots to be sized to multiples
+	 * of the host page size.
+	 */
+	size = max_t(size_t, vm->page_size, page_size);
 	fd = vm_create_guest_memfd(vm, size, GUEST_MEMFD_FLAG_MMAP |
 					     GUEST_MEMFD_FLAG_INIT_SHARED);
 	vm_set_user_memory_region2(vm, slot, KVM_MEM_GUEST_MEMFD, gpa, size, NULL, fd, 0);
@@ -519,7 +544,7 @@ static void test_guest_memfd_guest(void)
 	memset(mem, 0xaa, size);
 	kvm_munmap(mem, size);
 
-	virt_pg_map(vm, gpa, gpa);
+	virt_map(vm, gpa, gpa, size / vm->page_size);
 	vcpu_args_set(vcpu, 2, gpa, size);
 	vcpu_run(vcpu);
 

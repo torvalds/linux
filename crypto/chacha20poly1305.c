@@ -375,6 +375,7 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 	struct aead_instance *inst;
 	struct chachapoly_instance_ctx *ctx;
 	struct skcipher_alg_common *chacha;
+	const char *poly_name;
 	int err;
 
 	if (ivsize > CHACHAPOLY_IV_SIZE)
@@ -396,9 +397,15 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 		goto err_free_inst;
 	chacha = crypto_spawn_skcipher_alg_common(&ctx->chacha);
 
+	poly_name = crypto_attr_alg_name(tb[2]);
+	if (IS_ERR(poly_name)) {
+		err = PTR_ERR(poly_name);
+		goto err_free_inst;
+	}
+
 	err = -EINVAL;
-	if (strcmp(crypto_attr_alg_name(tb[2]), "poly1305") &&
-	    strcmp(crypto_attr_alg_name(tb[2]), "poly1305-generic"))
+	if (strcmp(poly_name, "poly1305") &&
+	    strcmp(poly_name, "poly1305-generic"))
 		goto err_free_inst;
 	/* Need 16-byte IV size, including Initial Block Counter value */
 	if (chacha->ivsize != CHACHA_IV_SIZE)

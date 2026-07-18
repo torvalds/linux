@@ -5,6 +5,7 @@ config DRM_V3D
 	depends on DRM
 	depends on COMMON_CLK
 	depends on MMU
+	select DRM_EXEC
 	select DRM_SCHED
 	select DRM_GEM_SHMEM_HELPER
 	help

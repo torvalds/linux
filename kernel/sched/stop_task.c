@@ -16,7 +16,7 @@ select_task_rq_stop(struct task_struct *p, int cpu, int flags)
 }
 
 static int
-balance_stop(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
+balance_stop(struct rq *rq, struct rq_flags *rf)
 {
 	return sched_stop_runnable(rq);
 }

@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2022-2026 Marek Vasut
+ */
+
+&display_bl {
+	pwms = <&pwm1 0 5000000 0>;
+};
+
+&i2c_dhpdk_panel {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	touch_lvds: touchscreen@41 {
+		compatible = "ilitek,ili251x";
+		reg = <0x41>;
+		reset-gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		touchscreen-size-x = <16384>;
+		touchscreen-size-y = <9600>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c04";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&panel {
+	compatible = "chefree,ch101olhlwh-002";
+};
+
+&pwm1 {
+	status = "okay";
+};

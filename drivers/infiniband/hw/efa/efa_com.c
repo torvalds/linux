@@ -3,6 +3,7 @@
  * Copyright 2018-2026 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
+#include <linux/crc16.h>
 #include <linux/log2.h>
 
 #include "efa_com.h"
@@ -21,6 +22,14 @@
 #define EFA_CTRL_MAJOR          0
 #define EFA_CTRL_MINOR          0
 #define EFA_CTRL_SUB_MINOR      1
+
+#define EFA_CRC16_INIT_VAL 0xffff
+
+#define EFA_CRC_MIN_ADMIN_API_VERSION_MAJOR 0
+#define EFA_CRC_MIN_ADMIN_API_VERSION_MINOR 2
+
+#define EFA_MIN_ADMIN_API_VERSION_MAJOR 0
+#define EFA_MIN_ADMIN_API_VERSION_MINOR 1
 
 enum efa_cmd_status {
 	EFA_CMD_UNUSED,
@@ -167,9 +176,8 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_com_admin_cq *cq = &aq->cq;
 	u16 size = aq->depth * sizeof(*cq->entries);
-	u32 acq_caps = 0;
-	u32 addr_high;
-	u32 addr_low;
+	u32 acq_caps = 0, crc_min_ver = 0;
+	u32 addr_high, addr_low;
 
 	cq->entries =
 		dma_alloc_coherent(aq->dmadev, size, &cq->dma_addr, GFP_KERNEL);
@@ -177,6 +185,11 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 		return -ENOMEM;
 
 	spin_lock_init(&cq->lock);
+
+	EFA_SET(&crc_min_ver, EFA_REGS_VERSION_MAJOR_VERSION, EFA_CRC_MIN_ADMIN_API_VERSION_MAJOR);
+	EFA_SET(&crc_min_ver, EFA_REGS_VERSION_MINOR_VERSION, EFA_CRC_MIN_ADMIN_API_VERSION_MINOR);
+	if (edev->dev_api_ver >= crc_min_ver)
+		cq->validate_checksum = true;
 
 	cq->cc = 0;
 	cq->phase = 1;
@@ -409,11 +422,34 @@ static int efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 	return 0;
 }
 
+static bool efa_com_cqe_checksum_valid(struct efa_com_admin_queue *aq,
+				       struct efa_admin_acq_entry *cqe)
+{
+	u16 cqe_checksum = cqe->acq_common_descriptor.checksum;
+	u16 calc_checksum;
+
+	cqe->acq_common_descriptor.checksum = 0;
+
+	calc_checksum = crc16(EFA_CRC16_INIT_VAL, (u8 *)cqe, sizeof(*cqe)) ^ EFA_CRC16_INIT_VAL;
+	if (calc_checksum != cqe_checksum) {
+		ibdev_err(aq->efa_dev,
+			  "Received completion with invalid checksum, cqe[%u], calc[%u], sq producer[%d], sq consumer[%d], cq consumer[%d]\n",
+			  cqe_checksum, calc_checksum, aq->sq.pc, aq->sq.cc,
+			  aq->cq.cc);
+		return false;
+	}
+
+	return true;
+}
+
 static int efa_com_handle_single_admin_completion(struct efa_com_admin_queue *aq,
 						  struct efa_admin_acq_entry *cqe)
 {
 	struct efa_comp_ctx *comp_ctx;
 	u16 cmd_id;
+
+	if (aq->cq.validate_checksum && !efa_com_cqe_checksum_valid(aq, cqe))
+		return -EINVAL;
 
 	cmd_id = EFA_GET(&cqe->acq_common_descriptor.command,
 			 EFA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID);
@@ -954,15 +990,15 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 		  EFA_GET(&ver, EFA_REGS_VERSION_MAJOR_VERSION),
 		  EFA_GET(&ver, EFA_REGS_VERSION_MINOR_VERSION));
 
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MAJOR_VERSION,
-		EFA_ADMIN_API_VERSION_MAJOR);
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MINOR_VERSION,
-		EFA_ADMIN_API_VERSION_MINOR);
+	EFA_SET(&min_ver, EFA_REGS_VERSION_MAJOR_VERSION, EFA_MIN_ADMIN_API_VERSION_MAJOR);
+	EFA_SET(&min_ver, EFA_REGS_VERSION_MINOR_VERSION, EFA_MIN_ADMIN_API_VERSION_MINOR);
 	if (ver < min_ver) {
 		ibdev_err(edev->efa_dev,
 			  "EFA version is lower than the minimal version the driver supports\n");
 		return -EOPNOTSUPP;
 	}
+
+	edev->dev_api_ver = ver;
 
 	ibdev_dbg(
 		edev->efa_dev,

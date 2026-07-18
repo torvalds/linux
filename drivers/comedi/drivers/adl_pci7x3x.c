@@ -518,13 +518,13 @@ static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id adl_pci7x3x_pci_table[] = {
-	{ PCI_VDEVICE(ADLINK, 0x7230), BOARD_PCI7230 },
-	{ PCI_VDEVICE(ADLINK, 0x7233), BOARD_PCI7233 },
-	{ PCI_VDEVICE(ADLINK, 0x7234), BOARD_PCI7234 },
-	{ PCI_VDEVICE(ADLINK, 0x7432), BOARD_PCI7432 },
-	{ PCI_VDEVICE(ADLINK, 0x7433), BOARD_PCI7433 },
-	{ PCI_VDEVICE(ADLINK, 0x7434), BOARD_PCI7434 },
-	{ 0 }
+	{ PCI_VDEVICE(ADLINK, 0x7230), .driver_data = BOARD_PCI7230 },
+	{ PCI_VDEVICE(ADLINK, 0x7233), .driver_data = BOARD_PCI7233 },
+	{ PCI_VDEVICE(ADLINK, 0x7234), .driver_data = BOARD_PCI7234 },
+	{ PCI_VDEVICE(ADLINK, 0x7432), .driver_data = BOARD_PCI7432 },
+	{ PCI_VDEVICE(ADLINK, 0x7433), .driver_data = BOARD_PCI7433 },
+	{ PCI_VDEVICE(ADLINK, 0x7434), .driver_data = BOARD_PCI7434 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci7x3x_pci_table);
 

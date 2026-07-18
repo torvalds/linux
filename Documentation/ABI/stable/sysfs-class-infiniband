@@ -148,17 +148,17 @@ Description:
 		**Data info**:
 
 		port_xmit_data: (RO) Total number of data octets, divided by 4
-		(lanes), transmitted on all VLs. This is 64 bit counter
+		(lanes), transmitted on all VLs. This is a 64-bit counter
 
 		port_rcv_data: (RO) Total number of data octets, divided by 4
-		(lanes), received on all VLs. This is 64 bit counter.
+		(lanes), received on all VLs. This is a 64-bit counter.
 
 		port_xmit_packets: (RO) Total number of packets transmitted on
 		all VLs from this port. This may include packets with errors.
-		This is 64 bit counter.
+		This is a 64-bit counter.
 
 		port_rcv_packets: (RO) Total number of packets (this may include
-		packets containing Errors. This is 64 bit counter.
+		packets containing Errors). This is a 64-bit counter.
 
 		link_downed: (RO) Total number of times the Port Training state
 		machine has failed the link error recovery process and downed

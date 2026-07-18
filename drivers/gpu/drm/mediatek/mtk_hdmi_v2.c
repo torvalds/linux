@@ -50,7 +50,7 @@ enum mtk_hdmi_v2_clk_id {
 	MTK_HDMI_V2_CLK_COUNT,
 };
 
-const char *const mtk_hdmi_v2_clk_names[MTK_HDMI_V2_CLK_COUNT] = {
+static const char *const mtk_hdmi_v2_clk_names[MTK_HDMI_V2_CLK_COUNT] = {
 	[MTK_HDMI_V2_CLK_HDMI_APB_SEL] = "bus",
 	[MTK_HDMI_V2_CLK_HDCP_SEL] = "hdcp",
 	[MTK_HDMI_V2_CLK_HDCP_24M_SEL] = "hdcp24m",
@@ -1010,7 +1010,7 @@ static void mtk_hdmi_v2_handle_plugged_change(struct mtk_hdmi *hdmi, bool plugge
 }
 
 static void mtk_hdmi_v2_bridge_pre_enable(struct drm_bridge *bridge,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	struct drm_connector_state *conn_state;
@@ -1048,7 +1048,7 @@ static void mtk_hdmi_v2_bridge_pre_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_enable(struct drm_bridge *bridge,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 	int ret;
@@ -1069,7 +1069,7 @@ static void mtk_hdmi_v2_bridge_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_disable(struct drm_bridge *bridge,
-				       struct drm_atomic_state *state)
+				       struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1086,7 +1086,7 @@ static void mtk_hdmi_v2_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_v2_bridge_post_disable(struct drm_bridge *bridge,
-					    struct drm_atomic_state *state)
+					    struct drm_atomic_commit *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1326,7 +1326,7 @@ static const struct drm_bridge_funcs mtk_v2_hdmi_bridge_funcs = {
 	.atomic_post_disable = mtk_hdmi_v2_bridge_post_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.detect = mtk_hdmi_v2_bridge_detect,
 	.edid_read = mtk_hdmi_v2_bridge_edid_read,
 	.hpd_enable = mtk_hdmi_v2_hpd_enable,

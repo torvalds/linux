@@ -254,9 +254,13 @@ fail:
 	return NULL;
 }
 
-static struct gfs2_quota_data *gfs2_qd_search_bucket(unsigned int hash,
-						     const struct gfs2_sbd *sdp,
-						     struct kqid qid)
+/*
+ * Lookup variant for callers which already hold qd_lock + bucket lock.
+ */
+static struct gfs2_quota_data *
+gfs2_qd_search_bucket_noref(unsigned int hash,
+			    const struct gfs2_sbd *sdp,
+			    struct kqid qid)
 {
 	struct gfs2_quota_data *qd;
 	struct hlist_bl_node *h;
@@ -264,12 +268,22 @@ static struct gfs2_quota_data *gfs2_qd_search_bucket(unsigned int hash,
 	hlist_bl_for_each_entry_rcu(qd, h, &qd_hash_table[hash], qd_hlist) {
 		if (!qid_eq(qd->qd_id, qid))
 			continue;
-		if (qd->qd_sbd != sdp)
-			continue;
-		if (lockref_get_not_dead(&qd->qd_lockref)) {
-			list_lru_del_obj(&gfs2_qd_lru, &qd->qd_lru);
+		if (qd->qd_sbd == sdp)
 			return qd;
-		}
+	}
+
+	return NULL;
+}
+
+static struct gfs2_quota_data *
+gfs2_qd_search_bucket(unsigned int hash, const struct gfs2_sbd *sdp, struct kqid qid)
+{
+	struct gfs2_quota_data *qd;
+
+	qd = gfs2_qd_search_bucket_noref(hash, sdp, qid);
+	if (qd && lockref_get_not_dead(&qd->qd_lockref)) {
+		list_lru_del_obj(&gfs2_qd_lru, &qd->qd_lru);
+		return qd;
 	}
 
 	return NULL;
@@ -1433,7 +1447,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 		qc = (struct gfs2_quota_change *)(bh->b_data + sizeof(struct gfs2_meta_header));
 		for (y = 0; y < sdp->sd_qc_per_block && slot < sdp->sd_quota_slots;
-		     y++, slot++) {
+		     y++, slot++, qc++) {
 			struct gfs2_quota_data *old_qd, *qd;
 			s64 qc_change = be64_to_cpu(qc->qc_change);
 			u32 qc_flags = be32_to_cpu(qc->qc_flags);
@@ -1441,7 +1455,6 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 						USRQUOTA : GRPQUOTA;
 			struct kqid qc_id = make_kqid(&init_user_ns, qtype,
 						      be32_to_cpu(qc->qc_id));
-			qc++;
 			if (!qc_change)
 				continue;
 
@@ -1458,7 +1471,7 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 			spin_lock(&qd_lock);
 			spin_lock_bucket(hash);
-			old_qd = gfs2_qd_search_bucket(hash, sdp, qc_id);
+			old_qd = gfs2_qd_search_bucket_noref(hash, sdp, qc_id);
 			if (old_qd) {
 				fs_err(sdp, "Corruption found in quota_change%u"
 					    "file: duplicate identifier in "
@@ -1467,7 +1480,6 @@ int gfs2_quota_init(struct gfs2_sbd *sdp)
 
 				spin_unlock_bucket(hash);
 				spin_unlock(&qd_lock);
-				qd_put(old_qd);
 
 				gfs2_glock_put(qd->qd_gl);
 				kmem_cache_free(gfs2_quotad_cachep, qd);

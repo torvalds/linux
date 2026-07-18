@@ -272,7 +272,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 			  struct dentry *dentry, struct inode *inode,
 			  const char *name, void *value, size_t size)
 {
-	ssize_t rc = -EOPNOTSUPP;
+	int rc = -EOPNOTSUPP;
 	unsigned int xid;
 	struct super_block *sb = dentry->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -354,7 +354,7 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 				inode, full_path, &acllen, extra_info);
 		if (IS_ERR(pacl)) {
 			rc = PTR_ERR(pacl);
-			cifs_dbg(VFS, "%s: error %zd getting sec desc\n",
+			cifs_dbg(VFS, "%s: error %d getting sec desc\n",
 				 __func__, rc);
 		} else {
 			if (value) {

@@ -58,6 +58,12 @@ static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 				  AC_VERB_GET_PIN_SENSE, dev_id);
 	if (codec->inv_jack_detect)
 		val ^= AC_PINSENSE_PRESENCE;
+	if (codec->eld_jack_detect) {
+		if (val & AC_PINSENSE_ELDV)
+			val |= AC_PINSENSE_PRESENCE;
+		else
+			val &= ~AC_PINSENSE_PRESENCE;
+	}
 	return val;
 }
 

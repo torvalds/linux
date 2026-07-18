@@ -544,24 +544,23 @@ struct files_struct init_files = {
 static unsigned int find_next_fd(struct fdtable *fdt, unsigned int start)
 {
 	unsigned int maxfd = fdt->max_fds; /* always multiple of BITS_PER_LONG */
-	unsigned int maxbit = maxfd / BITS_PER_LONG;
-	unsigned int bitbit = start / BITS_PER_LONG;
+	unsigned int max_fds_words = maxfd / BITS_PER_LONG;
+	unsigned int fds_word_idx = start / BITS_PER_LONG;
 	unsigned int bit;
 
 	/*
 	 * Try to avoid looking at the second level bitmap
 	 */
-	bit = find_next_zero_bit(&fdt->open_fds[bitbit], BITS_PER_LONG,
+	bit = find_next_zero_bit(&fdt->open_fds[fds_word_idx], BITS_PER_LONG,
 				 start & (BITS_PER_LONG - 1));
 	if (bit < BITS_PER_LONG)
-		return bit + bitbit * BITS_PER_LONG;
+		return bit + (fds_word_idx * BITS_PER_LONG);
 
-	bitbit = find_next_zero_bit(fdt->full_fds_bits, maxbit, bitbit) * BITS_PER_LONG;
-	if (bitbit >= maxfd)
+	bit = BITS_PER_LONG *
+		find_next_zero_bit(fdt->full_fds_bits, max_fds_words, fds_word_idx + 1);
+	if (bit >= maxfd)
 		return maxfd;
-	if (bitbit > start)
-		start = bitbit;
-	return find_next_zero_bit(fdt->open_fds, maxfd, start);
+	return find_next_zero_bit(fdt->open_fds, maxfd, bit);
 }
 
 /*
@@ -1134,7 +1133,6 @@ struct file *fget_task(struct task_struct *task, unsigned int fd)
 
 struct file *fget_task_next(struct task_struct *task, unsigned int *ret_fd)
 {
-	/* Must be called with rcu_read_lock held */
 	struct files_struct *files;
 	unsigned int fd = *ret_fd;
 	struct file *file = NULL;

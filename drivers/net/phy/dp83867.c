@@ -103,6 +103,10 @@
 #define DP83867_PHYCR_RX_FIFO_DEPTH_MASK	GENMASK(13, 12)
 #define DP83867_PHYCR_SGMII_EN			BIT(11)
 #define DP83867_PHYCR_FORCE_LINK_GOOD		BIT(10)
+#define DP83867_PHYCR_MDIX_MASK			GENMASK(6, 5)
+#define DP83867_PHYCR_MDIX_MDI			(0x0 << 5)
+#define DP83867_PHYCR_MDIX_MDIX			(0x1 << 5)
+#define DP83867_PHYCR_MDIX_AUTO			(0x3 << 5)
 
 /* RGMIIDCTL bits */
 #define DP83867_RGMII_TX_CLK_DELAY_MAX		0xf
@@ -123,6 +127,10 @@
 #define DP83867_PHYSTS_100			BIT(14)
 #define DP83867_PHYSTS_DUPLEX			BIT(13)
 #define DP83867_PHYSTS_LINK			BIT(10)
+#define DP83867_PHYSTS_MDIX_CD			BIT(9)
+#define DP83867_PHYSTS_MDIX_AB			BIT(8)
+#define DP83867_PHYSTS_MDIX_MASK		(DP83867_PHYSTS_MDIX_AB | \
+						DP83867_PHYSTS_MDIX_CD)
 
 /* CFG2 bits */
 #define DP83867_DOWNSHIFT_EN		(BIT(8) | BIT(9))
@@ -390,6 +398,22 @@ static int dp83867_read_status(struct phy_device *phydev)
 		phydev->speed = SPEED_100;
 	else
 		phydev->speed = SPEED_10;
+
+	if (!(status & DP83867_PHYSTS_LINK)) {
+		phydev->mdix = ETH_TP_MDI_INVALID;
+	} else {
+		switch (status & DP83867_PHYSTS_MDIX_MASK) {
+		case 0:
+			phydev->mdix = ETH_TP_MDI;
+			break;
+		case DP83867_PHYSTS_MDIX_MASK:
+			phydev->mdix = ETH_TP_MDI_X;
+			break;
+		default:
+			phydev->mdix = ETH_TP_MDI_INVALID;
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -714,6 +738,8 @@ static int dp83867_config_init(struct phy_device *phydev)
 	struct dp83867_private *dp83867 = phydev->priv;
 	int ret, val, bs;
 
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
+
 	/* Force speed optimization for the PHY even if it strapped */
 	ret = phy_modify(phydev, DP83867_CFG2, DP83867_DOWNSHIFT_EN,
 			 DP83867_DOWNSHIFT_EN);
@@ -871,6 +897,39 @@ static int dp83867_config_init(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+static int dp83867_config_mdix(struct phy_device *phydev, u8 ctrl)
+{
+	int val;
+
+	switch (ctrl) {
+	case ETH_TP_MDI:
+		val = DP83867_PHYCR_MDIX_MDI;
+		break;
+	case ETH_TP_MDI_X:
+		val = DP83867_PHYCR_MDIX_MDIX;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = DP83867_PHYCR_MDIX_AUTO;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return phy_modify(phydev, MII_DP83867_PHYCTRL,
+			  DP83867_PHYCR_MDIX_MASK, val);
+}
+
+static int dp83867_config_aneg(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = dp83867_config_mdix(phydev, phydev->mdix_ctrl);
+	if (ret)
+		return ret;
+
+	return genphy_config_aneg(phydev);
 }
 
 static int dp83867_phy_reset(struct phy_device *phydev)
@@ -1127,6 +1186,7 @@ static struct phy_driver dp83867_driver[] = {
 
 		.probe          = dp83867_probe,
 		.config_init	= dp83867_config_init,
+		.config_aneg	= dp83867_config_aneg,
 		.soft_reset	= dp83867_phy_reset,
 
 		.read_status	= dp83867_read_status,

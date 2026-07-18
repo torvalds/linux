@@ -175,7 +175,7 @@ static void as3668_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id as3668_idtable[] = {
-	{ "as3668" },
+	{ .name = "as3668" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, as3668_idtable);

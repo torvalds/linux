@@ -87,11 +87,7 @@ static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
 static int cppc_state = AMD_PSTATE_UNDEFINED;
 static bool amd_pstate_prefcore = true;
-#ifdef CONFIG_X86_AMD_PSTATE_DYNAMIC_EPP
-static bool dynamic_epp = CONFIG_X86_AMD_PSTATE_DYNAMIC_EPP;
-#else
 static bool dynamic_epp;
-#endif
 static struct quirk_entry *quirks;
 
 /*
@@ -246,12 +242,10 @@ static int msr_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
 
-	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
-		   AMD_CPPC_DES_PERF_MASK | AMD_CPPC_EPP_PERF_MASK);
-	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
-	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, des_perf);
-	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_MAX_PERF_MASK, &value, max_perf);
+	FIELD_MODIFY(AMD_CPPC_DES_PERF_MASK, &value, des_perf);
+	FIELD_MODIFY(AMD_CPPC_MIN_PERF_MASK, &value, min_perf);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = READ_ONCE(cpudata->perf);
@@ -300,8 +294,7 @@ static int msr_set_epp(struct cpufreq_policy *policy, u8 epp)
 	int ret;
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
-	value &= ~AMD_CPPC_EPP_PERF_MASK;
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = cpudata->perf;
@@ -368,7 +361,8 @@ static int amd_pstate_set_floor_perf(struct cpufreq_policy *policy, u8 perf)
 
 out_trace:
 	if (trace_amd_pstate_cppc_req2_enabled())
-		trace_amd_pstate_cppc_req2(cpudata->cpu, perf, changed, ret);
+		trace_call__amd_pstate_cppc_req2(cpudata->cpu, perf, changed,
+						 ret);
 	return ret;
 }
 
@@ -441,8 +435,7 @@ static int shmem_set_epp(struct cpufreq_policy *policy, u8 epp)
 	}
 
 	value = READ_ONCE(cpudata->cppc_req_cached);
-	value &= ~AMD_CPPC_EPP_PERF_MASK;
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	return ret;
@@ -480,7 +473,7 @@ static int msr_init_perf(struct amd_cpudata *cpudata)
 	if (ret)
 		return ret;
 
-	ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
+	ret = rdmsrq_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req);
 	if (ret)
 		return ret;
 
@@ -575,12 +568,10 @@ static int shmem_update_perf(struct cpufreq_policy *policy, u8 min_perf,
 
 	value = prev = READ_ONCE(cpudata->cppc_req_cached);
 
-	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
-		   AMD_CPPC_DES_PERF_MASK | AMD_CPPC_EPP_PERF_MASK);
-	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
-	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, des_perf);
-	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
-	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	FIELD_MODIFY(AMD_CPPC_MAX_PERF_MASK, &value, max_perf);
+	FIELD_MODIFY(AMD_CPPC_DES_PERF_MASK, &value, des_perf);
+	FIELD_MODIFY(AMD_CPPC_MIN_PERF_MASK, &value, min_perf);
+	FIELD_MODIFY(AMD_CPPC_EPP_PERF_MASK, &value, epp);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		union perf_cached perf = READ_ONCE(cpudata->perf);
@@ -1090,10 +1081,9 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	perf = READ_ONCE(cpudata->perf);
 
-	policy->cpuinfo.min_freq = policy->min = perf_to_freq(perf,
-							      cpudata->nominal_freq,
-							      perf.lowest_perf);
-	policy->cpuinfo.max_freq = policy->max = cpudata->max_freq;
+	policy->cpuinfo.min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+						perf.lowest_perf);
+	policy->cpuinfo.max_freq = cpudata->max_freq;
 
 	policy->driver_data = cpudata;
 	ret = amd_pstate_cppc_enable(policy);
@@ -1291,6 +1281,8 @@ static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 		return ret;
 
 	cpudata->profile_name = kasprintf(GFP_KERNEL, "amd-pstate-epp-cpu%d", cpudata->cpu);
+	if (!cpudata->profile_name)
+		return -ENOMEM;
 
 	cpudata->ppdev = platform_profile_register(get_cpu_device(policy->cpu),
 						   cpudata->profile_name,
@@ -1427,10 +1419,10 @@ ssize_t store_energy_performance_preference(struct cpufreq_policy *policy,
 		if (ret)
 			epp = epp_values[ret];
 		else
-			epp = amd_pstate_get_balanced_epp(policy);
+			epp = cpudata->epp_default_dc;
 	}
 
-	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (epp > 0 && cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		pr_debug("EPP cannot be set under performance policy\n");
 		return -EBUSY;
 	}
@@ -1707,6 +1699,8 @@ static int amd_pstate_change_driver_mode(int mode)
 {
 	int ret;
 
+	lockdep_assert_held(&amd_pstate_driver_lock);
+
 	ret = amd_pstate_unregister_driver(0);
 	if (ret)
 		return ret;
@@ -1821,8 +1815,16 @@ static ssize_t dynamic_epp_store(struct device *a, struct device_attribute *b,
 	if (ret)
 		return ret;
 
-	if (dynamic_epp == enabled)
+	guard(mutex)(&amd_pstate_driver_lock);
+
+	if (cppc_state != AMD_PSTATE_ACTIVE) {
+		pr_debug("dynamic_epp can only be toggled in active mode\n");
 		return -EINVAL;
+	}
+
+	/* Nothing to do */
+	if (dynamic_epp == enabled)
+		return count;
 
 	/* reinitialize with desired dynamic EPP value */
 	dynamic_epp = enabled;
@@ -1907,10 +1909,9 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 
 	perf = READ_ONCE(cpudata->perf);
 
-	policy->cpuinfo.min_freq = policy->min = perf_to_freq(perf,
-							      cpudata->nominal_freq,
-							      perf.lowest_perf);
-	policy->cpuinfo.max_freq = policy->max = cpudata->max_freq;
+	policy->cpuinfo.min_freq = perf_to_freq(perf, cpudata->nominal_freq,
+						perf.lowest_perf);
+	policy->cpuinfo.max_freq = cpudata->max_freq;
 	policy->driver_data = cpudata;
 
 	ret = amd_pstate_cppc_enable(policy);
@@ -1942,7 +1943,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	if (dynamic_epp)
 		ret = amd_pstate_set_dynamic_epp(policy);
 	else
-		ret = amd_pstate_set_epp(policy, amd_pstate_get_balanced_epp(policy));
+		ret = amd_pstate_set_epp(policy, cpudata->epp_default_dc);
 	if (ret)
 		goto free_cpudata1;
 
@@ -1970,12 +1971,13 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 	if (cpudata) {
 		union perf_cached perf = READ_ONCE(cpudata->perf);
 
+		if (cpudata->dynamic_epp)
+			amd_pstate_clear_dynamic_epp(policy);
+
 		/* Reset CPPC_REQ MSR to the BIOS value */
 		amd_pstate_update_perf(policy, perf.bios_min_perf, 0U, 0U, 0U, false);
 		amd_pstate_set_floor_perf(policy, cpudata->bios_floor_perf);
 
-		if (cpudata->dynamic_epp)
-			amd_pstate_clear_dynamic_epp(policy);
 		kfree(cpudata);
 		policy->driver_data = NULL;
 	}

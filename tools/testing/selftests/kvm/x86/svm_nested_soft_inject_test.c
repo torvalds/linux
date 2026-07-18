@@ -76,7 +76,7 @@ static void l2_guest_code_nmi(void)
 	ud2();
 }
 
-static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t idt_alt)
+static void l1_guest_code(struct svm_test_data *svm, u64 is_nmi, u64 idt_alt)
 {
 	#define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
@@ -144,8 +144,8 @@ static void run_test(bool is_nmi)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	vm_vaddr_t svm_gva;
-	vm_vaddr_t idt_alt_vm;
+	gva_t svm_gva;
+	gva_t idt_alt_vm;
 	struct kvm_guest_debug debug;
 
 	pr_info("Running %s test\n", is_nmi ? "NMI" : "soft int");
@@ -161,14 +161,14 @@ static void run_test(bool is_nmi)
 	if (!is_nmi) {
 		void *idt, *idt_alt;
 
-		idt_alt_vm = vm_vaddr_alloc_page(vm);
+		idt_alt_vm = vm_alloc_page(vm);
 		idt_alt = addr_gva2hva(vm, idt_alt_vm);
 		idt = addr_gva2hva(vm, vm->arch.idt);
 		memcpy(idt_alt, idt, getpagesize());
 	} else {
 		idt_alt_vm = 0;
 	}
-	vcpu_args_set(vcpu, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
+	vcpu_args_set(vcpu, 3, svm_gva, (u64)is_nmi, (u64)idt_alt_vm);
 
 	memset(&debug, 0, sizeof(debug));
 	vcpu_guest_debug_set(vcpu, &debug);

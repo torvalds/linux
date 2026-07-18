@@ -317,8 +317,8 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id icp_multi_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ICP, 0x8000) },
-	{ 0 }
+	{ PCI_VDEVICE(ICP, 0x8000) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, icp_multi_pci_table);
 

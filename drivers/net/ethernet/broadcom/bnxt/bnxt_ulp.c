@@ -175,8 +175,14 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 	ulp->handle = handle;
 	rcu_assign_pointer(ulp->ulp_ops, ulp_ops);
 
-	if (test_bit(BNXT_STATE_OPEN, &bp->state))
-		bnxt_hwrm_vnic_cfg(bp, &bp->vnic_info[BNXT_VNIC_DEFAULT]);
+	if (test_bit(BNXT_STATE_OPEN, &bp->state)) {
+		rc = bnxt_hwrm_vnic_cfg(bp, &bp->vnic_info[BNXT_VNIC_DEFAULT]);
+		if (rc) {
+			netdev_err(dev, "Failed to configure dual VNIC mode\n");
+			RCU_INIT_POINTER(ulp->ulp_ops, NULL);
+			goto exit;
+		}
+	}
 
 	edev->ulp_tbl->msix_requested = bnxt_get_ulp_msix_num(bp);
 

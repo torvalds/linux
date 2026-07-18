@@ -81,13 +81,19 @@ static const struct firmware card_fw[] = {
 };
 
 static const struct pci_device_id snd_echo_ids[] = {
-	{0x1057, 0x1801, 0xECC0, 0x0070, 0, 0, 0},	/* DSP 56301 Mona rev.0 */
-	{0x1057, 0x1801, 0xECC0, 0x0071, 0, 0, 0},	/* DSP 56301 Mona rev.1 */
-	{0x1057, 0x1801, 0xECC0, 0x0072, 0, 0, 0},	/* DSP 56301 Mona rev.2 */
-	{0x1057, 0x3410, 0xECC0, 0x0070, 0, 0, 0},	/* DSP 56361 Mona rev.0 */
-	{0x1057, 0x3410, 0xECC0, 0x0071, 0, 0, 0},	/* DSP 56361 Mona rev.1 */
-	{0x1057, 0x3410, 0xECC0, 0x0072, 0, 0, 0},	/* DSP 56361 Mona rev.2 */
-	{0,}
+	/* DSP 56301 Mona rev.0 */
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0070) },
+	/* DSP 56301 Mona rev.1 */
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0071) },
+	/* DSP 56301 Mona rev.2 */
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0072) },
+	/* DSP 56361 Mona rev.0 */
+	{ PCI_DEVICE_SUB(0x1057, 0x3410, 0xECC0, 0x0070) },
+	/* DSP 56361 Mona rev.1 */
+	{ PCI_DEVICE_SUB(0x1057, 0x3410, 0xECC0, 0x0071) },
+	/* DSP 56361 Mona rev.2 */
+	{ PCI_DEVICE_SUB(0x1057, 0x3410, 0xECC0, 0x0072) },
+	{ }
 };
 
 static const struct snd_pcm_hardware pcm_hardware_skel = {

@@ -41,10 +41,14 @@ ga100_gsp_flcn = {
 static const struct nvkm_gsp_func
 ga100_gsp = {
 	.flcn = &ga100_gsp_flcn,
+	.fwsec = &tu102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_ga100",
 
 	.booter.ctor = tu102_gsp_booter_ctor,
+
+	.fwsec_sb.ctor = tu102_gsp_fwsec_sb_ctor,
+	.fwsec_sb.dtor = tu102_gsp_fwsec_sb_dtor,
 
 	.dtor = r535_gsp_dtor,
 	.oneinit = tu102_gsp_oneinit,
@@ -59,7 +63,6 @@ static struct nvkm_gsp_fwif
 ga100_gsps[] = {
 	{  1, tu102_gsp_load, &ga100_gsp, &r570_rm_tu102, "570.144" },
 	{  0, tu102_gsp_load, &ga100_gsp, &r535_rm_tu102, "535.113.01" },
-	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
 

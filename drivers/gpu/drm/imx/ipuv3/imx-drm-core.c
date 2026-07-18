@@ -38,7 +38,7 @@ module_param(legacyfb_depth, int, 0444);
 DEFINE_DRM_GEM_DMA_FOPS(imx_drm_driver_fops);
 
 static int imx_drm_atomic_check(struct drm_device *dev,
-				struct drm_atomic_state *state)
+				struct drm_atomic_commit *state)
 {
 	int ret;
 
@@ -68,7 +68,7 @@ static const struct drm_mode_config_funcs imx_drm_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
+static void imx_drm_atomic_commit_tail(struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_plane *plane;

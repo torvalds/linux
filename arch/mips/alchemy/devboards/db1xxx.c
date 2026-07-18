@@ -7,16 +7,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-db1x00/bcsr.h>
 
-int __init db1000_board_setup(void);
-int __init db1000_dev_setup(void);
-int __init db1500_pci_setup(void);
-int __init db1200_board_setup(void);
-int __init db1200_dev_setup(void);
-int __init db1300_board_setup(void);
-int __init db1300_dev_setup(void);
-int __init db1550_board_setup(void);
-int __init db1550_dev_setup(void);
-int __init db1550_pci_setup(int);
+#include "db1xxx.h"
 
 static const char *board_type_str(void)
 {

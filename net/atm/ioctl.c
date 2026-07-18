@@ -11,16 +11,12 @@
 #include <linux/net.h>		/* struct socket, struct proto_ops */
 #include <linux/atm.h>		/* ATM stuff */
 #include <linux/atmdev.h>
-#include <linux/atmarp.h>	/* manifest constants */
 #include <linux/capability.h>
-#include <linux/sonet.h>	/* for ioctls */
-#include <linux/atmsvc.h>
 #include <linux/mutex.h>
 #include <asm/ioctls.h>
 #include <net/compat.h>
 
 #include "resources.h"
-#include "signaling.h"		/* for WAITING and sigd_attach */
 #include "common.h"
 
 
@@ -86,36 +82,6 @@ static int do_vcc_ioctl(struct socket *sock, unsigned int cmd,
 		net_warn_ratelimited("ATM_SETSC is obsolete; used by %s:%d\n",
 				     current->comm, task_pid_nr(current));
 		error = 0;
-		goto done;
-	case ATMSIGD_CTRL:
-		if (!capable(CAP_NET_ADMIN)) {
-			error = -EPERM;
-			goto done;
-		}
-		/*
-		 * The user/kernel protocol for exchanging signalling
-		 * info uses kernel pointers as opaque references,
-		 * so the holder of the file descriptor can scribble
-		 * on the kernel... so we should make sure that we
-		 * have the same privileges that /proc/kcore needs
-		 */
-		if (!capable(CAP_SYS_RAWIO)) {
-			error = -EPERM;
-			goto done;
-		}
-#ifdef CONFIG_COMPAT
-		/* WTF? I don't even want to _think_ about making this
-		   work for 32-bit userspace. TBH I don't really want
-		   to think about it at all. dwmw2. */
-		if (compat) {
-			net_warn_ratelimited("32-bit task cannot be atmsigd\n");
-			error = -EINVAL;
-			goto done;
-		}
-#endif
-		error = sigd_attach(vcc);
-		if (!error)
-			sock->state = SS_CONNECTED;
 		goto done;
 	case ATM_SETBACKEND:
 	case ATM_NEWBACKENDIF:
@@ -221,10 +187,6 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 #define ATM_GETNAMES32    _IOW('a', ATMIOC_ITF+3, struct compat_atm_iobuf)
 #define ATM_GETTYPE32     _IOW('a', ATMIOC_ITF+4, struct compat_atmif_sioc)
 #define ATM_GETESI32	  _IOW('a', ATMIOC_ITF+5, struct compat_atmif_sioc)
-#define ATM_GETADDR32	  _IOW('a', ATMIOC_ITF+6, struct compat_atmif_sioc)
-#define ATM_RSTADDR32	  _IOW('a', ATMIOC_ITF+7, struct compat_atmif_sioc)
-#define ATM_ADDADDR32	  _IOW('a', ATMIOC_ITF+8, struct compat_atmif_sioc)
-#define ATM_DELADDR32	  _IOW('a', ATMIOC_ITF+9, struct compat_atmif_sioc)
 #define ATM_GETCIRANGE32  _IOW('a', ATMIOC_ITF+10, struct compat_atmif_sioc)
 #define ATM_SETCIRANGE32  _IOW('a', ATMIOC_ITF+11, struct compat_atmif_sioc)
 #define ATM_SETESI32      _IOW('a', ATMIOC_ITF+12, struct compat_atmif_sioc)
@@ -243,10 +205,6 @@ static struct {
 	{ ATM_GETNAMES32,    ATM_GETNAMES },
 	{ ATM_GETTYPE32,     ATM_GETTYPE },
 	{ ATM_GETESI32,	     ATM_GETESI },
-	{ ATM_GETADDR32,     ATM_GETADDR },
-	{ ATM_RSTADDR32,     ATM_RSTADDR },
-	{ ATM_ADDADDR32,     ATM_ADDADDR },
-	{ ATM_DELADDR32,     ATM_DELADDR },
 	{ ATM_GETCIRANGE32,  ATM_GETCIRANGE },
 	{ ATM_SETCIRANGE32,  ATM_SETCIRANGE },
 	{ ATM_SETESI32,	     ATM_SETESI },
@@ -290,18 +248,6 @@ static int do_atm_ioctl(struct socket *sock, unsigned int cmd32,
 	int i;
 	unsigned int cmd = 0;
 
-	switch (cmd32) {
-	case SONET_GETSTAT:
-	case SONET_GETSTATZ:
-	case SONET_GETDIAG:
-	case SONET_SETDIAG:
-	case SONET_CLRDIAG:
-	case SONET_SETFRAMING:
-	case SONET_GETFRAMING:
-	case SONET_GETFRSENSE:
-		return do_atmif_sioc(sock, cmd32, arg);
-	}
-
 	for (i = 0; i < NR_ATM_IOCTL; i++) {
 		if (cmd32 == atm_ioctl_map[i].cmd32) {
 			cmd = atm_ioctl_map[i].cmd;
@@ -318,10 +264,6 @@ static int do_atm_ioctl(struct socket *sock, unsigned int cmd32,
 	case ATM_GETLINKRATE:
 	case ATM_GETTYPE:
 	case ATM_GETESI:
-	case ATM_GETADDR:
-	case ATM_RSTADDR:
-	case ATM_ADDADDR:
-	case ATM_DELADDR:
 	case ATM_GETCIRANGE:
 	case ATM_SETCIRANGE:
 	case ATM_SETESI:

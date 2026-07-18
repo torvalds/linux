@@ -685,7 +685,7 @@ Deadline Task Scheduling
 
  Deadline tasks cannot have a cpu affinity mask smaller than the root domain they
  are created on. So, using ``sched_setaffinity(2)`` won't work. Instead, the
- the deadline task should be created in a restricted root domain. This can be
+ deadline task should be created in a restricted root domain. This can be
  done using the cpuset controller of either cgroup v1 (deprecated) or cgroup v2.
  See :ref:`Documentation/admin-guide/cgroup-v1/cpusets.rst <cpusets>` and
  :ref:`Documentation/admin-guide/cgroup-v2.rst <cgroup-v2>` for more information.

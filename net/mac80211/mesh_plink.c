@@ -165,8 +165,6 @@ static u64 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 
 	switch (sdata->vif.bss_conf.chanreq.oper.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
-	case NL80211_CHAN_WIDTH_5:
-	case NL80211_CHAN_WIDTH_10:
 		return 0;
 	default:
 		break;
@@ -469,6 +467,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 					    elems->he_cap_len,
 					    elems->eht_cap, elems->eht_cap_len,
 					    &sta->deflink);
+
+	ieee80211_sta_init_nss_bw_capa(&sta->deflink,
+				       &sdata->deflink.conf->chanreq.oper);
 
 	if (bw != sta->sta.deflink.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;

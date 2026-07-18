@@ -1254,7 +1254,13 @@ void intel_iommu_disable_iopf(struct device *dev);
 static inline int iopf_for_domain_set(struct iommu_domain *domain,
 				      struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+
 	if (!domain || !domain->iopf_handler)
+		return 0;
+
+	/* SVA with non-IOMMU/PRI IOPF handling is allowed. */
+	if (domain->type == IOMMU_DOMAIN_SVA && !info->pri_supported)
 		return 0;
 
 	return intel_iommu_enable_iopf(dev);
@@ -1263,7 +1269,12 @@ static inline int iopf_for_domain_set(struct iommu_domain *domain,
 static inline void iopf_for_domain_remove(struct iommu_domain *domain,
 					  struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+
 	if (!domain || !domain->iopf_handler)
+		return;
+
+	if (domain->type == IOMMU_DOMAIN_SVA && !info->pri_supported)
 		return;
 
 	intel_iommu_disable_iopf(dev);

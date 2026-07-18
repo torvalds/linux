@@ -543,10 +543,8 @@ static void __init register_led_regions(void)
 
 static int __init startup_leds(void)
 {
-	if (platform_device_register(&platform_leds)) {
-		pr_info("LED: failed to register LEDs\n");
-		platform_device_put(&platform_leds);
-	}
+	if (platform_device_register(&platform_leds))
+                printk(KERN_INFO "LED: failed to register LEDs\n");
 	register_led_regions();
 	return 0;
 }

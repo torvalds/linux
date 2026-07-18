@@ -3,7 +3,7 @@
  * init.c: PROM library initialisation code.
  *
  * Copyright (C) 1998 Harald Koerfgen
- * Copyright (C) 2002, 2004  Maciej W. Rozycki
+ * Copyright (C) 2002, 2004, 2026  Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -19,6 +19,10 @@
 
 #include <asm/dec/prom.h>
 
+
+#ifdef CONFIG_64BIT
+unsigned long o32_stk[O32_STK_SIZE] __initdata = { 0 };
+#endif
 
 int (*__rex_bootinit)(void);
 int (*__rex_bootread)(void);

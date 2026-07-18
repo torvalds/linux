@@ -168,7 +168,7 @@ bpf_tcp_ca_get_func_proto(enum bpf_func_id func_id,
 		 */
 		if (prog_ops_moff(prog) !=
 		    offsetof(struct tcp_congestion_ops, release))
-			return &bpf_sk_setsockopt_proto;
+			return &bpf_sk_setsockopt_nodelay_proto;
 		return NULL;
 	case BPF_FUNC_getsockopt:
 		/* Since get/setsockopt is usually expected to

@@ -229,13 +229,13 @@ struct tegra_admaif_soc_data {
 };
 
 struct tegra_admaif {
-	struct snd_dmaengine_dai_dma_data *capture_dma_data;
 	struct snd_dmaengine_dai_dma_data *playback_dma_data;
 	const struct tegra_admaif_soc_data *soc_data;
 	unsigned int *mono_to_stereo[ADMAIF_PATHS];
 	unsigned int *stereo_to_mono[ADMAIF_PATHS];
 	struct regmap *regmap;
 	struct tegra_adma_isomgr *adma_isomgr;
+	struct snd_dmaengine_dai_dma_data capture_dma_data[];
 };
 
 #endif

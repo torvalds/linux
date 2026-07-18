@@ -97,7 +97,7 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
 						      offsetof(_type, _member),	\
 						      _feat))
 
-struct drm_atomic_state *
+struct drm_atomic_commit *
 drm_kunit_helper_atomic_state_alloc(struct kunit *test,
 				    struct drm_device *drm,
 				    struct drm_modeset_acquire_ctx *ctx);

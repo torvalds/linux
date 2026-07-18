@@ -359,6 +359,7 @@ cros_typec_register_thunderbolt(struct cros_typec_port *port,
 	}
 
 	INIT_WORK(&adata->work, cros_typec_altmode_work);
+	mutex_init(&adata->lock);
 	adata->alt = alt;
 	adata->port = port;
 	adata->ap_mode_entry = true;

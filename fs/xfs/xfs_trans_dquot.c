@@ -164,7 +164,7 @@ xfs_trans_mod_ino_dquot(
 	if (xfs_hooks_switched_on(&xfs_dqtrx_hooks_switch)) {
 		struct xfs_mod_ino_dqtrx_params	p = {
 			.tx_id		= (uintptr_t)tp,
-			.ino		= ip->i_ino,
+			.ino		= I_INO(ip),
 			.q_type		= xfs_dquot_type(dqp),
 			.q_id		= dqp->q_id,
 			.delta		= delta
@@ -247,7 +247,7 @@ xfs_trans_mod_dquot_byino(
 	xfs_mount_t	*mp = tp->t_mountp;
 
 	if (!XFS_IS_QUOTA_ON(mp) ||
-	    xfs_is_quota_inode(&mp->m_sb, ip->i_ino) ||
+	    xfs_is_quota_inode(&mp->m_sb, I_INO(ip)) ||
 	    xfs_is_metadir_inode(ip))
 		return;
 
@@ -990,7 +990,7 @@ xfs_trans_reserve_quota_nblks(
 	if (xfs_is_metadir_inode(ip))
 		return 0;
 
-	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
+	ASSERT(!xfs_is_quota_inode(&mp->m_sb, I_INO(ip)));
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	if (force)

@@ -77,7 +77,7 @@ struct mdp5_kms {
 struct mdp5_global_state {
 	struct drm_private_state base;
 
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct mdp5_kms *mdp5_kms;
 
 	struct mdp5_hw_pipe_state hwpipe;
@@ -86,7 +86,7 @@ struct mdp5_global_state {
 };
 
 struct mdp5_global_state * mdp5_get_existing_global_state(struct mdp5_kms *mdp5_kms);
-struct mdp5_global_state *__must_check mdp5_get_global_state(struct drm_atomic_state *s);
+struct mdp5_global_state *__must_check mdp5_get_global_state(struct drm_atomic_commit *s);
 
 /* Atomic plane state.  Subclasses the base drm_plane_state in order to
  * track assigned hwpipe and hw specific state.

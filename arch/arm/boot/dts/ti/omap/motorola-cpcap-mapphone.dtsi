@@ -69,6 +69,8 @@
 
 		cpcap_audio: audio-codec {
 			#sound-dai-cells = <1>;
+			interrupts-extended = <&cpcap 9 0>, <&cpcap 10 0>;
+			interrupt-names = "hs", "mb2";
 
 			port@0 {
 				cpcap_audio_codec0: endpoint {
@@ -267,6 +269,8 @@
 		regulator-min-microvolt = <2775000>;
 		regulator-max-microvolt = <2775000>;
 		regulator-enable-ramp-delay = <1000>;
-		regulator-initial-mode = <0x00>; /* NORMAL */
+		regulator-allowed-modes = <0x00>, <0x40>; /* ON, LOW_PWR */
+		regulator-initial-mode = <0x00>; /* ON */
+		regulator-always-on;
 	};
 };

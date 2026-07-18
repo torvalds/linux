@@ -552,11 +552,7 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 
 	/* cross check port_map and cap.n_ports */
 	if (port_map) {
-		int map_ports = 0;
-
-		for (i = 0; i < AHCI_MAX_PORTS; i++)
-			if (port_map & (1 << i))
-				map_ports++;
+		int map_ports = hweight_long(port_map);
 
 		/* If PI has more ports than n_ports, whine, clear
 		 * port_map and let it be generated from n_ports.
@@ -1527,6 +1523,7 @@ int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 	ata_link_err(link, "softreset failed (%s)\n", reason);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ahci_do_softreset);
 
 int ahci_check_ready(struct ata_link *link)
 {
@@ -1544,7 +1541,6 @@ static int ahci_softreset(struct ata_link *link, unsigned int *class,
 
 	return ahci_do_softreset(link, class, pmp, deadline, ahci_check_ready);
 }
-EXPORT_SYMBOL_GPL(ahci_do_softreset);
 
 static int ahci_bad_pmp_check_ready(struct ata_link *link)
 {
@@ -2212,6 +2208,7 @@ static void ahci_thaw(struct ata_port *ap)
 }
 
 void ahci_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 
@@ -2636,7 +2633,7 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		,
 
 		hweight32(impl),
-		(cap & 0x1f) + 1,
+		ahci_nr_ports(cap),
 		impl);
 
 	dev_info(host->dev,

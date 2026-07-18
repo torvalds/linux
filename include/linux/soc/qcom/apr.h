@@ -5,7 +5,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/apr.h>
 #include <dt-bindings/soc/qcom,apr.h>
 #include <dt-bindings/soc/qcom,gpr.h>
 

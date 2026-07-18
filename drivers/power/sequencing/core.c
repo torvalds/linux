@@ -543,14 +543,17 @@ void pwrseq_device_unregister(struct pwrseq_device *pwrseq)
 	struct device *dev = &pwrseq->dev;
 	struct pwrseq_target *target;
 
-	scoped_guard(mutex, &pwrseq->state_lock) {
+	scoped_guard(rwsem_write, &pwrseq_sem) {
 		guard(rwsem_write)(&pwrseq->rw_lock);
 
+		/*
+		 * Holding rw_lock for write excludes all power on/off callers
+		 * (they hold it for read), so it's safe to read enable_count
+		 * here without taking the state_lock.
+		 */
 		list_for_each_entry(target, &pwrseq->targets, list)
 			WARN(target->unit->enable_count,
 			     "REMOVING POWER SEQUENCER WITH ACTIVE USERS\n");
-
-		guard(rwsem_write)(&pwrseq_sem);
 
 		device_del(dev);
 	}
@@ -965,6 +968,29 @@ int pwrseq_power_off(struct pwrseq_desc *desc)
 }
 EXPORT_SYMBOL_GPL(pwrseq_power_off);
 
+/**
+ * pwrseq_to_device() - Get the pwrseq device pointer from a descriptor.
+ * @desc: Descriptor referencing the power sequencer.
+ *
+ * Return the 'dev' pointer of the power sequencer device associated with @desc.
+ * Consumer drivers can use this to query the pwrseq provider's device tree
+ * node, for example to check for the existence of specific properties.
+ *
+ * Since pwrseq_get() already takes a reference to the pwrseq device, this
+ * function does not take an additional reference.
+ *
+ * Returns:
+ * Pointer to the pwrseq struct device, or NULL if @desc is NULL.
+ */
+struct device *pwrseq_to_device(struct pwrseq_desc *desc)
+{
+	if (!desc)
+		return NULL;
+
+	return &desc->pwrseq->dev;
+}
+EXPORT_SYMBOL_GPL(pwrseq_to_device);
+
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 
 struct pwrseq_debugfs_count_ctx {
@@ -989,8 +1015,9 @@ static void *pwrseq_debugfs_seq_start(struct seq_file *seq, loff_t *pos)
 	ctx.index = *pos;
 
 	/*
-	 * We're holding the lock for the entire printout so no need to fiddle
-	 * with device reference count.
+	 * Hold the lock for the entire printout to prevent device removal.
+	 * Reference counts are managed by start()/next()/stop() as required
+	 * by the seq_file contract.
 	 */
 	down_read(&pwrseq_sem);
 
@@ -998,7 +1025,7 @@ static void *pwrseq_debugfs_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!ctx.index)
 		return NULL;
 
-	return ctx.dev;
+	return get_device(ctx.dev);
 }
 
 static void *pwrseq_debugfs_seq_next(struct seq_file *seq, void *data,
@@ -1008,8 +1035,9 @@ static void *pwrseq_debugfs_seq_next(struct seq_file *seq, void *data,
 
 	++*pos;
 
-	struct device *next __free(put_device) =
-			bus_find_next_device(&pwrseq_bus, curr);
+	struct device *next = bus_find_next_device(&pwrseq_bus, curr);
+
+	put_device(curr);
 	return next;
 }
 
@@ -1043,7 +1071,7 @@ static int pwrseq_debugfs_seq_show(struct seq_file *seq, void *data)
 	struct pwrseq_target *target;
 	struct pwrseq_unit *unit;
 
-	seq_printf(seq, "%s:\n", dev_name(dev));
+	seq_printf(seq, "%s (%s):\n", dev_name(dev), dev_name(dev->parent));
 
 	seq_puts(seq, "  targets:\n");
 	list_for_each_entry(target, &pwrseq->targets, list)
@@ -1058,6 +1086,8 @@ static int pwrseq_debugfs_seq_show(struct seq_file *seq, void *data)
 
 static void pwrseq_debugfs_seq_stop(struct seq_file *seq, void *data)
 {
+	if (data)
+		put_device(data);
 	up_read(&pwrseq_sem);
 }
 

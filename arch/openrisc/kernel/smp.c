@@ -346,3 +346,24 @@ void smp_icache_page_inv(struct page *page)
 	on_each_cpu(ipi_icache_page_inv, page, 1);
 }
 EXPORT_SYMBOL(smp_icache_page_inv);
+
+static void ipi_icache_all_inv(void *arg)
+{
+	local_icache_all_inv();
+}
+
+void smp_icache_all_inv(void)
+{
+	if (num_online_cpus() < 2) {
+		local_icache_all_inv();
+		return;
+	}
+
+	/*
+	 * Ensure stores complete before we request remote icaches
+	 * to invalidate.
+	 */
+	mb();
+
+	on_each_cpu(ipi_icache_all_inv, NULL, 1);
+}

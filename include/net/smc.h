@@ -40,7 +40,6 @@ struct smcd_dev {
 	struct dibs_dev *dibs;
 	struct list_head list;
 	spinlock_t lock;
-	struct smc_connection **conn;
 	struct list_head vlan;
 	struct workqueue_struct *event_wq;
 	u8 pnetid[SMC_MAX_PNETID_LEN];
@@ -50,6 +49,7 @@ struct smcd_dev {
 	atomic_t lgr_cnt;
 	wait_queue_head_t lgrs_deleted;
 	u8 going_away : 1;
+	struct smc_connection *conn[];
 };
 
 #define SMC_HS_CTRL_NAME_MAX 16

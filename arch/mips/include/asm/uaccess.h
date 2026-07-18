@@ -433,8 +433,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return __cu_len_r;
 }
 
-#define INLINE_COPY_FROM_USER
-#define INLINE_COPY_TO_USER
+#define INLINE_COPY_USER
 
 extern __kernel_size_t __bzero(void __user *addr, __kernel_size_t size);
 

@@ -113,10 +113,42 @@ static inline int pcie_gen_to_speed(uint32_t gen)
 	return ((gen == 0) ? link_speed[0] : link_speed[gen - 1]);
 }
 
+static inline bool smu_cmn_custom_params_count_valid(u32 max_idx, u32 params_count)
+{
+	return max_idx == params_count;
+}
+
+static inline bool smu_cmn_custom_params_clock_valid(long clock_idx, long clock_count)
+{
+	return clock_idx >= 0 && clock_idx < clock_count;
+}
+
 int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 				    enum smu_message_type msg,
 				    uint32_t param,
 				    uint32_t *read_arg);
+
+int smu_cmn_send_smc_msg_with_params_ext(struct smu_context *smu,
+					 enum smu_message_type msg,
+					 const uint32_t *params,
+					 size_t num_params,
+					 uint32_t *read_args,
+					 size_t num_read_args,
+					 uint32_t flags,
+					 uint32_t timeout);
+
+static inline int smu_cmn_send_smc_msg_with_params(struct smu_context *smu,
+						   enum smu_message_type msg,
+						   const uint32_t *params,
+						   size_t num_params,
+						   uint32_t *read_args,
+						   size_t num_read_args)
+{
+	return smu_cmn_send_smc_msg_with_params_ext(smu, msg,
+						    params, num_params,
+						    read_args, num_read_args,
+						    0, 0);
+}
 
 int smu_cmn_send_smc_msg(struct smu_context *smu,
 			 enum smu_message_type msg,
@@ -216,6 +248,9 @@ void smu_cmn_reset_custom_level(struct smu_context *smu);
 int smu_cmn_dpm_pcie_gen_idx(int gen);
 int smu_cmn_dpm_pcie_width_idx(int width);
 int smu_cmn_check_fw_version(struct smu_context *smu);
+
+int smu_cmn_get_pptable_from_firmware(struct smu_context *smu, void **table,
+				      uint32_t *size, uint32_t pptable_id);
 
 /*SMU gpu metrics */
 

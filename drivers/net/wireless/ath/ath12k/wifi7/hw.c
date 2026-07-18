@@ -434,6 +434,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = false,
 
 		.dp_primary_link_only = true,
+		.client = {
+			.max_client_single = 512,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -520,6 +525,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = true,
 
 		.dp_primary_link_only = false,
+		.client = {
+			.max_client_single = 512,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -602,6 +612,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = false,
 
 		.dp_primary_link_only = true,
+		.client = {
+			.max_client_single = 512,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 	{
 		.name = "ipq5332 hw1.0",
@@ -677,6 +692,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.bdf_addr_offset = 0xC00000,
 
 		.dp_primary_link_only = true,
+		.client = {
+			.max_client_single = 256,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 	{
 		.name = "qcc2072 hw1.0",
@@ -764,6 +784,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = true,
 
 		.dp_primary_link_only = false,
+		.client = {
+			.max_client_single = 512,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 	{
 		.name = "ipq5424 hw1.0",
@@ -843,6 +868,11 @@ static const struct ath12k_hw_params ath12k_wifi7_hw_params[] = {
 		.current_cc_support = false,
 
 		.dp_primary_link_only = true,
+		.client = {
+			.max_client_single = 512,
+			.max_client_dbs = 128,
+			.max_client_dbs_sbs = 128,
+		},
 	},
 };
 
@@ -859,7 +889,9 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_sta *sta = control->sta;
+	struct ath12k_link_sta *arsta = NULL;
 	struct ath12k_link_vif *tmp_arvif;
+	struct ath12k_sta *ahsta = NULL;
 	u32 info_flags = info->flags;
 	struct sk_buff *msdu_copied;
 	struct ath12k *ar, *tmp_ar;
@@ -941,6 +973,12 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 	if (!(info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP))
 		is_mcast = is_multicast_ether_addr(hdr->addr1);
 
+	if (sta) {
+		ahsta = ath12k_sta_to_ahsta(control->sta);
+		if (ahsta && ahsta->enable_4addr)
+			arsta = rcu_dereference(ahsta->link[link_id]);
+	}
+
 	/* This is case only for P2P_GO */
 	if (vif->type == NL80211_IFTYPE_AP && vif->p2p)
 		ath12k_mac_add_p2p_noa_ie(ar, vif, skb, is_prb_rsp);
@@ -961,7 +999,7 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 	if (!vif->valid_links || !is_mcast || is_dvlan ||
 	    (skb_cb->flags & ATH12K_SKB_HW_80211_ENCAP) ||
 	    test_bit(ATH12K_FLAG_RAW_MODE, &ar->ab->dev_flags)) {
-		ret = ath12k_wifi7_dp_tx(dp_pdev, arvif, skb, false, 0, is_mcast);
+		ret = ath12k_wifi7_dp_tx(dp_pdev, arvif, arsta, skb, false, 0, is_mcast);
 		if (unlikely(ret)) {
 			ath12k_warn(ar->ab, "failed to transmit frame %d\n", ret);
 			ieee80211_free_txskb(ar->ah->hw, skb);
@@ -999,6 +1037,11 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 			skb_cb->vif = vif;
 			skb_cb->ar = tmp_ar;
 
+			if (ahsta && ahsta->enable_4addr)
+				arsta = rcu_dereference(ahsta->link[link_id]);
+			else
+				arsta = NULL;
+
 			/* For open mode, skip peer find logic */
 			if (unlikely(!ahvif->dp_vif.key_cipher))
 				goto skip_peer_find;
@@ -1030,7 +1073,7 @@ static void ath12k_wifi7_mac_op_tx(struct ieee80211_hw *hw,
 			spin_unlock_bh(&tmp_dp->dp_lock);
 
 skip_peer_find:
-			ret = ath12k_wifi7_dp_tx(tmp_dp_pdev, tmp_arvif,
+			ret = ath12k_wifi7_dp_tx(tmp_dp_pdev, tmp_arvif, arsta,
 						 msdu_copied, true, mcbc_gsn, is_mcast);
 			if (unlikely(ret)) {
 				if (ret == -ENOMEM) {
@@ -1075,6 +1118,7 @@ static const struct ieee80211_ops ath12k_ops_wifi7 = {
 	.sta_state                      = ath12k_mac_op_sta_state,
 	.sta_set_txpwr			= ath12k_mac_op_sta_set_txpwr,
 	.link_sta_rc_update		= ath12k_mac_op_link_sta_rc_update,
+	.sta_set_4addr                  = ath12k_mac_op_sta_set_4addr,
 	.conf_tx                        = ath12k_mac_op_conf_tx,
 	.set_antenna			= ath12k_mac_op_set_antenna,
 	.get_antenna			= ath12k_mac_op_get_antenna,

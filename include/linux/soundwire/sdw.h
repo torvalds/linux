@@ -11,8 +11,9 @@
 #include <linux/idr.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/jiffies.h>
 #include <linux/lockdep_types.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/sdw.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <sound/sdca.h>
@@ -1198,5 +1199,34 @@ static inline int sdw_update_no_pm(struct sdw_slave *slave, u32 addr, u8 mask, u
 }
 
 #endif /* CONFIG_SOUNDWIRE */
+
+/**
+ * sdw_slave_wait_for_init - Wait for device initialisation
+ * @slave: Pointer to the SoundWire peripheral.
+ * @timeout_ms: Timeout in milliseconds.
+ *
+ * Wait for a peripheral device to enumerate and be initialised by the
+ * SoundWire core.
+ *
+ * Return: Zero on success, and a negative error code on failure.
+ */
+static inline int sdw_slave_wait_for_init(struct sdw_slave *slave, int timeout_ms)
+{
+	unsigned long time;
+
+	if (!slave)
+		return 0;
+
+	time = wait_for_completion_timeout(&slave->initialization_complete,
+					   msecs_to_jiffies(timeout_ms));
+	if (!time) {
+		dev_err(&slave->dev, "Initialization not complete\n");
+		return -ETIMEDOUT;
+	}
+
+	slave->unattach_request = 0;
+
+	return 0;
+}
 
 #endif /* __SOUNDWIRE_H */

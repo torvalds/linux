@@ -102,6 +102,7 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	}
 
 	pci_write_config_dword(dev, reg, new);
+	dev->saved_config_space[reg / 4] = new;
 	pci_read_config_dword(dev, reg, &check);
 
 	if ((new ^ check) & mask) {
@@ -112,6 +113,7 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	if (res->flags & IORESOURCE_MEM_64) {
 		new = region.start >> 16 >> 16;
 		pci_write_config_dword(dev, reg + 4, new);
+		dev->saved_config_space[(reg + 4) / 4] = new;
 		pci_read_config_dword(dev, reg + 4, &check);
 		if (check != new) {
 			pci_err(dev, "%s: error updating (high %#010x != %#010x)\n",
@@ -166,6 +168,8 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 		res->flags |= IORESOURCE_UNSET;
 		return -EBUSY;
 	}
+
+	pci_dbg(dev, "%s %pR: claiming\n", res_name, res);
 
 	return 0;
 }
@@ -242,6 +246,18 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 		return -EBUSY;
 	}
 	return 0;
+}
+
+resource_size_t pci_resource_alignment(const struct pci_dev *dev,
+				       const struct resource *res)
+{
+	int resno = pci_resource_num(dev, res);
+
+	if (pci_resource_is_iov(resno))
+		return pci_sriov_resource_alignment(dev, resno);
+	if (dev->class >> 8 == PCI_CLASS_BRIDGE_CARDBUS)
+		return pci_cardbus_resource_alignment(res);
+	return resource_alignment(res);
 }
 
 /*

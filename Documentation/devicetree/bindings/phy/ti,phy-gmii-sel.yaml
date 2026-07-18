@@ -47,15 +47,20 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - ti,am3352-phy-gmii-sel
-      - ti,dra7xx-phy-gmii-sel
-      - ti,am43xx-phy-gmii-sel
-      - ti,dm814-phy-gmii-sel
-      - ti,am654-phy-gmii-sel
-      - ti,j7200-cpsw5g-phy-gmii-sel
-      - ti,j721e-cpsw9g-phy-gmii-sel
-      - ti,j784s4-cpsw9g-phy-gmii-sel
+    oneOf:
+      - enum:
+          - ti,am3352-phy-gmii-sel
+          - ti,dra7xx-phy-gmii-sel
+          - ti,am43xx-phy-gmii-sel
+          - ti,dm814-phy-gmii-sel
+          - ti,am654-phy-gmii-sel
+          - ti,j7200-cpsw5g-phy-gmii-sel
+          - ti,j721e-cpsw9g-phy-gmii-sel
+          - ti,j784s4-cpsw9g-phy-gmii-sel
+      - items:
+          - enum:
+              - ti,j722s-phy-gmii-sel
+          - const: ti,am654-phy-gmii-sel
 
   reg:
     maxItems: 1

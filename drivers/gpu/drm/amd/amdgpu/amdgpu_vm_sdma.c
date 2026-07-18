@@ -106,12 +106,12 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 				 struct dma_fence **fence)
 {
+	struct drm_gpu_scheduler *sched =
+		container_of(p->vm->delayed.rq, typeof(*sched), rq);
+	struct amdgpu_ring *ring =
+		container_of(sched, struct amdgpu_ring, sched);
 	struct amdgpu_ib *ib = p->job->ibs;
-	struct amdgpu_ring *ring;
 	struct dma_fence *f;
-
-	ring = container_of(p->vm->delayed.rq->sched, struct amdgpu_ring,
-			    sched);
 
 	WARN_ON(ib->length_dw == 0);
 	amdgpu_ring_pad_ib(ring, ib);
@@ -257,6 +257,9 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 		}
 
 		if (!p->pages_addr) {
+			if (p->override_pte)
+				amdgpu_gmc_override_vm_pte_flags(p->adev, p->vm, addr, &flags);
+
 			/* set page commands needed */
 			amdgpu_vm_sdma_set_ptes(p, bo, pe, addr, count,
 						incr, flags);
@@ -275,8 +278,14 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 		p->num_dw_left -= nptes * 2;
 		pte = (uint64_t *)&(p->job->ibs->ptr[p->num_dw_left]);
 		for (i = 0; i < nptes; ++i, addr += incr) {
+			u64 oflags = flags;
+
 			pte[i] = amdgpu_vm_map_gart(p->pages_addr, addr);
-			pte[i] |= flags;
+
+			if (p->override_pte)
+				amdgpu_gmc_override_vm_pte_flags(p->adev, p->vm, pte[i], &oflags);
+
+			pte[i] |= oflags;
 		}
 
 		amdgpu_vm_sdma_copy_ptes(p, bo, pe, nptes);

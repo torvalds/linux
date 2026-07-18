@@ -436,6 +436,7 @@ config AMLOGIC_THERMAL
 	tristate "Amlogic Thermal Support"
 	default ARCH_MESON
 	depends on OF && ARCH_MESON
+	depends on MESON_SM
 	help
 	  If you say yes here you get support for Amlogic Thermal
 	  for G12 SoC Family.
@@ -471,6 +472,8 @@ source "drivers/thermal/st/Kconfig"
 endmenu
 
 source "drivers/thermal/renesas/Kconfig"
+
+source "drivers/thermal/spacemit/Kconfig"
 
 source "drivers/thermal/tegra/Kconfig"
 

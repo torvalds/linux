@@ -1391,9 +1391,9 @@ static const struct snd_soc_component_driver soc_component_dev_adc3xxx = {
 };
 
 static const struct i2c_device_id adc3xxx_i2c_id[] = {
-	{ "tlv320adc3001", ADC3001 },
-	{ "tlv320adc3101", ADC3101 },
-	{}
+	{ .name = "tlv320adc3001", .driver_data = ADC3001 },
+	{ .name = "tlv320adc3101", .driver_data = ADC3101 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adc3xxx_i2c_id);
 

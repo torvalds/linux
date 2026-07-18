@@ -367,8 +367,8 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id s2mpa01_pmic_id[] = {
-	{ "s2mpa01-pmic", 0},
-	{ },
+	{ .name = "s2mpa01-pmic" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, s2mpa01_pmic_id);
 

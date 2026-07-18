@@ -43,6 +43,7 @@
 #include <asm/init.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
+#include <asm/cpuid/api.h>
 #include <asm/coco.h>
 #include <asm/sev.h>
 

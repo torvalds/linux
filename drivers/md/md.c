@@ -395,28 +395,27 @@ static bool is_suspended(struct mddev *mddev, struct bio *bio)
 bool md_handle_request(struct mddev *mddev, struct bio *bio)
 {
 check_suspended:
-	if (is_suspended(mddev, bio)) {
-		DEFINE_WAIT(__wait);
-		/* Bail out if REQ_NOWAIT is set for the bio */
-		if (bio->bi_opf & REQ_NOWAIT) {
-			bio_wouldblock_error(bio);
-			return true;
+	if (unlikely(md_cloned_bio(mddev, bio))) {
+		/*
+		 * This bio is an MD cloned bio and already holds an
+		 * active_io reference, so percpu_ref_get() is safe here.
+		 */
+		percpu_ref_get(&mddev->active_io);
+	} else {
+		if (is_suspended(mddev, bio)) {
+			/* Bail out if REQ_NOWAIT is set for the bio */
+			if (bio->bi_opf & REQ_NOWAIT) {
+				bio_wouldblock_error(bio);
+				return true;
+			}
+			wait_event(mddev->sb_wait, !is_suspended(mddev, bio));
 		}
-		for (;;) {
-			prepare_to_wait(&mddev->sb_wait, &__wait,
-					TASK_UNINTERRUPTIBLE);
-			if (!is_suspended(mddev, bio))
-				break;
-			schedule();
-		}
-		finish_wait(&mddev->sb_wait, &__wait);
+		if (!percpu_ref_tryget_live(&mddev->active_io))
+			goto check_suspended;
 	}
-	if (!percpu_ref_tryget_live(&mddev->active_io))
-		goto check_suspended;
-
 	if (!mddev->pers->make_request(mddev, bio)) {
 		percpu_ref_put(&mddev->active_io);
-		if (!mddev->gendisk && mddev->pers->prepare_suspend)
+		if (mddev_is_dm(mddev) && mddev->pers->prepare_suspend)
 			return false;
 		goto check_suspended;
 	}
@@ -687,13 +686,38 @@ static void active_io_release(struct percpu_ref *ref)
 
 static void no_op(struct percpu_ref *r) {}
 
-static bool mddev_set_bitmap_ops(struct mddev *mddev)
+static void md_bitmap_sysfs_add(struct mddev *mddev)
 {
-	struct bitmap_operations *old = mddev->bitmap_ops;
+	if (sysfs_update_groups(&mddev->kobj, mddev->bitmap_ops->groups))
+		pr_warn("md: cannot register extra bitmap attributes for %s\n",
+			mdname(mddev));
+	else
+		/*
+		 * Inform user with KOBJ_CHANGE about new bitmap
+		 * attributes.
+		 */
+		kobject_uevent(&mddev->kobj, KOBJ_CHANGE);
+}
+
+static void md_bitmap_sysfs_del(struct mddev *mddev)
+{
+	int nr_groups = 0;
+
+	for (nr_groups = 0; mddev->bitmap_ops->groups[nr_groups]; nr_groups++)
+		;
+
+	while (--nr_groups >= 1)
+		sysfs_unmerge_group(&mddev->kobj,
+				    mddev->bitmap_ops->groups[nr_groups]);
+	sysfs_remove_group(&mddev->kobj, mddev->bitmap_ops->groups[0]);
+}
+
+bool mddev_set_bitmap_ops_nosysfs(struct mddev *mddev)
+{
 	struct md_submodule_head *head;
 
-	if (mddev->bitmap_id == ID_BITMAP_NONE ||
-	    (old && old->head.id == mddev->bitmap_id))
+	if (mddev->bitmap_ops &&
+	    mddev->bitmap_ops->head.id == mddev->bitmap_id)
 		return true;
 
 	xa_lock(&md_submodule);
@@ -711,32 +735,11 @@ static bool mddev_set_bitmap_ops(struct mddev *mddev)
 
 	mddev->bitmap_ops = (void *)head;
 	xa_unlock(&md_submodule);
-
-	if (!mddev_is_dm(mddev) && mddev->bitmap_ops->group) {
-		if (sysfs_create_group(&mddev->kobj, mddev->bitmap_ops->group))
-			pr_warn("md: cannot register extra bitmap attributes for %s\n",
-				mdname(mddev));
-		else
-			/*
-			 * Inform user with KOBJ_CHANGE about new bitmap
-			 * attributes.
-			 */
-			kobject_uevent(&mddev->kobj, KOBJ_CHANGE);
-	}
 	return true;
 
 err:
 	xa_unlock(&md_submodule);
 	return false;
-}
-
-static void mddev_clear_bitmap_ops(struct mddev *mddev)
-{
-	if (!mddev_is_dm(mddev) && mddev->bitmap_ops &&
-	    mddev->bitmap_ops->group)
-		sysfs_remove_group(&mddev->kobj, mddev->bitmap_ops->group);
-
-	mddev->bitmap_ops = NULL;
 }
 
 int mddev_init(struct mddev *mddev)
@@ -4279,7 +4282,7 @@ bitmap_type_show(struct mddev *mddev, char *page)
 
 	xa_lock(&md_submodule);
 	xa_for_each(&md_submodule, i, head) {
-		if (head->type != MD_BITMAP)
+		if (head->type != MD_BITMAP || head->id == ID_BITMAP_NONE)
 			continue;
 
 		if (mddev->bitmap_id == head->id)
@@ -4418,9 +4421,10 @@ raid_disks_store(struct mddev *mddev, const char *buf, size_t len)
 	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
-	if (mddev->pers)
-		err = update_raid_disks(mddev, n);
-	else if (mddev->reshape_position != MaxSector) {
+	if (mddev->pers) {
+		if (n != mddev->raid_disks)
+			err = update_raid_disks(mddev, n);
+	} else if (mddev->reshape_position != MaxSector) {
 		struct md_rdev *rdev;
 		int olddisks = mddev->raid_disks - mddev->delta_disks;
 
@@ -6059,10 +6063,7 @@ static struct attribute *md_default_attrs[] = {
 	&md_logical_block_size.attr,
 	NULL,
 };
-
-static const struct attribute_group md_default_group = {
-	.attrs = md_default_attrs,
-};
+ATTRIBUTE_GROUPS(md_default);
 
 static struct attribute *md_redundancy_attrs[] = {
 	&md_scan_mode.attr,
@@ -6085,11 +6086,6 @@ static struct attribute *md_redundancy_attrs[] = {
 static const struct attribute_group md_redundancy_group = {
 	.name = NULL,
 	.attrs = md_redundancy_attrs,
-};
-
-static const struct attribute_group *md_attr_groups[] = {
-	&md_default_group,
-	NULL,
 };
 
 static ssize_t
@@ -6174,7 +6170,7 @@ static const struct sysfs_ops md_sysfs_ops = {
 static const struct kobj_type md_ktype = {
 	.release	= md_kobj_release,
 	.sysfs_ops	= &md_sysfs_ops,
-	.default_groups	= md_attr_groups,
+	.default_groups	= md_default_groups,
 };
 
 int mdp_major = 0;
@@ -6539,7 +6535,7 @@ out:
 	return id;
 }
 
-static int md_bitmap_create(struct mddev *mddev)
+int md_bitmap_create_nosysfs(struct mddev *mddev)
 {
 	enum md_submodule_id orig_id = mddev->bitmap_id;
 	enum md_submodule_id sb_id;
@@ -6548,8 +6544,10 @@ static int md_bitmap_create(struct mddev *mddev)
 	if (mddev->bitmap_id == ID_BITMAP_NONE)
 		return -EINVAL;
 
-	if (!mddev_set_bitmap_ops(mddev))
+	if (!mddev_set_bitmap_ops_nosysfs(mddev)) {
+		mddev->bitmap_id = orig_id;
 		return -ENOENT;
+	}
 
 	err = mddev->bitmap_ops->create(mddev);
 	if (!err)
@@ -6560,37 +6558,72 @@ static int md_bitmap_create(struct mddev *mddev)
 	 * doesn't match, and mdadm is not the latest version to set
 	 * bitmap_type, set bitmap_ops based on the disk version.
 	 */
-	mddev_clear_bitmap_ops(mddev);
+	mddev->bitmap_ops = NULL;
 
 	sb_id = md_bitmap_get_id_from_sb(mddev);
-	if (sb_id == ID_BITMAP_NONE || sb_id == orig_id)
+	if (sb_id == ID_BITMAP_NONE || sb_id == orig_id) {
+		mddev->bitmap_id = orig_id;
 		return err;
+	}
 
 	pr_info("md: %s: bitmap version mismatch, switching from %d to %d\n",
 		mdname(mddev), orig_id, sb_id);
 
 	mddev->bitmap_id = sb_id;
-	if (!mddev_set_bitmap_ops(mddev)) {
+	if (!mddev_set_bitmap_ops_nosysfs(mddev)) {
 		mddev->bitmap_id = orig_id;
 		return -ENOENT;
 	}
 
 	err = mddev->bitmap_ops->create(mddev);
 	if (err) {
-		mddev_clear_bitmap_ops(mddev);
+		mddev->bitmap_ops = NULL;
 		mddev->bitmap_id = orig_id;
 	}
 
 	return err;
 }
 
-static void md_bitmap_destroy(struct mddev *mddev)
+static int md_bitmap_create(struct mddev *mddev)
+{
+	int err;
+
+	err = md_bitmap_create_nosysfs(mddev);
+	if (err)
+		return err;
+
+	if (!mddev_is_dm(mddev) && mddev->bitmap_ops->groups)
+		md_bitmap_sysfs_add(mddev);
+
+	return 0;
+}
+
+void md_bitmap_destroy_nosysfs(struct mddev *mddev)
 {
 	if (!md_bitmap_registered(mddev))
 		return;
 
 	mddev->bitmap_ops->destroy(mddev);
-	mddev_clear_bitmap_ops(mddev);
+	mddev->bitmap_ops = NULL;
+}
+
+static void md_bitmap_destroy(struct mddev *mddev)
+{
+	if (!mddev_is_dm(mddev) && mddev->bitmap_ops &&
+	    mddev->bitmap_ops->groups)
+		md_bitmap_sysfs_del(mddev);
+
+	md_bitmap_destroy_nosysfs(mddev);
+}
+
+static void md_bitmap_set_none(struct mddev *mddev)
+{
+	mddev->bitmap_id = ID_BITMAP_NONE;
+	if (!mddev_set_bitmap_ops_nosysfs(mddev))
+		return;
+
+	if (!mddev_is_dm(mddev) && mddev->bitmap_ops->groups)
+		md_bitmap_sysfs_add(mddev);
 }
 
 int md_run(struct mddev *mddev)
@@ -6713,7 +6746,7 @@ int md_run(struct mddev *mddev)
 	}
 
 	/* dm-raid expect sync_thread to be frozen until resume */
-	if (mddev->gendisk)
+	if (!mddev_is_dm(mddev))
 		mddev->recovery = 0;
 
 	/* may be over-ridden by personality */
@@ -6801,6 +6834,10 @@ int md_run(struct mddev *mddev)
 
 	if (mddev->sb_flags)
 		md_update_sb(mddev, 0);
+
+	if (IS_ENABLED(CONFIG_MD_BITMAP) && !mddev->bitmap_info.file &&
+	    !mddev->bitmap_info.offset)
+		md_bitmap_set_none(mddev);
 
 	md_new_event();
 	return 0;
@@ -7013,7 +7050,7 @@ EXPORT_SYMBOL_GPL(md_stop_writes);
 static void mddev_detach(struct mddev *mddev)
 {
 	if (md_bitmap_enabled(mddev, false))
-		mddev->bitmap_ops->wait_behind_writes(mddev);
+		mddev->bitmap_ops->wait_behind_writes(mddev, false);
 	if (mddev->pers && mddev->pers->quiesce && !is_md_suspended(mddev)) {
 		mddev->pers->quiesce(mddev, 1);
 		mddev->pers->quiesce(mddev, 0);
@@ -7747,7 +7784,8 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 {
 	int err = 0;
 
-	if (!md_bitmap_registered(mddev))
+	if (!md_bitmap_registered(mddev) ||
+	    mddev->bitmap_id == ID_BITMAP_NONE)
 		return -EINVAL;
 
 	if (mddev->pers) {
@@ -7812,10 +7850,12 @@ static int set_bitmap_file(struct mddev *mddev, int fd)
 
 			if (err) {
 				md_bitmap_destroy(mddev);
+				md_bitmap_set_none(mddev);
 				fd = -1;
 			}
 		} else if (fd < 0) {
 			md_bitmap_destroy(mddev);
+			md_bitmap_set_none(mddev);
 		}
 	}
 
@@ -8122,12 +8162,16 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 				mddev->bitmap_info.default_offset;
 			mddev->bitmap_info.space =
 				mddev->bitmap_info.default_space;
+			mddev->bitmap_id = ID_BITMAP;
 			rv = md_bitmap_create(mddev);
 			if (!rv)
 				rv = mddev->bitmap_ops->load(mddev);
 
-			if (rv)
+			if (rv) {
 				md_bitmap_destroy(mddev);
+				mddev->bitmap_info.offset = 0;
+				md_bitmap_set_none(mddev);
+			}
 		} else {
 			struct md_bitmap_stats stats;
 
@@ -8155,6 +8199,7 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 			}
 			md_bitmap_destroy(mddev);
 			mddev->bitmap_info.offset = 0;
+			md_bitmap_set_none(mddev);
 		}
 	}
 	md_update_sb(mddev, 1);
@@ -9341,9 +9386,11 @@ static void md_bitmap_end(struct mddev *mddev, struct md_io_clone *md_io_clone)
 
 static void md_end_clone_io(struct bio *bio)
 {
-	struct md_io_clone *md_io_clone = bio->bi_private;
+	struct md_io_clone *md_io_clone = container_of(bio, struct md_io_clone,
+						       bio_clone);
 	struct bio *orig_bio = md_io_clone->orig_bio;
 	struct mddev *mddev = md_io_clone->mddev;
+	struct completion *reshape_completion = bio->bi_private;
 
 	if (bio_data_dir(orig_bio) == WRITE && md_bitmap_enabled(mddev, false))
 		md_bitmap_end(mddev, md_io_clone);
@@ -9355,7 +9402,10 @@ static void md_end_clone_io(struct bio *bio)
 		bio_end_io_acct(orig_bio, md_io_clone->start_time);
 
 	bio_put(bio);
-	bio_endio(orig_bio);
+	if (unlikely(reshape_completion))
+		complete(reshape_completion);
+	else
+		bio_endio(orig_bio);
 	percpu_ref_put(&mddev->active_io);
 }
 
@@ -9380,7 +9430,7 @@ static void md_clone_bio(struct mddev *mddev, struct bio **bio)
 	}
 
 	clone->bi_end_io = md_end_clone_io;
-	clone->bi_private = md_io_clone;
+	clone->bi_private = NULL;
 	*bio = clone;
 }
 
@@ -9390,26 +9440,6 @@ void md_account_bio(struct mddev *mddev, struct bio **bio)
 	md_clone_bio(mddev, bio);
 }
 EXPORT_SYMBOL_GPL(md_account_bio);
-
-void md_free_cloned_bio(struct bio *bio)
-{
-	struct md_io_clone *md_io_clone = bio->bi_private;
-	struct bio *orig_bio = md_io_clone->orig_bio;
-	struct mddev *mddev = md_io_clone->mddev;
-
-	if (bio_data_dir(orig_bio) == WRITE && md_bitmap_enabled(mddev, false))
-		md_bitmap_end(mddev, md_io_clone);
-
-	if (bio->bi_status && !orig_bio->bi_status)
-		orig_bio->bi_status = bio->bi_status;
-
-	if (md_io_clone->start_time)
-		bio_end_io_acct(orig_bio, md_io_clone->start_time);
-
-	bio_put(bio);
-	percpu_ref_put(&mddev->active_io);
-}
-EXPORT_SYMBOL_GPL(md_free_cloned_bio);
 
 /* md_allow_write(mddev)
  * Calling this ensures that the array is marked 'active' so that writes

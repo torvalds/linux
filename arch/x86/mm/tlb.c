@@ -1123,7 +1123,7 @@ static void flush_tlb_func(void *info)
 	VM_WARN_ON(!irqs_disabled());
 
 	if (!local) {
-		inc_irq_stat(irq_tlb_count);
+		inc_irq_stat(TLB);
 		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 	}
 
@@ -1769,7 +1769,7 @@ bool nmi_uaccess_okay(void)
 }
 
 static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
-			     size_t count, loff_t *ppos)
+				  size_t count, loff_t *ppos)
 {
 	char buf[32];
 	unsigned int len;
@@ -1778,20 +1778,15 @@ static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
-static ssize_t tlbflush_write_file(struct file *file,
-		 const char __user *user_buf, size_t count, loff_t *ppos)
+static ssize_t tlbflush_write_file(struct file *file, const char __user *user_buf,
+				   size_t count, loff_t *ppos)
 {
-	char buf[32];
-	ssize_t len;
 	int ceiling;
+	int err;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (kstrtoint(buf, 0, &ceiling))
-		return -EINVAL;
+	err = kstrtoint_from_user(user_buf, count, 0, &ceiling);
+	if (err)
+		return err;
 
 	if (ceiling < 0)
 		return -EINVAL;

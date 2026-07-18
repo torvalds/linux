@@ -262,12 +262,19 @@ void amdgpu_gart_table_ram_free(struct amdgpu_device *adev)
  */
 int amdgpu_gart_table_vram_alloc(struct amdgpu_device *adev)
 {
+	int r;
+
 	if (adev->gart.bo != NULL)
 		return 0;
 
-	return amdgpu_bo_create_kernel(adev,  adev->gart.table_size, PAGE_SIZE,
-				       AMDGPU_GEM_DOMAIN_VRAM, &adev->gart.bo,
-				       NULL, (void *)&adev->gart.ptr);
+	r = amdgpu_bo_create_kernel(adev,  adev->gart.table_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM, &adev->gart.bo,
+				    NULL, (void *)&adev->gart.ptr);
+	if (r)
+		return r;
+
+	memset_io(adev->gart.ptr, adev->gart.gart_pte_flags, adev->gart.table_size);
+	return 0;
 }
 
 /**
@@ -387,7 +394,8 @@ void amdgpu_gart_map_vram_range(struct amdgpu_device *adev, uint64_t pa,
 				uint64_t start_page, uint64_t num_pages,
 				uint64_t flags, void *dst)
 {
-	u32 i, idx;
+	u32 i, j, t, idx;
+	u64 page_base;
 
 	/* The SYSTEM flag indicates the pages aren't in VRAM. */
 	WARN_ON_ONCE(flags & AMDGPU_PTE_SYSTEM);
@@ -395,9 +403,12 @@ void amdgpu_gart_map_vram_range(struct amdgpu_device *adev, uint64_t pa,
 	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return;
 
-	for (i = 0; i < num_pages; ++i) {
-		amdgpu_gmc_set_pte_pde(adev, dst,
-			start_page + i, pa + AMDGPU_GPU_PAGE_SIZE * i, flags);
+	page_base = pa;
+	for (i = 0, t = 0; i < num_pages; i++) {
+		for (j = 0; j < AMDGPU_GPU_PAGES_IN_CPU_PAGE; j++, t++) {
+			amdgpu_gmc_set_pte_pde(adev, dst, start_page + t, page_base, flags);
+			page_base += AMDGPU_GPU_PAGE_SIZE;
+		}
 	}
 
 	drm_dev_exit(idx);

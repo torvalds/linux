@@ -20,7 +20,9 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,eliza-llcc
       - qcom,glymur-llcc
+      - qcom,hawi-llcc
       - qcom,ipq5424-llcc
       - qcom,kaanapali-llcc
       - qcom,qcs615-llcc
@@ -35,6 +37,7 @@ properties:
       - qcom,sc8280xp-llcc
       - qcom,sdm670-llcc
       - qcom,sdm845-llcc
+      - qcom,shikra-llcc
       - qcom,sm6350-llcc
       - qcom,sm7150-llcc
       - qcom,sm8150-llcc
@@ -56,6 +59,11 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  memory-region:
+    maxItems: 1
+    description: handle to a reserved-memory node used for firmware-populated
+      SLC/SCT shared memory.
 
   nvmem-cells:
     items:
@@ -206,6 +214,7 @@ allOf:
             enum:
               - qcom,sc7280-llcc
               - qcom,sdm670-llcc
+              - qcom,shikra-llcc
     then:
       properties:
         reg:
@@ -318,6 +327,7 @@ allOf:
           contains:
             enum:
               - qcom,kaanapali-llcc
+              - qcom,hawi-llcc
               - qcom,sm8450-llcc
               - qcom,sm8550-llcc
               - qcom,sm8650-llcc
@@ -338,6 +348,39 @@ allOf:
             - const: llcc1_base
             - const: llcc2_base
             - const: llcc3_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,hawi-llcc
+    then:
+      required:
+        - memory-region
+    else:
+      properties:
+        memory-region: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,eliza-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC2 base register region
+            - description: LLCC broadcast OR register region
+            - description: LLCC broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc2_base
             - const: llcc_broadcast_base
             - const: llcc_broadcast_and_base
 

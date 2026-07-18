@@ -47,20 +47,18 @@ Please note that implementation details can be changed.
 	  Called when swp_entry's refcnt goes down to 0. A charge against swap
 	  disappears.
 
-3. charge-commit-cancel
+3. charge-commit
 =======================
 
 	Memcg pages are charged in two steps:
 
 		- mem_cgroup_try_charge()
-		- mem_cgroup_commit_charge() or mem_cgroup_cancel_charge()
+		- commit_charge()
 
 	At try_charge(), there are no flags to say "this page is charged".
 	at this point, usage += PAGE_SIZE.
 
 	At commit(), the page is associated with the memcg.
-
-	At cancel(), simply usage -= PAGE_SIZE.
 
 Under below explanation, we assume CONFIG_SWAP=y.
 
@@ -323,7 +321,7 @@ Under below explanation, we assume CONFIG_SWAP=y.
 ----------------------
 
 	Memory controller implements memory thresholds using cgroups notification
-	API. You can use tools/cgroup/cgroup_event_listener.c to test it.
+	API. You can use samples/cgroup/cgroup_event_listener.c to test it.
 
 	(Shell-A) Create cgroup and run event listener::
 

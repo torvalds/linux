@@ -76,12 +76,12 @@ float dcn_bw_floor2(const float arg, const float significance)
 }
 float dcn_bw_floor(const float arg)
 {
-	return ((int) (arg));
+	return (float)((int)(arg));
 }
 
 float dcn_bw_ceil(const float arg)
 {
-	return (int) (arg + 0.99999);
+	return (float)((int)(arg + 0.99999f));
 }
 
 float dcn_bw_ceil2(const float arg, const float significance)
@@ -107,7 +107,7 @@ float dcn_bw_pow(float a, float exp)
 	/*ASSERT(exp == (int)exp);*/
 	if ((int)exp == 0)
 		return 1;
-	temp = dcn_bw_pow(a, (int)(exp / 2));
+	temp = dcn_bw_pow(a, (float)((int)(exp / 2)));
 	if (((int)exp % 2) == 0) {
 		return temp * temp;
 	} else {

@@ -52,8 +52,8 @@ struct irq_redirect {
  * @depth:		disable-depth, for nested irq_disable() calls
  * @wake_depth:		enable depth, for multiple irq_set_irq_wake() callers
  * @tot_count:		stats field for non-percpu irqs
- * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
+ * @irq_count:		stats field to detect stalled irqs
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
  * @threads_handled:	stats field for deferred spurious detection of threaded handlers
  * @threads_handled_last: comparator field for deferred spurious detection of threaded handlers
@@ -70,6 +70,7 @@ struct irq_redirect {
  *			IRQF_NO_SUSPEND set
  * @force_resume_depth:	number of irqactions on a irq descriptor with
  *			IRQF_FORCE_RESUME set
+ * @refcnt:		Reference count mainly for /proc/interrupts
  * @rcu:		rcu head for delayed free
  * @kobj:		kobject used to represent this struct in sysfs
  * @request_mutex:	mutex to protect request/free before locking desc->lock
@@ -87,9 +88,9 @@ struct irq_desc {
 	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
-	unsigned int		tot_count;
-	unsigned int		irq_count;	/* For detecting broken IRQs */
+	unsigned long		tot_count;
 	unsigned long		last_unhandled;	/* Aging timer for unhandled count */
+	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned int		irqs_unhandled;
 	atomic_t		threads_handled;
 	int			threads_handled_last;
@@ -119,6 +120,7 @@ struct irq_desc {
 	struct dentry		*debugfs_file;
 	const char		*dev_name;
 #endif
+	rcuref_t		refcnt;
 #ifdef CONFIG_SPARSE_IRQ
 	struct rcu_head		rcu;
 	struct kobject		kobj;

@@ -23,13 +23,11 @@ int vcc_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int vcc_setsockopt(struct socket *sock, int level, int optname,
 		   sockptr_t optval, unsigned int optlen);
 int vcc_getsockopt(struct socket *sock, int level, int optname,
-		   char __user *optval, int __user *optlen);
+		   sockopt_t *opt);
 void vcc_process_recv_queue(struct atm_vcc *vcc);
 
 int atmpvc_init(void);
 void atmpvc_exit(void);
-int atmsvc_init(void);
-void atmsvc_exit(void);
 int atm_sysfs_init(void);
 void atm_sysfs_exit(void);
 
@@ -47,9 +45,6 @@ static inline void atm_proc_exit(void)
 	/* nothing */
 }
 #endif /* CONFIG_PROC_FS */
-
-/* SVC */
-int svc_change_qos(struct atm_vcc *vcc,struct atm_qos *qos);
 
 void atm_dev_release_vccs(struct atm_dev *dev);
 

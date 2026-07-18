@@ -43,3 +43,6 @@ obj-$(CONFIG_IP_VS_FTP) += ip_vs_ftp.o
 
 # IPVS connection template retrievers
 obj-$(CONFIG_IP_VS_PE_SIP) += ip_vs_pe_sip.o
+ifdef CONFIG_GCOV_PROFILE_IPVS
+GCOV_PROFILE := y
+endif

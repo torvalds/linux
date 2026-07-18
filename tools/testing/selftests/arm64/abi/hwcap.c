@@ -108,6 +108,24 @@ static void f8mm8_sigill(void)
 	asm volatile(".inst 0x6e80ec00");
 }
 
+static void f16f32dot_sigill(void)
+{
+	/* FDOT V0.2S, V0.4H, V0.2H[0] */
+	asm volatile(".inst 0xf409000");
+}
+
+static void f16f32mm_sigill(void)
+{
+	/* FMMLA V0.4S, V0.8H, V0.8H */
+	asm volatile(".inst 0x4e40ec00");
+}
+
+static void f16mm_sigill(void)
+{
+	/* FMMLA V0.8H, V0.8H, V0.8H */
+	asm volatile(".inst 0x4ec0ec00");
+}
+
 static void faminmax_sigill(void)
 {
 	/* FAMIN V0.4H, V0.4H, V0.4H */
@@ -189,6 +207,12 @@ static void lut_sigill(void)
 {
 	/* LUTI2 V0.16B, { V0.16B }, V[0] */
 	asm volatile(".inst 0x4e801000");
+}
+
+static void sve_lut6_sigill(void)
+{
+	/* LUTI6 Z0.H, { Z0.H, Z1.H }, Z0[0] */
+	asm volatile(".inst 0x4560ac00");
 }
 
 static void mops_sigill(void)
@@ -277,6 +301,18 @@ static void sme2p2_sigill(void)
 
 	/* UXTB Z0.D, P0/Z, Z0.D  */
 	asm volatile(".inst 0x4c1a000" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void sme2p3_sigill(void)
+{
+	/* SMSTART SM */
+	asm volatile("msr S0_3_C4_C3_3, xzr" : : : );
+
+	/* ADDQP Z0.B, Z0.B, Z0.B */
+	asm volatile(".inst 0x4207800" : : : "z0");
 
 	/* SMSTOP */
 	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
@@ -373,6 +409,18 @@ static void smef8f32_sigill(void)
 
 	/* FDOT ZA.S[W0, 0], { Z0.B-Z1.B }, Z0.B[0] */
 	asm volatile(".inst 0xc1500038" : : : );
+
+	/* SMSTOP */
+	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
+}
+
+static void smelut6_sigill(void)
+{
+	/* SMSTART */
+	asm volatile("msr S0_3_C4_C7_3, xzr" : : : );
+
+	/* LUTI6 { Z0.B-Z3.B }, ZT0, { Z0-Z2 } */
+	asm volatile(".inst 0xc08a0000" : : : );
 
 	/* SMSTOP */
 	asm volatile("msr S0_3_C4_C6_3, xzr" : : : );
@@ -486,6 +534,12 @@ static void sve2p2_sigill(void)
 	asm volatile(".inst 0x4cea000" : : : "z0");
 }
 
+static void sve2p3_sigill(void)
+{
+	/* ADDQP Z0.B, Z0.B, Z0.B */
+	asm volatile(".inst 0x4207800" : : : "z0");
+}
+
 static void sveaes_sigill(void)
 {
 	/* AESD z0.b, z0.b, z0.b */
@@ -502,6 +556,12 @@ static void sveb16b16_sigill(void)
 {
 	/* BFADD Z0.H, Z0.H, Z0.H */
 	asm volatile(".inst 0x65000000" : : : );
+}
+
+static void sveb16mm_sigill(void)
+{
+	/* BFMMLA Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x64e0e000" : : : );
 }
 
 static void svebfscale_sigill(void)
@@ -730,6 +790,27 @@ static const struct hwcap_data {
 		.sigill_fn = f8mm4_sigill,
 	},
 	{
+		.name = "F16MM",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_F16MM,
+		.cpuinfo = "f16mm",
+		.sigill_fn = f16mm_sigill,
+	},
+	{
+		.name = "F16F32DOT",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_F16F32DOT,
+		.cpuinfo = "f16f32dot",
+		.sigill_fn = f16f32dot_sigill,
+	},
+	{
+		.name = "F16F32MM",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_F16F32MM,
+		.cpuinfo = "f16f32mm",
+		.sigill_fn = f16f32mm_sigill,
+	},
+	{
 		.name = "FAMINMAX",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_FAMINMAX,
@@ -919,6 +1000,13 @@ static const struct hwcap_data {
 		.sigill_fn = sme2p2_sigill,
 	},
 	{
+		.name = "SME 2.3",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_SME2P3,
+		.cpuinfo = "sme2p3",
+		.sigill_fn = sme2p3_sigill,
+	},
+	{
 		.name = "SME AES",
 		.at_hwcap = AT_HWCAP,
 		.hwcap_bit = HWCAP_SME_AES,
@@ -966,6 +1054,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SME_F8F32,
 		.cpuinfo = "smef8f32",
 		.sigill_fn = smef8f32_sigill,
+	},
+	{
+		.name = "SME LUT6",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_SME_LUT6,
+		.cpuinfo = "smelut6",
+		.sigill_fn = smelut6_sigill,
 	},
 	{
 		.name = "SME LUTV2",
@@ -1053,6 +1148,13 @@ static const struct hwcap_data {
 		.sigill_fn = sve2p2_sigill,
 	},
 	{
+		.name = "SVE 2.3",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_SVE2P3,
+		.cpuinfo = "sve2p3",
+		.sigill_fn = sve2p3_sigill,
+	},
+	{
 		.name = "SVE AES",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_SVEAES,
@@ -1065,6 +1167,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_SVE_AES2,
 		.cpuinfo = "sveaes2",
 		.sigill_fn = sveaes2_sigill,
+	},
+	{
+		.name = "SVE B16MM",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_SVE_B16MM,
+		.cpuinfo = "sveb16mm",
+		.sigill_fn = sveb16mm_sigill,
 	},
 	{
 		.name = "SVE BFSCALE",
@@ -1086,6 +1195,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP_SVE_F16MM,
 		.cpuinfo = "svef16mm",
 		.sigill_fn = svef16mm_sigill,
+	},
+	{
+		.name = "SVE_LUT6",
+		.at_hwcap = AT_HWCAP3,
+		.hwcap_bit = HWCAP3_SVE_LUT6,
+		.cpuinfo = "svelut6",
+		.sigill_fn = sve_lut6_sigill,
 	},
 	{
 		.name = "SVE2 B16B16",

@@ -91,13 +91,9 @@ static const struct rz_sysc_soc_id_init_data rzv2h_sys_soc_id_init_data __initco
 	.print_id = rzv2h_sys_print_id,
 };
 
-static bool rzv2h_regmap_readable_reg(struct device *dev, unsigned int reg)
+static bool rzv2h_regmap_readable_writeable_reg(unsigned int reg)
 {
 	switch (reg) {
-	case SYS_LSI_OTPTSU0TRMVAL0:
-	case SYS_LSI_OTPTSU0TRMVAL1:
-	case SYS_LSI_OTPTSU1TRMVAL0:
-	case SYS_LSI_OTPTSU1TRMVAL1:
 	case SYS_GBETH0_CFG:
 	case SYS_GBETH1_CFG:
 	case SYS_PCIE_INTX_CH0:
@@ -128,37 +124,25 @@ static bool rzv2h_regmap_readable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool rzv2h_regmap_writeable_reg(struct device *dev, unsigned int reg)
+static bool rzv2h_regmap_readable_reg(struct device *dev, unsigned int reg)
 {
+	if (rzv2h_regmap_readable_writeable_reg(reg))
+		return true;
+
 	switch (reg) {
-	case SYS_GBETH0_CFG:
-	case SYS_GBETH1_CFG:
-	case SYS_PCIE_INTX_CH0:
-	case SYS_PCIE_MSI1_CH0:
-	case SYS_PCIE_MSI2_CH0:
-	case SYS_PCIE_MSI3_CH0:
-	case SYS_PCIE_MSI4_CH0:
-	case SYS_PCIE_MSI5_CH0:
-	case SYS_PCIE_PME_CH0:
-	case SYS_PCIE_ACK_CH0:
-	case SYS_PCIE_MISC_CH0:
-	case SYS_PCIE_MODE_CH0:
-	case SYS_PCIE_INTX_CH1:
-	case SYS_PCIE_MSI1_CH1:
-	case SYS_PCIE_MSI2_CH1:
-	case SYS_PCIE_MSI3_CH1:
-	case SYS_PCIE_MSI4_CH1:
-	case SYS_PCIE_MSI5_CH1:
-	case SYS_PCIE_PME_CH1:
-	case SYS_PCIE_ACK_CH1:
-	case SYS_PCIE_MISC_CH1:
-	case SYS_PCIE_MODE_CH1:
-	case SYS_PCIE_MODE:
-	case SYS_ADC_CFG:
+	case SYS_LSI_OTPTSU0TRMVAL0:
+	case SYS_LSI_OTPTSU0TRMVAL1:
+	case SYS_LSI_OTPTSU1TRMVAL0:
+	case SYS_LSI_OTPTSU1TRMVAL1:
 		return true;
 	default:
 		return false;
 	}
+}
+
+static bool rzv2h_regmap_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return rzv2h_regmap_readable_writeable_reg(reg);
 }
 
 const struct rz_sysc_init_data rzv2h_sys_init_data __initconst = {

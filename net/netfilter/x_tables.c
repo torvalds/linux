@@ -55,6 +55,9 @@ static struct list_head xt_templates[NFPROTO_NUMPROTO];
 
 struct xt_pernet {
 	struct list_head tables[NFPROTO_NUMPROTO];
+
+	/* stash area used during netns exit */
+	struct list_head dead_tables[NFPROTO_NUMPROTO];
 };
 
 struct compat_delta {
@@ -477,11 +480,9 @@ int xt_check_proc_name(const char *name, unsigned int size)
 }
 EXPORT_SYMBOL(xt_check_proc_name);
 
-int xt_check_match(struct xt_mtchk_param *par,
-		   unsigned int size, u16 proto, bool inv_proto)
+static int xt_check_match_common(struct xt_mtchk_param *par,
+				 unsigned int size, u16 proto, bool inv_proto)
 {
-	int ret;
-
 	if (XT_ALIGN(par->match->matchsize) != size &&
 	    par->match->matchsize != -1) {
 		/*
@@ -530,6 +531,14 @@ int xt_check_match(struct xt_mtchk_param *par,
 				    par->match->proto);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int xt_checkentry_match(struct xt_mtchk_param *par)
+{
+	int ret;
+
 	if (par->match->checkentry != NULL) {
 		ret = par->match->checkentry(par);
 		if (ret < 0)
@@ -538,7 +547,33 @@ int xt_check_match(struct xt_mtchk_param *par,
 			/* Flag up potential errors. */
 			return -EIO;
 	}
+
 	return 0;
+}
+
+int xt_check_hooks_match(struct xt_mtchk_param *par)
+{
+	if (par->match->check_hooks != NULL)
+		return par->match->check_hooks(par);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_check_hooks_match);
+
+int xt_check_match(struct xt_mtchk_param *par,
+		   unsigned int size, u16 proto, bool inv_proto)
+{
+	int ret;
+
+	ret = xt_check_match_common(par, size, proto, inv_proto);
+	if (ret < 0)
+		return ret;
+
+	ret = xt_check_hooks_match(par);
+	if (ret < 0)
+		return ret;
+
+	return xt_checkentry_match(par);
 }
 EXPORT_SYMBOL_GPL(xt_check_match);
 
@@ -1012,11 +1047,9 @@ bool xt_find_jump_offset(const unsigned int *offsets,
 }
 EXPORT_SYMBOL(xt_find_jump_offset);
 
-int xt_check_target(struct xt_tgchk_param *par,
-		    unsigned int size, u16 proto, bool inv_proto)
+static int xt_check_target_common(struct xt_tgchk_param *par,
+				  unsigned int size, u16 proto, bool inv_proto)
 {
-	int ret;
-
 	if (XT_ALIGN(par->target->targetsize) != size) {
 		pr_err_ratelimited("%s_tables: %s.%u target: invalid size %u (kernel) != (user) %u\n",
 				   xt_prefix[par->family], par->target->name,
@@ -1061,6 +1094,23 @@ int xt_check_target(struct xt_tgchk_param *par,
 				    par->target->proto);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+int xt_check_hooks_target(struct xt_tgchk_param *par)
+{
+	if (par->target->check_hooks != NULL)
+		return par->target->check_hooks(par);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(xt_check_hooks_target);
+
+static int xt_checkentry_target(struct xt_tgchk_param *par)
+{
+	int ret;
+
 	if (par->target->checkentry != NULL) {
 		ret = par->target->checkentry(par);
 		if (ret < 0)
@@ -1070,6 +1120,22 @@ int xt_check_target(struct xt_tgchk_param *par,
 			return -EIO;
 	}
 	return 0;
+}
+
+int xt_check_target(struct xt_tgchk_param *par,
+		    unsigned int size, u16 proto, bool inv_proto)
+{
+	int ret;
+
+	ret = xt_check_target_common(par, size, proto, inv_proto);
+	if (ret < 0)
+		return ret;
+
+	ret = xt_check_hooks_target(par);
+	if (ret < 0)
+		return ret;
+
+	return xt_checkentry_target(par);
 }
 EXPORT_SYMBOL_GPL(xt_check_target);
 
@@ -1409,11 +1475,9 @@ struct xt_counters *xt_counters_alloc(unsigned int counters)
 }
 EXPORT_SYMBOL(xt_counters_alloc);
 
-struct xt_table_info *
-xt_replace_table(struct xt_table *table,
-	      unsigned int num_counters,
-	      struct xt_table_info *newinfo,
-	      int *error)
+static struct xt_table_info *
+do_replace_table(struct xt_table *table, unsigned int num_counters,
+		 struct xt_table_info *newinfo, int *error)
 {
 	struct xt_table_info *private;
 	unsigned int cpu;
@@ -1468,30 +1532,54 @@ xt_replace_table(struct xt_table *table,
 		}
 	}
 
-	audit_log_nfcfg(table->name, table->af, private->number,
-			!private->number ? AUDIT_XT_OP_REGISTER :
-					   AUDIT_XT_OP_REPLACE,
-			GFP_KERNEL);
+	return private;
+}
+
+struct xt_table_info *
+xt_replace_table(struct xt_table *table, unsigned int num_counters,
+		 struct xt_table_info *newinfo,
+		 int *error)
+{
+	struct xt_table_info *private;
+
+	private = do_replace_table(table, num_counters, newinfo, error);
+	if (private)
+		audit_log_nfcfg(table->name, table->af, private->number,
+				AUDIT_XT_OP_REPLACE,
+				GFP_KERNEL);
+
 	return private;
 }
 EXPORT_SYMBOL_GPL(xt_replace_table);
 
 struct xt_table *xt_register_table(struct net *net,
 				   const struct xt_table *input_table,
+				   const struct nf_hook_ops *template_ops,
 				   struct xt_table_info *bootstrap,
 				   struct xt_table_info *newinfo)
 {
 	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
+	struct xt_table *t, *table = NULL;
+	struct nf_hook_ops *ops = NULL;
 	struct xt_table_info *private;
-	struct xt_table *t, *table;
-	int ret;
+	unsigned int num_ops;
+	int ret = -EINVAL;
+
+	num_ops = hweight32(input_table->valid_hooks);
+	if (num_ops == 0)
+		goto out;
+
+	ret = -ENOMEM;
+	if (template_ops) {
+		ops = kmemdup_array(template_ops, num_ops, sizeof(*ops), GFP_KERNEL);
+		if (!ops)
+			goto out;
+	}
 
 	/* Don't add one object to multiple lists. */
 	table = kmemdup(input_table, sizeof(struct xt_table), GFP_KERNEL);
-	if (!table) {
-		ret = -ENOMEM;
+	if (!table)
 		goto out;
-	}
 
 	mutex_lock(&xt[table->af].mutex);
 	/* Don't autoload: we'd eat our tail... */
@@ -1505,7 +1593,7 @@ struct xt_table *xt_register_table(struct net *net,
 	/* Simplifies replace_table code. */
 	table->private = bootstrap;
 
-	if (!xt_replace_table(table, 0, newinfo, &ret))
+	if (!do_replace_table(table, 0, newinfo, &ret))
 		goto unlock;
 
 	private = table->private;
@@ -1514,34 +1602,122 @@ struct xt_table *xt_register_table(struct net *net,
 	/* save number of initial entries */
 	private->initial_entries = private->number;
 
+	if (ops) {
+		int i;
+
+		for (i = 0; i < num_ops; i++)
+			ops[i].priv = table;
+
+		ret = nf_register_net_hooks(net, ops, num_ops);
+		if (ret != 0) {
+			mutex_unlock(&xt[table->af].mutex);
+			/* nf_register_net_hooks() might have published a
+			 * base chain before internal error unwind.
+			 */
+			synchronize_rcu();
+			goto out;
+		}
+
+		table->ops = ops;
+	}
+
+	audit_log_nfcfg(table->name, table->af, private->number,
+			AUDIT_XT_OP_REGISTER, GFP_KERNEL);
+
 	list_add(&table->list, &xt_net->tables[table->af]);
 	mutex_unlock(&xt[table->af].mutex);
 	return table;
 
 unlock:
 	mutex_unlock(&xt[table->af].mutex);
-	kfree(table);
 out:
+	kfree(table);
+	kfree(ops);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(xt_register_table);
 
-void *xt_unregister_table(struct xt_table *table)
+/**
+ * xt_unregister_table_pre_exit - pre-shutdown unregister of a table
+ * @net: network namespace
+ * @af: address family (e.g., NFPROTO_IPV4, NFPROTO_IPV6)
+ * @name: name of the table to unregister
+ *
+ * Unregisters the specified netfilter table from the given network namespace
+ * and also unregisters the hooks from netfilter core: no new packets will be
+ * processed.
+ *
+ * This must be called prior to xt_unregister_table_exit() from the pernet
+ * .pre_exit callback.  After this call, the table is no longer visible to
+ * the get/setsockopt path.  In case of rmmod, module exit path must have
+ * called xt_unregister_template() prior to unregistering pernet ops to
+ * prevent re-instantiation of the table.
+ *
+ * See also: xt_unregister_table_exit()
+ */
+void xt_unregister_table_pre_exit(struct net *net, u8 af, const char *name)
 {
-	struct xt_table_info *private;
+	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
+	struct xt_table *t;
 
-	mutex_lock(&xt[table->af].mutex);
-	private = table->private;
-	list_del(&table->list);
-	mutex_unlock(&xt[table->af].mutex);
-	audit_log_nfcfg(table->name, table->af, private->number,
-			AUDIT_XT_OP_UNREGISTER, GFP_KERNEL);
-	kfree(table->ops);
-	kfree(table);
+	mutex_lock(&xt[af].mutex);
+	list_for_each_entry(t, &xt_net->tables[af], list) {
+		if (strcmp(t->name, name) == 0) {
+			list_move(&t->list, &xt_net->dead_tables[af]);
+			mutex_unlock(&xt[af].mutex);
 
-	return private;
+			if (t->ops) /* nat table registers with nat core, t->ops is NULL. */
+				nf_unregister_net_hooks(net, t->ops, hweight32(t->valid_hooks));
+			return;
+		}
+	}
+	mutex_unlock(&xt[af].mutex);
 }
-EXPORT_SYMBOL_GPL(xt_unregister_table);
+EXPORT_SYMBOL(xt_unregister_table_pre_exit);
+
+/**
+ * xt_unregister_table_exit - remove a table during namespace teardown
+ * @net: the network namespace from which to unregister the table
+ * @af: address family (e.g., NFPROTO_IPV4, NFPROTO_IPV6)
+ * @name: name of the table to unregister
+ *
+ * Completes the unregister process for a table. This must be called from
+ * the pernet ops .exit callback. This is the second stage after
+ * xt_unregister_table_pre_exit().
+ *
+ * pair with xt_unregister_table_pre_exit() during namespace shutdown.
+ *
+ * Return: the unregistered table or NULL if the table was never
+ *         instantiated. The caller needs to kfree() the table after it
+ *         has removed the family specific matches/targets.
+ */
+struct xt_table *xt_unregister_table_exit(struct net *net, u8 af, const char *name)
+{
+	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
+	struct xt_table *table;
+
+	mutex_lock(&xt[af].mutex);
+	list_for_each_entry(table, &xt_net->dead_tables[af], list) {
+		struct nf_hook_ops *ops = NULL;
+
+		if (strcmp(table->name, name) != 0)
+			continue;
+
+		list_del(&table->list);
+
+		audit_log_nfcfg(table->name, table->af, table->private->number,
+				AUDIT_XT_OP_UNREGISTER, GFP_KERNEL);
+		swap(table->ops, ops);
+		mutex_unlock(&xt[af].mutex);
+
+		kfree(ops);
+		return table;
+	}
+	mutex_unlock(&xt[af].mutex);
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(xt_unregister_table_exit);
 #endif
 
 #ifdef CONFIG_PROC_FS
@@ -1988,8 +2164,10 @@ static int __net_init xt_net_init(struct net *net)
 	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
 	int i;
 
-	for (i = 0; i < NFPROTO_NUMPROTO; i++)
+	for (i = 0; i < NFPROTO_NUMPROTO; i++) {
 		INIT_LIST_HEAD(&xt_net->tables[i]);
+		INIT_LIST_HEAD(&xt_net->dead_tables[i]);
+	}
 	return 0;
 }
 
@@ -1998,8 +2176,10 @@ static void __net_exit xt_net_exit(struct net *net)
 	struct xt_pernet *xt_net = net_generic(net, xt_pernet_id);
 	int i;
 
-	for (i = 0; i < NFPROTO_NUMPROTO; i++)
+	for (i = 0; i < NFPROTO_NUMPROTO; i++) {
 		WARN_ON_ONCE(!list_empty(&xt_net->tables[i]));
+		WARN_ON_ONCE(!list_empty(&xt_net->dead_tables[i]));
+	}
 }
 
 static struct pernet_operations xt_net_ops = {

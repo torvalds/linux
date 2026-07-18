@@ -271,7 +271,6 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting)
 {
-	(void)use_vsc_sdp_for_colorimetry;
 	(void)enable_sdp_splitting;
 	uint32_t h_active_start;
 	uint32_t v_active_start;
@@ -333,6 +332,16 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 
 	if (REG(DP_MSA_MISC))
 		misc1 = REG_READ(DP_MSA_MISC);
+
+	/* For YCbCr420 and BT2020 Colorimetry Formats, VSC SDP shall be used.
+	 * When MISC1, bit 6, is Set to 1, a Source device uses a VSC SDP to indicate the
+	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
+	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
+	 */
+	if (use_vsc_sdp_for_colorimetry)
+		misc1 = misc1 | 0x40;
+	else
+		misc1 = misc1 & ~0x40;
 
 	/* set color depth */
 
@@ -499,6 +508,10 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 				hw_crtc_timing.h_addressable + hw_crtc_timing.h_border_right,
 				DP_MSA_VHEIGHT, hw_crtc_timing.v_border_top +
 				hw_crtc_timing.v_addressable + hw_crtc_timing.v_border_bottom);
+	} else {
+		/* DCE-only path */
+		if (REG(DP_MSA_MISC))
+			REG_WRITE(DP_MSA_MISC, misc1);   /* MSA_MISC1 */
 	}
 }
 

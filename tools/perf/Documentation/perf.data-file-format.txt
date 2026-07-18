@@ -464,7 +464,21 @@ struct cpu_domain_info {
 	struct domain_info domains[];
 };
 
-	other bits are reserved and should ignored for now
+	HEADER_E_MACHINE = 33,
+
+ELF machine and flags data. e_machine is expanded from 16 to 32 bits
+for alignment. Format:
+
+	u32 e_machine;
+	u32 e_flags;
+
+	HEADER_CLN_SIZE = 34,
+
+The size of the cacheline in bytes. Format:
+
+	unsigned int cln_size;
+
+	other bits are reserved and should be ignored for now
 	HEADER_FEAT_BITS	= 256,
 
 Attributes

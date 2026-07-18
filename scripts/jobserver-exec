@@ -28,8 +28,8 @@ def main():
         sys.exit("usage: " + name +" command [args ...]\n" + __doc__)
 
     with JobserverExec() as jobserver:
-        jobserver.run(sys.argv[1:])
+        return jobserver.run(sys.argv[1:])
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

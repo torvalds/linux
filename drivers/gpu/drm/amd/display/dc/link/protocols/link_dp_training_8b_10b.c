@@ -132,7 +132,7 @@ void decide_8b_10b_training_settings(
 	 */
 	lt_settings->link_settings.link_spread = link->dp_ss_off ?
 			LINK_SPREAD_DISABLED : LINK_SPREAD_05_DOWNSPREAD_30KHZ;
-	lt_settings->eq_pattern_time = get_eq_training_aux_rd_interval(link, link_setting);
+	lt_settings->eq_pattern_time = (uint16_t)get_eq_training_aux_rd_interval(link, link_setting);
 	lt_settings->pattern_for_cr = decide_cr_training_pattern(link_setting);
 	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_res, link_setting);
 	lt_settings->enhanced_framing = 1;
@@ -140,7 +140,7 @@ void decide_8b_10b_training_settings(
 	lt_settings->disallow_per_lane_settings = true;
 	lt_settings->always_match_dpcd_with_hw_lane_settings = true;
 	lt_settings->lttpr_mode = dp_decide_8b_10b_lttpr_mode(link);
-	lt_settings->cr_pattern_time = get_cr_training_aux_rd_interval(link, link_setting, lt_settings->lttpr_mode);
+	lt_settings->cr_pattern_time = (uint16_t)get_cr_training_aux_rd_interval(link, link_setting, lt_settings->lttpr_mode);
 	dp_hw_to_dpcd_lane_settings(lt_settings, lt_settings->hw_lane_settings, lt_settings->dpcd_lane_settings);
 
 	/* Some embedded LTTPRs rely on receiving TPS2 before LT to interop reliably with sensitive VGA dongles
@@ -195,7 +195,7 @@ static void set_link_settings_and_perform_early_tps2_retimer_pre_lt_sequence(str
 	* 6. Begin link training as usual
 	* */
 
-	uint32_t closest_lttpr_address_offset = dp_get_closest_lttpr_offset(lttpr_count);
+	uint32_t closest_lttpr_address_offset = dp_get_closest_lttpr_offset((uint8_t)lttpr_count);
 
 	union dpcd_training_pattern dpcd_pattern = {0};
 
@@ -379,7 +379,7 @@ enum link_training_result perform_8b_10b_channel_equalization_sequence(
 			dpcd_set_lane_settings(link, lt_settings, offset);
 
 		/* 3. wait for receiver to lock-on*/
-		wait_time_microsec = dp_get_eq_aux_rd_interval(link, lt_settings, offset, retries_ch_eq);
+		wait_time_microsec = dp_get_eq_aux_rd_interval(link, lt_settings, offset, (uint8_t)retries_ch_eq);
 
 		dp_wait_for_training_aux_rd_interval(
 				link,
@@ -408,7 +408,7 @@ enum link_training_result perform_8b_10b_channel_equalization_sequence(
 		/* 6. check CHEQ done*/
 		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
 				dp_is_symbol_locked(lane_count, dpcd_lane_status) &&
-				dp_check_interlane_aligned(dpcd_lane_status_updated, link, retries_ch_eq))
+				dp_check_interlane_aligned(dpcd_lane_status_updated, link, (uint8_t)retries_ch_eq))
 			return LINK_TRAINING_SUCCESS;
 
 		/* 7. update VS/PE/PC2 in lt_settings*/

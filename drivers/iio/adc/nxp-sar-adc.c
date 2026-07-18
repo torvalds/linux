@@ -21,7 +21,6 @@
 #include <linux/iopoll.h>
 #include <linux/math64.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -198,6 +197,15 @@ static void nxp_sar_adc_irq_cfg(struct nxp_sar_adc *info, bool enable)
 		writel(0, NXP_SAR_ADC_IMR(info->regs));
 }
 
+static void nxp_sar_adc_wait_for(struct nxp_sar_adc *info, unsigned int cycles)
+{
+	u64 rate;
+
+	rate = clk_get_rate(info->clk);
+	if (rate)
+		ndelay(div64_u64(NSEC_PER_SEC, rate * cycles));
+}
+
 static bool nxp_sar_adc_set_enabled(struct nxp_sar_adc *info, bool enable)
 {
 	u32 mcr;
@@ -221,7 +229,7 @@ static bool nxp_sar_adc_set_enabled(struct nxp_sar_adc *info, bool enable)
 	 * configuration of NCMR and the setting of NSTART.
 	 */
 	if (enable)
-		ndelay(div64_u64(NSEC_PER_SEC, clk_get_rate(info->clk) * 3));
+		nxp_sar_adc_wait_for(info, 3);
 
 	return pwdn;
 }
@@ -317,11 +325,7 @@ static int nxp_sar_adc_read_data(struct nxp_sar_adc *info, unsigned int chan)
 
 	ceocfr = readl(NXP_SAR_ADC_CEOCFR0(info->regs));
 
-	/*
-	 * FIELD_GET() can not be used here because EOC_CH is not constant.
-	 * TODO: Switch to field_get() when it will be available.
-	 */
-	if (!(NXP_SAR_ADC_EOC_CH(chan) & ceocfr))
+	if (!field_get(NXP_SAR_ADC_EOC_CH(chan), ceocfr))
 		return -EIO;
 
 	cdr = readl(NXP_SAR_ADC_CDR(info->regs, chan));
@@ -341,6 +345,7 @@ static void nxp_sar_adc_isr_buffer(struct iio_dev *indio_dev)
 		ret = nxp_sar_adc_read_data(info, info->buffered_chan[i]);
 		if (ret < 0) {
 			nxp_sar_adc_read_notify(info);
+			iio_trigger_notify_done(indio_dev->trig);
 			return;
 		}
 
@@ -469,7 +474,7 @@ static void nxp_sar_adc_stop_conversion(struct nxp_sar_adc *info)
 	 * only when the capture finishes. The delay will be very
 	 * short, usec-ish, which is acceptable in the atomic context.
 	 */
-	ndelay(div64_u64(NSEC_PER_SEC, clk_get_rate(info->clk)) * 80);
+	nxp_sar_adc_wait_for(info, 80);
 }
 
 static int nxp_sar_adc_start_conversion(struct nxp_sar_adc *info, bool raw)
@@ -560,6 +565,9 @@ static int nxp_sar_adc_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
+		if (val <= 0)
+			return -EINVAL;
+
 		/*
 		 * Configures the sample period duration in terms of the SAR
 		 * controller clock. The minimum acceptable value is 8.
@@ -568,7 +576,11 @@ static int nxp_sar_adc_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec
 		 * sampling timing which gives us the number of cycles expected.
 		 * The value is 8-bit wide, consequently the max value is 0xFF.
 		 */
-		inpsamp = clk_get_rate(info->clk) / val - NXP_SAR_ADC_CONV_TIME;
+		inpsamp = clk_get_rate(info->clk) / val;
+		if (inpsamp < NXP_SAR_ADC_CONV_TIME)
+			return -EINVAL;
+
+		inpsamp -= NXP_SAR_ADC_CONV_TIME;
 		nxp_sar_adc_conversion_timing_set(info, inpsamp);
 		return 0;
 
@@ -660,7 +672,7 @@ static void nxp_sar_adc_dma_cb(void *data)
 static int nxp_sar_adc_start_cyclic_dma(struct iio_dev *indio_dev)
 {
 	struct nxp_sar_adc *info = iio_priv(indio_dev);
-	struct dma_slave_config config;
+	struct dma_slave_config config = { };
 	struct dma_async_tx_descriptor *desc;
 	int ret;
 

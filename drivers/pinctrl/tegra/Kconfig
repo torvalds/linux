@@ -1,43 +1,67 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_TEGRA
-	bool
+	bool "NVIDIA Tegra pin controllers common" if COMPILE_TEST && !ARCH_TEGRA
 	select PINMUX
 	select PINCONF
 
 config PINCTRL_TEGRA20
-	bool
+	bool "NVIDIA Tegra20 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
+	depends on COMMON_CLK
 
 config PINCTRL_TEGRA30
-	bool
+	bool "NVIDIA Tegra30 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA114
-	bool
+	bool "NVIDIA Tegra114 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA124
-	bool
+	bool "NVIDIA Tegra124 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA210
-	bool
+	bool "NVIDIA Tegra210 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA186
-	bool
+	bool "NVIDIA Tegra186 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA194
-	bool
+	bool "NVIDIA Tegra194 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA234
-	bool
+	bool "NVIDIA Tegra234 pin controller" if COMPILE_TEST && !ARCH_TEGRA
 	select PINCTRL_TEGRA
 
+config PINCTRL_TEGRA238
+	tristate "NVIDIA Tegra238 pinctrl driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	default m if ARCH_TEGRA_238_SOC
+	select PINCTRL_TEGRA
+	help
+	  Say Y or M here to enable support for the pinctrl driver for
+	  NVIDIA Tegra238 SoC. This driver controls the pin multiplexing
+	  and configuration for the MAIN and AON pin controllers found
+	  on Tegra238.
+
+config PINCTRL_TEGRA264
+	tristate "NVIDIA Tegra264 pinctrl driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	default m if ARCH_TEGRA_264_SOC
+	select PINCTRL_TEGRA
+	help
+	  Say Y or M here to enable support for the pinctrl driver for
+	  NVIDIA Tegra264 SoC. This driver controls the pin multiplexing
+	  and configuration for the MAIN, AON and UPHY pin controllers found
+	  on Tegra264.
+
 config PINCTRL_TEGRA_XUSB
-	def_bool y if ARCH_TEGRA
+	bool "NVIDIA Tegra XUSB pin controller" if COMPILE_TEST && !ARCH_TEGRA
+	default y if ARCH_TEGRA
 	select GENERIC_PHY
 	select PINCONF
 	select PINMUX

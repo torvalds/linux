@@ -59,7 +59,7 @@ unsigned int snprintf_count(char *pbuf, unsigned int bufsize, const char *fmt, .
 	va_end(args);
 
 	if (ret_vsnprintf > 0) {
-		if (ret_vsnprintf < bufsize)
+		if ((unsigned int)ret_vsnprintf < bufsize)
 			chars_printed = ret_vsnprintf;
 		else
 			chars_printed = bufsize - 1;
@@ -73,7 +73,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcn_hubbub_wm wm;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -111,7 +111,7 @@ static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned in
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -189,7 +189,7 @@ static unsigned int dcn10_get_hubp_states(struct dc *dc, char *pBuf, unsigned in
 static unsigned int dcn10_get_rq_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -231,7 +231,7 @@ static unsigned int dcn10_get_rq_states(struct dc *dc, char *pBuf, unsigned int 
 static unsigned int dcn10_get_dlg_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -288,7 +288,7 @@ static unsigned int dcn10_get_dlg_states(struct dc *dc, char *pBuf, unsigned int
 static unsigned int dcn10_get_ttu_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -328,7 +328,7 @@ static unsigned int dcn10_get_ttu_states(struct dc *dc, char *pBuf, unsigned int
 static unsigned int dcn10_get_cm_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -383,7 +383,7 @@ static unsigned int dcn10_get_cm_states(struct dc *dc, char *pBuf, unsigned int 
 static unsigned int dcn10_get_mpcc_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -414,7 +414,7 @@ static unsigned int dcn10_get_mpcc_states(struct dc *dc, char *pBuf, unsigned in
 static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int bufSize)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	unsigned int chars_printed = 0;
 	unsigned int remaining_buffer = bufSize;
@@ -491,7 +491,7 @@ static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned i
 static void dcn10_clear_otpc_underflow(struct dc *dc)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < pool->timing_generator_count; i++) {
 		struct timing_generator *tg = pool->timing_generators[i];
@@ -508,7 +508,7 @@ static void dcn10_clear_otpc_underflow(struct dc *dc)
 static void dcn10_clear_hubp_underflow(struct dc *dc)
 {
 	struct resource_pool *pool = dc->res_pool;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < pool->pipe_count; i++) {
 		struct hubp *hubp = pool->hubps[i];

@@ -19,15 +19,6 @@ struct cpumask;
 struct flush_tlb_info;
 struct vm_area_struct;
 
-#ifdef CONFIG_PARAVIRT_XXL
-struct pv_lazy_ops {
-	/* Set deferred update mode, used for batching operations. */
-	void (*enter)(void);
-	void (*leave)(void);
-	void (*flush)(void);
-} __no_randomize_layout;
-#endif
-
 struct pv_cpu_ops {
 	/* hooks for various privileged instructions */
 #ifdef CONFIG_PARAVIRT_XXL
@@ -171,7 +162,7 @@ struct pv_mmu_ops {
 
 	void (*set_pgd)(pgd_t *pgdp, pgd_t pgdval);
 
-	struct pv_lazy_ops lazy_mode;
+	void (*lazy_mode_flush)(void);
 
 	/* dom0 ops */
 

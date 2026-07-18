@@ -3,14 +3,19 @@
 #define __ASM_KASAN_H
 
 #if defined(CONFIG_KASAN) && !defined(CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX)
-#define _GLOBAL_KASAN(fn)	_GLOBAL(__##fn)
-#define _GLOBAL_TOC_KASAN(fn)	_GLOBAL_TOC(__##fn)
-#define EXPORT_SYMBOL_KASAN(fn)	EXPORT_SYMBOL(__##fn)
-#else
+#define _GLOBAL_KASAN(fn)			\
+	_GLOBAL(fn);				\
+	_GLOBAL(__##fn)
+#define _GLOBAL_TOC_KASAN(fn)			\
+	_GLOBAL_TOC(fn);			\
+	_GLOBAL_TOC(__##fn)
+#define EXPORT_SYMBOL_KASAN(fn)			\
+	EXPORT_SYMBOL(__##fn)
+#else /* CONFIG_KASAN && !CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX */
 #define _GLOBAL_KASAN(fn)	_GLOBAL(fn)
 #define _GLOBAL_TOC_KASAN(fn)	_GLOBAL_TOC(fn)
 #define EXPORT_SYMBOL_KASAN(fn)
-#endif
+#endif /* CONFIG_KASAN && !CONFIG_CC_HAS_KASAN_MEMINTRINSIC_PREFIX */
 
 #ifndef __ASSEMBLER__
 

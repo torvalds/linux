@@ -264,12 +264,10 @@ static int __maybe_unused crypto_lskcipher_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct lskcipher_alg *skcipher = __crypto_lskcipher_alg(alg);
-	struct crypto_report_blkcipher rblkcipher;
-
-	memset(&rblkcipher, 0, sizeof(rblkcipher));
-
-	strscpy(rblkcipher.type, "lskcipher", sizeof(rblkcipher.type));
-	strscpy(rblkcipher.geniv, "<none>", sizeof(rblkcipher.geniv));
+	struct crypto_report_blkcipher rblkcipher = {
+		.type = "lskcipher",
+		.geniv = "<none>",
+	};
 
 	rblkcipher.blocksize = alg->cra_blocksize;
 	rblkcipher.min_keysize = skcipher->co.min_keysize;

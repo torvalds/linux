@@ -6,6 +6,7 @@
 #include <linux/pci.h>
 
 #include <drm/drm_print.h>
+#include <drm/intel/step.h>
 
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -17,7 +18,6 @@
 #include "intel_dmc_regs.h"
 #include "intel_dsb.h"
 #include "intel_flipq.h"
-#include "intel_step.h"
 #include "intel_vblank.h"
 #include "intel_vrr.h"
 
@@ -132,7 +132,7 @@ void intel_flipq_init(struct intel_display *display)
 
 	intel_dmc_wait_fw_load(display);
 
-	for_each_intel_crtc(display->drm, crtc)
+	for_each_intel_crtc(display, crtc)
 		intel_flipq_crtc_init(crtc);
 }
 

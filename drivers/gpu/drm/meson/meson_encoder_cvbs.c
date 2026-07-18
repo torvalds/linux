@@ -139,7 +139,7 @@ static int meson_encoder_cvbs_atomic_check(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_cvbs_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct meson_encoder_cvbs *encoder_cvbs = bridge_to_meson_encoder_cvbs(bridge);
 	struct meson_drm *priv = encoder_cvbs->priv;
@@ -190,7 +190,7 @@ static void meson_encoder_cvbs_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_cvbs_atomic_disable(struct drm_bridge *bridge,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct meson_encoder_cvbs *meson_encoder_cvbs =
 					bridge_to_meson_encoder_cvbs(bridge);
@@ -215,7 +215,7 @@ static const struct drm_bridge_funcs meson_encoder_cvbs_bridge_funcs = {
 	.atomic_check = meson_encoder_cvbs_atomic_check,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 };
 
 int meson_encoder_cvbs_probe(struct meson_drm *priv)
@@ -278,8 +278,6 @@ int meson_encoder_cvbs_probe(struct meson_drm *priv)
 	if (IS_ERR(connector))
 		return dev_err_probe(priv->dev, PTR_ERR(connector),
 				     "Unable to create CVBS bridge connector\n");
-
-	drm_connector_attach_encoder(connector, &meson_encoder_cvbs->encoder);
 
 	priv->encoders[MESON_ENC_CVBS] = meson_encoder_cvbs;
 

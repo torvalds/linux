@@ -13,8 +13,8 @@ new APIs prefixed by ``devl_*``. The older APIs handle all the locking
 in devlink core, but don't allow registration of most sub-objects once
 the main devlink object is itself registered. The newer ``devl_*`` APIs assume
 the devlink instance lock is already held. Drivers can take the instance
-lock by calling ``devl_lock()``. It is also held all callbacks of devlink
-netlink commands.
+lock by calling ``devl_lock()``. It is also held across all callbacks of
+devlink netlink commands.
 
 Drivers are encouraged to use the devlink instance lock for their own needs.
 
@@ -33,11 +33,11 @@ sure to respect following rules:
    lock of both nested and parent instances at the same time, devlink
    instance lock of the parent instance should be taken first, only then
    instance lock of the nested instance could be taken.
- - Driver should use object-specific helpers to setup the
-   nested relationship:
+ - Driver should use object-specific helpers to setup the nested relationship
+   before registering the nested devlink instance:
 
    - ``devl_nested_devlink_set()`` - called to setup devlink -> nested
-     devlink relationship (could be user for multiple nested instances.
+     devlink relationship (could be used for multiple nested instances).
    - ``devl_port_fn_devlink_set()`` - called to setup port function ->
      nested devlink relationship.
    - ``devlink_linecard_nested_dl_set()`` - called to setup linecard ->

@@ -203,7 +203,6 @@ void ib_uverbs_init_event_queue(struct ib_uverbs_event_queue *ev_queue);
 void ib_uverbs_init_async_event_file(struct ib_uverbs_async_event_file *ev_file);
 void ib_uverbs_free_event_queue(struct ib_uverbs_event_queue *event_queue);
 void ib_uverbs_flow_resources_free(struct ib_uflow_resources *uflow_res);
-int uverbs_async_event_release(struct inode *inode, struct file *filp);
 
 int ib_alloc_ucontext(struct uverbs_attr_bundle *attrs);
 int ib_init_ucontext(struct uverbs_attr_bundle *attrs);
@@ -228,6 +227,55 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
 int uverbs_dealloc_mw(struct ib_mw *mw);
 void ib_uverbs_detach_umcast(struct ib_qp *qp,
 			     struct ib_uqp_object *uobj);
+
+struct bundle_alloc_head {
+	struct_group_tagged(bundle_alloc_head_hdr, hdr,
+		struct bundle_alloc_head *next;
+	);
+	u8 data[];
+};
+
+struct bundle_priv {
+	/* Must be first */
+	struct bundle_alloc_head_hdr alloc_head;
+	struct bundle_alloc_head *allocated_mem;
+	size_t internal_avail;
+	size_t internal_used;
+
+	struct radix_tree_root *radix;
+	void __rcu **radix_slots;
+	unsigned long radix_slots_len;
+	u32 method_key;
+
+	struct ib_uverbs_attr __user *user_attrs;
+	struct ib_uverbs_attr *uattrs;
+
+	DECLARE_BITMAP(uobj_finalize, UVERBS_API_ATTR_BKEY_LEN);
+	DECLARE_BITMAP(spec_finalize, UVERBS_API_ATTR_BKEY_LEN);
+	DECLARE_BITMAP(uobj_hw_obj_valid, UVERBS_API_ATTR_BKEY_LEN);
+
+	/*
+	 * Must be last. bundle ends in a flex array which overlaps
+	 * internal_buffer.
+	 */
+	struct uverbs_attr_bundle_hdr bundle;
+	u64 internal_buffer[32];
+};
+
+static inline int uverbs_set_output(const struct uverbs_attr_bundle *bundle,
+				    const struct uverbs_attr *attr)
+{
+	struct bundle_priv *pbundle =
+		container_of(&bundle->hdr, struct bundle_priv, bundle);
+	u16 flags;
+
+	flags = pbundle->uattrs[attr->ptr_attr.uattr_idx].flags |
+		UVERBS_ATTR_F_VALID_OUTPUT;
+	if (put_user(flags,
+		     &pbundle->user_attrs[attr->ptr_attr.uattr_idx].flags))
+		return -EFAULT;
+	return 0;
+}
 
 long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
@@ -310,5 +358,14 @@ static inline void ib_uverbs_dmabuf_done(struct kref *kref)
 
 	complete(&priv->comp);
 }
+
+int __uverbs_cleanup_ufile(struct ib_uverbs_file *ufile,
+			   enum rdma_remove_reason reason);
+
+static inline void ib_uverbs_comp_dev(struct ib_uverbs_device *dev)
+{
+	complete(&dev->comp);
+}
+
 
 #endif /* UVERBS_H */

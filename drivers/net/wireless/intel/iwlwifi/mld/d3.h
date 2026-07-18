@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024, 2026 Intel Corporation
  */
 #ifndef __iwl_mld_d3_h__
 #define __iwl_mld_d3_h__
@@ -42,6 +42,10 @@ int iwl_mld_wowlan_resume(struct iwl_mld *mld);
 void iwl_mld_set_rekey_data(struct ieee80211_hw *hw,
 			    struct ieee80211_vif *vif,
 			    struct cfg80211_gtk_rekey_data *data);
+void iwl_mld_process_rsc_notification(struct iwl_mld *mld,
+				      struct ieee80211_vif *vif,
+				      const struct iwl_wowlan_all_rsc_tsc_v5 *notif,
+				      int queue);
 #if IS_ENABLED(CONFIG_IPV6)
 void iwl_mld_ipv6_addr_change(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,

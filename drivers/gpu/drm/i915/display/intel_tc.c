@@ -294,7 +294,7 @@ get_pin_assignment(struct intel_tc_port *tc)
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum tc_port tc_port = intel_encoder_to_tc(&tc->dig_port->base);
 	enum intel_tc_pin_assignment pin_assignment;
-	i915_reg_t reg;
+	intel_reg_t reg;
 	u32 mask;
 	u32 val;
 
@@ -1034,7 +1034,7 @@ xelpdp_tc_phy_tcss_power_is_enabled(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum port port = tc->dig_port->base.port;
-	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
+	intel_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
 
 	assert_tc_cold_blocked(tc);
 
@@ -1094,7 +1094,7 @@ static void __xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool ena
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum port port = tc->dig_port->base.port;
-	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
+	intel_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
@@ -1141,7 +1141,7 @@ static void xelpdp_tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum port port = tc->dig_port->base.port;
-	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
+	intel_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
@@ -1158,7 +1158,7 @@ static bool xelpdp_tc_phy_is_owned(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum port port = tc->dig_port->base.port;
-	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
+	intel_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
 
 	assert_tc_cold_blocked(tc);
 
@@ -1779,7 +1779,7 @@ static int reset_link_commit(struct intel_tc_port *tc,
 	if (!pipe_mask)
 		return 0;
 
-	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display, crtc, pipe_mask) {
 		struct intel_crtc_state *crtc_state;
 
 		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
@@ -1799,11 +1799,11 @@ static int reset_link(struct intel_tc_port *tc)
 {
 	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *_state;
+	struct drm_atomic_commit *_state;
 	struct intel_atomic_state *state;
 	int ret;
 
-	_state = drm_atomic_state_alloc(display->drm);
+	_state = drm_atomic_commit_alloc(display->drm);
 	if (!_state)
 		return -ENOMEM;
 
@@ -1813,7 +1813,7 @@ static int reset_link(struct intel_tc_port *tc)
 	intel_modeset_lock_ctx_retry(&ctx, state, 0, ret)
 		ret = reset_link_commit(tc, state, &ctx);
 
-	drm_atomic_state_put(&state->base);
+	drm_atomic_commit_put(&state->base);
 
 	return ret;
 }

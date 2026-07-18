@@ -17,7 +17,7 @@ int siw_check_mem(struct ib_pd *pd, struct siw_mem *mem, u64 addr,
 		  enum ib_access_flags perms, int len);
 int siw_check_sge(struct ib_pd *pd, struct siw_sge *sge,
 		  struct siw_mem *mem[], enum ib_access_flags perms,
-		  u32 off, int len);
+		  u32 off, u32 len);
 void siw_wqe_put_mem(struct siw_wqe *wqe, enum siw_opcode op);
 int siw_mr_add_mem(struct siw_mr *mr, struct ib_pd *pd, void *mem_obj,
 		   u64 start, u64 len, int rights);
@@ -45,7 +45,6 @@ static inline void siw_unref_mem_sgl(struct siw_mem **mem, unsigned int num_sge)
 #define CHUNK_SHIFT 9 /* sets number of pages per chunk */
 #define PAGES_PER_CHUNK (_AC(1, UL) << CHUNK_SHIFT)
 #define CHUNK_MASK (~(PAGES_PER_CHUNK - 1))
-#define PAGE_CHUNK_SIZE (PAGES_PER_CHUNK * sizeof(struct page *))
 
 /*
  * siw_get_upage()
@@ -61,7 +60,7 @@ static inline struct page *siw_get_upage(struct siw_umem *umem, u64 addr)
 		     chunk_idx = page_idx >> CHUNK_SHIFT,
 		     page_in_chunk = page_idx & ~CHUNK_MASK;
 
-	if (likely(page_idx < umem->num_pages))
+	if (page_idx < umem->num_pages)
 		return umem->page_chunk[chunk_idx].plist[page_in_chunk];
 
 	return NULL;

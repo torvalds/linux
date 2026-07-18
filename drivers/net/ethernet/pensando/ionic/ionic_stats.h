@@ -4,6 +4,8 @@
 #ifndef _IONIC_STATS_H_
 #define _IONIC_STATS_H_
 
+#define IONIC_STAT_INVALID	(cpu_to_le64(~0ULL))
+
 #define IONIC_STAT_TO_OFFSET(type, stat_name) (offsetof(type, stat_name))
 
 #define IONIC_STAT_DESC(type, stat_name) { \

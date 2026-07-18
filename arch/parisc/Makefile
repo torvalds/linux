@@ -174,15 +174,21 @@ ifeq ($(KBUILD_EXTMOD),)
 # this hack.
 prepare: vdso_prepare
 vdso_prepare: prepare0
-	$(if $(CONFIG_64BIT),$(Q)$(MAKE) \
-		$(build)=arch/parisc/kernel/vdso64 include/generated/vdso64-offsets.h)
-	$(if $(CONFIG_PA11)$(CONFIG_COMPAT),$(Q)$(MAKE) \
+ifdef CONFIG_64BIT
+	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso64 include/generated/vdso64-offsets.h
+	$(if $(CONFIG_COMPAT),$(Q)$(MAKE) \
 		$(build)=arch/parisc/kernel/vdso32 include/generated/vdso32-offsets.h)
+else
+	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 include/generated/vdso32-offsets.h
+endif
 endif
 
-vdso-install-$(CONFIG_PA11)	+= arch/parisc/kernel/vdso32/vdso32.so
+ifdef CONFIG_64BIT
+vdso-install-y			+= arch/parisc/kernel/vdso64/vdso64.so
 vdso-install-$(CONFIG_COMPAT)	+= arch/parisc/kernel/vdso32/vdso32.so
-vdso-install-$(CONFIG_64BIT)	+= arch/parisc/kernel/vdso64/vdso64.so
+else
+vdso-install-y			+= arch/parisc/kernel/vdso32/vdso32.so
+endif
 
 install: KBUILD_IMAGE := vmlinux
 zinstall: KBUILD_IMAGE := vmlinuz

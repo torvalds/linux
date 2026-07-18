@@ -117,7 +117,7 @@ struct inode *cifs_create_reparse_inode(struct cifs_open_info_data *data,
 					struct kvec *reparse_iov,
 					struct kvec *xattr_iov);
 int CIFSSMB_set_compression(const unsigned int xid, struct cifs_tcon *tcon,
-			    __u16 fid);
+			    __u16 fid, __u16 compression_state);
 int cifs_do_get_acl(const unsigned int xid, struct cifs_tcon *tcon,
 		    const unsigned char *searchName, struct posix_acl **acl,
 		    const int acl_type, const struct nls_table *nls_codepage,

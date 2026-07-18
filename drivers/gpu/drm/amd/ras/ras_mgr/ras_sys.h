@@ -30,6 +30,9 @@
 #include <linux/mempool.h>
 #include "amdgpu.h"
 
+/* inject address is 52 bits */
+#define RAS_UMC_INJECT_ADDR_LIMIT       (0x1ULL << 52)
+
 #define RAS_DEV_ERR(device, fmt, ...)                                               \
 	do {                                                                      \
 		if (device)                                                             \
@@ -44,6 +47,15 @@
 			dev_warn(((struct amdgpu_device *)device)->dev, fmt, ##__VA_ARGS__); \
 		else                                                                   \
 			printk(KERN_WARNING fmt, ##__VA_ARGS__);                           \
+	} while (0)
+
+#define RAS_DEV_WARN_RATELIMITED(device, fmt, ...)                                   \
+	do {                                                                       \
+		if (device)                                                              \
+			dev_warn_ratelimited(((struct amdgpu_device *)device)->dev,        \
+				fmt, ##__VA_ARGS__);                                            \
+		else                                                                   \
+			printk_ratelimited(KERN_WARNING fmt, ##__VA_ARGS__);               \
 	} while (0)
 
 #define RAS_DEV_INFO(device, fmt, ...)                                                 \

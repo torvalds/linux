@@ -526,8 +526,8 @@ of the recvmsg() system call, *not* a Netlink header).
 
 Upon truncation the remaining part of the message is discarded.
 
-Netlink expects that the user buffer will be at least 8kB or a page
-size of the CPU architecture, whichever is bigger. Particular Netlink
+Netlink expects that the user buffer will be at most 8kB or a page
+size of the CPU architecture, whichever is smaller. Particular Netlink
 families may, however, require a larger buffer. 32kB buffer is recommended
 for most efficient handling of dumps (larger buffer fits more dumped
 objects and therefore fewer recvmsg() calls are needed).

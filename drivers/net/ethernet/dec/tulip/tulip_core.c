@@ -196,45 +196,45 @@ const struct tulip_chip_table tulip_tbl[] = {
 
 
 static const struct pci_device_id tulip_pci_tbl[] = {
-	{ 0x1011, 0x0009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21140 },
-	{ 0x1011, 0x0019, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DC21143 },
-	{ 0x11AD, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, LC82C168 },
-	{ 0x10d9, 0x0512, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MX98713 },
-	{ 0x10d9, 0x0531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MX98715 },
-/*	{ 0x10d9, 0x0531, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MX98725 },*/
-	{ 0x125B, 0x1400, PCI_ANY_ID, PCI_ANY_ID, 0, 0, AX88140 },
-	{ 0x11AD, 0xc115, PCI_ANY_ID, PCI_ANY_ID, 0, 0, PNIC2 },
-	{ 0x1317, 0x0981, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1317, 0x0985, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1317, 0x1985, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1317, 0x9511, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x13D1, 0xAB02, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x13D1, 0xAB03, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x13D1, 0xAB08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x104A, 0x0981, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x104A, 0x2774, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1259, 0xa120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x11F6, 0x9881, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMPEX9881 },
-	{ 0x8086, 0x0039, PCI_ANY_ID, PCI_ANY_ID, 0, 0, I21145 },
+	{ PCI_DEVICE(0x1011, 0x0009), .driver_data = DC21140 },
+	{ PCI_DEVICE(0x1011, 0x0019), .driver_data = DC21143 },
+	{ PCI_DEVICE(0x11AD, 0x0002), .driver_data = LC82C168 },
+	{ PCI_DEVICE(0x10d9, 0x0512), .driver_data = MX98713 },
+	{ PCI_DEVICE(0x10d9, 0x0531), .driver_data = MX98715 },
+/*	{ PCI_DEVICE(0x10d9, 0x0531), .driver_data = MX98725 },*/
+	{ PCI_DEVICE(0x125B, 0x1400), .driver_data = AX88140 },
+	{ PCI_DEVICE(0x11AD, 0xc115), .driver_data = PNIC2 },
+	{ PCI_DEVICE(0x1317, 0x0981), .driver_data = COMET },
+	{ PCI_DEVICE(0x1317, 0x0985), .driver_data = COMET },
+	{ PCI_DEVICE(0x1317, 0x1985), .driver_data = COMET },
+	{ PCI_DEVICE(0x1317, 0x9511), .driver_data = COMET },
+	{ PCI_DEVICE(0x13D1, 0xAB02), .driver_data = COMET },
+	{ PCI_DEVICE(0x13D1, 0xAB03), .driver_data = COMET },
+	{ PCI_DEVICE(0x13D1, 0xAB08), .driver_data = COMET },
+	{ PCI_DEVICE(0x104A, 0x0981), .driver_data = COMET },
+	{ PCI_DEVICE(0x104A, 0x2774), .driver_data = COMET },
+	{ PCI_DEVICE(0x1259, 0xa120), .driver_data = COMET },
+	{ PCI_DEVICE(0x11F6, 0x9881), .driver_data = COMPEX9881 },
+	{ PCI_DEVICE(0x8086, 0x0039), .driver_data = I21145 },
 #ifdef CONFIG_TULIP_DM910X
-	{ 0x1282, 0x9100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DM910X },
-	{ 0x1282, 0x9102, PCI_ANY_ID, PCI_ANY_ID, 0, 0, DM910X },
+	{ PCI_DEVICE(0x1282, 0x9100), .driver_data = DM910X },
+	{ PCI_DEVICE(0x1282, 0x9102), .driver_data = DM910X },
 #endif
-	{ 0x1113, 0x1216, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1113, 0x1217, PCI_ANY_ID, PCI_ANY_ID, 0, 0, MX98715 },
-	{ 0x1113, 0x9511, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1186, 0x1541, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1186, 0x1561, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1186, 0x1591, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x14f1, 0x1803, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CONEXANT },
-	{ 0x1626, 0x8410, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1737, 0xAB09, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x1737, 0xAB08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x17B3, 0xAB08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
-	{ 0x10b7, 0x9300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET }, /* 3Com 3CSOHO100B-TX */
-	{ 0x14ea, 0xab08, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET }, /* Planex FNW-3602-TX */
-	{ 0x1414, 0x0001, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET }, /* Microsoft MN-120 */
-	{ 0x1414, 0x0002, PCI_ANY_ID, PCI_ANY_ID, 0, 0, COMET },
+	{ PCI_DEVICE(0x1113, 0x1216), .driver_data = COMET },
+	{ PCI_DEVICE(0x1113, 0x1217), .driver_data = MX98715 },
+	{ PCI_DEVICE(0x1113, 0x9511), .driver_data = COMET },
+	{ PCI_DEVICE(0x1186, 0x1541), .driver_data = COMET },
+	{ PCI_DEVICE(0x1186, 0x1561), .driver_data = COMET },
+	{ PCI_DEVICE(0x1186, 0x1591), .driver_data = COMET },
+	{ PCI_DEVICE(0x14f1, 0x1803), .driver_data = CONEXANT },
+	{ PCI_DEVICE(0x1626, 0x8410), .driver_data = COMET },
+	{ PCI_DEVICE(0x1737, 0xAB09), .driver_data = COMET },
+	{ PCI_DEVICE(0x1737, 0xAB08), .driver_data = COMET },
+	{ PCI_DEVICE(0x17B3, 0xAB08), .driver_data = COMET },
+	{ PCI_DEVICE(0x10b7, 0x9300), .driver_data = COMET }, /* 3Com 3CSOHO100B-TX */
+	{ PCI_DEVICE(0x14ea, 0xab08), .driver_data = COMET }, /* Planex FNW-3602-TX */
+	{ PCI_DEVICE(0x1414, 0x0001), .driver_data = COMET }, /* Microsoft MN-120 */
+	{ PCI_DEVICE(0x1414, 0x0002), .driver_data = COMET },
 	{ } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, tulip_pci_tbl);
@@ -1279,8 +1279,8 @@ static const struct net_device_ops tulip_netdev_ops = {
 };
 
 static const struct pci_device_id early_486_chipsets[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82424) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_496) },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82424) },
+	{ PCI_VDEVICE(SI, PCI_DEVICE_ID_SI_496) },
 	{ },
 };
 

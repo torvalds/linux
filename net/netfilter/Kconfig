@@ -22,7 +22,7 @@ config NETFILTER_SKIP_EGRESS
 	def_bool NETFILTER_EGRESS && (NET_CLS_ACT || IFB)
 
 config NETFILTER_NETLINK
-	tristate
+	bool
 
 config NETFILTER_FAMILY_BRIDGE
 	bool
@@ -256,8 +256,7 @@ config NF_CONNTRACK_H323
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_IRC
-	tristate "IRC protocol support"
-	default m if NETFILTER_ADVANCED=n
+	tristate "IRC DCC protocol support (obsolete)"
 	help
 	  There is a commonly-used extension to IRC called
 	  Direct Client-to-Client Protocol (DCC).  This enables users to send
@@ -267,6 +266,8 @@ config NF_CONNTRACK_IRC
 	  using NAT, this extension will enable you to send files and initiate
 	  chats.  Note that you do NOT need this extension to get files or
 	  have others initiate chats, or everything else in IRC.
+	  DCC tracking behind NAT requires plaintext (unencrypted) IRC, so
+	  this helper is of limited use these days.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -308,17 +309,17 @@ config NF_CONNTRACK_SNMP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_PPTP
-	tristate "PPtP protocol support"
+	tristate "PPtP protocol support (deprecated)"
 	depends on NETFILTER_ADVANCED
 	select NF_CT_PROTO_GRE
 	help
 	  This module adds support for PPTP (Point to Point Tunnelling
 	  Protocol, RFC2637) connection tracking and NAT.
 
-	  If you are running PPTP sessions over a stateful firewall or NAT
+	  If you are still running PPTP sessions over a stateful firewall or NAT
 	  box, you may want to enable this feature.
 
-	  Please note that not all PPTP modes of operation are supported yet.
+	  Please note that not all PPTP modes of operation are supported.
 	  Specifically these limitations exist:
 	    - Blindly assumes that control connections are always established
 	      in PNS->PAC direction. This is a violation of RFC2637.
@@ -1648,6 +1649,14 @@ config NETFILTER_XT_MATCH_U32
 
 endif # NETFILTER_XTABLES
 
+config GCOV_PROFILE_NETFILTER
+	bool "Enable GCOV profiling for netfilter"
+	depends on GCOV_KERNEL
+	help
+	  Enable GCOV profiling for netfilter to check which functions/lines
+	  are executed.
+
+	  If unsure, say N.
 endmenu
 
 source "net/netfilter/ipset/Kconfig"

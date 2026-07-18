@@ -22,6 +22,7 @@
 #include "util/cpumap.h"
 
 #include "util/debug.h"
+#include "util/event.h"
 #include "util/string2.h"
 #include "util/util.h"
 
@@ -171,12 +172,12 @@ static int insert_caller_stat(unsigned long call_site,
 	return 0;
 }
 
-static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_alloc_event(struct perf_sample *sample)
 {
-	unsigned long ptr = evsel__intval(evsel, sample, "ptr"),
-		      call_site = evsel__intval(evsel, sample, "call_site");
-	int bytes_req = evsel__intval(evsel, sample, "bytes_req"),
-	    bytes_alloc = evsel__intval(evsel, sample, "bytes_alloc");
+	unsigned long ptr = perf_sample__intval(sample, "ptr"),
+		      call_site = perf_sample__intval(sample, "call_site");
+	int bytes_req = perf_sample__intval(sample, "bytes_req"),
+	    bytes_alloc = perf_sample__intval(sample, "bytes_alloc");
 
 	if (insert_alloc_stat(call_site, ptr, bytes_req, bytes_alloc, sample->cpu) ||
 	    insert_caller_stat(call_site, bytes_req, bytes_alloc))
@@ -198,11 +199,11 @@ static int evsel__process_alloc_event(struct evsel *evsel, struct perf_sample *s
 	 * If the tracepoint contains the field "node" the tool stats the
 	 * cross allocation.
 	 */
-	if (evsel__field(evsel, "node")) {
+	if (evsel__field(sample->evsel, "node")) {
 		int node1, node2;
 
 		node1 = cpu__get_node((struct perf_cpu){.cpu = sample->cpu});
-		node2 = evsel__intval(evsel, sample, "node");
+		node2 = perf_sample__intval(sample, "node");
 
 		/*
 		 * If the field "node" is NUMA_NO_NODE (-1), we don't take it
@@ -243,9 +244,9 @@ static struct alloc_stat *search_alloc_stat(unsigned long ptr,
 	return NULL;
 }
 
-static int evsel__process_free_event(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_free_event(struct perf_sample *sample)
 {
-	unsigned long ptr = evsel__intval(evsel, sample, "ptr");
+	unsigned long ptr = perf_sample__intval(sample, "ptr");
 	struct alloc_stat *s_alloc, *s_caller;
 
 	s_alloc = search_alloc_stat(ptr, 0, &root_alloc_stat, ptr_cmp);
@@ -394,7 +395,7 @@ static int build_alloc_func_list(void)
  * Find first non-memory allocation function from callchain.
  * The allocation functions are in the 'alloc_func_list'.
  */
-static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
+static u64 find_callsite(struct perf_sample *sample)
 {
 	struct addr_location al;
 	struct machine *machine = &kmem_session->machines.host;
@@ -414,7 +415,7 @@ static u64 find_callsite(struct evsel *evsel, struct perf_sample *sample)
 	if (cursor == NULL)
 		goto out;
 
-	sample__resolve_callchain(sample, cursor, NULL, evsel, &al, 16);
+	sample__resolve_callchain(sample, cursor, /*parent=*/NULL, &al, 16);
 
 	callchain_cursor_commit(cursor);
 	while (true) {
@@ -751,8 +752,7 @@ static char *compact_gfp_string(unsigned long gfp_flags)
 	return NULL;
 }
 
-static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
-			   unsigned int gfp_flags)
+static int parse_gfp_flags(struct perf_sample *sample, unsigned int gfp_flags)
 {
 	struct tep_record record = {
 		.cpu = sample->cpu,
@@ -773,7 +773,7 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	tp_format = evsel__tp_format(evsel);
+	tp_format = evsel__tp_format(sample->evsel);
 	if (tp_format)
 		tep_print_event(tp_format->tep, &seq, &record, "%s", TEP_PRINT_INFO);
 
@@ -784,17 +784,21 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 
 			new = realloc(gfps, (nr_gfps + 1) * sizeof(*gfps));
 			if (new == NULL)
-				return -ENOMEM;
+				goto err_out;
 
 			gfps = new;
-			new += nr_gfps++;
+			new += nr_gfps;
 
 			new->flags = gfp_flags;
 			new->human_readable = strdup(str + 10);
+			if (!new->human_readable)
+				goto err_out;
 			new->compact_str = compact_gfp_flags(str + 10);
-			if (!new->human_readable || !new->compact_str)
-				return -ENOMEM;
-
+			if (!new->compact_str) {
+				free(new->human_readable);
+				goto err_out;
+			}
+			nr_gfps++;
 			qsort(gfps, nr_gfps, sizeof(*gfps), gfpcmp);
 		}
 
@@ -803,15 +807,17 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 
 	trace_seq_destroy(&seq);
 	return 0;
+err_out:
+	trace_seq_destroy(&seq);
+	return -ENOMEM;
 }
 
-static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_page_alloc_event(struct perf_sample *sample)
 {
 	u64 page;
-	unsigned int order = evsel__intval(evsel, sample, "order");
-	unsigned int gfp_flags = evsel__intval(evsel, sample, "gfp_flags");
-	unsigned int migrate_type = evsel__intval(evsel, sample,
-						       "migratetype");
+	unsigned int order = perf_sample__intval(sample, "order");
+	unsigned int gfp_flags = perf_sample__intval(sample, "gfp_flags");
+	unsigned int migrate_type = perf_sample__intval(sample, "migratetype");
 	u64 bytes = kmem_page_size << order;
 	u64 callsite;
 	struct page_stat *pstat;
@@ -821,10 +827,20 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 		.migrate_type = migrate_type,
 	};
 
+	if (order >= MAX_PAGE_ORDER) {
+		pr_debug("Out-of-bounds order %u\n", order);
+		return -1;
+	}
+
+	if (migrate_type >= MAX_MIGRATE_TYPES) {
+		pr_debug("Out-of-bounds migratetype %u\n", migrate_type);
+		return -1;
+	}
+
 	if (use_pfn)
-		page = evsel__intval(evsel, sample, "pfn");
+		page = perf_sample__intval(sample, "pfn");
 	else
-		page = evsel__intval(evsel, sample, "page");
+		page = perf_sample__intval(sample, "page");
 
 	nr_page_allocs++;
 	total_page_alloc_bytes += bytes;
@@ -836,10 +852,10 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 		return 0;
 	}
 
-	if (parse_gfp_flags(evsel, sample, gfp_flags) < 0)
+	if (parse_gfp_flags(sample, gfp_flags) < 0)
 		return -1;
 
-	callsite = find_callsite(evsel, sample);
+	callsite = find_callsite(sample);
 
 	/*
 	 * This is to find the current page (with correct gfp flags and
@@ -877,20 +893,25 @@ static int evsel__process_page_alloc_event(struct evsel *evsel, struct perf_samp
 	return 0;
 }
 
-static int evsel__process_page_free_event(struct evsel *evsel, struct perf_sample *sample)
+static int evsel__process_page_free_event(struct perf_sample *sample)
 {
 	u64 page;
-	unsigned int order = evsel__intval(evsel, sample, "order");
+	unsigned int order = perf_sample__intval(sample, "order");
 	u64 bytes = kmem_page_size << order;
 	struct page_stat *pstat;
 	struct page_stat this = {
 		.order = order,
 	};
 
+	if (order >= MAX_PAGE_ORDER) {
+		pr_debug("Out-of-bounds order %u\n", order);
+		return -1;
+	}
+
 	if (use_pfn)
-		page = evsel__intval(evsel, sample, "pfn");
+		page = perf_sample__intval(sample, "pfn");
 	else
-		page = evsel__intval(evsel, sample, "page");
+		page = perf_sample__intval(sample, "page");
 
 	nr_page_frees++;
 	total_page_free_bytes += bytes;
@@ -954,33 +975,35 @@ static bool perf_kmem__skip_sample(struct perf_sample *sample)
 	return false;
 }
 
-typedef int (*tracepoint_handler)(struct evsel *evsel,
-				  struct perf_sample *sample);
+typedef int (*tracepoint_handler)(struct perf_sample *sample);
 
 static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct evsel *evsel,
 				struct machine *machine)
 {
+	struct evsel *evsel = sample->evsel;
 	int err = 0;
 	struct thread *thread = machine__findnew_thread(machine, sample->pid,
 							sample->tid);
 
 	if (thread == NULL) {
-		pr_debug("problem processing %d event, skipping it.\n",
-			 event->header.type);
+		pr_debug("problem processing %s (%u) event at offset %#" PRIx64 ", skipping it.\n",
+			 perf_event__name(event->header.type), event->header.type,
+			 sample->file_offset);
 		return -1;
 	}
 
-	if (perf_kmem__skip_sample(sample))
+	if (perf_kmem__skip_sample(sample)) {
+		thread__put(thread);
 		return 0;
+	}
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread__tid(thread));
 
 	if (evsel->handler != NULL) {
 		tracepoint_handler f = evsel->handler;
-		err = f(evsel, sample);
+		err = f(sample);
 	}
 
 	thread__put(thread);

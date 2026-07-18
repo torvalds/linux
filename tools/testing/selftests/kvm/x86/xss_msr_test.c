@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	bool xss_in_msr_list;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
-	uint64_t xss_val;
+	u64 xss_val;
 	int i, r;
 
 	/* Create VM */

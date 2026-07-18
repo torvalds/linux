@@ -8,7 +8,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
@@ -745,25 +744,17 @@ static int rt1316_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt1316_sdw_priv *rt1316 = dev_get_drvdata(dev);
-	unsigned long time;
+	int ret;
 
 	if (!rt1316->first_hw_init)
 		return 0;
 
-	if (!slave->unattach_request)
-		goto regmap_sync;
-
-	time = wait_for_completion_timeout(&slave->initialization_complete,
-				msecs_to_jiffies(RT1316_PROBE_TIMEOUT));
-	if (!time) {
-		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
+	ret = sdw_slave_wait_for_init(slave, RT1316_PROBE_TIMEOUT);
+	if (ret) {
 		sdw_show_ping_status(slave->bus, true);
-
-		return -ETIMEDOUT;
+		return ret;
 	}
 
-regmap_sync:
-	slave->unattach_request = 0;
 	regcache_cache_only(rt1316->regmap, false);
 	regcache_sync(rt1316->regmap);
 

@@ -144,7 +144,6 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 		goto out_unlock;
 
 	list_for_each_entry(p, &ctrl->subsys->hosts, entry) {
-		pr_debug("check %s\n", nvmet_host_name(p->host));
 		if (strcmp(nvmet_host_name(p->host), ctrl->hostnqn))
 			continue;
 		host = p->host;
@@ -189,11 +188,12 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 		ctrl->host_key = NULL;
 		goto out_free_hash;
 	}
+#ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
 	pr_debug("%s: using hash %s key %*ph\n", __func__,
 		 ctrl->host_key->hash > 0 ?
 		 nvme_auth_hmac_name(ctrl->host_key->hash) : "none",
 		 (int)ctrl->host_key->len, ctrl->host_key->key);
-
+#endif
 	nvme_auth_free_key(ctrl->ctrl_key);
 	if (!host->dhchap_ctrl_secret) {
 		ctrl->ctrl_key = NULL;
@@ -207,11 +207,12 @@ u8 nvmet_setup_auth(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, bool reset)
 		ctrl->ctrl_key = NULL;
 		goto out_free_hash;
 	}
+#ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
 	pr_debug("%s: using ctrl hash %s key %*ph\n", __func__,
 		 ctrl->ctrl_key->hash > 0 ?
 		 nvme_auth_hmac_name(ctrl->ctrl_key->hash) : "none",
 		 (int)ctrl->ctrl_key->len, ctrl->ctrl_key->key);
-
+#endif
 out_free_hash:
 	if (ret) {
 		if (ctrl->host_key) {
@@ -229,9 +230,6 @@ out_unlock:
 void nvmet_auth_sq_free(struct nvmet_sq *sq)
 {
 	cancel_delayed_work(&sq->auth_expired_work);
-#ifdef CONFIG_NVME_TARGET_TCP_TLS
-	sq->tls_key = NULL;
-#endif
 	kfree(sq->dhchap_c1);
 	sq->dhchap_c1 = NULL;
 	kfree(sq->dhchap_c2);
@@ -320,7 +318,6 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 		if (ret)
 			goto out_free_challenge;
 	}
-
 	pr_debug("ctrl %d qid %d host response seq %u transaction %d\n",
 		 ctrl->cntlid, req->sq->qid, req->sq->dhchap_s1,
 		 req->sq->dhchap_tid);
@@ -402,11 +399,12 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 	put_unaligned_le16(req->sq->dhchap_tid, buf);
 	nvme_auth_hmac_update(&hmac, buf, 2);
 
-	memset(buf, 0, 4);
+	*buf = req->sq->sc_c;
 	nvme_auth_hmac_update(&hmac, buf, 1);
 	nvme_auth_hmac_update(&hmac, "Controller", 10);
 	nvme_auth_hmac_update(&hmac, ctrl->subsys->subsysnqn,
 			      strlen(ctrl->subsys->subsysnqn));
+	memset(buf, 0, 4);
 	nvme_auth_hmac_update(&hmac, buf, 1);
 	nvme_auth_hmac_update(&hmac, ctrl->hostnqn, strlen(ctrl->hostnqn));
 	nvme_auth_hmac_final(&hmac, response);
@@ -436,8 +434,10 @@ int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
 		ret = -EINVAL;
 	} else {
 		memcpy(buf, ctrl->dh_key, buf_size);
+#ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
 		pr_debug("%s: ctrl %d public key %*ph\n", __func__,
 			 ctrl->cntlid, (int)buf_size, buf);
+#endif
 	}
 
 	return ret;
@@ -449,21 +449,23 @@ int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	int ret;
 
-	req->sq->dhchap_skey_len = ctrl->dh_keysize;
+	req->sq->dhchap_skey_len = nvme_auth_hmac_hash_len(ctrl->shash_id);
 	req->sq->dhchap_skey = kzalloc(req->sq->dhchap_skey_len, GFP_KERNEL);
 	if (!req->sq->dhchap_skey)
 		return -ENOMEM;
-	ret = nvme_auth_gen_shared_secret(ctrl->dh_tfm,
-					  pkey, pkey_size,
-					  req->sq->dhchap_skey,
-					  req->sq->dhchap_skey_len);
+	ret = nvme_auth_gen_session_key(ctrl->dh_tfm,
+					pkey, pkey_size,
+					req->sq->dhchap_skey,
+					req->sq->dhchap_skey_len,
+					ctrl->shash_id);
 	if (ret)
-		pr_debug("failed to compute shared secret, err %d\n", ret);
+		pr_debug("failed to compute session key, err %d\n", ret);
+#ifdef CONFIG_NVME_TARGET_AUTH_DEBUG
 	else
-		pr_debug("%s: shared secret %*ph\n", __func__,
+		pr_debug("%s: session key %*ph\n", __func__,
 			 (int)req->sq->dhchap_skey_len,
 			 req->sq->dhchap_skey);
-
+#endif
 	return ret;
 }
 

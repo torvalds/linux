@@ -10,7 +10,6 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/crc8.h>
@@ -633,7 +632,7 @@ static const struct of_device_id icp10100_of_match[] = {
 MODULE_DEVICE_TABLE(of, icp10100_of_match);
 
 static const struct i2c_device_id icp10100_id[] = {
-	{ "icp10100" },
+	{ .name = "icp10100" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, icp10100_id);

@@ -404,17 +404,15 @@ static const struct pci_error_handlers liquidio_err_handler = {
 
 static const struct pci_device_id liquidio_pci_tbl[] = {
 	{       /* 68xx */
-		PCI_VENDOR_ID_CAVIUM, 0x91, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
+		PCI_VDEVICE(CAVIUM, 0x0091)
 	},
 	{       /* 66xx */
-		PCI_VENDOR_ID_CAVIUM, 0x92, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
+		PCI_VDEVICE(CAVIUM, 0x0092)
 	},
 	{       /* 23xx pf */
-		PCI_VENDOR_ID_CAVIUM, 0x9702, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0
+		PCI_VDEVICE(CAVIUM, 0x9702)
 	},
-	{
-		0, 0, 0, 0, 0, 0, 0
-	}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, liquidio_pci_tbl);
 

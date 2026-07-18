@@ -198,7 +198,7 @@ static int hi655x_regulator_probe(struct platform_device *pdev)
 
 static const struct platform_device_id hi655x_regulator_table[] = {
 	{ .name = "hi655x-regulator" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, hi655x_regulator_table);
 

@@ -47,7 +47,7 @@ static inline bool ia_css_circbuf_desc_is_full(
     ia_css_circbuf_desc_t *cb_desc)
 {
 	OP___assert(cb_desc);
-	return (OP_std_modadd(cb_desc->end, 1, cb_desc->size) == cb_desc->start);
+	return ((cb_desc->end + 1) % cb_desc->size) == cb_desc->start;
 }
 
 /**
@@ -78,20 +78,15 @@ static inline uint8_t ia_css_circbuf_desc_get_pos_at_offset(
     u32 base,
     int offset)
 {
-	u8 dest;
-
 	OP___assert(cb_desc);
 	OP___assert(cb_desc->size > 0);
 
 	/* step 1: adjust the offset  */
-	while (offset < 0) {
+	while (offset < 0)
 		offset += cb_desc->size;
-	}
 
 	/* step 2: shift and round by the upper limit */
-	dest = OP_std_modadd(base, offset, cb_desc->size);
-
-	return dest;
+	return (base + offset) % cb_desc->size;
 }
 
 /**

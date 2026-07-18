@@ -163,4 +163,4 @@ BEGIN {
     }
 }
 
-// && ! /clksrc_clk.*=.*{/ { print $0 }
+// && ! /clksrc_clk.*=.*{/ { print $0 }}

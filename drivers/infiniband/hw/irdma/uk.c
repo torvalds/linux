@@ -1568,15 +1568,12 @@ static const struct irdma_wqe_uk_ops iw_wqe_uk_ops_gen_1 = {
  * irdma_setup_connection_wqes - setup WQEs necessary to complete
  * connection.
  * @qp: hw qp (user and kernel)
- * @info: qp initialization info
  */
-static void irdma_setup_connection_wqes(struct irdma_qp_uk *qp,
-					struct irdma_qp_uk_init_info *info)
+static void irdma_setup_connection_wqes(struct irdma_qp_uk *qp)
 {
 	u16 move_cnt = 1;
 
-	if (!info->legacy_mode &&
-	    (qp->uk_attrs->feature_flags & IRDMA_FEATURE_RTS_AE))
+	if (qp->uk_attrs->feature_flags & IRDMA_FEATURE_RTS_AE)
 		move_cnt = 3;
 
 	qp->conn_wqes = move_cnt;
@@ -1727,7 +1724,7 @@ int irdma_uk_qp_init(struct irdma_qp_uk *qp, struct irdma_qp_uk_init_info *info)
 	sq_ring_size = qp->sq_size << info->sq_shift;
 	IRDMA_RING_INIT(qp->sq_ring, sq_ring_size);
 	if (info->first_sq_wq) {
-		irdma_setup_connection_wqes(qp, info);
+		irdma_setup_connection_wqes(qp);
 		qp->swqe_polarity = 1;
 		qp->first_sq_wq = true;
 	} else {

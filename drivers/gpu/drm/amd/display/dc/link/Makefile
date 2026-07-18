@@ -45,6 +45,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_LINK_ACCESSORIES)
 LINK_HWSS = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o \
 link_hwss_dio_fixed_vs_pe_retimer.o link_hwss_hpo_fixed_vs_pe_retimer_dp.o \
 link_hwss_virtual.o
+LINK_HWSS += link_hwss_hpo_frl.o
 
 AMD_DAL_LINK_HWSS = $(addprefix $(AMDDALPATH)/dc/link/hwss/, \
 $(LINK_HWSS))
@@ -58,6 +59,7 @@ link_dp_training.o link_dp_training_8b_10b.o link_dp_training_128b_132b.o \
 link_dp_training_dpia.o link_dp_training_auxless.o \
 link_dp_training_fixed_vs_pe_retimer.o link_dp_phy.o link_dp_capability.o \
 link_edp_panel_control.o link_dp_panel_replay.o link_dp_irq_handler.o link_dp_dpia_bw.o
+LINK_PROTOCOLS += link_hdmi_frl.o
 
 AMD_DAL_LINK_PROTOCOLS = $(addprefix $(AMDDALPATH)/dc/link/protocols/, \
 $(LINK_PROTOCOLS))

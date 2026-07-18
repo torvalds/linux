@@ -196,10 +196,10 @@ static int apci1516_pci_probe(struct pci_dev *dev,
 }
 
 static const struct pci_device_id apci1516_pci_table[] = {
-	{ PCI_VDEVICE(ADDIDATA, 0x1000), BOARD_APCI1016 },
-	{ PCI_VDEVICE(ADDIDATA, 0x1001), BOARD_APCI1516 },
-	{ PCI_VDEVICE(ADDIDATA, 0x1002), BOARD_APCI2016 },
-	{ 0 }
+	{ PCI_VDEVICE(ADDIDATA, 0x1000), .driver_data = BOARD_APCI1016 },
+	{ PCI_VDEVICE(ADDIDATA, 0x1001), .driver_data = BOARD_APCI1516 },
+	{ PCI_VDEVICE(ADDIDATA, 0x1002), .driver_data = BOARD_APCI2016 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, apci1516_pci_table);
 

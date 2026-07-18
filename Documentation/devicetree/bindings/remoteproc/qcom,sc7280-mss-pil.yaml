@@ -147,6 +147,12 @@ properties:
     description: States used by the AP to signal the Hexagon core
     items:
       - description: Stop the modem
+        items:
+          - description: Phandle to the Shared Memory Point 2 Point device
+              handling the communication with a remote processor
+          - description: Single bit index to toggle in the value sent to
+              the remote processor
+            maximum: 32
 
   qcom,smem-state-names:
     description: The names of the state bits used for SMP2P output

@@ -187,6 +187,10 @@ to disable features using the feature number as defined in
 Protection can be disabled using clearcpuid=514. The number 514 is calculated
 from #define X86_FEATURE_UMIP (16*32 + 2).
 
+DO NOT USE this cmdline option in production - it is meant to be used only as
+a quick'n'dirty debugging aid to rule out a feature-enabling code is the
+culprit. If you use it, it'll taint the kernel.
+
 In addition, there exists a variety of custom command-line parameters that
 disable specific features. The list of parameters includes, but is not limited
 to, nofsgsbase, nosgx, noxsave, etc. 5-level paging can also be disabled using

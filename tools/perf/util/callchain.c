@@ -801,7 +801,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			 * symbol start. Otherwise do a faster comparison based
 			 * on the symbol start address.
 			 */
-			if (cnode->ms.sym->inlined || node->ms.sym->inlined) {
+			if (symbol__inlined(cnode->ms.sym) || symbol__inlined(node->ms.sym)) {
 				match = match_chain_strings(cnode->ms.sym->name,
 							    node->ms.sym->name);
 				if (match != MATCH_ERROR)
@@ -1170,7 +1170,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 
 int sample__resolve_callchain(struct perf_sample *sample,
 			      struct callchain_cursor *cursor, struct symbol **parent,
-			      struct evsel *evsel, struct addr_location *al,
+			      struct addr_location *al,
 			      int max_stack)
 {
 	if (sample->callchain == NULL && !symbol_conf.show_branchflag_count)
@@ -1178,7 +1178,7 @@ int sample__resolve_callchain(struct perf_sample *sample,
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
 	    perf_hpp_list.parent || symbol_conf.show_branchflag_count) {
-		return thread__resolve_callchain(al->thread, cursor, evsel, sample,
+		return thread__resolve_callchain(al->thread, cursor, sample,
 						 parent, al, max_stack);
 	}
 	return 0;
@@ -1245,7 +1245,7 @@ char *callchain_list__sym_name(struct callchain_list *cl,
 	int printed;
 
 	if (cl->ms.sym) {
-		const char *inlined = cl->ms.sym->inlined ? " (inlined)" : "";
+		const char *inlined = symbol__inlined(cl->ms.sym) ? " (inlined)" : "";
 
 		if (show_srcline && cl->srcline)
 			printed = scnprintf(bf, bfsize, "%s %s%s",
@@ -1578,6 +1578,21 @@ void free_callchain(struct callchain_root *root)
 	free_callchain_node(&root->node);
 }
 
+void callchain_cursor_cleanup(struct callchain_cursor *cursor)
+{
+	struct callchain_cursor_node *node, *next;
+
+	callchain_cursor_reset(cursor);
+
+	for (node = cursor->first; node; node = next) {
+		next = node->next;
+		free(node);
+	}
+	cursor->first = NULL;
+	cursor->last = &cursor->first;
+	cursor->curr = NULL;
+}
+
 static u64 decay_callchain_node(struct callchain_node *node)
 {
 	struct callchain_node *child;
@@ -1853,7 +1868,7 @@ s64 callchain_avg_cycles(struct callchain_node *cnode)
 	return cycles;
 }
 
-int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
+int sample__for_each_callchain_node(struct thread *thread,
 				    struct perf_sample *sample, int max_stack,
 				    bool symbols, callchain_iter_fn cb, void *data)
 {
@@ -1864,7 +1879,7 @@ int sample__for_each_callchain_node(struct thread *thread, struct evsel *evsel,
 		return -ENOMEM;
 
 	/* Fill in the callchain. */
-	ret = __thread__resolve_callchain(thread, cursor, evsel, sample,
+	ret = __thread__resolve_callchain(thread, cursor, sample,
 					  /*parent=*/NULL, /*root_al=*/NULL,
 					  max_stack, symbols);
 	if (ret)

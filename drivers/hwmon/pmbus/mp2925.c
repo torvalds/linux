@@ -305,9 +305,9 @@ static int mp2925_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mp2925_id[] = {
-	{"mp2925"},
-	{"mp2929"},
-	{}
+	{ .name = "mp2925" },
+	{ .name = "mp2929" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp2925_id);
 

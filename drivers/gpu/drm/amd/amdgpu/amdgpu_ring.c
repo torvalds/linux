@@ -264,31 +264,31 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->rptr_offs);
+	r = amdgpu_wb_get(adev, &ring->rptr_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->wptr_offs);
+	r = amdgpu_wb_get(adev, &ring->wptr_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->fence_offs);
+	r = amdgpu_wb_get(adev, &ring->fence_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring fence_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->trail_fence_offs);
+	r = amdgpu_wb_get(adev, &ring->trail_fence_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring trail_fence_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->cond_exe_offs);
+	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
 		return r;
@@ -401,11 +401,11 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 
 	ring->sched.ready = false;
 
-	amdgpu_device_wb_free(ring->adev, ring->rptr_offs);
-	amdgpu_device_wb_free(ring->adev, ring->wptr_offs);
+	amdgpu_wb_free(ring->adev, ring->rptr_offs);
+	amdgpu_wb_free(ring->adev, ring->wptr_offs);
 
-	amdgpu_device_wb_free(ring->adev, ring->cond_exe_offs);
-	amdgpu_device_wb_free(ring->adev, ring->fence_offs);
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+	amdgpu_wb_free(ring->adev, ring->fence_offs);
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
@@ -484,7 +484,7 @@ bool amdgpu_ring_soft_recovery(struct amdgpu_ring *ring, unsigned int vmid,
 static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 					    size_t size, loff_t *offset)
 {
-	const uint8_t ring_header_size = 12;
+	const u8 ring_header_size = 12;
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
 	struct ras_cmd_cper_snapshot_req *snapshot_req __free(kfree) =
 		kzalloc_obj(struct ras_cmd_cper_snapshot_req);
@@ -494,49 +494,103 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 		kzalloc_obj(struct ras_cmd_cper_record_req);
 	struct ras_cmd_cper_record_rsp *record_rsp __free(kfree) =
 		kzalloc_obj(struct ras_cmd_cper_record_rsp);
-	uint8_t *ring_header __free(kfree) =
+	u32 *ring_header __free(kfree) =
 		kzalloc(ring_header_size, GFP_KERNEL);
-	uint32_t total_cper_num;
-	uint64_t start_cper_id;
+	char __user *data_buf = buf;
+	size_t data_size = size;
+	u32 total_cper_num;
+	u64 start_cper_id;
+	u64 cper_offset;
+	size_t chunk_size;
+	size_t total_data_size = 0;
+	bool read_header;
 	int r;
 
 	if (!snapshot_req || !snapshot_rsp || !record_req || !record_rsp ||
 	    !ring_header)
 		return -ENOMEM;
 
-	if (!(*offset)) {
+	read_header = !(*offset);
+	cper_offset = read_header ? 0 : *offset - 1;
+
+	if (read_header) {
 		/* Need at least 12 bytes for the header on the first read */
 		if (size < ring_header_size)
 			return -EINVAL;
-
-		if (copy_to_user(buf, ring_header, ring_header_size))
-			return -EFAULT;
-		buf += ring_header_size;
-		size -= ring_header_size;
+		data_buf += ring_header_size;
+		data_size -= ring_header_size;
 	}
 
 	r = amdgpu_ras_mgr_handle_ras_cmd(ring->adev,
 					  RAS_CMD__GET_CPER_SNAPSHOT,
 					  snapshot_req, sizeof(struct ras_cmd_cper_snapshot_req),
 					  snapshot_rsp, sizeof(struct ras_cmd_cper_snapshot_rsp));
-	if (r || !snapshot_rsp->total_cper_num)
-		return r;
-
-	start_cper_id = snapshot_rsp->start_cper_id;
-	total_cper_num = snapshot_rsp->total_cper_num;
-
-	record_req->buf_ptr = (uint64_t)(uintptr_t)buf;
-	record_req->buf_size = size;
-	record_req->cper_start_id = start_cper_id + *offset;
-	record_req->cper_num = total_cper_num;
-	r = amdgpu_ras_mgr_handle_ras_cmd(ring->adev, RAS_CMD__GET_CPER_RECORD,
-					  record_req, sizeof(struct ras_cmd_cper_record_req),
-					  record_rsp, sizeof(struct ras_cmd_cper_record_rsp));
 	if (r)
 		return r;
 
-	r = *offset ? record_rsp->real_data_size : record_rsp->real_data_size + ring_header_size;
-	(*offset) += record_rsp->real_cper_num;
+	if (!snapshot_rsp->total_cper_num) {
+		if (!read_header)
+			return 0;
+
+		if (copy_to_user(buf, ring_header, ring_header_size))
+			return -EFAULT;
+
+		*offset = 1;
+		return ring_header_size;
+	}
+
+	start_cper_id = snapshot_rsp->start_cper_id;
+	total_cper_num = snapshot_rsp->total_cper_num;
+	if (read_header && !data_size) {
+		if (copy_to_user(buf, ring_header, ring_header_size))
+			return -EFAULT;
+
+		*offset = cper_offset + 1;
+		return ring_header_size;
+	}
+
+	if (!data_size)
+		return 0;
+
+	while (data_size && cper_offset < total_cper_num) {
+		memset(record_req, 0, sizeof(*record_req));
+		memset(record_rsp, 0, sizeof(*record_rsp));
+		chunk_size = min_t(size_t, data_size, RAS_CMD_MAX_CPER_BUF_SZ);
+
+		record_req->buf_ptr = (u64)(uintptr_t)data_buf;
+		record_req->buf_size = chunk_size;
+		record_req->cper_start_id = start_cper_id + cper_offset;
+		record_req->cper_num = total_cper_num - cper_offset;
+		r = amdgpu_ras_mgr_handle_ras_cmd(ring->adev,
+						  RAS_CMD__GET_CPER_RECORD,
+						  record_req,
+						  sizeof(struct ras_cmd_cper_record_req),
+						  record_rsp,
+						  sizeof(struct ras_cmd_cper_record_rsp));
+		if (r)
+			return r;
+
+		if (!record_rsp->real_data_size || !record_rsp->real_cper_num)
+			break;
+		if (record_rsp->real_data_size > data_size)
+			return -EIO;
+
+		data_buf += record_rsp->real_data_size;
+		data_size -= record_rsp->real_data_size;
+		total_data_size += record_rsp->real_data_size;
+		cper_offset += record_rsp->real_cper_num;
+	}
+
+	if (read_header) {
+		ring_header[1] = total_data_size >> 2;
+		ring_header[2] = ring_header[1];
+
+		if (copy_to_user(buf, ring_header, ring_header_size))
+			return -EFAULT;
+	}
+
+	r = read_header ? total_data_size + ring_header_size : total_data_size;
+	*offset = cper_offset + 1;
 
 	return r;
 }
@@ -552,8 +606,9 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
 	struct amdgpu_ring *ring = file_inode(f)->i_private;
-	uint32_t value, result, early[3];
+	u32 value, result, early[3] = { 0 };
 	uint64_t p;
+	u32 avail_dw, start_dw, read_dw;
 	loff_t i;
 	int r;
 
@@ -565,10 +620,10 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 
 	result = 0;
 
-	if (*pos < 12) {
-		if (ring->funcs->type == AMDGPU_RING_TYPE_CPER)
-			mutex_lock(&ring->adev->cper.ring_lock);
+	if (ring->funcs->type == AMDGPU_RING_TYPE_CPER)
+		mutex_lock(&ring->adev->cper.ring_lock);
 
+	if (*pos < 12) {
 		early[0] = amdgpu_ring_get_rptr(ring) & ring->buf_mask;
 		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
 		early[2] = ring->wptr & ring->buf_mask;
@@ -600,13 +655,24 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 			*pos += 4;
 		}
 	} else {
+		early[0] = amdgpu_ring_get_rptr(ring) & ring->buf_mask;
+		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
+
 		p = early[0];
 		if (early[0] <= early[1])
-			size = (early[1] - early[0]);
+			avail_dw = early[1] - early[0];
 		else
-			size = ring->ring_size - (early[0] - early[1]);
+			avail_dw = ring->buf_mask + 1 - (early[0] - early[1]);
 
-		while (size) {
+		start_dw = (*pos > 12) ? ((*pos - 12) >> 2) : 0;
+		if (start_dw >= avail_dw)
+			goto out;
+
+		p = (p + start_dw) & ring->ptr_mask;
+		avail_dw -= start_dw;
+		read_dw = min_t(u32, avail_dw, size >> 2);
+
+		while (read_dw) {
 			if (p == early[1])
 				goto out;
 
@@ -619,9 +685,10 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 
 			buf += 4;
 			result += 4;
-			size--;
+			read_dw--;
 			p++;
 			p &= ring->ptr_mask;
+			*pos += 4;
 		}
 	}
 
@@ -864,6 +931,194 @@ int amdgpu_ring_reset_helper_end(struct amdgpu_ring *ring,
 
 	/* set an error on all fences from the context and reemit */
 	amdgpu_ring_set_fence_errors_and_reemit(ring, guilty_fence);
+
+	return 0;
+}
+
+/**
+ * amdgpu_multi_ring_reset_helper_begin() - Prepare multiple rings for a reset.
+ *
+ * @ring_type_mask: Bitmask of affected ring types
+ * @guilty_ring: The ring which is guilty of causing a reset.
+ * @guilty_fence: The fence which didn't signal on the guilty ring.
+ *
+ * Useful when performing a GPU reset method that affects
+ * multiple rings at the same time, such as an IP block soft
+ * reset. For example, a GFX IP block soft reset will affect
+ * every graphics and compute queue.
+ *
+ * This function should be called before such a reset.
+ *
+ * Prepare the affected rings before the reset, make sure to
+ * minimize collateral damage, and backup the contents of
+ * the rings. Then the caller can call the actual HW specific
+ * reset function.
+ *
+ * After the reset is complete, the caller should then call
+ * amdgpu_multi_ring_reset_helper_end() to restore the rings.
+ */
+void amdgpu_multi_ring_reset_helper_begin(const u32 ring_type_mask,
+					  struct amdgpu_ring *guilty_ring,
+					  struct amdgpu_fence *guilty_fence)
+{
+	struct amdgpu_device *adev = guilty_ring->adev;
+	struct amdgpu_fence *ring_guilty_fence;
+	struct amdgpu_ring *ring;
+	bool rings_busy;
+	int i;
+	u32 t;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/* Don't accept new submissions on the ring. */
+		if (amdgpu_ring_sched_ready(ring) && !drm_sched_is_stopped(&ring->sched))
+			drm_sched_wqueue_stop(&ring->sched);
+
+		/*
+		 * Clear the preempt condition to stop the ring
+		 * from starting its next submission. This ensures
+		 * that only the currently executing submission
+		 * can be rejected because of the reset and helps
+		 * minimize collateral damage.
+		 */
+		if (ring->funcs->init_cond_exec)
+			amdgpu_ring_set_preempt_cond_exec(ring, false);
+	}
+
+	/* Flush HDP cache so the GPU can see the updated COND_EXEC values */
+	amdgpu_device_flush_hdp(adev, NULL);
+
+	/*
+	 * Give some time for non-guilty rings to finish their
+	 * current submission, to try to minimize collateral damage.
+	 *
+	 * Note that this is just a best effort, but really there
+	 * is no way to really know which ring is actually responsible
+	 * because different rings may share resources, eg. a compute
+	 * ring may hog shader engines, causing a graphics ring to hang.
+	 */
+	for (t = 0; t < adev->usec_timeout; t += 10000) {
+		rings_busy = false;
+
+		/* Check if any of the non-guilty rings are busy */
+		for (i = 0; i < adev->num_rings; ++i) {
+			ring = adev->rings[i];
+
+			if (!(BIT(ring->funcs->type) & ring_type_mask))
+				continue;
+
+			if (ring == guilty_ring)
+				continue;
+
+			rings_busy |=
+				atomic_read(&ring->fence_drv.last_seq) !=
+				READ_ONCE(ring->fence_drv.sync_seq);
+		}
+
+		if (!rings_busy)
+			break;
+
+		mdelay(10);
+	}
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/*
+		 * Find guilty fences, ie. the fences that didn't signal
+		 * on each ring. At this point there is no way to know
+		 * which one is really responsible for the hang, and no
+		 * way to save any of them, so we treat all of them as guilty.
+		 */
+		ring_guilty_fence =
+			ring == guilty_ring ? guilty_fence :
+			amdgpu_ring_find_guilty_fence(ring);
+
+		/*
+		 * Backup current contents of the ring.
+		 * The helper takes care to only reemit unsignalled fences
+		 * so we don't have to worry about that here.
+		 */
+		amdgpu_ring_reset_helper_begin(ring, ring_guilty_fence);
+	}
+}
+
+/**
+ * amdgpu_multi_ring_reset_helper_end() - Prepare multiple rings for a reset.
+ *
+ * @ring_type_mask: Bitmask of affected ring types
+ * @guilty_ring: The ring which is guilty of causing a reset.
+ * @ret: Return code from the reset function.
+ *
+ * After calling amdgpu_multi_ring_reset_helper_begin()
+ * and executing the actual reset method, call this
+ * function to restore normal operation.
+ *
+ * In case the reset failed, this function should still
+ * be called to restore preemption state, but it won't attempt to
+ * fully restore the ring contents.
+ */
+int amdgpu_multi_ring_reset_helper_end(const u32 ring_type_mask,
+				       struct amdgpu_ring *guilty_ring, int ret)
+{
+	struct amdgpu_device *adev = guilty_ring->adev;
+	struct amdgpu_ring *ring;
+	int i, r;
+
+	/* Set preempt condition, rings are now allowed to execute submissions */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		if (ring->funcs->init_cond_exec)
+			amdgpu_ring_set_preempt_cond_exec(ring, true);
+	}
+
+	/* Flush HDP cache so the GPU can see the updated COND_EXEC values */
+	amdgpu_device_flush_hdp(adev, NULL);
+
+	/* If the reset was unsuccessful, return without restoring anything else. */
+	if (ret)
+		return ret;
+
+	/* Restore contents of all rings */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/* Restore contents of the ring */
+		r = amdgpu_ring_reset_helper_end(ring, ring->guilty_fence);
+		if (r) {
+			dev_err(adev->dev,
+				"Failed to recover ring %s after soft reset\n",
+				ring->name);
+			return r;
+		}
+	}
+
+	/* Accept submissions on all rings again */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		if (!amdgpu_ring_sched_ready(ring))
+			continue;
+
+		drm_sched_wqueue_start(&ring->sched);
+	}
 
 	return 0;
 }

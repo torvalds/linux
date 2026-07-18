@@ -1618,18 +1618,18 @@ static int lm85_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm85_id[] = {
-	{ "adm1027", adm1027 },
-	{ "adt7463", adt7463 },
-	{ "adt7468", adt7468 },
-	{ "lm85", lm85 },
-	{ "lm85b", lm85 },
-	{ "lm85c", lm85 },
-	{ "lm96000", lm96000 },
-	{ "emc6d100", emc6d100 },
-	{ "emc6d101", emc6d100 },
-	{ "emc6d102", emc6d102 },
-	{ "emc6d103", emc6d103 },
-	{ "emc6d103s", emc6d103s },
+	{ .name = "adm1027", .driver_data = adm1027 },
+	{ .name = "adt7463", .driver_data = adt7463 },
+	{ .name = "adt7468", .driver_data = adt7468 },
+	{ .name = "lm85", .driver_data = lm85 },
+	{ .name = "lm85b", .driver_data = lm85 },
+	{ .name = "lm85c", .driver_data = lm85 },
+	{ .name = "lm96000", .driver_data = lm96000 },
+	{ .name = "emc6d100", .driver_data = emc6d100 },
+	{ .name = "emc6d101", .driver_data = emc6d100 },
+	{ .name = "emc6d102", .driver_data = emc6d102 },
+	{ .name = "emc6d103", .driver_data = emc6d103 },
+	{ .name = "emc6d103s", .driver_data = emc6d103s },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm85_id);

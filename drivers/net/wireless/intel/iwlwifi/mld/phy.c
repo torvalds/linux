@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include <net/mac80211.h>
 
@@ -99,9 +99,9 @@ iwl_mld_nl80211_width_to_fw(enum nl80211_chan_width width)
 /* Maps the driver specific control channel position (relative to the center
  * freq) definitions to the fw values
  */
-u8 iwl_mld_get_fw_ctrl_pos(const struct cfg80211_chan_def *chandef)
+static u8 _iwl_mld_get_fw_ctrl_pos(u32 control, u32 cf1)
 {
-	int offs = chandef->chan->center_freq - chandef->center_freq1;
+	int offs = control - cf1;
 	int abs_offs = abs(offs);
 	u8 ret;
 
@@ -127,6 +127,12 @@ u8 iwl_mld_get_fw_ctrl_pos(const struct cfg80211_chan_def *chandef)
 	return ret;
 }
 
+u8 iwl_mld_get_fw_ctrl_pos(const struct cfg80211_chan_def *chandef)
+{
+	return _iwl_mld_get_fw_ctrl_pos(chandef->chan->center_freq,
+					chandef->center_freq1);
+}
+
 int iwl_mld_phy_fw_action(struct iwl_mld *mld,
 			  struct ieee80211_chanctx_conf *ctx, u32 action)
 {
@@ -149,6 +155,18 @@ int iwl_mld_phy_fw_action(struct iwl_mld *mld,
 			iwl_mld_nl80211_width_to_fw(ctx->ap.width);
 		cmd.sbb_ctrl_channel_loc = iwl_mld_get_fw_ctrl_pos(&ctx->ap);
 	}
+
+	/*
+	 * Set NPCA channel if NPCA is used; if not used, just set it to an
+	 * arbitrary channel on the other side to help firmware.
+	 */
+	if (chandef->npca_chan)
+		cmd.secondary_ctrl_chnl_loc =
+			_iwl_mld_get_fw_ctrl_pos(chandef->npca_chan->center_freq,
+						 chandef->center_freq1);
+	else
+		cmd.secondary_ctrl_chnl_loc =
+			cmd.ci.ctrl_pos ^ IWL_PHY_CTRL_POS_ABOVE;
 
 	ret = iwl_mld_send_cmd_pdu(mld, PHY_CONTEXT_CMD, &cmd);
 	if (ret)

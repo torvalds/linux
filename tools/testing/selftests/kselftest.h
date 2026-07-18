@@ -346,9 +346,9 @@ void ksft_test_result_code(int exit_code, const char *test_name,
 }
 
 /**
- * ksft_test_result() - Report test success based on truth of condition
+ * ksft_test_result_report() - Report test result based on a kselftest exit code
  *
- * @condition: if true, report test success, otherwise failure.
+ * @result: a kselftest exit code
  */
 #define ksft_test_result_report(result, fmt, ...) do {		\
 	switch (result) {					\
@@ -450,7 +450,7 @@ static inline __noreturn __printf(1, 2) void ksft_exit_skip(const char *msg, ...
 	 */
 	if (ksft_plan || ksft_test_num()) {
 		ksft_cnt.ksft_xskip++;
-		printf("ok %u # SKIP ", 1 + ksft_test_num());
+		printf("ok %u # SKIP ", ksft_test_num());
 	} else {
 		printf("1..0 # SKIP ");
 	}

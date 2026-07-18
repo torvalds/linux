@@ -153,6 +153,9 @@ On removal:
  3) release the futex lock, and
  4) clear the 'lock_op_pending' word.
 
+Please note that the removal of a robust futex purely in userspace is
+racy. Refer to the next chapter to learn more and how to avoid this.
+
 On exit, the kernel will consider the address stored in
 'list_op_pending' and the address of each 'lock word' found by walking
 the list starting at 'head'.  For each such address, if the bottom 30
@@ -182,3 +185,44 @@ any point:
 When the kernel sees a list entry whose 'lock word' doesn't have the
 current threads TID in the lower 30 bits, it does nothing with that
 entry, and goes on to the next entry.
+
+Robust release is racy
+----------------------
+
+The removal of a robust futex from the list is racy when doing it solely in
+userspace. Quoting Thomas Gleixner for the explanation:
+
+  The robust futex unlock mechanism is racy in respect to the clearing of the
+  robust_list_head::list_op_pending pointer because unlock and clearing the
+  pointer are not atomic. The race window is between the unlock and clearing
+  the pending op pointer. If the task is forced to exit in this window, exit
+  will access a potentially invalid pending op pointer when cleaning up the
+  robust list. That happens if another task manages to unmap the object
+  containing the lock before the cleanup, which results in an UAF. In the
+  worst case this UAF can lead to memory corruption when unrelated content
+  has been mapped to the same address by the time the access happens.
+
+A full in-depth analysis can be read at
+https://lore.kernel.org/lkml/20260316162316.356674433@kernel.org/
+
+To overcome that, the kernel needs to participate in the lock release operation.
+This ensures that the release happens "atomically" with regard to releasing
+the lock and removing the address from ``list_op_pending``. If the release is
+interrupted by a signal, the kernel will also verify if it interrupted the
+release operation.
+
+For the contended unlock case, where other threads are waiting for the lock
+release, there's the ``FUTEX_ROBUST_UNLOCK`` operation feature flag for the
+``futex()`` system call, which must be used with one of the following
+operations: ``FUTEX_WAKE``, ``FUTEX_WAKE_BITSET`` or ``FUTEX_UNLOCK_PI``.
+The kernel will release the lock (set the futex word to zero), clean the
+``list_op_pending`` field. Then, it will proceed with the normal wake path.
+
+For the non-contended path, there's still a race between checking the futex word
+and clearing the ``list_op_pending`` field. To solve this without the need of a
+complete system call, userspace should call the virtual syscall
+``__vdso_futex_robust_listXX_try_unlock()`` (where XX is either 32 or 64,
+depending on the size of the pointer). If the vDSO call succeeds, it means that
+it released the lock and cleared ``list_op_pending``. If it fails, that means
+that there are waiters for this lock and a call to ``futex()`` syscall with
+``FUTEX_ROBUST_UNLOCK`` is needed.

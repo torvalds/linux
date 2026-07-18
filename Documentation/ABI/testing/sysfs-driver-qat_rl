@@ -209,7 +209,7 @@ Date:		January 2024
 KernelVersion:	6.7
 Contact:	qat-linux@intel.com
 Description:
-		(RW) This file will return the remaining capability for a
+		(RW) This file will return the remaining capacity for a
 		particular service/sla. This is the remaining value that a new
 		SLA can be set to or a current SLA can be increased with.
 

@@ -166,7 +166,7 @@ static void __init m53xx_qspi_init(void)
 {
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	/* setup QSPS pins for QSPI with gpio CS control */
-	writew(0x01f0, MCFGPIO_PAR_QSPI);
+	mcf_write16(0x01f0, MCFGPIO_PAR_QSPI);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 }
 
@@ -177,9 +177,9 @@ static void __init m53xx_i2c_init(void)
 #if IS_ENABLED(CONFIG_I2C_IMX)
 	/* setup Port AS Pin Assignment Register for I2C */
 	/*  set PASPA0 to SCL and PASPA1 to SDA */
-	u8 r = readb(MCFGPIO_PAR_FECI2C);
+	u8 r = mcf_read8(MCFGPIO_PAR_FECI2C);
 	r |= 0x0f;
-	writeb(r, MCFGPIO_PAR_FECI2C);
+	mcf_write8(r, MCFGPIO_PAR_FECI2C);
 #endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
@@ -188,7 +188,7 @@ static void __init m53xx_i2c_init(void)
 static void __init m53xx_uarts_init(void)
 {
 	/* UART GPIO initialization */
-	writew(readw(MCFGPIO_PAR_UART) | 0x0FFF, MCFGPIO_PAR_UART);
+	mcf_write16(mcf_read16(MCFGPIO_PAR_UART) | 0x0FFF, MCFGPIO_PAR_UART);
 }
 
 /***************************************************************************/
@@ -198,14 +198,14 @@ static void __init m53xx_fec_init(void)
 	u8 v;
 
 	/* Set multi-function pins to ethernet mode for fec0 */
-	v = readb(MCFGPIO_PAR_FECI2C);
+	v = mcf_read8(MCFGPIO_PAR_FECI2C);
 	v |= MCF_GPIO_PAR_FECI2C_PAR_MDC_EMDC |
 		MCF_GPIO_PAR_FECI2C_PAR_MDIO_EMDIO;
-	writeb(v, MCFGPIO_PAR_FECI2C);
+	mcf_write8(v, MCFGPIO_PAR_FECI2C);
 
-	v = readb(MCFGPIO_PAR_FEC);
+	v = mcf_read8(MCFGPIO_PAR_FEC);
 	v = MCF_GPIO_PAR_FEC_PAR_FEC_7W_FEC | MCF_GPIO_PAR_FEC_PAR_FEC_MII_FEC;
-	writeb(v, MCFGPIO_PAR_FEC);
+	mcf_write8(v, MCFGPIO_PAR_FEC);
 }
 
 /***************************************************************************/
@@ -305,7 +305,7 @@ asmlinkage void __init sysinit(void)
 void wtm_init(void)
 {
 	/* Disable watchdog timer */
-	writew(0, MCF_WTM_WCR);
+	mcf_write16(0, MCF_WTM_WCR);
 }
 
 #define MCF_SCM_BCR_GBW		(0x00000100)
@@ -314,53 +314,53 @@ void wtm_init(void)
 void scm_init(void)
 {
 	/* All masters are trusted */
-	writel(0x77777777, MCF_SCM_MPR);
+	mcf_write32(0x77777777, MCF_SCM_MPR);
     
 	/* Allow supervisor/user, read/write, and trusted/untrusted
 	   access to all slaves */
-	writel(0, MCF_SCM_PACRA);
-	writel(0, MCF_SCM_PACRB);
-	writel(0, MCF_SCM_PACRC);
-	writel(0, MCF_SCM_PACRD);
-	writel(0, MCF_SCM_PACRE);
-	writel(0, MCF_SCM_PACRF);
+	mcf_write32(0, MCF_SCM_PACRA);
+	mcf_write32(0, MCF_SCM_PACRB);
+	mcf_write32(0, MCF_SCM_PACRC);
+	mcf_write32(0, MCF_SCM_PACRD);
+	mcf_write32(0, MCF_SCM_PACRE);
+	mcf_write32(0, MCF_SCM_PACRF);
 
 	/* Enable bursts */
-	writel(MCF_SCM_BCR_GBR | MCF_SCM_BCR_GBW, MCF_SCM_BCR);
+	mcf_write32(MCF_SCM_BCR_GBR | MCF_SCM_BCR_GBW, MCF_SCM_BCR);
 }
 
 
 void fbcs_init(void)
 {
-	writeb(0x3E, MCFGPIO_PAR_CS);
+	mcf_write8(0x3E, MCFGPIO_PAR_CS);
 
 	/* Latch chip select */
-	writel(0x10080000, MCF_FBCS1_CSAR);
+	mcf_write32(0x10080000, MCF_FBCS1_CSAR);
 
-	writel(0x002A3780, MCF_FBCS1_CSCR);
-	writel(MCF_FBCS_CSMR_BAM_2M | MCF_FBCS_CSMR_V, MCF_FBCS1_CSMR);
+	mcf_write32(0x002A3780, MCF_FBCS1_CSCR);
+	mcf_write32(MCF_FBCS_CSMR_BAM_2M | MCF_FBCS_CSMR_V, MCF_FBCS1_CSMR);
 
 	/* Initialize latch to drive signals to inactive states */
-	writew(0xffff, 0x10080000);
+	mcf_write16(0xffff, 0x10080000);
 
 	/* External SRAM */
-	writel(EXT_SRAM_ADDRESS, MCF_FBCS1_CSAR);
-	writel(MCF_FBCS_CSCR_PS_16 |
+	mcf_write32(EXT_SRAM_ADDRESS, MCF_FBCS1_CSAR);
+	mcf_write32(MCF_FBCS_CSCR_PS_16 |
 		MCF_FBCS_CSCR_AA |
 		MCF_FBCS_CSCR_SBM |
 		MCF_FBCS_CSCR_WS(1),
 		MCF_FBCS1_CSCR);
-	writel(MCF_FBCS_CSMR_BAM_512K | MCF_FBCS_CSMR_V, MCF_FBCS1_CSMR);
+	mcf_write32(MCF_FBCS_CSMR_BAM_512K | MCF_FBCS_CSMR_V, MCF_FBCS1_CSMR);
 
 	/* Boot Flash connected to FBCS0 */
-	writel(FLASH_ADDRESS, MCF_FBCS0_CSAR);
-	writel(MCF_FBCS_CSCR_PS_16 |
+	mcf_write32(FLASH_ADDRESS, MCF_FBCS0_CSAR);
+	mcf_write32(MCF_FBCS_CSCR_PS_16 |
 		MCF_FBCS_CSCR_BEM |
 		MCF_FBCS_CSCR_AA |
 		MCF_FBCS_CSCR_SBM |
 		MCF_FBCS_CSCR_WS(7),
 		MCF_FBCS0_CSCR);
-	writel(MCF_FBCS_CSMR_BAM_32M | MCF_FBCS_CSMR_V, MCF_FBCS0_CSMR);
+	mcf_write32(MCF_FBCS_CSMR_BAM_32M | MCF_FBCS_CSMR_V, MCF_FBCS0_CSMR);
 }
 
 void sdramc_init(void)
@@ -369,18 +369,18 @@ void sdramc_init(void)
 	 * Check to see if the SDRAM has already been initialized
 	 * by a run control tool
 	 */
-	if (!(readl(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)) {
+	if (!(mcf_read32(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)) {
 		/* SDRAM chip select initialization */
 		
 		/* Initialize SDRAM chip select */
-		writel(MCF_SDRAMC_SDCS_BA(SDRAM_ADDRESS) |
+		mcf_write32(MCF_SDRAMC_SDCS_BA(SDRAM_ADDRESS) |
 			MCF_SDRAMC_SDCS_CSSZ(MCF_SDRAMC_SDCS_CSSZ_32MBYTE),
 			MCF_SDRAMC_SDCS0);
 
 	/*
 	 * Basic configuration and initialization
 	 */
-	writel(MCF_SDRAMC_SDCFG1_SRD2RW((int)((SDRAM_CASL + 2) + 0.5)) |
+	mcf_write32(MCF_SDRAMC_SDCFG1_SRD2RW((int)((SDRAM_CASL + 2) + 0.5)) |
 		MCF_SDRAMC_SDCFG1_SWT2RD(SDRAM_TWR + 1) |
 		MCF_SDRAMC_SDCFG1_RDLAT((int)((SDRAM_CASL * 2) + 2)) |
 		MCF_SDRAMC_SDCFG1_ACT2RW((int)(SDRAM_TRCD + 0.5)) |
@@ -388,7 +388,7 @@ void sdramc_init(void)
 		MCF_SDRAMC_SDCFG1_REF2ACT((int)(SDRAM_TRFC + 0.5)) |
 		MCF_SDRAMC_SDCFG1_WTLAT(3),
 		MCF_SDRAMC_SDCFG1);
-	writel(MCF_SDRAMC_SDCFG2_BRD2PRE(SDRAM_BL / 2 + 1) |
+	mcf_write32(MCF_SDRAMC_SDCFG2_BRD2PRE(SDRAM_BL / 2 + 1) |
 		MCF_SDRAMC_SDCFG2_BWT2RW(SDRAM_BL / 2 + SDRAM_TWR) |
 		MCF_SDRAMC_SDCFG2_BRD2WT((int)((SDRAM_CASL + SDRAM_BL / 2 - 1.0) + 0.5)) |
 		MCF_SDRAMC_SDCFG2_BL(SDRAM_BL - 1),
@@ -398,7 +398,7 @@ void sdramc_init(void)
 	/*
 	 * Precharge and enable write to SDMR
 	 */
-	writel(MCF_SDRAMC_SDCR_MODE_EN |
+	mcf_write32(MCF_SDRAMC_SDCR_MODE_EN |
 		MCF_SDRAMC_SDCR_CKE |
 		MCF_SDRAMC_SDCR_DDR |
 		MCF_SDRAMC_SDCR_MUX(1) |
@@ -410,7 +410,7 @@ void sdramc_init(void)
 	/*
 	 * Write extended mode register
 	 */
-	writel(MCF_SDRAMC_SDMR_BNKAD_LEMR |
+	mcf_write32(MCF_SDRAMC_SDMR_BNKAD_LEMR |
 		MCF_SDRAMC_SDMR_AD(0x0) |
 		MCF_SDRAMC_SDMR_CMD,
 		MCF_SDRAMC_SDMR);
@@ -418,7 +418,7 @@ void sdramc_init(void)
 	/*
 	 * Write mode register and reset DLL
 	 */
-	writel(MCF_SDRAMC_SDMR_BNKAD_LMR |
+	mcf_write32(MCF_SDRAMC_SDMR_BNKAD_LMR |
 		MCF_SDRAMC_SDMR_AD(0x163) |
 		MCF_SDRAMC_SDMR_CMD,
 		MCF_SDRAMC_SDMR);
@@ -426,18 +426,18 @@ void sdramc_init(void)
 	/*
 	 * Execute a PALL command
 	 */
-	writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IPALL, MCF_SDRAMC_SDCR);
+	mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IPALL, MCF_SDRAMC_SDCR);
 
 	/*
 	 * Perform two REF cycles
 	 */
-	writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IREF, MCF_SDRAMC_SDCR);
-	writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IREF, MCF_SDRAMC_SDCR);
+	mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IREF, MCF_SDRAMC_SDCR);
+	mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_IREF, MCF_SDRAMC_SDCR);
 
 	/*
 	 * Write mode register and clear reset DLL
 	 */
-	writel(MCF_SDRAMC_SDMR_BNKAD_LMR |
+	mcf_write32(MCF_SDRAMC_SDMR_BNKAD_LMR |
 		MCF_SDRAMC_SDMR_AD(0x063) |
 		MCF_SDRAMC_SDMR_CMD,
 		MCF_SDRAMC_SDMR);
@@ -445,9 +445,9 @@ void sdramc_init(void)
 	/*
 	 * Enable auto refresh and lock SDMR
 	 */
-	writel(readl(MCF_SDRAMC_SDCR) & ~MCF_SDRAMC_SDCR_MODE_EN,
+	mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) & ~MCF_SDRAMC_SDCR_MODE_EN,
 		MCF_SDRAMC_SDCR);
-	writel(MCF_SDRAMC_SDCR_REF | MCF_SDRAMC_SDCR_DQS_OE(0xC),
+	mcf_write32(MCF_SDRAMC_SDCR_REF | MCF_SDRAMC_SDCR_DQS_OE(0xC),
 		MCF_SDRAMC_SDCR);
 	}
 }
@@ -455,16 +455,16 @@ void sdramc_init(void)
 void gpio_init(void)
 {
 	/* Enable UART0 pins */
-	writew(MCF_GPIO_PAR_UART_PAR_URXD0 | MCF_GPIO_PAR_UART_PAR_UTXD0,
+	mcf_write16(MCF_GPIO_PAR_UART_PAR_URXD0 | MCF_GPIO_PAR_UART_PAR_UTXD0,
 		MCFGPIO_PAR_UART);
 
 	/*
 	 * Initialize TIN3 as a GPIO output to enable the write
 	 * half of the latch.
 	 */
-	writeb(0x00, MCFGPIO_PAR_TIMER);
-	writeb(0x08, MCFGPIO_PDDR_TIMER);
-	writeb(0x00, MCFGPIO_PCLRR_TIMER);
+	mcf_write8(0x00, MCFGPIO_PAR_TIMER);
+	mcf_write8(0x08, MCFGPIO_PDDR_TIMER);
+	mcf_write8(0x00, MCFGPIO_PCLRR_TIMER);
 }
 
 int clock_pll(int fsys, int flags)
@@ -476,7 +476,7 @@ int clock_pll(int fsys, int flags)
         
 	if (fsys == 0) {
 		/* Return current PLL output */
-		mfd = readb(MCF_PLL_PFDR);
+		mfd = mcf_read8(MCF_PLL_PFDR);
 
 		return (fref * mfd / (BUSDIV * 4));
 	}
@@ -502,9 +502,9 @@ int clock_pll(int fsys, int flags)
 	 * If it has then the SDRAM needs to be put into self refresh
 	 * mode before reprogramming the PLL.
 	 */
-	if (readl(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)
+	if (mcf_read32(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)
 		/* Put SDRAM into self refresh mode */
-		writel(readl(MCF_SDRAMC_SDCR) & ~MCF_SDRAMC_SDCR_CKE,
+		mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) & ~MCF_SDRAMC_SDCR_CKE,
 			MCF_SDRAMC_SDCR);
 
 	/*
@@ -516,10 +516,10 @@ int clock_pll(int fsys, int flags)
 	clock_limp(DEFAULT_LPD);
      					
 	/* Reprogram PLL for desired fsys */
-	writeb(MCF_PLL_PODR_CPUDIV(BUSDIV/3) | MCF_PLL_PODR_BUSDIV(BUSDIV),
+	mcf_write8(MCF_PLL_PODR_CPUDIV(BUSDIV/3) | MCF_PLL_PODR_BUSDIV(BUSDIV),
 		MCF_PLL_PODR);
 						
-	writeb(mfd, MCF_PLL_PFDR);
+	mcf_write8(mfd, MCF_PLL_PFDR);
 		
 	/* Exit LIMP mode */
 	clock_exit_limp();
@@ -527,13 +527,13 @@ int clock_pll(int fsys, int flags)
 	/*
 	 * Return the SDRAM to normal operation if it is in use.
 	 */
-	if (readl(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)
+	if (mcf_read32(MCF_SDRAMC_SDCR) & MCF_SDRAMC_SDCR_REF)
 		/* Exit self refresh mode */
-		writel(readl(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_CKE,
+		mcf_write32(mcf_read32(MCF_SDRAMC_SDCR) | MCF_SDRAMC_SDCR_CKE,
 			MCF_SDRAMC_SDCR);
 
 	/* Errata - workaround for SDRAM operation after exiting LIMP mode */
-	writel(MCF_SDRAMC_REFRESH, MCF_SDRAMC_LIMP_FIX);
+	mcf_write32(MCF_SDRAMC_REFRESH, MCF_SDRAMC_LIMP_FIX);
 
 	/* wait for DQS logic to relock */
 	for (i = 0; i < 0x200; i++)
@@ -554,12 +554,12 @@ int clock_limp(int div)
     
 	/* Save of the current value of the SSIDIV so we don't
 	   overwrite the value*/
-	temp = readw(MCF_CCM_CDR) & MCF_CCM_CDR_SSIDIV(0xF);
+	temp = mcf_read16(MCF_CCM_CDR) & MCF_CCM_CDR_SSIDIV(0xF);
       
 	/* Apply the divider to the system clock */
-	writew(MCF_CCM_CDR_LPDIV(div) | MCF_CCM_CDR_SSIDIV(temp), MCF_CCM_CDR);
+	mcf_write16(MCF_CCM_CDR_LPDIV(div) | MCF_CCM_CDR_SSIDIV(temp), MCF_CCM_CDR);
     
-	writew(readw(MCF_CCM_MISCCR) | MCF_CCM_MISCCR_LIMP, MCF_CCM_MISCCR);
+	mcf_write16(mcf_read16(MCF_CCM_MISCCR) | MCF_CCM_MISCCR_LIMP, MCF_CCM_MISCCR);
     
 	return (FREF/(3*(1 << div)));
 }
@@ -569,10 +569,10 @@ int clock_exit_limp(void)
 	int fout;
 	
 	/* Exit LIMP mode */
-	writew(readw(MCF_CCM_MISCCR) & ~MCF_CCM_MISCCR_LIMP, MCF_CCM_MISCCR);
+	mcf_write16(mcf_read16(MCF_CCM_MISCCR) & ~MCF_CCM_MISCCR_LIMP, MCF_CCM_MISCCR);
 
 	/* Wait for PLL to lock */
-	while (!(readw(MCF_CCM_MISCCR) & MCF_CCM_MISCCR_PLL_LOCK))
+	while (!(mcf_read16(MCF_CCM_MISCCR) & MCF_CCM_MISCCR_PLL_LOCK))
 		;
 	
 	fout = get_sys_clock();
@@ -585,10 +585,10 @@ int get_sys_clock(void)
 	int divider;
 	
 	/* Test to see if device is in LIMP mode */
-	if (readw(MCF_CCM_MISCCR) & MCF_CCM_MISCCR_LIMP) {
-		divider = readw(MCF_CCM_CDR) & MCF_CCM_CDR_LPDIV(0xF);
+	if (mcf_read16(MCF_CCM_MISCCR) & MCF_CCM_MISCCR_LIMP) {
+		divider = mcf_read16(MCF_CCM_CDR) & MCF_CCM_CDR_LPDIV(0xF);
 		return (FREF/(2 << divider));
 	}
 	else
-		return (FREF * readb(MCF_PLL_PFDR)) / (BUSDIV * 4);
+		return (FREF * mcf_read8(MCF_PLL_PFDR)) / (BUSDIV * 4);
 }

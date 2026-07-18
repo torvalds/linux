@@ -138,6 +138,9 @@ definitions:
       -
         name: eec
         doc: dpll drives the Ethernet Equipment Clock
+      -
+        name: generic
+        doc: generic dpll type for devices outside PPS/EEC classes
     render-max: true
   -
     type: enum
@@ -211,6 +214,27 @@ definitions:
       -
         name: selectable
         doc: pin enabled for automatic input selection
+    render-max: true
+  -
+    type: enum
+    name: pin-operstate
+    doc: |
+      defines possible operational states of a pin with respect to its
+      parent DPLL device, valid values for DPLL_A_PIN_OPERSTATE attribute
+    entries:
+      -
+        name: active
+        doc: pin is qualified and actively used by the DPLL
+        value: 1
+      -
+        name: standby
+        doc: pin is qualified but not actively used by the DPLL
+      -
+        name: no-signal
+        doc: pin does not have a valid signal
+      -
+        name: qual-failed
+        doc: pin signal failed qualification (e.g. frequency or phase monitor)
     render-max: true
   -
     type: flags
@@ -427,12 +451,14 @@ attribute-sets:
         name: fractional-frequency-offset
         type: sint
         doc: |
-          The FFO (Fractional Frequency Offset) between the RX and TX
-          symbol rate on the media associated with the pin:
-          (rx_frequency-tx_frequency)/rx_frequency
+          The FFO (Fractional Frequency Offset) of the pin.
+          At top level this represents the RX vs TX symbol rate
+          offset on the media associated with the pin. Inside
+          the pin-parent-device nest it represents the frequency
+          offset between the pin and its parent DPLL device.
           Value is in PPM (parts per million).
-          This may be implemented for example for pin of type
-          PIN_TYPE_SYNCE_ETH_PORT.
+          This is a lower-precision version of
+          fractional-frequency-offset-ppt.
       -
         name: esync-frequency
         type: u64
@@ -471,12 +497,14 @@ attribute-sets:
         name: fractional-frequency-offset-ppt
         type: sint
         doc: |
-          The FFO (Fractional Frequency Offset) of the pin with respect to
-          the nominal frequency.
-          Value = (frequency_measured - frequency_nominal) / frequency_nominal
+          The FFO (Fractional Frequency Offset) of the pin.
+          At top level this represents the RX vs TX symbol rate
+          offset on the media associated with the pin. Inside
+          the pin-parent-device nest it represents the frequency
+          offset between the pin and its parent DPLL device.
           Value is in PPT (parts per trillion, 10^-12).
-          Note: This attribute provides higher resolution than the standard
-          fractional-frequency-offset (which is in PPM).
+          This is a higher-precision version of
+          fractional-frequency-offset.
       -
         name: measured-frequency
         type: u64
@@ -488,6 +516,14 @@ attribute-sets:
           Value of (DPLL_A_PIN_MEASURED_FREQUENCY %
           DPLL_PIN_MEASURED_FREQUENCY_DIVIDER) is a fractional part
           of a measured frequency value.
+      -
+        name: operstate
+        type: u32
+        enum: pin-operstate
+        doc: |
+          Operational state of the pin with respect to its parent DPLL
+          device. Unlike state (which reflects the administrative intent),
+          operstate reflects the actual hardware status.
 
   -
     name: pin-parent-device
@@ -502,7 +538,13 @@ attribute-sets:
       -
         name: state
       -
+        name: operstate
+      -
         name: phase-offset
+      -
+        name: fractional-frequency-offset
+      -
+        name: fractional-frequency-offset-ppt
   -
     name: pin-parent-pin
     subset-of: pin

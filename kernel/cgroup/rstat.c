@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include "cgroup-internal.h"
 
+#include <linux/cpumask.h>
 #include <linux/sched/cputime.h>
 
 #include <linux/bpf.h>
@@ -53,7 +54,7 @@ static inline struct llist_head *ss_lhead_cpu(struct cgroup_subsys *ss, int cpu)
 }
 
 /**
- * css_rstat_updated - keep track of updated rstat_cpu
+ * __css_rstat_updated - keep track of updated rstat_cpu
  * @css: target cgroup subsystem state
  * @cpu: cpu on which rstat_cpu was updated
  *
@@ -63,31 +64,27 @@ static inline struct llist_head *ss_lhead_cpu(struct cgroup_subsys *ss, int cpu)
  *
  * NOTE: if the user needs the guarantee that the updater either add itself in
  * the lockless list or the concurrent flusher flushes its updated stats, a
- * memory barrier is needed before the call to css_rstat_updated() i.e. a
+ * memory barrier is needed before the call to __css_rstat_updated() i.e. a
  * barrier after updating the per-cpu stats and before calling
- * css_rstat_updated().
+ * __css_rstat_updated().
  */
-__bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
+void __css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 {
 	struct llist_head *lhead;
 	struct css_rstat_cpu *rstatc;
 	struct llist_node *self;
 
-	/*
-	 * Since bpf programs can call this function, prevent access to
-	 * uninitialized rstat pointers.
-	 */
+	/* Prevent access to uninitialized rstat pointers. */
 	if (!css_uses_rstat(css))
 		return;
 
 	lockdep_assert_preemption_disabled();
 
 	/*
-	 * For archs withnot nmi safe cmpxchg or percpu ops support, ignore
-	 * the requests from nmi context.
+	 * The lockless insertion below relies on NMI-safe cmpxchg;
+	 * bail out in NMI on archs that don't provide it.
 	 */
-	if ((!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) ||
-	     !IS_ENABLED(CONFIG_ARCH_HAS_NMI_SAFE_THIS_CPU_OPS)) && in_nmi())
+	if (!IS_ENABLED(CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG) && in_nmi())
 		return;
 
 	rstatc = css_rstat_cpu(css, cpu);
@@ -123,6 +120,18 @@ __bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
 
 	lhead = ss_lhead_cpu(css->ss, cpu);
 	llist_add(&rstatc->lnode, lhead);
+}
+
+/*
+ * BPF-facing wrapper for __css_rstat_updated(). Validate the caller-provided
+ * CPU before passing it to the internal rstat updater.
+ */
+__bpf_kfunc void css_rstat_updated(struct cgroup_subsys_state *css, int cpu)
+{
+	if (unlikely(cpu < 0 || cpu >= nr_cpu_ids || !cpu_possible(cpu)))
+		return;
+
+	__css_rstat_updated(css, cpu);
 }
 
 static void __css_process_update_tree(struct cgroup_subsys_state *css, int cpu)
@@ -170,7 +179,7 @@ static void css_process_update_tree(struct cgroup_subsys *ss, int cpu)
 		 * flusher flush the stats updated by the updater who have
 		 * observed that they are already on the list. The
 		 * corresponding barrier pair for this one should be before
-		 * css_rstat_updated() by the user.
+		 * __css_rstat_updated() by the user.
 		 *
 		 * For now, there aren't any such user, so not adding the
 		 * barrier here but if such a use-case arise, please add
@@ -614,7 +623,7 @@ static void cgroup_base_stat_cputime_account_end(struct cgroup *cgrp,
 						 unsigned long flags)
 {
 	u64_stats_update_end_irqrestore(&rstatbc->bsync, flags);
-	css_rstat_updated(&cgrp->self, smp_processor_id());
+	__css_rstat_updated(&cgrp->self, smp_processor_id());
 	put_cpu_ptr(rstatbc);
 }
 

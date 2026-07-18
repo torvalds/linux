@@ -103,6 +103,7 @@ enum {
 	IRQ_DISABLE_UNLAZY	= (1 << 19),
 	IRQ_HIDDEN		= (1 << 20),
 	IRQ_NO_DEBUG		= (1 << 21),
+	IRQ_RESERVED		= (1 << 22),
 };
 
 #define IRQF_MODIFY_MASK	\

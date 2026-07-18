@@ -122,15 +122,10 @@ static bool optc35_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
-	REG_SEQ_START();
-
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 2,
 			OTG_MASTER_EN, 1);
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -621,7 +616,6 @@ void dcn35_timing_generator_init(struct optc *optc1)
 	optc1->min_v_blank_interlace = 5;
 	optc1->min_h_sync_width = 4;
 	optc1->min_v_sync_width = 1;
-	optc1->max_frame_count = 0xFFFFFF;
 
 	dcn35_timing_generator_set_fgcg(
 		optc1, CTX->dc->debug.enable_fine_grain_clock_gating.bits.optc);

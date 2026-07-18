@@ -893,7 +893,7 @@ static bool omnia_irq_read_pending_old(struct omnia_mcu *mcu,
 
 	if (status & OMNIA_STS_BUTTON_PRESSED) {
 		mcu->button_pressed_emul = true;
-		mod_delayed_work(system_wq, &mcu->button_release_emul_work,
+		mod_delayed_work(system_percpu_wq, &mcu->button_release_emul_work,
 				 msecs_to_jiffies(FRONT_BUTTON_RELEASE_DELAY_MS));
 	} else if (mcu->button_pressed_emul) {
 		status |= OMNIA_STS_BUTTON_PRESSED;

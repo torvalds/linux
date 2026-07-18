@@ -247,6 +247,8 @@ actions_perform(struct actions *self)
 	int pid, retval;
 	const struct action *action;
 
+	self->continue_flag = false;
+
 	for_each_action(self, action) {
 		switch (action->type) {
 		case ACTION_TRACE_OUTPUT:

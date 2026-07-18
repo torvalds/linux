@@ -450,7 +450,7 @@ static uint8_t get_frontend_source(
 unsigned int dcn10_get_dig_frontend(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
-	int32_t value;
+	uint32_t value;
 	enum engine_id result;
 
 	REG_GET(DIG_BE_CNTL, DIG_FE_SOURCE_SELECT, &value);
@@ -622,10 +622,11 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 {
 	enum dc_color_depth max_deep_color =
 			enc10->base.features.max_hdmi_deep_color;
+	uint32_t pix_clk_100hz = (uint32_t)adjusted_pix_clk_100hz;
 
 	// check pixel clock against edid specified max TMDS clk
 	if (edid_caps->max_tmds_clk_mhz != 0 &&
-			adjusted_pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
+			pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
 		return false;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
@@ -633,11 +634,11 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 
 	if (crtc_timing->display_color_depth < COLOR_DEPTH_888)
 		return false;
-	if (adjusted_pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
+	if (pix_clk_100hz < (TMDS_MIN_PIXEL_CLOCK * 10))
 		return false;
 
-	if ((adjusted_pix_clk_100hz == 0) ||
-		(adjusted_pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
+	if ((pix_clk_100hz == 0) ||
+		(pix_clk_100hz > (enc10->base.features.max_hdmi_pixel_clock * 10)))
 		return false;
 
 	/* DCE11 HW does not support 420 */
@@ -647,7 +648,7 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 
 	if ((!enc10->base.features.flags.bits.HDMI_6GB_EN ||
 			enc10->base.ctx->dc->debug.hdmi20_disable) &&
-			adjusted_pix_clk_100hz >= 3000000)
+			pix_clk_100hz >= 3000000)
 		return false;
 	if (enc10->base.ctx->dc->debug.hdmi20_disable &&
 		crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
@@ -1065,7 +1066,8 @@ void dcn10_link_encoder_disable_output(
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
-	if (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc)) {
+	if (!dc_is_hdmi_frl_signal(signal) &&
+	    (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc))) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 	/*in DP_Alt_No_Connect case, we turn off the dig already,
 	after excuation the PHY w/a sequence, not allow touch PHY any more*/
@@ -1187,8 +1189,9 @@ void dcn10_link_encoder_dp_set_phy_pattern(
 		set_dp_phy_pattern_prbs7(enc10);
 		break;
 	case DP_TEST_PATTERN_80BIT_CUSTOM:
-		set_dp_phy_pattern_80bit_custom(
-			enc10, param->custom_pattern);
+		if (param)
+			set_dp_phy_pattern_80bit_custom(
+				enc10, param->custom_pattern);
 		break;
 	case DP_TEST_PATTERN_CP2520_1:
 		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc10, 1);
@@ -1200,8 +1203,9 @@ void dcn10_link_encoder_dp_set_phy_pattern(
 		set_dp_phy_pattern_hbr2_compliance_cp2520_2(enc10, 3);
 		break;
 	case DP_TEST_PATTERN_VIDEO_MODE: {
-		set_dp_phy_pattern_passthrough_mode(
-			enc10, param->dp_panel_mode);
+		if (param)
+			set_dp_phy_pattern_passthrough_mode(
+				enc10, param->dp_panel_mode);
 		break;
 	}
 

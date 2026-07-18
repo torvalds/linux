@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
 /* Copyright (c) 2025 Meta Platforms, Inc. and affiliates. */
 #pragma once
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 
-__noinline int bpf_arena_strlen(const char __arena *s __arg_arena)
+__noinline int bpf_arena_strlen(const char __arena *s)
 {
 	const char __arena *sc;
 
@@ -40,7 +40,7 @@ __noinline int bpf_arena_strlen(const char __arena *s __arg_arena)
  *
  * An opening bracket without a matching close is matched literally.
  */
-__noinline bool glob_match(char const __arena *pat __arg_arena, char const __arena *str __arg_arena)
+__noinline bool glob_match(char const __arena *pat, char const __arena *str)
 {
 	/*
 	 * Backtrack to previous * on mismatch and retry starting one

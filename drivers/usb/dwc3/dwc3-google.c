@@ -104,9 +104,8 @@ static int dwc3_google_set_pmu_state(struct dwc3_google *google, int state)
 	regmap_read(google->usb_cfg_regmap,
 		    google->host_cfg_offset + HOST_CFG1_OFFSET, &reg);
 
-	reg &= ~HOST_CFG1_PM_POWER_STATE_REQUEST;
-	reg |= (FIELD_PREP(HOST_CFG1_PM_POWER_STATE_REQUEST, state) |
-		HOST_CFG1_PME_EN);
+	FIELD_MODIFY(HOST_CFG1_PM_POWER_STATE_REQUEST, &reg, state);
+	reg |= HOST_CFG1_PME_EN;
 	regmap_write(google->usb_cfg_regmap,
 		     google->host_cfg_offset + HOST_CFG1_OFFSET, reg);
 

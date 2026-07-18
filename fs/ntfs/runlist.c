@@ -15,6 +15,8 @@
  * Copyright (c) 2007-2022 Jean-Pierre Andre
  */
 
+#include <linux/overflow.h>
+
 #include "ntfs.h"
 #include "attrib.h"
 
@@ -739,6 +741,7 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 	int rlsize;		/* Size of runlist buffer. */
 	u16 rlpos;		/* Current runlist position in units of struct runlist_elements. */
 	u8 b;			/* Current byte offset in buf. */
+	u64 lowest_vcn;		/* Raw on-disk lowest_vcn. */
 
 #ifdef DEBUG
 	/* Make sure attr exists and is non-resident. */
@@ -747,14 +750,20 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 		return ERR_PTR(-EINVAL);
 	}
 #endif
+	lowest_vcn = le64_to_cpu(attr->data.non_resident.lowest_vcn);
+	/* Validate lowest_vcn from on-disk metadata to ensure it is sane. */
+	if (overflows_type(lowest_vcn, vcn)) {
+		ntfs_error(vol->sb, "Invalid lowest_vcn in mapping pairs.");
+		return ERR_PTR(-EIO);
+	}
 	/* Start at vcn = lowest_vcn and lcn 0. */
-	vcn = le64_to_cpu(attr->data.non_resident.lowest_vcn);
+	vcn = lowest_vcn;
 	lcn = 0;
 	/* Get start of the mapping pairs array. */
 	buf = (u8 *)attr +
 		le16_to_cpu(attr->data.non_resident.mapping_pairs_offset);
 	attr_end = (u8 *)attr + le32_to_cpu(attr->length);
-	if (unlikely(buf < (u8 *)attr || buf > attr_end)) {
+	if (unlikely(buf < (u8 *)attr || buf >= attr_end)) {
 		ntfs_error(vol->sb, "Corrupt attribute.");
 		return ERR_PTR(-EIO);
 	}
@@ -802,7 +811,7 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 		 */
 		b = *buf & 0xf;
 		if (b) {
-			if (unlikely(buf + b > attr_end))
+			if (unlikely(buf + b >= attr_end))
 				goto io_error;
 			for (deltaxcn = (s8)buf[b--]; b; b--)
 				deltaxcn = (deltaxcn << 8) + buf[b];
@@ -823,8 +832,17 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 		 * element.
 		 */
 		rl[rlpos].length = deltaxcn;
-		/* Increment the current vcn by the current run length. */
-		vcn += deltaxcn;
+		/*
+		 * Increment the current vcn by the current run length.
+		 * Guard against s64 overflow from a crafted mapping
+		 * pairs array to preserve the monotonically-increasing
+		 * vcn invariant.
+		 */
+		if (unlikely(check_add_overflow(vcn, deltaxcn, &vcn))) {
+			ntfs_error(vol->sb, "VCN overflow in mapping pairs array.");
+			goto err_out;
+		}
+
 		/*
 		 * There might be no lcn change at all, as is the case for
 		 * sparse clusters on NTFS 3.0+, in which case we set the lcn
@@ -837,12 +855,16 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 			u8 b2 = *buf & 0xf;
 
 			b = b2 + ((*buf >> 4) & 0xf);
-			if (buf + b > attr_end)
+			if (buf + b >= attr_end)
 				goto io_error;
 			for (deltaxcn = (s8)buf[b--]; b > b2; b--)
 				deltaxcn = (deltaxcn << 8) + buf[b];
 			/* Change the current lcn to its new value. */
-			lcn += deltaxcn;
+			if (unlikely(check_add_overflow(lcn, deltaxcn, &lcn))) {
+				ntfs_error(vol->sb,
+						"LCN overflow in mapping pairs array.");
+				goto err_out;
+			}
 #ifdef DEBUG
 			/*
 			 * On NTFS 1.2-, apparently can have lcn == -1 to
@@ -1799,7 +1821,7 @@ struct runlist_element *ntfs_rl_punch_hole(struct runlist_element *dst_rl, int d
 	    !ntfs_rle_contain(s_rl, start_vcn))
 		return ERR_PTR(-EINVAL);
 
-	begin_split = s_rl->vcn != start_vcn ? true : false;
+	begin_split = s_rl->vcn != start_vcn;
 
 	e_rl = ntfs_rl_find_vcn_nolock(dst_rl, end_vcn);
 	if (!e_rl ||
@@ -1807,10 +1829,10 @@ struct runlist_element *ntfs_rl_punch_hole(struct runlist_element *dst_rl, int d
 	    !ntfs_rle_contain(e_rl, end_vcn))
 		return ERR_PTR(-EINVAL);
 
-	end_split = e_rl->vcn + e_rl->length - 1 != end_vcn ? true : false;
+	end_split = e_rl->vcn + e_rl->length - 1 != end_vcn;
 
 	/* @s_rl has to be split into left, punched hole, and right */
-	one_split_3 = e_rl == s_rl && begin_split && end_split ? true : false;
+	one_split_3 = e_rl == s_rl && begin_split && end_split;
 
 	punch_cnt = (int)(e_rl - s_rl) + 1;
 
@@ -1950,7 +1972,7 @@ struct runlist_element *ntfs_rl_collapse_range(struct runlist_element *dst_rl, i
 	    !ntfs_rle_contain(s_rl, start_vcn))
 		return ERR_PTR(-EINVAL);
 
-	begin_split = s_rl->vcn != start_vcn ? true : false;
+	begin_split = s_rl->vcn != start_vcn;
 
 	e_rl = ntfs_rl_find_vcn_nolock(dst_rl, end_vcn);
 	if (!e_rl ||
@@ -1958,10 +1980,10 @@ struct runlist_element *ntfs_rl_collapse_range(struct runlist_element *dst_rl, i
 	    !ntfs_rle_contain(e_rl, end_vcn))
 		return ERR_PTR(-EINVAL);
 
-	end_split = e_rl->vcn + e_rl->length - 1 != end_vcn ? true : false;
+	end_split = e_rl->vcn + e_rl->length - 1 != end_vcn;
 
 	/* @s_rl has to be split into left, collapsed, and right */
-	one_split_3 = e_rl == s_rl && begin_split && end_split ? true : false;
+	one_split_3 = e_rl == s_rl && begin_split && end_split;
 
 	punch_cnt = (int)(e_rl - s_rl) + 1;
 	*punch_rl = kvcalloc(punch_cnt + 1, sizeof(struct runlist_element),
@@ -2038,10 +2060,11 @@ struct runlist_element *ntfs_rl_collapse_range(struct runlist_element *dst_rl, i
 	 * consists of holes.
 	 */
 	merge_cnt = 0;
-	i = new_1st_cnt == 0 ? 1 : new_1st_cnt;
-	if (ntfs_rle_lcn_contiguous(&new_rl[i - 1], &new_rl[i])) {
-		/* Merge right and left */
-		s_rl =  &new_rl[new_1st_cnt - 1];
+	if (new_1st_cnt > 0 &&
+	    ntfs_rle_lcn_contiguous(&new_rl[new_1st_cnt - 1],
+				    &new_rl[new_1st_cnt])) {
+		/* Merge right and left. */
+		s_rl = &new_rl[new_1st_cnt - 1];
 		s_rl->length += s_rl[1].length;
 		merge_cnt = 1;
 	}

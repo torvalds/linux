@@ -75,12 +75,12 @@ enum rtc_type {
 };
 
 static const struct i2c_device_id rs5c372_id[] = {
-	{ "r2025sd", rtc_r2025sd },
-	{ "r2221tl", rtc_r2221tl },
-	{ "rs5c372a", rtc_rs5c372a },
-	{ "rs5c372b", rtc_rs5c372b },
-	{ "rv5c386", rtc_rv5c386 },
-	{ "rv5c387a", rtc_rv5c387a },
+	{ .name = "r2025sd", .driver_data = rtc_r2025sd },
+	{ .name = "r2221tl", .driver_data = rtc_r2221tl },
+	{ .name = "rs5c372a", .driver_data = rtc_rs5c372a },
+	{ .name = "rs5c372b", .driver_data = rtc_rs5c372b },
+	{ .name = "rv5c386", .driver_data = rtc_rv5c386 },
+	{ .name = "rv5c387a", .driver_data = rtc_rv5c387a },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rs5c372_id);

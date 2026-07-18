@@ -6,17 +6,13 @@
 #include <linux/iomap.h>
 #include "trace.h"
 
-static inline void iomap_iter_reset_iomap(struct iomap_iter *iter)
+static inline void iomap_iter_clean_fbatch(struct iomap_iter *iter)
 {
 	if (iter->iomap.flags & IOMAP_F_FOLIO_BATCH) {
 		folio_batch_release(iter->fbatch);
 		folio_batch_reinit(iter->fbatch);
 		iter->iomap.flags &= ~IOMAP_F_FOLIO_BATCH;
 	}
-
-	iter->status = 0;
-	memset(&iter->iomap, 0, sizeof(iter->iomap));
-	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
 }
 
 /* Advance the current iterator position and decrement the remaining length */
@@ -102,9 +98,13 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 		ret = 0;
 	else
 		ret = 1;
-	iomap_iter_reset_iomap(iter);
+	iomap_iter_clean_fbatch(iter);
+	iter->status = 0;
 	if (ret <= 0)
 		return ret;
+
+	memset(&iter->iomap, 0, sizeof(iter->iomap));
+	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
 
 begin:
 	ret = ops->iomap_begin(iter->inode, iter->pos, iter->len, iter->flags,

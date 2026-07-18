@@ -256,8 +256,8 @@ static void a8293_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id a8293_id_table[] = {
-	{ "a8293" },
-	{}
+	{ .name = "a8293" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, a8293_id_table);
 

@@ -2046,6 +2046,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 		if (input[0] >= smu->cpu_core_num) {
 			dev_err(smu->adev->dev, "core index is overflow, should be less than %d\n",
 				smu->cpu_core_num);
+			return -EINVAL;
 		}
 		smu->cpu_core_id_select = input[0];
 		if (input[1] == 0) {

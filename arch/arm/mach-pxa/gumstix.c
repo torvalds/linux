@@ -39,7 +39,6 @@
 
 #include "pxa25x.h"
 #include <linux/platform_data/mmc-pxamci.h>
-#include "udc.h"
 #include "gumstix.h"
 #include "devices.h"
 

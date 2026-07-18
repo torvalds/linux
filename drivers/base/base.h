@@ -86,18 +86,6 @@ struct driver_private {
 };
 #define to_driver(obj) container_of(obj, struct driver_private, kobj)
 
-#ifdef CONFIG_RUST
-/**
- * struct driver_type - Representation of a Rust driver type.
- */
-struct driver_type {
-	/**
-	 * @id: Representation of core::any::TypeId.
-	 */
-	u8 id[16];
-} __packed;
-#endif
-
 /**
  * struct device_private - structure to hold the private to the driver core
  *			   portions of the device structure.
@@ -115,7 +103,6 @@ struct driver_type {
  *			   dev_err_probe() for later retrieval via debugfs
  * @device: pointer back to the struct device that this structure is
  *	    associated with.
- * @driver_type: The type of the bound Rust driver.
  * @dead: This device is currently either in the process of or has been
  *	  removed from the system. Any asynchronous events scheduled for this
  *	  device should exit without taking any action.
@@ -132,9 +119,6 @@ struct device_private {
 	const struct device_driver *async_driver;
 	char *deferred_probe_reason;
 	struct device *device;
-#ifdef CONFIG_RUST
-	struct driver_type driver_type;
-#endif
 	u8 dead:1;
 };
 #define to_device_private_parent(obj)	\
@@ -188,6 +172,20 @@ static inline int driver_match_device(const struct device_driver *drv,
 	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
 }
 
+static inline bool dev_has_sync_state(struct device *dev)
+{
+	struct device_driver *drv;
+
+	if (!dev)
+		return false;
+	drv = READ_ONCE(dev->driver);
+	if (drv && drv->sync_state)
+		return true;
+	if (dev->bus && dev->bus->sync_state)
+		return true;
+	return false;
+}
+
 static inline void dev_sync_state(struct device *dev)
 {
 	if (dev->bus->sync_state)
@@ -196,8 +194,10 @@ static inline void dev_sync_state(struct device *dev)
 		dev->driver->sync_state(dev);
 }
 
-int driver_add_groups(const struct device_driver *drv, const struct attribute_group **groups);
-void driver_remove_groups(const struct device_driver *drv, const struct attribute_group **groups);
+int driver_add_groups(const struct device_driver *drv,
+		      const struct attribute_group *const *groups);
+void driver_remove_groups(const struct device_driver *drv,
+			  const struct attribute_group *const *groups);
 void device_driver_detach(struct device *dev);
 
 static inline void device_set_driver(struct device *dev, const struct device_driver *drv)

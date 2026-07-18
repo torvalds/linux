@@ -5,6 +5,7 @@ top_srcdir = ../../../../..
 TEST_PROGS := \
 	ppp_async.sh \
 	pppoe.sh \
+	pppol2tp.sh \
 # end of TEST_PROGS
 
 TEST_FILES := \

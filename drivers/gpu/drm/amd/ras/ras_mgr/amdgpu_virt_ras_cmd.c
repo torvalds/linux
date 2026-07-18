@@ -92,6 +92,7 @@ static int amdgpu_virt_ras_remote_ioctl_cmd(struct ras_core_context *ras_core,
 	struct amdgpu_virt_ras_cmd *virt_ras = ras_mgr->virt_ras_cmd;
 	uint32_t mem_len = ALIGN(sizeof(*cmd) + output_size, AMDGPU_GPU_PAGE_SIZE);
 	struct ras_cmd_ctx *rcmd;
+	struct ras_cmd_ctx hdr_snap;
 	struct amdgpu_virt_shared_mem shared_mem = {0};
 	int ret = 0;
 
@@ -108,15 +109,31 @@ static int amdgpu_virt_ras_remote_ioctl_cmd(struct ras_core_context *ras_core,
 	ret = amdgpu_virt_send_remote_ras_cmd(ras_core->dev,
 				shared_mem.gpa, mem_len);
 	if (!ret) {
-		if (rcmd->cmd_res) {
-			ret = rcmd->cmd_res;
+		/*
+		 * rcmd lives in shared memory the PF can mutate at any time.
+		 * Snapshot the entire fixed-size response header into a local
+		 * struct in one shot so every subsequent decision (cmd_res,
+		 * output_size, version, etc.) operates on a stable copy. This
+		 * defeats double-fetch / TOCTOU attacks where a malicious or
+		 * buggy PF could flip cmd_res from SUCCESS to an error after
+		 * our success branch, or enlarge output_size between the
+		 * bounds check and the memcpy below to corrupt the caller's
+		 * local output buffer.
+		 */
+		memcpy(&hdr_snap, rcmd, sizeof(hdr_snap));
+		barrier();
+
+		if (hdr_snap.cmd_res) {
+			ret = hdr_snap.cmd_res;
 			goto out;
 		}
 
-		cmd->cmd_res = rcmd->cmd_res;
-		cmd->output_size = rcmd->output_size;
-		if (rcmd->output_size && (rcmd->output_size <= output_size) && output_data)
-			memcpy(output_data, rcmd->output_buff_raw, rcmd->output_size);
+		cmd->cmd_res = hdr_snap.cmd_res;
+		cmd->output_size = hdr_snap.output_size;
+
+		if (hdr_snap.output_size && output_data &&
+		    hdr_snap.output_size <= output_size)
+			memcpy(output_data, rcmd->output_buff_raw, hdr_snap.output_size);
 	}
 
 out:
@@ -192,8 +209,17 @@ static int amdgpu_virt_ras_get_cper_snapshot(struct ras_core_context *ras_core,
 	return RAS_CMD__SUCCESS;
 }
 
+static bool amdgpu_virt_ras_check_batch_cached(struct ras_cmd_batch_trace_record_rsp *rsp,
+				       uint64_t batch_id)
+{
+	return rsp->real_batch_num &&
+	       rsp->real_batch_num <= RAS_CMD_MAX_BATCH_NUM &&
+	       batch_id >= rsp->start_batch_id &&
+	       (batch_id - rsp->start_batch_id) < rsp->real_batch_num;
+}
+
 static int amdgpu_virt_ras_get_batch_records(struct ras_core_context *ras_core, uint64_t batch_id,
-			struct ras_log_info **trace_arr, uint32_t arr_num,
+			struct ras_log_info *trace_arr, uint32_t arr_num,
 			struct ras_cmd_batch_trace_record_rsp *rsp_cache)
 {
 	struct ras_cmd_batch_trace_record_req req = {
@@ -204,26 +230,33 @@ static int amdgpu_virt_ras_get_batch_records(struct ras_core_context *ras_core, 
 	struct batch_ras_trace_info *batch;
 	int ret = 0;
 	uint32_t i;
+	uint32_t idx;
 
-	if (!rsp->real_batch_num || (batch_id < rsp->start_batch_id) ||
-		(batch_id >=  (rsp->start_batch_id + rsp->real_batch_num))) {
-
+	if (!amdgpu_virt_ras_check_batch_cached(rsp, batch_id)) {
 		memset(rsp, 0, sizeof(*rsp));
 		ret = amdgpu_virt_ras_send_remote_cmd(ras_core, RAS_CMD__GET_BATCH_TRACE_RECORD,
 			&req, sizeof(req), rsp, sizeof(*rsp));
 		if (ret)
 			return -EPIPE;
+
+		if (!amdgpu_virt_ras_check_batch_cached(rsp, batch_id)) {
+			memset(rsp, 0, sizeof(*rsp));
+			return -EIO;
+		}
 	}
 
-	batch = &rsp->batchs[batch_id - rsp->start_batch_id];
-	if (batch_id != batch->batch_id)
-		return -ENODATA;
-
-	for (i = 0; i < batch->trace_num; i++) {
-		if (i >= arr_num)
-			break;
-		trace_arr[i] = &rsp->records[batch->offset + i];
+	idx = (uint32_t)(batch_id - rsp->start_batch_id);
+	batch = &rsp->batchs[idx];
+	if (batch_id != batch->batch_id ||
+	    batch->trace_num > MAX_RECORD_PER_BATCH ||
+	    (uint32_t)batch->offset + batch->trace_num > RAS_CMD_MAX_TRACE_NUM) {
+		memset(rsp, 0, sizeof(*rsp));
+		return -EIO;
 	}
+
+	for (i = 0; i < batch->trace_num && i < arr_num; i++)
+		memcpy(&trace_arr[i],
+			&rsp->records[batch->offset + i], sizeof(*trace_arr));
 
 	return i;
 }
@@ -240,19 +273,22 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 		(struct ras_cmd_cper_record_rsp *)cmd->output_buff_raw;
 	struct ras_log_batch_overview *overview = &virt_ras->batch_mgr.batch_overview;
 	struct ras_cmd_batch_trace_record_rsp *rsp_cache = &virt_ras->batch_mgr.batch_trace;
-	struct ras_log_info **trace;
+	struct ras_log_info *trace;
+	uint32_t trace_count = MAX_RECORD_PER_BATCH;
 	uint32_t offset = 0, real_data_len = 0;
 	uint64_t batch_id;
 	uint8_t *out_buf;
 	int ret = 0, i, count;
 
-	if (cmd->input_size != sizeof(struct ras_cmd_cper_record_req))
+	if (cmd->input_size != sizeof(struct ras_cmd_cper_record_req) ||
+		(cmd->output_buf_size < sizeof(*rsp)))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
-	if (!req->buf_size || !req->buf_ptr || !req->cper_num)
+	if (!req->buf_size || !req->buf_ptr || !req->cper_num ||
+	    req->buf_size > RAS_CMD_MAX_CPER_BUF_SZ)
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
-	trace = kzalloc_objs(*trace, MAX_RECORD_PER_BATCH);
+	trace = kzalloc_objs(*trace, trace_count);
 	if (!trace)
 		return RAS_CMD__ERROR_GENERIC;
 
@@ -269,7 +305,7 @@ static int amdgpu_virt_ras_get_cper_records(struct ras_core_context *ras_core,
 		if (batch_id >= overview->last_batch_id)
 			break;
 		count = amdgpu_virt_ras_get_batch_records(ras_core, batch_id,
-							  trace, MAX_RECORD_PER_BATCH,
+							  trace, trace_count,
 							  rsp_cache);
 		if (count > 0) {
 			ret = ras_cper_generate_cper(ras_core, trace, count,
@@ -455,7 +491,7 @@ int amdgpu_virt_ras_handle_cmd(struct ras_core_context *ras_core,
 
 	cmd->cmd_res = res;
 
-	if (cmd->output_size > cmd->output_buf_size) {
+	if (!res && (cmd->output_size > cmd->output_buf_size)) {
 		RAS_DEV_ERR(ras_core->dev,
 			"Output data size 0x%x exceeds buffer size 0x%x!\n",
 			cmd->output_size, cmd->output_buf_size);

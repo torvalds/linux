@@ -3612,6 +3612,15 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 			complete(&cmd_fusion->done);
 			break;
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:  /*Fast Path IO.*/
+			/*
+			 * Firmware can send stale/duplicate completions for
+			 * commands already returned to the pool. scmd_local
+			 * would be NULL for such cases. Skip processing to
+			 * avoid NULL pointer access.
+			 */
+			if (!scmd_local)
+				break;
+
 			/* Update load balancing info */
 			if (fusion->load_balance_info &&
 			    (megasas_priv(cmd_fusion->scmd)->status &

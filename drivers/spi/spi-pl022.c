@@ -1868,7 +1868,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Allocate host with space for data */
-	host = spi_alloc_host(dev, sizeof(struct pl022));
+	host = devm_spi_alloc_host(dev, sizeof(struct pl022));
 	if (host == NULL) {
 		dev_err(&adev->dev, "probe - cannot alloc SPI host\n");
 		return -ENOMEM;
@@ -1907,7 +1907,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	status = amba_request_regions(adev, NULL);
 	if (status)
-		goto err_no_ioregion;
+		return status;
 
 	pl022->phybase = adev->res.start;
 	pl022->virtbase = devm_ioremap(dev, adev->res.start,
@@ -1984,8 +1984,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_no_clk:
  err_no_ioremap:
 	amba_release_regions(adev);
- err_no_ioregion:
-	spi_controller_put(host);
+
 	return status;
 }
 
@@ -1996,8 +1995,6 @@ pl022_remove(struct amba_device *adev)
 
 	if (!pl022)
 		return;
-
-	spi_controller_get(pl022->host);
 
 	spi_unregister_controller(pl022->host);
 
@@ -2012,8 +2009,6 @@ pl022_remove(struct amba_device *adev)
 		pl022_dma_remove(pl022);
 
 	amba_release_regions(adev);
-
-	spi_controller_put(pl022->host);
 }
 
 #ifdef CONFIG_PM_SLEEP

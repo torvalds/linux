@@ -22,6 +22,34 @@
 #include "accessors.h"
 #include "extent-tree.h"
 
+static struct kmem_cache *block_group_cache;
+static struct kmem_cache *free_space_ctl_cache;
+
+int __init btrfs_init_block_group(void)
+{
+	block_group_cache = kmem_cache_create("btrfs_block_group",
+					      sizeof(struct btrfs_block_group),
+					      0, 0, NULL);
+	if (!block_group_cache)
+		return -ENOMEM;
+
+	free_space_ctl_cache = kmem_cache_create("btrfs_free_space_ctl",
+						 sizeof(struct btrfs_free_space_ctl),
+						 0, 0, NULL);
+	if (!free_space_ctl_cache) {
+		kmem_cache_destroy(block_group_cache);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void __cold btrfs_exit_block_group(void)
+{
+	kmem_cache_destroy(block_group_cache);
+	kmem_cache_destroy(free_space_ctl_cache);
+}
+
 #ifdef CONFIG_BTRFS_DEBUG
 int btrfs_should_fragment_free_space(const struct btrfs_block_group *block_group)
 {
@@ -180,9 +208,9 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 			btrfs_discard_cancel_work(&cache->fs_info->discard_ctl,
 						  cache);
 
-		kfree(cache->free_space_ctl);
+		kmem_cache_free(free_space_ctl_cache, cache->free_space_ctl);
 		btrfs_free_chunk_map(cache->physical_map);
-		kfree(cache);
+		kmem_cache_free(block_group_cache, cache);
 	}
 }
 
@@ -2371,13 +2399,13 @@ static struct btrfs_block_group *btrfs_create_block_group(
 {
 	struct btrfs_block_group *cache;
 
-	cache = kzalloc_obj(*cache, GFP_NOFS);
+	cache = kmem_cache_zalloc(block_group_cache, GFP_NOFS);
 	if (!cache)
 		return NULL;
 
-	cache->free_space_ctl = kzalloc_obj(*cache->free_space_ctl, GFP_NOFS);
+	cache->free_space_ctl = kmem_cache_zalloc(free_space_ctl_cache, GFP_NOFS);
 	if (!cache->free_space_ctl) {
-		kfree(cache);
+		kmem_cache_free(block_group_cache, cache);
 		return NULL;
 	}
 
@@ -2412,29 +2440,25 @@ static struct btrfs_block_group *btrfs_create_block_group(
  */
 static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 {
-	u64 start = 0;
+	struct rb_node *node;
 	int ret = 0;
 
-	while (1) {
+	/*
+	 * This is called during mount from btrfs_read_block_groups(), before
+	 * any background threads are started, so no concurrent writers can
+	 * modify the mapping_tree. No lock is needed here.
+	 */
+	for (node = rb_first_cached(&fs_info->mapping_tree); node; node = rb_next(node)) {
 		struct btrfs_chunk_map *map;
 		struct btrfs_block_group *bg;
 
-		/*
-		 * btrfs_find_chunk_map() will return the first chunk map
-		 * intersecting the range, so setting @length to 1 is enough to
-		 * get the first chunk.
-		 */
-		map = btrfs_find_chunk_map(fs_info, start, 1);
-		if (!map)
-			break;
-
+		map = rb_entry(node, struct btrfs_chunk_map, rb_node);
 		bg = btrfs_lookup_block_group(fs_info, map->start);
 		if (unlikely(!bg)) {
 			btrfs_err(fs_info,
 	"chunk start=%llu len=%llu doesn't have corresponding block group",
 				     map->start, map->chunk_len);
 			ret = -EUCLEAN;
-			btrfs_free_chunk_map(map);
 			break;
 		}
 		if (unlikely(bg->start != map->start || bg->length != map->chunk_len ||
@@ -2447,12 +2471,9 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 				bg->start, bg->length,
 				bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK);
 			ret = -EUCLEAN;
-			btrfs_free_chunk_map(map);
 			btrfs_put_block_group(bg);
 			break;
 		}
-		start = map->start + map->chunk_len;
-		btrfs_free_chunk_map(map);
 		btrfs_put_block_group(bg);
 	}
 	return ret;
@@ -2461,7 +2482,7 @@ static int check_chunk_block_group_mappings(struct btrfs_fs_info *fs_info)
 static int read_one_block_group(struct btrfs_fs_info *info,
 				struct btrfs_block_group_item_v2 *bgi,
 				const struct btrfs_key *key,
-				int need_clear)
+				bool need_clear)
 {
 	struct btrfs_block_group *cache;
 	const bool mixed = btrfs_fs_incompat(info, MIXED_GROUPS);
@@ -2642,7 +2663,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	struct btrfs_block_group *cache;
 	struct btrfs_space_info *space_info;
 	struct btrfs_key key;
-	int need_clear = 0;
+	bool need_clear = false;
 	u64 cache_gen;
 
 	/*
@@ -2667,9 +2688,9 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 	cache_gen = btrfs_super_cache_generation(info->super_copy);
 	if (btrfs_test_opt(info, SPACE_CACHE) &&
 	    btrfs_super_generation(info->super_copy) != cache_gen)
-		need_clear = 1;
+		need_clear = true;
 	if (btrfs_test_opt(info, CLEAR_CACHE))
-		need_clear = 1;
+		need_clear = true;
 
 	while (1) {
 		struct btrfs_block_group_item_v2 bgi;
@@ -4096,7 +4117,7 @@ int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type)
 	struct btrfs_space_info *space_info;
 
 	space_info = btrfs_find_space_info(trans->fs_info, type);
-	if (!space_info) {
+	if (unlikely(!space_info)) {
 		DEBUG_WARN();
 		return -EINVAL;
 	}

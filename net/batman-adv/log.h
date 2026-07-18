@@ -76,7 +76,7 @@ __printf(2, 3);
 #define _batadv_dbg(type, bat_priv, ratelimited, fmt, arg...)		\
 	do {								\
 		struct batadv_priv *__batpriv = (bat_priv);		\
-		if (atomic_read(&__batpriv->log_level) & (type) &&	\
+		if (READ_ONCE(__batpriv->log_level) & (type) &&	\
 		    (!(ratelimited) || net_ratelimit()))		\
 			batadv_debug_log(__batpriv, fmt, ## arg);	\
 	}								\

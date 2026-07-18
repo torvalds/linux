@@ -28,6 +28,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
+#include "amdgpu_dm_kunit_helpers.h"
 
 struct amdgpu_dm_quirks {
 	bool aux_hpd_discon;
@@ -176,3 +177,4 @@ void retrieve_dmi_info(struct amdgpu_display_manager *dm)
 		drm_info(dev, "support_edp0_on_dp1 attached\n");
 	}
 }
+EXPORT_IF_KUNIT(retrieve_dmi_info);

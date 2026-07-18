@@ -34,7 +34,7 @@ static int ens160_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ens160_i2c_id[] = {
-	{ "ens160" },
+	{ .name = "ens160" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ens160_i2c_id);

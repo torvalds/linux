@@ -95,7 +95,8 @@ static inline u8 get_server_type(struct task_struct *tsk)
 static inline int extract_params(struct pt_regs *regs, long id, pid_t *pid_out)
 {
 	size_t size = offsetofend(struct sched_attr, sched_flags);
-	struct sched_attr __user *uattr, attr;
+	struct sched_attr __user *uattr;
+	struct sched_attr attr;
 	int new_policy = -1, ret;
 	unsigned long args[6];
 

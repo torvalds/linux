@@ -23,7 +23,7 @@
 /*
  * Minor version changes when API backward compatibility is preserved.
  */
-#define VPU_JSM_API_VER_MINOR 33
+#define VPU_JSM_API_VER_MINOR 34
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
@@ -605,6 +605,16 @@ enum vpu_ipc_msg_type {
 	 */
 	VPU_JSM_MSG_DCT_DISABLE = 0x111d,
 	/**
+	 * Reserved command ID to ensure that the following command requests /
+	 * responses have the same lower byte value.
+	 */
+	VPU_JSM_MSG_RESERVED_111E = 0x111e,
+	/**
+	 * Control command: Configure VPU frequency scaling parameters.
+	 * @see vpu_ipc_msg_payload_freq_config
+	 */
+	VPU_JSM_MSG_FREQ_CONFIG = 0x111f,
+	/**
 	 * Dump VPU state. To be used for debug purposes only.
 	 * This command has no payload.
 	 * NOTE: Please introduce new ASYNC commands before this one.
@@ -766,6 +776,11 @@ enum vpu_ipc_msg_type {
 	 * This command has no payload
 	 */
 	VPU_JSM_MSG_DCT_DISABLE_DONE = 0x221e,
+	/**
+	 * Response to control command: Configure VPU frequency scaling parameters.
+	 * @see vpu_ipc_msg_payload_freq_config
+	 */
+	VPU_JSM_MSG_FREQ_CONFIG_RSP = 0x221f,
 	/**
 	 * Response to state dump control command.
 	 * This command has no payload.
@@ -1650,6 +1665,22 @@ struct vpu_ipc_msg_payload_pwr_dct_control {
 	u32 dct_inactive_us;
 };
 
+/**
+ * Payload for @ref VPU_JSM_MSG_FREQ_CONFIG message.
+ *
+ * This payload allows the host to configure the VPU frequency scaling parameters.
+ */
+struct vpu_ipc_msg_payload_freq_config {
+	/** Minimum frequency PLL ratio */
+	u32 min_freq_pll_ratio;
+	/** Efficiency frequency PLL ratio */
+	u32 pn_freq_pll_ratio;
+	/** Maximum frequency PLL ratio */
+	u32 max_freq_pll_ratio;
+	/** Reserved for 64-bit alignment */
+	u32 reserved_0;
+};
+
 /*
  * Payloads union, used to define complete message format.
  */
@@ -1692,6 +1723,7 @@ union vpu_ipc_msg_payload {
 	struct vpu_ipc_msg_payload_hws_resume_engine hws_resume_engine;
 	struct vpu_ipc_msg_payload_pwr_d0i3_enter pwr_d0i3_enter;
 	struct vpu_ipc_msg_payload_pwr_dct_control pwr_dct_control;
+	struct vpu_ipc_msg_payload_freq_config freq_config;
 };
 
 /**

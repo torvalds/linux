@@ -6,6 +6,7 @@
 #include <asm/intel-family.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
+#include <asm/cpuid/api.h>
 #include <asm/smp.h>
 
 #include "cpu.h"

@@ -3340,7 +3340,7 @@ static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq,
 }
 
 static int mtip_init_cmd(struct blk_mq_tag_set *set, struct request *rq,
-			 unsigned int hctx_idx, unsigned int numa_node)
+			 unsigned int hctx_idx, int numa_node)
 {
 	struct driver_data *dd = set->driver_data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
@@ -3405,6 +3405,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 		.max_segment_size	= 0x400000,
 	};
 	int rv = 0, wait_for_rebuild = 0;
+	bool disk_added = false;
 	sector_t capacity;
 	unsigned int index = 0;
 
@@ -3438,6 +3439,7 @@ static int mtip_block_initialize(struct driver_data *dd)
 		dev_err(&dd->pdev->dev,
 			"Unable to allocate request queue\n");
 		rv = -ENOMEM;
+		dd->disk = NULL;
 		goto block_queue_alloc_init_error;
 	}
 	dd->queue		= dd->disk->queue;
@@ -3496,6 +3498,7 @@ skip_create_disk:
 	rv = device_add_disk(&dd->pdev->dev, dd->disk, mtip_disk_attr_groups);
 	if (rv)
 		goto read_capacity_error;
+	disk_added = true;
 
 	if (dd->mtip_svc_handler) {
 		set_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag);
@@ -3511,7 +3514,9 @@ start_service_thread:
 		dev_err(&dd->pdev->dev, "service thread failed to start\n");
 		dd->mtip_svc_handler = NULL;
 		rv = -EFAULT;
-		goto kthread_run_error;
+		if (disk_added)
+			goto kthread_run_error;
+		goto read_capacity_error;
 	}
 	wake_up_process(dd->mtip_svc_handler);
 	if (wait_for_rebuild == MTIP_FTL_REBUILD_MAGIC)
@@ -3522,6 +3527,10 @@ start_service_thread:
 kthread_run_error:
 	/* Delete our gendisk. This also removes the device from /dev */
 	del_gendisk(dd->disk);
+	mtip_hw_debugfs_exit(dd);
+	blk_mq_free_tag_set(&dd->tags);
+	mtip_hw_exit(dd);
+	return rv;
 read_capacity_error:
 init_hw_cmds_error:
 	mtip_hw_debugfs_exit(dd);
@@ -3529,6 +3538,7 @@ disk_index_error:
 	ida_free(&rssd_index_ida, index);
 ida_get_error:
 	put_disk(dd->disk);
+	dd->disk = NULL;
 block_queue_alloc_init_error:
 	blk_mq_free_tag_set(&dd->tags);
 block_queue_alloc_tag_error:
@@ -3839,7 +3849,10 @@ msi_initialize_err:
 	}
 
 iomap_err:
-	kfree(dd);
+	if (dd->disk)
+		put_disk(dd->disk);
+	else
+		kfree(dd);
 	pci_set_drvdata(pdev, NULL);
 	return rv;
 done:

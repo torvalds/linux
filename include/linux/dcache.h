@@ -116,10 +116,7 @@ struct dentry {
 					 * possible!
 					 */
 
-	union {
-		struct list_head d_lru;		/* LRU list */
-		wait_queue_head_t *d_wait;	/* in-lookup ones only */
-	};
+	struct list_head d_lru;		/* LRU list */
 	struct hlist_node d_sib;	/* child of parent list */
 	struct hlist_head d_children;	/* our children */
 	/*
@@ -210,6 +207,9 @@ enum dentry_flags {
 	DCACHE_REFERENCED		= BIT(6),	/* Recently used, don't discard. */
 	DCACHE_DONTCACHE		= BIT(7),	/* Purge from memory on final dput() */
 	DCACHE_CANT_MOUNT		= BIT(8),
+	DCACHE_LOOKUP_WAITERS		= BIT(9),	/* A thread is waiting for
+							 * PAR_LOOKUP to clear
+							 */
 	DCACHE_SHRINK_LIST		= BIT(10),
 	DCACHE_OP_WEAK_REVALIDATE	= BIT(11),
 	/*
@@ -256,8 +256,7 @@ extern void d_delete(struct dentry *);
 /* allocate/de-allocate */
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_anon(struct super_block *);
-extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *,
-					wait_queue_head_t *);
+extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 /* weird procfs mess; *NOT* exported */
 extern struct dentry * d_splice_alias_ops(struct inode *, struct dentry *,
@@ -281,7 +280,7 @@ extern void d_tmpfile(struct file *, struct inode *);
 
 extern struct dentry *d_find_alias(struct inode *);
 extern void d_prune_aliases(struct inode *);
-extern void d_dispose_if_unused(struct dentry *, struct list_head *);
+extern bool __move_to_shrink_list(struct dentry *, struct list_head *);
 extern void shrink_dentry_list(struct list_head *);
 
 extern struct dentry *d_find_alias_rcu(struct inode *);
@@ -364,6 +363,24 @@ static inline struct dentry *dget(struct dentry *dentry)
 	if (dentry)
 		lockref_get(&dentry->d_lockref);
 	return dentry;
+}
+
+/* dentry->d_inode->i_lock must be held by caller */
+static inline bool dget_alias_ilocked(struct dentry *dentry)
+{
+	if (likely(!(READ_ONCE(dentry->d_flags) & DCACHE_NORCU))) {
+		lockref_get(&dentry->d_lockref);
+		return true;
+	}
+	// NORCU dentries with zero refcount MUST NOT be grabbed
+	spin_lock(&dentry->d_lock);
+	if (dentry->d_lockref.count > 0) {
+		dget_dlock(dentry);
+		spin_unlock(&dentry->d_lock);
+		return true;
+	}
+	spin_unlock(&dentry->d_lock);
+	return false;
 }
 
 extern struct dentry *dget_parent(struct dentry *dentry);

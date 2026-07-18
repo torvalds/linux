@@ -314,7 +314,14 @@ destroy:
 		xa_cmpxchg_irq(&table->dct_xa, dct->mqp.qpn, XA_ZERO_ENTRY, dct, 0);
 		return err;
 	}
-	xa_erase_irq(&table->dct_xa, dct->mqp.qpn);
+
+	/*
+	 * A race can occur where a concurrent create gets the same dctn
+	 * (after hardware released it) and overwrites XA_ZERO_ENTRY with
+	 * its new DCT before we reach here. In that case, we must not erase
+	 * the entry as it now belongs to the new DCT.
+	 */
+	xa_cmpxchg_irq(&table->dct_xa, dct->mqp.qpn, XA_ZERO_ENTRY, NULL, 0);
 	return 0;
 }
 

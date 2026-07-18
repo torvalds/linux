@@ -146,7 +146,7 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	if (ret)
 		goto err_srq;
 
-	srq->umem = ib_umem_get(ibsrq->device, ucmd.buf_addr, ucmd.buf_size, 0);
+	srq->umem = ib_umem_get_va(ibsrq->device, ucmd.buf_addr, ucmd.buf_size, 0);
 	if (IS_ERR(srq->umem)) {
 		ret = PTR_ERR(srq->umem);
 		goto err_srq;
@@ -195,10 +195,10 @@ int pvrdma_create_srq(struct ib_srq *ibsrq, struct ib_srq_init_attr *init_attr,
 	spin_unlock_irqrestore(&dev->srq_tbl_lock, flags);
 
 	/* Copy udata back. */
-	if (ib_copy_to_udata(udata, &srq_resp, sizeof(srq_resp))) {
-		dev_warn(&dev->pdev->dev, "failed to copy back udata\n");
+	ret = ib_respond_udata(udata, srq_resp);
+	if (ret) {
 		pvrdma_destroy_srq(&srq->ibsrq, udata);
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;

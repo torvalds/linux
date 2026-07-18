@@ -27,8 +27,8 @@ static int maxqlen = SNDRV_SEQ_OSS_MAX_QLEN;
 module_param(maxqlen, int, 0444);
 MODULE_PARM_DESC(maxqlen, "maximum queue length");
 
-static int system_client = -1; /* ALSA sequencer client number */
-static int system_port = -1;
+static int system_client __ro_after_init = -1; /* ALSA sequencer client number */
+static int system_port __ro_after_init = -1;
 
 static int num_clients;
 static struct seq_oss_devinfo *client_table[SNDRV_SEQ_OSS_MAX_CLIENTS];

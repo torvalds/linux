@@ -120,6 +120,7 @@ class SubPlugin(TdcPlugin):
         dev0 = self.args.NAMES["DEV0"];
         dev1 = self.args.NAMES["DEV1"];
         dummy = self.args.NAMES["DUMMY"];
+        ifb = self.args.NAMES['IFB']
 
         if self.args.verbose:
             print('{}._nl_ns_create'.format(self.sub_class))
@@ -129,6 +130,7 @@ class SubPlugin(TdcPlugin):
         with IPRoute() as ip:
             ip.link('add', ifname=dev1, kind='veth', peer={'ifname': dev0, 'net_ns_fd':'/proc/1/ns/net'})
             ip.link('add', ifname=dummy, kind='dummy')
+            ip.link('add', ifname=ifb, kind='ifb')
             ticks = 20
             while True:
                 if ticks == 0:
@@ -136,8 +138,10 @@ class SubPlugin(TdcPlugin):
                 try:
                     dev1_idx = ip.link_lookup(ifname=dev1)[0]
                     dummy_idx = ip.link_lookup(ifname=dummy)[0]
+                    ifb_idx = ip.link_lookup(ifname=ifb)[0]
                     ip.link('set', index=dev1_idx, state='up')
                     ip.link('set', index=dummy_idx, state='up')
+                    ip.link('set', index=ifb_idx, state='up')
                     break
                 except:
                     time.sleep(0.1)
@@ -169,8 +173,11 @@ class SubPlugin(TdcPlugin):
         cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
         cmds.append(self._replace_keywords('link add $DUMMY type dummy'.format(ns)))
         cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('link add $IFB type ifb'))
+        cmds.append(self._replace_keywords('link set $IFB netns {}'.format(ns)))
         cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
         cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
+        cmds.append(self._replace_keywords('netns exec {} $IP link set $IFB up'.format(ns)))
         cmds.append(self._replace_keywords('link set $DEV0 up'.format(ns)))
 
         if self.args.device:

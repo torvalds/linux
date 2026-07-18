@@ -18,7 +18,7 @@ The LP55xx common driver provides these features using exported functions.
 
   lp55xx_init_device() / lp55xx_deinit_device()
   lp55xx_register_leds() / lp55xx_unregister_leds()
-  lp55xx_regsister_sysfs() / lp55xx_unregister_sysfs()
+  lp55xx_register_sysfs() / lp55xx_unregister_sysfs()
 
 ( Driver Structure Data )
 

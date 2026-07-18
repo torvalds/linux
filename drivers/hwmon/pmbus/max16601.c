@@ -263,11 +263,11 @@ static void max16601_remove(void *_data)
 }
 
 static const struct i2c_device_id max16601_id[] = {
-	{"max16508", max16508},
-	{"max16600", max16600},
-	{"max16601", max16601},
-	{"max16602", max16602},
-	{}
+	{ .name = "max16508", .driver_data = max16508 },
+	{ .name = "max16600", .driver_data = max16600 },
+	{ .name = "max16601", .driver_data = max16601 },
+	{ .name = "max16602", .driver_data = max16602 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max16601_id);
 

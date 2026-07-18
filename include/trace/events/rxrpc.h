@@ -71,6 +71,7 @@
 	EM(rxkad_abort_resp_unknown_tkt,	"rxkad-resp-unknown-tkt") \
 	EM(rxkad_abort_resp_version,		"rxkad-resp-version")	\
 	/* RxGK security errors */					\
+	EM(rxgk_abort_1_short_header,		"rxgk1-short-hdr")	\
 	EM(rxgk_abort_1_verify_mic_eproto,	"rxgk1-vfy-mic-eproto")	\
 	EM(rxgk_abort_2_decrypt_eproto,		"rxgk2-dec-eproto")	\
 	EM(rxgk_abort_2_short_data,		"rxgk2-short-data")	\

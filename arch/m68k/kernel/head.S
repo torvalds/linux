@@ -1110,7 +1110,7 @@ L(not147):
 	jbra	L(mmu_init_done)
 
 L(not16x):
-#endif	/* CONFIG_MVME162 | CONFIG_MVME167 */
+#endif	/* CONFIG_MVME16x */
 
 #ifdef CONFIG_BVME6000
 

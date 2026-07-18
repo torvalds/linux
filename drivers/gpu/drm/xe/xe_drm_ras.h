@@ -2,8 +2,8 @@
 /*
  * Copyright © 2026 Intel Corporation
  */
-#ifndef XE_DRM_RAS_H_
-#define XE_DRM_RAS_H_
+#ifndef _XE_DRM_RAS_H_
+#define _XE_DRM_RAS_H_
 
 struct xe_device;
 

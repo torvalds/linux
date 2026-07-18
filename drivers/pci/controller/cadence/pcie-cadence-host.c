@@ -13,6 +13,7 @@
 
 #include "pcie-cadence.h"
 #include "pcie-cadence-host-common.h"
+#include "../../pci.h"
 
 static u8 bar_aperture_mask[] = {
 	[RP_BAR0] = 0x1F,
@@ -365,8 +366,10 @@ void cdns_pcie_host_disable(struct cdns_pcie_rc *rc)
 	struct pci_host_bridge *bridge;
 
 	bridge = pci_host_bridge_from_priv(rc);
+	pci_lock_rescan_remove();
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
+	pci_unlock_rescan_remove();
 
 	cdns_pcie_host_deinit(rc);
 	cdns_pcie_host_link_disable(rc);
@@ -396,6 +399,9 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	rc->device_id = 0xffff;
 	of_property_read_u32(np, "device-id", &rc->device_id);
+
+	if (pcie->max_link_speed < 1)
+		pcie->max_link_speed = of_pci_get_max_link_speed(np);
 
 	pcie->reg_base = devm_platform_ioremap_resource_byname(pdev, "reg");
 	if (IS_ERR(pcie->reg_base)) {

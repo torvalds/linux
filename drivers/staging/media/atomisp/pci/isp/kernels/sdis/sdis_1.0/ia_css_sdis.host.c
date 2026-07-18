@@ -50,9 +50,8 @@ void ia_css_sdis_horicoef_vmem_encode(
 	assert(size % (IA_CSS_DVS_NUM_COEF_TYPES * ISP_VEC_NELEMS * sizeof(
 			   short)) == 0);
 
-	for (type = 0; type < IA_CSS_DVS_NUM_COEF_TYPES; type++) {
+	for (type = 0; type < IA_CSS_DVS_NUM_COEF_TYPES; type++)
 		fill_row(&private[type * stride], &public[type * width], width, padding);
-	}
 }
 
 void ia_css_sdis_vertcoef_vmem_encode(
@@ -77,9 +76,8 @@ void ia_css_sdis_vertcoef_vmem_encode(
 	assert(size % (IA_CSS_DVS_NUM_COEF_TYPES * ISP_VEC_NELEMS * sizeof(
 			   short)) == 0);
 
-	for (type = 0; type < IA_CSS_DVS_NUM_COEF_TYPES; type++) {
+	for (type = 0; type < IA_CSS_DVS_NUM_COEF_TYPES; type++)
 		fill_row(&private[type * stride], &public[type * height], height, padding);
-	}
 }
 
 void ia_css_sdis_horiproj_encode(

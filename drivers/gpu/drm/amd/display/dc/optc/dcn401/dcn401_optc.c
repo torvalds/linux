@@ -189,15 +189,10 @@ bool optc401_enable_crtc(struct timing_generator *optc)
 	REG_UPDATE(CONTROL,
 			VTG0_ENABLE, 1);
 
-	REG_SEQ_START();
-
 	/* Enable CRTC */
 	REG_UPDATE_2(OTG_CONTROL,
 			OTG_DISABLE_POINT_CNTL, 2,
 			OTG_MASTER_EN, 1);
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 
 	return true;
 }
@@ -378,6 +373,8 @@ void optc401_set_out_mux(struct timing_generator *optc, enum otg_out_mux_dest de
 	   01 - OTG_CONTROL_OTG_OUT_MUX_1 : Reserved.
 	   02 - OTG_CONTROL_OTG_OUT_MUX_2 : Connects to HPO.
 	*/
+	if (dest  == OUT_MUX_HPO_FRL)
+		dest = OUT_MUX_HPO_DP;
 	REG_UPDATE(OTG_CONTROL, OTG_OUT_MUX, dest);
 }
 

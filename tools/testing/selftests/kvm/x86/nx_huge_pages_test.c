@@ -32,7 +32,7 @@
 #define RETURN_OPCODE 0xC3
 
 /* Call the specified memory address. */
-static void guest_do_CALL(uint64_t target)
+static void guest_do_CALL(u64 target)
 {
 	((void (*)(void)) target)();
 }
@@ -46,14 +46,14 @@ static void guest_do_CALL(uint64_t target)
  */
 void guest_code(void)
 {
-	uint64_t hpage_1 = HPAGE_GVA;
-	uint64_t hpage_2 = hpage_1 + (PAGE_SIZE * 512);
-	uint64_t hpage_3 = hpage_2 + (PAGE_SIZE * 512);
+	u64 hpage_1 = HPAGE_GVA;
+	u64 hpage_2 = hpage_1 + (PAGE_SIZE * 512);
+	u64 hpage_3 = hpage_2 + (PAGE_SIZE * 512);
 
-	READ_ONCE(*(uint64_t *)hpage_1);
+	READ_ONCE(*(u64 *)hpage_1);
 	GUEST_SYNC(1);
 
-	READ_ONCE(*(uint64_t *)hpage_2);
+	READ_ONCE(*(u64 *)hpage_2);
 	GUEST_SYNC(2);
 
 	guest_do_CALL(hpage_1);
@@ -62,10 +62,10 @@ void guest_code(void)
 	guest_do_CALL(hpage_3);
 	GUEST_SYNC(4);
 
-	READ_ONCE(*(uint64_t *)hpage_1);
+	READ_ONCE(*(u64 *)hpage_1);
 	GUEST_SYNC(5);
 
-	READ_ONCE(*(uint64_t *)hpage_3);
+	READ_ONCE(*(u64 *)hpage_3);
 	GUEST_SYNC(6);
 }
 
@@ -107,7 +107,7 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	uint64_t nr_bytes;
+	u64 nr_bytes;
 	void *hva;
 	int r;
 

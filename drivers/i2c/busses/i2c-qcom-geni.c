@@ -110,7 +110,6 @@ struct geni_i2c_dev {
 	struct clk *core_clk;
 	u32 clk_freq_out;
 	const struct geni_i2c_clk_fld *clk_fld;
-	int suspended;
 	void *dma_buf;
 	size_t xfer_len;
 	dma_addr_t dma_addr;
@@ -1143,7 +1142,6 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_dma;
 
-	gi2c->suspended = 1;
 	pm_runtime_set_suspended(gi2c->se.dev);
 	pm_runtime_set_autosuspend_delay(gi2c->se.dev, I2C_AUTO_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(gi2c->se.dev);
@@ -1200,9 +1198,6 @@ static int __maybe_unused geni_i2c_runtime_suspend(struct device *dev)
 	if (ret) {
 		enable_irq(gi2c->irq);
 		return ret;
-
-	} else {
-		gi2c->suspended = 1;
 	}
 
 	clk_disable_unprepare(gi2c->core_clk);
@@ -1228,7 +1223,6 @@ static int __maybe_unused geni_i2c_runtime_resume(struct device *dev)
 		goto out_clk_disable;
 
 	enable_irq(gi2c->irq);
-	gi2c->suspended = 0;
 
 	return 0;
 
@@ -1243,21 +1237,25 @@ out_icc_disable:
 static int __maybe_unused geni_i2c_suspend_noirq(struct device *dev)
 {
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+	int ret;
 
 	i2c_mark_adapter_suspended(&gi2c->adap);
 
-	if (!gi2c->suspended) {
-		geni_i2c_runtime_suspend(dev);
-		pm_runtime_disable(dev);
-		pm_runtime_set_suspended(dev);
-		pm_runtime_enable(dev);
-	}
-	return 0;
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		i2c_mark_adapter_resumed(&gi2c->adap);
+
+	return ret;
 }
 
 static int __maybe_unused geni_i2c_resume_noirq(struct device *dev)
 {
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(dev);
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
 
 	i2c_mark_adapter_resumed(&gi2c->adap);
 	return 0;

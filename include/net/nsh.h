@@ -247,10 +247,10 @@ struct nshhdr {
 #define NSH_M_TYPE1_LEN   24
 
 /* NSH header maximum Length. */
-#define NSH_HDR_MAX_LEN 256
+#define NSH_HDR_MAX_LEN ((NSH_LEN_MASK >> NSH_LEN_SHIFT) * 4)
 
 /* NSH context headers maximum Length. */
-#define NSH_CTX_HDRS_MAX_LEN 248
+#define NSH_CTX_HDRS_MAX_LEN (NSH_HDR_MAX_LEN - NSH_BASE_HDR_LEN)
 
 static inline struct nshhdr *nsh_hdr(struct sk_buff *skb)
 {

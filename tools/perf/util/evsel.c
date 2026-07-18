@@ -11,68 +11,71 @@
  */
 #define __SANE_USERSPACE_TYPES__
 
-#include <byteswap.h>
+#include "evsel.h"
+
 #include <errno.h>
 #include <inttypes.h>
+#include <stdlib.h>
+
+#include <dirent.h>
 #include <linux/bitops.h>
-#include <api/fs/fs.h>
-#include <api/fs/tracing_path.h>
+#include <linux/compiler.h>
+#include <linux/ctype.h>
+#include <linux/err.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
-#include <linux/compiler.h>
-#include <linux/err.h>
 #include <linux/zalloc.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <stdlib.h>
+
+#include <api/fs/fs.h>
+#include <api/fs/tracing_path.h>
+#include <byteswap.h>
+#include <internal/lib.h>
+#include <internal/threadmap.h>
+#include <internal/xyarray.h>
+#include <perf/cpumap.h>
 #include <perf/evsel.h>
+
+#include "../perf-sys.h"
 #include "asm/bug.h"
+#include "bpf-filter.h"
 #include "bpf_counter.h"
 #include "callchain.h"
 #include "cgroup.h"
 #include "counts.h"
-#include "dwarf-regs.h"
-#include "event.h"
-#include "evsel.h"
-#include "time-utils.h"
-#include "util/env.h"
-#include "util/evsel_config.h"
-#include "util/evsel_fprintf.h"
-#include "evlist.h"
-#include <perf/cpumap.h>
-#include "thread_map.h"
-#include "target.h"
-#include "perf_regs.h"
-#include "record.h"
 #include "debug.h"
-#include "trace-event.h"
+#include "drm_pmu.h"
+#include "dwarf-regs.h"
+#include "env.h"
+#include "event.h"
+#include "evlist.h"
+#include "evsel_config.h"
+#include "evsel_fprintf.h"
+#include "hashmap.h"
+#include "hist.h"
+#include "hwmon_pmu.h"
+#include "intel-tpebs.h"
+#include "memswap.h"
+#include "off_cpu.h"
+#include "parse-branch-options.h"
+#include "perf_regs.h"
+#include "pmu.h"
+#include "pmus.h"
+#include "record.h"
+#include "rlimit.h"
 #include "session.h"
 #include "stat.h"
 #include "string2.h"
-#include "memswap.h"
-#include "util.h"
-#include "util/hashmap.h"
-#include "off_cpu.h"
-#include "pmu.h"
-#include "pmus.h"
-#include "drm_pmu.h"
-#include "hwmon_pmu.h"
+#include "target.h"
+#include "thread_map.h"
+#include "time-utils.h"
 #include "tool_pmu.h"
 #include "tp_pmu.h"
-#include "rlimit.h"
-#include "../perf-sys.h"
-#include "util/parse-branch-options.h"
-#include "util/bpf-filter.h"
-#include "util/hist.h"
-#include <internal/xyarray.h>
-#include <internal/lib.h>
-#include <internal/threadmap.h>
-#include "util/intel-tpebs.h"
-
-#include <linux/ctype.h>
+#include "trace-event.h"
+#include "util.h"
 
 #ifdef HAVE_LIBTRACEEVENT
 #include <event-parse.h>
@@ -251,6 +254,58 @@ const char *evsel__pmu_name(const struct evsel *evsel)
 	return event_type(evsel->core.attr.type);
 }
 
+enum evsel_probe_type {
+	PROBE__UNKNOWN	= 0,
+	PROBE__NOPE	= 1,
+	PROBE__KPROBE	= 2,
+	PROBE__UPROBE	= 3,
+	/*
+	 * Ftrace-based dynamic probes (kprobes/uprobes/fprobes created via
+	 * tracefs) report PMU "tracepoint", not "kprobe"/"uprobe".  Detect
+	 * them by the __probe_ip field that the kernel adds to all dynamic
+	 * probe formats.
+	 */
+	PROBE__FTRACE	= 4,
+};
+
+static void evsel__resolve_probe_type(struct evsel *evsel)
+{
+	const char *name = evsel__pmu_name(evsel);
+
+	if (!strcmp(name, "kprobe"))
+		evsel->probe_type = PROBE__KPROBE;
+	else if (!strcmp(name, "uprobe"))
+		evsel->probe_type = PROBE__UPROBE;
+	else if (!strcmp(name, "tracepoint") && evsel__field(evsel, "__probe_ip"))
+		evsel->probe_type = PROBE__FTRACE;
+	else
+		evsel->probe_type = PROBE__NOPE;
+}
+
+bool evsel__is_probe(struct evsel *evsel)
+{
+	if (evsel->probe_type == PROBE__UNKNOWN)
+		evsel__resolve_probe_type(evsel);
+
+	return evsel->probe_type > PROBE__NOPE;
+}
+
+bool evsel__is_kprobe(struct evsel *evsel)
+{
+	if (evsel->probe_type == PROBE__UNKNOWN)
+		evsel__resolve_probe_type(evsel);
+
+	return evsel->probe_type == PROBE__KPROBE;
+}
+
+bool evsel__is_uprobe(struct evsel *evsel)
+{
+	if (evsel->probe_type == PROBE__UNKNOWN)
+		evsel__resolve_probe_type(evsel);
+
+	return evsel->probe_type == PROBE__UPROBE;
+}
+
 #define FD(e, x, y) (*(int *)xyarray__entry(e->core.fd, x, y))
 
 int __evsel__sample_size(u64 sample_type)
@@ -410,6 +465,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->supported     = true;
 	evsel->alternate_hw_config = PERF_COUNT_HW_MAX;
 	evsel->script_output_type = -1; // FIXME: OUTPUT_TYPE_UNSET, see builtin-script.c
+	evsel->probe_type = PROBE__UNKNOWN;
 }
 
 struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx)
@@ -1396,6 +1452,12 @@ void evsel__set_config_if_unset(struct evsel *evsel, const char *config_name,
 	perf_pmu__format_pack(format->bits, val, vp, /*zero=*/true);
 }
 
+bool evsel__config_exists(const struct evsel *evsel, const char *config_name)
+{
+	struct perf_pmu_format *format = pmu_find_format(&evsel->pmu->format, config_name);
+
+	return format && !bitmap_empty(format->bits, PERF_PMU_FORMAT_BITS);
+}
 
 int evsel__get_config_val(const struct evsel *evsel, const char *config_name,
 			  u64 *val)
@@ -1795,27 +1857,114 @@ int evsel__append_addr_filter(struct evsel *evsel, const char *filter)
 /* Caller has to clear disabled after going through all CPUs. */
 int evsel__enable_cpu(struct evsel *evsel, int cpu_map_idx)
 {
-	return perf_evsel__enable_cpu(&evsel->core, cpu_map_idx);
+	int err;
+
+	if (evsel__is_tool(evsel))
+		err = evsel__tool_pmu_enable_cpu(evsel, cpu_map_idx);
+	else
+		err = perf_evsel__enable_cpu(&evsel->core, cpu_map_idx);
+
+	if (!err && evsel__is_group_leader(evsel)) {
+		struct evsel *member;
+
+		for_each_group_member(member, evsel) {
+			if (evsel__is_non_perf_event_open_pmu(evsel) ||
+			    evsel__is_non_perf_event_open_pmu(member)) {
+				/*
+				 * In a mixed PMU group, userspace PMUs are not
+				 * grouped in the kernel (opened with group_fd = -1)
+				 * and are skipped by the kernel when enabling the
+				 * group leader. We must manually enable them in
+				 * userspace.
+				 */
+				int mem_err = evsel__enable_cpu(member, cpu_map_idx);
+
+				if (mem_err)
+					return mem_err;
+			}
+		}
+	}
+	return err;
 }
 
 int evsel__enable(struct evsel *evsel)
 {
-	int err = perf_evsel__enable(&evsel->core);
+	int err;
+
+	if (evsel__is_tool(evsel))
+		err = evsel__tool_pmu_enable(evsel);
+	else
+		err = perf_evsel__enable(&evsel->core);
 
 	if (!err)
 		evsel->disabled = false;
+
+	if (!err && evsel__is_group_leader(evsel)) {
+		struct evsel *member;
+
+		for_each_group_member(member, evsel) {
+			if (evsel__is_non_perf_event_open_pmu(evsel) ||
+			    evsel__is_non_perf_event_open_pmu(member)) {
+				/*
+				 * In a mixed PMU group, userspace PMUs are not
+				 * grouped in the kernel (opened with group_fd = -1)
+				 * and are skipped by the kernel when enabling the
+				 * group leader. We must manually enable them in
+				 * userspace.
+				 */
+				int mem_err = evsel__enable(member);
+
+				if (mem_err)
+					return mem_err;
+			}
+			member->disabled = false;
+		}
+	}
+
 	return err;
 }
 
 /* Caller has to set disabled after going through all CPUs. */
 int evsel__disable_cpu(struct evsel *evsel, int cpu_map_idx)
 {
-	return perf_evsel__disable_cpu(&evsel->core, cpu_map_idx);
+	int err;
+
+	if (evsel__is_tool(evsel))
+		err = evsel__tool_pmu_disable_cpu(evsel, cpu_map_idx);
+	else
+		err = perf_evsel__disable_cpu(&evsel->core, cpu_map_idx);
+
+	if (!err && evsel__is_group_leader(evsel)) {
+		struct evsel *member;
+
+		for_each_group_member(member, evsel) {
+			if (evsel__is_non_perf_event_open_pmu(evsel) ||
+			    evsel__is_non_perf_event_open_pmu(member)) {
+				/*
+				 * In a mixed PMU group, userspace PMUs are not
+				 * grouped in the kernel and are skipped by the
+				 * kernel when disabling the group leader. We must
+				 * manually disable them in userspace.
+				 */
+				int mem_err = evsel__disable_cpu(member, cpu_map_idx);
+
+				if (mem_err)
+					return mem_err;
+			}
+		}
+	}
+	return err;
 }
 
 int evsel__disable(struct evsel *evsel)
 {
-	int err = perf_evsel__disable(&evsel->core);
+	int err;
+
+	if (evsel__is_tool(evsel))
+		err = evsel__tool_pmu_disable(evsel);
+	else
+		err = perf_evsel__disable(&evsel->core);
+
 	/*
 	 * We mark it disabled here so that tools that disable a event can
 	 * ignore events after they disable it. I.e. the ring buffer may have
@@ -1824,6 +1973,27 @@ int evsel__disable(struct evsel *evsel)
 	 */
 	if (!err)
 		evsel->disabled = true;
+
+	if (!err && evsel__is_group_leader(evsel)) {
+		struct evsel *member;
+
+		for_each_group_member(member, evsel) {
+			if (evsel__is_non_perf_event_open_pmu(evsel) ||
+			    evsel__is_non_perf_event_open_pmu(member)) {
+				/*
+				 * In a mixed PMU group, userspace PMUs are not
+				 * grouped in the kernel and are skipped by the
+				 * kernel when disabling the group leader. We must
+				 * manually disable them in userspace.
+				 */
+				int mem_err = evsel__disable(member);
+
+				if (mem_err)
+					return mem_err;
+			}
+			member->disabled = true;
+		}
+	}
 
 	return err;
 }
@@ -1885,8 +2055,10 @@ void evsel__exit(struct evsel *evsel)
 		evsel__priv_destructor(evsel->priv);
 	perf_evsel__object.fini(evsel);
 	if (evsel__tool_event(evsel) == TOOL_PMU__EVENT_SYSTEM_TIME ||
-	    evsel__tool_event(evsel) == TOOL_PMU__EVENT_USER_TIME)
-		xyarray__delete(evsel->start_times);
+	    evsel__tool_event(evsel) == TOOL_PMU__EVENT_USER_TIME) {
+		xyarray__delete(evsel->process_time.start_times);
+		xyarray__delete(evsel->process_time.accumulated_times);
+	}
 }
 
 void evsel__delete(struct evsel *evsel)
@@ -3003,52 +3175,62 @@ int evsel__open_per_thread(struct evsel *evsel, struct perf_thread_map *threads)
 	return ret;
 }
 
-static int perf_evsel__parse_id_sample(const struct evsel *evsel,
-				       const union perf_event *event,
+static int perf_evsel__parse_id_sample(const union perf_event *event,
 				       struct perf_sample *sample)
 {
+	const struct evsel *evsel = sample->evsel;
 	u64 type = evsel->core.attr.sample_type;
 	const __u64 *array = event->sample.array;
 	bool swapped = evsel->needs_swap;
 	union u64_swap u;
-
-	array += ((event->header.size -
-		   sizeof(event->header)) / sizeof(u64)) - 1;
+	int i = ((event->header.size - sizeof(event->header)) / sizeof(u64)) - 1;
 
 	if (type & PERF_SAMPLE_IDENTIFIER) {
-		sample->id = *array;
-		array--;
+		if (i < 0)
+			return -EFAULT;
+
+		sample->id = array[i--];
 	}
 
 	if (type & PERF_SAMPLE_CPU) {
-		u.val64 = *array;
+		if (i < 0)
+			return -EFAULT;
+
+		u.val64 = array[i--];
 		if (swapped) {
 			/* undo swap of u64, then swap on individual u32s */
 			u.val64 = bswap_64(u.val64);
 			u.val32[0] = bswap_32(u.val32[0]);
 		}
-
 		sample->cpu = u.val32[0];
-		array--;
 	}
 
 	if (type & PERF_SAMPLE_STREAM_ID) {
-		sample->stream_id = *array;
-		array--;
+		if (i < 0)
+			return -EFAULT;
+
+		sample->stream_id = array[i--];
 	}
 
 	if (type & PERF_SAMPLE_ID) {
-		sample->id = *array;
-		array--;
+		if (i < 0)
+			return -EFAULT;
+
+		sample->id = array[i--];
 	}
 
 	if (type & PERF_SAMPLE_TIME) {
-		sample->time = *array;
-		array--;
+		if (i < 0)
+			return -EFAULT;
+
+		sample->time = array[i--];
 	}
 
 	if (type & PERF_SAMPLE_TID) {
-		u.val64 = *array;
+		if (i < 0)
+			return -EFAULT;
+
+		u.val64 = array[i--];
 		if (swapped) {
 			/* undo swap of u64, then swap on individual u32s */
 			u.val64 = bswap_64(u.val64);
@@ -3058,7 +3240,6 @@ static int perf_evsel__parse_id_sample(const struct evsel *evsel,
 
 		sample->pid = u.val32[0];
 		sample->tid = u.val32[1];
-		array--;
 	}
 
 	return 0;
@@ -3209,11 +3390,11 @@ out_efault:
 	return -EFAULT;
 }
 
-int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
-			struct perf_sample *data)
+int __evsel__parse_sample(struct evsel *evsel, union perf_event *event,
+			  struct perf_sample *data, bool needs_swap)
 {
 	u64 type = evsel->core.attr.sample_type;
-	bool swapped = evsel->needs_swap;
+	bool swapped = needs_swap;
 	const __u64 *array;
 	u16 max_size = event->header.size;
 	const void *endp = (void *)event + max_size;
@@ -3244,15 +3425,18 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 
 		data->deferred_cookie = event->callchain_deferred.cookie;
 
-		if (evsel->core.attr.sample_id_all)
-			perf_evsel__parse_id_sample(evsel, event, data);
-
+		if (evsel->core.attr.sample_id_all) {
+			if (perf_evsel__parse_id_sample(event, data))
+				goto out_efault;
+		}
 		return 0;
 	}
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
-		if (evsel->core.attr.sample_id_all)
-			perf_evsel__parse_id_sample(evsel, event, data);
+		if (evsel->core.attr.sample_id_all) {
+			if (perf_evsel__parse_id_sample(event, data))
+				goto out_efault;
+		}
 		return 0;
 	}
 
@@ -3614,12 +3798,13 @@ int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		struct perf_sample data = {
+			.evsel = evsel,
 			.time = -1ULL,
 		};
 
 		if (!evsel->core.attr.sample_id_all)
 			return -1;
-		if (perf_evsel__parse_id_sample(evsel, event, &data))
+		if (perf_evsel__parse_id_sample(event, &data))
 			return -1;
 
 		*timestamp = data.time;
@@ -3687,22 +3872,63 @@ struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *na
 	return tp_format ? tep_find_common_field(tp_format, name) : NULL;
 }
 
-void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name)
+static bool out_of_bounds(const struct tep_format_field *field, int offset, int size, u32 raw_size)
 {
-	struct tep_format_field *field = evsel__field(evsel, name);
-	int offset;
+	if (offset < 0) {
+		pr_warning("Negative trace point field offset %d in %s\n",
+			   offset, field->name);
+		return true;
+	}
+	if (size < 0) {
+		pr_warning("Negative trace point field size %d in %s\n",
+			   size, field->name);
+		return true;
+	}
+	if ((u32)offset + (u32)size > raw_size) {
+		pr_warning("Out of bound tracepoint field (%s) offset %d size %d in %u\n",
+			   field->name, offset, size, raw_size);
+		return true;
+	}
+	return false;
+}
+
+void *perf_sample__rawptr(struct perf_sample *sample, const char *name)
+{
+	struct tep_format_field *field = evsel__field(sample->evsel, name);
+	int offset, size;
 
 	if (!field)
 		return NULL;
 
 	offset = field->offset;
-
+	size = field->size;
 	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
-		offset = *(int *)(sample->raw_data + field->offset);
-		offset &= 0xffff;
-		if (tep_field_is_relative(field->flags))
+		int dynamic_data;
+
+		if (out_of_bounds(field, offset, 4, sample->raw_size))
+			return NULL;
+
+		dynamic_data = *(int *)(sample->raw_data + field->offset);
+
+		if (sample->evsel->needs_swap)
+			dynamic_data = bswap_32(dynamic_data);
+
+		offset = dynamic_data & 0xffff;
+		size = (dynamic_data >> 16) & 0xffff;
+
+		if (tep_field_is_relative(field->flags)) {
+			/*
+			 * Newer kernel feature: Relative offsets (__rel_loc).
+			 * If the relative flag is set, the parsed offset is not
+			 * absolute from the start of the record. Instead, it is
+			 * relative to the *end* of the dynamic field descriptor
+			 * itself.
+			 */
 			offset += field->offset + field->size;
+		}
 	}
+	if (out_of_bounds(field, offset, size, sample->raw_size))
+		return NULL;
 
 	return sample->raw_data + offset;
 }
@@ -3712,6 +3938,9 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 {
 	u64 value;
 	void *ptr = sample->raw_data + field->offset;
+
+	if (out_of_bounds(field, field->offset, field->size, sample->raw_size))
+		return 0;
 
 	switch (field->size) {
 	case 1:
@@ -3746,21 +3975,21 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 	return 0;
 }
 
-u64 evsel__intval(struct evsel *evsel, struct perf_sample *sample, const char *name)
+u64 perf_sample__intval(struct perf_sample *sample, const char *name)
 {
-	struct tep_format_field *field = evsel__field(evsel, name);
+	struct tep_format_field *field = evsel__field(sample->evsel, name);
 
-	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
+	return field ? format_field__intval(field, sample, sample->evsel->needs_swap) : 0;
 }
 
-u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const char *name)
+u64 perf_sample__intval_common(struct perf_sample *sample, const char *name)
 {
-	struct tep_format_field *field = evsel__common_field(evsel, name);
+	struct tep_format_field *field = evsel__common_field(sample->evsel, name);
 
-	return field ? format_field__intval(field, sample, evsel->needs_swap) : 0;
+	return field ? format_field__intval(field, sample, sample->evsel->needs_swap) : 0;
 }
 
-char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const char *name)
+char perf_sample__taskstate(struct perf_sample *sample, const char *name)
 {
 	static struct tep_format_field *prev_state_field;
 	static const char *states;
@@ -3769,7 +3998,7 @@ char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const cha
 	unsigned int bit;
 	char state = '?'; /* '?' denotes unknown task state */
 
-	field = evsel__field(evsel, name);
+	field = evsel__field(sample->evsel, name);
 
 	if (!field)
 		return state;
@@ -3788,7 +4017,7 @@ char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const cha
 	 *
 	 * We can change this if we have a good reason in the future.
 	 */
-	val = evsel__intval(evsel, sample, name);
+	val = perf_sample__intval(sample, name);
 	bit = val ? ffs(val) : 0;
 	state = (!bit || bit > strlen(states)) ? 'R' : states[bit-1];
 	return state;

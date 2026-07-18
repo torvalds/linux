@@ -733,7 +733,7 @@ static int __maybe_unused cw_bat_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cw_bat_pm_ops, cw_bat_suspend, cw_bat_resume);
 
 static const struct i2c_device_id cw_bat_id_table[] = {
-	{ "cw2015" },
+	{ .name = "cw2015" },
 	{ }
 };
 

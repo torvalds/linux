@@ -14,7 +14,6 @@
 #include <linux/crc32.h>
 #include <linux/efi.h>
 #include <linux/firmware.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm_runtime.h>
@@ -132,10 +131,18 @@ static int tasdevice_spi_dev_update_bits(struct tasdevice_priv *tas_priv,
 	int ret, val;
 
 	/*
-	 * In our TAS2781 SPI mode, read/write was masked in last bit of
-	 * address, it cause regmap_update_bits() not work as expected.
+	 * In TAS2781 SPI mode, when accessing non-book-zero or page numbers
+	 * greater than 1 in book 0, an additional byte must be read. The
+	 * first byte in such cases is a dummy byte and should be ignored.
 	 */
-	ret = tasdevice_dev_read(tas_priv, chn, reg, &val);
+	if ((TASDEVICE_BOOK_ID(reg) > 0) || (TASDEVICE_PAGE_ID(reg) > 1)) {
+		unsigned char buf[2];
+
+		ret = tasdevice_dev_bulk_read(tas_priv, chn, reg, buf, 2);
+		val = buf[1];
+	} else {
+		ret = tasdevice_dev_read(tas_priv, chn, reg, &val);
+	}
 	if (ret < 0) {
 		dev_err(tas_priv->dev, "%s, E=%d\n", __func__, ret);
 		return ret;
@@ -182,15 +189,15 @@ static void tas2781_spi_reset(struct tasdevice_priv *tas_dev)
 		gpiod_set_value_cansleep(tas_dev->reset, 0);
 		fsleep(800);
 		gpiod_set_value_cansleep(tas_dev->reset, 1);
-	} else {
-		ret = tasdevice_dev_write(tas_dev, tas_dev->index,
-			TASDEVICE_REG_SWRESET, TASDEVICE_REG_SWRESET_RESET);
-		if (ret < 0) {
-			dev_err(tas_dev->dev, "dev sw-reset fail, %d\n", ret);
-			return;
-		}
-		fsleep(1000);
 	}
+
+	ret = tasdevice_dev_write(tas_dev, tas_dev->index,
+		TASDEVICE_REG_SWRESET, TASDEVICE_REG_SWRESET_RESET);
+	if (ret < 0) {
+		dev_err(tas_dev->dev, "dev sw-reset fail, %d\n", ret);
+		return;
+	}
+	fsleep(1000);
 }
 
 static int tascodec_spi_init(struct tasdevice_priv *tas_priv,
@@ -585,7 +592,7 @@ static int tas2781_hda_spi_snd_ctls(struct tas2781_hda *h)
 		return rc;
 	}
 	i++;
-	snprintf(name, sizeof(name), "Froce Speaker-%d FW Load", p->index);
+	snprintf(name, sizeof(name), "Force Speaker-%d FW Load", p->index);
 	tas2781_snd_ctls[i].name = name;
 	h_priv->snd_ctls[i] = snd_ctl_new1(&tas2781_snd_ctls[i], p);
 	rc = snd_ctl_add(c->card, h_priv->snd_ctls[i]);
@@ -741,6 +748,9 @@ static void tas2781_hda_unbind(struct device *dev, struct device *master,
 		memset(comp->name, 0, sizeof(comp->name));
 		comp->playback_hook = NULL;
 	}
+
+	request_firmware_nowait_cancel(tas_priv->dev, tas_priv,
+				       tasdev_fw_ready);
 
 	tas2781_hda_remove_controls(tas_hda);
 

@@ -40,6 +40,7 @@ use crate::{
     regs,
 };
 
+pub(crate) mod fsp;
 pub(crate) mod gsp;
 mod hal;
 pub(crate) mod sec2;
@@ -372,7 +373,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Resets DMA-related registers.
-    pub(crate) fn dma_reset(&self, bar: &Bar0) {
+    pub(crate) fn dma_reset(&self, bar: Bar0<'_>) {
         bar.update(regs::NV_PFALCON_FBIF_CTL::of::<E>(), |v| {
             v.with_allow_phys_no_ctx(true)
         });
@@ -384,7 +385,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Reset the controller, select the falcon core, and wait for memory scrubbing to complete.
-    pub(crate) fn reset(&self, bar: &Bar0) -> Result {
+    pub(crate) fn reset(&self, bar: Bar0<'_>) -> Result {
         self.hal.reset_eng(bar)?;
         self.hal.select_core(self, bar)?;
         self.hal.reset_wait_mem_scrubbing(bar)?;
@@ -403,7 +404,11 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Write a slice to Falcon IMEM memory using programmed I/O (PIO).
     ///
     /// Returns `EINVAL` if `img.len()` is not a multiple of 4.
-    fn pio_wr_imem_slice(&self, bar: &Bar0, load_offsets: FalconPioImemLoadTarget<'_>) -> Result {
+    fn pio_wr_imem_slice(
+        &self,
+        bar: Bar0<'_>,
+        load_offsets: FalconPioImemLoadTarget<'_>,
+    ) -> Result {
         // Rejecting misaligned images here allows us to avoid checking
         // inside the loops.
         if load_offsets.data.len() % 4 != 0 {
@@ -440,7 +445,11 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Write a slice to Falcon DMEM memory using programmed I/O (PIO).
     ///
     /// Returns `EINVAL` if `img.len()` is not a multiple of 4.
-    fn pio_wr_dmem_slice(&self, bar: &Bar0, load_offsets: FalconPioDmemLoadTarget<'_>) -> Result {
+    fn pio_wr_dmem_slice(
+        &self,
+        bar: Bar0<'_>,
+        load_offsets: FalconPioDmemLoadTarget<'_>,
+    ) -> Result {
         // Rejecting misaligned images here allows us to avoid checking
         // inside the loops.
         if load_offsets.data.len() % 4 != 0 {
@@ -468,7 +477,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Perform a PIO copy into `IMEM` and `DMEM` of `fw`, and prepare the falcon to run it.
     pub(crate) fn pio_load<F: FalconFirmware<Target = E> + FalconPioLoadable>(
         &self,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         fw: &F,
     ) -> Result {
         bar.update(regs::NV_PFALCON_FBIF_CTL::of::<E>(), |v| {
@@ -488,7 +497,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         }
         self.pio_wr_dmem_slice(bar, fw.dmem_load_params())?;
 
-        self.hal.program_brom(self, bar, &fw.brom_params())?;
+        self.hal.program_brom(self, bar, &fw.brom_params());
 
         bar.write(
             WithBase::of::<E>(),
@@ -504,7 +513,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// `sec` is set if the loaded firmware is expected to run in secure mode.
     fn dma_wr(
         &self,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         dma_obj: &Coherent<[u8]>,
         target_mem: FalconMem,
         load_offsets: FalconDmaLoadTarget,
@@ -611,7 +620,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     fn dma_load<F: FalconFirmware<Target = E> + FalconDmaLoadable>(
         &self,
         dev: &Device<device::Bound>,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         fw: &F,
     ) -> Result {
         // DMA object with firmware content as the source of the DMA engine.
@@ -647,7 +656,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
         )?;
         self.dma_wr(bar, &dma_obj, FalconMem::Dmem, fw.dmem_load_params())?;
 
-        self.hal.program_brom(self, bar, &fw.brom_params())?;
+        self.hal.program_brom(self, bar, &fw.brom_params());
 
         // Set `BootVec` to start of non-secure code.
         bar.write(
@@ -659,7 +668,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Wait until the falcon CPU is halted.
-    pub(crate) fn wait_till_halted(&self, bar: &Bar0) -> Result<()> {
+    pub(crate) fn wait_till_halted(&self, bar: Bar0<'_>) -> Result<()> {
         // TIMEOUT: arbitrarily large value, firmwares should complete in less than 2 seconds.
         read_poll_timeout(
             || Ok(bar.read(regs::NV_PFALCON_FALCON_CPUCTL::of::<E>())),
@@ -672,7 +681,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Start the falcon CPU.
-    pub(crate) fn start(&self, bar: &Bar0) -> Result<()> {
+    pub(crate) fn start(&self, bar: Bar0<'_>) -> Result<()> {
         match bar
             .read(regs::NV_PFALCON_FALCON_CPUCTL::of::<E>())
             .alias_en()
@@ -691,7 +700,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Writes values to the mailbox registers if provided.
-    pub(crate) fn write_mailboxes(&self, bar: &Bar0, mbox0: Option<u32>, mbox1: Option<u32>) {
+    pub(crate) fn write_mailboxes(&self, bar: Bar0<'_>, mbox0: Option<u32>, mbox1: Option<u32>) {
         if let Some(mbox0) = mbox0 {
             bar.write(
                 WithBase::of::<E>(),
@@ -708,19 +717,19 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Reads the value from `mbox0` register.
-    pub(crate) fn read_mailbox0(&self, bar: &Bar0) -> u32 {
+    pub(crate) fn read_mailbox0(&self, bar: Bar0<'_>) -> u32 {
         bar.read(regs::NV_PFALCON_FALCON_MAILBOX0::of::<E>())
             .value()
     }
 
     /// Reads the value from `mbox1` register.
-    pub(crate) fn read_mailbox1(&self, bar: &Bar0) -> u32 {
+    pub(crate) fn read_mailbox1(&self, bar: Bar0<'_>) -> u32 {
         bar.read(regs::NV_PFALCON_FALCON_MAILBOX1::of::<E>())
             .value()
     }
 
     /// Reads values from both mailbox registers.
-    pub(crate) fn read_mailboxes(&self, bar: &Bar0) -> (u32, u32) {
+    pub(crate) fn read_mailboxes(&self, bar: Bar0<'_>) -> (u32, u32) {
         let mbox0 = self.read_mailbox0(bar);
         let mbox1 = self.read_mailbox1(bar);
 
@@ -736,7 +745,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// the `MBOX0` and `MBOX1` registers.
     pub(crate) fn boot(
         &self,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         mbox0: Option<u32>,
         mbox1: Option<u32>,
     ) -> Result<(u32, u32)> {
@@ -750,7 +759,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// falcon instance. `engine_id_mask` and `ucode_id` are obtained from the firmware header.
     pub(crate) fn signature_reg_fuse_version(
         &self,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         engine_id_mask: u16,
         ucode_id: u8,
     ) -> Result<u32> {
@@ -761,7 +770,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     /// Check if the RISC-V core is active.
     ///
     /// Returns `true` if the RISC-V core is active, `false` otherwise.
-    pub(crate) fn is_riscv_active(&self, bar: &Bar0) -> bool {
+    pub(crate) fn is_riscv_active(&self, bar: Bar0<'_>) -> bool {
         self.hal.is_riscv_active(bar)
     }
 
@@ -770,7 +779,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     pub(crate) fn load<F: FalconFirmware<Target = E> + FalconDmaLoadable>(
         &self,
         dev: &Device<device::Bound>,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         fw: &F,
     ) -> Result {
         match self.hal.load_method() {
@@ -780,7 +789,7 @@ impl<E: FalconEngine + 'static> Falcon<E> {
     }
 
     /// Write the application version to the OS register.
-    pub(crate) fn write_os_version(&self, bar: &Bar0, app_version: u32) {
+    pub(crate) fn write_os_version(&self, bar: Bar0<'_>, app_version: u32) {
         bar.write(
             WithBase::of::<E>(),
             regs::NV_PFALCON_FALCON_OS::zeroed().with_value(app_version),

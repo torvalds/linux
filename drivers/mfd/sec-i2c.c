@@ -17,8 +17,8 @@
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s2mps15.h>
 #include <linux/mfd/samsung/s2mpu02.h>
+#include <linux/mfd/samsung/s2mu005.h>
 #include <linux/mfd/samsung/s5m8767.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/property.h>
@@ -60,6 +60,19 @@ static bool s2mpu02_volatile(struct device *dev, unsigned int reg)
 	case S2MPU02_REG_INT1M:
 	case S2MPU02_REG_INT2M:
 	case S2MPU02_REG_INT3M:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool s2mu005_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case S2MU005_REG_CHGR_INT1M:
+	case S2MU005_REG_FLED_INT1M:
+	case S2MU005_REG_MUIC_INT1M:
+	case S2MU005_REG_MUIC_INT2M:
 		return false;
 	default:
 		return true;
@@ -128,6 +141,15 @@ static const struct regmap_config s2mpu02_regmap_config = {
 static const struct regmap_config s2mpu05_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+};
+
+static const struct regmap_config s2mu005_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = S2MU005_REG_MUIC_LDOADC_H,
+	.volatile_reg = s2mu005_volatile,
+	.cache_type = REGCACHE_FLAT_S,
 };
 
 static const struct regmap_config s5m8767_regmap_config = {
@@ -203,6 +225,11 @@ static const struct sec_pmic_i2c_platform_data s2mpu05_data = {
 	.device_type = S2MPU05,
 };
 
+static const struct sec_pmic_i2c_platform_data s2mu005_data = {
+	.regmap_cfg = &s2mu005_regmap_config,
+	.device_type = S2MU005,
+};
+
 static const struct sec_pmic_i2c_platform_data s5m8767_data = {
 	.regmap_cfg = &s5m8767_regmap_config,
 	.device_type = S5M8767X,
@@ -217,6 +244,7 @@ static const struct of_device_id sec_pmic_i2c_of_match[] = {
 	{ .compatible = "samsung,s2mps15-pmic", .data = &s2mps15_data, },
 	{ .compatible = "samsung,s2mpu02-pmic", .data = &s2mpu02_data, },
 	{ .compatible = "samsung,s2mpu05-pmic", .data = &s2mpu05_data, },
+	{ .compatible = "samsung,s2mu005-pmic", .data = &s2mu005_data, },
 	{ .compatible = "samsung,s5m8767-pmic", .data = &s5m8767_data, },
 	{ },
 };

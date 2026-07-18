@@ -22,8 +22,7 @@
 #define CPU_ON_ENTRY_ADDR 0xfeedf00dul
 #define CPU_ON_CONTEXT_ID 0xdeadc0deul
 
-static uint64_t psci_cpu_on(uint64_t target_cpu, uint64_t entry_addr,
-			    uint64_t context_id)
+static u64 psci_cpu_on(u64 target_cpu, u64 entry_addr, u64 context_id)
 {
 	struct arm_smccc_res res;
 
@@ -33,8 +32,7 @@ static uint64_t psci_cpu_on(uint64_t target_cpu, uint64_t entry_addr,
 	return res.a0;
 }
 
-static uint64_t psci_affinity_info(uint64_t target_affinity,
-				   uint64_t lowest_affinity_level)
+static u64 psci_affinity_info(u64 target_affinity, u64 lowest_affinity_level)
 {
 	struct arm_smccc_res res;
 
@@ -44,7 +42,7 @@ static uint64_t psci_affinity_info(uint64_t target_affinity,
 	return res.a0;
 }
 
-static uint64_t psci_system_suspend(uint64_t entry_addr, uint64_t context_id)
+static u64 psci_system_suspend(u64 entry_addr, u64 context_id)
 {
 	struct arm_smccc_res res;
 
@@ -54,7 +52,7 @@ static uint64_t psci_system_suspend(uint64_t entry_addr, uint64_t context_id)
 	return res.a0;
 }
 
-static uint64_t psci_system_off2(uint64_t type, uint64_t cookie)
+static u64 psci_system_off2(u64 type, u64 cookie)
 {
 	struct arm_smccc_res res;
 
@@ -63,7 +61,7 @@ static uint64_t psci_system_off2(uint64_t type, uint64_t cookie)
 	return res.a0;
 }
 
-static uint64_t psci_features(uint32_t func_id)
+static u64 psci_features(u32 func_id)
 {
 	struct arm_smccc_res res;
 
@@ -110,7 +108,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 
 static void assert_vcpu_reset(struct kvm_vcpu *vcpu)
 {
-	uint64_t obs_pc, obs_x0;
+	u64 obs_pc, obs_x0;
 
 	obs_pc = vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc));
 	obs_x0 = vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.regs[0]));
@@ -123,9 +121,9 @@ static void assert_vcpu_reset(struct kvm_vcpu *vcpu)
 		    obs_x0, CPU_ON_CONTEXT_ID);
 }
 
-static void guest_test_cpu_on(uint64_t target_cpu)
+static void guest_test_cpu_on(u64 target_cpu)
 {
-	uint64_t target_state;
+	u64 target_state;
 
 	GUEST_ASSERT(!psci_cpu_on(target_cpu, CPU_ON_ENTRY_ADDR, CPU_ON_CONTEXT_ID));
 
@@ -142,7 +140,7 @@ static void guest_test_cpu_on(uint64_t target_cpu)
 static void host_test_cpu_on(void)
 {
 	struct kvm_vcpu *source, *target;
-	uint64_t target_mpidr;
+	u64 target_mpidr;
 	struct kvm_vm *vm;
 	struct ucall uc;
 
@@ -166,7 +164,7 @@ static void host_test_cpu_on(void)
 
 static void guest_test_system_suspend(void)
 {
-	uint64_t ret;
+	u64 ret;
 
 	/* assert that SYSTEM_SUSPEND is discoverable */
 	GUEST_ASSERT(!psci_features(PSCI_1_0_FN_SYSTEM_SUSPEND));
@@ -200,7 +198,7 @@ static void host_test_system_suspend(void)
 
 static void guest_test_system_off2(void)
 {
-	uint64_t ret;
+	u64 ret;
 
 	/* assert that SYSTEM_OFF2 is discoverable */
 	GUEST_ASSERT(psci_features(PSCI_1_3_FN_SYSTEM_OFF2) &
@@ -238,7 +236,7 @@ static void host_test_system_off2(void)
 {
 	struct kvm_vcpu *source, *target;
 	struct kvm_mp_state mps;
-	uint64_t psci_version = 0;
+	u64 psci_version = 0;
 	int nr_shutdowns = 0;
 	struct kvm_run *run;
 	struct ucall uc;

@@ -85,14 +85,6 @@ config HMC_DRV
 	  transfer cache size from its default value 0.5MB to N bytes. If N
 	  is zero, then no caching is performed.
 
-config SCLP_OFB
-	def_bool n
-	prompt "Support for Open-for-Business SCLP Event"
-	depends on S390
-	help
-	  This option enables the Open-for-Business interface to the s390
-	  Service Element.
-
 config S390_UV_UAPI
 	def_tristate m
 	prompt "Ultravisor userspace API"

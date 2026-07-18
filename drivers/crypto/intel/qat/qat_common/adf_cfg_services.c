@@ -94,10 +94,9 @@ static int adf_service_mask_to_string(unsigned long mask, char *buf, size_t len)
 	for_each_set_bit(bit, &mask, SVC_COUNT) {
 		if (offset)
 			offset += scnprintf(buf + offset, len - offset,
-					    ADF_SERVICES_DELIMITER);
-
-		offset += scnprintf(buf + offset, len - offset, "%s",
-				    adf_cfg_services[bit]);
+				ADF_SERVICES_DELIMITER "%s", adf_cfg_services[bit]);
+		else
+			offset += scnprintf(buf, len, "%s", adf_cfg_services[bit]);
 	}
 
 	return 0;

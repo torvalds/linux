@@ -269,5 +269,8 @@ void dccg35_disable_dscclk(struct dccg *dccg, int inst);
 
 void dccg35_enable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
 void dccg35_disable_symclk_se(struct dccg *dccg, uint32_t stream_enc_inst, uint32_t link_enc_inst);
-
+void dccg35_set_hdmistreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		uint32_t otg_inst);
 #endif //__DCN35_DCCG_H__

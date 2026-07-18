@@ -248,7 +248,7 @@ xfs_attr_node_list_lookup(
 			goto out_corruptbuf;
 		}
 
-		fa = xfs_da3_node_header_check(bp, dp->i_ino);
+		fa = xfs_da3_node_header_check(bp, I_INO(dp));
 		if (fa)
 			goto out_corruptbuf;
 
@@ -287,7 +287,7 @@ xfs_attr_node_list_lookup(
 		}
 	}
 
-	fa = xfs_attr3_leaf_header_check(bp, dp->i_ino);
+	fa = xfs_attr3_leaf_header_check(bp, I_INO(dp));
 	if (fa) {
 		__xfs_buf_mark_corrupt(bp, fa);
 		goto out_releasebuf;
@@ -348,7 +348,7 @@ xfs_attr_node_list(
 		case XFS_DA_NODE_MAGIC:
 		case XFS_DA3_NODE_MAGIC:
 			trace_xfs_attr_list_wrong_blk(context);
-			fa = xfs_da3_node_header_check(bp, dp->i_ino);
+			fa = xfs_da3_node_header_check(bp, I_INO(dp));
 			if (fa) {
 				__xfs_buf_mark_corrupt(bp, fa);
 				xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
@@ -359,7 +359,7 @@ xfs_attr_node_list(
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
 			leaf = bp->b_addr;
-			fa = xfs_attr3_leaf_header_check(bp, dp->i_ino);
+			fa = xfs_attr3_leaf_header_check(bp, I_INO(dp));
 			if (fa) {
 				__xfs_buf_mark_corrupt(bp, fa);
 				xfs_trans_brelse(context->tp, bp);
@@ -417,7 +417,7 @@ need_lookup:
 			break;
 		cursor->blkno = leafhdr.forw;
 		xfs_trans_brelse(context->tp, bp);
-		error = xfs_attr3_leaf_read(context->tp, dp, dp->i_ino,
+		error = xfs_attr3_leaf_read(context->tp, dp, I_INO(dp),
 				cursor->blkno, &bp);
 		if (error)
 			return error;
@@ -543,7 +543,7 @@ xfs_attr_leaf_list(
 
 	context->cursor.blkno = 0;
 	error = xfs_attr3_leaf_read(context->tp, context->dp,
-			context->dp->i_ino, 0, &bp);
+			I_INO(context->dp), 0, &bp);
 	if (error)
 		return error;
 

@@ -624,12 +624,11 @@ static void i82975x_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id i82975x_pci_tbl[] = {
 	{
-		PCI_VEND_DEV(INTEL, 82975_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		I82975X
-	},
-	{
-		0,
-	}	/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, 82975_0),
+		.driver_data = I82975X
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, i82975x_pci_tbl);

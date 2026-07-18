@@ -137,24 +137,6 @@ static void owl_fw_cb(const struct firmware *fw, void *context)
 	release_firmware(fw);
 }
 
-static const char *owl_get_eeprom_name(struct pci_dev *pdev)
-{
-	struct device *dev = &pdev->dev;
-	char *eeprom_name;
-
-	dev_dbg(dev, "using auto-generated eeprom filename\n");
-
-	eeprom_name = devm_kzalloc(dev, EEPROM_FILENAME_LEN, GFP_KERNEL);
-	if (!eeprom_name)
-		return NULL;
-
-	/* this should match the pattern used in ath9k/init.c */
-	scnprintf(eeprom_name, EEPROM_FILENAME_LEN, "ath9k-eeprom-pci-%s.bin",
-		  dev_name(dev));
-
-	return eeprom_name;
-}
-
 static void owl_nvmem_work(struct work_struct *work)
 {
 	struct owl_ctx *ctx = container_of(work, struct owl_ctx, work);
@@ -195,8 +177,9 @@ static int owl_nvmem_probe(struct owl_ctx *ctx)
 static int owl_probe(struct pci_dev *pdev,
 		     const struct pci_device_id *id)
 {
+	char eeprom_name[EEPROM_FILENAME_LEN];
+	struct device *dev = &pdev->dev;
 	struct owl_ctx *ctx;
-	const char *eeprom_name;
 	int err = 0;
 
 	if (pci_enable_device(pdev))
@@ -215,11 +198,11 @@ static int owl_probe(struct pci_dev *pdev,
 	if (err <= 0)
 		return err;
 
-	eeprom_name = owl_get_eeprom_name(pdev);
-	if (!eeprom_name) {
-		dev_err(&pdev->dev, "no eeprom filename found.\n");
-		return -ENODEV;
-	}
+	dev_dbg(dev, "using auto-generated eeprom filename\n");
+
+	/* this should match the pattern used in ath9k/init.c */
+	scnprintf(eeprom_name, sizeof(eeprom_name), "ath9k-eeprom-pci-%s.bin",
+		  dev_name(dev));
 
 	err = request_firmware_nowait(THIS_MODULE, true, eeprom_name,
 				      &pdev->dev, GFP_KERNEL, ctx, owl_fw_cb);

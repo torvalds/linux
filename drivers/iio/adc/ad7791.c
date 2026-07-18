@@ -407,23 +407,22 @@ static void ad7791_reg_disable(void *reg)
 
 static int ad7791_probe(struct spi_device *spi)
 {
-	const struct ad7791_platform_data *pdata = dev_get_platdata(&spi->dev);
+	struct device *dev = &spi->dev;
+	const struct ad7791_platform_data *pdata = dev_get_platdata(dev);
 	struct iio_dev *indio_dev;
 	struct ad7791_state *st;
 	int ret;
 
-	if (!spi->irq) {
-		dev_err(&spi->dev, "Missing IRQ.\n");
-		return -ENXIO;
-	}
+	if (!spi->irq)
+		return dev_err_probe(dev, -ENXIO, "Missing IRQ.\n");
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get(&spi->dev, "refin");
+	st->reg = devm_regulator_get(dev, "refin");
 	if (IS_ERR(st->reg))
 		return PTR_ERR(st->reg);
 
@@ -431,7 +430,7 @@ static int ad7791_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7791_reg_disable, st->reg);
+	ret = devm_add_action_or_reset(dev, ad7791_reg_disable, st->reg);
 	if (ret)
 		return ret;
 
@@ -447,7 +446,7 @@ static int ad7791_probe(struct spi_device *spi)
 	else
 		indio_dev->info = &ad7791_no_filter_info;
 
-	ret = devm_ad_sd_setup_buffer_and_trigger(&spi->dev, indio_dev);
+	ret = devm_ad_sd_setup_buffer_and_trigger(dev, indio_dev);
 	if (ret)
 		return ret;
 
@@ -455,7 +454,7 @@ static int ad7791_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct spi_device_id ad7791_spi_ids[] = {

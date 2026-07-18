@@ -74,6 +74,9 @@ static int help(struct sk_buff *skb,
 		struct sane_reply_net_start repl;
 	} buf;
 
+	if (!ct_sane_info)
+		return NF_DROP;
+
 	/* Until there's been traffic both ways, don't look in packets. */
 	if (ctinfo != IP_CT_ESTABLISHED &&
 	    ctinfo != IP_CT_ESTABLISHED_REPLY)
@@ -167,6 +170,7 @@ static int help(struct sk_buff *skb,
 }
 
 static struct nf_conntrack_helper sane[MAX_PORTS * 2] __read_mostly;
+static struct nf_conntrack_helper *sane_ptr[MAX_PORTS * 2] __read_mostly;
 
 static const struct nf_conntrack_expect_policy sane_exp_policy = {
 	.max_expected	= 1,
@@ -175,7 +179,7 @@ static const struct nf_conntrack_expect_policy sane_exp_policy = {
 
 static void __exit nf_conntrack_sane_fini(void)
 {
-	nf_conntrack_helpers_unregister(sane, ports_c * 2);
+	nf_conntrack_helpers_unregister(sane_ptr, ports_c * 2);
 }
 
 static int __init nf_conntrack_sane_init(void)
@@ -200,7 +204,7 @@ static int __init nf_conntrack_sane_init(void)
 				  THIS_MODULE);
 	}
 
-	ret = nf_conntrack_helpers_register(sane, ports_c * 2);
+	ret = nf_conntrack_helpers_register(sane, ports_c * 2, sane_ptr);
 	if (ret < 0) {
 		pr_err("failed to register helpers\n");
 		return ret;

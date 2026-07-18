@@ -16,7 +16,7 @@
 
 static int psci_acpi_cpu_init_idle(unsigned int cpu)
 {
-	int i, count;
+	int i;
 	struct acpi_lpi_state *lpi;
 	struct acpi_processor *pr = per_cpu(processors, cpu);
 
@@ -30,14 +30,10 @@ static int psci_acpi_cpu_init_idle(unsigned int cpu)
 	if (!psci_ops.cpu_suspend)
 		return -EOPNOTSUPP;
 
-	count = pr->power.count - 1;
-	if (count <= 0)
-		return -ENODEV;
-
-	for (i = 0; i < count; i++) {
+	for (i = 1; i < pr->power.count; i++) {
 		u32 state;
 
-		lpi = &pr->power.lpi_states[i + 1];
+		lpi = &pr->power.lpi_states[i];
 		/*
 		 * Only bits[31:0] represent a PSCI power_state while
 		 * bits[63:32] must be 0x0 as per ARM ACPI FFH Specification

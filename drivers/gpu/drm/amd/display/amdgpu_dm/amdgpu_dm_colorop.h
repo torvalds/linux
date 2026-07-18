@@ -33,4 +33,9 @@ extern const u64 amdgpu_dm_supported_blnd_tfs;
 
 int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_prop_enum_list *list);
 
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+int amdgpu_dm_build_default_pipeline(struct drm_device *dev, struct drm_plane *plane,
+				      bool hw_3d_lut, struct drm_prop_enum_list *list);
+#endif
+
 #endif /* __AMDGPU_DM_COLOROP_H__*/

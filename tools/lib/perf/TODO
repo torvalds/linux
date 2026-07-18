@@ -1,0 +1,30 @@
+Future ABI changes
+==================
+
+This file collects items that require a libperf ABI bump.  Each entry
+should describe the current limitation, the desired end state, and the
+scope of the change so that a future ABI revision can batch them
+together.
+
+1. Widen struct perf_cpu.cpu from int16_t to int
+   - Current limit: 32767 CPUs.  No architecture exceeds this today
+     (x86_64 max is 8192, arm64 is 4096), but NR_CPUS limits keep
+     growing.  perf clamps to INT16_MAX in set_max_cpu_num() as a
+     safety net.
+   - Code simplification: the int16_t forces defensive truncation
+     checks at every boundary where a wider CPU index (int from
+     sample->cpu, al->cpu, etc.) is narrowed into struct perf_cpu.
+     Without these checks, values > 32767 silently wrap to negative
+     numbers (two's complement), bypassing bounds validation.
+     Widening to int eliminates this entire class of silent
+     truncation bugs and removes the need for the INT16_MAX clamp
+     in set_max_cpu_num().
+   - Scope: struct perf_cpu is embedded everywhere — perf_cpu_map__cpu(),
+     perf_cpu_map__min(), perf_cpu_map__max(), perf_cpu_map__has(), the
+     for_each_cpu macros, and all internal callers.  The perf_cpu_map
+     internal array (RC_CHK_ACCESS(map)->map[]) stores struct perf_cpu
+     directly.  Widening changes the struct layout and every function
+     that returns or accepts struct perf_cpu by value.
+   - Migration: bump LIBPERF version in libperf.map, audit all
+     sizeof(struct perf_cpu) assumptions, update perf.data
+     serialization if needed.

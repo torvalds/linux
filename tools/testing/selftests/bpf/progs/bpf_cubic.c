@@ -16,6 +16,7 @@
 
 #include "bpf_tracing_net.h"
 #include <bpf/bpf_tracing.h>
+#include <errno.h>
 
 char _license[] SEC("license") = "GPL";
 
@@ -170,10 +171,18 @@ static void bictcp_hystart_reset(struct sock *sk)
 	ca->sample_cnt = 0;
 }
 
+bool nodelay_init_reject = false;
+bool nodelay_cwnd_event_tx_start_reject = false;
+
 SEC("struct_ops")
 void BPF_PROG(bpf_cubic_init, struct sock *sk)
 {
 	struct bpf_bictcp *ca = inet_csk_ca(sk);
+	int true_val = 1, ret;
+
+	ret = bpf_setsockopt(sk, SOL_TCP, TCP_NODELAY, &true_val, sizeof(true_val));
+	if (ret == -EOPNOTSUPP)
+		nodelay_init_reject = true;
 
 	bictcp_reset(ca);
 
@@ -189,7 +198,12 @@ void BPF_PROG(bpf_cubic_cwnd_event_tx_start, struct sock *sk)
 {
 	struct bpf_bictcp *ca = inet_csk_ca(sk);
 	__u32 now = tcp_jiffies32;
+	int true_val = 1, ret;
 	__s32 delta;
+
+	ret = bpf_setsockopt(sk, SOL_TCP, TCP_NODELAY, &true_val, sizeof(true_val));
+	if (ret == -EOPNOTSUPP)
+		nodelay_cwnd_event_tx_start_reject = true;
 
 	delta = now - tcp_sk(sk)->lsndtime;
 

@@ -134,13 +134,9 @@ static int rsmu_i2c_write_device(struct rsmu_ddata *rsmu, u8 reg, u8 *buf, u8 by
 static int rsmu_write_page_register(struct rsmu_ddata *rsmu, u32 reg,
 				    rsmu_rw_device rsmu_write_device)
 {
-	u32 page = reg & RSMU_CM_PAGE_MASK;
+	u32 page = (reg | RSMU_CM_SCSR_BASE) & RSMU_CM_PAGE_MASK;
 	u8 buf[4];
 	int err;
-
-	/* Do not modify offset register for none-scsr registers */
-	if (reg < RSMU_CM_SCSR_BASE)
-		return 0;
 
 	/* Simply return if we are on the same page */
 	if (rsmu->page == page)
@@ -334,6 +330,7 @@ static void rsmu_i2c_remove(struct i2c_client *client)
 static const struct i2c_device_id rsmu_i2c_id[] = {
 	{ "8a34000",  RSMU_CM },
 	{ "8a34001",  RSMU_CM },
+	{ "8a34002",  RSMU_CM },
 	{ "82p33810", RSMU_SABRE },
 	{ "82p33811", RSMU_SABRE },
 	{ "8v19n850", RSMU_SL },
@@ -345,6 +342,7 @@ MODULE_DEVICE_TABLE(i2c, rsmu_i2c_id);
 static const struct of_device_id rsmu_i2c_of_match[] = {
 	{ .compatible = "idt,8a34000",  .data = (void *)RSMU_CM },
 	{ .compatible = "idt,8a34001",  .data = (void *)RSMU_CM },
+	{ .compatible = "idt,8a34002",  .data = (void *)RSMU_CM },
 	{ .compatible = "idt,82p33810", .data = (void *)RSMU_SABRE },
 	{ .compatible = "idt,82p33811", .data = (void *)RSMU_SABRE },
 	{ .compatible = "idt,8v19n850", .data = (void *)RSMU_SL },

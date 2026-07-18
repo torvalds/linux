@@ -34,7 +34,7 @@ struct fwnode_handle;
  * @class_release: Called to release this class.
  * @dev_release: Called to release the device.
  * @shutdown_pre: Called at shut-down time before driver shutdown.
- * @ns_type:	Callbacks so sysfs can detemine namespaces.
+ * @ns_type:	Callbacks so sysfs can determine namespaces.
  * @namespace:	Namespace of the device belongs to this class.
  * @get_ownership: Allows class to specify uid/gid of the sysfs directories
  *		for the devices belonging to the class. Usually tied to

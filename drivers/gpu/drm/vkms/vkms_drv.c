@@ -62,7 +62,7 @@ MODULE_PARM_DESC(create_default_dev, "Create or not the default VKMS device");
 
 DEFINE_DRM_GEM_FOPS(vkms_driver_fops);
 
-static void vkms_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void vkms_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct drm_crtc *crtc;
@@ -102,7 +102,7 @@ static const struct drm_driver vkms_driver = {
 	.minor			= DRIVER_MINOR,
 };
 
-static int vkms_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
+static int vkms_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *new_crtc_state;

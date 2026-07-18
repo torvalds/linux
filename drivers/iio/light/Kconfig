@@ -119,6 +119,20 @@ config APDS9960
 	  To compile this driver as a module, choose M here: the
 	  module will be called apds9960
 
+config APDS9999
+	tristate "Broadcom APDS9999 ALS, RGB and proximity sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to build support for the Broadcom APDS9999
+	  ALS, RGB and proximity sensor with I2C interface.
+
+	  This driver provides ambient light sensing (ALS/Lux), raw
+	  intensity data for red, green, blue and IR channels, plus
+	  proximity detection support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apds9999.
+
 config AS73211
 	tristate "AMS AS73211 XYZ color sensor and AMS AS7331 UV sensor"
 	depends on I2C
@@ -698,6 +712,17 @@ config VEML3235
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called veml3235.
+
+config VEML3328
+	tristate "VEML3328 RGBCIR light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML3328
+	  RGB IR light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml3328
 
 config VEML6030
 	tristate "VEML6030 and VEML6035 ambient light sensors"

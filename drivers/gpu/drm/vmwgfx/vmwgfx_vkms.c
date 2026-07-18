@@ -157,27 +157,19 @@ crc_generate_worker(struct work_struct *work)
 		drm_crtc_add_crc_entry(crtc, true, frame_start++, &crc32);
 }
 
-static enum hrtimer_restart
-vmw_vkms_vblank_simulate(struct hrtimer *timer)
+bool
+vmw_vkms_handle_vblank_timeout(struct drm_crtc *crtc)
 {
-	struct vmw_display_unit *du = container_of(timer, struct vmw_display_unit, vkms.timer);
-	struct drm_crtc *crtc = &du->crtc;
+	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
 	bool has_surface = false;
-	u64 ret_overrun;
 	bool locked, ret;
-
-	ret_overrun = hrtimer_forward_now(&du->vkms.timer,
-					  du->vkms.period_ns);
-	if (ret_overrun != 1)
-		drm_dbg_driver(crtc->dev, "vblank timer missed %lld frames.\n",
-			       ret_overrun - 1);
 
 	locked = vmw_vkms_vblank_trylock(crtc);
 	ret = drm_crtc_handle_vblank(crtc);
 	WARN_ON(!ret);
 	if (!locked)
-		return HRTIMER_RESTART;
+		return true;
 	has_surface = du->vkms.surface != NULL;
 	vmw_vkms_unlock(crtc);
 
@@ -200,7 +192,7 @@ vmw_vkms_vblank_simulate(struct hrtimer *timer)
 			drm_dbg_driver(crtc->dev, "Composer worker already queued\n");
 	}
 
-	return HRTIMER_RESTART;
+	return true;
 }
 
 void
@@ -245,32 +237,12 @@ vmw_vkms_get_vblank_timestamp(struct drm_crtc *crtc,
 			      ktime_t *vblank_time,
 			      bool in_vblank_irq)
 {
-	struct drm_device *dev = crtc->dev;
-	struct vmw_private *vmw = vmw_priv(dev);
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
+	struct vmw_private *vmw = vmw_priv(crtc->dev);
 
 	if (!vmw->vkms_enabled)
 		return false;
 
-	if (!READ_ONCE(vblank->enabled)) {
-		*vblank_time = ktime_get();
-		return true;
-	}
-
-	*vblank_time = READ_ONCE(du->vkms.timer.node.expires);
-
-	if (WARN_ON(*vblank_time == vblank->time))
-		return true;
-
-	/*
-	 * To prevent races we roll the hrtimer forward before we do any
-	 * interrupt processing - this is how real hw works (the interrupt is
-	 * only generated after all the vblank registers are updated) and what
-	 * the vblank core expects. Therefore we need to always correct the
-	 * timestampe by one frame.
-	 */
-	*vblank_time -= du->vkms.period_ns;
+	drm_crtc_vblank_get_vblank_timeout(crtc, vblank_time);
 
 	return true;
 }
@@ -280,20 +252,11 @@ vmw_vkms_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vmw_private *vmw = vmw_priv(dev);
-	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
-	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 
 	if (!vmw->vkms_enabled)
 		return -EINVAL;
 
-	drm_calc_timestamping_constants(crtc, &crtc->mode);
-
-	hrtimer_setup(&du->vkms.timer, &vmw_vkms_vblank_simulate, CLOCK_MONOTONIC,
-		      HRTIMER_MODE_REL);
-	du->vkms.period_ns = ktime_set(0, vblank->framedur_ns);
-	hrtimer_start(&du->vkms.timer, du->vkms.period_ns, HRTIMER_MODE_REL);
-
-	return 0;
+	return drm_crtc_vblank_start_timer(crtc);
 }
 
 void
@@ -305,9 +268,9 @@ vmw_vkms_disable_vblank(struct drm_crtc *crtc)
 	if (!vmw->vkms_enabled)
 		return;
 
-	hrtimer_cancel(&du->vkms.timer);
+	drm_crtc_vblank_cancel_timer(crtc);
+
 	du->vkms.surface = NULL;
-	du->vkms.period_ns = ktime_set(0, 0);
 }
 
 enum vmw_vkms_lock_state {
@@ -331,17 +294,20 @@ vmw_vkms_crtc_init(struct drm_crtc *crtc)
 void
 vmw_vkms_crtc_cleanup(struct drm_crtc *crtc)
 {
+	struct vmw_private *vmw = vmw_priv(crtc->dev);
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
+
+	if (vmw->vkms_enabled)
+		drm_crtc_vblank_cancel_timer(crtc);
 
 	if (du->vkms.surface)
 		vmw_surface_unreference(&du->vkms.surface);
 	WARN_ON(work_pending(&du->vkms.crc_generator_work));
-	hrtimer_cancel(&du->vkms.timer);
 }
 
 void
 vmw_vkms_crtc_atomic_begin(struct drm_crtc *crtc,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
 
@@ -351,7 +317,7 @@ vmw_vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 
 void
 vmw_vkms_crtc_atomic_flush(struct drm_crtc *crtc,
-			   struct drm_atomic_state *state)
+			   struct drm_atomic_commit *state)
 {
 	unsigned long flags;
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
@@ -377,7 +343,7 @@ vmw_vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 
 void
 vmw_vkms_crtc_atomic_enable(struct drm_crtc *crtc,
-			    struct drm_atomic_state *state)
+			    struct drm_atomic_commit *state)
 {
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
 
@@ -387,7 +353,7 @@ vmw_vkms_crtc_atomic_enable(struct drm_crtc *crtc,
 
 void
 vmw_vkms_crtc_atomic_disable(struct drm_crtc *crtc,
-			     struct drm_atomic_state *state)
+			     struct drm_atomic_commit *state)
 {
 	struct vmw_private *vmw = vmw_priv(crtc->dev);
 
@@ -516,9 +482,13 @@ vmw_vkms_set_crc_surface(struct drm_crtc *crtc,
 static inline u64
 vmw_vkms_lock_max_wait_ns(struct vmw_display_unit *du)
 {
-	s64 nsecs = ktime_to_ns(du->vkms.period_ns);
+	struct drm_crtc *crtc = &du->crtc;
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 
-	return  (nsecs > 0) ? nsecs : 16666666;
+	if (!vblank || !vblank->framedur_ns)
+		return NSEC_PER_SEC / 60; /* disabled; assume 60 Hz */
+
+	return vblank->framedur_ns;
 }
 
 /**

@@ -60,7 +60,7 @@ examples:
             clock-output-names = "main", "pll0", "pll1", "pll2",
                                   "pll2s", "pll2h", "z", "z2",
                                   "i", "m3", "b", "m1", "m2",
-                                  "zx", "zs", "hp";
+                                  "zx", "zs", "hp", "ztr", "zt";
     };
 
     sdhi2_clk: sdhi2_clk@e615007c {

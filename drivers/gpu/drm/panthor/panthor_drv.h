@@ -4,6 +4,8 @@
 #ifndef __PANTHOR_DRV_H__
 #define __PANTHOR_DRV_H__
 
+#include <linux/types.h>
+
 extern bool panthor_transparent_hugepage;
 
 #endif

@@ -132,19 +132,15 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	int i, type, cap;
 
 	/* Allocate structures for this channel */
-	p = kzalloc_obj(*p);
+	p = kzalloc_flex(*p, chset.channels, max_channels);
 	if (!p)
 		return NULL;
 
-	p->chset.channels = kzalloc_objs(*p->chset.channels, max_channels);
-	if (!p->chset.channels) {
-		kfree(p);
-		return NULL;
-	}
+	p->chset.max_channels = max_channels;
+
 	for (i = 0; i < max_channels; i++)
 		p->chset.channels[i].number = i;
 	p->chset.private_data = p;
-	p->chset.max_channels = max_channels;
 	p->emu = emu;
 	p->chset.client = emu->client;
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
@@ -182,7 +178,6 @@ free_port(void *private_data)
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
 		snd_emux_delete_effect(p);
 #endif
-		kfree(p->chset.channels);
 		kfree(p);
 	}
 }

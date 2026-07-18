@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "dwarf-regs.h" /* for EM_HOST */
-#include "syscalltbl.h"
+#include "trace/beauty/syscalltbl.h"
 #include "util/cgroup.h"
 #include "util/hashmap.h"
 #include "util/trace.h"

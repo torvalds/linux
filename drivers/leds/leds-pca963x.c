@@ -88,10 +88,10 @@ static struct pca963x_chipdef pca963x_chipdefs[] = {
 #define PCA963X_BLINK_PERIOD_MAX	10667
 
 static const struct i2c_device_id pca963x_id[] = {
-	{ "pca9632", pca9633 },
-	{ "pca9633", pca9633 },
-	{ "pca9634", pca9634 },
-	{ "pca9635", pca9635 },
+	{ .name = "pca9632", .driver_data = pca9633 },
+	{ .name = "pca9633", .driver_data = pca9633 },
+	{ .name = "pca9634", .driver_data = pca9634 },
+	{ .name = "pca9635", .driver_data = pca9635 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca963x_id);

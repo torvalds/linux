@@ -18,6 +18,10 @@ menuconfig USB4
 
 if USB4
 
+config USB4_CONFIGFS
+	def_tristate USB4
+	depends on CONFIGFS_FS && !(USB4=y && CONFIGFS_FS=m)
+
 config USB4_DEBUGFS_WRITE
 	bool "Enable write by debugfs to configuration spaces (DANGEROUS)"
 	help
@@ -59,5 +63,16 @@ config USB4_DMA_TEST
 
 	  To compile this driver a module, choose M here. The module will be
 	  called thunderbolt_dma_test.
+
+config USB4_STREAM
+	tristate "Stream data over Thunderbolt/USB4 cable"
+	depends on USB4_CONFIGFS
+	help
+	  This adds support for USB4STREAM protocol that allows two
+	  hosts to stream data directly over Thunderbolt/USB4 cable
+	  through /dev/tbstreamX devices.
+
+	  To compile this driver a module, choose M here. The module will be
+	  called thunderbolt_stream.
 
 endif # USB4

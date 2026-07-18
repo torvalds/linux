@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/extcon-provider.h>
-#include <linux/mod_devicetable.h>
 
 /* Two bytes: type + subtype */
 #define PM8916_PERPH_TYPE 0x04

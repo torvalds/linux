@@ -56,9 +56,9 @@ static const struct firmware card_fw[] = {
 };
 
 static const struct pci_device_id snd_echo_ids[] = {
-	{0x1057, 0x1801, 0xECC0, 0x0040, 0, 0, 0},	/* DSP 56301 Darla24 rev.0 */
-	{0x1057, 0x1801, 0xECC0, 0x0041, 0, 0, 0},	/* DSP 56301 Darla24 rev.1 */
-	{0,}
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0040) },	/* DSP 56301 Darla24 rev.0 */
+	{ PCI_DEVICE_SUB(0x1057, 0x1801, 0xECC0, 0x0041) },	/* DSP 56301 Darla24 rev.1 */
+	{ }
 };
 
 static const struct snd_pcm_hardware pcm_hardware_skel = {

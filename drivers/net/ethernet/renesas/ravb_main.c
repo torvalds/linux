@@ -1108,9 +1108,12 @@ static int ravb_stop_dma(struct net_device *ndev)
 
 	/* Request for transmission suspension */
 	ravb_modify(ndev, CCC, CCC_DTSR, CCC_DTSR);
-	error = ravb_wait(ndev, CSR, CSR_DTS, CSR_DTS);
-	if (error)
-		netdev_err(ndev, "failed to stop AXI BUS\n");
+	/* Access to URAM will not be suspended if WoL is enabled. */
+	if (!priv->wol_enabled) {
+		error = ravb_wait(ndev, CSR, CSR_DTS, CSR_DTS);
+		if (error)
+			netdev_err(ndev, "failed to stop AXI BUS\n");
+	}
 
 	/* Stop AVB-DMAC process */
 	return ravb_set_opmode(ndev, CCC_OPC_CONFIG);

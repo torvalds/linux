@@ -658,7 +658,8 @@ enum get_iov_fw_value_index {
 	WDW_SIZE      = 3     /*  Get Window Size */
 };
 
-static resource_size_t pseries_get_iov_fw_value(struct pci_dev *dev, int resno,
+static resource_size_t pseries_get_iov_fw_value(const struct pci_dev *dev,
+						int resno,
 						enum get_iov_fw_value_index value)
 {
 	const int *indexes;
@@ -788,7 +789,7 @@ static void pseries_pci_fixup_iov_resources(struct pci_dev *pdev)
 		pseries_disable_sriov_resources(pdev);
 }
 
-static resource_size_t pseries_pci_iov_resource_alignment(struct pci_dev *pdev,
+static resource_size_t pseries_pci_iov_resource_alignment(const struct pci_dev *pdev,
 							  int resno)
 {
 	const __be32 *reg;

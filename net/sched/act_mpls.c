@@ -123,7 +123,7 @@ TC_INDIRECT_SCOPE int tcf_mpls_act(struct sk_buff *skb,
 	return p->action;
 
 drop:
-	qstats_drop_inc(this_cpu_ptr(m->common.cpu_qstats));
+	qstats_cpu_drop_inc(m->common.cpu_qstats);
 	return TC_ACT_SHOT;
 }
 

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
    Copyright 2023-2024 NXP
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
 
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -480,40 +477,107 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle)
 	return hci_setup_sync_conn(conn, handle);
 }
 
-u8 hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
-		      u16 to_multiplier)
+struct le_conn_update_data {
+	struct hci_conn *conn;
+	u16	min;
+	u16	max;
+	u16	latency;
+	u16	to_multiplier;
+};
+
+static int le_conn_update_sync(struct hci_dev *hdev, void *data)
 {
-	struct hci_dev *hdev = conn->hdev;
+	struct le_conn_update_data *d = data;
+	struct hci_conn *conn = d->conn;
 	struct hci_conn_params *params;
 	struct hci_cp_le_conn_update cp;
+	u16 timeout;
+	u8 store_hint;
+	int err;
 
+	/* Verify connection is still alive and read conn fields under
+	 * the same lock to prevent a concurrent disconnect from freeing
+	 * or reusing the connection while we build the HCI command.
+	 */
+	hci_dev_lock(hdev);
+
+	if (!hci_conn_valid(hdev, conn)) {
+		hci_dev_unlock(hdev);
+		return -ECANCELED;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle		= cpu_to_le16(conn->handle);
+	cp.conn_interval_min	= cpu_to_le16(d->min);
+	cp.conn_interval_max	= cpu_to_le16(d->max);
+	cp.conn_latency		= cpu_to_le16(d->latency);
+	cp.supervision_timeout	= cpu_to_le16(d->to_multiplier);
+	cp.min_ce_len		= cpu_to_le16(0x0000);
+	cp.max_ce_len		= cpu_to_le16(0x0000);
+	timeout			= conn->conn_timeout;
+
+	hci_dev_unlock(hdev);
+
+	err = __hci_cmd_sync_status_sk(hdev, HCI_OP_LE_CONN_UPDATE,
+				       sizeof(cp), &cp,
+				       HCI_EV_LE_CONN_UPDATE_COMPLETE,
+				       timeout, NULL);
+	if (err)
+		return err;
+
+	/* Update stored connection parameters after the controller has
+	 * confirmed the update via the LE Connection Update Complete event.
+	 */
 	hci_dev_lock(hdev);
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
 	if (params) {
-		params->conn_min_interval = min;
-		params->conn_max_interval = max;
-		params->conn_latency = latency;
-		params->supervision_timeout = to_multiplier;
+		params->conn_min_interval = d->min;
+		params->conn_max_interval = d->max;
+		params->conn_latency = d->latency;
+		params->supervision_timeout = d->to_multiplier;
+		store_hint = 0x01;
+	} else {
+		store_hint = 0x00;
 	}
 
 	hci_dev_unlock(hdev);
 
-	memset(&cp, 0, sizeof(cp));
-	cp.handle		= cpu_to_le16(conn->handle);
-	cp.conn_interval_min	= cpu_to_le16(min);
-	cp.conn_interval_max	= cpu_to_le16(max);
-	cp.conn_latency		= cpu_to_le16(latency);
-	cp.supervision_timeout	= cpu_to_le16(to_multiplier);
-	cp.min_ce_len		= cpu_to_le16(0x0000);
-	cp.max_ce_len		= cpu_to_le16(0x0000);
+	mgmt_new_conn_param(hdev, &conn->dst, conn->dst_type, store_hint,
+			    d->min, d->max, d->latency, d->to_multiplier);
 
-	hci_send_cmd(hdev, HCI_OP_LE_CONN_UPDATE, sizeof(cp), &cp);
+	return 0;
+}
 
-	if (params)
-		return 0x01;
+static void le_conn_update_complete(struct hci_dev *hdev, void *data, int err)
+{
+	struct le_conn_update_data *d = data;
 
-	return 0x00;
+	hci_conn_put(d->conn);
+	kfree(d);
+}
+
+void hci_le_conn_update(struct hci_conn *conn, u16 min, u16 max, u16 latency,
+			u16 to_multiplier)
+{
+	struct le_conn_update_data *d;
+
+	d = kzalloc_obj(*d);
+	if (!d)
+		return;
+
+	hci_conn_get(conn);
+	d->conn = conn;
+	d->min = min;
+	d->max = max;
+	d->latency = latency;
+	d->to_multiplier = to_multiplier;
+
+	if (hci_cmd_sync_queue(conn->hdev, le_conn_update_sync, d,
+			       le_conn_update_complete) < 0) {
+		hci_conn_put(conn);
+		kfree(d);
+	}
 }
 
 void hci_le_start_enc(struct hci_conn *conn, __le16 ediv, __le64 rand,
@@ -803,8 +867,10 @@ static int hci_le_big_terminate(struct hci_dev *hdev, struct hci_conn *conn)
 			d->big_sync_term = true;
 	}
 
-	if (!d->pa_sync_term && !d->big_sync_term)
+	if (!d->pa_sync_term && !d->big_sync_term) {
+		kfree(d);
 		return 0;
+	}
 
 	ret = hci_cmd_sync_queue(hdev, big_terminate_sync, d,
 				 terminate_big_destroy);
@@ -2130,6 +2196,9 @@ static int create_big_sync(struct hci_dev *hdev, void *data)
 	u32 flags = 0;
 	int err;
 
+	if (!hci_conn_valid(hdev, conn))
+		return -ECANCELED;
+
 	if (qos->bcast.out.phys == BIT(1))
 		flags |= MGMT_ADV_FLAG_SEC_2M;
 
@@ -2204,11 +2273,24 @@ static void create_big_complete(struct hci_dev *hdev, void *data, int err)
 
 	bt_dev_dbg(hdev, "conn %p", conn);
 
+	if (err == -ECANCELED)
+		goto done;
+
+	hci_dev_lock(hdev);
+
+	if (!hci_conn_valid(hdev, conn))
+		goto unlock;
+
 	if (err) {
 		bt_dev_err(hdev, "Unable to create BIG: %d", err);
 		hci_connect_cfm(conn, err);
 		hci_conn_del(conn);
 	}
+
+unlock:
+	hci_dev_unlock(hdev);
+done:
+	hci_conn_put(conn);
 }
 
 struct hci_conn *hci_bind_bis(struct hci_dev *hdev, bdaddr_t *dst, __u8 sid,
@@ -2336,10 +2418,11 @@ struct hci_conn *hci_connect_bis(struct hci_dev *hdev, bdaddr_t *dst,
 				 BT_BOUND, &data);
 
 	/* Queue start periodic advertising and create BIG */
-	err = hci_cmd_sync_queue(hdev, create_big_sync, conn,
+	err = hci_cmd_sync_queue(hdev, create_big_sync, hci_conn_get(conn),
 				 create_big_complete);
 	if (err < 0) {
 		hci_conn_drop(conn);
+		hci_conn_put(conn);
 		return ERR_PTR(err);
 	}
 

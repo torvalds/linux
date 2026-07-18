@@ -36,11 +36,9 @@ struct crypto_akcipher_sync_data {
 static int __maybe_unused crypto_akcipher_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_akcipher rakcipher;
-
-	memset(&rakcipher, 0, sizeof(rakcipher));
-
-	strscpy(rakcipher.type, "akcipher", sizeof(rakcipher.type));
+	struct crypto_report_akcipher rakcipher = {
+		.type = "akcipher",
+	};
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_AKCIPHER,
 		       sizeof(rakcipher), &rakcipher);

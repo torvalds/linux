@@ -1015,14 +1015,32 @@ do {										\
  *			  than the first
  *  I_DATA_SEM_QUOTA  - Used for quota inodes only
  *  I_DATA_SEM_EA     - Used for ea_inodes only
+ *  I_DATA_SEM_JOURNAL - Used for journal inode only
  */
 enum {
 	I_DATA_SEM_NORMAL = 0,
 	I_DATA_SEM_OTHER,
 	I_DATA_SEM_QUOTA,
-	I_DATA_SEM_EA
+	I_DATA_SEM_EA,
+	I_DATA_SEM_JOURNAL
 };
 
+struct ext4_fc_inode_snap;
+
+/*
+ * Snapshot failure reasons for ext4_fc_lock_updates tracepoint.
+ * Keep these stable for tooling.
+ */
+enum ext4_fc_snap_err {
+	EXT4_FC_SNAP_ERR_NONE = 0,
+	EXT4_FC_SNAP_ERR_ES_MISS,
+	EXT4_FC_SNAP_ERR_ES_DELAYED,
+	EXT4_FC_SNAP_ERR_ES_OTHER,
+	EXT4_FC_SNAP_ERR_INODES_CAP,
+	EXT4_FC_SNAP_ERR_RANGES_CAP,
+	EXT4_FC_SNAP_ERR_NOMEM,
+	EXT4_FC_SNAP_ERR_INODE_LOC,
+};
 
 /*
  * fourth extended file system inode data in memory
@@ -1078,6 +1096,22 @@ struct ext4_inode_info {
 
 	/* End of lblk range that needs to be committed in this fast commit */
 	ext4_lblk_t i_fc_lblk_len;
+
+	/*
+	 * Commit-time fast commit snapshots.
+	 *
+	 * i_fc_snap is installed and freed under sbi->s_fc_lock. The fast
+	 * commit log writing path reads the snapshot under sbi->s_fc_lock while
+	 * serializing fast commit TLVs.
+	 *
+	 * The snapshot lifetime is bounded by EXT4_STATE_FC_COMMITTING and the
+	 * corresponding cleanup / eviction paths.
+	 *
+	 * i_fc_snap points to per-inode snapshot data for fast commit:
+	 * - a raw inode snapshot for EXT4_FC_TAG_INODE
+	 * - data range records for EXT4_FC_TAG_{ADD,DEL}_RANGE
+	 */
+	struct ext4_fc_inode_snap *i_fc_snap;
 
 	spinlock_t i_raw_lock;	/* protects updates to the raw inode */
 
@@ -1517,6 +1551,36 @@ struct ext4_orphan_info {
 };
 
 /*
+ * Ext4 fast commit snapshot statistics.
+ *
+ * These are best-effort counters intended for debugging / performance
+ * introspection; they are not exact under concurrent updates.
+ */
+struct ext4_fc_snap_stats {
+	atomic64_t lock_updates_ns_total;
+	atomic64_t lock_updates_ns_max;
+	atomic64_t lock_updates_samples;
+
+	atomic64_t snap_inodes;
+	atomic64_t snap_ranges;
+
+	atomic64_t snap_fail_es_miss;
+	atomic64_t snap_fail_es_delayed;
+	atomic64_t snap_fail_es_other;
+
+	atomic64_t snap_fail_inodes_cap;
+	atomic64_t snap_fail_ranges_cap;
+	atomic64_t snap_fail_nomem;
+	atomic64_t snap_fail_inode_loc;
+
+	/*
+	 * Missing inode snapshots during log writing should never happen.
+	 * Keep this counter to help catch unexpected regressions.
+	 */
+	atomic64_t snap_fail_no_snap;
+};
+
+/*
  * fourth extended-fs super-block data in memory
  */
 struct ext4_sb_info {
@@ -1790,6 +1854,7 @@ struct ext4_sb_info {
 	struct mutex s_fc_lock;
 	struct buffer_head *s_fc_bh;
 	struct ext4_fc_stats s_fc_stats;
+	struct ext4_fc_snap_stats s_fc_snap_stats;
 	tid_t s_fc_ineligible_tid;
 #ifdef CONFIG_EXT4_DEBUG
 	int s_fc_debug_max_replay;
@@ -1972,6 +2037,7 @@ enum {
 	EXT4_STATE_FC_COMMITTING,	/* Fast commit ongoing */
 	EXT4_STATE_FC_FLUSHING_DATA,	/* Fast commit flushing data */
 	EXT4_STATE_ORPHAN_FILE,		/* Inode orphaned in orphan file */
+	EXT4_STATE_FC_REQUEUE,		/* Inode modified during fast commit */
 };
 
 #define EXT4_INODE_BIT_FNS(name, field, offset)				\
@@ -2000,6 +2066,8 @@ EXT4_INODE_BIT_FNS(flag, flags, 0)
 static inline int ext4_test_inode_state(struct inode *inode, int bit);
 static inline void ext4_set_inode_state(struct inode *inode, int bit);
 static inline void ext4_clear_inode_state(struct inode *inode, int bit);
+static inline unsigned long *ext4_inode_state_wait_word(struct inode *inode);
+static inline int ext4_inode_state_wait_bit(int bit);
 #if (BITS_PER_LONG < 64)
 EXT4_INODE_BIT_FNS(state, state_flags, 0)
 
@@ -2015,6 +2083,24 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 	/* We depend on the fact that callers will set i_flags */
 }
 #endif
+
+static inline unsigned long *ext4_inode_state_wait_word(struct inode *inode)
+{
+#if (BITS_PER_LONG < 64)
+	return &EXT4_I(inode)->i_state_flags;
+#else
+	return &EXT4_I(inode)->i_flags;
+#endif
+}
+
+static inline int ext4_inode_state_wait_bit(int bit)
+{
+#if (BITS_PER_LONG < 64)
+	return bit;
+#else
+	return bit + 32;
+#endif
+}
 #else
 /* Assume that user mode programs are passing in an ext4fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
@@ -2959,7 +3045,7 @@ extern unsigned long ext4_count_dirs(struct super_block *);
 extern void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap);
 extern int ext4_init_inode_table(struct super_block *sb,
 				 ext4_group_t group, int barrier);
-extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
+void ext4_end_bitmap_read(struct bio *bio);
 
 /* fast_commit.c */
 int ext4_fc_info_show(struct seq_file *seq, void *v);
@@ -3080,8 +3166,9 @@ extern int  ext4_file_getattr(struct mnt_idmap *, const struct path *,
 			      struct kstat *, u32, unsigned int);
 extern void ext4_dirty_inode(struct inode *, int);
 extern int ext4_change_inode_journal_flag(struct inode *, int);
-extern int ext4_get_inode_loc(struct inode *, struct ext4_iloc *);
-extern int ext4_get_fc_inode_loc(struct super_block *sb, unsigned long ino,
+int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc);
+int ext4_get_inode_loc_noio(struct inode *inode, struct ext4_iloc *iloc);
+int ext4_get_fc_inode_loc(struct super_block *sb, unsigned long ino,
 			  struct ext4_iloc *iloc);
 extern int ext4_inode_attach_jinode(struct inode *inode);
 extern int ext4_can_truncate(struct inode *inode);
@@ -3184,10 +3271,10 @@ extern struct buffer_head *ext4_sb_bread_unmovable(struct super_block *sb,
 						   sector_t block);
 extern struct buffer_head *ext4_sb_bread_nofail(struct super_block *sb,
 						sector_t block);
-extern void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
-				bh_end_io_t *end_io, bool simu_fail);
-extern int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
-			bh_end_io_t *end_io, bool simu_fail);
+void ext4_read_bh_nowait(struct buffer_head *bh, blk_opf_t op_flags,
+		bio_end_io_t end_io, bool simu_fail);
+int ext4_read_bh(struct buffer_head *bh, blk_opf_t op_flags,
+		bio_end_io_t end_io, bool simu_fail);
 extern int ext4_read_bh_lock(struct buffer_head *bh, blk_opf_t op_flags, bool wait);
 extern void ext4_sb_breadahead_unmovable(struct super_block *sb, sector_t block);
 extern int ext4_seq_options_show(struct seq_file *seq, void *offset);

@@ -58,6 +58,12 @@
  *	framebuffer to be written by the writeback connector. This property is
  *	similar to the FB_ID property on planes, but will always read as zero
  *	and is not preserved across commits.
+ *	If the width and height of the framebuffer do not match those of the
+ *	attached CRTC, the driver must either fail or scale (not crop) the
+ *	content to exactly fit the framebuffer.
+ *	If the driver is unable to exactly fill the framebuffer for any reason,
+ *	such as hardware scaler constraints or an odd width for a sub-sampled
+ *	format, the writeback must fail instead of partially filling the buffer.
  *	Userspace must set this property to an output buffer every time it
  *	wishes the buffer to get filled.
  *

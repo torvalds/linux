@@ -17,11 +17,12 @@ static inline struct intel_uncore *__to_uncore(struct intel_display *display)
 	return to_intel_uncore(display->drm);
 }
 
-u8 intel_de_read8(struct intel_display *display, i915_reg_t reg);
-void intel_de_write8(struct intel_display *display, i915_reg_t reg, u8 val);
+u8 intel_de_read8(struct intel_display *display, intel_reg_t reg);
+void intel_de_write8(struct intel_display *display, intel_reg_t reg, u8 val);
+u16 intel_de_read16(struct intel_display *display, intel_reg_t reg);
 
 static inline u32
-intel_de_read(struct intel_display *display, i915_reg_t reg)
+intel_de_read(struct intel_display *display, intel_reg_t reg)
 {
 	u32 val;
 
@@ -35,8 +36,8 @@ intel_de_read(struct intel_display *display, i915_reg_t reg)
 }
 
 static inline u64
-intel_de_read64_2x32(struct intel_display *display,
-		     i915_reg_t lower_reg, i915_reg_t upper_reg)
+intel_de_read64_2x32_volatile(struct intel_display *display,
+			      intel_reg_t lower_reg, intel_reg_t upper_reg)
 {
 	u64 val;
 
@@ -52,8 +53,20 @@ intel_de_read64_2x32(struct intel_display *display,
 	return val;
 }
 
+static inline u64
+intel_de_read64_2x32(struct intel_display *display, intel_reg_t reg)
+{
+	intel_reg_t upper_reg = _MMIO(intel_reg_offset(reg) + 4);
+	u32 lower, upper;
+
+	lower = intel_de_read(display, reg);
+	upper = intel_de_read(display, upper_reg);
+
+	return (u64)upper << 32 | lower;
+}
+
 static inline void
-intel_de_posting_read(struct intel_display *display, i915_reg_t reg)
+intel_de_posting_read(struct intel_display *display, intel_reg_t reg)
 {
 	intel_dmc_wl_get(display, reg);
 
@@ -63,7 +76,7 @@ intel_de_posting_read(struct intel_display *display, i915_reg_t reg)
 }
 
 static inline void
-intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
+intel_de_write(struct intel_display *display, intel_reg_t reg, u32 val)
 {
 	intel_dmc_wl_get(display, reg);
 
@@ -73,7 +86,7 @@ intel_de_write(struct intel_display *display, i915_reg_t reg, u32 val)
 }
 
 static inline u32
-intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
+intel_de_rmw(struct intel_display *display, intel_reg_t reg, u32 clear, u32 set)
 {
 	u32 val;
 
@@ -86,25 +99,25 @@ intel_de_rmw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
 	return val;
 }
 
-int intel_de_wait_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_us(struct intel_display *display, intel_reg_t reg,
 		     u32 mask, u32 value, unsigned int timeout_us,
 		     u32 *out_value);
-int intel_de_wait_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_ms(struct intel_display *display, intel_reg_t reg,
 		     u32 mask, u32 value, unsigned int timeout_ms,
 		     u32 *out_value);
-int intel_de_wait_fw_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_fw_ms(struct intel_display *display, intel_reg_t reg,
 			u32 mask, u32 value, unsigned int timeout_ms,
 			u32 *out_value);
-int intel_de_wait_fw_us_atomic(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_fw_us_atomic(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, u32 value, unsigned int timeout_us,
 			       u32 *out_value);
-int intel_de_wait_for_set_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_set_us(struct intel_display *display, intel_reg_t reg,
 			     u32 mask, unsigned int timeout_us);
-int intel_de_wait_for_clear_us(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_clear_us(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, unsigned int timeout_us);
-int intel_de_wait_for_set_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_set_ms(struct intel_display *display, intel_reg_t reg,
 			     u32 mask, unsigned int timeout_ms);
-int intel_de_wait_for_clear_ms(struct intel_display *display, i915_reg_t reg,
+int intel_de_wait_for_clear_ms(struct intel_display *display, intel_reg_t reg,
 			       u32 mask, unsigned int timeout_ms);
 
 /*
@@ -116,7 +129,7 @@ int intel_de_wait_for_clear_ms(struct intel_display *display, i915_reg_t reg,
  * a more localised lock guarding all access to that bank of registers.
  */
 static inline u32
-intel_de_read_fw(struct intel_display *display, i915_reg_t reg)
+intel_de_read_fw(struct intel_display *display, intel_reg_t reg)
 {
 	u32 val;
 
@@ -127,14 +140,14 @@ intel_de_read_fw(struct intel_display *display, i915_reg_t reg)
 }
 
 static inline void
-intel_de_write_fw(struct intel_display *display, i915_reg_t reg, u32 val)
+intel_de_write_fw(struct intel_display *display, intel_reg_t reg, u32 val)
 {
 	trace_i915_reg_rw(true, reg, val, sizeof(val), true);
 	intel_uncore_write_fw(__to_uncore(display), reg, val);
 }
 
 static inline u32
-intel_de_rmw_fw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 set)
+intel_de_rmw_fw(struct intel_display *display, intel_reg_t reg, u32 clear, u32 set)
 {
 	u32 old, val;
 
@@ -146,20 +159,20 @@ intel_de_rmw_fw(struct intel_display *display, i915_reg_t reg, u32 clear, u32 se
 }
 
 static inline u32
-intel_de_read_notrace(struct intel_display *display, i915_reg_t reg)
+intel_de_read_notrace(struct intel_display *display, intel_reg_t reg)
 {
 	return intel_uncore_read_notrace(__to_uncore(display), reg);
 }
 
 static inline void
-intel_de_write_notrace(struct intel_display *display, i915_reg_t reg, u32 val)
+intel_de_write_notrace(struct intel_display *display, intel_reg_t reg, u32 val)
 {
 	intel_uncore_write_notrace(__to_uncore(display), reg, val);
 }
 
 static __always_inline void
 intel_de_write_dsb(struct intel_display *display, struct intel_dsb *dsb,
-		   i915_reg_t reg, u32 val)
+		   intel_reg_t reg, u32 val)
 {
 	if (dsb)
 		intel_dsb_reg_write(dsb, reg, val);

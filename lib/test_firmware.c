@@ -867,7 +867,7 @@ static int test_fw_run_batch_request(void *data)
 	if (test_fw_config->into_buf) {
 		void *test_buf;
 
-		test_buf = kzalloc(TEST_FIRMWARE_BUF_SIZE, GFP_KERNEL);
+		test_buf = kzalloc(test_fw_config->buf_size, GFP_KERNEL);
 		if (!test_buf)
 			return -ENOMEM;
 

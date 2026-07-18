@@ -519,18 +519,23 @@ static int __init cpu_latency_qos_init(void)
 	int ret;
 
 	ret = misc_register(&cpu_latency_qos_miscdev);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: %s setup failed\n", __func__,
 		       cpu_latency_qos_miscdev.name);
+		return ret;
+	}
 
 #ifdef CONFIG_PM_QOS_CPU_SYSTEM_WAKEUP
 	ret = misc_register(&cpu_wakeup_latency_qos_miscdev);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("%s: %s setup failed\n", __func__,
 		       cpu_wakeup_latency_qos_miscdev.name);
+		misc_deregister(&cpu_latency_qos_miscdev);
+		return ret;
+	}
 #endif
 
-	return ret;
+	return 0;
 }
 late_initcall(cpu_latency_qos_init);
 #endif /* CONFIG_CPU_IDLE */

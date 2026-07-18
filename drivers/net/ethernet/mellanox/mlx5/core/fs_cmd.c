@@ -1217,3 +1217,24 @@ int mlx5_fs_cmd_set_tx_flow_table_root(struct mlx5_core_dev *dev, u32 ft_id, boo
 
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
+
+int mlx5_fs_cmd_query_l2table_silent(struct mlx5_core_dev *dev, u8 *silent_mode)
+{
+	u32 out[MLX5_ST_SZ_DW(query_l2_table_entry_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_l2_table_entry_in)] = {};
+	int err;
+
+	if (!MLX5_CAP_GEN(dev, silent_mode_query))
+		return -EOPNOTSUPP;
+
+	MLX5_SET(query_l2_table_entry_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_L2_TABLE_ENTRY);
+	MLX5_SET(query_l2_table_entry_in, in, silent_mode_query, 1);
+
+	err = mlx5_cmd_exec_inout(dev, query_l2_table_entry, in, out);
+	if (err)
+		return err;
+
+	*silent_mode = MLX5_GET(query_l2_table_entry_out, out, silent_mode);
+	return 0;
+}

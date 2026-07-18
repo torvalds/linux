@@ -12,7 +12,7 @@ struct drm_device;
 struct xe_device;
 struct xe_tile;
 
-void xe_pcode_init(struct xe_tile *tile);
+int xe_pcode_init_early(struct xe_tile *tile);
 int xe_pcode_probe_early(struct xe_device *xe);
 int xe_pcode_ready(struct xe_device *xe, bool locked);
 int xe_pcode_init_min_freq_table(struct xe_tile *tile, u32 min_gt_freq,

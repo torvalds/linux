@@ -453,8 +453,8 @@ static DEFINE_SIMPLE_DEV_PM_OPS(st1232_ts_pm_ops,
 				st1232_ts_suspend, st1232_ts_resume);
 
 static const struct i2c_device_id st1232_ts_id[] = {
-	{ ST1232_TS_NAME, (unsigned long)&st1232_chip_info },
-	{ ST1633_TS_NAME, (unsigned long)&st1633_chip_info },
+	{ .name = ST1232_TS_NAME, .driver_data = (unsigned long)&st1232_chip_info },
+	{ .name = ST1633_TS_NAME, .driver_data = (unsigned long)&st1633_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);

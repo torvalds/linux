@@ -995,7 +995,13 @@ static void rtw_sdio_rxfifo_recv(struct rtw_dev *rtwdev, u32 rx_len)
 
 	while (true) {
 		rx_desc = skb->data;
-		rtw_rx_query_rx_desc(rtwdev, rx_desc, &pkt_stat, &rx_status);
+		ret = rtw_rx_query_rx_desc(rtwdev, rx_desc,
+					   &pkt_stat, &rx_status);
+		if (ret) {
+			dev_kfree_skb_any(skb);
+			return;
+		}
+
 		pkt_offset = pkt_desc_sz + pkt_stat.drv_info_sz +
 			     pkt_stat.shift;
 

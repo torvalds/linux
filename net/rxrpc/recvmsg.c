@@ -27,8 +27,6 @@ void rxrpc_notify_socket(struct rxrpc_call *call)
 
 	_enter("%d", call->debug_id);
 
-	if (!list_empty(&call->recvmsg_link))
-		return;
 	if (test_bit(RXRPC_CALL_RELEASED, &call->flags)) {
 		rxrpc_see_call(call, rxrpc_call_see_notify_released);
 		return;
@@ -147,15 +145,52 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 }
 
 /*
- * Decrypt and verify a DATA packet.
+ * Decrypt and verify a DATA packet.  The content of the packet is pulled out
+ * into a flat buffer rather than decrypting in place in the skbuff.  This also
+ * has the advantage of aligning the buffer correctly for the crypto routines.
+ *
+ * We keep track of the sequence number of the packet currently decrypted into
+ * the buffer in ->rx_dec_seq.  If MSG_PEEK is used and steps onto a new
+ * packet, subsequent recvmsg() calls will have to go back and re-decrypt the
+ * current packet.
  */
 static int rxrpc_verify_data(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	int ret;
 
-	if (sp->flags & RXRPC_RX_VERIFIED)
-		return 0;
-	return call->security->verify_packet(call, skb);
+	if (sp->len > call->rx_dec_bsize || !call->rx_dec_buffer) {
+		/* Make sure we can hold a 1412-byte jumbo subpacket and make
+		 * sure that the buffer size is aligned to a crypto blocksize.
+		 */
+		size_t size = clamp(round_up(sp->len, 32), 2048, 65535);
+		void *buffer = krealloc(call->rx_dec_buffer, size, GFP_NOFS);
+
+		if (!buffer)
+			return -ENOMEM;
+		call->rx_dec_buffer = buffer;
+		call->rx_dec_bsize = size;
+	}
+
+	ret = -EFAULT;
+	if (skb_copy_bits(skb, sp->offset, call->rx_dec_buffer, sp->len) < 0)
+		goto err;
+
+	call->rx_dec_offset = 0;
+	call->rx_dec_len = sp->len;
+	call->rx_dec_seq = sp->hdr.seq;
+	ret = call->security->verify_packet(call, skb);
+	if (ret < 0)
+		goto err;
+	return 0;
+
+err:
+	kfree(call->rx_dec_buffer);
+	call->rx_dec_buffer = NULL;
+	call->rx_dec_bsize = 0;
+	call->rx_dec_offset = 0;
+	call->rx_dec_len = 0;
+	return ret;
 }
 
 /*
@@ -225,12 +260,13 @@ static int rxrpc_recvmsg_oob(struct socket *sock, struct msghdr *msg,
 		break;
 	}
 
-	if (!(flags & MSG_PEEK))
+	if (!(flags & MSG_PEEK)) {
 		skb_unlink(skb, &rx->recvmsg_oobq);
-	if (need_response)
-		rxrpc_add_pending_oob(rx, skb);
-	else
-		rxrpc_free_skb(skb, rxrpc_skb_put_oob);
+		if (need_response)
+			rxrpc_add_pending_oob(rx, skb);
+		else
+			rxrpc_free_skb(skb, rxrpc_skb_put_oob);
+	}
 	return ret;
 }
 
@@ -283,16 +319,21 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (msg)
 			sock_recv_timestamp(msg, sock->sk, skb);
 
-		if (rx_pkt_offset == 0) {
+		if (call->rx_dec_seq != sp->hdr.seq ||
+		    !call->rx_dec_buffer) {
 			ret2 = rxrpc_verify_data(call, skb);
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_next, seq,
-					     sp->offset, sp->len, ret2);
+					     call->rx_dec_offset,
+					     call->rx_dec_len, ret2);
 			if (ret2 < 0) {
 				ret = ret2;
 				goto out;
 			}
-			rx_pkt_offset = sp->offset;
-			rx_pkt_len = sp->len;
+		}
+
+		if (rx_pkt_offset == USHRT_MAX) {
+			rx_pkt_offset = call->rx_dec_offset;
+			rx_pkt_len = call->rx_dec_len;
 		} else {
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_cont, seq,
 					     rx_pkt_offset, rx_pkt_len, 0);
@@ -304,10 +345,10 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		if (copy > remain)
 			copy = remain;
 		if (copy > 0) {
-			ret2 = skb_copy_datagram_iter(skb, rx_pkt_offset, iter,
-						      copy);
-			if (ret2 < 0) {
-				ret = ret2;
+			ret2 = copy_to_iter(call->rx_dec_buffer + rx_pkt_offset,
+					    copy, iter);
+			if (ret2 != copy) {
+				ret = -EFAULT;
 				goto out;
 			}
 
@@ -328,7 +369,7 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		/* The whole packet has been transferred. */
 		if (sp->hdr.flags & RXRPC_LAST_PACKET)
 			ret = 1;
-		rx_pkt_offset = 0;
+		rx_pkt_offset = USHRT_MAX;
 		rx_pkt_len = 0;
 
 		skb = skb_peek_next(skb, &call->recvmsg_queue);
@@ -395,7 +436,8 @@ try_again:
 		return -EAGAIN;
 	}
 
-	if (list_empty(&rx->recvmsg_q)) {
+	if (list_empty(&rx->recvmsg_q) &&
+	    skb_queue_empty_lockless(&rx->recvmsg_oobq)) {
 		ret = -EWOULDBLOCK;
 		if (timeo == 0) {
 			call = NULL;
@@ -428,7 +470,7 @@ try_again:
 		release_sock(&rx->sk);
 		if (ret == -EAGAIN)
 			goto try_again;
-		goto error_no_call;
+		goto error_trace;
 	}
 
 	/* Find the next call and dequeue it if we're not just peeking.  If we
@@ -487,8 +529,7 @@ try_again:
 	if (test_bit(RXRPC_CALL_RELEASED, &call->flags)) {
 		rxrpc_see_call(call, rxrpc_call_see_already_released);
 		mutex_unlock(&call->user_mutex);
-		if (!(flags & MSG_PEEK))
-			rxrpc_put_call(call, rxrpc_call_put_recvmsg);
+		rxrpc_put_call(call, rxrpc_call_put_recvmsg);
 		goto try_again;
 	}
 

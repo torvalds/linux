@@ -22,6 +22,7 @@
 #include "ea.h"
 #include "iomap.h"
 #include "bitmap.h"
+#include "volume.h"
 
 #include <linux/filelock.h>
 
@@ -675,10 +676,29 @@ static int ntfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 static const char *ntfs_get_link(struct dentry *dentry, struct inode *inode,
 		struct delayed_call *done)
 {
-	if (!NTFS_I(inode)->target)
+	struct ntfs_inode *ni = NTFS_I(inode);
+	char *target;
+	int err;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
+	if (!ni->target)
 		return ERR_PTR(-EINVAL);
 
-	return NTFS_I(inode)->target;
+	if (ni->reparse_tag == IO_REPARSE_TAG_MOUNT_POINT ||
+	    (ni->reparse_tag == IO_REPARSE_TAG_SYMLINK &&
+	     !(ni->reparse_flags & cpu_to_le32(SYMLINK_FLAG_RELATIVE)))) {
+		if (NVolNativeSymlinkRel(ni->vol)) {
+			err = ntfs_translate_symlink_path(dentry, ni->target, &target);
+			if (err < 0)
+				return ERR_PTR(err);
+			set_delayed_call(done, kfree_link, target);
+			return target;
+		}
+	}
+
+	return ni->target;
 }
 
 static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
@@ -707,12 +727,21 @@ static int ntfs_ioctl_get_volume_label(struct file *filp, unsigned long arg)
 {
 	struct ntfs_volume *vol = NTFS_SB(file_inode(filp)->i_sb);
 	char __user *buf = (char __user *)arg;
+	char label[FSLABEL_MAX];
+	ssize_t len;
 
+	mutex_lock(&vol->volume_label_lock);
 	if (!vol->volume_label) {
-		if (copy_to_user(buf, "", 1))
-			return -EFAULT;
-	} else if (copy_to_user(buf, vol->volume_label,
-				MIN(FSLABEL_MAX, strlen(vol->volume_label) + 1)))
+		label[0] = '\0';
+		len = 0;
+	} else {
+		len = strscpy(label, vol->volume_label, sizeof(label));
+		if (len == -E2BIG)
+			len = FSLABEL_MAX - 1;
+	}
+	mutex_unlock(&vol->volume_label_lock);
+
+	if (copy_to_user(buf, label, len + 1))
 		return -EFAULT;
 	return 0;
 }

@@ -10,6 +10,14 @@
 #include <uapi/linux/pr.h>
 #include <scsi/scsi_proto.h>
 
+/* From the standard INQUIRY data description in SPC-6. */
+#define INQUIRY_VENDOR_OFFSET	8
+#define INQUIRY_VENDOR_LEN	8
+#define INQUIRY_MODEL_OFFSET	16
+#define INQUIRY_MODEL_LEN	16
+#define INQUIRY_REVISION_OFFSET	32
+#define INQUIRY_REVISION_LEN	4
+
 enum scsi_pr_type {
 	SCSI_PR_WRITE_EXCLUSIVE			= 0x01,
 	SCSI_PR_EXCLUSIVE_ACCESS		= 0x03,

@@ -1617,11 +1617,11 @@ static const struct dev_pm_ops bq25890_pm = {
 };
 
 static const struct i2c_device_id bq25890_i2c_ids[] = {
-	{ "bq25890" },
-	{ "bq25892" },
-	{ "bq25895" },
-	{ "bq25896" },
-	{}
+	{ .name = "bq25890" },
+	{ .name = "bq25892" },
+	{ .name = "bq25895" },
+	{ .name = "bq25896" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bq25890_i2c_ids);
 

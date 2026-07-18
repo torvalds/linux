@@ -192,7 +192,9 @@ static void nd_region_release(struct device *dev)
 
 		put_device(&nvdimm->dev);
 	}
-	free_percpu(nd_region->lane);
+	for (i = 0; i < nd_region->num_lanes; i++)
+		mutex_destroy(&nd_region->lane[i].lock);
+	kfree(nd_region->lane);
 	if (!test_bit(ND_REGION_CXL, &nd_region->flags))
 		memregion_free(nd_region->id);
 	kfree(nd_region);
@@ -904,52 +906,30 @@ void nd_region_advance_seeds(struct nd_region *nd_region, struct device *dev)
  * nd_region_acquire_lane - allocate and lock a lane
  * @nd_region: region id and number of lanes possible
  *
- * A lane correlates to a BLK-data-window and/or a log slot in the BTT.
- * We optimize for the common case where there are 256 lanes, one
- * per-cpu.  For larger systems we need to lock to share lanes.  For now
- * this implementation assumes the cost of maintaining an allocator for
- * free lanes is on the order of the lock hold time, so it implements a
- * static lane = cpu % num_lanes mapping.
+ * A lane correlates to a log slot in the BTT. Lanes are shared across
+ * CPUs using a static lane = cpu % num_lanes mapping, with a per-lane
+ * mutex to serialize access.
  *
- * In the case of a BTT instance on top of a BLK namespace a lane may be
- * acquired recursively.  We lock on the first instance.
- *
- * In the case of a BTT instance on top of PMEM, we only acquire a lane
- * for the BTT metadata updates.
+ * Callers must be in sleepable context. The only in-tree caller is
+ * BTT's ->submit_bio handler (btt_read_pg / btt_write_pg).
  */
 unsigned int nd_region_acquire_lane(struct nd_region *nd_region)
+	__acquires(&nd_region->lane[lane].lock)
 {
-	unsigned int cpu, lane;
+	unsigned int lane;
 
-	migrate_disable();
-	cpu = smp_processor_id();
-	if (nd_region->num_lanes < nr_cpu_ids) {
-		struct nd_percpu_lane *ndl_lock, *ndl_count;
+	might_sleep();
 
-		lane = cpu % nd_region->num_lanes;
-		ndl_count = per_cpu_ptr(nd_region->lane, cpu);
-		ndl_lock = per_cpu_ptr(nd_region->lane, lane);
-		if (ndl_count->count++ == 0)
-			spin_lock(&ndl_lock->lock);
-	} else
-		lane = cpu;
-
+	lane = raw_smp_processor_id() % nd_region->num_lanes;
+	mutex_lock(&nd_region->lane[lane].lock);
 	return lane;
 }
 EXPORT_SYMBOL(nd_region_acquire_lane);
 
 void nd_region_release_lane(struct nd_region *nd_region, unsigned int lane)
+	__releases(&nd_region->lane[lane].lock)
 {
-	if (nd_region->num_lanes < nr_cpu_ids) {
-		unsigned int cpu = smp_processor_id();
-		struct nd_percpu_lane *ndl_lock, *ndl_count;
-
-		ndl_count = per_cpu_ptr(nd_region->lane, cpu);
-		ndl_lock = per_cpu_ptr(nd_region->lane, lane);
-		if (--ndl_count->count == 0)
-			spin_unlock(&ndl_lock->lock);
-	}
-	migrate_enable();
+	mutex_unlock(&nd_region->lane[lane].lock);
 }
 EXPORT_SYMBOL(nd_region_release_lane);
 
@@ -1019,17 +999,16 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 			goto err_id;
 	}
 
-	nd_region->lane = alloc_percpu(struct nd_percpu_lane);
+	nd_region->num_lanes = ndr_desc->num_lanes;
+	if (!nd_region->num_lanes)
+		goto err_percpu;
+	nd_region->lane = kcalloc(nd_region->num_lanes,
+				  sizeof(*nd_region->lane), GFP_KERNEL);
 	if (!nd_region->lane)
 		goto err_percpu;
 
-        for (i = 0; i < nr_cpu_ids; i++) {
-		struct nd_percpu_lane *ndl;
-
-		ndl = per_cpu_ptr(nd_region->lane, i);
-		spin_lock_init(&ndl->lock);
-		ndl->count = 0;
-	}
+	for (i = 0; i < nd_region->num_lanes; i++)
+		mutex_init(&nd_region->lane[i].lock);
 
 	for (i = 0; i < ndr_desc->num_mappings; i++) {
 		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
@@ -1046,7 +1025,6 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 	}
 	nd_region->provider_data = ndr_desc->provider_data;
 	nd_region->nd_set = ndr_desc->nd_set;
-	nd_region->num_lanes = ndr_desc->num_lanes;
 	nd_region->flags = ndr_desc->flags;
 	nd_region->ro = ro;
 	nd_region->numa_node = ndr_desc->numa_node;

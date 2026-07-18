@@ -11,12 +11,12 @@ This document shall guide you for this task. The necessary steps are described
 as well as things to look out for.
 
 
-Remove the file_operations struct
+Remove the struct file_operations
 ---------------------------------
 
 Old drivers define their own file_operations for actions like open(), write(),
 etc... These are now handled by the framework and just call the driver when
-needed. So, in general, the 'file_operations' struct and assorted functions can
+needed. So, in general, the struct file_operations and assorted functions can
 go. Only very few driver-specific details have to be moved to other functions.
 Here is a overview of the functions and probably needed actions:
 
@@ -36,7 +36,7 @@ Here is a overview of the functions and probably needed actions:
   from the driver:
 
 	WDIOC_GETSUPPORT:
-		Returns the mandatory watchdog_info struct from the driver
+		Returns the mandatory struct watchdog_info from the driver
 
 	WDIOC_GETSTATUS:
 		Needs the status-callback defined, otherwise returns 0
@@ -88,8 +88,8 @@ refactoring. The rest can go.
 Remove the miscdevice
 ---------------------
 
-Since the file_operations are gone now, you can also remove the 'struct
-miscdevice'. The framework will create it on watchdog_dev_register() called by
+Since the file_operations are gone now, you can also remove the struct
+miscdevice. The framework will create it on watchdog_dev_register() called by
 watchdog_register_device()::
 
   -static struct miscdevice s3c2410wdt_miscdev = {
@@ -113,10 +113,10 @@ them. Includes can be removed, too. For example::
 Add the watchdog operations
 ---------------------------
 
-All possible callbacks are defined in 'struct watchdog_ops'. You can find it
-explained in 'watchdog-kernel-api.txt' in this directory. start() and
+All possible callbacks are defined in struct watchdog_ops. You can find it
+explained in watchdog-kernel-api.rst in this directory. start() and
 owner must be set, the rest are optional. You will easily find corresponding
-functions in the old driver. Note that you will now get a pointer to the
+functions in the old driver. Note that you will now get a pointer to the struct
 watchdog_device as a parameter to these functions, so you probably have to
 change the function header. Other changes are most likely not needed, because
 here simply happens the direct hardware access. If you have device-specific
@@ -151,12 +151,12 @@ A typical function-header change looks like::
 Add the watchdog device
 -----------------------
 
-Now we need to create a 'struct watchdog_device' and populate it with the
-necessary information for the framework. The struct is also explained in detail
-in 'watchdog-kernel-api.txt' in this directory. We pass it the mandatory
-watchdog_info struct and the newly created watchdog_ops. Often, old drivers
+Now we need to create a struct watchdog_device and populate it with the
+necessary information for the framework. The structure is also explained in detail
+in watchdog-kernel-api.rst in this directory. We pass it the mandatory
+struct watchdog_info and the newly created struct watchdog_ops. Often, old drivers
 have their own record-keeping for things like bootstatus and timeout using
-static variables. Those have to be converted to use the members in
+static variables. Those have to be converted to use the members in struct
 watchdog_device. Note that the timeout values are unsigned int. Some drivers
 use signed int, so this has to be converted, too.
 
@@ -174,7 +174,7 @@ Handle the 'nowayout' feature
 A few drivers use nowayout statically, i.e. there is no module parameter for it
 and only CONFIG_WATCHDOG_NOWAYOUT determines if the feature is going to be
 used. This needs to be converted by initializing the status variable of the
-watchdog_device like this::
+struct watchdog_device like this::
 
         .status = WATCHDOG_NOWAYOUT_INIT_STATUS,
 

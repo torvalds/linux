@@ -42,6 +42,7 @@
 #include <linux/security.h>
 #include <linux/notifier.h>
 #include <linux/hashtable.h>
+#include <linux/cc_platform.h>
 #include <rdma/rdma_netlink.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
@@ -1245,7 +1246,6 @@ out:
  */
 static int setup_device(struct ib_device *device)
 {
-	struct ib_udata uhw = {.outlen = 0, .inlen = 0};
 	int ret;
 
 	ib_device_check_mandatory(device);
@@ -1257,7 +1257,7 @@ static int setup_device(struct ib_device *device)
 	}
 
 	memset(&device->attrs, 0, sizeof(device->attrs));
-	ret = device->ops.query_device(device, &device->attrs, &uhw);
+	ret = device->ops.query_device(device, &device->attrs, NULL);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't query the device attributes\n");
@@ -1419,6 +1419,14 @@ int ib_register_device(struct ib_device *device, const char *name,
 	 */
 	WARN_ON(dma_device && !dma_device->dma_parms);
 	device->dma_device = dma_device;
+	/*
+	 * In a CoCo guest every device is currently assumed to be untrusted
+	 * (T=0) and therefore subject to DMA bouncing. Once trusted (T=1)
+	 * device detection is wired up, narrow this check to exclude such
+	 * devices.
+	 */
+	if (dma_device && cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT))
+		device->cc_dma_bounce = 1;
 
 	ret = setup_device(device);
 	if (ret)

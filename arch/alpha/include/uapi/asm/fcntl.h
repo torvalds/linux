@@ -2,20 +2,20 @@
 #ifndef _ALPHA_FCNTL_H
 #define _ALPHA_FCNTL_H
 
-#define O_CREAT		 01000	/* not fcntl */
-#define O_TRUNC		 02000	/* not fcntl */
-#define O_EXCL		 04000	/* not fcntl */
-#define O_NOCTTY	010000	/* not fcntl */
+#define O_CREAT		(1 << 9)	/* not fcntl */
+#define O_TRUNC		(1 << 10)	/* not fcntl */
+#define O_EXCL		(1 << 11)	/* not fcntl */
+#define O_NOCTTY	(1 << 12)	/* not fcntl */
 
-#define O_NONBLOCK	 00004
-#define O_APPEND	 00010
-#define O_DSYNC		040000	/* used to be O_SYNC, see below */
-#define O_DIRECTORY	0100000	/* must be a directory */
-#define O_NOFOLLOW	0200000 /* don't follow links */
-#define O_LARGEFILE	0400000 /* will be set by the kernel on every open */
-#define O_DIRECT	02000000 /* direct disk access - should check with OSF/1 */
-#define O_NOATIME	04000000
-#define O_CLOEXEC	010000000 /* set close_on_exec */
+#define O_NONBLOCK	(1 << 2)
+#define O_APPEND	(1 << 3)
+#define O_DSYNC		(1 << 14)	/* used to be O_SYNC, see below */
+#define O_DIRECTORY	(1 << 15)	/* must be a directory */
+#define O_NOFOLLOW	(1 << 16)	/* don't follow links */
+#define O_LARGEFILE	(1 << 17)	/* will be set by the kernel on every open */
+#define O_DIRECT	(1 << 19)	/* direct disk access - should check with OSF/1 */
+#define O_NOATIME	(1 << 20)
+#define O_CLOEXEC	(1 << 21)	/* set close_on_exec */
 /*
  * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
@@ -29,11 +29,11 @@
  *
  * Note: __O_SYNC must never be used directly.
  */
-#define __O_SYNC	020000000
+#define __O_SYNC	(1 << 22)
 #define O_SYNC		(__O_SYNC|O_DSYNC)
 
-#define O_PATH		040000000
-#define __O_TMPFILE	0100000000
+#define O_PATH		(1 << 23)
+#define __O_TMPFILE	(1 << 24)
 
 #define F_GETLK		7
 #define F_SETLK		8

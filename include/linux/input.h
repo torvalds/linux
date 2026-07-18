@@ -19,7 +19,7 @@
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/timer.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/input.h>
 
 struct input_dev_poller;
 
@@ -543,6 +543,8 @@ extern const struct class input_class;
  * @set_autocenter: Called to auto-center device
  * @destroy: called by input core when parent input device is being
  *	destroyed
+ * @stop: called by input core when parent input device is being
+ *	unregistered
  * @private: driver-specific data, will be freed automatically
  * @ffbit: bitmap of force feedback capabilities truly supported by
  *	device (not emulated like ones in input_dev->ffbit)
@@ -571,6 +573,7 @@ struct ff_device {
 	void (*set_autocenter)(struct input_dev *dev, u16 magnitude);
 
 	void (*destroy)(struct ff_device *);
+	void (*stop)(struct ff_device *);
 
 	void *private;
 

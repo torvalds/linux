@@ -4,14 +4,6 @@
 #ifndef __MLX5_IFC_VHCA_EVENT_H__
 #define __MLX5_IFC_VHCA_EVENT_H__
 
-enum mlx5_ifc_vhca_state {
-	MLX5_VHCA_STATE_INVALID = 0x0,
-	MLX5_VHCA_STATE_ALLOCATED = 0x1,
-	MLX5_VHCA_STATE_ACTIVE = 0x2,
-	MLX5_VHCA_STATE_IN_USE = 0x3,
-	MLX5_VHCA_STATE_TEARDOWN_REQUEST = 0x4,
-};
-
 struct mlx5_ifc_vhca_state_context_bits {
 	u8         arm_change_event[0x1];
 	u8         reserved_at_1[0xb];

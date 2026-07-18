@@ -534,8 +534,11 @@ xfs_open_devices(
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
 		xfs_free_buftarg(mp->m_rtdev_targp);
+	mp->m_rtdev_targp = NULL;
+	rtdev_file = NULL;	/* released by xfs_free_buftarg() */
  out_free_ddev_targ:
 	xfs_free_buftarg(mp->m_ddev_targp);
+	mp->m_ddev_targp = NULL;
  out_close_rtdev:
 	 if (rtdev_file)
 		bdev_fput(rtdev_file);
@@ -1901,7 +1904,6 @@ xfs_fs_fill_super(
 			error = -EINVAL;
 			goto out_filestream_unmount;
 		}
-		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_ZONED);
 	}
 
 	if (xfs_has_reflink(mp)) {

@@ -499,13 +499,13 @@
 			thermal-sensors = <&tmu 1>;
 
 			trips {
-				ddr-cluster5-alert {
+				cluster5_alert: ddr-cluster5-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				ddr-cluster5-crit {
+				cluster5_crit: ddr-cluster5-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -519,13 +519,13 @@
 			thermal-sensors = <&tmu 2>;
 
 			trips {
-				wriop-alert {
+				wriop_alert: wriop-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				wriop-crit {
+				wriop_crit: wriop-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -539,13 +539,13 @@
 			thermal-sensors = <&tmu 3>;
 
 			trips {
-				dce-qbman-alert {
+				dce_qbman_alert: dce-qbman-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				dce-qbman-crit {
+				dce_qbman_crit: dce-qbman-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -559,13 +559,13 @@
 			thermal-sensors = <&tmu 4>;
 
 			trips {
-				ccn-dpaa-alert {
+				ccn_dpaa_alert: ccn-dpaa-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				ccn-dpaa-crit {
+				ccn_dpaa_crit: ccn-dpaa-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -579,13 +579,13 @@
 			thermal-sensors = <&tmu 5>;
 
 			trips {
-				clust4-hsio3-alert {
+				cluster4_alert: clust4-hsio3-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				clust4-hsio3-crit {
+				cluster4_crit: clust4-hsio3-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -599,13 +599,13 @@
 			thermal-sensors = <&tmu 6>;
 
 			trips {
-				cluster2-3-alert {
+				cluster2_3_alert: cluster2-3-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				cluster2-3-crit {
+				cluster2_3_crit: cluster2-3-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";

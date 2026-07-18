@@ -8,7 +8,6 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw_registers.h>
@@ -450,7 +449,7 @@ static int rt712_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt712_sdca_priv *rt712 = dev_get_drvdata(dev);
-	unsigned long time;
+	int ret;
 
 	if (!rt712->first_hw_init)
 		return 0;
@@ -464,20 +463,14 @@ static int rt712_sdca_dev_resume(struct device *dev)
 			rt712->disable_irq = false;
 		}
 		mutex_unlock(&rt712->disable_irq_lock);
-		goto regmap_sync;
 	}
 
-	time = wait_for_completion_timeout(&slave->initialization_complete,
-				msecs_to_jiffies(RT712_PROBE_TIMEOUT));
-	if (!time) {
-		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
+	ret = sdw_slave_wait_for_init(slave, RT712_PROBE_TIMEOUT);
+	if (ret) {
 		sdw_show_ping_status(slave->bus, true);
-
-		return -ETIMEDOUT;
+		return ret;
 	}
 
-regmap_sync:
-	slave->unattach_request = 0;
 	regcache_cache_only(rt712->regmap, false);
 	regcache_sync(rt712->regmap);
 	regcache_cache_only(rt712->mbq_regmap, false);

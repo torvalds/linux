@@ -341,10 +341,26 @@ static const struct rtw89_hw_rate_def {
 	},
 };
 
+static void rtw89_core_tx_skb_proto_stats(struct rtw89_traffic_stats *stats,
+					  struct sk_buff *skb)
+{
+	switch (ip_hdr(skb)->protocol) {
+	case IPPROTO_TCP:
+		stats->tcp++;
+		break;
+	case IPPROTO_UDP:
+		stats->udp++;
+		break;
+	default:
+		break;
+	}
+}
+
 static void __rtw89_traffic_stats_accu(struct rtw89_traffic_stats *stats,
 				       struct sk_buff *skb, bool tx)
 {
 	if (tx) {
+		rtw89_core_tx_skb_proto_stats(stats, skb);
 		stats->tx_cnt++;
 		stats->tx_unicast += skb->len;
 	} else {
@@ -458,16 +474,16 @@ static void __rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev,
 
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan;
+	struct rtw89_entity_conf conf;
 
-	chan = rtw89_mgnt_chan_get(rtwdev, 0);
-	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_0);
+	rtw89_entity_get_conf(rtwdev, &conf);
+
+	__rtw89_core_set_chip_txpwr(rtwdev, conf.chans[0], RTW89_PHY_0);
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 		return;
 
-	chan = rtw89_mgnt_chan_get(rtwdev, 1);
-	__rtw89_core_set_chip_txpwr(rtwdev, chan, RTW89_PHY_1);
+	__rtw89_core_set_chip_txpwr(rtwdev, conf.chans[1], RTW89_PHY_1);
 }
 
 void rtw89_chip_rfk_channel(struct rtw89_dev *rtwdev,
@@ -546,7 +562,7 @@ static void __rtw89_set_channel(struct rtw89_dev *rtwdev,
 
 int rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chan *chan;
+	struct rtw89_entity_conf conf;
 	enum rtw89_entity_mode mode;
 
 	mode = rtw89_entity_recalc(rtwdev);
@@ -555,14 +571,14 @@ int rtw89_set_channel(struct rtw89_dev *rtwdev)
 		return -EINVAL;
 	}
 
-	chan = rtw89_mgnt_chan_get(rtwdev, 0);
-	__rtw89_set_channel(rtwdev, chan, RTW89_MAC_0, RTW89_PHY_0);
+	rtw89_entity_get_conf(rtwdev, &conf);
+
+	__rtw89_set_channel(rtwdev, conf.chans[0], RTW89_MAC_0, RTW89_PHY_0);
 
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 		return 0;
 
-	chan = rtw89_mgnt_chan_get(rtwdev, 1);
-	__rtw89_set_channel(rtwdev, chan, RTW89_MAC_1, RTW89_PHY_1);
+	__rtw89_set_channel(rtwdev, conf.chans[1], RTW89_MAC_1, RTW89_PHY_1);
 
 	return 0;
 }
@@ -838,6 +854,9 @@ u8 rtw89_core_get_ch_dma_v2(struct rtw89_dev *rtwdev, u8 qsel)
 	case RTW89_TX_QSEL_B0_MGMT:
 	case RTW89_TX_QSEL_B0_HI:
 		return RTW89_TXCH_CH8;
+	case RTW89_TX_QSEL_B1_MGMT:
+	case RTW89_TX_QSEL_B1_HI:
+		return RTW89_TXCH_CH10;
 	}
 }
 EXPORT_SYMBOL(rtw89_core_get_ch_dma_v2);
@@ -931,6 +950,7 @@ __rtw89_core_tx_check_he_qos_htc(struct rtw89_dev *rtwdev,
 				 enum btc_pkt_type pkt_type)
 {
 	struct rtw89_sta_link *rtwsta_link = tx_req->rtwsta_link;
+	struct ieee80211_vif *vif = tx_req->vif;
 	struct sk_buff *skb = tx_req->skb;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	struct ieee80211_link_sta *link_sta;
@@ -960,6 +980,9 @@ __rtw89_core_tx_check_he_qos_htc(struct rtw89_dev *rtwdev,
 		return false;
 
 	if (rtwsta_link && rtwsta_link->ra_report.might_fallback_legacy)
+		return false;
+
+	if (vif->type == NL80211_IFTYPE_AP)
 		return false;
 
 	return true;
@@ -2020,28 +2043,13 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 	}
 }
 
-#define VAR_LEN 0xff
-#define VAR_LEN_UNIT 8
 static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev,
 					    const struct rtw89_phy_sts_iehdr *iehdr)
 {
-	static const u8 physts_ie_len_tabs[RTW89_CHIP_GEN_NUM][32] = {
-		[RTW89_CHIP_AX] = {
-			16, 32, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
-			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 16, 24, VAR_LEN,
-			VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
-		},
-		[RTW89_CHIP_BE] = {
-			32, 40, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
-			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 88, 56, VAR_LEN,
-			VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
-		},
-	};
-	const u8 *physts_ie_len_tab;
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const u8 *physts_ie_len_tab = phy->physt_ie_len;
 	u16 ie_len;
 	u8 ie;
-
-	physts_ie_len_tab = physts_ie_len_tabs[rtwdev->chip->chip_gen];
 
 	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
 	if (physts_ie_len_tab[ie] != VAR_LEN)
@@ -2077,11 +2085,9 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
 	u32 t;
 
 	phy_ppdu->chan_idx = le32_get_bits(ie->w0, RTW89_PHY_STS_IE01_W0_CH_IDX);
-
-	if (rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR) {
-		phy_ppdu->ldpc = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_LDPC);
-		phy_ppdu->stbc = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_STBC);
-	}
+	phy_ppdu->ldpc = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_LDPC);
+	phy_ppdu->stbc = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_STBC);
+	phy_ppdu->bf = le32_get_bits(ie->w3, RTW89_PHY_STS_IE01_W3_BF);
 
 	if (!phy_ppdu->hdr_2_en)
 		phy_ppdu->rx_path_en =
@@ -2094,6 +2100,7 @@ static void rtw89_core_parse_phy_status_ie01(struct rtw89_dev *rtwdev,
 		return;
 
 	phy_ppdu->rpl_avg = le32_get_bits(ie->w0, RTW89_PHY_STS_IE01_W0_RSSI_AVG_FD);
+	phy_ppdu->su = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_SU);
 	phy_ppdu->ofdm.avg_snr = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_AVG_SNR);
 	phy_ppdu->ofdm.evm_max = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MAX);
 	phy_ppdu->ofdm.evm_min = le32_get_bits(ie->w2, RTW89_PHY_STS_IE01_W2_EVM_MIN);
@@ -2148,13 +2155,49 @@ static void rtw89_core_parse_phy_status_ie00_v2(struct rtw89_dev *rtwdev,
 		rpl_path[i] = tmp_rpl[i] >> 1;
 }
 
+static void rtw89_core_parse_phy_status_ie09(struct rtw89_dev *rtwdev,
+					     const struct rtw89_phy_sts_iehdr *iehdr,
+					     struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const union rtw89_phy_sts_ie09 *ie09;
+	u16 ie_len;
+
+	ie09 = (const void *)iehdr;
+
+	if (phy->physt_gen >= 2) {
+		ie_len = rtw89_core_get_phy_status_ie_len(rtwdev, (const void *)iehdr);
+		if (ie_len < sizeof(ie09->gen2))
+			return;
+	}
+
+	phy_ppdu->ie09 = ie09;
+}
+
+static void rtw89_core_parse_phy_status_ie10(struct rtw89_dev *rtwdev,
+					     const struct rtw89_phy_sts_iehdr *iehdr,
+					     struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	phy_ppdu->ie10 = (const void *)iehdr;
+}
+
 static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
 					    const struct rtw89_phy_sts_iehdr *iehdr,
 					    struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
+	bool accept;
 	u8 ie;
 
 	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
+
+	/*
+	 * For normal mode, only parse ppdu_sts that are A1-matched, except for
+	 * scanning that needs to get chan_idx in IE01.
+	 */
+	accept = phy_ppdu->to_self || ie == RTW89_PHYSTS_IE01_CMN_OFDM ||
+		 rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR;
+	if (!accept)
+		return 0;
 
 	switch (ie) {
 	case RTW89_PHYSTS_IE00_CMN_CCK:
@@ -2164,6 +2207,12 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev,
 		break;
 	case RTW89_PHYSTS_IE01_CMN_OFDM:
 		rtw89_core_parse_phy_status_ie01(rtwdev, iehdr, phy_ppdu);
+		break;
+	case RTW89_PHYSTS_IE09_FTR_0:
+		rtw89_core_parse_phy_status_ie09(rtwdev, iehdr, phy_ppdu);
+		break;
+	case RTW89_PHYSTS_IE10_FTR_PLCP_EXT:
+		rtw89_core_parse_phy_status_ie10(rtwdev, iehdr, phy_ppdu);
 		break;
 	default:
 		break;
@@ -2224,11 +2273,14 @@ static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 				       struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	u16 ie_len;
 	void *pos, *end;
+	bool accept;
+	u16 ie_len;
 
-	/* mark invalid reports and bypass them */
-	if (phy_ppdu->ie < RTW89_CCK_PKT)
+	/* for normal mode, mark invalid reports and bypass them */
+	accept = phy_ppdu->ie >= RTW89_CCK_PKT ||
+		 rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR;
+	if (!accept)
 		return -EINVAL;
 
 	pos = phy_ppdu->buf + PHY_STS_HDR_LEN;
@@ -2238,14 +2290,27 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	while (pos < end) {
 		const struct rtw89_phy_sts_iehdr *iehdr = pos;
 
+		/*
+		 * RTL8922D might reports 8 bytes zeros at end if IE09 presents.
+		 * Check and ignore the zeros.
+		 */
+		if (unlikely(phy_ppdu->ie09 && end - pos == 8 && iehdr->w0 == 0))
+			break;
+
 		ie_len = rtw89_core_get_phy_status_ie_len(rtwdev, iehdr);
-		rtw89_core_process_phy_status_ie(rtwdev, iehdr, phy_ppdu);
 		pos += ie_len;
 		if (pos > end || ie_len == 0) {
+			/* clear pointers to prevent accessing out of IE */
+			phy_ppdu->ie09 = NULL;
+			phy_ppdu->ie10 = NULL;
+
 			rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 				    "phy status parse failed\n");
+
 			return -EINVAL;
 		}
+
+		rtw89_core_process_phy_status_ie(rtwdev, iehdr, phy_ppdu);
 	}
 
 	rtw89_chip_convert_rpl_to_rssi(rtwdev, phy_ppdu);
@@ -2716,12 +2781,14 @@ static u16 rtw89_bcn_get_histogram_bound(struct rtw89_dev *rtwdev, u8 target)
 }
 
 static u16 rtw89_bcn_get_rx_time(struct rtw89_dev *rtwdev,
-				 const struct rtw89_chan *chan)
+				 struct rtw89_vif_link *rtwvif_link)
 {
 #define RTW89_SYMBOL_TIME_2GHZ 192
 #define RTW89_SYMBOL_TIME_5GHZ 20
 #define RTW89_SYMBOL_TIME_6GHZ 20
-	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.cur_pkt_stat;
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
+	struct rtw89_pkt_stat *pkt_stat = &bb->cur_pkt_stat;
 	u16 bitrate, val;
 
 	if (!rtw89_legacy_rate_to_bitrate(rtwdev, pkt_stat->beacon_rate, &bitrate))
@@ -2752,15 +2819,15 @@ static void rtw89_bcn_calc_timeout(struct rtw89_dev *rtwdev,
 #define RTW89_BCN_TRACK_EXTEND_TIMEOUT 5
 #define RTW89_BCN_TRACK_COVERAGE_TH 0 /* unit: TU */
 #define RTW89_BCN_TRACK_STRONG_RSSI 80
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
-	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.cur_pkt_stat;
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 	struct rtw89_beacon_stat *bcn_stat = &rtwdev->phystat.bcn_stat;
 	struct rtw89_beacon_track_info *bcn_track = &rtwdev->bcn_track;
+	struct rtw89_pkt_stat *pkt_stat = &bb->cur_pkt_stat;
 	struct rtw89_beacon_dist *bcn_dist = &bcn_stat->bcn_dist;
 	u16 outlier_high_bcn_th = bcn_track->outlier_high_bcn_th;
 	u16 outlier_low_bcn_th = bcn_track->outlier_low_bcn_th;
-	u8 rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
 	u16 target_bcn_th = bcn_track->target_bcn_th;
+	u8 rssi = ewma_rssi_read(&bb->bcn_rssi);
 	u16 low_bcn_th = bcn_track->low_bcn_th;
 	u16 med_bcn_th = bcn_track->med_bcn_th;
 	u16 beacon_int = bcn_track->beacon_int;
@@ -2806,7 +2873,7 @@ static void rtw89_bcn_calc_timeout(struct rtw89_dev *rtwdev,
 	bcn_timeout = bcn_stat->drift[target_bcn_th];
 
 out:
-	bcn_track->bcn_timeout = bcn_timeout + rtw89_bcn_get_rx_time(rtwdev, chan);
+	bcn_track->bcn_timeout = bcn_timeout + rtw89_bcn_get_rx_time(rtwdev, rtwvif_link);
 }
 
 static void rtw89_bcn_update_timeout(struct rtw89_dev *rtwdev,
@@ -2902,6 +2969,23 @@ static void rtw89_core_bcn_track_reset(struct rtw89_dev *rtwdev)
 	memset(&rtwdev->bcn_track, 0, sizeof(rtwdev->bcn_track));
 }
 
+static bool rtw89_core_proto_stats_can_lps(struct rtw89_dev *rtwdev,
+					   struct rtw89_vif *rtwvif,
+					   enum rtw89_tfc_interval interval)
+{
+	if (rtwdev->chip->chip_id != RTL8852A)
+		return true;
+
+	if (rtwvif->burst_active)
+		return false;
+
+	if (interval == RTW89_TFC_INTERVAL_100MS &&
+	    hweight8(rtwvif->stats_ps.active_histogram) < 3)
+		return false;
+
+	return true;
+}
+
 static void rtw89_vif_rx_bcn_stat(struct rtw89_dev *rtwdev, struct sk_buff *skb)
 {
 #define RTW89_APPEND_TSF_2GHZ 384
@@ -2950,7 +3034,6 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct rtw89_vif_rx_stats_iter_data *iter_data = data;
 	struct rtw89_dev *rtwdev = iter_data->rtwdev;
 	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
-	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.cur_pkt_stat;
 	struct rtw89_rx_desc_info *desc_info = iter_data->desc_info;
 	struct sk_buff *skb = iter_data->skb;
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
@@ -2960,6 +3043,8 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct ieee80211_bss_conf *bss_conf;
 	struct rtw89_vif_link *rtwvif_link;
 	const u8 *bssid = iter_data->bssid;
+	struct rtw89_pkt_stat *pkt_stat;
+	struct rtw89_bb_ctx *bb;
 	const u8 *target_bssid;
 
 	if (rtwdev->scanning &&
@@ -2993,6 +3078,9 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		rx_status->link_id = rtwvif_link->link_id;
 	}
 
+	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
+	pkt_stat = &bb->cur_pkt_stat;
+
 	if (ieee80211_is_beacon(hdr->frame_control)) {
 		if (vif->type == NL80211_IFTYPE_STATION &&
 		    !test_bit(RTW89_FLAG_WOWLAN, rtwdev->flags)) {
@@ -3001,7 +3089,7 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		}
 
 		if (phy_ppdu) {
-			ewma_rssi_add(&rtwdev->phystat.bcn_rssi, phy_ppdu->rssi_avg);
+			ewma_rssi_add(&bb->bcn_rssi, phy_ppdu->rssi_avg);
 			if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
 				rtwvif_link->bcn_bw_idx = phy_ppdu->bw_idx;
 		}
@@ -3018,6 +3106,23 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 
 	if (desc_info->data_rate < RTW89_HW_RATE_NR)
 		pkt_stat->rx_rate_cnt[desc_info->data_rate]++;
+
+	if (phy_ppdu && phy_ppdu->ofdm.has) {
+		if (phy_ppdu->ldpc)
+			pkt_stat->rx.ldpc++;
+		else
+			pkt_stat->rx.bcc++;
+
+		if (phy_ppdu->stbc)
+			pkt_stat->rx.stbc++;
+
+		if (!phy_ppdu->su)
+			pkt_stat->rx.mu++;
+		else if (phy_ppdu->bf)
+			pkt_stat->rx.su_bf++;
+		else
+			pkt_stat->rx.su_non_bf++;
+	}
 
 	rtw89_traffic_stats_accu(rtwdev, rtwvif, skb, false, false);
 
@@ -3087,10 +3192,494 @@ void rtw89_core_update_rx_status_by_ppdu(struct rtw89_dev *rtwdev,
 	if (!phy_ppdu)
 		return;
 
+	if (phy_ppdu->bf)
+		rx_status->enc_flags |= RX_ENC_FLAG_BF;
 	if (phy_ppdu->ldpc)
 		rx_status->enc_flags |= RX_ENC_FLAG_LDPC;
 	if (phy_ppdu->stbc)
 		rx_status->enc_flags |= u8_encode_bits(1, RX_ENC_FLAG_STBC_MASK);
+}
+
+static void rtw89_core_update_radiotap_vht(struct rtw89_dev *rtwdev,
+					   struct sk_buff *skb,
+					   struct ieee80211_rx_status *rx_status,
+					   struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const union rtw89_phy_sts_ie09 *ie09;
+	struct ieee80211_radiotap_vht *vht;
+	u8 group_id;
+	u32 sig_a1;
+	u16 paid;
+	u8 nss;
+
+	if (!phy_ppdu)
+		return;
+
+	ie09 = phy_ppdu->ie09;
+	if (!ie09)
+		return;
+
+	vht = skb_push(skb, sizeof(*vht));
+	memset(vht, 0, sizeof(*vht));
+	rx_status->flag |= RX_FLAG_RADIOTAP_VHT;
+
+	if (phy->physt_gen >= 2)
+		sig_a1 = le64_get_bits(ie09->gen2.qw0, RTW89_PHY_STS_IE09_VHT_SIG_A1_MASK_GEN2);
+	else
+		sig_a1 = le64_get_bits(ie09->gen0.qw0, RTW89_PHY_STS_IE09_VHT_SIG_A1_MASK);
+
+	group_id = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_VHT_SIG_A1_GRP_ID);
+	vht->group_id = group_id;
+
+	if (group_id == 0 || group_id == 63) {
+		paid = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_VHT_SIG_A1_SU_PAID);
+		vht->partial_aid = cpu_to_le16(paid);
+	} else {
+		/* let mac80211 fill vht->mcs_nss[0] */
+#define WITH_MCS_IS_NOT_KNOWN(nss) ((nss) ? (15 << 4) | (nss) : 0)
+		nss = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_VHT_SIG_A1_MU_NSTS1);
+		vht->mcs_nss[1] = WITH_MCS_IS_NOT_KNOWN(nss);
+		nss = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_VHT_SIG_A1_MU_NSTS2);
+		vht->mcs_nss[2] = WITH_MCS_IS_NOT_KNOWN(nss);
+		nss = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_VHT_SIG_A1_MU_NSTS3);
+		vht->mcs_nss[3] = WITH_MCS_IS_NOT_KNOWN(nss);
+#undef WITH_MCS_IS_NOT_KNOWN
+	}
+}
+
+static void rtw89_core_update_radiotap_he_su(struct rtw89_dev *rtwdev,
+					     struct sk_buff *skb,
+					     struct ieee80211_rx_status *rx_status,
+					     struct ieee80211_radiotap_he *he,
+					     const union rtw89_phy_sts_ie09 *ie09)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	u32 sig_a1, sig_a2;
+	u16 t;
+
+	if (!ie09)
+		return;
+
+	if (phy->physt_gen >= 2) {
+		sig_a1 = le64_get_bits(ie09->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_SU_SIG_A1_MASK_GEN2);
+		sig_a2 = le64_get_bits(ie09->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_SU_SIG_A2_MASK_GEN2_L0);
+		sig_a2 |= le64_get_bits(ie09->gen2.qw1,
+					RTW89_PHY_STS_IE09_HE_SU_SIG_A2_MASK_GEN2_H6) << 6;
+	} else {
+		sig_a1 = le64_get_bits(ie09->gen0.qw0, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_MASK);
+		sig_a2 = le64_get_bits(ie09->gen0.qw0, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_MASK);
+	}
+
+	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BEAM_CHANGE_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN |
+				 0);
+
+	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_TXBF_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN |
+				 0);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_BEAM_CHANGE);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_BEAM_CHANGE);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_ULDL);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+
+	rx_status->he_dcm = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_DCM);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_BSS_COLOR);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_SU_SIG_A1_SR);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_TXOP);
+	he->data6 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA6_TXOP);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_LDPC_XSYMSEG);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_BEAMFORMED);
+	he->data5 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA5_TXBF);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_PREFEC);
+	he->data5 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_PE);
+	he->data5 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_SU_SIG_A2_DOPPLER);
+	he->data6 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA6_DOPPLER);
+}
+
+static void rtw89_core_update_radiotap_he_tb(struct rtw89_dev *rtwdev,
+					     struct sk_buff *skb,
+					     struct ieee80211_rx_status *rx_status,
+					     struct ieee80211_radiotap_he *he,
+					     const union rtw89_phy_sts_ie09 *sig)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	u32 sig_a1, sig_a2;
+	u16 t;
+
+	if (!sig)
+		return;
+
+	if (phy->physt_gen >= 2) {
+		sig_a1 = le64_get_bits(sig->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_TB_SIG_A1_MASK_GEN2);
+		sig_a2 = le64_get_bits(sig->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_TB_SIG_A2_MASK_GEN2_L0);
+		sig_a2 |= le64_get_bits(sig->gen2.qw1,
+					RTW89_PHY_STS_IE09_HE_TB_SIG_A2_MASK_GEN2_H6);
+	} else {
+		sig_a1 = le64_get_bits(sig->gen0.qw0, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_MASK);
+		sig_a2 = le64_get_bits(sig->gen0.qw0, RTW89_PHY_STS_IE09_HE_TB_SIG_A2_MASK);
+	}
+
+	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE2_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE3_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE4_KNOWN);
+
+	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_BSS_COLOR);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_SB1);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE1);
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_SB2);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE2);
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_SB3);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE3);
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_TB_SIG_A1_SB4);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_TB_SPTL_REUSE4);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_TB_SIG_A2_TXOP);
+	he->data6 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA6_TXOP);
+}
+
+static u8 rtw89_core_he_mu_get_n_user_fields_by_ru_alloc(struct rtw89_dev *rtwdev,
+							 u8 ru_alloc)
+{
+	u8 mu_users;
+
+	if (ru_alloc <= 15) {
+		static const u8 entries_0_15[16] = {
+			9, 8, 8, 7, 8, 7, 7, 6, 8, 7, 7, 6, 7, 6, 6, 5,
+		};
+
+		return entries_0_15[ru_alloc];
+	}
+
+	if (ru_alloc >= 16 && ru_alloc <= 95) {
+		mu_users = ru_alloc & 0x07;
+
+		switch (ru_alloc & 0xF8) {
+		case 16: case 24: return mu_users + 3;
+		case 32: case 64: return mu_users + 6;
+		case 40: case 48: case 72: case 80: return mu_users + 5;
+		case 56: case 88: return mu_users + 4;
+		}
+	}
+
+	if (ru_alloc >= 96 && ru_alloc <= 111) {
+		mu_users = ru_alloc & 0x03;
+		mu_users += ru_alloc >> 2 & 0x03;
+
+		return mu_users + 2;
+	}
+
+	if (ru_alloc == 112)
+		return 4;
+
+	if (ru_alloc >= 113 && ru_alloc <= 115)
+		return 0;
+
+	if (ru_alloc >= 128 && ru_alloc <= 191) {
+		mu_users = ru_alloc & 0x07;
+		mu_users += ru_alloc >> 3 & 0x07;
+
+		return mu_users + 3;
+	}
+
+	if (ru_alloc >= 192 && ru_alloc <= 215)
+		return (ru_alloc & 0x07) + 1;
+
+	return 0;
+}
+
+static int rtw89_core_he_mu_get_n_ru_alloc(struct rtw89_dev *rtwdev, u8 bw)
+{
+	switch (bw) {
+	case 0:
+	case 1:
+		return 1;
+	case 2:
+	case 4:
+	case 5:
+		return 2;
+	case 3:
+	case 6:
+	case 7:
+		return 3;
+	}
+
+	return 0;
+}
+
+static void rtw89_core_he_mu_get_cc_ptr(struct rtw89_dev *rtwdev,
+					const struct rtw89_phy_sts_ie10 *ie10,
+					u8 bw, int n_ru, int n_center_26tone,
+					const u8 **c1, const u8 **c2)
+{
+	const u8 *sigb, *end_sigb;
+	int total_bits, c2_offset;
+	int n_user_fields = 0;
+	const u8 *ptr;
+	int i;
+
+	sigb = &ie10->sigb[0];
+	end_sigb = (const void *)ie10 +
+		   rtw89_core_get_phy_status_ie_len(rtwdev, (const void *)ie10);
+
+	ptr = sigb;
+	if (ptr + n_ru + n_center_26tone >= end_sigb)
+		return;
+	*c1 = ptr;
+
+	if (bw == 0)	/* 20MHz doesn't have content channel 2 */
+		return;
+
+	for (i = 0; i < n_ru; i++)
+		n_user_fields +=
+			rtw89_core_he_mu_get_n_user_fields_by_ru_alloc(rtwdev, (*c1)[i]);
+
+	/* hardware report max 15 recordes, align 8 */
+	n_user_fields = min(n_user_fields, 15);
+
+	total_bits = n_ru * 8 + n_center_26tone + 10 +
+		     n_user_fields * 21 + DIV_ROUND_UP(n_user_fields, 2) * 10;
+	c2_offset = ALIGN(DIV_ROUND_UP(total_bits, 8), 8);
+
+	ptr = &sigb[c2_offset];
+	if (ptr + n_ru + n_center_26tone >= end_sigb)
+		return;
+
+	*c2 = ptr;
+}
+
+static void rtw89_core_update_radiotap_he_mu(struct rtw89_dev *rtwdev,
+					     struct sk_buff *skb,
+					     struct ieee80211_rx_status *rx_status,
+					     struct ieee80211_radiotap_he *he,
+					     struct ieee80211_radiotap_he_mu *he_mu,
+					     const union rtw89_phy_sts_ie09 *ie09,
+					     const struct rtw89_phy_sts_ie10 *ie10)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+	const u8 *c1 = NULL, *c2 = NULL;
+	int n_center_26tone, n_ru, i;
+	bool doppler, comp;
+	u32 sig_a1, sig_a2;
+	u16 t;
+	u8 bw;
+
+	if (!ie09)
+		return;
+
+	he->data1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_UL_DL_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_SPTL_REUSE_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_DOPPLER_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA1_LDPC_XSYMSEG_KNOWN);
+	he->data2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_TXOP_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_MIDAMBLE_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_PRE_FEC_PAD_KNOWN |
+				 IEEE80211_RADIOTAP_HE_DATA2_PE_DISAMBIG_KNOWN);
+
+	if (phy->physt_gen >= 2) {
+		sig_a1 = le64_get_bits(ie09->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_MU_SIG_A1_MASK_GEN2);
+		sig_a2 = le64_get_bits(ie09->gen2.qw0,
+				       RTW89_PHY_STS_IE09_HE_MU_SIG_A2_MASK_GEN2_L0);
+		sig_a2 |= le64_get_bits(ie09->gen2.qw1,
+					RTW89_PHY_STS_IE09_HE_MU_SIG_A2_MASK_GEN2_H6) << 6;
+	} else {
+		sig_a1 = le64_get_bits(ie09->gen0.qw0, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_MASK);
+		sig_a2 = le64_get_bits(ie09->gen0.qw0, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_MASK);
+	}
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_ULDL);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_UL_DL);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_BSS_COLOR);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_BSS_COLOR);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_SR);
+	he->data4 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA4_SU_MU_SPTL_REUSE);
+
+	doppler = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_DOPPLER);
+	he->data6 |= le16_encode_bits(doppler, IEEE80211_RADIOTAP_HE_DATA6_DOPPLER);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_TXOP);
+	he->data6 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA6_TXOP);
+
+	if (doppler) {
+		t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_MID);
+		he->data6 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA6_MIDAMBLE_PDCTY);
+	}
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_LPDC_XSYMSEG);
+	he->data3 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA3_LDPC_XSYMSEG);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_FEC);
+	he->data5 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA5_PRE_FEC_PAD);
+
+	t = u32_get_bits(sig_a2, RTW89_PHY_STS_IE09_HE_MU_SIG_A2_PE);
+	he->data5 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_DATA5_PE_DISAMBIG);
+
+	he_mu->flags1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_SYMS_USERS_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_COMP_KNOWN);
+	he_mu->flags2 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_KNOWN);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_SIGB_MCS);
+	he_mu->flags1 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_MCS);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_SIGB_DCM);
+	he_mu->flags1 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_MU_FLAGS1_SIG_B_DCM);
+
+	t = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_SIGB_SYM_USR);
+	he_mu->flags2 |= le16_encode_bits(t, IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_SYMS_USERS);
+
+	comp = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_SIGB_COM);
+	he_mu->flags2 |= le16_encode_bits(comp, IEEE80211_RADIOTAP_HE_MU_FLAGS2_SIG_B_COMP);
+
+	bw = u32_get_bits(sig_a1, RTW89_PHY_STS_IE09_HE_MU_SIG_A1_BW);
+	he_mu->flags2 |= le16_encode_bits(bw, IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW);
+
+	if (comp == 0 && bw <= 5) {
+		u8 punc = clamp_t(int, bw - 3, 0, 2);
+
+		he_mu->flags2 |=
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW_KNOWN);
+		he_mu->flags2 |=
+			le16_encode_bits(punc, IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
+	}
+
+	/* the Common field in the HE-SIG-B field is not present */
+	if (comp || !ie10)
+		return;
+
+	n_ru = rtw89_core_he_mu_get_n_ru_alloc(rtwdev, bw);
+	n_center_26tone = bw >= 1;
+
+	rtw89_core_he_mu_get_cc_ptr(rtwdev, ie10, bw, n_ru, n_center_26tone, &c1, &c2);
+	if (!c1)
+		return;
+
+	he_mu->flags1 |= cpu_to_le16(IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_RU_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH2_RU_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_CTR_26T_RU_KNOWN |
+				     IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH2_CTR_26T_RU_KNOWN);
+
+	for (i = 0; i < n_ru; i++) {
+		he_mu->ru_ch1[i] = c1[i];
+		if (c2)
+			he_mu->ru_ch2[i] = c2[i];
+	}
+
+	if (n_center_26tone) {
+		u8 ru;
+
+		ru = c1[n_ru] & BIT(0);
+		he_mu->flags1 |=
+			le16_encode_bits(ru, IEEE80211_RADIOTAP_HE_MU_FLAGS1_CH1_CTR_26T_RU);
+
+		ru = c2 ? c2[n_ru] & BIT(0) : 0;
+		he_mu->flags1 |=
+			le16_encode_bits(ru, IEEE80211_RADIOTAP_HE_MU_FLAGS2_CH2_CTR_26T_RU);
+	}
+}
+
+static u16 rtw89_core_get_radiotap_he_format(struct rtw89_rx_desc_info *desc_info)
+{
+	switch (desc_info->ppdu_type) {
+	case RTW89_RX_PPDU_T_HE_MU:
+		return IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MU;
+	case RTW89_RX_PPDU_T_HE_ERSU:
+		return IEEE80211_RADIOTAP_HE_DATA1_FORMAT_EXT_SU;
+	case RTW89_RX_PPDU_T_HE_TB:
+		return IEEE80211_RADIOTAP_HE_DATA1_FORMAT_TRIG;
+	default:
+		return IEEE80211_RADIOTAP_HE_DATA1_FORMAT_SU;
+	}
+}
+
+static void rtw89_core_update_radiotap_he(struct rtw89_dev *rtwdev,
+					  struct rtw89_rx_desc_info *desc_info,
+					  struct sk_buff *skb,
+					  struct ieee80211_rx_status *rx_status,
+					  struct rtw89_rx_phy_ppdu *phy_ppdu)
+{
+	static const struct ieee80211_radiotap_he known_he = {
+		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
+				     IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN |
+				     IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
+				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
+		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
+	};
+	struct ieee80211_radiotap_he_mu *he_mu = NULL;
+	const union rtw89_phy_sts_ie09 *ie09;
+	const struct rtw89_phy_sts_ie10 *ie10;
+	struct ieee80211_radiotap_he *he;
+	u16 he_format;
+
+	he_format = rtw89_core_get_radiotap_he_format(desc_info);
+
+	/* Radiotap of HE-MU must be placed after HE (skb_push ahead) */
+	if (he_format == IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MU) {
+		rx_status->flag |= RX_FLAG_RADIOTAP_HE_MU;
+		he_mu = skb_push(skb, sizeof(*he_mu));
+		memset(he_mu, 0, sizeof(*he_mu));
+	}
+
+	rx_status->flag |= RX_FLAG_RADIOTAP_HE;
+	he = skb_push(skb, sizeof(*he));
+	*he = known_he;
+
+	he->data1 |= le16_encode_bits(he_format, IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MASK);
+
+	if (!phy_ppdu)
+		return;
+
+	ie09 = phy_ppdu->ie09;
+	ie10 = phy_ppdu->ie10;
+
+	switch (he_format) {
+	case IEEE80211_RADIOTAP_HE_DATA1_FORMAT_MU:
+		rtw89_core_update_radiotap_he_mu(rtwdev, skb, rx_status, he, he_mu,
+						 ie09, ie10);
+		break;
+	case IEEE80211_RADIOTAP_HE_DATA1_FORMAT_TRIG:
+		rtw89_core_update_radiotap_he_tb(rtwdev, skb, rx_status, he, ie09);
+		break;
+	default:
+		rtw89_core_update_radiotap_he_su(rtwdev, skb, rx_status, he, ie09);
+		break;
+	}
 }
 
 static const u8 rx_status_bw_to_radiotap_eht_usig[] = {
@@ -3164,28 +3753,27 @@ static void rtw89_core_update_radiotap_eht(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_core_update_radiotap(struct rtw89_dev *rtwdev,
+				       struct rtw89_rx_desc_info *desc_info,
 				       struct sk_buff *skb,
-				       struct ieee80211_rx_status *rx_status)
+				       struct ieee80211_rx_status *rx_status,
+				       struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	static const struct ieee80211_radiotap_he known_he = {
-		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
-				     IEEE80211_RADIOTAP_HE_DATA1_CODING_KNOWN |
-				     IEEE80211_RADIOTAP_HE_DATA1_STBC_KNOWN |
-				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
-		.data2 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_GI_KNOWN),
-	};
-	struct ieee80211_radiotap_he *he;
-
 	if (!(rtwdev->hw->conf.flags & IEEE80211_CONF_MONITOR))
 		return;
 
-	if (rx_status->encoding == RX_ENC_HE) {
-		rx_status->flag |= RX_FLAG_RADIOTAP_HE;
-		he = skb_push(skb, sizeof(*he));
-		*he = known_he;
-	} else if (rx_status->encoding == RX_ENC_EHT) {
+	/*
+	 * At transient adding a monitor vif from a station vif, the headroom
+	 * might not include radiotap.
+	 */
+	if (unlikely(skb_headroom(skb) < RTW89_RADIOTAP_ROOM + NET_SKB_PAD))
+		return;
+
+	if (rx_status->encoding == RX_ENC_VHT)
+		rtw89_core_update_radiotap_vht(rtwdev, skb, rx_status, phy_ppdu);
+	else if (rx_status->encoding == RX_ENC_HE)
+		rtw89_core_update_radiotap_he(rtwdev, desc_info, skb, rx_status, phy_ppdu);
+	else if (rx_status->encoding == RX_ENC_EHT)
 		rtw89_core_update_radiotap_eht(rtwdev, skb, rx_status);
-	}
 }
 
 static void rtw89_core_validate_rx_signal(struct ieee80211_rx_status *rx_status)
@@ -3363,7 +3951,8 @@ static bool rtw89_core_skb_pn_valid(struct rtw89_dev *rtwdev,
 		last_pn = tid_stats->last_pn;
 
 		if (pn > last_pn) {
-			if (ieee80211_sn_less(mpdu_sn, tid_stats->last_sn)) {
+			if (last_pn != -1LL &&
+			    ieee80211_sn_less(mpdu_sn, tid_stats->last_sn)) {
 				dev_kfree_skb_any(skb);
 
 				return false;
@@ -3395,7 +3984,7 @@ static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 	rtw89_core_hw_to_sband_rate(rx_status);
 	rtw89_core_rx_stats(rtwdev, phy_ppdu, desc_info, skb_ppdu);
 	rtw89_core_update_rx_status_by_ppdu(rtwdev, rx_status, phy_ppdu);
-	rtw89_core_update_radiotap(rtwdev, skb_ppdu, rx_status);
+	rtw89_core_update_radiotap(rtwdev, desc_info, skb_ppdu, rx_status, phy_ppdu);
 	rtw89_core_validate_rx_signal(rx_status);
 	rtw89_core_update_rx_freq_from_ie(rtwdev, skb_ppdu, rx_status);
 	rtw89_core_correct_mcc_chan(rtwdev, desc_info, rx_status, phy_ppdu);
@@ -3509,6 +4098,7 @@ void rtw89_core_query_rxdesc(struct rtw89_dev *rtwdev,
 	desc_info->hw_dec = le32_get_bits(rxd_s->dword3, AX_RXD_HW_DEC);
 	desc_info->sw_dec = le32_get_bits(rxd_s->dword3, AX_RXD_SW_DEC);
 	desc_info->addr1_match = le32_get_bits(rxd_s->dword3, AX_RXD_A1_MATCH);
+	desc_info->ampdu = le32_get_bits(rxd_s->dword3, AX_RXD_AMPDU);
 
 	shift_len = desc_info->shift << 1; /* 2-byte unit */
 	drv_info_len = desc_info->drv_info_size << 3; /* 8-byte unit */
@@ -3565,6 +4155,7 @@ void rtw89_core_query_rxdesc_v2(struct rtw89_dev *rtwdev,
 	desc_info->hw_dec = le32_get_bits(rxd_s->dword3, BE_RXD_HW_DEC);
 	desc_info->sw_dec = le32_get_bits(rxd_s->dword3, BE_RXD_SW_DEC);
 	desc_info->addr1_match = le32_get_bits(rxd_s->dword3, BE_RXD_A1_MATCH);
+	desc_info->ampdu = le32_get_bits(rxd_s->dword3, BE_RXD_AMPDU);
 
 	desc_info->bw = le32_get_bits(rxd_s->dword4, BE_RXD_BW_MASK);
 	desc_info->data_rate = le32_get_bits(rxd_s->dword4, BE_RXD_RX_DATARATE_MASK);
@@ -3639,6 +4230,7 @@ void rtw89_core_query_rxdesc_v3(struct rtw89_dev *rtwdev,
 	desc_info->hw_dec = le32_get_bits(rxd_s->dword3, BE_RXD_HW_DEC);
 	desc_info->sw_dec = le32_get_bits(rxd_s->dword3, BE_RXD_SW_DEC);
 	desc_info->addr1_match = le32_get_bits(rxd_s->dword3, BE_RXD_A1_MATCH);
+	desc_info->ampdu = le32_get_bits(rxd_s->dword3, BE_RXD_AMPDU);
 
 	desc_info->bw = le32_get_bits(rxd_s->dword4, BE_RXD_BW_MASK);
 	desc_info->data_rate = le32_get_bits(rxd_s->dword4, BE_RXD_RX_DATARATE_MASK);
@@ -3770,6 +4362,11 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	if (desc_info->hw_dec &&
 	    !(desc_info->sw_dec || desc_info->icv_err))
 		rx_status->flag |= RX_FLAG_DECRYPTED;
+
+	if (desc_info->ampdu) {
+		rx_status->flag |= RX_FLAG_AMPDU_DETAILS;
+		rx_status->ampdu_reference = desc_info->ppdu_cnt;
+	}
 
 	rx_status->bw = rtw89_hw_to_rate_info_bw(desc_info->bw);
 
@@ -4441,6 +5038,7 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	reg = rtw89_mac_reg_by_idx(rtwdev, mac->rx_fltr, rtwvif_link->mac_idx);
 	rtw89_write32_clr(rtwdev, reg, B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH);
 
+	rtw89_phy_dig_suspend(rtwdev);
 	ieee80211_ready_on_channel(hw);
 	wiphy_delayed_work_cancel(hw->wiphy, &rtwvif->roc.roc_work);
 	wiphy_delayed_work_queue(hw->wiphy, &rtwvif->roc.roc_work,
@@ -4485,6 +5083,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	rtw89_core_handle_sta_pending_tx(rtwdev, rtwvif_link);
 	queue_work(rtwdev->txq_wq, &rtwdev->txq_work);
+	rtw89_phy_dig_resume(rtwdev, true);
 
 	if (hw->conf.flags & IEEE80211_CONF_IDLE)
 		wiphy_delayed_work_queue(hw->wiphy, &roc->roc_work,
@@ -4540,9 +5139,42 @@ static enum rtw89_tfc_lv rtw89_get_traffic_level(struct rtw89_dev *rtwdev,
 	return RTW89_TFC_ULTRA_LOW;
 }
 
+static void rtw89_calc_vif_active_histogram(struct rtw89_dev *rtwdev,
+					    struct rtw89_traffic_stats *stats,
+					    enum rtw89_tfc_interval interval)
+{
+	struct rtw89_vif *rtwvif;
+
+	stats->udp_ratio = stats->tx_cnt ?
+			   DIV_ROUND_DOWN_ULL(stats->udp * 100, stats->tx_cnt) : 0;
+	stats->active_histogram <<= 1;
+
+	switch (interval) {
+	case RTW89_TFC_INTERVAL_2SEC:
+		rtwvif = container_of(stats, struct rtw89_vif, stats);
+
+		if (stats->tcp >= RTW89_TCP_TH && stats->tx_cnt >= stats->rx_cnt)
+			stats->active_histogram |= BIT(0);
+
+		if (stats->active_histogram & RTW89_RECENT_ACTIVE_HIST)
+			rtwvif->burst_active = true;
+		else
+			rtwvif->burst_active = false;
+
+		break;
+	case RTW89_TFC_INTERVAL_100MS:
+		if (stats->udp_ratio >= RTW89_UDP_RATIO_TH)
+			stats->active_histogram |= BIT(0);
+		break;
+	}
+
+	stats->tcp = 0;
+	stats->udp = 0;
+}
+
 static bool rtw89_traffic_stats_calc(struct rtw89_dev *rtwdev,
 				     struct rtw89_traffic_stats *stats,
-				     enum rtw89_tfc_interval interval)
+				     enum rtw89_tfc_interval interval, bool by_vif)
 {
 	enum rtw89_tfc_lv tx_tfc_lv = stats->tx_tfc_lv;
 	enum rtw89_tfc_lv rx_tfc_lv = stats->rx_tfc_lv;
@@ -4563,6 +5195,9 @@ static bool rtw89_traffic_stats_calc(struct rtw89_dev *rtwdev,
 			    DIV_ROUND_DOWN_ULL(stats->tx_unicast, stats->tx_cnt) : 0;
 	stats->rx_avg_len = stats->rx_cnt ?
 			    DIV_ROUND_DOWN_ULL(stats->rx_unicast, stats->rx_cnt) : 0;
+
+	if (by_vif)
+		rtw89_calc_vif_active_histogram(rtwdev, stats, interval);
 
 	stats->tx_unicast = 0;
 	stats->rx_unicast = 0;
@@ -4585,11 +5220,11 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 	bool tfc_changed;
 
 	tfc_changed = rtw89_traffic_stats_calc(rtwdev, &rtwdev->stats,
-					       RTW89_TFC_INTERVAL_2SEC);
+					       RTW89_TFC_INTERVAL_2SEC, false);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		rtw89_traffic_stats_calc(rtwdev, &rtwvif->stats,
-					 RTW89_TFC_INTERVAL_2SEC);
+					 RTW89_TFC_INTERVAL_2SEC, true);
 
 		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
 			rtw89_fw_h2c_tp_offload(rtwdev, rtwvif_link);
@@ -4598,7 +5233,8 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 	return tfc_changed;
 }
 
-static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
+static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev,
+				  enum rtw89_tfc_interval interval)
 {
 	struct ieee80211_vif *vif;
 	struct rtw89_vif *rtwvif;
@@ -4620,6 +5256,9 @@ static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
 			continue;
 
 		if (!rtw89_core_bcn_track_can_lps(rtwdev))
+			continue;
+
+		if (!rtw89_core_proto_stats_can_lps(rtwdev, rtwvif, interval))
 			continue;
 
 		rtw89_enter_lps(rtwdev, rtwvif, true);
@@ -4667,14 +5306,22 @@ static void rtw89_core_mlsr_link_decision(struct rtw89_dev *rtwdev,
 {
 	unsigned int sel_link_id = IEEE80211_MLD_MAX_NUM_LINKS;
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	u8 decided_bands = BIT(RTW89_BAND_NUM) - 1;
 	struct rtw89_vif_link *rtwvif_link;
 	const struct rtw89_chan *chan;
 	unsigned long usable_links;
+	struct rtw89_bb_ctx *bb;
 	unsigned int link_id;
-	u8 decided_bands;
 	u8 rssi;
 
-	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
+	usable_links = ieee80211_vif_usable_links(vif);
+
+	rtwvif_link = rtw89_get_designated_link(rtwvif);
+	if (unlikely(!rtwvif_link))
+		goto select;
+
+	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
+	rssi = ewma_rssi_read(&bb->bcn_rssi);
 	if (unlikely(!rssi))
 		return;
 
@@ -4684,12 +5331,6 @@ static void rtw89_core_mlsr_link_decision(struct rtw89_dev *rtwdev,
 		decided_bands = BIT(RTW89_BAND_2G);
 	else
 		return;
-
-	usable_links = ieee80211_vif_usable_links(vif);
-
-	rtwvif_link = rtw89_get_designated_link(rtwvif);
-	if (unlikely(!rtwvif_link))
-		goto select;
 
 	chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
 	if (decided_bands & BIT(chan->band_type))
@@ -4771,13 +5412,13 @@ static void rtw89_track_ps_work(struct wiphy *wiphy, struct wiphy_work *work)
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_traffic_stats_calc(rtwdev, &rtwvif->stats_ps,
-					 RTW89_TFC_INTERVAL_100MS);
+					 RTW89_TFC_INTERVAL_100MS, true);
 
 	if (rtwdev->scanning)
 		return;
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
-		rtw89_enter_lps_track(rtwdev);
+		rtw89_enter_lps_track(rtwdev, RTW89_TFC_INTERVAL_100MS);
 }
 
 static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
@@ -4825,7 +5466,7 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	rtw89_core_mlo_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
-		rtw89_enter_lps_track(rtwdev);
+		rtw89_enter_lps_track(rtwdev, RTW89_TFC_INTERVAL_2SEC);
 }
 
 void rtw89_core_dm_disable_cfg(struct rtw89_dev *rtwdev, u32 new)
@@ -6229,6 +6870,8 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	u8 band;
 
+	rtwdev->io = rtw89_fw_cmd_ofld_alloc_and_get_io_ops(rtwdev);
+
 	bitmap_or(rtwdev->quirks, rtwdev->quirks, &rtwdev->chip->default_quirks,
 		  NUM_OF_RTW89_QUIRKS);
 
@@ -6524,6 +7167,8 @@ int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	if (RTW89_CHK_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY, &rtwdev->fw))
 		rtw89_chip_rfk_channel(rtwdev, target);
 
+	rtw89_fw_h2c_tx_history(rtwdev, target->mac_id);
+
 	rtwvif->mlo_mode = RTW89_MLO_MODE_MLSR;
 
 wake_queue:
@@ -6671,6 +7316,10 @@ int rtw89_chip_info_setup(struct rtw89_dev *rtwdev)
 	if (ret)
 		goto out;
 
+	ret = rtw89_chip_data_setup(rtwdev);
+	if (ret)
+		goto out;
+
 	rtw89_core_setup_rfe_parms(rtwdev);
 	rtwdev->ps_mode = rtw89_update_ps_mode(rtwdev);
 
@@ -6733,7 +7382,8 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	hw->radiotap_mcs_details |= IEEE80211_RADIOTAP_MCS_HAVE_FEC |
 				    IEEE80211_RADIOTAP_MCS_HAVE_STBC;
-	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC;
+	hw->radiotap_vht_details |= IEEE80211_RADIOTAP_VHT_KNOWN_STBC |
+				    IEEE80211_RADIOTAP_VHT_KNOWN_BEAMFORMED;
 
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
@@ -6882,9 +7532,11 @@ EXPORT_SYMBOL(rtw89_core_unregister);
 
 struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 					   u32 bus_data_size,
-					   const struct rtw89_chip_info *chip,
-					   const struct rtw89_chip_variant *variant)
+					   const struct rtw89_driver_info *info)
 {
+	const unsigned long *dev_id_quirks = &info->dev_id_quirks;
+	const struct rtw89_chip_variant *variant = info->variant;
+	const struct rtw89_chip_info *chip = info->chip;
 	struct rtw89_fw_info early_fw = {};
 	const struct firmware *firmware;
 	struct ieee80211_hw *hw;
@@ -6949,6 +7601,9 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 	rtwdev->fw.req.firmware = firmware;
 	rtwdev->fw.fw_format = fw_format;
 	rtwdev->support_mlo = support_mlo;
+
+	bitmap_or(rtwdev->quirks, rtwdev->quirks, dev_id_quirks,
+		  NUM_OF_RTW89_QUIRKS);
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "probe driver %s chanctx\n",
 		    no_chanctx ? "without" : "with");

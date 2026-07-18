@@ -13,7 +13,7 @@ static volatile bool sys64, undef;
 
 #define __check_sr_read(r)					\
 	({							\
-		uint64_t val;					\
+		u64 val;					\
 								\
 		sys64 = false;					\
 		undef = false;					\
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	uint64_t mmfr2;
+	u64 mmfr2;
 
 	test_disable_default_vgic();
 

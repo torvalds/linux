@@ -16,7 +16,7 @@
 
 #include <linux/string.h>
 
-#if IS_ENABLED(CONFIG_VGA_CONSOLE) || IS_ENABLED(CONFIG_MDA_CONSOLE)
+#if IS_ENABLED(CONFIG_VGA_CONSOLE)
 #include <asm/vga.h>
 #endif
 

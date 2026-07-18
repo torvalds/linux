@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
 
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 
 #include "dss.h"
@@ -197,7 +198,8 @@ static void sdi_bridge_mode_set(struct drm_bridge *bridge,
 	sdi->pixelclock = adjusted_mode->clock * 1000;
 }
 
-static void sdi_bridge_enable(struct drm_bridge *bridge)
+static void sdi_bridge_enable(struct drm_bridge *bridge,
+			      struct drm_atomic_commit *commit)
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
 	struct dispc_clock_info dispc_cinfo;
@@ -260,7 +262,8 @@ err_get_dispc:
 	regulator_disable(sdi->vdds_sdi_reg);
 }
 
-static void sdi_bridge_disable(struct drm_bridge *bridge)
+static void sdi_bridge_disable(struct drm_bridge *bridge,
+			       struct drm_atomic_commit *commit)
 {
 	struct sdi_device *sdi = drm_bridge_to_sdi(bridge);
 
@@ -274,12 +277,15 @@ static void sdi_bridge_disable(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs sdi_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = sdi_bridge_attach,
 	.mode_valid = sdi_bridge_mode_valid,
 	.mode_fixup = sdi_bridge_mode_fixup,
 	.mode_set = sdi_bridge_mode_set,
-	.enable = sdi_bridge_enable,
-	.disable = sdi_bridge_disable,
+	.atomic_enable = sdi_bridge_enable,
+	.atomic_disable = sdi_bridge_disable,
 };
 
 static void sdi_bridge_init(struct sdi_device *sdi)

@@ -24,6 +24,11 @@
 	__dm_ima_str(DM_VERSION_MINOR) "."	\
 	__dm_ima_str(DM_VERSION_PATCHLEVEL) ";"
 
+enum dm_ima_table_op {
+	DM_IMA_TABLE_SAVE,
+	DM_IMA_TABLE_RESTORE,
+};
+
 #ifdef CONFIG_IMA
 
 struct dm_ima_device_table_metadata {
@@ -36,6 +41,7 @@ struct dm_ima_device_table_metadata {
 	char *device_metadata;
 	unsigned int device_metadata_len;
 	unsigned int num_targets;
+	sector_t capacity;
 
 	/*
 	 * Contains the sha256 hashes of the IMA measurements of the target
@@ -45,31 +51,67 @@ struct dm_ima_device_table_metadata {
 	unsigned int hash_len;
 };
 
+struct dm_ima_context {
+	struct dm_ima_device_table_metadata table;
+	unsigned int update_idx;
+	char dev_name[DM_NAME_LEN*2];
+	char dev_uuid[DM_UUID_LEN*2];
+};
+
 /*
  * This structure contains device metadata, and table hash for
  * active and inactive tables for ima measurements.
  */
 struct dm_ima_measurements {
+	unsigned int update_idx;
+	unsigned int measure_idx;
+	struct wait_queue_head ima_wq;
+	spinlock_t ima_lock;
 	struct dm_ima_device_table_metadata active_table;
 	struct dm_ima_device_table_metadata inactive_table;
-	unsigned int dm_version_str_len;
 };
 
-void dm_ima_reset_data(struct mapped_device *md);
-void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_flags);
-void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap);
-void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all);
-void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map);
-void dm_ima_measure_on_device_rename(struct mapped_device *md);
+void dm_ima_init(struct mapped_device *md);
+void dm_ima_alloc_context(struct dm_ima_context **context, bool noio);
+void dm_ima_free_context(struct dm_ima_context *context);
+void dm_ima_context_table_op(struct mapped_device *md,
+			     struct dm_ima_context *context,
+			     enum dm_ima_table_op op);
+void dm_ima_measure_on_table_load(struct dm_table *table,
+				  struct dm_ima_context *context);
+void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap,
+				     struct dm_ima_context *context);
+void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all,
+				     struct dm_ima_context *context,
+				     unsigned int idx);
+void dm_ima_measure_on_table_clear(struct mapped_device *md,
+				   struct dm_ima_context *context);
+void dm_ima_measure_on_device_rename(struct mapped_device *md,
+				     struct dm_ima_context *context);
 
 #else
 
-static inline void dm_ima_reset_data(struct mapped_device *md) {}
-static inline void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_flags) {}
-static inline void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap) {}
-static inline void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all) {}
-static inline void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map) {}
-static inline void dm_ima_measure_on_device_rename(struct mapped_device *md) {}
+struct dm_ima_context;
+
+static inline void dm_ima_init(struct mapped_device *md) {}
+static inline void dm_ima_alloc_context(struct dm_ima_context **context, bool noio) {}
+static inline void dm_ima_free_context(struct dm_ima_context *context) {}
+static inline void dm_ima_context_table_op(struct mapped_device *md,
+					   struct dm_ima_context *context,
+					   enum dm_ima_table_op op) {}
+static inline void dm_ima_measure_on_table_load(struct dm_table *table,
+						struct dm_ima_context *context) {}
+static inline void dm_ima_measure_on_device_resume(struct mapped_device *md,
+						   bool swap,
+						   struct dm_ima_context *context) {}
+static inline void dm_ima_measure_on_device_remove(struct mapped_device *md,
+						   bool remove_all,
+						   struct dm_ima_context *context,
+						   unsigned int idx) {}
+static inline void dm_ima_measure_on_table_clear(struct mapped_device *md,
+						 struct dm_ima_context *context) {}
+static inline void dm_ima_measure_on_device_rename(struct mapped_device *md,
+						   struct dm_ima_context *context) {}
 
 #endif /* CONFIG_IMA */
 

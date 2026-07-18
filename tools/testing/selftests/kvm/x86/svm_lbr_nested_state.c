@@ -97,9 +97,9 @@ void test_lbrv_nested_state(bool nested_lbrv)
 {
 	struct kvm_x86_state *state = NULL;
 	struct kvm_vcpu *vcpu;
-	vm_vaddr_t svm_gva;
 	struct kvm_vm *vm;
 	struct ucall uc;
+	gva_t svm_gva;
 
 	pr_info("Testing with nested LBRV %s\n", nested_lbrv ? "enabled" : "disabled");
 

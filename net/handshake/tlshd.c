@@ -93,7 +93,7 @@ static void tls_handshake_remote_peerids(struct tls_handshake_req *treq,
  *
  */
 static void tls_handshake_done(struct handshake_req *req,
-			       unsigned int status, struct genl_info *info)
+			       int status, struct genl_info *info)
 {
 	struct tls_handshake_req *treq = handshake_req_private(req);
 
@@ -104,7 +104,7 @@ static void tls_handshake_done(struct handshake_req *req,
 	if (!status)
 		set_bit(HANDSHAKE_F_REQ_SESSION, &req->hr_flags);
 
-	treq->th_consumer_done(treq->th_consumer_data, -status,
+	treq->th_consumer_done(treq->th_consumer_data, status,
 			       treq->th_peerid[0]);
 }
 
@@ -424,6 +424,8 @@ EXPORT_SYMBOL(tls_server_hello_psk);
  *
  * Request cancellation races with request completion. To determine
  * who won, callers examine the return value from this function.
+ *
+ * Context: May be called from process or softirq context.
  *
  * Return values:
  *   %true - Uncompleted handshake request was canceled

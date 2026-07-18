@@ -206,6 +206,9 @@ static inline void destroy_hrtimer_on_stack(struct hrtimer *timer) { }
 extern void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 				   u64 range_ns, const enum hrtimer_mode mode);
 
+extern bool hrtimer_start_range_ns_user(struct hrtimer *timer, ktime_t tim,
+					u64 range_ns, const enum hrtimer_mode mode);
+
 /**
  * hrtimer_start - (re)start an hrtimer
  * @timer:	the timer to be added
@@ -223,15 +226,26 @@ static inline void hrtimer_start(struct hrtimer *timer, ktime_t tim,
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);
 
-static inline void hrtimer_start_expires(struct hrtimer *timer,
-					 enum hrtimer_mode mode)
+static inline void hrtimer_start_expires(struct hrtimer *timer, enum hrtimer_mode mode)
 {
-	u64 delta;
 	ktime_t soft, hard;
+	u64 delta;
+
 	soft = hrtimer_get_softexpires(timer);
 	hard = hrtimer_get_expires(timer);
 	delta = ktime_to_ns(ktime_sub(hard, soft));
 	hrtimer_start_range_ns(timer, soft, delta, mode);
+}
+
+static inline bool hrtimer_start_expires_user(struct hrtimer *timer, enum hrtimer_mode mode)
+{
+	ktime_t soft, hard;
+	u64 delta;
+
+	soft = hrtimer_get_softexpires(timer);
+	hard = hrtimer_get_expires(timer);
+	delta = ktime_to_ns(ktime_sub(hard, soft));
+	return hrtimer_start_range_ns_user(timer, soft, delta, mode);
 }
 
 void hrtimer_sleeper_start_expires(struct hrtimer_sleeper *sl,
@@ -254,8 +268,8 @@ static inline ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 	return __hrtimer_get_remaining(timer, false);
 }
 
-extern u64 hrtimer_get_next_event(void);
-extern u64 hrtimer_next_event_without(const struct hrtimer *exclude);
+extern ktime_t hrtimer_get_next_event(void);
+extern ktime_t hrtimer_next_event_without(const struct hrtimer *exclude);
 
 extern bool hrtimer_active(const struct hrtimer *timer);
 

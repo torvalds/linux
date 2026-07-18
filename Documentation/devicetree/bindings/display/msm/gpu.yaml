@@ -84,13 +84,9 @@ properties:
     maxItems: 64
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 4
-    items:
-      maxItems: 1
-    description: |
-      phandles to one or more reserved on-chip SRAM regions.
+    description:
       phandle to the On Chip Memory (OCMEM) that's present on some a3xx and
       a4xx Snapdragon SoCs. See
       Documentation/devicetree/bindings/sram/qcom,ocmem.yaml

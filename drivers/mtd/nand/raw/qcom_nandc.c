@@ -128,8 +128,8 @@ static struct qcom_nand_host *to_qcom_nand_host(struct nand_chip *chip)
 static struct qcom_nand_controller *
 get_qcom_nand_controller(struct nand_chip *chip)
 {
-	return (struct qcom_nand_controller *)
-		((u8 *)chip->controller - sizeof(struct qcom_nand_controller));
+	return container_of(chip->controller, struct qcom_nand_controller,
+			    controller);
 }
 
 static u32 nandc_read(struct qcom_nand_controller *nandc, int offset)
@@ -2034,8 +2034,8 @@ static int qcom_nandc_setup(struct qcom_nand_controller *nandc)
 {
 	u32 nand_ctrl;
 
-	nand_controller_init(nandc->controller);
-	nandc->controller->ops = &qcom_nandc_ops;
+	nand_controller_init(&nandc->controller);
+	nandc->controller.ops = &qcom_nandc_ops;
 
 	/* kill onenand */
 	if (!nandc->props->nandc_part_of_qpic)
@@ -2175,7 +2175,7 @@ static int qcom_nand_host_init_and_register(struct qcom_nand_controller *nandc,
 	chip->legacy.block_bad		= qcom_nandc_block_bad;
 	chip->legacy.block_markbad	= qcom_nandc_block_markbad;
 
-	chip->controller = nandc->controller;
+	chip->controller = &nandc->controller;
 	chip->options |= NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA |
 			 NAND_SKIP_BBTSCAN;
 
@@ -2256,21 +2256,17 @@ static int qcom_nandc_parse_dt(struct platform_device *pdev)
 static int qcom_nandc_probe(struct platform_device *pdev)
 {
 	struct qcom_nand_controller *nandc;
-	struct nand_controller *controller;
 	const void *dev_data;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret;
 
-	nandc = devm_kzalloc(&pdev->dev, sizeof(*nandc) + sizeof(*controller),
-			     GFP_KERNEL);
+	nandc = devm_kzalloc(&pdev->dev, sizeof(*nandc), GFP_KERNEL);
 	if (!nandc)
 		return -ENOMEM;
-	controller = (struct nand_controller *)&nandc[1];
 
 	platform_set_drvdata(pdev, nandc);
 	nandc->dev = dev;
-	nandc->controller = controller;
 
 	dev_data = of_device_get_match_data(dev);
 	if (!dev_data) {

@@ -11,6 +11,13 @@
 #include <linux/fscrypt.h>
 #include "transaction.h"
 
+enum btrfs_log_mode {
+	/* Log everything about an inode. */
+	LOG_INODE_ALL,
+	/* Log just enough to recreate the inode during log replay. */
+	LOG_INODE_EXISTS,
+};
+
 struct inode;
 struct dentry;
 struct btrfs_ordered_extent;

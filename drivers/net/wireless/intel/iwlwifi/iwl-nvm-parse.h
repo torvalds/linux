@@ -35,6 +35,7 @@ enum iwl_nvm_sbands_flags {
  *	for this regulatory domain (valid only in 6 Ghz).
  * @disable_11ax: 11ax is forbidden for this regulatory domain.
  * @disable_11be: 11be is forbidden for this regulatory domain.
+ * @disable_11bn: UHR/11bn is not allowed for this regulatory domain
  */
 struct iwl_reg_capa {
 	bool allow_40mhz;
@@ -43,6 +44,7 @@ struct iwl_reg_capa {
 	bool allow_320mhz;
 	bool disable_11ax;
 	bool disable_11be;
+	bool disable_11bn;
 };
 
 /**

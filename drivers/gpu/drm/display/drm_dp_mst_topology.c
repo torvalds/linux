@@ -789,6 +789,12 @@ static bool drm_dp_sideband_append_payload(struct drm_dp_sideband_msg_rx *msg,
 {
 	u8 crc4;
 
+	/* curchunk_len must be >= 1 (min 1 CRC byte) and fit in chunk[] */
+	if (!msg->curchunk_len ||
+	    msg->curchunk_len > ARRAY_SIZE(msg->chunk) ||
+	    msg->curchunk_idx + replybuflen > ARRAY_SIZE(msg->chunk))
+		return false;
+
 	memcpy(&msg->chunk[msg->curchunk_idx], replybuf, replybuflen);
 	msg->curchunk_idx += replybuflen;
 
@@ -799,6 +805,9 @@ static bool drm_dp_sideband_append_payload(struct drm_dp_sideband_msg_rx *msg,
 			print_hex_dump(KERN_DEBUG, "wrong crc",
 				       DUMP_PREFIX_NONE, 16, 1,
 				       msg->chunk,  msg->curchunk_len, false);
+		/* Guard against accumulated msg[] overflow */
+		if (msg->curlen + msg->curchunk_len - 1 > ARRAY_SIZE(msg->msg))
+			return false;
 		/* copy chunk into bigger msg */
 		memcpy(&msg->msg[msg->curlen], msg->chunk, msg->curchunk_len - 1);
 		msg->curlen += msg->curchunk_len - 1;
@@ -871,7 +880,7 @@ static bool drm_dp_sideband_parse_remote_dpcd_read(struct drm_dp_sideband_msg_rx
 		goto fail_len;
 	repmsg->u.remote_dpcd_read_ack.num_bytes = raw->msg[idx];
 	idx++;
-	if (idx > raw->curlen)
+	if (idx + repmsg->u.remote_dpcd_read_ack.num_bytes > raw->curlen)
 		goto fail_len;
 
 	memcpy(repmsg->u.remote_dpcd_read_ack.bytes, &raw->msg[idx], repmsg->u.remote_dpcd_read_ack.num_bytes);
@@ -907,7 +916,9 @@ static bool drm_dp_sideband_parse_remote_i2c_read_ack(struct drm_dp_sideband_msg
 		goto fail_len;
 	repmsg->u.remote_i2c_read_ack.num_bytes = raw->msg[idx];
 	idx++;
-	/* TODO check */
+	if (idx + repmsg->u.remote_i2c_read_ack.num_bytes > raw->curlen)
+		goto fail_len;
+
 	memcpy(repmsg->u.remote_i2c_read_ack.bytes, &raw->msg[idx], repmsg->u.remote_i2c_read_ack.num_bytes);
 	return true;
 fail_len:
@@ -923,16 +934,13 @@ static bool drm_dp_sideband_parse_enum_path_resources_ack(struct drm_dp_sideband
 	repmsg->u.path_resources.port_number = (raw->msg[idx] >> 4) & 0xf;
 	repmsg->u.path_resources.fec_capable = raw->msg[idx] & 0x1;
 	idx++;
-	if (idx > raw->curlen)
+	if (idx + 2 > raw->curlen)
 		goto fail_len;
 	repmsg->u.path_resources.full_payload_bw_number = (raw->msg[idx] << 8) | (raw->msg[idx+1]);
 	idx += 2;
-	if (idx > raw->curlen)
+	if (idx + 2 > raw->curlen)
 		goto fail_len;
 	repmsg->u.path_resources.avail_payload_bw_number = (raw->msg[idx] << 8) | (raw->msg[idx+1]);
-	idx += 2;
-	if (idx > raw->curlen)
-		goto fail_len;
 	return true;
 fail_len:
 	DRM_DEBUG_KMS("enum resource parse length fail %d %d\n", idx, raw->curlen);
@@ -950,12 +958,9 @@ static bool drm_dp_sideband_parse_allocate_payload_ack(struct drm_dp_sideband_ms
 		goto fail_len;
 	repmsg->u.allocate_payload.vcpi = raw->msg[idx];
 	idx++;
-	if (idx > raw->curlen)
+	if (idx + 2 > raw->curlen)
 		goto fail_len;
 	repmsg->u.allocate_payload.allocated_pbn = (raw->msg[idx] << 8) | (raw->msg[idx+1]);
-	idx += 2;
-	if (idx > raw->curlen)
-		goto fail_len;
 	return true;
 fail_len:
 	DRM_DEBUG_KMS("allocate payload parse length fail %d %d\n", idx, raw->curlen);
@@ -969,12 +974,9 @@ static bool drm_dp_sideband_parse_query_payload_ack(struct drm_dp_sideband_msg_r
 
 	repmsg->u.query_payload.port_number = (raw->msg[idx] >> 4) & 0xf;
 	idx++;
-	if (idx > raw->curlen)
+	if (idx + 2 > raw->curlen)
 		goto fail_len;
 	repmsg->u.query_payload.allocated_pbn = (raw->msg[idx] << 8) | (raw->msg[idx + 1]);
-	idx += 2;
-	if (idx > raw->curlen)
-		goto fail_len;
 	return true;
 fail_len:
 	DRM_DEBUG_KMS("query payload parse length fail %d %d\n", idx, raw->curlen);
@@ -3738,8 +3740,10 @@ void drm_dp_mst_topology_queue_probe(struct drm_dp_mst_topology_mgr *mgr)
 {
 	mutex_lock(&mgr->lock);
 
-	if (drm_WARN_ON(mgr->dev, !mgr->mst_state || !mgr->mst_primary))
+	if (!mgr->mst_state || !mgr->mst_primary) {
+		drm_dbg_kms(mgr->dev, "queue_probe skipped: topology torn down\n");
 		goto out_unlock;
+	}
 
 	drm_dp_mst_topology_mgr_invalidate_mstb(mgr->mst_primary);
 	drm_dp_mst_queue_probe_work(mgr);
@@ -4433,7 +4437,7 @@ EXPORT_SYMBOL(drm_dp_mst_get_edid);
  * Total slots in the atomic state assigned for this port, or a negative error
  * code if the port no longer exists
  */
-int drm_dp_atomic_find_time_slots(struct drm_atomic_state *state,
+int drm_dp_atomic_find_time_slots(struct drm_atomic_commit *state,
 				  struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_dp_mst_port *port, int pbn)
 {
@@ -4523,7 +4527,7 @@ EXPORT_SYMBOL(drm_dp_atomic_find_time_slots);
  * Returns:
  * 0 on success, negative error code otherwise
  */
-int drm_dp_atomic_release_time_slots(struct drm_atomic_state *state,
+int drm_dp_atomic_release_time_slots(struct drm_atomic_commit *state,
 				     struct drm_dp_mst_topology_mgr *mgr,
 				     struct drm_dp_mst_port *port)
 {
@@ -4591,7 +4595,7 @@ EXPORT_SYMBOL(drm_dp_atomic_release_time_slots);
  * Returns:
  * 0 if all CRTC commits were retrieved successfully, negative error code otherwise
  */
-int drm_dp_mst_atomic_setup_commit(struct drm_atomic_state *state)
+int drm_dp_mst_atomic_setup_commit(struct drm_atomic_commit *state)
 {
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
@@ -4641,7 +4645,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_setup_commit);
  * All MST drivers must call this function after calling drm_atomic_helper_wait_for_dependencies(),
  * or whatever their equivalent of that is.
  */
-void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_state *state)
+void drm_dp_mst_atomic_wait_for_dependencies(struct drm_atomic_commit *state)
 {
 	struct drm_dp_mst_topology_state *old_mst_state, *new_mst_state;
 	struct drm_dp_mst_topology_mgr *mgr;
@@ -4698,7 +4702,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_wait_for_dependencies);
 int drm_dp_mst_root_conn_atomic_check(struct drm_connector_state *new_conn_state,
 				      struct drm_dp_mst_topology_mgr *mgr)
 {
-	struct drm_atomic_state *state = new_conn_state->state;
+	struct drm_atomic_commit *state = new_conn_state->state;
 	struct drm_connector_state *old_conn_state =
 		drm_atomic_get_old_connector_state(state, new_conn_state->connector);
 	struct drm_crtc_state *crtc_state;
@@ -5436,7 +5440,7 @@ drm_dp_mst_atomic_check_payload_alloc_limits(struct drm_dp_mst_topology_mgr *mgr
  * See also:
  * drm_dp_mst_atomic_enable_dsc()
  */
-int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_state *state, struct drm_dp_mst_topology_mgr *mgr)
+int drm_dp_mst_add_affected_dsc_crtcs(struct drm_atomic_commit *state, struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_atomic_payload *pos;
@@ -5486,7 +5490,7 @@ EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
 
 /**
  * drm_dp_mst_atomic_enable_dsc - Set DSC Enable Flag to On/Off
- * @state: Pointer to the new drm_atomic_state
+ * @state: Pointer to the new drm_atomic_commit
  * @port: Pointer to the affected MST Port
  * @pbn: Newly recalculated bw required for link with DSC enabled
  * @enable: Boolean flag to enable or disable DSC on the port
@@ -5497,7 +5501,7 @@ EXPORT_SYMBOL(drm_dp_mst_add_affected_dsc_crtcs);
  * ports have DSC enabled
  *
  */
-int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_state *state,
+int drm_dp_mst_atomic_enable_dsc(struct drm_atomic_commit *state,
 				 struct drm_dp_mst_port *port,
 				 int pbn, bool enable)
 {
@@ -5576,7 +5580,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
  *   - %-EINVAL, if the new state is invalid, because the root port has
  *     too many payloads.
  */
-int drm_dp_mst_atomic_check_mgr(struct drm_atomic_state *state,
+int drm_dp_mst_atomic_check_mgr(struct drm_atomic_commit *state,
 				struct drm_dp_mst_topology_mgr *mgr,
 				struct drm_dp_mst_topology_state *mst_state,
 				struct drm_dp_mst_port **failing_port)
@@ -5623,7 +5627,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_check_mgr);
  * Returns:
  * 0 if the new state is valid, negative error code otherwise.
  */
-int drm_dp_mst_atomic_check(struct drm_atomic_state *state)
+int drm_dp_mst_atomic_check(struct drm_atomic_commit *state)
 {
 	struct drm_dp_mst_topology_mgr *mgr;
 	struct drm_dp_mst_topology_state *mst_state;
@@ -5660,7 +5664,7 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
  * RETURNS:
  * The MST topology state or error pointer.
  */
-struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
+struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_commit *state,
 								    struct drm_dp_mst_topology_mgr *mgr)
 {
 	return to_dp_mst_topology_state(drm_atomic_get_private_obj_state(state, &mgr->base));
@@ -5681,7 +5685,7 @@ EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
  * in the global atomic state
  */
 struct drm_dp_mst_topology_state *
-drm_atomic_get_old_mst_topology_state(struct drm_atomic_state *state,
+drm_atomic_get_old_mst_topology_state(struct drm_atomic_commit *state,
 				      struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_private_state *old_priv_state =
@@ -5705,7 +5709,7 @@ EXPORT_SYMBOL(drm_atomic_get_old_mst_topology_state);
  * in the global atomic state
  */
 struct drm_dp_mst_topology_state *
-drm_atomic_get_new_mst_topology_state(struct drm_atomic_state *state,
+drm_atomic_get_new_mst_topology_state(struct drm_atomic_commit *state,
 				      struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct drm_private_state *new_priv_state =

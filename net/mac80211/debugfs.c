@@ -320,26 +320,17 @@ static ssize_t aql_enable_read(struct file *file, char __user *user_buf,
 static ssize_t aql_enable_write(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	char buf[3];
-	size_t len;
+	bool val;
+	int ret;
 
-	if (count > sizeof(buf))
-		return -EINVAL;
+	ret = kstrtobool_from_user(user_buf, count, &val);
+	if (unlikely(ret))
+		return ret;
 
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	buf[sizeof(buf) - 1] = '\0';
-	len = strlen(buf);
-	if (len > 0 && buf[len - 1] == '\n')
-		buf[len - 1] = 0;
-
-	if (buf[0] == '0' && buf[1] == '\0')
-		static_branch_enable(&aql_disable);
-	else if (buf[0] == '1' && buf[1] == '\0')
+	if (val)
 		static_branch_disable(&aql_disable);
 	else
-		return -EINVAL;
+		static_branch_enable(&aql_disable);
 
 	return count;
 }
@@ -371,26 +362,14 @@ static ssize_t force_tx_status_write(struct file *file,
 				     loff_t *ppos)
 {
 	struct ieee80211_local *local = file->private_data;
-	char buf[3];
+	bool val;
+	int ret;
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
+	ret = kstrtobool_from_user(user_buf, count, &val);
+	if (unlikely(ret))
+		return ret;
 
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	if (count && buf[count - 1] == '\n')
-		buf[count - 1] = '\0';
-	else
-		buf[count] = '\0';
-
-	if (buf[0] == '0' && buf[1] == '\0')
-		local->force_tx_status = 0;
-	else if (buf[0] == '1' && buf[1] == '\0')
-		local->force_tx_status = 1;
-	else
-		return -EINVAL;
-
+	local->force_tx_status = val;
 	return count;
 }
 

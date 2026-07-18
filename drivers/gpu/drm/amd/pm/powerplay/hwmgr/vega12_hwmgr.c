@@ -1822,21 +1822,6 @@ static uint32_t vega12_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 		return AMD_FAN_CTRL_AUTO;
 }
 
-static int vega12_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_simple_clock_info *info)
-{
-#if 0
-	struct phm_ppt_v2_information *table_info =
-			(struct phm_ppt_v2_information *)hwmgr->pptable;
-	struct phm_clock_and_voltage_limits *max_limits =
-			&table_info->max_clock_voltage_on_ac;
-
-	info->engine_max_clock = max_limits->sclk;
-	info->memory_max_clock = max_limits->mclk;
-#endif
-	return 0;
-}
-
 static int vega12_get_clock_ranges(struct pp_hwmgr *hwmgr,
 		uint32_t *clock,
 		PPCLK_e clock_select,
@@ -2963,7 +2948,6 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.set_fan_control_mode = vega12_set_fan_control_mode,
 	.get_fan_control_mode = vega12_get_fan_control_mode,
 	.read_sensor = vega12_read_sensor,
-	.get_dal_power_level = vega12_get_dal_power_level,
 	.get_clock_by_type_with_latency = vega12_get_clock_by_type_with_latency,
 	.get_clock_by_type_with_voltage = vega12_get_clock_by_type_with_voltage,
 	.set_watermarks_for_clocks_ranges = vega12_set_watermarks_for_clocks_ranges,

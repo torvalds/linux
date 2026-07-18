@@ -325,7 +325,7 @@ static int hibmc_dp_link_downgrade_training_eq(struct hibmc_dp_dev *dp)
 	return hibmc_dp_link_reduce_rate(dp);
 }
 
-static void hibmc_dp_update_caps(struct hibmc_dp_dev *dp)
+void hibmc_dp_update_caps(struct hibmc_dp_dev *dp)
 {
 	dp->link.cap.link_rate = dp->dpcd[DP_MAX_LINK_RATE];
 	if (dp->link.cap.link_rate > DP_LINK_BW_8_1 || !dp->link.cap.link_rate)

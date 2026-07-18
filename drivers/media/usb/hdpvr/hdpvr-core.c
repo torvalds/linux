@@ -265,13 +265,10 @@ static int hdpvr_probe(struct usb_interface *interface,
 		       const struct usb_device_id *id)
 {
 	struct hdpvr_device *dev;
-	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 #if IS_ENABLED(CONFIG_I2C)
 	struct i2c_client *client;
 #endif
-	size_t buffer_size;
-	int i;
 	int dev_num;
 	int retval = -ENOMEM;
 
@@ -321,24 +318,17 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	/* set up the endpoint information */
 	/* use only the first bulk-in and bulk-out endpoints */
-	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (!dev->bulk_in_endpointAddr &&
-		    usb_endpoint_is_bulk_in(endpoint)) {
-			/* USB interface description is buggy, reported max
-			 * packet size is 512 bytes, windows driver uses 8192 */
-			buffer_size = 8192;
-			dev->bulk_in_size = buffer_size;
-			dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-		}
-
-	}
-	if (!dev->bulk_in_endpointAddr) {
+	if (usb_find_bulk_in_endpoint(interface->cur_altsetting, &endpoint)) {
 		v4l2_err(&dev->v4l2_dev, "Could not find bulk-in endpoint\n");
 		goto error_put_usb;
 	}
+
+	/*
+	 * USB interface description is buggy, reported max packet size is 512
+	 * bytes, windows driver uses 8192
+	 */
+	dev->bulk_in_size = 8192;
+	dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
 
 	/* init the device */
 	if (hdpvr_device_init(dev)) {

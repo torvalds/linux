@@ -1,0 +1,4 @@
+bench_as_bytes_static_size:
+	mov rax, rdi
+	mov edx, 6
+	ret

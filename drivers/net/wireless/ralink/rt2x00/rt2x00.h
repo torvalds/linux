@@ -1009,11 +1009,12 @@ struct rt2x00_dev {
 	/* Extra TX headroom required for alignment purposes. */
 	unsigned int extra_tx_headroom;
 
-	struct usb_anchor *anchor;
 	unsigned int num_proto_errs;
 
 	/* Clock for System On Chip devices. */
 	struct clk *clk;
+
+	struct usb_anchor anchor[];
 };
 
 struct rt2x00_bar_list_entry {

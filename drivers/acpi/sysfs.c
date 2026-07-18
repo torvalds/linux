@@ -17,12 +17,12 @@
 #ifdef CONFIG_ACPI_DEBUG
 /*
  * ACPI debug sysfs I/F, including:
- * /sys/modules/acpi/parameters/debug_layer
- * /sys/modules/acpi/parameters/debug_level
- * /sys/modules/acpi/parameters/trace_method_name
- * /sys/modules/acpi/parameters/trace_state
- * /sys/modules/acpi/parameters/trace_debug_layer
- * /sys/modules/acpi/parameters/trace_debug_level
+ * /sys/module/acpi/parameters/debug_layer
+ * /sys/module/acpi/parameters/debug_level
+ * /sys/module/acpi/parameters/trace_method_name
+ * /sys/module/acpi/parameters/trace_state
+ * /sys/module/acpi/parameters/trace_debug_layer
+ * /sys/module/acpi/parameters/trace_debug_level
  */
 
 struct acpi_dlayer {
@@ -269,7 +269,7 @@ module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
 #endif /* CONFIG_ACPI_DEBUG */
 
 
-/* /sys/modules/acpi/parameters/aml_debug_output */
+/* /sys/module/acpi/parameters/aml_debug_output */
 
 module_param_named(aml_debug_output, acpi_gbl_enable_aml_debug_object,
 		   byte, 0644);

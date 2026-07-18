@@ -165,8 +165,13 @@ static struct page *ttm_pool_alloc_page(struct ttm_pool *pool, gfp_t gfp_flags,
 	 * Do not add latency to the allocation path for allocations orders
 	 * device tolds us do not bring them additional performance gains.
 	 */
-	if (beneficial_order && order > beneficial_order)
-		gfp_flags &= ~__GFP_DIRECT_RECLAIM;
+	if (order && beneficial_order && order != beneficial_order)
+		gfp_flags &= ~__GFP_RECLAIM;
+
+	if (beneficial_order && order == beneficial_order) {
+		gfp_flags &= ~__GFP_NORETRY;
+		gfp_flags |= __GFP_RETRY_MAYFAIL;
+	}
 
 	if (!ttm_pool_uses_dma_alloc(pool)) {
 		p = alloc_pages_node(pool->nid, gfp_flags, order);
@@ -206,6 +211,14 @@ error_free:
 	return NULL;
 }
 
+static void __free_pages_gpu_account(struct page *p, unsigned int order,
+				     bool reclaim)
+{
+	mod_lruvec_page_state(p, reclaim ? NR_GPU_RECLAIM : NR_GPU_ACTIVE,
+			      -(1 << order));
+	__free_pages(p, order);
+}
+
 /* Reset the caching and pages of size 1 << order */
 static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 			       unsigned int order, struct page *p, bool reclaim)
@@ -223,9 +236,7 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 #endif
 
 	if (!pool || !ttm_pool_uses_dma_alloc(pool)) {
-		mod_lruvec_page_state(p, reclaim ? NR_GPU_RECLAIM : NR_GPU_ACTIVE,
-				      -(1 << order));
-		__free_pages(p, order);
+		__free_pages_gpu_account(p, order, reclaim);
 		return;
 	}
 
@@ -606,7 +617,7 @@ static int ttm_pool_restore_commit(struct ttm_pool_tt_restore *restore,
 			 */
 			ttm_pool_split_for_swap(restore->pool, p);
 			copy_highpage(restore->alloced_page + i, p);
-			__free_pages(p, 0);
+			__free_pages_gpu_account(p, 0, false);
 		}
 
 		restore->restored_pages++;
@@ -896,6 +907,7 @@ int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 {
 	struct ttm_pool_tt_restore *restore = tt->restore;
 	struct ttm_pool_alloc_state alloc;
+	int ret;
 
 	if (WARN_ON(!ttm_tt_is_backed_up(tt)))
 		return -EINVAL;
@@ -919,14 +931,22 @@ int ttm_pool_restore_and_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	} else {
 		alloc = restore->snapshot_alloc;
 		if (ttm_pool_restore_valid(restore)) {
-			int ret = ttm_pool_restore_commit(restore, tt->backup,
-							  ctx, &alloc);
+			ret = ttm_pool_restore_commit(restore, tt->backup,
+						      ctx, &alloc);
 
 			if (ret)
 				return ret;
 		}
-		if (!alloc.remaining_pages)
+		if (!alloc.remaining_pages) {
+			ret = ttm_pool_apply_caching(&alloc);
+			if (ret)
+				return ret;
+
+			kfree(tt->restore);
+			tt->restore = NULL;
+
 			return 0;
+		}
 	}
 
 	return __ttm_pool_alloc(pool, tt, ctx, &alloc, restore);
@@ -1068,7 +1088,7 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 			if (flags->purge) {
 				shrunken += num_pages;
 				page->private = 0;
-				__free_pages(page, order);
+				__free_pages_gpu_account(page, order, false);
 				memset(tt->pages + i, 0,
 				       num_pages * sizeof(*tt->pages));
 			}
@@ -1109,7 +1129,7 @@ long ttm_pool_backup(struct ttm_pool *pool, struct ttm_tt *tt,
 		}
 		handle = shandle;
 		tt->pages[i] = ttm_backup_handle_to_page_ptr(handle);
-		put_page(page);
+		__free_pages_gpu_account(page, 0, false);
 		shrunken++;
 	}
 
@@ -1335,15 +1355,22 @@ static int ttm_pool_debugfs_shrink_show(struct seq_file *m, void *data)
 		.gfp_mask = GFP_NOFS,
 		.nr_to_scan = TTM_SHRINKER_BATCH,
 	};
-	unsigned long count;
+	unsigned long count, scanned;
 	int nid;
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	for_each_node(nid) {
 		sc.nid = nid;
 		count = ttm_pool_shrinker_count(mm_shrinker, &sc);
-		seq_printf(m, "%d: %lu/%lu\n", nid, count,
-			   ttm_pool_shrinker_scan(mm_shrinker, &sc));
+		scanned = ttm_pool_shrinker_scan(mm_shrinker, &sc);
+
+		/* Convert shrinker API sentinel values to 0 for debugfs output */
+		if (count == SHRINK_EMPTY)
+			count = 0;
+		if (scanned == SHRINK_STOP)
+			scanned = 0;
+
+		seq_printf(m, "%d: %lu/%lu\n", nid, count, scanned);
 	}
 	fs_reclaim_release(GFP_KERNEL);
 

@@ -235,44 +235,44 @@ static const struct {
 
 
 static const struct pci_device_id rtl8139_pci_tbl[] = {
-	{0x10ec, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x10ec, 0x8138, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1113, 0x1211, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1500, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x4033, 0x1360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1186, 0x1300, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1186, 0x1340, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x13d1, 0xab06, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1259, 0xa117, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1259, 0xa11e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x14ea, 0xab06, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x14ea, 0xab07, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x11db, 0x1234, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1432, 0x9130, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x02ac, 0x1012, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x018a, 0x0106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x126c, 0x1211, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x1743, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x021b, 0x8139, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
-	{0x16ec, 0xab06, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
+	{ PCI_DEVICE(0x10ec, 0x8139), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x10ec, 0x8138), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1113, 0x1211), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1500, 0x1360), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x4033, 0x1360), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1186, 0x1300), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1186, 0x1340), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x13d1, 0xab06), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1259, 0xa117), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1259, 0xa11e), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x14ea, 0xab06), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x14ea, 0xab07), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x11db, 0x1234), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1432, 0x9130), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x02ac, 0x1012), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x018a, 0x0106), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x126c, 0x1211), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x1743, 0x8139), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x021b, 0x8139), .driver_data = RTL8139 },
+	{ PCI_DEVICE(0x16ec, 0xab06), .driver_data = RTL8139 },
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 	/* Bogus 8139 silicon reports 8129 without external PROM :-( */
-	{0x10ec, 0x8129, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8139 },
+	{ PCI_DEVICE(0x10ec, 0x8129), .driver_data = RTL8139 },
 #endif
 #ifdef CONFIG_8139TOO_8129
-	{0x10ec, 0x8129, PCI_ANY_ID, PCI_ANY_ID, 0, 0, RTL8129 },
+	{ PCI_DEVICE(0x10ec, 0x8129), .driver_data = RTL8129 },
 #endif
 
 	/* some crazy cards report invalid vendor ids like
 	 * 0x0001 here.  The other ids are valid and constant,
 	 * so we simply don't match on the main vendor id.
 	 */
-	{PCI_ANY_ID, 0x8139, 0x10ec, 0x8139, 0, 0, RTL8139 },
-	{PCI_ANY_ID, 0x8139, 0x1186, 0x1300, 0, 0, RTL8139 },
-	{PCI_ANY_ID, 0x8139, 0x13d1, 0xab06, 0, 0, RTL8139 },
+	{ PCI_DEVICE_SUB(PCI_ANY_ID, 0x8139, 0x10ec, 0x8139), .driver_data = RTL8139 },
+	{ PCI_DEVICE_SUB(PCI_ANY_ID, 0x8139, 0x1186, 0x1300), .driver_data = RTL8139 },
+	{ PCI_DEVICE_SUB(PCI_ANY_ID, 0x8139, 0x13d1, 0xab06), .driver_data = RTL8139 },
 
-	{0,}
+	{ }
 };
 MODULE_DEVICE_TABLE (pci, rtl8139_pci_tbl);
 

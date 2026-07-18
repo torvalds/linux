@@ -12,7 +12,6 @@ config AMD_ATL
 	depends on AMD_NB && X86_64 && RAS
 	depends on AMD_NODE
 	depends on MEMORY_FAILURE
-	default N
 	help
 	  This library includes support for implementation-specific
 	  address translation procedures needed for various error

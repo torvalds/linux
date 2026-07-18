@@ -9,7 +9,7 @@
 #define __SOUND_HDA_CODEC_H
 
 #include <linux/refcount.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/hda.h>
 #include <sound/info.h>
 #include <sound/control.h>
 #include <sound/pcm.h>
@@ -188,8 +188,7 @@ struct hda_codec {
 
 	/* PCM to create, set by hda_codec_ops.build_pcms callback */
 	struct list_head pcm_list_head;
-	refcount_t pcm_ref;
-	wait_queue_head_t remove_sleep;
+	struct snd_refcount pcm_ref;
 
 	/* codec specific info */
 	void *spec;
@@ -259,6 +258,7 @@ struct hda_codec {
 	unsigned int forced_resume:1; /* forced resume for jack */
 	unsigned int no_stream_clean_at_suspend:1; /* do not clean streams at suspend */
 	unsigned int ctl_dev_id:1; /* old control element id build behaviour */
+	unsigned int eld_jack_detect:1;	/* Machine jack-detection by ELD */
 
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
@@ -438,9 +438,12 @@ void snd_hda_codec_cleanup_for_unbind(struct hda_codec *codec);
 
 static inline void snd_hda_codec_pcm_get(struct hda_pcm *pcm)
 {
-	refcount_inc(&pcm->codec->pcm_ref);
+	snd_refcount_get(&pcm->codec->pcm_ref);
 }
-void snd_hda_codec_pcm_put(struct hda_pcm *pcm);
+static inline void snd_hda_codec_pcm_put(struct hda_pcm *pcm)
+{
+	snd_refcount_put(&pcm->codec->pcm_ref);
+}
 
 int snd_hda_codec_prepare(struct hda_codec *codec,
 			  struct hda_pcm_stream *hinfo,

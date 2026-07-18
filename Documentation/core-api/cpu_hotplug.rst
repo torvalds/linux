@@ -45,11 +45,6 @@ Command Line Switches
 
   This option is limited to the X86 and S390 architecture.
 
-``cpu0_hotplug``
-  Allow to shutdown CPU0.
-
-  This option is limited to the X86 architecture.
-
 CPU maps
 ========
 

@@ -171,6 +171,17 @@
 	CS_COMMON_MASK_SH_LIST_DCN2_0(mask_sh),\
 	CS_SF(OTG0_PIXEL_RATE_CNTL, PIPE0_DTO_SRC_SEL, mask_sh)
 
+#define CS_COMMON_MASK_SH_LIST_DCN4_0_1(mask_sh)\
+	CS_COMMON_MASK_SH_LIST_DCN3_2(mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, OTG0_TMDS_PIXEL_RATE_DIV, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, DPDTO0_INT, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, OTG1_TMDS_PIXEL_RATE_DIV, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, DPDTO1_INT, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, OTG2_TMDS_PIXEL_RATE_DIV, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, DPDTO2_INT, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, OTG3_TMDS_PIXEL_RATE_DIV, mask_sh),\
+	CS_SF(OTG_PIXEL_RATE_DIV, DPDTO3_INT, mask_sh)
+
 #define CS_COMMON_REG_LIST_DCN1_0(index, pllid) \
 		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
 		SRII(PHASE, DP_DTO, 0),\
@@ -207,20 +218,33 @@
 #define CS_REG_FIELD_LIST_DCN32(type) \
 	type PIPE0_DTO_SRC_SEL;
 
+#define CS_REG_FIELD_LIST_DCN401(type) \
+	type DPDTO0_INT; \
+	type DPDTO1_INT; \
+	type DPDTO2_INT; \
+	type DPDTO3_INT; \
+	type OTG0_TMDS_PIXEL_RATE_DIV; \
+	type OTG1_TMDS_PIXEL_RATE_DIV; \
+	type OTG2_TMDS_PIXEL_RATE_DIV; \
+	type OTG3_TMDS_PIXEL_RATE_DIV;
+
 struct dce110_clk_src_shift {
 	CS_REG_FIELD_LIST(uint8_t)
 	CS_REG_FIELD_LIST_DCN32(uint8_t)
+	CS_REG_FIELD_LIST_DCN401(uint8_t)
 };
 
-struct dce110_clk_src_mask{
+struct dce110_clk_src_mask {
 	CS_REG_FIELD_LIST(uint32_t)
 	CS_REG_FIELD_LIST_DCN32(uint32_t)
+	CS_REG_FIELD_LIST_DCN401(uint32_t)
 };
 
 struct dce110_clk_src_regs {
 	uint32_t RESYNC_CNTL;
 	uint32_t PIXCLK_RESYNC_CNTL;
 	uint32_t PLL_CNTL;
+	uint32_t OTG_PIXEL_RATE_DIV;
 
 	/* below are for DTO.
 	 * todo: should probably use different struct to not waste space

@@ -114,6 +114,7 @@ config PCI_IMX6_HOST
 	depends on PCI_MSI
 	select PCIE_DW_HOST
 	select PCI_IMX6
+	select PCI_PWRCTRL_GENERIC
 	help
 	  Enables support for the PCIe controller in the i.MX SoCs to
 	  work in Root Complex mode. The PCI controller on i.MX is based
@@ -559,5 +560,18 @@ config PCIE_VISCONTI_HOST
 	help
 	  Say Y here if you want PCIe controller support on Toshiba Visconti SoC.
 	  This driver supports TMPV7708 SoC.
+
+config PCIE_ULTRARISC
+	tristate "UltraRISC PCIe host controller"
+	depends on ARCH_ULTRARISC || COMPILE_TEST
+	select PCIE_DW_HOST
+	select PCI_MSI
+	default y if ARCH_ULTRARISC
+	help
+	  Enables support for the PCIe controller in the UltraRISC SoC.
+	  This driver supports UR-DP1000 SoC.
+
+	  By default, this symbol is enabled when ARCH_ULTRARISC is active,
+	  requiring no further configuration on that platform.
 
 endmenu

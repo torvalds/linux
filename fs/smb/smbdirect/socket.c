@@ -20,7 +20,7 @@ bool smbdirect_frwr_is_supported(const struct ib_device_attr *attrs)
 		return false;
 	return true;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_frwr_is_supported);
+EXPORT_SYMBOL_GPL(smbdirect_frwr_is_supported);
 
 static void smbdirect_socket_cleanup_work(struct work_struct *work);
 
@@ -107,7 +107,7 @@ init_failed:
 alloc_failed:
 	return ret;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_create_kern);
+EXPORT_SYMBOL_GPL(smbdirect_socket_create_kern);
 
 int smbdirect_socket_init_accepting(struct rdma_cm_id *id, struct smbdirect_socket *sc)
 {
@@ -148,7 +148,7 @@ init_failed:
 alloc_failed:
 	return ret;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_create_accepting);
+EXPORT_SYMBOL_GPL(smbdirect_socket_create_accepting);
 
 int smbdirect_socket_set_initial_parameters(struct smbdirect_socket *sc,
 					    const struct smbdirect_socket_parameters *sp)
@@ -189,14 +189,14 @@ int smbdirect_socket_set_initial_parameters(struct smbdirect_socket *sc,
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_set_initial_parameters);
+EXPORT_SYMBOL_GPL(smbdirect_socket_set_initial_parameters);
 
 const struct smbdirect_socket_parameters *
 smbdirect_socket_get_current_parameters(struct smbdirect_socket *sc)
 {
 	return &sc->parameters;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_get_current_parameters);
+EXPORT_SYMBOL_GPL(smbdirect_socket_get_current_parameters);
 
 int smbdirect_socket_set_kernel_settings(struct smbdirect_socket *sc,
 					 enum ib_poll_context poll_ctx,
@@ -220,7 +220,7 @@ int smbdirect_socket_set_kernel_settings(struct smbdirect_socket *sc,
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_set_kernel_settings);
+EXPORT_SYMBOL_GPL(smbdirect_socket_set_kernel_settings);
 
 void smbdirect_socket_set_logging(struct smbdirect_socket *sc,
 				  void *private_ptr,
@@ -240,7 +240,7 @@ void smbdirect_socket_set_logging(struct smbdirect_socket *sc,
 	sc->logging.needed = needed;
 	sc->logging.vaprintf = vaprintf;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_set_logging);
+EXPORT_SYMBOL_GPL(smbdirect_socket_set_logging);
 
 static void smbdirect_socket_wake_up_all(struct smbdirect_socket *sc)
 {
@@ -663,13 +663,13 @@ int smbdirect_socket_bind(struct smbdirect_socket *sc, struct sockaddr *addr)
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_bind);
+EXPORT_SYMBOL_GPL(smbdirect_socket_bind);
 
 void smbdirect_socket_shutdown(struct smbdirect_socket *sc)
 {
 	smbdirect_socket_schedule_cleanup_lvl(sc, SMBDIRECT_LOG_INFO, -ESHUTDOWN);
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_shutdown);
+EXPORT_SYMBOL_GPL(smbdirect_socket_shutdown);
 
 static void smbdirect_socket_release_disconnect(struct kref *kref)
 {
@@ -712,7 +712,7 @@ void smbdirect_socket_release(struct smbdirect_socket *sc)
 	 */
 	kref_put(&sc->refs.destroy, smbdirect_socket_release_destroy);
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_release);
+EXPORT_SYMBOL_GPL(smbdirect_socket_release);
 
 int smbdirect_socket_wait_for_credits(struct smbdirect_socket *sc,
 				      enum smbdirect_socket_status expected_status,

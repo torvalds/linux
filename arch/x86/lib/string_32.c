@@ -30,25 +30,6 @@ char *strcpy(char *dest, const char *src)
 EXPORT_SYMBOL(strcpy);
 #endif
 
-#ifdef __HAVE_ARCH_STRNCPY
-char *strncpy(char *dest, const char *src, size_t count)
-{
-	int d0, d1, d2, d3;
-	asm volatile("1:\tdecl %2\n\t"
-		"js 2f\n\t"
-		"lodsb\n\t"
-		"stosb\n\t"
-		"testb %%al,%%al\n\t"
-		"jne 1b\n\t"
-		"rep stosb\n"
-		"2:"
-		: "=&S" (d0), "=&D" (d1), "=&c" (d2), "=&a" (d3)
-		: "0" (src), "1" (dest), "2" (count) : "memory");
-	return dest;
-}
-EXPORT_SYMBOL(strncpy);
-#endif
-
 #ifdef __HAVE_ARCH_STRCAT
 char *strcat(char *dest, const char *src)
 {

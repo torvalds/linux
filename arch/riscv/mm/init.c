@@ -37,7 +37,7 @@
 
 #include "../kernel/head.h"
 
-u64 new_vmalloc[NR_CPUS / sizeof(u64) + 1];
+DECLARE_BITMAP(new_valid_map_cpus, NR_CPUS);
 
 struct kernel_mapping kernel_map __ro_after_init;
 EXPORT_SYMBOL(kernel_map);
@@ -792,6 +792,27 @@ static void __init set_mmap_rnd_bits_max(void)
 	mmap_rnd_bits_max = MMAP_VA_BITS - PAGE_SHIFT - 3;
 }
 
+static bool __init is_vaddr_valid(unsigned long va)
+{
+	unsigned long up = 0;
+
+	switch (satp_mode) {
+	case SATP_MODE_39:
+		up = 1UL << 38;
+		break;
+	case SATP_MODE_48:
+		up = 1UL << 47;
+		break;
+	case SATP_MODE_57:
+		up = 1UL << 56;
+		break;
+	default:
+		return false;
+	}
+
+	return (va < up) || (va >= (ULONG_MAX - up + 1));
+}
+
 /*
  * There is a simple way to determine if 4-level is supported by the
  * underlying hardware: establish 1:1 mapping in 4-level page table mode
@@ -833,6 +854,9 @@ static __init void set_satp_mode(uintptr_t dtb_pa)
 			   set_satp_mode_pmd + PMD_SIZE,
 			   PMD_SIZE, PAGE_KERNEL_EXEC);
 retry:
+	if (!is_vaddr_valid(set_satp_mode_pmd))
+		goto out;
+
 	create_pgd_mapping(early_pg_dir,
 			   set_satp_mode_pmd,
 			   pgtable_l5_enabled ?
@@ -855,6 +879,7 @@ retry:
 		disable_pgtable_l4();
 	}
 
+out:
 	memset(early_pg_dir, 0, PAGE_SIZE);
 	memset(early_p4d, 0, PAGE_SIZE);
 	memset(early_pud, 0, PAGE_SIZE);
@@ -1334,19 +1359,6 @@ void __init misc_mem_init(void)
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
-			       unsigned long addr, unsigned long next)
-{
-	pmd_set_huge(pmd, virt_to_phys(p), PAGE_KERNEL);
-}
-
-int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
-				unsigned long addr, unsigned long next)
-{
-	vmemmap_verify((pte_t *)pmdp, node, addr, next);
-	return 1;
-}
-
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 			       struct vmem_altmap *altmap)
 {
@@ -1717,9 +1729,10 @@ int __ref arch_add_memory(int nid, u64 start, u64 size, struct mhp_params *param
 	return ret;
 }
 
-void __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap)
+void __ref arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap,
+			      struct dev_pagemap *pgmap)
 {
-	__remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT, altmap);
+	__remove_pages(start >> PAGE_SHIFT, size >> PAGE_SHIFT, altmap, pgmap);
 	remove_linear_mapping(start, size);
 	flush_tlb_all();
 }

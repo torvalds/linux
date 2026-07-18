@@ -594,8 +594,13 @@ static ssize_t device_lvl_exception_id_show(struct device *dev,
 	u64 exception_id;
 	int err;
 
+	if (hba->dev_info.wspecversion < 0x410)
+		return -EOPNOTSUPP;
+
 	ufshcd_rpm_get_sync(hba);
-	err = ufshcd_read_device_lvl_exception_id(hba, &exception_id);
+	err = ufshcd_query_attr_qword(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+				      QUERY_ATTR_IDN_DEV_LVL_EXCEPTION_ID,
+				      0, 0, &exception_id);
 	ufshcd_rpm_put_sync(hba);
 
 	if (err)
@@ -1670,6 +1675,12 @@ static inline bool ufshcd_is_wb_attrs(enum attr_idn idn)
 		idn <= QUERY_ATTR_IDN_CURR_WB_BUFF_SIZE;
 }
 
+static inline bool ufshcd_is_qword_attr(enum attr_idn idn)
+{
+	return idn == QUERY_ATTR_IDN_TIMESTAMP ||
+	       idn == QUERY_ATTR_IDN_DEV_LVL_EXCEPTION_ID;
+}
+
 static int wb_read_resize_attrs(struct ufs_hba *hba,
 			enum attr_idn idn, u32 *attr_val)
 {
@@ -1736,6 +1747,7 @@ static ssize_t _name##_show(struct device *dev,				\
 	struct device_attribute *attr, char *buf)			\
 {									\
 	struct ufs_hba *hba = dev_get_drvdata(dev);			\
+	u64 qword_value;						\
 	u32 value;							\
 	int ret;							\
 	u8 index = 0;							\
@@ -1748,14 +1760,24 @@ static ssize_t _name##_show(struct device *dev,				\
 	if (ufshcd_is_wb_attrs(QUERY_ATTR_IDN##_uname))			\
 		index = ufshcd_wb_get_query_index(hba);			\
 	ufshcd_rpm_get_sync(hba);					\
-	ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_READ_ATTR,	\
-		QUERY_ATTR_IDN##_uname, index, 0, &value);		\
+	if (ufshcd_is_qword_attr(QUERY_ATTR_IDN##_uname))		\
+		ret = ufshcd_query_attr_qword(hba,			\
+			UPIU_QUERY_OPCODE_READ_ATTR,			\
+			QUERY_ATTR_IDN##_uname,				\
+			index, 0, &qword_value);			\
+	else								\
+		ret = ufshcd_query_attr(hba,				\
+			UPIU_QUERY_OPCODE_READ_ATTR,			\
+			QUERY_ATTR_IDN##_uname, index, 0, &value);	\
 	ufshcd_rpm_put_sync(hba);					\
 	if (ret) {							\
 		ret = -EINVAL;						\
 		goto out;						\
 	}								\
-	ret = sysfs_emit(buf, "0x%08X\n", value);			\
+	if (ufshcd_is_qword_attr(QUERY_ATTR_IDN##_uname))		\
+		ret = sysfs_emit(buf, "0x%016llX\n", qword_value);	\
+	else								\
+		ret = sysfs_emit(buf, "0x%08X\n", value);		\
 out:									\
 	up(&hba->host_sem);						\
 	return ret;							\

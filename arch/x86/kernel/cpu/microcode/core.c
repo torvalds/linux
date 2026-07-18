@@ -34,6 +34,7 @@
 
 #include <asm/apic.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 #include <asm/perf_event.h>
 #include <asm/processor.h>
 #include <asm/cmdline.h>
@@ -57,7 +58,7 @@ bool force_minrev = IS_ENABLED(CONFIG_MICROCODE_LATE_FORCE_MINREV);
 u32 base_rev;
 u32 microcode_rev[NR_CPUS] = {};
 
-bool hypervisor_present;
+bool __ro_after_init x86_hypervisor_present;
 
 /*
  * Synchronization.
@@ -118,15 +119,10 @@ bool __init microcode_loader_disabled(void)
 	/*
 	 * Disable when:
 	 *
-	 * 1) The CPU does not support CPUID.
-	 */
-	if (!cpuid_feature()) {
-		dis_ucode_ldr = true;
-		return dis_ucode_ldr;
-	}
-
-	/*
-	 * 2) Bit 31 in CPUID[1]:ECX is clear
+	 * 1) The CPU does not support CPUID, detected below in
+	 *    load_ucode_bsp().
+	 *
+	 * 2) Bit 31 in CPUID[1]:ECX is set
 	 *    The bit is reserved for hypervisor use. This is still not
 	 *    completely accurate as XEN PV guests don't see that CPUID bit
 	 *    set, but that's good enough as they don't land on the BSP
@@ -135,9 +131,7 @@ bool __init microcode_loader_disabled(void)
 	 * 3) Certain AMD patch levels are not allowed to be
 	 *    overwritten.
 	 */
-	hypervisor_present = native_cpuid_ecx(1) & BIT(31);
-
-	if ((hypervisor_present && !IS_ENABLED(CONFIG_MICROCODE_DBG)) ||
+	if ((x86_hypervisor_present && !IS_ENABLED(CONFIG_MICROCODE_DBG)) ||
 	    amd_check_current_patch_level())
 		dis_ucode_ldr = true;
 
@@ -178,6 +172,11 @@ void __init load_ucode_bsp(void)
 	bool intel = true;
 
 	early_parse_cmdline();
+
+	if (!cpuid_feature())
+		dis_ucode_ldr = true;
+	else
+		x86_hypervisor_present = native_cpuid_ecx(1) & BIT(31);
 
 	if (microcode_loader_disabled())
 		return;

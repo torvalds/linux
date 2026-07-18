@@ -47,11 +47,11 @@ typedef void (optee_invoke_fn)(unsigned long, unsigned long, unsigned long,
 				unsigned long, unsigned long,
 				struct arm_smccc_res *);
 
-/*
+/**
  * struct optee_call_waiter - TEE entry may need to wait for a free TEE thread
- * @list_node		Reference in waiters list
- * @c			Waiting completion reference
- * @sys_thread		True if waiter belongs to a system thread
+ * @list_node:	reference in waiters list
+ * @c:		waiting completion reference
+ * @sys_thread:	true if waiter belongs to a system thread
  */
 struct optee_call_waiter {
 	struct list_head list_node;
@@ -59,13 +59,13 @@ struct optee_call_waiter {
 	bool sys_thread;
 };
 
-/*
+/**
  * struct optee_call_queue - OP-TEE call queue management
- * @mutex			Serializes access to this struct
- * @waiters			List of threads waiting to enter OP-TEE
- * @total_thread_count		Overall number of thread context in OP-TEE or 0
- * @free_thread_count		Number of threads context free in OP-TEE
- * @sys_thread_req_count	Number of registered system thread sessions
+ * @mutex:			serializes access to this struct
+ * @waiters:			list of threads waiting to enter OP-TEE
+ * @total_thread_count:		overall number of thread context in OP-TEE or 0
+ * @free_thread_count:		number of threads context free in OP-TEE
+ * @sys_thread_req_count:	number of registered system thread sessions
  */
 struct optee_call_queue {
 	/* Serializes access to this struct */
@@ -96,17 +96,17 @@ struct optee_shm_arg_cache {
 
 /**
  * struct optee_supp - supplicant synchronization struct
- * @ctx			the context of current connected supplicant.
- *			if !NULL the supplicant device is available for use,
- *			else busy
- * @mutex:		held while accessing content of this struct
- * @req_id:		current request id if supplicant is doing synchronous
- *			communication, else -1
- * @reqs:		queued request not yet retrieved by supplicant
- * @idr:		IDR holding all requests currently being processed
- *			by supplicant
- * @reqs_c:		completion used by supplicant when waiting for a
- *			request to be queued.
+ * @mutex:	held while accessing content of this struct
+ * @ctx:	the context of current connected supplicant.
+ *		if !NULL the supplicant device is available for use,
+ *		else busy
+ * @req_id:	current request id if supplicant is doing synchronous
+ *		communication, else -1
+ * @reqs:	queued request not yet retrieved by supplicant
+ * @idr:	IDR holding all requests currently being processed
+ *		by supplicant
+ * @reqs_c:	completion used by supplicant when waiting for a
+ *		request to be queued.
  */
 struct optee_supp {
 	/* Serializes access to this struct */
@@ -119,25 +119,25 @@ struct optee_supp {
 	struct completion reqs_c;
 };
 
-/*
+/**
  * struct optee_pcpu - per cpu notif private struct passed to work functions
- * @optee		optee device reference
+ * @optee:	optee device reference
  */
 struct optee_pcpu {
 	struct optee *optee;
 };
 
-/*
+/**
  * struct optee_smc - optee smc communication struct
- * @invoke_fn		handler function to invoke secure monitor
- * @memremaped_shm	virtual address of memory in shared memory pool
+ * @invoke_fn:		handler function to invoke secure monitor
+ * @memremaped_shm:	virtual address of memory in shared memory pool
  * @sec_caps:		secure world capabilities defined by
  *			OPTEE_SMC_SEC_CAP_* in optee_smc.h
- * @notif_irq		interrupt used as async notification by OP-TEE or 0
- * @optee_pcpu		per_cpu optee instance for per cpu work or NULL
- * @notif_pcpu_wq	workqueue for per cpu asynchronous notification or NULL
- * @notif_pcpu_work	work for per cpu asynchronous notification
- * @notif_cpuhp_state   CPU hotplug state assigned for pcpu interrupt management
+ * @notif_irq:		interrupt used as async notification by OP-TEE or 0
+ * @optee_pcpu:		per_cpu optee instance for per cpu work or NULL
+ * @notif_pcpu_wq:	workqueue for per cpu asynchronous notification or NULL
+ * @notif_pcpu_work:	work for per cpu asynchronous notification
+ * @notif_cpuhp_state:	CPU hotplug state assigned for pcpu interrupt management
  */
 struct optee_smc {
 	optee_invoke_fn *invoke_fn;
@@ -151,13 +151,15 @@ struct optee_smc {
 };
 
 /**
- * struct optee_ffa_data -  FFA communication struct
- * @ffa_dev		FFA device, contains the destination id, the id of
+ * struct optee_ffa -  FFA communication struct
+ * @ffa_dev:		FFA device, contains the destination id, the id of
  *			OP-TEE in secure world
- * @bottom_half_value	Notification ID used for bottom half signalling or
+ * @bottom_half_value:	notification ID used for bottom half signalling or
  *			U32_MAX if unused
- * @mutex		Serializes access to @global_ids
- * @global_ids		FF-A shared memory global handle translation
+ * @mutex:		serializes access to @global_ids
+ * @global_ids:		FF-A shared memory global handle translation
+ * @notif_wq:		workqueue for FF-A asynchronous notification
+ * @notif_work:		work for FF-A asynchronous notification
  */
 struct optee_ffa {
 	struct ffa_device *ffa_dev;
@@ -222,26 +224,32 @@ struct optee_ops {
 
 /**
  * struct optee - main service struct
- * @supp_teedev:	supplicant device
- * @teedev:		client device
- * @ops:		internal callbacks for different ways to reach secure
- *			world
- * @ctx:		driver internal TEE context
- * @smc:		specific to SMC ABI
- * @ffa:		specific to FF-A ABI
- * @call_queue:		queue of threads waiting to call @invoke_fn
- * @notif:		notification synchronization struct
- * @supp:		supplicant synchronization struct for RPC to supplicant
- * @pool:		shared memory pool
- * @mutex:		mutex protecting @rpmb_dev
- * @rpmb_dev:		current RPMB device or NULL
- * @rpmb_scan_bus_done	flag if device registation of RPMB dependent devices
- *			was already done
- * @rpmb_scan_bus_work	workq to for an RPMB device and to scan optee bus
- *			and register RPMB dependent optee drivers
- * @rpc_param_count:	If > 0 number of RPC parameters to make room for
- * @scan_bus_done	flag if device registation was already done.
- * @scan_bus_work	workq to scan optee bus and register optee drivers
+ * @supp_teedev:		supplicant device
+ * @teedev:			client device
+ * @ops:			internal callbacks for different ways to reach
+ *				secure world
+ * @ctx:			driver internal TEE context
+ * @smc:			specific to SMC ABI
+ * @ffa:			specific to FF-A ABI
+ * @shm_arg_cache:		shared memory cache argument
+ * @call_queue:			queue of threads waiting to call @invoke_fn
+ * @notif:			notification synchronization struct
+ * @supp:			supplicant synchronization struct for RPC to
+ *				supplicant
+ * @pool:			shared memory pool
+ * @rpmb_dev_mutex:		mutex protecting @rpmb_dev
+ * @rpmb_dev:			current RPMB device or NULL
+ * @rpmb_intf:			RPMB notifier block
+ * @rpc_param_count:		if > 0 number of RPC parameters to make room for
+ * @scan_bus_done:		flag if device registation was already done
+ * @rpmb_scan_bus_done:		flag if device registation of RPMB dependent
+ *				devices was already done
+ * @in_kernel_rpmb_routing:	flag if OP-TEE supports in-kernel RPMB routing
+ * @scan_bus_work:		workq to scan optee bus and register optee
+ *				drivers
+ * @rpmb_scan_bus_work:		workq to for an RPMB device and to scan optee
+ *				bus and register RPMB dependent optee drivers
+ * @revision:			OP-TEE OS revision
  */
 struct optee {
 	struct tee_device *supp_teedev;

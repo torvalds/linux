@@ -88,8 +88,15 @@ and "fabric_cluster_id" in the directory.
 
 Attributes in each directory:
 
+``instance_id``
+	This attribute is used to get die indices in userspace mapped MMIO
+	blocks. Indices are local to a single TPMI partition. Needed for direct
+	TPMI register access.
+
 ``domain_id``
 	This attribute is used to get the power domain id of this instance.
+	Indices are unique in all TPMI partitions on a given CPU package. Can be
+	used to map compute dies to corresponding CPUs.
 
 ``die_id``
 	This attribute is used to get the Linux die id of this instance.

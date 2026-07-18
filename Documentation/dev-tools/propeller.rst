@@ -28,8 +28,10 @@ A few important notes about adopting Propeller optimization:
    and the linker(ld.lld).
 
 #. In addition to LLVM toolchain, Propeller requires a profiling
-   conversion tool: https://github.com/google/autofdo with a release
-   after v0.30.1: https://github.com/google/autofdo/releases/tag/v0.30.1.
+   conversion tool: https://github.com/google/llvm-propeller.
+
+Current supported architectures include x86/X86_64 (via LBR),
+and arm64 (via SPE).
 
 The Propeller optimization process involves the following steps:
 
@@ -124,17 +126,30 @@ Here is an example workflow for building an AutoFDO+Propeller kernel:
 
       $ perf record --pfm-event RETIRED_TAKEN_BRANCH_INSTRUCTIONS:k -a -N -b -c <count> -o <perf_file> -- <loadtest>
 
-   Note you can repeat the above steps to collect multiple <perf_file>s.
+   - For arm64 with SPE::
+     There are a few kernel features that must be enabled to collect SPE profiles on Arm.
+     Below is a list of the required features:
+
+      - CONFIG_ARM_SPE_PMU=y
+      - CONFIG_PID_IN_CONTEXTIDR=y
+      - kpti=off
+
+     Use the following command to generate SPE perf data file::
+
+      $ perf record -e 'arm_spe_0/branch_filter=1,load_filter=0,store_filter=0/' -a -N -c <count> --no-switch-events -o <perf_file> -- <loadtest>
+
+     Note you can repeat the above steps to collect multiple <perf_file>s.
 
 4) (Optional) Download the raw perf file(s) to the host machine.
 
-5) Use the create_llvm_prof tool (https://github.com/google/autofdo) to
+5) Use the generate_propeller_profiles tool (https://github.com/google/llvm-propeller) to
    generate Propeller profile. ::
 
-      $ create_llvm_prof --binary=<vmlinux> --profile=<perf_file>
-                         --format=propeller --propeller_output_module_name
-                         --out=<propeller_profile_prefix>_cc_profile.txt
-                         --propeller_symorder=<propeller_profile_prefix>_ld_profile.txt
+      $ generate_propeller_profiles \
+             --binary=<vmlinux> --profile=<perf_file> \
+             --format=propeller --propeller_output_module_name \
+             --out=<propeller_profile_prefix>_cc_profile.txt \
+             --propeller_symorder=<propeller_profile_prefix>_ld_profile.txt
 
    "<propeller_profile_prefix>" can be something like "/home/user/dir/any_string".
 
@@ -146,10 +161,20 @@ Here is an example workflow for building an AutoFDO+Propeller kernel:
    you can create a temp list file "<perf_file_list>" with each line
    containing one perf file name and run::
 
-      $ create_llvm_prof --binary=<vmlinux> --profile=@<perf_file_list>
-                         --format=propeller --propeller_output_module_name
-                         --out=<propeller_profile_prefix>_cc_profile.txt
-                         --propeller_symorder=<propeller_profile_prefix>_ld_profile.txt
+      $ generate_propeller_profiles \
+             --binary=<vmlinux> --profile=@<perf_file_list> \
+             --format=propeller --propeller_output_module_name \
+             --out=<propeller_profile_prefix>_cc_profile.txt \
+             --propeller_symorder=<propeller_profile_prefix>_ld_profile.txt
+
+   For arm64 SPE, add the option '--profiler=perf_spe', like::
+
+      $ generate_propeller_profiles  \
+             --binary=<vmlinux> --profile=<perf_file> \
+             --profiler=perf_spe \
+             --format=propeller --propeller_output_module_name \
+             --out=<propeller_profile_prefix>_cc_profile.txt \
+             --propeller_symorder=<propeller_profile_prefix>_ld_profile.txt
 
 6) Rebuild the kernel using the AutoFDO and Propeller
    profiles. ::

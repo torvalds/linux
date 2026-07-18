@@ -59,7 +59,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	seq_printf(p, "%*s:", prec, "NMI");
 	for_each_online_cpu(cpu)
 		seq_printf(p, " %10lu", per_cpu(nmi_count, cpu));
-	seq_puts(p, "   Non-maskable interrupts\n");
+	seq_puts(p, " Non-maskable interrupts\n");
 #endif
 	return 0;
 }

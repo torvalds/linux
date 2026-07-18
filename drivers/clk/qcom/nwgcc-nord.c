@@ -4,7 +4,6 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -626,7 +625,7 @@ static const struct qcom_reset_map nw_gcc_nord_resets[] = {
 	[NW_GCC_VIDEO_BCR] = { 0x1a000 },
 };
 
-static u32 nw_gcc_nord_critical_cbcrs[] = {
+static const u32 nw_gcc_nord_critical_cbcrs[] = {
 	0x16004, /* NW_GCC_CAMERA_AHB_CLK */
 	0x16030, /* NW_GCC_CAMERA_XO_CLK */
 	0x18004, /* NW_GCC_DISP_0_AHB_CLK */
@@ -641,7 +640,7 @@ static u32 nw_gcc_nord_critical_cbcrs[] = {
 	0x1a044, /* NW_GCC_VIDEO_XO_CLK */
 };
 
-static struct qcom_cc_driver_data nw_gcc_nord_driver_data = {
+static const struct qcom_cc_driver_data nw_gcc_nord_driver_data = {
 	.clk_cbcrs = nw_gcc_nord_critical_cbcrs,
 	.num_clk_cbcrs = ARRAY_SIZE(nw_gcc_nord_critical_cbcrs),
 };

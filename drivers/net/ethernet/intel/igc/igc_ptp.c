@@ -1049,7 +1049,7 @@ static int igc_phc_get_syncdevicetime(ktime_t *device,
 	 */
 	do {
 		/* Get a snapshot of system clocks to use as historic value. */
-		ktime_get_snapshot(&adapter->snapshot);
+		ktime_get_snapshot_id(adapter->snapshot_clock_id, &adapter->snapshot);
 
 		igc_ptm_trigger(hw);
 
@@ -1102,6 +1102,8 @@ static int igc_ptp_getcrosststamp(struct ptp_clock_info *ptp,
 
 	/* This blocks until any in progress PTM transactions complete */
 	mutex_lock(&adapter->ptm_lock);
+
+	adapter->snapshot_clock_id = cts->clock_id;
 
 	ret = get_device_system_crosststamp(igc_phc_get_syncdevicetime,
 					    adapter, &adapter->snapshot, cts);

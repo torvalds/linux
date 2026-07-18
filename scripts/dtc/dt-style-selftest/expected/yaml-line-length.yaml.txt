@@ -1,0 +1,2 @@
+# mode=strict
+bad/yaml-line-length.yaml:27: example 0 [line-length] line exceeds 80 columns (81)

@@ -8,7 +8,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/mod_devicetable.h>
 
 #include <crypto/engine.h>
 
@@ -52,7 +51,7 @@ tegra_se_cmdbuf_pin(struct device *dev, struct host1x_bo *bo, enum dma_data_dire
 		return ERR_PTR(-ENOMEM);
 
 	kref_init(&map->ref);
-	map->bo = host1x_bo_get(bo);
+	map->bo = bo;
 	map->direction = direction;
 	map->dev = dev;
 
@@ -93,7 +92,6 @@ static void tegra_se_cmdbuf_unpin(struct host1x_bo_mapping *map)
 	dma_unmap_sgtable(map->dev, map->sgt, map->direction, 0);
 	sg_free_table(map->sgt);
 	kfree(map->sgt);
-	host1x_bo_put(map->bo);
 
 	kfree(map);
 }
@@ -180,7 +178,7 @@ int tegra_se_host1x_submit(struct tegra_se *se, struct tegra_se_cmdbuf *cmdbuf, 
 				 MAX_SCHEDULE_TIMEOUT, NULL);
 	if (ret) {
 		dev_err(se->dev, "host1x job timed out\n");
-		return ret;
+		goto job_put;
 	}
 
 	host1x_job_put(job);

@@ -807,6 +807,17 @@ static void bcm7xxx_28nm_get_phy_stats(struct phy_device *phydev,
 	bcm_phy_get_stats(phydev, priv->stats, stats, data);
 }
 
+static int bcm7xxx_28nm_suspend(struct phy_device *phydev)
+{
+	struct bcm7xxx_phy_priv *priv = phydev->priv;
+
+	mutex_lock(&phydev->lock);
+	bcm_phy_update_stats_shadow(phydev, priv->stats);
+	mutex_unlock(&phydev->lock);
+
+	return genphy_suspend(phydev);
+}
+
 static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 {
 	struct bcm7xxx_phy_priv *priv;
@@ -849,6 +860,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_config_init,			\
 	.resume		= bcm7xxx_28nm_resume,				\
+	.suspend	= bcm7xxx_28nm_suspend,				\
 	.get_tunable	= bcm7xxx_28nm_get_tunable,			\
 	.set_tunable	= bcm7xxx_28nm_set_tunable,			\
 	.get_sset_count	= bcm_phy_get_sset_count,			\
@@ -866,6 +878,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_ephy_config_init,		\
 	.resume		= bcm7xxx_28nm_ephy_resume,			\
+	.suspend	= bcm7xxx_28nm_suspend,				\
 	.get_sset_count	= bcm_phy_get_sset_count,			\
 	.get_strings	= bcm_phy_get_strings,				\
 	.get_stats	= bcm7xxx_28nm_get_phy_stats,			\
@@ -902,6 +915,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.config_aneg	= genphy_config_aneg,				\
 	.read_status	= genphy_read_status,				\
 	.resume		= bcm7xxx_16nm_ephy_resume,			\
+	.suspend	= bcm7xxx_28nm_suspend,				\
 }
 
 static struct phy_driver bcm7xxx_driver[] = {

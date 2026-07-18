@@ -191,13 +191,6 @@ static int test_dai_trigger(struct snd_pcm_substream *substream, int cmd, struct
 }
 
 static const u64 test_dai_formats =
-	/*
-	 * Select below from Sound Card, not auto
-	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FP
-	 *	SND_SOC_POSSIBLE_DAIFMT_BC_FP
-	 *	SND_SOC_POSSIBLE_DAIFMT_BP_FC
-	 *	SND_SOC_POSSIBLE_DAIFMT_BC_FC
-	 */
 	SND_SOC_POSSIBLE_DAIFMT_I2S	|
 	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
 	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|

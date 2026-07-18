@@ -489,7 +489,6 @@ struct dml2_core_scratch {
 };
 
 struct dml2_core_instance {
-	enum dml2_project_id project_id;
 	struct dml2_mcg_min_clock_table *minimum_clock_table;
 	struct dml2_core_internal_state_inputs inputs;
 	struct dml2_core_internal_state_intermediates intermediates;

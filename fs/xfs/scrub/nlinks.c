@@ -175,7 +175,7 @@ xchk_nlinks_live_update(
 	if (xrep_is_tempfile(p->dp))
 		return NOTIFY_DONE;
 
-	trace_xchk_nlinks_live_update(xnc->sc->mp, p->dp, action, p->ip->i_ino,
+	trace_xchk_nlinks_live_update(xnc->sc->mp, p->dp, action, I_INO(p->ip),
 			p->delta, p->name->name, p->name->len);
 
 	/*
@@ -183,12 +183,12 @@ xchk_nlinks_live_update(
 	 * to @ip.  If @ip is a subdirectory, update the number of child links
 	 * going out of @dp.
 	 */
-	if (xchk_iscan_want_live_update(&xnc->collect_iscan, p->dp->i_ino)) {
+	if (xchk_iscan_want_live_update(&xnc->collect_iscan, I_INO(p->dp))) {
 		mutex_lock(&xnc->lock);
-		error = xchk_nlinks_update_incore(xnc, p->ip->i_ino, p->delta,
+		error = xchk_nlinks_update_incore(xnc, I_INO(p->ip), p->delta,
 				0, 0);
 		if (!error && S_ISDIR(VFS_IC(p->ip)->i_mode))
-			error = xchk_nlinks_update_incore(xnc, p->dp->i_ino, 0,
+			error = xchk_nlinks_update_incore(xnc, I_INO(p->dp), 0,
 					0, p->delta);
 		mutex_unlock(&xnc->lock);
 		if (error)
@@ -200,9 +200,9 @@ xchk_nlinks_live_update(
 	 * number of backrefs pointing to @dp.
 	 */
 	if (S_ISDIR(VFS_IC(p->ip)->i_mode) &&
-	    xchk_iscan_want_live_update(&xnc->collect_iscan, p->ip->i_ino)) {
+	    xchk_iscan_want_live_update(&xnc->collect_iscan, I_INO(p->ip))) {
 		mutex_lock(&xnc->lock);
-		error = xchk_nlinks_update_incore(xnc, p->dp->i_ino, 0,
+		error = xchk_nlinks_update_incore(xnc, I_INO(p->dp), 0,
 				p->delta, 0);
 		mutex_unlock(&xnc->lock);
 		if (error)
@@ -243,7 +243,7 @@ xchk_nlinks_collect_dirent(
 		dotdot = true;
 
 	/* Don't accept a '.' entry that points somewhere else. */
-	if (dot && ino != dp->i_ino) {
+	if (dot && ino != I_INO(dp)) {
 		error = -ECANCELED;
 		goto out_abort;
 	}
@@ -304,7 +304,7 @@ xchk_nlinks_collect_dirent(
 	 * number of child links of dp.
 	 */
 	if (!dot && !dotdot && name->type == XFS_DIR3_FT_DIR) {
-		error = xchk_nlinks_update_incore(xnc, dp->i_ino, 0, 0, 1);
+		error = xchk_nlinks_update_incore(xnc, I_INO(dp), 0, 0, 1);
 		if (error)
 			goto out_unlock;
 	}
@@ -692,7 +692,7 @@ xchk_nlinks_compare_inode(
 		goto out_scanlock;
 	}
 
-	error = xchk_nlinks_comparison_read(xnc, ip->i_ino, &obs);
+	error = xchk_nlinks_comparison_read(xnc, I_INO(ip), &obs);
 	if (error)
 		goto out_scanlock;
 
@@ -718,15 +718,15 @@ xchk_nlinks_compare_inode(
 	 * count, but it will let them decrease it.
 	 */
 	if (total_links > XFS_NLINK_PINNED) {
-		xchk_ino_set_corrupt(sc, ip->i_ino);
+		xchk_ip_set_corrupt(sc, ip);
 		goto out_corrupt;
 	} else if (total_links > XFS_MAXLINK) {
-		xchk_ino_set_warning(sc, ip->i_ino);
+		xchk_ino_set_warning(sc, I_INO(ip));
 	}
 
 	/* Link counts should match. */
 	if (total_links != actual_nlink) {
-		xchk_ino_set_corrupt(sc, ip->i_ino);
+		xchk_ip_set_corrupt(sc, ip);
 		goto out_corrupt;
 	}
 
@@ -740,14 +740,14 @@ xchk_nlinks_compare_inode(
 		 * number of subdirectory entries in the directory.
 		 */
 		if (obs.children != obs.backrefs)
-			xchk_ino_xref_set_corrupt(sc, ip->i_ino);
+			xchk_ip_xref_set_corrupt(sc, ip);
 	} else {
 		/*
 		 * Non-directories and unlinked directories should not have
 		 * back references.
 		 */
 		if (obs.backrefs != 0) {
-			xchk_ino_set_corrupt(sc, ip->i_ino);
+			xchk_ip_set_corrupt(sc, ip);
 			goto out_corrupt;
 		}
 
@@ -756,7 +756,7 @@ xchk_nlinks_compare_inode(
 		 * children.
 		 */
 		if (obs.children != 0) {
-			xchk_ino_set_corrupt(sc, ip->i_ino);
+			xchk_ip_set_corrupt(sc, ip);
 			goto out_corrupt;
 		}
 	}
@@ -769,7 +769,7 @@ xchk_nlinks_compare_inode(
 		 * the root directory.
 		 */
 		if (obs.parents != 1) {
-			xchk_ino_set_corrupt(sc, ip->i_ino);
+			xchk_ip_set_corrupt(sc, ip);
 			goto out_corrupt;
 		}
 	} else if (actual_nlink > 0) {
@@ -778,7 +778,7 @@ xchk_nlinks_compare_inode(
 		 * least one parent.
 		 */
 		if (obs.parents == 0) {
-			xchk_ino_set_corrupt(sc, ip->i_ino);
+			xchk_ip_set_corrupt(sc, ip);
 			goto out_corrupt;
 		}
 	}

@@ -522,10 +522,12 @@ static int airspy_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	dev_dbg(s->dev, "\n");
 
-	if (!s->udev)
-		return -ENODEV;
-
 	mutex_lock(&s->v4l2_lock);
+
+	if (!s->udev) {
+		ret = -ENODEV;
+		goto err_clear_bit;
+	}
 
 	s->sequence = 0;
 

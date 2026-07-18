@@ -69,9 +69,9 @@ module_param_array(opl3sa3_ymode, int, NULL, 0444);
 MODULE_PARM_DESC(opl3sa3_ymode, "Speaker size selection for 3D Enhancement mode: Desktop/Large Notebook/Small Notebook/HiFi.");
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
-static int pnpc_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
+static int pnpc_registered __ro_after_init;
 #endif
 
 /* control ports */
@@ -125,7 +125,7 @@ struct snd_opl3sa2 {
 static const struct pnp_device_id snd_opl3sa2_pnpbiosids[] = {
 	{ .id = "YMH0021" },
 	{ .id = "NMX2210" },	/* Gateway Solo 2500 */
-	{ .id = "" }		/* end */
+	{ }			/* end */
 };
 
 MODULE_DEVICE_TABLE(pnp, snd_opl3sa2_pnpbiosids);

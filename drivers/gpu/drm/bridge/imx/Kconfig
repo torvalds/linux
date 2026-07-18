@@ -3,27 +3,35 @@ if ARCH_MXC || COMPILE_TEST
 config DRM_IMX_LDB_HELPER
 	tristate
 
-config DRM_IMX_LEGACY_BRIDGE
-	tristate
-	depends on DRM_IMX
-	help
-	  This is a DRM bridge implementation for the DRM i.MX IPUv3 driver,
-	  that uses of_get_drm_display_mode to acquire display mode.
-
-	  Newer designs should not use this bridge and should use proper panel
-	  driver instead.
-
 config DRM_IMX8MP_DW_HDMI_BRIDGE
 	tristate "Freescale i.MX8MP HDMI-TX bridge support"
 	depends on OF
 	depends on COMMON_CLK
 	select DRM_DW_HDMI
+	select OF_OVERLAY
+	select DRM_DISPLAY_CONNECTOR
 	imply DRM_IMX8MP_HDMI_PAI
 	imply DRM_IMX8MP_HDMI_PVI
 	imply PHY_FSL_SAMSUNG_HDMI_PHY
 	help
 	  Choose this to enable support for the internal HDMI encoder found
 	  on the i.MX8MP SoC.
+
+config DRM_IMX8MP_DW_HDMI_BRIDGE_CONNECTOR_FIXUP
+	bool
+	default y
+	depends on DRM_IMX_LCDIF
+	depends on DRM_IMX8MP_DW_HDMI_BRIDGE
+	depends on OF
+	help
+	  Modifies at early boot the live device tree of boards using the
+	  i.MX8MP fsl,imx8mp-hdmi-tx adding a hdmi-connector node linked to
+	  the hdmi-tx. This is needed to support bridge-connector usage in
+	  the i.MX8MP LCDIF driver.
+
+	  You need this if you use the i.MX8MP HDMI output and your board
+	  device tree file does not have an hdmi-connector node connected
+	  to it.
 
 config DRM_IMX8MP_HDMI_PAI
 	tristate "Freescale i.MX8MP HDMI PAI bridge support"

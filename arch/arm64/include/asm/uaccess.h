@@ -456,8 +456,7 @@ do {									\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u8, label);	\
 } while (0)
 
-#define INLINE_COPY_TO_USER
-#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_USER
 
 extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned long n);
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)

@@ -1,0 +1,49 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max20830
+======================
+
+Supported chips:
+
+  * Analog Devices MAX20830
+
+    Prefix: 'max20830'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max20830.pdf
+
+Author:
+
+  - Alexis Czezar Torreno <alexisczezar.torreno@analog.com>
+
+
+Description
+-----------
+
+This driver supports hardware monitoring for Analog Devices MAX20830
+Step-Down Switching Regulator with PMBus Interface.
+
+The MAX20830 is a 2.7V to 16V, 30A fully integrated step-down DC-DC switching
+regulator. Through the PMBus interface, the device can monitor input/output
+voltages, output current and temperature.
+
+The driver is a client driver to the core PMBus driver. Please see
+Documentation/hwmon/pmbus.rst for details on PMBus client drivers.
+
+Sysfs entries
+-------------
+
+================= ========================================
+in1_label         "vin"
+in1_input         Measured input voltage
+in1_alarm         Input voltage alarm
+in2_label         "vout1"
+in2_input         Measured output voltage
+in2_alarm         Output voltage alarm
+curr1_label       "iout1"
+curr1_input       Measured output current
+curr1_alarm       Output current alarm
+temp1_input       Measured temperature
+temp1_alarm       Chip temperature alarm
+================= ========================================

@@ -10,5 +10,6 @@
 #define _SND_SOC_ACPI_INTEL_SDCA_QUIRKS
 
 bool snd_soc_acpi_intel_sdca_is_device_rt712_vb(void *arg);
+bool snd_soc_acpi_intel_no_function_topology(void *arg);
 
 #endif

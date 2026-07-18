@@ -1,0 +1,44 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Copyright (C) 2025 Icenowy Zheng <uwu@icenowy.me>
+ *
+ * Based on vs_dc_hw.h, which is:
+ *   Copyright (C) 2023 VeriSilicon Holdings Co., Ltd.
+ */
+
+#ifndef _VS_CURSOR_PLANE_REGS_H_
+#define _VS_CURSOR_PLANE_REGS_H_
+
+#include <linux/bits.h>
+
+#define VSDC_CURSOR_CONFIG(n)		(0x1468 + 0x1080 * (n))
+#define VSDC_CURSOR_CONFIG_FMT_MASK	GENMASK(1, 0)
+#define VSDC_CURSOR_CONFIG_FMT_ARGB8888	(0x2 << 0)
+#define VSDC_CURSOR_CONFIG_FMT_OFF	(0x0 << 0)
+#define VSDC_CURSOR_CONFIG_IMG_UPDATE	BIT(2)
+#define VSDC_CURSOR_CONFIG_COMMIT	BIT(3)
+#define VSDC_CURSOR_CONFIG_SIZE_MASK	GENMASK(7, 5)
+#define VSDC_CURSOR_CONFIG_SIZE_32	(0x0 << 5)
+#define VSDC_CURSOR_CONFIG_SIZE_64	(0x1 << 5)
+#define VSDC_CURSOR_CONFIG_SIZE_128	(0x2 << 5)
+#define VSDC_CURSOR_CONFIG_SIZE_256	(0x3 << 5)
+#define VSDC_CURSOR_CONFIG_Y_OFF_MASK	GENMASK(12, 8)
+#define VSDC_CURSOR_CONFIG_Y_OFF(v)	((v) << 8)
+#define VSDC_CURSOR_CONFIG_X_OFF_MASK	GENMASK(20, 16)
+#define VSDC_CURSOR_CONFIG_X_OFF(v)	((v) << 16)
+
+#define VSDC_CURSOR_ADDRESS(n)		(0x146C + 0x1080 * (n))
+
+#define VSDC_CURSOR_LOCATION(n)		(0x1470 + 0x1080 * (n))
+#define VSDC_CURSOR_LOCATION_X_MASK	GENMASK(14, 0)
+#define VSDC_CURSOR_LOCATION_X(v)	((v) << 0)
+#define VSDC_CURSOR_LOCATION_Y_MASK	GENMASK(30, 16)
+#define VSDC_CURSOR_LOCATION_Y(v)	((v) << 16)
+
+#define VSDC_CURSOR_BACKGROUND(n)	(0x1474 + 0x1080 * (n))
+#define VSDC_CURSOR_BACKGRUOND_DEFAULT	0x00FFFFFF
+
+#define VSDC_CURSOR_FOREGROUND(n)	(0x1478 + 0x1080 * (n))
+#define VSDC_CURSOR_FOREGRUOND_DEFAULT	0x00AAAAAA
+
+#endif /* _VS_CURSOR_PLANE_REGS_H_ */

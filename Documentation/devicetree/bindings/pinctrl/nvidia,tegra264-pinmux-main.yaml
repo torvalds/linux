@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nvidia,tegra264-pinmux-main.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra264 Main Pinmux Controller
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+properties:
+  compatible:
+    const: nvidia,tegra264-pinmux-main
+
+  reg:
+    maxItems: 1
+
+patternProperties:
+  "^pinmux(-[a-z0-9-]+)?$":
+    type: object
+
+    # pin groups
+    additionalProperties:
+      $ref: nvidia,tegra264-pinmux-common.yaml
+
+      properties:
+        nvidia,pins:
+          items:
+            enum: [ pwm1_pa0, pwm6_pa1, pwm7_pa2, pwm8_pa3, ufs0_ref_clk_pa4,
+                    ufs0_rst_n_pa5, soc_gpio250_pf0, soc_gpio251_pf1,
+                    soc_gpio252_pf2, dp_aux_ch0_hpd_pf3, dp_aux_ch1_hpd_pf4,
+                    dp_aux_ch2_hpd_pf5, dp_aux_ch3_hpd_pf6, pwm2_pf7, pwm3_pg0,
+                    gen7_i2c_scl_pg1, gen7_i2c_sda_pg2, gen9_i2c_scl_pg3,
+                    gen9_i2c_sda_pg4, sdmmc1_clk_px0, sdmmc1_cmd_px1,
+                    sdmmc1_dat0_px2, sdmmc1_dat1_px3, sdmmc1_dat2_px4,
+                    sdmmc1_dat3_px5, sdmmc1_comp, soc_gpio124_pl0,
+                    soc_gpio125_pl1, fan_tach0_pl2, soc_gpio127_pl3,
+                    soc_gpio128_pl4, soc_gpio129_pl5, soc_gpio130_pl6,
+                    soc_gpio131_pl7, gp_pwm9_pm0, soc_gpio133_pm1, uart9_tx_pm2,
+                    uart9_rx_pm3, uart9_rts_n_pm4, uart9_cts_n_pm5,
+                    soc_gpio170_pu0, soc_gpio171_pu1, soc_gpio172_pu2,
+                    soc_gpio173_pu3, soc_gpio174_pu4, soc_gpio175_pu5,
+                    soc_gpio176_pu6, soc_gpio177_pu7, soc_gpio178_pv0,
+                    pwm10_pv1, uart4_tx_pv2, uart4_rx_pv3, uart4_rts_n_pv4,
+                    uart4_cts_n_pv5, dap2_clk_pv6, dap2_din_pv7, dap2_dout_pw0,
+                    dap2_fs_pw1, gen1_i2c_scl_pw2, gen1_i2c_sda_pw3,
+                    gen0_i2c_scl_pw4, gen0_i2c_sda_pw5, pwr_i2c_scl_pw6,
+                    pwr_i2c_sda_pw7, soc_gpio138_pp0, soc_gpio139_pp1,
+                    dap6_sclk_pp2, dap6_dout_pp3, dap6_din_pp4, dap6_fs_pp5,
+                    dap4_sclk_pp6, dap4_dout_pp7, dap4_din_pq0, dap4_fs_pq1,
+                    spi5_sck_pq2, spi5_miso_pq3, spi5_mosi_pq4, spi5_cs0_pq5,
+                    soc_gpio152_pq6, soc_gpio153_pq7, aud_mclk_pr0,
+                    soc_gpio155_pr1, dap1_sclk_pr2, dap1_out_pr3, dap1_in_pr4,
+                    dap1_fs_pr5, gen11_i2c_scl_pr6, gen11_i2c_sda_pr7,
+                    soc_gpio350_ps0, soc_gpio351_ps1, qspi0_sck_pt0,
+                    qspi0_cs_n_pt1, qspi0_io0_pt2, qspi0_io1_pt3, qspi0_io2_pt4,
+                    qspi0_io3_pt5, soc_gpio192_pt6, soc_gpio270_py0,
+                    soc_gpio271_py1, soc_gpio272_py2, soc_gpio273_py3,
+                    soc_gpio274_py4, soc_gpio275_py5, soc_gpio276_py6,
+                    soc_gpio277_py7, soc_gpio278_pz0, soc_gpio279_pz1,
+                    xhalt_trig_pz2, soc_gpio281_pz3, soc_gpio282_pz4,
+                    soc_gpio283_pz5, soc_gpio284_pz6, soc_gpio285_pz7,
+                    soc_gpio286_pal0, soc_gpio287_pal1, soc_gpio288_pal2,
+                    cpu_pwr_req_ph0, gpu_pwr_req_ph1, uart10_tx_ph2,
+                    uart10_rx_ph3, uart10_rts_n_ph4, uart10_cts_n_ph5,
+                    spi3_sck_ph6, spi3_miso_ph7, spi3_mosi_pj0, spi3_cs0_pj1,
+                    spi3_cs3_pj2, uart5_tx_pj3, uart5_rx_pj4, uart5_rts_n_pj5,
+                    uart5_cts_n_pj6, spi1_sck_pj7, spi1_miso_pk0, spi1_mosi_pk1,
+                    spi1_cs0_pk2, spi1_cs1_pk3, extperiph1_clk_pk4,
+                    extperiph2_clk_pk5, gen12_i2c_scl_pk6, gen12_i2c_sda_pk7,
+                    drive_cpu_pwr_req_ph0, drive_gpu_pwr_req_ph1,
+                    drive_uart10_cts_n_ph5, drive_uart10_rts_n_ph4,
+                    drive_uart10_rx_ph3, drive_uart10_tx_ph2,
+                    drive_spi3_cs0_pj1, drive_spi3_cs3_pj2,
+                    drive_spi3_miso_ph7, drive_spi3_mosi_pj0,
+                    drive_spi3_sck_ph6, drive_uart5_cts_n_pj6,
+                    drive_uart5_rts_n_pj5, drive_uart5_rx_pj4,
+                    drive_uart5_tx_pj3, drive_spi1_cs0_pk2,
+                    drive_spi1_cs1_pk3, drive_spi1_miso_pk0,
+                    drive_spi1_mosi_pk1, drive_spi1_sck_pj7,
+                    drive_extperiph2_clk_pk5, drive_extperiph1_clk_pk4,
+                    drive_gen12_i2c_scl_pk6, drive_gen12_i2c_sda_pk7,
+                    drive_soc_gpio124_pl0, drive_soc_gpio125_pl1,
+                    drive_fan_tach0_pl2, drive_soc_gpio127_pl3,
+                    drive_soc_gpio128_pl4, drive_soc_gpio129_pl5,
+                    drive_soc_gpio130_pl6, drive_soc_gpio131_pl7,
+                    drive_gp_pwm9_pm0, drive_soc_gpio133_pm1,
+                    drive_uart9_cts_n_pm5, drive_uart9_rts_n_pm4,
+                    drive_uart9_rx_pm3, drive_uart9_tx_pm2,
+                    drive_sdmmc1_clk_px0, drive_sdmmc1_cmd_px1,
+                    drive_sdmmc1_dat3_px5, drive_sdmmc1_dat2_px4,
+                    drive_sdmmc1_dat1_px3, drive_sdmmc1_dat0_px2,
+                    drive_qspi0_cs_n_pt1, drive_qspi0_io0_pt2,
+                    drive_qspi0_io1_pt3, drive_qspi0_io2_pt4,
+                    drive_qspi0_io3_pt5, drive_qspi0_sck_pt0,
+                    drive_soc_gpio192_pt6, drive_soc_gpio138_pp0,
+                    drive_soc_gpio139_pp1, drive_dap6_din_pp4,
+                    drive_dap6_dout_pp3, drive_dap6_fs_pp5,
+                    drive_dap6_sclk_pp2, drive_dap4_dout_pp7,
+                    drive_dap4_sclk_pp6, drive_dap4_din_pq0,
+                    drive_dap4_fs_pq1, drive_spi5_cs0_pq5,
+                    drive_spi5_miso_pq3, drive_spi5_mosi_pq4,
+                    drive_spi5_sck_pq2, drive_soc_gpio152_pq6,
+                    drive_soc_gpio153_pq7, drive_soc_gpio155_pr1,
+                    drive_aud_mclk_pr0, drive_dap1_sclk_pr2,
+                    drive_dap1_in_pr4, drive_dap1_out_pr3,
+                    drive_dap1_fs_pr5, drive_gen11_i2c_scl_pr6,
+                    drive_gen11_i2c_sda_pr7, drive_soc_gpio350_ps0,
+                    drive_soc_gpio351_ps1, drive_gen0_i2c_scl_pw4,
+                    drive_gen0_i2c_sda_pw5, drive_gen1_i2c_scl_pw2,
+                    drive_gen1_i2c_sda_pw3, drive_dap2_fs_pw1,
+                    drive_dap2_clk_pv6, drive_dap2_din_pv7,
+                    drive_dap2_dout_pw0, drive_pwm10_pv1,
+                    drive_soc_gpio170_pu0, drive_soc_gpio171_pu1,
+                    drive_soc_gpio172_pu2, drive_soc_gpio173_pu3,
+                    drive_soc_gpio174_pu4, drive_soc_gpio175_pu5,
+                    drive_soc_gpio176_pu6, drive_soc_gpio177_pu7,
+                    drive_soc_gpio178_pv0, drive_uart4_cts_n_pv5,
+                    drive_uart4_rts_n_pv4, drive_uart4_rx_pv3,
+                    drive_uart4_tx_pv2, drive_pwr_i2c_sda_pw7,
+                    drive_pwr_i2c_scl_pw6, drive_soc_gpio250_pf0,
+                    drive_soc_gpio251_pf1, drive_soc_gpio252_pf2,
+                    drive_dp_aux_ch0_hpd_pf3, drive_dp_aux_ch1_hpd_pf4,
+                    drive_dp_aux_ch2_hpd_pf5, drive_dp_aux_ch3_hpd_pf6,
+                    drive_pwm2_pf7, drive_pwm3_pg0,
+                    drive_gen7_i2c_scl_pg1, drive_gen7_i2c_sda_pg2,
+                    drive_gen9_i2c_scl_pg3, drive_gen9_i2c_sda_pg4,
+                    drive_soc_gpio270_py0, drive_soc_gpio271_py1,
+                    drive_soc_gpio272_py2, drive_soc_gpio273_py3,
+                    drive_soc_gpio274_py4, drive_soc_gpio275_py5,
+                    drive_soc_gpio276_py6, drive_soc_gpio277_py7,
+                    drive_soc_gpio278_pz0, drive_soc_gpio279_pz1,
+                    drive_soc_gpio282_pz4, drive_soc_gpio283_pz5,
+                    drive_soc_gpio284_pz6, drive_soc_gpio285_pz7,
+                    drive_soc_gpio286_pal0, drive_soc_gpio287_pal1,
+                    drive_soc_gpio288_pal2, drive_xhalt_trig_pz2,
+                    drive_soc_gpio281_pz3 ]
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-tegra.h>
+
+    pinmux@c281000 {
+        compatible = "nvidia,tegra264-pinmux-main";
+        reg = <0xc281000 0xc000>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&state_default>;
+
+        state_default: pinmux-default {
+            sdmmc1 {
+                nvidia,pins = "sdmmc1_clk_px0";
+                nvidia,function = "sdmmc1_cd";
+                nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+                nvidia,tristate = <TEGRA_PIN_DISABLE>;
+                nvidia,enable-input = <TEGRA_PIN_ENABLE>;
+            };
+        };
+    };

@@ -18,7 +18,6 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/math.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>

@@ -23,21 +23,6 @@ config VGA_CONSOLE
 
 	  Say Y.
 
-config MDA_CONSOLE
-	depends on VGA_CONSOLE && ISA
-	tristate "MDA text console (dual-headed)"
-	help
-	  Say Y here if you have an old MDA or monochrome Hercules graphics
-	  adapter in your system acting as a second head ( = video card). You
-	  will then be able to use two monitors with your Linux system. Do not
-	  say Y here if your MDA card is the primary card in your system; the
-	  normal VGA driver will handle it.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mdacon.
-
-	  If unsure, say N.
-
 config SGI_NEWPORT_CONSOLE
 	tristate "SGI Newport Console support"
 	depends on SGI_IP22 && HAS_IOMEM

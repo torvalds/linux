@@ -195,7 +195,7 @@
         "EventName": "UNC_M_MR4_2XREF_CYCLES.SCH0_DIMM0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_MR4_2XREF_CYCLES.SCH0_DIMM0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -206,7 +206,7 @@
         "EventName": "UNC_M_MR4_2XREF_CYCLES.SCH0_DIMM1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_MR4_2XREF_CYCLES.SCH0_DIMM1",
         "UMask": "0x2",
         "Unit": "IMC"
     },
@@ -217,7 +217,7 @@
         "EventName": "UNC_M_MR4_2XREF_CYCLES.SCH1_DIMM0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_MR4_2XREF_CYCLES.SCH1_DIMM0",
         "UMask": "0x4",
         "Unit": "IMC"
     },
@@ -228,7 +228,7 @@
         "EventName": "UNC_M_MR4_2XREF_CYCLES.SCH1_DIMM1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_MR4_2XREF_CYCLES.SCH1_DIMM1",
         "UMask": "0x8",
         "Unit": "IMC"
     },
@@ -239,7 +239,7 @@
         "EventName": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH0_DIMM0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH0_DIMM0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -250,7 +250,7 @@
         "EventName": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH0_DIMM1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH0_DIMM1",
         "UMask": "0x2",
         "Unit": "IMC"
     },
@@ -261,7 +261,7 @@
         "EventName": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH1_DIMM0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH1_DIMM0",
         "UMask": "0x4",
         "Unit": "IMC"
     },
@@ -272,7 +272,7 @@
         "EventName": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH1_DIMM1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_PDC_MR4ACTIVE_CYCLES.SCH1_DIMM1",
         "UMask": "0x8",
         "Unit": "IMC"
     },
@@ -617,7 +617,7 @@
         "EventName": "UNC_M_THROTTLE_CRIT_CYCLES.SLOT0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_CRIT_CYCLES.SLOT0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -628,7 +628,7 @@
         "EventName": "UNC_M_THROTTLE_CRIT_CYCLES.SLOT1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_CRIT_CYCLES.SLOT1",
         "UMask": "0x2",
         "Unit": "IMC"
     },
@@ -639,7 +639,7 @@
         "EventName": "UNC_M_THROTTLE_HIGH_CYCLES.SLOT0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_HIGH_CYCLES.SLOT0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -650,7 +650,7 @@
         "EventName": "UNC_M_THROTTLE_HIGH_CYCLES.SLOT1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_HIGH_CYCLES.SLOT1",
         "UMask": "0x2",
         "Unit": "IMC"
     },
@@ -661,7 +661,7 @@
         "EventName": "UNC_M_THROTTLE_LOW_CYCLES.SLOT0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_LOW_CYCLES.SLOT0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -672,7 +672,7 @@
         "EventName": "UNC_M_THROTTLE_LOW_CYCLES.SLOT1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_LOW_CYCLES.SLOT1",
         "UMask": "0x2",
         "Unit": "IMC"
     },
@@ -683,7 +683,7 @@
         "EventName": "UNC_M_THROTTLE_MID_CYCLES.SLOT0",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_MID_CYCLES.SLOT0",
         "UMask": "0x1",
         "Unit": "IMC"
     },
@@ -694,7 +694,7 @@
         "EventName": "UNC_M_THROTTLE_MID_CYCLES.SLOT1",
         "Experimental": "1",
         "PerPkg": "1",
-        "PublicDescription": "-",
+        "PublicDescription": "UNC_M_THROTTLE_MID_CYCLES.SLOT1",
         "UMask": "0x2",
         "Unit": "IMC"
     },

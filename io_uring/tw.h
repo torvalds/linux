@@ -6,6 +6,8 @@
 #include <linux/percpu-refcount.h>
 #include <linux/io_uring_types.h>
 
+#include "mpscq.h"
+
 #define IO_LOCAL_TW_DEFAULT_MAX		20
 
 /*
@@ -23,18 +25,17 @@ static inline bool io_should_terminate_tw(struct io_ring_ctx *ctx)
 }
 
 void io_req_task_work_add_remote(struct io_kiocb *req, unsigned flags);
-struct llist_node *io_handle_tw_list(struct llist_node *node, unsigned int *count, unsigned int max_entries);
 void tctx_task_work(struct callback_head *cb);
+void io_tctx_fallback_work(struct work_struct *work);
 int io_run_local_work(struct io_ring_ctx *ctx, int min_events, int max_events);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 
-__cold void io_fallback_req_func(struct work_struct *work);
-__cold void io_move_task_work_from_local(struct io_ring_ctx *ctx);
+__cold void io_cancel_local_task_work(struct io_ring_ctx *ctx);
 int io_run_local_work_locked(struct io_ring_ctx *ctx, int min_events);
 
 void io_req_local_work_add(struct io_kiocb *req, unsigned flags);
 void io_req_normal_work_add(struct io_kiocb *req);
-struct llist_node *tctx_task_work_run(struct io_uring_task *tctx, unsigned int max_entries, unsigned int *count);
+void tctx_task_work_run(struct io_uring_task *tctx, unsigned int max_entries, unsigned int *count);
 
 static inline void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 {
@@ -89,7 +90,7 @@ static inline int io_run_task_work(void)
 
 static inline bool io_local_work_pending(struct io_ring_ctx *ctx)
 {
-	return !llist_empty(&ctx->work_llist) || !llist_empty(&ctx->retry_llist);
+	return !mpscq_empty(&ctx->work_list);
 }
 
 static inline bool io_task_work_pending(struct io_ring_ctx *ctx)

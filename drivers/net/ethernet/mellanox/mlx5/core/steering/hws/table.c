@@ -282,6 +282,9 @@ int mlx5hws_table_destroy(struct mlx5hws_table *tbl)
 		goto unlock_err;
 	}
 
+	if (tbl->default_miss.miss_tbl)
+		list_del_init(&tbl->default_miss.next);
+
 	list_del_init(&tbl->tbl_list_node);
 	mutex_unlock(&ctx->ctrl_lock);
 

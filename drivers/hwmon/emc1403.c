@@ -639,18 +639,18 @@ static const struct hwmon_chip_info emc1403_chip_info = {
 
 /* Last digit of chip name indicates number of channels */
 static const struct i2c_device_id emc1403_idtable[] = {
-	{ "emc1402", emc1402 },
-	{ "emc1403", emc1403 },
-	{ "emc1404", emc1404 },
-	{ "emc1412", emc1402 },
-	{ "emc1413", emc1403 },
-	{ "emc1414", emc1404 },
-	{ "emc1422", emc1402 },
-	{ "emc1423", emc1403 },
-	{ "emc1424", emc1404 },
-	{ "emc1428", emc1428 },
-	{ "emc1438", emc1428 },
-	{ "emc1442", emc1402 },
+	{ .name = "emc1402", .driver_data = emc1402 },
+	{ .name = "emc1403", .driver_data = emc1403 },
+	{ .name = "emc1404", .driver_data = emc1404 },
+	{ .name = "emc1412", .driver_data = emc1402 },
+	{ .name = "emc1413", .driver_data = emc1403 },
+	{ .name = "emc1414", .driver_data = emc1404 },
+	{ .name = "emc1422", .driver_data = emc1402 },
+	{ .name = "emc1423", .driver_data = emc1403 },
+	{ .name = "emc1424", .driver_data = emc1404 },
+	{ .name = "emc1428", .driver_data = emc1428 },
+	{ .name = "emc1438", .driver_data = emc1428 },
+	{ .name = "emc1442", .driver_data = emc1402 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, emc1403_idtable);

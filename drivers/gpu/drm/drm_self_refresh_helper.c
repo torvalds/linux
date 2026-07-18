@@ -73,7 +73,7 @@ static void drm_self_refresh_helper_entry_work(struct work_struct *work)
 	struct drm_crtc *crtc = sr_data->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;
@@ -81,7 +81,7 @@ static void drm_self_refresh_helper_entry_work(struct work_struct *work)
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_commit_alloc(dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_drop_locks;
@@ -117,13 +117,13 @@ retry:
 
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 out_drop_locks:
 	drm_modeset_drop_locks(&ctx);
@@ -143,7 +143,7 @@ out_drop_locks:
  * entering self refresh mode after activity.
  */
 void
-drm_self_refresh_helper_update_avg_times(struct drm_atomic_state *state,
+drm_self_refresh_helper_update_avg_times(struct drm_atomic_commit *state,
 					 unsigned int commit_time_ms,
 					 unsigned int new_self_refresh_mask)
 {
@@ -185,7 +185,7 @@ EXPORT_SYMBOL(drm_self_refresh_helper_update_avg_times);
  * At the end, we queue up the self refresh entry work so we can enter PSR after
  * the desired delay.
  */
-void drm_self_refresh_helper_alter_state(struct drm_atomic_state *state)
+void drm_self_refresh_helper_alter_state(struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;

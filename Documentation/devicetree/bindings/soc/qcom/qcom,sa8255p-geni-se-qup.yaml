@@ -19,7 +19,11 @@ description:
 
 properties:
   compatible:
-    const: qcom,sa8255p-geni-se-qup
+    oneOf:
+      - const: qcom,sa8255p-geni-se-qup
+      - items:
+          - const: qcom,sa8797p-geni-se-qup
+          - const: qcom,sa8255p-geni-se-qup
 
   reg:
     description: QUP wrapper common register address and length.
@@ -49,7 +53,11 @@ patternProperties:
 
     properties:
       compatible:
-        const: qcom,sa8255p-geni-spi
+        oneOf:
+          - const: qcom,sa8255p-geni-spi
+          - items:
+              - const: qcom,sa8797p-geni-spi
+              - const: qcom,sa8255p-geni-spi
 
   "i2c@[0-9a-f]+$":
     type: object
@@ -58,7 +66,11 @@ patternProperties:
 
     properties:
       compatible:
-        const: qcom,sa8255p-geni-i2c
+        oneOf:
+          - const: qcom,sa8255p-geni-i2c
+          - items:
+              - const: qcom,sa8797p-geni-i2c
+              - const: qcom,sa8255p-geni-i2c
 
   "serial@[0-9a-f]+$":
     type: object
@@ -67,9 +79,16 @@ patternProperties:
 
     properties:
       compatible:
-        enum:
-          - qcom,sa8255p-geni-uart
-          - qcom,sa8255p-geni-debug-uart
+        oneOf:
+          - enum:
+              - qcom,sa8255p-geni-uart
+              - qcom,sa8255p-geni-debug-uart
+          - items:
+              - const: qcom,sa8797p-geni-uart
+              - const: qcom,sa8255p-geni-uart
+          - items:
+              - const: qcom,sa8797p-geni-debug-uart
+              - const: qcom,sa8255p-geni-debug-uart
 
 required:
   - compatible

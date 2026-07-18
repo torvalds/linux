@@ -1,7 +1,7 @@
 /*
  * userio kernel serio device emulation module
  * Copyright (C) 2015 Red Hat
- * Copyright (C) 2015 Stephen Chandler Paul <thatslyude@gmail.com>
+ * Copyright (C) 2015 Lyude Paul <thatslyude@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -206,6 +206,36 @@ static int userio_execute_cmd(struct userio_device *userio,
 		userio->serio->id.type = cmd->data;
 		break;
 
+	case USERIO_CMD_SET_PORT_EXTRA:
+		if (userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "Can't change port extra on an already running userio instance\n");
+			return -EBUSY;
+		}
+
+		userio->serio->id.extra = cmd->data;
+		break;
+
+	case USERIO_CMD_SET_PORT_ID:
+		if (userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "Can't change port id on an already running userio instance\n");
+			return -EBUSY;
+		}
+
+		userio->serio->id.id = cmd->data;
+		break;
+
+	case USERIO_CMD_SET_PORT_PROTO:
+		if (userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "Can't change port proto on an already running userio instance\n");
+			return -EBUSY;
+		}
+
+		userio->serio->id.proto = cmd->data;
+		break;
+
 	case USERIO_CMD_SEND_INTERRUPT:
 		if (!userio->running) {
 			dev_warn(userio_misc.this_device,
@@ -278,6 +308,6 @@ module_driver(userio_misc, misc_register, misc_deregister);
 MODULE_ALIAS_MISCDEV(USERIO_MINOR);
 MODULE_ALIAS("devname:" USERIO_NAME);
 
-MODULE_AUTHOR("Stephen Chandler Paul <thatslyude@gmail.com>");
+MODULE_AUTHOR("Lyude Paul <thatslyude@gmail.com>");
 MODULE_DESCRIPTION("Virtual Serio Device Support");
 MODULE_LICENSE("GPL");

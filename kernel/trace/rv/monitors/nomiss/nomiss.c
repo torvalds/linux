@@ -227,7 +227,7 @@ static int enable_nomiss(void)
 {
 	int retval;
 
-	retval = da_monitor_init();
+	retval = ha_monitor_init();
 	if (retval)
 		return retval;
 
@@ -263,7 +263,7 @@ static void disable_nomiss(void)
 	rv_detach_trace_probe("nomiss", sched_switch, handle_sched_switch);
 	rv_detach_trace_probe("nomiss", sched_wakeup, handle_sched_wakeup);
 
-	da_monitor_destroy();
+	ha_monitor_destroy();
 }
 
 static struct rv_monitor rv_this = {

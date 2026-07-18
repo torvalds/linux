@@ -30,6 +30,7 @@ int xe_sriov_pf_provision_query_vf_vram(struct xe_device *xe, unsigned int vfid,
 
 int xe_sriov_pf_provision_vfs(struct xe_device *xe, unsigned int num_vfs);
 int xe_sriov_pf_unprovision_vfs(struct xe_device *xe, unsigned int num_vfs);
+int xe_sriov_pf_reprovision_default(struct xe_device *xe);
 
 int xe_sriov_pf_provision_set_mode(struct xe_device *xe, enum xe_sriov_provisioning_mode mode);
 

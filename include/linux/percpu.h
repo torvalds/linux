@@ -3,13 +3,14 @@
 #define __LINUX_PERCPU_H
 
 #include <linux/alloc_tag.h>
-#include <linux/mmdebug.h>
-#include <linux/preempt.h>
-#include <linux/smp.h>
-#include <linux/pfn.h>
-#include <linux/init.h>
 #include <linux/cleanup.h>
+#include <linux/compiler_types.h>
+#include <linux/init.h>
+#include <linux/mmdebug.h>
+#include <linux/pfn.h>
+#include <linux/preempt.h>
 #include <linux/sched.h>
+#include <linux/smp.h>
 
 #include <asm/percpu.h>
 
@@ -36,7 +37,7 @@
 #define PCPU_BITMAP_BLOCK_BITS		(PCPU_BITMAP_BLOCK_SIZE >>	\
 					 PCPU_MIN_ALLOC_SHIFT)
 
-#ifdef CONFIG_RANDOM_KMALLOC_CACHES
+#ifdef CONFIG_KMALLOC_PARTITION_CACHES
 # if defined(CONFIG_LOCKDEP) && !defined(CONFIG_PAGE_SIZE_4KB)
 # define PERCPU_DYNAMIC_SIZE_SHIFT      13
 # else

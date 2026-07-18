@@ -1,33 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021-2022, 2025 Intel Corporation
+ * Copyright (C) 2021-2022, 2025-2026 Intel Corporation
  */
 
 #include <net/mac80211.h>
 #include "fw/api/rs.h"
 #include "iwl-drv.h"
 #include "iwl-config.h"
-
-#define IWL_DECLARE_RATE_INFO(r) \
-	[IWL_RATE_##r##M_INDEX] = IWL_RATE_##r##M_PLCP
-
-/*
- * Translate from fw_rate_index (IWL_RATE_XXM_INDEX) to PLCP
- * */
-static const u8 fw_rate_idx_to_plcp[IWL_RATE_COUNT] = {
-	IWL_DECLARE_RATE_INFO(1),
-	IWL_DECLARE_RATE_INFO(2),
-	IWL_DECLARE_RATE_INFO(5),
-	IWL_DECLARE_RATE_INFO(11),
-	IWL_DECLARE_RATE_INFO(6),
-	IWL_DECLARE_RATE_INFO(9),
-	IWL_DECLARE_RATE_INFO(12),
-	IWL_DECLARE_RATE_INFO(18),
-	IWL_DECLARE_RATE_INFO(24),
-	IWL_DECLARE_RATE_INFO(36),
-	IWL_DECLARE_RATE_INFO(48),
-	IWL_DECLARE_RATE_INFO(54),
-};
 
 /* mbps, mcs */
 static const struct iwl_rate_mcs_info rate_mcs[IWL_RATE_COUNT] = {
@@ -60,12 +39,6 @@ static const char * const pretty_bw[] = {
 	"160 Mhz",
 	"320Mhz",
 };
-
-u8 iwl_fw_rate_idx_to_plcp(int idx)
-{
-	return fw_rate_idx_to_plcp[idx];
-}
-IWL_EXPORT_SYMBOL(iwl_fw_rate_idx_to_plcp);
 
 const struct iwl_rate_mcs_info *iwl_rate_mcs(int idx)
 {
@@ -123,6 +96,9 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		break;
 	case RATE_MCS_MOD_TYPE_EHT:
 		type = "EHT";
+		break;
+	case RATE_MCS_MOD_TYPE_UHR:
+		type = "UHR";
 		break;
 	default:
 		type = "Unknown"; /* shouldn't happen */

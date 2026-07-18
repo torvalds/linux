@@ -4,6 +4,8 @@
 PORT=4791
 MODS=("tun" "rdma_rxe")
 
+source "$(dirname "$0")/../kselftest/ktap_helpers.sh"
+
 exec > /dev/null
 
 # --- Helper: Cleanup Routine ---
@@ -26,6 +28,10 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 for m in "${MODS[@]}"; do
+    if ! modinfo "$m" >/dev/null 2>&1; then
+        echo "SKIP: Kernel module '$m' not found." >&2
+        exit $KSFT_SKIP
+    fi
     modprobe "$m" || { echo "Error: Failed to load $m"; exit 1; }
 done
 

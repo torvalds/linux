@@ -105,15 +105,26 @@ static void dccg21_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppcl
  * dccg2_init() unconditionally overwrites MICROSECOND_TIME_BASE_DIV to
  * 0x00120264, destroying the marker before it can be read.
  *
- * Guard the call: if the S0i3 marker is present, skip dccg2_init() so the
+ * Guard the call: if the S0i3 marker is present, skip init so the
  * WA can function correctly. bios_golden_init() will handle init in that case.
+ *
+ * DCN21 uses 48MHz refclk, not 100MHz, so we must explicitly set the correct
+ * values (48MHz is taken from rn_clk_mgr_construct()).
  */
 static void dccg21_init(struct dccg *dccg)
 {
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
 	if (dccg2_is_s0i3_golden_init_wa_done(dccg))
 		return;
 
-	dccg2_init(dccg);
+	/* 48MHz refclk from rn_clk_mgr_construct() */
+	REG_WRITE(MICROSECOND_TIME_BASE_DIV, 0x00120230);
+	REG_WRITE(MILLISECOND_TIME_BASE_DIV, 0x0010bb80);
+	REG_WRITE(DISPCLK_FREQ_CHANGE_CNTL, 0x0e01003c);
+
+	if (REG(REFCLK_CNTL))
+		REG_WRITE(REFCLK_CNTL, 0);
 }
 
 static const struct dccg_funcs dccg21_funcs = {

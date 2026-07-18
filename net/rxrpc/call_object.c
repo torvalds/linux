@@ -18,7 +18,9 @@
 const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_UNINITIALISED]		= "Uninit  ",
 	[RXRPC_CALL_CLIENT_AWAIT_CONN]		= "ClWtConn",
+	[RXRPC_CALL_CLIENT_PRE_SEND]		= "ClPreSnd",
 	[RXRPC_CALL_CLIENT_SEND_REQUEST]	= "ClSndReq",
+	[RXRPC_CALL_CLIENT_AWAIT_ACK]		= "ClAwtAck",
 	[RXRPC_CALL_CLIENT_AWAIT_REPLY]		= "ClAwtRpl",
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",
 	[RXRPC_CALL_SERVER_PREALLOC]		= "SvPrealc",
@@ -152,6 +154,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	spin_lock_init(&call->notify_lock);
 	refcount_set(&call->ref, 1);
 	call->debug_id		= debug_id;
+	call->rx_pkt_offset	= USHRT_MAX;
 	call->tx_total_len	= -1;
 	call->tx_jumbo_max	= 1;
 	call->next_rx_timo	= 20 * HZ;
@@ -553,6 +556,7 @@ static void rxrpc_cleanup_rx_buffers(struct rxrpc_call *call)
 	rxrpc_purge_queue(&call->recvmsg_queue);
 	rxrpc_purge_queue(&call->rx_queue);
 	rxrpc_purge_queue(&call->rx_oos_queue);
+	kfree(call->rx_dec_buffer);
 }
 
 /*

@@ -1,4 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/workqueue.h>
+
+extern struct workqueue_struct *tt_wq;
+
+static inline void tt_queue_work(struct work_struct *work)
+{
+	queue_work(tt_wq, work);
+}
 
 extern struct dentry *d_testing;
 

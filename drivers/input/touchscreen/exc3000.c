@@ -432,10 +432,10 @@ static int exc3000_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id exc3000_id[] = {
-	{ "exc3000", EETI_EXC3000 },
-	{ "exc80h60", EETI_EXC80H60 },
-	{ "exc80h84", EETI_EXC80H84 },
-	{ "exc81w32", EETI_EXC81W32 },
+	{ .name = "exc3000", .driver_data = EETI_EXC3000 },
+	{ .name = "exc80h60", .driver_data = EETI_EXC80H60 },
+	{ .name = "exc80h84", .driver_data = EETI_EXC80H84 },
+	{ .name = "exc81w32", .driver_data = EETI_EXC81W32 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, exc3000_id);

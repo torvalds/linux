@@ -14,7 +14,6 @@
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

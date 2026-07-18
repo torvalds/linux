@@ -95,7 +95,7 @@ static int scan_dsq_pool(void)
 			record_peek_result(task->pid);
 
 			/* Try to move this task to local */
-			if (!moved && scx_bpf_dsq_move_to_local(dsq_id, 0) == 0) {
+			if (!moved && scx_bpf_dsq_move_to_local(dsq_id, 0)) {
 				moved = 1;
 				break;
 			}

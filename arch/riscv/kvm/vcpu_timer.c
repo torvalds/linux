@@ -231,7 +231,7 @@ int kvm_riscv_vcpu_set_reg_timer(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_RISCV_TIMER_REG(state):
 		if (reg_val == KVM_RISCV_TIMER_STATE_ON)
-			ret = kvm_riscv_vcpu_timer_next_event(vcpu, reg_val);
+			ret = kvm_riscv_vcpu_timer_next_event(vcpu, t->next_cycles);
 		else
 			ret = kvm_riscv_vcpu_timer_cancel(t);
 		break;

@@ -379,4 +379,118 @@ int exception_bad_assert_range_with(struct __sk_buff *ctx)
 	return 1;
 }
 
+#if (defined(__TARGET_ARCH_x86) || defined(__TARGET_ARCH_arm64)) \
+	&& defined(__BPF_FEATURE_STACK_ARGUMENT)
+
+const volatile bool has_stack_arg = true;
+
+long arg1 = 1, arg2 = 2, arg3 = 3, arg4 = 4, arg5 = 5;
+long arg6 = 6, arg7 = 7, arg8 = 8, arg9 = 9, arg10 = 10;
+
+__noinline static long throwing_many_args(long a, long b, long c, long d,
+					  long e, long f, long g, long h,
+					  long i, long j)
+{
+	bpf_throw(a + b + c + d + e + f + g + h + i + j);
+	return 0;
+}
+
+__noinline int exception_cb_sa(u64 cookie)
+{
+	return cookie + 1;
+}
+
+SEC("tc")
+__exception_cb(exception_cb_sa)
+int exception_throw_stack_arg(struct __sk_buff *ctx)
+{
+	throwing_many_args(arg1, arg2, arg3, arg4, arg5,
+			   arg6, arg7, arg8, arg9, arg10);
+	return 0;
+}
+
+__noinline static long no_throw_many_args(long a, long b, long c, long d,
+					  long e, long f, long g, long h,
+					  long i, long j)
+{
+	return a + b + c + d + e + f + g + h + i + j;
+}
+
+SEC("tc")
+__exception_cb(exception_cb_sa)
+int exception_throw_after_stack_arg(struct __sk_buff *ctx)
+{
+	long ret;
+
+	ret = no_throw_many_args(arg1, arg2, arg3, arg4, arg5,
+				 arg6, arg7, arg8, arg9, arg10);
+	if (ret > 0)
+		bpf_throw(ret);
+	return 0;
+}
+
+__noinline static long subprog_throw_sa(long val)
+{
+	throwing_many_args(val, val + 1, val + 2, val + 3, val + 4,
+			   val + 5, val + 6, val + 7, val + 8, val + 9);
+	return 0;
+}
+
+SEC("tc")
+__exception_cb(exception_cb_sa)
+int exception_throw_subprog_stack_arg(struct __sk_buff *ctx)
+{
+	subprog_throw_sa(arg1);
+	return 0;
+}
+
+__noinline static long subprog_throw_after_sa(long val)
+{
+	long ret;
+
+	ret = no_throw_many_args(val, val + 1, val + 2, val + 3, val + 4,
+				 val + 5, val + 6, val + 7, val + 8, val + 9);
+	if (ret > 0)
+		bpf_throw(ret);
+	return 0;
+}
+
+SEC("tc")
+__exception_cb(exception_cb_sa)
+int exception_throw_subprog_after_stack_arg(struct __sk_buff *ctx)
+{
+	subprog_throw_after_sa(arg1);
+	return 0;
+}
+
+#else
+
+const volatile bool has_stack_arg = false;
+
+SEC("tc")
+int exception_throw_stack_arg(struct __sk_buff *ctx)
+{
+	return 0;
+}
+
+SEC("tc")
+int exception_throw_after_stack_arg(struct __sk_buff *ctx)
+{
+	return 0;
+}
+
+SEC("tc")
+int exception_throw_subprog_stack_arg(struct __sk_buff *ctx)
+{
+	return 0;
+}
+
+SEC("tc")
+int exception_throw_subprog_after_stack_arg(struct __sk_buff *ctx)
+{
+	return 0;
+}
+
+#endif
+
 char _license[] SEC("license") = "GPL";

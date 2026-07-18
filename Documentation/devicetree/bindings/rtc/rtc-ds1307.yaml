@@ -31,6 +31,7 @@ properties:
           - epson,rx8025
           - isil,isl12057
           - epson,rx8130
+          - epson,rx8901
 
       - items:
           - enum:

@@ -38,6 +38,7 @@ unsigned int __bio_integrity_action(struct bio *bio)
 		}
 		return BI_ACT_BUFFER | BI_ACT_CHECK;
 	case REQ_OP_WRITE:
+	case REQ_OP_ZONE_APPEND:
 		/*
 		 * Flush masquerading as write?
 		 */
@@ -64,20 +65,18 @@ unsigned int __bio_integrity_action(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(__bio_integrity_action);
 
-void bio_integrity_alloc_buf(struct bio *bio, bool zero_buffer)
+void bio_integrity_alloc_buf(struct bio *bio, gfp_t gfp, bool zero_buffer)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	unsigned int len = bio_integrity_bytes(bi, bio_sectors(bio));
-	gfp_t gfp = GFP_NOIO | (zero_buffer ? __GFP_ZERO : 0);
 	void *buf;
 
-	buf = kmalloc(len, (gfp & ~__GFP_DIRECT_RECLAIM) |
-			__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN);
+	buf = kmalloc(len, gfp | __GFP_NOWARN | (zero_buffer ? __GFP_ZERO : 0));
 	if (unlikely(!buf)) {
 		struct page *page;
 
-		page = mempool_alloc(&integrity_buf_pool, GFP_NOFS);
+		page = mempool_alloc(&integrity_buf_pool, gfp);
 		if (zero_buffer)
 			memset(page_address(page), 0, len);
 		bvec_set_page(&bip->bip_vec[0], page, len, 0);
@@ -308,7 +307,6 @@ static int bio_integrity_copy_user(struct bio *bio, struct bio_vec *bvec,
 	}
 
 	bip->bip_flags |= BIP_COPY_USER;
-	bip->bip_vcnt = nr_vecs;
 	return 0;
 free_bip:
 	bio_integrity_free(bio);
@@ -402,6 +400,24 @@ int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 					extraction_flags, &offset);
 	if (unlikely(ret < 0))
 		goto free_bvec;
+
+	/*
+	 * Handle partial pinning. This can happen when pin_user_pages_fast()
+	 * returns fewer pages than requested.
+	 */
+	if (user_backed_iter(iter) && unlikely(ret != bytes)) {
+		if (ret > 0) {
+			int npinned = DIV_ROUND_UP(offset + ret, PAGE_SIZE);
+			int i;
+
+			for (i = 0; i < npinned; i++)
+				unpin_user_page(pages[i]);
+		}
+		if (pages != stack_pages)
+			kvfree(pages);
+		ret = -EFAULT;
+		goto free_bvec;
+	}
 
 	nr_bvecs = bvec_from_pages(bvec, pages, nr_vecs, bytes, offset,
 				   &is_p2p);

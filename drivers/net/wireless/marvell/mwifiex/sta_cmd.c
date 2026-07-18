@@ -1568,28 +1568,23 @@ int mwifiex_send_rgpower_table(struct mwifiex_private *priv, const u8 *data,
 			return -EINVAL;
 		}
 
-		if (start_raw) {
-			while ((*pos != '\r' && *pos != '\n') &&
-			       (token = strsep((char **)&pos, " "))) {
-				if (ptr - hostcmd->cmd >=
-				    MWIFIEX_SIZE_OF_CMD_BUFFER) {
-					mwifiex_dbg(
-						adapter, ERROR,
-						"%s: hostcmd is larger than %d, aborting\n",
-						__func__, MWIFIEX_SIZE_OF_CMD_BUFFER);
-					return -ENOMEM;
-				}
-
-				ret = kstrtou8(token, 16, ptr);
-				if (ret < 0) {
-					mwifiex_dbg(
-						adapter, ERROR,
-						"%s: failed to parse hostcmd %d token: %s\n",
-						__func__, ret, token);
-					return ret;
-				}
-				ptr++;
+		while ((*pos != '\r' && *pos != '\n') &&
+		       (token = strsep((char **)&pos, " "))) {
+			if (ptr - hostcmd->cmd >= MWIFIEX_SIZE_OF_CMD_BUFFER) {
+				mwifiex_dbg(adapter, ERROR,
+					"%s: hostcmd is larger than %d, aborting\n",
+					__func__, MWIFIEX_SIZE_OF_CMD_BUFFER);
+				return -ENOMEM;
 			}
+
+			ret = kstrtou8(token, 16, ptr);
+			if (ret < 0) {
+				mwifiex_dbg(adapter, ERROR,
+					"%s: failed to parse hostcmd %d token: %s\n",
+					__func__, ret, token);
+				return ret;
+			}
+			ptr++;
 		}
 	}
 

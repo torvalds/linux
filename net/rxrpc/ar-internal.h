@@ -15,6 +15,12 @@
 #include <keys/rxrpc-type.h>
 #include "protocol.h"
 
+#define FCRYPT_ROUNDS 16
+
+struct fcrypt_key {
+	__be32 sched[FCRYPT_ROUNDS];
+};
+
 #define FCRYPT_BSIZE 8
 struct rxrpc_crypt {
 	union {
@@ -22,6 +28,19 @@ struct rxrpc_crypt {
 		__be32	n[2];
 	};
 } __attribute__((aligned(8)));
+
+void fcrypt_preparekey(struct fcrypt_key *key, const u8 raw_key[FCRYPT_BSIZE]);
+void fcrypt_pcbc_encrypt(const struct fcrypt_key *key,
+			 const u8 iv[FCRYPT_BSIZE], const void *src, void *dst,
+			 size_t nblocks);
+void fcrypt_pcbc_decrypt(const struct fcrypt_key *key,
+			 const u8 iv[FCRYPT_BSIZE], const void *src, void *dst,
+			 size_t nblocks);
+#if IS_ENABLED(CONFIG_KUNIT)
+struct des_ctx;
+void des_pcbc_decrypt_inplace(const struct des_ctx *key, __le64 iv, u8 *data,
+			      size_t len);
+#endif
 
 #define rxrpc_queue_work(WS)	queue_work(rxrpc_workqueue, (WS))
 #define rxrpc_queue_delayed_work(WS,D)	\
@@ -213,8 +232,6 @@ struct rxrpc_skb_priv {
 		struct {
 			u16		offset;		/* Offset of data */
 			u16		len;		/* Length of data */
-			u8		flags;
-#define RXRPC_RX_VERIFIED	0x01
 		};
 		struct {
 			rxrpc_seq_t	first_ack;	/* First packet in acks table */
@@ -309,15 +326,16 @@ struct rxrpc_security {
 				    struct sk_buff *challenge);
 
 	/* verify a response */
-	int (*verify_response)(struct rxrpc_connection *,
-			       struct sk_buff *);
+	int (*verify_response)(struct rxrpc_connection *conn,
+			       struct sk_buff *response_skb,
+			       void *response, unsigned int len);
 
 	/* clear connection security */
 	void (*clear)(struct rxrpc_connection *);
 
 	/* Default ticket -> key decoder */
 	int (*default_decode_ticket)(struct rxrpc_connection *conn, struct sk_buff *skb,
-				     unsigned int ticket_offset, unsigned int ticket_len,
+				     void *ticket, unsigned int ticket_len,
 				     struct key **_key);
 };
 
@@ -564,7 +582,7 @@ struct rxrpc_connection {
 	const struct rxrpc_security *security;	/* applied security module */
 	union {
 		struct {
-			struct crypto_sync_skcipher *cipher;	/* encryption handle */
+			struct fcrypt_key *cipher; /* encryption key */
 			struct rxrpc_crypt csum_iv;	/* packet checksum base */
 			u32	nonce;		/* response re-use preventer */
 		} rxkad;
@@ -651,7 +669,9 @@ enum rxrpc_call_event {
 enum rxrpc_call_state {
 	RXRPC_CALL_UNINITIALISED,
 	RXRPC_CALL_CLIENT_AWAIT_CONN,	/* - client waiting for connection to become available */
+	RXRPC_CALL_CLIENT_PRE_SEND,	/* - client is connected, but hasn't sent anything yet */
 	RXRPC_CALL_CLIENT_SEND_REQUEST,	/* - client sending request phase */
+	RXRPC_CALL_CLIENT_AWAIT_ACK,	/* - client awaiting ACKs of request */
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
@@ -774,6 +794,11 @@ struct rxrpc_call {
 	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
 	struct sk_buff_head	rx_queue;	/* Queue of packets for this call to receive */
 	struct sk_buff_head	rx_oos_queue;	/* Queue of out of sequence packets */
+	void			*rx_dec_buffer;	/* Decryption buffer */
+	unsigned short		rx_dec_bsize;	/* rx_dec_buffer size */
+	unsigned short		rx_dec_offset;	/* Decrypted packet data offset */
+	unsigned short		rx_dec_len;	/* Decrypted packet data len */
+	rxrpc_seq_t		rx_dec_seq;	/* Packet in decryption buffer */
 
 	rxrpc_seq_t		rx_highest_seq;	/* Higest sequence number received */
 	rxrpc_seq_t		rx_consumed;	/* Highest packet consumed */
@@ -1351,9 +1376,9 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 }
 
 /*
- * out_of_band.c
+ * oob.c
  */
-void rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
+bool rxrpc_notify_socket_oob(struct rxrpc_call *call, struct sk_buff *skb);
 void rxrpc_add_pending_oob(struct rxrpc_sock *rx, struct sk_buff *skb);
 int rxrpc_sendmsg_oob(struct rxrpc_sock *rx, struct msghdr *msg, size_t len);
 

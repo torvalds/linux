@@ -1826,9 +1826,13 @@ static bool asus_device_present;
 
 static int asus_acpi_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	struct asus_laptop *asus;
 	int result;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	pr_notice("Asus Laptop Support version %s\n",
 		  ASUS_LAPTOP_VERSION);

@@ -395,6 +395,8 @@ static const struct hid_device_id hid_battery_quirks[] = {
 	  HID_BATTERY_QUIRK_AVOID_QUERY },
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ELAN, I2C_DEVICE_ID_CHROMEBOOK_TROGDOR_POMPOM),
 	  HID_BATTERY_QUIRK_AVOID_QUERY },
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ELAN, I2C_DEVICE_ID_SURFACE_PRO_12IN),
+	  HID_BATTERY_QUIRK_IGNORE },
 	/*
 	 * Elan HID touchscreens seem to all report a non present battery,
 	 * set HID_BATTERY_QUIRK_IGNORE for all Elan I2C and USB HID devices.
@@ -519,6 +521,13 @@ static struct hid_battery *hidinput_find_battery(struct hid_device *dev,
 	return NULL;
 }
 
+static void hidinput_cleanup_battery(void *res)
+{
+	struct hid_battery *bat = res;
+
+	list_del(&bat->list);
+}
+
 static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 				  struct hid_field *field, bool is_percentage)
 {
@@ -610,6 +619,12 @@ static int hidinput_setup_battery(struct hid_device *dev, unsigned report_type,
 
 	power_supply_powers(bat->ps, &dev->dev);
 	list_add_tail(&bat->list, &dev->batteries);
+
+	error = devm_add_action_or_reset(&dev->dev,
+					 hidinput_cleanup_battery, bat);
+	if (error)
+		return error;
+
 	return 0;
 
 err_free_name:

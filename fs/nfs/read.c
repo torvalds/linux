@@ -132,8 +132,30 @@ static void nfs_readpage_release(struct nfs_page *req, int error)
 
 static void nfs_page_group_set_uptodate(struct nfs_page *req)
 {
-	if (nfs_page_group_sync_on_bit(req, PG_UPTODATE))
+	bool uptodate = false;
+
+	nfs_page_group_lock(req);
+	if (!test_bit(PG_READ_FAILED, &req->wb_head->wb_flags) &&
+	    nfs_page_group_sync_on_bit_locked(req, PG_UPTODATE))
+		uptodate = true;
+	nfs_page_group_unlock(req);
+
+	if (uptodate)
 		folio_mark_uptodate(nfs_page_to_folio(req));
+}
+
+static void nfs_page_group_mark_read_failed(struct nfs_page *req)
+{
+	struct nfs_page *tmp;
+
+	nfs_page_group_lock(req);
+	set_bit(PG_READ_FAILED, &req->wb_head->wb_flags);
+	tmp = req;
+	do {
+		clear_bit(PG_UPTODATE, &tmp->wb_flags);
+		tmp = tmp->wb_this_page;
+	} while (tmp != req);
+	nfs_page_group_unlock(req);
 }
 
 static void nfs_read_completion(struct nfs_pgio_header *hdr)
@@ -172,6 +194,7 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 			if (bytes <= hdr->good_bytes)
 				nfs_page_group_set_uptodate(req);
 			else {
+				nfs_page_group_mark_read_failed(req);
 				error = hdr->error;
 				xchg(&nfs_req_openctx(req)->error, error);
 			}

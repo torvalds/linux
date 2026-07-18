@@ -1523,7 +1523,7 @@ int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 void ath12k_dp_htt_htc_t2h_msg_handler(struct ath12k_base *ab,
 				       struct sk_buff *skb);
 int ath12k_dp_htt_tlv_iter(struct ath12k_base *ab, const void *ptr, size_t len,
-			   int (*iter)(struct ath12k_base *ar, u16 tag, u16 len,
+			   int (*iter)(struct ath12k_base *ab, u16 tag, u16 len,
 				       const void *ptr, void *data),
 				       void *data);
 int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab);

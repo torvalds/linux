@@ -1735,6 +1735,17 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 		goto fail;
 	}
 
+	/*
+	 * The kernel may reduce nr_hw_queues (e.g. capped to nr_cpu_ids).
+	 * Cap nthreads to the actual queue count to avoid creating extra
+	 * handler threads that will hang during device removal.
+	 *
+	 * per_io_tasks mode is excluded: threads interleave across all
+	 * queues so nthreads > nr_hw_queues is valid and intentional.
+	 */
+	if (!ctx->per_io_tasks && dev->nthreads > info->nr_hw_queues)
+		dev->nthreads = info->nr_hw_queues;
+
 	ret = ublk_start_daemon(ctx, dev);
 	ublk_dbg(UBLK_DBG_DEV, "%s: daemon exit %d\n", __func__, ret);
 	if (ret < 0)

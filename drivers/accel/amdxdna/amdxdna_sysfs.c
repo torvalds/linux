@@ -17,7 +17,10 @@ static ssize_t vbnv_show(struct device *dev, struct device_attribute *attr, char
 {
 	struct amdxdna_dev *xdna = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", xdna->dev_info->vbnv);
+	if (!xdna->vbnv)
+		return sprintf(buf, "\n");
+
+	return sprintf(buf, "%s\n", xdna->vbnv);
 }
 static DEVICE_ATTR_RO(vbnv);
 

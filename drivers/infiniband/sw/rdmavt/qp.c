@@ -1192,8 +1192,7 @@ int rvt_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		if (!qp->r_rq.wq) {
 			__u64 offset = 0;
 
-			ret = ib_copy_to_udata(udata, &offset,
-					       sizeof(offset));
+			ret = ib_respond_udata(udata, offset);
 			if (ret)
 				goto bail_qpn;
 		} else {

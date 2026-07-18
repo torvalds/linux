@@ -52,7 +52,7 @@ enum dc_status dcn401_enable_stream_timing(
 void dcn401_enable_stream(struct pipe_ctx *pipe_ctx);
 void dcn401_populate_mcm_luts(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		struct dc_cm2_func_luts mcm_luts,
+		const struct dc_plane_cm *cm,
 		bool lut_bank_a);
 void dcn401_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable);
 
@@ -70,9 +70,19 @@ void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
 void dcn401_prepare_bandwidth(struct dc *dc,
 		struct dc_state *context);
 
+struct block_sequence_state;
+
+void dcn401_prepare_bandwidth_sequence(struct dc *dc,
+		struct dc_state *context,
+		struct block_sequence_state *seq_state);
+
 void dcn401_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context);
+
+void dcn401_optimize_bandwidth_sequence(struct dc *dc,
+		struct dc_state *context,
+		struct block_sequence_state *seq_state);
 
 void dcn401_dmub_hw_control_lock(struct dc *dc,
 		struct dc_state *context,

@@ -259,31 +259,31 @@ static struct {
 #endif
 
 static const struct pci_device_id bnx2x_pci_tbl[] = {
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712), BCM57712 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_MF), BCM57712_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_VF), BCM57712_VF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800), BCM57800 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_MF), BCM57800_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_VF), BCM57800_VF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810), BCM57810 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), BCM57810_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_O), BCM57840_O },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_4_10), BCM57840_4_10 },
-	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_4_10), BCM57840_4_10 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_2_20), BCM57840_2_20 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_VF), BCM57810_VF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MFO), BCM57840_MFO },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
-	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_VF), BCM57840_VF },
-	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_VF), BCM57840_VF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), BCM57811 },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), BCM57811_MF },
-	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_VF), BCM57811_VF },
-	{ 0 }
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), .driver_data = BCM57710 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), .driver_data = BCM57711 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), .driver_data = BCM57711E },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712), .driver_data = BCM57712 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_MF), .driver_data = BCM57712_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57712_VF), .driver_data = BCM57712_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800), .driver_data = BCM57800 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_MF), .driver_data = BCM57800_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57800_VF), .driver_data = BCM57800_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810), .driver_data = BCM57810 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), .driver_data = BCM57810_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_O), .driver_data = BCM57840_O },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_4_10), .driver_data = BCM57840_4_10 },
+	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_4_10), .driver_data = BCM57840_4_10 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_2_20), .driver_data = BCM57840_2_20 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_VF), .driver_data = BCM57810_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MFO), .driver_data = BCM57840_MFO },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), .driver_data = BCM57840_MF },
+	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_MF), .driver_data = BCM57840_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_VF), .driver_data = BCM57840_VF },
+	{ PCI_VDEVICE(QLOGIC,	PCI_DEVICE_ID_NX2_57840_VF), .driver_data = BCM57840_VF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), .driver_data = BCM57811 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), .driver_data = BCM57811_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_VF), .driver_data = BCM57811_VF },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, bnx2x_pci_tbl);
@@ -13893,6 +13893,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 
 	rc = bnx2x_init_dev(bp, pdev, dev, ent->driver_data);
 	if (rc < 0) {
+		pci_set_drvdata(pdev, NULL);
 		free_netdev(dev);
 		return rc;
 	}
@@ -13932,13 +13933,13 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 		dev_err(&bp->pdev->dev,
 			"Cannot map doorbell space, aborting\n");
 		rc = -ENOMEM;
-		goto init_one_freemem;
+		goto init_one_vf_pci_dealloc;
 	}
 
 	if (IS_VF(bp)) {
 		rc = bnx2x_vfpf_acquire(bp, tx_count, rx_count);
 		if (rc)
-			goto init_one_freemem;
+			goto init_one_vf_pci_dealloc;
 
 #ifdef CONFIG_BNX2X_SRIOV
 		/* VF with OLD Hypervisor or old PF do not support filtering */
@@ -13952,7 +13953,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	/* Enable SRIOV if capability found in configuration space */
 	rc = bnx2x_iov_init_one(bp, int_mode, BNX2X_MAX_NUM_OF_VFS);
 	if (rc)
-		goto init_one_freemem;
+		goto init_one_vfpf_release;
 
 	/* calc qm_cid_count */
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp);
@@ -13971,7 +13972,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	rc = bnx2x_set_int_mode(bp);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot set interrupts\n");
-		goto init_one_freemem;
+		goto init_one_iov_remove;
 	}
 	BNX2X_DEV_INFO("set interrupts successfully\n");
 
@@ -13979,7 +13980,7 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	rc = register_netdev(dev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
-		goto init_one_freemem;
+		goto init_one_disable_msi;
 	}
 	BNX2X_DEV_INFO("device name after netdev register %s\n", dev->name);
 
@@ -14001,6 +14002,20 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 
 	return 0;
 
+init_one_disable_msi:
+	bnx2x_disable_msi(bp);
+
+init_one_iov_remove:
+	bnx2x_iov_remove_one(bp);
+
+init_one_vfpf_release:
+	if (IS_VF(bp))
+		bnx2x_vfpf_release(bp);
+
+init_one_vf_pci_dealloc:
+	if (IS_VF(bp))
+		bnx2x_vf_pci_dealloc(bp);
+
 init_one_freemem:
 	bnx2x_free_mem_bp(bp);
 
@@ -14011,6 +14026,7 @@ init_one_exit:
 	if (IS_PF(bp) && bp->doorbells)
 		iounmap(bp->doorbells);
 
+	pci_set_drvdata(pdev, NULL);
 	free_netdev(dev);
 
 	if (atomic_read(&pdev->enable_cnt) == 1)

@@ -127,41 +127,6 @@ static int smu10_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int smu10_init_dynamic_state_adjustment_rule_settings(
-							struct pp_hwmgr *hwmgr)
-{
-	int count = 8;
-	struct phm_clock_voltage_dependency_table *table_clk_vlt;
-
-	table_clk_vlt = kzalloc_flex(*table_clk_vlt, entries, count);
-
-	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate memory!\n");
-		return -ENOMEM;
-	}
-
-	table_clk_vlt->count = count;
-	table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_0;
-	table_clk_vlt->entries[0].v = 0;
-	table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_1;
-	table_clk_vlt->entries[1].v = 1;
-	table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_2;
-	table_clk_vlt->entries[2].v = 2;
-	table_clk_vlt->entries[3].clk = PP_DAL_POWERLEVEL_3;
-	table_clk_vlt->entries[3].v = 3;
-	table_clk_vlt->entries[4].clk = PP_DAL_POWERLEVEL_4;
-	table_clk_vlt->entries[4].v = 4;
-	table_clk_vlt->entries[5].clk = PP_DAL_POWERLEVEL_5;
-	table_clk_vlt->entries[5].v = 5;
-	table_clk_vlt->entries[6].clk = PP_DAL_POWERLEVEL_6;
-	table_clk_vlt->entries[6].v = 6;
-	table_clk_vlt->entries[7].clk = PP_DAL_POWERLEVEL_7;
-	table_clk_vlt->entries[7].v = 7;
-	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = table_clk_vlt;
-
-	return 0;
-}
-
 static int smu10_get_system_info_data(struct pp_hwmgr *hwmgr)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)hwmgr->backend;
@@ -174,8 +139,6 @@ static int smu10_get_system_info_data(struct pp_hwmgr *hwmgr)
 
 	smu10_construct_max_power_limits_table (hwmgr,
 				    &hwmgr->dyn_state.max_clock_voltage_on_ac);
-
-	smu10_init_dynamic_state_adjustment_rule_settings(hwmgr);
 
 	return 0;
 }
@@ -611,9 +574,6 @@ static int smu10_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 	kfree(pinfo->vdd_dep_on_phyclk);
 	pinfo->vdd_dep_on_phyclk = NULL;
 
-	kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
-	hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
-
 	kfree(hwmgr->backend);
 	hwmgr->backend = NULL;
 
@@ -960,12 +920,6 @@ static int smu10_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time
 		data->cc6_setting_changed = true;
 	}
 	return 0;
-}
-
-static int smu10_get_dal_power_level(struct pp_hwmgr *hwmgr,
-		struct amd_pp_simple_clock_info *info)
-{
-	return -EINVAL;
 }
 
 static int smu10_force_clock_level(struct pp_hwmgr *hwmgr,
@@ -1663,7 +1617,6 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.store_cc6_data = smu10_store_cc6_data,
 	.force_clock_level = smu10_force_clock_level,
 	.emit_clock_levels = smu10_emit_clock_levels,
-	.get_dal_power_level = smu10_get_dal_power_level,
 	.get_performance_level = smu10_get_performance_level,
 	.get_current_shallow_sleep_clocks = smu10_get_current_shallow_sleep_clocks,
 	.get_clock_by_type_with_latency = smu10_get_clock_by_type_with_latency,

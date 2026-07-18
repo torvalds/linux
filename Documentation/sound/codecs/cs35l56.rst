@@ -40,7 +40,7 @@ There are two drivers in the kernel
 
 *For systems using SoundWire*: sound/soc/codecs/cs35l56.c and associated files
 
-*For systems using HDA*: sound/pci/hda/cs35l56_hda.c
+*For systems using HDA*: sound/hda/codecs/side-codecs/cs35l56_hda.c
 
 Firmware
 ========

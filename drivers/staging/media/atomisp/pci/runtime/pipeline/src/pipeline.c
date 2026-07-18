@@ -575,9 +575,8 @@ static int pipeline_stage_create(
 	binary = stage_desc->binary;
 	firmware = stage_desc->firmware;
 	vf_frame = stage_desc->vf_frame;
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		out_frame[i] = stage_desc->out_frame[i];
-	}
 
 	stage = kvzalloc_obj(*stage);
 	if (!stage) {

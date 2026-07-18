@@ -5,8 +5,10 @@
 #include <linux/types.h>
 
 struct perf_sample;
+struct record_opts;
 struct thread;
 
+void add_leaf_frame_caller_opts_aarch64(struct record_opts *opts);
 u64 get_leaf_frame_caller_aarch64(struct perf_sample *sample, struct thread *thread, int user_idx);
 
 #endif /* __PERF_ARM_FRAME_POINTER_UNWIND_SUPPORT_H */

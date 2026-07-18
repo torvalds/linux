@@ -16,6 +16,7 @@
 #include <linux/mfd/samsung/irq.h>
 #include <linux/mfd/samsung/s2mps11.h>
 #include <linux/mfd/samsung/s2mps13.h>
+#include <linux/mfd/samsung/s2mu005.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm.h>
@@ -105,22 +106,39 @@ static const struct mfd_cell s2mpu05_devs[] = {
 	MFD_CELL_RES("s2mps15-rtc", s2mpu05_rtc_resources),
 };
 
+static const struct resource s2mu005_muic_resources[] = {
+	DEFINE_RES_IRQ_NAMED(S2MU005_IRQ_MUIC_ATTACH, "attach"),
+	DEFINE_RES_IRQ_NAMED(S2MU005_IRQ_MUIC_DETACH, "detach"),
+};
+
+static const struct mfd_cell s2mu005_devs[] = {
+	MFD_CELL_NAME("s2mu005-charger"),
+	MFD_CELL_OF("s2mu005-flash", NULL, NULL, 0, 0, "samsung,s2mu005-flash"),
+	MFD_CELL_OF("s2mu005-muic", s2mu005_muic_resources, NULL, 0, 0, "samsung,s2mu005-muic"),
+	MFD_CELL_OF("s2mu005-rgb", NULL, NULL, 0, 0, "samsung,s2mu005-rgb"),
+};
+
 static void sec_pmic_dump_rev(struct sec_pmic_dev *sec_pmic)
 {
-	unsigned int val;
+	unsigned int reg, mask, val;
 
-	/* For s2mpg1x, the revision is in a different regmap */
 	switch (sec_pmic->device_type) {
 	case S2MPG10:
 	case S2MPG11:
+		/* For s2mpg1x, the revision is in a different regmap */
 		return;
-	default:
+	case S2MU005:
+		reg = S2MU005_REG_ID;
+		mask = S2MU005_ID_MASK;
 		break;
+	default:
+		/* For other device types, REG_ID is always the first register. */
+		reg = S2MPS11_REG_ID;
+		mask = ~0;
 	}
 
-	/* For each device type, the REG_ID is always the first register */
-	if (!regmap_read(sec_pmic->regmap_pmic, S2MPS11_REG_ID, &val))
-		dev_dbg(sec_pmic->dev, "Revision: 0x%x\n", val);
+	if (!regmap_read(sec_pmic->regmap_pmic, reg, &val))
+		dev_dbg(sec_pmic->dev, "Revision: 0x%x\n", field_get(mask, val));
 }
 
 static void sec_pmic_configure(struct sec_pmic_dev *sec_pmic)
@@ -203,6 +221,9 @@ int sec_pmic_probe(struct device *dev, int device_type, unsigned int irq,
 	if (IS_ERR(irq_data))
 		return PTR_ERR(irq_data);
 
+	dev->coherent_dma_mask = 0;
+	dev->dma_mask = &dev->coherent_dma_mask;
+
 	pm_runtime_set_active(sec_pmic->dev);
 
 	switch (sec_pmic->device_type) {
@@ -249,6 +270,10 @@ int sec_pmic_probe(struct device *dev, int device_type, unsigned int irq,
 	case S2MPU05:
 		sec_devs = s2mpu05_devs;
 		num_sec_devs = ARRAY_SIZE(s2mpu05_devs);
+		break;
+	case S2MU005:
+		sec_devs = s2mu005_devs;
+		num_sec_devs = ARRAY_SIZE(s2mu005_devs);
 		break;
 	default:
 		return dev_err_probe(sec_pmic->dev, -EINVAL,

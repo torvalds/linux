@@ -1,0 +1,3 @@
+bench_transmute_ref_static_size:
+	mov rax, rdi
+	ret

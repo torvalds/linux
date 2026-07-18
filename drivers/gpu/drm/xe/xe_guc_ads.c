@@ -360,6 +360,9 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 	if (XE_GT_WA(gt, 14020001231))
 		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
 				 GUC_WORKAROUND_KLV_DISABLE_PSMI_INTERRUPTS_AT_C6_ENTRY_RESTORE_AT_EXIT);
+	if (XE_GT_WA(gt, 14025515070) && GUC_FIRMWARE_VER_AT_LEAST(&gt->uc.guc, 70, 53))
+		guc_waklv_enable(ads, NULL, 0, &offset, &remain,
+				 GUC_WA_KLV_CLR_CS_INDIRECT_RING_STATE_IF_IDLE_AT_CTX_REG);
 
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
@@ -512,12 +515,9 @@ static void guc_golden_lrc_init(struct xe_guc_ads *ads)
 		 * that starts after the execlists LRC registers. This is
 		 * required to allow the GuC to restore just the engine state
 		 * when a watchdog reset occurs.
-		 * We calculate the engine state size by removing the size of
-		 * what comes before it in the context image (which is identical
-		 * on all engines).
 		 */
 		ads_blob_write(ads, ads.eng_state_size[guc_class],
-			       real_size - xe_lrc_skip_size(xe));
+			       xe_lrc_engine_state_size(gt, class));
 		ads_blob_write(ads, ads.golden_context_lrca[guc_class],
 			       addr_ggtt);
 
@@ -742,10 +742,8 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 		struct xe_reg reg;
 		bool skip;
 	} *e, extra_regs[] = {
-		{ .reg = RING_MODE(hwe->mmio_base),			},
 		{ .reg = RING_HWS_PGA(hwe->mmio_base),			},
 		{ .reg = RING_IMR(hwe->mmio_base),			},
-		{ .reg = RCU_MODE, .skip = hwe != hwe_rcs_reset_domain	},
 		{ .reg = CCS_MODE,
 		  .skip = hwe != hwe_rcs_reset_domain || !xe_gt_ccs_mode_enabled(hwe->gt) },
 	};
@@ -769,6 +767,11 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 						  XELP_LNCFCMOCS(i), count++);
 		}
 	}
+
+	if (XE_GT_WA(hwe->gt, 16023105232))
+		guc_mmio_regset_write_one(ads, regset_map,
+					  RING_IDLEDLY(hwe->mmio_base),
+					  count++);
 
 	return count;
 }

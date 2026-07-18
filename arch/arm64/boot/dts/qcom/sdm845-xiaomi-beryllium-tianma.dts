@@ -6,7 +6,7 @@
 
 / {
 	model = "Xiaomi Pocophone F1 (Tianma)";
-	compatible = "xiaomi,beryllium", "qcom,sdm845";
+	compatible = "xiaomi,beryllium-tianma", "xiaomi,beryllium", "qcom,sdm845";
 };
 
 &display_panel {

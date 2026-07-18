@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/display_parent_interface.h>
 
 #include "i915_drv.h"
 #include "i915_iosf_mbi.h"
@@ -229,3 +230,10 @@ void vlv_iosf_sb_fini(struct drm_i915_private *i915)
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		mutex_destroy(&i915->vlv_iosf_sb.lock);
 }
+
+const struct intel_display_vlv_iosf_interface i915_display_vlv_iosf_interface = {
+	.get = vlv_iosf_sb_get,
+	.put = vlv_iosf_sb_put,
+	.read = vlv_iosf_sb_read,
+	.write = vlv_iosf_sb_write,
+};

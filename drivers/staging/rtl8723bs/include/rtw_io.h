@@ -18,24 +18,8 @@ struct _io_ops {
 		int (*_write8)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
 		int (*_write16)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
 		int (*_write32)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
-		int (*_writeN)(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata);
 
-		int (*_write8_async)(struct intf_hdl *pintfhdl, u32 addr, u8 val);
-		int (*_write16_async)(struct intf_hdl *pintfhdl, u32 addr, u16 val);
-		int (*_write32_async)(struct intf_hdl *pintfhdl, u32 addr, u32 val);
-
-		void (*_read_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-		void (*_write_mem)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-
-		u32 (*_read_interrupt)(struct intf_hdl *pintfhdl, u32 addr);
-
-		u32 (*_read_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
 		u32 (*_write_port)(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pmem);
-
-		u32 (*_write_scsi)(struct intf_hdl *pintfhdl, u32 cnt, u8 *pmem);
-
-		void (*_read_port_cancel)(struct intf_hdl *pintfhdl);
-		void (*_write_port_cancel)(struct intf_hdl *pintfhdl);
 };
 
 struct	intf_hdl {

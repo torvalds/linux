@@ -1,4 +1,13 @@
 /*
+ * Note: This header is the authoritative source for the DMUB firmware
+ * command interface. In the Linux kernel, it is maintained as an
+ * auto-generated copy from an AMD internal repository.
+ *
+ * This file follows Doxygen formatting for firmware standards and
+ * is NOT intended to be kernel-doc compliant.
+ */
+
+/*
  * Copyright 2019 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -94,6 +103,35 @@
  */
 #define ABM_MAX_NUM_OF_HG_BINS              64
 
+/**
+ * Flag from driver to indicate that CACP should be disabled gradually
+ * by slowly reversing all programming and pixel compensation.
+ */
+#define SET_CACP_PIPE_GRADUALLY_DISABLE           0
+
+/**
+ * Flag from driver to indicate that CACP should be disabled immediately
+ * and undo all programming and pixel compensation.
+ */
+#define SET_CACP_PIPE_IMMEDIATELY_DISABLE         255
+
+/**
+ * Flag from driver to indicate that CACP should be disabled immediately
+ * and keep the current programming and pixel compensation.
+ */
+#define SET_CACP_PIPE_IMMEDIATE_KEEP_GAIN_DISABLE 254
+
+/**
+ * Flag from driver to indicate that CACP should be disabled immediately
+ * on the next abm vertical interrupt
+ */
+#define SET_CACP_PIPE_IMMEDIATE_ON_NEXT_DISABLE 253
+
+/**
+ * Flag from driver to set the current CACP pipe index or CACP operating level.
+ */
+#define SET_CACP_PIPE_NORMAL                      1
+
 /* Maximum number of SubVP streams */
 #define DMUB_MAX_SUBVP_STREAMS 2
 
@@ -178,6 +216,26 @@
 #define DMUB_CMD_ABM_CONTROL_VERSION_1 0x1
 
 /**
+ * CACP control version legacy
+ */
+#define DMUB_CMD_CACP_CONTROL_VERSION_UNKNOWN 0x0
+
+/**
+ * CACP control version with multi edp support
+ */
+#define DMUB_CMD_CACP_CONTROL_VERSION_1 0x1
+
+/**
+ * CACP control mode with dynamic switch between v1 and v2
+ */
+#define DMUB_CMD_CACP_CONTROL_MODE_0 0x0
+
+/**
+ * CACP control version with forced configure to v1 on new ABM HW
+ */
+#define DMUB_CMD_CACP_CONTROL_MODE_1 0x1
+
+/**
  * Physical framebuffer address location, 64-bit.
  */
 #ifndef PHYSICAL_ADDRESS_LOC
@@ -188,14 +246,14 @@
  * OS/FW agnostic memcpy
  */
 #ifndef dmub_memcpy
-#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
+#define dmub_memcpy(dest, source, bytes) ((void)memcpy((dest), (source), (bytes)))
 #endif
 
 /**
  * OS/FW agnostic memset
  */
 #ifndef dmub_memset
-#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#define dmub_memset(dest, val, bytes) ((void)memset((dest), (val), (bytes)))
 #endif
 
 /**
@@ -1445,6 +1503,11 @@ enum dmub_gpint_command {
 	DMUB_GPINT__REPLAY_RESIDENCY = 14,
 
 	/**
+	 * DESC: Set CACP internal core configuration
+	 */
+	DMUB_GPINT__TRIGGER_CACP = 18,
+
+	/**
 	 * DESC: Copy bounding box to the host.
 	 * ARGS: Version of bounding box to copy
 	 * RETURN: Result of copying bounding box
@@ -1546,8 +1609,9 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS residency in microseconds
 	 * ARGS: 0 - Return IPS1 residency
 	 *       1 - Return IPS2 residency
-	 *       2 - Return IPS1_RCG residency
+	 *       2 - Return IPS0_RCG residency
 	 *       3 - Return IPS1_ONO2_ON residency
+	 *       4 - Return IPS1_Z8_RETENTION residency
 	 * RETURN: Total residency in microseconds - lower 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_LO = 124,
@@ -1567,17 +1631,18 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS residency
 	 * ARGS: 0 - Return IPS1 residency
 	 *       1 - Return IPS2 residency
-	 *       2 - Return IPS1_RCG residency
+	 *       2 - Return IPS0_RCG residency
 	 *       3 - Return IPS1_ONO2_ON residency
+	 *       4 - Return IPS1_Z8_RETENTION residency
 	 * RETURN: Total residency in milli-percent.
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT = 127,
 	/**
-	 * DESC: Gets IPS1_RCG histogram counts
+	 * DESC: Gets IPS0_RCG histogram counts
 	 * ARGS: Bucket index
 	 * RETURN: Total count for the bucket
 	 */
-	DMUB_GPINT__GET_IPS1_RCG_HISTOGRAM_COUNTER = 128,
+	DMUB_GPINT__GET_IPS0_RCG_HISTOGRAM_COUNTER = 128,
 	/**
 	 * DESC: Gets IPS1_ONO2_ON histogram counts
 	 * ARGS: Bucket index
@@ -1588,8 +1653,9 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS entry counter during residency measurement
 	 * ARGS: 0 - Return IPS1 entry counts
 	 *       1 - Return IPS2 entry counts
-	 *       2 - Return IPS1_RCG entry counts
-	 *       3 - Return IPS2_ONO2_ON entry counts
+	 *       2 - Return IPS0_RCG entry counts
+	 *       3 - Return IPS1_ONO2_ON entry counts
+	 *       4 - Return IPS1_Z8_RETENTION entry counts
 	 * RETURN: Entry counter for selected IPS mode
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER = 130,
@@ -1597,8 +1663,9 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS inactive residency in microseconds
 	 * ARGS: 0 - Return IPS1_MAX residency
 	 *       1 - Return IPS2 residency
-	 *       2 - Return IPS1_RCG residency
+	 *       2 - Return IPS0_RCG residency
 	 *       3 - Return IPS1_ONO2_ON residency
+	 *       4 - Return IPS1_Z8_RETENTION residency
 	 * RETURN: Total inactive residency in microseconds - lower 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_LO = 131,
@@ -1606,8 +1673,9 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS inactive residency in microseconds
 	 * ARGS: 0 - Return IPS1_MAX residency
 	 *       1 - Return IPS2 residency
-	 *       2 - Return IPS1_RCG residency
+	 *       2 - Return IPS0_RCG residency
 	 *       3 - Return IPS1_ONO2_ON residency
+	 *       4 - Return IPS1_Z8_RETENTION residency
 	 * RETURN: Total inactive residency in microseconds - upper 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_HI = 132,
@@ -1615,8 +1683,9 @@ enum dmub_gpint_command {
 	 * DESC: Gets IPS residency in microseconds
 	 * ARGS: 0 - Return IPS1 residency
 	 *       1 - Return IPS2 residency
-	 *       2 - Return IPS1_RCG residency
+	 *       2 - Return IPS0_RCG residency
 	 *       3 - Return IPS1_ONO2_ON residency
+	 *       4 - Return IPS1_Z8_RETENTION residency
 	 * RETURN: Total residency in microseconds - upper 32 bits
 	 */
 	DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_HI = 133,
@@ -1633,6 +1702,17 @@ enum dmub_gpint_command {
 	 * ARGS: 1 - Power off
 	 */
 	DMUB_GPINT__PANEL_POWER_OFF_SEQ = 138,
+	/**
+	 * DESC: Gets panel polarity bias.
+	 * ARGS: 0 - Get panel polarity bias
+	 */
+	DMUB_GPINT__PANEL_POLARITY_GET_BIAS = 139,
+	/**
+	 * DESC: Enables panel polarity.
+	 * ARGS: 0 - Disable panel polarity
+	 *       1 - Enable panel polarity
+	 */
+	DMUB_GPINT__PANEL_POLARITY_DEBUG_ENABLE = 140,
 };
 
 /**
@@ -1731,28 +1811,13 @@ enum dmub_inbox0_command {
  *
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
+ * Note that command IDs 1-4 have been deprecated.
  */
 enum dmub_cmd_type {
 	/**
 	 * Invalid command.
 	 */
 	DMUB_CMD__NULL = 0,
-	/**
-	 * Read modify write register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE = 1,
-	/**
-	 * Field update register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
-	/**
-	 * Burst write sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
-	/**
-	 * Reg wait sequence offload.
-	 */
-	DMUB_CMD__REG_REG_WAIT = 4,
 	/**
 	 * Workaround to avoid HUBP underflow during NV12 playback.
 	 */
@@ -1853,6 +1918,11 @@ enum dmub_cmd_type {
 	DMUB_CMD__DPIA_HPD_INT_ENABLE = 86,
 
 	/**
+	 * Command type used for all CACP commands.
+	 */
+	DMUB_CMD__CACP = 87,
+
+	/**
 	 * Command type used for all PSP commands.
 	 */
 	DMUB_CMD__PSP = 88,
@@ -1896,6 +1966,11 @@ enum dmub_cmd_type {
 	 * Command type use for boot time crc commands.
 	 */
 	DMUB_CMD__BOOT_TIME_CRC = 96,
+
+	/**
+	 * Command type use for all Panel Polarity commands.
+	 */
+	DMUB_CMD__PANEL_POLARITY = 97,
 
 	/**
 	 * Command type use for VBIOS shared commands.
@@ -1967,98 +2042,6 @@ struct dmub_cmd_header {
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
 
-/*
- * struct dmub_cmd_read_modify_write_sequence - Read modify write
- *
- * 60 payload bytes can hold up to 5 sets of read modify writes,
- * each take 3 dwords.
- *
- * number of sequences = header.payload_bytes / sizeof(struct dmub_cmd_read_modify_write_sequence)
- *
- * modify_mask = 0xffff'ffff means all fields are going to be updated.  in this case
- * command parser will skip the read and we can use modify_mask = 0xffff'ffff as reg write
- */
-struct dmub_cmd_read_modify_write_sequence {
-	uint32_t addr; /**< register address */
-	uint32_t modify_mask; /**< modify mask */
-	uint32_t modify_value; /**< modify value */
-};
-
-/**
- * Maximum number of ops in read modify write sequence.
- */
-#define DMUB_READ_MODIFY_WRITE_SEQ__MAX 5
-
-/**
- * struct dmub_cmd_read_modify_write_sequence - Read modify write command.
- */
-struct dmub_rb_cmd_read_modify_write {
-	struct dmub_cmd_header header;  /**< command header */
-	/**
-	 * Read modify write sequence.
-	 */
-	struct dmub_cmd_read_modify_write_sequence seq[DMUB_READ_MODIFY_WRITE_SEQ__MAX];
-};
-
-/*
- * Update a register with specified masks and values sequeunce
- *
- * 60 payload bytes can hold address + up to 7 sets of mask/value combo, each take 2 dword
- *
- * number of field update sequence = (header.payload_bytes - sizeof(addr)) / sizeof(struct read_modify_write_sequence)
- *
- *
- * USE CASE:
- *   1. auto-increment register where additional read would update pointer and produce wrong result
- *   2. toggle a bit without read in the middle
- */
-
-struct dmub_cmd_reg_field_update_sequence {
-	uint32_t modify_mask; /**< 0xffff'ffff to skip initial read */
-	uint32_t modify_value; /**< value to update with */
-};
-
-/**
- * Maximum number of ops in field update sequence.
- */
-#define DMUB_REG_FIELD_UPDATE_SEQ__MAX 7
-
-/**
- * struct dmub_rb_cmd_reg_field_update_sequence - Field update command.
- */
-struct dmub_rb_cmd_reg_field_update_sequence {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register address */
-	/**
-	 * Field update sequence.
-	 */
-	struct dmub_cmd_reg_field_update_sequence seq[DMUB_REG_FIELD_UPDATE_SEQ__MAX];
-};
-
-
-/**
- * Maximum number of burst write values.
- */
-#define DMUB_BURST_WRITE_VALUES__MAX  14
-
-/*
- * struct dmub_rb_cmd_burst_write - Burst write
- *
- * support use case such as writing out LUTs.
- *
- * 60 payload bytes can hold up to 14 values to write to given address
- *
- * number of payload = header.payload_bytes / sizeof(struct read_modify_write_sequence)
- */
-struct dmub_rb_cmd_burst_write {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register start address */
-	/**
-	 * Burst write register values.
-	 */
-	uint32_t write_values[DMUB_BURST_WRITE_VALUES__MAX];
-};
-
 /**
  * struct dmub_rb_cmd_common - Common command header
  */
@@ -2068,24 +2051,6 @@ struct dmub_rb_cmd_common {
 	 * Padding to RB_CMD_SIZE
 	 */
 	uint8_t cmd_buffer[DMUB_RB_CMD_SIZE - sizeof(struct dmub_cmd_header)];
-};
-
-/**
- * struct dmub_cmd_reg_wait_data - Register wait data
- */
-struct dmub_cmd_reg_wait_data {
-	uint32_t addr; /**< Register address */
-	uint32_t mask; /**< Mask for register bits */
-	uint32_t condition_field_value; /**< Value to wait for */
-	uint32_t time_out_us; /**< Time out for reg wait in microseconds */
-};
-
-/**
- * struct dmub_rb_cmd_reg_wait - Register wait command
- */
-struct dmub_rb_cmd_reg_wait {
-	struct dmub_cmd_header header; /**< Command header */
-	struct dmub_cmd_reg_wait_data reg_wait; /**< Register wait data */
 };
 
 /**
@@ -2182,7 +2147,7 @@ enum dmub_cmd_cab_type {
 };
 
 /**
- * struct dmub_rb_cmd_cab - CAB command data.
+ * struct dmub_rb_cmd_cab_for_ss - CAB command data.
  */
 struct dmub_rb_cmd_cab_for_ss {
 	struct dmub_cmd_header header;
@@ -2344,24 +2309,24 @@ struct dmub_cmd_lsdma_data {
 			uint32_t dst_mip_max      : 5;
 			uint32_t dst_swizzle_mode : 5;
 			uint32_t dst_mip_id       : 5;
-			uint32_t tmz              : 1;
 			uint32_t dcc              : 1;
+			uint32_t padding1         : 1;
 
 			uint32_t data_format      : 6;
-			uint32_t padding1         : 4;
+			uint32_t tmz              : 4;
 			uint32_t dst_element_size : 3;
 			uint32_t num_type         : 3;
 			uint32_t src_element_size : 3;
 			uint32_t write_compress   : 2;
-			uint32_t cache_policy_dst : 2;
-			uint32_t cache_policy_src : 2;
+			uint32_t cache_policy_dst : 3;
+			uint32_t cache_policy_src : 3;
 			uint32_t read_compress    : 2;
-			uint32_t src_dim          : 2;
-			uint32_t dst_dim          : 2;
+			uint32_t max_com          : 2;
 			uint32_t max_uncom        : 1;
 
-			uint32_t max_com          : 2;
-			uint32_t padding          : 30;
+			uint32_t dst_dim          : 2;
+			uint32_t src_dim          : 2;
+			uint32_t padding          : 28;
 		} tiled_copy_data;
 		struct lsdma_linear_copy_data {
 			uint32_t src_lo;
@@ -2371,11 +2336,18 @@ struct dmub_cmd_lsdma_data {
 			uint32_t dst_hi;
 
 			uint32_t count            : 30;
-			uint32_t cache_policy_dst : 2;
+			uint32_t pad0             : 2;
 
-			uint32_t tmz              : 1;
-			uint32_t cache_policy_src : 2;
-			uint32_t padding          : 29;
+			uint32_t tmz              : 4;
+			uint32_t cache_policy_src : 3;
+			uint32_t cache_policy_dst : 3;
+			uint32_t data_format      : 6;
+			uint32_t num_type         : 3;
+			uint32_t read_compress    : 2;
+			uint32_t write_compress   : 2;
+			uint32_t max_com          : 2;
+			uint32_t max_uncom        : 1;
+			uint32_t pad1             : 6;
 		} linear_copy_data;
 		struct lsdma_linear_sub_window_copy_data {
 			uint32_t src_lo;
@@ -2399,11 +2371,17 @@ struct dmub_cmd_lsdma_data {
 			uint32_t src_slice_pitch;
 			uint32_t dst_slice_pitch;
 
-			uint32_t tmz              : 1;
+			uint32_t tmz              : 4;
 			uint32_t element_size     : 3;
 			uint32_t src_cache_policy : 3;
 			uint32_t dst_cache_policy : 3;
-			uint32_t reserved0        : 22;
+			uint32_t data_format      : 6;
+			uint32_t num_type         : 3;
+			uint32_t read_compress    : 2;
+			uint32_t write_compress   : 2;
+			uint32_t max_com          : 2;
+			uint32_t max_uncom        : 1;
+			uint32_t reserved0        : 3;
 		} linear_sub_window_copy_data;
 		struct lsdma_reg_write_data {
 			uint32_t reg_addr;
@@ -2898,16 +2876,19 @@ struct dmub_dig_transmitter_control_data_v1_7 {
 	union {
 		uint8_t digmode; /**< enum atom_encode_mode_def */
 		uint8_t dplaneset; /**< DP voltage swing and pre-emphasis value, "DP_LANE_SET__xDB_y_zV" */
+		uint8_t txffe; /**< TxFFE settings for HDMI 2.1 */
 	} mode_laneset;
 	uint8_t lanenum; /**< Number of lanes */
 	union {
 		uint32_t symclk_10khz; /**< Symbol Clock in 10Khz */
+		uint32_t symclk_Hz; /**< Symbol clock in Hz for FRL */
 	} symclk_units;
 	uint8_t hpdsel; /**< =1: HPD1, =2: HPD2, ..., =6: HPD6, =0: HPD is not assigned */
 	uint8_t digfe_sel; /**< DIG front-end selection, bit0 means DIG0 FE is enabled */
 	uint8_t connobj_id; /**< Connector Object Id defined in ObjectId.h */
 	uint8_t HPO_instance; /**< HPO instance (0: inst0, 1: inst1) */
-	uint8_t reserved1; /**< For future use */
+	uint8_t TxFFELaneSel; /**< TxFFE lane select [3:0]
+				(bit0: lane0, bit1: lane1, bit2: lane3, bit3: lane3) */
 	uint8_t skip_phy_ssc_reduction;
 	uint8_t reserved2[2]; /**< For future use */
 	uint32_t reserved3[11]; /**< For future use */
@@ -3528,6 +3509,7 @@ enum dmub_cmd_fams_type {
 	DMUB_CMD__FAMS2_DRR_UPDATE = 5,
 	DMUB_CMD__FAMS2_FLIP = 6,
 	DMUB_CMD__FAMS2_IB_CONFIG = 7,
+	DMUB_CMD__FAMS2_IB_DEBUG_META = 8,
 };
 
 /**
@@ -4400,6 +4382,15 @@ enum dmub_cmd_replay_type {
 };
 
 /*
+ * Panel Polarity sub-types
+ */
+enum dmub_cmd_panel_polarity_type {
+	DMUB_CMD__PANEL_POLARITY_ENABLE = 0,
+	DMUB_CMD__PANEL_POLARITY_GET_BIAS = 1,
+	DMUB_CMD__PANEL_POLARITY_RESET = 2,
+};
+
+/*
  * Panel Replay sub-types
  */
 enum dmub_cmd_panel_replay_type {
@@ -4413,6 +4404,7 @@ enum dmub_cmd_panel_replay_state_update_subtype {
 	PR_STATE_UPDATE_COASTING_VTOTAL = 0x1,
 	PR_STATE_UPDATE_SYNC_MODE = 0x2,
 	PR_STATE_UPDATE_RUNTIME_FLAGS = 0x3,
+	PR_STATE_UPDATE_PSEUDO_VTOTAL = 0x4,
 };
 
 enum dmub_cmd_panel_replay_general_subtype {
@@ -6054,6 +6046,432 @@ struct dmub_rb_cmd_abm_set_event {
 };
 
 /**
+ * CACP command sub-types.
+ */
+enum dmub_cmd_cacp_type {
+	/**
+	 * Initialize parameters for CACP algorithm.
+	 * Data is passed through an indirect buffer.
+	 */
+	DMUB_CMD__CACP_INIT_CONFIG	= 0,
+	/**
+	 * Set OTG and panel HW instance.
+	 */
+	DMUB_CMD__CACP_SET_PIPE		= 1,
+	/**
+	 * Set CACP operating/aggression level.
+	 */
+	DMUB_CMD__CACP_SET_LEVEL	= 2,
+	/**
+	 * Set event: full-screen/video mode/Hdr mode
+	 */
+	DMUB_CMD__CACP_SET_EVENT	= 3,
+
+	/**
+	 * unregister vertical interrupt after steady state is reached
+	 */
+	DMUB_CMD__CACP_PAUSE	= 4,
+	/**
+	 * Set backlight: only for miniLED
+	 */
+	DMUB_CMD__CACP_SET_BACKLIGHT	= 5,
+	/**
+	 * Enable/disable fractional duty cycle for backlight PWM.
+	 */
+	DMUB_CMD__CACP_SET_PWM_FRAC	= 6,
+	/**
+	 * Get CACP Histogram
+	 */
+	DMUB_CMD__CACP_GET_HISTOGRAM = 7,
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_SET_PIPE command.
+ */
+struct dmub_cmd_cacp_set_pipe_data {
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Panel Control HW instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Controls how CACP will interpret a set pipe or set level command.
+	 */
+	uint8_t set_pipe_option;
+
+	/**
+	 * PwrSeq HW Instance.
+	 */
+	uint8_t pwrseq_inst;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_SET_PIPE command.
+ */
+struct dmub_rb_cmd_cacp_set_pipe {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_PIPE command.
+	 */
+	struct dmub_cmd_cacp_set_pipe_data cacp_set_pipe_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_SET_LEVEL command.
+ */
+struct dmub_cmd_cacp_set_level_data {
+	/**
+	 * Set current cacp operating/aggression level.
+	 */
+	uint32_t level;
+
+	/**
+	 * CACP control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_SET_LEVEL command.
+ */
+struct dmub_rb_cmd_cacp_set_level {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_SET_LEVEL command.
+	 */
+	struct dmub_cmd_cacp_set_level_data cacp_set_level_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_SET_EVENT command.
+ */
+struct dmub_cmd_cacp_set_event_data {
+	/**
+	 * Full screen mode
+	 */
+	uint8_t full_screen_mode;
+
+	/**
+	 * VariBright Scaling Enable
+	 */
+	uint8_t vb_scaling_enable;
+
+	/**
+	 * HDR mode
+	 */
+	uint8_t hdr_mode;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Transition time info
+	 */
+	uint32_t trans_info;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_SET_EVENT command.
+ */
+struct dmub_rb_cmd_cacp_set_event {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_SET_EVENT command.
+	 */
+	struct dmub_cmd_cacp_set_event_data cacp_set_event_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_INIT_CONFIG command.
+ */
+struct dmub_cmd_cacp_init_config_data {
+	/**
+	 * Location of indirect buffer used to pass init data to CACP.
+	 */
+	union dmub_addr src;
+
+	/**
+	 * Indirect buffer length.
+	 */
+	uint16_t bytes;
+
+	/**
+	 * CACP control version.
+	 */
+	uint8_t mode;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * CACP visual_confirm debug
+	 */
+	uint32_t visual_confirm;
+
+	/**
+	 * CACP customized str_scl params
+	 */
+	uint8_t strscl_valid;
+	uint8_t pad[3];
+	uint8_t strscl_sdr[4];
+	uint8_t strscl_hdr[4];
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_INIT_CONFIG command.
+ */
+struct dmub_rb_cmd_cacp_init_config {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_INIT_CONFIG command.
+	 */
+	struct dmub_cmd_cacp_init_config_data cacp_init_config_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_PAUSE command.
+ */
+
+struct dmub_cmd_cacp_pause_data {
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * OTG hw instance
+	 */
+	uint8_t otg_inst;
+
+	/**
+	 * Enable or disable CACP pause
+	 */
+	uint8_t enable;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_PAUSE command.
+ */
+struct dmub_rb_cmd_cacp_pause {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_PAUSE command.
+	 */
+	struct dmub_cmd_cacp_pause_data cacp_pause_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_SET_BACKLIGHT command.
+ */
+struct dmub_cmd_cacp_set_backlight_data {
+	/**
+	 * Number of frames to ramp to backlight user level.
+	 */
+	uint32_t frame_ramp;
+
+	/**
+	 * Requested backlight level from user.
+	 */
+	uint32_t backlight_user_level;
+
+	/**
+	 * ABM control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * AUX HW Instance.
+	 */
+	uint8_t aux_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[1];
+
+	/**
+	 * Backlight control type.
+	 * Value 0 is PWM backlight control.
+	 * Value 1 is VAUX backlight control.
+	 * Value 2 is AMD DPCD AUX backlight control.
+	 */
+	enum dmub_backlight_control_type backlight_control_type;
+
+	/**
+	 * Minimum luminance in nits.
+	 */
+	uint32_t min_luminance;
+
+	/**
+	 * Maximum luminance in nits.
+	 */
+	uint32_t max_luminance;
+
+	/**
+	 * Minimum backlight in pwm.
+	 */
+	uint32_t min_backlight_pwm;
+
+	/**
+	 * Maximum backlight in pwm.
+	 */
+	uint32_t max_backlight_pwm;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_SET_BACKLIGHT command.
+ */
+struct dmub_rb_cmd_cacp_set_backlight {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_SET_BACKLIGHT command.
+	 */
+	struct dmub_cmd_cacp_set_backlight_data cacp_set_backlight_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_SET_PWM_FRAC command.
+ */
+struct dmub_cmd_cacp_set_pwm_frac_data {
+	/**
+	 * Enable/disable fractional duty cycle for backlight PWM.
+	 * TODO: Convert to uint8_t.
+	 */
+	uint32_t fractional_pwm;
+
+	/**
+	 * CACP control version.
+	 */
+	uint8_t version;
+
+	/**
+	 * Panel Control HW instance mask.
+	 * Bit 0 is Panel Control HW instance 0.
+	 * Bit 1 is Panel Control HW instance 1.
+	 */
+	uint8_t panel_mask;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_SET_PWM_FRAC command.
+ */
+struct dmub_rb_cmd_cacp_set_pwm_frac {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__CACP_SET_PWM_FRAC command.
+	 */
+	struct dmub_cmd_cacp_set_pwm_frac_data cacp_set_pwm_frac_data;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_GET_HISTOGRAM command.
+ */
+struct dmub_rb_cmd_cacp_get_histogram {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Address where Histogram should be copied.
+	 */
+	union dmub_addr dest;
+
+	/**
+	 * Type of Histogram being queried.
+	 */
+	enum dmub_abm_histogram_type histogram_type;
+
+	/**
+	 * Indirect buffer length.
+	 */
+	uint16_t bytes;
+
+	/**
+	 * eDP panel instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__QUERY_FEATURE_CAPS command.
  */
 struct dmub_cmd_query_feature_caps_data {
@@ -6513,7 +6931,7 @@ struct dmub_rb_cmd_assr_enable {
 enum ips_residency_mode {
 	IPS_RESIDENCY__IPS1_MAX,
 	IPS_RESIDENCY__IPS2,
-	IPS_RESIDENCY__IPS1_RCG,
+	IPS_RESIDENCY__IPS1_RCG, // refers to IPS0 + RCG
 	IPS_RESIDENCY__IPS1_ONO2_ON,
 	IPS_RESIDENCY__IPS1_Z8_RETENTION,
 	IPS_RESIDENCY__PG_ONO_LAST_SEEN_IN_IPS,
@@ -6637,6 +7055,80 @@ struct dmub_cmd_pr_enable_data {
 	 */
 	uint8_t pad[2];
 };
+
+struct dmub_cmd_panel_polarity_enable_data {
+	/**
+	 * Panel Polarity enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+struct dmub_cmd_panel_polarity_reset_data {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_input {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_output {
+	/**
+	 * Accumulated Polarity Bias
+	 */
+	int32_t accumulated_bias;
+};
+
+struct dmub_rb_cmd_panel_polarity_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_enable_data data;
+};
+
+
+struct dmub_rb_cmd_panel_polarity_get_bias {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	union dmub_cmd_panel_polarity_get_bias_data {
+		struct dmub_cmd_panel_polarity_get_bias_input input; /**< Input */
+		struct dmub_cmd_panel_polarity_get_bias_output output; /**< Output */
+		uint32_t output_raw; /**< Raw data output */
+	} data;
+};
+
+struct dmub_rb_cmd_panel_polarity_reset {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_reset_data data;
+};
+
 
 /**
  * Definition of a DMUB_CMD__PR_ENABLE command.
@@ -6792,6 +7284,7 @@ struct dmub_cmd_pr_update_state_data {
 	 */
 	uint32_t coasting_vtotal;
 	uint32_t sync_mode;
+	uint32_t pseudo_vtotal;
 
 	union dmub_pr_runtime_flags pr_runtime_flags;
 };
@@ -6876,22 +7369,6 @@ union dmub_rb_cmd {
 	 * Elements shared with all commands.
 	 */
 	struct dmub_rb_cmd_common cmd_common;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE command.
-	 */
-	struct dmub_rb_cmd_read_modify_write read_modify_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ command.
-	 */
-	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_BURST_WRITE command.
-	 */
-	struct dmub_rb_cmd_burst_write burst_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_REG_WAIT command.
-	 */
-	struct dmub_rb_cmd_reg_wait reg_wait;
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL command.
 	 */
@@ -7124,6 +7601,47 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__DPIA_HPD_INT_ENABLE command.
 	 */
 	struct dmub_rb_cmd_dpia_hpd_int_enable dpia_hpd_int_enable;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_SET_PIPE command.
+	 */
+	struct dmub_rb_cmd_cacp_set_pipe cacp_set_pipe;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_SET_LEVEL command.
+	 */
+	struct dmub_rb_cmd_cacp_set_level cacp_set_level;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_SET_EVENT command.
+	 */
+	struct dmub_rb_cmd_cacp_set_event cacp_set_event;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_INIT_CONFIG command.
+	 */
+	struct dmub_rb_cmd_cacp_init_config cacp_init_config;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_PAUSE command.
+	 */
+	struct dmub_rb_cmd_cacp_pause cacp_pause;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_SET_BACKLIGHT command.
+	 */
+	struct dmub_rb_cmd_cacp_set_backlight cacp_set_backlight;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_SET_PWM_FRAC command.
+	 */
+	struct dmub_rb_cmd_cacp_set_pwm_frac cacp_set_pwm_frac;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_GET_HISTOGRAM command.
+	 */
+	struct dmub_rb_cmd_cacp_get_histogram cacp_get_histogram;
+
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
 	 */
@@ -7179,6 +7697,8 @@ union dmub_rb_cmd {
 
 	struct dmub_rb_cmd_ib ib_fams2_config;
 
+	struct dmub_rb_cmd_ib ib_fams2_debug_meta;
+
 	struct dmub_rb_cmd_fams2_drr_update fams2_drr_update;
 
 	struct dmub_rb_cmd_fams2_flip fams2_flip;
@@ -7225,6 +7745,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_pr_update_state pr_update_state;
 
 	struct dmub_rb_cmd_pr_general_cmd pr_general_cmd;
+
 	/**
 	 * Definition of a DMUB_CMD__IHC command.
 	 */
@@ -7233,6 +7754,13 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__BOOT_TIME_CRC_INIT command.
 	 */
 	struct dmub_rb_cmd_boot_time_crc_init boot_time_crc_init;
+
+	/**
+	 * Definition of a DMUB_CMD__PANEL_POLARITY_ENABLE command.
+	 */
+	struct dmub_rb_cmd_panel_polarity_enable panel_polarity_enable;
+	struct dmub_rb_cmd_panel_polarity_get_bias panel_polarity_get_bias;
+	struct dmub_rb_cmd_panel_polarity_reset panel_polarity_reset;
 };
 
 /**

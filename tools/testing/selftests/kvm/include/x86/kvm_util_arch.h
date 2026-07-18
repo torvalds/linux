@@ -11,19 +11,19 @@
 extern bool is_forced_emulation_enabled;
 
 struct pte_masks {
-	uint64_t present;
-	uint64_t writable;
-	uint64_t user;
-	uint64_t readable;
-	uint64_t executable;
-	uint64_t accessed;
-	uint64_t dirty;
-	uint64_t huge;
-	uint64_t nx;
-	uint64_t c;
-	uint64_t s;
+	u64 present;
+	u64 writable;
+	u64 user;
+	u64 readable;
+	u64 executable;
+	u64 accessed;
+	u64 dirty;
+	u64 huge;
+	u64 nx;
+	u64 c;
+	u64 s;
 
-	uint64_t always_set;
+	u64 always_set;
 };
 
 struct kvm_mmu_arch {
@@ -33,12 +33,12 @@ struct kvm_mmu_arch {
 struct kvm_mmu;
 
 struct kvm_vm_arch {
-	vm_vaddr_t gdt;
-	vm_vaddr_t tss;
-	vm_vaddr_t idt;
+	gva_t gdt;
+	gva_t tss;
+	gva_t idt;
 
-	uint64_t c_bit;
-	uint64_t s_bit;
+	u64 c_bit;
+	u64 s_bit;
 	int sev_fd;
 	bool is_pt_protected;
 };
@@ -62,7 +62,7 @@ do {											\
 				     : "+m" (mem)					\
 				     : "r" (val) : "memory");				\
 	} else {									\
-		uint64_t __old = READ_ONCE(mem);					\
+		u64 __old = READ_ONCE(mem);					\
 											\
 		__asm__ __volatile__(KVM_FEP LOCK_PREFIX "cmpxchg %[new], %[ptr]"	\
 				     : [ptr] "+m" (mem), [old] "+a" (__old)		\

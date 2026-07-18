@@ -228,10 +228,14 @@ static int fsl_xcvr_capds_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
 	struct fsl_xcvr *xcvr = snd_soc_dai_get_drvdata(dai);
+	int changed;
 
-	memcpy(xcvr->cap_ds, ucontrol->value.bytes.data, FSL_XCVR_CAPDS_SIZE);
+	changed = memcmp(xcvr->cap_ds, ucontrol->value.bytes.data,
+			 sizeof(xcvr->cap_ds)) != 0;
+	memcpy(xcvr->cap_ds, ucontrol->value.bytes.data,
+	       sizeof(xcvr->cap_ds));
 
-	return 0;
+	return changed;
 }
 
 static struct snd_kcontrol_new fsl_xcvr_earc_capds_kctl = {
@@ -1040,10 +1044,15 @@ static int fsl_xcvr_tx_cs_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
 	struct fsl_xcvr *xcvr = snd_soc_dai_get_drvdata(dai);
+	int changed;
 
-	memcpy(xcvr->tx_iec958.status, ucontrol->value.iec958.status, 24);
+	changed = memcmp(xcvr->tx_iec958.status,
+			 ucontrol->value.iec958.status,
+			 sizeof(xcvr->tx_iec958.status)) != 0;
+	memcpy(xcvr->tx_iec958.status, ucontrol->value.iec958.status,
+	       sizeof(xcvr->tx_iec958.status));
 
-	return 0;
+	return changed;
 }
 
 static struct snd_kcontrol_new fsl_xcvr_rx_ctls[] = {

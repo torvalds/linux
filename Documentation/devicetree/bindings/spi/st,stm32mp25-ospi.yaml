@@ -49,8 +49,9 @@ properties:
     description: configure OCTOSPI delay block.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: phandle to syscfg
-      - description: register offset within syscfg
+      - items:
+          - description: phandle to syscfg
+          - description: register offset within syscfg
 
   access-controllers:
     description: phandle to the rifsc device to check access right

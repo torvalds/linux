@@ -119,6 +119,12 @@ struct eeprom_store_record {
 	int count;
 	/* the space can place new entries */
 	int space_left;
+	/* logical bad page number */
+	int bad_page_num;
+	/* the bad page number is ras_num_recs or
+	 * ras_num_recs * retire_unit
+	 */
+	int bad_page_num_old;
 };
 
 struct ras_umc_err_data {
@@ -139,7 +145,19 @@ struct ras_umc {
 	struct mutex  pending_ecc_lock;
 	struct ras_umc_err_data umc_err_data;
 	struct list_head pending_ecc_list;
+	/* number of entries currently queued on pending_ecc_list */
+	u32 pending_ecc_count;
+	/* number of entries dropped because pending_ecc_list was full */
+	u32 pending_ecc_dropped;
 };
+
+/*
+ * Upper bound on entries that can be queued on pending_ecc_list while a
+ * GPU reset is in progress. Beyond this, new ECC events are dropped to
+ * prevent unbounded kernel memory growth in case of an ECC storm or
+ * malicious/repeated UMC error injection.
+ */
+#define RAS_UMC_PENDING_ECC_MAX  8192
 
 int ras_umc_sw_init(struct ras_core_context *ras);
 int ras_umc_sw_fini(struct ras_core_context *ras);

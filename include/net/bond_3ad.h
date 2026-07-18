@@ -243,7 +243,7 @@ typedef struct port {
 	churn_state_t sm_churn_actor_state;
 	churn_state_t sm_churn_partner_state;
 	struct slave *slave;		/* pointer to the bond slave that this port belongs to */
-	struct aggregator *aggregator;	/* pointer to an aggregator that this port related to */
+	struct aggregator __rcu *aggregator;	/* pointer to an aggregator that this port related to */
 	struct port *next_port_in_aggregator;	/* Next port on the linked list of the parent aggregator */
 	u32 transaction_id;		/* continuous number for identification of Marker PDU's; */
 	struct lacpdu lacpdu;		/* the lacpdu that will be sent for this port */

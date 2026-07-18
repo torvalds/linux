@@ -5,19 +5,30 @@
 $id: http://devicetree.org/schemas/iio/adc/adi,ad4130.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD4130 ADC device driver
+title: Analog Devices AD4130 family ADCs
 
 maintainers:
   - Cosmin Tanislav <cosmin.tanislav@analog.com>
 
 description: |
-  Bindings for the Analog Devices AD4130 ADC. Datasheet can be found here:
+  Bindings for the Analog Devices AD4130 family ADCs.
+  Datasheets can be found here:
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD4129-4.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD4129-8.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD4130-4.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD4130-8.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD4131-4.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD4131-8.pdf
 
 properties:
   compatible:
     enum:
+      - adi,ad4129-4
+      - adi,ad4129-8
+      - adi,ad4130-4
       - adi,ad4130
+      - adi,ad4131-4
+      - adi,ad4131-8
 
   reg:
     maxItems: 1
@@ -32,6 +43,10 @@ properties:
 
   interrupts:
     maxItems: 1
+    description: |
+      Data Ready / FIFO interrupt. For devices with FIFO support, the
+      interrupt polarity specified here is inverted when the device enters
+      FIFO mode, and normal for data ready.
 
   interrupt-names:
     description: |

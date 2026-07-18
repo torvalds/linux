@@ -53,6 +53,7 @@
 #include <rdma/rw.h>
 #include <rdma/lag.h>
 
+#include "rdma_core.h"
 #include "core_priv.h"
 #include <trace/events/rdma_core.h>
 
@@ -1265,10 +1266,9 @@ static struct ib_qp *create_xrc_qp_user(struct ib_qp *qp,
 
 static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 			       struct ib_qp_init_attr *attr,
-			       struct ib_udata *udata,
+			       struct uverbs_attr_bundle *uattrs,
 			       struct ib_uqp_object *uobj, const char *caller)
 {
-	struct ib_udata dummy = {};
 	struct ib_qp *qp;
 	int ret;
 
@@ -1301,9 +1301,10 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	qp->recv_cq = attr->recv_cq;
 
 	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
-	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
-	rdma_restrack_set_name(&qp->res, udata ? NULL : caller);
-	ret = dev->ops.create_qp(qp, attr, udata);
+	WARN_ONCE(!uattrs && !caller, "Missing kernel QP owner");
+	rdma_restrack_set_name(&qp->res, uattrs ? NULL : caller);
+	ret = dev->ops.create_qp(qp, attr,
+				 uattrs ? &uattrs->driver_udata : NULL);
 	if (ret)
 		goto err_create;
 
@@ -1322,7 +1323,8 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	return qp;
 
 err_security:
-	qp->device->ops.destroy_qp(qp, udata ? &dummy : NULL);
+	qp->device->ops.destroy_qp(
+		qp, uattrs ? uverbs_get_cleared_udata(uattrs) : NULL);
 err_create:
 	rdma_restrack_put(&qp->res);
 	kfree(qp);
@@ -1338,13 +1340,13 @@ err_create:
  * @attr: A list of initial attributes required to create the
  *   QP.  If QP creation succeeds, then the attributes are updated to
  *   the actual capabilities of the created QP.
- * @udata: User data
+ * @uattrs: User ioctl attributes and udata
  * @uobj: uverbs obect
  * @caller: caller's build-time module name
  */
 struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
 				struct ib_qp_init_attr *attr,
-				struct ib_udata *udata,
+				struct uverbs_attr_bundle *uattrs,
 				struct ib_uqp_object *uobj, const char *caller)
 {
 	struct ib_qp *qp, *xrc_qp;
@@ -1352,7 +1354,7 @@ struct ib_qp *ib_create_qp_user(struct ib_device *dev, struct ib_pd *pd,
 	if (attr->qp_type == IB_QPT_XRC_TGT)
 		qp = create_qp(dev, pd, attr, NULL, NULL, caller);
 	else
-		qp = create_qp(dev, pd, attr, udata, uobj, NULL);
+		qp = create_qp(dev, pd, attr, uattrs, uobj, NULL);
 	if (attr->qp_type != IB_QPT_XRC_TGT || IS_ERR(qp))
 		return qp;
 
@@ -1538,8 +1540,7 @@ static const struct {
 						 IB_QP_PKEY_INDEX),
 				 [IB_QPT_RC]  = (IB_QP_ALT_PATH			|
 						 IB_QP_ACCESS_FLAGS		|
-						 IB_QP_PKEY_INDEX		|
-						 IB_QP_RATE_LIMIT),
+						 IB_QP_PKEY_INDEX),
 				 [IB_QPT_XRC_INI] = (IB_QP_ALT_PATH		|
 						 IB_QP_ACCESS_FLAGS		|
 						 IB_QP_PKEY_INDEX),
@@ -1587,8 +1588,7 @@ static const struct {
 						 IB_QP_ALT_PATH			|
 						 IB_QP_ACCESS_FLAGS		|
 						 IB_QP_MIN_RNR_TIMER		|
-						 IB_QP_PATH_MIG_STATE		|
-						 IB_QP_RATE_LIMIT),
+						 IB_QP_PATH_MIG_STATE),
 				 [IB_QPT_XRC_INI] = (IB_QP_CUR_STATE		|
 						 IB_QP_ALT_PATH			|
 						 IB_QP_ACCESS_FLAGS		|
@@ -1602,7 +1602,6 @@ static const struct {
 						 IB_QP_QKEY),
 				 [IB_QPT_GSI] = (IB_QP_CUR_STATE		|
 						 IB_QP_QKEY),
-				 [IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			 }
 		}
 	},
@@ -1622,8 +1621,7 @@ static const struct {
 						IB_QP_ACCESS_FLAGS		|
 						IB_QP_ALT_PATH			|
 						IB_QP_PATH_MIG_STATE		|
-						IB_QP_MIN_RNR_TIMER		|
-						IB_QP_RATE_LIMIT),
+						IB_QP_MIN_RNR_TIMER),
 				[IB_QPT_XRC_INI] = (IB_QP_CUR_STATE		|
 						IB_QP_ACCESS_FLAGS		|
 						IB_QP_ALT_PATH			|
@@ -1637,7 +1635,6 @@ static const struct {
 						IB_QP_QKEY),
 				[IB_QPT_GSI] = (IB_QP_CUR_STATE			|
 						IB_QP_QKEY),
-				[IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			}
 		},
 		[IB_QPS_SQD]   = {
@@ -1775,7 +1772,7 @@ bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 	if ((mask & req_param) != req_param)
 		return false;
 
-	if (mask & ~(req_param | opt_param | IB_QP_STATE))
+	if (mask & ~(req_param | opt_param | IB_QP_STATE | IB_QP_RATE_LIMIT))
 		return false;
 
 	return true;
@@ -2221,12 +2218,6 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 		kfree(cq);
 		return ERR_PTR(ret);
 	}
-	/*
-	 * We are in kernel verbs flow and drivers are not allowed
-	 * to set umem pointer, it needs to stay NULL.
-	 */
-	WARN_ON_ONCE(cq->umem);
-
 	rdma_restrack_add(&cq->res);
 	return cq;
 }
@@ -2257,7 +2248,6 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 	if (ret)
 		return ret;
 
-	ib_umem_release(cq->umem);
 	rdma_restrack_del(&cq->res);
 	kfree(cq);
 	return ret;

@@ -103,16 +103,6 @@ static void adf_cfg_section_del_all(struct list_head *head);
 static void adf_cfg_section_del_all_except(struct list_head *head,
 					   const char *section_name);
 
-void adf_cfg_del_all(struct adf_accel_dev *accel_dev)
-{
-	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
-
-	down_write(&dev_cfg_data->lock);
-	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
-	up_write(&dev_cfg_data->lock);
-	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-}
-
 void adf_cfg_del_all_except(struct adf_accel_dev *accel_dev,
 			    const char *section_name)
 {

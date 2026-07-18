@@ -889,7 +889,7 @@ static const struct dev_pm_ops ltr390_pm_ops = {
 };
 
 static const struct i2c_device_id ltr390_id[] = {
-	{ "ltr390" },
+	{ .name = "ltr390" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltr390_id);

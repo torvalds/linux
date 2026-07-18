@@ -75,8 +75,8 @@ void cm_helper_read_color_matrices(struct dc_context *ctx,
 				csc_c11, &regval0,
 				csc_c12, &regval1);
 
-		regval[2 * i] = regval0;
-		regval[(2 * i) + 1] = regval1;
+		regval[2 * i] = (uint16_t)regval0;
+		regval[(2 * i) + 1] = (uint16_t)regval1;
 
 		i++;
 	}
@@ -342,8 +342,8 @@ bool cm_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 	struct pwl_result_data *rgb_minus_1;
 
 	int32_t region_start, region_end;
-	int32_t i;
-	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
+	int32_t k;
+	uint32_t i, j, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
 
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
@@ -398,8 +398,8 @@ bool cm_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 			if (j == hw_points - 1)
 				break;
 			if (i >= TRANSFER_FUNC_POINTS) {
-				DC_LOG_ERROR("Index out of bounds: i=%d, TRANSFER_FUNC_POINTS=%d\n",
-					     i, TRANSFER_FUNC_POINTS);
+				DC_LOG_ERROR("Index out of bounds: i=%u, TRANSFER_FUNC_POINTS=%u\n",
+					     i, (uint32_t)TRANSFER_FUNC_POINTS);
 				return false;
 			}
 			rgb_resulted[j].red = output_tf->tf_pts.red[i];
@@ -547,8 +547,8 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	struct pwl_result_data *rgb_plus_1;
 
 	int32_t region_start, region_end;
-	int32_t i;
-	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
+	int32_t k;
+	uint32_t i, j, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
 
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;

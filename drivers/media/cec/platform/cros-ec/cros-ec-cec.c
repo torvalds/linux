@@ -8,7 +8,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/dmi.h>
 #include <linux/pci.h>
@@ -334,6 +333,12 @@ static const struct cec_dmi_match cec_dmi_match_table[] = {
 	{ "Google", "Dirks", "0000:00:02.0", port_ab_conns },
 	/* Google Moxie */
 	{ "Google", "Moxie", "0000:00:02.0", port_b_conns },
+	/* Google Kulnex */
+	{ "Google", "Kulnex", "0000:00:02.0", port_b_conns },
+	/* Google Moxoe */
+	{ "Google", "Moxoe", "0000:00:02.0", port_b_conns },
+	/* Google Dirkson */
+	{ "Google", "Dirkson", "0000:00:02.0", port_ab_conns },
 };
 
 static struct device *cros_ec_cec_find_hdmi_dev(struct device *dev,

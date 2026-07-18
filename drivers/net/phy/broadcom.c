@@ -592,7 +592,12 @@ static int bcm54xx_set_wakeup_irq(struct phy_device *phydev, bool state)
 
 static int bcm54xx_suspend(struct phy_device *phydev)
 {
+	struct bcm54xx_phy_priv *priv = phydev->priv;
 	int ret = 0;
+
+	mutex_lock(&phydev->lock);
+	bcm_phy_update_stats_shadow(phydev, priv->stats);
+	mutex_unlock(&phydev->lock);
 
 	bcm54xx_ptp_stop(phydev);
 

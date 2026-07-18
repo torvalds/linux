@@ -25,6 +25,7 @@
 
 #include "dmub_abm.h"
 #include "dmub_abm_lcd.h"
+#include "dmub_abm_cacp.h"
 #include "dc.h"
 #include "core_types.h"
 #include "dmub_cmd.h"
@@ -36,6 +37,7 @@
 
 #define ABM_FEATURE_NO_SUPPORT	0
 #define ABM_LCD_SUPPORT			1
+#define ABM_CACP_SUPPORT		2
 
 static unsigned int abm_feature_support(struct abm *abm, unsigned int panel_inst)
 {
@@ -52,15 +54,48 @@ static unsigned int abm_feature_support(struct abm *abm, unsigned int panel_inst
 	}
 
 	if (i < edp_num) {
-		ret = ABM_LCD_SUPPORT;
+		if (edp_links[panel_inst]->panel_config.cacp.cacp_supported)
+			ret = ABM_CACP_SUPPORT;
+		else if ((edp_links[panel_inst]->panel_type == PANEL_TYPE_LCD) ||
+				(edp_links[panel_inst]->panel_type == PANEL_TYPE_MINILED))
+			ret = ABM_LCD_SUPPORT;
 	}
+
+	return ret;
+}
+
+static enum dc_panel_type abm_get_paneltype(struct abm *abm, unsigned int panel_inst)
+{
+	struct dc_context *dc = abm->ctx;
+	struct dc_link *edp_links[MAX_NUM_EDP];
+	unsigned int i, edp_num;
+	enum dc_panel_type ret = PANEL_TYPE_NONE;
+
+	dc_get_edp_links(dc->dc, edp_links, &edp_num);
+
+	for (i = 0; i < edp_num; i++) {
+		if (edp_links[i]->link_status.link_active
+			&& panel_inst == i)
+			break;
+	}
+
+	if (i < edp_num)
+		ret = edp_links[panel_inst]->panel_type;
 
 	return ret;
 }
 
 static void dmub_abm_init_ex(struct abm *abm, uint32_t backlight, uint32_t user_level)
 {
+	unsigned int i = 0;
+	uint8_t panel_mask = 0;
+
 	dmub_abm_init(abm, backlight, user_level);
+	for (i = 0; i < MAX_NUM_EDP; i++)
+		panel_mask |= (0x01 << i);
+
+	if (panel_mask)
+		dmub_cacp_enable_fractional_pwm(abm, panel_mask);
 }
 
 static unsigned int dmub_abm_get_current_backlight_ex(struct abm *abm)
@@ -82,16 +117,22 @@ static bool dmub_abm_set_level_ex(struct abm *abm, uint32_t level)
 	bool ret = false;
 	unsigned int feature_support, i;
 	uint8_t panel_mask0 = 0;
+	uint8_t panel_mask1 = 0;
 
 	for (i = 0; i < MAX_NUM_EDP; i++) {
 		feature_support = abm_feature_support(abm, i);
 
 		if (feature_support == ABM_LCD_SUPPORT)
 			panel_mask0 |= (0x01 << i);
+		else if (feature_support == ABM_CACP_SUPPORT)
+			panel_mask1 |= (0x01 << i);
 	}
 
 	if (panel_mask0)
 		ret = dmub_abm_set_level(abm, level, panel_mask0);
+
+	if (panel_mask1)
+		ret = dmub_cacp_set_level(abm, level, panel_mask1);
 
 	return ret;
 }
@@ -107,6 +148,8 @@ static bool dmub_abm_init_config_ex(struct abm *abm,
 
 	if (feature_support == ABM_LCD_SUPPORT)
 		dmub_abm_init_config(abm, src, bytes, inst);
+	else if (feature_support == ABM_CACP_SUPPORT)
+		dmub_cacp_init(abm, src, bytes, inst);
 
 	return true;
 }
@@ -120,6 +163,8 @@ static bool dmub_abm_set_pause_ex(struct abm *abm, bool pause, unsigned int pane
 
 	if (feature_support == ABM_LCD_SUPPORT)
 		ret = dmub_abm_set_pause(abm, pause, panel_inst, stream_inst);
+	else if (feature_support == ABM_CACP_SUPPORT)
+		ret = dmub_cacp_set_pause(abm, pause, panel_inst, stream_inst);
 
 	return ret;
 }
@@ -163,6 +208,25 @@ static bool dmub_abm_set_pipe_ex(struct abm *abm,
 
 	if (feature_support == ABM_LCD_SUPPORT)
 		ret = dmub_abm_set_pipe(abm, otg_inst, option, panel_inst, pwrseq_inst);
+	else if (feature_support == ABM_CACP_SUPPORT)
+		ret = dmub_cacp_set_pipe(abm, otg_inst, option, panel_inst, pwrseq_inst);
+
+	return ret;
+}
+
+static bool dmub_abm_set_event_ex(struct abm *abm, unsigned int full_screen, unsigned int trans_info,
+		unsigned int hdr_mode, unsigned int scaling_enable, unsigned int scaling_strength_map,
+		unsigned int panel_inst)
+{
+	bool ret = false;
+	unsigned int feature_support;
+
+	feature_support = abm_feature_support(abm, panel_inst);
+
+	if (feature_support == ABM_LCD_SUPPORT)
+		ret = dmub_abm_set_event(abm, scaling_enable, scaling_strength_map, panel_inst);
+	else if (feature_support == ABM_CACP_SUPPORT)
+		ret = dmub_cacp_set_event(abm, full_screen, trans_info, hdr_mode, scaling_enable, panel_inst);
 
 	return ret;
 }
@@ -176,11 +240,17 @@ static bool dmub_abm_set_backlight_level_pwm_ex(struct abm *abm,
 	(void)controller_id;
 	bool ret = false;
 	unsigned int feature_support;
+	enum dc_panel_type panel_type = PANEL_TYPE_NONE;
 
 	feature_support = abm_feature_support(abm, panel_inst);
 
 	if (feature_support == ABM_LCD_SUPPORT)
 		ret = dmub_abm_set_backlight_level(abm, backlight_pwm_u16_16, frame_ramp, panel_inst);
+	else if (feature_support == ABM_CACP_SUPPORT) {
+		panel_type = abm_get_paneltype(abm, panel_inst);
+		if (panel_type == PANEL_TYPE_MINILED)
+			ret = dmub_cacp_set_backlight_level(abm, backlight_pwm_u16_16, frame_ramp, panel_inst);
+	}
 
 	return ret;
 }
@@ -194,6 +264,7 @@ static const struct abm_funcs abm_funcs = {
 	.set_abm_pause = dmub_abm_set_pause_ex,
 	.save_restore = dmub_abm_save_restore_ex,
 	.set_pipe_ex = dmub_abm_set_pipe_ex,
+	.set_abm_event = dmub_abm_set_event_ex,
 	.set_backlight_level_pwm = dmub_abm_set_backlight_level_pwm_ex,
 };
 

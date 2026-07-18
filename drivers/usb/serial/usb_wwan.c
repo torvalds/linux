@@ -27,7 +27,6 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/serial.h>

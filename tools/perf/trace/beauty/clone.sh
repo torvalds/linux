@@ -14,4 +14,8 @@ regex='^[[:space:]]*#[[:space:]]*define[[:space:]]+CLONE_([^_]+[[:alnum:]_]+)[[:
 grep -E $regex ${linux_sched} | \
 	sed -r "s/$regex/\2 \1/g"	| \
 	xargs printf "\t[ilog2(%s) + 1] = \"%s\",\n"
+regex='^[[:space:]]*#[[:space:]]*define[[:space:]]+CLONE_([^_]+[[:alnum:]_]+)[[:space:]]+\(1ULL[[:space:]]*<<[[:space:]]*([[:digit:]]+)\)[[:space:]]*.*'
+grep -E $regex ${linux_sched} | \
+	sed -r "s/$regex/\2 \1/g"	| \
+	xargs printf "\t[%s + 1] = \"%s\",\n"
 printf "};\n"

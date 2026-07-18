@@ -18,6 +18,7 @@
 int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index)
 {
 	struct zl3073x_chan *chan = &zldev->chan[index];
+	u64 val;
 	int rc;
 
 	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_MON_STATUS(index),
@@ -25,8 +26,34 @@ int zl3073x_chan_state_update(struct zl3073x_dev *zldev, u8 index)
 	if (rc)
 		return rc;
 
-	return zl3073x_read_u8(zldev, ZL_REG_DPLL_REFSEL_STATUS(index),
-			       &chan->refsel_status);
+	rc = zl3073x_read_u8(zldev, ZL_REG_DPLL_REFSEL_STATUS(index),
+			     &chan->refsel_status);
+	if (rc)
+		return rc;
+
+	/* Read df_offset vs tracked reference */
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_DPLL_DF_READ(index),
+				  ZL_DPLL_DF_READ_SEM);
+	if (rc)
+		return rc;
+
+	rc = zl3073x_write_u8(zldev, ZL_REG_DPLL_DF_READ(index),
+			      ZL_DPLL_DF_READ_SEM | ZL_DPLL_DF_READ_REF_OFST);
+	if (rc)
+		return rc;
+
+	rc = zl3073x_poll_zero_u8(zldev, ZL_REG_DPLL_DF_READ(index),
+				  ZL_DPLL_DF_READ_SEM);
+	if (rc)
+		return rc;
+
+	rc = zl3073x_read_u48(zldev, ZL_REG_DPLL_DF_OFFSET(index), &val);
+	if (rc)
+		return rc;
+
+	chan->df_offset = sign_extend64(val, 47);
+
+	return 0;
 }
 
 /**

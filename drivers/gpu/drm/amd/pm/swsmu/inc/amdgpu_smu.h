@@ -749,6 +749,9 @@ struct smu_context {
 	bool pm_enabled;
 	bool is_apu;
 
+	/* Power dependency link from an integrated xHCI controller to the GPU */
+	struct device_link		*usb_power_link;
+
 	uint32_t smc_driver_if_version;
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
@@ -849,8 +852,6 @@ struct pptable_funcs {
 	 */
 	int (*set_default_dpm_table)(struct smu_context *smu);
 
-	int (*set_power_state)(struct smu_context *smu);
-
 	/**
 	 * @populate_umd_state_clk: Populate the UMD power state table with
 	 *                          defaults.
@@ -903,16 +904,6 @@ struct pptable_funcs {
 					      struct
 					      pp_clock_levels_with_latency
 					      *clocks);
-	/**
-	 * @get_clock_by_type_with_voltage: Get the speed and voltage of a clock
-	 *                                  domain.
-	 */
-	int (*get_clock_by_type_with_voltage)(struct smu_context *smu,
-					      enum amd_pp_clock_type type,
-					      struct
-					      pp_clock_levels_with_voltage
-					      *clocks);
-
 	/**
 	 * @get_power_profile_mode: Print all power profile modes to
 	 *                          buffer. Star current mode.
@@ -1355,11 +1346,6 @@ struct pptable_funcs {
 	int (*register_irq_handler)(struct smu_context *smu);
 
 	/**
-	 * @set_azalia_d3_pme: Wake the audio decode engine from d3 sleep.
-	 */
-	int (*set_azalia_d3_pme)(struct smu_context *smu);
-
-	/**
 	 * @get_max_sustainable_clocks_by_dc: Get a copy of the max sustainable
 	 *                                    clock speeds table.
 	 *
@@ -1374,18 +1360,6 @@ struct pptable_funcs {
 	 * MACO: Memory Active, Chip Off
 	 */
 	int (*get_bamaco_support)(struct smu_context *smu);
-
-	/**
-	 * @baco_get_state: Get the current BACO state.
-	 *
-	 * Return: Current BACO state.
-	 */
-	enum smu_baco_state (*baco_get_state)(struct smu_context *smu);
-
-	/**
-	 * @baco_set_state: Enter/exit BACO.
-	 */
-	int (*baco_set_state)(struct smu_context *smu, enum smu_baco_state state);
 
 	/**
 	 * @baco_enter: Enter BACO.
@@ -1648,12 +1622,13 @@ struct pptable_funcs {
 	int (*ras_send_msg)(struct smu_context *smu,
 			    enum smu_message_type msg, uint32_t param, uint32_t *read_arg);
 
-
 	/**
-	 * @get_ras_smu_drv: Get RAS smu driver interface
-	 * Return: ras_smu_drv *
+	 * @set_power_dep: Create or destroy a power dependency link
+	 * from an integrated xHCI controller to the GPU so that the GPU is
+	 * resumed before the USB controller during PM resume. @enable is true
+	 * to create the link and false to tear it down.
 	 */
-	int (*get_ras_smu_drv)(struct smu_context *smu, const struct ras_smu_drv **ras_smu_drv);
+	int (*set_power_dep)(struct smu_context *smu, bool enable);
 };
 
 typedef enum {
@@ -1952,7 +1927,13 @@ int smu_link_reset(struct smu_context *smu);
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 
-bool is_support_sw_smu(struct amdgpu_device *adev);
+void amdgpu_smu_early_init(struct amdgpu_device *adev);
+
+static inline bool is_support_sw_smu(struct amdgpu_device *adev)
+{
+	return adev->is_sw_smu;
+}
+
 bool is_support_cclk_dpm(struct amdgpu_device *adev);
 int smu_write_watermarks_table(struct smu_context *smu);
 
@@ -1995,7 +1976,6 @@ int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
 		      int level);
 ssize_t smu_get_pm_policy_info(struct smu_context *smu,
 			       enum pp_pm_policy p_type, char *sysbuf);
-const struct ras_smu_drv *smu_get_ras_smu_driver(void *handle);
 
 int amdgpu_smu_ras_send_msg(struct amdgpu_device *adev, enum smu_message_type msg,
 			    uint32_t param, uint32_t *readarg);

@@ -676,6 +676,7 @@ static const struct snd_soc_component_driver mt8173_afe_pcm_dai_component = {
 	.num_dapm_routes = ARRAY_SIZE(mt8173_afe_pcm_routes),
 	.suspend = mtk_afe_suspend,
 	.resume = mtk_afe_resume,
+	.debugfs_prefix = "pcm",
 };
 
 static const struct snd_soc_component_driver mt8173_afe_hdmi_dai_component = {
@@ -684,6 +685,7 @@ static const struct snd_soc_component_driver mt8173_afe_hdmi_dai_component = {
 	.num_dapm_routes = ARRAY_SIZE(mt8173_afe_hdmi_routes),
 	.suspend = mtk_afe_suspend,
 	.resume = mtk_afe_resume,
+	.debugfs_prefix = "hdmi",
 };
 
 static const char *aud_clks[MT8173_CLK_NUM] = {
@@ -1053,7 +1055,6 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 	int irq_id;
 	struct mtk_base_afe *afe;
 	struct mt8173_afe_private *afe_priv;
-	struct snd_soc_component *comp_pcm, *comp_hdmi;
 	struct device *dev = &pdev->dev;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(33));
@@ -1141,45 +1142,13 @@ static int mt8173_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_pm_disable;
 
-	comp_pcm = devm_kzalloc(dev, sizeof(*comp_pcm), GFP_KERNEL);
-	if (!comp_pcm) {
-		ret = -ENOMEM;
-		goto err_pm_disable;
-	}
-
-	ret = snd_soc_component_initialize(comp_pcm,
-					   &mt8173_afe_pcm_dai_component,
-					   dev);
-	if (ret)
-		goto err_pm_disable;
-
-#ifdef CONFIG_DEBUG_FS
-	comp_pcm->debugfs_prefix = "pcm";
-#endif
-
-	ret = snd_soc_add_component(comp_pcm,
+	ret = snd_soc_register_component(dev, &mt8173_afe_pcm_dai_component,
 				    mt8173_afe_pcm_dais,
 				    ARRAY_SIZE(mt8173_afe_pcm_dais));
 	if (ret)
 		goto err_pm_disable;
 
-	comp_hdmi = devm_kzalloc(dev, sizeof(*comp_hdmi), GFP_KERNEL);
-	if (!comp_hdmi) {
-		ret = -ENOMEM;
-		goto err_cleanup_components;
-	}
-
-	ret = snd_soc_component_initialize(comp_hdmi,
-					   &mt8173_afe_hdmi_dai_component,
-					   dev);
-	if (ret)
-		goto err_cleanup_components;
-
-#ifdef CONFIG_DEBUG_FS
-	comp_hdmi->debugfs_prefix = "hdmi";
-#endif
-
-	ret = snd_soc_add_component(comp_hdmi,
+	ret = snd_soc_register_component(dev, &mt8173_afe_hdmi_dai_component,
 				    mt8173_afe_hdmi_dais,
 				    ARRAY_SIZE(mt8173_afe_hdmi_dais));
 	if (ret)

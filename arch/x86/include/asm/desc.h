@@ -438,6 +438,10 @@ extern void idt_setup_traps(void);
 extern void idt_setup_apic_and_irq_gates(void);
 extern bool idt_is_f00f_address(unsigned long address);
 
+extern void idt_do_interrupt_irqoff(unsigned long address);
+extern void idt_do_nmi_irqoff(void);
+extern void idt_entry_from_kvm(unsigned int vector);
+
 #ifdef CONFIG_X86_64
 extern void idt_setup_early_pf(void);
 #else

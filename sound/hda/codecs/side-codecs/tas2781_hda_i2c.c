@@ -14,7 +14,6 @@
 #include <linux/efi.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pci_ids.h>
 #include <linux/pm_runtime.h>
@@ -588,6 +587,9 @@ static void tas2781_hda_unbind(struct device *dev,
 		comp->playback_hook = NULL;
 	}
 
+	request_firmware_nowait_cancel(tas_hda->priv->dev, tas_hda->priv,
+				       tasdev_fw_ready);
+
 	tas2781_hda_remove_controls(tas_hda);
 
 	tasdevice_config_info_remove(tas_hda->priv);
@@ -791,8 +793,8 @@ static const struct dev_pm_ops tas2781_hda_pm_ops = {
 };
 
 static const struct i2c_device_id tas2781_hda_i2c_id[] = {
-	{ "tas2781-hda" },
-	{}
+	{ .name = "tas2781-hda" },
+	{ }
 };
 
 static const struct acpi_device_id tas2781_acpi_hda_match[] = {

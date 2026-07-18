@@ -372,7 +372,7 @@ int rvt_resize_cq(struct ib_cq *ibcq, unsigned int cqe, struct ib_udata *udata)
 	if (udata && udata->outlen >= sizeof(__u64)) {
 		__u64 offset = 0;
 
-		ret = ib_copy_to_udata(udata, &offset, sizeof(offset));
+		ret = ib_respond_udata(udata, offset);
 		if (ret)
 			goto bail_free;
 	}

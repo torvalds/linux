@@ -511,8 +511,9 @@ static void clear_hsave_pa(void *arg)
 	wrmsrq(MSR_VM_HSAVE_PA, 0);
 }
 
-void snp_prepare(void)
+int snp_prepare(void)
 {
+	int ret;
 	u64 val;
 
 	/*
@@ -521,11 +522,19 @@ void snp_prepare(void)
 	 */
 	rdmsrq(MSR_AMD64_SYSCFG, val);
 	if (val & MSR_AMD64_SYSCFG_SNP_EN)
-		return;
+		return 0;
 
 	clear_rmp();
 
 	cpus_read_lock();
+
+	if (!cpumask_equal(cpu_online_mask, cpu_present_mask)) {
+		ret = -EOPNOTSUPP;
+		pr_warn("SNP init failed: not all CPUs online. (%*pbl online <-> %*pbl present masks).\n",
+			cpumask_pr_args(cpu_online_mask),
+			cpumask_pr_args(cpu_present_mask));
+		goto unlock;
+	}
 
 	/*
 	 * MtrrFixDramModEn is not shared between threads on a core,
@@ -537,7 +546,12 @@ void snp_prepare(void)
 	/* SNP_INIT requires MSR_VM_HSAVE_PA to be cleared on all CPUs. */
 	on_each_cpu(clear_hsave_pa, NULL, 1);
 
+	ret = 0;
+
+unlock:
 	cpus_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL_FOR_MODULES(snp_prepare, "ccp");
 

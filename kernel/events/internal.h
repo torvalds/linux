@@ -67,6 +67,7 @@ static inline void rb_free_rcu(struct rcu_head *rcu_head)
 	struct perf_buffer *rb;
 
 	rb = container_of(rcu_head, struct perf_buffer, rcu_head);
+	free_uid(rb->mmap_user);
 	rb_free(rb);
 }
 

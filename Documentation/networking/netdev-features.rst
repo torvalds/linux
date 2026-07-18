@@ -18,29 +18,38 @@ that relieve an OS of various tasks like generating and checking checksums,
 splitting packets, classifying them.  Those capabilities and their state
 are commonly referred to as netdev features in Linux kernel world.
 
-There are currently three sets of features relevant to the driver, and
-one used internally by network core:
+There are currently three main sets of features on each netdevice,
+first and second are initialized by the driver:
 
  1. netdev->hw_features set contains features whose state may possibly
     be changed (enabled or disabled) for a particular device by user's
-    request.  This set should be initialized in ndo_init callback and not
-    changed later.
+    request.  Drivers normally initialize this set before registration or
+    in the ndo_init callback. Changes after registration should be made
+    very carefully as other parts of the code may assume hw_features are
+    static. At the very least changes must be made under rtnl_lock and
+    the netdev instance lock, and followed by netdev_update_features().
 
  2. netdev->features set contains features which are currently enabled
     for a device.  This should be changed only by network core or in
     error paths of ndo_set_features callback.
 
- 3. netdev->vlan_features set contains features whose state is inherited
-    by child VLAN devices (limits netdev->features set).  This is currently
-    used for all VLAN devices whether tags are stripped or inserted in
-    hardware or software.
-
- 4. netdev->wanted_features set contains feature set requested by user.
+ 3. netdev->wanted_features set contains feature set requested by user.
     This set is filtered by ndo_fix_features callback whenever it or
     some device-specific conditions change. This set is internal to
     networking core and should not be referenced in drivers.
 
+On top of those three main sets, each netdev has:
 
+ 1. Sets which control features inherited by child devices (VLAN, MPLS,
+    hw_enc for L3/L4 tunnels). These sets allow the driver to limit which
+    netdev->features are propagated, in case HW cannot perform the offloads
+    with the extra headers present.
+
+ 2. netdev->mangleid_features, TSO features which are supported only when
+    IP ID field can be mangled (constant instead of incrementing) during TSO.
+
+ 3. netdev->gso_partial_features, additional TSO features which HW can
+    support via NETIF_F_GSO_PARTIAL.
 
 Part II: Controlling enabled features
 =====================================
@@ -62,11 +71,22 @@ ndo_*_features callbacks are called with rtnl_lock held. Missing callbacks
 are treated as always returning success.
 
 A driver that wants to trigger recalculation must do so by calling
-netdev_update_features() while holding rtnl_lock. This should not be done
-from ndo_*_features callbacks. netdev->features should not be modified by
-driver except by means of ndo_fix_features callback.
+netdev_update_features() while holding rtnl_lock. If the device uses the
+netdev instance lock, that lock must be held as well. This should not be
+done from ndo_*_features callbacks. netdev->features should not be modified
+by driver except by means of ndo_fix_features callback.
 
+For "ops locked" drivers (see Documentation/networking/netdevices.rst),
+ethtool callbacks that may end up invoking netdev_update_features() must
+opt back into rtnl_lock by setting the matching ETHTOOL_OP_NEEDS_RTNL_*
+bit in ``ethtool_ops::op_needs_rtnl``. The ethtool core then keeps
+rtnl_lock held across those SET callbacks so the contract above still
+holds.
 
+ndo_features_check is called for each skb before that skb is passed to
+ndo_start_xmit. Driver may perform any non-trivial checks (e.g. exact
+header geometry / length) and withdraw features like HW_CSUM or TSO,
+requesting the networking stack to fall back to the software implementation.
 
 Part III: Implementation hints
 ==============================
@@ -83,8 +103,9 @@ stateless).  It can be called multiple times between successive
 ndo_set_features calls.
 
 Callback must not alter features contained in NETIF_F_SOFT_FEATURES or
-NETIF_F_NEVER_CHANGE sets. The exception is NETIF_F_VLAN_CHALLENGED but
-care must be taken as the change won't affect already configured VLANs.
+NETIF_F_NEVER_CHANGE, except that NETIF_F_VLAN_CHALLENGED may be changed.
+Care must be taken as changes to NETIF_F_VLAN_CHALLENGED won't affect already
+configured VLANs.
 
  * ndo_set_features:
 
@@ -186,10 +207,14 @@ Redundancy) frames from one port to another in hardware.
 * hsr-dup-offload
 
 This should be set for devices which duplicate outgoing HSR (High-availability
-Seamless Redundancy) or PRP (Parallel Redundancy Protocol) tags automatically
-frames in hardware.
+Seamless Redundancy) or PRP (Parallel Redundancy Protocol) frames
+automatically in hardware.
 
-* netmem-tx
+Part V: Related device flags
+============================
 
-This should be set for devices which support netmem TX. See
-Documentation/networking/netmem.rst
+* netdev->netmem_tx
+
+This is not a netdev feature bit. Drivers support netmem TX by setting
+netdev->netmem_tx to one of the values in enum netmem_tx_mode.
+See Documentation/networking/netmem.rst.

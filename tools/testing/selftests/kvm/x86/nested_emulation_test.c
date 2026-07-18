@@ -13,8 +13,8 @@ enum {
 
 struct emulated_instruction {
 	const char name[32];
-	uint8_t opcode[15];
-	uint32_t exit_reason[NR_VIRTUALIZATION_FLAVORS];
+	u8 opcode[15];
+	u32 exit_reason[NR_VIRTUALIZATION_FLAVORS];
 };
 
 static struct emulated_instruction instructions[] = {
@@ -32,13 +32,13 @@ static struct emulated_instruction instructions[] = {
 	},
 };
 
-static uint8_t kvm_fep[] = { 0x0f, 0x0b, 0x6b, 0x76, 0x6d };	/* ud2 ; .ascii "kvm" */
-static uint8_t l2_guest_code[sizeof(kvm_fep) + 15];
-static uint8_t *l2_instruction = &l2_guest_code[sizeof(kvm_fep)];
+static u8 kvm_fep[] = { 0x0f, 0x0b, 0x6b, 0x76, 0x6d };	/* ud2 ; .ascii "kvm" */
+static u8 l2_guest_code[sizeof(kvm_fep) + 15];
+static u8 *l2_instruction = &l2_guest_code[sizeof(kvm_fep)];
 
-static uint32_t get_instruction_length(struct emulated_instruction *insn)
+static u32 get_instruction_length(struct emulated_instruction *insn)
 {
-	uint32_t i;
+	u32 i;
 
 	for (i = 0; i < ARRAY_SIZE(insn->opcode) && insn->opcode[i]; i++)
 		;
@@ -81,8 +81,8 @@ static void guest_code(void *test_data)
 
 	for (i = 0; i < ARRAY_SIZE(instructions); i++) {
 		struct emulated_instruction *insn = &instructions[i];
-		uint32_t insn_len = get_instruction_length(insn);
-		uint32_t exit_insn_len;
+		u32 insn_len = get_instruction_length(insn);
+		u32 exit_insn_len;
 		u32 exit_reason;
 
 		/*
@@ -122,7 +122,7 @@ static void guest_code(void *test_data)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t nested_test_data_gva;
+	gva_t nested_test_data_gva;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 

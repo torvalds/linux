@@ -35,3 +35,10 @@ temp1_input:        temperature input
 humidity1_input:    humidity input
 heater_enable:      heater control
 =================== =================
+
+debugfs-Interface
+-----------------
+
+=================== =========================================
+serial_number:      unique serial number of the sensor
+=================== =========================================

@@ -18,10 +18,13 @@ struct snd_soc_jack;
  * struct jack_state - Jack state structure to keep data between interrupts
  * @kctl: Pointer to the ALSA control attached to this jack
  * @jack: Pointer to the ASoC jack struct for this jack
+ * @mask: Possible reported jack status bits for this jack
  */
 struct jack_state {
 	struct snd_kcontrol *kctl;
 	struct snd_soc_jack *jack;
+
+	unsigned int mask;
 };
 
 int sdca_jack_alloc_state(struct sdca_interrupt *interrupt);

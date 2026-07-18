@@ -20,8 +20,8 @@
 #define NH_RES_DEFAULT_IDLE_TIMER	(120 * HZ)
 #define NH_RES_DEFAULT_UNBALANCED_TIMER	0	/* No forced rebalancing. */
 
-static void remove_nexthop(struct net *net, struct nexthop *nh,
-			   struct nl_info *nlinfo);
+static bool __must_check remove_nexthop(struct net *net, struct nexthop *nh,
+					struct nl_info *nlinfo);
 
 #define NH_DEV_HASHBITS  8
 #define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
@@ -2016,9 +2016,9 @@ static void nh_hthr_group_rebalance(struct nh_group *nhg)
 	}
 }
 
-static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
-				struct nl_info *nlinfo,
-				struct list_head *deferred_free)
+static bool __must_check
+remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
+		    struct nl_info *nlinfo, struct list_head *deferred_free)
 {
 	struct nh_grp_entry *nhges, *new_nhges;
 	struct nexthop *nhp = nhge->nh_parent;
@@ -2033,10 +2033,8 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	newg = nhg->spare;
 
 	/* last entry, keep it visible and remove the parent */
-	if (nhg->num_nh == 1) {
-		remove_nexthop(net, nhp, nlinfo);
-		return;
-	}
+	if (nhg->num_nh == 1)
+		return remove_nexthop(net, nhp, nlinfo);
 
 	newg->has_v4 = false;
 	newg->is_multipath = nhg->is_multipath;
@@ -2093,22 +2091,27 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 
 	if (nlinfo)
 		nexthop_notify(RTM_NEWNEXTHOP, nhp, nlinfo);
+
+	return false;
 }
 
-static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
-				       struct nl_info *nlinfo)
+static bool __must_check
+remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
+			   struct nl_info *nlinfo)
 {
 	struct nh_grp_entry *nhge, *tmp;
 	LIST_HEAD(deferred_free);
+	bool need_flush = false;
 
 	/* If there is nothing to do, let's avoid the costly call to
 	 * synchronize_net()
 	 */
 	if (list_empty(&nh->grp_list))
-		return;
+		return false;
 
 	list_for_each_entry_safe(nhge, tmp, &nh->grp_list, nh_list)
-		remove_nh_grp_entry(net, nhge, nlinfo, &deferred_free);
+		need_flush |= remove_nh_grp_entry(net, nhge, nlinfo,
+						  &deferred_free);
 
 	/* make sure all see the newly published array before releasing rtnl */
 	synchronize_net();
@@ -2118,6 +2121,8 @@ static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
 		list_del(&nhge->nh_list);
 		free_percpu(nhge->stats);
 	}
+
+	return need_flush;
 }
 
 static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
@@ -2142,18 +2147,15 @@ static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
 }
 
 /* not called for nexthop replace */
-static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
+static bool __must_check __remove_nexthop_fib(struct net *net,
+					      struct nexthop *nh)
 {
+	bool need_flush = !list_empty(&nh->fi_list);
 	struct fib6_info *f6i;
-	bool do_flush = false;
 	struct fib_info *fi;
 
-	list_for_each_entry(fi, &nh->fi_list, nh_list) {
+	list_for_each_entry(fi, &nh->fi_list, nh_list)
 		fi->fib_flags |= RTNH_F_DEAD;
-		do_flush = true;
-	}
-	if (do_flush)
-		fib_flush(net);
 
 	spin_lock_bh(&nh->lock);
 
@@ -2173,12 +2175,14 @@ static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 	}
 
 	spin_unlock_bh(&nh->lock);
+
+	return need_flush;
 }
 
-static void __remove_nexthop(struct net *net, struct nexthop *nh,
-			     struct nl_info *nlinfo)
+static bool __must_check __remove_nexthop(struct net *net, struct nexthop *nh,
+					  struct nl_info *nlinfo)
 {
-	__remove_nexthop_fib(net, nh);
+	bool need_flush = __remove_nexthop_fib(net, nh);
 
 	if (nh->is_group) {
 		remove_nexthop_group(nh, nlinfo);
@@ -2189,13 +2193,17 @@ static void __remove_nexthop(struct net *net, struct nexthop *nh,
 		if (nhi->fib_nhc.nhc_dev)
 			hlist_del(&nhi->dev_hash);
 
-		remove_nexthop_from_groups(net, nh, nlinfo);
+		need_flush |= remove_nexthop_from_groups(net, nh, nlinfo);
 	}
+
+	return need_flush;
 }
 
-static void remove_nexthop(struct net *net, struct nexthop *nh,
-			   struct nl_info *nlinfo)
+static bool __must_check remove_nexthop(struct net *net, struct nexthop *nh,
+					struct nl_info *nlinfo)
 {
+	bool need_flush;
+
 	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh, NULL);
 
 	/* remove from the tree */
@@ -2204,10 +2212,19 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 	if (nlinfo)
 		nexthop_notify(RTM_DELNEXTHOP, nh, nlinfo);
 
-	__remove_nexthop(net, nh, nlinfo);
+	need_flush = __remove_nexthop(net, nh, nlinfo);
 	nh_base_seq_inc(net);
 
 	nexthop_put(nh);
+
+	return need_flush;
+}
+
+static void remove_one_nexthop(struct net *net, struct nexthop *nh,
+			       struct nl_info *nlinfo)
+{
+	if (remove_nexthop(net, nh, nlinfo))
+		fib_flush(net);
 }
 
 /* if any FIB entries reference this nexthop, any dst entries
@@ -2592,7 +2609,7 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 	if (!err) {
 		nh_rt_cache_flush(net, old, new);
 
-		__remove_nexthop(net, new, NULL);
+		WARN_ON_ONCE(__remove_nexthop(net, new, NULL));
 		nexthop_put(new);
 	}
 
@@ -2699,6 +2716,7 @@ static void nexthop_flush_dev(struct net_device *dev, unsigned long event)
 	unsigned int hash = nh_dev_hashfn(dev->ifindex);
 	struct net *net = dev_net(dev);
 	struct hlist_head *head = &net->nexthop.devhash[hash];
+	bool need_flush = false;
 	struct hlist_node *n;
 	struct nh_info *nhi;
 
@@ -2710,22 +2728,28 @@ static void nexthop_flush_dev(struct net_device *dev, unsigned long event)
 		    (event == NETDEV_DOWN || event == NETDEV_CHANGE))
 			continue;
 
-		remove_nexthop(net, nhi->nh_parent, NULL);
+		need_flush |= remove_nexthop(net, nhi->nh_parent, NULL);
 	}
+
+	if (need_flush)
+		fib_flush(net);
 }
 
 /* rtnl; called when net namespace is deleted */
 static void flush_all_nexthops(struct net *net)
 {
 	struct rb_root *root = &net->nexthop.rb_root;
+	bool need_flush = false;
 	struct rb_node *node;
 	struct nexthop *nh;
 
 	while ((node = rb_first(root))) {
 		nh = rb_entry(node, struct nexthop, rb_node);
-		remove_nexthop(net, nh, NULL);
+		need_flush |= remove_nexthop(net, nh, NULL);
 		cond_resched();
 	}
+	if (need_flush)
+		fib_flush(net);
 }
 
 static struct nexthop *nexthop_create_group(struct net *net,
@@ -2994,7 +3018,7 @@ static struct nexthop *nexthop_add(struct net *net, struct nh_config *cfg,
 
 	err = insert_nexthop(net, nh, cfg, extack);
 	if (err) {
-		__remove_nexthop(net, nh, NULL);
+		WARN_ON_ONCE(__remove_nexthop(net, nh, NULL));
 		nexthop_put(nh);
 		nh = ERR_PTR(err);
 	}
@@ -3363,7 +3387,7 @@ static int rtm_del_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	nh = nexthop_find_by_id(net, id);
 	if (nh)
-		remove_nexthop(net, nh, &nlinfo);
+		remove_one_nexthop(net, nh, &nlinfo);
 	else
 		err = -ENOENT;
 

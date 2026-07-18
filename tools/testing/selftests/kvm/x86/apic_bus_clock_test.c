@@ -19,8 +19,8 @@
  * timer frequency.
  */
 static const struct {
-	const uint32_t tdcr;
-	const uint32_t divide_count;
+	const u32 tdcr;
+	const u32 divide_count;
 } tdcrs[] = {
 	{0x0, 2},
 	{0x1, 4},
@@ -42,12 +42,12 @@ static void apic_enable(void)
 		xapic_enable();
 }
 
-static uint32_t apic_read_reg(unsigned int reg)
+static u32 apic_read_reg(unsigned int reg)
 {
 	return is_x2apic ? x2apic_read_reg(reg) : xapic_read_reg(reg);
 }
 
-static void apic_write_reg(unsigned int reg, uint32_t val)
+static void apic_write_reg(unsigned int reg, u32 val)
 {
 	if (is_x2apic)
 		x2apic_write_reg(reg, val);
@@ -55,12 +55,12 @@ static void apic_write_reg(unsigned int reg, uint32_t val)
 		xapic_write_reg(reg, val);
 }
 
-static void apic_guest_code(uint64_t apic_hz, uint64_t delay_ms)
+static void apic_guest_code(u64 apic_hz, u64 delay_ms)
 {
-	uint64_t tsc_hz = guest_tsc_khz * 1000;
-	const uint32_t tmict = ~0u;
-	uint64_t tsc0, tsc1, freq;
-	uint32_t tmcct;
+	u64 tsc_hz = guest_tsc_khz * 1000;
+	const u32 tmict = ~0u;
+	u64 tsc0, tsc1, freq;
+	u32 tmcct;
 	int i;
 
 	apic_enable();
@@ -121,7 +121,7 @@ static void test_apic_bus_clock(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void run_apic_bus_clock_test(uint64_t apic_hz, uint64_t delay_ms,
+static void run_apic_bus_clock_test(u64 apic_hz, u64 delay_ms,
 				    bool x2apic)
 {
 	struct kvm_vcpu *vcpu;
@@ -136,6 +136,10 @@ static void run_apic_bus_clock_test(uint64_t apic_hz, uint64_t delay_ms,
 
 	vm_enable_cap(vm, KVM_CAP_X86_APIC_BUS_CYCLES_NS,
 		      NSEC_PER_SEC / apic_hz);
+
+	TEST_ASSERT_EQ(kvm_check_cap(KVM_CAP_X86_APIC_BUS_CYCLES_NS), 1);
+	TEST_ASSERT_EQ(vm_check_cap(vm, KVM_CAP_X86_APIC_BUS_CYCLES_NS),
+		       NSEC_PER_SEC / apic_hz);
 
 	vcpu = vm_vcpu_add(vm, 0, apic_guest_code);
 	vcpu_args_set(vcpu, 2, apic_hz, delay_ms);
@@ -168,8 +172,8 @@ int main(int argc, char *argv[])
 	 * Arbitrarilty default to 25MHz for the APIC bus frequency, which is
 	 * different enough from the default 1GHz to be interesting.
 	 */
-	uint64_t apic_hz = 25 * 1000 * 1000;
-	uint64_t delay_ms = 100;
+	u64 apic_hz = 25 * 1000 * 1000;
+	u64 delay_ms = 100;
 	int opt;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_X86_APIC_BUS_CYCLES_NS));

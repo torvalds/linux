@@ -17,7 +17,7 @@ features. To enable for Clang, configure the kernel with::
 
     CONFIG_WARN_CONTEXT_ANALYSIS=y
 
-The feature requires Clang 22 or later.
+The feature requires Clang 23 or later.
 
 The analysis is *opt-in by default*, and requires declaring which modules and
 subsystems should be analyzed in the respective `Makefile`::

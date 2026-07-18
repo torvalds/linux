@@ -45,14 +45,13 @@ void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_sta
 
 	plane_state->in_transfer_func.type = TF_TYPE_BYPASS;
 
-	plane_state->in_shaper_func.type = TF_TYPE_BYPASS;
-
-	plane_state->lut3d_func.state.raw = 0;
-
-	plane_state->blend_tf.type = TF_TYPE_BYPASS;
-
 	plane_state->pre_multiplied_alpha = true;
 
+	/* CM */
+	plane_state->cm.shaper_func.type = TF_TYPE_BYPASS;
+	plane_state->cm.blend_func.type = TF_TYPE_BYPASS;
+	plane_state->cm.lut3d_func.state.raw = 0;
+	plane_state->cm.flags.all = 0;
 }
 
 void dc_plane_destruct(struct dc_plane_state *plane_state)
@@ -69,13 +68,13 @@ void dc_plane_destruct(struct dc_plane_state *plane_state)
 uint8_t  dc_plane_get_pipe_mask(struct dc_state *dc_state, const struct dc_plane_state *plane_state)
 {
 	uint8_t pipe_mask = 0;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < plane_state->ctx->dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &dc_state->res_ctx.pipe_ctx[i];
 
 		if (pipe_ctx->plane_state == plane_state && pipe_ctx->plane_res.hubp)
-			pipe_mask |= 1 << pipe_ctx->plane_res.hubp->inst;
+			pipe_mask |= (uint8_t)(1 << pipe_ctx->plane_res.hubp->inst);
 	}
 
 	return pipe_mask;
@@ -115,7 +114,7 @@ const struct dc_plane_status *dc_plane_get_status(
 {
 	const struct dc_plane_status *plane_status;
 	struct dc  *dc;
-	int i;
+	unsigned int i;
 
 	if (!plane_state ||
 		!plane_state->ctx ||
@@ -282,11 +281,44 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut)
 	kref_get(&lut->refcount);
 }
 
+static void dc_plane_cm_free(struct kref *kref)
+{
+	struct dc_plane_cm *cm = container_of(kref, struct dc_plane_cm, refcount);
+
+	kvfree(cm);
+}
+
+struct dc_plane_cm *dc_plane_cm_create(void)
+{
+	struct dc_plane_cm *cm = kvzalloc(sizeof(*cm), GFP_KERNEL);
+
+	if (cm == NULL)
+		goto alloc_fail;
+
+	kref_init(&cm->refcount);
+
+	return cm;
+
+alloc_fail:
+	return NULL;
+
+}
+
+void dc_plane_cm_release(struct dc_plane_cm *cm)
+{
+	kref_put(&cm->refcount, dc_plane_cm_free);
+}
+
+void dc_plane_cm_retain(struct dc_plane_cm *cm)
+{
+	kref_get(&cm->refcount);
+}
+
 void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 					   bool clear_tiling)
 {
 	struct dc *dc;
-	int i;
+	unsigned int i;
 
 	if (!plane_state)
 		return;

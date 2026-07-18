@@ -572,7 +572,7 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	struct pic32_sqi *sqi;
 	int ret;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*sqi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*sqi));
 	if (!host)
 		return -ENOMEM;
 
@@ -580,31 +580,25 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	sqi->host = host;
 
 	sqi->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(sqi->regs)) {
-		ret = PTR_ERR(sqi->regs);
-		goto err_free_host;
-	}
+	if (IS_ERR(sqi->regs))
+		return PTR_ERR(sqi->regs);
 
 	/* irq */
 	sqi->irq = platform_get_irq(pdev, 0);
-	if (sqi->irq < 0) {
-		ret = sqi->irq;
-		goto err_free_host;
-	}
+	if (sqi->irq < 0)
+		return sqi->irq;
 
 	/* clocks */
 	sqi->sys_clk = devm_clk_get_enabled(&pdev->dev, "reg_ck");
 	if (IS_ERR(sqi->sys_clk)) {
-		ret = PTR_ERR(sqi->sys_clk);
 		dev_err(&pdev->dev, "no sys_clk ?\n");
-		goto err_free_host;
+		return PTR_ERR(sqi->sys_clk);
 	}
 
 	sqi->base_clk = devm_clk_get_enabled(&pdev->dev, "spi_ck");
 	if (IS_ERR(sqi->base_clk)) {
-		ret = PTR_ERR(sqi->base_clk);
 		dev_err(&pdev->dev, "no base clk ?\n");
-		goto err_free_host;
+		return PTR_ERR(sqi->base_clk);
 	}
 
 	init_completion(&sqi->xfer_done);
@@ -616,7 +610,7 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 	ret = ring_desc_ring_alloc(sqi);
 	if (ret) {
 		dev_err(&pdev->dev, "ring alloc failed\n");
-		goto err_free_host;
+		return ret;
 	}
 
 	/* install irq handlers */
@@ -656,8 +650,6 @@ static int pic32_sqi_probe(struct platform_device *pdev)
 err_free_ring:
 	ring_desc_ring_free(sqi);
 
-err_free_host:
-	spi_controller_put(host);
 	return ret;
 }
 
@@ -665,15 +657,11 @@ static void pic32_sqi_remove(struct platform_device *pdev)
 {
 	struct pic32_sqi *sqi = platform_get_drvdata(pdev);
 
-	spi_controller_get(sqi->host);
-
 	spi_unregister_controller(sqi->host);
 
 	/* release resources */
 	free_irq(sqi->irq, sqi);
 	ring_desc_ring_free(sqi);
-
-	spi_controller_put(sqi->host);
 }
 
 static const struct of_device_id pic32_sqi_of_ids[] = {

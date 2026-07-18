@@ -30,4 +30,17 @@
 #define SKY1_PD_ISP0		20
 #define SKY1_PD_GPU		21
 
+#define SKY1_PERF_GPU_CORE	0
+#define SKY1_PERF_GPU_TOP	1
+#define SKY1_PERF_CPU_L     2
+#define SKY1_PERF_CPU_B0	3
+#define SKY1_PERF_CPU_B1	4
+#define SKY1_PERF_CPU_M0	5
+#define SKY1_PERF_CPU_M1	6
+#define SKY1_PERF_DSU	    7
+#define SKY1_PERF_NPU	    8
+#define SKY1_PERF_VPU	    9
+#define SKY1_PERF_CI700	    10
+#define SKY1_PERF_NI700	    11
+
 #endif

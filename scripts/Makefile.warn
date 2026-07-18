@@ -135,16 +135,6 @@ KBUILD_CFLAGS += $(call cc-option, -Wno-stringop-truncation)
 KBUILD_CFLAGS += -Wno-override-init # alias for -Wno-initializer-overrides in clang
 
 ifdef CONFIG_CC_IS_CLANG
-# Clang before clang-16 would warn on default argument promotions.
-ifneq ($(call clang-min-version, 160000),y)
-# Disable -Wformat
-KBUILD_CFLAGS += -Wno-format
-# Then re-enable flags that were part of the -Wformat group that aren't
-# problematic.
-KBUILD_CFLAGS += -Wformat-extra-args -Wformat-invalid-specifier
-KBUILD_CFLAGS += -Wformat-zero-length -Wnonnull
-KBUILD_CFLAGS += -Wformat-insufficient-args
-endif
 KBUILD_CFLAGS += -Wno-pointer-to-enum-cast
 KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare
 KBUILD_CFLAGS += -Wno-unaligned-access

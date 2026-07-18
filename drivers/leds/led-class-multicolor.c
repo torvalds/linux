@@ -7,9 +7,28 @@
 #include <linux/init.h>
 #include <linux/led-class-multicolor.h>
 #include <linux/math.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+
+static unsigned int led_mc_get_max_intensity(struct led_classdev_mc *mcled_cdev, size_t index)
+{
+	unsigned int max_intensity;
+
+	/*
+	 * The maximum global brightness value might still be changed by
+	 * led_classdev_register_ext() using devicetree properties. This
+	 * prevents us from changing subled_info[X].max_intensity when
+	 * registering a multicolor LED class device, so we have to do
+	 * this during runtime.
+	 */
+	max_intensity = mcled_cdev->subled_info[index].max_intensity;
+	if (max_intensity)
+		return max_intensity;
+
+	return mcled_cdev->led_cdev.max_brightness;
+}
 
 int led_mc_calc_color_components(struct led_classdev_mc *mcled_cdev,
 				 enum led_brightness brightness)
@@ -27,6 +46,26 @@ int led_mc_calc_color_components(struct led_classdev_mc *mcled_cdev,
 }
 EXPORT_SYMBOL_GPL(led_mc_calc_color_components);
 
+static ssize_t multi_max_intensity_show(struct device *dev,
+					struct device_attribute *intensity_attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct led_classdev_mc *mcled_cdev = lcdev_to_mccdev(led_cdev);
+	unsigned int max_intensity;
+	int len = 0;
+
+	for (int i = 0; i < mcled_cdev->num_colors; i++) {
+		max_intensity = led_mc_get_max_intensity(mcled_cdev, i);
+		len += sysfs_emit_at(buf, len, "%u", max_intensity);
+		if (i < mcled_cdev->num_colors - 1)
+			len += sprintf(buf + len, " ");
+	}
+
+	buf[len++] = '\n';
+	return len;
+}
+static DEVICE_ATTR_RO(multi_max_intensity);
+
 static ssize_t multi_intensity_store(struct device *dev,
 				struct device_attribute *intensity_attr,
 				const char *buf, size_t size)
@@ -35,6 +74,7 @@ static ssize_t multi_intensity_store(struct device *dev,
 	struct led_classdev_mc *mcled_cdev = lcdev_to_mccdev(led_cdev);
 	int nrchars, offset = 0;
 	unsigned int intensity_value[LED_COLOR_ID_MAX];
+	unsigned int max_intensity;
 	int i;
 	ssize_t ret;
 
@@ -56,8 +96,10 @@ static ssize_t multi_intensity_store(struct device *dev,
 		goto err_out;
 	}
 
-	for (i = 0; i < mcled_cdev->num_colors; i++)
-		mcled_cdev->subled_info[i].intensity = intensity_value[i];
+	for (int i = 0; i < mcled_cdev->num_colors; i++) {
+		max_intensity = led_mc_get_max_intensity(mcled_cdev, i);
+		mcled_cdev->subled_info[i].intensity = min(intensity_value[i], max_intensity);
+	}
 
 	if (!test_bit(LED_BLINK_SW, &led_cdev->work_flags))
 		led_set_brightness(led_cdev, led_cdev->brightness);
@@ -111,6 +153,7 @@ static ssize_t multi_index_show(struct device *dev,
 static DEVICE_ATTR_RO(multi_index);
 
 static struct attribute *led_multicolor_attrs[] = {
+	&dev_attr_multi_max_intensity.attr,
 	&dev_attr_multi_intensity.attr,
 	&dev_attr_multi_index.attr,
 	NULL,

@@ -1851,6 +1851,7 @@ static const struct of_device_id x1e80100_pinctrl_of_match[] = {
 	{ .compatible = "qcom,x1e80100-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, x1e80100_pinctrl_of_match);
 
 static struct platform_driver x1e80100_pinctrl_driver = {
 	.driver = {
@@ -1874,4 +1875,3 @@ module_exit(x1e80100_pinctrl_exit);
 
 MODULE_DESCRIPTION("QTI X1E80100 TLMM pinctrl driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(of, x1e80100_pinctrl_of_match);

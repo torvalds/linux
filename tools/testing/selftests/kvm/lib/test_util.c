@@ -30,15 +30,15 @@ void __attribute__((used)) expect_sigbus_handler(int signum)
  * Park-Miller LCG using standard constants.
  */
 
-struct guest_random_state new_guest_random_state(uint32_t seed)
+struct guest_random_state new_guest_random_state(u32 seed)
 {
 	struct guest_random_state s = {.seed = seed};
 	return s;
 }
 
-uint32_t guest_random_u32(struct guest_random_state *state)
+u32 guest_random_u32(struct guest_random_state *state)
 {
-	state->seed = (uint64_t)state->seed * 48271 % ((uint32_t)(1 << 31) - 1);
+	state->seed = (u64)state->seed * 48271 % ((u32)(1 << 31) - 1);
 	return state->seed;
 }
 
@@ -83,12 +83,12 @@ size_t parse_size(const char *size)
 	return base << shift;
 }
 
-int64_t timespec_to_ns(struct timespec ts)
+s64 timespec_to_ns(struct timespec ts)
 {
-	return (int64_t)ts.tv_nsec + 1000000000LL * (int64_t)ts.tv_sec;
+	return (s64)ts.tv_nsec + 1000000000LL * (s64)ts.tv_sec;
 }
 
-struct timespec timespec_add_ns(struct timespec ts, int64_t ns)
+struct timespec timespec_add_ns(struct timespec ts, s64 ns)
 {
 	struct timespec res;
 
@@ -101,15 +101,15 @@ struct timespec timespec_add_ns(struct timespec ts, int64_t ns)
 
 struct timespec timespec_add(struct timespec ts1, struct timespec ts2)
 {
-	int64_t ns1 = timespec_to_ns(ts1);
-	int64_t ns2 = timespec_to_ns(ts2);
+	s64 ns1 = timespec_to_ns(ts1);
+	s64 ns2 = timespec_to_ns(ts2);
 	return timespec_add_ns((struct timespec){0}, ns1 + ns2);
 }
 
 struct timespec timespec_sub(struct timespec ts1, struct timespec ts2)
 {
-	int64_t ns1 = timespec_to_ns(ts1);
-	int64_t ns2 = timespec_to_ns(ts2);
+	s64 ns1 = timespec_to_ns(ts1);
+	s64 ns2 = timespec_to_ns(ts2);
 	return timespec_add_ns((struct timespec){0}, ns1 - ns2);
 }
 
@@ -123,7 +123,7 @@ struct timespec timespec_elapsed(struct timespec start)
 
 struct timespec timespec_div(struct timespec ts, int divisor)
 {
-	int64_t ns = timespec_to_ns(ts) / divisor;
+	s64 ns = timespec_to_ns(ts) / divisor;
 
 	return timespec_add_ns((struct timespec){0}, ns);
 }
@@ -225,7 +225,7 @@ size_t get_def_hugetlb_pagesz(void)
 #define ANON_FLAGS	(MAP_PRIVATE | MAP_ANONYMOUS)
 #define ANON_HUGE_FLAGS	(ANON_FLAGS | MAP_HUGETLB)
 
-const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
+const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(u32 i)
 {
 	static const struct vm_mem_backing_src_alias aliases[] = {
 		[VM_MEM_SRC_ANONYMOUS] = {
@@ -317,9 +317,9 @@ const struct vm_mem_backing_src_alias *vm_mem_backing_src_alias(uint32_t i)
 
 #define MAP_HUGE_PAGE_SIZE(x) (1ULL << ((x >> MAP_HUGE_SHIFT) & MAP_HUGE_MASK))
 
-size_t get_backing_src_pagesz(uint32_t i)
+size_t get_backing_src_pagesz(u32 i)
 {
-	uint32_t flag = vm_mem_backing_src_alias(i)->flag;
+	u32 flag = vm_mem_backing_src_alias(i)->flag;
 
 	switch (i) {
 	case VM_MEM_SRC_ANONYMOUS:
@@ -335,7 +335,7 @@ size_t get_backing_src_pagesz(uint32_t i)
 	}
 }
 
-bool is_backing_src_hugetlb(uint32_t i)
+bool is_backing_src_hugetlb(u32 i)
 {
 	return !!(vm_mem_backing_src_alias(i)->flag & MAP_HUGETLB);
 }

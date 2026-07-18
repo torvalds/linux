@@ -421,12 +421,11 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id artop_pci_tbl[] = {
-	{ PCI_VDEVICE(ARTOP, 0x0005), 0 },
-	{ PCI_VDEVICE(ARTOP, 0x0006), 1 },
-	{ PCI_VDEVICE(ARTOP, 0x0007), 1 },
-	{ PCI_VDEVICE(ARTOP, 0x0008), 2 },
-	{ PCI_VDEVICE(ARTOP, 0x0009), 2 },
-
+	{ PCI_VDEVICE(ARTOP, 0x0005), .driver_data = 0 },
+	{ PCI_VDEVICE(ARTOP, 0x0006), .driver_data = 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0007), .driver_data = 1 },
+	{ PCI_VDEVICE(ARTOP, 0x0008), .driver_data = 2 },
+	{ PCI_VDEVICE(ARTOP, 0x0009), .driver_data = 2 },
 	{ }	/* terminate list */
 };
 

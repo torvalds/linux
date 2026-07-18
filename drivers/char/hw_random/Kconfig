@@ -373,6 +373,16 @@ config HW_RANDOM_HISTB
 	  To compile this driver as a module, choose M here: the
 	  module will be called histb-rng.
 
+config HW_RANDOM_HISI_TRNG
+	tristate "HiSilicon True Random Number Generator support"
+	depends on ARM64 && ACPI
+	help
+	  This driver provides kernel-side support for the True Random Number
+	  Generator hardware found on some HiSilicon SoCs.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called hisi-trng-v2.
+
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on ARCH_STI || COMPILE_TEST
@@ -614,6 +624,17 @@ config HW_RANDOM_ROCKCHIP
 	  module will be called rockchip-rng.
 
 	  If unsure, say Y.
+
+config HW_RANDOM_XILINX
+	tristate "Support for Xilinx True Random Generator"
+	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
+	select CRYPTO_LIB_SHA512
+	help
+	  Xilinx Versal SoC driver provides kernel-side support for True Random Number
+	  Generator and Pseudo random Number in CTR_DRBG mode as defined in NIST SP800-90A.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called xilinx-trng.
 
 endif # HW_RANDOM
 

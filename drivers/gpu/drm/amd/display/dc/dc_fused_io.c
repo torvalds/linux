@@ -23,11 +23,11 @@ static bool op_i2c_convert(
 
 	req->type = type;
 	loc->is_aux = false;
-	loc->ddc_line = ddc_line;
+	loc->ddc_line = (uint8_t)ddc_line;
 	loc->over_aux = over_aux;
 	loc->address = op->address;
 	loc->offset = op->offset;
-	loc->length = op->size;
+	loc->length = (uint8_t)op->size;
 	memcpy(req->buffer, op->data, op->size);
 
 	return true;
@@ -84,7 +84,7 @@ static bool atomic_write_poll_read(
 			timeout_us += timeout_per_aux_transaction_us * (io->request.u.aux.length / 16);
 	}
 
-	if (!dm_helpers_execute_fused_io(link->ctx, link, commands, count, timeout_us))
+	if (!dm_helpers_execute_fused_io(link->ctx, link, commands, count, (uint32_t)timeout_us))
 		return false;
 
 	return commands[0].fused_io.request.status == FUSED_REQUEST_STATUS_SUCCESS;
@@ -102,8 +102,8 @@ bool dm_atomic_write_poll_read_i2c(
 	if (!link)
 		return false;
 
-	const bool over_aux = false;
-	const uint32_t ddc_line = link->ddc->ddc_pin->pin_data->en;
+	const bool over_aux = link->no_ddc_pin;
+	const uint32_t ddc_line = over_aux ? link->aux_hw_inst : link->ddc->ddc_pin->pin_data->en;
 
 	union dmub_rb_cmd commands[3] = { 0 };
 	const bool converted = op_i2c_convert(&commands[0], write, FUSED_REQUEST_WRITE, ddc_line, over_aux)

@@ -53,6 +53,7 @@ struct kernel_clone_args;
 enum css_task_iter_flags {
 	CSS_TASK_ITER_PROCS    = (1U << 0),  /* walk only threadgroup leaders */
 	CSS_TASK_ITER_THREADED = (1U << 1),  /* walk all threaded css_sets in the domain */
+	CSS_TASK_ITER_WITH_DEAD = (1U << 2),  /* include exiting tasks */
 	CSS_TASK_ITER_SKIPPED  = (1U << 16), /* internal flags */
 };
 
@@ -639,11 +640,32 @@ static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
 	return cgroup_is_descendant(cset->dfl_cgrp, ancestor);
 }
 
-/* no synchronization, the result can only be used as a hint */
+/*
+ * Populated counters: writes happen under css_set_lock. The accessors below
+ * may read unlocked. What an unpopulated result means depends on context:
+ *
+ * - No lock held. Just a snapshot. May race with concurrent updates and is
+ *   useful only as a hint.
+ *
+ * - cgroup_mutex held. Migration into the cgroup is blocked, so an observed
+ *   !populated stays !populated until cgroup_mutex is dropped.
+ *
+ * - CSS_DYING set. The css can no longer be repopulated, so !populated is
+ *   sticky once observed.
+ */
+static inline bool cgroup_has_tasks(struct cgroup *cgrp)
+{
+	return READ_ONCE(cgrp->self.nr_populated_csets);
+}
+
+static inline bool css_is_populated(struct cgroup_subsys_state *css)
+{
+	return READ_ONCE(css->nr_populated_csets) || READ_ONCE(css->nr_populated_children);
+}
+
 static inline bool cgroup_is_populated(struct cgroup *cgrp)
 {
-	return cgrp->nr_populated_csets + cgrp->nr_populated_domain_children +
-		cgrp->nr_populated_threaded_children;
+	return css_is_populated(&cgrp->self);
 }
 
 /* returns ino associated with a cgroup */
@@ -776,6 +798,7 @@ static inline void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen)
 /*
  * cgroup scalable recursive statistics.
  */
+void __css_rstat_updated(struct cgroup_subsys_state *css, int cpu);
 void css_rstat_updated(struct cgroup_subsys_state *css, int cpu);
 void css_rstat_flush(struct cgroup_subsys_state *css);
 

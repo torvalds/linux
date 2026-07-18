@@ -972,3 +972,19 @@ void _torture_stop_kthread(char *m, struct task_struct **tp)
 	*tp = NULL;
 }
 EXPORT_SYMBOL_GPL(_torture_stop_kthread);
+
+/*
+ * Set the specified task's niceness value, saturating at limits.
+ * Saturating noisily, but saturating.
+ */
+void torture_sched_set_normal(struct task_struct *t, int nice)
+{
+	int realnice = nice;
+
+	if (WARN_ON_ONCE(realnice > MAX_NICE))
+		realnice = MAX_NICE;
+	if (WARN_ON_ONCE(realnice < MIN_NICE))
+		realnice = MIN_NICE;
+	sched_set_normal(t, realnice);
+}
+EXPORT_SYMBOL_GPL(torture_sched_set_normal);

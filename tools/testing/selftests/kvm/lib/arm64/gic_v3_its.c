@@ -54,7 +54,7 @@ static unsigned long its_find_baser(unsigned int type)
 	return -1;
 }
 
-static void its_install_table(unsigned int type, vm_paddr_t base, size_t size)
+static void its_install_table(unsigned int type, gpa_t base, size_t size)
 {
 	unsigned long offset = its_find_baser(type);
 	u64 baser;
@@ -69,7 +69,7 @@ static void its_install_table(unsigned int type, vm_paddr_t base, size_t size)
 	its_write_u64(offset, baser);
 }
 
-static void its_install_cmdq(vm_paddr_t base, size_t size)
+static void its_install_cmdq(gpa_t base, size_t size)
 {
 	u64 cbaser;
 
@@ -82,9 +82,8 @@ static void its_install_cmdq(vm_paddr_t base, size_t size)
 	its_write_u64(GITS_CBASER, cbaser);
 }
 
-void its_init(vm_paddr_t coll_tbl, size_t coll_tbl_sz,
-	      vm_paddr_t device_tbl, size_t device_tbl_sz,
-	      vm_paddr_t cmdq, size_t cmdq_size)
+void its_init(gpa_t coll_tbl, size_t coll_tbl_sz, gpa_t device_tbl,
+	      size_t device_tbl_sz, gpa_t cmdq, size_t cmdq_size)
 {
 	u32 ctlr;
 
@@ -204,7 +203,7 @@ static void its_send_cmd(void *cmdq_base, struct its_cmd_block *cmd)
 	}
 }
 
-void its_send_mapd_cmd(void *cmdq_base, u32 device_id, vm_paddr_t itt_base,
+void its_send_mapd_cmd(void *cmdq_base, u32 device_id, gpa_t itt_base,
 		       size_t itt_size, bool valid)
 {
 	struct its_cmd_block cmd = {};

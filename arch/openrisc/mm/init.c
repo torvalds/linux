@@ -193,7 +193,7 @@ void __init mem_init(void)
 	return;
 }
 
-static int __init map_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
+static int map_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 {
 	p4d_t *p4d;
 	pud_t *pud;

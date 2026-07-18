@@ -23,7 +23,6 @@
 #include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "cdn-dp-core.h"
 #include "cdn-dp-reg.h"
@@ -563,7 +562,7 @@ static void cdn_dp_display_info_update(struct cdn_dp_device *dp,
 	}
 }
 
-static void cdn_dp_bridge_atomic_enable(struct drm_bridge *bridge, struct drm_atomic_state *state)
+static void cdn_dp_bridge_atomic_enable(struct drm_bridge *bridge, struct drm_atomic_commit *state)
 {
 	struct cdn_dp_device *dp = bridge_to_dp(bridge);
 	struct drm_connector *connector;
@@ -630,7 +629,7 @@ out:
 	mutex_unlock(&dp->lock);
 }
 
-static void cdn_dp_bridge_atomic_disable(struct drm_bridge *bridge, struct drm_atomic_state *state)
+static void cdn_dp_bridge_atomic_disable(struct drm_bridge *bridge, struct drm_atomic_commit *state)
 {
 	struct cdn_dp_device *dp = bridge_to_dp(bridge);
 	int ret;
@@ -670,6 +669,10 @@ static int cdn_dp_encoder_atomic_check(struct drm_encoder *encoder,
 
 	return 0;
 }
+
+static const struct drm_encoder_funcs cdn_dp_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
 
 static const struct drm_encoder_helper_funcs cdn_dp_encoder_helper_funcs = {
 	.atomic_check = cdn_dp_encoder_atomic_check,
@@ -825,7 +828,7 @@ out:
 static const struct drm_bridge_funcs cdn_dp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.detect = cdn_dp_bridge_detect,
 	.edid_read = cdn_dp_bridge_edid_read,
 	.atomic_enable = cdn_dp_bridge_atomic_enable,
@@ -988,8 +991,8 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 							     dev->of_node);
 	DRM_DEBUG_KMS("possible_crtcs = 0x%x\n", encoder->possible_crtcs);
 
-	ret = drm_simple_encoder_init(drm_dev, encoder,
-				      DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(drm_dev, encoder, &cdn_dp_encoder_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret) {
 		DRM_ERROR("failed to initialize encoder with drm\n");
 		return ret;
@@ -1023,8 +1026,6 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dp->dev, "failed to init bridge connector: %d\n", ret);
 		return ret;
 	}
-
-	drm_connector_attach_encoder(connector, encoder);
 
 	for (i = 0; i < dp->ports; i++) {
 		port = dp->port[i];

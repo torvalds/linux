@@ -24,6 +24,7 @@
 #include <linux/nospec.h>
 #include <linux/prctl.h>
 #include <linux/sched/task_stack.h>
+#include <linux/sysfs.h>
 
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
@@ -61,7 +62,7 @@ static void update_mitigation_state(enum mitigation_state *oldp,
 ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	return sprintf(buf, "Mitigation: __user pointer sanitization\n");
+	return sysfs_emit(buf, "Mitigation: __user pointer sanitization\n");
 }
 
 /*
@@ -126,7 +127,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 	switch (spectre_v2_state) {
 	case SPECTRE_UNAFFECTED:
 		if (bhb_state == SPECTRE_UNAFFECTED)
-			return sprintf(buf, "Not affected\n");
+			return sysfs_emit(buf, "Not affected\n");
 
 		/*
 		 * Platforms affected by Spectre-BHB can't report
@@ -136,13 +137,13 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr,
 		fallthrough;
 	case SPECTRE_MITIGATED:
 		if (bhb_state == SPECTRE_MITIGATED && _unprivileged_ebpf_enabled())
-			return sprintf(buf, "Vulnerable: Unprivileged eBPF enabled\n");
+			return sysfs_emit(buf, "Vulnerable: Unprivileged eBPF enabled\n");
 
-		return sprintf(buf, "Mitigation: %s%s\n", v2_str, bhb_str);
+		return sysfs_emit(buf, "Mitigation: %s%s\n", v2_str, bhb_str);
 	case SPECTRE_VULNERABLE:
 		fallthrough;
 	default:
-		return sprintf(buf, "Vulnerable\n");
+		return sysfs_emit(buf, "Vulnerable\n");
 	}
 }
 
@@ -438,13 +439,13 @@ ssize_t cpu_show_spec_store_bypass(struct device *dev,
 {
 	switch (spectre_v4_state) {
 	case SPECTRE_UNAFFECTED:
-		return sprintf(buf, "Not affected\n");
+		return sysfs_emit(buf, "Not affected\n");
 	case SPECTRE_MITIGATED:
-		return sprintf(buf, "Mitigation: Speculative Store Bypass disabled via prctl\n");
+		return sysfs_emit(buf, "Mitigation: Speculative Store Bypass disabled via prctl\n");
 	case SPECTRE_VULNERABLE:
 		fallthrough;
 	default:
-		return sprintf(buf, "Vulnerable\n");
+		return sysfs_emit(buf, "Vulnerable\n");
 	}
 }
 

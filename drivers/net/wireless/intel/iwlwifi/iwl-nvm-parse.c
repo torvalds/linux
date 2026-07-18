@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2023, 2025 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023, 2025-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -18,7 +18,6 @@
 #include "iwl-prph.h"
 #include "iwl-io.h"
 #include "iwl-csr.h"
-#include "fw/acpi.h"
 #include "fw/api/nvm-reg.h"
 #include "fw/api/commands.h"
 #include "fw/api/cmdhdr.h"
@@ -206,28 +205,30 @@ enum iwl_reg_capa_flags_v2 {
 }; /* GEO_CHANNEL_CAPABILITIES_API_S_VER_2 */
 
 /**
- * enum iwl_reg_capa_flags_v4 - global flags applied for the whole regulatory
+ * enum iwl_reg_capa_flags_v5 - global flags applied for the whole regulatory
  * domain.
- * @REG_CAPA_V4_160MHZ_ALLOWED: 11ac channel with a width of 160Mhz is allowed
+ * @REG_CAPA_V5_160MHZ_ALLOWED: 11ac channel with a width of 160Mhz is allowed
  *	for this regulatory domain (valid only in 5Ghz).
- * @REG_CAPA_V4_80MHZ_ALLOWED: 11ac channel with a width of 80Mhz is allowed
+ * @REG_CAPA_V5_80MHZ_ALLOWED: 11ac channel with a width of 80Mhz is allowed
  *	for this regulatory domain (valid only in 5Ghz).
- * @REG_CAPA_V4_MCS_12_ALLOWED: 11ac with MCS 12 is allowed.
- * @REG_CAPA_V4_MCS_13_ALLOWED: 11ac with MCS 13 is allowed.
- * @REG_CAPA_V4_11BE_DISABLED: 11be is forbidden for this regulatory domain.
- * @REG_CAPA_V4_11AX_DISABLED: 11ax is forbidden for this regulatory domain.
- * @REG_CAPA_V4_320MHZ_ALLOWED: 11be channel with a width of 320Mhz is allowed
+ * @REG_CAPA_V5_MCS_12_ALLOWED: 11ac with MCS 12 is allowed.
+ * @REG_CAPA_V5_MCS_13_ALLOWED: 11ac with MCS 13 is allowed.
+ * @REG_CAPA_V5_11BE_DISABLED: 11be is forbidden for this regulatory domain.
+ * @REG_CAPA_V5_11AX_DISABLED: 11ax is forbidden for this regulatory domain.
+ * @REG_CAPA_V5_320MHZ_ALLOWED: 11be channel with a width of 320Mhz is allowed
  *	for this regulatory domain (valid only in 5GHz).
+ * @REG_CAPA_V5_11BN_DISABLED: UHR is not allowed for this regulatory domain
  */
-enum iwl_reg_capa_flags_v4 {
-	REG_CAPA_V4_160MHZ_ALLOWED		= BIT(3),
-	REG_CAPA_V4_80MHZ_ALLOWED		= BIT(4),
-	REG_CAPA_V4_MCS_12_ALLOWED		= BIT(5),
-	REG_CAPA_V4_MCS_13_ALLOWED		= BIT(6),
-	REG_CAPA_V4_11BE_DISABLED		= BIT(8),
-	REG_CAPA_V4_11AX_DISABLED		= BIT(13),
-	REG_CAPA_V4_320MHZ_ALLOWED		= BIT(16),
-}; /* GEO_CHANNEL_CAPABILITIES_API_S_VER_4 */
+enum iwl_reg_capa_flags_v5 {
+	REG_CAPA_V5_160MHZ_ALLOWED		= BIT(3),
+	REG_CAPA_V5_80MHZ_ALLOWED		= BIT(4),
+	REG_CAPA_V5_MCS_12_ALLOWED		= BIT(5),
+	REG_CAPA_V5_MCS_13_ALLOWED		= BIT(6),
+	REG_CAPA_V5_11BE_DISABLED		= BIT(8),
+	REG_CAPA_V5_11AX_DISABLED		= BIT(13),
+	REG_CAPA_V5_320MHZ_ALLOWED		= BIT(16),
+	REG_CAPA_V5_11BN_DISABLED		= BIT(17),
+}; /* GEO_CHANNEL_CAPABILITIES_API_S_VER_4, 5 */
 
 /*
 * API v2 for reg_capa_flags is relevant from version 6 and onwards of the
@@ -546,7 +547,7 @@ static const u8 iwl_vendor_caps[] = {
 	0x00
 };
 
-static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
+static const struct ieee80211_sband_iftype_data iwl_iftype_cap[] = {
 	{
 		.types_mask = BIT(NL80211_IFTYPE_STATION) |
 			      BIT(NL80211_IFTYPE_P2P_CLIENT),
@@ -690,6 +691,17 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			 */
 			.eht_ppe_thres = {0xc1, 0x0e, 0xe0 }
 		},
+		.uhr_cap = {
+			.has_uhr = true,
+			/* Note: asymmetry is fixed later */
+			.phy.cap = cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_RX |
+					       IEEE80211_UHR_PHY_CAP_ELR_TX),
+			.mac.mac_cap = {
+				[0] = IEEE80211_UHR_MAC_CAP0_NPCA_SUPP |
+				      IEEE80211_UHR_MAC_CAP0_DPS_SUPP,
+				[1] = IEEE80211_UHR_MAC_CAP1_DUO_SUPP,
+			},
+		},
 	},
 	{
 		.types_mask = BIT(NL80211_IFTYPE_AP) |
@@ -788,6 +800,12 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			 */
 			.eht_ppe_thres = {0xc1, 0x0e, 0xe0 }
 		},
+		.uhr_cap = {
+			.has_uhr = true,
+			/* Note: asymmetry is fixed later */
+			.phy.cap = cpu_to_le32(IEEE80211_UHR_PHY_CAP_ELR_RX |
+					       IEEE80211_UHR_PHY_CAP_ELR_TX),
+		},
 	},
 };
 
@@ -854,6 +872,9 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be ||
 	    fips_enabled)
 		iftype_data->eht_cap.has_eht = false;
+
+	if (!data->sku_cap_11bn_enable || !iftype_data->eht_cap.has_eht)
+		iftype_data->uhr_cap.has_uhr = false;
 
 	/* Advertise an A-MPDU exponent extension based on
 	 * operating band
@@ -1023,9 +1044,9 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 	struct ieee80211_sband_iftype_data *iftype_data;
 	int i;
 
-	BUILD_BUG_ON(sizeof(data->iftd.low) != sizeof(iwl_he_eht_capa));
-	BUILD_BUG_ON(sizeof(data->iftd.high) != sizeof(iwl_he_eht_capa));
-	BUILD_BUG_ON(sizeof(data->iftd.uhb) != sizeof(iwl_he_eht_capa));
+	BUILD_BUG_ON(sizeof(data->iftd.low) != sizeof(iwl_iftype_cap));
+	BUILD_BUG_ON(sizeof(data->iftd.high) != sizeof(iwl_iftype_cap));
+	BUILD_BUG_ON(sizeof(data->iftd.uhb) != sizeof(iwl_iftype_cap));
 
 	switch (sband->band) {
 	case NL80211_BAND_2GHZ:
@@ -1042,16 +1063,56 @@ static void iwl_init_he_hw_capab(struct iwl_trans *trans,
 		return;
 	}
 
-	memcpy(iftype_data, iwl_he_eht_capa, sizeof(iwl_he_eht_capa));
+	memcpy(iftype_data, iwl_iftype_cap, sizeof(iwl_iftype_cap));
 
 	_ieee80211_set_sband_iftype_data(sband, iftype_data,
-					 ARRAY_SIZE(iwl_he_eht_capa));
+					 ARRAY_SIZE(iwl_iftype_cap));
 
 	for (i = 0; i < sband->n_iftype_data; i++)
 		iwl_nvm_fixup_sband_iftd(trans, data, sband, &iftype_data[i],
 					 tx_chains, rx_chains, fw);
 
 	iwl_init_he_6ghz_capa(trans, data, sband, tx_chains, rx_chains);
+}
+
+static void
+iwl_init_nan_phy_capa(const struct iwl_fw *fw, struct iwl_nvm_data *data)
+{
+	const struct ieee80211_sta_he_cap *he_cap;
+
+	if (!fw_has_capa(&fw->ucode_capa, IWL_UCODE_TLV_CAPA_NAN_SYNC_SUPPORT))
+		return;
+
+	data->nan_phy_capa.ht = data->bands[NL80211_BAND_2GHZ].ht_cap;
+	data->nan_phy_capa.vht = data->bands[NL80211_BAND_5GHZ].vht_cap;
+
+	he_cap = ieee80211_get_he_iftype_cap(&data->bands[NL80211_BAND_2GHZ],
+					     NL80211_IFTYPE_STATION);
+	if (he_cap) {
+		data->nan_phy_capa.he = *he_cap;
+		data->nan_phy_capa.he.he_cap_elem.phy_cap_info[0] |=
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
+	}
+
+	/*
+	 * FIXME: we copied HE capabilities from the 2.4 GHz band,
+	 * but there are bits that are band-dependent:
+	 *
+	 * IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_1 - 2.4 GHz - set
+	 * IEEE80211_HE_MAC_CAP3_MAX_AMPDU_LEN_EXP_EXT_3 - 5 GHz - not set
+	 * IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G - set
+	 * IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G - set
+	 * IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G - set
+	 *
+	 * We copied from STA iftype - so we have the following bits set:
+	 * IEEE80211_HE_PHY_CAP1_MIDAMBLE_RX_TX_MAX_NSTS
+	 * IEEE80211_HE_PHY_CAP2_MIDAMBLE_RX_TX_MAX_NSTS
+	 * IEEE80211_HE_PHY_CAP7_MAX_NC_1
+	 * IEEE80211_HE_PHY_CAP2_UL_MU_FULL_MU_MIMO
+	 *
+	 * Need to check which one should actually be set for NAN.
+	 */
 }
 
 void iwl_reinit_cab(struct iwl_trans *trans, struct iwl_nvm_data *data,
@@ -1082,6 +1143,8 @@ void iwl_reinit_cab(struct iwl_trans *trans, struct iwl_nvm_data *data,
 	if (data->sku_cap_11ax_enable && !iwlwifi_mod_params.disable_11ax)
 		iwl_init_he_hw_capab(trans, data, sband, tx_chains, rx_chains,
 				     fw);
+
+	iwl_init_nan_phy_capa(fw, data);
 }
 IWL_EXPORT_SYMBOL(iwl_reinit_cab);
 
@@ -1611,6 +1674,9 @@ u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	if (reg_capa.disable_11be)
 		flags |= NL80211_RRF_NO_EHT;
 
+	if (reg_capa.disable_11bn)
+		flags |= NL80211_RRF_NO_UHR;
+
 	return flags;
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_nvm_get_regdom_bw_flags);
@@ -1621,11 +1687,13 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 
 	if (resp_ver >= REG_CAPA_V4_RESP_VER) {
 		reg_capa.allow_40mhz = true;
-		reg_capa.allow_80mhz = flags & REG_CAPA_V4_80MHZ_ALLOWED;
-		reg_capa.allow_160mhz = flags & REG_CAPA_V4_160MHZ_ALLOWED;
-		reg_capa.allow_320mhz = flags & REG_CAPA_V4_320MHZ_ALLOWED;
-		reg_capa.disable_11ax = flags & REG_CAPA_V4_11AX_DISABLED;
-		reg_capa.disable_11be = flags & REG_CAPA_V4_11BE_DISABLED;
+		reg_capa.allow_80mhz = flags & REG_CAPA_V5_80MHZ_ALLOWED;
+		reg_capa.allow_160mhz = flags & REG_CAPA_V5_160MHZ_ALLOWED;
+		reg_capa.allow_320mhz = flags & REG_CAPA_V5_320MHZ_ALLOWED;
+		reg_capa.disable_11ax = flags & REG_CAPA_V5_11AX_DISABLED;
+		reg_capa.disable_11be = flags & REG_CAPA_V5_11BE_DISABLED;
+		/* can check: was reserved and irrelevant for pre-UHR devices */
+		reg_capa.disable_11bn = flags & REG_CAPA_V5_11BN_DISABLED;
 	} else if (resp_ver >= REG_CAPA_V2_RESP_VER) {
 		reg_capa.allow_40mhz = flags & REG_CAPA_V2_40MHZ_ALLOWED;
 		reg_capa.allow_80mhz = flags & REG_CAPA_V2_80MHZ_ALLOWED;
@@ -1683,8 +1751,16 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 	IWL_DEBUG_DEV(dev, IWL_DL_LAR, "building regdom for %d channels\n",
 		      num_of_ch);
 
-	/* build a regdomain rule for every valid channel */
-	regd = kzalloc_flex(*regd, reg_rules, num_of_ch);
+	/* build a regdomain rule for every valid channel.
+	 * Certain firmware versions might report no valid channels
+	 * if booted in RF-kill, i.e. not all calibrations etc. are
+	 * running. We'll get out of this situation later when the
+	 * rfkill is removed and we update the regdomain again, but
+	 * since cfg80211 doesn't accept an empty regdomain, we need
+	 * to allocate space for at least one rule to add a dummy
+	 * (unusable) rule in this case so we can init.
+	 */
+	regd = kzalloc_flex(*regd, reg_rules, num_of_ch ?: 1);
 	if (!regd)
 		return ERR_PTR(-ENOMEM);
 
@@ -1758,14 +1834,7 @@ iwl_parse_nvm_mcc_info(struct iwl_trans *trans,
 		reg_query_regdb_wmm(regd->alpha2, center_freq, rule);
 	}
 
-	/*
-	 * Certain firmware versions might report no valid channels
-	 * if booted in RF-kill, i.e. not all calibrations etc. are
-	 * running. We'll get out of this situation later when the
-	 * rfkill is removed and we update the regdomain again, but
-	 * since cfg80211 doesn't accept an empty regdomain, add a
-	 * dummy (unusable) rule here in this case so we can init.
-	 */
+	/* If no valid rules were found, add a dummy rule */
 	if (!valid_rules) {
 		valid_rules = 1;
 		rule = &regd->reg_rules[valid_rules - 1];
@@ -2079,6 +2148,7 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 		!!(mac_flags & NVM_MAC_SKU_FLAGS_MIMO_DISABLED);
 	if (trans->cfg->eht_supported)
 		nvm->sku_cap_11be_enable = true;
+	nvm->sku_cap_11bn_enable = trans->cfg->uhr_supported;
 
 	/* Initialize PHY sku data */
 	nvm->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
@@ -2105,6 +2175,8 @@ struct iwl_nvm_data *iwl_get_nvm(struct iwl_trans *trans,
 
 	iwl_init_sbands(trans, nvm, channel_profile, tx_ant, rx_ant,
 			sbands_flags, v4, fw);
+
+	iwl_init_nan_phy_capa(fw, nvm);
 
 	iwl_free_resp(&hcmd);
 	return nvm;

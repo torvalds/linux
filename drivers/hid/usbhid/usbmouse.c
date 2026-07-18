@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/usb/input.h>
 #include <linux/hid.h>
+#include <linux/seq_buf.h>
 
 /* for apple IDs */
 #ifdef CONFIG_USB_HID_MODULE
@@ -110,8 +111,10 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_mouse *mouse;
 	struct input_dev *input_dev;
+	struct seq_buf mouse_name;
 	int pipe, maxp;
 	int error = -ENOMEM;
+	size_t len;
 
 	interface = intf->cur_altsetting;
 
@@ -140,24 +143,26 @@ static int usb_mouse_probe(struct usb_interface *intf, const struct usb_device_i
 
 	mouse->usbdev = dev;
 	mouse->dev = input_dev;
+	seq_buf_init(&mouse_name, mouse->name, sizeof(mouse->name));
 
 	if (dev->manufacturer)
-		strscpy(mouse->name, dev->manufacturer, sizeof(mouse->name));
+		seq_buf_puts(&mouse_name, dev->manufacturer);
 
 	if (dev->product) {
 		if (dev->manufacturer)
-			strlcat(mouse->name, " ", sizeof(mouse->name));
-		strlcat(mouse->name, dev->product, sizeof(mouse->name));
+			seq_buf_puts(&mouse_name, " ");
+		seq_buf_puts(&mouse_name, dev->product);
 	}
 
-	if (!strlen(mouse->name))
+	if (!seq_buf_used(&mouse_name))
 		snprintf(mouse->name, sizeof(mouse->name),
 			 "USB HIDBP Mouse %04x:%04x",
 			 le16_to_cpu(dev->descriptor.idVendor),
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	usb_make_path(dev, mouse->phys, sizeof(mouse->phys));
-	strlcat(mouse->phys, "/input0", sizeof(mouse->phys));
+	len = strnlen(mouse->phys, sizeof(mouse->phys));
+	strscpy(mouse->phys + len, "/input0", sizeof(mouse->phys) - len);
 
 	input_dev->name = mouse->name;
 	input_dev->phys = mouse->phys;

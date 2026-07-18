@@ -50,6 +50,9 @@
 
 #include <linux/mm.h>
 
+#define MARKER(m)				\
+	m, __after_##m = m - 1
+
 enum __kvm_host_smccc_func {
 	/* Hypercalls that are unavailable once pKVM has finalised. */
 	/* __KVM_HOST_SMCCC_FUNC___kvm_hyp_init */
@@ -59,8 +62,10 @@ enum __kvm_host_smccc_func {
 	__KVM_HOST_SMCCC_FUNC___kvm_enable_ssbs,
 	__KVM_HOST_SMCCC_FUNC___vgic_v3_init_lrs,
 	__KVM_HOST_SMCCC_FUNC___vgic_v3_get_gic_config,
+
+	MARKER(__KVM_HOST_SMCCC_FUNC_MIN_PKVM),
+
 	__KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize,
-	__KVM_HOST_SMCCC_FUNC_MIN_PKVM = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize,
 
 	/* Hypercalls that are always available and common to [nh]VHE/pKVM. */
 	__KVM_HOST_SMCCC_FUNC___kvm_adjust_pc,
@@ -72,11 +77,20 @@ enum __kvm_host_smccc_func {
 	__KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid_range,
 	__KVM_HOST_SMCCC_FUNC___kvm_flush_cpu_context,
 	__KVM_HOST_SMCCC_FUNC___kvm_timer_set_cntvoff,
+	__KVM_HOST_SMCCC_FUNC___tracing_load,
+	__KVM_HOST_SMCCC_FUNC___tracing_unload,
+	__KVM_HOST_SMCCC_FUNC___tracing_enable,
+	__KVM_HOST_SMCCC_FUNC___tracing_swap_reader,
+	__KVM_HOST_SMCCC_FUNC___tracing_update_clock,
+	__KVM_HOST_SMCCC_FUNC___tracing_reset,
+	__KVM_HOST_SMCCC_FUNC___tracing_enable_event,
+	__KVM_HOST_SMCCC_FUNC___tracing_write_event,
 	__KVM_HOST_SMCCC_FUNC___vgic_v3_save_aprs,
 	__KVM_HOST_SMCCC_FUNC___vgic_v3_restore_vmcr_aprs,
 	__KVM_HOST_SMCCC_FUNC___vgic_v5_save_apr,
 	__KVM_HOST_SMCCC_FUNC___vgic_v5_restore_vmcr_apr,
-	__KVM_HOST_SMCCC_FUNC_MAX_NO_PKVM = __KVM_HOST_SMCCC_FUNC___vgic_v5_restore_vmcr_apr,
+
+	MARKER(__KVM_HOST_SMCCC_FUNC_PKVM_ONLY),
 
 	/* Hypercalls that are available only when pKVM has finalised. */
 	__KVM_HOST_SMCCC_FUNC___pkvm_host_share_hyp,
@@ -100,14 +114,8 @@ enum __kvm_host_smccc_func {
 	__KVM_HOST_SMCCC_FUNC___pkvm_vcpu_load,
 	__KVM_HOST_SMCCC_FUNC___pkvm_vcpu_put,
 	__KVM_HOST_SMCCC_FUNC___pkvm_tlb_flush_vmid,
-	__KVM_HOST_SMCCC_FUNC___tracing_load,
-	__KVM_HOST_SMCCC_FUNC___tracing_unload,
-	__KVM_HOST_SMCCC_FUNC___tracing_enable,
-	__KVM_HOST_SMCCC_FUNC___tracing_swap_reader,
-	__KVM_HOST_SMCCC_FUNC___tracing_update_clock,
-	__KVM_HOST_SMCCC_FUNC___tracing_reset,
-	__KVM_HOST_SMCCC_FUNC___tracing_enable_event,
-	__KVM_HOST_SMCCC_FUNC___tracing_write_event,
+
+	MARKER(__KVM_HOST_SMCCC_FUNC_MAX)
 };
 
 #define DECLARE_KVM_VHE_SYM(sym)	extern char sym[]

@@ -28,6 +28,7 @@
 #define PMIC_ARB_VERSION_V5_MIN		0x50000000
 #define PMIC_ARB_VERSION_V7_MIN		0x70000000
 #define PMIC_ARB_VERSION_V8_MIN		0x80000000
+#define PMIC_ARB_VERSION_V8P5_MIN	0x80050000
 #define PMIC_ARB_INT_EN			0x0004
 
 #define PMIC_ARB_FEATURES		0x0004
@@ -61,14 +62,6 @@
 
 /* Ownership Table */
 #define SPMI_OWNERSHIP_PERIPH2OWNER(X)	((X) & 0x7)
-
-/* Channel Status fields */
-enum pmic_arb_chnl_status {
-	PMIC_ARB_STATUS_DONE	= BIT(0),
-	PMIC_ARB_STATUS_FAILURE	= BIT(1),
-	PMIC_ARB_STATUS_DENIED	= BIT(2),
-	PMIC_ARB_STATUS_DROPPED	= BIT(3),
-};
 
 /* Command register fields */
 #define PMIC_ARB_CMD_MAX_BYTE_COUNT	8
@@ -239,6 +232,7 @@ struct spmi_pmic_arb {
  *			on v2 address of SPMI_PIC_IRQ_CLEARn.
  * @apid_map_offset:	offset of PMIC_ARB_REG_CHNLn
  * @apid_owner:		on v2 and later address of SPMI_PERIPHn_2OWNER_TABLE_REG
+ * @check_chnl_status:	checks channel status and returns error code if any
  */
 struct pmic_arb_ver_ops {
 	const char *ver_str;
@@ -261,6 +255,8 @@ struct pmic_arb_ver_ops {
 	void __iomem *(*irq_clear)(struct spmi_pmic_arb_bus *bus, u16 n);
 	u32 (*apid_map_offset)(u16 n);
 	void __iomem *(*apid_owner)(struct spmi_pmic_arb_bus *bus, u16 n);
+	int (*check_chnl_status)(struct spmi_controller *ctrl, u32 status,
+				 u8 sid, u16 addr, u32 offset);
 };
 
 static inline void pmic_arb_base_write(struct spmi_pmic_arb *pmic_arb,
@@ -306,6 +302,84 @@ static void pmic_arb_write_data(struct spmi_pmic_arb *pmic_arb, const u8 *buf,
 	__raw_writel(data, pmic_arb->wr_base + reg);
 }
 
+static int pmic_arb_check_chnl_status_v1(struct spmi_controller *ctrl,
+					 u32 status, u8 sid, u16 addr,
+					 u32 offset)
+{
+	/* Check if DONE bit is set */
+	if (!(status & BIT(0)))
+		return -EAGAIN;
+
+	if (status & BIT(1)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x) reg: 0x%x\n",
+			__func__, sid, addr, status, offset);
+		WARN_ON(1);
+		return -EIO;
+	}
+
+	if (status & BIT(2)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction denied (%#x)\n",
+			__func__, sid, addr, status);
+		return -EPERM;
+	}
+
+	if (status & BIT(3)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction dropped (%#x)\n",
+			__func__, sid, addr, status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int pmic_arb_check_chnl_status_v8p5(struct spmi_controller *ctrl,
+					   u32 status, u8 sid, u16 addr,
+					   u32 offset)
+{
+	/* Check if DONE bit is set */
+	if (!(status & BIT(0)))
+		return -EAGAIN;
+
+	if (status & BIT(1)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x) reg: 0x%x\n",
+			__func__, sid, addr, status, offset);
+		WARN_ON(1);
+		return -EIO;
+	}
+
+	if (status & BIT(2)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: CRC error (%#x)\n",
+			__func__, sid, addr, status);
+		return -EIO;
+	}
+
+	if (status & BIT(3)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: parity error (%#x)\n",
+			__func__, sid, addr, status);
+		return -EIO;
+	}
+
+	if (status & BIT(4)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: NACK error (%#x)\n",
+			__func__, sid, addr, status);
+		return -EIO;
+	}
+
+	if (status & BIT(5)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction denied (%#x)\n",
+			__func__, sid, addr, status);
+		return -EPERM;
+	}
+
+	if (status & BIT(6)) {
+		dev_err(&ctrl->dev, "%s: %#x %#x: transaction dropped (%#x)\n",
+			__func__, sid, addr, status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 				  void __iomem *base, u8 sid, u16 addr,
 				  enum pmic_arb_channel ch_type)
@@ -327,28 +401,10 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 	while (timeout--) {
 		status = readl_relaxed(base + offset);
 
-		if (status & PMIC_ARB_STATUS_DONE) {
-			if (status & PMIC_ARB_STATUS_DENIED) {
-				dev_err(&ctrl->dev, "%s: %#x %#x: transaction denied (%#x)\n",
-					__func__, sid, addr, status);
-				return -EPERM;
-			}
+		rc = pmic_arb->ver_ops->check_chnl_status(ctrl, status, sid, addr, offset);
+		if (rc != -EAGAIN)
+			return rc;
 
-			if (status & PMIC_ARB_STATUS_FAILURE) {
-				dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x) reg: 0x%x\n",
-					__func__, sid, addr, status, offset);
-				WARN_ON(1);
-				return -EIO;
-			}
-
-			if (status & PMIC_ARB_STATUS_DROPPED) {
-				dev_err(&ctrl->dev, "%s: %#x %#x: transaction dropped (%#x)\n",
-					__func__, sid, addr, status);
-				return -EIO;
-			}
-
-			return 0;
-		}
 		udelay(1);
 	}
 
@@ -1768,6 +1824,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 	.irq_clear		= pmic_arb_irq_clear_v1,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
 	.apid_owner		= pmic_arb_apid_owner_v2,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
@@ -1784,6 +1841,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 	.irq_clear		= pmic_arb_irq_clear_v2,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
 	.apid_owner		= pmic_arb_apid_owner_v2,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v3 = {
@@ -1800,6 +1858,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 	.irq_clear		= pmic_arb_irq_clear_v2,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
 	.apid_owner		= pmic_arb_apid_owner_v2,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v5 = {
@@ -1816,6 +1875,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v5 = {
 	.irq_clear		= pmic_arb_irq_clear_v5,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v5,
 	.apid_owner		= pmic_arb_apid_owner_v2,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v7 = {
@@ -1832,6 +1892,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v7 = {
 	.irq_clear		= pmic_arb_irq_clear_v7,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v7,
 	.apid_owner		= pmic_arb_apid_owner_v7,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v8 = {
@@ -1849,6 +1910,25 @@ static const struct pmic_arb_ver_ops pmic_arb_v8 = {
 	.irq_clear		= pmic_arb_irq_clear_v8,
 	.apid_map_offset	= pmic_arb_apid_map_offset_v8,
 	.apid_owner		= pmic_arb_apid_owner_v8,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v1,
+};
+
+static const struct pmic_arb_ver_ops pmic_arb_v8p5 = {
+	.ver_str		= "v8.5",
+	.get_core_resources	= pmic_arb_get_core_resources_v8,
+	.get_bus_resources	= pmic_arb_get_bus_resources_v8,
+	.init_apid		= pmic_arb_init_apid_v8,
+	.ppid_to_apid		= pmic_arb_ppid_to_apid_v5,
+	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.offset			= pmic_arb_offset_v8,
+	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
+	.owner_acc_status	= pmic_arb_owner_acc_status_v7,
+	.acc_enable		= pmic_arb_acc_enable_v8,
+	.irq_status		= pmic_arb_irq_status_v8,
+	.irq_clear		= pmic_arb_irq_clear_v8,
+	.apid_map_offset	= pmic_arb_apid_map_offset_v8,
+	.apid_owner		= pmic_arb_apid_owner_v8,
+	.check_chnl_status	= pmic_arb_check_chnl_status_v8p5,
 };
 
 static const struct irq_domain_ops pmic_arb_irq_domain_ops = {
@@ -2030,8 +2110,10 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 		pmic_arb->ver_ops = &pmic_arb_v5;
 	else if (hw_ver < PMIC_ARB_VERSION_V8_MIN)
 		pmic_arb->ver_ops = &pmic_arb_v7;
-	else
+	else if (hw_ver < PMIC_ARB_VERSION_V8P5_MIN)
 		pmic_arb->ver_ops = &pmic_arb_v8;
+	else
+		pmic_arb->ver_ops = &pmic_arb_v8p5;
 
 	err = pmic_arb->ver_ops->get_core_resources(pdev, core);
 	if (err)

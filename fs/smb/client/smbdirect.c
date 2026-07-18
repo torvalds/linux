@@ -9,7 +9,6 @@
 #include "cifs_debug.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
-#include "../smbdirect/public.h"
 
 /* Port numbers for SMBD transport */
 #define SMB_PORT	445
@@ -558,3 +557,5 @@ void smbd_debug_proc_show(struct TCP_Server_Info *server, struct seq_file *m)
 						    server->rdma_readwrite_threshold,
 						    m);
 }
+
+MODULE_IMPORT_NS("SMBDIRECT");

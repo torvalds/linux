@@ -562,9 +562,9 @@ static ssize_t image_type_write(struct file *filp, struct kobject *kobj,
 		buffer[count] = '\0';
 
 	if (strstr(buffer, "mono"))
-		strcpy(image_type, "mono");
+		strscpy(image_type, "mono");
 	else if (strstr(buffer, "packet"))
-		strcpy(image_type, "packet");
+		strscpy(image_type, "packet");
 	else if (strstr(buffer, "init")) {
 		/*
 		 * If due to the user error the driver gets in a bad

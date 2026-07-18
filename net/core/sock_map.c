@@ -1515,6 +1515,17 @@ static int sock_map_prog_link_lookup(struct bpf_map *map, struct bpf_prog ***ppr
 	return 0;
 }
 
+static int sock_map_prog_attach_check(enum bpf_attach_type attach_type,
+				      struct bpf_prog *prog)
+{
+	/* A stream parser must not modify the skb, only measure it. */
+	if (prog && attach_type == BPF_SK_SKB_STREAM_PARSER &&
+	    prog->aux->changes_pkt_data)
+		return -EINVAL;
+
+	return 0;
+}
+
 /* Handle the following four cases:
  * prog_attach: prog != NULL, old == NULL, link == NULL
  * prog_detach: prog == NULL, old != NULL, link == NULL
@@ -1530,6 +1541,10 @@ static int sock_map_prog_update(struct bpf_map *map, struct bpf_prog *prog,
 	int ret;
 
 	ret = sock_map_prog_link_lookup(map, &pprog, &plink, which);
+	if (ret)
+		return ret;
+
+	ret = sock_map_prog_attach_check(which, prog);
 	if (ret)
 		return ret;
 
@@ -1630,18 +1645,23 @@ void sock_map_unhash(struct sock *sk)
 	void (*saved_unhash)(struct sock *sk);
 	struct sk_psock *psock;
 
+retry:
 	rcu_read_lock();
 	psock = sk_psock(sk);
 	if (unlikely(!psock)) {
 		rcu_read_unlock();
 		saved_unhash = READ_ONCE(sk->sk_prot)->unhash;
+		if (unlikely(saved_unhash == sock_map_unhash))
+			goto retry;
 	} else {
 		saved_unhash = psock->saved_unhash;
 		sock_map_remove_links(sk, psock);
 		rcu_read_unlock();
+
+		if (WARN_ON_ONCE(saved_unhash == sock_map_unhash))
+			return;
 	}
-	if (WARN_ON_ONCE(saved_unhash == sock_map_unhash))
-		return;
+
 	if (saved_unhash)
 		saved_unhash(sk);
 }
@@ -1652,20 +1672,25 @@ void sock_map_destroy(struct sock *sk)
 	void (*saved_destroy)(struct sock *sk);
 	struct sk_psock *psock;
 
+retry:
 	rcu_read_lock();
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock)) {
 		rcu_read_unlock();
 		saved_destroy = READ_ONCE(sk->sk_prot)->destroy;
+		if (unlikely(saved_destroy == sock_map_destroy))
+			goto retry;
 	} else {
 		saved_destroy = psock->saved_destroy;
 		sock_map_remove_links(sk, psock);
 		rcu_read_unlock();
 		sk_psock_stop(psock);
 		sk_psock_put(sk, psock);
+
+		if (WARN_ON_ONCE(saved_destroy == sock_map_destroy))
+			return;
 	}
-	if (WARN_ON_ONCE(saved_destroy == sock_map_destroy))
-		return;
+
 	if (saved_destroy)
 		saved_destroy(sk);
 }
@@ -1676,32 +1701,33 @@ void sock_map_close(struct sock *sk, long timeout)
 	void (*saved_close)(struct sock *sk, long timeout);
 	struct sk_psock *psock;
 
+retry:
 	lock_sock(sk);
 	rcu_read_lock();
-	psock = sk_psock(sk);
+	psock = sk_psock_get(sk);
 	if (likely(psock)) {
 		saved_close = psock->saved_close;
 		sock_map_remove_links(sk, psock);
-		psock = sk_psock_get(sk);
-		if (unlikely(!psock))
-			goto no_psock;
 		rcu_read_unlock();
 		sk_psock_stop(psock);
 		release_sock(sk);
 		cancel_delayed_work_sync(&psock->work);
 		sk_psock_put(sk, psock);
+
+		/* Make sure we do not recurse. This is a bug.
+		 * Leak the socket instead of crashing on a stack overflow.
+		 */
+		if (WARN_ON_ONCE(saved_close == sock_map_close))
+			return;
 	} else {
 		saved_close = READ_ONCE(sk->sk_prot)->close;
-no_psock:
 		rcu_read_unlock();
 		release_sock(sk);
+
+		if (unlikely(saved_close == sock_map_close))
+			goto retry;
 	}
 
-	/* Make sure we do not recurse. This is a bug.
-	 * Leak the socket instead of crashing on a stack overflow.
-	 */
-	if (WARN_ON_ONCE(saved_close == sock_map_close))
-		return;
 	saved_close(sk, timeout);
 }
 EXPORT_SYMBOL_GPL(sock_map_close);
@@ -1765,6 +1791,11 @@ static int sock_map_link_update_prog(struct bpf_link *link,
 		ret = -EINVAL;
 		goto out;
 	}
+
+	ret = sock_map_prog_attach_check(link->attach_type, prog);
+	if (ret)
+		goto out;
+
 	if (!sockmap_link->map) {
 		ret = -ENOLINK;
 		goto out;

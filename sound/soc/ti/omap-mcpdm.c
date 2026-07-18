@@ -11,7 +11,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -251,12 +250,10 @@ static int omap_mcpdm_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
 
-	mutex_lock(&mcpdm->mutex);
+	guard(mutex)(&mcpdm->mutex);
 
 	if (!snd_soc_dai_active(dai))
 		omap_mcpdm_open_streams(mcpdm);
-
-	mutex_unlock(&mcpdm->mutex);
 
 	return 0;
 }
@@ -269,7 +266,7 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 	int stream1 = tx ? SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
 	int stream2 = tx ? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 
-	mutex_lock(&mcpdm->mutex);
+	guard(mutex)(&mcpdm->mutex);
 
 	if (!snd_soc_dai_active(dai)) {
 		if (omap_mcpdm_active(mcpdm)) {
@@ -287,8 +284,6 @@ static void omap_mcpdm_dai_shutdown(struct snd_pcm_substream *substream,
 		cpu_latency_qos_remove_request(&mcpdm->pm_qos_req);
 
 	mcpdm->latency[stream1] = 0;
-
-	mutex_unlock(&mcpdm->mutex);
 }
 
 static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,

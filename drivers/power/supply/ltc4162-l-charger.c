@@ -1229,10 +1229,10 @@ static void ltc4162l_alert(struct i2c_client *client,
 }
 
 static const struct i2c_device_id ltc4162l_i2c_id_table[] = {
-	{ "ltc4015", (kernel_ulong_t)&ltc4015_chip_info },
-	{ "ltc4162-f", (kernel_ulong_t)&ltc4162f_chip_info },
-	{ "ltc4162-l", (kernel_ulong_t)&ltc4162l_chip_info },
-	{ "ltc4162-s", (kernel_ulong_t)&ltc4162s_chip_info },
+	{ .name = "ltc4015", .driver_data = (kernel_ulong_t)&ltc4015_chip_info },
+	{ .name = "ltc4162-f", .driver_data = (kernel_ulong_t)&ltc4162f_chip_info },
+	{ .name = "ltc4162-l", .driver_data = (kernel_ulong_t)&ltc4162l_chip_info },
+	{ .name = "ltc4162-s", .driver_data = (kernel_ulong_t)&ltc4162s_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ltc4162l_i2c_id_table);

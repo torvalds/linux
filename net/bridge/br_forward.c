@@ -24,7 +24,7 @@ static inline int should_deliver(const struct net_bridge_port *p,
 	struct net_bridge_vlan_group *vg;
 
 	vg = nbp_vlan_group_rcu(p);
-	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
+	return (test_bit(BR_HAIRPIN_MODE_BIT, &p->flags) || skb->dev != p->dev) &&
 		(br_mst_is_enabled(p) || p->state == BR_STATE_FORWARDING) &&
 		br_allowed_egress(vg, skb) && nbp_switchdev_allowed_egress(p, skb) &&
 		!br_skb_isolated(p, skb);
@@ -214,26 +214,33 @@ void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		 */
 		switch (pkt_type) {
 		case BR_PKT_UNICAST:
-			if (!(p->flags & BR_FLOOD))
+			if (!test_bit(BR_FLOOD_BIT, &p->flags))
 				continue;
 			break;
 		case BR_PKT_MULTICAST:
-			if (!(p->flags & BR_MCAST_FLOOD) && skb->dev != br->dev)
+			if (!test_bit(BR_MCAST_FLOOD_BIT, &p->flags) && skb->dev != br->dev)
 				continue;
 			break;
 		case BR_PKT_BROADCAST:
-			if (!(p->flags & BR_BCAST_FLOOD) && skb->dev != br->dev)
+			if (!test_bit(BR_BCAST_FLOOD_BIT, &p->flags) && skb->dev != br->dev)
 				continue;
 			break;
 		}
 
 		/* Do not flood to ports that enable proxy ARP */
-		if (p->flags & BR_PROXYARP)
+		if (test_bit(BR_PROXYARP_BIT, &p->flags))
 			continue;
-		if (BR_INPUT_SKB_CB(skb)->proxyarp_replied &&
-		    ((p->flags & BR_PROXYARP_WIFI) ||
-		     br_is_neigh_suppress_enabled(p, vid)))
-			continue;
+		if (BR_INPUT_SKB_CB(skb)->proxyarp_replied) {
+			if (test_bit(BR_PROXYARP_WIFI_BIT, &p->flags))
+				continue;
+			/* For gratuitous ARPs/NAs, check neigh_forward_grat.
+			 * For regular ARPs/NDs, check only neigh_suppress.
+			 */
+			if (br_is_neigh_suppress_enabled(p, vid) &&
+			    (!BR_INPUT_SKB_CB(skb)->grat_arp ||
+			     !br_is_neigh_forward_grat_enabled(p, vid)))
+				continue;
+		}
 
 		prev = maybe_deliver(prev, p, skb, local_orig);
 		if (IS_ERR(prev)) {
@@ -321,7 +328,8 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		if ((unsigned long)lport > (unsigned long)rport) {
 			port = lport;
 
-			if (port->flags & BR_MULTICAST_TO_UNICAST) {
+			if (test_bit(BR_MULTICAST_TO_UNICAST_BIT,
+				     &port->flags)) {
 				maybe_deliver_addr(lport, skb, p->eth_addr,
 						   local_orig);
 				goto delivered;

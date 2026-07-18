@@ -369,7 +369,6 @@
 				compatible = "fsl,imx35-nand", "fsl,imx25-nand";
 				reg = <0xbb000000 0x2000>;
 				clocks = <&clks 29>;
-				clock-names = "";
 				interrupts = <33>;
 				status = "disabled";
 			};

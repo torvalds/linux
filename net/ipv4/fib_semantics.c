@@ -207,7 +207,6 @@ void fib_nh_common_release(struct fib_nh_common *nhc)
 	rt_fibinfo_free(&nhc->nhc_rth_input);
 	free_nh_exceptions(nhc);
 }
-EXPORT_SYMBOL_GPL(fib_nh_common_release);
 
 void fib_nh_release(struct net *net, struct fib_nh *fib_nh)
 {
@@ -639,7 +638,6 @@ lwt_failure:
 	nhc->nhc_pcpu_rth_output = NULL;
 	return err;
 }
-EXPORT_SYMBOL_GPL(fib_nh_common_init);
 
 int fib_nh_init(struct net *net, struct fib_nh *nh,
 		struct fib_config *cfg, int nh_weight,
@@ -1642,7 +1640,6 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 nla_put_failure:
 	return -EMSGSIZE;
 }
-EXPORT_SYMBOL_GPL(fib_nexthop_info);
 
 #if IS_ENABLED(CONFIG_IP_ROUTE_MULTIPATH) || IS_ENABLED(CONFIG_IPV6)
 int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
@@ -1675,7 +1672,6 @@ int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 nla_put_failure:
 	return -EMSGSIZE;
 }
-EXPORT_SYMBOL_GPL(fib_add_nexthop);
 #endif
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

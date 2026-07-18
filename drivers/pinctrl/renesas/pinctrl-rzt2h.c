@@ -191,6 +191,12 @@ static void rzt2h_pinctrl_set_pfc_mode(struct rzt2h_pinctrl *pctrl,
 
 	guard(raw_spinlock_irqsave)(&pctrl->lock);
 
+	reg64 = rzt2h_pinctrl_readq(pctrl, port, PFC(port));
+	/* Check if pin is already configured to the desired function */
+	if ((rzt2h_pinctrl_readb(pctrl, port, PMC(port)) & BIT(pin)) &&
+	    field_get(PFC_PIN_MASK(pin), reg64) == func)
+		return;
+
 	/* Set pin to 'Non-use (Hi-Z input protection)'  */
 	reg16 = rzt2h_pinctrl_readw(pctrl, port, PM(port));
 	reg16 &= ~PM_PIN_MASK(pin);
@@ -200,7 +206,6 @@ static void rzt2h_pinctrl_set_pfc_mode(struct rzt2h_pinctrl *pctrl,
 	rzt2h_pinctrl_set_gpio_en(pctrl, port, pin, true);
 
 	/* Select Pin function mode with PFC register */
-	reg64 = rzt2h_pinctrl_readq(pctrl, port, PFC(port));
 	reg64 &= ~PFC_PIN_MASK(pin);
 	rzt2h_pinctrl_writeq(pctrl, port, reg64 | ((u64)func << (pin * 8)), PFC(port));
 
@@ -1140,7 +1145,7 @@ static int rzt2h_pinctrl_register(struct rzt2h_pinctrl *pctrl)
 	struct pinctrl_desc *desc = &pctrl->desc;
 	struct device *dev = pctrl->dev;
 	struct pinctrl_pin_desc *pins;
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 
 	desc->name = DRV_NAME;
@@ -1157,11 +1162,9 @@ static int rzt2h_pinctrl_register(struct rzt2h_pinctrl *pctrl)
 	pctrl->pins = pins;
 	desc->pins = pins;
 
-	for (i = 0, j = 0; i < pctrl->data->n_port_pins; i++) {
+	for (i = 0; i < pctrl->data->n_port_pins; i++) {
 		pins[i].number = i;
 		pins[i].name = rzt2h_gpio_names[i];
-		if (i && !(i % RZT2H_PINS_PER_PORT))
-			j++;
 	}
 
 	ret = devm_pinctrl_register_and_init(dev, desc, pctrl, &pctrl->pctl);

@@ -177,8 +177,8 @@ static int mcp3021_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mcp3021_id[] = {
-	{ "mcp3021", mcp3021 },
-	{ "mcp3221", mcp3221 },
+	{ .name = "mcp3021", .driver_data = mcp3021 },
+	{ .name = "mcp3221", .driver_data = mcp3221 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp3021_id);

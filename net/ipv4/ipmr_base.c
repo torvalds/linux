@@ -28,6 +28,20 @@ void vif_device_init(struct vif_device *v,
 		v->link = dev->ifindex;
 }
 
+static void __mr_free_table(struct work_struct *work)
+{
+	struct mr_table *mrt = container_of(to_rcu_work(work),
+					    struct mr_table, work);
+
+	rhltable_destroy(&mrt->mfc_hash);
+	kfree(mrt);
+}
+
+void mr_table_free(struct mr_table *mrt)
+{
+	queue_rcu_work(system_dfl_wq, &mrt->work);
+}
+
 struct mr_table *
 mr_table_alloc(struct net *net, u32 id,
 	       struct mr_table_ops *ops,
@@ -50,6 +64,8 @@ mr_table_alloc(struct net *net, u32 id,
 		kfree(mrt);
 		return ERR_PTR(err);
 	}
+
+	INIT_RCU_WORK(&mrt->work, __mr_free_table);
 	INIT_LIST_HEAD(&mrt->mfc_cache_list);
 	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
 

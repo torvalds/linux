@@ -339,7 +339,7 @@ frame_callback(Dwfl_Frame *state, void *arg)
 	       DWARF_CB_ABORT : DWARF_CB_OK;
 }
 
-int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
+int libdw__get_entries(unwind_entry_cb_t cb, void *arg,
 			struct thread *thread,
 			struct perf_sample *data,
 			int max_stack,
@@ -353,10 +353,10 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	static struct unwind_info *ui;
 	Dwfl *dwfl;
 	Dwarf_Word ip;
-	int err = -EINVAL, i;
+	int err = -EINVAL, i, entries;
 
 	if (!data->user_regs || !data->user_regs->regs)
-		return -EINVAL;
+		return 0;
 
 	ui = zalloc(sizeof(*ui) + sizeof(ui->entries[0]) * max_stack);
 	if (!ui)
@@ -430,6 +430,18 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		map_symbol__exit(&ui->entries[i].ms);
 
 	dwfl_ui_ti->ui = NULL;
+	entries = (int)ui->idx;
 	free(ui);
-	return 0;
+	/*
+	 * Unwinder return contract:
+	 *  > 0 : unwinding succeeded (stops fallback). If we found frames but hit an error
+	 *        (e.g. truncated stack), report success to preserve existing frames.
+	 *    0 : unwinding failed without yielding frames. Ignore non-fatal errors
+	 *        (e.g. missing debug info, DWARF corruption) to allow fallback unwinder or
+	 *        kernel callchain resolution to proceed.
+	 *  < 0 : fatal error (e.g. -ENOMEM). Aborts unwinding entirely.
+	 */
+	if (err)
+		return (err == -ENOMEM) ? -ENOMEM : (entries > 0 ? 1 : 0);
+	return entries;
 }

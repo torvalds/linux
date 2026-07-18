@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqdomain.h>
+#include <linux/preempt.h>
 #include <linux/random.h>
 
 #include <trace/events/irq.h>
@@ -47,9 +48,11 @@ int irq_set_chip(unsigned int irq, const struct irq_chip *chip)
 		scoped_irqdesc->irq_data.chip = (struct irq_chip *)(chip ?: &no_irq_chip);
 		ret = 0;
 	}
-	/* For !CONFIG_SPARSE_IRQ make the irq show up in allocated_irqs. */
-	if (!ret)
+	if (!ret) {
+		/* For !CONFIG_SPARSE_IRQ make the irq show up in allocated_irqs. */
 		irq_mark_irq(irq);
+		irq_proc_update_chip(chip);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(irq_set_chip);
@@ -893,7 +896,10 @@ void handle_percpu_irq(struct irq_desc *desc)
  *
  * action->percpu_dev_id is a pointer to percpu variables which
  * contain the real device id for the cpu on which this handler is
- * called
+ * called.
+ *
+ * May be used for NMI interrupt lines, and so may be called in IRQ or NMI
+ * context.
  */
 void handle_percpu_devid_irq(struct irq_desc *desc)
 {
@@ -930,7 +936,8 @@ void handle_percpu_devid_irq(struct irq_desc *desc)
 			    enabled ? " and unmasked" : "", irq, cpu);
 	}
 
-	add_interrupt_randomness(irq);
+	if (!in_nmi())
+		add_interrupt_randomness(irq);
 
 	if (chip->irq_eoi)
 		chip->irq_eoi(&desc->irq_data);
@@ -1007,6 +1014,7 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		WARN_ON(irq_chip_pm_get(irq_desc_get_irq_data(desc)));
 		irq_activate_and_startup(desc, IRQ_RESEND);
 	}
+	irq_proc_update_valid(desc);
 }
 
 void __irq_set_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
@@ -1067,6 +1075,7 @@ void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set)
 			trigger = tmp;
 
 		irqd_set(&desc->irq_data, trigger);
+		irq_proc_update_valid(desc);
 	}
 }
 EXPORT_SYMBOL_GPL(irq_modify_status);

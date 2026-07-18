@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/prctl.h>
+#include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
 #include <linux/string.h>
@@ -537,16 +538,13 @@ static int access_remote_tags(struct task_struct *tsk, unsigned long addr,
 	if (!mm)
 		return -EPERM;
 
-	if (!tsk->ptrace || (current != tsk->parent) ||
-	    ((get_dumpable(mm) != SUID_DUMP_USER) &&
-	     !ptracer_capable(tsk, mm->user_ns))) {
+	if (!ptracer_access_allowed(tsk)) {
 		mmput(mm);
 		return -EPERM;
 	}
 
 	ret = __access_remote_tags(mm, addr, kiov, gup_flags);
 	mmput(mm);
-
 	return ret;
 }
 

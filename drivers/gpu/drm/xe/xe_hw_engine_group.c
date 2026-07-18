@@ -208,21 +208,15 @@ static int xe_hw_engine_group_suspend_faulting_lr_jobs(struct xe_hw_engine_group
 	lockdep_assert_held_write(&group->mode_sem);
 
 	list_for_each_entry(q, &group->exec_queue_list, hw_engine_group_link) {
-		bool idle_skip_suspend;
 
 		if (!xe_vm_in_fault_mode(q->vm))
 			continue;
 
-		idle_skip_suspend = xe_exec_queue_idle_skip_suspend(q);
-		if (!idle_skip_suspend && has_deps)
+		if (has_deps)
 			return -EAGAIN;
 
 		xe_gt_stats_incr(q->gt, XE_GT_STATS_ID_HW_ENGINE_GROUP_SUSPEND_LR_QUEUE_COUNT, 1);
-		if (idle_skip_suspend)
-			xe_gt_stats_incr(q->gt,
-					 XE_GT_STATS_ID_HW_ENGINE_GROUP_SKIP_LR_QUEUE_COUNT, 1);
-
-		need_resume |= !idle_skip_suspend;
+		need_resume = true;
 		q->ops->suspend(q);
 		gt = q->gt;
 	}

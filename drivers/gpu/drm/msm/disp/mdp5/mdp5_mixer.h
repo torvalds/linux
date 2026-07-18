@@ -27,10 +27,10 @@ struct mdp5_hw_mixer_state {
 
 struct mdp5_hw_mixer *mdp5_mixer_init(struct drm_device *dev,
 				      const struct mdp5_lm_instance *lm);
-int mdp5_mixer_assign(struct drm_atomic_state *s, struct drm_crtc *crtc,
+int mdp5_mixer_assign(struct drm_atomic_commit *s, struct drm_crtc *crtc,
 		      uint32_t caps, struct mdp5_hw_mixer **mixer,
 		      struct mdp5_hw_mixer **r_mixer);
-int mdp5_mixer_release(struct drm_atomic_state *s,
+int mdp5_mixer_release(struct drm_atomic_commit *s,
 		       struct mdp5_hw_mixer *mixer);
 
 #endif /* __MDP5_LM_H__ */

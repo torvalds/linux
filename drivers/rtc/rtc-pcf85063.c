@@ -665,12 +665,12 @@ static const struct pcf85063_config config_rv8263 = {
 };
 
 static const struct i2c_device_id pcf85063_ids[] = {
-	{ "pca85073a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
-	{ "pcf85063", .driver_data = (kernel_ulong_t)&config_pcf85063 },
-	{ "pcf85063tp", .driver_data = (kernel_ulong_t)&config_pcf85063tp },
-	{ "pcf85063a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
-	{ "rv8263", .driver_data = (kernel_ulong_t)&config_rv8263 },
-	{}
+	{ .name = "pca85073a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
+	{ .name = "pcf85063", .driver_data = (kernel_ulong_t)&config_pcf85063 },
+	{ .name = "pcf85063tp", .driver_data = (kernel_ulong_t)&config_pcf85063tp },
+	{ .name = "pcf85063a", .driver_data = (kernel_ulong_t)&config_pcf85063a },
+	{ .name = "rv8263", .driver_data = (kernel_ulong_t)&config_rv8263 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf85063_ids);
 

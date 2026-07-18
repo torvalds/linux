@@ -11,21 +11,21 @@
 static u8 vdso_initdata[VDSO_NR_PAGES * PAGE_SIZE] __aligned(PAGE_SIZE) __initdata = {};
 
 #ifdef CONFIG_GENERIC_GETTIMEOFDAY
-struct vdso_time_data *vdso_k_time_data __refdata =
+struct vdso_time_data *vdso_k_time_data __ro_after_init =
 	(void *)&vdso_initdata[VDSO_TIME_PAGE_OFFSET * PAGE_SIZE];
 
 static_assert(sizeof(struct vdso_time_data) <= PAGE_SIZE);
 #endif /* CONFIG_GENERIC_GETTIMEOFDAY */
 
 #ifdef CONFIG_VDSO_GETRANDOM
-struct vdso_rng_data *vdso_k_rng_data __refdata =
+struct vdso_rng_data *vdso_k_rng_data __ro_after_init =
 	(void *)&vdso_initdata[VDSO_RNG_PAGE_OFFSET * PAGE_SIZE];
 
 static_assert(sizeof(struct vdso_rng_data) <= PAGE_SIZE);
 #endif /* CONFIG_VDSO_GETRANDOM */
 
 #ifdef CONFIG_ARCH_HAS_VDSO_ARCH_DATA
-struct vdso_arch_data *vdso_k_arch_data __refdata =
+struct vdso_arch_data *vdso_k_arch_data __ro_after_init =
 	(void *)&vdso_initdata[VDSO_ARCH_PAGES_START * PAGE_SIZE];
 #endif /* CONFIG_ARCH_HAS_VDSO_ARCH_DATA */
 

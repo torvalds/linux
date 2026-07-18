@@ -37,7 +37,7 @@ properties:
     maxItems: 1
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       The VPU uses the SRAM to store some of the reference data instead of
       storing it on DMA memory. It is mainly used for the purpose of reducing

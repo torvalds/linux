@@ -1789,10 +1789,16 @@ struct rtl8xxxu_cfo_tracking {
 #define RTL8XXXU_BC_MC_MACID1	1
 #define RTL8XXXU_MAX_SEC_CAM_NUM	64
 
+struct rtl8xxxu_hw_feature {
+	u8 max_bw;
+};
+
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
 	struct usb_device *udev;
 	struct rtl8xxxu_fileops *fops;
+
+	struct rtl8xxxu_hw_feature hw_feature;
 
 	spinlock_t tx_urb_lock;
 	struct list_head tx_urb_free_list;
@@ -2009,6 +2015,7 @@ struct rtl8xxxu_fileops {
 	u8 init_reg_pkt_life_time:1;
 	u8 init_reg_hmtfr:1;
 	u8 supports_concurrent:1;
+	u8 hw_feature_report:1;
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
 	u16 max_aggr_num;

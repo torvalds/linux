@@ -218,6 +218,8 @@ struct ieee80211_low_level_stats {
  *	bandwidth) OFDMA settings need to be changed
  * @IEEE80211_CHANCTX_CHANGE_PUNCTURING: The punctured channel(s) bitmap
  *	was changed.
+ * @IEEE80211_CHANCTX_CHANGE_NPCA: NPCA configuration changed
+ * @IEEE80211_CHANCTX_CHANGE_NPCA_PUNCT: NPCA puncturing changed
  */
 enum ieee80211_chanctx_change {
 	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(0),
@@ -227,6 +229,8 @@ enum ieee80211_chanctx_change {
 	IEEE80211_CHANCTX_CHANGE_MIN_DEF	= BIT(4),
 	IEEE80211_CHANCTX_CHANGE_AP		= BIT(5),
 	IEEE80211_CHANCTX_CHANGE_PUNCTURING	= BIT(6),
+	IEEE80211_CHANCTX_CHANGE_NPCA		= BIT(7),
+	IEEE80211_CHANCTX_CHANGE_NPCA_PUNCT	= BIT(8),
 };
 
 /**
@@ -234,10 +238,13 @@ enum ieee80211_chanctx_change {
  * @oper: channel definition to use for operation
  * @ap: the channel definition of the AP, if any
  *	(otherwise the chan member is %NULL)
+ * @require_npca: If NPCA is configured, require it to
+ *	remain, this is used by AP interfaces
  */
 struct ieee80211_chan_req {
 	struct cfg80211_chan_def oper;
 	struct cfg80211_chan_def ap;
+	bool require_npca;
 };
 
 /**
@@ -366,6 +373,7 @@ struct ieee80211_vif_chanctx_switch {
  * @BSS_CHANGED_MLD_TTLM: negotiated TID to link mapping was changed
  * @BSS_CHANGED_TPE: transmit power envelope changed
  * @BSS_CHANGED_NAN_LOCAL_SCHED: NAN local schedule changed (NAN mode only)
+ * @BSS_CHANGED_NPCA: NPCA parameters changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -404,6 +412,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_MLD_TTLM		= BIT_ULL(34),
 	BSS_CHANGED_TPE			= BIT_ULL(35),
 	BSS_CHANGED_NAN_LOCAL_SCHED	= BIT_ULL(36),
+	BSS_CHANGED_NPCA		= BIT_ULL(37),
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -590,6 +599,26 @@ struct ieee80211_parsed_tpe {
 };
 
 /**
+ * struct ieee80211_bss_npca_params - NPCA parameters
+ * @min_dur_thresh: NPCA minimum duration threshold (512 + 128*n usec)
+ * @switch_delay: NPCA switch delay (units of 4 usec)
+ * @switch_back_delay: NPCA switch back delay (units of 4 usec)
+ * @init_qsrc: initial QSRC value
+ * @moplen: indicates MOPLEN NPCA is permitted in the BSS
+ * @enabled: NPCA is enabled for this link
+ *
+ * Note: the individual values (except @enabled) are in spec representation.
+ */
+struct ieee80211_bss_npca_params {
+	u32 min_dur_thresh:4,
+	    switch_delay:6,
+	    switch_back_delay:6,
+	    init_qsrc:2,
+	    moplen:1,
+	    enabled:1;
+};
+
+/**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
  *
  * This structure keeps information about a BSS (and an association
@@ -763,6 +792,7 @@ struct ieee80211_parsed_tpe {
  *	(as opposed to hearing its value from another link's beacon).
  * @s1g_long_beacon_period: number of beacon intervals between each long
  *	beacon transmission.
+ * @npca: NPCA parameters
  */
 struct ieee80211_bss_conf {
 	struct ieee80211_vif *vif;
@@ -866,6 +896,8 @@ struct ieee80211_bss_conf {
 	u8 bss_param_ch_cnt_link_id;
 
 	u8 s1g_long_beacon_period;
+
+	struct ieee80211_bss_npca_params npca;
 };
 
 #define IEEE80211_NAN_MAX_CHANNELS 3
@@ -1672,6 +1704,7 @@ enum mac80211_rx_encoding {
 	RX_ENC_HE,
 	RX_ENC_EHT,
 	RX_ENC_UHR,
+	RX_ENC_S1G,
 };
 
 /**
@@ -1747,18 +1780,18 @@ struct ieee80211_rx_status {
 			u8 he_ru:3;
 			u8 he_gi:2;
 			u8 he_dcm:1;
-		};
+		} __packed;
 		struct {
 			u8 ru:4;
 			u8 gi:2;
-		} eht;
+		} __packed eht;
 		struct {
 			u8 ru:4;
 			u8 gi:2;
 			u8 elr:1;
 			u8 im:1;
-		} uhr;
-	};
+		} __packed uhr;
+	} __packed;
 	u8 rate_idx;
 	u8 nss;
 	u8 rx_flags;
@@ -1770,6 +1803,8 @@ struct ieee80211_rx_status {
 	u8 zero_length_psdu_type;
 	u8 link_valid:1, link_id:4;
 };
+
+static_assert(sizeof(struct ieee80211_rx_status) <= sizeof_field(struct sk_buff, cb));
 
 static inline u32
 ieee80211_rx_status_to_khz(struct ieee80211_rx_status *rx_status)
@@ -1979,12 +2014,16 @@ enum ieee80211_vif_flags {
  * @IEEE80211_OFFLOAD_DECAP_ENABLED: rx encapsulation offload is enabled
  *	The driver supports passing received 802.11 frames as 802.3 frames to
  *	mac80211.
+ * @IEEE80211_OFFLOAD_ENCAP_MCAST: tx multicast encapsulation offload is enabled
+ *	The driver supports sending multicast frames passed as 802.3 frames
+ *	by mac80211.
  */
 
 enum ieee80211_offload_flags {
 	IEEE80211_OFFLOAD_ENCAP_ENABLED		= BIT(0),
 	IEEE80211_OFFLOAD_ENCAP_4ADDR		= BIT(1),
 	IEEE80211_OFFLOAD_DECAP_ENABLED		= BIT(2),
+	IEEE80211_OFFLOAD_ENCAP_MCAST		= BIT(3),
 };
 
 #define IEEE80211_NAN_AVAIL_BLOB_MAX_LEN	54
@@ -2672,6 +2711,8 @@ struct ieee80211_link_sta {
  * @epp_peer: indicates that the peer is an EPP peer.
  * @nmi: For NDI stations, pointer to the NMI station of the peer.
  * @nan_sched: NAN peer schedule for this station. Valid only for NMI stations.
+ * @ext_mld_capa_ops: the MLD's extended MLD capabilities and operations
+ *	NOTE: currently only tracked for AP STAs
  */
 struct ieee80211_sta {
 	u8 addr[ETH_ALEN] __aligned(2);
@@ -2696,6 +2737,7 @@ struct ieee80211_sta {
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
 
 	u16 valid_links;
+	u16 ext_mld_capa_ops;
 	bool epp_peer;
 	struct ieee80211_link_sta deflink;
 	struct ieee80211_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -7888,6 +7930,35 @@ void ieee80211_nan_func_match(struct ieee80211_vif *vif,
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  */
 void ieee80211_nan_sched_update_done(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_nan_cluster_joined - notify about NAN cluster join.
+ *
+ * This function is used to notify mac80211 about NAN cluster join.
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @cluster_id: the cluster ID that was joined
+ * @new_cluster: true if this is a new cluster
+ * @gfp: allocation flags
+ */
+void ieee80211_nan_cluster_joined(struct ieee80211_vif *vif,
+				  const u8 *cluster_id, bool new_cluster,
+				  gfp_t gfp);
+
+/**
+ * ieee80211_nan_try_evacuate - try to evacuate a NAN channel
+ *
+ * This function tries to evacuate a NAN channel that is using the given
+ * channel context, to free up channel context resources.
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @conf: the channel context configuration to try to evacuate. If %NULL,
+ *	the NAN channel that has the fewest slots scheduled will be evacuated.
+ *
+ * Return: %true if a channel was evacuated, %false otherwise
+ */
+bool ieee80211_nan_try_evacuate(struct ieee80211_hw *hw,
+				struct ieee80211_chanctx_conf *conf);
 
 /**
  * ieee80211_calc_rx_airtime - calculate estimated transmission airtime for RX.

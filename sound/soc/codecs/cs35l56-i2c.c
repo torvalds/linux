@@ -72,9 +72,9 @@ static void cs35l56_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cs35l56_id_i2c[] = {
-	{ "cs35l56", 0x3556 },
-	{ "cs35l63", 0x3563 },
-	{}
+	{ .name = "cs35l56", .driver_data = 0x3556 },
+	{ .name = "cs35l63", .driver_data = 0x3563 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs35l56_id_i2c);
 

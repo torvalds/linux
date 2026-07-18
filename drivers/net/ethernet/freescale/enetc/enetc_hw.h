@@ -56,10 +56,20 @@ static inline u32 enetc_vsi_set_msize(u32 size)
 }
 
 #define ENETC_PSIMSGRR	0x204
-#define ENETC_PSIMSGRR_MR_MASK	GENMASK(2, 1)
-#define ENETC_PSIMSGRR_MR(n) BIT((n) + 1) /* n = VSI index */
 #define ENETC_PSIVMSGRCVAR0(n)	(0x210 + (n) * 0x8) /* n = VSI index */
 #define ENETC_PSIVMSGRCVAR1(n)	(0x214 + (n) * 0x8)
+
+/* Message received mask, n is the active number of VSIs.
+ * It is available for ENETC_PSIMSGRR, ENETC_PSIIER, and
+ * ENETC_PSIIDR registers.
+ */
+#define ENETC_PSIMR_MASK(n)	\
+	({ typeof(n) _n = (n); (_n) ? GENMASK((_n), 1) : 0; })
+
+/* Message received bit, n is VSI index. It is available for
+ * ENETC_PSIMSGRR, ENETC_PSIIER, and ENETC_PSIIDR registers.
+ */
+#define ENETC_PSIMR_BIT(n)	BIT((n) + 1)
 
 #define ENETC_VSIMSGSR	0x204	/* RO */
 #define ENETC_VSIMSGSR_MB	BIT(0)
@@ -94,7 +104,6 @@ static inline u32 enetc_vsi_set_msize(u32 size)
 #define ENETC_SICAPR1	0x904
 
 #define ENETC_PSIIER	0xa00
-#define ENETC_PSIIER_MR_MASK	GENMASK(2, 1)
 #define ENETC_PSIIDR	0xa08
 #define ENETC_SITXIDR	0xa18
 #define ENETC_SIRXIDR	0xa28
@@ -672,7 +681,6 @@ union enetc_rx_bd {
 
 #define ENETC_MAC_ADDR_FILT_CNT	8 /* # of supported entries per port */
 #define EMETC_MAC_ADDR_FILT_RES	3 /* # of reserved entries at the beginning */
-#define ENETC_MAX_NUM_VFS	2
 
 #define ENETC_CBD_FLAGS_SF	BIT(7) /* short format */
 #define ENETC_CBD_STATUS_MASK	0xf

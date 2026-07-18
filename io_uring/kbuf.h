@@ -27,11 +27,17 @@ struct io_buffer_list {
 	__u16 bgid;
 
 	/* below is for ring provided buffers */
-	__u16 nr_entries;
 	__u16 head;
 	__u16 mask;
 
 	__u16 flags;
+
+	/*
+	 * minimum required amount to be left to reuse an incrementally
+	 * consumed buffer. If less than this is left at consumption time,
+	 * buffer is done and head is incremented to the next buffer.
+	 */
+	__u32 min_left_sub_one;
 
 	struct io_mapped_region region;
 };

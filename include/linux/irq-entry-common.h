@@ -218,14 +218,6 @@ static __always_inline void __exit_to_user_mode_validate(void)
 	lockdep_sys_exit();
 }
 
-/* Temporary workaround to keep ARM64 alive */
-static __always_inline void exit_to_user_mode_prepare_legacy(struct pt_regs *regs)
-{
-	__exit_to_user_mode_prepare(regs, EXIT_TO_USER_MODE_WORK);
-	rseq_exit_to_user_mode_legacy();
-	__exit_to_user_mode_validate();
-}
-
 /**
  * syscall_exit_to_user_mode_prepare - call exit_to_user_mode_loop() if required
  * @regs:	Pointer to pt_regs on entry stack

@@ -524,7 +524,7 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
 	struct sprd_mcdt_dev *mcdt = (struct sprd_mcdt_dev *)dev_id;
 	int i;
 
-	spin_lock(&mcdt->lock);
+	guard(spinlock)(&mcdt->lock);
 
 	for (i = 0; i < MCDT_ADC_CHANNEL_NUM; i++) {
 		if (sprd_mcdt_chan_int_sts(mcdt, i, MCDT_ADC_FIFO_AF_INT)) {
@@ -547,8 +547,6 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	spin_unlock(&mcdt->lock);
-
 	return IRQ_HANDLED;
 }
 
@@ -569,22 +567,19 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
 int sprd_mcdt_chan_write(struct sprd_mcdt_chan *chan, char *tx_buf, u32 size)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 	int avail, i = 0, words = size / 4;
 	u32 *buf = (u32 *)tx_buf;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
 	if (chan->dma_enable) {
 		dev_err(mcdt->dev,
 			"Can not write data when DMA mode enabled\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
 
 	if (sprd_mcdt_chan_fifo_sts(mcdt, chan->id, MCDT_DAC_FIFO_REAL_FULL)) {
 		dev_err(mcdt->dev, "Channel fifo is full now\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EBUSY;
 	}
 
@@ -592,14 +587,12 @@ int sprd_mcdt_chan_write(struct sprd_mcdt_chan *chan, char *tx_buf, u32 size)
 	if (size > avail) {
 		dev_err(mcdt->dev,
 			"Data size is larger than the available fifo size\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EBUSY;
 	}
 
 	while (i++ < words)
 		sprd_mcdt_dac_write_fifo(mcdt, chan->id, *buf++);
 
-	spin_unlock_irqrestore(&mcdt->lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_write);
@@ -620,21 +613,18 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_write);
 int sprd_mcdt_chan_read(struct sprd_mcdt_chan *chan, char *rx_buf, u32 size)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 	int i = 0, avail, words = size / 4;
 	u32 *buf = (u32 *)rx_buf;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
 	if (chan->dma_enable) {
 		dev_err(mcdt->dev, "Can not read data when DMA mode enabled\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
 
 	if (sprd_mcdt_chan_fifo_sts(mcdt, chan->id, MCDT_ADC_FIFO_REAL_EMPTY)) {
 		dev_err(mcdt->dev, "Channel fifo is empty\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EBUSY;
 	}
 
@@ -645,7 +635,6 @@ int sprd_mcdt_chan_read(struct sprd_mcdt_chan *chan, char *rx_buf, u32 size)
 	while (i++ < words)
 		sprd_mcdt_adc_read_fifo(mcdt, chan->id, buf++);
 
-	spin_unlock_irqrestore(&mcdt->lock, flags);
 	return words * 4;
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_read);
@@ -672,14 +661,12 @@ int sprd_mcdt_chan_int_enable(struct sprd_mcdt_chan *chan, u32 water_mark,
 			      struct sprd_mcdt_chan_callback *cb)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
 	if (chan->dma_enable || chan->int_enable) {
 		dev_err(mcdt->dev, "Failed to set interrupt mode.\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
 
@@ -712,8 +699,6 @@ int sprd_mcdt_chan_int_enable(struct sprd_mcdt_chan *chan, u32 water_mark,
 		chan->int_enable = true;
 	}
 
-	spin_unlock_irqrestore(&mcdt->lock, flags);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_int_enable);
@@ -725,14 +710,12 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_int_enable);
 void sprd_mcdt_chan_int_disable(struct sprd_mcdt_chan *chan)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
-	if (!chan->int_enable) {
-		spin_unlock_irqrestore(&mcdt->lock, flags);
+	if (!chan->int_enable)
 		return;
-	}
+
 
 	switch (chan->type) {
 	case SPRD_MCDT_ADC_CHAN:
@@ -754,7 +737,6 @@ void sprd_mcdt_chan_int_disable(struct sprd_mcdt_chan *chan)
 	}
 
 	chan->int_enable = false;
-	spin_unlock_irqrestore(&mcdt->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_int_disable);
 
@@ -775,15 +757,13 @@ int sprd_mcdt_chan_dma_enable(struct sprd_mcdt_chan *chan,
 			      u32 water_mark)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
 	if (chan->dma_enable || chan->int_enable ||
 	    dma_chan > SPRD_MCDT_DMA_CH4) {
 		dev_err(mcdt->dev, "Failed to set DMA mode\n");
-		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
 
@@ -814,8 +794,6 @@ int sprd_mcdt_chan_dma_enable(struct sprd_mcdt_chan *chan,
 	if (!ret)
 		chan->dma_enable = true;
 
-	spin_unlock_irqrestore(&mcdt->lock, flags);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_dma_enable);
@@ -827,14 +805,11 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_dma_enable);
 void sprd_mcdt_chan_dma_disable(struct sprd_mcdt_chan *chan)
 {
 	struct sprd_mcdt_dev *mcdt = chan->mcdt;
-	unsigned long flags;
 
-	spin_lock_irqsave(&mcdt->lock, flags);
+	guard(spinlock_irqsave)(&mcdt->lock);
 
-	if (!chan->dma_enable) {
-		spin_unlock_irqrestore(&mcdt->lock, flags);
+	if (!chan->dma_enable)
 		return;
-	}
 
 	switch (chan->type) {
 	case SPRD_MCDT_ADC_CHAN:
@@ -852,7 +827,6 @@ void sprd_mcdt_chan_dma_disable(struct sprd_mcdt_chan *chan)
 	}
 
 	chan->dma_enable = false;
-	spin_unlock_irqrestore(&mcdt->lock, flags);
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_chan_dma_disable);
 
@@ -868,7 +842,7 @@ struct sprd_mcdt_chan *sprd_mcdt_request_chan(u8 channel,
 {
 	struct sprd_mcdt_chan *temp;
 
-	mutex_lock(&sprd_mcdt_list_mutex);
+	guard(mutex)(&sprd_mcdt_list_mutex);
 
 	list_for_each_entry(temp, &sprd_mcdt_chan_list, list) {
 		if (temp->type == type && temp->id == channel) {
@@ -879,8 +853,6 @@ struct sprd_mcdt_chan *sprd_mcdt_request_chan(u8 channel,
 
 	if (list_entry_is_head(temp, &sprd_mcdt_chan_list, list))
 		temp = NULL;
-
-	mutex_unlock(&sprd_mcdt_list_mutex);
 
 	return temp;
 }
@@ -897,17 +869,14 @@ void sprd_mcdt_free_chan(struct sprd_mcdt_chan *chan)
 	sprd_mcdt_chan_dma_disable(chan);
 	sprd_mcdt_chan_int_disable(chan);
 
-	mutex_lock(&sprd_mcdt_list_mutex);
+	guard(mutex)(&sprd_mcdt_list_mutex);
 
 	list_for_each_entry(temp, &sprd_mcdt_chan_list, list) {
-		if (temp == chan) {
-			mutex_unlock(&sprd_mcdt_list_mutex);
+		if (temp == chan)
 			return;
-		}
 	}
 
 	list_add_tail(&chan->list, &sprd_mcdt_chan_list);
-	mutex_unlock(&sprd_mcdt_list_mutex);
 }
 EXPORT_SYMBOL_GPL(sprd_mcdt_free_chan);
 
@@ -933,9 +902,8 @@ static void sprd_mcdt_init_chans(struct sprd_mcdt_dev *mcdt,
 		chan->mcdt = mcdt;
 		INIT_LIST_HEAD(&chan->list);
 
-		mutex_lock(&sprd_mcdt_list_mutex);
-		list_add_tail(&chan->list, &sprd_mcdt_chan_list);
-		mutex_unlock(&sprd_mcdt_list_mutex);
+		scoped_guard(mutex, &sprd_mcdt_list_mutex)
+			list_add_tail(&chan->list, &sprd_mcdt_chan_list);
 	}
 }
 
@@ -977,12 +945,10 @@ static void sprd_mcdt_remove(struct platform_device *pdev)
 {
 	struct sprd_mcdt_chan *chan, *temp;
 
-	mutex_lock(&sprd_mcdt_list_mutex);
+	guard(mutex)(&sprd_mcdt_list_mutex);
 
 	list_for_each_entry_safe(chan, temp, &sprd_mcdt_chan_list, list)
 		list_del(&chan->list);
-
-	mutex_unlock(&sprd_mcdt_list_mutex);
 }
 
 static const struct of_device_id sprd_mcdt_of_match[] = {

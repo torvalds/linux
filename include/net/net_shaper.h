@@ -53,6 +53,7 @@ struct net_shaper {
 
 	/* private: */
 	u32 leaves; /* accounted only for NODE scope */
+	bool valid;
 	struct rcu_head rcu;
 };
 

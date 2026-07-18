@@ -46,7 +46,7 @@ void kvm_riscv_vcpu_record_steal_time(struct kvm_vcpu *vcpu)
 	gfn = shmem >> PAGE_SHIFT;
 	hva = kvm_vcpu_gfn_to_hva(vcpu, gfn);
 
-	if (WARN_ON(kvm_is_error_hva(hva))) {
+	if (kvm_is_error_hva(hva)) {
 		vcpu->arch.sta.shmem = INVALID_GPA;
 		return;
 	}

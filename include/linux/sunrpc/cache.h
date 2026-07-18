@@ -80,6 +80,9 @@ struct cache_detail {
 	int			(*cache_upcall)(struct cache_detail *,
 						struct cache_head *);
 
+	int			(*cache_notify)(struct cache_detail *cd,
+						struct cache_head *h);
+
 	void			(*cache_request)(struct cache_detail *cd,
 						 struct cache_head *ch,
 						 char **bpp, int *blen);
@@ -189,9 +192,9 @@ sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
 
 extern int
-sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h);
+sunrpc_cache_upcall(struct cache_detail *detail, struct cache_head *h);
 extern int
-sunrpc_cache_pipe_upcall_timeout(struct cache_detail *detail,
+sunrpc_cache_upcall_warn(struct cache_detail *detail,
 				 struct cache_head *h);
 
 
@@ -247,6 +250,14 @@ extern int sunrpc_cache_register_pipefs(struct dentry *parent, const char *,
 					umode_t, struct cache_detail *);
 extern void sunrpc_cache_unregister_pipefs(struct cache_detail *);
 extern void sunrpc_cache_unhash(struct cache_detail *, struct cache_head *);
+
+int sunrpc_cache_requests_count(struct cache_detail *cd);
+int sunrpc_cache_requests_snapshot(struct cache_detail *cd,
+				   struct cache_head **items,
+				   u64 *seqnos, int max,
+				   u64 min_seqno);
+int sunrpc_cache_notify(struct cache_detail *cd, struct cache_head *h,
+			u32 cache_type);
 
 /* Must store cache_detail in seq_file->private if using next three functions */
 extern void *cache_seq_start_rcu(struct seq_file *file, loff_t *pos);

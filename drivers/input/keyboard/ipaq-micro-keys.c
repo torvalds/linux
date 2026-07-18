@@ -20,12 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/ipaq-micro.h>
 
-struct ipaq_micro_keys {
-	struct ipaq_micro *micro;
-	struct input_dev *input;
-	u16 *codes;
-};
-
 static const u16 micro_keycodes[] = {
 	KEY_RECORD,		/* 1:  Record button			*/
 	KEY_CALENDAR,		/* 2:  Calendar				*/
@@ -38,10 +32,19 @@ static const u16 micro_keycodes[] = {
 	KEY_DOWN,		/* 9:  Down				*/
 };
 
+struct ipaq_micro_keys {
+	struct ipaq_micro *micro;
+	struct input_dev *input;
+	u16 codes[ARRAY_SIZE(micro_keycodes)];
+};
+
 static void micro_key_receive(void *data, int len, unsigned char *msg)
 {
 	struct ipaq_micro_keys *keys = data;
 	int key, down;
+
+	if (len < 1)
+		return;
 
 	down = 0x80 & msg[0];
 	key  = 0x7f & msg[0];
@@ -54,7 +57,7 @@ static void micro_key_receive(void *data, int len, unsigned char *msg)
 
 static void micro_key_start(struct ipaq_micro_keys *keys)
 {
-	guard(spinlock)(&keys->micro->lock);
+	guard(spinlock_irq)(&keys->micro->lock);
 
 	keys->micro->key = micro_key_receive;
 	keys->micro->key_data = keys;
@@ -62,7 +65,7 @@ static void micro_key_start(struct ipaq_micro_keys *keys)
 
 static void micro_key_stop(struct ipaq_micro_keys *keys)
 {
-	guard(spinlock)(&keys->micro->lock);
+	guard(spinlock_irq)(&keys->micro->lock);
 
 	keys->micro->key = NULL;
 	keys->micro->key_data = NULL;
@@ -102,10 +105,7 @@ static int micro_key_probe(struct platform_device *pdev)
 
 	keys->input->keycodesize = sizeof(micro_keycodes[0]);
 	keys->input->keycodemax = ARRAY_SIZE(micro_keycodes);
-	keys->codes = devm_kmemdup_array(&pdev->dev, micro_keycodes, keys->input->keycodemax,
-					 keys->input->keycodesize, GFP_KERNEL);
-	if (!keys->codes)
-		return -ENOMEM;
+	memcpy(keys->codes, micro_keycodes, sizeof(keys->codes));
 
 	keys->input->keycode = keys->codes;
 

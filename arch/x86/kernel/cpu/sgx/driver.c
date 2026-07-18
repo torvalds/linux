@@ -6,7 +6,10 @@
 #include <linux/mman.h>
 #include <linux/security.h>
 #include <linux/suspend.h>
+
+#include <asm/cpuid/api.h>
 #include <asm/traps.h>
+
 #include "driver.h"
 #include "encl.h"
 

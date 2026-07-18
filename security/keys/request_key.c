@@ -332,7 +332,7 @@ static int construct_get_dest_keyring(struct key **_dest_keyring)
 
 		case KEY_REQKEY_DEFL_GROUP_KEYRING:
 		default:
-			BUG();
+			return -EINVAL;
 		}
 
 		/*

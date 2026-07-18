@@ -337,46 +337,6 @@ config BT_HCIBFUSB
 	  Say Y here to compile support for HCI BFUSB devices into the
 	  kernel or say M to compile it as module (bfusb).
 
-config BT_HCIDTL1
-	tristate "HCI DTL1 (PC Card) driver"
-	depends on PCMCIA && HAS_IOPORT
-	help
-	  Bluetooth HCI DTL1 (PC Card) driver.
-	  This driver provides support for Bluetooth PCMCIA devices with
-	  Nokia DTL1 interface:
-	     Nokia Bluetooth Card
-	     Socket Bluetooth CF Card
-
-	  Say Y here to compile support for HCI DTL1 devices into the
-	  kernel or say M to compile it as module (dtl1_cs).
-
-config BT_HCIBT3C
-	tristate "HCI BT3C (PC Card) driver"
-	depends on PCMCIA && HAS_IOPORT
-	select FW_LOADER
-	help
-	  Bluetooth HCI BT3C (PC Card) driver.
-	  This driver provides support for Bluetooth PCMCIA devices with
-	  3Com BT3C interface:
-	     3Com Bluetooth Card (3CRWB6096)
-	     HP Bluetooth Card
-
-	  Say Y here to compile support for HCI BT3C devices into the
-	  kernel or say M to compile it as module (bt3c_cs).
-
-config BT_HCIBLUECARD
-	tristate "HCI BlueCard (PC Card) driver"
-	depends on PCMCIA && HAS_IOPORT
-	help
-	  Bluetooth HCI BlueCard (PC Card) driver.
-	  This driver provides support for Bluetooth PCMCIA devices with
-	  Anycom BlueCard interface:
-	     Anycom Bluetooth PC Card
-	     Anycom Bluetooth CF Card
-
-	  Say Y here to compile support for HCI BlueCard devices into the
-	  kernel or say M to compile it as module (bluecard_cs).
-
 config BT_HCIVHCI
 	tristate "HCI VHCI (Virtual HCI device) driver"
 	select WANT_DEV_COREDUMP
@@ -502,7 +462,7 @@ config BT_NXPUART
 
 config BT_INTEL_PCIE
 	tristate "Intel HCI PCIe driver"
-	depends on PCI
+	depends on PCI && ACPI
 	select BT_INTEL
 	select FW_LOADER
 	help

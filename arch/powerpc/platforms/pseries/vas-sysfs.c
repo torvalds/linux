@@ -10,6 +10,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/mm.h>
 
 #include "vas.h"
@@ -58,7 +59,7 @@ static ssize_t update_total_credits_store(struct vas_cop_feat_caps *caps,
 #define sysfs_caps_entry_read(_name)					\
 static ssize_t _name##_show(struct vas_cop_feat_caps *caps, char *buf) 	\
 {									\
-	return sprintf(buf, "%d\n", atomic_read(&caps->_name));	\
+	return sysfs_emit(buf, "%d\n", atomic_read(&caps->_name));	\
 }
 
 struct vas_sysfs_entry {

@@ -8,7 +8,6 @@
 #include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -28,10 +27,10 @@ static int fxls8962af_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fxls8962af_id[] = {
-	{ "fxls8962af", fxls8962af },
-	{ "fxls8964af", fxls8964af },
-	{ "fxls8967af", fxls8967af },
-	{ "fxls8974cf", fxls8974cf },
+	{ .name = "fxls8962af", .driver_data = fxls8962af },
+	{ .name = "fxls8964af", .driver_data = fxls8964af },
+	{ .name = "fxls8967af", .driver_data = fxls8967af },
+	{ .name = "fxls8974cf", .driver_data = fxls8974cf },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxls8962af_id);

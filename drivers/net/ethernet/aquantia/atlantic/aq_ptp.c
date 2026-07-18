@@ -26,6 +26,18 @@
 
 #define POLL_SYNC_TIMER_MS 15
 
+#define PTP_UDP_FILTERS_CNT 4
+
+#define PTP_IPV4_MC_ADDR1 0xE0000181
+#define PTP_IPV4_MC_ADDR2 0xE000006B
+
+#define PTP_IPV6_MC_ADDR10 0xFF0E
+#define PTP_IPV6_MC_ADDR14 0x0181
+#define PTP_IPV6_MC_ADDR20 0xFF02
+#define PTP_IPV6_MC_ADDR24 0x006B
+
+#define PTP_GPIO_HIGHTIME 100000
+
 enum ptp_speed_offsets {
 	ptp_offset_idx_10 = 0,
 	ptp_offset_idx_100,
@@ -49,11 +61,18 @@ struct ptp_tx_timeout {
 	unsigned long tx_start;
 };
 
+struct ptp_tm_offset {
+	unsigned int mbps;
+	int egress;
+	int ingress;
+};
+
 struct aq_ptp_s {
 	struct aq_nic_s *aq_nic;
 	struct kernel_hwtstamp_config hwtstamp_config;
 	spinlock_t ptp_lock;
 	spinlock_t ptp_ring_lock;
+	struct mutex ptp_filter_lock; /* serializes aq_ptp_dpath_enable() */
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_info;
 
@@ -64,7 +83,7 @@ struct aq_ptp_s {
 
 	struct ptp_tx_timeout ptp_tx_timeout;
 
-	unsigned int idx_vector;
+	unsigned int idx_ptp_vector;
 	struct napi_struct napi;
 
 	struct aq_ring_s ptp_tx;
@@ -73,7 +92,7 @@ struct aq_ptp_s {
 
 	struct ptp_skb_ring skb_ring;
 
-	struct aq_rx_filter_l3l4 udp_filter;
+	struct aq_rx_filter_l3l4 udp_filter[PTP_UDP_FILTERS_CNT];
 	struct aq_rx_filter_l2 eth_type_filter;
 
 	struct delayed_work poll_sync;
@@ -81,17 +100,14 @@ struct aq_ptp_s {
 
 	bool extts_pin_enabled;
 	u64 last_sync1588_ts;
+	/* TSG clock selection: 0 - PTP, 1 - PTM */
+	u32 ptp_clock_sel;
 
 	bool a1_ptp;
-};
+	bool a2_ptp;
 
-struct ptp_tm_offset {
-	unsigned int mbps;
-	int egress;
-	int ingress;
+	struct ptp_tm_offset ptp_offset[6];
 };
-
-static struct ptp_tm_offset ptp_offset[6];
 
 void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic, unsigned int mbps)
 {
@@ -104,10 +120,10 @@ void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic, unsigned int mbps)
 	egress = 0;
 	ingress = 0;
 
-	for (i = 0; i < ARRAY_SIZE(ptp_offset); i++) {
-		if (mbps == ptp_offset[i].mbps) {
-			egress = ptp_offset[i].egress;
-			ingress = ptp_offset[i].ingress;
+	for (i = 0; i < ARRAY_SIZE(aq_ptp->ptp_offset); i++) {
+		if (mbps == aq_ptp->ptp_offset[i].mbps) {
+			egress = aq_ptp->ptp_offset[i].egress;
+			ingress = aq_ptp->ptp_offset[i].ingress;
 			break;
 		}
 	}
@@ -268,6 +284,18 @@ static void aq_ptp_tx_timeout_check(struct aq_ptp_s *aq_ptp)
 	}
 }
 
+void aq_ptp_tx_skb_drop_head(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	struct sk_buff *skb;
+
+	if (!aq_ptp)
+		return;
+	skb = aq_ptp_skb_get(&aq_ptp->skb_ring);
+	if (skb)
+		dev_kfree_skb_any(skb);
+}
+
 /* aq_ptp_adjfine
  * @ptp: the ptp clock structure
  * @ppb: parts per billion adjustment from base
@@ -366,6 +394,8 @@ static void aq_ptp_convert_to_hwtstamp(struct aq_ptp_s *aq_ptp,
 static int aq_ptp_hw_pin_conf(struct aq_nic_s *aq_nic, u32 pin_index, u64 start,
 			      u64 period)
 {
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+
 	if (period)
 		netdev_dbg(aq_nic->ndev,
 			   "Enable GPIO %d pulsing, start time %llu, period %u\n",
@@ -380,7 +410,8 @@ static int aq_ptp_hw_pin_conf(struct aq_nic_s *aq_nic, u32 pin_index, u64 start,
 	 */
 	mutex_lock(&aq_nic->fwreq_mutex);
 	aq_nic->aq_hw_ops->hw_gpio_pulse(aq_nic->aq_hw, pin_index,
-					 start, (u32)period);
+					 aq_ptp->ptp_clock_sel, start,
+					 (u32)period, PTP_GPIO_HIGHTIME);
 	mutex_unlock(&aq_nic->fwreq_mutex);
 
 	return 0;
@@ -454,6 +485,7 @@ static void aq_ptp_extts_pin_ctrl(struct aq_ptp_s *aq_ptp)
 
 	if (aq_nic->aq_hw_ops->hw_extts_gpio_enable)
 		aq_nic->aq_hw_ops->hw_extts_gpio_enable(aq_nic->aq_hw, 0,
+							aq_ptp->ptp_clock_sel,
 							enable);
 }
 
@@ -543,12 +575,189 @@ void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp)
 		return;
 	}
 
-	timestamp += atomic_read(&aq_ptp->offset_egress);
-	aq_ptp_convert_to_hwtstamp(aq_ptp, &hwtstamp, timestamp);
-	skb_tstamp_tx(skb, &hwtstamp);
+	if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		timestamp += atomic_read(&aq_ptp->offset_egress);
+		aq_ptp_convert_to_hwtstamp(aq_ptp, &hwtstamp, timestamp);
+		skb_tstamp_tx(skb, &hwtstamp);
+	}
+
 	dev_kfree_skb_any(skb);
 
 	aq_ptp_tx_timeout_update(aq_ptp);
+}
+
+static void aq_ptp_fill_udpv4_mc(struct ethtool_rx_flow_spec *fsp,
+				 u16 rx_queue, __be32 mc_addr)
+{
+	memset(fsp, 0, sizeof(*fsp));
+	fsp->ring_cookie = rx_queue;
+	fsp->flow_type = UDP_V4_FLOW;
+	fsp->h_u.udp_ip4_spec.pdst = cpu_to_be16(PTP_EV_PORT);
+	fsp->m_u.udp_ip4_spec.pdst = cpu_to_be16(0xffff);
+	fsp->h_u.udp_ip4_spec.ip4dst = mc_addr;
+	fsp->m_u.udp_ip4_spec.ip4dst = cpu_to_be32(0xffffffff);
+}
+
+static void aq_ptp_fill_udpv6_mc(struct ethtool_rx_flow_spec *fsp,
+				 u16 rx_queue,
+				 __be32 ip6dst_hi, __be32 ip6dst_hi_mask,
+				 __be32 ip6dst_lo, __be32 ip6dst_lo_mask)
+{
+	memset(fsp, 0, sizeof(*fsp));
+	fsp->ring_cookie = rx_queue;
+	fsp->flow_type = UDP_V6_FLOW;
+	fsp->h_u.udp_ip6_spec.pdst = cpu_to_be16(PTP_EV_PORT);
+	fsp->m_u.udp_ip6_spec.pdst = cpu_to_be16(0xffff);
+	fsp->h_u.udp_ip6_spec.ip6dst[0] = ip6dst_hi;
+	fsp->m_u.udp_ip6_spec.ip6dst[0] = ip6dst_hi_mask;
+	fsp->h_u.udp_ip6_spec.ip6dst[3] = ip6dst_lo;
+	fsp->m_u.udp_ip6_spec.ip6dst[3] = ip6dst_lo_mask;
+}
+
+static void aq_ptp_add_a2_filter(struct aq_ptp_s *aq_ptp,
+				 struct ethtool_rx_flow_spec *fsp,
+				 int *flt_idx)
+{
+	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
+
+	aq_set_data_fl3l4(fsp,
+			  &aq_ptp->udp_filter[*flt_idx],
+			  aq_ptp->udp_filter[*flt_idx].location,
+			  true);
+
+	netdev_dbg(aq_nic->ndev,
+		   "PTP MC filter prepared. Loc: %x\n",
+		   aq_ptp->udp_filter[*flt_idx].location);
+	(*flt_idx)++;
+}
+
+static int aq_ptp_dpath_enable(struct aq_ptp_s *aq_ptp,
+			       int enable_flags, u16 rx_queue)
+{
+	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
+	struct ethtool_rxnfc cmd = { 0 };
+	const struct aq_hw_ops *hw_ops = aq_nic->aq_hw_ops;
+	struct ethtool_rx_flow_spec *fsp =
+		(struct ethtool_rx_flow_spec *)&cmd.fs;
+	int err = 0, i = 0;
+	int flt_idx = 0;
+
+	netdev_dbg(aq_nic->ndev,
+		   "%sable ptp filters: %x.\n",
+		   enable_flags ? "En" : "Dis", enable_flags);
+
+	if (enable_flags) {
+		/* Clear all existing L4 filters before applying new config */
+		for (i = 0; i < PTP_UDP_FILTERS_CNT; i++) {
+			aq_ptp->udp_filter[i].cmd &=
+				~HW_ATL_RX_ENABLE_FLTR_L3L4;
+			if (hw_ops->hw_filter_l3l4_set) {
+				err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
+						&aq_ptp->udp_filter[i]);
+				if (err)
+					netdev_dbg(aq_nic->ndev,
+						   "Set UDP filter failed\n");
+			}
+		}
+		if (enable_flags & (AQ_HW_PTP_L4_ENABLE)) {
+			if (aq_ptp->a1_ptp) {
+				fsp->ring_cookie = rx_queue;
+				fsp->flow_type = UDP_V4_FLOW;
+				fsp->h_u.udp_ip4_spec.pdst =
+					cpu_to_be16(PTP_EV_PORT);
+				fsp->m_u.udp_ip4_spec.pdst =
+					cpu_to_be16(0xffff);
+				err = aq_set_data_fl3l4(fsp,
+							&aq_ptp->udp_filter[flt_idx],
+							aq_ptp->udp_filter[flt_idx].location,
+							true);
+				if (!err) {
+					netdev_dbg(aq_nic->ndev,
+						   "Set UDPv4, location: %x\n",
+						   aq_ptp->udp_filter[flt_idx]
+						   .location);
+					flt_idx++;
+				}
+			} else {
+				aq_ptp_fill_udpv4_mc(fsp, rx_queue,
+						     cpu_to_be32(PTP_IPV4_MC_ADDR1));
+				aq_ptp_add_a2_filter(aq_ptp, fsp,
+						     &flt_idx);
+
+				aq_ptp_fill_udpv6_mc(fsp, rx_queue,
+						     cpu_to_be32(PTP_IPV6_MC_ADDR20 << 16),
+						     cpu_to_be32(0xffff0000),
+						     cpu_to_be32(PTP_IPV6_MC_ADDR24),
+						     cpu_to_be32(0x0000ffff));
+				aq_ptp_add_a2_filter(aq_ptp, fsp,
+						     &flt_idx);
+
+				aq_ptp_fill_udpv6_mc(fsp, rx_queue,
+						     cpu_to_be32(PTP_IPV6_MC_ADDR10 << 16),
+						     cpu_to_be32(0xffff0000),
+						     cpu_to_be32(PTP_IPV6_MC_ADDR14),
+						     cpu_to_be32(0x0000ffff));
+				aq_ptp_add_a2_filter(aq_ptp, fsp,
+						     &flt_idx);
+
+				aq_ptp_fill_udpv4_mc(fsp, rx_queue,
+						     cpu_to_be32(PTP_IPV4_MC_ADDR2));
+				aq_ptp_add_a2_filter(aq_ptp, fsp,
+						     &flt_idx);
+			}
+		}
+
+		if (enable_flags & AQ_HW_PTP_L2_ENABLE) {
+			aq_ptp->eth_type_filter.ethertype = ETH_P_1588;
+			aq_ptp->eth_type_filter.queue = rx_queue;
+		}
+
+		if (hw_ops->hw_filter_l3l4_set) {
+			for (i = 0; i < flt_idx; i++) {
+				err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
+						&aq_ptp->udp_filter[i]);
+
+				if (!err) {
+					netdev_dbg(aq_nic->ndev,
+						   "Set UDP filter complete. Location: %x\n",
+						   aq_ptp->udp_filter[i].location);
+				} else {
+					netdev_dbg(aq_nic->ndev, "Set UDP filter failed\n");
+					break;
+				}
+			}
+		}
+
+		if (!err && (enable_flags & AQ_HW_PTP_L2_ENABLE) &&
+		    hw_ops->hw_filter_l2_set) {
+			err = hw_ops->hw_filter_l2_set(aq_nic->aq_hw,
+					&aq_ptp->eth_type_filter);
+
+			if (!err)
+				netdev_dbg(aq_nic->ndev,
+					   "Set L2 filter complete. Location: %d\n",
+					   aq_ptp->eth_type_filter.location);
+		}
+	} else {
+		/* PTP disabled, clear all UDP/L2 filters */
+		for (i = 0; i < PTP_UDP_FILTERS_CNT; i++) {
+			aq_ptp->udp_filter[i].cmd &=
+				~HW_ATL_RX_ENABLE_FLTR_L3L4;
+			if (hw_ops->hw_filter_l3l4_set) {
+				err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
+						&aq_ptp->udp_filter[i]);
+				if (err)
+					netdev_dbg(aq_nic->ndev,
+						   "Set UDP filter failed\n");
+			}
+		}
+
+		if (!err && hw_ops->hw_filter_l2_clear)
+			err = hw_ops->hw_filter_l2_clear(aq_nic->aq_hw,
+						&aq_ptp->eth_type_filter);
+	}
+
+	return err;
 }
 
 /* aq_ptp_rx_hwtstamp - utility function which checks for RX time stamp
@@ -572,59 +781,61 @@ void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
 	*config = aq_ptp->hwtstamp_config;
 }
 
-static void aq_ptp_prepare_filters(struct aq_ptp_s *aq_ptp)
+static unsigned int aq_ptp_parse_rx_filters(enum hwtstamp_rx_filters rx_filter)
 {
-	aq_ptp->udp_filter.cmd = HW_ATL_RX_ENABLE_FLTR_L3L4 |
-			       HW_ATL_RX_ENABLE_CMP_PROT_L4 |
-			       HW_ATL_RX_UDP |
-			       HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4 |
-			       HW_ATL_RX_HOST << HW_ATL_RX_ACTION_FL3F4_SHIFT |
-			       HW_ATL_RX_ENABLE_QUEUE_L3L4 |
-			       aq_ptp->ptp_rx.idx << HW_ATL_RX_QUEUE_FL3L4_SHIFT;
-	aq_ptp->udp_filter.p_dst = PTP_EV_PORT;
+	unsigned int ptp_en_flags = AQ_HW_PTP_DISABLE;
 
-	aq_ptp->eth_type_filter.ethertype = ETH_P_1588;
-	aq_ptp->eth_type_filter.queue = aq_ptp->ptp_rx.idx;
+	switch (rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		ptp_en_flags = AQ_HW_PTP_L2_ENABLE;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		ptp_en_flags = AQ_HW_PTP_L4_ENABLE;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_ALL:
+	default:
+		ptp_en_flags = AQ_HW_PTP_L4_ENABLE | AQ_HW_PTP_L2_ENABLE;
+		break;
+	}
+	return ptp_en_flags;
 }
 
 int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
 			       struct kernel_hwtstamp_config *config)
 {
+	unsigned int ptp_en_flags = aq_ptp_parse_rx_filters(config->rx_filter);
 	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
-	const struct aq_hw_ops *hw_ops;
 	int err = 0;
 
-	hw_ops = aq_nic->aq_hw_ops;
-	if (config->tx_type == HWTSTAMP_TX_ON ||
-	    config->rx_filter == HWTSTAMP_FILTER_PTP_V2_EVENT) {
-		aq_ptp_prepare_filters(aq_ptp);
-		if (hw_ops->hw_filter_l3l4_set) {
-			err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
-							 &aq_ptp->udp_filter);
-		}
-		if (!err && hw_ops->hw_filter_l2_set) {
-			err = hw_ops->hw_filter_l2_set(aq_nic->aq_hw,
-						       &aq_ptp->eth_type_filter);
-		}
-		aq_utils_obj_set(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
-	} else {
-		aq_ptp->udp_filter.cmd &= ~HW_ATL_RX_ENABLE_FLTR_L3L4;
-		if (hw_ops->hw_filter_l3l4_set) {
-			err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
-							 &aq_ptp->udp_filter);
-		}
-		if (!err && hw_ops->hw_filter_l2_clear) {
-			err = hw_ops->hw_filter_l2_clear(aq_nic->aq_hw,
-							&aq_ptp->eth_type_filter);
-		}
-		aq_utils_obj_clear(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
+	mutex_lock(&aq_ptp->ptp_filter_lock);
+	if (aq_ptp->hwtstamp_config.rx_filter != config->rx_filter) {
+		err = aq_ptp_dpath_enable(aq_ptp,
+					  ptp_en_flags,
+					  aq_ptp->ptp_rx.idx);
 	}
+	mutex_unlock(&aq_ptp->ptp_filter_lock);
 
 	if (err)
 		return -EREMOTEIO;
 
-	aq_ptp->hwtstamp_config = *config;
+	if (ptp_en_flags != AQ_HW_PTP_DISABLE)
+		aq_utils_obj_set(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
+	else
+		aq_utils_obj_clear(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
 
+	aq_ptp->hwtstamp_config = *config;
 	return 0;
 }
 
@@ -673,21 +884,23 @@ static int aq_ptp_poll(struct napi_struct *napi, int budget)
 		was_cleaned = true;
 	}
 
-	/* Processing HW_TIMESTAMP RX traffic */
-	err = aq_nic->aq_hw_ops->hw_ring_hwts_rx_receive(aq_nic->aq_hw,
-							 &aq_ptp->hwts_rx);
-	if (err < 0)
-		goto err_exit;
-
-	if (aq_ptp->hwts_rx.sw_head != aq_ptp->hwts_rx.hw_head) {
-		aq_ring_hwts_rx_clean(&aq_ptp->hwts_rx, aq_nic);
-
-		err = aq_nic->aq_hw_ops->hw_ring_hwts_rx_fill(aq_nic->aq_hw,
-							      &aq_ptp->hwts_rx);
+	if (aq_ptp->a1_ptp) {
+		/* Processing HW_TIMESTAMP RX traffic */
+		err = aq_nic->aq_hw_ops->hw_ring_hwts_rx_receive(aq_nic->aq_hw,
+			&aq_ptp->hwts_rx);
 		if (err < 0)
 			goto err_exit;
 
-		was_cleaned = true;
+		if (aq_ptp->hwts_rx.sw_head != aq_ptp->hwts_rx.hw_head) {
+			aq_ring_hwts_rx_clean(&aq_ptp->hwts_rx, aq_nic);
+
+			err = aq_nic->aq_hw_ops->hw_ring_hwts_rx_fill(aq_nic->aq_hw,
+				&aq_ptp->hwts_rx);
+			if (err < 0)
+				goto err_exit;
+
+			was_cleaned = true;
+		}
 	}
 
 	/* Processing PTP RX traffic */
@@ -818,7 +1031,7 @@ int aq_ptp_irq_alloc(struct aq_nic_s *aq_nic)
 		return 0;
 
 	if (pdev->msix_enabled || pdev->msi_enabled) {
-		err = request_irq(pci_irq_vector(pdev, aq_ptp->idx_vector),
+		err = request_irq(pci_irq_vector(pdev, aq_ptp->idx_ptp_vector),
 				  aq_ptp_isr, 0, aq_nic->ndev->name, aq_ptp);
 	} else {
 		err = -EINVAL;
@@ -837,7 +1050,7 @@ void aq_ptp_irq_free(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return;
 
-	free_irq(pci_irq_vector(pdev, aq_ptp->idx_vector), aq_ptp);
+	free_irq(pci_irq_vector(pdev, aq_ptp->idx_ptp_vector), aq_ptp);
 }
 
 int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
@@ -874,6 +1087,9 @@ int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
 						 0U);
 	if (err < 0)
 		goto err_rx_free;
+
+	if (aq_ptp->a2_ptp)
+		return 0;
 
 	err = aq_ring_init(&aq_ptp->hwts_rx, ATL_RING_RX);
 	if (err < 0)
@@ -912,10 +1128,12 @@ int aq_ptp_ring_start(struct aq_nic_s *aq_nic)
 	if (err < 0)
 		goto err_exit;
 
-	err = aq_nic->aq_hw_ops->hw_ring_rx_start(aq_nic->aq_hw,
-						  &aq_ptp->hwts_rx);
-	if (err < 0)
-		goto err_exit;
+	if (aq_ptp->a1_ptp) {
+		err = aq_nic->aq_hw_ops->hw_ring_rx_start(aq_nic->aq_hw,
+							  &aq_ptp->hwts_rx);
+		if (err < 0)
+			goto err_exit;
+	}
 
 	napi_enable(&aq_ptp->napi);
 
@@ -933,7 +1151,9 @@ void aq_ptp_ring_stop(struct aq_nic_s *aq_nic)
 	aq_nic->aq_hw_ops->hw_ring_tx_stop(aq_nic->aq_hw, &aq_ptp->ptp_tx);
 	aq_nic->aq_hw_ops->hw_ring_rx_stop(aq_nic->aq_hw, &aq_ptp->ptp_rx);
 
-	aq_nic->aq_hw_ops->hw_ring_rx_stop(aq_nic->aq_hw, &aq_ptp->hwts_rx);
+	if (aq_ptp->a1_ptp)
+		aq_nic->aq_hw_ops->hw_ring_rx_stop(aq_nic->aq_hw,
+						   &aq_ptp->hwts_rx);
 
 	napi_disable(&aq_ptp->napi);
 }
@@ -972,11 +1192,13 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 	if (err)
 		goto err_exit_ptp_tx;
 
-	err = aq_ring_hwts_rx_alloc(&aq_ptp->hwts_rx, aq_nic, PTP_HWST_RING_IDX,
-				    aq_nic->aq_nic_cfg.rxds,
-				    aq_nic->aq_nic_cfg.aq_hw_caps->rxd_size);
-	if (err)
-		goto err_exit_ptp_rx;
+	if (aq_ptp->a1_ptp) {
+		err = aq_ring_hwts_rx_alloc(&aq_ptp->hwts_rx, aq_nic, PTP_HWST_RING_IDX,
+					    aq_nic->aq_nic_cfg.rxds,
+					    aq_nic->aq_nic_cfg.aq_hw_caps->rxd_size);
+		if (err)
+			goto err_exit_ptp_rx;
+	}
 
 	err = aq_ptp_skb_ring_init(&aq_ptp->skb_ring, aq_nic->aq_nic_cfg.rxds);
 	if (err != 0) {
@@ -984,7 +1206,7 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 		goto err_exit_hwts_rx;
 	}
 
-	aq_ptp->ptp_ring_param.vec_idx = aq_ptp->idx_vector;
+	aq_ptp->ptp_ring_param.vec_idx = aq_ptp->idx_ptp_vector;
 	aq_ptp->ptp_ring_param.cpu = aq_ptp->ptp_ring_param.vec_idx +
 			aq_nic_get_cfg(aq_nic)->aq_rss.base_cpu_number;
 	cpumask_set_cpu(aq_ptp->ptp_ring_param.cpu,
@@ -993,7 +1215,8 @@ int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
 	return 0;
 
 err_exit_hwts_rx:
-	aq_ring_hwts_rx_free(&aq_ptp->hwts_rx);
+	if (aq_ptp->a1_ptp)
+		aq_ring_hwts_rx_free(&aq_ptp->hwts_rx);
 err_exit_ptp_rx:
 	aq_ring_free(&aq_ptp->ptp_rx);
 err_exit_ptp_tx:
@@ -1011,7 +1234,8 @@ void aq_ptp_ring_free(struct aq_nic_s *aq_nic)
 
 	aq_ring_free(&aq_ptp->ptp_tx);
 	aq_ring_free(&aq_ptp->ptp_rx);
-	aq_ring_hwts_rx_free(&aq_ptp->hwts_rx);
+	if (aq_ptp->a1_ptp)
+		aq_ring_hwts_rx_free(&aq_ptp->hwts_rx);
 
 	aq_ptp_skb_ring_release(&aq_ptp->skb_ring);
 }
@@ -1035,46 +1259,49 @@ static struct ptp_clock_info aq_ptp_clock = {
 	.pin_config	= NULL,
 };
 
-#define ptp_offset_init(__idx, __mbps, __egress, __ingress)   do { \
-		ptp_offset[__idx].mbps = (__mbps); \
-		ptp_offset[__idx].egress = (__egress); \
-		ptp_offset[__idx].ingress = (__ingress); } \
-		while (0)
+static void ptp_offset_init(struct aq_ptp_s *aq_ptp, int idx,
+			    unsigned int mbps, int egress, int ingress)
+{
+	aq_ptp->ptp_offset[idx].mbps = mbps;
+	aq_ptp->ptp_offset[idx].egress = egress;
+	aq_ptp->ptp_offset[idx].ingress = ingress;
+}
 
-static void aq_ptp_offset_init_from_fw(const struct hw_atl_ptp_offset *offsets)
+static void aq_ptp_offset_init_from_fw(struct aq_ptp_s *aq_ptp,
+				       const struct hw_atl_ptp_offset *offsets)
 {
 	int i;
 
 	/* Load offsets for PTP */
-	for (i = 0; i < ARRAY_SIZE(ptp_offset); i++) {
+	for (i = 0; i < ARRAY_SIZE(aq_ptp->ptp_offset); i++) {
 		switch (i) {
 		/* 100M */
 		case ptp_offset_idx_100:
-			ptp_offset_init(i, 100,
+			ptp_offset_init(aq_ptp, i, 100,
 					offsets->egress_100,
 					offsets->ingress_100);
 			break;
 		/* 1G */
 		case ptp_offset_idx_1000:
-			ptp_offset_init(i, 1000,
+			ptp_offset_init(aq_ptp, i, 1000,
 					offsets->egress_1000,
 					offsets->ingress_1000);
 			break;
 		/* 2.5G */
 		case ptp_offset_idx_2500:
-			ptp_offset_init(i, 2500,
+			ptp_offset_init(aq_ptp, i, 2500,
 					offsets->egress_2500,
 					offsets->ingress_2500);
 			break;
 		/* 5G */
 		case ptp_offset_idx_5000:
-			ptp_offset_init(i, 5000,
+			ptp_offset_init(aq_ptp, i, 5000,
 					offsets->egress_5000,
 					offsets->ingress_5000);
 			break;
 		/* 10G */
 		case ptp_offset_idx_10000:
-			ptp_offset_init(i, 10000,
+			ptp_offset_init(aq_ptp, i, 10000,
 					offsets->egress_10000,
 					offsets->ingress_10000);
 			break;
@@ -1082,11 +1309,12 @@ static void aq_ptp_offset_init_from_fw(const struct hw_atl_ptp_offset *offsets)
 	}
 }
 
-static void aq_ptp_offset_init(const struct hw_atl_ptp_offset *offsets)
+static void aq_ptp_offset_init(struct aq_ptp_s *aq_ptp,
+			       const struct hw_atl_ptp_offset *offsets)
 {
-	memset(ptp_offset, 0, sizeof(ptp_offset));
+	memset(aq_ptp->ptp_offset, 0, sizeof(aq_ptp->ptp_offset));
 
-	aq_ptp_offset_init_from_fw(offsets);
+	aq_ptp_offset_init_from_fw(aq_ptp, offsets);
 }
 
 static void aq_ptp_gpio_init(struct ptp_clock_info *info,
@@ -1139,26 +1367,46 @@ static void aq_ptp_gpio_init(struct ptp_clock_info *info,
 	       sizeof(struct ptp_pin_desc) * info->n_pins);
 }
 
-void aq_ptp_clock_init(struct aq_nic_s *aq_nic)
+void aq_ptp_clock_init(struct aq_nic_s *aq_nic, enum aq_ptp_state state)
 {
 	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
-	struct timespec64 ts;
 
-	ktime_get_real_ts64(&ts);
-	aq_ptp_settime(&aq_ptp->ptp_info, &ts);
+	if (!aq_ptp)
+		return;
+
+	if (aq_ptp->a1_ptp || state == AQ_PTP_FIRST_INIT) {
+		struct timespec64 ts;
+
+		ktime_get_real_ts64(&ts);
+		aq_ptp_settime(&aq_ptp->ptp_info, &ts);
+	}
+
+	if (!aq_ptp->a1_ptp && state != AQ_PTP_FIRST_INIT) {
+		mutex_lock(&aq_ptp->ptp_filter_lock);
+		unsigned int ptp_en_flags =
+			aq_ptp_parse_rx_filters(state == AQ_PTP_LINK_UP ?
+						aq_ptp->hwtstamp_config.rx_filter :
+						HWTSTAMP_FILTER_NONE);
+		if (aq_ptp_dpath_enable(aq_ptp, ptp_en_flags, aq_ptp->ptp_rx.idx))
+			netdev_warn(aq_nic->ndev,
+				    "PTP RX filter restore failed in link change\n");
+		mutex_unlock(&aq_ptp->ptp_filter_lock);
+	}
 }
 
 static void aq_ptp_poll_sync_work_cb(struct work_struct *w);
 
-int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
+int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_ptp_vec)
 {
 	bool a1_ptp = ATL_HW_IS_CHIP_FEATURE(aq_nic->aq_hw, ATLANTIC);
+	bool a2_ptp = ATL_HW_IS_CHIP_FEATURE(aq_nic->aq_hw, ANTIGUA);
 	struct hw_atl_utils_mbox mbox;
 	struct ptp_clock *clock;
-	struct aq_ptp_s *aq_ptp;
+	struct aq_ptp_s *aq_ptp = NULL;
 	int err = 0;
+	int i;
 
-	if (!a1_ptp) {
+	if (!a1_ptp && !a2_ptp) {
 		aq_nic->aq_ptp = NULL;
 		return 0;
 	}
@@ -1168,19 +1416,43 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 		return 0;
 	}
 
-	if (!aq_nic->aq_fw_ops->enable_ptp) {
+	if (a1_ptp) {
+		if (!aq_nic->aq_fw_ops->enable_ptp) {
+			aq_nic->aq_ptp = NULL;
+			return 0;
+		}
+	}
+
+	/* PTP requires at least 1 free irq vector for itself */
+	if (aq_nic->irqvecs <= AQ_HW_PTP_IRQS) {
+		netdev_warn(aq_nic->ndev,
+			    "Disabling PTP due to insufficient number of available IRQ vectors.\n");
 		aq_nic->aq_ptp = NULL;
 		return 0;
 	}
 
-	hw_atl_utils_mpi_read_stats(aq_nic->aq_hw, &mbox);
+	if (a1_ptp) {
+		hw_atl_utils_mpi_read_stats(aq_nic->aq_hw, &mbox);
+		if (!(mbox.info.caps_ex & BIT(CAPS_EX_PHY_PTP_EN))) {
+			aq_nic->aq_ptp = NULL;
+			return 0;
+		}
+	} else {
+		memset(&mbox, 0, sizeof(mbox));
 
-	if (!(mbox.info.caps_ex & BIT(CAPS_EX_PHY_PTP_EN))) {
-		aq_nic->aq_ptp = NULL;
-		return 0;
+		if (a2_ptp) {
+			mbox.info.ptp_offset.ingress_100 = HW_ATL2_PTP_OFFSET_INGRESS_100;
+			mbox.info.ptp_offset.egress_100 = HW_ATL2_PTP_OFFSET_EGRESS_100;
+			mbox.info.ptp_offset.ingress_1000 = HW_ATL2_PTP_OFFSET_INGRESS_1000;
+			mbox.info.ptp_offset.egress_1000 = HW_ATL2_PTP_OFFSET_EGRESS_1000;
+			mbox.info.ptp_offset.ingress_2500 = HW_ATL2_PTP_OFFSET_INGRESS_2500;
+			mbox.info.ptp_offset.egress_2500 = HW_ATL2_PTP_OFFSET_EGRESS_2500;
+			mbox.info.ptp_offset.ingress_5000 = HW_ATL2_PTP_OFFSET_INGRESS_5000;
+			mbox.info.ptp_offset.egress_5000 = HW_ATL2_PTP_OFFSET_EGRESS_5000;
+			mbox.info.ptp_offset.ingress_10000 = HW_ATL2_PTP_OFFSET_INGRESS_10000;
+			mbox.info.ptp_offset.egress_10000 = HW_ATL2_PTP_OFFSET_EGRESS_10000;
+		}
 	}
-
-	aq_ptp_offset_init(&mbox.info.ptp_offset);
 
 	aq_ptp = kzalloc_obj(*aq_ptp);
 	if (!aq_ptp) {
@@ -1190,10 +1462,13 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 
 	aq_ptp->aq_nic = aq_nic;
 	aq_ptp->a1_ptp = a1_ptp;
+	aq_ptp->a2_ptp = a2_ptp;
 
 	spin_lock_init(&aq_ptp->ptp_lock);
 	spin_lock_init(&aq_ptp->ptp_ring_lock);
+	mutex_init(&aq_ptp->ptp_filter_lock);
 
+	aq_ptp_offset_init(aq_ptp, &mbox.info.ptp_offset);
 	aq_ptp->ptp_info = aq_ptp_clock;
 	aq_ptp_gpio_init(&aq_ptp->ptp_info, &mbox.info);
 	clock = ptp_clock_register(&aq_ptp->ptp_info, &aq_nic->ndev->dev);
@@ -1210,22 +1485,34 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 
 	netif_napi_add(aq_nic_get_ndev(aq_nic), &aq_ptp->napi, aq_ptp_poll);
 
-	aq_ptp->idx_vector = idx_vec;
+	aq_ptp->idx_ptp_vector = idx_ptp_vec;
 
 	aq_nic->aq_ptp = aq_ptp;
 
 	/* enable ptp counter */
+	aq_ptp->ptp_clock_sel = ATL_TSG_CLOCK_SEL_0;
 	aq_utils_obj_set(&aq_nic->aq_hw->flags, AQ_HW_PTP_AVAILABLE);
-	mutex_lock(&aq_nic->fwreq_mutex);
-	aq_nic->aq_fw_ops->enable_ptp(aq_nic->aq_hw, 1);
-	aq_ptp_clock_init(aq_nic);
-	mutex_unlock(&aq_nic->fwreq_mutex);
+	if (a1_ptp) {
+		mutex_lock(&aq_nic->fwreq_mutex);
+		aq_nic->aq_fw_ops->enable_ptp(aq_nic->aq_hw, 1);
+		mutex_unlock(&aq_nic->fwreq_mutex);
+	}
+	if (a2_ptp)
+		aq_nic->aq_hw_ops->enable_ptp(aq_nic->aq_hw, aq_ptp->ptp_clock_sel, 1);
 
 	INIT_DELAYED_WORK(&aq_ptp->poll_sync, &aq_ptp_poll_sync_work_cb);
 	aq_ptp->eth_type_filter.location =
-			aq_nic_reserve_filter(aq_nic, aq_rx_filter_ethertype);
-	aq_ptp->udp_filter.location =
+		aq_nic_reserve_filter(aq_nic, aq_rx_filter_ethertype);
+
+	for (i = 0; i < PTP_UDP_FILTERS_CNT; i++) {
+		aq_ptp->udp_filter[i].location =
 			aq_nic_reserve_filter(aq_nic, aq_rx_filter_l3l4);
+	}
+
+	aq_ptp_clock_init(aq_nic, AQ_PTP_FIRST_INIT);
+	netdev_info(aq_nic->ndev,
+		    "Enable PTP Support. %d GPIO(s)\n",
+		    aq_ptp->ptp_info.n_pins);
 
 	return 0;
 
@@ -1244,31 +1531,47 @@ void aq_ptp_unregister(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return;
 
-	ptp_clock_unregister(aq_ptp->ptp_clock);
+	if (aq_ptp->ptp_clock) {
+		ptp_clock_unregister(aq_ptp->ptp_clock);
+		aq_ptp->ptp_clock = NULL;
+	}
 }
 
 void aq_ptp_free(struct aq_nic_s *aq_nic)
 {
 	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	int i;
 
 	if (!aq_ptp)
 		return;
 
+	cancel_delayed_work_sync(&aq_ptp->poll_sync);
+
+	/* disable ptp */
+	if (aq_ptp->a1_ptp) {
+		mutex_lock(&aq_nic->fwreq_mutex);
+		aq_nic->aq_fw_ops->enable_ptp(aq_nic->aq_hw, 0);
+		mutex_unlock(&aq_nic->fwreq_mutex);
+	}
+
+	if (aq_ptp->a2_ptp)
+		aq_nic->aq_hw_ops->enable_ptp(aq_nic->aq_hw,
+					      aq_ptp->ptp_clock_sel, 0);
+
 	aq_nic_release_filter(aq_nic, aq_rx_filter_ethertype,
 			      aq_ptp->eth_type_filter.location);
-	aq_nic_release_filter(aq_nic, aq_rx_filter_l3l4,
-			      aq_ptp->udp_filter.location);
-	cancel_delayed_work_sync(&aq_ptp->poll_sync);
-	/* disable ptp */
-	mutex_lock(&aq_nic->fwreq_mutex);
-	aq_nic->aq_fw_ops->enable_ptp(aq_nic->aq_hw, 0);
-	mutex_unlock(&aq_nic->fwreq_mutex);
+	for (i = 0; i < PTP_UDP_FILTERS_CNT; i++)
+		aq_nic_release_filter(aq_nic, aq_rx_filter_l3l4,
+				      aq_ptp->udp_filter[i].location);
 
+	mutex_destroy(&aq_ptp->ptp_filter_lock);
 	kfree(aq_ptp->ptp_info.pin_config);
+	aq_ptp->ptp_info.pin_config = NULL;
 
 	netif_napi_del(&aq_ptp->napi);
-	kfree(aq_ptp);
+	aq_utils_obj_clear(&aq_nic->aq_hw->flags, AQ_HW_PTP_AVAILABLE);
 	aq_nic->aq_ptp = NULL;
+	kfree(aq_ptp);
 }
 
 struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp)

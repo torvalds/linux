@@ -506,12 +506,11 @@ static int cmd64x_reinit_one(struct pci_dev *pdev)
 #endif
 
 static const struct pci_device_id cmd64x[] = {
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), 0 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_646), 1 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), 5 },
-	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), 6 },
-
-	{ },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_643), .driver_data = 0 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_646), .driver_data = 1 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_648), .driver_data = 5 },
+	{ PCI_VDEVICE(CMD, PCI_DEVICE_ID_CMD_649), .driver_data = 6 },
+	{ }
 };
 
 static struct pci_driver cmd64x_pci_driver = {

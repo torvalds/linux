@@ -4,7 +4,7 @@
 #
 config PHY_MIPHY28LP
 	tristate "STMicroelectronics MIPHY28LP PHY driver for STiH407"
-	depends on ARCH_STI
+	depends on ARCH_STI || COMPILE_TEST
 	select GENERIC_PHY
 	help
 	  Enable this to support the miphy transceiver (for SATA/PCIE/USB3)

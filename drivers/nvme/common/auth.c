@@ -351,18 +351,29 @@ struct nvme_dhchap_key *nvme_auth_transform_key(
 }
 EXPORT_SYMBOL_GPL(nvme_auth_transform_key);
 
+/**
+ * nvme_auth_augmented_challenge() - Compute the augmented DH-HMAC-CHAP challenge
+ * @hmac_id: Hash algorithm identifier
+ * @skey: Session key
+ * @skey_len: Length of @skey
+ * @challenge: Challenge value
+ * @aug: Output buffer for the augmented challenge
+ * @hlen: Hash output length (length of @challenge and @aug)
+ *
+ * NVMe base specification 8.3.5.5.4: The augmented challenge is computed
+ * applying the HMAC function using the hash function H() selected by the
+ * HashID parameter ... with the hash of the ephemeral DH key ... as HMAC key
+ * to the challenge C (i.e., Ca = HMAC(H(g^xy mod p), C)).
+ *
+ * As the session key skey is already H(g^xy mod p) per section 8.3.5.5.9, use
+ * it directly as the HMAC key without additional hashing.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
 int nvme_auth_augmented_challenge(u8 hmac_id, const u8 *skey, size_t skey_len,
 				  const u8 *challenge, u8 *aug, size_t hlen)
 {
-	u8 hashed_key[NVME_AUTH_MAX_DIGEST_SIZE];
-	int ret;
-
-	ret = nvme_auth_hash(hmac_id, skey, skey_len, hashed_key);
-	if (ret)
-		return ret;
-	ret = nvme_auth_hmac(hmac_id, hashed_key, hlen, challenge, hlen, aug);
-	memzero_explicit(hashed_key, sizeof(hashed_key));
-	return ret;
+	return nvme_auth_hmac(hmac_id, skey, skey_len, challenge, hlen, aug);
 }
 EXPORT_SYMBOL_GPL(nvme_auth_augmented_challenge);
 
@@ -403,33 +414,76 @@ int nvme_auth_gen_pubkey(struct crypto_kpp *dh_tfm,
 }
 EXPORT_SYMBOL_GPL(nvme_auth_gen_pubkey);
 
-int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
-		const u8 *ctrl_key, size_t ctrl_key_len,
-		u8 *sess_key, size_t sess_key_len)
+/**
+ * nvme_auth_gen_session_key() - Generate an ephemeral session key
+ * @dh_tfm: Diffie-Hellman transform with local private key already set
+ * @public_key: Peer's public key
+ * @public_key_len: Length of @public_key
+ * @sess_key: Output buffer for the session key
+ * @sess_key_len: Size of @sess_key buffer
+ * @hash_id: Hash algorithm identifier
+ *
+ * NVMe base specification 8.3.5.5.9: The session key Ks shall be computed from
+ * the ephemeral DH key (i.e., g^xy mod p) ... by applying the hash function
+ * H() selected by the HashID parameter ... (i.e., Ks = H(g^xy mod p)).
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int nvme_auth_gen_session_key(struct crypto_kpp *dh_tfm,
+		const u8 *public_key, size_t public_key_len,
+		u8 *sess_key, size_t sess_key_len, u8 hash_id)
 {
 	struct kpp_request *req;
 	struct crypto_wait wait;
 	struct scatterlist src, dst;
+	u8 *dh_secret;
+	size_t dh_secret_len, hash_len;
 	int ret;
 
-	req = kpp_request_alloc(dh_tfm, GFP_KERNEL);
-	if (!req)
+	hash_len = nvme_auth_hmac_hash_len(hash_id);
+	if (!hash_len) {
+		pr_warn("%s: invalid hash algorithm %d\n", __func__, hash_id);
+		return -EINVAL;
+	}
+
+	if (sess_key_len != hash_len) {
+		pr_warn("%s: sess_key buffer missized (%zu != %zu)\n",
+			__func__, sess_key_len, hash_len);
+		return -EINVAL;
+	}
+
+	dh_secret_len = crypto_kpp_maxsize(dh_tfm);
+	dh_secret = kzalloc(dh_secret_len, GFP_KERNEL);
+	if (!dh_secret)
 		return -ENOMEM;
 
+	req = kpp_request_alloc(dh_tfm, GFP_KERNEL);
+	if (!req) {
+		ret = -ENOMEM;
+		goto out_free_secret;
+	}
+
 	crypto_init_wait(&wait);
-	sg_init_one(&src, ctrl_key, ctrl_key_len);
-	kpp_request_set_input(req, &src, ctrl_key_len);
-	sg_init_one(&dst, sess_key, sess_key_len);
-	kpp_request_set_output(req, &dst, sess_key_len);
+	sg_init_one(&src, public_key, public_key_len);
+	kpp_request_set_input(req, &src, public_key_len);
+	sg_init_one(&dst, dh_secret, dh_secret_len);
+	kpp_request_set_output(req, &dst, dh_secret_len);
 	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				 crypto_req_done, &wait);
 
 	ret = crypto_wait_req(crypto_kpp_compute_shared_secret(req), &wait);
-
 	kpp_request_free(req);
+
+	if (ret)
+		goto out_free_secret;
+
+	ret = nvme_auth_hash(hash_id, dh_secret, dh_secret_len, sess_key);
+
+out_free_secret:
+	kfree_sensitive(dh_secret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nvme_auth_gen_shared_secret);
+EXPORT_SYMBOL_GPL(nvme_auth_gen_session_key);
 
 int nvme_auth_parse_key(const char *secret, struct nvme_dhchap_key **ret_key)
 {

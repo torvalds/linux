@@ -94,19 +94,9 @@ enum net_iov_type {
  */
 struct net_iov {
 	struct netmem_desc desc;
-	unsigned int page_type;
 	enum net_iov_type type;
 	struct net_iov_area *owner;
 };
-
-/* Make sure 'the offset of page_type in struct page == the offset of
- * type in struct net_iov'.
- */
-#define NET_IOV_ASSERT_OFFSET(pg, iov)			\
-	static_assert(offsetof(struct page, pg) ==	\
-		      offsetof(struct net_iov, iov))
-NET_IOV_ASSERT_OFFSET(page_type, page_type);
-#undef NET_IOV_ASSERT_OFFSET
 
 struct net_iov_area {
 	/* Array of net_iovs for this area. */
@@ -125,6 +115,16 @@ static inline struct net_iov_area *net_iov_owner(const struct net_iov *niov)
 static inline unsigned int net_iov_idx(const struct net_iov *niov)
 {
 	return niov - net_iov_owner(niov)->niovs;
+}
+
+/* Initialize a niov: stamp the owning area, the memory provider type.
+ */
+static inline void net_iov_init(struct net_iov *niov,
+				struct net_iov_area *owner,
+				enum net_iov_type type)
+{
+	niov->owner = owner;
+	niov->type = type;
 }
 
 /* netmem */
@@ -230,7 +230,7 @@ static inline unsigned long netmem_pfn_trace(netmem_ref netmem)
  */
 #define pp_page_to_nmdesc(p)						\
 ({									\
-	DEBUG_NET_WARN_ON_ONCE(!PageNetpp(p));				\
+	DEBUG_NET_WARN_ON_ONCE(!page_pool_page_is_pp(p));		\
 	__pp_page_to_nmdesc(p);						\
 })
 

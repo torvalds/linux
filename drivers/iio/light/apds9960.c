@@ -1154,7 +1154,7 @@ static const struct dev_pm_ops apds9960_pm_ops = {
 };
 
 static const struct i2c_device_id apds9960_id[] = {
-	{ "apds9960" },
+	{ .name = "apds9960" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, apds9960_id);

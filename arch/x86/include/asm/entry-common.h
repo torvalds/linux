@@ -97,4 +97,6 @@ static __always_inline void arch_exit_to_user_mode(void)
 }
 #define arch_exit_to_user_mode arch_exit_to_user_mode
 
+extern void x86_entry_from_kvm(unsigned int entry_type, unsigned int vector);
+
 #endif

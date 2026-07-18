@@ -250,5 +250,5 @@ static struct usb_driver ch341a_usb_driver = {
 module_usb_driver(ch341a_usb_driver);
 
 MODULE_AUTHOR("Johannes Thumshirn <jth@kernel.org>");
-MODULE_DESCRIPTION("QiHeng Electronics ch341 USB2SPI");
+MODULE_DESCRIPTION("Nanjing Qinheng Microelectronics CH341 USB2SPI driver");
 MODULE_LICENSE("GPL v2");

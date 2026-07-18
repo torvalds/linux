@@ -10,7 +10,7 @@
 #include "mgag200_drv.h"
 
 static void mgag200_vga_bmc_encoder_atomic_disable(struct drm_encoder *encoder,
-						   struct drm_atomic_state *state)
+						   struct drm_atomic_commit *state)
 {
 	struct mga_device *mdev = to_mga_device(encoder->dev);
 
@@ -19,7 +19,7 @@ static void mgag200_vga_bmc_encoder_atomic_disable(struct drm_encoder *encoder,
 }
 
 static void mgag200_vga_bmc_encoder_atomic_enable(struct drm_encoder *encoder,
-						  struct drm_atomic_state *state)
+						  struct drm_atomic_commit *state)
 {
 	struct mga_device *mdev = to_mga_device(encoder->dev);
 

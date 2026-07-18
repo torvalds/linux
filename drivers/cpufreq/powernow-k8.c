@@ -39,6 +39,7 @@
 
 #include <asm/msr.h>
 #include <asm/cpu_device_id.h>
+#include <asm/cpuid/api.h>
 
 #include <linux/acpi.h>
 #include <linux/mutex.h>

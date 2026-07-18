@@ -90,7 +90,7 @@ int smbdirect_socket_listen(struct smbdirect_socket *sc, int backlog)
 	 */
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_socket_listen);
+EXPORT_SYMBOL_GPL(smbdirect_socket_listen);
 
 static int smbdirect_new_rdma_event_handler(struct rdma_cm_id *new_id,
 					    struct rdma_cm_event *event)

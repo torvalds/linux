@@ -79,6 +79,10 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_noinitrd = true;
 		} else if (IS_ENABLED(CONFIG_X86_64) && !strcmp(param, "no5lvl")) {
 			efi_no5lvl = true;
+		} else if (IS_ENABLED(CONFIG_LOONGARCH) &&
+			   IS_ENABLED(CONFIG_HIBERNATION) &&
+			   !strcmp(param, "resume") && val) {
+			efi_nokaslr = true; /* LoongArch can't KASLR for hibernation */
 		} else if (IS_ENABLED(CONFIG_ARCH_HAS_MEM_ENCRYPT) &&
 			   !strcmp(param, "mem_encrypt") && val) {
 			if (parse_option_str(val, "on"))

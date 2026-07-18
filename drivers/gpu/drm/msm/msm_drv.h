@@ -148,13 +148,6 @@ struct msm_drm_private {
 		 * DONTNEED state (ie. can be purged)
 		 */
 		struct drm_gem_lru dontneed;
-
-		/**
-		 * lock:
-		 *
-		 * Protects manipulation of all of the LRUs.
-		 */
-		struct mutex lock;
 	} lru;
 
 	struct notifier_block vmap_notifier;
@@ -217,9 +210,9 @@ struct msm_pending_timer;
 int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 		struct msm_kms *kms, int crtc_idx);
 void msm_atomic_destroy_pending_timer(struct msm_pending_timer *timer);
-void msm_atomic_commit_tail(struct drm_atomic_state *state);
-int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
-struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
+void msm_atomic_commit_tail(struct drm_atomic_commit *state);
+int msm_atomic_check(struct drm_device *dev, struct drm_atomic_commit *state);
+struct drm_atomic_commit *msm_atomic_state_alloc(struct drm_device *dev);
 
 int msm_crtc_enable_vblank(struct drm_crtc *crtc);
 void msm_crtc_disable_vblank(struct drm_crtc *crtc);

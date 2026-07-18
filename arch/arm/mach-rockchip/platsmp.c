@@ -34,6 +34,7 @@ static int ncores;
 
 static struct regmap *pmu;
 static int has_pmu = true;
+static struct reset_control *cpu_rstc[4];
 
 static int pmu_power_domain_is_on(int pd)
 {
@@ -64,8 +65,10 @@ static struct reset_control *rockchip_get_core_reset(int cpu)
 static int pmu_set_power_domain(int pd, bool on)
 {
 	u32 val = (on) ? 0 : BIT(pd);
-	struct reset_control *rstc = rockchip_get_core_reset(pd);
+	struct reset_control *rstc;
 	int ret;
+
+	rstc = pd < ARRAY_SIZE(cpu_rstc) ? cpu_rstc[pd] : ERR_PTR(-EINVAL);
 
 	if (IS_ERR(rstc) && read_cpuid_part() != ARM_CPU_PART_CORTEX_A9) {
 		pr_err("%s: could not get reset control for core %d\n",
@@ -100,11 +103,8 @@ static int pmu_set_power_domain(int pd, bool on)
 		}
 	}
 
-	if (!IS_ERR(rstc)) {
-		if (on)
-			reset_control_deassert(rstc);
-		reset_control_put(rstc);
-	}
+	if (!IS_ERR(rstc) && on)
+		reset_control_deassert(rstc);
 
 	return 0;
 }
@@ -311,6 +311,10 @@ static void __init rockchip_smp_prepare_cpus(unsigned int max_cpus)
 		asm ("mrc p15, 1, %0, c9, c0, 2\n" : "=r" (l2ctlr));
 		ncores = ((l2ctlr >> 24) & 0x3) + 1;
 	}
+
+	/* Collect cpu core reset control for each core */
+	for (i = 0; i < ncores; i++)
+		cpu_rstc[i] = rockchip_get_core_reset(i);
 
 	/* Make sure that all cores except the first are really off */
 	for (i = 1; i < ncores; i++)

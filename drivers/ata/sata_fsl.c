@@ -1035,6 +1035,7 @@ err:
 }
 
 static void sata_fsl_error_handler(struct ata_port *ap)
+	__must_hold(&ap->host->eh_mutex)
 {
 	sata_pmp_error_handler(ap);
 }

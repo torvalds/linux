@@ -285,16 +285,16 @@ enum vmcs_field {
 };
 
 struct vmx_msr_entry {
-	uint32_t index;
-	uint32_t reserved;
-	uint64_t value;
+	u32 index;
+	u32 reserved;
+	u64 value;
 } __attribute__ ((aligned(16)));
 
 #include "evmcs.h"
 
-static inline int vmxon(uint64_t phys)
+static inline int vmxon(u64 phys)
 {
-	uint8_t ret;
+	u8 ret;
 
 	__asm__ __volatile__ ("vmxon %[pa]; setna %[ret]"
 		: [ret]"=rm"(ret)
@@ -309,9 +309,9 @@ static inline void vmxoff(void)
 	__asm__ __volatile__("vmxoff");
 }
 
-static inline int vmclear(uint64_t vmcs_pa)
+static inline int vmclear(u64 vmcs_pa)
 {
-	uint8_t ret;
+	u8 ret;
 
 	__asm__ __volatile__ ("vmclear %[pa]; setna %[ret]"
 		: [ret]"=rm"(ret)
@@ -321,9 +321,9 @@ static inline int vmclear(uint64_t vmcs_pa)
 	return ret;
 }
 
-static inline int vmptrld(uint64_t vmcs_pa)
+static inline int vmptrld(u64 vmcs_pa)
 {
-	uint8_t ret;
+	u8 ret;
 
 	if (enable_evmcs)
 		return -1;
@@ -336,10 +336,10 @@ static inline int vmptrld(uint64_t vmcs_pa)
 	return ret;
 }
 
-static inline int vmptrst(uint64_t *value)
+static inline int vmptrst(u64 *value)
 {
-	uint64_t tmp;
-	uint8_t ret;
+	u64 tmp;
+	u8 ret;
 
 	if (enable_evmcs)
 		return evmcs_vmptrst(value);
@@ -356,9 +356,9 @@ static inline int vmptrst(uint64_t *value)
  * A wrapper around vmptrst that ignores errors and returns zero if the
  * vmptrst instruction fails.
  */
-static inline uint64_t vmptrstz(void)
+static inline u64 vmptrstz(void)
 {
-	uint64_t value = 0;
+	u64 value = 0;
 	vmptrst(&value);
 	return value;
 }
@@ -391,8 +391,8 @@ static inline int vmlaunch(void)
 			     "pop %%rcx;"
 			     "pop %%rbp;"
 			     : [ret]"=&a"(ret)
-			     : [host_rsp]"r"((uint64_t)HOST_RSP),
-			       [host_rip]"r"((uint64_t)HOST_RIP)
+			     : [host_rsp]"r"((u64)HOST_RSP),
+			       [host_rip]"r"((u64)HOST_RIP)
 			     : "memory", "cc", "rbx", "r8", "r9", "r10",
 			       "r11", "r12", "r13", "r14", "r15");
 	return ret;
@@ -426,8 +426,8 @@ static inline int vmresume(void)
 			     "pop %%rcx;"
 			     "pop %%rbp;"
 			     : [ret]"=&a"(ret)
-			     : [host_rsp]"r"((uint64_t)HOST_RSP),
-			       [host_rip]"r"((uint64_t)HOST_RIP)
+			     : [host_rsp]"r"((u64)HOST_RSP),
+			       [host_rip]"r"((u64)HOST_RIP)
 			     : "memory", "cc", "rbx", "r8", "r9", "r10",
 			       "r11", "r12", "r13", "r14", "r15");
 	return ret;
@@ -447,10 +447,10 @@ static inline void vmcall(void)
 			       "r10", "r11", "r12", "r13", "r14", "r15");
 }
 
-static inline int vmread(uint64_t encoding, uint64_t *value)
+static inline int vmread(u64 encoding, u64 *value)
 {
-	uint64_t tmp;
-	uint8_t ret;
+	u64 tmp;
+	u8 ret;
 
 	if (enable_evmcs)
 		return evmcs_vmread(encoding, value);
@@ -468,16 +468,16 @@ static inline int vmread(uint64_t encoding, uint64_t *value)
  * A wrapper around vmread that ignores errors and returns zero if the
  * vmread instruction fails.
  */
-static inline uint64_t vmreadz(uint64_t encoding)
+static inline u64 vmreadz(u64 encoding)
 {
-	uint64_t value = 0;
+	u64 value = 0;
 	vmread(encoding, &value);
 	return value;
 }
 
-static inline int vmwrite(uint64_t encoding, uint64_t value)
+static inline int vmwrite(u64 encoding, u64 value)
 {
-	uint8_t ret;
+	u8 ret;
 
 	if (enable_evmcs)
 		return evmcs_vmwrite(encoding, value);
@@ -490,41 +490,41 @@ static inline int vmwrite(uint64_t encoding, uint64_t value)
 	return ret;
 }
 
-static inline uint32_t vmcs_revision(void)
+static inline u32 vmcs_revision(void)
 {
 	return rdmsr(MSR_IA32_VMX_BASIC);
 }
 
 struct vmx_pages {
 	void *vmxon_hva;
-	uint64_t vmxon_gpa;
+	u64 vmxon_gpa;
 	void *vmxon;
 
 	void *vmcs_hva;
-	uint64_t vmcs_gpa;
+	u64 vmcs_gpa;
 	void *vmcs;
 
 	void *msr_hva;
-	uint64_t msr_gpa;
+	u64 msr_gpa;
 	void *msr;
 
 	void *shadow_vmcs_hva;
-	uint64_t shadow_vmcs_gpa;
+	u64 shadow_vmcs_gpa;
 	void *shadow_vmcs;
 
 	void *vmread_hva;
-	uint64_t vmread_gpa;
+	u64 vmread_gpa;
 	void *vmread;
 
 	void *vmwrite_hva;
-	uint64_t vmwrite_gpa;
+	u64 vmwrite_gpa;
 	void *vmwrite;
 
 	void *apic_access_hva;
-	uint64_t apic_access_gpa;
+	u64 apic_access_gpa;
 	void *apic_access;
 
-	uint64_t eptp_gpa;
+	u64 eptp_gpa;
 };
 
 union vmx_basic {
@@ -550,7 +550,7 @@ union vmx_ctrl_msr {
 	};
 };
 
-struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
+struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, gva_t *p_vmx_gva);
 bool prepare_for_vmx_operation(struct vmx_pages *vmx);
 void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
 bool load_vmcs(struct vmx_pages *vmx);

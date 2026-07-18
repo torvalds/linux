@@ -7,8 +7,9 @@
 
 #include <drm/drm_device.h>
 
+#include "intel_de.h"
+#include "intel_display_types.h"
 #include "intel_rom.h"
-#include "intel_uncore.h"
 #include "intel_oprom_regs.h"
 
 struct intel_rom {
@@ -17,7 +18,7 @@ struct intel_rom {
 	void __iomem *oprom;
 
 	/* for SPI */
-	struct intel_uncore *uncore;
+	struct intel_display *display;
 	loff_t offset;
 
 	size_t size;
@@ -30,10 +31,10 @@ struct intel_rom {
 
 static u32 spi_read32(struct intel_rom *rom, loff_t offset)
 {
-	intel_uncore_write(rom->uncore, PRIMARY_SPI_ADDRESS,
-			   rom->offset + offset);
+	intel_de_write(rom->display, PRIMARY_SPI_ADDRESS,
+		       rom->offset + offset);
 
-	return intel_uncore_read(rom->uncore, PRIMARY_SPI_TRIGGER);
+	return intel_de_read(rom->display, PRIMARY_SPI_TRIGGER);
 }
 
 static u16 spi_read16(struct intel_rom *rom, loff_t offset)
@@ -50,13 +51,13 @@ struct intel_rom *intel_rom_spi(struct drm_device *drm)
 	if (!rom)
 		return NULL;
 
-	rom->uncore = to_intel_uncore(drm);
+	rom->display = to_intel_display(drm);
 
-	static_region = intel_uncore_read(rom->uncore, SPI_STATIC_REGIONS);
+	static_region = intel_de_read(rom->display, SPI_STATIC_REGIONS);
 	static_region &= OPTIONROM_SPI_REGIONID_MASK;
-	intel_uncore_write(rom->uncore, PRIMARY_SPI_REGIONID, static_region);
+	intel_de_write(rom->display, PRIMARY_SPI_REGIONID, static_region);
 
-	rom->offset = intel_uncore_read(rom->uncore, OROM_OFFSET) & OROM_OFFSET_MASK;
+	rom->offset = intel_de_read(rom->display, OROM_OFFSET) & OROM_OFFSET_MASK;
 
 	rom->size = 0x200000;
 

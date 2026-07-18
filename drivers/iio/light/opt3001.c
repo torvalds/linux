@@ -8,18 +8,18 @@
  * Based on previous work from: Felipe Balbi <balbi@ti.com>
  */
 
-#include <linux/bitops.h>
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/dev_printk.h>
+#include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/kernel.h>
+#include <linux/jiffies.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
@@ -32,17 +32,16 @@
 #define OPT3001_MANUFACTURER_ID	0x7e
 #define OPT3001_DEVICE_ID	0x7f
 
-#define OPT3001_CONFIGURATION_RN_MASK	(0xf << 12)
+#define OPT3001_CONFIGURATION_RN_MASK	GENMASK(15, 12)
 #define OPT3001_CONFIGURATION_RN_AUTO	(0xc << 12)
 
 #define OPT3001_CONFIGURATION_CT	BIT(11)
 
-#define OPT3001_CONFIGURATION_M_MASK	(3 << 9)
+#define OPT3001_CONFIGURATION_M_MASK	GENMASK(10, 9)
 #define OPT3001_CONFIGURATION_M_SHUTDOWN (0 << 9)
 #define OPT3001_CONFIGURATION_M_SINGLE	(1 << 9)
 #define OPT3001_CONFIGURATION_M_CONTINUOUS (2 << 9) /* also 3 << 9 */
 
-#define OPT3001_CONFIGURATION_OVF	BIT(8)
 #define OPT3001_CONFIGURATION_CRF	BIT(7)
 #define OPT3001_CONFIGURATION_FH	BIT(6)
 #define OPT3001_CONFIGURATION_FL	BIT(5)
@@ -50,7 +49,7 @@
 #define OPT3001_CONFIGURATION_POL	BIT(3)
 #define OPT3001_CONFIGURATION_ME	BIT(2)
 
-#define OPT3001_CONFIGURATION_FC_MASK	(3 << 0)
+#define OPT3001_CONFIGURATION_FC_MASK	GENMASK(1, 0)
 
 /* The end-of-conversion enable is located in the low-limit register */
 #define OPT3001_LOW_LIMIT_EOC_ENABLE	0xc000
@@ -366,8 +365,10 @@ static int opt3001_get_processed(struct opt3001 *opt, int *val, int *val2)
 		ret = wait_event_timeout(opt->result_ready_queue,
 				opt->result_ready,
 				msecs_to_jiffies(OPT3001_RESULT_READY_LONG));
-		if (ret == 0)
-			return -ETIMEDOUT;
+		if (ret == 0) {
+			ret = -ETIMEDOUT;
+			goto err;
+		}
 	} else {
 		/* Sleep for result ready time */
 		timeout = (opt->int_time == OPT3001_INT_TIME_SHORT) ?
@@ -948,8 +949,8 @@ static const struct opt3001_chip_info opt3002_chip_information = {
 };
 
 static const struct i2c_device_id opt3001_id[] = {
-	{ "opt3001", (kernel_ulong_t)&opt3001_chip_information },
-	{ "opt3002", (kernel_ulong_t)&opt3002_chip_information },
+	{ .name = "opt3001", .driver_data = (kernel_ulong_t)&opt3001_chip_information },
+	{ .name = "opt3002", .driver_data = (kernel_ulong_t)&opt3002_chip_information },
 	{ } /* Terminating Entry */
 };
 MODULE_DEVICE_TABLE(i2c, opt3001_id);

@@ -140,7 +140,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Find device address */
-	priv->regs = devm_platform_get_and_ioremap_resource(ofdev, 0, NULL);
+	priv->regs = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
@@ -148,7 +148,10 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	iowrite32be(0, &priv->regs->ctrl);
 
 	/* IRQ */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = platform_get_irq(ofdev, 0);
+	if (irq < 0)
+		return irq;
+
 	err = devm_request_irq(&ofdev->dev, irq, apbps2_isr,
 				IRQF_SHARED, "apbps2", priv);
 	if (err) {

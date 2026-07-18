@@ -1718,7 +1718,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			      struct dentry *ecryptfs_dentry)
 {
 	size_t i = 0;
-	size_t found_auth_tok;
 	size_t next_packet_is_auth_tok_packet;
 	LIST_HEAD(auth_tok_list);
 	struct ecryptfs_auth_tok *matching_auth_tok;
@@ -1822,7 +1821,6 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 	 * the metadata. There may be several potential matches, but
 	 * just one will be sufficient to decrypt to get the FEK. */
 find_next_matching_auth_tok:
-	found_auth_tok = 0;
 	list_for_each_entry(auth_tok_list_item, &auth_tok_list, list) {
 		candidate_auth_tok = &auth_tok_list_item->auth_tok;
 		if (unlikely(ecryptfs_verbosity > 0)) {
@@ -1843,17 +1841,13 @@ find_next_matching_auth_tok:
 					       &matching_auth_tok,
 					       crypt_stat->mount_crypt_stat,
 					       candidate_auth_tok_sig);
-		if (!rc) {
-			found_auth_tok = 1;
+		if (!rc)
 			goto found_matching_auth_tok;
-		}
 	}
-	if (!found_auth_tok) {
-		ecryptfs_printk(KERN_ERR, "Could not find a usable "
-				"authentication token\n");
-		rc = -EIO;
-		goto out_wipe_list;
-	}
+	ecryptfs_printk(KERN_ERR,
+			"Could not find a usable authentication token\n");
+	rc = -EIO;
+	goto out_wipe_list;
 found_matching_auth_tok:
 	if (candidate_auth_tok->token_type == ECRYPTFS_PRIVATE_KEY) {
 		memcpy(&(candidate_auth_tok->token.private_key),

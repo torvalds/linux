@@ -1639,7 +1639,7 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	ret = ab_pci->device_family_ops->arch_init(ab);
 	if (ret) {
 		ath12k_err(ab, "PCI arch_init failed %d\n", ret);
-		goto err_pci_msi_free;
+		goto err_free_irq;
 	}
 
 	ret = ath12k_core_init(ab);

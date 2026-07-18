@@ -16,22 +16,22 @@
 #include "ucall_common.h"
 
 struct guest_vals {
-	uint64_t a;
-	uint64_t b;
-	uint64_t type;
+	u64 a;
+	u64 b;
+	u64 type;
 };
 
 static struct guest_vals vals;
 
 /* GUEST_PRINTF()/GUEST_ASSERT_FMT() does not support float or double. */
 #define TYPE_LIST					\
-TYPE(test_type_i64,  I64,  "%ld",   int64_t)		\
-TYPE(test_type_u64,  U64u, "%lu",   uint64_t)		\
-TYPE(test_type_x64,  U64x, "0x%lx", uint64_t)		\
-TYPE(test_type_X64,  U64X, "0x%lX", uint64_t)		\
-TYPE(test_type_u32,  U32u, "%u",    uint32_t)		\
-TYPE(test_type_x32,  U32x, "0x%x",  uint32_t)		\
-TYPE(test_type_X32,  U32X, "0x%X",  uint32_t)		\
+TYPE(test_type_i64,  I64,  "%ld",   s64)		\
+TYPE(test_type_u64,  U64u, "%lu",   u64)		\
+TYPE(test_type_x64,  U64x, "0x%lx", u64)		\
+TYPE(test_type_X64,  U64X, "0x%lX", u64)		\
+TYPE(test_type_u32,  U32u, "%u",    u32)		\
+TYPE(test_type_x32,  U32x, "0x%x",  u32)		\
+TYPE(test_type_X32,  U32X, "0x%X",  u32)		\
 TYPE(test_type_int,  INT,  "%d",    int)		\
 TYPE(test_type_char, CHAR, "%c",    char)		\
 TYPE(test_type_str,  STR,  "'%s'",  const char *)	\
@@ -56,7 +56,7 @@ static void fn(struct kvm_vcpu *vcpu, T a, T b)				     \
 									     \
 	snprintf(expected_printf, UCALL_BUFFER_LEN, PRINTF_FMT_##ext, a, b); \
 	snprintf(expected_assert, UCALL_BUFFER_LEN, ASSERT_FMT_##ext, a, b); \
-	vals = (struct guest_vals){ (uint64_t)a, (uint64_t)b, TYPE_##ext };  \
+	vals = (struct guest_vals){ (u64)a, (u64)b, TYPE_##ext };  \
 	sync_global_to_guest(vcpu->vm, vals);				     \
 	run_test(vcpu, expected_printf, expected_assert);		     \
 }

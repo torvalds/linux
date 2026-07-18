@@ -104,6 +104,9 @@ static const struct drm_privacy_screen_ops chromeos_privacy_screen_ops = {
 
 static int chromeos_privacy_screen_probe(struct platform_device *pdev)
 {
+	if (!ACPI_COMPANION(&pdev->dev))
+		return -ENODEV;
+
 	struct drm_privacy_screen *drm_privacy_screen =
 		drm_privacy_screen_register(&pdev->dev,
 					    &chromeos_privacy_screen_ops,

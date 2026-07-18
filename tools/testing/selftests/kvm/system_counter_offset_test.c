@@ -17,7 +17,7 @@
 #ifdef __x86_64__
 
 struct test_case {
-	uint64_t tsc_offset;
+	u64 tsc_offset;
 };
 
 static struct test_case test_cases[] = {
@@ -39,12 +39,12 @@ static void setup_system_counter(struct kvm_vcpu *vcpu, struct test_case *test)
 			     &test->tsc_offset);
 }
 
-static uint64_t guest_read_system_counter(struct test_case *test)
+static u64 guest_read_system_counter(struct test_case *test)
 {
 	return rdtsc();
 }
 
-static uint64_t host_read_guest_system_counter(struct test_case *test)
+static u64 host_read_guest_system_counter(struct test_case *test)
 {
 	return rdtsc() + test->tsc_offset;
 }
@@ -69,9 +69,9 @@ static void guest_main(void)
 	}
 }
 
-static void handle_sync(struct ucall *uc, uint64_t start, uint64_t end)
+static void handle_sync(struct ucall *uc, u64 start, u64 end)
 {
-	uint64_t obs = uc->args[2];
+	u64 obs = uc->args[2];
 
 	TEST_ASSERT(start <= obs && obs <= end,
 		    "unexpected system counter value: %"PRIu64" expected range: [%"PRIu64", %"PRIu64"]",
@@ -88,7 +88,7 @@ static void handle_abort(struct ucall *uc)
 
 static void enter_guest(struct kvm_vcpu *vcpu)
 {
-	uint64_t start, end;
+	u64 start, end;
 	struct ucall uc;
 	int i;
 

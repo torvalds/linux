@@ -41,7 +41,7 @@ void mgag200_g200eh_init_registers(struct mga_device *mdev)
  */
 
 static int mgag200_g200eh_pixpllc_atomic_check(struct drm_crtc *crtc,
-					       struct drm_atomic_state *new_state)
+					       struct drm_atomic_commit *new_state)
 {
 	static const unsigned int vcomax = 800000;
 	static const unsigned int vcomin = 400000;
@@ -91,7 +91,7 @@ static int mgag200_g200eh_pixpllc_atomic_check(struct drm_crtc *crtc,
 }
 
 void mgag200_g200eh_pixpllc_atomic_update(struct drm_crtc *crtc,
-					  struct drm_atomic_state *old_state)
+					  struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);

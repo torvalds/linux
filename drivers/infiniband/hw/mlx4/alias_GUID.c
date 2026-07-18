@@ -437,7 +437,7 @@ out:
 		queue_delayed_work(dev->sriov.alias_guid.ports_guid[port_index].wq,
 				   &dev->sriov.alias_guid.ports_guid[port_index].
 				   alias_guid_work,
-				   msecs_to_jiffies(resched_delay_sec * 1000));
+				   secs_to_jiffies(resched_delay_sec));
 	}
 	if (cb_ctx->sa_query) {
 		list_del(&cb_ctx->list);

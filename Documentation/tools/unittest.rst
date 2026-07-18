@@ -11,7 +11,7 @@ While the actual test implementation is usecase dependent, Python already
 provides a standard way to add unit tests by using ``import unittest``.
 
 Using such class, requires setting up a test suite. Also, the default format
-is a little bit ackward. To improve it and provide a more uniform way to
+is a little bit awkward. To improve it and provide a more uniform way to
 report errors, some unittest classes and functions are defined.
 
 

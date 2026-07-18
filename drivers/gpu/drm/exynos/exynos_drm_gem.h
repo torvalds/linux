@@ -22,8 +22,6 @@
  *	- a new handle to this gem object would be created
  *	by drm_gem_handle_create().
  * @flags: indicate memory type to allocated buffer and cache attruibute.
- * @size: size requested from user, in bytes and this size is aligned
- *	in page unit.
  * @cookie: cookie returned by dma_alloc_attrs
  * @kvaddr: kernel virtual address to allocated memory region (for fbdev)
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
@@ -38,7 +36,6 @@
 struct exynos_drm_gem {
 	struct drm_gem_object	base;
 	unsigned int		flags;
-	unsigned long		size;
 	void			*cookie;
 	void			*kvaddr;
 	dma_addr_t		dma_addr;
@@ -88,17 +85,12 @@ static inline void exynos_drm_gem_put(struct exynos_drm_gem *exynos_gem)
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
 
-/* free gem object. */
-void exynos_drm_gem_free_object(struct drm_gem_object *obj);
-
 /* create memory region for drm framebuffer. */
 int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args);
 
 /* low-level interface prime helpers */
-struct drm_gem_object *exynos_drm_gem_prime_import(struct drm_device *dev,
-					    struct dma_buf *dma_buf);
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,

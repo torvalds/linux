@@ -208,22 +208,17 @@ error:
 static void gspca_input_create_urb(struct gspca_dev *gspca_dev)
 {
 	struct usb_interface *intf;
-	struct usb_host_interface *intf_desc;
 	struct usb_endpoint_descriptor *ep;
-	int i;
+	int ret;
 
 	if (gspca_dev->sd_desc->int_pkt_scan)  {
 		intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
-		intf_desc = intf->cur_altsetting;
-		for (i = 0; i < intf_desc->desc.bNumEndpoints; i++) {
-			ep = &intf_desc->endpoint[i].desc;
-			if (usb_endpoint_dir_in(ep) &&
-			    usb_endpoint_xfer_int(ep)) {
 
-				alloc_and_submit_int_urb(gspca_dev, ep);
-				break;
-			}
-		}
+		ret = usb_find_int_in_endpoint(intf->cur_altsetting, &ep);
+		if (ret)
+			return;
+
+		alloc_and_submit_int_urb(gspca_dev, ep);
 	}
 }
 

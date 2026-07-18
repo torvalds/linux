@@ -60,16 +60,18 @@ NOKPROBE_SYMBOL(arch_prepare_kprobe);
 /* Install breakpoint in text */
 void arch_arm_kprobe(struct kprobe *p)
 {
-	*p->addr = KPROBE_BP_INSN;
-	flush_insn_slot(p);
+	u32 insn = KPROBE_BP_INSN;
+
+	larch_insn_text_copy(p->addr, &insn, LOONGARCH_INSN_SIZE);
 }
 NOKPROBE_SYMBOL(arch_arm_kprobe);
 
 /* Remove breakpoint from text */
 void arch_disarm_kprobe(struct kprobe *p)
 {
-	*p->addr = p->opcode;
-	flush_insn_slot(p);
+	u32 insn = p->opcode;
+
+	larch_insn_text_copy(p->addr, &insn, LOONGARCH_INSN_SIZE);
 }
 NOKPROBE_SYMBOL(arch_disarm_kprobe);
 
@@ -184,16 +186,16 @@ static bool reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 			   struct kprobe_ctlblk *kcb)
 {
 	switch (kcb->kprobe_status) {
-	case KPROBE_HIT_SS:
 	case KPROBE_HIT_SSDONE:
 	case KPROBE_HIT_ACTIVE:
 		kprobes_inc_nmissed_count(p);
 		setup_singlestep(p, regs, kcb, 1);
 		break;
+	case KPROBE_HIT_SS:
 	case KPROBE_REENTER:
 		pr_warn("Failed to recover from reentered kprobes.\n");
 		dump_kprobe(p);
-		WARN_ON_ONCE(1);
+		BUG();
 		break;
 	default:
 		WARN_ON(1);

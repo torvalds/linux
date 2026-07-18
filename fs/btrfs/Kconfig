@@ -93,10 +93,6 @@ config BTRFS_EXPERIMENTAL
 
 	  Current list:
 
-	  - COW fixup worker warning - last warning before removing the
-				       functionality catching out-of-band page
-				       dirtying, not necessary since 5.8
-
 	  - RAID mirror read policy - additional read policies for balancing
 				      reading from redundant block group
 				      profiles (currently: pid, round-robin,
@@ -110,7 +106,9 @@ config BTRFS_EXPERIMENTAL
 
 	  - extent tree v2 - complex rework of extent tracking
 
-	  - large folio and block size (> page size) support
+	  - block size > page size support
+
+	  - huge folios for data - folios can be as large as 2MiB now
 
 	  - asynchronous checksum generation for data writes
 

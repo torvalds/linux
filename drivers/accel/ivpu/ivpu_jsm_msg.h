@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2026 Intel Corporation
  */
 
 #ifndef __IVPU_JSM_MSG_H__
@@ -45,5 +45,6 @@ int ivpu_jsm_dct_enable(struct ivpu_device *vdev, u32 active_us, u32 inactive_us
 int ivpu_jsm_dct_disable(struct ivpu_device *vdev);
 int ivpu_jsm_state_dump(struct ivpu_device *vdev);
 int ivpu_jsm_state_dump_no_reply(struct ivpu_device *vdev);
+int ivpu_jsm_msg_freq_config(struct ivpu_device *vdev, u16 min_ratio, u16 pn_ratio, u16 max_ratio);
 
 #endif

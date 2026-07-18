@@ -1,5 +1,13 @@
 [
     {
+        "BriefDescription": "Counts the number of requests that were not accepted into the L2Q because the L2Q is FULL.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x31",
+        "EventName": "CORE_REJECT_L2Q.ANY",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full w condition which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to insure fairness between cores, or to delay a cores dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event.) Counts on a per core basis.",
+        "SampleAfterValue": "200003"
+    },
+    {
         "BriefDescription": "Counts the number of L1D cacheline (dirty) evictions caused by load misses, stores, and prefetches.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x51",
@@ -61,6 +69,14 @@
         "PublicDescription": "Counts the number of L2 cache lines that are silently dropped due to an L2 cache fill.  Increments on the core that brought the line in originally.",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_XQ.ANY",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "SampleAfterValue": "200003"
     },
     {
         "BriefDescription": "Counts the number of L2 Cache Accesses that resulted in a Hit from a front door request only (does not include rejects or recycles), per core event",
@@ -155,6 +171,14 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load which missed in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.L2_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x7e"
+    },
+    {
         "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which hit in the LLC. If the core has access to an L3 cache, an LLC hit refers to an L3 cache hit, otherwise it counts zeros.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x34",
@@ -177,6 +201,14 @@
         "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS",
         "SampleAfterValue": "1000003",
         "UMask": "0x78"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which missed all the caches, a snoop was required, and hits in other core or module on the same die. Another core provides the data with a FWD, NO_FWD, or HITM. If the core has access to an L3 cache, an LLC miss refers to an L3 cache miss, otherwise it is an L2 cache miss.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_OTHERMOD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
     },
     {
         "BriefDescription": "Counts the number of unhalted cycles when the core is stalled to a store buffer full condition",
@@ -226,6 +258,14 @@
         "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.REMOTE_FWD_NONM",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and modified data was forwarded.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_UOPS_MISC_RETIRED.L3_HIT_SNOOP_HITM",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
     },
     {
         "BriefDescription": "Counts the number of load ops retired that hit the L1 data cache.",
@@ -306,6 +346,15 @@
         "EventName": "MEM_SCHEDULER_BLOCK.ST_BUF",
         "SampleAfterValue": "20003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST)",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL",
+        "SampleAfterValue": "200003",
+        "UMask": "0x83"
     },
     {
         "BriefDescription": "Counts the number of load ops retired.",

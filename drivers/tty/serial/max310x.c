@@ -9,14 +9,15 @@
  *  Based on max3107.c, by Aavamobile
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
+#include <linux/kconfig.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/serial_core.h>
@@ -241,12 +242,12 @@
 #define MAX310X_WRITE_BIT		0x80
 
 /* Port startup definitions */
-#define MAX310X_PORT_STARTUP_WAIT_RETRIES	20 /* Number of retries */
-#define MAX310X_PORT_STARTUP_WAIT_DELAY_MS	10 /* Delay between retries */
+#define MAX310X_PORT_STARTUP_SLEEP_US	10000  /* Delay between retries */
+#define MAX310X_PORT_STARTUP_TIMEOUT_US	(20 * MAX310X_PORT_STARTUP_SLEEP_US) /* Total timeout */
 
 /* Crystal-related definitions */
-#define MAX310X_XTAL_WAIT_RETRIES	20 /* Number of retries */
-#define MAX310X_XTAL_WAIT_DELAY_MS	10 /* Delay between retries */
+#define MAX310X_XTAL_SLEEP_US		10000  /* Delay between retries */
+#define MAX310X_XTAL_TIMEOUT_US		(20 * MAX310X_XTAL_SLEEP_US) /* Total timeout */
 
 /* MAX3107 specific */
 #define MAX3107_REV_ID			(0xa0)
@@ -257,6 +258,17 @@
 /* MAX14830 specific */
 #define MAX14830_BRGCFG_CLKDIS_BIT	(1 << 6) /* Clock Disable */
 #define MAX14830_REV_ID			(0xb0)
+
+struct max310x_clk_config_t {
+	u8 prediv; /* Predivider */
+	u8 pll_mult; /* PLL multiplier */
+	unsigned int fref; /*
+			    * Reference clock for fractional baud rate generator:
+			    *   PLL enabled:  (freq / prediv) x pll_mult
+			    *   PLL disabled: freq
+			    */
+	unsigned int err; /* Computed error for selected parameters */
+};
 
 struct max310x_if_cfg {
 	int (*extended_reg_enable)(struct device *dev, bool enable);
@@ -545,70 +557,91 @@ static int max310x_set_baud(struct uart_port *port, int baud)
 	return (16*port->uartclk) / (c*(16*div + frac));
 }
 
-static int max310x_update_best_err(unsigned long f, long *besterr)
+static void max310x_try_cfg(unsigned int fdiv, u8 div, u8 pll_mult,
+			    struct max310x_clk_config_t *cfg)
 {
-	/* Use baudrate 115200 for calculate error */
-	long err = f % (460800 * 16);
+	unsigned int fmul = fdiv * pll_mult;
+	unsigned int err;
 
-	if ((*besterr < 0) || (*besterr > err)) {
-		*besterr = err;
-		return 0;
+	/* Use high-enough baudrate to calculate error */
+	err = fmul % (460800 * 16);
+
+	if (cfg->err > err) {
+		cfg->err = err;
+		cfg->pll_mult = pll_mult;
+		cfg->prediv = div;
+		cfg->fref = fmul;
 	}
-
-	return 1;
 }
 
-static s32 max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
-			       unsigned long freq, bool xtal)
+static u8 max310x_pll_mult_to_id(u8 pll_mult)
 {
-	unsigned int div, clksrc, pllcfg = 0;
-	long besterr = -1;
-	unsigned long fdiv, fmul, bestfreq = freq;
+	switch (pll_mult) {
+	case 144:	return 3;
+	case 96:	return 2;
+	case 48:	return 1;
+	case 6:
+	default:	return 0;
+	}
+}
+
+/*
+ * From table 7 in datasheet: PLLFactor Selector Guide
+ *
+ * +-----------+----------------+-------------------+-------------------+
+ * | PLLFactor | MULTIPLICATION |      fPLLIN       |       fREF        |
+ * |  (1 & 0)  |     FACTOR     +---------+---------+---------+---------+
+ * |           |                |   MIN   |   MAX   |   MIN   |   MAX   |
+ * +-----------+----------------+---------+---------+---------+---------+
+ * |     0     |        6       |  500kHz |  800kHz |   3MHz  |  4.8MHz |
+ * +-----------+----------------+---------+---------+---------+---------+
+ * |     1     |       48       |  850kHz |  1.2MHz | 40.8MHz |  56MHz  |
+ * +-----------+----------------+---------+---------+---------+---------+
+ * |     2     |       96       |  425kHz |   1MHz  | 40.8MHz |  96MHz  |
+ * +-----------+----------------+---------+---------+---------+---------+
+ * |     3     |      144       |  390kHz |  667kHz |  56MHz  |  96MHz  |
+ * +-----------+----------------+---------+---------+---------+---------+
+ */
+static int max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
+			       unsigned int freq, unsigned int *fref, bool xtal)
+{
+	unsigned int div, fdiv, clksrc, val;
+	struct max310x_clk_config_t cfg;
+
+	cfg.err = UINT_MAX;
+	cfg.prediv = 0;
+	cfg.fref = freq;
 
 	/* First, update error without PLL */
-	max310x_update_best_err(freq, &besterr);
+	max310x_try_cfg(freq, 1, 1, &cfg);
 
 	/* Try all possible PLL dividers */
-	for (div = 1; (div <= 63) && besterr; div++) {
+	for (div = 1; (div <= 63) && cfg.err; div++) {
 		fdiv = DIV_ROUND_CLOSEST(freq, div);
 
-		/* Try multiplier 6 */
-		fmul = fdiv * 6;
 		if ((fdiv >= 500000) && (fdiv <= 800000))
-			if (!max310x_update_best_err(fmul, &besterr)) {
-				pllcfg = (0 << 6) | div;
-				bestfreq = fmul;
-			}
-		/* Try multiplier 48 */
-		fmul = fdiv * 48;
-		if ((fdiv >= 850000) && (fdiv <= 1200000))
-			if (!max310x_update_best_err(fmul, &besterr)) {
-				pllcfg = (1 << 6) | div;
-				bestfreq = fmul;
-			}
-		/* Try multiplier 96 */
-		fmul = fdiv * 96;
+			max310x_try_cfg(fdiv, div, 6, &cfg);   /* PLL x6 */
+		else if ((fdiv >= 850000) && (fdiv <= 1200000))
+			max310x_try_cfg(fdiv, div, 48, &cfg);  /* PLL x48 */
+
 		if ((fdiv >= 425000) && (fdiv <= 1000000))
-			if (!max310x_update_best_err(fmul, &besterr)) {
-				pllcfg = (2 << 6) | div;
-				bestfreq = fmul;
-			}
-		/* Try multiplier 144 */
-		fmul = fdiv * 144;
+			max310x_try_cfg(fdiv, div, 96, &cfg);  /* PLL x96 */
+
 		if ((fdiv >= 390000) && (fdiv <= 667000))
-			if (!max310x_update_best_err(fmul, &besterr)) {
-				pllcfg = (3 << 6) | div;
-				bestfreq = fmul;
-			}
+			max310x_try_cfg(fdiv, div, 144, &cfg); /* PLL x144 */
 	}
 
 	/* Configure clock source */
 	clksrc = MAX310X_CLKSRC_EXTCLK_BIT | (xtal ? MAX310X_CLKSRC_CRYST_BIT : 0);
 
 	/* Configure PLL */
-	if (pllcfg) {
+	if (cfg.prediv) {
+		u8 pll_id = max310x_pll_mult_to_id(cfg.pll_mult);
+
 		clksrc |= MAX310X_CLKSRC_PLL_BIT;
-		regmap_write(s->regmap, MAX310X_PLLCFG_REG, pllcfg);
+		val = FIELD_PREP(MAX310X_PLLCFG_PLLFACTOR_MASK, pll_id) |
+			FIELD_PREP(MAX310X_PLLCFG_PREDIV_MASK, cfg.prediv);
+		regmap_write(s->regmap, MAX310X_PLLCFG_REG, val);
 	} else
 		clksrc |= MAX310X_CLKSRC_PLLBYP_BIT;
 
@@ -616,23 +649,20 @@ static s32 max310x_set_ref_clk(struct device *dev, struct max310x_port *s,
 
 	/* Wait for crystal */
 	if (xtal) {
-		bool stable = false;
-		unsigned int try = 0, val = 0;
+		int ret;
 
-		do {
-			msleep(MAX310X_XTAL_WAIT_DELAY_MS);
-			regmap_read(s->regmap, MAX310X_STS_IRQSTS_REG, &val);
-
-			if (val & MAX310X_STS_CLKREADY_BIT)
-				stable = true;
-		} while (!stable && (++try < MAX310X_XTAL_WAIT_RETRIES));
-
-		if (!stable)
+		ret = regmap_read_poll_timeout(s->regmap, MAX310X_STS_IRQSTS_REG,
+					       val, val & MAX310X_STS_CLKREADY_BIT,
+					       MAX310X_XTAL_SLEEP_US,
+					       MAX310X_XTAL_TIMEOUT_US);
+		if (ret)
 			return dev_err_probe(dev, -EAGAIN,
 					     "clock is not stable\n");
 	}
 
-	return bestfreq;
+	*fref = cfg.fref;
+
+	return 0;
 }
 
 static void max310x_batch_write(struct uart_port *port, u8 *txbuf, unsigned int len)
@@ -748,8 +778,6 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 static void max310x_handle_tx(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
-	unsigned int txlen, to_send;
-	unsigned char *tail;
 
 	if (unlikely(port->x_char)) {
 		max310x_port_write(port, MAX310X_THR_REG, port->x_char);
@@ -766,6 +794,9 @@ static void max310x_handle_tx(struct uart_port *port)
 	 * We could do that in one SPI transaction, but meh.
 	 */
 	while (!kfifo_is_empty(&tport->xmit_fifo)) {
+		unsigned int txlen, to_send;
+		unsigned char *tail;
+
 		/* Limit to space available in TX FIFO */
 		txlen = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
 		txlen = port->fifosize - txlen;
@@ -1268,9 +1299,10 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 			 const struct max310x_if_cfg *if_cfg,
 			 struct regmap *regmaps[], int irq)
 {
-	int i, ret, fmin, fmax, freq;
+	unsigned int fmin, fmax, freq;
+	int i, ret;
 	struct max310x_port *s;
-	s32 uartclk = 0;
+	unsigned int uartclk = 0;
 	bool xtal;
 
 	for (i = 0; i < devtype->nr; i++)
@@ -1330,8 +1362,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		goto out_clk;
 
 	for (i = 0; i < devtype->nr; i++) {
-		bool started = false;
-		unsigned int try = 0, val = 0;
+		unsigned int val;
 
 		/* Reset port */
 		regmap_write(regmaps[i], MAX310X_MODE2_REG,
@@ -1340,15 +1371,11 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		regmap_write(regmaps[i], MAX310X_MODE2_REG, 0);
 
 		/* Wait for port startup */
-		do {
-			msleep(MAX310X_PORT_STARTUP_WAIT_DELAY_MS);
-			regmap_read(regmaps[i], MAX310X_BRGDIVLSB_REG, &val);
-
-			if (val == 0x01)
-				started = true;
-		} while (!started && (++try < MAX310X_PORT_STARTUP_WAIT_RETRIES));
-
-		if (!started) {
+		ret = regmap_read_poll_timeout(regmaps[i], MAX310X_BRGDIVLSB_REG,
+					       val, val == 0x01,
+					       MAX310X_PORT_STARTUP_SLEEP_US,
+					       MAX310X_PORT_STARTUP_TIMEOUT_US);
+		if (ret) {
 			ret = dev_err_probe(dev, -EAGAIN, "port reset failed\n");
 			goto out_uart;
 		}
@@ -1356,11 +1383,9 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		regmap_write(regmaps[i], MAX310X_MODE1_REG, devtype->mode1);
 	}
 
-	uartclk = max310x_set_ref_clk(dev, s, freq, xtal);
-	if (uartclk < 0) {
-		ret = uartclk;
+	ret = max310x_set_ref_clk(dev, s, freq, &uartclk, xtal);
+	if (ret < 0)
 		goto out_uart;
-	}
 
 	dev_dbg(dev, "Reference clock set to %i Hz\n", uartclk);
 
@@ -1482,6 +1507,21 @@ static const struct of_device_id __maybe_unused max310x_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, max310x_dt_ids);
 
+static const char *max310x_regmap_name(u8 port_id)
+{
+	switch (port_id) {
+	case 0:	return "port0";
+	case 1:	return "port1";
+	case 2:	return "port2";
+	case 3:	return "port3";
+	default:
+		WARN_ON(true);
+		return NULL;
+	}
+}
+
+#if IS_ENABLED(CONFIG_SPI_MASTER)
+
 static struct regmap_config regcfg = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -1497,20 +1537,6 @@ static struct regmap_config regcfg = {
 	.max_raw_write = MAX310X_FIFO_SIZE,
 };
 
-static const char *max310x_regmap_name(u8 port_id)
-{
-	switch (port_id) {
-	case 0:	return "port0";
-	case 1:	return "port1";
-	case 2:	return "port2";
-	case 3:	return "port3";
-	default:
-		WARN_ON(true);
-		return NULL;
-	}
-}
-
-#ifdef CONFIG_SPI_MASTER
 static int max310x_spi_extended_reg_enable(struct device *dev, bool enable)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
@@ -1581,7 +1607,8 @@ static struct spi_driver max310x_spi_driver = {
 };
 #endif
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
+
 static int max310x_i2c_extended_reg_enable(struct device *dev, bool enable)
 {
 	return 0;
@@ -1671,10 +1698,10 @@ static void max310x_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max310x_i2c_id_table[] = {
-	{ "max3107",	(kernel_ulong_t)&max3107_devtype, },
-	{ "max3108",	(kernel_ulong_t)&max3108_devtype, },
-	{ "max3109",	(kernel_ulong_t)&max3109_devtype, },
-	{ "max14830",	(kernel_ulong_t)&max14830_devtype, },
+	{ .name = "max3107", .driver_data = (kernel_ulong_t)&max3107_devtype },
+	{ .name = "max3108", .driver_data = (kernel_ulong_t)&max3108_devtype },
+	{ .name = "max3109", .driver_data = (kernel_ulong_t)&max3109_devtype },
+	{ .name = "max14830", .driver_data = (kernel_ulong_t)&max14830_devtype },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max310x_i2c_id_table);
@@ -1701,13 +1728,13 @@ static int __init max310x_uart_init(void)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_SPI_MASTER
+#if IS_ENABLED(CONFIG_SPI_MASTER)
 	ret = spi_register_driver(&max310x_spi_driver);
 	if (ret)
 		goto err_spi_register;
 #endif
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&max310x_i2c_driver);
 	if (ret)
 		goto err_i2c_register;
@@ -1715,12 +1742,13 @@ static int __init max310x_uart_init(void)
 
 	return 0;
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 err_i2c_register:
-	spi_unregister_driver(&max310x_spi_driver);
 #endif
-
+#if IS_ENABLED(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&max310x_spi_driver);
 err_spi_register:
+#endif
 	uart_unregister_driver(&max310x_uart);
 
 	return ret;
@@ -1729,11 +1757,11 @@ module_init(max310x_uart_init);
 
 static void __exit max310x_uart_exit(void)
 {
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_driver(&max310x_i2c_driver);
 #endif
 
-#ifdef CONFIG_SPI_MASTER
+#if IS_ENABLED(CONFIG_SPI_MASTER)
 	spi_unregister_driver(&max310x_spi_driver);
 #endif
 

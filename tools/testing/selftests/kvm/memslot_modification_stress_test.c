@@ -30,7 +30,7 @@
 
 
 static int nr_vcpus = 1;
-static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
+static u64 guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 
 static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 {
@@ -55,10 +55,10 @@ static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 }
 
 static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
-			       uint64_t nr_modifications)
+			       u64 nr_modifications)
 {
-	uint64_t pages = max_t(int, vm->page_size, getpagesize()) / vm->page_size;
-	uint64_t gpa;
+	u64 pages = max_t(int, vm->page_size, getpagesize()) / vm->page_size;
+	gpa_t gpa;
 	int i;
 
 	/*
@@ -78,7 +78,7 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 
 struct test_params {
 	useconds_t delay;
-	uint64_t nr_iterations;
+	u64 nr_iterations;
 	bool partition_vcpu_memory_access;
 	bool disable_slot_zap_quirk;
 };

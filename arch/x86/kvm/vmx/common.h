@@ -85,22 +85,30 @@ static inline int __vmx_handle_ept_violation(struct kvm_vcpu *vcpu, gpa_t gpa,
 {
 	u64 error_code;
 
-	/* Is it a read fault? */
-	error_code = (exit_qualification & EPT_VIOLATION_ACC_READ)
-		     ? PFERR_USER_MASK : 0;
 	/* Is it a write fault? */
-	error_code |= (exit_qualification & EPT_VIOLATION_ACC_WRITE)
+	error_code = (exit_qualification & EPT_VIOLATION_ACC_WRITE)
 		      ? PFERR_WRITE_MASK : 0;
 	/* Is it a fetch fault? */
 	error_code |= (exit_qualification & EPT_VIOLATION_ACC_INSTR)
 		      ? PFERR_FETCH_MASK : 0;
-	/* ept page table entry is present? */
-	error_code |= (exit_qualification & EPT_VIOLATION_PROT_MASK)
+	/* ept page table entry is present?  */
+	error_code |= (exit_qualification &
+		       (EPT_VIOLATION_PROT_MASK & ~EPT_VIOLATION_PROT_USER_EXEC))
 		      ? PFERR_PRESENT_MASK : 0;
 
-	if (exit_qualification & EPT_VIOLATION_GVA_IS_VALID)
-		error_code |= (exit_qualification & EPT_VIOLATION_GVA_TRANSLATED) ?
-			      PFERR_GUEST_FINAL_MASK : PFERR_GUEST_PAGE_MASK;
+	if (mmu_has_mbec(vcpu->arch.mmu))
+		error_code |= (exit_qualification & EPT_VIOLATION_PROT_USER_EXEC)
+			      ? PFERR_PRESENT_MASK : 0;
+
+	if (exit_qualification & EPT_VIOLATION_GVA_IS_VALID) {
+		if (exit_qualification & EPT_VIOLATION_GVA_TRANSLATED) {
+			error_code |= PFERR_GUEST_FINAL_MASK;
+			if (exit_qualification & EPT_VIOLATION_GVA_USER)
+				error_code |= PFERR_USER_MASK;
+		} else {
+			error_code |= PFERR_GUEST_PAGE_MASK;
+		}
+	}
 
 	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa))
 		error_code |= PFERR_PRIVATE_ACCESS;

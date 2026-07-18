@@ -34,6 +34,11 @@ REPS=1000
 SLOW_REPS=100
 NR_THREADS=$((6*${NR_CPUS}))
 
+# Prevent GLIBC from registering RSEQ so the selftest can run in legacy and
+# performance optimized mode.
+GLIBC_TUNABLES="${GLIBC_TUNABLES:-}:glibc.pthread.rseq=0"
+export GLIBC_TUNABLES
+
 function do_tests()
 {
 	local i=0
@@ -103,6 +108,40 @@ function inject_blocking()
 	NR_LOOPS=
 }
 
+echo "Testing in legacy RSEQ mode"
+echo "Yield injection (25%)"
+inject_blocking -m 4 -y -L
+
+echo "Yield injection (50%)"
+inject_blocking -m 2 -y -L
+
+echo "Yield injection (100%)"
+inject_blocking -m 1 -y -L
+
+echo "Kill injection (25%)"
+inject_blocking -m 4 -k -L
+
+echo "Kill injection (50%)"
+inject_blocking -m 2 -k -L
+
+echo "Kill injection (100%)"
+inject_blocking -m 1 -k -L
+
+echo "Sleep injection (1ms, 25%)"
+inject_blocking -m 4 -s 1 -L
+
+echo "Sleep injection (1ms, 50%)"
+inject_blocking -m 2 -s 1 -L
+
+echo "Sleep injection (1ms, 100%)"
+inject_blocking -m 1 -s 1 -L
+
+./check_optimized || {
+    echo "Skipping optimized RSEQ mode test. Not supported";
+    exit 0
+}
+
+echo "Testing in optimized RSEQ mode"
 echo "Yield injection (25%)"
 inject_blocking -m 4 -y
 

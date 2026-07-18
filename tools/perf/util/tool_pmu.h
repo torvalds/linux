@@ -56,6 +56,10 @@ int evsel__tool_pmu_prepare_open(struct evsel *evsel,
 int evsel__tool_pmu_open(struct evsel *evsel,
 			 struct perf_thread_map *threads,
 			 int start_cpu_map_idx, int end_cpu_map_idx);
+int evsel__tool_pmu_enable_cpu(struct evsel *evsel, int cpu_map_idx);
+int evsel__tool_pmu_enable(struct evsel *evsel);
+int evsel__tool_pmu_disable_cpu(struct evsel *evsel, int cpu_map_idx);
+int evsel__tool_pmu_disable(struct evsel *evsel);
 int evsel__tool_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread);
 
 struct perf_pmu *tool_pmu__new(void);

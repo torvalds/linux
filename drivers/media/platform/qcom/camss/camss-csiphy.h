@@ -21,6 +21,8 @@
 #define MSM_CSIPHY_PAD_SRC 1
 #define MSM_CSIPHY_PADS_NUM 2
 
+#define CSIPHY_GRP_ID 1
+
 struct csiphy_lane {
 	u8 pos;
 	u8 pol;

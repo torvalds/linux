@@ -892,7 +892,7 @@ static int es8389_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	es8389->mclk = devm_clk_get(component->dev, "mclk");
+	es8389->mclk = devm_clk_get_optional(component->dev, "mclk");
 	if (IS_ERR(es8389->mclk))
 		return dev_err_probe(component->dev, PTR_ERR(es8389->mclk),
 			"ES8389 is unable to get mclk\n");
@@ -1015,7 +1015,7 @@ MODULE_DEVICE_TABLE(of, es8389_if_dt_ids);
 #endif
 
 static const struct i2c_device_id es8389_i2c_id[] = {
-	{"es8389"},
+	{ .name = "es8389" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, es8389_i2c_id);

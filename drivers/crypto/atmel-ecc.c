@@ -56,7 +56,7 @@ static void atmel_ecdh_done(struct atmel_i2c_work_data *work_data, void *areq,
 		goto free_work_data;
 
 	/* might want less than we've got */
-	n_sz = min_t(size_t, ATMEL_ECC_NIST_P256_N_SIZE, req->dst_len);
+	n_sz = min(ATMEL_ECC_NIST_P256_N_SIZE, req->dst_len);
 
 	/* copy the shared secret */
 	copied = sg_copy_from_buffer(req->dst, sg_nents_for_len(req->dst, n_sz),
@@ -150,7 +150,7 @@ static int atmel_ecdh_generate_public_key(struct kpp_request *req)
 		return -EINVAL;
 
 	/* might want less than we've got */
-	nbytes = min_t(size_t, ATMEL_ECC_PUBKEY_SIZE, req->dst_len);
+	nbytes = min(ATMEL_ECC_PUBKEY_SIZE, req->dst_len);
 
 	/* public key was saved at private key generation */
 	copied = sg_copy_from_buffer(req->dst,
@@ -284,15 +284,7 @@ static unsigned int atmel_ecdh_max_size(struct crypto_kpp *tfm)
 {
 	struct atmel_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
 
-	if (ctx->fallback)
-		return crypto_kpp_maxsize(ctx->fallback);
-
-	/*
-	 * The device only supports NIST P256 ECC keys. The public key size will
-	 * always be the same. Use a macro for the key size to avoid unnecessary
-	 * computations.
-	 */
-	return ATMEL_ECC_PUBKEY_SIZE;
+	return crypto_kpp_maxsize(ctx->fallback);
 }
 
 static struct kpp_alg atmel_ecdh_nist_p256 = {
@@ -368,19 +360,16 @@ static void atmel_ecc_remove(struct i2c_client *client)
 	spin_unlock(&driver_data.i2c_list_lock);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id atmel_ecc_dt_ids[] = {
-	{
-		.compatible = "atmel,atecc508a",
-	}, {
-		/* sentinel */
-	}
+	{ .compatible = "atmel,atecc508a", },
+	{ .compatible = "atmel,atecc608b", },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, atmel_ecc_dt_ids);
-#endif
 
 static const struct i2c_device_id atmel_ecc_id[] = {
-	{ "atecc508a" },
+	{ .name = "atecc508a" },
+	{ .name = "atecc608b" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atmel_ecc_id);
@@ -388,7 +377,7 @@ MODULE_DEVICE_TABLE(i2c, atmel_ecc_id);
 static struct i2c_driver atmel_ecc_driver = {
 	.driver = {
 		.name	= "atmel-ecc",
-		.of_match_table = of_match_ptr(atmel_ecc_dt_ids),
+		.of_match_table = atmel_ecc_dt_ids,
 	},
 	.probe		= atmel_ecc_probe,
 	.remove		= atmel_ecc_remove,

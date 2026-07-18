@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>
@@ -1199,7 +1198,7 @@ static const struct of_device_id hx9023s_of_match[] = {
 MODULE_DEVICE_TABLE(of, hx9023s_of_match);
 
 static const struct i2c_device_id hx9023s_id[] = {
-	{ "hx9023s" },
+	{ .name = "hx9023s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hx9023s_id);

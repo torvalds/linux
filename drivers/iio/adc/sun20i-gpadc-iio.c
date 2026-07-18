@@ -9,7 +9,6 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
@@ -139,8 +138,23 @@ static irqreturn_t sun20i_gpadc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int
+sun20i_gpadc_fwnode_xlate(struct iio_dev *indio_dev,
+			  const struct fwnode_reference_args *iiospec)
+{
+	if (iiospec->nargs != 1)
+		return -EINVAL;
+
+	for (unsigned int i = 0; i < indio_dev->num_channels; i++)
+		if (indio_dev->channels[i].channel == iiospec->args[0])
+			return i;
+
+	return -EINVAL;
+}
+
 static const struct iio_info sun20i_gpadc_iio_info = {
 	.read_raw = sun20i_gpadc_read_raw,
+	.fwnode_xlate = sun20i_gpadc_fwnode_xlate,
 };
 
 static void sun20i_gpadc_reset_assert(void *data)
@@ -177,10 +191,10 @@ static int sun20i_gpadc_alloc_channels(struct iio_dev *indio_dev,
 static int sun20i_gpadc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct iio_dev *indio_dev;
 	struct sun20i_gpadc_iio *info;
+	struct clk_bulk_data *clks;
 	struct reset_control *rst;
-	struct clk *clk;
+	struct iio_dev *indio_dev;
 	int irq;
 	int ret;
 
@@ -205,9 +219,11 @@ static int sun20i_gpadc_probe(struct platform_device *pdev)
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
 
-	clk = devm_clk_get_enabled(dev, NULL);
-	if (IS_ERR(clk))
-		return dev_err_probe(dev, PTR_ERR(clk), "failed to enable bus clock\n");
+	ret = devm_clk_bulk_get_all_enabled(dev, &clks);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to enable clocks\n");
+	if (ret == 0)
+		return dev_err_probe(dev, -ENODEV, "needs at least one clocks\n");
 
 	rst = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(rst))
@@ -243,6 +259,7 @@ static int sun20i_gpadc_probe(struct platform_device *pdev)
 
 static const struct of_device_id sun20i_gpadc_of_id[] = {
 	{ .compatible = "allwinner,sun20i-d1-gpadc" },
+	{ .compatible = "allwinner,sun55i-a523-gpadc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun20i_gpadc_of_id);

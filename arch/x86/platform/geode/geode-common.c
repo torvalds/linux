@@ -9,14 +9,11 @@
 #include <linux/gpio/property.h>
 #include <linux/input.h>
 #include <linux/leds.h>
+#include <linux/mfd/cs5535.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "geode-common.h"
-
-static const struct software_node geode_gpiochip_node = {
-	.name = "cs5535-gpio",
-};
 
 static const struct property_entry geode_gpio_keys_props[] = {
 	PROPERTY_ENTRY_U32("poll-interval", 20),
@@ -44,7 +41,6 @@ static const struct software_node geode_restart_key_node = {
 };
 
 static const struct software_node *geode_gpio_keys_swnodes[] __initconst = {
-	&geode_gpiochip_node,
 	&geode_gpio_keys_node,
 	&geode_restart_key_node,
 	NULL
@@ -66,7 +62,7 @@ int __init geode_create_restart_key(unsigned int pin)
 	struct platform_device *pd;
 	int err;
 
-	geode_restart_gpio_ref = SOFTWARE_NODE_REFERENCE(&geode_gpiochip_node,
+	geode_restart_gpio_ref = SOFTWARE_NODE_REFERENCE(&cs5535_gpio_swnode,
 							 pin, GPIO_ACTIVE_LOW);
 
 	err = software_node_register_node_group(geode_gpio_keys_swnodes);
@@ -143,7 +139,7 @@ int __init geode_create_leds(const char *label, const struct geode_led *leds,
 			goto err_free_names;
 		}
 
-		gpio_refs[i] = SOFTWARE_NODE_REFERENCE(&geode_gpiochip_node,
+		gpio_refs[i] = SOFTWARE_NODE_REFERENCE(&cs5535_gpio_swnode,
 						       leds[i].pin,
 						       GPIO_ACTIVE_LOW);
 		props[i * 3 + 0] =
@@ -188,3 +184,5 @@ err_free_swnodes:
 	kfree(swnodes);
 	return err;
 }
+
+MODULE_IMPORT_NS("CS5535");

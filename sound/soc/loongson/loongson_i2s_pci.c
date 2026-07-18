@@ -13,70 +13,17 @@
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <sound/soc.h>
+
 #include "loongson_i2s.h"
 #include "loongson_dma.h"
 
 #define DRIVER_NAME "loongson-i2s-pci"
 
-static bool loongson_i2s_wr_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case LS_I2S_CFG:
-	case LS_I2S_CTRL:
-	case LS_I2S_RX_DATA:
-	case LS_I2S_TX_DATA:
-	case LS_I2S_CFG1:
-		return true;
-	default:
-		return false;
-	};
-}
-
-static bool loongson_i2s_rd_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case LS_I2S_VER:
-	case LS_I2S_CFG:
-	case LS_I2S_CTRL:
-	case LS_I2S_RX_DATA:
-	case LS_I2S_TX_DATA:
-	case LS_I2S_CFG1:
-		return true;
-	default:
-		return false;
-	};
-}
-
-static bool loongson_i2s_volatile_reg(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case LS_I2S_CFG:
-	case LS_I2S_CTRL:
-	case LS_I2S_RX_DATA:
-	case LS_I2S_TX_DATA:
-	case LS_I2S_CFG1:
-		return true;
-	default:
-		return false;
-	};
-}
-
-static const struct regmap_config loongson_i2s_regmap_config = {
-	.reg_bits = 32,
-	.reg_stride = 4,
-	.val_bits = 32,
-	.max_register = LS_I2S_CFG1,
-	.writeable_reg = loongson_i2s_wr_reg,
-	.readable_reg = loongson_i2s_rd_reg,
-	.volatile_reg = loongson_i2s_volatile_reg,
-	.cache_type = REGCACHE_FLAT,
-};
-
 static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *pid)
 {
 	const struct fwnode_handle *fwnode = pdev->dev.fwnode;
-	struct loongson_dma_data *tx_data, *rx_data;
+	struct loongson_idma_data *tx_data, *rx_data;
 	struct device *dev = &pdev->dev;
 	struct loongson_i2s *i2s;
 	int ret;
@@ -133,7 +80,7 @@ static int loongson_i2s_pci_probe(struct pci_dev *pdev,
 		udelay(200);
 	}
 
-	ret = devm_snd_soc_register_component(dev, &loongson_i2s_component,
+	ret = devm_snd_soc_register_component(dev, &loongson_i2s_idma_component,
 					      &loongson_i2s_dai, 1);
 	if (ret)
 		return dev_err_probe(dev, ret, "register DAI failed\n");

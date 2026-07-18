@@ -308,8 +308,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 		test_and_set_bit(BLOCKED, &pvcc->blocked);
 		goto nospace;
 	}
-	if (test_bit(ATM_VF_RELEASED, &vcc->flags) ||
-	    test_bit(ATM_VF_CLOSE, &vcc->flags) ||
+	if (test_bit(ATM_VF_CLOSE, &vcc->flags) ||
 	    !test_bit(ATM_VF_READY, &vcc->flags)) {
 		bh_unlock_sock(sk_atm(vcc));
 		kfree_skb(skb);

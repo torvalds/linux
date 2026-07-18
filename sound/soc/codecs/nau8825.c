@@ -712,8 +712,8 @@ static void nau8825_xtalk_measure(struct nau8825 *nau8825)
 		/* In left headphone IMM state, read out left headphone
 		 * impedance measure result, and delay some time to wait
 		 * detection sine wave output finish. Then, we can calculate
-		 * the cross talk suppresstion side tone according to the L/R
-		 * headphone imedance.
+		 * the cross talk suppression side tone according to the L/R
+		 * headphone impedance.
 		 */
 		regmap_read(nau8825->regmap, NAU8825_REG_IMM_RMS_L,
 			&nau8825->imp_rms[NAU8825_XTALK_HPL_R2L]);
@@ -2237,7 +2237,7 @@ static void nau8825_component_remove(struct snd_soc_component *component)
 {
 	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 
-	/* Cancel and reset cross tak suppresstion detection funciton */
+	/* Cancel and reset cross talk suppression detection function */
 	nau8825_xtalk_cancel(nau8825);
 }
 
@@ -2651,7 +2651,7 @@ static int nau8825_set_bias_level(struct snd_soc_component *component,
 		/* ground HPL/HPR, MICGRND1/2 */
 		regmap_update_bits(nau8825->regmap,
 			NAU8825_REG_HSD_CTRL, 0xf, 0xf);
-		/* Cancel and reset cross talk detection funciton */
+		/* Cancel and reset cross talk detection function */
 		nau8825_xtalk_cancel(nau8825);
 		/* Turn off all interruptions before system shutdown. Keep the
 		 * interruption quiet before resume setup completes.
@@ -2930,11 +2930,8 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 		&nau8825_dai, 1);
 }
 
-static void nau8825_i2c_remove(struct i2c_client *client)
-{}
-
 static const struct i2c_device_id nau8825_i2c_ids[] = {
-	{ "nau8825" },
+	{ .name = "nau8825" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nau8825_i2c_ids);
@@ -2962,7 +2959,6 @@ static struct i2c_driver nau8825_driver = {
 		.acpi_match_table = ACPI_PTR(nau8825_acpi_match),
 	},
 	.probe = nau8825_i2c_probe,
-	.remove = nau8825_i2c_remove,
 	.id_table = nau8825_i2c_ids,
 };
 module_i2c_driver(nau8825_driver);

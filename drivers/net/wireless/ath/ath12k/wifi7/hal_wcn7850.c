@@ -281,6 +281,20 @@ u8 ath12k_hal_rx_desc_get_l3_pad_bytes_wcn7850(struct hal_rx_desc *desc)
 }
 
 static inline
+u8 ath12k_wifi7_hal_rx_h_from_ds_wcn7850(struct hal_rx_desc *desc)
+{
+	return le16_get_bits(desc->u.wcn7850.msdu_end.info5,
+			     RX_MSDU_END_INFO5_FROM_DS);
+}
+
+static inline
+u8 ath12k_wifi7_hal_rx_h_to_ds_wcn7850(struct hal_rx_desc *desc)
+{
+	return le16_get_bits(desc->u.wcn7850.msdu_end.info5,
+			     RX_MSDU_END_INFO5_TO_DS);
+}
+
+static inline
 bool ath12k_hal_rx_desc_encrypt_valid_wcn7850(struct hal_rx_desc *desc)
 {
 	return !!le32_get_bits(desc->u.wcn7850.mpdu_start.info4,
@@ -599,6 +613,8 @@ void ath12k_hal_extract_rx_desc_data_wcn7850(struct hal_rx_desc_data *rx_desc_da
 	rx_desc_data->seq_no = ath12k_hal_rx_desc_get_mpdu_start_seq_no_wcn7850(rx_desc);
 	rx_desc_data->msdu_len = ath12k_hal_rx_desc_get_msdu_len_wcn7850(ldesc);
 	rx_desc_data->sgi = ath12k_hal_rx_desc_get_msdu_sgi_wcn7850(rx_desc);
+	rx_desc_data->is_from_ds = ath12k_wifi7_hal_rx_h_from_ds_wcn7850(rx_desc);
+	rx_desc_data->is_to_ds = ath12k_wifi7_hal_rx_h_to_ds_wcn7850(rx_desc);
 	rx_desc_data->rate_mcs = ath12k_hal_rx_desc_get_msdu_rate_mcs_wcn7850(rx_desc);
 	rx_desc_data->bw = ath12k_hal_rx_desc_get_msdu_rx_bw_wcn7850(rx_desc);
 	rx_desc_data->phy_meta_data = ath12k_hal_rx_desc_get_msdu_freq_wcn7850(rx_desc);

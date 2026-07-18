@@ -307,7 +307,7 @@ void dpp1_cm_set_output_csc_default(
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	const uint16_t *regval = NULL;
-	int arr_size;
+	uint32_t arr_size;
 
 	regval = find_color_matrix(colorspace, &arr_size);
 	if (regval == NULL) {
@@ -397,8 +397,6 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 	uint32_t i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
-	REG_SEQ_START();
-
 	for (i = 0 ; i < num; i++) {
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].green_reg);
@@ -408,9 +406,6 @@ void dpp1_cm_program_regamma_lut(struct dpp *dpp_base,
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_green_reg);
 		REG_SET(CM_RGAM_LUT_DATA, 0, CM_RGAM_LUT_DATA, rgb[i].delta_blue_reg);
 	}
-
-	REG_SEQ_SUBMIT();
-	REG_SEQ_WAIT_DONE();
 }
 
 void dpp1_cm_configure_regamma_lut(
@@ -824,7 +819,7 @@ void dpp1_program_input_lut(
 		struct dpp *dpp_base,
 		const struct dc_gamma *gamma)
 {
-	int i;
+	unsigned int i;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	bool rama_occupied = false;
 	uint32_t ram_num;

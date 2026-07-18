@@ -258,12 +258,11 @@ convert_allocate_dvs_6axis_config(
 	return me;
 }
 
-int
-store_dvs_6axis_config(
-    const struct ia_css_dvs_6axis_config *dvs_6axis_config,
-    const struct ia_css_binary *binary,
-    const struct ia_css_frame_info *dvs_in_frame_info,
-    ia_css_ptr ddr_addr_y) {
+int store_dvs_6axis_config(const struct ia_css_dvs_6axis_config *dvs_6axis_config,
+			   const struct ia_css_binary *binary,
+			   const struct ia_css_frame_info *dvs_in_frame_info,
+			   ia_css_ptr ddr_addr_y)
+{
 	struct ia_css_host_data *me;
 
 	assert(dvs_6axis_config);
@@ -274,8 +273,7 @@ store_dvs_6axis_config(
 					       binary,
 					       dvs_in_frame_info);
 
-	if (!me)
-	{
+	if (!me) {
 		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
 		return -ENOMEM;
 	}

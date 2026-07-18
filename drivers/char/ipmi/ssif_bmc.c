@@ -874,7 +874,7 @@ static const struct of_device_id ssif_bmc_match[] = {
 MODULE_DEVICE_TABLE(of, ssif_bmc_match);
 
 static const struct i2c_device_id ssif_bmc_id[] = {
-	{ DEVICE_NAME },
+	{ .name = DEVICE_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssif_bmc_id);

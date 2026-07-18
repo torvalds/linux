@@ -21,7 +21,6 @@ struct hvpipe_source_info {
 	u32 srcID;
 	u32 hvpipe_status;
 	wait_queue_head_t recv_wqh;	 /* wake up poll() waitq */
-	struct task_struct *tsk;
 };
 
 /*

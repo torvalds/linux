@@ -129,6 +129,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 #else
 #define torture_preempt_schedule()	do { } while (0)
 #endif
+void torture_sched_set_normal(struct task_struct *t, int nice);
 
 #if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
 long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn);

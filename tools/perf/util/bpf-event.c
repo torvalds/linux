@@ -36,7 +36,7 @@ static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)
 	size_t i;
 
 	for (i = 0; i < len; i++)
-		ret += snprintf(buf + ret, size - ret, "%02x", data[i]);
+		ret += scnprintf(buf + ret, size - ret, "%02x", data[i]);
 	return ret;
 }
 
@@ -58,6 +58,10 @@ static int machine__process_bpf_event_load(struct machine *machine,
 	if (!info_node)
 		return 0;
 	info_linear = info_node->info_linear;
+
+	/* jited_ksyms is only valid if bpil_offs_to_addr() converted it */
+	if (!(info_linear->arrays & (1UL << PERF_BPIL_JITED_KSYMS)))
+		return 0;
 
 	for (i = 0; i < info_linear->info.nr_jited_ksyms; i++) {
 		u64 *addrs = (u64 *)(uintptr_t)(info_linear->info.jited_ksyms);
@@ -140,22 +144,26 @@ static int synthesize_bpf_prog_name(char *buf, int size,
 	const struct btf_type *t;
 	int name_len;
 
-	name_len = snprintf(buf, size, "bpf_prog_");
+	name_len = scnprintf(buf, size, "bpf_prog_");
 	name_len += snprintf_hex(buf + name_len, size - name_len,
 				 prog_tags[sub_id], BPF_TAG_SIZE);
-	if (btf) {
+	if (btf &&
+	    info->func_info_rec_size >= sizeof(*finfo) &&
+	    sub_id < info->nr_func_info) {
 		finfo = func_infos + sub_id * info->func_info_rec_size;
 		t = btf__type_by_id(btf, finfo->type_id);
-		short_name = btf__name_by_offset(btf, t->name_off);
+		if (t)
+			short_name = btf__name_by_offset(btf, t->name_off);
 	} else if (sub_id == 0 && sub_prog_cnt == 1) {
 		/* no subprog */
 		if (info->name[0])
 			short_name = info->name;
 	} else
 		short_name = "F";
-	if (short_name)
-		name_len += snprintf(buf + name_len, size - name_len,
-				     "_%s", short_name);
+	if (short_name) {
+		name_len += scnprintf(buf + name_len, size - name_len,
+				      "_%s", short_name);
+	}
 	return name_len;
 }
 
@@ -365,6 +373,15 @@ static struct bpf_metadata *bpf_metadata_alloc(__u32 nr_prog_tags,
 
 	event_size = sizeof(metadata->event->bpf_metadata) +
 	    nr_variables * sizeof(metadata->event->bpf_metadata.entries[0]);
+	/*
+	 * header.size is __u16.  synthesize_perf_record_bpf_metadata()
+	 * adds machine->id_hdr_size (up to ~64 bytes) after this, so
+	 * leave headroom to prevent the final size from wrapping.
+	 */
+	if (event_size > UINT16_MAX - 256) {
+		bpf_metadata_free(metadata);
+		return NULL;
+	}
 	metadata->event = zalloc(event_size);
 	if (!metadata->event) {
 		bpf_metadata_free(metadata);
@@ -393,8 +410,10 @@ static struct bpf_metadata *bpf_metadata_create(struct bpf_prog_info *info)
 			continue;
 
 		metadata = bpf_metadata_alloc(info->nr_prog_tags, map.num_vars);
-		if (!metadata)
+		if (!metadata) {
+			bpf_metadata_free_map_data(&map);
 			continue;
+		}
 
 		bpf_metadata_fill_event(&map, &metadata->event->bpf_metadata);
 
@@ -869,6 +888,7 @@ static int perf_env__add_bpf_info(struct perf_env *env, u32 id)
 		if (!perf_env__insert_bpf_prog_info(env, info_node)) {
 			pr_debug("%s: duplicate add bpf info request for id %u\n",
 				 __func__, btf_id);
+			bpf_metadata_free(info_node->metadata);
 			free(info_linear);
 			free(info_node);
 			goto out;
@@ -943,12 +963,15 @@ int evlist__add_bpf_sb_event(struct evlist *evlist, struct perf_env *env)
 	return evlist__add_sb_event(evlist, &attr, bpf_event__sb_cb, env);
 }
 
-void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
+void __bpf_event__print_bpf_prog_info(struct perf_bpil *info_linear,
 				      struct perf_env *env,
 				      FILE *fp)
 {
-	__u32 *prog_lens = (__u32 *)(uintptr_t)(info->jited_func_lens);
-	__u64 *prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
+	struct bpf_prog_info *info = &info_linear->info;
+	__u64 required_arrays = (1UL << PERF_BPIL_JITED_KSYMS) |
+				(1UL << PERF_BPIL_JITED_FUNC_LENS);
+	__u32 *prog_lens;
+	__u64 *prog_addrs;
 	char name[KSYM_NAME_LEN];
 	struct btf *btf = NULL;
 	u32 sub_prog_cnt, i;
@@ -957,6 +980,13 @@ void __bpf_event__print_bpf_prog_info(struct bpf_prog_info *info,
 	if (sub_prog_cnt != info->nr_prog_tags ||
 	    sub_prog_cnt != info->nr_jited_func_lens)
 		return;
+
+	/* Ensure the arrays were present and converted by bpil_offs_to_addr() */
+	if ((info_linear->arrays & required_arrays) != required_arrays)
+		return;
+
+	prog_lens = (__u32 *)(uintptr_t)(info->jited_func_lens);
+	prog_addrs = (__u64 *)(uintptr_t)(info->jited_ksyms);
 
 	if (info->btf_id) {
 		struct btf_node *node;

@@ -120,13 +120,13 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib,
 
 	extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_l), &rq_param->sizing.rq_l);
 
-	rq_regs->rq_regs_l.pte_row_height_linear = dml_floor(dml_log2(rq_param->dlg.rq_l.dpte_row_height),
-		1) - 3;
+	rq_regs->rq_regs_l.pte_row_height_linear = (unsigned int)(dml_floor(dml_log2(rq_param->dlg.rq_l.dpte_row_height),
+		1) - 3);
 
 	if (rq_param->yuv420) {
 		extract_rq_sizing_regs(mode_lib, &(rq_regs->rq_regs_c), &rq_param->sizing.rq_c);
-		rq_regs->rq_regs_c.pte_row_height_linear = dml_floor(dml_log2(rq_param->dlg.rq_c.dpte_row_height),
-			1) - 3;
+		rq_regs->rq_regs_c.pte_row_height_linear = (unsigned int)(dml_floor(dml_log2(rq_param->dlg.rq_c.dpte_row_height),
+			1) - 3);
 	}
 
 	rq_regs->rq_regs_l.swath_height = dml_log2(rq_param->dlg.rq_l.swath_height);
@@ -146,11 +146,11 @@ static void extract_rq_regs(struct display_mode_lib *mode_lib,
 	if (rq_param->yuv420) {
 	if ((double)rq_param->misc.rq_l.stored_swath_bytes
 			/ (double)rq_param->misc.rq_c.stored_swath_bytes <= 1.5) {
-			detile_buf_plane1_addr = (detile_buf_size_in_bytes / 2.0 / 64.0); // half to chroma
+			detile_buf_plane1_addr = (unsigned int)(detile_buf_size_in_bytes / 2.0 / 64.0); // half to chroma
 		} else {
-			detile_buf_plane1_addr = dml_round_to_multiple((unsigned int)((2.0 * detile_buf_size_in_bytes) / 3.0),
+			detile_buf_plane1_addr = (unsigned int)(dml_round_to_multiple((unsigned int)((2.0 * detile_buf_size_in_bytes) / 3.0),
 				256,
-				0) / 64.0; // 2/3 to chroma
+				0) / 64.0); // 2/3 to chroma
 		}
 	}
 	rq_regs->plane1_base_address = detile_buf_plane1_addr;
@@ -177,10 +177,10 @@ static void handle_det_buf_split(struct display_mode_lib *mode_lib,
 	full_swath_bytes_packed_c = rq_param->misc.rq_c.full_swath_bytes;
 
 	if (rq_param->yuv420_10bpc) {
-		full_swath_bytes_packed_l = dml_round_to_multiple(rq_param->misc.rq_l.full_swath_bytes * 2.0 / 3.0,
+		full_swath_bytes_packed_l = (unsigned int)dml_round_to_multiple((unsigned int)(rq_param->misc.rq_l.full_swath_bytes * 2.0 / 3.0),
 			256,
 			1) + 256;
-		full_swath_bytes_packed_c = dml_round_to_multiple(rq_param->misc.rq_c.full_swath_bytes * 2.0 / 3.0,
+		full_swath_bytes_packed_c = (unsigned int)dml_round_to_multiple((unsigned int)(rq_param->misc.rq_c.full_swath_bytes * 2.0 / 3.0),
 			256,
 			1) + 256;
 	}
@@ -400,8 +400,8 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 	// "/2" is like square root
 	// blk is vertical biased
 	if (tiling != dm_sw_linear)
-		log2_blk_height = log2_blk256_height
-		+ dml_ceil((double)(log2_blk_bytes - 8) / 2.0, 1);
+		log2_blk_height = (unsigned int)(log2_blk256_height
+		+ dml_ceil((double)(log2_blk_bytes - 8) / 2.0, 1));
 	else
 		log2_blk_height = 0;  // blk height of 1
 
@@ -573,7 +573,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 	if (surf_linear) {
 		unsigned int dpte_row_height = 0;
 
-		log2_dpte_row_height_linear = dml_floor(dml_log2(dpte_buf_in_pte_reqs * dpte_req_width / data_pitch), 1);
+		log2_dpte_row_height_linear = (unsigned int)dml_floor(dml_log2(dpte_buf_in_pte_reqs * dpte_req_width / data_pitch), 1);
 
 		dml_print("DML_DLG: %s: is_chroma                   = %d\n", __func__, is_chroma);
 		dml_print("DML_DLG: %s: dpte_buf_in_pte_reqs        = %d\n", __func__, dpte_buf_in_pte_reqs);
@@ -645,7 +645,7 @@ static void get_meta_and_pte_attr(struct display_mode_lib *mode_lib,
 
 	// since dpte groups are only aligned to dpte_req_width and not dpte_group_width,
 	// the upper bound for the dpte groups per row is as follows.
-	rq_dlg_param->dpte_groups_per_row_ub = dml_ceil((double)dpte_row_width_ub / dpte_group_width,
+	rq_dlg_param->dpte_groups_per_row_ub = (unsigned int)dml_ceil((double)dpte_row_width_ub / dpte_group_width,
 		1);
 }
 
@@ -670,7 +670,7 @@ static void get_surf_rq_param(struct display_mode_lib *mode_lib,
 		vp_height = pipe_param->src.viewport_height_c;
 		data_pitch = pipe_param->src.data_pitch_c;
 		meta_pitch = pipe_param->src.meta_pitch_c;
-		surface_height = pipe_param->src.surface_height_y / 2.0;
+		surface_height = (unsigned int)(pipe_param->src.surface_height_y / 2.0);
 	} else {
 		vp_width = pipe_param->src.viewport_width / ppe;
 		vp_height = pipe_param->src.viewport_height;
@@ -687,18 +687,18 @@ static void get_surf_rq_param(struct display_mode_lib *mode_lib,
 		access_dir = (pipe_param->src.source_scan == dm_vert); // vp access direction: horizontal or vertical accessed
 		hactive_odm  = pipe_param->dest.hactive / ((unsigned int) pipe_param->dest.odm_combine*2);
 		if (is_chroma) {
-			full_src_vp_width = pipe_param->scale_ratio_depth.hscl_ratio_c * pipe_param->dest.full_recout_width;
-			src_hactive_odm  = pipe_param->scale_ratio_depth.hscl_ratio_c * hactive_odm;
+			full_src_vp_width = (unsigned int)(pipe_param->scale_ratio_depth.hscl_ratio_c * pipe_param->dest.full_recout_width);
+			src_hactive_odm  = (unsigned int)(pipe_param->scale_ratio_depth.hscl_ratio_c * hactive_odm);
 		} else {
-			full_src_vp_width = pipe_param->scale_ratio_depth.hscl_ratio * pipe_param->dest.full_recout_width;
-			src_hactive_odm  = pipe_param->scale_ratio_depth.hscl_ratio * hactive_odm;
+			full_src_vp_width = (unsigned int)(pipe_param->scale_ratio_depth.hscl_ratio * pipe_param->dest.full_recout_width);
+			src_hactive_odm  = (unsigned int)(pipe_param->scale_ratio_depth.hscl_ratio * hactive_odm);
 		}
 
 		if (access_dir == 0) {
-			vp_width = dml_min(full_src_vp_width, src_hactive_odm);
+			vp_width = (unsigned int)dml_min(full_src_vp_width, src_hactive_odm);
 			dml_print("DML_DLG: %s: vp_width = %d\n", __func__, vp_width);
 		} else {
-			vp_height = dml_min(full_src_vp_width, src_hactive_odm);
+			vp_height = (unsigned int)dml_min(full_src_vp_width, src_hactive_odm);
 			dml_print("DML_DLG: %s: vp_height = %d\n", __func__, vp_height);
 		}
 		dml_print("DML_DLG: %s: full_src_vp_width = %d\n", __func__, full_src_vp_width);
@@ -833,7 +833,7 @@ static void calculate_ttu_cursor(struct display_mode_lib *mode_lib,
 				cur_req_size = 256;
 		}
 
-		cur_req_width = (double)cur_req_size / ((double)cur_bit_per_pixel / 8.0);
+		cur_req_width = (unsigned int)((double)cur_req_size / ((double)cur_bit_per_pixel / 8.0));
 		cur_width_ub = dml_ceil((double)cur_src_width / (double)cur_req_width, 1)
 			* (double)cur_req_width;
 		cur_req_per_width = cur_width_ub / (double)cur_req_width;
@@ -1123,11 +1123,11 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	if (dout->dsc_enable) {
 		double dsc_delay = get_dsc_delay(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 
-		dispclk_delay_subtotal += dsc_delay;
+		dispclk_delay_subtotal += (unsigned int)dsc_delay;
 	}
 
-	pixel_rate_delay_subtotal = dppclk_delay_subtotal * pclk_freq_in_mhz / dppclk_freq_in_mhz
-		+ dispclk_delay_subtotal * pclk_freq_in_mhz / dispclk_freq_in_mhz;
+	pixel_rate_delay_subtotal = (unsigned int)(dppclk_delay_subtotal * pclk_freq_in_mhz / dppclk_freq_in_mhz)
+		+ (unsigned int)(dispclk_delay_subtotal * pclk_freq_in_mhz / dispclk_freq_in_mhz);
 
 	vstartup_start = dst->vstartup_start;
 	if (interlaced) {
@@ -1167,8 +1167,8 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 			min_vblank);
 	}
 
-	dst_x_after_scaler = get_dst_x_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
-	dst_y_after_scaler = get_dst_y_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_x_after_scaler = (unsigned int)get_dst_x_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
+	dst_y_after_scaler = (int)get_dst_y_after_scaler(mode_lib, e2e_pipe_param, num_pipes, pipe_idx);
 	if (dst_y_after_scaler < 0)
 		dst_y_after_scaler = 0;
 
@@ -1552,7 +1552,7 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	// Assignment to register structures
 	disp_dlg_regs->dst_y_after_scaler = dst_y_after_scaler; // in terms of line
 	ASSERT(disp_dlg_regs->dst_y_after_scaler < (unsigned int)8);
-	disp_dlg_regs->refcyc_x_after_scaler = dst_x_after_scaler * ref_freq_to_pix_freq; // in terms of refclk
+	disp_dlg_regs->refcyc_x_after_scaler = (unsigned int)(dst_x_after_scaler * ref_freq_to_pix_freq); // in terms of refclk
 	ASSERT(disp_dlg_regs->refcyc_x_after_scaler < (unsigned int)dml_pow(2, 13));
 	disp_dlg_regs->dst_y_prefetch = (unsigned int)(dst_y_prefetch * dml_pow(2, 2));
 	disp_dlg_regs->dst_y_per_vm_vblank = (unsigned int)(dst_y_per_vm_vblank * dml_pow(2, 2));
@@ -1601,23 +1601,23 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 			* htotal * ref_freq_to_pix_freq) / meta_chunks_per_row_ub_c;
 	}
 
-	disp_dlg_regs->refcyc_per_vm_group_vblank   = get_refcyc_per_vm_group_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
-	disp_dlg_regs->refcyc_per_vm_group_flip	 = get_refcyc_per_vm_group_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz;
-	disp_dlg_regs->refcyc_per_vm_req_vblank	 = get_refcyc_per_vm_req_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10);
-	disp_dlg_regs->refcyc_per_vm_req_flip	   = get_refcyc_per_vm_req_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10);
+	disp_dlg_regs->refcyc_per_vm_group_vblank   = (unsigned int)(get_refcyc_per_vm_group_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz);
+	disp_dlg_regs->refcyc_per_vm_group_flip	 = (unsigned int)(get_refcyc_per_vm_group_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz);
+	disp_dlg_regs->refcyc_per_vm_req_vblank	 = (unsigned int)(get_refcyc_per_vm_req_vblank(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10));
+	disp_dlg_regs->refcyc_per_vm_req_flip	   = (unsigned int)(get_refcyc_per_vm_req_flip(mode_lib, e2e_pipe_param, num_pipes, pipe_idx) * refclk_freq_in_mhz * dml_pow(2, 10));
 
 	// Clamp to max for now
 	if (disp_dlg_regs->refcyc_per_vm_group_vblank >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_vm_group_vblank = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_vm_group_vblank = (unsigned int)(dml_pow(2, 23) - 1);
 
 	if (disp_dlg_regs->refcyc_per_vm_group_flip >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_vm_group_flip = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_vm_group_flip = (unsigned int)(dml_pow(2, 23) - 1);
 
 	if (disp_dlg_regs->refcyc_per_vm_req_vblank >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_vm_req_vblank = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_vm_req_vblank = (unsigned int)(dml_pow(2, 23) - 1);
 
 	if (disp_dlg_regs->refcyc_per_vm_req_flip >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_vm_req_flip = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_vm_req_flip = (unsigned int)(dml_pow(2, 23) - 1);
 
 	disp_dlg_regs->dst_y_per_pte_row_nom_l = (unsigned int)((double)dpte_row_height_l
 		/ (double)vratio_l * dml_pow(2, 2));
@@ -1646,12 +1646,12 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 		/ (double)vratio_l * (double)htotal * ref_freq_to_pix_freq
 		/ (double)dpte_groups_per_row_ub_l);
 	if (disp_dlg_regs->refcyc_per_pte_group_nom_l >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_pte_group_nom_l = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_pte_group_nom_l = (unsigned int)(dml_pow(2, 23) - 1);
 	disp_dlg_regs->refcyc_per_meta_chunk_nom_l = (unsigned int)((double)meta_row_height_l
 		/ (double)vratio_l * (double)htotal * ref_freq_to_pix_freq
 		/ (double)meta_chunks_per_row_ub_l);
 	if (disp_dlg_regs->refcyc_per_meta_chunk_nom_l >= (unsigned int)dml_pow(2, 23))
-		disp_dlg_regs->refcyc_per_meta_chunk_nom_l = dml_pow(2, 23) - 1;
+		disp_dlg_regs->refcyc_per_meta_chunk_nom_l = (unsigned int)(dml_pow(2, 23) - 1);
 
 	if (dual_plane) {
 		disp_dlg_regs->refcyc_per_pte_group_nom_c =
@@ -1659,7 +1659,7 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 				* (double)htotal * ref_freq_to_pix_freq
 				/ (double)dpte_groups_per_row_ub_c);
 		if (disp_dlg_regs->refcyc_per_pte_group_nom_c >= (unsigned int)dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_pte_group_nom_c = dml_pow(2, 23) - 1;
+			disp_dlg_regs->refcyc_per_pte_group_nom_c = (unsigned int)(dml_pow(2, 23) - 1);
 
 		// TODO: Is this the right calculation? Does htotal need to be halved?
 		disp_dlg_regs->refcyc_per_meta_chunk_nom_c =
@@ -1667,7 +1667,7 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 				* (double)htotal * ref_freq_to_pix_freq
 				/ (double)meta_chunks_per_row_ub_c);
 		if (disp_dlg_regs->refcyc_per_meta_chunk_nom_c >= (unsigned int)dml_pow(2, 23))
-			disp_dlg_regs->refcyc_per_meta_chunk_nom_c = dml_pow(2, 23) - 1;
+			disp_dlg_regs->refcyc_per_meta_chunk_nom_c = (unsigned int)(dml_pow(2, 23) - 1);
 	}
 
 	disp_dlg_regs->refcyc_per_line_delivery_pre_l = (unsigned int)dml_floor(refcyc_per_line_delivery_pre_l,
@@ -1721,7 +1721,7 @@ static void dml_rq_dlg_get_dlg_params(struct display_mode_lib *mode_lib,
 	disp_ttu_regs->qos_ramp_disable_c = 0;
 	disp_ttu_regs->qos_ramp_disable_cur0 = 0;
 
-	disp_ttu_regs->min_ttu_vblank = min_ttu_vblank * refclk_freq_in_mhz;
+	disp_ttu_regs->min_ttu_vblank = (unsigned int)(min_ttu_vblank * refclk_freq_in_mhz);
 	ASSERT(disp_ttu_regs->min_ttu_vblank < dml_pow(2, 24));
 
 	print__ttu_regs_st(mode_lib, disp_ttu_regs);
@@ -1755,7 +1755,7 @@ void dml30_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
 	dlg_sys_param.total_flip_bw = get_total_immediate_flip_bw(mode_lib,
 		e2e_pipe_param,
 		num_pipes);
-	dlg_sys_param.total_flip_bytes = get_total_immediate_flip_bytes(mode_lib,
+	dlg_sys_param.total_flip_bytes = (unsigned int)get_total_immediate_flip_bytes(mode_lib,
 		e2e_pipe_param,
 		num_pipes);
 

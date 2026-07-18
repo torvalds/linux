@@ -36,8 +36,7 @@ int mtk_sof_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 			   struct snd_pcm_hw_params *params);
 int mtk_sof_card_probe(struct snd_soc_card *card);
 int mtk_sof_card_late_probe(struct snd_soc_card *card);
-int mtk_sof_dailink_parse_of(struct snd_soc_card *card, struct device_node *np,
-			     const char *propname, struct snd_soc_dai_link *pre_dai_links,
-			     int pre_num_links);
+int mtk_sof_dailink_parse_of(struct device *dev, struct snd_soc_card *card,
+			     const char *propname);
 
 #endif

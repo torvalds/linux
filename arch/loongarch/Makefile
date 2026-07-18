@@ -55,9 +55,11 @@ endif
 ifdef CONFIG_32BIT
 tool-archpref		= $(32bit-tool-archpref)
 UTS_MACHINE		:= loongarch32
+cflags-y		+= $(call cc-option,-m32)
 else
 tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= loongarch64
+cflags-y		+= $(call cc-option,-m64)
 endif
 
 ifneq ($(SUBARCH),$(ARCH))
@@ -194,8 +196,6 @@ endif
 
 libs-y += arch/loongarch/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
-
-drivers-y		+= arch/loongarch/crypto/
 
 # suspend and hibernation support
 drivers-$(CONFIG_PM)	+= arch/loongarch/power/

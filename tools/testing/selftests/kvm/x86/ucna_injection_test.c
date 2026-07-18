@@ -45,7 +45,7 @@
 
 #define MCI_CTL2_RESERVED_BIT BIT_ULL(29)
 
-static uint64_t supported_mcg_caps;
+static u64 supported_mcg_caps;
 
 /*
  * Record states about the injected UCNA.
@@ -53,30 +53,30 @@ static uint64_t supported_mcg_caps;
  * handler. Variables without the 'i_' prefixes are recorded in guest main
  * execution thread.
  */
-static volatile uint64_t i_ucna_rcvd;
-static volatile uint64_t i_ucna_addr;
-static volatile uint64_t ucna_addr;
-static volatile uint64_t ucna_addr2;
+static volatile u64 i_ucna_rcvd;
+static volatile u64 i_ucna_addr;
+static volatile u64 ucna_addr;
+static volatile u64 ucna_addr2;
 
 struct thread_params {
 	struct kvm_vcpu *vcpu;
-	uint64_t *p_i_ucna_rcvd;
-	uint64_t *p_i_ucna_addr;
-	uint64_t *p_ucna_addr;
-	uint64_t *p_ucna_addr2;
+	u64 *p_i_ucna_rcvd;
+	u64 *p_i_ucna_addr;
+	u64 *p_ucna_addr;
+	u64 *p_ucna_addr2;
 };
 
 static void verify_apic_base_addr(void)
 {
-	uint64_t msr = rdmsr(MSR_IA32_APICBASE);
-	uint64_t base = GET_APIC_BASE(msr);
+	u64 msr = rdmsr(MSR_IA32_APICBASE);
+	u64 base = GET_APIC_BASE(msr);
 
 	GUEST_ASSERT(base == APIC_DEFAULT_GPA);
 }
 
 static void ucna_injection_guest_code(void)
 {
-	uint64_t ctl2;
+	u64 ctl2;
 	verify_apic_base_addr();
 	xapic_enable();
 
@@ -106,7 +106,7 @@ static void ucna_injection_guest_code(void)
 
 static void cmci_disabled_guest_code(void)
 {
-	uint64_t ctl2 = rdmsr(MSR_IA32_MCx_CTL2(UCNA_BANK));
+	u64 ctl2 = rdmsr(MSR_IA32_MCx_CTL2(UCNA_BANK));
 	wrmsr(MSR_IA32_MCx_CTL2(UCNA_BANK), ctl2 | MCI_CTL2_CMCI_EN);
 
 	GUEST_DONE();
@@ -114,7 +114,7 @@ static void cmci_disabled_guest_code(void)
 
 static void cmci_enabled_guest_code(void)
 {
-	uint64_t ctl2 = rdmsr(MSR_IA32_MCx_CTL2(UCNA_BANK));
+	u64 ctl2 = rdmsr(MSR_IA32_MCx_CTL2(UCNA_BANK));
 	wrmsr(MSR_IA32_MCx_CTL2(UCNA_BANK), ctl2 | MCI_CTL2_RESERVED_BIT);
 
 	GUEST_DONE();
@@ -145,14 +145,15 @@ static void run_vcpu_expect_gp(struct kvm_vcpu *vcpu)
 	printf("vCPU received GP in guest.\n");
 }
 
-static void inject_ucna(struct kvm_vcpu *vcpu, uint64_t addr) {
+static void inject_ucna(struct kvm_vcpu *vcpu, u64 addr)
+{
 	/*
 	 * A UCNA error is indicated with VAL=1, UC=1, PCC=0, S=0 and AR=0 in
 	 * the IA32_MCi_STATUS register.
 	 * MSCOD=1 (BIT[16] - MscodDataRdErr).
 	 * MCACOD=0x0090 (Memory controller error format, channel 0)
 	 */
-	uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
+	u64 status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
 			  MCI_STATUS_MISCV | MCI_STATUS_ADDRV | 0x10090;
 	struct kvm_x86_mce mce = {};
 	mce.status = status;
@@ -216,10 +217,10 @@ static void test_ucna_injection(struct kvm_vcpu *vcpu, struct thread_params *par
 {
 	struct kvm_vm *vm = vcpu->vm;
 	params->vcpu = vcpu;
-	params->p_i_ucna_rcvd = (uint64_t *)addr_gva2hva(vm, (uint64_t)&i_ucna_rcvd);
-	params->p_i_ucna_addr = (uint64_t *)addr_gva2hva(vm, (uint64_t)&i_ucna_addr);
-	params->p_ucna_addr = (uint64_t *)addr_gva2hva(vm, (uint64_t)&ucna_addr);
-	params->p_ucna_addr2 = (uint64_t *)addr_gva2hva(vm, (uint64_t)&ucna_addr2);
+	params->p_i_ucna_rcvd = (u64 *)addr_gva2hva(vm, (u64)&i_ucna_rcvd);
+	params->p_i_ucna_addr = (u64 *)addr_gva2hva(vm, (u64)&i_ucna_addr);
+	params->p_ucna_addr = (u64 *)addr_gva2hva(vm, (u64)&ucna_addr);
+	params->p_ucna_addr2 = (u64 *)addr_gva2hva(vm, (u64)&ucna_addr2);
 
 	run_ucna_injection(params);
 
@@ -242,7 +243,7 @@ static void test_ucna_injection(struct kvm_vcpu *vcpu, struct thread_params *par
 
 static void setup_mce_cap(struct kvm_vcpu *vcpu, bool enable_cmci_p)
 {
-	uint64_t mcg_caps = MCG_CTL_P | MCG_SER_P | MCG_LMCE_P | KVM_MAX_MCE_BANKS;
+	u64 mcg_caps = MCG_CTL_P | MCG_SER_P | MCG_LMCE_P | KVM_MAX_MCE_BANKS;
 	if (enable_cmci_p)
 		mcg_caps |= MCG_CMCI_P;
 
@@ -250,7 +251,7 @@ static void setup_mce_cap(struct kvm_vcpu *vcpu, bool enable_cmci_p)
 	vcpu_ioctl(vcpu, KVM_X86_SETUP_MCE, &mcg_caps);
 }
 
-static struct kvm_vcpu *create_vcpu_with_mce_cap(struct kvm_vm *vm, uint32_t vcpuid,
+static struct kvm_vcpu *create_vcpu_with_mce_cap(struct kvm_vm *vm, u32 vcpuid,
 						 bool enable_cmci_p, void *guest_code)
 {
 	struct kvm_vcpu *vcpu = vm_vcpu_add(vm, vcpuid, guest_code);

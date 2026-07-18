@@ -247,6 +247,21 @@ tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 }
 #endif
 
+static int tcpmss_tg4_check_hooks(const struct xt_tgchk_param *par)
+{
+	const struct xt_tcpmss_info *info = par->targinfo;
+
+	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
+	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
+			   (1 << NF_INET_LOCAL_OUT) |
+			   (1 << NF_INET_POST_ROUTING))) != 0) {
+		pr_info_ratelimited("path-MTU clamping only supported in FORWARD, OUTPUT and POSTROUTING hooks\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Must specify -p tcp --syn */
 static inline bool find_syn_match(const struct xt_entry_match *m)
 {
@@ -262,17 +277,9 @@ static inline bool find_syn_match(const struct xt_entry_match *m)
 
 static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
 	const struct xt_entry_match *ematch;
 
-	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
-			   (1 << NF_INET_LOCAL_OUT) |
-			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		pr_info_ratelimited("path-MTU clamping only supported in FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return -EINVAL;
-	}
 	if (par->nft_compat)
 		return 0;
 
@@ -286,17 +293,9 @@ static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ip6t_entry *e = par->entryinfo;
 	const struct xt_entry_match *ematch;
 
-	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
-			   (1 << NF_INET_LOCAL_OUT) |
-			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		pr_info_ratelimited("path-MTU clamping only supported in FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return -EINVAL;
-	}
 	if (par->nft_compat)
 		return 0;
 
@@ -312,6 +311,7 @@ static struct xt_target tcpmss_tg_reg[] __read_mostly = {
 	{
 		.family		= NFPROTO_IPV4,
 		.name		= "TCPMSS",
+		.check_hooks	= tcpmss_tg4_check_hooks,
 		.checkentry	= tcpmss_tg4_check,
 		.target		= tcpmss_tg4,
 		.targetsize	= sizeof(struct xt_tcpmss_info),
@@ -322,6 +322,7 @@ static struct xt_target tcpmss_tg_reg[] __read_mostly = {
 	{
 		.family		= NFPROTO_IPV6,
 		.name		= "TCPMSS",
+		.check_hooks	= tcpmss_tg4_check_hooks,
 		.checkentry	= tcpmss_tg6_check,
 		.target		= tcpmss_tg6,
 		.targetsize	= sizeof(struct xt_tcpmss_info),

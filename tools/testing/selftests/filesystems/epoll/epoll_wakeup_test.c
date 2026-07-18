@@ -3493,4 +3493,49 @@ TEST(epoll64)
 	close(ctx.sfd[1]);
 }
 
+static void *epoll65_wait(void *ctx_)
+{
+	struct epoll_mtcontext *ctx = ctx_;
+	struct epoll_event event;
+
+	for (int i = 0; i < 100000; ++i) {
+		if (!epoll_wait(ctx->efd[0], &event, 1, 0))
+			return (void *)ENODATA;
+	}
+
+	return (void *)0;
+}
+
+TEST(epoll65)
+{
+	struct epoll_mtcontext ctx;
+	struct epoll_event event;
+	int64_t dummy_data = 99;
+	pthread_t threads[64];
+	uintptr_t ret;
+	int i, err;
+
+	ctx.efd[0] = epoll_create(1);
+	ASSERT_GE(ctx.efd[0], 0);
+	ctx.efd[1] = eventfd(0, 0);
+	ASSERT_GE(ctx.efd[1], 0);
+
+	event.events = EPOLLIN;
+	err = epoll_ctl(ctx.efd[0], EPOLL_CTL_ADD, ctx.efd[1], &event);
+	ASSERT_EQ(err, 0);
+
+	write(ctx.efd[1], &dummy_data, sizeof(dummy_data));
+
+	for (i = 0; i < ARRAY_SIZE(threads); ++i)
+		ASSERT_EQ(pthread_create(&threads[i], NULL, epoll65_wait, &ctx), 0);
+
+	for (i = 0; i < ARRAY_SIZE(threads); ++i) {
+		ASSERT_EQ(pthread_join(threads[i], (void **)&ret), 0);
+		ASSERT_EQ(ret, 0);
+	}
+
+	close(ctx.efd[0]);
+	close(ctx.efd[1]);
+}
+
 TEST_HARNESS_MAIN

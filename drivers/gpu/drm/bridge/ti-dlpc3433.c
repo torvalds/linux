@@ -105,7 +105,7 @@ static const struct regmap_config dlpc_regmap_config = {
 };
 
 static void dlpc_atomic_enable(struct drm_bridge *bridge,
-			       struct drm_atomic_state *state)
+			       struct drm_atomic_commit *state)
 {
 	struct dlpc *dlpc = bridge_to_dlpc(bridge);
 	struct device *dev = dlpc->dev;
@@ -170,7 +170,7 @@ static void dlpc_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void dlpc_atomic_pre_enable(struct drm_bridge *bridge,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct dlpc *dlpc = bridge_to_dlpc(bridge);
 	int ret;
@@ -193,7 +193,7 @@ static void dlpc_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void dlpc_atomic_post_disable(struct drm_bridge *bridge,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct dlpc *dlpc = bridge_to_dlpc(bridge);
 
@@ -254,7 +254,7 @@ static const struct drm_bridge_funcs dlpc_bridge_funcs = {
 	.atomic_duplicate_state		= drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state		= drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts	= dlpc_atomic_get_input_bus_fmts,
-	.atomic_reset			= drm_atomic_helper_bridge_reset,
+	.atomic_create_state			= drm_atomic_helper_bridge_create_state,
 	.atomic_pre_enable		= dlpc_atomic_pre_enable,
 	.atomic_enable			= dlpc_atomic_enable,
 	.atomic_post_disable		= dlpc_atomic_post_disable,

@@ -46,7 +46,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	struct drm_intel_sprite_colorkey *set = data;
 	struct drm_plane *plane;
 	struct drm_plane_state *plane_state;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret = 0;
 
@@ -80,7 +80,7 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-	state = drm_atomic_state_alloc(plane->dev);
+	state = drm_atomic_commit_alloc(plane->dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out;
@@ -116,11 +116,11 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 		if (ret != -EDEADLK)
 			break;
 
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		drm_modeset_backoff(&ctx);
 	}
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 out:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);

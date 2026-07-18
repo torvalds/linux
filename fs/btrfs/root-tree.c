@@ -27,20 +27,20 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 				struct btrfs_root_item *item)
 {
 	u32 len;
-	int need_reset = 0;
+	bool need_reset = false;
 
 	len = btrfs_item_size(eb, slot);
 	read_extent_buffer(eb, item, btrfs_item_ptr_offset(eb, slot),
 			   min_t(u32, len, sizeof(*item)));
 	if (len < sizeof(*item))
-		need_reset = 1;
+		need_reset = true;
 	if (!need_reset && btrfs_root_generation(item)
 		!= btrfs_root_generation_v2(item)) {
 		if (btrfs_root_generation_v2(item) != 0) {
 			btrfs_warn(eb->fs_info,
 					"mismatching generation and generation_v2 found in root item. This root was probably mounted with an older kernel. Resetting all new fields.");
 		}
-		need_reset = 1;
+		need_reset = true;
 	}
 	if (need_reset) {
 		/* Clear all members from generation_v2 onwards. */

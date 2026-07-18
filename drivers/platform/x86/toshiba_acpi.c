@@ -3374,7 +3374,7 @@ static const struct dmi_system_id toshiba_dmi_quirks[] __initconst = {
 
 static int toshiba_acpi_probe(struct platform_device *pdev)
 {
-	struct acpi_device *acpi_dev = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *acpi_dev;
 	struct toshiba_acpi_dev *dev;
 	const char *hci_method;
 	u32 dummy;
@@ -3382,6 +3382,10 @@ static int toshiba_acpi_probe(struct platform_device *pdev)
 
 	if (toshiba_acpi)
 		return -EBUSY;
+
+	acpi_dev = ACPI_COMPANION(&pdev->dev);
+	if (!acpi_dev)
+		return -ENODEV;
 
 	pr_info("Toshiba Laptop ACPI Extras version %s\n",
 	       TOSHIBA_ACPI_VERSION);

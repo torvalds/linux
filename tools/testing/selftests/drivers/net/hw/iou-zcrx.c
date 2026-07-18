@@ -351,9 +351,6 @@ static void run_server(void)
 	if (ret < 0)
 		error(1, 0, "bind()");
 
-	if (listen(fd, 1024) < 0)
-		error(1, 0, "listen()");
-
 	flags |= IORING_SETUP_COOP_TASKRUN;
 	flags |= IORING_SETUP_SINGLE_ISSUER;
 	flags |= IORING_SETUP_DEFER_TASKRUN;
@@ -365,6 +362,9 @@ static void run_server(void)
 	setup_zcrx(&ring);
 	if (cfg_dry_run)
 		return;
+
+	if (listen(fd, 1024) < 0)
+		error(1, 0, "listen()");
 
 	add_accept(&ring, fd);
 

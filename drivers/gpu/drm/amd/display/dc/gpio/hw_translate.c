@@ -54,6 +54,7 @@
 #include "dcn32/hw_translate_dcn32.h"
 #include "dcn401/hw_translate_dcn401.h"
 #include "dcn42/hw_translate_dcn42.h"
+#include "dcn42b/hw_translate_dcn42b.h"
 
 /*
  * This unit
@@ -124,8 +125,97 @@ bool dal_hw_translate_init(
 	case DCN_VERSION_4_2:
 		dal_hw_translate_dcn42_init(translate);
 		return true;
+	case DCN_VERSION_4_2B:
+		dal_hw_translate_dcn42b_init(translate);
+		return true;
 	default:
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
+}
+
+bool dal_hw_translate_gpio_offset_to_id(
+	const struct gpio_id_offset_entry *table,
+	uint32_t table_size,
+	uint32_t offset,
+	uint32_t mask,
+	enum gpio_id *id,
+	uint32_t *en)
+{
+	uint32_t i;
+
+	for (i = 0; i < table_size; i++) {
+		const struct gpio_id_offset_entry *entry = &table[i];
+
+		if (entry->offset != offset)
+			continue;
+
+		if (entry->check_mask && entry->mask != mask)
+			continue;
+
+		*id = entry->id;
+		*en = entry->en;
+
+		return true;
+	}
+
+	return false;
+}
+
+/* we don't care about the GPIO_ID for DDC
+ * in DdcHandle it will use GPIO_ID_DDC_DATA/GPIO_ID_DDC_CLOCK
+ * directly in the create method
+ */
+bool dal_hw_translate_gpio_ddc_offset_to_id(
+	const struct gpio_ddc_offset_entry *table,
+	uint32_t table_size,
+	uint32_t offset,
+	uint32_t *en)
+{
+	uint32_t i;
+
+	for (i = 0; i < table_size; i++) {
+		const struct gpio_ddc_offset_entry *entry = &table[i];
+
+		if (entry->offset != offset)
+			continue;
+
+		*en = entry->en;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool dal_hw_translate_id_to_offset(
+	const struct gpio_pin_entry *table,
+	uint32_t table_size,
+	enum gpio_id id,
+	uint32_t en,
+	struct gpio_pin_info *info)
+{
+	uint32_t i;
+
+	for (i = 0; i < table_size; i++) {
+		const struct gpio_pin_entry *entry = &table[i];
+
+		if (entry->id != id || entry->en != en)
+			continue;
+
+		info->offset = entry->offset;
+		info->mask = entry->mask;
+
+		info->offset_y = info->offset + 2;
+		info->offset_en = info->offset + 1;
+		info->offset_mask = info->offset - 1;
+
+		info->mask_y = info->mask;
+		info->mask_en = info->mask;
+		info->mask_mask = info->mask;
+
+		return true;
+	}
+
+	return false;
 }

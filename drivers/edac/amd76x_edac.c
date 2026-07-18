@@ -332,14 +332,14 @@ static void amd76x_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id amd76x_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(AMD, FE_GATE_700C), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 AMD762},
-	{
-	 PCI_VEND_DEV(AMD, FE_GATE_700E), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 AMD761},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(AMD, FE_GATE_700C),
+		.driver_data = AMD762
+	}, {
+		PCI_VEND_DEV(AMD, FE_GATE_700E),
+		.driver_data = AMD761,
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, amd76x_pci_tbl);

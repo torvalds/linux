@@ -718,12 +718,25 @@ void uverbs_disassociate_api(struct uverbs_api *uapi)
 		if (uapi_key_is_object(iter.index)) {
 			struct uverbs_api_object *object_elm =
 				rcu_dereference_protected(*slot, true);
+			const struct uverbs_obj_type *type_attrs =
+				object_elm->type_attrs;
 
 			/*
 			 * Some type_attrs are in the driver module. We don't
 			 * bother to keep track of which since there should be
 			 * no use of this after disassociate.
+			 *
+			 * release_cleanup is the exception because
+			 * uverbs_uobject_fd_release() needs it. In this case
+			 * the module reference held by the fops will guarentee
+			 * the type_class remains valid too.
 			 */
+			if (type_attrs &&
+			    type_attrs->type_class == &uverbs_fd_class &&
+			    container_of(type_attrs, struct uverbs_obj_fd_type,
+					 type)->release_cleanup)
+				continue;
+
 			object_elm->type_attrs = NULL;
 		} else if (uapi_key_is_attr(iter.index)) {
 			struct uverbs_api_attr *elm =

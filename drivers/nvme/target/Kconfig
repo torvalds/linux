@@ -117,6 +117,15 @@ config NVME_TARGET_AUTH
 
 	  If unsure, say N.
 
+config NVME_TARGET_AUTH_DEBUG
+	bool "NVMe over Fabrics In-band Authentication debug messages"
+	depends on NVME_TARGET_AUTH
+	help
+	  This enables additional debug messages including the generated
+	  DH-HMAC-CHAP secrets to help debugging authentication failures.
+
+	  If unsure, say N.
+
 config NVME_TARGET_PCI_EPF
 	tristate "NVMe PCI Endpoint Function target support"
 	depends on NVME_TARGET && PCI_ENDPOINT

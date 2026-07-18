@@ -18,6 +18,7 @@
 #include "xe_ggtt_types.h"
 
 struct xe_device;
+struct xe_mem_pool_node;
 struct xe_vm;
 
 #define XE_BO_MAX_PLACEMENTS	3
@@ -66,7 +67,7 @@ struct xe_bo {
 	/** @attr: User controlled attributes for bo */
 	struct {
 		/**
-		 * @atomic_access: type of atomic access bo needs
+		 * @attr.atomic_access: type of atomic access bo needs
 		 * protected by bo dma-resv lock
 		 */
 		u32 atomic_access;
@@ -88,7 +89,7 @@ struct xe_bo {
 	bool ccs_cleared;
 
 	/** @bb_ccs: BB instructions of CCS read/write. Valid only for VF */
-	struct xe_bb *bb_ccs[XE_SRIOV_VF_CCS_CTX_COUNT];
+	struct xe_mem_pool_node *bb_ccs[XE_SRIOV_VF_CCS_CTX_COUNT];
 
 	/**
 	 * @cpu_caching: CPU caching mode. Currently only used for userspace
@@ -110,10 +111,32 @@ struct xe_bo {
 	u64 min_align;
 
 	/**
-	 * @madv_purgeable: user space advise on BO purgeability, protected
-	 * by BO's dma-resv lock.
+	 * @purgeable: Purgeability state and accounting.
+	 *
+	 * All fields are protected by the BO's dma-resv lock.
 	 */
-	u32 madv_purgeable;
+	struct {
+		/**
+		 * @purgeable.state: BO purgeability state
+		 *                   (WILLNEED/DONTNEED/PURGED).
+		 */
+		u32 state;
+
+		/**
+		 * @purgeable.vma_count: Number of VMAs currently mapping this BO.
+		 */
+		u32 vma_count;
+
+		/**
+		 * @purgeable.willneed_count: Number of active WILLNEED holders.
+		 *
+		 * Counts WILLNEED VMAs plus active dma-buf exports for
+		 * non-imported BOs. The BO flips to DONTNEED on a 1->0
+		 * transition only when VMAs still exist; if the last VMA is
+		 * removed, the previous BO state is preserved.
+		 */
+		u32 willneed_count;
+	} purgeable;
 };
 
 #endif

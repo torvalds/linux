@@ -949,16 +949,16 @@ xfs_reflink_end_cow(
 	 * repeatedly cycles the ILOCK to allocate one transaction per remapped
 	 * extent.
 	 *
-	 * If we're being called by writeback then the pages will still
-	 * have PageWriteback set, which prevents races with reflink remapping
-	 * and truncate.  Reflink remapping prevents races with writeback by
-	 * taking the iolock and mmaplock before flushing the pages and
-	 * remapping, which means there won't be any further writeback or page
-	 * cache dirtying until the reflink completes.
+	 * If we're being called by writeback then the folios will still
+	 * have the writeback flag set, which prevents races with reflink
+	 * remapping and truncate.  Reflink remapping prevents races with
+	 * writeback by taking the iolock and mmaplock before flushing
+	 * the folios and remapping, which means there won't be any further
+	 * writeback or page cache dirtying until the reflink completes.
 	 *
 	 * We should never have two threads issuing writeback for the same file
 	 * region.  There are also have post-eof checks in the writeback
-	 * preparation code so that we don't bother writing out pages that are
+	 * preparation code so that we don't bother writing out folios that are
 	 * about to be truncated.
 	 *
 	 * If we're being called as part of directio write completion, the dio
@@ -1188,7 +1188,7 @@ xfs_reflink_set_inode_flag(
 		goto out_error;
 
 	/* Lock both files against IO */
-	if (src->i_ino == dest->i_ino)
+	if (I_INO(src) == I_INO(dest))
 		xfs_ilock(src, XFS_ILOCK_EXCL);
 	else
 		xfs_lock_two_inodes(src, XFS_ILOCK_EXCL, dest, XFS_ILOCK_EXCL);
@@ -1202,7 +1202,7 @@ xfs_reflink_set_inode_flag(
 	} else
 		xfs_iunlock(src, XFS_ILOCK_EXCL);
 
-	if (src->i_ino == dest->i_ino)
+	if (I_INO(src) == I_INO(dest))
 		goto commit_flags;
 
 	if (!xfs_is_reflink_inode(dest)) {

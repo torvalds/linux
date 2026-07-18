@@ -274,20 +274,21 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 
 static int amd_pstate_ut_epp(u32 index)
 {
-	struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
-	char *buf __free(cleanup_page) = NULL;
 	static const char * const epp_strings[] = {
-		"performance",
-		"balance_performance",
-		"balance_power",
 		"power",
+		"balance_power",
+		"balance_performance",
+		"performance",
 	};
-	struct amd_cpudata *cpudata;
+	char *buf __free(cleanup_page) = NULL;
+	struct cpufreq_policy *policy = NULL;
 	enum amd_pstate_mode orig_mode;
+	struct amd_cpudata *cpudata;
+	unsigned long orig_policy;
 	bool orig_dynamic_epp;
 	int ret, cpu = 0;
-	int i;
 	u16 epp;
+	int i;
 
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
@@ -297,11 +298,9 @@ static int amd_pstate_ut_epp(u32 index)
 	orig_mode = amd_pstate_get_status();
 	orig_dynamic_epp = cpudata->dynamic_epp;
 
-	/* disable dynamic EPP before running test */
-	if (cpudata->dynamic_epp) {
-		pr_debug("Dynamic EPP is enabled, disabling it\n");
-		amd_pstate_clear_dynamic_epp(policy);
-	}
+	/* Drop reference before potential driver change. */
+	cpufreq_cpu_put(policy);
+	policy = NULL;
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (!buf)
@@ -310,6 +309,27 @@ static int amd_pstate_ut_epp(u32 index)
 	ret = amd_pstate_set_mode(AMD_PSTATE_ACTIVE);
 	if (ret)
 		goto out;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	down_write(&policy->rwsem);
+	cpudata = policy->driver_data;
+	orig_policy = cpudata->policy;
+	cpudata->policy = CPUFREQ_POLICY_POWERSAVE;
+
+	/*
+	 * Disable dynamic EPP before running test. If "orig_dynamic_epp" is
+	 * true, the  driver will do a redundant switch at the end and there
+	 * is no need for enabling it again at the end of the test.
+	 */
+	if (cpudata->dynamic_epp) {
+		pr_debug("Dynamic EPP is enabled, disabling it\n");
+		amd_pstate_clear_dynamic_epp(policy);
+	}
 
 	for (epp = 0; epp <= U8_MAX; epp++) {
 		u8 val;
@@ -358,6 +378,12 @@ static int amd_pstate_ut_epp(u32 index)
 	ret = 0;
 
 out:
+	if (policy) {
+		cpudata->policy = orig_policy;
+		up_write(&policy->rwsem);
+		cpufreq_cpu_put(policy);
+	}
+
 	if (orig_dynamic_epp) {
 		int ret2;
 

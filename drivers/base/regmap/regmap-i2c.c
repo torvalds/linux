@@ -337,7 +337,7 @@ static int regmap_smbus_word_write_reg16(void *context, const void *data,
 	val = ((u8 *)data)[2];
 
 	return i2c_smbus_write_word_data(i2c, addr_hi,
-					 cpu_to_le16(((u16)val << 8) | addr_lo));
+					 ((u16)val << 8) | addr_lo);
 }
 
 static const struct regmap_bus regmap_smbus_byte_word_reg16 = {

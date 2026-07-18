@@ -1357,11 +1357,8 @@ static int wm9081_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static void wm9081_i2c_remove(struct i2c_client *client)
-{}
-
 static const struct i2c_device_id wm9081_i2c_id[] = {
-	{ "wm9081" },
+	{ .name = "wm9081" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm9081_i2c_id);
@@ -1370,8 +1367,7 @@ static struct i2c_driver wm9081_i2c_driver = {
 	.driver = {
 		.name = "wm9081",
 	},
-	.probe =    wm9081_i2c_probe,
-	.remove =   wm9081_i2c_remove,
+	.probe = wm9081_i2c_probe,
 	.id_table = wm9081_i2c_id,
 };
 

@@ -243,7 +243,12 @@ static inline int skel_map_create(enum bpf_map_type map_type,
 	attr.excl_prog_hash = (unsigned long) excl_prog_hash;
 	attr.excl_prog_hash_size = excl_prog_hash_sz;
 
+#ifdef __KERNEL__
+	if (strscpy(attr.map_name, map_name) < 0)
+		return -EINVAL;
+#else
 	strncpy(attr.map_name, map_name, sizeof(attr.map_name));
+#endif
 	attr.key_size = key_size;
 	attr.value_size = value_size;
 	attr.max_entries = max_entries;

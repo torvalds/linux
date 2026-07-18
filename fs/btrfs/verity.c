@@ -458,7 +458,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 	if (ret) {
 		btrfs_handle_fs_error(root->fs_info, ret,
 				"failed to drop verity items in rollback %llu",
-				(u64)inode->vfs_inode.i_ino);
+				inode->vfs_inode.i_ino);
 		goto out;
 	}
 
@@ -472,7 +472,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 		trans = NULL;
 		btrfs_handle_fs_error(root->fs_info, ret,
 			"failed to start transaction in verity rollback %llu",
-			(u64)inode->vfs_inode.i_ino);
+			inode->vfs_inode.i_ino);
 		goto out;
 	}
 	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;

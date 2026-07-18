@@ -64,35 +64,6 @@ struct dc_stream_status {
 	bool fpo_in_use;
 };
 
-enum hubp_dmdata_mode {
-	DMDATA_SW_MODE,
-	DMDATA_HW_MODE
-};
-
-struct dc_dmdata_attributes {
-	/* Specifies whether dynamic meta data will be updated by software
-	 * or has to be fetched by hardware (DMA mode)
-	 */
-	enum hubp_dmdata_mode dmdata_mode;
-	/* Specifies if current dynamic meta data is to be used only for the current frame */
-	bool dmdata_repeat;
-	/* Specifies the size of Dynamic Metadata surface in byte.  Size of 0 means no Dynamic metadata is fetched */
-	uint32_t dmdata_size;
-	/* Specifies if a new dynamic meta data should be fetched for an upcoming frame */
-	bool dmdata_updated;
-	/* If hardware mode is used, the base address where DMDATA surface is located */
-	PHYSICAL_ADDRESS_LOC address;
-	/* Specifies whether QOS level will be provided by TTU or it will come from DMDATA_QOS_LEVEL */
-	bool dmdata_qos_mode;
-	/* If qos_mode = 1, this is the QOS value to be used: */
-	uint32_t dmdata_qos_level;
-	/* Specifies the value in unit of REFCLK cycles to be added to the
-	 * current time to produce the Amortized deadline for Dynamic Metadata chunk request
-	 */
-	uint32_t dmdata_dl_delta;
-	/* An unbounded array of uint32s, represents software dmdata to be loaded */
-	uint32_t *dmdata_sw_data;
-};
 
 struct dc_writeback_info {
 	bool wb_enabled;
@@ -146,10 +117,45 @@ union stream_update_flags {
 		uint32_t fams_changed : 1;
 		uint32_t scaler_sharpener : 1;
 		uint32_t sharpening_required : 1;
+		uint32_t cursor_attr : 1;
+		uint32_t cursor_pos : 1;
+		uint32_t periodic_interrupt : 1;
+		uint32_t info_frame : 1;
+		uint32_t dmdata : 1;
+		uint32_t dither : 1;
 	} bits;
 
 	uint32_t raw;
 };
+
+static inline void stream_update_flags_clear(union stream_update_flags *flags)
+{
+	flags->raw = 0;
+}
+
+static inline void stream_update_flags_set_full(union stream_update_flags *flags)
+{
+	stream_update_flags_clear(flags);
+	flags->bits.scaling = 1;
+	flags->bits.out_tf = 1;
+	flags->bits.out_csc = 1;
+	flags->bits.abm_level = 1;
+	flags->bits.dpms_off = 1;
+	flags->bits.gamut_remap = 1;
+	flags->bits.wb_update = 1;
+	flags->bits.dsc_changed = 1;
+	flags->bits.mst_bw = 1;
+	flags->bits.crtc_timing_adjust = 1;
+	flags->bits.fams_changed = 1;
+	flags->bits.scaler_sharpener = 1;
+	flags->bits.sharpening_required = 1;
+	flags->bits.cursor_attr = 1;
+	flags->bits.cursor_pos = 1;
+	flags->bits.periodic_interrupt = 1;
+	flags->bits.info_frame = 1;
+	flags->bits.dmdata = 1;
+	flags->bits.dither = 1;
+}
 
 struct test_pattern {
 	enum dp_test_pattern type;
@@ -179,8 +185,8 @@ struct luminance_data {
 	int luminance_millinits[LUMINANCE_DATA_TABLE_SIZE];
 	int flicker_criteria_milli_nits_GAMING;
 	int flicker_criteria_milli_nits_STATIC;
-	int nominal_refresh_rate;
-	int dm_max_decrease_from_nominal;
+	unsigned int nominal_refresh_rate;
+	unsigned int dm_max_decrease_from_nominal;
 };
 
 enum dc_drr_trigger_mode {
@@ -324,6 +330,7 @@ struct dc_stream_state {
 	enum dc_drr_trigger_mode drr_trigger_mode;
 
 	struct dc_update_scratch_space *update_scratch;
+	bool firmware_controlled_hdr_info_packet;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -516,6 +523,9 @@ struct surface_update_descriptor dc_check_update_surfaces_for_stream(
 		struct dc_surface_update *updates,
 		int surface_count,
 		struct dc_stream_update *stream_update);
+
+struct dc_link *dc_stream_get_link(
+	const struct dc_stream_state *dc_stream);
 
 /**
  * Create a new default stream for the requested sink

@@ -261,8 +261,8 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	cmd->p2p_ctwindow = s->p2p_ctwindow;
 	cmd->p2p_opp_ps = s->p2p_opp_ps;
 	cmd->pbss = s->pbss;
-	cmd->ht_required = s->ht_required;
-	cmd->vht_required = s->vht_required;
+	cmd->ht_required = s->beacon.ht_required;
+	cmd->vht_required = s->beacon.vht_required;
 	cmd->twt_responder = s->twt_responder;
 	if (s->he_obss_pd.enable) {
 		cmd->sr_params.sr_control |= QLINK_SR_SRG_INFORMATION_PRESENT;

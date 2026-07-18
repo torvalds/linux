@@ -222,7 +222,7 @@ programs should not retry in case of a non-zero system call return.
 address ABI control and MTE configuration of a process as per the
 ``prctl()`` options described in
 Documentation/arch/arm64/tagged-address-abi.rst and above. The corresponding
-``regset`` is 1 element of 8 bytes (``sizeof(long))``).
+``regset`` is 1 element of 8 bytes (``sizeof(long)``).
 
 Core dump support
 -----------------

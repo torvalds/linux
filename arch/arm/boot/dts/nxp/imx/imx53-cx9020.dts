@@ -60,6 +60,7 @@
 
 	dvi-converter {
 		compatible = "ti,tfp410";
+		ti,deskew = <0>;
 
 		ports {
 			#address-cells = <1>;

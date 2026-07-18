@@ -267,32 +267,25 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 		hash_key2 = hash_key;
 		use2 = false;
 	}
+
 	conn_tab_lock(t, cp, hash_key, hash_key2, use2, true /* new_hash */,
 		      &head, &head2);
-	spin_lock(&cp->lock);
 
-	if (!(cp->flags & IP_VS_CONN_F_HASHED)) {
-		cp->flags |= IP_VS_CONN_F_HASHED;
-		WRITE_ONCE(cp->hn0.hash_key, hash_key);
-		WRITE_ONCE(cp->hn1.hash_key, hash_key2);
-		refcount_inc(&cp->refcnt);
-		hlist_bl_add_head_rcu(&cp->hn0.node, head);
-		if (use2)
-			hlist_bl_add_head_rcu(&cp->hn1.node, head2);
-		ret = 1;
-	} else {
-		pr_err("%s(): request for already hashed, called from %pS\n",
-		       __func__, __builtin_return_address(0));
-		ret = 0;
-	}
+	cp->flags |= IP_VS_CONN_F_HASHED;
+	WRITE_ONCE(cp->hn0.hash_key, hash_key);
+	WRITE_ONCE(cp->hn1.hash_key, hash_key2);
+	refcount_inc(&cp->refcnt);
+	hlist_bl_add_head_rcu(&cp->hn0.node, head);
+	if (use2)
+		hlist_bl_add_head_rcu(&cp->hn1.node, head2);
 
-	spin_unlock(&cp->lock);
 	conn_tab_unlock(head, head2);
+	ret = 1;
 
 	/* Schedule resizing if load increases */
 	if (atomic_read(&ipvs->conn_count) > t->u_thresh &&
 	    !test_and_set_bit(IP_VS_WORK_CONN_RESIZE, &ipvs->work_flags))
-		mod_delayed_work(system_unbound_wq, &ipvs->conn_resize_work, 0);
+		mod_delayed_work(system_dfl_long_wq, &ipvs->conn_resize_work, 0);
 
 	return ret;
 }
@@ -321,7 +314,6 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 
 	conn_tab_lock(t, cp, hash_key, hash_key2, use2, false /* new_hash */,
 		      &head, &head2);
-	spin_lock(&cp->lock);
 
 	if (cp->flags & IP_VS_CONN_F_HASHED) {
 		/* Decrease refcnt and unlink conn only if we are last user */
@@ -334,7 +326,6 @@ static inline bool ip_vs_conn_unlink(struct ip_vs_conn *cp)
 		}
 	}
 
-	spin_unlock(&cp->lock);
 	conn_tab_unlock(head, head2);
 
 	rcu_read_unlock();
@@ -637,6 +628,7 @@ void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport)
 	struct ip_vs_conn_hnode *hn;
 	u32 hash_key, hash_key_new;
 	struct ip_vs_conn_param p;
+	bool by_me = false;
 	int ntbl;
 	int dir;
 
@@ -664,8 +656,16 @@ retry:
 		t = rcu_dereference(t->new_tbl);
 		ntbl++;
 		/* We are lost? */
-		if (ntbl >= 2)
+		if (ntbl >= 2) {
+			spin_lock_bh(&cp->lock);
+			if (cp->flags & IP_VS_CONN_F_NO_CPORT && by_me)
+				cp->cport = 0;
+			/* hn1 will be rehashed on next packet */
+			spin_unlock_bh(&cp->lock);
+			IP_VS_ERR_RL("%s(): Too many ht changes for dir %d\n",
+				     __func__, dir);
 			return;
+		}
 	}
 
 	/* Rehashing during resize? Use the recent table for adds */
@@ -683,10 +683,13 @@ retry:
 	if (head > head2 && t == t2)
 		swap(head, head2);
 
+	/* Protect the cp->flags modification */
+	spin_lock_bh(&cp->lock);
+
 	/* Lock seqcount only for the old bucket, even if we are on new table
 	 * because it affects the del operation, not the adding.
 	 */
-	spin_lock_bh(&t->lock[hash_key & t->lock_mask].l);
+	spin_lock(&t->lock[hash_key & t->lock_mask].l);
 	preempt_disable_nested();
 	write_seqcount_begin(&t->seqc[hash_key & t->seqc_mask]);
 
@@ -704,14 +707,23 @@ retry:
 		hlist_bl_unlock(head);
 		write_seqcount_end(&t->seqc[hash_key & t->seqc_mask]);
 		preempt_enable_nested();
-		spin_unlock_bh(&t->lock[hash_key & t->lock_mask].l);
+		spin_unlock(&t->lock[hash_key & t->lock_mask].l);
+		spin_unlock_bh(&cp->lock);
 		hash_key = hash_key_new;
 		goto retry;
 	}
 
-	spin_lock(&cp->lock);
-	if ((cp->flags & IP_VS_CONN_F_NO_CPORT) &&
-	    (cp->flags & IP_VS_CONN_F_HASHED)) {
+	/* Fill cport once, even if multiple packets try to do it */
+	if (cp->flags & IP_VS_CONN_F_NO_CPORT && (!cp->cport || by_me)) {
+		/* If we race with resizing make sure cport is set for dir 1 */
+		if (!cp->cport) {
+			cp->cport = cport;
+			by_me = true;
+		}
+		if (!dir) {
+			atomic_dec(&ipvs->no_cport_conns[af_id]);
+			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
+		}
 		/* We do not recalc hash_key_r under lock, we assume the
 		 * parameters in cp do not change, i.e. cport is
 		 * the only possible change.
@@ -726,21 +738,17 @@ retry:
 			hlist_bl_del_rcu(&hn->node);
 			hlist_bl_add_head_rcu(&hn->node, head_new);
 		}
-		if (!dir) {
-			atomic_dec(&ipvs->no_cport_conns[af_id]);
-			cp->flags &= ~IP_VS_CONN_F_NO_CPORT;
-			cp->cport = cport;
-		}
 	}
-	spin_unlock(&cp->lock);
 
 	if (head != head2)
 		hlist_bl_unlock(head2);
 	hlist_bl_unlock(head);
 	write_seqcount_end(&t->seqc[hash_key & t->seqc_mask]);
 	preempt_enable_nested();
-	spin_unlock_bh(&t->lock[hash_key & t->lock_mask].l);
-	if (dir--)
+	spin_unlock(&t->lock[hash_key & t->lock_mask].l);
+
+	spin_unlock_bh(&cp->lock);
+	if (dir-- && by_me)
 		goto next_dir;
 }
 
@@ -908,7 +916,7 @@ same_bucket:
 
 out:
 	/* Monitor if we need to shrink table */
-	queue_delayed_work(system_unbound_wq, &ipvs->conn_resize_work,
+	queue_delayed_work(system_dfl_long_wq, &ipvs->conn_resize_work,
 			   more_work ? 1 : 2 * HZ);
 }
 
@@ -1350,9 +1358,18 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	struct netns_ipvs *ipvs = p->ipvs;
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(p->ipvs,
 							   p->protocol);
+	/* Increment conn_count up to conn_max */
+	int count = atomic_read(&ipvs->conn_count);
+	int max = sysctl_conn_max(ipvs);
+
+	do {
+		if (count >= max)
+			return NULL;
+	} while (!atomic_try_cmpxchg(&ipvs->conn_count, &count, count + 1));
 
 	cp = kmem_cache_alloc(ip_vs_conn_cachep, GFP_ATOMIC);
 	if (cp == NULL) {
+		atomic_dec(&ipvs->conn_count);
 		IP_VS_ERR_RL("%s(): no memory\n", __func__);
 		return NULL;
 	}
@@ -1406,7 +1423,6 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p, int dest_af,
 	cp->in_seq.delta = 0;
 	cp->out_seq.delta = 0;
 
-	atomic_inc(&ipvs->conn_count);
 	if (unlikely(flags & IP_VS_CONN_F_NO_CPORT)) {
 		int af_id = ip_vs_af_index(cp->af);
 
@@ -1835,7 +1851,7 @@ static void ip_vs_conn_flush(struct netns_ipvs *ipvs)
 
 	if (!rcu_dereference_protected(ipvs->conn_tab, 1))
 		return;
-	cancel_delayed_work_sync(&ipvs->conn_resize_work);
+	disable_delayed_work_sync(&ipvs->conn_resize_work);
 	if (!atomic_read(&ipvs->conn_count))
 		goto unreg;
 

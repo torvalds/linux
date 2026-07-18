@@ -169,7 +169,7 @@ struct machdep_calls {
 
 #ifdef CONFIG_PCI_IOV
 	void (*pcibios_fixup_sriov)(struct pci_dev *pdev);
-	resource_size_t (*pcibios_iov_resource_alignment)(struct pci_dev *, int resno);
+	resource_size_t (*pcibios_iov_resource_alignment)(const struct pci_dev *, int resno);
 	int (*pcibios_sriov_enable)(struct pci_dev *pdev, u16 num_vfs);
 	int (*pcibios_sriov_disable)(struct pci_dev *pdev);
 #endif /* CONFIG_PCI_IOV */

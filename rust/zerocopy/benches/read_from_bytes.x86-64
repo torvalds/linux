@@ -1,0 +1,15 @@
+bench_read_from_bytes_static_size:
+	mov rcx, rsi
+	cmp rsi, 6
+	jne .LBB5_2
+	mov eax, dword ptr [rdi]
+	movzx ecx, word ptr [rdi + 4]
+	shl rcx, 32
+	or rcx, rax
+.LBB5_2:
+	shl rcx, 16
+	inc rcx
+	xor eax, eax
+	cmp rsi, 6
+	cmove rax, rcx
+	ret

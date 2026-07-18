@@ -435,7 +435,7 @@ static inline __u16 btf_kind(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info);
 }
 
-static inline __u16 btf_vlen(const struct btf_type *t)
+static inline __u32 btf_vlen(const struct btf_type *t)
 {
 	return BTF_INFO_VLEN(t->info);
 }

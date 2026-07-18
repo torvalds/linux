@@ -33,6 +33,7 @@ static void worker_fn(int id)
 		/* Do some work to trigger scheduling events */
 		for (j = 0; j < 10000; j++)
 			sum += j;
+		asm volatile("" : : "r"(sum));
 
 		/* Sleep to trigger dequeue */
 		usleep(1000 + (id * 100));

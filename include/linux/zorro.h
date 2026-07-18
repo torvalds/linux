@@ -17,7 +17,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/zorro.h>
 
 #include <asm/zorro.h>
 

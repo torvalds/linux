@@ -88,8 +88,7 @@ properties:
       - 2 # ATMEL_MXT_WAKEUP_GPIO
     default: 0
 
-  wakeup-source:
-    type: boolean
+  wakeup-source: true
 
 required:
   - compatible

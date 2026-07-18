@@ -116,16 +116,18 @@ int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 	 */
 	mutex_lock(&gpu->sched_lock);
 
+	ret = xa_alloc_cyclic(&gpu->user_fences, &submit->out_fence_id,
+			      NULL, xa_limit_32b, &gpu->next_user_fence,
+			      GFP_KERNEL);
+	if (ret < 0)
+		goto out_unlock;
+
 	drm_sched_job_arm(&submit->sched_job);
 
 	submit->out_fence = dma_fence_get(&submit->sched_job.s_fence->finished);
-	ret = xa_alloc_cyclic(&gpu->user_fences, &submit->out_fence_id,
-			      submit->out_fence, xa_limit_32b,
-			      &gpu->next_user_fence, GFP_KERNEL);
-	if (ret < 0) {
-		drm_sched_job_cleanup(&submit->sched_job);
-		goto out_unlock;
-	}
+
+	xa_store(&gpu->user_fences, submit->out_fence_id,
+		 submit->out_fence, GFP_KERNEL);
 
 	/* the scheduler holds on to the job now */
 	kref_get(&submit->refcount);
@@ -142,7 +144,6 @@ int etnaviv_sched_init(struct etnaviv_gpu *gpu)
 {
 	const struct drm_sched_init_args args = {
 		.ops = &etnaviv_sched_ops,
-		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
 		.credit_limit = etnaviv_hw_jobs_limit,
 		.hang_limit = etnaviv_job_hang_limit,
 		.timeout = msecs_to_jiffies(500),

@@ -30,7 +30,7 @@ img.logo {
     margin-bottom: 20px;
 }
 
-/* The default is to use -1em, wich makes it override text */
+/* The default is to use -1em, which makes it override text */
 li { text-indent: 0em; }
 
 /*

@@ -86,7 +86,7 @@ struct xe_pagefault {
 		u8 engine_class;
 		/** @consumer.engine_instance: engine instance */
 		u8 engine_instance;
-		/** consumer.reserved: reserved bits for future expansion */
+		/** @consumer.reserved: reserved bits for future expansion */
 		u64 reserved;
 	} consumer;
 	/**
@@ -112,7 +112,7 @@ struct xe_pagefault {
 };
 
 /**
- * struct xe_pagefault_queue: Xe pagefault queue (consumer)
+ * struct xe_pagefault_queue - Xe pagefault queue (consumer)
  *
  * Used to capture all device page faults for deferred processing. Size this
  * queue to absorb the device’s worst-case number of outstanding faults.

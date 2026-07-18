@@ -39,6 +39,39 @@ static const struct regmap_config bq25703_regmap_config = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
 
+static const struct regmap_range bq25792_writeable_reg_ranges[] = {
+	regmap_reg_range(BQ25792_REG00_MIN_SYS_VOLTAGE,
+			 BQ25792_REG18_NTC_CONTROL_1),
+	regmap_reg_range(BQ25792_REG28_CHARGER_MASK_0,
+			 BQ25792_REG30_ADC_FUNCTION_DISABLE_1),
+};
+
+static const struct regmap_access_table bq25792_writeable_regs = {
+	.yes_ranges = bq25792_writeable_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(bq25792_writeable_reg_ranges),
+};
+
+static const struct regmap_range bq25792_volatile_reg_ranges[] = {
+	regmap_reg_range(BQ25792_REG19_ICO_CURRENT_LIMIT,
+			 BQ25792_REG27_FAULT_FLAG_1),
+	regmap_reg_range(BQ25792_REG31_IBUS_ADC,
+			 BQ25792_REG47_DPDM_DRIVER),
+};
+
+static const struct regmap_access_table bq25792_volatile_regs = {
+	.yes_ranges = bq25792_volatile_reg_ranges,
+	.n_yes_ranges = ARRAY_SIZE(bq25792_volatile_reg_ranges),
+};
+
+static const struct regmap_config bq25792_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = BQ25792_REG48_PART_INFORMATION,
+	.cache_type = REGCACHE_MAPLE,
+	.wr_table = &bq25792_writeable_regs,
+	.volatile_table = &bq25792_volatile_regs,
+};
+
 static const struct mfd_cell cells[] = {
 	MFD_CELL_NAME("bq257xx-regulator"),
 	MFD_CELL_NAME("bq257xx-charger"),
@@ -46,6 +79,7 @@ static const struct mfd_cell cells[] = {
 
 static int bq257xx_probe(struct i2c_client *client)
 {
+	const struct regmap_config *rcfg;
 	struct bq257xx_device *ddata;
 	int ret;
 
@@ -53,9 +87,21 @@ static int bq257xx_probe(struct i2c_client *client)
 	if (!ddata)
 		return -ENOMEM;
 
+	ddata->type = (uintptr_t)i2c_get_match_data(client);
 	ddata->client = client;
 
-	ddata->regmap = devm_regmap_init_i2c(client, &bq25703_regmap_config);
+	switch (ddata->type) {
+	case BQ25703A:
+		rcfg = &bq25703_regmap_config;
+		break;
+	case BQ25792:
+		rcfg = &bq25792_regmap_config;
+		break;
+	default:
+		return dev_err_probe(&client->dev, -ENODEV, "Unsupported device type\n");
+	}
+
+	ddata->regmap = devm_regmap_init_i2c(client, rcfg);
 	if (IS_ERR(ddata->regmap)) {
 		return dev_err_probe(&client->dev, PTR_ERR(ddata->regmap),
 				     "Failed to allocate register map\n");
@@ -73,13 +119,15 @@ static int bq257xx_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq257xx_i2c_ids[] = {
-	{ "bq25703a" },
+	{ "bq25703a", BQ25703A },
+	{ "bq25792", BQ25792 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq257xx_i2c_ids);
 
 static const struct of_device_id bq257xx_of_match[] = {
-	{ .compatible = "ti,bq25703a" },
+	{ .compatible = "ti,bq25703a", .data = (void *)BQ25703A },
+	{ .compatible = "ti,bq25792", .data = (void *)BQ25792 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, bq257xx_of_match);

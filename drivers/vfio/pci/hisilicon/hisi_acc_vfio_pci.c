@@ -81,48 +81,15 @@ static int qm_get_vft(struct hisi_qm *qm, u32 *base)
 	u32 qp_num;
 	int ret;
 
-	ret = hisi_qm_mb(qm, QM_MB_CMD_SQC_VFT_V2, 0, 0, 1);
+	ret = hisi_qm_mb_read(qm, &sqc_vft, QM_MB_CMD_SQC_VFT_V2, 0);
 	if (ret)
 		return ret;
 
-	sqc_vft = readl(qm->io_base + QM_MB_CMD_DATA_ADDR_L) |
-		  ((u64)readl(qm->io_base + QM_MB_CMD_DATA_ADDR_H) <<
-		  QM_XQC_ADDR_OFFSET);
 	*base = QM_SQC_VFT_BASE_MASK_V2 & (sqc_vft >> QM_SQC_VFT_BASE_SHIFT_V2);
 	qp_num = (QM_SQC_VFT_NUM_MASK_V2 &
 		  (sqc_vft >> QM_SQC_VFT_NUM_SHIFT_V2)) + 1;
 
 	return qp_num;
-}
-
-static int qm_get_sqc(struct hisi_qm *qm, u64 *addr)
-{
-	int ret;
-
-	ret = hisi_qm_mb(qm, QM_MB_CMD_SQC_BT, 0, 0, 1);
-	if (ret)
-		return ret;
-
-	*addr = readl(qm->io_base + QM_MB_CMD_DATA_ADDR_L) |
-		  ((u64)readl(qm->io_base + QM_MB_CMD_DATA_ADDR_H) <<
-		  QM_XQC_ADDR_OFFSET);
-
-	return 0;
-}
-
-static int qm_get_cqc(struct hisi_qm *qm, u64 *addr)
-{
-	int ret;
-
-	ret = hisi_qm_mb(qm, QM_MB_CMD_CQC_BT, 0, 0, 1);
-	if (ret)
-		return ret;
-
-	*addr = readl(qm->io_base + QM_MB_CMD_DATA_ADDR_L) |
-		  ((u64)readl(qm->io_base + QM_MB_CMD_DATA_ADDR_H) <<
-		  QM_XQC_ADDR_OFFSET);
-
-	return 0;
 }
 
 static void qm_xqc_reg_offsets(struct hisi_qm *qm,
@@ -575,13 +542,13 @@ static int vf_qm_read_data(struct hisi_qm *vf_qm, struct acc_vf_data *vf_data)
 	vf_data->aeqe_dma |= vf_data->qm_aeqc_dw[QM_XQC_ADDR_LOW];
 
 	/* Through SQC_BT/CQC_BT to get sqc and cqc address */
-	ret = qm_get_sqc(vf_qm, &vf_data->sqc_dma);
+	ret = hisi_qm_mb_read(vf_qm, &vf_data->sqc_dma, QM_MB_CMD_SQC_BT, 0);
 	if (ret) {
 		dev_err(dev, "failed to read SQC addr!\n");
 		return ret;
 	}
 
-	ret = qm_get_cqc(vf_qm, &vf_data->cqc_dma);
+	ret = hisi_qm_mb_read(vf_qm, &vf_data->cqc_dma, QM_MB_CMD_CQC_BT, 0);
 	if (ret) {
 		dev_err(dev, "failed to read CQC addr!\n");
 		return ret;

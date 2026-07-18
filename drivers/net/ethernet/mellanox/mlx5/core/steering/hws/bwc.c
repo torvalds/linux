@@ -205,6 +205,7 @@ static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
 	ret = mlx5hws_matcher_resize_set_target(old_matcher, new_matcher);
 	if (ret) {
 		mlx5hws_err(ctx, "Rehash error: failed setting resize target\n");
+		mlx5hws_matcher_destroy(new_matcher);
 		return ret;
 	}
 
@@ -421,6 +422,18 @@ int mlx5hws_bwc_queue_poll(struct mlx5hws_context *ctx,
 	/* Check if there are any completions at all */
 	if (!got_comp && !drain)
 		return 0;
+
+	if (unlikely(ctx->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
+		/* If the device is down for any reason (e.g. FLR), the HW will
+		 * no longer generate completions.
+		 * Note that ETIMEDOUT is returned here because the BWC layer
+		 * already has a special handling for timeouts - it breaks the
+		 * rehash / resize / shrink loops to avoid chain of timeouts.
+		 */
+		mlx5_core_warn_once(ctx->mdev,
+				    "BWC poll: device is down, polling for completion aborted\n");
+		return -ETIMEDOUT;
+	}
 
 	queue_full = mlx5hws_send_engine_full(&ctx->send_queue[queue_id]);
 	while (queue_full || ((got_comp || drain) && *pending_rules)) {

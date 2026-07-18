@@ -1060,12 +1060,13 @@ static int _test_cmd_hw_queue_alloc(int fd, __u32 viommu_id, __u32 type,
 					      base_addr, len, out_qid))
 
 static int _test_cmd_veventq_alloc(int fd, __u32 viommu_id, __u32 type,
-				   __u32 *veventq_id, __u32 *veventq_fd)
+				   __u32 depth, __u32 *veventq_id,
+				   __u32 *veventq_fd)
 {
 	struct iommu_veventq_alloc cmd = {
 		.size = sizeof(cmd),
 		.type = type,
-		.veventq_depth = 2,
+		.veventq_depth = depth,
 		.viommu_id = viommu_id,
 	};
 	int ret;
@@ -1080,13 +1081,13 @@ static int _test_cmd_veventq_alloc(int fd, __u32 viommu_id, __u32 type,
 	return 0;
 }
 
-#define test_cmd_veventq_alloc(viommu_id, type, veventq_id, veventq_fd) \
-	ASSERT_EQ(0, _test_cmd_veventq_alloc(self->fd, viommu_id, type, \
+#define test_cmd_veventq_alloc(viommu_id, type, depth, veventq_id, veventq_fd) \
+	ASSERT_EQ(0, _test_cmd_veventq_alloc(self->fd, viommu_id, type, depth, \
 					     veventq_id, veventq_fd))
-#define test_err_veventq_alloc(_errno, viommu_id, type, veventq_id,     \
-			       veventq_fd)                              \
-	EXPECT_ERRNO(_errno,                                            \
-		     _test_cmd_veventq_alloc(self->fd, viommu_id, type, \
+#define test_err_veventq_alloc(_errno, viommu_id, type, depth, veventq_id,     \
+			       veventq_fd)                                     \
+	EXPECT_ERRNO(_errno,                                                   \
+		     _test_cmd_veventq_alloc(self->fd, viommu_id, type, depth, \
 					     veventq_id, veventq_fd))
 
 static int _test_cmd_trigger_vevents(int fd, __u32 dev_id, __u32 nvevents)

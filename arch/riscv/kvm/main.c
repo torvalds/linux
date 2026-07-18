@@ -168,10 +168,6 @@ static int __init riscv_kvm_init(void)
 
 	kvm_info("VMID %ld bits available\n", kvm_riscv_gstage_vmid_bits());
 
-	if (kvm_riscv_aia_available())
-		kvm_info("AIA available with %d guest external interrupts\n",
-			 kvm_riscv_aia_nr_hgei);
-
 	kvm_riscv_setup_vendor_features();
 
 	kvm_register_perf_callbacks();
@@ -181,6 +177,10 @@ static int __init riscv_kvm_init(void)
 		kvm_riscv_teardown();
 		return rc;
 	}
+
+	if (kvm_riscv_aia_available())
+		kvm_info("AIA available with %d guest external interrupts\n",
+			 atomic_read(&kvm_riscv_aia_nr_hgei));
 
 	return 0;
 }

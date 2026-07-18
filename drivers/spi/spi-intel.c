@@ -814,7 +814,7 @@ static int intel_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop;
 
-	iop = intel_spi_match_mem_op(ispi, &desc->info.op_tmpl);
+	iop = intel_spi_match_mem_op(ispi, desc->info.op_tmpl);
 	if (!iop)
 		return -EOPNOTSUPP;
 
@@ -827,7 +827,7 @@ static ssize_t intel_spi_dirmap_read(struct spi_mem_dirmap_desc *desc, u64 offs,
 {
 	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop = desc->priv;
-	struct spi_mem_op op = desc->info.op_tmpl;
+	struct spi_mem_op op = *desc->info.op_tmpl;
 	int ret;
 
 	/* Fill in the gaps */
@@ -844,7 +844,7 @@ static ssize_t intel_spi_dirmap_write(struct spi_mem_dirmap_desc *desc, u64 offs
 {
 	struct intel_spi *ispi = spi_controller_get_devdata(desc->mem->spi->controller);
 	const struct intel_spi_mem_op *iop = desc->priv;
-	struct spi_mem_op op = desc->info.op_tmpl;
+	struct spi_mem_op op = *desc->info.op_tmpl;
 	int ret;
 
 	op.addr.val = offs;

@@ -74,72 +74,6 @@ void compute_tiles_non_uniform(struct rkvdec_hevc_run *run, u16 log2_min_cb_size
 	row_height[i] = pic_in_cts_height - sum;
 }
 
-static void set_ref_poc(struct rkvdec_rps_short_term_ref_set *set, int poc, int value, int flag)
-{
-	switch (poc) {
-	case 0:
-		set->delta_poc0 = value;
-		set->used_flag0 = flag;
-		break;
-	case 1:
-		set->delta_poc1 = value;
-		set->used_flag1 = flag;
-		break;
-	case 2:
-		set->delta_poc2 = value;
-		set->used_flag2 = flag;
-		break;
-	case 3:
-		set->delta_poc3 = value;
-		set->used_flag3 = flag;
-		break;
-	case 4:
-		set->delta_poc4 = value;
-		set->used_flag4 = flag;
-		break;
-	case 5:
-		set->delta_poc5 = value;
-		set->used_flag5 = flag;
-		break;
-	case 6:
-		set->delta_poc6 = value;
-		set->used_flag6 = flag;
-		break;
-	case 7:
-		set->delta_poc7 = value;
-		set->used_flag7 = flag;
-		break;
-	case 8:
-		set->delta_poc8 = value;
-		set->used_flag8 = flag;
-		break;
-	case 9:
-		set->delta_poc9 = value;
-		set->used_flag9 = flag;
-		break;
-	case 10:
-		set->delta_poc10 = value;
-		set->used_flag10 = flag;
-		break;
-	case 11:
-		set->delta_poc11 = value;
-		set->used_flag11 = flag;
-		break;
-	case 12:
-		set->delta_poc12 = value;
-		set->used_flag12 = flag;
-		break;
-	case 13:
-		set->delta_poc13 = value;
-		set->used_flag13 = flag;
-		break;
-	case 14:
-		set->delta_poc14 = value;
-		set->used_flag14 = flag;
-		break;
-	}
-}
-
 static void assemble_scalingfactor0(struct rkvdec_ctx *ctx, u8 *output,
 				    const struct v4l2_ctrl_hevc_scaling_matrix *input)
 {
@@ -218,10 +152,11 @@ static void rkvdec_hevc_assemble_hw_lt_rps(struct rkvdec_hevc_run *run, struct r
 		return;
 
 	for (int i = 0; i < sps->num_long_term_ref_pics_sps; i++) {
-		rps->refs[i].lt_ref_pic_poc_lsb =
-			run->ext_sps_lt_rps[i].lt_ref_pic_poc_lsb_sps;
-		rps->refs[i].used_by_curr_pic_lt_flag =
-			!!(run->ext_sps_lt_rps[i].flags & V4L2_HEVC_EXT_SPS_LT_RPS_FLAG_USED_LT);
+		rkvdec_set_bw_field(rps->info, RPS_LT_REF_PIC_POC_LSB(i),
+				    run->ext_sps_lt_rps[i].lt_ref_pic_poc_lsb_sps);
+		rkvdec_set_bw_field(rps->info, RPS_LT_REF_USED_BY_CURR_PIC(i),
+				    !!(run->ext_sps_lt_rps[i].flags &
+				       V4L2_HEVC_EXT_SPS_LT_RPS_FLAG_USED_LT));
 	}
 }
 
@@ -235,18 +170,24 @@ static void rkvdec_hevc_assemble_hw_st_rps(struct rkvdec_hevc_run *run, struct r
 		int j = 0;
 		const struct calculated_rps_st_set *set = &calculated_rps_st_sets[i];
 
-		rps->short_term_ref_sets[i].num_negative = set->num_negative_pics;
-		rps->short_term_ref_sets[i].num_positive = set->num_positive_pics;
+		rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_NUM_NEGATIVE(i),
+				    set->num_negative_pics);
+		rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_NUM_POSITIVE(i),
+				    set->num_positive_pics);
 
 		for (; j < set->num_negative_pics; j++) {
-			set_ref_poc(&rps->short_term_ref_sets[i], j,
-				    set->delta_poc_s0[j], set->used_by_curr_pic_s0[j]);
+			rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_DELTA_POC(i, j),
+					    set->delta_poc_s0[j]);
+			rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_USED(i, j),
+					    set->used_by_curr_pic_s0[j]);
 		}
 		poc = j;
 
 		for (j = 0; j < set->num_positive_pics; j++) {
-			set_ref_poc(&rps->short_term_ref_sets[i], poc + j,
-				    set->delta_poc_s1[j], set->used_by_curr_pic_s1[j]);
+			rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_DELTA_POC(i, poc + j),
+					    set->delta_poc_s1[j]);
+			rkvdec_set_bw_field(rps->info, RPS_ST_REF_SET_USED(i, poc + j),
+					    set->used_by_curr_pic_s1[j]);
 		}
 	}
 }

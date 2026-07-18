@@ -1479,7 +1479,7 @@ xfs_swap_change_owner(
 	struct xfs_trans	*tp = *tpp;
 
 	do {
-		error = xfs_bmbt_change_owner(tp, ip, XFS_DATA_FORK, ip->i_ino,
+		error = xfs_bmbt_change_owner(tp, ip, XFS_DATA_FORK, I_INO(ip),
 					      NULL);
 		/* success or fatal error */
 		if (error != -EAGAIN)
@@ -1631,7 +1631,7 @@ xfs_swap_extents(
 	if (error) {
 		xfs_notice(mp,
 		    "%s: inode 0x%llx format is incompatible for exchanging.",
-				__func__, ip->i_ino);
+				__func__, I_INO(ip));
 		goto out_trans_cancel;
 	}
 

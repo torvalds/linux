@@ -580,6 +580,7 @@ static int oaktrail_hdmi_get_modes(struct drm_connector *connector)
 	} else {
 		edid = (struct edid *)raw_edid;
 		/* FIXME ? edid = drm_get_edid(connector, i2c_adap); */
+		i2c_put_adapter(i2c_adap);
 	}
 
 	if (edid) {

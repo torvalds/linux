@@ -513,6 +513,9 @@ unsigned int ui_browser__list_head_refresh(struct ui_browser *browser)
 	struct list_head *head = browser->entries;
 	int row = 0;
 
+	if (browser->nr_entries == 0)
+		return 0;
+
 	if (browser->top == NULL || browser->top == browser->entries)
                 browser->top = ui_browser__list_head_filter_entries(browser, head->next);
 

@@ -270,7 +270,8 @@ impl Transaction {
     /// Not used for replies.
     pub(crate) fn submit(self: DLArc<Self>, info: &mut TransactionInfo) -> BinderResult {
         // Defined before `process_inner` so that the destructor runs after releasing the lock.
-        let mut _t_outdated;
+        let _t_outdated;
+        let _oneway_node;
 
         let oneway = self.flags & TF_ONE_WAY != 0;
         let process = self.to.clone();
@@ -287,6 +288,14 @@ impl Transaction {
                         if let Some(t_outdated) =
                             target_node.take_outdated_transaction(&self, &mut process_inner)
                         {
+                            let mut alloc_guard = t_outdated.allocation.lock();
+                            if let Some(alloc) = (*alloc_guard).as_mut() {
+                                // Take the oneway node to prevent `Allocation::drop` from calling
+                                // `pending_oneway_finished()`, which would be incorrect as this
+                                // transaction is not being submitted.
+                                _oneway_node = alloc.take_oneway_node();
+                            }
+                            drop(alloc_guard);
                             // Save the transaction to be dropped after locks are released.
                             _t_outdated = t_outdated;
                         }

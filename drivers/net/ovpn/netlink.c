@@ -462,10 +462,12 @@ int ovpn_nl_peer_new_doit(struct sk_buff *skb, struct genl_info *info)
 sock_release:
 	ovpn_socket_release(peer);
 peer_release:
-	/* release right away because peer was not yet hashed, thus it is not
-	 * used in any context
+	/* For UDP, the peer is unreachable until added to the hashtables, so
+	 * dropping the initial reference is enough. For TCP, the peer may be
+	 * concurrently reachable via sk_user_data->peer until
+	 * ovpn_socket_release() detaches; rely on the refcount.
 	 */
-	ovpn_peer_release(peer);
+	ovpn_peer_put(peer);
 
 	return ret;
 }

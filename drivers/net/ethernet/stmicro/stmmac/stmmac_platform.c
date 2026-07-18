@@ -156,8 +156,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 
 	/* Processing RX queues common config */
 	if (!of_property_read_u32(rx_node, "snps,rx-queues-to-use", &value)) {
-		if (value > U8_MAX)
-			value = U8_MAX;
+		if (value > MTL_MAX_RX_QUEUES)
+			value = MTL_MAX_RX_QUEUES;
 		plat->rx_queues_to_use = value;
 	}
 
@@ -210,8 +210,8 @@ static int stmmac_mtl_setup(struct platform_device *pdev,
 
 	/* Processing TX queues common config */
 	if (!of_property_read_u32(tx_node, "snps,tx-queues-to-use", &value)) {
-		if (value > U8_MAX)
-			value = U8_MAX;
+		if (value > MTL_MAX_TX_QUEUES)
+			value = MTL_MAX_TX_QUEUES;
 		plat->tx_queues_to_use = value;
 	}
 

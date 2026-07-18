@@ -450,7 +450,7 @@ static int w5100_spi_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	return w5100_probe(&spi->dev, ops, priv_size, mac, spi->irq, -EINVAL);
+	return w5100_probe(&spi->dev, ops, priv_size, mac, spi->irq);
 }
 
 static void w5100_spi_remove(struct spi_device *spi)

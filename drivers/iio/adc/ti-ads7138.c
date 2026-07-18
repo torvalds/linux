@@ -727,8 +727,8 @@ static const struct of_device_id ads7138_of_match[] = {
 MODULE_DEVICE_TABLE(of, ads7138_of_match);
 
 static const struct i2c_device_id ads7138_device_ids[] = {
-	{ "ads7128", (kernel_ulong_t)&ads7128_data },
-	{ "ads7138", (kernel_ulong_t)&ads7138_data },
+	{ .name = "ads7128", .driver_data = (kernel_ulong_t)&ads7128_data },
+	{ .name = "ads7138", .driver_data = (kernel_ulong_t)&ads7138_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ads7138_device_ids);

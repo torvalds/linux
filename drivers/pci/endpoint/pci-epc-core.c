@@ -157,6 +157,86 @@ const struct pci_epc_features *pci_epc_get_features(struct pci_epc *epc,
 EXPORT_SYMBOL_GPL(pci_epc_get_features);
 
 /**
+ * pci_epc_get_aux_resources_count() - get the number of EPC-provided auxiliary resources
+ * @epc: EPC device
+ * @func_no: function number
+ * @vfunc_no: virtual function number
+ *
+ * Some EPC backends integrate auxiliary blocks (e.g. DMA engines) whose control
+ * registers and/or descriptor memories can be exposed to the host by mapping
+ * them into BAR space. This helper queries how many such resources the backend
+ * provides.
+ *
+ * Return: the number of available resources on success, -EOPNOTSUPP if the
+ * backend does not support auxiliary resource queries, or another -errno on
+ * failure.
+ */
+int pci_epc_get_aux_resources_count(struct pci_epc *epc, u8 func_no,
+				    u8 vfunc_no)
+{
+	int count;
+
+	if (!epc || !epc->ops)
+		return -EINVAL;
+
+	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
+		return -EINVAL;
+
+	if (!epc->ops->get_aux_resources_count)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&epc->lock);
+	count = epc->ops->get_aux_resources_count(epc, func_no,
+						  vfunc_no);
+	mutex_unlock(&epc->lock);
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(pci_epc_get_aux_resources_count);
+
+/**
+ * pci_epc_get_aux_resources() - query EPC-provided auxiliary resources
+ * @epc: EPC device
+ * @func_no: function number
+ * @vfunc_no: virtual function number
+ * @resources: output array
+ * @num_resources: size of @resources array in entries
+ *
+ * Some EPC backends integrate auxiliary blocks (e.g. DMA engines) whose control
+ * registers and/or descriptor memories can be exposed to the host by mapping
+ * them into BAR space. This helper queries the backend for such resources.
+ *
+ * Return: 0 on success, -EOPNOTSUPP if the backend does not support auxiliary
+ * resource queries, or another -errno on failure.
+ */
+int pci_epc_get_aux_resources(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
+			      struct pci_epc_aux_resource *resources,
+			      int num_resources)
+{
+	int ret;
+
+	if (!resources || num_resources <= 0)
+		return -EINVAL;
+
+	if (!epc || !epc->ops)
+		return -EINVAL;
+
+	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
+		return -EINVAL;
+
+	if (!epc->ops->get_aux_resources)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&epc->lock);
+	ret = epc->ops->get_aux_resources(epc, func_no, vfunc_no, resources,
+					  num_resources);
+	mutex_unlock(&epc->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(pci_epc_get_aux_resources);
+
+/**
  * pci_epc_stop() - stop the PCI link
  * @epc: the link of the EPC device that has to be stopped
  *

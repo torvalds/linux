@@ -960,7 +960,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 
 	_enter("");
 
-	contents_sz = strlen(op->create.symlink);
+	contents_sz = strlen(op->create.symlink->content);
 	call = afs_alloc_flat_call(op->net, &yfs_RXYFSSymlink,
 				   sizeof(__be32) +
 				   sizeof(struct yfs_xdr_RPCFlags) +
@@ -981,7 +981,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &dvp->fid);
 	bp = xdr_encode_name(bp, name);
-	bp = xdr_encode_string(bp, op->create.symlink, contents_sz);
+	bp = xdr_encode_string(bp, op->create.symlink->content, contents_sz);
 	bp = xdr_encode_YFSStoreStatus(bp, &mode, &op->mtime);
 	yfs_check_req(call, bp);
 

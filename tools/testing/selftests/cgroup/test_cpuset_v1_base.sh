@@ -18,7 +18,7 @@ write_test() {
 	echo "testing $interface $value"
 	echo $value > $dir/$interface
 	new=$(cat $dir/$interface)
-	[[ $value -ne $(cat $dir/$interface) ]] && {
+	[[ "$value" != "$new" ]] && {
 		echo "$interface write $value failed: new:$new"
 		exit 1
 	}

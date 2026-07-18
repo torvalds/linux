@@ -3022,7 +3022,7 @@ static const struct ctl_table fs_dqstats_table[] = {
 static int __init dquot_init(void)
 {
 	int i, ret;
-	unsigned long nr_hash, order;
+	unsigned long nr_hash;
 	struct shrinker *dqcache_shrinker;
 
 	printk(KERN_NOTICE "VFS: Disk quotas %s\n", __DQUOT_VERSION__);
@@ -3035,8 +3035,7 @@ static int __init dquot_init(void)
 				SLAB_PANIC),
 			NULL);
 
-	order = 0;
-	dquot_hash = (struct hlist_head *)__get_free_pages(GFP_KERNEL, order);
+	dquot_hash = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!dquot_hash)
 		panic("Cannot create dquot hash table");
 
@@ -3046,7 +3045,7 @@ static int __init dquot_init(void)
 		panic("Cannot create dquot stat counters");
 
 	/* Find power-of-two hlist_heads which can fit into allocation */
-	nr_hash = (1UL << order) * PAGE_SIZE / sizeof(struct hlist_head);
+	nr_hash = PAGE_SIZE / sizeof(struct hlist_head);
 	dq_hash_bits = ilog2(nr_hash);
 
 	nr_hash = 1UL << dq_hash_bits;
@@ -3054,8 +3053,8 @@ static int __init dquot_init(void)
 	for (i = 0; i < nr_hash; i++)
 		INIT_HLIST_HEAD(dquot_hash + i);
 
-	pr_info("VFS: Dquot-cache hash table entries: %ld (order %ld,"
-		" %ld bytes)\n", nr_hash, order, (PAGE_SIZE << order));
+	pr_info("VFS: Dquot-cache hash table entries: %ld (%ld bytes)\n",
+		nr_hash, PAGE_SIZE);
 
 	dqcache_shrinker = shrinker_alloc(0, "dquota-cache");
 	if (!dqcache_shrinker)

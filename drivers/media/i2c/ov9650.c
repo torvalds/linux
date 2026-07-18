@@ -1567,8 +1567,8 @@ static void ov965x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov965x_id[] = {
-	{ "OV9650" },
-	{ "OV9652" },
+	{ .name = "OV9650" },
+	{ .name = "OV9652" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, ov965x_id);

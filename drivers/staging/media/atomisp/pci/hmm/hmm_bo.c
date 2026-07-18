@@ -620,14 +620,23 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo)
 /*Allocate pages which will be used only by ISP*/
 static int alloc_private_pages(struct hmm_buffer_object *bo)
 {
-	const gfp_t gfp = __GFP_NOWARN | __GFP_RECLAIM | __GFP_FS;
+	unsigned int nr_allocated = 0;
+	struct page *page;
 	int ret;
 
-	ret = alloc_pages_bulk(gfp, bo->pgnr, bo->pages);
-	if (ret != bo->pgnr) {
-		free_pages_bulk_array(ret, bo->pages);
-		dev_err(atomisp_dev, "alloc_pages_bulk() failed\n");
-		return -ENOMEM;
+	nr_allocated = alloc_pages_bulk(GFP_KERNEL, bo->pgnr, bo->pages);
+	/*
+	 * alloc_pages_bulk() does not try very hard to get pages under memory
+	 * pressure. If necessary fall back to alloc_page().
+	 */
+	while (nr_allocated < bo->pgnr) {
+		page = alloc_pages(GFP_KERNEL, 0);
+		if (!page) {
+			free_pages_bulk_array(nr_allocated, bo->pages);
+			return -ENOMEM;
+		}
+		bo->pages[nr_allocated] = page;
+		nr_allocated++;
 	}
 
 	ret = set_pages_array_uc(bo->pages, bo->pgnr);
@@ -975,8 +984,7 @@ void hmm_bo_unref(struct hmm_buffer_object *bo)
 
 static void hmm_bo_vm_open(struct vm_area_struct *vma)
 {
-	struct hmm_buffer_object *bo =
-	    (struct hmm_buffer_object *)vma->vm_private_data;
+	struct hmm_buffer_object *bo = vma->vm_private_data;
 
 	check_bo_null_return_void(bo);
 
@@ -993,8 +1001,7 @@ static void hmm_bo_vm_open(struct vm_area_struct *vma)
 
 static void hmm_bo_vm_close(struct vm_area_struct *vma)
 {
-	struct hmm_buffer_object *bo =
-	    (struct hmm_buffer_object *)vma->vm_private_data;
+	struct hmm_buffer_object *bo = vma->vm_private_data;
 
 	check_bo_null_return_void(bo);
 

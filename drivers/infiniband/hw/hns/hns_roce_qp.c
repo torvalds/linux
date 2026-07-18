@@ -47,8 +47,8 @@ static struct hns_roce_qp *hns_roce_qp_lookup(struct hns_roce_dev *hr_dev,
 
 	xa_lock_irqsave(&hr_dev->qp_table_xa, flags);
 	qp = __hns_roce_qp_lookup(hr_dev, qpn);
-	if (qp)
-		refcount_inc(&qp->refcount);
+	if (qp && !refcount_inc_not_zero(&qp->refcount))
+		qp = NULL;
 	xa_unlock_irqrestore(&hr_dev->qp_table_xa, flags);
 
 	if (!qp)
@@ -1171,6 +1171,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	struct hns_roce_ib_create_qp_resp resp = {};
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_ib_create_qp ucmd = {};
+	unsigned long flags;
 	int ret;
 
 	mutex_init(&hr_qp->mutex);
@@ -1235,12 +1236,9 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	if (udata) {
 		resp.cap_flags = hr_qp->en_flags;
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret) {
-			ibdev_err(ibdev, "copy qp resp failed!\n");
+		ret = ib_respond_udata(udata, resp);
+		if (ret)
 			goto err_flow_ctrl;
-		}
 	}
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL) {
@@ -1251,13 +1249,19 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 
 	hr_qp->ibqp.qp_num = hr_qp->qpn;
 	hr_qp->event = hns_roce_ib_qp_event;
-	refcount_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
+	refcount_set_release(&hr_qp->refcount, 1);
 
 	return 0;
 
 err_flow_ctrl:
+	spin_lock_irqsave(&hr_dev->qp_list_lock, flags);
+	hns_roce_lock_cqs(init_attr->send_cq ? to_hr_cq(init_attr->send_cq) : NULL,
+			  init_attr->recv_cq ? to_hr_cq(init_attr->recv_cq) : NULL);
 	hns_roce_qp_remove(hr_dev, hr_qp);
+	hns_roce_unlock_cqs(init_attr->send_cq ? to_hr_cq(init_attr->send_cq) : NULL,
+			    init_attr->recv_cq ? to_hr_cq(init_attr->recv_cq) : NULL);
+	spin_unlock_irqrestore(&hr_dev->qp_list_lock, flags);
 err_store:
 	free_qpc(hr_dev, hr_qp);
 err_qpc:
@@ -1487,11 +1491,7 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (udata && udata->outlen) {
 		resp.tc_mode = hr_qp->tc_mode;
 		resp.priority = hr_qp->sl;
-		ret = ib_copy_to_udata(udata, &resp,
-				       min(udata->outlen, sizeof(resp)));
-		if (ret)
-			ibdev_err_ratelimited(&hr_dev->ib_dev,
-					      "failed to copy modify qp resp.\n");
+		ret = ib_respond_udata(udata, resp);
 	}
 
 out:

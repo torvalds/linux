@@ -51,7 +51,6 @@ static int appldata_timer_handler(const struct ctl_table *ctl, int write,
 static int appldata_interval_handler(const struct ctl_table *ctl, int write,
 				     void *buffer, size_t *lenp, loff_t *ppos);
 
-static struct ctl_table_header *appldata_sysctl_header;
 static const struct ctl_table appldata_table[] = {
 	{
 		.procname	= "timer",
@@ -406,7 +405,7 @@ static int __init appldata_init(void)
 	appldata_wq = alloc_ordered_workqueue("appldata", 0);
 	if (!appldata_wq)
 		return -ENOMEM;
-	appldata_sysctl_header = register_sysctl(appldata_proc_name, appldata_table);
+	register_sysctl(appldata_proc_name, appldata_table);
 	return 0;
 }
 

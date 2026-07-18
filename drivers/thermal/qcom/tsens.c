@@ -27,7 +27,7 @@
  * @up_viol:        upper threshold violated
  * @up_thresh:      upper threshold temperature value
  * @up_irq_mask:    mask register for upper threshold irqs
- * @up_irq_clear:   clear register for uppper threshold irqs
+ * @up_irq_clear:   clear register for upper threshold irqs
  * @low_viol:       lower threshold violated
  * @low_thresh:     lower threshold temperature value
  * @low_irq_mask:   mask register for lower threshold irqs
@@ -316,9 +316,66 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
 }
 
 /**
- * tsens_hw_to_mC - Return sign-extended temperature in mCelsius.
+ * tsens_read_temp - Retrieve temperature readings from the hardware.
  * @s:     Pointer to sensor struct
  * @field: Index into regmap_field array pointing to temperature data
+ * @temp: temperature in deciCelsius to be read from hardware
+ *
+ * This function handles temperature returned in ADC code or deciCelsius
+ * depending on IP version.
+ *
+ * Return: 0 on success, a negative errno will be returned in error cases
+ */
+static int tsens_read_temp(const struct tsens_sensor *s, int field, int *temp)
+{
+	struct tsens_priv *priv = s->priv;
+	int temp_val[MAX_READ_RETRY] = {0};
+	u32 status;
+	int ret;
+	u32 last_temp_mask = GENMASK(priv->fields[LAST_TEMP_0].msb,
+					priv->fields[LAST_TEMP_0].lsb);
+	u32 valid_bit = priv->rf[VALID_0] ? BIT(priv->fields[VALID_0].lsb) : 0;
+
+	for (int i = 0; i < MAX_READ_RETRY; i++) {
+		ret = regmap_read(priv->tm_map, priv->fields[field].reg, &status);
+		if (ret)
+			return ret;
+
+		/* VER_0 doesn't have a VALID bit */
+		if (!valid_bit) {
+			*temp = status & last_temp_mask;
+			return 0;
+		}
+
+		temp_val[i] = status & last_temp_mask;
+
+		if (status & valid_bit) {
+			*temp = temp_val[i];
+			return 0;
+		}
+	}
+
+	/*
+	 * As per the HW guidelines, if none of the attempts observe a
+	 * valid sample, a stable fallback value must be returned. If the
+	 * first and second samples match, the second value is returned;
+	 * otherwise, if the second and third samples match, the third
+	 * value is returned.
+	 */
+	if (temp_val[0] == temp_val[1])
+		*temp = temp_val[1];
+	else if (temp_val[1] == temp_val[2])
+		*temp = temp_val[2];
+	else
+		return -EAGAIN;
+
+	return 0;
+}
+
+/**
+ * tsens_hw_to_mC - Return sign-extended temperature in mCelsius.
+ * @s:     Pointer to sensor struct
+ * @temp: temperature in milliCelsius to be read from hardware
  *
  * This function handles temperature returned in ADC code or deciCelsius
  * depending on IP version.
@@ -326,19 +383,13 @@ static inline int code_to_degc(u32 adc_code, const struct tsens_sensor *s)
  * Return: Temperature in milliCelsius on success, a negative errno will
  * be returned in error cases
  */
-static int tsens_hw_to_mC(const struct tsens_sensor *s, int field)
+static int tsens_hw_to_mC(const struct tsens_sensor *s, int temp)
 {
 	struct tsens_priv *priv = s->priv;
 	u32 resolution;
-	u32 temp = 0;
-	int ret;
 
 	resolution = priv->fields[LAST_TEMP_0].msb -
 		priv->fields[LAST_TEMP_0].lsb;
-
-	ret = regmap_field_read(priv->rf[field], &temp);
-	if (ret)
-		return ret;
 
 	/* Convert temperature from ADC code to milliCelsius */
 	if (priv->feat->adc)
@@ -514,8 +565,10 @@ static int tsens_read_irq_state(struct tsens_priv *priv, u32 hw_id,
 					&d->crit_irq_mask);
 		if (ret)
 			return ret;
-
-		d->crit_thresh = tsens_hw_to_mC(s, CRIT_THRESH_0 + hw_id);
+		ret = regmap_field_read(priv->rf[CRIT_THRESH_0 + hw_id], &d->crit_thresh);
+		if (ret)
+			return ret;
+		d->crit_thresh = tsens_hw_to_mC(s, d->crit_thresh);
 	} else {
 		/* No mask register on older TSENS */
 		d->up_irq_mask = 0;
@@ -525,8 +578,16 @@ static int tsens_read_irq_state(struct tsens_priv *priv, u32 hw_id,
 		d->crit_thresh = 0;
 	}
 
-	d->up_thresh  = tsens_hw_to_mC(s, UP_THRESH_0 + hw_id);
-	d->low_thresh = tsens_hw_to_mC(s, LOW_THRESH_0 + hw_id);
+	ret = regmap_field_read(priv->rf[UP_THRESH_0 + hw_id], &d->up_thresh);
+	if (ret)
+		return ret;
+
+	d->up_thresh = tsens_hw_to_mC(s, d->up_thresh);
+	ret = regmap_field_read(priv->rf[LOW_THRESH_0 + hw_id], &d->low_thresh);
+	if (ret)
+		return ret;
+
+	d->low_thresh = tsens_hw_to_mC(s, d->low_thresh);
 
 	dev_dbg(priv->dev, "[%u] %s%s: status(%u|%u|%u) | clr(%u|%u|%u) | mask(%u|%u|%u)\n",
 		hw_id, __func__,
@@ -750,33 +811,15 @@ static void tsens_disable_irq(struct tsens_priv *priv)
 
 int get_temp_tsens_valid(const struct tsens_sensor *s, int *temp)
 {
-	struct tsens_priv *priv = s->priv;
 	int hw_id = s->hw_id;
 	u32 temp_idx = LAST_TEMP_0 + hw_id;
-	u32 valid_idx = VALID_0 + hw_id;
-	u32 valid;
 	int ret;
 
-	/* VER_0 doesn't have VALID bit */
-	if (tsens_version(priv) == VER_0)
-		goto get_temp;
+	ret = tsens_read_temp(s, temp_idx, temp);
+	if (!ret)
+		*temp = tsens_hw_to_mC(s, *temp);
 
-	/* Valid bit is 0 for 6 AHB clock cycles.
-	 * At 19.2MHz, 1 AHB clock is ~60ns.
-	 * We should enter this loop very, very rarely.
-	 * Wait 1 us since it's the min of poll_timeout macro.
-	 * Old value was 400 ns.
-	 */
-	ret = regmap_field_read_poll_timeout(priv->rf[valid_idx], valid,
-					     valid, 1, 20 * USEC_PER_MSEC);
-	if (ret)
-		return ret;
-
-get_temp:
-	/* Valid bit is set, OK to read the temperature */
-	*temp = tsens_hw_to_mC(s, temp_idx);
-
-	return 0;
+	return ret;
 }
 
 int get_temp_common(const struct tsens_sensor *s, int *temp)
@@ -1086,22 +1129,30 @@ static int tsens_get_temp(struct thermal_zone_device *tz, int *temp)
 
 static int  __maybe_unused tsens_suspend(struct device *dev)
 {
+	int ret = 0;
 	struct tsens_priv *priv = dev_get_drvdata(dev);
 
-	if (priv->ops && priv->ops->suspend)
-		return priv->ops->suspend(priv);
+	if (priv->ops && priv->ops->suspend) {
+		ret = priv->ops->suspend(priv);
+		if (ret)
+			return ret;
+	}
 
-	return 0;
+	return tsens_suspend_common(priv);
 }
 
 static int __maybe_unused tsens_resume(struct device *dev)
 {
+	int ret = 0;
 	struct tsens_priv *priv = dev_get_drvdata(dev);
 
-	if (priv->ops && priv->ops->resume)
-		return priv->ops->resume(priv);
+	if (priv->ops && priv->ops->resume) {
+		ret = priv->ops->resume(priv);
+		if (ret)
+			return ret;
+	}
 
-	return 0;
+	return tsens_resume_common(priv);
 }
 
 static SIMPLE_DEV_PM_OPS(tsens_pm_ops, tsens_suspend, tsens_resume);
@@ -1161,6 +1212,12 @@ static const struct of_device_id tsens_table[] = {
 	}, {
 		.compatible = "qcom,tsens-v2",
 		.data = &data_tsens_v2,
+	}, {
+		.compatible = "qcom,sa8775p-tsens",
+		.data = &data_automotive_v2,
+	}, {
+		.compatible = "qcom,sa8255p-tsens",
+		.data = &data_automotive_v2,
 	},
 	{}
 };
@@ -1172,7 +1229,7 @@ static const struct thermal_zone_device_ops tsens_of_ops = {
 };
 
 static int tsens_register_irq(struct tsens_priv *priv, char *irqname,
-			      irq_handler_t thread_fn)
+			      irq_handler_t thread_fn, int *irq_num)
 {
 	struct platform_device *pdev;
 	int ret, irq;
@@ -1205,7 +1262,7 @@ static int tsens_register_irq(struct tsens_priv *priv, char *irqname,
 			dev_err(&pdev->dev, "%s: failed to get irq\n",
 				__func__);
 		else
-			enable_irq_wake(irq);
+			*irq_num = irq;
 	}
 
 	put_device(&pdev->dev);
@@ -1232,10 +1289,37 @@ static int tsens_reinit(struct tsens_priv *priv)
 	return 0;
 }
 
+int tsens_suspend_common(struct tsens_priv *priv)
+{
+	if (!device_may_wakeup(priv->dev))
+		return 0;
+
+	if (priv->feat->combo_int)
+		enable_irq_wake(priv->combined_irq);
+	else {
+		enable_irq_wake(priv->uplow_irq);
+		if (priv->feat->crit_int)
+			enable_irq_wake(priv->crit_irq);
+	}
+
+	return 0;
+}
+
 int tsens_resume_common(struct tsens_priv *priv)
 {
 	if (pm_suspend_target_state == PM_SUSPEND_MEM)
 		tsens_reinit(priv);
+
+	if (!device_may_wakeup(priv->dev))
+		return 0;
+
+	if (priv->feat->combo_int)
+		disable_irq_wake(priv->combined_irq);
+	else {
+		disable_irq_wake(priv->uplow_irq);
+		if (priv->feat->crit_int)
+			disable_irq_wake(priv->crit_irq);
+	}
 
 	return 0;
 }
@@ -1276,15 +1360,18 @@ static int tsens_register(struct tsens_priv *priv)
 
 	if (priv->feat->combo_int) {
 		ret = tsens_register_irq(priv, "combined",
-					 tsens_combined_irq_thread);
+					 tsens_combined_irq_thread,  &priv->combined_irq);
 	} else {
-		ret = tsens_register_irq(priv, "uplow", tsens_irq_thread);
+		ret = tsens_register_irq(priv, "uplow", tsens_irq_thread,
+					 &priv->uplow_irq);
 		if (ret < 0)
 			return ret;
 
-		if (priv->feat->crit_int)
+		if (priv->feat->crit_int) {
 			ret = tsens_register_irq(priv, "critical",
-						 tsens_critical_irq_thread);
+						 tsens_critical_irq_thread,
+						 &priv->crit_irq);
+		}
 	}
 
 	return ret;
@@ -1342,6 +1429,8 @@ static int tsens_probe(struct platform_device *pdev)
 	priv->fields = data->fields;
 
 	platform_set_drvdata(pdev, priv);
+
+	device_init_wakeup(dev, !data->no_irq_wake);
 
 	if (!priv->ops || !priv->ops->init || !priv->ops->get_temp)
 		return -EINVAL;

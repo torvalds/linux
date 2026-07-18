@@ -59,8 +59,8 @@
  * want to register another driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS), 0 },
-	{ 0, },	/* terminate list */
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS) },
+	{ },	/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, pci_tbl);
 

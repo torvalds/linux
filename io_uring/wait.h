@@ -5,12 +5,14 @@
 #include <linux/io_uring_types.h>
 
 /*
- * No waiters. It's larger than any valid value of the tw counter
- * so that tests against ->cq_wait_nr would fail and skip wake_up().
+ * ->cq_wait_nr is armed with the number of lazy task_work adds the waiter
+ * still needs, and counted down by the add side, with the add reaching zero
+ * issuing the (single) wake up for this wait cycle. Zero and below means no
+ * wake up is to be issued: IO_CQ_WAKE_INIT when no task is waiting (also
+ * what a forced wake up resets it to when claiming one), zero once the
+ * countdown has fired.
  */
-#define IO_CQ_WAKE_INIT		(-1U)
-/* Forced wake up if there is a waiter regardless of ->cq_wait_nr */
-#define IO_CQ_WAKE_FORCE	(IO_CQ_WAKE_INIT >> 1)
+#define IO_CQ_WAKE_INIT		(-1)
 
 struct ext_arg {
 	size_t argsz;

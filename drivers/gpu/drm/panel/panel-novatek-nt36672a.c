@@ -28,10 +28,6 @@
 
 #include <video/mipi_display.h>
 
-struct nt36672a_panel_cmd {
-	const char data[2];
-};
-
 static const char * const nt36672a_regulator_names[] = {
 	"vddio",
 	"vddpos",
@@ -55,13 +51,9 @@ struct nt36672a_panel_desc {
 	enum mipi_dsi_pixel_format format;
 	unsigned int lanes;
 
-	unsigned int num_on_cmds_1;
-	const struct nt36672a_panel_cmd *on_cmds_1;
-	unsigned int num_on_cmds_2;
-	const struct nt36672a_panel_cmd *on_cmds_2;
-
-	unsigned int num_off_cmds;
-	const struct nt36672a_panel_cmd *off_cmds;
+	void (*send_init_cmds_1)(struct mipi_dsi_multi_context *dsi_ctx);
+	void (*send_init_cmds_2)(struct mipi_dsi_multi_context *dsi_ctx);
+	void (*send_deinit_cmds)(struct mipi_dsi_multi_context *dsi_ctx);
 };
 
 struct nt36672a_panel {
@@ -77,19 +69,6 @@ struct nt36672a_panel {
 static inline struct nt36672a_panel *to_nt36672a_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct nt36672a_panel, base);
-}
-
-static void nt36672a_send_cmds(struct mipi_dsi_multi_context *dsi_ctx,
-			       const struct nt36672a_panel_cmd *cmds, int num)
-{
-	unsigned int i;
-
-	for (i = 0; i < num; i++) {
-		const struct nt36672a_panel_cmd *cmd = &cmds[i];
-
-		/* cmd->data[0] is the DCS command, cmd->data[1] is the parameter */
-		mipi_dsi_dcs_write_buffer_multi(dsi_ctx, cmd->data, sizeof(cmd->data));
-	}
 }
 
 static void nt36672a_panel_power_off(struct drm_panel *panel)
@@ -110,8 +89,8 @@ static int nt36672a_panel_unprepare(struct drm_panel *panel)
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = pinfo->link };
 
 	/* send off cmds */
-	nt36672a_send_cmds(&dsi_ctx, pinfo->desc->off_cmds,
-			   pinfo->desc->num_off_cmds);
+	if (pinfo->desc->send_deinit_cmds)
+		pinfo->desc->send_deinit_cmds(&dsi_ctx);
 
 	/* Reset error to continue with display off even if send_cmds failed */
 	dsi_ctx.accum_err = 0;
@@ -162,8 +141,8 @@ static int nt36672a_panel_prepare(struct drm_panel *panel)
 	dsi_ctx.accum_err = nt36672a_panel_power_on(pinfo);
 
 	/* send first part of init cmds */
-	nt36672a_send_cmds(&dsi_ctx, pinfo->desc->on_cmds_1,
-			   pinfo->desc->num_on_cmds_1);
+	if (pinfo->desc->send_init_cmds_1)
+		pinfo->desc->send_init_cmds_1(&dsi_ctx);
 
 	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
 
@@ -173,8 +152,8 @@ static int nt36672a_panel_prepare(struct drm_panel *panel)
 	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 
 	/* Send rest of the init cmds */
-	nt36672a_send_cmds(&dsi_ctx, pinfo->desc->on_cmds_2,
-			   pinfo->desc->num_on_cmds_2);
+	if (pinfo->desc->send_init_cmds_2)
+		pinfo->desc->send_init_cmds_2(&dsi_ctx);
 
 	mipi_dsi_msleep(&dsi_ctx, 120);
 
@@ -213,310 +192,184 @@ static const struct drm_panel_funcs panel_funcs = {
 	.get_modes = nt36672a_panel_get_modes,
 };
 
-static const struct nt36672a_panel_cmd tianma_fhd_video_on_cmds_1[] = {
+static void tianma_fhd_video_send_init_cmds_1(struct mipi_dsi_multi_context *dsi_ctx)
+{
+	u8 reg;
+
 	/* skin enhancement mode */
-	{ .data = {0xFF, 0x22} },
-	{ .data = {0x00, 0x40} },
-	{ .data = {0x01, 0xC0} },
-	{ .data = {0x02, 0x40} },
-	{ .data = {0x03, 0x40} },
-	{ .data = {0x04, 0x40} },
-	{ .data = {0x05, 0x40} },
-	{ .data = {0x06, 0x40} },
-	{ .data = {0x07, 0x40} },
-	{ .data = {0x08, 0x40} },
-	{ .data = {0x09, 0x40} },
-	{ .data = {0x0A, 0x40} },
-	{ .data = {0x0B, 0x40} },
-	{ .data = {0x0C, 0x40} },
-	{ .data = {0x0D, 0x40} },
-	{ .data = {0x0E, 0x40} },
-	{ .data = {0x0F, 0x40} },
-	{ .data = {0x10, 0x40} },
-	{ .data = {0x11, 0x50} },
-	{ .data = {0x12, 0x60} },
-	{ .data = {0x13, 0x70} },
-	{ .data = {0x14, 0x58} },
-	{ .data = {0x15, 0x68} },
-	{ .data = {0x16, 0x78} },
-	{ .data = {0x17, 0x77} },
-	{ .data = {0x18, 0x39} },
-	{ .data = {0x19, 0x2D} },
-	{ .data = {0x1A, 0x2E} },
-	{ .data = {0x1B, 0x32} },
-	{ .data = {0x1C, 0x37} },
-	{ .data = {0x1D, 0x3A} },
-	{ .data = {0x1E, 0x40} },
-	{ .data = {0x1F, 0x40} },
-	{ .data = {0x20, 0x40} },
-	{ .data = {0x21, 0x40} },
-	{ .data = {0x22, 0x40} },
-	{ .data = {0x23, 0x40} },
-	{ .data = {0x24, 0x40} },
-	{ .data = {0x25, 0x40} },
-	{ .data = {0x26, 0x40} },
-	{ .data = {0x27, 0x40} },
-	{ .data = {0x28, 0x40} },
-	{ .data = {0x2D, 0x00} },
-	{ .data = {0x2F, 0x40} },
-	{ .data = {0x30, 0x40} },
-	{ .data = {0x31, 0x40} },
-	{ .data = {0x32, 0x40} },
-	{ .data = {0x33, 0x40} },
-	{ .data = {0x34, 0x40} },
-	{ .data = {0x35, 0x40} },
-	{ .data = {0x36, 0x40} },
-	{ .data = {0x37, 0x40} },
-	{ .data = {0x38, 0x40} },
-	{ .data = {0x39, 0x40} },
-	{ .data = {0x3A, 0x40} },
-	{ .data = {0x3B, 0x40} },
-	{ .data = {0x3D, 0x40} },
-	{ .data = {0x3F, 0x40} },
-	{ .data = {0x40, 0x40} },
-	{ .data = {0x41, 0x40} },
-	{ .data = {0x42, 0x40} },
-	{ .data = {0x43, 0x40} },
-	{ .data = {0x44, 0x40} },
-	{ .data = {0x45, 0x40} },
-	{ .data = {0x46, 0x40} },
-	{ .data = {0x47, 0x40} },
-	{ .data = {0x48, 0x40} },
-	{ .data = {0x49, 0x40} },
-	{ .data = {0x4A, 0x40} },
-	{ .data = {0x4B, 0x40} },
-	{ .data = {0x4C, 0x40} },
-	{ .data = {0x4D, 0x40} },
-	{ .data = {0x4E, 0x40} },
-	{ .data = {0x4F, 0x40} },
-	{ .data = {0x50, 0x40} },
-	{ .data = {0x51, 0x40} },
-	{ .data = {0x52, 0x40} },
-	{ .data = {0x53, 0x01} },
-	{ .data = {0x54, 0x01} },
-	{ .data = {0x55, 0xFE} },
-	{ .data = {0x56, 0x77} },
-	{ .data = {0x58, 0xCD} },
-	{ .data = {0x59, 0xD0} },
-	{ .data = {0x5A, 0xD0} },
-	{ .data = {0x5B, 0x50} },
-	{ .data = {0x5C, 0x50} },
-	{ .data = {0x5D, 0x50} },
-	{ .data = {0x5E, 0x50} },
-	{ .data = {0x5F, 0x50} },
-	{ .data = {0x60, 0x50} },
-	{ .data = {0x61, 0x50} },
-	{ .data = {0x62, 0x50} },
-	{ .data = {0x63, 0x50} },
-	{ .data = {0x64, 0x50} },
-	{ .data = {0x65, 0x50} },
-	{ .data = {0x66, 0x50} },
-	{ .data = {0x67, 0x50} },
-	{ .data = {0x68, 0x50} },
-	{ .data = {0x69, 0x50} },
-	{ .data = {0x6A, 0x50} },
-	{ .data = {0x6B, 0x50} },
-	{ .data = {0x6C, 0x50} },
-	{ .data = {0x6D, 0x50} },
-	{ .data = {0x6E, 0x50} },
-	{ .data = {0x6F, 0x50} },
-	{ .data = {0x70, 0x07} },
-	{ .data = {0x71, 0x00} },
-	{ .data = {0x72, 0x00} },
-	{ .data = {0x73, 0x00} },
-	{ .data = {0x74, 0x06} },
-	{ .data = {0x75, 0x0C} },
-	{ .data = {0x76, 0x03} },
-	{ .data = {0x77, 0x09} },
-	{ .data = {0x78, 0x0F} },
-	{ .data = {0x79, 0x68} },
-	{ .data = {0x7A, 0x88} },
-	{ .data = {0x7C, 0x80} },
-	{ .data = {0x7D, 0x80} },
-	{ .data = {0x7E, 0x80} },
-	{ .data = {0x7F, 0x00} },
-	{ .data = {0x80, 0x00} },
-	{ .data = {0x81, 0x00} },
-	{ .data = {0x83, 0x01} },
-	{ .data = {0x84, 0x00} },
-	{ .data = {0x85, 0x80} },
-	{ .data = {0x86, 0x80} },
-	{ .data = {0x87, 0x80} },
-	{ .data = {0x88, 0x40} },
-	{ .data = {0x89, 0x91} },
-	{ .data = {0x8A, 0x98} },
-	{ .data = {0x8B, 0x80} },
-	{ .data = {0x8C, 0x80} },
-	{ .data = {0x8D, 0x80} },
-	{ .data = {0x8E, 0x80} },
-	{ .data = {0x8F, 0x80} },
-	{ .data = {0x90, 0x80} },
-	{ .data = {0x91, 0x80} },
-	{ .data = {0x92, 0x80} },
-	{ .data = {0x93, 0x80} },
-	{ .data = {0x94, 0x80} },
-	{ .data = {0x95, 0x80} },
-	{ .data = {0x96, 0x80} },
-	{ .data = {0x97, 0x80} },
-	{ .data = {0x98, 0x80} },
-	{ .data = {0x99, 0x80} },
-	{ .data = {0x9A, 0x80} },
-	{ .data = {0x9B, 0x80} },
-	{ .data = {0x9C, 0x80} },
-	{ .data = {0x9D, 0x80} },
-	{ .data = {0x9E, 0x80} },
-	{ .data = {0x9F, 0x80} },
-	{ .data = {0xA0, 0x8A} },
-	{ .data = {0xA2, 0x80} },
-	{ .data = {0xA6, 0x80} },
-	{ .data = {0xA7, 0x80} },
-	{ .data = {0xA9, 0x80} },
-	{ .data = {0xAA, 0x80} },
-	{ .data = {0xAB, 0x80} },
-	{ .data = {0xAC, 0x80} },
-	{ .data = {0xAD, 0x80} },
-	{ .data = {0xAE, 0x80} },
-	{ .data = {0xAF, 0x80} },
-	{ .data = {0xB7, 0x76} },
-	{ .data = {0xB8, 0x76} },
-	{ .data = {0xB9, 0x05} },
-	{ .data = {0xBA, 0x0D} },
-	{ .data = {0xBB, 0x14} },
-	{ .data = {0xBC, 0x0F} },
-	{ .data = {0xBD, 0x18} },
-	{ .data = {0xBE, 0x1F} },
-	{ .data = {0xBF, 0x05} },
-	{ .data = {0xC0, 0x0D} },
-	{ .data = {0xC1, 0x14} },
-	{ .data = {0xC2, 0x03} },
-	{ .data = {0xC3, 0x07} },
-	{ .data = {0xC4, 0x0A} },
-	{ .data = {0xC5, 0xA0} },
-	{ .data = {0xC6, 0x55} },
-	{ .data = {0xC7, 0xFF} },
-	{ .data = {0xC8, 0x39} },
-	{ .data = {0xC9, 0x44} },
-	{ .data = {0xCA, 0x12} },
-	{ .data = {0xCD, 0x80} },
-	{ .data = {0xDB, 0x80} },
-	{ .data = {0xDC, 0x80} },
-	{ .data = {0xDD, 0x80} },
-	{ .data = {0xE0, 0x80} },
-	{ .data = {0xE1, 0x80} },
-	{ .data = {0xE2, 0x80} },
-	{ .data = {0xE3, 0x80} },
-	{ .data = {0xE4, 0x80} },
-	{ .data = {0xE5, 0x40} },
-	{ .data = {0xE6, 0x40} },
-	{ .data = {0xE7, 0x40} },
-	{ .data = {0xE8, 0x40} },
-	{ .data = {0xE9, 0x40} },
-	{ .data = {0xEA, 0x40} },
-	{ .data = {0xEB, 0x40} },
-	{ .data = {0xEC, 0x40} },
-	{ .data = {0xED, 0x40} },
-	{ .data = {0xEE, 0x40} },
-	{ .data = {0xEF, 0x40} },
-	{ .data = {0xF0, 0x40} },
-	{ .data = {0xF1, 0x40} },
-	{ .data = {0xF2, 0x40} },
-	{ .data = {0xF3, 0x40} },
-	{ .data = {0xF4, 0x40} },
-	{ .data = {0xF5, 0x40} },
-	{ .data = {0xF6, 0x40} },
-	{ .data = {0xFB, 0x1} },
-	{ .data = {0xFF, 0x23} },
-	{ .data = {0xFB, 0x01} },
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x22);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x00, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x01, 0xc0);
+	for (reg = 0x02; reg <= 0x10; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x11, 0x50);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x12, 0x60);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x13, 0x70);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x14, 0x58);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x15, 0x68);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x16, 0x78);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x17, 0x77);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x18, 0x39);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x19, 0x2d);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x1a, 0x2e);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x1b, 0x32);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x1c, 0x37);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x1d, 0x3a);
+	for (reg = 0x1e; reg <= 0x28; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x2d, 0x00);
+	for (reg = 0x2f; reg <= 0x3b; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3d, 0x40);
+	for (reg = 0x3f; reg <= 0x52; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x53, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x54, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x55, 0xfe);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x56, 0x77);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x58, 0xcd);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x59, 0xd0);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x5a, 0xd0);
+	for (reg = 0x5b; reg <= 0x6f; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x50);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x70, 0x07);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x71, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x72, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x73, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x74, 0x06);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x75, 0x0c);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x76, 0x03);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x77, 0x09);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x78, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x79, 0x68);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x7a, 0x88);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x7c, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x7d, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x7e, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x7f, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x80, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x81, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x83, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x84, 0x00);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x85, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x86, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x87, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x88, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x89, 0x91);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x8a, 0x98);
+	for (reg = 0x8b; reg <= 0x9f; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xa0, 0x8a);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xa2, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xa6, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xa7, 0x80);
+	for (reg = 0xa9; reg <= 0xaf; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xb7, 0x76);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xb8, 0x76);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xb9, 0x05);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xba, 0x0d);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xbb, 0x14);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xbc, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xbd, 0x18);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xbe, 0x1f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xbf, 0x05);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc0, 0x0d);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc1, 0x14);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc2, 0x03);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc3, 0x07);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc4, 0x0a);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc5, 0xa0);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc6, 0x55);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc7, 0xff);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc8, 0x39);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc9, 0x44);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xca, 0x12);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xcd, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xdb, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xdc, 0x80);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xdd, 0x80);
+	for (reg = 0xe0; reg <= 0xe4; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x80);
+	for (reg = 0xe5; reg <= 0xf6; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0x40);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x23);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
 	/* dimming enable */
-	{ .data = {0x01, 0x84} },
-	{ .data = {0x05, 0x2D} },
-	{ .data = {0x06, 0x00} },
-	 /* resolution 1080*2246 */
-	{ .data = {0x11, 0x01} },
-	{ .data = {0x12, 0x7B} },
-	{ .data = {0x15, 0x6F} },
-	{ .data = {0x16, 0x0B} },
-	 /* UI mode */
-	{ .data = {0x29, 0x0A} },
-	{ .data = {0x30, 0xFF} },
-	{ .data = {0x31, 0xFF} },
-	{ .data = {0x32, 0xFF} },
-	{ .data = {0x33, 0xFF} },
-	{ .data = {0x34, 0xFF} },
-	{ .data = {0x35, 0xFF} },
-	{ .data = {0x36, 0xFF} },
-	{ .data = {0x37, 0xFF} },
-	{ .data = {0x38, 0xFC} },
-	{ .data = {0x39, 0xF8} },
-	{ .data = {0x3A, 0xF4} },
-	{ .data = {0x3B, 0xF1} },
-	{ .data = {0x3D, 0xEE} },
-	{ .data = {0x3F, 0xEB} },
-	{ .data = {0x40, 0xE8} },
-	{ .data = {0x41, 0xE5} },
-	 /* STILL mode */
-	{ .data = {0x2A, 0x13} },
-	{ .data = {0x45, 0xFF} },
-	{ .data = {0x46, 0xFF} },
-	{ .data = {0x47, 0xFF} },
-	{ .data = {0x48, 0xFF} },
-	{ .data = {0x49, 0xFF} },
-	{ .data = {0x4A, 0xFF} },
-	{ .data = {0x4B, 0xFF} },
-	{ .data = {0x4C, 0xFF} },
-	{ .data = {0x4D, 0xED} },
-	{ .data = {0x4E, 0xD5} },
-	{ .data = {0x4F, 0xBF} },
-	{ .data = {0x50, 0xA6} },
-	{ .data = {0x51, 0x96} },
-	{ .data = {0x52, 0x86} },
-	{ .data = {0x53, 0x76} },
-	{ .data = {0x54, 0x66} },
-	 /* MOVING mode */
-	{ .data = {0x2B, 0x0E} },
-	{ .data = {0x58, 0xFF} },
-	{ .data = {0x59, 0xFF} },
-	{ .data = {0x5A, 0xFF} },
-	{ .data = {0x5B, 0xFF} },
-	{ .data = {0x5C, 0xFF} },
-	{ .data = {0x5D, 0xFF} },
-	{ .data = {0x5E, 0xFF} },
-	{ .data = {0x5F, 0xFF} },
-	{ .data = {0x60, 0xF6} },
-	{ .data = {0x61, 0xEA} },
-	{ .data = {0x62, 0xE1} },
-	{ .data = {0x63, 0xD8} },
-	{ .data = {0x64, 0xCE} },
-	{ .data = {0x65, 0xC3} },
-	{ .data = {0x66, 0xBA} },
-	{ .data = {0x67, 0xB3} },
-	{ .data = {0xFF, 0x25} },
-	{ .data = {0xFB, 0x01} },
-	{ .data = {0x05, 0x04} },
-	{ .data = {0xFF, 0x26} },
-	{ .data = {0xFB, 0x01} },
-	{ .data = {0x1C, 0xAF} },
-	{ .data = {0xFF, 0x10} },
-	{ .data = {0xFB, 0x01} },
-	{ .data = {0x51, 0xFF} },
-	{ .data = {0x53, 0x24} },
-	{ .data = {0x55, 0x00} },
-};
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x01, 0x84);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x05, 0x2d);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x06, 0x00);
+	/* resolution 1080*2246 */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x11, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x12, 0x7b);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x15, 0x6f);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x16, 0x0b);
+	/* UI mode */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x29, 0x0a);
+	for (reg = 0x30; reg <= 0x37; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0xff);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x38, 0xfc);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x39, 0xf8);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3a, 0xf4);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3b, 0xf1);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3d, 0xee);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x3f, 0xeb);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x40, 0xe8);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x41, 0xe5);
+	/* STILL mode */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x2a, 0x13);
+	for (reg = 0x45; reg <= 0x4c; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0xff);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x4d, 0xed);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x4e, 0xd5);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x4f, 0xbf);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x50, 0xa6);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x51, 0x96);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x52, 0x86);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x53, 0x76);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x54, 0x66);
+	/* MOVING mode */
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x2b, 0x0e);
+	for (reg = 0x58; reg <= 0x5f; reg++)
+		mipi_dsi_dcs_write_var_seq_multi(dsi_ctx, reg, 0xff);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x60, 0xf6);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x61, 0xea);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x62, 0xe1);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x63, 0xd8);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x64, 0xce);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x65, 0xc3);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x66, 0xba);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x67, 0xb3);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x25);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x05, 0x04);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x26);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x1c, 0xaf);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x10);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x51, 0xff);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x53, 0x24);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0x55, 0x00);
+}
 
-static const struct nt36672a_panel_cmd tianma_fhd_video_on_cmds_2[] = {
-	{ .data = {0xFF, 0x24} },
-	{ .data = {0xFB, 0x01} },
-	{ .data = {0xC3, 0x01} },
-	{ .data = {0xC4, 0x54} },
-	{ .data = {0xFF, 0x10} },
-};
+static void tianma_fhd_video_send_init_cmds_2(struct mipi_dsi_multi_context *dsi_ctx)
+{
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x24);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc3, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc4, 0x54);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x10);
+}
 
-static const struct nt36672a_panel_cmd tianma_fhd_video_off_cmds[] = {
-	{ .data = {0xFF, 0x24} },
-	{ .data = {0xFB, 0x01} },
-	{ .data = {0xC3, 0x01} },
-	{ .data = {0xFF, 0x10} },
-};
+static void tianma_fhd_video_send_deinit_cmds(struct mipi_dsi_multi_context *dsi_ctx)
+{
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x24);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xfb, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xc3, 0x01);
+	mipi_dsi_dcs_write_seq_multi(dsi_ctx, 0xff, 0x10);
+}
 
 static const struct drm_display_mode tianma_fhd_video_panel_default_mode = {
 	.clock		= 161331,
@@ -546,12 +399,9 @@ static const struct nt36672a_panel_desc tianma_fhd_video_panel_desc = {
 			| MIPI_DSI_MODE_VIDEO_BURST,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
-	.on_cmds_1 = tianma_fhd_video_on_cmds_1,
-	.num_on_cmds_1 = ARRAY_SIZE(tianma_fhd_video_on_cmds_1),
-	.on_cmds_2 = tianma_fhd_video_on_cmds_2,
-	.num_on_cmds_2 = ARRAY_SIZE(tianma_fhd_video_on_cmds_2),
-	.off_cmds = tianma_fhd_video_off_cmds,
-	.num_off_cmds = ARRAY_SIZE(tianma_fhd_video_off_cmds),
+	.send_init_cmds_1 = tianma_fhd_video_send_init_cmds_1,
+	.send_init_cmds_2 = tianma_fhd_video_send_init_cmds_2,
+	.send_deinit_cmds = tianma_fhd_video_send_deinit_cmds,
 };
 
 static int nt36672a_panel_add(struct nt36672a_panel *pinfo)

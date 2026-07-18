@@ -317,8 +317,8 @@ typedef int (*ptp_crosststamp_fn)(struct ptp_clock_info *,
 static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg,
 				   ptp_crosststamp_fn crosststamp_fn)
 {
+	struct system_device_crosststamp xtstamp = { .clock_id = CLOCK_REALTIME };
 	struct ptp_sys_offset_precise precise_offset;
-	struct system_device_crosststamp xtstamp;
 	struct timespec64 ts;
 	int err;
 
@@ -333,7 +333,7 @@ static long ptp_sys_offset_precise(struct ptp_clock *ptp, void __user *arg,
 	ts = ktime_to_timespec64(xtstamp.device);
 	precise_offset.device.sec = ts.tv_sec;
 	precise_offset.device.nsec = ts.tv_nsec;
-	ts = ktime_to_timespec64(xtstamp.sys_realtime);
+	ts = ktime_to_timespec64(xtstamp.sys_systime);
 	precise_offset.sys_realtime.sec = ts.tv_sec;
 	precise_offset.sys_realtime.nsec = ts.tv_nsec;
 	ts = ktime_to_timespec64(xtstamp.sys_monoraw);
@@ -386,15 +386,19 @@ static long ptp_sys_offset_extended(struct ptp_clock *ptp, void __user *arg,
 			return err;
 
 		/* Filter out disabled or unavailable clocks */
-		if (sts.pre_ts.tv_sec < 0 || sts.post_ts.tv_sec < 0)
+		if (!sts.pre_sts.valid || !sts.post_sts.valid)
 			return -EINVAL;
 
-		extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
-		extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
 		extoff->ts[i][1].sec = ts.tv_sec;
 		extoff->ts[i][1].nsec = ts.tv_nsec;
-		extoff->ts[i][2].sec = sts.post_ts.tv_sec;
-		extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
+
+		ts = ktime_to_timespec64(sts.pre_sts.systime);
+		extoff->ts[i][0].sec = ts.tv_sec;
+		extoff->ts[i][0].nsec = ts.tv_nsec;
+
+		ts = ktime_to_timespec64(sts.post_sts.systime);
+		extoff->ts[i][2].sec = ts.tv_sec;
+		extoff->ts[i][2].nsec = ts.tv_nsec;
 	}
 
 	return copy_to_user(arg, extoff, sizeof(*extoff)) ? -EFAULT : 0;

@@ -932,7 +932,7 @@ static bool kernel_v6_15_or_newer(void)
 	endptr++;
 	minor = strtol(endptr, NULL, 10);
 
-	return major >= 6 && minor >= 15;
+	return major > 6 || (major == 6 && minor >= 15);
 }
 
 int test__amd_ibs_period(struct test_suite *test __maybe_unused,

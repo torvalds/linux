@@ -48,6 +48,12 @@ config ARCH_ARTPEC
 	help
 	   This enables support for the ARMv8 based ARTPEC SoC Family.
 
+config ARCH_ASPEED
+	bool "Aspeed SoC family"
+	help
+	  This enables support for ASPEED's SoC family, such as the
+	  ast27XX 8th generation Baseboard Management Controller (BMC).
+
 config ARCH_AXIADO
 	bool "Axiado SoC Family"
 	select GPIOLIB
@@ -243,7 +249,6 @@ config ARCH_MVEBU
 	select MVEBU_ODMI
 	select MVEBU_PIC
 	select MVEBU_SEI
-	select OF_GPIO
 	select PINCTRL
 	select PINCTRL_ARMADA_37XX
 	select PINCTRL_ARMADA_AP806

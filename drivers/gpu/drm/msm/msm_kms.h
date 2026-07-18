@@ -66,13 +66,13 @@ struct msm_kms_funcs {
 	 *
 	 * Verify if the commit requires a full modeset on one of CRTCs.
 	 */
-	int (*check_mode_changed)(struct msm_kms *kms, struct drm_atomic_state *state);
+	int (*check_mode_changed)(struct msm_kms *kms, struct drm_atomic_commit *state);
 
 	/**
 	 * Prepare for atomic commit.  This is called after any previous
 	 * (async or otherwise) commit has completed.
 	 */
-	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_state *state);
+	void (*prepare_commit)(struct msm_kms *kms, struct drm_atomic_commit *state);
 
 	/**
 	 * Flush an atomic commit.  This is called after the hardware

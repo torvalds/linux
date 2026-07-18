@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
+#include <linux/time_namespace.h>
 
 #include <trace/events/io_uring.h>
 
@@ -35,6 +36,22 @@ struct io_timeout_rem {
 	bool				ltimeout;
 };
 
+static clockid_t io_flags_to_clock(unsigned flags)
+{
+	switch (flags & IORING_TIMEOUT_CLOCK_MASK) {
+	case IORING_TIMEOUT_BOOTTIME:
+		return CLOCK_BOOTTIME;
+	case IORING_TIMEOUT_REALTIME:
+		return CLOCK_REALTIME;
+	default:
+		/* can't happen, vetted at prep time */
+		WARN_ON_ONCE(1);
+		fallthrough;
+	case 0:
+		return CLOCK_MONOTONIC;
+	}
+}
+
 static int io_parse_user_time(ktime_t *time, u64 arg, unsigned flags)
 {
 	struct timespec64 ts;
@@ -43,7 +60,7 @@ static int io_parse_user_time(ktime_t *time, u64 arg, unsigned flags)
 		*time = ns_to_ktime(arg);
 		if (*time < 0)
 			return -EINVAL;
-		return 0;
+		goto out;
 	}
 
 	if (get_timespec64(&ts, u64_to_user_ptr(arg)))
@@ -51,6 +68,9 @@ static int io_parse_user_time(ktime_t *time, u64 arg, unsigned flags)
 	if (ts.tv_sec < 0 || ts.tv_nsec < 0)
 		return -EINVAL;
 	*time = timespec64_to_ktime(ts);
+out:
+	if (flags & IORING_TIMEOUT_ABS)
+		*time = timens_ktime_to_host(io_flags_to_clock(flags), *time);
 	return 0;
 }
 
@@ -264,6 +284,10 @@ static struct io_kiocb *__io_disarm_linked_timeout(struct io_kiocb *req,
 	struct io_timeout *timeout = io_kiocb_to_cmd(link, struct io_timeout);
 
 	io_remove_next_linked(req);
+
+	/* If this is NULL, then timer already claimed it and will complete it */
+	if (!timeout->head)
+		return NULL;
 	timeout->head = NULL;
 	if (hrtimer_try_to_cancel(&io->timer) != -1) {
 		list_del(&timeout->list);
@@ -347,6 +371,14 @@ static void io_req_task_link_timeout(struct io_tw_req tw_req, io_tw_token_t tw)
 	int ret;
 
 	if (prev) {
+		/*
+		 * splice the linked timeout out of prev's chain if the regular
+		 * completion path didn't already do it.
+		 */
+		if (prev->link == req)
+			prev->link = req->link;
+		req->link = NULL;
+
 		if (!tw.cancel) {
 			struct io_cancel_data cd = {
 				.ctx		= req->ctx,
@@ -381,12 +413,14 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 
 	/*
 	 * We don't expect the list to be empty, that will only happen if we
-	 * race with the completion of the linked work.
+	 * race with the completion of the linked work. Splice of prev is
+	 * done in io_req_task_link_timeout(), if needed.
 	 */
 	if (prev) {
-		io_remove_next_linked(prev);
-		if (!req_ref_inc_not_zero(prev))
+		if (!req_ref_inc_not_zero(prev)) {
+			io_remove_next_linked(prev);
 			prev = NULL;
+		}
 	}
 	list_del(&timeout->list);
 	timeout->prev = prev;
@@ -399,18 +433,7 @@ static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 
 static clockid_t io_timeout_get_clock(struct io_timeout_data *data)
 {
-	switch (data->flags & IORING_TIMEOUT_CLOCK_MASK) {
-	case IORING_TIMEOUT_BOOTTIME:
-		return CLOCK_BOOTTIME;
-	case IORING_TIMEOUT_REALTIME:
-		return CLOCK_REALTIME;
-	default:
-		/* can't happen, vetted at prep time */
-		WARN_ON_ONCE(1);
-		fallthrough;
-	case 0:
-		return CLOCK_MONOTONIC;
-	}
+	return io_flags_to_clock(data->flags);
 }
 
 static int io_linked_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,

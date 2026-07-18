@@ -745,15 +745,21 @@ void __init smp_init_cpus(void)
 	else
 		acpi_parse_and_init_cpus();
 
-	if (cpu_count > nr_cpu_ids)
-		pr_warn("Number of cores (%d) exceeds configured maximum of %u - clipping\n",
-			cpu_count, nr_cpu_ids);
-
 	if (!bootcpu_valid) {
 		pr_err("missing boot CPU MPIDR, not enabling secondaries\n");
 		return;
 	}
 
+	/*
+	 * For the nosmp/maxcpus=0 case, do not mark the secondary CPUs
+	 * possible.
+	 */
+	if (!setup_max_cpus)
+		return;
+
+	if (cpu_count > nr_cpu_ids)
+		pr_warn("Number of cores (%d) exceeds configured maximum of %u - clipping\n",
+			cpu_count, nr_cpu_ids);
 	/*
 	 * We need to set the cpu_logical_map entries before enabling
 	 * the cpus so that cpu processor description entries (DT cpu nodes
@@ -833,11 +839,10 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 	unsigned int cpu, i;
 
 	for (i = 0; i < MAX_IPI; i++) {
-		seq_printf(p, "%*s%u:%s", prec - 1, "IPI", i,
-			   prec >= 4 ? " " : "");
+		seq_printf(p, "%*s%u: ", prec - 1, "IPI", i);
 		for_each_online_cpu(cpu)
 			seq_printf(p, "%10u ", irq_desc_kstat_cpu(get_ipi_desc(cpu, i), cpu));
-		seq_printf(p, "      %s\n", ipi_types[i]);
+		seq_printf(p, " %s\n", ipi_types[i]);
 	}
 
 	seq_printf(p, "%*s: %10lu\n", prec, "Err", irq_err_count);

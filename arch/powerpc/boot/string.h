@@ -4,7 +4,6 @@
 #include <stddef.h>
 
 extern char *strcpy(char *dest, const char *src);
-extern char *strncpy(char *dest, const char *src, size_t n);
 extern char *strcat(char *dest, const char *src);
 extern char *strchr(const char *s, int c);
 extern char *strrchr(const char *s, int c);

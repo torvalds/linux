@@ -616,8 +616,7 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 }
 #define __clear_user(addr, n)		(memset((void __force *)addr, 0, n), 0)
 #endif
-#define INLINE_COPY_TO_USER
-#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_USER
 
 static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {

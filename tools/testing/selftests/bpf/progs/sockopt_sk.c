@@ -149,6 +149,20 @@ int _setsockopt(struct bpf_sockopt *ctx)
 	if (sk && sk->family == AF_NETLINK)
 		goto out;
 
+	if (sk && sk->family == AF_INET && sk->type == SOCK_RAW) {
+		struct bpf_tcp_sock *tp = bpf_tcp_sock(sk);
+
+		if (tp) {
+			char saved_syn[60];
+
+			bpf_getsockopt(sk, SOL_TCP, TCP_SAVED_SYN,
+				       &saved_syn, sizeof(saved_syn));
+			goto consumed;
+		}
+
+		goto out;
+	}
+
 	/* Make sure bpf_get_netns_cookie is callable.
 	 */
 	if (bpf_get_netns_cookie(NULL) == 0)
@@ -224,6 +238,8 @@ int _setsockopt(struct bpf_sockopt *ctx)
 		return 0; /* couldn't get sk storage */
 
 	storage->val = optval[0];
+
+consumed:
 	ctx->optlen = -1; /* BPF has consumed this option, don't call kernel
 			   * setsockopt handler.
 			   */

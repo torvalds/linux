@@ -144,7 +144,6 @@ pub(crate) enum FwsecCommand {
     /// image into it.
     Frts { frts_addr: u64, frts_size: u64 },
     /// Asks [`FwsecFirmware`] to load pre-OS apps on the PMU.
-    #[expect(dead_code)]
     Sb,
 }
 
@@ -322,7 +321,7 @@ impl FwsecFirmware {
     pub(crate) fn new(
         dev: &Device<device::Bound>,
         falcon: &Falcon<Gsp>,
-        bar: &Bar0,
+        bar: Bar0<'_>,
         bios: &Vbios,
         cmd: FwsecCommand,
     ) -> Result<Self> {
@@ -395,7 +394,7 @@ impl FwsecFirmware {
         &self,
         dev: &Device<device::Bound>,
         falcon: &Falcon<Gsp>,
-        bar: &Bar0,
+        bar: Bar0<'_>,
     ) -> Result<()> {
         // Reset falcon, load the firmware, and run it.
         falcon

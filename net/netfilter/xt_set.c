@@ -431,6 +431,29 @@ set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 }
 
 static int
+set_target_v3_check_hooks(const struct xt_tgchk_param *par)
+{
+	const struct xt_set_info_target_v3 *info = par->targinfo;
+
+	if (info->map_set.index != IPSET_INVALID_ID) {
+		if (strncmp(par->table, "mangle", 7)) {
+			pr_info_ratelimited("--map-set only usable from mangle table\n");
+			return -EINVAL;
+		}
+		if (((info->flags & IPSET_FLAG_MAP_SKBPRIO) |
+		     (info->flags & IPSET_FLAG_MAP_SKBQUEUE)) &&
+		     (par->hook_mask & ~(1 << NF_INET_FORWARD |
+					 1 << NF_INET_LOCAL_OUT |
+					 1 << NF_INET_POST_ROUTING))) {
+			pr_info_ratelimited("mapping of prio or/and queue is allowed only from OUTPUT/FORWARD/POSTROUTING chains\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int
 set_target_v3_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct xt_set_info_target_v3 *info = par->targinfo;
@@ -459,20 +482,6 @@ set_target_v3_checkentry(const struct xt_tgchk_param *par)
 	}
 
 	if (info->map_set.index != IPSET_INVALID_ID) {
-		if (strncmp(par->table, "mangle", 7)) {
-			pr_info_ratelimited("--map-set only usable from mangle table\n");
-			ret = -EINVAL;
-			goto cleanup_del;
-		}
-		if (((info->flags & IPSET_FLAG_MAP_SKBPRIO) |
-		     (info->flags & IPSET_FLAG_MAP_SKBQUEUE)) &&
-		     (par->hook_mask & ~(1 << NF_INET_FORWARD |
-					 1 << NF_INET_LOCAL_OUT |
-					 1 << NF_INET_POST_ROUTING))) {
-			pr_info_ratelimited("mapping of prio or/and queue is allowed only from OUTPUT/FORWARD/POSTROUTING chains\n");
-			ret = -EINVAL;
-			goto cleanup_del;
-		}
 		index = ip_set_nfnl_get_byindex(par->net,
 						info->map_set.index);
 		if (index == IPSET_INVALID_ID) {
@@ -672,6 +681,7 @@ static struct xt_target set_targets[] __read_mostly = {
 		.family		= NFPROTO_IPV4,
 		.target		= set_target_v3,
 		.targetsize	= sizeof(struct xt_set_info_target_v3),
+		.check_hooks	= set_target_v3_check_hooks,
 		.checkentry	= set_target_v3_checkentry,
 		.destroy	= set_target_v3_destroy,
 		.me		= THIS_MODULE
@@ -682,6 +692,7 @@ static struct xt_target set_targets[] __read_mostly = {
 		.family		= NFPROTO_IPV6,
 		.target		= set_target_v3,
 		.targetsize	= sizeof(struct xt_set_info_target_v3),
+		.check_hooks	= set_target_v3_check_hooks,
 		.checkentry	= set_target_v3_checkentry,
 		.destroy	= set_target_v3_destroy,
 		.me		= THIS_MODULE

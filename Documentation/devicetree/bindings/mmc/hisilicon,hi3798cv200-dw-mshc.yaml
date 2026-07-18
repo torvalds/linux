@@ -39,10 +39,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       DWMMC core on Hi3798MV2x SoCs has a delay-locked-loop(DLL) attached to card data input path.
-      It is integrated into CRG core on the SoC and has to be controlled during tuning.
+      It is integrated into CRG core on the SoC and has to be controlled during tuning
     items:
-      - description: A phandle pointed to the CRG syscon node
-      - description: Sample DLL register offset in CRG address space
+      - items:
+          - description: A phandle pointed to the CRG syscon node
+          - description: Sample DLL register offset in CRG address space
 
 required:
   - compatible

@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/property.h>

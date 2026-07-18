@@ -28,7 +28,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/jiffies.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
@@ -699,8 +698,8 @@ static const struct mlx_chip_info mlx90615_chip_info = {
 };
 
 static const struct i2c_device_id mlx90614_id[] = {
-	{ "mlx90614", .driver_data = (kernel_ulong_t)&mlx90614_chip_info },
-	{ "mlx90615", .driver_data = (kernel_ulong_t)&mlx90615_chip_info },
+	{ .name = "mlx90614", .driver_data = (kernel_ulong_t)&mlx90614_chip_info },
+	{ .name = "mlx90615", .driver_data = (kernel_ulong_t)&mlx90615_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mlx90614_id);

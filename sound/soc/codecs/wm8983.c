@@ -1060,7 +1060,7 @@ static int wm8983_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id wm8983_i2c_id[] = {
-	{ "wm8983" },
+	{ .name = "wm8983" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm8983_i2c_id);

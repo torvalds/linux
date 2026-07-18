@@ -6,8 +6,8 @@
 #define SELFTEST_KVM_PMU_H
 
 #include <stdbool.h>
-#include <stdint.h>
 
+#include <linux/types.h>
 #include <linux/bits.h>
 
 #define KVM_PMU_EVENT_FILTER_MAX_EVENTS			300
@@ -104,14 +104,15 @@ enum amd_pmu_zen_events {
 	NR_AMD_ZEN_EVENTS,
 };
 
-extern const uint64_t intel_pmu_arch_events[];
-extern const uint64_t amd_pmu_zen_events[];
+extern const u64 intel_pmu_arch_events[];
+extern const u64 amd_pmu_zen_events[];
 
 enum pmu_errata {
 	INSTRUCTIONS_RETIRED_OVERCOUNT,
 	BRANCHES_RETIRED_OVERCOUNT,
 };
-extern uint64_t pmu_errata_mask;
+
+extern u64 pmu_errata_mask;
 
 void kvm_init_pmu_errata(void);
 

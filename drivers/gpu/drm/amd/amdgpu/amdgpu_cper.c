@@ -153,7 +153,7 @@ int amdgpu_cper_entry_fill_fatal_section(struct amdgpu_device *adev,
 		   FATAL_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	amdgpu_cper_entry_fill_section_desc(adev, section_desc, false, false,
-					    CPER_SEV_FATAL, CRASHDUMP, FATAL_SEC_LEN,
+					    CPER_SEV_FATAL_UNCORRECTED, CRASHDUMP, FATAL_SEC_LEN,
 					    FATAL_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	section->body.reg_ctx_type = CPER_CTX_TYPE_CRASH;
@@ -215,7 +215,7 @@ int amdgpu_cper_entry_fill_bad_page_threshold_section(struct amdgpu_device *adev
 		   NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	amdgpu_cper_entry_fill_section_desc(adev, section_desc, true, false,
-					    CPER_SEV_FATAL, RUNTIME, NONSTD_SEC_LEN,
+					    CPER_SEV_FATAL_UNCORRECTED, RUNTIME, NONSTD_SEC_LEN,
 					    NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	section->hdr.valid_bits.err_info_cnt = 1;
@@ -289,40 +289,6 @@ struct cper_hdr *amdgpu_cper_alloc_entry(struct amdgpu_device *adev,
 	return hdr;
 }
 
-int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
-				   struct aca_bank *bank)
-{
-	struct cper_hdr *fatal = NULL;
-	struct cper_sec_crashdump_reg_data reg_data = { 0 };
-	struct amdgpu_ring *ring = &adev->cper.ring_buf;
-	int ret;
-
-	fatal = amdgpu_cper_alloc_entry(adev, AMDGPU_CPER_TYPE_FATAL, 1);
-	if (!fatal) {
-		dev_err(adev->dev, "fail to alloc cper entry for ue record\n");
-		return -ENOMEM;
-	}
-
-	reg_data.status_lo = lower_32_bits(bank->regs[ACA_REG_IDX_STATUS]);
-	reg_data.status_hi = upper_32_bits(bank->regs[ACA_REG_IDX_STATUS]);
-	reg_data.addr_lo   = lower_32_bits(bank->regs[ACA_REG_IDX_ADDR]);
-	reg_data.addr_hi   = upper_32_bits(bank->regs[ACA_REG_IDX_ADDR]);
-	reg_data.ipid_lo   = lower_32_bits(bank->regs[ACA_REG_IDX_IPID]);
-	reg_data.ipid_hi   = upper_32_bits(bank->regs[ACA_REG_IDX_IPID]);
-	reg_data.synd_lo   = lower_32_bits(bank->regs[ACA_REG_IDX_SYND]);
-	reg_data.synd_hi   = upper_32_bits(bank->regs[ACA_REG_IDX_SYND]);
-
-	amdgpu_cper_entry_fill_hdr(adev, fatal, AMDGPU_CPER_TYPE_FATAL, CPER_SEV_FATAL);
-	ret = amdgpu_cper_entry_fill_fatal_section(adev, fatal, 0, reg_data);
-	if (ret)
-		return ret;
-
-	amdgpu_cper_ring_write(ring, fatal, fatal->record_length);
-	kfree(fatal);
-
-	return 0;
-}
-
 int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev)
 {
 	struct cper_hdr *bp_threshold = NULL;
@@ -337,90 +303,13 @@ int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev)
 
 	amdgpu_cper_entry_fill_hdr(adev, bp_threshold,
 				   AMDGPU_CPER_TYPE_BP_THRESHOLD,
-				   CPER_SEV_FATAL);
+				   CPER_SEV_FATAL_UNCORRECTED);
 	ret = amdgpu_cper_entry_fill_bad_page_threshold_section(adev, bp_threshold, 0);
 	if (ret)
 		return ret;
 
 	amdgpu_cper_ring_write(ring, bp_threshold, bp_threshold->record_length);
 	kfree(bp_threshold);
-
-	return 0;
-}
-
-static enum cper_error_severity amdgpu_aca_err_type_to_cper_sev(struct amdgpu_device *adev,
-								enum aca_error_type aca_err_type)
-{
-	switch (aca_err_type) {
-	case ACA_ERROR_TYPE_UE:
-		return CPER_SEV_FATAL;
-	case ACA_ERROR_TYPE_CE:
-		return CPER_SEV_NON_FATAL_CORRECTED;
-	case ACA_ERROR_TYPE_DEFERRED:
-		return CPER_SEV_NON_FATAL_UNCORRECTED;
-	default:
-		dev_err(adev->dev, "Unknown ACA error type!\n");
-		return CPER_SEV_FATAL;
-	}
-}
-
-int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
-				    struct aca_banks *banks,
-				    uint16_t bank_count)
-{
-	struct cper_hdr *corrected = NULL;
-	enum cper_error_severity sev = CPER_SEV_NON_FATAL_CORRECTED;
-	struct amdgpu_ring *ring = &adev->cper.ring_buf;
-	uint32_t reg_data[CPER_ACA_REG_COUNT] = { 0 };
-	struct aca_bank_node *node;
-	struct aca_bank *bank;
-	uint32_t i = 0;
-	int ret;
-
-	corrected = amdgpu_cper_alloc_entry(adev, AMDGPU_CPER_TYPE_RUNTIME, bank_count);
-	if (!corrected) {
-		dev_err(adev->dev, "fail to allocate cper entry for ce records\n");
-		return -ENOMEM;
-	}
-
-	/* Raise severity if any DE is detected in the ACA bank list */
-	list_for_each_entry(node, &banks->list, node) {
-		bank = &node->bank;
-		if (bank->aca_err_type == ACA_ERROR_TYPE_DEFERRED) {
-			sev = CPER_SEV_NON_FATAL_UNCORRECTED;
-			break;
-		}
-	}
-
-	amdgpu_cper_entry_fill_hdr(adev, corrected, AMDGPU_CPER_TYPE_RUNTIME, sev);
-
-	/* Combine CE and DE in cper record */
-	list_for_each_entry(node, &banks->list, node) {
-		bank = &node->bank;
-		reg_data[CPER_ACA_REG_CTL_LO]    = lower_32_bits(bank->regs[ACA_REG_IDX_CTL]);
-		reg_data[CPER_ACA_REG_CTL_HI]    = upper_32_bits(bank->regs[ACA_REG_IDX_CTL]);
-		reg_data[CPER_ACA_REG_STATUS_LO] = lower_32_bits(bank->regs[ACA_REG_IDX_STATUS]);
-		reg_data[CPER_ACA_REG_STATUS_HI] = upper_32_bits(bank->regs[ACA_REG_IDX_STATUS]);
-		reg_data[CPER_ACA_REG_ADDR_LO]   = lower_32_bits(bank->regs[ACA_REG_IDX_ADDR]);
-		reg_data[CPER_ACA_REG_ADDR_HI]   = upper_32_bits(bank->regs[ACA_REG_IDX_ADDR]);
-		reg_data[CPER_ACA_REG_MISC0_LO]  = lower_32_bits(bank->regs[ACA_REG_IDX_MISC0]);
-		reg_data[CPER_ACA_REG_MISC0_HI]  = upper_32_bits(bank->regs[ACA_REG_IDX_MISC0]);
-		reg_data[CPER_ACA_REG_CONFIG_LO] = lower_32_bits(bank->regs[ACA_REG_IDX_CONFIG]);
-		reg_data[CPER_ACA_REG_CONFIG_HI] = upper_32_bits(bank->regs[ACA_REG_IDX_CONFIG]);
-		reg_data[CPER_ACA_REG_IPID_LO]   = lower_32_bits(bank->regs[ACA_REG_IDX_IPID]);
-		reg_data[CPER_ACA_REG_IPID_HI]   = upper_32_bits(bank->regs[ACA_REG_IDX_IPID]);
-		reg_data[CPER_ACA_REG_SYND_LO]   = lower_32_bits(bank->regs[ACA_REG_IDX_SYND]);
-		reg_data[CPER_ACA_REG_SYND_HI]   = upper_32_bits(bank->regs[ACA_REG_IDX_SYND]);
-
-		ret = amdgpu_cper_entry_fill_runtime_section(adev, corrected, i++,
-				amdgpu_aca_err_type_to_cper_sev(adev, bank->aca_err_type),
-				reg_data, CPER_ACA_REG_COUNT);
-		if (ret)
-			return ret;
-	}
-
-	amdgpu_cper_ring_write(ring, corrected, corrected->record_length);
-	kfree(corrected);
 
 	return 0;
 }
@@ -484,7 +373,7 @@ calc:
 
 void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 {
-	u64 pos, wptr_old, rptr;
+	u64 pos, wptr_old, rptr, next_rptr;
 	int rec_cnt_dw = count >> 2;
 	u32 chunk, ent_sz;
 	u8 *s = (u8 *)src;
@@ -525,9 +414,19 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 
 		do {
 			ent_sz = amdgpu_cper_ring_get_ent_sz(ring, pos);
+			next_rptr = rptr;
+			if (ent_sz >= sizeof(u32))
+				next_rptr = (rptr + (ent_sz >> 2)) & ring->ptr_mask;
 
-			rptr += (ent_sz >> 2);
-			rptr &= ring->ptr_mask;
+			if (next_rptr == rptr) {
+				/* Corrupt entry size, reset the ring to avoid an infinite loop. */
+				rptr = ring->wptr;
+				*ring->rptr_cpu_addr = rptr;
+				ring->count_dw = (ring->ring_size - 4) >> 2;
+				goto out_unlock;
+			}
+
+			rptr = next_rptr;
 			*ring->rptr_cpu_addr = rptr;
 
 			pos = rptr;
@@ -536,6 +435,8 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring, void *src, int count)
 
 	if (ring->count_dw >= rec_cnt_dw)
 		ring->count_dw -= rec_cnt_dw;
+
+out_unlock:
 	mutex_unlock(&ring->adev->cper.ring_lock);
 }
 
@@ -580,8 +481,7 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_ras_cper_en(adev))
 		return 0;
-	else if (!amdgpu_sriov_vf(adev) && !amdgpu_uniras_enabled(adev) &&
-		!amdgpu_aca_is_enabled(adev))
+	else if (!amdgpu_sriov_vf(adev) && !amdgpu_uniras_enabled(adev))
 		return 0;
 
 	r = amdgpu_cper_ring_init(adev);
@@ -598,9 +498,28 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+int amdgpu_cper_deferred_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	if (adev->cper.enabled)
+		return 0;
+
+	r = amdgpu_cper_init(adev);
+	if (r || !adev->cper.enabled)
+		return r;
+
+#if defined(CONFIG_DEBUG_FS)
+	if (adev_to_drm(adev)->primary->debugfs_root)
+		amdgpu_debugfs_ring_init(adev, &adev->cper.ring_buf);
+#endif
+
+	return 0;
+}
+
 int amdgpu_cper_fini(struct amdgpu_device *adev)
 {
-	if (!amdgpu_aca_is_enabled(adev) && !amdgpu_sriov_ras_cper_en(adev))
+	if (amdgpu_sriov_vf(adev))
 		return 0;
 
 	adev->cper.enabled = false;

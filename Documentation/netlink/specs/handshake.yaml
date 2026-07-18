@@ -13,6 +13,12 @@ doc: Netlink protocol to request a transport layer security handshake.
 
 definitions:
   -
+    type: const
+    name: max-errno
+    value: 4095
+    header: linux/err.h
+    scope: kernel
+  -
     type: enum
     name: handler-class
     value-start: 0
@@ -80,6 +86,8 @@ attribute-sets:
       -
         name: status
         type: u32
+        checks:
+          max: max-errno
       -
         name: sockfd
         type: s32
@@ -117,6 +125,7 @@ operations:
       name: done
       doc: Handler reports handshake completion
       attribute-set: done
+      flags: [admin-perm]
       do:
         request:
           attributes:

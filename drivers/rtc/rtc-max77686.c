@@ -866,11 +866,11 @@ static SIMPLE_DEV_PM_OPS(max77686_rtc_pm_ops,
 			 max77686_rtc_suspend, max77686_rtc_resume);
 
 static const struct platform_device_id rtc_id[] = {
-	{ "max77686-rtc", .driver_data = (kernel_ulong_t)&max77686_drv_data, },
-	{ "max77802-rtc", .driver_data = (kernel_ulong_t)&max77802_drv_data, },
-	{ "max77620-rtc", .driver_data = (kernel_ulong_t)&max77620_drv_data, },
-	{ "max77714-rtc", .driver_data = (kernel_ulong_t)&max77714_drv_data, },
-	{},
+	{ .name = "max77686-rtc", .driver_data = (kernel_ulong_t)&max77686_drv_data },
+	{ .name = "max77802-rtc", .driver_data = (kernel_ulong_t)&max77802_drv_data },
+	{ .name = "max77620-rtc", .driver_data = (kernel_ulong_t)&max77620_drv_data },
+	{ .name = "max77714-rtc", .driver_data = (kernel_ulong_t)&max77714_drv_data },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, rtc_id);
 

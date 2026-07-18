@@ -255,6 +255,9 @@ int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 int ath12k_mac_op_sta_set_txpwr(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta);
+void ath12k_mac_op_sta_set_4addr(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_sta *sta, bool enabled);
 void ath12k_mac_op_link_sta_rc_update(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_link_sta *link_sta,

@@ -197,12 +197,12 @@ examples:
         microchip,sensitivity-delta-sense = <16>;
         microchip,input-threshold = <21>, <18>, <46>, <46>, <46>, <21>;
 
-        linux,keycodes = <103>,	/* KEY_UP */
-                         <106>,	/* KEY_RIGHT */
-                         <108>,	/* KEY_DOWN */
-                         <105>,	/* KEY_LEFT */
-                         <109>,	/* KEY_PAGEDOWN */
-                         <104>;	/* KEY_PAGEUP */
+        linux,keycodes = <103>, /* KEY_UP */
+                         <106>, /* KEY_RIGHT */
+                         <108>, /* KEY_DOWN */
+                         <105>, /* KEY_LEFT */
+                         <109>, /* KEY_PAGEDOWN */
+                         <104>; /* KEY_PAGEUP */
 
         #address-cells = <1>;
         #size-cells = <0>;

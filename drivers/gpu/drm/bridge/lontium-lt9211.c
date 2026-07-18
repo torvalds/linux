@@ -455,7 +455,7 @@ static int lt9211_configure_tx(struct lt9211 *ctx, bool jeida,
 }
 
 static void lt9211_atomic_enable(struct drm_bridge *bridge,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	struct lt9211 *ctx = bridge_to_lt9211(bridge);
 	const struct drm_bridge_state *bridge_state;
@@ -552,7 +552,7 @@ static void lt9211_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void lt9211_atomic_disable(struct drm_bridge *bridge,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct lt9211 *ctx = bridge_to_lt9211(bridge);
 	int ret;
@@ -619,7 +619,7 @@ static const struct drm_bridge_funcs lt9211_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = lt9211_atomic_get_input_bus_fmts,
-	.atomic_reset		= drm_atomic_helper_bridge_reset,
+	.atomic_create_state		= drm_atomic_helper_bridge_create_state,
 };
 
 static int lt9211_parse_dt(struct lt9211 *ctx)

@@ -288,6 +288,7 @@ struct cpuset top_cpuset = {
 	.flags = BIT(CS_CPU_EXCLUSIVE) |
 		 BIT(CS_MEM_EXCLUSIVE) | BIT(CS_SCHED_LOAD_BALANCE),
 	.partition_root_state = PRS_ROOT,
+	.dl_bw_cpu = -1,
 };
 
 /**
@@ -431,7 +432,7 @@ static inline bool partition_is_populated(struct cpuset *cs,
 	 * nr_populated_domain_children may include populated
 	 * csets from descendants that are partitions.
 	 */
-	if (cs->css.cgroup->nr_populated_csets ||
+	if (cgroup_has_tasks(cs->css.cgroup) ||
 	    cs->attach_in_progress)
 		return true;
 
@@ -578,6 +579,8 @@ static struct cpuset *dup_or_alloc_cpuset(struct cpuset *cs)
 		     kzalloc_obj(*cs);
 	if (!trial)
 		return NULL;
+
+	trial->dl_bw_cpu = -1;
 
 	/* Setup cpumask pointer array */
 	cpumask_var_t *pmask[4] = {
@@ -1001,8 +1004,11 @@ void rebuild_sched_domains_locked(void)
 	* prevent the panic.
 	*/
 	for (i = 0; doms && i < ndoms; i++) {
-		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask)))
+		if (WARN_ON_ONCE(!cpumask_subset(doms[i], cpu_active_mask))) {
+			free_sched_domains(doms, ndoms);
+			kfree(attr);
 			return;
+		}
 	}
 
 	/* Have scheduler rebuild the domains */
@@ -1715,7 +1721,8 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		 */
 		if (is_partition_valid(parent))
 			adding = cpumask_and(tmp->addmask,
-					     xcpus, parent->effective_xcpus);
+					     cs->effective_xcpus,
+					     parent->effective_xcpus);
 		if (old_prs > 0)
 			new_prs = -old_prs;
 
@@ -1807,9 +1814,9 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 		 * Compute add/delete mask to/from effective_cpus
 		 *
 		 * For valid partition:
-		 *   addmask = exclusive_cpus & ~newmask
+		 *   addmask = effective_xcpus & ~newmask
 		 *			      & parent->effective_xcpus
-		 *   delmask = newmask & ~exclusive_cpus
+		 *   delmask = newmask & ~effective_xcpus
 		 *		       & parent->effective_xcpus
 		 *
 		 * For invalid partition:
@@ -1821,11 +1828,11 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			deleting = cpumask_and(tmp->delmask,
 					newmask, parent->effective_xcpus);
 		} else {
-			cpumask_andnot(tmp->addmask, xcpus, newmask);
+			cpumask_andnot(tmp->addmask, cs->effective_xcpus, newmask);
 			adding = cpumask_and(tmp->addmask, tmp->addmask,
 					     parent->effective_xcpus);
 
-			cpumask_andnot(tmp->delmask, newmask, xcpus);
+			cpumask_andnot(tmp->delmask, newmask, cs->effective_xcpus);
 			deleting = cpumask_and(tmp->delmask, tmp->delmask,
 					       parent->effective_xcpus);
 		}
@@ -1864,7 +1871,7 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			part_error = PERR_NOCPUS;
 			deleting = false;
 			adding = cpumask_and(tmp->addmask,
-					     xcpus, parent->effective_xcpus);
+					     cs->effective_xcpus, parent->effective_xcpus);
 		}
 	} else {
 		/*
@@ -1886,7 +1893,8 @@ static int update_parent_effective_cpumask(struct cpuset *cs, int cmd,
 			part_error = PERR_NOCPUS;
 			if (is_partition_valid(cs))
 				adding = cpumask_and(tmp->addmask,
-						xcpus, parent->effective_xcpus);
+						     cs->effective_xcpus,
+						     parent->effective_xcpus);
 		} else if (is_partition_invalid(cs) && !cpumask_empty(xcpus) &&
 			   cpumask_subset(xcpus, parent->effective_xcpus)) {
 			struct cgroup_subsys_state *css;
@@ -2980,6 +2988,7 @@ static void reset_migrate_dl_data(struct cpuset *cs)
 {
 	cs->nr_migrate_dl_tasks = 0;
 	cs->sum_migrate_dl_bw = 0;
+	cs->dl_bw_cpu = -1;
 }
 
 /* Called by cgroups to determine if a cpuset is usable; cpuset_mutex held */
@@ -2989,7 +2998,7 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 	struct cpuset *cs, *oldcs;
 	struct task_struct *task;
 	bool setsched_check;
-	int ret;
+	int cpu, ret;
 
 	/* used later by cpuset_attach() */
 	cpuset_attach_old_cs = task_cs(cgroup_taskset_first(tset, &css));
@@ -3034,29 +3043,31 @@ static int cpuset_can_attach(struct cgroup_taskset *tset)
 		}
 
 		if (dl_task(task)) {
+			/*
+			 * Count all migrating DL tasks for cpuset task accounting.
+			 * Only tasks that need a root-domain bandwidth move
+			 * contribute to sum_migrate_dl_bw.
+			 */
 			cs->nr_migrate_dl_tasks++;
-			cs->sum_migrate_dl_bw += task->dl.dl_bw;
+			if (dl_task_needs_bw_move(task, cs->effective_cpus))
+				cs->sum_migrate_dl_bw += task->dl.dl_bw;
 		}
 	}
 
-	if (!cs->nr_migrate_dl_tasks)
+	if (!cs->sum_migrate_dl_bw)
 		goto out_success;
 
-	if (!cpumask_intersects(oldcs->effective_cpus, cs->effective_cpus)) {
-		int cpu = cpumask_any_and(cpu_active_mask, cs->effective_cpus);
-
-		if (unlikely(cpu >= nr_cpu_ids)) {
-			reset_migrate_dl_data(cs);
-			ret = -EINVAL;
-			goto out_unlock;
-		}
-
-		ret = dl_bw_alloc(cpu, cs->sum_migrate_dl_bw);
-		if (ret) {
-			reset_migrate_dl_data(cs);
-			goto out_unlock;
-		}
+	cpu = cpumask_any_and(cpu_active_mask, cs->effective_cpus);
+	if (unlikely(cpu >= nr_cpu_ids)) {
+		ret = -EINVAL;
+		goto out_unlock;
 	}
+
+	ret = dl_bw_alloc(cpu, cs->sum_migrate_dl_bw);
+	if (ret)
+		goto out_unlock;
+
+	cs->dl_bw_cpu = cpu;
 
 out_success:
 	/*
@@ -3064,7 +3075,10 @@ out_success:
 	 * changes which zero cpus/mems_allowed.
 	 */
 	cs->attach_in_progress++;
+
 out_unlock:
+	if (ret)
+		reset_migrate_dl_data(cs);
 	mutex_unlock(&cpuset_mutex);
 	return ret;
 }
@@ -3080,12 +3094,11 @@ static void cpuset_cancel_attach(struct cgroup_taskset *tset)
 	mutex_lock(&cpuset_mutex);
 	dec_attach_in_progress_locked(cs);
 
-	if (cs->nr_migrate_dl_tasks) {
-		int cpu = cpumask_any(cs->effective_cpus);
+	if (cs->dl_bw_cpu >= 0)
+		dl_bw_free(cs->dl_bw_cpu, cs->sum_migrate_dl_bw);
 
-		dl_bw_free(cpu, cs->sum_migrate_dl_bw);
+	if (cs->nr_migrate_dl_tasks)
 		reset_migrate_dl_data(cs);
-	}
 
 	mutex_unlock(&cpuset_mutex);
 }
@@ -4171,11 +4184,11 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
  * current's mems_allowed, yes.  If it's not a __GFP_HARDWALL request and this
  * node is set in the nearest hardwalled cpuset ancestor to current's cpuset,
  * yes.  If current has access to memory reserves as an oom victim, yes.
- * Otherwise, no.
+ * If the current task is PF_EXITING, yes. Otherwise, no.
  *
  * GFP_USER allocations are marked with the __GFP_HARDWALL bit,
  * and do not allow allocations outside the current tasks cpuset
- * unless the task has been OOM killed.
+ * unless the task has been OOM killed or is exiting.
  * GFP_KERNEL allocations are not so marked, so can escape to the
  * nearest enclosing hardwalled ancestor cpuset.
  *
@@ -4189,7 +4202,9 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
  * The first call here from mm/page_alloc:get_page_from_freelist()
  * has __GFP_HARDWALL set in gfp_mask, enforcing hardwall cpusets,
  * so no allocation on a node outside the cpuset is allowed (unless
- * in interrupt, of course).
+ * in interrupt, of course).  The PF_EXITING check must therefore
+ * come before the __GFP_HARDWALL check, otherwise a dying task
+ * would be blocked on the fast path.
  *
  * The second pass through get_page_from_freelist() doesn't even call
  * here for GFP_ATOMIC calls.  For those calls, the __alloc_pages()
@@ -4199,6 +4214,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
  *	in_interrupt - any node ok (current task context irrelevant)
  *	GFP_ATOMIC   - any node ok
  *	tsk_is_oom_victim   - any node ok
+ *	PF_EXITING   - any node ok (let dying task exit quickly)
  *	GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
  *	GFP_USER     - only nodes in current tasks mems allowed ok.
  */
@@ -4218,10 +4234,12 @@ bool cpuset_current_node_allowed(int node, gfp_t gfp_mask)
 	 */
 	if (unlikely(tsk_is_oom_victim(current)))
 		return true;
+	if (current->flags & PF_EXITING) /* Let dying task have memory */
+		return true;
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
 		return false;
 
-	if (current->flags & PF_EXITING) /* Let dying task have memory */
+	if (cpuset_v2())
 		return true;
 
 	/* Not hardwall and node outside mems_allowed: scan up cpusets */

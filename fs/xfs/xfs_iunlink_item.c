@@ -40,7 +40,7 @@ static uint64_t
 xfs_iunlink_item_sort(
 	struct xfs_log_item	*lip)
 {
-	return IUL_ITEM(lip)->ip->i_ino;
+	return I_INO(IUL_ITEM(lip)->ip);
 }
 
 /*
@@ -59,7 +59,7 @@ xfs_iunlink_log_dinode(
 	int			offset;
 	int			error;
 
-	error = xfs_imap_to_bp(tp->t_mountp, tp, &ip->i_imap, &ibp);
+	error = xfs_read_icluster(iup->pag, tp, ip->i_imap.im_agbno, &ibp);
 	if (error)
 		return error;
 	/*

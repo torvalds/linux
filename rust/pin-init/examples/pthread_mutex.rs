@@ -3,8 +3,6 @@
 // inspired by <https://github.com/nbdd0121/pin-init/blob/trunk/examples/pthread_mutex.rs>
 #![allow(clippy::undocumented_unsafe_blocks)]
 #![cfg_attr(feature = "alloc", feature(allocator_api))]
-#![cfg_attr(USE_RUSTC_FEATURES, feature(lint_reasons))]
-#![cfg_attr(USE_RUSTC_FEATURES, feature(raw_ref_op))]
 
 #[cfg(not(windows))]
 mod pthread_mtx {
@@ -179,7 +177,7 @@ fn main() {
         for h in handles {
             h.join().expect("thread panicked");
         }
-        println!("{:?}", &*mtx.lock());
+        println!("{:?}", *mtx.lock());
         assert_eq!(*mtx.lock(), workload * thread_count * 2);
     }
 }

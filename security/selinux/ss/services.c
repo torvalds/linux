@@ -446,8 +446,6 @@ static int dump_masked_av_helper(void *k, void *d, void *args)
 	struct perm_datum *pdatum = d;
 	char **permission_names = args;
 
-	BUG_ON(pdatum->value < 1 || pdatum->value > 32);
-
 	permission_names[pdatum->value - 1] = (char *)k;
 
 	return 0;
@@ -463,10 +461,10 @@ static void security_dump_masked_av(struct policydb *policydb,
 	struct common_datum *common_dat;
 	struct class_datum *tclass_dat;
 	struct audit_buffer *ab;
-	char *tclass_name;
+	const char *tclass_name;
 	char *scontext_name = NULL;
 	char *tcontext_name = NULL;
-	char *permission_names[32];
+	char *permission_names[SEL_VEC_MAX];
 	int index;
 	u32 length;
 	bool need_comma = false;
@@ -507,7 +505,7 @@ static void security_dump_masked_av(struct policydb *policydb,
 			 "scontext=%s tcontext=%s tclass=%s perms=",
 			 reason, scontext_name, tcontext_name, tclass_name);
 
-	for (index = 0; index < 32; index++) {
+	for (index = 0; index < SEL_VEC_MAX; index++) {
 		u32 mask = (1 << index);
 
 		if ((mask & permissions) == 0)
@@ -717,6 +715,9 @@ static void context_struct_compute_av(struct policydb *policydb,
 	 * If the given source and target types have boundary
 	 * constraint, lazy checks have to mask any violated
 	 * permission and notice it to userspace via audit.
+	 *
+	 * Infinite recursion is avoided via a depth pre-check in
+	 * type_bounds_sanity_check().
 	 */
 	type_attribute_bounds_av(policydb, scontext, tcontext,
 				 tclass, avd);
@@ -2746,131 +2747,6 @@ out:
 	return rc;
 }
 
-#define SIDS_NEL 25
-
-/**
- * security_get_user_sids - Obtain reachable SIDs for a user.
- * @fromsid: starting SID
- * @username: username
- * @sids: array of reachable SIDs for user
- * @nel: number of elements in @sids
- *
- * Generate the set of SIDs for legal security contexts
- * for a given user that can be reached by @fromsid.
- * Set *@sids to point to a dynamically allocated
- * array containing the set of SIDs.  Set *@nel to the
- * number of elements in the array.
- */
-
-int security_get_user_sids(u32 fromsid,
-			   const char *username,
-			   u32 **sids,
-			   u32 *nel)
-{
-	struct selinux_policy *policy;
-	struct policydb *policydb;
-	struct sidtab *sidtab;
-	struct context *fromcon, usercon;
-	u32 *mysids = NULL, *mysids2, sid;
-	u32 i, j, mynel, maxnel = SIDS_NEL;
-	struct user_datum *user;
-	struct role_datum *role;
-	struct ebitmap_node *rnode, *tnode;
-	int rc;
-
-	*sids = NULL;
-	*nel = 0;
-
-	if (!selinux_initialized())
-		return 0;
-
-	mysids = kcalloc(maxnel, sizeof(*mysids), GFP_KERNEL);
-	if (!mysids)
-		return -ENOMEM;
-
-retry:
-	mynel = 0;
-	rcu_read_lock();
-	policy = rcu_dereference(selinux_state.policy);
-	policydb = &policy->policydb;
-	sidtab = policy->sidtab;
-
-	context_init(&usercon);
-
-	rc = -EINVAL;
-	fromcon = sidtab_search(sidtab, fromsid);
-	if (!fromcon)
-		goto out_unlock;
-
-	rc = -EINVAL;
-	user = symtab_search(&policydb->p_users, username);
-	if (!user)
-		goto out_unlock;
-
-	usercon.user = user->value;
-
-	ebitmap_for_each_positive_bit(&user->roles, rnode, i) {
-		role = policydb->role_val_to_struct[i];
-		usercon.role = i + 1;
-		ebitmap_for_each_positive_bit(&role->types, tnode, j) {
-			usercon.type = j + 1;
-
-			if (mls_setup_user_range(policydb, fromcon, user,
-						 &usercon))
-				continue;
-
-			rc = sidtab_context_to_sid(sidtab, &usercon, &sid);
-			if (rc == -ESTALE) {
-				rcu_read_unlock();
-				goto retry;
-			}
-			if (rc)
-				goto out_unlock;
-			if (mynel < maxnel) {
-				mysids[mynel++] = sid;
-			} else {
-				rc = -ENOMEM;
-				maxnel += SIDS_NEL;
-				mysids2 = kcalloc(maxnel, sizeof(*mysids2), GFP_ATOMIC);
-				if (!mysids2)
-					goto out_unlock;
-				memcpy(mysids2, mysids, mynel * sizeof(*mysids2));
-				kfree(mysids);
-				mysids = mysids2;
-				mysids[mynel++] = sid;
-			}
-		}
-	}
-	rc = 0;
-out_unlock:
-	rcu_read_unlock();
-	if (rc || !mynel) {
-		kfree(mysids);
-		return rc;
-	}
-
-	rc = -ENOMEM;
-	mysids2 = kcalloc(mynel, sizeof(*mysids2), GFP_KERNEL);
-	if (!mysids2) {
-		kfree(mysids);
-		return rc;
-	}
-	for (i = 0, j = 0; i < mynel; i++) {
-		struct av_decision dummy_avd;
-		rc = avc_has_perm_noaudit(fromsid, mysids[i],
-					  SECCLASS_PROCESS, /* kernel value */
-					  PROCESS__TRANSITION, AVC_STRICT,
-					  &dummy_avd);
-		if (!rc)
-			mysids2[j++] = mysids[i];
-		cond_resched();
-	}
-	kfree(mysids);
-	*sids = mysids2;
-	*nel = j;
-	return 0;
-}
-
 /**
  * __security_genfs_sid - Helper to obtain a SID for a file in a filesystem
  * @policy: policy
@@ -3413,7 +3289,7 @@ static int get_classes_callback(void *k, void *d, void *args)
 {
 	struct class_datum *datum = d;
 	char *name = k, **classes = args;
-	u32 value = datum->value - 1;
+	u16 value = datum->value - 1;
 
 	classes[value] = kstrdup(name, GFP_ATOMIC);
 	if (!classes[value])

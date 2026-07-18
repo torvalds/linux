@@ -48,11 +48,240 @@
 	(enc10->link_regs->index)
 
 
+static bool dcn30_link_encoder_validate_hdmi_frl_output(
+	const struct dcn10_link_encoder *enc10,
+	const struct dc_crtc_timing *crtc_timing)
+{
+	enum dc_color_depth max_deep_color =
+			enc10->base.features.max_hdmi_deep_color;
+
+	if (!enc10->base.features.flags.bits.IS_HDMI_FRL_CAPABLE)
+		return false;
+
+	if (max_deep_color < crtc_timing->display_color_depth)
+		return false;
+
+	if (crtc_timing->display_color_depth < COLOR_DEPTH_888)
+		return false;
+
+	/* TODO: check if hdmi_charclk is above ASIC cap (10 GBS for DCN3AG) */
+
+	return true;
+}
+
 bool dcn30_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
 	const struct dc_stream_state *stream)
 {
+	if (dc_is_hdmi_frl_signal(stream->signal)) {
+		struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+		return dcn30_link_encoder_validate_hdmi_frl_output(enc10, &stream->timing);
+	} else {
 		return dcn10_link_encoder_validate_output_with_stream(enc, stream);
+	}
+}
+
+//---------------------------------------------------
+// Task: Program EQ setting
+// Note:
+//      EQ setting can be dont during P2 state or P0 state
+//      If set in P0 state, The values are latched in a single
+//      cycle of txX_clk but will take maximum of 40 txX_clk symbols
+//      to be reflected on the output. During this period the
+//      analog serial lines might have a transitional behavior.
+//---------------------------------------------------
+void dpcs30_program_eq_setting(
+		struct link_encoder *enc,
+		uint8_t FFE_Level,
+		bool de_emphasis_only,
+		bool pre_shoot_only,
+		bool no_ffe,
+		const struct dc_hdmi_frl_link_settings *link_settings)
+{
+	(void)link_settings;
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	/* EQ setting for DP lane0 */
+	uint32_t eq_main;
+	uint32_t eq_pre;
+	uint32_t eq_post;
+
+	if (enc10->base.ctx->dc->debug.ignore_ffe)
+		return;
+
+	if (FFE_Level < 0x5)
+		enc10->base.txffe_state = FFE_Level;
+
+	if (FFE_Level == 0xEE) {
+		enc10->base.txffe_state++;
+		if (enc10->base.txffe_state > 3)
+			enc10->base.txffe_state = 0;
+	}
+
+	switch (enc10->base.txffe_state) {
+	case 0:
+		eq_main = 0x31;
+		if (de_emphasis_only)
+			eq_main = 0x36;
+		if (pre_shoot_only)
+			eq_main = 0x39;
+		eq_pre = 0x5;
+		eq_post = 0x8;
+		break;
+	case 1:
+		eq_main = 0x2F;
+		if (de_emphasis_only)
+			eq_main = 0x34;
+		if (pre_shoot_only)
+			eq_main = 0x39;
+		eq_pre = 0x5;
+		eq_post = 0xA;
+		break;
+	case 2:
+		eq_main = 0x2C;
+		if (de_emphasis_only)
+			eq_main = 0x31;
+		if (pre_shoot_only)
+			eq_main = 0x39;
+		eq_pre = 0x5;
+		eq_post = 0xD;
+		break;
+	case 3:
+		eq_main = 0x29;
+		if (de_emphasis_only)
+			eq_main = 0x2E;
+		if (pre_shoot_only)
+			eq_main = 0x39;
+		eq_pre = 0x5;
+		eq_post = 0x10;
+		break;
+	default:
+		return;
+	}
+
+	eq_pre = de_emphasis_only ? 0 : eq_pre;
+	eq_post = pre_shoot_only ? 0 : eq_post;
+
+	if (no_ffe) {
+		eq_pre = 0;
+		eq_post = 0;
+		eq_main = 0x3E;
+	}
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE0,
+			RDPCS_PHY_DP_TX0_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX0_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX0_EQ_POST, eq_post);
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE1,
+			RDPCS_PHY_DP_TX1_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX1_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX1_EQ_POST, eq_post);
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE2,
+			RDPCS_PHY_DP_TX2_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX2_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX2_EQ_POST, eq_post);
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE3,
+			RDPCS_PHY_DP_TX3_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX3_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX3_EQ_POST, eq_post);
+}
+
+void dpcs30_get_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	/* EQ setting for DP lane0 */
+	uint32_t eq_main;
+	uint32_t eq_pre;
+	uint32_t eq_post;
+
+	REG_GET_3(RDPCSTX_PHY_FUSE0,
+			RDPCS_PHY_DP_TX0_EQ_MAIN, &eq_main,
+			RDPCS_PHY_DP_TX0_EQ_PRE, &eq_pre,
+			RDPCS_PHY_DP_TX0_EQ_POST, &eq_post);
+
+	lane_settings->amplitude[0] = eq_main;
+	lane_settings->pre_emphasis[0] = eq_pre;
+	lane_settings->post_emphasis[0] = eq_post;
+
+	REG_GET_3(RDPCSTX_PHY_FUSE1,
+			RDPCS_PHY_DP_TX1_EQ_MAIN, &eq_main,
+			RDPCS_PHY_DP_TX1_EQ_PRE, &eq_pre,
+			RDPCS_PHY_DP_TX1_EQ_POST, &eq_post);
+
+	lane_settings->amplitude[1] = eq_main;
+	lane_settings->pre_emphasis[1] = eq_pre;
+	lane_settings->post_emphasis[1] = eq_post;
+
+	REG_GET_3(RDPCSTX_PHY_FUSE2,
+			RDPCS_PHY_DP_TX2_EQ_MAIN, &eq_main,
+			RDPCS_PHY_DP_TX2_EQ_PRE, &eq_pre,
+			RDPCS_PHY_DP_TX2_EQ_POST, &eq_post);
+
+	lane_settings->amplitude[2] = eq_main;
+	lane_settings->pre_emphasis[2] = eq_pre;
+	lane_settings->post_emphasis[2] = eq_post;
+
+	REG_GET_3(RDPCSTX_PHY_FUSE3,
+			RDPCS_PHY_DP_TX3_EQ_MAIN, &eq_main,
+			RDPCS_PHY_DP_TX3_EQ_PRE, &eq_pre,
+			RDPCS_PHY_DP_TX3_EQ_POST, &eq_post);
+
+	lane_settings->amplitude[3] = eq_main;
+	lane_settings->pre_emphasis[3] = eq_pre;
+	lane_settings->post_emphasis[3] = eq_post;
+
+}
+
+void dpcs30_set_txffe(
+		struct link_encoder *enc,
+		struct frl_txffe *lane_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	/* EQ setting for DP lane0 */
+	uint32_t eq_main;
+	uint32_t eq_pre;
+	uint32_t eq_post;
+
+	eq_main = lane_settings->amplitude[0];
+	eq_pre = lane_settings->pre_emphasis[0];
+	eq_post = lane_settings->post_emphasis[0];
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE0,
+			RDPCS_PHY_DP_TX0_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX0_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX0_EQ_POST, eq_post);
+
+	eq_main = lane_settings->amplitude[1];
+	eq_pre = lane_settings->pre_emphasis[1];
+	eq_post = lane_settings->post_emphasis[1];
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE1,
+			RDPCS_PHY_DP_TX1_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX1_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX1_EQ_POST, eq_post);
+
+	eq_main = lane_settings->amplitude[2];
+	eq_pre = lane_settings->pre_emphasis[2];
+	eq_post = lane_settings->post_emphasis[2];
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE2,
+			RDPCS_PHY_DP_TX2_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX2_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX2_EQ_POST, eq_post);
+
+	eq_main = lane_settings->amplitude[3];
+	eq_pre = lane_settings->pre_emphasis[3];
+	eq_post = lane_settings->post_emphasis[3];
+
+	REG_UPDATE_3(RDPCSTX_PHY_FUSE3,
+			RDPCS_PHY_DP_TX3_EQ_MAIN, eq_main,
+			RDPCS_PHY_DP_TX3_EQ_PRE, eq_pre,
+			RDPCS_PHY_DP_TX3_EQ_POST, eq_post);
 }
 
 static const struct link_encoder_funcs dcn30_link_enc_funcs = {
@@ -84,6 +313,15 @@ static const struct link_encoder_funcs dcn30_link_enc_funcs = {
 	.get_dig_mode = dcn10_get_dig_mode,
 	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
+	.dpcstx_set_order_invert_18_bit = NULL,
+	.set_phy_source = NULL,
+	.dpcs_initialize_phy = NULL,
+	.dpcs_configure_phypll = NULL,
+	.dpcs_configure_dpcs = NULL,
+	.dpcs_enable_dpcs = NULL,
+	.prog_eq_setting = dpcs30_program_eq_setting,
+	.get_txffe = dpcs30_get_txffe,
+	.set_txffe = dpcs30_set_txffe,
 	.get_hpd_state = dcn10_get_hpd_state,
 	.program_hpd_filter = dcn10_program_hpd_filter,
 };
@@ -198,6 +436,12 @@ void dcn30_link_encoder_construct(
 		enc10->base.features.flags.bits.IS_UHBR20_CAPABLE = bp_cap_info.DP_UHBR20_EN;
 		enc10->base.features.flags.bits.DP_IS_USB_C =
 				bp_cap_info.DP_IS_USB_C;
+
+		enc10->base.features.flags.bits.IS_HDMI_FRL_CAPABLE = bp_cap_info.IS_HDMI_FRL_CAPABLE;
+		enc10->base.features.flags.bits.IS_FRL_8G_CAPABLE = bp_cap_info.FRL_8G_EN;
+		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = bp_cap_info.FRL_10G_EN;
+		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = bp_cap_info.FRL_12G_EN;
+		enc10->base.txffe_state = 0;
 	} else {
 		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
@@ -205,6 +449,12 @@ void dcn30_link_encoder_construct(
 	}
 	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
+	}
+	if (enc10->base.ctx->dc->config.force_hdmi21_frl_enc_enable) {
+		enc10->base.features.flags.bits.IS_HDMI_FRL_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_8G_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_10G_CAPABLE = 1;
+		enc10->base.features.flags.bits.IS_FRL_12G_CAPABLE = 1;
 	}
 }
 

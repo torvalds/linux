@@ -262,7 +262,7 @@ static inline bool is_kmap_addr(const void *x)
  * @__addr:       Virtual address to be unmapped
  *
  * Unmaps an address previously mapped by kmap_atomic() and re-enables
- * pagefaults. Depending on PREEMP_RT configuration, re-enables also
+ * pagefaults. Depending on PREEMPT_RT configuration, re-enables also
  * migration and preemption. Users should not count on these side effects.
  *
  * Mappings should be unmapped in the reverse order that they were mapped.

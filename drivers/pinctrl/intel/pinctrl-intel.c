@@ -1556,13 +1556,13 @@ static int intel_pinctrl_probe_pwm(struct intel_pinctrl *pctrl,
 				   struct intel_community *community,
 				   unsigned short capability_offset)
 {
-	void __iomem *base = community->regs + capability_offset + 4;
 	static const struct pwm_lpss_boardinfo info = {
 		.clk_rate = 19200000,
 		.npwm = 1,
 		.base_unit_bits = 22,
 	};
 	struct pwm_chip *chip;
+	void __iomem *base;
 
 	if (!(community->features & PINCTRL_FEATURE_PWM))
 		return 0;
@@ -1570,6 +1570,7 @@ static int intel_pinctrl_probe_pwm(struct intel_pinctrl *pctrl,
 	if (!IS_REACHABLE(CONFIG_PWM_LPSS))
 		return 0;
 
+	base = community->regs + capability_offset + 4;
 	chip = devm_pwm_lpss_probe(pctrl->dev, base, &info);
 	return PTR_ERR_OR_ZERO(chip);
 }

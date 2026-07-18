@@ -3765,11 +3765,11 @@ cleanup:
 }
 
 static int mlx5_fs_mode_validate(struct devlink *devlink, u32 id,
-				 union devlink_param_value val,
+				 union devlink_param_value *val,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
-	char *value = val.vstr;
+	char *value = val->vstr;
 	u8 eswitch_mode;
 
 	eswitch_mode = mlx5_eswitch_mode(dev);

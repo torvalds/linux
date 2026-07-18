@@ -800,7 +800,6 @@ static struct omap_des_algs_info omap_des_algs_info_ecb_cbc[] = {
 	},
 };
 
-#ifdef CONFIG_OF
 static const struct omap_des_pdata omap_des_pdata_omap4 = {
 	.algs_info	= omap_des_algs_info_ecb_cbc,
 	.algs_info_size	= ARRAY_SIZE(omap_des_algs_info_ecb_cbc),
@@ -909,6 +908,7 @@ static const struct of_device_id omap_des_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, omap_des_of_match);
 
+#ifdef CONFIG_OF
 static int omap_des_get_of(struct omap_des_dev *dd,
 		struct platform_device *pdev)
 {
@@ -923,7 +923,7 @@ static int omap_des_get_of(struct omap_des_dev *dd,
 }
 #else
 static int omap_des_get_of(struct omap_des_dev *dd,
-		struct device *dev)
+		struct platform_device *pdev)
 {
 	return -EINVAL;
 }
@@ -936,6 +936,20 @@ static int omap_des_get_pdev(struct omap_des_dev *dd,
 	dd->pdata = pdev->dev.platform_data;
 
 	return 0;
+}
+
+static void omap_des_unregister_algs(const struct omap_des_pdata *pdata)
+{
+	struct omap_des_algs_info *alg_info;
+	int i;
+
+	for (i = pdata->algs_info_size - 1; i >= 0; i--) {
+		alg_info = &pdata->algs_info[i];
+
+		crypto_engine_unregister_skciphers(alg_info->algs_list,
+						   alg_info->registered);
+		alg_info->registered = 0;
+	}
 }
 
 static int omap_des_probe(struct platform_device *pdev)
@@ -1043,11 +1057,7 @@ static int omap_des_probe(struct platform_device *pdev)
 	return 0;
 
 err_algs:
-	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
-		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_engine_unregister_skcipher(
-					&dd->pdata->algs_info[i].algs_list[j]);
-
+	omap_des_unregister_algs(dd->pdata);
 err_engine:
 	if (dd->engine)
 		crypto_engine_exit(dd->engine);
@@ -1067,16 +1077,12 @@ err_data:
 static void omap_des_remove(struct platform_device *pdev)
 {
 	struct omap_des_dev *dd = platform_get_drvdata(pdev);
-	int i, j;
 
 	spin_lock_bh(&list_lock);
 	list_del(&dd->list);
 	spin_unlock_bh(&list_lock);
 
-	for (i = dd->pdata->algs_info_size - 1; i >= 0; i--)
-		for (j = dd->pdata->algs_info[i].registered - 1; j >= 0; j--)
-			crypto_engine_unregister_skcipher(
-					&dd->pdata->algs_info[i].algs_list[j]);
+	omap_des_unregister_algs(dd->pdata);
 
 	cancel_work_sync(&dd->done_task);
 	omap_des_dma_cleanup(dd);
@@ -1111,7 +1117,7 @@ static struct platform_driver omap_des_driver = {
 	.driver	= {
 		.name	= "omap-des",
 		.pm	= &omap_des_pm_ops,
-		.of_match_table	= of_match_ptr(omap_des_of_match),
+		.of_match_table	= omap_des_of_match,
 	},
 };
 

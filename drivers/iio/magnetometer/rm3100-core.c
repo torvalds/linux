@@ -204,27 +204,23 @@ static int rm3100_read_mag(struct rm3100_data *data, int idx, int *val)
 	u8 buffer[3];
 	int ret;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
+
 	ret = regmap_write(regmap, RM3100_REG_POLL, BIT(4 + idx));
 	if (ret < 0)
-		goto unlock_return;
+		return ret;
 
 	ret = rm3100_wait_measurement(data);
 	if (ret < 0)
-		goto unlock_return;
+		return ret;
 
 	ret = regmap_bulk_read(regmap, RM3100_REG_MX2 + 3 * idx, buffer, 3);
 	if (ret < 0)
-		goto unlock_return;
-	mutex_unlock(&data->lock);
+		return ret;
 
 	*val = sign_extend32(get_unaligned_be24(&buffer[0]), 23);
 
 	return IIO_VAL_INT;
-
-unlock_return:
-	mutex_unlock(&data->lock);
-	return ret;
 }
 
 #define RM3100_CHANNEL(axis, idx)					\
@@ -284,11 +280,12 @@ static int rm3100_get_samp_freq(struct rm3100_data *data, int *val, int *val2)
 	unsigned int tmp;
 	int ret;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
+
 	ret = regmap_read(data->regmap, RM3100_REG_TMRC, &tmp);
-	mutex_unlock(&data->lock);
 	if (ret < 0)
 		return ret;
+
 	*val = rm3100_samp_rates[tmp - RM3100_TMRC_OFFSET][0];
 	*val2 = rm3100_samp_rates[tmp - RM3100_TMRC_OFFSET][1];
 
@@ -338,56 +335,50 @@ static int rm3100_set_samp_freq(struct iio_dev *indio_dev, int val, int val2)
 	int ret;
 	int i;
 
-	mutex_lock(&data->lock);
+	guard(mutex)(&data->lock);
+
 	/* All cycle count registers use the same value. */
 	ret = regmap_read(regmap, RM3100_REG_CC_X, &cycle_count);
 	if (ret < 0)
-		goto unlock_return;
+		return ret;
 
 	for (i = 0; i < RM3100_SAMP_NUM; i++) {
 		if (val == rm3100_samp_rates[i][0] &&
 		    val2 == rm3100_samp_rates[i][1])
 			break;
 	}
-	if (i == RM3100_SAMP_NUM) {
-		ret = -EINVAL;
-		goto unlock_return;
-	}
+	if (i == RM3100_SAMP_NUM)
+		return -EINVAL;
 
 	ret = regmap_write(regmap, RM3100_REG_TMRC, i + RM3100_TMRC_OFFSET);
 	if (ret < 0)
-		goto unlock_return;
+		return ret;
 
 	/* Checking if cycle count registers need changing. */
 	if (val == 600 && cycle_count == 200) {
 		ret = rm3100_set_cycle_count(data, 100);
 		if (ret < 0)
-			goto unlock_return;
+			return ret;
 	} else if (val != 600 && cycle_count == 100) {
 		ret = rm3100_set_cycle_count(data, 200);
 		if (ret < 0)
-			goto unlock_return;
+			return ret;
 	}
 
 	if (iio_buffer_enabled(indio_dev)) {
 		/* Writing TMRC registers requires CMM reset. */
 		ret = regmap_write(regmap, RM3100_REG_CMM, 0);
 		if (ret < 0)
-			goto unlock_return;
+			return ret;
 		ret = regmap_write(data->regmap, RM3100_REG_CMM,
 			(*indio_dev->active_scan_mask & 0x7) <<
 			RM3100_CMM_AXIS_SHIFT | RM3100_CMM_START);
 		if (ret < 0)
-			goto unlock_return;
+			return ret;
 	}
-	mutex_unlock(&data->lock);
 
 	data->conversion_time = rm3100_samp_rates[i][2] * 2;
 	return 0;
-
-unlock_return:
-	mutex_unlock(&data->lock);
-	return ret;
 }
 
 static int rm3100_read_raw(struct iio_dev *indio_dev,
@@ -458,6 +449,27 @@ static const struct iio_buffer_setup_ops rm3100_buffer_ops = {
 	.postdisable = rm3100_buffer_postdisable,
 };
 
+/**
+ * rm3100_regmap_bulk_read_locked() - Wrapper around regmap_bulk_read() with a mutex
+ *
+ * @data: Data structure containing regmap and mutex
+ * @reg: First register to be read from, passed to regmap_bulk_read()
+ * @val: Pointer to store read value, in native register size for device,
+ * passed to regmap_bulk_read()
+ * @val_count: Number of registers to read, passed to regmap_bulk_read()
+ *
+ * Intended for use only in rm3100_trigger_handler().
+ *
+ * Return:
+ * A value of zero on success, a negative errno in error cases.
+ */
+static int rm3100_regmap_bulk_read_locked(struct rm3100_data *data, unsigned int reg,
+					  void *val, size_t val_count)
+{
+	guard(mutex)(&data->lock);
+	return regmap_bulk_read(data->regmap, reg, val, val_count);
+}
+
 static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
@@ -465,14 +477,12 @@ static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 	unsigned long scan_mask = *indio_dev->active_scan_mask;
 	unsigned int mask_len = iio_get_masklength(indio_dev);
 	struct rm3100_data *data = iio_priv(indio_dev);
-	struct regmap *regmap = data->regmap;
 	int ret, i, bit;
 
-	mutex_lock(&data->lock);
 	switch (scan_mask) {
 	case BIT(0) | BIT(1) | BIT(2):
-		ret = regmap_bulk_read(regmap, RM3100_REG_MX2, data->buffer, 9);
-		mutex_unlock(&data->lock);
+		ret = rm3100_regmap_bulk_read_locked(data, RM3100_REG_MX2,
+						     data->buffer, 9);
 		if (ret < 0)
 			goto done;
 		/* Convert XXXYYYZZZxxx to XXXxYYYxZZZx. x for paddings. */
@@ -480,36 +490,34 @@ static irqreturn_t rm3100_trigger_handler(int irq, void *p)
 			memmove(data->buffer + i * 4, data->buffer + i * 3, 3);
 		break;
 	case BIT(0) | BIT(1):
-		ret = regmap_bulk_read(regmap, RM3100_REG_MX2, data->buffer, 6);
-		mutex_unlock(&data->lock);
+		ret = rm3100_regmap_bulk_read_locked(data, RM3100_REG_MX2,
+						     data->buffer, 6);
 		if (ret < 0)
 			goto done;
 		memmove(data->buffer + 4, data->buffer + 3, 3);
 		break;
 	case BIT(1) | BIT(2):
-		ret = regmap_bulk_read(regmap, RM3100_REG_MY2, data->buffer, 6);
-		mutex_unlock(&data->lock);
+		ret = rm3100_regmap_bulk_read_locked(data, RM3100_REG_MY2,
+						     data->buffer, 6);
 		if (ret < 0)
 			goto done;
 		memmove(data->buffer + 4, data->buffer + 3, 3);
 		break;
 	case BIT(0) | BIT(2):
-		ret = regmap_bulk_read(regmap, RM3100_REG_MX2, data->buffer, 9);
-		mutex_unlock(&data->lock);
+		ret = rm3100_regmap_bulk_read_locked(data, RM3100_REG_MX2,
+						     data->buffer, 9);
 		if (ret < 0)
 			goto done;
 		memmove(data->buffer + 4, data->buffer + 6, 3);
 		break;
 	default:
 		for_each_set_bit(bit, &scan_mask, mask_len) {
-			ret = regmap_bulk_read(regmap, RM3100_REG_MX2 + 3 * bit,
-					       data->buffer, 3);
-			if (ret < 0) {
-				mutex_unlock(&data->lock);
+			ret = rm3100_regmap_bulk_read_locked(data,
+							     RM3100_REG_MX2 + 3 * bit,
+							     data->buffer, 3);
+			if (ret < 0)
 				goto done;
-			}
 		}
-		mutex_unlock(&data->lock);
 	}
 	/*
 	 * Always using the same buffer so that we wouldn't need to set the

@@ -10,7 +10,9 @@
 
 struct xe_device;
 struct xe_vram_region;
+struct ttm_resource;
 
+struct xe_vram_region *xe_map_resource_to_region(struct ttm_resource *res);
 int xe_vram_probe(struct xe_device *xe);
 
 struct xe_vram_region *xe_vram_region_alloc(struct xe_device *xe, u8 id, u32 placement);

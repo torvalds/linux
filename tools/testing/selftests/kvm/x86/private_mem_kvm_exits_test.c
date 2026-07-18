@@ -17,17 +17,17 @@
 #define EXITS_TEST_SIZE (EXITS_TEST_NPAGES * PAGE_SIZE)
 #define EXITS_TEST_SLOT 10
 
-static uint64_t guest_repeatedly_read(void)
+static u64 guest_repeatedly_read(void)
 {
-	volatile uint64_t value;
+	volatile u64 value;
 
 	while (true)
-		value = *((uint64_t *) EXITS_TEST_GVA);
+		value = *((u64 *)EXITS_TEST_GVA);
 
 	return value;
 }
 
-static uint32_t run_vcpu_get_exit_reason(struct kvm_vcpu *vcpu)
+static u32 run_vcpu_get_exit_reason(struct kvm_vcpu *vcpu)
 {
 	int r;
 
@@ -50,7 +50,7 @@ static void test_private_access_memslot_deleted(void)
 	struct kvm_vcpu *vcpu;
 	pthread_t vm_thread;
 	void *thread_return;
-	uint32_t exit_reason;
+	u32 exit_reason;
 
 	vm = vm_create_shape_with_one_vcpu(protected_vm_shape, &vcpu,
 					   guest_repeatedly_read);
@@ -72,7 +72,7 @@ static void test_private_access_memslot_deleted(void)
 	vm_mem_region_delete(vm, EXITS_TEST_SLOT);
 
 	pthread_join(vm_thread, &thread_return);
-	exit_reason = (uint32_t)(uint64_t)thread_return;
+	exit_reason = (u32)(u64)thread_return;
 
 	TEST_ASSERT_EQ(exit_reason, KVM_EXIT_MEMORY_FAULT);
 	TEST_ASSERT_EQ(vcpu->run->memory_fault.flags, KVM_MEMORY_EXIT_FLAG_PRIVATE);
@@ -86,7 +86,7 @@ static void test_private_access_memslot_not_private(void)
 {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
-	uint32_t exit_reason;
+	u32 exit_reason;
 
 	vm = vm_create_shape_with_one_vcpu(protected_vm_shape, &vcpu,
 					   guest_repeatedly_read);

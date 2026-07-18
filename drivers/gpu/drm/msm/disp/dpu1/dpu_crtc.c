@@ -899,7 +899,7 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 }
 
 static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
-		struct drm_atomic_state *state)
+		struct drm_atomic_commit *state)
 {
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct drm_encoder *encoder;
@@ -940,7 +940,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
-		struct drm_atomic_state *state)
+		struct drm_atomic_commit *state)
 {
 	struct dpu_crtc *dpu_crtc;
 	struct drm_device *dev;
@@ -1188,7 +1188,7 @@ static void dpu_crtc_atomic_print_state(struct drm_printer *p,
 }
 
 static void dpu_crtc_disable(struct drm_crtc *crtc,
-			     struct drm_atomic_state *state)
+			     struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);
@@ -1267,7 +1267,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_enable(struct drm_crtc *crtc,
-		struct drm_atomic_state *state)
+		struct drm_atomic_commit *state)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *encoder;
@@ -1324,7 +1324,7 @@ static bool dpu_crtc_needs_dirtyfb(struct drm_crtc_state *cstate)
 static int dpu_crtc_assign_planes(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state)
 {
 	int total_planes = crtc->dev->mode_config.num_total_plane;
-	struct drm_atomic_state *state = crtc_state->state;
+	struct drm_atomic_commit *state = crtc_state->state;
 	struct dpu_global_state *global_state;
 	struct drm_plane_state **states;
 	struct drm_plane *plane;
@@ -1520,7 +1520,7 @@ int dpu_crtc_check_mode_changed(struct drm_crtc_state *old_crtc_state,
 }
 
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
-		struct drm_atomic_state *state)
+		struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);

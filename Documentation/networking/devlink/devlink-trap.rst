@@ -516,9 +516,11 @@ Generic Packet Trap Groups
 
 Generic packet trap groups are used to aggregate logically related packet
 traps. These groups allow the user to batch operations such as setting the trap
-action of all member traps. In addition, ``devlink-trap`` can report aggregated
-per-group packets and bytes statistics, in case per-trap statistics are too
-narrow. The description of these groups must be added to the following table:
+action of all member drop traps whose action may legally change. Exception and
+control traps remain unchanged. In addition, ``devlink-trap`` can report
+aggregated per-group packets and bytes statistics, in case per-trap statistics
+are too narrow. The description of these groups must be added to the following
+table:
 
 .. list-table:: List of Generic Packet Trap Groups
    :widths: 10 90

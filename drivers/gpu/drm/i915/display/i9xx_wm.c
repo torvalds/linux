@@ -19,7 +19,7 @@
 #include "intel_display_utils.h"
 #include "intel_dram.h"
 #include "intel_fb.h"
-#include "intel_mchbar_regs.h"
+#include "intel_mchbar.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
 #include "vlv_sideband.h"
@@ -118,41 +118,41 @@ static void chv_set_memory_dvfs(struct intel_display *display, bool enable)
 	u32 val;
 	int ret;
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2);
+	val = vlv_punit_read(display, PUNIT_REG_DDR_SETUP2);
 	if (enable)
 		val &= ~FORCE_DDR_HIGH_FREQ;
 	else
 		val |= FORCE_DDR_HIGH_FREQ;
 	val &= ~FORCE_DDR_LOW_FREQ;
 	val |= FORCE_DDR_FREQ_REQ_ACK;
-	vlv_punit_write(display->drm, PUNIT_REG_DDR_SETUP2, val);
+	vlv_punit_write(display, PUNIT_REG_DDR_SETUP2, val);
 
-	ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2),
+	ret = poll_timeout_us(val = vlv_punit_read(display, PUNIT_REG_DDR_SETUP2),
 			      (val & FORCE_DDR_FREQ_REQ_ACK) == 0,
 			      500, 3000, false);
 	if (ret)
 		drm_err(display->drm,
 			"timed out waiting for Punit DDR DVFS request\n");
 
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 }
 
 static void chv_set_memory_pm5(struct intel_display *display, bool enable)
 {
 	u32 val;
 
-	vlv_punit_get(display->drm);
+	vlv_punit_get(display);
 
-	val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
+	val = vlv_punit_read(display, PUNIT_REG_DSPSSPM);
 	if (enable)
 		val |= DSP_MAXFIFO_PM5_ENABLE;
 	else
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
-	vlv_punit_write(display->drm, PUNIT_REG_DSPSSPM, val);
+	vlv_punit_write(display, PUNIT_REG_DSPSSPM, val);
 
-	vlv_punit_put(display->drm);
+	vlv_punit_put(display);
 }
 
 #define FW_WM(value, plane) \
@@ -640,7 +640,7 @@ static struct intel_crtc *single_enabled_crtc(struct intel_display *display)
 {
 	struct intel_crtc *crtc, *enabled = NULL;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		if (intel_crtc_active(crtc)) {
 			if (enabled)
 				return NULL;
@@ -1393,7 +1393,7 @@ static void g4x_merge_wm(struct intel_display *display,
 	wm->hpll_en = true;
 	wm->fbc_en = true;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct g4x_wm_state *wm_state = &crtc->wm.active.g4x;
 
 		if (!crtc->active)
@@ -1415,7 +1415,7 @@ static void g4x_merge_wm(struct intel_display *display,
 		wm->fbc_en = false;
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct g4x_wm_state *wm_state = &crtc->wm.active.g4x;
 		enum pipe pipe = crtc->pipe;
 
@@ -2034,7 +2034,7 @@ static void vlv_merge_wm(struct intel_display *display,
 	wm->level = display->wm.num_levels - 1;
 	wm->cxsr = true;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 
 		if (!crtc->active)
@@ -2053,7 +2053,7 @@ static void vlv_merge_wm(struct intel_display *display,
 	if (num_active_pipes > 1)
 		wm->level = VLV_WM_LEVEL_PM2;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct vlv_wm_state *wm_state = &crtc->wm.active.vlv;
 		enum pipe pipe = crtc->pipe;
 
@@ -2742,12 +2742,11 @@ static void ilk_compute_wm_level(struct intel_display *display,
 
 static void hsw_read_wm_latency(struct intel_display *display, u16 wm[])
 {
-	struct intel_uncore *uncore = to_intel_uncore(display->drm);
 	u64 sskpd;
 
 	display->wm.num_levels = 5;
 
-	sskpd = intel_uncore_read64(uncore, MCH_SSKPD);
+	sskpd = intel_mchbar_read64_2x32(display, MCH_SSKPD);
 
 	wm[0] = REG_FIELD_GET64(SSKPD_NEW_WM0_MASK_HSW, sskpd);
 	if (wm[0] == 0)
@@ -2760,12 +2759,11 @@ static void hsw_read_wm_latency(struct intel_display *display, u16 wm[])
 
 static void snb_read_wm_latency(struct intel_display *display, u16 wm[])
 {
-	struct intel_uncore *uncore = to_intel_uncore(display->drm);
 	u32 sskpd;
 
 	display->wm.num_levels = 4;
 
-	sskpd = intel_uncore_read(uncore, MCH_SSKPD);
+	sskpd = intel_mchbar_read(display, MCH_SSKPD);
 
 	wm[0] = REG_FIELD_GET(SSKPD_WM0_MASK_SNB, sskpd);
 	wm[1] = REG_FIELD_GET(SSKPD_WM1_MASK_SNB, sskpd);
@@ -2775,12 +2773,11 @@ static void snb_read_wm_latency(struct intel_display *display, u16 wm[])
 
 static void ilk_read_wm_latency(struct intel_display *display, u16 wm[])
 {
-	struct intel_uncore *uncore = to_intel_uncore(display->drm);
 	u32 mltr;
 
 	display->wm.num_levels = 3;
 
-	mltr = intel_uncore_read(uncore, MLTR_ILK);
+	mltr = intel_mchbar_read(display, MLTR_ILK);
 
 	/* ILK primary LP0 latency is 700 ns */
 	wm[0] = 7;
@@ -3081,7 +3078,7 @@ static void ilk_merge_wm_level(struct intel_display *display,
 
 	ret_wm->enable = true;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct intel_pipe_wm *active = &crtc->wm.active.ilk;
 		const struct intel_wm_level *wm = &active->wm[level];
 
@@ -3221,7 +3218,7 @@ static void ilk_compute_wm_results(struct intel_display *display,
 	}
 
 	/* LP0 register values */
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		enum pipe pipe = crtc->pipe;
 		const struct intel_pipe_wm *pipe_wm = &crtc->wm.active.ilk;
 		const struct intel_wm_level *r = &pipe_wm->wm[0];
@@ -3419,7 +3416,7 @@ static void ilk_compute_wm_config(struct intel_display *display,
 	struct intel_crtc *crtc;
 
 	/* Compute the currently _active_ config */
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		const struct intel_pipe_wm *wm = &crtc->wm.active.ilk;
 
 		if (!wm->pipe_enabled)
@@ -3534,12 +3531,13 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 	crtc->wm.active.ilk = *active;
 }
 
-static int ilk_sanitize_watermarks_add_affected(struct drm_atomic_state *state)
+static int ilk_sanitize_watermarks_add_affected(struct drm_atomic_commit *state)
 {
+	struct intel_display *display = to_intel_display(state->dev);
 	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 
-	for_each_intel_crtc(state->dev, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state;
 
 		crtc_state = intel_atomic_get_crtc_state(state, crtc);
@@ -3578,22 +3576,21 @@ static int ilk_sanitize_watermarks_add_affected(struct drm_atomic_state *state)
  */
 void ilk_wm_sanitize(struct intel_display *display)
 {
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct intel_atomic_state *intel_state;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
-	int i;
 
 	/* Only supported on platforms that use atomic watermark design */
-	if (!display->funcs.wm->optimize_watermarks)
+	if (!display->wm.funcs->optimize_watermarks)
 		return;
 
 	if (drm_WARN_ON(display->drm, DISPLAY_VER(display) >= 9))
 		return;
 
-	state = drm_atomic_state_alloc(display->drm);
+	state = drm_atomic_commit_alloc(display->drm);
 	if (drm_WARN_ON(display->drm, !state))
 		return;
 
@@ -3622,7 +3619,7 @@ retry:
 		goto fail;
 
 	/* Write calculated watermark values back */
-	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state, i) {
+	for_each_new_intel_crtc_in_state(intel_state, crtc, crtc_state) {
 		crtc_state->wm.need_postvbl_update = true;
 		intel_optimize_watermarks(intel_state, crtc);
 
@@ -3631,7 +3628,7 @@ retry:
 
 fail:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		drm_modeset_backoff(&ctx);
 		goto retry;
 	}
@@ -3650,7 +3647,7 @@ fail:
 	drm_WARN(display->drm, ret,
 		 "Could not determine valid watermarks for inherited state\n");
 
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -3772,7 +3769,7 @@ static void g4x_wm_get_hw_state(struct intel_display *display)
 
 	wm->cxsr = intel_de_read(display, FW_BLC_SELF) & FW_BLC_SELF_EN;
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct g4x_wm_state *active = &crtc->wm.active.g4x;
@@ -3887,7 +3884,7 @@ static void g4x_wm_sanitize(struct intel_display *display)
 		}
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		int ret;
@@ -3918,9 +3915,9 @@ static void vlv_wm_get_hw_state(struct intel_display *display)
 	wm->level = VLV_WM_LEVEL_PM2;
 
 	if (display->platform.cherryview) {
-		vlv_punit_get(display->drm);
+		vlv_punit_get(display);
 
-		val = vlv_punit_read(display->drm, PUNIT_REG_DSPSSPM);
+		val = vlv_punit_read(display, PUNIT_REG_DSPSSPM);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
 			wm->level = VLV_WM_LEVEL_PM5;
 
@@ -3933,11 +3930,11 @@ static void vlv_wm_get_hw_state(struct intel_display *display)
 		 * HIGH/LOW bits so that we don't actually change
 		 * the current state.
 		 */
-		val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2);
+		val = vlv_punit_read(display, PUNIT_REG_DDR_SETUP2);
 		val |= FORCE_DDR_FREQ_REQ_ACK;
-		vlv_punit_write(display->drm, PUNIT_REG_DDR_SETUP2, val);
+		vlv_punit_write(display, PUNIT_REG_DDR_SETUP2, val);
 
-		ret = poll_timeout_us(val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2),
+		ret = poll_timeout_us(val = vlv_punit_read(display, PUNIT_REG_DDR_SETUP2),
 				      (val & FORCE_DDR_FREQ_REQ_ACK) == 0,
 				      500, 3000, false);
 		if (ret) {
@@ -3946,15 +3943,15 @@ static void vlv_wm_get_hw_state(struct intel_display *display)
 				    "assuming DDR DVFS is disabled\n");
 			display->wm.num_levels = VLV_WM_LEVEL_PM5 + 1;
 		} else {
-			val = vlv_punit_read(display->drm, PUNIT_REG_DDR_SETUP2);
+			val = vlv_punit_read(display, PUNIT_REG_DDR_SETUP2);
 			if ((val & FORCE_DDR_HIGH_FREQ) == 0)
 				wm->level = VLV_WM_LEVEL_DDR_DVFS;
 		}
 
-		vlv_punit_put(display->drm);
+		vlv_punit_put(display);
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct vlv_wm_state *active = &crtc->wm.active.vlv;
@@ -4036,7 +4033,7 @@ static void vlv_wm_sanitize(struct intel_display *display)
 		}
 	}
 
-	for_each_intel_crtc(display->drm, crtc) {
+	for_each_intel_crtc(display, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		int ret;
@@ -4077,7 +4074,7 @@ static void ilk_wm_get_hw_state(struct intel_display *display)
 
 	ilk_init_lp_watermarks(display);
 
-	for_each_intel_crtc(display->drm, crtc)
+	for_each_intel_crtc(display, crtc)
 		ilk_pipe_wm_get_hw_state(crtc);
 
 	hw->wm_lp[0] = intel_de_read(display, WM1_LP_ILK);
@@ -4155,34 +4152,34 @@ void i9xx_wm_init(struct intel_display *display)
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(display)) {
 		ilk_setup_wm_latency(display);
-		display->funcs.wm = &ilk_wm_funcs;
+		display->wm.funcs = &ilk_wm_funcs;
 	} else if (display->platform.valleyview || display->platform.cherryview) {
 		vlv_setup_wm_latency(display);
-		display->funcs.wm = &vlv_wm_funcs;
+		display->wm.funcs = &vlv_wm_funcs;
 	} else if (display->platform.g4x) {
 		g4x_setup_wm_latency(display);
-		display->funcs.wm = &g4x_wm_funcs;
+		display->wm.funcs = &g4x_wm_funcs;
 	} else if (display->platform.pineview) {
 		if (!pnv_get_cxsr_latency(display)) {
 			drm_info(display->drm, "Unknown FSB/MEM, disabling CxSR\n");
 			/* Disable CxSR and never update its watermark again */
 			intel_set_memory_cxsr(display, false);
-			display->funcs.wm = &nop_funcs;
+			display->wm.funcs = &nop_funcs;
 		} else {
-			display->funcs.wm = &pnv_wm_funcs;
+			display->wm.funcs = &pnv_wm_funcs;
 		}
 	} else if (DISPLAY_VER(display) == 4) {
-		display->funcs.wm = &i965_wm_funcs;
+		display->wm.funcs = &i965_wm_funcs;
 	} else if (DISPLAY_VER(display) == 3) {
-		display->funcs.wm = &i9xx_wm_funcs;
+		display->wm.funcs = &i9xx_wm_funcs;
 	} else if (DISPLAY_VER(display) == 2) {
 		if (INTEL_NUM_PIPES(display) == 1)
-			display->funcs.wm = &i845_wm_funcs;
+			display->wm.funcs = &i845_wm_funcs;
 		else
-			display->funcs.wm = &i9xx_wm_funcs;
+			display->wm.funcs = &i9xx_wm_funcs;
 	} else {
 		drm_err(display->drm,
 			"unexpected fall-through in %s\n", __func__);
-		display->funcs.wm = &nop_funcs;
+		display->wm.funcs = &nop_funcs;
 	}
 }

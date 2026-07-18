@@ -134,26 +134,68 @@ EXPORT_SYMBOL(crypto_krb5_how_much_data);
  * Find the offset and size of the data in a secure message so that this
  * information can be used in the metadata buffer which will get added to the
  * digest by crypto_krb5_verify_mic().
+ *
+ * Return: 0 if successful, -EBADMSG if the message is too short or -EINVAL if
+ * the mode is unsupported.
  */
-void crypto_krb5_where_is_the_data(const struct krb5_enctype *krb5,
-				   enum krb5_crypto_mode mode,
-				   size_t *_offset, size_t *_len)
+int crypto_krb5_where_is_the_data(const struct krb5_enctype *krb5,
+				  enum krb5_crypto_mode mode,
+				  size_t *_offset, size_t *_len)
 {
 	switch (mode) {
 	case KRB5_CHECKSUM_MODE:
+		if (*_len < krb5->cksum_len)
+			return -EBADMSG;
 		*_offset += krb5->cksum_len;
 		*_len -= krb5->cksum_len;
-		return;
+		return 0;
 	case KRB5_ENCRYPT_MODE:
+		if (*_len < krb5->conf_len + krb5->cksum_len)
+			return -EBADMSG;
 		*_offset += krb5->conf_len;
 		*_len -= krb5->conf_len + krb5->cksum_len;
-		return;
+		return 0;
 	default:
 		WARN_ON_ONCE(1);
-		return;
+		return -EINVAL;
 	}
 }
 EXPORT_SYMBOL(crypto_krb5_where_is_the_data);
+
+/**
+ * crypto_krb5_check_data_len - Check a message is big enough
+ * @krb5: The encoding to use.
+ * @mode: Mode of operation.
+ * @len: The length of the secure blob.
+ * @min_content: Minimum length of the content inside the blob.
+ *
+ * Check that a message is large enough to hold whatever bits the encryption
+ * type wants to glue on (nonce, checksum) plus a minimum amount of content.
+ *
+ * Return: 0 if successful, -EBADMSG if the message is too short or -EINVAL if
+ * the mode is unsupported.
+ */
+int crypto_krb5_check_data_len(const struct krb5_enctype *krb5,
+			       enum krb5_crypto_mode mode,
+			       size_t len, size_t min_content)
+{
+	switch (mode) {
+	case KRB5_CHECKSUM_MODE:
+		if (len < krb5->cksum_len ||
+		    len - krb5->cksum_len < min_content)
+			return -EBADMSG;
+		return 0;
+	case KRB5_ENCRYPT_MODE:
+		if (len < krb5->conf_len + krb5->cksum_len ||
+		    len - (krb5->conf_len + krb5->cksum_len) < min_content)
+			return -EBADMSG;
+		return 0;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(crypto_krb5_check_data_len);
 
 /*
  * Prepare the encryption with derived key data.
@@ -165,7 +207,7 @@ struct crypto_aead *krb5_prepare_encryption(const struct krb5_enctype *krb5,
 	struct crypto_aead *ci = NULL;
 	int ret = -ENOMEM;
 
-	ci = crypto_alloc_aead(krb5->encrypt_name, 0, 0);
+	ci = crypto_alloc_aead(krb5->encrypt_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(ci)) {
 		ret = PTR_ERR(ci);
 		if (ret == -ENOENT)

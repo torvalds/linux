@@ -1120,7 +1120,7 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_dsc; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_dsc; i++) {
 		if (pool->base.dscs[i] != NULL)
 			dcn20_dsc_destroy(&pool->base.dscs[i]);
 	}
@@ -1156,7 +1156,7 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
 			dce110_engine_destroy(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
@@ -1169,19 +1169,19 @@ static void dcn20_resource_destruct(struct dcn20_resource_pool *pool)
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_opp; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_opp; i++) {
 		if (pool->base.opps[i] != NULL)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_timing_generator; i++) {
 		if (pool->base.timing_generators[i] != NULL)	{
 			kfree(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
 	}
 
-	for (i = 0; i < pool->base.res_cap->num_dwb; i++) {
+	for (i = 0; i < (unsigned int)pool->base.res_cap->num_dwb; i++) {
 		if (pool->base.dwbc[i] != NULL) {
 			kfree(TO_DCN20_DWBC(pool->base.dwbc[i]));
 			pool->base.dwbc[i] = NULL;
@@ -1415,7 +1415,7 @@ enum dc_status dcn20_add_dsc_to_stream_resource(struct dc *dc,
 		struct dc_stream_state *dc_stream)
 {
 	enum dc_status result = DC_OK;
-	int i;
+	unsigned int i;
 
 	/* Get a DSC if required and available */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1523,13 +1523,13 @@ bool dcn20_split_stream_for_odm(
 
 	*next_odm_pipe = *prev_odm_pipe;
 
-	next_odm_pipe->pipe_idx = pipe_idx;
+	next_odm_pipe->pipe_idx = (uint8_t)pipe_idx;
 	next_odm_pipe->plane_res.mi = pool->mis[next_odm_pipe->pipe_idx];
 	next_odm_pipe->plane_res.hubp = pool->hubps[next_odm_pipe->pipe_idx];
 	next_odm_pipe->plane_res.ipp = pool->ipps[next_odm_pipe->pipe_idx];
 	next_odm_pipe->plane_res.xfm = pool->transforms[next_odm_pipe->pipe_idx];
 	next_odm_pipe->plane_res.dpp = pool->dpps[next_odm_pipe->pipe_idx];
-	next_odm_pipe->plane_res.mpcc_inst = pool->dpps[next_odm_pipe->pipe_idx]->inst;
+	next_odm_pipe->plane_res.mpcc_inst = (uint8_t)pool->dpps[next_odm_pipe->pipe_idx]->inst;
 	next_odm_pipe->stream_res.dsc = NULL;
 	if (prev_odm_pipe->next_odm_pipe && prev_odm_pipe->next_odm_pipe != next_odm_pipe) {
 		next_odm_pipe->next_odm_pipe = prev_odm_pipe->next_odm_pipe;
@@ -1580,13 +1580,13 @@ void dcn20_split_stream_for_mpc(
 	*secondary_pipe = *primary_pipe;
 	secondary_pipe->bottom_pipe = sec_bot_pipe;
 
-	secondary_pipe->pipe_idx = pipe_idx;
+	secondary_pipe->pipe_idx = (uint8_t)pipe_idx;
 	secondary_pipe->plane_res.mi = pool->mis[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.hubp = pool->hubps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.dpp = pool->dpps[secondary_pipe->pipe_idx];
-	secondary_pipe->plane_res.mpcc_inst = pool->dpps[secondary_pipe->pipe_idx]->inst;
+	secondary_pipe->plane_res.mpcc_inst = (uint8_t)pool->dpps[secondary_pipe->pipe_idx]->inst;
 	secondary_pipe->stream_res.dsc = NULL;
 	if (primary_pipe->bottom_pipe && primary_pipe->bottom_pipe != secondary_pipe) {
 		ASSERT(!secondary_pipe->bottom_pipe);
@@ -1636,7 +1636,8 @@ void dcn20_set_mcif_arb_params(
 {
 	enum mmhubbub_wbif_mode wbif_mode;
 	struct mcif_arb_params *wb_arb_params;
-	int i, j, dwb_pipe;
+	int j, dwb_pipe;
+	unsigned int i;
 
 	/* Writeback MCIF_WB arbitration parameters */
 	dwb_pipe = 0;
@@ -1680,7 +1681,7 @@ void dcn20_set_mcif_arb_params(
 
 bool dcn20_validate_dsc(struct dc *dc, struct dc_state *new_ctx)
 {
-	int i;
+	unsigned int i;
 
 	/* Validate DSC config, dsc count validation is already done */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1736,7 +1737,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].next_odm_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
-				secondary_pipe->pipe_idx = preferred_pipe_idx;
+				secondary_pipe->pipe_idx = (uint8_t)preferred_pipe_idx;
 			}
 		}
 		if (secondary_pipe == NULL &&
@@ -1744,7 +1745,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 			preferred_pipe_idx = dc->current_state->res_ctx.pipe_ctx[primary_pipe->pipe_idx].bottom_pipe->pipe_idx;
 			if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 				secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
-				secondary_pipe->pipe_idx = preferred_pipe_idx;
+				secondary_pipe->pipe_idx = (uint8_t)preferred_pipe_idx;
 			}
 		}
 
@@ -1762,7 +1763,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 
 					if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 						secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
-						secondary_pipe->pipe_idx = preferred_pipe_idx;
+						secondary_pipe->pipe_idx = (uint8_t)preferred_pipe_idx;
 						break;
 					}
 				}
@@ -1783,7 +1784,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 
 				if (res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) {
 					secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
-					secondary_pipe->pipe_idx = preferred_pipe_idx;
+					secondary_pipe->pipe_idx = (uint8_t)preferred_pipe_idx;
 					break;
 				}
 			}
@@ -1797,7 +1798,7 @@ void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
 		struct dc_state *context)
 {
-	int i;
+	unsigned int i;
 
 	/* merge previously split odm pipes since mode support needs to make the decision */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1864,7 +1865,8 @@ int dcn20_validate_apply_pipe_split_flags(
 		int *split,
 		bool *merge)
 {
-	int i, pipe_idx, vlevel_split;
+	unsigned int i;
+	int pipe_idx, vlevel_split;
 	int plane_count = 0;
 	bool force_split = false;
 	bool avoid_split = dc->debug.pipe_split_policy == MPC_SPLIT_AVOID;
@@ -1897,7 +1899,7 @@ int dcn20_validate_apply_pipe_split_flags(
 				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
 			++plane_count;
 	}
-	if (plane_count > dc->res_pool->pipe_count / 2)
+	if ((unsigned int)plane_count > dc->res_pool->pipe_count / 2)
 		avoid_split = true;
 
 	/* W/A: Mode timing with borders may not work well with pipe split, avoid for this corner case */
@@ -1923,12 +1925,12 @@ int dcn20_validate_apply_pipe_split_flags(
 			if (!context->res_ctx.pipe_ctx[i].stream)
 				continue;
 
-			for (vlevel_split = vlevel; vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
+			for (vlevel_split = vlevel; (unsigned int)vlevel <= context->bw_ctx.dml.soc.num_states; vlevel++)
 				if (v->NoOfDPP[vlevel][0][pipe_idx] == 1 &&
 						v->ModeSupport[vlevel][0])
 					break;
 			/* Impossible to not split this pipe */
-			if (vlevel > context->bw_ctx.dml.soc.num_states)
+			if ((unsigned int)vlevel > context->bw_ctx.dml.soc.num_states)
 				vlevel = vlevel_split;
 			else
 				max_mpc_comb = 0;
@@ -2064,7 +2066,8 @@ bool dcn20_fast_validate_bw(
 	bool out = false;
 	int split[MAX_PIPES] = { 0 };
 	bool merge[MAX_PIPES] = { false };
-	int pipe_cnt, i, pipe_idx, vlevel;
+	int pipe_cnt, pipe_idx, vlevel;
+	unsigned int i;
 
 	ASSERT(pipes);
 	if (!pipes)
@@ -2083,7 +2086,7 @@ bool dcn20_fast_validate_bw(
 
 	vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
-	if (vlevel > context->bw_ctx.dml.soc.num_states)
+	if ((unsigned int)vlevel > context->bw_ctx.dml.soc.num_states)
 		goto validate_fail;
 
 	vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, vlevel, split, merge);
@@ -2216,7 +2219,7 @@ struct pipe_ctx *dcn20_acquire_free_pipe_for_layer(
 	sec_dpp_pipe->plane_res.hubp = pool->hubps[sec_dpp_pipe->pipe_idx];
 	sec_dpp_pipe->plane_res.ipp = pool->ipps[sec_dpp_pipe->pipe_idx];
 	sec_dpp_pipe->plane_res.dpp = pool->dpps[sec_dpp_pipe->pipe_idx];
-	sec_dpp_pipe->plane_res.mpcc_inst = pool->dpps[sec_dpp_pipe->pipe_idx]->inst;
+	sec_dpp_pipe->plane_res.mpcc_inst = (uint8_t)pool->dpps[sec_dpp_pipe->pipe_idx]->inst;
 
 	return sec_dpp_pipe;
 }
@@ -2289,7 +2292,7 @@ static const struct resource_funcs dcn20_res_pool_funcs = {
 
 bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	int i;
+	unsigned int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
 	for (i = 0; i < pipe_count; i++) {
@@ -2311,7 +2314,7 @@ bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 
 bool dcn20_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 {
-	int i;
+	unsigned int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
 
 	ASSERT(pipe_count > 0);
@@ -2569,7 +2572,7 @@ static bool dcn20_resource_construct(
 				CLOCK_SOURCE_ID_DP_DTO,
 				&clk_src_regs[0], true);
 
-	for (i = 0; i < pool->base.clk_src_count; i++) {
+	for (i = 0; (unsigned int)i < pool->base.clk_src_count; i++) {
 		if (pool->base.clock_sources[i] == NULL) {
 			dm_error("DC: failed to create clock sources!\n");
 			BREAK_TO_DEBUGGER();
@@ -2617,12 +2620,12 @@ static bool dcn20_resource_construct(
 
 	if (!dc->debug.disable_pplib_wm_range) {
 		struct pp_smu_wm_range_sets ranges = {0};
-		int i = 0;
+		int j = 0;
 
 		ranges.num_reader_wm_sets = 0;
 
 		if (loaded_bb->num_states == 1) {
-			ranges.reader_wm_sets[0].wm_inst = i;
+			ranges.reader_wm_sets[0].wm_inst = (uint8_t)j;
 			ranges.reader_wm_sets[0].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 			ranges.reader_wm_sets[0].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 			ranges.reader_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
@@ -2630,15 +2633,14 @@ static bool dcn20_resource_construct(
 
 			ranges.num_reader_wm_sets = 1;
 		} else if (loaded_bb->num_states > 1) {
-			for (i = 0; i < 4 && i < loaded_bb->num_states; i++) {
-				ranges.reader_wm_sets[i].wm_inst = i;
-				ranges.reader_wm_sets[i].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
-				ranges.reader_wm_sets[i].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
+			for (j = 0; j < 4 && (unsigned int)j < loaded_bb->num_states; j++) {
+				ranges.reader_wm_sets[j].wm_inst = (uint8_t)j;
+				ranges.reader_wm_sets[j].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
+				ranges.reader_wm_sets[j].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
 				DC_FP_START();
-				dcn20_fpu_set_wm_ranges(i, &ranges, loaded_bb);
+				dcn20_fpu_set_wm_ranges(j, &ranges, loaded_bb);
 				DC_FP_END();
-
-				ranges.num_reader_wm_sets = i + 1;
+				ranges.num_reader_wm_sets = j + 1;
 			}
 
 			ranges.reader_wm_sets[0].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
@@ -2664,7 +2666,7 @@ static bool dcn20_resource_construct(
 		goto create_fail;
 
 	/* mem input -> ipp -> dpp -> opp -> TG */
-	for (i = 0; i < pool->base.pipe_count; i++) {
+	for (i = 0; (unsigned int)i < pool->base.pipe_count; i++) {
 		pool->base.hubps[i] = dcn20_hubp_create(ctx, i);
 		if (pool->base.hubps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
@@ -2792,7 +2794,7 @@ static bool dcn20_resource_construct(
 
 	dc->caps.max_planes =  pool->base.pipe_count;
 
-	for (i = 0; i < dc->caps.max_planes; ++i)
+	for (i = 0; (unsigned int)i < dc->caps.max_planes; ++i)
 		dc->caps.planes[i] = plane_cap;
 
 	dc->caps.max_odm_combine_factor = 2;
@@ -2829,7 +2831,7 @@ struct resource_pool *dcn20_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (dcn20_resource_construct(init_data->num_virtual_links, dc, pool))
+	if (dcn20_resource_construct((uint8_t)init_data->num_virtual_links, dc, pool))
 		return &pool->base;
 
 	BREAK_TO_DEBUGGER();

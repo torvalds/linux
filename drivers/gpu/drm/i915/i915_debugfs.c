@@ -34,6 +34,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_print.h>
 #include <drm/intel/intel_gmd_misc_regs.h>
+#include <drm/intel/mchbar_regs.h>
 
 #include "gem/i915_gem_context.h"
 #include "gt/intel_gt.h"
@@ -57,7 +58,6 @@
 #include "i915_reg.h"
 #include "i915_scheduler.h"
 #include "i915_wait_util.h"
-#include "intel_mchbar_regs.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {

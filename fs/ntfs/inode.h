@@ -142,6 +142,8 @@ struct ntfs_inode {
 		struct ntfs_inode *base_ntfs_ino;
 	} ext;
 	unsigned int i_dealloc_clusters;
+	__le32 reparse_tag;
+	__le32 reparse_flags;
 	char *target;
 };
 

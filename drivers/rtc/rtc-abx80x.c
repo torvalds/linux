@@ -545,7 +545,8 @@ static int abx80x_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 
 		status &= ~ABX8XX_STATUS_BLF;
 
-		tmp = i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS, 0);
+		tmp = i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS,
+						status);
 		if (tmp < 0)
 			return tmp;
 
@@ -752,16 +753,16 @@ static int abx80x_setup_nvmem(struct abx80x_priv *priv)
 }
 
 static const struct i2c_device_id abx80x_id[] = {
-	{ "abx80x", ABX80X },
-	{ "ab0801", AB0801 },
-	{ "ab0803", AB0803 },
-	{ "ab0804", AB0804 },
-	{ "ab0805", AB0805 },
-	{ "ab1801", AB1801 },
-	{ "ab1803", AB1803 },
-	{ "ab1804", AB1804 },
-	{ "ab1805", AB1805 },
-	{ "rv1805", RV1805 },
+	{ .name = "abx80x", .driver_data = ABX80X },
+	{ .name = "ab0801", .driver_data = AB0801 },
+	{ .name = "ab0803", .driver_data = AB0803 },
+	{ .name = "ab0804", .driver_data = AB0804 },
+	{ .name = "ab0805", .driver_data = AB0805 },
+	{ .name = "ab1801", .driver_data = AB1801 },
+	{ .name = "ab1803", .driver_data = AB1803 },
+	{ .name = "ab1804", .driver_data = AB1804 },
+	{ .name = "ab1805", .driver_data = AB1805 },
+	{ .name = "rv1805", .driver_data = RV1805 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abx80x_id);

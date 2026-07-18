@@ -86,11 +86,11 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 	}
 }
 
-static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
+static struct kvm_vm *create_vm(u32 nr_vcpus, u32 bsp_vcpu_id,
 				struct kvm_vcpu *vcpus[])
 {
 	struct kvm_vm *vm;
-	uint32_t i;
+	u32 i;
 
 	vm = vm_create(nr_vcpus);
 
@@ -104,7 +104,7 @@ static struct kvm_vm *create_vm(uint32_t nr_vcpus, uint32_t bsp_vcpu_id,
 	return vm;
 }
 
-static void run_vm_bsp(uint32_t bsp_vcpu_id)
+static void run_vm_bsp(u32 bsp_vcpu_id)
 {
 	struct kvm_vcpu *vcpus[2];
 	struct kvm_vm *vm;

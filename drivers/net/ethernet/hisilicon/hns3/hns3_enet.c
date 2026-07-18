@@ -86,25 +86,39 @@ module_param(page_pool_enabled, bool, 0400);
  *   Class, Class Mask, private data (not used) }
  */
 static const struct pci_device_id hns3_pci_tbl[] = {
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_GE), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_200G_RDMA),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_VF), 0},
-	{PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_RDMA_DCB_PFC_VF),
-	 HNAE3_DEV_SUPPORT_ROCE_DCB_BITS},
+	{
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_GE),
+		.driver_data = 0,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE),
+		.driver_data = 0,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_25GE_RDMA_MACSEC),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_50GE_RDMA_MACSEC),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_100G_RDMA_MACSEC),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_200G_RDMA),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_VF),
+		.driver_data = 0,
+	}, {
+		PCI_VDEVICE(HUAWEI, HNAE3_DEV_ID_RDMA_DCB_PFC_VF),
+		.driver_data = HNAE3_DEV_SUPPORT_ROCE_DCB_BITS,
+	},
 	/* required last entry */
-	{0,}
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, hns3_pci_tbl);
 
@@ -2664,13 +2678,12 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 static int hns3_setup_tc_cls_flower(struct hns3_nic_priv *priv,
 				    struct flow_cls_offload *flow)
 {
-	int tc = tc_classid_to_hwtc(priv->netdev, flow->classid);
 	struct hnae3_handle *h = hns3_get_handle(priv->netdev);
 
 	switch (flow->command) {
 	case FLOW_CLS_REPLACE:
 		if (h->ae_algo->ops->add_cls_flower)
-			return h->ae_algo->ops->add_cls_flower(h, flow, tc);
+			return h->ae_algo->ops->add_cls_flower(h, flow);
 		break;
 	case FLOW_CLS_DESTROY:
 		if (h->ae_algo->ops->del_cls_flower)

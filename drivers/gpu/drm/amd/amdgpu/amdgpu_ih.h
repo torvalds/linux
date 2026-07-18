@@ -91,6 +91,12 @@ struct amdgpu_ih_funcs {
 	uint64_t (*decode_iv_ts)(struct amdgpu_ih_ring *ih, u32 rptr,
 				 signed int offset);
 	void (*set_rptr)(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
+	/* Decode IH cookie node_id into a human-readable die name string.
+	 * Returns buf, or NULL if this IH version does not support node_id decoding.
+	 */
+	const char *(*node_id_to_die_name)(struct amdgpu_device *adev,
+					   unsigned int node_id,
+					   char *buf, size_t size);
 };
 
 #define amdgpu_ih_get_wptr(adev, ih) (adev)->irq.ih_funcs->get_wptr((adev), (ih))

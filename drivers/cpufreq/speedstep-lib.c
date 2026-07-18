@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
+#include <asm/cpuid/api.h>
 #include <asm/msr.h>
 #include <asm/tsc.h>
 #include "speedstep-lib.h"

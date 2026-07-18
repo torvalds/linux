@@ -220,8 +220,7 @@
 				     <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 211 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 213 IRQ_TYPE_EDGE_RISING>;
+				     <GIC_SPI 212 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "tgia0", "tgib0", "tgic0", "tgid0",
 					  "tciv0", "tgie0", "tgif0",
 					  "tgia1", "tgib1", "tciv1", "tciu1",
@@ -236,7 +235,7 @@
 					  "tgia7", "tgib7", "tgic7", "tgid7",
 					  "tciv7",
 					  "tgia8", "tgib8", "tgic8", "tgid8",
-					  "tciv8", "tciu8";
+					  "tciv8";
 			clocks = <&cpg CPG_MOD R9A07G044_MTU_X_MCK_MTU3>;
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_MTU_X_PRESET_MTU3>;
@@ -505,6 +504,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A07G044_SCIF0_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac 0x4e79>, <&dmac 0x4e7a>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_SCIF0_RST_SYSTEM_N>;
 			status = "disabled";
@@ -523,6 +524,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A07G044_SCIF1_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac 0x4e7d>, <&dmac 0x4e7e>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_SCIF1_RST_SYSTEM_N>;
 			status = "disabled";
@@ -541,6 +544,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A07G044_SCIF2_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac 0x4e81>, <&dmac 0x4e82>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_SCIF2_RST_SYSTEM_N>;
 			status = "disabled";
@@ -559,6 +564,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A07G044_SCIF3_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac 0x4e85>, <&dmac 0x4e86>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_SCIF3_RST_SYSTEM_N>;
 			status = "disabled";
@@ -577,6 +584,8 @@
 					  "bri", "dri", "tei";
 			clocks = <&cpg CPG_MOD R9A07G044_SCIF4_CLK_PCK>;
 			clock-names = "fck";
+			dmas = <&dmac 0x4e89>, <&dmac 0x4e8a>;
+			dma-names = "tx", "rx";
 			power-domains = <&cpg>;
 			resets = <&cpg R9A07G044_SCIF4_RST_SYSTEM_N>;
 			status = "disabled";
@@ -1017,6 +1026,7 @@
 			resets = <&cpg R9A07G044_GPIO_RSTN>,
 				 <&cpg R9A07G044_GPIO_PORT_RESETN>,
 				 <&cpg R9A07G044_GPIO_SPARE_RESETN>;
+			reset-names = "rstn", "port", "spare";
 		};
 
 		irqc: interrupt-controller@110a0000 {
@@ -1174,6 +1184,7 @@
 				 <&cpg CPG_MOD R9A07G044_SDHI0_IMCLK2>,
 				 <&cpg CPG_MOD R9A07G044_SDHI0_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
+			max-frequency = <133333333>;
 			resets = <&cpg R9A07G044_SDHI0_IXRST>;
 			power-domains = <&cpg>;
 			status = "disabled";
@@ -1190,6 +1201,7 @@
 				 <&cpg CPG_MOD R9A07G044_SDHI1_IMCLK2>,
 				 <&cpg CPG_MOD R9A07G044_SDHI1_ACLK>;
 			clock-names = "core", "clkh", "cd", "aclk";
+			max-frequency = <133333333>;
 			resets = <&cpg R9A07G044_SDHI1_IXRST>;
 			power-domains = <&cpg>;
 			status = "disabled";

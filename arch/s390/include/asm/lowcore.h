@@ -10,6 +10,7 @@
 #define _ASM_S390_LOWCORE_H
 
 #include <linux/types.h>
+#include <asm/tod_types.h>
 #include <asm/machine.h>
 #include <asm/ptrace.h>
 #include <asm/ctlreg.h>
@@ -125,8 +126,7 @@ struct lowcore {
 	__u64	avg_steal_timer;		/* 0x0300 */
 	__u64	last_update_timer;		/* 0x0308 */
 	__u64	last_update_clock;		/* 0x0310 */
-	__u64	int_clock;			/* 0x0318 */
-	__u8	pad_0x0320[0x0328-0x0320];	/* 0x0320 */
+	union tod_clock int_clock;		/* 0x0318 */
 	__u64	clock_comparator;		/* 0x0328 */
 	__u8	pad_0x0330[0x0340-0x0330];	/* 0x0330 */
 
@@ -165,7 +165,8 @@ struct lowcore {
 	__u32	spinlock_index;			/* 0x03b0 */
 	__u8	pad_0x03b4[0x03b8-0x03b4];	/* 0x03b4 */
 	__u64	percpu_offset;			/* 0x03b8 */
-	__u8	pad_0x03c0[0x0400-0x03c0];	/* 0x03c0 */
+	__u8	percpu_register;		/* 0x03c0 */
+	__u8	pad_0x03c1[0x0400-0x03c1];	/* 0x03c1 */
 
 	__u32	return_lpswe;			/* 0x0400 */
 	__u32	return_mcck_lpswe;		/* 0x0404 */

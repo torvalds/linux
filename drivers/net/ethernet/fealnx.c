@@ -1935,10 +1935,10 @@ static int netdev_close(struct net_device *dev)
 }
 
 static const struct pci_device_id fealnx_pci_tbl[] = {
-	{0x1516, 0x0800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x1516, 0x0803, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{0x1516, 0x0891, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 2},
-	{} /* terminate list */
+	{ PCI_DEVICE(0x1516, 0x0800), .driver_data = 0 },
+	{ PCI_DEVICE(0x1516, 0x0803), .driver_data = 1 },
+	{ PCI_DEVICE(0x1516, 0x0891), .driver_data = 2 },
+	{ } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, fealnx_pci_tbl);
 

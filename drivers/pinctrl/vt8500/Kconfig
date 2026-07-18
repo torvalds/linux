@@ -3,16 +3,17 @@
 # VIA/Wondermedia PINCTRL drivers
 #
 
-if ARCH_VT8500
+if ARCH_VT8500 || COMPILE_TEST
 
 config PINCTRL_WMT
 	bool
 	select PINMUX
 	select GENERIC_PINCONF
+	select GPIOLIB
 
 config PINCTRL_VT8500
 	bool "VIA VT8500 pin controller driver"
-	depends on ARCH_WM8505
+	depends on ARCH_WM8505 || COMPILE_TEST
 	select PINCTRL_WMT
 	help
 	  Say yes here to support the gpio/pin control module on
@@ -20,7 +21,7 @@ config PINCTRL_VT8500
 
 config PINCTRL_WM8505
 	bool "Wondermedia WM8505 pin controller driver"
-	depends on ARCH_WM8505
+	depends on ARCH_WM8505 || COMPILE_TEST
 	select PINCTRL_WMT
 	help
 	  Say yes here to support the gpio/pin control module on
@@ -28,7 +29,7 @@ config PINCTRL_WM8505
 
 config PINCTRL_WM8650
 	bool "Wondermedia WM8650 pin controller driver"
-	depends on ARCH_WM8505
+	depends on ARCH_WM8505 || COMPILE_TEST
 	select PINCTRL_WMT
 	help
 	  Say yes here to support the gpio/pin control module on
@@ -36,7 +37,7 @@ config PINCTRL_WM8650
 
 config PINCTRL_WM8750
 	bool "Wondermedia WM8750 pin controller driver"
-	depends on ARCH_WM8750
+	depends on ARCH_WM8750 || COMPILE_TEST
 	select PINCTRL_WMT
 	help
 	  Say yes here to support the gpio/pin control module on
@@ -44,7 +45,7 @@ config PINCTRL_WM8750
 
 config PINCTRL_WM8850
 	bool "Wondermedia WM8850 pin controller driver"
-	depends on ARCH_WM8850
+	depends on ARCH_WM8850 || COMPILE_TEST
 	select PINCTRL_WMT
 	help
 	  Say yes here to support the gpio/pin control module on

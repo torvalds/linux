@@ -624,7 +624,7 @@ emc2103_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id emc2103_ids[] = {
-	{ "emc2103" },
+	{ .name = "emc2103" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, emc2103_ids);

@@ -299,11 +299,11 @@ static ssize_t npcm_fiu_direct_read(struct spi_mem_dirmap_desc *desc,
 		for (i = 0 ; i < len ; i++)
 			*(buf_rx + i) = ioread8(src + i);
 	} else {
-		if (desc->info.op_tmpl.addr.buswidth != fiu->drd_op.addr.buswidth ||
-		    desc->info.op_tmpl.dummy.nbytes != fiu->drd_op.dummy.nbytes ||
-		    desc->info.op_tmpl.cmd.opcode != fiu->drd_op.cmd.opcode ||
-		    desc->info.op_tmpl.addr.nbytes != fiu->drd_op.addr.nbytes)
-			npcm_fiu_set_drd(fiu, &desc->info.op_tmpl);
+		if (desc->info.op_tmpl->addr.buswidth != fiu->drd_op.addr.buswidth ||
+		    desc->info.op_tmpl->dummy.nbytes != fiu->drd_op.dummy.nbytes ||
+		    desc->info.op_tmpl->cmd.opcode != fiu->drd_op.cmd.opcode ||
+		    desc->info.op_tmpl->addr.nbytes != fiu->drd_op.addr.nbytes)
+			npcm_fiu_set_drd(fiu, desc->info.op_tmpl);
 
 		memcpy_fromio(buf_rx, src, len);
 	}
@@ -609,7 +609,7 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	}
 
 	if (!fiu->spix_mode &&
-	    desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
+	    desc->info.op_tmpl->data.dir == SPI_MEM_DATA_OUT) {
 		desc->nodirmap = true;
 		return 0;
 	}
@@ -644,9 +644,9 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 				   NPCM_FIU_CFG_FIU_FIX);
 	}
 
-	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_IN) {
+	if (desc->info.op_tmpl->data.dir == SPI_MEM_DATA_IN) {
 		if (!fiu->spix_mode)
-			npcm_fiu_set_drd(fiu, &desc->info.op_tmpl);
+			npcm_fiu_set_drd(fiu, desc->info.op_tmpl);
 		else
 			npcm_fiux_set_direct_rd(fiu);
 

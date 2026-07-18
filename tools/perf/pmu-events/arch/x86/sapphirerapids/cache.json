@@ -182,6 +182,15 @@
         "UMask": "0xff"
     },
     {
+        "BriefDescription": "All requests that hit L2 cache [This event is alias to L2_RQSTS.HIT]",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HIT",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_RQSTS.HIT]",
+        "SampleAfterValue": "200003",
+        "UMask": "0xdf"
+    },
+    {
         "BriefDescription": "Read requests with true-miss in L2 cache. [This event is alias to L2_RQSTS.MISS]",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
@@ -280,6 +289,15 @@
         "UMask": "0x21"
     },
     {
+        "BriefDescription": "All requests that hit L2 cache [This event is alias to L2_REQUEST.HIT]",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.HIT",
+        "PublicDescription": "Counts all requests that hit L2 cache. [This event is alias to L2_REQUEST.HIT]",
+        "SampleAfterValue": "200003",
+        "UMask": "0xdf"
+    },
+    {
         "BriefDescription": "L2_RQSTS.HWPF_MISS",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
@@ -349,6 +367,15 @@
         "PublicDescription": "Counts L2 writebacks that access L2 cache.",
         "SampleAfterValue": "200003",
         "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Cycles when L1D is locked",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x42",
+        "EventName": "LOCK_CYCLES.CACHE_LOCK_DURATION",
+        "PublicDescription": "This event counts the number of cycles when the L1D is locked. It is a superset of the 0x1 mask (BUS_LOCK_CLOCKS.BUS_LOCK_DURATION).",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     },
     {
         "BriefDescription": "Core-originated cacheable requests that missed L3  (Except hardware prefetches to the L3)",

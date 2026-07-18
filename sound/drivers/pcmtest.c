@@ -113,7 +113,7 @@ struct pcmtst_buf_iter {
 	struct timer_list timer_instance;
 };
 
-static struct snd_pcm_hardware snd_pcmtst_hw = {
+static struct snd_pcm_hardware snd_pcmtst_hw __ro_after_init = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 SNDRV_PCM_INFO_NONINTERLEAVED |
@@ -137,7 +137,7 @@ struct pattern_buf {
 	u32 len;
 };
 
-static int buf_allocated;
+static int buf_allocated __ro_after_init;
 static struct pattern_buf patt_bufs[MAX_CHANNELS_NUM];
 
 static inline void inc_buf_pos(struct pcmtst_buf_iter *v_iter, size_t by, size_t bytes)
@@ -679,9 +679,9 @@ static ssize_t pattern_read(struct file *file, char __user *u_buff, size_t len, 
 		return 0;
 
 	if (copy_to_user(u_buff, patt_buf->buf + *off, to_read))
-		to_read = 0;
-	else
-		*off += to_read;
+		return -EFAULT;
+
+	*off += to_read;
 
 	return to_read;
 }

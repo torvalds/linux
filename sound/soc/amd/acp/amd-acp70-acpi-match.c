@@ -619,6 +619,45 @@ static const struct snd_soc_acpi_link_adr acp70_rt721_l1u0_tas2783x2_l1u8b[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_endpoint rt721_endpoints[] = {
+	{ /* Jack Playback/Capture Endpoint (AIF1) */
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Speaker Amplifier Endpoint (AIF2, internal amp) */
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* DMIC Capture Endpoint (AIF3) */
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
+static const struct snd_soc_acpi_adr_device rt721_1_single_adr[] = {
+	{
+		.adr = 0x000130025D072101ull,
+		.num_endpoints = ARRAY_SIZE(rt721_endpoints),
+		.endpoints = rt721_endpoints,
+		.name_prefix = "rt721"
+	}
+};
+
+static const struct snd_soc_acpi_link_adr acp70_rt721_only[] = {
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt721_1_single_adr),
+		.adr_d = rt721_1_single_adr,
+	},
+	{}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	{
 		.link_mask = BIT(0) | BIT(1),
@@ -709,6 +748,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_sdw_machines[] = {
 	{
 		.link_mask = BIT(1),
 		.links = acp70_rt721_l1u0_tas2783x2_l1u8b,
+		.drv_name = "amd_sdw",
+	},
+	{
+		.link_mask = BIT(1),
+		.links = acp70_rt721_only,
 		.drv_name = "amd_sdw",
 	},
 	{},

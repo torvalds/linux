@@ -238,9 +238,8 @@ void ia_css_refcount_clear(s32 id, clear_func clear_func_ptr)
 				hmm_free(entry->data);
 			}
 
-			if (entry->count != 0) {
+			if (entry->count != 0)
 				IA_CSS_WARNING("Ref count for entry %x is not zero!", entry->id);
-			}
 
 			assert(entry->count == 0);
 

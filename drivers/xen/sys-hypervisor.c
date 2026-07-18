@@ -366,6 +366,8 @@ static ssize_t buildid_show(struct hyp_sysfs_attr *attr, char *buffer)
 			ret = sprintf(buffer, "<denied>");
 		return ret;
 	}
+	if (ret > PAGE_SIZE)
+		return -ENOSPC;
 
 	buildid = kmalloc(sizeof(*buildid) + ret, GFP_KERNEL);
 	if (!buildid)
@@ -373,8 +375,10 @@ static ssize_t buildid_show(struct hyp_sysfs_attr *attr, char *buffer)
 
 	buildid->len = ret;
 	ret = HYPERVISOR_xen_version(XENVER_build_id, buildid);
-	if (ret > 0)
-		ret = sprintf(buffer, "%s", buildid->buf);
+	if (ret > 0) {
+		/* Build id is binary, not a string. */
+		memcpy(buffer, buildid->buf, ret);
+	}
 	kfree(buildid);
 
 	return ret;

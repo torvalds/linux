@@ -49,7 +49,11 @@ instance to be released.
 The control APIs are not idempotent. Control API calls are safe against
 concurrent use of datapath APIs but an incorrect sequence of control API
 calls may result in crashes, deadlocks, or race conditions. For example,
-calling napi_disable() multiple times in a row will deadlock.
+calling napi_disable() multiple times in a row will hang waiting for
+ownership of the NAPI instance to be released.
+
+Drivers using the netdev instance lock may need to use the ``_locked()``
+variants of the control APIs when that lock is already held.
 
 Datapath API
 ------------
@@ -190,7 +194,8 @@ User API
 ========
 
 User interactions with NAPI depend on NAPI instance ID. The instance IDs
-are only visible to the user thru the ``SO_INCOMING_NAPI_ID`` socket option.
+are visible to the user through the ``SO_INCOMING_NAPI_ID`` socket option
+and the netdev Netlink API.
 
 Users can query NAPI IDs for a device or device queue using netlink. This can
 be done programmatically in a user application or by using a script included in
@@ -371,7 +376,7 @@ To use this mechanism:
      the application has stalled. This value should be chosen so that it covers
      the amount of time the user application needs to process data from its
      call to epoll_wait, noting that applications can control how much data
-     they retrieve by setting ``max_events`` when calling epoll_wait.
+     they retrieve by setting ``maxevents`` when calling epoll_wait.
 
   2. The sysfs parameter or per-NAPI config parameters ``gro_flush_timeout``
      and ``napi_defer_hard_irqs`` can be set to low values. They will be used

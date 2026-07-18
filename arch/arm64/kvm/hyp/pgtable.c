@@ -925,7 +925,9 @@ static bool stage2_pte_cacheable(struct kvm_pgtable *pgt, kvm_pte_t pte)
 
 static bool stage2_pte_executable(kvm_pte_t pte)
 {
-	return kvm_pte_valid(pte) && !(pte & KVM_PTE_LEAF_ATTR_HI_S2_XN);
+	enum kvm_pgtable_prot prot = kvm_pgtable_stage2_pte_prot(pte);
+
+	return prot & (KVM_PGTABLE_PROT_UX | KVM_PGTABLE_PROT_PX);
 }
 
 static u64 stage2_map_walker_phys_addr(const struct kvm_pgtable_visit_ctx *ctx,

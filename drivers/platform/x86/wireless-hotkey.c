@@ -89,8 +89,13 @@ static void wl_notify(acpi_handle handle, u32 event, void *data)
 
 static int wl_probe(struct platform_device *pdev)
 {
+	struct acpi_device *adev;
 	struct wl_button *button;
 	int err;
+
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
+		return -ENODEV;
 
 	button = kzalloc_obj(struct wl_button);
 	if (!button)
@@ -104,8 +109,8 @@ static int wl_probe(struct platform_device *pdev)
 		kfree(button);
 		return err;
 	}
-	err = acpi_dev_install_notify_handler(ACPI_COMPANION(&pdev->dev),
-					      ACPI_DEVICE_NOTIFY, wl_notify, button);
+	err = acpi_dev_install_notify_handler(adev, ACPI_DEVICE_NOTIFY,
+					      wl_notify, button);
 	if (err) {
 		pr_err("Failed to install ACPI notify handler\n");
 		wireless_input_destroy(&pdev->dev);

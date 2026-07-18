@@ -4,6 +4,7 @@
 #include "ice.h"
 #include "ice_lib.h"
 #include "ice_trace.h"
+#include "ice_txclk.h"
 #include <linux/dpll.h>
 #include <linux/property.h>
 
@@ -18,6 +19,9 @@
 #define ICE_DPLL_SW_PIN_INPUT_BASE_SFP		4
 #define ICE_DPLL_SW_PIN_INPUT_BASE_QSFP		6
 #define ICE_DPLL_SW_PIN_OUTPUT_BASE		0
+
+#define E825_RCLK_PARENT_0_PIN_IDX		0
+#define E825_RCLK_PARENT_1_PIN_IDX		1
 
 #define ICE_DPLL_PIN_SW_INPUT_ABS(in_idx) \
 	(ICE_DPLL_SW_PIN_INPUT_BASE_SFP + (in_idx))
@@ -57,6 +61,7 @@
  * @ICE_DPLL_PIN_TYPE_OUTPUT: output pin
  * @ICE_DPLL_PIN_TYPE_RCLK_INPUT: recovery clock input pin
  * @ICE_DPLL_PIN_TYPE_SOFTWARE: software controlled SMA/U.FL pins
+ * @ICE_DPLL_PIN_TYPE_TXCLK: transmit clock reference input pin
  */
 enum ice_dpll_pin_type {
 	ICE_DPLL_PIN_INVALID,
@@ -64,6 +69,7 @@ enum ice_dpll_pin_type {
 	ICE_DPLL_PIN_TYPE_OUTPUT,
 	ICE_DPLL_PIN_TYPE_RCLK_INPUT,
 	ICE_DPLL_PIN_TYPE_SOFTWARE,
+	ICE_DPLL_PIN_TYPE_TXCLK,
 };
 
 static const char * const pin_type_name[] = {
@@ -71,10 +77,13 @@ static const char * const pin_type_name[] = {
 	[ICE_DPLL_PIN_TYPE_OUTPUT] = "output",
 	[ICE_DPLL_PIN_TYPE_RCLK_INPUT] = "rclk-input",
 	[ICE_DPLL_PIN_TYPE_SOFTWARE] = "software",
+	[ICE_DPLL_PIN_TYPE_TXCLK] = "txclk-input",
 };
 
 static const char * const ice_dpll_sw_pin_sma[] = { "SMA1", "SMA2" };
 static const char * const ice_dpll_sw_pin_ufl[] = { "U.FL1", "U.FL2" };
+static const char * const ice_dpll_ext_eref_pin = "EXT_EREF0";
+static const char * const ice_dpll_fwnode_ext_synce = "clk_ref_synce";
 
 static const struct dpll_pin_frequency ice_esync_range[] = {
 	DPLL_PIN_FREQUENCY_RANGE(0, DPLL_PIN_FREQUENCY_1_HZ),
@@ -1155,6 +1164,32 @@ ice_dpll_input_state_get(const struct dpll_pin *pin, void *pin_priv,
 }
 
 /**
+ * ice_dpll_sw_pin_notify_peer - notify the paired SW pin after a state change
+ * @d: pointer to dplls struct
+ * @changed: the SW pin that was explicitly changed (already notified by dpll core)
+ *
+ * SMA and U.FL pins share physical signal paths in pairs (SMA1/U.FL1 and
+ * SMA2/U.FL2).  When one pin's routing changes via the PCA9575 GPIO
+ * expander, the paired pin's state may also change.  Send a change
+ * notification for the peer pin so userspace consumers monitoring the
+ * peer via dpll netlink learn about the update.
+ *
+ * Context: Called from dpll_pin_ops callbacks after pf->dplls.lock is
+ *          released.  Uses __dpll_pin_change_ntf() because dpll_lock is
+ *          still held by the dpll netlink layer.
+ */
+static void ice_dpll_sw_pin_notify_peer(struct ice_dplls *d,
+					struct ice_dpll_pin *changed)
+{
+	struct ice_dpll_pin *peer;
+
+	peer = (changed >= d->sma && changed < d->sma + ICE_DPLL_PIN_SW_NUM) ?
+		&d->ufl[changed->idx] : &d->sma[changed->idx];
+	if (peer->pin)
+		__dpll_pin_change_ntf(peer->pin);
+}
+
+/**
  * ice_dpll_sma_direction_set - set direction of SMA pin
  * @p: pointer to a pin
  * @direction: requested direction of the pin
@@ -1171,6 +1206,8 @@ static int ice_dpll_sma_direction_set(struct ice_dpll_pin *p,
 				      enum dpll_pin_direction direction,
 				      struct netlink_ext_ack *extack)
 {
+	struct ice_dplls *d = &p->pf->dplls;
+	struct ice_dpll_pin *peer;
 	u8 data;
 	int ret;
 
@@ -1189,8 +1226,9 @@ static int ice_dpll_sma_direction_set(struct ice_dpll_pin *p,
 	case ICE_DPLL_PIN_SW_2_IDX:
 		if (direction == DPLL_PIN_DIRECTION_INPUT) {
 			data &= ~ICE_SMA2_DIR_EN;
+			data |= ICE_SMA2_UFL2_RX_DIS;
 		} else {
-			data &= ~ICE_SMA2_TX_EN;
+			data &= ~(ICE_SMA2_TX_EN | ICE_SMA2_UFL2_RX_DIS);
 			data |= ICE_SMA2_DIR_EN;
 		}
 		break;
@@ -1202,6 +1240,34 @@ static int ice_dpll_sma_direction_set(struct ice_dpll_pin *p,
 		ret = ice_dpll_pin_state_update(p->pf, p,
 						ICE_DPLL_PIN_TYPE_SOFTWARE,
 						extack);
+	if (ret)
+		return ret;
+
+	/* When a direction change activates the paired U.FL pin, enable
+	 * its backing CGU pin so the pin reports as connected. Without
+	 * this the U.FL routing is correct but the CGU pin stays disabled
+	 * and userspace sees the pin as disconnected.  Do not disable the
+	 * backing pin when U.FL becomes inactive because the SMA pin may
+	 * still be using it.
+	 */
+	peer = &d->ufl[p->idx];
+	if (peer->active) {
+		struct ice_dpll_pin *target;
+		enum ice_dpll_pin_type type;
+
+		if (peer->output) {
+			target = peer->output;
+			type = ICE_DPLL_PIN_TYPE_OUTPUT;
+		} else {
+			target = peer->input;
+			type = ICE_DPLL_PIN_TYPE_INPUT;
+		}
+		ret = ice_dpll_pin_enable(&p->pf->hw, target,
+					  d->eec.dpll_idx, type, extack);
+		if (!ret)
+			ret = ice_dpll_pin_state_update(p->pf, target,
+							type, extack);
+	}
 
 	return ret;
 }
@@ -1253,6 +1319,14 @@ ice_dpll_ufl_pin_state_set(const struct dpll_pin *pin, void *pin_priv,
 			data &= ~ICE_SMA1_MASK;
 			enable = true;
 		} else if (state == DPLL_PIN_STATE_DISCONNECTED) {
+			/* Skip if U.FL1 is not active, setting TX_EN
+			 * while DIR_EN is set would also deactivate
+			 * the paired SMA1 output.
+			 */
+			if (data & (ICE_SMA1_DIR_EN | ICE_SMA1_TX_EN)) {
+				ret = 0;
+				goto unlock;
+			}
 			data |= ICE_SMA1_TX_EN;
 			enable = false;
 		} else {
@@ -1267,6 +1341,15 @@ ice_dpll_ufl_pin_state_set(const struct dpll_pin *pin, void *pin_priv,
 			data &= ~ICE_SMA2_UFL2_RX_DIS;
 			enable = true;
 		} else if (state == DPLL_PIN_STATE_DISCONNECTED) {
+			/* Skip if U.FL2 is not active, setting
+			 * UFL2_RX_DIS could also disable the paired
+			 * SMA2 input.
+			 */
+			if (!(data & ICE_SMA2_DIR_EN) ||
+			    (data & ICE_SMA2_UFL2_RX_DIS)) {
+				ret = 0;
+				goto unlock;
+			}
 			data |= ICE_SMA2_UFL2_RX_DIS;
 			enable = false;
 		} else {
@@ -1296,6 +1379,8 @@ ice_dpll_ufl_pin_state_set(const struct dpll_pin *pin, void *pin_priv,
 
 unlock:
 	mutex_unlock(&pf->dplls.lock);
+	if (!ret)
+		ice_dpll_sw_pin_notify_peer(&pf->dplls, p);
 
 	return ret;
 }
@@ -1414,6 +1499,8 @@ ice_dpll_sma_pin_state_set(const struct dpll_pin *pin, void *pin_priv,
 
 unlock:
 	mutex_unlock(&pf->dplls.lock);
+	if (!ret)
+		ice_dpll_sw_pin_notify_peer(&pf->dplls, sma);
 
 	return ret;
 }
@@ -1609,6 +1696,8 @@ ice_dpll_pin_sma_direction_set(const struct dpll_pin *pin, void *pin_priv,
 	mutex_lock(&pf->dplls.lock);
 	ret = ice_dpll_sma_direction_set(p, direction, extack);
 	mutex_unlock(&pf->dplls.lock);
+	if (!ret)
+		ice_dpll_sw_pin_notify_peer(&pf->dplls, p);
 
 	return ret;
 }
@@ -1915,7 +2004,10 @@ ice_dpll_phase_offset_get(const struct dpll_pin *pin, void *pin_priv,
 				       d->active_input == p->input->pin))
 		*phase_offset = d->phase_offset * ICE_DPLL_PHASE_OFFSET_FACTOR;
 	else if (d->phase_offset_monitor_period)
-		*phase_offset = p->phase_offset * ICE_DPLL_PHASE_OFFSET_FACTOR;
+		*phase_offset = (p->input &&
+				 p->direction == DPLL_PIN_DIRECTION_INPUT ?
+				 p->input->phase_offset :
+				 p->phase_offset) * ICE_DPLL_PHASE_OFFSET_FACTOR;
 	else
 		*phase_offset = 0;
 	mutex_unlock(&pf->dplls.lock);
@@ -2440,6 +2532,8 @@ ice_dpll_rclk_state_on_pin_set(const struct dpll_pin *pin, void *pin_priv,
 	if (hw_idx < 0)
 		goto unlock;
 	hw_idx -= pf->dplls.base_rclk_idx;
+	if (hw_idx >= ICE_DPLL_RCLK_NUM_MAX)
+		goto unlock;
 
 	if ((enable && p->state[hw_idx] == DPLL_PIN_STATE_CONNECTED) ||
 	    (!enable && p->state[hw_idx] == DPLL_PIN_STATE_DISCONNECTED)) {
@@ -2503,6 +2597,9 @@ ice_dpll_rclk_state_on_pin_get(const struct dpll_pin *pin, void *pin_priv,
 	hw_idx = ice_dpll_pin_get_parent_idx(p, parent_pin);
 	if (hw_idx < 0)
 		goto unlock;
+	hw_idx -= pf->dplls.base_rclk_idx;
+	if (hw_idx >= ICE_DPLL_RCLK_NUM_MAX)
+		goto unlock;
 
 	ret = ice_dpll_pin_state_update(pf, p, ICE_DPLL_PIN_TYPE_RCLK_INPUT,
 					extack);
@@ -2517,9 +2614,203 @@ unlock:
 	return ret;
 }
 
+/**
+ * ice_dpll_txclk_work - apply a pending TX reference clock change
+ * @work: work_struct embedded in struct ice_dplls
+ *
+ * This worker executes an outstanding TX reference clock switch request
+ * that was previously queued via the DPLL TXCLK pin set callback.
+ *
+ * The worker performs only the operational part of the switch, issuing
+ * the necessary firmware commands to request a new TX reference clock
+ * selection (e.g. triggering an AN restart). It does not verify whether
+ * the requested clock was ultimately accepted by the hardware.
+ *
+ * Hardware verification, software state reconciliation, pin state
+ * notification, and TXC DPLL lock-status updates are performed later,
+ * after link-up, by ice_txclk_update_and_notify().
+ *
+ * Context:
+ *   - Runs in process context on pf->dplls.wq and may sleep.
+ *   - Serializes access to shared TXCLK state using pf->dplls.lock.
+ */
+static void ice_dpll_txclk_work(struct work_struct *work)
+{
+	struct ice_dplls *dplls =
+		container_of(work, struct ice_dplls, txclk_work);
+	struct ice_pf *pf = container_of(dplls, struct ice_pf, dplls);
+	struct dpll_pin *old_pin = NULL;
+	struct dpll_pin *new_pin = NULL;
+	enum ice_e825c_ref_clk clk;
+	bool do_switch;
+	int err;
+
+	mutex_lock(&pf->dplls.lock);
+	do_switch = pf->dplls.txclk_switch_requested;
+	clk = pf->ptp.port.tx_clk_req;
+	mutex_unlock(&pf->dplls.lock);
+
+	if (!do_switch)
+		return;
+
+	err = ice_txclk_set_clk(pf, clk);
+
+	mutex_lock(&pf->dplls.lock);
+	/* Only clear the request flag if no newer request arrived while
+	 * the lock was dropped. Otherwise leave it set so the re-queued
+	 * worker run picks up the updated tx_clk_req value.
+	 */
+	if (pf->ptp.port.tx_clk_req == clk)
+		pf->dplls.txclk_switch_requested = false;
+	if (err) {
+		/* Roll back the requested clock to match the current hardware
+		 * state so that ice_txclk_update_and_notify() does not
+		 * misinterpret a future link-up as a failed switch. Only roll
+		 * back if no newer request arrived in the meantime; otherwise
+		 * the re-queued worker run will apply the updated value.
+		 */
+		dev_err(ice_pf_to_dev(pf),
+			"TX clock switch to %u failed, err=%d; reverting\n",
+			clk, err);
+		if (pf->ptp.port.tx_clk_req == clk) {
+			/* Capture pins for post-unlock notification so that
+			 * userspace observes the requested pin flipping back
+			 * to DISCONNECTED and the effective pin to CONNECTED.
+			 */
+			new_pin = ice_txclk_get_pin(pf, clk);
+			old_pin = ice_txclk_get_pin(pf, pf->ptp.port.tx_clk);
+			pf->ptp.port.tx_clk_req = pf->ptp.port.tx_clk;
+		}
+	}
+	mutex_unlock(&pf->dplls.lock);
+
+	if (old_pin)
+		dpll_pin_change_ntf(old_pin);
+	if (new_pin)
+		dpll_pin_change_ntf(new_pin);
+}
+
+/**
+ * ice_dpll_txclk_state_on_dpll_set - set a state on TX clk pin
+ * @pin: pointer to a pin
+ * @pin_priv: private data pointer passed on pin registration
+ * @dpll: registered dpll pointer
+ * @dpll_priv: private data pointer passed on dpll registration
+ * @state: state to be set on pin
+ * @extack: error reporting
+ *
+ * Dpll subsystem callback, set a state of a Tx reference clock pin
+ *
+ * Context: Acquires and releases pf->dplls.lock.
+ * Return:
+ * * 0 - success
+ * * negative - failure
+ */
+static int
+ice_dpll_txclk_state_on_dpll_set(const struct dpll_pin *pin, void *pin_priv,
+				 const struct dpll_device *dpll,
+				 void *dpll_priv, enum dpll_pin_state state,
+				 struct netlink_ext_ack *extack)
+{
+	struct ice_dpll_pin *p = pin_priv;
+	struct ice_pf *pf = p->pf;
+	enum ice_e825c_ref_clk new_clk;
+	int ret = 0;
+
+	if (ice_dpll_is_reset(pf, extack))
+		return -EBUSY;
+
+	if (state != DPLL_PIN_STATE_CONNECTED &&
+	    state != DPLL_PIN_STATE_DISCONNECTED) {
+		NL_SET_ERR_MSG(extack,
+			       "unsupported pin state for TX reference clock");
+		return -EINVAL;
+	}
+
+	/* Check ICE_FLAG_DPLL and queue_work() under pf->dplls.lock.
+	 * ice_dpll_deinit() clears the flag under the same lock before
+	 * cancel_work_sync() and wq destruction, so a callback arriving
+	 * after teardown observes the cleared flag and bails out.
+	 */
+	mutex_lock(&pf->dplls.lock);
+	if (!test_bit(ICE_FLAG_DPLL, pf->flags)) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+	if (state == DPLL_PIN_STATE_DISCONNECTED &&
+	    p->tx_ref_src != pf->ptp.port.tx_clk_req)
+		goto unlock;
+
+	new_clk = (state == DPLL_PIN_STATE_DISCONNECTED) ? ICE_REF_CLK_ENET :
+			p->tx_ref_src;
+	if (new_clk == pf->ptp.port.tx_clk_req)
+		goto unlock;
+
+	pf->ptp.port.tx_clk_req = new_clk;
+	pf->dplls.txclk_switch_requested = true;
+	queue_work(pf->dplls.wq, &pf->dplls.txclk_work);
+unlock:
+	mutex_unlock(&pf->dplls.lock);
+	return ret;
+}
+
+/**
+ * ice_dpll_txclk_state_on_dpll_get - get a state of Tx clk reference pin
+ * @pin: pointer to a pin
+ * @pin_priv: private data pointer passed on pin registration
+ * @dpll: registered dpll pointer
+ * @dpll_priv: private data pointer passed on dpll registration
+ * @state: on success holds pin state on parent pin
+ * @extack: error reporting
+ *
+ * TXCLK DPLL pin state is derived and not stored explicitly.
+ *
+ * Only external TX reference clocks (SYNCE, EREF0) are modeled
+ * as DPLL pins. The internal ENET (TXCO) clock has no pin and,
+ * when selected, all TXCLK pins are reported DISCONNECTED.
+ *
+ * During a pending TXCLK switch, the requested pin may be
+ * reported as CONNECTED before hardware verification.
+ * Hardware acceptance and synchronization are reported
+ * exclusively via TXC DPLL lock-status.
+ *
+ * Context: Acquires and releases pf->dplls.lock
+ * Return:
+ * * 0 - success
+ * * negative - failure
+ */
+static int
+ice_dpll_txclk_state_on_dpll_get(const struct dpll_pin *pin, void *pin_priv,
+				 const struct dpll_device *dpll,
+				 void *dpll_priv,
+				 enum dpll_pin_state *state,
+				 struct netlink_ext_ack *extack)
+{
+	struct ice_dpll_pin *p = pin_priv;
+	struct ice_pf *pf = p->pf;
+
+	if (ice_dpll_is_reset(pf, extack))
+		return -EBUSY;
+
+	mutex_lock(&pf->dplls.lock);
+	if (pf->ptp.port.tx_clk_req == p->tx_ref_src)
+		*state = DPLL_PIN_STATE_CONNECTED;
+	else
+		*state = DPLL_PIN_STATE_DISCONNECTED;
+	mutex_unlock(&pf->dplls.lock);
+
+	return 0;
+}
+
 static const struct dpll_pin_ops ice_dpll_rclk_ops = {
 	.state_on_pin_set = ice_dpll_rclk_state_on_pin_set,
 	.state_on_pin_get = ice_dpll_rclk_state_on_pin_get,
+	.direction_get = ice_dpll_input_direction,
+};
+
+static const struct dpll_pin_ops ice_dpll_txclk_ops = {
+	.state_on_dpll_set = ice_dpll_txclk_state_on_dpll_set,
+	.state_on_dpll_get = ice_dpll_txclk_state_on_dpll_get,
 	.direction_get = ice_dpll_input_direction,
 };
 
@@ -2545,6 +2836,8 @@ static const struct dpll_pin_ops ice_dpll_pin_ufl_ops = {
 	.state_on_dpll_set = ice_dpll_ufl_pin_state_set,
 	.state_on_dpll_get = ice_dpll_sw_pin_state_get,
 	.direction_get = ice_dpll_pin_sw_direction_get,
+	.prio_get = ice_dpll_sw_input_prio_get,
+	.prio_set = ice_dpll_sw_input_prio_set,
 	.frequency_get = ice_dpll_sw_pin_frequency_get,
 	.frequency_set = ice_dpll_sw_pin_frequency_set,
 	.esync_set = ice_dpll_sw_esync_set,
@@ -2610,6 +2903,27 @@ static u64 ice_generate_clock_id(struct ice_pf *pf)
 }
 
 /**
+ * ice_dpll_pin_ntf - notify pin change including any SW pin wrappers
+ * @dplls: pointer to dplls struct
+ * @pin: the dpll_pin that changed
+ *
+ * Send a change notification for @pin and for any registered SMA/U.FL pin
+ * whose backing CGU input matches @pin.
+ */
+static void ice_dpll_pin_ntf(struct ice_dplls *dplls, struct dpll_pin *pin)
+{
+	dpll_pin_change_ntf(pin);
+	for (int i = 0; i < ICE_DPLL_PIN_SW_NUM; i++) {
+		if (dplls->sma[i].pin && dplls->sma[i].input &&
+		    dplls->sma[i].input->pin == pin)
+			dpll_pin_change_ntf(dplls->sma[i].pin);
+		if (dplls->ufl[i].pin && dplls->ufl[i].input &&
+		    dplls->ufl[i].input->pin == pin)
+			dpll_pin_change_ntf(dplls->ufl[i].pin);
+	}
+}
+
+/**
  * ice_dpll_notify_changes - notify dpll subsystem about changes
  * @d: pointer do dpll
  *
@@ -2617,6 +2931,7 @@ static u64 ice_generate_clock_id(struct ice_pf *pf)
  */
 static void ice_dpll_notify_changes(struct ice_dpll *d)
 {
+	struct ice_dplls *dplls = &d->pf->dplls;
 	bool pin_notified = false;
 
 	if (d->prev_dpll_state != d->dpll_state) {
@@ -2625,17 +2940,17 @@ static void ice_dpll_notify_changes(struct ice_dpll *d)
 	}
 	if (d->prev_input != d->active_input) {
 		if (d->prev_input)
-			dpll_pin_change_ntf(d->prev_input);
+			ice_dpll_pin_ntf(dplls, d->prev_input);
 		d->prev_input = d->active_input;
 		if (d->active_input) {
-			dpll_pin_change_ntf(d->active_input);
+			ice_dpll_pin_ntf(dplls, d->active_input);
 			pin_notified = true;
 		}
 	}
 	if (d->prev_phase_offset != d->phase_offset) {
 		d->prev_phase_offset = d->phase_offset;
 		if (!pin_notified && d->active_input)
-			dpll_pin_change_ntf(d->active_input);
+			ice_dpll_pin_ntf(dplls, d->active_input);
 	}
 }
 
@@ -2664,6 +2979,7 @@ static bool ice_dpll_is_pps_phase_monitor(struct ice_pf *pf)
 
 /**
  * ice_dpll_pins_notify_mask - notify dpll subsystem about bulk pin changes
+ * @dplls: pointer to dplls struct
  * @pins: array of ice_dpll_pin pointers registered within dpll subsystem
  * @pin_num: number of pins
  * @phase_offset_ntf_mask: bitmask of pin indexes to notify
@@ -2673,15 +2989,14 @@ static bool ice_dpll_is_pps_phase_monitor(struct ice_pf *pf)
  *
  * Context: Must be called while pf->dplls.lock is released.
  */
-static void ice_dpll_pins_notify_mask(struct ice_dpll_pin *pins,
+static void ice_dpll_pins_notify_mask(struct ice_dplls *dplls,
+				      struct ice_dpll_pin *pins,
 				      u8 pin_num,
 				      u32 phase_offset_ntf_mask)
 {
-	int i = 0;
-
-	for (i = 0; i < pin_num; i++)
-		if (phase_offset_ntf_mask & (1 << i))
-			dpll_pin_change_ntf(pins[i].pin);
+	for (int i = 0; i < pin_num; i++)
+		if (phase_offset_ntf_mask & BIT(i))
+			ice_dpll_pin_ntf(dplls, pins[i].pin);
 }
 
 /**
@@ -2857,7 +3172,7 @@ static void ice_dpll_periodic_work(struct kthread_work *work)
 	ice_dpll_notify_changes(de);
 	ice_dpll_notify_changes(dp);
 	if (phase_offset_ntf)
-		ice_dpll_pins_notify_mask(d->inputs, d->num_inputs,
+		ice_dpll_pins_notify_mask(d, d->inputs, d->num_inputs,
 					  phase_offset_ntf);
 
 resched:
@@ -3023,9 +3338,13 @@ ice_dpll_unregister_pins(struct dpll_device *dpll, struct ice_dpll_pin *pins,
 {
 	int i;
 
-	for (i = 0; i < count; i++)
-		if (!pins[i].hidden)
-			dpll_pin_unregister(dpll, pins[i].pin, ops, &pins[i]);
+	for (i = 0; i < count; i++) {
+		if (pins[i].hidden)
+			continue;
+		if (IS_ERR_OR_NULL(pins[i].pin))
+			continue;
+		dpll_pin_unregister(dpll, pins[i].pin, ops, &pins[i]);
+	}
 }
 
 /**
@@ -3199,18 +3518,41 @@ static bool ice_dpll_is_fwnode_pin(struct ice_dpll_pin *pin)
 	return !IS_ERR_OR_NULL(pin->fwnode);
 }
 
+static bool ice_dpll_fwnode_eq(const struct fwnode_handle *a,
+			       const struct fwnode_handle *b)
+{
+	return a && a == b;
+}
+
 static void ice_dpll_pin_notify_work(struct work_struct *work)
 {
 	struct ice_dpll_pin_work *w = container_of(work,
 						   struct ice_dpll_pin_work,
 						   work);
 	struct ice_dpll_pin *pin, *parent = w->pin;
+	bool is_tx_synce_parent = false;
 	struct ice_pf *pf = parent->pf;
+	bool is_rclk_parent = false;
 	int ret;
 
 	wait_for_completion(&pf->dplls.dpll_init);
 	if (!test_bit(ICE_FLAG_DPLL, pf->flags))
 		goto out; /* DPLL initialization failed */
+
+	/* Decide which parent we are handling, defensively checking FWNs */
+	for (int i = 0; i < pf->dplls.rclk.num_parents; i++) {
+		if (ice_dpll_fwnode_eq(parent->fwnode,
+				       pf->dplls.inputs[i].fwnode)) {
+			is_rclk_parent = true;
+			break;
+		}
+	}
+
+	is_tx_synce_parent =
+		ice_dpll_fwnode_eq(parent->fwnode,
+				   pf->dplls.txclks[E825_EXT_SYNCE_PIN_IDX].fwnode);
+	if (!is_rclk_parent && !is_tx_synce_parent)
+		goto out;
 
 	switch (w->action) {
 	case DPLL_PIN_CREATED:
@@ -3228,16 +3570,28 @@ static void ice_dpll_pin_notify_work(struct work_struct *work)
 			goto out;
 		}
 
-		/* Register rclk pin */
-		pin = &pf->dplls.rclk;
-		ret = dpll_pin_on_pin_register(parent->pin, pin->pin,
-					       &ice_dpll_rclk_ops, pin);
-		if (ret) {
-			dev_err(ice_pf_to_dev(pf),
-				"Failed to register pin: %pe\n", ERR_PTR(ret));
-			dpll_pin_put(parent->pin, &parent->tracker);
-			parent->pin = NULL;
-			goto out;
+		if (is_rclk_parent) {
+			/* Register rclk pin via on-pin relationship */
+			pin = &pf->dplls.rclk;
+			ret = dpll_pin_on_pin_register(parent->pin, pin->pin,
+						       &ice_dpll_rclk_ops, pin);
+			if (ret) {
+				dev_err(ice_pf_to_dev(pf),
+					"RCLK pin register failed: %pe\n",
+					ERR_PTR(ret));
+				goto drop_parent_ref;
+			}
+		} else if (is_tx_synce_parent) {
+			/* Register TX-CLK SYNCE pin directly to TXC DPLL */
+			pin = &pf->dplls.txclks[E825_EXT_SYNCE_PIN_IDX];
+			ret = dpll_pin_register(pf->dplls.txc.dpll, pin->pin,
+						&ice_dpll_txclk_ops, pin);
+			if (ret) {
+				dev_err(ice_pf_to_dev(pf),
+					"TX SYNCE pin register failed: %pe\n",
+					ERR_PTR(ret));
+				goto drop_parent_ref;
+			}
 		}
 		break;
 	case DPLL_PIN_DELETED:
@@ -3246,11 +3600,18 @@ static void ice_dpll_pin_notify_work(struct work_struct *work)
 			goto out;
 		}
 
-		/* Unregister rclk pin */
-		pin = &pf->dplls.rclk;
-		dpll_pin_on_pin_unregister(parent->pin, pin->pin,
-					   &ice_dpll_rclk_ops, pin);
-
+		if (is_rclk_parent) {
+			/* Unregister rclk pin */
+			pin = &pf->dplls.rclk;
+			dpll_pin_on_pin_unregister(parent->pin, pin->pin,
+						   &ice_dpll_rclk_ops, pin);
+		} else if (is_tx_synce_parent) {
+			/* Unregister TX-CLK SYNCE pin from TXC DPLL */
+			pin = &pf->dplls.txclks[E825_EXT_SYNCE_PIN_IDX];
+			dpll_pin_unregister(pf->dplls.txc.dpll, pin->pin,
+					    &ice_dpll_txclk_ops, pin);
+		}
+drop_parent_ref:
 		/* Drop fwnode pin reference */
 		dpll_pin_put(parent->pin, &parent->tracker);
 		parent->pin = NULL;
@@ -3275,6 +3636,12 @@ static int ice_dpll_pin_notify(struct notifier_block *nb, unsigned long action,
 	/* Check if the reported pin is this one */
 	if (pin->fwnode != info->fwnode)
 		return NOTIFY_DONE; /* Not this pin */
+
+	/* Ignore notification which are the outcome of internal pin
+	 * registration/unregistration calls - synce pin case.
+	 */
+	if (info->src_clock_id == pin->pf->dplls.clock_id)
+		return NOTIFY_DONE;
 
 	work = kzalloc_obj(*work);
 	if (!work)
@@ -3378,16 +3745,29 @@ ice_dpll_init_rclk_pin(struct ice_pf *pf, int start_idx,
 }
 
 static void
-ice_dpll_deinit_fwnode_pin(struct ice_dpll_pin *pin)
+ice_dpll_stop_fwnode_pin_activity(struct ice_dpll_pin *pin, bool flush)
 {
 	unregister_dpll_notifier(&pin->nb);
-	flush_workqueue(pin->pf->dplls.wq);
+	if (flush)
+		flush_workqueue(pin->pf->dplls.wq);
+}
+
+static void
+ice_dpll_release_fwnode_pin(struct ice_dpll_pin *pin)
+{
 	if (!IS_ERR_OR_NULL(pin->pin)) {
 		dpll_pin_put(pin->pin, &pin->tracker);
 		pin->pin = NULL;
 	}
 	fwnode_handle_put(pin->fwnode);
 	pin->fwnode = NULL;
+}
+
+static void
+ice_dpll_deinit_fwnode_pin(struct ice_dpll_pin *pin)
+{
+	ice_dpll_stop_fwnode_pin_activity(pin, true);
+	ice_dpll_release_fwnode_pin(pin);
 }
 
 static void
@@ -3399,6 +3779,26 @@ ice_dpll_deinit_fwnode_pins(struct ice_pf *pf, struct ice_dpll_pin *pins,
 	for (i = 0; i < pf->dplls.rclk.num_parents; i++)
 		ice_dpll_deinit_fwnode_pin(&pins[start_idx + i]);
 	destroy_workqueue(pf->dplls.wq);
+}
+
+static int ice_dpll_deinit_txclk_pins(struct ice_pf *pf)
+{
+	struct ice_dpll_pin *synce_pin = &pf->dplls.txclks[E825_EXT_SYNCE_PIN_IDX];
+	struct ice_dpll *dt = &pf->dplls.txc;
+
+	ice_dpll_stop_fwnode_pin_activity(synce_pin, true);
+	ice_dpll_unregister_pins(dt->dpll, pf->dplls.txclks,
+				 &ice_dpll_txclk_ops,
+				 ARRAY_SIZE(pf->dplls.txclks));
+	ice_dpll_release_pins(&pf->dplls.txclks[E825_EXT_EREF_PIN_IDX], 1);
+	/* ice_dpll_release_pins() puts the pin but does not clear the slot,
+	 * unlike ice_dpll_release_fwnode_pin() used for SYNCE below. NULL it
+	 * so a late ice_txclk_get_pin() returns NULL rather than a dangling
+	 * pointer.
+	 */
+	pf->dplls.txclks[E825_EXT_EREF_PIN_IDX].pin = NULL;
+	ice_dpll_release_fwnode_pin(synce_pin);
+	return 0;
 }
 
 /**
@@ -3420,8 +3820,10 @@ static void ice_dpll_deinit_pins(struct ice_pf *pf, bool cgu)
 	struct ice_dpll *dp = &d->pps;
 
 	ice_dpll_deinit_rclk_pin(pf);
-	if (pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825)
+	if (pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825) {
+		ice_dpll_deinit_txclk_pins(pf);
 		ice_dpll_deinit_fwnode_pins(pf, pf->dplls.inputs, 0);
+	}
 	if (cgu) {
 		ice_dpll_unregister_pins(dp->dpll, inputs, &ice_dpll_input_ops,
 					 num_inputs);
@@ -3527,7 +3929,7 @@ static int
 ice_dpll_init_fwnode_pins(struct ice_pf *pf, struct ice_dpll_pin *pins,
 			  int start_idx)
 {
-	char pin_name[8];
+	char pin_name[16];
 	int i, ret;
 
 	pf->dplls.wq = create_singlethread_workqueue("ice_dpll_wq");
@@ -3544,10 +3946,73 @@ ice_dpll_init_fwnode_pins(struct ice_pf *pf, struct ice_dpll_pin *pins,
 
 	return 0;
 error:
+	/*
+	 * A notifier worker may already be queued and blocked on dpll_init;
+	 * release it so the per-pin flush below does not deadlock.
+	 */
+	complete_all(&pf->dplls.dpll_init);
 	while (i--)
 		ice_dpll_deinit_fwnode_pin(&pins[start_idx + i]);
 
 	destroy_workqueue(pf->dplls.wq);
+
+	return ret;
+}
+
+static int ice_dpll_init_txclk_pins(struct ice_pf *pf, int start_idx)
+{
+	struct ice_dpll_pin *ref_pin = pf->dplls.txclks;
+	struct ice_dpll *txc = &pf->dplls.txc;
+	int ret;
+
+	/* Configure EXT_EREF0 pin */
+	ret = ice_dpll_get_pins(pf, ref_pin, start_idx, 1, pf->dplls.clock_id);
+	if (ret)
+		return ret;
+	ret = dpll_pin_register(txc->dpll, ref_pin->pin, &ice_dpll_txclk_ops,
+				ref_pin);
+	if (ret)
+		goto err_release_ext_eref;
+
+	/*
+	 * Configure EXT_SYNCE pin (fwnode-backed).
+	 * The pin may not yet be available; in that case registration
+	 * will be deferred via the notifier path.
+	 */
+	ref_pin++;
+	ret = ice_dpll_init_fwnode_pin(ref_pin, ice_dpll_fwnode_ext_synce);
+	if (ret)
+		goto err_unregister_ext_eref;
+
+	if (IS_ERR_OR_NULL(ref_pin->pin)) {
+		dev_dbg(ice_pf_to_dev(pf),
+			"Tx-clk SYNCE pin not registered yet\n");
+		return 0;
+	}
+
+	ret = dpll_pin_register(txc->dpll, ref_pin->pin, &ice_dpll_txclk_ops,
+				ref_pin);
+	if (ret)
+		goto err_deinit_synce;
+
+	return 0;
+
+err_deinit_synce:
+	/*
+	 * Avoid deadlock against notifier workers blocked on dpll_init.
+	 * The outer init error path will complete dpll_init and flush the
+	 * shared workqueue before destroying it.
+	 */
+	ice_dpll_stop_fwnode_pin_activity(ref_pin, false);
+	ice_dpll_release_fwnode_pin(ref_pin);
+err_unregister_ext_eref:
+	dpll_pin_unregister(txc->dpll,
+			    pf->dplls.txclks[E825_EXT_EREF_PIN_IDX].pin,
+			    &ice_dpll_txclk_ops,
+			    &pf->dplls.txclks[E825_EXT_EREF_PIN_IDX]);
+
+err_release_ext_eref:
+	ice_dpll_release_pins(&pf->dplls.txclks[E825_EXT_EREF_PIN_IDX], 1);
 
 	return ret;
 }
@@ -3574,6 +4039,15 @@ static int ice_dpll_init_pins_e825(struct ice_pf *pf)
 
 	ret = ice_dpll_init_rclk_pin(pf, DPLL_PIN_IDX_UNSPEC,
 				     &ice_dpll_rclk_ops);
+
+	if (ret)
+		goto unregister_pins;
+
+	ret = ice_dpll_init_txclk_pins(pf, 0);
+	if (ret)
+		ice_dpll_deinit_rclk_pin(pf);
+
+unregister_pins:
 	if (ret) {
 		/* Inform DPLL notifier works that DPLL init was finished
 		 * unsuccessfully (ICE_DPLL_FLAG not set).
@@ -3692,7 +4166,7 @@ deinit_inputs:
 static void
 ice_dpll_deinit_dpll(struct ice_pf *pf, struct ice_dpll *d, bool cgu)
 {
-	if (cgu)
+	if (cgu || pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825)
 		dpll_device_unregister(d->dpll, d->ops, d);
 	dpll_device_put(d->dpll, &d->tracker);
 }
@@ -3727,12 +4201,13 @@ ice_dpll_init_dpll(struct ice_pf *pf, struct ice_dpll *d, bool cgu,
 		return ret;
 	}
 	d->pf = pf;
-	if (cgu) {
+	if (cgu || pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825) {
 		const struct dpll_device_ops *ops = &ice_dpll_ops;
 
 		if (type == DPLL_TYPE_PPS && ice_dpll_is_pps_phase_monitor(pf))
 			ops =  &ice_dpll_pom_ops;
-		ice_dpll_update_state(pf, d, true);
+		if (cgu)
+			ice_dpll_update_state(pf, d, true);
 		ret = dpll_device_register(d->dpll, type, ops, d);
 		if (ret) {
 			dpll_device_put(d->dpll, &d->tracker);
@@ -4014,6 +4489,7 @@ static int ice_dpll_init_info_sw_pins(struct ice_pf *pf)
 	struct ice_dpll_pin *pin;
 	u32 phase_adj_max, caps;
 	int i, ret;
+	u8 data;
 
 	if (pf->hw.device_id == ICE_DEV_ID_E810C_QSFP)
 		input_idx_offset = ICE_E810_RCLK_PINS_NUM;
@@ -4073,10 +4549,56 @@ static int ice_dpll_init_info_sw_pins(struct ice_pf *pf)
 		}
 		ice_dpll_phase_range_set(&pin->prop.phase_range, phase_adj_max);
 	}
+
+	/* Initialize the SMA control register to a known-good default state.
+	 * Without this write the PCA9575 GPIO expander retains its power-on
+	 * default (all outputs high) which makes all SW pins appear inactive.
+	 * Set SMA1 and SMA2 as active inputs, disable U.FL1 output and
+	 * U.FL2 input.
+	 */
+	ret = ice_read_sma_ctrl(&pf->hw, &data);
+	if (ret)
+		return ret;
+	data &= ~ICE_ALL_SMA_MASK;
+	data |= ICE_SMA1_TX_EN | ICE_SMA2_TX_EN | ICE_SMA2_UFL2_RX_DIS;
+	ret = ice_write_sma_ctrl(&pf->hw, data);
+	if (ret)
+		return ret;
+
 	ret = ice_dpll_pin_state_update(pf, pin, ICE_DPLL_PIN_TYPE_SOFTWARE,
 					NULL);
 	if (ret)
 		return ret;
+
+	return 0;
+}
+
+/**
+ * ice_dpll_init_info_txclk_pins_e825c - initializes tx-clk pins information
+ * @pf: board private structure
+ *
+ * Init information for tx-clks pin, cache them in pf->dplls.txclks
+ *
+ * Return:
+ * * 0 - success
+ */
+static int ice_dpll_init_info_txclk_pins_e825c(struct ice_pf *pf)
+{
+	struct ice_dpll_pin *tx_pin;
+
+	for (int i = 0; i < ICE_DPLL_TXCLK_NUM_MAX; i++) {
+		tx_pin = &pf->dplls.txclks[i];
+		tx_pin->prop.type = DPLL_PIN_TYPE_EXT;
+		tx_pin->prop.capabilities |=
+				 DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+		tx_pin->pf = pf;
+		if (i == E825_EXT_EREF_PIN_IDX) {
+			tx_pin->prop.board_label = ice_dpll_ext_eref_pin;
+			tx_pin->tx_ref_src = ICE_REF_CLK_EREF0;
+		} else if (i == E825_EXT_SYNCE_PIN_IDX) {
+			tx_pin->tx_ref_src = ICE_REF_CLK_SYNCE;
+		}
+	}
 
 	return 0;
 }
@@ -4106,6 +4628,9 @@ ice_dpll_init_pins_info(struct ice_pf *pf, enum ice_dpll_pin_type pin_type)
 			return ice_dpll_init_info_rclk_pin(pf);
 	case ICE_DPLL_PIN_TYPE_SOFTWARE:
 		return ice_dpll_init_info_sw_pins(pf);
+
+	case ICE_DPLL_PIN_TYPE_TXCLK:
+		return ice_dpll_init_info_txclk_pins_e825c(pf);
 	default:
 		return -EINVAL;
 	}
@@ -4120,9 +4645,13 @@ ice_dpll_init_pins_info(struct ice_pf *pf, enum ice_dpll_pin_type pin_type)
 static void ice_dpll_deinit_info(struct ice_pf *pf)
 {
 	kfree(pf->dplls.inputs);
+	pf->dplls.inputs = NULL;
 	kfree(pf->dplls.outputs);
+	pf->dplls.outputs = NULL;
 	kfree(pf->dplls.eec.input_prio);
+	pf->dplls.eec.input_prio = NULL;
 	kfree(pf->dplls.pps.input_prio);
+	pf->dplls.pps.input_prio = NULL;
 }
 
 /**
@@ -4139,11 +4668,15 @@ static void ice_dpll_deinit_info(struct ice_pf *pf)
 static int ice_dpll_init_info_e825c(struct ice_pf *pf)
 {
 	struct ice_dplls *d = &pf->dplls;
+	struct ice_dpll *dt = &d->txc;
 	int ret = 0;
 	int i;
 
 	d->clock_id = ice_generate_clock_id(pf);
 	d->num_inputs = ICE_SYNCE_CLK_NUM;
+	dt->dpll_state = ice_txclk_lock_status(pf->ptp.port.tx_clk);
+	dt->mode = DPLL_MODE_MANUAL;
+	dt->dpll_idx = pf->ptp.port.port_num;
 
 	d->inputs = kzalloc_objs(*d->inputs, d->num_inputs);
 	if (!d->inputs)
@@ -4160,6 +4693,11 @@ static int ice_dpll_init_info_e825c(struct ice_pf *pf)
 	ret = ice_dpll_init_pins_info(pf, ICE_DPLL_PIN_TYPE_RCLK_INPUT);
 	if (ret)
 		goto deinit_info;
+
+	ret = ice_dpll_init_pins_info(pf, ICE_DPLL_PIN_TYPE_TXCLK);
+	if (ret)
+		goto deinit_info;
+
 	dev_dbg(ice_pf_to_dev(pf),
 		"%s - success, inputs: %u, outputs: %u, rclk-parents: %u\n",
 		 __func__, d->num_inputs, d->num_outputs, d->rclk.num_parents);
@@ -4214,12 +4752,16 @@ static int ice_dpll_init_info(struct ice_pf *pf, bool cgu)
 
 	alloc_size = sizeof(*de->input_prio) * d->num_inputs;
 	de->input_prio = kzalloc(alloc_size, GFP_KERNEL);
-	if (!de->input_prio)
-		return -ENOMEM;
+	if (!de->input_prio) {
+		ret = -ENOMEM;
+		goto deinit_info;
+	}
 
 	dp->input_prio = kzalloc(alloc_size, GFP_KERNEL);
-	if (!dp->input_prio)
-		return -ENOMEM;
+	if (!dp->input_prio) {
+		ret = -ENOMEM;
+		goto deinit_info;
+	}
 
 	ret = ice_dpll_init_pins_info(pf, ICE_DPLL_PIN_TYPE_INPUT);
 	if (ret)
@@ -4244,12 +4786,12 @@ static int ice_dpll_init_info(struct ice_pf *pf, bool cgu)
 	ret = ice_get_cgu_rclk_pin_info(&pf->hw, &d->base_rclk_idx,
 					&pf->dplls.rclk.num_parents);
 	if (ret)
-		return ret;
+		goto deinit_info;
 	for (i = 0; i < pf->dplls.rclk.num_parents; i++)
 		pf->dplls.rclk.parent_idx[i] = d->base_rclk_idx + i;
 	ret = ice_dpll_init_pins_info(pf, ICE_DPLL_PIN_TYPE_RCLK_INPUT);
 	if (ret)
-		return ret;
+		goto deinit_info;
 	de->mode = DPLL_MODE_AUTOMATIC;
 	dp->mode = DPLL_MODE_AUTOMATIC;
 
@@ -4283,15 +4825,38 @@ void ice_dpll_deinit(struct ice_pf *pf)
 {
 	bool cgu = ice_is_feature_supported(pf, ICE_F_CGU);
 
+	/* Clear ICE_FLAG_DPLL under the lock so that any new caller of
+	 * ice_txclk_update_and_notify() observes the cleared flag and
+	 * returns early. In-flight callers that already passed the flag
+	 * check hold txclk_notify_rwsem for read across the out-of-lock
+	 * dpll_*_change_ntf() calls; the down_write/up_write barrier
+	 * below waits for them to finish before pins and the TXC DPLL
+	 * device may be freed.
+	 */
+	mutex_lock(&pf->dplls.lock);
 	clear_bit(ICE_FLAG_DPLL, pf->flags);
+	mutex_unlock(&pf->dplls.lock);
+
+	/* Wait for in-flight ice_txclk_update_and_notify() readers */
+	if (pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825) {
+		down_write(&pf->dplls.txclk_notify_rwsem);
+		up_write(&pf->dplls.txclk_notify_rwsem);
+	}
+
 	if (cgu)
 		ice_dpll_deinit_worker(pf);
+
+	if (pf->hw.mac_type == ICE_MAC_GENERIC_3K_E825)
+		cancel_work_sync(&pf->dplls.txclk_work);
 
 	ice_dpll_deinit_pins(pf, cgu);
 	if (!IS_ERR_OR_NULL(pf->dplls.pps.dpll))
 		ice_dpll_deinit_dpll(pf, &pf->dplls.pps, cgu);
 	if (!IS_ERR_OR_NULL(pf->dplls.eec.dpll))
 		ice_dpll_deinit_dpll(pf, &pf->dplls.eec, cgu);
+	if (!IS_ERR_OR_NULL(pf->dplls.txc.dpll))
+		ice_dpll_deinit_dpll(pf, &pf->dplls.txc, false);
+
 	ice_dpll_deinit_info(pf);
 	mutex_destroy(&pf->dplls.lock);
 }
@@ -4311,20 +4876,42 @@ static void ice_dpll_init_e825(struct ice_pf *pf)
 	struct ice_dplls *d = &pf->dplls;
 	int err;
 
+	/* E825 sets ICE_F_PHY_RCLK unconditionally, so DPLL may run without
+	 * PTP. Populate the HW-topology fields the TX-clk path divides by,
+	 * otherwise userspace can trigger div-by-zero in ice_txclk_set_clk().
+	 * When PTP is supported, ice_ptp_init() handles this.
+	 */
+	if (!test_bit(ICE_FLAG_PTP_SUPPORTED, pf->flags)) {
+		ice_ptp_init_hw(&pf->hw);
+		if (pf->hw.lane_num >= 0)
+			pf->ptp.port.port_num = pf->hw.lane_num;
+	}
+
 	mutex_init(&d->lock);
+	/* Initialize the txclk worker and its notification rwsem before any
+	 * code path can fail: ice_dpll_deinit() runs unconditionally on
+	 * failure and calls cancel_work_sync() / down_write() on these.
+	 */
+	INIT_WORK(&d->txclk_work, ice_dpll_txclk_work);
+	init_rwsem(&d->txclk_notify_rwsem);
 	init_completion(&d->dpll_init);
 
 	err = ice_dpll_init_info_e825c(pf);
 	if (err)
 		goto err_exit;
-	err = ice_dpll_init_pins_e825(pf);
+	err = ice_dpll_init_dpll(pf, &pf->dplls.txc, false, DPLL_TYPE_GENERIC);
 	if (err)
 		goto deinit_info;
+	err = ice_dpll_init_pins_e825(pf);
+	if (err)
+		goto deinit_txclk;
 	set_bit(ICE_FLAG_DPLL, pf->flags);
 	complete_all(&d->dpll_init);
 
 	return;
 
+deinit_txclk:
+	ice_dpll_deinit_dpll(pf, &pf->dplls.txc, false);
 deinit_info:
 	ice_dpll_deinit_info(pf);
 err_exit:

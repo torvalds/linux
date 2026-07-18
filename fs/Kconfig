@@ -78,7 +78,7 @@ config FS_DAX
 	  --map=mem:
 	  https://docs.pmem.io/ndctl-user-guide/ndctl-man-pages/ndctl-create-namespace
 
-          For ndctl to work CONFIG_DEV_DAX needs to be enabled as well. For most
+	  For ndctl to work CONFIG_DEV_DAX needs to be enabled as well. For most
 	  file systems DAX support needs to be manually enabled globally or
 	  per-inode using a mount option as well.  See the file documentation in
 	  Documentation/filesystems/dax.rst for details.
@@ -116,8 +116,8 @@ config FILE_LOCKING
 	default y
 	help
 	  This option enables standard file locking support, required
-          for filesystems like NFS and for the flock() system
-          call. Disabling this option saves about 11k.
+	  for filesystems like NFS and for the flock() system
+	  call. Disabling this option saves about 11k.
 
 source "fs/crypto/Kconfig"
 

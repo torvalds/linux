@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024 - 2025 Intel Corporation
+ * Copyright (C) 2024 - 2026 Intel Corporation
  */
 #include <net/ip.h>
 
@@ -71,13 +71,18 @@ static int iwl_mld_allocate_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 {
 	u8 tid = txq->tid == IEEE80211_NUM_TIDS ? IWL_MGMT_TID : txq->tid;
 	u32 fw_sta_mask = iwl_mld_fw_sta_id_mask(mld, txq->sta);
-	/* We can't know when the station is asleep or awake, so we
-	 * must disable the queue hang detection.
-	 */
-	unsigned int watchdog_timeout = txq->vif->type == NL80211_IFTYPE_AP ?
-				IWL_WATCHDOG_DISABLED :
-				mld->trans->mac_cfg->base->wd_timeout;
+	unsigned int watchdog_timeout;
 	int queue, size;
+
+	switch (txq->vif->type) {
+	case NL80211_IFTYPE_AP:		/* STA might go to PS */
+	case NL80211_IFTYPE_NAN_DATA:	/* peer might ULW/break schedule */
+		watchdog_timeout = IWL_WATCHDOG_DISABLED;
+		break;
+	default:
+		watchdog_timeout = mld->trans->mac_cfg->base->wd_timeout;
+		break;
+	}
 
 	lockdep_assert_wiphy(mld->wiphy);
 
@@ -346,7 +351,8 @@ u8 iwl_mld_get_lowest_rate(struct iwl_mld *mld,
 	iwl_mld_get_basic_rates_and_band(mld, vif, info, &basic_rates, &band);
 
 	if (band >= NUM_NL80211_BANDS) {
-		WARN_ON(vif->type != NL80211_IFTYPE_NAN);
+		WARN_ON(vif->type != NL80211_IFTYPE_NAN &&
+			vif->type != NL80211_IFTYPE_NAN_DATA);
 		return IWL_FIRST_OFDM_RATE;
 	}
 
@@ -489,7 +495,7 @@ static __le32 iwl_mld_get_tx_rate_n_flags(struct iwl_mld *mld,
 		rate = iwl_mld_mac80211_rate_idx_to_fw(mld, info, -1) |
 		       iwl_mld_get_tx_ant(mld, info, sta, fc);
 
-	return iwl_v3_rate_to_v2_v3(rate, mld->fw_rates_ver_3);
+	return cpu_to_le32(rate);
 }
 
 static void
@@ -552,10 +558,13 @@ iwl_mld_fill_tx_cmd(struct iwl_mld *mld, struct sk_buff *skb,
 		flags |= IWL_TX_FLAGS_ENCRYPT_DIS;
 
 	/* For data and mgmt packets rate info comes from the fw.
-	 * Only set rate/antenna for injected frames with fixed rate, or
-	 * when no sta is given.
+	 * Only set rate/antenna for:
+	 * - injected frames with fixed rate,
+	 * - when no sta is given.
+	 * - frames that are sent to an NMI sta, which is only used for management.
 	 */
 	if (unlikely(!sta ||
+		     (mld_sta && mld_sta->vif->type == NL80211_IFTYPE_NAN) ||
 		     info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
 		flags |= IWL_TX_FLAGS_CMD_RATE;
 		rate_n_flags = iwl_mld_get_tx_rate_n_flags(mld, info, sta,
@@ -673,11 +682,16 @@ iwl_mld_get_tx_queue_id(struct iwl_mld *mld, struct ieee80211_txq *txq,
 		WARN_ON(!ieee80211_is_mgmt(fc));
 		return mld_vif->aux_sta.queue_id;
 	case NL80211_IFTYPE_NAN:
-		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
-
 		WARN_ON(!ieee80211_is_mgmt(fc));
+		return iwl_mld_nan_get_mgmt_queue(mld, info->control.vif);
+	case NL80211_IFTYPE_NAN_DATA:
+		WARN_ON(!ieee80211_is_data(fc));
 
-		return mld_vif->aux_sta.queue_id;
+		if (!iwl_mld_nan_use_nan_stations(mld))
+			break;
+
+		mld_vif = iwl_mld_vif_from_mac80211(info->control.vif);
+		return mld_vif->nan.mcast_data_sta.queue_id;
 	default:
 		WARN_ONCE(1, "Unsupported vif type\n");
 		break;
@@ -834,7 +848,7 @@ static int iwl_mld_tx_tso_segment(struct iwl_mld *mld, struct sk_buff *skb,
 		return -EINVAL;
 
 	max_tid_amsdu_len = sta->cur->max_tid_amsdu_len[tid];
-	if (!max_tid_amsdu_len)
+	if (!max_tid_amsdu_len || max_tid_amsdu_len == 1)
 		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skbs);
 
 	/* Sub frame header + SNAP + IP header + TCP header + MSS */
@@ -845,6 +859,9 @@ static int iwl_mld_tx_tso_segment(struct iwl_mld *mld, struct sk_buff *skb,
 	 * N * subf_len + (N - 1) * pad.
 	 */
 	num_subframes = (max_tid_amsdu_len + pad) / (subf_len + pad);
+
+	if (WARN_ON_ONCE(!num_subframes))
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skbs);
 
 	if (sta->max_amsdu_subframes &&
 	    num_subframes > sta->max_amsdu_subframes)
@@ -971,6 +988,16 @@ void iwl_mld_tx_from_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	u8 zero_addr[ETH_ALEN] = {};
 
 	/*
+	 * Don't transmit during firmware restart. The firmware is dead,
+	 * so iwl_trans_tx() would return -EIO for each frame. Avoid the
+	 * overhead of dequeuing from mac80211 only to immediately free
+	 * the skbs, and the potential memory pressure from rapid skb
+	 * allocation churn during high-throughput restart scenarios.
+	 */
+	if (unlikely(mld->fw_status.in_hw_restart))
+		return;
+
+	/*
 	 * No need for threads to be pending here, they can leave the first
 	 * taker all the work.
 	 *
@@ -1005,14 +1032,11 @@ void iwl_mld_tx_from_txq(struct iwl_mld *mld, struct ieee80211_txq *txq)
 	rcu_read_unlock();
 }
 
-static void iwl_mld_hwrate_to_tx_rate(struct iwl_mld *mld,
-				      __le32 rate_n_flags_fw,
+static void iwl_mld_hwrate_to_tx_rate(u32 rate_n_flags,
 				      struct ieee80211_tx_info *info)
 {
 	enum nl80211_band band = info->band;
 	struct ieee80211_tx_rate *tx_rate = &info->status.rates[0];
-	u32 rate_n_flags = iwl_v3_rate_from_v2_v3(rate_n_flags_fw,
-						  mld->fw_rates_ver_3);
 	u32 sgi = rate_n_flags & RATE_MCS_SGI_MSK;
 	u32 chan_width = rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK;
 	u32 format = rate_n_flags & RATE_MCS_MOD_TYPE_MSK;
@@ -1143,7 +1167,8 @@ void iwl_mld_handle_tx_resp_notif(struct iwl_mld *mld,
 			iwl_dbg_tlv_time_point(&mld->fwrt, tp, NULL);
 		}
 
-		iwl_mld_hwrate_to_tx_rate(mld, tx_resp->initial_rate, info);
+		iwl_mld_hwrate_to_tx_rate(le32_to_cpu(tx_resp->initial_rate),
+					  info);
 
 		if (likely(!iwl_mld_time_sync_frame(mld, skb, hdr->addr1)))
 			ieee80211_tx_status_skb(mld->hw, skb);

@@ -6,7 +6,7 @@ _CFLAGS_STACKPROTECTOR ?= $(call try-run, \
 	$(__CFLAGS_STACKPROTECTOR))
 _CFLAGS_SANITIZER ?= $(call cc-option,-fsanitize=undefined -fsanitize-trap=all)
 CFLAGS_NOLIBC_TEST  ?= -Os -fno-ident -fno-asynchronous-unwind-tables -std=c89 \
-		-W -Wall -Wextra -Wundef \
+		-W -Wall -Wextra -Wundef -Wwrite-strings \
 		$(call cc-option,-fno-stack-protector) $(call cc-option,-Wmissing-prototypes) \
 		$(_CFLAGS_STACKPROTECTOR) $(_CFLAGS_SANITIZER)
 

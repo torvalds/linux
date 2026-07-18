@@ -799,7 +799,7 @@ dsi_esc_timing(u32 ns)
 }
 
 static void vc4_dsi_bridge_disable(struct drm_bridge *bridge,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	u32 disp0_ctrl;
@@ -810,7 +810,7 @@ static void vc4_dsi_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void vc4_dsi_bridge_post_disable(struct drm_bridge *bridge,
-					struct drm_atomic_state *state)
+					struct drm_atomic_commit *state)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	struct device *dev = &dsi->pdev->dev;
@@ -872,7 +872,7 @@ static bool vc4_dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 }
 
 static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
-				      struct drm_atomic_state *state)
+				      struct drm_atomic_commit *state)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	const struct drm_crtc_state *crtc_state;
@@ -1141,7 +1141,7 @@ static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
 }
 
 static void vc4_dsi_bridge_enable(struct drm_bridge *bridge,
-				  struct drm_atomic_state *state)
+				  struct drm_atomic_commit *state)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	bool debug_dump_regs = false;
@@ -1411,7 +1411,7 @@ static const struct mipi_dsi_host_ops vc4_dsi_host_ops = {
 static const struct drm_bridge_funcs vc4_dsi_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_pre_enable = vc4_dsi_bridge_pre_enable,
 	.atomic_enable = vc4_dsi_bridge_enable,
 	.atomic_disable = vc4_dsi_bridge_disable,

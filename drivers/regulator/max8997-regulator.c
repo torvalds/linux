@@ -1152,8 +1152,8 @@ static int max8997_pmic_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id max8997_pmic_id[] = {
-	{ "max8997-pmic", 0},
-	{ },
+	{ .name = "max8997-pmic" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 

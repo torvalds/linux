@@ -168,9 +168,19 @@ static void bo_meminfo(struct xe_bo *bo,
 		       struct drm_memory_stats stats[TTM_NUM_MEM_TYPES])
 {
 	u64 sz = xe_bo_size(bo);
-	u32 mem_type = bo->ttm.resource->mem_type;
+	u32 mem_type;
 
 	xe_bo_assert_held(bo);
+
+	/*
+	 * The resource can be NULL if the BO has been purged, plus maybe some
+	 * other cases. Either way there shouldn't be any memory to account for,
+	 * or a current resource to account this against, so skip for now.
+	 */
+	if (!bo->ttm.resource)
+		return;
+
+	mem_type = bo->ttm.resource->mem_type;
 
 	if (drm_gem_object_is_shared_for_memory_stats(&bo->ttm.base))
 		stats[mem_type].shared += sz;
@@ -183,7 +193,7 @@ static void bo_meminfo(struct xe_bo *bo,
 		if (!dma_resv_test_signaled(bo->ttm.base.resv,
 					    DMA_RESV_USAGE_BOOKKEEP))
 			stats[mem_type].active += sz;
-		else if (mem_type == XE_PL_SYSTEM)
+		else if (mem_type == XE_PL_SYSTEM || xe_bo_madv_is_dontneed(bo))
 			stats[mem_type].purgeable += sz;
 	}
 }
@@ -263,8 +273,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 					       &stats[mem_type],
 					       DRM_GEM_OBJECT_ACTIVE |
 					       DRM_GEM_OBJECT_RESIDENT |
-					       (mem_type != XE_PL_SYSTEM ? 0 :
-					       DRM_GEM_OBJECT_PURGEABLE),
+					       DRM_GEM_OBJECT_PURGEABLE,
 					       xe_mem_type_to_name[mem_type]);
 		}
 	}

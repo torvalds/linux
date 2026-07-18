@@ -53,11 +53,11 @@ static const struct __kvm_pmu_event_filter base_event_filter = {
 };
 
 struct {
-	uint64_t loads;
-	uint64_t stores;
-	uint64_t loads_stores;
-	uint64_t branches_retired;
-	uint64_t instructions_retired;
+	u64 loads;
+	u64 stores;
+	u64 loads_stores;
+	u64 branches_retired;
+	u64 instructions_retired;
 } pmc_results;
 
 /*
@@ -75,9 +75,9 @@ static void guest_gp_handler(struct ex_regs *regs)
  *
  * Return on success. GUEST_SYNC(0) on error.
  */
-static void check_msr(uint32_t msr, uint64_t bits_to_flip)
+static void check_msr(u32 msr, u64 bits_to_flip)
 {
-	uint64_t v = rdmsr(msr) ^ bits_to_flip;
+	u64 v = rdmsr(msr) ^ bits_to_flip;
 
 	wrmsr(msr, v);
 	if (rdmsr(msr) != v)
@@ -89,10 +89,10 @@ static void check_msr(uint32_t msr, uint64_t bits_to_flip)
 		GUEST_SYNC(-EIO);
 }
 
-static void run_and_measure_loop(uint32_t msr_base)
+static void run_and_measure_loop(u32 msr_base)
 {
-	const uint64_t branches_retired = rdmsr(msr_base + 0);
-	const uint64_t insn_retired = rdmsr(msr_base + 1);
+	const u64 branches_retired = rdmsr(msr_base + 0);
+	const u64 insn_retired = rdmsr(msr_base + 1);
 
 	__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
 
@@ -147,7 +147,7 @@ static void amd_guest_code(void)
  * Run the VM to the next GUEST_SYNC(value), and return the value passed
  * to the sync. Any other exit from the guest is fatal.
  */
-static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
+static u64 run_vcpu_to_sync(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
@@ -161,7 +161,7 @@ static uint64_t run_vcpu_to_sync(struct kvm_vcpu *vcpu)
 
 static void run_vcpu_and_sync_pmc_results(struct kvm_vcpu *vcpu)
 {
-	uint64_t r;
+	u64 r;
 
 	memset(&pmc_results, 0, sizeof(pmc_results));
 	sync_global_to_guest(vcpu->vm, pmc_results);
@@ -182,7 +182,7 @@ static void run_vcpu_and_sync_pmc_results(struct kvm_vcpu *vcpu)
  */
 static bool sanity_check_pmu(struct kvm_vcpu *vcpu)
 {
-	uint64_t r;
+	u64 r;
 
 	vm_install_exception_handler(vcpu->vm, GP_VECTOR, guest_gp_handler);
 	r = run_vcpu_to_sync(vcpu);
@@ -195,7 +195,7 @@ static bool sanity_check_pmu(struct kvm_vcpu *vcpu)
  * Remove the first occurrence of 'event' (if any) from the filter's
  * event list.
  */
-static void remove_event(struct __kvm_pmu_event_filter *f, uint64_t event)
+static void remove_event(struct __kvm_pmu_event_filter *f, u64 event)
 {
 	bool found = false;
 	int i;
@@ -212,8 +212,8 @@ static void remove_event(struct __kvm_pmu_event_filter *f, uint64_t event)
 
 #define ASSERT_PMC_COUNTING_INSTRUCTIONS()						\
 do {											\
-	uint64_t br = pmc_results.branches_retired;					\
-	uint64_t ir = pmc_results.instructions_retired;					\
+	u64 br = pmc_results.branches_retired;					\
+	u64 ir = pmc_results.instructions_retired;					\
 	bool br_matched = this_pmu_has_errata(BRANCHES_RETIRED_OVERCOUNT) ?		\
 			  br >= NUM_BRANCHES : br == NUM_BRANCHES;			\
 											\
@@ -228,8 +228,8 @@ do {											\
 
 #define ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS()						\
 do {											\
-	uint64_t br = pmc_results.branches_retired;					\
-	uint64_t ir = pmc_results.instructions_retired;					\
+	u64 br = pmc_results.branches_retired;					\
+	u64 ir = pmc_results.instructions_retired;					\
 											\
 	TEST_ASSERT(!br, "%s: Branch instructions retired = %lu (expected 0)",		\
 		    __func__, br);							\
@@ -378,7 +378,7 @@ static bool use_amd_pmu(void)
 
 static bool supports_event_mem_inst_retired(void)
 {
-	uint32_t eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 	if (x86_family(eax) == 0x6) {
@@ -415,15 +415,15 @@ static bool supports_event_mem_inst_retired(void)
 #define EXCLUDE_MASKED_ENTRY(event_select, mask, match) \
 	KVM_PMU_ENCODE_MASKED_ENTRY(event_select, mask, match, true)
 
-static void masked_events_guest_test(uint32_t msr_base)
+static void masked_events_guest_test(u32 msr_base)
 {
 	/*
 	 * The actual value of the counters don't determine the outcome of
 	 * the test.  Only that they are zero or non-zero.
 	 */
-	const uint64_t loads = rdmsr(msr_base + 0);
-	const uint64_t stores = rdmsr(msr_base + 1);
-	const uint64_t loads_stores = rdmsr(msr_base + 2);
+	const u64 loads = rdmsr(msr_base + 0);
+	const u64 stores = rdmsr(msr_base + 1);
+	const u64 loads_stores = rdmsr(msr_base + 2);
 	int val;
 
 
@@ -476,7 +476,7 @@ static void amd_masked_events_guest_code(void)
 }
 
 static void run_masked_events_test(struct kvm_vcpu *vcpu,
-				   const uint64_t masked_events[],
+				   const u64 masked_events[],
 				   const int nmasked_events)
 {
 	struct __kvm_pmu_event_filter f = {
@@ -485,7 +485,7 @@ static void run_masked_events_test(struct kvm_vcpu *vcpu,
 		.flags = KVM_PMU_EVENT_FLAG_MASKED_EVENTS,
 	};
 
-	memcpy(f.events, masked_events, sizeof(uint64_t) * nmasked_events);
+	memcpy(f.events, masked_events, sizeof(u64) * nmasked_events);
 	test_with_filter(vcpu, &f);
 }
 
@@ -494,12 +494,12 @@ static void run_masked_events_test(struct kvm_vcpu *vcpu,
 #define ALLOW_LOADS_STORES	BIT(2)
 
 struct masked_events_test {
-	uint64_t intel_events[MAX_TEST_EVENTS];
-	uint64_t intel_event_end;
-	uint64_t amd_events[MAX_TEST_EVENTS];
-	uint64_t amd_event_end;
+	u64 intel_events[MAX_TEST_EVENTS];
+	u64 intel_event_end;
+	u64 amd_events[MAX_TEST_EVENTS];
+	u64 amd_event_end;
 	const char *msg;
-	uint32_t flags;
+	u32 flags;
 };
 
 /*
@@ -582,9 +582,9 @@ const struct masked_events_test test_cases[] = {
 };
 
 static int append_test_events(const struct masked_events_test *test,
-			      uint64_t *events, int nevents)
+			      u64 *events, int nevents)
 {
-	const uint64_t *evts;
+	const u64 *evts;
 	int i;
 
 	evts = use_intel_pmu() ? test->intel_events : test->amd_events;
@@ -603,7 +603,7 @@ static bool bool_eq(bool a, bool b)
 	return a == b;
 }
 
-static void run_masked_events_tests(struct kvm_vcpu *vcpu, uint64_t *events,
+static void run_masked_events_tests(struct kvm_vcpu *vcpu, u64 *events,
 				    int nevents)
 {
 	int ntests = ARRAY_SIZE(test_cases);
@@ -630,7 +630,7 @@ static void run_masked_events_tests(struct kvm_vcpu *vcpu, uint64_t *events,
 	}
 }
 
-static void add_dummy_events(uint64_t *events, int nevents)
+static void add_dummy_events(u64 *events, int nevents)
 {
 	int i;
 
@@ -650,7 +650,7 @@ static void add_dummy_events(uint64_t *events, int nevents)
 static void test_masked_events(struct kvm_vcpu *vcpu)
 {
 	int nevents = KVM_PMU_EVENT_FILTER_MAX_EVENTS - MAX_TEST_EVENTS;
-	uint64_t events[KVM_PMU_EVENT_FILTER_MAX_EVENTS];
+	u64 events[KVM_PMU_EVENT_FILTER_MAX_EVENTS];
 
 	/* Run the test cases against a sparse PMU event filter. */
 	run_masked_events_tests(vcpu, events, 0);
@@ -668,8 +668,8 @@ static int set_pmu_event_filter(struct kvm_vcpu *vcpu,
 	return __vm_ioctl(vcpu->vm, KVM_SET_PMU_EVENT_FILTER, f);
 }
 
-static int set_pmu_single_event_filter(struct kvm_vcpu *vcpu, uint64_t event,
-				       uint32_t flags, uint32_t action)
+static int set_pmu_single_event_filter(struct kvm_vcpu *vcpu, u64 event,
+				       u32 flags, u32 action)
 {
 	struct __kvm_pmu_event_filter f = {
 		.nevents = 1,
@@ -685,9 +685,9 @@ static int set_pmu_single_event_filter(struct kvm_vcpu *vcpu, uint64_t event,
 
 static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 {
-	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+	u8 nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
 	struct __kvm_pmu_event_filter f;
-	uint64_t e = ~0ul;
+	u64 e = ~0ul;
 	int r;
 
 	/*
@@ -729,8 +729,10 @@ static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 	TEST_ASSERT(!r, "Masking non-existent fixed counters should be allowed");
 }
 
-static void intel_run_fixed_counter_guest_code(uint8_t idx)
+static void intel_run_fixed_counter_guest_code(u8 idx)
 {
+	u8 nr_fixed_counters = this_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+
 	for (;;) {
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 		wrmsr(MSR_CORE_PERF_FIXED_CTR0 + idx, 0);
@@ -738,6 +740,10 @@ static void intel_run_fixed_counter_guest_code(uint8_t idx)
 		/* Only OS_EN bit is enabled for fixed counter[idx]. */
 		wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(idx, FIXED_PMC_KERNEL));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, FIXED_PMC_GLOBAL_CTRL_ENABLE(idx));
+		if (nr_fixed_counters > 1)
+			wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL,
+			      FIXED_PMC_CTRL(idx, FIXED_PMC_KERNEL) |
+			      FIXED_PMC_CTRL((idx + 1) % nr_fixed_counters, FIXED_PMC_KERNEL));
 		__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
@@ -745,8 +751,8 @@ static void intel_run_fixed_counter_guest_code(uint8_t idx)
 	}
 }
 
-static uint64_t test_with_fixed_counter_filter(struct kvm_vcpu *vcpu,
-					       uint32_t action, uint32_t bitmap)
+static u64 test_with_fixed_counter_filter(struct kvm_vcpu *vcpu,
+					  u32 action, u32 bitmap)
 {
 	struct __kvm_pmu_event_filter f = {
 		.action = action,
@@ -757,9 +763,9 @@ static uint64_t test_with_fixed_counter_filter(struct kvm_vcpu *vcpu,
 	return run_vcpu_to_sync(vcpu);
 }
 
-static uint64_t test_set_gp_and_fixed_event_filter(struct kvm_vcpu *vcpu,
-						   uint32_t action,
-						   uint32_t bitmap)
+static u64 test_set_gp_and_fixed_event_filter(struct kvm_vcpu *vcpu,
+					      u32 action,
+					      u32 bitmap)
 {
 	struct __kvm_pmu_event_filter f = base_event_filter;
 
@@ -770,12 +776,12 @@ static uint64_t test_set_gp_and_fixed_event_filter(struct kvm_vcpu *vcpu,
 	return run_vcpu_to_sync(vcpu);
 }
 
-static void __test_fixed_counter_bitmap(struct kvm_vcpu *vcpu, uint8_t idx,
-					uint8_t nr_fixed_counters)
+static void __test_fixed_counter_bitmap(struct kvm_vcpu *vcpu, u8 idx,
+					u8 nr_fixed_counters)
 {
 	unsigned int i;
-	uint32_t bitmap;
-	uint64_t count;
+	u32 bitmap;
+	u64 count;
 
 	TEST_ASSERT(nr_fixed_counters < sizeof(bitmap) * 8,
 		    "Invalid nr_fixed_counters");
@@ -815,10 +821,10 @@ static void __test_fixed_counter_bitmap(struct kvm_vcpu *vcpu, uint8_t idx,
 
 static void test_fixed_counter_bitmap(void)
 {
-	uint8_t nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
+	u8 nr_fixed_counters = kvm_cpu_property(X86_PROPERTY_PMU_NR_FIXED_COUNTERS);
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
-	uint8_t idx;
+	u8 idx;
 
 	/*
 	 * Check that pmu_event_filter works as expected when it's applied to

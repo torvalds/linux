@@ -85,11 +85,12 @@ ip -net "$ns3" route add default via 10.0.3.1
 ip -net "$ns3" route add default via dead:3::1
 
 load_ruleset() {
-	local name=$1
-	local prio=$2
+	local family=$1
+	local name=$2
+	local prio=$3
 
 ip netns exec "$nsrouter" nft -f /dev/stdin <<EOF
-table inet $name {
+table $family $name {
 	chain nfq {
 		ip protocol icmp queue bypass
 		icmpv6 type { "echo-request", "echo-reply" } queue num 1 bypass
@@ -228,6 +229,7 @@ nf_queue_wait()
 test_queue()
 {
 	local expected="$1"
+	local family="$2"
 	local last=""
 
 	# spawn nf_queue listeners
@@ -255,11 +257,13 @@ test_queue()
 		if [ x"$last" != x"$expected packets total" ]; then
 			echo "FAIL: Expected $expected packets total, but got $last" 1>&2
 			ip netns exec "$nsrouter" nft list ruleset
+			echo -n "$TMPFILE0: ";cat "$TMPFILE0"
+			echo -n "$TMPFILE1: ";cat "$TMPFILE1"
 			exit 1
 		fi
 	done
 
-	echo "PASS: Expected and received $last"
+	echo "PASS: Expected and received $last ($family)"
 }
 
 listener_ready()
@@ -400,6 +404,8 @@ EOF
 
 	kill "$nfqpid"
 	echo "PASS: icmp+nfqueue via vrf"
+	ip -net "$ns1" link del tvrf
+	ip netns exec "$ns1" nft flush ruleset
 }
 
 sctp_listener_ready()
@@ -814,12 +820,53 @@ EOF
 	check_tainted "queue program exiting while packets queued"
 }
 
+test_queue_bridge()
+{
+	ip -net "$nsrouter" addr flush dev veth0
+	ip -net "$nsrouter" addr flush dev veth1
+
+	ip -net "$nsrouter" link add br0 type bridge
+	ip -net "$nsrouter" link set veth0 master br0
+	ip -net "$nsrouter" link set veth1 master br0
+
+	ip -net "$nsrouter" link set br0 up
+
+	ip -net "$nsrouter" addr add 10.0.2.1/16 dev br0
+	ip -net "$nsrouter" addr add dead:2::1/64 dev br0 nodad
+
+	ip -net "$ns1" addr flush dev eth0
+	ip -net "$ns2" addr flush dev eth0
+
+	ip -net "$ns1" addr add 10.0.1.1/16 dev eth0
+	ip -net "$ns1" addr add dead:2::2/64 dev eth0 nodad
+
+	ip -net "$ns2" addr add 10.0.2.99/16 dev eth0
+	ip -net "$ns2" addr add dead:2::99/64 dev eth0 nodad
+
+	ip netns exec "$nsrouter" nft flush ruleset
+
+	ip netns exec "$nsrouter" sysctl net.ipv6.conf.all.forwarding=0 > /dev/null
+	ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth0.forwarding=0 > /dev/null
+	ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth1.forwarding=0 > /dev/null
+
+	if ! test_ping;then
+		echo "FAIL: netns bridge connectivity" 1>&2
+		exit $ret
+	fi
+
+	load_ruleset "bridge" "filter" 10
+	test_queue 10 "bridge"
+
+	load_ruleset "bridge" "filter2" 20
+	test_queue 20 "bridge"
+}
+
 ip netns exec "$nsrouter" sysctl net.ipv6.conf.all.forwarding=1 > /dev/null
 ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth0.forwarding=1 > /dev/null
 ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth1.forwarding=1 > /dev/null
 ip netns exec "$nsrouter" sysctl net.ipv4.conf.veth2.forwarding=1 > /dev/null
 
-load_ruleset "filter" 0
+load_ruleset "inet" "filter" 0
 
 if test_ping; then
 	# queue bypass works (rules were skipped, no listener)
@@ -842,11 +889,11 @@ load_counter_ruleset 10
 # 1x icmp prerouting,forward,postrouting -> 3 queue events (6 incl. reply).
 # 1x icmp prerouting,input,output postrouting -> 4 queue events incl. reply.
 # so we expect that userspace program receives 10 packets.
-test_queue 10
+test_queue 10 "inet"
 
 # same.  We queue to a second program as well.
-load_ruleset "filter2" 20
-test_queue 20
+load_ruleset "inet" "filter2" 20
+test_queue 20 "inet"
 ip netns exec "$ns1" nft flush ruleset
 
 test_tcp_forward
@@ -862,5 +909,8 @@ test_queue_stress
 # should be last, adds vrf device in ns1 and changes routes
 test_icmp_vrf
 test_queue_removal
+
+# turns router into a bridge
+test_queue_bridge
 
 exit $ret

@@ -65,28 +65,28 @@ static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct via_cputemp_data *data = dev_get_drvdata(dev);
-	u32 eax, edx;
+	u64 val;
 	int err;
 
-	err = rdmsr_safe_on_cpu(data->id, data->msr_temp, &eax, &edx);
+	err = rdmsrq_safe_on_cpu(data->id, data->msr_temp, &val);
 	if (err)
 		return -EAGAIN;
 
-	return sprintf(buf, "%lu\n", ((unsigned long)eax & 0xffffff) * 1000);
+	return sprintf(buf, "%lu\n", ((unsigned long)val & 0xffffff) * 1000);
 }
 
 static ssize_t cpu0_vid_show(struct device *dev,
 			     struct device_attribute *devattr, char *buf)
 {
 	struct via_cputemp_data *data = dev_get_drvdata(dev);
-	u32 eax, edx;
+	u64 val;
 	int err;
 
-	err = rdmsr_safe_on_cpu(data->id, data->msr_vid, &eax, &edx);
+	err = rdmsrq_safe_on_cpu(data->id, data->msr_vid, &val);
 	if (err)
 		return -EAGAIN;
 
-	return sprintf(buf, "%d\n", vid_from_reg(~edx & 0x7f, data->vrm));
+	return sprintf(buf, "%d\n", vid_from_reg(~(val >> 32) & 0x7f, data->vrm));
 }
 
 static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, SHOW_TEMP);
@@ -112,7 +112,7 @@ static int via_cputemp_probe(struct platform_device *pdev)
 	struct via_cputemp_data *data;
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
 	int err;
-	u32 eax, edx;
+	u64 val;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct via_cputemp_data),
 			    GFP_KERNEL);
@@ -143,7 +143,7 @@ static int via_cputemp_probe(struct platform_device *pdev)
 	}
 
 	/* test if we can access the TEMPERATURE MSR */
-	err = rdmsr_safe_on_cpu(data->id, data->msr_temp, &eax, &edx);
+	err = rdmsrq_safe_on_cpu(data->id, data->msr_temp, &val);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Unable to access TEMPERATURE MSR, giving up\n");

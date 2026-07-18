@@ -11,15 +11,15 @@
 
 #include <asm/sgidefs.h>
 
-#define O_APPEND	0x0008
-#define O_DSYNC		0x0010	/* used to be O_SYNC, see below */
-#define O_NONBLOCK	0x0080
-#define O_CREAT		0x0100	/* not fcntl */
-#define O_TRUNC		0x0200	/* not fcntl */
-#define O_EXCL		0x0400	/* not fcntl */
-#define O_NOCTTY	0x0800	/* not fcntl */
-#define FASYNC		0x1000	/* fcntl, for BSD compatibility */
-#define O_LARGEFILE	0x2000	/* allow large file opens */
+#define O_APPEND	(1 << 3)
+#define O_DSYNC		(1 << 4)	/* used to be O_SYNC, see below */
+#define O_NONBLOCK	(1 << 7)
+#define O_CREAT		(1 << 8)	/* not fcntl */
+#define O_TRUNC		(1 << 9)	/* not fcntl */
+#define O_EXCL		(1 << 10)	/* not fcntl */
+#define O_NOCTTY	(1 << 11)	/* not fcntl */
+#define FASYNC		(1 << 12)	/* fcntl, for BSD compatibility */
+#define O_LARGEFILE	(1 << 13)	/* allow large file opens */
 /*
  * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
@@ -33,9 +33,9 @@
  *
  * Note: __O_SYNC must never be used directly.
  */
-#define __O_SYNC	0x4000
+#define __O_SYNC	(1 << 14)
 #define O_SYNC		(__O_SYNC|O_DSYNC)
-#define O_DIRECT	0x8000	/* direct disk access hint */
+#define O_DIRECT	(1 << 15)	/* direct disk access hint */
 
 #define F_GETLK		14
 #define F_SETLK		6

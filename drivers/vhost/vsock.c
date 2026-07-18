@@ -302,6 +302,22 @@ vhost_transport_send_pkt(struct sk_buff *skb, struct net *net)
 		return -ENODEV;
 	}
 
+	/* Fast-fail if the guest hasn't enabled the RX vq yet. Queuing the packet
+	 * and making the caller wait is pointless: even if the guest manages to init
+	 * within the timeout, it'll immediately reply with RST, because there's no
+	 * listener on the port yet.
+	 *
+	 * vhost_vq_get_backend() without vq->mutex is acceptable here: locking
+	 * the mutex would be too expensive in this hot path, and we already have
+	 * all the outcomes covered: if the backend becomes NULL right after the check,
+	 * vhost_transport_do_send_pkt() will check it under the mutex anyway.
+	 */
+	if (unlikely(!data_race(vhost_vq_get_backend(&vsock->vqs[VSOCK_VQ_RX])))) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return -EHOSTUNREACH;
+	}
+
 	if (virtio_vsock_skb_reply(skb))
 		atomic_inc(&vsock->queued_replies);
 

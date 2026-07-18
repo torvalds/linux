@@ -78,8 +78,6 @@ make_libperl        := LIBPERL=1
 make_no_libpython   := NO_LIBPYTHON=1
 make_no_scripts     := NO_LIBPYTHON=1
 make_no_slang       := NO_SLANG=1
-make_no_gtk2        := NO_GTK2=1
-make_no_ui          := NO_SLANG=1 NO_GTK2=1
 make_no_demangle    := NO_DEMANGLE=1
 make_no_libelf      := NO_LIBELF=1
 make_no_libdw       := NO_LIBDW=1
@@ -93,7 +91,7 @@ make_no_libbpf	    := NO_LIBBPF=1
 make_libbpf_dynamic := LIBBPF_DYNAMIC=1
 make_no_libbpf_DEBUG := NO_LIBBPF=1 DEBUG=1
 make_no_libllvm     := NO_LIBLLVM=1
-make_with_babeltrace:= LIBBABELTRACE=1
+make_no_babeltrace2 := NO_BABELTRACE2=1
 make_with_coresight := CORESIGHT=1
 make_no_sdt	    := NO_SDT=1
 make_no_libpfm4     := NO_LIBPFM4=1
@@ -118,7 +116,7 @@ make_install_prefix_slash := install prefix=/tmp/krava/
 make_static         := LDFLAGS=-static NO_PERF_READ_VDSO32=1 NO_PERF_READ_VDSOX32=1 NO_JVMTI=1 NO_LIBTRACEEVENT=1 NO_LIBELF=1
 
 # all the NO_* variable combined
-make_minimal        := NO_LIBPYTHON=1 NO_GTK2=1
+make_minimal        := NO_LIBPYTHON=1
 make_minimal        += NO_DEMANGLE=1 NO_LIBELF=1 NO_BACKTRACE=1
 make_minimal        += NO_LIBNUMA=1 NO_LIBBIONIC=1 NO_LIBDW=1
 make_minimal        += NO_LIBBPF=1
@@ -153,8 +151,6 @@ run += make_libperl
 run += make_no_libpython
 run += make_no_scripts
 run += make_no_slang
-run += make_no_gtk2
-run += make_no_ui
 run += make_no_demangle
 run += make_no_libelf
 run += make_no_libdw
@@ -170,7 +166,7 @@ run += make_no_libbpf_DEBUG
 run += make_no_libllvm
 run += make_no_sdt
 run += make_no_syscall_tbl
-run += make_with_babeltrace
+run += make_no_babeltrace2
 run += make_with_coresight
 run += make_with_clangllvm
 run += make_no_libpfm4

@@ -15,105 +15,64 @@
 #include "rkvdec-cabac.h"
 #include "rkvdec-vdpu383-regs.h"
 #include "rkvdec-h264-common.h"
+#include "rkvdec-bitwriter.h"
 
-struct rkvdec_sps {
-	u16 seq_parameter_set_id:			4;
-	u16 profile_idc:				8;
-	u16 constraint_set3_flag:			1;
-	u16 chroma_format_idc:				2;
-	u16 bit_depth_luma:				3;
-	u16 bit_depth_chroma:				3;
-	u16 qpprime_y_zero_transform_bypass_flag:	1;
-	u16 log2_max_frame_num_minus4:			4;
-	u16 max_num_ref_frames:				5;
-	u16 pic_order_cnt_type:				2;
-	u16 log2_max_pic_order_cnt_lsb_minus4:		4;
-	u16 delta_pic_order_always_zero_flag:		1;
+#define SEQ_PARAMETER_SET_ID				BW_FIELD(0, 4)
+#define PROFILE_IDC					BW_FIELD(4, 8)
+#define CONSTRAINT_SET3_FLAG				BW_FIELD(12, 1)
+#define CHROMA_FORMAT_IDC				BW_FIELD(13, 2)
+#define BIT_DEPTH_LUMA					BW_FIELD(15, 3)
+#define BIT_DEPTH_CHROMA				BW_FIELD(18, 3)
+#define QPPRIME_Y_ZERO_TRANSFORM_BYPASS_FLAG		BW_FIELD(21, 1)
+#define LOG2_MAX_FRAME_NUM_MINUS4			BW_FIELD(22, 4)
+#define MAX_NUM_REF_FRAMES				BW_FIELD(26, 5)
+#define PIC_ORDER_CNT_TYPE				BW_FIELD(31, 2)
+#define LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4		BW_FIELD(33, 4)
+#define DELTA_PIC_ORDER_ALWAYS_ZERO_FLAG		BW_FIELD(37, 1)
+#define PIC_WIDTH_IN_MBS				BW_FIELD(38, 16)
+#define PIC_HEIGHT_IN_MBS				BW_FIELD(54, 16)
+#define FRAME_MBS_ONLY_FLAG				BW_FIELD(70, 1)
+#define MB_ADAPTIVE_FRAME_FIELD_FLAG			BW_FIELD(71, 1)
+#define DIRECT_8X8_INFERENCE_FLAG			BW_FIELD(72, 1)
+#define MVC_EXTENSION_ENABLE				BW_FIELD(73, 1)
+#define NUM_VIEWS					BW_FIELD(74, 2)
+#define VIEW_ID(i)					BW_FIELD(76 + ((i) * 10), 10) // i: 0-1
 
-	u16 pic_width_in_mbs:				16;
-	u16 pic_height_in_mbs:				16;
+#define PIC_PARAMETER_SET_ID				BW_FIELD(96, 8)
+#define PPS_SEQ_PARAMETER_SET_ID			BW_FIELD(104, 5)
+#define ENTROPY_CODING_MODE_FLAG			BW_FIELD(109, 1)
+#define BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT_FLAG	BW_FIELD(110, 1)
+#define NUM_REF_IDX_L_DEFAULT_ACTIVE_MINUS1(i)		BW_FIELD(111 + ((i) * 5), 5) // i: 0-1
+#define WEIGHTED_PRED_FLAG				BW_FIELD(121, 1)
+#define WEIGHTED_BIPRED_IDC				BW_FIELD(122, 2)
+#define PIC_INIT_QP_MINUS26				BW_FIELD(124, 7)
+#define PIC_INIT_QS_MINUS26				BW_FIELD(131, 6)
+#define CHROMA_QP_INDEX_OFFSET				BW_FIELD(137, 5)
+#define DEBLOCKING_FILTER_CONTROL_PRESENT_FLAG		BW_FIELD(142, 1)
+#define CONSTRAINED_INTRA_PRED_FLAG			BW_FIELD(143, 1)
+#define REDUNDANT_PIC_CNT_PRESENT			BW_FIELD(144, 1)
+#define TRANSFORM_8X8_MODE_FLAG				BW_FIELD(145, 1)
+#define SECOND_CHROMA_QP_INDEX_OFFSET			BW_FIELD(146, 5)
+#define SCALING_LIST_ENABLE_FLAG			BW_FIELD(151, 1)
+#define IS_LONG_TERM(i)					BW_FIELD(152 + (i), 1) // i: 0-15
 
-	u16 frame_mbs_only_flag:			1;
-	u16 mb_adaptive_frame_field_flag:		1;
-	u16 direct_8x8_inference_flag:			1;
-	u16 mvc_extension_enable:			1;
-	u16 num_views:					2;
-	u16 view_id0:                                   10;
-	u16 view_id1:                                   10;
-} __packed;
+#define PIC_FIELD_FLAG					BW_FIELD(184, 1)
+#define PIC_ASSOCIATED_FLAG				BW_FIELD(185, 1)
+#define CUR_TOP_FIELD					BW_FIELD(186, 32)
+#define CUR_BOT_FIELD					BW_FIELD(218, 32)
 
-struct rkvdec_pps {
-	u32 pic_parameter_set_id:				8;
-	u32 pps_seq_parameter_set_id:				5;
-	u32 entropy_coding_mode_flag:				1;
-	u32 bottom_field_pic_order_in_frame_present_flag:	1;
-	u32 num_ref_idx_l0_default_active_minus1:		5;
-	u32 num_ref_idx_l1_default_active_minus1:		5;
-	u32 weighted_pred_flag:					1;
-	u32 weighted_bipred_idc:				2;
-	u32 pic_init_qp_minus26:				7;
-	u32 pic_init_qs_minus26:				6;
-	u32 chroma_qp_index_offset:				5;
-	u32 deblocking_filter_control_present_flag:		1;
-	u32 constrained_intra_pred_flag:			1;
-	u32 redundant_pic_cnt_present:				1;
-	u32 transform_8x8_mode_flag:				1;
-	u32 second_chroma_qp_index_offset:			5;
-	u32 scaling_list_enable_flag:				1;
-	u32 is_longterm:					16;
-	u32 voidx:						16;
+#define TOP_FIELD_ORDER_CNT(i)				BW_FIELD(250 + (i) * 64, 32) // i: 0-15
+#define BOT_FIELD_ORDER_CNT(i)				BW_FIELD(282 + (i) * 64, 32) // i: 0-15
 
-	// dpb
-	u32 pic_field_flag:                                     1;
-	u32 pic_associated_flag:                                1;
-	u32 cur_top_field:					32;
-	u32 cur_bot_field:					32;
+#define REF_FIELD_FLAGS(i)				BW_FIELD(1274 + (i), 1) // i: 0-15
+#define REF_TOPFIELD_USED(i)				BW_FIELD(1290 + (i), 1) // i: 0-15
+#define REF_BOTFIELD_USED(i)				BW_FIELD(1306 + (i), 1) // i: 0-15
+#define REF_COLMV_USE_FLAG(i)				BW_FIELD(1322 + (i), 1) // i: 0-15
 
-	u32 top_field_order_cnt0:				32;
-	u32 bot_field_order_cnt0:				32;
-	u32 top_field_order_cnt1:				32;
-	u32 bot_field_order_cnt1:				32;
-	u32 top_field_order_cnt2:				32;
-	u32 bot_field_order_cnt2:				32;
-	u32 top_field_order_cnt3:				32;
-	u32 bot_field_order_cnt3:				32;
-	u32 top_field_order_cnt4:				32;
-	u32 bot_field_order_cnt4:				32;
-	u32 top_field_order_cnt5:				32;
-	u32 bot_field_order_cnt5:				32;
-	u32 top_field_order_cnt6:				32;
-	u32 bot_field_order_cnt6:				32;
-	u32 top_field_order_cnt7:				32;
-	u32 bot_field_order_cnt7:				32;
-	u32 top_field_order_cnt8:				32;
-	u32 bot_field_order_cnt8:				32;
-	u32 top_field_order_cnt9:				32;
-	u32 bot_field_order_cnt9:				32;
-	u32 top_field_order_cnt10:				32;
-	u32 bot_field_order_cnt10:				32;
-	u32 top_field_order_cnt11:				32;
-	u32 bot_field_order_cnt11:				32;
-	u32 top_field_order_cnt12:				32;
-	u32 bot_field_order_cnt12:				32;
-	u32 top_field_order_cnt13:				32;
-	u32 bot_field_order_cnt13:				32;
-	u32 top_field_order_cnt14:				32;
-	u32 bot_field_order_cnt14:				32;
-	u32 top_field_order_cnt15:				32;
-	u32 bot_field_order_cnt15:				32;
-
-	u32 ref_field_flags:					16;
-	u32 ref_topfield_used:					16;
-	u32 ref_botfield_used:					16;
-	u32 ref_colmv_use_flag:					16;
-
-	u32 reserved0:						30;
-	u32 reserved[3];
-} __packed;
+#define SPS_SIZE					ALIGN(1322 + 16, 128)
 
 struct rkvdec_sps_pps {
-	struct rkvdec_sps sps;
-	struct rkvdec_pps pps;
+	u32 info[SPS_SIZE / 8 / 4];
 } __packed;
 
 /* Data structure describing auxiliary buffer format. */
@@ -130,67 +89,6 @@ struct rkvdec_h264_ctx {
 	struct vdpu383_regs_h26x regs;
 };
 
-static noinline_for_stack void set_field_order_cnt(struct rkvdec_pps *pps, const struct v4l2_h264_dpb_entry *dpb)
-{
-	pps->top_field_order_cnt0 = dpb[0].top_field_order_cnt;
-	pps->bot_field_order_cnt0 = dpb[0].bottom_field_order_cnt;
-	pps->top_field_order_cnt1 = dpb[1].top_field_order_cnt;
-	pps->bot_field_order_cnt1 = dpb[1].bottom_field_order_cnt;
-	pps->top_field_order_cnt2 = dpb[2].top_field_order_cnt;
-	pps->bot_field_order_cnt2 = dpb[2].bottom_field_order_cnt;
-	pps->top_field_order_cnt3 = dpb[3].top_field_order_cnt;
-	pps->bot_field_order_cnt3 = dpb[3].bottom_field_order_cnt;
-	pps->top_field_order_cnt4 = dpb[4].top_field_order_cnt;
-	pps->bot_field_order_cnt4 = dpb[4].bottom_field_order_cnt;
-	pps->top_field_order_cnt5 = dpb[5].top_field_order_cnt;
-	pps->bot_field_order_cnt5 = dpb[5].bottom_field_order_cnt;
-	pps->top_field_order_cnt6 = dpb[6].top_field_order_cnt;
-	pps->bot_field_order_cnt6 = dpb[6].bottom_field_order_cnt;
-	pps->top_field_order_cnt7 = dpb[7].top_field_order_cnt;
-	pps->bot_field_order_cnt7 = dpb[7].bottom_field_order_cnt;
-	pps->top_field_order_cnt8 = dpb[8].top_field_order_cnt;
-	pps->bot_field_order_cnt8 = dpb[8].bottom_field_order_cnt;
-	pps->top_field_order_cnt9 = dpb[9].top_field_order_cnt;
-	pps->bot_field_order_cnt9 = dpb[9].bottom_field_order_cnt;
-	pps->top_field_order_cnt10 = dpb[10].top_field_order_cnt;
-	pps->bot_field_order_cnt10 = dpb[10].bottom_field_order_cnt;
-	pps->top_field_order_cnt11 = dpb[11].top_field_order_cnt;
-	pps->bot_field_order_cnt11 = dpb[11].bottom_field_order_cnt;
-	pps->top_field_order_cnt12 = dpb[12].top_field_order_cnt;
-	pps->bot_field_order_cnt12 = dpb[12].bottom_field_order_cnt;
-	pps->top_field_order_cnt13 = dpb[13].top_field_order_cnt;
-	pps->bot_field_order_cnt13 = dpb[13].bottom_field_order_cnt;
-	pps->top_field_order_cnt14 = dpb[14].top_field_order_cnt;
-	pps->bot_field_order_cnt14 = dpb[14].bottom_field_order_cnt;
-	pps->top_field_order_cnt15 = dpb[15].top_field_order_cnt;
-	pps->bot_field_order_cnt15 = dpb[15].bottom_field_order_cnt;
-}
-
-static noinline_for_stack void set_dec_params(struct rkvdec_pps *pps, const struct v4l2_ctrl_h264_decode_params *dec_params)
-{
-	const struct v4l2_h264_dpb_entry *dpb = dec_params->dpb;
-
-	for (int i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
-		if (dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM)
-			pps->is_longterm |= (1 << i);
-		pps->ref_field_flags |=
-		 (!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD)) << i;
-		pps->ref_colmv_use_flag |=
-		 (!!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)) << i;
-		pps->ref_topfield_used |=
-		 (!!(dpb[i].fields & V4L2_H264_TOP_FIELD_REF)) << i;
-		pps->ref_botfield_used |=
-			(!!(dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF)) << i;
-	}
-	pps->pic_field_flag =
-		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC);
-	pps->pic_associated_flag =
-		!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD);
-
-	pps->cur_top_field = dec_params->top_field_order_cnt;
-	pps->cur_bot_field = dec_params->bottom_field_order_cnt;
-}
-
 static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 			    struct rkvdec_h264_run *run)
 {
@@ -202,6 +100,7 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	struct rkvdec_h264_priv_tbl *priv_tbl = h264_ctx->priv_tbl.cpu;
 	struct rkvdec_sps_pps *hw_ps;
 	u32 pic_width, pic_height;
+	int i;
 
 	/*
 	 * HW read the SPS/PPS information from PPS packet index by PPS id.
@@ -213,23 +112,25 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	memset(hw_ps, 0, sizeof(*hw_ps));
 
 	/* write sps */
-	hw_ps->sps.seq_parameter_set_id = sps->seq_parameter_set_id;
-	hw_ps->sps.profile_idc = sps->profile_idc;
-	hw_ps->sps.constraint_set3_flag = !!(sps->constraint_set_flags & (1 << 3));
-	hw_ps->sps.chroma_format_idc = sps->chroma_format_idc;
-	hw_ps->sps.bit_depth_luma = sps->bit_depth_luma_minus8;
-	hw_ps->sps.bit_depth_chroma = sps->bit_depth_chroma_minus8;
-	hw_ps->sps.qpprime_y_zero_transform_bypass_flag =
-		!!(sps->flags & V4L2_H264_SPS_FLAG_QPPRIME_Y_ZERO_TRANSFORM_BYPASS);
-	hw_ps->sps.log2_max_frame_num_minus4 = sps->log2_max_frame_num_minus4;
-	hw_ps->sps.max_num_ref_frames = sps->max_num_ref_frames;
-	hw_ps->sps.pic_order_cnt_type = sps->pic_order_cnt_type;
-	hw_ps->sps.log2_max_pic_order_cnt_lsb_minus4 =
-		sps->log2_max_pic_order_cnt_lsb_minus4;
-	hw_ps->sps.delta_pic_order_always_zero_flag =
-		!!(sps->flags & V4L2_H264_SPS_FLAG_DELTA_PIC_ORDER_ALWAYS_ZERO);
-	hw_ps->sps.mvc_extension_enable = 0;
-	hw_ps->sps.num_views = 0;
+	rkvdec_set_bw_field(hw_ps->info, SEQ_PARAMETER_SET_ID, sps->seq_parameter_set_id);
+	rkvdec_set_bw_field(hw_ps->info, PROFILE_IDC, sps->profile_idc);
+	rkvdec_set_bw_field(hw_ps->info, CONSTRAINT_SET3_FLAG,
+			    !!(sps->constraint_set_flags & (1 << 3)));
+	rkvdec_set_bw_field(hw_ps->info, CHROMA_FORMAT_IDC, sps->chroma_format_idc);
+	rkvdec_set_bw_field(hw_ps->info, BIT_DEPTH_LUMA, sps->bit_depth_luma_minus8);
+	rkvdec_set_bw_field(hw_ps->info, BIT_DEPTH_CHROMA, sps->bit_depth_chroma_minus8);
+	rkvdec_set_bw_field(hw_ps->info, QPPRIME_Y_ZERO_TRANSFORM_BYPASS_FLAG,
+			    !!(sps->flags & V4L2_H264_SPS_FLAG_QPPRIME_Y_ZERO_TRANSFORM_BYPASS));
+	rkvdec_set_bw_field(hw_ps->info, LOG2_MAX_FRAME_NUM_MINUS4,
+			    sps->log2_max_frame_num_minus4);
+	rkvdec_set_bw_field(hw_ps->info, MAX_NUM_REF_FRAMES, sps->max_num_ref_frames);
+	rkvdec_set_bw_field(hw_ps->info, PIC_ORDER_CNT_TYPE, sps->pic_order_cnt_type);
+	rkvdec_set_bw_field(hw_ps->info, LOG2_MAX_PIC_ORDER_CNT_LSB_MINUS4,
+			    sps->log2_max_pic_order_cnt_lsb_minus4);
+	rkvdec_set_bw_field(hw_ps->info, DELTA_PIC_ORDER_ALWAYS_ZERO_FLAG,
+			    !!(sps->flags & V4L2_H264_SPS_FLAG_DELTA_PIC_ORDER_ALWAYS_ZERO));
+	rkvdec_set_bw_field(hw_ps->info, MVC_EXTENSION_ENABLE, 0);
+	rkvdec_set_bw_field(hw_ps->info, NUM_VIEWS, 0);
 
 	/*
 	 * Use the SPS values since they are already in macroblocks
@@ -245,48 +146,72 @@ static void assemble_hw_pps(struct rkvdec_ctx *ctx,
 	if (!!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC))
 		pic_height /= 2;
 
-	hw_ps->sps.pic_width_in_mbs = pic_width;
-	hw_ps->sps.pic_height_in_mbs = pic_height;
+	rkvdec_set_bw_field(hw_ps->info, PIC_WIDTH_IN_MBS, pic_width);
+	rkvdec_set_bw_field(hw_ps->info, PIC_HEIGHT_IN_MBS, pic_height);
 
-	hw_ps->sps.frame_mbs_only_flag =
-		!!(sps->flags & V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY);
-	hw_ps->sps.mb_adaptive_frame_field_flag =
-		!!(sps->flags & V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD);
-	hw_ps->sps.direct_8x8_inference_flag =
-		!!(sps->flags & V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE);
+	rkvdec_set_bw_field(hw_ps->info, FRAME_MBS_ONLY_FLAG,
+			    !!(sps->flags & V4L2_H264_SPS_FLAG_FRAME_MBS_ONLY));
+	rkvdec_set_bw_field(hw_ps->info, MB_ADAPTIVE_FRAME_FIELD_FLAG,
+			    !!(sps->flags & V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD));
+	rkvdec_set_bw_field(hw_ps->info, DIRECT_8X8_INFERENCE_FLAG,
+			    !!(sps->flags & V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE));
 
 	/* write pps */
-	hw_ps->pps.pic_parameter_set_id = pps->pic_parameter_set_id;
-	hw_ps->pps.pps_seq_parameter_set_id = pps->seq_parameter_set_id;
-	hw_ps->pps.entropy_coding_mode_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE);
-	hw_ps->pps.bottom_field_pic_order_in_frame_present_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT);
-	hw_ps->pps.num_ref_idx_l0_default_active_minus1 =
-		pps->num_ref_idx_l0_default_active_minus1;
-	hw_ps->pps.num_ref_idx_l1_default_active_minus1 =
-		pps->num_ref_idx_l1_default_active_minus1;
-	hw_ps->pps.weighted_pred_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_WEIGHTED_PRED);
-	hw_ps->pps.weighted_bipred_idc = pps->weighted_bipred_idc;
-	hw_ps->pps.pic_init_qp_minus26 = pps->pic_init_qp_minus26;
-	hw_ps->pps.pic_init_qs_minus26 = pps->pic_init_qs_minus26;
-	hw_ps->pps.chroma_qp_index_offset = pps->chroma_qp_index_offset;
-	hw_ps->pps.deblocking_filter_control_present_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT);
-	hw_ps->pps.constrained_intra_pred_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED);
-	hw_ps->pps.redundant_pic_cnt_present =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT);
-	hw_ps->pps.transform_8x8_mode_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE);
-	hw_ps->pps.second_chroma_qp_index_offset = pps->second_chroma_qp_index_offset;
-	hw_ps->pps.scaling_list_enable_flag =
-		!!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT);
+	rkvdec_set_bw_field(hw_ps->info, PIC_PARAMETER_SET_ID, pps->pic_parameter_set_id);
+	rkvdec_set_bw_field(hw_ps->info, PPS_SEQ_PARAMETER_SET_ID, pps->seq_parameter_set_id);
+	rkvdec_set_bw_field(hw_ps->info, ENTROPY_CODING_MODE_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE));
+	rkvdec_set_bw_field(hw_ps->info, BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT_FLAG,
+			    !!(pps->flags &
+			       V4L2_H264_PPS_FLAG_BOTTOM_FIELD_PIC_ORDER_IN_FRAME_PRESENT));
+	rkvdec_set_bw_field(hw_ps->info, NUM_REF_IDX_L_DEFAULT_ACTIVE_MINUS1(0),
+			    pps->num_ref_idx_l0_default_active_minus1);
+	rkvdec_set_bw_field(hw_ps->info, NUM_REF_IDX_L_DEFAULT_ACTIVE_MINUS1(1),
+			    pps->num_ref_idx_l1_default_active_minus1);
+	rkvdec_set_bw_field(hw_ps->info, WEIGHTED_PRED_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_WEIGHTED_PRED));
+	rkvdec_set_bw_field(hw_ps->info, WEIGHTED_BIPRED_IDC, pps->weighted_bipred_idc);
+	rkvdec_set_bw_field(hw_ps->info, PIC_INIT_QP_MINUS26, pps->pic_init_qp_minus26);
+	rkvdec_set_bw_field(hw_ps->info, PIC_INIT_QS_MINUS26, pps->pic_init_qs_minus26);
+	rkvdec_set_bw_field(hw_ps->info, CHROMA_QP_INDEX_OFFSET, pps->chroma_qp_index_offset);
+	rkvdec_set_bw_field(hw_ps->info, DEBLOCKING_FILTER_CONTROL_PRESENT_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_DEBLOCKING_FILTER_CONTROL_PRESENT));
+	rkvdec_set_bw_field(hw_ps->info, CONSTRAINED_INTRA_PRED_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_CONSTRAINED_INTRA_PRED));
+	rkvdec_set_bw_field(hw_ps->info, REDUNDANT_PIC_CNT_PRESENT,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_REDUNDANT_PIC_CNT_PRESENT));
+	rkvdec_set_bw_field(hw_ps->info, TRANSFORM_8X8_MODE_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_TRANSFORM_8X8_MODE));
+	rkvdec_set_bw_field(hw_ps->info, SECOND_CHROMA_QP_INDEX_OFFSET,
+			    pps->second_chroma_qp_index_offset);
+	rkvdec_set_bw_field(hw_ps->info, SCALING_LIST_ENABLE_FLAG,
+			    !!(pps->flags & V4L2_H264_PPS_FLAG_SCALING_MATRIX_PRESENT));
 
-	set_field_order_cnt(&hw_ps->pps, dpb);
-	set_dec_params(&hw_ps->pps, dec_params);
+	for (i = 0; i < ARRAY_SIZE(dec_params->dpb); i++) {
+		rkvdec_set_bw_field(hw_ps->info, TOP_FIELD_ORDER_CNT(i),
+				    dpb[i].top_field_order_cnt);
+		rkvdec_set_bw_field(hw_ps->info, BOT_FIELD_ORDER_CNT(i),
+				    dpb[i].bottom_field_order_cnt);
 
+		rkvdec_set_bw_field(hw_ps->info, IS_LONG_TERM(i),
+				    !!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM));
+		rkvdec_set_bw_field(hw_ps->info, REF_FIELD_FLAGS(i),
+				    !!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_FIELD));
+		rkvdec_set_bw_field(hw_ps->info, REF_COLMV_USE_FLAG(i),
+				    !!(dpb[i].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE));
+		rkvdec_set_bw_field(hw_ps->info, REF_TOPFIELD_USED(i),
+				    !!(dpb[i].fields & V4L2_H264_TOP_FIELD_REF));
+		rkvdec_set_bw_field(hw_ps->info, REF_BOTFIELD_USED(i),
+				    !!(dpb[i].fields & V4L2_H264_BOTTOM_FIELD_REF));
+	}
+
+	rkvdec_set_bw_field(hw_ps->info, PIC_FIELD_FLAG,
+			    !!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC));
+	rkvdec_set_bw_field(hw_ps->info, PIC_ASSOCIATED_FLAG,
+			    !!(dec_params->flags & V4L2_H264_DECODE_PARAM_FLAG_BOTTOM_FIELD));
+
+	rkvdec_set_bw_field(hw_ps->info, CUR_TOP_FIELD, dec_params->top_field_order_cnt);
+	rkvdec_set_bw_field(hw_ps->info, CUR_BOT_FIELD, dec_params->bottom_field_order_cnt);
 }
 
 static void rkvdec_write_regs(struct rkvdec_ctx *ctx)

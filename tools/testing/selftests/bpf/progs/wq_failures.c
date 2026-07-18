@@ -98,7 +98,7 @@ __failure
  * is a correct bpf_wq pointer.
  */
 __msg(": (85) call bpf_wq_set_callback#") /* anchor message */
-__msg("arg#0 doesn't point to a map value")
+__msg("R1 doesn't point to a map value")
 long test_wrong_wq_pointer(void *ctx)
 {
 	int key = 0;

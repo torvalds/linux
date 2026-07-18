@@ -112,7 +112,6 @@ void sk_stream_wait_close(struct sock *sk, long timeout)
 		remove_wait_queue(sk_sleep(sk), &wait);
 	}
 }
-EXPORT_SYMBOL(sk_stream_wait_close);
 
 /**
  * sk_stream_wait_memory - Wait for more memory for a socket

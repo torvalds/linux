@@ -563,7 +563,7 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	if (ret)
 		clk_freq = clk_freq_default;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*spi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*spi));
 	if (!host)
 		return -ENOMEM;
 
@@ -589,13 +589,12 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq_err, mxs_ssp_irq_handler, 0,
 			       dev_name(&pdev->dev), ssp);
 	if (ret)
-		goto out_host_free;
+		return ret;
 
 	ssp->dmach = dma_request_chan(&pdev->dev, "rx-tx");
 	if (IS_ERR(ssp->dmach)) {
 		dev_err(ssp->dev, "Failed to request DMA\n");
-		ret = PTR_ERR(ssp->dmach);
-		goto out_host_free;
+		return PTR_ERR(ssp->dmach);
 	}
 
 	pm_runtime_enable(ssp->dev);
@@ -635,8 +634,7 @@ out_pm_runtime_disable:
 	pm_runtime_disable(ssp->dev);
 out_dma_release:
 	dma_release_channel(ssp->dmach);
-out_host_free:
-	spi_controller_put(host);
+
 	return ret;
 }
 
@@ -650,8 +648,6 @@ static void mxs_spi_remove(struct platform_device *pdev)
 	spi = spi_controller_get_devdata(host);
 	ssp = &spi->ssp;
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	pm_runtime_disable(&pdev->dev);
@@ -659,8 +655,6 @@ static void mxs_spi_remove(struct platform_device *pdev)
 		mxs_spi_runtime_suspend(&pdev->dev);
 
 	dma_release_channel(ssp->dmach);
-
-	spi_controller_put(host);
 }
 
 static struct platform_driver mxs_spi_driver = {

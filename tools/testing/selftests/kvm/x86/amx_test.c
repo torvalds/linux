@@ -80,10 +80,10 @@ static inline void __tilerelease(void)
 	asm volatile(".byte 0xc4, 0xe2, 0x78, 0x49, 0xc0" ::);
 }
 
-static inline void __xsavec(struct xstate *xstate, uint64_t rfbm)
+static inline void __xsavec(struct xstate *xstate, u64 rfbm)
 {
-	uint32_t rfbm_lo = rfbm;
-	uint32_t rfbm_hi = rfbm >> 32;
+	u32 rfbm_lo = rfbm;
+	u32 rfbm_hi = rfbm >> 32;
 
 	asm volatile("xsavec (%%rdi)"
 		     : : "D" (xstate), "a" (rfbm_lo), "d" (rfbm_hi)
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 	struct kvm_x86_state *state;
 	struct kvm_x86_state *tile_state = NULL;
 	int xsave_restore_size;
-	vm_vaddr_t amx_cfg, tiledata, xstate;
+	gva_t amx_cfg, tiledata, xstate;
 	struct ucall uc;
 	int ret;
 
@@ -263,15 +263,15 @@ int main(int argc, char *argv[])
 	vcpu_regs_get(vcpu, &regs1);
 
 	/* amx cfg for guest_code */
-	amx_cfg = vm_vaddr_alloc_page(vm);
+	amx_cfg = vm_alloc_page(vm);
 	memset(addr_gva2hva(vm, amx_cfg), 0x0, getpagesize());
 
 	/* amx tiledata for guest_code */
-	tiledata = vm_vaddr_alloc_pages(vm, 2);
+	tiledata = vm_alloc_pages(vm, 2);
 	memset(addr_gva2hva(vm, tiledata), rand() | 1, 2 * getpagesize());
 
 	/* XSAVE state for guest_code */
-	xstate = vm_vaddr_alloc_pages(vm, DIV_ROUND_UP(XSAVE_SIZE, PAGE_SIZE));
+	xstate = vm_alloc_pages(vm, DIV_ROUND_UP(XSAVE_SIZE, PAGE_SIZE));
 	memset(addr_gva2hva(vm, xstate), 0, PAGE_SIZE * DIV_ROUND_UP(XSAVE_SIZE, PAGE_SIZE));
 	vcpu_args_set(vcpu, 3, amx_cfg, tiledata, xstate);
 

@@ -633,19 +633,17 @@ static void gfxhub_v12_1_xcc_set_fault_enable_default(struct amdgpu_device *adev
 		tmp = REG_SET_FIELD(tmp,
 				    GCVM_L2_PROTECTION_FAULT_CNTL_LO32,
 				    OTHER_CLIENT_ID_NO_RETRY_FAULT_INTERRUPT, value);
-		if (!value)
-			tmp = REG_SET_FIELD(tmp,
-					    GCVM_L2_PROTECTION_FAULT_CNTL_LO32,
-					    CRASH_ON_NO_RETRY_FAULT, 1);
+		tmp = REG_SET_FIELD(tmp,
+				    GCVM_L2_PROTECTION_FAULT_CNTL_LO32,
+				    CRASH_ON_NO_RETRY_FAULT, !value);
 		WREG32_SOC15(GC, GET_INST(GC, i),
 			     regGCVM_L2_PROTECTION_FAULT_CNTL_LO32, tmp);
 
 		tmp = RREG32_SOC15(GC, GET_INST(GC, i),
 				   regGCVM_L2_PROTECTION_FAULT_CNTL_HI32);
-		if (!value)
-			tmp = REG_SET_FIELD(tmp,
-					    GCVM_L2_PROTECTION_FAULT_CNTL_HI32,
-					    CRASH_ON_RETRY_FAULT, 1);
+		tmp = REG_SET_FIELD(tmp,
+				    GCVM_L2_PROTECTION_FAULT_CNTL_HI32,
+				    CRASH_ON_RETRY_FAULT, !value);
 		WREG32_SOC15(GC, GET_INST(GC, i),
 			     regGCVM_L2_PROTECTION_FAULT_CNTL_HI32, tmp);
 	}

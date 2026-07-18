@@ -1,0 +1,183 @@
+Iterations:        100
+Instructions:      7200
+Total Cycles:      7648
+Total uOps:        9300
+
+Dispatch Width:    4
+uOps Per Cycle:    1.22
+IPC:               0.94
+Block RThroughput: 23.3
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 2      5     1.00           *            push	rbp
+ 2      5     1.00           *            push	r15
+ 2      5     1.00           *            push	r14
+ 2      5     1.00           *            push	r13
+ 2      5     1.00           *            push	r12
+ 2      5     1.00           *            push	rbx
+ 1      1     0.33                        sub	rsp, 24
+ 1      5     0.50    *                   mov	r12, qword ptr [rdi + 16]
+ 1      1     0.33                        mov	r13, r12
+ 1      1     0.33                        sub	r13, rsi
+ 1      1     1.00                        jb	.LBB6_10
+ 1      1     0.33                        mov	rbx, rdi
+ 1      5     0.50    *                   mov	rax, qword ptr [rdi]
+ 1      1     0.33                        mov	rcx, rax
+ 1      1     0.33                        sub	rcx, r12
+ 1      1     0.33                        cmp	rdx, rcx
+ 1      1     1.00                        jbe	.LBB6_4
+ 1      1     0.33                        add	r12, rdx
+ 1      1     1.00                        jae	.LBB6_7
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                        jmp	.LBB6_6
+ 1      5     0.50    *                   mov	rax, qword ptr [rbx + 8]
+ 1      1     0.33                        add	r12, rdx
+ 1      1     0.50                        lea	rcx, [rsi + 2*rsi]
+ 1      1     0.50                        lea	r14, [rax + 2*rcx]
+ 1      1     0.33                        add	rdx, rdx
+ 1      1     0.50                        lea	r15, [rdx + 2*rdx]
+ 1      1     0.50                        lea	rdi, [r14 + r15]
+ 1      1     0.33                        add	r13, r13
+ 1      1     0.50                        lea	rdx, [2*r13]
+ 1      1     0.33                        add	rdx, r13
+ 1      1     0.33                        mov	rsi, r14
+ 4      7     1.00    *                   call	qword ptr [rip + memmove@GOTPCREL]
+ 1      1     0.33                        mov	rdi, r14
+ 1      0     0.25                        xor	esi, esi
+ 1      1     0.33                        mov	rdx, r15
+ 4      7     1.00    *                   call	qword ptr [rip + memset@GOTPCREL]
+ 1      1     1.00           *            mov	qword ptr [rbx + 16], r12
+ 1      1     0.33                        mov	al, 1
+ 1      1     0.33                        add	rsp, 24
+ 1      6     0.50    *                   pop	rbx
+ 1      6     0.50    *                   pop	r12
+ 1      6     0.50    *                   pop	r13
+ 1      6     0.50    *                   pop	r14
+ 1      6     0.50    *                   pop	r15
+ 1      6     0.50    *                   pop	rbp
+ 1      1     1.00                  U     ret
+ 1      1     0.33                        mov	r15, rsi
+ 1      1     0.33                        mov	rbp, rdx
+ 1      1     0.50                        lea	rcx, [rax + rax]
+ 1      1     0.33                        cmp	r12, rcx
+ 3      3     1.00                        cmova	rcx, r12
+ 1      1     0.33                        cmp	rcx, 5
+ 1      1     0.33                        mov	r14d, 4
+ 2      2     0.67                        cmovae	r14, rcx
+ 1      5     0.50    *                   mov	rdx, qword ptr [rbx + 8]
+ 1      1     0.33                        mov	rdi, rsp
+ 1      1     0.33                        mov	rsi, rax
+ 1      1     0.33                        mov	rcx, r14
+ 3      5     1.00                        call	<alloc::raw_vec::RawVecInner>::finish_grow
+ 2      6     0.50    *                   cmp	dword ptr [rsp], 1
+ 1      1     1.00                        je	.LBB6_3
+ 1      5     0.50    *                   mov	rax, qword ptr [rsp + 8]
+ 1      1     1.00           *            mov	qword ptr [rbx + 8], rax
+ 1      1     1.00           *            mov	qword ptr [rbx], r14
+ 1      1     0.33                        mov	rdx, rbp
+ 1      1     0.33                        mov	rsi, r15
+ 1      1     1.00                        jmp	.LBB6_5
+ 1      1     0.50                        lea	rdi, [rip + .Lanon.HASH.1]
+ 1      1     0.50                        lea	rdx, [rip + .Lanon.HASH.3]
+ 1      1     0.33                        mov	esi, 37
+ 4      7     1.00    *                   call	qword ptr [rip + core::panicking::panic@GOTPCREL]
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     17.02  16.50  13.00  19.48  14.00  14.00  
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -     1.00    -     0.98   0.02   push	rbp
+ -      -      -      -     1.00    -     0.02   0.98   push	r15
+ -      -      -      -     1.00    -     0.99   0.01   push	r14
+ -      -      -      -     1.00    -     0.01   0.99   push	r13
+ -      -      -      -     1.00    -     0.99   0.01   push	r12
+ -      -      -      -     1.00    -     0.01   0.99   push	rbx
+ -      -     0.49   0.51    -      -      -      -     sub	rsp, 24
+ -      -      -      -      -      -     0.04   0.96   mov	r12, qword ptr [rdi + 16]
+ -      -     0.49   0.50    -     0.01    -      -     mov	r13, r12
+ -      -     0.48   0.51    -     0.01    -      -     sub	r13, rsi
+ -      -      -      -      -     1.00    -      -     jb	.LBB6_10
+ -      -     0.49   0.49    -     0.02    -      -     mov	rbx, rdi
+ -      -      -      -      -      -     0.97   0.03   mov	rax, qword ptr [rdi]
+ -      -     0.51   0.49    -      -      -      -     mov	rcx, rax
+ -      -     0.49   0.02    -     0.49    -      -     sub	rcx, r12
+ -      -     0.49   0.50    -     0.01    -      -     cmp	rdx, rcx
+ -      -      -      -      -     1.00    -      -     jbe	.LBB6_4
+ -      -     0.02   0.49    -     0.49    -      -     add	r12, rdx
+ -      -      -      -      -     1.00    -      -     jae	.LBB6_7
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     jmp	.LBB6_6
+ -      -      -      -      -      -     0.97   0.03   mov	rax, qword ptr [rbx + 8]
+ -      -     0.51   0.49    -      -      -      -     add	r12, rdx
+ -      -     0.49   0.51    -      -      -      -     lea	rcx, [rsi + 2*rsi]
+ -      -     0.50   0.50    -      -      -      -     lea	r14, [rax + 2*rcx]
+ -      -     0.51   0.49    -      -      -      -     add	rdx, rdx
+ -      -     0.50   0.50    -      -      -      -     lea	r15, [rdx + 2*rdx]
+ -      -     0.49   0.51    -      -      -      -     lea	rdi, [r14 + r15]
+ -      -     0.50   0.49    -     0.01    -      -     add	r13, r13
+ -      -     0.51   0.49    -      -      -      -     lea	rdx, [2*r13]
+ -      -     0.01   0.01    -     0.98    -      -     add	rdx, r13
+ -      -     0.01    -      -     0.99    -      -     mov	rsi, r14
+ -      -      -      -     1.00   1.00   1.98   0.02   call	qword ptr [rip + memmove@GOTPCREL]
+ -      -     0.49   0.50    -     0.01    -      -     mov	rdi, r14
+ -      -      -      -      -      -      -      -     xor	esi, esi
+ -      -     0.50   0.50    -      -      -      -     mov	rdx, r15
+ -      -      -      -     1.00   1.00   1.96   0.04   call	qword ptr [rip + memset@GOTPCREL]
+ -      -      -      -     1.00    -     0.01   0.99   mov	qword ptr [rbx + 16], r12
+ -      -     0.50    -      -     0.50    -      -     mov	al, 1
+ -      -     0.51   0.49    -      -      -      -     add	rsp, 24
+ -      -      -      -      -      -     0.02   0.98   pop	rbx
+ -      -      -      -      -      -     0.03   0.97   pop	r12
+ -      -      -      -      -      -     0.03   0.97   pop	r13
+ -      -      -      -      -      -     0.97   0.03   pop	r14
+ -      -      -      -      -      -     0.03   0.97   pop	r15
+ -      -      -      -      -      -     0.01   0.99   pop	rbp
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     0.49   0.51    -      -      -      -     mov	r15, rsi
+ -      -     0.51   0.49    -      -      -      -     mov	rbp, rdx
+ -      -     0.49   0.51    -      -      -      -     lea	rcx, [rax + rax]
+ -      -     0.49   0.50    -     0.01    -      -     cmp	r12, rcx
+ -      -     1.04   0.50    -     1.46    -      -     cmova	rcx, r12
+ -      -     0.49   0.49    -     0.02    -      -     cmp	rcx, 5
+ -      -     0.50    -      -     0.50    -      -     mov	r14d, 4
+ -      -     0.50   0.51    -     0.99    -      -     cmovae	r14, rcx
+ -      -      -      -      -      -     0.97   0.03   mov	rdx, qword ptr [rbx + 8]
+ -      -      -     0.51    -     0.49    -      -     mov	rdi, rsp
+ -      -     0.01   0.50    -     0.49    -      -     mov	rsi, rax
+ -      -     0.49   0.50    -     0.01    -      -     mov	rcx, r14
+ -      -      -      -     1.00   1.00   0.99   0.01   call	<alloc::raw_vec::RawVecInner>::finish_grow
+ -      -     0.51   0.49    -      -     0.50   0.50   cmp	dword ptr [rsp], 1
+ -      -      -      -      -     1.00    -      -     je	.LBB6_3
+ -      -      -      -      -      -     0.50   0.50   mov	rax, qword ptr [rsp + 8]
+ -      -      -      -     1.00    -     0.99   0.01   mov	qword ptr [rbx + 8], rax
+ -      -      -      -     1.00    -     0.01   0.99   mov	qword ptr [rbx], r14
+ -      -     0.49   0.50    -     0.01    -      -     mov	rdx, rbp
+ -      -     0.50   0.01    -     0.49    -      -     mov	rsi, r15
+ -      -      -      -      -     1.00    -      -     jmp	.LBB6_5
+ -      -     0.01   0.99    -      -      -      -     lea	rdi, [rip + .Lanon.HASH.1]
+ -      -     0.99   0.01    -      -      -      -     lea	rdx, [rip + .Lanon.HASH.3]
+ -      -     0.02   0.49    -     0.49    -      -     mov	esi, 37
+ -      -      -      -     1.00   1.00   0.02   1.98   call	qword ptr [rip + core::panicking::panic@GOTPCREL]

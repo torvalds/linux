@@ -79,10 +79,6 @@ extern int pmac_i2c_match_adapter(struct device_node *dev,
 				  struct i2c_adapter *adapter);
 
 
-/* (legacy) Locking functions exposed to i2c-keywest */
-extern int pmac_low_i2c_lock(struct device_node *np);
-extern int pmac_low_i2c_unlock(struct device_node *np);
-
 /* Access functions for platform code */
 extern int pmac_i2c_open(struct pmac_i2c_bus *bus, int polled);
 extern void pmac_i2c_close(struct pmac_i2c_bus *bus);

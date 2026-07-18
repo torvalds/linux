@@ -100,6 +100,24 @@ struct duplicate_extents_to_file_ex {
 	__le32 Reserved;
 } __packed;
 
+/*
+ * compression state flags
+ * See MS-FSCC 2.3.18
+ *     MS-FSCC 2.3.67
+ *     MS-FSCC 2.4.9
+ */
+#define COMPRESSION_FORMAT_NONE	0x0000
+#define COMPRESSION_FORMAT_DEFAULT	0x0001
+#define COMPRESSION_FORMAT_LZNT1	0x0002
+
+/*
+ * See MS-FSCC 2.3.18
+ *     MS-FSCC 2.3.67
+ */
+struct compress_ioctl {
+	__le16 CompressionState;
+} __packed;
+
 /* See MS-FSCC 2.3.20 */
 struct fsctl_get_integrity_information_rsp {
 	__le16	ChecksumAlgorithm;
@@ -260,12 +278,12 @@ typedef struct {
 	char FileName[];
 } __packed FILE_DIRECTORY_INFO;   /* level 0x101 FF resp data */
 
-/* See MS-FSCC 2.4.13 */
+/* See MS-FSCC 2.4.14 */
 struct smb2_file_eof_info { /* encoding of request for level 10 */
 	__le64 EndOfFile; /* new end of file value */
 } __packed; /* level 20 Set */
 
-/* See MS-FSCC 2.4.14 */
+/* See MS-FSCC 2.4.15 */
 typedef struct {
 	__le32 NextEntryOffset;
 	__u32 FileIndex;

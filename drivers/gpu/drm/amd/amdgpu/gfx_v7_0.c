@@ -2819,6 +2819,7 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 {
 	u64 hqd_gpu_addr;
 	u64 wb_gpu_addr;
+	u32 tmp;
 
 	/* init the mqd struct */
 	memset(mqd, 0, sizeof(struct cik_mqd));
@@ -2923,7 +2924,11 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 	mqd->cp_hqd_atomic1_preop_lo = RREG32(mmCP_HQD_ATOMIC1_PREOP_LO);
 	mqd->cp_hqd_atomic1_preop_hi = RREG32(mmCP_HQD_ATOMIC1_PREOP_HI);
 	mqd->cp_hqd_pq_rptr = RREG32(mmCP_HQD_PQ_RPTR);
-	mqd->cp_hqd_quantum = RREG32(mmCP_HQD_QUANTUM);
+	tmp = RREG32(mmCP_HQD_QUANTUM);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_QUANTUM, QUANTUM_EN, 1);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_QUANTUM, QUANTUM_SCALE, 1);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_QUANTUM, QUANTUM_DURATION, 10);
+	mqd->cp_hqd_quantum = tmp;
 	mqd->cp_hqd_pipe_priority = RREG32(mmCP_HQD_PIPE_PRIORITY);
 	mqd->cp_hqd_queue_priority = RREG32(mmCP_HQD_QUEUE_PRIORITY);
 	mqd->cp_hqd_iq_rptr = RREG32(mmCP_HQD_IQ_RPTR);

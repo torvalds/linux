@@ -4,6 +4,7 @@
  */
 
 #include <drm/amdxdna_accel.h>
+#include <drm/drm_managed.h>
 #include <linux/iommu.h>
 #include <linux/iova.h>
 
@@ -35,14 +36,15 @@ static struct iova *amdxdna_iommu_alloc_iova(struct amdxdna_dev *xdna,
 	return iova;
 }
 
-int amdxdna_iommu_map_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo)
+int amdxdna_dma_map_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo)
 {
+	unsigned long contig_sz;
 	struct sg_table *sgt;
 	dma_addr_t dma_addr;
 	struct iova *iova;
-	size_t size;
+	ssize_t size;
 
-	if (abo->type != AMDXDNA_BO_DEV_HEAP && abo->type != AMDXDNA_BO_SHMEM)
+	if (abo->type != AMDXDNA_BO_DEV_HEAP && abo->type != AMDXDNA_BO_SHARE)
 		return 0;
 
 	sgt = drm_gem_shmem_get_pages_sgt(&abo->base);
@@ -51,40 +53,63 @@ int amdxdna_iommu_map_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo)
 		return PTR_ERR(sgt);
 	}
 
-	if (!sgt->orig_nents || !sg_page(sgt->sgl)) {
-		XDNA_ERR(xdna, "sgl is zero length or not page backed");
+	if (!sgt->orig_nents) {
+		XDNA_ERR(xdna, "sgl is zero length");
 		return -EOPNOTSUPP;
 	}
 
-	iova = amdxdna_iommu_alloc_iova(xdna, abo->mem.size, &dma_addr,
-					(abo->type == AMDXDNA_BO_DEV_HEAP));
-	if (IS_ERR(iova)) {
-		XDNA_ERR(xdna, "Alloc iova failed, ret %ld", PTR_ERR(iova));
-		return PTR_ERR(iova);
+	if (amdxdna_iova_on(xdna)) {
+		if (!sg_page(sgt->sgl)) {
+			XDNA_ERR(xdna, "sgl is not page backed");
+			return -EOPNOTSUPP;
+		}
+
+		iova = amdxdna_iommu_alloc_iova(xdna, abo->mem.size, &dma_addr,
+						(abo->type == AMDXDNA_BO_DEV_HEAP));
+		if (IS_ERR(iova)) {
+			XDNA_ERR(xdna, "Alloc iova failed, ret %ld", PTR_ERR(iova));
+			return PTR_ERR(iova);
+		}
+
+		size = iommu_map_sgtable(xdna->domain, dma_addr, sgt,
+					 IOMMU_READ | IOMMU_WRITE);
+		if (size < 0) {
+			XDNA_ERR(xdna, "iommu_map_sgtable failed: %zd", size);
+			__free_iova(&xdna->iovad, iova);
+			return size;
+		}
+		if (size < abo->mem.size) {
+			iommu_unmap(xdna->domain, dma_addr, size);
+			__free_iova(&xdna->iovad, iova);
+			return -ENXIO;
+		}
+		abo->mem.dma_addr = dma_addr;
+	} else {
+		/* Device doesn't support scatter/gather list, fail non-contiguous mapping. */
+		contig_sz = drm_prime_get_contiguous_size(sgt);
+		if (contig_sz < abo->mem.size) {
+			XDNA_ERR(xdna,
+				 "noncontiguous dma addr, contig size:%ld, expected size:%ld",
+				 contig_sz, abo->mem.size);
+			return -EINVAL;
+		}
+		abo->mem.dma_addr = sg_dma_address(sgt->sgl);
 	}
-
-	size = iommu_map_sgtable(xdna->domain, dma_addr, sgt,
-				 IOMMU_READ | IOMMU_WRITE);
-	if (size < abo->mem.size) {
-		__free_iova(&xdna->iovad, iova);
-		return -ENXIO;
-	}
-
-	abo->mem.dma_addr = dma_addr;
-
 	return 0;
 }
 
-void amdxdna_iommu_unmap_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo)
+void amdxdna_dma_unmap_bo(struct amdxdna_dev *xdna, struct amdxdna_gem_obj *abo)
 {
 	size_t size;
 
 	if (abo->mem.dma_addr == AMDXDNA_INVALID_ADDR)
 		return;
 
-	size = iova_align(&xdna->iovad, abo->mem.size);
-	iommu_unmap(xdna->domain, abo->mem.dma_addr, size);
-	free_iova(&xdna->iovad, iova_pfn(&xdna->iovad, abo->mem.dma_addr));
+	if (amdxdna_iova_on(xdna)) {
+		size = iova_align(&xdna->iovad, abo->mem.size);
+		iommu_unmap(xdna->domain, abo->mem.dma_addr, size);
+		free_iova(&xdna->iovad, iova_pfn(&xdna->iovad, abo->mem.dma_addr));
+	}
 	abo->mem.dma_addr = AMDXDNA_INVALID_ADDR;
 }
 
@@ -110,10 +135,12 @@ void *amdxdna_iommu_alloc(struct amdxdna_dev *xdna, size_t size, dma_addr_t *dma
 			iova_align(&xdna->iovad, size),
 			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret)
-		goto free_iova;
+		goto free_cpu_addr;
 
 	return cpu_addr;
 
+free_cpu_addr:
+	free_pages((unsigned long)cpu_addr, get_order(size));
 free_iova:
 	__free_iova(&xdna->iovad, iova);
 	return ERR_PTR(ret);
@@ -127,10 +154,30 @@ void amdxdna_iommu_free(struct amdxdna_dev *xdna, size_t size,
 	free_pages((unsigned long)cpu_addr, get_order(size));
 }
 
+static void amdxdna_cleanup_force_iova(struct drm_device *dev, void *res)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(dev);
+
+	if (xdna->domain) {
+		iommu_detach_group(xdna->domain, xdna->group);
+		put_iova_domain(&xdna->iovad);
+		iova_cache_put();
+		iommu_domain_free(xdna->domain);
+	}
+
+	iommu_group_put(xdna->group);
+}
+
+void amdxdna_iommu_fini(struct amdxdna_dev *xdna)
+{
+	if (xdna->group && !xdna->domain)
+		iommu_group_put(xdna->group);
+}
+
 int amdxdna_iommu_init(struct amdxdna_dev *xdna)
 {
 	unsigned long order;
-	int ret;
+	int ret = 0;
 
 	xdna->group = iommu_group_get(xdna->ddev.dev);
 	if (!xdna->group || !force_iova)
@@ -156,8 +203,14 @@ int amdxdna_iommu_init(struct amdxdna_dev *xdna)
 	if (ret)
 		goto put_iova;
 
+	ret = drmm_add_action(&xdna->ddev, amdxdna_cleanup_force_iova, NULL);
+	if (ret)
+		goto detach_group;
+
 	return 0;
 
+detach_group:
+	iommu_detach_group(xdna->domain, xdna->group);
 put_iova:
 	put_iova_domain(&xdna->iovad);
 	iova_cache_put();
@@ -165,20 +218,8 @@ free_domain:
 	iommu_domain_free(xdna->domain);
 put_group:
 	iommu_group_put(xdna->group);
+	xdna->group = NULL;
 	xdna->domain = NULL;
 
 	return ret;
-}
-
-void amdxdna_iommu_fini(struct amdxdna_dev *xdna)
-{
-	if (xdna->domain) {
-		iommu_detach_group(xdna->domain, xdna->group);
-		put_iova_domain(&xdna->iovad);
-		iova_cache_put();
-		iommu_domain_free(xdna->domain);
-	}
-
-	if (xdna->group)
-		iommu_group_put(xdna->group);
 }

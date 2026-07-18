@@ -1,0 +1,59 @@
+Iterations:        100
+Instructions:      1000
+Total Cycles:      308
+Total uOps:        1100
+
+Dispatch Width:    4
+uOps Per Cycle:    3.57
+IPC:               3.25
+Block RThroughput: 3.0
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      1     0.33                        mov	rax, rdi
+ 1      1     0.33                        cmp	rsi, 6
+ 1      1     0.50                        setne	cl
+ 1      1     0.33                        or	cl, al
+ 1      1     0.33                        test	cl, 1
+ 1      1     1.00                        jne	.LBB5_2
+ 2      6     0.50    *                   cmp	word ptr [rax], -16192
+ 1      1     1.00                        je	.LBB5_3
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     2.98   2.98    -     3.04   0.50   0.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -     0.02   0.97    -     0.01    -      -     mov	rax, rdi
+ -      -     0.02   0.98    -      -      -      -     cmp	rsi, 6
+ -      -     1.00    -      -      -      -      -     setne	cl
+ -      -     0.97   0.02    -     0.01    -      -     or	cl, al
+ -      -     0.96   0.03    -     0.01    -      -     test	cl, 1
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_2
+ -      -     0.01   0.98    -     0.01   0.50   0.50   cmp	word ptr [rax], -16192
+ -      -      -      -      -     1.00    -      -     je	.LBB5_3
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret

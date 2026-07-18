@@ -13,6 +13,8 @@
 #include <stdio.h>
 #include <sched.h>
 
+#include <linux/compiler.h>
+
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_bpf.h"
@@ -73,6 +75,24 @@ timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 	if (retval) {
 		err_msg("Failed to set print stack\n");
 		goto out_err;
+	}
+
+	retval = osnoise_set_timerlat_align(tool->context, params->timerlat_align);
+	if (retval && params->timerlat_align) {
+		/*
+		 * We might be running on a kernel that does not support timerlat align.
+		 * Unless user requested it explicitly, ignore the error.
+		 */
+		err_msg("Failed to enable timerlat align\n");
+		goto out_err;
+	}
+
+	if (params->timerlat_align) {
+		retval = osnoise_set_timerlat_align_us(tool->context, params->timerlat_align_us);
+		if (retval) {
+			err_msg("Failed to set timerlat align us\n");
+			goto out_err;
+		}
 	}
 
 	/*
@@ -202,7 +222,7 @@ void timerlat_analyze(struct osnoise_tool *tool, bool stopped)
 		 * If the trace did not stop with --aa-only, at least print
 		 * the max known latency.
 		 */
-		max_lat = tracefs_instance_file_read(trace_inst->inst, "tracing_max_latency", NULL);
+		max_lat = tracefs_instance_file_read(tool->trace.inst, "tracing_max_latency", NULL);
 		if (max_lat) {
 			printf("  Max latency was %s\n", max_lat);
 			free(max_lat);
@@ -231,7 +251,7 @@ void timerlat_free(struct osnoise_tool *tool)
 	free_cpu_idle_disable_states();
 }
 
-static void timerlat_usage(int err)
+__noreturn static void timerlat_usage(int err)
 {
 	int i;
 
@@ -269,7 +289,7 @@ int timerlat_main(int argc, char *argv[])
 	}
 
 	if ((strcmp(argv[1], "-h") == 0) || (strcmp(argv[1], "--help") == 0)) {
-		timerlat_usage(0);
+		timerlat_usage(129);
 	} else if (str_has_prefix(argv[1], "-")) {
 		/* the user skipped the tool, call the default one */
 		run_tool(&timerlat_top_ops, argc, argv);
@@ -283,6 +303,5 @@ int timerlat_main(int argc, char *argv[])
 	}
 
 usage:
-	timerlat_usage(1);
-	exit(1);
+	timerlat_usage(129);
 }

@@ -69,7 +69,6 @@
 					  "attach-detach",
 					  "legacy-cable-detect",
 					  "try-snk-src-detect";
-			vdd-vbus-supply = <&pmi632_vbus>;
 
 			status = "disabled";
 		};

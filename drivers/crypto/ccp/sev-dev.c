@@ -1328,10 +1328,11 @@ static int snp_filter_reserved_mem_regions(struct resource *rs, void *arg)
 	size_t size;
 
 	/*
-	 * Ensure the list of HV_FIXED pages that will be passed to firmware
-	 * do not exceed the page-sized argument buffer.
+	 * Ensure the list of HV_FIXED pages passed to the firmware including
+	 * the one about to be written to do not exceed the page-sized argument
+	 * buffer.
 	 */
-	if ((range_list->num_elements * sizeof(struct sev_data_range) +
+	if (((range_list->num_elements + 1) * sizeof(struct sev_data_range) +
 	     sizeof(struct sev_data_range_list)) > PAGE_SIZE)
 		return -E2BIG;
 
@@ -1355,7 +1356,7 @@ static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 {
 	struct sev_data_range_list *snp_range_list __free(kfree) = NULL;
 	struct psp_device *psp = psp_master;
-	struct sev_data_snp_init_ex data;
+	struct sev_data_snp_init_ex data = {};
 	struct sev_device *sev;
 	void *arg = &data;
 	int cmd, rc = 0;
@@ -1374,7 +1375,9 @@ static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 		return -EOPNOTSUPP;
 	}
 
-	snp_prepare();
+	rc = snp_prepare();
+	if (rc)
+		return rc;
 
 	/*
 	 * Starting in SNP firmware v1.52, the SNP_INIT_EX command takes a list
@@ -1418,8 +1421,6 @@ static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 		 * HV_Fixed page list.
 		 */
 		snp_add_hv_fixed_pages(sev, snp_range_list);
-
-		memset(&data, 0, sizeof(data));
 
 		if (max_snp_asid) {
 			data.ciphertext_hiding_en = 1;
@@ -1487,6 +1488,8 @@ static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 				       &snp_panic_notifier);
 
 	if (data.tio_en) {
+		struct page *page;
+
 		/*
 		 * This executes with the sev_cmd_mutex held so down the stack
 		 * snp_reclaim_pages(locked=false) might be needed (which is extremely
@@ -1494,12 +1497,14 @@ static int __sev_snp_init_locked(int *error, unsigned int max_snp_asid)
 		 * Instead of exporting __snp_alloc_firmware_pages(), allocate a page
 		 * for this one call here.
 		 */
-		void *tio_status = page_address(__snp_alloc_firmware_pages(
-			GFP_KERNEL_ACCOUNT | __GFP_ZERO, 0, true));
+		page = __snp_alloc_firmware_pages(GFP_KERNEL_ACCOUNT | __GFP_ZERO,
+						  0, true);
+		if (page) {
+			void *tio_status = page_address(page);
 
-		if (tio_status) {
 			sev_tsm_init_locked(sev, tio_status);
-			__snp_free_firmware_pages(virt_to_page(tio_status), 0, true);
+
+			__snp_free_firmware_pages(page, 0, true);
 		}
 	}
 
@@ -1716,29 +1721,11 @@ static int sev_get_platform_state(int *state, int *error)
 
 static int sev_move_to_init_state(struct sev_issue_cmd *argp, bool *shutdown_required)
 {
-	struct sev_platform_init_args init_args = {0};
 	int rc;
 
-	rc = _sev_platform_init_locked(&init_args);
-	if (rc) {
-		argp->error = SEV_RET_INVALID_PLATFORM_STATE;
+	rc = __sev_platform_init_locked(&argp->error);
+	if (rc)
 		return rc;
-	}
-
-	*shutdown_required = true;
-
-	return 0;
-}
-
-static int snp_move_to_init_state(struct sev_issue_cmd *argp, bool *shutdown_required)
-{
-	int error, rc;
-
-	rc = __sev_snp_init_locked(&error, 0);
-	if (rc) {
-		argp->error = SEV_RET_INVALID_PLATFORM_STATE;
-		return rc;
-	}
 
 	*shutdown_required = true;
 
@@ -2301,7 +2288,8 @@ static int sev_ioctl_do_pdh_export(struct sev_issue_cmd *argp, bool writable)
 	/* Userspace wants to query the certificate length. */
 	if (!input.pdh_cert_address ||
 	    !input.pdh_cert_len ||
-	    !input.cert_chain_address)
+	    !input.cert_chain_address ||
+	    !input.cert_chain_len)
 		goto cmd;
 
 	/* Allocate a physically contiguous buffer to store the PDH blob. */
@@ -2381,16 +2369,14 @@ e_free_pdh:
 	return ret;
 }
 
-static int sev_ioctl_do_snp_platform_status(struct sev_issue_cmd *argp)
+static int __sev_do_snp_platform_status(struct sev_user_data_snp_status *status,
+					int *error)
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_data_snp_addr buf;
 	struct page *status_page;
 	void *data;
 	int ret;
-
-	if (!argp->data)
-		return -EINVAL;
 
 	status_page = alloc_page(GFP_KERNEL_ACCOUNT);
 	if (!status_page)
@@ -2414,7 +2400,7 @@ static int sev_ioctl_do_snp_platform_status(struct sev_issue_cmd *argp)
 	}
 
 	buf.address = __psp_pa(data);
-	ret = __sev_do_cmd_locked(SEV_CMD_SNP_PLATFORM_STATUS, &buf, &argp->error);
+	ret = __sev_do_cmd_locked(SEV_CMD_SNP_PLATFORM_STATUS, &buf, error);
 
 	if (sev->snp_initialized) {
 		/*
@@ -2429,34 +2415,40 @@ static int sev_ioctl_do_snp_platform_status(struct sev_issue_cmd *argp)
 	if (ret)
 		goto cleanup;
 
-	if (copy_to_user((void __user *)argp->data, data,
-			 sizeof(struct sev_user_data_snp_status)))
-		ret = -EFAULT;
+	memcpy(status, data, sizeof(*status));
 
 cleanup:
 	__free_pages(status_page, 0);
 	return ret;
 }
 
+static int sev_ioctl_do_snp_platform_status(struct sev_issue_cmd *argp)
+{
+	struct sev_user_data_snp_status status;
+	int ret;
+
+	if (!argp->data)
+		return -EINVAL;
+
+	ret = __sev_do_snp_platform_status(&status, &argp->error);
+	if (ret < 0)
+		return ret;
+
+	if (copy_to_user((void __user *)argp->data, &status,
+			 sizeof(struct sev_user_data_snp_status)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
 static int sev_ioctl_do_snp_commit(struct sev_issue_cmd *argp)
 {
-	struct sev_device *sev = psp_master->sev_data;
 	struct sev_data_snp_commit buf;
-	bool shutdown_required = false;
-	int ret, error;
-
-	if (!sev->snp_initialized) {
-		ret = snp_move_to_init_state(argp, &shutdown_required);
-		if (ret)
-			return ret;
-	}
+	int ret;
 
 	buf.len = sizeof(buf);
 
 	ret = __sev_do_cmd_locked(SEV_CMD_SNP_COMMIT, &buf, &argp->error);
-
-	if (shutdown_required)
-		__sev_snp_shutdown_locked(&error, false);
 
 	return ret;
 }
@@ -2465,8 +2457,6 @@ static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_snp_config config;
-	bool shutdown_required = false;
-	int ret, error;
 
 	if (!argp->data)
 		return -EINVAL;
@@ -2474,36 +2464,30 @@ static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable
 	if (!writable)
 		return -EPERM;
 
+	if (!sev->snp_initialized)
+		return -ENODEV;
+
 	if (copy_from_user(&config, (void __user *)argp->data, sizeof(config)))
 		return -EFAULT;
 
-	if (!sev->snp_initialized) {
-		ret = snp_move_to_init_state(argp, &shutdown_required);
-		if (ret)
-			return ret;
-	}
-
-	ret = __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
-
-	if (shutdown_required)
-		__sev_snp_shutdown_locked(&error, false);
-
-	return ret;
+	return __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
 }
 
 static int sev_ioctl_do_snp_vlek_load(struct sev_issue_cmd *argp, bool writable)
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_user_data_snp_vlek_load input;
-	bool shutdown_required = false;
-	int ret, error;
 	void *blob;
+	int ret;
 
 	if (!argp->data)
 		return -EINVAL;
 
 	if (!writable)
 		return -EPERM;
+
+	if (!sev->snp_initialized)
+		return -ENODEV;
 
 	if (copy_from_user(&input, u64_to_user_ptr(argp->data), sizeof(input)))
 		return -EFAULT;
@@ -2518,18 +2502,7 @@ static int sev_ioctl_do_snp_vlek_load(struct sev_issue_cmd *argp, bool writable)
 
 	input.vlek_wrapped_address = __psp_pa(blob);
 
-	if (!sev->snp_initialized) {
-		ret = snp_move_to_init_state(argp, &shutdown_required);
-		if (ret)
-			goto cleanup;
-	}
-
 	ret = __sev_do_cmd_locked(SEV_CMD_SNP_VLEK_LOAD, &input, &argp->error);
-
-	if (shutdown_required)
-		__sev_snp_shutdown_locked(&error, false);
-
-cleanup:
 	kfree(blob);
 
 	return ret;
@@ -2939,3 +2912,73 @@ void sev_pci_exit(void)
 
 	sev_firmware_shutdown(sev);
 }
+
+static int get_v1_svn(struct sev_device *sev)
+{
+	struct sev_snp_tcb_version_genoa_milan *tcb;
+	struct sev_user_data_snp_status status;
+	int ret, error = 0;
+
+	mutex_lock(&sev_cmd_mutex);
+	ret = __sev_do_snp_platform_status(&status, &error);
+	mutex_unlock(&sev_cmd_mutex);
+	if (ret < 0)
+		return ret;
+
+	tcb = (struct sev_snp_tcb_version_genoa_milan *)&status
+		      .current_tcb_version;
+	return tcb->snp;
+}
+
+static int get_v2_svn(struct sev_device *sev)
+{
+	struct sev_user_data_snp_status status;
+	struct sev_snp_tcb_version_turin *tcb;
+	int ret, error = 0;
+
+	mutex_lock(&sev_cmd_mutex);
+	ret = __sev_do_snp_platform_status(&status, &error);
+	mutex_unlock(&sev_cmd_mutex);
+	if (ret < 0)
+		return ret;
+
+	tcb = (struct sev_snp_tcb_version_turin *)&status
+		      .current_tcb_version;
+	return tcb->snp;
+}
+
+static bool sev_firmware_allows_es(struct sev_device *sev)
+{
+	/* Documented in AMD-SB-3023 */
+	if (boot_cpu_has(X86_FEATURE_ZEN4) || boot_cpu_has(X86_FEATURE_ZEN3))
+		return get_v1_svn(sev) < 0x1b;
+	else if (boot_cpu_has(X86_FEATURE_ZEN5))
+		return get_v2_svn(sev) < 0x4;
+	else
+		return true;
+}
+
+int sev_firmware_supported_vm_types(void)
+{
+	int supported_vm_types = 0;
+	struct sev_device *sev;
+
+	if (!psp_master || !psp_master->sev_data)
+		return supported_vm_types;
+	sev = psp_master->sev_data;
+
+	supported_vm_types |= BIT(KVM_X86_SEV_VM);
+	supported_vm_types |= BIT(KVM_X86_SEV_ES_VM);
+
+	if (!sev->snp_initialized)
+		return supported_vm_types;
+
+	supported_vm_types |= BIT(KVM_X86_SNP_VM);
+
+	if (!sev_firmware_allows_es(sev))
+		supported_vm_types &= ~BIT(KVM_X86_SEV_ES_VM);
+
+	return supported_vm_types;
+
+}
+EXPORT_SYMBOL_FOR_MODULES(sev_firmware_supported_vm_types, "kvm-amd");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2021-2022 Marek Vasut <marex@denx.de>
+ * Copyright (C) 2021-2026 Marek Vasut
  */
 
 #include "imx8mp.dtsi"
@@ -398,7 +398,7 @@
 		};
 	};
 
-	touchscreen@49 {
+	touch_som: touchscreen@49 {
 		compatible = "ti,tsc2004";
 		reg = <0x49>;
 		interrupts-extended = <&gpio4 0 IRQ_TYPE_EDGE_FALLING>;

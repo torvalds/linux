@@ -201,7 +201,7 @@ static const struct of_device_id tps65218_dt_match[] = {
 MODULE_DEVICE_TABLE(of, tps65218_dt_match);
 
 static const struct platform_device_id tps65218_gpio_id_table[] = {
-	{ "tps65218-gpio", },
+	{ .name = "tps65218-gpio" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, tps65218_gpio_id_table);

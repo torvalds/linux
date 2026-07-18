@@ -137,7 +137,7 @@ static inline void iommu_pages_flush_incoherent(struct device *dma_dev,
 						void *virt, size_t offset,
 						size_t len)
 {
-	dma_sync_single_for_device(dma_dev, (uintptr_t)virt + offset, len,
+	dma_sync_single_for_device(dma_dev, virt_to_phys(virt) + offset, len,
 				   DMA_TO_DEVICE);
 }
 void iommu_pages_stop_incoherent_list(struct iommu_pages_list *list,

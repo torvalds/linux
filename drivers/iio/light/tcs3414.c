@@ -362,7 +362,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(tcs3414_pm_ops, tcs3414_suspend,
 				tcs3414_resume);
 
 static const struct i2c_device_id tcs3414_id[] = {
-	{ "tcs3414" },
+	{ .name = "tcs3414" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tcs3414_id);

@@ -446,11 +446,11 @@ static void x38_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id x38_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(INTEL, X38_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 X38},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, X38_HB),
+		.driver_data = X38,
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, x38_pci_tbl);

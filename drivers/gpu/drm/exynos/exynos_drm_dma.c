@@ -8,6 +8,7 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 
+#include <drm/drm_device.h>
 #include <drm/drm_print.h>
 #include <drm/exynos_drm.h>
 
@@ -21,10 +22,6 @@
 #define arm_iommu_release_mapping(...)	({ })
 #define arm_iommu_detach_device(...)	({ })
 #define to_dma_iommu_mapping(dev) NULL
-#endif
-
-#if !defined(CONFIG_IOMMU_DMA)
-#define iommu_dma_init_domain(...) ({ -EINVAL; })
 #endif
 
 #define EXYNOS_DEV_ADDR_START	0x20000000
@@ -45,7 +42,7 @@ static int drm_iommu_attach_device(struct drm_device *drm_dev,
 	struct exynos_drm_private *priv = drm_dev->dev_private;
 	int ret = 0;
 
-	if (get_dma_ops(priv->dma_dev) != get_dma_ops(subdrv_dev)) {
+	if (get_dma_ops(drm_dev_dma_dev(drm_dev)) != get_dma_ops(subdrv_dev)) {
 		DRM_DEV_ERROR(subdrv_dev, "Device %s lacks support for IOMMU\n",
 			  dev_name(subdrv_dev));
 		return -EINVAL;
@@ -97,8 +94,8 @@ int exynos_drm_register_dma(struct drm_device *drm, struct device *dev,
 {
 	struct exynos_drm_private *priv = drm->dev_private;
 
-	if (!priv->dma_dev) {
-		priv->dma_dev = dev;
+	if (drm_dev_dma_dev(drm) == drm->dev) {
+		drm_dev_set_dma_dev(drm, dev);
 		DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
 			 dev_name(dev));
 	}
@@ -113,7 +110,7 @@ int exynos_drm_register_dma(struct drm_device *drm, struct device *dev,
 			mapping = arm_iommu_create_mapping(dev,
 				EXYNOS_DEV_ADDR_START, EXYNOS_DEV_ADDR_SIZE);
 		else if (IS_ENABLED(CONFIG_IOMMU_DMA))
-			mapping = iommu_get_domain_for_dev(priv->dma_dev);
+			mapping = iommu_get_domain_for_dev(dev);
 
 		if (!mapping)
 			return -ENODEV;
@@ -139,5 +136,5 @@ void exynos_drm_cleanup_dma(struct drm_device *drm)
 
 	arm_iommu_release_mapping(priv->mapping);
 	priv->mapping = NULL;
-	priv->dma_dev = NULL;
+	drm_dev_set_dma_dev(drm, NULL);
 }

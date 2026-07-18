@@ -2046,18 +2046,12 @@ int fib_table_flush(struct net *net, struct fib_table *tb, bool flush_all)
 		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (!fi || tb->tb_id != fa->tb_id ||
-			    (!(fi->fib_flags & RTNH_F_DEAD) &&
-			     !fib_props[fa->fa_type].error)) {
+			if (!fi || tb->tb_id != fa->tb_id) {
 				slen = fa->fa_slen;
 				continue;
 			}
 
-			/* When not flushing the entire table, skip error
-			 * routes that are not marked for deletion.
-			 */
-			if (!flush_all && fib_props[fa->fa_type].error &&
-			    !(fi->fib_flags & RTNH_F_DEAD)) {
+			if (!flush_all && !(fi->fib_flags & RTNH_F_DEAD)) {
 				slen = fa->fa_slen;
 				continue;
 			}
@@ -2172,10 +2166,14 @@ static int fib_leaf_notify(struct key_vector *l, struct fib_table *tb,
 		if (fa->fa_slen == last_slen)
 			continue;
 
+		if (!fib_info_hold_safe(fa->fa_info))
+			continue;
+
 		last_slen = fa->fa_slen;
 		err = call_fib_entry_notifier(nb, FIB_EVENT_ENTRY_REPLACE,
 					      l->key, KEYLENGTH - fa->fa_slen,
 					      fa, extack);
+		fib_info_put(fa->fa_info);
 		if (err)
 			return err;
 	}

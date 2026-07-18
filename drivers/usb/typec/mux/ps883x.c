@@ -61,166 +61,8 @@ struct ps883x_retimer {
 	struct mutex lock; /* protect non-concurrent retimer & switch */
 
 	enum typec_orientation orientation;
-	u8 cfg0;
-	u8 cfg1;
-	u8 cfg2;
+	bool in_reset;
 };
-
-static int ps883x_configure(struct ps883x_retimer *retimer, int cfg0,
-			    int cfg1, int cfg2)
-{
-	struct device *dev = &retimer->client->dev;
-	int ret;
-
-	if (retimer->cfg0 == cfg0 && retimer->cfg1 == cfg1 && retimer->cfg2 == cfg2)
-		return 0;
-
-	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_0, cfg0);
-	if (ret) {
-		dev_err(dev, "failed to write conn_status_0: %d\n", ret);
-		return ret;
-	}
-
-	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_1, cfg1);
-	if (ret) {
-		dev_err(dev, "failed to write conn_status_1: %d\n", ret);
-		return ret;
-	}
-
-	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_2, cfg2);
-	if (ret) {
-		dev_err(dev, "failed to write conn_status_2: %d\n", ret);
-		return ret;
-	}
-
-	retimer->cfg0 = cfg0;
-	retimer->cfg1 = cfg1;
-	retimer->cfg2 = cfg2;
-
-	return 0;
-}
-
-static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state *state)
-{
-	struct typec_thunderbolt_data *tb_data;
-	const struct enter_usb_data *eudo_data;
-	int cfg0 = CONN_STATUS_0_CONNECTION_PRESENT;
-	int cfg1 = 0x00;
-	int cfg2 = 0x00;
-
-	if (retimer->orientation == TYPEC_ORIENTATION_REVERSE)
-		cfg0 |= CONN_STATUS_0_ORIENTATION_REVERSED;
-
-	if (state->alt) {
-		switch (state->alt->svid) {
-		case USB_TYPEC_DP_SID:
-			cfg1 |= CONN_STATUS_1_DP_CONNECTED |
-				CONN_STATUS_1_DP_HPD_LEVEL;
-
-			switch (state->mode)  {
-			case TYPEC_DP_STATE_C:
-				cfg1 |= CONN_STATUS_1_DP_SINK_REQUESTED |
-					CONN_STATUS_1_DP_PIN_ASSIGNMENT_C_D;
-				fallthrough;
-			case TYPEC_DP_STATE_D:
-				cfg1 |= CONN_STATUS_0_USB_3_1_CONNECTED;
-				break;
-			default: /* MODE_E */
-				break;
-			}
-			break;
-		case USB_TYPEC_TBT_SID:
-			tb_data = state->data;
-
-			/* Unconditional */
-			cfg2 |= CONN_STATUS_2_TBT_CONNECTED;
-
-			if (tb_data->cable_mode & TBT_CABLE_ACTIVE_PASSIVE)
-				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
-
-			if (tb_data->enter_vdo & TBT_ENTER_MODE_UNI_DIR_LSRX)
-				cfg2 |= CONN_STATUS_2_TBT_UNIDIR_LSRX_ACT_LT;
-			break;
-		default:
-			dev_err(&retimer->client->dev, "Got unsupported SID: 0x%x\n",
-				state->alt->svid);
-			return -EOPNOTSUPP;
-		}
-	} else {
-		switch (state->mode) {
-		case TYPEC_STATE_SAFE:
-		/* USB2 pins don't even go through this chip */
-		case TYPEC_MODE_USB2:
-			break;
-		case TYPEC_STATE_USB:
-		case TYPEC_MODE_USB3:
-			cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
-			break;
-		case TYPEC_MODE_USB4:
-			eudo_data = state->data;
-
-			cfg2 |= CONN_STATUS_2_USB4_CONNECTED;
-
-			if (FIELD_GET(EUDO_CABLE_TYPE_MASK, eudo_data->eudo) != EUDO_CABLE_TYPE_PASSIVE)
-				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
-			break;
-		default:
-			dev_err(&retimer->client->dev, "Got unsupported mode: %lu\n",
-				state->mode);
-			return -EOPNOTSUPP;
-		}
-	}
-
-	return ps883x_configure(retimer, cfg0, cfg1, cfg2);
-}
-
-static int ps883x_sw_set(struct typec_switch_dev *sw,
-			 enum typec_orientation orientation)
-{
-	struct ps883x_retimer *retimer = typec_switch_get_drvdata(sw);
-	int ret = 0;
-
-	ret = typec_switch_set(retimer->typec_switch, orientation);
-	if (ret)
-		return ret;
-
-	mutex_lock(&retimer->lock);
-
-	if (retimer->orientation != orientation) {
-		retimer->orientation = orientation;
-
-		ret = regmap_assign_bits(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
-					 CONN_STATUS_0_ORIENTATION_REVERSED,
-					 orientation == TYPEC_ORIENTATION_REVERSE);
-		if (ret)
-			dev_err(&retimer->client->dev, "failed to set orientation: %d\n", ret);
-	}
-
-	mutex_unlock(&retimer->lock);
-
-	return ret;
-}
-
-static int ps883x_retimer_set(struct typec_retimer *rtmr,
-			      struct typec_retimer_state *state)
-{
-	struct ps883x_retimer *retimer = typec_retimer_get_drvdata(rtmr);
-	struct typec_mux_state mux_state;
-	int ret = 0;
-
-	mutex_lock(&retimer->lock);
-	ret = ps883x_set(retimer, state);
-	mutex_unlock(&retimer->lock);
-
-	if (ret)
-		return ret;
-
-	mux_state.alt = state->alt;
-	mux_state.data = state->data;
-	mux_state.mode = state->mode;
-
-	return typec_mux_set(retimer->typec_mux, &mux_state);
-}
 
 static int ps883x_enable_vregs(struct ps883x_retimer *retimer)
 {
@@ -289,6 +131,193 @@ static void ps883x_disable_vregs(struct ps883x_retimer *retimer)
 	regulator_disable(retimer->vdd_supply);
 	regulator_disable(retimer->vdd33_cap_supply);
 	regulator_disable(retimer->vdd33_supply);
+}
+
+static void ps883x_reset(struct ps883x_retimer *retimer)
+{
+	if (retimer->in_reset)
+		return;
+
+	gpiod_set_value(retimer->reset_gpio, 1);
+	ps883x_disable_vregs(retimer);
+	retimer->in_reset = true;
+}
+
+static int ps883x_configure(struct ps883x_retimer *retimer, int cfg0,
+			    int cfg1, int cfg2, bool reset)
+{
+	struct device *dev = &retimer->client->dev;
+	int ret;
+
+	if (reset) {
+		ps883x_reset(retimer);
+
+		return 0;
+	} else if (retimer->in_reset) {
+		ret = ps883x_enable_vregs(retimer);
+		if (ret)
+			return ret;
+
+		gpiod_set_value(retimer->reset_gpio, 0);
+
+		/* firmware initialization delay */
+		msleep(60);
+
+		retimer->in_reset = false;
+	}
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_0, cfg0);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_0: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_1, cfg1);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_1: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_2, cfg2);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_2: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ps883x_set(struct ps883x_retimer *retimer, struct typec_retimer_state *state)
+{
+	struct typec_thunderbolt_data *tb_data;
+	const struct enter_usb_data *eudo_data;
+	int cfg0 = CONN_STATUS_0_CONNECTION_PRESENT;
+	int cfg1 = 0x00;
+	int cfg2 = 0x00;
+	bool reset = false;
+
+	if (retimer->orientation == TYPEC_ORIENTATION_REVERSE)
+		cfg0 |= CONN_STATUS_0_ORIENTATION_REVERSED;
+
+	if (state->alt) {
+		switch (state->alt->svid) {
+		case USB_TYPEC_DP_SID:
+			cfg1 |= CONN_STATUS_1_DP_CONNECTED |
+				CONN_STATUS_1_DP_HPD_LEVEL;
+
+			switch (state->mode)  {
+			case TYPEC_DP_STATE_C:
+				cfg1 |= CONN_STATUS_1_DP_SINK_REQUESTED |
+					CONN_STATUS_1_DP_PIN_ASSIGNMENT_C_D;
+				fallthrough;
+			case TYPEC_DP_STATE_D:
+				cfg1 |= CONN_STATUS_0_USB_3_1_CONNECTED;
+				break;
+			default: /* MODE_E */
+				break;
+			}
+			break;
+		case USB_TYPEC_TBT_SID:
+			tb_data = state->data;
+
+			/* Unconditional */
+			cfg2 |= CONN_STATUS_2_TBT_CONNECTED;
+
+			if (tb_data->cable_mode & TBT_CABLE_ACTIVE_PASSIVE)
+				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
+
+			if (tb_data->enter_vdo & TBT_ENTER_MODE_UNI_DIR_LSRX)
+				cfg2 |= CONN_STATUS_2_TBT_UNIDIR_LSRX_ACT_LT;
+			break;
+		default:
+			dev_err(&retimer->client->dev, "Got unsupported SID: 0x%x\n",
+				state->alt->svid);
+			return -EOPNOTSUPP;
+		}
+	} else {
+		switch (state->mode) {
+		/* SAFE can be transient or point to an actual disconnect */
+		case TYPEC_STATE_SAFE:
+			reset = retimer->orientation == TYPEC_ORIENTATION_NONE;
+			break;
+		/* USB2 pins don't even go through this chip */
+		case TYPEC_MODE_USB2:
+			reset = true;
+			break;
+		case TYPEC_STATE_USB:
+		case TYPEC_MODE_USB3:
+			cfg0 |= CONN_STATUS_0_USB_3_1_CONNECTED;
+			break;
+		case TYPEC_MODE_USB4:
+			eudo_data = state->data;
+
+			cfg2 |= CONN_STATUS_2_USB4_CONNECTED;
+
+			if (FIELD_GET(EUDO_CABLE_TYPE_MASK, eudo_data->eudo) != EUDO_CABLE_TYPE_PASSIVE)
+				cfg0 |= CONN_STATUS_0_ACTIVE_CABLE;
+			break;
+		default:
+			dev_err(&retimer->client->dev, "Got unsupported mode: %lu\n",
+				state->mode);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return ps883x_configure(retimer, cfg0, cfg1, cfg2, reset);
+}
+
+static int ps883x_sw_set(struct typec_switch_dev *sw,
+			 enum typec_orientation orientation)
+{
+	struct ps883x_retimer *retimer = typec_switch_get_drvdata(sw);
+	int ret = 0;
+
+	ret = typec_switch_set(retimer->typec_switch, orientation);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&retimer->lock);
+
+	if (retimer->orientation != orientation) {
+		retimer->orientation = orientation;
+
+		/*
+		 * Orientation notifications usually come prior to mode switch
+		 * events. If the retimer is already in reset, we still want to
+		 * cache the new orientation value for the subsequent ps883x_set().
+		 */
+		if (retimer->in_reset)
+			return 0;
+
+		ret = regmap_assign_bits(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
+					 CONN_STATUS_0_ORIENTATION_REVERSED,
+					 orientation == TYPEC_ORIENTATION_REVERSE);
+		if (ret)
+			dev_err(&retimer->client->dev, "failed to set orientation: %d\n", ret);
+	}
+
+	return ret;
+}
+
+static int ps883x_retimer_set(struct typec_retimer *rtmr,
+			      struct typec_retimer_state *state)
+{
+	struct ps883x_retimer *retimer = typec_retimer_get_drvdata(rtmr);
+	struct typec_mux_state mux_state;
+	int ret = 0;
+
+	mutex_lock(&retimer->lock);
+	ret = ps883x_set(retimer, state);
+	mutex_unlock(&retimer->lock);
+
+	if (ret)
+		return ret;
+
+	mux_state.alt = state->alt;
+	mux_state.data = state->data;
+	mux_state.mode = state->mode;
+
+	return typec_mux_set(retimer->typec_mux, &mux_state);
 }
 
 static int ps883x_get_vregs(struct ps883x_retimer *retimer)
@@ -421,6 +450,9 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 			goto err_clk_disable;
 		}
 	}
+
+	/* Keep the retimer in reset until a Type-C notification comes */
+	ps883x_reset(retimer);
 
 	sw_desc.drvdata = retimer;
 	sw_desc.fwnode = dev_fwnode(dev);

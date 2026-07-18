@@ -27,6 +27,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <linux/string.h>
+#include <linux/seq_buf.h>
 
 #include <linux/usb.h>
 
@@ -283,9 +284,9 @@ static void hid_irq_in(struct urb *urb)
 			break;
 		usbhid_mark_busy(usbhid);
 		if (!test_bit(HID_RESUME_RUNNING, &usbhid->iofl)) {
-			hid_input_report(urb->context, HID_INPUT_REPORT,
-					 urb->transfer_buffer,
-					 urb->actual_length, 1);
+			hid_safe_input_report(urb->context, HID_INPUT_REPORT,
+					      urb->transfer_buffer, urb->transfer_buffer_length,
+					      urb->actual_length, 1);
 			/*
 			 * autosuspend refused while keys are pressed
 			 * because most keyboards don't wake up when
@@ -482,9 +483,10 @@ static void hid_ctrl(struct urb *urb)
 	switch (status) {
 	case 0:			/* success */
 		if (usbhid->ctrl[usbhid->ctrltail].dir == USB_DIR_IN)
-			hid_input_report(urb->context,
+			hid_safe_input_report(urb->context,
 				usbhid->ctrl[usbhid->ctrltail].report->type,
-				urb->transfer_buffer, urb->actual_length, 0);
+				urb->transfer_buffer, urb->transfer_buffer_length,
+				urb->actual_length, 0);
 		break;
 	case -ESHUTDOWN:	/* unplug */
 		unplug = 1;
@@ -1366,6 +1368,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	struct usb_endpoint_descriptor *ep;
 	struct usbhid_device *usbhid;
 	struct hid_device *hid;
+	struct seq_buf hid_name;
 	size_t len;
 	int ret;
 
@@ -1397,7 +1400,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	hid->vendor = le16_to_cpu(dev->descriptor.idVendor);
 	hid->product = le16_to_cpu(dev->descriptor.idProduct);
 	hid->version = le16_to_cpu(dev->descriptor.bcdDevice);
-	hid->name[0] = 0;
+	seq_buf_init(&hid_name, hid->name, sizeof(hid->name));
 	if (intf->cur_altsetting->desc.bInterfaceProtocol ==
 			USB_INTERFACE_PROTOCOL_MOUSE)
 		hid->type = HID_TYPE_USBMOUSE;
@@ -1405,22 +1408,23 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 		hid->type = HID_TYPE_USBNONE;
 
 	if (dev->manufacturer)
-		strscpy(hid->name, dev->manufacturer, sizeof(hid->name));
+		seq_buf_puts(&hid_name, dev->manufacturer);
 
 	if (dev->product) {
 		if (dev->manufacturer)
-			strlcat(hid->name, " ", sizeof(hid->name));
-		strlcat(hid->name, dev->product, sizeof(hid->name));
+			seq_buf_puts(&hid_name, " ");
+		seq_buf_puts(&hid_name, dev->product);
 	}
 
-	if (!strlen(hid->name))
+	if (!seq_buf_used(&hid_name))
 		snprintf(hid->name, sizeof(hid->name), "HID %04x:%04x",
 			 le16_to_cpu(dev->descriptor.idVendor),
 			 le16_to_cpu(dev->descriptor.idProduct));
 
 	usb_make_path(dev, hid->phys, sizeof(hid->phys));
-	strlcat(hid->phys, "/input", sizeof(hid->phys));
-	len = strlen(hid->phys);
+	len = strnlen(hid->phys, sizeof(hid->phys));
+	strscpy(hid->phys + len, "/input", sizeof(hid->phys) - len);
+	len = strnlen(hid->phys, sizeof(hid->phys));
 	if (len < sizeof(hid->phys) - 1)
 		snprintf(hid->phys + len, sizeof(hid->phys) - len,
 			 "%d", intf->altsetting[0].desc.bInterfaceNumber);

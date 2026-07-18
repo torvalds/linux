@@ -2241,7 +2241,7 @@ static int mshv_root_scheduler_init(unsigned int cpu)
 	outputarg = (void **)this_cpu_ptr(root_scheduler_output);
 
 	/* Allocate two consecutive pages. One for input, one for output. */
-	p = kmalloc(2 * HV_HYP_PAGE_SIZE, GFP_KERNEL);
+	p = kmalloc_array(2, HV_HYP_PAGE_SIZE, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 

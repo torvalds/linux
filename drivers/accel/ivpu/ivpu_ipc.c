@@ -97,7 +97,11 @@ ivpu_ipc_tx_prepare(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 
 	memset(tx_buf, 0, sizeof(*tx_buf));
 	tx_buf->ipc.data_addr = jsm_vpu_addr;
-	/* TODO: Set data_size to actual JSM message size, not union of all messages */
+	/*
+	 * Firmware expects full JSM message size regardless of the payload size.
+	 * Unused fields must be zeroed to allow future extensions of existing
+	 * commands without breaking compatibility.
+	 */
 	tx_buf->ipc.data_size = sizeof(*req);
 	tx_buf->ipc.channel = cons->channel;
 	tx_buf->ipc.src_node = 0;
@@ -142,7 +146,7 @@ ivpu_ipc_rx_msg_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 
 	lockdep_assert_held(&ipc->cons_lock);
 
-	rx_msg = kzalloc_obj(*rx_msg, GFP_ATOMIC);
+	rx_msg = kmem_cache_zalloc(ipc->rx_msg_cache, GFP_ATOMIC);
 	if (!rx_msg) {
 		ivpu_ipc_rx_mark_free(vdev, ipc_hdr, jsm_msg);
 		return;
@@ -170,7 +174,7 @@ ivpu_ipc_rx_msg_del(struct ivpu_device *vdev, struct ivpu_ipc_rx_msg *rx_msg)
 	list_del(&rx_msg->link);
 	ivpu_ipc_rx_mark_free(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
 	atomic_dec(&vdev->ipc->rx_msg_count);
-	kfree(rx_msg);
+	kmem_cache_free(vdev->ipc->rx_msg_cache, rx_msg);
 }
 
 void ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
@@ -276,7 +280,7 @@ int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 	if (ipc_buf)
 		memcpy(ipc_buf, rx_msg->ipc_hdr, sizeof(*ipc_buf));
 	if (rx_msg->jsm_msg) {
-		u32 size = min_t(int, rx_msg->ipc_hdr->data_size, sizeof(*jsm_msg));
+		u32 size = min(rx_msg->ipc_hdr->data_size, sizeof(*jsm_msg));
 
 		if (rx_msg->jsm_msg->result != VPU_JSM_STATUS_SUCCESS) {
 			ivpu_err(vdev, "IPC resp result error: %d\n", rx_msg->jsm_msg->result);
@@ -458,13 +462,11 @@ void ivpu_ipc_irq_handler(struct ivpu_device *vdev)
 			ivpu_ipc_rx_mark_free(vdev, ipc_hdr, jsm_msg);
 		}
 	}
-
-	queue_work(system_percpu_wq, &vdev->irq_ipc_work);
 }
 
-void ivpu_ipc_irq_work_fn(struct work_struct *work)
+irqreturn_t ivpu_ipc_irq_thread_handler(int irq, void *ptr)
 {
-	struct ivpu_device *vdev = container_of(work, struct ivpu_device, irq_ipc_work);
+	struct ivpu_device *vdev = ptr;
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	struct ivpu_ipc_rx_msg *rx_msg, *r;
 	struct list_head cb_msg_list;
@@ -479,6 +481,8 @@ void ivpu_ipc_irq_work_fn(struct work_struct *work)
 		rx_msg->callback(vdev, rx_msg->ipc_hdr, rx_msg->jsm_msg);
 		ivpu_ipc_rx_msg_del(vdev, rx_msg);
 	}
+
+	return IRQ_HANDLED;
 }
 
 int ivpu_ipc_init(struct ivpu_device *vdev)
@@ -486,10 +490,18 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
 
+	ipc->rx_msg_cache = kmem_cache_create("ivpu_ipc_rx_msg", sizeof(struct ivpu_ipc_rx_msg), 0,
+					      SLAB_HWCACHE_ALIGN, NULL);
+	if (!ipc->rx_msg_cache) {
+		ivpu_err(vdev, "Failed to create rx_msg_cache\n");
+		return -ENOMEM;
+	}
+
 	ipc->mem_tx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_tx) {
 		ivpu_err(vdev, "Failed to allocate mem_tx\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_destroy_cache;
 	}
 
 	ipc->mem_rx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
@@ -528,6 +540,8 @@ err_free_rx:
 	ivpu_bo_free(ipc->mem_rx);
 err_free_tx:
 	ivpu_bo_free(ipc->mem_tx);
+err_destroy_cache:
+	kmem_cache_destroy(ipc->rx_msg_cache);
 	return ret;
 }
 
@@ -540,6 +554,7 @@ void ivpu_ipc_fini(struct ivpu_device *vdev)
 	drm_WARN_ON(&vdev->drm, atomic_read(&ipc->rx_msg_count) > 0);
 
 	ivpu_ipc_mem_fini(vdev);
+	kmem_cache_destroy(ipc->rx_msg_cache);
 }
 
 void ivpu_ipc_enable(struct ivpu_device *vdev)

@@ -15,7 +15,6 @@ ieee80211_uhr_cap_ie_to_sta_uhr_cap(struct ieee80211_sub_if_data *sdata,
 				    struct link_sta_info *link_sta)
 {
 	struct ieee80211_sta_uhr_cap *sta_uhr_cap = &link_sta->pub->uhr_cap;
-	bool from_ap;
 
 	memset(sta_uhr_cap, 0, sizeof(*sta_uhr_cap));
 
@@ -23,8 +22,6 @@ ieee80211_uhr_cap_ie_to_sta_uhr_cap(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	sta_uhr_cap->has_uhr = true;
-
 	sta_uhr_cap->mac = uhr_cap->mac;
-	from_ap = sdata->vif.type == NL80211_IFTYPE_STATION;
-	sta_uhr_cap->phy = *ieee80211_uhr_phy_cap(uhr_cap, from_ap);
+	sta_uhr_cap->phy = uhr_cap->phy;
 }

@@ -3,6 +3,7 @@
 
 #include "mt7925.h"
 #include "../dma.h"
+#include "mcu.h"
 #include "mac.h"
 
 int mt7925e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
@@ -118,7 +119,10 @@ int mt7925e_mac_reset(struct mt792x_dev *dev)
 
 	mt76_wr(dev, dev->irq_map->host_irq_enable,
 		dev->irq_map->tx.all_complete_mask |
-		MT_INT_RX_DONE_ALL | MT_INT_MCU_CMD);
+		dev->irq_map->rx.data_complete_mask |
+		dev->irq_map->rx.wm_complete_mask |
+		dev->irq_map->rx.wm2_complete_mask |
+		MT_INT_MCU_CMD);
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
 	err = mt792xe_mcu_fw_pmctrl(dev);
@@ -140,6 +144,12 @@ int mt7925e_mac_reset(struct mt792x_dev *dev)
 	err = mt7925_mac_init(dev);
 	if (err)
 		goto out;
+
+	if (is_mt7927(&dev->mt76)) {
+		err = mt7925_mcu_set_dbdc(&dev->mphy, true);
+		if (err)
+			goto out;
+	}
 
 	err = __mt7925_start(&dev->phy);
 out:

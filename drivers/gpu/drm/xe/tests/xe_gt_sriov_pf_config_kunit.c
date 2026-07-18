@@ -13,11 +13,28 @@
 #define TEST_MAX_VFS	63
 #define TEST_VRAM	0x7a800000ull	/* random size that works on 32-bit */
 
+static bool xe_device_is_admin_only_stub_enable(const struct xe_device *xe)
+{
+	return true;
+}
+
+static bool xe_device_is_admin_only_stub_disable(const struct xe_device *xe)
+{
+	return false;
+}
+
 static void pf_set_admin_mode(struct xe_device *xe, bool enable)
 {
-	/* should match logic of xe_sriov_pf_admin_only() */
-	xe->sriov.pf.admin_only = enable;
+	typeof(xe_device_is_admin_only) *stub = enable ?
+		xe_device_is_admin_only_stub_enable :
+		xe_device_is_admin_only_stub_disable;
+
+	kunit_activate_static_stub(kunit_get_current_test(),
+				   xe_device_is_admin_only,
+				   *stub);
+
 	KUNIT_EXPECT_EQ(kunit_get_current_test(), enable, xe_sriov_pf_admin_only(xe));
+	KUNIT_EXPECT_EQ(kunit_get_current_test(), enable, xe_device_is_admin_only(xe));
 }
 
 static void pf_set_usable_vram(struct xe_device *xe, u64 usable)

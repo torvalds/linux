@@ -7,6 +7,19 @@ of Linux.  If you are looking for advice on simply allocating memory,
 see the :ref:`memory_allocation`.  For controlling and tuning guides,
 see the :doc:`admin guide <../admin-guide/mm/index>`.
 
+.. note::
+
+  Unfortunately, parts of this guide are still incomplete or missing.
+  While we appreciate contributions, documentation in this area is hard
+  to get right and requires a lot of attention to detail.  New contributors
+  should reach out to the relevant maintainers early.
+
+  This guide is expected to reflect reality, which requires contributors
+  to have a detailed understanding.  Documentation generated with LLMs
+  by contributors unfamiliar with these details shifts the real work onto
+  reviewers, which is why such contributions will be rejected without
+  further comment.
+
 .. toctree::
    :maxdepth: 1
 

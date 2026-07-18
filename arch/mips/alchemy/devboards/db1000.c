@@ -19,7 +19,6 @@
 #include <linux/property.h>
 #include <linux/pm.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/spi_gpio.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
 #include <asm/mach-au1x00/au1000_dma.h>
@@ -27,6 +26,8 @@
 #include <asm/mach-db1x00/bcsr.h>
 #include <asm/reboot.h>
 #include <prom.h>
+
+#include "db1xxx.h"
 #include "platform.h"
 
 #define F_SWAPPED (bcsr_read(BCSR_STATUS) & BCSR_STATUS_DB1000_SWAPBOOT)
@@ -375,20 +376,15 @@ static struct platform_device db1100_mmc1_dev = {
 
 /******************************************************************************/
 
-static const struct software_node db1100_alchemy2_gpiochip = {
-	.name	= "alchemy-gpio2",
-};
-
-static const struct property_entry db1100_ads7846_properties[] = {
+static const struct property_entry db1100_ads7846_props[] = {
 	PROPERTY_ENTRY_U16("ti,vref_min", 3300),
-	PROPERTY_ENTRY_GPIO("pendown-gpios",
-			    &db1100_alchemy2_gpiochip, 21, GPIO_ACTIVE_LOW),
+	PROPERTY_ENTRY_GPIO("pendown-gpios", &alchemy_gpio2_node, 21, GPIO_ACTIVE_LOW),
 	{ }
 };
 
 static const struct software_node db1100_ads7846_swnode = {
 	.name		= "ads7846",
-	.properties	= db1100_ads7846_properties,
+	.properties	= db1100_ads7846_props,
 };
 
 static struct spi_board_info db1100_spi_info[] __initdata = {
@@ -403,32 +399,26 @@ static struct spi_board_info db1100_spi_info[] __initdata = {
 	},
 };
 
-static const struct spi_gpio_platform_data db1100_spictl_pd __initconst = {
-	.num_chipselect = 1,
-};
-
 /*
  * Alchemy GPIO 2 has its base at 200 so the GPIO lines
  * 207 thru 210 are GPIOs at offset 7 thru 10 at this chip.
  */
 static const struct property_entry db1100_spi_dev_properties[] __initconst = {
 	PROPERTY_ENTRY_GPIO("miso-gpios",
-			    &db1100_alchemy2_gpiochip, 7, GPIO_ACTIVE_HIGH),
+			    &alchemy_gpio2_node, 7, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("mosi-gpios",
-			    &db1100_alchemy2_gpiochip, 8, GPIO_ACTIVE_HIGH),
+			    &alchemy_gpio2_node, 8, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("sck-gpios",
-			    &db1100_alchemy2_gpiochip, 9, GPIO_ACTIVE_HIGH),
+			    &alchemy_gpio2_node, 9, GPIO_ACTIVE_HIGH),
 	PROPERTY_ENTRY_GPIO("cs-gpios",
-			    &db1100_alchemy2_gpiochip, 10, GPIO_ACTIVE_HIGH),
+			    &alchemy_gpio2_node, 10, GPIO_ACTIVE_HIGH),
 	{ }
 };
 
 static const struct platform_device_info db1100_spi_dev_info __initconst = {
 	.name		= "spi_gpio",
 	.id		= 0,
-	.data		= &db1100_spictl_pd,
-	.size_data	= sizeof(db1100_spictl_pd),
-        .dma_mask	= DMA_BIT_MASK(32),
+	.dma_mask	= DMA_BIT_MASK(32),
 	.properties	= db1100_spi_dev_properties,
 };
 
@@ -481,7 +471,6 @@ int __init db1000_dev_setup(void)
 		pfc |= (1 << 0);	/* SSI0 pins as GPIOs */
 		alchemy_wrsys(pfc, AU1000_SYS_PINFUNC);
 
-		software_node_register(&db1100_alchemy2_gpiochip);
 		spi_register_board_info(db1100_spi_info,
 					ARRAY_SIZE(db1100_spi_info));
 

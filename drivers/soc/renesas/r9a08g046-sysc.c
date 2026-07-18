@@ -28,17 +28,14 @@
 #define SYS_PWRRDY_N			0xd70
 #define SYS_IPCONT_SEL_CLONECH		0xe2c
 
-static bool rzg3l_regmap_readable_reg(struct device *dev, unsigned int reg)
+static bool rzg3l_regmap_readable_writeable_reg(unsigned int reg)
 {
 	switch (reg) {
 	case SYS_XSPI_MAP_STAADD_CS0:
 	case SYS_XSPI_MAP_ENDADD_CS0:
 	case SYS_XSPI_MAP_STAADD_CS1:
 	case SYS_XSPI_MAP_ENDADD_CS1:
-	case SYS_GETH0_CFG:
-	case SYS_GETH1_CFG:
 	case SYS_PCIE_CFG:
-	case SYS_PCIE_MON:
 	case SYS_PCIE_PHY:
 	case SYS_I2C0_CFG:
 	case SYS_I2C1_CFG:
@@ -53,26 +50,24 @@ static bool rzg3l_regmap_readable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool rzg3l_regmap_writeable_reg(struct device *dev, unsigned int reg)
+static bool rzg3l_regmap_readable_reg(struct device *dev, unsigned int reg)
 {
+	if (rzg3l_regmap_readable_writeable_reg(reg))
+		return true;
+
 	switch (reg) {
-	case SYS_XSPI_MAP_STAADD_CS0:
-	case SYS_XSPI_MAP_ENDADD_CS0:
-	case SYS_XSPI_MAP_STAADD_CS1:
-	case SYS_XSPI_MAP_ENDADD_CS1:
-	case SYS_PCIE_CFG:
-	case SYS_PCIE_PHY:
-	case SYS_I2C0_CFG:
-	case SYS_I2C1_CFG:
-	case SYS_I2C2_CFG:
-	case SYS_I2C3_CFG:
-	case SYS_I3C_CFG:
-	case SYS_PWRRDY_N:
-	case SYS_IPCONT_SEL_CLONECH:
+	case SYS_GETH0_CFG:
+	case SYS_GETH1_CFG:
+	case SYS_PCIE_MON:
 		return true;
 	default:
 		return false;
 	}
+}
+
+static bool rzg3l_regmap_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return rzg3l_regmap_readable_writeable_reg(reg);
 }
 
 static const struct rz_sysc_soc_id_init_data rzg3l_sysc_soc_id_init_data __initconst = {

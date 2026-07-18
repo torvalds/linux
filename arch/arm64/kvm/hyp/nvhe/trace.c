@@ -164,12 +164,15 @@ static int hyp_trace_buffer_load(struct hyp_trace_buffer *trace_buffer,
 	return ret;
 }
 
-static bool hyp_trace_desc_validate(struct hyp_trace_desc *desc, size_t desc_size)
+static bool hyp_trace_desc_is_valid(struct hyp_trace_desc *desc, size_t desc_size)
 {
 	struct ring_buffer_desc *rb_desc;
 	unsigned int cpu;
 	size_t nr_bpages;
 	void *desc_end;
+
+	if (!is_protected_kvm_enabled())
+		return true;
 
 	/*
 	 * Both desc_size and bpages_backing_size are untrusted host-provided
@@ -212,8 +215,10 @@ int __tracing_load(unsigned long desc_hva, size_t desc_size)
 	if (ret)
 		return ret;
 
-	if (!hyp_trace_desc_validate(desc, desc_size))
+	if (!hyp_trace_desc_is_valid(desc, desc_size)) {
+		ret = -EINVAL;
 		goto err_release_desc;
+	}
 
 	hyp_spin_lock(&trace_buffer.lock);
 

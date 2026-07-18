@@ -10,7 +10,6 @@
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -385,8 +384,8 @@ static int vz89x_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id vz89x_id[] = {
-	{ "vz89x", (kernel_ulong_t)&vz89x_chips[VZ89X] },
-	{ "vz89te", (kernel_ulong_t)&vz89x_chips[VZ89TE] },
+	{ .name = "vz89x", .driver_data = (kernel_ulong_t)&vz89x_chips[VZ89X] },
+	{ .name = "vz89te", .driver_data = (kernel_ulong_t)&vz89x_chips[VZ89TE] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vz89x_id);

@@ -789,9 +789,9 @@ static int ad7746_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ad7746_id[] = {
-	{ "ad7745", 7745 },
-	{ "ad7746", 7746 },
-	{ "ad7747", 7747 },
+	{ .name = "ad7745", .driver_data = 7745 },
+	{ .name = "ad7746", .driver_data = 7746 },
+	{ .name = "ad7747", .driver_data = 7747 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad7746_id);

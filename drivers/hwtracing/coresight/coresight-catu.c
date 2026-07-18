@@ -514,7 +514,7 @@ static int __catu_probe(struct device *dev, struct resource *res)
 	int ret = 0;
 	u32 dma_mask;
 	struct catu_drvdata *drvdata;
-	struct coresight_desc catu_desc;
+	struct coresight_desc catu_desc = { 0 };
 	struct coresight_platform_data *pdata = NULL;
 	void __iomem *base;
 
@@ -706,7 +706,7 @@ static int __init catu_init(void)
 {
 	int ret;
 
-	ret = coresight_init_driver("catu", &catu_driver, &catu_platform_driver, THIS_MODULE);
+	ret = coresight_init_driver("catu", &catu_driver, &catu_platform_driver);
 	tmc_etr_set_catu_ops(&etr_catu_buf_ops);
 	return ret;
 }

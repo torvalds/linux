@@ -390,14 +390,13 @@ static struct hist_entry_ops block_hist_ops = {
 static int diff__process_sample_event(const struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
-				      struct evsel *evsel,
 				      struct machine *machine)
 {
 	struct perf_diff *pdiff = container_of(tool, struct perf_diff, tool);
 	struct addr_location al;
+	struct evsel *evsel = sample->evsel;
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry_iter iter = {
-		.evsel	= evsel,
 		.sample	= sample,
 		.ops	= &hist_iter_normal,
 	};
@@ -410,13 +409,15 @@ static int diff__process_sample_event(const struct perf_tool *tool,
 
 	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
-		pr_warning("problem processing %d event, skipping it.\n",
-			   event->header.type);
+		pr_warning("problem processing %s (%u) event at offset %#" PRIx64 ", skipping it.\n",
+			   perf_event__name(event->header.type), event->header.type,
+			   sample->file_offset);
 		ret = -1;
 		goto out;
 	}
 
-	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap)) {
+	if (cpu_list && (sample->cpu >= MAX_NR_CPUS ||
+			!test_bit(sample->cpu, cpu_bitmap))) {
 		ret = 0;
 		goto out;
 	}
@@ -431,13 +432,14 @@ static int diff__process_sample_event(const struct perf_tool *tool,
 		}
 
 		hist__account_cycles(sample->branch_stack, &al, sample,
-				     false, NULL, evsel);
+				     /*nonany_branch_mode=*/false, /*total_cycles=*/NULL);
 		break;
 
 	case COMPUTE_STREAM:
 		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
 					 NULL)) {
-			pr_debug("problem adding hist entry, skipping event\n");
+			pr_debug("problem adding hist entry at offset %#" PRIx64 ", skipping event\n",
+				 sample->file_offset);
 			goto out;
 		}
 		break;

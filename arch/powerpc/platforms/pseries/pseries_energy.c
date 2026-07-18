@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
@@ -242,7 +243,7 @@ static ssize_t get_best_energy_data(struct device *dev,
 	if (rc != H_SUCCESS)
 		return -EINVAL;
 
-	return sprintf(page, "%lu\n", retbuf[1] >> 32);
+	return sysfs_emit(page, "%lu\n", retbuf[1] >> 32);
 }
 
 /* Wrapper functions */

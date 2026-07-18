@@ -38,9 +38,9 @@ static unsigned int num_devices;
  * nitrox_pci_tbl - PCI Device ID Table
  */
 static const struct pci_device_id nitrox_pci_tbl[] = {
-	{PCI_VDEVICE(CAVIUM, CNN55XX_DEV_ID), 0},
+	{ PCI_VDEVICE(CAVIUM, CNN55XX_DEV_ID) },
 	/* required last entry */
-	{0, }
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, nitrox_pci_tbl);
 

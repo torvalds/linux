@@ -14,7 +14,7 @@ struct ucall_header {
 	struct ucall ucalls[KVM_MAX_VCPUS];
 };
 
-int ucall_nr_pages_required(uint64_t page_size)
+int ucall_nr_pages_required(u64 page_size)
 {
 	return align_up(sizeof(struct ucall_header), page_size) / page_size;
 }
@@ -25,16 +25,16 @@ int ucall_nr_pages_required(uint64_t page_size)
  */
 static struct ucall_header *ucall_pool;
 
-void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
+void ucall_init(struct kvm_vm *vm, gpa_t mmio_gpa)
 {
 	struct ucall_header *hdr;
 	struct ucall *uc;
-	vm_vaddr_t vaddr;
+	gva_t gva;
 	int i;
 
-	vaddr = vm_vaddr_alloc_shared(vm, sizeof(*hdr), KVM_UTIL_MIN_VADDR,
-				      MEM_REGION_DATA);
-	hdr = (struct ucall_header *)addr_gva2hva(vm, vaddr);
+	gva = vm_alloc_shared(vm, sizeof(*hdr), KVM_UTIL_MIN_VADDR,
+				MEM_REGION_DATA);
+	hdr = (struct ucall_header *)addr_gva2hva(vm, gva);
 	memset(hdr, 0, sizeof(*hdr));
 
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
@@ -42,7 +42,7 @@ void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
 		uc->hva = uc;
 	}
 
-	write_guest_global(vm, ucall_pool, (struct ucall_header *)vaddr);
+	write_guest_global(vm, ucall_pool, (struct ucall_header *)gva);
 
 	ucall_arch_init(vm, mmio_gpa);
 }
@@ -79,7 +79,7 @@ static void ucall_free(struct ucall *uc)
 	clear_bit(uc - ucall_pool->ucalls, ucall_pool->in_use);
 }
 
-void ucall_assert(uint64_t cmd, const char *exp, const char *file,
+void ucall_assert(u64 cmd, const char *exp, const char *file,
 		  unsigned int line, const char *fmt, ...)
 {
 	struct ucall *uc;
@@ -88,20 +88,20 @@ void ucall_assert(uint64_t cmd, const char *exp, const char *file,
 	uc = ucall_alloc();
 	uc->cmd = cmd;
 
-	WRITE_ONCE(uc->args[GUEST_ERROR_STRING], (uint64_t)(exp));
-	WRITE_ONCE(uc->args[GUEST_FILE], (uint64_t)(file));
+	WRITE_ONCE(uc->args[GUEST_ERROR_STRING], (u64)(exp));
+	WRITE_ONCE(uc->args[GUEST_FILE], (u64)(file));
 	WRITE_ONCE(uc->args[GUEST_LINE], line);
 
 	va_start(va, fmt);
 	guest_vsnprintf(uc->buffer, UCALL_BUFFER_LEN, fmt, va);
 	va_end(va);
 
-	ucall_arch_do_ucall((vm_vaddr_t)uc->hva);
+	ucall_arch_do_ucall((gva_t)uc->hva);
 
 	ucall_free(uc);
 }
 
-void ucall_fmt(uint64_t cmd, const char *fmt, ...)
+void ucall_fmt(u64 cmd, const char *fmt, ...)
 {
 	struct ucall *uc;
 	va_list va;
@@ -113,12 +113,12 @@ void ucall_fmt(uint64_t cmd, const char *fmt, ...)
 	guest_vsnprintf(uc->buffer, UCALL_BUFFER_LEN, fmt, va);
 	va_end(va);
 
-	ucall_arch_do_ucall((vm_vaddr_t)uc->hva);
+	ucall_arch_do_ucall((gva_t)uc->hva);
 
 	ucall_free(uc);
 }
 
-void ucall(uint64_t cmd, int nargs, ...)
+void ucall(u64 cmd, int nargs, ...)
 {
 	struct ucall *uc;
 	va_list va;
@@ -132,15 +132,15 @@ void ucall(uint64_t cmd, int nargs, ...)
 
 	va_start(va, nargs);
 	for (i = 0; i < nargs; ++i)
-		WRITE_ONCE(uc->args[i], va_arg(va, uint64_t));
+		WRITE_ONCE(uc->args[i], va_arg(va, u64));
 	va_end(va);
 
-	ucall_arch_do_ucall((vm_vaddr_t)uc->hva);
+	ucall_arch_do_ucall((gva_t)uc->hva);
 
 	ucall_free(uc);
 }
 
-uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
+u64 get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
 {
 	struct ucall ucall;
 	void *addr;

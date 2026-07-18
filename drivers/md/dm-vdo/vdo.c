@@ -965,7 +965,7 @@ static int __must_check clear_partition(struct vdo *vdo, enum partition_id id)
 	return blkdev_issue_zeroout(vdo_get_backing_device(vdo),
 				    partition->offset * VDO_SECTORS_PER_BLOCK,
 				    partition->count * VDO_SECTORS_PER_BLOCK,
-				    GFP_NOWAIT, 0);
+				    GFP_NOIO, 0);
 }
 
 int vdo_clear_layout(struct vdo *vdo)
@@ -976,7 +976,7 @@ int vdo_clear_layout(struct vdo *vdo)
 	result = blkdev_issue_zeroout(vdo_get_backing_device(vdo),
 				      VDO_SECTORS_PER_BLOCK,
 				      VDO_SECTORS_PER_BLOCK,
-				      GFP_NOWAIT, 0);
+				      GFP_NOIO, 0);
 	if (result != VDO_SUCCESS)
 		return result;
 

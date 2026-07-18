@@ -22,7 +22,7 @@ tests: | lib generated libynl.a
 ynltool: | lib generated libynl.a
 libynl.a: | lib generated
 	@echo -e "\tAR $@"
-	@ar rcs $@ lib/ynl.o generated/*-user.o
+	@$(AR) rcs $@ lib/ynl.o generated/*-user.o
 
 $(SUBDIRS):
 	@if [ -f "$@/Makefile" ] ; then \

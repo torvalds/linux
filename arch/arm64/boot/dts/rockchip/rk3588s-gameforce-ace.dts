@@ -302,9 +302,6 @@
 
 	hdmi0-con {
 		compatible = "hdmi-connector";
-		ddc-en-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&hdmi0_en>;
-		pinctrl-names = "default";
 		type = "d";
 
 		port {
@@ -514,8 +511,9 @@
 
 &hdmi0 {
 	no-hpd;
+	frl-enable-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_LOW>;
 	pinctrl-0 = <&hdmim0_tx0_cec>, <&hdmim0_tx0_scl>,
-		    <&hdmim0_tx0_sda>;
+		    <&hdmim0_tx0_sda>, <&hdmi0_tx_on_h>;
 	pinctrl-names = "default";
 	status = "okay";
 };
@@ -616,6 +614,7 @@
 
 &i2c4 {
 	pinctrl-0 = <&i2c4m2_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	ti_adc: adc@48 {
@@ -652,6 +651,7 @@
 
 &i2c6 {
 	pinctrl-0 = <&i2c6m3_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 
 	fusb302: typec@22 {
@@ -785,6 +785,7 @@
 		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -893,7 +894,7 @@
 	};
 
 	hdmi {
-		hdmi0_en: hdmi0-en {
+		hdmi0_tx_on_h: hdmi0-tx-on-h {
 			rockchip,pins =
 				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
@@ -1028,11 +1029,13 @@
 
 &pwm12 {
 	pinctrl-0 = <&pwm12m1_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &pwm13 {
 	pinctrl-0 = <&pwm13m1_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -1434,11 +1437,13 @@
 
 &uart2 {
 	pinctrl-0 = <&uart2m0_xfer>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
 &uart9 {
 	pinctrl-0 = <&uart9m2_xfer>, <&uart9m2_ctsn>, <&uart9m2_rtsn>;
+	pinctrl-names = "default";
 	uart-has-rtscts;
 	status = "okay";
 

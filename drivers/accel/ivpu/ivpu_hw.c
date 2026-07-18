@@ -399,6 +399,10 @@ irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr)
 		return IRQ_NONE;
 
 	pm_runtime_mark_last_busy(vdev->drm.dev);
+
+	if (ip_handled)
+		return IRQ_WAKE_THREAD;
+
 	return IRQ_HANDLED;
 }
 

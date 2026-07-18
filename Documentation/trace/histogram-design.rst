@@ -247,7 +247,7 @@ field's size and offset, is used to grab that subkey's data from the
 current trace record.
 
 Note, the hist field function use to be a function pointer in the
-hist_field stucture. Due to spectre mitigation, it was converted into
+hist_field structure. Due to spectre mitigation, it was converted into
 a fn_num and hist_fn_call() is used to call the associated hist field
 function that corresponds to the fn_num of the hist_field structure.
 

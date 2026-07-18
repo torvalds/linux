@@ -141,7 +141,7 @@ static irqreturn_t txgbe_misc_irq_handle(int irq, void *data)
 		/* shared interrupt alert!
 		 * the interrupt that we masked before the ICR read.
 		 */
-		if (netif_running(wx->netdev))
+		if (!test_bit(WX_STATE_DOWN, wx->state))
 			txgbe_irq_enable(wx, true);
 		return IRQ_NONE;        /* Not our interrupt */
 	}

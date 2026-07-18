@@ -61,7 +61,7 @@ static int sysfs__fprintf_build_id(FILE *fp)
 	int ret;
 
 	ret = sysfs__snprintf_build_id("/", sbuild_id, sizeof(sbuild_id));
-	if (ret != sizeof(sbuild_id))
+	if (ret + 1 != sizeof(sbuild_id))
 		return ret < 0 ? ret : -EINVAL;
 
 	return fprintf(fp, "%s\n", sbuild_id);
@@ -73,7 +73,7 @@ static int filename__fprintf_build_id(const char *name, FILE *fp)
 	int ret;
 
 	ret = filename__snprintf_build_id(name, sbuild_id, sizeof(sbuild_id));
-	if (ret != sizeof(sbuild_id))
+	if (ret + 1 != sizeof(sbuild_id))
 		return ret < 0 ? ret : -EINVAL;
 
 	return fprintf(fp, "%s\n", sbuild_id);

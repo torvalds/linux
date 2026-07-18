@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2008  Miklos Szeredi <miklos@szeredi.hu>
-
-  This program can be distributed under the terms of the GNU GPL.
-  See the file COPYING.
 */
 
 #include "fuse_i.h"
+#include "dev.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -37,9 +36,7 @@ static ssize_t fuse_conn_abort_write(struct file *file, const char __user *buf,
 {
 	struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 	if (fc) {
-		if (fc->abort_err)
-			fc->aborted = true;
-		fuse_abort_conn(fc);
+		fuse_chan_abort(fc->chan, fc->abort_err);
 		fuse_conn_put(fc);
 	}
 	return count;
@@ -57,7 +54,7 @@ static ssize_t fuse_conn_waiting_read(struct file *file, char __user *buf,
 		if (!fc)
 			return 0;
 
-		value = atomic_read(&fc->num_waiting);
+		value = fuse_chan_num_waiting(fc->chan);
 		file->private_data = (void *)value;
 		fuse_conn_put(fc);
 	}
@@ -111,7 +108,7 @@ static ssize_t fuse_conn_max_background_read(struct file *file,
 	if (!fc)
 		return 0;
 
-	val = READ_ONCE(fc->max_background);
+	val = fuse_chan_max_background(fc->chan);
 	fuse_conn_put(fc);
 
 	return fuse_conn_limit_read(file, buf, len, ppos, val);
@@ -129,12 +126,7 @@ static ssize_t fuse_conn_max_background_write(struct file *file,
 	if (ret > 0) {
 		struct fuse_conn *fc = fuse_ctl_file_conn_get(file);
 		if (fc) {
-			spin_lock(&fc->bg_lock);
-			fc->max_background = val;
-			fc->blocked = fc->num_background >= fc->max_background;
-			if (!fc->blocked)
-				wake_up(&fc->blocked_waitq);
-			spin_unlock(&fc->bg_lock);
+			fuse_chan_max_background_set(fc->chan, val);
 			fuse_conn_put(fc);
 		}
 	}

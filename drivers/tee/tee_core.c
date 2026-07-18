@@ -530,11 +530,24 @@ static int params_to_user(struct tee_ioctl_param __user *uparams,
 	return 0;
 }
 
+static void free_params(struct tee_param *params, size_t num_params)
+{
+	size_t n;
+
+	if (!params)
+		return;
+
+	for (n = 0; n < num_params; n++)
+		if (tee_param_is_memref(params + n) && params[n].u.memref.shm)
+			tee_shm_put(params[n].u.memref.shm);
+
+	kfree(params);
+}
+
 static int tee_ioctl_open_session(struct tee_context *ctx,
 				  struct tee_ioctl_buf_data __user *ubuf)
 {
 	int rc;
-	size_t n;
 	struct tee_ioctl_buf_data buf;
 	struct tee_ioctl_open_session_arg __user *uarg;
 	struct tee_ioctl_open_session_arg arg;
@@ -595,16 +608,7 @@ out:
 	 */
 	if (rc && have_session && ctx->teedev->desc->ops->close_session)
 		ctx->teedev->desc->ops->close_session(ctx, arg.session);
-
-	if (params) {
-		/* Decrease ref count for all valid shared memory pointers */
-		for (n = 0; n < arg.num_params; n++)
-			if (tee_param_is_memref(params + n) &&
-			    params[n].u.memref.shm)
-				tee_shm_put(params[n].u.memref.shm);
-		kfree(params);
-	}
-
+	free_params(params, arg.num_params);
 	return rc;
 }
 
@@ -612,7 +616,6 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 			    struct tee_ioctl_buf_data __user *ubuf)
 {
 	int rc;
-	size_t n;
 	struct tee_ioctl_buf_data buf;
 	struct tee_ioctl_invoke_arg __user *uarg;
 	struct tee_ioctl_invoke_arg arg;
@@ -657,14 +660,7 @@ static int tee_ioctl_invoke(struct tee_context *ctx,
 	}
 	rc = params_to_user(uparams, arg.num_params, params);
 out:
-	if (params) {
-		/* Decrease ref count for all valid shared memory pointers */
-		for (n = 0; n < arg.num_params; n++)
-			if (tee_param_is_memref(params + n) &&
-			    params[n].u.memref.shm)
-				tee_shm_put(params[n].u.memref.shm);
-		kfree(params);
-	}
+	free_params(params, arg.num_params);
 	return rc;
 }
 
@@ -672,7 +668,6 @@ static int tee_ioctl_object_invoke(struct tee_context *ctx,
 				   struct tee_ioctl_buf_data __user *ubuf)
 {
 	int rc;
-	size_t n;
 	struct tee_ioctl_buf_data buf;
 	struct tee_ioctl_object_invoke_arg __user *uarg;
 	struct tee_ioctl_object_invoke_arg arg;
@@ -716,14 +711,7 @@ static int tee_ioctl_object_invoke(struct tee_context *ctx,
 	}
 	rc = params_to_user(uparams, arg.num_params, params);
 out:
-	if (params) {
-		/* Decrease ref count for all valid shared memory pointers */
-		for (n = 0; n < arg.num_params; n++)
-			if (tee_param_is_memref(params + n) &&
-			    params[n].u.memref.shm)
-				tee_shm_put(params[n].u.memref.shm);
-		kfree(params);
-	}
+	free_params(params, arg.num_params);
 	return rc;
 }
 
@@ -846,9 +834,15 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 		return -ENOMEM;
 
 	rc = params_from_user(ctx, params, num_params, uarg->params);
-	if (rc)
-		goto out;
+	if (rc) {
+		free_params(params, num_params);
+		return rc;
+	}
 
+	/*
+	 * supp_recv() may consume and replace the supplied parameters, so the
+	 * final cleanup cannot use free_params() like the other ioctl paths.
+	 */
 	rc = ctx->teedev->desc->ops->supp_recv(ctx, &func, &num_params, params);
 	if (rc)
 		goto out;

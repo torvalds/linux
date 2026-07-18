@@ -8,7 +8,6 @@
 #include <linux/i2c.h>
 #include <linux/crc8.h>
 #include <linux/iio/iio.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
 #include <linux/unaligned.h>
 
@@ -130,7 +129,7 @@ static int sdp500_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sdp500_id[] = {
-	{ "sdp500" },
+	{ .name = "sdp500" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sdp500_id);

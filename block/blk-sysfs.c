@@ -19,6 +19,7 @@
 #include "blk-wbt.h"
 #include "blk-cgroup.h"
 #include "blk-throttle.h"
+#include "error-injection.h"
 
 struct queue_sysfs_entry {
 	struct attribute attr;
@@ -933,6 +934,8 @@ static void blk_debugfs_remove(struct gendisk *disk)
 
 	blk_debugfs_lock_nomemsave(q);
 	blk_trace_shutdown(q);
+	if (IS_ENABLED(CONFIG_BLK_ERROR_INJECTION))
+		blk_error_injection_exit(disk);
 	debugfs_remove_recursive(q->debugfs_dir);
 	q->debugfs_dir = NULL;
 	q->sched_debugfs_dir = NULL;
@@ -963,6 +966,8 @@ int blk_register_queue(struct gendisk *disk)
 
 	memflags = blk_debugfs_lock(q);
 	q->debugfs_dir = debugfs_create_dir(disk->disk_name, blk_debugfs_root);
+	if (IS_ENABLED(CONFIG_BLK_ERROR_INJECTION))
+		blk_error_injection_init(disk);
 	if (queue_is_mq(q))
 		blk_mq_debugfs_register(q);
 	blk_debugfs_unlock(q, memflags);

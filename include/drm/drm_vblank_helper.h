@@ -6,7 +6,7 @@
 #include <linux/hrtimer_types.h>
 #include <linux/types.h>
 
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_crtc;
 
 /*
@@ -14,11 +14,11 @@ struct drm_crtc;
  */
 
 void drm_crtc_vblank_atomic_flush(struct drm_crtc *crtc,
-				  struct drm_atomic_state *state);
+				  struct drm_atomic_commit *state);
 void drm_crtc_vblank_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state);
+				   struct drm_atomic_commit *state);
 void drm_crtc_vblank_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *crtc_state);
+				    struct drm_atomic_commit *crtc_state);
 
 /**
  * DRM_CRTC_HELPER_VBLANK_FUNCS - Default implementation for VBLANK helpers

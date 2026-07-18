@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/perf_event.h>
+#include <linux/sysfs.h>
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/io.h>
@@ -85,7 +86,7 @@ static ssize_t _name##_show(struct device *dev,			\
 	if (hret)						\
 		return -EIO;					\
 								\
-	return sprintf(page, _format, caps._name);		\
+	return sysfs_emit(page, _format, caps._name);		\
 }								\
 static struct device_attribute hv_caps_attr_##_name = __ATTR_RO(_name)
 
@@ -93,7 +94,7 @@ static ssize_t kernel_version_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *page)
 {
-	return sprintf(page, "0x%x\n", COUNTER_INFO_VERSION_CURRENT);
+	return sysfs_emit(page, "0x%x\n", COUNTER_INFO_VERSION_CURRENT);
 }
 
 static ssize_t cpumask_show(struct device *dev,
@@ -210,7 +211,7 @@ static ssize_t processor_bus_topology_show(struct device *dev, struct device_att
 			0, 0, buf, &n, arg);
 
 	if (!ret)
-		return n;
+		goto out_success;
 
 	if (ret != H_PARAMETER)
 		goto out;
@@ -244,12 +245,14 @@ static ssize_t processor_bus_topology_show(struct device *dev, struct device_att
 				starting_index, 0, buf, &n, arg);
 
 		if (!ret)
-			return n;
+			goto out_success;
 
 		if (ret != H_PARAMETER)
 			goto out;
 	}
 
+out_success:
+	put_cpu_var(hv_gpci_reqb);
 	return n;
 
 out:
@@ -278,7 +281,7 @@ static ssize_t processor_config_show(struct device *dev, struct device_attribute
 			0, 0, buf, &n, arg);
 
 	if (!ret)
-		return n;
+		goto out_success;
 
 	if (ret != H_PARAMETER)
 		goto out;
@@ -312,12 +315,14 @@ static ssize_t processor_config_show(struct device *dev, struct device_attribute
 				starting_index, 0, buf, &n, arg);
 
 		if (!ret)
-			return n;
+			goto out_success;
 
 		if (ret != H_PARAMETER)
 			goto out;
 	}
 
+out_success:
+	put_cpu_var(hv_gpci_reqb);
 	return n;
 
 out:
@@ -346,7 +351,7 @@ static ssize_t affinity_domain_via_virtual_processor_show(struct device *dev,
 			0, 0, buf, &n, arg);
 
 	if (!ret)
-		return n;
+		goto out_success;
 
 	if (ret != H_PARAMETER)
 		goto out;
@@ -382,12 +387,14 @@ static ssize_t affinity_domain_via_virtual_processor_show(struct device *dev,
 				starting_index, secondary_index, buf, &n, arg);
 
 		if (!ret)
-			return n;
+			goto out_success;
 
 		if (ret != H_PARAMETER)
 			goto out;
 	}
 
+out_success:
+	put_cpu_var(hv_gpci_reqb);
 	return n;
 
 out:
@@ -416,7 +423,7 @@ static ssize_t affinity_domain_via_domain_show(struct device *dev, struct device
 			0, 0, buf, &n, arg);
 
 	if (!ret)
-		return n;
+		goto out_success;
 
 	if (ret != H_PARAMETER)
 		goto out;
@@ -448,12 +455,14 @@ static ssize_t affinity_domain_via_domain_show(struct device *dev, struct device
 					starting_index, 0, buf, &n, arg);
 
 		if (!ret)
-			return n;
+			goto out_success;
 
 		if (ret != H_PARAMETER)
 			goto out;
 	}
 
+out_success:
+	put_cpu_var(hv_gpci_reqb);
 	return n;
 
 out:

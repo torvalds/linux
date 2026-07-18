@@ -650,7 +650,7 @@ struct device_node;
 
 struct ocelot_ops {
 	struct net_device *(*port_to_netdev)(struct ocelot *ocelot, int port);
-	int (*netdev_to_port)(struct net_device *dev);
+	int (*netdev_to_port)(struct ocelot *ocelot, struct net_device *dev);
 	int (*reset)(struct ocelot *ocelot);
 	u16 (*wm_enc)(u16 value);
 	u16 (*wm_dec)(u16 value);

@@ -95,7 +95,7 @@ static int name_card(struct snd_oxfw *oxfw, const struct ieee1394_device_id *ent
 
 	/* to apply card definitions */
 	if (entry->vendor_id == VENDOR_GRIFFIN || entry->vendor_id == VENDOR_LACIE) {
-		info = (const struct compat_info *)entry->driver_data;
+		info = entry->driver_data_ptr;
 		d = info->driver_name;
 		v = info->vendor_name;
 		m = info->model_name;
@@ -321,7 +321,7 @@ static const struct compat_info lacie_speakers = {
 	.model_id     = model, \
 	.specifier_id = SPECIFIER_1394TA, \
 	.version      = VERSION_AVC, \
-	.driver_data  = (kernel_ulong_t)data, \
+	.driver_data_ptr = data, \
 }
 
 static const struct ieee1394_device_id oxfw_id_table[] = {

@@ -4,6 +4,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/host1x_context_bus.h>
 #include <linux/kref.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

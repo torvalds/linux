@@ -27,12 +27,15 @@
 #include "futextest.h"
 #include "../../kselftest_harness.h"
 
+#include <dlfcn.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
 
@@ -41,6 +44,10 @@
 #define FUTEX_TIMEOUT 3
 
 #define SLEEP_US 100
+
+#if __SIZEOF_LONG__ == 8
+# define BUILD_64
+#endif
 
 static pthread_barrier_t barrier, barrier2;
 
@@ -52,6 +59,12 @@ static int set_robust_list(struct robust_list_head *head, size_t len)
 static int get_robust_list(int pid, struct robust_list_head **head, size_t *len_ptr)
 {
 	return syscall(SYS_get_robust_list, pid, head, len_ptr);
+}
+
+static int sys_futex_robust_unlock(_Atomic(uint32_t) *uaddr, unsigned int op, int val,
+				   void *list_op_pending, unsigned int val3)
+{
+	return syscall(SYS_futex, uaddr, op, val, NULL, list_op_pending, val3, 0);
 }
 
 /*
@@ -547,6 +560,232 @@ TEST(test_circular_list)
 	/* Pass only if the child hasn't return error */
 	if (!WEXITSTATUS(wstatus))
 		ksft_test_result_pass("%s\n", __func__);
+}
+
+/*
+ * Below are tests for the fix of robust release race condition. Please read the following
+ * thread to learn more about the issue in the first place and why the following functions fix it:
+ * https://lore.kernel.org/lkml/20260316162316.356674433@kernel.org/
+ */
+
+/*
+ * Auxiliary code for binding the vDSO functions
+ */
+static void *get_vdso_func_addr(const char *function)
+{
+	const char *vdso_names[] = {
+		"linux-vdso.so.1", "linux-gate.so.1", "linux-vdso32.so.1", "linux-vdso64.so.1",
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(vdso_names); i++) {
+		void *vdso = dlopen(vdso_names[i], RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+
+		if (vdso)
+			return dlsym(vdso, function);
+	}
+	return NULL;
+}
+
+/*
+ * These are the real vDSO function signatures:
+ *
+ *	__vdso_futex_robust_list64_try_unlock(__u32 *lock, __u32 tid, __u64 *pop)
+ *	__vdso_futex_robust_list32_try_unlock(__u32 *lock, __u32 tid, __u32 *pop)
+ *
+ * So for the generic entry point we need to use a void pointer as the last argument
+ */
+FIXTURE(vdso_unlock)
+{
+	uint32_t (*vdso)(_Atomic(uint32_t) *lock, uint32_t tid, void *pop);
+};
+
+FIXTURE_VARIANT(vdso_unlock)
+{
+	bool is_32;
+	char func_name[];
+};
+
+FIXTURE_SETUP(vdso_unlock)
+{
+	self->vdso = get_vdso_func_addr(variant->func_name);
+}
+
+FIXTURE_TEARDOWN(vdso_unlock) {}
+
+FIXTURE_VARIANT_ADD(vdso_unlock, 32)
+{
+	.func_name = "__vdso_futex_robust_list32_try_unlock",
+	.is_32 = true,
+};
+
+FIXTURE_VARIANT_ADD(vdso_unlock, 64)
+{
+	.func_name = "__vdso_futex_robust_list64_try_unlock",
+	.is_32 = false,
+};
+
+/*
+ * Test the vDSO robust_listXX_try_unlock() for the uncontended case. The virtual syscall should
+ * return the thread ID of the lock owner, the lock word must be 0 and the list_op_pending should
+ * be NULL.
+ */
+TEST_F(vdso_unlock, test_robust_try_unlock_uncontended)
+{
+	struct lock_struct lock = { .futex = 0 };
+	_Atomic(unsigned int) *futex = &lock.futex;
+	struct robust_list_head head;
+	uintptr_t exp = (uintptr_t) NULL;
+	pid_t tid = gettid();
+	int ret;
+
+	if (!self->vdso) {
+		ksft_test_result_skip("%s not found\n", variant->func_name);
+		return;
+	}
+
+	*futex = tid;
+
+	ret = set_list(&head);
+	if (ret)
+		ksft_test_result_fail("set_robust_list error\n");
+
+	head.list_op_pending = &lock.list;
+
+	ret = self->vdso(futex, tid, &head.list_op_pending);
+
+	ASSERT_EQ(ret, tid);
+	ASSERT_EQ(*futex, 0);
+
+	/* Check only the lower 32 bits for the 32-bit entry point */
+	if (variant->is_32) {
+		exp = (uintptr_t)(unsigned long)&lock.list;
+		exp &= ~0xFFFFFFFFULL;
+	}
+
+	ASSERT_EQ((uintptr_t)(unsigned long)head.list_op_pending, exp);
+}
+
+/*
+ * If the lock is contended, the operation fails. The return value is the value found at the
+ * futex word (tid | FUTEX_WAITERS), the futex word is not modified and the list_op_pending is_32
+ * not cleared.
+ */
+TEST_F(vdso_unlock, test_robust_try_unlock_contended)
+{
+	struct lock_struct lock = { .futex = 0 };
+	_Atomic(unsigned int) *futex = &lock.futex;
+	struct robust_list_head head;
+	pid_t tid = gettid();
+	int ret;
+
+	if (!self->vdso) {
+		ksft_test_result_skip("%s not found\n", variant->func_name);
+		return;
+	}
+
+	*futex = tid | FUTEX_WAITERS;
+
+	ret = set_list(&head);
+	if (ret)
+		ksft_test_result_fail("set_robust_list error\n");
+
+	head.list_op_pending = &lock.list;
+
+	ret = self->vdso(futex, tid, &head.list_op_pending);
+
+	ASSERT_EQ(ret, tid | FUTEX_WAITERS);
+	ASSERT_EQ(*futex, tid | FUTEX_WAITERS);
+	ASSERT_EQ(head.list_op_pending, &lock.list);
+}
+
+FIXTURE(futex_op) {};
+
+FIXTURE_VARIANT(futex_op)
+{
+	unsigned int op;
+	unsigned int val3;
+};
+
+FIXTURE_SETUP(futex_op) {}
+
+FIXTURE_TEARDOWN(futex_op) {}
+
+FIXTURE_VARIANT_ADD(futex_op, wake)
+{
+	.op = FUTEX_WAKE,
+	.val3 = 0,
+};
+
+FIXTURE_VARIANT_ADD(futex_op, wake_bitset)
+{
+	.op = FUTEX_WAKE_BITSET,
+	.val3 = FUTEX_BITSET_MATCH_ANY,
+};
+
+FIXTURE_VARIANT_ADD(futex_op, unlock_pi)
+{
+	.op = FUTEX_UNLOCK_PI,
+	.val3 = 0,
+};
+
+FIXTURE_VARIANT_ADD(futex_op, wake32)
+{
+	.op = FUTEX_WAKE | FUTEX_ROBUST_LIST32,
+	.val3 = 0,
+};
+
+FIXTURE_VARIANT_ADD(futex_op, wake_bitset32)
+{
+	.op = FUTEX_WAKE_BITSET | FUTEX_ROBUST_LIST32,
+	.val3 = FUTEX_BITSET_MATCH_ANY,
+};
+
+FIXTURE_VARIANT_ADD(futex_op, unlock_pi32)
+{
+	.op = FUTEX_UNLOCK_PI | FUTEX_ROBUST_LIST32,
+	.val3 = 0,
+};
+
+/*
+ * The syscall should return the number of tasks waken (for this test, 0), clear the futex word and
+ * clear list_op_pending
+ */
+TEST_F(futex_op, test_futex_robust_unlock)
+{
+	struct lock_struct lock = { .futex = 0 };
+	_Atomic(unsigned int) *futex = &lock.futex;
+	uintptr_t exp = (uintptr_t) NULL;
+	struct robust_list_head head;
+	pid_t tid = gettid();
+	int ret;
+
+#ifndef BUILD_64
+	if (!(variant->op & FUTEX_ROBUST_LIST32)) {
+		ksft_test_result_skip("Not supported for 32 bit build\n");
+		return;
+	}
+#endif
+
+	*futex = tid | FUTEX_WAITERS;
+
+	ret = set_list(&head);
+	if (ret)
+		ksft_test_result_fail("set_robust_list error\n");
+
+	head.list_op_pending = &lock.list;
+
+	ret = sys_futex_robust_unlock(futex, FUTEX_ROBUST_UNLOCK | variant->op, tid,
+				      &head.list_op_pending, variant->val3);
+
+	ASSERT_EQ(ret, 0);
+	ASSERT_EQ(*futex, 0);
+
+	if (variant->op & FUTEX_ROBUST_LIST32) {
+		exp = (uint64_t)(unsigned long)&lock.list;
+		exp &= ~0xFFFFFFFFULL;
+	}
+
+	ASSERT_EQ((uintptr_t)(unsigned long)head.list_op_pending, exp);
 }
 
 TEST_HARNESS_MAIN

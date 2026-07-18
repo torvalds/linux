@@ -1972,8 +1972,10 @@ int genlmsg_multicast_allns(const struct genl_family *family,
 			    struct sk_buff *skb, u32 portid,
 			    unsigned int group)
 {
-	if (WARN_ON_ONCE(group >= family->n_mcgrps))
+	if (WARN_ON_ONCE(group >= family->n_mcgrps)) {
+		kfree_skb(skb);
 		return -EINVAL;
+	}
 
 	group = family->mcgrp_offset + group;
 	return genlmsg_mcast(skb, portid, group);
@@ -1986,8 +1988,10 @@ void genl_notify(const struct genl_family *family, struct sk_buff *skb,
 	struct net *net = genl_info_net(info);
 	struct sock *sk = net->genl_sock;
 
-	if (WARN_ON_ONCE(group >= family->n_mcgrps))
+	if (WARN_ON_ONCE(group >= family->n_mcgrps)) {
+		kfree_skb(skb);
 		return;
+	}
 
 	group = family->mcgrp_offset + group;
 	nlmsg_notify(sk, skb, info->snd_portid, group,

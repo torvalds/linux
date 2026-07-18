@@ -266,7 +266,7 @@ static void it5205_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id it5205_table[] = {
-	{ "it5205" },
+	{ .name = "it5205" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, it5205_table);

@@ -71,10 +71,10 @@ static void hmc5843_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id hmc5843_id[] = {
-	{ "hmc5843", HMC5843_ID },
-	{ "hmc5883", HMC5883_ID },
-	{ "hmc5883l", HMC5883L_ID },
-	{ "hmc5983", HMC5983_ID },
+	{ .name = "hmc5843", .driver_data = HMC5843_ID },
+	{ .name = "hmc5883", .driver_data = HMC5883_ID },
+	{ .name = "hmc5883l", .driver_data = HMC5883L_ID },
+	{ .name = "hmc5983", .driver_data = HMC5983_ID },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, hmc5843_id);

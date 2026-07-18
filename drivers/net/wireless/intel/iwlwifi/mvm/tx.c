@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2026 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -268,7 +268,6 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 				    int rate_idx)
 {
 	u32 rate_flags = 0;
-	u8 rate_plcp;
 	bool is_cck;
 
 	/* if the rate isn't a well known legacy rate, take the lowest one */
@@ -277,8 +276,9 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 							    info,
 							    info->control.vif);
 
-	/* Get PLCP rate for tx_cmd->rate_n_flags */
-	rate_plcp = iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate_idx);
+	/* Get FW rate for tx_cmd->rate_n_flags */
+	rate_flags |= iwl_mvm_rate_idx_to_fw_idx(mvm->fw, rate_idx);
+
 	is_cck = (rate_idx >= IWL_FIRST_CCK_RATE) &&
 		 (rate_idx <= IWL_LAST_CCK_RATE);
 
@@ -288,7 +288,7 @@ static u32 iwl_mvm_convert_rate_idx(struct iwl_mvm *mvm,
 	else
 		rate_flags |= RATE_MCS_MOD_TYPE_CCK;
 
-	return (u32)rate_plcp | rate_flags;
+	return rate_flags;
 }
 
 static u32 iwl_mvm_get_inject_tx_rate(struct iwl_mvm *mvm,

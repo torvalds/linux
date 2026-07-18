@@ -100,6 +100,71 @@ enum {
  * Creates a union between a flexible-array member (FAM) in a struct and a set
  * of additional members that would otherwise follow it.
  *
+ * Beware that, as this helper encloses TYPE NAME and MEMBERS in the same
+ * union, designated initializers for MEMBERS may overwrite portions
+ * previously initialized through NAME.
+ *
+ * For example::
+ *
+ *	struct flex {
+ *		size_t count;
+ *		u8 fam[];
+ *	};
+ *
+ *	struct composite {
+ *		...
+ *		__TRAILING_OVERLAP(struct flex, flex, fam, __packed,
+ *			u8 data;
+ *		);
+ *	} __packed;
+ *
+ *	static struct composite comp = {
+ *		.flex = {
+ *			.count = 1,
+ *		},
+ *		.data = 2,
+ *	};
+ *
+ * In the example above, .flex and .data initialize different views of the same
+ * union storage. Since .data is initialized last, it _may_ overwrite portions
+ * previously initialized through .flex, leading to .flex.count being zeroed
+ * out.
+ *
+ * A couple of alternatives are shown below.
+ *
+ * a) Initialize only one view of the overlapped storage and assign the rest
+ *    at runtime::
+ *
+ *	static struct composite comp = {
+ *		.flex = {
+ *			.count = 1,
+ *		},
+ *	};
+ *
+ *	static void foo(void)
+ *	{
+ *		comp.data = 2;
+ *		...
+ *	}
+ *
+ * b) Alternatively, replace designated initializers with runtime assignments::
+ *
+ *	static void foo(void)
+ *	{
+ *		struct composite comp;
+ *
+ *		comp.flex.count = 1;
+ *		comp.data = 2;
+ *		...
+ *	}
+ *
+ * Compiler Explorer test code: https://godbolt.org/z/voM4E36dT
+ *
+ * For another example of the above see commit 5e54510a9389 ("acpi: nfit:
+ * intel: avoid multiple -Wflex-array-member-not-at-end warnings")
+ *
+ * Link: https://git.kernel.org/linus/5e54510a9389caa9
+ *
  * @TYPE: Flexible structure type name, including "struct" keyword.
  * @NAME: Name for a variable to define.
  * @FAM: The flexible-array member within @TYPE

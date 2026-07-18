@@ -104,10 +104,7 @@ called at the beginning of each test.
 Known issues
 ============
 
-1. Requesting a specific NUMA node via memblock_alloc_node() does not work as
-   intended. Once the fix is in place, tests for this function can be added.
-
-2. Tests for memblock_alloc_low() can't be easily implemented. The function uses
+1. Tests for memblock_alloc_low() can't be easily implemented. The function uses
    ARCH_LOW_ADDRESS_LIMIT marco, which can't be changed to point at the low
    memory of the memory_block.
 

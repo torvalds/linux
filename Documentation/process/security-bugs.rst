@@ -66,6 +66,42 @@ In addition, the following information are highly desirable:
     the issue appear. It is useful to share them, as they can be helpful to
     keep end users protected during the time it takes them to apply the fix.
 
+What qualifies as a security bug
+--------------------------------
+
+It is important that most bugs are handled publicly so as to involve the widest
+possible audience and find the best solution.  By nature, bugs that are handled
+in closed discussions between a small set of participants are less likely to
+produce the best possible fix (e.g., risk of missing valid use cases, limited
+testing abilities).
+
+It turns out that the majority of the bugs reported via the security team are
+just regular bugs that have been improperly qualified as security bugs due to
+a lack of awareness of the Linux kernel's threat model, as described in
+Documentation/process/threat-model.rst, and ought to have been sent through
+the normal channels described in Documentation/admin-guide/reporting-issues.rst
+instead.
+
+The security list exists for urgent bugs that grant an attacker a capability
+they are not supposed to have on a correctly configured production system, and
+can be easily exploited, representing an imminent threat to many users.  Before
+reporting, consider whether the issue actually crosses a trust boundary on such
+a system.
+
+**If you resorted to AI assistance to identify a bug, you must treat it as
+public**. While you may have valid reasons to believe it is not, the security
+team's experience shows that bugs discovered this way systematically surface
+simultaneously across multiple researchers, often on the same day. In this
+case, do not publicly share a reproducer, as this could cause unintended harm;
+just mention that one is available and maintainers might ask for it privately
+if they need it.
+
+If you are unsure whether an issue qualifies, err on the side of reporting
+privately: the security team would rather triage a borderline report than miss
+a real vulnerability.  Reporting ordinary bugs to the security list, however,
+does not make them move faster and consumes triage capacity that other reports
+need.
+
 Identifying contacts
 --------------------
 
@@ -74,7 +110,7 @@ affected subsystem's maintainers and Cc: the Linux kernel security team.  Do
 not send it to a public list at this stage, unless you have good reasons to
 consider the issue as being public or trivial to discover (e.g. result of a
 widely available automated vulnerability scanning tool that can be repeated by
-anyone).
+anyone, or use of AI-based tools).
 
 If you're sending a report for issues affecting multiple parts in the kernel,
 even if they're fairly similar issues, please send individual messages (think
@@ -131,6 +167,64 @@ the Linux kernel security team only.  Your message will be triaged, and you
 will receive instructions about whom to contact, if needed.  Your message may
 equally be forwarded as-is to the relevant maintainers.
 
+Responsible use of AI to find bugs
+----------------------------------
+
+A significant fraction of bug reports submitted to the security team are
+actually the result of code reviews assisted by AI tools. While this can be an
+efficient means to find bugs in rarely explored areas, it causes an overload on
+maintainers, who are sometimes forced to ignore such reports due to their poor
+quality or accuracy. As such, reporters must be particularly cautious about a
+number of points which tend to make these reports needlessly difficult to
+handle:
+
+  * **Length**: AI-generated reports tend to be excessively long, containing
+    multiple sections and excessive detail. This makes it difficult to spot
+    important information such as affected files, versions, and impact. Please
+    ensure that a clear summary of the problem and all critical details are
+    presented first. Do not require triage engineers to scan multiple pages of
+    text. Configure your tools to produce concise, human-style reports.
+
+  * **Formatting**: Most AI-generated reports are littered with Markdown tags.
+    These decorations complicate the search for important information and do
+    not survive the quoting processes involved in forwarding or replying.
+    Please **always convert your report to plain text** without any formatting
+    decorations before sending it.
+
+  * **Impact Evaluation**: Many AI-generated reports lack an understanding
+    of the kernel's threat model (see Documentation/process/threat-model.rst)
+    and go to great lengths inventing theoretical consequences. This adds
+    noise and complicates triage. Please stick to verifiable facts (e.g.,
+    "this bug permits any user to gain CAP_NET_ADMIN") without enumerating
+    speculative implications. Have your tool read this documentation as
+    part of the evaluation process.
+
+  * **Reproducer**: AI-based tools are often capable of generating reproducers.
+    Please always ensure your tool provides one and **test it thoroughly**. If
+    the reproducer does not work, or if the tool cannot produce one, the
+    validity of the report should be seriously questioned. Note that since the
+    report will be posted to a public list, the reproducer should only be
+    shared upon maintainers' request.
+
+  * **Propose a Fix**: Many AI tools are actually better at writing code than
+    evaluating it. Please ask your tool to propose a fix and **test it** before
+    reporting the problem. If the fix cannot be tested because it relies on
+    rare hardware or almost extinct network protocols, the issue is likely not
+    a security bug. In any case, if a fix is proposed, it must adhere to
+    Documentation/process/submitting-patches.rst and include a 'Fixes:' tag
+    designating the commit that introduced the bug.
+
+Failure to consider these points exposes your report to the risk of being
+ignored.
+
+Use common sense when evaluating the report. If the affected file has not been
+touched for more than one year and is maintained by a single individual, it is
+likely that usage has declined and exposed users are virtually non-existent
+(e.g., drivers for very old hardware, obsolete filesystems). In such cases,
+there is no need to consume a maintainer's time with an unimportant report. If
+the issue is clearly trivial and publicly discoverable, you should report it
+directly to the public mailing lists.
+
 Sending the report
 ------------------
 
@@ -148,7 +242,15 @@ run additional tests.  Reports where the reporter does not respond promptly
 or cannot effectively discuss their findings may be abandoned if the
 communication does not quickly improve.
 
-The report must be sent to maintainers, with the security team in ``Cc:``.
+The report must be sent to maintainers.  If there are two or fewer
+recipients in your message, you must also always Cc: the Linux kernel
+security team who will ensure the message is delivered to the proper
+people, and will be able to assist small maintainer teams with processes
+they may not be familiar with.  For larger teams, Cc: the Linux kernel
+security team for your first few reports or when seeking specific help,
+such as when resending a message which got no response within a week.
+Once you have become comfortable with the process for a few reports, it is
+no longer necessary to Cc: the security list when sending to large teams.
 The Linux kernel security team can be contacted by email at
 <security@kernel.org>.  This is a private list of security officers
 who will help verify the bug report and assist developers working on a fix.

@@ -1539,22 +1539,22 @@ static int i8042_pnp_aux_probe(struct pnp_dev *dev, const struct pnp_device_id *
 }
 
 static const struct pnp_device_id pnp_kbd_devids[] = {
-	{ .id = "PNP0300", .driver_data = 0 },
-	{ .id = "PNP0301", .driver_data = 0 },
-	{ .id = "PNP0302", .driver_data = 0 },
-	{ .id = "PNP0303", .driver_data = 0 },
-	{ .id = "PNP0304", .driver_data = 0 },
-	{ .id = "PNP0305", .driver_data = 0 },
-	{ .id = "PNP0306", .driver_data = 0 },
-	{ .id = "PNP0309", .driver_data = 0 },
-	{ .id = "PNP030a", .driver_data = 0 },
-	{ .id = "PNP030b", .driver_data = 0 },
-	{ .id = "PNP0320", .driver_data = 0 },
-	{ .id = "PNP0343", .driver_data = 0 },
-	{ .id = "PNP0344", .driver_data = 0 },
-	{ .id = "PNP0345", .driver_data = 0 },
-	{ .id = "CPQA0D7", .driver_data = 0 },
-	{ .id = "", },
+	{ .id = "PNP0300" },
+	{ .id = "PNP0301" },
+	{ .id = "PNP0302" },
+	{ .id = "PNP0303" },
+	{ .id = "PNP0304" },
+	{ .id = "PNP0305" },
+	{ .id = "PNP0306" },
+	{ .id = "PNP0309" },
+	{ .id = "PNP030a" },
+	{ .id = "PNP030b" },
+	{ .id = "PNP0320" },
+	{ .id = "PNP0343" },
+	{ .id = "PNP0344" },
+	{ .id = "PNP0345" },
+	{ .id = "CPQA0D7" },
+	{ }
 };
 MODULE_DEVICE_TABLE(pnp, pnp_kbd_devids);
 
@@ -1569,18 +1569,18 @@ static struct pnp_driver i8042_pnp_kbd_driver = {
 };
 
 static const struct pnp_device_id pnp_aux_devids[] = {
-	{ .id = "AUI0200", .driver_data = 0 },
-	{ .id = "FJC6000", .driver_data = 0 },
-	{ .id = "FJC6001", .driver_data = 0 },
-	{ .id = "PNP0f03", .driver_data = 0 },
-	{ .id = "PNP0f0b", .driver_data = 0 },
-	{ .id = "PNP0f0e", .driver_data = 0 },
-	{ .id = "PNP0f12", .driver_data = 0 },
-	{ .id = "PNP0f13", .driver_data = 0 },
-	{ .id = "PNP0f19", .driver_data = 0 },
-	{ .id = "PNP0f1c", .driver_data = 0 },
-	{ .id = "SYN0801", .driver_data = 0 },
-	{ .id = "", },
+	{ .id = "AUI0200" },
+	{ .id = "FJC6000" },
+	{ .id = "FJC6001" },
+	{ .id = "PNP0f03" },
+	{ .id = "PNP0f0b" },
+	{ .id = "PNP0f0e" },
+	{ .id = "PNP0f12" },
+	{ .id = "PNP0f13" },
+	{ .id = "PNP0f19" },
+	{ .id = "PNP0f1c" },
+	{ .id = "SYN0801" },
+	{ },
 };
 MODULE_DEVICE_TABLE(pnp, pnp_aux_devids);
 

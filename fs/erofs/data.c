@@ -80,9 +80,7 @@ int erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb,
 	if (erofs_is_fileio_mode(sbi)) {
 		buf->file = sbi->dif0.file;	/* some fs like FUSE needs it */
 		buf->mapping = buf->file->f_mapping;
-	} else if (erofs_is_fscache_mode(sb))
-		buf->mapping = sbi->dif0.fscache->inode->i_mapping;
-	else
+	} else
 		buf->mapping = sb->s_bdev->bd_mapping;
 	return 0;
 }
@@ -98,17 +96,73 @@ void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 	return erofs_bread(buf, offset, true);
 }
 
-int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
+static int erofs_map_chunks(struct inode *inode, struct erofs_map_blocks *map)
 {
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 	struct super_block *sb = inode->i_sb;
-	unsigned int unit, blksz = sb->s_blocksize;
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_inode_chunk_index *idx;
-	erofs_blk_t startblk, addrmask;
-	bool tailpacking;
+	unsigned int unit = vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES ?
+		sizeof(*idx) : EROFS_BLOCK_MAP_ENTRY_SIZE;
+	erofs_blk_t addrmask = (vi->chunkformat & EROFS_CHUNK_FORMAT_48BIT) ?
+		BIT_ULL(48) - 1 : BIT_ULL(32) - 1;
+	u64 nr = map->m_la >> vi->chunkbits, chunksize = 1ULL << vi->chunkbits;
+	erofs_off_t pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
+				vi->xattr_isize, unit) + unit * nr;
+	/* m_llen will be clamped to EOF in the end */
+	erofs_off_t endpos = round_up(pos + 1, sb->s_blocksize);
+	u64 last, addr;
+
+	idx = erofs_read_metabuf(&buf, sb, pos, erofs_inode_in_metabox(inode));
+	if (IS_ERR(idx))
+		return PTR_ERR(idx);
+
+	map->m_la = nr << vi->chunkbits;
+	map->m_llen = 0;
+	nr = 0;
+	do {
+		if (unit == EROFS_BLOCK_MAP_ENTRY_SIZE) {
+			addr = le32_to_cpu(((__le32 *)idx)[nr]);
+			if (addr == (u32)EROFS_NULL_ADDR)
+				addr = EROFS_NULL_ADDR;
+		} else {
+			addr = (((u64)le16_to_cpu(idx[nr].startblk_hi) << 32) |
+				le32_to_cpu(idx[nr].startblk_lo)) & addrmask;
+			if (addr ^ (EROFS_NULL_ADDR & addrmask))
+				addr |= (u64)(le16_to_cpu(idx[nr].device_id) &
+					EROFS_SB(sb)->device_id_mask) << 48;
+			else
+				addr = EROFS_NULL_ADDR;
+		}
+		if (!nr) {
+			last = addr;
+			continue;
+		}
+		/* expand and account the prior chunk here */
+		map->m_llen += chunksize;
+		if (last != EROFS_NULL_ADDR)
+			last += erofs_blknr(sb, chunksize);
+	} while (addr == last && pos + (++nr) * unit < endpos);
+
+	if (last != EROFS_NULL_ADDR) {
+		map->m_pa = erofs_pos(sb, last & addrmask) - map->m_llen;
+		map->m_deviceid = last >> 48;
+		map->m_flags = EROFS_MAP_MAPPED;
+	}
+	if (addr == last)
+		map->m_llen += chunksize;
+	map->m_llen = min_t(erofs_off_t, map->m_llen,
+			round_up(inode->i_size - map->m_la, sb->s_blocksize));
+	erofs_put_metabuf(&buf);
+	return 0;
+}
+
+int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
+{
+	struct super_block *sb = inode->i_sb;
+	struct erofs_inode *vi = EROFS_I(inode);
+	bool tailinline = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
 	erofs_off_t pos;
-	u64 chunknr;
 	int err = 0;
 
 	trace_erofs_map_blocks_enter(inode, map, 0);
@@ -116,13 +170,10 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	map->m_flags = 0;
 	if (map->m_la >= inode->i_size)
 		goto out;
-
-	if (vi->datalayout != EROFS_INODE_CHUNK_BASED) {
-		tailpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
-		if (!tailpacking && vi->startblk == EROFS_NULL_ADDR)
-			goto out;
-		pos = erofs_pos(sb, erofs_iblks(inode) - tailpacking);
-
+	if (vi->datalayout == EROFS_INODE_CHUNK_BASED) {
+		err = erofs_map_chunks(inode, map);
+	} else if (tailinline || vi->startblk != EROFS_NULL_ADDR) {
+		pos = erofs_pos(sb, erofs_iblks(inode) - tailinline);
 		map->m_flags = EROFS_MAP_MAPPED;
 		if (map->m_la < pos) {
 			map->m_pa = erofs_pos(sb, vi->startblk) + map->m_la;
@@ -132,57 +183,15 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 				vi->xattr_isize + erofs_blkoff(sb, map->m_la);
 			map->m_llen = inode->i_size - map->m_la;
 			map->m_flags |= EROFS_MAP_META;
-		}
-		goto out;
-	}
-
-	if (vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES)
-		unit = sizeof(*idx);			/* chunk index */
-	else
-		unit = EROFS_BLOCK_MAP_ENTRY_SIZE;	/* block map */
-
-	chunknr = map->m_la >> vi->chunkbits;
-	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
-		    vi->xattr_isize, unit) + unit * chunknr;
-
-	idx = erofs_read_metabuf(&buf, sb, pos, erofs_inode_in_metabox(inode));
-	if (IS_ERR(idx)) {
-		err = PTR_ERR(idx);
-		goto out;
-	}
-	map->m_la = chunknr << vi->chunkbits;
-	map->m_llen = min_t(erofs_off_t, 1UL << vi->chunkbits,
-			    round_up(inode->i_size - map->m_la, blksz));
-	if (vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES) {
-		addrmask = (vi->chunkformat & EROFS_CHUNK_FORMAT_48BIT) ?
-			BIT_ULL(48) - 1 : BIT_ULL(32) - 1;
-		startblk = (((u64)le16_to_cpu(idx->startblk_hi) << 32) |
-			    le32_to_cpu(idx->startblk_lo)) & addrmask;
-		if ((startblk ^ EROFS_NULL_ADDR) & addrmask) {
-			map->m_deviceid = le16_to_cpu(idx->device_id) &
-				EROFS_SB(sb)->device_id_mask;
-			map->m_pa = erofs_pos(sb, startblk);
-			map->m_flags = EROFS_MAP_MAPPED;
-		}
-	} else {
-		startblk = le32_to_cpu(*(__le32 *)idx);
-		if (startblk != (u32)EROFS_NULL_ADDR) {
-			map->m_pa = erofs_pos(sb, startblk);
-			map->m_flags = EROFS_MAP_MAPPED;
+			if (erofs_blkoff(sb, map->m_pa) + map->m_llen >
+			    sb->s_blocksize) {
+				erofs_err(sb, "inline data across blocks @ nid %llu", vi->nid);
+				return -EFSCORRUPTED;
+			}
 		}
 	}
-	erofs_put_metabuf(&buf);
 out:
-	if (!err) {
-		map->m_plen = map->m_llen;
-		/* inline data should be located in the same meta block */
-		if ((map->m_flags & EROFS_MAP_META) &&
-		    erofs_blkoff(sb, map->m_pa) + map->m_plen > blksz) {
-			erofs_err(sb, "inline data across blocks @ nid %llu", vi->nid);
-			DBG_BUGON(1);
-			return -EFSCORRUPTED;
-		}
-	}
+	map->m_plen = err ? 0 : map->m_llen;
 	trace_erofs_map_blocks_exit(inode, map, 0, err);
 	return err;
 }

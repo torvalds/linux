@@ -55,8 +55,11 @@
 	};
 
 	psci {
-		compatible = "arm,psci-0.2";
+		compatible = "arm,psci-0.2", "arm,psci";
 		method = "smc";
+
+		cpu_off = <0x85000001>;
+		cpu_on = <0x85000002>;
 	};
 
 	reserved-memory {

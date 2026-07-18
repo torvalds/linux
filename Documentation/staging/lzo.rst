@@ -75,7 +75,7 @@ Description
      are called under the assumption that a certain number of bytes follow
      because it has already been guaranteed before parsing the instructions.
      They just have to "refill" this credit if they consume extra bytes. This
-     is an implementation design choice independent on the algorithm or
+     is an implementation design choice independent of the algorithm or
      encoding.
 
 Versions

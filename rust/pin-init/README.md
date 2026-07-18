@@ -3,7 +3,7 @@
 [![Dependency status](https://deps.rs/repo/github/Rust-for-Linux/pin-init/status.svg)](https://deps.rs/repo/github/Rust-for-Linux/pin-init)
 ![License](https://img.shields.io/crates/l/pin-init)
 [![Toolchain](https://img.shields.io/badge/toolchain-nightly-red)](#nightly-only)
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rust-for-Linux/pin-init/test.yml)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/Rust-for-Linux/pin-init/ci.yml)
 # `pin-init`
 
 > [!NOTE]

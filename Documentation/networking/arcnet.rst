@@ -8,29 +8,9 @@ ARCnet
 
 .. note::
 
-   See also arcnet-hardware.txt in this directory for jumper-setting
+   See also arcnet-hardware.rst in this directory for jumper-setting
    and cabling information if you're like many of us and didn't happen to get a
    manual with your ARCnet card.
-
-Since no one seems to listen to me otherwise, perhaps a poem will get your
-attention::
-
-		This driver's getting fat and beefy,
-		But my cat is still named Fifi.
-
-Hmm, I think I'm allowed to call that a poem, even though it's only two
-lines.  Hey, I'm in Computer Science, not English.  Give me a break.
-
-The point is:  I REALLY REALLY REALLY REALLY REALLY want to hear from you if
-you test this and get it working.  Or if you don't.  Or anything.
-
-ARCnet 0.32 ALPHA first made it into the Linux kernel 1.1.80 - this was
-nice, but after that even FEWER people started writing to me because they
-didn't even have to install the patch.  <sigh>
-
-Come on, be a sport!  Send me a success report!
-
-(hey, that was even better than my original poem... this is getting bad!)
 
 ----
 
@@ -62,183 +42,47 @@ netdev@vger.kernel.org and make sure to Cc: maintainer listed in
 Other Drivers and Info
 ----------------------
 
-You can try my ARCNET page on the World Wide Web at:
+You can try JoAnne Schmitz's ARCNET page on the World Wide Web at:
 
-	http://www.qis.net/~jschmitz/arcnet/
-
-Also, SMC (one of the companies that makes ARCnet cards) has a WWW site you
-might be interested in, which includes several drivers for various cards
-including ARCnet.  Try:
-
-	http://www.smc.com/
-
-Performance Technologies makes various network software that supports
-ARCnet:
-
-	http://www.perftech.com/ or ftp to ftp.perftech.com.
-
-Novell makes a networking stack for DOS which includes ARCnet drivers.  Try
-FTPing to ftp.novell.com.
-
-You can get the Crynwr packet driver collection (including arcether.com, the
-one you'll want to use with ARCnet cards) from
-oak.oakland.edu:/simtel/msdos/pktdrvr. It won't work perfectly on a 386+
-without patches, though, and also doesn't like several cards.  Fixed
-versions are available on my WWW page, or via e-mail if you don't have WWW
-access.
+	https://www.qis.net/~jschmitz/arcnet/
 
 
-Installing the Driver
----------------------
+Supported Hardware
+------------------
 
-All you will need to do in order to install the driver is::
+Only PCI and PCI Express devices based on the COM20020 chipset are supported.
+This is the newest chipset from SMC with support for promiscuous mode (packet
+sniffing), extra diagnostic information, etc. These devices use the com20020_pci
+driver.
 
-	make config
-		(be sure to choose ARCnet in the network devices
-		and at least one chipset driver.)
-	make clean
-	make zImage
+Support for older chipsets and ISA and PCMCIA devices was previously available
+but has been removed.
 
-If you obtained this ARCnet package as an upgrade to the ARCnet driver in
-your current kernel, you will need to first copy arcnet.c over the one in
-the linux/drivers/net directory.
 
-You will know the driver is installed properly if you get some ARCnet
-messages when you reboot into the new Linux kernel.
+Configuring the Driver
+----------------------
 
-There are four chipset options:
+The COM20020 driver will be loaded automatically at boot if a supported card is
+detected.
 
- 1. Standard ARCnet COM90xx chipset.
+If the com20020_pci driver was compiled as a loadable module, the options are::
 
-This is the normal ARCnet card, which you've probably got. This is the only
-chipset driver which will autoprobe if not told where the card is.
-It following options on the command line::
+ node=<node_ID> backplane=<backplane> clockp=<CKP> clockm=<CKM>
+ timeout=<timeout> device=<interface_name>
 
- com90xx=[<io>[,<irq>[,<shmem>]]][,<name>] | <name>
+If the driver was compiled into the kernel, the same options can be specified on
+the kernel command line by prefixing them with `com20020_pci.`, as in the
+following example::
 
-If you load the chipset support as a module, the options are::
-
- io=<io> irq=<irq> shmem=<shmem> device=<name>
-
-To disable the autoprobe, just specify "com90xx=" on the kernel command line.
-To specify the name alone, but allow autoprobe, just put "com90xx=<name>"
-
- 2. ARCnet COM20020 chipset.
-
-This is the new chipset from SMC with support for promiscuous mode (packet
-sniffing), extra diagnostic information, etc. Unfortunately, there is no
-sensible method of autoprobing for these cards. You must specify the I/O
-address on the kernel command line.
-
-The command line options are::
-
- com20020=<io>[,<irq>[,<node_ID>[,backplane[,CKP[,timeout]]]]][,name]
-
-If you load the chipset support as a module, the options are::
-
- io=<io> irq=<irq> node=<node_ID> backplane=<backplane> clock=<CKP>
- timeout=<timeout> device=<name>
+ com20020_pci.device=eth1
 
 The COM20020 chipset allows you to set the node ID in software, overriding the
 default which is still set in DIP switches on the card. If you don't have the
-COM20020 data sheets, and you don't know what the other three options refer
+COM20020 data sheets, and you don't know what the other options refer
 to, then they won't interest you - forget them.
 
- 3. ARCnet COM90xx chipset in IO-mapped mode.
-
-This will also work with the normal ARCnet cards, but doesn't use the shared
-memory. It performs less well than the above driver, but is provided in case
-you have a card which doesn't support shared memory, or (strangely) in case
-you have so many ARCnet cards in your machine that you run out of shmem slots.
-If you don't give the IO address on the kernel command line, then the driver
-will not find the card.
-
-The command line options are::
-
- com90io=<io>[,<irq>][,<name>]
-
-If you load the chipset support as a module, the options are:
- io=<io> irq=<irq> device=<name>
-
- 4. ARCnet RIM I cards.
-
-These are COM90xx chips which are _completely_ memory mapped. The support for
-these is not tested. If you have one, please mail the author with a success
-report. All options must be specified, except the device name.
-Command line options::
-
- arcrimi=<shmem>,<irq>,<node_ID>[,<name>]
-
-If you load the chipset support as a module, the options are::
-
- shmem=<shmem> irq=<irq> node=<node_ID> device=<name>
-
-
-Loadable Module Support
------------------------
-
-Configure and rebuild Linux.  When asked, answer 'm' to "Generic ARCnet
-support" and to support for your ARCnet chipset if you want to use the
-loadable module. You can also say 'y' to "Generic ARCnet support" and 'm'
-to the chipset support if you wish.
-
-::
-
-	make config
-	make clean
-	make zImage
-	make modules
-
-If you're using a loadable module, you need to use insmod to load it, and
-you can specify various characteristics of your card on the command
-line.  (In recent versions of the driver, autoprobing is much more reliable
-and works as a module, so most of this is now unnecessary.)
-
-For example::
-
-	cd /usr/src/linux/modules
-	insmod arcnet.o
-	insmod com90xx.o
-	insmod com20020.o io=0x2e0 device=eth1
-
-
-Using the Driver
-----------------
-
-If you build your kernel with ARCnet COM90xx support included, it should
-probe for your card automatically when you boot. If you use a different
-chipset driver complied into the kernel, you must give the necessary options
-on the kernel command line, as detailed above.
-
-Go read the NET-2-HOWTO and ETHERNET-HOWTO for Linux; they should be
-available where you picked up this driver.  Think of your ARCnet as a
-souped-up (or down, as the case may be) Ethernet card.
-
-By the way, be sure to change all references from "eth0" to "arc0" in the
-HOWTOs.  Remember that ARCnet isn't a "true" Ethernet, and the device name
-is DIFFERENT.
-
-
-Multiple Cards in One Computer
-------------------------------
-
-Linux has pretty good support for this now, but since I've been busy, the
-ARCnet driver has somewhat suffered in this respect. COM90xx support, if
-compiled into the kernel, will (try to) autodetect all the installed cards.
-
-If you have other cards, with support compiled into the kernel, then you can
-just repeat the options on the kernel command line, e.g.::
-
-	LILO: linux com20020=0x2e0 com20020=0x380 com90io=0x260
-
-If you have the chipset support built as a loadable module, then you need to
-do something like this::
-
-	insmod -o arc0 com90xx
-	insmod -o arc1 com20020 io=0x2e0
-	insmod -o arc2 com90xx
-
-The ARCnet drivers will now sort out their names automatically.
+Otherwise, ARCnet can be configured in a similar way to Ethernet, with the
+exception that ARCnet interface names begin with `arc`.
 
 
 How do I get it to work with...?
@@ -276,9 +120,8 @@ LAN Manager and Windows for Workgroups:
 	are incompatible with the Internet standard.  They try to pretend
 	the cards are Ethernet, and confuse everyone else on the network.
 
-	However, v2.00 and higher of the Linux ARCnet driver supports this
-	protocol via the 'arc0e' device.  See the section on "Multiprotocol
-	Support" for more information.
+	The Linux ARCnet driver supports this protocol via the 'arc0e' device.
+	See the section on "Multiprotocol Support" for more information.
 
 	Using the freeware Samba server and clients for Linux, you can now
 	interface quite nicely with TCP/IP-based WfWg or Lan Manager
@@ -313,7 +156,7 @@ NetBSD/AmiTCP:
 Using Multiprotocol ARCnet
 --------------------------
 
-The ARCnet driver v2.10 ALPHA supports three protocols, each on its own
+The ARCnet driver supports three protocols, each on its own
 "virtual network device":
 
 	======  ===============================================================
@@ -505,7 +348,7 @@ can set up your network then:
 It works: what now?
 -------------------
 
-Send mail following :ref:`arcnet-netdev`. Describe your setup, preferably
+:ref:`Send an email to netdev <arcnet-netdev>`. Describe your setup, preferably
 including driver version, kernel version, ARCnet card model, CPU type, number
 of systems on your network, and list of software in use.
 
@@ -523,10 +366,6 @@ D_DURING or more, it would be a REALLY good idea to kill your klogd daemon
 first!  D_DURING displays 4-5 lines for each packet sent or received.  D_TX,
 D_RX, and D_SKB actually DISPLAY each packet as it is sent or received,
 which is obviously quite big.
-
-Starting with v2.40 ALPHA, the autoprobe routines have changed
-significantly.  In particular, they won't tell you why the card was not
-found unless you turn on the D_INIT_REASONS debugging flag.
 
 Once the driver is running, you can run the arcdump shell script (available
 from me or in the full ARCnet package, if you have it) as root to list the
@@ -548,21 +387,13 @@ out which bytes are being used by a packet.
 You can change the debug level without recompiling the kernel by typing::
 
 	ifconfig arc0 down metric 1xxx
-	/etc/rc.d/rc.inet1
+	ifconfig arc0 up
 
 where "xxx" is the debug level you want.  For example, "metric 1015" would put
 you at debug level 15.  Debug level 7 is currently the default.
 
-Note that the debug level is (starting with v1.90 ALPHA) a binary
-combination of different debug flags; so debug level 7 is really 1+2+4 or
-D_NORMAL+D_EXTRA+D_INIT.  To include D_DURING, you would add 16 to this,
-resulting in debug level 23.
+Note that the debug level is a binary combination of different debug flags;
+debug level 7 is really 1+2+4 or D_NORMAL+D_EXTRA+D_INIT.  To include D_DURING,
+you would add 16 to this, resulting in debug level 23.
 
 If you don't understand that, you probably don't want to know anyway.
-E-mail me about your problem.
-
-
-I want to send money: what now?
--------------------------------
-
-Go take a nap or something.  You'll feel better in the morning.

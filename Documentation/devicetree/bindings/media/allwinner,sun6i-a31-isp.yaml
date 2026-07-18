@@ -36,6 +36,12 @@ properties:
   resets:
     maxItems: 1
 
+  interconnects:
+    maxItems: 1
+
+  interconnect-names:
+    const: dma-mem
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 

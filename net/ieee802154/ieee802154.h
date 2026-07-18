@@ -16,11 +16,28 @@ void ieee802154_nl_exit(void);
 		.flags	= GENL_ADMIN_PERM,		\
 	}
 
+#define IEEE802154_OP_RELAXED(_cmd, _func)		\
+	{						\
+		.cmd		= _cmd,			\
+		.doit		= _func,		\
+		.dumpit		= NULL,			\
+		.flags		= GENL_ADMIN_PERM,	\
+		.validate	= GENL_DONT_VALIDATE_STRICT,\
+	}
+
 #define IEEE802154_DUMP(_cmd, _func, _dump)		\
 	{						\
 		.cmd	= _cmd,				\
 		.doit	= _func,			\
 		.dumpit	= _dump,			\
+	}
+
+#define IEEE802154_DUMP_PRIV(_cmd, _func, _dump)	\
+	{						\
+		.cmd	= _cmd,				\
+		.doit	= _func,			\
+		.dumpit	= _dump,			\
+		.flags	= GENL_ADMIN_PERM,		\
 	}
 
 struct genl_info;

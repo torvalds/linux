@@ -359,7 +359,7 @@ struct kvm_s390_float_interrupt {
 	struct kvm_s390_mchk_info mchk;
 	struct kvm_s390_ext_info srv_signal;
 	int last_sleep_cpu;
-	struct mutex ais_lock;
+	spinlock_t ais_lock;
 	u8 simm;
 	u8 nimm;
 };
@@ -448,6 +448,12 @@ struct kvm_vcpu_arch {
 struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
 	u64 inject_io;
+	u64 io_390_adapter_map;
+	u64 io_390_adapter_unmap;
+	u64 io_390_inatomic;
+	u64 io_flic_inject_airq;
+	u64 io_set_adapter_int;
+	u64 io_390_inatomic_no_inject;
 	u64 inject_float_mchk;
 	u64 inject_pfault_done;
 	u64 inject_service_signal;
@@ -479,6 +485,9 @@ struct s390_io_adapter {
 	bool masked;
 	bool swap;
 	bool suppressible;
+	spinlock_t maps_lock;
+	struct list_head maps;
+	unsigned int nr_maps;
 };
 
 #define MAX_S390_IO_ADAPTERS ((MAX_ISC + 1) * 8)
@@ -502,6 +511,18 @@ struct kvm_s390_cpu_model {
 	unsigned short ibc;
 	/* subset of available UV-features for pv-guests enabled by user space */
 	struct kvm_s390_vm_cpu_uv_feat uv_feat_guest;
+};
+
+#define S390_ARCH_FAC_FORMAT_2 2
+struct kvm_s390_flcb2 {
+	union {
+		struct {
+			u8 reserved0[7];
+			u8 length;
+		};
+		u64 header_val;
+	};
+	u64 facilities[S390_ARCH_FAC_LIST_SIZE_U64];
 };
 
 typedef int (*crypto_hook)(struct kvm_vcpu *vcpu);

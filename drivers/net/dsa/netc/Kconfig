@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_NETC_SWITCH
+	tristate "NXP NETC Ethernet switch support"
+	depends on ARM64 || COMPILE_TEST
+	depends on NET_DSA && PCI
+	depends on NET_VENDOR_FREESCALE
+	select NET_DSA_TAG_NETC
+	select FSL_ENETC_MDIO
+	select NXP_NTMP
+	select NXP_NETC_LIB
+	help
+	  This driver supports the NXP NETC Ethernet switch, which is embedded
+	  as a PCIe function of the NXP NETC IP. But note that this driver is
+	  only available for NETC v4.3 and later versions.
+
+	  If compiled as module (M), the module name is nxp-netc-switch.

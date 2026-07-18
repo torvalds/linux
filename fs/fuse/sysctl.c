@@ -6,6 +6,7 @@
  */
 #include <linux/sysctl.h>
 
+#include "sysctl.h"
 #include "fuse_i.h"
 
 static struct ctl_table_header *fuse_table_header;

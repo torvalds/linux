@@ -319,7 +319,7 @@ static int isl76682_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl76682_id[] = {
-	{ "isl76682" },
+	{ .name = "isl76682" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isl76682_id);

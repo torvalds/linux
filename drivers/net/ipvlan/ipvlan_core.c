@@ -286,7 +286,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 				if (tx_pkt)
 					ret = dev_forward_skb(ipvlan->dev, nskb);
 				else
-					ret = netif_rx(nskb);
+					ret = netif_receive_skb(nskb);
 			}
 			ipvlan_count_rx(ipvlan, len, ret == NET_RX_SUCCESS, true);
 			local_bh_enable();

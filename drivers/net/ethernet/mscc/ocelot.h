@@ -92,7 +92,7 @@ int ocelot_mact_learn(struct ocelot *ocelot, int port,
 int ocelot_mact_forget(struct ocelot *ocelot,
 		       const unsigned char mac[ETH_ALEN], unsigned int vid);
 struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port);
-int ocelot_netdev_to_port(struct net_device *dev);
+int ocelot_netdev_to_port(struct ocelot *ocelot, struct net_device *dev);
 
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 		      struct device_node *portnp);

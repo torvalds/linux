@@ -64,7 +64,7 @@ check_operstate()
 	local expect=$1; shift
 	local operstate
 
-	operstate=$(busywait 1000 \
+	operstate=$(busywait 2000 \
 			operstate_is "$dev" "$expect")
 	check_err $? "Got operstate of $operstate, expected $expect"
 }

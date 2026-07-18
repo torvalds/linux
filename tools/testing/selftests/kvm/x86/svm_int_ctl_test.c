@@ -82,7 +82,7 @@ static void l1_guest_code(struct svm_test_data *svm)
 int main(int argc, char *argv[])
 {
 	struct kvm_vcpu *vcpu;
-	vm_vaddr_t svm_gva;
+	gva_t svm_gva;
 	struct kvm_vm *vm;
 	struct ucall uc;
 

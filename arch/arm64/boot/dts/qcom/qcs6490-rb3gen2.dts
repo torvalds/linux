@@ -44,6 +44,14 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	clocks {
+		mcp2518fd_osc: can-clk {
+			compatible = "fixed-clock";
+			clock-frequency = <40000000>;
+			#clock-cells = <0>;
+		};
+	};
+
 	dp-connector {
 		compatible = "dp-connector";
 		label = "DP";
@@ -156,6 +164,15 @@
 		debug_vm_mem: debug-vm@d0600000 {
 			reg = <0x0 0xd0600000 0x0 0x100000>;
 			no-map;
+		};
+
+		rmtfs_mem: memory@f8500000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0 0xf8500000 0x0 0x600000>;
+			no-map;
+
+			qcom,client-id = <1>;
+			qcom,vmid = <QCOM_SCM_VMID_MSS_MSA>, <QCOM_SCM_VMID_NAV>;
 		};
 	};
 
@@ -1205,6 +1222,20 @@
 		platform {
 			sound-dai = <&q6apm>;
 		};
+	};
+};
+
+&spi3 {
+	status = "okay";
+
+	can@0 {
+		compatible = "microchip,mcp2518fd";
+		reg = <0>;
+		interrupts-extended = <&tlmm 7 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&mcp2518fd_osc>;
+		spi-max-frequency = <14000000>;
+		vdd-supply = <&vreg_l11c_2p8>;
+		microchip,xstbyen;
 	};
 };
 

@@ -20,22 +20,12 @@
 #include "lnl.h"
 #include <sound/hda-mlink.h>
 
-/* this helps allows the DSP to setup DMIC/SSP */
-static int hdac_bus_offload_dmic_ssp(struct hdac_bus *bus, bool enable)
+/* Configure DSP offload for DMIC/SSP/UAOL */
+static void hdac_bus_set_dsp_offload(struct hdac_bus *bus, bool enable)
 {
-	int ret;
-
-	ret = hdac_bus_eml_enable_offload(bus, true,
-					  AZX_REG_ML_LEPTR_ID_INTEL_SSP, enable);
-	if (ret < 0)
-		return ret;
-
-	ret = hdac_bus_eml_enable_offload(bus, true,
-					  AZX_REG_ML_LEPTR_ID_INTEL_DMIC, enable);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	hdac_bus_eml_enable_offload(bus, true, AZX_REG_ML_LEPTR_ID_INTEL_SSP, enable);
+	hdac_bus_eml_enable_offload(bus, true, AZX_REG_ML_LEPTR_ID_INTEL_DMIC, enable);
+	hdac_bus_eml_enable_offload(bus, true, AZX_REG_ML_LEPTR_ID_INTEL_UAOL, enable);
 }
 
 static int lnl_hda_dsp_probe(struct snd_sof_dev *sdev)
@@ -46,18 +36,14 @@ static int lnl_hda_dsp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
+	hdac_bus_set_dsp_offload(sof_to_bus(sdev), true);
+
+	return 0;
 }
 
 static void lnl_hda_dsp_remove(struct snd_sof_dev *sdev)
 {
-	int ret;
-
-	ret = hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), false);
-	if (ret < 0)
-		dev_warn(sdev->dev,
-			 "Failed to disable offload for DMIC/SSP: %d\n", ret);
-
+	hdac_bus_set_dsp_offload(sof_to_bus(sdev), false);
 	hda_dsp_remove(sdev);
 }
 
@@ -69,7 +55,9 @@ static int lnl_hda_dsp_resume(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
+	hdac_bus_set_dsp_offload(sof_to_bus(sdev), true);
+
+	return 0;
 }
 
 static int lnl_hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
@@ -80,7 +68,9 @@ static int lnl_hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	return hdac_bus_offload_dmic_ssp(sof_to_bus(sdev), true);
+	hdac_bus_set_dsp_offload(sof_to_bus(sdev), true);
+
+	return 0;
 }
 
 static int lnl_dsp_post_fw_run(struct snd_sof_dev *sdev)

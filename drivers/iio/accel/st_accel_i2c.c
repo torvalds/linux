@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -138,32 +137,32 @@ static const struct acpi_device_id st_accel_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, st_accel_acpi_match);
 
 static const struct i2c_device_id st_accel_id_table[] = {
-	{ LSM303DLH_ACCEL_DEV_NAME },
-	{ LSM303DLHC_ACCEL_DEV_NAME },
-	{ LIS3DH_ACCEL_DEV_NAME },
-	{ LSM330D_ACCEL_DEV_NAME },
-	{ LSM330DL_ACCEL_DEV_NAME },
-	{ LSM330DLC_ACCEL_DEV_NAME },
-	{ LIS331DLH_ACCEL_DEV_NAME },
-	{ LSM303DL_ACCEL_DEV_NAME },
-	{ LSM303DLM_ACCEL_DEV_NAME },
-	{ LSM330_ACCEL_DEV_NAME },
-	{ LSM303AGR_ACCEL_DEV_NAME },
-	{ LIS2DH12_ACCEL_DEV_NAME },
-	{ LIS3L02DQ_ACCEL_DEV_NAME },
-	{ LNG2DM_ACCEL_DEV_NAME },
-	{ H3LIS331DL_ACCEL_DEV_NAME },
-	{ LIS331DL_ACCEL_DEV_NAME },
-	{ LIS3LV02DL_ACCEL_DEV_NAME },
-	{ LIS2DW12_ACCEL_DEV_NAME },
-	{ LIS3DE_ACCEL_DEV_NAME },
-	{ LIS2DE12_ACCEL_DEV_NAME },
-	{ LIS2DS12_ACCEL_DEV_NAME },
-	{ LIS2HH12_ACCEL_DEV_NAME },
-	{ LIS302DL_ACCEL_DEV_NAME },
-	{ LSM303C_ACCEL_DEV_NAME },
-	{ SC7A20_ACCEL_DEV_NAME },
-	{ IIS328DQ_ACCEL_DEV_NAME },
+	{ .name = LSM303DLH_ACCEL_DEV_NAME },
+	{ .name = LSM303DLHC_ACCEL_DEV_NAME },
+	{ .name = LIS3DH_ACCEL_DEV_NAME },
+	{ .name = LSM330D_ACCEL_DEV_NAME },
+	{ .name = LSM330DL_ACCEL_DEV_NAME },
+	{ .name = LSM330DLC_ACCEL_DEV_NAME },
+	{ .name = LIS331DLH_ACCEL_DEV_NAME },
+	{ .name = LSM303DL_ACCEL_DEV_NAME },
+	{ .name = LSM303DLM_ACCEL_DEV_NAME },
+	{ .name = LSM330_ACCEL_DEV_NAME },
+	{ .name = LSM303AGR_ACCEL_DEV_NAME },
+	{ .name = LIS2DH12_ACCEL_DEV_NAME },
+	{ .name = LIS3L02DQ_ACCEL_DEV_NAME },
+	{ .name = LNG2DM_ACCEL_DEV_NAME },
+	{ .name = H3LIS331DL_ACCEL_DEV_NAME },
+	{ .name = LIS331DL_ACCEL_DEV_NAME },
+	{ .name = LIS3LV02DL_ACCEL_DEV_NAME },
+	{ .name = LIS2DW12_ACCEL_DEV_NAME },
+	{ .name = LIS3DE_ACCEL_DEV_NAME },
+	{ .name = LIS2DE12_ACCEL_DEV_NAME },
+	{ .name = LIS2DS12_ACCEL_DEV_NAME },
+	{ .name = LIS2HH12_ACCEL_DEV_NAME },
+	{ .name = LIS302DL_ACCEL_DEV_NAME },
+	{ .name = LSM303C_ACCEL_DEV_NAME },
+	{ .name = SC7A20_ACCEL_DEV_NAME },
+	{ .name = IIS328DQ_ACCEL_DEV_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);

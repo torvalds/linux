@@ -703,7 +703,7 @@ xfs_vn_getattr(
 	stat->nlink = inode->i_nlink;
 	stat->uid = vfsuid_into_kuid(vfsuid);
 	stat->gid = vfsgid_into_kgid(vfsgid);
-	stat->ino = ip->i_ino;
+	stat->ino = inode->i_ino;
 	stat->atime = inode_get_atime(inode);
 
 	fill_mg_cmtime(stat, request_mask, inode);
@@ -1423,7 +1423,6 @@ xfs_setup_inode(
 	gfp_t			gfp_mask;
 	bool			is_meta = xfs_is_internal_inode(ip);
 
-	inode->i_ino = ip->i_ino;
 	inode_state_set_raw(inode, I_NEW);
 
 	inode_sb_list_add(inode);

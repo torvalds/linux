@@ -301,7 +301,7 @@ xfs_dir2_block_to_sf(
 		 * Skip .
 		 */
 		if (dep->namelen == 1 && dep->name[0] == '.')
-			ASSERT(be64_to_cpu(dep->inumber) == dp->i_ino);
+			ASSERT(be64_to_cpu(dep->inumber) == I_INO(dp));
 		/*
 		 * Skip .., but make sure the inode number is right.
 		 */
@@ -863,7 +863,7 @@ xfs_dir2_sf_lookup(
 	 * Special case for .
 	 */
 	if (args->namelen == 1 && args->name[0] == '.') {
-		args->inumber = dp->i_ino;
+		args->inumber = I_INO(dp);
 		args->cmpresult = XFS_CMP_EXACT;
 		args->filetype = XFS_DIR3_FT_DIR;
 		return -EEXIST;

@@ -58,7 +58,7 @@ static void tpr_guest_irq_queue(void)
 	if (is_x2apic) {
 		x2apic_write_reg(APIC_SELF_IPI, IRQ_VECTOR);
 	} else {
-		uint32_t icr, icr2;
+		u32 icr, icr2;
 
 		icr = APIC_DEST_SELF | APIC_DEST_PHYSICAL | APIC_DM_FIXED |
 			IRQ_VECTOR;
@@ -69,9 +69,9 @@ static void tpr_guest_irq_queue(void)
 	}
 }
 
-static uint8_t tpr_guest_tpr_get(void)
+static u8 tpr_guest_tpr_get(void)
 {
-	uint32_t taskpri;
+	u32 taskpri;
 
 	if (is_x2apic)
 		taskpri = x2apic_read_reg(APIC_TASKPRI);
@@ -81,9 +81,9 @@ static uint8_t tpr_guest_tpr_get(void)
 	return GET_APIC_PRI(taskpri);
 }
 
-static uint8_t tpr_guest_ppr_get(void)
+static u8 tpr_guest_ppr_get(void)
 {
-	uint32_t procpri;
+	u32 procpri;
 
 	if (is_x2apic)
 		procpri = x2apic_read_reg(APIC_PROCPRI);
@@ -93,9 +93,9 @@ static uint8_t tpr_guest_ppr_get(void)
 	return GET_APIC_PRI(procpri);
 }
 
-static uint8_t tpr_guest_cr8_get(void)
+static u8 tpr_guest_cr8_get(void)
 {
-	uint64_t cr8;
+	u64 cr8;
 
 	asm volatile ("mov %%cr8, %[cr8]\n\t" : [cr8] "=r"(cr8));
 
@@ -104,7 +104,7 @@ static uint8_t tpr_guest_cr8_get(void)
 
 static void tpr_guest_check_tpr_ppr_cr8_equal(void)
 {
-	uint8_t tpr;
+	u8 tpr;
 
 	tpr = tpr_guest_tpr_get();
 
@@ -157,19 +157,19 @@ static void tpr_guest_code(void)
 	GUEST_DONE();
 }
 
-static uint8_t lapic_tpr_get(struct kvm_lapic_state *xapic)
+static u8 lapic_tpr_get(struct kvm_lapic_state *xapic)
 {
 	return GET_APIC_PRI(*((u32 *)&xapic->regs[APIC_TASKPRI]));
 }
 
-static void lapic_tpr_set(struct kvm_lapic_state *xapic, uint8_t val)
+static void lapic_tpr_set(struct kvm_lapic_state *xapic, u8 val)
 {
 	u32 *taskpri = (u32 *)&xapic->regs[APIC_TASKPRI];
 
 	*taskpri = SET_APIC_PRI(*taskpri, val);
 }
 
-static uint8_t sregs_tpr(struct kvm_sregs *sregs)
+static u8 sregs_tpr(struct kvm_sregs *sregs)
 {
 	return sregs->cr8 & GENMASK(3, 0);
 }
@@ -197,7 +197,7 @@ static void test_tpr_check_tpr_cr8_equal(struct kvm_vcpu *vcpu)
 static void test_tpr_set_tpr_for_irq(struct kvm_vcpu *vcpu, bool mask)
 {
 	struct kvm_lapic_state xapic;
-	uint8_t tpr;
+	u8 tpr;
 
 	static_assert(IRQ_VECTOR >= 16, "invalid IRQ vector number");
 	tpr = IRQ_VECTOR / 16;

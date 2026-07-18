@@ -173,7 +173,7 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 		count = strlen(msg);
 
 	/* if the string ends with a newline, trim it */
-	if (msg[count - 1] == '\n')
+	if (count && msg[count - 1] == '\n')
 		count--;
 
 	if (!count) {

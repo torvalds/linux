@@ -21,7 +21,6 @@
 #include "intel_display_utils.h"
 #include "intel_display_wa.h"
 #include "intel_fb.h"
-#include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
 #include "intel_plane.h"
 #include "intel_psr.h"
@@ -877,7 +876,7 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	new_plane_state->uapi.crtc_w = crtc_w;
 	new_plane_state->uapi.crtc_h = crtc_h;
 
-	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state, crtc);
+	intel_plane_copy_uapi_to_hw_state(NULL, new_plane_state, new_plane_state, crtc);
 
 	ret = intel_plane_atomic_check_with_state(crtc_state, new_crtc_state,
 						  old_plane_state, new_plane_state);

@@ -804,7 +804,7 @@ static void usb9pfs_attr_release(struct config_item *item)
 	usb_put_function_instance(&usb9pfs_opts->func_inst);
 }
 
-static struct configfs_item_operations usb9pfs_item_ops = {
+static const struct configfs_item_operations usb9pfs_item_ops = {
 	.release		= usb9pfs_attr_release,
 };
 

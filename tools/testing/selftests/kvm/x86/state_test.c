@@ -144,8 +144,8 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 	GUEST_SYNC(1);
 
 	if (this_cpu_has(X86_FEATURE_XSAVE)) {
-		uint64_t supported_xcr0 = this_cpu_supported_xcr0();
-		uint8_t buffer[PAGE_SIZE];
+		u64 supported_xcr0 = this_cpu_supported_xcr0();
+		u8 buffer[PAGE_SIZE];
 
 		memset(buffer, 0xcc, sizeof(buffer));
 
@@ -172,8 +172,8 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 		}
 
 		if (this_cpu_has(X86_FEATURE_MPX)) {
-			uint64_t bounds[2] = { 10, 0xffffffffull };
-			uint64_t output[2] = { };
+			u64 bounds[2] = { 10, 0xffffffffull };
+			u64 output[2] = { };
 
 			GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_BNDREGS);
 			GUEST_ASSERT(supported_xcr0 & XFEATURE_MASK_BNDCSR);
@@ -257,8 +257,8 @@ void check_nested_state(int stage, struct kvm_x86_state *state)
 
 int main(int argc, char *argv[])
 {
-	uint64_t *xstate_bv, saved_xstate_bv;
-	vm_vaddr_t nested_gva = 0;
+	u64 *xstate_bv, saved_xstate_bv;
+	gva_t nested_gva = 0;
 	struct kvm_cpuid2 empty_cpuid = {};
 	struct kvm_regs regs1, regs2;
 	struct kvm_vcpu *vcpu, *vcpuN;
@@ -331,7 +331,7 @@ int main(int argc, char *argv[])
 		 * supported features, even if something goes awry in saving
 		 * the original snapshot.
 		 */
-		xstate_bv = (void *)&((uint8_t *)state->xsave->region)[512];
+		xstate_bv = (void *)&((u8 *)state->xsave->region)[512];
 		saved_xstate_bv = *xstate_bv;
 
 		vcpuN = __vm_vcpu_add(vm, vcpu->id + 1);

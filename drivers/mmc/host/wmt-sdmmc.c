@@ -744,6 +744,7 @@ static const struct of_device_id wmt_mci_dt_ids[] = {
 	{ .compatible = "wm,wm8505-sdhc", .data = &wm8505_caps },
 	{ /* Sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, wmt_mci_dt_ids);
 
 static int wmt_mci_probe(struct platform_device *pdev)
 {
@@ -980,4 +981,3 @@ module_platform_driver(wmt_mci_driver);
 MODULE_DESCRIPTION("Wondermedia MMC/SD Driver");
 MODULE_AUTHOR("Tony Prisk");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, wmt_mci_dt_ids);

@@ -44,7 +44,9 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.interdependent_update_lock = dcn401_interdependent_update_lock,
 	.cursor_lock = dcn10_cursor_lock,
 	.prepare_bandwidth = dcn401_prepare_bandwidth,
+	.prepare_bandwidth_sequence = dcn401_prepare_bandwidth_sequence,
 	.optimize_bandwidth = dcn401_optimize_bandwidth,
+	.optimize_bandwidth_sequence = dcn401_optimize_bandwidth_sequence,
 	.update_bandwidth = dcn401_update_bandwidth,
 	.set_drr = dcn10_set_drr,
 	.get_position = dcn10_get_position,
@@ -84,6 +86,7 @@ static const struct hw_sequencer_funcs dcn401_funcs = {
 	.set_flip_control_gsl = dcn20_set_flip_control_gsl,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
+	.setup_hdmi_frl_link = dcn30_setup_hdmi_frl_link,
 	.apply_idle_power_optimizations = dcn401_apply_idle_power_optimizations,
 	.does_plane_fit_in_mall = NULL,
 	.set_backlight_level = dcn31_set_backlight_level,
@@ -167,6 +170,8 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.perform_3dlut_wa_unlock = dcn401_perform_3dlut_wa_unlock,
 	.program_pipe_sequence = dcn401_program_pipe_sequence,
 	.dc_ip_request_cntl = dcn401_dc_ip_request_cntl,
+	.wait_for_pipe_update_if_needed = dcn10_wait_for_pipe_update_if_needed,
+	.set_wait_for_update_needed_for_pipe = dcn10_set_wait_for_update_needed_for_pipe,
 };
 
 void dcn401_hw_sequencer_init_functions(struct dc *dc)

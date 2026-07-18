@@ -6,7 +6,6 @@
 #include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -154,7 +153,7 @@ static int tegra186_mc_probe_device(struct tegra_mc *mc, struct device *dev)
 	return 0;
 }
 
-static int tegra186_mc_resume(struct tegra_mc *mc)
+static void tegra186_mc_resume(struct tegra_mc *mc)
 {
 #if IS_ENABLED(CONFIG_IOMMU_API)
 	unsigned int i;
@@ -165,8 +164,6 @@ static int tegra186_mc_resume(struct tegra_mc *mc)
 		tegra186_mc_client_sid_override(mc, client, client->sid);
 	}
 #endif
-
-	return 0;
 }
 
 const struct tegra_mc_ops tegra186_mc_ops = {

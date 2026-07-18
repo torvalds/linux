@@ -9,7 +9,6 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pm_runtime.h>
 #include <sound/soc.h>
 
@@ -49,9 +48,9 @@ static const struct of_device_id cs42xx8_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs42xx8_of_match);
 
 static const struct i2c_device_id cs42xx8_i2c_id[] = {
-	{"cs42448", (kernel_ulong_t)&cs42448_data},
-	{"cs42888", (kernel_ulong_t)&cs42888_data},
-	{}
+	{ .name = "cs42448", .driver_data = (kernel_ulong_t)&cs42448_data },
+	{ .name = "cs42888", .driver_data = (kernel_ulong_t)&cs42888_data },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs42xx8_i2c_id);
 

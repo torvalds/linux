@@ -9,7 +9,6 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 #include <linux/iio/sysfs.h>
@@ -580,8 +579,8 @@ static const struct of_device_id mxc4005_of_match[] = {
 MODULE_DEVICE_TABLE(of, mxc4005_of_match);
 
 static const struct i2c_device_id mxc4005_id[] = {
-	{ "mxc4005" },
-	{ "mxc6655" },
+	{ .name = "mxc4005" },
+	{ .name = "mxc6655" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mxc4005_id);

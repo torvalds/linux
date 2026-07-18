@@ -11,3 +11,22 @@
 		     "microchip,mpfs-icicle-kit",
 		     "microchip,mpfs";
 };
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_fabric>;
+};
+
+/*
+ * Due to silicon errata, routing via MSS IOs doesn't work on ES devices.
+ * Instead, i2c1, appearing on B1/C1, which are normally MSS IOs, is routed
+ * via the fabric and back to B1/C1 via "fabric-test" functionality.
+ * This is done silently by Libero, so the iomux0 setting for i2c1 has to
+ * be fabric IO, despite tooling etc saying that MSS IOs are used.
+ *
+ * See Section 3.3 of https://ww1.microchip.com/downloads/aemDocuments/documents/FPGA/ProductDocuments/Errata/polarfiresoc/microsemi_polarfire_soc_fpga_egineering_samples_errata_er0219_v1.pdf
+ */
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_fabric>;
+};

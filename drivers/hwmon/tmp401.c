@@ -90,11 +90,11 @@ static const u8 TMP432_STATUS_REG[] = {
  */
 
 static const struct i2c_device_id tmp401_id[] = {
-	{ "tmp401", tmp401 },
-	{ "tmp411", tmp411 },
-	{ "tmp431", tmp431 },
-	{ "tmp432", tmp432 },
-	{ "tmp435", tmp435 },
+	{ .name = "tmp401", .driver_data = tmp401 },
+	{ .name = "tmp411", .driver_data = tmp411 },
+	{ .name = "tmp431", .driver_data = tmp431 },
+	{ .name = "tmp432", .driver_data = tmp432 },
+	{ .name = "tmp435", .driver_data = tmp435 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp401_id);
@@ -560,7 +560,7 @@ static int tmp401_init_client(struct tmp401_data *data)
 			return ret;
 	}
 
-	ret = of_property_read_u32(data->client->dev.of_node, "ti,n-factor", &nfactor);
+	ret = of_property_read_s32(data->client->dev.of_node, "ti,n-factor", &nfactor);
 	if (!ret) {
 		if (data->kind == tmp401) {
 			dev_err(&data->client->dev, "ti,tmp401 does not support n-factor correction\n");

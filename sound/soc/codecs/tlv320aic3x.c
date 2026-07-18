@@ -1049,11 +1049,13 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
 {
+	static const u8 dual_rate_q[] = {4, 8, 9, 12, 16};
 	struct snd_soc_component *component = dai->component;
 	struct aic3x_priv *aic3x = snd_soc_component_get_drvdata(component);
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
 	u16 d, pll_d = 1;
+	bool dual_rate;
 	int clk;
 	int width = aic3x->slot_width;
 
@@ -1079,14 +1081,25 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 
 	/* Fsref can be 44100 or 48000 */
 	fsref = (params_rate(params) % 11025 == 0) ? 44100 : 48000;
+	dual_rate = params_rate(params) >= 64000;
 
 	/* Try to find a value for Q which allows us to bypass the PLL and
 	 * generate CODEC_CLK directly. */
-	for (pll_q = 2; pll_q < 18; pll_q++)
-		if (aic3x->sysclk / (128 * pll_q) == fsref) {
-			bypass_pll = 1;
-			break;
+	if (dual_rate) {
+		for (int i = 0; i < ARRAY_SIZE(dual_rate_q); i++) {
+			pll_q = dual_rate_q[i];
+			if (aic3x->sysclk / (128 * pll_q) == fsref) {
+				bypass_pll = 1;
+				break;
+			}
 		}
+	} else {
+		for (pll_q = 2; pll_q < 18; pll_q++)
+			if (aic3x->sysclk / (128 * pll_q) == fsref) {
+				bypass_pll = 1;
+				break;
+			}
+	}
 
 	if (bypass_pll) {
 		pll_q &= 0xf;
@@ -1106,13 +1119,13 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	 * right DAC to right channel input */
 	data = (LDAC2LCH | RDAC2RCH);
 	data |= (fsref == 44100) ? FSREF_44100 : FSREF_48000;
-	if (params_rate(params) >= 64000)
+	if (dual_rate)
 		data |= DUAL_RATE_MODE;
 	snd_soc_component_write(component, AIC3X_CODEC_DATAPATH_REG, data);
 
 	/* codec sample rate select */
 	data = (fsref * 20) / params_rate(params);
-	if (params_rate(params) < 64000)
+	if (!dual_rate)
 		data /= 2;
 	data /= 5;
 	data -= 2;
@@ -1689,8 +1702,15 @@ static int aic3x_component_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static int aic3x_of_xlate_dai_id(struct snd_soc_component *component,
+				   struct device_node *endpoint)
+{
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_dev_aic3x = {
 	.set_bias_level		= aic3x_set_bias_level,
+	.of_xlate_dai_id	= aic3x_of_xlate_dai_id,
 	.probe			= aic3x_component_probe,
 	.controls		= aic3x_snd_controls,
 	.num_controls		= ARRAY_SIZE(aic3x_snd_controls),

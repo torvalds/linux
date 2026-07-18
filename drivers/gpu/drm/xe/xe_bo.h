@@ -251,7 +251,7 @@ static inline bool xe_bo_is_protected(const struct xe_bo *bo)
 static inline bool xe_bo_is_purged(struct xe_bo *bo)
 {
 	xe_bo_assert_held(bo);
-	return bo->madv_purgeable == XE_MADV_PURGEABLE_PURGED;
+	return bo->purgeable.state == XE_MADV_PURGEABLE_PURGED;
 }
 
 /**
@@ -268,10 +268,94 @@ static inline bool xe_bo_is_purged(struct xe_bo *bo)
 static inline bool xe_bo_madv_is_dontneed(struct xe_bo *bo)
 {
 	xe_bo_assert_held(bo);
-	return bo->madv_purgeable == XE_MADV_PURGEABLE_DONTNEED;
+	return bo->purgeable.state == XE_MADV_PURGEABLE_DONTNEED;
 }
 
 void xe_bo_set_purgeable_state(struct xe_bo *bo, enum xe_madv_purgeable_state new_state);
+
+/**
+ * xe_bo_willneed_get_locked() - Acquire a WILLNEED holder on a BO
+ * @bo: Buffer object
+ *
+ * Increments willneed_count and, on a 0->1 transition, promotes the BO
+ * from DONTNEED to WILLNEED. PURGED is terminal and is never modified.
+ *
+ * Caller must hold the BO's dma-resv lock.
+ */
+static inline void xe_bo_willneed_get_locked(struct xe_bo *bo)
+{
+	xe_bo_assert_held(bo);
+
+	/* Imported BOs are owned externally; do not track purgeability. */
+	if (drm_gem_is_imported(&bo->ttm.base))
+		return;
+
+	if (bo->purgeable.willneed_count++ == 0 && xe_bo_madv_is_dontneed(bo))
+		xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_WILLNEED);
+}
+
+/**
+ * xe_bo_willneed_put_locked() - Release a WILLNEED holder on a BO
+ * @bo: Buffer object
+ *
+ * Decrements willneed_count and, on a 1->0 transition, marks the BO
+ * DONTNEED only if it still has VMAs (implying all active VMAs are
+ * DONTNEED). If the last VMA is being removed, preserve the current BO
+ * state to match the previous VMA-walk semantics.
+ *
+ * PURGED is terminal and the BO state is never modified.
+ *
+ * Caller must hold the BO's dma-resv lock.
+ */
+static inline void xe_bo_willneed_put_locked(struct xe_bo *bo)
+{
+	xe_bo_assert_held(bo);
+
+	if (drm_gem_is_imported(&bo->ttm.base))
+		return;
+
+	xe_assert(xe_bo_device(bo), bo->purgeable.willneed_count > 0);
+	if (--bo->purgeable.willneed_count == 0 && bo->purgeable.vma_count > 0 &&
+	    !xe_bo_is_purged(bo))
+		xe_bo_set_purgeable_state(bo, XE_MADV_PURGEABLE_DONTNEED);
+}
+
+/**
+ * xe_bo_vma_count_inc_locked() - Account a new VMA on a BO
+ * @bo: Buffer object
+ *
+ * Increments vma_count.
+ *
+ * Caller must hold the BO's dma-resv lock.
+ */
+static inline void xe_bo_vma_count_inc_locked(struct xe_bo *bo)
+{
+	xe_bo_assert_held(bo);
+
+	if (drm_gem_is_imported(&bo->ttm.base))
+		return;
+
+	bo->purgeable.vma_count++;
+}
+
+/**
+ * xe_bo_vma_count_dec_locked() - Account a VMA removal on a BO
+ * @bo: Buffer object
+ *
+ * Decrements vma_count.
+ *
+ * Caller must hold the BO's dma-resv lock.
+ */
+static inline void xe_bo_vma_count_dec_locked(struct xe_bo *bo)
+{
+	xe_bo_assert_held(bo);
+
+	if (drm_gem_is_imported(&bo->ttm.base))
+		return;
+
+	xe_assert(xe_bo_device(bo), bo->purgeable.vma_count > 0);
+	bo->purgeable.vma_count--;
+}
 
 static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
 {

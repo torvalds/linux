@@ -1,5 +1,141 @@
 [
     {
+        "BriefDescription": "Counts the number of requests that were not accepted into the L2Q because the L2Q is FULL.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x31",
+        "EventName": "CORE_REJECT_L2Q.ANY",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full condition which likely indicates back pressure from L2Q. It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link. The L2Q may also reject transactions from a core to ensure fairness between cores, or to delay a core's dirty eviction when the address conflicts with incoming external snoops. Note that L2 prefetcher requests that are dropped are not counted by this event. Counts on a per core basis.",
+        "SampleAfterValue": "1000003"
+    },
+    {
+        "BriefDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x30",
+        "EventName": "L2_REJECT_XQ.ANY",
+        "PublicDescription": "Counts the number of demand and prefetch transactions that the External Queue (XQ) rejects due to a full or near full condition which likely indicates back pressure from the IDI link.  The IDI link is a central on-die protocol for memory and coherence traffic between the core and the uncore. It is highly optimized for efficiency, bandwidth, and coherency, using multiple channels and flow control mechanisms to manage high-throughput, low-latency data and protocol communication within the chip. The XQ may reject transactions from the L2Q (non-cacheable requests), BBL (L2 misses) and WOB (L2 write-back victims).",
+        "SampleAfterValue": "1000003"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door requests for Code Read, Data Read, RFO, ITOM, and L2 Prefetches. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1ff"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Code Read requests. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_CODE_RD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xc4"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Code Read requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_CODE_RD_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x84"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Code Read requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_CODE_RD_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x44"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Data Read requests. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_DATA_RD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xc1"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Data Read requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_DATA_RD_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x81"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand Data Read requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_DATA_RD_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand RFO requests. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_RFO",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xc2"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand RFO requests that resulted in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_RFO_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x82"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Demand RFO requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.DEMAND_RFO_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door requests that resulted in a Hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1bf"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests, including hits and misses. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HWPF",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xc8"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests that result in a hit. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HWPF_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x88"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door Hardware Prefetch requests that result in a miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.HWPF_MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x48"
+    },
+    {
+        "BriefDescription": "Counts the number of L2 cache accesses from front door requests that resulted in a Miss. Does not include rejects or recycles, per core event.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x24",
+        "EventName": "L2_REQUEST.MISS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x17f"
+    },
+    {
         "BriefDescription": "Counts the number of cacheable memory requests that miss in the LLC. Counts on a per core basis.",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
@@ -16,6 +152,231 @@
         "PublicDescription": "Counts the number of cacheable memory requests that access the Last Level Cache (LLC). Requests include demand loads, reads for ownership (RFO), instruction fetches and L1 HW prefetches. If the core has access to an L3 cache, the LLC is the L3 cache, otherwise it is the L2 cache. Counts on a per core basis.",
         "SampleAfterValue": "1000003",
         "UMask": "0x4f"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles the core is stalled due to a demand load which hit in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.L2_HIT",
+        "PublicDescription": "Counts the number of cycles a core is stalled due to a demand load which hit in the L2 cache.",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which hit in the LLC.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_HIT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x6"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which hit in the LLC, no snoop was required. LLC provided data.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_HIT_NOSNOOP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which hit in the LLC, a snoop was required, the snoop misses  or the snoop hits but no fwd. LLC provides the data.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_HIT_SNOOP",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which missed all the caches.  DRAM, MMIO or other LOCAL memory type provides the data.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_LOCALMEM",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Counts the number of unhalted cycles when the core is stalled due to a demand load miss which missed all the caches, a snoop was required, and hits in other core or module on same die.  Another core provides the data with a fwd, no fwd, or hitM.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x34",
+        "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS_OTHERMOD",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Counts the total number of load ops retired that miss the L3 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.ALL",
+        "PublicDescription": "Counts the total number of load ops retired that miss the L3 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xff"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss the L3 cache and hit in DRAM",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.LOCAL_DRAM",
+        "PublicDescription": "Counts the number of load ops retired that miss the L3 cache and hit in DRAM Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote DRAM",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.REMOTE_DRAM_OR_NOFWD",
+        "PublicDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote DRAM, OR had a Remote snoop miss/no fwd and hit in the Local DRAM. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote Cache and modified data was forwarded",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.REMOTE_FWD_HITM",
+        "PublicDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote Cache and modified data was forwarded Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote Cache and non-modified data was forwarded",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd3",
+        "EventName": "MEM_LOAD_UOPS_L3_MISS_RETIRED.REMOTE_FWD_NONM",
+        "PublicDescription": "Counts the number of load ops retired that miss the L3 cache and hit in a Remote Cache and non-modified data was forwarded Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and modified data was forwarded.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_UOPS_MISC_RETIRED.L3_HIT_SNOOP_HITM",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and modified data was forwarded. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and no data was forwarded.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_UOPS_MISC_RETIRED.L3_HIT_SNOOP_NO_FWD",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and no data was forwarded. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and non-modified data was forwarded.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd4",
+        "EventName": "MEM_LOAD_UOPS_MISC_RETIRED.L3_HIT_SNOOP_WITH_FWD",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and non-modified data was forwarded. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit the L1 data cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit the L1 data cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss in the L1 data cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L1_MISS",
+        "PublicDescription": "Counts the number of load ops retired that miss in the L1 data cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L2 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that miss in the L2 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L2_MISS",
+        "PublicDescription": "Counts the number of load ops retired that miss in the L2 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x80"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1c"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which no snoop was required.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT_NO_SNOOP",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which no snoop was required. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and it hit and forwarded data, it hit and did not forward data, or it hit and the forwarded data was modified.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd1",
+        "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT_SNOOP_HIT",
+        "PublicDescription": "Counts the number of load ops retired that hit in the L3 cache in which a snoop was required and it hit and forwarded data, it hit and did not forward data, or it hit and the forwarded data was modified. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles that uops are blocked for any of the following reasons:  load buffer, store buffer or RSV full.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x04",
+        "EventName": "MEM_SCHEDULER_BLOCK.ALL",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x7"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles that uops are blocked due to a load buffer full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x04",
+        "EventName": "MEM_SCHEDULER_BLOCK.LD_BUF",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles that uops are blocked due to an RSV full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x04",
+        "EventName": "MEM_SCHEDULER_BLOCK.RSV",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles that uops are blocked due to a store buffer full condition.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x04",
+        "EventName": "MEM_SCHEDULER_BLOCK.ST_BUF",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST).",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.ALL",
+        "PublicDescription": "Counts the number of memory uops retired.  A single uop that performs both a load AND a store will be counted as 1, not 2 (e.g. ADD [mem], CONST). Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x83"
     },
     {
         "BriefDescription": "Counts the number of load ops retired.",
@@ -36,121 +397,213 @@
         "UMask": "0x82"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 1024.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_1024",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x400",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 1024. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 128.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_128",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x80",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 128. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 16.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_16",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 16. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 2048.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_2048",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x800",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 2048. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 256.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_256",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x100",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 256. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 32.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_32",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x20",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 32. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 4.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_4",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x4",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 4. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 512.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_512",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x200",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 512. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 64.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_64",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x40",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 64. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled.",
-        "Counter": "0,1",
+        "BriefDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 8.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_8",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x8",
-        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold defined in MEC_CR_PEBS_LD_LAT_THRESHOLD - Only counts with PEBS enabled. Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of tagged load uops retired that exceed the latency threshold of 8. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Counts the number of  stores uops retired same as MEM_UOPS_RETIRED.ALL_STORES",
+        "BriefDescription": "Counts the number of load uops retired that performed one or more locks",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.LOCK_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that performed one or more locks Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x21"
+    },
+    {
+        "BriefDescription": "Counts the number of load uops retired that were correctly predicated by the memory renaming (MRN) feature.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.MRN_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that were correctly predicated by the memory renaming (MRN) feature.  MRN loads are a part of the memory renaming process that optimizes data forwarding between stores and loads, reducing latency and improving performance. This involves tagging stores that forward to loads and copying the physical source (the actual data) directly from the store to the load.  The MRN'd load can complete without accessing the memory, thus reducing load-to-use latency. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x9"
+    },
+    {
+        "BriefDescription": "Counts the number of store uops retired that were correctly tagged by the memory renaming (MRN) feature.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.MRN_STORES",
+        "PublicDescription": "Counts the number of store uops retired that were correctly tagged by the memory renaming (MRN) feature.  MRN stores are a part of the memory renaming process that optimizes data forwarding between stores and loads, reducing latency and improving performance. This involves tagging stores that forward to loads and copying the physical source (the actual data) directly from the store to the load.  The MRN store ensures that it's data is accurately forwarded to matching subsequent loads. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xa"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired that were splits.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT",
+        "PublicDescription": "Counts the number of memory uops retired that were splits. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x43"
+    },
+    {
+        "BriefDescription": "Counts the number of retired split load uops.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT_LOADS",
+        "PublicDescription": "Counts the number of retired split load uops. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x41"
+    },
+    {
+        "BriefDescription": "Counts the number of retired split store uops.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.SPLIT_STORES",
+        "PublicDescription": "Counts the number of retired split store uops. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x42"
+    },
+    {
+        "BriefDescription": "Counts the number of memory uops retired that missed in the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS",
+        "PublicDescription": "Counts the number of memory uops retired that missed in the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x13"
+    },
+    {
+        "BriefDescription": "Counts the number of load uops retired that miss in the second Level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS_LOADS",
+        "PublicDescription": "Counts the number of load uops retired that miss in the second Level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x11"
+    },
+    {
+        "BriefDescription": "Counts the number of store uops retired that miss in the second level TLB.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xd0",
+        "EventName": "MEM_UOPS_RETIRED.STLB_MISS_STORES",
+        "PublicDescription": "Counts the number of store uops retired that miss in the second level TLB. Available PDIST counters: 0,1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x12"
+    },
+    {
+        "BriefDescription": "Counts the number of stores uops retired.",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "Data_LA": "1",
+        "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.STORE_LATENCY",
-        "PublicDescription": "Counts the number of  stores uops retired same as MEM_UOPS_RETIRED.ALL_STORES Available PDIST counters: 0,1",
+        "PublicDescription": "Counts the number of stores uops retired. Available PDIST counters: 0,1",
         "SampleAfterValue": "1000003",
         "UMask": "0x6"
     },
@@ -175,5 +628,13 @@
         "PublicDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that have any type of response. Available PDIST counters: 0",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to an icache miss",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x71",
+        "EventName": "TOPDOWN_FE_BOUND.ICACHE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x20"
     }
 ]

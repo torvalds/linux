@@ -85,17 +85,24 @@ static void ovpn_netdev_write(struct ovpn_peer *peer, struct sk_buff *skb)
 	skb_scrub_packet(skb, true);
 
 	/* network header reset in ovpn_decrypt_post() */
+	skb_reset_mac_header(skb);
 	skb_reset_transport_header(skb);
 	skb_reset_inner_headers(skb);
 
 	/* cause packet to be "received" by the interface */
 	pkt_len = skb->len;
+	/* we may get here in process context in case of TCP connections,
+	 * therefore we have to disable BHs to ensure gro_cells_receive()
+	 * and dev_dstats_rx_add() do not get corrupted or enter deadlock
+	 */
+	local_bh_disable();
 	ret = gro_cells_receive(&peer->ovpn->gro_cells, skb);
 	if (likely(ret == NET_RX_SUCCESS)) {
 		/* update RX stats with the size of decrypted packet */
 		ovpn_peer_stats_increment_rx(&peer->vpn_stats, pkt_len);
 		dev_dstats_rx_add(peer->ovpn->dev, pkt_len);
 	}
+	local_bh_enable();
 }
 
 void ovpn_decrypt_post(void *data, int ret)
@@ -194,7 +201,7 @@ void ovpn_decrypt_post(void *data, int ret)
 	skb = NULL;
 drop:
 	if (unlikely(skb))
-		dev_dstats_rx_dropped(peer->ovpn->dev);
+		ovpn_dev_dstats_rx_dropped(peer->ovpn->dev);
 	kfree_skb(skb);
 drop_nocount:
 	if (likely(peer))
@@ -218,7 +225,7 @@ void ovpn_recv(struct ovpn_peer *peer, struct sk_buff *skb)
 		net_info_ratelimited("%s: no available key for peer %u, key-id: %u\n",
 				     netdev_name(peer->ovpn->dev), peer->id,
 				     key_id);
-		dev_dstats_rx_dropped(peer->ovpn->dev);
+		ovpn_dev_dstats_rx_dropped(peer->ovpn->dev);
 		kfree_skb(skb);
 		ovpn_peer_put(peer);
 		return;
@@ -294,7 +301,7 @@ err_unlock:
 	rcu_read_unlock();
 err:
 	if (unlikely(skb))
-		dev_dstats_tx_dropped(peer->ovpn->dev);
+		ovpn_dev_dstats_tx_dropped(peer->ovpn->dev);
 	if (likely(peer))
 		ovpn_peer_put(peer);
 	if (likely(ks))
@@ -336,7 +343,7 @@ static void ovpn_send(struct ovpn_priv *ovpn, struct sk_buff *skb,
 	 */
 	skb_list_walk_safe(skb, curr, next) {
 		if (unlikely(!ovpn_encrypt_one(peer, curr))) {
-			dev_dstats_tx_dropped(ovpn->dev);
+			ovpn_dev_dstats_tx_dropped(ovpn->dev);
 			kfree_skb(curr);
 		}
 	}
@@ -407,7 +414,7 @@ netdev_tx_t ovpn_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (unlikely(!curr)) {
 			net_err_ratelimited("%s: skb_share_check failed for payload packet\n",
 					    netdev_name(dev));
-			dev_dstats_tx_dropped(ovpn->dev);
+			ovpn_dev_dstats_tx_dropped(ovpn->dev);
 			continue;
 		}
 
@@ -433,7 +440,7 @@ netdev_tx_t ovpn_net_xmit(struct sk_buff *skb, struct net_device *dev)
 drop:
 	ovpn_peer_put(peer);
 drop_no_peer:
-	dev_dstats_tx_dropped(ovpn->dev);
+	ovpn_dev_dstats_tx_dropped(ovpn->dev);
 	skb_tx_error(skb);
 	kfree_skb_list(skb);
 	return NETDEV_TX_OK;

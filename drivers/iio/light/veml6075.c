@@ -100,7 +100,7 @@ static const struct iio_chan_spec veml6075_channels[] = {
 
 static int veml6075_request_measurement(struct veml6075_data *data)
 {
-	int ret, conf, int_time;
+	int ret, conf, int_time, int_index;
 
 	ret = regmap_read(data->regmap, VEML6075_CMD_CONF, &conf);
 	if (ret < 0)
@@ -117,7 +117,11 @@ static int veml6075_request_measurement(struct veml6075_data *data)
 	 * time for all possible configurations. Using a 1.50 factor simplifies
 	 * operations and ensures reliability under all circumstances.
 	 */
-	int_time = veml6075_it_ms[FIELD_GET(VEML6075_CONF_IT, conf)];
+	int_index = FIELD_GET(VEML6075_CONF_IT, conf);
+	if (int_index >= ARRAY_SIZE(veml6075_it_ms))
+		return -EINVAL;
+
+	int_time = veml6075_it_ms[int_index];
 	msleep(int_time + (int_time / 2));
 
 	/* shutdown again, data registers are still accessible */
@@ -451,7 +455,7 @@ static int veml6075_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id veml6075_id[] = {
-	{ "veml6075" },
+	{ .name = "veml6075" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, veml6075_id);

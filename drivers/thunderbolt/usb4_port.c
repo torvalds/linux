@@ -138,7 +138,7 @@ bool usb4_usb3_port_match(struct device *usb4_port_dev,
 		return false;
 
 	/* Check if USB3 fwnode references same NHI where USB4 port resides */
-	if (!device_match_fwnode(&nhi->pdev->dev, nhi_fwnode))
+	if (!device_match_fwnode(nhi->dev, nhi_fwnode))
 		return false;
 
 	if (fwnode_property_read_u8(usb3_port_fwnode, "usb4-port-number", &usb4_port_num))

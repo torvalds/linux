@@ -46,7 +46,7 @@
  */
 
 static void omap_atomic_wait_for_completion(struct drm_device *dev,
-					    struct drm_atomic_state *old_state)
+					    struct drm_atomic_commit *old_state)
 {
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_crtc *crtc;
@@ -65,7 +65,7 @@ static void omap_atomic_wait_for_completion(struct drm_device *dev,
 	}
 }
 
-static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
+static void omap_atomic_commit_tail(struct drm_atomic_commit *old_state)
 {
 	struct drm_device *dev = old_state->dev;
 	struct omap_drm_private *priv = dev->dev_private;
@@ -117,7 +117,7 @@ static void omap_atomic_commit_tail(struct drm_atomic_state *old_state)
 	dispc_runtime_put(priv->dispc);
 }
 
-static int drm_atomic_state_normalized_zpos_cmp(const void *a, const void *b)
+static int drm_atomic_commit_normalized_zpos_cmp(const void *a, const void *b)
 {
 	const struct drm_plane_state *sa = *(struct drm_plane_state **)a;
 	const struct drm_plane_state *sb = *(struct drm_plane_state **)b;
@@ -136,7 +136,7 @@ static int drm_atomic_state_normalized_zpos_cmp(const void *a, const void *b)
  * planes zpos is consistent.
  */
 static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
-					     struct drm_atomic_state *state)
+					     struct drm_atomic_commit *state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_state, *new_state;
@@ -174,7 +174,7 @@ static int omap_atomic_update_normalize_zpos(struct drm_device *dev,
 		}
 
 		sort(states, n, sizeof(*states),
-		     drm_atomic_state_normalized_zpos_cmp, NULL);
+		     drm_atomic_commit_normalized_zpos_cmp, NULL);
 
 		for (i = 0, inc = 0; i < n; i++) {
 			plane = states[i]->plane;
@@ -196,7 +196,7 @@ done:
 }
 
 static int omap_atomic_check(struct drm_device *dev,
-			     struct drm_atomic_state *state)
+			     struct drm_atomic_commit *state)
 {
 	int ret;
 
@@ -241,7 +241,7 @@ omap_get_existing_global_state(struct omap_drm_private *priv)
  * a new duplicated private object state.
  */
 struct omap_global_state *__must_check
-omap_get_global_state(struct drm_atomic_state *s)
+omap_get_global_state(struct drm_atomic_commit *s)
 {
 	struct omap_drm_private *priv = s->dev->dev_private;
 	struct drm_private_state *priv_state;
@@ -506,8 +506,6 @@ static int omap_modeset_init(struct drm_device *dev)
 				pipe->output->name);
 			return PTR_ERR(pipe->connector);
 		}
-
-		drm_connector_attach_encoder(pipe->connector, encoder);
 
 		crtc = omap_crtc_init(dev, pipe, priv->planes[i]);
 		if (IS_ERR(crtc))

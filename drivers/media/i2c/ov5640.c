@@ -13,7 +13,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -3999,8 +3998,8 @@ static const struct dev_pm_ops ov5640_pm_ops = {
 };
 
 static const struct i2c_device_id ov5640_id[] = {
-	{ "ov5640" },
-	{}
+	{ .name = "ov5640" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov5640_id);
 

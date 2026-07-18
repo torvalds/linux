@@ -83,18 +83,21 @@ struct trusted_key_source {
 
 extern struct key_type key_type_trusted;
 
-#define TRUSTED_DEBUG 0
+#ifdef CONFIG_TRUSTED_KEYS_DEBUG
+extern bool trusted_debug;
 
-#if TRUSTED_DEBUG
 static inline void dump_payload(struct trusted_key_payload *p)
 {
-	pr_info("key_len %d\n", p->key_len);
-	print_hex_dump(KERN_INFO, "key ", DUMP_PREFIX_NONE,
-		       16, 1, p->key, p->key_len, 0);
-	pr_info("bloblen %d\n", p->blob_len);
-	print_hex_dump(KERN_INFO, "blob ", DUMP_PREFIX_NONE,
-		       16, 1, p->blob, p->blob_len, 0);
-	pr_info("migratable %d\n", p->migratable);
+	if (!trusted_debug)
+		return;
+
+	pr_debug("key_len %d\n", p->key_len);
+	print_hex_dump_debug("key ", DUMP_PREFIX_NONE,
+			     16, 1, p->key, p->key_len, 0);
+	pr_debug("bloblen %d\n", p->blob_len);
+	print_hex_dump_debug("blob ", DUMP_PREFIX_NONE,
+			     16, 1, p->blob, p->blob_len, 0);
+	pr_debug("migratable %d\n", p->migratable);
 }
 #else
 static inline void dump_payload(struct trusted_key_payload *p)

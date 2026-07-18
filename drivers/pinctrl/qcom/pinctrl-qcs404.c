@@ -1635,6 +1635,7 @@ static const struct of_device_id qcs404_pinctrl_of_match[] = {
 	{ .compatible = "qcom,qcs404-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, qcs404_pinctrl_of_match);
 
 static struct platform_driver qcs404_pinctrl_driver = {
 	.driver = {
@@ -1658,4 +1659,3 @@ module_exit(qcs404_pinctrl_exit);
 
 MODULE_DESCRIPTION("Qualcomm QCS404 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, qcs404_pinctrl_of_match);

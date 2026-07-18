@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/*
+ * Copyright (C) 2023-2026 Marek Vasut
+ */
+/dts-v1/;
+/plugin/;
+
+#include "imx8mp-dhcom-pdk3-overlay-nxp-spf-29853-c1-ov5640.dtsi"
+
+&mipi_csi_1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			mipi_csi0_ep: endpoint {
+				remote-endpoint = <&ov5640_to_mipi_csi2>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&ov5640 {
+	powerdown-gpios = <&csi2exp 1 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&csi2exp 0 GPIO_ACTIVE_LOW>;
+};

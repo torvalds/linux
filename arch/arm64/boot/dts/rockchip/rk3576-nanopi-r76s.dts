@@ -70,7 +70,6 @@
 
 	hdmi-con {
 		compatible = "hdmi-connector";
-		hdmi-pwr-supply = <&vcc5v_hdmi_tx>;
 		type = "a";
 
 		port {
@@ -107,18 +106,6 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-name = "vcc5v_dcin";
-	};
-
-	vcc5v_hdmi_tx: regulator-vcc5v-hdmi-tx {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hdmi_tx_on_h>;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		regulator-name = "vcc5v_hdmi_tx";
-		vin-supply = <&vcc5v0_sys_s5>;
 	};
 
 	vcc5v0_device_s0: regulator-vcc5v0-device-s0 {
@@ -252,6 +239,9 @@
 };
 
 &hdmi {
+	frl-enable-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+	pinctrl-0 = <&hdmi_txm0_pins &hdmi_tx_scl &hdmi_tx_sda &hdmi_tx_on_h>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

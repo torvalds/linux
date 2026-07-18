@@ -143,13 +143,13 @@ static int ksz_spi_probe(struct spi_device *spi)
 	struct ksz_device *dev;
 	int i, ret = 0;
 
-	dev = ksz_switch_alloc(&spi->dev, spi);
-	if (!dev)
-		return -ENOMEM;
-
 	chip = device_get_match_data(ddev);
 	if (!chip)
 		return -EINVAL;
+
+	dev = ksz_switch_alloc(&spi->dev, chip, spi);
+	if (!dev)
+		return -ENOMEM;
 
 	/* Save chip id to do special initialization when probing. */
 	dev->chip_id = chip->chip_id;

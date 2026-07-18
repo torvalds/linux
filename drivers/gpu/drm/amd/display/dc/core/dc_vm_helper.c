@@ -34,9 +34,9 @@ void vm_helper_mark_vmid_used(struct vm_helper *vm_helper, unsigned int pos, uin
 	vmids.vmid_usage[1] = 1 << pos;
 }
 
-int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_config)
+unsigned int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
-	int num_vmids = 0;
+	unsigned int num_vmids = 0;
 
 	/* Call HWSS to setup HUBBUB for address config */
 	if (dc->hwss.init_sys_ctx) {

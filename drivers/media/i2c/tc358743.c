@@ -2358,8 +2358,8 @@ static void tc358743_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc358743_id[] = {
-	{ "tc358743" },
-	{}
+	{ .name = "tc358743" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, tc358743_id);

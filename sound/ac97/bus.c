@@ -206,24 +206,6 @@ void snd_ac97_codec_driver_unregister(struct ac97_codec_driver *drv)
 }
 EXPORT_SYMBOL_GPL(snd_ac97_codec_driver_unregister);
 
-/**
- * snd_ac97_codec_get_platdata - get platform_data
- * @adev: the ac97 codec device
- *
- * For legacy platforms, in order to have platform_data in codec drivers
- * available, while ac97 device are auto-created upon probe, this retrieves the
- * platdata which was setup on ac97 controller registration.
- *
- * Returns the platform data pointer
- */
-void *snd_ac97_codec_get_platdata(const struct ac97_codec_device *adev)
-{
-	struct ac97_controller *ac97_ctrl = adev->ac97_ctrl;
-
-	return ac97_ctrl->codecs_pdata[adev->num];
-}
-EXPORT_SYMBOL_GPL(snd_ac97_codec_get_platdata);
-
 static void ac97_ctrl_codecs_unregister(struct ac97_controller *ac97_ctrl)
 {
 	int i;
@@ -337,7 +319,6 @@ static int ac97_add_adapter(struct ac97_controller *ac97_ctrl)
  * @dev: the device providing the ac97 DC function
  * @slots_available: mask of the ac97 codecs that can be scanned and probed
  *                   bit0 => codec 0, bit1 => codec 1 ... bit 3 => codec 3
- * @codecs_pdata: codec platform data
  *
  * Register a digital controller which can control up to 4 ac97 codecs. This is
  * the controller side of the AC97 AC-link, while the slave side are the codecs.
@@ -346,17 +327,14 @@ static int ac97_add_adapter(struct ac97_controller *ac97_ctrl)
  */
 struct ac97_controller *snd_ac97_controller_register(
 	const struct ac97_controller_ops *ops, struct device *dev,
-	unsigned short slots_available, void **codecs_pdata)
+	unsigned short slots_available)
 {
 	struct ac97_controller *ac97_ctrl;
-	int ret, i;
+	int ret;
 
 	ac97_ctrl = kzalloc_obj(*ac97_ctrl);
 	if (!ac97_ctrl)
 		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < AC97_BUS_MAX_CODECS && codecs_pdata; i++)
-		ac97_ctrl->codecs_pdata[i] = codecs_pdata[i];
 
 	ac97_ctrl->ops = ops;
 	ac97_ctrl->slots_available = slots_available;

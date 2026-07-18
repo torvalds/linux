@@ -66,7 +66,7 @@ static void convert_clip_rect_to_rect(const struct drm_clip_rect *src,
  * full plane update should happen. It also ensure helper iterator will return
  * &drm_plane_state.src as damage.
  */
-void drm_atomic_helper_check_plane_damage(struct drm_atomic_state *state,
+void drm_atomic_helper_check_plane_damage(struct drm_atomic_commit *state,
 					  struct drm_plane_state *plane_state)
 {
 	struct drm_crtc_state *crtc_state;
@@ -114,7 +114,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_property_blob *damage = NULL;
 	struct drm_mode_rect *rects = NULL;
-	struct drm_atomic_state *state;
+	struct drm_atomic_commit *state;
 	struct drm_plane *plane;
 	int ret = 0;
 
@@ -125,7 +125,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	drm_modeset_acquire_init(&ctx,
 		file_priv ? DRM_MODESET_ACQUIRE_INTERRUPTIBLE : 0);
 
-	state = drm_atomic_state_alloc(fb->dev);
+	state = drm_atomic_commit_alloc(fb->dev);
 	if (!state) {
 		ret = -ENOMEM;
 		goto out_drop_locks;
@@ -184,7 +184,7 @@ retry:
 
 out:
 	if (ret == -EDEADLK) {
-		drm_atomic_state_clear(state);
+		drm_atomic_commit_clear(state);
 		ret = drm_modeset_backoff(&ctx);
 		if (!ret)
 			goto retry;
@@ -192,7 +192,7 @@ out:
 
 	drm_property_blob_put(damage);
 	kfree(rects);
-	drm_atomic_state_put(state);
+	drm_atomic_commit_put(state);
 
 out_drop_locks:
 	drm_modeset_drop_locks(&ctx);

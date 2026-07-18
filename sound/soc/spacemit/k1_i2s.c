@@ -53,6 +53,9 @@ struct spacemit_i2s_dev {
 	struct clk *sysclk;
 	struct clk *bclk;
 	struct clk *sspa_clk;
+	struct clk *sysclk_div;
+	struct clk *c_sysclk;
+	struct clk *c_bclk;
 
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
@@ -93,8 +96,8 @@ static void spacemit_i2s_init(struct spacemit_i2s_dev *i2s)
 	u32 sscr_val, sspsp_val, ssfcr_val, ssrwt_val;
 
 	sscr_val = SSCR_TRAIL | SSCR_FRF_PSP;
-	ssfcr_val = FIELD_PREP(SSFCR_FIELD_TFT, 5) |
-		    FIELD_PREP(SSFCR_FIELD_RFT, 5) |
+	ssfcr_val = FIELD_PREP(SSFCR_FIELD_TFT, 0xF) |
+		    FIELD_PREP(SSFCR_FIELD_RFT, 0xF) |
 		    SSFCR_RSRE | SSFCR_TSRE;
 	ssrwt_val = SSRWT_RWOT;
 	sspsp_val = SSPSP_SFRMP;
@@ -104,6 +107,37 @@ static void spacemit_i2s_init(struct spacemit_i2s_dev *i2s)
 	writel(sspsp_val, i2s->base + SSPSP);
 	writel(ssrwt_val, i2s->base + SSRWT);
 	writel(0, i2s->base + SSINTEN);
+}
+
+static int spacemit_i2s_startup(struct snd_pcm_substream *substream,
+	struct snd_soc_dai *dai)
+{
+	struct spacemit_i2s_dev *i2s = snd_soc_dai_get_drvdata(dai);
+
+	switch (i2s->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_CHANNELS,
+					     2, 2);
+		snd_pcm_hw_constraint_mask64(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_FORMAT,
+					     SNDRV_PCM_FMTBIT_S16_LE);
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+	case SND_SOC_DAIFMT_DSP_B:
+		snd_pcm_hw_constraint_minmax(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_CHANNELS,
+					     1, 1);
+		snd_pcm_hw_constraint_mask64(substream->runtime,
+					     SNDRV_PCM_HW_PARAM_FORMAT,
+					     SNDRV_PCM_FMTBIT_S32_LE);
+		break;
+	default:
+		dev_dbg(i2s->dev, "unexpected format type");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -116,10 +150,6 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	unsigned long bclk_rate;
 	u32 val;
 	int ret;
-
-	val = readl(i2s->base + SSCR);
-	if (val & SSCR_SSE)
-		return 0;
 
 	dma_data = &i2s->playback_dma_data;
 
@@ -157,22 +187,9 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 			dma_data->maxburst = 32;
 			dma_data->addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		}
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_CHANNELS,
-					     1, 2);
-		snd_pcm_hw_constraint_mask64(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_FORMAT,
-					     SNDRV_PCM_FMTBIT_S16_LE);
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_CHANNELS,
-					     1, 1);
-		snd_pcm_hw_constraint_mask64(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_FORMAT,
-					     SNDRV_PCM_FMTBIT_S32_LE);
 		break;
 	default:
 		dev_dbg(i2s->dev, "unexpected format type");
@@ -181,6 +198,9 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	val = readl(i2s->base + SSCR);
+	if (val & SSCR_SSE)
+		return 0;
+
 	val &= ~SSCR_DW_32BYTE;
 	val |= data_width;
 	writel(val, i2s->base + SSCR);
@@ -188,6 +208,14 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	bclk_rate = params_channels(params) *
 		    params_rate(params) *
 		    data_bits;
+
+	ret = clk_set_rate(i2s->c_sysclk, bclk_rate * 2);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(i2s->c_bclk, bclk_rate);
+	if (ret)
+		return ret;
 
 	ret = clk_set_rate(i2s->bclk, bclk_rate);
 	if (ret)
@@ -200,9 +228,16 @@ static int spacemit_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
 				   unsigned int freq, int dir)
 {
 	struct spacemit_i2s_dev *i2s = dev_get_drvdata(cpu_dai->dev);
+	int ret;
 
 	if (freq == 0)
 		return 0;
+
+	if (i2s->sysclk_div) {
+		ret = clk_set_rate(i2s->sysclk_div, freq);
+		if (ret)
+			return ret;
+	}
 
 	return clk_set_rate(i2s->sysclk, freq);
 }
@@ -303,6 +338,7 @@ static int spacemit_i2s_dai_remove(struct snd_soc_dai *dai)
 static const struct snd_soc_dai_ops spacemit_i2s_dai_ops = {
 	.probe = spacemit_i2s_dai_probe,
 	.remove = spacemit_i2s_dai_remove,
+	.startup = spacemit_i2s_startup,
 	.hw_params = spacemit_i2s_hw_params,
 	.set_sysclk = spacemit_i2s_set_sysclk,
 	.set_fmt = spacemit_i2s_set_fmt,
@@ -418,6 +454,21 @@ static int spacemit_i2s_probe(struct platform_device *pdev)
 		return dev_err_probe(i2s->dev, PTR_ERR(i2s->sspa_clk),
 				     "failed to enable sspa clock\n");
 
+	i2s->sysclk_div = devm_clk_get_optional_enabled(i2s->dev, "sysclk_div");
+	if (IS_ERR(i2s->sysclk_div))
+		return dev_err_probe(i2s->dev, PTR_ERR(i2s->sysclk_div),
+				     "failed to enable sysclk_div clock\n");
+
+	i2s->c_sysclk = devm_clk_get_optional_enabled(i2s->dev, "c_sysclk");
+	if (IS_ERR(i2s->c_sysclk))
+		return dev_err_probe(i2s->dev, PTR_ERR(i2s->c_sysclk),
+				     "failed to enable c_sysclk clock\n");
+
+	i2s->c_bclk = devm_clk_get_optional_enabled(i2s->dev, "c_bclk");
+	if (IS_ERR(i2s->c_bclk))
+		return dev_err_probe(i2s->dev, PTR_ERR(i2s->c_bclk),
+				     "failed to enable c_bclk clock\n");
+
 	i2s->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(i2s->base))
 		return dev_err_probe(i2s->dev, PTR_ERR(i2s->base), "failed to map registers\n");
@@ -444,6 +495,7 @@ static int spacemit_i2s_probe(struct platform_device *pdev)
 
 static const struct of_device_id spacemit_i2s_of_match[] = {
 	{ .compatible = "spacemit,k1-i2s", },
+	{ .compatible = "spacemit,k3-i2s", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, spacemit_i2s_of_match);
@@ -458,4 +510,4 @@ static struct platform_driver spacemit_i2s_driver = {
 module_platform_driver(spacemit_i2s_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("I2S bus driver for SpacemiT K1 SoC");
+MODULE_DESCRIPTION("I2S bus driver for SpacemiT K1/K3 SoC");

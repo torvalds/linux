@@ -74,7 +74,6 @@ struct j721e_audio_domain {
 struct j721e_priv {
 	struct device *dev;
 	struct snd_soc_card card;
-	struct snd_soc_dai_link *dai_links;
 	struct snd_soc_codec_conf codec_conf[J721E_CODEC_CONF_COUNT];
 	struct snd_interval rate_range;
 	const struct j721e_audio_match_data *match_data;
@@ -84,6 +83,7 @@ struct j721e_priv {
 	struct j721e_audio_domain audio_domains[J721E_AUDIO_DOMAIN_LAST];
 
 	struct mutex mutex;
+	struct snd_soc_dai_link dai_links[];
 };
 
 static const struct snd_soc_dapm_widget j721e_cpb_dapm_widgets[] = {
@@ -263,7 +263,7 @@ static int j721e_audio_startup(struct snd_pcm_substream *substream)
 	int ret = 0;
 	int i;
 
-	mutex_lock(&priv->mutex);
+	guard(mutex)(&priv->mutex);
 
 	domain->active++;
 
@@ -303,7 +303,6 @@ static int j721e_audio_startup(struct snd_pcm_substream *substream)
 out:
 	if (ret)
 		domain->active--;
-	mutex_unlock(&priv->mutex);
 
 	return ret;
 }
@@ -323,30 +322,28 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	int i;
 
-	mutex_lock(&priv->mutex);
+	guard(mutex)(&priv->mutex);
 
-	if (domain->rate && domain->rate != params_rate(params)) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (domain->rate && domain->rate != params_rate(params))
+		return -EINVAL;
 
 	if (params_width(params) == 16)
 		slot_width = 16;
 
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0x3, 0x3, 2, slot_width);
 	if (ret && ret != -ENOTSUPP)
-		goto out;
+		return ret;
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x3, 0x3, 2,
 					       slot_width);
 		if (ret && ret != -ENOTSUPP)
-			goto out;
+			return ret;
 	}
 
 	ret = j721e_configure_refclk(priv, domain_id, params_rate(params));
 	if (ret)
-		goto out;
+		return ret;
 
 	sysclk_rate = priv->hsdiv_rates[domain->parent_clk_id];
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
@@ -356,7 +353,7 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 			dev_err(priv->dev,
 				"codec set_sysclk failed for %u Hz\n",
 				sysclk_rate);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -371,8 +368,6 @@ static int j721e_audio_hw_params(struct snd_pcm_substream *substream,
 		ret = 0;
 	}
 
-out:
-	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -383,15 +378,13 @@ static void j721e_audio_shutdown(struct snd_pcm_substream *substream)
 	unsigned int domain_id = rtd->dai_link->id;
 	struct j721e_audio_domain *domain = &priv->audio_domains[domain_id];
 
-	mutex_lock(&priv->mutex);
+	guard(mutex)(&priv->mutex);
 
 	domain->active--;
 	if (!domain->active) {
 		domain->rate = 0;
 		domain->active_link = 0;
 	}
-
-	mutex_unlock(&priv->mutex);
 }
 
 static const struct snd_soc_ops j721e_audio_ops = {
@@ -844,33 +837,23 @@ put_dai_node:
 
 static int j721e_soc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	const struct j721e_audio_match_data *match;
 	struct snd_soc_card *card;
-	const struct of_device_id *match;
 	struct j721e_priv *priv;
 	int link_cnt, conf_cnt, ret, i;
 
-	if (!node) {
-		dev_err(&pdev->dev, "of node is missing.\n");
-		return -ENODEV;
-	}
-
-	match = of_match_node(j721e_audio_of_match, node);
+	match = of_device_get_match_data(&pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "No compatible match found\n");
 		return -ENODEV;
 	}
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev,
+			struct_size(priv, dai_links, match->num_links), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->match_data = match->data;
-
-	priv->dai_links = devm_kcalloc(&pdev->dev, priv->match_data->num_links,
-				       sizeof(*priv->dai_links), GFP_KERNEL);
-	if (!priv->dai_links)
-		return -ENOMEM;
+	priv->match_data = match;
 
 	for (i = 0; i < J721E_AUDIO_DOMAIN_LAST; i++)
 		priv->audio_domains[i].parent_clk_id = -1;

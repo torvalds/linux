@@ -56,10 +56,10 @@ properties:
     maxItems: 5               # Wrapper and 4 slots
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
-      Optional phandle to a reserved on-chip SRAM regions. The SRAM can
-      be used for descriptor storage, which may improve bus utilization.
+      The SRAM can be used for descriptor storage, which may improve bus
+      utilization.
 
 required:
   - compatible

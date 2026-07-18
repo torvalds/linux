@@ -7,93 +7,96 @@ EROFS - Enhanced Read-Only File System
 Overview
 ========
 
-EROFS filesystem stands for Enhanced Read-Only File System.  It aims to form a
-generic read-only filesystem solution for various read-only use cases instead
-of just focusing on storage space saving without considering any side effects
-of runtime performance.
+EROFS (Enhanced Read-Only File System) is a modern, efficient, and secure
+read-only kernel filesystem designed for various use cases including immutable
+system images, container images, application sandbox images, and dataset
+distribution.
 
-It is designed to meet the needs of flexibility, feature extendability and user
-payload friendly, etc.  Apart from those, it is still kept as a simple
-random-access friendly high-performance filesystem to get rid of unneeded I/O
-amplification and memory-resident overhead compared to similar approaches.
+An immutable image filesystem can be regarded as an enhanced archive format
+which allows golden images to be built once and mounted everywhere -- images are
+bit-for-bit identical across all deployments and can be verified, audited, or
+shared without concerns about runtime modifications (in this model, all user
+writes should be redirected into another trusted filesystem, for example, via
+overlayfs for copy-on-write-style redirection, by design).
 
-It is implemented to be a better choice for the following scenarios:
+EROFS is a dedicated implementation of the image filesystem idea above, with a
+flexible, hierarchical on-disk design so that needed features can be enabled on
+demand. Filesystem data in the core format is strictly block-aligned in order
+to perform optimally on all kinds of storage media, including block devices and
+memory-backed devices. The on-disk format is easy to parse and purposely avoids
+the unnecessary metadata redundancy found in generic writable filesystems, which
+can suffer from extra inconsistency issues -- making it ideal for security
+auditing and untrusted remote access. In addition, designs such as inline data,
+inline/shared extended attributes, and optimized (de)compression provide better
+space efficiency while maintaining high performance.
 
- - read-only storage media or
+In short, EROFS aims to be a better fit for the following scenarios:
 
- - part of a fully trusted read-only solution, which means it needs to be
+ - As part of a secure immutable storage solution, where it needs to be
    immutable and bit-for-bit identical to the official golden image for
-   their releases due to security or other considerations and
+   each individual copy, in order to meet security, data sharing, and/or
+   other requirements;
 
- - hope to minimize extra storage space with guaranteed end-to-end performance
-   by using compact layout, transparent file compression and direct access,
-   especially for those embedded devices with limited memory and high-density
-   hosts with numerous containers.
+ - Minimizing storage overhead with guaranteed end-to-end performance
+   by using compact (meta)data layout, optimized transparent data compression,
+   deduplication and direct access, especially for those embedded devices with
+   limited memory and high-density hosts with numerous containers.
 
-Here are the main features of EROFS:
+Here is the list of highlights:
 
- - Little endian on-disk design;
+ - Little endian on-disk design with 48-bit block addressing, supporting up
+   to 1 EiB filesystem capacity with 4 KiB block size;
 
- - Block-based distribution and file-based distribution over fscache are
-   supported;
+ - Two compact inode metadata layouts for space and performance efficiency:
 
- - Support multiple devices to refer to external blobs, which can be used
-   for container images;
+   ========================  ========  ======================================
+                             compact   extended
+   ========================  ========  ======================================
+   Inode core metadata size  32 bytes  64 bytes
+   Max file size             4 GiB     16 EiB (also limited by max. vol size)
+   Max uids/gids             65536     4294967296
+   Nanosecond timestamps     no        yes
+   Max hardlinks             65536     4294967296
+   ========================  ========  ======================================
 
- - 32-bit block addresses for each device, therefore 16TiB address space at
-   most with 4KiB block size for now;
+ - Support tailpacking inline data for better space efficiency and reduce
+   unneeded I/O amplification;
 
- - Two inode layouts for different requirements:
+ - Block-based and file-backed distribution are both supported;
 
-   =====================  ============  ======================================
-                          compact (v1)  extended (v2)
-   =====================  ============  ======================================
-   Inode metadata size    32 bytes      64 bytes
-   Max file size          4 GiB         16 EiB (also limited by max. vol size)
-   Max uids/gids          65536         4294967296
-   Per-inode timestamp    no            yes (64 + 32-bit timestamp)
-   Max hardlinks          65536         4294967296
-   Metadata reserved      8 bytes       18 bytes
-   =====================  ============  ======================================
+ - Multiple devices to reference external data blobs: inode data can be
+   optionally placed into external blobs, which enables image layering and data
+   sharing among different filesystems;
 
- - Support extended attributes as an option;
+ - Inline and shared extended attributes with an optional bloom filter that
+   speeds up negative extended attribute lookups;
 
- - Support a bloom filter that speeds up negative extended attribute lookups;
+ - POSIX.1e ACLs by using extended attributes;
 
- - Support POSIX.1e ACLs by using extended attributes;
+ - Transparent data compression as an option: Supported algorithms (LZ4,
+   MicroLZMA, DEFLATE and Zstandard) can be selected on a per-inode basis.
+   Both the on-disk metadata and decompression runtime have been heavily
+   optimized to minimize the overhead for better performance.
 
- - Support transparent data compression as an option:
-   LZ4, MicroLZMA, DEFLATE and Zstandard algorithms can be used on a per-file
-   basis; In addition, inplace decompression is also supported to avoid bounce
-   compressed buffers and unnecessary page cache thrashing.
+ - Merging tail-end data into a special inode as fragments;
 
- - Support chunk-based data deduplication and rolling-hash compressed data
-   deduplication;
+ - Chunk-based deduplication and rolling-hash compressed data deduplication;
 
- - Support tailpacking inline compared to byte-addressed unaligned metadata
-   or smaller block size alternatives;
+ - Direct I/O and FSDAX support on uncompressed inodes for use cases such as
+   secure containers, loop devices, and ramdisks that do not need page caching;
 
- - Support merging tail-end data into a special inode as fragments.
+ - Page cache sharing among inodes with identical content fingerprints on
+   the same machine.
 
- - Support large folios to make use of THPs (Transparent Hugepages);
+For more detailed information, please refer to our documentation site:
 
- - Support direct I/O on uncompressed files to avoid double caching for loop
-   devices;
-
- - Support FSDAX on uncompressed images for secure containers and ramdisks in
-   order to get rid of unnecessary page cache.
-
- - Support file-based on-demand loading with the Fscache infrastructure.
+- https://erofs.docs.kernel.org
 
 The following git tree provides the file system user-space tools under
 development, such as a formatting tool (mkfs.erofs), an on-disk consistency &
 compatibility checking tool (fsck.erofs), and a debugging tool (dump.erofs):
 
 - git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
-
-For more information, please also refer to the documentation site:
-
-- https://erofs.docs.kernel.org
 
 Bugs and patches are welcome, please kindly help us and send to the following
 linux-erofs mailing list:
@@ -127,12 +130,9 @@ dax                    A legacy option which is an alias for ``dax=always``.
 device=%s              Specify a path to an extra device to be used together.
 directio               (For file-backed mounts) Use direct I/O to access backing
                        files, and asynchronous I/O will be enabled if supported.
-fsid=%s                Specify a filesystem image ID for Fscache back-end.
-domain_id=%s           Specify a trusted domain ID for fscache mode so that
-                       different images with the same blobs, identified by blob IDs,
-                       can share storage within the same trusted domain.
-                       Also used for different filesystems with inode page sharing
-                       enabled to share page cache within the trusted domain.
+domain_id=%s           Specify a trusted domain ID. Filesystems sharing the same
+                       domain ID can share page cache across mounts when inode
+                       page sharing is enabled. (not shown in mountinfo output)
 fsoffset=%llu          Specify block-aligned filesystem offset for the primary device.
 inode_share            Enable inode page sharing for this filesystem.  Inodes with
                        identical content within the same domain ID can share the

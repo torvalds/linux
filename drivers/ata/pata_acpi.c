@@ -257,7 +257,10 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {
-	{ PCI_ANY_ID,		PCI_ANY_ID,			   PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_STORAGE_IDE << 8, 0xFFFFFF00UL, 1},
+	{
+		PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_IDE << 8, 0xFFFFFF00UL),
+		.driver_data = 1, /* is this used at all? */
+	},
 	{ }	/* terminate list */
 };
 

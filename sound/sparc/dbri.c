@@ -592,6 +592,7 @@ static __u32 reverse_bytes(__u32 b, int len)
 		fallthrough;
 	case 2:
 		b = ((b & 0xaaaaaaaa) >> 1) | ((b & 0x55555555) << 1);
+		fallthrough;
 	case 1:
 	case 0:
 		break;

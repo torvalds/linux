@@ -21,10 +21,10 @@ pthread_spinlock_t create_lock;
 #define TEST_TSC_KHZ    2345678UL
 #define TEST_TSC_OFFSET 200000000
 
-uint64_t tsc_sync;
+u64 tsc_sync;
 static void guest_code(void)
 {
-	uint64_t start_tsc, local_tsc, tmp;
+	u64 start_tsc, local_tsc, tmp;
 
 	start_tsc = rdtsc();
 	do {

@@ -12,6 +12,7 @@
 #include <linux/blkdev.h>
 #include <linux/folio_batch.h>
 #include <linux/swap.h>
+#include <linux/fserror.h>
 
 #include "f2fs.h"
 #include "node.h"
@@ -72,7 +73,11 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 				sizeof(struct free_nid)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 	} else if (type == NAT_ENTRIES) {
-		mem_size = (nm_i->nat_cnt[TOTAL_NAT] *
+		/*
+		 * nat_cnt[] is heuristic accounting. Sample it locklessly here
+		 * to avoid taking nat_tree_lock in the balance path.
+		 */
+		mem_size = (data_race(READ_ONCE(nm_i->nat_cnt[TOTAL_NAT])) *
 				sizeof(struct nat_entry)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 2);
 		if (excess_cached_nats(sbi))
@@ -1265,6 +1270,8 @@ skip_partial:
 		if (err == -ENOENT) {
 			set_sbi_flag(F2FS_F_SB(folio), SBI_NEED_FSCK);
 			f2fs_handle_error(sbi, ERROR_INVALID_BLKADDR);
+			fserror_report_file_metadata(dn.inode, -EFSCORRUPTED,
+								GFP_NOFS);
 			f2fs_err_ratelimited(sbi,
 				"truncate node fail, ino:%llu, nid:%u, "
 				"offset[0]:%d, offset[1]:%d, nofs:%d",
@@ -1541,6 +1548,10 @@ int f2fs_sanity_check_node_footer(struct f2fs_sb_info *sbi,
 		if (is_inode)
 			goto out_err;
 		break;
+	case NODE_TYPE_NON_IXNODE:
+		if (is_inode || is_xnode)
+			goto out_err;
+		break;
 	default:
 		break;
 	}
@@ -1556,6 +1567,8 @@ out_err:
 		next_blkaddr_of_node(folio));
 
 	f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
+	fserror_report_file_metadata(folio->mapping->host,
+			-EFSCORRUPTED, in_irq ? GFP_NOWAIT : GFP_NOFS);
 	return -EFSCORRUPTED;
 }
 
@@ -1634,7 +1647,7 @@ static struct folio *f2fs_get_node_folio_ra(struct folio *parent, int start)
 	struct f2fs_sb_info *sbi = F2FS_F_SB(parent);
 	nid_t nid = get_nid(parent, start, false);
 
-	return __get_node_folio(sbi, nid, parent, start, NODE_TYPE_REGULAR);
+	return __get_node_folio(sbi, nid, parent, start, NODE_TYPE_NON_IXNODE);
 }
 
 static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
@@ -1778,6 +1791,7 @@ static bool __write_node_folio(struct folio *folio, bool atomic, bool do_fsync,
 
 	if (f2fs_sanity_check_node_footer(sbi, folio, nid,
 					NODE_TYPE_REGULAR, false)) {
+		fserror_report_metadata(sbi->sb, -EFSCORRUPTED, GFP_NOFS);
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_CORRUPTED_NID);
 		goto redirty_out;
 	}
@@ -1875,7 +1889,7 @@ int f2fs_write_single_node_folio(struct folio *node_folio, int sync_mode,
 	}
 
 	if (!__write_node_folio(node_folio, false, false, NULL,
-				&wbc, false, FS_GC_NODE_IO, NULL))
+				&wbc, false, io_type, NULL))
 		err = -EAGAIN;
 	goto release_folio;
 out_folio:
@@ -2703,6 +2717,8 @@ retry:
 			spin_unlock(&nm_i->nid_list_lock);
 			f2fs_err(sbi, "Corrupted nid %u in free_nid_list",
 								i->nid);
+			fserror_report_metadata(sbi->sb, -EFSCORRUPTED,
+								GFP_NOFS);
 			f2fs_stop_checkpoint(sbi, false,
 					STOP_CP_REASON_CORRUPTED_NID);
 			return false;

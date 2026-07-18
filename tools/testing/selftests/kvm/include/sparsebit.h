@@ -6,7 +6,7 @@
  *
  * Header file that describes API to the sparsebit library.
  * This library provides a memory efficient means of storing
- * the settings of bits indexed via a uint64_t.  Memory usage
+ * the settings of bits indexed via a u64.  Memory usage
  * is reasonable, significantly less than (2^64 / 8) bytes, as
  * long as bits that are mostly set or mostly cleared are close
  * to each other.  This library is efficient in memory usage
@@ -25,8 +25,8 @@ extern "C" {
 #endif
 
 struct sparsebit;
-typedef uint64_t sparsebit_idx_t;
-typedef uint64_t sparsebit_num_t;
+typedef u64 sparsebit_idx_t;
+typedef u64 sparsebit_num_t;
 
 struct sparsebit *sparsebit_alloc(void);
 void sparsebit_free(struct sparsebit **sbitp);

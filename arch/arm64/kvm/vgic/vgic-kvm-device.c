@@ -730,18 +730,15 @@ static int vgic_v5_get_userspace_ppis(struct kvm_device *dev,
 	guard(mutex)(&dev->kvm->arch.config_lock);
 
 	/*
-	 * We either support 64 or 128 PPIs. In the former case, we need to
-	 * return 0s for the second 64 bits as we have no storage backing those.
+	 * We only support 64 PPIs, so, we need to return 0s for the
+	 * second 64 bits as we have no storage backing those.
 	 */
 	ret = put_user(bitmap_read(gicv5_vm->userspace_ppis, 0, 64), uaddr);
 	if (ret)
 		return ret;
 	uaddr++;
 
-	if (VGIC_V5_NR_PRIVATE_IRQS == 128)
-		ret = put_user(bitmap_read(gicv5_vm->userspace_ppis, 64, 128), uaddr);
-	else
-		ret = put_user(0, uaddr);
+	ret = put_user(0, uaddr);
 
 	return ret;
 }

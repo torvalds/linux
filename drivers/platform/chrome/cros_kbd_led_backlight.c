@@ -10,7 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/mfd/core.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -32,12 +31,11 @@ struct keyboard_led {
  * @brightness_set_blocking:	Set LED brightness level.  It can block the
  *				caller for the time required for accessing a
  *				LED device register
- * @max_brightness:		Maximum brightness.
  *
  * See struct led_classdev in include/linux/leds.h for more details.
  */
 struct keyboard_led_drvdata {
-	int (*init)(struct platform_device *pdev);
+	int (*init)(struct platform_device *pdev, struct keyboard_led *keyboard_led);
 
 	enum led_brightness (*brightness_get)(struct led_classdev *led_cdev);
 
@@ -45,11 +43,7 @@ struct keyboard_led_drvdata {
 			       enum led_brightness brightness);
 	int (*brightness_set_blocking)(struct led_classdev *led_cdev,
 				       enum led_brightness brightness);
-
-	enum led_brightness max_brightness;
 };
-
-#define KEYBOARD_BACKLIGHT_MAX 100
 
 #ifdef CONFIG_ACPI
 
@@ -94,7 +88,8 @@ keyboard_led_get_brightness_acpi(struct led_classdev *cdev)
 	return brightness;
 }
 
-static int keyboard_led_init_acpi(struct platform_device *pdev)
+static int keyboard_led_init_acpi(struct platform_device *pdev,
+				  struct keyboard_led *keyboard_led)
 {
 	acpi_handle handle;
 	acpi_status status;
@@ -116,17 +111,15 @@ static const struct keyboard_led_drvdata keyboard_led_drvdata_acpi = {
 	.init = keyboard_led_init_acpi,
 	.brightness_set = keyboard_led_set_brightness_acpi,
 	.brightness_get = keyboard_led_get_brightness_acpi,
-	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
 };
 
 #endif /* CONFIG_ACPI */
 
-#if IS_ENABLED(CONFIG_MFD_CROS_EC_DEV)
-static int keyboard_led_init_ec_pwm_mfd(struct platform_device *pdev)
+static int keyboard_led_init_ec_pwm_mfd(struct platform_device *pdev,
+					struct keyboard_led *keyboard_led)
 {
 	struct cros_ec_dev *ec_dev = dev_get_drvdata(pdev->dev.parent);
 	struct cros_ec_device *cros_ec = ec_dev->ec_dev;
-	struct keyboard_led *keyboard_led = platform_get_drvdata(pdev);
 
 	keyboard_led->ec = cros_ec;
 
@@ -175,14 +168,7 @@ static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm_mfd = {
 	.init = keyboard_led_init_ec_pwm_mfd,
 	.brightness_set_blocking = keyboard_led_set_brightness_ec_pwm,
 	.brightness_get = keyboard_led_get_brightness_ec_pwm,
-	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
 };
-
-#else /* IS_ENABLED(CONFIG_MFD_CROS_EC_DEV) */
-
-static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm_mfd = {};
-
-#endif /* IS_ENABLED(CONFIG_MFD_CROS_EC_DEV) */
 
 static int keyboard_led_is_mfd_device(struct platform_device *pdev)
 {
@@ -205,17 +191,16 @@ static int keyboard_led_probe(struct platform_device *pdev)
 	keyboard_led = devm_kzalloc(&pdev->dev, sizeof(*keyboard_led), GFP_KERNEL);
 	if (!keyboard_led)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, keyboard_led);
 
 	if (drvdata->init) {
-		err = drvdata->init(pdev);
+		err = drvdata->init(pdev, keyboard_led);
 		if (err)
 			return err;
 	}
 
 	keyboard_led->cdev.name = "chromeos::kbd_backlight";
 	keyboard_led->cdev.flags |= LED_CORE_SUSPENDRESUME | LED_REJECT_NAME_CONFLICT;
-	keyboard_led->cdev.max_brightness = drvdata->max_brightness;
+	keyboard_led->cdev.max_brightness = 100;
 	keyboard_led->cdev.brightness_set = drvdata->brightness_set;
 	keyboard_led->cdev.brightness_set_blocking = drvdata->brightness_set_blocking;
 	keyboard_led->cdev.brightness_get = drvdata->brightness_get;

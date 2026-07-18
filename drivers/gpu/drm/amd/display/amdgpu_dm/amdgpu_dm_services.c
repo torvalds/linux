@@ -32,9 +32,11 @@
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
+#include "amdgpu_dm_backlight.h"
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dm_trace.h"
+#include "amdgpu_dm_kunit_helpers.h"
 
 	unsigned long long
 	dm_get_elapse_time_in_ns(struct dc_context *ctx,
@@ -43,6 +45,7 @@
 {
 	return current_time_stamp - last_time_stamp;
 }
+EXPORT_IF_KUNIT(dm_get_elapse_time_in_ns);
 
 void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc_context *ctx)
 {
@@ -52,13 +55,44 @@ void dm_perf_trace_timestamp(const char *func_name, unsigned int line, struct dc
 				    &ctx->perf_trace->last_entry_write,
 				    func_name, line);
 }
+EXPORT_IF_KUNIT(dm_perf_trace_timestamp);
 
 void dm_trace_smu_enter(uint32_t msg_id, uint32_t param_in, unsigned int delay, struct dc_context *ctx)
 {
 }
+EXPORT_IF_KUNIT(dm_trace_smu_enter);
 
 void dm_trace_smu_exit(bool success, uint32_t response, struct dc_context *ctx)
 {
 }
+EXPORT_IF_KUNIT(dm_trace_smu_exit);
 
 /**** power component interfaces ****/
+
+bool dm_query_extended_brightness_caps(struct dc_context *ctx,
+	enum dm_acpi_display_type display, struct dm_acpi_atif_backlight_caps *pCaps)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_display_manager *dm;
+	int bl_index = (display == AcpiDisplayType_LCD1) ? 0 : 1;
+
+	if (!ctx || !pCaps || !ctx->driver_context)
+		return false;
+
+	adev = (struct amdgpu_device *)ctx->driver_context;
+	dm = &adev->dm;
+
+	amdgpu_dm_update_backlight_caps(dm, bl_index);
+
+	pCaps->num_data_points = dm->backlight_caps[bl_index].data_points;
+	pCaps->max_input_signal = dm->backlight_caps[bl_index].max_input_signal;
+	pCaps->min_input_signal = dm->backlight_caps[bl_index].min_input_signal;
+	pCaps->ac_level_percentage = dm->backlight_caps[bl_index].ac_level;
+	pCaps->dc_level_percentage = dm->backlight_caps[bl_index].dc_level;
+
+	if (pCaps->num_data_points > 0)
+		memcpy(pCaps->data_points, dm->backlight_caps[bl_index].luminance_data,
+			sizeof(struct dm_bl_data_point) * pCaps->num_data_points);
+	return true;
+}
+EXPORT_IF_KUNIT(dm_query_extended_brightness_caps);

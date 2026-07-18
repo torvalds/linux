@@ -86,11 +86,67 @@ static void uuid_test_uuid_invalid(struct kunit *test)
 	}
 }
 
+/*
+ * RFC 4122 section 4.4 says random UUIDs/GUIDs (version 4) must have:
+ *   - version 4 in the high nibble of the version byte,
+ *   - variant DCE 1.1 (binary 10x) in the high bits of byte 8.
+ *
+ * The version byte is byte 6 in the "wire" uuid_t layout and byte 7 in
+ * the byte-swapped guid_t layout.
+ */
+static void uuid_test_uuid_gen(struct kunit *test)
+{
+	uuid_t u;
+
+	for (unsigned int i = 0; i < 8; i++) {
+		uuid_gen(&u);
+		KUNIT_EXPECT_EQ(test, u.b[6] & 0xf0, 0x40);
+		KUNIT_EXPECT_EQ(test, u.b[8] & 0xc0, 0x80);
+	}
+}
+
+static void uuid_test_guid_gen(struct kunit *test)
+{
+	guid_t g;
+
+	for (unsigned int i = 0; i < 8; i++) {
+		guid_gen(&g);
+		KUNIT_EXPECT_EQ(test, g.b[7] & 0xf0, 0x40);
+		KUNIT_EXPECT_EQ(test, g.b[8] & 0xc0, 0x80);
+	}
+}
+
+static void uuid_test_generate_random_uuid(struct kunit *test)
+{
+	unsigned char buf[16];
+
+	for (unsigned int i = 0; i < 8; i++) {
+		generate_random_uuid(buf);
+		KUNIT_EXPECT_EQ(test, buf[6] & 0xf0, 0x40);
+		KUNIT_EXPECT_EQ(test, buf[8] & 0xc0, 0x80);
+	}
+}
+
+static void uuid_test_generate_random_guid(struct kunit *test)
+{
+	unsigned char buf[16];
+
+	for (unsigned int i = 0; i < 8; i++) {
+		generate_random_guid(buf);
+		KUNIT_EXPECT_EQ(test, buf[7] & 0xf0, 0x40);
+		KUNIT_EXPECT_EQ(test, buf[8] & 0xc0, 0x80);
+	}
+}
+
 static struct kunit_case uuid_test_cases[] = {
 	KUNIT_CASE(uuid_test_guid_valid),
 	KUNIT_CASE(uuid_test_uuid_valid),
 	KUNIT_CASE(uuid_test_guid_invalid),
 	KUNIT_CASE(uuid_test_uuid_invalid),
+	KUNIT_CASE(uuid_test_uuid_gen),
+	KUNIT_CASE(uuid_test_guid_gen),
+	KUNIT_CASE(uuid_test_generate_random_uuid),
+	KUNIT_CASE(uuid_test_generate_random_guid),
 	{},
 };
 

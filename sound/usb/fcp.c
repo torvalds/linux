@@ -191,13 +191,13 @@ static int fcp_usb(struct usb_mixer_interface *mixer, u32 opcode,
 
 	struct fcp_usb_packet *req __free(kfree) = NULL;
 	size_t req_buf_size = struct_size(req, data, req_size);
-	req = kmalloc(req_buf_size, GFP_KERNEL);
+	req = kmalloc_flex(*req, data, req_size);
 	if (!req)
 		return -ENOMEM;
 
 	struct fcp_usb_packet *resp __free(kfree) = NULL;
 	size_t resp_buf_size = struct_size(resp, data, resp_size);
-	resp = kmalloc(resp_buf_size, GFP_KERNEL);
+	resp = kmalloc_flex(*resp, data, resp_size);
 	if (!resp)
 		return -ENOMEM;
 
@@ -1082,6 +1082,8 @@ static int fcp_find_fc_interface(struct usb_mixer_interface *mixer)
 		struct usb_endpoint_descriptor *epd;
 
 		if (desc->bInterfaceClass != 255)
+			continue;
+		if (desc->bNumEndpoints < 1)
 			continue;
 
 		epd = get_endpoint(intf->altsetting, 0);

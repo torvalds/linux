@@ -400,8 +400,8 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ads1100_pm_ops,
 				 NULL);
 
 static const struct i2c_device_id ads1100_id[] = {
-	{ "ads1100" },
-	{ "ads1000" },
+	{ .name = "ads1100" },
+	{ .name = "ads1000" },
 	{ }
 };
 

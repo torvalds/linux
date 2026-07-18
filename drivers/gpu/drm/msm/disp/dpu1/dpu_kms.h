@@ -138,7 +138,7 @@ struct dpu_global_state {
 struct dpu_global_state
 	*dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms);
 struct dpu_global_state
-	*__must_check dpu_kms_get_global_state(struct drm_atomic_state *s);
+	*__must_check dpu_kms_get_global_state(struct drm_atomic_commit *s);
 
 /**
  * Debugfs functions - extra helper functions for debugfs support

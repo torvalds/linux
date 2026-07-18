@@ -131,7 +131,7 @@ void convert_hw_matrix(struct fixed31_32 *matrix,
 		       uint16_t *reg,
 		       uint32_t buffer_size)
 {
-	for (int i = 0; i < buffer_size; ++i)
+	for (uint32_t i = 0; i < buffer_size; ++i)
 		matrix[i] = int_frac_to_fixed_point(reg[i], 2, 13);
 }
 

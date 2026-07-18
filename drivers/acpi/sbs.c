@@ -629,10 +629,14 @@ static void acpi_sbs_callback(void *context)
 
 static int acpi_sbs_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *device;
 	struct acpi_sbs *sbs;
 	int result = 0;
 	int id;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	sbs = kzalloc_obj(struct acpi_sbs);
 	if (!sbs) {

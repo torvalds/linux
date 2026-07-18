@@ -86,7 +86,7 @@ static inline void ti_sci_pd_set_wkup_constraint(struct device *dev)
 	const struct ti_sci_handle *ti_sci = pd->parent->ti_sci;
 	int ret;
 
-	if (device_may_wakeup(dev)) {
+	if (device_may_wakeup(dev) || device_wakeup_path(dev)) {
 		/*
 		 * If device can wakeup using IO daisy chain wakeups,
 		 * we do not want to set a constraint.

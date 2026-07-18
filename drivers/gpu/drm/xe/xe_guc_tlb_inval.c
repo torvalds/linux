@@ -208,9 +208,6 @@ static int send_tlb_inval_asid_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 
 	lockdep_assert_held(&tlb_inval->seqno_lock);
 
-	if (guc_to_xe(guc)->info.force_execlist)
-		return -ECANCELED;
-
 	return send_tlb_inval_ppgtt(guc, seqno, start, end, asid,
 				    XE_GUC_TLB_INVAL_PAGE_SELECTIVE, prl_sa);
 }
@@ -227,9 +224,6 @@ static int send_tlb_inval_ctx_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 	int err = 0, id = guc_to_gt(guc)->info.id;
 
 	lockdep_assert_held(&tlb_inval->seqno_lock);
-
-	if (xe->info.force_execlist)
-		return -ECANCELED;
 
 	vm = xe_device_asid_to_vm(xe, asid);
 	if (IS_ERR(vm))
@@ -255,9 +249,8 @@ static int send_tlb_inval_ctx_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 #undef EXEC_QUEUE_COUNT_FULL_THRESHOLD
 
 	/*
-	 * Move exec queues to a temporary list to issue invalidations. The exec
-	 * queue must active and a reference must be taken to prevent concurrent
-	 * deregistrations.
+	 * Move exec queues to a temporary list to issue invalidations. A
+	 * reference must be taken to prevent concurrent deregistrations.
 	 *
 	 * List modification is safe because we hold 'vm->exec_queues.lock' for
 	 * reading, which prevents external modifications. Using a per-GT list
@@ -266,7 +259,7 @@ static int send_tlb_inval_ctx_ppgtt(struct xe_tlb_inval *tlb_inval, u32 seqno,
 	 */
 	list_for_each_entry_safe(q, next, &vm->exec_queues.list[id],
 				 vm_exec_queue_link) {
-		if (q->ops->active(q) && xe_exec_queue_get_unless_zero(q)) {
+		if (xe_exec_queue_get_unless_zero(q)) {
 			last_q = q;
 			list_move_tail(&q->vm_exec_queue_link, &tlb_inval_list);
 		}

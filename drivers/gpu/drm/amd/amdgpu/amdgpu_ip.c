@@ -369,27 +369,6 @@ int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_device_ip_is_hw - is the hardware IP enabled
- *
- * @adev: amdgpu_device pointer
- * @block_type: Type of hardware IP (SMU, GFX, UVD, etc.)
- *
- * Check if the hardware IP is enable or not.
- * Returns true if it the IP is enable, false if not.
- */
-bool amdgpu_device_ip_is_hw(struct amdgpu_device *adev,
-			    enum amd_ip_block_type block_type)
-{
-	struct amdgpu_ip_block *ip_block;
-
-	ip_block = amdgpu_device_ip_get_ip_block(adev, block_type);
-	if (ip_block)
-		return ip_block->status.hw;
-
-	return false;
-}
-
-/**
  * amdgpu_device_ip_is_valid - is the hardware IP valid
  *
  * @adev: amdgpu_device pointer
@@ -408,4 +387,140 @@ bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
 		return ip_block->status.valid;
 
 	return false;
+}
+
+/**
+ * amdgpu_ip_from_ring() - Find IP block type corresponding to ring type.
+ *
+ * @ring_type: The ring type whose IP block you are looking for.
+ */
+static enum amd_ip_block_type amdgpu_ip_from_ring(const enum amdgpu_ring_type ring_type)
+{
+	switch (ring_type) {
+	case AMDGPU_RING_TYPE_GFX:
+	case AMDGPU_RING_TYPE_COMPUTE:
+		return AMD_IP_BLOCK_TYPE_GFX;
+
+	case AMDGPU_RING_TYPE_SDMA:
+		return AMD_IP_BLOCK_TYPE_SDMA;
+
+	case AMDGPU_RING_TYPE_UVD:
+	case AMDGPU_RING_TYPE_UVD_ENC:
+		return AMD_IP_BLOCK_TYPE_UVD;
+
+	case AMDGPU_RING_TYPE_VCE:
+		return AMD_IP_BLOCK_TYPE_VCE;
+
+	case AMDGPU_RING_TYPE_VCN_DEC:
+	case AMDGPU_RING_TYPE_VCN_ENC:
+		return AMD_IP_BLOCK_TYPE_VCN;
+
+	case AMDGPU_RING_TYPE_VCN_JPEG:
+		return AMD_IP_BLOCK_TYPE_JPEG;
+
+	case AMDGPU_RING_TYPE_VPE:
+		return AMD_IP_BLOCK_TYPE_VPE;
+
+	default:
+		return AMD_IP_BLOCK_TYPE_NUM;
+	}
+}
+
+/**
+ * amdgpu_ring_mask_from_ip() - Find mask of ring types corresponding to an IP block type.
+ *
+ * @ip_type: The IP block type whose rings you are looking for.
+ */
+static u32 amdgpu_ring_mask_from_ip(const enum amd_ip_block_type ip_type)
+{
+	switch (ip_type) {
+	case AMD_IP_BLOCK_TYPE_GFX:
+		return BIT(AMDGPU_RING_TYPE_GFX) | BIT(AMDGPU_RING_TYPE_COMPUTE);
+
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		return BIT(AMDGPU_RING_TYPE_SDMA);
+
+	case AMD_IP_BLOCK_TYPE_UVD:
+		return BIT(AMDGPU_RING_TYPE_UVD) | BIT(AMDGPU_RING_TYPE_UVD_ENC);
+
+	case AMD_IP_BLOCK_TYPE_VCE:
+		return BIT(AMD_IP_BLOCK_TYPE_VCE);
+
+	case AMD_IP_BLOCK_TYPE_VCN:
+		return BIT(AMDGPU_RING_TYPE_VCN_DEC) | BIT(AMDGPU_RING_TYPE_VCN_ENC);
+
+	case AMD_IP_BLOCK_TYPE_JPEG:
+		return BIT(AMDGPU_RING_TYPE_VCN_JPEG);
+
+	case AMD_IP_BLOCK_TYPE_VPE:
+		return BIT(AMDGPU_RING_TYPE_VPE);
+
+	default:
+		return 0;
+	}
+}
+
+/**
+ * amdgpu_device_ip_soft_reset() - Perform a graceful soft reset on an IP block.
+ *
+ * @guilty_ring: The ring which is guilty of causing a reset.
+ * @guilty_fence: The fence which didn't signal.
+ *
+ * IP block soft reset is used when attempting to recover
+ * from a GPU hang in a situation where a more fine grained
+ * reset type isn't available or didn't work. This effectively
+ * resets all rings that belong to the same device IP block
+ * and re-initializes the device IP block.
+ *
+ * The reset is handled gracefully, meaning that we try to
+ * minimize collateral damage (ie. avoid rejecting non-guilty jobs)
+ * as well as back up and restore the contents of all rings
+ * so that the system can move on from the hang.
+ */
+int amdgpu_device_ip_soft_reset(struct amdgpu_ring *guilty_ring,
+				struct amdgpu_fence *guilty_fence)
+{
+	struct amdgpu_device *adev = guilty_ring->adev;
+	struct amdgpu_ip_block *ip_block;
+	enum amd_ip_block_type ip_type;
+	u32 ring_type_mask;
+	int r;
+
+	ip_type = amdgpu_ip_from_ring(guilty_ring->funcs->type);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, ip_type);
+
+	if (unlikely(!ip_block)) {
+		dev_warn(adev->dev, "IP block not found for ring %s\n",
+			 guilty_ring->name);
+		return -EOPNOTSUPP;
+	}
+
+	if (!ip_block->version->funcs->soft_reset) {
+		dev_warn(adev->dev, "IP block soft reset not supported on %s\n",
+			 ip_block->version->funcs->name);
+		return -EOPNOTSUPP;
+	}
+
+	dev_err(adev->dev, "Starting %s IP block soft reset\n",
+		ip_block->version->funcs->name);
+
+	ring_type_mask = amdgpu_ring_mask_from_ip(ip_type);
+
+	amdgpu_device_lock_reset_domain(adev->reset_domain);
+	amdgpu_multi_ring_reset_helper_begin(ring_type_mask, guilty_ring, guilty_fence);
+
+	r = ip_block->version->funcs->soft_reset(ip_block);
+
+	r = amdgpu_multi_ring_reset_helper_end(ring_type_mask, guilty_ring, r);
+	amdgpu_device_unlock_reset_domain(adev->reset_domain);
+
+	if (r) {
+		dev_err(adev->dev, "Failed %s IP block soft reset: %d\n",
+			ip_block->version->funcs->name, r);
+		return r;
+	}
+
+	dev_err(adev->dev, "Successful %s IP block soft reset\n",
+		ip_block->version->funcs->name);
+	return 0;
 }

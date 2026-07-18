@@ -222,6 +222,8 @@ static int virtio_i2c_probe(struct virtio_device *vdev)
 	 */
 	ACPI_COMPANION_SET(&vi->adap.dev, ACPI_COMPANION(vdev->dev.parent));
 
+	virtio_device_ready(vdev);
+
 	ret = i2c_add_adapter(&vi->adap);
 	if (ret)
 		virtio_i2c_del_vqs(vdev);

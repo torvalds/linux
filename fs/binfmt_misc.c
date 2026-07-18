@@ -704,7 +704,7 @@ bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 	ssize_t res;
 	char *page;
 
-	page = (char *) __get_free_page(GFP_KERNEL);
+	page = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!page)
 		return -ENOMEM;
 
@@ -712,7 +712,7 @@ bm_entry_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 
 	res = simple_read_from_buffer(buf, nbytes, ppos, page, strlen(page));
 
-	free_page((unsigned long) page);
+	kfree(page);
 	return res;
 }
 

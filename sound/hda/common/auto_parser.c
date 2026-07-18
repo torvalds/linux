@@ -1013,7 +1013,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	const char *name = NULL;
 	const char *type = NULL;
 	unsigned int vendor, device;
-	u16 pci_vendor, pci_device;
+	u16 pci_vendor = 0, pci_device = 0;
 	u16 codec_vendor, codec_device;
 
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
@@ -1066,7 +1066,7 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	/* match primarily with the PCI SSID */
 	for (q = quirk; q->subvendor || q->subdevice; q++) {
 		/* if the entry is specific to codec SSID, check with it */
-		if (!codec->bus->pci || q->match_codec_ssid) {
+		if (!pci_vendor || !pci_device || q->match_codec_ssid) {
 			if (hda_quirk_match(codec_vendor, codec_device, q)) {
 				type = "codec SSID";
 				goto found_device;

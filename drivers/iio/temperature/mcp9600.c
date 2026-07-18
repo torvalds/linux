@@ -16,7 +16,6 @@
 #include <linux/irq.h>
 #include <linux/math.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 
 #include <linux/iio/events.h>
@@ -297,7 +296,7 @@ static int mcp9600_read_thresh(struct iio_dev *indio_dev,
 		 * Temperature is stored in two’s complement format in
 		 * bits(15:2), LSB is 0.25 degree celsius.
 		 */
-		*val = sign_extend32(FIELD_GET(MCP9600_ALERT_LIMIT_MASK, ret), 13);
+		*val = FIELD_GET_SIGNED(MCP9600_ALERT_LIMIT_MASK, ret);
 		*val2 = 4;
 		return IIO_VAL_FRACTIONAL;
 	case IIO_EV_INFO_HYSTERESIS:
@@ -551,8 +550,8 @@ static const struct mcp_chip_info mcp9601_chip_info = {
 };
 
 static const struct i2c_device_id mcp9600_id[] = {
-	{ "mcp9600", .driver_data = (kernel_ulong_t)&mcp9600_chip_info },
-	{ "mcp9601", .driver_data = (kernel_ulong_t)&mcp9601_chip_info },
+	{ .name = "mcp9600", .driver_data = (kernel_ulong_t)&mcp9600_chip_info },
+	{ .name = "mcp9601", .driver_data = (kernel_ulong_t)&mcp9601_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mcp9600_id);

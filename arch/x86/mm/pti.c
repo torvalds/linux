@@ -31,6 +31,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/hypervisor.h>
+#include <asm/cpuid/api.h>
 #include <asm/vsyscall.h>
 #include <asm/cmdline.h>
 #include <asm/pti.h>

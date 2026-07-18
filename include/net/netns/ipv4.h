@@ -275,7 +275,7 @@ struct netns_ipv4 {
 
 #ifdef CONFIG_IP_MROUTE
 #ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES
-	struct mr_table		*mrt;
+	struct mr_table __rcu	*mrt;
 #else
 	struct list_head	mr_tables;
 	struct fib_rules_ops	*mr_rules_ops;

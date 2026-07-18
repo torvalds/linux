@@ -72,6 +72,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 	const char *s, *arg = NULL;
 	const int unset = flags & OPT_UNSET;
 	int err;
+	bool force_defval = false;
 
 	if (unset && p->opt)
 		return opterror(opt, "takes no value", flags);
@@ -123,6 +124,42 @@ static int get_value(struct parse_opt_ctx_t *p,
 		}
 	}
 
+	if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (!(p->flags & PARSE_OPT_OPTARG_ALLOW_NEXT)) {
+			/*
+			 * If the option has an optional argument, and the argument is not
+			 * provided in the option itself, do not attempt to get it from
+			 * the next argument, unless PARSE_OPT_OPTARG_ALLOW_NEXT is set.
+			 *
+			 * This prevents a non-option argument from being interpreted as an
+			 * optional argument of a preceding option, for example:
+			 *
+			 * $ cmd --opt val
+			 * -> is "val" argument of "--opt" or a separate non-option
+			 * argument?
+			 *
+			 * With PARSE_OPT_OPTARG_ALLOW_NEXT, "val" is interpreted as
+			 * the argument of "--opt", i.e. the same as "--opt=val".
+			 * Without PARSE_OPT_OPTARG_ALLOW_NEXT, --opt is interpreted
+			 * as having the default value, and "val" as a separate non-option
+			 * argument.
+			 *
+			 * PARSE_OPT_OPTARG_ALLOW_NEXT is useful for commands that take no
+			 * non-option arguments and want to allow more flexibility in
+			 * optional argument passing.
+			 */
+			force_defval = true;
+		}
+
+		if (p->argc <= 1 || p->argv[1][0] == '-') {
+			/*
+			 * If next argument is an option or does not exist,
+			 * use the default value.
+			 */
+			force_defval = true;
+		}
+	}
+
 	if (opt->flags & PARSE_OPT_NOBUILD) {
 		char reason[128];
 		bool noarg = false;
@@ -148,7 +185,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			noarg = true;
 		if (opt->flags & PARSE_OPT_NOARG)
 			noarg = true;
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
+		if (force_defval)
 			noarg = true;
 
 		switch (opt->type) {
@@ -212,7 +249,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		err = 0;
 		if (unset)
 			*(const char **)opt->value = NULL;
-		else if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
+		else if (force_defval)
 			*(const char **)opt->value = (const char *)opt->defval;
 		else
 			err = get_arg(p, opt, flags, (const char **)opt->value);
@@ -244,7 +281,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			return (*opt->callback)(opt, NULL, 1) ? (-1) : 0;
 		if (opt->flags & PARSE_OPT_NOARG)
 			return (*opt->callback)(opt, NULL, 0) ? (-1) : 0;
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
+		if (force_defval)
 			return (*opt->callback)(opt, NULL, 0) ? (-1) : 0;
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
@@ -255,7 +292,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			*(int *)opt->value = 0;
 			return 0;
 		}
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (force_defval) {
 			*(int *)opt->value = opt->defval;
 			return 0;
 		}
@@ -271,7 +308,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			*(unsigned int *)opt->value = 0;
 			return 0;
 		}
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (force_defval) {
 			*(unsigned int *)opt->value = opt->defval;
 			return 0;
 		}
@@ -289,7 +326,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			*(long *)opt->value = 0;
 			return 0;
 		}
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (force_defval) {
 			*(long *)opt->value = opt->defval;
 			return 0;
 		}
@@ -305,7 +342,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			*(unsigned long *)opt->value = 0;
 			return 0;
 		}
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (force_defval) {
 			*(unsigned long *)opt->value = opt->defval;
 			return 0;
 		}
@@ -321,7 +358,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			*(u64 *)opt->value = 0;
 			return 0;
 		}
-		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+		if (force_defval) {
 			*(u64 *)opt->value = opt->defval;
 			return 0;
 		}
@@ -390,7 +427,8 @@ retry:
 			return 0;
 		}
 		if (!rest) {
-			if (strstarts(options->long_name, "no-")) {
+			if (strstarts(options->long_name, "no-") &&
+			    !(options->flags & PARSE_OPT_NOAUTONEG)) {
 				/*
 				 * The long name itself starts with "no-", so
 				 * accept the option without "no-" so that users
@@ -428,12 +466,12 @@ is_abbreviated:
 				continue;
 			}
 			/* negated and abbreviated very much? */
-			if (strstarts("no-", arg)) {
+			if (strstarts("no-", arg) && !(options->flags & PARSE_OPT_NOAUTONEG)) {
 				flags |= OPT_UNSET;
 				goto is_abbreviated;
 			}
 			/* negated? */
-			if (strncmp(arg, "no-", 3))
+			if (strncmp(arg, "no-", 3) || (options->flags & PARSE_OPT_NOAUTONEG))
 				continue;
 			flags |= OPT_UNSET;
 			rest = skip_prefix(arg + 3, options->long_name);
@@ -982,7 +1020,8 @@ opt:
 		if (strstarts(opts->long_name, optstr))
 			print_option_help(opts, 0);
 		if (strstarts("no-", optstr) &&
-		    strstarts(opts->long_name, optstr + 3))
+		    strstarts(opts->long_name, optstr + 3) &&
+			!(opts->flags & PARSE_OPT_NOAUTONEG))
 			print_option_help(opts, 0);
 	}
 

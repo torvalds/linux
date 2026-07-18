@@ -294,7 +294,7 @@ void atmel_i2c_enqueue(struct atmel_i2c_work_data *work_data,
 				   void *areq, int status),
 		       void *areq)
 {
-	work_data->cbk = (void *)cbk;
+	work_data->cbk = cbk;
 	work_data->areq = areq;
 
 	INIT_WORK(&work_data->work, atmel_i2c_work_handler);

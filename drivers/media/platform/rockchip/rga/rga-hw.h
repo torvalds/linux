@@ -6,7 +6,9 @@
 #ifndef __RGA_HW_H__
 #define __RGA_HW_H__
 
-#define RGA_CMDBUF_SIZE 0x20
+#include <linux/types.h>
+
+#define RGA_CMDBUF_SIZE 0x80
 
 /* Hardware limits */
 #define MAX_WIDTH 8192
@@ -14,9 +16,7 @@
 
 #define MIN_WIDTH 34
 #define MIN_HEIGHT 34
-
-#define DEFAULT_WIDTH 100
-#define DEFAULT_HEIGHT 100
+#define MAX_SCALING_FACTOR 16
 
 #define RGA_TIMEOUT 500
 
@@ -177,6 +177,8 @@
 
 #define RGA_ALPHA_COLOR_NORMAL 0
 #define RGA_ALPHA_COLOR_MULTIPLY_CAL 1
+
+#define RGA_INT_COMMAND_FINISHED 4
 
 /* Registers union */
 union rga_mode_ctrl {
@@ -429,6 +431,12 @@ union rga_pat_con {
 		/* [24:31] */
 		unsigned int offset_y:8;
 	} data;
+};
+
+struct rga_fmt {
+	u32 fourcc;
+	u8 color_swap;
+	u8 hw_format;
 };
 
 #endif

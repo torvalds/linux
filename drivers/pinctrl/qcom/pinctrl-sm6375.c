@@ -1506,6 +1506,7 @@ static const struct of_device_id sm6375_tlmm_of_match[] = {
 	{ .compatible = "qcom,sm6375-tlmm", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sm6375_tlmm_of_match);
 
 static struct platform_driver sm6375_tlmm_driver = {
 	.driver = {
@@ -1529,4 +1530,3 @@ module_exit(sm6375_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI SM6375 TLMM driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(of, sm6375_tlmm_of_match);

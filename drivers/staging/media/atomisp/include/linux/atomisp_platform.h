@@ -57,7 +57,8 @@ enum atomisp_input_format {
 	ATOMISP_INPUT_FORMAT_RAW_16,   /* RAW data, 16 bits per pixel */
 	ATOMISP_INPUT_FORMAT_BINARY_8, /* Binary byte stream. */
 
-	/* CSI2-MIPI specific format: Generic short packet data. It is used to
+	/*
+	 * CSI2-MIPI specific format: Generic short packet data. It is used to
 	 * keep the timing information for the opening/closing of shutters,
 	 * triggering of flashes and etc.
 	 */
@@ -70,18 +71,18 @@ enum atomisp_input_format {
 	ATOMISP_INPUT_FORMAT_GENERIC_SHORT7,  /* Generic Short Packet Code 7 */
 	ATOMISP_INPUT_FORMAT_GENERIC_SHORT8,  /* Generic Short Packet Code 8 */
 
-	/* CSI2-MIPI specific format: YUV data.
-	 */
-	ATOMISP_INPUT_FORMAT_YUV420_8_SHIFT,  /* YUV420 8-bit (Chroma Shifted
-						 Pixel Sampling) */
-	ATOMISP_INPUT_FORMAT_YUV420_10_SHIFT, /* YUV420 8-bit (Chroma Shifted
-						 Pixel Sampling) */
+	/* YUV data */
+	/* YUV420 8-bit (Chroma Shifted Pixel Sampling) */
+	ATOMISP_INPUT_FORMAT_YUV420_8_SHIFT,
+	/* YUV420 10-bit (Chroma Shifted Pixel Sampling) */
+	ATOMISP_INPUT_FORMAT_YUV420_10_SHIFT,
 
-	/* CSI2-MIPI specific format: Generic long packet data
-	 */
-	ATOMISP_INPUT_FORMAT_EMBEDDED, /* Embedded 8-bit non Image Data */
+	/* CSI2-MIPI specific format: Generic long packet data */
+	/* Embedded 8-bit non Image Data */
+	ATOMISP_INPUT_FORMAT_EMBEDDED,
 
-	/* CSI2-MIPI specific format: User defined byte-based data. For example,
+	/*
+	 * User defined byte-based data. For example,
 	 * the data transmitter (e.g. the SoC sensor) can keep the JPEG data as
 	 * the User Defined Data Type 4 and the MPEG data as the
 	 * User Defined Data Type 7.
@@ -105,9 +106,9 @@ struct intel_v4l2_subdev_table {
 };
 
 /*
- *  Sensor of external ISP can send multiple streams with different mipi data
+ * Sensor of external ISP can send multiple streams with different MIPI data
  * type in the same virtual channel. This information needs to come from the
- * sensor or external ISP
+ * sensor or external ISP.
  */
 struct atomisp_isys_config_info {
 	u8 input_format;
@@ -118,16 +119,17 @@ struct atomisp_isys_config_info {
 struct atomisp_input_stream_info {
 	enum atomisp_input_stream_id stream;
 	u8 enable;
-	/* Sensor driver fills ch_id with the id
-	   of the virtual channel. */
+	/* Sensor driver fills ch_id with the id of the virtual channel. */
 	u8 ch_id;
-	/* Tells how many streams in this virtual channel. If 0 ignore rest
-	 * and the input format will be from mipi_info */
+	/*
+	 * Tells the number of streams in this virtual channel. If 0, ignore the
+	 * rest and the input format will be from mipi_info.
+	 */
 	u8 isys_configs;
 	/*
-	 * if more isys_configs is more than 0, sensor needs to configure the
-	 * input format differently. width and height can be 0. If width and
-	 * height is not zero, then the corresponding data needs to be set
+	 * If isys_configs is greater than 0, sensor needs to configure the
+	 * input format differently. Width and height can be 0. If width and
+	 * height are not zero, then the corresponding data needs to be set.
 	 */
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };

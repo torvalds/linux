@@ -3,7 +3,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
-#include "bpf_arena_common.h"
+#include <bpf_arena_common.h>
 
 #if (defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
 	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
@@ -274,11 +274,11 @@ __jited("movslq	0x10(%rdi,%r12), %r15")
 __jited("movswq	0x18(%rdi,%r12), %r15")
 __jited("movsbq	0x20(%rdi,%r12), %r15")
 __arch_arm64
-__jited("add	x11, x7, x28")
+__jited("add	x11, x8, x28")
 __jited("ldrsw	x21, [x11, #0x10]")
-__jited("add	x11, x7, x28")
+__jited("add	x11, x8, x28")
 __jited("ldrsh	x21, [x11, #0x18]")
-__jited("add	x11, x7, x28")
+__jited("add	x11, x8, x28")
 __jited("ldrsb	x21, [x11, #0x20]")
 __jited("add	x11, x0, x28")
 __jited("ldrsw	x22, [x11, #0x10]")

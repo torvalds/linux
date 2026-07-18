@@ -1408,7 +1408,7 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 
 static int kvm_xen_hypercall_set_result(struct kvm_vcpu *vcpu, u64 result)
 {
-	kvm_rax_write(vcpu, result);
+	kvm_rax_write_raw(vcpu, result);
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
@@ -1678,32 +1678,35 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	bool handled = false;
 	u8 cpl;
 
-	input = (u64)kvm_register_read(vcpu, VCPU_REGS_RAX);
-
 	/* Hyper-V hypercalls get bit 31 set in EAX */
-	if ((input & 0x80000000) &&
+	if ((kvm_rax_read_raw(vcpu) & 0x80000000) &&
 	    kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
 	longmode = is_64_bit_hypercall(vcpu);
 	if (!longmode) {
-		params[0] = (u32)kvm_rbx_read(vcpu);
-		params[1] = (u32)kvm_rcx_read(vcpu);
-		params[2] = (u32)kvm_rdx_read(vcpu);
-		params[3] = (u32)kvm_rsi_read(vcpu);
-		params[4] = (u32)kvm_rdi_read(vcpu);
-		params[5] = (u32)kvm_rbp_read(vcpu);
+		input = kvm_eax_read(vcpu);
+		params[0] = kvm_ebx_read(vcpu);
+		params[1] = kvm_ecx_read(vcpu);
+		params[2] = kvm_edx_read(vcpu);
+		params[3] = kvm_esi_read(vcpu);
+		params[4] = kvm_edi_read(vcpu);
+		params[5] = kvm_ebp_read(vcpu);
 	}
-#ifdef CONFIG_X86_64
 	else {
-		params[0] = (u64)kvm_rdi_read(vcpu);
-		params[1] = (u64)kvm_rsi_read(vcpu);
-		params[2] = (u64)kvm_rdx_read(vcpu);
-		params[3] = (u64)kvm_r10_read(vcpu);
-		params[4] = (u64)kvm_r8_read(vcpu);
-		params[5] = (u64)kvm_r9_read(vcpu);
-	}
+#ifdef CONFIG_X86_64
+		input = (u64)kvm_rax_read_raw(vcpu);
+		params[0] = (u64)kvm_rdi_read_raw(vcpu);
+		params[1] = (u64)kvm_rsi_read_raw(vcpu);
+		params[2] = (u64)kvm_rdx_read_raw(vcpu);
+		params[3] = (u64)kvm_r10_read_raw(vcpu);
+		params[4] = (u64)kvm_r8_read_raw(vcpu);
+		params[5] = (u64)kvm_r9_read_raw(vcpu);
+#else
+		KVM_BUG_ON(1, vcpu->kvm);
+		return -EIO;
 #endif
+	}
 	cpl = kvm_x86_call(get_cpl)(vcpu);
 	trace_kvm_xen_hypercall(cpl, input, params[0], params[1], params[2],
 				params[3], params[4], params[5]);

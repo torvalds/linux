@@ -61,11 +61,6 @@ union smc_proto_hdr {
 	};
 }; /* HW DATA */
 
-#define SMC_APERTURE_BITS 256
-#define SMC_BASIC_UNIT (sizeof(u32))
-#define SMC_APERTURE_DWORDS (SMC_APERTURE_BITS / (SMC_BASIC_UNIT * 8))
-#define SMC_LAST_DWORD (SMC_APERTURE_DWORDS - 1)
-
 static int mana_smc_poll_register(void __iomem *base, bool reset)
 {
 	void __iomem *ptr = base + SMC_LAST_DWORD * SMC_BASIC_UNIT;

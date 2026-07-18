@@ -58,6 +58,7 @@ struct dc_state;
 struct dc_stream_status;
 struct dc_writeback_info;
 struct dchub_init_data;
+struct dc_plane_cm;
 struct dc_static_screen_params;
 struct resource_pool;
 struct resource_context;
@@ -140,6 +141,9 @@ struct hwseq_private_funcs {
 			struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool clock_on);
+	void (*hdmistream_root_clock_control)(
+			struct dce_hwseq *hws,
+			bool clock_on);
 	void (*physymclk_root_clock_control)(
 			struct dce_hwseq *hws,
 			unsigned int phy_inst,
@@ -216,7 +220,7 @@ struct hwseq_private_funcs {
 			struct dc_state *context);
 	void (*populate_mcm_luts)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
-			struct dc_cm2_func_luts mcm_luts,
+			const struct dc_plane_cm *cm,
 			bool lut_bank_a);
 	void (*perform_3dlut_wa_unlock)(struct pipe_ctx *pipe_ctx);
 	void (*wait_for_pipe_update_if_needed)(struct dc *dc, struct pipe_ctx *pipe_ctx, bool is_surface_update_only);

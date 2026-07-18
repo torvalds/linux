@@ -156,7 +156,7 @@ static int lp873x_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id lp873x_gpio_id_table[] = {
-	{ "lp873x-gpio", },
+	{ .name = "lp873x-gpio" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, lp873x_gpio_id_table);

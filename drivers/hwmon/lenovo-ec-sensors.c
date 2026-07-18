@@ -519,8 +519,8 @@ static int lenovo_ec_probe(struct platform_device *pdev)
 	if (!ec_data)
 		return -ENOMEM;
 
-	if (!request_region(IO_REGION_START, IO_REGION_LENGTH, "LNV-WKS")) {
-		pr_err(":request fail\n");
+	if (!devm_request_region(dev, IO_REGION_START, IO_REGION_LENGTH, "LNV-WKS")) {
+		dev_err(dev, "Failed to request I/O region\n");
 		return -EIO;
 	}
 
@@ -537,13 +537,11 @@ static int lenovo_ec_probe(struct platform_device *pdev)
 	outw_p(MCHP_SING_IDX, MCHP_EMI0_EC_ADDRESS);
 	mutex_unlock(&ec_data->mec_mutex);
 
-	if ((inb_p(MCHP_EMI0_EC_DATA_BYTE0) != 'M') &&
-	    (inb_p(MCHP_EMI0_EC_DATA_BYTE1) != 'C') &&
-	    (inb_p(MCHP_EMI0_EC_DATA_BYTE2) != 'H') &&
-	    (inb_p(MCHP_EMI0_EC_DATA_BYTE3) != 'P')) {
-		release_region(IO_REGION_START, IO_REGION_LENGTH);
+	if ((inb_p(MCHP_EMI0_EC_DATA_BYTE0) != 'M') ||
+	    (inb_p(MCHP_EMI0_EC_DATA_BYTE1) != 'C') ||
+	    (inb_p(MCHP_EMI0_EC_DATA_BYTE2) != 'H') ||
+	    (inb_p(MCHP_EMI0_EC_DATA_BYTE3) != 'P'))
 		return -ENODEV;
-	}
 
 	dmi_id = dmi_first_match(thinkstation_dmi_table);
 
@@ -577,7 +575,6 @@ static int lenovo_ec_probe(struct platform_device *pdev)
 		lenovo_ec_chip_info.info = lenovo_ec_hwmon_info_p8;
 		break;
 	default:
-		release_region(IO_REGION_START, IO_REGION_LENGTH);
 		return -ENODEV;
 	}
 
@@ -606,10 +603,8 @@ static int __init lenovo_ec_init(void)
 		platform_create_bundle(&lenovo_ec_sensors_platform_driver,
 				       lenovo_ec_probe, NULL, 0, NULL, 0);
 
-	if (IS_ERR(lenovo_ec_sensors_platform_device)) {
-		release_region(IO_REGION_START, IO_REGION_LENGTH);
+	if (IS_ERR(lenovo_ec_sensors_platform_device))
 		return PTR_ERR(lenovo_ec_sensors_platform_device);
-	}
 
 	return 0;
 }
@@ -617,7 +612,6 @@ module_init(lenovo_ec_init);
 
 static void __exit lenovo_ec_exit(void)
 {
-	release_region(IO_REGION_START, IO_REGION_LENGTH);
 	platform_device_unregister(lenovo_ec_sensors_platform_device);
 	platform_driver_unregister(&lenovo_ec_sensors_platform_driver);
 }

@@ -32,15 +32,15 @@ static void aiodma_pcm_irq(struct uniphier_aio_sub *sub)
 		runtime->channels * samples_to_bytes(runtime, 1);
 	int ret;
 
-	spin_lock(&sub->lock);
-	ret = aiodma_rb_set_threshold(sub, runtime->dma_bytes,
-				      sub->threshold + bytes);
-	if (!ret)
-		sub->threshold += bytes;
+	scoped_guard(spinlock, &sub->lock) {
+		ret = aiodma_rb_set_threshold(sub, runtime->dma_bytes,
+					      sub->threshold + bytes);
+		if (!ret)
+			sub->threshold += bytes;
 
-	aiodma_rb_sync(sub, runtime->dma_addr, runtime->dma_bytes, bytes);
-	aiodma_rb_clear_irq(sub);
-	spin_unlock(&sub->lock);
+		aiodma_rb_sync(sub, runtime->dma_addr, runtime->dma_bytes, bytes);
+		aiodma_rb_clear_irq(sub);
+	}
 
 	snd_pcm_period_elapsed(sub->substream);
 }
@@ -51,15 +51,15 @@ static void aiodma_compr_irq(struct uniphier_aio_sub *sub)
 	int bytes = runtime->fragment_size;
 	int ret;
 
-	spin_lock(&sub->lock);
-	ret = aiodma_rb_set_threshold(sub, sub->compr_bytes,
-				      sub->threshold + bytes);
-	if (!ret)
-		sub->threshold += bytes;
+	scoped_guard(spinlock, &sub->lock) {
+		ret = aiodma_rb_set_threshold(sub, sub->compr_bytes,
+					      sub->threshold + bytes);
+		if (!ret)
+			sub->threshold += bytes;
 
-	aiodma_rb_sync(sub, sub->compr_addr, sub->compr_bytes, bytes);
-	aiodma_rb_clear_irq(sub);
-	spin_unlock(&sub->lock);
+		aiodma_rb_sync(sub, sub->compr_addr, sub->compr_bytes, bytes);
+		aiodma_rb_clear_irq(sub);
+	}
 
 	snd_compr_fragment_elapsed(sub->cstream);
 }
@@ -113,18 +113,16 @@ static int uniphier_aiodma_prepare(struct snd_soc_component *component,
 	struct uniphier_aio_sub *sub = &aio->sub[substream->stream];
 	int bytes = runtime->period_size *
 		runtime->channels * samples_to_bytes(runtime, 1);
-	unsigned long flags;
 	int ret;
 
 	ret = aiodma_ch_set_param(sub);
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&sub->lock, flags);
-	ret = aiodma_rb_set_buffer(sub, runtime->dma_addr,
-				   runtime->dma_addr + runtime->dma_bytes,
-				   bytes);
-	spin_unlock_irqrestore(&sub->lock, flags);
+	scoped_guard(spinlock_irqsave, &sub->lock)
+		ret = aiodma_rb_set_buffer(sub, runtime->dma_addr,
+					   runtime->dma_addr + runtime->dma_bytes,
+					   bytes);
 	if (ret)
 		return ret;
 
@@ -141,9 +139,8 @@ static int uniphier_aiodma_trigger(struct snd_soc_component *component,
 	struct device *dev = &aio->chip->pdev->dev;
 	int bytes = runtime->period_size *
 		runtime->channels * samples_to_bytes(runtime, 1);
-	unsigned long flags;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		aiodma_rb_sync(sub, runtime->dma_addr, runtime->dma_bytes,
@@ -161,7 +158,6 @@ static int uniphier_aiodma_trigger(struct snd_soc_component *component,
 		dev_warn(dev, "Unknown trigger(%d) ignored\n", cmd);
 		break;
 	}
-	spin_unlock_irqrestore(&sub->lock, flags);
 
 	return 0;
 }
@@ -176,17 +172,15 @@ static snd_pcm_uframes_t uniphier_aiodma_pointer(
 	struct uniphier_aio_sub *sub = &aio->sub[substream->stream];
 	int bytes = runtime->period_size *
 		runtime->channels * samples_to_bytes(runtime, 1);
-	unsigned long flags;
 	snd_pcm_uframes_t pos;
 
-	spin_lock_irqsave(&sub->lock, flags);
+	guard(spinlock_irqsave)(&sub->lock);
 	aiodma_rb_sync(sub, runtime->dma_addr, runtime->dma_bytes, bytes);
 
 	if (sub->swm->dir == PORT_DIR_OUTPUT)
 		pos = bytes_to_frames(runtime, sub->rd_offs);
 	else
 		pos = bytes_to_frames(runtime, sub->wr_offs);
-	spin_unlock_irqrestore(&sub->lock, flags);
 
 	return pos;
 }

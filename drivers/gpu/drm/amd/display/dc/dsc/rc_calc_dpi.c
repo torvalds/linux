@@ -72,27 +72,27 @@ static void copy_rc_to_cfg(struct drm_dsc_config *dsc_cfg, const struct rc_param
 {
 	int i;
 
-	dsc_cfg->rc_quant_incr_limit0   = rc->rc_quant_incr_limit0;
-	dsc_cfg->rc_quant_incr_limit1   = rc->rc_quant_incr_limit1;
-	dsc_cfg->initial_offset         = rc->initial_fullness_offset;
-	dsc_cfg->initial_xmit_delay     = rc->initial_xmit_delay;
-	dsc_cfg->first_line_bpg_offset  = rc->first_line_bpg_offset;
-	dsc_cfg->second_line_bpg_offset = rc->second_line_bpg_offset;
-	dsc_cfg->flatness_min_qp        = rc->flatness_min_qp;
-	dsc_cfg->flatness_max_qp        = rc->flatness_max_qp;
+	dsc_cfg->rc_quant_incr_limit0   = (u8)rc->rc_quant_incr_limit0;
+	dsc_cfg->rc_quant_incr_limit1   = (u8)rc->rc_quant_incr_limit1;
+	dsc_cfg->initial_offset         = (u16)rc->initial_fullness_offset;
+	dsc_cfg->initial_xmit_delay     = (u16)rc->initial_xmit_delay;
+	dsc_cfg->first_line_bpg_offset  = (u8)rc->first_line_bpg_offset;
+	dsc_cfg->second_line_bpg_offset = (u8)rc->second_line_bpg_offset;
+	dsc_cfg->flatness_min_qp        = (u8)rc->flatness_min_qp;
+	dsc_cfg->flatness_max_qp        = (u8)rc->flatness_max_qp;
 	for (i = 0; i < QP_SET_SIZE; ++i) {
-		dsc_cfg->rc_range_params[i].range_min_qp     = rc->qp_min[i];
-		dsc_cfg->rc_range_params[i].range_max_qp     = rc->qp_max[i];
+		dsc_cfg->rc_range_params[i].range_min_qp     = (u8)rc->qp_min[i];
+		dsc_cfg->rc_range_params[i].range_max_qp     = (u8)rc->qp_max[i];
 		/* Truncate 8-bit signed value to 6-bit signed value */
 		dsc_cfg->rc_range_params[i].range_bpg_offset = 0x3f & rc->ofs[i];
 	}
-	dsc_cfg->rc_model_size    = rc->rc_model_size;
-	dsc_cfg->rc_edge_factor   = rc->rc_edge_factor;
-	dsc_cfg->rc_tgt_offset_high = rc->rc_tgt_offset_hi;
-	dsc_cfg->rc_tgt_offset_low = rc->rc_tgt_offset_lo;
+	dsc_cfg->rc_model_size    = (u16)rc->rc_model_size;
+	dsc_cfg->rc_edge_factor   = (u8)rc->rc_edge_factor;
+	dsc_cfg->rc_tgt_offset_high = (u8)rc->rc_tgt_offset_hi;
+	dsc_cfg->rc_tgt_offset_low = (u8)rc->rc_tgt_offset_lo;
 
 	for (i = 0; i < QP_SET_SIZE - 1; ++i)
-		dsc_cfg->rc_buf_thresh[i] = rc->rc_buf_thresh[i];
+		dsc_cfg->rc_buf_thresh[i] = (u16)rc->rc_buf_thresh[i];
 }
 
 int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps,
@@ -103,7 +103,8 @@ int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps,
 	struct drm_dsc_config   dsc_cfg;
 
 	dsc_params->pps = *pps;
-	dsc_params->pps.initial_scale_value = 8 * rc->rc_model_size / (rc->rc_model_size - rc->initial_fullness_offset);
+	dsc_params->pps.initial_scale_value = (u8)(8 * rc->rc_model_size /
+			(rc->rc_model_size - rc->initial_fullness_offset));
 
 	copy_pps_fields(&dsc_cfg, &dsc_params->pps);
 	copy_rc_to_cfg(&dsc_cfg, rc);

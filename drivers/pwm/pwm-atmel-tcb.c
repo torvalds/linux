@@ -443,7 +443,7 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 
 	err = clk_prepare_enable(tcbpwmc->slow_clk);
 	if (err)
-		goto err_disable_clk;;
+		goto err_disable_clk;
 
 	err = clk_rate_exclusive_get(tcbpwmc->clk);
 	if (err)

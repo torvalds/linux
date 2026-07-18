@@ -742,7 +742,7 @@ struct cec_event {
 #define CEC_OP_PRIM_DEVTYPE_PROCESSOR			7
 
 #define CEC_MSG_SET_MENU_LANGUAGE			0x32
-#define CEC_MSG_REPORT_FEATURES				0xa6	/* HDMI 2.0 */
+#define CEC_MSG_REPORT_FEATURES				0xa6	/* CEC 2.0 */
 /* All Device Types Operand (all_device_types) */
 #define CEC_OP_ALL_DEVTYPE_TV				0x80
 #define CEC_OP_ALL_DEVTYPE_RECORD			0x40
@@ -777,7 +777,7 @@ struct cec_event {
 #define CEC_OP_FEAT_DEV_SOURCE_HAS_ARC_RX		0x02
 #define CEC_OP_FEAT_DEV_HAS_SET_AUDIO_VOLUME_LEVEL	0x01
 
-#define CEC_MSG_GIVE_FEATURES				0xa5	/* HDMI 2.0 */
+#define CEC_MSG_GIVE_FEATURES				0xa5	/* CEC 2.0 */
 
 
 /* Deck Control Feature */
@@ -1067,7 +1067,7 @@ struct cec_event {
 #define CEC_OP_AUD_FMT_ID_CEA861			0
 #define CEC_OP_AUD_FMT_ID_CEA861_CXT			1
 
-#define CEC_MSG_SET_AUDIO_VOLUME_LEVEL			0x73
+#define CEC_MSG_SET_AUDIO_VOLUME_LEVEL			0x73	/* CEC 2.0 */
 
 /* Audio Rate Control Feature */
 #define CEC_MSG_SET_AUDIO_RATE				0x9a
@@ -1091,7 +1091,6 @@ struct cec_event {
 
 
 /* Dynamic Audio Lipsync Feature */
-/* Only for CEC 2.0 and up */
 #define CEC_MSG_REQUEST_CURRENT_LATENCY			0xa7
 #define CEC_MSG_REPORT_CURRENT_LATENCY			0xa8
 /* Low Latency Mode Operand (low_latency_mode) */
@@ -1102,6 +1101,30 @@ struct cec_event {
 #define CEC_OP_AUD_OUT_COMPENSATED_DELAY		1
 #define CEC_OP_AUD_OUT_COMPENSATED_NO_DELAY		2
 #define CEC_OP_AUD_OUT_COMPENSATED_PARTIAL_DELAY	3
+
+
+/* Latency Indication Protocol Feature */
+#define CEC_MSG_REQUEST_LIP_SUPPORT			0x50	/* CEC 2.0 */
+#define CEC_MSG_REPORT_LIP_SUPPORT			0x51	/* CEC 2.0 */
+#define CEC_MSG_REQUEST_AUDIO_AND_VIDEO_LATENCY		0x52	/* CEC 2.0 */
+/* HDR Format Operand (hdr_format) */
+#define CEC_OP_HDR_FORMAT_GAMMA_SDR			0
+#define CEC_OP_HDR_FORMAT_GAMMA_HDR			1
+#define CEC_OP_HDR_FORMAT_PQ				2
+#define CEC_OP_HDR_FORMAT_HLG				3
+#define CEC_OP_HDR_FORMAT_DYNAMIC_HDR_TYPE_1		8
+#define CEC_OP_HDR_FORMAT_DYNAMIC_HDR_TYPE_2		9
+#define CEC_OP_HDR_FORMAT_DYNAMIC_HDR_TYPE_4		11
+#define CEC_OP_HDR_FORMAT_DV_SINK_LED			16
+#define CEC_OP_HDR_FORMAT_DV_SOURCE_LED			17
+#define CEC_OP_HDR_FORMAT_HDR10PLUS			24
+#define CEC_OP_HDR_FORMAT_ETSI_TS_103_433		32
+#define CEC_MSG_REPORT_AUDIO_AND_VIDEO_LATENCY		0x53	/* CEC 2.0 */
+#define CEC_MSG_REQUEST_AUDIO_LATENCY			0x54	/* CEC 2.0 */
+#define CEC_MSG_REPORT_AUDIO_LATENCY			0x55	/* CEC 2.0 */
+#define CEC_MSG_REQUEST_VIDEO_LATENCY			0x56	/* CEC 2.0 */
+#define CEC_MSG_REPORT_VIDEO_LATENCY			0x57	/* CEC 2.0 */
+#define CEC_MSG_UPDATE_SQID				0x58	/* CEC 2.0 */
 
 
 /* Capability Discovery and Control Feature */

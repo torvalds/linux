@@ -276,6 +276,49 @@ out_end:
 	return ret;
 }
 
+/*
+ * Write a command byte sequence from a buffer.
+ *
+ * Like ssd130x_write_cmd() but takes a pre-built byte array instead of
+ * variadic arguments, handy when the command is already in an array or
+ * when the caller wants to use sizeof() for the length.
+ */
+static int ssd130x_write_cmds(struct ssd130x_device *ssd130x, const u8 *cmd,
+			      size_t len)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < len; i++) {
+		ret = regmap_write(ssd130x->regmap, SSD13XX_COMMAND, cmd[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Run a packed command sequence.  The format is a flat byte array where each
+ * entry starts with a length byte followed by that many command bytes.  A
+ * zero length byte terminates the sequence.
+ *
+ * Example: { 2, 0x81, 0x80, 1, 0xAF, 0 }
+ *   sends command {0x81, 0x80}, then command {0xAF}, then stops.
+ */
+static int ssd130x_run_cmd_seq(struct ssd130x_device *ssd130x, const u8 *seq)
+{
+	while (*seq) {
+		u8 len = *seq++;
+		int ret = ssd130x_write_cmds(ssd130x, seq, len);
+
+		if (ret)
+			return ret;
+		seq += len;
+	}
+
+	return 0;
+}
 /* Set address range for horizontal/vertical addressing modes */
 static int ssd130x_set_col_range(struct ssd130x_device *ssd130x,
 				 u8 col_start, u8 cols)
@@ -408,39 +451,26 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 	bool scan_mode;
 	int ret;
 
-	/* Set initial contrast */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_CONTRAST, ssd130x->contrast);
-	if (ret < 0)
-		return ret;
-
 	/* Set segment re-map */
 	seg_remap = (SSD13XX_SET_SEG_REMAP |
 		     SSD13XX_SET_SEG_REMAP_SET(ssd130x->seg_remap));
-	ret = ssd130x_write_cmd(ssd130x, 1, seg_remap);
-	if (ret < 0)
-		return ret;
-
 	/* Set COM direction */
 	com_invdir = (SSD130X_SET_COM_SCAN_DIR |
 		      SSD130X_SET_COM_SCAN_DIR_SET(ssd130x->com_invdir));
-	ret = ssd130x_write_cmd(ssd130x,  1, com_invdir);
-	if (ret < 0)
-		return ret;
-
-	/* Set multiplex ratio value */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1);
-	if (ret < 0)
-		return ret;
-
-	/* set display offset value */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_DISPLAY_OFFSET, ssd130x->com_offset);
-	if (ret < 0)
-		return ret;
-
 	/* Set clock frequency */
 	dclk = (SSD130X_SET_CLOCK_DIV_SET(ssd130x->dclk_div - 1) |
 		SSD130X_SET_CLOCK_FREQ_SET(ssd130x->dclk_frq));
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_CLOCK_FREQ, dclk);
+
+	const u8 *cmds = (const u8[]) {
+		2, SSD13XX_CONTRAST, ssd130x->contrast,
+		1, seg_remap,
+		1, com_invdir, 0,
+		2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1,
+		2, SSD130X_SET_DISPLAY_OFFSET, ssd130x->com_offset,
+		2, SSD130X_SET_CLOCK_FREQ, dclk,
+		0,
+	};
+	ret = ssd130x_run_cmd_seq(ssd130x, cmds);
 	if (ret < 0)
 		return ret;
 
@@ -462,9 +492,6 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 	/* Set precharge period in number of ticks from the internal clock */
 	precharge = (SSD130X_SET_PRECHARGE_PERIOD1_SET(ssd130x->prechargep1) |
 		     SSD130X_SET_PRECHARGE_PERIOD2_SET(ssd130x->prechargep2));
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_PRECHARGE_PERIOD, precharge);
-	if (ret < 0)
-		return ret;
 
 	/* Set COM pins configuration */
 	compins = BIT(1);
@@ -476,22 +503,20 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 	scan_mode = !ssd130x->com_seq;
 	compins |= (SSD130X_SET_COM_PINS_CONFIG1_SET(scan_mode) |
 		    SSD130X_SET_COM_PINS_CONFIG2_SET(ssd130x->com_lrremap));
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_COM_PINS_CONFIG, compins);
-	if (ret < 0)
-		return ret;
-
-	/* Set VCOMH */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_VCOMH, ssd130x->vcomh);
-	if (ret < 0)
-		return ret;
 
 	/* Turn on the DC-DC Charge Pump */
 	chargepump = BIT(4);
-
 	if (ssd130x->device_info->need_chargepump)
 		chargepump |= BIT(2);
 
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_CHARGE_PUMP, chargepump);
+	cmds = (const u8[]) {
+		2, SSD130X_SET_PRECHARGE_PERIOD, precharge,
+		2, SSD130X_SET_COM_PINS_CONFIG, compins,
+		2, SSD130X_SET_VCOMH, ssd130x->vcomh,
+		2, SSD130X_CHARGE_PUMP, chargepump,
+		0
+	};
+	ret = ssd130x_run_cmd_seq(ssd130x, cmds);
 	if (ret < 0)
 		return ret;
 
@@ -528,203 +553,68 @@ static int ssd130x_init(struct ssd130x_device *ssd130x)
 
 static int ssd132x_init(struct ssd130x_device *ssd130x)
 {
-	int ret;
+	const u8 cmds[] = {
+		2, SSD13XX_CONTRAST, 0x80,
+		3, SSD132X_SET_COL_RANGE, 0x00, ssd130x->width / SSD132X_SEGMENT_WIDTH - 1,
+		3, SSD132X_SET_ROW_RANGE, 0x00, ssd130x->height - 1,
+		/*
+		 * Horizontal Address Increment
+		 * Re-map for Column Address, Nibble and COM
+		 * COM Split Odd Even
+		 */
+		2, SSD13XX_SET_SEG_REMAP, 0x53,
+		2, SSD132X_SET_DISPLAY_START, 0x00,
+		2, SSD132X_SET_DISPLAY_OFFSET, 0x00,
+		1, SSD132X_SET_DISPLAY_NORMAL,
+		2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1,
+		2, SSD132X_SET_PHASE_LENGTH, 0x55,
+		1, SSD132X_SELECT_DEFAULT_TABLE,
+		2, SSD132X_SET_CLOCK_FREQ, 0x01,
+		2, SSD132X_SET_FUNCTION_SELECT_A, 0x1,
+		2, SSD132X_SET_PRECHARGE_PERIOD, 0x01,
+		2, SSD132X_SET_PRECHARGE_VOLTAGE, 0x08,
+		2, SSD130X_SET_VCOMH_VOLTAGE, 0x07,
+		/* Enable second pre-charge and internal VSL */
+		2, SSD132X_SET_FUNCTION_SELECT_B, 0x62,
+		0,
+	};
 
-	/* Set initial contrast */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_CONTRAST, 0x80);
-	if (ret < 0)
-		return ret;
-
-	/* Set column start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_COL_RANGE, 0x00,
-				ssd130x->width / SSD132X_SEGMENT_WIDTH - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set row start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_ROW_RANGE, 0x00, ssd130x->height - 1);
-	if (ret < 0)
-		return ret;
-	/*
-	 * Horizontal Address Increment
-	 * Re-map for Column Address, Nibble and COM
-	 * COM Split Odd Even
-	 */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_SET_SEG_REMAP, 0x53);
-	if (ret < 0)
-		return ret;
-
-	/* Set display start and offset */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_DISPLAY_START, 0x00);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_DISPLAY_OFFSET, 0x00);
-	if (ret < 0)
-		return ret;
-
-	/* Set display mode normal */
-	ret = ssd130x_write_cmd(ssd130x, 1, SSD132X_SET_DISPLAY_NORMAL);
-	if (ret < 0)
-		return ret;
-
-	/* Set multiplex ratio value */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set phase length */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PHASE_LENGTH, 0x55);
-	if (ret < 0)
-		return ret;
-
-	/* Select default linear gray scale table */
-	ret = ssd130x_write_cmd(ssd130x, 1, SSD132X_SELECT_DEFAULT_TABLE);
-	if (ret < 0)
-		return ret;
-
-	/* Set clock frequency */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_CLOCK_FREQ, 0x01);
-	if (ret < 0)
-		return ret;
-
-	/* Enable internal VDD regulator */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_FUNCTION_SELECT_A, 0x1);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge period */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PRECHARGE_PERIOD, 0x01);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge voltage */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PRECHARGE_VOLTAGE, 0x08);
-	if (ret < 0)
-		return ret;
-
-	/* Set VCOMH voltage */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD130X_SET_VCOMH_VOLTAGE, 0x07);
-	if (ret < 0)
-		return ret;
-
-	/* Enable second pre-charge and internal VSL */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_FUNCTION_SELECT_B, 0x62);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ssd130x_run_cmd_seq(ssd130x, cmds);
 }
 
 static int ssd133x_init(struct ssd130x_device *ssd130x)
 {
-	int ret;
+	const u8 cmds[] = {
+		2, SSD133X_CONTRAST_A, 0x91,
+		2, SSD133X_CONTRAST_B, 0x50,
+		2, SSD133X_CONTRAST_C, 0x7d,
+		2, SSD133X_SET_MASTER_CURRENT, 0x06,
+		3, SSD133X_SET_COL_RANGE, 0x00, ssd130x->width - 1,
+		3, SSD133X_SET_ROW_RANGE, 0x00, ssd130x->height - 1,
+		/*
+		 * Horizontal Address Increment
+		 * Normal order SA,SB,SC (e.g. RGB)
+		 * COM Split Odd Even
+		 * 256 color format
+		 */
+		2, SSD13XX_SET_SEG_REMAP, 0x20,
+		2, SSD133X_SET_DISPLAY_START, 0x00,
+		2, SSD133X_SET_DISPLAY_OFFSET, 0x00,
+		1, SSD133X_SET_DISPLAY_NORMAL,
+		2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1,
+		2, SSD133X_SET_MASTER_CONFIG, 0x8e,
+		2, SSD133X_POWER_SAVE_MODE, 0x0b,
+		2, SSD133X_PHASES_PERIOD, 0x31,
+		2, SSD133X_SET_CLOCK_FREQ, 0xf0,
+		2, SSD132X_SET_PRECHARGE_A, 0x64,
+		2, SSD132X_SET_PRECHARGE_B, 0x78,
+		2, SSD132X_SET_PRECHARGE_C, 0x64,
+		2, SSD133X_SET_PRECHARGE_VOLTAGE, 0x3a,
+		2, SSD133X_SET_VCOMH_VOLTAGE, 0x3e,
+		0,
+	};
 
-	/* Set color A contrast */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_CONTRAST_A, 0x91);
-	if (ret < 0)
-		return ret;
-
-	/* Set color B contrast */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_CONTRAST_B, 0x50);
-	if (ret < 0)
-		return ret;
-
-	/* Set color C contrast */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_CONTRAST_C, 0x7d);
-	if (ret < 0)
-		return ret;
-
-	/* Set master current */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_MASTER_CURRENT, 0x06);
-	if (ret < 0)
-		return ret;
-
-	/* Set column start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_COL_RANGE, 0x00, ssd130x->width - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set row start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_ROW_RANGE, 0x00, ssd130x->height - 1);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Horizontal Address Increment
-	 * Normal order SA,SB,SC (e.g. RGB)
-	 * COM Split Odd Even
-	 * 256 color format
-	 */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_SET_SEG_REMAP, 0x20);
-	if (ret < 0)
-		return ret;
-
-	/* Set display start and offset */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_DISPLAY_START, 0x00);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_DISPLAY_OFFSET, 0x00);
-	if (ret < 0)
-		return ret;
-
-	/* Set display mode normal */
-	ret = ssd130x_write_cmd(ssd130x, 1, SSD133X_SET_DISPLAY_NORMAL);
-	if (ret < 0)
-		return ret;
-
-	/* Set multiplex ratio value */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD13XX_SET_MULTIPLEX_RATIO, ssd130x->height - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set master configuration */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_MASTER_CONFIG, 0x8e);
-	if (ret < 0)
-		return ret;
-
-	/* Set power mode */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_POWER_SAVE_MODE, 0x0b);
-	if (ret < 0)
-		return ret;
-
-	/* Set Phase 1 and 2 period */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_PHASES_PERIOD, 0x31);
-	if (ret < 0)
-		return ret;
-
-	/* Set clock divider */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_CLOCK_FREQ, 0xf0);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge A */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PRECHARGE_A, 0x64);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge B */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PRECHARGE_B, 0x78);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge C */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD132X_SET_PRECHARGE_C, 0x64);
-	if (ret < 0)
-		return ret;
-
-	/* Set pre-charge level */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_PRECHARGE_VOLTAGE, 0x3a);
-	if (ret < 0)
-		return ret;
-
-	/* Set VCOMH voltage */
-	ret = ssd130x_write_cmd(ssd130x, 2, SSD133X_SET_VCOMH_VOLTAGE, 0x3e);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ssd130x_run_cmd_seq(ssd130x, cmds);
 }
 
 static int ssd130x_update_rect(struct ssd130x_device *ssd130x,
@@ -835,9 +725,9 @@ static int ssd132x_update_rect(struct ssd130x_device *ssd130x,
 			       struct drm_rect *rect, u8 *buf,
 			       u8 *data_array)
 {
-	unsigned int x = rect->x1;
-	unsigned int y = rect->y1;
 	unsigned int segment_width = SSD132X_SEGMENT_WIDTH;
+	unsigned int col = rect->x1 / segment_width;
+	unsigned int row = rect->y1;
 	unsigned int width = drm_rect_width(rect);
 	unsigned int height = drm_rect_height(rect);
 	unsigned int columns = DIV_ROUND_UP(width, segment_width);
@@ -847,7 +737,7 @@ static int ssd132x_update_rect(struct ssd130x_device *ssd130x,
 	unsigned int i, j;
 	int ret;
 
-	drm_WARN_ONCE(drm, x % segment_width != 0, "x must be aligned to screen segment\n");
+	drm_WARN_ONCE(drm, rect->x1 % segment_width != 0, "x must be aligned to screen segment\n");
 
 	/*
 	 * The screen is divided in Segment and Common outputs, where
@@ -864,12 +754,12 @@ static int ssd132x_update_rect(struct ssd130x_device *ssd130x,
 	 */
 
 	/* Set column start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_COL_RANGE, x / segment_width, columns - 1);
+	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_COL_RANGE, col, col + columns - 1);
 	if (ret < 0)
 		return ret;
 
 	/* Set row start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_ROW_RANGE, y, rows - 1);
+	ret = ssd130x_write_cmd(ssd130x, 3, SSD132X_SET_ROW_RANGE, row, row + rows - 1);
 	if (ret < 0)
 		return ret;
 
@@ -915,12 +805,12 @@ static int ssd133x_update_rect(struct ssd130x_device *ssd130x,
 	 */
 
 	/* Set column start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_COL_RANGE, x, columns - 1);
+	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_COL_RANGE, x, x + columns - 1);
 	if (ret < 0)
 		return ret;
 
 	/* Set row start and end */
-	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_ROW_RANGE, y, rows - 1);
+	ret = ssd130x_write_cmd(ssd130x, 3, SSD133X_SET_ROW_RANGE, y, y + rows - 1);
 	if (ret < 0)
 		return ret;
 
@@ -1074,7 +964,7 @@ static int ssd133x_fb_blit_rect(struct drm_framebuffer *fb,
 }
 
 static int ssd130x_primary_plane_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1123,7 +1013,7 @@ static int ssd130x_primary_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int ssd132x_primary_plane_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1172,7 +1062,7 @@ static int ssd132x_primary_plane_atomic_check(struct drm_plane *plane,
 }
 
 static int ssd133x_primary_plane_atomic_check(struct drm_plane *plane,
-					      struct drm_atomic_state *state)
+					      struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_crtc *crtc = plane_state->crtc;
@@ -1195,7 +1085,7 @@ static int ssd133x_primary_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void ssd130x_primary_plane_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -1236,7 +1126,7 @@ out_drm_dev_exit:
 }
 
 static void ssd132x_primary_plane_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -1277,7 +1167,7 @@ out_drm_dev_exit:
 }
 
 static void ssd133x_primary_plane_atomic_update(struct drm_plane *plane,
-						struct drm_atomic_state *state)
+						struct drm_atomic_commit *state)
 {
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
@@ -1316,7 +1206,7 @@ out_drm_dev_exit:
 }
 
 static void ssd130x_primary_plane_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1340,7 +1230,7 @@ static void ssd130x_primary_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void ssd132x_primary_plane_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1364,7 +1254,7 @@ static void ssd132x_primary_plane_atomic_disable(struct drm_plane *plane,
 }
 
 static void ssd133x_primary_plane_atomic_disable(struct drm_plane *plane,
-						 struct drm_atomic_state *state)
+						 struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = plane->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1476,7 +1366,7 @@ static enum drm_mode_status ssd130x_crtc_mode_valid(struct drm_crtc *crtc,
 }
 
 static int ssd130x_crtc_atomic_check(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1497,7 +1387,7 @@ static int ssd130x_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static int ssd132x_crtc_atomic_check(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1518,7 +1408,7 @@ static int ssd132x_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static int ssd133x_crtc_atomic_check(struct drm_crtc *crtc,
-				     struct drm_atomic_state *state)
+				     struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = crtc->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1621,7 +1511,7 @@ static const struct drm_crtc_funcs ssd130x_crtc_funcs = {
 };
 
 static void ssd130x_encoder_atomic_enable(struct drm_encoder *encoder,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1647,7 +1537,7 @@ power_off:
 }
 
 static void ssd132x_encoder_atomic_enable(struct drm_encoder *encoder,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1672,7 +1562,7 @@ power_off:
 }
 
 static void ssd133x_encoder_atomic_enable(struct drm_encoder *encoder,
-					  struct drm_atomic_state *state)
+					  struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);
@@ -1697,7 +1587,7 @@ power_off:
 }
 
 static void ssd130x_encoder_atomic_disable(struct drm_encoder *encoder,
-					   struct drm_atomic_state *state)
+					   struct drm_atomic_commit *state)
 {
 	struct drm_device *drm = encoder->dev;
 	struct ssd130x_device *ssd130x = drm_to_ssd130x(drm);

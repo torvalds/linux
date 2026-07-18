@@ -188,7 +188,7 @@ config FUJITSU_UNCORE_PMU
 	 monitoring Uncore events.
 
 config QCOM_L2_PMU
-	bool "Qualcomm Technologies L2-cache PMU"
+	bool "Qualcomm L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_KRYO_L2_ACCESSORS
 	  help
@@ -198,7 +198,7 @@ config QCOM_L2_PMU
 	  monitoring L2 cache events.
 
 config QCOM_L3_PMU
-	bool "Qualcomm Technologies L3-cache PMU"
+	bool "Qualcomm L3-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_IRQ_COMBINER
 	help

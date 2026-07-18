@@ -1494,6 +1494,7 @@ static const struct of_device_id sc7280_pinctrl_of_match[] = {
 	{ .compatible = "qcom,sc7280-pinctrl", },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, sc7280_pinctrl_of_match);
 
 static struct platform_driver sc7280_pinctrl_driver = {
 	.driver = {
@@ -1518,4 +1519,3 @@ module_exit(sc7280_pinctrl_exit);
 
 MODULE_DESCRIPTION("QTI sc7280 pinctrl driver");
 MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, sc7280_pinctrl_of_match);

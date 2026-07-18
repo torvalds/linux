@@ -13,9 +13,11 @@ mlx5_esw_get_port_parent_id(struct mlx5_core_dev *dev, struct netdev_phys_item_i
 
 static bool mlx5_esw_devlink_port_supported(struct mlx5_eswitch *esw, u16 vport_num)
 {
-	return (mlx5_core_is_ecpf(esw->dev) && vport_num == MLX5_VPORT_PF) ||
+	return (mlx5_core_is_ecpf(esw->dev) &&
+		vport_num == MLX5_VPORT_HOST_PF) ||
 	       mlx5_eswitch_is_vf_vport(esw, vport_num) ||
-	       mlx5_core_is_ec_vf_vport(esw->dev, vport_num);
+	       mlx5_core_is_ec_vf_vport(esw->dev, vport_num) ||
+	       mlx5_esw_is_spf_vport(esw, vport_num);
 }
 
 static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *esw,
@@ -33,9 +35,11 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 	pfnum = PCI_FUNC(dev->pdev->devfn);
 	external = mlx5_core_is_ecpf_esw_manager(dev);
 	if (external)
-		controller_num = dev->priv.eswitch->offloads.host_number + 1;
+		controller_num = mlx5_esw_get_hpf_host_number(dev) + 1;
 
-	if (vport_num == MLX5_VPORT_PF) {
+	if (vport_num == MLX5_VPORT_HOST_PF) {
+		if (external)
+			pfnum = mlx5_esw_get_hpf_pf_num(dev);
 		memcpy(dl_port->attrs.switch_id.id, ppid.id, ppid.id_len);
 		dl_port->attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_pf_set(dl_port, controller_num, pfnum, external);
@@ -48,6 +52,8 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 		if (vport->adjacent) {
 			func_id = vport->adj_info.function_id;
 			pfnum = vport->adj_info.parent_pci_devfn;
+		} else if (external) {
+			pfnum = mlx5_esw_get_hpf_pf_num(dev);
 		}
 
 		devlink_port_attrs_pci_vf_set(dl_port, controller_num, pfnum,
@@ -59,6 +65,16 @@ static void mlx5_esw_offloads_pf_vf_devlink_port_attrs_set(struct mlx5_eswitch *
 		dl_port->attrs.switch_id.id_len = ppid.id_len;
 		devlink_port_attrs_pci_vf_set(dl_port, 0, pfnum,
 					      vport_num - base_vport, false);
+	} else if (mlx5_esw_is_spf_vport(esw, vport_num)) {
+		int spf_idx = mlx5_esw_spf_vport_to_idx(esw, vport_num);
+
+		controller_num = esw->esw_funcs.spfs[spf_idx].host_number + 1;
+		pfnum = esw->esw_funcs.spfs[spf_idx].pf_num;
+
+		memcpy(dl_port->attrs.switch_id.id, ppid.id, ppid.id_len);
+		dl_port->attrs.switch_id.id_len = ppid.id_len;
+		devlink_port_attrs_pci_pf_set(dl_port, controller_num, pfnum,
+					      true);
 	}
 }
 
@@ -120,7 +136,7 @@ static void mlx5_esw_offloads_sf_devlink_port_attrs_set(struct mlx5_eswitch *esw
 	struct netdev_phys_item_id ppid = {};
 	u16 pfnum;
 
-	pfnum = PCI_FUNC(dev->pdev->devfn);
+	pfnum = mlx5_esw_sf_controller_to_pfnum(dev, controller);
 	mlx5_esw_get_port_parent_id(dev, &ppid);
 	memcpy(dl_port->attrs.switch_id.id, &ppid.id[0], ppid.id_len);
 	dl_port->attrs.switch_id.id_len = ppid.id_len;
@@ -160,14 +176,28 @@ static const struct devlink_port_ops mlx5_esw_dl_sf_port_ops = {
 };
 
 static int mlx5_esw_devlink_port_res_register(struct mlx5_eswitch *esw,
-					      struct devlink_port *dl_port)
+					      struct devlink_port *dl_port,
+					      u16 vport_num)
 {
 	struct devlink_resource_size_params size_params;
 	struct mlx5_core_dev *dev = esw->dev;
 	u16 max_sfs, sf_base_id;
 	int err;
 
-	err = mlx5_esw_sf_max_hpf_functions(dev, &max_sfs, &sf_base_id);
+	if (vport_num != MLX5_VPORT_HOST_PF &&
+	    !mlx5_esw_is_spf_vport(esw, vport_num))
+		return 0;
+
+	if (vport_num == MLX5_VPORT_HOST_PF) {
+		err = mlx5_esw_sf_max_hpf_functions(dev, &max_sfs,
+						    &sf_base_id);
+	} else {
+		int spf_idx = mlx5_esw_spf_vport_to_idx(esw, vport_num);
+
+		err = mlx5_esw_sf_max_spf_functions(dev, spf_idx, &max_sfs,
+						    &sf_base_id);
+	}
+
 	if (err)
 		return err;
 
@@ -216,14 +246,11 @@ int mlx5_esw_offloads_devlink_port_register(struct mlx5_eswitch *esw, struct mlx
 	if (err)
 		goto rate_err;
 
-	if (vport_num == MLX5_VPORT_PF) {
-		err = mlx5_esw_devlink_port_res_register(esw,
-							 &dl_port->dl_port);
-		if (err)
-			mlx5_core_dbg(dev,
-				      "Failed to register port resources: %d\n",
-				       err);
-	}
+	err = mlx5_esw_devlink_port_res_register(esw, &dl_port->dl_port,
+						 vport_num);
+	if (err)
+		mlx5_core_dbg(dev, "Failed to register port resources: %d\n",
+			      err);
 
 	return 0;
 
@@ -252,5 +279,10 @@ struct devlink_port *mlx5_esw_offloads_devlink_port(struct mlx5_eswitch *esw, u1
 	struct mlx5_vport *vport;
 
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
-	return IS_ERR(vport) ? ERR_CAST(vport) : &vport->dl_port->dl_port;
+	if (IS_ERR(vport))
+		return ERR_CAST(vport);
+	if (!vport->dl_port)
+		return ERR_PTR(-ENODEV);
+
+	return &vport->dl_port->dl_port;
 }

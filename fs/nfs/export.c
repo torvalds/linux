@@ -49,14 +49,14 @@ nfs_encode_fh(struct inode *inode, __u32 *p, int *max_len, struct inode *parent)
 		return FILEID_INVALID;
 	}
 
-	p[FILEID_HIGH_OFF] = NFS_FILEID(inode) >> 32;
-	p[FILEID_LOW_OFF] = NFS_FILEID(inode);
+	p[FILEID_HIGH_OFF] = inode->i_ino >> 32;
+	p[FILEID_LOW_OFF] = inode->i_ino;
 	p[FILE_I_TYPE_OFF] = inode->i_mode & S_IFMT;
 	p[len - 1] = 0; /* Padding */
 	nfs_copy_fh(clnt_fh, server_fh);
 	*max_len = len;
 	dprintk("%s: result fh fileid %llu mode %u size %d\n",
-		__func__, NFS_FILEID(inode), inode->i_mode, *max_len);
+		__func__, inode->i_ino, inode->i_mode, *max_len);
 	return *max_len;
 }
 

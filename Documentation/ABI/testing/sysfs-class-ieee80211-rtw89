@@ -1,0 +1,24 @@
+What:		/sys/class/ieee80211/phyX/rtw89_usb/serial_number
+Date:		May 2026
+Contact:	Johnson Tsai <wenjie.tsai@realtek.com>, linux-wireless@vger.kernel.org
+Description:	(Read) Serial number burned into EFUSE of the RTL8852CU-based
+		USB Wi-Fi adapter.  Only present on devices that set the
+		RTW89_QUIRK_HW_INFO_SYSFS quirk (currently VID 0x28de /
+		PID 0x2432).
+
+		Format: %10phN (5 raw bytes printed as 10 lowercase hex
+		digits, no separators).
+
+		Example: 3642000123
+
+What:		/sys/class/ieee80211/phyX/rtw89_usb/uuid
+Date:		May 2026
+Contact:	Johnson Tsai <wenjie.tsai@realtek.com>, linux-wireless@vger.kernel.org
+Description:	(Read) UUID burned into EFUSE of the RTL8852CU-based USB Wi-Fi
+		adapter.  Only present on devices that set the
+		RTW89_QUIRK_HW_INFO_SYSFS quirk (currently VID 0x28de /
+		PID 0x2432).
+
+		Format: %pUb (RFC 4122 UUID in lowercase with hyphens).
+
+		Example: aaec2b7c-0a55-4727-8de0-b30febccbbaa

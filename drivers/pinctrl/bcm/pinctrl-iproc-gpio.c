@@ -868,7 +868,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	gc->set = iproc_gpio_set;
 	gc->get = iproc_gpio_get;
 
-	chip->pinmux_is_supported = of_property_read_bool(dev->of_node,
+	chip->pinmux_is_supported = of_property_present(dev->of_node,
 							"gpio-ranges");
 
 	/* optional GPIO interrupt support */

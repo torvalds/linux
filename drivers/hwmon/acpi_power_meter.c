@@ -884,9 +884,13 @@ static void acpi_power_meter_notify(acpi_handle handle, u32 event, void *data)
 
 static int acpi_power_meter_probe(struct platform_device *pdev)
 {
-	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_power_meter_resource *resource;
+	struct acpi_device *device;
 	int res;
+
+	device = ACPI_COMPANION(&pdev->dev);
+	if (!device)
+		return -ENODEV;
 
 	resource = kzalloc_obj(*resource);
 	if (!resource)

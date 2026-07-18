@@ -343,7 +343,7 @@ static void vc4_crtc_pixelvalve_reset(struct drm_crtc *crtc)
 }
 
 static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encoder,
-			       struct drm_atomic_state *state)
+			       struct drm_atomic_commit *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -497,7 +497,7 @@ static void require_hvs_enabled(struct drm_device *dev)
 
 static int vc4_crtc_disable(struct drm_crtc *crtc,
 			    struct drm_encoder *encoder,
-			    struct drm_atomic_state *state,
+			    struct drm_atomic_commit *state,
 			    unsigned int channel)
 {
 	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
@@ -622,7 +622,7 @@ void vc4_crtc_send_vblank(struct drm_crtc *crtc)
 }
 
 static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_atomic_state *state)
+				    struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *old_state = drm_atomic_get_old_crtc_state(state,
 									 crtc);
@@ -648,7 +648,7 @@ static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_atomic_state *state)
+				   struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *new_state = drm_atomic_get_new_crtc_state(state,
 									 crtc);
@@ -740,7 +740,7 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 }
 
 int vc4_crtc_atomic_check(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state)
+			  struct drm_atomic_commit *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);

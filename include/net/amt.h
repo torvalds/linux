@@ -331,7 +331,7 @@ struct amt_dev {
 	enum amt_status		status;
 	/* Generated key */
 	siphash_key_t		key;
-	struct socket	  __rcu *sock;
+	struct sock	  __rcu *sk;
 	u32			max_groups;
 	u32			max_sources;
 	u32			hash_buckets;

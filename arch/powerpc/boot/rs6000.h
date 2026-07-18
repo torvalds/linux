@@ -32,32 +32,30 @@ struct external_filehdr {
 /********************** AOUT "OPTIONAL HEADER" **********************/
 
 
-typedef struct
-{
-  unsigned char	magic[2];	/* type of file			*/
-  unsigned char	vstamp[2];	/* version stamp		*/
-  unsigned char	tsize[4];	/* text size in bytes, padded to FW bdry */
-  unsigned char	dsize[4];	/* initialized data "  "	*/
-  unsigned char	bsize[4];	/* uninitialized data "   "	*/
-  unsigned char	entry[4];	/* entry pt.			*/
-  unsigned char	text_start[4];	/* base of text used for this file */
-  unsigned char	data_start[4];	/* base of data used for this file */
-  unsigned char	o_toc[4];	/* address of TOC */
-  unsigned char	o_snentry[2];	/* section number of entry point */
-  unsigned char	o_sntext[2];	/* section number of .text section */
-  unsigned char	o_sndata[2];	/* section number of .data section */
-  unsigned char	o_sntoc[2];	/* section number of TOC */
-  unsigned char	o_snloader[2];	/* section number of .loader section */
-  unsigned char	o_snbss[2];	/* section number of .bss section */
-  unsigned char	o_algntext[2];	/* .text alignment */
-  unsigned char	o_algndata[2];	/* .data alignment */
-  unsigned char	o_modtype[2];	/* module type (??) */
-  unsigned char o_cputype[2];	/* cpu type */
-  unsigned char	o_maxstack[4];	/* max stack size (??) */
-  unsigned char o_maxdata[4];	/* max data size (??) */
-  unsigned char	o_resv2[12];	/* reserved */
-}
-AOUTHDR;
+struct aouthdr {
+	unsigned char	magic[2];	/* type of file			*/
+	unsigned char	vstamp[2];	/* version stamp		*/
+	unsigned char	tsize[4];	/* text size in bytes, padded to FW bdry */
+	unsigned char	dsize[4];	/* initialized data "  "	*/
+	unsigned char	bsize[4];	/* uninitialized data "   "	*/
+	unsigned char	entry[4];	/* entry pt.			*/
+	unsigned char	text_start[4];	/* base of text used for this file */
+	unsigned char	data_start[4];	/* base of data used for this file */
+	unsigned char	o_toc[4];	/* address of TOC */
+	unsigned char	o_snentry[2];	/* section number of entry point */
+	unsigned char	o_sntext[2];	/* section number of .text section */
+	unsigned char	o_sndata[2];	/* section number of .data section */
+	unsigned char	o_sntoc[2];	/* section number of TOC */
+	unsigned char	o_snloader[2];	/* section number of .loader section */
+	unsigned char	o_snbss[2];	/* section number of .bss section */
+	unsigned char	o_algntext[2];	/* .text alignment */
+	unsigned char	o_algndata[2];	/* .data alignment */
+	unsigned char	o_modtype[2];	/* module type (??) */
+	unsigned char	o_cputype[2];	/* cpu type */
+	unsigned char	o_maxstack[4];	/* max stack size (??) */
+	unsigned char	o_maxdata[4];	/* max data size (??) */
+	unsigned char	o_resv2[12];	/* reserved */
+};
 
 #define AOUTSZ 72
 #define SMALL_AOUTSZ (28)
@@ -115,10 +113,10 @@ struct external_scnhdr {
  */
 struct external_lineno {
 	union {
-		char l_symndx[4];	/* function name symbol index, iff l_lnno == 0*/
+		char l_symndx[4];	/* function name symbol index, iff l_lnno == 0 */
 		char l_paddr[4];	/* (physical) address of line number	*/
 	} l_addr;
-	char l_lnno[2];	/* line number		*/
+	char l_lnno[2];	/* line number */
 };
 
 
@@ -132,20 +130,19 @@ struct external_lineno {
 #define E_FILNMLEN	14	/* # characters in a file name		*/
 #define E_DIMNUM	4	/* # array dimensions in auxiliary entry */
 
-struct external_syment
-{
-  union {
-    char e_name[E_SYMNMLEN];
-    struct {
-      char e_zeroes[4];
-      char e_offset[4];
-    } e;
-  } e;
-  char e_value[4];
-  char e_scnum[2];
-  char e_type[2];
-  char e_sclass[1];
-  char e_numaux[1];
+struct external_syment {
+	union {
+		char e_name[E_SYMNMLEN];
+		struct {
+			char e_zeroes[4];
+			char e_offset[4];
+		} e;
+	} e;
+	char e_value[4];
+	char e_scnum[2];
+	char e_type[2];
+	char e_sclass[1];
+	char e_numaux[1];
 };
 
 
@@ -187,7 +184,7 @@ union external_auxent {
 	} x_file;
 
 	struct {
-		char x_scnlen[4];			/* section length */
+		char x_scnlen[4];	/* section length */
 		char x_nreloc[2];	/* # relocation entries */
 		char x_nlinno[2];	/* # line numbers */
 	} x_scn;
@@ -207,7 +204,6 @@ union external_auxent {
 		unsigned char x_stab[4];
 		unsigned char x_snstab[2];
 	} x_csect;
-
 };
 
 #define	SYMENT	struct external_syment

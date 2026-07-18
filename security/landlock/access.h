@@ -62,18 +62,41 @@ static_assert(sizeof(typeof_member(union access_masks_all, masks)) ==
 	      sizeof(typeof_member(union access_masks_all, all)));
 
 /**
- * struct layer_access_masks - A boolean matrix of layers and access rights
+ * struct layer_mask - The access rights and rule flags for a layer.
  *
- * This has a bit for each combination of layer numbers and access rights.
- * During access checks, it is used to represent the access rights for each
- * layer which still need to be fulfilled.  When all bits are 0, the access
- * request is considered to be fulfilled.
+ * This has a bit for each access rights and rule flags.  During access checks,
+ * it is used to represent the access rights for each layer which still need to
+ * be fulfilled.  When all bits are 0, the access request is considered to be
+ * fulfilled.
  */
-struct layer_access_masks {
+struct layer_mask {
 	/**
-	 * @access: The unfulfilled access rights for each layer.
+	 * @access: The unfulfilled access rights for this layer.
 	 */
-	access_mask_t access[LANDLOCK_MAX_NUM_LAYERS];
+	access_mask_t access : LANDLOCK_NUM_ACCESS_MAX;
+#ifdef CONFIG_AUDIT
+	/**
+	 * @quiet: Whether we have encountered a rule with the quiet flag for
+	 * this layer.  Used to control logging.
+	 */
+	access_mask_t quiet : 1;
+#endif /* CONFIG_AUDIT */
+} __packed __aligned(sizeof(access_mask_t));
+
+/*
+ * Make sure that we don't increase the size of struct layer_mask when storing
+ * rule flags.
+ */
+static_assert(sizeof(struct layer_mask) == sizeof(access_mask_t));
+
+/**
+ * struct layer_masks - An array of struct layer_mask, one per layer.
+ */
+struct layer_masks {
+	/**
+	 * @layers: The unfulfilled access rights for each layer.
+	 */
+	struct layer_mask layers[LANDLOCK_MAX_NUM_LAYERS];
 };
 
 /*
@@ -119,5 +142,10 @@ static inline bool access_mask_subset(access_mask_t subset,
 {
 	return (subset | superset) == superset;
 }
+
+/* A bitmask that is large enough to hold set of optional accesses. */
+typedef u8 optional_access_t;
+static_assert(BITS_PER_TYPE(optional_access_t) >=
+	      HWEIGHT(_LANDLOCK_ACCESS_FS_OPTIONAL));
 
 #endif /* _SECURITY_LANDLOCK_ACCESS_H */

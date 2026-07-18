@@ -258,6 +258,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 	if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr))
 		saddr = &sk->sk_v6_rcv_saddr;
 
+	sk_set_txhash(sk);
+
 	fl6->flowi6_proto = IPPROTO_TCP;
 	fl6->daddr = sk->sk_v6_daddr;
 	fl6->saddr = saddr ? *saddr : np->saddr;
@@ -275,6 +277,14 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(fl6));
 
+	/* Non-zero mp_hash bypasses rt6_multipath_hash() in
+	 * fib6_select_path(), letting txhash control ECMP path
+	 * selection so that sk_rethink_txhash() rehashes onto a
+	 * different path.  Policies 1-3 derive a deterministic
+	 * hash from the flow keys and must not be overridden.
+	 */
+	ip6_ecmp_set_mp_hash(net, fl6, sk->sk_txhash);
+
 	dst = ip6_dst_lookup_flow(net, sk, fl6, final_p);
 	if (IS_ERR(dst)) {
 		err = PTR_ERR(dst);
@@ -288,8 +298,10 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 		saddr = &fl6->saddr;
 
 		err = inet_bhash2_update_saddr(sk, saddr, AF_INET6);
-		if (err)
+		if (err) {
+			dst_release(dst);
 			goto failure;
+		}
 	}
 
 	/* set the source address */
@@ -312,8 +324,6 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr_unsized *uaddr,
 	err = inet6_hash_connect(tcp_death_row, sk);
 	if (err)
 		goto late_failure;
-
-	sk_set_txhash(sk);
 
 	if (likely(!tp->repair)) {
 		union tcp_seq_and_ts_off st;
@@ -955,6 +965,13 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	if (txhash) {
 		/* autoflowlabel/skb_get_hash_flowi6 rely on buff->hash */
 		skb_set_hash(buff, txhash, PKT_HASH_TYPE_L4);
+
+		/* Select the local ECMP path from the connection's txhash,
+		 * so a control packet (RST, or ACK from a time-wait socket)
+		 * uses the same nexthop as the data.  Only policy 0 uses
+		 * mp_hash; policies 1-3 derive a deterministic hash.
+		 */
+		ip6_ecmp_set_mp_hash(net, &fl6, txhash);
 	}
 	fl6.flowi6_mark = IP6_REPLY_MARK(net, skb->mark) ?: mark;
 	fl6.fl6_dport = t1->dest;
@@ -980,7 +997,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 		return;
 	}
 
-	kfree_skb(buff);
+	sk_skb_reason_drop(sk, buff, SKB_DROP_REASON_IP_OUTNOROUTES);
 }
 
 static void tcp_v6_send_reset(const struct sock *sk, struct sk_buff *skb,
@@ -1617,12 +1634,13 @@ int tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb)
 	if (sk->sk_state == TCP_LISTEN) {
 		struct sock *nsk = tcp_v6_cookie_check(sk, skb);
 
+		if (!nsk)
+			return 0;
 		if (nsk != sk) {
-			if (nsk) {
-				reason = tcp_child_process(sk, nsk, skb);
-				if (reason)
-					goto reset;
-			}
+			reason = tcp_child_process(sk, nsk, skb);
+			sock_put(nsk);
+			if (reason)
+				goto reset;
 			return 0;
 		}
 	} else
@@ -1827,13 +1845,16 @@ lookup:
 
 				rst_reason = sk_rst_convert_drop_reason(drop_reason);
 				tcp_v6_send_reset(nsk, skb, rst_reason);
+				sock_put(nsk);
 				goto discard_and_relse;
 			}
+			sock_put(nsk);
 			sock_put(sk);
 			return 0;
 		}
 	}
 
+	isn = 0;
 process:
 	if (static_branch_unlikely(&ip6_min_hopcount)) {
 		/* min_hopcount can be changed concurrently from do_ipv6_setsockopt() */
@@ -1863,6 +1884,7 @@ process:
 	th = (const struct tcphdr *)skb->data;
 	hdr = ipv6_hdr(skb);
 	tcp_v6_fill_cb(skb, hdr, th);
+	TCP_SKB_CB(skb)->tcp_tw_isn = isn;
 
 	skb->dev = NULL;
 
@@ -1951,7 +1973,6 @@ do_time_wait:
 			sk = sk2;
 			tcp_v6_restore_cb(skb);
 			refcounted = false;
-			__this_cpu_write(tcp_tw_isn, isn);
 			goto process;
 		}
 

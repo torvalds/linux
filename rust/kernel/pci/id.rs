@@ -19,7 +19,7 @@ use crate::{
 ///
 /// ```
 /// # use kernel::{device::Core, pci::{self, Class}, prelude::*};
-/// fn probe_device(pdev: &pci::Device<Core>) -> Result {
+/// fn probe_device(pdev: &pci::Device<Core<'_>>) -> Result {
 ///     let pci_class = pdev.pci_class();
 ///     dev_info!(
 ///         pdev,

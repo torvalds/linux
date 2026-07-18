@@ -135,8 +135,6 @@ static void xe_vfio_pci_reset_done(struct pci_dev *pdev)
 	}
 	spin_unlock(&xe_vdev->reset_lock);
 	xe_vfio_pci_state_mutex_unlock(xe_vdev);
-
-	xe_vfio_pci_reset(xe_vdev);
 }
 
 static const struct pci_error_handlers xe_vfio_pci_err_handlers = {

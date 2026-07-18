@@ -75,6 +75,7 @@ struct snd_timer {
 	struct list_head ack_list_head;
 	struct list_head sack_list_head; /* slow ack list head */
 	struct work_struct task_work;
+	struct kref kref;
 	int max_instances;	/* upper limit of timer instances */
 	int num_instances;	/* current number of timer instances */
 };
@@ -130,5 +131,10 @@ int snd_timer_continue(struct snd_timer_instance *timeri);
 int snd_timer_pause(struct snd_timer_instance *timeri);
 
 void snd_timer_interrupt(struct snd_timer *timer, unsigned long ticks_left);
+
+struct snd_timer *snd_timeri_timer_get(struct snd_timer_instance *timeri);
+void snd_timeri_timer_put(struct snd_timer *timer);
+
+DEFINE_FREE(snd_timeri_timer, struct snd_timer *, if (_T) snd_timeri_timer_put(_T))
 
 #endif /* __SOUND_TIMER_H */

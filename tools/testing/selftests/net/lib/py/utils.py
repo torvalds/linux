@@ -23,6 +23,10 @@ class CmdExitFailure(Exception):
         self.cmd = cmd_obj
 
 
+class CmdExitZeroFailure(CmdExitFailure):
+    """ Command succeeded (returned zero exit code), but expected failure. """
+
+
 def fd_read_timeout(fd, timeout):
     rlist, _, _ = select.select([fd], [], [], timeout)
     if rlist:
@@ -39,10 +43,16 @@ class cmd:
 
     Use bkg() instead to run a command in the background.
     """
-    def __init__(self, comm, shell=None, fail=True, ns=None, background=False,
-                 host=None, timeout=5, ksft_ready=None, ksft_wait=None):
+    def __init__(self, comm, shell=None, fail=True, expect_fail=False, ns=None,
+                 background=False, host=None, timeout=20, ksft_ready=None,
+                 ksft_wait=None):
         if ns:
-            comm = f'ip netns exec {ns} ' + comm
+            if hasattr(ns, 'user_ns_path'):
+                comm = (f'nsenter --user={ns.user_ns_path} '
+                        f'--net={ns.net_ns_path} --setuid=0 --setgid=0 -- '
+                        + comm)
+            else:
+                comm = f'ip netns exec {ns} ' + comm
 
         self.stdout = None
         self.stderr = None
@@ -88,7 +98,8 @@ class cmd:
                     self._process_terminate(terminate=terminate, timeout=1)
                     raise CmdInitFailure("Did not receive ready message", self)
         if not background:
-            self.process(terminate=False, fail=fail, timeout=timeout)
+            self.process(terminate=False, fail=fail, expect_fail=expect_fail,
+                         timeout=timeout)
 
     def _process_terminate(self, terminate, timeout):
         if terminate:
@@ -102,7 +113,7 @@ class cmd:
 
         return stdout, stderr
 
-    def process(self, terminate=True, fail=None, timeout=5):
+    def process(self, terminate=True, fail=None, expect_fail=False, timeout=20):
         if fail is None:
             fail = not terminate
 
@@ -111,10 +122,19 @@ class cmd:
 
         stdout, stderr = self._process_terminate(terminate=terminate,
                                                  timeout=timeout)
-        if self.proc.returncode != 0 and fail:
+
+        # Fail on unexpected test failure if fail.
+        # Fail on unexpected test success if expect_fail.
+        # Fail on negative returncode if either:
+        # Set by subprocess on crash or signal, this is never expected failure.
+        if (self.proc.returncode != 0 and fail or
+            (self.proc.returncode < 0 and expect_fail)):
             if len(stderr) > 0 and stderr[-1] == "\n":
                 stderr = stderr[:-1]
             raise CmdExitFailure("Command failed", self)
+        elif self.proc.returncode == 0 and expect_fail:
+            raise CmdExitZeroFailure("Command succeeded (expected fail)", self)
+
 
     def __repr__(self):
         def str_fmt(name, s):
@@ -157,14 +177,17 @@ class bkg(cmd):
 
         with bkg("my_binary", ksft_wait=5):
     """
-    def __init__(self, comm, shell=None, fail=None, ns=None, host=None,
-                 exit_wait=False, ksft_ready=None, ksft_wait=None):
+    def __init__(self, comm, shell=None, fail=None, expect_fail=None,
+                 ns=None, host=None, exit_wait=False, ksft_ready=None,
+                 ksft_wait=None):
         super().__init__(comm, background=True,
-                         shell=shell, fail=fail, ns=ns, host=host,
-                         ksft_ready=ksft_ready, ksft_wait=ksft_wait)
+                         shell=shell, fail=fail, expect_fail=expect_fail,
+                         ns=ns, host=host, ksft_ready=ksft_ready,
+                         ksft_wait=ksft_wait)
         self.terminate = not exit_wait and not ksft_wait
         self._exit_wait = exit_wait
         self.check_fail = fail
+        self.expect_fail = expect_fail
 
         if shell and self.terminate:
             print("# Warning: combining shell and terminate is risky!")
@@ -179,7 +202,8 @@ class bkg(cmd):
         # since forcing termination silences failures with fail=None
         if self.proc.poll() is None:
             terminate = terminate or (self._exit_wait and ex_type is not None)
-        return self.process(terminate=terminate, fail=self.check_fail)
+        return self.process(terminate=terminate, fail=self.check_fail,
+                            expect_fail=self.expect_fail)
 
 
 GLOBAL_DEFER_QUEUE = []
@@ -220,7 +244,10 @@ class defer:
 def tool(name, args, json=None, ns=None, host=None):
     cmd_str = name + ' '
     if json:
-        cmd_str += '--json '
+        if name == 'tc':
+            cmd_str += '-json '
+        else:
+            cmd_str += '--json '
     cmd_str += args
     cmd_obj = cmd(cmd_str, ns=ns, host=host)
     if json:
@@ -236,6 +263,13 @@ def ip(args, json=None, ns=None, host=None):
     if ns:
         args = f'-netns {ns} ' + args
     return tool('ip', args, json=json, host=host)
+
+
+def tc(args, json=None, ns=None, host=None):
+    """ Helper to call tc with standard set of optional args. """
+    if ns:
+        args = f'-netns {ns} ' + args
+    return tool('tc', args, json=json, host=host)
 
 
 def ethtool(args, json=None, ns=None, host=None):

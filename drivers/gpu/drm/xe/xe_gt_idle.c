@@ -3,6 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/time64.h>
+
 #include <drm/drm_managed.h>
 
 #include <generated/xe_wa_oob.h>
@@ -93,7 +95,7 @@ static u64 get_residency_ms(struct xe_gt_idle *gtidle, u64 cur_residency)
 	gtidle->cur_residency = cur_residency;
 
 	/* residency multiplier in ns, convert to ms */
-	cur_residency = mul_u64_u32_div(cur_residency, gtidle->residency_multiplier, 1e6);
+	cur_residency = mul_u64_u32_div(cur_residency, gtidle->residency_multiplier, NSEC_PER_MSEC);
 
 	return cur_residency;
 }

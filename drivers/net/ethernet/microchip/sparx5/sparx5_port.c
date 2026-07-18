@@ -1128,7 +1128,8 @@ int sparx5_port_init(struct sparx5 *sparx5,
 		DEV2G5_PCS1G_SD_CFG(port->portno));
 
 	if (conf->portmode == PHY_INTERFACE_MODE_QSGMII ||
-	    conf->portmode == PHY_INTERFACE_MODE_SGMII) {
+	    conf->portmode == PHY_INTERFACE_MODE_SGMII ||
+	    conf->portmode == PHY_INTERFACE_MODE_1000BASEX) {
 		err = sparx5_serdes_set(sparx5, port, conf);
 		if (err)
 			return err;

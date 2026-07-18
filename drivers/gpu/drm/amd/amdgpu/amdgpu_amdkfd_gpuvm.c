@@ -1914,13 +1914,6 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 
 	mutex_lock(&mem->lock);
 
-	/* Unpin MMIO/DOORBELL BO's that were pinned during allocation */
-	if (mem->alloc_flags &
-	    (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
-	     KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
-		amdgpu_amdkfd_gpuvm_unpin_bo(mem->bo);
-	}
-
 	mapped_to_gpu_memory = mem->mapped_to_gpu_memory;
 	is_imported = mem->is_imported;
 	mutex_unlock(&mem->lock);
@@ -1932,6 +1925,15 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 		pr_debug("BO VA 0x%llx size 0x%lx is still mapped.\n",
 				mem->va, bo_size);
 		return -EBUSY;
+	}
+
+	/* At this point the BO is guaranteed to be freed, so unpin the
+	 * MMIO/DOORBELL BOs that were pinned during allocation.
+	 */
+	if (mem->alloc_flags &
+	    (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
+	     KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {
+		amdgpu_amdkfd_gpuvm_unpin_bo(mem->bo);
 	}
 
 	/* Make sure restore workers don't access the BO any more */
@@ -2269,11 +2271,14 @@ err_reserve_bo_failed:
 	return ret;
 }
 
-/** amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel() - Map a GTT BO for kernel CPU access
+/** amdgpu_amdkfd_gpuvm_map_bo_to_kernel() - Map GTT or VRAM BO for kernel CPU access
  *
  * @mem: Buffer object to be mapped for CPU access
  * @kptr[out]: pointer in kernel CPU address space
  * @size[out]: size of the buffer
+ * @domain[IN]: domain for pinning (AMDGPU_GEM_DOMAIN_GTT, AMDGPU_GEM_DOMAIN_VRAM,
+ *              or their combination to let the driver choose). CPU visibility is
+ *              automatically enforced by amdgpu_bo_pin()
  *
  * Pins the BO and maps it for kernel CPU access. The eviction fence is removed
  * from the BO, since pinned BOs cannot be evicted. The bo must remain on the
@@ -2282,14 +2287,19 @@ err_reserve_bo_failed:
  *
  * Return: 0 on success, error code on failure
  */
-int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_mem *mem,
-					     void **kptr, uint64_t *size)
+int amdgpu_amdkfd_gpuvm_map_bo_to_kernel(struct kgd_mem *mem, void **kptr,
+					 u64 *size, u32 domain)
 {
 	int ret;
 	struct amdgpu_bo *bo = mem->bo;
 
 	if (amdgpu_ttm_tt_get_usermm(bo->tbo.ttm)) {
 		pr_err("userptr can't be mapped to kernel\n");
+		return -EINVAL;
+	}
+
+	if (!(domain & (AMDGPU_GEM_DOMAIN_GTT | AMDGPU_GEM_DOMAIN_VRAM))) {
+		pr_debug("Invalid domain 0x%x for kernel mapping\n", domain);
 		return -EINVAL;
 	}
 
@@ -2301,7 +2311,7 @@ int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_mem *mem,
 		goto bo_reserve_failed;
 	}
 
-	ret = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_GTT);
+	ret = amdgpu_bo_pin(bo, domain);
 	if (ret) {
 		pr_err("Failed to pin bo. ret %d\n", ret);
 		goto pin_failed;
@@ -2334,7 +2344,7 @@ bo_reserve_failed:
 	return ret;
 }
 
-/** amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel() - Unmap a GTT BO for kernel CPU access
+/** amdgpu_amdkfd_gpuvm_unmap_bo_from_kernel() - Unmap GTT or VRAM BO for kernel CPU access
  *
  * @mem: Buffer object to be unmapped for CPU access
  *
@@ -2342,7 +2352,7 @@ bo_reserve_failed:
  * eviction fence, so this function should only be used for cleanup before the
  * BO is destroyed.
  */
-void amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(struct kgd_mem *mem)
+void amdgpu_amdkfd_gpuvm_unmap_bo_from_kernel(struct kgd_mem *mem)
 {
 	struct amdgpu_bo *bo = mem->bo;
 
@@ -2999,7 +3009,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 	/* Validate PDs, PTs and evicted DMABuf imports last. Otherwise BO
 	 * validations above would invalidate DMABuf imports again.
 	 */
-	ret = process_validate_vms(process_info, &exec.ticket);
+	ret = process_validate_vms(process_info, drm_exec_ticket(&exec));
 	if (ret) {
 		pr_debug("Validating VMs failed, ret: %d\n", ret);
 		goto validate_map_fail;
@@ -3040,7 +3050,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 			goto validate_map_fail;
 		}
 
-		ret = amdgpu_vm_handle_moved(adev, peer_vm, &exec.ticket);
+		ret = amdgpu_vm_handle_moved(adev, peer_vm, drm_exec_ticket(&exec));
 		if (ret) {
 			dev_dbg(adev->dev,
 				"Memory eviction: handle moved failed, pid %8d. Try again.\n",

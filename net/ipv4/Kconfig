@@ -741,14 +741,12 @@ config DEFAULT_TCP_CONG
 	default "bbr" if DEFAULT_BBR
 	default "cubic"
 
-config TCP_SIGPOOL
-	tristate
-
 config TCP_AO
 	bool "TCP: Authentication Option (RFC5925)"
-	select CRYPTO
+	select CRYPTO_LIB_AES_CBC_MACS
+	select CRYPTO_LIB_SHA1
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_LIB_UTILS
-	select TCP_SIGPOOL
 	depends on 64BIT # seq-number extension needs WRITE_ONCE(u64)
 	help
 	  TCP-AO specifies the use of stronger Message Authentication Codes (MACs),

@@ -9,6 +9,7 @@
 #include <linux/unaligned.h>
 
 #include <drm/bridge/mhl.h>
+#include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -2280,6 +2281,9 @@ static bool sii8620_mode_fixup(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs sii8620_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = sii8620_attach,
 	.detach = sii8620_detach,
 	.mode_fixup = sii8620_mode_fixup,

@@ -16,8 +16,8 @@ void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type)
 
 	xa_lock(&srq_table->xa);
 	srq = xa_load(&srq_table->xa, srqn & (hr_dev->caps.num_srqs - 1));
-	if (srq)
-		refcount_inc(&srq->refcount);
+	if (srq && !refcount_inc_not_zero(&srq->refcount))
+		srq = NULL;
 	xa_unlock(&srq_table->xa);
 
 	if (!srq) {
@@ -103,7 +103,7 @@ static int hns_roce_create_srqc(struct hns_roce_dev *hr_dev,
 	ret = hns_roce_create_hw_ctx(hr_dev, mailbox, HNS_ROCE_CMD_CREATE_SRQ,
 				     srq->srqn);
 	if (ret)
-		ibdev_err(ibdev, "failed to config SRQC, ret = %d.\n", ret);
+		ibdev_err_ratelimited(ibdev, "failed to config SRQC, ret = %d.\n", ret);
 
 err_mbox:
 	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
@@ -470,19 +470,17 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	if (ret)
 		goto err_srqn;
 
+	srq->event = hns_roce_ib_srq_event;
+	init_completion(&srq->free);
+	refcount_set_release(&srq->refcount, 1);
+
 	if (udata) {
 		resp.cap_flags = srq->cap_flags;
 		resp.srqn = srq->srqn;
-		if (ib_copy_to_udata(udata, &resp,
-				     min(udata->outlen, sizeof(resp)))) {
-			ret = -EFAULT;
+		ret = ib_respond_udata(udata, resp);
+		if (ret)
 			goto err_srqc;
-		}
 	}
-
-	srq->event = hns_roce_ib_srq_event;
-	refcount_set(&srq->refcount, 1);
-	init_completion(&srq->free);
 
 	return 0;
 

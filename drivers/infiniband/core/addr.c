@@ -149,7 +149,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 		attrtype = RDMA_NLA_F_MANDATORY | LS_NLA_TYPE_IPV6;
 	}
 
-	len = nla_total_size(sizeof(size));
+	len = nla_total_size(size);
 	len += NLMSG_ALIGN(sizeof(*header));
 
 	skb = nlmsg_new(len, GFP_KERNEL);
@@ -438,7 +438,7 @@ static int addr6_resolve(struct sockaddr *src_sock,
 static bool is_dst_local(const struct dst_entry *dst)
 {
 	if (dst->ops->family == AF_INET)
-		return !!(dst_rtable(dst)->rt_type & RTN_LOCAL);
+		return dst_rtable(dst)->rt_type == RTN_LOCAL;
 	else if (dst->ops->family == AF_INET6)
 		return !!(dst_rt6_info(dst)->rt6i_flags & RTF_LOCAL);
 	else
@@ -850,7 +850,7 @@ static struct notifier_block nb = {
 
 int addr_init(void)
 {
-	addr_wq = alloc_ordered_workqueue("ib_addr", 0);
+	addr_wq = alloc_workqueue("ib_addr", WQ_UNBOUND, 0);
 	if (!addr_wq)
 		return -ENOMEM;
 

@@ -1852,6 +1852,7 @@ struct rtl8xxxu_fileops rtl8710bu_fops = {
 	.init_reg_rxfltmap = 1,
 	.init_reg_pkt_life_time = 1,
 	.init_reg_hmtfr = 1,
+	.hw_feature_report = 0, /* TODO, it's different */
 	.ampdu_max_time = 0x5e,
 	/*
 	 * The RTL8710BU vendor driver uses 0x50 here and it works fine,

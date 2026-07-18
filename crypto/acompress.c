@@ -51,11 +51,9 @@ static inline struct acomp_alg *crypto_acomp_alg(struct crypto_acomp *tfm)
 static int __maybe_unused crypto_acomp_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_acomp racomp;
-
-	memset(&racomp, 0, sizeof(racomp));
-
-	strscpy(racomp.type, "acomp", sizeof(racomp.type));
+	struct crypto_report_acomp racomp = {
+		.type = "acomp",
+	};
 
 	return nla_put(skb, CRYPTOCFGA_REPORT_ACOMP, sizeof(racomp), &racomp);
 }

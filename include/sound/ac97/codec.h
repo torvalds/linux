@@ -108,6 +108,9 @@ static inline void ac97_set_drvdata(struct ac97_codec_device *adev,
 	dev_set_drvdata(ac97_codec_dev2dev(adev), data);
 }
 
-void *snd_ac97_codec_get_platdata(const struct ac97_codec_device *adev);
+static inline void *snd_ac97_codec_get_platdata(const struct ac97_codec_device *adev)
+{
+	return NULL;
+}
 
 #endif

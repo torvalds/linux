@@ -106,7 +106,7 @@ static void rn_set_low_power_state(struct clk_mgr *clk_mgr_base)
 static void rn_update_clocks_update_dpp_dto(struct clk_mgr_internal *clk_mgr,
 		struct dc_state *context, int ref_dpp_clk, bool safe_to_lower)
 {
-	int i;
+	uint32_t i;
 
 	clk_mgr->dccg->ref_dppclk = ref_dpp_clk;
 
@@ -462,8 +462,10 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 		if (!bw_params->wm_table.entries[i].valid)
 			continue;
 
-		ranges->reader_wm_sets[num_valid_sets].wm_inst = bw_params->wm_table.entries[i].wm_inst;
-		ranges->reader_wm_sets[num_valid_sets].wm_type = bw_params->wm_table.entries[i].wm_type;
+		ranges->reader_wm_sets[num_valid_sets].wm_inst =
+			(uint8_t)bw_params->wm_table.entries[i].wm_inst;
+		ranges->reader_wm_sets[num_valid_sets].wm_type =
+			(uint8_t)bw_params->wm_table.entries[i].wm_type;
 		/* We will not select WM based on fclk, so leave it as unconstrained */
 		ranges->reader_wm_sets[num_valid_sets].min_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 		ranges->reader_wm_sets[num_valid_sets].max_fill_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
@@ -474,9 +476,11 @@ static void build_watermark_ranges(struct clk_bw_params *bw_params, struct pp_sm
 				ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz = 0;
 			else {
 				/* add 1 to make it non-overlapping with next lvl */
-				ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz = bw_params->clk_table.entries[i - 1].dcfclk_mhz + 1;
+				ranges->reader_wm_sets[num_valid_sets].min_drain_clk_mhz =
+					(uint16_t)(bw_params->clk_table.entries[i - 1].dcfclk_mhz + 1);
 			}
-			ranges->reader_wm_sets[num_valid_sets].max_drain_clk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+			ranges->reader_wm_sets[num_valid_sets].max_drain_clk_mhz =
+				(uint16_t)bw_params->clk_table.entries[i].dcfclk_mhz;
 
 		} else {
 			/* unconstrained for memory retraining */
@@ -640,6 +644,8 @@ static unsigned int find_dcfclk_for_voltage(struct dpm_clocks *clock_table, unsi
 static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params, struct dpm_clocks *clock_table, struct integrated_info *bios_info)
 {
 	int i, j = 0;
+	unsigned int entry_idx;
+	unsigned int wm_idx;
 
 	j = -1;
 
@@ -663,28 +669,28 @@ static void rn_clk_mgr_helper_populate_bw_params(struct clk_bw_params *bw_params
 
 	bw_params->clk_table.num_entries = j + 1;
 
-	for (i = 0; i < bw_params->clk_table.num_entries; i++, j--) {
-		bw_params->clk_table.entries[i].fclk_mhz = clock_table->FClocks[j].Freq;
-		bw_params->clk_table.entries[i].memclk_mhz = clock_table->MemClocks[j].Freq;
-		bw_params->clk_table.entries[i].voltage = clock_table->FClocks[j].Vol;
-		bw_params->clk_table.entries[i].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
-		bw_params->clk_table.entries[i].socclk_mhz = find_socclk_for_voltage(clock_table,
-									bw_params->clk_table.entries[i].voltage);
+	for (entry_idx = 0; entry_idx < bw_params->clk_table.num_entries; entry_idx++, j--) {
+		bw_params->clk_table.entries[entry_idx].fclk_mhz = clock_table->FClocks[j].Freq;
+		bw_params->clk_table.entries[entry_idx].memclk_mhz = clock_table->MemClocks[j].Freq;
+		bw_params->clk_table.entries[entry_idx].voltage = clock_table->FClocks[j].Vol;
+		bw_params->clk_table.entries[entry_idx].dcfclk_mhz = find_dcfclk_for_voltage(clock_table, clock_table->FClocks[j].Vol);
+		bw_params->clk_table.entries[entry_idx].socclk_mhz = find_socclk_for_voltage(clock_table,
+									bw_params->clk_table.entries[entry_idx].voltage);
 	}
 
 	bw_params->vram_type = bios_info->memory_type;
 	bw_params->num_channels = bios_info->ma_channel_number;
 
-	for (i = 0; i < WM_SET_COUNT; i++) {
-		bw_params->wm_table.entries[i].wm_inst = i;
+	for (wm_idx = 0; wm_idx < (unsigned int)WM_SET_COUNT; wm_idx++) {
+		bw_params->wm_table.entries[wm_idx].wm_inst = wm_idx;
 
-		if (i >= bw_params->clk_table.num_entries) {
-			bw_params->wm_table.entries[i].valid = false;
+		if (wm_idx >= bw_params->clk_table.num_entries) {
+			bw_params->wm_table.entries[wm_idx].valid = false;
 			continue;
 		}
 
-		bw_params->wm_table.entries[i].wm_type = WM_TYPE_PSTATE_CHG;
-		bw_params->wm_table.entries[i].valid = true;
+		bw_params->wm_table.entries[wm_idx].wm_type = WM_TYPE_PSTATE_CHG;
+		bw_params->wm_table.entries[wm_idx].valid = true;
 	}
 
 	if (bw_params->vram_type == LpDdr4MemType) {

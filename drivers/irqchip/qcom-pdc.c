@@ -3,6 +3,7 @@
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/bitfield.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -21,22 +22,30 @@
 #include <linux/types.h>
 
 #define PDC_MAX_GPIO_IRQS	256
-#define PDC_DRV_OFFSET		0x10000
+#define PDC_DRV_SIZE		0x10000
 
 /* Valid only on HW version < 3.2 */
 #define IRQ_ENABLE_BANK		0x10
 #define IRQ_ENABLE_BANK_MAX	(IRQ_ENABLE_BANK + BITS_TO_BYTES(PDC_MAX_GPIO_IRQS))
+#define IRQ_ENABLE_BANK_INDEX_MASK	GENMASK(31, 5)
+#define IRQ_ENABLE_BANK_BIT_MASK	GENMASK(4, 0)
 #define IRQ_i_CFG		0x110
 
 /* Valid only on HW version >= 3.2 */
 #define IRQ_i_CFG_IRQ_ENABLE	3
 
-#define IRQ_i_CFG_TYPE_MASK	GENMASK(2, 0)
+#define IRQ_i_CFG_TYPE_MASK		GENMASK(2, 0)
 
-#define PDC_VERSION_REG		0x1000
+#define PDC_VERSION_REG			0x1000
+#define PDC_VERSION_MAJOR		GENMASK(23, 16)
+#define PDC_VERSION_MINOR		GENMASK(15, 8)
+#define PDC_VERSION_STEP		GENMASK(7, 0)
+#define PDC_VERSION(maj, min, step)	(FIELD_PREP(PDC_VERSION_MAJOR, (maj)) | \
+					 FIELD_PREP(PDC_VERSION_MINOR, (min)) | \
+					 FIELD_PREP(PDC_VERSION_STEP,  (step)))
 
 /* Notable PDC versions */
-#define PDC_VERSION_3_2		0x30200
+#define PDC_VERSION_3_2			PDC_VERSION(3, 2, 0)
 
 struct pdc_pin_region {
 	u32 pin_base;
@@ -97,28 +106,37 @@ static void pdc_x1e_irq_enable_write(u32 bank, u32 enable)
 	pdc_base_reg_write(base, IRQ_ENABLE_BANK, bank, enable);
 }
 
-static void __pdc_enable_intr(int pin_out, bool on)
+static void pdc_enable_intr_bank(int pin_out, bool on)
 {
 	unsigned long enable;
+	u32 index, mask;
 
-	if (pdc_version < PDC_VERSION_3_2) {
-		u32 index, mask;
+	index = FIELD_GET(IRQ_ENABLE_BANK_INDEX_MASK, pin_out);
+	mask = FIELD_GET(IRQ_ENABLE_BANK_BIT_MASK, pin_out);
 
-		index = pin_out / 32;
-		mask = pin_out % 32;
+	enable = pdc_reg_read(IRQ_ENABLE_BANK, index);
+	__assign_bit(mask, &enable, on);
 
-		enable = pdc_reg_read(IRQ_ENABLE_BANK, index);
-		__assign_bit(mask, &enable, on);
+	if (pdc_x1e_quirk)
+		pdc_x1e_irq_enable_write(index, enable);
+	else
+		pdc_reg_write(IRQ_ENABLE_BANK, index, enable);
+}
 
-		if (pdc_x1e_quirk)
-			pdc_x1e_irq_enable_write(index, enable);
-		else
-			pdc_reg_write(IRQ_ENABLE_BANK, index, enable);
-	} else {
-		enable = pdc_reg_read(IRQ_i_CFG, pin_out);
-		__assign_bit(IRQ_i_CFG_IRQ_ENABLE, &enable, on);
-		pdc_reg_write(IRQ_i_CFG, pin_out, enable);
-	}
+static void pdc_enable_intr_cfg(int pin_out, bool on)
+{
+	unsigned long enable = pdc_reg_read(IRQ_i_CFG, pin_out);
+
+	__assign_bit(IRQ_i_CFG_IRQ_ENABLE, &enable, on);
+	pdc_reg_write(IRQ_i_CFG, pin_out, enable);
+}
+
+static void __pdc_enable_intr(int pin_out, bool on)
+{
+	if (pdc_version < PDC_VERSION_3_2)
+		pdc_enable_intr_bank(pin_out, on);
+	else
+		pdc_enable_intr_cfg(pin_out, on);
 }
 
 static void pdc_enable_intr(struct irq_data *d, bool on)
@@ -348,7 +366,6 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 	return 0;
 }
 
-#define QCOM_PDC_SIZE 0x30000
 
 static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *parent)
 {
@@ -362,7 +379,7 @@ static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *pare
 	if (of_address_to_resource(node, 0, &res))
 		return -EINVAL;
 
-	res_size = max_t(resource_size_t, resource_size(&res), QCOM_PDC_SIZE);
+	res_size = max_t(resource_size_t, resource_size(&res), PDC_DRV_SIZE);
 	if (res_size > resource_size(&res))
 		pr_warn("%pOF: invalid reg size, please fix DT\n", node);
 
@@ -375,7 +392,7 @@ static int qcom_pdc_probe(struct platform_device *pdev, struct device_node *pare
 	 * region with the expected offset to preserve support for old DTs.
 	 */
 	if (of_device_is_compatible(node, "qcom,x1e80100-pdc")) {
-		pdc_prev_base = ioremap(res.start - PDC_DRV_OFFSET, IRQ_ENABLE_BANK_MAX);
+		pdc_prev_base = ioremap(res.start - PDC_DRV_SIZE, IRQ_ENABLE_BANK_MAX);
 		if (!pdc_prev_base) {
 			pr_err("%pOF: unable to map previous PDC DRV region\n", node);
 			return -ENXIO;

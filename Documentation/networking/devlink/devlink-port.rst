@@ -38,7 +38,7 @@ Devlink port flavours are described below.
      - This indicates an eswitch port representing a port of PCI
        subfunction (SF).
    * - ``DEVLINK_PORT_FLAVOUR_VIRTUAL``
-     - This indicates a virtual port for the PCI virtual function.
+     - Any virtual port facing the user.
 
 Devlink port can have a different type based on the link layer described below.
 
@@ -133,6 +133,9 @@ Users may also set the IPsec crypto capability of the function using
 
 Users may also set the IPsec packet capability of the function using
 `devlink port function set ipsec_packet` command.
+
+The ``migratable`` attribute may be set only on ports with
+``DEVLINK_PORT_FLAVOUR_PCI_VF``.
 
 Users may also set the maximum IO event queues of the function
 using `devlink port function set max_io_eqs` command.

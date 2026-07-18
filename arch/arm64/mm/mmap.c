@@ -34,7 +34,7 @@ static pgprot_t protection_map[16] __ro_after_init = {
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED_EXEC
 };
 
-static ptdesc_t gcs_page_prot __ro_after_init = _PAGE_GCS_RO;
+static ptval_t gcs_page_prot __ro_after_init = _PAGE_GCS_RO;
 
 /*
  * You really shouldn't be using read() or write() on /dev/mem.  This might go
@@ -87,7 +87,7 @@ arch_initcall(adjust_protection_map);
 
 pgprot_t vm_get_page_prot(vm_flags_t vm_flags)
 {
-	ptdesc_t prot;
+	ptval_t prot;
 
 	/* Short circuit GCS to avoid bloating the table. */
 	if (system_supports_gcs() && (vm_flags & VM_SHADOW_STACK)) {

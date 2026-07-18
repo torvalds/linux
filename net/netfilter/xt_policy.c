@@ -63,7 +63,7 @@ match_policy_in(const struct sk_buff *skb, const struct xt_policy_info *info,
 		return 0;
 
 	for (i = sp->len - 1; i >= 0; i--) {
-		pos = strict ? i - sp->len + 1 : 0;
+		pos = strict ? sp->len - i - 1 : 0;
 		if (pos >= info->len)
 			return 0;
 		e = &info->pol[pos];
@@ -126,13 +126,10 @@ policy_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	return ret;
 }
 
-static int policy_mt_check(const struct xt_mtchk_param *par)
+static int policy_mt_check_hooks(const struct xt_mtchk_param *par)
 {
 	const struct xt_policy_info *info = par->matchinfo;
-	const char *errmsg = "neither incoming nor outgoing policy selected";
-
-	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT)))
-		goto err;
+	const char *errmsg;
 
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) && info->flags & XT_POLICY_MATCH_OUT) {
@@ -144,6 +141,21 @@ static int policy_mt_check(const struct xt_mtchk_param *par)
 		errmsg = "input policy not valid in POSTROUTING and OUTPUT";
 		goto err;
 	}
+
+	return 0;
+err:
+	pr_info_ratelimited("%s\n", errmsg);
+	return -EINVAL;
+}
+
+static int policy_mt_check(const struct xt_mtchk_param *par)
+{
+	const struct xt_policy_info *info = par->matchinfo;
+	const char *errmsg = "neither incoming nor outgoing policy selected";
+
+	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT)))
+		goto err;
+
 	if (info->len > XT_POLICY_MAX_ELEM) {
 		errmsg = "too many policy elements";
 		goto err;
@@ -158,6 +170,7 @@ static struct xt_match policy_mt_reg[] __read_mostly = {
 	{
 		.name		= "policy",
 		.family		= NFPROTO_IPV4,
+		.check_hooks	= policy_mt_check_hooks,
 		.checkentry 	= policy_mt_check,
 		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),
@@ -166,6 +179,7 @@ static struct xt_match policy_mt_reg[] __read_mostly = {
 	{
 		.name		= "policy",
 		.family		= NFPROTO_IPV6,
+		.check_hooks	= policy_mt_check_hooks,
 		.checkentry	= policy_mt_check,
 		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),

@@ -1,0 +1,77 @@
+Iterations:        100
+Instructions:      1900
+Total Cycles:      573
+Total uOps:        2100
+
+Dispatch Width:    4
+uOps Per Cycle:    3.66
+IPC:               3.32
+Block RThroughput: 5.3
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 1      0     0.25                        xor	edx, edx
+ 1      1     0.33                        mov	eax, 0
+ 1      1     0.33                        test	dil, 1
+ 1      1     1.00                        jne	.LBB5_4
+ 1      1     0.33                        cmp	rsi, 4
+ 1      1     1.00                        jae	.LBB5_3
+ 1      1     0.33                        mov	edx, 1
+ 1      0     0.25                        xor	eax, eax
+ 1      1     1.00                  U     ret
+ 1      1     0.33                        add	rsi, -4
+ 1      1     0.50                        shr	rsi
+ 1      5     0.50    *                   movzx	ecx, word ptr [rdi]
+ 1      1     0.33                        cmp	ecx, 49344
+ 1      1     0.33                        mov	edx, 2
+ 2      2     0.67                        cmove	rdx, rsi
+ 1      0     0.25                        xor	eax, eax
+ 1      1     0.33                        cmp	cx, -16192
+ 2      2     0.67                        cmove	rax, rdi
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     5.66   5.67    -     5.67   0.50   0.50   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -      -      -      -      -     xor	edx, edx
+ -      -     0.30   0.37    -     0.33    -      -     mov	eax, 0
+ -      -     0.35   0.32    -     0.33    -      -     test	dil, 1
+ -      -      -      -      -     1.00    -      -     jne	.LBB5_4
+ -      -     0.32   0.33    -     0.35    -      -     cmp	rsi, 4
+ -      -      -      -      -     1.00    -      -     jae	.LBB5_3
+ -      -     0.33   0.35    -     0.32    -      -     mov	edx, 1
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -      -      -      -     1.00    -      -     ret
+ -      -     0.34   0.64    -     0.02    -      -     add	rsi, -4
+ -      -     1.00    -      -      -      -      -     shr	rsi
+ -      -      -      -      -      -     0.50   0.50   movzx	ecx, word ptr [rdi]
+ -      -     0.60   0.40    -      -      -      -     cmp	ecx, 49344
+ -      -     0.05   0.95    -      -      -      -     mov	edx, 2
+ -      -     1.00   1.00    -      -      -      -     cmove	rdx, rsi
+ -      -      -      -      -      -      -      -     xor	eax, eax
+ -      -     0.37   0.31    -     0.32    -      -     cmp	cx, -16192
+ -      -     1.00   1.00    -      -      -      -     cmove	rax, rdi
+ -      -      -      -      -     1.00    -      -     ret

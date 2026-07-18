@@ -112,6 +112,8 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 	const char *hub_name;
 	int ret, xcc_id = 0;
 	uint32_t status = 0;
+	const char *die_name;
+	char die_name_buf[32];
 	u64 addr;
 
 	node_id = entry->node_id;
@@ -200,6 +202,17 @@ static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
 
 	dev_err(adev->dev, "  in page starting at address 0x%016llx from IH client %d (%s)\n",
 		addr, entry->client_id, soc_v1_0_ih_clientid_name[entry->client_id]);
+
+	if (adev->irq.ih_funcs &&
+	    adev->irq.ih_funcs->node_id_to_die_name) {
+		die_name = adev->irq.ih_funcs->node_id_to_die_name(adev, node_id,
+								   die_name_buf,
+								   sizeof(die_name_buf));
+		if (die_name)
+			dev_err(adev->dev,
+				"  cookie node_id %d fault from die %s\n",
+				node_id, die_name);
+	}
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;

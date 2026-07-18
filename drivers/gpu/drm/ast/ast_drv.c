@@ -47,6 +47,77 @@ static int ast_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, ast_modeset, int, 0400);
 
+/*
+ * Register access
+ */
+
+/* Select R/W segment */
+static void __ast_selseg(void __iomem *regs, u32 r)
+{
+	u32 p2a04, p2a04_base;
+
+	p2a04 = r & AST_REG_P2A04_BASE_MASK;
+	__ast_write32(regs, AST_REG_P2A04, p2a04);
+	__ast_write32(regs, AST_REG_P2A00, AST_REG_P2A00_PROTECTION_KEY);
+
+	do {
+		cpu_relax();
+		p2a04_base = __ast_read32(regs, AST_REG_P2A04);
+		p2a04_base &= AST_REG_P2A04_BASE_MASK;
+	} while (p2a04_base != p2a04);
+}
+
+/* Read within segment */
+static u32 __ast_rdseg32(void __iomem *regs, u32 r)
+{
+	return __ast_read32(regs, AST_REG_P2A_ADDR(r));
+}
+
+/* Write within segment */
+static void __ast_wrseg32(void __iomem *regs, u32 r, u32 v)
+{
+	__ast_write32(regs, AST_REG_P2A_ADDR(r), v);
+}
+
+u32 __ast_mindwm(void __iomem *regs, u32 r)
+{
+	__ast_selseg(regs, r);
+
+	return __ast_rdseg32(regs, r);
+}
+
+void __ast_moutdwm(void __iomem *regs, u32 r, u32 v)
+{
+	__ast_selseg(regs, r);
+	__ast_wrseg32(regs, r, v);
+}
+
+u32 ast_mindwm(struct ast_device *ast, u32 r)
+{
+	return __ast_mindwm(ast->regs, r);
+}
+
+void ast_moutdwm(struct ast_device *ast, u32 r, u32 v)
+{
+	__ast_moutdwm(ast->regs, r, v);
+}
+
+void ast_moutdwm_poll(struct ast_device *ast, u32 r, u32 v, u32 res)
+{
+	void __iomem *regs = ast->regs;
+
+	__ast_selseg(regs, r);
+	__ast_wrseg32(regs, r, v);
+
+	do {
+		cpu_relax();
+	} while (__ast_rdseg32(regs, r) != res);
+}
+
+/*
+ * AST device
+ */
+
 void ast_device_init(struct ast_device *ast,
 		     enum ast_chip chip,
 		     enum ast_config_mode config_mode,
@@ -171,7 +242,7 @@ static int ast_detect_chip(struct pci_dev *pdev,
 	enum ast_config_mode config_mode = ast_use_defaults;
 	uint32_t scu_rev = 0xffffffff;
 	enum ast_chip chip;
-	u32 data;
+	u32 data, p2a04, scu07c;
 	u8 vgacrd0, vgacrd1;
 
 	/*
@@ -204,14 +275,13 @@ static int ast_detect_chip(struct pci_dev *pdev,
 			}
 
 			/* Double check that it's actually working */
-			data = __ast_read32(regs, 0xf004);
-			if ((data != 0xffffffff) && (data != 0x00)) {
+			p2a04 = __ast_read32(regs, AST_REG_P2A04);
+			if (p2a04 != 0xffffffff && p2a04 != 0x00000000) {
 				config_mode = ast_use_p2a;
 
-				/* Read SCU7c (silicon revision register) */
-				__ast_write32(regs, 0xf004, 0x1e6e0000);
-				__ast_write32(regs, 0xf000, 0x1);
-				scu_rev = __ast_read32(regs, 0x1207c);
+				/* Read SCU7C (silicon revision register) */
+				scu07c = __ast_mindwm(regs, AST_REG_SCU07C);
+				scu_rev = scu07c & AST_REG_SCU07C_CHIP_BONDING_MASK;
 			}
 		}
 	}

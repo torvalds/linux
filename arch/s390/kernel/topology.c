@@ -192,17 +192,21 @@ static void tl_to_masks(struct sysinfo_15_1_x *info)
 	end = (union topology_entry *)((unsigned long)info + info->length);
 	while (tle < end) {
 		switch (tle->nl) {
+		/*
+		 * Adjust drawer_id, book_id, and socked_id so they match the
+		 * numbering scheme of e.g. the hardware management console.
+		 */
 		case 3:
 			drawer = drawer->next;
-			drawer->id = tle->container.id;
+			drawer->id = tle->container.id - 1;
 			break;
 		case 2:
 			book = book->next;
-			book->id = tle->container.id;
+			book->id = tle->container.id - 1;
 			break;
 		case 1:
 			socket = socket->next;
-			socket->id = tle->container.id;
+			socket->id = tle->container.id - 1;
 			break;
 		case 0:
 			add_cpus_to_mask(&tle->cpu, drawer, book, socket);

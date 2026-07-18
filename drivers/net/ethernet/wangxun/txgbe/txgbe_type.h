@@ -315,6 +315,9 @@ void txgbe_up(struct wx *wx);
 int txgbe_setup_tc(struct net_device *dev, u8 tc);
 void txgbe_do_reset(struct net_device *netdev);
 
+#define DECLARE_PHY_INTERFACE_MASK_ZERO(name) \
+	unsigned long name[PHY_INTERFACE_MODE_MAX] = { 0, }
+
 #define TXGBE_LINK_SPEED_UNKNOWN        0
 #define TXGBE_LINK_SPEED_10GB_FULL      4
 #define TXGBE_LINK_SPEED_25GB_FULL      0x10

@@ -29,6 +29,7 @@ DMUB += dmub_dcn351.o
 DMUB += dmub_dcn36.o
 DMUB += dmub_dcn401.o
 DMUB += dmub_dcn42.o
+DMUB += dmub_dcn42b.o
 
 AMD_DAL_DMUB = $(addprefix $(AMDDALPATH)/dmub/src/,$(DMUB))
 

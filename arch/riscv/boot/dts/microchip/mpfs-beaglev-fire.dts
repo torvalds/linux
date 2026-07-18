@@ -4,6 +4,7 @@
 /dts-v1/;
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "mpfs.dtsi"
 #include "mpfs-beaglev-fire-fabric.dtsi"
 
@@ -63,20 +64,29 @@
 		regulator-max-microvolt = <2800000>;
 	};
 
-	imx219_vdig: fixedregulator-1 {
+	imx219_vdig: regulator-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vdig";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
 
-	imx219_vddl: fixedregulator-2 {
+	imx219_vddl: regulator-1v2 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 	};
 
+	regulator-1v8-syzygy {
+		compatible = "regulator-fixed";
+		gpios = <&gpio2 30 GPIO_ACTIVE_HIGH>;
+		regulator-name = "syzygy_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		enable-active-high;
+	};
 };
 
 &gpio0 {
@@ -85,6 +95,8 @@
 		     <21>, <22>, <23>, <24>,
 		     <25>, <26>;
 	ngpios = <14>;
+	gpio-line-names = "", "", "", "", "", "", "",
+			  "", "", "", "", "", "SD_CARD_CS", "USER_BUTTON";
 	status = "okay";
 };
 
@@ -96,6 +108,9 @@
 		     <43>, <44>, <45>, <46>,
 		     <47>, <48>, <49>, <50>;
 	ngpios = <24>;
+	gpio-line-names = "", "", "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "", "", "",
+			  "ADC_IRQn", "", "", "USB_OCn";
 	status = "okay";
 };
 
@@ -118,20 +133,6 @@
 			  "P8_PIN27", "P8_PIN28", "P8_PIN29", "P8_PIN30", "M2_W_DISABLE1",
 			  "M2_W_DISABLE2", "VIO_ENABLE", "SD_DET";
 	status = "okay";
-
-	vio-enable-hog {
-		gpio-hog;
-		gpios = <30 30>;
-		output-high;
-		line-name = "VIO_ENABLE";
-	};
-
-	sd-det-hog {
-		gpio-hog;
-		gpios = <31 31>;
-		input;
-		line-name = "SD_DET";
-	};
 };
 
 &i2c0 {
@@ -260,6 +261,7 @@
 		spi-cpha;
 		spi-max-frequency = <5000000>;
 		microchip,hw-device-address = <1>;
+		interrupts-extended = <&gpio1 20 IRQ_TYPE_LEVEL_LOW>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
@@ -316,7 +318,7 @@
 	mmc@1 {
 		compatible = "mmc-spi-slot";
 		reg = <1>;
-		gpios = <&gpio2 31 1>;
+		cd-gpios = <&gpio2 31 GPIO_ACTIVE_LOW>;
 		voltage-ranges = <3300 3300>;
 		spi-max-frequency = <5000000>;
 		disable-wp;
@@ -326,7 +328,6 @@
 
 &syscontroller {
 	microchip,bitstream-flash = <&sys_ctrl_flash>;
-	status = "okay";
 };
 
 &syscontroller_qspi {

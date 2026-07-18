@@ -16,7 +16,6 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/math64.h>
 #include <linux/pm_runtime.h>
@@ -1026,7 +1025,7 @@ static int mlx90635_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mlx90635_id[] = {
-	{ "mlx90635" },
+	{ .name = "mlx90635" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mlx90635_id);

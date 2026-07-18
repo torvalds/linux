@@ -15,6 +15,7 @@ properties:
       - usb5e3,608
       - usb5e3,610
       - usb5e3,620
+      - usb5e3,625
       - usb5e3,626
 
   reg: true
@@ -25,6 +26,10 @@ properties:
   vdd-supply:
     description:
       The regulator that provides 3.3V or 5.0V core power to the hub.
+
+  vdd12-supply:
+    description:
+      The regulator that provides 1.2V power to the hub.
 
   peer-hub: true
 
@@ -56,6 +61,7 @@ allOf:
       properties:
         peer-hub: false
         vdd-supply: false
+        vdd12-supply: false
 
   - if:
       properties:
@@ -64,6 +70,18 @@ allOf:
             enum:
               - usb5e3,610
               - usb5e3,620
+    then:
+      properties:
+        peer-hub: true
+        vdd-supply: true
+        vdd12-supply: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - usb5e3,625
     then:
       properties:
         peer-hub: true

@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
+.. _drm/xe:
+
 =======================
 drm/xe Intel GFX Driver
 =======================
@@ -7,6 +9,9 @@ drm/xe Intel GFX Driver
 The drm/xe driver supports some future GFX cards with rendering, display,
 compute and media. Support for currently available platforms like TGL, ADL,
 DG2, etc is provided to prototype the driver.
+
+The display, or :ref:`drm-kms`, support for drm/xe is provided by
+:ref:`drm/intel-display`, and shared with :ref:`drm/i915 <drm/i915>`.
 
 .. toctree::
    :titlesonly:
@@ -29,3 +34,4 @@ DG2, etc is provided to prototype the driver.
    xe_device
    xe-drm-usage-stats.rst
    xe_configfs
+   xe_gt_stats

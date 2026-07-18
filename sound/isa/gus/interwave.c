@@ -111,8 +111,8 @@ struct snd_interwave {
 
 
 #ifdef CONFIG_PNP
-static int isa_registered;
-static int pnp_registered;
+static int isa_registered __ro_after_init;
+static int pnp_registered __ro_after_init;
 
 static const struct pnp_card_device_id snd_interwave_pnpids[] = {
 #ifndef SNDRV_STB

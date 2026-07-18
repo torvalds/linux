@@ -280,7 +280,6 @@ struct hellcreek {
 	struct dsa_switch *ds;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
-	struct hellcreek_port *ports;
 	struct delayed_work overflow_work;
 	struct led_classdev led_is_gm;
 	struct led_classdev led_sync_good;
@@ -297,6 +296,7 @@ struct hellcreek {
 	u64 last_ts;		/* Used for overflow detection */
 	u16 status_out;		/* ptp.status_out shadow */
 	size_t fdb_entries;
+	struct hellcreek_port ports[];
 };
 
 /* A Qbv schedule can only started up to 8 seconds in the future. If the delta
@@ -311,6 +311,7 @@ struct hellcreek {
 
 /* Devlink resources */
 enum hellcreek_devlink_resource_id {
+	HELLCREEK_DEVLINK_PARAM_ID_NONE,  /* DEVLINK_RESOURCE_ID_PARENT_TOP */
 	HELLCREEK_DEVLINK_PARAM_ID_VLAN_TABLE,
 	HELLCREEK_DEVLINK_PARAM_ID_FDB_TABLE,
 };

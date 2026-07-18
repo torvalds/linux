@@ -327,16 +327,14 @@ static int pkey_ioctl_verifyprotk(struct pkey_verifyprotk __user *uvp)
 {
 	struct pkey_verifyprotk kvp;
 	struct protaeskeytoken *t;
-	u32 keytype;
 	u8 *tmpbuf;
 	int rc;
 
 	if (copy_from_user(&kvp, uvp, sizeof(kvp)))
 		return -EFAULT;
 
-	keytype = pkey_aes_bitsize_to_keytype(8 * kvp.protkey.len);
-	if (!keytype) {
-		PKEY_DBF_ERR("%s unknown/unsupported protkey length %u\n",
+	if (kvp.protkey.len > sizeof(kvp.protkey.protkey)) {
+		PKEY_DBF_ERR("%s protkey length %u exceeds protkey buffer size\n",
 			     __func__, kvp.protkey.len);
 		memzero_explicit(&kvp, sizeof(kvp));
 		return -EINVAL;
@@ -351,7 +349,7 @@ static int pkey_ioctl_verifyprotk(struct pkey_verifyprotk __user *uvp)
 	t = (struct protaeskeytoken *)tmpbuf;
 	t->type = TOKTYPE_NON_CCA;
 	t->version = TOKVER_PROTECTED_KEY;
-	t->keytype = keytype;
+	t->keytype = kvp.protkey.type;
 	t->len = kvp.protkey.len;
 	memcpy(t->protkey, kvp.protkey.protkey, kvp.protkey.len);
 

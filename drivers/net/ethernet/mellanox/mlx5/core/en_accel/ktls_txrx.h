@@ -45,13 +45,13 @@ mlx5e_ktls_tx_try_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 	return false;
 }
 
-bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget);
+bool mlx5e_ktls_rx_handle_resync_list(struct mlx5e_icosq *sq, int budget);
 
 static inline bool
-mlx5e_ktls_rx_pending_resync_list(struct mlx5e_channel *c, int budget)
+mlx5e_ktls_rx_pending_resync_list(struct mlx5e_icosq *sq, int budget)
 {
-	return budget && test_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC,
-				  &c->async_icosq->state);
+	return test_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state) &&
+		budget;
 }
 
 static inline void
@@ -70,13 +70,13 @@ mlx5e_ktls_tx_try_handle_resync_dump_comp(struct mlx5e_txqsq *sq,
 }
 
 static inline bool
-mlx5e_ktls_rx_handle_resync_list(struct mlx5e_channel *c, int budget)
+mlx5e_ktls_rx_handle_resync_list(struct mlx5e_icosq *sq, int budget)
 {
 	return false;
 }
 
 static inline bool
-mlx5e_ktls_rx_pending_resync_list(struct mlx5e_channel *c, int budget)
+mlx5e_ktls_rx_pending_resync_list(struct mlx5e_icosq *sq, int budget)
 {
 	return false;
 }

@@ -34,9 +34,9 @@ struct qcom_usb_hs_phy {
 	struct regulator *v1p8;
 	struct regulator *v3p3;
 	struct reset_control *reset;
-	struct ulpi_seq *init_seq;
 	struct extcon_dev *vbus_edev;
 	struct notifier_block vbus_notify;
+	struct ulpi_seq init_seq[];
 };
 
 static int qcom_usb_hs_phy_set_mode(struct phy *phy,
@@ -209,19 +209,16 @@ static int qcom_usb_hs_phy_probe(struct ulpi *ulpi)
 	int size;
 	int ret;
 
-	uphy = devm_kzalloc(&ulpi->dev, sizeof(*uphy), GFP_KERNEL);
+	size = of_property_count_u8_elems(ulpi->dev.of_node, "qcom,init-seq");
+	if (size < 0)
+		size = 0;
+
+	uphy = devm_kzalloc(&ulpi->dev, struct_size(uphy, init_seq, (size / 2) + 1), GFP_KERNEL);
 	if (!uphy)
 		return -ENOMEM;
 	ulpi_set_drvdata(ulpi, uphy);
 	uphy->ulpi = ulpi;
 
-	size = of_property_count_u8_elems(ulpi->dev.of_node, "qcom,init-seq");
-	if (size < 0)
-		size = 0;
-	uphy->init_seq = devm_kmalloc_array(&ulpi->dev, (size / 2) + 1,
-					   sizeof(*uphy->init_seq), GFP_KERNEL);
-	if (!uphy->init_seq)
-		return -ENOMEM;
 	ret = of_property_read_u8_array(ulpi->dev.of_node, "qcom,init-seq",
 					(u8 *)uphy->init_seq, size);
 	if (ret && size)

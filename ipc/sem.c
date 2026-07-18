@@ -1981,7 +1981,7 @@ out:
 }
 
 long __do_semtimedop(int semid, struct sembuf *sops,
-		unsigned nsops, const struct timespec64 *timeout,
+		unsigned int nsops, const struct timespec64 *timeout,
 		struct ipc_namespace *ns)
 {
 	int error = -EINVAL;
@@ -2220,7 +2220,7 @@ out:
 }
 
 static long do_semtimedop(int semid, struct sembuf __user *tsops,
-		unsigned nsops, const struct timespec64 *timeout)
+		unsigned int nsops, const struct timespec64 *timeout)
 {
 	struct sembuf fast_sops[SEMOPM_FAST];
 	struct sembuf *sops = fast_sops;
@@ -2294,7 +2294,7 @@ SYSCALL_DEFINE4(semtimedop_time32, int, semid, struct sembuf __user *, tsems,
 #endif
 
 SYSCALL_DEFINE3(semop, int, semid, struct sembuf __user *, tsops,
-		unsigned, nsops)
+		unsigned int, nsops)
 {
 	return do_semtimedop(semid, tsops, nsops, NULL);
 }

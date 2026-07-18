@@ -486,6 +486,7 @@ static void sugov_update_single_perf(struct update_util_data *hook, u64 time,
 	cpufreq_driver_adjust_perf(sg_policy->policy, sg_cpu->bw_min,
 				   sg_cpu->util, max_cap);
 
+	sg_policy->need_freq_update = false;
 	sg_policy->last_freq_update_time = time;
 }
 

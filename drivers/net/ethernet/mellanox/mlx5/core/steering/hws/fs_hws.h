@@ -116,5 +116,5 @@ static inline const struct mlx5_flow_cmds *mlx5_fs_cmd_get_hws_cmds(void)
 	return NULL;
 }
 
-#endif /* CONFIG_MLX5_HWS_STEERING */
+#endif /* CONFIG_MLX5_HW_STEERING */
 #endif

@@ -199,17 +199,6 @@ config NWFLASH
 
 source "drivers/char/hw_random/Kconfig"
 
-config DTLK
-	tristate "Double Talk PC internal speech card support"
-	depends on ISA
-	help
-	  This driver is for the DoubleTalk PC, a speech synthesizer
-	  manufactured by RC Systems (<https://www.rcsys.com/>).  It is also
-	  called the `internal DoubleTalk'.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dtlk.
-
 config XILINX_HWICAP
 	tristate "Xilinx HWICAP Support"
 	depends on MICROBLAZE
@@ -217,21 +206,6 @@ config XILINX_HWICAP
 	  This option enables support for Xilinx Internal Configuration
 	  Access Port (ICAP) driver.  The ICAP is used on Xilinx Virtex
 	  FPGA platforms to partially reconfigure the FPGA at runtime.
-
-	  If unsure, say N.
-
-config APPLICOM
-	tristate "Applicom intelligent fieldbus card support"
-	depends on PCI
-	help
-	  This driver provides the kernel-side support for the intelligent
-	  fieldbus cards made by Applicom International. More information
-	  about these cards can be found on the WWW at the address
-	  <https://www.applicom-int.com/>, or by email from David Woodhouse
-	  <dwmw2@infradead.org>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called applicom.
 
 	  If unsure, say N.
 

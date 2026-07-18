@@ -15,7 +15,7 @@
 #include "sun4i_framebuffer.h"
 
 static int sun4i_de_atomic_check(struct drm_device *dev,
-				 struct drm_atomic_state *state)
+				 struct drm_atomic_commit *state)
 {
 	int ret;
 

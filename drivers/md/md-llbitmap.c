@@ -1574,16 +1574,19 @@ static void llbitmap_end_behind_write(struct mddev *mddev)
 		wake_up(&llbitmap->behind_wait);
 }
 
-static void llbitmap_wait_behind_writes(struct mddev *mddev)
+static bool llbitmap_wait_behind_writes(struct mddev *mddev, bool nowait)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
 
-	if (!llbitmap)
-		return;
+	if (llbitmap && atomic_read(&llbitmap->behind_writes) > 0) {
+		if (nowait)
+			return false;
 
-	wait_event(llbitmap->behind_wait,
-		   atomic_read(&llbitmap->behind_writes) == 0);
+		wait_event(llbitmap->behind_wait,
+			   atomic_read(&llbitmap->behind_writes) == 0);
+	}
 
+	return true;
 }
 
 static ssize_t bits_show(struct mddev *mddev, char *page)
@@ -1738,6 +1741,11 @@ static struct attribute_group md_llbitmap_group = {
 	.attrs = md_llbitmap_attrs,
 };
 
+static const struct attribute_group *md_llbitmap_groups[] = {
+	&md_llbitmap_group,
+	NULL,
+};
+
 static struct bitmap_operations llbitmap_ops = {
 	.head = {
 		.type	= MD_BITMAP,
@@ -1774,7 +1782,7 @@ static struct bitmap_operations llbitmap_ops = {
 	.dirty_bits		= llbitmap_dirty_bits,
 	.write_all		= llbitmap_write_all,
 
-	.group			= &md_llbitmap_group,
+	.groups			= md_llbitmap_groups,
 };
 
 int md_llbitmap_init(void)

@@ -336,7 +336,8 @@ static const struct backlight_ops ps8622_backlight_ops = {
 	.update_status	= ps8622_backlight_update,
 };
 
-static void ps8622_pre_enable(struct drm_bridge *bridge)
+static void ps8622_pre_enable(struct drm_bridge *bridge,
+			      struct drm_atomic_commit *commit)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
 	int ret;
@@ -381,13 +382,15 @@ static void ps8622_pre_enable(struct drm_bridge *bridge)
 	ps8622->enabled = true;
 }
 
-static void ps8622_disable(struct drm_bridge *bridge)
+static void ps8622_disable(struct drm_bridge *bridge,
+			   struct drm_atomic_commit *commit)
 {
 	/* Delay after panel is disabled */
 	msleep(PS8622_PWMO_END_T12_MS);
 }
 
-static void ps8622_post_disable(struct drm_bridge *bridge)
+static void ps8622_post_disable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct ps8622_bridge *ps8622 = bridge_to_ps8622(bridge);
 
@@ -428,9 +431,12 @@ static int ps8622_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs ps8622_bridge_funcs = {
-	.pre_enable = ps8622_pre_enable,
-	.disable = ps8622_disable,
-	.post_disable = ps8622_post_disable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_pre_enable = ps8622_pre_enable,
+	.atomic_disable = ps8622_disable,
+	.atomic_post_disable = ps8622_post_disable,
 	.attach = ps8622_attach,
 };
 

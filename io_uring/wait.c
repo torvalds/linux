@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
 #include <linux/io_uring.h>
+#include <linux/time_namespace.h>
 
 #include <trace/events/io_uring.h>
 
@@ -97,12 +98,12 @@ static enum hrtimer_restart io_cqring_min_timer_wakeup(struct hrtimer *timer)
 	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
 		atomic_set(&ctx->cq_wait_nr, 1);
 		smp_mb();
-		if (!llist_empty(&ctx->work_llist))
+		if (io_local_work_pending(ctx))
 			goto out_wake;
 	}
 
 	/* any generated CQE posted past this time should wake us up */
-	iowq->cq_tail = iowq->cq_min_tail;
+	iowq->cq_tail = iowq->cq_min_tail + 1;
 
 	hrtimer_update_function(&iowq->t, io_cqring_timer_wakeup);
 	hrtimer_set_expires(timer, iowq->timeout);
@@ -229,7 +230,10 @@ int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 
 	if (ext_arg->ts_set) {
 		iowq.timeout = timespec64_to_ktime(ext_arg->ts);
-		if (!(flags & IORING_ENTER_ABS_TIMER))
+		if (flags & IORING_ENTER_ABS_TIMER)
+			iowq.timeout = timens_ktime_to_host(ctx->clockid,
+							    iowq.timeout);
+		else
 			iowq.timeout = ktime_add(iowq.timeout, start_time);
 	}
 

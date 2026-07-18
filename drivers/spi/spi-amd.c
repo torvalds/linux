@@ -868,7 +868,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 
 	amd_spi->version = (uintptr_t)device_get_match_data(dev);
-	host->bus_num = 0;
+	host->bus_num = (amd_spi->version == AMD_HID2_SPI) ? 2 : 0;
 
 	return amd_spi_probe_common(dev, host);
 }

@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/msi.h>
 #include <linux/list.h>
+#include <linux/sizes.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/iommufd.h>
@@ -49,10 +50,6 @@
 #define MMIO_GET_FD(x)  (((x) & MMIO_RANGE_FD_MASK) >> MMIO_RANGE_FD_SHIFT)
 #define MMIO_GET_BUS(x) (((x) & MMIO_RANGE_BUS_MASK) >> MMIO_RANGE_BUS_SHIFT)
 #define MMIO_MSI_NUM(x)	((x) & 0x1f)
-
-/* Flag masks for the AMD IOMMU exclusion range */
-#define MMIO_EXCL_ENABLE_MASK 0x01ULL
-#define MMIO_EXCL_ALLOW_MASK  0x02ULL
 
 /* Used offsets into the MMIO space */
 #define MMIO_DEV_TABLE_OFFSET   0x0000
@@ -141,7 +138,6 @@
 #define MMIO_STATUS_GALOG_INT_MASK		BIT(10)
 
 /* event logging constants */
-#define EVENT_ENTRY_SIZE	0x10
 #define EVENT_TYPE_SHIFT	28
 #define EVENT_TYPE_MASK		0xf
 #define EVENT_TYPE_ILL_DEV	0x1
@@ -221,7 +217,7 @@
 #define PPR_STATUS_MASK			0xf
 #define PPR_STATUS_SHIFT		12
 
-#define CMD_INV_IOMMU_ALL_PAGES_ADDRESS	0x7fffffffffffffffULL
+#define CMD_INV_IOMMU_ALL_PAGES_ADDRESS	0x7ffffffffffff000ULL
 
 /* macros and definitions for device table entries */
 #define DEV_ENTRY_VALID         0x00
@@ -231,7 +227,6 @@
 #define DEV_ENTRY_IR            0x3d
 #define DEV_ENTRY_IW            0x3e
 #define DEV_ENTRY_NO_PAGE_FAULT	0x62
-#define DEV_ENTRY_EX            0x67
 #define DEV_ENTRY_SYSMGT1       0x68
 #define DEV_ENTRY_SYSMGT2       0x69
 #define DTE_DATA1_SYSMGT_MASK	GENMASK_ULL(41, 40)
@@ -259,15 +254,20 @@
 #define MMIO_CMD_BUFFER_TAIL(x) FIELD_GET(MMIO_CMD_TAIL_MASK, (x))
 
 /* constants for event buffer handling */
-#define EVT_BUFFER_SIZE		8192 /* 512 entries */
-#define EVT_LEN_MASK		(0x9ULL << 56)
+#define EVTLOG_ENTRY_SIZE	0x10
+#define EVTLOG_SIZE_SHIFT	56
+#define EVTLOG_SIZE_DEF		SZ_8K /* 512 entries */
+#define EVTLOG_LEN_MASK_DEF	(0x9ULL << EVTLOG_SIZE_SHIFT)
+#define EVTLOG_SIZE_MAX		SZ_512K /* 32K entries */
+#define EVTLOG_LEN_MASK_MAX	(0xFULL << EVTLOG_SIZE_SHIFT)
 
 /* Constants for PPR Log handling */
-#define PPR_LOG_ENTRIES		512
-#define PPR_LOG_SIZE_SHIFT	56
-#define PPR_LOG_SIZE_512	(0x9ULL << PPR_LOG_SIZE_SHIFT)
-#define PPR_ENTRY_SIZE		16
-#define PPR_LOG_SIZE		(PPR_ENTRY_SIZE * PPR_LOG_ENTRIES)
+#define PPRLOG_ENTRY_SIZE	0x10
+#define PPRLOG_SIZE_SHIFT	56
+#define PPRLOG_SIZE_DEF		SZ_8K	/* 512 entries */
+#define PPRLOG_LEN_MASK_DEF	(0x9ULL << PPRLOG_SIZE_SHIFT)
+#define PPRLOG_SIZE_MAX		SZ_512K	/* 32K entries */
+#define PPRLOG_LEN_MASK_MAX	(0xFULL << PPRLOG_SIZE_SHIFT)
 
 /* PAGE_SERVICE_REQUEST PPR Log Buffer Entry flags */
 #define PPR_FLAG_EXEC		0x002	/* Execute permission requested */
@@ -299,9 +299,6 @@
 #define GA_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
 
 #define GA_GUEST_NR		0x1
-
-#define IOMMU_IN_ADDR_BIT_SIZE  52
-#define IOMMU_OUT_ADDR_BIT_SIZE 52
 
 /*
  * This bitmap is used to advertise the page sizes our hardware support
@@ -384,8 +381,6 @@
 #define IOMMU_PROT_IR 0x01
 #define IOMMU_PROT_IW 0x02
 
-#define IOMMU_UNITY_MAP_FLAG_EXCL_RANGE	(1 << 2)
-
 /* IOMMU capabilities */
 #define IOMMU_CAP_IOTLB   24
 #define IOMMU_CAP_NPCACHE 26
@@ -395,6 +390,7 @@
 #define IOMMU_IVINFO_OFFSET     36
 #define IOMMU_IVINFO_EFRSUP     BIT(0)
 #define IOMMU_IVINFO_DMA_REMAP  BIT(1)
+#define IOMMU_IVINFO_VASIZE	GENMASK_ULL(21, 15)
 
 /* IOMMU Feature Reporting Field (for IVHD type 10h */
 #define IOMMU_FEAT_GASUP_SHIFT	6
@@ -680,11 +676,6 @@ struct amd_iommu {
 	/* pci domain of this IOMMU */
 	struct amd_iommu_pci_seg *pci_seg;
 
-	/* start of exclusion range of that IOMMU */
-	u64 exclusion_start;
-	/* length of exclusion range of that IOMMU */
-	u64 exclusion_length;
-
 	/* command buffer virtual address */
 	u8 *cmd_buf;
 	u32 cmd_buf_head;
@@ -943,12 +934,13 @@ static inline int get_hpet_devid(int id)
 }
 
 enum amd_iommu_intr_mode_type {
-	AMD_IOMMU_GUEST_IR_LEGACY,
-
-	/* This mode is not visible to users. It is used when
-	 * we cannot fully enable vAPIC and fallback to only support
-	 * legacy interrupt remapping via 128-bit IRTE.
+	/*
+	 * The legacy format mode is not visible to users to prevent the user
+	 * from crashing x2APIC systems, which for all intents and purposes
+	 * require 128-bit IRTEs.   The legacy format will be forced as needed
+	 * when hardware doesn't support 128-bit IRTEs.
 	 */
+	AMD_IOMMU_GUEST_IR_LEGACY,
 	AMD_IOMMU_GUEST_IR_LEGACY_GA,
 	AMD_IOMMU_GUEST_IR_VAPIC,
 };

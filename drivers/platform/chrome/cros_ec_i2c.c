@@ -348,7 +348,7 @@ MODULE_DEVICE_TABLE(of, cros_ec_i2c_of_match);
 #endif
 
 static const struct i2c_device_id cros_ec_i2c_id[] = {
-	{ "cros-ec-i2c" },
+	{ .name = "cros-ec-i2c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cros_ec_i2c_id);

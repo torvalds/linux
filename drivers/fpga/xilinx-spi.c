@@ -13,7 +13,6 @@
 #include "xilinx-core.h"
 
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
 

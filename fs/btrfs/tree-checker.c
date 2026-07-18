@@ -296,6 +296,33 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 		return 0;
 	}
 
+	/*
+	 * For the data reloc tree, file extent items are written by
+	 * relocation's own paths. The data reloc inode is created with
+	 * BTRFS_INODE_NOCOMPRESS, so insert_ordered_extent_file_extent()
+	 * always leaves the compression field at 0. Encryption and
+	 * other_encoding are reserved-and-zero in btrfs. A non-zero value
+	 * for any of these means the leaf decoded from disk does not match
+	 * what the kernel wrote, i.e. on-disk corruption.
+	 *
+	 * The file_extent_item's offset field is NOT a universal invariant
+	 * here: partial-PREALLOC writebacks legitimately produce REG items
+	 * with non-zero offset at non-boundary keys. The offset check is
+	 * performed at the call site in get_new_location(), which only
+	 * inspects cluster-boundary keys where offset is always 0.
+	 */
+	if (unlikely(btrfs_header_owner(leaf) == BTRFS_DATA_RELOC_TREE_OBJECTID &&
+		     (btrfs_file_extent_compression(leaf, fi) ||
+		      btrfs_file_extent_encryption(leaf, fi) ||
+		      btrfs_file_extent_other_encoding(leaf, fi)))) {
+		file_extent_err(leaf, slot,
+"invalid encoding fields for data reloc tree, compression=%u encryption=%u other_encoding=%u",
+				btrfs_file_extent_compression(leaf, fi),
+				btrfs_file_extent_encryption(leaf, fi),
+				btrfs_file_extent_other_encoding(leaf, fi));
+		return -EUCLEAN;
+	}
+
 	/* Regular or preallocated extent has fixed item size */
 	if (unlikely(item_size != sizeof(*fi))) {
 		file_extent_err(leaf, slot,
@@ -1371,6 +1398,37 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	return 0;
 }
 
+static int check_root_ref(struct extent_buffer *leaf, struct btrfs_key *key, int slot)
+{
+	struct btrfs_root_ref *rref;
+	u32 item_size = btrfs_item_size(leaf, slot);
+	u32 name_len;
+
+	if (unlikely(item_size <= sizeof(*rref))) {
+		generic_err(leaf, slot,
+			    "invalid root ref item size for key type %u, have %u expect > %zu",
+			    key->type, item_size, sizeof(*rref));
+		return -EUCLEAN;
+	}
+
+	rref = btrfs_item_ptr(leaf, slot, struct btrfs_root_ref);
+	name_len = btrfs_root_ref_name_len(leaf, rref);
+	if (unlikely(name_len > BTRFS_NAME_LEN)) {
+		generic_err(leaf, slot,
+			    "root ref name too long for key type %u, have %u max %u",
+			    key->type, name_len, BTRFS_NAME_LEN);
+		return -EUCLEAN;
+	}
+	if (unlikely(item_size != sizeof(*rref) + name_len)) {
+		generic_err(leaf, slot,
+			    "invalid root ref item size for key type %u, have %u expect %zu",
+			    key->type, item_size, sizeof(*rref) + name_len);
+		return -EUCLEAN;
+	}
+
+	return 0;
+}
+
 __printf(3,4)
 __cold
 static void extent_err(const struct extent_buffer *eb, int slot,
@@ -2071,6 +2129,7 @@ static int check_free_space_info(struct extent_buffer *leaf, struct btrfs_key *k
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_free_space_info *fsi;
 	const u32 blocksize = fs_info->sectorsize;
+	u64 end;
 	u32 flags;
 
 	if (unlikely(!IS_ALIGNED(key->objectid, blocksize))) {
@@ -2083,6 +2142,12 @@ static int check_free_space_info(struct extent_buffer *leaf, struct btrfs_key *k
 		generic_err(leaf, slot,
 		"free space info key offset is not aligned to %u, has " BTRFS_KEY_FMT,
 			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	if (unlikely(check_add_overflow(key->objectid, key->offset, &end))) {
+		generic_err(leaf, slot,
+			    "free space info key overflows, has " BTRFS_KEY_FMT,
+			    BTRFS_KEY_FMT_VALUE(key));
 		return -EUCLEAN;
 	}
 	if (unlikely(btrfs_item_size(leaf, slot) !=
@@ -2112,23 +2177,98 @@ static int check_free_space_info(struct extent_buffer *leaf, struct btrfs_key *k
 	return 0;
 }
 
-static int check_free_space_extent(struct extent_buffer *leaf, struct btrfs_key *key, int slot)
+static int check_free_space_common_key(struct extent_buffer *leaf, struct btrfs_key *key, int slot,
+				       struct btrfs_key *prev_key)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	const u32 blocksize = fs_info->sectorsize;
+	const char *type_str = (key->type == BTRFS_FREE_SPACE_EXTENT_KEY) ? "extent" : "bitmap";
+	u64 end;
 
 	if (unlikely(!IS_ALIGNED(key->objectid, blocksize))) {
 		generic_err(leaf, slot,
-		"free space extent key objectid is not aligned to %u, has " BTRFS_KEY_FMT,
-			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		"free space %s key objectid is not aligned to %u, has " BTRFS_KEY_FMT,
+			    type_str, blocksize, BTRFS_KEY_FMT_VALUE(key));
 		return -EUCLEAN;
 	}
 	if (unlikely(!IS_ALIGNED(key->offset, blocksize))) {
 		generic_err(leaf, slot,
-		"free space extent key offset is not aligned to %u, has " BTRFS_KEY_FMT,
-			    blocksize, BTRFS_KEY_FMT_VALUE(key));
+		"free space %s key offset is not aligned to %u, has " BTRFS_KEY_FMT,
+			    type_str, blocksize, BTRFS_KEY_FMT_VALUE(key));
 		return -EUCLEAN;
 	}
+	if (unlikely(key->offset == 0)) {
+		generic_err(leaf, slot, "free space %s length is 0", type_str);
+		return -EUCLEAN;
+	}
+	if (unlikely(check_add_overflow(key->objectid, key->offset, &end))) {
+		generic_err(leaf, slot,
+			    "free space %s end overflow, have objectid %llu offset %llu",
+			    type_str, key->objectid, key->offset);
+		return -EUCLEAN;
+	}
+	if (slot == 0)
+		return 0;
+
+	/*
+	 * Make sure the current key is inside the block group, and matching
+	 * the expected info type.
+	 */
+	if (prev_key->type == BTRFS_FREE_SPACE_INFO_KEY) {
+		struct btrfs_free_space_info *fsi;
+		u32 info_flags;
+
+		if (unlikely(key->objectid < prev_key->objectid ||
+			     key->objectid + key->offset > prev_key->objectid + prev_key->offset)) {
+			generic_err(leaf, slot,
+"free space %s is not inside the space info, prev key " BTRFS_KEY_FMT " current key " BTRFS_KEY_FMT,
+				    type_str, BTRFS_KEY_FMT_VALUE(prev_key),
+				    BTRFS_KEY_FMT_VALUE(key));
+			return -EUCLEAN;
+		}
+		fsi = btrfs_item_ptr(leaf, slot - 1, struct btrfs_free_space_info);
+		info_flags = btrfs_free_space_flags(leaf, fsi);
+		if (unlikely((info_flags == BTRFS_FREE_SPACE_USING_BITMAPS &&
+			      key->type == BTRFS_FREE_SPACE_EXTENT_KEY) ||
+			     (info_flags != BTRFS_FREE_SPACE_USING_BITMAPS &&
+			      key->type == BTRFS_FREE_SPACE_BITMAP_KEY))) {
+			generic_err(leaf, slot,
+"free space %s key type is not matching the type of space info, key type %u space info flags %u",
+				    type_str, key->type, info_flags);
+			return -EUCLEAN;
+		}
+		return 0;
+	}
+	/*
+	 * Previous key should be either FREE_SPACE_EXTENT or FREE_SPACE_BITMAP.
+	 * Inside the same block group the key type should match each other, and
+	 * no overlaps.
+	 */
+	if (unlikely(key->type != prev_key->type)) {
+		generic_err(leaf, slot,
+"free space %s key type is not matching the type of previous key, key type %u prev key type %u",
+			    type_str, key->type, prev_key->type);
+		return -EUCLEAN;
+	}
+	if (unlikely(prev_key->objectid + prev_key->offset > key->objectid)) {
+		generic_err(leaf, slot,
+"free space %s key overlaps previous key, prev key " BTRFS_KEY_FMT " current key " BTRFS_KEY_FMT,
+			    type_str, BTRFS_KEY_FMT_VALUE(prev_key),
+			    BTRFS_KEY_FMT_VALUE(key));
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
+static int check_free_space_extent(struct extent_buffer *leaf, struct btrfs_key *key, int slot,
+				   struct btrfs_key *prev_key)
+{
+	int ret;
+
+	ret = check_free_space_common_key(leaf, key, slot, prev_key);
+	if (unlikely(ret < 0))
+		return ret;
+
 	if (unlikely(btrfs_item_size(leaf, slot) != 0)) {
 		generic_err(leaf, slot,
 			    "invalid item size for free space info, has %u expect 0",
@@ -2139,28 +2279,17 @@ static int check_free_space_extent(struct extent_buffer *leaf, struct btrfs_key 
 }
 
 static int check_free_space_bitmap(struct extent_buffer *leaf,
-				   struct btrfs_key *key, int slot)
+				   struct btrfs_key *key, int slot,
+				   struct btrfs_key *prev_key)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
-	const u32 blocksize = fs_info->sectorsize;
 	u32 expected_item_size;
+	int ret;
 
-	if (unlikely(!IS_ALIGNED(key->objectid, blocksize))) {
-		generic_err(leaf, slot,
-		"free space bitmap key objectid is not aligned to %u, has " BTRFS_KEY_FMT,
-			    blocksize, BTRFS_KEY_FMT_VALUE(key));
-		return -EUCLEAN;
-	}
-	if (unlikely(!IS_ALIGNED(key->offset, blocksize))) {
-		generic_err(leaf, slot,
-		"free space bitmap key offset is not aligned to %u, has " BTRFS_KEY_FMT,
-			    blocksize, BTRFS_KEY_FMT_VALUE(key));
-		return -EUCLEAN;
-	}
-	if (unlikely(key->offset == 0)) {
-		generic_err(leaf, slot, "free space bitmap length is 0");
-		return -EUCLEAN;
-	}
+	ret = check_free_space_common_key(leaf, key, slot, prev_key);
+	if (unlikely(ret < 0))
+		return ret;
+
 	/*
 	 * The item must hold exactly the right number of bitmap bytes for the
 	 * range described by key->offset.  A mismatch means the item was
@@ -2226,6 +2355,10 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 	case BTRFS_ROOT_ITEM_KEY:
 		ret = check_root_item(leaf, key, slot);
 		break;
+	case BTRFS_ROOT_REF_KEY:
+	case BTRFS_ROOT_BACKREF_KEY:
+		ret = check_root_ref(leaf, key, slot);
+		break;
 	case BTRFS_EXTENT_ITEM_KEY:
 	case BTRFS_METADATA_ITEM_KEY:
 		ret = check_extent_item(leaf, key, slot, prev_key);
@@ -2245,10 +2378,10 @@ static enum btrfs_tree_block_status check_leaf_item(struct extent_buffer *leaf,
 		ret = check_free_space_info(leaf, key, slot);
 		break;
 	case BTRFS_FREE_SPACE_EXTENT_KEY:
-		ret = check_free_space_extent(leaf, key, slot);
+		ret = check_free_space_extent(leaf, key, slot, prev_key);
 		break;
 	case BTRFS_FREE_SPACE_BITMAP_KEY:
-		ret = check_free_space_bitmap(leaf, key, slot);
+		ret = check_free_space_bitmap(leaf, key, slot, prev_key);
 		break;
 	case BTRFS_IDENTITY_REMAP_KEY:
 	case BTRFS_REMAP_KEY:

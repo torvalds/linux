@@ -22,6 +22,7 @@
 #include <asm/papr-sysparm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
 #include <asm/lppaca.h>
@@ -431,17 +432,18 @@ static void parse_system_parameter_string(struct seq_file *m)
 				w_idx = 0;
 			} else if (local_buffer[idx] == '=') {
 				/* code here to replace workbuffer contents
-				   with different keyword strings */
-				if (0 == strcmp(workbuffer, "MaxEntCap")) {
-					strcpy(workbuffer,
-					       "partition_max_entitled_capacity");
-					w_idx = strlen(workbuffer);
-				}
-				if (0 == strcmp(workbuffer, "MaxPlatProcs")) {
-					strcpy(workbuffer,
-					       "system_potential_processors");
-					w_idx = strlen(workbuffer);
-				}
+				 * with different keyword strings. Truncation
+				 * by strscpy is deliberately ignored because
+				 * SPLPAR_MAXLENGTH >= maximum string size.
+				 */
+				if (!strcmp(workbuffer, "MaxEntCap"))
+					w_idx = strscpy(workbuffer,
+							"partition_max_entitled_capacity",
+							SPLPAR_MAXLENGTH);
+				if (!strcmp(workbuffer, "MaxPlatProcs"))
+					w_idx = strscpy(workbuffer,
+							"system_potential_processors",
+							SPLPAR_MAXLENGTH);
 			}
 		}
 		kfree(workbuffer);

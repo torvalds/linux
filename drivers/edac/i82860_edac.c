@@ -287,11 +287,11 @@ static void i82860_remove_one(struct pci_dev *pdev)
 
 static const struct pci_device_id i82860_pci_tbl[] = {
 	{
-	 PCI_VEND_DEV(INTEL, 82860_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 I82860},
-	{
-	 0,
-	 }			/* 0 terminated list. */
+		PCI_VEND_DEV(INTEL, 82860_0),
+		.driver_data = I82860,
+	}, {
+		/* 0 terminated list. */
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, i82860_pci_tbl);

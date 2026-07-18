@@ -21,7 +21,7 @@
 #define L2_GUEST_STACK_SIZE 256
 
 /* Exit to L1 from L2 with RDMSR instruction */
-static inline void rdmsr_from_l2(uint32_t msr)
+static inline void rdmsr_from_l2(u32 msr)
 {
 	/* Currently, L1 doesn't preserve GPRs during vmexits. */
 	__asm__ __volatile__ ("rdmsr" : : "c"(msr) :
@@ -67,7 +67,7 @@ void l2_guest_code(void)
 
 static void __attribute__((__flatten__)) guest_code(struct svm_test_data *svm,
 						    struct hyperv_test_pages *hv_pages,
-						    vm_vaddr_t pgs_gpa)
+						    gpa_t pgs_gpa)
 {
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
 	struct vmcb *vmcb = svm->vmcb;
@@ -149,8 +149,8 @@ static void __attribute__((__flatten__)) guest_code(struct svm_test_data *svm,
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t nested_gva = 0, hv_pages_gva = 0;
-	vm_vaddr_t hcall_page;
+	gva_t nested_gva = 0, hv_pages_gva = 0;
+	gva_t hcall_page;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 	vcpu_alloc_svm(vm, &nested_gva);
 	vcpu_alloc_hyperv_test_pages(vm, &hv_pages_gva);
 
-	hcall_page = vm_vaddr_alloc_pages(vm, 1);
+	hcall_page = vm_alloc_pages(vm, 1);
 	memset(addr_gva2hva(vm, hcall_page), 0x0,  getpagesize());
 
 	vcpu_args_set(vcpu, 3, nested_gva, hv_pages_gva, addr_gva2gpa(vm, hcall_page));

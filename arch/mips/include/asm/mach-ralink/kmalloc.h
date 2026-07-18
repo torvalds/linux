@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef __ASM_MACH_RALINK_KMALLOC_H
+#define __ASM_MACH_RALINK_KMALLOC_H
+
+#ifdef CONFIG_DMA_NONCOHERENT
+#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+#endif
+
+#endif /* __ASM_MACH_RALINK_KMALLOC_H */

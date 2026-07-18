@@ -197,7 +197,7 @@ static void tusb1210_chg_det_set_state(struct tusb1210 *tusb,
 			tusb1210_chg_det_states[new_state], delay_ms);
 
 	tusb->chg_det_state = new_state;
-	mod_delayed_work(system_long_wq, &tusb->chg_det_work,
+	mod_delayed_work(system_dfl_long_wq, &tusb->chg_det_work,
 			 msecs_to_jiffies(delay_ms));
 }
 
@@ -380,7 +380,7 @@ static int tusb1210_psy_notifier(struct notifier_block *nb,
 	struct power_supply *psy = ptr;
 
 	if (psy != tusb->psy && psy->desc->type == POWER_SUPPLY_TYPE_USB)
-		queue_delayed_work(system_long_wq, &tusb->chg_det_work, 0);
+		queue_delayed_work(system_dfl_long_wq, &tusb->chg_det_work, 0);
 
 	return NOTIFY_OK;
 }
@@ -458,7 +458,7 @@ static void tusb1210_probe_charger_detect(struct tusb1210 *tusb)
 	 */
 	tusb->chg_det_state = TUSB1210_CHG_DET_DISCONNECTED;
 	INIT_DELAYED_WORK(&tusb->chg_det_work, tusb1210_chg_det_work);
-	queue_delayed_work(system_long_wq, &tusb->chg_det_work, 2 * HZ);
+	queue_delayed_work(system_dfl_long_wq, &tusb->chg_det_work, 2 * HZ);
 
 	tusb->psy_nb.notifier_call = tusb1210_psy_notifier;
 	power_supply_reg_notifier(&tusb->psy_nb);

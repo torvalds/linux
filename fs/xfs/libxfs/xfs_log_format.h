@@ -52,6 +52,19 @@ typedef uint32_t xlog_tid_t;
 #define CYCLE_LSN(lsn) ((uint)((lsn)>>32))
 #define BLOCK_LSN(lsn) ((uint)(lsn))
 
+/*
+ * By comparing each component, we don't have to worry about extra endian issues
+ * in treating two 32 bit numbers as one 64 bit number
+ */
+static inline xfs_lsn_t XFS_LSN_CMP(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
+{
+	if (CYCLE_LSN(lsn1) != CYCLE_LSN(lsn2))
+		return CYCLE_LSN(lsn1) < CYCLE_LSN(lsn2) ? -999 : 999;
+	if (BLOCK_LSN(lsn1) != BLOCK_LSN(lsn2))
+		return BLOCK_LSN(lsn1) < BLOCK_LSN(lsn2) ? -999 : 999;
+	return 0;
+}
+
 /* this is used in a spot where we might otherwise double-endian-flip */
 #define CYCLE_LSN_DISK(lsn) (((__be32 *)&(lsn))[0])
 

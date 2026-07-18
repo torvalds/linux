@@ -159,8 +159,6 @@ struct drm_gpuva *drm_gpuva_find(struct drm_gpuvm *gpuvm,
 				 u64 addr, u64 range);
 struct drm_gpuva *drm_gpuva_find_first(struct drm_gpuvm *gpuvm,
 				       u64 addr, u64 range);
-struct drm_gpuva *drm_gpuva_find_prev(struct drm_gpuvm *gpuvm, u64 start);
-struct drm_gpuva *drm_gpuva_find_next(struct drm_gpuvm *gpuvm, u64 end);
 
 /**
  * drm_gpuva_invalidate() - sets whether the backing GEM of this &drm_gpuva is
@@ -930,6 +928,8 @@ struct drm_gpuva_op_unmap {
  * If either a new mapping's start address is aligned with the start address
  * of the old mapping or the new mapping's end address is aligned with the
  * end address of the old mapping, either @prev or @next is NULL.
+ * This will also be the case when the requested mapping begins before the
+ * old mapping's start address or stretches beyond its end address.
  *
  * Note, the reason for a dedicated remap operation, rather than arbitrary
  * unmap and map operations, is to give drivers the chance of extracting driver

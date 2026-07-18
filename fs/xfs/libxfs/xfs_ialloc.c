@@ -1075,7 +1075,7 @@ xfs_dialloc_check_ino(
 	if (error)
 		return -EAGAIN;
 
-	error = xfs_imap_to_bp(pag_mount(pag), tp, &imap, &bp);
+	error = xfs_read_icluster(pag, tp, imap.im_agbno, &bp);
 	if (error)
 		return -EAGAIN;
 
@@ -1870,7 +1870,7 @@ xfs_dialloc_pick_ag(
 	if (S_ISDIR(mode))
 		return (atomic_inc_return(&mp->m_agirotor) - 1) % mp->m_maxagi;
 
-	start_agno = XFS_INO_TO_AGNO(mp, dp->i_ino);
+	start_agno = XFS_INODE_TO_AGNO(dp);
 	if (start_agno >= mp->m_maxagi)
 		start_agno = 0;
 
@@ -1895,7 +1895,7 @@ xfs_dialloc(
 	struct xfs_perag	*pag;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
 	xfs_ino_t		ino = NULLFSINO;
-	xfs_ino_t		parent = args->pip ? args->pip->i_ino : 0;
+	xfs_ino_t		parent = args->pip ? I_INO(args->pip) : 0;
 	xfs_agnumber_t		agno;
 	xfs_agnumber_t		start_agno;
 	umode_t			mode = args->mode & S_IFMT;
@@ -2511,43 +2511,37 @@ xfs_imap(
 	 * inodes in stale state on disk. Hence we have to do a btree lookup
 	 * in all cases where an untrusted inode number is passed.
 	 */
-	if (flags & XFS_IGET_UNTRUSTED) {
-		error = xfs_imap_lookup(pag, tp, agino, agbno,
-					&chunk_agbno, &offset_agbno, flags);
-		if (error)
-			return error;
-		goto out_map;
+	if (!(flags & XFS_IGET_UNTRUSTED)) {
+		/*
+		 * If the inode cluster size is the same or smaller than the
+		 * blocksize, get to the buffer by simple arithmetics.
+		 */
+		if (M_IGEO(mp)->blocks_per_cluster == 1) {
+			cluster_agbno = agbno;
+			offset = XFS_INO_TO_OFFSET(mp, ino);
+			ASSERT(offset < mp->m_sb.sb_inopblock);
+			goto out;
+		}
+
+		/*
+		 * If the inode chunks are aligned, use simple maths to find the
+		 * location.
+		 */
+		if (M_IGEO(mp)->inoalign_mask) {
+			offset_agbno = agbno & M_IGEO(mp)->inoalign_mask;
+			chunk_agbno = agbno - offset_agbno;
+			goto out_map;
+		}
+
+		/*
+		 * Otherwise we have to do a btree lookup to find the location.
+		 */
 	}
 
-	/*
-	 * If the inode cluster size is the same as the blocksize or
-	 * smaller we get to the buffer by simple arithmetics.
-	 */
-	if (M_IGEO(mp)->blocks_per_cluster == 1) {
-		offset = XFS_INO_TO_OFFSET(mp, ino);
-		ASSERT(offset < mp->m_sb.sb_inopblock);
-
-		imap->im_blkno = xfs_agbno_to_daddr(pag, agbno);
-		imap->im_len = XFS_FSB_TO_BB(mp, 1);
-		imap->im_boffset = (unsigned short)(offset <<
-							mp->m_sb.sb_inodelog);
-		return 0;
-	}
-
-	/*
-	 * If the inode chunks are aligned then use simple maths to
-	 * find the location. Otherwise we have to do a btree
-	 * lookup to find the location.
-	 */
-	if (M_IGEO(mp)->inoalign_mask) {
-		offset_agbno = agbno & M_IGEO(mp)->inoalign_mask;
-		chunk_agbno = agbno - offset_agbno;
-	} else {
-		error = xfs_imap_lookup(pag, tp, agino, agbno,
-					&chunk_agbno, &offset_agbno, flags);
-		if (error)
-			return error;
-	}
+	error = xfs_imap_lookup(pag, tp, agino, agbno, &chunk_agbno,
+			&offset_agbno, flags);
+	if (error)
+		return error;
 
 out_map:
 	ASSERT(agbno >= chunk_agbno);
@@ -2556,24 +2550,14 @@ out_map:
 		 M_IGEO(mp)->blocks_per_cluster);
 	offset = ((agbno - cluster_agbno) * mp->m_sb.sb_inopblock) +
 		XFS_INO_TO_OFFSET(mp, ino);
-
-	imap->im_blkno = xfs_agbno_to_daddr(pag, cluster_agbno);
-	imap->im_len = XFS_FSB_TO_BB(mp, M_IGEO(mp)->blocks_per_cluster);
+out:
+	imap->im_agbno = cluster_agbno;
 	imap->im_boffset = (unsigned short)(offset << mp->m_sb.sb_inodelog);
-
-	/*
-	 * If the inode number maps to a block outside the bounds
-	 * of the file system then return NULL rather than calling
-	 * read_buf and panicing when we get an error from the
-	 * driver.
-	 */
-	if ((imap->im_blkno + imap->im_len) >
-	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
-		xfs_alert(mp,
-	"%s: (im_blkno (0x%llx) + im_len (0x%llx)) > sb_dblocks (0x%llx)",
-			__func__, (unsigned long long) imap->im_blkno,
-			(unsigned long long) imap->im_len,
-			XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks));
+	if (imap->im_agbno + M_IGEO(mp)->blocks_per_cluster >
+	    pag_group(pag)->xg_block_count) {
+		xfs_alert(mp, "inode cluster out of range: %u/%u > %u",
+			imap->im_agbno, M_IGEO(mp)->blocks_per_cluster,
+			pag_group(pag)->xg_block_count);
 		return -EINVAL;
 	}
 	return 0;

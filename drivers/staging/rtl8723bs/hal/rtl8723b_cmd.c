@@ -8,6 +8,7 @@
 #include <drv_types.h>
 #include <rtl8723b_hal.h>
 #include <linux/etherdevice.h>
+#include <linux/iopoll.h>
 #include "hal_com_h2c.h"
 
 #define MAX_H2C_BOX_NUMS	4
@@ -18,31 +19,25 @@
 
 static u8 _is_fw_read_cmd_down(struct adapter *padapter, u8 msgbox_num)
 {
-	u8 read_down = false;
-	int retry_cnts = 100;
-
 	u8 valid;
+	int ret;
 
-	do {
-		valid = rtw_read8(padapter, REG_HMETFR) & BIT(msgbox_num);
-		if (0 == valid) {
-			read_down = true;
-		}
-	} while ((!read_down) && (retry_cnts--));
+	ret = read_poll_timeout_atomic(rtw_read8,
+				       valid, !(valid & BIT(msgbox_num)),
+				       0, 500, false,
+				       padapter, REG_HMETFR);
 
-	return read_down;
-
+	return !ret;
 }
 
-
 /*****************************************
-* H2C Msg format :
-*| 31 - 8		|7-5	| 4 - 0	|
-*| h2c_msg	|Class	|CMD_ID	|
-*| 31-0						|
-*| Ext msg					|
-*
-******************************************/
+ * H2C Msg format :
+ *| 31 - 8		|7-5	| 4 - 0	|
+ *| h2c_msg	|Class	|CMD_ID	|
+ *| 31-0						|
+ *| Ext msg					|
+ *
+ ******************************************/
 s32 FillH2CCmd8723B(struct adapter *padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer)
 {
 	u8 h2c_box_num;
@@ -171,14 +166,11 @@ static void ConstructBeacon(struct adapter *padapter, u8 *pframe, u32 *pLength)
 		pframe = rtw_set_ie(pframe, WLAN_EID_IBSS_PARAMS, 2, (unsigned char *)(&ATIMWindow), &pktlen);
 	}
 
-
 	/* todo: ERP IE */
-
 
 	/*  EXTERNDED SUPPORTED RATE */
 	if (rate_len > 8)
 		pframe = rtw_set_ie(pframe, WLAN_EID_EXT_SUPP_RATES, (rate_len - 8), (cur_network->supported_rates + 8), &pktlen);
-
 
 	/* todo:HT for adhoc */
 
@@ -363,7 +355,7 @@ void rtl8723b_set_FwPwrMode_cmd(struct adapter *padapter, u8 psmode)
 	}
 
 	if (psmode > 0) {
-		if (hal_btcoex_IsBtControlLps(padapter) == true) {
+		if (hal_btcoex_IsBtControlLps(padapter)) {
 			PowerState = hal_btcoex_RpwmVal(padapter);
 			byte5 = hal_btcoex_LpsVal(padapter);
 

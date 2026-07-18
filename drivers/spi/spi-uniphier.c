@@ -184,14 +184,12 @@ static void uniphier_spi_set_transfer_size(struct spi_device *spi, int size)
 	u32 val;
 
 	val = readl(priv->base + SSI_TXWDS);
-	val &= ~(SSI_TXWDS_WDLEN_MASK | SSI_TXWDS_DTLEN_MASK);
-	val |= FIELD_PREP(SSI_TXWDS_WDLEN_MASK, size);
-	val |= FIELD_PREP(SSI_TXWDS_DTLEN_MASK, size);
+	FIELD_MODIFY(SSI_TXWDS_WDLEN_MASK, &val, size);
+	FIELD_MODIFY(SSI_TXWDS_DTLEN_MASK, &val, size);
 	writel(val, priv->base + SSI_TXWDS);
 
 	val = readl(priv->base + SSI_RXWDS);
-	val &= ~SSI_RXWDS_DTLEN_MASK;
-	val |= FIELD_PREP(SSI_RXWDS_DTLEN_MASK, size);
+	FIELD_MODIFY(SSI_RXWDS_DTLEN_MASK, &val, size);
 	writel(val, priv->base + SSI_RXWDS);
 }
 
@@ -308,9 +306,8 @@ static void uniphier_spi_set_fifo_threshold(struct uniphier_spi_priv *priv,
 	u32 val;
 
 	val = readl(priv->base + SSI_FC);
-	val &= ~(SSI_FC_TXFTH_MASK | SSI_FC_RXFTH_MASK);
-	val |= FIELD_PREP(SSI_FC_TXFTH_MASK, SSI_FIFO_DEPTH - threshold);
-	val |= FIELD_PREP(SSI_FC_RXFTH_MASK, threshold);
+	FIELD_MODIFY(SSI_FC_TXFTH_MASK, &val, SSI_FIFO_DEPTH - threshold);
+	FIELD_MODIFY(SSI_FC_RXFTH_MASK, &val, threshold);
 	writel(val, priv->base + SSI_FC);
 }
 
@@ -649,7 +646,7 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(*priv));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(*priv));
 	if (!host)
 		return -ENOMEM;
 
@@ -659,34 +656,30 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 	priv->host = host;
 	priv->is_save_param = false;
 
+	init_completion(&priv->xfer_done);
+
 	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(priv->base)) {
-		ret = PTR_ERR(priv->base);
-		goto out_host_put;
-	}
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
+
 	priv->base_dma_addr = res->start;
 
 	priv->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = PTR_ERR(priv->clk);
-		goto out_host_put;
+		return PTR_ERR(priv->clk);
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		ret = irq;
-		goto out_host_put;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(&pdev->dev, irq, uniphier_spi_handler,
 			       0, "uniphier-spi", priv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
-		goto out_host_put;
+		return ret;
 	}
-
-	init_completion(&priv->xfer_done);
 
 	clk_rate = clk_get_rate(priv->clk);
 
@@ -710,10 +703,9 @@ static int uniphier_spi_probe(struct platform_device *pdev)
 
 	host->dma_tx = dma_request_chan(&pdev->dev, "tx");
 	if (IS_ERR_OR_NULL(host->dma_tx)) {
-		if (PTR_ERR(host->dma_tx) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto out_host_put;
-		}
+		if (PTR_ERR(host->dma_tx) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
 		host->dma_tx = NULL;
 		dma_tx_burst = INT_MAX;
 	} else {
@@ -762,8 +754,6 @@ out_release_dma:
 		host->dma_tx = NULL;
 	}
 
-out_host_put:
-	spi_controller_put(host);
 	return ret;
 }
 
@@ -771,16 +761,12 @@ static void uniphier_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *host = platform_get_drvdata(pdev);
 
-	spi_controller_get(host);
-
 	spi_unregister_controller(host);
 
 	if (host->dma_tx)
 		dma_release_channel(host->dma_tx);
 	if (host->dma_rx)
 		dma_release_channel(host->dma_rx);
-
-	spi_controller_put(host);
 }
 
 static const struct of_device_id uniphier_spi_match[] = {

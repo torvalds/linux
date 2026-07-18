@@ -109,7 +109,7 @@ static int gw_pld_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id gw_pld_id[] = {
-	{ "gw-pld", },
+	{ .name = "gw-pld" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, gw_pld_id);

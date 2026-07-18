@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <string.h>
+#include <linux/perf_event.h>
 
 #include "util/compress.h"
 #include "util/debug.h"
@@ -54,7 +55,13 @@ ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_
 
 	while (input.pos < input.size) {
 		record = dst;
+		/* process_header writes the event header into record */
+		if (dst_size < sizeof(struct perf_event_header))
+			goto reset;
 		size = process_header(record, 0);
+		/* Output buffer full — cannot fit even the record header */
+		if (size > dst_size)
+			goto reset;
 		compressed += size;
 		dst += size;
 		dst_size -= size;
@@ -65,10 +72,18 @@ ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_
 		if (ZSTD_isError(ret)) {
 			pr_err("failed to compress %ld bytes: %s\n",
 				(long)src_size, ZSTD_getErrorName(ret));
-			memcpy(dst, src, src_size);
-			return src_size;
+			goto reset;
 		}
 		size = output.pos;
+		/*
+		 * No progress: ZSTD couldn't emit any bytes into the
+		 * remaining output buffer.  Calling process_header
+		 * with size=0 would re-trigger header initialization,
+		 * double-subtracting the header size from dst_size and
+		 * underflowing the unsigned counter.
+		 */
+		if (size == 0)
+			goto reset;
 		size = process_header(record, size);
 		compressed += size;
 		dst += size;
@@ -76,6 +91,14 @@ ssize_t zstd_compress_stream_to_records(struct zstd_data *data, void *dst, size_
 	}
 
 	return compressed;
+
+reset:
+	/* Reset so the context is usable if the caller retries */
+	ret = ZSTD_initCStream(data->cstream, data->comp_level);
+	if (ZSTD_isError(ret))
+		pr_err("failed to reset compression context: %s\n",
+			ZSTD_getErrorName(ret));
+	return -1;
 }
 
 size_t zstd_decompress_stream(struct zstd_data *data, void *src, size_t src_size,
@@ -100,14 +123,26 @@ size_t zstd_decompress_stream(struct zstd_data *data, void *src, size_t src_size
 		}
 	}
 	while (input.pos < input.size) {
+		size_t prev_in = input.pos;
+		size_t prev_out = output.pos;
+
 		ret = ZSTD_decompressStream(data->dstream, &output, &input);
 		if (ZSTD_isError(ret)) {
 			pr_err("failed to decompress (B): %zd -> %zd, dst_size %zd : %s\n",
-			       src_size, output.size, dst_size, ZSTD_getErrorName(ret));
-			break;
+			       src_size, output.pos, dst_size, ZSTD_getErrorName(ret));
+			return 0;
 		}
-		output.dst  = dst + output.pos;
-		output.size = dst_size - output.pos;
+		/*
+		 * Neither stream advanced — decompression is stuck.
+		 * Return 0 (error) rather than partial output: perf
+		 * uses ZSTD_flushStream (not ZSTD_endStream), so the
+		 * stream is continuous across compressed events.
+		 * Discarding unconsumed input would desynchronize the
+		 * decompressor, causing the next call to produce
+		 * garbage that could be misinterpreted as valid events.
+		 */
+		if (input.pos == prev_in && output.pos == prev_out)
+			return 0;
 	}
 
 	return output.pos;

@@ -292,8 +292,6 @@ struct pp_hwmgr_func {
 	int (*store_cc6_data)(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 				bool cc6_disable, bool pstate_disable,
 				bool pstate_switch_disable);
-	int (*get_dal_power_level)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_simple_clock_info *info);
 	int (*get_performance_level)(struct pp_hwmgr *, const struct pp_hw_power_state *,
 			PHM_PerformanceLevelDesignation, uint32_t, PHM_PerformanceLevel *);
 	int (*get_current_shallow_sleep_clocks)(struct pp_hwmgr *hwmgr,
@@ -364,6 +362,7 @@ struct pp_hwmgr_func {
 					bool disable);
 	ssize_t (*get_gpu_metrics)(struct pp_hwmgr *hwmgr, void **table);
 	int (*gfx_state_change)(struct pp_hwmgr *hwmgr, uint32_t state);
+	void (*notify_ac_dc)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -540,7 +539,6 @@ struct phm_ppt_v1_information {
 	struct phm_clock_array *valid_dcefclk_values;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_dc;
 	struct phm_clock_and_voltage_limits max_clock_voltage_on_ac;
-	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_ppm_table *ppm_parameter_table;
 	struct phm_cac_tdp_table *cac_dtp_table;
 	struct phm_tdp_table *tdp_table;
@@ -632,7 +630,6 @@ struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *mvdd_dependency_on_mclk;
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_display_clock;
-	struct phm_clock_voltage_dependency_table *vddc_dep_on_dal_pwrl;
 	struct phm_clock_array                    *valid_sclk_values;
 	struct phm_clock_array                    *valid_mclk_values;
 	struct phm_clock_and_voltage_limits       max_clock_voltage_on_dc;
@@ -831,5 +828,25 @@ int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
+
+static inline uint32_t pp_entries_max(const struct pp_hwmgr *hwmgr,
+				      const void *sub_table,
+				      size_t hdr_size, size_t rec_size)
+{
+	const char *pp_start = hwmgr->soft_pp_table;
+	const char *pp_end   = pp_start + hwmgr->soft_pp_table_size;
+	const char *entries  = (const char *)sub_table + hdr_size;
+
+	if (!hwmgr->hardcode_pp_table) {
+		struct amdgpu_device *adev = hwmgr->adev;
+		const char *bios_end = (const char *)adev->bios + adev->bios_size;
+
+		if (pp_end > bios_end)
+			return 0;
+	}
+	if (!rec_size || entries >= pp_end)
+		return 0;
+	return (uint32_t)((pp_end - entries) / rec_size);
+}
 
 #endif /* _HWMGR_H_ */

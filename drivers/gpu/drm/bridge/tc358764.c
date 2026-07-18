@@ -9,7 +9,6 @@
 
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
@@ -267,7 +266,8 @@ static void tc358764_reset(struct tc358764 *ctx)
 	usleep_range(1000, 2000);
 }
 
-static void tc358764_post_disable(struct drm_bridge *bridge)
+static void tc358764_post_disable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	int ret;
@@ -279,7 +279,8 @@ static void tc358764_post_disable(struct drm_bridge *bridge)
 		dev_err(ctx->dev, "error disabling regulators (%d)\n", ret);
 }
 
-static void tc358764_pre_enable(struct drm_bridge *bridge)
+static void tc358764_pre_enable(struct drm_bridge *bridge,
+				struct drm_atomic_commit *commit)
 {
 	struct tc358764 *ctx = bridge_to_tc358764(bridge);
 	int ret;
@@ -304,8 +305,11 @@ static int tc358764_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs tc358764_bridge_funcs = {
-	.post_disable = tc358764_post_disable,
-	.pre_enable = tc358764_pre_enable,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_post_disable = tc358764_post_disable,
+	.atomic_pre_enable = tc358764_pre_enable,
 	.attach = tc358764_attach,
 };
 

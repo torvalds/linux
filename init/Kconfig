@@ -118,10 +118,7 @@ config GCC_ASM_GOTO_OUTPUT_BROKEN
 config CC_HAS_ASM_GOTO_OUTPUT
 	def_bool y
 	depends on !GCC_ASM_GOTO_OUTPUT_BROKEN
-	# Detect basic support
 	depends on $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
-	# Detect clang (< v17) scoped label issues
-	depends on $(success,echo 'void b(void **);void* c(void);int f(void){{asm goto(""::::l0);return 0;l0:return 1;}void *x __attribute__((cleanup(b)))=c();{asm goto(""::::l1);return 2;l1:return 3;}}' | $(CC) -x c - -c -o /dev/null)
 
 config CC_HAS_ASM_GOTO_TIED_OUTPUT
 	depends on CC_HAS_ASM_GOTO_OUTPUT
@@ -169,6 +166,9 @@ config CC_HAS_BROKEN_COUNTED_BY_REF
 	bool
 	# https://github.com/llvm/llvm-project/issues/182575
 	default y if CC_IS_CLANG && CLANG_VERSION < 220100
+
+config CC_HAS_ALLOC_TOKEN
+	def_bool $(cc-option,-falloc-token-max=123)
 
 config CC_HAS_MULTIDIMENSIONAL_NONSTRING
 	def_bool $(success,echo 'char tag[][4] __attribute__((__nonstring__)) = { };' | $(CC) $(CLANG_FLAGS) -x c - -c -o /dev/null -Werror)
@@ -1019,6 +1019,17 @@ config NUMA_BALANCING
 
 	  This system will be inactive on UMA systems.
 
+config SCHED_CACHE
+	bool "Cache aware load balance"
+	default y
+	depends on SMP
+	help
+	  When enabled, the scheduler will attempt to aggregate tasks from
+	  the same process onto a single Last Level Cache (LLC) domain when
+	  possible. This improves cache locality by keeping tasks that share
+	  resources within the same cache domain, reducing cache misses and
+	  lowering data access latency.
+
 config NUMA_BALANCING_DEFAULT_ENABLED
 	bool "Automatically enable NUMA aware memory/task placement"
 	default y
@@ -1050,14 +1061,14 @@ config PAGE_COUNTER
 	bool
 
 config CGROUP_FAVOR_DYNMODS
-        bool "Favor dynamic modification latency reduction by default"
-        help
-          This option enables the "favordynmods" mount option by default
-          which reduces the latencies of dynamic cgroup modifications such
-          as task migrations and controller on/offs at the cost of making
-          hot path operations such as forks and exits more expensive.
+	bool "Favor dynamic modification latency reduction by default"
+	help
+	  This option enables the "favordynmods" mount option by default
+	  which reduces the latencies of dynamic cgroup modifications such
+	  as task migrations and controller on/offs at the cost of making
+	  hot path operations such as forks and exits more expensive.
 
-          Say N if unsure.
+	  Say N if unsure.
 
 config MEMCG
 	bool "Memory controller"
@@ -1139,7 +1150,7 @@ config GROUP_SCHED_WEIGHT
 	def_bool n
 
 config GROUP_SCHED_BANDWIDTH
-        def_bool n
+	def_bool n
 
 config FAIR_GROUP_SCHED
 	bool "Group scheduling for SCHED_OTHER"
@@ -1645,10 +1656,10 @@ config LD_ORPHAN_WARN
 	depends on $(ld-option,--orphan-handling=error)
 
 config LD_ORPHAN_WARN_LEVEL
-        string
-        depends on LD_ORPHAN_WARN
-        default "error" if WERROR
-        default "warn"
+	string
+	depends on LD_ORPHAN_WARN
+	default "error" if WERROR
+	default "warn"
 
 config SYSCTL
 	bool
@@ -1841,6 +1852,12 @@ config FUTEX_MPOL
 	bool
 	depends on FUTEX && NUMA
 	default y
+
+config HAVE_FUTEX_ROBUST_UNLOCK
+	bool
+
+config FUTEX_ROBUST_UNLOCK
+	def_bool FUTEX && HAVE_GENERIC_VDSO && GENERIC_IRQ_ENTRY && RSEQ && HAVE_FUTEX_ROBUST_UNLOCK
 
 config EPOLL
 	bool "Enable eventpoll support" if EXPERT
@@ -2198,7 +2215,8 @@ config RUST
 	depends on !DEBUG_INFO_BTF || (PAHOLE_HAS_LANG_EXCLUDE && !LTO)
 	depends on !CFI || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI
-	depends on !KASAN_SW_TAGS
+	depends on !KASAN || CC_IS_CLANG
+	depends on !KASAN_SW_TAGS || RUSTC_VERSION >= 109600
 	help
 	  Enables Rust support in the kernel.
 
@@ -2211,6 +2229,8 @@ config RUST
 	  See Documentation/rust/ for more information.
 
 	  If unsure, say N.
+
+source "rust/kernel/Kconfig.test"
 
 config RUSTC_VERSION_TEXT
 	string

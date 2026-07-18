@@ -249,8 +249,8 @@ static int tps65219_gpio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id tps6521x_gpio_id_table[] = {
-	{ "tps65214-gpio", TPS65214 },
-	{ "tps65219-gpio", TPS65219 },
+	{ .name = "tps65214-gpio", .driver_data = TPS65214 },
+	{ .name = "tps65219-gpio", .driver_data = TPS65219 },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, tps6521x_gpio_id_table);

@@ -95,7 +95,7 @@ int main(void)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	uint64_t val;
+	u64 val;
 
 	ksft_print_header();
 	ksft_set_plan(5);

@@ -46,7 +46,7 @@ struct rockchip_mbox {
 	/* The maximum size of buf for each channel */
 	u32 buf_size;
 
-	struct rockchip_mbox_chan *chans;
+	struct rockchip_mbox_chan chans[];
 };
 
 static int rockchip_mbox_send_data(struct mbox_chan *chan, void *data)
@@ -173,13 +173,8 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	drv_data = (const struct rockchip_mbox_data *) device_get_match_data(&pdev->dev);
 
-	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
+	mb = devm_kzalloc(&pdev->dev, struct_size(mb, chans, drv_data->num_chans), GFP_KERNEL);
 	if (!mb)
-		return -ENOMEM;
-
-	mb->chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
-				 sizeof(*mb->chans), GFP_KERNEL);
-	if (!mb->chans)
 		return -ENOMEM;
 
 	mb->mbox.chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,

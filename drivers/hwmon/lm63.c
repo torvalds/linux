@@ -92,6 +92,9 @@ static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 #define LM96163_REG_REMOTE_TEMP_U_LSB	0x32
 #define LM96163_REG_CONFIG_ENHANCED	0x45
 
+#define LM63_PWM_BASE_FAST_HZ		180000
+#define LM63_PWM_BASE_SLOW_HZ		700
+
 #define LM63_MAX_CONVRATE		9
 
 #define LM63_MAX_CONVRATE_HZ		32
@@ -333,7 +336,13 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *devattr,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm63_data *data = lm63_update_device(dev);
-	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[attr->index]));
+	int fan;
+
+	mutex_lock(&data->update_lock);
+	fan = FAN_FROM_REG(data->fan[attr->index]);
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", fan);
 }
 
 static ssize_t set_fan(struct device *dev, struct device_attribute *dummy,
@@ -366,12 +375,14 @@ static ssize_t show_pwm1(struct device *dev, struct device_attribute *devattr,
 	int nr = attr->index;
 	int pwm;
 
+	mutex_lock(&data->update_lock);
 	if (data->pwm_highres)
 		pwm = data->pwm1[nr];
 	else
 		pwm = data->pwm1[nr] >= 2 * data->pwm1_freq ?
 		       255 : (data->pwm1[nr] * 255 + data->pwm1_freq) /
 		       (2 * data->pwm1_freq);
+	mutex_unlock(&data->update_lock);
 
 	return sprintf(buf, "%d\n", pwm);
 }
@@ -443,6 +454,91 @@ static ssize_t pwm1_enable_store(struct device *dev,
 		data->config_fan &= ~0x20;
 	i2c_smbus_write_byte_data(client, LM63_REG_CONFIG_FAN,
 				  data->config_fan);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static ssize_t pwm1_freq_show(struct device *dev,
+			      struct device_attribute *dummy, char *buf)
+{
+	struct lm63_data *data = lm63_update_device(dev);
+	unsigned int base, freq;
+
+	mutex_lock(&data->update_lock);
+	base = (data->config_fan & 0x08) ?
+	       LM63_PWM_BASE_SLOW_HZ : LM63_PWM_BASE_FAST_HZ;
+	freq = data->pwm1_freq;
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%u\n", base / freq);
+}
+
+/*
+ * Pick the closest CONFIG_FAN.SCS + PFR for the requested frequency.
+ * PWM_FREQ writes need the LUT unlocked, same as set_pwm1(). LUT PWM
+ * bytes are register-relative; rewrite them after a frequency change
+ * if duty cycles must be preserved.
+ */
+static ssize_t pwm1_freq_store(struct device *dev,
+			       struct device_attribute *dummy,
+			       const char *buf, size_t count)
+{
+	struct lm63_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	unsigned long val, pfr_fast, pfr_slow, err_fast, err_slow, pfr;
+	bool slow_clock;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+	if (val == 0)
+		return -EINVAL;
+
+	pfr_fast = clamp_val(DIV_ROUND_CLOSEST((unsigned long)LM63_PWM_BASE_FAST_HZ, val),
+			     1UL, 31UL);
+	pfr_slow = clamp_val(DIV_ROUND_CLOSEST((unsigned long)LM63_PWM_BASE_SLOW_HZ, val),
+			     1UL, 31UL);
+	err_fast = abs_diff(LM63_PWM_BASE_FAST_HZ / pfr_fast, val);
+	err_slow = abs_diff(LM63_PWM_BASE_SLOW_HZ / pfr_slow, val);
+
+	if (err_slow < err_fast) {
+		slow_clock = true;
+		pfr = pfr_slow;
+	} else {
+		slow_clock = false;
+		pfr = pfr_fast;
+	}
+
+	mutex_lock(&data->update_lock);
+	ret = i2c_smbus_read_byte_data(client, LM63_REG_CONFIG_FAN);
+	if (ret < 0) {
+		mutex_unlock(&data->update_lock);
+		return ret;
+	}
+	data->config_fan = ret;
+
+	if (!(data->config_fan & 0x20)) { /* register is read-only */
+		mutex_unlock(&data->update_lock);
+		return -EPERM;
+	}
+
+	if (data->kind == lm96163) {
+		ret = i2c_smbus_read_byte_data(client, LM96163_REG_CONFIG_ENHANCED);
+		if (ret < 0) {
+			mutex_unlock(&data->update_lock);
+			return ret;
+		}
+		data->pwm_highres = !slow_clock && pfr == 8 && (ret & 0x10);
+	}
+
+	if (slow_clock)
+		data->config_fan |= 0x08;
+	else
+		data->config_fan &= ~0x08;
+	i2c_smbus_write_byte_data(client, LM63_REG_CONFIG_FAN, data->config_fan);
+	i2c_smbus_write_byte_data(client, LM63_REG_PWM_FREQ, pfr);
+	data->pwm1_freq = pfr;
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -529,6 +625,7 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 	int nr = attr->index;
 	int temp;
 
+	mutex_lock(&data->update_lock);
 	if (!nr) {
 		/*
 		 * Use unsigned temperature unless its value is zero.
@@ -544,7 +641,10 @@ static ssize_t show_temp11(struct device *dev, struct device_attribute *devattr,
 		else
 			temp = TEMP11_FROM_REG(data->temp11[nr]);
 	}
-	return sprintf(buf, "%d\n", temp + data->temp2_offset);
+	temp += data->temp2_offset;
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t set_temp11(struct device *dev, struct device_attribute *devattr,
@@ -592,9 +692,14 @@ static ssize_t temp2_crit_hyst_show(struct device *dev,
 				    struct device_attribute *dummy, char *buf)
 {
 	struct lm63_data *data = lm63_update_device(dev);
-	return sprintf(buf, "%d\n", temp8_from_reg(data, 2)
-		       + data->temp2_offset
-		       - TEMP8_FROM_REG(data->temp2_crit_hyst));
+	int temp;
+
+	mutex_lock(&data->update_lock);
+	temp = temp8_from_reg(data, 2) + data->temp2_offset
+	     - TEMP8_FROM_REG(data->temp2_crit_hyst);
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", temp);
 }
 
 static ssize_t show_lut_temp_hyst(struct device *dev,
@@ -602,10 +707,55 @@ static ssize_t show_lut_temp_hyst(struct device *dev,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct lm63_data *data = lm63_update_device(dev);
+	int temp;
 
-	return sprintf(buf, "%d\n", lut_temp_from_reg(data, attr->index)
-		       + data->temp2_offset
-		       - TEMP8_FROM_REG(data->lut_temp_hyst));
+	mutex_lock(&data->update_lock);
+	temp = lut_temp_from_reg(data, attr->index) + data->temp2_offset
+	     - TEMP8_FROM_REG(data->lut_temp_hyst);
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", temp);
+}
+
+/*
+ * The LM63 has a single hysteresis register shared by all LUT entries.
+ * Expose it as a chip-wide hysteresis amount in millidegrees; the
+ * per-point pwm1_auto_pointN_temp_hyst attributes remain read-only and
+ * show the resulting absolute trip-down temperature for each entry.
+ */
+static ssize_t pwm1_auto_point_temp_hyst_show(struct device *dev,
+					      struct device_attribute *dummy,
+					      char *buf)
+{
+	struct lm63_data *data = lm63_update_device(dev);
+	u8 hyst;
+
+	mutex_lock(&data->update_lock);
+	hyst = data->lut_temp_hyst;
+	mutex_unlock(&data->update_lock);
+
+	return sprintf(buf, "%d\n", TEMP8_FROM_REG(hyst));
+}
+
+static ssize_t pwm1_auto_point_temp_hyst_store(struct device *dev,
+					       struct device_attribute *dummy,
+					       const char *buf, size_t count)
+{
+	struct lm63_data *data = dev_get_drvdata(dev);
+	struct i2c_client *client = data->client;
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	mutex_lock(&data->update_lock);
+	data->lut_temp_hyst = HYST_TO_REG(val);
+	i2c_smbus_write_byte_data(client, LM63_REG_LUT_TEMP_HYST,
+				  data->lut_temp_hyst);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
 
 /*
@@ -616,7 +766,7 @@ static ssize_t temp2_crit_hyst_store(struct device *dev,
 				     struct device_attribute *dummy,
 				     const char *buf, size_t count)
 {
-	struct lm63_data *data = dev_get_drvdata(dev);
+	struct lm63_data *data = lm63_update_device(dev);
 	struct i2c_client *client = data->client;
 	long val;
 	int err;
@@ -743,6 +893,8 @@ static SENSOR_DEVICE_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan,
 
 static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm1, set_pwm1, 0);
 static DEVICE_ATTR_RW(pwm1_enable);
+static DEVICE_ATTR_RW(pwm1_freq);
+static DEVICE_ATTR_RW(pwm1_auto_point_temp_hyst);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point1_pwm, S_IWUSR | S_IRUGO,
 	show_pwm1, set_pwm1, 1);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point1_temp, S_IWUSR | S_IRUGO,
@@ -848,6 +1000,8 @@ static DEVICE_ATTR_RW(update_interval);
 static struct attribute *lm63_attributes[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&dev_attr_pwm1_enable.attr,
+	&dev_attr_pwm1_freq.attr,
+	&dev_attr_pwm1_auto_point_temp_hyst.attr,
 	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point1_temp.dev_attr.attr,
 	&sensor_dev_attr_pwm1_auto_point1_temp_hyst.dev_attr.attr,
@@ -1131,9 +1285,9 @@ static int lm63_probe(struct i2c_client *client)
  */
 
 static const struct i2c_device_id lm63_id[] = {
-	{ "lm63", lm63 },
-	{ "lm64", lm64 },
-	{ "lm96163", lm96163 },
+	{ .name = "lm63", .driver_data = lm63 },
+	{ .name = "lm64", .driver_data = lm64 },
+	{ .name = "lm96163", .driver_data = lm96163 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm63_id);

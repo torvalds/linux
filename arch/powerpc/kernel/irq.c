@@ -370,10 +370,7 @@ int irq_choose_cpu(const struct cpumask *mask)
 do_round_robin:
 		raw_spin_lock_irqsave(&irq_rover_lock, flags);
 
-		irq_rover = cpumask_next(irq_rover, cpu_online_mask);
-		if (irq_rover >= nr_cpu_ids)
-			irq_rover = cpumask_first(cpu_online_mask);
-
+		irq_rover = cpumask_next_wrap(irq_rover, cpu_online_mask);
 		cpuid = irq_rover;
 
 		raw_spin_unlock_irqrestore(&irq_rover_lock, flags);

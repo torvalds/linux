@@ -102,8 +102,12 @@ static struct device_attribute irst_timeout_attr = {
 
 static int irst_probe(struct platform_device *pdev)
 {
-	struct acpi_device *acpi = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *acpi;
 	int error;
+
+	acpi = ACPI_COMPANION(&pdev->dev);
+	if (!acpi)
+		return -ENODEV;
 
 	error = device_create_file(&acpi->dev, &irst_timeout_attr);
 	if (unlikely(error))

@@ -196,7 +196,7 @@ def slabtrace(alloc, cache_name):
 
     if target_cache['flags'] & SLAB_STORE_USER:
         for i in range(0, nr_node_ids):
-            cache_node = target_cache['node'][i]
+            cache_node = target_cache['per_node']['node'][i]
             if cache_node['nr_slabs']['counter'] == 0:
                 continue
             process_slab(loc_track, cache_node['partial'], alloc, target_cache)
@@ -300,7 +300,7 @@ def slabinfo():
         nr_free = 0
         nr_slabs = 0
         for i in range(0, nr_node_ids):
-            cache_node = cache['node'][i]
+            cache_node = cache['per_node']['node'][i]
             try:
                 nr_slabs += cache_node['nr_slabs']['counter']
                 nr_objs = int(cache_node['total_objects']['counter'])

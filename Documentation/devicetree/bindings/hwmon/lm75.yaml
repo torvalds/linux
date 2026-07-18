@@ -54,6 +54,13 @@ properties:
   interrupts:
     maxItems: 1
 
+  ti,alert-polarity-active-high:
+    description: Alert pin is asserted based on the value of alert polarity
+      bit of configuration register. Default value is normal (0 which maps to
+      active-low). The other value is inverted (1 which maps to active-high).
+      Specify this property to set the alert polarity to active-high.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 required:
   - compatible
   - reg

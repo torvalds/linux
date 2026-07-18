@@ -35,7 +35,6 @@
 #include "dc_stream_priv.h"
 #include "dcn35/dcn35_hwseq.h"
 #include "dcn42/dcn42_hwseq.h"
-#include "dce/dmub_hw_lock_mgr.h"
 #include "dio/dcn10/dcn10_dio.h"
 
 #define DC_LOGGER \
@@ -65,12 +64,13 @@ void dcn42_init_hw(struct dc *dc)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
-	int i;
+	unsigned int i;
 	unsigned int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	bool dchub_ref_freq_changed;
 	int current_dchub_ref_freq = 0;
+	uint8_t dcfclk_gate_dis_value = 0;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs && dc->clk_mgr->funcs->init_clocks) {
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -244,7 +244,13 @@ void dcn42_init_hw(struct dc *dc)
 		/* enable all DCN clock gating */
 		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
-		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
+		/* Temporary workaround for IOMMU mismatch issue.
+		 * Fine grain control via bit0 of debug flag.
+		 */
+		if (dc->debug.iommu_mismatch_temp_wka & 0x1)
+			dcfclk_gate_dis_value = 1;
+
+		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, dcfclk_gate_dis_value);
 	}
 
 	dcn401_setup_hpo_hw_control(hws, true);
@@ -275,6 +281,8 @@ void dcn42_init_hw(struct dc *dc)
 		dc->caps.dmub_caps.psr = dc->ctx->dmub_srv->dmub->feature_caps.psr;
 		dc->caps.dmub_caps.mclk_sw = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver > 0;
 		dc->caps.dmub_caps.fams_ver = dc->ctx->dmub_srv->dmub->feature_caps.fw_assisted_mclk_switch_ver;
+		dc->caps.dmub_caps.aux_backlight_support =
+			dc->ctx->dmub_srv->dmub->feature_caps.abm_aux_backlight_support;
 
 		/* sw and fw FAMS versions must match for support */
 		dc->debug.fams2_config.bits.enable &=
@@ -349,7 +357,7 @@ void dcn42_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpcc_id = hubp->inst;
 
 	/* If there is no full update, don't need to touch MPC tree*/
-	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
+	if (!pipe_ctx->plane_state->update_bits.full_update &&
 		!pipe_ctx->update_flags.bits.mpcc) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
@@ -394,6 +402,64 @@ void dcn42_program_cm_hist(
 			plane_state->cm_hist_control, plane_state->color_space);
 }
 
+static void dc_get_lut_xbar(
+	enum hubp_3dlut_fl_crossbar_bit_slice *cr_r,
+	enum hubp_3dlut_fl_crossbar_bit_slice *y_g,
+	enum hubp_3dlut_fl_crossbar_bit_slice *cb_b)
+{
+	/* component_order was previously hard-coded to RGBA in local_mcm,
+	 * preserve identical behavior.
+	 */
+	*cr_r = hubp_3dlut_fl_crossbar_bit_slice_32_47;
+	*y_g = hubp_3dlut_fl_crossbar_bit_slice_16_31;
+	*cb_b = hubp_3dlut_fl_crossbar_bit_slice_0_15;
+}
+
+static void dc_get_lut_mode(
+	enum dc_cm_lut_swizzle swizzle,
+	enum hubp_3dlut_fl_mode *mode,
+	enum hubp_3dlut_fl_addressing_mode *addr_mode)
+{
+	switch (swizzle) {
+	case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
+		*mode = hubp_3dlut_fl_mode_native_1;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+		*mode = hubp_3dlut_fl_mode_native_2;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	case CM_LUT_1D_PACKED_LINEAR:
+		*mode = hubp_3dlut_fl_mode_transform;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_simple_linear;
+		break;
+	default:
+		*mode = hubp_3dlut_fl_mode_disable;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	}
+}
+
+static void dc_get_lut_format(
+	enum dc_cm_lut_pixel_format dc_format,
+	enum hubp_3dlut_fl_format *format)
+{
+	switch (dc_format) {
+	case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB:
+		*format = hubp_3dlut_fl_format_unorm_12msb_bitslice;
+		break;
+	case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB:
+		*format = hubp_3dlut_fl_format_unorm_12lsb_bitslice;
+		break;
+	case CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10:
+		*format = hubp_3dlut_fl_format_float_fp1_5_10;
+		break;
+	default:
+		*format = hubp_3dlut_fl_format_unorm_12msb_bitslice;
+		break;
+	}
+}
+
 static bool dc_is_rmcm_3dlut_supported(struct hubp *hubp, struct mpc *mpc)
 {
 	if (mpc->funcs->rmcm.power_on_shaper_3dlut &&
@@ -404,17 +470,108 @@ static bool dc_is_rmcm_3dlut_supported(struct hubp *hubp, struct mpc *mpc)
 	return false;
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+static bool is_rmcm_3dlut_fl_supported(struct dc *dc)
+{
+	/* size was previously hard-coded to TRANSFORMED in local_mcm,
+	 * which mapped to dim_17. Preserve identical behavior.
+	 */
+	if (!dc->caps.color.mpc.rmcm_3d_lut_caps.dma_3d_lut)
+		return false;
+	return dc->caps.color.mpc.rmcm_3d_lut_caps.lut_dim_caps.dim_17 != 0u;
+}
+#endif
+
+static void dcn42_set_mcm_location_post_blend(struct dc *dc, struct pipe_ctx *pipe_ctx, bool bPostBlend)
+{
+	struct mpc *mpc = dc->res_pool->mpc;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+
+	if (!pipe_ctx->plane_state)
+		return;
+
+	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
+	pipe_ctx->plane_state->mcm_location = (bPostBlend) ?
+											MPCC_MOVABLE_CM_LOCATION_AFTER :
+											MPCC_MOVABLE_CM_LOCATION_BEFORE;
+}
+
+static void dcn42_get_mcm_lut_xable_from_pipe_ctx(struct dc *dc, struct pipe_ctx *pipe_ctx,
+		enum MCM_LUT_XABLE *shaper_xable,
+		enum MCM_LUT_XABLE *lut3d_xable,
+		enum MCM_LUT_XABLE *lut1d_xable)
+{
+	struct mpc *mpc = dc->res_pool->mpc;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+
+	if (!pipe_ctx->plane_state)
+		return;
+
+	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
+	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
+
+	*lut1d_xable = pipe_ctx->plane_state->cm.flags.bits.blend_enable ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
+	*shaper_xable = pipe_ctx->plane_state->cm.flags.bits.shaper_enable ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
+	*lut3d_xable = (pipe_ctx->plane_state->cm.flags.bits.shaper_enable &&
+			pipe_ctx->plane_state->cm.flags.bits.lut3d_enable) ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
+}
+
+static void fl_get_lut_mode(
+	enum dc_cm_lut_swizzle swizzle,
+	enum hubp_3dlut_fl_mode *mode,
+	enum hubp_3dlut_fl_addressing_mode *addr_mode,
+	enum hubp_3dlut_fl_width *width)
+{
+	/* size was previously hard-coded to TRANSFORMED in local_mcm,
+	 * preserve identical behavior (transformed width).
+	 */
+	*width = hubp_3dlut_fl_width_17;
+
+	switch (swizzle) {
+	case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
+		*mode = hubp_3dlut_fl_mode_native_1;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+		*mode = hubp_3dlut_fl_mode_native_2;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	case CM_LUT_1D_PACKED_LINEAR:
+		*mode = hubp_3dlut_fl_mode_transform;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_simple_linear;
+		break;
+	default:
+		*mode = hubp_3dlut_fl_mode_disable;
+		*addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+		break;
+	}
+}
+
 bool dcn42_program_rmcm_luts(
 	struct hubp *hubp,
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_plane_cm *cm,
 	struct mpc *mpc,
+	bool lut_bank_a,
 	int mpcc_id)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	union mcm_lut_params m_lut_params = {0};
+	enum MCM_LUT_XABLE shaper_xable, lut3d_xable = MCM_LUT_DISABLE, lut1d_xable;
+		enum hubp_3dlut_fl_mode mode;
+	enum hubp_3dlut_fl_addressing_mode addr_mode;
+	enum hubp_3dlut_fl_format format = hubp_3dlut_fl_format_unorm_12msb_bitslice;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g = hubp_3dlut_fl_crossbar_bit_slice_16_31;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b = hubp_3dlut_fl_crossbar_bit_slice_0_15;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r = hubp_3dlut_fl_crossbar_bit_slice_32_47;
+	enum hubp_3dlut_fl_width width = hubp_3dlut_fl_width_17;
+
 
 	struct dc *dc = hubp->ctx->dc;
+	struct hubp_fl_3dlut_config fl_config;
 	struct mpc_fl_3dlut_config mpc_fl_config;
 
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -422,14 +579,19 @@ bool dcn42_program_rmcm_luts(
 	// true->false when it can be allocated at DI time
 	struct dc_rmcm_3dlut *rmcm_3dlut = dc_stream_get_3dlut_for_stream(dc, stream, false);
 
-	bool lut_bank_a = true; // TODO get from HW
-
 	//check to see current pipe is part of a stream with allocated rmcm 3dlut
 	if (!rmcm_3dlut)
 		return false;
 
+	/* rmcm_tmz was previously zero-initialized in local_mcm,
+	 * preserve identical behavior.
+	 */
+	rmcm_3dlut->protection_bits = 0;
+
+	dcn42_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
+
 	/* Shaper */
-	if (cm->flags.bits.shaper_enable) {
+	{
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
 
 		if (cm->shaper_func.type == TF_TYPE_HWPWL) {
@@ -455,16 +617,56 @@ bool dcn42_program_rmcm_luts(
 
 	/* 3DLUT */
 	if (!cm->flags.bits.lut3d_dma_enable) {
+		/* SYSMEM path — no DMA 3DLUT available.
+		 * Previously this was treated as a no-op for the DMA/VIDMEM
+		 * programming, preserve identical behavior.
+		 */
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
-		// Don't know what to do in this case.
 	} else {
-		if (!dc_is_rmcm_3dlut_supported(hubp, mpc))
+		/* VIDMEM (3DLUT DMA Fast Load) */
+
+		fl_get_lut_mode(cm->lut3d_dma.swizzle,
+				&mode,
+				&addr_mode,
+				&width);
+
+		if (!dc_is_rmcm_3dlut_supported(hubp, mpc) ||
+			!mpc->funcs->rmcm.is_config_supported(
+				(width == hubp_3dlut_fl_width_17 ||
+				 width == hubp_3dlut_fl_width_transformed) ? 17 : 33))
 			return false;
 
+		// setting native or transformed mode,
+		dc_get_lut_mode(cm->lut3d_dma.swizzle, &mode, &addr_mode);
+
 		//seems to be only for the MCM
-		mpc_fl_config.enabled			= cm->flags.bits.lut3d_enable;
-		mpc_fl_config.size	            = cm->lut3d_dma.size;
+		dc_get_lut_format(cm->lut3d_dma.format, &format);
+
+		dc_get_lut_xbar(
+			&crossbar_bit_slice_cr_r,
+			&crossbar_bit_slice_y_g,
+			&crossbar_bit_slice_cb_b);
+
+		fl_config.mode					= mode;
+		fl_config.enabled				= lut3d_xable != MCM_LUT_DISABLE;
+		fl_config.address				= cm->lut3d_dma.addr;
+		fl_config.format				= format;
+		fl_config.crossbar_bit_slice_y_g  = crossbar_bit_slice_y_g;
+		fl_config.crossbar_bit_slice_cb_b = crossbar_bit_slice_cb_b;
+		fl_config.crossbar_bit_slice_cr_r = crossbar_bit_slice_cr_r;
+		fl_config.width				    = width;
+		fl_config.protection_bits		= rmcm_3dlut->protection_bits;
+		fl_config.addr_mode			    = addr_mode;
+		fl_config.layout                = cm->lut3d_dma.swizzle;
+		fl_config.bias	= cm->lut3d_dma.bias;
+		fl_config.scale	= cm->lut3d_dma.scale;
+
+		mpc_fl_config.enabled			= fl_config.enabled;
+		mpc_fl_config.width	            = width;
 		mpc_fl_config.select_lut_bank_a = lut_bank_a;
+		/* bit_depth was previously zero-initialized in local_mcm,
+		 * preserve identical behavior.
+		 */
 		mpc_fl_config.bit_depth		    = 0;
 		mpc_fl_config.hubp_index		= hubp->inst;
 		mpc_fl_config.bias	= cm->lut3d_dma.bias;
@@ -476,12 +678,7 @@ bool dcn42_program_rmcm_luts(
 		//2. program RMCM - 3dlut reg programming
 		mpc->funcs->rmcm.fl_3dlut_configure(mpc, &mpc_fl_config, mpcc_id);
 
-		/* HUBP */
-		if (hubp->funcs->hubp_program_3dlut_fl_config)
-			hubp->funcs->hubp_program_3dlut_fl_config(hubp, &cm->lut3d_dma);
-
-		if (hubp->funcs->hubp_program_3dlut_fl_addr)
-			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, &cm->lut3d_dma.addr);
+		hubp->funcs->hubp_program_3dlut_fl_config(hubp, &fl_config);
 
 		//3. power on the block
 		mpc->funcs->rmcm.power_on_shaper_3dlut(mpc, mpcc_id, true);
@@ -490,28 +687,264 @@ bool dcn42_program_rmcm_luts(
 	return true;
 }
 
-bool dcn42_set_mcm_luts(struct pipe_ctx *pipe_ctx,
-				const struct dc_plane_state *plane_state)
+void dcn42_populate_mcm_luts(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		const struct dc_plane_cm *cm,
+		bool lut_bank_a)
 {
-	struct dc *dc = pipe_ctx->plane_res.hubp->ctx->dc;
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	struct hubp *hubp = pipe_ctx->plane_res.hubp;
-	const struct dc_plane_cm *cm = &plane_state->cm;
-	struct mpc *mpc = dc->res_pool->mpc;
 	int mpcc_id = hubp->inst;
-	bool result;
+	struct mpc *mpc = dc->res_pool->mpc;
+	union mcm_lut_params m_lut_params;
+	const bool lut3d_dma = !!cm->flags.bits.lut3d_dma_enable;
+	enum hubp_3dlut_fl_format format = 0;
+	enum hubp_3dlut_fl_mode mode;
+	/* Width was previously hard-coded to TRANSFORMED via local_mcm build,
+	 * preserve identical behavior.
+	 */
+	enum hubp_3dlut_fl_width width = hubp_3dlut_fl_width_transformed;
+	enum hubp_3dlut_fl_addressing_mode addr_mode;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
+	enum MCM_LUT_XABLE shaper_xable = MCM_LUT_DISABLE;
+	enum MCM_LUT_XABLE lut3d_xable = MCM_LUT_DISABLE;
+	enum MCM_LUT_XABLE lut1d_xable = MCM_LUT_DISABLE;
+	bool rval;
 
-	/* MCM */
-	result = dcn401_set_mcm_luts(pipe_ctx, plane_state);
+	dcn42_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
-	/* RMCM */
-	if (cm->flags.bits.rmcm_enable && cm->flags.bits.lut3d_dma_enable) {
-		/* TODO - move RMCM to its own block */
+	//MCM - setting its location (Before/After) blender
+	//mpc_mcm_post_blend was previously zero-initialized in local_mcm,
+	//preserve identical behavior.
+	dcn42_set_mcm_location_post_blend(
+		dc,
+		pipe_ctx,
+		false);
+
+	//RMCM - 3dLUT+Shaper
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+	if (cm->flags.bits.rmcm_enable &&
+		is_rmcm_3dlut_fl_supported(dc)) {
 		dcn42_program_rmcm_luts(
 			hubp,
 			pipe_ctx,
 			cm,
 			mpc,
+			lut_bank_a,
 			mpcc_id);
+	}
+#endif /* CONFIG_DRM_AMD_DC_DCN4_2 */
+
+	/* 1D LUT */
+	{
+		memset(&m_lut_params, 0, sizeof(m_lut_params));
+		if (cm->blend_func.type == TF_TYPE_HWPWL)
+			m_lut_params.pwl = &cm->blend_func.pwl;
+		else if (cm->blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+			rval = cm3_helper_translate_curve_to_hw_format(mpc->ctx,
+					&cm->blend_func,
+					&dpp_base->regamma_params, false);
+			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
+		}
+		if (m_lut_params.pwl) {
+			if (mpc->funcs->populate_lut)
+				mpc->funcs->populate_lut(mpc, MCM_LUT_1DLUT, m_lut_params, lut_bank_a, mpcc_id);
+		}
+		if (mpc->funcs->program_lut_mode)
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable && m_lut_params.pwl, lut_bank_a, mpcc_id);
+	}
+
+	/* Shaper */
+	if (cm->flags.bits.lut3d_enable) {
+		memset(&m_lut_params, 0, sizeof(m_lut_params));
+		if (cm->shaper_func.type == TF_TYPE_HWPWL)
+			m_lut_params.pwl = &cm->shaper_func.pwl;
+		else if (cm->shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+			ASSERT(false);
+			rval = cm3_helper_translate_curve_to_hw_format(mpc->ctx,
+					&cm->shaper_func,
+					&dpp_base->regamma_params, true);
+			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
+		}
+		if (m_lut_params.pwl) {
+			if (mpc->funcs->mcm.populate_lut)
+				mpc->funcs->mcm.populate_lut(mpc, m_lut_params, lut_bank_a, mpcc_id);
+			if (mpc->funcs->program_lut_mode)
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, MCM_LUT_ENABLE, lut_bank_a, mpcc_id);
+		}
+	}
+
+	/* 3DLUT */
+	if (!lut3d_dma) {
+		/* SYSMEM (legacy lut3d_func) */
+		memset(&m_lut_params, 0, sizeof(m_lut_params));
+		if (hubp->funcs->hubp_enable_3dlut_fl)
+			hubp->funcs->hubp_enable_3dlut_fl(hubp, false);
+
+		if (cm->lut3d_func.state.bits.initialized) {
+			m_lut_params.lut3d = &cm->lut3d_func.lut_3d;
+			if (mpc->funcs->populate_lut)
+				mpc->funcs->populate_lut(mpc, MCM_LUT_3DLUT, m_lut_params, lut_bank_a, mpcc_id);
+			if (mpc->funcs->program_lut_mode)
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_3DLUT, lut3d_xable, lut_bank_a,
+						mpcc_id);
+		}
+	} else {
+		/* VIDMEM (3DLUT DMA Fast Load) */
+
+		//check for support
+		if (mpc->funcs->mcm.is_config_supported &&
+			!mpc->funcs->mcm.is_config_supported(width))
+			return;
+
+		if (mpc->funcs->program_lut_read_write_control)
+			mpc->funcs->program_lut_read_write_control(mpc, MCM_LUT_3DLUT, lut_bank_a, mpcc_id);
+		if (mpc->funcs->program_lut_mode)
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_3DLUT, lut3d_xable, lut_bank_a, mpcc_id);
+
+		if (hubp->funcs->hubp_program_3dlut_fl_addr)
+			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, cm->lut3d_dma.addr);
+
+		/* bit_depth was previously zero-initialized in local_mcm,
+		 * preserve identical behavior.
+		 */
+		if (mpc->funcs->mcm.program_bit_depth)
+			mpc->funcs->mcm.program_bit_depth(mpc, 0, mpcc_id);
+
+		switch (cm->lut3d_dma.swizzle) {
+		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
+			mode = hubp_3dlut_fl_mode_native_1;
+			addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+			break;
+		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
+			mode = hubp_3dlut_fl_mode_native_2;
+			addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+			break;
+		case CM_LUT_1D_PACKED_LINEAR:
+			mode = hubp_3dlut_fl_mode_transform;
+			addr_mode = hubp_3dlut_fl_addressing_mode_simple_linear;
+			break;
+		default:
+			mode = hubp_3dlut_fl_mode_disable;
+			addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
+			break;
+		}
+		if (hubp->funcs->hubp_program_3dlut_fl_mode)
+			hubp->funcs->hubp_program_3dlut_fl_mode(hubp, mode);
+
+		if (hubp->funcs->hubp_program_3dlut_fl_addressing_mode)
+			hubp->funcs->hubp_program_3dlut_fl_addressing_mode(hubp, addr_mode);
+
+		switch (cm->lut3d_dma.format) {
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB:
+			format = hubp_3dlut_fl_format_unorm_12msb_bitslice;
+			break;
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB:
+			format = hubp_3dlut_fl_format_unorm_12lsb_bitslice;
+			break;
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10:
+			format = hubp_3dlut_fl_format_float_fp1_5_10;
+			break;
+		default:
+			break;
+		}
+		if (hubp->funcs->hubp_program_3dlut_fl_format)
+			hubp->funcs->hubp_program_3dlut_fl_format(hubp, format);
+		if (hubp->funcs->hubp_update_3dlut_fl_bias_scale &&
+				mpc->funcs->mcm.program_bias_scale) {
+			mpc->funcs->mcm.program_bias_scale(mpc,
+				cm->lut3d_dma.bias,
+				cm->lut3d_dma.scale,
+				mpcc_id);
+			hubp->funcs->hubp_update_3dlut_fl_bias_scale(hubp,
+				cm->lut3d_dma.bias,
+				cm->lut3d_dma.scale);
+		}
+
+		/* component_order was previously hard-coded to RGBA in local_mcm,
+		 * preserve identical behavior.
+		 */
+		crossbar_bit_slice_cr_r = hubp_3dlut_fl_crossbar_bit_slice_0_15;
+		crossbar_bit_slice_y_g = hubp_3dlut_fl_crossbar_bit_slice_16_31;
+		crossbar_bit_slice_cb_b = hubp_3dlut_fl_crossbar_bit_slice_32_47;
+
+		if (hubp->funcs->hubp_program_3dlut_fl_crossbar)
+			hubp->funcs->hubp_program_3dlut_fl_crossbar(hubp,
+					crossbar_bit_slice_cr_r,
+					crossbar_bit_slice_y_g,
+					crossbar_bit_slice_cb_b);
+
+		if (mpc->funcs->mcm.program_lut_read_write_control)
+			mpc->funcs->mcm.program_lut_read_write_control(mpc, MCM_LUT_3DLUT, lut_bank_a, true, mpcc_id);
+
+		if (mpc->funcs->mcm.program_3dlut_size)
+			mpc->funcs->mcm.program_3dlut_size(mpc, width, mpcc_id);
+
+		if (mpc->funcs->update_3dlut_fast_load_select)
+			mpc->funcs->update_3dlut_fast_load_select(mpc, mpcc_id, hubp->inst);
+
+		if (hubp->funcs->hubp_enable_3dlut_fl)
+			hubp->funcs->hubp_enable_3dlut_fl(hubp, true);
+		else {
+			if (mpc->funcs->program_lut_mode) {
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_SHAPER, MCM_LUT_DISABLE, lut_bank_a, mpcc_id);
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_3DLUT, MCM_LUT_DISABLE, lut_bank_a, mpcc_id);
+				mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, MCM_LUT_DISABLE, lut_bank_a, mpcc_id);
+			}
+		}
+	}
+}
+
+bool dcn42_set_mcm_luts(struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state)
+{
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct dc *dc = pipe_ctx->stream_res.opp->ctx->dc;
+	struct mpc *mpc = dc->res_pool->mpc;
+	bool result;
+	const struct pwl_params *lut_params = NULL;
+	bool rval;
+
+	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
+		dcn42_populate_mcm_luts(dc, pipe_ctx, &plane_state->cm, plane_state->lut_bank_a);
+		return true;
+	}
+
+	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
+	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
+	// 1D LUT
+	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
+		lut_params = &plane_state->cm.blend_func.pwl;
+	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+		rval = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
+				&plane_state->cm.blend_func,
+				&dpp_base->regamma_params, false);
+		lut_params = rval ? &dpp_base->regamma_params : NULL;
+	}
+	result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
+	lut_params = NULL;
+
+	// Shaper
+	if (plane_state->cm.shaper_func.type == TF_TYPE_HWPWL)
+		lut_params = &plane_state->cm.shaper_func.pwl;
+	else if (plane_state->cm.shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+		// TODO: dpp_base replace
+		rval = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
+				&plane_state->cm.shaper_func,
+				&dpp_base->shaper_params, true);
+		lut_params = rval ? &dpp_base->shaper_params : NULL;
+	}
+	result &= mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
+
+	// 3D
+	if (mpc->funcs->program_3dlut) {
+		if (plane_state->cm.lut3d_func.state.bits.initialized == 1)
+			result &= mpc->funcs->program_3dlut(mpc, &plane_state->cm.lut3d_func.lut_3d, mpcc_id);
+		else
+			result &= mpc->funcs->program_3dlut(mpc, NULL, mpcc_id);
 	}
 
 	return result;
@@ -519,6 +952,7 @@ bool dcn42_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 void dcn42_hardware_release(struct dc *dc)
 {
 	dcn35_hardware_release(dc);
+	dc_dmub_srv_release_hw(dc);
 
 }
 static int count_active_streams(const struct dc *dc)
@@ -540,11 +974,20 @@ void dcn42_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 {
 	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
-	int i = 0, j = 0;
+	unsigned int i = 0;
+	int j = 0;
 
 	memset(update_state, 0, sizeof(struct pg_block_update));
 
 	update_state->pg_res_update[PG_DIO] = true;
+
+	for (i = 0; i < dc->res_pool->hpo_frl_stream_enc_count; i++) {
+		if (context->res_ctx.is_hpo_frl_stream_enc_acquired[i] &&
+				dc->res_pool->hpo_frl_stream_enc[i]) {
+			hpo_frl_stream_enc_acquired = true;
+			break;
+		}
+	}
 
 	for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++) {
 		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i] &&
@@ -591,11 +1034,14 @@ void dcn42_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		if (pipe_ctx->link_res.dio_link_enc) {
 			update_state->pg_res_update[PG_DIO] = false;
 		}
-		if (pipe_ctx->link_res.hpo_dp_link_enc) {
+		if (pipe_ctx->link_res.hpo_dp_link_enc
+		    || pipe_ctx->link_res.hpo_frl_link_enc) {
 			update_state->pg_res_update[PG_HPO] = false;
 		}
 	}
 
+	if (hpo_frl_stream_enc_acquired)
+		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = false;
 
 	for (i = 0; i < dc->link_count; i++) {
 		update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = true;
@@ -615,6 +1061,12 @@ void dcn42_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		}
 	}
 
+	for (i = 0; i < dc->res_pool->hpo_frl_stream_enc_count; i++) {
+		if (dc->current_state->res_ctx.is_hpo_frl_stream_enc_acquired[i]) {
+			update_state->pg_res_update[PG_HPO] = false;
+			break;
+		}
+	}
 }
 
 void dcn42_prepare_bandwidth(
@@ -662,8 +1114,10 @@ void dcn42_optimize_bandwidth(struct dc *dc, struct dc_state *context)
 void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state)
 {
+	bool hpo_frl_stream_enc_acquired = false;
 	bool hpo_dp_stream_enc_acquired = false;
-	int i = 0, j = 0;
+	unsigned int i = 0;
+	int j = 0;
 
 	memset(update_state, 0, sizeof(struct pg_block_update));
 
@@ -747,6 +1201,14 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 			break;
 		}
 	}
+	for (i = 0; i < dc->res_pool->hpo_frl_stream_enc_count; i++) {
+		if (context->res_ctx.is_hpo_frl_stream_enc_acquired[i] &&
+				dc->res_pool->hpo_frl_stream_enc[i]) {
+			hpo_frl_stream_enc_acquired = true;
+			break;
+		}
+	}
+
 	for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++) {
 		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i] &&
 				dc->res_pool->hpo_dp_stream_enc[i]) {
@@ -755,9 +1217,11 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		}
 	}
 
-	if (hpo_dp_stream_enc_acquired)
+	if (hpo_frl_stream_enc_acquired || hpo_dp_stream_enc_acquired)
 		update_state->pg_res_update[PG_HPO] = true;
 
+	if (hpo_frl_stream_enc_acquired)
+		update_state->pg_pipe_res_update[PG_HDMISTREAM][0] = true;
 	if (count_active_streams(dc) > 0) {
 		update_state->pg_res_update[PG_DCCG] = true;
 		update_state->pg_res_update[PG_DCIO] = true;
@@ -795,6 +1259,7 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state)
 {
 	int i = 0;
+	int pipe_count = dc->res_pool->pipe_count;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 	bool block_disabled = true;
 
@@ -808,7 +1273,7 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 			pg_cntl->funcs->hpo_pg_control(pg_cntl, false);
 	}
 
-	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+	for (i = pipe_count - 1; i >= 0; i--) {
 		if (update_state->pg_pipe_res_update[PG_HUBP][i] &&
 			update_state->pg_pipe_res_update[PG_DPP][i]) {
 			if (pg_cntl->funcs->hubp_dpp_pg_control)
@@ -828,7 +1293,7 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		}
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+	for (i = 0; i < pipe_count; i++) {
 		if (!update_state->pg_pipe_res_update[PG_MPCC][i] ||
 			!update_state->pg_pipe_res_update[PG_OPP][i] ||
 			!update_state->pg_pipe_res_update[PG_OPTC][i]) {
@@ -883,7 +1348,7 @@ void dcn42_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 void dcn42_hw_block_power_up(struct dc *dc,
 	struct pg_block_update *update_state)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 	bool block_enabled = false;
 
@@ -917,7 +1382,7 @@ void dcn42_hw_block_power_up(struct dc *dc,
 			pg_cntl->funcs->plane_otg_pg_control(pg_cntl, true);
 	}
 
-	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+	for (i = 0; i < (unsigned int)dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
 			if (pg_cntl->funcs->dsc_pg_control)
 				pg_cntl->funcs->dsc_pg_control(pg_cntl, i, true);
@@ -944,7 +1409,7 @@ void dcn42_hw_block_power_up(struct dc *dc,
 void dcn42_root_clock_control(struct dc *dc,
 	struct pg_block_update *update_state, bool power_on)
 {
-	int i = 0;
+	unsigned int i = 0;
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 
 	if (!pg_cntl)
@@ -967,8 +1432,11 @@ void dcn42_root_clock_control(struct dc *dc,
 				if (dc->hwseq->funcs.physymclk_root_clock_control)
 					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
 
+		if (update_state->pg_pipe_res_update[PG_HDMISTREAM][0])
+			if (dc->hwseq->funcs.hdmistream_root_clock_control)
+				dc->hwseq->funcs.hdmistream_root_clock_control(dc->hwseq, power_on);
 	}
-	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+	for (i = 0; i < (unsigned int)dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
 			if (power_on) {
 				if (dc->res_pool->dccg->funcs->enable_dsc)
@@ -997,6 +1465,9 @@ void dcn42_root_clock_control(struct dc *dc,
 				if (dc->hwseq->funcs.physymclk_root_clock_control)
 					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
 
+		if (update_state->pg_pipe_res_update[PG_HDMISTREAM][0])
+			if (dc->hwseq->funcs.hdmistream_root_clock_control)
+				dc->hwseq->funcs.hdmistream_root_clock_control(dc->hwseq, power_on);
 	}
 }
 void dcn42_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)

@@ -28,7 +28,9 @@
 #define __DAL_CLK_MGR_H__
 
 #include "dc.h"
+#include "core_types.h"
 #include "dm_pp_smu.h"
+struct utm_qos_model;
 
 /* Constants */
 #define DDR4_DRAM_WIDTH   64
@@ -114,6 +116,27 @@ struct dcn42_clk_internal {
 	uint32_t CLK8_CLK3_BYPASS_CNTL; //dcfclk bypass
 	uint32_t CLK8_CLK4_BYPASS_CNTL; //dtbclk bypass
 	uint32_t CLK8_CLK_TICK_CNT__TIMER_THRESHOLD;
+};
+
+struct dcn42b_clk_internal {
+	int dummy;
+	uint32_t CLK5_CLK0_CURRENT_CNT; //dispclk
+	uint32_t CLK5_CLK1_CURRENT_CNT; //dppclk
+	uint32_t CLK5_CLK2_CURRENT_CNT; //dprefclk
+	uint32_t CLK5_CLK3_CURRENT_CNT; //dcfclk
+	//uint32_t CLK5_CLK4_CURRENT_CNT; //dtbclk
+	uint32_t CLK5_CLK0_DS_CNTL;	    //dispclk deep_sleep_divider
+	uint32_t CLK5_CLK1_DS_CNTL;	    //dppclk deep_sleep_divider
+	uint32_t CLK5_CLK2_DS_CNTL;	    //dprefclk deep_sleep_divider
+	uint32_t CLK5_CLK3_DS_CNTL;	    //dcfclk deep_sleep_divider
+	uint32_t CLK5_CLK3_ALLOW_DS;	//dcf_deep_sleep_allow
+	//uint32_t CLK8_CLK4_DS_CNTL;	    //dtbclk deep_sleep_divider
+	uint32_t CLK5_CLK0_BYPASS_CNTL; //dispclk bypass
+	uint32_t CLK5_CLK1_BYPASS_CNTL; //dppclk bypass
+	uint32_t CLK5_CLK2_BYPASS_CNTL; //dprefclk bypass
+	uint32_t CLK5_CLK3_BYPASS_CNTL; //dcfclk bypass
+	//uint32_t CLK5_CLK4_BYPASS_CNTL; //dtbclk bypass
+	uint32_t CLK5_CLK_TICK_CNT__TIMER_THRESHOLD;
 };
 
 /* Will these bw structures be ASIC specific? */
@@ -289,12 +312,15 @@ struct clk_bw_params {
 	struct wm_table wm_table;
 	struct dummy_pstate_entry dummy_pstate_table[4];
 	struct clk_limit_table_entry dc_mode_limit;
+	const struct utm_qos_model *utm_qos_model;
 };
 /* Public interfaces */
 
 struct clk_states {
 	uint32_t dprefclk_khz;
 };
+
+struct block_sequence_state;
 
 struct clk_mgr_funcs {
 	/*
@@ -314,6 +340,8 @@ struct clk_mgr_funcs {
 	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
 	void (*exit_low_power_state)(struct clk_mgr *clk_mgr);
 	bool (*is_ips_supported)(struct clk_mgr *clk_mgr);
+
+	void (*set_idle_power_optimizations)(struct clk_mgr *clk_mgr, bool enable);
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
@@ -362,6 +390,33 @@ struct clk_mgr_funcs {
 	uint32_t (*set_smartmux_switch)(struct clk_mgr *clk_mgr, uint32_t pins_to_set);
 
 	unsigned int (*get_max_clock_khz)(struct clk_mgr *clk_mgr_base, enum clk_type clk_type);
+	/**
+	 * override_memory_bandwidth_request - Override the DCN nominal memory
+	 *     bandwidth request sent to PMFW, independent of the current display
+	 *     mode. For debug use only.
+	 * @clk_mgr: clock manager instance
+	 * @bw_kbps: requested bandwidth in kbps; 0 clears the override
+	 *
+	 * Return: capped bandwidth value actually applied (kbps)
+	 */
+	unsigned int (*override_memory_bandwidth_request)(
+			struct clk_mgr *clk_mgr,
+			unsigned int bw_kbps);
+	/**
+	 * get_requested_memory_qos - Retrieve current QoS request from the clock manager's
+	 *     current clock state, reflecting any active bandwidth overrides.
+	 * @clk_mgr: clock manager instance
+	 * @qos: pointer to dc_requested_memory_qos structure to populate
+	 */
+	void (*get_requested_memory_qos)(
+			struct clk_mgr *clk_mgr,
+			struct dc_requested_memory_qos *qos);
+
+	void (*build_clock_update_for_bls)(struct clk_mgr *clk_mgr,
+			struct dc_state *context, bool safe_to_lower,
+			struct block_sequence_state *seq_state);
+
+	void (*execute_clk_mgr_block_sequence)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {

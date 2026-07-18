@@ -27,8 +27,10 @@ static struct sk_buff *hellcreek_xmit(struct sk_buff *skb,
 	 * checksums after the switch strips the tag.
 	 */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
-	    skb_checksum_help(skb))
+	    skb_checksum_help(skb)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* Tag encoding */
 	tag  = skb_put(skb, HELLCREEK_TAG_LEN);
@@ -47,11 +49,14 @@ static struct sk_buff *hellcreek_rcv(struct sk_buff *skb,
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
 	if (!skb->dev) {
 		netdev_warn_once(dev, "Failed to get source port: %d\n", port);
+		kfree_skb(skb);
 		return NULL;
 	}
 
-	if (pskb_trim_rcsum(skb, skb->len - HELLCREEK_TAG_LEN))
+	if (pskb_trim_rcsum(skb, skb->len - HELLCREEK_TAG_LEN)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	dsa_default_offload_fwd_mark(skb);
 

@@ -7,7 +7,6 @@
 
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 
 #include "pmbus.h"
@@ -46,7 +45,7 @@ static int max17616_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max17616_id[] = {
-	{ "max17616" },
+	{ .name = "max17616" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max17616_id);

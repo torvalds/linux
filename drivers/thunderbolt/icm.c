@@ -587,6 +587,11 @@ static int icm_fr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 	struct icm_fr_pkg_approve_xdomain request;
 	int ret;
 
+	if (atomic_read(&xd->ntunnels) >= 1) {
+		tb_warn(tb, "only one tunnel is supported by the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
 	memset(&request, 0, sizeof(request));
 	request.hdr.code = ICM_APPROVE_XDOMAIN;
 	request.link_info = xd->depth << ICM_LINK_INFO_DEPTH_SHIFT | xd->link;
@@ -738,6 +743,7 @@ static void remove_xdomain(struct tb_xdomain *xd)
 
 	sw = tb_to_switch(xd->dev.parent);
 	tb_port_at(xd->route, sw)->xdomain = NULL;
+	xd->is_unplugged = true;
 	tb_xdomain_remove(xd);
 }
 
@@ -1157,6 +1163,11 @@ static int icm_tr_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 	struct icm_tr_pkg_approve_xdomain request;
 	int ret;
 
+	if (atomic_read(&xd->ntunnels) >= 1) {
+		tb_warn(tb, "only one tunnel is supported by the firmware\n");
+		return -EOPNOTSUPP;
+	}
+
 	memset(&request, 0, sizeof(request));
 	request.hdr.code = ICM_APPROVE_XDOMAIN;
 	request.route_hi = upper_32_bits(xd->route);
@@ -1455,6 +1466,7 @@ static struct pci_dev *get_upstream_port(struct pci_dev *pdev)
 
 static bool icm_ar_is_supported(struct tb *tb)
 {
+	struct pci_dev *pdev = to_pci_dev(tb->nhi->dev);
 	struct pci_dev *upstream_port;
 	struct icm *icm = tb_priv(tb);
 
@@ -1472,7 +1484,7 @@ static bool icm_ar_is_supported(struct tb *tb)
 	 * Find the upstream PCIe port in case we need to do reset
 	 * through its vendor specific registers.
 	 */
-	upstream_port = get_upstream_port(tb->nhi->pdev);
+	upstream_port = get_upstream_port(pdev);
 	if (upstream_port) {
 		int cap;
 
@@ -1508,7 +1520,7 @@ static int icm_ar_get_mode(struct tb *tb)
 	} while (--retries);
 
 	if (!retries) {
-		dev_err(&nhi->pdev->dev, "ICM firmware not authenticated\n");
+		dev_err(nhi->dev, "ICM firmware not authenticated\n");
 		return -ENODEV;
 	}
 
@@ -1674,11 +1686,11 @@ icm_icl_driver_ready(struct tb *tb, enum tb_security_level *security_level,
 
 static void icm_icl_set_uuid(struct tb *tb)
 {
-	struct tb_nhi *nhi = tb->nhi;
+	struct pci_dev *pdev = to_pci_dev(tb->nhi->dev);
 	u32 uuid[4];
 
-	pci_read_config_dword(nhi->pdev, VS_CAP_10, &uuid[0]);
-	pci_read_config_dword(nhi->pdev, VS_CAP_11, &uuid[1]);
+	pci_read_config_dword(pdev, VS_CAP_10, &uuid[0]);
+	pci_read_config_dword(pdev, VS_CAP_11, &uuid[1]);
 	uuid[2] = 0xffffffff;
 	uuid[3] = 0xffffffff;
 
@@ -1762,6 +1774,8 @@ static void icm_handle_notification(struct work_struct *work)
 
 	kfree(n->pkg);
 	kfree(n);
+
+	tb_domain_unregister_unplugged_xdomains(tb);
 }
 
 static void icm_handle_event(struct tb *tb, enum tb_cfg_pkg_type type,
@@ -1853,7 +1867,7 @@ static int icm_firmware_start(struct tb *tb, struct tb_nhi *nhi)
 	if (icm_firmware_running(nhi))
 		return 0;
 
-	dev_dbg(&nhi->pdev->dev, "starting ICM firmware\n");
+	dev_dbg(nhi->dev, "starting ICM firmware\n");
 
 	ret = icm_firmware_reset(tb, nhi);
 	if (ret)
@@ -1948,7 +1962,7 @@ static int icm_firmware_init(struct tb *tb)
 
 	ret = icm_firmware_start(tb, nhi);
 	if (ret) {
-		dev_err(&nhi->pdev->dev, "could not start ICM firmware\n");
+		dev_err(nhi->dev, "could not start ICM firmware\n");
 		return ret;
 	}
 
@@ -1980,10 +1994,10 @@ static int icm_firmware_init(struct tb *tb)
 	 */
 	ret = icm_reset_phy_port(tb, 0);
 	if (ret)
-		dev_warn(&nhi->pdev->dev, "failed to reset links on port0\n");
+		dev_warn(nhi->dev, "failed to reset links on port0\n");
 	ret = icm_reset_phy_port(tb, 1);
 	if (ret)
-		dev_warn(&nhi->pdev->dev, "failed to reset links on port1\n");
+		dev_warn(nhi->dev, "failed to reset links on port1\n");
 
 	return 0;
 }
@@ -2112,6 +2126,8 @@ static void icm_rescan_work(struct work_struct *work)
 	if (tb->root_switch)
 		icm_free_unplugged_children(tb->root_switch);
 	mutex_unlock(&tb->lock);
+
+	tb_domain_unregister_unplugged_xdomains(tb);
 }
 
 static void icm_complete(struct tb *tb)
@@ -2462,6 +2478,7 @@ static const struct tb_cm_ops icm_icl_ops = {
 
 struct tb *icm_probe(struct tb_nhi *nhi)
 {
+	struct pci_dev *pdev = to_pci_dev(nhi->dev);
 	struct icm *icm;
 	struct tb *tb;
 
@@ -2473,7 +2490,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	INIT_DELAYED_WORK(&icm->rescan_work, icm_rescan_work);
 	mutex_init(&icm->request_lock);
 
-	switch (nhi->pdev->device) {
+	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_NHI:
 	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_NHI:
 		icm->can_upgrade_nvm = true;
@@ -2579,7 +2596,7 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	}
 
 	if (!icm->is_supported || !icm->is_supported(tb)) {
-		dev_dbg(&nhi->pdev->dev, "ICM not supported on this controller\n");
+		dev_dbg(nhi->dev, "ICM not supported on this controller\n");
 		tb_domain_put(tb);
 		return NULL;
 	}

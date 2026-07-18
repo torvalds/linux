@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #include <linux/iio/iio.h>
@@ -199,9 +198,9 @@ static int adc081c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adc081c_id[] = {
-	{ "adc081c", (kernel_ulong_t)&adc081c_model },
-	{ "adc101c", (kernel_ulong_t)&adc101c_model },
-	{ "adc121c", (kernel_ulong_t)&adc121c_model },
+	{ .name = "adc081c", .driver_data = (kernel_ulong_t)&adc081c_model },
+	{ .name = "adc101c", .driver_data = (kernel_ulong_t)&adc101c_model },
+	{ .name = "adc121c", .driver_data = (kernel_ulong_t)&adc121c_model },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);

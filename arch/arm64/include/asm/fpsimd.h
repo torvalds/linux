@@ -22,6 +22,11 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
+#define __FPSIMD_PREAMBLE	".arch_extension fp\n" \
+				".arch_extension simd\n"
+#define __SVE_PREAMBLE		".arch_extension sve\n"
+#define __SME_PREAMBLE		".arch_extension sme\n"
+
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
 #define VFP_FPSCR_STAT_MASK	0xf800009f
 #define VFP_FPSCR_CTRL_MASK	0x07f79f00
@@ -71,8 +76,82 @@ static inline void cpacr_restore(unsigned long cpacr)
 
 struct task_struct;
 
-extern void fpsimd_save_state(struct user_fpsimd_state *state);
-extern void fpsimd_load_state(struct user_fpsimd_state *state);
+static inline void fpsimd_save_common(struct user_fpsimd_state *state)
+{
+	state->fpsr = read_sysreg_s(SYS_FPSR);
+	state->fpcr = read_sysreg_s(SYS_FPCR);
+}
+
+static inline void fpsimd_load_common(const struct user_fpsimd_state *state)
+{
+	write_sysreg_s(state->fpsr, SYS_FPSR);
+	write_sysreg_s(state->fpcr, SYS_FPCR);
+}
+
+static inline void fpsimd_save_vregs(struct user_fpsimd_state *state)
+{
+	instrument_write(state->vregs, sizeof(state->vregs));
+	asm volatile(
+	__FPSIMD_PREAMBLE
+	"	stp	q0,  q1,  [%[vregs], #16 * 0]\n"
+	"	stp	q2,  q3,  [%[vregs], #16 * 2]\n"
+	"	stp	q4,  q5,  [%[vregs], #16 * 4]\n"
+	"	stp	q6,  q7,  [%[vregs], #16 * 6]\n"
+	"	stp	q8,  q9,  [%[vregs], #16 * 8]\n"
+	"	stp	q10, q11, [%[vregs], #16 * 10]\n"
+	"	stp	q12, q13, [%[vregs], #16 * 12]\n"
+	"	stp	q14, q15, [%[vregs], #16 * 14]\n"
+	"	stp	q16, q17, [%[vregs], #16 * 16]\n"
+	"	stp	q18, q19, [%[vregs], #16 * 18]\n"
+	"	stp	q20, q21, [%[vregs], #16 * 20]\n"
+	"	stp	q22, q23, [%[vregs], #16 * 22]\n"
+	"	stp	q24, q25, [%[vregs], #16 * 24]\n"
+	"	stp	q26, q27, [%[vregs], #16 * 26]\n"
+	"	stp	q28, q29, [%[vregs], #16 * 28]\n"
+	"	stp	q30, q31, [%[vregs], #16 * 30]\n"
+	: "=Q" (state->vregs)
+	: [vregs] "r" (state->vregs)
+	);
+}
+
+static inline void fpsimd_load_vregs(const struct user_fpsimd_state *state)
+{
+	instrument_read(state->vregs, sizeof(state->vregs));
+	asm volatile(
+	__FPSIMD_PREAMBLE
+	"	ldp	q0,  q1,  [%[vregs], #16 * 0]\n"
+	"	ldp	q2,  q3,  [%[vregs], #16 * 2]\n"
+	"	ldp	q4,  q5,  [%[vregs], #16 * 4]\n"
+	"	ldp	q6,  q7,  [%[vregs], #16 * 6]\n"
+	"	ldp	q8,  q9,  [%[vregs], #16 * 8]\n"
+	"	ldp	q10, q11, [%[vregs], #16 * 10]\n"
+	"	ldp	q12, q13, [%[vregs], #16 * 12]\n"
+	"	ldp	q14, q15, [%[vregs], #16 * 14]\n"
+	"	ldp	q16, q17, [%[vregs], #16 * 16]\n"
+	"	ldp	q18, q19, [%[vregs], #16 * 18]\n"
+	"	ldp	q20, q21, [%[vregs], #16 * 20]\n"
+	"	ldp	q22, q23, [%[vregs], #16 * 22]\n"
+	"	ldp	q24, q25, [%[vregs], #16 * 24]\n"
+	"	ldp	q26, q27, [%[vregs], #16 * 26]\n"
+	"	ldp	q28, q29, [%[vregs], #16 * 28]\n"
+	"	ldp	q30, q31, [%[vregs], #16 * 30]\n"
+	:
+	: "Q" (state->vregs),
+	  [vregs] "r" (state->vregs)
+	);
+}
+
+static inline void fpsimd_save_state(struct user_fpsimd_state *state)
+{
+	fpsimd_save_vregs(state);
+	fpsimd_save_common(state);
+}
+
+static inline void fpsimd_load_state(const struct user_fpsimd_state *state)
+{
+	fpsimd_load_vregs(state);
+	fpsimd_load_common(state);
+}
 
 extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
@@ -83,8 +162,8 @@ extern void fpsimd_update_current_state(struct user_fpsimd_state const *state);
 
 struct cpu_fp_state {
 	struct user_fpsimd_state *st;
-	void *sve_state;
-	void *sme_state;
+	struct arm64_sve_state *sve_state;
+	struct arm64_sme_state *sme_state;
 	u64 *svcr;
 	u64 *fpmr;
 	unsigned int sve_vl;
@@ -116,40 +195,166 @@ extern void task_smstop_sm(struct task_struct *task);
 /* Maximum VL that SVE/SME VL-agnostic software can transparently support */
 #define VL_ARCH_MAX 0x100
 
-/* Offset of FFR in the SVE register dump */
-static inline size_t sve_ffr_offset(int vl)
-{
-	return SVE_SIG_FFR_OFFSET(sve_vq_from_vl(vl)) - SVE_SIG_REGS_OFFSET;
-}
-
-static inline void *sve_pffr(struct thread_struct *thread)
-{
-	unsigned int vl;
-
-	if (system_supports_sme() && thread_sm_enabled(thread))
-		vl = thread_get_sme_vl(thread);
-	else
-		vl = thread_get_sve_vl(thread);
-
-	return (char *)thread->sve_state + sve_ffr_offset(vl);
-}
-
 static inline void *thread_zt_state(struct thread_struct *thread)
 {
 	/* The ZT register state is stored immediately after the ZA state */
 	unsigned int sme_vq = sve_vq_from_vl(thread_get_sme_vl(thread));
-	return thread->sme_state + ZA_SIG_REGS_SIZE(sme_vq);
+	return (void *)thread->sme_state + ZA_SIG_REGS_SIZE(sme_vq);
 }
 
-extern void sve_save_state(void *state, u32 *pfpsr, int save_ffr);
-extern void sve_load_state(void const *state, u32 const *pfpsr,
-			   int restore_ffr);
-extern void sve_flush_live(bool flush_ffr, unsigned long vq_minus_1);
-extern unsigned int sve_get_vl(void);
-extern void sve_set_vq(unsigned long vq_minus_1);
-extern void sme_set_vq(unsigned long vq_minus_1);
-extern void sme_save_state(void *state, int zt);
-extern void sme_load_state(void const *state, int zt);
+static inline unsigned int sve_get_vl(void)
+{
+	unsigned int vl;
+
+	asm volatile(
+	__SVE_PREAMBLE
+	"	rdvl %x[vl], #1\n"
+	: [vl] "=r" (vl)
+	);
+
+	return vl;
+}
+
+#define FOR_EACH_Z_REG(idx_str, asm_str)											\
+	"	.irp " idx_str ",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31\n"	\
+	asm_str	"\n"														\
+	"	.endr\n"
+
+#define FOR_EACH_P_REG(idx_str, asm_str)											\
+	"	.irp " idx_str ",0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15\n"	\
+	asm_str	"\n"								\
+	"	.endr\n"
+
+static inline void __sve_save_z(struct arm64_sve_state *state, unsigned long vl)
+{
+	instrument_write(state, SVE_NUM_ZREGS * vl);
+	asm volatile(
+	__SVE_PREAMBLE
+	FOR_EACH_Z_REG("n", "str	z\\n, [%[zregs], #\\n, MUL VL]")
+	:
+	: [zregs] "r" (state)
+	: "memory"
+	);
+}
+
+static inline void __sve_load_z(const struct arm64_sve_state *state, unsigned long vl)
+{
+	instrument_read(state, SVE_NUM_ZREGS * vl);
+	asm volatile(
+	__SVE_PREAMBLE
+	FOR_EACH_Z_REG("n", "ldr	z\\n, [%[zregs], #\\n, MUL VL]")
+	:
+	: [zregs] "r" (state)
+	: "memory"
+	);
+}
+
+static inline void __sve_save_p(struct arm64_sve_state *state, unsigned long vl, bool ffr)
+{
+	void *pregs = (void *)state + SVE_NUM_ZREGS * vl;
+	unsigned long pl = vl / 8;
+	void *pffr = pregs + SVE_NUM_PREGS * pl;
+
+	instrument_write(pregs, SVE_NUM_PREGS * pl);
+	asm volatile(
+	__SVE_PREAMBLE
+	FOR_EACH_P_REG("n", "str	p\\n, [%[pregs], #\\n, MUL VL]\n")
+	:
+	: [pregs] "r" (pregs)
+	: "memory"
+	);
+
+	instrument_write(pffr, pl);
+	if (ffr) {
+		asm volatile(
+		__SVE_PREAMBLE
+		"	rdffr	p0.b\n"
+		"	str	p0, [%[pffr]]\n"
+		"	ldr	p0, [%[pregs]]\n"
+		:
+		: [pregs] "r" (pregs),
+		  [pffr] "r" (pffr)
+		: "memory"
+		);
+	} else {
+		asm volatile(
+		__SVE_PREAMBLE
+		"	pfalse	p0.b\n"
+		"	str	p0, [%[pffr]]\n"
+		"	ldr	p0, [%[pregs]]\n"
+		:
+		: [pregs] "r" (pregs),
+		  [pffr] "r" (pffr)
+		: "memory"
+		);
+	}
+}
+
+static inline void __sve_load_p(const struct arm64_sve_state *state, unsigned long vl, bool ffr)
+{
+	const void *pregs = (const void *)state + SVE_NUM_ZREGS * vl;
+	unsigned long pl = vl / 8;
+	const void *pffr = pregs + SVE_NUM_PREGS * pl;
+
+	if (ffr) {
+		instrument_read(pffr, pl);
+		asm volatile(
+		__SVE_PREAMBLE
+		"	ldr	p0, [%[pffr]]\n"
+		"	wrffr	p0.b\n"
+		:
+		: [pffr] "r" (pffr)
+		: "memory"
+		);
+	}
+
+	instrument_read(pregs, SVE_NUM_PREGS * pl);
+	asm volatile(
+	__SVE_PREAMBLE
+	FOR_EACH_P_REG("n", "ldr	p\\n, [%[pregs], #\\n, MUL VL]\n")
+	:
+	: [pregs] "r" (pregs)
+	: "memory"
+	);
+}
+
+static inline void sve_save_state(struct arm64_sve_state *state, bool ffr)
+{
+	unsigned long vl = sve_get_vl();
+	__sve_save_z(state, vl);
+	__sve_save_p(state, vl, ffr);
+}
+
+static inline void sve_load_state(const struct arm64_sve_state *state, bool ffr)
+{
+	unsigned long vl = sve_get_vl();
+	__sve_load_z(state, vl);
+	__sve_load_p(state, vl, ffr);
+}
+
+/*
+ * Zero all SVE registers except for the first 128 bits of each vector.
+ *
+ * The caller must ensure that the VL has been configured and the CPU must be
+ * in non-streaming mode.
+ */
+static inline void sve_flush_live(void)
+{
+	unsigned long vl = sve_get_vl();
+
+	if (vl > sizeof(__uint128_t)) {
+		asm volatile(
+		__FPSIMD_PREAMBLE
+		FOR_EACH_Z_REG("n", "mov	v\\n\\().16b, v\\n\\().16b")
+		);
+	}
+
+	asm volatile(
+	__SVE_PREAMBLE
+	FOR_EACH_P_REG("n", "pfalse	p\\n\\().b")
+	"	wrffr	p0.b\n"
+	);
+}
 
 struct arm64_cpu_capabilities;
 extern void cpu_enable_fpsimd(const struct arm64_cpu_capabilities *__unused);
@@ -402,8 +607,20 @@ static inline int sme_max_virtualisable_vl(void)
 	return vec_max_virtualisable_vl(ARM64_VEC_SME);
 }
 
+static inline unsigned int sme_get_vl(void)
+{
+	unsigned int vl;
+
+	asm volatile(
+	__SME_PREAMBLE
+	"	rdsvl %x[vl], #1\n"
+	: [vl] "=r" (vl)
+	);
+
+	return vl;
+}
+
 extern void sme_alloc(struct task_struct *task, bool flush);
-extern unsigned int sme_get_vl(void);
 extern int sme_set_current_vl(unsigned long arg);
 extern int sme_get_current_vl(void);
 extern void sme_suspend_exit(void);
@@ -416,6 +633,106 @@ static inline size_t __sme_state_size(unsigned int sme_vl)
 		size += ZT_SIG_REG_SIZE;
 
 	return size;
+}
+
+static inline void __sme_save_za(struct arm64_sme_state *state, unsigned long svl)
+{
+	/*
+	 * The <Wv> argument to LDR/STR (array vector) can only encode W12-W15.
+	 * The "Ucj" constraint exists for this, but is only supported by GCC
+	 * 14.1.0+ and LLVM 18.1.0+.
+	 */
+	register unsigned int v asm ("w12");
+
+	instrument_write(state, svl * svl);
+	for (v = 0; v < svl; v++) {
+		void *pav = (void *)state + v * svl;
+
+		asm volatile(
+		__SME_PREAMBLE
+		"	str	za[%w[v], #0], [%[pav]]\n"
+		:
+		: [v] "r" (v),
+		  [pav] "r" (pav)
+		: "memory"
+		);
+	}
+}
+
+static inline void __sme_load_za(const struct arm64_sme_state *state, unsigned long svl)
+{
+	/* See comment in __sme_save_za */
+	register unsigned int v asm ("w12");
+
+	instrument_read(state, svl * svl);
+	for (v = 0; v < svl; v++) {
+		void *pav = (void *)state + v * svl;
+
+		asm volatile(
+		__SME_PREAMBLE
+		"	ldr	za[%w[v], #0], [%[pav]]\n"
+		:
+		: [v] "r" (v),
+		  [pav] "r" (pav)
+		: "memory"
+		);
+	}
+}
+
+static inline void __sme_save_zt(struct arm64_sme_state *state, unsigned long svl)
+{
+	void *pzt = (void *)state + svl * svl;
+
+	instrument_write(pzt, 64);
+	asm volatile(
+	__DEFINE_ASM_GPR_NUMS
+	/*
+	 * STR ZT0, [<Xn|SP>]
+	 * Supported by binutils 2.41+.
+	 * Supported by LLVM 16+
+	 */
+	"	.inst	0xe13f8000 | ((.L__gpr_num_%[pzt]) << 5)\n"
+	:
+	: [pzt] "r" (pzt)
+	: "memory"
+	);
+}
+
+static inline void __sme_load_zt(const struct arm64_sme_state *state, unsigned long svl)
+{
+	void *pzt = (void *)state + svl * svl;
+
+	instrument_read(pzt, 64);
+	asm volatile(
+	__DEFINE_ASM_GPR_NUMS
+	/*
+	 * LDR ZT0, [<Xn|SP>]
+	 * Supported by binutils 2.41+.
+	 * Supported by LLVM 16+
+	 */
+	"	.inst	0xe11f8000 | ((.L__gpr_num_%[pzt]) << 5)\n"
+	:
+	: [pzt] "r" (pzt)
+	: "memory"
+	);
+}
+
+static inline void sme_save_state(struct arm64_sme_state *state, bool zt)
+{
+	unsigned long svl = sme_get_vl();
+
+	__sme_save_za(state, svl);
+	if (zt)
+		__sme_save_zt(state, svl);
+}
+
+static inline void sme_load_state(const struct arm64_sme_state *state, bool zt)
+{
+	unsigned long svl = sme_get_vl();
+
+	__sme_load_za(state, svl);
+	if (zt)
+		__sme_load_zt(state, svl);
 }
 
 /*
@@ -473,6 +790,9 @@ static inline size_t sme_state_size(struct task_struct const *task)
 {
 	return 0;
 }
+
+static inline void sme_save_state(struct arm64_sme_state *state, bool zt) { BUILD_BUG(); }
+static inline void sme_load_state(const struct arm64_sme_state *state, bool zt) { BUILD_BUG(); }
 
 static inline void sme_enter_from_user_mode(void) { }
 static inline void sme_exit_to_user_mode(void) { }

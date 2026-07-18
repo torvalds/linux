@@ -1,5 +1,5 @@
 TODO
 =====
 
-1. Add tests for memblock_alloc_node() to check if the correct NUMA node is set
-   for the new region
+1. Add tests for memblock_alloc_low() once the simulator can model
+   ARCH_LOW_ADDRESS_LIMIT against the low memory in memory_block

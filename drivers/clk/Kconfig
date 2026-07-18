@@ -480,6 +480,12 @@ config COMMON_CLK_K210
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
 
+config COMMON_CLK_K230
+	bool "Clock driver for the Canaan Kendryte K230 SoC"
+	depends on ARCH_CANAAN || COMPILE_TEST
+	help
+	  Support for the Canaan Kendryte K230 RISC-V SoC clocks.
+
 config COMMON_CLK_SP7021
 	tristate "Clock driver for Sunplus SP7021 SoC"
 	depends on SOC_SP7021 || COMPILE_TEST

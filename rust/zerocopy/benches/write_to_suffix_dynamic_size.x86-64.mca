@@ -1,0 +1,79 @@
+Iterations:        100
+Instructions:      2000
+Total Cycles:      2890
+Total uOps:        2600
+
+Dispatch Width:    4
+uOps Per Cycle:    0.90
+IPC:               0.69
+Block RThroughput: 6.5
+
+
+Instruction Info:
+[1]: #uOps
+[2]: Latency
+[3]: RThroughput
+[4]: MayLoad
+[5]: MayStore
+[6]: HasSideEffects (U)
+
+[1]    [2]    [3]    [4]    [5]    [6]    Instructions:
+ 2      5     1.00           *            push	r14
+ 2      5     1.00           *            push	rbx
+ 2      5     1.00           *            push	rax
+ 1      1     0.33                        mov	rbx, rcx
+ 1      1     0.50                        lea	r14, [2*rsi + 5]
+ 1      1     0.33                        and	r14, -2
+ 1      1     0.33                        sub	rcx, r14
+ 1      1     1.00                        jb	.LBB5_2
+ 1      1     0.33                        mov	rax, rdi
+ 1      1     0.33                        add	rdx, rcx
+ 1      1     0.33                        mov	rdi, rdx
+ 1      1     0.33                        mov	rsi, rax
+ 1      1     0.33                        mov	rdx, r14
+ 4      7     1.00    *                   call	qword ptr [rip + memcpy@GOTPCREL]
+ 1      1     0.33                        cmp	rbx, r14
+ 1      1     0.50                        setae	al
+ 1      1     0.33                        add	rsp, 8
+ 1      6     0.50    *                   pop	rbx
+ 1      6     0.50    *                   pop	r14
+ 1      1     1.00                  U     ret
+
+
+Resources:
+[0]   - SBDivider
+[1]   - SBFPDivider
+[2]   - SBPort0
+[3]   - SBPort1
+[4]   - SBPort4
+[5]   - SBPort5
+[6.0] - SBPort23
+[6.1] - SBPort23
+
+
+Resource pressure per iteration:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  
+ -      -     4.98   4.98   4.00   5.04   4.00   3.00   
+
+Resource pressure by instruction:
+[0]    [1]    [2]    [3]    [4]    [5]    [6.0]  [6.1]  Instructions:
+ -      -      -      -     1.00    -      -     1.00   push	r14
+ -      -      -      -     1.00    -     1.00    -     push	rbx
+ -      -      -      -     1.00    -      -     1.00   push	rax
+ -      -     0.94   0.05    -     0.01    -      -     mov	rbx, rcx
+ -      -     0.06   0.94    -      -      -      -     lea	r14, [2*rsi + 5]
+ -      -     0.93   0.02    -     0.05    -      -     and	r14, -2
+ -      -     0.05   0.94    -     0.01    -      -     sub	rcx, r14
+ -      -      -      -      -     1.00    -      -     jb	.LBB5_2
+ -      -     0.02   0.04    -     0.94    -      -     mov	rax, rdi
+ -      -     0.03   0.97    -      -      -      -     add	rdx, rcx
+ -      -     0.95   0.05    -      -      -      -     mov	rdi, rdx
+ -      -     0.94   0.03    -     0.03    -      -     mov	rsi, rax
+ -      -     0.01   0.03    -     0.96    -      -     mov	rdx, r14
+ -      -      -      -     1.00   1.00   2.00    -     call	qword ptr [rip + memcpy@GOTPCREL]
+ -      -     0.05   0.94    -     0.01    -      -     cmp	rbx, r14
+ -      -     0.97    -      -     0.03    -      -     setae	al
+ -      -     0.03   0.97    -      -      -      -     add	rsp, 8
+ -      -      -      -      -      -      -     1.00   pop	rbx
+ -      -      -      -      -      -     1.00    -     pop	r14
+ -      -      -      -      -     1.00    -      -     ret

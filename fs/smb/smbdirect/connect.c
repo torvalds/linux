@@ -60,7 +60,7 @@ int smbdirect_connect(struct smbdirect_socket *sc, const struct sockaddr *dst)
 	 */
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connect);
+EXPORT_SYMBOL_GPL(smbdirect_connect);
 
 static int smbdirect_connect_setup_connection(struct smbdirect_socket *sc)
 {
@@ -922,4 +922,4 @@ int smbdirect_connect_sync(struct smbdirect_socket *sc,
 
 	return 0;
 }
-__SMBDIRECT_EXPORT_SYMBOL__(smbdirect_connect_sync);
+EXPORT_SYMBOL_GPL(smbdirect_connect_sync);

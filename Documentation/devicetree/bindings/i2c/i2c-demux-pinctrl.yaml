@@ -40,6 +40,7 @@ properties:
 
   i2c-parent:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 2
     items:
       maxItems: 1
     description:

@@ -54,7 +54,6 @@
 #include "dc_hw_types.h"
 #include "hw_shared.h"
 #include "transform.h"
-#include "dc_types.h"
 
 #define MAX_MPCC 6
 #define MAX_OPP 6
@@ -102,6 +101,13 @@ enum mpcc_movable_cm_location {
 	MPCC_MOVABLE_CM_LOCATION_AFTER,
 };
 
+enum MCM_LUT_XABLE {
+	MCM_LUT_DISABLE,
+	MCM_LUT_DISABLED = MCM_LUT_DISABLE,
+	MCM_LUT_ENABLE,
+	MCM_LUT_ENABLED = MCM_LUT_ENABLE,
+};
+
 enum MCM_LUT_ID {
 	MCM_LUT_3DLUT,
 	MCM_LUT_1DLUT,
@@ -110,7 +116,7 @@ enum MCM_LUT_ID {
 
 struct mpc_fl_3dlut_config {
 	bool enabled;
-	enum dc_cm_lut_size size;
+	uint16_t width;
 	bool select_lut_bank_a;
 	uint16_t bit_depth;
 	int hubp_index;
@@ -1069,11 +1075,8 @@ struct mpc_funcs {
 	*
 	* void
 	*/
-	void (*populate_lut)(struct mpc *mpc,
-			const enum MCM_LUT_ID id,
-			const union mcm_lut_params *params,
-			const bool lut_bank_a,
-			const int mpcc_id);
+	void (*populate_lut)(struct mpc *mpc, const enum MCM_LUT_ID id, const union mcm_lut_params params,
+			bool lut_bank_a, int mpcc_id);
 
 	/**
 	* @program_lut_read_write_control:
@@ -1084,18 +1087,13 @@ struct mpc_funcs {
 	* - [in/out] mpc - MPC context.
 	* - [in] id
 	* - [in] lut_bank_a
-	* - [in] bit_depth
 	* - [in] mpcc_id
 	*
 	* Return:
 	*
 	* void
 	*/
-	void (*program_lut_read_write_control)(struct mpc *mpc,
-		const enum MCM_LUT_ID id,
-		const bool lut_bank_a,
-		const unsigned int bit_depth,
-		const int mpcc_id);
+	void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id, bool lut_bank_a, int mpcc_id);
 
 	/**
 	* @program_lut_mode:
@@ -1105,44 +1103,33 @@ struct mpc_funcs {
 	* Parameters:
 	* - [in/out] mpc - MPC context.
 	* - [in] id
-	* - [in] enable
+	* - [in] xable
 	* - [in] lut_bank_a
-	* - [in] size
 	* - [in] mpcc_id
 	*
 	* Return:
 	*
 	* void
 	*/
-	void (*program_lut_mode)(struct mpc *mpc,
-			const enum MCM_LUT_ID id,
-			const bool enable,
-			const bool lut_bank_a,
-			const enum dc_cm_lut_size size,
-			const int mpcc_id);
-
+	void (*program_lut_mode)(struct mpc *mpc, const enum MCM_LUT_ID id, const enum MCM_LUT_XABLE xable,
+			bool lut_bank_a, int mpcc_id);
 
 	/**
-	* @get_lut_mode:
-	*
-	* Obtains enablement and ram bank status.
-	*
-	* Parameters:
-	* - [in/out] mpc - MPC context.
-	* - [in] id
-	* - [in] mpcc_id
-	* - [out] enable
-	* - [out] lut_bank_a
-	*
-	* Return:
-	*
-	* void
-	*/
-	void (*get_lut_mode)(struct mpc *mpc,
-			const enum MCM_LUT_ID id,
-			const int mpcc_id,
-			bool *enable,
-			bool *lut_bank_a);
+	 * @mcm:
+	 *
+	 * MPC MCM new HW sequential programming functions
+	 */
+	struct {
+		void (*program_3dlut_size)(struct mpc *mpc, uint32_t width, int mpcc_id);
+		void (*program_bias_scale)(struct mpc *mpc, uint16_t bias, uint16_t scale, int mpcc_id);
+		void (*program_bit_depth)(struct mpc *mpc, uint16_t bit_depth, int mpcc_id);
+		bool (*is_config_supported)(uint32_t width);
+		void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id,
+			bool lut_bank_a, bool enabled, int mpcc_id);
+
+		void (*populate_lut)(struct mpc *mpc, const union mcm_lut_params params,
+			bool lut_bank_a, int mpcc_id);
+	} mcm;
 
 	/**
 	 * @rmcm:
@@ -1155,11 +1142,9 @@ struct mpc_funcs {
 		void (*update_3dlut_fast_load_select)(struct mpc *mpc, int mpcc_id, int hubp_idx);
 		void (*program_lut_read_write_control)(struct mpc *mpc, const enum MCM_LUT_ID id,
 			bool lut_bank_a, bool enabled, int mpcc_id);
-		void (*program_lut_mode)(struct mpc *mpc,
-			bool enable,
-			bool lut_bank_a,
-			int mpcc_id);
-		void (*program_3dlut_size)(struct mpc *mpc, const enum dc_cm_lut_size size, int mpcc_id);
+		void (*program_lut_mode)(struct mpc *mpc, const enum MCM_LUT_XABLE xable,
+			bool lut_bank_a, int mpcc_id);
+		void (*program_3dlut_size)(struct mpc *mpc, uint32_t width, int mpcc_id);
 		void (*program_bias_scale)(struct mpc *mpc, uint16_t bias, uint16_t scale, int mpcc_id);
 		void (*program_bit_depth)(struct mpc *mpc, uint16_t bit_depth, int mpcc_id);
 		bool (*is_config_supported)(uint32_t width);

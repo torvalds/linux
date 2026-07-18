@@ -1,0 +1,2 @@
+# mode=relaxed
+bad/dts-spaces.dts:1: [indent-unit-dts] indent unit must be 1 tab in DTS, got '    '

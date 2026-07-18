@@ -613,6 +613,16 @@ static int fprobe_fgraph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops
 			continue;
 
 		data_size = fp->entry_data_size;
+		/*
+		 * The list may have grown since it was sized, so this node
+		 * may not fit. Skip it as missed rather than overrun the
+		 * reservation.
+		 */
+		if (fp->exit_handler &&
+		    used + FPROBE_HEADER_SIZE_IN_LONG + SIZE_IN_LONG(data_size) > reserved_words) {
+			fp->nmissed++;
+			continue;
+		}
 		if (data_size && fp->exit_handler)
 			data = fgraph_data + used + FPROBE_HEADER_SIZE_IN_LONG;
 		else
@@ -1093,20 +1103,39 @@ static int unregister_fprobe_nolock(struct fprobe *fp)
 }
 
 /**
- * unregister_fprobe() - Unregister fprobe.
+ * unregister_fprobe_async() - Unregister fprobe without RCU GP wait
  * @fp: A fprobe data structure to be unregistered.
  *
  * Unregister fprobe (and remove ftrace hooks from the function entries).
+ * This function will NOT wait until the fprobe is no longer used.
  *
  * Return 0 if @fp is unregistered successfully, -errno if not.
  */
-int unregister_fprobe(struct fprobe *fp)
+int unregister_fprobe_async(struct fprobe *fp)
 {
 	guard(mutex)(&fprobe_mutex);
 	if (!fp || !fprobe_registered(fp))
 		return -EINVAL;
 
 	return unregister_fprobe_nolock(fp);
+}
+
+/**
+ * unregister_fprobe() - Unregister fprobe with RCU GP wait
+ * @fp: A fprobe data structure to be unregistered.
+ *
+ * Unregister fprobe (and remove ftrace hooks from the function entries).
+ * This function will block until the fprobe is no longer used.
+ *
+ * Return 0 if @fp is unregistered successfully, -errno if not.
+ */
+int unregister_fprobe(struct fprobe *fp)
+{
+	int ret = unregister_fprobe_async(fp);
+
+	if (!ret)
+		synchronize_rcu();
+	return ret;
 }
 EXPORT_SYMBOL_GPL(unregister_fprobe);
 

@@ -5079,8 +5079,8 @@ error:
 EXPORT_SYMBOL_GPL(stv090x_attach);
 
 static const struct i2c_device_id stv090x_id_table[] = {
-	{ "stv090x" },
-	{}
+	{ .name = "stv090x" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, stv090x_id_table);
 

@@ -14,7 +14,7 @@ static struct {
 	const char *prog_name;
 	int expected_runtime_err;
 } kfunc_dynptr_tests[] = {
-	{"dynptr_data_null", -EBADMSG},
+	{"dynptr_data_null", -EINVAL},
 };
 
 static bool kfunc_not_supported;

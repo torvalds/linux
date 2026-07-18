@@ -546,6 +546,15 @@ static const struct dmi_system_id asus_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "ASUS Zenbook Duo UX8407AA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Zenbook Duo UX8407AA"),
+		},
+		.driver_data = &quirk_asus_zenbook_duo_kbd,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "ASUS ROG Z13",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUS"),

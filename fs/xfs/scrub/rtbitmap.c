@@ -200,13 +200,13 @@ xchk_rtbitmap(
 
 	/* Is sb_rextents correct? */
 	if (mp->m_sb.sb_rextents != rtb->rextents) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 
 	/* Is sb_rextslog correct? */
 	if (mp->m_sb.sb_rextslog != rtb->rextslog) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 
@@ -215,17 +215,17 @@ xchk_rtbitmap(
 	 * case can we exceed 4bn bitmap blocks since the super field is a u32.
 	 */
 	if (rtb->rbmblocks > U32_MAX) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 	if (mp->m_sb.sb_rbmblocks != rtb->rbmblocks) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 
 	/* The bitmap file length must be aligned to an fsblock. */
 	if (rbmip->i_disk_size & mp->m_blockmask) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 
@@ -235,7 +235,7 @@ xchk_rtbitmap(
 	 * file can be larger than sb_rbmblocks.
 	 */
 	if (rbmip->i_disk_size < XFS_FSB_TO_B(mp, rtb->rbmblocks)) {
-		xchk_ino_set_corrupt(sc, rbmip->i_ino);
+		xchk_ip_set_corrupt(sc, rbmip);
 		return 0;
 	}
 
@@ -284,7 +284,7 @@ xchk_xref_is_used_rt_space(
 	if (xfs_has_zoned(sc->mp)) {
 		if (!xfs_zone_rgbno_is_valid(rtg,
 				xfs_rtb_to_rgbno(sc->mp, rtbno) + len - 1))
-			xchk_ino_xref_set_corrupt(sc, rtg_rmap(rtg)->i_ino);
+			xchk_ip_xref_set_corrupt(sc, rtg_rmap(rtg));
 		return;
 	}
 
@@ -295,5 +295,5 @@ xchk_xref_is_used_rt_space(
 	if (!xchk_should_check_xref(sc, &error, NULL))
 		return;
 	if (is_free)
-		xchk_ino_xref_set_corrupt(sc, rtg_bitmap(rtg)->i_ino);
+		xchk_ip_xref_set_corrupt(sc, rtg_bitmap(rtg));
 }

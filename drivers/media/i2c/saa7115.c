@@ -1928,13 +1928,13 @@ static void saa711x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id saa711x_id[] = {
-	{ "saa7115_auto", 1 }, /* autodetect */
-	{ "saa7111", 0 },
-	{ "saa7113", 0 },
-	{ "saa7114", 0 },
-	{ "saa7115", 0 },
-	{ "saa7118", 0 },
-	{ "gm7113c", 0 },
+	{ .name = "saa7115_auto", .driver_data = 1 }, /* autodetect */
+	{ .name = "saa7111", .driver_data = 0 },
+	{ .name = "saa7113", .driver_data = 0 },
+	{ .name = "saa7114", .driver_data = 0 },
+	{ .name = "saa7115", .driver_data = 0 },
+	{ .name = "saa7118", .driver_data = 0 },
+	{ .name = "gm7113c", .driver_data = 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, saa711x_id);

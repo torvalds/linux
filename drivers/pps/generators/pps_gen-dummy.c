@@ -39,11 +39,7 @@ static void pps_gen_ktimer_event(struct timer_list *unused)
 static int pps_gen_dummy_get_time(struct pps_gen_device *pps_gen,
 					struct timespec64 *time)
 {
-	struct system_time_snapshot snap;
-
-	ktime_get_snapshot(&snap);
-	*time = ktime_to_timespec64(snap.real);
-
+	ktime_get_real_ts64(time);
 	return 0;
 }
 

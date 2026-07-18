@@ -30,9 +30,6 @@
 #include "amdgpu_ras_mgr.h"
 #include "amdgpu_virt_ras_cmd.h"
 
-/* inject address is 52 bits */
-#define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
-
 #define AMDGPU_RAS_TYPE_RASCORE  0x1
 #define AMDGPU_RAS_TYPE_AMDGPU   0x2
 #define AMDGPU_RAS_TYPE_VF       0x3
@@ -85,6 +82,43 @@ static uint64_t local_addr_to_xgmi_global_addr(struct ras_core_context *ras_core
 	return (addr + xgmi->physical_node_id * xgmi->node_segment_size);
 }
 
+/*
+ * UMC error injection is dispatched by the RAS TA using the injection method
+ * carried in struct ras_cmd_inject_error_req. Only the "coherent" methods
+ * program an explicit injection address and are therefore address-based; the
+ * single-shot, persistent and ac-parity methods ignore the address.
+ *
+ * Keep these values in sync with the RAS TA.
+ */
+enum umc_inject_method {
+	UMC_METHOD_COHERENT		= 0,
+	UMC_METHOD_SINGLE_SHOT		= 1,
+	UMC_METHOD_PERSISTENT		= 2,
+	UMC_METHOD_PERSISTENT_DISABLE	= 3,
+	UMC_METHOD_COHERENT_NO_DETECTION	= 4,
+	UMC_METHOD_COHERENT_WR		= 5,
+	UMC_METHOD_SINGLE_SHOT_WR		= 6,
+	UMC_METHOD_PERSISTENT_WR		= 7,
+	UMC_METHOD_SINGLE_SHOT_CLEAN	= 8,
+};
+
+/*
+ * Return true when @method does not program an explicit injection address.
+ * Only the coherent methods are address-based; every other method ignores the
+ * address, so userspace signals them by setting the address to U64_MAX.
+ */
+static bool amdgpu_ras_mgr_is_non_address_injection(u64 method)
+{
+	switch (method) {
+	case UMC_METHOD_COHERENT:
+	case UMC_METHOD_COHERENT_NO_DETECTION:
+	case UMC_METHOD_COHERENT_WR:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static int amdgpu_ras_inject_error(struct ras_core_context *ras_core,
 			struct ras_cmd_ctx *cmd, void *data)
 {
@@ -94,36 +128,41 @@ static int amdgpu_ras_inject_error(struct ras_core_context *ras_core,
 	int ret = RAS_CMD__ERROR_GENERIC;
 
 	if (req->block_id == RAS_BLOCK_ID__UMC) {
-		if (amdgpu_ras_mgr_check_retired_addr(adev, req->address)) {
-			RAS_DEV_WARN(ras_core->dev,
-				"RAS WARN: inject: 0x%llx has already been marked as bad!\n",
-				req->address);
-			return RAS_CMD__ERROR_ACCESS_DENIED;
-		}
-
-		if ((req->address >= adev->gmc.mc_vram_size &&
-			adev->gmc.mc_vram_size) ||
-			(req->address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
-			RAS_DEV_WARN(adev, "RAS WARN: input address 0x%llx is invalid.",
+		/*
+		 * Only address-based UMC injections carry an explicit injection
+		 * address that has to be validated. A non address-based method
+		 * ignores the address, and userspace flags such an injection by
+		 * setting the address to U64_MAX. When both the sentinel and the
+		 * method agree, clear the address so the RAS TA ignores it and
+		 * skip the validation; otherwise validate the injection address.
+		 */
+		if (req->address == U64_MAX && amdgpu_ras_mgr_is_non_address_injection(req->method)) {
+			req->address = 0x0;
+		} else {
+			if (amdgpu_ras_mgr_check_retired_addr(adev, req->address)) {
+				RAS_DEV_WARN(ras_core->dev,
+					"RAS WARN: inject: 0x%llx has already been marked as bad!\n",
 					req->address);
-			return RAS_CMD__ERROR_INVALID_INPUT_DATA;
-		}
+				return RAS_CMD__ERROR_ACCESS_DENIED;
+			}
 
-		/* Calculate XGMI relative offset */
-		if (adev->gmc.xgmi.num_physical_nodes > 1 &&
-			req->block_id != RAS_BLOCK_ID__GFX) {
-			req->address = local_addr_to_xgmi_global_addr(ras_core, req->address);
+			if ((req->address >= adev->gmc.mc_vram_size &&
+				adev->gmc.mc_vram_size) ||
+				(req->address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+				RAS_DEV_WARN(adev, "RAS WARN: input address 0x%llx is invalid.",
+						req->address);
+				return RAS_CMD__ERROR_INVALID_INPUT_DATA;
+			}
+
+			/* Calculate XGMI relative offset */
+			if (adev->gmc.xgmi.num_physical_nodes > 1)
+				req->address = local_addr_to_xgmi_global_addr(ras_core, req->address);
 		}
 	}
 
 	amdgpu_ras_trigger_error_prepare(ras_core, req);
 	ret = rascore_handle_cmd(ras_core, cmd, data);
 	amdgpu_ras_trigger_error_end(ras_core, req);
-	if (ret) {
-		RAS_DEV_ERR(adev, "ras inject block %u failed %d\n", req->block_id, ret);
-		ret = RAS_CMD__ERROR_ACCESS_DENIED;
-	}
-
 
 	return ret;
 }
@@ -139,7 +178,8 @@ static int amdgpu_ras_get_ras_safe_fb_addr_ranges(struct ras_core_context *ras_c
 	struct amdgpu_mem_partition_info *mem_ranges;
 	uint32_t i = 0;
 
-	if (cmd->input_size != sizeof(*input_data))
+	if ((cmd->input_size != sizeof(*input_data)) ||
+		(cmd->output_buf_size < sizeof(*ranges)))
 		return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 
 	mem_ranges = adev->gmc.mem_partitions;
@@ -207,7 +247,8 @@ static int amdgpu_ras_translate_fb_address(struct ras_core_context *ras_core,
 			(struct ras_cmd_translate_fb_address_rsp *)cmd->output_buff_raw;
 	int ret = RAS_CMD__ERROR_GENERIC;
 
-	if (cmd->input_size != sizeof(struct ras_cmd_translate_fb_address_req))
+	if ((cmd->input_size != sizeof(struct ras_cmd_translate_fb_address_req)) ||
+		(cmd->output_buf_size < sizeof(*rsp_buff)))
 		return RAS_CMD__ERROR_INVALID_INPUT_SIZE;
 
 	if ((req_buff->src_addr_type >= RAS_FB_ADDR_UNKNOWN) ||
@@ -279,12 +320,12 @@ int amdgpu_ras_submit_cmd(struct ras_core_context *ras_core, struct ras_cmd_ctx 
 
 	cmd->cmd_res = res;
 
-	if (cmd->output_size > cmd->output_buf_size) {
+	if (!res && (cmd->output_size > cmd->output_buf_size)) {
 		RAS_DEV_ERR(cmd_core->dev,
 			"Output size 0x%x exceeds output buffer size 0x%x!\n",
 			cmd->output_size, cmd->output_buf_size);
 		return RAS_CMD__SUCCESS_EXEED_BUFFER;
 	}
 
-	return RAS_CMD__SUCCESS;
+	return res;
 }

@@ -409,7 +409,7 @@ struct perf_pmu *perf_pmus__scan_matching_wildcard(struct perf_pmu *pmu, const c
 	if (!pmu) {
 		/*
 		 * Core PMUs, other sysfs PMUs and tool PMU can have any name or
-		 * aren't wother optimizing for.
+		 * aren't worth optimizing for.
 		 */
 		unsigned int to_read_pmus =  PERF_TOOL_PMU_TYPE_PE_CORE_MASK |
 			PERF_TOOL_PMU_TYPE_PE_OTHER_MASK |
@@ -482,6 +482,22 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 			continue;
 
 		return pmu;
+	}
+	return NULL;
+}
+
+struct perf_pmu *perf_pmus__scan_for_uncore_id(struct perf_pmu *pmu, const char *compat)
+{
+	if (!pmu) {
+		/* Only uncore PMUs can have identifiers. */
+		unsigned int to_read_pmus = PERF_TOOL_PMU_TYPE_PE_OTHER_MASK;
+
+		pmu_read_sysfs(to_read_pmus);
+		pmu = list_prepare_entry(pmu, &other_pmus, list);
+	}
+	list_for_each_entry_continue(pmu, &other_pmus, list) {
+		if (pmu->id && pmu_uncore_identifier_match(compat, pmu->id))
+			return pmu;
 	}
 	return NULL;
 }

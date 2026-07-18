@@ -1064,13 +1064,13 @@ static const struct of_device_id tas571x_of_match[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, tas571x_of_match);
 
 static const struct i2c_device_id tas571x_i2c_id[] = {
-	{ "tas5707", (kernel_ulong_t) &tas5707_chip },
-	{ "tas5711", (kernel_ulong_t) &tas5711_chip },
-	{ "tas5717", (kernel_ulong_t) &tas5717_chip },
-	{ "tas5719", (kernel_ulong_t) &tas5717_chip },
-	{ "tas5721", (kernel_ulong_t) &tas5721_chip },
-	{ "tas5733", (kernel_ulong_t) &tas5733_chip },
-	{ "tas5753", (kernel_ulong_t) &tas5753_chip },
+	{ .name = "tas5707", .driver_data = (kernel_ulong_t)&tas5707_chip },
+	{ .name = "tas5711", .driver_data = (kernel_ulong_t)&tas5711_chip },
+	{ .name = "tas5717", .driver_data = (kernel_ulong_t)&tas5717_chip },
+	{ .name = "tas5719", .driver_data = (kernel_ulong_t)&tas5717_chip },
+	{ .name = "tas5721", .driver_data = (kernel_ulong_t)&tas5721_chip },
+	{ .name = "tas5733", .driver_data = (kernel_ulong_t)&tas5733_chip },
+	{ .name = "tas5753", .driver_data = (kernel_ulong_t)&tas5753_chip },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas571x_i2c_id);

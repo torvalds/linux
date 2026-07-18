@@ -2008,10 +2008,11 @@ static __be32 nfsd4_decode_secinfo_no_name(struct nfsd4_compoundargs *argp,
 					   union nfsd4_op_u *u)
 {
 	struct nfsd4_secinfo_no_name *sin = &u->secinfo_no_name;
+
+	sin->sin_exp = NULL;
 	if (xdr_stream_decode_u32(argp->xdr, &sin->sin_style) < 0)
 		return nfserr_bad_xdr;
 
-	sin->sin_exp = NULL;
 	return nfs_ok;
 }
 
@@ -3158,6 +3159,8 @@ struct nfsd4_fattr_args {
 	u32			rdattr_err;
 	bool			contextsupport;
 	bool			ignore_crossmnt;
+	bool			case_insensitive;
+	bool			case_preserving;
 };
 
 typedef __be32(*nfsd4_enc_attr)(struct xdr_stream *xdr,
@@ -3354,6 +3357,33 @@ static __be32 nfsd4_encode_fattr4_acl(struct xdr_stream *xdr,
 		}
 	}
 	return nfs_ok;
+}
+
+static __be32 nfsd4_encode_fattr4_case_insensitive(struct xdr_stream *xdr,
+					const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_bool(xdr, args->case_insensitive);
+}
+
+static __be32 nfsd4_encode_fattr4_case_preserving(struct xdr_stream *xdr,
+					const struct nfsd4_fattr_args *args)
+{
+	return nfsd4_encode_bool(xdr, args->case_preserving);
+}
+
+static __be32 nfsd4_encode_fattr4_homogeneous(struct xdr_stream *xdr,
+					const struct nfsd4_fattr_args *args)
+{
+	/*
+	 * Casefold-capable filesystems (e.g. ext4 or f2fs with the
+	 * casefold feature) attach a Unicode encoding at mount time
+	 * but apply case folding per directory.  The per-file-system
+	 * case_insensitive and case_preserving values can therefore
+	 * legitimately differ across objects that share the same fsid.
+	 * Report FATTR4_HOMOGENEOUS = FALSE on such filesystems to
+	 * keep that variation consistent with RFC 8881 Section 5.8.2.16.
+	 */
+	return nfsd4_encode_bool(xdr, !sb_has_encoding(args->dentry->d_sb));
 }
 
 static __be32 nfsd4_encode_fattr4_filehandle(struct xdr_stream *xdr,
@@ -3748,8 +3778,8 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 	[FATTR4_ACLSUPPORT]		= nfsd4_encode_fattr4_aclsupport,
 	[FATTR4_ARCHIVE]		= nfsd4_encode_fattr4__noop,
 	[FATTR4_CANSETTIME]		= nfsd4_encode_fattr4__true,
-	[FATTR4_CASE_INSENSITIVE]	= nfsd4_encode_fattr4__false,
-	[FATTR4_CASE_PRESERVING]	= nfsd4_encode_fattr4__true,
+	[FATTR4_CASE_INSENSITIVE]	= nfsd4_encode_fattr4_case_insensitive,
+	[FATTR4_CASE_PRESERVING]	= nfsd4_encode_fattr4_case_preserving,
 	[FATTR4_CHOWN_RESTRICTED]	= nfsd4_encode_fattr4__true,
 	[FATTR4_FILEHANDLE]		= nfsd4_encode_fattr4_filehandle,
 	[FATTR4_FILEID]			= nfsd4_encode_fattr4_fileid,
@@ -3758,7 +3788,7 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 	[FATTR4_FILES_TOTAL]		= nfsd4_encode_fattr4_files_total,
 	[FATTR4_FS_LOCATIONS]		= nfsd4_encode_fattr4_fs_locations,
 	[FATTR4_HIDDEN]			= nfsd4_encode_fattr4__noop,
-	[FATTR4_HOMOGENEOUS]		= nfsd4_encode_fattr4__true,
+	[FATTR4_HOMOGENEOUS]		= nfsd4_encode_fattr4_homogeneous,
 	[FATTR4_MAXFILESIZE]		= nfsd4_encode_fattr4_maxfilesize,
 	[FATTR4_MAXLINK]		= nfsd4_encode_fattr4_maxlink,
 	[FATTR4_MAXNAME]		= nfsd4_encode_fattr4_maxname,
@@ -3854,13 +3884,16 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 
 /*
  * Note: @fhp can be NULL; in this case, we might have to compose the filehandle
- * ourselves.
+ * ourselves. @case_cache is NULL for callers that encode a single dentry
+ * (GETATTR, the buffer wrapper); READDIR passes a per-request cache so
+ * non-directory children share the parent's case-folding probe result.
  */
 static __be32
 nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		    struct svc_fh *fhp, struct svc_export *exp,
 		    struct dentry *dentry, const u32 *bmval,
-		    int ignore_crossmnt)
+		    int ignore_crossmnt,
+		    struct nfsd_case_attrs_cache *case_cache)
 {
 	DECLARE_BITMAP(attr_bitmap, ARRAY_SIZE(nfsd4_enc_fattr4_encode_ops));
 	struct nfs4_delegation *dp = NULL;
@@ -3968,6 +4001,47 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		args.fhp = tempfh;
 	} else
 		args.fhp = fhp;
+	if (attrmask[0] & (FATTR4_WORD0_CASE_INSENSITIVE |
+			   FATTR4_WORD0_CASE_PRESERVING)) {
+		/*
+		 * In a batched encoder (READDIR) every non-directory
+		 * child shares the same case-folding answer, so the
+		 * directory being read is probed once and the result is
+		 * cached. The probe targets case_cache->dir, the held
+		 * readdir filehandle's dentry, instead of the child's
+		 * locklessly-acquired dentry, which a concurrent rename
+		 * could move under an unrelated parent. Directory
+		 * entries are queried directly because casefold-capable
+		 * filesystems answer per directory.
+		 *
+		 * Per RFC 8881 Section 18.7.3, an attribute advertised
+		 * in SUPPORTED_ATTRS must come back with a value or the
+		 * GETATTR must fail. nfsd_get_case_info() fills POSIX
+		 * defaults and returns -EOPNOTSUPP when the underlying
+		 * filesystem does not expose case state; encode those
+		 * defaults so the reply agrees with what SUPPORTED_ATTRS
+		 * advertises. Other errors fail the operation as the
+		 * spec requires.
+		 */
+		if (case_cache && !d_is_dir(dentry)) {
+			if (!case_cache->valid) {
+				err = nfsd_get_case_info(case_cache->dir,
+							 &case_cache->insensitive,
+							 &case_cache->preserving);
+				if (err && err != -EOPNOTSUPP)
+					goto out_nfserr;
+				case_cache->valid = true;
+			}
+			args.case_insensitive = case_cache->insensitive;
+			args.case_preserving = case_cache->preserving;
+		} else {
+			err = nfsd_get_case_info(dentry,
+						 &args.case_insensitive,
+						 &args.case_preserving);
+			if (err && err != -EOPNOTSUPP)
+				goto out_nfserr;
+		}
+	}
 
 	if (attrmask[0] & FATTR4_WORD0_ACL) {
 		err = nfsd4_get_nfs4_acl(rqstp, dentry, &args.acl);
@@ -4124,7 +4198,7 @@ __be32 nfsd4_encode_fattr_to_buf(__be32 **p, int words,
 
 	svcxdr_init_encode_from_buffer(&xdr, &dummy, *p, words << 2);
 	ret = nfsd4_encode_fattr4(rqstp, &xdr, fhp, exp, dentry, bmval,
-				  ignore_crossmnt);
+				  ignore_crossmnt, NULL);
 	*p = xdr.p;
 	return ret;
 }
@@ -4162,6 +4236,7 @@ nfsd4_encode_entry4_fattr(struct nfsd4_readdir *cd, const char *name,
 	struct dentry *dentry;
 	__be32 nfserr;
 	int ignore_crossmnt = 0;
+	bool crossed = false;
 
 	dentry = lookup_one_positive_unlocked(&nop_mnt_idmap,
 					      &QSTR_LEN(name, namlen),
@@ -4198,11 +4273,18 @@ nfsd4_encode_entry4_fattr(struct nfsd4_readdir *cd, const char *name,
 		nfserr = check_nfsd_access(exp, cd->rd_rqstp, false);
 		if (nfserr)
 			goto out_put;
+		crossed = true;
 
 	}
 out_encode:
+	/*
+	 * A crossed entry no longer shares a parent with the directory
+	 * being read, so it must neither consume nor populate the
+	 * per-readdir case-folding cache.
+	 */
 	nfserr = nfsd4_encode_fattr4(cd->rd_rqstp, cd->xdr, NULL, exp, dentry,
-				     cd->rd_bmval, ignore_crossmnt);
+				     cd->rd_bmval, ignore_crossmnt,
+				     crossed ? NULL : &cd->rd_case_cache);
 out_put:
 	dput(dentry);
 	exp_put(exp);
@@ -4449,7 +4531,7 @@ nfsd4_encode_getattr(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	/* obj_attributes */
 	return nfsd4_encode_fattr4(resp->rqstp, xdr, fhp, fhp->fh_export,
-				   fhp->fh_dentry, getattr->ga_bmval, 0);
+				   fhp->fh_dentry, getattr->ga_bmval, 0, NULL);
 }
 
 static __be32
@@ -4976,6 +5058,8 @@ static __be32 nfsd4_encode_dirlist4(struct xdr_stream *xdr,
 	readdir->rd_maxcount = maxcount;
 	readdir->common.err = 0;
 	readdir->cookie_offset = 0;
+	readdir->rd_case_cache.dir = readdir->rd_fhp->fh_dentry;
+	readdir->rd_case_cache.valid = false;
 	offset = readdir->rd_cookie;
 	status = nfsd_readdir(readdir->rd_rqstp, readdir->rd_fhp, &offset,
 			      &readdir->common, nfsd4_encode_entry4);

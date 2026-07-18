@@ -57,10 +57,13 @@ struct resource_caps {
 	int num_dsc;
 	unsigned int num_dig_link_enc; // Total number of DIGs (digital encoders) in DIO (Display Input/Output).
 	unsigned int num_usb4_dpia; // Total number of USB4 DPIA (DisplayPort Input Adapters).
+	int num_hpo_frl;
 	int num_hpo_dp_stream_encoder;
 	int num_hpo_dp_link_encoder;
 	int num_mpc_3dlut;
+	int num_mpc;
 	int num_rmcm;
+	int num_aux;
 };
 
 struct resource_straps {
@@ -86,6 +89,10 @@ struct resource_create_funcs {
 	struct stream_encoder *(*create_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
 
+	struct hpo_frl_stream_encoder *(*create_hpo_frl_stream_encoder)(
+			enum engine_id eng_id, struct dc_context *ctx);
+	struct hpo_frl_link_encoder *(*create_hpo_frl_link_encoder)(
+			enum engine_id eng_id, struct dc_context *ctx);
 	struct hpo_dp_stream_encoder *(*create_hpo_dp_stream_encoder)(
 			enum engine_id eng_id, struct dc_context *ctx);
 	struct hpo_dp_link_encoder *(*create_hpo_dp_link_encoder)(
@@ -604,6 +611,8 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format);
 bool get_temp_dp_link_res(struct dc_link *link,
 		struct link_resource *link_res,
 		struct dc_link_settings *link_settings);
+bool get_temp_frl_link_res(struct dc_link *link,
+		struct link_resource *link_res);
 
 void reset_syncd_pipes_from_disabled_pipes(struct dc *dc,
 	struct dc_state *context);

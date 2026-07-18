@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/filelock.h>
 #include <linux/mount.h>
 #include <linux/slab.h>
@@ -30,6 +31,7 @@
 #include <linux/xattr.h>
 #include <linux/mm.h>
 #include <linux/key-type.h>
+#include <linux/fileattr.h>
 #include <uapi/linux/magic.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
@@ -306,6 +308,8 @@ static void cifs_kill_sb(struct super_block *sb)
 
 		/* Wait for all pending oplock breaks to complete */
 		flush_workqueue(cifsoplockd_wq);
+		/* Wait for all opened files to release */
+		flush_workqueue(deferredclose_wq);
 
 		/* finally release root dentry */
 		dput(cifs_sb->root);
@@ -434,7 +438,8 @@ cifs_alloc_inode(struct super_block *sb)
 	spin_lock_init(&cifs_inode->writers_lock);
 	cifs_inode->writers = 0;
 	cifs_inode->netfs.inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
-	cifs_inode->netfs.remote_i_size = 0;
+	cifs_inode->netfs._remote_i_size = 0;
+	cifs_inode->netfs._zero_point = 0;
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
 	cifs_inode->epoch = 0;
@@ -966,26 +971,19 @@ cifs_get_root(struct smb3_fs_context *ctx, struct super_block *sb)
 	return dentry;
 }
 
-static int cifs_set_super(struct super_block *sb, void *data)
-{
-	struct cifs_mnt_data *mnt_data = data;
-	sb->s_fs_info = mnt_data->cifs_sb;
-	return set_anon_super(sb, NULL);
-}
-
 struct dentry *
-cifs_smb3_do_mount(struct file_system_type *fs_type,
-	      int flags, struct smb3_fs_context *old_ctx)
+cifs_smb3_do_mount(struct fs_context *fc, struct smb3_fs_context *old_ctx)
 {
 	struct cifs_mnt_data mnt_data;
 	struct cifs_sb_info *cifs_sb;
 	struct super_block *sb;
 	struct dentry *root;
+	unsigned int saved_sb_flags;
 	int rc;
 
 	if (cifsFYI) {
-		cifs_dbg(FYI, "%s: devname=%s flags=0x%x\n", __func__,
-			 old_ctx->source, flags);
+		cifs_dbg(FYI, "%s: devname=%s sb_flags=0x%x\n", __func__,
+			 old_ctx->source, fc->sb_flags);
 	} else {
 		cifs_info("Attempting to mount %s\n", old_ctx->source);
 	}
@@ -1012,7 +1010,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 
 	rc = cifs_mount(cifs_sb, cifs_sb->ctx);
 	if (rc) {
-		if (!(flags & SB_SILENT))
+		if (!(fc->sb_flags & SB_SILENT))
 			cifs_dbg(VFS, "cifs_mount failed w/return code = %d\n",
 				 rc);
 		root = ERR_PTR(rc);
@@ -1021,12 +1019,27 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 
 	mnt_data.ctx = cifs_sb->ctx;
 	mnt_data.cifs_sb = cifs_sb;
-	mnt_data.flags = flags;
+	mnt_data.flags = 0;
 
-	/* BB should we make this contingent on mount parm? */
-	flags |= SB_NODIRATIME | SB_NOATIME;
-
-	sb = sget(fs_type, cifs_match_super, cifs_set_super, flags, &mnt_data);
+	/*
+	 * sb->s_flags is set from fc->sb_flags by alloc_super(). CIFS has
+	 * historically forced SB_NODIRATIME | SB_NOATIME on every mount and
+	 * ignored the caller-supplied SB_* flags. Preserve that behaviour by
+	 * overriding fc->sb_flags around the sget_fc() call.
+	 *
+	 * Hand cifs_sb to sget_fc() via fc->s_fs_info; sget_fc() copies it
+	 * onto sb->s_fs_info before running set() and clears fc->s_fs_info
+	 * on successful publish. Pass the rest of the per-mount context to
+	 * cifs_match_super() through fc->sget_key.
+	 */
+	saved_sb_flags = fc->sb_flags;
+	fc->sb_flags = SB_NODIRATIME | SB_NOATIME;
+	fc->s_fs_info = cifs_sb;
+	fc->sget_key = &mnt_data;
+	sb = sget_fc(fc, cifs_match_super, set_anon_super_fc);
+	fc->sget_key = NULL;
+	fc->s_fs_info = NULL;
+	fc->sb_flags = saved_sb_flags;
 	if (IS_ERR(sb)) {
 		cifs_umount(cifs_sb);
 		return ERR_CAST(sb);
@@ -1162,6 +1175,56 @@ struct file_system_type smb3_fs_type = {
 MODULE_ALIAS_FS("smb3");
 MODULE_ALIAS("smb3");
 
+int cifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct inode *inode = d_inode(dentry);
+	u32 attrs;
+
+	/* Preserve FS_COMPR_FL previously reported by cifs_ioctl(). */
+	if (CIFS_I(inode)->cifsAttrs & ATTR_COMPRESSED)
+		fa->flags |= FS_COMPR_FL;
+
+	/*
+	 * FS_CASEFOLD_FL is defined by UAPI as a folder attribute,
+	 * and userspace tools (e.g., lsattr) display it only on
+	 * directories. Confine the case-handling bits to directories
+	 * to match that convention; for non-directories the share's
+	 * case semantics are still discoverable through the parent.
+	 */
+	if (!S_ISDIR(inode->i_mode))
+		return 0;
+
+	/*
+	 * The server's FS_ATTRIBUTE_INFORMATION response, cached on
+	 * the tcon at mount, reflects the share's case-handling
+	 * semantics after any POSIX extensions negotiation. Prefer
+	 * it over the client-local nocase mount option, which only
+	 * governs dentry comparison on this superblock.
+	 *
+	 * QueryFSInfo is best-effort at mount; when it did not
+	 * populate fsAttrInfo, MaxPathNameComponentLength remains
+	 * zero. In that case fall back to nocase so the reporting
+	 * matches the comparison behavior installed on the sb.
+	 */
+	if (le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength) == 0) {
+		if (tcon->nocase) {
+			fa->fsx_xflags |= FS_XFLAG_CASEFOLD;
+			fa->flags |= FS_CASEFOLD_FL;
+		}
+		return 0;
+	}
+	attrs = le32_to_cpu(tcon->fsAttrInfo.Attributes);
+	if (!(attrs & FILE_CASE_SENSITIVE_SEARCH)) {
+		fa->fsx_xflags |= FS_XFLAG_CASEFOLD;
+		fa->flags |= FS_CASEFOLD_FL;
+	}
+	if (!(attrs & FILE_CASE_PRESERVED_NAMES))
+		fa->fsx_xflags |= FS_XFLAG_CASENONPRESERVING;
+	return 0;
+}
+
 const struct inode_operations cifs_dir_inode_ops = {
 	.create = cifs_create,
 	.atomic_open = cifs_atomic_open,
@@ -1180,6 +1243,7 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.listxattr = cifs_listxattr,
 	.get_acl = cifs_get_acl,
 	.set_acl = cifs_set_acl,
+	.fileattr_get = cifs_fileattr_get,
 };
 
 const struct inode_operations cifs_file_inode_ops = {
@@ -1190,6 +1254,7 @@ const struct inode_operations cifs_file_inode_ops = {
 	.fiemap = cifs_fiemap,
 	.get_acl = cifs_get_acl,
 	.set_acl = cifs_set_acl,
+	.fileattr_get = cifs_fileattr_get,
 };
 
 const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
@@ -1303,7 +1368,8 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	struct cifsFileInfo *smb_file_src = src_file->private_data;
 	struct cifsFileInfo *smb_file_target = dst_file->private_data;
 	struct cifs_tcon *target_tcon, *src_tcon;
-	unsigned long long destend, fstart, fend, old_size, new_size;
+	unsigned long long i_size, new_size;
+	unsigned long long destend, fstart, fend;
 	unsigned int xid;
 	int rc;
 
@@ -1347,7 +1413,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	 * Advance the EOF marker after the flush above to the end of the range
 	 * if it's short of that.
 	 */
-	if (src_cifsi->netfs.remote_i_size < off + len) {
+	if (netfs_read_remote_i_size(src_inode) < off + len) {
 		rc = cifs_precopy_set_eof(src_inode, src_cifsi, src_tcon, xid, off + len);
 		if (rc < 0)
 			goto unlock;
@@ -1368,22 +1434,24 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	rc = cifs_flush_folio(target_inode, destend, &fstart, &fend, false);
 	if (rc)
 		goto unlock;
-	if (fend > target_cifsi->netfs.zero_point)
-		target_cifsi->netfs.zero_point = fend + 1;
-	old_size = target_cifsi->netfs.remote_i_size;
+
+	spin_lock(&target_inode->i_lock);
+	if (fend > target_cifsi->netfs._zero_point)
+		netfs_write_zero_point(target_inode, fend + 1);
+	i_size = target_inode->i_size;
+	spin_unlock(&target_inode->i_lock);
 
 	/* Discard all the folios that overlap the destination region. */
 	cifs_dbg(FYI, "about to discard pages %llx-%llx\n", fstart, fend);
 	truncate_inode_pages_range(&target_inode->i_data, fstart, fend);
 
-	fscache_invalidate(cifs_inode_cookie(target_inode), NULL,
-			   i_size_read(target_inode), 0);
+	fscache_invalidate(cifs_inode_cookie(target_inode), NULL, i_size, 0);
 
 	rc = -EOPNOTSUPP;
 	if (target_tcon->ses->server->ops->duplicate_extents) {
 		rc = target_tcon->ses->server->ops->duplicate_extents(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-		if (rc == 0 && new_size > old_size) {
+		if (rc == 0 && new_size > i_size) {
 			truncate_setsize(target_inode, new_size);
 			fscache_resize_cookie(cifs_inode_cookie(target_inode),
 					      new_size);
@@ -1402,8 +1470,12 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 					rc = -EINVAL;
 			}
 		}
-		if (rc == 0 && new_size > target_cifsi->netfs.zero_point)
-			target_cifsi->netfs.zero_point = new_size;
+		if (rc == 0) {
+			spin_lock(&target_inode->i_lock);
+			if (new_size > target_cifsi->netfs._zero_point)
+				netfs_write_zero_point(target_inode, new_size);
+			spin_unlock(&target_inode->i_lock);
+		}
 	}
 
 	/* force revalidate of size and timestamps of target file now
@@ -1474,7 +1546,7 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	 * Advance the EOF marker after the flush above to the end of the range
 	 * if it's short of that.
 	 */
-	if (src_cifsi->netfs.remote_i_size < off + len) {
+	if (netfs_read_remote_i_size(src_inode) < off + len) {
 		rc = cifs_precopy_set_eof(src_inode, src_cifsi, src_tcon, xid, off + len);
 		if (rc < 0)
 			goto unlock;
@@ -1502,8 +1574,12 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 			fscache_resize_cookie(cifs_inode_cookie(target_inode),
 					      i_size_read(target_inode));
 		}
-		if (rc > 0 && destoff + rc > target_cifsi->netfs.zero_point)
-			target_cifsi->netfs.zero_point = destoff + rc;
+		if (rc > 0) {
+			spin_lock(&target_inode->i_lock);
+			if (destoff + rc > target_cifsi->netfs._zero_point)
+				netfs_write_zero_point(target_inode, destoff + rc);
+			spin_unlock(&target_inode->i_lock);
+		}
 	}
 
 	file_accessed(src_file);
@@ -1601,7 +1677,7 @@ const struct file_operations cifs_file_strict_ops = {
 
 const struct file_operations cifs_file_direct_ops = {
 	.read_iter = netfs_unbuffered_read_iter,
-	.write_iter = netfs_file_write_iter,
+	.write_iter = cifs_direct_write_iter,
 	.open = cifs_open,
 	.release = cifs_close,
 	.lock = cifs_lock,
@@ -1657,7 +1733,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 
 const struct file_operations cifs_file_direct_nobrl_ops = {
 	.read_iter = netfs_unbuffered_read_iter,
-	.write_iter = netfs_file_write_iter,
+	.write_iter = cifs_direct_write_iter,
 	.open = cifs_open,
 	.release = cifs_close,
 	.fsync = cifs_fsync,

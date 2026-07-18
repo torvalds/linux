@@ -260,7 +260,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	}
 
 	for (q = 0; q < num_queues; q++) {
-		tx_stats = &apc->tx_qp[q].txq.stats;
+		tx_stats = &apc->tx_qp[q]->txq.stats;
 
 		do {
 			start = u64_stats_fetch_begin(&tx_stats->syncp);
@@ -454,6 +454,11 @@ static int mana_set_coalesce(struct net_device *ndev,
 	return err;
 }
 
+/* mana_set_channels - change the number of queues on a port
+ *
+ * Returns -EBUSY if RDMA holds the vport with EQs sized to the
+ * current num_queues.
+ */
 static int mana_set_channels(struct net_device *ndev,
 			     struct ethtool_channels *channels)
 {
@@ -462,10 +467,22 @@ static int mana_set_channels(struct net_device *ndev,
 	unsigned int old_count = apc->num_queues;
 	int err;
 
+	/* Set channel_changing to block RDMA from grabbing the vport
+	 * during the detach/attach window. mana_cfg_vport() checks
+	 * this flag under vport_mutex and returns -EBUSY if set.
+	 */
+	mutex_lock(&apc->vport_mutex);
+	if (!apc->port_is_up && apc->vport_use_count) {
+		mutex_unlock(&apc->vport_mutex);
+		return -EBUSY;
+	}
+	apc->channel_changing = true;
+	mutex_unlock(&apc->vport_mutex);
+
 	err = mana_pre_alloc_rxbufs(apc, ndev->mtu, new_count);
 	if (err) {
 		netdev_err(ndev, "Insufficient memory for new allocations");
-		return err;
+		goto clear_flag;
 	}
 
 	err = mana_detach(ndev, false);
@@ -483,6 +500,10 @@ static int mana_set_channels(struct net_device *ndev,
 
 out:
 	mana_pre_dealloc_rxbufs(apc);
+clear_flag:
+	mutex_lock(&apc->vport_mutex);
+	apc->channel_changing = false;
+	mutex_unlock(&apc->vport_mutex);
 	return err;
 }
 
@@ -575,6 +596,9 @@ static int mana_get_link_ksettings(struct net_device *ndev,
 
 const struct ethtool_ops mana_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_CQE_FRAMES,
+	.op_needs_rtnl		= ETHTOOL_OP_NEEDS_RTNL_SCHANNELS |
+				  ETHTOOL_OP_NEEDS_RTNL_SRINGPARAM |
+				  ETHTOOL_OP_NEEDS_RTNL_GLINK,
 	.get_ethtool_stats	= mana_get_ethtool_stats,
 	.get_sset_count		= mana_get_sset_count,
 	.get_strings		= mana_get_strings,

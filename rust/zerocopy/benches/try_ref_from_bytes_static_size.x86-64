@@ -1,0 +1,13 @@
+bench_try_ref_from_bytes_static_size:
+	mov rax, rdi
+	cmp rsi, 6
+	setne cl
+	or cl, al
+	test cl, 1
+	jne .LBB5_2
+	cmp word ptr [rax], -16192
+	je .LBB5_3
+.LBB5_2:
+	xor eax, eax
+.LBB5_3:
+	ret

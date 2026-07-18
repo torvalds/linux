@@ -674,9 +674,13 @@ static void system76_notify(acpi_handle handle, u32 event, void *context)
 // Probe a System76 platform device
 static int system76_probe(struct platform_device *pdev)
 {
-	struct acpi_device *acpi_dev = ACPI_COMPANION(&pdev->dev);
+	struct acpi_device *acpi_dev;
 	struct system76_data *data;
 	int err;
+
+	acpi_dev = ACPI_COMPANION(&pdev->dev);
+	if (!acpi_dev)
+		return -ENODEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)

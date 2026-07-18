@@ -284,6 +284,7 @@ bool cfg80211_valid_key_idx(struct cfg80211_registered_device *rdev,
 }
 
 int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
+				   struct wireless_dev *wdev,
 				   struct key_params *params, int key_idx,
 				   bool pairwise, const u8 *mac_addr)
 {
@@ -343,6 +344,15 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	default:
 		break;
 	}
+
+	/*
+	 * Per Wi-Fi Aware v4.0 section 7.1.2, NAN Data interfaces
+	 * shall only use CCMP-128 or GCMP-256.
+	 */
+	if (wdev->iftype == NL80211_IFTYPE_NAN_DATA &&
+	    params->cipher != WLAN_CIPHER_SUITE_CCMP &&
+	    params->cipher != WLAN_CIPHER_SUITE_GCMP_256)
+		return -EINVAL;
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -423,6 +433,21 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 
 	if (!cfg80211_supported_cipher_suite(&rdev->wiphy, params->cipher))
 		return -EINVAL;
+
+	if (params->ltf_keyseed) {
+		if (!wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_SECURE_LTF) ||
+		    !wiphy_ext_feature_isset(&rdev->wiphy,
+					     NL80211_EXT_FEATURE_SET_KEY_LTF_SEED))
+			return -EOPNOTSUPP;
+
+		/*
+		 * LTF key seed is pairwise key material and must only be
+		 * used with a pairwise key
+		 */
+		if (!pairwise)
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1201,7 +1226,8 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 	/* cannot change into P2P device or NAN */
 	if (ntype == NL80211_IFTYPE_P2P_DEVICE ||
-	    ntype == NL80211_IFTYPE_NAN)
+	    ntype == NL80211_IFTYPE_NAN ||
+	    ntype == NL80211_IFTYPE_PD)
 		return -EOPNOTSUPP;
 
 	if (!rdev->ops->change_virtual_intf ||
@@ -1266,6 +1292,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_P2P_DEVICE:
 		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_NAN:
+		case NL80211_IFTYPE_PD:
 			WARN_ON(1);
 			break;
 		}
@@ -2277,9 +2304,6 @@ bool ieee80211_chandef_to_operating_class(struct cfg80211_chan_def *chandef,
 	case NL80211_CHAN_WIDTH_80P80:
 		vht_opclass = 130;
 		break;
-	case NL80211_CHAN_WIDTH_10:
-	case NL80211_CHAN_WIDTH_5:
-		return false; /* unsupported for now */
 	default:
 		vht_opclass = 0;
 		break;

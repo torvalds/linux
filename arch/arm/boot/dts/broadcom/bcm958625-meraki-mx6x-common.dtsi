@@ -121,9 +121,6 @@
 };
 
 &pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_leds>;
-
 	pwm_leds: pwm_leds {
 		function = "pwm";
 		groups = "pwm1_grp", "pwm2_grp", "pwm3_grp";
@@ -131,6 +128,9 @@
 };
 
 &pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_leds>;
+
 	status = "okay";
 };
 

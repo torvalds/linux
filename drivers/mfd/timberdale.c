@@ -15,8 +15,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-#include <linux/timb_gpio.h>
-
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-ocores.h>
 #include <linux/platform_data/i2c-xiic.h>
@@ -36,6 +34,10 @@
 #include "timberdale.h"
 
 #define DRIVER_NAME "timberdale"
+
+#define GPIO_NR_PINS	16
+#define GPIO_BASE	0
+#define IRQ_BASE	200
 
 struct timberdale_device {
 	resource_size_t		ctl_mapbase;
@@ -174,11 +176,16 @@ static const struct resource timberdale_eth_resources[] = {
 	},
 };
 
-static struct timbgpio_platform_data
-	timberdale_gpio_platform_data = {
-	.gpio_base = 0,
-	.nr_pins = GPIO_NR_PINS,
-	.irq_base = 200,
+static const struct property_entry timberdale_gpio_properties[] = {
+	PROPERTY_ENTRY_U32("ngpios", GPIO_NR_PINS),
+	PROPERTY_ENTRY_U32("gpio-base", GPIO_BASE),
+	PROPERTY_ENTRY_U32("irq-base", IRQ_BASE),
+	{ }
+};
+
+static const struct software_node timberdale_gpio_swnode = {
+	.name = "timb-gpio",
+	.properties = timberdale_gpio_properties,
 };
 
 static const struct resource timberdale_gpio_resources[] = {
@@ -390,8 +397,7 @@ static const struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
-		.platform_data = &timberdale_gpio_platform_data,
-		.pdata_size = sizeof(timberdale_gpio_platform_data),
+		.swnode = &timberdale_gpio_swnode,
 	},
 	{
 		.name = "timb-video",
@@ -452,8 +458,7 @@ static const struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
-		.platform_data = &timberdale_gpio_platform_data,
-		.pdata_size = sizeof(timberdale_gpio_platform_data),
+		.swnode = &timberdale_gpio_swnode,
 	},
 	{
 		.name = "timb-mlogicore",
@@ -514,8 +519,7 @@ static const struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
-		.platform_data = &timberdale_gpio_platform_data,
-		.pdata_size = sizeof(timberdale_gpio_platform_data),
+		.swnode = &timberdale_gpio_swnode,
 	},
 	{
 		.name = "timb-video",
@@ -564,8 +568,7 @@ static const struct mfd_cell timberdale_cells_bar0_cfg3[] = {
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
-		.platform_data = &timberdale_gpio_platform_data,
-		.pdata_size = sizeof(timberdale_gpio_platform_data),
+		.swnode = &timberdale_gpio_swnode,
 	},
 	{
 		.name = "timb-video",

@@ -170,7 +170,7 @@ exit_close_nsp:
 
 static int
 nfp_devlink_param_u8_validate(struct devlink *devlink, u32 id,
-			      union devlink_param_value val,
+			      union devlink_param_value *val,
 			      struct netlink_ext_ack *extack)
 {
 	const struct nfp_devlink_param_u8_arg *arg;
@@ -180,12 +180,12 @@ nfp_devlink_param_u8_validate(struct devlink *devlink, u32 id,
 
 	arg = &nfp_devlink_u8_args[id];
 
-	if (val.vu8 > arg->max_dl_val) {
+	if (val->vu8 > arg->max_dl_val) {
 		NL_SET_ERR_MSG_MOD(extack, "parameter out of range");
 		return -EINVAL;
 	}
 
-	if (val.vu8 == arg->invalid_dl_val) {
+	if (val->vu8 == arg->invalid_dl_val) {
 		NL_SET_ERR_MSG_MOD(extack, "unknown/invalid value specified");
 		return -EINVAL;
 	}

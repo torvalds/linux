@@ -734,7 +734,7 @@ also have
       They should be scaled by the bitmap_chunksize.
 
    sync_speed_min, sync_speed_max
-     This are similar to ``/proc/sys/dev/raid/speed_limit_{min,max}``
+     These are similar to ``/proc/sys/dev/raid/speed_limit_{min,max}``
      however they only apply to the particular array.
 
      If no value has been written to these, or if the word ``system``

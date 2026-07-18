@@ -51,23 +51,11 @@ static const struct clk_mgr_mask disp_clk_mask = {
 		CLK_COMMON_MASK_SH_LIST_DCE_COMMON_BASE(_MASK)
 };
 
-static const struct state_dependent_clocks dce110_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
-{ .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
-{ .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
-/*ClocksStateLow*/
-{ .display_clk_khz = 352000, .pixel_clk_khz = 330000 },
-/*ClocksStateNominal*/
-{ .display_clk_khz = 467000, .pixel_clk_khz = 400000 },
-/*ClocksStatePerformance*/
-{ .display_clk_khz = 643000, .pixel_clk_khz = 400000 } };
-
-static int determine_sclk_from_bounding_box(
+static uint32_t determine_sclk_from_bounding_box(
 		const struct dc *dc,
-		int required_sclk)
+		uint32_t required_sclk)
 {
-	int i;
+	uint32_t i;
 
 	/*
 	 * Some asics do not give us sclk levels, so we just report the actual
@@ -127,7 +115,7 @@ void dce110_fill_display_configs(
 	pp_display_cfg->avail_mclk_switch_time_us = dce110_get_min_vblank_time_us(context);
 	pp_display_cfg->disp_clk_khz = dc->clk_mgr->clks.dispclk_khz;
 	pp_display_cfg->avail_mclk_switch_time_in_disp_active_us = 0;
-	pp_display_cfg->crtc_index = dc->res_pool->res_cap->num_timing_generator;
+	pp_display_cfg->crtc_index = (uint8_t)dc->res_pool->res_cap->num_timing_generator;
 
 	for (j = 0; j < context->stream_count; j++) {
 		int k;
@@ -151,7 +139,7 @@ void dce110_fill_display_configs(
 
 		num_cfgs++;
 		cfg->signal = pipe_ctx->stream->signal;
-		cfg->pipe_idx = pipe_ctx->stream_res.tg->inst;
+		cfg->pipe_idx = (uint8_t)pipe_ctx->stream_res.tg->inst;
 		cfg->src_height = stream->src.height;
 		cfg->src_width = stream->src.width;
 		cfg->ddi_channel_mapping =
@@ -189,7 +177,7 @@ void dce110_fill_display_configs(
 		pp_display_cfg->line_time_in_us = 0;
 	}
 
-	pp_display_cfg->display_count = num_cfgs;
+	pp_display_cfg->display_count = (uint8_t)num_cfgs;
 }
 
 void dce11_pplib_apply_display_requirements(
@@ -257,20 +245,11 @@ static void dce11_update_clocks(struct clk_mgr *clk_mgr_base,
 			bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr_dce = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	struct dm_pp_power_level_change_request level_change_req;
 	int patched_disp_clk = context->bw_ctx.bw.dce.dispclk_khz;
 
 	/*TODO: W/A for dal3 linux, investigate why this works */
 	if (!clk_mgr_dce->dfs_bypass_active)
 		patched_disp_clk = patched_disp_clk * 115 / 100;
-
-	level_change_req.power_level = dce_get_required_clocks_state(clk_mgr_base, context);
-	/* get max clock state from PPLIB */
-	if ((level_change_req.power_level < clk_mgr_dce->cur_min_clks_state && safe_to_lower)
-			|| level_change_req.power_level > clk_mgr_dce->cur_min_clks_state) {
-		if (dm_pp_apply_power_level_change_request(clk_mgr_base->ctx, &level_change_req))
-			clk_mgr_dce->cur_min_clks_state = level_change_req.power_level;
-	}
 
 	if (should_set_clock(safe_to_lower, patched_disp_clk, clk_mgr_base->clks.dispclk_khz)) {
 		context->bw_ctx.bw.dce.dispclk_khz = dce_set_clock(clk_mgr_base, patched_disp_clk);
@@ -289,10 +268,6 @@ void dce110_clk_mgr_construct(
 		struct clk_mgr_internal *clk_mgr)
 {
 	dce_clk_mgr_construct(ctx, clk_mgr);
-
-	memcpy(clk_mgr->max_clks_by_state,
-		dce110_max_clks_by_state,
-		sizeof(dce110_max_clks_by_state));
 
 	clk_mgr->regs = &disp_clk_regs;
 	clk_mgr->clk_mgr_shift = &disp_clk_shift;

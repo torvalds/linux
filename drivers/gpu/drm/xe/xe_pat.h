@@ -82,4 +82,12 @@ bool xe_pat_index_get_comp_en(struct xe_device *xe, u16 pat_index);
  */
 u16 xe_pat_index_get_l3_policy(struct xe_device *xe, u16 pat_index);
 
+#define xe_cache_pat_idx(xe, cache_mode) ({					\
+	const struct xe_device *__xedev = (xe);					\
+	enum xe_cache_level __mode = (cache_mode);				\
+	xe_assert(__xedev, __mode < __XE_CACHE_LEVEL_COUNT);			\
+	xe_assert(__xedev, __xedev->pat.idx[__mode] != XE_PAT_INVALID_IDX);	\
+	__xedev->pat.idx[__mode];						\
+})
+
 #endif

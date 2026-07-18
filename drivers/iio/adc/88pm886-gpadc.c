@@ -10,7 +10,6 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/math.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -373,7 +372,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(pm886_gpadc_pm_ops,
 				 pm886_gpadc_runtime_resume, NULL);
 
 static const struct platform_device_id pm886_gpadc_id[] = {
-	{ "88pm886-gpadc" },
+	{ .name = "88pm886-gpadc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, pm886_gpadc_id);

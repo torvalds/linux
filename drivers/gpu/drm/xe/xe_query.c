@@ -119,6 +119,7 @@ query_engine_cycles(struct xe_device *xe,
 	struct drm_xe_engine_class_instance *eci;
 	struct drm_xe_query_engine_cycles resp;
 	size_t size = sizeof(resp);
+	enum xe_force_wake_domains fw_domain;
 	__ktime_func_t cpu_clock;
 	struct xe_hw_engine *hwe;
 	struct xe_gt *gt;
@@ -154,8 +155,10 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	xe_with_force_wake(fw_ref, gt_to_fw(gt), XE_FORCEWAKE_ALL) {
-		if (!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL))
+	fw_domain = xe_hw_engine_to_fw_domain(hwe);
+
+	xe_with_force_wake(fw_ref, gt_to_fw(gt), fw_domain) {
+		if (!xe_force_wake_ref_has_domain(fw_ref.domains, fw_domain))
 			return -EIO;
 
 		hwe_read_timestamp(hwe, &resp.engine_cycles, &resp.cpu_timestamp,
@@ -231,6 +234,9 @@ static size_t calc_mem_regions_size(struct xe_device *xe)
 	u32 num_managers = 1;
 	int i;
 
+	if (xe_device_is_admin_only(xe))
+		return sizeof(struct drm_xe_query_mem_regions);
+
 	for (i = XE_PL_VRAM0; i <= XE_PL_VRAM1; ++i)
 		if (ttm_manager_type(&xe->ttm, i))
 			num_managers++;
@@ -258,6 +264,9 @@ static int query_mem_regions(struct xe_device *xe,
 	mem_regions = kzalloc(size, GFP_KERNEL);
 	if (XE_IOCTL_DBG(xe, !mem_regions))
 		return -ENOMEM;
+
+	if (xe_device_is_admin_only(xe))
+		goto user_copy;
 
 	man = ttm_manager_type(&xe->ttm, XE_PL_TT);
 	mem_regions->mem_regions[0].mem_class = DRM_XE_MEM_REGION_CLASS_SYSMEM;
@@ -297,6 +306,7 @@ static int query_mem_regions(struct xe_device *xe,
 		}
 	}
 
+user_copy:
 	if (!copy_to_user(query_ptr, mem_regions, size))
 		ret = 0;
 	else

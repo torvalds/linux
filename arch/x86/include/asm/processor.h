@@ -16,7 +16,7 @@ struct vm86;
 #include <uapi/asm/sigcontext.h>
 #include <asm/current.h>
 #include <asm/cpufeatures.h>
-#include <asm/cpuid/api.h>
+#include <asm/cpuid/types.h>
 #include <asm/page.h>
 #include <asm/pgtable_types.h>
 #include <asm/percpu.h>
@@ -170,6 +170,7 @@ struct cpuinfo_x86 {
 	char			x86_vendor_id[16];
 	char			x86_model_id[64];
 	struct cpuinfo_topology	topo;
+	struct cpuid_table	cpuid;
 	/* in KB - valid for CPUS which support this call: */
 	unsigned int		x86_cache_size;
 	int			x86_cache_alignment;	/* In bytes */
@@ -704,6 +705,11 @@ static inline u32 per_cpu_l2c_id(unsigned int cpu)
 	return per_cpu(cpu_info.topo.l2c_id, cpu);
 }
 
+static inline u32 per_cpu_core_id(unsigned int cpu)
+{
+	return per_cpu(cpu_info.topo.core_id, cpu);
+}
+
 #ifdef CONFIG_CPU_SUP_AMD
 /*
  * Issue a DIV 0/1 insn to clear any division data from previous DIV
@@ -733,6 +739,7 @@ bool xen_set_default_idle(void);
 #endif
 
 void __noreturn stop_this_cpu(void *dummy);
+extern bool x86_hypervisor_present;
 void microcode_check(struct cpuinfo_x86 *prev_info);
 void store_cpu_caps(struct cpuinfo_x86 *info);
 

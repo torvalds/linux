@@ -3,7 +3,7 @@
 
 config COMMON_CLK_ROCKCHIP
 	bool "Rockchip clock controller common support"
-	depends on ARCH_ROCKCHIP
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	default ARCH_ROCKCHIP
 	help
 	  Say y here to enable common clock controller for Rockchip platforms.

@@ -172,7 +172,7 @@ static int regmap_sdw_mbq_read(void *context, unsigned int reg, unsigned int *va
 	ret = regmap_sdw_mbq_read_impl(slave, reg, val, mbq_size);
 	if (ret == -ENODATA) {
 		if (!deferrable)
-			dev_warn(dev, "Defer on undeferable control: %x\n", reg);
+			dev_warn(dev, "Defer on undeferrable control: %x\n", reg);
 
 		ret = regmap_sdw_mbq_poll_busy(slave, reg, ctx);
 		if (ret)

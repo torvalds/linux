@@ -44,6 +44,10 @@ properties:
           - enum:
               - mediatek,mt6366
           - const: mediatek,mt6358
+      - items:
+          - enum:
+              - mediatek,mt6365
+          - const: mediatek,mt6359
 
   interrupts:
     maxItems: 1
@@ -70,6 +74,8 @@ properties:
               - mediatek,mt6397-rtc
           - items:
               - enum:
+                  - mediatek,mt6359-rtc
+                  - mediatek,mt6365-rtc
                   - mediatek,mt6366-rtc
               - const: mediatek,mt6358-rtc
 
@@ -98,6 +104,10 @@ properties:
               - enum:
                   - mediatek,mt6366-regulator
               - const: mediatek,mt6358-regulator
+          - items:
+              - enum:
+                  - mediatek,mt6365-regulator
+              - const: mediatek,mt6359-regulator
 
     required:
       - compatible
@@ -124,6 +134,10 @@ properties:
               - enum:
                   - mediatek,mt6366-sound
               - const: mediatek,mt6358-sound
+          - items:
+              - enum:
+                  - mediatek,mt6365-codec
+              - const: mediatek,mt6359-codec
 
     required:
       - compatible
@@ -225,11 +239,61 @@ properties:
     description:
       Pin controller
 
+  vsys-smps-supply:
+    description: Supply for regulator control logic
+
+patternProperties:
+  "^vsys-v[a-z]+[0-9]*-supply$":
+    description: Supplies for PMIC buck regulators
+  "^vs(ys|[12])-ldo[1-9]-supply$":
+    description: Supplies for PMIC LDO regulators
+
 required:
   - compatible
   - regulators
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        "compatible":
+          contains:
+            const: mediatek,mt6359
+    then:
+      properties:
+        vsys-ldo1-supply:
+          description: Supply for LDOs vcn33_[12], vio28, vfe28, vibr
+        vsys-ldo2-supply:
+          description: Supply for LDOs vaux18, vbif28, vxo22, vrfck, vrfck_1,
+            vemc, vsim1, vsim2, vusb
+        vsys-vcore-supply:
+          description: Supply for buck regulator vcore
+        vsys-vgpu11-supply:
+          description: Supply for buck regulator vgpu11
+        vsys-vmodem-supply:
+          description: Supply for buck regulator vmodem
+        vsys-vpa-supply:
+          description: Supply for buck regulator vpa
+        vsys-vproc1-supply:
+          description: Supply for buck regulator vproc1
+        vsys-vproc2-supply:
+          description: Supply for buck regulator vproc2
+        vsys-vpu-supply:
+          description: Supply for buck regulator vpu
+        vsys-vs1-supply:
+          description: Supply for buck regulator vs1
+        vsys-vs2-supply:
+          description: Supply for buck regulator vs2
+        vs1-ldo1-supply:
+          description: Supply for LDOs vaud18, vcamio, vm18, vufs
+        vs1-ldo2-supply:
+          description: Supply for LDOs vcn18, vefuse, vio18, vrf18
+        vs2-ldo1-supply:
+          description:
+            Supply for LDOs vsram_proc1, vsram_proc2, vsram_others, vsram_md
+        vs2-ldo2-supply:
+          description: Supply for LDOs va09, va12, vcn13, vrf12
 
 examples:
   - |

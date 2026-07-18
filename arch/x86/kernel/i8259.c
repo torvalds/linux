@@ -214,7 +214,7 @@ spurious_8259A_irq:
 			       "spurious 8259A interrupt: IRQ%d.\n", irq);
 			spurious_irq_mask |= irqmask;
 		}
-		atomic_inc(&irq_err_count);
+		irq_stat_inc_and_enable(IRQ_COUNT_PIC_APIC_ERROR);
 		/*
 		 * Theoretically we do not have to handle this IRQ,
 		 * but in Linux this does not cause problems and is

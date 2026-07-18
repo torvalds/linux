@@ -337,48 +337,32 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 EXPORT_SYMBOL_GPL(alarm_init);
 
 /**
- * alarm_start - Sets an absolute alarm to fire
- * @alarm: ptr to alarm to set
- * @start: time to run the alarm
+ * alarm_start_timer - Sets an alarm to fire
+ * @alarm:	Pointer to alarm to set
+ * @expires:	Expiry time
+ * @relative:	True if @expires is relative
+ *
+ * Returns: True if the alarm was queued. False if it already expired
  */
-void alarm_start(struct alarm *alarm, ktime_t start)
+bool alarm_start_timer(struct alarm *alarm, ktime_t expires, bool relative)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
 
-	scoped_guard(spinlock_irqsave, &base->lock) {
-		alarm->node.expires = start;
-		alarmtimer_enqueue(base, alarm);
-		hrtimer_start(&alarm->timer, alarm->node.expires, HRTIMER_MODE_ABS);
-	}
+	if (relative)
+		expires = ktime_add_safe(expires, base->get_ktime());
 
 	trace_alarmtimer_start(alarm, base->get_ktime());
-}
-EXPORT_SYMBOL_GPL(alarm_start);
-
-/**
- * alarm_start_relative - Sets a relative alarm to fire
- * @alarm: ptr to alarm to set
- * @start: time relative to now to run the alarm
- */
-void alarm_start_relative(struct alarm *alarm, ktime_t start)
-{
-	struct alarm_base *base = &alarm_bases[alarm->type];
-
-	start = ktime_add_safe(start, base->get_ktime());
-	alarm_start(alarm, start);
-}
-EXPORT_SYMBOL_GPL(alarm_start_relative);
-
-void alarm_restart(struct alarm *alarm)
-{
-	struct alarm_base *base = &alarm_bases[alarm->type];
 
 	guard(spinlock_irqsave)(&base->lock);
-	hrtimer_set_expires(&alarm->timer, alarm->node.expires);
-	hrtimer_restart(&alarm->timer);
+	alarm->node.expires = expires;
 	alarmtimer_enqueue(base, alarm);
+	if (!hrtimer_start_range_ns_user(&alarm->timer, expires, 0, HRTIMER_MODE_ABS)) {
+		alarmtimer_dequeue(base, alarm);
+		return false;
+	}
+	return true;
 }
-EXPORT_SYMBOL_GPL(alarm_restart);
+EXPORT_SYMBOL_GPL(alarm_start_timer);
 
 /**
  * alarm_try_to_cancel - Tries to cancel an alarm timer
@@ -512,8 +496,6 @@ static enum alarmtimer_type clock2alarm(clockid_t clockid)
  * @now: time at the timer expiration
  *
  * Posix timer callback for expired alarm timers.
- *
- * Return: whether the timer is to be restarted
  */
 static void alarm_handle_timer(struct alarm *alarm, ktime_t now)
 {
@@ -527,12 +509,12 @@ static void alarm_handle_timer(struct alarm *alarm, ktime_t now)
  * alarm_timer_rearm - Posix timer callback for rearming timer
  * @timr:	Pointer to the posixtimer data struct
  */
-static void alarm_timer_rearm(struct k_itimer *timr)
+static bool alarm_timer_rearm(struct k_itimer *timr)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 
 	timr->it_overrun += alarm_forward_now(alarm, timr->it_interval);
-	alarm_start(alarm, alarm->node.expires);
+	return alarm_start_timer(alarm, alarm->node.expires, false);
 }
 
 /**
@@ -588,7 +570,7 @@ static void alarm_timer_wait_running(struct k_itimer *timr)
  * @absolute:	Expiry value is absolute time
  * @sigev_none:	Posix timer does not deliver signals
  */
-static void alarm_timer_arm(struct k_itimer *timr, ktime_t expires,
+static bool alarm_timer_arm(struct k_itimer *timr, ktime_t expires,
 			    bool absolute, bool sigev_none)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
@@ -596,10 +578,16 @@ static void alarm_timer_arm(struct k_itimer *timr, ktime_t expires,
 
 	if (!absolute)
 		expires = ktime_add_safe(expires, base->get_ktime());
-	if (sigev_none)
+
+	/*
+	 * sigev_none needs to update the expires value and pretend
+	 * that the timer is queued
+	 */
+	if (sigev_none) {
 		alarm->node.expires = expires;
-	else
-		alarm_start(&timr->it.alarm.alarmtimer, expires);
+		return true;
+	}
+	return alarm_start_timer(&timr->it.alarm.alarmtimer, expires, false);
 }
 
 /**
@@ -706,7 +694,9 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp,
 	alarm->data = (void *)current;
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
-		alarm_start(alarm, absexp);
+		if (!alarm_start_timer(alarm, absexp, false))
+			alarm->data = NULL;
+
 		if (likely(alarm->data))
 			schedule();
 

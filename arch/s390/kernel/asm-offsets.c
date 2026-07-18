@@ -11,9 +11,11 @@
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
 #include <linux/ftrace_regs.h>
+#include <linux/kernel_stat.h>
 #include <asm/kvm_host_types.h>
 #include <asm/stacktrace.h>
 #include <asm/ptrace.h>
+#include <asm/idle.h>
 
 int main(void)
 {
@@ -128,6 +130,7 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
+	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
 	OFFSET(__LC_NODAT_STACK, lowcore, nodat_stack);
@@ -180,6 +183,10 @@ int main(void)
 	DEFINE(OLDMEM_SIZE, PARMAREA + offsetof(struct parmarea, oldmem_size));
 	DEFINE(COMMAND_LINE, PARMAREA + offsetof(struct parmarea, command_line));
 	DEFINE(MAX_COMMAND_LINE_SIZE, PARMAREA + offsetof(struct parmarea, max_command_line_size));
+	OFFSET(__IDLE_CLOCK_EXIT, s390_idle_data, clock_idle_exit);
+#ifdef CONFIG_NO_HZ_COMMON
+	OFFSET(__KCPUSTAT_SEQUENCE, kernel_cpustat, idle_sleeptime_seq);
+#endif
 	OFFSET(__FTRACE_REGS_PT_REGS, __arch_ftrace_regs, regs);
 	DEFINE(__FTRACE_REGS_SIZE, sizeof(struct __arch_ftrace_regs));
 

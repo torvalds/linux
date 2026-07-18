@@ -18,7 +18,7 @@
 
 #define IPI_VECTOR	 0xfe
 
-static volatile uint64_t ipis_rcvd[RECEIVER_VCPU_ID_2 + 1];
+static volatile u64 ipis_rcvd[RECEIVER_VCPU_ID_2 + 1];
 
 struct hv_vpset {
 	u64 format;
@@ -45,13 +45,13 @@ struct hv_send_ipi_ex {
 	struct hv_vpset vp_set;
 };
 
-static inline void hv_init(vm_vaddr_t pgs_gpa)
+static inline void hv_init(gpa_t pgs_gpa)
 {
 	wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
 	wrmsr(HV_X64_MSR_HYPERCALL, pgs_gpa);
 }
 
-static void receiver_code(void *hcall_page, vm_vaddr_t pgs_gpa)
+static void receiver_code(void *hcall_page, gpa_t pgs_gpa)
 {
 	u32 vcpu_id;
 
@@ -85,7 +85,7 @@ static inline void nop_loop(void)
 		asm volatile("nop");
 }
 
-static void sender_guest_code(void *hcall_page, vm_vaddr_t pgs_gpa)
+static void sender_guest_code(void *hcall_page, gpa_t pgs_gpa)
 {
 	struct hv_send_ipi *ipi = (struct hv_send_ipi *)hcall_page;
 	struct hv_send_ipi_ex *ipi_ex = (struct hv_send_ipi_ex *)hcall_page;
@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu[3];
-	vm_vaddr_t hcall_page;
+	gva_t hcall_page;
 	pthread_t threads[2];
 	int stage = 1, r;
 	struct ucall uc;
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu[0], sender_guest_code);
 
 	/* Hypercall input/output */
-	hcall_page = vm_vaddr_alloc_pages(vm, 2);
+	hcall_page = vm_alloc_pages(vm, 2);
 	memset(addr_gva2hva(vm, hcall_page), 0x0, 2 * getpagesize());
 
 

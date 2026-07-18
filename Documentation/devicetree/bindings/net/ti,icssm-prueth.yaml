@@ -24,7 +24,7 @@ properties:
       - ti,am3359-prueth   # for AM33x SoC family
 
   sram:
-    $ref: /schemas/types.yaml#/definitions/phandle
+    maxItems: 1
     description:
       phandle to OCMC SRAM node
 

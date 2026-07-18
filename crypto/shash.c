@@ -333,12 +333,10 @@ static void crypto_shash_free_instance(struct crypto_instance *inst)
 static int __maybe_unused crypto_shash_report(
 	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_report_hash rhash;
 	struct shash_alg *salg = __crypto_shash_alg(alg);
-
-	memset(&rhash, 0, sizeof(rhash));
-
-	strscpy(rhash.type, "shash", sizeof(rhash.type));
+	struct crypto_report_hash rhash = {
+		.type = "shash",
+	};
 
 	rhash.blocksize = alg->cra_blocksize;
 	rhash.digestsize = salg->digestsize;
@@ -394,43 +392,6 @@ int crypto_has_shash(const char *alg_name, u32 type, u32 mask)
 	return crypto_type_has_alg(alg_name, &crypto_shash_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_has_shash);
-
-struct crypto_shash *crypto_clone_shash(struct crypto_shash *hash)
-{
-	struct crypto_tfm *tfm = crypto_shash_tfm(hash);
-	struct shash_alg *alg = crypto_shash_alg(hash);
-	struct crypto_shash *nhash;
-	int err;
-
-	if (!crypto_shash_alg_has_setkey(alg)) {
-		tfm = crypto_tfm_get(tfm);
-		if (IS_ERR(tfm))
-			return ERR_CAST(tfm);
-
-		return hash;
-	}
-
-	if (!alg->clone_tfm && (alg->init_tfm || alg->base.cra_init))
-		return ERR_PTR(-ENOSYS);
-
-	nhash = crypto_clone_tfm(&crypto_shash_type, tfm);
-	if (IS_ERR(nhash))
-		return nhash;
-
-	if (alg->clone_tfm) {
-		err = alg->clone_tfm(nhash, hash);
-		if (err) {
-			crypto_free_shash(nhash);
-			return ERR_PTR(err);
-		}
-	}
-
-	if (alg->exit_tfm)
-		crypto_shash_tfm(nhash)->exit = crypto_shash_exit_tfm;
-
-	return nhash;
-}
-EXPORT_SYMBOL_GPL(crypto_clone_shash);
 
 int hash_prepare_alg(struct hash_alg_common *alg)
 {

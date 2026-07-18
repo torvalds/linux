@@ -143,7 +143,8 @@ enum {
 };
 
 enum {
-	UNI_MBMC_SETTING,
+	UNI_MBMC_SETTING = 0,
+	UNI_MBMC_NO_RESP_SETTING = 1,
 };
 
 enum {

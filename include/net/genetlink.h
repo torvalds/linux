@@ -489,8 +489,10 @@ genlmsg_multicast_netns_filtered(const struct genl_family *family,
 				 netlink_filter_fn filter,
 				 void *filter_data)
 {
-	if (WARN_ON_ONCE(group >= family->n_mcgrps))
+	if (WARN_ON_ONCE(group >= family->n_mcgrps)) {
+		nlmsg_free(skb);
 		return -EINVAL;
+	}
 	group = family->mcgrp_offset + group;
 	return nlmsg_multicast_filtered(net->genl_sock, skb, portid, group,
 					flags, filter, filter_data);

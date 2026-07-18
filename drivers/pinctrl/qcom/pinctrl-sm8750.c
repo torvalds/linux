@@ -1701,6 +1701,7 @@ static const struct of_device_id sm8750_tlmm_of_match[] = {
 	{ .compatible = "qcom,sm8750-tlmm", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, sm8750_tlmm_of_match);
 
 static struct platform_driver sm8750_tlmm_driver = {
 	.driver = {
@@ -1724,4 +1725,3 @@ module_exit(sm8750_tlmm_exit);
 
 MODULE_DESCRIPTION("QTI SM8750 TLMM driver");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(of, sm8750_tlmm_of_match);

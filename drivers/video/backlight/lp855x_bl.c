@@ -570,13 +570,13 @@ static const struct of_device_id lp855x_dt_ids[] __maybe_unused = {
 MODULE_DEVICE_TABLE(of, lp855x_dt_ids);
 
 static const struct i2c_device_id lp855x_ids[] = {
-	{"lp8550", LP8550},
-	{"lp8551", LP8551},
-	{"lp8552", LP8552},
-	{"lp8553", LP8553},
-	{"lp8555", LP8555},
-	{"lp8556", LP8556},
-	{"lp8557", LP8557},
+	{ .name = "lp8550", .driver_data = LP8550 },
+	{ .name = "lp8551", .driver_data = LP8551 },
+	{ .name = "lp8552", .driver_data = LP8552 },
+	{ .name = "lp8553", .driver_data = LP8553 },
+	{ .name = "lp8555", .driver_data = LP8555 },
+	{ .name = "lp8556", .driver_data = LP8556 },
+	{ .name = "lp8557", .driver_data = LP8557 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp855x_ids);

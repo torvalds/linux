@@ -95,8 +95,8 @@ examples:
       interrupts = <10>;
       opencores,ip-clock-frequency = <20000000>;
 
-      reg-shift = <0>;	/* 8 bit registers */
-      reg-io-width = <1>;	/* 8 bit read/write */
+      reg-shift = <0>; /* 8 bit registers */
+      reg-io-width = <1>; /* 8 bit read/write */
     };
 
     i2c@b0000000 {
@@ -108,7 +108,7 @@ examples:
       clocks = <&osc>;
       clock-frequency = <400000>; /* i2c bus frequency 400 KHz */
 
-      reg-shift = <0>;	/* 8 bit registers */
-      reg-io-width = <1>;	/* 8 bit read/write */
+      reg-shift = <0>; /* 8 bit registers */
+      reg-io-width = <1>; /* 8 bit read/write */
     };
 ...

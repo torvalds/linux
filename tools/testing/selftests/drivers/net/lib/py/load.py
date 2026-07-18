@@ -48,7 +48,10 @@ class Iperf3Runner:
         Starts the iperf3 client with the configured options.
         """
         cmdline = self._build_client(streams, duration, reverse)
-        return cmd(cmdline, background=background, host=self.env.remote)
+        kwargs = {"background": background, "host": self.env.remote}
+        if not background:
+            kwargs["timeout"] = duration + 5
+        return cmd(cmdline, **kwargs)
 
     def measure_bandwidth(self, reverse=False):
         """

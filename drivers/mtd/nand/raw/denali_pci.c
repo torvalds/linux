@@ -19,8 +19,8 @@
 
 /* List of platforms this NAND controller has be integrated into */
 static const struct pci_device_id denali_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x0701), INTEL_CE4100 },
-	{ PCI_VDEVICE(INTEL, 0x0809), INTEL_MRST },
+	{ PCI_VDEVICE(INTEL, 0x0701), .driver_data = INTEL_CE4100 },
+	{ PCI_VDEVICE(INTEL, 0x0809), .driver_data = INTEL_MRST },
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, denali_pci_ids);

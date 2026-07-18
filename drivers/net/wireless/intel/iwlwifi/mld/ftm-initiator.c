@@ -71,24 +71,34 @@ iwl_mld_ftm_set_target_chandef(struct iwl_mld *mld,
 
 	switch (peer->chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		target->format_bw = IWL_LOCATION_FRAME_FORMAT_LEGACY;
-		target->format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		target->format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_LEGACY,
+						   IWL_LOCATION_FMT_BW_FORMAT);
+		target->format_bw |= u8_encode_bits(IWL_LOCATION_BW_20MHZ,
+						    IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_20:
-		target->format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
-		target->format_bw |= IWL_LOCATION_BW_20MHZ << LOCATION_BW_POS;
+		target->format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HT,
+						   IWL_LOCATION_FMT_BW_FORMAT);
+		target->format_bw |= u8_encode_bits(IWL_LOCATION_BW_20MHZ,
+						    IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_40:
-		target->format_bw = IWL_LOCATION_FRAME_FORMAT_HT;
-		target->format_bw |= IWL_LOCATION_BW_40MHZ << LOCATION_BW_POS;
+		target->format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HT,
+						   IWL_LOCATION_FMT_BW_FORMAT);
+		target->format_bw |= u8_encode_bits(IWL_LOCATION_BW_40MHZ,
+						    IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_80:
-		target->format_bw = IWL_LOCATION_FRAME_FORMAT_VHT;
-		target->format_bw |= IWL_LOCATION_BW_80MHZ << LOCATION_BW_POS;
+		target->format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_VHT,
+						   IWL_LOCATION_FMT_BW_FORMAT);
+		target->format_bw |= u8_encode_bits(IWL_LOCATION_BW_80MHZ,
+						    IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		target->format_bw = IWL_LOCATION_FRAME_FORMAT_HE;
-		target->format_bw |= IWL_LOCATION_BW_160MHZ << LOCATION_BW_POS;
+		target->format_bw = u8_encode_bits(IWL_LOCATION_FRAME_FORMAT_HE,
+						   IWL_LOCATION_FMT_BW_FORMAT);
+		target->format_bw |= u8_encode_bits(IWL_LOCATION_BW_160MHZ,
+						    IWL_LOCATION_FMT_BW_BANDWIDTH);
 		break;
 	default:
 		IWL_ERR(mld, "Unsupported BW in FTM request (%d)\n",

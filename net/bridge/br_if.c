@@ -19,6 +19,7 @@
 #include <linux/if_ether.h>
 #include <linux/slab.h>
 #include <net/dsa.h>
+#include <net/netdev_lock.h>
 #include <net/sock.h>
 #include <linux/if_vlan.h>
 #include <net/switchdev.h>
@@ -30,13 +31,13 @@
  * Determine initial path cost based on speed.
  * using recommendations from 802.1d standard
  *
- * Since driver might sleep need to not be holding any locks.
+ * Since driver might sleep, we need to not be holding any bridge spinlocks.
  */
 static int port_cost(struct net_device *dev)
 {
 	struct ethtool_link_ksettings ecmd;
 
-	if (!__ethtool_get_link_ksettings(dev, &ecmd)) {
+	if (!netif_get_link_ksettings(dev, &ecmd)) {
 		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
@@ -75,9 +76,9 @@ void br_port_carrier_check(struct net_bridge_port *p, bool *notified)
 	struct net_device *dev = p->dev;
 	struct net_bridge *br = p->br;
 
-	if (!(p->flags & BR_ADMIN_COST) &&
+	if (!test_bit(BR_ADMIN_COST_BIT, &p->flags) &&
 	    netif_running(dev) && netif_oper_up(dev))
-		p->path_cost = port_cost(dev);
+		WRITE_ONCE(p->path_cost, port_cost(dev));
 
 	*notified = false;
 	if (!netif_running(br->dev))
@@ -110,7 +111,7 @@ static void br_port_set_promisc(struct net_bridge_port *p)
 		return;
 
 	br_fdb_unsync_static(p->br, p);
-	p->flags |= BR_PROMISC;
+	set_bit(BR_PROMISC_BIT, &p->flags);
 }
 
 static void br_port_clear_promisc(struct net_bridge_port *p)
@@ -133,7 +134,7 @@ static void br_port_clear_promisc(struct net_bridge_port *p)
 		return;
 
 	dev_set_promiscuity(p->dev, -1);
-	p->flags &= ~BR_PROMISC;
+	clear_bit(BR_PROMISC_BIT, &p->flags);
 }
 
 /* When a port is added or removed or when certain port flags
@@ -391,6 +392,9 @@ void br_dev_delete(struct net_device *dev, struct list_head *head)
 
 	br_fdb_delete_by_port(br, NULL, 0, 1);
 
+	timer_shutdown_sync(&br->hello_timer);
+	timer_shutdown_sync(&br->topology_change_timer);
+	timer_shutdown_sync(&br->tcn_timer);
 	cancel_delayed_work_sync(&br->gc_work);
 
 	br_sysfs_delbr(br->dev);
@@ -436,7 +440,9 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	p->br = br;
 	netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 	p->dev = dev;
+	netdev_lock_ops(dev);
 	p->path_cost = port_cost(dev);
+	netdev_unlock_ops(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
 	p->port_no = index;
 	p->flags = BR_LEARNING | BR_FLOOD | BR_MCAST_FLOOD | BR_BCAST_FLOOD;
@@ -758,6 +764,6 @@ bool br_port_flag_is_set(const struct net_device *dev, unsigned long flag)
 	if (!p)
 		return false;
 
-	return p->flags & flag;
+	return READ_ONCE(p->flags) & flag;
 }
 EXPORT_SYMBOL_GPL(br_port_flag_is_set);

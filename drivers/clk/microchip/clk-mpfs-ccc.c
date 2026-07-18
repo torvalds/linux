@@ -32,6 +32,7 @@
 #define MPFS_CCC_FIXED_DIV		4
 #define MPFS_CCC_OUTPUTS_PER_PLL	4
 #define MPFS_CCC_REFS_PER_PLL		2
+#define MPFS_CCC_NUM_CLKS		16
 
 struct mpfs_ccc_data {
 	void __iomem **pll_base;
@@ -178,7 +179,7 @@ static int mpfs_ccc_register_outputs(struct device *dev, struct mpfs_ccc_out_hw_
 			return dev_err_probe(dev, ret, "failed to register clock id: %d\n",
 					     out_hw->id);
 
-		data->hw_data.hws[out_hw->id - 2] = &out_hw->divider.hw;
+		data->hw_data.hws[out_hw->id] = &out_hw->divider.hw;
 	}
 
 	return 0;
@@ -231,17 +232,9 @@ static int mpfs_ccc_probe(struct platform_device *pdev)
 {
 	struct mpfs_ccc_data *clk_data;
 	void __iomem *pll_base[ARRAY_SIZE(mpfs_ccc_pll_clks)];
-	unsigned int num_clks;
 	int ret;
 
-	/*
-	 * If DLLs get added here, mpfs_ccc_register_outputs() currently packs
-	 * sparse clock IDs in the hws array
-	 */
-	num_clks = ARRAY_SIZE(mpfs_ccc_pll_clks) + ARRAY_SIZE(mpfs_ccc_pll0out_clks) +
-		   ARRAY_SIZE(mpfs_ccc_pll1out_clks);
-
-	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hw_data.hws, num_clks),
+	clk_data = devm_kzalloc(&pdev->dev, struct_size(clk_data, hw_data.hws, MPFS_CCC_NUM_CLKS),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
@@ -255,7 +248,7 @@ static int mpfs_ccc_probe(struct platform_device *pdev)
 		return PTR_ERR(pll_base[1]);
 
 	clk_data->pll_base = pll_base;
-	clk_data->hw_data.num = num_clks;
+	clk_data->hw_data.num = MPFS_CCC_NUM_CLKS;
 	clk_data->dev = &pdev->dev;
 
 	ret = mpfs_ccc_register_plls(clk_data->dev, mpfs_ccc_pll_clks,

@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
-#include <asm/mach-types.h>
+#include <linux/of.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include "orion5x.h"
@@ -47,7 +47,7 @@ static struct hw_pci mss2_pci __initdata = {
 
 static int __init mss2_pci_init(void)
 {
-	if (machine_is_mss2())
+	if (of_machine_is_compatible("maxtor,shared-storage-2"))
 		pci_common_init(&mss2_pci);
 
 	return 0;

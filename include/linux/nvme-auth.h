@@ -49,9 +49,9 @@ int nvme_auth_augmented_challenge(u8 hmac_id, const u8 *skey, size_t skey_len,
 int nvme_auth_gen_privkey(struct crypto_kpp *dh_tfm, u8 dh_gid);
 int nvme_auth_gen_pubkey(struct crypto_kpp *dh_tfm,
 			 u8 *host_key, size_t host_key_len);
-int nvme_auth_gen_shared_secret(struct crypto_kpp *dh_tfm,
-				const u8 *ctrl_key, size_t ctrl_key_len,
-				u8 *sess_key, size_t sess_key_len);
+int nvme_auth_gen_session_key(struct crypto_kpp *dh_tfm,
+			      const u8 *public_key, size_t public_key_len,
+			      u8 *sess_key, size_t sess_key_len, u8 hash_id);
 int nvme_auth_generate_psk(u8 hmac_id, const u8 *skey, size_t skey_len,
 			   const u8 *c1, const u8 *c2, size_t hash_len,
 			   u8 **ret_psk, size_t *ret_len);

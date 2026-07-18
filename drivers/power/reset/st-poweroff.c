@@ -9,7 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/reboot.h>
@@ -73,14 +72,11 @@ static const struct of_device_id st_reset_of_match[] = {
 static int st_reset_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 
-	match = of_match_device(st_reset_of_match, dev);
-	if (!match)
+	st_restart_syscfg = (struct reset_syscfg *)of_device_get_match_data(dev);
+	if (!st_restart_syscfg)
 		return -ENODEV;
-
-	st_restart_syscfg = (struct reset_syscfg *)match->data;
 
 	st_restart_syscfg->regmap =
 		syscon_regmap_lookup_by_phandle(np, "st,syscfg");

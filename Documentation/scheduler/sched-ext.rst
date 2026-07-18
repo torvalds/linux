@@ -114,7 +114,7 @@ counters. Each counter occupies one ``name value`` line:
     SCX_EV_INSERT_NOT_OWNED 0
     SCX_EV_SUB_BYPASS_DISPATCH 0
 
-The counters are described in ``kernel/sched/ext_internal.h``; briefly:
+The counters are described in ``kernel/sched/ext/internal.h``; briefly:
 
 * ``SCX_EV_SELECT_CPU_FALLBACK``: ops.select_cpu() returned a CPU unusable by
   the task and the core scheduler silently picked a fallback CPU.
@@ -339,6 +339,11 @@ The following briefly shows how a waking task is scheduled and executed.
      leaves (e.g., when ``ops.dispatch()`` moves it to a terminal DSQ, or
      on property change / sleep).
 
+   Note that ``ops.enqueue()`` can be called multiple times in a row without
+   an intervening call to ``ops.dequeue()``. This can happen, for example,
+   when a task on a user-created DSQ is re-enqueued using
+   ``scx_bpf_dsq_reenq()``. The task stays in BPF custody the entire time.
+
    When a task leaves BPF scheduler custody, ``ops.dequeue()`` is invoked.
    The dequeue can happen for different reasons, distinguished by flags:
 
@@ -491,11 +496,11 @@ Where to Look
 * ``include/linux/sched/ext.h`` defines the core data structures, ops table
   and constants.
 
-* ``kernel/sched/ext.c`` contains sched_ext core implementation and helpers.
+* ``kernel/sched/ext/ext.c`` contains sched_ext core implementation and helpers.
   The functions prefixed with ``scx_bpf_`` can be called from the BPF
   scheduler.
 
-* ``kernel/sched/ext_idle.c`` contains the built-in idle CPU selection policy.
+* ``kernel/sched/ext/idle.c`` contains the built-in idle CPU selection policy.
 
 * ``tools/sched_ext/`` hosts example BPF scheduler implementations.
 
@@ -503,7 +508,7 @@ Where to Look
     custom DSQ.
 
   * ``scx_qmap[.bpf].c``: A multi-level FIFO scheduler supporting five
-    levels of priority implemented with ``BPF_MAP_TYPE_QUEUE``.
+    levels of priority implemented with arena-backed doubly-linked lists.
 
   * ``scx_central[.bpf].c``: A central FIFO scheduler where all scheduling
     decisions are made on one CPU, demonstrating ``LOCAL_ON`` dispatching,
@@ -552,7 +557,7 @@ ABI Instability
 The APIs provided by sched_ext to BPF schedulers programs have no stability
 guarantees. This includes the ops table callbacks and constants defined in
 ``include/linux/sched/ext.h``, as well as the ``scx_bpf_`` kfuncs defined in
-``kernel/sched/ext.c`` and ``kernel/sched/ext_idle.c``.
+``kernel/sched/ext/ext.c`` and ``kernel/sched/ext/idle.c``.
 
 While we will attempt to provide a relatively stable API surface when
 possible, they are subject to change without warning between kernel

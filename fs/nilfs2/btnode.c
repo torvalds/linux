@@ -134,9 +134,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 	}
 	set_buffer_mapped(bh);
 	bh->b_blocknr = pblocknr; /* set block address for read */
-	bh->b_end_io = end_buffer_read_sync;
-	get_bh(bh);
-	submit_bh(opf, bh);
+	bh_submit(bh, opf, bh_end_read);
 	bh->b_blocknr = blocknr; /* set back to the given block address */
 	*submit_ptr = pblocknr;
 	err = 0;

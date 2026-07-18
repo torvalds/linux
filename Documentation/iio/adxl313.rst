@@ -11,7 +11,7 @@ This driver supports Analog Device's ADXL313 on SPI/I2C bus.
 
 * `ADXL313 <https://www.analog.com/ADXL313>`_
 
-The ADXL313is a low noise density, low power, 3-axis accelerometer with
+The ADXL313 is a low noise density, low power, 3-axis accelerometer with
 selectable measurement ranges. The ADXL313 supports the ±0.5 g, ±1 g, ±2 g and
 ±4 g ranges.
 
@@ -38,7 +38,7 @@ specific device folder path ``/sys/bus/iio/devices/iio:deviceX``.
 +---------------------------------------------------+----------------------------------------------------------+
 | in_accel_x_raw                                    | Raw X-axis accelerometer channel value.                  |
 +---------------------------------------------------+----------------------------------------------------------+
-| in_accel_y_calibbias                              | y-axis acceleration offset correction                    |
+| in_accel_y_calibbias                              | Calibration offset for the Y-axis accelerometer channel. |
 +---------------------------------------------------+----------------------------------------------------------+
 | in_accel_y_raw                                    | Raw Y-axis accelerometer channel value.                  |
 +---------------------------------------------------+----------------------------------------------------------+
@@ -112,9 +112,9 @@ apply the following formula:
 Where _offset and _scale are device attributes. If no _offset attribute is
 present, simply assume its value is 0.
 
-The ADXL313 driver offers data for a single types of channels, the table below
-shows the measurement units for the processed value, which are defined by the
-IIO framework:
+The ADXL313 driver offers data for multiple channels of a single type.
+The table below shows the measurement units for the processed value,
+which are defined by the IIO framework:
 
 +-------------------------------------+---------------------------+
 | Channel type                        | Measurement unit          |

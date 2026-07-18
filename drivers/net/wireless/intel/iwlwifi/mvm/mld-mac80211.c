@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022-2025 Intel Corporation
+ * Copyright (C) 2022-2026 Intel Corporation
  */
 #include "mvm.h"
 
@@ -729,7 +729,7 @@ iwl_mvm_mld_link_info_changed_ap_ibss(struct iwl_mvm *mvm,
 		IWL_WARN(mvm, "Failed updating beacon data\n");
 
 	/* FIXME: need to decide if we need FTM responder per link */
-	if (changes & BSS_CHANGED_FTM_RESPONDER) {
+	if (changes & BSS_CHANGED_FTM_RESPONDER && link_conf->ftm_responder) {
 		int ret = iwl_mvm_ftm_start_responder(mvm, vif, link_conf);
 
 		if (ret)

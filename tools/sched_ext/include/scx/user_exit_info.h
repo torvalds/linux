@@ -39,6 +39,8 @@
 	fprintf(stderr, "EXIT: %s", __uei->reason);				\
 	if (__uei->msg[0] != '\0')						\
 		fprintf(stderr, " (%s)", __uei->msg);				\
+	if (__uei->exit_cpu >= 0)						\
+		fprintf(stderr, " on CPU %d", __uei->exit_cpu);			\
 	fputs("\n", stderr);							\
 	__uei->exit_code;							\
 })

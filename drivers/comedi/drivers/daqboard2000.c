@@ -764,11 +764,11 @@ static int db2k_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id db2k_pci_table[] = {
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
-			 0x0002), .driver_data = BOARD_DAQBOARD2000, },
-	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
-			 0x0004), .driver_data = BOARD_DAQBOARD2001, },
-	{ 0 }
+	{ PCI_VDEVICE_SUB(IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH, 0x0002),
+	  .driver_data = BOARD_DAQBOARD2000 },
+	{ PCI_VDEVICE_SUB(IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH, 0x0004),
+	  .driver_data = BOARD_DAQBOARD2001 },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, db2k_pci_table);
 

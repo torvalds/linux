@@ -40,7 +40,7 @@ extern void *bpf_dynptr_slice(const struct bpf_dynptr *ptr, __u64 offset,
 extern void *bpf_dynptr_slice_rdwr(const struct bpf_dynptr *ptr, __u64 offset, void *buffer,
 				   __u64 buffer__szk) __ksym __weak;
 
-extern int bpf_dynptr_adjust(const struct bpf_dynptr *ptr, __u64 start, __u64 end) __ksym __weak;
+extern int bpf_dynptr_adjust(struct bpf_dynptr *ptr, __u64 start, __u64 end) __ksym __weak;
 extern bool bpf_dynptr_is_null(const struct bpf_dynptr *ptr) __ksym __weak;
 extern bool bpf_dynptr_is_rdonly(const struct bpf_dynptr *ptr) __ksym __weak;
 extern __u64 bpf_dynptr_size(const struct bpf_dynptr *ptr) __ksym __weak;
@@ -70,13 +70,13 @@ extern void *bpf_rdonly_cast(const void *obj, __u32 btf_id) __ksym __weak;
 
 extern int bpf_get_file_xattr(struct file *file, const char *name,
 			      struct bpf_dynptr *value_ptr) __ksym;
-extern int bpf_get_fsverity_digest(struct file *file, struct bpf_dynptr *digest_ptr) __ksym;
+extern int bpf_get_fsverity_digest(struct file *file, const struct bpf_dynptr *digest_ptr) __ksym;
 
 extern struct bpf_key *bpf_lookup_user_key(__s32 serial, __u64 flags) __ksym;
 extern struct bpf_key *bpf_lookup_system_key(__u64 id) __ksym;
 extern void bpf_key_put(struct bpf_key *key) __ksym;
-extern int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_ptr,
-				      struct bpf_dynptr *sig_ptr,
+extern int bpf_verify_pkcs7_signature(const struct bpf_dynptr *data_ptr,
+				      const struct bpf_dynptr *sig_ptr,
 				      struct bpf_key *trusted_keyring) __ksym;
 
 struct dentry;

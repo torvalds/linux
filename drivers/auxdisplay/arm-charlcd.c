@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/types.h>
