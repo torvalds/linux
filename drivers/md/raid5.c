@@ -2471,11 +2471,6 @@ static int scribble_alloc(struct raid5_percpu *percpu,
 		sizeof(unsigned int) * (num + 2);
 	void *scribble;
 
-	/*
-	 * If here is in raid array suspend context, it is in memalloc noio
-	 * context as well, there is no potential recursive memory reclaim
-	 * I/Os with the GFP_KERNEL flag.
-	 */
 	scribble = kvmalloc_array(cnt, obj_size, GFP_KERNEL);
 	if (!scribble)
 		return -ENOMEM;
@@ -2490,6 +2485,7 @@ static int scribble_alloc(struct raid5_percpu *percpu,
 static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 {
 	unsigned long cpu;
+	unsigned int noio_flags;
 	int err = 0;
 
 	/* Never shrink. */
@@ -2498,6 +2494,7 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 		return 0;
 
 	raid5_quiesce(conf->mddev, true);
+	noio_flags = memalloc_noio_save();
 	cpus_read_lock();
 
 	for_each_present_cpu(cpu) {
@@ -2511,6 +2508,7 @@ static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
 	}
 
 	cpus_read_unlock();
+	memalloc_noio_restore(noio_flags);
 	raid5_quiesce(conf->mddev, false);
 
 	if (!err) {
@@ -7107,6 +7105,7 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 {
 	struct r5conf *conf;
 	unsigned long new;
+	unsigned int noio_flags = 0;
 	int err;
 	int size;
 
@@ -7147,6 +7146,7 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 		goto out_unlock;
 	}
 
+	noio_flags = memalloc_noio_save();
 	mutex_lock(&conf->cache_size_mutex);
 	size = conf->max_nr_stripes;
 
@@ -7163,6 +7163,7 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 	mutex_unlock(&conf->cache_size_mutex);
 
 out_unlock:
+	memalloc_noio_restore(noio_flags);
 	mddev_unlock_and_resume(mddev);
 	return err ?: len;
 }
@@ -9043,6 +9044,7 @@ static void *raid6_takeover(struct mddev *mddev)
 static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 {
 	struct r5conf *conf;
+	unsigned int noio_flags;
 	int err;
 
 	err = mddev_suspend_and_lock(mddev);
@@ -9054,6 +9056,7 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 		return -ENODEV;
 	}
 
+	noio_flags = memalloc_noio_save();
 	if (strncmp(buf, "ppl", 3) == 0) {
 		/* ppl only works with RAID 5 */
 		if (!raid5_has_ppl(conf) && conf->level == 5) {
@@ -9093,6 +9096,7 @@ static int raid5_change_consistency_policy(struct mddev *mddev, const char *buf)
 	if (!err)
 		md_update_sb(mddev, 1);
 
+	memalloc_noio_restore(noio_flags);
 	mddev_unlock_and_resume(mddev);
 
 	return err;

@@ -621,7 +621,6 @@ struct mddev {
 	struct md_cluster_info		*cluster_info;
 	struct md_cluster_operations *cluster_ops;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
-	unsigned int			noio_flag; /* for memalloc scope API */
 
 	/*
 	 * Temporarily store rdev that will be finally removed when

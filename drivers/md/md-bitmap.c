@@ -2624,10 +2624,12 @@ static ssize_t
 location_store(struct mddev *mddev, const char *buf, size_t len)
 {
 	int rv;
+	unsigned int noio_flags;
 
 	rv = mddev_suspend_and_lock(mddev);
 	if (rv)
 		return rv;
+	noio_flags = memalloc_noio_save();
 
 	if (mddev->pers) {
 		if (mddev->recovery || mddev->sync_thread) {
@@ -2714,6 +2716,7 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 	}
 	rv = 0;
 out:
+	memalloc_noio_restore(noio_flags);
 	mddev_unlock_and_resume(mddev);
 	if (rv)
 		return rv;
