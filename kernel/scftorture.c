@@ -193,6 +193,7 @@ static void scf_torture_stats_print(void)
 		scfs.n_single += scf_stats_p[i].n_single;
 		scfs.n_single_ofl += scf_stats_p[i].n_single_ofl;
 		scfs.n_single_rpc += scf_stats_p[i].n_single_rpc;
+		scfs.n_single_rpc_ofl += scf_stats_p[i].n_single_rpc_ofl;
 		scfs.n_single_wait += scf_stats_p[i].n_single_wait;
 		scfs.n_single_wait_ofl += scf_stats_p[i].n_single_wait_ofl;
 		scfs.n_many += scf_stats_p[i].n_many;
