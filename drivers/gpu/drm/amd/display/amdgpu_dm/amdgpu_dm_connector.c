@@ -3068,7 +3068,7 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
 		if (!dc_is_hdmi_signal(dc_link->connector_signal))
 			continue;
 
-		if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)
+		if (dc_link->frl_link_settings.frl_link_rate == 0)
 			continue;
 
 		link_update = dc_link_frl_poll_status_flag(dc_link);
