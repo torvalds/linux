@@ -28,6 +28,7 @@ ldflags-y  :=
 
 subdir-asflags-y :=
 subdir-ccflags-y :=
+subdir-rustflags-y :=
 
 # Read auto.conf if it exists, otherwise ignore
 -include $(objtree)/include/config/auto.conf
