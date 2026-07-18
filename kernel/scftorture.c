@@ -497,7 +497,7 @@ static int scftorture_invoker(void *arg)
 		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
 		  __func__, scfp->cpu, curcpu, nr_cpu_ids);
 
-	if (!atomic_dec_return(&n_started))
+	if (atomic_dec_return(&n_started))
 		while (atomic_read_acquire(&n_started)) {
 			if (torture_must_stop()) {
 				VERBOSE_SCFTORTOUT("scftorture_invoker %d ended before starting", scfp->cpu);
