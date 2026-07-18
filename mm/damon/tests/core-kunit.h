@@ -839,6 +839,7 @@ static void damos_test_commit_quota_goals_for(struct kunit *test,
 	struct damos_quota_goal *goal, *next;
 	bool skip = true;
 	int i;
+	int nr_dst = 0, nr_src = 0;
 
 	INIT_LIST_HEAD(&dst.goals);
 	INIT_LIST_HEAD(&src.goals);
@@ -860,6 +861,14 @@ static void damos_test_commit_quota_goals_for(struct kunit *test,
 		damos_add_quota_goal(&src, &src_goals[i]);
 
 	damos_commit_quota_goals(&dst, &src);
+
+	damos_for_each_quota_goal(goal, &dst)
+		nr_dst++;
+	damos_for_each_quota_goal(goal, &src)
+		nr_src++;
+	KUNIT_EXPECT_EQ(test, nr_dst, nr_src);
+	if (nr_dst != nr_src)
+		goto out;
 
 	i = 0;
 	damos_for_each_quota_goal(goal, (&dst)) {
