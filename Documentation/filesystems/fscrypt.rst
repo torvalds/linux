@@ -1471,25 +1471,43 @@ keys`_ and `DIRECT_KEY policies`_.
 Data path changes
 -----------------
 
-When inline encryption is used, filesystems just need to associate
-encryption contexts with bios to specify how the block layer or the
-inline encryption hardware will encrypt/decrypt the file contents.
+The block-based filesystems that support fscrypt, such as ext4 and
+f2fs, use blk-crypto (:ref:`inline_encryption`) to implement file
+contents encryption and decryption.  With blk-crypto, the filesystem
+assigns an encryption context to each I/O request it issues to the
+contents of an encrypted file.  The encryption (for writes) or
+decryption (for reads) is handled by the block layer transparently to
+the filesystem, using either the CPU or inline encryption hardware.
 
-When inline encryption isn't used, filesystems must encrypt/decrypt
-the file contents themselves, as described below:
+Non-block-based filesystems can't use blk-crypto, so they make the
+calls to the cryptographic algorithms at the filesystem layer instead.
 
-For the read path (->read_folio()) of regular files, filesystems can
-read the ciphertext into the page cache and decrypt it in-place.  The
-folio lock must be held until decryption has finished, to prevent the
-folio from becoming visible to userspace prematurely.
+Regardless of the layer in which they occur (blk-crypto-fallback or the
+filesystem), for CPU-based encryption and decryption of file contents:
 
-For the write path (->writepages()) of regular files, filesystems
-cannot encrypt data in-place in the page cache, since the cached
-plaintext must be preserved.  Instead, filesystems must encrypt into a
-temporary buffer or "bounce page", then write out the temporary
-buffer.  Some filesystems, such as UBIFS, already use temporary
-buffers regardless of encryption.  Other filesystems, such as ext4 and
-F2FS, have to allocate bounce pages specially for encryption.
+- For reads, the ciphertext data is read from the storage backend
+  (block device, network, UBI device, etc.) into the destination
+  buffers, then decrypted in-place.  The destination buffers are
+  pagecache folios for buffered reads, or application-provided buffers
+  for direct reads.  In either case, the filesystem reports success
+  only after decryption has successfully completed.
+
+- For writes, the plaintext data is encrypted from the source buffers
+  (which cannot be modified) into bounce buffers.  Then, the
+  ciphertext in the bounce buffers is written to the storage backend.
+
+  The source buffers are usually pagecache folios for buffered writes,
+  or application-provided buffers for direct writes.  There are also
+  some cases (all files on UBIFS, and compressed files on f2fs) where
+  the filesystem already uses bounce buffers for writes for other
+  reasons; in these cases the source plaintext data is already in
+  bounce buffers.  UBIFS optimizes this case by encrypting the data
+  in-place in its existing bounce buffers.
+
+When inline encryption hardware is used instead of the CPU, reads from
+the storage backend logically return plaintext data, and writes accept
+plaintext data.  In that case the flow is simplified: there's no
+scheduling of decryption work, and no bounce buffers are used.
 
 Filename hashing and encoding
 -----------------------------
