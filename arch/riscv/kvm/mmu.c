@@ -272,7 +272,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	 * Prevent userspace from creating a memory region outside of the GPA
 	 * space addressable by the KVM guest GPA space.
 	 */
-	if ((new->base_gfn + new->npages) >=
+	if ((new->base_gfn + new->npages) >
 	     kvm_riscv_gstage_gpa_size(kvm->arch.pgd_levels) >> PAGE_SHIFT)
 		return -EFAULT;
 
