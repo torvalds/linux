@@ -4634,7 +4634,7 @@ F:	rust/helpers/cpumask.c
 
 BITMAP API [RUST]
 M:	Alice Ryhl <aliceryhl@google.com>
-M:	Burak Emir <bqe@google.com>
+M:	Burak Emir <burak.emir@gmail.com>
 R:	Yury Norov <yury.norov@gmail.com>
 S:	Maintained
 F:	lib/find_bit_benchmark_rust.rs
