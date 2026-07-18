@@ -478,14 +478,6 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 
 	down_write(&conn->session_lock);
 	xa_for_each(&conn->sessions, id, sess) {
-		unsigned long chann_id;
-		struct channel *chann;
-
-		xa_for_each(&sess->ksmbd_chann_list, chann_id, chann) {
-			if (chann->conn != conn)
-				ksmbd_conn_set_exiting(chann->conn);
-		}
-
 		ksmbd_chann_del(conn, sess);
 		if (xa_empty(&sess->ksmbd_chann_list)) {
 			xa_erase(&conn->sessions, sess->id);

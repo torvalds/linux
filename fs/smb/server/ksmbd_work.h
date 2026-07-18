@@ -12,6 +12,7 @@
 struct ksmbd_conn;
 struct ksmbd_session;
 struct ksmbd_tree_connect;
+struct ksmbd_file;
 
 #define KSMBD_WORK_INLINE_IOVS	4
 
@@ -93,12 +94,20 @@ struct ksmbd_work {
 	/* Work owns a reference to @conn. */
 	bool				owns_conn_ref:1;
 	bool                            need_invalidate_rkey:1;
+	bool				request_open_chseq_tracked:1;
 
 	unsigned int                    remote_key;
 	/* cancel works */
 	int                             async_id;
 	void                            **cancel_argv;
 	void                            (*cancel_fn)(void **argv);
+
+	/*
+	 * Refcounted open associated with the SMB2 command currently being
+	 * processed.
+	 */
+	struct ksmbd_file		*request_open;
+	__le16				request_open_chseq;
 
 	struct work_struct              work;
 	/* List head at conn->requests */

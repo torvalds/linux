@@ -1203,6 +1203,18 @@ again:
 		if (brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
 		    brk_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
 			brk_opinfo->op_state = OPLOCK_ACK_WAIT;
+
+		/*
+		 * Keep a conflicting CREATE asynchronous while waiting for an
+		 * oplock-break acknowledgement.  Besides avoiding a blocked client
+		 * request, this lets a replay arrive while the original CREATE is
+		 * still pending and be rejected with FILE_NOT_AVAILABLE.
+		 */
+		if (in_work) {
+			setup_async_work(in_work, NULL, NULL);
+			smb2_send_interim_resp(in_work, STATUS_PENDING);
+			release_async_work(in_work);
+		}
 	}
 
 	err = smb2_oplock_break_noti(brk_opinfo);
@@ -1445,12 +1457,13 @@ void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp)
  * @tid:		Tree id of connection
  * @lctx:		lease context information on file open
  * @share_ret:		share mode
+ * @replay:		whether this is a replayed CREATE request
  *
  * Return:      0 on success, otherwise error
  */
 int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 		     struct ksmbd_file *fp, __u16 tid,
-		     struct lease_ctx_info *lctx, int share_ret)
+		     struct lease_ctx_info *lctx, int share_ret, bool replay)
 {
 	int err = 0;
 	int break_level = SMB2_OPLOCK_LEVEL_II;
@@ -1535,6 +1548,21 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 	prev_op_has_lease = prev_opinfo->is_lease;
 	if (prev_op_has_lease)
 		prev_op_state = prev_opinfo->o_lease->state;
+	/*
+	 * A replay received while this open is waiting for an oplock or lease
+	 * break must not observe an intermediate level and proceed as a new
+	 * open. This check has to precede break_needed. an oplock may already
+	 * have been downgraded from Batch to II while its acknowledgement is
+	 * still pending.
+	 */
+	if (replay &&
+	    (test_bit(0, &prev_opinfo->pending_break) ||
+	     prev_opinfo->op_state == OPLOCK_ACK_WAIT)) {
+		err = -EINPROGRESS;
+		opinfo_put(prev_opinfo);
+		goto err_out;
+	}
+
 	if (share_ret < 0 &&
 	    prev_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
 		err = share_ret;
@@ -1569,7 +1597,14 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 		goto set_lev;
 	}
 	if (err == -ENOENT) {
-		if (req_op_level != SMB2_OPLOCK_LEVEL_NONE)
+		/*
+		 * A pending durable CREATE can lose the previous oplock when
+		 * its holder closes the file. In that case grant the original
+		 * request its full caching state. Other opens still need the
+		 * normal shared-open downgrade below.
+		 */
+		if (!prev_durable_open &&
+		    req_op_level != SMB2_OPLOCK_LEVEL_NONE)
 			req_op_level = SMB2_OPLOCK_LEVEL_II;
 		goto set_lev;
 	}

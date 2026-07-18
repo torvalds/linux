@@ -82,6 +82,13 @@ struct durable_owner {
 	char *name;
 };
 
+#define KSMBD_LOCK_SEQ_ARRAY_SIZE	64
+
+struct ksmbd_lock_sequence {
+	bool				valid;
+	u8				sequence;
+};
+
 struct ksmbd_file {
 	struct file			*filp;
 	u64				persistent_id;
@@ -101,6 +108,7 @@ struct ksmbd_file {
 	__le32				saccess;
 	__le32				coption;
 	__le32				cdoption;
+	__le32				create_file_attributes;
 	__u64				create_time;
 	__u64				change_time;
 	__u64				allocation_size;
@@ -128,6 +136,8 @@ struct ksmbd_file {
 
 	unsigned int			durable_timeout;
 	unsigned int			durable_scavenger_timeout;
+	/* CREATE action returned when this durable handle was established. */
+	__le32				create_action;
 
 	/* if ls is happening on directory, below is valid*/
 	struct ksmbd_readdir_data	readdir_data;
@@ -139,9 +149,14 @@ struct ksmbd_file {
 	bool				is_persistent;
 	bool				is_resilient;
 	bool				durable_reconnect_disabled;
+	bool				durable_replay_consumed;
 
 	bool                            is_posix_ctxt;
 	struct durable_owner		owner;
+	__le16				channel_sequence;
+	unsigned int			outstanding_requests;
+	unsigned int			outstanding_pre_requests;
+	struct ksmbd_lock_sequence	lock_seq[KSMBD_LOCK_SEQ_ARRAY_SIZE];
 
 	/*
 	 * Pending CHANGE_NOTIFY completions for this handle, sent with
@@ -180,6 +195,9 @@ struct ksmbd_file *ksmbd_lookup_fd_fast(struct ksmbd_work *work, u64 id);
 struct ksmbd_file *ksmbd_lookup_foreign_fd(struct ksmbd_work *work, u64 id);
 struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, u64 id,
 					u64 pid);
+int ksmbd_vfs_set_durable_owner(struct ksmbd_file *fp,
+				struct ksmbd_user *user);
+struct ksmbd_file *ksmbd_file_get(struct ksmbd_file *fp);
 void ksmbd_fd_put(struct ksmbd_work *work, struct ksmbd_file *fp);
 struct ksmbd_inode *ksmbd_inode_lookup_lock(struct dentry *d);
 void ksmbd_inode_put(struct ksmbd_inode *ci);

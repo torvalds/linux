@@ -11,6 +11,7 @@
 #include "server.h"
 #include "connection.h"
 #include "ksmbd_work.h"
+#include "vfs_cache.h"
 #include "mgmt/ksmbd_ida.h"
 
 static struct kmem_cache *work_cache;
@@ -88,6 +89,7 @@ void ksmbd_free_work_struct(struct ksmbd_work *work)
 		ksmbd_release_id(&work->conn->async_ida, work->async_id);
 	if (work->owns_conn_ref)
 		ksmbd_conn_put(work->conn);
+	ksmbd_fd_put(work, work->request_open);
 	kmem_cache_free(work_cache, work);
 }
 

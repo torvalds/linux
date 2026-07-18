@@ -428,6 +428,7 @@ bool smb3_encryption_negotiated(struct ksmbd_conn *conn);
 
 /* smb2 misc functions */
 int ksmbd_smb2_check_message(struct ksmbd_work *work);
+void smb2_complete_request_open(struct ksmbd_work *work);
 
 /* smb2 command handlers */
 int smb2_handle_negotiate(struct ksmbd_work *work);

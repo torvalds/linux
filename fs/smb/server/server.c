@@ -15,6 +15,7 @@
 
 #include "server.h"
 #include "smb_common.h"
+#include "smb2pdu.h"
 #include "../common/smb2status.h"
 #include "connection.h"
 #include "transport_ipc.h"
@@ -229,8 +230,10 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 		}
 
 		rc = __process_request(work, conn, &command);
-		if (rc == SERVER_HANDLER_ABORT)
+		if (rc == SERVER_HANDLER_ABORT) {
+			smb2_complete_request_open(work);
 			break;
+		}
 
 		/*
 		 * Call smb2_set_rsp_credits() function to set number of credits
@@ -243,9 +246,12 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 			if (rc < 0) {
 				conn->ops->set_rsp_status(work,
 					STATUS_INVALID_PARAMETER);
+				smb2_complete_request_open(work);
 				goto send;
 			}
 		}
+
+		smb2_complete_request_open(work);
 
 		is_chained = is_chained_smb2_message(work);
 
@@ -262,6 +268,7 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 	} while (is_chained == true);
 
 send:
+	smb2_complete_request_open(work);
 	/*
 	 * Release any credit charge still outstanding for this request.  On
 	 * the normal path smb2_set_rsp_credits() already returned it, but the
