@@ -3956,7 +3956,7 @@ repeat:
 		/*
 		 * Although the block may be stored in the COW inode, the folio
 		 * belongs to @inode and its data was encrypted (or not) using
-		 * @inode's context (see f2fs_encrypt_one_page()).  Read with
+		 * @inode's context (see f2fs_set_bio_crypt_ctx()).  Read with
 		 * @inode so the post-read decryption decision matches the
 		 * folio's owner; otherwise an unencrypted @inode whose COW inode
 		 * is encrypted hits a NULL ->i_crypt_info on decryption.
