@@ -37,12 +37,12 @@ initialization vector for each sector, and can be tested for correctness.
 Objective
 =========
 
-We want to support inline encryption in the kernel.  To make testing easier, we
-also want support for falling back to the kernel crypto API when actual inline
-encryption hardware is absent.  We also want inline encryption to work with
-layered devices like device-mapper and loopback (i.e. we want to be able to use
-the inline encryption hardware of the underlying devices if present, or else
-fall back to crypto API en/decryption).
+We want to support inline encryption hardware in the kernel.  The API for using
+such hardware should also support a fallback to the CPU, so that users only need
+to use a single API and more of the code can be tested without actual hardware.
+We also want inline encryption to work with layered devices like device-mapper
+and loopback (i.e. we want to be able to use the inline encryption hardware of
+the underlying devices if present, or else fall back to the CPU).
 
 Constraints and notes
 =====================
@@ -295,7 +295,7 @@ hardware implementations might not implement both features together correctly,
 and disallow the combination for now. Whenever a device supports integrity, the
 kernel will pretend that the device does not support hardware inline encryption
 (by setting the blk_crypto_profile in the request_queue of the device to NULL).
-When the crypto API fallback is enabled, this means that all bios with and
+When the crypto API fallback is enabled, this means that all bios with an
 encryption context will use the fallback, and IO will complete as usual.  When
 the fallback is disabled, a bio with an encryption context will be failed.
 
