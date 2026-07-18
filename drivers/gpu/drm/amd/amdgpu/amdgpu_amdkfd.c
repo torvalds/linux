@@ -973,24 +973,3 @@ int amdgpu_amdkfd_reset_mes_queue(struct amdgpu_device *adev,
 	return kgd2kfd_reset_mes_queue(adev->kfd.dev, node_id, queue_type,
 				       pipe, queue, db);
 }
-
-int amdgpu_amdkfd_evict_svm_bo(struct amdgpu_bo *bo)
-{
-	struct dma_resv_iter cursor;
-	struct dma_fence *fence;
-	int r = 0;
-
-	dma_resv_iter_begin(&cursor, bo->tbo.base.resv, DMA_RESV_USAGE_BOOKKEEP);
-	dma_resv_for_each_fence_unlocked(&cursor, fence) {
-		struct amdgpu_amdkfd_fence *f = to_amdgpu_amdkfd_fence(fence);
-
-		if (f && f->svm_bo) {
-			r = svm_range_evict_svm_bo(f->svm_bo);
-			if (r)
-				break;
-		}
-	}
-	dma_resv_iter_end(&cursor);
-
-	return r;
-}

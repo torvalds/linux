@@ -39,11 +39,11 @@
 			((adev)->hive ? (void *)(adev)->hive : (void *)(adev))
 
 struct svm_range_bo {
-	struct amdgpu_bo		*bo;
+	struct amdgpu_bo		bo;
 	struct kref			kref;
 	struct list_head		range_list; /* all svm ranges shared this bo */
 	spinlock_t			list_lock;
-	struct amdgpu_amdkfd_fence	*eviction_fence;
+	struct mm_struct		*mm;
 	uint32_t			evicting;
 	struct work_struct		release_work;
 	struct kfd_node			*node;
@@ -168,13 +168,14 @@ struct svm_range *svm_range_from_addr(struct svm_range_list *svms,
 				      struct svm_range **parent);
 struct kfd_node *svm_range_get_node_by_id(struct svm_range *prange,
 					  uint32_t gpu_id);
+void svm_range_bo_destroy(struct ttm_buffer_object *tbo);
 int svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 			    bool clear);
 void svm_range_vram_node_free(struct svm_range *prange);
 int svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 			    uint32_t vmid, uint32_t node_id, uint64_t addr, uint64_t ts,
 			    bool write_fault);
-int svm_range_evict_svm_bo(struct svm_range_bo *svm_bo);
+int svm_range_evict_svm_bo(struct amdgpu_bo *bo);
 
 void svm_range_add_list_work(struct svm_range_list *svms,
 			     struct svm_range *prange, struct mm_struct *mm,
@@ -229,7 +230,11 @@ static inline int svm_range_restore_pages(struct amdgpu_device *adev,
 	return -EFAULT;
 }
 
-static inline int svm_range_evict_svm_bo(struct svm_range_bo *svm_bo)
+static inline void svm_range_bo_destroy(struct ttm_buffer_object *tbo)
+{
+}
+
+static inline int svm_range_evict_svm_bo(struct amdgpu_bo *bo)
 {
 	return 0;
 }
