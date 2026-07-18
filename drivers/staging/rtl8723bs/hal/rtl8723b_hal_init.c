@@ -819,7 +819,7 @@ void Hal_ReadEFuse(
 		hal_ReadEFuse_BT(padapter, _offset, _size_byte, pbuf);
 }
 
-static void ReadChipVersion8723B(struct adapter *padapter)
+void rtl8723b_read_chip_version(struct adapter *padapter)
 {
 	u32 value32;
 	struct hal_com_data *pHalData;
@@ -829,11 +829,6 @@ static void ReadChipVersion8723B(struct adapter *padapter)
 
 	value32 = rtw_read32(padapter, REG_SYS_CFG);
 	pHalData->chip_normal = ((value32 & RTL_ID) ? false : true);
-}
-
-void rtl8723b_read_chip_version(struct adapter *padapter)
-{
-	ReadChipVersion8723B(padapter);
 }
 
 void rtl8723b_InitBeaconParameters(struct adapter *padapter)
