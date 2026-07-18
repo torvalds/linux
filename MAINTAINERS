@@ -24567,6 +24567,8 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/serial/serial.yaml
 F:	drivers/tty/serdev/
 F:	include/linux/serdev.h
+F:	rust/helpers/serdev.c
+F:	rust/kernel/serdev.rs
 
 SERIAL IR RECEIVER
 M:	Sean Young <sean@mess.org>
