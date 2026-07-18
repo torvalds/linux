@@ -59,7 +59,7 @@ extern const int sysctl_vals[];
 #define SYSCTL_LONG_ONE		((void *)&sysctl_long_vals[1])
 #define SYSCTL_LONG_MAX		((void *)&sysctl_long_vals[2])
 
-/**
+/*
  *
  * "dir" originates from read_iter (dir = 0) or write_iter (dir = 1)
  * in the file_operations struct at proc/proc_sysctl.c. Its value means
@@ -245,9 +245,9 @@ struct ctl_node {
  * @nreg: When nreg drops to 0 the ctl_table_header will be unregistered.
  * @rcu: Delays the freeing of the inode. Introduced with "unfuck proc_sysctl ->d_compare()"
  *
- * @type: Enumeration to differentiate between ctl target types
- * @type.SYSCTL_TABLE_TYPE_DEFAULT: ctl target with no special considerations
- * @type.SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY: Identifies a permanently empty dir
+ * @type: Enumeration to differentiate between ctl target types:
+ * type.SYSCTL_TABLE_TYPE_DEFAULT: ctl target with no special considerations
+ * type.SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY: Identifies a permanently empty dir
  *                                            target to serve as a mount point
  */
 struct ctl_table_header {
