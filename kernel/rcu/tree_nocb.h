@@ -802,12 +802,12 @@ static noinline_for_stack void nocb_gp_wait(struct rcu_data *my_rdp)
 		nocb_gp_sleep(my_rdp, cpu);
 	} else {
 		rnp = my_rdp->mynode;
-		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("StartWait"));
+		trace_rcu_this_gp(rnp, wait_gp_seq, TPS("StartWait"));
 		swait_event_interruptible_exclusive(
 			rnp->nocb_gp_wq[rcu_seq_ctr(wait_gp_seq) & 0x1],
 			rcu_seq_done(&rnp->gp_seq, wait_gp_seq) ||
 			!READ_ONCE(my_rdp->nocb_gp_sleep));
-		trace_rcu_this_gp(rnp, my_rdp, wait_gp_seq, TPS("EndWait"));
+		trace_rcu_this_gp(rnp, wait_gp_seq, TPS("EndWait"));
 	}
 
 	if (!rcu_nocb_poll) {

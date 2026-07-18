@@ -986,8 +986,8 @@ static int rcu_watching_snap_recheck(struct rcu_data *rdp)
 }
 
 /* Trace-event wrapper function for trace_rcu_future_grace_period.  */
-static void trace_rcu_this_gp(struct rcu_node *rnp, struct rcu_data *rdp,
-			      unsigned long gp_seq_req, const char *s)
+static void trace_rcu_this_gp(struct rcu_node *rnp, unsigned long gp_seq_req,
+			      const char *s)
 {
 	trace_rcu_future_grace_period(rcu_state.name, READ_ONCE(rnp->gp_seq),
 				      gp_seq_req, rnp->level,
@@ -1026,7 +1026,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 	 * Note that rnp_start->lock must not be released.
 	 */
 	raw_lockdep_assert_held_rcu_node(rnp_start);
-	trace_rcu_this_gp(rnp_start, rdp, gp_seq_req, TPS("Startleaf"));
+	trace_rcu_this_gp(rnp_start, gp_seq_req, TPS("Startleaf"));
 	for (rnp = rnp_start; 1; rnp = rnp->parent) {
 		if (rnp != rnp_start)
 			raw_spin_lock_rcu_node(rnp);
@@ -1034,8 +1034,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 		    rcu_seq_started(&rnp->gp_seq, gp_seq_req) ||
 		    (rnp != rnp_start &&
 		     rcu_seq_state(rcu_seq_current(&rnp->gp_seq)))) {
-			trace_rcu_this_gp(rnp, rdp, gp_seq_req,
-					  TPS("Prestarted"));
+			trace_rcu_this_gp(rnp, gp_seq_req, TPS("Prestarted"));
 			goto unlock_out;
 		}
 		WRITE_ONCE(rnp->gp_seq_needed, gp_seq_req);
@@ -1046,7 +1045,7 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 			 * rcu_gp_cleanup() will see the marking.  Bail to
 			 * reduce contention.
 			 */
-			trace_rcu_this_gp(rnp_start, rdp, gp_seq_req,
+			trace_rcu_this_gp(rnp_start, gp_seq_req,
 					  TPS("Startedleaf"));
 			goto unlock_out;
 		}
@@ -1058,14 +1057,14 @@ static bool rcu_start_this_gp(struct rcu_node *rnp_start, struct rcu_data *rdp,
 
 	/* If GP already in progress, just leave, otherwise start one. */
 	if (rcu_gp_in_progress()) {
-		trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("Startedleafroot"));
+		trace_rcu_this_gp(rnp, gp_seq_req, TPS("Startedleafroot"));
 		goto unlock_out;
 	}
-	trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("Startedroot"));
+	trace_rcu_this_gp(rnp, gp_seq_req, TPS("Startedroot"));
 	WRITE_ONCE(rcu_state.gp_flags, rcu_state.gp_flags | RCU_GP_FLAG_INIT);
 	WRITE_ONCE(rcu_state.gp_req_activity, jiffies);
 	if (!READ_ONCE(rcu_state.gp_kthread)) {
-		trace_rcu_this_gp(rnp, rdp, gp_seq_req, TPS("NoGPkthread"));
+		trace_rcu_this_gp(rnp, gp_seq_req, TPS("NoGPkthread"));
 		goto unlock_out;
 	}
 	trace_rcu_grace_period(rcu_state.name, data_race(rcu_state.gp_seq), TPS("newreq"));
@@ -1088,12 +1087,11 @@ unlock_out:
 static bool rcu_future_gp_cleanup(struct rcu_node *rnp)
 {
 	bool needmore;
-	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 
 	needmore = ULONG_CMP_LT(rnp->gp_seq, rnp->gp_seq_needed);
 	if (!needmore)
 		rnp->gp_seq_needed = rnp->gp_seq; /* Avoid counter wrap. */
-	trace_rcu_this_gp(rnp, rdp, rnp->gp_seq,
+	trace_rcu_this_gp(rnp, rnp->gp_seq,
 			  needmore ? TPS("CleanupMore") : TPS("Cleanup"));
 	return needmore;
 }
@@ -2252,8 +2250,7 @@ static noinline void rcu_gp_cleanup(void)
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(&rcu_data);
 	if (!needgp && ULONG_CMP_LT(rnp->gp_seq, rnp->gp_seq_needed)) {
-		trace_rcu_this_gp(rnp, rdp, rnp->gp_seq_needed,
-				  TPS("CleanupMore"));
+		trace_rcu_this_gp(rnp, rnp->gp_seq_needed, TPS("CleanupMore"));
 		needgp = true;
 	}
 	/* Advance CBs to reduce false positives below. */
