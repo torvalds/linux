@@ -1059,15 +1059,4 @@ static inline int fscrypt_encrypt_symlink(struct inode *inode,
 	return 0;
 }
 
-/* If *pagep is a bounce page, free it and set *pagep to the pagecache page */
-static inline void fscrypt_finalize_bounce_page(struct page **pagep)
-{
-	struct page *page = *pagep;
-
-	if (fscrypt_is_bounce_page(page)) {
-		*pagep = fscrypt_pagecache_page(page);
-		fscrypt_free_bounce_page(page);
-	}
-}
-
 #endif	/* _LINUX_FSCRYPT_H */
