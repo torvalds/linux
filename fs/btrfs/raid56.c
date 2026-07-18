@@ -2911,13 +2911,12 @@ static int scrub_assemble_read_bios(struct btrfs_raid_bio *rbio)
 			continue;
 
 		/*
-		 * We want to find all the sectors missing from the rbio and
-		 * read them from the disk. If sector_paddr_in_rbio() finds a sector
-		 * in the bio list we don't need to read it off the stripe.
+		 * A parity-scrub rbio carries no data in its bio list: the
+		 * only bio there is the empty completion bio added by
+		 * raid56_parity_alloc_scrub_rbio().  Every sector is read
+		 * from the stripe, so only assert that invariant here.
 		 */
-		paddrs = sector_paddrs_in_rbio(rbio, stripe, sectornr, 1);
-		if (paddrs == NULL)
-			continue;
+		ASSERT(!sector_paddrs_in_rbio(rbio, stripe, sectornr, 1));
 
 		paddrs = rbio_stripe_paddrs(rbio, stripe, sectornr);
 		/*
