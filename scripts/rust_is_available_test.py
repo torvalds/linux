@@ -177,7 +177,13 @@ else:
 
     def test_rustc_nonexecutable(self):
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.nonexecutable })
-        self.assertIn(f"Running '{self.nonexecutable}' to check the Rust compiler version failed with", result.stderr)
+        self.assertTrue(
+            # `dash`.
+            f"Running '{self.nonexecutable}' to check the Rust compiler version failed with" in result.stderr or
+            # `bash`.
+            f"Rust compiler '{self.nonexecutable}' could not be found." in result.stderr,
+            f"Unexpected `stderr`:\n{result.stderr}"
+        )
 
     def test_rustc_unexpected_binary(self):
         result = self.run_script(self.Expected.FAILURE, { "RUSTC": self.unexpected_binary })
@@ -205,7 +211,13 @@ else:
 
     def test_bindgen_nonexecutable(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.nonexecutable })
-        self.assertIn(f"Running '{self.nonexecutable}' to check the Rust bindings generator version failed with", result.stderr)
+        self.assertTrue(
+            # `dash`.
+            f"Running '{self.nonexecutable}' to check the Rust bindings generator version failed with" in result.stderr or
+            # `bash`.
+            f"Rust bindings generator '{self.nonexecutable}' could not be found." in result.stderr,
+            f"Unexpected `stderr`:\n{result.stderr}"
+        )
 
     def test_bindgen_unexpected_binary(self):
         result = self.run_script(self.Expected.FAILURE, { "BINDGEN": self.unexpected_binary })
