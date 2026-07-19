@@ -17887,6 +17887,7 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 			return -EOPNOTSUPP;
 		}
 		env->prog->aux->arena = (void *)map;
+		env->prog->jit_required = true;
 		if (!bpf_arena_get_user_vm_start(env->prog->aux->arena)) {
 			verbose(env, "arena's user address must be set via map_extra or mmap()\n");
 			return -EINVAL;
@@ -17940,6 +17941,7 @@ static int __add_used_map(struct bpf_verifier_env *env, struct bpf_map *map)
 			return err;
 		}
 		env->insn_array_maps[env->insn_array_map_cnt++] = map;
+		env->prog->jit_required = true;
 	}
 
 	return env->used_map_cnt - 1;
