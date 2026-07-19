@@ -19,8 +19,8 @@ typedef unsigned char   NDIS_802_11_RATES[NDIS_802_11_LENGTH_RATES];        /*  
 typedef unsigned char   NDIS_802_11_RATES_EX[NDIS_802_11_LENGTH_RATES_EX];  /*  Set of 16 data rates */
 
 struct ndis_802_11_ssid {
-	u32  ssid_length;
-	u8  ssid[32];
+	u32 ssid_length;
+	u8 ssid[32];
 };
 
 /*
@@ -35,15 +35,15 @@ struct ndis_802_11_conf {
 };
 
 struct ndis_802_11_fix_ie {
-	u8  time_stamp[8];
-	u16  beacon_interval;
-	u16  capabilities;
+	u8 time_stamp[8];
+	u16 beacon_interval;
+	u16 capabilities;
 };
 
 struct ndis_80211_var_ie {
-	u8  element_id;
-	u8  length;
-	u8  data[];
+	u8 element_id;
+	u8 length;
+	u8 data[];
 };
 
 /* Length is the 4 bytes multiples of the sum of
@@ -126,7 +126,7 @@ struct wlan_bcn_info {
 	int is_8021x;
 
 	/* bwmode 20/40 and ch_offset UP/LOW */
-	unsigned short	ht_cap_info;
+	unsigned short ht_cap_info;
 	unsigned char ht_info_infos_0;
 };
 
@@ -134,18 +134,18 @@ struct wlan_bcn_info {
  * struct wlan_bssid_ex and get_wlan_bssid_ex_sz()
  */
 struct wlan_bssid_ex {
-	u32  length;
+	u32 length;
 	u8 mac_address[ETH_ALEN];
-	u8  reserved[2];/* 0]: IS beacon frame */
-	struct ndis_802_11_ssid  ssid;
-	u32  privacy;
-	long  rssi;/* in dBM, raw data , get from PHY) */
-	struct ndis_802_11_conf  configuration;
-	enum nl80211_iftype  infrastructure_mode;
-	NDIS_802_11_RATES_EX  supported_rates;
+	u8 reserved[2];/* 0]: IS beacon frame */
+	struct ndis_802_11_ssid ssid;
+	u32 privacy;
+	long rssi;/* in dBM, raw data , get from PHY) */
+	struct ndis_802_11_conf configuration;
+	enum nl80211_iftype infrastructure_mode;
+	NDIS_802_11_RATES_EX supported_rates;
 	struct wlan_phy_info phy_info;
-	u32  ie_length;
-	u8  ies[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
+	u32 ie_length;
+	u8 ies[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
 } __packed;
 
 static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
@@ -153,15 +153,15 @@ static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->ie_length);
 }
 
-struct	wlan_network {
-	struct list_head	list;
-	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;			/*  set to fixed when not to be removed as site-surveying */
-	unsigned long	last_scanned; /* timestamp for the network */
-	int	aid;			/* will only be valid when a BSS is joinned. */
-	int	join_res;
-	struct wlan_bssid_ex	network; /* must be the last item */
-	struct wlan_bcn_info	bcn_info;
+struct wlan_network {
+	struct list_head list;
+	int network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
+	int fixed;			/*  set to fixed when not to be removed as site-surveying */
+	unsigned long last_scanned; /* timestamp for the network */
+	int aid;			/* will only be valid when a BSS is joinned. */
+	int join_res;
+	struct wlan_bssid_ex network; /* must be the last item */
+	struct wlan_bcn_info bcn_info;
 };
 
 enum {

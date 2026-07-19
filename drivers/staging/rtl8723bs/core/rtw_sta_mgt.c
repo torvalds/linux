@@ -454,7 +454,7 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 /* any station allocated can be searched by hash list */
 struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 {
-	struct list_head	*plist, *phead;
+	struct list_head *plist, *phead;
 	struct sta_info *psta = NULL;
 	u32 index;
 	u8 *addr;
