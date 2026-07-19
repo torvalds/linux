@@ -3669,7 +3669,7 @@ static int btf_get_field_type(const struct btf *btf, const struct btf_type *var_
 		{ BPF_LIST_NODE, "bpf_list_node", false },
 		{ BPF_RB_ROOT, "bpf_rb_root", false },
 		{ BPF_RB_NODE, "bpf_rb_node", false },
-		{ BPF_REFCOUNT, "bpf_refcount", false },
+		{ BPF_REFCOUNT, "bpf_refcount", true },
 	};
 	int type = 0, i;
 	const char *name = __btf_name_by_offset(btf, var_type->name_off);
