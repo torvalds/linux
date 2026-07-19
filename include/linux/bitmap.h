@@ -697,14 +697,6 @@ void bitmap_gather(unsigned long *dst, const unsigned long *src,
 		__assign_bit(n++, dst, test_bit(bit, src));
 }
 
-static __always_inline
-void bitmap_next_set_region(unsigned long *bitmap, unsigned int *rs,
-			    unsigned int *re, unsigned int end)
-{
-	*rs = find_next_bit(bitmap, end, *rs);
-	*re = find_next_zero_bit(bitmap, end, *rs + 1);
-}
-
 /**
  * bitmap_release_region - release allocated bitmap region
  *	@bitmap: array of unsigned longs corresponding to the bitmap
