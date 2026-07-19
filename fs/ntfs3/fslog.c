@@ -2785,9 +2785,6 @@ static inline bool check_attr(const struct MFT_REC *rec,
 			return false;
 		}
 
-		if (run_off > asize)
-			return false;
-
 		if (run_unpack(NULL, sbi, 0, svcn, evcn, svcn,
 			       Add2Ptr(attr, run_off), asize - run_off) < 0) {
 			return false;
