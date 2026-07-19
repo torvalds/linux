@@ -173,34 +173,44 @@ impl Drop for IrqVectorRegistration {
 
 impl Device<device::Bound> {
     /// Returns a [`kernel::irq::Registration`] for the given IRQ vector.
-    pub fn request_irq<'a, T: crate::irq::Handler + 'static>(
+    ///
+    /// # Safety
+    ///
+    /// Callers must not `mem::forget()` the resulting [`irq::Registration`] or otherwise prevent
+    /// its [`Drop`] implementation from running.
+    pub unsafe fn request_irq<'a, T: crate::irq::Handler + 'a>(
         &'a self,
         vector: IrqVector<'a>,
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
-    ) -> impl PinInit<irq::Registration<T>, Error> + 'a {
+    ) -> impl PinInit<irq::Registration<'a, T>, Error> + 'a {
         pin_init::pin_init_scope(move || {
             let request = vector.try_into()?;
 
-            Ok(irq::Registration::<T>::new(request, flags, name, handler))
+            // SAFETY: Caller guarantees the Registration will not be leaked.
+            Ok(unsafe { irq::Registration::<T>::new(request, flags, name, handler) })
         })
     }
 
     /// Returns a [`kernel::irq::ThreadedRegistration`] for the given IRQ vector.
-    pub fn request_threaded_irq<'a, T: crate::irq::ThreadedHandler + 'static>(
+    ///
+    /// # Safety
+    ///
+    /// Callers must not `mem::forget()` the resulting [`irq::ThreadedRegistration`] or otherwise
+    /// prevent its [`Drop`] implementation from running.
+    pub unsafe fn request_threaded_irq<'a, T: crate::irq::ThreadedHandler + 'a>(
         &'a self,
         vector: IrqVector<'a>,
         flags: irq::Flags,
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
-    ) -> impl PinInit<irq::ThreadedRegistration<T>, Error> + 'a {
+    ) -> impl PinInit<irq::ThreadedRegistration<'a, T>, Error> + 'a {
         pin_init::pin_init_scope(move || {
             let request = vector.try_into()?;
 
-            Ok(irq::ThreadedRegistration::<T>::new(
-                request, flags, name, handler,
-            ))
+            // SAFETY: Caller guarantees the Registration will not be leaked.
+            Ok(unsafe { irq::ThreadedRegistration::<T>::new(request, flags, name, handler) })
         })
     }
 
