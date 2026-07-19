@@ -928,7 +928,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 spipc0;
 
-	host = spi_alloc_host(&pdev->dev, sizeof(struct davinci_spi));
+	host = devm_spi_alloc_host(&pdev->dev, sizeof(struct davinci_spi));
 	if (host == NULL) {
 		ret = -ENOMEM;
 		goto err;
@@ -1057,7 +1057,6 @@ free_dma:
 		dma_release_channel(dspi->dma_tx);
 	}
 free_host:
-	spi_controller_put(host);
 err:
 	return ret;
 }
@@ -1081,6 +1080,8 @@ static void davinci_spi_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&dspi->bitbang);
 
+	devm_free_irq(&pdev->dev, dspi->irq, dspi);
+
 	/* This bit needs to be cleared to disable dpsi->clk */
 	clear_io_bits(dspi->base + SPIGCR1, SPIGCR1_POWERDOWN_MASK);
 
@@ -1088,8 +1089,6 @@ static void davinci_spi_remove(struct platform_device *pdev)
 		dma_release_channel(dspi->dma_rx);
 		dma_release_channel(dspi->dma_tx);
 	}
-
-	spi_controller_put(host);
 }
 
 static struct platform_driver davinci_spi_driver = {
