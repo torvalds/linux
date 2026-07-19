@@ -43,12 +43,13 @@ UMEM also has two rings: the FILL ring and the COMPLETION ring. The
 FILL ring is used by the application to send down addr for the kernel
 to fill in with RX packet data. References to these frames will then
 appear in the RX ring once each packet has been received. The
-COMPLETION ring, on the other hand, contains frame addr that the
-kernel has transmitted completely and can now be used again by user
-space, for either TX or RX. Thus, the frame addrs appearing in the
-COMPLETION ring are addrs that were previously transmitted using the
-TX ring. In summary, the RX and FILL rings are used for the RX path
-and the TX and COMPLETION rings are used for the TX path.
+COMPLETION ring, on the other hand, contains frame addresses from Tx
+descriptors that the kernel has finished processing and that can now be
+used again by user space, for either Tx or Rx. This includes frames whose
+transmission has completed as well as frames referenced by invalid Tx
+descriptors rejected by the kernel. A completion therefore returns
+ownership of a frame to user space, but does not by itself guarantee that
+the packet was successfully transmitted.
 
 The socket is then finally bound with a bind() call to a device and a
 specific queue id on that device, and it is not until bind is
@@ -169,14 +170,15 @@ chunks mode, then the incoming addr will be left untouched.
 UMEM Completion Ring
 ~~~~~~~~~~~~~~~~~~~~
 
-The COMPLETION Ring is used transfer ownership of UMEM frames from
+The COMPLETION Ring is used to transfer ownership of UMEM frames from
 kernel-space to user-space. Just like the FILL ring, UMEM indices are
-used.
-
-Frames passed from the kernel to user-space are frames that has been
-sent (TX ring) and can be used by user-space again.
-
-The user application consumes UMEM addrs from this ring.
+used. Frames passed from the kernel to user-space are frames referenced
+by Tx descriptors that the kernel has finished processing and can be
+used by user-space again. This includes both frames whose transmission
+has completed and frames referenced by invalid Tx descriptors that were
+rejected and reclaimed by the kernel. A completion entry does not
+guarantee successful packet transmission. The user application consumes
+UMEM addrs from this ring.
 
 
 RX Ring
@@ -504,21 +506,25 @@ will be treated as an invalid descriptor.
 These are the semantics for producing packets onto AF_XDP Tx ring
 consisting of multiple frames:
 
-* When an invalid descriptor is found, all the other
-  descriptors/frames of this packet are marked as invalid and not
-  completed. The next descriptor is treated as the start of a new
-  packet, even if this was not the intent (because we cannot guess
-  the intent). As before, if your program is producing invalid
-  descriptors you have a bug that must be fixed.
+* When an invalid descriptor is found, the complete packet is treated as
+  invalid. The kernel consumes descriptors through the descriptor marking
+  the end of the packet and returns all their frame addresses through the
+  COMPLETION ring. A standalone invalid descriptor is treated as a
+  one-descriptor invalid packet. The descriptor following the end of the
+  invalid packet is treated as the start of a new packet. As before, if
+  your program is producing invalid descriptors you have a bug that must
+  be fixed. Rejected descriptors are reported in the ``tx_invalid_descs``
+  statistic.
 
 * Zero length descriptors are treated as invalid descriptors.
 
 * For copy mode, the maximum supported number of frames in a packet is
-  equal to CONFIG_MAX_SKB_FRAGS + 1. If it is exceeded, all
-  descriptors accumulated so far are dropped and treated as
-  invalid. To produce an application that will work on any system
-  regardless of this config setting, limit the number of frags to 18,
-  as the minimum value of the config is 17.
+  equal to CONFIG_MAX_SKB_FRAGS + 1. If it is exceeded, all descriptors
+  through the end of the oversized packet are consumed, treated as invalid,
+  and their frame addresses are returned through the COMPLETION ring. To
+  produce an application that will work on any system regardless of this
+  config setting, limit the number of frags to 18, as the minimum value of
+  the config is 17.
 
 * For zero-copy mode, the limit is up to what the NIC HW
   supports. Usually at least five on the NICs we have checked. We
