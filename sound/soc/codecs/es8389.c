@@ -106,7 +106,7 @@ static bool find_best_hpf_freq(u32 target_hz, u8 *hpf1, u8 *hpf2, u32 *out)
 	u32 f, diff;
 	int i, j;
 
-	if ((target_hz > 1020) | (target_hz < 0))
+	if (target_hz > 1020)
 		return false;
 
 	for (i = 0; i < 10; i++) {
