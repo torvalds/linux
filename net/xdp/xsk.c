@@ -737,6 +737,19 @@ static void xsk_cq_submit_addr_locked(struct xsk_buff_pool *pool,
 	spin_unlock_irqrestore(&pool->cq_prod_lock, flags);
 }
 
+static void xsk_cq_submit_addr_single_locked(struct xsk_buff_pool *pool,
+					     struct xdp_desc *desc)
+{
+	unsigned long flags;
+	u32 idx;
+
+	spin_lock_irqsave(&pool->cq_prod_lock, flags);
+	idx = xskq_get_prod(pool->cq);
+	xskq_prod_write_addr(pool->cq, idx, desc->addr);
+	xskq_prod_submit_n(pool->cq, 1);
+	spin_unlock_irqrestore(&pool->cq_prod_lock, flags);
+}
+
 static void xsk_cq_cancel_locked(struct xsk_buff_pool *pool, u32 n)
 {
 	spin_lock(&pool->cq->cq_cached_prod_lock);
@@ -1028,13 +1041,14 @@ free_err:
 static int __xsk_generic_xmit(struct sock *sk)
 {
 	struct xdp_sock *xs = xdp_sk(sk);
-	bool sent_frame = false;
 	struct xdp_desc desc;
 	struct sk_buff *skb;
+	u32 cached_cons;
 	u32 max_batch;
 	int err = 0;
 
 	mutex_lock(&xs->mutex);
+	cached_cons = xs->tx->cached_cons;
 
 	/* Since we dropped the RCU read lock, the socket state might have changed. */
 	if (unlikely(!xsk_is_bound(xs))) {
@@ -1063,11 +1077,21 @@ static int __xsk_generic_xmit(struct sock *sk)
 			goto out;
 		}
 
+		if (unlikely(xs->drain_cont)) {
+			xsk_cq_submit_addr_single_locked(xs->pool, &desc);
+			xs->tx->invalid_descs++;
+			xskq_cons_release(xs->tx);
+			xs->drain_cont = xp_mb_desc(&desc);
+			continue;
+		}
+
 		skb = xsk_build_skb(xs, &desc);
 		if (IS_ERR(skb)) {
 			err = PTR_ERR(skb);
 			if (err != -EOVERFLOW)
 				goto out;
+			if (xp_mb_desc(&desc))
+				xs->drain_cont = true;
 			err = 0;
 			continue;
 		}
@@ -1096,18 +1120,33 @@ static int __xsk_generic_xmit(struct sock *sk)
 			goto out;
 		}
 
-		sent_frame = true;
 		xs->skb = NULL;
 	}
 
 	if (xskq_has_descs(xs->tx)) {
+		bool drain = xs->skb || xs->drain_cont || xp_mb_desc(&desc);
+
+		err = xsk_cq_reserve_locked(xs->pool);
+		if (err) {
+			xs->tx->invalid_descs--;
+			if (xs->skb)
+				xsk_drop_skb(xs->skb);
+			xs->drain_cont = drain;
+			err = -EAGAIN;
+			goto out;
+		}
+
 		if (xs->skb)
 			xsk_drop_skb(xs->skb);
+
+		xsk_cq_submit_addr_single_locked(xs->pool, &desc);
+
 		xskq_cons_release(xs->tx);
+		xs->drain_cont = xp_mb_desc(&desc);
 	}
 
 out:
-	if (sent_frame)
+	if (xs->tx->cached_cons != cached_cons)
 		__xsk_tx_release(xs);
 
 	mutex_unlock(&xs->mutex);
