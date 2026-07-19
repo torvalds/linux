@@ -93,12 +93,13 @@
  * -----------------------
  *
  * SCX is the lowest priority sched_class, and could be preempted by them at
- * any time. To address this, the scheduler implements pair_cpu_release() and
- * pair_cpu_acquire() callbacks which are invoked by the core scheduler when
- * the scheduler loses and gains control of the CPU respectively.
+ * any time. To address this, the scheduler watches every sched_switch from
+ * a tracepoint and edge-detects when a CPU leaves and returns to SCX
+ * control.
  *
- * In pair_cpu_release(), we mark the pair_ctx as having been preempted, and
- * then invoke:
+ * When a higher-priority class takes a CPU away from a running SCX task -
+ * a sched_switch from an SCX task to a higher-priority task - we mark the
+ * pair_ctx as having been preempted and then invoke:
  *
  * scx_bpf_kick_cpu(pair_cpu, SCX_KICK_PREEMPT | SCX_KICK_WAIT);
  *
@@ -107,9 +108,19 @@
  * sched_class that preempted our scheduler does not schedule a task
  * concurrently with our pair CPU.
  *
- * When the CPU is re-acquired in pair_cpu_acquire(), we unmark the preemption
- * in the pair_ctx, and send another resched IPI to the pair CPU to re-enable
- * pair scheduling.
+ * When the CPU returns to SCX or idle, we unmark the preemption in the
+ * pair_ctx and send another resched IPI to the pair CPU to re-enable pair
+ * scheduling.
+ *
+ * A switch from idle straight to a higher-priority task is not a release:
+ * the CPU was not running an SCX task, so there is nothing to drain and no
+ * reason to make the pair wait. Kicking SCX_KICK_WAIT on every such wakeup
+ * would stall the pair CPU behind rt bursts it was never coupled to.
+ *
+ * Note that sched_setscheduler() on a running task changes its class in
+ * place without a context switch, so such transitions are only observed at
+ * the task's next switch. Until then the stale active_mask bit makes the
+ * pair wait in try_dispatch(), which is bounded by that next switch.
  *
  * Copyright (c) 2022 Meta Platforms, Inc. and affiliates.
  * Copyright (c) 2022 Tejun Heo <tj@kernel.org>
@@ -117,6 +128,8 @@
  */
 #include <scx/common.bpf.h>
 #include "scx_pair.h"
+
+#define MAX_RT_PRIO	100
 
 char _license[] SEC("license") = "GPL";
 
@@ -306,6 +319,40 @@ static int lookup_pairc_and_mask(s32 cpu, struct pair_ctx **pairc, u32 *mask)
 	*mask = 1U << *vptr;
 
 	return 0;
+}
+
+/*
+ * A task is above SCX whenever its effective priority is in the rt/dl
+ * range. Test p->prio rather than p->policy: rt_mutex_setprio() boosts
+ * a PI beneficiary into the rt/dl classes with its policy left
+ * untouched, so a policy test would misclassify boosted tasks in both
+ * directions. p->prio follows the boost and the deboost.
+ *
+ * This still cannot tell fair and SCX tasks apart. It is complete only
+ * because scx_pair runs in switch-all mode, where no fair class task
+ * exists; in partial mode fair is also above SCX and can take the CPU.
+ */
+static bool pair_task_is_highpri(struct task_struct *p)
+{
+	return p->prio < MAX_RT_PRIO;
+}
+
+static void pair_cpu_acquire_locked(struct pair_ctx *pairc, u32 in_pair_mask,
+					u32 *kick_flags)
+{
+	pairc->preempted_mask &= ~in_pair_mask;
+	/* Kick the pair CPU, unless it was also preempted. */
+	*kick_flags = !pairc->preempted_mask ? SCX_KICK_PREEMPT : 0;
+}
+
+static void pair_cpu_release_locked(struct pair_ctx *pairc, u32 in_pair_mask,
+					u32 *kick_flags)
+{
+	pairc->preempted_mask |= in_pair_mask;
+	pairc->active_mask &= ~in_pair_mask;
+	/* Kick the pair CPU if it's still running. */
+	*kick_flags = pairc->active_mask ? SCX_KICK_PREEMPT | SCX_KICK_WAIT : 0;
+	pairc->draining = true;
 }
 
 __attribute__((noinline))
@@ -500,61 +547,60 @@ void BPF_STRUCT_OPS(pair_dispatch, s32 cpu, struct task_struct *prev)
 	}
 }
 
-void BPF_STRUCT_OPS(pair_cpu_acquire, s32 cpu, struct scx_cpu_acquire_args *args)
+SEC("tp_btf/sched_switch")
+int BPF_PROG(pair_sched_switch, bool preempt, struct task_struct *prev,
+	     struct task_struct *next, unsigned int prev_state)
 {
 	int ret;
+	s32 cpu = bpf_get_smp_processor_id();
 	u32 in_pair_mask;
 	struct pair_ctx *pairc;
-	bool kick_pair;
+	u32 kick_flags = 0;
+	bool preempted;
+	bool release, acquire;
 
 	ret = lookup_pairc_and_mask(cpu, &pairc, &in_pair_mask);
 	if (ret)
-		return;
+		return 0;
+
+	/*
+	 * This runs on every context switch in the system. A CPU's own
+	 * preempted_mask bit is only ever written by this tracepoint
+	 * running on that CPU, so the unlocked read is exact and the
+	 * pair-shared lock is only taken on actual transitions.
+	 */
+	preempted = pairc->preempted_mask & in_pair_mask;
+	if (next->pid && pair_task_is_highpri(next)) {
+		/* an SCX task lost the CPU to a higher-priority class */
+		release = !preempted && prev->pid && !pair_task_is_highpri(prev);
+		acquire = false;
+	} else {
+		/* the CPU is back under SCX control (or idle) */
+		release = false;
+		acquire = preempted;
+	}
+	if (!release && !acquire)
+		return 0;
 
 	bpf_spin_lock(&pairc->lock);
-	pairc->preempted_mask &= ~in_pair_mask;
-	/* Kick the pair CPU, unless it was also preempted. */
-	kick_pair = !pairc->preempted_mask;
+	if (release) {
+		pair_cpu_release_locked(pairc, in_pair_mask, &kick_flags);
+		__sync_fetch_and_add(&nr_preemptions, 1);
+	} else {
+		pair_cpu_acquire_locked(pairc, in_pair_mask, &kick_flags);
+	}
 	bpf_spin_unlock(&pairc->lock);
 
-	if (kick_pair) {
+	if (kick_flags) {
 		s32 *pair = (s32 *)ARRAY_ELEM_PTR(pair_cpu, cpu, nr_cpu_ids);
 
 		if (pair) {
 			__sync_fetch_and_add(&nr_kicks, 1);
-			scx_bpf_kick_cpu(*pair, SCX_KICK_PREEMPT);
+			scx_bpf_kick_cpu(*pair, kick_flags);
 		}
 	}
-}
 
-void BPF_STRUCT_OPS(pair_cpu_release, s32 cpu, struct scx_cpu_release_args *args)
-{
-	int ret;
-	u32 in_pair_mask;
-	struct pair_ctx *pairc;
-	bool kick_pair;
-
-	ret = lookup_pairc_and_mask(cpu, &pairc, &in_pair_mask);
-	if (ret)
-		return;
-
-	bpf_spin_lock(&pairc->lock);
-	pairc->preempted_mask |= in_pair_mask;
-	pairc->active_mask &= ~in_pair_mask;
-	/* Kick the pair CPU if it's still running. */
-	kick_pair = pairc->active_mask;
-	pairc->draining = true;
-	bpf_spin_unlock(&pairc->lock);
-
-	if (kick_pair) {
-		s32 *pair = (s32 *)ARRAY_ELEM_PTR(pair_cpu, cpu, nr_cpu_ids);
-
-		if (pair) {
-			__sync_fetch_and_add(&nr_kicks, 1);
-			scx_bpf_kick_cpu(*pair, SCX_KICK_PREEMPT | SCX_KICK_WAIT);
-		}
-	}
-	__sync_fetch_and_add(&nr_preemptions, 1);
+	return 0;
 }
 
 s32 BPF_STRUCT_OPS(pair_cgroup_init, struct cgroup *cgrp)
@@ -602,8 +648,6 @@ void BPF_STRUCT_OPS(pair_exit, struct scx_exit_info *ei)
 SCX_OPS_DEFINE(pair_ops,
 	       .enqueue			= (void *)pair_enqueue,
 	       .dispatch		= (void *)pair_dispatch,
-	       .cpu_acquire		= (void *)pair_cpu_acquire,
-	       .cpu_release		= (void *)pair_cpu_release,
 	       .cgroup_init		= (void *)pair_cgroup_init,
 	       .cgroup_exit		= (void *)pair_cgroup_exit,
 	       .exit			= (void *)pair_exit,
