@@ -480,7 +480,7 @@ static const char * const ps_hold_groups[] = {
 };
 
 static const struct pinfunction ipq8064_functions[] = {
-	IPQ_PIN_FUNCTION(gpio),
+	IPQ_GPIO_PIN_FUNCTION(gpio),
 	IPQ_PIN_FUNCTION(mdio),
 	IPQ_PIN_FUNCTION(ssbi),
 	IPQ_PIN_FUNCTION(spmi),
