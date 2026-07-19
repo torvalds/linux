@@ -162,6 +162,9 @@ null run - Don't start any counters.
 This can be useful to measure just elapsed wall-clock time - or to assess the
 raw overhead of perf stat itself, without running any counters.
 
+--hide-zero-events::
+Do not show events with a zero count.
+
 -v::
 --verbose::
         be more verbose (show counter open errors, etc)

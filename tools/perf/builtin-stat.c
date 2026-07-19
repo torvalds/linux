@@ -2505,6 +2505,8 @@ int cmd_stat(int argc, const char **argv)
 			"display details about each run (only with -r option)"),
 		OPT_BOOLEAN('n', "null", &stat_config.null_run,
 			"null run - dont start any counters"),
+		OPT_BOOLEAN(0, "hide-zero-events", &stat_config.hide_zero,
+			"Do not show events with a zero count"),
 		OPT_INCR('d', "detailed", &detailed_run,
 			"detailed run - start a lot of events"),
 		OPT_BOOLEAN('S', "sync", &sync_run,
