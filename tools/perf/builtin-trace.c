@@ -3224,6 +3224,13 @@ static unsigned char bitmap_byte(const unsigned long *mask, int byte_idx)
 	return b_val;
 }
 
+static bool trace__field_is_ip(const char *name)
+{
+	return !strcmp(name, "__probe_ip") ||
+	       !strcmp(name, "caller_ip") ||
+	       !strcmp(name, "call_site");
+}
+
 static size_t trace__fprintf_tp_fields(struct trace *trace, struct perf_sample *sample,
 				       struct thread *thread, void *augmented_args, int augmented_args_size)
 {
@@ -3236,6 +3243,7 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct perf_sample *
 	size_t printed = 0, btf_printed;
 	unsigned long val;
 	u8 bit = 1;
+	bool is_probe_ip;
 	struct syscall_arg syscall_arg = {
 		.augmented = {
 			.size = augmented_args_size,
@@ -3323,9 +3331,14 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct perf_sample *
 		 * Suppress it by default to avoid cluttering the output.
 		 * If verbose mode is enabled, ensure it is formatted as a
 		 * hexadecimal memory address rather than a signed integer.
+		 *
+		 * caller_ip and call_site are also expected to be instruction
+		 * pointers and should always be represented in hexadecimal.
 		 */
-		if (evsel__is_probe(evsel) && !strcmp(field->name, "__probe_ip")) {
-			if (!verbose)
+		is_probe_ip = evsel__is_probe(evsel) && !strcmp(field->name, "__probe_ip");
+
+		if (is_probe_ip || trace__field_is_ip(field->name)) {
+			if (is_probe_ip && !verbose)
 				continue;
 
 			printed += scnprintf(bf + printed, size - printed,
