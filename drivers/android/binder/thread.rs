@@ -9,6 +9,7 @@
 
 use kernel::{
     bindings,
+    bits::bit_u32,
     fs::LocalFile,
     list::{AtomicTracker, List, ListArc, ListLinks, TryNewListArc},
     prelude::*,
@@ -245,7 +246,7 @@ impl PushWorkRes {
 struct InnerThread {
     /// Determines the looper state of the thread. It is a bit-wise combination of the constants
     /// prefixed with `LOOPER_`.
-    looper_flags: u32,
+    looper_flags: LooperFlags,
 
     /// Determines whether the looper should return.
     looper_need_return: bool,
@@ -272,13 +273,23 @@ struct InnerThread {
     extended_error: ExtendedError,
 }
 
-const LOOPER_REGISTERED: u32 = 0x01;
-const LOOPER_ENTERED: u32 = 0x02;
-const LOOPER_EXITED: u32 = 0x04;
-const LOOPER_INVALID: u32 = 0x08;
-const LOOPER_WAITING: u32 = 0x10;
-const LOOPER_WAITING_PROC: u32 = 0x20;
-const LOOPER_POLL: u32 = 0x40;
+kernel::impl_flags!(
+    /// Represents multiple looper flags.
+    #[derive(Debug, Clone, Default, Copy, PartialEq, Eq)]
+    pub struct LooperFlags(u32);
+
+    /// Represents a single looper flag.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum LooperFlag {
+        Registered = bit_u32(0),
+        Entered = bit_u32(1),
+        Exited = bit_u32(2),
+        Invalid = bit_u32(3),
+        Waiting = bit_u32(4),
+        WaitingProc = bit_u32(5),
+        Poll = bit_u32(6),
+    }
+);
 
 impl InnerThread {
     fn new(pid: i32) -> Result<Self> {
@@ -288,7 +299,7 @@ impl InnerThread {
         }
 
         Ok(Self {
-            looper_flags: 0,
+            looper_flags: LooperFlags::default(),
             looper_need_return: false,
             is_dead: false,
             process_work_list: false,
@@ -316,7 +327,7 @@ impl InnerThread {
         }
         self.work_list.push_back(work);
         self.process_work_list = true;
-        if self.looper_flags & LOOPER_POLL != 0 {
+        if self.looper_flags.contains(LooperFlag::Poll) {
             PushWorkRes::OkNotifyPoll
         } else {
             PushWorkRes::Ok
@@ -380,26 +391,27 @@ impl InnerThread {
     }
 
     fn looper_enter(&mut self) {
-        self.looper_flags |= LOOPER_ENTERED;
-        if self.looper_flags & LOOPER_REGISTERED != 0 {
-            self.looper_flags |= LOOPER_INVALID;
+        self.looper_flags |= LooperFlag::Entered;
+        if self.looper_flags.contains(LooperFlag::Registered) {
+            self.looper_flags |= LooperFlag::Invalid;
         }
     }
 
     fn looper_register(&mut self, valid: bool) {
-        self.looper_flags |= LOOPER_REGISTERED;
-        if !valid || self.looper_flags & LOOPER_ENTERED != 0 {
-            self.looper_flags |= LOOPER_INVALID;
+        self.looper_flags |= LooperFlag::Registered;
+        if !valid || self.looper_flags.contains(LooperFlag::Entered) {
+            self.looper_flags |= LooperFlag::Invalid;
         }
     }
 
     fn looper_exit(&mut self) {
-        self.looper_flags |= LOOPER_EXITED;
+        self.looper_flags |= LooperFlag::Exited;
     }
 
     /// Determines whether the thread is part of a pool, i.e., if it is a looper.
     fn is_looper(&self) -> bool {
-        self.looper_flags & (LOOPER_ENTERED | LOOPER_REGISTERED) != 0
+        self.looper_flags
+            .contains_any(LooperFlag::Entered | LooperFlag::Registered)
     }
 
     /// Determines whether the thread should attempt to fetch work items from the process queue.
@@ -411,7 +423,7 @@ impl InnerThread {
     }
 
     fn poll(&mut self) -> u32 {
-        self.looper_flags |= LOOPER_POLL;
+        self.looper_flags |= LooperFlag::Poll;
         if self.process_work_list || self.looper_need_return {
             bindings::POLLIN
         } else {
@@ -477,7 +489,7 @@ impl Thread {
                 m,
                 "  thread {}: l {:02x} need_return {}\n",
                 self.id,
-                inner.looper_flags,
+                u32::from(inner.looper_flags),
                 inner.looper_need_return,
             );
         }
@@ -550,9 +562,9 @@ impl Thread {
                 return Ok(Some(work));
             }
 
-            inner.looper_flags |= LOOPER_WAITING;
+            inner.looper_flags |= LooperFlag::Waiting;
             let signal_pending = self.work_condvar.wait_interruptible_freezable(&mut inner);
-            inner.looper_flags &= !LOOPER_WAITING;
+            inner.looper_flags &= !LooperFlag::Waiting;
 
             if signal_pending {
                 return Err(EINTR);
@@ -604,9 +616,9 @@ impl Thread {
                 return Ok(Some(work));
             }
 
-            inner.looper_flags |= LOOPER_WAITING | LOOPER_WAITING_PROC;
+            inner.looper_flags |= LooperFlag::Waiting | LooperFlag::WaitingProc;
             let signal_pending = self.work_condvar.wait_interruptible_freezable(&mut inner);
-            inner.looper_flags &= !(LOOPER_WAITING | LOOPER_WAITING_PROC);
+            inner.looper_flags &= !(LooperFlag::Waiting | LooperFlag::WaitingProc);
 
             if signal_pending || inner.looper_need_return {
                 // We need to return now. We need to pull the thread off the list of ready threads
@@ -1649,7 +1661,7 @@ impl Thread {
     /// Make the call to `get_work` or `get_work_local` return immediately, if any.
     pub(crate) fn exit_looper(&self) {
         let mut inner = self.inner.lock();
-        let should_notify = inner.looper_flags & LOOPER_WAITING != 0;
+        let should_notify = inner.looper_flags.contains(LooperFlag::Waiting);
         if should_notify {
             inner.looper_need_return = true;
         }
