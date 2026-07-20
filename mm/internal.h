@@ -276,6 +276,9 @@ void unmap_vmas(struct mmu_gather *tlb, struct unmap_desc *unmap);
 
 #ifdef CONFIG_MMU
 
+bool pte_install_uffd_wp_if_needed(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, pte_t pte);
+
 static inline void get_anon_vma(struct anon_vma *anon_vma)
 {
 	atomic_inc(&anon_vma->refcount);

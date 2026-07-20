@@ -1619,6 +1619,66 @@ static inline bool zap_drop_markers(struct zap_details *details)
 	return details->zap_flags & ZAP_FLAG_DROP_MARKER;
 }
 
+/**
+ * pte_install_uffd_wp_if_needed - install uffd-wp marker after clearing a PTE
+ * @vma: The VMA the page is mapped into.
+ * @addr: Address the page is mapped at.
+ * @ptep: Page table pointer for this entry.
+ * @pte: Old value of the entry pointed to by @ptep.
+ *
+ * If the PTE was write-protected by uffd-wp in any form, arm a special PTE
+ * to replace a none PTE. NOTE! This should only be called when the PTE is
+ * already cleared so we will never accidentally replace something valuable.
+ * Meanwhile none PTEs also mean we are not demoting the PTE so a TLB flush is
+ * not needed. E.g., when the PTE was cleared, the caller should have taken care
+ * of the TLB flush.
+ *
+ * Must be called with the page table lock held so that no thread will see the
+ * none PTE, and if they see it, they'll fault and serialize at the page table
+ * lock.
+ *
+ * Returns true if an uffd-wp PTE was installed, false otherwise.
+ */
+bool pte_install_uffd_wp_if_needed(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	bool arm_uffd_pte = false;
+
+	if (!uffd_supports_wp_marker())
+		return false;
+
+	/* The current status of the pte should be "cleared" before calling */
+	WARN_ON_ONCE(!pte_none(ptep_get(ptep)));
+
+	/*
+	 * NOTE: userfaultfd_wp_unpopulated() doesn't need this whole
+	 * thing, because when zapping either it means it's dropping the
+	 * page, or in TTU where the present pte will be quickly replaced
+	 * with a swap pte.  There's no way of leaking the bit.
+	 */
+	if (vma_is_anonymous(vma) || !userfaultfd_wp(vma))
+		return false;
+
+	/* A uffd-wp wr-protected normal pte */
+	if (unlikely(pte_present(pte) && pte_uffd(pte)))
+		arm_uffd_pte = true;
+
+	/*
+	 * A uffd-wp wr-protected swap pte.  Note: this should even cover an
+	 * existing pte marker with uffd-wp bit set.
+	 */
+	if (unlikely(pte_swp_uffd_any(pte)))
+		arm_uffd_pte = true;
+
+	if (unlikely(arm_uffd_pte)) {
+		set_pte_at(vma->vm_mm, addr, ptep,
+			   make_pte_marker(PTE_MARKER_UFFD_WP));
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * This function makes sure that we'll replace the none pte with an uffd-wp
  * swap special pte marker when necessary. Must be with the pgtable lock held.
