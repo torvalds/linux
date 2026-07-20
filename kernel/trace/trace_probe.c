@@ -1262,7 +1262,7 @@ NOKPROBE_SYMBOL(store_trace_entry_data)
 
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
-static int parse_probe_var_retval(char *orig_arg, char *arg,
+static int parse_probe_var_retval(char *orig_arg,
 				  struct fetch_insn **pcode,
 				  struct fetch_insn *end,
 				  struct traceprobe_parse_context *ctx)
@@ -1415,7 +1415,7 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 		goto inval;
 
 	if (str_has_prefix(arg, "retval"))
-		return parse_probe_var_retval(orig_arg, arg, pcode, end, ctx);
+		return parse_probe_var_retval(orig_arg, pcode, end, ctx);
 
 	len = str_has_prefix(arg, "stack");
 	if (len)
