@@ -1279,9 +1279,10 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	int i, err;
 	int pages_count = (round_up(ni->itype.compressed.block_size + 2 *
 		(ni->itype.compressed.block_size / NTFS_SB_SIZE) + 2, PAGE_SIZE)) / PAGE_SIZE;
+	u32 cb_clusters = ni->itype.compressed.block_clusters;
 	size_t new_rl_count;
 	struct bio *bio = NULL;
-	loff_t new_length;
+	loff_t cb_pos, new_length;
 	s64 new_vcn;
 
 	in_mapping = vmap(pages, pages_per_cb, VM_MAP, PAGE_KERNEL_RO);
@@ -1351,6 +1352,9 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		}
 	}
 
+	cb_pos = pos & ~((loff_t)ni->itype.compressed.block_size - 1);
+	new_vcn = ntfs_bytes_to_cluster(vol, cb_pos);
+
 	if (!fail && !allzeroes) {
 		outbuf[compsz++] = 0;
 		outbuf[compsz++] = 0;
@@ -1359,7 +1363,7 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		bio_size = rounded;
 		pages = pages_disk;
 	} else if (allzeroes) {
-		err = 0;
+		err = ntfs_non_resident_attr_punch_hole(ni, new_vcn, cb_clusters);
 		goto out;
 	} else {
 		memcpy(outbuf, inbuf, insz);
@@ -1367,8 +1371,6 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		pages = pages_disk;
 	}
 
-	new_vcn = ntfs_bytes_to_cluster(vol,
-			pos & ~((loff_t)ni->itype.compressed.block_size - 1));
 	new_length = ntfs_bytes_to_cluster(vol, round_up(bio_size, vol->cluster_size));
 
 	err = ntfs_non_resident_attr_punch_hole(ni, new_vcn, ni->itype.compressed.block_clusters);
