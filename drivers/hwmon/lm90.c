@@ -2918,10 +2918,8 @@ static int lm90_probe(struct i2c_client *client)
 		err = devm_request_threaded_irq(dev, client->irq,
 						NULL, lm90_irq_thread,
 						IRQF_ONESHOT, "lm90", client);
-		if (err < 0) {
-			dev_err(dev, "cannot request IRQ %d\n", client->irq);
+		if (err < 0)
 			return err;
-		}
 	}
 
 	return 0;
