@@ -523,7 +523,7 @@ static void iolatency_check_latencies(struct iolatency_grp *iolat, u64 now)
 
 	latency_stat_init(iolat, &stat);
 	preempt_disable();
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct latency_stat *s;
 		s = per_cpu_ptr(iolat->stats, cpu);
 		latency_stat_sum(iolat, &stat, s);
@@ -925,7 +925,7 @@ static void iolatency_ssd_stat(struct iolatency_grp *iolat, struct seq_file *s)
 
 	latency_stat_init(iolat, &stat);
 	preempt_disable();
-	for_each_online_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct latency_stat *s;
 		s = per_cpu_ptr(iolat->stats, cpu);
 		latency_stat_sum(iolat, &stat, s);
