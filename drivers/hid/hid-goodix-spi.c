@@ -722,11 +722,8 @@ static int goodix_spi_probe(struct spi_device *spi)
 	error = devm_request_threaded_irq(&ts->spi->dev, ts->spi->irq,
 					  NULL, goodix_hid_irq, IRQF_ONESHOT,
 					  "goodix_spi_hid", ts);
-	if (error) {
-		dev_err(ts->dev, "could not register interrupt, irq = %d, %d",
-			ts->spi->irq, error);
+	if (error)
 		goto err_destroy_hid;
-	}
 
 	return 0;
 
