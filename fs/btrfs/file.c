@@ -2661,8 +2661,8 @@ static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 
 	lockstart = round_up(offset, fs_info->sectorsize);
 	lockend = round_down(offset + len, fs_info->sectorsize) - 1;
-	same_block = (BTRFS_BYTES_TO_BLKS(fs_info, offset))
-		== (BTRFS_BYTES_TO_BLKS(fs_info, offset + len - 1));
+	same_block = (offset >> fs_info->sectorsize_bits) ==
+		     ((offset + len - 1) >> fs_info->sectorsize_bits);
 	/*
 	 * Only do this if we are in the same block and we aren't doing the
 	 * entire block.
@@ -2945,8 +2945,8 @@ static int btrfs_zero_range(struct inode *inode,
 	}
 	btrfs_free_extent_map(em);
 
-	if (BTRFS_BYTES_TO_BLKS(fs_info, offset) ==
-	    BTRFS_BYTES_TO_BLKS(fs_info, offset + len - 1)) {
+	if ((offset >> fs_info->sectorsize_bits) ==
+	    ((offset + len - 1) >> fs_info->sectorsize_bits)) {
 		em = btrfs_get_extent(BTRFS_I(inode), NULL, alloc_start, sectorsize);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR(em);
