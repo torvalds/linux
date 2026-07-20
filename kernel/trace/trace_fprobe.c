@@ -238,13 +238,10 @@ static bool trace_fprobe_is_busy(struct dyn_event *ev)
 static bool trace_fprobe_match_command_head(struct trace_fprobe *tf,
 					    int argc, const char **argv)
 {
-	char buf[MAX_COMMON_HEAD_LEN + 1];
-
 	if (!argc)
 		return true;
 
-	snprintf(buf, sizeof(buf), "%s", trace_fprobe_symbol(tf));
-	if (strcmp(buf, argv[0]))
+	if (strcmp(trace_fprobe_symbol(tf), argv[0]))
 		return false;
 	argc--; argv++;
 
