@@ -501,7 +501,7 @@ static void s2255_fwchunk_complete(struct urb *urb)
 		wake_up(&data->wait_fw);
 		return;
 	}
-	if (data->fw_urb == NULL) {
+	if (!data->fw_urb) {
 		s2255_dev_err(&udev->dev, "disconnected\n");
 		atomic_set(&data->fw_state, S2255_FW_FAILED);
 		/* wake up anything waiting for the firmware */
@@ -664,7 +664,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	unsigned long size;
 
 	dprintk(vc->dev, 4, "%s\n", __func__);
-	if (vc->fmt == NULL)
+	if (!vc->fmt)
 		return -EINVAL;
 
 	if ((w < norm_minw(vc)) ||
@@ -763,7 +763,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
-	if (fmt == NULL)
+	if (!fmt)
 		return -EINVAL;
 
 	dprintk(vc->dev, 50, "%s NTSC: %d suggested width: %d, height: %d\n",
@@ -820,7 +820,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
-	if (fmt == NULL)
+	if (!fmt)
 		return -EINVAL;
 
 	if (vb2_is_busy(q)) {
@@ -904,7 +904,7 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	u32 usb_in_size;
 	unsigned int mask_mult;
 
-	if (mode == NULL)
+	if (!mode)
 		return 0;
 
 	if (mode->format == FORMAT_NTSC) {
@@ -1358,7 +1358,7 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 
 	fmt = format_by_fourcc(fe->pixel_format);
-	if (fmt == NULL)
+	if (!fmt)
 		return -EINVAL;
 	fe->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 	fe->discrete = is_ntsc ?  ntsc_sizes[fe->index] : pal_sizes[fe->index];
@@ -1380,7 +1380,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *priv,
 		return -EINVAL;
 
 	fmt = format_by_fourcc(fe->pixel_format);
-	if (fmt == NULL)
+	if (!fmt)
 		return -EINVAL;
 
 	sizes = is_ntsc ? ntsc_sizes : pal_sizes;
@@ -1806,7 +1806,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 	psrc = (u8 *)pipe_info->transfer_buffer + offset;
 
 
-	if (frm->lpvbits == NULL) {
+	if (!frm->lpvbits) {
 		dprintk(dev, 1, "s2255 frame buffer == NULL.%p %p %d %d",
 			frm, dev, dev->cc, idx);
 		return -ENOMEM;
@@ -1937,7 +1937,7 @@ static int s2255_create_sys_buffers(struct s2255_vc *vc)
 		/* allocate the frames */
 		vc->buffer.frame[i].lpvbits = vmalloc(reqsize);
 		vc->buffer.frame[i].size = reqsize;
-		if (vc->buffer.frame[i].lpvbits == NULL) {
+		if (!vc->buffer.frame[i].lpvbits) {
 			pr_info("out of memory.  using less frames\n");
 			vc->buffer.num_frames = i;
 			break;
@@ -1979,7 +1979,7 @@ static int s2255_board_init(struct s2255_dev *dev)
 
 	pipe->transfer_buffer = kzalloc(pipe->max_transfer_size,
 					GFP_KERNEL);
-	if (pipe->transfer_buffer == NULL) {
+	if (!pipe->transfer_buffer) {
 		dprintk(dev, 1, "out of memory!\n");
 		return -ENOMEM;
 	}
@@ -2039,12 +2039,12 @@ static void read_pipe_completion(struct urb *purb)
 	int status;
 	int pipe;
 	pipe_info = purb->context;
-	if (pipe_info == NULL) {
+	if (!pipe_info) {
 		dev_err(&purb->dev->dev, "no context!\n");
 		return;
 	}
 	dev = pipe_info->dev;
-	if (dev == NULL) {
+	if (!dev) {
 		dev_err(&purb->dev->dev, "no context!\n");
 		return;
 	}
@@ -2211,13 +2211,13 @@ static int s2255_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it to zero */
 	dev = kzalloc_obj(struct s2255_dev);
-	if (dev == NULL) {
+	if (!dev) {
 		s2255_dev_err(&interface->dev, "out of memory\n");
 		return -ENOMEM;
 	}
 
 	dev->cmdbuf = kzalloc(S2255_CMDBUF_SIZE, GFP_KERNEL);
-	if (dev->cmdbuf == NULL) {
+	if (!dev->cmdbuf) {
 		s2255_dev_err(&interface->dev, "out of memory\n");
 		goto err_fwdata1;
 	}
@@ -2231,7 +2231,7 @@ static int s2255_probe(struct usb_interface *interface,
 	mutex_init(&dev->cmdlock);
 	/* grab usb_device and save it */
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
-	if (dev->udev == NULL) {
+	if (!dev->udev) {
 		dev_err(&interface->dev, "null usb device\n");
 		retval = -ENODEV;
 		goto err_udev;
