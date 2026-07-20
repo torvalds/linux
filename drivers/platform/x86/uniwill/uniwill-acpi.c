@@ -1733,7 +1733,24 @@ static enum led_brightness uniwill_kbd_led_mc_brightness_get(struct led_classdev
 	return uniwill_kbd_led_read_brightness(data);
 }
 
-static int uniwill_kbd_led_init(struct uniwill_data *data)
+static int uniwill_white_kbd_led_init(struct uniwill_data *data)
+{
+	struct led_init_data init_data = {
+		.default_label = "white:" LED_FUNCTION_KBD_BACKLIGHT,
+		.devicename = DRIVER_NAME,
+		.devname_mandatory = true,
+	};
+
+	data->kbd_led_cdev.max_brightness = data->kbd_led_max_brightness;
+	data->kbd_led_cdev.color = LED_COLOR_ID_WHITE;
+	data->kbd_led_cdev.flags = LED_BRIGHT_HW_CHANGED | LED_REJECT_NAME_CONFLICT;
+	data->kbd_led_cdev.brightness_set_blocking = uniwill_kbd_led_brightness_set;
+	data->kbd_led_cdev.brightness_get = uniwill_kbd_led_brightness_get;
+
+	return devm_led_classdev_register_ext(data->dev, &data->kbd_led_cdev, &init_data);
+}
+
+static int uniwill_rgb_kbd_led_init(struct uniwill_data *data)
 {
 	unsigned int color_indices[KBD_LED_CHANNELS] = {
 		LED_COLOR_ID_RED,
@@ -1741,6 +1758,7 @@ static int uniwill_kbd_led_init(struct uniwill_data *data)
 		LED_COLOR_ID_BLUE,
 	};
 	struct led_init_data init_data = {
+		.default_label = "multicolor:" LED_FUNCTION_KBD_BACKLIGHT,
 		.devicename = DRIVER_NAME,
 		.devname_mandatory = true,
 	};
@@ -1748,57 +1766,6 @@ static int uniwill_kbd_led_init(struct uniwill_data *data)
 	bool needs_trigger = false;
 	unsigned int regval;
 	int ret;
-
-	if (!uniwill_device_supports(data, UNIWILL_FEATURE_KEYBOARD_BACKLIGHT))
-		return 0;
-
-	ret = regmap_read(data->regmap, EC_ADDR_SUPPORT_2, &regval);
-	if (ret < 0)
-		return ret;
-
-	if (!(regval & CHINA_MODE)) {
-		ret = regmap_set_bits(data->regmap, EC_ADDR_BIOS_OEM_2, ENABLE_CHINA_MODE);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = regmap_read(data->regmap, EC_ADDR_KBD_STATUS, &regval);
-	if (ret < 0)
-		return ret;
-
-	regval |= KBD_APPLY;
-	regval &= ~KBD_POWER_OFF;
-	ret = regmap_write(data->regmap, EC_ADDR_KBD_STATUS, regval);
-	if (ret < 0)
-		return ret;
-
-	switch (data->project_id) {
-	case PROJECT_ID_PF:
-	case PROJECT_ID_PF4MU_PF4MN_PF5MU:
-	case PROJECT_ID_PH4TRX1:
-	case PROJECT_ID_PH4TUX1:
-	case PROJECT_ID_PH4TQX1:
-	case PROJECT_ID_PH6TRX1:
-	case PROJECT_ID_PH6TQXX:
-	case PROJECT_ID_PHXAXXX:
-	case PROJECT_ID_PHXPXXX:
-		data->single_color_kbd = true;
-		break;
-	default:
-		data->single_color_kbd = regval & KBD_WHITE_ONLY;
-		break;
-	}
-
-	if (data->single_color_kbd) {
-		init_data.default_label = "white:" LED_FUNCTION_KBD_BACKLIGHT;
-		data->kbd_led_cdev.max_brightness = data->kbd_led_max_brightness;
-		data->kbd_led_cdev.color = LED_COLOR_ID_WHITE;
-		data->kbd_led_cdev.flags = LED_BRIGHT_HW_CHANGED | LED_REJECT_NAME_CONFLICT;
-		data->kbd_led_cdev.brightness_set_blocking = uniwill_kbd_led_brightness_set;
-		data->kbd_led_cdev.brightness_get = uniwill_kbd_led_brightness_get;
-
-		return devm_led_classdev_register_ext(data->dev, &data->kbd_led_cdev, &init_data);
-	}
 
 	for (int i = 0; i < KBD_LED_CHANNELS; i++) {
 		data->kbd_led_mc_subled_info[i].color_index = color_indices[i];
@@ -1851,7 +1818,6 @@ static int uniwill_kbd_led_init(struct uniwill_data *data)
 	if (ret < 0)
 		return ret;
 
-	init_data.default_label = "multicolor:" LED_FUNCTION_KBD_BACKLIGHT;
 	data->kbd_led_mc_cdev.led_cdev.max_brightness = data->kbd_led_max_brightness;
 	data->kbd_led_mc_cdev.led_cdev.color = LED_COLOR_ID_MULTI;
 	data->kbd_led_mc_cdev.led_cdev.flags = LED_BRIGHT_HW_CHANGED | LED_REJECT_NAME_CONFLICT;
@@ -1862,6 +1828,57 @@ static int uniwill_kbd_led_init(struct uniwill_data *data)
 
 	return devm_led_classdev_multicolor_register_ext(data->dev, &data->kbd_led_mc_cdev,
 							 &init_data);
+}
+
+static int uniwill_kbd_led_init(struct uniwill_data *data)
+{
+	unsigned int regval;
+	int ret;
+
+	if (!uniwill_device_supports(data, UNIWILL_FEATURE_KEYBOARD_BACKLIGHT))
+		return 0;
+
+	ret = regmap_read(data->regmap, EC_ADDR_SUPPORT_2, &regval);
+	if (ret < 0)
+		return ret;
+
+	if (!(regval & CHINA_MODE)) {
+		ret = regmap_set_bits(data->regmap, EC_ADDR_BIOS_OEM_2, ENABLE_CHINA_MODE);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = regmap_read(data->regmap, EC_ADDR_KBD_STATUS, &regval);
+	if (ret < 0)
+		return ret;
+
+	regval |= KBD_APPLY;
+	regval &= ~KBD_POWER_OFF;
+	ret = regmap_write(data->regmap, EC_ADDR_KBD_STATUS, regval);
+	if (ret < 0)
+		return ret;
+
+	switch (data->project_id) {
+	case PROJECT_ID_PF:
+	case PROJECT_ID_PF4MU_PF4MN_PF5MU:
+	case PROJECT_ID_PH4TRX1:
+	case PROJECT_ID_PH4TUX1:
+	case PROJECT_ID_PH4TQX1:
+	case PROJECT_ID_PH6TRX1:
+	case PROJECT_ID_PH6TQXX:
+	case PROJECT_ID_PHXAXXX:
+	case PROJECT_ID_PHXPXXX:
+		data->single_color_kbd = true;
+		break;
+	default:
+		data->single_color_kbd = regval & KBD_WHITE_ONLY;
+		break;
+	}
+
+	if (data->single_color_kbd)
+		return uniwill_white_kbd_led_init(data);
+
+	return uniwill_rgb_kbd_led_init(data);
 }
 
 static unsigned int uniwill_sanitize_battery_threshold(unsigned int value)
