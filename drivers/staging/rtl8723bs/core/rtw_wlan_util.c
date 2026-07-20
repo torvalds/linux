@@ -227,7 +227,7 @@ void save_dm_func_flag(struct adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&bSaveFlag));
 }
 
-void Restore_DM_Func_Flag(struct adapter *padapter)
+void restore_dm_func_flag(struct adapter *padapter)
 {
 	u8 bSaveFlag = false;
 

@@ -3813,7 +3813,7 @@ void site_survey(struct adapter *padapter)
 			initialgain = 0xff; /* restore RX GAIN */
 			rtw_hal_set_hwreg(padapter, HW_VAR_INITIAL_GAIN, (u8 *)(&initialgain));
 			/* turn on dynamic functions */
-			Restore_DM_Func_Flag(padapter);
+			restore_dm_func_flag(padapter);
 			/* switch_dm_func(padapter, DYNAMIC_ALL_FUNC_ENABLE, true); */
 
 			if (is_client_associated_to_ap(padapter))
