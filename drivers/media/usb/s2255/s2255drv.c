@@ -521,7 +521,7 @@ static void s2255_fwchunk_complete(struct urb *urb)
 			memset(data->pfw_data, 0, CHUNK_SIZE);
 
 		memcpy(data->pfw_data,
-		       (char *) data->fw->data + data->fw_loaded, len);
+		       (char *)data->fw->data + data->fw_loaded, len);
 
 		usb_fill_bulk_urb(data->fw_urb, udev, usb_sndbulkpipe(udev, 2),
 				  data->pfw_data, CHUNK_SIZE,
@@ -875,7 +875,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	else if (mode.format != vc->mode.format)
 		mode.restart = 1;
 	vc->mode = mode;
-	(void) s2255_set_mode(vc, &mode);
+	(void)s2255_set_mode(vc, &mode);
 	return 0;
 }
 
@@ -1001,7 +1001,7 @@ static int s2255_set_mode(struct s2255_vc *vc,
 	dprintk(dev, 1, "%s: reqsize %ld\n", __func__, vc->req_image_size);
 	/* set the mode */
 	buffer[0] = IN_DATA_TOKEN;
-	buffer[1] = (__le32) cpu_to_le32(chn_rev);
+	buffer[1] = (__le32)cpu_to_le32(chn_rev);
 	buffer[2] = CMD_SET_MODE;
 	for (i = 0; i < sizeof(struct s2255_mode) / sizeof(u32); i++)
 		buffer[3 + i] = cpu_to_le32(((u32 *)&vc->mode)[i]);
@@ -1038,7 +1038,7 @@ static int s2255_cmd_status(struct s2255_vc *vc, u32 *pstatus)
 	dprintk(dev, 4, "%s chan %d\n", __func__, vc->idx);
 	/* form the get vid status command */
 	buffer[0] = IN_DATA_TOKEN;
-	buffer[1] = (__le32) cpu_to_le32(chn_rev);
+	buffer[1] = (__le32)cpu_to_le32(chn_rev);
 	buffer[2] = CMD_STATUS;
 	*pstatus = 0;
 	vc->vidstatus_ready = 0;
@@ -1078,7 +1078,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	struct s2255_vc *vc = vb2_get_drv_priv(vq);
 	struct s2255_buffer *buf, *node;
 	unsigned long flags;
-	(void) s2255_stop_acquire(vc);
+	(void)s2255_stop_acquire(vc);
 	spin_lock_irqsave(&vc->qlock, flags);
 	list_for_each_entry_safe(buf, node, &vc->buf_list, list) {
 		list_del(&buf->list);
@@ -2129,7 +2129,7 @@ static int s2255_start_acquire(struct s2255_vc *vc)
 
 	/* send the start command */
 	buffer[0] = IN_DATA_TOKEN;
-	buffer[1] = (__le32) cpu_to_le32(chn_rev);
+	buffer[1] = (__le32)cpu_to_le32(chn_rev);
 	buffer[2] = CMD_START;
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
 	if (res != 0)
@@ -2151,7 +2151,7 @@ static int s2255_stop_acquire(struct s2255_vc *vc)
 	chn_rev = G_chnmap[vc->idx];
 	/* send the stop command */
 	buffer[0] = IN_DATA_TOKEN;
-	buffer[1] = (__le32) cpu_to_le32(chn_rev);
+	buffer[1] = (__le32)cpu_to_le32(chn_rev);
 	buffer[2] = CMD_STOP;
 
 	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
@@ -2282,7 +2282,7 @@ static int s2255_probe(struct usb_interface *interface,
 		retval = -ENODEV;
 		goto err_fwmarker;
 	}
-	pdata = (__le32 *) &dev->fw_data->fw->data[fw_size - 8];
+	pdata = (__le32 *)&dev->fw_data->fw->data[fw_size - 8];
 
 	if (*pdata != S2255_FW_MARKER) {
 		dev_err(&interface->dev, "Firmware invalid.\n");
