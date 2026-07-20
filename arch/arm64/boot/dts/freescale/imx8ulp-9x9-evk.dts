@@ -8,7 +8,7 @@
 #include "imx8ulp-evk.dts"
 
 / {
-	model = "NXP i.MX8ULP EVK9";
+	model = "NXP i.MX8ULP 9x9 EVK";
 	compatible = "fsl,imx8ulp-9x9-evk", "fsl,imx8ulp";
 
 	gpio-keys {
