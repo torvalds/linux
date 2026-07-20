@@ -495,10 +495,7 @@ static const char *fetch_type_from_btf_type(struct btf *btf,
 		return "s64";
 	case BTF_KIND_PTR:
 		/* pointer will be converted to "x??" */
-		if (IS_ENABLED(CONFIG_64BIT))
-			return "x64";
-		else
-			return "x32";
+		return IS_ENABLED(CONFIG_64BIT) ? "x64" : "x32";
 	case BTF_KIND_INT:
 		intdata = btf_type_int(type);
 		if (BTF_INT_ENCODING(intdata) & BTF_INT_SIGNED) {
