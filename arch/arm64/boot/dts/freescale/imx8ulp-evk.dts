@@ -178,6 +178,13 @@
 	};
 };
 
+&lpuart7 {
+	/* FT4232 PortD: need to connect J25/J26 2-3 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpuart7>;
+	status = "okay";
+};
+
 &lpi2c7 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -366,6 +373,13 @@
 			MX8ULP_PAD_PTE11__LPUART6_RX	0x3
 			MX8ULP_PAD_PTE9__LPUART6_RTS_B	0x3
 			MX8ULP_PAD_PTE8__LPUART6_CTS_B	0x3
+		>;
+	};
+
+	pinctrl_lpuart7: lpuart7grp {
+		fsl,pins = <
+			MX8ULP_PAD_PTF22__LPUART7_TX	0x3
+			MX8ULP_PAD_PTF23__LPUART7_RX	0x3
 		>;
 	};
 
