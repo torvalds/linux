@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
-"""Run the tools/testing/selftests/net/csum testsuite."""
+"""Run the tools/testing/selftests/net/lib/csum testsuite."""
 
 from os import path
 
