@@ -450,7 +450,6 @@ static void planar422p_to_yuv_packed(const unsigned char *in,
 		out[i + 2] = (fmt == V4L2_PIX_FMT_YUYV) ? *p_y++ : *p_cb++;
 		out[i + 3] = (fmt == V4L2_PIX_FMT_YUYV) ? *p_cb++ : *p_y++;
 	}
-	return;
 }
 
 static void s2255_reset_dsppower(struct s2255_dev *dev)
@@ -460,7 +459,6 @@ static void s2255_reset_dsppower(struct s2255_dev *dev)
 	s2255_vendor_req(dev, 0x50, 0x0000, 0x0000, NULL, 0, 1);
 	msleep(600);
 	s2255_vendor_req(dev, 0x10, 0x0000, 0x0000, NULL, 0, 1);
-	return;
 }
 
 /* kickstarts the firmware loading. from probe
@@ -534,7 +532,6 @@ static void s2255_fwchunk_complete(struct urb *urb)
 	} else {
 		atomic_set(&data->fw_state, S2255_FW_LOADED_DSPWAIT);
 	}
-	return;
 }
 
 static void s2255_got_frame(struct s2255_vc *vc, int jpgsize)
@@ -1563,7 +1560,6 @@ static void s2255_video_device_release(struct video_device *vdev)
 
 	if (refcount_dec_and_test(&dev->num_channels))
 		s2255_destroy(dev);
-	return;
 }
 
 static const struct video_device template = {
@@ -1868,7 +1864,6 @@ static void s2255_read_video_callback(struct s2255_dev *dev,
 		dprintk(dev, 4, "s2255: read callback failed\n");
 
 	dprintk(dev, 50, "callback read video done\n");
-	return;
 }
 
 static long s2255_vendor_req(struct s2255_dev *dev, unsigned char req,
@@ -2093,7 +2088,6 @@ static void read_pipe_completion(struct urb *purb)
 	} else {
 		dprintk(dev, 2, "%s :complete state 0\n", __func__);
 	}
-	return;
 }
 
 static int s2255_start_readpipe(struct s2255_dev *dev)
@@ -2190,7 +2184,6 @@ static void s2255_stop_readpipe(struct s2255_dev *dev)
 		pipe->stream_urb = NULL;
 	}
 	dprintk(dev, 4, "%s", __func__);
-	return;
 }
 
 static void s2255_fwload_start(struct s2255_dev *dev)
