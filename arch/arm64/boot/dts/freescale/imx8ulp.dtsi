@@ -154,17 +154,17 @@
 		#clock-cells = <0>;
 	};
 
-	sram@2201f000 {
+	sram@22010000 {
 		compatible = "mmio-sram";
-		reg = <0x0 0x2201f000 0x0 0x1000>;
+		reg = <0x0 0x22010000 0x0 0x10000>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0x0 0x2201f000 0x1000>;
+		ranges = <0 0x0 0x22010000 0x10000>;
 
-		scmi_buf: scmi-sram-section@0 {
+		scmi_buf: scmi-sram-section@f000 {
 			compatible = "arm,scmi-shmem";
-			reg = <0x0 0x400>;
+			reg = <0xf000 0x400>;
 		};
 	};
 
