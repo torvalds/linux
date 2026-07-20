@@ -409,9 +409,9 @@ void do_secure_storage_access(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long addr = get_fault_address(regs);
+	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	struct folio_walk fw;
-	struct mm_struct *mm;
 	struct folio *folio;
 	int rc;
 
@@ -453,9 +453,8 @@ void do_secure_storage_access(struct pt_regs *regs)
 		if (rc)
 			return handle_fault_error_nolock(regs, 0);
 	} else {
-		if (faulthandler_disabled())
+		if (faulthandler_disabled() || !mm)
 			return handle_fault_error_nolock(regs, 0);
-		mm = current->mm;
 		mmap_read_lock(mm);
 		vma = find_vma(mm, addr);
 		if (!vma)
