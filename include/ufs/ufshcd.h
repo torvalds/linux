@@ -163,7 +163,6 @@ struct ufs_pm_lvl_states {
  * @ucd_req_dma_addr: UPIU request dma address for debug
  * @scsi_status: SCSI status of the command
  * @command_type: SCSI, UFS, Query.
- * @task_tag: Task tag of the command
  * @lun: LUN of the command
  * @intr_cmd: Interrupt command (doesn't participate in interrupt aggregation)
  * @req_abort_skip: skip request abort task flag
@@ -212,8 +211,7 @@ struct ufs_query_req {
 };
 
 /**
- * struct ufs_query_resp - UPIU QUERY
- * @response: device response code
+ * struct ufs_query_res - UPIU QUERY
  * @upiu_res: query response data
  */
 struct ufs_query_res {
@@ -555,6 +553,7 @@ struct ufs_clk_gating {
  * @is_initialized: Indicates whether clock scaling is initialized or not
  * @is_busy_started: tracks if busy period has started or not
  * @is_suspended: tracks if devfreq is suspended or not
+ * @suspend_on_no_request: suspend clock scaling only when no request
  */
 struct ufs_clk_scaling {
 	struct workqueue_struct *workq;
@@ -976,7 +975,7 @@ enum ufshcd_mcq_opr {
  * @capabilities: UFS Controller Capabilities
  * @mcq_capabilities: UFS Multi Circular Queue capabilities
  * @nutrs: Transfer Request Queue depth supported by controller
- * @nortt - Max outstanding RTTs supported by controller
+ * @nortt: Max outstanding RTTs supported by controller
  * @nutmrs: Task Management Queue depth supported by controller
  * @ufs_version: UFS Version to which controller complies
  * @vops: pointer to variant specific operations
@@ -1038,7 +1037,6 @@ enum ufshcd_mcq_opr {
  *  device is known or not.
  * @wb_mutex: used to serialize devfreq and sysfs write booster toggling
  * @clk_scaling_lock: used to serialize device commands and clock scaling
- * @desc_size: descriptor sizes reported by device
  * @bsg_dev: struct device associated with the BSG queue
  * @bsg_queue: BSG queue associated with the UFS controller
  * @rpm_dev_flush_recheck_work: used to suspend from RPM (runtime power
@@ -1053,16 +1051,19 @@ enum ufshcd_mcq_opr {
  * @debugfs_ee_work: used to restore ee_ctrl_mask after a delay
  * @debugfs_ee_rate_limit_ms: user configurable delay after which to restore
  *	ee_ctrl_mask
+ * @trigger_eh_attr: fault attributes for the fault injection trigger EH
+ * @timeout_attr: fault attributes for the timeout fault injection trigger
  * @luns_avail: number of regular and well known LUNs supported by the UFS
  *	device
  * @nr_hw_queues: number of hardware queues configured
  * @nr_queues: number of Queues of different queue types
  * @complete_put: whether or not to call ufshcd_rpm_put() from inside
  *	ufshcd_resume_complete()
+ * @scsi_host_added: indicates that scsi_add_host() has been called
  * @mcq_sup: is mcq supported by UFSHC
+ * @lsdb_sup: LSDBS capability
  * @mcq_enabled: is mcq ready to accept requests
  * @mcq_esi_enabled: is mcq ESI configured
- * @res: array of resource info of MCQ registers
  * @mcq_base: Multi circular queue registers base address
  * @uhq: array of supported hardware queues
  * @mcq_opr: MCQ operation and runtime registers
@@ -1078,6 +1079,7 @@ enum ufshcd_mcq_opr {
  *	field within the Host Controller's UECDME register. Bit[0] is a flag
  *	indicating that the DME QoS Monitor has been reset by the host.
  * @dme_qos_sysfs_handle: handle for 'dme_qos_notification' sysfs entry
+ * @vcc_off_delay_us: length of delay after VCC is powered off
  * @rpmbs: list of OP-TEE RPMB devices (one per RPMB region)
  * @host_preshoot_cap: a bitfield to indicate supported PreShoot dBs of host's TX lanes, cache of
  *	host M-PHY TX_HS_PreShoot_Setting_Capability Attribute (ID 0x15)
@@ -1284,7 +1286,7 @@ struct ufs_hba {
  * @cqe_dma_addr: completion queue dma address
  * @max_entries: max number of slots in this hardware queue
  * @id: hardware queue ID
- * @sq_tp_slot: current slot to which SQ tail pointer is pointing
+ * @sq_tail_slot: current slot to which SQ tail pointer is pointing
  * @sq_lock: serialize submission queue access
  * @cq_tail_slot: current slot to which CQ tail pointer is pointing
  * @cq_head_slot: current slot to which CQ head pointer is pointing
@@ -1508,6 +1510,8 @@ static inline void ufshcd_set_variant(struct ufs_hba *hba, void *variant)
 /**
  * ufshcd_get_variant - get variant specific data from the hba
  * @hba: per adapter instance
+ *
+ * Returns: pointer to the hba's private data area
  */
 static inline void *ufshcd_get_variant(struct ufs_hba *hba)
 {
