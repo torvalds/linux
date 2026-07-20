@@ -751,18 +751,17 @@ static int kset_replay(struct pcache_cache *cache, struct pcache_cache_kset_onme
 			goto err;
 		}
 
-		__set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
-
 		/* Check if the segment generation is valid for insertion. */
 		if (key->seg_gen < key->cache_pos.cache_seg->gen) {
 			cache_key_put(key);
-		} else {
-			cache_subtree = get_subtree(&cache->req_key_tree, key->off);
-			spin_lock(&cache_subtree->tree_lock);
-			cache_key_insert(&cache->req_key_tree, key, true);
-			spin_unlock(&cache_subtree->tree_lock);
+			continue;
 		}
 
+		__set_bit(key->cache_pos.cache_seg->cache_seg_id, cache->seg_map);
+		cache_subtree = get_subtree(&cache->req_key_tree, key->off);
+		spin_lock(&cache_subtree->tree_lock);
+		cache_key_insert(&cache->req_key_tree, key, true);
+		spin_unlock(&cache_subtree->tree_lock);
 		cache_seg_get(key->cache_pos.cache_seg);
 	}
 
