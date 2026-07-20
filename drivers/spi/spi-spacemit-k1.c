@@ -737,12 +737,12 @@ static int k1_spi_probe(struct platform_device *pdev)
 
 	drv_data->irq = platform_get_irq(pdev, 0);
 	if (drv_data->irq < 0)
-		return dev_err_probe(dev, drv_data->irq, "error getting IRQ\n");
+		return drv_data->irq;
 
 	ret = devm_request_irq(dev, drv_data->irq, k1_spi_ssp_isr,
 			       IRQF_SHARED, dev_name(dev), drv_data);
 	if (ret < 0)
-		return dev_err_probe(dev, ret, "error requesting IRQ\n");
+		return ret;
 
 	/* Initialize the host structure, then register it */
 	host->dev.of_node = dev_of_node(dev);
