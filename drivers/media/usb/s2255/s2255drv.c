@@ -1178,6 +1178,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	*i = 0;
 	return 0;
 }
+
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	if (i > 0)
@@ -1332,6 +1333,7 @@ static const struct v4l2_frmsize_discrete ntsc_sizes[] = {
 	{ 640, 240 },
 	{ 320, 240 },
 };
+
 static const struct v4l2_frmsize_discrete pal_sizes[] = {
 	{ 704, 576 },
 	{ 704, 288 },
