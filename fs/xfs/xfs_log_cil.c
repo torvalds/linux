@@ -1556,7 +1556,7 @@ xlog_cil_push_work(
 			 * iclogs older than ic_prev. Hence we only need to wait
 			 * on the most recent older iclog here.
 			 */
-			xlog_wait_on_iclog(ctx->commit_iclog->ic_prev);
+			xlog_wait_on_iclog(log, ctx->commit_iclog->ic_prev);
 			spin_lock(&log->l_icloglock);
 		}
 

@@ -470,6 +470,8 @@ xlog_state_release_iclog(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	struct xlog_ticket	*ticket)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	bool			last_ref;
 
@@ -744,13 +746,16 @@ xfs_log_mount_cancel(
  */
 static inline int
 xlog_force_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	atomic_inc(&iclog->ic_refcnt);
 	iclog->ic_flags |= XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA;
 	if (iclog->ic_state == XLOG_STATE_ACTIVE)
-		xlog_state_switch_iclogs(iclog->ic_log, iclog, 0);
-	return xlog_state_release_iclog(iclog->ic_log, iclog, NULL);
+		xlog_state_switch_iclogs(log, iclog, 0);
+	return xlog_state_release_iclog(log, iclog, NULL);
 }
 
 /*
@@ -778,11 +783,10 @@ xlog_wait_iclog_completion(struct xlog *log)
  */
 int
 xlog_wait_on_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog)
-		__releases(iclog->ic_log->l_icloglock)
+		__releases(log->l_icloglock)
 {
-	struct xlog		*log = iclog->ic_log;
-
 	trace_xlog_iclog_wait_on(iclog, _RET_IP_);
 	if (!xlog_is_shutdown(log) &&
 	    iclog->ic_state != XLOG_STATE_ACTIVE &&
@@ -879,8 +883,8 @@ out_err:
 
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
-	error = xlog_force_iclog(iclog);
-	xlog_wait_on_iclog(iclog);
+	error = xlog_force_iclog(log, iclog);
+	xlog_wait_on_iclog(log, iclog);
 
 	if (tic) {
 		trace_xfs_log_umount_write(log, tic);
@@ -2741,14 +2745,17 @@ xlog_state_switch_iclogs(
  */
 static int
 xlog_force_and_check_iclog(
+	struct xlog		*log,
 	struct xlog_in_core	*iclog,
 	bool			*completed)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	xfs_lsn_t		lsn = be64_to_cpu(iclog->ic_header->h_lsn);
 	int			error;
 
 	*completed = false;
-	error = xlog_force_iclog(iclog);
+	error = xlog_force_iclog(log, iclog);
 	if (error)
 		return error;
 
@@ -2825,7 +2832,7 @@ xfs_log_force(
 			/* We have exclusive access to this iclog. */
 			bool	completed;
 
-			if (xlog_force_and_check_iclog(iclog, &completed))
+			if (xlog_force_and_check_iclog(log, iclog, &completed))
 				goto out_error;
 
 			if (completed)
@@ -2850,7 +2857,7 @@ xfs_log_force(
 		iclog->ic_flags |= XLOG_ICL_NEED_FLUSH | XLOG_ICL_NEED_FUA;
 
 	if (flags & XFS_LOG_SYNC)
-		return xlog_wait_on_iclog(iclog);
+		return xlog_wait_on_iclog(log, iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
@@ -2920,7 +2927,7 @@ xlog_force_lsn(
 					&log->l_icloglock);
 			return -EAGAIN;
 		}
-		if (xlog_force_and_check_iclog(iclog, &completed))
+		if (xlog_force_and_check_iclog(log, iclog, &completed))
 			goto out_error;
 		if (log_flushed)
 			*log_flushed = 1;
@@ -2948,7 +2955,7 @@ xlog_force_lsn(
 	}
 
 	if (flags & XFS_LOG_SYNC)
-		return xlog_wait_on_iclog(iclog);
+		return xlog_wait_on_iclog(log, iclog);
 out_unlock:
 	spin_unlock(&log->l_icloglock);
 	return 0;
