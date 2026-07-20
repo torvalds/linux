@@ -110,9 +110,9 @@
 #define FDEC_3		3	/* capture every 3rd frame */
 #define FDEC_5		5	/* capture every 5th frame */
 
-/*-------------------------------------------------------
- * Default mode parameters.
- *-------------------------------------------------------*/
+/*-------------------------------------------------------*/
+/* Default mode parameters.                              */
+/*-------------------------------------------------------*/
 #define DEF_SCALE	SCALE_4CIFS
 #define DEF_COLOR	COLOR_YUVPL
 #define DEF_FDEC	FDEC_1
@@ -480,11 +480,11 @@ static void s2255_timer(struct timer_list *t)
 }
 
 /* this loads the firmware asynchronously.
-   Originally this was done synchronously in probe.
-   But it is better to load it asynchronously here than block
-   inside the probe function. Blocking inside probe affects boot time.
-   FW loading is triggered by the timer in the probe function
-*/
+ * Originally this was done synchronously in probe.
+ * But it is better to load it asynchronously here than block
+ * inside the probe function. Blocking inside probe affects boot time.
+ * FW loading is triggered by the timer in the probe function
+ */
 static void s2255_fwchunk_complete(struct urb *urb)
 {
 	struct s2255_fw *data = urb->context;
@@ -507,8 +507,8 @@ static void s2255_fwchunk_complete(struct urb *urb)
 	}
 #define CHUNK_SIZE 512
 	/* all USB transfers must be done with continuous kernel memory.
-	   can't allocate more than 128k in current linux kernel, so
-	   upload the firmware in chunks
+	 * can't allocate more than 128k in current linux kernel, so
+	 * upload the firmware in chunks
 	 */
 	if (data->fw_loaded < data->fw_size) {
 		len = (data->fw_loaded + CHUNK_SIZE) > data->fw_size ?
@@ -634,9 +634,9 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 		vbuf, pos);
 }
 
-/* ------------------------------------------------------------------
-   Videobuf operations
-   ------------------------------------------------------------------*/
+/* ------------------------------------------------------------------ */
+/* Videobuf operations                                                */
+/* ------------------------------------------------------------------ */
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
@@ -949,7 +949,8 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	}
 
 	/* total bytes to send including prefix and 4K padding;
-	   must be a multiple of USB_READ_SIZE */
+	 * must be a multiple of USB_READ_SIZE
+	 */
 	usb_in_size = out_image_size + PREFIX_SIZE;	/* always send prefix */
 	mask_mult = 0xffffffffUL - DEF_USB_BLOCK + 1;
 	/* if size not a multiple of USB_READ_SIZE */
@@ -1141,12 +1142,12 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *i)
 }
 
 /* Sensoray 2255 is a multiple channel capture device.
-   It does not have a "crossbar" of inputs.
-   We use one V4L device per channel. The user must
-   be aware that certain combinations are not allowed.
-   For instance, you cannot do full FPS on more than 2 channels(2 videodevs)
-   at once in color(you can do full fps on 4 channels with greyscale.
-*/
+ * It does not have a "crossbar" of inputs.
+ * We use one V4L device per channel. The user must
+ * be aware that certain combinations are not allowed.
+ * For instance, you cannot do full FPS on more than 2 channels(2 videodevs)
+ * at once in color(you can do full fps on 4 channels with greyscale.
+ */
 static int vidioc_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *inp)
 {
@@ -1228,9 +1229,9 @@ static int s2255_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 	mode.restart = 0;
 	/* set mode here.  Note: stream does not need restarted.
-	   some V4L programs restart stream unnecessarily
-	   after a s_crtl.
-	*/
+	 * some V4L programs restart stream unnecessarily
+	 * after a s_crtl.
+	 */
 	s2255_set_mode(vc, &mode);
 	return 0;
 }
@@ -1436,7 +1437,8 @@ static int s2255_open(struct file *file)
 	case S2255_FW_NOTLOADED:
 	case S2255_FW_LOADED_DSPWAIT:
 		/* give S2255_LOAD_TIMEOUT time for firmware to load in case
-		   driver loaded and then device immediately opened */
+		 * driver loaded and then device immediately opened
+		 */
 		pr_info("%s waiting for firmware load\n", __func__);
 		wait_event_timeout(dev->fw_data->wait_fw,
 				   ((atomic_read(&dev->fw_data->fw_state)
