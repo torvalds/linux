@@ -350,7 +350,10 @@ static int dummy_systimer_create(struct snd_pcm_substream *substream)
 
 static void dummy_systimer_free(struct snd_pcm_substream *substream)
 {
-	kfree(substream->runtime->private_data);
+	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
+
+	timer_shutdown_sync(&dpcm->timer);
+	kfree(dpcm);
 }
 
 static const struct dummy_timer_ops dummy_systimer_ops = {
