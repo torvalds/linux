@@ -286,6 +286,14 @@ static int dummy_systimer_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int dummy_systimer_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct dummy_systimer_pcm *dpcm = substream->runtime->private_data;
+
+	timer_delete_sync(&dpcm->timer);
+	return 0;
+}
+
 static int dummy_systimer_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -351,6 +359,7 @@ static const struct dummy_timer_ops dummy_systimer_ops = {
 	.prepare =	dummy_systimer_prepare,
 	.start =	dummy_systimer_start,
 	.stop =		dummy_systimer_stop,
+	.sync_stop =	dummy_systimer_sync_stop,
 	.pointer =	dummy_systimer_pointer,
 };
 
