@@ -1227,18 +1227,9 @@ struct rmap_iterator {
 	int pos;			/* index of the sptep */
 };
 
-/*
- * Iteration must be started by this function.  This should also be used after
- * removing/dropping sptes from the rmap link because in such cases the
- * information in the iterator may not be valid.
- *
- * Returns sptep if found, NULL otherwise.
- */
-static u64 *rmap_get_first(struct kvm_rmap_head *rmap_head,
-			   struct rmap_iterator *iter)
+static u64 *__rmap_get_first(unsigned long rmap_val,
+			     struct rmap_iterator *iter)
 {
-	unsigned long rmap_val = kvm_rmap_get(rmap_head);
-
 	if (!rmap_val)
 		return NULL;
 
@@ -1250,6 +1241,19 @@ static u64 *rmap_get_first(struct kvm_rmap_head *rmap_head,
 	iter->desc = (struct pte_list_desc *)(rmap_val & ~KVM_RMAP_MANY);
 	iter->pos = 0;
 	return iter->desc->sptes[iter->pos];
+}
+
+/*
+ * Iteration must be started by this function.  This should also be used after
+ * removing/dropping sptes from the rmap link because in such cases the
+ * information in the iterator may not be valid.
+ *
+ * Returns sptep if found, NULL otherwise.
+ */
+static u64 *rmap_get_first(struct kvm_rmap_head *rmap_head,
+			   struct rmap_iterator *iter)
+{
+	return __rmap_get_first(kvm_rmap_get(rmap_head), iter);
 }
 
 /*
@@ -1286,8 +1290,9 @@ static u64 *rmap_get_next(struct rmap_iterator *iter)
 	__for_each_rmap_spte(_rmap_head_, _iter_, _sptep_)			\
 		if (!WARN_ON_ONCE(!is_shadow_present_pte(*(_sptep_))))	\
 
-#define for_each_rmap_spte_lockless(_rmap_head_, _iter_, _sptep_, _spte_)	\
-	__for_each_rmap_spte(_rmap_head_, _iter_, _sptep_)			\
+#define for_each_rmap_spte_lockless(_rmap_val_, _iter_, _sptep_, _spte_)	\
+	for (_sptep_ = __rmap_get_first(_rmap_val_, _iter_);			\
+	     _sptep_; _sptep_ = rmap_get_next(_iter_))				\
 		if (is_shadow_present_pte(_spte_ = mmu_spte_get_lockless(sptep)))
 
 static void drop_spte(struct kvm *kvm, u64 *sptep)
@@ -1725,7 +1730,7 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 			rmap_head = gfn_to_rmap(gfn, level, range->slot);
 			rmap_val = kvm_rmap_lock_readonly(rmap_head);
 
-			for_each_rmap_spte_lockless(rmap_head, &iter, sptep, spte) {
+			for_each_rmap_spte_lockless(rmap_val, &iter, sptep, spte) {
 				if (!is_accessed_spte(spte))
 					continue;
 
