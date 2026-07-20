@@ -5143,7 +5143,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 		pmlmeinfo->candidate_tid_bitmap = 0;
 
 		/* disable dynamic functions, such as high power, DIG */
-		Save_DM_Func_Flag(padapter);
+		save_dm_func_flag(padapter);
 		switch_dm_func(padapter, DYNAMIC_FUNC_DISABLE, false);
 
 		/* config the initial gain under linking, need to write the BB registers */
@@ -5450,7 +5450,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	if ((pmlmeext->sitesurvey_res.state == SCAN_START) ||
 	    (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
 		/* disable dynamic functions, such as high power, DIG */
-		Save_DM_Func_Flag(padapter);
+		save_dm_func_flag(padapter);
 		switch_dm_func(padapter, DYNAMIC_FUNC_DISABLE, false);
 
 		/* config the initial gain under scanning, need to write the BB

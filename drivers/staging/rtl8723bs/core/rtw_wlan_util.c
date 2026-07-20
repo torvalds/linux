@@ -220,7 +220,7 @@ void update_basic_rate_table_soft_ap(u8 *bssrateset, u32 bssratelen)
 	}
 }
 
-void Save_DM_Func_Flag(struct adapter *padapter)
+void save_dm_func_flag(struct adapter *padapter)
 {
 	u8 bSaveFlag = true;
 

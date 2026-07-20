@@ -433,7 +433,7 @@ void set_mcs_rate_by_mask(u8 *mcs_set, u32 mask);
 void update_basic_rate_table(struct adapter *padapter, u8 *mBratesOS);
 void update_basic_rate_table_soft_ap(u8 *bssrateset, u32 bssratelen);
 
-void Save_DM_Func_Flag(struct adapter *padapter);
+void save_dm_func_flag(struct adapter *padapter);
 void Restore_DM_Func_Flag(struct adapter *padapter);
 void switch_dm_func(struct adapter *padapter, u32 mode, u8 enable);
 
