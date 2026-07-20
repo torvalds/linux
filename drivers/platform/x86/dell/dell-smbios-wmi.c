@@ -83,18 +83,12 @@ static int run_smbios_call(struct wmi_device *wdev)
 	return 0;
 }
 
-static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct device *dev, struct calling_interface_buffer *buffer)
 {
-	struct wmi_smbios_priv *priv;
+	struct wmi_smbios_priv *priv = dev_get_drvdata(dev);
 	size_t difference;
 	size_t size;
 	int ret;
-
-	guard(rwsem_read)(&list_lock);
-
-	priv = get_first_smbios_priv();
-	if (!priv)
-		return -ENODEV;
 
 	size = sizeof(struct calling_interface_buffer);
 	difference = priv->req_buf_size - sizeof(u64) - size;
