@@ -210,7 +210,7 @@ struct s2255_vc {
 	struct s2255_mode	mode;
 	v4l2_std_id		std;
 	/* jpeg compression */
-	unsigned		jpegqual;
+	unsigned int		jpegqual;
 	/* capture parameters (for high quality mode full size) */
 	struct v4l2_captureparm cap_parm;
 	int			cur_frame;
