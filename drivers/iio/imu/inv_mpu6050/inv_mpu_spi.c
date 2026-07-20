@@ -2,7 +2,6 @@
 /*
 * Copyright (C) 2015 Intel Corporation Inc.
 */
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>

@@ -143,8 +143,10 @@ static struct sk_buff *rtl8_4t_tag_xmit(struct sk_buff *skb,
 	/* Calculate the checksum here if not done yet as trailing tags will
 	 * break either software or hardware based checksum
 	 */
-	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
+	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	rtl8_4_write_tag(skb, dev, skb_put(skb, RTL8_4_TAG_LEN));
 
@@ -201,11 +203,15 @@ static int rtl8_4_read_tag(struct sk_buff *skb, struct net_device *dev,
 static struct sk_buff *rtl8_4_tag_rcv(struct sk_buff *skb,
 				      struct net_device *dev)
 {
-	if (unlikely(!pskb_may_pull(skb, RTL8_4_TAG_LEN)))
+	if (unlikely(!pskb_may_pull(skb, RTL8_4_TAG_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
-	if (unlikely(rtl8_4_read_tag(skb, dev, dsa_etype_header_pos_rx(skb))))
+	if (unlikely(rtl8_4_read_tag(skb, dev, dsa_etype_header_pos_rx(skb)))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* Remove tag and recalculate checksum */
 	skb_pull_rcsum(skb, RTL8_4_TAG_LEN);
@@ -218,14 +224,20 @@ static struct sk_buff *rtl8_4_tag_rcv(struct sk_buff *skb,
 static struct sk_buff *rtl8_4t_tag_rcv(struct sk_buff *skb,
 				       struct net_device *dev)
 {
-	if (skb_linearize(skb))
+	if (skb_linearize(skb)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
-	if (unlikely(rtl8_4_read_tag(skb, dev, skb_tail_pointer(skb) - RTL8_4_TAG_LEN)))
+	if (unlikely(rtl8_4_read_tag(skb, dev, skb_tail_pointer(skb) - RTL8_4_TAG_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
-	if (pskb_trim_rcsum(skb, skb->len - RTL8_4_TAG_LEN))
+	if (pskb_trim_rcsum(skb, skb->len - RTL8_4_TAG_LEN)) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	return skb;
 }

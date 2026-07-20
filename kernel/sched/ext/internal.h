@@ -1469,21 +1469,24 @@ static const char *scx_enable_state_str[] = {
  * The sched_ext core uses a "lock dancing" protocol coordinated by
  * p->scx.holding_cpu. When moving a task to a different rq:
  *
- *   1. Verify task can be moved (CPU affinity, migration_disabled, etc.)
- *   2. Set p->scx.holding_cpu to the current CPU
- *   3. Set task state to %SCX_OPSS_NONE; dequeue waits while DISPATCHING
+ *   1. Set p->scx.holding_cpu to the current CPU
+ *   2. Set task state to %SCX_OPSS_NONE; dequeue waits while DISPATCHING
  *      is set, so clearing DISPATCHING first prevents the circular wait
  *      (safe to lock the rq we need)
- *   4. Unlock the current CPU's rq
- *   5. Lock src_rq (where the task currently lives)
- *   6. Verify p->scx.holding_cpu == current CPU, if not, dequeue won the
+ *   3. Unlock the current CPU's rq
+ *   4. Lock src_rq (where the task currently lives)
+ *   5. Verify p->scx.holding_cpu == current CPU, if not, dequeue won the
  *      race (dequeue clears holding_cpu to -1 when it takes the task), in
  *      this case migration is aborted
- *   7. If src_rq == dst_rq: clear holding_cpu and enqueue directly
+ *   6. If src_rq == dst_rq: clear holding_cpu and enqueue directly
  *      into dst_rq's local DSQ (no lock swap needed)
- *   8. Otherwise: call move_remote_task_to_local_dsq(), which releases
- *      src_rq, locks dst_rq, and performs the deactivate/activate
- *      migration cycle (dst_rq is held on return)
+ *   7. Otherwise, verify under src_rq lock that the task can be moved to dst_rq
+ *      (CPU affinity, migration_disabled, etc.). If not, clear holding_cpu,
+ *      leave the task on src_rq, and enqueue it on the fallback DSQ.
+ *   8. Otherwise (i.e. if the task can be moved to dst_rq), call
+ *      move_remote_task_to_local_dsq(), which releases src_rq, locks dst_rq,
+ *      and performs the deactivate/activate migration cycle
+ *      (dst_rq is held on return)
  *   9. Unlock dst_rq and re-lock the current CPU's rq to restore
  *      the lock state expected by the caller
  *

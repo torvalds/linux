@@ -15,7 +15,6 @@
  *  the secondary audio interfaces are not.
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>

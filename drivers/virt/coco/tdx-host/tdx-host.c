@@ -8,7 +8,6 @@
 #include <linux/device/faux.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/sysfs.h>
 
 #include <asm/cpu_device_id.h>

@@ -6,7 +6,6 @@
  */
 
 #include <linux/input.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>

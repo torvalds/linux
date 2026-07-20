@@ -7,6 +7,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/workqueue.h>
 
 #include <drm/drm_module.h>
 
@@ -91,6 +92,50 @@ static int xe_check_nomodeset(void)
 	return 0;
 }
 
+static struct workqueue_struct *xe_destroy_wq;
+
+static int __init xe_destroy_wq_module_init(void)
+{
+	xe_destroy_wq = alloc_workqueue("xe-guc-destroy-wq", WQ_UNBOUND, 0);
+	if (!xe_destroy_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+static void xe_destroy_wq_module_exit(void)
+{
+	if (xe_destroy_wq)
+		destroy_workqueue(xe_destroy_wq);
+	xe_destroy_wq = NULL;
+}
+
+/**
+ * xe_destroy_wq_queue() - Queue work on the destroy workqueue
+ * @work: work item to queue
+ *
+ * The destroy workqueue has module lifetime and is used for GuC exec queue
+ * teardown that can outlive a single xe_device. SVM pagemap destroy uses the
+ * per-device xe->destroy_wq instead.
+ *
+ * Return: %true if @work was queued, %false if it was already pending.
+ */
+bool xe_destroy_wq_queue(struct work_struct *work)
+{
+	return queue_work(xe_destroy_wq, work);
+}
+
+/**
+ * xe_destroy_wq_flush() - Flush the destroy workqueue
+ *
+ * Drains all pending destroy work. Called from PCI remove to ensure
+ * teardown ordering before the device is destroyed.
+ */
+void xe_destroy_wq_flush(void)
+{
+	if (xe_destroy_wq)
+		flush_workqueue(xe_destroy_wq);
+}
+
 struct init_funcs {
 	int (*init)(void);
 	void (*exit)(void);
@@ -111,6 +156,10 @@ static const struct init_funcs init_funcs[] = {
 	{
 		.init = xe_sched_job_module_init,
 		.exit = xe_sched_job_module_exit,
+	},
+	{
+		.init = xe_destroy_wq_module_init,
+		.exit = xe_destroy_wq_module_exit,
 	},
 	{
 		.init = xe_register_pci_driver,

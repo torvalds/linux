@@ -97,7 +97,7 @@ void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr);
 int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr,
-			struct sk_buff_head *retrq);
+			struct sk_buff_head *retrq, bool *valid);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg,
 			struct tipc_link *bcl);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);

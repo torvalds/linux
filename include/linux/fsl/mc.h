@@ -11,7 +11,7 @@
 #define _FSL_MC_H_
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/fsl_mc.h>
 #include <linux/interrupt.h>
 #include <uapi/linux/fsl_mc.h>
 

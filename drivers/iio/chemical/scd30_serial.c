@@ -9,7 +9,6 @@
 #include <linux/errno.h>
 #include <linux/iio/iio.h>
 #include <linux/jiffies.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/serdev.h>

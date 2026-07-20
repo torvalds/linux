@@ -85,6 +85,7 @@ static int get_offset(void)
 static int clear(int *check)
 {
 	struct user_unreg unreg = {0};
+	int i, ret;
 
 	unreg.size = sizeof(unreg);
 	unreg.disable_bit = 31;
@@ -99,13 +100,32 @@ static int clear(int *check)
 		if (errno != ENOENT)
 			return -1;
 
-	if (ioctl(fd, DIAG_IOCSDEL, "__test_event") == -1)
-		if (errno != ENOENT)
+	/*
+	 * Deleting the event drops its last reference, but the unregister
+	 * above defers that put (and the freeing of the enabler) past an RCU
+	 * grace period. The delete can therefore transiently fail with -EBUSY
+	 * until that reference is dropped. Retry for up to ~10 seconds so the
+	 * event is actually gone before the next test registers the same name.
+	 */
+	for (i = 0; i < 10000; ++i) {
+		ret = ioctl(fd, DIAG_IOCSDEL, "__test_event");
+
+		if (ret == 0 || errno == ENOENT) {
+			ret = 0;
+			break;
+		}
+
+		if (errno != EBUSY) {
+			close(fd);
 			return -1;
+		}
+
+		usleep(1000);
+	}
 
 	close(fd);
 
-	return 0;
+	return ret;
 }
 
 FIXTURE(user) {

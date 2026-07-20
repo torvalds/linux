@@ -4,7 +4,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_platform.h>
 #include <asm/reg.h>
 #include <asm/synch.h>

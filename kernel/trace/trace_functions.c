@@ -458,12 +458,12 @@ func_set_flag(struct trace_array *tr, u32 old_flags, u32 bit, int set)
 	ftrace_func_t func;
 	u32 new_flags;
 
-	/* Do nothing if already set. */
-	if (!!set == !!(tr->current_trace_flags->val & bit))
+	/* We can change this flag only when current tracer is function. */
+	if (tr->current_trace != &function_trace)
 		return 0;
 
-	/* We can change this flag only when not running. */
-	if (tr->current_trace != &function_trace)
+	/* Do nothing if already set. */
+	if (!!set == !!(tr->current_trace_flags->val & bit))
 		return 0;
 
 	new_flags = (tr->current_trace_flags->val & ~bit) | (set ? bit : 0);

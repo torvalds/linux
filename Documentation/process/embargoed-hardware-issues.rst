@@ -308,7 +308,7 @@ an involved disclosed party. The current ambassadors list:
 
   Google	Kees Cook <keescook@chromium.org>
 
-  LLVM		Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
+  LLVM		Nick Desaulniers <ndesaulniers@google.com>
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please

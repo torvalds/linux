@@ -1177,7 +1177,8 @@ static int smu_v15_0_common_get_dpm_profile_freq(struct smu_context *smu,
 			smu_v15_0_common_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &clk_limit);
 		break;
 	case SMU_FCLK:
-		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 0))
+		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 0) ||
+			amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 9))
 			smu_v15_0_common_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &clk_limit);
 		else
 			clk_limit = SMU_15_0_UMD_PSTATE_FCLK;

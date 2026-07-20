@@ -131,6 +131,14 @@ struct xe_hw_engine {
 	 */
 	struct xe_reg_sr reg_whitelist;
 	/**
+	 * @oa_whitelist: oa registers to be whitelisted
+	 */
+	struct xe_reg_sr oa_whitelist;
+	/**
+	 * @oa_sr: oa nonpriv whitelist registers, changed on oa stream open/close
+	 */
+	struct xe_reg_sr oa_sr;
+	/**
 	 * @reg_lrc: LRC workaround registers
 	 */
 	struct xe_reg_sr reg_lrc;

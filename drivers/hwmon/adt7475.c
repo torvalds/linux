@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/jiffies.h>
 #include <linux/of.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/util_macros.h>
 

@@ -253,8 +253,11 @@ int ieee80211_nan_set_local_sched(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_nan_channel *sched_idx_to_chan[IEEE80211_NAN_MAX_CHANNELS] = {};
 	struct ieee80211_nan_sched_cfg *sched_cfg = &sdata->vif.cfg.nan_sched;
-	struct ieee80211_nan_sched_cfg backup_sched;
+	struct ieee80211_nan_sched_cfg *backup_sched __free(kfree) = kmalloc_obj(*backup_sched);
 	int ret;
+
+	if (!backup_sched)
+		return -ENOMEM;
 
 	if (sched->n_channels > IEEE80211_NAN_MAX_CHANNELS)
 		return -EOPNOTSUPP;
@@ -275,13 +278,13 @@ int ieee80211_nan_set_local_sched(struct ieee80211_sub_if_data *sdata,
 
 	bitmap_zero(sdata->u.nan.removed_channels, IEEE80211_NAN_MAX_CHANNELS);
 
-	memcpy(backup_sched.schedule, sched_cfg->schedule,
-	       sizeof(backup_sched.schedule));
-	memcpy(backup_sched.channels, sched_cfg->channels,
-	       sizeof(backup_sched.channels));
-	memcpy(backup_sched.avail_blob, sched_cfg->avail_blob,
-	       sizeof(backup_sched.avail_blob));
-	backup_sched.avail_blob_len = sched_cfg->avail_blob_len;
+	memcpy(backup_sched->schedule, sched_cfg->schedule,
+	       sizeof(backup_sched->schedule));
+	memcpy(backup_sched->channels, sched_cfg->channels,
+	       sizeof(backup_sched->channels));
+	memcpy(backup_sched->avail_blob, sched_cfg->avail_blob,
+	       sizeof(backup_sched->avail_blob));
+	backup_sched->avail_blob_len = sched_cfg->avail_blob_len;
 
 	memcpy(sched_cfg->avail_blob, sched->nan_avail_blob,
 	       sched->nan_avail_blob_len);
@@ -380,17 +383,17 @@ err:
 		if (!chan_def->chan)
 			continue;
 
-		if (!cfg80211_chandef_identical(&backup_sched.channels[i].chanreq.oper,
+		if (!cfg80211_chandef_identical(&backup_sched->channels[i].chanreq.oper,
 						chan_def))
 			ieee80211_nan_remove_channel(sdata,
 						     &sched_cfg->channels[i]);
 	}
 
 	/* Re-add all backed up channels */
-	for (int i = 0; i < ARRAY_SIZE(backup_sched.channels); i++) {
+	for (int i = 0; i < ARRAY_SIZE(backup_sched->channels); i++) {
 		struct ieee80211_nan_channel *chan = &sched_cfg->channels[i];
 
-		*chan = backup_sched.channels[i];
+		*chan = backup_sched->channels[i];
 
 		/*
 		 * For deferred update, no channels were removed and the channel
@@ -421,11 +424,11 @@ err:
 		}
 	}
 
-	memcpy(sched_cfg->schedule, backup_sched.schedule,
-	       sizeof(backup_sched.schedule));
-	memcpy(sched_cfg->avail_blob, backup_sched.avail_blob,
-	       sizeof(backup_sched.avail_blob));
-	sched_cfg->avail_blob_len = backup_sched.avail_blob_len;
+	memcpy(sched_cfg->schedule, backup_sched->schedule,
+	       sizeof(backup_sched->schedule));
+	memcpy(sched_cfg->avail_blob, backup_sched->avail_blob,
+	       sizeof(backup_sched->avail_blob));
+	sched_cfg->avail_blob_len = backup_sched->avail_blob_len;
 	sched_cfg->deferred = false;
 	bitmap_zero(sdata->u.nan.removed_channels, IEEE80211_NAN_MAX_CHANNELS);
 

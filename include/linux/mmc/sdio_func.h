@@ -9,7 +9,7 @@
 #define LINUX_MMC_SDIO_FUNC_H
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/sdio.h>
 
 #include <linux/mmc/pm.h>
 

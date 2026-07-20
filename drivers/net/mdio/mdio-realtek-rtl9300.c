@@ -43,7 +43,6 @@
 #include <linux/find.h>
 #include <linux/mdio.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/of_mdio.h>
 #include <linux/phy.h>

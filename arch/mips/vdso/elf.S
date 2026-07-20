@@ -8,12 +8,15 @@
 
 #include <asm/isa-rev.h>
 
+#include <linux/build-salt.h>
 #include <linux/elfnote.h>
 #include <linux/version.h>
 
 ELFNOTE_START(Linux, 0, "a")
 	.long LINUX_VERSION_CODE
 ELFNOTE_END
+
+BUILD_SALT
 
 /*
  * The .MIPS.abiflags section must be defined with the FP ABI flags set

@@ -6,7 +6,6 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_net.h>
 #include <linux/platform_device.h>
 #include "nps_enet.h"

@@ -162,6 +162,8 @@ struct xfrm_dev_offload {
 	 */
 	struct net_device	*real_dev;
 	unsigned long		offload_handle;
+	/* Snapshot the attached device index for dump paths. */
+	int			ifindex;
 	u8			dir : 2;
 	u8			type : 2;
 	u8			flags : 2;

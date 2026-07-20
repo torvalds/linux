@@ -839,8 +839,10 @@ static struct synth_field *parse_synth_field(int argc, char **argv,
 			seq_buf_puts(&s, "__data_loc ");
 			seq_buf_puts(&s, field->type);
 
-			if (WARN_ON_ONCE(!seq_buf_buffer_left(&s)))
+			if (WARN_ON_ONCE(!seq_buf_buffer_left(&s))) {
+				kfree(type);
 				goto free;
+			}
 			s.buffer[s.len] = '\0';
 
 			kfree(field->type);
@@ -1446,13 +1448,13 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 			if (cmd_version > 1 && n_fields_this_loop >= 1) {
 				synth_err(SYNTH_ERR_INVALID_CMD, errpos(field_str));
 				ret = -EINVAL;
-				goto err_free_arg;
+				goto err_free_field;
 			}
 
 			if (n_fields == SYNTH_FIELDS_MAX) {
 				synth_err(SYNTH_ERR_TOO_MANY_FIELDS, 0);
 				ret = -EINVAL;
-				goto err_free_arg;
+				goto err_free_field;
 			}
 			fields[n_fields++] = field;
 
@@ -1491,6 +1493,8 @@ static int __create_synth_event(const char *name, const char *raw_fields)
 	kfree(saved_fields);
 
 	return ret;
+ err_free_field:
+	free_synth_field(field);
  err_free_arg:
 	argv_free(argv);
  err:

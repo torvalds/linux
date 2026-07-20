@@ -2,7 +2,6 @@
 // Copyright(c) 2015-2020 Intel Corporation.
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/soundwire/sdw.h>

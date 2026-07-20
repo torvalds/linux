@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/of.h>
 #include <linux/module.h>
 
 /* This is a dummy device table linked into all of the crypto

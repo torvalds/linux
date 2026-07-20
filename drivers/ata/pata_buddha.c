@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/libata.h>
 #include <linux/mm.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/zorro.h>

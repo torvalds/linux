@@ -15,7 +15,6 @@
 #include <linux/iio/triggered_event.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 

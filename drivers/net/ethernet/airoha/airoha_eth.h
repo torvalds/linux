@@ -23,6 +23,7 @@
 #define AIROHA_MAX_DSA_PORTS		7
 #define AIROHA_MAX_NUM_RSTS		3
 #define AIROHA_MAX_MTU			9220
+#define AIROHA_MAX_RX_SIZE		16128
 #define AIROHA_MAX_PACKET_SIZE		2048
 #define AIROHA_NUM_QOS_CHANNELS		4
 #define AIROHA_NUM_QOS_QUEUES		8
@@ -170,12 +171,19 @@ enum trtcm_param {
 #define TRTCM_TOKEN_RATE_MASK			GENMASK(23, 6)
 #define TRTCM_TOKEN_RATE_FRACTION_MASK		GENMASK(5, 0)
 
+enum airoha_dma_map_type {
+	AIROHA_DMA_UNMAPPED,
+	AIROHA_DMA_MAP_SINGLE,
+	AIROHA_DMA_MAP_PAGE,
+};
+
 struct airoha_queue_entry {
 	union {
 		void *buf;
 		struct {
 			struct list_head list;
 			struct sk_buff *skb;
+			enum airoha_dma_map_type dma_type;
 		};
 	};
 	dma_addr_t dma_addr;
@@ -676,6 +684,7 @@ int airoha_get_fe_port(struct airoha_gdm_dev *dev);
 bool airoha_is_valid_gdm_dev(struct airoha_eth *eth,
 			     struct airoha_gdm_dev *dev);
 
+void airoha_ppe_set_xmit_frame_size(struct airoha_gdm_dev *dev);
 void airoha_ppe_set_cpu_port(struct airoha_gdm_dev *dev, u8 ppe_id, u8 fport);
 bool airoha_ppe_is_enabled(struct airoha_eth *eth, int index);
 void airoha_ppe_check_skb(struct airoha_ppe_dev *dev, struct sk_buff *skb,

@@ -581,7 +581,20 @@ bool ksmbd_close_disconnected_durable_delete_on_close(struct dentry *dentry)
 			if (fp->conn || !fp->is_durable ||
 			    fp->f_state != FP_INITED)
 				continue;
-			list_move_tail(&fp->node, &dispose);
+
+			/*
+			 * Claim the close before unlinking fp from m_fp_list.
+			 * refcount == 1 means only the durable lifetime ref is
+			 * left. Add a transient ref so final close can drop both.
+			 */
+			write_lock(&global_ft.lock);
+			if (atomic_read(&fp->refcount) == 1) {
+				atomic_inc(&fp->refcount);
+				__ksmbd_remove_durable_fd(fp);
+				ksmbd_mark_fp_closed(fp);
+				list_move_tail(&fp->node, &dispose);
+			}
+			write_unlock(&global_ft.lock);
 		}
 	}
 	up_write(&ci->m_lock);
@@ -589,16 +602,18 @@ bool ksmbd_close_disconnected_durable_delete_on_close(struct dentry *dentry)
 	/*
 	 * Drop our lookup reference before closing so the last __ksmbd_close_fd()
 	 * can drop m_count to zero and unlink the delete-on-close file.  The
-	 * collected handles still hold references, so ci stays valid until they
-	 * are closed below.
+	 * collected handles still hold the transient reference taken above, so
+	 * ci stays valid until they are closed below.
 	 */
 	ksmbd_inode_put(ci);
 
 	while (!list_empty(&dispose)) {
 		fp = list_first_entry(&dispose, struct ksmbd_file, node);
 		list_del_init(&fp->node);
-		__ksmbd_close_fd(NULL, fp);
-		closed = true;
+		if (atomic_sub_and_test(2, &fp->refcount)) {
+			__ksmbd_close_fd(NULL, fp);
+			closed = true;
+		}
 	}
 
 	return closed;
@@ -838,19 +853,24 @@ int ksmbd_close_fd_app_instance_id(char *app_instance_id)
 		return 0;
 
 	opinfo = opinfo_get(fp);
-	if (!opinfo || !opinfo->sess)
+	if (!opinfo)
 		goto out;
+
+	down_read(&fp->f_ci->m_lock);
+	if (!opinfo->conn) {
+		up_read(&fp->f_ci->m_lock);
+		goto out;
+	}
 
 	ft = &opinfo->sess->file_table;
 	write_lock(&ft->lock);
-	if (fp->f_state == FP_INITED) {
-		if (has_file_id(fp->volatile_id)) {
-			idr_remove(ft->idr, fp->volatile_id);
-			fp->volatile_id = KSMBD_NO_FID;
-		}
+	if (fp->f_state == FP_INITED && has_file_id(fp->volatile_id)) {
+		idr_remove(ft->idr, fp->volatile_id);
+		fp->volatile_id = KSMBD_NO_FID;
 		n_to_drop = ksmbd_mark_fp_closed(fp);
 	}
 	write_unlock(&ft->lock);
+	up_read(&fp->f_ci->m_lock);
 	opinfo_put(opinfo);
 	opinfo = NULL;
 
@@ -1461,16 +1481,21 @@ void ksmbd_stop_durable_scavenger(void)
 static int ksmbd_vfs_copy_durable_owner(struct ksmbd_file *fp,
 		struct ksmbd_user *user)
 {
+	char *name;
+
 	if (!user)
 		return -EINVAL;
 
 	/* Duplicate the user name to ensure identity persistence */
-	fp->owner.name = kstrdup(user->name, GFP_KERNEL);
-	if (!fp->owner.name)
+	name = kstrdup(user->name, GFP_KERNEL);
+	if (!name)
 		return -ENOMEM;
 
+	spin_lock(&fp->f_lock);
 	fp->owner.uid = user->uid;
 	fp->owner.gid = user->gid;
+	fp->owner.name = name;
+	spin_unlock(&fp->f_lock);
 
 	return 0;
 }
@@ -1488,18 +1513,24 @@ static int ksmbd_vfs_copy_durable_owner(struct ksmbd_file *fp,
 bool ksmbd_vfs_compare_durable_owner(struct ksmbd_file *fp,
 		struct ksmbd_user *user)
 {
-	if (!user || !fp->owner.name)
+	bool ret = false;
+
+	if (!user)
 		return false;
+
+	spin_lock(&fp->f_lock);
+	if (!fp->owner.name)
+		goto out;
 
 	/* Check if the UID and GID match first (fast path) */
 	if (fp->owner.uid != user->uid || fp->owner.gid != user->gid)
-		return false;
+		goto out;
 
 	/* Validate the account name to ensure the same SecurityContext */
-	if (strcmp(fp->owner.name, user->name))
-		return false;
-
-	return true;
+	ret = (strcmp(fp->owner.name, user->name) == 0);
+out:
+	spin_unlock(&fp->f_lock);
+	return ret;
 }
 
 static bool session_fd_check(struct ksmbd_tree_connect *tcon,
@@ -1530,11 +1561,13 @@ static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 	conn = fp->conn;
 	ci = fp->f_ci;
 	down_write(&ci->m_lock);
-	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
+	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
+				lockdep_is_held(&ci->m_lock)) {
 		if (op->conn != conn)
 			continue;
 		ksmbd_conn_put(op->conn);
 		op->conn = NULL;
+		op->sess = NULL;
 	}
 	up_write(&ci->m_lock);
 
@@ -1685,16 +1718,20 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 
 	ci = fp->f_ci;
 	down_write(&ci->m_lock);
-	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
+	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
+				lockdep_is_held(&ci->m_lock)) {
 		if (op->conn)
 			continue;
 		op->conn = ksmbd_conn_get(fp->conn);
+		op->sess = work->sess;
 	}
 	up_write(&ci->m_lock);
 
+	spin_lock(&fp->f_lock);
 	fp->owner.uid = fp->owner.gid = 0;
 	kfree(fp->owner.name);
 	fp->owner.name = NULL;
+	spin_unlock(&fp->f_lock);
 
 	return 0;
 }

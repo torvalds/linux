@@ -2646,8 +2646,7 @@ xfs_iflush_cluster(
 		 * inode cluster buffers.
 		 */
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		bp->b_flags |= XBF_ASYNC;
-		xfs_buf_ioend_fail(bp);
+		xfs_buf_fail(bp);
 		return error;
 	}
 

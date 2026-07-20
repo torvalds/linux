@@ -50,6 +50,9 @@ struct vcap_stream_iter {
 
 /* Check that the control has a valid set of callbacks */
 int vcap_api_check(struct vcap_control *ctrl);
+/* Serialize access to the vcap instances of a control */
+void vcap_lock(struct vcap_admin *admin);
+void vcap_unlock(struct vcap_admin *admin);
 /* Erase the VCAP cache area used or encoding and decoding */
 void vcap_erase_cache(struct vcap_rule_internal *ri);
 

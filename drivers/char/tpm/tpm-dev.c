@@ -36,7 +36,7 @@ static int tpm_open(struct inode *inode, struct file *file)
 
 	tpm_common_open(file, chip, priv, NULL);
 
-	return 0;
+	return nonseekable_open(inode, file);
 
  out:
 	clear_bit(0, &chip->is_open);

@@ -8,6 +8,7 @@
 #include <linux/raid/pq.h>
 #include "algos.h"
 #include "rvv.h"
+#include "pq_arch.h"
 
 static void __raid6_2data_recov_rvv(int bytes, u8 *p, u8 *q, u8 *dp,
 				    u8 *dq, const u8 *pbmul,

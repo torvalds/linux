@@ -44,6 +44,7 @@ vsc73xx_rcv(struct sk_buff *skb, struct net_device *netdev)
 	if (!skb->dev) {
 		dev_warn_ratelimited(&netdev->dev,
 				     "Couldn't decode source port\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 

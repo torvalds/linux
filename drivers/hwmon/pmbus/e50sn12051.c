@@ -5,7 +5,6 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include "pmbus.h"
 
 static struct pmbus_driver_info e50sn12051_info = {

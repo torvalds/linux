@@ -115,6 +115,34 @@ static inline void ethnl_update_u8(u8 *dst, const struct nlattr *attr,
 }
 
 /**
+ * ethnl_update_u8_u32() - update u8 value from an NLA_U32 attribute
+ * @dst:  value to update
+ * @attr: netlink attribute with new value or null
+ * @mod:  pointer to bool for modification tracking
+ *
+ * Some attributes are NLA_U32 on the wire but are stored in a u8. Read the
+ * full 32-bit value from NLA_U32 netlink attribute @attr and narrow it into
+ * the u8 pointed to by @dst; do nothing if @attr is null.
+ * Bool pointed to by @mod is set to true if this function changed the value
+ * of *dst, otherwise it is left as is.
+ */
+static inline void ethnl_update_u8_u32(u8 *dst, const struct nlattr *attr,
+				       bool *mod)
+{
+	u32 val;
+
+	if (!attr)
+		return;
+	val = nla_get_u32(attr);
+	DEBUG_NET_WARN_ON_ONCE(val > U8_MAX);
+	if (*dst == val)
+		return;
+
+	*dst = val;
+	*mod = true;
+}
+
+/**
  * ethnl_update_bool32() - update u32 used as bool from NLA_U8 attribute
  * @dst:  value to update
  * @attr: netlink attribute with new value or null

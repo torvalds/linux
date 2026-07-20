@@ -114,6 +114,8 @@ struct dbc_ep {
 #define DBC_POLL_INTERVAL_MAX		5000	/* milliseconds */
 #define DBC_XFER_INACTIVITY_TIMEOUT	10	/* milliseconds */
 #define DBC_ENUMERATION_TIMEOUT		2000	/* milliseconds */
+#define DBC_AUTOSUSPEND_DELAY		15000	/* milliseconds */
+
 /*
  * Private structure for DbC hardware state:
  */
@@ -166,6 +168,7 @@ struct xhci_dbc {
 	unsigned long			xfer_timestamp;
 	unsigned long			state_timestamp;
 	unsigned			resume_required:1;
+	unsigned			pending_rpm_put:1;
 	struct dbc_ep			eps[2];
 
 	const struct dbc_driver		*driver;

@@ -10,7 +10,6 @@
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/regmap.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>

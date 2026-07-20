@@ -36,7 +36,7 @@
 #include <linux/ktime.h>
 #include <asm/facility.h>
 #include <linux/crypto.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ap.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/module.h>

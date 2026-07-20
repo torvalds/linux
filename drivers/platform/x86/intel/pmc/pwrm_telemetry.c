@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/intel_vsec.h>
 #include <linux/limits.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>

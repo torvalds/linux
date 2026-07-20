@@ -490,7 +490,7 @@ TRACE_EVENT(kvm_inj_exception,
 	TP_printk("%s%s%s%s%s",
 		  __print_symbolic(__entry->exception, kvm_trace_sym_exc),
 		  !__entry->has_error ? "" : " (",
-		  !__entry->has_error ? "" : __print_symbolic(__entry->error_code, { }),
+		  !__entry->has_error ? "" : __print_symbolic(__entry->error_code),
 		  !__entry->has_error ? "" : ")",
 		  __entry->reinjected ? " [reinjected]" : "")
 );

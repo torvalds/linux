@@ -1324,6 +1324,17 @@ static void mac80211_hwsim_set_tsf(struct ieee80211_hw *hw,
 	}
 }
 
+static struct ieee80211_rate *
+mac80211_hwsim_get_tx_rate(struct ieee80211_hw *hw,
+			   struct ieee80211_tx_info *info)
+{
+	if (info->control.rates[0].flags &
+	    (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
+		return NULL;
+
+	return ieee80211_get_tx_rate(hw, info);
+}
+
 static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 				      struct sk_buff *tx_skb,
 				      struct ieee80211_channel *chan)
@@ -1333,7 +1344,7 @@ static void mac80211_hwsim_monitor_rx(struct ieee80211_hw *hw,
 	struct hwsim_radiotap_hdr *hdr;
 	u16 flags, bitrate;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_skb);
-	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
+	struct ieee80211_rate *txrate = mac80211_hwsim_get_tx_rate(hw, info);
 
 	if (!txrate)
 		bitrate = 0;
@@ -1603,7 +1614,7 @@ static void mac80211_hwsim_write_tsf(struct mac80211_hwsim_data *data,
 
 	spin_lock_bh(&data->tsf_offset_lock);
 
-	txrate = ieee80211_get_tx_rate(data->hw, info);
+	txrate = mac80211_hwsim_get_tx_rate(data->hw, info);
 	if (txrate)
 		bitrate = txrate->bitrate;
 
@@ -7289,6 +7300,7 @@ static void hwsim_virtio_rx_work(struct work_struct *work)
 
 	skb->data = skb->head;
 	skb_reset_tail_pointer(skb);
+	len = min(len, skb_end_offset(skb));
 	skb_put(skb, len);
 	hwsim_virtio_handle_cmd(skb);
 

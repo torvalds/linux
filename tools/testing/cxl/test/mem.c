@@ -2,7 +2,6 @@
 // Copyright(c) 2021 Intel Corporation. All rights reserved.
 
 #include <linux/platform_device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/delay.h>

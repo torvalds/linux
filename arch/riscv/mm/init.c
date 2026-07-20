@@ -37,7 +37,9 @@
 
 #include "../kernel/head.h"
 
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
 DECLARE_BITMAP(new_valid_map_cpus, NR_CPUS);
+#endif
 
 struct kernel_mapping kernel_map __ro_after_init;
 EXPORT_SYMBOL(kernel_map);

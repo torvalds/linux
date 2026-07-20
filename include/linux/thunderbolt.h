@@ -23,7 +23,7 @@ struct device;
 #include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/tb.h>
 #include <linux/pci.h>
 #include <linux/uuid.h>
 #include <linux/workqueue.h>

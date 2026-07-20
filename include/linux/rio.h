@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/rio_regs.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/rio.h>
 #ifdef CONFIG_RAPIDIO_DMA_ENGINE
 #include <linux/dmaengine.h>
 #endif

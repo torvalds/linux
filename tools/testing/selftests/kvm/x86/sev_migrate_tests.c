@@ -313,6 +313,49 @@ out:
 	kvm_vm_free(vm_no_vcpu);
 }
 
+static void test_sev_snp_migrate_reject(void)
+{
+	struct kvm_vm *src_vm, *dst_vm;
+	int ret;
+
+	src_vm = vm_create_barebones_type(KVM_X86_SNP_VM);
+	snp_vm_init(src_vm);
+	__vm_vcpu_add(src_vm, 0);
+	vm_sev_launch(src_vm, snp_default_policy(), NULL);
+
+	dst_vm = vm_create_barebones_type(KVM_X86_SNP_VM);
+	__vm_vcpu_add(dst_vm, 0);
+
+	ret = __sev_migrate_from(dst_vm, src_vm);
+	TEST_ASSERT(ret == -1 && errno == EINVAL,
+		    "SNP VM migration should be rejected. ret: %d, errno: %d",
+		    ret, errno);
+
+	kvm_vm_free(src_vm);
+	kvm_vm_free(dst_vm);
+}
+
+static void test_sev_snp_mirror_reject(void)
+{
+	struct kvm_vm *src_vm, *dst_vm;
+	int ret;
+
+	src_vm = vm_create_barebones_type(KVM_X86_SNP_VM);
+	snp_vm_init(src_vm);
+	__vm_vcpu_add(src_vm, 0);
+	vm_sev_launch(src_vm, snp_default_policy(), NULL);
+
+	dst_vm = aux_vm_create(false);
+
+	ret = __sev_mirror_create(dst_vm, src_vm);
+	TEST_ASSERT(ret == -1 && errno == EINVAL,
+		    "SNP VM mirroring should be rejected. ret: %d, errno: %d",
+		    ret, errno);
+
+	kvm_vm_free(src_vm);
+	kvm_vm_free(dst_vm);
+}
+
 static void test_sev_move_copy(void)
 {
 	struct kvm_vm *dst_vm, *dst2_vm, *dst3_vm, *sev_vm, *mirror_vm,
@@ -384,12 +427,16 @@ int main(int argc, char *argv[])
 		test_sev_migrate_parameters();
 		if (kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM))
 			test_sev_move_copy();
+		if (kvm_cpu_has(X86_FEATURE_SEV_SNP))
+			test_sev_snp_migrate_reject();
 	}
 	if (kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
 		test_sev_mirror(/* es= */ false);
 		if (have_sev_es)
 			test_sev_mirror(/* es= */ true);
 		test_sev_mirror_parameters();
+		if (kvm_cpu_has(X86_FEATURE_SEV_SNP))
+			test_sev_snp_mirror_reject();
 	}
 	return 0;
 }

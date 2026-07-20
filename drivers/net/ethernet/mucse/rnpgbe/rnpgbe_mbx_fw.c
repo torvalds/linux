@@ -20,32 +20,32 @@
  * Return: 0 on success, negative errno on failure
  **/
 static int mucse_fw_send_cmd_wait_resp(struct mucse_hw *hw,
-				       struct mbx_fw_cmd_req *req,
-				       struct mbx_fw_cmd_reply *reply)
+				       union mbx_fw_cmd_req_u *req,
+				       union mbx_fw_cmd_reply_u *reply)
 {
-	int len = le16_to_cpu(req->datalen);
+	int len = le16_to_cpu(req->r.datalen);
 	int retry_cnt = 3;
 	int err;
 
 	mutex_lock(&hw->mbx.lock);
-	err = mucse_write_and_wait_ack_mbx(hw, (u32 *)req, len);
+	err = mucse_write_and_wait_ack_mbx(hw, req->dwords, len);
 	if (err)
 		goto out;
 	do {
-		err = mucse_poll_and_read_mbx(hw, (u32 *)reply,
-					      sizeof(*reply));
+		err = mucse_poll_and_read_mbx(hw, reply->dwords,
+					      sizeof(reply->r));
 		if (err)
 			goto out;
 		/* mucse_write_and_wait_ack_mbx return 0 means fw has
 		 * received request, wait for the expect opcode
 		 * reply with 'retry_cnt' times.
 		 */
-	} while (--retry_cnt >= 0 && reply->opcode != req->opcode);
+	} while (--retry_cnt >= 0 && reply->r.opcode != req->r.opcode);
 out:
 	mutex_unlock(&hw->mbx.lock);
 	if (!err && retry_cnt < 0)
 		return -ETIMEDOUT;
-	if (!err && reply->error_code)
+	if (!err && reply->r.error_code)
 		return -EIO;
 
 	return err;
@@ -61,17 +61,19 @@ out:
  **/
 static int mucse_mbx_get_info(struct mucse_hw *hw)
 {
-	struct mbx_fw_cmd_req req = {
-		.datalen = cpu_to_le16(MUCSE_MBX_REQ_HDR_LEN),
-		.opcode  = cpu_to_le16(GET_HW_INFO),
+	union mbx_fw_cmd_req_u req = {
+		.r = {
+			.datalen = cpu_to_le16(MUCSE_MBX_REQ_HDR_LEN),
+			.opcode  = cpu_to_le16(GET_HW_INFO),
+		},
 	};
-	struct mbx_fw_cmd_reply reply = {};
+	union mbx_fw_cmd_reply_u reply = {};
 	int err;
 
 	err = mucse_fw_send_cmd_wait_resp(hw, &req, &reply);
 	if (!err)
 		hw->pfvfnum = FIELD_GET(GENMASK_U16(7, 0),
-					le16_to_cpu(reply.hw_info.pfnum));
+					le16_to_cpu(reply.r.hw_info.pfnum));
 
 	return err;
 }
@@ -111,21 +113,23 @@ int mucse_mbx_sync_fw(struct mucse_hw *hw)
  **/
 int mucse_mbx_powerup(struct mucse_hw *hw, bool is_powerup)
 {
-	struct mbx_fw_cmd_req req = {
-		.datalen = cpu_to_le16(sizeof(req.powerup) +
-				       MUCSE_MBX_REQ_HDR_LEN),
-		.opcode  = cpu_to_le16(POWER_UP),
-		.powerup = {
-			/* fw needs this to reply correct cmd */
-			.version = cpu_to_le32(GENMASK_U32(31, 0)),
-			.status  = cpu_to_le32(is_powerup ? 1 : 0),
+	union mbx_fw_cmd_req_u req = {
+		.r = {
+			.datalen = cpu_to_le16(sizeof(req.r.powerup) +
+					       MUCSE_MBX_REQ_HDR_LEN),
+			.opcode  = cpu_to_le16(POWER_UP),
+			.powerup = {
+				/* fw needs this to reply correct cmd */
+				.version = cpu_to_le32(GENMASK_U32(31, 0)),
+				.status  = cpu_to_le32(is_powerup ? 1 : 0),
+			},
 		},
 	};
 	int len, err;
 
-	len = le16_to_cpu(req.datalen);
+	len = le16_to_cpu(req.r.datalen);
 	mutex_lock(&hw->mbx.lock);
-	err = mucse_write_and_wait_ack_mbx(hw, (u32 *)&req, len);
+	err = mucse_write_and_wait_ack_mbx(hw, req.dwords, len);
 	mutex_unlock(&hw->mbx.lock);
 
 	return err;
@@ -142,11 +146,13 @@ int mucse_mbx_powerup(struct mucse_hw *hw, bool is_powerup)
  **/
 int mucse_mbx_reset_hw(struct mucse_hw *hw)
 {
-	struct mbx_fw_cmd_req req = {
-		.datalen = cpu_to_le16(MUCSE_MBX_REQ_HDR_LEN),
-		.opcode  = cpu_to_le16(RESET_HW),
+	union mbx_fw_cmd_req_u req = {
+		.r = {
+			.datalen = cpu_to_le16(MUCSE_MBX_REQ_HDR_LEN),
+			.opcode  = cpu_to_le16(RESET_HW),
+		},
 	};
-	struct mbx_fw_cmd_reply reply = {};
+	union mbx_fw_cmd_reply_u reply = {};
 
 	return mucse_fw_send_cmd_wait_resp(hw, &req, &reply);
 }
@@ -166,24 +172,26 @@ int mucse_mbx_get_macaddr(struct mucse_hw *hw, int pfvfnum,
 			  u8 *mac_addr,
 			  int port)
 {
-	struct mbx_fw_cmd_req req = {
-		.datalen      = cpu_to_le16(sizeof(req.get_mac_addr) +
-					    MUCSE_MBX_REQ_HDR_LEN),
-		.opcode       = cpu_to_le16(GET_MAC_ADDRESS),
-		.get_mac_addr = {
-			.port_mask = cpu_to_le32(BIT(port)),
-			.pfvf_num  = cpu_to_le32(pfvfnum),
+	union mbx_fw_cmd_req_u req = {
+		.r = {
+			.datalen      = cpu_to_le16(sizeof(req.r.get_mac_addr) +
+						    MUCSE_MBX_REQ_HDR_LEN),
+			.opcode       = cpu_to_le16(GET_MAC_ADDRESS),
+			.get_mac_addr = {
+				.port_mask = cpu_to_le32(BIT(port)),
+				.pfvf_num  = cpu_to_le32(pfvfnum),
+			},
 		},
 	};
-	struct mbx_fw_cmd_reply reply = {};
+	union mbx_fw_cmd_reply_u reply = {};
 	int err;
 
 	err = mucse_fw_send_cmd_wait_resp(hw, &req, &reply);
 	if (err)
 		return err;
 
-	if (le32_to_cpu(reply.mac_addr.ports) & BIT(port))
-		memcpy(mac_addr, reply.mac_addr.addrs[port].mac, ETH_ALEN);
+	if (le32_to_cpu(reply.r.mac_addr.ports) & BIT(port))
+		memcpy(mac_addr, reply.r.mac_addr.addrs[port].mac, ETH_ALEN);
 	else
 		return -ENODATA;
 

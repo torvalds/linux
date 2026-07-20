@@ -23,7 +23,7 @@ static __always_inline __wsum csum_copy(void *dst, const void *src, int len, __w
 	if (!cpu_has_vx()) {
 		if (copy)
 			memcpy(dst, src, len);
-		return cksm(dst, len, sum);
+		return cksm(src, len, sum);
 	}
 	kernel_fpu_begin(&vxstate, KERNEL_VXR_V16V23);
 	fpu_vlvgf(16, (__force u32)sum, 1);

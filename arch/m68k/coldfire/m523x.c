@@ -79,7 +79,7 @@ static void __init m523x_i2c_init(void)
 static void __init m523x_fec_init(void)
 {
 	/* Set multi-function pins to ethernet use */
-	mcf_write8(read8(MCFGPIO_PAR_FECI2C) | 0xf0, MCFGPIO_PAR_FECI2C);
+	mcf_write8(mcf_read8(MCFGPIO_PAR_FECI2C) | 0xf0, MCFGPIO_PAR_FECI2C);
 }
 
 /***************************************************************************/

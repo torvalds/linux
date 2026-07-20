@@ -788,7 +788,8 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
-				 desc->has_display;
+				 desc->has_display &&
+				 !xe_device_is_admin_only(xe);
 	xe->info.force_execlist = xe_modparam.force_execlist;
 
 	xe_assert(xe, desc->max_gt_per_tile > 0);
@@ -1048,6 +1049,12 @@ static void xe_pci_remove(struct pci_dev *pdev)
 		return;
 
 	xe_device_remove(xe);
+
+	/*
+	 * Preserve remove-time flush after moving destroy work to module
+	 * lifetime.
+	 */
+	xe_destroy_wq_flush();
 	xe_pm_fini(xe);
 }
 

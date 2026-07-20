@@ -3,7 +3,7 @@
 #ifndef __USB_TYPEC_ALTMODE_H
 #define __USB_TYPEC_ALTMODE_H
 
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/typec.h>
 #include <linux/usb/typec.h>
 #include <linux/device.h>
 

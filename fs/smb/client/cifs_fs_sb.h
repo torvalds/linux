@@ -56,6 +56,7 @@ struct cifs_sb_info {
 	struct smb3_fs_context *ctx;
 	atomic_t active;
 	atomic_t mnt_cifs_flags;
+	atomic_t outstanding_rreq;	/* nr of rreqs not yet fully deinitialized */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
 

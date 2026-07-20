@@ -3764,10 +3764,8 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	sor->num_settings = sor->soc->num_settings;
 
 	sor->pmc = devm_tegra_pmc_get(&pdev->dev);
-	if (IS_ERR(sor->pmc)) {
-		err = PTR_ERR(sor->pmc);
-		goto put_aux;
-	}
+	if (IS_ERR(sor->pmc))
+		return PTR_ERR(sor->pmc);
 
 	np = of_parse_phandle(pdev->dev.of_node, "nvidia,dpaux", 0);
 	if (np) {

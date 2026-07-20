@@ -623,7 +623,7 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.sink_count.bits.SINK_COUNT = 1;
 		/* NUTMEG requires that we use HBR, doesn't work with RBR. */
 		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_00001A)
-			link->preferred_link_setting.link_rate = LINK_RATE_HIGH;
+			link->wa_flags.dp_skip_rbr = true;
 	}
 
 	return true;
@@ -1164,8 +1164,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			    link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 
 				/* if alt mode times out, return false */
-				if (!wait_for_entering_dp_alt_mode(link))
+				if (!wait_for_entering_dp_alt_mode(link)) {
+					if (prev_sink)
+						dc_sink_release(prev_sink);
 					return false;
+				}
 			}
 
 			if (!detect_dp(link, &sink_caps, reason)) {

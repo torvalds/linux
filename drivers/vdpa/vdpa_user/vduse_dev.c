@@ -32,7 +32,6 @@
 #include <uapi/linux/virtio_ids.h>
 #include <uapi/linux/virtio_blk.h>
 #include <uapi/linux/virtio_ring.h>
-#include <linux/mod_devicetable.h>
 
 #include "iova_domain.h"
 
