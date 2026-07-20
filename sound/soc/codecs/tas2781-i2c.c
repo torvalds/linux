@@ -1310,8 +1310,8 @@ static void cali_reg_update(struct bulk_reg_val *p,
 				t->sin_gn[2]);
 			break;
 		case TAS2781_PRM_SINEGAIN2_REG:
-			reg = TASDEVICE_REG(t->sin_gn[0], t->sin_gn[1],
-				t->sin_gn[2]);
+			reg = TASDEVICE_REG(t->sin_gn2[0], t->sin_gn2[1],
+				t->sin_gn2[2]);
 			break;
 		default:
 			reg = 0;
