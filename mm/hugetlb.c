@@ -182,6 +182,9 @@ void hugepage_put_subpool(struct hugepage_subpool *spool)
 {
 	unsigned long flags;
 
+	if (!spool)
+		return;
+
 	spin_lock_irqsave(&spool->lock, flags);
 	BUG_ON(!spool->count);
 	spool->count--;
