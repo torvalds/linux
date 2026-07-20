@@ -348,7 +348,7 @@ static long s2255_vendor_req(struct s2255_dev *dev, unsigned char req,
 		dev_err(dev, S2255_DRIVER_NAME " - " fmt, ##arg)
 
 #define dprintk(dev, level, fmt, arg...) \
-	v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ## arg)
+	v4l2_dbg(level, debug, &(dev)->v4l2_dev, fmt, ## arg)
 
 static struct usb_driver s2255_driver;
 
