@@ -224,6 +224,13 @@
 			};
 
 			/omit-if-no-ref/
+			spdif_out_ph_pin: spdif-ph-pin {
+				pins = "PH7";
+				function = "spdif";
+				allwinner,pinmux = <4>;
+			};
+
+			/omit-if-no-ref/
 			spdif_out_pi_pin: spdif-pi-pin {
 				pins = "PI10";
 				function = "spdif";
