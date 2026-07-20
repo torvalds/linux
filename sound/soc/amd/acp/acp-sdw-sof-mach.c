@@ -438,8 +438,8 @@ static void mc_remove(struct platform_device *pdev)
 }
 
 static const struct platform_device_id mc_id_table[] = {
-	{ "amd_sof_sdw", },
-	{}
+	{ .name = "amd_sof_sdw" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, mc_id_table);
 
