@@ -1978,9 +1978,8 @@ static int s2255_board_init(struct s2255_dev *dev)
 
 	pipe->transfer_buffer = kzalloc(pipe->max_transfer_size,
 					GFP_KERNEL);
-	if (!pipe->transfer_buffer) {
+	if (!pipe->transfer_buffer)
 		return -ENOMEM;
-	}
 	/* query the firmware */
 	fw_ver = s2255_get_fx2fw(dev);
 
@@ -2210,14 +2209,12 @@ static int s2255_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it to zero */
 	dev = kzalloc_obj(struct s2255_dev);
-	if (!dev) {
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	dev->cmdbuf = kzalloc(S2255_CMDBUF_SIZE, GFP_KERNEL);
-	if (!dev->cmdbuf) {
+	if (!dev->cmdbuf)
 		goto err_fwdata1;
-	}
 
 	refcount_set(&dev->num_channels, 0);
 	dev->pid = id->idProduct;
@@ -2266,9 +2263,8 @@ static int s2255_probe(struct usb_interface *interface,
 		goto err_fwurb;
 
 	dev->fw_data->pfw_data = kzalloc(CHUNK_SIZE, GFP_KERNEL);
-	if (!dev->fw_data->pfw_data) {
+	if (!dev->fw_data->pfw_data)
 		goto err_fwdata2;
-	}
 	/* load the first chunk */
 	if (request_firmware(&dev->fw_data->fw,
 			     FIRMWARE_FILE_NAME, &dev->udev->dev)) {
