@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/imx8ulp-clock.h>
+#include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/imx8ulp-power.h>
@@ -370,6 +371,8 @@
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPI2C4>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 46 0 0>, <&edma1 45 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -383,6 +386,8 @@
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPI2C5>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 48 0 0>, <&edma1 47 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -392,6 +397,8 @@
 				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pcc3 IMX8ULP_CLK_LPUART4>;
 				clock-names = "ipg";
+				dmas = <&edma1 55 0 FSL_EDMA_RX>, <&edma1 56 0 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -401,6 +408,8 @@
 				interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pcc3 IMX8ULP_CLK_LPUART5>;
 				clock-names = "ipg";
+				dmas = <&edma1 57 0 FSL_EDMA_RX>, <&edma1 58 0 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -416,6 +425,8 @@
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPSPI4>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 64 0 0>, <&edma1 63 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -431,6 +442,8 @@
 				assigned-clocks = <&pcc3 IMX8ULP_CLK_LPSPI5>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 66 0 0>, <&edma1 65 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 		};
@@ -474,6 +487,8 @@
 				assigned-clocks = <&pcc4 IMX8ULP_CLK_LPI2C6>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 50 0 0>, <&edma1 49 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -487,6 +502,8 @@
 				assigned-clocks = <&pcc4 IMX8ULP_CLK_LPI2C7>;
 				assigned-clock-parents = <&cgc1 IMX8ULP_CLK_FROSC_DIV2>;
 				assigned-clock-rates = <48000000>;
+				dmas = <&edma1 52 0 0>, <&edma1 51 0 FSL_EDMA_RX>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -496,6 +513,8 @@
 				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pcc4 IMX8ULP_CLK_LPUART6>;
 				clock-names = "ipg";
+				dmas = <&edma1 59 0 FSL_EDMA_RX>, <&edma1 60 0 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -505,6 +524,8 @@
 				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&pcc4 IMX8ULP_CLK_LPUART7>;
 				clock-names = "ipg";
+				dmas = <&edma1 61 0 FSL_EDMA_RX>, <&edma1 62 0 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -516,7 +537,7 @@
 					 <&cgc1 IMX8ULP_CLK_SAI4_SEL>, <&cgc1 IMX8ULP_CLK_DUMMY>,
 					 <&cgc1 IMX8ULP_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma1 67 0 1>, <&edma1 68 0 0>;
+				dmas = <&edma1 67 0 FSL_EDMA_RX>, <&edma1 68 0 0>;
 				dma-names = "rx", "tx";
 				#sound-dai-cells = <0>;
 				fsl,dataline = <0 0x03 0x03>;
@@ -531,7 +552,7 @@
 					 <&cgc1 IMX8ULP_CLK_SAI5_SEL>, <&cgc1 IMX8ULP_CLK_DUMMY>,
 					 <&cgc1 IMX8ULP_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma1 69 0 1>, <&edma1 70 0 0>;
+				dmas = <&edma1 69 0 FSL_EDMA_RX>, <&edma1 70 0 0>;
 				dma-names = "rx", "tx";
 				#sound-dai-cells = <0>;
 				fsl,dataline = <0 0x0f 0x0f>;
@@ -814,7 +835,7 @@
 					 <&cgc2 IMX8ULP_CLK_SAI6_SEL>, <&cgc1 IMX8ULP_CLK_DUMMY>,
 					 <&cgc1 IMX8ULP_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma2 71 0 1>, <&edma2 72 0 0>;
+				dmas = <&edma2 71 0 FSL_EDMA_RX>, <&edma2 72 0 0>;
 				dma-names = "rx", "tx";
 				#sound-dai-cells = <0>;
 				fsl,dataline = <0 0x0f 0x0f>;
@@ -829,7 +850,7 @@
 					 <&cgc2 IMX8ULP_CLK_SAI7_SEL>, <&cgc1 IMX8ULP_CLK_DUMMY>,
 					 <&cgc1 IMX8ULP_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma2 73 0 1>, <&edma2 74 0 0>;
+				dmas = <&edma2 73 0 FSL_EDMA_RX>, <&edma2 74 0 0>;
 				dma-names = "rx", "tx";
 				#sound-dai-cells = <0>;
 				fsl,dataline = <0 0x0f 0x0f>;
@@ -855,7 +876,8 @@
 					      "rxtx3", "rxtx4",
 					      "rxtx5", "rxtx6",
 					      "rxtx7", "spba";
-				dmas = <&edma2 75 0 5>, <&edma2 76 0 4>;
+				dmas = <&edma2 75 0 (FSL_EDMA_RX | FSL_EDMA_MULTI_FIFO)>,
+				       <&edma2 76 0 FSL_EDMA_MULTI_FIFO>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
