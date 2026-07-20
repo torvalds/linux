@@ -1721,7 +1721,6 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 		return 0;
 
 	entry->ip = (unsigned long)tk->rp.kp.addr;
-	memset(&entry[1], 0, dsize);
 	store_trace_args(&entry[1], &tk->tp, regs, NULL, sizeof(*entry), dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
