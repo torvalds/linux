@@ -70,7 +70,7 @@ struct acpi_fan {
 
 /**
  * acpi_fan_speed_valid - Check if fan speed value is valid
- * @speeed: Speed value returned by the ACPI firmware
+ * @speed: Speed value returned by the ACPI firmware
  *
  * Check if the fan speed value returned by the ACPI firmware is valid. This function is
  * necessary as ACPI firmware implementations can return 0xFFFFFFFF to signal that the
