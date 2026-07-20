@@ -1070,10 +1070,10 @@ static void ntfs_skip_position(struct compress_context *pctx, const int i)
  *
  * Returns the size of the compressed block, including the
  * header (minimal size is 2, maximum size is 4098)
- * 0 if an error has been met.
+ * A negative error code if an error has been met.
  */
-static unsigned int ntfs_compress_block(const char *inbuf, const int bufsize,
-		char *outbuf)
+static int ntfs_compress_block(const char *inbuf, const int bufsize,
+			       char *outbuf)
 {
 	struct compress_context *pctx;
 	int i; /* current position */
@@ -1264,7 +1264,8 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	char *outbuf = NULL, *pbuf, *inbuf;
 	u32 compsz, p, insz = pages_per_cb << PAGE_SHIFT;
 	s32 rounded, bio_size;
-	unsigned int sz, bsz;
+	int sz;
+	unsigned int bsz;
 	bool fail = false, allzeroes;
 	/* a single compressed zero */
 	static char onezero[] = {0x01, 0xb0, 0x00, 0x00};
@@ -1319,6 +1320,10 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 			bsz = insz - p;
 		pbuf = &outbuf[compsz];
 		sz = ntfs_compress_block(&inbuf[p], bsz, pbuf);
+		if (sz < 0) {
+			err = sz;
+			goto out;
+		}
 		/* fail if all the clusters (or more) are needed */
 		if (!sz || ((compsz + sz + vol->cluster_size + 2) >
 			    ni->itype.compressed.block_size))
