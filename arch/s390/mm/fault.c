@@ -453,10 +453,8 @@ void do_secure_storage_access(struct pt_regs *regs)
 		if (!vma)
 			return handle_fault_error_nolock(regs, SEGV_MAPERR);
 		folio = folio_walk_start(&fw, vma, addr, 0);
-		if (!folio) {
-			mmap_read_unlock(mm);
-			return;
-		}
+		if (!folio)
+			goto out;
 		/* arch_make_folio_accessible() needs a raised refcount. */
 		folio_get(folio);
 		rc = arch_make_folio_accessible(folio);
@@ -464,6 +462,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		folio_walk_end(&fw, vma);
 		if (rc)
 			return handle_fault_error(regs, SEGV_ACCERR);
+out:
 		mmap_read_unlock(mm);
 	}
 }
