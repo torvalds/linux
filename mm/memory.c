@@ -1620,27 +1620,29 @@ static inline bool zap_drop_markers(struct zap_details *details)
 }
 
 /**
- * pte_install_uffd_wp_if_needed - install uffd-wp marker after clearing a PTE
- * @vma: The VMA the page is mapped into.
- * @addr: Address the page is mapped at.
- * @ptep: Page table pointer for this entry.
+ * cond_install_uffd_wp_ptes - install uffd-wp markers after clearing PTEs
+ * @vma: The VMA the pages are mapped into.
+ * @addr: Address the first page of this batch is mapped at.
+ * @ptep: Page table pointer for the first entry of this batch.
  * @pte: Old value of the entry pointed to by @ptep.
+ * @nr_ptes: Number of entries to install.
  *
- * If the PTE was write-protected by uffd-wp in any form, arm a special PTE
- * to replace a none PTE. NOTE! This should only be called when the PTE is
+ * If the PTEs were write-protected by uffd-wp in any form, arm special PTEs
+ * to replace none PTEs. NOTE! This should only be called when the PTEs are
  * already cleared so we will never accidentally replace something valuable.
- * Meanwhile none PTEs also mean we are not demoting the PTE so a TLB flush is
- * not needed. E.g., when the PTE was cleared, the caller should have taken care
- * of the TLB flush.
+ * Meanwhile none PTEs also mean we are not demoting the PTEs so a TLB flush is
+ * not needed. E.g., when the PTEs were cleared, the caller should have taken
+ * care of the TLB flush.
  *
  * Must be called with the page table lock held so that no thread will see the
- * none PTE, and if they see it, they'll fault and serialize at the page table
+ * none PTEs, and if they see them, they'll fault and serialize at the page table
  * lock.
  *
- * Returns true if an uffd-wp PTE was installed, false otherwise.
+ * Returns true if uffd-wp PTEs were installed, false otherwise.
  */
-bool pte_install_uffd_wp_if_needed(struct vm_area_struct *vma,
-		unsigned long addr, pte_t *ptep, pte_t pte)
+bool cond_install_uffd_wp_ptes(struct vm_area_struct *vma,
+		unsigned long addr, pte_t *ptep, pte_t pte,
+		unsigned long nr_ptes)
 {
 	bool arm_uffd_pte = false;
 
@@ -1670,13 +1672,19 @@ bool pte_install_uffd_wp_if_needed(struct vm_area_struct *vma,
 	if (unlikely(pte_swp_uffd_any(pte)))
 		arm_uffd_pte = true;
 
-	if (unlikely(arm_uffd_pte)) {
+	if (likely(!arm_uffd_pte))
+		return false;
+
+	for (;;) {
 		set_pte_at(vma->vm_mm, addr, ptep,
 			   make_pte_marker(PTE_MARKER_UFFD_WP));
-		return true;
+		if (--nr_ptes == 0)
+			break;
+		ptep++;
+		addr += PAGE_SIZE;
 	}
 
-	return false;
+	return true;
 }
 
 /*
@@ -1690,29 +1698,10 @@ zap_install_uffd_wp_if_needed(struct vm_area_struct *vma,
 			      unsigned long addr, pte_t *pte, int nr,
 			      struct zap_details *details, pte_t pteval)
 {
-	bool was_installed = false;
-
-	if (!uffd_supports_wp_marker())
-		return false;
-
-	/* Zap on anonymous always means dropping everything */
-	if (vma_is_anonymous(vma))
-		return false;
-
 	if (zap_drop_markers(details))
 		return false;
 
-	for (;;) {
-		/* the PFN in the PTE is irrelevant. */
-		if (pte_install_uffd_wp_if_needed(vma, addr, pte, pteval))
-			was_installed = true;
-		if (--nr == 0)
-			break;
-		pte++;
-		addr += PAGE_SIZE;
-	}
-
-	return was_installed;
+	return cond_install_uffd_wp_ptes(vma, addr, pte, pteval, nr);
 }
 
 static __always_inline void zap_present_folio_ptes(struct mmu_gather *tlb,
