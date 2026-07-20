@@ -161,7 +161,7 @@ int dump_queue(struct msgque_data *msgque)
 		ret = msgrcv(msgque->msq_id, &msgque->messages[i].mtype,
 				MAX_MSG_SIZE, i, IPC_NOWAIT | MSG_COPY);
 		if (ret < 0) {
-			if (errno == ENOSYS)
+			if (errno == EOPNOTSUPP)
 				ksft_exit_skip("MSG_COPY not supported\n");
 
 			ksft_test_result_fail("Failed to copy IPC message: %m (%d)\n", errno);
