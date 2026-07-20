@@ -633,7 +633,7 @@ static void xe3_add_peakbw_threshold(struct intel_display *display)
 	for (int i = 0; i < ARRAY_SIZE(display->bw.max); i++)
 		display->bw.max[i].deratedbw[qgv_points] = PEAK_BW_THRESHOLD;
 
-	drm_dbg_kms(display->drm, "An extra QGV point %d added for Peak bw threshod of %d\n",
+	drm_dbg_kms(display->drm, "An extra QGV point %d added for Peak bw threshold of %d\n",
 		    qgv_points, PEAK_BW_THRESHOLD);
 }
 
