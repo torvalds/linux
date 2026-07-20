@@ -402,3 +402,80 @@ ping したりする前に、少なくとも 1 週間は待ってください。
 を追加しないでください。
 "RESEND" は、前回の投稿から一切変更のないパッチまたはパッチシリーズの
 再送だけに当てはまります。
+
+
+件名に PATCH を含める
+---------------------
+
+Linus と linux-kernel メーリングリストには大量のメールが届くため、
+件名の先頭に ``[PATCH]`` を付けることが一般的な慣例となっています。
+これにより、Linus や他のカーネル開発者は、パッチとその他の議論を
+容易に区別できます。
+
+``git send-email`` は、この指定を自動的に行います。
+
+
+作業への署名 - Developer's Certificate of Origin
+--------------------------------------------------
+
+誰が何を行ったのかを追跡しやすくするため、特にパッチが複数階層の
+メンテナーを経由して最終的にカーネルへ取り込まれる場合に備えて、
+メールでやり取りされるパッチには sign-off の手続きが導入されています。
+
+sign-off は、パッチの説明の末尾に追加する単純な一行です。これは、
+そのパッチを自分で作成したか、オープンソースのパッチとして提出する
+権利を持っていることを証明します。
+
+.. note:: 【訳註】
+
+   ``Signed-off-by`` によって同意する対象は、翻訳文ではなく、
+   以下に示す英語原文の Developer's Certificate of Origin 1.1 です。
+   DCO は法的な性質を持つ文書であるため、本文は翻訳せず、原文のまま
+   掲載します。内容を確認する場合は、必ず英語原文を参照してください。
+
+規則は単純で、以下を証明できる場合です::
+
+        Developer's Certificate of Origin 1.1
+
+        By making a contribution to this project, I certify that:
+
+        (a) The contribution was created in whole or in part by me and I
+            have the right to submit it under the open source license
+            indicated in the file; or
+
+        (b) The contribution is based upon previous work that, to the best
+            of my knowledge, is covered under an appropriate open source
+            license and I have the right under that license to submit that
+            work with modifications, whether created in whole or in part
+            by me, under the same open source license (unless I am
+            permitted to submit under a different license), as indicated
+            in the file; or
+
+        (c) The contribution was provided directly to me by some other
+            person who certified (a), (b) or (c) and I have not modified
+            it.
+
+        (d) I understand and agree that this project and the contribution
+            are public and that a record of the contribution (including all
+            personal information I submit with it, including my sign-off) is
+            maintained indefinitely and may be redistributed consistent with
+            this project or the open source license(s) involved.
+
+上記を証明できる場合は、次のような行を追加します::
+
+        Signed-off-by: Random J Developer <random@developer.example.org>
+
+既知の身元を使用してください。匿名での貢献は認められません。
+``git commit -s`` を使用すると、この行を自動的に追加できます。
+
+revert にも ``Signed-off-by:`` を含める必要があります。
+``git revert -s`` を使用すると、自動的に追加できます。
+
+末尾に追加のタグを付ける人もいます。現時点では無視されますが、
+社内手続きを示したり、sign-off に関する特記事項を記録したりするために
+使用できます。
+
+作者の SoB に続く追加の SoB（``Signed-off-by:``）は、パッチの開発には
+関与せず、その取り扱いや転送を行った人によるものです。SoB の連鎖は、
+パッチがメンテナーを経て最終的に Linus へ届いた実際の経路を反映する
+必要があります。最初の SoB は、単独の主要作者であることを示します。
