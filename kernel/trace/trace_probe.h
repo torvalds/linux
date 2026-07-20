@@ -360,7 +360,7 @@ static inline int trace_probe_unregister_event_call(struct trace_probe *tp)
 
 static inline bool trace_probe_has_single_file(struct trace_probe *tp)
 {
-	return !!list_is_singular(&tp->event->files);
+	return list_is_singular(&tp->event->files);
 }
 
 int trace_probe_init(struct trace_probe *tp, const char *event,
