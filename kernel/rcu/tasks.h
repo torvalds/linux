@@ -155,8 +155,8 @@ static struct rcu_tasks rt_name =							\
 #ifdef CONFIG_TASKS_RCU
 
 /* Report delay of scan exiting tasklist in rcu_tasks_postscan(). */
-static void tasks_rcu_exit_srcu_stall(struct timer_list *unused);
-static DEFINE_TIMER(tasks_rcu_exit_srcu_stall_timer, tasks_rcu_exit_srcu_stall);
+static void tasks_rcu_exit_stall(struct timer_list *unused);
+static DEFINE_TIMER(tasks_rcu_exit_stall_timer, tasks_rcu_exit_stall);
 #endif
 
 /* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
@@ -1032,8 +1032,8 @@ static void rcu_tasks_postscan(struct list_head *hop)
 	int rtsi = READ_ONCE(rcu_task_stall_info);
 
 	if (!IS_ENABLED(CONFIG_TINY_RCU)) {
-		tasks_rcu_exit_srcu_stall_timer.expires = jiffies + rtsi;
-		add_timer(&tasks_rcu_exit_srcu_stall_timer);
+		tasks_rcu_exit_stall_timer.expires = jiffies + rtsi;
+		add_timer(&tasks_rcu_exit_stall_timer);
 	}
 
 	/*
@@ -1086,7 +1086,7 @@ static void rcu_tasks_postscan(struct list_head *hop)
 	}
 
 	if (!IS_ENABLED(CONFIG_TINY_RCU))
-		timer_delete_sync(&tasks_rcu_exit_srcu_stall_timer);
+		timer_delete_sync(&tasks_rcu_exit_stall_timer);
 }
 
 /* See if tasks are still holding out, complain if so. */
@@ -1158,7 +1158,7 @@ static void rcu_tasks_postgp(struct rcu_tasks *rtp)
 	synchronize_rcu();
 }
 
-static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
+static void tasks_rcu_exit_stall(struct timer_list *unused)
 {
 #ifndef CONFIG_TINY_RCU
 	int rtsi;
@@ -1168,8 +1168,8 @@ static void tasks_rcu_exit_srcu_stall(struct timer_list *unused)
 		__func__, rcu_tasks.kname, rcu_tasks.tasks_gp_seq,
 		tasks_gp_state_getname(&rcu_tasks), jiffies - rcu_tasks.gp_jiffies);
 	pr_info("Please check any exiting tasks stuck between calls to exit_tasks_rcu_start() and exit_tasks_rcu_finish()\n");
-	tasks_rcu_exit_srcu_stall_timer.expires = jiffies + rtsi;
-	add_timer(&tasks_rcu_exit_srcu_stall_timer);
+	tasks_rcu_exit_stall_timer.expires = jiffies + rtsi;
+	add_timer(&tasks_rcu_exit_stall_timer);
 #endif // #ifndef CONFIG_TINY_RCU
 }
 
