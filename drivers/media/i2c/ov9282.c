@@ -647,7 +647,8 @@ static int ov9282_set_ctrl(struct v4l2_ctrl *ctrl)
 				      ctrl->val ? OV9282_OUTPUT_ENABLE6_STROBE : 0, NULL);
 		break;
 	case V4L2_CID_FLASH_DURATION:
-		ret = cci_write(ov9282->regmap, OV9282_REG_STROBE_FRAME_SPAN, ctrl->val, NULL);
+		ret = cci_write(ov9282->regmap, OV9282_REG_STROBE_FRAME_SPAN,
+				ov9282_us_to_flash_duration(ov9282, ctrl->val), NULL);
 		break;
 	default:
 		dev_err(ov9282->dev, "Invalid control %d", ctrl->id);
