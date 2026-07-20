@@ -2671,7 +2671,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 			// reporting, so check time limits for them.
 			if (rdp->rcu_cpu_kthread_status == RCU_KTHREAD_RUNNING &&
 			    rcu_do_batch_check_time(count, tlimit, jlimit_check, jlimit)) {
-				rdp->rcu_cpu_has_work = 1;
+				WRITE_ONCE(rdp->rcu_cpu_has_work, 1);
 				break;
 			}
 		}
@@ -2931,7 +2931,7 @@ static void invoke_rcu_core_kthread(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
+	this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
 	t = __this_cpu_read(rcu_data.rcu_cpu_kthread_task);
 	if (t != NULL && t != current)
 		rcu_wake_cond(t, __this_cpu_read(rcu_data.rcu_cpu_kthread_status));
@@ -2958,7 +2958,7 @@ static void rcu_cpu_kthread_park(unsigned int cpu)
 
 static int rcu_cpu_kthread_should_run(unsigned int cpu)
 {
-	return __this_cpu_read(rcu_data.rcu_cpu_has_work);
+	return this_cpu_read(rcu_data.rcu_cpu_has_work);
 }
 
 /*
@@ -2979,7 +2979,7 @@ static void rcu_cpu_kthread(unsigned int cpu)
 		local_bh_disable();
 		*statusp = RCU_KTHREAD_RUNNING;
 		local_irq_disable();
-		work = *workp;
+		work = READ_ONCE(*workp);
 		WRITE_ONCE(*workp, 0);
 		local_irq_enable();
 		if (work)
