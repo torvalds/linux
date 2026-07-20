@@ -657,7 +657,6 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	int h = vc->height;
 	unsigned long size;
 
-	dprintk(vc->dev, 4, "%s\n", __func__);
 	if (!vc->fmt)
 		return -EINVAL;
 
@@ -685,7 +684,6 @@ static void buffer_queue(struct vb2_buffer *vb)
 	struct s2255_vc *vc = vb2_get_drv_priv(vb->vb2_queue);
 	unsigned long flags = 0;
 
-	dprintk(vc->dev, 1, "%s\n", __func__);
 	spin_lock_irqsave(&vc->qlock, flags);
 	list_add_tail(&buf->list, &vc->buf_list);
 	spin_unlock_irqrestore(&vc->qlock, flags);
@@ -1487,7 +1485,6 @@ static int s2255_open(struct file *file)
 
 static void s2255_destroy(struct s2255_dev *dev)
 {
-	dprintk(dev, 1, "%s", __func__);
 	/* board shutdown stops the read pipe if it is running */
 	s2255_board_shutdown(dev);
 	/* make sure firmware still not trying to load */
@@ -1939,7 +1936,6 @@ static int s2255_create_sys_buffers(struct s2255_vc *vc)
 		vc->buffer.frame[i].lpvbits = vmalloc(reqsize);
 		vc->buffer.frame[i].size = reqsize;
 		if (!vc->buffer.frame[i].lpvbits) {
-			pr_info("out of memory.  using less frames\n");
 			vc->buffer.num_frames = i;
 			break;
 		}
@@ -1983,7 +1979,6 @@ static int s2255_board_init(struct s2255_dev *dev)
 	pipe->transfer_buffer = kzalloc(pipe->max_transfer_size,
 					GFP_KERNEL);
 	if (!pipe->transfer_buffer) {
-		dprintk(dev, 1, "out of memory!\n");
 		return -ENOMEM;
 	}
 	/* query the firmware */
@@ -2183,7 +2178,6 @@ static void s2255_stop_readpipe(struct s2255_dev *dev)
 		usb_free_urb(pipe->stream_urb);
 		pipe->stream_urb = NULL;
 	}
-	dprintk(dev, 4, "%s", __func__);
 }
 
 static void s2255_fwload_start(struct s2255_dev *dev)
@@ -2217,13 +2211,11 @@ static int s2255_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it to zero */
 	dev = kzalloc_obj(struct s2255_dev);
 	if (!dev) {
-		s2255_dev_err(&interface->dev, "out of memory\n");
 		return -ENOMEM;
 	}
 
 	dev->cmdbuf = kzalloc(S2255_CMDBUF_SIZE, GFP_KERNEL);
 	if (!dev->cmdbuf) {
-		s2255_dev_err(&interface->dev, "out of memory\n");
 		goto err_fwdata1;
 	}
 
@@ -2275,7 +2267,6 @@ static int s2255_probe(struct usb_interface *interface,
 
 	dev->fw_data->pfw_data = kzalloc(CHUNK_SIZE, GFP_KERNEL);
 	if (!dev->fw_data->pfw_data) {
-		dev_err(&interface->dev, "out of memory!\n");
 		goto err_fwdata2;
 	}
 	/* load the first chunk */
@@ -2371,7 +2362,6 @@ static void s2255_disconnect(struct usb_interface *interface)
 	}
 	if (refcount_dec_and_test(&dev->num_channels))
 		s2255_destroy(dev);
-	dev_info(&interface->dev, "%s\n", __func__);
 }
 
 static struct usb_driver s2255_driver = {
