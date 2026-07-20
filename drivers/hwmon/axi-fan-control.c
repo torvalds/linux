@@ -508,8 +508,7 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 					IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
 					NULL, ctl);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to request an irq\n");
+		return ret;
 
 	return 0;
 }
