@@ -1373,10 +1373,6 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 
 	new_length = ntfs_bytes_to_cluster(vol, round_up(bio_size, vol->cluster_size));
 
-	err = ntfs_non_resident_attr_punch_hole(ni, new_vcn, ni->itype.compressed.block_clusters);
-	if (err < 0)
-		goto out;
-
 	rlc = ntfs_cluster_alloc(vol, new_vcn, new_length, -1, DATA_ZONE,
 			false, true, true);
 	if (IS_ERR(rlc)) {
@@ -1385,28 +1381,6 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	}
 
 	bio_lcn = rlc->lcn;
-	down_write(&ni->runlist.lock);
-	rl = ntfs_runlists_merge(&ni->runlist, rlc, 0, &new_rl_count);
-	if (IS_ERR(rl)) {
-		up_write(&ni->runlist.lock);
-		ntfs_error(vol->sb, "Failed to merge runlists");
-		err = PTR_ERR(rl);
-		if (ntfs_cluster_free_from_rl(vol, rlc))
-			ntfs_error(vol->sb, "Failed to free hot clusters.");
-		kvfree(rlc);
-		goto out;
-	}
-
-	ni->runlist.count = new_rl_count;
-	ni->runlist.rl = rl;
-
-	err = ntfs_attr_update_mapping_pairs(ni, 0);
-	up_write(&ni->runlist.lock);
-	if (err) {
-		err = -EIO;
-		goto out;
-	}
-
 	i = 0;
 	while (bio_size > 0) {
 		int page_size;
@@ -1423,6 +1397,10 @@ setup_bio:
 		if (!bio) {
 			bio = bio_alloc(vol->sb->s_bdev, 1, REQ_OP_WRITE,
 					GFP_NOIO);
+			if (!bio) {
+				err = -ENOMEM;
+				goto free_rlc;
+			}
 			bio->bi_iter.bi_sector =
 				ntfs_bytes_to_sector(vol,
 						ntfs_cluster_to_bytes(vol, bio_lcn) +
@@ -1433,7 +1411,7 @@ setup_bio:
 			err = submit_bio_wait(bio);
 			bio_put(bio);
 			if (err)
-				goto out;
+				goto free_rlc;
 			bio = NULL;
 			goto setup_bio;
 		}
@@ -1442,6 +1420,37 @@ setup_bio:
 
 	err = submit_bio_wait(bio);
 	bio_put(bio);
+	if (err)
+		goto free_rlc;
+
+	/* Do not discard the old compression block until the new one is safe. */
+	err = ntfs_non_resident_attr_punch_hole(ni, new_vcn, cb_clusters);
+	if (err)
+		goto free_rlc;
+
+	down_write(&ni->runlist.lock);
+	rl = ntfs_runlists_merge(&ni->runlist, rlc, 0, &new_rl_count);
+	if (IS_ERR(rl)) {
+		up_write(&ni->runlist.lock);
+		ntfs_error(vol->sb, "Failed to merge runlists");
+		err = PTR_ERR(rl);
+		goto free_rlc;
+	}
+
+	ni->runlist.count = new_rl_count;
+	ni->runlist.rl = rl;
+	rlc = NULL;
+
+	err = ntfs_attr_update_mapping_pairs(ni, 0);
+	up_write(&ni->runlist.lock);
+	if (err)
+		err = -EIO;
+	goto out;
+
+free_rlc:
+	if (ntfs_cluster_free_from_rl(vol, rlc))
+		ntfs_error(vol->sb, "Failed to free hot clusters.");
+	kvfree(rlc);
 out:
 	if (outbuf)
 		vunmap(outbuf);
