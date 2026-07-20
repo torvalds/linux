@@ -427,10 +427,8 @@ void do_secure_storage_access(struct pt_regs *regs)
 		 * was not supposed to do, e.g. branching into secure
 		 * memory. Trigger a segmentation fault.
 		 */
-		if (user_mode(regs)) {
-			send_sig(SIGSEGV, current, 0);
-			return;
-		}
+		if (user_mode(regs))
+			return handle_fault_error_nolock(regs, SEGV_ACCERR);
 		/*
 		 * The kernel should never run into this case and
 		 * there is no way out of this situation.
@@ -465,7 +463,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		folio_put(folio);
 		folio_walk_end(&fw, vma);
 		if (rc)
-			send_sig(SIGSEGV, current, 0);
+			return handle_fault_error(regs, SEGV_ACCERR);
 		mmap_read_unlock(mm);
 	}
 }
