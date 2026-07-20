@@ -236,9 +236,9 @@ $(OUTPUT)%.o: %.c
 $(OUTPUT)cpupower: $(UTIL_OBJS) $(OUTPUT)$(LIBCPUPOWER)
 	$(ECHO) "  CC      " $@
 ifeq ($(strip $(STATIC)),true)
-	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lrt -lpci -L$(OUTPUT) -o $@
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lm -lrt -lpci -L$(OUTPUT) -o $@
 else
-	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lcpupower -lrt -lpci -L$(OUTPUT) -o $@
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lm -lcpupower -lrt -lpci -L$(OUTPUT) -o $@
 endif
 	$(QUIET) $(STRIPCMD) $@
 
