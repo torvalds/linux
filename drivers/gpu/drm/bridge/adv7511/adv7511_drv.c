@@ -1471,11 +1471,11 @@ static const struct adv7511_chip_info adv7535_chip_info = {
 };
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {
-	{ "adv7511", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7511w", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7513", (kernel_ulong_t)&adv7511_chip_info },
-	{ "adv7533", (kernel_ulong_t)&adv7533_chip_info },
-	{ "adv7535", (kernel_ulong_t)&adv7535_chip_info },
+	{ .name = "adv7511", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7511w", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7513", .driver_data = (kernel_ulong_t)&adv7511_chip_info },
+	{ .name = "adv7533", .driver_data = (kernel_ulong_t)&adv7533_chip_info },
+	{ .name = "adv7535", .driver_data = (kernel_ulong_t)&adv7535_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adv7511_i2c_ids);

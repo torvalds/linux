@@ -727,8 +727,8 @@ static void tc_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc358775_i2c_ids[] = {
-	{ "tc358765", TC358765, },
-	{ "tc358775", TC358775, },
+	{ .name = "tc358765", .driver_data = TC358765 },
+	{ .name = "tc358775", .driver_data = TC358775 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc358775_i2c_ids);

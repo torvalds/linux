@@ -1072,9 +1072,9 @@ static void sn65dsi83_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sn65dsi83_id[] = {
-	{ "ti,sn65dsi83", MODEL_SN65DSI83 },
-	{ "ti,sn65dsi84", MODEL_SN65DSI84 },
-	{},
+	{ .name = "ti,sn65dsi83", .driver_data = MODEL_SN65DSI83 },
+	{ .name = "ti,sn65dsi84", .driver_data = MODEL_SN65DSI84 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sn65dsi83_id);
 
