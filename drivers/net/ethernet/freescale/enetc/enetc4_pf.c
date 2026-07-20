@@ -23,7 +23,6 @@ static void enetc4_get_port_caps(struct enetc_pf *pf)
 	u32 val;
 
 	val = enetc_port_rd(hw, ENETC4_ECAPR1);
-	pf->caps.num_vsi = (val & ECAPR1_NUM_VSI) >> 24;
 	pf->caps.num_msix = ((val & ECAPR1_NUM_MSIX) >> 12) + 1;
 
 	val = enetc_port_rd(hw, ENETC4_ECAPR2);
@@ -255,34 +254,35 @@ static void enetc4_default_rings_allocation(struct enetc_pf *pf)
 {
 	struct enetc_hw *hw = &pf->si->hw;
 	u32 num_rx_bdr, num_tx_bdr, val;
+	int num_vfs = pf->total_vfs;
 	u32 vf_tx_bdr, vf_rx_bdr;
 	int i, rx_rem, tx_rem;
 
-	if (pf->caps.num_rx_bdr < ENETC_SI_MAX_RING_NUM + pf->caps.num_vsi)
-		num_rx_bdr = pf->caps.num_rx_bdr - pf->caps.num_vsi;
+	if (pf->caps.num_rx_bdr < ENETC_SI_MAX_RING_NUM + num_vfs)
+		num_rx_bdr = pf->caps.num_rx_bdr - num_vfs;
 	else
 		num_rx_bdr = ENETC_SI_MAX_RING_NUM;
 
-	if (pf->caps.num_tx_bdr < ENETC_SI_MAX_RING_NUM + pf->caps.num_vsi)
-		num_tx_bdr = pf->caps.num_tx_bdr - pf->caps.num_vsi;
+	if (pf->caps.num_tx_bdr < ENETC_SI_MAX_RING_NUM + num_vfs)
+		num_tx_bdr = pf->caps.num_tx_bdr - num_vfs;
 	else
 		num_tx_bdr = ENETC_SI_MAX_RING_NUM;
 
 	val = enetc4_psicfgr0_val_construct(false, num_tx_bdr, num_rx_bdr);
 	enetc_port_wr(hw, ENETC4_PSICFGR0(0), val);
 
-	if (!pf->caps.num_vsi)
+	if (!num_vfs)
 		return;
 
 	num_rx_bdr = pf->caps.num_rx_bdr - num_rx_bdr;
-	rx_rem = num_rx_bdr % pf->caps.num_vsi;
-	num_rx_bdr = num_rx_bdr / pf->caps.num_vsi;
+	rx_rem = num_rx_bdr % num_vfs;
+	num_rx_bdr = num_rx_bdr / num_vfs;
 
 	num_tx_bdr = pf->caps.num_tx_bdr - num_tx_bdr;
-	tx_rem = num_tx_bdr % pf->caps.num_vsi;
-	num_tx_bdr = num_tx_bdr / pf->caps.num_vsi;
+	tx_rem = num_tx_bdr % num_vfs;
+	num_tx_bdr = num_tx_bdr / num_vfs;
 
-	for (i = 0; i < pf->caps.num_vsi; i++) {
+	for (i = 0; i < num_vfs; i++) {
 		vf_tx_bdr = (i < tx_rem) ? num_tx_bdr + 1 : num_tx_bdr;
 		vf_rx_bdr = (i < rx_rem) ? num_rx_bdr + 1 : num_rx_bdr;
 		val = enetc4_psicfgr0_val_construct(true, vf_tx_bdr, vf_rx_bdr);
@@ -298,27 +298,67 @@ static void enetc4_allocate_si_rings(struct enetc_pf *pf)
 /* Allocate the number of MSI-X vectors for per SI. */
 static void enetc4_set_si_msix_num(struct enetc_pf *pf)
 {
+	int valid_num_si = pf->total_vfs + 1;
 	struct enetc_hw *hw = &pf->si->hw;
-	int i, num_msix, total_si;
+	int i, num_msix, num_vsi;
 	u32 val;
 
-	total_si = pf->caps.num_vsi + 1;
+	val = enetc_port_rd(hw, ENETC4_ECAPR1);
+	num_vsi = FIELD_GET(ECAPR1_NUM_VSI, val);
 
-	num_msix = pf->caps.num_msix / total_si +
-		   pf->caps.num_msix % total_si - 1;
-	val = num_msix & PSICFGR2_NUM_MSIX;
-	enetc_port_wr(hw, ENETC4_PSICFGR2(0), val);
+	/* The PSIaCFGR2[NUM_MSIX] indicates the number of MSI-X allocated to
+	 * the SI is NUM_MSIX + 1, so the minimum number of MSI-X allocated to
+	 * each SI is 1. The total number of MSI-X allocated to PSI and VSIs
+	 * cannot exceed the total number of MSI-X owned by this ENETC, which
+	 * is ECAPR1[NUM_MSIX]. Otherwise, when multiple ENETC instances exist,
+	 * it will affect other ENETCs whose MSI-X interrupts cannot be
+	 * generated. This is similar to out-of-bounds array access: the array
+	 * itself is not affected, but adjacent arrays will be corrupted.
+	 *
+	 * pf->total_vfs is 0 if CONFIG_PCI_IOV is disabled. If the hardware
+	 * itself supports SR-IOV, then when allocating the number of MSIXs to
+	 * the SI, it must be taken into account that the VSI has at least 1
+	 * MSIX, and the total number of MSIXs of all SIs cannot exceed
+	 * ECAPR1[NUM_MSIX].
+	 */
+	if (!pf->total_vfs && num_vsi) {
+		/* Because each SI has at least one MSIX, and from the hardware
+		 * perspective, pf->caps.num_msix will always be greater than
+		 * num_vsi. So num_msix is always greater than or equal to 0.
+		 */
+		num_msix = pf->caps.num_msix - num_vsi - 1;
+		if (num_msix > PSICFGR2_NUM_MSIX)
+			num_msix = PSICFGR2_NUM_MSIX;
+		enetc_port_wr(hw, ENETC4_PSICFGR2(0), num_msix);
 
-	num_msix = pf->caps.num_msix / total_si - 1;
-	val = num_msix & PSICFGR2_NUM_MSIX;
-	for (i = 0; i < pf->caps.num_vsi; i++)
-		enetc_port_wr(hw, ENETC4_PSICFGR2(i + 1), val);
+		for (i = 0; i < num_vsi; i++)
+			enetc_port_wr(hw, ENETC4_PSICFGR2(i + 1), 0);
+
+		return;
+	}
+
+	/* Likewise, from the hardware perspective pf->caps.num_msix is always
+	 * greater than valid_num_si. So num_msix is always greater than or
+	 * equal to 0.
+	 */
+	num_msix = pf->caps.num_msix / valid_num_si +
+		   pf->caps.num_msix % valid_num_si - 1;
+	if (num_msix > PSICFGR2_NUM_MSIX)
+		num_msix = PSICFGR2_NUM_MSIX;
+	enetc_port_wr(hw, ENETC4_PSICFGR2(0), num_msix);
+
+	num_msix = pf->caps.num_msix / valid_num_si - 1;
+	if (num_msix > PSICFGR2_NUM_MSIX)
+		num_msix = PSICFGR2_NUM_MSIX;
+
+	for (i = 0; i < pf->total_vfs; i++)
+		enetc_port_wr(hw, ENETC4_PSICFGR2(i + 1), num_msix);
 }
 
 static void enetc4_enable_all_si(struct enetc_pf *pf)
 {
 	struct enetc_hw *hw = &pf->si->hw;
-	int num_si = pf->caps.num_vsi + 1;
+	int num_si = pf->total_vfs + 1;
 	u32 si_bitmap = 0;
 	int i;
 
@@ -339,7 +379,7 @@ static void enetc4_configure_port_si(struct enetc_pf *pf)
 	enetc_port_wr(hw, ENETC4_PSIVLANFMR, PSIVLANFMR_VS);
 
 	/* Enforce VLAN promiscuous mode for all SIs */
-	for (int i = 0; i < pf->caps.num_vsi + 1; i++)
+	for (int i = 0; i < pf->total_vfs + 1; i++)
 		enetc_set_si_vlan_promisc(pf->si, i, true);
 
 	/* Disable SI MAC multicast & unicast promiscuous */
