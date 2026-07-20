@@ -497,7 +497,8 @@ xfs_iget_cache_hit(
 	struct xfs_inode	*ip,
 	xfs_ino_t		ino,
 	int			flags,
-	int			lock_flags) __releases(RCU)
+	int			lock_flags)
+		__releases_shared(RCU)
 {
 	struct inode		*inode = VFS_I(ip);
 	struct xfs_mount	*mp = ip->i_mount;
