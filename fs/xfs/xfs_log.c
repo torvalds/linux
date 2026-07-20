@@ -422,6 +422,8 @@ out_error:
 static void
 xlog_state_shutdown_callbacks(
 	struct xlog		*log)
+		__releases(&log->l_icloglock)
+		__acquires(&log->l_icloglock)
 {
 	struct xlog_in_core	*iclog;
 	LIST_HEAD(cb_list);
