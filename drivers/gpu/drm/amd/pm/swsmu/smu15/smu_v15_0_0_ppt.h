@@ -23,6 +23,19 @@
 #ifndef __SMU_V15_0_0_PPT_H__
 #define __SMU_V15_0_0_PPT_H__
 
+#include "amdgpu_smu.h"
+
+#include "pmfw_if/smu_v15_0_0_metrics.h"
+
+typedef struct {
+	MetricsTable_t metrics[2];
+	bool active_idx;
+	uint32_t table_size;
+	uint64_t addr;
+	void __iomem *cpu_addr;
+	uint32_t avg_metric[METRICS_AVERAGE_NPUCLK+1];
+} SMU_15_0_0_MetricsInfo_t;
+
 extern void smu_v15_0_0_set_ppt_funcs(struct smu_context *smu);
 
 #endif
