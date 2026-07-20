@@ -167,6 +167,17 @@
 	status = "okay";
 };
 
+&lpuart6 {
+	/* BT */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpuart6>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+	};
+};
+
 &lpi2c7 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -346,6 +357,15 @@
 		fsl,pins = <
 			MX8ULP_PAD_PTF14__LPUART5_TX	0x3
 			MX8ULP_PAD_PTF15__LPUART5_RX	0x3
+		>;
+	};
+
+	pinctrl_lpuart6: lpuart6grp {
+		fsl,pins = <
+			MX8ULP_PAD_PTE10__LPUART6_TX	0x3
+			MX8ULP_PAD_PTE11__LPUART6_RX	0x3
+			MX8ULP_PAD_PTE9__LPUART6_RTS_B	0x3
+			MX8ULP_PAD_PTE8__LPUART6_CTS_B	0x3
 		>;
 	};
 
