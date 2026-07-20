@@ -516,6 +516,10 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 
 	map->lock(map->lock_arg);
 
+	if (WARN_ON(map->cache_only)) {
+		map->unlock(map->lock_arg);
+		return -EINVAL;
+	}
 	/* Remember the initial bypass state */
 	bypass = map->cache_bypass;
 
