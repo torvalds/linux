@@ -471,7 +471,6 @@ static int fentry_perf_func(struct trace_fprobe *tf, unsigned long entry_ip,
 	regs = ftrace_fill_perf_regs(fregs, regs);
 
 	entry->ip = entry_ip;
-	memset(&entry[1], 0, dsize);
 	store_trace_args(&entry[1], &tf->tp, fregs, NULL, sizeof(*entry), dsize);
 	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
 			      head, NULL);
