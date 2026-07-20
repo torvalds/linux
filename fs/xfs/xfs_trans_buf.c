@@ -521,7 +521,8 @@ xfs_trans_log_buf(
 {
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 
-	ASSERT(first <= last && last < BBTOB(bp->b_length));
+	ASSERT(first <= last);
+	ASSERT(last < BBTOB(bp->b_length));
 	ASSERT(!(bip->bli_flags & XFS_BLI_ORDERED));
 
 	xfs_trans_dirty_buf(tp, bp);
