@@ -455,10 +455,9 @@ void do_secure_storage_access(struct pt_regs *regs)
 	} else {
 		if (faulthandler_disabled() || !mm)
 			return handle_fault_error_nolock(regs, 0);
-		mmap_read_lock(mm);
-		vma = find_vma(mm, addr);
+		vma = lock_mm_and_find_vma(mm, addr, regs);
 		if (!vma)
-			return handle_fault_error(regs, SEGV_MAPERR);
+			return handle_fault_error_nolock(regs, SEGV_MAPERR);
 		folio = folio_walk_start(&fw, vma, addr, 0);
 		if (!folio) {
 			mmap_read_unlock(mm);
