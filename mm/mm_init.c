@@ -1836,7 +1836,6 @@ static void __init free_area_init(void)
 	}
 
 	/* Find the PFNs that ZONE_MOVABLE begins at in each node */
-	memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
 	find_zone_movable_pfns_for_nodes();
 
 	/* Print out the zone ranges */
