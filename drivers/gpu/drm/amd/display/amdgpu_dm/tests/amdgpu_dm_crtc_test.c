@@ -12,6 +12,8 @@
 #include <drm/drm_vblank.h>
 
 #include "dc.h"
+#include "inc/core_types.h"
+#include "irq/irq_service.h"
 #include "amdgpu.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
@@ -428,6 +430,101 @@ static void dm_test_crtc_set_vupdate_irq_no_otg(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, true), 0);
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, false), 0);
+}
+
+/**
+ * dm_test_crtc_set_vupdate_irq_dc_busy - Test vupdate irq when DC rejects request
+ * @test: The KUnit test context
+ *
+ * With an OTG instance assigned but no DC attached, dc_interrupt_set() returns
+ * false and the function must report the request as busy (-EBUSY).
+ */
+static void dm_test_crtc_set_vupdate_irq_dc_busy(struct kunit *test)
+{
+	struct amdgpu_crtc *acrtc;
+	struct amdgpu_device *adev;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+
+	acrtc->base.dev = &adev->ddev;
+	acrtc->otg_inst = 0;
+
+	/* adev->dm.dc is NULL, so dc_interrupt_set() returns false. */
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, true), -EBUSY);
+}
+
+/* Per-source funcs let dc_interrupt_set() succeed without register access. */
+static bool dm_test_vupdate_irq_src_set(struct irq_service *irq_service,
+					const struct irq_source_info *info,
+					bool enable)
+{
+	return true;
+}
+
+static bool dm_test_vupdate_irq_src_ack(struct irq_service *irq_service,
+					const struct irq_source_info *info)
+{
+	return true;
+}
+
+static struct irq_source_info_funcs dm_test_vupdate_irq_src_funcs = {
+	.set = dm_test_vupdate_irq_src_set,
+	.ack = dm_test_vupdate_irq_src_ack,
+};
+
+/**
+ * dm_test_crtc_set_vupdate_irq_enable - Test vupdate irq enable/disable success
+ * @test: The KUnit test context
+ *
+ * With an OTG instance assigned and a DC whose IRQ service accepts the request,
+ * enabling and disabling the vupdate IRQ must both succeed (return 0).
+ */
+static void dm_test_crtc_set_vupdate_irq_enable(struct kunit *test)
+{
+	struct irq_source_info *info;
+	struct resource_pool *res_pool;
+	struct irq_service *irqs;
+	struct amdgpu_crtc *acrtc;
+	struct amdgpu_device *adev;
+	struct dc *dc;
+	int i;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	res_pool = kunit_kzalloc(test, sizeof(*res_pool), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res_pool);
+	irqs = kunit_kzalloc(test, sizeof(*irqs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, irqs);
+
+	/* Populate the per-source info table so dc_interrupt_set() succeeds. */
+	info = kunit_kzalloc(test, sizeof(*info) * DAL_IRQ_SOURCES_NUMBER,
+			     GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, info);
+	for (i = 0; i < DAL_IRQ_SOURCES_NUMBER; i++)
+		info[i].funcs = &dm_test_vupdate_irq_src_funcs;
+
+	irqs->info = info;
+	res_pool->irqs = irqs;
+	dc->res_pool = res_pool;
+	adev->dm.dc = dc;
+
+	acrtc->base.dev = &adev->ddev;
+	acrtc->otg_inst = 0;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, true), 0);
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_set_vupdate_irq(&acrtc->base, false), 0);
 }
 
 /* Tests for idle_create_workqueue() */
@@ -1187,6 +1284,8 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_helper_mode_fixup_returns_true),
 	/* amdgpu_dm_crtc_set_vupdate_irq */
 	KUNIT_CASE(dm_test_crtc_set_vupdate_irq_no_otg),
+	KUNIT_CASE(dm_test_crtc_set_vupdate_irq_dc_busy),
+	KUNIT_CASE(dm_test_crtc_set_vupdate_irq_enable),
 	/* idle_create_workqueue */
 	KUNIT_CASE(dm_test_idle_create_workqueue),
 	/* amdgpu_dm_idle_worker */
