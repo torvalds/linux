@@ -1246,7 +1246,7 @@ void store_trace_entry_data(void *edata, struct trace_probe *tp, struct pt_regs 
 			val = regs_get_kernel_argument(regs, code->param);
 			break;
 		case FETCH_OP_ST_EDATA:
-			*(unsigned long *)((unsigned long)edata + code->offset) = val;
+			*(unsigned long *)((u8 *)edata + code->offset) = val;
 			break;
 		case FETCH_OP_END:
 			goto end;
