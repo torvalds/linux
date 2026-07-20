@@ -24,9 +24,9 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <libliveupdate.h>
 #include <linux/liveupdate.h>
 
-#include "luo_test_utils.h"
 #include "../kselftest.h"
 #include "../kselftest_harness.h"
 

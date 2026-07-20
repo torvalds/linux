@@ -10,7 +10,8 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include "luo_test_utils.h"
+
+#include <libliveupdate.h>
 
 #define NUM_FILES 500
 #define STATE_SESSION_NAME "kexec_many_files_state"
