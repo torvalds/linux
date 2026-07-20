@@ -2770,10 +2770,9 @@ int trace_probe_compare_arg_type(struct trace_probe *a, struct trace_probe *b)
 		return b->nr_args + 1;
 
 	for (i = 0; i < a->nr_args; i++) {
-		if ((b->nr_args <= i) ||
-		    ((a->args[i].type != b->args[i].type) ||
-		     (a->args[i].count != b->args[i].count) ||
-		     strcmp(a->args[i].name, b->args[i].name)))
+		if ((a->args[i].type != b->args[i].type) ||
+		    (a->args[i].count != b->args[i].count) ||
+		    strcmp(a->args[i].name, b->args[i].name))
 			return i + 1;
 	}
 
