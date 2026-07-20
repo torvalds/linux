@@ -972,6 +972,50 @@ static void dm_test_crtc_handle_vblank_skips_when_flip_submitted(struct kunit *t
 }
 
 /**
+ * dm_test_crtc_handle_vblank_completes_cursor_only - Test event sent on vblank
+ * @test: The KUnit test context
+ *
+ * A pending event whose flip is not AMDGPU_FLIP_SUBMITTED (a cursor-only commit)
+ * must be signalled on vblank: the vblank event is sent, the vblank reference is
+ * dropped and acrtc->event is cleared.
+ */
+static void dm_test_crtc_handle_vblank_completes_cursor_only(struct kunit *test)
+{
+	struct drm_pending_vblank_event *event;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	KUNIT_ASSERT_EQ(test, drm_vblank_init(&adev->ddev, 1), 0);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+
+	/* drm_crtc_send_vblank_event() consumes (kfree()s) the event. */
+	event = kzalloc_obj(*event, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, event);
+
+	acrtc->base.dev = &adev->ddev;
+	acrtc->event = event;
+	acrtc->pflip_status = AMDGPU_FLIP_NONE;
+
+	/*
+	 * Take a vblank reference so the handler's drm_crtc_vblank_put() does not
+	 * underflow. Mark vblank enabled so the get succeeds without a hardware
+	 * enable hook.
+	 */
+	adev->ddev.vblank[0].enabled = true;
+	KUNIT_ASSERT_EQ(test, drm_crtc_vblank_get(&acrtc->base), 0);
+
+	amdgpu_dm_crtc_handle_vblank(acrtc);
+
+	/* Cursor-only commit: event was signalled and cleared. */
+	KUNIT_EXPECT_NULL(test, acrtc->event);
+}
+
+/**
  * dm_test_vblank_control_worker_setup - Build a vblank_control_work for the worker
  * @test: The KUnit test context
  * @enable: Value for vblank_work->enable
@@ -1168,6 +1212,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_handle_vblank */
 	KUNIT_CASE(dm_test_crtc_handle_vblank_no_event),
 	KUNIT_CASE(dm_test_crtc_handle_vblank_skips_when_flip_submitted),
+	KUNIT_CASE(dm_test_crtc_handle_vblank_completes_cursor_only),
 	/* amdgpu_dm_crtc_vblank_control_worker */
 	KUNIT_CASE(dm_test_vblank_control_worker_enable_increments),
 	KUNIT_CASE(dm_test_vblank_control_worker_disable_decrements),
