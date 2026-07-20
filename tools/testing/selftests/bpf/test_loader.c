@@ -807,7 +807,7 @@ static void verify_stderr(int prog_fd, struct expected_msgs *msgs)
 		return;
 
 	buf = malloc(TEST_LOADER_LOG_BUF_SZ);
-	if (!ASSERT_OK_PTR(buf, "malloc"))
+	if (!ASSERT_NEQ(buf, NULL, "malloc"))
 		return;
 
 	ret = bpf_prog_stream_read(prog_fd, 2, buf, TEST_LOADER_LOG_BUF_SZ - 1,
