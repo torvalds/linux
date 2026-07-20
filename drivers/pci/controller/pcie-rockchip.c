@@ -232,8 +232,8 @@ int rockchip_pcie_get_phys(struct rockchip_pcie *rockchip)
 
 		if (IS_ERR(phy)) {
 			if (PTR_ERR(phy) != -EPROBE_DEFER)
-				dev_err(dev, "missing phy for lane %d: %ld\n",
-					i, PTR_ERR(phy));
+				dev_err(dev, "missing phy for lane %d: %pe\n",
+					i, phy);
 			return PTR_ERR(phy);
 		}
 

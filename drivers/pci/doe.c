@@ -858,8 +858,8 @@ void pci_doe_init(struct pci_dev *pdev)
 						      PCI_EXT_CAP_ID_DOE))) {
 		doe_mb = pci_doe_create_mb(pdev, offset);
 		if (IS_ERR(doe_mb)) {
-			pci_err(pdev, "[%x] failed to create mailbox: %ld\n",
-				offset, PTR_ERR(doe_mb));
+			pci_err(pdev, "[%x] failed to create mailbox: %pe\n",
+				offset, doe_mb);
 			continue;
 		}
 
