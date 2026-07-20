@@ -2216,14 +2216,14 @@ static int s2255_probe(struct usb_interface *interface,
 	dev->cmdbuf = kzalloc(S2255_CMDBUF_SIZE, GFP_KERNEL);
 	if (dev->cmdbuf == NULL) {
 		s2255_dev_err(&interface->dev, "out of memory\n");
-		goto errorFWDATA1;
+		goto err_fwdata1;
 	}
 
 	refcount_set(&dev->num_channels, 0);
 	dev->pid = id->idProduct;
 	dev->fw_data = kzalloc_obj(struct s2255_fw);
 	if (!dev->fw_data)
-		goto errorFWDATA1;
+		goto err_fwdata1;
 	mutex_init(&dev->lock);
 	mutex_init(&dev->cmdlock);
 	/* grab usb_device and save it */
@@ -2231,7 +2231,7 @@ static int s2255_probe(struct usb_interface *interface,
 	if (dev->udev == NULL) {
 		dev_err(&interface->dev, "null usb device\n");
 		retval = -ENODEV;
-		goto errorUDEV;
+		goto err_udev;
 	}
 	dev_dbg(&interface->dev, "dev: %p, udev %p interface %p\n",
 		dev, dev->udev, interface);
@@ -2243,7 +2243,7 @@ static int s2255_probe(struct usb_interface *interface,
 
 	if (usb_find_bulk_in_endpoint(iface_desc, &endpoint)) {
 		dev_err(&interface->dev, "Could not find bulk-in endpoint\n");
-		goto errorEP;
+		goto err_ep;
 	}
 
 	dev->read_endpoint = endpoint->bEndpointAddress;
@@ -2262,32 +2262,32 @@ static int s2255_probe(struct usb_interface *interface,
 
 	dev->fw_data->fw_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->fw_data->fw_urb)
-		goto errorFWURB;
+		goto err_fwurb;
 
 	dev->fw_data->pfw_data = kzalloc(CHUNK_SIZE, GFP_KERNEL);
 	if (!dev->fw_data->pfw_data) {
 		dev_err(&interface->dev, "out of memory!\n");
-		goto errorFWDATA2;
+		goto err_fwdata2;
 	}
 	/* load the first chunk */
 	if (request_firmware(&dev->fw_data->fw,
 			     FIRMWARE_FILE_NAME, &dev->udev->dev)) {
 		dev_err(&interface->dev, "sensoray 2255 failed to get firmware\n");
-		goto errorREQFW;
+		goto err_reqfw;
 	}
 	/* check the firmware is valid */
 	fw_size = dev->fw_data->fw->size;
 	if (fw_size < 8) {
 		dev_err(&interface->dev, "Firmware invalid: too small.\n");
 		retval = -ENODEV;
-		goto errorFWMARKER;
+		goto err_fwmarker;
 	}
 	pdata = (__le32 *) &dev->fw_data->fw->data[fw_size - 8];
 
 	if (*pdata != S2255_FW_MARKER) {
 		dev_err(&interface->dev, "Firmware invalid.\n");
 		retval = -ENODEV;
-		goto errorFWMARKER;
+		goto err_fwmarker;
 	} else {
 		/* make sure firmware is the latest */
 		__le32 *pRel;
@@ -2305,30 +2305,30 @@ static int s2255_probe(struct usb_interface *interface,
 	/* load 2255 board specific */
 	retval = s2255_board_init(dev);
 	if (retval)
-		goto errorBOARDINIT;
+		goto err_boardinit;
 	s2255_fwload_start(dev);
 	/* loads v4l specific */
 	retval = s2255_probe_v4l(dev);
 	if (retval)
-		goto errorBOARDINIT;
+		goto err_boardinit;
 	dev_info(&interface->dev, "Sensoray 2255 detected\n");
 	return 0;
-errorBOARDINIT:
+err_boardinit:
 	s2255_board_shutdown(dev);
-errorFWMARKER:
+err_fwmarker:
 	release_firmware(dev->fw_data->fw);
-errorREQFW:
+err_reqfw:
 	kfree(dev->fw_data->pfw_data);
-errorFWDATA2:
+err_fwdata2:
 	usb_free_urb(dev->fw_data->fw_urb);
-errorFWURB:
+err_fwurb:
 	timer_shutdown_sync(&dev->timer);
-errorEP:
+err_ep:
 	usb_put_dev(dev->udev);
-errorUDEV:
+err_udev:
 	kfree(dev->fw_data);
 	mutex_destroy(&dev->lock);
-errorFWDATA1:
+err_fwdata1:
 	kfree(dev->cmdbuf);
 	kfree(dev);
 	pr_warn("Sensoray 2255 driver load failed: 0x%x\n", retval);
