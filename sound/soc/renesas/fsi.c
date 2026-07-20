@@ -1979,8 +1979,8 @@ static const struct of_device_id fsi_of_match[] = {
 MODULE_DEVICE_TABLE(of, fsi_of_match);
 
 static const struct platform_device_id fsi_id_table[] = {
-	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
-	{},
+	/* an array with no valid entry prevents matching on driver name */
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, fsi_id_table);
 
