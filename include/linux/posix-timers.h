@@ -47,7 +47,7 @@ static inline bool clockid_aux_valid(clockid_t id)
 #include <linux/signal_types.h>
 
 /**
- * cpu_timer - Posix CPU timer representation for k_itimer
+ * struct cpu_timer - Posix CPU timer representation for k_itimer
  * @node:	timerqueue node to queue in the task/sig
  * @head:	timerqueue head on which this timer is queued
  * @pid:	Pointer to target task PID
@@ -174,6 +174,7 @@ static inline void posix_cputimers_init_work(void) { }
  * @it_sigqueue_seq:	The sequence count at the point where the signal was queued
  * @it_sigev_notify:	The notify word of sigevent struct for signal delivery
  * @it_interval:	The interval for periodic timers
+ * @it_pid_type:	The type of the PID
  * @it_signal:		Pointer to the creators signal struct
  * @it_pid:		The pid of the process/task targeted by the signal
  * @it_process:		The task to wakeup on clock_nanosleep (CPU timers)
