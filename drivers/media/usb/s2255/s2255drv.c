@@ -720,21 +720,21 @@ static int vidioc_querycap(struct file *file, void *priv,
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
-			       struct v4l2_fmtdesc *f)
+				   struct v4l2_fmtdesc *f)
 {
 	int index = f->index;
 
 	if (index >= ARRAY_SIZE(formats))
 		return -EINVAL;
 	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
-			(formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
+			     (formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
 		return -EINVAL;
 	f->pixelformat = formats[index].fourcc;
 	return 0;
 }
 
 static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
-			    struct v4l2_format *f)
+				struct v4l2_format *f)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 	int is_ntsc = vc->std & V4L2_STD_525_60;
@@ -754,7 +754,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
-			      struct v4l2_format *f)
+				  struct v4l2_format *f)
 {
 	const struct s2255_fmt *fmt;
 	enum v4l2_field field;
@@ -805,7 +805,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-			    struct v4l2_format *f)
+				struct v4l2_format *f)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 	const struct s2255_fmt *fmt;
@@ -1234,7 +1234,7 @@ static int s2255_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static int vidioc_g_jpegcomp(struct file *file, void *priv,
-			 struct v4l2_jpegcompression *jc)
+			     struct v4l2_jpegcompression *jc)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 
@@ -1245,7 +1245,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 }
 
 static int vidioc_s_jpegcomp(struct file *file, void *priv,
-			 const struct v4l2_jpegcompression *jc)
+			     const struct v4l2_jpegcompression *jc)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 
@@ -1348,7 +1348,7 @@ static const struct v4l2_frmsize_discrete pal_sizes[] = {
 };
 
 static int vidioc_enum_framesizes(struct file *file, void *priv,
-			    struct v4l2_frmsizeenum *fe)
+				  struct v4l2_frmsizeenum *fe)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 	int is_ntsc = vc->std & V4L2_STD_525_60;
@@ -1366,7 +1366,7 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 }
 
 static int vidioc_enum_frameintervals(struct file *file, void *priv,
-			    struct v4l2_frmivalenum *fe)
+				      struct v4l2_frmivalenum *fe)
 {
 	struct s2255_vc *vc = video_drvdata(file);
 	const struct s2255_fmt *fmt;
@@ -1418,7 +1418,7 @@ static int s2255_open(struct file *file)
 		return -ENODEV;
 	case S2255_FW_FAILED:
 		s2255_dev_err(&dev->udev->dev,
-			"firmware load failed. retrying.\n");
+			      "firmware load failed. retrying.\n");
 		s2255_fwload_start(dev);
 		wait_event_timeout(dev->fw_data->wait_fw,
 				   ((atomic_read(&dev->fw_data->fw_state)
@@ -1601,17 +1601,17 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 
 		v4l2_ctrl_handler_init(&vc->hdl, 6);
 		v4l2_ctrl_new_std(&vc->hdl, &s2255_ctrl_ops,
-				V4L2_CID_BRIGHTNESS, -127, 127, 1, DEF_BRIGHT);
+				  V4L2_CID_BRIGHTNESS, -127, 127, 1, DEF_BRIGHT);
 		v4l2_ctrl_new_std(&vc->hdl, &s2255_ctrl_ops,
-				V4L2_CID_CONTRAST, 0, 255, 1, DEF_CONTRAST);
+				  V4L2_CID_CONTRAST, 0, 255, 1, DEF_CONTRAST);
 		v4l2_ctrl_new_std(&vc->hdl, &s2255_ctrl_ops,
-				V4L2_CID_SATURATION, 0, 255, 1, DEF_SATURATION);
+				  V4L2_CID_SATURATION, 0, 255, 1, DEF_SATURATION);
 		v4l2_ctrl_new_std(&vc->hdl, &s2255_ctrl_ops,
-				V4L2_CID_HUE, 0, 255, 1, DEF_HUE);
+				  V4L2_CID_HUE, 0, 255, 1, DEF_HUE);
 		vc->jpegqual_ctrl = v4l2_ctrl_new_std(&vc->hdl,
-				&s2255_ctrl_ops,
-				V4L2_CID_JPEG_COMPRESSION_QUALITY,
-				0, 100, 1, S2255_DEF_JPEG_QUAL);
+						      &s2255_ctrl_ops,
+						      V4L2_CID_JPEG_COMPRESSION_QUALITY,
+						      0, 100, 1, S2255_DEF_JPEG_QUAL);
 		if (dev->dsp_fw_ver >= S2255_MIN_DSP_COLORFILTER &&
 		    (dev->pid != 0x2257 || vc->idx <= 1))
 			v4l2_ctrl_new_custom(&vc->hdl, &color_filter_ctrl,
@@ -2301,7 +2301,7 @@ static int s2255_probe(struct usb_interface *interface,
 		if (dev->dsp_fw_ver < S2255_CUR_DSP_FWVER)
 			pr_info("s2255: f2255usb.bin out of date.\n");
 		if (dev->pid == 0x2257 &&
-				dev->dsp_fw_ver < S2255_MIN_DSP_COLORFILTER)
+		    dev->dsp_fw_ver < S2255_MIN_DSP_COLORFILTER)
 			pr_warn("2257 needs firmware %d or above.\n",
 				S2255_MIN_DSP_COLORFILTER);
 	}
