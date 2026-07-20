@@ -280,7 +280,7 @@ static int apple_soc_cpufreq_init(struct cpufreq_policy *policy)
 
 	/* Get OPP levels (p-state indexes) and stash them in driver_data */
 	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned long rate = freq_table[i].frequency * 1000 + 999;
+		unsigned long rate = freq_table[i].frequency * 1000UL + 999;
 		struct dev_pm_opp *opp = dev_pm_opp_find_freq_floor(cpu_dev, &rate);
 
 		if (IS_ERR(opp)) {
