@@ -216,7 +216,6 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 	struct qce_alg_template *tmpl = to_cipher_tmpl(tfm);
 	unsigned int blocksize = crypto_skcipher_blocksize(tfm);
 	int keylen;
-	int ret;
 
 	rctx->flags = tmpl->alg_flags;
 	rctx->flags |= encrypt ? QCE_ENCRYPT : QCE_DECRYPT;
@@ -254,9 +253,8 @@ static int qce_skcipher_crypt(struct skcipher_request *req, int encrypt)
 					      req->base.data);
 		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
 					   req->dst, req->cryptlen, req->iv);
-		ret = encrypt ? crypto_skcipher_encrypt(&rctx->fallback_req) :
-				crypto_skcipher_decrypt(&rctx->fallback_req);
-		return ret;
+		return encrypt ? crypto_skcipher_encrypt(&rctx->fallback_req) :
+				 crypto_skcipher_decrypt(&rctx->fallback_req);
 	}
 
 	return tmpl->qce->async_req_enqueue(tmpl->qce, &req->base);
