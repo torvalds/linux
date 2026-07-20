@@ -44,6 +44,7 @@
  * This driver supports the following PowerVR/IMG graphics cores from Imagination Technologies:
  *
  * * AXE-1-16M (33.15.11.3)
+ * * BXM-4-64 MC1 (36.52.104.182)
  * * BXS-4-64 MC1 (36.53.104.796)
  */
 
