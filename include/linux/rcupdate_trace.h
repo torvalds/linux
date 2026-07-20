@@ -126,11 +126,13 @@ static inline void rcu_read_unlock_trace(void)
 	struct srcu_ctr __percpu *scp;
 	struct task_struct *t = current;
 
-	scp = t->trc_reader_scp;
-	barrier();  // scp before nesting to protect against interrupt handler.
 	n = READ_ONCE(t->trc_reader_nesting) - 1;
-	WRITE_ONCE(t->trc_reader_nesting, n);
-	if (!n) {
+	if (n) {
+		WRITE_ONCE(t->trc_reader_nesting, n);
+	} else {
+		scp = t->trc_reader_scp; // Compiler cannot hoist load due to data raciness.
+		barrier();  // scp before nesting to protect against interrupt handler.
+		WRITE_ONCE(t->trc_reader_nesting, n);
 		if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU_NO_MB))
 			smp_mb(); // Placeholder for more selective ordering
 		__srcu_read_unlock_fast(&rcu_tasks_trace_srcu_struct, scp);
