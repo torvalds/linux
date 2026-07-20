@@ -630,10 +630,8 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, wkup_m3_txev_handler,
 			       0, "wkup_m3_txev", m3_ipc);
-	if (ret) {
-		dev_err(dev, "request_irq failed\n");
+	if (ret)
 		return ret;
-	}
 
 	m3_ipc->mbox_client.dev = dev;
 	m3_ipc->mbox_client.tx_done = NULL;
