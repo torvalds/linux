@@ -38,7 +38,7 @@ struct snd_kctl_ioctl {
 	snd_kctl_ioctl_func_t fioctl;
 };
 
-static DECLARE_RWSEM(snd_ioctl_rwsem);
+DECLARE_RWSEM(snd_ioctl_rwsem);
 static DECLARE_RWSEM(snd_ctl_layer_rwsem);
 static LIST_HEAD(snd_control_ioctls);
 #ifdef CONFIG_COMPAT
@@ -872,21 +872,79 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 {
 	struct snd_ctl_card_info *info __free(kfree) =
 		kzalloc(sizeof(*info), GFP_KERNEL);
+	ssize_t n;
 
 	if (! info)
 		return -ENOMEM;
+
+	static_assert(sizeof(info->components) >= 2);
+
 	scoped_guard(rwsem_read, &snd_ioctl_rwsem) {
+		const char *components = card->components;
+
+		if (!components)
+			components = "";
+
 		info->card = card->number;
 		strscpy(info->id, card->id, sizeof(info->id));
 		strscpy(info->driver, card->driver, sizeof(info->driver));
 		strscpy(info->name, card->shortname, sizeof(info->name));
 		strscpy(info->longname, card->longname, sizeof(info->longname));
 		strscpy(info->mixername, card->mixername, sizeof(info->mixername));
-		strscpy(info->components, card->components, sizeof(info->components));
+		n = strscpy(info->components, components, sizeof(info->components));
+		if (n < 0) // mark the truncation with '>' before NULL terminator
+			info->components[sizeof(info->components) - 2] = '>';
 	}
 	if (copy_to_user(arg, info, sizeof(struct snd_ctl_card_info)))
 		return -EFAULT;
 	return 0;
+}
+
+static int snd_ctl_card_bytes(struct snd_card *card,
+			      struct snd_ctl_card_bytes *info,
+			      unsigned int __user *data_len_out)
+{
+	unsigned int data_len;
+
+	switch (info->type) {
+	case SND_CTL_CARD_BTYPE_COMPONENTS:
+		scoped_guard(rwsem_read, &snd_ioctl_rwsem) {
+			const char *components = card->components;
+
+			if (!components)
+				components = "";
+
+			data_len = strlen(components) + 1;
+
+			if (!info->data || info->data_allocated == 0)
+				break;
+
+			if (info->data_allocated < data_len)
+				return -ENOMEM;
+
+			if (copy_to_user(u64_to_user_ptr(info->data), components, data_len))
+				return -EFAULT;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (put_user(data_len, data_len_out))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int snd_ctl_card_bytes_user(struct snd_card *card,
+				   struct snd_ctl_card_bytes __user *_info)
+{
+	struct snd_ctl_card_bytes info;
+
+	if (copy_from_user(&info, _info, sizeof(info)))
+		return -EFAULT;
+
+	return snd_ctl_card_bytes(card, &info, &_info->data_len);
 }
 
 static int snd_ctl_elem_list(struct snd_card *card,
@@ -1986,6 +2044,8 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 		return put_user(SNDRV_CTL_VERSION, ip) ? -EFAULT : 0;
 	case SNDRV_CTL_IOCTL_CARD_INFO:
 		return snd_ctl_card_info(card, ctl, cmd, argp);
+	case SNDRV_CTL_IOCTL_CARD_BYTES:
+		return snd_ctl_card_bytes_user(card, argp);
 	case SNDRV_CTL_IOCTL_ELEM_LIST:
 		return snd_ctl_elem_list_user(card, argp);
 	case SNDRV_CTL_IOCTL_ELEM_INFO:
