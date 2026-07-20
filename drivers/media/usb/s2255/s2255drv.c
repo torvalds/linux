@@ -86,7 +86,6 @@
 #define LINE_SZ_DEF		640
 #define NUM_LINES_DEF		240
 
-
 /* predefined settings */
 #define FORMAT_NTSC	1
 #define FORMAT_PAL	2
@@ -143,7 +142,6 @@ struct s2255_mode {
 	u32 usb_block;	/* block size. should be 4096 of DEF_USB_BLOCK */
 	u32 restart;	/* if DSP requires restart */
 };
-
 
 #define S2255_READ_IDLE		0
 #define S2255_READ_FRAME	1
@@ -243,7 +241,6 @@ struct s2255_vc {
 	spinlock_t qlock;
 };
 
-
 struct s2255_dev {
 	struct s2255_vc         vc[MAX_CHANNELS];
 	struct v4l2_device      v4l2_dev;
@@ -283,7 +280,6 @@ struct s2255_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
-
 
 /* current cypress EEPROM firmware version */
 #define S2255_CUR_USB_FWVER	((3 << 8) | 12)
@@ -430,7 +426,6 @@ static int norm_minh(struct s2255_vc *vc)
 	    (NUM_LINES_1CIFS_NTSC) : (NUM_LINES_1CIFS_PAL);
 }
 
-
 /*
  * TODO: fixme: move YUV reordering to hardware
  * converts 2255 planar format to yuyv or uyvy
@@ -481,7 +476,6 @@ static void s2255_timer(struct timer_list *t)
 		return;
 	}
 }
-
 
 /* this loads the firmware asynchronously.
    Originally this was done synchronously in probe.
@@ -538,7 +532,6 @@ static void s2255_fwchunk_complete(struct urb *urb)
 		atomic_set(&data->fw_state, S2255_FW_LOADED_DSPWAIT);
 	}
 	return;
-
 }
 
 static void s2255_got_frame(struct s2255_vc *vc, int jpgsize)
@@ -636,7 +629,6 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 	dprintk(dev, 2, "s2255fill at : Buffer %p size= %d\n",
 		vbuf, pos);
 }
-
 
 /* ------------------------------------------------------------------
    Videobuf operations
@@ -880,7 +872,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	(void)s2255_set_mode(vc, &mode);
 	return 0;
 }
-
 
 /* write to the configuration pipe, synchronously */
 static int s2255_write_config(struct usb_device *udev, unsigned char *pbuf,
@@ -1663,7 +1654,6 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		refcount_inc(&dev->num_channels);
 		v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
 			  video_device_node_name(&vc->vdev));
-
 	}
 	pr_info("Sensoray 2255 V4L driver Revision: %s\n",
 		S2255_VERSION);
@@ -1805,7 +1795,6 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 	/* skip the marker 512 bytes (and offset if out of sync) */
 	psrc = (u8 *)pipe_info->transfer_buffer + offset;
 
-
 	if (!frm->lpvbits) {
 		dprintk(dev, 1, "s2255 frame buffer == NULL.%p %p %d %d",
 			frm, dev, dev->cc, idx);
@@ -1840,7 +1829,6 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 		vc->frame_count++;
 		frm->state = S2255_READ_IDLE;
 		frm->cur_size = 0;
-
 	}
 	/* done successfully */
 	return 0;
