@@ -410,7 +410,7 @@ enum acpi_device_swnode_ep_props {
  * @lane_polarities: "lane-polarities" property values.
  * @link_frequencies: "link_frequencies" property values.
  * @port_nr: Port number.
- * @crs_crs2_local: _CRS CSI2 record present (i.e. this is a transmitter one).
+ * @crs_csi2_local: _CRS CSI2 record present (i.e. this is a transmitter one).
  * @port_props: Port properties.
  * @ep_props: Endpoint properties.
  * @remote_ep: Reference to the remote endpoint.
@@ -433,7 +433,7 @@ struct acpi_device_software_node_port {
  * struct acpi_device_software_nodes - Software nodes for an ACPI device
  * @dev_props: Device properties.
  * @nodes: Software nodes for root as well as ports and endpoints.
- * @nodeprts: Array of software node pointers, for (un)registering them.
+ * @nodeptrs: Array of software node pointers, for (un)registering them.
  * @ports: Information related to each port and endpoint within a port.
  * @num_ports: The number of ports.
  */
