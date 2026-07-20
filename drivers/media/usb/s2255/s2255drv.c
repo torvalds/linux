@@ -534,8 +534,9 @@ static void s2255_fwchunk_complete(struct urb *urb)
 			return;
 		}
 		data->fw_loaded += len;
-	} else
+	} else {
 		atomic_set(&data->fw_state, S2255_FW_LOADED_DSPWAIT);
+	}
 	return;
 
 }
@@ -839,8 +840,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 				mode.scale = SCALE_4CIFSI;
 			else
 				mode.scale = SCALE_4CIFS;
-		} else
+		} else {
 			mode.scale = SCALE_2CIFS;
+		}
 
 	} else {
 		mode.scale = SCALE_1CIFS;
@@ -1122,8 +1124,9 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id i)
 			vc->width = LINE_SZ_4CIFS_PAL;
 			vc->height = NUM_LINES_4CIFS_PAL * 2;
 		}
-	} else
+	} else {
 		return -EINVAL;
+	}
 	vc->std = i;
 	if (mode.restart)
 		s2255_set_mode(vc, &mode);
@@ -1306,11 +1309,11 @@ static int vidioc_s_parm(struct file *file, void *priv,
 		return -EBUSY;
 	def_num = (mode.format == FORMAT_NTSC) ? 1001 : 1000;
 	def_dem = (mode.format == FORMAT_NTSC) ? 30000 : 25000;
-	if (def_dem != sp->parm.capture.timeperframe.denominator)
+	if (def_dem != sp->parm.capture.timeperframe.denominator) {
 		sp->parm.capture.timeperframe.numerator = def_num;
-	else if (sp->parm.capture.timeperframe.numerator <= def_num)
+	} else if (sp->parm.capture.timeperframe.numerator <= def_num) {
 		sp->parm.capture.timeperframe.numerator = def_num;
-	else if (sp->parm.capture.timeperframe.numerator <= (def_num * 2)) {
+	} else if (sp->parm.capture.timeperframe.numerator <= (def_num * 2)) {
 		sp->parm.capture.timeperframe.numerator = def_num * 2;
 		fdec = FDEC_2;
 	} else if (sp->parm.capture.timeperframe.numerator <= (def_num * 3)) {
@@ -2058,9 +2061,9 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 
-	if (status == 0)
+	if (status == 0) {
 		s2255_read_video_callback(dev, pipe_info);
-	else {
+	} else {
 		pipe_info->err_count++;
 		dprintk(dev, 1, "%s: failed URB %d\n", __func__, status);
 	}
