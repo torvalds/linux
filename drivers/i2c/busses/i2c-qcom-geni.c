@@ -1169,8 +1169,7 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, gi2c->irq, geni_i2c_irq, IRQF_NO_AUTOEN,
 			       dev_name(dev), gi2c);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Request_irq failed: %d\n", gi2c->irq);
+		return ret;
 
 	i2c_set_adapdata(&gi2c->adap, gi2c);
 	gi2c->adap.dev.parent = dev;

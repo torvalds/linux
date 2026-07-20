@@ -261,10 +261,8 @@ static int p2wi_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&p2wi->adapter, p2wi);
 
 	ret = devm_request_irq(dev, irq, p2wi_interrupt, 0, pdev->name, p2wi);
-	if (ret) {
-		dev_err_probe(dev, ret, "can't register interrupt handler irq%d\n", irq);
+	if (ret)
 		goto err_reset_assert;
-	}
 
 	writel(P2WI_CTRL_SOFT_RST, p2wi->regs + P2WI_CTRL);
 
