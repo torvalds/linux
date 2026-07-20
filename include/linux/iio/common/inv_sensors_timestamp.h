@@ -13,9 +13,9 @@
  * @init_period:	chip initial period at reset in ns
  */
 struct inv_sensors_timestamp_chip {
-	uint32_t clock_period;
-	uint32_t jitter;
-	uint32_t init_period;
+	u32 clock_period;
+	u32 jitter;
+	u32 init_period;
 };
 
 /**
@@ -24,8 +24,8 @@ struct inv_sensors_timestamp_chip {
  * @up:	interval upper bound
  */
 struct inv_sensors_timestamp_interval {
-	int64_t lo;
-	int64_t up;
+	s64 lo;
+	s64 up;
 };
 
 /**
@@ -35,9 +35,9 @@ struct inv_sensors_timestamp_interval {
  * @values:	table of all measured values, use for computing the mean
  */
 struct inv_sensors_timestamp_acc {
-	uint32_t val;
+	u32 val;
 	size_t idx;
-	uint32_t values[32];
+	u32 values[32];
 };
 
 /**
@@ -54,13 +54,13 @@ struct inv_sensors_timestamp_acc {
  */
 struct inv_sensors_timestamp {
 	struct inv_sensors_timestamp_chip chip;
-	uint32_t min_period;
-	uint32_t max_period;
+	u32 min_period;
+	u32 max_period;
 	struct inv_sensors_timestamp_interval it;
-	int64_t timestamp;
-	uint32_t mult;
-	uint32_t new_mult;
-	uint32_t period;
+	s64 timestamp;
+	u32 mult;
+	u32 new_mult;
+	u32 period;
 	struct inv_sensors_timestamp_acc chip_period;
 };
 
@@ -68,19 +68,19 @@ void inv_sensors_timestamp_init(struct inv_sensors_timestamp *ts,
 				const struct inv_sensors_timestamp_chip *chip);
 
 int inv_sensors_timestamp_update_odr(struct inv_sensors_timestamp *ts,
-				     uint32_t period, bool fifo);
+				     u32 period, bool fifo);
 
 void inv_sensors_timestamp_interrupt(struct inv_sensors_timestamp *ts,
-				     size_t sample_nb, int64_t timestamp);
+				     size_t sample_nb, s64 timestamp);
 
-static inline int64_t inv_sensors_timestamp_pop(struct inv_sensors_timestamp *ts)
+static inline s64 inv_sensors_timestamp_pop(struct inv_sensors_timestamp *ts)
 {
 	ts->timestamp += ts->period;
 	return ts->timestamp;
 }
 
 void inv_sensors_timestamp_apply_odr(struct inv_sensors_timestamp *ts,
-				     uint32_t fifo_period, size_t fifo_nb,
+				     u32 fifo_period, size_t fifo_nb,
 				     unsigned int fifo_no);
 
 static inline void inv_sensors_timestamp_reset(struct inv_sensors_timestamp *ts)
