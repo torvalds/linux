@@ -255,6 +255,7 @@
 #define FAN_CURVE_LENGTH		5
 
 #define EC_ADDR_KBD_STATUS		0x078C
+/* Unreliable on some models, use the device descriptor instead. */
 #define KBD_WHITE_ONLY			BIT(0)
 #define KBD_POWER_OFF			BIT(1)
 #define KBD_TURBO_LEVEL_MASK		GENMASK(3, 2)
@@ -400,7 +401,7 @@ struct uniwill_data {
 	u8 lightbar_max_brightness;
 	struct led_classdev_mc led_mc_cdev;
 	struct mc_subled led_mc_subled_info[LED_CHANNELS];
-	bool single_color_kbd;
+	bool kbd_led_single_color;
 	u8 kbd_led_max_brightness;
 	unsigned int last_kbd_status;
 	union {
@@ -426,6 +427,7 @@ struct uniwill_battery_entry {
 
 struct uniwill_device_descriptor {
 	unsigned int features;
+	bool kbd_led_single_color;
 	u8 kbd_led_max_brightness;
 	u8 lightbar_max_brightness;
 	/* Executed during driver probing */
@@ -1629,7 +1631,7 @@ static int uniwill_notify_kbd_led(struct uniwill_data *data, int brightness)
 	struct led_classdev *led_cdev;
 	int ret;
 
-	if (data->single_color_kbd)
+	if (data->kbd_led_single_color)
 		led_cdev = &data->kbd_led_cdev;
 	else
 		led_cdev = &data->kbd_led_mc_cdev.led_cdev;
@@ -1858,24 +1860,7 @@ static int uniwill_kbd_led_init(struct uniwill_data *data)
 	if (ret < 0)
 		return ret;
 
-	switch (data->project_id) {
-	case PROJECT_ID_PF:
-	case PROJECT_ID_PF4MU_PF4MN_PF5MU:
-	case PROJECT_ID_PH4TRX1:
-	case PROJECT_ID_PH4TUX1:
-	case PROJECT_ID_PH4TQX1:
-	case PROJECT_ID_PH6TRX1:
-	case PROJECT_ID_PH6TQXX:
-	case PROJECT_ID_PHXAXXX:
-	case PROJECT_ID_PHXPXXX:
-		data->single_color_kbd = true;
-		break;
-	default:
-		data->single_color_kbd = regval & KBD_WHITE_ONLY;
-		break;
-	}
-
-	if (data->single_color_kbd)
+	if (data->kbd_led_single_color)
 		return uniwill_white_kbd_led_init(data);
 
 	return uniwill_rgb_kbd_led_init(data);
@@ -2351,6 +2336,7 @@ static int uniwill_probe(struct platform_device *pdev)
 		return ret;
 
 	data->features = device_descriptor.features;
+	data->kbd_led_single_color = device_descriptor.kbd_led_single_color;
 	data->kbd_led_max_brightness = device_descriptor.kbd_led_max_brightness;
 	data->lightbar_max_brightness = device_descriptor.lightbar_max_brightness;
 
@@ -2580,7 +2566,7 @@ static int uniwill_resume_kbd_led(struct uniwill_data *data)
 	if (ret < 0)
 		return ret;
 
-	if (data->single_color_kbd)
+	if (data->kbd_led_single_color)
 		return 0;
 
 	return regmap_write_bits(data->regmap, EC_ADDR_TRIGGER, RGB_APPLY_COLOR, RGB_APPLY_COLOR);
@@ -2687,6 +2673,7 @@ static struct uniwill_device_descriptor machenike_l16p_descriptor __initdata = {
 		    UNIWILL_FEATURE_KEYBOARD_BACKLIGHT |
 		    UNIWILL_FEATURE_AC_AUTO_BOOT |
 		    UNIWILL_FEATURE_USB_POWERSHARE,
+	.kbd_led_single_color = false,
 	.kbd_led_max_brightness = 4,
 };
 
@@ -2854,6 +2841,7 @@ static struct uniwill_device_descriptor x4sp4nal_descriptor __initdata = {
 		    UNIWILL_FEATURE_KEYBOARD_BACKLIGHT |
 		    UNIWILL_FEATURE_AC_AUTO_BOOT |
 		    UNIWILL_FEATURE_USB_POWERSHARE,
+	.kbd_led_single_color = true,
 	.kbd_led_max_brightness = 2,
 };
 
@@ -3341,6 +3329,8 @@ static int __init uniwill_init(void)
 	if (force) {
 		/* Assume that the device supports all features except the charge limit */
 		device_descriptor.features = UINT_MAX & ~UNIWILL_FEATURE_BATTERY_CHARGE_LIMIT;
+		/* Some models only have a (white) single color keyboard backlight */
+		device_descriptor.kbd_led_single_color = false;
 		/* Some models only support 3 brightness levels */
 		device_descriptor.kbd_led_max_brightness = 4;
 		/* Some models only support 36 brightness levels per color component */
