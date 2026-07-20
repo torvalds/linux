@@ -566,8 +566,8 @@ static const struct s2255_fmt *format_by_fourcc(int fourcc)
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
 		if (-1 == formats[i].fourcc)
 			continue;
-		if (!jpeg_enable && ((formats[i].fourcc == V4L2_PIX_FMT_JPEG) ||
-				     (formats[i].fourcc == V4L2_PIX_FMT_MJPEG)))
+		if (!jpeg_enable && (formats[i].fourcc == V4L2_PIX_FMT_JPEG ||
+				     formats[i].fourcc == V4L2_PIX_FMT_MJPEG))
 			continue;
 		if (formats[i].fourcc == fourcc)
 			return formats + i;
@@ -659,10 +659,10 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	if (!vc->fmt)
 		return -EINVAL;
 
-	if ((w < norm_minw(vc)) ||
-	    (w > norm_maxw(vc)) ||
-	    (h < norm_minh(vc)) ||
-	    (h > norm_maxh(vc))) {
+	if (w < norm_minw(vc) ||
+	    w > norm_maxw(vc) ||
+	    h < norm_minh(vc) ||
+	    h > norm_maxh(vc)) {
 		dprintk(vc->dev, 4, "invalid buffer prepare\n");
 		return -EINVAL;
 	}
@@ -718,8 +718,8 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	if (index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
-			     (formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
+	if (!jpeg_enable && (formats[index].fourcc == V4L2_PIX_FMT_JPEG ||
+			     formats[index].fourcc == V4L2_PIX_FMT_MJPEG))
 		return -EINVAL;
 	f->pixelformat = formats[index].fourcc;
 	return 0;
@@ -1296,8 +1296,8 @@ static int vidioc_s_parm(struct file *file, void *priv,
 		return -EINVAL;
 	mode = vc->mode;
 	/* high quality capture mode requires a stream restart */
-	if ((vc->cap_parm.capturemode != sp->parm.capture.capturemode)
-	    && vb2_is_streaming(&vc->vb_vidq))
+	if (vc->cap_parm.capturemode != sp->parm.capture.capturemode &&
+	    vb2_is_streaming(&vc->vb_vidq))
 		return -EBUSY;
 	def_num = (mode.format == FORMAT_NTSC) ? 1001 : 1000;
 	def_dem = (mode.format == FORMAT_NTSC) ? 30000 : 25000;
@@ -1822,8 +1822,8 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 		vc->last_frame = vc->cur_frame;
 		vc->cur_frame++;
 		/* end of system frame ring buffer, start at zero */
-		if ((vc->cur_frame == SYS_FRAMES) ||
-		    (vc->cur_frame == vc->buffer.num_frames))
+		if (vc->cur_frame == SYS_FRAMES ||
+		    vc->cur_frame == vc->buffer.num_frames)
 			vc->cur_frame = 0;
 		/* frame ready */
 		if (vb2_is_streaming(&vc->vb_vidq))
