@@ -64,14 +64,22 @@ struct hfs_inode_info {
  * The HFS-specific part of a Linux (struct super_block)
  */
 struct hfs_sb_info {
+	struct mutex mdb_lock;			/* MDB operations lock */
 	struct buffer_head *mdb_bh;		/* The hfs_buffer
 						   holding the real
 						   superblock (aka VIB
 						   or MDB) */
-	struct hfs_mdb *mdb;
+	unsigned int mdb_offset;		/* byte offset of the MDB
+						   sector within mdb_bh's
+						   data */
+	struct hfs_mdb *mdb;			/* in-memory copy of the MDB */
 	struct buffer_head *alt_mdb_bh;		/* The hfs_buffer holding
 						   the alternate superblock */
-	struct hfs_mdb *alt_mdb;
+	unsigned int alt_mdb_offset;		/* byte offset of the alternate
+						   MDB sector within
+						   alt_mdb_bh's data */
+	struct hfs_mdb *alt_mdb;		/* in-memory copy of the
+						   alternate MDB */
 	__be32 *bitmap;				/* The page holding the
 						   allocation bitmap */
 	struct hfs_btree *ext_tree;			/* Information about
