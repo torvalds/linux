@@ -1274,7 +1274,16 @@ static loff_t pci_llseek_resource(struct file *filep,
 	.llseek = pci_llseek_resource,		\
 	.mmap = pci_mmap_resource_uc,
 #else
-# define __PCI_RESOURCE_IO_MMAP_ATTRS
+static int pci_mmap_resource_io_unsupported(struct file *filp,
+					    struct kobject *kobj,
+					    const struct bin_attribute *attr,
+					    struct vm_area_struct *vma)
+{
+	return -EINVAL;
+}
+
+# define __PCI_RESOURCE_IO_MMAP_ATTRS	\
+	.mmap = pci_mmap_resource_io_unsupported,
 #endif
 
 #define pci_dev_resource_io_attr(_bar)					\
