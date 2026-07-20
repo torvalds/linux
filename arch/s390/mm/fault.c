@@ -440,13 +440,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 	if (is_kernel_fault(regs)) {
 		if (is_vmalloc_addr((void *)addr))
 			return handle_fault_error_nolock(regs, 0);
-		folio = virt_to_folio((void *)addr);
-		if (unlikely(!folio_try_get(folio)))
-			return;
-		rc = uv_convert_from_secure(folio_to_phys(folio));
-		if (!rc)
-			clear_bit(PG_arch_1, &folio->flags.f);
-		folio_put(folio);
+		rc = uv_convert_from_secure(__pa(addr));
 		/*
 		 * There are some valid fixup types for kernel
 		 * accesses to donated secure memory. zeropad is one
