@@ -756,6 +756,59 @@ static void dm_test_crtc_set_static_screen_optimze_no_sr_entry(struct kunit *tes
 	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, false, false);
 }
 
+/**
+ * dm_test_crtc_set_static_screen_optimze_sr_entry_psr - Test SSO toggle drives PSR
+ * @test: The KUnit test context
+ *
+ * With self-refresh entry allowed and a PSR version below DC_PSR_VERSION_SU_1,
+ * the function must run both the replay and PSR event updates. The link has no
+ * replay/PSR feature enabled, so both event helpers short-circuit safely. Both
+ * SSO states are exercised to cover the set_vsync_event computation.
+ */
+static void dm_test_crtc_set_static_screen_optimze_sr_entry_psr(struct kunit *test)
+{
+	struct amdgpu_display_manager *dm;
+	struct dc_link *link;
+	struct dc_stream_state *stream;
+
+	dm = kunit_kzalloc(test, sizeof(*dm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm);
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	/* psr_version < DC_PSR_VERSION_SU_1 -> PSR event branch is taken. */
+	link->psr_settings.psr_version = DC_PSR_VERSION_1;
+
+	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, true, true);
+	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, false, true);
+}
+
+/**
+ * dm_test_crtc_set_static_screen_optimze_psr_su_skips - Test PSR SU skips PSR event
+ * @test: The KUnit test context
+ *
+ * With self-refresh entry allowed and a PSR version of DC_PSR_VERSION_SU_1, the
+ * function must update the replay event but skip the PSR event update.
+ */
+static void dm_test_crtc_set_static_screen_optimze_psr_su_skips(struct kunit *test)
+{
+	struct amdgpu_display_manager *dm;
+	struct dc_link *link;
+	struct dc_stream_state *stream;
+
+	dm = kunit_kzalloc(test, sizeof(*dm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm);
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	/* psr_version >= DC_PSR_VERSION_SU_1 -> PSR event branch is skipped. */
+	link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
+
+	amdgpu_dm_crtc_set_static_screen_optimze(dm, stream, true, true);
+}
+
 /* Tests for amdgpu_dm_crtc_enable_vblank() */
 
 /**
@@ -1295,6 +1348,8 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_idle_worker_enabled_runs_body),
 	/* amdgpu_dm_crtc_set_static_screen_optimze */
 	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_no_sr_entry),
+	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_sr_entry_psr),
+	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_psr_su_skips),
 	/* amdgpu_dm_crtc_enable_vblank */
 	KUNIT_CASE(dm_test_crtc_enable_vblank_rejects_unconfigured),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
