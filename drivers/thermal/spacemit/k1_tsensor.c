@@ -156,13 +156,12 @@ static int k1_tsensor_set_trips(struct thermal_zone_device *tz, int low, int hig
 	struct k1_tsensor *ts = ch->ts;
 	u32 val;
 
-	if (low >= high)
-		return -EINVAL;
-
 	low = clamp_val(low / 1000 + TEMPERATURE_OFFSET, TEMPERATURE_OFFSET,
 			FIELD_MAX(K1_TSENSOR_THRSH_LOW_MASK));
 	high = clamp_val(high / 1000 + TEMPERATURE_OFFSET, TEMPERATURE_OFFSET,
 			 FIELD_MAX(K1_TSENSOR_THRSH_HIGH_MASK));
+	if (low >= high)
+		return -EINVAL;
 
 	val = readl(ts->base + K1_TSENSOR_THRSH_REG(ch->id));
 
