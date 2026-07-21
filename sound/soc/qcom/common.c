@@ -91,7 +91,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
-			dev_err(card->dev, "error getting codec dai_link name\n");
+			dev_err(dev, "error getting codec dai_link name\n");
 			return ret;
 		}
 
@@ -109,7 +109,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 
 		ret = snd_soc_of_get_dlc(cpu, &args, link->cpus, 0);
 		if (ret) {
-			dev_err_probe(card->dev, ret,
+			dev_err_probe(dev, ret,
 				      "%s: error getting cpu dai name\n", link->name);
 			return ret;
 		}
@@ -126,7 +126,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 					"sound-dai",
 					0);
 			if (!link->platforms->of_node) {
-				dev_err(card->dev, "%s: platform dai not found\n", link->name);
+				dev_err(dev, "%s: platform dai not found\n", link->name);
 				return -EINVAL;
 			}
 		} else {
@@ -136,7 +136,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		if (codec) {
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
-				dev_err_probe(card->dev, ret,
+				dev_err_probe(dev, ret,
 					      "%s: codec dai not found\n", link->name);
 				return ret;
 			}
