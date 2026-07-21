@@ -477,6 +477,19 @@ static struct irq_source_info_funcs dm_test_vupdate_irq_src_funcs = {
 	.ack = dm_test_vupdate_irq_src_ack,
 };
 
+/* A .set that fails so dc_interrupt_set() reports the source as busy. */
+static bool dm_test_vupdate_irq_src_set_busy(struct irq_service *irq_service,
+					     const struct irq_source_info *info,
+					     bool enable)
+{
+	return false;
+}
+
+static struct irq_source_info_funcs dm_test_vupdate_irq_src_busy_funcs = {
+	.set = dm_test_vupdate_irq_src_set_busy,
+	.ack = dm_test_vupdate_irq_src_ack,
+};
+
 /**
  * dm_test_crtc_set_vupdate_irq_enable - Test vupdate irq enable/disable success
  * @test: The KUnit test context
@@ -830,6 +843,224 @@ static void dm_test_crtc_enable_vblank_rejects_unconfigured(struct kunit *test)
 	acrtc->base.enabled = false;
 
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), -EINVAL);
+}
+
+/* Stub IRQ source .set so amdgpu_irq_get()/put() pass their funcs->set check. */
+static int dm_test_crtc_irq_src_set(struct amdgpu_device *adev,
+				    struct amdgpu_irq_src *source,
+				    unsigned int type,
+				    enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs dm_test_crtc_irq_src_funcs = {
+	.set = dm_test_crtc_irq_src_set,
+};
+
+/*
+ * dm_test_crtc_arm_irq_src - Prime an IRQ source so get()/put() short-circuit.
+ * @test: The KUnit test context
+ * @src: The amdgpu IRQ source to arm
+ * @count: Initial per-type reference count
+ *
+ * Seeds enabled_types[AMDGPU_CRTC_IRQ_VBLANK1] with @count and installs a
+ * non-NULL funcs->set so amdgpu_irq_get()/amdgpu_irq_put() adjust the refcount
+ * without ever reaching amdgpu_irq_update() (which would touch hardware).
+ */
+static void dm_test_crtc_arm_irq_src(struct kunit *test,
+				     struct amdgpu_irq_src *src, int count)
+{
+	atomic_t *enabled;
+
+	enabled = kunit_kzalloc(test, sizeof(*enabled), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, enabled);
+
+	atomic_set(enabled, count);
+	src->num_types = 1;
+	src->enabled_types = enabled;
+	src->funcs = &dm_test_crtc_irq_src_funcs;
+}
+
+/*
+ * dm_test_crtc_setup_enable - Build an adev/CRTC primed for the vblank enable path.
+ * @test: The KUnit test context
+ * @adev_out: Receives the allocated device
+ * @dce_version: DCE version stamped on the DC (controls dc_supports_vrr())
+ *
+ * Returns a CRTC whose enable path can run to completion: a configured
+ * (enabled) CRTC with crtc_id 0, an initialized single-pipe vblank array, a DC
+ * with @dce_version, a non-reset reset_domain and a dm_crtc_state carrying a
+ * stream+link. IPS support stays disabled so drm_crtc_vblank_restore() is
+ * skipped, and the IRQ subsystem is left uninstalled for callers to arm.
+ */
+static struct amdgpu_crtc *
+dm_test_crtc_setup_enable(struct kunit *test, struct amdgpu_device **adev_out,
+			  enum dce_version dce_version)
+{
+	struct amdgpu_reset_domain *reset_domain;
+	struct dc_stream_state *stream;
+	struct dm_crtc_state *dm_state;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	struct dc_link *link;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	KUNIT_ASSERT_EQ(test, drm_vblank_init(&adev->ddev, 1), 0);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	adev->dm.dc->ctx->dce_version = dce_version;
+
+	/* crtc_id 0 maps to a valid IRQ type only when a CRTC is registered. */
+	adev->mode_info.num_crtc = 1;
+
+	reset_domain = kunit_kzalloc(test, sizeof(*reset_domain), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, reset_domain);
+	adev->reset_domain = reset_domain;
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->base.enabled = true;
+	acrtc->crtc_id = 0;
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
+	dm_state->stream = stream;
+	acrtc->base.state = &dm_state->base;
+
+	*adev_out = adev;
+	return acrtc;
+}
+
+/**
+ * dm_test_crtc_enable_vblank_full_path - Test the enable path runs to completion
+ * @test: The KUnit test context
+ *
+ * With a configured CRTC on a VRR-capable DC and both crtc/pageflip IRQ sources
+ * armed, the enable path walks the vupdate-irq branch (VRR active, OTG
+ * unassigned so it returns early), acquires both IRQ references and completes
+ * with no vblank workqueue queued.
+ */
+static void dm_test_crtc_enable_vblank_full_path(struct kunit *test)
+{
+	struct dm_crtc_state *acrtc_state;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	/* DCE_VERSION_8_0 supports VRR -> the vupdate-irq branch is walked. */
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_8_0);
+
+	/* OTG unassigned -> amdgpu_dm_crtc_set_vupdate_irq() returns 0 early. */
+	acrtc->otg_inst = -1;
+	/* VRR active so the enable path takes the vupdate-irq branch. */
+	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+	acrtc_state->freesync_config.state = VRR_STATE_ACTIVE_VARIABLE;
+
+	adev->irq.installed = true;
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 1);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 1);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
+}
+
+/**
+ * dm_test_crtc_enable_vblank_vupdate_busy - Test vupdate failure aborts enable
+ * @test: The KUnit test context
+ *
+ * When VRR is active and the DC rejects the vupdate IRQ request, the enable
+ * path must propagate the error (-EBUSY) before touching the crtc/pageflip
+ * IRQs.
+ */
+static void dm_test_crtc_enable_vblank_vupdate_busy(struct kunit *test)
+{
+	struct irq_source_info *info;
+	struct resource_pool *res_pool;
+	struct dm_crtc_state *acrtc_state;
+	struct irq_service *irqs;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	int i;
+
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_8_0);
+
+	/* OTG assigned and VRR active so set_vupdate_irq() calls into DC. */
+	acrtc->otg_inst = 0;
+	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+	acrtc_state->freesync_config.state = VRR_STATE_ACTIVE_VARIABLE;
+
+	res_pool = kunit_kzalloc(test, sizeof(*res_pool), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, res_pool);
+	irqs = kunit_kzalloc(test, sizeof(*irqs), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, irqs);
+
+	/* Per-source .set fails so dc_interrupt_set() reports the source busy. */
+	info = kunit_kzalloc(test, sizeof(*info) * DAL_IRQ_SOURCES_NUMBER,
+			     GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, info);
+	for (i = 0; i < DAL_IRQ_SOURCES_NUMBER; i++)
+		info[i].funcs = &dm_test_vupdate_irq_src_busy_funcs;
+
+	irqs->info = info;
+	res_pool->irqs = irqs;
+	adev->dm.dc->res_pool = res_pool;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_enable_vblank(&acrtc->base), -EBUSY);
+}
+
+/**
+ * dm_test_crtc_enable_vblank_crtc_irq_error - Test crtc IRQ failure aborts enable
+ * @test: The KUnit test context
+ *
+ * On a non-VRR DC the vupdate-irq branch is skipped. With the IRQ subsystem
+ * uninstalled, amdgpu_irq_get() on the crtc IRQ returns -ENOENT and the enable
+ * path must propagate it before touching the pageflip IRQ.
+ */
+static void dm_test_crtc_enable_vblank_crtc_irq_error(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	/* DCE_VERSION_6_0 has no VRR, so the vupdate-irq branch is skipped. */
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_6_0);
+
+	/* IRQ subsystem not installed -> amdgpu_irq_get() returns -ENOENT. */
+	adev->irq.installed = false;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_crtc_enable_vblank(&acrtc->base), -ENOENT);
+}
+
+/**
+ * dm_test_crtc_enable_vblank_in_reset - Test enable returns early during GPU reset
+ * @test: The KUnit test context
+ *
+ * After acquiring the IRQ references, an in-progress GPU reset must short the
+ * enable path so it returns 0 without queuing any vblank control work.
+ */
+static void dm_test_crtc_enable_vblank_in_reset(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	/* DCE_VERSION_6_0 has no VRR, so the vupdate-irq branch is skipped. */
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_6_0);
+
+	adev->irq.installed = true;
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 1);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 1);
+
+	/* Mid-reset: return 0 before the vblank workqueue branch is reached. */
+	atomic_set(&adev->reset_domain->in_gpu_reset, 1);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
 }
 
 /* Tests for amdgpu_dm_crtc_update_crtc_active_planes() */
@@ -1307,6 +1538,53 @@ static void dm_test_crtc_disable_vblank_no_irq_installed(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 0);
 }
 
+/**
+ * dm_test_crtc_disable_vblank_vrr - Test disable path releases IRQs on a VRR DC
+ * @test: The KUnit test context
+ *
+ * On a VRR-capable DC the disable path turns the vupdate IRQ off (OTG
+ * unassigned so it returns early), releases the armed crtc and pageflip IRQ
+ * references and completes without queuing vblank control work.
+ */
+static void dm_test_crtc_disable_vblank_vrr(struct kunit *test)
+{
+	struct amdgpu_reset_domain *reset_domain;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* DCE_VERSION_8_0 supports VRR -> the vupdate-irq branch is walked. */
+	adev->dm.dc->ctx->dce_version = DCE_VERSION_8_0;
+
+	adev->mode_info.num_crtc = 1;
+	adev->irq.installed = true;
+
+	reset_domain = kunit_kzalloc(test, sizeof(*reset_domain), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, reset_domain);
+	adev->reset_domain = reset_domain;
+
+	/* Seed with 2 so amdgpu_irq_put() drops to a non-zero refcount. */
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 2);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 2);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->crtc_id = 0;
+	/* OTG unassigned -> amdgpu_dm_crtc_set_vupdate_irq() returns 0 early. */
+	acrtc->otg_inst = -1;
+
+	amdgpu_dm_crtc_disable_vblank(&acrtc->base);
+
+	/* Both IRQ references were released without underflow. */
+	KUNIT_EXPECT_EQ(test, atomic_read(&adev->crtc_irq.enabled_types[0]), 1);
+	KUNIT_EXPECT_EQ(test, atomic_read(&adev->pageflip_irq.enabled_types[0]), 1);
+}
+
 static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_modeset_required */
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_mode_changed),
@@ -1352,6 +1630,10 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_set_static_screen_optimze_psr_su_skips),
 	/* amdgpu_dm_crtc_enable_vblank */
 	KUNIT_CASE(dm_test_crtc_enable_vblank_rejects_unconfigured),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_full_path),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_vupdate_busy),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_crtc_irq_error),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_in_reset),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
 	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
 	/* amdgpu_dm_crtc_count_crtc_active_planes */
@@ -1373,6 +1655,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_vblank_control_worker_disable_clamps_zero),
 	/* amdgpu_dm_crtc_disable_vblank */
 	KUNIT_CASE(dm_test_crtc_disable_vblank_no_irq_installed),
+	KUNIT_CASE(dm_test_crtc_disable_vblank_vrr),
 	{}
 };
 
