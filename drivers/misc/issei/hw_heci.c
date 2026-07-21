@@ -371,7 +371,7 @@ static int heci_write_hbuf(struct issei_device *idev, const void *data, size_t d
 	struct issei_heci_hw *hw = to_heci_hw(idev);
 
 	if (!IS_ALIGNED(data_len, CB_SLOT_SIZE)) {
-		dev_err(&idev->dev, "Data size %zu not aligned to slot size %lu\n",
+		dev_err(&idev->dev, "Data size %zu not aligned to slot size %zu\n",
 			data_len, CB_SLOT_SIZE);
 		return -EINVAL;
 	}
@@ -401,7 +401,7 @@ static int heci_read_hbuf(struct issei_device *idev, void *data, size_t data_len
 	u32 *reg_buf = data;
 
 	if (!IS_ALIGNED(data_len, CB_SLOT_SIZE)) {
-		dev_err(&idev->dev, "Data size %zu not aligned to slot size %lu\n",
+		dev_err(&idev->dev, "Data size %zu not aligned to slot size %zu\n",
 			data_len, CB_SLOT_SIZE);
 		return -EINVAL;
 	}
