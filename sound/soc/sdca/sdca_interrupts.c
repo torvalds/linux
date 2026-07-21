@@ -592,7 +592,7 @@ void sdca_irq_cleanup(struct device *dev,
 EXPORT_SYMBOL_NS_GPL(sdca_irq_cleanup, "SND_SOC_SDCA");
 
 /**
- * sdca_irq_allocate - allocate an SDCA interrupt structure for a device
+ * devm_sdca_irq_allocate - allocate an SDCA interrupt structure for a device
  * @sdev: Device pointer against which things should be allocated.
  * @regmap: regmap to be used for accessing the SDCA IRQ registers.
  * @irq: The interrupt number.
@@ -604,8 +604,8 @@ EXPORT_SYMBOL_NS_GPL(sdca_irq_cleanup, "SND_SOC_SDCA");
  * Return: A pointer to the allocated sdca_interrupt_info struct, or an
  * error code.
  */
-struct sdca_interrupt_info *sdca_irq_allocate(struct device *sdev,
-					      struct regmap *regmap, int irq)
+struct sdca_interrupt_info *devm_sdca_irq_allocate(struct device *sdev,
+						   struct regmap *regmap, int irq)
 {
 	struct sdca_interrupt_info *info;
 	int ret, i;
@@ -634,7 +634,7 @@ struct sdca_interrupt_info *sdca_irq_allocate(struct device *sdev,
 
 	return info;
 }
-EXPORT_SYMBOL_NS_GPL(sdca_irq_allocate, "SND_SOC_SDCA");
+EXPORT_SYMBOL_NS_GPL(devm_sdca_irq_allocate, "SND_SOC_SDCA");
 
 static void irq_enable_flags(struct sdca_function_data *function,
 			     struct sdca_interrupt_info *info, bool early)
