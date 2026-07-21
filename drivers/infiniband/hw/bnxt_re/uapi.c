@@ -237,16 +237,52 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 	if (IS_ERR(ib_uctx))
 		return PTR_ERR(ib_uctx);
 
+	uctx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
+
+	/* New path: updated libbnxt_re passes the CQ or SRQ uverbs handle */
+	if (uverbs_attr_is_valid(attrs, BNXT_RE_TOGGLE_MEM_CQ_HANDLE)) {
+		struct bnxt_re_cq *cq;
+
+		res_uobj = uverbs_attr_get_uobject(attrs,
+						   BNXT_RE_TOGGLE_MEM_CQ_HANDLE);
+		if (IS_ERR(res_uobj))
+			return PTR_ERR(res_uobj);
+		cq = container_of(res_uobj->object, struct bnxt_re_cq, ib_cq);
+		if (!cq->toggle_entry)
+			return -EOPNOTSUPP;
+		mmap_offset = rdma_user_mmap_get_offset(&cq->toggle_entry->rdma_entry);
+		if (!mmap_offset)
+			return -EOPNOTSUPP;
+		kref_get(&cq->toggle_entry->rdma_entry.ref);
+		toggle_entry = cq->toggle_entry;
+		goto alloc_tmem;
+	} else if (uverbs_attr_is_valid(attrs, BNXT_RE_TOGGLE_MEM_SRQ_HANDLE)) {
+		struct bnxt_re_srq *srq;
+
+		res_uobj = uverbs_attr_get_uobject(attrs,
+						   BNXT_RE_TOGGLE_MEM_SRQ_HANDLE);
+		if (IS_ERR(res_uobj))
+			return PTR_ERR(res_uobj);
+		srq = container_of(res_uobj->object, struct bnxt_re_srq, ib_srq);
+		if (!srq->toggle_entry)
+			return -EOPNOTSUPP;
+		mmap_offset = rdma_user_mmap_get_offset(&srq->toggle_entry->rdma_entry);
+		if (!mmap_offset)
+			return -EOPNOTSUPP;
+		kref_get(&srq->toggle_entry->rdma_entry.ref);
+		toggle_entry = srq->toggle_entry;
+		goto alloc_tmem;
+	}
+
 	err = uverbs_get_const(&res_type, attrs, BNXT_RE_TOGGLE_MEM_TYPE);
 	if (err)
 		return err;
-
-	uctx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
 	err = uverbs_copy_from(&res_id, attrs, BNXT_RE_TOGGLE_MEM_RES_ID);
 	if (err)
 		return err;
 
 	/*
+	 * Legacy path: old libbnxt_re sends TYPE + RES_ID.
 	 * Hold xa_lock across xa_load + kref_get so that a concurrent
 	 * bnxt_re_destroy_cq/srq cannot call __xa_erase and remove the
 	 * toggle_entry between our load and our reference on it.
@@ -297,6 +333,7 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 	if (!mmap_offset)
 		return -EOPNOTSUPP;
 
+alloc_tmem:
 	tmem = kzalloc_obj(*tmem);
 	if (!tmem) {
 		rdma_user_mmap_entry_put(&toggle_entry->rdma_entry);
@@ -343,10 +380,10 @@ DECLARE_UVERBS_NAMED_METHOD(BNXT_RE_METHOD_GET_TOGGLE_MEM,
 					    UA_MANDATORY),
 			    UVERBS_ATTR_CONST_IN(BNXT_RE_TOGGLE_MEM_TYPE,
 						 enum bnxt_re_get_toggle_mem_type,
-						 UA_MANDATORY),
+						 UA_OPTIONAL),
 			    UVERBS_ATTR_PTR_IN(BNXT_RE_TOGGLE_MEM_RES_ID,
 					       UVERBS_ATTR_TYPE(u32),
-					       UA_MANDATORY),
+					       UA_OPTIONAL),
 			    UVERBS_ATTR_PTR_OUT(BNXT_RE_TOGGLE_MEM_MMAP_PAGE,
 						UVERBS_ATTR_TYPE(u64),
 						UA_MANDATORY),
@@ -355,7 +392,15 @@ DECLARE_UVERBS_NAMED_METHOD(BNXT_RE_METHOD_GET_TOGGLE_MEM,
 						UA_MANDATORY),
 			    UVERBS_ATTR_PTR_OUT(BNXT_RE_TOGGLE_MEM_MMAP_LENGTH,
 						UVERBS_ATTR_TYPE(u32),
-						UA_MANDATORY));
+						UA_MANDATORY),
+			    UVERBS_ATTR_IDR(BNXT_RE_TOGGLE_MEM_CQ_HANDLE,
+					    UVERBS_OBJECT_CQ,
+					    UVERBS_ACCESS_READ,
+					    UA_OPTIONAL),
+			    UVERBS_ATTR_IDR(BNXT_RE_TOGGLE_MEM_SRQ_HANDLE,
+					    UVERBS_OBJECT_SRQ,
+					    UVERBS_ACCESS_READ,
+					    UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(BNXT_RE_METHOD_RELEASE_TOGGLE_MEM,
 				    UVERBS_ATTR_IDR(BNXT_RE_RELEASE_TOGGLE_MEM_HANDLE,
