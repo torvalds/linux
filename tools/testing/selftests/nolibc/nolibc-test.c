@@ -756,6 +756,10 @@ int run_startup(int min, int max)
 	/* checking NULL for argv/argv0, environ and _auxv is not enough, let's compare with sbrk(0) or &end */
 	extern char end;
 	char *brk = sbrk(0) != (void *)-1 ? sbrk(0) : &end;
+#if defined(__alpha__)
+	/* the ordering above does not work on an alpha kernel due to STACK_TOP != TASK_SIZE */
+	brk = NULL;
+#endif
 	/* differ from nolibc, both glibc and musl have no global _auxv */
 	const unsigned long *test_auxv = (void *)-1;
 #ifdef NOLIBC
