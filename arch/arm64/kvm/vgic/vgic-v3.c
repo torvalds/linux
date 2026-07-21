@@ -936,12 +936,12 @@ void vgic_v3_enable_cpuif_traps(void)
  */
 int vgic_v3_probe(const struct gic_kvm_info *info)
 {
-	u64 ich_vtr_el2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	u64 ich_vtr_el2;
 	bool has_v2;
 	int ret;
 
-	has_v2 = ich_vtr_el2 >> 63;
-	ich_vtr_el2 = (u32)ich_vtr_el2;
+	has_v2 = kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	ich_vtr_el2 = vgic_ich_vtr();
 
 	/*
 	 * The ListRegs field is 5 bits, but there is an architectural
@@ -995,9 +995,6 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	 */
 	if (has_v2)
 		static_branch_enable(&vgic_v3_has_v2_compat);
-
-	if (vgic_v3_broken_seis())
-		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_EL2_SEIS;
 
 	vgic_v3_enable_cpuif_traps();
 

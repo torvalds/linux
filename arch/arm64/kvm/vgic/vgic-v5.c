@@ -83,7 +83,7 @@ skip_v5:
 	}
 
 	kvm_vgic_global_state.has_gcie_v3_compat = true;
-	ich_vtr_el2 =  kvm_call_hyp_ret(__vgic_v3_get_gic_config);
+	ich_vtr_el2 = vgic_ich_vtr();
 	kvm_vgic_global_state.ich_vtr_el2 = (u32)ich_vtr_el2;
 
 	/*

@@ -437,25 +437,11 @@ void __vgic_v3_init_lrs(void)
 		__gic_v3_set_lr(0, i);
 }
 
-/*
- * Return the GIC CPU configuration:
- * - [31:0]  ICH_VTR_EL2
- * - [62:32] RES0
- * - [63]    MMIO (GICv2) capable
- */
-u64 __vgic_v3_get_gic_config(void)
+/* Return true if GICv3 is MMIO (GICv2) capable, false otherwise */
+bool __vgic_v3_get_gic_config(void)
 {
 	u64 val, sre;
 	unsigned long flags = 0;
-
-	/*
-	 * In compat mode, we cannot access ICC_SRE_EL1 at any EL
-	 * other than EL1 itself; just return the
-	 * ICH_VTR_EL2. ICC_IDR0_EL1 is only implemented on a GICv5
-	 * system, so we first check if we have GICv5 support.
-	 */
-	if (cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF))
-		return vgic_ich_vtr();
 
 	sre = read_gicreg(ICC_SRE_EL1);
 	/*
@@ -497,10 +483,7 @@ u64 __vgic_v3_get_gic_config(void)
 		isb();
 	}
 
-	val  = (val & ICC_SRE_EL1_SRE) ? 0 : (1ULL << 63);
-	val |= vgic_ich_vtr();
-
-	return val;
+	return !(val & ICC_SRE_EL1_SRE);
 }
 
 static void __vgic_v3_compat_mode_enable(void)
