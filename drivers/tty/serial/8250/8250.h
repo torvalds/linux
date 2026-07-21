@@ -8,7 +8,6 @@
  */
 
 #include <linux/bits.h>
-#include <linux/kconfig.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 #include <linux/dmaengine.h>
