@@ -189,8 +189,8 @@ interpreter and the binary, exactly like the optional argument of a ``#!``
 interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
 ``#!`` path and needs to preserve the argument that followed it.
 
-The invocation flags a static entry fixes at registration - ``P``, ``C``
-and ``O`` - are per-exec choices for a bpf handler, made by the ``load``
+The invocation flags a static entry fixes at registration - ``P``, ``C``,
+``O`` and ``T`` - are per-exec choices for a bpf handler, made by the ``load``
 program with the ``bpf_binprm_set_flags()`` kfunc, so a single handler can
 decide them differently for each binary it handles:
 
@@ -202,6 +202,17 @@ decide them differently for each binary it handles:
 - ``BPF_BINPRM_EXECFD`` opens the binary on the interpreter's behalf and
   passes it through the ``AT_EXECFD`` aux vector entry (the ``O`` flag), so
   the interpreter can run binaries it could not open by path.
+- ``BPF_BINPRM_TRANSPARENT`` runs the interpreter transparently (the ``T``
+  flag): the binary is handed over through ``AT_EXECFD`` as
+  with ``BPF_BINPRM_EXECFD``, but the argument vector is also left as the
+  caller passed it. An interpreter that loads the binary from ``AT_EXECFD``
+  then appears in ``argv[0]`` and ``/proc/pid/cmdline`` as a direct
+  execution of the binary. ``BPF_BINPRM_PRESERVE_ARGV0`` and a staged
+  interpreter argument are rejected in combination with it, just as ``P``
+  is with ``T``. It also lets a handler
+  run a binary passed as an inaccessible ``O_CLOEXEC`` file descriptor to
+  ``execveat()``, which a path-splicing dispatch cannot: the interpreter
+  has no path by which to open it.
 
 Because these are program choices, a ``B`` entry carries no flags in the
 register string; ``F`` (pre-open a fixed interpreter) has no meaning for it.

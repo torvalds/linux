@@ -351,6 +351,8 @@ static unsigned long entry_invocation_flags(const struct binfmt_misc_entry *e,
 		flags |= MISC_FMT_OPEN_BINARY;
 	if (bpf_flags & BPF_BINPRM_CREDENTIALS)
 		flags |= MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_TRANSPARENT)
+		flags |= MISC_FMT_TRANSPARENT | MISC_FMT_OPEN_BINARY;
 
 	return flags;
 }
