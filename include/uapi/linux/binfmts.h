@@ -22,4 +22,11 @@ struct pt_regs;
 #define AT_FLAGS_PRESERVE_ARGV0_BIT 0
 #define AT_FLAGS_PRESERVE_ARGV0 (1 << AT_FLAGS_PRESERVE_ARGV0_BIT)
 
+/*
+ * The interpreter runs transparently: the argument vector and the exe
+ * link belong to the binary passed in AT_EXECFD.
+ */
+#define AT_FLAGS_TRANSPARENT_INTERP_BIT 1
+#define AT_FLAGS_TRANSPARENT_INTERP (1 << AT_FLAGS_TRANSPARENT_INTERP_BIT)
+
 #endif /* _UAPI_LINUX_BINFMTS_H */

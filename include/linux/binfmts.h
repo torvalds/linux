@@ -93,6 +93,28 @@ struct linux_binprm {
 #define BINPRM_FLAGS_PRESERVE_ARGV0_BIT 3
 #define BINPRM_FLAGS_PRESERVE_ARGV0 (1 << BINPRM_FLAGS_PRESERVE_ARGV0_BIT)
 
+/* binfmt_misc dispatched to the interpreter transparently */
+#define BINPRM_FLAGS_TRANSPARENT_INTERP_BIT 4
+#define BINPRM_FLAGS_TRANSPARENT_INTERP (1 << BINPRM_FLAGS_TRANSPARENT_INTERP_BIT)
+
+/**
+ * bprm_at_flags - the AT_FLAGS this invocation implies
+ * @bprm: binary that is being executed
+ *
+ * Tell the program on the receiving end which dispatch contract it got.
+ *
+ * Return: the AT_FLAGS value for this exec
+ */
+static inline unsigned long bprm_at_flags(const struct linux_binprm *bprm)
+{
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if (bprm->interp_flags & BINPRM_FLAGS_TRANSPARENT_INTERP)
+		return AT_FLAGS_TRANSPARENT_INTERP;
+	if (bprm->interp_flags & BINPRM_FLAGS_PRESERVE_ARGV0)
+		return AT_FLAGS_PRESERVE_ARGV0;
+	return 0;
+}
+
 /*
  * This structure defines the functions that are used to load the binary formats that
  * linux accepts.
