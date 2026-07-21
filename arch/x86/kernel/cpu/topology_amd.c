@@ -177,8 +177,10 @@ static void topoext_fixup(struct topo_scan *tscan)
 
 static void parse_topology_amd(struct topo_scan *tscan)
 {
-	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES))
-		tscan->c->topo.cpu_type = cpuid_ebx(0x80000026);
+	if (cpu_feature_enabled(X86_FEATURE_AMD_HTR_CORES)) {
+		tscan->c->topo.hw_cpu_type = cpuid_ebx(0x80000026);
+		tscan->c->topo.cpu_type    = get_topology_cpu_type(tscan->c);
+	}
 
 	/*
 	 * Try to get SMT, CORE, TILE, and DIE shifts from extended
