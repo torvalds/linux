@@ -9,7 +9,7 @@
  *
  *     echo ':name:B::::<handler>:' > /proc/sys/fs/binfmt_misc/register
  *
- * Two self-contained cases are exercised:
+ * Three self-contained cases are exercised:
  *
  *   1. bpf_interp: the match program matches a synthetic aarch64 ELF header
  *      from the prefetched bprm->buf and the load program routes it to a
@@ -18,9 +18,13 @@
  *      commit only to a "$ORIGIN/..."-relative PT_INTERP and the load program
  *      resolves it to an interpreter co-located with the binary (the
  *      relocatable-loader case the kernel ELF loader cannot express).
+ *   3. transparent: the load program sets BPF_BINPRM_TRANSPARENT; the
+ *      asserting interpreter (binfmt_transparent_interp) verifies the
+ *      identity the kernel constructed (exe link, argv, cmdline, comm,
+ *      AT_EXECFD, write denial) from inside the process.
  *
- * Both route to a test interpreter that prints BPF_INTERP_RAN, proving the
- * program's chosen interpreter actually ran.
+ * The first two route to a test interpreter that prints BPF_INTERP_RAN,
+ * proving the program's chosen interpreter actually ran.
  */
 #define _GNU_SOURCE
 #include <elf.h>
@@ -40,7 +44,10 @@
 #define INTERP_PATH	"/tmp/binfmt_bpf_interp"
 #define AARCH64_PATH	"/tmp/binfmt_bpf_aarch64"
 #define RELOC_TEMPLATE	"/tmp/binfmt_relocXXXXXX"
+#define TRANS_INTERP	"/tmp/binfmt_transparent_interp"
+#define TRANS_PATH	"/tmp/binfmt_bpf_riscv"
 #define EXPECT		"BPF_INTERP_RAN"
+#define TRANS_EXPECT	"TRANSPARENT_OK"
 
 /* A minimal 64-bit little-endian ELF header, padded to the read size. */
 static int create_fake_elf(const char *path, unsigned short machine)
@@ -206,6 +213,30 @@ TEST_F(bpf_handler, origin_relative_interpreter)
 	unlink(app);
 	unlink(interp);
 	rmdir(dir);
+}
+
+/* A transparent dispatch: the process presents as the binary, not the interp. */
+TEST_F(bpf_handler, transparent_dispatch)
+{
+	char src[PATH_MAX], cmd[PATH_MAX + 16];
+
+	/* Probe for transparent-mode support via its static counterpart. */
+	if (binfmt_flag_supported('T'))
+		SKIP(return, "kernel without transparent mode");
+
+	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_transparent_interp"), 0);
+	ASSERT_EQ(copy_file(src, TRANS_INTERP), 0);
+	ASSERT_EQ(create_fake_elf(TRANS_PATH, EM_RISCV), 0);
+
+	setenv("BINFMT_TEST_BINARY", TRANS_PATH, 1);
+	snprintf(cmd, sizeof(cmd), "%s argone argtwo", TRANS_PATH);
+	ASSERT_EQ(artifact_path(self->obj, sizeof(self->obj),
+				"transparent.bpf.o"), 0);
+	EXPECT_EQ(run_case(self->obj, "transparent", "test_bpf_transparent",
+			   cmd, TRANS_EXPECT), 0);
+
+	unlink(TRANS_PATH);
+	unlink(TRANS_INTERP);
 }
 
 TEST_HARNESS_MAIN

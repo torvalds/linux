@@ -9,12 +9,26 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define BINFMT_DIR	"/proc/sys/fs/binfmt_misc"
 #define BINFMT_REG	BINFMT_DIR "/register"
+
+/* comm holds 15 usable chars; a read of /proc/self/comm appends a newline. */
+#define TASK_COMM_LEN	16
+
+/* The canonical payload argv: run_payload() passes it, the payloads assert it. */
+#define PAYLOAD_ARGV0	"payload-argv0"
+#define PAYLOAD_ARG1	"argone"
+#define PAYLOAD_ARG2	"argtwo"
+
+/* Exit status run_payload() reports when the exec was refused as unhandled. */
+#define RUN_ENOEXEC	42
 
 static inline int copy_file(const char *src, const char *dst)
 {
@@ -95,6 +109,85 @@ static inline int artifact_path(char *out, size_t sz, const char *name)
 	if ((size_t)snprintf(out, sz, "%s/%s", dirname(exe), name) >= sz)
 		return -1;
 	return 0;
+}
+
+/* Probe kernel support for a registration flag with a throwaway entry. */
+static inline int binfmt_flag_supported(char flag)
+{
+	char rule[64];
+
+	snprintf(rule, sizeof(rule), ":bm_flag_probe:E::bmprobe::/bin/true:%c",
+		 flag);
+	if (write_reg(rule))
+		return -1;
+	unregister("bm_flag_probe");
+	return 0;
+}
+
+/*
+ * Run @path with the canonical payload argv and return its exit status, or
+ * RUN_ENOEXEC when the exec itself was refused as unhandled.
+ */
+static inline int run_payload(const char *path)
+{
+	int status;
+	pid_t pid;
+
+	pid = fork();
+	if (pid == 0) {
+		execl(path, PAYLOAD_ARGV0, PAYLOAD_ARG1, PAYLOAD_ARG2,
+		      (char *)NULL);
+		_exit(errno == ENOEXEC ? RUN_ENOEXEC : 126);
+	}
+	if (pid < 0 || waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
+		return -1;
+	return WEXITSTATUS(status);
+}
+
+/* Does the exe link name @path? */
+static inline bool exe_is(const char *path)
+{
+	char exe[PATH_MAX], real[PATH_MAX];
+	ssize_t n;
+
+	n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+	if (n <= 0 || !realpath(path, real))
+		return false;
+	exe[n] = '\0';
+	return !strcmp(exe, real);
+}
+
+/* Is comm @name truncated to what a comm can hold? */
+static inline bool comm_is(const char *name)
+{
+	char comm[TASK_COMM_LEN + 2], expect[TASK_COMM_LEN];
+	ssize_t n;
+	int fd;
+
+	fd = open("/proc/self/comm", O_RDONLY);
+	if (fd < 0)
+		return false;
+	n = read(fd, comm, sizeof(comm) - 1);
+	close(fd);
+	if (n <= 0)
+		return false;
+	if (comm[n - 1] == '\n')
+		n--;
+	comm[n] = '\0';
+	snprintf(expect, sizeof(expect), "%s", name);
+	return !strcmp(comm, expect);
+}
+
+/* Opening @path for writing has to fail with ETXTBSY. */
+static inline bool write_denied(const char *path)
+{
+	int fd = open(path, O_WRONLY);
+
+	if (fd >= 0) {
+		close(fd);
+		return false;
+	}
+	return errno == ETXTBSY;
 }
 
 #endif /* __SELFTESTS_EXEC_BINFMT_MISC_COMMON_H */
