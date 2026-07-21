@@ -71,35 +71,34 @@ txt_append() {
 	local anchor="$1"
 	local insert="$2"
 	local infile="$3"
-	local tmpfile="$infile.swp"
 
 	# sed append cmd: 'a\' + newline + text + newline
 	cmd="$(printf "a\\%b$insert" "\n")"
 
-	sed -E -e "/$anchor/$cmd" "$infile" >"$tmpfile"
-	# replace original file with the edited one
-	mv "$tmpfile" "$infile"
+	# We don't really need a backup file, but in-place editing with backup
+	# skipped is not portable due to different implementations parsing
+	# arguments in incompatible manners.
+	# Create a backup file anyway to ensure portability. The file will be
+	# deleted on exit.
+	sed -E -i.swp -e "/$anchor/$cmd" "$infile"
+	SED_EDITED=1
 }
 
 txt_subst() {
 	local before="$1"
 	local after="$2"
 	local infile="$3"
-	local tmpfile="$infile.swp"
 
-	sed -E -e "s$SED_DELIM$before$SED_DELIM$after$SED_DELIM" "$infile" >"$tmpfile"
-	# replace original file with the edited one
-	mv "$tmpfile" "$infile"
+	sed -E -i.swp -e "s$SED_DELIM$before$SED_DELIM$after$SED_DELIM" "$infile"
+	SED_EDITED=1
 }
 
 txt_delete() {
 	local text="$1"
 	local infile="$2"
-	local tmpfile="$infile.swp"
 
-	sed -E -e "/$text/d" "$infile" >"$tmpfile"
-	# replace original file with the edited one
-	mv "$tmpfile" "$infile"
+	sed -E -i.swp -e "/$text/d" "$infile"
+	SED_EDITED=1
 }
 
 set_var() {
@@ -121,6 +120,14 @@ undef_var() {
 
 	txt_delete "^($name=|# $name is not set)" "$FN"
 }
+
+SED_EDITED=0
+on_exit() {
+	if [ "$SED_EDITED" -ge 1 ]; then
+		rm -f "$FN.swp"
+	fi
+}
+trap on_exit EXIT
 
 FN=.config
 CMDS=()
