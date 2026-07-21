@@ -1740,7 +1740,7 @@ s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitfram
 	struct sk_buff *pndis_pkt = NULL;
 
 	if (!pxmitframe)
-		goto exit;
+		return _SUCCESS;
 
 	if (pxmitframe->pkt) {
 		pndis_pkt = pxmitframe->pkt;
@@ -1773,7 +1773,6 @@ check_pkt_complete:
 	if (pndis_pkt)
 		rtw_os_pkt_complete(padapter, pndis_pkt);
 
-exit:
 	return _SUCCESS;
 }
 
