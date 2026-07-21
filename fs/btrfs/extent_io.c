@@ -5056,7 +5056,8 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 		.level = level,
 		.transid = gen
 	};
-	struct btrfs_eb_prealloc pa = { 0 };
+	/* Readahead is best effort so prefer to fail rather than block in reclaim. */
+	struct btrfs_eb_prealloc pa = { .supports_nowait = true };
 	struct extent_buffer *eb;
 	int ret;
 
