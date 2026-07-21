@@ -3020,12 +3020,14 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 
 	gfx_v7_0_cp_compute_enable(adev, true);
 
+	r = 0;
+
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
-		amdgpu_ring_test_helper(ring);
+		r |= amdgpu_ring_test_helper(ring);
 	}
 
-	return 0;
+	return r;
 }
 
 static void gfx_v7_0_cp_enable(struct amdgpu_device *adev, bool enable)
