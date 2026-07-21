@@ -307,7 +307,7 @@ static int do_remove_property(char *buf, size_t bufsize)
 	if (tmp)
 		*tmp = '\0';
 
-	if (strlen(buf) == 0)
+	if (*buf == '\0')
 		return -EINVAL;
 
 	return of_remove_property(np, of_find_property(np, buf, NULL));
@@ -330,7 +330,7 @@ static int do_update_property(char *buf, size_t bufsize)
 	if (!next_prop)
 		return -EINVAL;
 
-	if (!strlen(name))
+	if (*name == '\0')
 		return -ENODEV;
 
 	newprop = new_property(name, length, value, NULL);
