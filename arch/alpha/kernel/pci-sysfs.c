@@ -102,25 +102,25 @@ static int pci_mmap_resource_dense(struct file *filp, struct kobject *kobj,
 	return pci_mmap_resource(kobj, attr, vma, 0);
 }
 
-#define __pci_dev_resource_attr(_bar, _name, _suffix, _mmap)		\
-static const struct bin_attribute					\
-pci_dev_resource##_bar##_suffix##_attr = {				\
-	.attr = { .name = __stringify(_name), .mode = 0600 },		\
-	.private = (void *)(unsigned long)(_bar),			\
-	.mmap = (_mmap),						\
+#define __pci_dev_resource_attr(_suffix, _bar, _name, _mmap)	\
+static const struct bin_attribute				\
+pci_dev_resource##_bar##_suffix##_attr = {			\
+	.attr = { .name = __stringify(_name), .mode = 0600 },	\
+	.private = (void *)(unsigned long)(_bar),		\
+	.mmap = (_mmap),					\
 }
 
-#define pci_dev_resource_attr(_bar)					\
-	__pci_dev_resource_attr(_bar, resource##_bar,,			\
-			    pci_mmap_resource_dense)
+#define pci_dev_resource_attr(_bar)			\
+	__pci_dev_resource_attr(, _bar, resource##_bar,	\
+				pci_mmap_resource_dense)
 
 #define pci_dev_resource_sparse_attr(_bar)				\
-	__pci_dev_resource_attr(_bar, resource##_bar##_sparse, _sparse,	\
-			    pci_mmap_resource_sparse)
+	__pci_dev_resource_attr(_sparse, _bar, resource##_bar##_sparse,	\
+				pci_mmap_resource_sparse)
 
 #define pci_dev_resource_dense_attr(_bar)				\
-	__pci_dev_resource_attr(_bar, resource##_bar##_dense, _dense,	\
-			    pci_mmap_resource_dense)
+	__pci_dev_resource_attr(_dense, _bar, resource##_bar##_dense,	\
+				pci_mmap_resource_dense)
 
 static int sparse_mem_mmap_fits(struct pci_dev *pdev, int num)
 {
