@@ -23,68 +23,42 @@
  * program's chosen interpreter actually ran.
  */
 #define _GNU_SOURCE
+#include <elf.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <libgen.h>
-#include <sys/mount.h>
-#include <sys/stat.h>
 
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+#include "binfmt_misc_common.h"
+#include "kselftest_harness.h"
+
 #define INTERP_PATH	"/tmp/binfmt_bpf_interp"
 #define AARCH64_PATH	"/tmp/binfmt_bpf_aarch64"
-#define RELOC_DIR	"/tmp/binfmt_reloc"
-#define BINFMT_REG	"/proc/sys/fs/binfmt_misc/register"
+#define RELOC_TEMPLATE	"/tmp/binfmt_relocXXXXXX"
 #define EXPECT		"BPF_INTERP_RAN"
 
-static char testdir[512]; /* directory holding this test's built artifacts */
-
-static int copy_file(const char *src, const char *dst)
-{
-	char buf[4096];
-	int in, out;
-	ssize_t n;
-
-	in = open(src, O_RDONLY);
-	if (in < 0)
-		return -1;
-	out = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0755);
-	if (out < 0) {
-		close(in);
-		return -1;
-	}
-	while ((n = read(in, buf, sizeof(buf))) > 0) {
-		if (write(out, buf, n) != n) {
-			close(in);
-			close(out);
-			return -1;
-		}
-	}
-	close(in);
-	close(out);
-	return n < 0 ? -1 : 0;
-}
-
-/* A minimal 64-bit little-endian aarch64 ELF header, padded to the read size. */
-static int create_fake_aarch64(const char *path)
+/* A minimal 64-bit little-endian ELF header, padded to the read size. */
+static int create_fake_elf(const char *path, unsigned short machine)
 {
 	unsigned char hdr[256] = {0};
 	int fd;
 
 	hdr[0] = 0x7f; hdr[1] = 'E'; hdr[2] = 'L'; hdr[3] = 'F';
-	hdr[4] = 2;			/* ELFCLASS64 */
-	hdr[5] = 1;			/* ELFDATA2LSB */
-	hdr[6] = 1;			/* EV_CURRENT */
-	hdr[16] = 2;			/* e_type = ET_EXEC */
-	hdr[18] = 183 & 0xff;		/* e_machine = EM_AARCH64 */
-	hdr[19] = (183 >> 8) & 0xff;
-	hdr[20] = 1;			/* e_version */
+	hdr[4] = ELFCLASS64;
+	hdr[5] = ELFDATA2LSB;
+	hdr[6] = EV_CURRENT;
+	hdr[16] = ET_EXEC;
+	hdr[18] = machine & 0xff;	/* e_machine, little-endian */
+	hdr[19] = machine >> 8;
+	hdr[20] = EV_CURRENT;
 
-	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0755);
+	unlink(path);
+	fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0755);
 	if (fd < 0)
 		return -1;
 	if (write(fd, hdr, sizeof(hdr)) != (ssize_t)sizeof(hdr)) {
@@ -97,31 +71,10 @@ static int create_fake_aarch64(const char *path)
 
 static int register_entry(const char *name, const char *handler)
 {
-	char rule[128];
-	int fd;
-	ssize_t n;
+	char rule[PATH_MAX];
 
 	snprintf(rule, sizeof(rule), ":%s:B::::%s:", name, handler);
-	fd = open(BINFMT_REG, O_WRONLY);
-	if (fd < 0)
-		return -1;
-	n = write(fd, rule, strlen(rule));
-	close(fd);
-	return n < 0 ? -1 : 0;
-}
-
-static void unregister_entry(const char *name)
-{
-	char path[128];
-	int fd;
-
-	snprintf(path, sizeof(path), "/proc/sys/fs/binfmt_misc/%s", name);
-	fd = open(path, O_WRONLY);
-	if (fd >= 0) {
-		if (write(fd, "-1", 2) < 0)
-			; /* best effort */
-		close(fd);
-	}
+	return write_reg(rule);
 }
 
 static int check_output(const char *cmd, const char *expected)
@@ -178,7 +131,7 @@ static int run_case(const char *objfile, const char *handler,
 		goto detach;
 	}
 	ret = check_output(target, expect);
-	unregister_entry(entry);
+	unregister(entry);
 detach:
 	bpf_link__destroy(link);
 close:
@@ -186,92 +139,73 @@ close:
 	return ret;
 }
 
-int main(void)
+FIXTURE(bpf_handler) {
+	char obj[PATH_MAX];	/* struct_ops object of the case under test */
+};
+
+FIXTURE_SETUP(bpf_handler)
 {
-	char src[600], obj[600], appdst[600], interpdst[600];
-	char exe[512];
-	ssize_t n;
-	int fail = 0;
-	struct stat st;
+	char src[PATH_MAX];
 	struct btf *btf;
 
-	if (getuid() != 0) {
-		fprintf(stderr, "Skipping: test must be run as root\n");
-		return 4; /* KSFT_SKIP */
-	}
+	if (getuid() != 0)
+		SKIP(return, "test must be run as root");
 
 	/* The kernel must know struct binfmt_misc_ops (CONFIG_BINFMT_MISC_BPF). */
 	btf = btf__load_vmlinux_btf();
 	if (!btf || btf__find_by_name_kind(btf, "binfmt_misc_ops",
 					   BTF_KIND_STRUCT) < 0) {
-		fprintf(stderr,
-			"Skipping: no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)\n");
 		btf__free(btf);
-		return 4; /* KSFT_SKIP */
+		SKIP(return,
+		     "no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)");
 	}
 	btf__free(btf);
 
-	n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
-	if (n < 0) {
-		perror("readlink");
-		return 1;
-	}
-	exe[n] = '\0';
-	snprintf(testdir, sizeof(testdir), "%s", dirname(exe));
-
-	if (stat("/sys/fs/bpf", &st) < 0)
-		mkdir("/sys/fs/bpf", 0755);
-	mount("bpf", "/sys/fs/bpf", "bpf", 0, NULL);
-	if (access(BINFMT_REG, F_OK) < 0)
-		mount("binfmt_misc", "/proc/sys/fs/binfmt_misc", "binfmt_misc", 0, NULL);
+	if (!binfmt_misc_available())
+		SKIP(return, "no binfmt_misc");
 
 	/* Shared test interpreter. */
-	snprintf(src, sizeof(src), "%s/binfmt_bpf_interp", testdir);
-	if (copy_file(src, INTERP_PATH)) {
-		fprintf(stderr, "cannot install %s\n", INTERP_PATH);
-		return 1;
-	}
-
-	/* Case 1: match a synthetic aarch64 header -> fixed interpreter. */
-	printf("[*] case 1: match aarch64 header -> program-chosen interpreter\n");
-	if (create_fake_aarch64(AARCH64_PATH)) {
-		fprintf(stderr, "cannot create %s\n", AARCH64_PATH);
-		return 1;
-	}
-	snprintf(obj, sizeof(obj), "%s/bpf_interp.bpf.o", testdir);
-	if (run_case(obj, "bpf_interp", "test_bpf_interp", AARCH64_PATH, EXPECT) == 0)
-		printf("[+] case 1 passed\n");
-	else {
-		printf("[-] case 1 FAILED\n");
-		fail = 1;
-	}
-	unlink(AARCH64_PATH);
-
-	/* Case 2: $ORIGIN-relative PT_INTERP -> co-located interpreter. */
-	printf("[*] case 2: $ORIGIN interpreter resolved relative to the binary\n");
-	mkdir(RELOC_DIR, 0755);
-	snprintf(appdst, sizeof(appdst), "%s/app", RELOC_DIR);
-	snprintf(interpdst, sizeof(interpdst), "%s/binfmt_bpf_interp", RELOC_DIR);
-	snprintf(src, sizeof(src), "%s/binfmt_bpf_app", testdir);
-	if (copy_file(src, appdst) ||
-	    copy_file(INTERP_PATH, interpdst)) {
-		fprintf(stderr, "cannot set up %s\n", RELOC_DIR);
-		fail = 1;
-	} else {
-		snprintf(obj, sizeof(obj), "%s/nix_origin.bpf.o", testdir);
-		if (run_case(obj, "nix_origin", "test_bpf_origin", appdst, EXPECT) == 0)
-			printf("[+] case 2 passed\n");
-		else {
-			printf("[-] case 2 FAILED\n");
-			fail = 1;
-		}
-	}
-	unlink(appdst);
-	unlink(interpdst);
-	rmdir(RELOC_DIR);
-	unlink(INTERP_PATH);
-
-	if (!fail)
-		printf("[*] all binfmt_misc bpf cases passed\n");
-	return fail;
+	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_bpf_interp"), 0);
+	ASSERT_EQ(copy_file(src, INTERP_PATH), 0);
 }
+
+FIXTURE_TEARDOWN(bpf_handler)
+{
+	unlink(INTERP_PATH);
+}
+
+/* The match program matches a synthetic header, the load program routes it. */
+TEST_F(bpf_handler, fixed_interpreter)
+{
+	ASSERT_EQ(create_fake_elf(AARCH64_PATH, EM_AARCH64), 0);
+	ASSERT_EQ(artifact_path(self->obj, sizeof(self->obj),
+				"bpf_interp.bpf.o"), 0);
+	EXPECT_EQ(run_case(self->obj, "bpf_interp", "test_bpf_interp",
+			   AARCH64_PATH, EXPECT), 0);
+	unlink(AARCH64_PATH);
+}
+
+/* A "$ORIGIN/..." PT_INTERP resolved to an interpreter next to the binary. */
+TEST_F(bpf_handler, origin_relative_interpreter)
+{
+	char src[PATH_MAX], app[PATH_MAX], interp[PATH_MAX];
+	char dir[] = RELOC_TEMPLATE;
+
+	ASSERT_NE(mkdtemp(dir), NULL);
+	snprintf(app, sizeof(app), "%s/app", dir);
+	snprintf(interp, sizeof(interp), "%s/binfmt_bpf_interp", dir);
+	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_bpf_app"), 0);
+	ASSERT_EQ(copy_file(src, app), 0);
+	ASSERT_EQ(copy_file(INTERP_PATH, interp), 0);
+
+	ASSERT_EQ(artifact_path(self->obj, sizeof(self->obj),
+				"nix_origin.bpf.o"), 0);
+	EXPECT_EQ(run_case(self->obj, "nix_origin", "test_bpf_origin",
+			   app, EXPECT), 0);
+
+	unlink(app);
+	unlink(interp);
+	rmdir(dir);
+}
+
+TEST_HARNESS_MAIN
