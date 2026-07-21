@@ -403,12 +403,21 @@ void smbdirect_connection_destroy_qp(struct smbdirect_socket *sc)
 		sc->ib.qp = NULL;
 		rdma_destroy_qp(sc->rdma.cm_id);
 	}
+	/*
+	 * These CQs were created with ib_alloc_cq_any(), which arms an internal
+	 * completion handler (ib_cq_poll_work for IB_POLL_WORKQUEUE). They MUST be
+	 * torn down with ib_free_cq(), which cancel_work_sync()es that poll work
+	 * before freeing the CQ. ib_destroy_cq() skips that step, so a completion
+	 * posted late by the (software) provider — e.g. rxe posting an RNR error
+	 * from rxe_receiver after rdma_destroy_qp() — re-queues ib_cq_poll_work on
+	 * an already-freed CQ (KASAN slab-use-after-free in ib_cq_poll_work).
+	 */
 	if (sc->ib.recv_cq) {
-		ib_destroy_cq(sc->ib.recv_cq);
+		ib_free_cq(sc->ib.recv_cq);
 		sc->ib.recv_cq = NULL;
 	}
 	if (sc->ib.send_cq) {
-		ib_destroy_cq(sc->ib.send_cq);
+		ib_free_cq(sc->ib.send_cq);
 		sc->ib.send_cq = NULL;
 	}
 	if (sc->ib.pd) {
