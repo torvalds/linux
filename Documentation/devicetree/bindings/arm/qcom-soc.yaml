@@ -83,4 +83,8 @@ properties:
             - qcom,ipq806x-usb-phy-ss
             - qcom,ipq806x-usb-phy-hs
 
+        # In general non-SoC Qualcomm devices do not need to be listed here,
+        # however in a few cases they got selected by patterns in "select":
+        - pattern: "^qcom,wsa[0-9]+$"
+
 additionalProperties: true
