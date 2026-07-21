@@ -419,8 +419,8 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		domain |= AMDGPU_GEM_DOMAIN_VRAM;
 #endif
 
-	/* create MQD for KIQ */
-	if (!adev->enable_mes_kiq && !ring->mqd_obj) {
+	/* create MQD for KIQ (on GFX8+ where we use KIQ) */
+	if (adev->asic_type >= CHIP_TOPAZ && !adev->enable_mes_kiq && !ring->mqd_obj) {
 		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
 		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
 		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
