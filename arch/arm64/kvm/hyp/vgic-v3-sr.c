@@ -367,7 +367,7 @@ void __vgic_v3_save_aprs(struct vgic_v3_cpu_if *cpu_if)
 	u64 val;
 	u32 nr_pre_bits;
 
-	val = read_gicreg(ICH_VTR_EL2);
+	val = vgic_ich_vtr();
 	nr_pre_bits = vtr_to_nr_pre_bits(val);
 
 	switch (nr_pre_bits) {
@@ -400,7 +400,7 @@ static void __vgic_v3_restore_aprs(struct vgic_v3_cpu_if *cpu_if)
 	u64 val;
 	u32 nr_pre_bits;
 
-	val = read_gicreg(ICH_VTR_EL2);
+	val = vgic_ich_vtr();
 	nr_pre_bits = vtr_to_nr_pre_bits(val);
 
 	switch (nr_pre_bits) {
@@ -430,7 +430,7 @@ static void __vgic_v3_restore_aprs(struct vgic_v3_cpu_if *cpu_if)
 
 void __vgic_v3_init_lrs(void)
 {
-	int max_lr_idx = vtr_to_max_lr_idx(read_gicreg(ICH_VTR_EL2));
+	int max_lr_idx = vtr_to_max_lr_idx(vgic_ich_vtr());
 	int i;
 
 	for (i = 0; i <= max_lr_idx; i++)
@@ -455,7 +455,7 @@ u64 __vgic_v3_get_gic_config(void)
 	 * system, so we first check if we have GICv5 support.
 	 */
 	if (cpus_have_final_cap(ARM64_HAS_GICV5_CPUIF))
-		return read_gicreg(ICH_VTR_EL2);
+		return vgic_ich_vtr();
 
 	sre = read_gicreg(ICC_SRE_EL1);
 	/*
@@ -498,7 +498,7 @@ u64 __vgic_v3_get_gic_config(void)
 	}
 
 	val  = (val & ICC_SRE_EL1_SRE) ? 0 : (1ULL << 63);
-	val |= read_gicreg(ICH_VTR_EL2);
+	val |= vgic_ich_vtr();
 
 	return val;
 }
@@ -540,7 +540,7 @@ void __vgic_v3_restore_vmcr_aprs(struct vgic_v3_cpu_if *cpu_if)
 static int __vgic_v3_bpr_min(void)
 {
 	/* See Pseudocode for VPriorityGroup */
-	return 8 - vtr_to_nr_pre_bits(read_gicreg(ICH_VTR_EL2));
+	return 8 - vtr_to_nr_pre_bits(vgic_ich_vtr());
 }
 
 static int __vgic_v3_get_group(struct kvm_vcpu *vcpu)
@@ -614,7 +614,7 @@ static int __vgic_v3_find_active_lr(struct kvm_vcpu *vcpu, int intid,
 
 static int __vgic_v3_get_highest_active_priority(void)
 {
-	u8 nr_apr_regs = vtr_to_nr_apr_regs(read_gicreg(ICH_VTR_EL2));
+	u8 nr_apr_regs = vtr_to_nr_apr_regs(vgic_ich_vtr());
 	u32 hap = 0;
 	int i;
 
@@ -707,7 +707,7 @@ static void __vgic_v3_set_active_priority(u8 pri, u32 vmcr, int grp)
 
 static int __vgic_v3_clear_highest_active_priority(void)
 {
-	u8 nr_apr_regs = vtr_to_nr_apr_regs(read_gicreg(ICH_VTR_EL2));
+	u8 nr_apr_regs = vtr_to_nr_apr_regs(vgic_ich_vtr());
 	u32 hap = 0;
 	int i;
 
@@ -1039,7 +1039,7 @@ static void __vgic_v3_read_ctlr(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 {
 	u32 vtr, val;
 
-	vtr = read_gicreg(ICH_VTR_EL2);
+	vtr = vgic_ich_vtr();
 	/* PRIbits */
 	val = ((vtr >> 29) & 7) << ICC_CTLR_EL1_PRI_BITS_SHIFT;
 	/* IDbits */
