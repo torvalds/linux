@@ -22066,6 +22066,7 @@ M:	Jorijn van der Graaf <jorijnvdgraaf@catcrafts.net>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/magnetometer/qstcorp,qmc6308.yaml
+F:	drivers/iio/magnetometer/qmc6308.c
 
 QT1010 MEDIA DRIVER
 L:	linux-media@vger.kernel.org
