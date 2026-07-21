@@ -4661,21 +4661,19 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	wb_info = kzalloc_obj(*wb_info);
 	if (!wb_info) {
 		drm_err(adev_to_drm(adev), "Failed to allocate wb_info\n");
-		return;
+		goto cleanup;
 	}
 
 	acrtc = to_amdgpu_crtc(wb_conn->encoder.crtc);
 	if (!acrtc) {
 		drm_err(adev_to_drm(adev), "no amdgpu_crtc found\n");
-		kfree(wb_info);
-		return;
+		goto cleanup;
 	}
 
 	afb = to_amdgpu_framebuffer(new_con_state->writeback_job->fb);
 	if (!afb) {
 		drm_err(adev_to_drm(adev), "No amdgpu_framebuffer found\n");
-		kfree(wb_info);
-		return;
+		goto cleanup;
 	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -4683,6 +4681,11 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 			pipe = &dm->dc->current_state->res_ctx.pipe_ctx[i];
 			break;
 		}
+	}
+
+	if (!pipe) {
+		drm_err(adev_to_drm(adev), "No pipe found for stream\n");
+		goto cleanup;
 	}
 
 	/* fill in wb_info */
@@ -4758,6 +4761,9 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	WARN_ON(drm_crtc_vblank_get(&acrtc->base));
 	acrtc->wb_frame_done = false;
 	acrtc->wb_pending = true;
+
+cleanup:
+	kfree(wb_info);
 }
 
 static void amdgpu_dm_update_hdcp(struct drm_atomic_commit *state)
