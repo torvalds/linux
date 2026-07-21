@@ -22061,6 +22061,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/magnetometer/qstcorp,qmc5883l.yaml
 F:	drivers/iio/magnetometer/qmc5883l.c
 
+QST QMC6308 3-AXIS MAGNETIC SENSOR
+M:	Jorijn van der Graaf <jorijnvdgraaf@catcrafts.net>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/magnetometer/qstcorp,qmc6308.yaml
+
 QT1010 MEDIA DRIVER
 L:	linux-media@vger.kernel.org
 S:	Orphan
