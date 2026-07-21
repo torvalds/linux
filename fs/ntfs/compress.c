@@ -1258,11 +1258,11 @@ static int ntfs_compress_block(const char *inbuf, const int bufsize,
 }
 
 static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
-		int pages_per_cb)
+		int pages_per_cb, unsigned int page_offset)
 {
 	struct ntfs_volume *vol = ni->vol;
-	char *outbuf = NULL, *pbuf, *inbuf;
-	u32 compsz, p, insz = pages_per_cb << PAGE_SHIFT;
+	char *outbuf = NULL, *pbuf, *inbuf, *in_mapping;
+	u32 compsz, p, insz = ni->itype.compressed.block_size;
 	s32 rounded, bio_size;
 	int sz;
 	unsigned int bsz;
@@ -1284,14 +1284,15 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	loff_t new_length;
 	s64 new_vcn;
 
-	inbuf = vmap(pages, pages_per_cb, VM_MAP, PAGE_KERNEL_RO);
-	if (!inbuf)
+	in_mapping = vmap(pages, pages_per_cb, VM_MAP, PAGE_KERNEL_RO);
+	if (!in_mapping)
 		return -ENOMEM;
+	inbuf = in_mapping + page_offset;
 
 	/* may need 2 extra bytes per block and 2 more bytes */
 	pages_disk = kcalloc(pages_count, sizeof(struct page *), GFP_NOFS);
 	if (!pages_disk) {
-		vunmap(inbuf);
+		vunmap(in_mapping);
 		return -ENOMEM;
 	}
 
@@ -1361,7 +1362,9 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 		err = 0;
 		goto out;
 	} else {
+		memcpy(outbuf, inbuf, insz);
 		bio_size = insz;
+		pages = pages_disk;
 	}
 
 	new_vcn = ntfs_bytes_to_cluster(vol,
@@ -1420,7 +1423,8 @@ setup_bio:
 					GFP_NOIO);
 			bio->bi_iter.bi_sector =
 				ntfs_bytes_to_sector(vol,
-						ntfs_cluster_to_bytes(vol, bio_lcn + i));
+						ntfs_cluster_to_bytes(vol, bio_lcn) +
+						((s64)i << PAGE_SHIFT));
 		}
 
 		if (!bio_add_page(bio, pages[i], page_size, 0)) {
@@ -1437,7 +1441,8 @@ setup_bio:
 	err = submit_bio_wait(bio);
 	bio_put(bio);
 out:
-	vunmap(outbuf);
+	if (outbuf)
+		vunmap(outbuf);
 	for (i = 0; i < pages_count; i++) {
 		pg = pages_disk[i];
 		if (pg) {
@@ -1446,7 +1451,7 @@ out:
 		}
 	}
 	kfree(pages_disk);
-	vunmap(inbuf);
+	vunmap(in_mapping);
 	NInoSetFileNameDirty(ni);
 	mark_mft_record_dirty(ni);
 
@@ -1458,11 +1463,14 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 {
 	struct folio *folio;
 	struct page **pages = NULL, *page;
-	int pages_per_cb = ni->itype.compressed.block_size >> PAGE_SHIFT;
+	int pages_per_cb;
 	int cb_size = ni->itype.compressed.block_size, cb_off, err = 0;
 	int i, ip;
 	size_t written = 0;
 	struct address_space *mapping = VFS_I(ni)->i_mapping;
+
+	pages_per_cb = DIV_ROUND_UP(offset_in_page(pos & ~(cb_size - 1)) +
+			cb_size, PAGE_SIZE);
 
 	pages = kmalloc_array(pages_per_cb, sizeof(struct page *), GFP_NOFS);
 	if (!pages)
@@ -1471,6 +1479,7 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 	while (count) {
 		pgoff_t index;
 		size_t copied, bytes;
+		unsigned int page_offset;
 		int off;
 
 		off = pos & (cb_size - 1);
@@ -1479,6 +1488,8 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 			bytes = count;
 
 		cb_off = pos & ~(cb_size - 1);
+		page_offset = offset_in_page(cb_off);
+		pages_per_cb = DIV_ROUND_UP(page_offset + cb_size, PAGE_SIZE);
 		index = cb_off >> PAGE_SHIFT;
 
 		if (unlikely(fault_in_iov_iter_readable(from, bytes))) {
@@ -1527,7 +1538,7 @@ int ntfs_compress_write(struct ntfs_inode *ni, loff_t pos, size_t count,
 			}
 		}
 
-		err = ntfs_write_cb(ni, pos, pages, pages_per_cb);
+		err = ntfs_write_cb(ni, pos, pages, pages_per_cb, page_offset);
 
 		for (i = 0; i < pages_per_cb; i++) {
 			folio = page_folio(pages[i]);
