@@ -1452,6 +1452,40 @@ static void dm_test_crtc_destroy_state_no_stream(struct kunit *test)
 }
 
 /**
+ * dm_test_crtc_destroy_state_releases_stream - Test destroy releases the stream
+ * @test: The KUnit test context
+ *
+ * When the CRTC state carries a DC stream, destroying the state must release a
+ * stream reference. An extra reference is taken up front so the release leaves
+ * the KUnit-managed reference intact rather than freeing the stream here.
+ */
+static void dm_test_crtc_destroy_state_releases_stream(struct kunit *test)
+{
+	struct dc_stream_state *stream;
+	struct dm_crtc_state *dm_state;
+	struct dc_link *link;
+
+	link = dm_kunit_alloc_link(test);
+	stream = dm_kunit_alloc_stream(test, link);
+
+	/*
+	 * Take an extra reference so amdgpu_dm_crtc_destroy_state() drops back to
+	 * the KUnit-managed reference instead of freeing the stream.
+	 */
+	kref_get(&stream->refcount);
+
+	/* destroy_state kfree()s the state, so use a plain (unmanaged) alloc. */
+	dm_state = kzalloc_obj(*dm_state, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
+	dm_state->stream = stream;
+
+	amdgpu_dm_crtc_destroy_state(NULL, &dm_state->base);
+
+	/* One reference was dropped, leaving the KUnit-managed one. */
+	KUNIT_EXPECT_EQ(test, kref_read(&stream->refcount), 1);
+}
+
+/**
  * dm_test_crtc_handle_vblank_no_event - Test vblank handling with no pending event
  * @test: The KUnit test context
  *
@@ -1877,6 +1911,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_reset_state_allocates_state),
 	/* amdgpu_dm_crtc_destroy_state */
 	KUNIT_CASE(dm_test_crtc_destroy_state_no_stream),
+	KUNIT_CASE(dm_test_crtc_destroy_state_releases_stream),
 	/* amdgpu_dm_crtc_handle_vblank */
 	KUNIT_CASE(dm_test_crtc_handle_vblank_no_event),
 	KUNIT_CASE(dm_test_crtc_handle_vblank_skips_when_flip_submitted),
