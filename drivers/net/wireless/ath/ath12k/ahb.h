@@ -30,6 +30,24 @@
 #define ATH12K_USERPD_ID_MASK			GENMASK(10, 8)
 #define ATH12K_USERPD_FW_NAME_LEN		35
 
+enum ath12k_ahb_userpd_id {
+	ATH12K_AHB_USERPD_ID_0 = 1,
+	ATH12K_AHB_USERPD_ID_1,
+	ATH12K_AHB_USERPD_ID_2,
+};
+
+struct ath12k_ahb_userpd_map {
+	phys_addr_t io_start;
+	const char *node_name;
+	u32 upd_id;
+};
+
+struct ath12k_ahb_desc {
+	enum ath12k_hw_rev hw_rev;
+	bool auth_enabled;
+	const struct ath12k_hif_ops *ops;
+};
+
 enum ath12k_ahb_smp2p_msg_id {
 	ATH12K_AHB_POWER_SAVE_ENTER = 1,
 	ATH12K_AHB_POWER_SAVE_EXIT,
@@ -43,6 +61,7 @@ enum ath12k_ahb_userpd_irq {
 };
 
 struct ath12k_base;
+extern const struct ath12k_hif_ops ath12k_ahb_hif_ops;
 
 struct ath12k_ahb_device_family_ops {
 	int (*probe)(struct platform_device *pdev);

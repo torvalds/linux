@@ -704,7 +704,7 @@ static int ath12k_ahb_map_service_to_pipe(struct ath12k_base *ab, u16 service_id
 	return 0;
 }
 
-static const struct ath12k_hif_ops ath12k_ahb_hif_ops = {
+const struct ath12k_hif_ops ath12k_ahb_hif_ops = {
 	.start = ath12k_ahb_start,
 	.stop = ath12k_ahb_stop,
 	.read32 = ath12k_ahb_read32,
@@ -715,6 +715,7 @@ static const struct ath12k_hif_ops ath12k_ahb_hif_ops = {
 	.power_up = ath12k_ahb_power_up,
 	.power_down = ath12k_ahb_power_down,
 };
+EXPORT_SYMBOL(ath12k_ahb_hif_ops);
 
 static irqreturn_t ath12k_userpd_irq_handler(int irq, void *data)
 {
@@ -1038,7 +1039,6 @@ static int ath12k_ahb_probe(struct platform_device *pdev)
 
 	ab_ahb = ath12k_ab_to_ahb(ab);
 	ab_ahb->ab = ab;
-	ab->hif.ops = &ath12k_ahb_hif_ops;
 	ab->pdev = pdev;
 	platform_set_drvdata(pdev, ab);
 
