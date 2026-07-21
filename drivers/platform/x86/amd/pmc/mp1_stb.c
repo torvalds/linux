@@ -299,10 +299,7 @@ int amd_stb_s2d_init(struct amd_pmc_dev *dev)
 	if (!enable_stb)
 		return 0;
 
-	if (amd_is_stb_supported(dev)) {
-		debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
-				    &amd_stb_debugfs_fops_v2);
-	} else {
+	if (!amd_is_stb_supported(dev)) {
 		debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
 				    &amd_stb_debugfs_fops);
 		return 0;
@@ -342,8 +339,18 @@ int amd_stb_s2d_init(struct amd_pmc_dev *dev)
 	}
 
 	dev->stb_virt_addr = devm_ioremap(dev->dev, stb_phys_addr, dev->dram_size);
-	if (!dev->stb_virt_addr)
+	if (!dev->stb_virt_addr) {
 		ret = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * Only expose stb_read once the buffer is mapped; otherwise a read
+	 * faults on a NULL dev->stb_virt_addr, now that a failed STB init no
+	 * longer aborts probe.
+	 */
+	debugfs_create_file("stb_read", 0644, dev->dbgfs_dir, dev,
+			    &amd_stb_debugfs_fops_v2);
 
 out:
 	/* Restore the default message port for subsequent SMU operations */
