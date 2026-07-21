@@ -204,6 +204,9 @@ void SMB2_query_directory_free(struct smb_rqst *rqst);
 int SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon,
 		 u64 persistent_fid, u64 volatile_fid, u32 pid,
 		 loff_t new_eof);
+int SMB2_set_allocation(const unsigned int xid, struct cifs_tcon *tcon,
+			u64 persistent_fid, u64 volatile_fid, u32 pid,
+			loff_t allocation_size);
 int SMB2_set_info_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		       struct smb_rqst *rqst, u64 persistent_fid,
 		       u64 volatile_fid, u32 pid, u8 info_class, u8 info_type,

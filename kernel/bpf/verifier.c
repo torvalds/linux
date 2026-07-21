@@ -2584,24 +2584,25 @@ static struct btf *find_kfunc_desc_btf(struct bpf_verifier_env *env, s16 offset)
 
 #define KF_IMPL_SUFFIX "_impl"
 
-static const struct btf_type *find_kfunc_impl_proto(struct bpf_verifier_env *env,
+static const struct btf_type *find_kfunc_impl_proto(struct bpf_verifier_log *log,
 						    struct btf *btf,
 						    const char *func_name)
 {
-	char *buf = env->tmp_str_buf;
 	const struct btf_type *func;
+	char buf[KSYM_NAME_LEN];
 	s32 impl_id;
 	int len;
 
-	len = snprintf(buf, TMP_STR_BUF_LEN, "%s%s", func_name, KF_IMPL_SUFFIX);
-	if (len < 0 || len >= TMP_STR_BUF_LEN) {
-		verbose(env, "function name %s%s is too long\n", func_name, KF_IMPL_SUFFIX);
+	len = snprintf(buf, sizeof(buf), "%s%s", func_name, KF_IMPL_SUFFIX);
+	if (len < 0 || len >= sizeof(buf)) {
+		bpf_log(log, "function name %s%s is too long\n",
+			func_name, KF_IMPL_SUFFIX);
 		return NULL;
 	}
 
 	impl_id = btf_find_by_name_kind(btf, buf, BTF_KIND_FUNC);
 	if (impl_id <= 0) {
-		verbose(env, "cannot find function %s in BTF\n", buf);
+		bpf_log(log, "cannot find function %s in BTF\n", buf);
 		return NULL;
 	}
 
@@ -2653,7 +2654,7 @@ static int fetch_kfunc_meta(struct bpf_verifier_env *env,
 	 * can be found through the counterpart _impl kfunc.
 	 */
 	if (kfunc_flags && (*kfunc_flags & KF_IMPLICIT_ARGS))
-		func_proto = find_kfunc_impl_proto(env, btf, func_name);
+		func_proto = find_kfunc_impl_proto(&env->log, btf, func_name);
 	else
 		func_proto = btf_type_by_id(btf, func->type);
 
@@ -5326,14 +5327,11 @@ static int check_max_stack_depth(struct bpf_verifier_env *env)
 static int __check_buffer_access(struct bpf_verifier_env *env,
 				 const char *buf_info,
 				 const struct bpf_reg_state *reg,
-				 argno_t argno, int off, int size)
+				 argno_t argno, int off, int size,
+				 u32 *access_end)
 {
-	if (off < 0) {
-		verbose(env,
-			"%s invalid %s buffer access: off=%d, size=%d\n",
-			reg_arg_name(env, argno), buf_info, off, size);
-		return -EACCES;
-	}
+	s64 start;
+
 	if (!tnum_is_const(reg->var_off)) {
 		char tn_buf[48];
 
@@ -5344,6 +5342,15 @@ static int __check_buffer_access(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 
+	start = (s64)reg->var_off.value + off;
+	if (start < 0) {
+		verbose(env,
+			"%s invalid negative %s buffer offset: off=%d, var_off=%lld\n",
+			reg_arg_name(env, argno), buf_info, off, (s64)reg->var_off.value);
+		return -EACCES;
+	}
+
+	*access_end = start + size;
 	return 0;
 }
 
@@ -5351,14 +5358,14 @@ static int check_tp_buffer_access(struct bpf_verifier_env *env,
 				  const struct bpf_reg_state *reg,
 				  argno_t argno, int off, int size)
 {
+	u32 access_end;
 	int err;
 
-	err = __check_buffer_access(env, "tracepoint", reg, argno, off, size);
+	err = __check_buffer_access(env, "tracepoint", reg, argno, off, size, &access_end);
 	if (err)
 		return err;
 
-	env->prog->aux->max_tp_access = max(reg->var_off.value + off + size,
-					    env->prog->aux->max_tp_access);
+	env->prog->aux->max_tp_access = max(access_end, env->prog->aux->max_tp_access);
 
 	return 0;
 }
@@ -5370,13 +5377,14 @@ static int check_buffer_access(struct bpf_verifier_env *env,
 			       u32 *max_access)
 {
 	const char *buf_info = type_is_rdonly_mem(reg->type) ? "rdonly" : "rdwr";
+	u32 access_end;
 	int err;
 
-	err = __check_buffer_access(env, buf_info, reg, argno, off, size);
+	err = __check_buffer_access(env, buf_info, reg, argno, off, size, &access_end);
 	if (err)
 		return err;
 
-	*max_access = max(reg->var_off.value + off + size, *max_access);
+	*max_access = max(access_end, *max_access);
 
 	return 0;
 }
@@ -18873,6 +18881,47 @@ static int btf_id_allow_sleepable(u32 btf_id, unsigned long addr, const struct b
 	return -EINVAL;
 }
 
+/*
+ * Resolve the prototype describing a trace target's real ABI. A
+ * KF_IMPLICIT_ARGS kfunc has its injected args stripped from the public
+ * prototype, so use the _impl prototype; other targets use their own.
+ */
+static const struct btf_type *
+btf_attach_func_proto(struct bpf_verifier_log *log, struct btf *btf, u32 func_id)
+{
+	const struct btf_type *func;
+	struct module *mod = NULL;
+	const char *name;
+	int implicit;
+
+	func = btf_type_by_id(btf, func_id);
+	if (!func || !btf_type_is_func(func))
+		return NULL;
+	name = btf_name_by_offset(btf, func->name_off);
+
+	/*
+	 * btf_kfunc_check_flag() reads kfunc_set_tab, which for a module is
+	 * stable only once it is live; hold a module ref across the read to
+	 * exclude a concurrent module load.
+	 */
+	if (btf_is_module(btf)) {
+		mod = btf_try_get_module(btf);
+		if (!mod)
+			return NULL;
+	}
+	implicit = btf_kfunc_check_flag(btf, func_id, KF_IMPLICIT_ARGS);
+	module_put(mod);
+
+	if (implicit == -EINVAL) {
+		bpf_log(log, "kfunc %s has inconsistent KF_IMPLICIT_ARGS\n", name);
+		return NULL;
+	}
+	if (implicit > 0)
+		return find_kfunc_impl_proto(log, btf, name);
+
+	return btf_type_by_id(btf, func->type);
+}
+
 int bpf_check_attach_target(struct bpf_verifier_log *log,
 			    const struct bpf_prog *prog,
 			    const struct bpf_prog *tgt_prog,
@@ -19121,8 +19170,8 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 		if (prog_extension &&
 		    btf_check_type_match(log, prog, btf, t))
 			return -EINVAL;
-		t = btf_type_by_id(btf, t->type);
-		if (!btf_type_is_func_proto(t))
+		t = btf_attach_func_proto(log, btf, btf_id);
+		if (!t || !btf_type_is_func_proto(t))
 			return -EINVAL;
 
 		if ((prog->aux->saved_dst_prog_type || prog->aux->saved_dst_attach_type) &&
@@ -19405,10 +19454,8 @@ int bpf_check_attach_btf_id_multi(struct btf *btf, struct bpf_prog *prog, u32 bt
 	tname = btf_name_by_offset(btf, t->name_off);
 	if (!tname)
 		return -EINVAL;
-	if (!btf_type_is_func(t))
-		return -EINVAL;
-	t = btf_type_by_id(btf, t->type);
-	if (!btf_type_is_func_proto(t))
+	t = btf_attach_func_proto(NULL, btf, btf_id);
+	if (!t || !btf_type_is_func_proto(t))
 		return -EINVAL;
 	err = btf_distill_func_proto(NULL, btf, t, tname, &tgt_info->fmodel);
 	if (err < 0)

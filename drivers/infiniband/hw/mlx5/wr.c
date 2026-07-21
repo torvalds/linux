@@ -840,13 +840,15 @@ out:
 	return err;
 }
 
-static int handle_reg_mr_integrity(struct mlx5_ib_dev *dev,
-				   struct mlx5_ib_qp *qp,
-				   const struct ib_send_wr *wr,
-				   struct mlx5_wqe_ctrl_seg **ctrl, void **seg,
-				   int *size, void **cur_edge,
-				   unsigned int *idx, int nreq, u8 fence,
-				   u8 next_fence)
+static noinline_for_stack int handle_reg_mr_integrity(struct mlx5_ib_dev *dev,
+						      struct mlx5_ib_qp *qp,
+						      const struct ib_send_wr *wr,
+						      struct mlx5_wqe_ctrl_seg **ctrl,
+						      void **seg,
+						      int *size, void **cur_edge,
+						      unsigned int *idx, int nreq,
+						      u8 fence,
+						      u8 next_fence)
 {
 	struct mlx5_ib_mr *mr;
 	struct mlx5_ib_mr *pi_mr;

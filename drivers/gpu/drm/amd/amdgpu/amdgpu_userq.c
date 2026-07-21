@@ -1376,16 +1376,19 @@ void amdgpu_userq_pre_reset(struct amdgpu_device *adev)
 
 	/* TODO: We probably need a new lock for the queue state */
 	xa_for_each(&adev->userq_doorbell_xa, queue_id, queue) {
-		if (queue->state != AMDGPU_USERQ_STATE_MAPPED)
-			continue;
-
-		userq_funcs = adev->userq_funcs[queue->queue_type];
-		userq_funcs->unmap(queue);
-		/* just mark all queues as hung at this point.
-		 * if unmap succeeds, we could map again
-		 * in amdgpu_userq_post_reset() if vram is not lost
+		if (queue->state == AMDGPU_USERQ_STATE_MAPPED) {
+			userq_funcs = adev->userq_funcs[queue->queue_type];
+			userq_funcs->unmap(queue);
+			/* just mark all queues as hung at this point.
+			 * if unmap succeeds, we could map again
+			 * in amdgpu_userq_post_reset() if vram is not lost
+			 */
+			queue->state = AMDGPU_USERQ_STATE_HUNG;
+		}
+		/* Force-complete any pending fence regardless of queue state so
+		 * that eviction/suspend and queue teardown waiters don't block
+		 * forever on a fence that will never signal after the reset.
 		 */
-		queue->state = AMDGPU_USERQ_STATE_HUNG;
 		amdgpu_userq_fence_driver_force_completion(queue);
 	}
 }

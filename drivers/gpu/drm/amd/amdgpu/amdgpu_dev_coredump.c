@@ -234,6 +234,9 @@ amdgpu_devcoredump_print_ibs(struct drm_printer *p,
 			drm_printf(p, "\nIB #%d 0x%llx %d dw\n", i,
 				   coredump->ibs[i].gpu_addr,
 				   coredump->ibs[i].ib_size_dw);
+
+			for (int j = 0; j < coredump->ibs[i].ib_size_dw; j++)
+				drm_printf(p, "0xffffffff\n");
 		}
 		return;
 	}
@@ -355,10 +358,14 @@ amdgpu_devcoredump_format(char *buffer, size_t count, struct amdgpu_coredump_inf
 	drm_printf(&p, "kernel: %s\n", init_utsname()->release);
 	drm_printf(&p, "module: " KBUILD_MODNAME "\n");
 	drm_printf(&p, "time: %ptSp\n", &coredump->reset_time);
+	drm_printf(&p, "pasid: %u\n", coredump->pasid);
+	drm_printf(&p, "vmid: %u\n", coredump->vmid);
 
 	if (coredump->reset_task_info.task.pid)
-		drm_printf(&p, "process_name: %s PID: %d\n",
+		drm_printf(&p, "process_name: %s TGID: %d thread: %s PID: %d\n",
 			   coredump->reset_task_info.process_name,
+			   coredump->reset_task_info.tgid,
+			   coredump->reset_task_info.task.comm,
 			   coredump->reset_task_info.task.pid);
 
 	/* SOC Information */
@@ -562,6 +569,7 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 			amdgpu_vm_put_task_info(ti);
 		}
 		coredump->pasid = job->pasid;
+		coredump->vmid = job->vmid;
 		coredump->num_ibs = job->num_ibs;
 		for (i = 0; i < job->num_ibs; ++i) {
 			coredump->ibs[i].gpu_addr = job->ibs[i].gpu_addr;

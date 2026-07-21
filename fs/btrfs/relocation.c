@@ -719,21 +719,19 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_insert_root(trans, fs_info->tree_root,
 				&root_key, root_item);
-	if (ret)
-		goto abort;
+	if (unlikely(ret)) {
+		btrfs_abort_transaction(trans, ret);
+		return ERR_PTR(ret);
+	}
 
 	reloc_root = btrfs_read_tree_root(fs_info->tree_root, &root_key);
 	if (IS_ERR(reloc_root)) {
-		ret = PTR_ERR(reloc_root);
-		goto abort;
+		btrfs_abort_transaction(trans, PTR_ERR(reloc_root));
+		return ERR_CAST(reloc_root);
 	}
 	set_bit(BTRFS_ROOT_SHAREABLE, &reloc_root->state);
 	btrfs_set_root_last_trans(reloc_root, trans->transid);
 	return reloc_root;
-
-abort:
-	btrfs_abort_transaction(trans, ret);
-	return ERR_PTR(ret);
 }
 
 /*
@@ -1912,6 +1910,7 @@ again:
 				 * corruption, e.g. bad reloc tree key offset.
 				 */
 				ret = -EINVAL;
+				btrfs_put_root(root);
 				goto out;
 			}
 			ret = merge_reloc_root(rc, root);

@@ -1367,6 +1367,14 @@ static void smu_feature_cap_init(struct smu_context *smu)
 	bitmap_zero(fea_cap->cap_map, SMU_FEATURE_CAP_ID__COUNT);
 }
 
+static int smu_set_power_dep(struct smu_context *smu, bool enable)
+{
+	if (!smu->ppt_funcs->set_power_dep)
+		return 0;
+
+	return smu->ppt_funcs->set_power_dep(smu, enable);
+}
+
 static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -1428,6 +1436,8 @@ static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 	if (!smu->ppt_funcs->get_fan_control_mode)
 		smu->adev->pm.no_fan = true;
 
+	smu_set_power_dep(smu, true);
+
 	return 0;
 }
 
@@ -1449,6 +1459,8 @@ static int smu_sw_fini(struct amdgpu_ip_block *ip_block)
 	}
 
 	smu_fini_microcode(smu);
+
+	smu_set_power_dep(smu, false);
 
 	return 0;
 }

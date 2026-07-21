@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+struct work_struct;
+
 /* Module modprobe variables */
 struct xe_modparam {
 	bool force_execlist;
@@ -26,6 +28,9 @@ struct xe_modparam {
 };
 
 extern struct xe_modparam xe_modparam;
+
+bool xe_destroy_wq_queue(struct work_struct *work);
+void xe_destroy_wq_flush(void);
 
 #endif
 

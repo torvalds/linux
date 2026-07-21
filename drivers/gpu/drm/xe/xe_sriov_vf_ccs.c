@@ -404,6 +404,8 @@ void xe_sriov_vf_ccs_rw_update_bb_addr(struct xe_sriov_vf_ccs_ctx *ctx)
 /**
  * xe_sriov_vf_ccs_attach_bo - Insert CCS read write commands in the BO.
  * @bo: the &buffer object to which batch buffer commands will be added.
+ * @new_mem: the (not yet committed) destination resource @bo is being moved
+ *          into; bo->ttm.resource is still the old resource at this point.
  *
  * This function shall be called only by VF. It inserts the PTEs and copy
  * command instructions in the BO by calling xe_migrate_ccs_rw_copy()
@@ -411,7 +413,7 @@ void xe_sriov_vf_ccs_rw_update_bb_addr(struct xe_sriov_vf_ccs_ctx *ctx)
  *
  * Returns: 0 if successful, negative error code on failure.
  */
-int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
+int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo, struct ttm_resource *new_mem)
 {
 	struct xe_device *xe = xe_bo_device(bo);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
@@ -430,7 +432,21 @@ int xe_sriov_vf_ccs_attach_bo(struct xe_bo *bo)
 		xe_assert(xe, !bb);
 
 		ctx = &xe->sriov.vf.ccs.contexts[ctx_id];
-		err = xe_migrate_ccs_rw_copy(tile, ctx->mig_q, bo, ctx_id);
+		err = xe_migrate_ccs_rw_copy(tile, ctx->mig_q, bo, new_mem, ctx_id);
+		if (err)
+			goto err_unwind;
+	}
+	return 0;
+
+err_unwind:
+	/*
+	 * Clean up any contexts already attached. Can't reuse
+	 * xe_sriov_vf_ccs_detach_bo() here as it requires both contexts
+	 * attached before cleaning up either one.
+	 */
+	for_each_ccs_rw_ctx(ctx_id) {
+		if (bo->bb_ccs[ctx_id])
+			xe_migrate_ccs_rw_copy_clear(bo, ctx_id);
 	}
 	return err;
 }

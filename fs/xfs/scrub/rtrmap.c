@@ -87,6 +87,9 @@ xchk_rtrmapbt_is_shareable(
 		return false;
 	if (irec->rm_flags & XFS_RMAP_UNWRITTEN)
 		return false;
+	if (irec->rm_owner == XFS_RMAP_OWN_COW ||
+	    irec->rm_owner == XFS_RMAP_OWN_FS)
+		return false;
 	return true;
 }
 
@@ -146,6 +149,9 @@ xchk_rtrmap_mergeable(
 		return false;
 	if (r1->rm_flags != r2->rm_flags)
 		return false;
+	if (r1->rm_owner == XFS_RMAP_OWN_COW ||
+	    r1->rm_owner == XFS_RMAP_OWN_FS)
+		return true;
 	return r1->rm_offset + r1->rm_blockcount == r2->rm_offset;
 }
 
@@ -209,7 +215,7 @@ xchk_rtrmapbt_xref(
 			xfs_rgbno_to_rtb(sc->sr.rtg, irec->rm_startblock),
 			irec->rm_blockcount);
 	if (irec->rm_owner == XFS_RMAP_OWN_COW)
-		xchk_xref_is_cow_staging(sc, irec->rm_startblock,
+		xchk_xref_is_rt_cow_staging(sc, irec->rm_startblock,
 				irec->rm_blockcount);
 	else
 		xchk_rtrmapbt_xref_rtrefc(sc, irec);

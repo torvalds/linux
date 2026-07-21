@@ -623,7 +623,7 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.sink_count.bits.SINK_COUNT = 1;
 		/* NUTMEG requires that we use HBR, doesn't work with RBR. */
 		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_00001A)
-			link->preferred_link_setting.link_rate = LINK_RATE_HIGH;
+			link->wa_flags.dp_skip_rbr = true;
 	}
 
 	return true;

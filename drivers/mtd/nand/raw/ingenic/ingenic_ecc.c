@@ -67,6 +67,7 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 {
 	struct platform_device *pdev;
 	struct ingenic_ecc *ecc;
+	int ret;
 
 	pdev = of_find_device_by_node(np);
 	if (!pdev)
@@ -78,7 +79,11 @@ static struct ingenic_ecc *ingenic_ecc_get(struct device_node *np)
 	}
 
 	ecc = platform_get_drvdata(pdev);
-	clk_prepare_enable(ecc->clk);
+	ret = clk_prepare_enable(ecc->clk);
+	if (ret) {
+		put_device(&pdev->dev);
+		return ERR_PTR(ret);
+	}
 
 	return ecc;
 }

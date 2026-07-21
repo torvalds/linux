@@ -5950,6 +5950,25 @@ SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 }
 
 int
+SMB2_set_allocation(const unsigned int xid, struct cifs_tcon *tcon,
+		    u64 persistent_fid, u64 volatile_fid, u32 pid,
+		    loff_t allocation_size)
+{
+	struct smb2_file_alloc_info info;
+	void *data;
+	unsigned int size;
+
+	info.AllocationSize = cpu_to_le64(allocation_size);
+
+	data = &info;
+	size = sizeof(struct smb2_file_alloc_info);
+
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+			pid, FILE_ALLOCATION_INFORMATION, SMB2_O_INFO_FILE,
+			0, 1, &data, &size);
+}
+
+int
 SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid,
 		struct smb_ntsd *pnntsd, int pacllen, int aclflag)

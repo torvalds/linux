@@ -2196,12 +2196,12 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 	struct ib_cq *cq;
 	int ret;
 
+	if (WARN_ON_ONCE(!cq_attr->cqe))
+		return ERR_PTR(-EINVAL);
+
 	cq = rdma_zalloc_drv_obj(device, ib_cq);
 	if (!cq)
 		return ERR_PTR(-ENOMEM);
-
-	if (WARN_ON_ONCE(!cq_attr->cqe))
-		return ERR_PTR(-EINVAL);
 
 	cq->device = device;
 	cq->comp_handler = comp_handler;

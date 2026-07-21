@@ -582,6 +582,9 @@ static int nested_vmx_check_msr_bitmap_controls(struct kvm_vcpu *vcpu,
 static int nested_vmx_check_tpr_shadow_controls(struct kvm_vcpu *vcpu,
 						struct vmcs12 *vmcs12)
 {
+	gpa_t vtpr_gpa = vmcs12->virtual_apic_page_addr + APIC_TASKPRI;
+	u32 vtpr;
+
 	if (!nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW))
 		return 0;
 
@@ -589,6 +592,32 @@ static int nested_vmx_check_tpr_shadow_controls(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	if (CC(!nested_cpu_has_vid(vmcs12) && vmcs12->tpr_threshold >> 4))
+		return -EINVAL;
+
+	/*
+	 * Do the illegal vTPR vs. TPR Threshold consistency check if and only
+	 * if KVM is configured to WARN on missed consistency checks, otherwise
+	 * it's a waste of time.  KVM needs to rely on hardware to fully detect
+	 * an illegal combination due to the vTPR being writable by L1 at all
+	 * times (it's an in-memory value, not a VMCS field).  I.e. even if the
+	 * check passes now, it might fail at the actual VM-Enter.
+	 *
+	 * If reading guest memory fails, skip the check as KVM's de facto ABI
+	 * for VMX instruction accesses to non-existent memory is to provide
+	 * PCI Bus Error semantics (reads return 0xFFs), in which case the vTPR
+	 * is guaranteed to greater than or equal to the threshold.
+	 *
+	 * Note!  Deliberately use the VM-scoped API when reading guest memory,
+	 * to ensure the read doesn't hit SMRAM when restoring L2 state on RSM,
+	 * and only perform the check when in KVM_RUN, to avoid a false failure
+	 * if userspace hasn't yet configured memslots during state restore.
+	 */
+	if (warn_on_missed_cc && vcpu->wants_to_run &&
+	    nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW) &&
+	    !nested_cpu_has_vid(vmcs12) &&
+	    !nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
+	    !kvm_read_guest(vcpu->kvm, vtpr_gpa, &vtpr, sizeof(vtpr)) &&
+	    CC((vmcs12->tpr_threshold & GENMASK(3, 0)) > ((vtpr >> 4) & GENMASK(3, 0))))
 		return -EINVAL;
 
 	return 0;
@@ -3104,38 +3133,6 @@ static int nested_vmx_check_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int nested_vmx_check_controls_late(struct kvm_vcpu *vcpu,
-					  struct vmcs12 *vmcs12)
-{
-	void *vapic = to_vmx(vcpu)->nested.virtual_apic_map.hva;
-	u32 vtpr = vapic ? (*(u32 *)(vapic + APIC_TASKPRI)) >> 4 : 0;
-
-	/*
-	 * Don't bother with the consistency checks if KVM isn't configured to
-	 * WARN on missed consistency checks, as KVM needs to rely on hardware
-	 * to fully detect an illegal vTPR vs. TRP Threshold combination due to
-	 * the vTPR being writable by L1 at all times (it's an in-memory value,
-	 * not a VMCS field).  I.e. even if the check passes now, it might fail
-	 * at the actual VM-Enter.
-	 *
-	 * Keying off the module param also allows treating an invalid vAPIC
-	 * mapping as a consistency check failure without increasing the risk
-	 * of breaking a "real" VM.
-	 */
-	if (!warn_on_missed_cc)
-		return 0;
-
-	if ((exec_controls_get(to_vmx(vcpu)) & CPU_BASED_TPR_SHADOW) &&
-	    nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW) &&
-	    !nested_cpu_has_vid(vmcs12) &&
-	    !nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES) &&
-	    (CC(!vapic) ||
-	     CC((vmcs12->tpr_threshold & GENMASK(3, 0)) > (vtpr & GENMASK(3, 0)))))
-		return -EINVAL;
-
-	return 0;
-}
-
 static int nested_vmx_check_address_space_size(struct kvm_vcpu *vcpu,
 				       struct vmcs12 *vmcs12)
 {
@@ -3661,19 +3658,14 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 				    &vmx->nested.pre_vmenter_ssp_tbl);
 
 	/*
-	 * Overwrite vmcs01.GUEST_CR3 with L1's CR3 if EPT is disabled.  In the
-	 * event of a "late" VM-Fail, i.e. a VM-Fail detected by hardware but
-	 * not KVM, KVM must unwind its software model to the pre-VM-Entry host
-	 * state.  When EPT is disabled, GUEST_CR3 holds KVM's shadow CR3, not
-	 * L1's "real" CR3, which causes nested_vmx_restore_host_state() to
-	 * corrupt vcpu->arch.cr3.  Stuffing vmcs01.GUEST_CR3 results in the
-	 * unwind naturally setting arch.cr3 to the correct value.  Smashing
-	 * vmcs01.GUEST_CR3 is safe because nested VM-Exits, and the unwind,
-	 * reset KVM's MMU, i.e. vmcs01.GUEST_CR3 is guaranteed to be
-	 * overwritten with a shadow CR3 prior to re-entering L1.
+	 * Stash L1's CR3, so that in the event of a "late" VM-Fail, i.e. a
+	 * VM-Fail detected by hardware but not KVM, KVM can unwind its
+	 * software model to the pre-VM-Entry host state.  When EPT is
+	 * disabled, GUEST_CR3 holds KVM's shadow CR3, not L1's "real" CR3,
+	 * and so simply restoring from vmcs01.GUEST_CR3 would corrupt
+	 * vcpu->arch.cr3.
 	 */
-	if (!enable_ept)
-		vmcs_writel(GUEST_CR3, vcpu->arch.cr3);
+	vmx->nested.pre_vmenter_cr3 = kvm_read_cr3(vcpu);
 
 	vmx_switch_vmcs(vcpu, &vmx->nested.vmcs02);
 
@@ -3683,11 +3675,6 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 		if (unlikely(!nested_get_vmcs12_pages(vcpu))) {
 			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 			return NVMX_VMENTRY_KVM_INTERNAL_ERROR;
-		}
-
-		if (nested_vmx_check_controls_late(vcpu, vmcs12)) {
-			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
-			return NVMX_VMENTRY_VMFAIL;
 		}
 
 		if (nested_vmx_check_guest_state(vcpu, vmcs12,
@@ -3773,6 +3760,8 @@ vmentry_fail_vmexit:
 
 	if (!from_vmentry)
 		return NVMX_VMENTRY_VMEXIT;
+
+	nested_put_vmcs12_pages(vcpu);
 
 	load_vmcs12_host_state(vcpu, vmcs12);
 	vmcs12->vm_exit_reason = exit_reason.full;
@@ -4990,7 +4979,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	vmx_set_cr4(vcpu, vmcs_readl(CR4_READ_SHADOW));
 
 	nested_ept_uninit_mmu_context(vcpu);
-	vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
+	vcpu->arch.cr3 = vmx->nested.pre_vmenter_cr3;
 	kvm_register_mark_available(vcpu, VCPU_REG_CR3);
 
 	/*

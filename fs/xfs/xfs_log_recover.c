@@ -1907,18 +1907,20 @@ xlog_recover_reorder_trans(
 	list_for_each_entry_safe(item, n, &sort_list, ri_list) {
 		enum xlog_recover_reorder	fate = XLOG_REORDER_ITEM_LIST;
 
+		/* a committed item with no regions has a NULL ri_buf[0] */
+		if (!item->ri_cnt || !item->ri_buf) {
+			xfs_warn(log->l_mp,
+				"%s: committed log item has no regions",
+				__func__);
+			error = -EFSCORRUPTED;
+			break;
+		}
+
 		item->ri_ops = xlog_find_item_ops(item);
 		if (!item->ri_ops) {
 			xfs_warn(log->l_mp,
 				"%s: unrecognized type of log operation (%d)",
 				__func__, ITEM_TYPE(item));
-			ASSERT(0);
-			/*
-			 * return the remaining items back to the transaction
-			 * item list so they can be freed in caller.
-			 */
-			if (!list_empty(&sort_list))
-				list_splice_init(&sort_list, &trans->r_itemq);
 			error = -EFSCORRUPTED;
 			break;
 		}
@@ -1946,7 +1948,15 @@ xlog_recover_reorder_trans(
 		}
 	}
 
-	ASSERT(list_empty(&sort_list));
+	/*
+	 * Return the remaining items back to the transaction item list so they
+	 * can be freed in caller.  This should only happen when we encounter
+	 * an error.
+	 */
+	if (!list_empty(&sort_list)) {
+		ASSERT(error);
+		list_splice_init(&sort_list, &trans->r_itemq);
+	}
 	if (!list_empty(&buffer_list))
 		list_splice(&buffer_list, &trans->r_itemq);
 	if (!list_empty(&item_list))

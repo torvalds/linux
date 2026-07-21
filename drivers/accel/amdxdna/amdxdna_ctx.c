@@ -577,6 +577,7 @@ void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job)
 	amdxdna_arg_bos_put(job);
 	amdxdna_gem_put_obj(job->cmd_bo);
 	dma_fence_put(job->fence);
+	mmdrop(job->mm);
 }
 
 int amdxdna_cmd_submit(struct amdxdna_client *client,
@@ -590,6 +591,10 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 	int ret, idx;
 
 	XDNA_DBG(xdna, "Command BO hdl %d, Arg BO count %d", cmd_bo_hdl, arg_bo_cnt);
+
+	if (!xdna->dev_info->ops->cmd_submit)
+		return -EOPNOTSUPP;
+
 	job = kzalloc_flex(*job, bos, arg_bo_cnt);
 	if (!job)
 		return -ENOMEM;
@@ -603,6 +608,16 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 			ret = -EINVAL;
 			goto free_job;
 		}
+	} else if (!drv_cmd) {
+		/*
+		 * Only internal driver commands (drv_cmd != NULL) may omit a
+		 * command BO. A user command submission with the invalid handle
+		 * would leave job->cmd_bo NULL and later fault when the scheduler
+		 * dereferences it in amdxdna_cmd_set_state().
+		 */
+		XDNA_DBG(xdna, "Command BO handle required for user submission");
+		ret = -EINVAL;
+		goto free_job;
 	}
 
 	ret = amdxdna_arg_bos_lookup(client, job, arg_bo_hdls, arg_bo_cnt);
@@ -628,6 +643,7 @@ int amdxdna_cmd_submit(struct amdxdna_client *client,
 
 	job->hwctx = hwctx;
 	job->mm = current->mm;
+	mmgrab(job->mm);
 
 	job->fence = amdxdna_fence_create(hwctx);
 	if (!job->fence) {
@@ -662,6 +678,8 @@ put_bos:
 cmd_put:
 	amdxdna_gem_put_obj(job->cmd_bo);
 free_job:
+	if (job->mm)
+		mmdrop(job->mm);
 	kfree(job);
 	return ret;
 }

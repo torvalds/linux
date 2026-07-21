@@ -137,7 +137,7 @@ SYM_CODE_START(handle_exception)
 .Lrestore_kernel_tpsp:
 	csrr tp, CSR_SCRATCH
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
 	/*
 	 * The RISC-V kernel does not flush TLBs on all CPUS after each new
 	 * vmalloc mapping or kfence_unprotect(), which may result in

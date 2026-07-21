@@ -116,7 +116,7 @@ bool tegra_is_silicon(void)
 
 u32 tegra_read_straps(void)
 {
-	WARN(!chipid, "Tegra ABP MISC not yet available\n");
+	WARN(!apbmisc_base, "Tegra ABP MISC not yet available\n");
 
 	return strapping;
 }

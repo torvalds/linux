@@ -1490,9 +1490,13 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 		}
 	}
 
-	/* force revalidate of size and timestamps of target file now
-	   that target is updated on the server */
-	CIFS_I(target_inode)->time = 0;
+	/*
+	 * On success, duplicate_extents already updated the target inode attrs
+	 * or marked them stale if the refresh failed.  On failure, mark attrs
+	 * stale because EOF may have changed before the clone failed.
+	 */
+	if (rc)
+		CIFS_I(target_inode)->time = 0;
 unlock:
 	/* although unlocking in the reverse order from locking is not
 	   strictly necessary here it is a little cleaner to be consistent */
