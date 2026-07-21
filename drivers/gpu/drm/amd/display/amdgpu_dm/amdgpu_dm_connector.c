@@ -147,7 +147,7 @@ STATIC_IFN_KUNIT int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		int max_bpc = conn_state->max_requested_bpc;
 
 		is_y420 = drm_mode_is_420_also(&connector->display_info, adjusted_mode) &&
-			  aconnector->force_yuv420_output;
+			  aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR420;
 		color_depth = amdgpu_dm_convert_color_depth_from_display_info(connector,
 								    is_y420,
 								    max_bpc);
@@ -2314,17 +2314,18 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 	 *  - RGB is the mandatory baseline and always available.
 	 *  - YCbCr444 is only meaningful for native HDMI sinks.
 	 *  - A 420-only mode collapses the mask to YCbCr420 alone.
-	 *  - The debugfs force_yuv420_output / force_yuv422_output overrides
-	 *    pin the encoding to a single value when set. An explicit YCbCr420
-	 *    force is honoured even on modes the sink only lists as RGB/4:4:4
-	 *    capable (drm_mode_is_420_also() clear), as required for HDMI
-	 *    compliance testing; dc_validate_stream() still rejects anything
-	 *    the link genuinely cannot carry. The YCbCr422 force stays gated on
+	 *  - The debugfs force_yuv_pixel_format override pins the encoding to a
+	 *    single dc_pixel_encoding when set (PIXEL_ENCODING_UNDEFINED means
+	 *    "no override"). An explicit YCbCr420 force is honoured even on
+	 *    modes the sink only lists as RGB/4:4:4 capable
+	 *    (drm_mode_is_420_also() clear), as required for HDMI compliance
+	 *    testing; dc_validate_stream() still rejects anything the link
+	 *    genuinely cannot carry. The YCbCr422/YCbCr444 forces stay gated on
 	 *    the sink's advertised caps.
 	 */
-	want_420 = (aconnector && aconnector->force_yuv420_output) ||
+	want_420 = (aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR420) ||
 		(drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR420);
-	want_422 = (aconnector && aconnector->force_yuv422_output) ||
+	want_422 = (aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR422) ||
 		(drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR422);
 
 	if (drm_mode_is_420_only(info, drm_mode) &&
@@ -2335,7 +2336,8 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 	} else if ((info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422)) &&
 		   want_422 && is_dp_or_hdmi) {
 		encoding_mask = BIT(PIXEL_ENCODING_YCBCR422);
-	} else if ((drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR444) &&
+	} else if (((aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR444) ||
+		    (drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR444)) &&
 		   (info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444)) &&
 		   is_dp_or_hdmi) {
 		encoding_mask = BIT(PIXEL_ENCODING_YCBCR444);
