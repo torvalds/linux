@@ -227,17 +227,23 @@ static int __init fsl_guts_init(void)
 	} else {
 		soc_dev_attr->family = kasprintf(GFP_KERNEL, "QorIQ");
 	}
-	if (!soc_dev_attr->family)
-		goto err_nomem;
+	if (!soc_dev_attr->family) {
+		ret = -ENOMEM;
+		goto err_free_soc_dev_attr;
+	}
 
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "svr:0x%08x", svr);
-	if (!soc_dev_attr->soc_id)
-		goto err_nomem;
+	if (!soc_dev_attr->soc_id) {
+		ret = -ENOMEM;
+		goto err_free_family;
+	}
 
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%d.%d",
 					   (svr >>  4) & 0xf, svr & 0xf);
-	if (!soc_dev_attr->revision)
-		goto err_nomem;
+	if (!soc_dev_attr->revision) {
+		ret = -ENOMEM;
+		goto err_free_soc_id;
+	}
 
 	if (soc_data)
 		soc_uid = fsl_guts_get_soc_uid(soc_data->sfp_compat,
@@ -249,7 +255,7 @@ static int __init fsl_guts_init(void)
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		ret = PTR_ERR(soc_dev);
-		goto err;
+		goto err_free_serial_number;
 	}
 
 	pr_info("Machine: %s\n", soc_dev_attr->machine);
@@ -259,13 +265,14 @@ static int __init fsl_guts_init(void)
 
 	return 0;
 
-err_nomem:
-	ret = -ENOMEM;
-err:
-	kfree(soc_dev_attr->family);
-	kfree(soc_dev_attr->soc_id);
-	kfree(soc_dev_attr->revision);
+err_free_serial_number:
 	kfree(soc_dev_attr->serial_number);
+	kfree(soc_dev_attr->revision);
+err_free_soc_id:
+	kfree(soc_dev_attr->soc_id);
+err_free_family:
+	kfree(soc_dev_attr->family);
+err_free_soc_dev_attr:
 	kfree(soc_dev_attr);
 
 	return ret;
