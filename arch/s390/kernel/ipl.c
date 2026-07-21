@@ -2044,7 +2044,6 @@ static struct shutdown_action stop_action = {SHUTDOWN_ACTION_STOP_STR,
 static struct shutdown_action *shutdown_actions_list[] = {
 	&ipl_action, &reipl_action, &dump_reipl_action, &dump_action,
 	&vmcmd_action, &stop_action};
-#define SHUTDOWN_ACTIONS_COUNT (sizeof(shutdown_actions_list) / sizeof(void *))
 
 /*
  * Trigger section
@@ -2057,7 +2056,7 @@ static int set_trigger(const char *buf, struct shutdown_trigger *trigger,
 {
 	int i;
 
-	for (i = 0; i < SHUTDOWN_ACTIONS_COUNT; i++) {
+	for (i = 0; i < ARRAY_SIZE(shutdown_actions_list); i++) {
 		if (sysfs_streq(buf, shutdown_actions_list[i]->name)) {
 			if (shutdown_actions_list[i]->init_rc) {
 				return shutdown_actions_list[i]->init_rc;
@@ -2242,7 +2241,7 @@ static void __init shutdown_actions_init(void)
 {
 	int i;
 
-	for (i = 0; i < SHUTDOWN_ACTIONS_COUNT; i++) {
+	for (i = 0; i < ARRAY_SIZE(shutdown_actions_list); i++) {
 		if (!shutdown_actions_list[i]->init)
 			continue;
 		shutdown_actions_list[i]->init_rc =
