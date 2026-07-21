@@ -72,6 +72,7 @@ static const struct binfmt_misc_flag misc_flags[] = {
 	{ 'O', MISC_FMT_OPEN_BINARY,	0,			"open binary"			},
 	{ 'C', MISC_FMT_CREDENTIALS,	MISC_FMT_OPEN_BINARY,	"credentials from the binary"	},
 	{ 'F', MISC_FMT_OPEN_FILE,	0,			"open interpreter file now"	},
+	{ 'T', MISC_FMT_TRANSPARENT,	MISC_FMT_OPEN_BINARY,	"transparent"			},
 };
 
 /* Look up a flag character, NULL if @c is not one. */
@@ -762,6 +763,11 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	 * entry's flags field has to be empty.
 	 */
 	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) && p != flags)
+		return ERR_PTR(-EINVAL);
+
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if ((e->flags & MISC_FMT_TRANSPARENT) &&
+	    (e->flags & MISC_FMT_PRESERVE_ARGV0))
 		return ERR_PTR(-EINVAL);
 
 	if (*p == '\n')

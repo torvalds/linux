@@ -90,6 +90,16 @@ Here is what the fields mean:
 	    emulation is installed and uses the opened image to spawn the
 	    emulator, meaning it is always available once installed,
 	    regardless of how the environment changes.
+      ``T`` - transparent
+            Run the interpreter transparently. The binary is handed to
+            the interpreter through ``AT_EXECFD`` (``T`` implies ``O``),
+            the argument vector is left exactly as the caller built it
+            and the kernel labels ``/proc/pid/exe`` with the binary
+            instead of the interpreter. The interpreter has to load the
+            binary from ``AT_EXECFD`` and follow the
+            ``AT_FLAGS_TRANSPARENT_INTERP`` contract. Combining ``T``
+            with ``P`` is rejected: transparency preserves the whole
+            argument vector, argv[0] included.
 
 
 There are some restrictions:
