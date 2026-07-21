@@ -433,5 +433,5 @@ void mop500_ab8500_remove(struct snd_soc_card *card)
 	clk_put(drvdata->clk_ptr_ulpclk);
 	clk_put(drvdata->clk_ptr_intclk);
 
-	snd_soc_card_set_drvdata(card, drvdata);
+	snd_soc_card_set_drvdata(card, NULL);
 }
