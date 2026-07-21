@@ -635,15 +635,22 @@ static int perf_event__synthesize_cgroup(const struct perf_tool *tool,
 					 struct machine *machine)
 {
 	size_t event_size = sizeof(event->cgroup) - sizeof(event->cgroup.path);
-	size_t path_len = strlen(path) - mount_len + 1;
+	size_t raw_path_len, path_len, max_path_len;
 	struct {
 		struct file_handle fh;
 		uint64_t cgroup_id;
 	} handle;
 	int mount_id;
 
-	while (path_len % sizeof(u64))
-		path[mount_len + path_len++] = '\0';
+	if (strlen(path) < mount_len)
+		return -1;
+
+	max_path_len = sizeof(event->cgroup.path) - machine->id_hdr_size;
+	raw_path_len = strlen(path) - mount_len + 1;
+	if (raw_path_len > max_path_len)
+		raw_path_len = max_path_len;
+
+	path_len = PERF_ALIGN(raw_path_len, sizeof(u64));
 
 	memset(&event->cgroup, 0, event_size);
 
@@ -657,9 +664,9 @@ static int perf_event__synthesize_cgroup(const struct perf_tool *tool,
 	}
 
 	event->cgroup.id = handle.cgroup_id;
-	strncpy(event->cgroup.path, path + mount_len, path_len);
-	memset((char *)event + offsetof(struct perf_record_cgroup, path) + path_len,
-	       0, machine->id_hdr_size);
+	strlcpy(event->cgroup.path, path + mount_len, raw_path_len);
+	memset((char *)event + offsetof(struct perf_record_cgroup, path) + raw_path_len,
+	       0, (path_len - raw_path_len) + machine->id_hdr_size);
 
 	if (perf_tool__process_synth_event(tool, event, machine, process) < 0) {
 		pr_debug("process synth event failed\n");
