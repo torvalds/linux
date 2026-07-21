@@ -421,7 +421,8 @@ static struct sdca_interrupt *get_interrupt_data(struct device *dev, int irq,
  *
  * This is intended to be used as part of the Function boot process. It
  * can be called before the soundcard is registered (ie. doesn't depend
- * on component) and will register the FDL interrupts.
+ * on component) and will populate all the required IRQ data, as well as
+ * registering the FDL interrupts to start booting the device.
  *
  * Return: Zero on success, and a negative error code on failure.
  */
@@ -448,24 +449,36 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 			else if (!interrupt)
 				continue;
 
+			ret = sdca_irq_data_populate(dev, regmap, NULL, function,
+						     entity, control, interrupt);
+			if (ret)
+				return ret;
+
 			switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
-			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
-				ret = sdca_irq_data_populate(dev, regmap, NULL,
-							     function, entity,
-							     control, interrupt);
+			case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_STATUS):
+				interrupt->handler = function_status_handler;
+				break;
+			case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+				interrupt->handler = detected_mode_handler;
+				interrupt->free_priv = sdca_jack_free_state;
+
+				ret = sdca_jack_alloc_state(interrupt);
 				if (ret)
 					return ret;
-
-				interrupt->early_request = true;
+				break;
+			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
+				interrupt->handler = fdl_owner_handler;
 				interrupt->free_priv = sdca_fdl_free_state;
 
 				ret = sdca_fdl_alloc_state(interrupt);
 				if (ret)
 					return ret;
 
+				interrupt->early_request = true;
+
 				ret = sdca_irq_request_locked(dev, info, irq,
 							      interrupt->name,
-							      fdl_owner_handler,
+							      interrupt->handler,
 							      interrupt);
 				if (ret) {
 					dev_err(dev, "failed to request irq %s: %d\n",
@@ -473,7 +486,11 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 					return ret;
 				}
 				break;
+			case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
+				interrupt->handler = hid_handler;
+				break;
 			default:
+				interrupt->handler = base_handler;
 				break;
 			}
 		}
@@ -498,70 +515,26 @@ int sdca_irq_populate(struct sdca_function_data *function,
 		      struct sdca_interrupt_info *info)
 {
 	struct device *dev = component->dev;
-	int i, j;
+	int i, ret;
 
 	guard(mutex)(&info->irq_lock);
 
-	for (i = 0; i < function->num_entities; i++) {
-		struct sdca_entity *entity = &function->entities[i];
+	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
+		struct sdca_interrupt *interrupt = &info->irqs[i];
+		int irq;
 
-		for (j = 0; j < entity->num_controls; j++) {
-			struct sdca_control *control = &entity->controls[j];
-			int irq = control->interrupt_position;
-			struct sdca_interrupt *interrupt;
-			irq_handler_t handler;
-			int ret;
+		if (interrupt->function != function || interrupt->irq)
+			continue;
 
-			interrupt = get_interrupt_data(dev, irq, info);
-			if (IS_ERR(interrupt))
-				return PTR_ERR(interrupt);
-			else if (!interrupt)
-				continue;
+		interrupt->component = component;
 
-			ret = sdca_irq_data_populate(dev, NULL, component,
-						     function, entity, control,
-						     interrupt);
-			if (ret)
-				return ret;
-
-			handler = base_handler;
-
-			switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
-			case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_STATUS):
-				handler = function_status_handler;
-				break;
-			case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
-				interrupt->free_priv = sdca_jack_free_state;
-
-				ret = sdca_jack_alloc_state(interrupt);
-				if (ret)
-					return ret;
-
-				handler = detected_mode_handler;
-				break;
-			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
-				interrupt->free_priv = sdca_fdl_free_state;
-
-				ret = sdca_fdl_alloc_state(interrupt);
-				if (ret)
-					return ret;
-
-				handler = fdl_owner_handler;
-				break;
-			case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
-				handler = hid_handler;
-				break;
-			default:
-				break;
-			}
-
-			ret = sdca_irq_request_locked(dev, info, irq, interrupt->name,
-						      handler, interrupt);
-			if (ret) {
-				dev_err(dev, "failed to request irq %s: %d\n",
-					interrupt->name, ret);
-				return ret;
-			}
+		irq = interrupt->control->interrupt_position;
+		ret = sdca_irq_request_locked(dev, info, irq, interrupt->name,
+					      interrupt->handler, interrupt);
+		if (ret) {
+			dev_err(dev, "failed to request irq %s: %d\n",
+				interrupt->name, ret);
+			return ret;
 		}
 	}
 
@@ -581,13 +554,15 @@ static void sdca_irq_cleanup_flags(struct device *dev,
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
 		struct sdca_interrupt *interrupt = &info->irqs[i];
 
-		if (interrupt->function != function || !interrupt->irq)
+		if (interrupt->function != function ||
+		    (interrupt->early_request && !late_cleanup))
 			continue;
 
-		if (interrupt->early_request && !late_cleanup)
-			continue;
+		if (interrupt->irq)
+			sdca_irq_free_locked(dev, info, i, interrupt->name, interrupt);
 
-		sdca_irq_free_locked(dev, info, i, interrupt->name, interrupt);
+		if (!late_cleanup)
+			continue;
 
 		if (interrupt->free_priv)
 			interrupt->free_priv(interrupt);
