@@ -562,12 +562,12 @@ static int ams_delta_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	handset_mute = devm_gpiod_get(card->dev, "handset_mute",
+	handset_mute = devm_gpiod_get(&pdev->dev, "handset_mute",
 				      GPIOD_OUT_HIGH);
 	if (IS_ERR(handset_mute))
 		return PTR_ERR(handset_mute);
 
-	handsfree_mute = devm_gpiod_get(card->dev, "handsfree_mute",
+	handsfree_mute = devm_gpiod_get(&pdev->dev, "handsfree_mute",
 					GPIOD_OUT_HIGH);
 	if (IS_ERR(handsfree_mute))
 		return PTR_ERR(handsfree_mute);
