@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config MM81X
+	tristate "Morse Micro MM81x wireless devices"
+	depends on MAC80211
+	select FW_LOADER
+	select CRC7
+	help
+	  This module adds support for wireless devices based
+	  on Morse Micro MM81xx chipsets.
+
+config MM81X_USB
+	tristate "Morse Micro MM81x USB support"
+	depends on MM81X && USB
+	help
+	  This module adds support for the USB interface of
+	  devices using the Morse Micro MM81x chipset.
+
+config MM81X_SDIO
+	tristate "Morse Micro MM81x SDIO support"
+	depends on MM81X && MMC
+	help
+	  This module adds support for the SDIO interface of
+	  devices using the Morse Micro MM81x chipset.
