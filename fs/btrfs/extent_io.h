@@ -132,6 +132,10 @@ struct extent_buffer {
 struct btrfs_eb_prealloc {
 	struct extent_buffer *eb;
 	struct btrfs_folio_state *bfs;
+	/* eb alloc may use GFP_NOWAIT; caller can drop locks and retry. */
+	bool supports_nowait;
+	/* GFP_NOWAIT eb alloc failed; preallocate again and retry. */
+	bool needs_prealloc;
 };
 
 struct btrfs_eb_write_context {
@@ -289,7 +293,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  struct btrfs_eb_prealloc *pa,
 					  u64 start, u64 owner_root, int level);
 int btrfs_init_eb_prealloc(struct btrfs_fs_info *fs_info,
-			   struct btrfs_eb_prealloc *pa);
+			   struct btrfs_eb_prealloc *pa, bool nowait);
 void btrfs_free_eb_prealloc(struct btrfs_eb_prealloc *pa);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						u64 start);
