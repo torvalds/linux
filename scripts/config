@@ -76,7 +76,7 @@ txt_append() {
 	# sed append cmd: 'a\' + newline + text + newline
 	cmd="$(printf "a\\%b$insert" "\n")"
 
-	sed -e "/$anchor/$cmd" "$infile" >"$tmpfile"
+	sed -E -e "/$anchor/$cmd" "$infile" >"$tmpfile"
 	# replace original file with the edited one
 	mv "$tmpfile" "$infile"
 }
@@ -87,7 +87,7 @@ txt_subst() {
 	local infile="$3"
 	local tmpfile="$infile.swp"
 
-	sed -e "s$SED_DELIM$before$SED_DELIM$after$SED_DELIM" "$infile" >"$tmpfile"
+	sed -E -e "s$SED_DELIM$before$SED_DELIM$after$SED_DELIM" "$infile" >"$tmpfile"
 	# replace original file with the edited one
 	mv "$tmpfile" "$infile"
 }
@@ -97,7 +97,7 @@ txt_delete() {
 	local infile="$2"
 	local tmpfile="$infile.swp"
 
-	sed -e "/$text/d" "$infile" >"$tmpfile"
+	sed -E -e "/$text/d" "$infile" >"$tmpfile"
 	# replace original file with the edited one
 	mv "$tmpfile" "$infile"
 }
@@ -105,14 +105,12 @@ txt_delete() {
 set_var() {
 	local name=$1 new=$2 before=$3
 
-	name_re="^($name=|# $name is not set)"
+	name_re="^($name=.*|# $name is not set)"
 	before_re="^($before=|# $before is not set)"
 	if test -n "$before" && grep -Eq "$before_re" "$FN"; then
-		txt_append "^$before=" "$new" "$FN"
-		txt_append "^# $before is not set" "$new" "$FN"
+		txt_append "$before_re" "$new" "$FN"
 	elif grep -Eq "$name_re" "$FN"; then
-		txt_subst "^$name=.*" "$new" "$FN"
-		txt_subst "^# $name is not set" "$new" "$FN"
+		txt_subst "$name_re" "$new" "$FN"
 	else
 		echo "$new" >>"$FN"
 	fi
@@ -121,8 +119,7 @@ set_var() {
 undef_var() {
 	local name=$1
 
-	txt_delete "^$name=" "$FN"
-	txt_delete "^# $name is not set" "$FN"
+	txt_delete "^($name=|# $name is not set)" "$FN"
 }
 
 FN=.config
