@@ -281,8 +281,9 @@ int amd_get_boost_ratio_numerator(unsigned int cpu, u64 *numerator)
 			/* use the max scale for performance cores */
 			*numerator = CPPC_HIGHEST_PERF_PERFORMANCE;
 			return 0;
+		case TOPO_CPU_TYPE_LOW_POWER:
 		case TOPO_CPU_TYPE_EFFICIENCY:
-			/* use the highest perf value for efficiency cores */
+			/* use the highest perf value for efficiency and low-power cores */
 			ret = amd_get_highest_perf(cpu, &tmp);
 			if (ret)
 				return ret;

@@ -44,6 +44,7 @@ enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c)
 		switch (c->topo.amd_type) {
 		case AMD_CPU_TYPE_PERFORMANCE:	return TOPO_CPU_TYPE_PERFORMANCE;
 		case AMD_CPU_TYPE_EFFICIENCY:	return TOPO_CPU_TYPE_EFFICIENCY;
+		case AMD_CPU_TYPE_LOW_POWER:	return TOPO_CPU_TYPE_LOW_POWER;
 		}
 	}
 
@@ -57,6 +58,8 @@ const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c)
 		return "performance";
 	case TOPO_CPU_TYPE_EFFICIENCY:
 		return "efficiency";
+	case TOPO_CPU_TYPE_LOW_POWER:
+		return "low_power";
 	default:
 		return "unknown";
 	}
