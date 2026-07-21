@@ -931,6 +931,7 @@ struct ath12k_dp_profile_params {
 	u32 rxdma_monitor_dst_ring_size;
 	u32 num_pool_tx_desc;
 	u32 rx_desc_count;
+	u32 rx_release_ring_size;
 };
 
 struct ath12k_mem_profile_based_param {
