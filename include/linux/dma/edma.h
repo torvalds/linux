@@ -117,6 +117,7 @@ enum dw_edma_ch_irq_mode {
  * @db_irq:		 Virtual IRQ dedicated to interrupt emulation
  * @db_offset:		 Offset from DMA register base
  * @mf:			 DMA register map format
+ * @func_no:		 PCI endpoint function number used by DMA TLPs
  * @dw:			 struct dw_edma that is filled by dw_edma_probe()
  */
 struct dw_edma_chip {
@@ -142,6 +143,7 @@ struct dw_edma_chip {
 	resource_size_t		db_offset;
 
 	enum dw_edma_map_format	mf;
+	u8			func_no;
 
 	struct dw_edma		*dw;
 	bool			cfg_non_ll;

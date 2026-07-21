@@ -345,6 +345,9 @@ static void dw_hdma_v0_core_ch_config(struct dw_edma_chan *chan)
 	SET_CH_32(dw, chan->dir, chan->id, msi_abort.msb, chan->msi.address_hi);
 	/* config MSI data */
 	SET_CH_32(dw, chan->dir, chan->id, msi_msgdata, chan->msi.data);
+	/* Configure the requester function number used by outbound TLPs. */
+	SET_CH_32(dw, chan->dir, chan->id, func_num,
+		  FIELD_PREP(HDMA_V0_FUNC_NUM_PF_MASK, chan->func_no));
 }
 
 static void

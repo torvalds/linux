@@ -24,6 +24,7 @@
 #define HDMA_V0_CONSUMER_CYCLE_BIT		BIT(0)
 #define HDMA_V0_DOORBELL_START			BIT(0)
 #define HDMA_V0_CH_STATUS_MASK			GENMASK(1, 0)
+#define HDMA_V0_FUNC_NUM_PF_MASK		GENMASK(7, 0)
 
 struct dw_hdma_v0_ch_regs {
 	u32 ch_en;				/* 0x0000 */

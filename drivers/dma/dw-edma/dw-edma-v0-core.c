@@ -26,6 +26,8 @@ enum dw_edma_control {
 	DW_EDMA_V0_LLE					= BIT(9),
 };
 
+#define EDMA_V0_FUNC_NUM_MASK				GENMASK(16, 12)
+
 static inline struct dw_edma_v0_regs __iomem *__dw_regs(struct dw_edma *dw)
 {
 	return dw->chip->reg_base;
@@ -159,6 +161,11 @@ static inline u32 readl_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
 
 #define GET_CH_32(dw, dir, ch, name) \
 	readl_ch(dw, dir, ch, &(__dw_ch_regs(dw, dir, ch)->name))
+
+static u32 dw_edma_v0_func_num(struct dw_edma_chan *chan)
+{
+	return FIELD_PREP(EDMA_V0_FUNC_NUM_MASK, chan->func_no);
+}
 
 /* eDMA management callbacks */
 static void dw_edma_v0_core_ch_power(struct dw_edma *dw,
@@ -463,7 +470,8 @@ static void dw_edma_v0_core_ch_enable(struct dw_edma_chan *chan)
 
 	/* Channel control */
 	SET_CH_32(dw, chan->dir, chan->id, ch_control1,
-		  (DW_EDMA_V0_CCS | DW_EDMA_V0_LLE));
+		  DW_EDMA_V0_CCS | DW_EDMA_V0_LLE |
+		  dw_edma_v0_func_num(chan));
 	/* Linked list */
 	/* llp is not aligned on 64bit -> keep 32bit accesses */
 	SET_CH_32(dw, chan->dir, chan->id, llp.lsb,

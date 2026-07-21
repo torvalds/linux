@@ -931,6 +931,7 @@ static int dw_edma_channel_setup(struct dw_edma *dw, u32 wr_alloc, u32 rd_alloc)
 		chan = &dw->chan[i];
 
 		chan->dw = dw;
+		chan->func_no = chip->func_no;
 
 		if (i < dw->wr_ch_cnt) {
 			chan->id = i;

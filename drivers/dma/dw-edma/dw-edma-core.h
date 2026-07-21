@@ -70,6 +70,7 @@ struct dw_edma_chan {
 	struct dw_edma			*dw;
 	int				id;
 	enum dw_edma_dir		dir;
+	u8				func_no;
 
 	u32				ll_max;
 	struct dw_edma_region		ll_region;	/* Linked list */
