@@ -51,6 +51,7 @@ enum binfmt_misc_entry_flags {
 	MISC_FMT_CREDENTIALS	= (1U << 29),
 	MISC_FMT_OPEN_FILE	= (1U << 28),
 	MISC_FMT_TRANSPARENT	= (1U << 27),
+	MISC_FMT_LOADER		= (1U << 26),
 };
 
 /**
@@ -73,6 +74,7 @@ static const struct binfmt_misc_flag misc_flags[] = {
 	{ 'C', MISC_FMT_CREDENTIALS,	MISC_FMT_OPEN_BINARY,	"credentials from the binary"	},
 	{ 'F', MISC_FMT_OPEN_FILE,	0,			"open interpreter file now"	},
 	{ 'T', MISC_FMT_TRANSPARENT,	MISC_FMT_OPEN_BINARY,	"transparent"			},
+	{ 'L', MISC_FMT_LOADER,		0,			"loader substitution"		},
 };
 
 /* Look up a flag character, NULL if @c is not one. */
@@ -458,6 +460,9 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	unsigned long flags;
 	int retval;
 
+	/* Only binfmt_misc stages one and exec_binprm() clears it per round. */
+	WARN_ON_ONCE(bprm->loader);
+
 	misc = current_binfmt_misc();
 	if (!READ_ONCE(misc->enabled))
 		return -ENOEXEC;
@@ -473,8 +478,26 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	flags = entry_invocation_flags(fmt, bprm);
 
 	/* No argv is built for a staged argument to land in. */
-	if ((flags & MISC_FMT_TRANSPARENT) && bprm->bpf_interp_arg)
+	if ((flags & (MISC_FMT_LOADER | MISC_FMT_TRANSPARENT)) &&
+	    bprm->bpf_interp_arg)
 		return -EINVAL;
+
+	/*
+	 * Stash the interpreter for binfmt_elf to consume in place of the
+	 * binary's PT_INTERP and decline the match, so the search continues
+	 * to the real format in the same round.
+	 */
+	if (flags & MISC_FMT_LOADER) {
+		interp_file = entry_open_interpreter(fmt, interpreter);
+		if (IS_ERR(interp_file)) {
+			retval = PTR_ERR(interp_file);
+			/* Declining here would run the binary's own PT_INTERP. */
+			return retval == -ENOEXEC ? -EACCES : retval;
+		}
+
+		bprm->loader = interp_file;
+		return -ENOEXEC;
+	}
 
 	if (!(flags & MISC_FMT_TRANSPARENT)) {
 		retval = build_interp_argv(bprm, interpreter, flags);
@@ -772,13 +795,19 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	    (e->flags & MISC_FMT_PRESERVE_ARGV0))
 		return ERR_PTR(-EINVAL);
 
+	/* A native exec splices no argv, passes no execfd and needs no creds. */
+	if ((e->flags & MISC_FMT_LOADER) &&
+	    (e->flags & (MISC_FMT_TRANSPARENT | MISC_FMT_PRESERVE_ARGV0 |
+			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY)))
+		return ERR_PTR(-EINVAL);
+
 	if (*p == '\n')
 		p++;
 	if (p != buf + count)
 		return ERR_PTR(-EINVAL);
 
 	/* Non-F opens the interp at exec against the caller's cwd; require absolute. */
-	if ((e->flags & MISC_FMT_CREDENTIALS) &&
+	if ((e->flags & (MISC_FMT_LOADER | MISC_FMT_CREDENTIALS)) &&
 	    !(e->flags & MISC_FMT_OPEN_FILE) &&
 	    e->interpreter[0] != '/')
 		return ERR_PTR(-EINVAL);

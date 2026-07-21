@@ -100,6 +100,13 @@ Here is what the fields mean:
             ``AT_FLAGS_TRANSPARENT_INTERP`` contract. Combining ``T``
             with ``P`` is rejected: transparency preserves the whole
             argument vector, argv[0] included.
+      ``L`` - loader substitution
+            Do not run the interpreter on the binary at all: load the
+            binary itself as a fully native exec and substitute the
+            interpreter for the loader named in the binary's
+            ``PT_INTERP``. See the "Loader substitution" section
+            below. ``L`` rejects ``T``, ``P``, ``O`` and ``C``;
+            ``F`` composes.
 
 
 There are some restrictions:
@@ -108,10 +115,10 @@ There are some restrictions:
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
  - the interpreter string may not exceed 127 characters
- - an interpreter used with ``C`` but without ``F`` has to be named by an
-   absolute path. It is opened when the binary is executed, so a relative
-   one would be resolved against the working directory of whoever runs
-   the binary
+ - an interpreter used with ``C`` or ``L`` but without ``F`` has to be
+   named by an absolute path. It is opened when the binary is executed, so
+   a relative one would be resolved against the working directory of
+   whoever runs the binary
 
 
 To use binfmt_misc you have to mount it first. You can mount it with
