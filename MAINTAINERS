@@ -25702,7 +25702,7 @@ F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml
 F:	drivers/iio/proximity/vl53l0x-i2c.c
 
 ST VL53L1X ToF RANGER(I2C) IIO DRIVER
-M:	Siratul Islam <email@sirat.me>
+M:	Siratul Islam <siratul.islam@linux.dev>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/proximity/st,vl53l0x.yaml

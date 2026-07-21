@@ -2,7 +2,7 @@
 /*
  * Support for ST VL53L1X FlightSense ToF Ranging Sensor on a i2c bus.
  *
- * Copyright (C) 2026 Siratul Islam <email@sirat.me>
+ * Copyright (C) 2026 Siratul Islam <siratul.islam@linux.dev>
  *
  * Datasheet available at
  * <https://www.st.com/resource/en/datasheet/vl53l1x.pdf>
@@ -751,6 +751,6 @@ static struct i2c_driver vl53l1x_driver = {
 };
 module_i2c_driver(vl53l1x_driver);
 
-MODULE_AUTHOR("Siratul Islam <email@sirat.me>");
+MODULE_AUTHOR("Siratul Islam <siratul.islam@linux.dev>");
 MODULE_DESCRIPTION("ST VL53L1X ToF ranging sensor driver");
 MODULE_LICENSE("Dual BSD/GPL");

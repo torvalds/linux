@@ -8,7 +8,7 @@ title: ST VL53L0X/VL53L1X ToF ranging sensor
 
 maintainers:
   - Song Qiang <songqiang1304521@gmail.com>
-  - Siratul Islam <email@sirat.me>
+  - Siratul Islam <siratul.islam@linux.dev>
 
 properties:
   compatible:
