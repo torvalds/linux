@@ -3309,12 +3309,9 @@ void btrfs_uninhibit_all_eb_writeback(struct btrfs_trans_handle *trans)
 	trans->inhibited_ebs_hand = 0;
 }
 
-static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info,
-						   u64 start)
+static void init_extent_buffer(struct btrfs_fs_info *fs_info,
+			       struct extent_buffer *eb, u64 start)
 {
-	struct extent_buffer *eb = NULL;
-
-	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS|__GFP_NOFAIL);
 	eb->start = start;
 	eb->len = fs_info->nodesize;
 	eb->fs_info = fs_info;
@@ -3327,7 +3324,15 @@ static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info
 	refcount_set(&eb->refs, 1);
 
 	ASSERT(eb->len <= BTRFS_MAX_METADATA_BLOCKSIZE);
+}
 
+static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info,
+						   u64 start)
+{
+	struct extent_buffer *eb;
+
+	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS | __GFP_NOFAIL);
+	init_extent_buffer(fs_info, eb, start);
 	return eb;
 }
 
@@ -3731,9 +3736,8 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (eb)
 		return eb;
 
-	eb = __alloc_extent_buffer(fs_info, start);
-	if (!eb)
-		return ERR_PTR(-ENOMEM);
+	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS | __GFP_NOFAIL);
+	init_extent_buffer(fs_info, eb, start);
 
 	/*
 	 * The reloc trees are just snapshots, so we need them to appear to be
