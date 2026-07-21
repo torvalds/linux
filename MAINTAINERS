@@ -4916,6 +4916,7 @@ R:	Song Liu <song@kernel.org>
 R:	Yonghong Song <yonghong.song@linux.dev>
 R:	Jiri Olsa <jolsa@kernel.org>
 R:	Emil Tsalapatis <emil@etsalapatis.com>
+R:	Ihor Solodrai <ihor.solodrai@linux.dev>
 L:	bpf@vger.kernel.org
 S:	Supported
 W:	https://bpf.io/
@@ -4976,6 +4977,7 @@ F:	net/unix/unix_bpf.c
 BPF [LIBRARY] (libbpf)
 M:	Andrii Nakryiko <andrii@kernel.org>
 M:	Eduard Zingerman <eddyz87@gmail.com>
+R:	Ihor Solodrai <ihor.solodrai@linux.dev>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	tools/lib/bpf/
@@ -5041,6 +5043,7 @@ F:	security/bpf/
 BPF [SELFTESTS] (Test Runners & Infrastructure)
 M:	Andrii Nakryiko <andrii@kernel.org>
 M:	Eduard Zingerman <eddyz87@gmail.com>
+R:	Ihor Solodrai <ihor.solodrai@linux.dev>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	tools/testing/selftests/bpf/
@@ -5055,6 +5058,7 @@ F:	tools/bpf/bpftool/
 BPF [TRACING]
 M:	Song Liu <song@kernel.org>
 R:	Jiri Olsa <jolsa@kernel.org>
+R:	Ihor Solodrai <ihor.solodrai@linux.dev>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/stackmap.c
