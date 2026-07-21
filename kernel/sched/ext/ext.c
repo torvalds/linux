@@ -3277,6 +3277,19 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 	} else {
 		s32 cpu;
 
+		/*
+		 * While bypassing, the enqueue path routes @p to a bypass DSQ
+		 * without consulting the direct-dispatch target, making the
+		 * default selection pointless. It doesn't work anyway when the
+		 * scheduler does its own idle tracking and the built-in idle
+		 * cpumasks are not updated. Leave @p on @prev_cpu.
+		 */
+		if (bypassing) {
+			__scx_add_event(sch, SCX_EV_BYPASS_DISPATCH, 1);
+			p->scx.selected_cpu = prev_cpu;
+			return prev_cpu;
+		}
+
 		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, NULL, 0);
 		if (cpu >= 0) {
 			refill_task_slice_dfl(sch, p);
@@ -3286,8 +3299,6 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 		}
 		p->scx.selected_cpu = cpu;
 
-		if (bypassing)
-			__scx_add_event(sch, SCX_EV_BYPASS_DISPATCH, 1);
 		return cpu;
 	}
 }
