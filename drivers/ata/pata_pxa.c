@@ -262,40 +262,26 @@ static int pxa_ata_probe(struct platform_device *pdev)
 	/*
 	 * Request the DMA channel
 	 */
-	data->dma_chan = dma_request_chan(&pdev->dev, "data");
+	data->dma_chan = devm_dma_request_chan(&pdev->dev, "data");
 	if (IS_ERR(data->dma_chan))
 		return PTR_ERR(data->dma_chan);
+
 	ret = dmaengine_slave_config(data->dma_chan, &config);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "dma configuration failed: %d\n", ret);
-		dma_release_channel(data->dma_chan);
 		return ret;
 	}
 
 	/*
 	 * Activate the ATA host
 	 */
-	ret = ata_host_activate(host, irq, ata_sff_interrupt,
+	return ata_host_activate(host, irq, ata_sff_interrupt,
 				pdata->irq_flags, &pxa_ata_sht);
-	if (ret)
-		dma_release_channel(data->dma_chan);
-
-	return ret;
-}
-
-static void pxa_ata_remove(struct platform_device *pdev)
-{
-	struct ata_host *host = platform_get_drvdata(pdev);
-	struct pata_pxa_data *data = host->ports[0]->private_data;
-
-	dma_release_channel(data->dma_chan);
-
-	ata_host_detach(host);
 }
 
 static struct platform_driver pxa_ata_driver = {
 	.probe		= pxa_ata_probe,
-	.remove		= pxa_ata_remove,
+	.remove		= ata_platform_remove_one,
 	.driver		= {
 		.name		= DRV_NAME,
 	},
