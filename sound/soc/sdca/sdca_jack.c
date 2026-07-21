@@ -47,23 +47,6 @@ int sdca_jack_process(struct sdca_interrupt *interrupt)
 
 	guard(rwsem_write)(rwsem);
 
-	if (!kctl) {
-		const char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s %s",
-							   interrupt->entity->label,
-							   SDCA_CTL_SELECTED_MODE_NAME);
-
-		if (!name)
-			return -ENOMEM;
-
-		kctl = snd_soc_component_get_kcontrol(component, name);
-		if (!kctl) {
-			dev_err(dev, "control not found: %s\n", name);
-			return -ENODEV;
-		}
-
-		state->kctl = kctl;
-	}
-
 	reg = SDW_SDCA_CTL(interrupt->function->desc->adr, interrupt->entity->id,
 			   interrupt->control->sel, 0);
 
@@ -147,6 +130,32 @@ void sdca_jack_free_state(struct sdca_interrupt *interrupt)
 	kfree(interrupt->priv);
 }
 EXPORT_SYMBOL_NS_GPL(sdca_jack_free_state, "SND_SOC_SDCA");
+
+/**
+ * sdca_jack_init_state - Initialise transient state for a jack interrupt
+ * @interrupt: SDCA interrupt structure.
+ *
+ * Return: Zero on success or a negative error code.
+ */
+int sdca_jack_init_state(struct sdca_interrupt *interrupt)
+{
+	struct jack_state *jack_state = interrupt->priv;
+	const char *name __free(kfree) = kasprintf(GFP_KERNEL, "%s %s",
+						   interrupt->entity->label,
+						   SDCA_CTL_SELECTED_MODE_NAME);
+
+	if (!name)
+		return -ENOMEM;
+
+	jack_state->kctl = snd_soc_component_get_kcontrol(interrupt->component, name);
+	if (!jack_state->kctl) {
+		dev_err(interrupt->dev, "control not found: %s\n", name);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(sdca_jack_init_state, "SND_SOC_SDCA");
 
 static int type_get_mask(enum sdca_terminal_type type)
 {

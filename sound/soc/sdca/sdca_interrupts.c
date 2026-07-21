@@ -521,12 +521,24 @@ int sdca_irq_populate(struct sdca_function_data *function,
 
 	for (i = 0; i < SDCA_MAX_INTERRUPTS; i++) {
 		struct sdca_interrupt *interrupt = &info->irqs[i];
+		struct sdca_control *control = interrupt->control;
+		struct sdca_entity *entity = interrupt->entity;
 		int irq;
 
 		if (interrupt->function != function || interrupt->irq)
 			continue;
 
 		interrupt->component = component;
+
+		switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+		case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+			ret = sdca_jack_init_state(interrupt);
+			if (ret)
+				return ret;
+			break;
+		default:
+			break;
+		}
 
 		irq = interrupt->control->interrupt_position;
 		ret = sdca_irq_request_locked(dev, info, irq, interrupt->name,
