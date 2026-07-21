@@ -3487,6 +3487,17 @@ void dce110_enable_tmds_link_output(struct dc_link *link,
 			signal,
 			pixel_clock);
 	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+
+	// For dongle Type 2 with no I2C support on board, setup sw mode of Ri/Pj check with proper aux instance
+	if (link->force_to_use_aux) {
+		if (link->link_enc && link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode)
+			link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode(link->link_enc,
+				link->aux_hw_inst, true);
+	} else
+		// For HDMI setup hw mode of Ri/Pj check with proper ddc pin instance
+		if (link->link_enc && link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode)
+			link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode(link->link_enc,
+				link->ddc_hw_inst, false);
 }
 
 static void dce110_enable_analog_link_output(

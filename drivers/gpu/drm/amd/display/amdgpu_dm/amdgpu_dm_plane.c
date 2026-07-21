@@ -144,7 +144,8 @@ void amdgpu_dm_plane_fill_blending_from_plane_state(const struct drm_plane_state
 		 * other ASICs use an 8-bit field. The DRM plane alpha is
 		 * 16-bit, so scale it down to the width the hardware expects.
 		 */
-		if (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 0))
+		if (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 0)
+		    || amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(6, 0, 0))
 			*global_alpha_value = plane_state->alpha >> 4;
 		else
 			*global_alpha_value = plane_state->alpha >> 8;
@@ -316,6 +317,7 @@ STATIC_IFN_KUNIT int amdgpu_dm_plane_validate_dcc(struct amdgpu_device *adev,
 		return 0;
 
 	if (adev->family != AMDGPU_FAMILY_GC_12_0_0 &&
+	    adev->family != AMDGPU_FAMILY_GC_13_0_1 &&
 	    format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		return -EINVAL;
 
@@ -1047,6 +1049,8 @@ STATIC_IFN_KUNIT int amdgpu_dm_plane_get_plane_modifiers(struct amdgpu_device *a
 		amdgpu_dm_plane_add_gfx11_modifiers(adev, mods, &size, &capacity);
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
+	case AMDGPU_FAMILY_GC_13_0_1:
+		/* GFX13 (DCN6) shares the GFX12 tiling/DCC binary modifier format. */
 		amdgpu_dm_plane_add_gfx12_modifiers(adev, mods, &size, &capacity);
 		break;
 	}
@@ -1187,7 +1191,8 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			upper_32_bits(chroma_addr);
 	}
 
-	if (adev->family == AMDGPU_FAMILY_GC_12_0_0) {
+	if (adev->family == AMDGPU_FAMILY_GC_12_0_0
+	    || adev->family == AMDGPU_FAMILY_GC_13_0_1) {
 		ret = amdgpu_dm_plane_fill_gfx12_attrs_from_modifiers(adev, afb, format,
 										 rotation, plane_size,
 										 tiling_info, dcc,

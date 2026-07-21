@@ -348,6 +348,11 @@ void dcn401_init_hw(struct dc *dc)
 					dal_gpio_destroy_ddc(&ddc_pin);
 				}
 			}
+		//Setup corresponding HDCP XFER DEST interrupt to go to DMUCB
+		dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest(
+			dc->ctx->dmub_srv,
+			link->eng_id,
+			true);
 		}
 	}
 
@@ -1099,6 +1104,12 @@ void dcn401_disable_link_output(struct dc_link *link,
 		dmcu->funcs->lock_phy(dmcu);
 
 	if (dc_is_tmds_signal(signal) && link->phy_state.symclk_ref_cnts.otg > 0) {
+		// Disable interrupt, setup default hw mode of Ri/Pj check with proper aux instance
+		if (link->force_to_use_aux) {
+			if (link->link_enc && link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode)
+				link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode(link->link_enc,
+					link->aux_hw_inst, false);
+		}
 		disable_link_output_symclk_on_tx_off(link, DP_UNKNOWN_ENCODING);
 		link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 	} else {
@@ -2609,6 +2620,16 @@ void dcn401_program_front_end_for_ctx(
 
 	if (resource_is_pipe_topology_changed(dc->current_state, context))
 		resource_log_pipe_topology_update(dc, context);
+	if (dc->debug.enable_block_sequence_programming) {
+		hwss_build_full_sequence(dc,
+			context->block_sequence,
+			&(context->block_sequence_steps),
+			context, false);
+		hwss_execute_sequence(dc,
+			context->block_sequence,
+			context->block_sequence_steps);
+		return;
+	}
 
 	if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2769,6 +2790,17 @@ void dcn401_post_unlock_program_front_end(
 	unsigned int polling_interval_us = 1;
 	struct dce_hwseq *hwseq = dc->hwseq;
 	unsigned int i;
+
+	if (dc->debug.enable_block_sequence_programming) {
+		hwss_build_post_unlock_full_sequence(dc,
+			context->block_sequence,
+			&(context->block_sequence_steps),
+			context);
+		hwss_execute_sequence(dc,
+			context->block_sequence,
+			context->block_sequence_steps);
+		return;
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (resource_is_pipe_type(&dc->current_state->res_ctx.pipe_ctx[i], OPP_HEAD) &&

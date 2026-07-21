@@ -423,6 +423,14 @@ int link_aux_transfer_raw(struct ddc_service *ddc,
 		struct aux_payload *payload,
 		enum aux_return_code_type *operation_result)
 {
+	if (ddc->ctx->dc->config.dp_connector_no_native_i2c && ddc->link->no_ddc_pin) {
+		/* Check whether aux to be processed via dmub or dcn directly */
+		if (ddc->ctx->dc->debug.enable_dmub_aux_for_legacy_ddc) {
+			return dce_aux_transfer_dmub_raw(ddc, payload, operation_result);
+		} else {
+			return dce_aux_transfer_raw_without_ddc_pin(ddc, payload, operation_result);
+		}
+	}
 	return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
 

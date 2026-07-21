@@ -40,8 +40,8 @@
  * results in the parameters.
  */
 
-static bool optc42_get_crc(struct timing_generator *optc, uint8_t idx,
-		   uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+bool optc42_get_crc(struct timing_generator *optc, uint8_t idx,
+	uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	uint32_t field = 0;
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);

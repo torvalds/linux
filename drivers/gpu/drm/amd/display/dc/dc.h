@@ -174,6 +174,13 @@ struct dc_plane_cap {
 		uint32_t fp16 : 1;
 		uint32_t p010 : 1;
 		uint32_t ayuv : 1;
+		uint32_t yuy2 : 1; // Packed 422 8bpc
+		uint32_t y210 : 1; // Packed 422 10bpc
+		uint32_t y212 : 1; // Packed 422 12bpc
+		uint32_t p208 : 1; // Planar 422 8bpc
+		uint32_t p210 : 1; // Planar 422 10bpc
+		uint32_t p212 : 1; // Planar 422 12bpc
+		/* Not all caps will be used/supported */
 	} pixel_format_support;
 	// max upscaling factor x1000
 	// upscaling factors are always >= 1
@@ -240,6 +247,7 @@ struct rom_curve_caps {
  * @ogam_ram: programmable out/blend gamma LUT
  * @ocsc: output color space conversion
  * @dgam_rom_for_yuv: pre-defined degamma LUT for YUV planes
+ * @upsp_pre_scaler: Ability to upsample 420/422 before scaling
  * @dgam_rom_caps: pre-definied curve caps for degamma 1D LUT
  * @ogam_rom_caps: pre-definied curve caps for regamma 1D LUT
  *
@@ -256,6 +264,7 @@ struct dpp_color_caps {
 	uint16_t ogam_ram : 1;
 	uint16_t ocsc : 1;
 	uint16_t dgam_rom_for_yuv : 1;
+	uint16_t upsp_pre_scaler : 1;
 	struct rom_curve_caps dgam_rom_caps;
 	struct rom_curve_caps ogam_rom_caps;
 };
@@ -617,6 +626,7 @@ struct dc_config {
 	bool unify_link_enc_assignment;
 	bool enable_cursor_offload;
 	bool dp_connector_no_native_i2c;
+	unsigned int link_index_with_no_ddc;
 	bool frame_update_cmd_version2;
 	struct spl_sharpness_range dcn_sharpness_range;
 	struct spl_sharpness_range dcn_override_sharpness_range;
@@ -785,6 +795,7 @@ struct dc_clocks {
 	 */
 	bool fw_based_mclk_switching;
 	bool fw_based_mclk_switching_shut_down;
+	bool alt_ch_pstate_switch;
 	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
@@ -795,6 +806,18 @@ struct dc_clocks {
 	int idle_fclk_khz;
 	int subvp_prefetch_dramclk_khz;
 	int subvp_prefetch_fclk_khz;
+	/* deprecated: use _KBps variants — will be removed after DML update */
+	unsigned int utm_urgent_bandwidth_lb_Kbps;
+	unsigned int utm_nominal_bandwidth_lb_Kbps;
+	unsigned int utm_urgent_bandwidth_lb_KBps;
+	unsigned int utm_nominal_bandwidth_lb_KBps;
+	unsigned int utm_latency_ub_index;
+	unsigned int utm_lsdma_bandwidth_lb_KBps;
+	unsigned int utm_nominal_max_latency_ub_ns;
+	unsigned int utm_nominal_avg_latency_ub_ns;
+	/* deprecated: use _KBps variant — will be removed after DML update */
+	unsigned int required_avg_active_bandwidth_Kbps;
+	unsigned int required_avg_active_bandwidth_KBps;
 
 	/* Stutter efficiency is technically not clock values
 	 * but stored here so the values are part of the update_clocks call similar to num_ways
@@ -1739,7 +1762,7 @@ struct dc_plane_state {
 	bool adaptive_sharpness_en;
 	int adaptive_sharpness_policy;
 	unsigned int sharpness_level;
-	enum linear_light_scaling linear_light_scaling;
+	enum dc_scaling_linearity scaling_linearity;
 	unsigned int sdr_white_level_nits;
 	struct cm_hist_control cm_hist_control;
 	struct spl_sharpness_range sharpness_range;
@@ -1763,6 +1786,7 @@ struct dc_plane_info {
 	bool input_csc_enabled;
 	unsigned int layer_index;
 	enum chroma_cositing cositing;
+	enum dc_scaling_linearity scaling_linearity;
 };
 
 #include "dc_stream.h"

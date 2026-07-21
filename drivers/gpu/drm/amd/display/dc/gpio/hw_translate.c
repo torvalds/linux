@@ -55,6 +55,7 @@
 #include "dcn401/hw_translate_dcn401.h"
 #include "dcn42/hw_translate_dcn42.h"
 #include "dcn42b/hw_translate_dcn42b.h"
+#include "dcn60/hw_translate_dcn60.h"
 
 /*
  * This unit
@@ -127,6 +128,9 @@ bool dal_hw_translate_init(
 		return true;
 	case DCN_VERSION_4_2B:
 		dal_hw_translate_dcn42b_init(translate);
+		return true;
+	case DCN_VERSION_6_0:
+		dal_hw_translate_dcn60_init(translate);
 		return true;
 	default:
 		BREAK_TO_DEBUGGER();

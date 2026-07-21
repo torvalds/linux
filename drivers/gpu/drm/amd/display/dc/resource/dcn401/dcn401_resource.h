@@ -236,6 +236,10 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SRI_ARR(DIG_BE_CLK_CNTL, DIG, id),\
 	SR_ARR(DIO_CLK_CNTL, id)
 
+#define LE_DCN60_REG_LIST_RI(id)                                             \
+	SRI_ARR(HDCP_I2C_CONTROL_0, DIG, id),                                    \
+	SRI_ARR(HDCP_INT_CONTROL, DIG, id)
+
 /* DPP */
 #define DPP_REG_LIST_DCN401_COMMON_RI(id)                                    \
 	SRI_ARR(CM_DEALPHA, CM, id), SRI_ARR(CM_MEM_PWR_STATUS, CM, id),         \

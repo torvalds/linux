@@ -41,6 +41,7 @@
 #include "dcn10/dcn10_hubbub.h"
 #include "dce/dmub_hw_lock_mgr.h"
 #include "link_service.h"
+#include "custom_float.h"
 
 #define MAX_NUM_MCACHE 8
 
@@ -729,6 +730,386 @@ void get_fams2_visual_confirm_color(
 	}
 }
 
+static bool get_update_dchubp_dpp_flags_status(struct pipe_ctx *pipe)
+{
+	if (!pipe->plane_state) {
+		return false;
+	}
+
+	if ((pipe->update_flags.raw ||
+		dc_pipe_update_bits_is_any_set(&pipe->plane_state->update_bits) ||
+		pipe->stream->update_flags.raw)) {
+		return true;
+	}
+
+	return false;
+}
+
+// Function to check if any update flags are set
+static bool get_pipe_update_bits_status(struct pipe_ctx *pipe, struct dc_plane_state *plane, struct dc_stream_state *stream)
+{
+	(void)stream;
+	if (plane) {
+		return (pipe->update_flags.bits.enable ||
+			pipe->update_flags.bits.plane_changed ||
+			pipe->update_flags.bits.opp_changed ||
+			plane->update_bits.pixel_format_change ||
+			plane->update_bits.horizontal_mirror_change ||
+			plane->update_bits.rotation_change ||
+			plane->update_bits.swizzle_change ||
+			plane->update_bits.dcc_change ||
+			plane->update_bits.bpp_change ||
+			plane->update_bits.scaling_change ||
+			plane->update_bits.plane_size_change);
+	}
+	return false;
+}
+
+void hwss_build_full_sequence(struct dc *dc,
+	struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
+	unsigned int *num_steps,
+	struct dc_state *context, bool program_phantom_pipe)
+{
+	(void)program_phantom_pipe;
+	struct dc_plane_state *plane = NULL;
+	struct dc_stream_state *stream = NULL;
+	struct pipe_ctx *current_pipe = NULL;
+	struct pipe_ctx *pipe = NULL;
+	struct dce_hwseq *hws = dc->hwseq;
+	unsigned int i;
+	*num_steps = 0; // Initialize to 0
+	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		dc->hwss.detect_pipe_changes(dc->current_state, context, &dc->current_state->res_ctx.pipe_ctx[i],
+			&context->res_ctx.pipe_ctx[i]);
+
+	/* Program triplebuffer if enabled */
+	if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe->plane_state) {
+				/* Turn off triple buffer for full update */
+				hwss_add_hubp_program_triplebuffer(&seq_state, dc, pipe, pipe->plane_state->triplebuffer_flips);
+			}
+		}
+	}
+
+	/* Count hubp usage and force pstate change if needed */
+	unsigned int prev_hubp_count = 0;
+	unsigned int hubp_count = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
+			prev_hubp_count++;
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			hubp_count++;
+	}
+
+	if (prev_hubp_count == 0 && hubp_count > 0) {
+		if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+			hwss_add_hubbub_force_pstate_change_control(&seq_state, dc->res_pool->hubbub, true, false);
+	}
+
+	/* When disabling phantom pipes, turn on phantom OTG first */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct dc_stream_state *pipe_stream = dc->current_state->res_ctx.pipe_ctx[i].stream;
+
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable && pipe_stream &&
+			dc_state_get_pipe_subvp_type(dc->current_state, pipe) == SUBVP_PHANTOM) {
+			struct timing_generator *tg = dc->current_state->res_ctx.pipe_ctx[i].stream_res.tg;
+
+			if (tg->funcs->enable_crtc) {
+				if (dc->hwseq->funcs.blank_pixel_data_sequence)
+					dc->hwseq->funcs.blank_pixel_data_sequence(dc, pipe, true, &seq_state);
+				hwss_add_tg_enable_crtc(&seq_state, tg);
+			}
+		}
+	}
+
+	/* OTG blank before disabling all front ends */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable
+				&& !context->res_ctx.pipe_ctx[i].top_pipe
+				&& !context->res_ctx.pipe_ctx[i].prev_odm_pipe
+				&& context->res_ctx.pipe_ctx[i].stream) {
+
+			if (dc->hwseq->funcs.blank_pixel_data_sequence) {
+				dc->hwseq->funcs.blank_pixel_data_sequence(dc, &context->res_ctx.pipe_ctx[i],
+					true, &seq_state);
+			}
+		}
+	}
+
+	/* Disconnect mpcc for pipes being disabled or with opp changes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable
+			|| context->res_ctx.pipe_ctx[i].update_flags.bits.opp_changed) {
+			struct hubbub *hubbub = dc->res_pool->hubbub;
+
+			/* Phantom pipe DET should be 0, but if a pipe in use is being transitioned to phantom
+			 * then we want to do the programming here (effectively it's being disabled). If we do
+			 * the programming later the DET won't be updated until the OTG for the phantom pipe is
+			 * turned on (i.e. in an MCLK switch) which can come in too late and cause issues with
+			 * DET allocation.
+			 */
+			if ((context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
+					(context->res_ctx.pipe_ctx[i].plane_state &&
+					dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[i]) ==
+					SUBVP_PHANTOM))) {
+
+				if (hubbub->funcs->program_det_size) {
+					hwss_add_hubp_program_det_size(&seq_state, hubbub,
+						dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
+				}
+
+				if (dc->res_pool->hubbub->funcs->program_det_segments) {
+					hwss_add_hubp_program_det_segments(&seq_state, hubbub,
+						dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
+				}
+			}
+
+			if (hws->funcs.plane_atomic_disconnect_sequence)
+				hws->funcs.plane_atomic_disconnect_sequence(dc, dc->current_state,
+					&dc->current_state->res_ctx.pipe_ctx[i], &seq_state);
+		}
+	}
+
+	/* update ODM for blanked OTG master pipes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+				!resource_is_pipe_type(pipe, DPP_PIPE) &&
+				pipe->update_flags.bits.odm) {
+			if (hws->funcs.update_odm_sequence)
+				hws->funcs.update_odm_sequence(dc, context, pipe, &seq_state);
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		if (pipe->update_flags.bits.disable) {
+			struct cm_hist_control hist_disable = { .channels_enabled = 0 };
+
+			hwss_add_dpp_program_cm_hist(&seq_state, pipe->plane_res.dpp,
+				hist_disable, COLOR_SPACE_UNKNOWN);
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			while (pipe) {
+				if (pipe->stream &&
+						dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM) {
+					if (hws->funcs.program_pipe_sequence)
+						hws->funcs.program_pipe_sequence(dc, pipe, context, &seq_state);
+				}
+
+				pipe = pipe->bottom_pipe;
+			}
+		}
+
+		/* Program secondary blending tree and writeback pipes */
+		pipe = &context->res_ctx.pipe_ctx[i];
+		if (!pipe->top_pipe && !pipe->prev_odm_pipe
+			&& pipe->stream && pipe->stream->num_wb_info > 0
+			&& (pipe->update_flags.raw || (pipe->plane_state && dc_pipe_update_bits_is_any_set(&pipe->plane_state->update_bits))
+				|| pipe->stream->update_flags.raw)) {
+
+			if (hws->funcs.program_all_writeback_pipes_in_tree_sequence)
+				hws->funcs.program_all_writeback_pipes_in_tree_sequence(dc, pipe->stream,
+					context, &seq_state);
+		}
+
+		/* Avoid underflow by check of pipe line read when adding 2nd plane. */
+		if (hws->wa.wait_hubpret_read_start_during_mpo_transition &&
+				!pipe->top_pipe &&
+				pipe->stream &&
+				pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start &&
+				dc->current_state->stream_status[0].plane_count == 1 &&
+				context->stream_status[0].plane_count > 1) {
+			hwss_add_hubp_wait_pipe_read_start(&seq_state, pipe->plane_res.hubp);
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		current_pipe = &context->res_ctx.pipe_ctx[i];
+
+		while (current_pipe) {
+			plane = current_pipe->plane_state;
+			stream = current_pipe->stream;
+			bool is_phantom = (dc_state_get_pipe_subvp_type(context, current_pipe) == SUBVP_PHANTOM);
+
+			if (get_update_dchubp_dpp_flags_status(current_pipe)) {
+				if (!is_phantom && plane && stream) {
+					if (get_pipe_update_bits_status(current_pipe, plane, stream)) {
+						struct plane_size size = plane->plane_size;
+
+						size.surface_size = current_pipe->plane_res.scl_data.viewport;
+						hwss_add_hubp_program_surface_config(&seq_state, current_pipe->plane_res.hubp,
+							plane->format, &plane->tiling_info, size, plane->rotation, &plane->dcc,
+							plane->horizontal_mirror, 0);
+					}
+
+					if (current_pipe->plane_res.hubp->funcs->hubp_program_mcache_id_and_split_coordinate)
+						hwss_add_hubp_program_mcache_id(&seq_state, current_pipe->plane_res.hubp, &current_pipe->mcache_regs);
+
+					if (current_pipe->plane_res.dpp->funcs->dpp_program_upsp) {
+						block_sequence[*num_steps].params.program_upsp_params.pipe_ctx = current_pipe;
+						block_sequence[*num_steps].func = DPP_PROGRAM_UPSP;
+						(*num_steps)++;
+					}
+				}
+			}
+			current_pipe = current_pipe->bottom_pipe;
+		}
+	}
+}
+
+void hwss_build_post_unlock_full_sequence(struct dc *dc,
+	struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
+	unsigned int *num_steps,
+	struct dc_state *context)
+{
+	unsigned int i;
+	struct dce_hwseq *hwseq = dc->hwseq;
+	*num_steps = 0; // Initialize to 0
+	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
+
+	/* Reset OPP for pipes transitioning from OPP_HEAD to non-OPP_HEAD */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (resource_is_pipe_type(&dc->current_state->res_ctx.pipe_ctx[i], OPP_HEAD) &&
+				!resource_is_pipe_type(&context->res_ctx.pipe_ctx[i], OPP_HEAD)) {
+
+			if (dc->hwss.post_unlock_reset_opp_sequence)
+				dc->hwss.post_unlock_reset_opp_sequence(dc, &dc->current_state->res_ctx.pipe_ctx[i],
+					&seq_state);
+		}
+	}
+
+	/* Disable planes that are being disabled */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable) {
+			if (dc->hwss.disable_plane_sequence)
+				dc->hwss.disable_plane_sequence(dc, dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i],
+					&seq_state);
+		}
+	}
+
+	/* Wait for flip pending on pipes being enabled */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state && !pipe->top_pipe && pipe->update_flags.bits.enable &&
+			dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM) {
+
+			unsigned int polling_interval_us;
+				polling_interval_us = 1;
+			hwss_add_hubp_wait_flip_pending(&seq_state, pipe->plane_res.hubp, 100000, polling_interval_us);
+		}
+	}
+
+	/* Wait for double buffer pending when ODM slice count increases */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (resource_is_pipe_type(old_pipe, OTG_MASTER) && resource_is_pipe_type(pipe, OTG_MASTER) &&
+			resource_get_odm_slice_count(old_pipe) < resource_get_odm_slice_count(pipe) &&
+			dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_PHANTOM) {
+
+			unsigned int polling_interval_us;
+			polling_interval_us = 1;
+			hwss_add_tg_wait_double_buffer_pending(&seq_state, pipe->stream_res.tg, 100000, polling_interval_us);
+		}
+	}
+
+	/* Force pstate change control to false */
+	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
+		hwss_add_hubbub_force_pstate_change_control(&seq_state, dc->res_pool->hubbub, false, false);
+
+	/* Program phantom pipes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			while (pipe) {
+				if (pipe->stream && dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
+					/* Apply update flags for phantom pipes using existing HWS functions */
+					if (dc->hwss.apply_update_flags_for_phantom)
+						hwss_add_hws_apply_update_flags_for_phantom(&seq_state, pipe);
+					if (dc->hwss.update_phantom_vp_position)
+						hwss_add_hws_update_phantom_vp_position(&seq_state, dc, context, pipe);
+
+					/* Program the phantom pipe - use program_pipe_sequence if available */
+					if (dc->hwseq && dc->hwseq->funcs.program_pipe_sequence)
+						dc->hwseq->funcs.program_pipe_sequence(dc, pipe, context, &seq_state);
+				}
+				pipe = pipe->bottom_pipe;
+			}
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		while (pipe) {
+			struct dc_plane_state *plane = pipe->plane_state;
+			struct dc_stream_state *stream = pipe->stream;
+			bool is_phantom = (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM);
+
+			if (get_update_dchubp_dpp_flags_status(pipe)) {
+				if (is_phantom && plane && stream) {
+					if (get_pipe_update_bits_status(pipe, plane, stream)) {
+						struct plane_size size = plane->plane_size;
+
+						size.surface_size = pipe->plane_res.scl_data.viewport;
+						hwss_add_hubp_program_surface_config(&seq_state, pipe->plane_res.hubp,
+							plane->format, &plane->tiling_info, size, plane->rotation, &plane->dcc,
+							plane->horizontal_mirror, 0);
+					}
+
+					if (pipe->plane_res.hubp->funcs->hubp_program_mcache_id_and_split_coordinate)
+						hwss_add_hubp_program_mcache_id(&seq_state, pipe->plane_res.hubp, &pipe->mcache_regs);
+				}
+			}
+			pipe = pipe->bottom_pipe;
+		}
+	}
+
+	/* Update force pstate if hwseq is available */
+	if (hwseq && hwseq->funcs.update_force_pstate)
+		hwss_add_update_force_pstate(&seq_state, dc, context);
+
+	/* Program MALL pipe configuration */
+	if (hwseq && hwseq->funcs.program_mall_pipe_config_sequence)
+		hwseq->funcs.program_mall_pipe_config_sequence(dc, context, &seq_state);
+
+	/* Apply DEDCN21 147 WA if needed */
+	if (hwseq && hwseq->wa.DEGVIDCN21)
+		hwss_add_hubbub_apply_dedcn21_147_wa(&seq_state, dc->res_pool->hubbub);
+
+	/* Handle stutter underflow WA during MPO transitions */
+	if (hwseq && hwseq->wa.disallow_self_refresh_during_multi_plane_transition &&
+			dc->current_state->stream_status[0].plane_count == 1 &&
+			context->stream_status[0].plane_count > 1) {
+
+		hwss_add_hubbub_allow_self_refresh_control(&seq_state, dc->res_pool->hubbub, false,
+			&hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied);
+
+		/* Get frame count for WA state tracking - this needs to be done immediately after the above call */
+		if (dc->res_pool->timing_generators[0]->funcs->get_frame_count) {
+			hwss_add_tg_get_frame_count(&seq_state, dc->res_pool->timing_generators[0],
+				&hwseq->wa_state.disallow_self_refresh_during_multi_plane_transition_applied_on_frame);
+		}
+	}
+}
+
 void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_dmub_cmd *dc_dmub_cmd,
 		unsigned int dmub_cmd_count,
@@ -1058,6 +1439,16 @@ void hwss_build_fast_sequence(struct dc *dc,
 					(*num_steps)++;
 				}
 
+				if (current_mpc_pipe->plane_state->update_bits.lut_3d &&
+						current_mpc_pipe->plane_state->cm.flags.bits.lut3d_dma_enable &&
+						current_mpc_pipe->plane_state->cm.flags.bits.shaper_enable &&
+						current_mpc_pipe->plane_state->cm.flags.bits.lut3d_enable &&
+						current_mpc_pipe->plane_res.hubp->funcs->hubp_enable_3dlut_fl) {
+					block_sequence[*num_steps].params.hubp_enable_3dlut_fl_params.hubp =
+						current_mpc_pipe->plane_res.hubp;
+					block_sequence[*num_steps].func = HUBP_ENABLE_3DLUT_FL;
+					(*num_steps)++;
+				}
 				if (hws->funcs.set_input_transfer_func && current_mpc_pipe->plane_state->update_bits.gamma_change) {
 					block_sequence[*num_steps].params.set_input_transfer_func_params.dc = dc;
 					block_sequence[*num_steps].params.set_input_transfer_func_params.pipe_ctx = current_mpc_pipe;
@@ -1278,6 +1669,9 @@ void hwss_execute_sequence(struct dc *dc,
 			break;
 		case DPP_SET_OUTPUT_TRANSFER_FUNC:
 			hws->funcs.set_output_transfer_func(&params->set_output_transfer_func_params);
+			break;
+		case DPP_PROGRAM_UPSP:
+			hwss_program_upsp(params);
 			break;
 		case MPC_UPDATE_VISUAL_CONFIRM:
 			dc->hwss.update_visual_confirm_color(params->update_visual_confirm_params.dc,
@@ -2446,6 +2840,22 @@ void hwss_program_bias_and_scale(union block_sequence_params *params)
 	//TODO :for CNVC set scale and bias registers if necessary
 	if (dpp->funcs->dpp_program_bias_and_scale)
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
+}
+
+void hwss_program_upsp(union block_sequence_params *params)
+{
+	struct pipe_ctx *pipe_ctx = params->program_upsp_params.pipe_ctx;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+	struct dscl_prog_data *dscl_prog_data = &pipe_ctx->plane_res.scl_data.dscl_prog_data;
+
+	if (!dpp || !dscl_prog_data)
+		return;
+
+	if (dpp && dpp->funcs->dpp_program_upsp) {
+		// program upsampler
+		dpp->funcs->dpp_program_upsp(dpp,
+				dscl_prog_data);
+	}
 }
 
 void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params)

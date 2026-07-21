@@ -1155,3 +1155,15 @@ bool dc_state_is_subvp_in_use(struct dc_state *state)
 
 	return false;
 }
+bool dc_state_is_alt_in_use(const struct dc *dc, const struct dc_state *state)
+{
+	uint32_t i;
+	const struct pipe_ctx *pipe;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &state->res_ctx.pipe_ctx[i];
+		if (pipe->p_state_type == P_STATE_ALT)
+			return true;
+	}
+	return false;
+}

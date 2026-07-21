@@ -336,6 +336,34 @@ static void query_dp_dual_mode_adaptor(
 	sink_cap->max_hdmi_pixel_clock = DP_ADAPTOR_DVI_MAX_TMDS_CLK;
 
 	/* Read DP-HDMI dongle I2c (no response interpreted as DP-DVI dongle)*/
+	if (link->force_to_use_aux) {
+
+		if (!dm_helpers_submit_i2c_over_aux(
+			ddc,
+			DP_HDMI_DONGLE_ADDRESS,
+			0,
+			type2_dongle_buf,
+			sizeof(type2_dongle_buf),
+			true)) {
+
+			/* Use same approach as below with native i2c - HDMI dongles can sometimes fail here without retrying*/
+			while (retry_count > 0) {
+				if (dm_helpers_submit_i2c_over_aux(
+					ddc,
+					DP_HDMI_DONGLE_ADDRESS,
+					0,
+					type2_dongle_buf,
+					sizeof(type2_dongle_buf),
+					true))
+					break;
+				retry_count--;
+			}
+			/* In case I2C over Aux no response, it is interpreted as DISPLAY_DONGLE_NONE */
+			if (retry_count == 0) {
+				return;
+			}
+		}
+	} else {
 	if (!i2c_read(
 		ddc,
 		DP_HDMI_DONGLE_ADDRESS,
@@ -359,6 +387,7 @@ static void query_dp_dual_mode_adaptor(
 					DP_ADAPTOR_DVI_MAX_TMDS_CLK / 1000);
 			return;
 		}
+	}
 	}
 
 	/* Check if Type 2 dongle.*/

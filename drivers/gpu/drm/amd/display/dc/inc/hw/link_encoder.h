@@ -52,6 +52,7 @@ struct encoder_init_data {
 	enum engine_id analog_engine;
 	struct dc_context *ctx;
 	enum transmitter transmitter;
+	bool hpd_active_high;
 };
 
 struct encoder_feature_support {
@@ -106,6 +107,7 @@ struct link_encoder {
 	enum hpd_source_id hpd_source;
 	bool usbc_combo_phy;
 	uint8_t txffe_state;
+	bool hpd_active_high;
 };
 
 struct link_enc_state {
@@ -242,6 +244,10 @@ struct link_encoder_funcs {
 		uint8_t digmode);
 	bool (*get_hpd_state)(struct link_encoder *enc);
 	bool (*program_hpd_filter)(struct link_encoder *enc, int delay_on_connect_in_ms, int delay_on_disconnect_in_ms);
+
+	void (*setup_ri_pj_check_in_sw_or_hw_mode)(struct link_encoder *link_enc,
+		unsigned char aux_or_ddc_instance,
+		bool ri_pj_sw_mode);
 };
 
 /*

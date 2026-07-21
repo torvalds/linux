@@ -144,6 +144,11 @@ void hdmi_frl_retrieve_link_cap(struct dc_link *link, struct dc_sink *sink)
 
 	if (link->link_enc->features.flags.bits.IS_FRL_12G_CAPABLE)
 		encoder_link_rate = HDMI_FRL_LINK_RATE_12GBPS;
+	if (link->link_enc->features.flags.bits.IS_FRL_16G_CAPABLE)
+		encoder_link_rate = HDMI_FRL_LINK_RATE_16GBPS;
+
+	if (link->link_enc->features.flags.bits.IS_FRL_20G_CAPABLE)
+		encoder_link_rate = HDMI_FRL_LINK_RATE_20GBPS;
 
 	if (link->dc->debug.max_frl_rate != 0 && encoder_link_rate > link->dc->debug.max_frl_rate)
 		encoder_link_rate = link->dc->debug.max_frl_rate;

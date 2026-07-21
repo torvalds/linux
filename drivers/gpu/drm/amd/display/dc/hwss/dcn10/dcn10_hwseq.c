@@ -524,7 +524,7 @@ static void dcn10_log_color_state(struct dc *dc,
 	DTN_INFO("DPP Color Caps: input_lut_shared:%d  icsc:%d"
 		 "  dgam_ram:%d  dgam_rom: srgb:%d,bt2020:%d,gamma2_2:%d,pq:%d,hlg:%d"
 		 "  post_csc:%d  gamcor:%d  dgam_rom_for_yuv:%d  3d_lut:%d"
-		 "  blnd_lut:%d  oscs:%d\n\n",
+		 "  upsp_pre_scaler:%d  blnd_lut:%d  oscs:%d\n\n",
 		 dc->caps.color.dpp.input_lut_shared,
 		 dc->caps.color.dpp.icsc,
 		 dc->caps.color.dpp.dgam_ram,
@@ -537,6 +537,7 @@ static void dcn10_log_color_state(struct dc *dc,
 		 dc->caps.color.dpp.gamma_corr,
 		 dc->caps.color.dpp.dgam_rom_for_yuv,
 		 dc->caps.color.dpp.hw_3d_lut,
+		 dc->caps.color.dpp.upsp_pre_scaler,
 		 dc->caps.color.dpp.ogam_ram,
 		 dc->caps.color.dpp.ocsc);
 

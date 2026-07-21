@@ -395,4 +395,6 @@ void optc42_clear_optc_underflow(struct timing_generator *optc);
 bool optc42_is_optc_underflow_occurred(struct timing_generator *optc);
 bool optc42_disable_crtc(struct timing_generator *optc);
 void optc42_lock_doublebuffer_enable(struct timing_generator *optc);
+bool optc42_get_crc(struct timing_generator *optc, uint8_t idx,
+	uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
 #endif /* __DC_OPTC_DCN42_H__ */

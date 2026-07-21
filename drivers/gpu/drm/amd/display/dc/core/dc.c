@@ -3099,7 +3099,8 @@ static struct dc_update_descriptor det_surface_update(
 			update_bits->gamut_remap_change ||
 			update_bits->input_csc_change ||
 			update_bits->cm_hist_change ||
-			update_bits->coeff_reduction_change)) {
+			update_bits->coeff_reduction_change ||
+			update_bits->cursor_csc_color_matrix_change)) {
 		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 	return overall_type;
@@ -3403,6 +3404,10 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->dcc;
 		surface->layer_index =
 				srf_update->plane_info->layer_index;
+		surface->scaling_linearity =
+				srf_update->plane_info->scaling_linearity;
+		surface->cositing =
+				srf_update->plane_info->cositing;
 	}
 
 	if (srf_update->gamma) {
@@ -3657,6 +3662,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 	if (update->sharpening_required)
 		stream->sharpening_required = *update->sharpening_required;
+
+	if (update->blending_linearity)
+		stream->blending_linearity = *update->blending_linearity;
 
 	if (update->drr_trigger_mode) {
 		stream->drr_trigger_mode = *update->drr_trigger_mode;

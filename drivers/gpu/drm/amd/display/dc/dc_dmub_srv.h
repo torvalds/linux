@@ -401,4 +401,27 @@ void dc_dmub_srv_release_hw(const struct dc *dc);
  * @dc - pointer to DC object
  */
 void dc_dmub_srv_log_preos_dmcub_info(struct dc_dmub_srv *dc_dmub_srv);
+
+/**
+ * dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest() - Configure IHC interrupt destination.
+ * @dc_dmub_srv: DMUB service handle
+ * @dig_id: DIG engine ID (0-3)
+ * @to_dmu: Route interrupt to DMU (true) or not (false)
+ *
+ * Sends command to DMUB firmware to configure IHC interrupt routing
+ * for HDCP I2C transfer requests.
+ *
+ * Return: true on success, false on failure
+ */
+bool dc_dmub_srv_ihc_set_dig_hdcp_interrupt_dest(
+	struct dc_dmub_srv *dc_dmub_srv,
+	uint8_t dig_id,
+	bool to_dmu);
+
+/**
+ * dc_dmub_srv_get_fams2_debug_meta() - Queries for FAMS2 debug metadata from DMUB and logs it.
+ *
+ * @dc_dmub_srv - pointer to DMUB service object
+ */
+void dc_dmub_srv_get_fams2_debug_meta(struct dc_dmub_srv *dc_dmub_srv);
 #endif /* _DMUB_DC_SRV_H_ */

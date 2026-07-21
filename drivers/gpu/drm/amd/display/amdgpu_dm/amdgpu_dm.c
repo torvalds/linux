@@ -1011,6 +1011,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			return 0;
 		default:
 			break;
@@ -2410,6 +2411,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(4, 0, 1):
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 1):
+	case IP_VERSION(6, 0, 0):
 		if (amdgpu_dm_register_outbox_irq_handlers(dm->adev)) {
 			drm_err(adev_to_drm(adev), "DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -2436,6 +2438,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			psr_feature_enabled = true;
 			break;
 		default:
@@ -2455,6 +2458,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			replay_feature_enabled = true;
 			break;
 
@@ -2617,6 +2621,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			if (amdgpu_dm_dcn10_register_irq_handlers(dm->adev)) {
 				drm_err(adev_to_drm(adev), "DM: Failed to initialize IRQ\n");
 				goto fail;
@@ -2829,6 +2834,7 @@ static int dm_early_init(struct amdgpu_ip_block *ip_block)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
 			adev->mode_info.num_dig = 4;
@@ -6330,12 +6336,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE)
 			continue;
 
-		/* Check if rotation or scaling is enabled on DCN401 */
-		if ((drm_plane_mask(crtc->cursor) &
-		     new_crtc_state->plane_mask) &&
-		    (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 1) ||
-		     amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 0) ||
-		     amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1))) {
+		/* Check if rotation or scaling is enabled on DCN 4x and above */
+		if ((drm_plane_mask(crtc->cursor) & new_crtc_state->plane_mask) &&
+		    (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(4, 0, 1))) {
 			new_cursor_state = drm_atomic_get_new_plane_state(state, crtc->cursor);
 
 			is_rotated = new_cursor_state &&

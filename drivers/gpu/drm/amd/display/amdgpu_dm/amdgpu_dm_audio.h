@@ -28,7 +28,7 @@
 
 struct amdgpu_device;
 struct drm_device;
-struct drm_atomic_state;
+struct drm_atomic_commit;
 struct drm_connector;
 struct audio_info;
 struct dc_sink;

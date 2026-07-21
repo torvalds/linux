@@ -389,6 +389,16 @@ struct dc_csc_adjustments {
 	struct fixed31_32 hue;
 };
 
+enum dc_scaling_linearity {
+	DC_SCALING_LINEARITY_LINEAR,
+	DC_SCALING_LINEARITY_SOURCE,
+};
+
+enum dc_blending_linearity {
+	DC_BLENDING_LINEARITY_LINEAR,
+	DC_BLENDING_LINEARITY_SOURCE,
+};
+
 /* Scaling format */
 enum scaling_transformation {
 	SCALING_TRANSFORMATION_UNINITIALIZED,

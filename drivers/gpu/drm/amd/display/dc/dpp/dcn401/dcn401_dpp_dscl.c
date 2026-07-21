@@ -112,7 +112,7 @@ static bool dpp401_dscl_is_420_format(enum dc_pixel_format format)
 		return false;
 }
 
-static enum dcn401_dscl_mode_sel dpp401_dscl_get_dscl_mode(
+enum dcn401_dscl_mode_sel dpp401_dscl_get_dscl_mode(
 		struct dpp *dpp_base,
 		const struct scaler_data *data,
 		bool dbg_always_scale)
@@ -146,7 +146,7 @@ static enum dcn401_dscl_mode_sel dpp401_dscl_get_dscl_mode(
 	return DCN401_DSCL_MODE_SCALING_420_YCBCR_ENABLE;
 }
 
-static void dpp401_power_on_dscl(
+void dpp401_power_on_dscl(
 	struct dpp *dpp_base,
 	bool power_on)
 {
@@ -273,7 +273,7 @@ static void dpp401_dscl_set_scaler_filter(
 
 }
 
-static void dpp401_dscl_set_scl_filter(
+void dpp401_dscl_set_scl_filter(
 		struct dcn401_dpp *dpp,
 		const struct scaler_data *scl_data,
 		bool chroma_coef_mode,
@@ -468,7 +468,7 @@ static bool dpp401_dscl_is_lb_conf_valid(int ceil_vratio, int num_partitions, in
 }
 
 /*find first match configuration which meets the min required lb size*/
-static enum lb_memory_config dpp401_dscl_find_lb_memory_config(struct dcn401_dpp *dpp,
+enum lb_memory_config dpp401_dscl_find_lb_memory_config(struct dcn401_dpp *dpp,
 		const struct scaler_data *scl_data)
 {
 	int num_part_y, num_part_c;
@@ -637,8 +637,8 @@ static void dpp401_dscl_set_manual_ratio_init(
  *
  * Note: This function only have effect if AutoCal is disabled.
  */
-static void dpp401_dscl_set_recout(struct dcn401_dpp *dpp,
-				 const struct rect *recout)
+void dpp401_dscl_set_recout(struct dcn401_dpp *dpp,
+	const struct rect *recout)
 {
 	REG_SET_2(RECOUT_START, 0,
 		  /* First pixel of RECOUT in the active OTG area */
@@ -881,7 +881,7 @@ static void dpp401_dscl_program_easf_h(struct dpp *dpp_base, const struct scaler
  * This is the primary function to program EASF
  *
  */
-static void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_data *scl_data)
+void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_data *scl_data)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
 
@@ -910,7 +910,7 @@ static void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_d
  * When we have 1:1 scaling, we need to disable EASF
  *
  */
-static void dpp401_dscl_disable_easf(struct dpp *dpp_base, const struct scaler_data *scl_data)
+void dpp401_dscl_disable_easf(struct dpp *dpp_base, const struct scaler_data *scl_data)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
 
@@ -923,7 +923,7 @@ static void dpp401_dscl_disable_easf(struct dpp *dpp_base, const struct scaler_d
 			SCL_EASF_H_EN, scl_data->dscl_prog_data.easf_h_en);
 	PERF_TRACE();
 }
-static void dpp401_dscl_set_isharp_filter(
+void dpp401_dscl_set_isharp_filter(
 	struct dcn401_dpp *dpp, const uint32_t *filter)
 {
 	int level;
@@ -953,10 +953,10 @@ static void dpp401_dscl_set_isharp_filter(
  * This is the primary function to program isharp
  *
  */
-static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
-		const struct scaler_data *scl_data,
-		bool program_isharp_1dlut,
-		bool *bs_coeffs_updated)
+void dpp401_dscl_program_isharp(struct dpp *dpp_base,
+	const struct scaler_data *scl_data,
+	bool program_isharp_1dlut,
+	bool *bs_coeffs_updated)
 {
 	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
 	*bs_coeffs_updated = false;

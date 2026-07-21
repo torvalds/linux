@@ -405,6 +405,7 @@ bool dc_stream_program_cursor_attributes(
 {
 	struct dc  *dc;
 	bool reset_idle_optimizations = false;
+	bool should_release_dmub_hw_control_lock = false;
 
 	if (!stream)
 		return false;
@@ -413,6 +414,13 @@ bool dc_stream_program_cursor_attributes(
 
 	if (dc_stream_set_cursor_attributes(stream, attributes)) {
 		dc_z10_restore(dc);
+		if (dc->hwss.dmub_hw_control_lock) {
+			if (dc_state_is_alt_in_use(dc, dc->current_state) &&
+			    !dc_dmub_srv_is_cursor_offload_enabled(dc)) {
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+				should_release_dmub_hw_control_lock = true;
+			}
+		}
 		/* disable idle optimizations while updating cursor */
 		if (dc->idle_optimizations_allowed) {
 			dc_allow_idle_optimizations(dc, false);
@@ -425,6 +433,10 @@ bool dc_stream_program_cursor_attributes(
 		if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
 			dc_allow_idle_optimizations(dc, true);
 
+		if (dc->hwss.dmub_hw_control_lock) {
+			if (should_release_dmub_hw_control_lock)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
+		}
 		return true;
 	}
 
@@ -507,6 +519,7 @@ bool dc_stream_program_cursor_position(
 	struct dc *dc;
 	bool reset_idle_optimizations = false;
 	const struct dc_cursor_position *old_position;
+	bool should_release_dmub_hw_control_lock = false;
 
 	if (!stream)
 		return false;
@@ -517,6 +530,13 @@ bool dc_stream_program_cursor_position(
 	if (dc_stream_set_cursor_position(stream, position)) {
 		dc_z10_restore(dc);
 
+		if (dc->hwss.dmub_hw_control_lock) {
+			if (dc_state_is_alt_in_use(dc, dc->current_state) &&
+			    !dc_dmub_srv_is_cursor_offload_enabled(dc)) {
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, true);
+				should_release_dmub_hw_control_lock = true;
+			}
+		}
 		/* disable idle optimizations if enabling cursor */
 		if (dc->idle_optimizations_allowed &&
 		    (!old_position->enable || dc->debug.exit_idle_opt_for_cursor_updates) &&
@@ -567,6 +587,10 @@ bool dc_stream_program_cursor_position(
 			}
 		}
 
+		if (dc->hwss.dmub_hw_control_lock) {
+			if (should_release_dmub_hw_control_lock)
+				dc->hwss.dmub_hw_control_lock(dc, dc->current_state, false);
+		}
 		return true;
 	}
 
