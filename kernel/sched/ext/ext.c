@@ -3391,7 +3391,18 @@ static bool check_rq_for_timeouts(struct rq *rq)
 
 		if (unlikely(time_after(jiffies,
 					last_runnable + READ_ONCE(sch->watchdog_timeout)))) {
+			struct scx_dispatch_q *dsq = READ_ONCE(p->scx.dsq);
 			u32 dur_ms = jiffies_to_msecs(jiffies - last_runnable);
+
+			/*
+			 * A task can be stuck on a DSQ that a sched other than
+			 * its owner is responsible for draining, e.g. an
+			 * ancestor's bypass DSQ while the owner is bypassing.
+			 * Blame the drainer. The local DSQ is consumed by the
+			 * cpu itself and keeps blame on the owner.
+			 */
+			if (dsq && dsq->sched && dsq->id != SCX_DSQ_LOCAL)
+				sch = dsq->sched;
 
 			__scx_exit(sch, SCX_EXIT_ERROR_STALL, 0, cpu_of(rq),
 				   "%s[%d] failed to run for %u.%03us",
