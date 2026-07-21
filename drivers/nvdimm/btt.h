@@ -210,7 +210,7 @@ struct badblocks;
  * @lbasize:		LBA size as requested and presented to upper layers.
  *			This is sector_size + size of any metadata.
  * @sector_size:	The Linux sector size - 512 or 4096
- * @lanes:		Per-lane spinlocks
+ * @nd_region:		&struct nd_region pointer
  * @init_lock:		Mutex used for the BTT initialization
  * @init_state:		Flag describing the initialization state for the BTT
  * @num_arenas:		Number of arenas in the BTT instance
