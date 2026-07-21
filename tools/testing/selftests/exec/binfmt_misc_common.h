@@ -3,10 +3,12 @@
 #ifndef __SELFTESTS_EXEC_BINFMT_MISC_COMMON_H
 #define __SELFTESTS_EXEC_BINFMT_MISC_COMMON_H
 
+#include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
+#include <link.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +28,9 @@
 #define PAYLOAD_ARGV0	"payload-argv0"
 #define PAYLOAD_ARG1	"argone"
 #define PAYLOAD_ARG2	"argtwo"
+
+/* Marker the loader tests poke into the payload's e_ident padding. */
+#define LOADER_MARKER	"LDRTST"
 
 /* Exit status run_payload() reports when the exec was refused as unhandled. */
 #define RUN_ENOEXEC	42
@@ -188,6 +193,84 @@ static inline bool write_denied(const char *path)
 		return false;
 	}
 	return errno == ETXTBSY;
+}
+
+static inline int patch_file(const char *path, off_t off, const void *data, size_t len)
+{
+	ssize_t n;
+	int fd;
+
+	fd = open(path, O_WRONLY);
+	if (fd < 0)
+		return -1;
+	n = pwrite(fd, data, len, off);
+	close(fd);
+	return n == (ssize_t)len ? 0 : -1;
+}
+
+/* start_code and end_code are the 26th and 27th fields of /proc/pid/stat. */
+static inline int stat_codes(pid_t pid, unsigned long *start_code,
+			     unsigned long *end_code)
+{
+	char buf[4096], path[64], *p;
+	ssize_t n;
+	int fd, i;
+
+	snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		return -1;
+	n = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (n <= 0)
+		return -1;
+	buf[n] = '\0';
+
+	/* Skip "pid (comm)", then start_code is the 24th field after it. */
+	p = strrchr(buf, ')');
+	if (!p)
+		return -1;
+	p++;
+	for (i = 0; i < 23; i++) {
+		p = strchr(p + 1, ' ');
+		if (!p)
+			return -1;
+	}
+	if (sscanf(p, " %lu %lu", start_code, end_code) != 2)
+		return -1;
+	return 0;
+}
+
+/* Find the system loader through our own PT_INTERP. */
+static inline int find_loader(char *out, size_t sz)
+{
+	ElfW(Ehdr) eh;
+	ElfW(Phdr) ph;
+	int fd, i, ret = -1;
+
+	fd = open("/proc/self/exe", O_RDONLY);
+	if (fd < 0)
+		return -1;
+	if (pread(fd, &eh, sizeof(eh), 0) != sizeof(eh))
+		goto out;
+	for (i = 0; i < eh.e_phnum; i++) {
+		if (pread(fd, &ph, sizeof(ph),
+			  eh.e_phoff + i * eh.e_phentsize) != sizeof(ph))
+			goto out;
+		if (ph.p_type != PT_INTERP)
+			continue;
+		if (!ph.p_filesz || ph.p_filesz > sz)
+			goto out;
+		if (pread(fd, out, ph.p_filesz, ph.p_offset) !=
+		    (ssize_t)ph.p_filesz)
+			goto out;
+		out[ph.p_filesz - 1] = '\0';
+		ret = 0;
+		break;
+	}
+out:
+	close(fd);
+	return ret;
 }
 
 #endif /* __SELFTESTS_EXEC_BINFMT_MISC_COMMON_H */

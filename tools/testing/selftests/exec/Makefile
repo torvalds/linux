@@ -26,6 +26,13 @@ TEST_GEN_PROGS += check-exec
 TEST_GEN_PROGS += binfmt_misc_transparent
 TEST_GEN_FILES += binfmt_transparent_interp
 
+# 'L' (loader substitution) binfmt_misc test: the payload runs as the main
+# image with a copy of the system loader substituted for its PT_INTERP and
+# asserts the native identity from inside; the static build proves the
+# override is dropped for a binary without PT_INTERP.
+TEST_GEN_PROGS += binfmt_misc_loader
+TEST_GEN_FILES += binfmt_loader_payload binfmt_loader_payload_static
+
 # binfmt_misc bpf-backed ('B') handler test: a libbpf harness plus its
 # struct_ops objects and the test interpreter/app it routes between. Only
 # built when clang, bpftool, the vmlinux BTF and libbpf are all present
@@ -41,6 +48,7 @@ HAVE_BPF_TOOLCHAIN ?= $(shell command -v $(CLANG) >/dev/null 2>&1 && \
 ifeq ($(HAVE_BPF_TOOLCHAIN),y)
 TEST_GEN_PROGS += binfmt_misc_bpf
 TEST_GEN_FILES += bpf_interp.bpf.o nix_origin.bpf.o transparent.bpf.o
+TEST_GEN_FILES += loader.bpf.o
 TEST_GEN_FILES += binfmt_bpf_interp binfmt_bpf_app
 else
 $(info exec selftests: skipping binfmt_misc_bpf, needs clang, bpftool, vmlinux BTF and libbpf)
@@ -104,6 +112,12 @@ $(OUTPUT)/binfmt_misc_bpf: binfmt_misc_bpf.c binfmt_misc_common.h
 
 $(OUTPUT)/binfmt_bpf_interp: binfmt_bpf_interp.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+
+$(OUTPUT)/binfmt_loader_payload: binfmt_loader_payload.c binfmt_misc_common.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -fPIE -pie $< -o $@
+
+$(OUTPUT)/binfmt_loader_payload_static: binfmt_loader_payload.c binfmt_misc_common.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -static $< -o $@
 
 # PT_INTERP is set to the literal "$ORIGIN/binfmt_bpf_interp"; the nix_origin
 # handler resolves it relative to the binary at run time.

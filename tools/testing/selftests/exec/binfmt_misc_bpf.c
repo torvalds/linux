@@ -22,6 +22,10 @@
  *      asserting interpreter (binfmt_transparent_interp) verifies the
  *      identity the kernel constructed (exe link, argv, cmdline, comm,
  *      AT_EXECFD, write denial) from inside the process.
+ *   4. loader: the load program sets BPF_BINPRM_LOADER; the payload
+ *      (binfmt_loader_payload) runs as the main image with the selected
+ *      interpreter substituted for its PT_INTERP and asserts the native
+ *      identity from inside.
  *
  * The first two route to a test interpreter that prints BPF_INTERP_RAN,
  * proving the program's chosen interpreter actually ran.
@@ -48,6 +52,8 @@
 #define TRANS_PATH	"/tmp/binfmt_bpf_riscv"
 #define EXPECT		"BPF_INTERP_RAN"
 #define TRANS_EXPECT	"TRANSPARENT_OK"
+#define LOADER_INTERP	"/tmp/binfmt_loader_interp"
+#define LOADER_PATH	"/tmp/binfmt_bpf_loader.ldrtest"
 
 /* A minimal 64-bit little-endian ELF header, padded to the read size. */
 static int create_fake_elf(const char *path, unsigned short machine)
@@ -100,49 +106,80 @@ static int check_output(const char *cmd, const char *expected)
 	return strncmp(buf, expected, strlen(expected)) ? -1 : 0;
 }
 
+/* An attached handler with its 'B' entry activated. */
+struct bpf_case {
+	struct bpf_object *obj;
+	struct bpf_link *link;
+	const char *entry;
+};
+
 /*
  * Load @objfile, attach its struct_ops map @handler (which publishes the
- * handler), activate a 'B' entry named @entry that references it, run @target
- * and check it produced @expect.
+ * handler) and activate a 'B' entry named @entry that references it.
  */
-static int run_case(const char *objfile, const char *handler,
-		    const char *entry, const char *target, const char *expect)
+static int bpf_case_start(struct bpf_case *c, const char *objfile,
+			  const char *handler, const char *entry)
 {
-	struct bpf_object *obj;
 	struct bpf_map *map;
-	struct bpf_link *link;
-	int ret = -1;
 
-	obj = bpf_object__open_file(objfile, NULL);
-	if (!obj || libbpf_get_error(obj)) {
+	c->obj = NULL;
+	c->link = NULL;
+	c->entry = entry;
+
+	c->obj = bpf_object__open_file(objfile, NULL);
+	if (!c->obj || libbpf_get_error(c->obj)) {
 		fprintf(stderr, "open %s failed\n", objfile);
+		c->obj = NULL;
 		return -1;
 	}
-	if (bpf_object__load(obj)) {
+	if (bpf_object__load(c->obj)) {
 		fprintf(stderr, "load %s failed (check dmesg for the verifier log)\n",
 			objfile);
-		goto close;
+		goto fail;
 	}
-	map = bpf_object__find_map_by_name(obj, handler);
+	map = bpf_object__find_map_by_name(c->obj, handler);
 	if (!map) {
 		fprintf(stderr, "no struct_ops map '%s' in %s\n", handler, objfile);
-		goto close;
+		goto fail;
 	}
-	link = bpf_map__attach_struct_ops(map);
-	if (!link || libbpf_get_error(link)) {
+	c->link = bpf_map__attach_struct_ops(map);
+	if (!c->link || libbpf_get_error(c->link)) {
 		fprintf(stderr, "attach struct_ops '%s' failed\n", handler);
-		goto close;
+		c->link = NULL;
+		goto fail;
 	}
 	if (register_entry(entry, handler)) {
 		fprintf(stderr, "register 'B' entry '%s' failed\n", entry);
-		goto detach;
+		goto fail;
 	}
+	return 0;
+
+fail:
+	bpf_link__destroy(c->link);
+	bpf_object__close(c->obj);
+	c->obj = NULL;
+	c->link = NULL;
+	return -1;
+}
+
+static void bpf_case_stop(struct bpf_case *c)
+{
+	unregister(c->entry);
+	bpf_link__destroy(c->link);
+	bpf_object__close(c->obj);
+}
+
+/* Activate @handler, run @target and check it produced @expect. */
+static int run_case(const char *objfile, const char *handler,
+		    const char *entry, const char *target, const char *expect)
+{
+	struct bpf_case c;
+	int ret;
+
+	if (bpf_case_start(&c, objfile, handler, entry))
+		return -1;
 	ret = check_output(target, expect);
-	unregister(entry);
-detach:
-	bpf_link__destroy(link);
-close:
-	bpf_object__close(obj);
+	bpf_case_stop(&c);
 	return ret;
 }
 
@@ -237,6 +274,37 @@ TEST_F(bpf_handler, transparent_dispatch)
 
 	unlink(TRANS_PATH);
 	unlink(TRANS_INTERP);
+}
+
+/* A per-exec loader substitution: the payload runs as a native exec. */
+TEST_F(bpf_handler, loader_substitution)
+{
+	char src[PATH_MAX], loader[PATH_MAX];
+	struct bpf_case c;
+	int status;
+
+	if (find_loader(loader, sizeof(loader)))
+		SKIP(return, "cannot determine own PT_INTERP");
+
+	ASSERT_EQ(copy_file(loader, LOADER_INTERP), 0);
+	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_loader_payload"), 0);
+	ASSERT_EQ(copy_file(src, LOADER_PATH), 0);
+	ASSERT_EQ(patch_file(LOADER_PATH, EI_PAD, LOADER_MARKER,
+			     strlen(LOADER_MARKER)), 0);
+	ASSERT_EQ(artifact_path(self->obj, sizeof(self->obj),
+				"loader.bpf.o"), 0);
+
+	setenv("BINFMT_TEST_BINARY", LOADER_PATH, 1);
+	setenv("BINFMT_TEST_INTERP", LOADER_INTERP, 1);
+
+	ASSERT_EQ(bpf_case_start(&c, self->obj, "loader", "test_bpf_loader"), 0);
+	status = run_payload(LOADER_PATH);
+	bpf_case_stop(&c);
+	EXPECT_EQ(status, 0);
+
+	unsetenv("BINFMT_TEST_INTERP");
+	unlink(LOADER_PATH);
+	unlink(LOADER_INTERP);
 }
 
 TEST_HARNESS_MAIN

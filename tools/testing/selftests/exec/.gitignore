@@ -24,5 +24,8 @@ binfmt_bpf_interp
 binfmt_bpf_app
 binfmt_misc_transparent
 binfmt_transparent_interp
+binfmt_misc_loader
+binfmt_loader_payload
+binfmt_loader_payload_static
 *.bpf.o
 vmlinux.h
