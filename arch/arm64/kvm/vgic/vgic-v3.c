@@ -809,27 +809,9 @@ static int __init early_gicv4_enable(char *buf)
 }
 early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
 
-static const struct midr_range broken_seis[] = {
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_PRO),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_MAX),
-	MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_MAX),
-	{},
-};
-
-static bool vgic_v3_broken_seis(void)
+static __always_inline bool vgic_v3_broken_seis(void)
 {
-	return (is_kernel_in_hyp_mode() &&
-		is_midr_in_range_list(broken_seis) &&
-		(read_sysreg_s(SYS_ICH_VTR_EL2) & ICH_VTR_EL2_SEIS));
+	return cpus_have_cap(ARM64_WORKAROUND_GICv3_BROKEN_SEIS);
 }
 
 void noinstr kvm_compute_ich_hcr_trap_bits(struct alt_instr *alt,
@@ -959,10 +941,8 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	if (has_v2)
 		static_branch_enable(&vgic_v3_has_v2_compat);
 
-	if (vgic_v3_broken_seis()) {
-		kvm_info("GICv3 with broken locally generated SEI\n");
+	if (vgic_v3_broken_seis())
 		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_EL2_SEIS;
-	}
 
 	vgic_v3_enable_cpuif_traps();
 
