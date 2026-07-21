@@ -3629,7 +3629,7 @@ static bool check_eb_alignment(struct btrfs_fs_info *fs_info, u64 start)
  * The caller needs to free the existing folios and retry using the same order.
  */
 static int attach_eb_folio_to_filemap(struct extent_buffer *eb, int i,
-				      struct btrfs_folio_state *prealloc,
+				      struct btrfs_eb_prealloc *pa,
 				      struct extent_buffer **found_eb_ret)
 {
 
@@ -3651,6 +3651,7 @@ retry:
 	if (!ret)
 		goto finish;
 
+	/* ret == -EEXIST: a folio already lives at this index. */
 	existing_folio = filemap_lock_folio(mapping, index + i);
 	/* The page cache only exists for a very short time, just retry. */
 	if (IS_ERR(existing_folio))
@@ -3659,7 +3660,27 @@ retry:
 	/* For now, we should only have single-page folios for btree inode. */
 	ASSERT(folio_nr_pages(existing_folio) == 1);
 
+	/*
+	 * TODO: Special handling for a corner case where the order of
+	 * folios mismatch between the new eb and filemap.
+	 *
+	 * This happens when:
+	 *
+	 * - the new eb is using higher order folio
+	 *
+	 * - the filemap is still using 0-order folios for the range
+	 *   This can happen at the previous eb allocation, and we don't
+	 *   have higher order folio for the call.
+	 *
+	 * - the existing eb has already been freed
+	 *
+	 * In this case, we have to free the existing folios first, and
+	 * re-allocate using the same order.
+	 * Thankfully this is not going to happen yet, as we're still
+	 * using 0-order folios.
+	 */
 	if (folio_size(existing_folio) != eb->folio_size) {
+		DEBUG_WARN("folio order mismatch between new eb and filemap");
 		folio_unlock(existing_folio);
 		folio_put(existing_folio);
 		return -EAGAIN;
@@ -3690,8 +3711,10 @@ finish:
 	eb->folio_size = folio_size(eb->folios[i]);
 	eb->folio_shift = folio_shift(eb->folios[i]);
 	/* Should not fail, as we have preallocated the memory. */
-	ret = attach_extent_buffer_folio(eb, eb->folios[i], prealloc);
+	ret = attach_extent_buffer_folio(eb, eb->folios[i], pa->bfs);
 	ASSERT(!ret);
+	/* The subpage state, if any, is now attached to the folio or freed. */
+	pa->bfs = NULL;
 	/*
 	 * To inform we have an extra eb under allocation, so that
 	 * detach_extent_buffer_page() won't release the folio private when the
@@ -3706,13 +3729,89 @@ finish:
 	return 0;
 }
 
+/*
+ * Allocate the extent_buffer, its folios, and btrfs_folio_state, if needed.
+ *
+ * Return 0 on success and a negative errno otherwise. On failure, pa->eb/bfs
+ * will be NULL.
+ */
+int btrfs_init_eb_prealloc(struct btrfs_fs_info *fs_info,
+			   struct btrfs_eb_prealloc *pa)
+{
+	int ret;
+
+	ASSERT(!pa->eb, "unexpected non-null eb: %p", pa->eb);
+	ASSERT(!pa->bfs, "unexpected non-null bfs: %p", pa->bfs);
+
+	pa->eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS | __GFP_NOFAIL);
+	/* alloc_eb_folio_array() needs len; init_extent_buffer() sets it again later. */
+	pa->eb->len = fs_info->nodesize;
+
+	/*
+	 * Preallocate folio private for subpage case, so that we won't
+	 * allocate memory with i_private_lock nor page lock hold.
+	 *
+	 * The memory will be freed by attach_extent_buffer_page() or freed
+	 * manually if we exit earlier.
+	 */
+	if (btrfs_meta_is_subpage(fs_info)) {
+		pa->bfs = btrfs_alloc_folio_state(fs_info, PAGE_SIZE,
+						  BTRFS_SUBPAGE_METADATA);
+		if (IS_ERR(pa->bfs)) {
+			ret = PTR_ERR(pa->bfs);
+			pa->bfs = NULL;
+			goto free_eb;
+		}
+	}
+
+	/*
+	 * Allocate pages without attaching them. Caller is ultimately responsible
+	 * for attaching the folios to the mapping with attach_eb_folio_to_filemap().
+	 */
+	ret = alloc_eb_folio_array(pa->eb, GFP_NOFS | __GFP_NOFAIL | __GFP_MOVABLE);
+	if (ret < 0)
+		goto free_bfs;
+
+	return 0;
+
+free_bfs:
+	btrfs_free_folio_state(pa->bfs);
+	pa->bfs = NULL;
+free_eb:
+	kmem_cache_free(extent_buffer_cache, pa->eb);
+	pa->eb = NULL;
+	return ret;
+}
+
+/*
+ * Used to cleanup a btrfs_eb_prealloc which had its contents allocated but
+ * folios not yet attached and eb/bfs consumed, and refs still 0.
+ *
+ * Safe to call on a fully used btrfs_eb_prealloc as the internal structs will
+ * be null once they are owned by the context using them.
+ */
+void btrfs_free_eb_prealloc(struct btrfs_eb_prealloc *pa)
+{
+	if (!pa->eb)
+		return;
+
+	for (int i = 0; i < num_extent_pages(pa->eb); i++) {
+		if (pa->eb->folios[i])
+			folio_put(pa->eb->folios[i]);
+	}
+	btrfs_free_folio_state(pa->bfs);
+	kmem_cache_free(extent_buffer_cache, pa->eb);
+	pa->eb = NULL;
+	pa->bfs = NULL;
+}
+
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
+					  struct btrfs_eb_prealloc *pa,
 					  u64 start, u64 owner_root, int level)
 {
 	int attached = 0;
 	struct extent_buffer *eb;
 	struct extent_buffer *existing_eb = NULL;
-	struct btrfs_folio_state *prealloc = NULL;
 	u64 lockdep_owner = owner_root;
 	bool page_contig = true;
 	bool uptodate = true;
@@ -3736,7 +3835,13 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (eb)
 		return eb;
 
-	eb = kmem_cache_zalloc(extent_buffer_cache, GFP_NOFS | __GFP_NOFAIL);
+	if (!pa->eb) {
+		ret = btrfs_init_eb_prealloc(fs_info, pa);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+	eb = pa->eb;
+	pa->eb = NULL;
 	init_extent_buffer(fs_info, eb, start);
 
 	/*
@@ -3748,66 +3853,18 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 
 	btrfs_set_buffer_lockdep_class(lockdep_owner, eb, level);
 
-	/*
-	 * Preallocate folio private for subpage case, so that we won't
-	 * allocate memory with i_private_lock nor page lock hold.
-	 *
-	 * The memory will be freed by attach_extent_buffer_page() or freed
-	 * manually if we exit earlier.
-	 */
-	if (btrfs_meta_is_subpage(fs_info)) {
-		prealloc = btrfs_alloc_folio_state(fs_info, PAGE_SIZE, BTRFS_SUBPAGE_METADATA);
-		if (IS_ERR(prealloc)) {
-			ret = PTR_ERR(prealloc);
-			goto out;
-		}
-	}
-
-reallocate:
-	/*
-	 * Allocate all pages first. These will be attached to btree_inode->i_mapping
-	 * below (added to LRU, served by btree_migrate_folio), so request
-	 * __GFP_MOVABLE so the page allocator places them in MOVABLE pageblocks.
-	 */
-	ret = alloc_eb_folio_array(eb, GFP_NOFS | __GFP_NOFAIL | __GFP_MOVABLE);
-	if (ret < 0) {
-		btrfs_free_folio_state(prealloc);
-		goto out;
-	}
-
 	/* Attach all pages to the filemap. */
 	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio;
 
-		ret = attach_eb_folio_to_filemap(eb, i, prealloc, &existing_eb);
+		ret = attach_eb_folio_to_filemap(eb, i, pa, &existing_eb);
 		if (ret > 0) {
 			ASSERT(existing_eb);
 			goto out;
 		}
-
-		/*
-		 * TODO: Special handling for a corner case where the order of
-		 * folios mismatch between the new eb and filemap.
-		 *
-		 * This happens when:
-		 *
-		 * - the new eb is using higher order folio
-		 *
-		 * - the filemap is still using 0-order folios for the range
-		 *   This can happen at the previous eb allocation, and we don't
-		 *   have higher order folio for the call.
-		 *
-		 * - the existing eb has already been freed
-		 *
-		 * In this case, we have to free the existing folios first, and
-		 * re-allocate using the same order.
-		 * Thankfully this is not going to happen yet, as we're still
-		 * using 0-order folios.
-		 */
-		if (unlikely(ret == -EAGAIN)) {
-			DEBUG_WARN("folio order mismatch between new eb and filemap");
-			goto reallocate;
-		}
+		/* -EAGAIN: folio order mismatch, unreachable with 0-order folios. */
+		if (ret < 0)
+			goto out;
 		attached++;
 
 		/*
@@ -3883,6 +3940,10 @@ again:
 
 out:
 	WARN_ON(!refcount_dec_and_test(&eb->refs));
+
+	/* Attach hands off pa->bfs; free it if we bailed first. */
+	btrfs_free_folio_state(pa->bfs);
+	pa->bfs = NULL;
 
 	/*
 	 * Any attached folios need to be detached before we unlock them.  This
@@ -4980,6 +5041,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 		.level = level,
 		.transid = gen
 	};
+	struct btrfs_eb_prealloc pa = { 0 };
 	struct extent_buffer *eb;
 	int ret;
 
@@ -4988,7 +5050,7 @@ void btrfs_readahead_tree_block(struct btrfs_fs_info *fs_info,
 		check.has_first_key = true;
 	}
 
-	eb = btrfs_find_create_tree_block(fs_info, bytenr, owner_root, level);
+	eb = btrfs_find_create_tree_block(fs_info, &pa, bytenr, owner_root, level);
 	if (IS_ERR(eb))
 		return;
 

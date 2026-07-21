@@ -119,6 +119,21 @@ struct extent_buffer {
 #endif
 };
 
+/*
+ * Wrapper struct for managing preallocating an extent_buffer, its folios and a
+ * btrfs_folio_state if needed.
+ *
+ * Only used to mediate allocation, do not refer to the eb directly if not
+ * returned from a successful eb allocating API.
+ *
+ * The eb folios and bfs should generally not be fully attached, except briefly
+ * before they are NULLed in the struct after successful attachment.
+ */
+struct btrfs_eb_prealloc {
+	struct extent_buffer *eb;
+	struct btrfs_folio_state *bfs;
+};
+
 struct btrfs_eb_write_context {
 	struct writeback_control *wbc;
 	struct extent_buffer *eb;
@@ -271,7 +286,11 @@ int set_folio_extent_mapped(struct folio *folio);
 void clear_folio_extent_mapped(struct folio *folio);
 
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
+					  struct btrfs_eb_prealloc *pa,
 					  u64 start, u64 owner_root, int level);
+int btrfs_init_eb_prealloc(struct btrfs_fs_info *fs_info,
+			   struct btrfs_eb_prealloc *pa);
+void btrfs_free_eb_prealloc(struct btrfs_eb_prealloc *pa);
 struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						u64 start);
 struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src);

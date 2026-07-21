@@ -5260,10 +5260,11 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		      enum btrfs_lock_nesting nest)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_eb_prealloc pa = { 0 };
 	struct extent_buffer *buf;
 	u64 lockdep_owner = owner;
 
-	buf = btrfs_find_create_tree_block(fs_info, bytenr, owner, level);
+	buf = btrfs_find_create_tree_block(fs_info, &pa, bytenr, owner, level);
 	if (IS_ERR(buf))
 		return buf;
 
@@ -5917,6 +5918,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 				 struct walk_control *wc)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_eb_prealloc pa = { 0 };
 	u64 bytenr;
 	u64 generation;
 	u64 owner_root = 0;
@@ -5939,7 +5941,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 
-	next = btrfs_find_create_tree_block(fs_info, bytenr, btrfs_root_id(root),
+	next = btrfs_find_create_tree_block(fs_info, &pa, bytenr, btrfs_root_id(root),
 					    level - 1);
 	if (IS_ERR(next))
 		return PTR_ERR(next);

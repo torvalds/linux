@@ -591,12 +591,13 @@ static const struct address_space_operations btree_aops = {
 
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
+						struct btrfs_eb_prealloc *pa,
 						u64 bytenr, u64 owner_root,
 						int level)
 {
 	if (btrfs_is_testing(fs_info))
 		return alloc_test_extent_buffer(fs_info, bytenr);
-	return alloc_extent_buffer(fs_info, bytenr, owner_root, level);
+	return alloc_extent_buffer(fs_info, pa, bytenr, owner_root, level);
 }
 
 /*
@@ -609,12 +610,13 @@ struct extent_buffer *btrfs_find_create_tree_block(
 struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 				      struct btrfs_tree_parent_check *check)
 {
+	struct btrfs_eb_prealloc pa = { 0 };
 	struct extent_buffer *buf = NULL;
 	int ret;
 
 	ASSERT(check);
 
-	buf = btrfs_find_create_tree_block(fs_info, bytenr, check->owner_root,
+	buf = btrfs_find_create_tree_block(fs_info, &pa, bytenr, check->owner_root,
 					   check->level);
 	if (IS_ERR(buf))
 		return buf;

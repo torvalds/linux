@@ -2969,6 +2969,7 @@ static noinline int walk_down_log_tree(struct btrfs_path *path, int *level,
 {
 	struct btrfs_trans_handle *trans = wc->trans;
 	struct btrfs_fs_info *fs_info = wc->log->fs_info;
+	struct btrfs_eb_prealloc pa = { 0 };
 	u64 bytenr;
 	u64 ptr_gen;
 	struct extent_buffer *next;
@@ -2993,7 +2994,7 @@ static noinline int walk_down_log_tree(struct btrfs_path *path, int *level,
 		check.has_first_key = true;
 		btrfs_node_key_to_cpu(cur, &check.first_key, path->slots[*level]);
 
-		next = btrfs_find_create_tree_block(fs_info, bytenr,
+		next = btrfs_find_create_tree_block(fs_info, &pa, bytenr,
 						    btrfs_header_owner(cur),
 						    *level - 1);
 		if (IS_ERR(next)) {
