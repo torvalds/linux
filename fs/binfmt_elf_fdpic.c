@@ -263,7 +263,8 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 			kdebug("Using ELF interpreter %s", interpreter_name);
 
 			/* replace the program with the interpreter */
-			interpreter = open_exec(interpreter_name);
+			interpreter = bprm_open_interpreter(bprm,
+							    interpreter_name);
 			retval = PTR_ERR(interpreter);
 			if (IS_ERR(interpreter)) {
 				interpreter = NULL;
@@ -298,6 +299,9 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm)
 		}
 
 	}
+
+	/* No PT_INTERP to substitute for: the override does not apply. */
+	bprm_drop_loader(bprm);
 
 	if (is_constdisp(&exec_params.hdr))
 		exec_params.flags |= ELF_FDPIC_FLAG_CONSTDISP;
