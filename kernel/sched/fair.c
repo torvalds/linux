@@ -13086,9 +13086,17 @@ static struct rq *sched_balance_find_src_rq(struct lb_env *env,
 		 * average load.
 		 */
 		if (env->sd->flags & SD_ASYM_CPUCAPACITY &&
-		    !capacity_greater(capacity_of(env->dst_cpu), capacity) &&
-		    nr_running == 1)
-			continue;
+		    nr_running == 1) {
+			bool smt_degraded_cap = sched_smt_active() && !is_core_idle(i);
+
+			/*
+			 * Busy SMT siblings reduce the capacity of CPU @i. Do
+			 * not skip it in this case.
+			 */
+			if (!smt_degraded_cap &&
+			    !capacity_greater(capacity_of(env->dst_cpu), capacity))
+				continue;
+		}
 
 		/*
 		 * Make sure we only pull tasks from a CPU of lower priority
