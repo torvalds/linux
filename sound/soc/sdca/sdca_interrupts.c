@@ -456,6 +456,8 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 				if (ret)
 					return ret;
 
+				interrupt->early_request = true;
+
 				ret = sdca_fdl_alloc_state(interrupt);
 				if (ret)
 					return ret;
@@ -562,17 +564,10 @@ int sdca_irq_populate(struct sdca_function_data *function,
 }
 EXPORT_SYMBOL_NS_GPL(sdca_irq_populate, "SND_SOC_SDCA");
 
-/**
- * sdca_irq_cleanup - Free all the individual IRQs for an SDCA Function
- * @dev: Device pointer against which the sdca_interrupt_info was allocated.
- * @function: Pointer to the SDCA Function.
- * @info: Pointer to the SDCA interrupt info for this device.
- *
- * Typically this would be called from the driver for a single SDCA Function.
- */
-void sdca_irq_cleanup(struct device *dev,
-		      struct sdca_function_data *function,
-		      struct sdca_interrupt_info *info)
+static void sdca_irq_cleanup_flags(struct device *dev,
+				   struct sdca_function_data *function,
+				   struct sdca_interrupt_info *info,
+				   bool late_cleanup)
 {
 	int i;
 
@@ -584,12 +579,48 @@ void sdca_irq_cleanup(struct device *dev,
 		if (interrupt->function != function || !interrupt->irq)
 			continue;
 
+		if (interrupt->early_request && !late_cleanup)
+			continue;
+
 		sdca_irq_free_locked(dev, info, i, interrupt->name, interrupt);
 
 		kfree(interrupt->name);
 	}
 }
+
+/**
+ * sdca_irq_cleanup - Free the regular IRQs for an SDCA Function
+ * @dev: Device pointer against which the sdca_interrupt_info was allocated.
+ * @function: Pointer to the SDCA Function.
+ * @info: Pointer to the SDCA interrupt info for this device.
+ *
+ * Typically this would be called from the driver for a single SDCA Function
+ * from component remove.
+ */
+void sdca_irq_cleanup(struct device *dev,
+		      struct sdca_function_data *function,
+		      struct sdca_interrupt_info *info)
+{
+	sdca_irq_cleanup_flags(dev, function, info, false);
+}
 EXPORT_SYMBOL_NS_GPL(sdca_irq_cleanup, "SND_SOC_SDCA");
+
+/**
+ * sdca_irq_cleanup_late - Free the early IRQs for an SDCA Function
+ * @dev: Device pointer against which the sdca_interrupt_info was allocated.
+ * @function: Pointer to the SDCA Function.
+ * @info: Pointer to the SDCA interrupt info for this device.
+ *
+ * Typically this would be called from the driver for a single SDCA Function
+ * from bus remove.
+ */
+void sdca_irq_cleanup_late(struct device *dev,
+			   struct sdca_function_data *function,
+			   struct sdca_interrupt_info *info)
+{
+	sdca_irq_cleanup_flags(dev, function, info, true);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_irq_cleanup_late, "SND_SOC_SDCA");
 
 /**
  * devm_sdca_irq_allocate - allocate an SDCA interrupt structure for a device

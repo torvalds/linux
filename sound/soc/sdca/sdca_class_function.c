@@ -408,7 +408,7 @@ static void class_function_remove(struct auxiliary_device *auxdev)
 {
 	struct class_function_drv *drv = auxiliary_get_drvdata(auxdev);
 
-	sdca_irq_cleanup(drv->dev, drv->function, drv->core->irq_info);
+	sdca_irq_cleanup_late(drv->dev, drv->function, drv->core->irq_info);
 }
 
 static int class_function_runtime_suspend(struct device *dev)
