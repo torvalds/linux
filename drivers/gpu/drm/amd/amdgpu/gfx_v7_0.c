@@ -2577,7 +2577,10 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32(mmCP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
 	/* start the ring */
-	gfx_v7_0_cp_gfx_start(adev);
+	r = gfx_v7_0_cp_gfx_start(adev);
+	if (r)
+		return r;
+
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
 		return r;
