@@ -41,7 +41,6 @@
 #define __BNXT_RE_H__
 #include <rdma/uverbs_ioctl.h>
 #include "hw_counters.h"
-#include <linux/hashtable.h>
 #define ROCE_DRV_MODULE_NAME		"bnxt_re"
 
 #define BNXT_RE_DESC	"Broadcom NetXtreme-C/E RoCE Driver"
@@ -158,9 +157,6 @@ struct bnxt_re_nq_record {
 	struct mutex		load_lock;
 };
 
-#define MAX_CQ_HASH_BITS		(16)
-#define MAX_SRQ_HASH_BITS		(16)
-
 static inline bool bnxt_re_chip_gen_p7(u16 chip_num)
 {
 	return (chip_num == CHIP_NUM_58818 ||
@@ -215,8 +211,6 @@ struct bnxt_re_dev {
 	struct bnxt_re_pacing pacing;
 	struct work_struct dbq_fifo_check_work;
 	struct delayed_work dbq_pacing_work;
-	DECLARE_HASHTABLE(cq_hash, MAX_CQ_HASH_BITS);
-	DECLARE_HASHTABLE(srq_hash, MAX_SRQ_HASH_BITS);
 	struct dentry			*dbg_root;
 	struct dentry			*qp_debugfs;
 	unsigned long			event_bitmap;

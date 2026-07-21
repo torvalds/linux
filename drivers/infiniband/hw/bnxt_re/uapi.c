@@ -22,31 +22,6 @@
 #include "bnxt_re.h"
 #include "ib_verbs.h"
 
-static struct bnxt_re_cq *bnxt_re_search_for_cq(struct bnxt_re_dev *rdev, u32 cq_id)
-{
-	struct bnxt_re_cq *cq = NULL, *tmp_cq;
-
-	hash_for_each_possible(rdev->cq_hash, tmp_cq, hash_entry, cq_id) {
-		if (tmp_cq->qplib_cq.id == cq_id) {
-			cq = tmp_cq;
-			break;
-		}
-	}
-	return cq;
-}
-
-static struct bnxt_re_srq *bnxt_re_search_for_srq(struct bnxt_re_dev *rdev, u32 srq_id)
-{
-	struct bnxt_re_srq *srq = NULL, *tmp_srq;
-
-	hash_for_each_possible(rdev->srq_hash, tmp_srq, hash_entry, srq_id) {
-		if (tmp_srq->qplib_srq.id == srq_id) {
-			srq = tmp_srq;
-			break;
-		}
-	}
-	return srq;
-}
 
 static int UVERBS_HANDLER(BNXT_RE_METHOD_NOTIFY_DRV)(struct uverbs_attr_bundle *attrs)
 {
@@ -244,12 +219,10 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 	enum bnxt_re_mmap_flag mmap_flag = BNXT_RE_MMAP_TOGGLE_PAGE;
 	enum bnxt_re_get_toggle_mem_type res_type;
 	struct bnxt_re_user_mmap_entry *entry;
+	struct ib_uobject *res_uobj;
 	struct bnxt_re_ucontext *uctx;
 	struct ib_ucontext *ib_uctx;
-	struct bnxt_re_dev *rdev;
-	struct bnxt_re_srq *srq;
 	u32 length = PAGE_SIZE;
-	struct bnxt_re_cq *cq;
 	u64 mem_offset;
 	u32 offset = 0;
 	u64 addr = 0;
@@ -265,34 +238,44 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 		return err;
 
 	uctx = container_of(ib_uctx, struct bnxt_re_ucontext, ib_uctx);
-	rdev = uctx->rdev;
 	err = uverbs_copy_from(&res_id, attrs, BNXT_RE_TOGGLE_MEM_RES_ID);
 	if (err)
 		return err;
 
-	switch (res_type) {
-	case BNXT_RE_CQ_TOGGLE_MEM:
-		cq = bnxt_re_search_for_cq(rdev, res_id);
-		if (!cq)
-			return -EINVAL;
+	/*
+	 * bnxt_re_create_cq/srq() publishes the uobject into cq_xa/srq_xa
+	 * before returning to the uverbs core, but the core only sets
+	 * uobject->object once the create callback has returned success.
+	 * A lookup that races with an in-progress create can therefore
+	 * find a uobject whose ->object is still NULL; skip it instead of
+	 * feeding NULL to container_of().
+	 */
+	if (res_type == BNXT_RE_CQ_TOGGLE_MEM) {
+		struct bnxt_re_cq *cq;
 
-		addr = (u64)cq->uctx_cq_page;
-		if (!addr)
-			return -EOPNOTSUPP;
-		break;
-	case BNXT_RE_SRQ_TOGGLE_MEM:
-		srq = bnxt_re_search_for_srq(rdev, res_id);
-		if (!srq)
-			return -EINVAL;
+		xa_lock(&uctx->cq_xa);
+		res_uobj = xa_load(&uctx->cq_xa, res_id);
+		if (res_uobj && res_uobj->object) {
+			cq = container_of(res_uobj->object, struct bnxt_re_cq, ib_cq);
+			addr = (u64)cq->uctx_cq_page;
+		}
+		xa_unlock(&uctx->cq_xa);
+	} else if (res_type == BNXT_RE_SRQ_TOGGLE_MEM) {
+		struct bnxt_re_srq *srq;
 
-		addr = (u64)srq->uctx_srq_page;
-		if (!addr)
-			return -EOPNOTSUPP;
-		break;
-
-	default:
+		xa_lock(&uctx->srq_xa);
+		res_uobj = xa_load(&uctx->srq_xa, res_id);
+		if (res_uobj && res_uobj->object) {
+			srq = container_of(res_uobj->object, struct bnxt_re_srq, ib_srq);
+			addr = (u64)srq->uctx_srq_page;
+		}
+		xa_unlock(&uctx->srq_xa);
+	} else {
 		return -EOPNOTSUPP;
 	}
+
+	if (!addr)
+		return -EOPNOTSUPP;
 
 	entry = bnxt_re_mmap_entry_insert(uctx, addr, mmap_flag, &mem_offset);
 	if (!entry)
@@ -322,7 +305,7 @@ static int get_toggle_mem_obj_cleanup(struct ib_uobject *uobject,
 				      enum rdma_remove_reason why,
 				      struct uverbs_attr_bundle *attrs)
 {
-	struct  bnxt_re_user_mmap_entry *entry = uobject->object;
+	struct bnxt_re_user_mmap_entry *entry = uobject->object;
 
 	rdma_user_mmap_entry_remove(&entry->rdma_entry);
 	return 0;
