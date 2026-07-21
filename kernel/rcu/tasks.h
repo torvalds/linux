@@ -1179,7 +1179,7 @@ static void tasks_rcu_exit_stall(struct timer_list *unused)
  * @func: actual callback function to be invoked after the grace period
  *
  * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
+ * period elapses, in other words after all currently executing rcu-tasks
  * read-side critical sections have completed. call_rcu_tasks() assumes
  * that the read-side critical sections end at a voluntary context
  * switch (not a preemption!), cond_resched_tasks_rcu_qs(), entry into idle,
@@ -1365,8 +1365,8 @@ DEFINE_RCU_TASKS(rcu_tasks_rude, rcu_tasks_rude_wait_gp, call_rcu_tasks_rude,
  * @func: actual callback function to be invoked after the grace period
  *
  * The callback function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed. call_rcu_tasks_rude()
+ * period elapses, in other words after all currently executing rude
+ * rcu-tasks read-side critical sections have completed. call_rcu_tasks_rude()
  * assumes that the read-side critical sections end at context switch,
  * cond_resched_tasks_rcu_qs(), or transition to usermode execution (as
  * usermode execution is schedulable). As such, there are no read-side
@@ -1390,7 +1390,7 @@ static void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
  *
  * Control will return to the caller some time after a rude rcu-tasks
  * grace period has elapsed, in other words after all currently
- * executing rcu-tasks read-side critical sections have elapsed.  These
+ * executing rude rcu-tasks read-side critical sections have elapsed. These
  * read-side critical sections are delimited by calls to schedule(),
  * cond_resched_tasks_rcu_qs(), userspace execution (which is a schedulable
  * context), and (in theory, anyway) cond_resched().
