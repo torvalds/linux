@@ -104,6 +104,46 @@ There are some restrictions:
    the binary
 
 
+To use binfmt_misc you have to mount it first. You can mount it with
+``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add
+a line ``none  /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0`` to your
+``/etc/fstab`` so it auto mounts on boot.
+
+You may want to add the binary formats in one of your ``/etc/rc`` scripts during
+boot-up. Read the manual of your init program to figure out how to do this
+right.
+
+Think about the order of adding entries! Later added entries are matched first!
+
+
+A few examples (assumed you are in ``/proc/sys/fs/binfmt_misc``):
+
+- enable support for em86 (like binfmt_em86, for Alpha AXP only)::
+
+    echo ':i386:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
+    echo ':i486:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x06:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
+
+- enable support for packed DOS applications (pre-configured dosemu hdimages)::
+
+    echo ':DEXE:M::\x0eDEX::/usr/bin/dosexec:' > register
+
+- enable support for Windows executables using wine::
+
+    echo ':DOSWin:M::MZ::/usr/local/bin/wine:' > register
+
+For java support see Documentation/admin-guide/java.rst
+
+
+You can enable/disable binfmt_misc or one binary type by echoing 0 (to disable)
+or 1 (to enable) to ``/proc/sys/fs/binfmt_misc/status`` or
+``/proc/.../the_name``.
+Catting the file tells you the current status of ``binfmt_misc/the_entry``.
+
+You can remove one entry or all entries by echoing -1 to ``/proc/.../the_name``
+or ``/proc/sys/fs/binfmt_misc/status``. A single entry can also be removed
+by simply unlinking (``rm``) ``/proc/.../the_name``.
+
+
 bpf-backed handlers
 -------------------
 
@@ -161,45 +201,6 @@ registered in. Handlers are not inherited, so an entry can only reference a
 handler registered in the same user namespace as its binfmt_misc instance.
 The entry keeps the handler alive; deleting the struct_ops map only prevents
 new activations.
-
-To use binfmt_misc you have to mount it first. You can mount it with
-``mount -t binfmt_misc none /proc/sys/fs/binfmt_misc`` command, or you can add
-a line ``none  /proc/sys/fs/binfmt_misc binfmt_misc defaults 0 0`` to your
-``/etc/fstab`` so it auto mounts on boot.
-
-You may want to add the binary formats in one of your ``/etc/rc`` scripts during
-boot-up. Read the manual of your init program to figure out how to do this
-right.
-
-Think about the order of adding entries! Later added entries are matched first!
-
-
-A few examples (assumed you are in ``/proc/sys/fs/binfmt_misc``):
-
-- enable support for em86 (like binfmt_em86, for Alpha AXP only)::
-
-    echo ':i386:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x03:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
-    echo ':i486:M::\x7fELF\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\x06:\xff\xff\xff\xff\xff\xfe\xfe\xff\xff\xff\xff\xff\xff\xff\xff\xff\xfb\xff\xff:/bin/em86:' > register
-
-- enable support for packed DOS applications (pre-configured dosemu hdimages)::
-
-    echo ':DEXE:M::\x0eDEX::/usr/bin/dosexec:' > register
-
-- enable support for Windows executables using wine::
-
-    echo ':DOSWin:M::MZ::/usr/local/bin/wine:' > register
-
-For java support see Documentation/admin-guide/java.rst
-
-
-You can enable/disable binfmt_misc or one binary type by echoing 0 (to disable)
-or 1 (to enable) to ``/proc/sys/fs/binfmt_misc/status`` or
-``/proc/.../the_name``.
-Catting the file tells you the current status of ``binfmt_misc/the_entry``.
-
-You can remove one entry or all entries by echoing -1 to ``/proc/.../the_name``
-or ``/proc/sys/fs/binfmt_misc/status``. A single entry can also be removed
-by simply unlinking (``rm``) ``/proc/.../the_name``.
 
 
 Hints
