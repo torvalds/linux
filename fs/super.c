@@ -1084,16 +1084,19 @@ void emergency_remount(void)
 
 static void do_thaw_all_callback(struct super_block *sb, void *unused)
 {
+	if (!super_lock_excl(sb))
+		return;
+
 	if (IS_ENABLED(CONFIG_BLOCK))
 		while (sb->s_bdev && !bdev_thaw(sb->s_bdev))
 			pr_warn("Emergency Thaw on %pg\n", sb->s_bdev);
+
 	thaw_super_locked(sb, FREEZE_HOLDER_USERSPACE, NULL);
-	return;
 }
 
 static void do_thaw_all(struct work_struct *work)
 {
-	__iterate_supers(do_thaw_all_callback, NULL, SUPER_ITER_EXCL);
+	__iterate_supers(do_thaw_all_callback, NULL, SUPER_ITER_UNLOCKED);
 	kfree(work);
 	printk(KERN_WARNING "Emergency Thaw complete\n");
 }
