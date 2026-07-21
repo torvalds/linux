@@ -871,6 +871,27 @@ static const struct attribute_group pci_dev_config_attr_group = {
 };
 
 #ifdef HAVE_PCI_LEGACY
+
+#define pci_legacy_resource_io_attr(_suffix, _size)			     \
+static const struct bin_attribute pci_legacy_io##_suffix##_attr = {	     \
+	.attr = { .name = "legacy_io" __stringify(_suffix), .mode = 0600 },  \
+	.size = (_size),						     \
+	.read = pci_read_legacy_io,					     \
+	.write = pci_write_legacy_io,					     \
+	.f_mapping = iomem_get_mapping,					     \
+	.llseek = pci_llseek_resource_legacy,				     \
+	.mmap = pci_mmap_legacy_io,					     \
+}
+
+#define pci_legacy_resource_mem_attr(_suffix, _size)			     \
+static const struct bin_attribute pci_legacy_mem##_suffix##_attr = {	     \
+	.attr = { .name = "legacy_mem" __stringify(_suffix), .mode = 0600 }, \
+	.size = (_size),						     \
+	.f_mapping = iomem_get_mapping,					     \
+	.llseek = pci_llseek_resource_legacy,				     \
+	.mmap = pci_mmap_legacy_mem,					     \
+}
+
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
  * @filp: open sysfs file
@@ -1059,41 +1080,11 @@ static loff_t pci_llseek_resource_legacy(struct file *filep,
 	return fixed_size_llseek(filep, offset, whence, attr->size);
 }
 
-static const struct bin_attribute pci_legacy_io_attr = {
-	.attr = { .name = "legacy_io", .mode = 0600 },
-	.size = PCI_LEGACY_IO_SIZE,
-	.read = pci_read_legacy_io,
-	.write = pci_write_legacy_io,
-	.mmap = pci_mmap_legacy_io,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
+pci_legacy_resource_io_attr(, PCI_LEGACY_IO_SIZE);
+pci_legacy_resource_io_attr(_sparse, PCI_LEGACY_IO_SIZE << 5);
 
-static const struct bin_attribute pci_legacy_io_sparse_attr = {
-	.attr = { .name = "legacy_io_sparse", .mode = 0600 },
-	.size = PCI_LEGACY_IO_SIZE << 5,
-	.read = pci_read_legacy_io,
-	.write = pci_write_legacy_io,
-	.mmap = pci_mmap_legacy_io,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
-
-static const struct bin_attribute pci_legacy_mem_attr = {
-	.attr = { .name = "legacy_mem", .mode = 0600 },
-	.size = PCI_LEGACY_MEM_SIZE,
-	.mmap = pci_mmap_legacy_mem,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
-
-static const struct bin_attribute pci_legacy_mem_sparse_attr = {
-	.attr = { .name = "legacy_mem_sparse", .mode = 0600 },
-	.size = PCI_LEGACY_MEM_SIZE << 5,
-	.mmap = pci_mmap_legacy_mem,
-	.llseek = pci_llseek_resource_legacy,
-	.f_mapping = iomem_get_mapping,
-};
+pci_legacy_resource_mem_attr(, PCI_LEGACY_MEM_SIZE);
+pci_legacy_resource_mem_attr(_sparse, PCI_LEGACY_MEM_SIZE << 5);
 
 static const struct bin_attribute *const pci_legacy_io_attrs[] = {
 	&pci_legacy_io_attr,
