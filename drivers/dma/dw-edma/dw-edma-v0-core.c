@@ -255,6 +255,9 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 	for_each_set_bit(pos, &val, total) {
 		chan = &dw->chan[pos + off];
 
+		if (unlikely(dw_edma_core_ch_ignore_irq(chan)))
+			continue;
+
 		dw_edma_v0_core_clear_done_int(chan);
 		done(chan);
 
@@ -265,6 +268,9 @@ dw_edma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 	val &= *mask;
 	for_each_set_bit(pos, &val, total) {
 		chan = &dw->chan[pos + off];
+
+		if (unlikely(dw_edma_core_ch_ignore_irq(chan)))
+			continue;
 
 		dw_edma_v0_core_clear_abort_int(chan);
 		abort(chan);
@@ -353,12 +359,17 @@ static void dw_edma_v0_core_ch_enable(struct dw_edma_chan *chan)
 			break;
 		}
 	}
-	/* Interrupt unmask - done, abort */
+	/* Interrupt mask/unmask - done, abort */
 	raw_spin_lock_irqsave(&dw->lock, flags);
 
 	tmp = GET_RW_32(dw, chan->dir, int_mask);
-	tmp &= ~FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
-	tmp &= ~FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
+	if (chan->irq_mode == DW_EDMA_CH_IRQ_REMOTE) {
+		tmp |= FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
+		tmp |= FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
+	} else {
+		tmp &= ~FIELD_PREP(EDMA_V0_DONE_INT_MASK, BIT(chan->id));
+		tmp &= ~FIELD_PREP(EDMA_V0_ABORT_INT_MASK, BIT(chan->id));
+	}
 	SET_RW_32(dw, chan->dir, int_mask, tmp);
 	/* Linked list error */
 	tmp = GET_RW_32(dw, chan->dir, linked_list_err_en);
@@ -473,7 +484,18 @@ dw_edma_v0_core_ll_data(struct dw_edma_chan *chan, struct dw_edma_burst *burst,
 	if (irq) {
 		control |= DW_EDMA_V0_LIE;
 
-		if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL))
+		/*
+		 * A local instance never issues transfers on a remote-routed
+		 * channel: on CHIP_LOCAL instances, REMOTE routing denotes a
+		 * channel handed over to the remote side, which programs the
+		 * linked list through its own instance. The remote-only
+		 * recipe (LIE|RIE with the local interrupt masked) is thus
+		 * applied by the instance that owns the transfer, and the
+		 * LIE-only write below never executes for a remote-routed
+		 * channel.
+		 */
+		if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL) &&
+		    chan->irq_mode == DW_EDMA_CH_IRQ_REMOTE)
 			control |= DW_EDMA_V0_RIE;
 	}
 

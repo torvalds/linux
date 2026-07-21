@@ -51,15 +51,22 @@ __dw_ch_regs(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch)
 
 static u32 dw_hdma_v0_core_int_setup(struct dw_edma_chan *chan, u32 val)
 {
-	if (chan->non_ll)
-		val |= HDMA_V0_STOP_INT_MASK | HDMA_V0_ABORT_INT_MASK;
-	else
-		val &= ~(HDMA_V0_STOP_INT_MASK | HDMA_V0_ABORT_INT_MASK);
+	val &= ~(HDMA_V0_LOCAL_ABORT_INT_EN | HDMA_V0_REMOTE_ABORT_INT_EN |
+		 HDMA_V0_LOCAL_STOP_INT_EN | HDMA_V0_REMOTE_STOP_INT_EN |
+		 HDMA_V0_ABORT_INT_MASK | HDMA_V0_STOP_INT_MASK);
 
-	val |= HDMA_V0_LOCAL_STOP_INT_EN | HDMA_V0_LOCAL_ABORT_INT_EN;
-	if (!(chan->dw->chip->flags & DW_EDMA_CHIP_LOCAL))
-		val |= HDMA_V0_REMOTE_STOP_INT_EN |
-		       HDMA_V0_REMOTE_ABORT_INT_EN;
+	/*
+	 * HDMA_INT_STATUS.STOP and .ABORT are latched only when LSIE and
+	 * LAIE are enabled. A remote handler needs those status bits to
+	 * identify the source of the IMWr, so keep local generation enabled
+	 * and mask the local interrupt pins instead.
+	 */
+	val |= HDMA_V0_LOCAL_ABORT_INT_EN | HDMA_V0_LOCAL_STOP_INT_EN;
+
+	if (chan->irq_mode == DW_EDMA_CH_IRQ_REMOTE)
+		val |= HDMA_V0_REMOTE_ABORT_INT_EN |
+		       HDMA_V0_REMOTE_STOP_INT_EN |
+		       HDMA_V0_ABORT_INT_MASK | HDMA_V0_STOP_INT_MASK;
 
 	return val;
 }
@@ -158,6 +165,8 @@ dw_hdma_v0_core_handle_int(struct dw_edma_irq *dw_irq, enum dw_edma_dir dir,
 
 	for_each_set_bit(pos, mask, total) {
 		chan = &dw->chan[pos + off];
+		if (unlikely(dw_edma_core_ch_ignore_irq(chan)))
+			continue;
 
 		val = dw_hdma_v0_core_status_int(chan);
 		if (FIELD_GET(HDMA_V0_STOP_INT_MASK, val)) {
