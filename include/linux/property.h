@@ -397,11 +397,13 @@ struct property_entry {
 	union {
 		const void *pointer;
 		union {
+			/* private: internal representation of @value */
 			u8 u8_data[sizeof(u64) / sizeof(u8)];
 			u16 u16_data[sizeof(u64) / sizeof(u16)];
 			u32 u32_data[sizeof(u64) / sizeof(u32)];
 			u64 u64_data[sizeof(u64) / sizeof(u64)];
 			const char *str[sizeof(u64) / sizeof(char *)];
+			/* public: */
 		} value;
 	};
 };
