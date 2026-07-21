@@ -1327,7 +1327,7 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	static char twozeroes[] = {0x02, 0xb0, 0x00, 0x00, 0x00};
 	/* more compressed zeroes, to be followed by some count */
 	static char morezeroes[] = {0x03, 0xb0, 0x02, 0x00};
-	s64 bio_lcn;
+	s64 bio_lcn, bio_pos;
 	struct runlist_element *rlc, *rl;
 	int i, err;
 	u32 cb_clusters = ni->itype.compressed.block_clusters;
@@ -1410,41 +1410,20 @@ static int ntfs_write_cb(struct ntfs_inode *ni, loff_t pos, struct page **pages,
 	}
 
 	bio_lcn = rlc->lcn;
-	i = 0;
-	while (bio_size > 0) {
-		int page_size;
+	bio_pos = ntfs_cluster_to_bytes(vol, bio_lcn);
+	bio = bio_alloc(vol->sb->s_bdev, DIV_ROUND_UP(bio_size, PAGE_SIZE),
+			REQ_OP_WRITE, GFP_NOIO);
+	bio->bi_iter.bi_sector = ntfs_bytes_to_sector(vol, bio_pos);
 
-		if (bio_size >= PAGE_SIZE) {
-			page_size = PAGE_SIZE;
-			bio_size -= PAGE_SIZE;
-		} else {
-			page_size = bio_size;
-			bio_size = 0;
-		}
+	for (i = 0; bio_size; i++) {
+		unsigned int len = min_t(unsigned int, bio_size, PAGE_SIZE);
 
-setup_bio:
-		if (!bio) {
-			bio = bio_alloc(vol->sb->s_bdev, 1, REQ_OP_WRITE,
-					GFP_NOIO);
-			if (!bio) {
-				err = -ENOMEM;
-				goto free_rlc;
-			}
-			bio->bi_iter.bi_sector =
-				ntfs_bytes_to_sector(vol,
-						ntfs_cluster_to_bytes(vol, bio_lcn) +
-						((s64)i << PAGE_SHIFT));
-		}
-
-		if (!bio_add_page(bio, ws->pages[i], page_size, 0)) {
-			err = submit_bio_wait(bio);
+		if (bio_add_page(bio, ws->pages[i], len, 0) != len) {
+			err = -EIO;
 			bio_put(bio);
-			if (err)
-				goto free_rlc;
-			bio = NULL;
-			goto setup_bio;
+			goto free_rlc;
 		}
-		i++;
+		bio_size -= len;
 	}
 
 	err = submit_bio_wait(bio);
