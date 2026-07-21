@@ -859,6 +859,24 @@ static const struct amdgpu_irq_src_funcs dm_test_crtc_irq_src_funcs = {
 };
 
 /*
+ * Stub get_vblank_timestamp so drm_crtc_vblank_restore() finds a non-NULL hook.
+ * The CRTC is not registered on the device, so drm_crtc_from_index() returns
+ * NULL and this callback is never actually invoked; it only satisfies the
+ * WARN_ON_ONCE(!crtc->funcs->get_vblank_timestamp) sanity check.
+ */
+static bool dm_test_crtc_get_vblank_timestamp(struct drm_crtc *crtc,
+					      int *max_error,
+					      ktime_t *vblank_time,
+					      bool in_vblank_irq)
+{
+	return false;
+}
+
+static const struct drm_crtc_funcs dm_test_crtc_funcs = {
+	.get_vblank_timestamp = dm_test_crtc_get_vblank_timestamp,
+};
+
+/*
  * dm_test_crtc_arm_irq_src - Prime an IRQ source so get()/put() short-circuit.
  * @test: The KUnit test context
  * @src: The amdgpu IRQ source to arm
@@ -1105,6 +1123,53 @@ static void dm_test_crtc_enable_vblank_queues_work(struct kunit *test)
 
 	/* The queued worker ran and accounted the active vblank IRQ. */
 	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 1);
+}
+
+/**
+ * dm_test_crtc_enable_vblank_ips_restore - Test IPS/self-refresh vblank restore
+ * @test: The KUnit test context
+ *
+ * When the DC advertises IPS support with IPS not fully disabled, self-refresh
+ * is supported and immediate vblank disable is configured, the enable path must
+ * call drm_crtc_vblank_restore() to estimate missed vblanks before arming the
+ * IRQs. The enable path then runs to completion.
+ */
+static void dm_test_crtc_enable_vblank_ips_restore(struct kunit *test)
+{
+	struct dm_crtc_state *acrtc_state;
+	struct drm_vblank_crtc *vblank;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+	struct dc_link *link;
+
+	/* DCE_VERSION_8_0 supports VRR -> the vupdate-irq branch is walked. */
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_8_0);
+
+	/* OTG unassigned -> amdgpu_dm_crtc_set_vupdate_irq() returns 0 early. */
+	acrtc->otg_inst = -1;
+	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+	acrtc_state->freesync_config.state = VRR_STATE_ACTIVE_VARIABLE;
+
+	/* Non-NULL get_vblank_timestamp keeps drm_crtc_vblank_restore() quiet. */
+	acrtc->base.funcs = &dm_test_crtc_funcs;
+
+	/* IPS enabled and not fully disabled -> first restore condition holds. */
+	adev->dm.dc->caps.ips_support = true;
+	adev->dm.dc->config.disable_ips = DMUB_IPS_ENABLE;
+
+	/* Supported PSR version makes self-refresh supported. */
+	link = acrtc_state->stream->link;
+	link->psr_settings.psr_version = DC_PSR_VERSION_1;
+
+	/* Immediate vblank disable is the last condition gating the restore. */
+	vblank = drm_crtc_vblank_crtc(&acrtc->base);
+	vblank->config.disable_immediate = true;
+
+	adev->irq.installed = true;
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 1);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 1);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
 }
 
 /* Tests for amdgpu_dm_crtc_update_crtc_active_planes() */
@@ -1748,6 +1813,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_enable_vblank_crtc_irq_error),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_in_reset),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_queues_work),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_ips_restore),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
 	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
 	/* amdgpu_dm_crtc_count_crtc_active_planes */
