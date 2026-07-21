@@ -353,35 +353,52 @@ static unsigned long entry_invocation_flags(const struct binfmt_misc_entry *e,
 	return flags;
 }
 
-/*
- * the loader itself
+/**
+ * entry_open_interpreter - open the entry's interpreter for execution
+ * @e: matched binary type handler
+ * @interpreter: the interpreter selected for this exec
+ *
+ * An 'F' entry hands out a clone of the file it pre-opened at registration,
+ * any other entry opens the selected path.
+ *
+ * Return: the opened interpreter on success, an ERR_PTR on failure
  */
-static int load_misc_binary(struct linux_binprm *bprm)
+static struct file *entry_open_interpreter(const struct binfmt_misc_entry *e,
+					   const char *interpreter)
 {
-	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
-	const char *interpreter;
-	struct file *interp_file;
-	struct binfmt_misc *misc;
-	unsigned long flags;
+	struct file *interp_file __free(fput) = NULL;
 	int retval;
 
-	misc = current_binfmt_misc();
-	if (!READ_ONCE(misc->enabled))
-		return -ENOEXEC;
+	if (!(e->flags & MISC_FMT_OPEN_FILE))
+		return open_exec(interpreter);
 
-	fmt = get_binfmt_handler(misc, bprm);
-	if (!fmt)
-		return -ENOEXEC;
+	interp_file = file_clone_open(e->interp_file);
+	if (IS_ERR(interp_file))
+		return interp_file;
 
-	/* Need to be able to load the file after exec */
-	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
-		return -ENOENT;
+	retval = exe_file_deny_write_access(interp_file);
+	if (retval)
+		return ERR_PTR(retval);
 
-	interpreter = entry_select_interpreter(fmt, bprm);
-	if (IS_ERR(interpreter))
-		return PTR_ERR(interpreter);
+	return no_free_ptr(interp_file);
+}
 
-	flags = entry_invocation_flags(fmt, bprm);
+/**
+ * build_interp_argv - splice the interpreter invocation into the argv
+ * @bprm: binary that is being executed
+ * @interpreter: the interpreter selected for this exec
+ * @flags: invocation flags in effect for this exec
+ *
+ * The interpreter becomes argv[0] and the binary its last argument, with an
+ * optional staged argument in between. The caller's argv[0] is dropped
+ * unless 'P' keeps it.
+ *
+ * Return: 0 on success, a negative error code on failure
+ */
+static int build_interp_argv(struct linux_binprm *bprm, const char *interpreter,
+			     unsigned long flags)
+{
+	int retval;
 
 	/* The entry's own choice - not one accumulated from an earlier level. */
 	if (flags & MISC_FMT_PRESERVE_ARGV0) {
@@ -418,24 +435,49 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		return retval;
 	bprm->argc++;
 
+	return 0;
+}
+
+/*
+ * the loader itself
+ */
+static int load_misc_binary(struct linux_binprm *bprm)
+{
+	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
+	const char *interpreter;
+	struct file *interp_file;
+	struct binfmt_misc *misc;
+	unsigned long flags;
+	int retval;
+
+	misc = current_binfmt_misc();
+	if (!READ_ONCE(misc->enabled))
+		return -ENOEXEC;
+
+	fmt = get_binfmt_handler(misc, bprm);
+	if (!fmt)
+		return -ENOEXEC;
+
+	/* Need to be able to load the file after exec */
+	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
+		return -ENOENT;
+
+	interpreter = entry_select_interpreter(fmt, bprm);
+	if (IS_ERR(interpreter))
+		return PTR_ERR(interpreter);
+
+	flags = entry_invocation_flags(fmt, bprm);
+
+	retval = build_interp_argv(bprm, interpreter, flags);
+	if (retval)
+		return retval;
+
 	/* Update interp in case binfmt_script needs it. */
 	retval = bprm_change_interp(interpreter, bprm);
 	if (retval < 0)
 		return retval;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE) {
-		interp_file = file_clone_open(fmt->interp_file);
-		if (!IS_ERR(interp_file)) {
-			int err = exe_file_deny_write_access(interp_file);
-
-			if (err) {
-				fput(interp_file);
-				interp_file = ERR_PTR(err);
-			}
-		}
-	} else {
-		interp_file = open_exec(interpreter);
-	}
+	interp_file = entry_open_interpreter(fmt, interpreter);
 	if (IS_ERR(interp_file))
 		return PTR_ERR(interp_file);
 
