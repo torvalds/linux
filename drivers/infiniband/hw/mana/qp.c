@@ -472,6 +472,12 @@ static void mana_table_remove_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp 
 	xa_erase_irq(&mdev->qp_table_wq, qp->ibqp.qp_num);
 }
 
+static void mana_table_drain_qp_ref(struct mana_ib_qp *qp)
+{
+	mana_put_qp_ref(qp);
+	wait_for_completion(&qp->free);
+}
+
 static int mana_table_store_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
 {
 	u32 qids = qp->ud_qp.queues[MANA_UD_SEND_QUEUE].id | MANA_SENDQ_MASK;
@@ -490,6 +496,7 @@ static int mana_table_store_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *q
 
 remove_sq:
 	xa_erase_irq(&mdev->qp_table_wq, qids);
+	mana_table_drain_qp_ref(qp);
 	return err;
 }
 
@@ -537,8 +544,7 @@ static void mana_table_remove_qp(struct mana_ib_dev *mdev,
 			  qp->ibqp.qp_type);
 		return;
 	}
-	mana_put_qp_ref(qp);
-	wait_for_completion(&qp->free);
+	mana_table_drain_qp_ref(qp);
 }
 
 static int mana_ib_create_rc_qp(struct ib_qp *ibqp, struct ib_pd *ibpd,
