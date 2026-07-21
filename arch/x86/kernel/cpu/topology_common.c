@@ -42,8 +42,8 @@ enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c)
 	}
 	if (c->x86_vendor == X86_VENDOR_AMD) {
 		switch (c->topo.amd_type) {
-		case 0:	return TOPO_CPU_TYPE_PERFORMANCE;
-		case 1:	return TOPO_CPU_TYPE_EFFICIENCY;
+		case AMD_CPU_TYPE_PERFORMANCE:	return TOPO_CPU_TYPE_PERFORMANCE;
+		case AMD_CPU_TYPE_EFFICIENCY:	return TOPO_CPU_TYPE_EFFICIENCY;
 		}
 	}
 
