@@ -13102,13 +13102,20 @@ static struct rq *sched_balance_find_src_rq(struct lb_env *env,
 		 */
 		if (env->sd->flags & SD_ASYM_CPUCAPACITY &&
 		    nr_running == 1) {
+			bool cluster_equal_cap = static_branch_unlikely(&sched_cluster_active) &&
+						 (get_actual_cpu_capacity(env->dst_cpu) ==
+						  get_actual_cpu_capacity(i));
 			bool smt_degraded_cap = sched_smt_active() && !is_core_idle(i);
 
 			/*
 			 * Busy SMT siblings reduce the capacity of CPU @i. Do
 			 * not skip it in this case.
+			 *
+			 * CONFIG_SCHED_CLUSTER requires balancing load across
+			 * clusters of identical capacity, accounting for
+			 * hardware and cpufreq pressure.
 			 */
-			if (!smt_degraded_cap &&
+			if (!smt_degraded_cap && !cluster_equal_cap &&
 			    !capacity_greater(capacity_of(env->dst_cpu), capacity))
 				continue;
 		}
