@@ -631,7 +631,7 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 	struct attr_record *a;
 	__le16 new_aflags;
 	u16 old_name_ofs, old_mp_ofs;
-	int mp_size, mp_ofs, name_ofs, arec_size, err;
+	int mp_size, mp_ofs, name_ofs, old_arec_size, arec_size, err;
 
 	m = map_mft_record(ni);
 	if (IS_ERR(m))
@@ -726,6 +726,19 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 
 	mp_ofs = (name_ofs + a->name_length * sizeof(__le16) + 7) & ~7;
 	arec_size = (mp_ofs + mp_size + 7) & ~7;
+	old_arec_size = le32_to_cpu(a->length);
+
+	/*
+	 * Move payloads before shrinking the record.  Otherwise resizing moves
+	 * the following attribute over the old payload before it can be copied.
+	 */
+	if (arec_size < old_arec_size) {
+		if (a->name_length && name_ofs != old_name_ofs)
+			memmove((u8 *)a + name_ofs, (u8 *)a + old_name_ofs,
+				a->name_length * sizeof(__le16));
+		if (mp_ofs != old_mp_ofs)
+			memmove((u8 *)a + mp_ofs, (u8 *)a + old_mp_ofs, mp_size);
+	}
 
 	err = ntfs_attr_record_resize(m, a, arec_size);
 	if (unlikely(err))
@@ -736,18 +749,12 @@ static int ntfs_new_attr_flags(struct ntfs_inode *ni, __le32 fattr)
 	 * shrinks by the compressed_size field. Update the in-record payload layout
 	 * to match the new offsets before exposing the new mapping_pairs_offset.
 	 */
-	if (name_ofs > old_name_ofs) {
+	if (arec_size > old_arec_size) {
 		if (mp_ofs != old_mp_ofs)
 			memmove((u8 *)a + mp_ofs, (u8 *)a + old_mp_ofs, mp_size);
 		if (a->name_length)
 			memmove((u8 *)a + name_ofs, (u8 *)a + old_name_ofs,
 				a->name_length * sizeof(__le16));
-	} else {
-		if (a->name_length && name_ofs != old_name_ofs)
-			memmove((u8 *)a + name_ofs, (u8 *)a + old_name_ofs,
-				a->name_length * sizeof(__le16));
-		if (mp_ofs != old_mp_ofs)
-			memmove((u8 *)a + mp_ofs, (u8 *)a + old_mp_ofs, mp_size);
 	}
 
 	if (new_aflags & (ATTR_IS_SPARSE | ATTR_IS_COMPRESSED)) {
