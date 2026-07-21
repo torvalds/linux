@@ -2167,6 +2167,7 @@ static struct cpufreq_driver amd_pstate_epp_driver = {
 };
 
 /*
+ * Processors without frequency scaling support can't do CPPC.
  * CPPC function is not supported for family ID 17H with model_ID ranging from 0x10 to 0x2F.
  * show the debug message that helps to check if the CPU has CPPC support for loading issue.
  */
@@ -2174,6 +2175,11 @@ static bool amd_cppc_supported(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	bool warn = false;
+
+	if (!cpu_feature_enabled(X86_FEATURE_HW_PSTATE)) {
+		pr_debug_once("frequency scaling is not supported by the processor\n");
+		return false;
+	}
 
 	if ((boot_cpu_data.x86 == 0x17) && (boot_cpu_data.x86_model < 0x30)) {
 		pr_debug_once("CPPC feature is not supported by the processor\n");
