@@ -683,6 +683,12 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_FILE)))
 		return ERR_PTR(-EINVAL);
 
+	/* Non-F opens the interp at exec against the caller's cwd; require absolute. */
+	if ((e->flags & MISC_FMT_CREDENTIALS) &&
+	    !(e->flags & MISC_FMT_OPEN_FILE) &&
+	    e->interpreter[0] != '/')
+		return ERR_PTR(-EINVAL);
+
 	return no_free_ptr(e);
 }
 

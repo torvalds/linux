@@ -98,6 +98,10 @@ There are some restrictions:
  - the magic must reside in the first 128 bytes of the file, i.e.
    offset+size(magic) has to be less than 128
  - the interpreter string may not exceed 127 characters
+ - an interpreter used with ``C`` but without ``F`` has to be named by an
+   absolute path. It is opened when the binary is executed, so a relative
+   one would be resolved against the working directory of whoever runs
+   the binary
 
 
 bpf-backed handlers
