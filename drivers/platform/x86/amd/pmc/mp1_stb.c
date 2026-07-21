@@ -157,7 +157,7 @@ static int amd_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 	struct amd_pmc_dev *dev = filp->f_inode->i_private;
 	u32 fsize, num_samples, val, stb_rdptr_offset = 0;
 	struct amd_stb_v2_data *stb_data_arr;
-	int ret;
+	int ret = 0;
 
 	/* Write dummy postcode while reading the STB buffer */
 	ret = amd_stb_write(dev, AMD_PMC_STB_DUMMY_PC);
@@ -176,22 +176,24 @@ static int amd_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 	 * the enhanced dram size. Note that we land here only for the
 	 * platforms that support enhanced dram size reporting.
 	 */
-	if (dump_custom_stb)
-		return amd_stb_handle_efr(filp);
+	if (dump_custom_stb) {
+		ret = amd_stb_handle_efr(filp);
+		goto out;
+	}
 
 	/* Get the num_samples to calculate the last push location */
 	ret = amd_pmc_send_cmd(dev, S2D_NUM_SAMPLES, &num_samples, dev->stb_arg.s2d_msg_id, true);
-	/* Clear msg_port for other SMU operation */
-	dev->msg_port = MSG_PORT_PMC;
 	if (ret) {
 		dev_err(dev->dev, "error: S2D_NUM_SAMPLES not supported : %d\n", ret);
-		return ret;
+		goto out;
 	}
 
 	fsize = min(num_samples, S2D_TELEMETRY_BYTES_MAX);
 	stb_data_arr = kmalloc_flex(*stb_data_arr, data, fsize);
-	if (!stb_data_arr)
-		return -ENOMEM;
+	if (!stb_data_arr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	stb_data_arr->size = fsize;
 
@@ -214,7 +216,10 @@ static int amd_stb_debugfs_open_v2(struct inode *inode, struct file *filp)
 
 	filp->private_data = stb_data_arr;
 
-	return 0;
+out:
+	/* Restore the default message port for subsequent SMU operations */
+	dev->msg_port = MSG_PORT_PMC;
+	return ret;
 }
 
 static ssize_t amd_stb_debugfs_read_v2(struct file *filp, char __user *buf, size_t size,
