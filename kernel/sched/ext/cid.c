@@ -371,27 +371,6 @@ void scx_cmask_fill(struct scx_cmask *m)
 		m->bits[nr_words - 1] &= (1ULL << tail_bits) - 1;
 }
 
-/**
- * scx_cpumask_to_cmask - Translate a kernel cpumask into a cmask
- * @src: source cpumask
- * @dst: cmask to write
- *
- * Clear @dst's active range and set the bit for each cid whose cpu is in
- * @src and lies within that range. Out-of-range cids are silently ignored.
- */
-void scx_cpumask_to_cmask(const struct cpumask *src, struct scx_cmask *dst)
-{
-	s32 cpu;
-
-	scx_cmask_clear(dst);
-	for_each_cpu(cpu, src) {
-		s32 cid = __scx_cpu_to_cid(cpu);
-
-		if (cid >= 0)
-			__scx_cmask_set(cid, dst);
-	}
-}
-
 /*
  * Return the index of the largest entry in @counts, or NUMA_NO_NODE if all
  * entries are zero. Ties resolve to the lowest index.
