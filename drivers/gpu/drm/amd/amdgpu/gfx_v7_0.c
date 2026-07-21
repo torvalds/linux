@@ -3161,6 +3161,22 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 }
 
+static unsigned int gfx_v7_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring,
+						      uint64_t gpu_addr)
+{
+	unsigned int ret;
+
+	/* Discard following DWs after this packet when gpu_addr==0 */
+	amdgpu_ring_write(ring, PACKET3(PACKET3_COND_EXEC, 3));
+	amdgpu_ring_write(ring, lower_32_bits(gpu_addr));
+	amdgpu_ring_write(ring, upper_32_bits(gpu_addr));
+	amdgpu_ring_write(ring, 0);
+	ret = ring->wptr & ring->buf_mask;
+	/* patch dummy value later */
+	amdgpu_ring_write(ring, 0);
+	return ret;
+}
+
 static void gfx_v7_0_ring_emit_wreg(struct amdgpu_ring *ring,
 				    uint32_t reg, uint32_t val)
 {
@@ -4942,6 +4958,8 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v7_0_ring_set_wptr_gfx,
 	.emit_frame_size =
+		5 + /* gfx_v7_0_ring_emit_init_cond_exec (from amdgpu_ib_schedule) */
+		5 + /* gfx_v7_0_ring_emit_init_cond_exec (from amdgpu_vm_flush) */
 		20 + /* gfx_v7_0_ring_emit_gds_switch */
 		7 + /* gfx_v7_0_ring_emit_hdp_flush */
 		5 + /* hdp invalidate */
@@ -4964,6 +4982,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_switch_buffer = gfx_v7_0_ring_emit_sb,
 	.emit_cntxcntl = gfx_v7_ring_emit_cntxcntl,
+	.init_cond_exec = gfx_v7_0_ring_emit_init_cond_exec,
 	.emit_wreg = gfx_v7_0_ring_emit_wreg,
 	.soft_recovery = gfx_v7_0_ring_soft_recovery,
 	.emit_mem_sync = gfx_v7_0_emit_mem_sync,
@@ -4978,6 +4997,8 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v7_0_ring_set_wptr_compute,
 	.emit_frame_size =
+		5 + /* gfx_v7_0_ring_emit_init_cond_exec (from amdgpu_ib_schedule) */
+		5 + /* gfx_v7_0_ring_emit_init_cond_exec (from amdgpu_vm_flush) */
 		20 + /* gfx_v7_0_ring_emit_gds_switch */
 		7 + /* gfx_v7_0_ring_emit_hdp_flush */
 		5 + /* hdp invalidate */
@@ -4996,6 +5017,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.test_ib = gfx_v7_0_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.init_cond_exec = gfx_v7_0_ring_emit_init_cond_exec,
 	.emit_wreg = gfx_v7_0_ring_emit_wreg,
 	.soft_recovery = gfx_v7_0_ring_soft_recovery,
 	.emit_mem_sync = gfx_v7_0_emit_mem_sync_compute,
