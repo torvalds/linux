@@ -892,7 +892,12 @@ void amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 
 	amdgpu_ring_patch_cond_exec(ring, patch);
 
-	/* the double SWITCH_BUFFER here *cannot* be skipped by COND_EXEC */
+	/*
+	 * Sync CE with ME to prevent CE from fetching the next CE IB
+	 * before the context switch is done. This is emitted before
+	 * the first IB of a job submission after a context switch.
+	 * The double SWITCH_BUFFER here *cannot* be skipped by COND_EXEC.
+	 */
 	if (ring->funcs->emit_switch_buffer) {
 		amdgpu_ring_emit_switch_buffer(ring);
 		amdgpu_ring_emit_switch_buffer(ring);
