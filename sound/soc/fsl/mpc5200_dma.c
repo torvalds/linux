@@ -314,35 +314,29 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 {
 	phys_addr_t fifo;
 	struct psc_dma *psc_dma;
-	struct resource res;
+	struct resource *res;
 	int size, irq, rc;
 	const __be32 *prop;
 	void __iomem *regs;
-	int ret;
+
+	regs = devm_platform_get_and_ioremap_resource(op, 0, &res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	/* Fetch the registers and IRQ of the PSC */
-	irq = irq_of_parse_and_map(op->dev.of_node, 0);
-	if (of_address_to_resource(op->dev.of_node, 0, &res)) {
-		dev_err(&op->dev, "Missing reg property\n");
-		return -ENODEV;
-	}
-	regs = devm_ioremap(&op->dev, res.start, resource_size(&res));
-	if (!regs) {
-		dev_err(&op->dev, "Could not map registers\n");
-		return -ENODEV;
-	}
+	irq = platform_get_irq(op, 0);
+	if (irq < 0)
+		return irq;
 
 	/* Allocate and initialize the driver private data */
-	psc_dma = kzalloc_obj(*psc_dma);
+	psc_dma = devm_kzalloc(&op->dev, sizeof(*psc_dma), GFP_KERNEL);
 	if (!psc_dma)
 		return -ENOMEM;
 
 	/* Get the PSC ID */
 	prop = of_get_property(op->dev.of_node, "cell-index", &size);
-	if (!prop || size < sizeof *prop) {
-		ret = -ENODEV;
-		goto out_free;
-	}
+	if (!prop || size < sizeof *prop)
+		return -ENODEV;
 
 	spin_lock_init(&psc_dma->lock);
 	mutex_init(&psc_dma->mutex);
@@ -357,7 +351,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 
 	/* Find the address of the fifo data registers and setup the
 	 * DMA tasks */
-	fifo = res.start + offsetof(struct mpc52xx_psc, buffer.buffer_32);
+	fifo = res->start + offsetof(struct mpc52xx_psc, buffer.buffer_32);
 	psc_dma->capture.bcom_task =
 		bcom_psc_gen_bd_rx_init(psc_dma->id, 10, fifo, 512);
 	psc_dma->playback.bcom_task =
@@ -365,8 +359,7 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	if (!psc_dma->capture.bcom_task ||
 	    !psc_dma->playback.bcom_task) {
 		dev_err(&op->dev, "Could not allocate bestcomm tasks\n");
-		ret = -ENODEV;
-		goto out_free;
+		return -ENODEV;
 	}
 
 	/* Disable all interrupts and reset the PSC */
@@ -399,16 +392,14 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	psc_dma->capture.irq =
 		bcom_get_task_irq(psc_dma->capture.bcom_task);
 
-	rc = request_irq(psc_dma->irq, &psc_dma_status_irq, IRQF_SHARED,
+	rc = devm_request_irq(&op->dev, psc_dma->irq, &psc_dma_status_irq, IRQF_SHARED,
 			 "psc-dma-status", psc_dma);
-	rc |= request_irq(psc_dma->capture.irq, &psc_dma_bcom_irq, IRQF_SHARED,
+	rc |= devm_request_irq(&op->dev, psc_dma->capture.irq, &psc_dma_bcom_irq, IRQF_SHARED,
 			  "psc-dma-capture", &psc_dma->capture);
-	rc |= request_irq(psc_dma->playback.irq, &psc_dma_bcom_irq, IRQF_SHARED,
+	rc |= devm_request_irq(&op->dev, psc_dma->playback.irq, &psc_dma_bcom_irq, IRQF_SHARED,
 			  "psc-dma-playback", &psc_dma->playback);
-	if (rc) {
-		ret = -ENODEV;
-		goto out_irq;
-	}
+	if (rc)
+		return -ENODEV;
 
 	/* Save what we've done so it can be found again later */
 	dev_set_drvdata(&op->dev, psc_dma);
@@ -416,13 +407,6 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	/* Tell the ASoC OF helpers about it */
 	return devm_snd_soc_register_component(&op->dev,
 					&mpc5200_audio_dma_component, NULL, 0);
-out_irq:
-	free_irq(psc_dma->irq, psc_dma);
-	free_irq(psc_dma->capture.irq, &psc_dma->capture);
-	free_irq(psc_dma->playback.irq, &psc_dma->playback);
-out_free:
-	kfree(psc_dma);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(mpc5200_audio_dma_create);
 
@@ -435,12 +419,6 @@ int mpc5200_audio_dma_destroy(struct platform_device *op)
 	bcom_gen_bd_rx_release(psc_dma->capture.bcom_task);
 	bcom_gen_bd_tx_release(psc_dma->playback.bcom_task);
 
-	/* Release irqs */
-	free_irq(psc_dma->irq, psc_dma);
-	free_irq(psc_dma->capture.irq, &psc_dma->capture);
-	free_irq(psc_dma->playback.irq, &psc_dma->playback);
-
-	kfree(psc_dma);
 	dev_set_drvdata(&op->dev, NULL);
 
 	return 0;

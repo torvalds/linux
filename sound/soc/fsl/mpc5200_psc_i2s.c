@@ -166,7 +166,7 @@ static int psc_i2s_of_probe(struct platform_device *op)
 	if (rc != 0)
 		return rc;
 
-	rc = snd_soc_register_component(&op->dev, &psc_i2s_component,
+	rc = devm_snd_soc_register_component(&op->dev, &psc_i2s_component,
 					psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
 	if (rc != 0) {
 		pr_err("Failed to register DAI\n");
@@ -213,7 +213,6 @@ static int psc_i2s_of_probe(struct platform_device *op)
 static void psc_i2s_of_remove(struct platform_device *op)
 {
 	mpc5200_audio_dma_destroy(op);
-	snd_soc_unregister_component(&op->dev);
 }
 
 /* Match table for of_platform binding */
