@@ -1123,6 +1123,10 @@ int begin_new_exec(struct linux_binprm * bprm)
 	struct task_struct *me = current;
 	int retval;
 
+	/* A pending PT_INTERP substitution this format cannot consume. */
+	if (bprm->loader)
+		return -ENOEXEC;
+
 	/* Once we are committed compute the creds */
 	retval = bprm_creds_from_file(bprm);
 	if (retval)
@@ -1414,6 +1418,39 @@ static void do_close_execat(struct file *file)
 	fput(file);
 }
 
+/**
+ * bprm_open_interpreter - open the interpreter the binary asks for
+ * @bprm: binary that is being executed
+ * @path: the interpreter path named in the binary's PT_INTERP
+ *
+ * A binfmt_misc loader entry substitutes for the interpreter the binary
+ * names. Hand out the stashed substitute if there is one and open @path
+ * if there is not. The caller owns the reference either way and releases
+ * it like any other open_exec() one.
+ *
+ * Return: the interpreter on success, an ERR_PTR on failure
+ */
+struct file *bprm_open_interpreter(struct linux_binprm *bprm, const char *path)
+{
+	if (bprm->loader)
+		return no_free_ptr(bprm->loader);
+	return open_exec(path);
+}
+
+/**
+ * bprm_drop_loader - discard a PT_INTERP substitute that does not apply
+ * @bprm: binary that is being executed
+ *
+ * A binary without PT_INTERP has nothing to substitute for, so drop the
+ * override and let the binary load natively rather than have
+ * begin_new_exec() refuse it. A no-op once bprm_open_interpreter() took
+ * the substitute.
+ */
+void bprm_drop_loader(struct linux_binprm *bprm)
+{
+	do_close_execat(no_free_ptr(bprm->loader));
+}
+
 static void free_bprm(struct linux_binprm *bprm)
 {
 	if (bprm->mm) {
@@ -1433,6 +1470,8 @@ static void free_bprm(struct linux_binprm *bprm)
 	if (bprm->old_mm)
 		exec_mm_put_old(bprm->old_mm);
 	do_close_execat(bprm->file);
+	/* An unconsumed PT_INTERP substitute from a binfmt_misc loader entry. */
+	bprm_drop_loader(bprm);
 	do_close_execat(bprm->executable);
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
@@ -1749,6 +1788,9 @@ static int exec_binprm(struct linux_binprm *bprm)
 			return ret;
 		if (!bprm->interpreter)
 			break;
+
+		/* A stashed PT_INTERP substitute belonged to the replaced file. */
+		bprm_drop_loader(bprm);
 
 		exec = bprm->file;
 		bprm->file = bprm->interpreter;

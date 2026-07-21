@@ -62,6 +62,7 @@ struct linux_binprm {
 		is_check:1;
 	struct file *executable; /* Executable to pass to the interpreter */
 	struct file *interpreter;
+	struct file *loader;
 	struct file *file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -159,6 +160,8 @@ extern int begin_new_exec(struct linux_binprm * bprm);
 extern void setup_new_exec(struct linux_binprm * bprm);
 extern void finalize_exec(struct linux_binprm *bprm);
 extern void would_dump(struct linux_binprm *, struct file *);
+struct file *bprm_open_interpreter(struct linux_binprm *bprm, const char *path);
+void bprm_drop_loader(struct linux_binprm *bprm);
 
 extern int suid_dumpable;
 
