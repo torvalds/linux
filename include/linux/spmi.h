@@ -70,6 +70,22 @@ int spmi_device_add(struct spmi_device *sdev);
 void spmi_device_remove(struct spmi_device *sdev);
 
 /**
+ * struct spmi_subdevice - Basic representation of an SPMI sub-device
+ * @sdev:	Sub-device representation of an SPMI device
+ * @devid:	Platform Device ID of an SPMI sub-device
+ */
+struct spmi_subdevice {
+	struct spmi_device	sdev;
+	unsigned int		devid;
+};
+
+struct spmi_subdevice *spmi_subdevice_alloc_and_add(struct spmi_device *sparent);
+void spmi_subdevice_remove(struct spmi_subdevice *sdev);
+
+struct spmi_subdevice *devm_spmi_subdevice_alloc_and_add(struct device *dev,
+							 struct spmi_device *sparent);
+
+/**
  * struct spmi_controller - interface to the SPMI master controller
  * @dev:	Driver model representation of the device.
  * @nr:		board-specific number identifier for this controller/bus
