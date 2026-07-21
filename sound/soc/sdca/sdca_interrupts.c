@@ -457,6 +457,7 @@ int sdca_irq_populate_early(struct device *dev, struct regmap *regmap,
 					return ret;
 
 				interrupt->early_request = true;
+				interrupt->free_priv = sdca_fdl_free_state;
 
 				ret = sdca_fdl_alloc_state(interrupt);
 				if (ret)
@@ -530,6 +531,8 @@ int sdca_irq_populate(struct sdca_function_data *function,
 				handler = function_status_handler;
 				break;
 			case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+				interrupt->free_priv = sdca_jack_free_state;
+
 				ret = sdca_jack_alloc_state(interrupt);
 				if (ret)
 					return ret;
@@ -537,6 +540,8 @@ int sdca_irq_populate(struct sdca_function_data *function,
 				handler = detected_mode_handler;
 				break;
 			case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
+				interrupt->free_priv = sdca_fdl_free_state;
+
 				ret = sdca_fdl_alloc_state(interrupt);
 				if (ret)
 					return ret;
@@ -583,6 +588,9 @@ static void sdca_irq_cleanup_flags(struct device *dev,
 			continue;
 
 		sdca_irq_free_locked(dev, info, i, interrupt->name, interrupt);
+
+		if (interrupt->free_priv)
+			interrupt->free_priv(interrupt);
 
 		kfree(interrupt->name);
 	}

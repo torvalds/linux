@@ -132,10 +132,9 @@ EXPORT_SYMBOL_NS_GPL(sdca_jack_process, "SND_SOC_SDCA");
  */
 int sdca_jack_alloc_state(struct sdca_interrupt *interrupt)
 {
-	struct device *dev = interrupt->dev;
 	struct jack_state *jack_state;
 
-	jack_state = devm_kzalloc(dev, sizeof(*jack_state), GFP_KERNEL);
+	jack_state = kzalloc_obj(*jack_state);
 	if (!jack_state)
 		return -ENOMEM;
 
@@ -144,6 +143,16 @@ int sdca_jack_alloc_state(struct sdca_interrupt *interrupt)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_jack_alloc_state, "SND_SOC_SDCA");
+
+/**
+ * sdca_jack_free_state - free state for a jack interrupt
+ * @interrupt: SDCA interrupt structure.
+ */
+void sdca_jack_free_state(struct sdca_interrupt *interrupt)
+{
+	kfree(interrupt->priv);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_jack_free_state, "SND_SOC_SDCA");
 
 static int type_get_mask(enum sdca_terminal_type type)
 {

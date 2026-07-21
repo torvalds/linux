@@ -31,6 +31,7 @@ struct sdca_function_data;
  * @entity: Pointer to the Entity that the interrupt is associated with.
  * @control: Pointer to the Control that the interrupt is associated with.
  * @priv: Pointer to private data for use by the handler.
+ * @free_priv: Pointer to a function that can be used to free the priv data.
  * @irq: IRQ number allocated to this interrupt, also used internally to track
  * the IRQ being assigned.
  * @early_request: Flag to indicate this IRQ was requested at bus probe time.
@@ -47,6 +48,7 @@ struct sdca_interrupt {
 	struct sdca_control *control;
 
 	void *priv;
+	void (*free_priv)(struct sdca_interrupt *interrupt);
 
 	int irq;
 	bool early_request;
