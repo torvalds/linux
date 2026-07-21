@@ -2699,25 +2699,6 @@ static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-/**
- * gfx_v7_0_cp_compute_fini - stop the compute queues
- *
- * @adev: amdgpu_device pointer
- *
- * Stop the compute queues and tear down the driver queue
- * info.
- */
-static void gfx_v7_0_cp_compute_fini(struct amdgpu_device *adev)
-{
-	int i;
-
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
-
-		amdgpu_bo_free_kernel(&ring->mqd_obj, NULL, NULL);
-	}
-}
-
 static void gfx_v7_0_mec_fini(struct amdgpu_device *adev)
 {
 	amdgpu_bo_free_kernel(&adev->gfx.mec.hpd_eop_obj, NULL, NULL);
@@ -2789,28 +2770,29 @@ static void gfx_v7_0_compute_pipe_init(struct amdgpu_device *adev,
 	mutex_unlock(&adev->srbm_mutex);
 }
 
-static int gfx_v7_0_mqd_deactivate(struct amdgpu_device *adev)
+static int gfx_v7_0_deactivate_hqd(struct amdgpu_device *adev, u32 req)
 {
-	int i;
+	int i, r = 0;
 
 	/* disable the queue if it's active */
-	if (RREG32(mmCP_HQD_ACTIVE) & 1) {
-		WREG32(mmCP_HQD_DEQUEUE_REQUEST, 1);
+	if (RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK) {
+		WREG32_FIELD(CP_HQD_DEQUEUE_REQUEST, DEQUEUE_REQ, req);
 		for (i = 0; i < adev->usec_timeout; i++) {
-			if (!(RREG32(mmCP_HQD_ACTIVE) & 1))
+			if (!(RREG32(mmCP_HQD_ACTIVE) & CP_HQD_ACTIVE__ACTIVE_MASK))
 				break;
 			udelay(1);
 		}
 
 		if (i == adev->usec_timeout)
-			return -ETIMEDOUT;
+			r = -ETIMEDOUT;
 
-		WREG32(mmCP_HQD_DEQUEUE_REQUEST, 0);
-		WREG32(mmCP_HQD_PQ_RPTR, 0);
-		WREG32(mmCP_HQD_PQ_WPTR, 0);
 	}
 
-	return 0;
+	WREG32(mmCP_HQD_DEQUEUE_REQUEST, 0);
+	WREG32(mmCP_HQD_PQ_RPTR, 0);
+	WREG32(mmCP_HQD_PQ_WPTR, 0);
+
+	return r;
 }
 
 static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
@@ -2965,31 +2947,42 @@ static int gfx_v7_0_mqd_commit(struct amdgpu_device *adev, struct cik_mqd *mqd)
 
 static int gfx_v7_0_compute_queue_init(struct amdgpu_device *adev, int ring_id)
 {
-	int r;
-	u64 mqd_gpu_addr;
-	struct cik_mqd *mqd;
 	struct amdgpu_ring *ring = &adev->gfx.compute_ring[ring_id];
+	struct cik_mqd *mqd = ring->mqd_ptr;
+	int mqd_idx = ring - &adev->gfx.compute_ring[0];
 
-	r = amdgpu_bo_create_reserved(adev, sizeof(struct cik_mqd), PAGE_SIZE,
-				      AMDGPU_GEM_DOMAIN_GTT, &ring->mqd_obj,
-				      &mqd_gpu_addr, (void **)&mqd);
-	if (r) {
-		dev_warn(adev->dev, "(%d) create MQD bo failed\n", r);
-		return r;
+	if (!amdgpu_in_reset(adev) && !adev->in_suspend) {
+		memset((void *)mqd, 0, ring->mqd_size);
+		mutex_lock(&adev->srbm_mutex);
+		cik_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		gfx_v7_0_mqd_init(adev, mqd, ring->mqd_gpu_addr, ring);
+		gfx_v7_0_deactivate_hqd(adev, 1);
+		gfx_v7_0_mqd_commit(adev, mqd);
+		cik_srbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+
+		if (adev->gfx.mec.mqd_backup[mqd_idx])
+			memcpy(adev->gfx.mec.mqd_backup[mqd_idx], mqd, ring->mqd_size);
+	} else {
+		/* restore MQD to a clean status */
+		if (adev->gfx.mec.mqd_backup[mqd_idx])
+			memcpy(mqd, adev->gfx.mec.mqd_backup[mqd_idx], ring->mqd_size);
+
+		/* Re-commit the restored backup */
+		mutex_lock(&adev->srbm_mutex);
+		cik_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
+		gfx_v7_0_deactivate_hqd(adev, 2);
+		gfx_v7_0_mqd_commit(adev, mqd);
+		cik_srbm_select(adev, 0, 0, 0, 0);
+		mutex_unlock(&adev->srbm_mutex);
+
+		/* reset ring buffer */
+		ring->wptr = 0;
+		atomic64_set((atomic64_t *)ring->wptr_cpu_addr, 0);
+		atomic64_set((atomic64_t *)ring->rptr_cpu_addr, 0);
+		amdgpu_ring_clear_ring(ring);
 	}
 
-	mutex_lock(&adev->srbm_mutex);
-	cik_srbm_select(adev, ring->me, ring->pipe, ring->queue, 0);
-
-	gfx_v7_0_mqd_init(adev, mqd, mqd_gpu_addr, ring);
-	gfx_v7_0_mqd_deactivate(adev);
-	gfx_v7_0_mqd_commit(adev, mqd);
-
-	cik_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-
-	amdgpu_bo_kunmap(ring->mqd_obj);
-	amdgpu_bo_unreserve(ring->mqd_obj);
 	return 0;
 }
 
@@ -3021,10 +3014,8 @@ static int gfx_v7_0_cp_compute_resume(struct amdgpu_device *adev)
 	/* init the queues */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		r = gfx_v7_0_compute_queue_init(adev, i);
-		if (r) {
-			gfx_v7_0_cp_compute_fini(adev);
+		if (r)
 			return r;
-		}
 	}
 
 	gfx_v7_0_cp_compute_enable(adev, true);
@@ -4431,6 +4422,11 @@ static int gfx_v7_0_sw_init(struct amdgpu_ip_block *ip_block)
 		}
 	}
 
+	/* create MQD for all compute queues */
+	r = amdgpu_gfx_mqd_sw_init(adev, sizeof(struct cik_mqd), 0);
+	if (r)
+		return r;
+
 	adev->gfx.ce_ram_size = 0x8000;
 
 	gfx_v7_0_gpu_early_init(adev);
@@ -4453,7 +4449,7 @@ static int gfx_v7_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	gfx_v7_0_cp_compute_fini(adev);
+	amdgpu_gfx_mqd_sw_fini(adev, 0);
 	amdgpu_gfx_rlc_fini(adev);
 	gfx_v7_0_mec_fini(adev);
 	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj,
