@@ -1063,6 +1063,50 @@ static void dm_test_crtc_enable_vblank_in_reset(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
 }
 
+/**
+ * dm_test_crtc_enable_vblank_queues_work - Test enable queues vblank control work
+ * @test: The KUnit test context
+ *
+ * With a vblank control workqueue installed, the enable path allocates a work
+ * item, retains the stream and queues the control worker. Draining the queue
+ * runs the worker, which bumps the active vblank IRQ count. The initial ISM
+ * state has no EXIT_IDLE_REQUESTED transition, so the worker only exercises the
+ * vblank accounting (the ISM state machine is covered by its own tests).
+ */
+static void dm_test_crtc_enable_vblank_queues_work(struct kunit *test)
+{
+	struct dm_crtc_state *acrtc_state;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	/* DCE_VERSION_8_0 supports VRR -> the vupdate-irq branch is walked. */
+	acrtc = dm_test_crtc_setup_enable(test, &adev, DCE_VERSION_8_0);
+
+	/* OTG unassigned -> amdgpu_dm_crtc_set_vupdate_irq() returns 0 early. */
+	acrtc->otg_inst = -1;
+	acrtc_state = to_dm_crtc_state(acrtc->base.state);
+	acrtc_state->freesync_config.state = VRR_STATE_ACTIVE_VARIABLE;
+
+	adev->irq.installed = true;
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 1);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 1);
+
+	/* Real workqueue so the queue_work() branch runs the control worker. */
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.vblank_control_workqueue =
+		create_singlethread_workqueue("dm_test_vblank");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.vblank_control_workqueue);
+
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_crtc_enable_vblank(&acrtc->base), 0);
+
+	/* Drain the queued worker before the fixture is torn down, then tidy up. */
+	destroy_workqueue(adev->dm.vblank_control_workqueue);
+	adev->dm.vblank_control_workqueue = NULL;
+
+	/* The queued worker ran and accounted the active vblank IRQ. */
+	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 1);
+}
+
 /* Tests for amdgpu_dm_crtc_update_crtc_active_planes() */
 
 /**
@@ -1585,6 +1629,75 @@ static void dm_test_crtc_disable_vblank_vrr(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, atomic_read(&adev->pageflip_irq.enabled_types[0]), 1);
 }
 
+/**
+ * dm_test_crtc_disable_vblank_queues_work - Test disable queues work without a stream
+ * @test: The KUnit test context
+ *
+ * With a vblank control workqueue installed and a CRTC state carrying no
+ * stream, the disable path queues the control worker without retaining a
+ * stream. Draining the queue runs the worker, which drops the active vblank IRQ
+ * count. The ISM is seeded in a state with no ENTER_IDLE_REQUESTED transition
+ * so the worker only exercises the vblank accounting.
+ */
+static void dm_test_crtc_disable_vblank_queues_work(struct kunit *test)
+{
+	struct amdgpu_reset_domain *reset_domain;
+	struct dm_crtc_state *dm_state;
+	struct amdgpu_device *adev;
+	struct amdgpu_crtc *acrtc;
+
+	adev = dm_kunit_alloc_adev(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev);
+
+	adev->dm.dc = dm_kunit_alloc_dc_with_ctx(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.dc);
+	/* DCE_VERSION_6_0 has no VRR, so the vupdate-irq branch is skipped. */
+	adev->dm.dc->ctx->dce_version = DCE_VERSION_6_0;
+	adev->dm.active_vblank_irq_count = 2;
+
+	adev->mode_info.num_crtc = 1;
+	adev->irq.installed = true;
+
+	reset_domain = kunit_kzalloc(test, sizeof(*reset_domain), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, reset_domain);
+	adev->reset_domain = reset_domain;
+
+	/* Seed with 2 so amdgpu_irq_put() drops to a non-zero refcount. */
+	dm_test_crtc_arm_irq_src(test, &adev->crtc_irq, 2);
+	dm_test_crtc_arm_irq_src(test, &adev->pageflip_irq, 2);
+
+	acrtc = kunit_kzalloc(test, sizeof(*acrtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, acrtc);
+	acrtc->base.dev = &adev->ddev;
+	acrtc->crtc_id = 0;
+	acrtc->otg_inst = -1;
+	/*
+	 * Seed the ISM in a state where ENTER_IDLE_REQUESTED does not transition
+	 * so the worker skips the ISM power-state dispatch and its timers.
+	 */
+	acrtc->ism.current_state = DM_ISM_STATE_HYSTERESIS_WAITING;
+
+	/* CRTC state with no stream -> the stream-retain branch is skipped. */
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dm_state);
+	acrtc->base.state = &dm_state->base;
+
+	/* Real workqueue so the queue_work() branch runs the control worker. */
+	mutex_init(&adev->dm.dc_lock);
+	adev->dm.vblank_control_workqueue =
+		create_singlethread_workqueue("dm_test_vblank");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, adev->dm.vblank_control_workqueue);
+
+	amdgpu_dm_crtc_disable_vblank(&acrtc->base);
+
+	/* Drain the queued worker before the fixture is torn down, then tidy up. */
+	destroy_workqueue(adev->dm.vblank_control_workqueue);
+	adev->dm.vblank_control_workqueue = NULL;
+
+	/* The queued worker ran and decremented the active vblank IRQ count. */
+	KUNIT_EXPECT_EQ(test, adev->dm.active_vblank_irq_count, 1);
+}
+
 static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_modeset_required */
 	KUNIT_CASE(dm_test_crtc_modeset_required_active_mode_changed),
@@ -1634,6 +1747,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	KUNIT_CASE(dm_test_crtc_enable_vblank_vupdate_busy),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_crtc_irq_error),
 	KUNIT_CASE(dm_test_crtc_enable_vblank_in_reset),
+	KUNIT_CASE(dm_test_crtc_enable_vblank_queues_work),
 	/* amdgpu_dm_crtc_update_crtc_active_planes */
 	KUNIT_CASE(dm_test_crtc_update_active_planes_no_stream),
 	/* amdgpu_dm_crtc_count_crtc_active_planes */
@@ -1656,6 +1770,7 @@ static struct kunit_case amdgpu_dm_crtc_tests[] = {
 	/* amdgpu_dm_crtc_disable_vblank */
 	KUNIT_CASE(dm_test_crtc_disable_vblank_no_irq_installed),
 	KUNIT_CASE(dm_test_crtc_disable_vblank_vrr),
+	KUNIT_CASE(dm_test_crtc_disable_vblank_queues_work),
 	{}
 };
 
