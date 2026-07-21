@@ -92,7 +92,7 @@ static inline u64 kvm_get_guest_vtr_el2(void)
 {
 	u64 vtr;
 
-	vtr  = kvm_vgic_global_state.ich_vtr_el2;
+	vtr  = vgic_ich_vtr();
 	vtr &= ~KVM_ICH_VTR_EL2_RES0;
 	vtr |= KVM_ICH_VTR_EL2_RES1;
 
