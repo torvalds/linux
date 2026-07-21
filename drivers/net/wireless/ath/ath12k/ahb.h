@@ -69,13 +69,19 @@ struct ath12k_ahb_device_family_ops {
 	void (*arch_deinit)(struct ath12k_base *ab);
 };
 
-struct ath12k_ahb {
-	struct ath12k_base *ab;
+struct ath12k_ahb_rproc_info {
 	struct rproc *tgt_rproc;
-	struct clk *xo_clk;
-	struct completion rootpd_ready;
 	struct notifier_block root_pd_nb;
 	void *root_pd_notifier;
+	struct completion rootpd_ready;
+	u8 num_userpd;
+	bool rootpd_booted_by_driver;
+	struct ath12k_ahb *userpd[ATH12K_MAX_DEVICES];
+};
+
+struct ath12k_ahb {
+	struct ath12k_base *ab;
+	struct clk *xo_clk;
 	struct qcom_smem_state *spawn_state;
 	struct qcom_smem_state *stop_state;
 	struct completion userpd_spawned;
@@ -88,6 +94,7 @@ struct ath12k_ahb {
 	const struct ath12k_ahb_ops *ahb_ops;
 	const struct ath12k_ahb_device_family_ops *device_family_ops;
 	bool scm_auth_enabled;
+	struct ath12k_ahb_rproc_info *rproc_info;
 };
 
 struct ath12k_ahb_driver {
