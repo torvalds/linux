@@ -197,9 +197,9 @@ interpreter line, e.g. for a handler that resolves ``$ORIGIN`` in a script's
 ``#!`` path and needs to preserve the argument that followed it.
 
 The invocation flags a static entry fixes at registration - ``P``, ``C``,
-``O`` and ``T`` - are per-exec choices for a bpf handler, made by the ``load``
-program with the ``bpf_binprm_set_flags()`` kfunc, so a single handler can
-decide them differently for each binary it handles:
+``O``, ``T`` and ``L`` - are per-exec choices for a bpf handler, made by the
+``load`` program with the ``bpf_binprm_set_flags()`` kfunc, so a single
+handler can decide them differently for each binary it handles:
 
 - ``BPF_BINPRM_PRESERVE_ARGV0`` keeps the caller's ``argv[0]`` (the ``P``
   flag).
@@ -220,6 +220,9 @@ decide them differently for each binary it handles:
   run a binary passed as an inaccessible ``O_CLOEXEC`` file descriptor to
   ``execveat()``, which a path-splicing dispatch cannot: the interpreter
   has no path by which to open it.
+- ``BPF_BINPRM_LOADER`` substitutes the interpreter for the binary's
+  ``PT_INTERP`` and runs the binary as a fully native exec (the ``L``
+  flag). It excludes the other flags and a staged interpreter argument.
 
 Because these are program choices, a ``B`` entry carries no flags in the
 register string; ``F`` (pre-open a fixed interpreter) has no meaning for it.

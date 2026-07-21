@@ -171,13 +171,15 @@ __bpf_kfunc int bpf_binprm_set_interp_arg(struct linux_binprm *bprm,
  * @flags: an OR of enum bpf_binprm_flags values
  *
  * To be called from the load program of a struct binfmt_misc_ops handler. It
- * decides per exec what a static entry fixes at registration with the P, C, O
- * and T flags: BPF_BINPRM_PRESERVE_ARGV0 keeps the caller's argv[0],
+ * decides per exec what a static entry fixes at registration with the P, C,
+ * O, T and L flags: BPF_BINPRM_PRESERVE_ARGV0 keeps the caller's argv[0],
  * BPF_BINPRM_CREDENTIALS computes credentials from the binary, and
  * BPF_BINPRM_EXECFD hands the binary to the interpreter through AT_EXECFD.
  * BPF_BINPRM_TRANSPARENT additionally leaves the argument vector untouched,
- * making the exec look like a direct execution of the binary. Calling it
- * again replaces the flags, passing zero clears them again.
+ * making the exec look like a direct execution of the binary.
+ * BPF_BINPRM_LOADER substitutes the interpreter for the binary's PT_INTERP
+ * and runs the binary as a native exec; it excludes every other flag.
+ * Calling it again replaces the flags, passing zero clears them again.
  *
  * Return: 0 on success, -EINVAL if @flags contains an unknown bit or an
  * invalid combination
@@ -186,7 +188,12 @@ __bpf_kfunc int bpf_binprm_set_flags(struct linux_binprm *bprm,
 				     enum bpf_binprm_flags flags)
 {
 	if (flags & ~(BPF_BINPRM_PRESERVE_ARGV0 | BPF_BINPRM_CREDENTIALS |
-		      BPF_BINPRM_EXECFD | BPF_BINPRM_TRANSPARENT))
+		      BPF_BINPRM_EXECFD | BPF_BINPRM_TRANSPARENT |
+		      BPF_BINPRM_LOADER))
+		return -EINVAL;
+
+	/* Loader substitution is a native exec: no splice, execfd or creds work. */
+	if ((flags & BPF_BINPRM_LOADER) && (flags & ~BPF_BINPRM_LOADER))
 		return -EINVAL;
 
 	/* Transparency preserves the whole argv, argv[0] included. */
