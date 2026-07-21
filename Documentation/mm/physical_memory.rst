@@ -262,9 +262,6 @@ General
   PFN that needs to be initialized. Defined only when
   ``CONFIG_DEFERRED_STRUCT_PAGE_INIT`` is enabled
 
-``deferred_split_queue``
-  Per-node queue of huge pages that their split was deferred. Defined only when ``CONFIG_TRANSPARENT_HUGEPAGE`` is enabled.
-
 ``__lruvec``
   Per-node lruvec holding LRU lists and related parameters. Used only when
   memory cgroups are disabled. It should not be accessed directly, use
