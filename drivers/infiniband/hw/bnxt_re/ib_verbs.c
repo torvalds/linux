@@ -2169,7 +2169,7 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
 
 		if (uctx)
-			free_page((unsigned long)srq->uctx_srq_page);
+			rdma_user_mmap_entry_remove(&srq->toggle_entry->rdma_entry);
 	}
 	ib_umem_release(srq->umem);
 	atomic_dec(&rdev->stats.res.srq_count);
@@ -2282,10 +2282,17 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 				rc = -ENOMEM;
 				goto fail_destroy_srq;
 			}
+			srq->toggle_entry = bnxt_re_mmap_entry_insert(uctx, (u64)srq->uctx_srq_page,
+								      BNXT_RE_MMAP_TOGGLE_PAGE,
+								      NULL);
+			if (!srq->toggle_entry) {
+				rc = -ENOMEM;
+				goto fail_free_srq_page;
+			}
 			if (xa_is_err(xa_store(&uctx->srq_xa, srq->qplib_srq.id,
 					       ib_srq->uobject, GFP_KERNEL))) {
 				rc = -ENOMEM;
-				goto fail_free_srq_page;
+				goto fail_remove_toggle_entry;
 			}
 			resp.comp_mask |= BNXT_RE_SRQ_TOGGLE_PAGE_SUPPORT;
 		}
@@ -2303,10 +2310,13 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 fail_respond:
 	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT) {
 		xa_erase(&uctx->srq_xa, srq->qplib_srq.id);
-		free_page((unsigned long)srq->uctx_srq_page);
+		goto fail_remove_toggle_entry;
 	}
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, &srq->qplib_srq);
 	goto fail;
+fail_remove_toggle_entry:
+	rdma_user_mmap_entry_remove(&srq->toggle_entry->rdma_entry);
+	goto fail_destroy_srq;
 fail_free_srq_page:
 	free_page((unsigned long)srq->uctx_srq_page);
 fail_destroy_srq:
@@ -3510,7 +3520,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 			rdma_udata_to_drv_context(udata, struct bnxt_re_ucontext, ib_uctx);
 
 		if (uctx)
-			free_page((unsigned long)cq->uctx_cq_page);
+			rdma_user_mmap_entry_remove(&cq->toggle_entry->rdma_entry);
 	}
 
 	bnxt_re_put_nq(rdev, nq);
@@ -3591,10 +3601,16 @@ int bnxt_re_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *att
 			rc = -ENOMEM;
 			goto destroy_cq;
 		}
+		cq->toggle_entry = bnxt_re_mmap_entry_insert(uctx, (u64)cq->uctx_cq_page,
+							     BNXT_RE_MMAP_TOGGLE_PAGE, NULL);
+		if (!cq->toggle_entry) {
+			rc = -ENOMEM;
+			goto free_cq_page;
+		}
 		if (xa_is_err(xa_store(&uctx->cq_xa, cq->qplib_cq.id,
 				       ibcq->uobject, GFP_KERNEL))) {
 			rc = -ENOMEM;
-			goto free_cq_page;
+			goto remove_toggle_entry;
 		}
 		resp.comp_mask |= BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT;
 	}
@@ -3610,6 +3626,10 @@ int bnxt_re_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *att
 free_mem:
 	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
 		xa_erase(&uctx->cq_xa, cq->qplib_cq.id);
+remove_toggle_entry:
+	if (cctx->modes.toggle_bits & BNXT_QPLIB_CQ_TOGGLE_BIT)
+		rdma_user_mmap_entry_remove(&cq->toggle_entry->rdma_entry);
+	goto destroy_cq;
 free_cq_page:
 	free_page((unsigned long)cq->uctx_cq_page);
 destroy_cq:
@@ -5059,6 +5079,16 @@ void bnxt_re_mmap_free(struct rdma_user_mmap_entry *rdma_entry)
 
 	bnxt_entry = container_of(rdma_entry, struct bnxt_re_user_mmap_entry,
 				  rdma_entry);
+
+	/*
+	 * For toggle pages the kernel VA was stored directly in mem_offset
+	 * at creation time (bnxt_re_create_user_cq / bnxt_re_create_srq).
+	 * Free it here — this is the only place it is freed, ensuring the
+	 * page outlives every concurrent bnxt_re_mmap() call that may have
+	 * incremented the entry's reference count.
+	 */
+	if (bnxt_entry->mmap_flag == BNXT_RE_MMAP_TOGGLE_PAGE)
+		free_page((unsigned long)bnxt_entry->mem_offset);
 
 	if (bnxt_entry->dpi_valid)
 		bnxt_qplib_free_uc_dpi(&bnxt_entry->uctx->rdev->qplib_res,

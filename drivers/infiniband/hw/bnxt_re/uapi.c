@@ -213,19 +213,23 @@ DECLARE_UVERBS_GLOBAL_METHODS(BNXT_RE_OBJECT_NOTIFY_DRV,
 			      &UVERBS_METHOD(BNXT_RE_METHOD_NOTIFY_DRV));
 
 /* Toggle MEM */
+struct bnxt_re_toggle_mem {
+	struct bnxt_re_user_mmap_entry *toggle_entry;
+	u64 mmap_offset;
+};
+
 static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs, BNXT_RE_TOGGLE_MEM_HANDLE);
-	enum bnxt_re_mmap_flag mmap_flag = BNXT_RE_MMAP_TOGGLE_PAGE;
+	struct bnxt_re_user_mmap_entry *toggle_entry = NULL;
 	enum bnxt_re_get_toggle_mem_type res_type;
-	struct bnxt_re_user_mmap_entry *entry;
+	struct bnxt_re_toggle_mem *tmem;
 	struct ib_uobject *res_uobj;
 	struct bnxt_re_ucontext *uctx;
 	struct ib_ucontext *ib_uctx;
 	u32 length = PAGE_SIZE;
-	u64 mem_offset;
+	u64 mmap_offset = 0;
 	u32 offset = 0;
-	u64 addr = 0;
 	u32 res_id;
 	int err;
 
@@ -243,6 +247,10 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 		return err;
 
 	/*
+	 * Hold xa_lock across xa_load + kref_get so that a concurrent
+	 * bnxt_re_destroy_cq/srq cannot call __xa_erase and remove the
+	 * toggle_entry between our load and our reference on it.
+	 *
 	 * bnxt_re_create_cq/srq() publishes the uobject into cq_xa/srq_xa
 	 * before returning to the uverbs core, but the core only sets
 	 * uobject->object once the create callback has returned success.
@@ -257,7 +265,13 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 		res_uobj = xa_load(&uctx->cq_xa, res_id);
 		if (res_uobj && res_uobj->object) {
 			cq = container_of(res_uobj->object, struct bnxt_re_cq, ib_cq);
-			addr = (u64)cq->uctx_cq_page;
+			if (cq->toggle_entry)
+				mmap_offset =
+					rdma_user_mmap_get_offset(&cq->toggle_entry->rdma_entry);
+			if (mmap_offset) {
+				kref_get(&cq->toggle_entry->rdma_entry.ref);
+				toggle_entry = cq->toggle_entry;
+			}
 		}
 		xa_unlock(&uctx->cq_xa);
 	} else if (res_type == BNXT_RE_SRQ_TOGGLE_MEM) {
@@ -267,24 +281,34 @@ static int UVERBS_HANDLER(BNXT_RE_METHOD_GET_TOGGLE_MEM)(struct uverbs_attr_bund
 		res_uobj = xa_load(&uctx->srq_xa, res_id);
 		if (res_uobj && res_uobj->object) {
 			srq = container_of(res_uobj->object, struct bnxt_re_srq, ib_srq);
-			addr = (u64)srq->uctx_srq_page;
+			if (srq->toggle_entry)
+				mmap_offset =
+					rdma_user_mmap_get_offset(&srq->toggle_entry->rdma_entry);
+			if (mmap_offset) {
+				kref_get(&srq->toggle_entry->rdma_entry.ref);
+				toggle_entry = srq->toggle_entry;
+			}
 		}
 		xa_unlock(&uctx->srq_xa);
 	} else {
 		return -EOPNOTSUPP;
 	}
 
-	if (!addr)
+	if (!mmap_offset)
 		return -EOPNOTSUPP;
 
-	entry = bnxt_re_mmap_entry_insert(uctx, addr, mmap_flag, &mem_offset);
-	if (!entry)
+	tmem = kzalloc_obj(*tmem);
+	if (!tmem) {
+		rdma_user_mmap_entry_put(&toggle_entry->rdma_entry);
 		return -ENOMEM;
+	}
 
-	uobj->object = entry;
+	tmem->toggle_entry = toggle_entry;
+	tmem->mmap_offset = mmap_offset;
+	uobj->object = tmem;
 	uverbs_finalize_uobj_create(attrs, BNXT_RE_TOGGLE_MEM_HANDLE);
 	err = uverbs_copy_to(attrs, BNXT_RE_TOGGLE_MEM_MMAP_PAGE,
-			     &mem_offset, sizeof(mem_offset));
+			     &mmap_offset, sizeof(mmap_offset));
 	if (err)
 		return err;
 
@@ -305,9 +329,10 @@ static int get_toggle_mem_obj_cleanup(struct ib_uobject *uobject,
 				      enum rdma_remove_reason why,
 				      struct uverbs_attr_bundle *attrs)
 {
-	struct bnxt_re_user_mmap_entry *entry = uobject->object;
+	struct bnxt_re_toggle_mem *tmem = uobject->object;
 
-	rdma_user_mmap_entry_remove(&entry->rdma_entry);
+	rdma_user_mmap_entry_put(&tmem->toggle_entry->rdma_entry);
+	kfree(tmem);
 	return 0;
 }
 

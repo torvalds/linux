@@ -80,6 +80,7 @@ struct bnxt_re_srq {
 	struct ib_umem		*umem;
 	spinlock_t		lock;		/* protect srq */
 	void			*uctx_srq_page;
+	struct bnxt_re_user_mmap_entry *toggle_entry;
 };
 
 struct bnxt_re_qp {
@@ -114,6 +115,7 @@ struct bnxt_re_cq {
 	struct ib_umem		*resize_umem;
 	int			resize_cqe;
 	void			*uctx_cq_page;
+	struct bnxt_re_user_mmap_entry *toggle_entry;
 };
 
 struct bnxt_re_mr {
