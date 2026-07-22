@@ -617,7 +617,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	link_bss = __cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
 				      IEEE80211_BSS_TYPE_ANY,
 				      IEEE80211_PRIVACY_ANY,
-				      0);
+				      0, NULL);
 	KUNIT_ASSERT_NOT_NULL(test, link_bss);
 	KUNIT_EXPECT_EQ(test, link_bss->signal, 0);
 	KUNIT_EXPECT_EQ(test, link_bss->beacon_interval,

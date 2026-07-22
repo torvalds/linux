@@ -1609,10 +1609,12 @@ struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
 					const u8 *ssid, size_t ssid_len,
 					enum ieee80211_bss_type bss_type,
 					enum ieee80211_privacy privacy,
-					u32 use_for)
+					u32 use_for,
+					struct netlink_ext_ack *extack)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_internal_bss *bss, *res = NULL;
+	bool expired = false, unusable = false;
 	unsigned long now = jiffies;
 	int bss_privacy;
 
@@ -1634,22 +1636,48 @@ struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
 			continue;
 		if (!is_valid_ether_addr(bss->pub.bssid))
 			continue;
-		if ((bss->pub.use_for & use_for) != use_for)
+		if (!is_bss(&bss->pub, bssid, ssid, ssid_len))
 			continue;
+
+		/*
+		 * The identity checks above must all come first so that
+		 * the expired/unusable classification below only ever
+		 * applies to entries that actually match the request.
+		 */
+
 		/* Don't get expired BSS structs */
 		if (time_after(now, bss->ts + IEEE80211_SCAN_RESULT_EXPIRE) &&
-		    !atomic_read(&bss->hold))
+		    !atomic_read(&bss->hold)) {
+			expired = true;
 			continue;
-		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {
-			res = bss;
-			bss_ref_get(rdev, res);
-			break;
 		}
+
+		if ((bss->pub.use_for & use_for) != use_for) {
+			unusable = true;
+			continue;
+		}
+
+		res = bss;
+		bss_ref_get(rdev, res);
+		break;
 	}
 
 	spin_unlock_bh(&rdev->bss_lock);
-	if (!res)
+	if (!res) {
+		if (expired && unusable)
+			NL_SET_ERR_MSG(extack,
+				       "BSS entries are expired or cannot be used for the requested operation");
+		else if (unusable)
+			NL_SET_ERR_MSG(extack,
+				       "BSS cannot be used for the requested operation");
+		else if (expired)
+			NL_SET_ERR_MSG(extack,
+				       "BSS entry in scan results is expired");
+		else
+			NL_SET_ERR_MSG(extack,
+				       "BSS not found in scan results");
 		return NULL;
+	}
 	trace_cfg80211_return_bss(&res->pub);
 	return &res->pub;
 }

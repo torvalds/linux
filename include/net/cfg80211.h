@@ -8424,6 +8424,8 @@ cfg80211_inform_bss(struct wiphy *wiphy,
  * @bss_type: type of BSS, see &enum ieee80211_bss_type
  * @privacy: privacy filter, see &enum ieee80211_privacy
  * @use_for: indicates which use is intended
+ * @extack: (optional) extack that is filled with the reason when no
+ *	usable entry was found; may be %NULL
  *
  * Return: Reference-counted BSS on success. %NULL on error.
  */
@@ -8433,7 +8435,8 @@ struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
 					const u8 *ssid, size_t ssid_len,
 					enum ieee80211_bss_type bss_type,
 					enum ieee80211_privacy privacy,
-					u32 use_for);
+					u32 use_for,
+					struct netlink_ext_ack *extack);
 
 /**
  * cfg80211_get_bss - get a BSS reference
@@ -8457,7 +8460,7 @@ cfg80211_get_bss(struct wiphy *wiphy, struct ieee80211_channel *channel,
 {
 	return __cfg80211_get_bss(wiphy, channel, bssid, ssid, ssid_len,
 				  bss_type, privacy,
-				  NL80211_BSS_USE_FOR_NORMAL);
+				  NL80211_BSS_USE_FOR_NORMAL, NULL);
 }
 
 static inline struct cfg80211_bss *
