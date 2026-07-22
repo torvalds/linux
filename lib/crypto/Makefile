@@ -63,9 +63,6 @@ clean-files += powerpc/aesp8-ppc.S
 obj-$(CONFIG_CRYPTO_LIB_AESCFB)			+= libaescfb.o
 libaescfb-y					:= aescfb.o
 
-obj-$(CONFIG_CRYPTO_LIB_AESGCM)			+= libaesgcm.o
-libaesgcm-y					:= aesgcm.o
-
 obj-$(CONFIG_CRYPTO_LIB_ARC4)			+= libarc4.o
 libarc4-y					:= arc4.o
 

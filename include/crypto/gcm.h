@@ -3,9 +3,6 @@
 
 #include <linux/errno.h>
 
-#include <crypto/aes.h>
-#include <crypto/gf128hash.h>
-
 #define GCM_AES_IV_SIZE 12
 #define GCM_RFC4106_IV_SIZE 8
 #define GCM_RFC4543_IV_SIZE 8
@@ -63,23 +60,5 @@ static inline int crypto_ipsec_check_assoclen(unsigned int assoclen)
 
 	return 0;
 }
-
-struct aesgcm_ctx {
-	struct ghash_key	ghash_key;
-	struct aes_enckey	aes_key;
-	unsigned int		authsize;
-};
-
-int aesgcm_expandkey(struct aesgcm_ctx *ctx, const u8 *key,
-		     unsigned int keysize, unsigned int authsize);
-
-void aesgcm_encrypt(const struct aesgcm_ctx *ctx, u8 *dst, const u8 *src,
-		    int crypt_len, const u8 *assoc, int assoc_len,
-		    const u8 iv[GCM_AES_IV_SIZE], u8 *authtag);
-
-bool __must_check aesgcm_decrypt(const struct aesgcm_ctx *ctx, u8 *dst,
-				 const u8 *src, int crypt_len, const u8 *assoc,
-				 int assoc_len, const u8 iv[GCM_AES_IV_SIZE],
-				 const u8 *authtag);
 
 #endif
