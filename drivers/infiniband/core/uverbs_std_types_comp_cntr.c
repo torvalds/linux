@@ -6,6 +6,7 @@
 #include <rdma/uverbs_std_types.h>
 #include "rdma_core.h"
 #include "uverbs.h"
+#include "restrack.h"
 
 static int uverbs_free_comp_cntr(struct ib_uobject *uobject, enum rdma_remove_reason why,
 				 struct uverbs_attr_bundle *attrs)
@@ -16,10 +17,14 @@ static int uverbs_free_comp_cntr(struct ib_uobject *uobject, enum rdma_remove_re
 	if (atomic_read(&cc->usecnt))
 		return -EBUSY;
 
+	rdma_restrack_begin_del(&cc->res);
 	ret = cc->device->ops.destroy_comp_cntr(cc);
-	if (ret)
+	if (ret) {
+		rdma_restrack_abort_del(&cc->res);
 		return ret;
+	}
 
+	rdma_restrack_commit_del(&cc->res);
 	kfree(cc);
 	return 0;
 }
@@ -44,15 +49,20 @@ static int UVERBS_HANDLER(UVERBS_METHOD_COMP_CNTR_CREATE)(struct uverbs_attr_bun
 	cc->device = ib_dev;
 	cc->uobject = uobj;
 
+	rdma_restrack_new(&cc->res, RDMA_RESTRACK_COMP_CNTR);
+	rdma_restrack_set_name(&cc->res, NULL);
+
 	ret = ib_dev->ops.create_comp_cntr(cc, attrs);
 	if (ret)
 		goto err_free;
 
 	uobj->object = cc;
+	rdma_restrack_add(&cc->res);
 	uverbs_finalize_uobj_create(attrs, UVERBS_ATTR_CREATE_COMP_CNTR_HANDLE);
 	return 0;
 
 err_free:
+	rdma_restrack_put(&cc->res);
 	kfree(cc);
 	return ret;
 }

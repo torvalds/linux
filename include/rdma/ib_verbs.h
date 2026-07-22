@@ -1765,6 +1765,7 @@ struct ib_comp_cntr {
 	struct ib_device *device;
 	struct ib_uobject *uobject;
 	atomic_t usecnt;
+	struct rdma_restrack_entry res;
 };
 
 enum ib_comp_cntr_entry {

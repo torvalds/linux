@@ -451,8 +451,10 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device,
 		[RDMA_RESTRACK_MR] = "mr",
 		[RDMA_RESTRACK_CTX] = "ctx",
 		[RDMA_RESTRACK_SRQ] = "srq",
+		[RDMA_RESTRACK_COMP_CNTR] = "comp_cntr",
 	};
 
+	struct ib_comp_cntr_caps comp_cntr_caps = {};
 	struct nlattr *table_attr;
 	u64 curr, max;
 	int ret, i;
@@ -463,6 +465,9 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device,
 	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_RES_SUMMARY);
 	if (!table_attr)
 		return -EMSGSIZE;
+
+	if (device->ops.query_comp_cntr_caps)
+		device->ops.query_comp_cntr_caps(device, &comp_cntr_caps, NULL);
 
 	for (i = 0; i < RDMA_RESTRACK_MAX; i++) {
 		if (!names[i])
@@ -483,6 +488,9 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device,
 			break;
 		case RDMA_RESTRACK_SRQ:
 			max = device->attrs.max_srq;
+			break;
+		case RDMA_RESTRACK_COMP_CNTR:
+			max = comp_cntr_caps.max_counters;
 			break;
 		default:
 			max = 0;
