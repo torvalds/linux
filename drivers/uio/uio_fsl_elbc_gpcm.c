@@ -45,8 +45,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/uio_driver.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
+#include <linux/of.h>
 
 #include <asm/fsl_lbc.h>
 
@@ -249,18 +248,11 @@ static int check_of_data(struct fsl_elbc_gpcm *priv,
 
 static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 		       struct resource *res, u32 *reg_br,
-		       u32 *reg_or, unsigned int *irq, char **name)
+		       u32 *reg_or, char **name)
 {
 	const char *dt_name;
 	const char *type;
 	int ret;
-
-	/* get the memory resource */
-	ret = of_address_to_resource(node, 0, res);
-	if (ret) {
-		dev_err(priv->dev, "failed to get resource\n");
-		return ret;
-	}
 
 	/* get the bank number */
 	ret = of_property_read_u32(node, "reg", &priv->bank);
@@ -288,9 +280,6 @@ static int get_of_data(struct fsl_elbc_gpcm *priv, struct device_node *node,
 	if (of_property_read_string(node, "device_type", &type) == 0)
 		setup_periph(priv, type);
 
-	/* get optional irq value */
-	*irq = irq_of_parse_and_map(node, 0);
-
 	/* sanity check device tree data */
 	ret = check_of_data(priv, res, *reg_br, *reg_or);
 	if (ret)
@@ -312,7 +301,8 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	struct fsl_elbc_gpcm *priv;
 	struct uio_info *info;
 	char *uio_name = NULL;
-	struct resource res;
+	struct resource *res;
+	void __iomem *base;
 	unsigned int irq;
 	u32 reg_br_cur;
 	u32 reg_or_cur;
@@ -323,6 +313,16 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	if (!fsl_lbc_ctrl_dev || !fsl_lbc_ctrl_dev->regs)
 		return -ENODEV;
 
+	/* map the memory resource */
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	/* get optional irq value */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
 	/* allocate private data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -331,8 +331,8 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	priv->lbc = fsl_lbc_ctrl_dev->regs;
 
 	/* get device tree data */
-	ret = get_of_data(priv, node, &res, &reg_br_new, &reg_or_new,
-			  &irq, &uio_name);
+	ret = get_of_data(priv, node, res, &reg_br_new, &reg_or_new,
+			  &uio_name);
 	if (ret)
 		return ret;
 
@@ -349,7 +349,7 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 	if ((reg_br_cur & BR_V)) {
 		if ((reg_br_cur & BR_MSEL) != BR_MS_GPCM ||
 		    (reg_br_cur & reg_or_cur & BR_BA)
-		     != fsl_lbc_addr(res.start)) {
+		     != fsl_lbc_addr(res->start)) {
 			dev_err(priv->dev,
 				"bank in use by another peripheral\n");
 			return -ENODEV;
@@ -371,26 +371,18 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 
 	/* configure the bank (force base address and GPCM) */
 	reg_br_new &= ~(BR_BA | BR_MSEL);
-	reg_br_new |= fsl_lbc_addr(res.start) | BR_MS_GPCM | BR_V;
+	reg_br_new |= fsl_lbc_addr(res->start) | BR_MS_GPCM | BR_V;
 	out_be32(&priv->lbc->bank[priv->bank].or, reg_or_new);
 	out_be32(&priv->lbc->bank[priv->bank].br, reg_br_new);
 
-	/* map the memory resource */
-	info->mem[0].internal_addr = ioremap(res.start, resource_size(&res));
-	if (!info->mem[0].internal_addr) {
-		dev_err(priv->dev, "failed to map chip region\n");
-		return -ENODEV;
-	}
-
 	/* set all UIO data */
 	info->mem[0].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn", node);
-	if (!info->mem[0].name) {
-		ret = -ENODEV;
-		goto out_err3;
-	}
+	if (!info->mem[0].name)
+		return -ENODEV;
 
-	info->mem[0].addr = res.start;
-	info->mem[0].size = resource_size(&res);
+	info->mem[0].internal_addr = base;
+	info->mem[0].addr = res->start;
+	info->mem[0].size = resource_size(res);
 	info->mem[0].memtype = UIO_MEM_PHYS;
 	info->priv = priv;
 	info->name = uio_name;
@@ -421,16 +413,13 @@ static int uio_fsl_elbc_gpcm_probe(struct platform_device *pdev)
 
 	dev_info(priv->dev,
 		 "eLBC/GPCM device (%s) at 0x%llx, bank %d, irq=%d\n",
-		 priv->name, (unsigned long long)res.start, priv->bank,
+		 priv->name, (unsigned long long)res->start, priv->bank,
 		 irq ? : -1);
 
 	return 0;
 out_err2:
 	if (priv->shutdown)
 		priv->shutdown(info, true);
-
-out_err3:
-	iounmap(info->mem[0].internal_addr);
 	return ret;
 }
 
@@ -443,7 +432,6 @@ static void uio_fsl_elbc_gpcm_remove(struct platform_device *pdev)
 	uio_unregister_device(info);
 	if (priv->shutdown)
 		priv->shutdown(info, false);
-	iounmap(info->mem[0].internal_addr);
 
 }
 
