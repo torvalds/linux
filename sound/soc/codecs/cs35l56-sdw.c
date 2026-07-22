@@ -510,8 +510,8 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 static const struct sdw_device_id cs35l56_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0x3556),
 	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0x3557),
-	SDW_SLAVE_ENTRY(0x01FA, 0x3563, 0x3563),
 	SDW_SLAVE_ENTRY(0x01FA, 0x3562, 0x3562),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3563, 0x3563),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);
