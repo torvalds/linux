@@ -511,7 +511,7 @@
 				    "obsrvr",
 				    "intr",
 				    "cnfg";
-			interrupts-extended = <&mpm 86 IRQ_TYPE_EDGE_RISING>;
+			interrupts-extended = <&mpm 86 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "periph_irq";
 			interrupt-controller;
 			#interrupt-cells = <4>;
