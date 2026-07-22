@@ -124,5 +124,9 @@ void amdgpu_dm_plane_drm_plane_reset(struct drm_plane *plane);
 struct drm_plane_state *amdgpu_dm_plane_drm_plane_duplicate_state(struct drm_plane *plane);
 void amdgpu_dm_plane_drm_plane_destroy_state(struct drm_plane *plane,
 					     struct drm_plane_state *state);
+void amdgpu_dm_plane_add_modifier_dedup(uint64_t **mods, uint64_t *size,
+					uint64_t *cap, uint64_t mod);
+int amdgpu_dm_plane_fill_gfx6_tiling_info_from_modifier(struct dc_tiling_info *tiling_info,
+							uint64_t modifier);
 #endif
 #endif

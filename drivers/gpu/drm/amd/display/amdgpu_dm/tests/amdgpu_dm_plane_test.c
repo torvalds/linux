@@ -328,12 +328,6 @@ static void dm_test_get_plane_modifiers(struct kunit *test)
 	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, adev);
 
-	adev->family = AMDGPU_FAMILY_SI;
-	KUNIT_EXPECT_EQ(test,
-			amdgpu_dm_plane_get_plane_modifiers(adev, DRM_PLANE_TYPE_PRIMARY, &mods),
-			0);
-	KUNIT_EXPECT_PTR_EQ(test, mods, NULL);
-
 	adev->family = AMDGPU_FAMILY_NV;
 	KUNIT_ASSERT_EQ(test,
 			amdgpu_dm_plane_get_plane_modifiers(adev, DRM_PLANE_TYPE_CURSOR, &mods),
