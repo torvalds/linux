@@ -1579,7 +1579,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		if (msta_link)
 			wcid = &msta_link->wcid;
 	}
-	mt76_tx(mphy, control->sta, wcid, skb);
+	mt76_tx(mphy, control->sta, mt7996_get_tx_wcid(wcid), skb);
 unlock:
 	rcu_read_unlock();
 }
