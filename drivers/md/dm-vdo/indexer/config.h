@@ -37,7 +37,7 @@ struct uds_configuration {
 	/* Parameters for the volume */
 
 	/* The volume layout */
-	struct index_geometry *geometry;
+	struct index_geometry geometry;
 
 	/* Index owner's nonce */
 	u64 nonce;

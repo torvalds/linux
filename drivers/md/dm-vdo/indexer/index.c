@@ -77,7 +77,7 @@ struct chapter_writer {
 
 static bool is_zone_chapter_sparse(const struct index_zone *zone, u64 virtual_chapter)
 {
-	return uds_is_chapter_sparse(zone->index->volume->geometry,
+	return uds_is_chapter_sparse(&zone->index->volume->geometry,
 				     zone->oldest_virtual_chapter,
 				     zone->newest_virtual_chapter, virtual_chapter);
 }
@@ -154,7 +154,7 @@ static int simulate_index_zone_barrier_message(struct index_zone *zone,
 	u64 sparse_virtual_chapter;
 
 	if ((zone->index->zone_count > 1) ||
-	    !uds_is_sparse_index_geometry(zone->index->volume->geometry))
+	    !uds_is_sparse_index_geometry(&zone->index->volume->geometry))
 		return UDS_SUCCESS;
 
 	sparse_virtual_chapter = triage_index_request(zone->index, request);
@@ -278,7 +278,7 @@ static int open_next_chapter(struct index_zone *zone)
 	}
 
 	expiring = zone->oldest_virtual_chapter;
-	expire_chapters = uds_chapters_to_expire(zone->index->volume->geometry,
+	expire_chapters = uds_chapters_to_expire(&zone->index->volume->geometry,
 						 zone->newest_virtual_chapter);
 	zone->oldest_virtual_chapter += expire_chapters;
 
@@ -353,7 +353,7 @@ static int search_sparse_cache_in_zone(struct index_zone *zone, struct uds_reque
 
 	request->virtual_chapter = virtual_chapter;
 	volume = zone->index->volume;
-	chapter = uds_map_to_physical_chapter(volume->geometry, virtual_chapter);
+	chapter = uds_map_to_physical_chapter(&volume->geometry, virtual_chapter);
 	return uds_search_cached_record_page(volume, request, chapter,
 					     record_page_number, found);
 }
@@ -470,7 +470,7 @@ static int search_index_zone(struct index_zone *zone, struct uds_request *reques
 			found = true;
 		} else if (request->location == UDS_LOCATION_UNAVAILABLE) {
 			found = false;
-		} else if (uds_is_sparse_index_geometry(zone->index->volume->geometry) &&
+		} else if (uds_is_sparse_index_geometry(&zone->index->volume->geometry) &&
 			   !uds_is_volume_index_sample(zone->index->volume_index,
 						       &request->record_name)) {
 			result = search_sparse_cache_in_zone(zone, request, NO_CHAPTER,
@@ -720,7 +720,7 @@ static void close_chapters(void *arg)
 		mutex_lock(&writer->mutex);
 		index->newest_virtual_chapter++;
 		index->oldest_virtual_chapter +=
-			uds_chapters_to_expire(index->volume->geometry,
+			uds_chapters_to_expire(&index->volume->geometry,
 					       index->newest_virtual_chapter);
 		writer->result = result;
 		writer->zones_to_write = 0;
@@ -762,7 +762,7 @@ static int make_chapter_writer(struct uds_index *index,
 	int result;
 	struct chapter_writer *writer;
 	size_t collated_records_size =
-		(sizeof(struct uds_volume_record) * index->volume->geometry->records_per_chapter);
+		(sizeof(struct uds_volume_record) * index->volume->geometry.records_per_chapter);
 
 	result = vdo_allocate_extended(index->zone_count, chapters, "Chapter Writer", &writer);
 	if (result != VDO_SUCCESS)
@@ -780,7 +780,7 @@ static int make_chapter_writer(struct uds_index *index,
 	}
 
 	result = uds_make_open_chapter_index(&writer->open_chapter_index,
-					     index->volume->geometry,
+					     &index->volume->geometry,
 					     index->volume->nonce);
 	if (result != UDS_SUCCESS) {
 		free_chapter_writer(writer);
@@ -824,7 +824,7 @@ static int rebuild_index_page_map(struct uds_index *index, u64 vcn)
 {
 	int result;
 	struct delta_index_page *chapter_index_page;
-	struct index_geometry *geometry = index->volume->geometry;
+	struct index_geometry *geometry = &index->volume->geometry;
 	u32 chapter = uds_map_to_physical_chapter(geometry, vcn);
 	u32 expected_list_number = 0;
 	u32 index_page_number;
@@ -980,7 +980,7 @@ static int replay_chapter(struct uds_index *index, u64 virtual, bool sparse)
 		return -EBUSY;
 	}
 
-	geometry = index->volume->geometry;
+	geometry = &index->volume->geometry;
 	physical_chapter = uds_map_to_physical_chapter(geometry, virtual);
 	uds_prefetch_volume_chapter(index->volume, physical_chapter);
 	uds_set_volume_index_open_chapter(index->volume_index, virtual);
@@ -1046,7 +1046,7 @@ static int replay_volume(struct uds_index *index)
 	 */
 	old_map_update = index->volume->index_page_map->last_update;
 	for (virtual = from_virtual; virtual < upto_virtual; virtual++) {
-		will_be_sparse = uds_is_chapter_sparse(index->volume->geometry,
+		will_be_sparse = uds_is_chapter_sparse(&index->volume->geometry,
 						       from_virtual, upto_virtual,
 						       virtual);
 		result = replay_chapter(index, virtual, will_be_sparse);
@@ -1073,7 +1073,7 @@ static int rebuild_index(struct uds_index *index)
 	u64 lowest;
 	u64 highest;
 	bool is_empty = false;
-	u32 chapters_per_volume = index->volume->geometry->chapters_per_volume;
+	u32 chapters_per_volume = index->volume->geometry.chapters_per_volume;
 
 	index->volume->lookup_mode = LOOKUP_FOR_REBUILD;
 	result = uds_find_volume_chapter_boundaries(index->volume, &lowest, &highest,
@@ -1125,14 +1125,14 @@ static int make_index_zone(struct uds_index *index, unsigned int zone_number)
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_make_open_chapter(index->volume->geometry, index->zone_count,
+	result = uds_make_open_chapter(&index->volume->geometry, index->zone_count,
 				       &zone->open_chapter);
 	if (result != UDS_SUCCESS) {
 		free_index_zone(zone);
 		return result;
 	}
 
-	result = uds_make_open_chapter(index->volume->geometry, index->zone_count,
+	result = uds_make_open_chapter(&index->volume->geometry, index->zone_count,
 				       &zone->writing_chapter);
 	if (result != UDS_SUCCESS) {
 		free_index_zone(zone);
@@ -1202,7 +1202,7 @@ int uds_make_index(struct uds_configuration *config, enum uds_open_index_type op
 	index->load_context = load_context;
 	index->callback = callback;
 
-	result = initialize_index_queues(index, config->geometry);
+	result = initialize_index_queues(index, &config->geometry);
 	if (result != UDS_SUCCESS) {
 		uds_free_index(index);
 		return result;

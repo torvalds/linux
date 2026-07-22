@@ -283,13 +283,13 @@ static int compute_sub_index_parameters(const struct uds_configuration *config,
 static int compute_volume_sub_index_parameters(const struct uds_configuration *config,
 					       struct sub_index_parameters *params)
 {
-	struct index_geometry *geometry = config->geometry;
+	const struct index_geometry *geometry = &config->geometry;
 	u64 sample_records;
 	u64 dense_chapters;
 	int result;
 	bool reduced = uds_is_reduced_index_geometry(geometry);
 
-	if (!uds_is_sparse_index_geometry(config->geometry)) {
+	if (!uds_is_sparse_index_geometry(&config->geometry)) {
 		return compute_sub_index_parameters(config,
 						    geometry->records_per_chapter,
 						    geometry->chapters_per_volume,
@@ -357,7 +357,7 @@ static int compute_volume_index_save_bytes(const struct uds_configuration *confi
 		return result;
 
 	*bytes = compute_volume_sub_index_save_bytes(&parameters[HOOK]);
-	if (uds_is_sparse_index_geometry(config->geometry)) {
+	if (uds_is_sparse_index_geometry(&config->geometry)) {
 		*bytes += compute_volume_sub_index_save_bytes(&parameters[NON_HOOK]);
 		*bytes += sizeof(struct volume_index_data);
 	}
@@ -1232,7 +1232,7 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 	if (result != UDS_SUCCESS)
 		return result;
 
-	if (!uds_is_sparse_index_geometry(config->geometry)) {
+	if (!uds_is_sparse_index_geometry(&config->geometry)) {
 		result = initialize_volume_sub_index(&parameters[DENSE], volume_nonce, 'm',
 						     &volume_index->vi_non_hook);
 		if (result != UDS_SUCCESS) {
