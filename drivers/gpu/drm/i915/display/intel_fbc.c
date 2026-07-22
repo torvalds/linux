@@ -1306,6 +1306,9 @@ static bool intel_fbc_surface_size_ok(const struct intel_plane_state *plane_stat
 	struct intel_display *display = to_intel_display(plane_state);
 	unsigned int effective_w, effective_h, max_w, max_h;
 
+	if (DISPLAY_VER(display) >= 20)
+		return true;
+
 	intel_fbc_max_surface_size(display, &max_w, &max_h);
 
 	effective_w = plane_state->view.color_plane[0].x +
