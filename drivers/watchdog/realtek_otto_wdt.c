@@ -313,7 +313,7 @@ static int otto_wdt_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, ctrl->irq_phase1, otto_wdt_phase1_isr, 0,
 			"realtek-otto-wdt", ctrl);
 	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get IRQ for phase1\n");
+		return ret;
 
 	ret = otto_wdt_probe_reset_mode(ctrl);
 	if (ret)
