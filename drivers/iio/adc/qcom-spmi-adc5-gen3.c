@@ -821,9 +821,7 @@ static int adc5_gen3_probe(struct platform_device *pdev)
 			       adc->dev_data.base[ADC5_GEN3_VADC_SDAM].irq_name,
 			       adc);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "Failed to request SDAM%d irq\n",
-				     ADC5_GEN3_VADC_SDAM);
+		return ret;
 
 	ret = adc5_get_fw_data(adc);
 	if (ret)
