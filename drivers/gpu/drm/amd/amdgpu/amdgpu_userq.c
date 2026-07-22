@@ -287,22 +287,24 @@ static bool amdgpu_userq_buffer_va_mapped(struct amdgpu_vm *vm, u64 addr)
 
 static bool amdgpu_userq_buffer_vas_mapped(struct amdgpu_usermode_queue *queue)
 {
-	int i, r = 0;
+	int i;
+	bool mapped;
 
 	for (i = 0; i < ARRAY_SIZE(queue->userq_vas.va_array); i++) {
 		if (!queue->userq_vas.va_array[i])
 			continue;
-		r += amdgpu_userq_buffer_va_mapped(queue->vm,
+
+		mapped = amdgpu_userq_buffer_va_mapped(queue->vm,
 						   queue->userq_vas.va_array[i]);
 		dev_dbg(queue->userq_mgr->adev->dev,
 			"validate the userq mapping:%p va:%llx r:%d\n",
-			queue, queue->userq_vas.va_array[i], r);
+			queue, queue->userq_vas.va_array[i], mapped);
+
+		if (!mapped)
+			return false;
 	}
 
-	if (r != 0)
-		return true;
-
-	return false;
+	return true;
 }
 
 
