@@ -939,12 +939,18 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 
 static struct file *pidfs_export_open(const struct path *path, unsigned int oflags)
 {
+	struct file *file;
+
 	/*
 	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
 	 * O_RDWR as pidfds always are.
 	 */
 	oflags &= ~O_LARGEFILE;
-	return dentry_open(path, oflags | O_RDWR, current_cred());
+	file = dentry_open(path, oflags | O_RDWR, current_cred());
+	/* do_dentry_open() strips O_EXCL, which encodes PIDFD_THREAD. */
+	if (!IS_ERR(file))
+		file->f_flags |= oflags & PIDFD_THREAD;
+	return file;
 }
 
 static const struct export_operations pidfs_export_operations = {
