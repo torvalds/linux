@@ -693,7 +693,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	policy->fast_switch_possible = cppc_allow_fast_switch();
+	policy->fast_switch_possible = cppc_allow_fast_switch(policy->cpus);
 	policy->dvfs_possible_from_any_cpu = true;
 
 	/*

@@ -475,17 +475,29 @@ bool acpi_cpc_valid(void)
 }
 EXPORT_SYMBOL_GPL(acpi_cpc_valid);
 
-bool cppc_allow_fast_switch(void)
+bool cppc_allow_fast_switch(const struct cpumask *cpus)
 {
-	struct cpc_register_resource *desired_reg;
+	struct cpc_register_resource *desired_reg, *min_reg, *max_reg;
 	struct cpc_desc *cpc_ptr;
 	int cpu;
 
-	for_each_online_cpu(cpu) {
+	for_each_cpu(cpu, cpus) {
 		cpc_ptr = per_cpu(cpc_desc_ptr, cpu);
+		if (!cpc_ptr)
+			return false;
 		desired_reg = &cpc_ptr->cpc_regs[DESIRED_PERF];
-		if (!CPC_IN_SYSTEM_MEMORY(desired_reg) &&
-				!CPC_IN_SYSTEM_IO(desired_reg))
+		min_reg = &cpc_ptr->cpc_regs[MIN_PERF];
+		max_reg = &cpc_ptr->cpc_regs[MAX_PERF];
+
+		if (!CPC_SUPPORTED(desired_reg) ||
+		    (!CPC_IN_SYSTEM_MEMORY(desired_reg) &&
+		     !CPC_IN_SYSTEM_IO(desired_reg)) ||
+		    (CPC_SUPPORTED(min_reg) &&
+		     !CPC_IN_SYSTEM_MEMORY(min_reg) &&
+		     !CPC_IN_SYSTEM_IO(min_reg)) ||
+		    (CPC_SUPPORTED(max_reg) &&
+		     !CPC_IN_SYSTEM_MEMORY(max_reg) &&
+		     !CPC_IN_SYSTEM_IO(max_reg)))
 			return false;
 	}
 
