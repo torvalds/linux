@@ -165,6 +165,7 @@ struct object {
 #define KF_IMPL_SUFFIX "_impl"
 
 struct kfunc {
+	struct rb_node rb_node;
 	const char *name;
 	u32 btf_id;
 	u32 flags;
@@ -175,9 +176,7 @@ struct btf2btf_context {
 	u32 *decl_tags;
 	u32 nr_decl_tags;
 	u32 max_decl_tags;
-	struct kfunc *kfuncs;
-	u32 nr_kfuncs;
-	u32 max_kfuncs;
+	struct rb_root kfuncs;
 };
 
 static int verbose;
@@ -979,12 +978,46 @@ static int push_decl_tag_id(struct btf2btf_context *ctx, u32 decl_tag_id)
 
 static int push_kfunc(struct btf2btf_context *ctx, struct kfunc *kfunc)
 {
-	if (ensure_mem(&ctx->kfuncs, &ctx->max_kfuncs, ctx->nr_kfuncs + 1))
+	struct rb_node **p = &ctx->kfuncs.rb_node;
+	struct rb_node *parent = NULL;
+	struct kfunc *k;
+
+	/* Dedup by BTF ID: collecting the same kfunc twice is a no-op. */
+	while (*p) {
+		parent = *p;
+		k = rb_entry(parent, struct kfunc, rb_node);
+
+		if (kfunc->btf_id < k->btf_id)
+			p = &(*p)->rb_left;
+		else if (kfunc->btf_id > k->btf_id)
+			p = &(*p)->rb_right;
+		else
+			return 0;
+	}
+
+	k = zalloc(sizeof(*k));
+	if (!k)
 		return -ENOMEM;
 
-	ctx->kfuncs[ctx->nr_kfuncs++] = *kfunc;
+	*k = *kfunc;
+	rb_link_node(&k->rb_node, parent, p);
+	rb_insert_color(&k->rb_node, &ctx->kfuncs);
 
 	return 0;
+}
+
+static void free_kfuncs(struct rb_root *root)
+{
+	struct rb_node *next;
+	struct kfunc *kfunc;
+
+	next = rb_first(root);
+	while (next) {
+		kfunc = rb_entry(next, struct kfunc, rb_node);
+		next = rb_next(&kfunc->rb_node);
+		rb_erase(&kfunc->rb_node, root);
+		free(kfunc);
+	}
 }
 
 static int collect_decl_tags(struct btf2btf_context *ctx)
@@ -1272,14 +1305,15 @@ add_new_proto:
 static int btf2btf(struct object *obj)
 {
 	struct btf2btf_context ctx = {};
+	struct rb_node *next;
 	int err;
 
 	err = build_btf2btf_context(obj, &ctx);
 	if (err)
 		goto out;
 
-	for (u32 i = 0; i < ctx.nr_kfuncs; i++) {
-		struct kfunc *kfunc = &ctx.kfuncs[i];
+	for (next = rb_first(&ctx.kfuncs); next; next = rb_next(next)) {
+		struct kfunc *kfunc = rb_entry(next, struct kfunc, rb_node);
 
 		if (!(kfunc->flags & KF_IMPLICIT_ARGS))
 			continue;
@@ -1292,7 +1326,7 @@ static int btf2btf(struct object *obj)
 	err = 0;
 out:
 	free(ctx.decl_tags);
-	free(ctx.kfuncs);
+	free_kfuncs(&ctx.kfuncs);
 
 	return err;
 }
