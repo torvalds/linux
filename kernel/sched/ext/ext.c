@@ -3334,6 +3334,7 @@ static void handle_hotplug(struct rq *rq, bool online)
 {
 	struct scx_sched *sch = scx_root;
 	s32 cpu = cpu_of(rq);
+	s32 cpu_or_cid = cpu;
 
 	atomic_long_inc(&scx_hotplug_seq);
 
@@ -3353,10 +3354,26 @@ static void handle_hotplug(struct rq *rq, bool online)
 	else
 		scx_offline_ecaps(rq);
 
+	/*
+	 * The tables can't be retired while this function is running as the
+	 * retirement is inside cpus_read_lock. However, scx_cpu_arg() is
+	 * awkward here as the tables can be NULL after root enable failure and
+	 * lockdep would trigger without surrounding rcu_read_lock(). Open code
+	 * the translation. If the table is NULL, the ops are also cleared and
+	 * @cpu_or_cid goes unused.
+	 */
+	if (scx_is_cid_type()) {
+		s16 *tbl = rcu_dereference_check(scx_cpu_to_cid_tbl,
+						 lockdep_is_cpus_held());
+
+		if (tbl)
+			cpu_or_cid = tbl[cpu];
+	}
+
 	if (online && SCX_HAS_OP(sch, cpu_online))
-		SCX_CALL_OP(sch, cpu_online, NULL, scx_cpu_arg(cpu));
+		SCX_CALL_OP(sch, cpu_online, NULL, cpu_or_cid);
 	else if (!online && SCX_HAS_OP(sch, cpu_offline))
-		SCX_CALL_OP(sch, cpu_offline, NULL, scx_cpu_arg(cpu));
+		SCX_CALL_OP(sch, cpu_offline, NULL, cpu_or_cid);
 	else
 		scx_exit(sch, SCX_EXIT_UNREG_KERN,
 			 SCX_ECODE_ACT_RESTART | SCX_ECODE_RSN_HOTPLUG,
@@ -6197,11 +6214,12 @@ static void scx_root_disable(struct scx_sched *sch)
 	scx_unlink_sched(sch);
 
 	/*
-	 * scx_root clearing must be inside cpus_read_lock(). See
-	 * handle_hotplug().
+	 * scx_root clearing and cid table retirement must be inside
+	 * cpus_read_lock(). See handle_hotplug().
 	 */
 	cpus_read_lock();
 	RCU_INIT_POINTER(scx_root, NULL);
+	scx_cid_retire_tables();
 	cpus_read_unlock();
 
 	/*
@@ -7195,10 +7213,9 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	cpus_read_lock();
 
 	/*
-	 * Build the cid mapping before publishing scx_root. The cid kfuncs
-	 * dereference the cid arrays unconditionally once scx_prog_sched()
-	 * returns non-NULL; the rcu_assign_pointer() below pairs with their
-	 * rcu_dereference() to make the populated arrays visible.
+	 * Build the cid mapping into a private under-construction set. It
+	 * becomes visible to readers only through scx_cid_publish_tables() once
+	 * ops.init_cids() has finalized the layout.
 	 */
 	ret = scx_cid_init(sch);
 	if (ret) {
@@ -7234,6 +7251,9 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 			goto err_disable;
 		}
 	}
+
+	/* the cid layout is final, expose it to readers */
+	scx_cid_publish_tables();
 
 	ret = scx_arena_pool_init(sch);
 	if (ret) {
@@ -9872,13 +9892,15 @@ __bpf_kfunc u32 scx_bpf_nr_online_cids(void)
  *
  * cid-addressed equivalent of bpf_get_smp_processor_id() for scx programs.
  * The current cpu is trivially valid, so this is just a table lookup. Return
- * -EINVAL if called from a non-SCX program before any scheduler has ever
- * been enabled (the cid table is still unallocated at that point).
+ * -EINVAL if called before any scheduler has ever published its cid tables.
  */
 __bpf_kfunc s32 scx_bpf_this_cid(void)
 {
-	s16 *tbl = READ_ONCE(scx_cpu_to_cid_tbl);
+	s16 *tbl;
 
+	guard(rcu)();
+
+	tbl = rcu_dereference(scx_cpu_to_cid_tbl);
 	if (!tbl)
 		return -EINVAL;
 	return tbl[raw_smp_processor_id()];
@@ -9937,13 +9959,17 @@ __bpf_kfunc s32 scx_bpf_task_cpu(const struct task_struct *p)
  * @p: task of interest
  *
  * cid-addressed equivalent of scx_bpf_task_cpu(). task_cpu(p) is always a
- * valid cpu, so this is just a table lookup. Return -EINVAL if called from
- * a non-SCX program before any scheduler has ever been enabled.
+ * valid cpu, so this is just a table lookup. Return -EINVAL if called before
+ * any scheduler has ever published its cid tables.
  */
 __bpf_kfunc s32 scx_bpf_task_cid(const struct task_struct *p)
 {
-	s16 *tbl = READ_ONCE(scx_cpu_to_cid_tbl);
+	s16 *tbl;
 
+	/* KF_RCU covers only @p - a sleepable program holds no RCU lock */
+	guard(rcu)();
+
+	tbl = rcu_dereference(scx_cpu_to_cid_tbl);
 	if (!tbl)
 		return -EINVAL;
 	return tbl[task_cpu(p)];

@@ -138,7 +138,9 @@ void scx_free_pshards(struct scx_sched *sch)
 
 static struct scx_pshard *alloc_pshard(struct scx_sched *sch, s32 shard_idx, s32 node)
 {
-	const struct scx_cid_shard *shard = &scx_cid_shard_ranges[shard_idx];
+	const struct scx_cid_shard *shard =
+		&rcu_dereference_protected(scx_cid_shard_ranges,
+					   lockdep_is_held(&scx_enable_mutex))[shard_idx];
 	size_t cmask_size = struct_size_t(struct scx_cmask, bits,
 					  SCX_CMASK_NR_WORDS(shard->nr_cids));
 	struct scx_pshard *pshard;
@@ -176,17 +178,21 @@ static struct scx_pshard *alloc_pshard(struct scx_sched *sch, s32 shard_idx, s32
 s32 scx_alloc_pshards(struct scx_sched *sch)
 {
 	struct scx_pshard **pshard;
+	s32 *shard_node;
 	s32 si;
 
 	if (!sch->is_cid_type || !sch->arena_pool)
 		return 0;
+
+	shard_node = rcu_dereference_protected(scx_shard_node,
+					       lockdep_is_held(&scx_enable_mutex));
 
 	pshard = kzalloc_objs(pshard[0], scx_nr_cid_shards, GFP_KERNEL);
 	if (!pshard)
 		return -ENOMEM;
 
 	for (si = 0; si < scx_nr_cid_shards; si++) {
-		pshard[si] = alloc_pshard(sch, si, scx_shard_node[si]);
+		pshard[si] = alloc_pshard(sch, si, shard_node[si]);
 		if (!pshard[si]) {
 			while (--si >= 0)
 				free_pshard(pshard[si]);
@@ -198,8 +204,9 @@ s32 scx_alloc_pshards(struct scx_sched *sch)
 	sch->nr_pshards = scx_nr_cid_shards;
 	/*
 	 * Publish only after every entry is built so a reader observing
-	 * @sch->pshard never sees a partially-filled array. Pair the store
-	 * with a barrier and READ_ONCE() on the read side.
+	 * @sch->pshard never sees a partially-filled array or unpublished cid
+	 * tables. Pair the store with a barrier and an acquire load on the
+	 * read side.
 	 */
 	smp_wmb();
 	WRITE_ONCE(sch->pshard, pshard);
@@ -524,7 +531,7 @@ void scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 
 	/* @cid is valid here: the cpu is active with queued syncs */
 	cid = __scx_cpu_to_cid(cpu);
-	shard = scx_cid_to_shard[cid];
+	shard = rcu_dereference_all(scx_cid_to_shard)[cid];
 
 	batch = llist_del_all(&rq->scx.ecaps_to_sync);
 	llist_for_each_safe(pos, tmp, batch) {
@@ -618,7 +625,7 @@ void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch)
 		return;
 
 	cid = __scx_cpu_to_cid(cpu);
-	ps = sch->pshard[scx_cid_to_shard[cid]];
+	ps = sch->pshard[rcu_dereference_all(scx_cid_to_shard)[cid]];
 
 	guard(raw_spinlock)(&ps->lock);
 	queue_sync_ecaps(sch, cid);
@@ -631,11 +638,22 @@ void scx_unbypass_replay_ecaps(struct rq *rq, struct scx_sched *sch)
  */
 void scx_online_ecaps(struct rq *rq)
 {
-	s32 cid = __scx_cpu_to_cid(cpu_of(rq));
-	s32 shard = scx_cid_to_shard[cid];
 	struct scx_sched *pos;
+	s32 cid, shard;
+
+	/*
+	 * Only a live hierarchy can have ecaps to reseed. This also keeps the
+	 * table reads below away from an enable that failed before publishing
+	 * the tables. A concurrent disable can't retire them, see
+	 * handle_hotplug().
+	 */
+	if (!scx_enabled())
+		return;
 
 	guard(rq_lock_irqsave)(rq);
+
+	cid = __scx_cpu_to_cid(cpu_of(rq));
+	shard = rcu_dereference_all(scx_cid_to_shard)[cid];
 
 	scx_for_each_descendant_pre(pos, scx_root) {
 		struct scx_pshard *ps;
@@ -2074,9 +2092,10 @@ __bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out_
 	/*
 	 * The target's caps storage may not be set up yet (e.g. a self-read
 	 * during ops.init_cids()). Pairs with the publish in
-	 * scx_alloc_pshards(): a non-NULL pshard has every element set.
+	 * scx_alloc_pshards(): a non-NULL pshard has every element set and the
+	 * acquire also orders the cid table reads below against it.
 	 */
-	pshard = READ_ONCE(target->pshard);
+	pshard = smp_load_acquire(&target->pshard);
 	if (unlikely(!pshard)) {
 		scx_error(sch, "scx_bpf_sub_caps() called before caps storage is initialized");
 		return -ENODEV;
@@ -2089,7 +2108,8 @@ __bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out_
 	}
 
 	for (si = ref.shard_first; si < ref.shard_end; si++) {
-		const struct scx_cid_shard *shard = &scx_cid_shard_ranges[si];
+		const struct scx_cid_shard *shard =
+			&rcu_dereference_all(scx_cid_shard_ranges)[si];
 		SCX_CMASK_DEFINE_SHARD(local_out, shard->base_cid, shard->nr_cids);
 		u32 cap_bit;
 

@@ -1504,8 +1504,9 @@ struct scx_sched {
 #ifdef CONFIG_EXT_SUB_SCHED
 	/*
 	 * pshard[] size captured at enable for the async RCU free path -
-	 * scx_nr_cid_shards may be rewritten by a later scx_cid_init() before
-	 * free runs. While sch is active, use the global.
+	 * scx_nr_cid_shards may be rewritten by a later enable's
+	 * scx_cid_publish_tables() before free runs. While sch is active, use
+	 * the global.
 	 */
 	u32			nr_pshards;
 #endif

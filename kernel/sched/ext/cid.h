@@ -48,13 +48,24 @@ struct scx_sched;
  * See the comment above the table definitions in cid.c for the
  * memory-ordering and visibility contract.
  */
+struct scx_cid_tables {
+	u32			nr_shards;
+	s16			*cid_to_cpu;	/* [num_possible_cpus()] */
+	s16			*cpu_to_cid;	/* [nr_cpu_ids] */
+	s32			*cid_to_shard;	/* [num_possible_cpus()] */
+	s32			*shard_node;	/* [num_possible_cpus()] */
+	struct scx_cid_shard	*shard_ranges;	/* [num_possible_cpus()] */
+	struct scx_cid_topo	*topo;		/* [num_possible_cpus()] */
+	struct rcu_head		rcu;
+};
+
 extern u32 scx_nr_cid_shards;
-extern s16 *scx_cid_to_cpu_tbl;
-extern s16 *scx_cpu_to_cid_tbl;
-extern s32 *scx_cid_to_shard;
-extern s32 *scx_shard_node;
-extern struct scx_cid_shard *scx_cid_shard_ranges;
-extern struct scx_cid_topo *scx_cid_topo;
+extern s16 __rcu *scx_cid_to_cpu_tbl;
+extern s16 __rcu *scx_cpu_to_cid_tbl;
+extern s32 __rcu *scx_cid_to_shard;
+extern s32 __rcu *scx_shard_node;
+extern struct scx_cid_shard __rcu *scx_cid_shard_ranges;
+extern struct scx_cid_topo __rcu *scx_cid_topo;
 extern struct btf_id_set8 scx_kfunc_ids_init_cids;
 
 void scx_cmask_clear(struct scx_cmask *m);
@@ -67,6 +78,8 @@ bool scx_cmask_subset(const struct scx_cmask *sub, const struct scx_cmask *super
 bool scx_cmask_intersects(const struct scx_cmask *a, const struct scx_cmask *b);
 bool scx_cmask_empty(const struct scx_cmask *m);
 s32 scx_cid_init(struct scx_sched *sch);
+void scx_cid_publish_tables(void);
+void scx_cid_retire_tables(void);
 int scx_cid_kfunc_init(void);
 
 /**
@@ -89,14 +102,12 @@ static inline bool cid_valid(struct scx_sched *sch, s32 cid)
  * __scx_cid_to_cpu - Unchecked cid->cpu table lookup
  * @cid: cid to look up. Must be in [0, num_possible_cpus()).
  *
- * Intended for callsites that have already validated @cid and that hold a
- * non-NULL @sch from scx_prog_sched() - a live sched implies the table has
- * been allocated, so no NULL check is needed here.
+ * Intended for callsites that have already validated @cid and that run on a
+ * live scheduler, which guarantees the tables are published and stable.
  */
 static inline s32 __scx_cid_to_cpu(s32 cid)
 {
-	/* READ_ONCE pairs with WRITE_ONCE in scx_cid_arrays_alloc() */
-	return READ_ONCE(scx_cid_to_cpu_tbl)[cid];
+	return rcu_dereference_all(scx_cid_to_cpu_tbl)[cid];
 }
 
 /**
@@ -107,7 +118,7 @@ static inline s32 __scx_cid_to_cpu(s32 cid)
  */
 static inline s32 __scx_cpu_to_cid(s32 cpu)
 {
-	return READ_ONCE(scx_cpu_to_cid_tbl)[cpu];
+	return rcu_dereference_all(scx_cpu_to_cid_tbl)[cpu];
 }
 
 /**
@@ -116,15 +127,19 @@ static inline s32 __scx_cpu_to_cid(s32 cpu)
  * @cid: cid to look up
  *
  * Return the cpu for @cid or a negative errno on failure. Invalid cid triggers
- * scx_error() on @sch. The cid arrays are allocated on first scheduler enable
- * and never freed, so the returned cpu is stable for the lifetime of the loaded
- * scheduler.
+ * scx_error() on @sch. The mapping is stable while the scheduler is live.
+ *
+ * Return -EINVAL without triggering scx_error() if no tables have been
+ * published yet, which a prog-facing kfunc can observe while racing the root
+ * scheduler enable.
  */
 static inline s32 scx_cid_to_cpu(struct scx_sched *sch, s32 cid)
 {
-	if (!cid_valid(sch, cid))
+	s16 *tbl = rcu_dereference_all(scx_cid_to_cpu_tbl);
+
+	if (!cid_valid(sch, cid) || unlikely(!tbl))
 		return -EINVAL;
-	return __scx_cid_to_cpu(cid);
+	return tbl[cid];
 }
 
 /**
@@ -133,13 +148,15 @@ static inline s32 scx_cid_to_cpu(struct scx_sched *sch, s32 cid)
  * @cpu: cpu to look up
  *
  * Return the cid for @cpu or a negative errno on failure. Invalid cpu triggers
- * scx_error() on @sch. Same lifetime guarantee as scx_cid_to_cpu().
+ * scx_error() on @sch. Same usage rules as scx_cid_to_cpu().
  */
 static inline s32 scx_cpu_to_cid(struct scx_sched *sch, s32 cpu)
 {
-	if (!scx_cpu_valid(sch, cpu, NULL))
+	s16 *tbl = rcu_dereference_all(scx_cpu_to_cid_tbl);
+
+	if (!scx_cpu_valid(sch, cpu, NULL) || unlikely(!tbl))
 		return -EINVAL;
-	return __scx_cpu_to_cid(cpu);
+	return tbl[cpu];
 }
 
 /**
