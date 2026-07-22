@@ -59,6 +59,7 @@ enum chips {
 #define MAX34440_IOUT_OC_FAULT_LIMIT	0x4A
 
 #define MAX34451ETNA6_MFR_REV		0x0012
+#define MAX34451ETNA8_MFR_REV		0x0014
 
 #define MAX34451_MFR_CHANNEL_CONFIG	0xe4
 #define MAX34451_MFR_CHANNEL_CONFIG_SEL_MASK	0x3f
@@ -343,12 +344,24 @@ static int max34451_set_supported_funcs(struct i2c_client *client,
 		max34451_na6 = true;
 		data->info.format[PSC_VOLTAGE_IN] = direct;
 		data->info.format[PSC_CURRENT_IN] = direct;
-		data->info.m[PSC_VOLTAGE_IN] = 1;
+
 		data->info.b[PSC_VOLTAGE_IN] = 0;
-		data->info.R[PSC_VOLTAGE_IN] = 3;
-		data->info.m[PSC_CURRENT_IN] = 1;
 		data->info.b[PSC_CURRENT_IN] = 0;
-		data->info.R[PSC_CURRENT_IN] = 2;
+		if (rv >= MAX34451ETNA8_MFR_REV) {
+			data->info.m[PSC_VOLTAGE_IN] = 125;
+			data->info.R[PSC_VOLTAGE_IN] = 0;
+			data->info.m[PSC_VOLTAGE_OUT] = 125;
+			data->info.R[PSC_VOLTAGE_OUT] = 0;
+			data->info.m[PSC_CURRENT_IN] = 250;
+			data->info.R[PSC_CURRENT_IN] = -1;
+			data->info.m[PSC_CURRENT_OUT] = 250;
+			data->info.R[PSC_CURRENT_OUT] = -1;
+		} else {
+			data->info.m[PSC_VOLTAGE_IN] = 1;
+			data->info.R[PSC_VOLTAGE_IN] = 3;
+			data->info.m[PSC_CURRENT_IN] = 1;
+			data->info.R[PSC_CURRENT_IN] = 2;
+		}
 		data->iout_oc_fault_limit = PMBUS_IOUT_OC_FAULT_LIMIT;
 		data->iout_oc_warn_limit = PMBUS_IOUT_OC_WARN_LIMIT;
 	}
