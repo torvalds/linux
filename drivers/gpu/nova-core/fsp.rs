@@ -495,7 +495,6 @@ impl<'a> Fsp<'a> {
     /// Reads the active vGPU mode from FSP using the PRC protocol.
     ///
     /// Queries FSP's Management Partition for the active vGPU mode knob value.
-    #[expect(dead_code)]
     pub(crate) fn read_vgpu_mode(
         &mut self,
         dev: &device::Device<device::Bound>,

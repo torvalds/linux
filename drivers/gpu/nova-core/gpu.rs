@@ -30,6 +30,7 @@ use crate::{
         GspBootContext, //
     },
     regs,
+    vgpu::VgpuManager, //
 };
 
 mod hal;
@@ -267,6 +268,8 @@ struct GspResources<'gpu> {
     // TODO: use different resource types for each boot method, and make the relevant Gsp methods
     // generic against them.
     fsp: Option<Fsp<'gpu>>,
+    /// vGPU state detected before GSP boot.
+    vgpu: VgpuManager,
     /// GSP runtime data.
     #[pin]
     gsp: Gsp,
@@ -311,6 +314,7 @@ impl PinnedDrop for GspResources<'_> {
                     gsp_falcon: &*this.gsp_falcon,
                     sec2_falcon: &*this.sec2_falcon,
                     fsp: this.fsp.as_mut(),
+                    vgpu: &*this.vgpu,
                 },
                 bundle,
             )
@@ -364,6 +368,8 @@ impl<'gpu> Gpu<'gpu> {
 
                 fsp: Fsp::try_new(dev, bar, spec.chipset)?,
 
+                vgpu: VgpuManager::new(pdev, spec.chipset, fsp.as_mut()),
+
                 gsp <- Gsp::new(pdev),
 
                 // This member must be initialized last, so the `UnloadBundle` can never be dropped
@@ -376,6 +382,7 @@ impl<'gpu> Gpu<'gpu> {
                     gsp_falcon,
                     sec2_falcon,
                     fsp: fsp.as_mut(),
+                    vgpu,
                 })?,
             }),
 
