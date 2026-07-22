@@ -291,10 +291,8 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 		ret = devm_request_irq(dev, irq, sama5d4_wdt_irq_handler,
 				       IRQF_SHARED | IRQF_IRQPOLL |
 				       IRQF_NO_SUSPEND, pdev->name, pdev);
-		if (ret) {
-			dev_err(dev, "cannot register interrupt handler\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	watchdog_init_timeout(wdd, wdt_timeout, dev);
