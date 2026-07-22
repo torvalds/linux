@@ -9,6 +9,55 @@
 #include "debug.h"
 #include "debugfs.h"
 
+static void ath12k_peer_delete_wait_register(struct ath12k *ar,
+					     struct ath12k_peer_delete_wait *wait,
+					     u32 vdev_id, const u8 *addr)
+{
+	wait->vdev_id = vdev_id;
+	ether_addr_copy(wait->addr, addr);
+	init_completion(&wait->done);
+
+	spin_lock_bh(&ar->data_lock);
+	list_add(&wait->list, &ar->peer_delete_waits);
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static void ath12k_peer_delete_wait_unregister(struct ath12k *ar,
+					       struct ath12k_peer_delete_wait *wait)
+{
+	spin_lock_bh(&ar->data_lock);
+	list_del(&wait->list);
+	spin_unlock_bh(&ar->data_lock);
+}
+
+void ath12k_peer_delete_resp_signal(struct ath12k *ar, u32 vdev_id, const u8 *addr)
+{
+	struct ath12k_peer_delete_wait *wait;
+
+	guard(spinlock_bh)(&ar->data_lock);
+
+	list_for_each_entry(wait, &ar->peer_delete_waits, list) {
+		if (wait->vdev_id == vdev_id &&
+		    ether_addr_equal(wait->addr, addr)) {
+			complete(&wait->done);
+			return;
+		}
+	}
+
+	ath12k_warn(ar->ab, "failed to find link peer with vdev id %u addr %pM\n",
+		    vdev_id, addr);
+}
+
+void ath12k_peer_delete_wait_flush(struct ath12k *ar)
+{
+	struct ath12k_peer_delete_wait *wait;
+
+	spin_lock_bh(&ar->data_lock);
+	list_for_each_entry(wait, &ar->peer_delete_waits, list)
+		complete(&wait->done);
+	spin_unlock_bh(&ar->data_lock);
+}
+
 static int ath12k_wait_for_dp_link_peer_common(struct ath12k_base *ab, int vdev_id,
 					       const u8 *addr, bool expect_mapped)
 {
@@ -62,20 +111,19 @@ static int ath12k_wait_for_peer_deleted(struct ath12k *ar, int vdev_id, const u8
 	return ath12k_wait_for_dp_link_peer_common(ar->ab, vdev_id, addr, false);
 }
 
-int ath12k_wait_for_peer_delete_done(struct ath12k *ar, u32 vdev_id,
-				     const u8 *addr)
+int ath12k_wait_for_peer_delete_done(struct ath12k *ar,
+				     struct ath12k_peer_delete_wait *wait)
 {
-	int ret;
 	unsigned long time_left;
+	int ret;
 
-	ret = ath12k_wait_for_peer_deleted(ar, vdev_id, addr);
+	ret = ath12k_wait_for_peer_deleted(ar, wait->vdev_id, wait->addr);
 	if (ret) {
-		ath12k_warn(ar->ab, "failed wait for peer deleted");
+		ath12k_warn(ar->ab, "failed wait for peer deleted\n");
 		return ret;
 	}
 
-	time_left = wait_for_completion_timeout(&ar->peer_delete_done,
-						3 * HZ);
+	time_left = wait_for_completion_timeout(&wait->done, 3 * HZ);
 	if (time_left == 0) {
 		ath12k_warn(ar->ab, "Timeout in receiving peer delete response\n");
 		return -ETIMEDOUT;
@@ -91,8 +139,6 @@ static int ath12k_peer_delete_send(struct ath12k *ar, u32 vdev_id, const u8 *add
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
-	reinit_completion(&ar->peer_delete_done);
-
 	ret = ath12k_wmi_send_peer_delete_cmd(ar, addr, vdev_id);
 	if (ret) {
 		ath12k_warn(ab,
@@ -106,6 +152,7 @@ static int ath12k_peer_delete_send(struct ath12k *ar, u32 vdev_id, const u8 *add
 
 int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 {
+	struct ath12k_peer_delete_wait wait;
 	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -114,17 +161,25 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 				     &(ath12k_ar_to_ah(ar)->dp_hw), vdev_id,
 				     addr, ar->hw_link_id);
 
+	/*
+	 * Register the stack waiter before sending so the resp_event for
+	 * this peer cannot arrive while no waiter is queued.
+	 */
+	ath12k_peer_delete_wait_register(ar, &wait, vdev_id, addr);
+
 	ret = ath12k_peer_delete_send(ar, vdev_id, addr);
 	if (ret)
-		return ret;
+		goto out;
 
-	ret = ath12k_wait_for_peer_delete_done(ar, vdev_id, addr);
+	ret = ath12k_wait_for_peer_delete_done(ar, &wait);
 	if (ret)
-		return ret;
+		goto out;
 
 	ar->num_peers--;
 
-	return 0;
+out:
+	ath12k_peer_delete_wait_unregister(ar, &wait);
+	return ret;
 }
 
 static int ath12k_wait_for_peer_created(struct ath12k *ar, int vdev_id, const u8 *addr)
@@ -184,22 +239,26 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	peer = ath12k_dp_link_peer_find_by_vdev_and_addr(dp, arg->vdev_id,
 							 arg->peer_addr);
 	if (!peer) {
+		struct ath12k_peer_delete_wait wait;
+
 		spin_unlock_bh(&dp->dp_lock);
 		ath12k_warn(ar->ab, "failed to find peer %pM on vdev %i after creation\n",
 			    arg->peer_addr, arg->vdev_id);
 
-		reinit_completion(&ar->peer_delete_done);
+		ath12k_peer_delete_wait_register(ar, &wait, arg->vdev_id,
+						 arg->peer_addr);
 
 		ret = ath12k_wmi_send_peer_delete_cmd(ar, arg->peer_addr,
 						      arg->vdev_id);
 		if (ret) {
 			ath12k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
 				    arg->vdev_id, arg->peer_addr);
+			ath12k_peer_delete_wait_unregister(ar, &wait);
 			return ret;
 		}
 
-		ret = ath12k_wait_for_peer_delete_done(ar, arg->vdev_id,
-						       arg->peer_addr);
+		ret = ath12k_wait_for_peer_delete_done(ar, &wait);
+		ath12k_peer_delete_wait_unregister(ar, &wait);
 		if (ret)
 			return ret;
 
@@ -283,13 +342,14 @@ u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
 
 int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_sta *ahsta)
 {
+	DECLARE_BITMAP(registered, IEEE80211_MLD_MAX_NUM_LINKS);
 	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(ahsta);
 	struct ath12k_hw *ah = ahvif->ah;
 	struct ath12k_link_vif *arvif;
 	struct ath12k_link_sta *arsta;
+	int ret, err_ret = 0;
 	unsigned long links;
 	struct ath12k *ar;
-	int ret, err_ret = 0;
 	u8 link_id;
 
 	lockdep_assert_wiphy(ah->hw->wiphy);
@@ -297,8 +357,19 @@ int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_st
 	if (!sta->mlo)
 		return -EINVAL;
 
-	/* FW expects delete of all link peers at once before waiting for reception
-	 * of peer unmap or delete responses
+	struct ath12k_peer_delete_wait *waits __free(kfree) =
+				kzalloc_objs(*waits, IEEE80211_MLD_MAX_NUM_LINKS);
+	if (!waits)
+		return -ENOMEM;
+
+	bitmap_zero(registered, IEEE80211_MLD_MAX_NUM_LINKS);
+
+	/*
+	 * Firmware expects delete of all link peers at once before waiting
+	 * for reception of peer unmap or delete responses. Phase 1 registers
+	 * a per-link stack waiter and sends WMI peer delete for every
+	 * link; the resp_event handler matches each response to its
+	 * (vdev_id, addr) waiter on ar->peer_delete_waits.
 	 */
 	links = ahsta->links_map;
 	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
@@ -318,29 +389,36 @@ int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_st
 					     arvif->vdev_id, arsta->addr,
 					     ar->hw_link_id);
 
+		ath12k_peer_delete_wait_register(ar, &waits[link_id],
+						 arvif->vdev_id, arsta->addr);
+
 		ret = ath12k_peer_delete_send(ar, arvif->vdev_id, arsta->addr);
 		if (ret) {
 			ath12k_warn(ar->ab,
 				    "failed to delete peer vdev_id %d addr %pM ret %d\n",
 				    arvif->vdev_id, arsta->addr, ret);
 			err_ret = ret;
+			ath12k_peer_delete_wait_unregister(ar, &waits[link_id]);
 			continue;
 		}
+
+		set_bit(link_id, registered);
 	}
 
-	/* Ensure all link peers are deleted and unmapped */
+	/*
+	 * Phase 2: wait for unmap + delete_resp on each registered link
+	 * and tear down the waiter.
+	 */
 	links = ahsta->links_map;
 	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		if (!test_bit(link_id, registered))
+			continue;
+
 		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
-		arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
-		if (!arvif || !arsta)
-			continue;
-
 		ar = arvif->ar;
-		if (!ar)
-			continue;
 
-		ret = ath12k_wait_for_peer_delete_done(ar, arvif->vdev_id, arsta->addr);
+		ret = ath12k_wait_for_peer_delete_done(ar, &waits[link_id]);
+		ath12k_peer_delete_wait_unregister(ar, &waits[link_id]);
 		if (ret) {
 			err_ret = ret;
 			continue;

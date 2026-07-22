@@ -493,12 +493,8 @@ EXPORT_SYMBOL(ath12k_dp_mon_update_radiotap);
 void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 				   struct napi_struct *napi,
 				   struct sk_buff *msdu,
-				   const struct hal_rx_mon_ppdu_info *ppduinfo,
-				   struct ieee80211_rx_status *status,
-				   u8 decap)
+				   struct ieee80211_rx_status *status)
 {
-	struct ath12k_dp *dp = dp_pdev->dp;
-	struct ath12k_base *ab = dp->ab;
 	static const struct ieee80211_radiotap_he known = {
 		.data1 = cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_DATA_MCS_KNOWN |
 				     IEEE80211_RADIOTAP_HE_DATA1_BW_RU_ALLOC_KNOWN),
@@ -506,14 +502,6 @@ void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 	};
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_radiotap_he *he = NULL;
-	struct ieee80211_sta *pubsta = NULL;
-	struct ath12k_dp_link_peer *peer;
-	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	struct hal_rx_desc_data rx_info;
-	bool is_mcbc = rxcb->is_mcbc;
-	bool is_eapol_tkip = rxcb->is_eapol;
-	struct hal_rx_desc *rx_desc = (struct hal_rx_desc *)msdu->data;
-	u8 addr[ETH_ALEN] = {};
 
 	status->link_valid = 0;
 
@@ -524,64 +512,10 @@ void ath12k_dp_mon_rx_deliver_msdu(struct ath12k_pdev_dp *dp_pdev,
 		status->flag |= RX_FLAG_RADIOTAP_HE;
 	}
 
-	ath12k_dp_extract_rx_desc_data(dp->hal, &rx_info, rx_desc, rx_desc);
-
-	rcu_read_lock();
-	spin_lock_bh(&dp->dp_lock);
-	peer = ath12k_dp_rx_h_find_link_peer(dp_pdev, msdu, &rx_info);
-	if (peer && peer->sta) {
-		pubsta = peer->sta;
-		memcpy(addr, peer->addr, ETH_ALEN);
-		if (pubsta->valid_links) {
-			status->link_valid = 1;
-			status->link_id = peer->link_id;
-		}
-	}
-
-	spin_unlock_bh(&dp->dp_lock);
-	rcu_read_unlock();
-
-	ath12k_dbg(ab, ATH12K_DBG_DATA,
-		   "rx skb %p len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
-		   msdu,
-		   msdu->len,
-		   addr,
-		   rxcb->tid,
-		   (is_mcbc) ? "mcast" : "ucast",
-		   (status->encoding == RX_ENC_LEGACY) ? "legacy" : "",
-		   (status->encoding == RX_ENC_HT) ? "ht" : "",
-		   (status->encoding == RX_ENC_VHT) ? "vht" : "",
-		   (status->encoding == RX_ENC_HE) ? "he" : "",
-		   (status->bw == RATE_INFO_BW_40) ? "40" : "",
-		   (status->bw == RATE_INFO_BW_80) ? "80" : "",
-		   (status->bw == RATE_INFO_BW_160) ? "160" : "",
-		   (status->bw == RATE_INFO_BW_320) ? "320" : "",
-		   status->enc_flags & RX_ENC_FLAG_SHORT_GI ? "sgi " : "",
-		   status->rate_idx,
-		   status->nss,
-		   status->freq,
-		   status->band, status->flag,
-		   !!(status->flag & RX_FLAG_FAILED_FCS_CRC),
-		   !!(status->flag & RX_FLAG_MMIC_ERROR),
-		   !!(status->flag & RX_FLAG_AMSDU_MORE));
-
-	ath12k_dbg_dump(ab, ATH12K_DBG_DP_RX, NULL, "dp rx msdu: ",
-			msdu->data, msdu->len);
 	rx_status = IEEE80211_SKB_RXCB(msdu);
 	*rx_status = *status;
 
-	/* TODO: trace rx packet */
-
-	/* PN for multicast packets are not validate in HW,
-	 * so skip 802.3 rx path
-	 * Also, fast_rx expects the STA to be authorized, hence
-	 * eapol packets are sent in slow path.
-	 */
-	if (decap == DP_RX_DECAP_TYPE_ETHERNET2_DIX && !is_eapol_tkip &&
-	    !(is_mcbc && rx_status->flag & RX_FLAG_DECRYPTED))
-		rx_status->flag |= RX_FLAG_8023;
-
-	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), pubsta, msdu, napi);
+	ieee80211_rx_napi(ath12k_pdev_dp_to_hw(dp_pdev), NULL, msdu, napi);
 }
 EXPORT_SYMBOL(ath12k_dp_mon_rx_deliver_msdu);
 

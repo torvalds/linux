@@ -13,7 +13,6 @@
 #define ATH12K_HOST_VERSION_STRING		"WIN"
 #define ATH12K_QMI_WLANFW_TIMEOUT_MS		10000
 #define ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE	64
-#define ATH12K_QMI_CALDB_ADDRESS		0x4BA00000
 #define ATH12K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01	128
 #define ATH12K_QMI_WLFW_SERVICE_VERS_V01	0x01
 #define ATH12K_QMI_WLFW_SERVICE_INS_ID_V01	0x02
@@ -24,9 +23,7 @@
 #define ATH12K_QMI_WLANFW_MAX_TIMESTAMP_LEN_V01	32
 #define ATH12K_QMI_RESP_LEN_MAX			8192
 #define ATH12K_QMI_WLANFW_MAX_NUM_MEM_SEG_V01	52
-#define ATH12K_QMI_CALDB_SIZE			0x480000
 #define ATH12K_QMI_BDF_EXT_STR_LENGTH		0x20
-#define ATH12K_QMI_FW_MEM_REQ_SEGMENT_CNT	3
 #define ATH12K_QMI_WLFW_MAX_DEV_MEM_NUM_V01 4
 #define ATH12K_QMI_DEVMEM_CMEM_INDEX	0
 
@@ -156,12 +153,11 @@ struct ath12k_qmi {
 	struct m3_mem_region aux_uc_mem;
 	unsigned int service_ins_id;
 	struct dev_mem_info dev_mem[ATH12K_QMI_WLFW_MAX_DEV_MEM_NUM_V01];
+	u8 dynamic_ddr_support;
 };
 
-#define QMI_WLANFW_HOST_CAP_REQ_MSG_V01_MAX_LEN		261
+#define QMI_WLANFW_HOST_CAP_REQ_MSG_V01_MAX_LEN		265
 #define QMI_WLANFW_HOST_CAP_REQ_V01			0x0034
-#define QMI_WLANFW_HOST_CAP_RESP_MSG_V01_MAX_LEN	7
-#define QMI_WLFW_HOST_CAP_RESP_V01			0x0034
 #define QMI_WLFW_MAX_NUM_GPIO_V01			32
 #define QMI_WLANFW_MAX_PLATFORM_NAME_LEN_V01		64
 #define QMI_WLANFW_MAX_HOST_DDR_RANGE_SIZE_V01		3
@@ -258,7 +254,8 @@ struct qmi_wlanfw_host_cap_req_msg_v01 {
 	struct wlfw_host_mlo_chip_info_s_v01 mlo_chip_info[QMI_WLFW_MAX_NUM_MLO_CHIPS_V01];
 	u8 feature_list_valid;
 	u64 feature_list;
-
+	u8 dynamic_mem_support_valid;
+	u8 dynamic_mem_support;
 };
 
 struct qmi_wlanfw_host_cap_resp_msg_v01 {
@@ -267,8 +264,6 @@ struct qmi_wlanfw_host_cap_resp_msg_v01 {
 
 #define QMI_WLANFW_PHY_CAP_REQ_MSG_V01_MAX_LEN		0
 #define QMI_WLANFW_PHY_CAP_REQ_V01			0x0057
-#define QMI_WLANFW_PHY_CAP_RESP_MSG_V01_MAX_LEN		18
-#define QMI_WLANFW_PHY_CAP_RESP_V01			0x0057
 
 struct qmi_wlanfw_phy_cap_req_msg_v01 {
 };
@@ -281,12 +276,12 @@ struct qmi_wlanfw_phy_cap_resp_msg_v01 {
 	u32 board_id;
 	u8 single_chip_mlo_support_valid;
 	u8 single_chip_mlo_support;
+	u8 dynamic_ddr_support_valid;
+	u8 dynamic_ddr_support;
 };
 
 #define QMI_WLANFW_IND_REGISTER_REQ_MSG_V01_MAX_LEN		54
 #define QMI_WLANFW_IND_REGISTER_REQ_V01				0x0020
-#define QMI_WLANFW_IND_REGISTER_RESP_MSG_V01_MAX_LEN		18
-#define QMI_WLANFW_IND_REGISTER_RESP_V01			0x0020
 #define QMI_WLANFW_CLIENT_ID					0x4b4e454c
 
 struct qmi_wlanfw_ind_register_req_msg_v01 {
@@ -322,12 +317,8 @@ struct qmi_wlanfw_ind_register_resp_msg_v01 {
 	u64 fw_status;
 };
 
-#define QMI_WLANFW_REQUEST_MEM_IND_MSG_V01_MAX_LEN	1824
 #define QMI_WLANFW_RESPOND_MEM_REQ_MSG_V01_MAX_LEN	888
-#define QMI_WLANFW_RESPOND_MEM_RESP_MSG_V01_MAX_LEN	7
-#define QMI_WLANFW_REQUEST_MEM_IND_V01			0x0035
 #define QMI_WLANFW_RESPOND_MEM_REQ_V01			0x0036
-#define QMI_WLANFW_RESPOND_MEM_RESP_V01			0x0036
 #define QMI_WLANFW_MAX_NUM_MEM_CFG_V01			2
 #define QMI_WLANFW_MAX_STR_LEN_V01                      16
 
@@ -385,9 +376,7 @@ struct qmi_wlanfw_fw_ready_ind_msg_v01 {
 };
 
 #define QMI_WLANFW_CAP_REQ_MSG_V01_MAX_LEN	0
-#define QMI_WLANFW_CAP_RESP_MSG_V01_MAX_LEN	207
 #define QMI_WLANFW_CAP_REQ_V01			0x0024
-#define QMI_WLANFW_CAP_RESP_V01			0x0024
 
 enum qmi_wlanfw_pipedir_enum_v01 {
 	QMI_WLFW_PIPEDIR_NONE_V01 = 0,
@@ -500,8 +489,6 @@ struct qmi_wlanfw_cap_req_msg_v01 {
 };
 
 #define QMI_WLANFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_LEN	6182
-#define QMI_WLANFW_BDF_DOWNLOAD_RESP_MSG_V01_MAX_LEN	7
-#define QMI_WLANFW_BDF_DOWNLOAD_RESP_V01		0x0025
 #define QMI_WLANFW_BDF_DOWNLOAD_REQ_V01			0x0025
 /* TODO: Need to check with MCL and FW team that data can be pointer and
  * can be last element in structure
@@ -529,8 +516,6 @@ struct qmi_wlanfw_bdf_download_resp_msg_v01 {
 };
 
 #define QMI_WLANFW_M3_INFO_REQ_MSG_V01_MAX_MSG_LEN	18
-#define QMI_WLANFW_M3_INFO_RESP_MSG_V01_MAX_MSG_LEN	7
-#define QMI_WLANFW_M3_INFO_RESP_V01		0x003C
 #define QMI_WLANFW_M3_INFO_REQ_V01		0x003C
 
 struct qmi_wlanfw_m3_info_req_msg_v01 {
@@ -543,7 +528,6 @@ struct qmi_wlanfw_m3_info_resp_msg_v01 {
 };
 
 #define QMI_WLANFW_AUX_UC_INFO_REQ_MSG_V01_MAX_MSG_LEN	18
-#define QMI_WLANFW_AUX_UC_INFO_RESP_MSG_V01_MAX_MSG_LEN	7
 #define QMI_WLANFW_AUX_UC_INFO_REQ_V01	0x005A
 
 struct qmi_wlanfw_aux_uc_info_req_msg_v01 {
@@ -556,13 +540,9 @@ struct qmi_wlanfw_aux_uc_info_resp_msg_v01 {
 };
 
 #define QMI_WLANFW_WLAN_MODE_REQ_MSG_V01_MAX_LEN	11
-#define QMI_WLANFW_WLAN_MODE_RESP_MSG_V01_MAX_LEN	7
 #define QMI_WLANFW_WLAN_CFG_REQ_MSG_V01_MAX_LEN		803
-#define QMI_WLANFW_WLAN_CFG_RESP_MSG_V01_MAX_LEN	7
 #define QMI_WLANFW_WLAN_MODE_REQ_V01			0x0022
-#define QMI_WLANFW_WLAN_MODE_RESP_V01			0x0022
 #define QMI_WLANFW_WLAN_CFG_REQ_V01			0x0023
-#define QMI_WLANFW_WLAN_CFG_RESP_V01			0x0023
 #define QMI_WLANFW_MAX_STR_LEN_V01			16
 #define QMI_WLANFW_MAX_NUM_CE_V01			12
 #define QMI_WLANFW_MAX_NUM_SVC_V01			24
@@ -605,9 +585,7 @@ struct qmi_wlanfw_wlan_cfg_resp_msg_v01 {
 };
 
 #define ATH12K_QMI_WLANFW_WLAN_INI_REQ_V01	0x002F
-#define ATH12K_QMI_WLANFW_WLAN_INI_RESP_V01	0x002F
 #define QMI_WLANFW_WLAN_INI_REQ_MSG_V01_MAX_LEN		7
-#define QMI_WLANFW_WLAN_INI_RESP_MSG_V01_MAX_LEN	7
 
 struct qmi_wlanfw_wlan_ini_req_msg_v01 {
 	/* Must be set to true if enable_fwlog is being passed */
