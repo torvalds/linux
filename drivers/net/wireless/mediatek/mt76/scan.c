@@ -48,6 +48,7 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 	struct mt76_phy *phy = dev->scan.phy;
 	struct ieee80211_tx_info *info;
 	struct sk_buff *skb;
+	u8 link_id;
 
 	skb = ieee80211_probereq_get(phy->hw, vif->addr, ssid->ssid,
 				     ssid->ssid_len, req->ie_len);
@@ -76,6 +77,10 @@ mt76_scan_send_probe(struct mt76_dev *dev, struct cfg80211_ssid *ssid)
 	if (req->no_cck)
 		info->flags |= IEEE80211_TX_CTL_NO_CCK_RATE;
 	info->control.flags |= IEEE80211_TX_CTRL_DONT_USE_RATE_MASK;
+
+	link_id = mvif->wcid ? mvif->wcid->link_id : IEEE80211_LINK_UNSPECIFIED;
+	info->control.flags &= ~IEEE80211_TX_CTRL_MLO_LINK;
+	info->control.flags |= u32_encode_bits(link_id, IEEE80211_TX_CTRL_MLO_LINK);
 
 	mt76_tx(phy, NULL, mvif->wcid, skb);
 
