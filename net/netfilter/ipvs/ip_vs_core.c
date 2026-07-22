@@ -2194,8 +2194,11 @@ ip_vs_in_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state
 		}
 
 		if (resched) {
-			if (!old_ct)
+			if (!old_ct) {
+				spin_lock_bh(&cp->lock);
 				cp->flags &= ~IP_VS_CONN_F_NFCT;
+				spin_unlock_bh(&cp->lock);
+			}
 			if (!atomic_read(&cp->n_control))
 				ip_vs_conn_expire_now(cp);
 			__ip_vs_conn_put(cp);
@@ -2211,8 +2214,11 @@ ip_vs_in_hook(void *priv, struct sk_buff *skb, const struct nf_hook_state *state
 		if (sysctl_expire_nodest_conn(ipvs)) {
 			bool old_ct = ip_vs_conn_uses_old_conntrack(cp, skb);
 
-			if (!old_ct)
+			if (!old_ct) {
+				spin_lock_bh(&cp->lock);
 				cp->flags &= ~IP_VS_CONN_F_NFCT;
+				spin_unlock_bh(&cp->lock);
+			}
 
 			ip_vs_conn_expire_now(cp);
 			__ip_vs_conn_put(cp);
