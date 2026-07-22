@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 
+struct drm_framebuffer;
 struct intel_crtc;
 struct intel_display;
 struct intel_initial_plane_config;
@@ -42,5 +43,13 @@ bool icl_is_hdr_plane(struct intel_display *display, enum plane_id plane_id);
 
 u32 skl_plane_aux_dist(const struct intel_plane_state *plane_state,
 		       int color_plane);
+int intel_plane_max_width(struct intel_plane *plane,
+			  const struct drm_framebuffer *fb,
+			  int color_plane,
+			  unsigned int rotation);
+int intel_plane_max_height(struct intel_plane *plane,
+			   const struct drm_framebuffer *fb,
+			   int color_plane,
+			   unsigned int rotation);
 
 #endif
