@@ -23,7 +23,8 @@ use crate::{
     firmware::gsp::GspFirmware,
     gpu::Chipset,
     gsp,
-    num::FromSafeCast, //
+    num::FromSafeCast,
+    vgpu::VgpuState, //
 };
 
 mod hal;
@@ -171,7 +172,12 @@ pub(crate) struct FbLayout {
 
 impl FbLayout {
     /// Computes the FB layout for `chipset` required to run the `gsp_fw` GSP firmware.
-    pub(crate) fn new(chipset: Chipset, bar: Bar0<'_>, gsp_fw: &GspFirmware) -> Result<Self> {
+    pub(crate) fn new(
+        chipset: Chipset,
+        bar: Bar0<'_>,
+        gsp_fw: &GspFirmware,
+        vgpu_state: VgpuState,
+    ) -> Result<Self> {
         let hal = hal::fb_hal(chipset);
 
         let fb = {
@@ -234,11 +240,24 @@ impl FbLayout {
             FbRange(elf_addr..elf_addr + elf_size)
         };
 
+        let (vf_partition_count, wpr2_heap_size) = match vgpu_state {
+            VgpuState::Disabled => (
+                0,
+                gsp::LibosParams::from_chipset(chipset).wpr_heap_size(chipset, fb.end)?,
+            ),
+            VgpuState::Enabled { total_vfs } => (
+                u8::try_from(total_vfs.get()).map_err(|_| EINVAL)?,
+                gsp::LibosParams::vgpu_wpr_heap_size(),
+            ),
+        };
+
         let wpr2_heap = {
             const WPR2_HEAP_DOWN_ALIGN: Alignment = Alignment::new::<SZ_1M>();
-            let wpr2_heap_size =
-                gsp::LibosParams::from_chipset(chipset).wpr_heap_size(chipset, fb.end)?;
-            let wpr2_heap_addr = (elf.start - wpr2_heap_size).align_down(WPR2_HEAP_DOWN_ALIGN);
+            let wpr2_heap_addr = elf
+                .start
+                .checked_sub(wpr2_heap_size)
+                .ok_or(EOVERFLOW)?
+                .align_down(WPR2_HEAP_DOWN_ALIGN);
 
             FbRange(wpr2_heap_addr..(elf.start).align_down(WPR2_HEAP_DOWN_ALIGN))
         };
@@ -265,7 +284,7 @@ impl FbLayout {
             wpr2_heap,
             wpr2,
             heap,
-            vf_partition_count: 0,
+            vf_partition_count,
             pmu_reserved_size: hal.pmu_reserved_size(),
         })
     }

@@ -26,7 +26,6 @@ pub(crate) enum VgpuState {
     /// vGPU mode is enabled for this boot.
     Enabled {
         /// Total number of SR-IOV VFs supported by this device.
-        #[expect(dead_code)]
         total_vfs: NonZero<u16>,
     },
 }
