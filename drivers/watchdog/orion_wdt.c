@@ -613,10 +613,8 @@ static int orion_wdt_probe(struct platform_device *pdev)
 		 */
 		ret = devm_request_irq(&pdev->dev, irq, orion_wdt_irq, 0,
 				       pdev->name, dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to request IRQ\n");
+		if (ret < 0)
 			goto disable_clk;
-		}
 	}
 
 	/* Optional 2nd interrupt for pretimeout */
@@ -625,10 +623,8 @@ static int orion_wdt_probe(struct platform_device *pdev)
 		orion_wdt_info.options |= WDIOF_PRETIMEOUT;
 		ret = devm_request_irq(&pdev->dev, irq, orion_wdt_pre_irq,
 				       0, pdev->name, dev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to request IRQ\n");
+		if (ret < 0)
 			goto disable_clk;
-		}
 	}
 
 
