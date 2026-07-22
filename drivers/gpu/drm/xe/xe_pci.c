@@ -461,7 +461,6 @@ static const struct xe_device_desc nvls_desc = {
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
-	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 4,
 };
