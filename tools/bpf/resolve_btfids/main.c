@@ -1232,7 +1232,7 @@ static int process_kfunc_with_implicit_args(struct btf2btf_context *ctx, struct 
 		return -E2BIG;
 	}
 
-	if (btf__find_by_name_kind(btf, tmp_name, BTF_KIND_FUNC) > 0) {
+	if (btf__find_by_name_kind_own(btf, tmp_name, BTF_KIND_FUNC) > 0) {
 		pr_debug("resolve_btfids: function %s already exists in BTF\n", tmp_name);
 		goto add_new_proto;
 	}
