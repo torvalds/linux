@@ -69,7 +69,7 @@ enum zcrx_features {
 };
 
 enum zcrx_notification_type {
-	ZCRX_NOTIF_NO_BUFFERS,
+	ZCRX_NOTIF_ALLOC_FAIL,
 	ZCRX_NOTIF_COPY,
 
 	__ZCRX_NOTIF_TYPE_LAST,

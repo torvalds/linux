@@ -1244,7 +1244,7 @@ static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 
 	allocated = io_zcrx_refill_slow(pp, ifq, netmems, to_alloc);
 	if (!allocated) {
-		zcrx_send_notif(ifq, ZCRX_NOTIF_NO_BUFFERS);
+		zcrx_send_notif(ifq, ZCRX_NOTIF_ALLOC_FAIL);
 		return 0;
 	}
 out_return:
