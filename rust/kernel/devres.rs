@@ -435,11 +435,7 @@ where
         // SAFETY: The caller guarantees the data is valid for the device's full bound scope.
         // Lifetimes do not affect layout, so F::Of<'a> and F::Of<'static> have identical
         // representation; casting the slot pointer is sound.
-        let data = unsafe {
-            pin_init::pin_init_from_closure::<F::Of<'static>, E>(move |slot| {
-                data.__pinned_init(slot.cast())
-            })
-        };
+        let data = unsafe { pin_init::cast_pin_init(data) };
 
         Ok(Self(Devres::new(dev, data)?))
     }
