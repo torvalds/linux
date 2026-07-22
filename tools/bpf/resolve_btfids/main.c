@@ -1039,19 +1039,18 @@ static int collect_decl_tags(struct btf2btf_context *ctx)
 	return 0;
 }
 
-/*
- * To find kfunc flags, scan BTF_SET8_KFUNCS entries and use the entry
- * address to recover the corresponding BTF_ID symbol name.
- * Return 0 (no flags!) if not found.
- */
-static u32 find_kfunc_flags(struct object *obj, struct btf_id *kfunc_id)
+static int collect_kfuncs(struct object *obj, struct btf2btf_context *ctx)
 {
 	Elf_Data *idlist = obj->efile.idlist;
-	struct btf_id *set_id;
+	struct btf *btf = ctx->btf;
 	struct rb_node *next;
+
+	if (!idlist || !idlist->d_buf)
+		return 0;
 
 	for (next = rb_first(&obj->sets); next; next = rb_next(next)) {
 		struct btf_id_set8 *set8;
+		struct btf_id *set_id;
 		u64 set_addr;
 
 		set_id = rb_entry(next, struct btf_id, rb_node);
@@ -1066,64 +1065,34 @@ static u32 find_kfunc_flags(struct object *obj, struct btf_id *kfunc_id)
 		for (u32 i = 0; i < set_id->cnt; i++) {
 			size_t off = (char *)&set8->pairs[i] - (char *)set8;
 			const char *name = find_name_by_addr(obj, set_addr + off);
+			struct kfunc kfunc;
+			s32 func_id;
+			int err;
 
-			if (!name || strcmp(name, kfunc_id->name) != 0)
+			if (!name) {
+				pr_err("WARN: resolve_btfids: no BTF ID symbol for %s entry %u\n",
+				       set_id->name, i);
+				warnings++;
 				continue;
+			}
 
-			pr_debug("found kfunc %s in BTF_ID_FLAGS %s\n",
-				 kfunc_id->name, set_id->name);
+			func_id = btf__find_by_name_kind_own(btf, name, BTF_KIND_FUNC);
+			if (func_id < 0) {
+				pr_err("WARN: resolve_btfids: no BTF func for kfunc %s in %s\n",
+				       name, set_id->name);
+				warnings++;
+				continue;
+			}
 
-			return set8->pairs[i].flags;
+			pr_debug("found kfunc %s in %s\n", name, set_id->name);
+
+			kfunc.name = name;
+			kfunc.btf_id = func_id;
+			kfunc.flags = set8->pairs[i].flags;
+			err = push_kfunc(ctx, &kfunc);
+			if (err)
+				return err;
 		}
-	}
-
-	return 0;
-}
-
-static int collect_kfuncs(struct object *obj, struct btf2btf_context *ctx)
-{
-	const char *tag_name, *func_name;
-	struct btf *btf = ctx->btf;
-	const struct btf_type *t;
-	u32 flags, func_id;
-	struct kfunc kfunc;
-	struct btf_id *id;
-	int err;
-
-	if (ctx->nr_decl_tags == 0)
-		return 0;
-
-	for (u32 i = 0; i < ctx->nr_decl_tags; i++) {
-		t = btf__type_by_id(btf, ctx->decl_tags[i]);
-		if (btf_kflag(t) || btf_decl_tag(t)->component_idx != -1)
-			continue;
-
-		tag_name = btf__name_by_offset(btf, t->name_off);
-		if (strcmp(tag_name, "bpf_kfunc") != 0)
-			continue;
-
-		func_id = t->type;
-		t = btf__type_by_id(btf, func_id);
-		if (!btf_is_func(t))
-			continue;
-
-		func_name = btf__name_by_offset(btf, t->name_off);
-		if (!func_name)
-			continue;
-
-		id = btf_id__find(&obj->funcs, func_name);
-		if (!id || id->kind != BTF_ID_KIND_SYM)
-			continue;
-
-		flags = find_kfunc_flags(obj, id);
-
-		kfunc.name = id->name;
-		kfunc.btf_id = func_id;
-		kfunc.flags = flags;
-
-		err = push_kfunc(ctx, &kfunc);
-		if (err)
-			return err;
 	}
 
 	return 0;
