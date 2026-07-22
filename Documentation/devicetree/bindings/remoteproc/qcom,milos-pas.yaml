@@ -16,7 +16,6 @@ description:
 properties:
   compatible:
     enum:
-      - qcom,eliza-adsp-pas
       - qcom,milos-adsp-pas
       - qcom,milos-cdsp-pas
       - qcom,milos-mpss-pas
@@ -88,7 +87,6 @@ allOf:
       properties:
         compatible:
           enum:
-            - qcom,eliza-adsp-pas
             - qcom,milos-adsp-pas
             - qcom,milos-cdsp-pas
     then:
@@ -109,7 +107,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,eliza-adsp-pas
               - qcom,milos-adsp-pas
     then:
       properties:
