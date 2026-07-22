@@ -1797,7 +1797,7 @@ xrep_inode_flags(
 
 	/* Clear junk flags */
 	if (sc->ip->i_diflags & ~XFS_DIFLAG_ANY)
-		sc->ip->i_diflags &= ~XFS_DIFLAG_ANY;
+		sc->ip->i_diflags &= XFS_DIFLAG_ANY;
 
 	/* NEWRTBM only applies to realtime bitmaps */
 	if (I_INO(sc->ip) == sc->mp->m_sb.sb_rbmino)
@@ -1828,7 +1828,7 @@ xrep_inode_flags(
 
 	/* Clear junk flags. */
 	if (sc->ip->i_diflags2 & ~XFS_DIFLAG2_ANY)
-		sc->ip->i_diflags2 &= ~XFS_DIFLAG2_ANY;
+		sc->ip->i_diflags2 &= XFS_DIFLAG2_ANY;
 
 	/* No reflink flag unless we support it and it's a file. */
 	if (!xfs_has_reflink(sc->mp) || !S_ISREG(mode))
