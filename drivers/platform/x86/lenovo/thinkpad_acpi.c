@@ -768,7 +768,7 @@ static acpi_status __init tpacpi_acpi_handle_locate_callback(acpi_handle handle,
 	if (!strcmp(context, "video")) {
 		struct acpi_device *dev = acpi_fetch_acpi_dev(handle);
 
-		if (!dev || strcmp(ACPI_VIDEO_HID, acpi_device_hid(dev)))
+		if (!acpi_dev_is_video_device(dev))
 			return AE_OK;
 	}
 
