@@ -425,7 +425,7 @@ static struct cifs_swn_reg *cifs_find_swn_reg(struct cifs_tcon *tcon)
 
 /*
  * Get a registration for the tcon's server and share name, allocating a new one if it does not
- * exists
+ * exist.
  */
 static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 {
@@ -443,7 +443,7 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 		goto unlock;
 	}
 
-	reg = kmalloc_obj(struct cifs_swn_reg, GFP_ATOMIC);
+	reg = kmalloc_obj(struct cifs_swn_reg, GFP_KERNEL);
 	if (reg == NULL) {
 		ret = -ENOMEM;
 		goto fail_unlock;
@@ -451,7 +451,7 @@ static struct cifs_swn_reg *cifs_get_swn_reg(struct cifs_tcon *tcon)
 
 	kref_init(&reg->ref_count);
 
-	reg->id = idr_alloc(&cifs_swnreg_idr, reg, 1, 0, GFP_ATOMIC);
+	reg->id = idr_alloc(&cifs_swnreg_idr, reg, 1, 0, GFP_KERNEL);
 	if (reg->id < 0) {
 		cifs_dbg(FYI, "%s: failed to allocate registration id\n", __func__);
 		ret = reg->id;
