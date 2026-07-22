@@ -506,6 +506,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	{
 		struct ksmbd_rpc_command *resp = entry->response;
 
+		if (entry->msg_sz < sizeof(struct ksmbd_rpc_command))
+			return -EINVAL;
+
 		if (check_add_overflow(sizeof(struct ksmbd_rpc_command),
 				       resp->payload_sz, &msg_sz))
 			return -EINVAL;
@@ -515,6 +518,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	{
 		struct ksmbd_spnego_authen_response *resp = entry->response;
 
+		if (entry->msg_sz < sizeof(struct ksmbd_spnego_authen_response))
+			return -EINVAL;
+
 		msg_sz = sizeof(struct ksmbd_spnego_authen_response) +
 				resp->session_key_len + resp->spnego_blob_len;
 		break;
@@ -522,6 +528,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	case KSMBD_EVENT_SHARE_CONFIG_REQUEST:
 	{
 		struct ksmbd_share_config_response *resp = entry->response;
+
+		if (entry->msg_sz < sizeof(struct ksmbd_share_config_response))
+			return -EINVAL;
 
 		if (resp->payload_sz) {
 			if (resp->payload_sz < resp->veto_list_sz)
@@ -536,6 +545,9 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 	case KSMBD_EVENT_LOGIN_REQUEST_EXT:
 	{
 		struct ksmbd_login_response_ext *resp = entry->response;
+
+		if (entry->msg_sz < sizeof(struct ksmbd_login_response_ext))
+			return -EINVAL;
 
 		if (resp->ngroups) {
 			if (resp->ngroups < 0 ||
