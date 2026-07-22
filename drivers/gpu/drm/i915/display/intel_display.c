@@ -2486,6 +2486,19 @@ static int intel_crtc_set_context_latency(struct intel_crtc_state *crtc_state)
 	set_context_latency = max(set_context_latency,
 				  intel_psr_min_set_context_latency(crtc_state));
 
+	/*
+	 * From PTL onwards, the set context latency can be in the vactive
+	 * region, letting the safe window start some lines before the vblank
+	 * start. With modes that have a smaller vblank region, the computed
+	 * guardband is clamped to the vblank length, making the undelayed and
+	 * delayed vblank coincide. If the SCL is also 0, the 'safe window'
+	 * becomes effectively 0, and the DSB configured to wait for it gets
+	 * stalled, since the hardware never signals the safe window. Keep the
+	 * set context latency at a minimum of 1 to avoid this.
+	 */
+	if (DISPLAY_VER(display) >= 30)
+		set_context_latency = max(1, set_context_latency);
+
 	return set_context_latency;
 }
 
