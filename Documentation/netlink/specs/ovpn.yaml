@@ -118,12 +118,16 @@ attribute-sets:
         doc: >-
           The number of seconds after which a keep alive message is sent to the
           peer
+        checks:
+          max: 86400
       -
         name: keepalive-timeout
         type: u32
         doc: >-
           The number of seconds from the last activity after which the peer is
           assumed dead
+        checks:
+          max: 86400
       -
         name: del-reason
         type: u32
