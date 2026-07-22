@@ -915,6 +915,20 @@ static struct dentry *pidfs_fh_to_dentry(struct super_block *sb,
 	return path.dentry;
 }
 
+static struct file *pidfs_dentry_open(const struct path *path,
+				      unsigned int flags,
+				      const struct cred *cred)
+{
+	struct file *file;
+
+	/* pidfds are always O_RDWR. */
+	file = dentry_open(path, flags | O_RDWR, cred);
+	/* do_dentry_open() strips O_EXCL and O_TRUNC. */
+	if (!IS_ERR(file))
+		file->f_flags |= flags & (PIDFD_THREAD | PIDFD_AUTOKILL);
+	return file;
+}
+
 /*
  * Make sure that we reject any nonsensical flags that users pass via
  * open_by_handle_at(). Note that PIDFD_THREAD is defined as O_EXCL, and
@@ -939,18 +953,14 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 
 static struct file *pidfs_export_open(const struct path *path, unsigned int oflags)
 {
-	struct file *file;
-
 	/*
-	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
-	 * O_RDWR as pidfds always are.
+	 * Opening via file handle may never raise PIDFD_AUTOKILL. That can
+	 * only be done at task creation!
 	 */
-	oflags &= ~O_LARGEFILE;
-	file = dentry_open(path, oflags | O_RDWR, current_cred());
-	/* do_dentry_open() strips O_EXCL, which encodes PIDFD_THREAD. */
-	if (!IS_ERR(file))
-		file->f_flags |= oflags & PIDFD_THREAD;
-	return file;
+	if (WARN_ON_ONCE(oflags & PIDFD_AUTOKILL))
+		return ERR_PTR(-EINVAL);
+	/* Clear O_LARGEFILE as open_by_handle_at() forces it. */
+	return pidfs_dentry_open(path, oflags & ~O_LARGEFILE, current_cred());
 }
 
 static const struct export_operations pidfs_export_operations = {
@@ -1114,7 +1124,6 @@ static struct file_system_type pidfs_type = {
 
 struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 {
-	struct file *pidfd_file;
 	struct path path __free(path_put) = {};
 	int ret;
 
@@ -1132,16 +1141,7 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	VFS_WARN_ON_ONCE(!pid->attr);
 
 	flags &= ~PIDFD_STALE;
-	flags |= O_RDWR;
-	pidfd_file = dentry_open(&path, flags, current_cred());
-	/*
-	 * Raise PIDFD_THREAD and PIDFD_AUTOKILL explicitly as
-	 * do_dentry_open() strips O_EXCL and O_TRUNC.
-	 */
-	if (!IS_ERR(pidfd_file))
-		pidfd_file->f_flags |= (flags & (PIDFD_THREAD | PIDFD_AUTOKILL));
-
-	return pidfd_file;
+	return pidfs_dentry_open(&path, flags, current_cred());
 }
 
 void __init pidfs_init(void)
