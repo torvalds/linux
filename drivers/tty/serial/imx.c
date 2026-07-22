@@ -2602,34 +2602,23 @@ static int imx_uart_probe(struct platform_device *pdev)
 	if (txirq > 0) {
 		ret = devm_request_irq(&pdev->dev, rxirq, imx_uart_rxint, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to request rx irq: %d\n",
-				ret);
+		if (ret)
 			goto err_clk;
-		}
 
 		ret = devm_request_irq(&pdev->dev, txirq, imx_uart_txint, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to request tx irq: %d\n",
-				ret);
+		if (ret)
 			goto err_clk;
-		}
 
 		ret = devm_request_irq(&pdev->dev, rtsirq, imx_uart_rtsint, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to request rts irq: %d\n",
-				ret);
+		if (ret)
 			goto err_clk;
-		}
 	} else {
 		ret = devm_request_irq(&pdev->dev, rxirq, imx_uart_int, 0,
 				       dev_name(&pdev->dev), sport);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
+		if (ret)
 			goto err_clk;
-		}
 	}
 
 	imx_uart_ports[sport->port.line] = sport;
