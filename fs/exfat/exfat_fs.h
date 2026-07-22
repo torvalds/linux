@@ -294,7 +294,7 @@ struct exfat_inode_info {
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
 	loff_t valid_size;
-	/* page-aligned size that has been zeroed out for mmap */
+	/* block-aligned size zeroed in the page cache (>= valid_size) */
 	loff_t zeroed_size;
 	/* hash by i_location */
 	struct hlist_node i_hash_fat;
