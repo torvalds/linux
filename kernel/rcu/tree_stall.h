@@ -998,8 +998,7 @@ EXPORT_SYMBOL_GPL(show_rcu_gp_kthreads);
  * This function checks for grace-period requests that fail to motivate
  * RCU to come out of its idle mode.
  */
-static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
-				     const unsigned long gpssdelay)
+static void rcu_check_gp_start_stall(struct rcu_node *rnp, const unsigned long gpssdelay)
 {
 	unsigned long flags;
 	unsigned long j;
@@ -1074,7 +1073,7 @@ void rcu_fwd_progress_check(unsigned long j)
 			__func__, jiffies - data_race(READ_ONCE(rcu_state.gp_end)));
 		preempt_disable();
 		rdp = this_cpu_ptr(&rcu_data);
-		rcu_check_gp_start_stall(rdp->mynode, rdp, j);
+		rcu_check_gp_start_stall(rdp->mynode, j);
 		preempt_enable();
 	}
 	for_each_possible_cpu(cpu) {
