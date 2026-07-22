@@ -179,7 +179,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	tcph = (void *)skb_network_header(skb) + tcphoff;
+	tcph = (void *)skb->data + tcphoff;
 	tcph->source = cp->vport;
 
 	/* Adjust TCP checksums */
@@ -260,7 +260,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	tcph = (void *)skb_network_header(skb) + tcphoff;
+	tcph = (void *)skb->data + tcphoff;
 	tcph->dest = cp->dport;
 
 	/*

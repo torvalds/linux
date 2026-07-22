@@ -121,7 +121,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	sctph = (void *) skb_network_header(skb) + sctphoff;
+	sctph = (void *)skb->data + sctphoff;
 
 	/* Only update csum if we really have to */
 	if (sctph->source != cp->vport || payload_csum ||
@@ -169,7 +169,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	sctph = (void *) skb_network_header(skb) + sctphoff;
+	sctph = (void *)skb->data + sctphoff;
 
 	/* Only update csum if we really have to */
 	if (sctph->dest != cp->dport || payload_csum ||

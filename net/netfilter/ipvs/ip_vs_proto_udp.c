@@ -170,7 +170,7 @@ udp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	udph = (void *)skb_network_header(skb) + udphoff;
+	udph = (void *)skb->data + udphoff;
 	udph->source = cp->vport;
 
 	/*
@@ -254,7 +254,7 @@ udp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			payload_csum = true;
 	}
 
-	udph = (void *)skb_network_header(skb) + udphoff;
+	udph = (void *)skb->data + udphoff;
 	udph->dest = cp->dport;
 
 	/*
