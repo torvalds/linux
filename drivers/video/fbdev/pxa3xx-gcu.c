@@ -615,10 +615,8 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(dev, irq, pxa3xx_gcu_handle_irq,
 			       0, DRV_NAME, priv);
-	if (ret < 0) {
-		dev_err(dev, "request_irq failed\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	/* allocate dma memory */
 	priv->shared = dma_alloc_coherent(dev, SHARED_SIZE,
