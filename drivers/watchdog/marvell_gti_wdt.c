@@ -321,7 +321,7 @@ static int gti_wdt_probe(struct platform_device *pdev)
 	err = devm_request_irq(dev, irq, gti_wdt_interrupt, 0,
 			       pdev->name, &priv->wdev);
 	if (err)
-		return dev_err_probe(dev, err, "Failed to register interrupt handler\n");
+		return err;
 
 	dev_info(dev, "Watchdog enabled (timeout=%d sec)\n", wdog_dev->timeout);
 	return 0;
