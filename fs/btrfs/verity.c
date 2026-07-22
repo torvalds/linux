@@ -638,7 +638,7 @@ rollback:
 	rollback_ret = rollback_verity(inode);
 	if (rollback_ret)
 		btrfs_err(inode->root->fs_info,
-			  "failed to rollback verity items: %d", rollback_ret);
+			  "failed to rollback verity items: %pe", ERR_PTR(rollback_ret));
 	return ret;
 }
 

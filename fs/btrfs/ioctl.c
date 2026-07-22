@@ -2839,8 +2839,8 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		else
 			ret = -ENOENT;
 		btrfs_err(fs_info,
-			  "could not find default diritem for dir %llu: %d",
-			  dir_id, ret);
+			  "could not find default diritem for dir %llu: %pe",
+			  dir_id, ERR_PTR(ret));
 		goto out_free;
 	}
 

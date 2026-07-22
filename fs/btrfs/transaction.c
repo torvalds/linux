@@ -1640,7 +1640,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_transaction(trans);
 	if (unlikely(ret)) {
 		btrfs_err(fs_info,
-"error while writing out transaction during qgroup snapshot accounting: %d", ret);
+"error while writing out transaction during qgroup snapshot accounting: %pe", ERR_PTR(ret));
 		return ret;
 	}
 
@@ -2586,7 +2586,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	ret = btrfs_write_and_wait_transaction(trans);
 	if (unlikely(ret)) {
-		btrfs_err(fs_info, "error while writing out transaction: %d", ret);
+		btrfs_err(fs_info, "error while writing out transaction: %pe", ERR_PTR(ret));
 		mutex_unlock(&fs_info->tree_log_mutex);
 		goto scrub_continue;
 	}
@@ -2747,8 +2747,8 @@ void __cold __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 	WRITE_ONCE(trans->transaction->aborted, error);
 	trace_btrfs_transaction_abort(trans);
 	if (first_hit) {
-		btrfs_err(fs_info, "Transaction %llu aborted (error %d)",
-			  trans->transid, error);
+		btrfs_err(fs_info, "Transaction %llu aborted (%pe)",
+			  trans->transid, ERR_PTR(error));
 		if (error == -ENOSPC)
 			btrfs_dump_space_info_for_trans_abort(fs_info);
 	}

@@ -1698,13 +1698,13 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 				last_finished_delalloc_end = found_start + found_len;
 			if (unlikely(ret < 0))
 				btrfs_err_rl(fs_info,
-"failed to run delalloc range, root=%lld ino=%llu folio=%llu submit_bitmap=%*pbl start=%llu len=%u: %d",
+"failed to run delalloc range, root=%lld ino=%llu folio=%llu submit_bitmap=%*pbl start=%llu len=%u: %pe",
 					     btrfs_root_id(inode->root),
 					     btrfs_ino(inode),
 					     folio_pos(folio),
 					     blocks_per_folio,
 					     bio_ctrl->submit_bitmap,
-					     found_start, found_len, ret);
+					     found_start, found_len, ERR_PTR(ret));
 		} else {
 			/*
 			 * We've hit an error during previous delalloc range,
@@ -2081,10 +2081,10 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 		return 0;
 	if (unlikely(ret < 0))
 		btrfs_err_rl(fs_info,
-"failed to submit blocks, root=%lld inode=%llu folio=%llu submit_bitmap=%*pbl: %d",
+"failed to submit blocks, root=%lld inode=%llu folio=%llu submit_bitmap=%*pbl: %pe",
 			     btrfs_root_id(inode->root), btrfs_ino(inode),
 			     folio_pos(folio), blocks_per_folio,
-			     bio_ctrl->submit_bitmap, ret);
+			     bio_ctrl->submit_bitmap, ERR_PTR(ret));
 
 	bio_ctrl->wbc->nr_to_write--;
 

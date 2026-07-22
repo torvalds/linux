@@ -3915,8 +3915,8 @@ out:
 			ret = PTR_ERR(trans);
 			trans = NULL;
 			btrfs_err(fs_info,
-				  "fail to start transaction for status update: %d",
-				  ret);
+				  "fail to start transaction for status update: %pe",
+				  ERR_PTR(ret));
 		}
 	} else {
 		trans = NULL;
@@ -3931,7 +3931,7 @@ out:
 
 		if (ret2 < 0) {
 			ret = ret2;
-			btrfs_err(fs_info, "fail to update qgroup status: %d", ret);
+			btrfs_err(fs_info, "fail to update qgroup status: %pe", ERR_PTR(ret));
 		}
 	}
 	fs_info->qgroup_rescan_running = false;
@@ -3952,7 +3952,7 @@ out:
 		btrfs_info(fs_info, "qgroup scan completed%s",
 			ret > 0 ? " (inconsistency flag cleared)" : "");
 	} else {
-		btrfs_err(fs_info, "qgroup scan failed with %d", ret);
+		btrfs_err(fs_info, "qgroup scan failed with %pe", ERR_PTR(ret));
 	}
 }
 

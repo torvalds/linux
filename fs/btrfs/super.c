@@ -973,7 +973,7 @@ static int btrfs_fill_super(struct super_block *sb,
 
 	ret = open_ctree(sb, fs_devices);
 	if (ret) {
-		btrfs_err(fs_info, "open_ctree failed: %d", ret);
+		btrfs_err(fs_info, "open_ctree failed: %pe", ERR_PTR(ret));
 		return ret;
 	}
 

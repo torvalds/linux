@@ -250,8 +250,8 @@ static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off
 
 	ret = extent_from_logical(fs_info, logical, &path, &found_key, &flags);
 	if (ret < 0) {
-		btrfs_err_rl(fs_info, "failed to lookup extent item for logical %llu: %d",
-			     logical, ret);
+		btrfs_err_rl(fs_info, "failed to lookup extent item for logical %llu: %pe",
+			     logical, ERR_PTR(ret));
 		return;
 	}
 	eb = path.nodes[0];
@@ -1019,9 +1019,10 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 			btrfs_folio_end_lock(inode->root->fs_info, locked_folio,
 					     start, async_extent->ram_size);
 		btrfs_err_rl(inode->root->fs_info,
-			"%s failed, root=%llu inode=%llu start=%llu len=%llu: %d",
+			"%s failed, root=%llu inode=%llu start=%llu len=%llu: %pe",
 			     __func__, btrfs_root_id(inode->root),
-			     btrfs_ino(inode), start, async_extent->ram_size, ret);
+			     btrfs_ino(inode), start, async_extent->ram_size,
+			     ERR_PTR(ret));
 	}
 }
 
@@ -1508,10 +1509,10 @@ out_unlock:
 				       end - start - cur_alloc_size + 1, NULL);
 	}
 	btrfs_err(fs_info,
-"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%u: %d",
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu cur_alloc_size=%u: %pe",
 		  __func__, btrfs_root_id(inode->root),
 		  btrfs_ino(inode), orig_start, end + 1 - orig_start,
-		  start, cur_alloc_size, ret);
+		  start, cur_alloc_size, ERR_PTR(ret));
 	return ret;
 }
 
@@ -1962,9 +1963,9 @@ error:
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
 	btrfs_err(inode->root->fs_info,
-		  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %d",
+		  "%s failed, root=%lld inode=%llu start=%llu len=%llu: %pe",
 		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
-		  file_pos, len, ret);
+		  file_pos, len, ERR_PTR(ret));
 	return ret;
 }
 
@@ -2285,10 +2286,10 @@ error:
 	}
 	btrfs_free_path(path);
 	btrfs_err(fs_info,
-"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu oe_cleanup=%llu oe_cleanup_len=%llu untouched_start=%llu untouched_len=%llu: %d",
+"%s failed, root=%llu inode=%llu start=%llu len=%llu cur_offset=%llu oe_cleanup=%llu oe_cleanup_len=%llu untouched_start=%llu untouched_len=%llu: %pe",
 		  __func__, btrfs_root_id(inode->root), btrfs_ino(inode),
 		  start, end + 1 - start, cur_offset, oe_cleanup_start, oe_cleanup_len,
-		  untouched_start, untouched_len, ret);
+		  untouched_start, untouched_len, ERR_PTR(ret));
 	return ret;
 }
 
@@ -3907,7 +3908,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 
 out:
 	if (ret)
-		btrfs_err(fs_info, "could not do orphan cleanup %d", ret);
+		btrfs_err(fs_info, "could not do orphan cleanup %pe", ERR_PTR(ret));
 	return ret;
 }
 
@@ -4210,8 +4211,8 @@ cache_acl:
 		ret = btrfs_load_inode_props(inode, path);
 		if (ret)
 			btrfs_err(fs_info,
-				  "error loading props for ino %llu (root %llu): %d",
-				  btrfs_ino(inode), btrfs_root_id(root), ret);
+				  "error loading props for ino %llu (root %llu): %pe",
+				  btrfs_ino(inode), btrfs_root_id(root), ERR_PTR(ret));
 	}
 
 	/*
@@ -6825,8 +6826,8 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	}
 	if (ret) {
 		btrfs_err(fs_info,
-			  "error inheriting props for ino %llu (root %llu): %d",
-			  btrfs_ino(BTRFS_I(inode)), btrfs_root_id(root), ret);
+			  "error inheriting props for ino %llu (root %llu): %pe",
+			  btrfs_ino(BTRFS_I(inode)), btrfs_root_id(root), ERR_PTR(ret));
 	}
 
 	/*

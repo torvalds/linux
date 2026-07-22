@@ -279,7 +279,6 @@ void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int error, const char *fmt, ...)
 {
 	char *s_id = "<unknown>";
-	const char *errstr;
 	struct va_format vaf = { .fmt = fmt };
 	va_list args;
 
@@ -289,13 +288,12 @@ void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 	va_start(args, fmt);
 	vaf.va = &args;
 
-	errstr = btrfs_decode_error(error);
 	if (fs_info && (btrfs_test_opt(fs_info, PANIC_ON_FATAL_ERROR)))
-		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
-			s_id, function, line, &vaf, error, errstr);
+		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %pe)\n",
+			s_id, function, line, &vaf, error, ERR_PTR(error));
 
-	btrfs_crit(fs_info, "panic in %s:%d: %pV (errno=%d %s)",
-		   function, line, &vaf, error, errstr);
+	btrfs_crit(fs_info, "panic in %s:%d: %pV (errno=%d %pe)",
+		   function, line, &vaf, error, ERR_PTR(error));
 	va_end(args);
 	/* Caller calls BUG() */
 }
