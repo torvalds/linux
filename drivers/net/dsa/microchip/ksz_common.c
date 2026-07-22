@@ -2994,7 +2994,7 @@ static int ksz_switch_detect(struct ksz_device *dev)
 			break;
 		default:
 			dev_err(dev->dev,
-				"unsupported switch detected %x)\n", id32);
+				"unsupported switch detected (0x%x)\n", id32);
 			return -ENODEV;
 		}
 	}
