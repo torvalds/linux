@@ -145,7 +145,7 @@ static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
 		goto print_out;
 	}
 
-	if (!hiter)
+	if (!hiter || !hiter->dev)
 		return 0;
 
 	mmio_print_pcidev(s, hiter->dev);
