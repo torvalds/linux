@@ -86,7 +86,6 @@ impl VgpuManager {
     }
 
     /// Returns the detected vGPU state for this boot.
-    #[expect(dead_code)]
     pub(crate) fn state(&self) -> VgpuState {
         self.state
     }

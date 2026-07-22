@@ -89,7 +89,7 @@ impl super::Gsp {
         self.cmdq
             .send_command_no_wait(bar, commands::SetSystemInfo::new(pdev, chipset))?;
         self.cmdq
-            .send_command_no_wait(bar, commands::SetRegistry::new()?)?;
+            .send_command_no_wait(bar, commands::SetRegistry::new(ctx.vgpu.state())?)?;
 
         hal.post_boot(&self, ctx, &gsp_fw)?;
 
