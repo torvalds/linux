@@ -290,6 +290,8 @@ static inline bool kvm_arch_pmi_in_guest(struct kvm_vcpu *vcpu)
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
 
+void kvm_riscv_clear_former_vcpu(void);
+
 int kvm_riscv_setup_default_irq_routing(struct kvm *kvm, u32 lines);
 
 void __kvm_riscv_unpriv_trap(void);
