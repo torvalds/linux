@@ -1331,6 +1331,7 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 	if (sch->level >= SCX_SUB_MAX_DEPTH) {
 		scx_error(sch, "max nesting depth %d violated",
 			  SCX_SUB_MAX_DEPTH);
+		ret = -EINVAL;
 		goto err_disable;
 	}
 
@@ -1378,6 +1379,7 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 	set_cgroup_sched(sch_cgroup(sch), sch);
 	if (!(cgrp->self.flags & CSS_ONLINE)) {
 		scx_error(sch, "cgroup is not online");
+		ret = -ENODEV;
 		goto err_unlock_and_disable;
 	}
 
