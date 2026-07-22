@@ -6,6 +6,7 @@
  ******************************************************************************/
 #include <linux/crc32.h>
 #include <linux/unaligned.h>
+#include <linux/bitops.h>
 #include <drv_types.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -225,7 +226,6 @@ void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_cod
 }
 
 /* macros for extraction/creation of unsigned char/unsigned short values  */
-#define RotR1(v16)   ((((v16) >> 1) & 0x7FFF) ^ (((v16) & 1) << 15))
 #define   Lo8(v16)   ((u8)((v16)       & 0x00FF))
 #define   Hi8(v16)   ((u8)(((v16) >> 8) & 0x00FF))
 #define  Lo16(v32)   ((u16)((v32)       & 0xFFFF))
@@ -392,12 +392,12 @@ static void phase2(u8 *rc4key, const u8 *tk, const u16 *p1k, u16 iv16)
 	PPK[5] +=    _S_(PPK[4] ^ TK16(5));   /* Total # S-box lookups == 6  */
 
 	/* Final sweep: bijective, "linear". Rotates kill LSB correlations   */
-	PPK[0] +=  RotR1(PPK[5] ^ TK16(6));
-	PPK[1] +=  RotR1(PPK[0] ^ TK16(7));   /* Use all of TK[] in Phase2   */
-	PPK[2] +=  RotR1(PPK[1]);
-	PPK[3] +=  RotR1(PPK[2]);
-	PPK[4] +=  RotR1(PPK[3]);
-	PPK[5] +=  RotR1(PPK[4]);
+	PPK[0] +=  ror16(PPK[5] ^ TK16(6), 1);
+	PPK[1] +=  ror16(PPK[0] ^ TK16(7), 1);   /* Use all of TK[] in Phase2   */
+	PPK[2] +=  ror16(PPK[1], 1);
+	PPK[3] +=  ror16(PPK[2], 1);
+	PPK[4] +=  ror16(PPK[3], 1);
+	PPK[5] +=  ror16(PPK[4], 1);
 	/* Note: At this point, for a given key TK[0..15], the 96-bit output */
 	/*       value PPK[0..5] is guaranteed to be unique, as a function   */
 	/*       of the 96-bit "input" value   {TA, IV32, IV16}. That is, P1K  */
