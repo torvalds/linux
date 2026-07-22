@@ -763,7 +763,6 @@ bool dpmm_dcn4_map_mode_to_soc_dpm(struct dml2_dpmm_map_mode_to_soc_dpm_params_i
 	else
 		in_out->programming->stutter.supported_in_blank = false;
 
-	// TODO: Fix me Sam
 	if (in_out->soc_bb->power_management_parameters.z8_min_idle_time > 0 &&
 		in_out->programming->informative.power_management.z8.stutter_period >= in_out->soc_bb->power_management_parameters.z8_min_idle_time)
 		in_out->programming->z8_stutter.meets_eco = true;
