@@ -146,6 +146,9 @@ struct efa_com_get_device_attr_result {
 	u16 min_sq_depth;
 	u16 max_link_speed_gbps;
 	u8 db_bar;
+	u32 max_event_counters;
+	u64 event_counter_max_val;
+	u32 supported_event_counter_qp_events;
 };
 
 struct efa_com_get_hw_hints_result {
@@ -301,6 +304,37 @@ union efa_com_get_stats_result {
 	struct efa_com_network_stats network_stats;
 };
 
+struct efa_com_create_event_counter_params {
+	dma_addr_t dma_addr;
+	u16 uarn;
+};
+
+struct efa_com_create_event_counter_result {
+	u32 cntr_handle;
+};
+
+struct efa_com_destroy_event_counter_params {
+	u32 cntr_handle;
+};
+
+struct efa_com_attach_event_counter_params {
+	u32 cntr_handle;
+	u32 qp_handle;
+	u32 events;
+};
+
+struct efa_com_detach_event_counter_params {
+	u32 cntr_handle;
+	u32 qp_handle;
+	u32 events;
+};
+
+struct efa_com_modify_event_counter_params {
+	u32 cntr_handle;
+	u8 operation;
+	u64 value;
+};
+
 int efa_com_create_qp(struct efa_com_dev *edev,
 		      struct efa_com_create_qp_params *params,
 		      struct efa_com_create_qp_result *res);
@@ -351,5 +385,16 @@ int efa_com_dealloc_uar(struct efa_com_dev *edev,
 int efa_com_get_stats(struct efa_com_dev *edev,
 		      struct efa_com_get_stats_params *params,
 		      union efa_com_get_stats_result *result);
+int efa_com_create_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_create_event_counter_params *params,
+				 struct efa_com_create_event_counter_result *result);
+int efa_com_destroy_event_counter(struct efa_com_dev *edev,
+				  struct efa_com_destroy_event_counter_params *params);
+int efa_com_attach_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_attach_event_counter_params *params);
+int efa_com_detach_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_detach_event_counter_params *params);
+int efa_com_modify_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_modify_event_counter_params *params);
 
 #endif /* _EFA_COM_CMD_H_ */

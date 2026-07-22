@@ -553,6 +553,10 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 		}
 
 		result->inline_buf_size_ex = resp.u.queue_attr_2.inline_buf_size_ex;
+		result->max_event_counters = resp.u.queue_attr_2.max_event_counters;
+		result->event_counter_max_val = resp.u.queue_attr_2.event_counter_max_val;
+		result->supported_event_counter_qp_events =
+			resp.u.queue_attr_2.supported_event_counter_qp_events;
 	} else {
 		result->inline_buf_size_ex = result->inline_buf_size;
 	}
@@ -884,6 +888,138 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 		result->network_stats.unresponsive_remote_events = ns->unresponsive_remote_events;
 		result->network_stats.impaired_remote_conn_events = ns->impaired_remote_conn_events;
 		break;
+	}
+
+	return 0;
+}
+
+int efa_com_create_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_create_event_counter_params *params,
+				 struct efa_com_create_event_counter_result *result)
+{
+	struct efa_admin_create_event_counter_cmd cmd = {};
+	struct efa_admin_create_event_counter_resp resp;
+	struct efa_com_admin_queue *aq = &edev->aq;
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_CREATE_EVENT_COUNTER;
+	cmd.uar = params->uarn;
+	cmd.paddr = params->dma_addr;
+
+	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to create event counter [%d]\n",
+				      err);
+		return err;
+	}
+
+	result->cntr_handle = resp.cntr_handle;
+	return 0;
+}
+
+int efa_com_destroy_event_counter(struct efa_com_dev *edev,
+				  struct efa_com_destroy_event_counter_params *params)
+{
+	struct efa_admin_destroy_event_counter_cmd cmd = {};
+	struct efa_admin_destroy_event_counter_resp resp;
+	struct efa_com_admin_queue *aq = &edev->aq;
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DESTROY_EVENT_COUNTER;
+	cmd.cntr_handle = params->cntr_handle;
+
+	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to destroy event counter [%d]\n",
+				      err);
+		return err;
+	}
+
+	return 0;
+}
+
+static int efa_com_attach_detach_event_counter(struct efa_com_dev *edev, u8 opcode,
+					       u32 cntr_handle, u32 qp_handle,
+					       u32 events)
+{
+	struct efa_admin_attach_detach_event_counter_cmd cmd = {};
+	struct efa_admin_attach_detach_event_counter_resp resp;
+	struct efa_com_admin_queue *aq = &edev->aq;
+	int err;
+
+	cmd.aq_common_descriptor.opcode = opcode;
+	cmd.cntr_handle = cntr_handle;
+	cmd.attach_type = EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS;
+	cmd.u.qp_events.qp_handle = qp_handle;
+	cmd.u.qp_events.events = events;
+
+	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to %s event counter [%d]\n",
+				      opcode == EFA_ADMIN_ATTACH_EVENT_COUNTER
+					      ? "attach"
+					      : "detach",
+				      err);
+		return err;
+	}
+
+	return 0;
+}
+
+int efa_com_attach_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_attach_event_counter_params *params)
+{
+	return efa_com_attach_detach_event_counter(edev,
+						   EFA_ADMIN_ATTACH_EVENT_COUNTER,
+						   params->cntr_handle,
+						   params->qp_handle,
+						   params->events);
+}
+
+int efa_com_detach_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_detach_event_counter_params *params)
+{
+	return efa_com_attach_detach_event_counter(edev,
+						   EFA_ADMIN_DETACH_EVENT_COUNTER,
+						   params->cntr_handle,
+						   params->qp_handle,
+						   params->events);
+}
+
+int efa_com_modify_event_counter(struct efa_com_dev *edev,
+				 struct efa_com_modify_event_counter_params *params)
+{
+	struct efa_admin_modify_event_counter_cmd cmd = {};
+	struct efa_admin_modify_event_counter_resp resp;
+	struct efa_com_admin_queue *aq = &edev->aq;
+	int err;
+
+	cmd.aq_common_descriptor.opcode = EFA_ADMIN_MODIFY_EVENT_COUNTER;
+	cmd.cntr_handle = params->cntr_handle;
+	cmd.operation = params->operation;
+	cmd.value = params->value;
+
+	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
+			       sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp,
+			       sizeof(resp));
+	if (err) {
+		ibdev_err_ratelimited(edev->efa_dev,
+				      "Failed to modify event counter [%d]\n",
+				      err);
+		return err;
 	}
 
 	return 0;
