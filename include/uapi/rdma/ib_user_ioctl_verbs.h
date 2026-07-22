@@ -300,4 +300,23 @@ struct ib_uverbs_buffer_desc {
 	__aligned_u64 length;
 };
 
+enum ib_uverbs_comp_cntr_entry {
+	IB_UVERBS_COMP_CNTR_ENTRY_COMP,
+	IB_UVERBS_COMP_CNTR_ENTRY_ERR,
+};
+
+enum ib_uverbs_comp_cntr_modify_op {
+	IB_UVERBS_COMP_CNTR_MODIFY_OP_SET,
+	IB_UVERBS_COMP_CNTR_MODIFY_OP_INC,
+};
+
+enum ib_uverbs_qp_attach_comp_cntr_op {
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_SEND = 1 << 0,
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_RECV = 1 << 1,
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_RDMA_READ = 1 << 2,
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_READ = 1 << 3,
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_RDMA_WRITE = 1 << 4,
+	IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_WRITE = 1 << 5,
+};
+
 #endif
