@@ -56,6 +56,56 @@ use crate::{
 
 mod hal;
 
+/// PRC message sub-command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum PrcMessageSubcmd {
+    /// Read a PRC knob value.
+    Read = 0x0c,
+}
+
+impl From<PrcMessageSubcmd> for u8 {
+    fn from(value: PrcMessageSubcmd) -> Self {
+        value as u8
+    }
+}
+
+/// PRC object identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum PrcObjectId {
+    /// vGPU mode configuration knob.
+    VgpuMode = 0x29,
+}
+
+impl From<PrcObjectId> for u8 {
+    fn from(value: PrcObjectId) -> Self {
+        value as u8
+    }
+}
+
+kernel::impl_flags!(
+    /// PRC request flags.
+    #[derive(Clone, Copy, Default, PartialEq, Eq)]
+    struct PrcFlags(u8);
+
+    /// Individual PRC request flag.
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum PrcFlag {
+        /// Request the active knob value for the current boot.
+        Active = 1 << 1,
+    }
+);
+
+/// vGPU operating mode as reported by FSP via the PRC protocol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum VgpuMode {
+    /// vGPU support is disabled on this GPU.
+    Disabled,
+    /// vGPU support is enabled on this GPU.
+    Enabled,
+}
+
 /// FSP command response payload (`NVDM_PAYLOAD_COMMAND_RESPONSE`).
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
@@ -63,6 +113,62 @@ struct NvdmPayloadCommandResponse {
     task_id: u32,
     command_nvdm_type: u32,
     error_code: u32,
+}
+
+/// PRC message payload.
+///
+/// Sent to FSP to query or modify a device configuration knob.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct NvdmPayloadPrc {
+    sub_message_id: u8,
+    flags: u8,
+    object_id: u8,
+    reserved: u8,
+}
+
+impl NvdmPayloadPrc {
+    /// Constructs a PRC payload from typed protocol fields.
+    fn new(subcmd: PrcMessageSubcmd, object_id: PrcObjectId, flags: PrcFlags) -> Self {
+        Self {
+            sub_message_id: subcmd.into(),
+            flags: flags.into(),
+            object_id: object_id.into(),
+            reserved: 0,
+        }
+    }
+}
+
+// SAFETY: NvdmPayloadPrc is a packed C struct with only integral fields.
+unsafe impl AsBytes for NvdmPayloadPrc {}
+
+/// PRC response payload containing the knob state value.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct NvdmPayloadPrcResponse {
+    value_low: u8,
+    value_high: u8,
+    reserved1: u8,
+    reserved2: u8,
+}
+
+impl NvdmPayloadPrcResponse {
+    /// Returns the PRC knob value as a little-endian 16-bit integer.
+    fn value(self) -> u16 {
+        u16::from(self.value_low) | (u16::from(self.value_high) << 8)
+    }
+}
+
+impl TryFrom<NvdmPayloadPrcResponse> for VgpuMode {
+    type Error = kernel::error::Error;
+
+    fn try_from(value: NvdmPayloadPrcResponse) -> Result<Self> {
+        match value.value() {
+            0 => Ok(VgpuMode::Disabled),
+            1 => Ok(VgpuMode::Enabled),
+            _ => Err(EINVAL),
+        }
+    }
 }
 
 /// Common MCTP and NVDM headers shared by all FSP messages.
@@ -99,6 +205,17 @@ struct FspResponseHeader {
 
 // SAFETY: FspResponseHeader is a packed C struct with only integral fields.
 unsafe impl FromBytes for FspResponseHeader {}
+
+/// Complete FSP PRC response including the knob state payload.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct FspPrcResponse {
+    header: FspResponseHeader,
+    prc_data: NvdmPayloadPrcResponse,
+}
+
+// SAFETY: FspPrcResponse is a packed C struct with only integral fields.
+unsafe impl FromBytes for FspPrcResponse {}
 
 /// Trait implemented by types representing a message to send to FSP.
 ///
@@ -187,8 +304,33 @@ impl FspCotMessage {
 // bytes are initialized.
 unsafe impl AsBytes for FspCotMessage {}
 
+/// Complete FSP PRC message.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+struct FspPrcMessage {
+    header: FspMessageHeader,
+    prc: NvdmPayloadPrc,
+}
+
+impl FspPrcMessage {
+    /// Constructs a PRC message.
+    fn new(subcmd: PrcMessageSubcmd, object_id: PrcObjectId, flags: PrcFlags) -> Self {
+        Self {
+            header: FspMessageHeader::new(NvdmType::Prc),
+            prc: NvdmPayloadPrc::new(subcmd, object_id, flags),
+        }
+    }
+}
+
+// SAFETY: FspPrcMessage is a packed C struct with only integral fields.
+unsafe impl AsBytes for FspPrcMessage {}
+
 impl MessageToFsp for FspCotMessage {
     const NVDM_TYPE: NvdmType = NvdmType::Cot;
+}
+
+impl MessageToFsp for FspPrcMessage {
+    const NVDM_TYPE: NvdmType = NvdmType::Prc;
 }
 
 /// Bundled arguments for FMC boot via FSP Chain of Trust.
@@ -348,6 +490,34 @@ impl<'a> Fsp<'a> {
         }
 
         Ok(response_buf)
+    }
+
+    /// Reads the active vGPU mode from FSP using the PRC protocol.
+    ///
+    /// Queries FSP's Management Partition for the active vGPU mode knob value.
+    #[expect(dead_code)]
+    pub(crate) fn read_vgpu_mode(
+        &mut self,
+        dev: &device::Device<device::Bound>,
+    ) -> Result<VgpuMode> {
+        let msg = FspPrcMessage::new(
+            PrcMessageSubcmd::Read,
+            PrcObjectId::VgpuMode,
+            PrcFlags::from(PrcFlag::Active),
+        );
+
+        let response_buf = self.send_sync_fsp(dev, &msg)?;
+        let (prc_response, _) =
+            FspPrcResponse::from_bytes_prefix(&response_buf[..]).ok_or_else(|| {
+                dev_err!(dev, "PRC response too small: {}\n", response_buf.len());
+                EIO
+            })?;
+
+        let prc_data = prc_response.prc_data;
+
+        VgpuMode::try_from(prc_data).inspect_err(|_| {
+            dev_err!(dev, "Unexpected vGPU mode value: {:#x}\n", prc_data.value());
+        })
     }
 
     /// Boots GSP FMC via FSP Chain of Trust.

@@ -22,6 +22,8 @@ bounded_enum! {
     /// NVDM message type identifiers carried over MCTP.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub(crate) enum NvdmType with TryFrom<Bounded<u32, 8>> {
+        /// PRC (Product Reconfiguration Control) message.
+        Prc = 0x13,
         /// Chain of Trust boot message.
         Cot = 0x14,
         /// FSP command response.
