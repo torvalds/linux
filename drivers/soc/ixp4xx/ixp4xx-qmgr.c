@@ -421,19 +421,13 @@ static int ixp4xx_qmgr_probe(struct platform_device *pdev)
 
 	err = devm_request_irq(dev, irq1, handler1, 0, "IXP4xx Queue Manager",
 			       NULL);
-	if (err) {
-		dev_err(dev, "failed to request IRQ%i (%i)\n",
-			irq1, err);
+	if (err)
 		return err;
-	}
 
 	err = devm_request_irq(dev, irq2, handler2, 0, "IXP4xx Queue Manager",
 			       NULL);
-	if (err) {
-		dev_err(dev, "failed to request IRQ%i (%i)\n",
-			irq2, err);
+	if (err)
 		return err;
-	}
 
 	used_sram_bitmap[0] = 0xF; /* 4 first pages reserved for config */
 	spin_lock_init(&qmgr_lock);
