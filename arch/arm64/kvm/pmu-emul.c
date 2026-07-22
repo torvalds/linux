@@ -939,6 +939,10 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 
 static int kvm_arm_pmu_v3_init(struct kvm_vcpu *vcpu)
 {
+	/* Only possible when using KVM_ARM_VCPU_PMU_V3_STRICT */
+	if (!vcpu->kvm->arch.arm_pmu)
+		return -ENXIO;
+
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		int ret;
 
@@ -1010,6 +1014,14 @@ u8 kvm_arm_pmu_get_max_counters(struct kvm *kvm)
 	struct arm_pmu *arm_pmu = kvm->arch.arm_pmu;
 
 	/*
+	 * Under KVM_ARM_VCPU_PMU_V3_STRICT no PMU exists until userspace sets
+	 * one, so this can be reached before arm_pmu is set. Report no
+	 * counters in that case.
+	 */
+	if (!arm_pmu)
+		return 0;
+
+	/*
 	 * PMUv3 requires that all event counters are capable of counting any
 	 * event, though the same may not be true of non-PMUv3 hardware.
 	 */
@@ -1050,7 +1062,8 @@ static void kvm_arm_set_pmu(struct kvm *kvm, struct arm_pmu *arm_pmu)
 }
 
 /**
- * kvm_arm_set_default_pmu - No PMU set, get the default one.
+ * kvm_arm_set_default_pmu - No PMU set and KVM_ARM_VCPU_PMU_V3_STRICT not
+ * set, get the default one.
  * @kvm: The kvm pointer
  *
  * The observant among you will notice that the supported_cpus
@@ -1189,6 +1202,9 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 
 		if (kvm_vm_has_ran_once(kvm))
 			return -EBUSY;
+
+		if (!kvm->arch.arm_pmu)
+			return -ENXIO;
 
 		if (!kvm->arch.pmu_filter) {
 			kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);

@@ -53,14 +53,18 @@ Returns:
 	 =======  ======================================================
 	 -EEXIST  Interrupt number already used
 	 -ENODEV  PMUv3 not supported or GIC not initialized
-	 -ENXIO   PMUv3 not supported, missing VCPU feature or interrupt
-		  number not set (non-GICv5 guests, only)
+	 -ENXIO   PMUv3 not supported, missing VCPU feature, missing
+                  hardware PMU, or interrupt number not set (non-GICv5
+                  guests, only)
 	 -EBUSY   PMUv3 already initialized
 	 =======  ======================================================
 
 Request the initialization of the PMUv3.  If using the PMUv3 with an in-kernel
 virtual GIC implementation, this must be done after initializing the in-kernel
 irqchip.
+
+When the KVM_ARM_VCPU_PMU_V3_STRICT vCPU feature is enabled this must be done
+after selecting a hardware PMU.
 
 1.3 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_FILTER
 -----------------------------------------
@@ -107,6 +111,9 @@ Restrictions: Event 0 (SW_INCR) is never filtered, as it doesn't count a
 hardware event. Filtering event 0x1E (CHAIN) has no effect either, as it
 isn't strictly speaking an event. Filtering the cycle counter is possible
 using event 0x11 (CPU_CYCLES).
+
+When the KVM_ARM_VCPU_PMU_V3_STRICT vCPU feature is enabled this must be done
+after selecting a hardware PMU.
 
 1.4 ATTRIBUTE: KVM_ARM_VCPU_PMU_V3_SET_PMU
 ------------------------------------------
