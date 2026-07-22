@@ -119,7 +119,10 @@ struct efa_admin_create_qp_cmd {
 	 * 2 : unsolicited_write_recv - If set, work requests
 	 *    will not be consumed for incoming RDMA write with
 	 *    immediate
-	 * 7:3 : reserved - MBZ
+	 * 3 : sq_64_bit_req_id - If set, requests posted on
+	 *    SQ will use 64-bit ids. The corresponding CQ must
+	 *    also have 64-bit ids enabled.
+	 * 7:4 : reserved - MBZ
 	 */
 	u8 flags;
 
@@ -523,7 +526,9 @@ struct efa_admin_create_cq_cmd {
 	 * 5 : set_src_addr - If set, source address will be
 	 *    filled on RX completions from unknown senders.
 	 *    Requires 8 words CQ entry size.
-	 * 7:6 : reserved7 - MBZ
+	 * 6 : sq_comp_64_bit_req_id - If set, send
+	 *    completions will use 64-bit work request ids
+	 * 7 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
@@ -730,7 +735,10 @@ struct efa_admin_feature_device_attr_desc {
 	 *    write with imm. receive is supported
 	 * 5 : event_counters - If set, event counters are
 	 *    supported
-	 * 31:6 : reserved - MBZ
+	 * 9:6 : reserved1 - MBZ
+	 * 10 : sq_64_bit_req_id - If set, SQ can use 64-bit
+	 *    work request ids
+	 * 31:11 : reserved2 - MBZ
 	 */
 	u32 device_caps;
 
@@ -1250,6 +1258,8 @@ struct efa_admin_modify_event_counter_resp {
 #define EFA_ADMIN_CREATE_QP_CMD_SQ_VIRT_MASK                BIT(0)
 #define EFA_ADMIN_CREATE_QP_CMD_RQ_VIRT_MASK                BIT(1)
 #define EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV_MASK BIT(2)
+#define EFA_ADMIN_CREATE_QP_CMD_SQ_64_BIT_REQ_ID_SHIFT      3
+#define EFA_ADMIN_CREATE_QP_CMD_SQ_64_BIT_REQ_ID_MASK       BIT(3)
 
 /* modify_qp_cmd */
 #define EFA_ADMIN_MODIFY_QP_CMD_QP_STATE_MASK               BIT(0)
@@ -1276,6 +1286,8 @@ struct efa_admin_modify_event_counter_resp {
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
 #define EFA_ADMIN_CREATE_CQ_CMD_SET_SRC_ADDR_MASK           BIT(5)
+#define EFA_ADMIN_CREATE_CQ_CMD_SQ_COMP_64_BIT_REQ_ID_SHIFT 6
+#define EFA_ADMIN_CREATE_CQ_CMD_SQ_COMP_64_BIT_REQ_ID_MASK  BIT(6)
 
 /* create_cq_resp */
 #define EFA_ADMIN_CREATE_CQ_RESP_DB_VALID_MASK              BIT(0)
@@ -1287,6 +1299,8 @@ struct efa_admin_modify_event_counter_resp {
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_WRITE_MASK  BIT(3)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_UNSOLICITED_WRITE_RECV_MASK BIT(4)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_EVENT_COUNTERS_MASK BIT(5)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_SQ_64_BIT_REQ_ID_SHIFT 10
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_SQ_64_BIT_REQ_ID_MASK BIT(10)
 
 /* feature_queue_attr_desc_2 */
 #define EFA_ADMIN_FEATURE_QUEUE_ATTR_DESC_2_SEND_COMP_MASK  BIT(0)

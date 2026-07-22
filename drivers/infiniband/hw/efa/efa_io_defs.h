@@ -79,6 +79,10 @@ enum efa_io_processing_hint {
 	EFA_IO_PROCESSING_HINT_BURST_PPS_SENSITIVE  = 1 << 0,
 };
 
+struct efa_io_req_id_ex {
+	u16 w[3];
+};
+
 struct efa_io_tx_meta_desc {
 	/* Verbs-generated Request ID */
 	u16 req_id;
@@ -141,7 +145,9 @@ struct efa_io_tx_meta_desc {
 	/* Queue key */
 	u32 qkey;
 
-	u8 reserved2[12];
+	u8 reserved2[6];
+
+	struct efa_io_req_id_ex req_id_ex;
 };
 
 /*
@@ -327,8 +333,10 @@ struct efa_io_tx_cdesc {
 	/* Common completion info */
 	struct efa_io_cdesc_common common;
 
+	struct efa_io_req_id_ex req_id_ex;
+
 	/* MBZ */
-	u16 reserved16;
+	u8 reserved[4];
 };
 
 /* Rx Completion Descriptor */

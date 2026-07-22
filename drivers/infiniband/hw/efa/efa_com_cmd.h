@@ -29,6 +29,7 @@ struct efa_com_create_qp_params {
 	u8 qp_type;
 	u8 sl;
 	u8 unsolicited_write_recv : 1;
+	u8 sq_64_bit_req_id : 1;
 };
 
 struct efa_com_create_qp_result {
@@ -79,6 +80,7 @@ struct efa_com_create_cq_params {
 	u8 entry_size_in_bytes;
 	u8 interrupt_mode_enabled : 1;
 	u8 set_src_addr : 1;
+	u8 sq_comp_64_bit_req_id : 1;
 };
 
 struct efa_com_create_cq_result {

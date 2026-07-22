@@ -38,6 +38,9 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	if (params->unsolicited_write_recv)
 		EFA_SET(&create_qp_cmd.flags, EFA_ADMIN_CREATE_QP_CMD_UNSOLICITED_WRITE_RECV, 1);
 
+	if (params->sq_64_bit_req_id)
+		EFA_SET(&create_qp_cmd.flags, EFA_ADMIN_CREATE_QP_CMD_SQ_64_BIT_REQ_ID, 1);
+
 	err = efa_com_cmd_exec(aq,
 			       (struct efa_admin_aq_entry *)&create_qp_cmd,
 			       sizeof(create_qp_cmd),
@@ -178,6 +181,11 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 		EFA_SET(&create_cmd.cq_caps_2,
 			EFA_ADMIN_CREATE_CQ_CMD_SET_SRC_ADDR, 1);
 	}
+	if (params->sq_comp_64_bit_req_id) {
+		EFA_SET(&create_cmd.cq_caps_2,
+			EFA_ADMIN_CREATE_CQ_CMD_SQ_COMP_64_BIT_REQ_ID, 1);
+	}
+
 	efa_com_set_dma_addr(params->dma_addr,
 			     &create_cmd.cq_ba.mem_addr_high,
 			     &create_cmd.cq_ba.mem_addr_low);

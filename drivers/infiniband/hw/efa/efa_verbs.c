@@ -719,6 +719,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
 		supported_efa_flags |= EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV;
 
+	if (EFA_DEV_CAP(dev, SQ_64_BIT_REQ_ID))
+		supported_efa_flags |= EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID;
+
 	if (cmd.flags & ~supported_efa_flags) {
 		ibdev_dbg(&dev->ibdev, "Unsupported EFA QP create flags[%#x], supported[%#x]\n",
 			  cmd.flags, supported_efa_flags);
@@ -777,6 +780,9 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 
 	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
 		create_qp_params.unsolicited_write_recv = true;
+
+	if (cmd.flags & EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID)
+		create_qp_params.sq_64_bit_req_id = true;
 
 	err = efa_com_create_qp(&dev->edev, &create_qp_params,
 				&create_qp_resp);
@@ -1212,6 +1218,7 @@ int efa_create_user_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;
 	params.set_src_addr = set_src_addr;
+	params.sq_comp_64_bit_req_id = !!(cmd.flags & EFA_CREATE_CQ_WITH_SQ_COMP_64_BIT_REQ_ID);
 	if (cmd.flags & EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL) {
 		cq->eq = efa_vec2eq(dev, attr->comp_vector);
 		params.eqn = cq->eq->eeq.eqn;

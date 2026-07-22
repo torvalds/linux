@@ -56,7 +56,8 @@ struct efa_ibv_alloc_pd_resp {
 
 enum {
 	EFA_CREATE_CQ_WITH_COMPLETION_CHANNEL = 1 << 0,
-	EFA_CREATE_CQ_WITH_SGID               = 1 << 1,
+	EFA_CREATE_CQ_WITH_SGID = 1 << 1,
+	EFA_CREATE_CQ_WITH_SQ_COMP_64_BIT_REQ_ID = 1 << 2,
 };
 
 struct efa_ibv_create_cq {
@@ -88,6 +89,7 @@ enum {
 
 enum {
 	EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV = 1 << 0,
+	EFA_CREATE_QP_WITH_SQ_64_BIT_REQ_ID = 1 << 1,
 };
 
 struct efa_ibv_create_qp {
