@@ -201,6 +201,35 @@ static int eprintf(int level, int var, const char *fmt, ...)
 #define pr_info(fmt, ...) \
 	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
 
+/*
+ * Grow *data so it can hold at least cnt elements of elem_sz bytes each.
+ * *cap is the capacity in elements and is updated on growth.
+ */
+static int __ensure_mem(void **data, u32 *cap, u32 cnt, size_t elem_sz)
+{
+	u32 new_cap, old_cap = *cap;
+	void *arr;
+
+	if (cnt <= old_cap)
+		return 0;
+
+	new_cap = max(old_cap + 256, old_cap * 2);
+	if (new_cap < cnt)
+		new_cap = cnt;
+
+	arr = realloc(*data, elem_sz * new_cap);
+	if (!arr)
+		return -ENOMEM;
+
+	*data = arr;
+	*cap = new_cap;
+
+	return 0;
+}
+
+#define ensure_mem(arr_ptr, cap_ptr, cnt) \
+	__ensure_mem((void **)(arr_ptr), (cap_ptr), (cnt), sizeof(**(arr_ptr)))
+
 static bool is_btf_id(const char *name)
 {
 	return name && !strncmp(name, BTF_ID_PREFIX, sizeof(BTF_ID_PREFIX) - 1);
@@ -890,17 +919,8 @@ static const struct btf_type *btf_type_skip_qualifiers(const struct btf *btf, s3
 
 static int push_decl_tag_id(struct btf2btf_context *ctx, u32 decl_tag_id)
 {
-	u32 *arr = ctx->decl_tags;
-	u32 cap = ctx->max_decl_tags;
-
-	if (ctx->nr_decl_tags + 1 > cap) {
-		cap = max(cap + 256, cap * 2);
-		arr = realloc(arr, sizeof(u32) * cap);
-		if (!arr)
-			return -ENOMEM;
-		ctx->max_decl_tags = cap;
-		ctx->decl_tags = arr;
-	}
+	if (ensure_mem(&ctx->decl_tags, &ctx->max_decl_tags, ctx->nr_decl_tags + 1))
+		return -ENOMEM;
 
 	ctx->decl_tags[ctx->nr_decl_tags++] = decl_tag_id;
 
@@ -909,17 +929,8 @@ static int push_decl_tag_id(struct btf2btf_context *ctx, u32 decl_tag_id)
 
 static int push_kfunc(struct btf2btf_context *ctx, struct kfunc *kfunc)
 {
-	struct kfunc *arr = ctx->kfuncs;
-	u32 cap = ctx->max_kfuncs;
-
-	if (ctx->nr_kfuncs + 1 > cap) {
-		cap = max(cap + 256, cap * 2);
-		arr = realloc(arr, sizeof(struct kfunc) * cap);
-		if (!arr)
-			return -ENOMEM;
-		ctx->max_kfuncs = cap;
-		ctx->kfuncs = arr;
-	}
+	if (ensure_mem(&ctx->kfuncs, &ctx->max_kfuncs, ctx->nr_kfuncs + 1))
+		return -ENOMEM;
 
 	ctx->kfuncs[ctx->nr_kfuncs++] = *kfunc;
 
