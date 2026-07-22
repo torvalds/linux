@@ -247,6 +247,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	pretty-printing serves as a fallback to hand-crafted pretty printers, as the latter can
 	better pretty-print integer flags and struct pointers.
 
+--bitmask-list::
+	Show bitmasks as a human-readable, condensed list (e.g. "0,2-5,7")
+	instead of the default hexadecimal representation.
+
 --bpf-summary::
 	Collect system call statistics in BPF.  This is only for live mode and
 	works well with -s/--summary option where no argument information is
