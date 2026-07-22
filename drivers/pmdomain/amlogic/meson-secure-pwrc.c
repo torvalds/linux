@@ -16,6 +16,7 @@
 #include <dt-bindings/power/amlogic,t7-pwrc.h>
 #include <dt-bindings/power/amlogic,a4-pwrc.h>
 #include <dt-bindings/power/amlogic,a5-pwrc.h>
+#include <dt-bindings/power/amlogic,a9-pwrc.h>
 #include <dt-bindings/power/amlogic,s6-pwrc.h>
 #include <dt-bindings/power/amlogic,s7-pwrc.h>
 #include <dt-bindings/power/amlogic,s7d-pwrc.h>
@@ -173,6 +174,65 @@ static const struct meson_secure_pwrc_domain_desc a5_pwrc_domains[] = {
 	/* WRAP is secure_top, a lot of modules are included, and should be always on */
 	SEC_PD(A5_SYS_WRAP,	GENPD_FLAG_ALWAYS_ON),
 	SEC_PD(A5_DSPA,		0),
+};
+
+static const struct meson_secure_pwrc_domain_desc a9_pwrc_domains[] = {
+	SEC_PD(A9_DSPA,		0),
+	SEC_PD(A9_U3HSG_U3,	0),
+	SEC_PD(A9_DP,		0),
+	SEC_PD(A9_DOS_HCODEC,	0),
+	SEC_PD(A9_TAHOE,	0),
+	SEC_PD(A9_DOS_HEVC,	0),
+	SEC_PD(A9_U2H,		0),
+	SEC_PD(A9_U3DRD_B,	0),
+	SEC_PD(A9_VPU_HDMI,	0),
+	SEC_PD(A9_U2DRD,	0),
+	SEC_PD(A9_U3DRD_A,	0),
+	SEC_PD(A9_SD_EMMC_C,	0),
+	SEC_PD(A9_GE2D,		0),
+	SEC_PD(A9_AMFC,		0),
+	SEC_PD(A9_EDPTX,	0),
+	SEC_PD(A9_OPP,		0),
+	SEC_PD(A9_VICP,		0),
+	SEC_PD(A9_SD_EMMC_A,	0),
+	SEC_PD(A9_SD_EMMC_B,	0),
+	SEC_PD(A9_ETH,		0),
+	SEC_PD(A9_PCIE_A,	0),
+	SEC_PD(A9_PCIE_B,	0),
+	SEC_PD(A9_NNA_4T,	0),
+	SEC_PD(A9_HDMIRX,	0),
+	SEC_PD(A9_CVE,		0),
+	SEC_PD(A9_ISP,		0),
+	SEC_PD(A9_ETH_1G,	0),
+	SEC_PD(A9_U3HSG_HSG,	0),
+	SEC_PD(A9_U3DPPHY_U3,	0),
+	SEC_PD(A9_U3DPPHY_DP,	0),
+	SEC_PD(A9_PCIE3PHY,	0),
+	SEC_PD(A9_U3HSG_PCIE2,	0),
+	SEC_PD(A9_MALI_TOP,	0),
+	SEC_PD(A9_AO_SED,	0),
+	SEC_PD(A9_AO_IR,	0),
+	/* UART_B is for console log, and should be always on */
+	SEC_PD(A9_AO_UART_B,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(A9_AO_UART_C,	0),
+	SEC_PD(A9_AO_UART_D,	0),
+	SEC_PD(A9_AO_SPISG,	0),
+	SEC_PD(A9_AO_UART_E,	0),
+	SEC_PD(A9_AO_CEC,	0),
+	/* SRAMA is used as ATF runtime memory, and should be always on */
+	SEC_PD(A9_EE_SRAMA,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(A9_AUDIO,	0),
+	/* DMC0 is for DDR PHY ana/dig and DMC, and should be always on */
+	SEC_PD(A9_DMC0,		GENPD_FLAG_ALWAYS_ON),
+	/*GIC needs to be used consistently, and should be always on */
+	SEC_PD(A9_GIC,		GENPD_FLAG_ALWAYS_ON),
+	/* DDRPHY is for DDR Work, and should be always on */
+	SEC_PD(A9_DDRPHY,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(A9_AUCPU,	0),
+	SEC_PD(A9_DSI0,		0),
+	SEC_PD(A9_DSI1,		0),
+	SEC_PD(A9_CAN0,		0),
+	SEC_PD(A9_CAN1,		0),
 };
 
 static const struct meson_secure_pwrc_domain_desc c3_pwrc_domains[] = {
@@ -425,6 +485,11 @@ static const struct meson_secure_pwrc_domain_data amlogic_secure_a5_pwrc_data = 
 	.count = ARRAY_SIZE(a5_pwrc_domains),
 };
 
+static const struct meson_secure_pwrc_domain_data amlogic_secure_a9_pwrc_data = {
+	.domains = a9_pwrc_domains,
+	.count = ARRAY_SIZE(a9_pwrc_domains),
+};
+
 static const struct meson_secure_pwrc_domain_data amlogic_secure_c3_pwrc_data = {
 	.domains = c3_pwrc_domains,
 	.count = ARRAY_SIZE(c3_pwrc_domains),
@@ -467,6 +532,10 @@ static const struct of_device_id meson_secure_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,a5-pwrc",
 		.data = &amlogic_secure_a5_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,a9-pwrc",
+		.data = &amlogic_secure_a9_pwrc_data,
 	},
 	{
 		.compatible = "amlogic,c3-pwrc",
