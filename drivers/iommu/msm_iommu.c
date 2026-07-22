@@ -622,6 +622,9 @@ static int insert_iommu_master(struct device *dev,
 			return 0;
 		}
 
+	if (master->num_mids >= MAX_NUM_MIDS)
+		return -ENOSPC;
+
 	master->mids[master->num_mids++] = spec->args[0];
 	return 0;
 }
