@@ -40,7 +40,6 @@ struct rpm_clk_resource {
 /**
  * struct qcom_icc_provider - Qualcomm specific interconnect provider
  * @provider: generic interconnect provider
- * @num_intf_clks: the total number of intf_clks clk_bulk_data entries
  * @type: the ICC provider type
  * @regmap: regmap for QoS registers read/write access
  * @qos_offset: offset to QoS registers
@@ -49,13 +48,13 @@ struct rpm_clk_resource {
  * @bus_clk_rate: bus clock rate in Hz
  * @bus_clk_desc: a pointer to a rpm_clk_resource description of bus clocks
  * @bus_clk: a pointer to a HLOS-owned bus clock
- * @intf_clks: a clk_bulk_data array of interface clocks
  * @keep_alive: whether to always keep a minimum vote on the bus clocks
  * @ignore_enxio: whether to ignore ENXIO errors (for MSM8974)
+ * @num_intf_clks: the total number of intf_clks clk_bulk_data entries
+ * @intf_clks: a clk_bulk_data array of interface clocks
  */
 struct qcom_icc_provider {
 	struct icc_provider provider;
-	int num_intf_clks;
 	enum qcom_icc_type type;
 	struct regmap *regmap;
 	unsigned int qos_offset;
@@ -64,9 +63,10 @@ struct qcom_icc_provider {
 	u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
 	const struct rpm_clk_resource *bus_clk_desc;
 	struct clk *bus_clk;
-	struct clk_bulk_data *intf_clks;
 	bool keep_alive;
 	bool ignore_enxio;
+	int num_intf_clks;
+	struct clk_bulk_data intf_clks[] __counted_by(num_intf_clks);
 };
 
 /**

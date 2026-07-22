@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config INTERCONNECT_QCOM
 	tristate "Qualcomm Network-on-Chip interconnect drivers"
-	depends on ARCH_QCOM
+	depends on ARCH_QCOM || COMPILE_TEST
 	help
 	  Support for Qualcomm's Network-on-Chip interconnect hardware.
 
