@@ -107,7 +107,6 @@ static int rsi_hci_attach(void *priv, struct rsi_proto_ops *ops)
 		return -ENOMEM;
 
 	h_adapter->priv = priv;
-	ops->set_bt_context(priv, h_adapter);
 	h_adapter->proto_ops = ops;
 
 	hdev = hci_alloc_dev();
@@ -135,6 +134,8 @@ static int rsi_hci_attach(void *priv, struct rsi_proto_ops *ops)
 		hci_free_dev(hdev);
 		goto err;
 	}
+
+	ops->set_bt_context(priv, h_adapter);
 
 	return 0;
 err:
