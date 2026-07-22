@@ -1185,10 +1185,8 @@ static int dsicm_probe(struct platform_device *pdev)
 				IRQF_TRIGGER_RISING,
 				"taal vsync", ddata);
 
-		if (r) {
-			dev_err(dev, "IRQ request failed\n");
+		if (r)
 			return r;
-		}
 
 		INIT_DEFERRABLE_WORK(&ddata->te_timeout_work,
 					dsicm_te_timeout_work_callback);
