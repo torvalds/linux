@@ -265,7 +265,7 @@ int usbio_bulk_msg(struct auxiliary_device *adev, u8 type, u8 cmd, bool last,
 	lockdep_assert_held(&usbio->bulk_mutex);
 
 	if ((obuf_len > (usbio->txbuf_len - sizeof(*bpkt))) ||
-	    (ibuf_len > (usbio->txbuf_len - sizeof(*bpkt))))
+	    (ibuf_len > (usbio->rxbuf_len - sizeof(*bpkt))))
 		return -EMSGSIZE;
 
 	if (ibuf_len)
