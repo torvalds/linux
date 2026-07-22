@@ -50,8 +50,8 @@ static ssize_t io_query_zcrx_notif(union io_query_data *data)
 	struct io_uring_query_zcrx_notif *e = &data->zcrx_notif;
 
 	e->notif_flags = ZCRX_NOTIF_TYPE_MASK;
-	e->notif_stats_size = sizeof(struct zcrx_notif_stats);
-	e->notif_stats_off_alignment = __alignof__(struct zcrx_notif_stats);
+	e->stats_size = sizeof(struct zcrx_stats);
+	e->stats_off_alignment = __alignof__(struct zcrx_stats);
 	e->__resv1 = 0;
 	memset(&e->__resv2, 0, sizeof(e->__resv2));
 	return sizeof(*e);

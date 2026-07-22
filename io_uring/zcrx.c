@@ -863,12 +863,12 @@ static int zcrx_validate_notif_stats(struct io_zcrx_ifq *ifq,
 	used = reg->offsets.rqes +
 	       sizeof(struct io_uring_zcrx_rqe) * reg->rq_entries;
 
-	if (!IS_ALIGNED(stats_off, __alignof__(struct zcrx_notif_stats)))
+	if (!IS_ALIGNED(stats_off, __alignof__(struct zcrx_stats)))
 		return -EINVAL;
 	if (stats_off < used)
 		return -ERANGE;
 	if (check_add_overflow(stats_off,
-			       sizeof(struct zcrx_notif_stats),
+			       	sizeof(struct zcrx_stats),
 			       &end))
 		return -ERANGE;
 	if (end > io_region_size(&ifq->rq_region))

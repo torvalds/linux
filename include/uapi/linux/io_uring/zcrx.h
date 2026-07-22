@@ -76,11 +76,11 @@ enum zcrx_notification_type {
 };
 
 enum zcrx_notification_desc_flags {
-	/* If set, stats_offset holds a valid offset to a notif_stats struct */
+	/* If set, stats_offset holds a valid offset to a zcrx_stats struct */
 	ZCRX_NOTIF_DESC_FLAG_STATS = 1 << 0,
 };
 
-struct zcrx_notif_stats {
+struct zcrx_stats {
 	__u64	copy_count;	/* cumulative copy-fallback CQEs */
 	__u64	copy_bytes;	/* cumulative bytes copied */
 };
