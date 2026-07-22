@@ -72,7 +72,7 @@ int dns_query(struct net *net,
 	kenter("%s,%*.*s,%zu,%s",
 	       type, (int)namelen, (int)namelen, name, namelen, options);
 
-	if (!name || namelen < 3 || namelen > 255)
+	if (!name || namelen < 1 || namelen > 255)
 		return -EINVAL;
 	if (type && *type == '\0')
 		return -EINVAL;
