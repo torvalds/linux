@@ -5,16 +5,16 @@
 #define HW_ROP2_COPY 0xc
 #define HW_ROP2_XOR 0x6
 
-/* notes: below address are the offset value from de_base_address (0x100000)*/
+/* notes: below address are the offset value from de_base_address (0x100000) */
 
-/* for sm718/750/502 de_base is at mmreg_1mb*/
+/* for sm718/750/502 de_base is at mmreg_1mb */
 #define DE_BASE_ADDR_TYPE1 0x100000
 /* for sm712,de_base is at mmreg_32kb */
 #define DE_BASE_ADDR_TYPE2  0x8000
 /* for sm722,de_base is at mmreg_0 */
 #define DE_BASE_ADDR_TYPE3 0
 
-/* type1 data port address is at mmreg_0x110000*/
+/* type1 data port address is at mmreg_0x110000 */
 #define DE_PORT_ADDR_TYPE1 0x110000
 /* for sm712,data port address is at mmreg_0 */
 #define DE_PORT_ADDR_TYPE2 0x100000
@@ -25,7 +25,7 @@
 #define DE_SOURCE_WRAP                                  BIT(31)
 #define DE_SOURCE_X_K1_SHIFT                            16
 #define DE_SOURCE_X_K1_MASK                             (0x3fff << 16)
-#define DE_SOURCE_X_K1_MONO_MASK			(0x1f << 16)
+#define DE_SOURCE_X_K1_MONO_MASK                        (0x1f << 16)
 #define DE_SOURCE_Y_K2_MASK                             0xffff
 
 #define DE_DESTINATION                                  0x4

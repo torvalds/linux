@@ -39,7 +39,6 @@ enum sm750_path {
 	sm750_pnc = 3,	/* panel and crt */
 };
 
-
 struct lynx_accel {
 	/* base virtual address of DPR registers */
 	unsigned char __iomem *dpr_base;
@@ -49,7 +48,7 @@ struct lynx_accel {
 	/* function pointers */
 	void (*de_init)(struct lynx_accel *accel);
 
-	int (*de_wait)(void);/* see if hardware ready to work */
+	int (*de_wait)(void); /* see if hardware ready to work */
 
 	int (*de_fillrect)(struct lynx_accel *accel,
 			   u32 base, u32 pitch, u32 bpp,
