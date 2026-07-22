@@ -165,10 +165,8 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
 			       IRQF_SHARED | IRQF_NO_SUSPEND, "watchdog",
 			       wdt_dev);
-	if (ret) {
-		dev_err(dev, "error requesting warning irq %d\n", pdata->irq);
+	if (ret)
 		return ret;
-	}
 
 	/*
 	 * The firmware followed by U-Boot leaves the watchdog running
