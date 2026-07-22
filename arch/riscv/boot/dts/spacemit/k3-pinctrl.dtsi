@@ -79,6 +79,18 @@
 	};
 
 	/omit-if-no-ref/
+	i2c1_1_cfg: i2c1-1-cfg {
+		i2c1-1-pins {
+			pinmux = <K3_PADCONF(54, 5)>,	/* i2c1 scl */
+				 <K3_PADCONF(55, 5)>;	/* i2c1 sda */
+
+			bias-pull-up = <1>;
+			drive-strength = <25>;
+			power-source = <1800>;
+		};
+	};
+
+	/omit-if-no-ref/
 	i2c2_1_cfg: i2c2-1-cfg {
 		i2c2-1-pins {
 			pinmux = <K3_PADCONF(46, 5)>,	/* i2c2 scl */
