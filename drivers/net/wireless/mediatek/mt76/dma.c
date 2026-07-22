@@ -990,7 +990,8 @@ mt76_dma_rx_process(struct mt76_dev *dev, struct mt76_queue *q, int budget)
 	struct sk_buff *skb;
 	unsigned char *data;
 	bool check_ddone = false;
-	bool allow_direct = !mt76_queue_is_wed_rx(q);
+	bool allow_direct = !mt76_queue_is_wed_rx(q) &&
+			    !mt76_queue_is_wed_rro_rxdmad_c(q);
 	bool more;
 
 	if ((q->flags & MT_QFLAG_WED_RRO_EN) ||
