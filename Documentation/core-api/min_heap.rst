@@ -240,19 +240,6 @@ This macro returns `true` if the heap is full, otherwise `false`.
 
 **Inline Version:** min_heap_full_inline(heap)
 
-- **min_heap_empty(heap)**: Checks whether the heap is empty.
-  Complexity: **O(1)**.
-
-.. code-block:: c
-
-    bool empty = min_heap_empty(heap);
-
-- `heap`: A pointer to the min-heap to check.
-
-This macro returns `true` if the heap is empty, otherwise `false`.
-
-**Inline Version:** min_heap_empty_inline(heap)
-
 Example Usage
 =============
 
