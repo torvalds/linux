@@ -460,5 +460,6 @@ LIBBPF_1.8.0 {
 	global:
 		bpf_program__attach_tracing_multi;
 		bpf_program__clone;
+		btf__find_by_name_kind_own;
 		btf__new_empty_opts;
 } LIBBPF_1.7.0;
