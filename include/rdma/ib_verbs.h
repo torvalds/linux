@@ -1755,6 +1755,12 @@ enum ib_qp_attach_comp_cntr_op {
 	IB_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_WRITE = IB_UVERBS_QP_ATTACH_COMP_CNTR_OP_REMOTE_RDMA_WRITE,
 };
 
+struct ib_comp_cntr_caps {
+	u64 max_value;
+	u32 max_counters;
+	u32 supported_qp_attach_ops; /* Bitmask of enum ib_qp_attach_comp_cntr_op */
+};
+
 struct ib_comp_cntr {
 	struct ib_device *device;
 	struct ib_uobject *uobject;
@@ -2689,6 +2695,9 @@ struct ib_device_ops {
 	int (*modify_comp_cntr)(struct ib_comp_cntr *cc, enum ib_comp_cntr_entry entry,
 				enum ib_comp_cntr_modify_op op, u64 value);
 	int (*read_comp_cntr)(struct ib_comp_cntr *cc, enum ib_comp_cntr_entry entry, u64 *value);
+	int (*query_comp_cntr_caps)(struct ib_device *dev,
+				    struct ib_comp_cntr_caps *caps,
+				    struct uverbs_attr_bundle *attrs);
 	struct ib_mr *(*get_dma_mr)(struct ib_pd *pd, int mr_access_flags);
 	struct ib_mr *(*reg_user_mr)(struct ib_pd *pd, u64 start, u64 length,
 				     u64 virt_addr, int mr_access_flags,

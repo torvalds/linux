@@ -76,6 +76,7 @@ enum uverbs_methods_device {
 	UVERBS_METHOD_QUERY_GID_TABLE,
 	UVERBS_METHOD_QUERY_GID_ENTRY,
 	UVERBS_METHOD_QUERY_PORT_SPEED,
+	UVERBS_METHOD_QUERY_COMP_CNTR_CAPS,
 };
 
 enum uverbs_attrs_invoke_write_cmd_attr_ids {
@@ -92,6 +93,12 @@ enum uverbs_attrs_query_port_cmd_attr_ids {
 enum uverbs_attrs_query_port_speed_cmd_attr_ids {
 	UVERBS_ATTR_QUERY_PORT_SPEED_PORT_NUM,
 	UVERBS_ATTR_QUERY_PORT_SPEED_RESP,
+};
+
+enum uverbs_attrs_query_comp_cntr_caps_attr_ids {
+	UVERBS_ATTR_QUERY_COMP_CNTR_CAPS_MAX_COUNTERS,
+	UVERBS_ATTR_QUERY_COMP_CNTR_CAPS_MAX_VALUE,
+	UVERBS_ATTR_QUERY_COMP_CNTR_CAPS_SUPPORTED_QP_ATTACH_OPS,
 };
 
 enum uverbs_attrs_get_context_attr_ids {

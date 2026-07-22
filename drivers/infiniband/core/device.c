@@ -2829,6 +2829,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, post_srq_recv);
 	SET_DEVICE_OP(dev_ops, process_mad);
 	SET_DEVICE_OP(dev_ops, query_ah);
+	SET_DEVICE_OP(dev_ops, query_comp_cntr_caps);
 	SET_DEVICE_OP(dev_ops, query_device);
 	SET_DEVICE_OP(dev_ops, query_gid);
 	SET_DEVICE_OP(dev_ops, query_pkey);
