@@ -1620,6 +1620,7 @@ static void mhi_ep_remove(struct device *dev)
 {
 	struct mhi_ep_device *mhi_dev = to_mhi_ep_device(dev);
 	struct mhi_ep_driver *mhi_drv = to_mhi_ep_driver(dev->driver);
+	struct mhi_ep_cntrl *mhi_cntrl = mhi_dev->mhi_cntrl;
 	struct mhi_result result = {};
 	struct mhi_ep_chan *mhi_chan;
 	int dir;
@@ -1627,6 +1628,22 @@ static void mhi_ep_remove(struct device *dev)
 	/* Skip if it is a controller device */
 	if (mhi_dev->dev_type == MHI_DEVICE_CONTROLLER)
 		return;
+
+	/* Disable the channels to prevent new transfers */
+	for (dir = 0; dir < 2; dir++) {
+		mhi_chan = dir ? mhi_dev->ul_chan : mhi_dev->dl_chan;
+
+		if (!mhi_chan)
+			continue;
+
+		mutex_lock(&mhi_chan->lock);
+		mhi_chan->state = MHI_CH_STATE_DISABLED;
+		mutex_unlock(&mhi_chan->lock);
+	}
+
+	/* Flush in-flight transfers before notifying disconnect */
+	if (mhi_cntrl->flush_async)
+		mhi_cntrl->flush_async(mhi_cntrl);
 
 	/* Disconnect the channels associated with the driver */
 	for (dir = 0; dir < 2; dir++) {
@@ -1643,7 +1660,6 @@ static void mhi_ep_remove(struct device *dev)
 			mhi_chan->xfer_cb(mhi_chan->mhi_dev, &result);
 		}
 
-		mhi_chan->state = MHI_CH_STATE_DISABLED;
 		mhi_chan->xfer_cb = NULL;
 		mutex_unlock(&mhi_chan->lock);
 	}
