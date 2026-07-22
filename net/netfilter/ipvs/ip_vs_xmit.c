@@ -1503,13 +1503,14 @@ tx_error:
 int
 ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		struct ip_vs_protocol *pp, unsigned int toff,
-		unsigned int wlen, unsigned int hooknum,
-		struct ip_vs_iphdr *ciph)
+		unsigned int hooknum, struct ip_vs_iphdr *ciph)
 {
 	struct rtable	*rt;	/* Route to the other host */
 	int rc;
 	int local;
 	int rt_mode, was_input;
+	bool has_ports = false;
+	unsigned int wlen;
 
 	/* The ICMP packet for VS/TUN, VS/DR and LOCALNODE will be
 	   forwarded directly here, because there is no need to
@@ -1565,6 +1566,13 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		goto tx_error;
 	}
 
+	wlen = ciph->len;
+	if (ciph->protocol == IPPROTO_TCP || ciph->protocol == IPPROTO_UDP ||
+	    ciph->protocol == IPPROTO_SCTP) {
+		wlen += 2 * sizeof(__u16); /* Also mangle ports */
+		has_ports = true;
+	}
+
 	/* copy-on-write the packet before mangling it */
 	if (skb_ensure_writable(skb, wlen))
 		goto tx_error;
@@ -1572,7 +1580,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
 		goto tx_error;
 
-	ip_vs_nat_icmp(skb, pp, cp, 0, toff);
+	ip_vs_nat_icmp(skb, pp, cp, 0, toff, has_ports);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->ignore_df = 1;
@@ -1589,10 +1597,11 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 int
 ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		struct ip_vs_protocol *pp, unsigned int toff,
-		unsigned int wlen, unsigned int hooknum,
-		struct ip_vs_iphdr *ciph)
+		unsigned int hooknum, struct ip_vs_iphdr *ciph)
 {
+	bool has_ports = false;
 	struct rt6_info	*rt;	/* Route to the other host */
+	unsigned int wlen;
 	int rc;
 	int local;
 	int rt_mode;
@@ -1650,6 +1659,13 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		goto tx_error;
 	}
 
+	wlen = ciph->len;
+	if (ciph->protocol == IPPROTO_TCP || ciph->protocol == IPPROTO_UDP ||
+	    ciph->protocol == IPPROTO_SCTP) {
+		wlen += 2 * sizeof(__u16); /* Also mangle ports */
+		has_ports = true;
+	}
+
 	/* copy-on-write the packet before mangling it */
 	if (skb_ensure_writable(skb, wlen))
 		goto tx_error;
@@ -1657,7 +1673,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (skb_cow(skb, rt->dst.dev->hard_header_len))
 		goto tx_error;
 
-	ip_vs_nat_icmp_v6(skb, pp, cp, 0, toff, ciph);
+	ip_vs_nat_icmp_v6(skb, pp, cp, 0, toff, has_ports, ciph);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->ignore_df = 1;
