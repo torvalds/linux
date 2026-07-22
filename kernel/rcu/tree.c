@@ -2540,7 +2540,7 @@ rcu_check_quiescent_state(struct rcu_data *rdp)
 	 * Was there a quiescent state since the beginning of the grace
 	 * period? If no, then exit and wait for the next call.
 	 */
-	if (rdp->cpu_no_qs.b.norm)
+	if (READ_ONCE(rdp->cpu_no_qs.b.norm))
 		return;
 
 	/*
