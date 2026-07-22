@@ -1597,14 +1597,21 @@ static int fib6_check_nh_list(struct nexthop *old, struct nexthop *new,
 			      struct netlink_ext_ack *extack)
 {
 	struct fib6_info *f6i;
+	int err = 0;
 
 	if (list_empty(&old->f6i_list))
 		return 0;
 
+	spin_lock_bh(&old->lock);
 	list_for_each_entry(f6i, &old->f6i_list, nh_list) {
-		if (check_src_addr(&f6i->fib6_src.addr, extack) < 0)
-			return -EINVAL;
+		err = check_src_addr(&f6i->fib6_src.addr, extack);
+		if (err)
+			break;
 	}
+	spin_unlock_bh(&old->lock);
+
+	if (err)
+		return err;
 
 	return fib6_check_nexthop(new, NULL, extack);
 }
@@ -2538,8 +2545,10 @@ static void __nexthop_replace_notify(struct net *net, struct nexthop *nh,
 			fi->nh_updated = false;
 	}
 
+	spin_lock_bh(&nh->lock);
 	list_for_each_entry(f6i, &nh->f6i_list, nh_list)
 		fib6_rt_update(net, f6i, info);
+	spin_unlock_bh(&nh->lock);
 }
 
 /* send RTM_NEWROUTE with REPLACE flag set for all FIB entries
