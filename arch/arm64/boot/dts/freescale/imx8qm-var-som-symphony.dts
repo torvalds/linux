@@ -287,6 +287,13 @@
 	status = "okay";
 };
 
+/* header */
+&lpuart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpuart4>;
+	status = "okay";
+};
+
 &pca9534 {
 	usb3-signal-route-hog {
 		gpio-hog;
@@ -425,6 +432,13 @@
 		fsl,pins = <
 			IMX8QM_LVDS0_I2C1_SCL_DMA_UART2_TX			0x06000020
 			IMX8QM_LVDS0_I2C1_SDA_DMA_UART2_RX			0x06000020
+		>;
+	};
+
+	pinctrl_lpuart4: lpuart4grp {
+		fsl,pins = <
+			IMX8QM_M40_GPIO0_01_DMA_UART4_TX			0x06000020
+			IMX8QM_M40_GPIO0_00_DMA_UART4_RX			0x06000020
 		>;
 	};
 
