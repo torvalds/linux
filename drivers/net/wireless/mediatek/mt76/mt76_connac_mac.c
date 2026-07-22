@@ -1152,8 +1152,6 @@ void mt76_connac2_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 		return;
 
 	tid = le32_get_bits(txwi[1], MT_TXD1_TID);
-	if (tid >= 6) /* skip VO queue */
-		return;
 
 	val = le32_to_cpu(txwi[2]);
 	fc = FIELD_GET(MT_TXD2_FRAME_TYPE, val) << 2 |

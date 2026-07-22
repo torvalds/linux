@@ -1252,8 +1252,6 @@ mt7996_tx_check_aggr(struct ieee80211_link_sta *link_sta,
 		return;
 
 	tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
-	if (tid >= 6) /* skip VO queue */
-		return;
 
 	if (is_8023) {
 		fc = IEEE80211_FTYPE_DATA |
