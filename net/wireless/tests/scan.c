@@ -402,6 +402,124 @@ static void test_inform_bss_ssid_only(struct kunit *test)
 	cfg80211_put_bss(wiphy, bss);
 }
 
+static void test_get_bss_miss_reason(struct kunit *test)
+{
+	struct inform_bss ctx = {
+		.test = test,
+	};
+	struct wiphy *wiphy = T_WIPHY(test, ctx);
+	struct cfg80211_inform_bss inform_bss = {
+		.signal = 50,
+		.drv_data = &ctx,
+	};
+	const u8 bssid[ETH_ALEN] = { 0x10, 0x22, 0x33, 0x44, 0x55, 0x66 };
+	const u8 other_bssid[ETH_ALEN] = { 0x66, 0x55, 0x44, 0x33, 0x22, 0x11 };
+	static const u8 ies[] = {
+		[0] = WLAN_EID_SSID,
+		[1] = 4,
+		[2] = 'T', 'E', 'S', 'T'
+	};
+	struct cfg80211_internal_bss *ibss;
+	struct netlink_ext_ack extack = {};
+	struct cfg80211_bss *bss, *bss2, *found;
+
+	inform_bss.chan = ieee80211_get_channel_khz(wiphy, MHZ_TO_KHZ(2412));
+	KUNIT_ASSERT_NOT_NULL(test, inform_bss.chan);
+
+	bss = cfg80211_inform_bss_data(wiphy, &inform_bss,
+				       CFG80211_BSS_FTYPE_PRESP, bssid, 0,
+				       0x1234, 100, ies, sizeof(ies),
+				       GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, bss);
+	ibss = container_of(bss, struct cfg80211_internal_bss, pub);
+
+	/* Fresh usable entry: found, no message is set */
+	found = __cfg80211_get_bss(wiphy, NULL, bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_ASSERT_PTR_EQ(test, found, bss);
+	KUNIT_EXPECT_NULL(test, extack._msg);
+	cfg80211_put_bss(wiphy, found);
+
+	/* No entry at all for this BSSID */
+	found = __cfg80211_get_bss(wiphy, NULL, other_bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_EXPECT_NULL(test, found);
+	KUNIT_EXPECT_STREQ(test, extack._msg, "BSS not found in scan results");
+
+	/* Fresh entry that is not usable for the requested use */
+	extack._msg = NULL;
+	bss->use_for = 0;
+	found = __cfg80211_get_bss(wiphy, NULL, bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_EXPECT_NULL(test, found);
+	KUNIT_EXPECT_STREQ(test, extack._msg,
+			   "BSS cannot be used for the requested operation");
+	bss->use_for = NL80211_BSS_USE_FOR_ALL;
+
+	/* Expired entry, > IEEE80211_SCAN_RESULT_EXPIRE (30s) old */
+	extack._msg = NULL;
+	ibss->ts = jiffies - 60 * HZ;
+	found = __cfg80211_get_bss(wiphy, NULL, bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_EXPECT_NULL(test, found);
+	KUNIT_EXPECT_STREQ(test, extack._msg,
+			   "BSS entry in scan results is expired");
+
+	/* An entry both expired and unusable reports expired */
+	extack._msg = NULL;
+	bss->use_for = 0;
+	found = __cfg80211_get_bss(wiphy, NULL, bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_EXPECT_NULL(test, found);
+	KUNIT_EXPECT_STREQ(test, extack._msg,
+			   "BSS entry in scan results is expired");
+	bss->use_for = NL80211_BSS_USE_FOR_ALL;
+
+	/* Expired but held entries are still usable, no message is set */
+	extack._msg = NULL;
+	atomic_set(&ibss->hold, 1);
+	found = __cfg80211_get_bss(wiphy, NULL, bssid, NULL, 0,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_ASSERT_PTR_EQ(test, found, bss);
+	KUNIT_EXPECT_NULL(test, extack._msg);
+	cfg80211_put_bss(wiphy, found);
+	atomic_set(&ibss->hold, 0);
+
+	/*
+	 * With one matching entry expired and another current but
+	 * unusable, both reasons are reported.
+	 */
+	bss2 = cfg80211_inform_bss_data(wiphy, &inform_bss,
+					CFG80211_BSS_FTYPE_PRESP, other_bssid,
+					0, 0x1234, 100, ies, sizeof(ies),
+					GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, bss2);
+	bss2->use_for = 0;
+	extack._msg = NULL;
+	found = __cfg80211_get_bss(wiphy, NULL, NULL, "TEST", 4,
+				   IEEE80211_BSS_TYPE_ANY,
+				   IEEE80211_PRIVACY_ANY,
+				   NL80211_BSS_USE_FOR_NORMAL, &extack);
+	KUNIT_EXPECT_NULL(test, found);
+	KUNIT_EXPECT_STREQ(test, extack._msg,
+			   "BSS entries are expired or cannot be used for the requested operation");
+
+	cfg80211_put_bss(wiphy, bss2);
+	cfg80211_put_bss(wiphy, bss);
+}
+
 static struct inform_bss_ml_sta_case {
 	const char *desc;
 	int mld_id;
@@ -855,6 +973,7 @@ kunit_test_suite(gen_new_ie);
 
 static struct kunit_case inform_bss_test_cases[] = {
 	KUNIT_CASE(test_inform_bss_ssid_only),
+	KUNIT_CASE(test_get_bss_miss_reason),
 	KUNIT_CASE_PARAM(test_inform_bss_ml_sta, inform_bss_ml_sta_gen_params),
 	{}
 };
