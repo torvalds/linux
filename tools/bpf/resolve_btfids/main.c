@@ -982,17 +982,26 @@ static int push_kfunc(struct btf2btf_context *ctx, struct kfunc *kfunc)
 	struct rb_node *parent = NULL;
 	struct kfunc *k;
 
-	/* Dedup by BTF ID: collecting the same kfunc twice is a no-op. */
+	/*
+	 * Dedup by BTF ID: collecting the same kfunc twice is a no-op,
+	 * UNLESS the kfunc flags are inconsistent, in which case we
+	 * fail hard because it indicates a bug in a kfunc set declaration.
+	 */
 	while (*p) {
 		parent = *p;
 		k = rb_entry(parent, struct kfunc, rb_node);
 
-		if (kfunc->btf_id < k->btf_id)
+		if (kfunc->btf_id < k->btf_id) {
 			p = &(*p)->rb_left;
-		else if (kfunc->btf_id > k->btf_id)
+		} else if (kfunc->btf_id > k->btf_id) {
 			p = &(*p)->rb_right;
-		else
+		} else if (k->flags == kfunc->flags) {
 			return 0;
+		} else {
+			pr_err("ERROR: resolve_btfids: kfunc %s has inconsistent flags across BTF ID sets: 0x%x != 0x%x\n",
+			       kfunc->name, k->flags, kfunc->flags);
+			return -EINVAL;
+		}
 	}
 
 	k = zalloc(sizeof(*k));
