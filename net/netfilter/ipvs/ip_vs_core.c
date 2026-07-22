@@ -867,7 +867,7 @@ static int sysctl_nat_icmp_send(struct netns_ipvs *ipvs) { return 0; }
 
 #endif
 
-__sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
+static __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset)
 {
 	return csum_fold(skb_checksum(skb, offset, skb->len - offset, 0));
 }
@@ -1038,13 +1038,14 @@ static int handle_response_icmp(int af, struct sk_buff *skb,
 				unsigned int offset, unsigned int ihl,
 				unsigned int hooknum)
 {
+	int iproto = af == AF_INET6 ? IPPROTO_ICMPV6 : IPPROTO_ICMP;
 	unsigned int verdict = NF_DROP;
 
 	if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)
 		goto after_nat;
 
 	/* Ensure the checksum is correct */
-	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
+	if (!ip_vs_checksum_common_check(skb, ihl, iproto, af)) {
 		/* Failed checksum! */
 		IP_VS_DBG_BUF(1, "Forward ICMP: failed checksum from %s!\n",
 			      IP_VS_DBG_ADDR(af, snet));
@@ -1898,7 +1899,8 @@ ip_vs_in_icmp(struct netns_ipvs *ipvs, struct sk_buff *skb, int *related,
 	verdict = NF_DROP;
 
 	/* Ensure the checksum is correct */
-	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
+	if ((IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ || tunnel) &&
+	    !ip_vs_checksum_common_check(skb, ihl, IPPROTO_ICMP, AF_INET)) {
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %pI4!\n",
 			  &iph->saddr);
@@ -2061,6 +2063,18 @@ static int ip_vs_in_icmp_v6(struct netns_ipvs *ipvs, struct sk_buff *skb,
 	if ((hooknum == NF_INET_LOCAL_OUT) &&
 	    (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)) {
 		verdict = NF_ACCEPT;
+		goto out;
+	}
+
+	verdict = NF_DROP;
+
+	/* Ensure the checksum is correct */
+	if (IP_VS_FWD_METHOD(cp) == IP_VS_CONN_F_MASQ &&
+	    !ip_vs_checksum_common_check(skb, iph->len, IPPROTO_ICMPV6,
+					 AF_INET6)) {
+		/* Failed checksum! */
+		IP_VS_DBG(1, "Incoming ICMPv6: failed checksum from %pI6c!\n",
+			  &iph->saddr);
 		goto out;
 	}
 

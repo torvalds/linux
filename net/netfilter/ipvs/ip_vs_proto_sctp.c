@@ -11,7 +11,7 @@
 
 static int
 sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
-		unsigned int sctphoff);
+		struct ip_vs_iphdr *iph);
 
 static int
 sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
@@ -109,7 +109,7 @@ sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		int ret;
 
 		/* Some checks before mangling */
-		if (!sctp_csum_check(cp->af, skb, pp, sctphoff))
+		if (!sctp_csum_check(cp->af, skb, pp, iph))
 			return 0;
 
 		/* Call application helper if needed */
@@ -157,7 +157,7 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		int ret;
 
 		/* Some checks before mangling */
-		if (!sctp_csum_check(cp->af, skb, pp, sctphoff))
+		if (!sctp_csum_check(cp->af, skb, pp, iph))
 			return 0;
 
 		/* Call application helper if needed */
@@ -187,19 +187,22 @@ sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 static int
 sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
-		unsigned int sctphoff)
+		struct ip_vs_iphdr *iph)
 {
+	unsigned int sctphoff = iph->len;
 	struct sctphdr *sh;
 	__le32 cmp, val;
 
+	if (!ip_vs_checksum_needed(skb, af))
+		return 1;
 	sh = (struct sctphdr *)(skb->data + sctphoff);
 	cmp = sh->checksum;
 	val = sctp_compute_cksum(skb, sctphoff);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
-		IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
-				"Failed checksum for");
+		IP_VS_DBG_RL_PKT(0, af, pp, skb, iph->off,
+				 "Failed checksum for");
 		return 0;
 	}
 	return 1;
