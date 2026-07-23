@@ -1302,8 +1302,15 @@ int erdma_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
 
 	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
 				  true);
+	/*
+	 * A timeout disables the command queue, so retry cannot succeed.  Treat
+	 * terminal command failures as diagnostic; propagating them can make
+	 * forced uverbs cleanup discard the last software resource pointers.
+	 */
 	if (ret)
-		return ret;
+		ibdev_warn_ratelimited(&dev->ibdev,
+				       "failed to deregister MR 0x%x: %d\n",
+				       ibmr->lkey, ret);
 
 	erdma_free_idx(&dev->res_cb[ERDMA_RES_TYPE_STAG_IDX], ibmr->lkey >> 8);
 
@@ -1329,7 +1336,9 @@ int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
 				  true);
 	if (err)
-		return err;
+		ibdev_warn_ratelimited(&dev->ibdev,
+				       "failed to destroy CQ %u: %d\n",
+				       cq->cqn, err);
 
 	if (rdma_is_kernel_res(&cq->ibcq.res)) {
 		dma_free_coherent(&dev->pdev->dev, cq->depth << CQE_SHIFT,
@@ -1377,7 +1386,9 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
 				  true);
 	if (err)
-		return err;
+		ibdev_warn_ratelimited(&dev->ibdev,
+				       "failed to destroy QP %u: %d\n",
+				       QP_ID(qp), err);
 
 	erdma_qp_put(qp);
 	wait_for_completion(&qp->safe_free);
@@ -2279,7 +2290,9 @@ int erdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 	ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
 				  flags & RDMA_DESTROY_AH_SLEEPABLE);
 	if (ret)
-		return ret;
+		ibdev_warn_ratelimited(&dev->ibdev,
+				       "failed to destroy AH %u: %d\n",
+				       ah->ahn, ret);
 
 	erdma_free_idx(&dev->res_cb[ERDMA_RES_TYPE_AH], ah->ahn);
 
