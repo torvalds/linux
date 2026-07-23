@@ -1172,13 +1172,13 @@ int mlx5hws_cmd_query_caps(struct mlx5_core_dev *mdev,
 		}
 
 		if (MLX5_GET(query_hca_cap_out, out,
-			     capability.esw_cap.esw_manager_vport_number_valid))
+			     capability.e_switch_cap.esw_manager_vport_number_valid))
 			caps->eswitch_manager_vport_number =
 				MLX5_GET(query_hca_cap_out, out,
-					 capability.esw_cap.esw_manager_vport_number);
+					 capability.e_switch_cap.esw_manager_vport_number);
 
 		caps->merged_eswitch = MLX5_GET(query_hca_cap_out, out,
-						capability.esw_cap.merged_eswitch);
+						capability.e_switch_cap.merged_eswitch);
 	}
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, out_size);
