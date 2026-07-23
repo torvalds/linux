@@ -26,6 +26,8 @@
 
 /* Send queue ID mask */
 #define MANA_SENDQ_MASK	BIT(31)
+/* Queue ID encodes type in the lower 2 bits */
+#define MANA_QID_SUBTYPE_MASK 0x3
 
 /*
  * The hardware limit of number of MRs is greater than maximum number of MRs
@@ -582,12 +584,40 @@ static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 	return mdev->gdma_dev->gdma_context;
 }
 
+static inline struct mana_ib_queue *mana_qp_get_sq(struct mana_ib_qp *qp)
+{
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+		return &qp->rc_qp.queues[MANA_RC_SEND_QUEUE_REQUESTER];
+	case IB_QPT_UD:
+	case IB_QPT_GSI:
+		return &qp->ud_qp.queues[MANA_UD_SEND_QUEUE];
+	default:
+		return NULL;
+	}
+}
+
+static inline struct mana_ib_queue *mana_qp_get_rq(struct mana_ib_qp *qp)
+{
+	switch (qp->ibqp.qp_type) {
+	case IB_QPT_RC:
+		return &qp->rc_qp.queues[MANA_RC_RECV_QUEUE_RESPONDER];
+	case IB_QPT_UD:
+	case IB_QPT_GSI:
+		return &qp->ud_qp.queues[MANA_UD_RECV_QUEUE];
+	default:
+		return NULL;
+	}
+}
+
 static inline struct mana_ib_qp *mana_get_qp_ref(struct mana_ib_dev *mdev,
 						 u32 qid, bool is_sq)
 {
 	struct mana_ib_qp *qp;
 	unsigned long flag;
 
+	/* Remove subtype bits */
+	qid &= ~MANA_QID_SUBTYPE_MASK;
 	if (is_sq)
 		qid |= MANA_SENDQ_MASK;
 

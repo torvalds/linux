@@ -461,89 +461,74 @@ static enum gdma_queue_type mana_ib_queue_type(struct ib_qp_init_attr *attr, u32
 	return type;
 }
 
-static int mana_table_store_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
-{
-	return xa_insert_irq(&mdev->qp_table_wq, qp->ibqp.qp_num, qp,
-			     GFP_KERNEL);
-}
-
-static void mana_table_remove_rc_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
-{
-	xa_erase_irq(&mdev->qp_table_wq, qp->ibqp.qp_num);
-}
-
 static void mana_table_drain_qp_ref(struct mana_ib_qp *qp)
 {
 	mana_put_qp_ref(qp);
 	wait_for_completion(&qp->free);
 }
 
-static int mana_table_store_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+static int mana_table_store_qp_qid(struct mana_ib_dev *mdev, struct mana_ib_qp *qp,
+				   u32 qid, bool is_sq)
 {
-	u32 qids = qp->ud_qp.queues[MANA_UD_SEND_QUEUE].id | MANA_SENDQ_MASK;
-	u32 qidr = qp->ud_qp.queues[MANA_UD_RECV_QUEUE].id;
-	int err;
+	/* Remove subtype bits */
+	qid &= ~MANA_QID_SUBTYPE_MASK;
+	if (is_sq)
+		qid |= MANA_SENDQ_MASK;
 
-	err = xa_insert_irq(&mdev->qp_table_wq, qids, qp, GFP_KERNEL);
-	if (err)
-		return err;
-
-	err = xa_insert_irq(&mdev->qp_table_wq, qidr, qp, GFP_KERNEL);
-	if (err)
-		goto remove_sq;
-
-	return 0;
-
-remove_sq:
-	xa_erase_irq(&mdev->qp_table_wq, qids);
-	mana_table_drain_qp_ref(qp);
-	return err;
+	return xa_insert_irq(&mdev->qp_table_wq, qid, qp, GFP_KERNEL);
 }
 
-static void mana_table_remove_ud_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
+static void mana_table_remove_qp_qid(struct mana_ib_dev *mdev, u32 qid, bool is_sq)
 {
-	u32 qids = qp->ud_qp.queues[MANA_UD_SEND_QUEUE].id | MANA_SENDQ_MASK;
-	u32 qidr = qp->ud_qp.queues[MANA_UD_RECV_QUEUE].id;
+	/* Remove subtype bits */
+	qid &= ~MANA_QID_SUBTYPE_MASK;
+	if (is_sq)
+		qid |= MANA_SENDQ_MASK;
 
-	xa_erase_irq(&mdev->qp_table_wq, qids);
-	xa_erase_irq(&mdev->qp_table_wq, qidr);
+	xa_erase_irq(&mdev->qp_table_wq, qid);
 }
 
 static int mana_table_store_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
 {
+	struct mana_ib_queue *sq, *rq;
+	int err;
+
 	refcount_set(&qp->refcount, 1);
 	init_completion(&qp->free);
+	sq = mana_qp_get_sq(qp);
+	rq = mana_qp_get_rq(qp);
 
-	switch (qp->ibqp.qp_type) {
-	case IB_QPT_RC:
-		return mana_table_store_rc_qp(mdev, qp);
-	case IB_QPT_UD:
-	case IB_QPT_GSI:
-		return mana_table_store_ud_qp(mdev, qp);
-	default:
-		ibdev_dbg(&mdev->ib_dev, "Unknown QP type for storing in mana table, %d\n",
-			  qp->ibqp.qp_type);
-	}
+	if (!sq || !rq)
+		return -EINVAL;
 
-	return -EINVAL;
+	err = mana_table_store_qp_qid(mdev, qp, sq->id, true);
+	if (err)
+		return err;
+
+	err = mana_table_store_qp_qid(mdev, qp, rq->id, false);
+	if (err)
+		goto err_remove_sq;
+
+	return 0;
+
+err_remove_sq:
+	mana_table_remove_qp_qid(mdev, sq->id, true);
+	mana_table_drain_qp_ref(qp);
+	return err;
 }
 
-static void mana_table_remove_qp(struct mana_ib_dev *mdev,
-				 struct mana_ib_qp *qp)
+static void mana_table_remove_qp(struct mana_ib_dev *mdev, struct mana_ib_qp *qp)
 {
-	switch (qp->ibqp.qp_type) {
-	case IB_QPT_RC:
-		mana_table_remove_rc_qp(mdev, qp);
-		break;
-	case IB_QPT_UD:
-	case IB_QPT_GSI:
-		mana_table_remove_ud_qp(mdev, qp);
-		break;
-	default:
-		ibdev_dbg(&mdev->ib_dev, "Unknown QP type for removing from mana table, %d\n",
-			  qp->ibqp.qp_type);
+	struct mana_ib_queue *sq, *rq;
+
+	sq = mana_qp_get_sq(qp);
+	rq = mana_qp_get_rq(qp);
+
+	if (!sq || !rq)
 		return;
-	}
+
+	mana_table_remove_qp_qid(mdev, sq->id, true);
+	mana_table_remove_qp_qid(mdev, rq->id, false);
 	mana_table_drain_qp_ref(qp);
 }
 
