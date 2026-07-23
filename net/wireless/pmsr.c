@@ -263,8 +263,9 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 				       "FTM: nominal time is required for PD NTB ranging");
 			return -EINVAL;
 		}
-		out->ftm.nominal_time =
-			nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]);
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME])
+			out->ftm.nominal_time =
+				nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]);
 
 		if (tb[NL80211_PMSR_FTM_REQ_ATTR_MIN_TIME_BETWEEN_MEASUREMENTS])
 			out->ftm.min_time_between_measurements =
