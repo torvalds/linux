@@ -3782,6 +3782,9 @@ Kernel parameters
 		nobootlog
 			disable boot machine check logging.
 
+		print_all
+			print all machine check logs to the console.
+
 		monarchtimeout (number)
 			sets the time in us to wait for other CPUs on machine
 			checks. 0 to disable.
