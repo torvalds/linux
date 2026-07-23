@@ -1886,7 +1886,6 @@ static int worker_main_send_subtests(int sock, struct test_state *state)
 			worker_main_send_log(sock, subtest_state->log_buf, subtest_state->log_cnt);
 
 		free_subtest_state(subtest_state);
-		free(subtest_state->name);
 	}
 
 out:
