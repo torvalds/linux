@@ -104,9 +104,9 @@ struct vfs_ns_cap_data {
 #endif
 
 
-/**
- ** POSIX-draft defined capabilities.
- **/
+/*
+ * POSIX-draft defined capabilities.
+ */
 
 /* In a system with the [_POSIX_CHOWN_RESTRICTED] option defined, this
    overrides the restriction of changing file ownership and group
@@ -159,9 +159,9 @@ struct vfs_ns_cap_data {
 #define CAP_SETUID           7
 
 
-/**
- ** Linux-specific capabilities
- **/
+/*
+ * Linux-specific capabilities
+ */
 
 /* Without VFS support for capabilities:
  *   Transfer any capability in your permitted set to any pid,
