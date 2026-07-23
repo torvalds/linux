@@ -5033,6 +5033,32 @@ static void ibmvfc_discover_targets_done(struct ibmvfc_event *evt)
 	wake_up(&vhost->work_wait_q);
 }
 
+static struct ibmvfc_event *ibmvfc_get_disc_event(struct ibmvfc_channels *channels)
+{
+	struct ibmvfc_discover_targets *mad;
+	struct ibmvfc_host *vhost = ibmvfc_channels_to_vhost(channels);
+	struct ibmvfc_event *evt = ibmvfc_get_reserved_event(&vhost->crq);
+
+	if (!evt)
+		return NULL;
+
+	ibmvfc_init_event(evt, ibmvfc_discover_targets_done, IBMVFC_MAD_FORMAT);
+	mad = &evt->iu.discover_targets;
+	memset(mad, 0, sizeof(*mad));
+	mad->common.version = cpu_to_be32(1);
+	if (channels->protocol == IBMVFC_PROTO_SCSI)
+		mad->common.opcode = cpu_to_be32(IBMVFC_DISC_TARGETS);
+	else
+		mad->common.opcode = cpu_to_be32(IBMVFC_DISC_NVMF_TARGETS);
+	mad->common.length = cpu_to_be16(sizeof(*mad));
+	mad->bufflen = cpu_to_be32(channels->disc_buf_sz);
+	mad->buffer.va = cpu_to_be64(channels->disc_buf_dma);
+	mad->buffer.len = cpu_to_be32(channels->disc_buf_sz);
+	mad->flags = cpu_to_be32(IBMVFC_DISC_TGT_PORT_ID_WWPN_LIST);
+
+	return evt;
+}
+
 /**
  * ibmvfc_discover_targets - Send Discover Targets MAD
  * @vhost:	ibmvfc host struct
@@ -5040,8 +5066,7 @@ static void ibmvfc_discover_targets_done(struct ibmvfc_event *evt)
  **/
 static void ibmvfc_discover_targets(struct ibmvfc_host *vhost)
 {
-	struct ibmvfc_discover_targets *mad;
-	struct ibmvfc_event *evt = ibmvfc_get_reserved_event(&vhost->crq);
+	struct ibmvfc_event *evt = ibmvfc_get_disc_event(&vhost->scsi_scrqs);
 	int level = IBMVFC_DEFAULT_LOG_LEVEL;
 
 	if (!evt) {
@@ -5050,16 +5075,6 @@ static void ibmvfc_discover_targets(struct ibmvfc_host *vhost)
 		return;
 	}
 
-	ibmvfc_init_event(evt, ibmvfc_discover_targets_done, IBMVFC_MAD_FORMAT);
-	mad = &evt->iu.discover_targets;
-	memset(mad, 0, sizeof(*mad));
-	mad->common.version = cpu_to_be32(1);
-	mad->common.opcode = cpu_to_be32(IBMVFC_DISC_TARGETS);
-	mad->common.length = cpu_to_be16(sizeof(*mad));
-	mad->bufflen = cpu_to_be32(vhost->scsi_scrqs.disc_buf_sz);
-	mad->buffer.va = cpu_to_be64(vhost->scsi_scrqs.disc_buf_dma);
-	mad->buffer.len = cpu_to_be32(vhost->scsi_scrqs.disc_buf_sz);
-	mad->flags = cpu_to_be32(IBMVFC_DISC_TGT_PORT_ID_WWPN_LIST);
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT_WAIT);
 
 	if (!ibmvfc_send_event(evt, vhost, default_timeout))
