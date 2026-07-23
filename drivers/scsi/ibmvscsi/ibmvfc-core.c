@@ -6347,7 +6347,8 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct device *dev = &vdev->dev;
 	int rc = -ENOMEM;
 	unsigned int online_cpus = num_online_cpus();
-	unsigned int max_scsi_queues = min((unsigned int)IBMVFC_MAX_SCSI_QUEUES, online_cpus);
+	unsigned int max_scsi_queues = min_t(unsigned int, IBMVFC_MAX_SCSI_QUEUES, online_cpus);
+	unsigned int max_nvme_queues = min_t(unsigned int, IBMVFC_MAX_NVME_QUEUES, online_cpus);
 
 	ENTER;
 	shost = scsi_host_alloc(&driver_template, sizeof(*vhost));
@@ -6367,6 +6368,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	vhost = shost_priv(shost);
 	INIT_LIST_HEAD(&vhost->scsi_scrqs.targets);
+	INIT_LIST_HEAD(&vhost->nvme_scrqs.targets);
 	INIT_LIST_HEAD(&vhost->purge);
 	sprintf(vhost->name, IBMVFC_NAME);
 	vhost->host = shost;
@@ -6381,6 +6383,10 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	vhost->scsi_scrqs.protocol = IBMVFC_PROTO_SCSI;
 	vhost->using_channels = 0;
 	vhost->do_enquiry = 1;
+	vhost->nvme_enabled = mq_enabled ? nvme_enabled : 0;
+	vhost->nvme_scrqs.desired_queues = min(max_nvme_queues, nr_nvme_channels);
+	vhost->nvme_scrqs.max_queues = max_nvme_queues;
+	vhost->nvme_scrqs.protocol = IBMVFC_PROTO_NVME;
 	vhost->scan_timeout = 0;
 
 	strcpy(vhost->partition_name, "UNKNOWN");
