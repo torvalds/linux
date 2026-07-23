@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::{
     parse::{End, Nothing, Parse},
     parse_quote, parse_quote_spanned,
     spanned::Spanned,
     visit_mut::VisitMut,
-    Attribute, Field, Generics, Ident, Item, PathSegment, Type, TypePath, Visibility, WhereClause,
+    Field, Fields, Generics, Ident, Item, PathSegment, Type, TypePath, Visibility, WhereClause,
 };
 
 use crate::diagnostics::{DiagCtxt, ErrorGuaranteed};
@@ -35,10 +35,18 @@ impl Parse for Args {
     }
 }
 
+impl ToTokens for Args {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Self::Nothing(_) => (),
+            Self::PinnedDrop(kw) => kw.to_tokens(tokens),
+        }
+    }
+}
+
 struct FieldInfo<'a> {
     field: &'a Field,
     pinned: bool,
-    cfg_attrs: Vec<&'a Attribute>,
 }
 
 pub(crate) fn pin_data(
@@ -68,6 +76,55 @@ pub(crate) fn pin_data(
         }
     };
 
+    // Handling cfg can gets very complicated, especially for tuple structs. Therefore, resolve all
+    // field cfgs first before continuing.
+    //
+    // We need to perform this after parsing so we can reliably detect field cfgs.
+    for (field_idx, field) in struct_.fields.iter_mut().enumerate() {
+        let cfg: Vec<_> = field
+            .attrs
+            .iter()
+            .filter(|a| a.path().is_ident("cfg"))
+            .map(|a| {
+                a.parse_args::<TokenStream>()
+                    .expect("parse as token stream cannot fail")
+            })
+            .collect();
+
+        if cfg.is_empty() {
+            continue;
+        }
+
+        field.attrs.retain(|a| !a.path().is_ident("cfg"));
+        let cfg_true_struct = quote!(#struct_);
+
+        let punctuated = match &mut struct_.fields {
+            Fields::Named(fields) => &mut fields.named,
+            Fields::Unnamed(fields) => &mut fields.unnamed,
+            Fields::Unit => unreachable!(),
+        };
+        *punctuated = std::mem::take(punctuated)
+            .into_pairs()
+            .enumerate()
+            .filter(|&(i, _)| i != field_idx)
+            .map(|(_, p)| p)
+            .collect();
+        let cfg_false_struct = quote!(#struct_);
+
+        // Resolve one field at a time until we've got no more field cfgs.
+        //
+        // This is linear time because macro invocations with false cfg will not be expanded.
+        return Ok(quote!(
+            #[cfg(all(#(#cfg,)*))]
+            #[::pin_init::pin_data(#args)]
+            #cfg_true_struct
+
+            #[cfg(not(all(#(#cfg,)*)))]
+            #[::pin_init::pin_data(#args)]
+            #cfg_false_struct
+        ));
+    }
+
     // The generics might contain the `Self` type. Since this macro will define a new type with the
     // same generics and bounds, this poses a problem: `Self` will refer to the new type as opposed
     // to this struct definition. Therefore we have to replace `Self` with the concrete name.
@@ -90,16 +147,14 @@ pub(crate) fn pin_data(
                 dcx.error(&field, "#[pin] attribute specified more than once");
             }
 
-            let cfg_attrs = field
-                .attrs
-                .iter()
-                .filter(|a| a.path().is_ident("cfg"))
-                .collect();
+            assert!(
+                !field.attrs.iter().any(|a| a.path().is_ident("cfg")),
+                "cfgs should be all resolved at this point"
+            );
 
             FieldInfo {
                 field: &*field,
                 pinned: pinned_count != 0,
-                cfg_attrs,
             }
         })
         .collect();
@@ -185,9 +240,7 @@ fn generate_unpin_impl(
     let pinned_fields = fields.iter().filter(|f| f.pinned).map(|f| {
         let ident = f.field.ident.as_ref().unwrap();
         let ty = &f.field.ty;
-        let cfg_attrs = &f.cfg_attrs;
         quote!(
-            #(#cfg_attrs)*
             #ident: #ty
         )
     });
@@ -280,7 +333,6 @@ fn generate_projections(
         .iter()
         .map(|field| {
             let Field { vis, ident, ty, .. } = &field.field;
-            let cfg_attrs = &field.cfg_attrs;
 
             let ident = ident
                 .as_ref()
@@ -288,11 +340,9 @@ fn generate_projections(
             if field.pinned {
                 (
                     quote!(
-                        #(#cfg_attrs)*
                         #vis #ident: ::core::pin::Pin<&'__pin mut #ty>,
                     ),
                     quote!(
-                        #(#cfg_attrs)*
                         // SAFETY: this field is structurally pinned.
                         #ident: unsafe { ::core::pin::Pin::new_unchecked(&mut #this.#ident) },
                     ),
@@ -300,11 +350,9 @@ fn generate_projections(
             } else {
                 (
                     quote!(
-                        #(#cfg_attrs)*
                         #vis #ident: &'__pin mut #ty,
                     ),
                     quote!(
-                        #(#cfg_attrs)*
                         #ident: &mut #this.#ident,
                     ),
                 )
@@ -374,7 +422,6 @@ fn generate_the_pin_data(
         .iter()
         .map(|f| {
             let Field { vis, ident, ty, .. } = f.field;
-            let cfg_attrs = &f.cfg_attrs;
 
             let field_name = ident
                 .as_ref()
@@ -391,7 +438,6 @@ fn generate_the_pin_data(
                 /// - `(*slot).#field_name` is properly aligned.
                 /// - `(*slot).#field_name` points to uninitialized and exclusively accessed
                 ///   memory.
-                #(#cfg_attrs)*
                 // Allow `non_snake_case` since the same warning will be emitted on
                 // the struct definition.
                 #[allow(non_snake_case)]
