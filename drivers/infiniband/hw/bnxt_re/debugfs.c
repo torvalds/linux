@@ -308,21 +308,12 @@ static ssize_t bnxt_re_cc_config_set(struct file *filp, const char __user *buffe
 	struct bnxt_re_dev *rdev = dbg_cc_param->rdev;
 	u32 offset = dbg_cc_param->offset;
 	u8 cc_gen = dbg_cc_param->cc_gen;
-	char buf[16];
 	u32 val;
 	int rc;
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, buffer, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-	if (kstrtou32(buf, 0, &val))
-		return -EINVAL;
-
-	rc = bnxt_re_configure_cc(rdev, cc_gen, offset, val);
+	rc = kstrtou32_from_user(buffer, count, 0, &val);
+	if (!rc)
+		rc = bnxt_re_configure_cc(rdev, cc_gen, offset, val);
 	return rc ? rc : count;
 }
 
@@ -374,20 +365,12 @@ static ssize_t cq_coal_cfg_write(struct file *file,
 	struct seq_file *s = file->private_data;
 	struct bnxt_re_cq_coal_param *param = s->private;
 	struct bnxt_re_dev *rdev = param->rdev;
-	int offset = param->offset;
-	char lbuf[16] = { };
+	int ret, offset = param->offset;
 	u32 val;
 
-	if (count > sizeof(lbuf))
-		return -EINVAL;
-
-	if (copy_from_user(lbuf, buf, count))
-		return -EFAULT;
-
-	lbuf[sizeof(lbuf) - 1] = '\0';
-
-	if (kstrtou32(lbuf, 0, &val))
-		return -EINVAL;
+	ret = kstrtou32_from_user(buf, count, 0, &val);
+	if (ret)
+		return ret;
 
 	switch (offset) {
 	case BNXT_RE_COAL_CQ_BUF_MAXTIME:
