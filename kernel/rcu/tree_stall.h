@@ -927,20 +927,13 @@ bool rcu_check_boost_fail(unsigned long gp_state, int *cpup)
 }
 EXPORT_SYMBOL_GPL(rcu_check_boost_fail);
 
-/*
- * Show the state of the grace-period kthreads.
- */
-void show_rcu_gp_kthreads(void)
+static noinline_for_stack void show_rcu_state(void)
 {
-	unsigned long cbs = 0;
-	int cpu;
 	unsigned long j;
 	unsigned long ja;
 	unsigned long jr;
 	unsigned long js;
 	unsigned long jw;
-	struct rcu_data *rdp;
-	struct rcu_node *rnp;
 	struct task_struct *t = READ_ONCE(rcu_state.gp_kthread);
 
 	j = jiffies;
@@ -957,21 +950,39 @@ void show_rcu_gp_kthreads(void)
 		(long)data_race(READ_ONCE(rcu_get_root()->gp_seq_needed)),
 		data_race(READ_ONCE(rcu_state.gp_max)),
 		data_race(READ_ONCE(rcu_state.gp_flags)));
+}
+
+static noinline_for_stack void show_rcu_node(struct rcu_node *rnp)
+{
+	pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld ->qsmask %#lx %c%c%c%c ->n_boosts %ld\n",
+		rnp->grplo, rnp->grphi,
+		(long)data_race(READ_ONCE(rnp->gp_seq)),
+		(long)data_race(READ_ONCE(rnp->gp_seq_needed)),
+		data_race(READ_ONCE(rnp->qsmask)),
+		".b"[!!data_race(READ_ONCE(rnp->boost_kthread_task))],
+		".B"[!!data_race(READ_ONCE(rnp->boost_tasks))],
+		".E"[!!data_race(READ_ONCE(rnp->exp_tasks))],
+		".G"[!!data_race(READ_ONCE(rnp->gp_tasks))],
+		data_race(READ_ONCE(rnp->n_boosts)));
+}
+
+/*
+ * Show the state of the grace-period kthreads.
+ */
+void show_rcu_gp_kthreads(void)
+{
+	unsigned long cbs = 0;
+	int cpu;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+
+	show_rcu_state();
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(READ_ONCE(rcu_state.gp_seq), READ_ONCE(rnp->gp_seq_needed)) &&
 		    !data_race(READ_ONCE(rnp->qsmask)) && !data_race(READ_ONCE(rnp->boost_tasks)) &&
 		    !data_race(READ_ONCE(rnp->exp_tasks)) && !data_race(READ_ONCE(rnp->gp_tasks)))
 			continue;
-		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld ->qsmask %#lx %c%c%c%c ->n_boosts %ld\n",
-			rnp->grplo, rnp->grphi,
-			(long)data_race(READ_ONCE(rnp->gp_seq)),
-			(long)data_race(READ_ONCE(rnp->gp_seq_needed)),
-			data_race(READ_ONCE(rnp->qsmask)),
-			".b"[!!data_race(READ_ONCE(rnp->boost_kthread_task))],
-			".B"[!!data_race(READ_ONCE(rnp->boost_tasks))],
-			".E"[!!data_race(READ_ONCE(rnp->exp_tasks))],
-			".G"[!!data_race(READ_ONCE(rnp->gp_tasks))],
-			data_race(READ_ONCE(rnp->n_boosts)));
+		show_rcu_node(rnp);
 		if (!rcu_is_leaf_node(rnp))
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
