@@ -197,13 +197,13 @@ static void nxp_sar_adc_irq_cfg(struct nxp_sar_adc *info, bool enable)
 		writel(0, NXP_SAR_ADC_IMR(info->regs));
 }
 
-static void nxp_sar_adc_wait_for(struct nxp_sar_adc *info, unsigned int cycles)
+static void nxp_sar_adc_wait_for(struct nxp_sar_adc *info, u64 cycles)
 {
 	u64 rate;
 
 	rate = clk_get_rate(info->clk);
 	if (rate)
-		ndelay(div64_u64(NSEC_PER_SEC, rate * cycles));
+		ndelay(div64_u64(NSEC_PER_SEC * cycles, rate));
 }
 
 static bool nxp_sar_adc_set_enabled(struct nxp_sar_adc *info, bool enable)

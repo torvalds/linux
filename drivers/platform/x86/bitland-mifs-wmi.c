@@ -300,6 +300,10 @@ static int bitland_mifs_wmi_suspend(struct device *dev)
 	enum platform_profile_option profile;
 	int ret;
 
+	/* Skip event device */
+	if (!data->pp_dev)
+		return 0;
+
 	ret = laptop_profile_get(data->pp_dev, &profile);
 	if (ret == 0)
 		data->saved_profile = profile;
@@ -310,6 +314,10 @@ static int bitland_mifs_wmi_suspend(struct device *dev)
 static int bitland_mifs_wmi_resume(struct device *dev)
 {
 	struct bitland_mifs_wmi_data *data = dev_get_drvdata(dev);
+
+	/* Skip event device */
+	if (!data->pp_dev)
+		return 0;
 
 	dev_dbg(dev, "Resuming, restoring profile %d\n", data->saved_profile);
 	return laptop_profile_set(dev, data->saved_profile);

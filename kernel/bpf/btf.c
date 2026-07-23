@@ -9114,6 +9114,35 @@ u32 *btf_kfunc_flags(const struct btf *btf, u32 kfunc_btf_id, const struct bpf_p
 	return btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id);
 }
 
+/*
+ * Check a single KF_* @flag on a kfunc across all of its hook sets.
+ * Returns:
+ *   * 1 if @flag is set
+ *   * 0 if @flag is not set
+ *   * -EINVAL if @flag is set inconsistently across the sets
+ *   * -ENOENT if kfunc_btf_id is not a registered kfunc
+ */
+int btf_kfunc_check_flag(const struct btf *btf, u32 kfunc_btf_id, u32 flag)
+{
+	enum btf_kfunc_hook hook;
+	int res = -ENOENT;
+	bool is_set;
+	u32 *flags;
+
+	for (hook = 0; hook < BTF_KFUNC_HOOK_MAX; hook++) {
+		flags = btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id);
+		if (!flags)
+			continue;
+		is_set = *flags & flag;
+		if (res < 0)
+			res = is_set;
+		else if (res != is_set)
+			return -EINVAL;
+	}
+
+	return res;
+}
+
 u32 *btf_kfunc_is_modify_return(const struct btf *btf, u32 kfunc_btf_id,
 				const struct bpf_prog *prog)
 {

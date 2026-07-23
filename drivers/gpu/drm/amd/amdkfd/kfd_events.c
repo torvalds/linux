@@ -107,6 +107,9 @@ static int allocate_event_notification_slot(struct kfd_process *p,
 	}
 
 	if (restore_id) {
+		if (*restore_id >= KFD_SIGNAL_EVENT_LIMIT)
+			return -EINVAL;
+
 		id = idr_alloc(&p->event_idr, ev, *restore_id, *restore_id + 1,
 				GFP_KERNEL);
 	} else {
@@ -204,7 +207,7 @@ static int create_signal_event(struct file *devkfd, struct kfd_process *p,
 
 	ret = allocate_event_notification_slot(p, ev, restore_id);
 	if (ret) {
-		pr_warn("Signal event wasn't created because out of kernel memory\n");
+		pr_warn("Failed to create signal event notification slot\n");
 		return ret;
 	}
 

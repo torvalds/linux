@@ -704,6 +704,15 @@ static void __init cpufeatures_setup_start(u32 isa)
 	if (isa >= ISA_V3_1) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ARCH_31;
 		cur_cpu_spec->cpu_user_features2 |= PPC_FEATURE2_ARCH_3_1;
+
+		/*
+		 * CPU_FTR_P11_PVR is a kernel-internal flag to identify
+		 * Power11 and later processors. While ISA v3.1 is supported
+		 * by Power10+, this flag specifically indicates Power11+
+		 * for code that needs to distinguish between P10 and P11.
+		 */
+		if (PVR_VER(mfspr(SPRN_PVR)) >= PVR_POWER11)
+			cur_cpu_spec->cpu_features |= CPU_FTR_P11_PVR;
 	}
 }
 

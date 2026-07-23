@@ -875,7 +875,7 @@ static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size
 	if (!hwctx->cus)
 		return -ENOMEM;
 
-	ret = amdxdna_pm_resume_get_locked(xdna);
+	ret = amdxdna_pm_resume_get(xdna);
 	if (ret)
 		goto free_cus;
 
@@ -900,13 +900,16 @@ free_cus:
 static void aie2_cmd_wait(struct amdxdna_hwctx *hwctx, u64 seq)
 {
 	struct dma_fence *out_fence = aie2_cmd_get_out_fence(hwctx, seq);
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
 
 	if (!out_fence) {
-		XDNA_ERR(hwctx->client->xdna, "Failed to get fence");
+		XDNA_ERR(xdna, "Failed to get fence");
 		return;
 	}
 
+	mutex_unlock(&xdna->dev_lock);
 	dma_fence_wait_timeout(out_fence, false, MAX_SCHEDULE_TIMEOUT);
+	mutex_lock(&xdna->dev_lock);
 	dma_fence_put(out_fence);
 }
 
@@ -1039,7 +1042,7 @@ again:
 	found = false;
 	down_write(&xdna->notifier_lock);
 	list_for_each_entry(mapp, &abo->mem.umap_list, node) {
-		if (mapp->invalid) {
+		if (mapp->invalid && kref_get_unless_zero(&mapp->refcnt)) {
 			found = true;
 			break;
 		}
@@ -1050,11 +1053,9 @@ again:
 		up_write(&xdna->notifier_lock);
 		return 0;
 	}
-	kref_get(&mapp->refcnt);
+
 	up_write(&xdna->notifier_lock);
 
-	XDNA_DBG(xdna, "populate memory range %lx %lx",
-		 mapp->vma->vm_start, mapp->vma->vm_end);
 	mm = mapp->notifier.mm;
 	if (!mmget_not_zero(mm)) {
 		amdxdna_umap_put(mapp);
@@ -1221,10 +1222,6 @@ int aie2_hwctx_heap_expand(struct amdxdna_hwctx *hwctx,
 	u64 addr;
 	int ret;
 
-	ret = amdxdna_pm_resume_get_locked(xdna);
-	if (ret)
-		return ret;
-
 	addr = amdxdna_obj_dma_addr(heap);
 	ret = aie2_add_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
 				addr, heap->mem.size);
@@ -1232,8 +1229,6 @@ int aie2_hwctx_heap_expand(struct amdxdna_hwctx *hwctx,
 		XDNA_ERR(xdna, "Add heap failed hwctx %s 0x%lx ret %d",
 			 hwctx->name, heap->mem.size, ret);
 	}
-
-	amdxdna_pm_suspend_put(xdna);
 
 	return ret;
 }

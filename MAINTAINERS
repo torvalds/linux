@@ -2767,12 +2767,12 @@ F:	arch/arm/mach-ep93xx/
 F:	drivers/iio/adc/ep93xx_adc.c
 
 ARM/CIX SOC SUPPORT
-M:	Peter Chen <peter.chen@cixtech.com>
+M:	Gary Yang <gary.yang@cixtech.com>
 M:	Fugang Duan <fugang.duan@cixtech.com>
 R:	CIX Linux Kernel Upstream Group <cix-kernel-upstream@cixtech.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/cix.git
+T:	git https://github.com/cixtech/linux-mainline.git
 F:	Documentation/devicetree/bindings/arm/cix.yaml
 F:	Documentation/devicetree/bindings/mailbox/cix,sky1-mbox.yaml
 F:	arch/arm64/boot/dts/cix/
@@ -6209,6 +6209,7 @@ F:	include/dt-bindings/sound/cs*
 F:	include/linux/mfd/cs42l43*
 F:	include/sound/cs*
 F:	sound/hda/codecs/cirrus*
+F:	sound/hda/codecs/side-codecs/cirrus*
 F:	sound/hda/codecs/side-codecs/cs*
 F:	sound/hda/codecs/side-codecs/hda_component*
 F:	sound/soc/codecs/cs*
@@ -6342,7 +6343,7 @@ F:	.clang-format
 
 CLANG/LLVM BUILD SUPPORT
 M:	Nathan Chancellor <nathan@kernel.org>
-R:	Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
+R:	Nick Desaulniers <ndesaulniers@google.com>
 R:	Bill Wendling <morbo@google.com>
 R:	Justin Stitt <justinstitt@google.com>
 L:	llvm@lists.linux.dev
@@ -14191,6 +14192,7 @@ F:	virt/kvm/*
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 M:	Oliver Upton <oupton@kernel.org>
+R:	Fuad Tabba <tabba@google.com>
 R:	Joey Gouly <joey.gouly@arm.com>
 R:	Steffen Eiden <seiden@linux.ibm.com>
 R:	Suzuki K Poulose <suzuki.poulose@arm.com>
@@ -17204,6 +17206,7 @@ R:	Liam R. Howlett <liam@infradead.org>
 R:	Vlastimil Babka <vbabka@kernel.org>
 R:	Harry Yoo <harry@kernel.org>
 R:	Jann Horn <jannh@google.com>
+R:	Lance Yang <lance.yang@linux.dev>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/rmap.h
@@ -20194,7 +20197,7 @@ W:	http://www.onsemi.com
 F:	drivers/net/phy/ncn*
 
 OP-TEE DRIVER
-M:	Jens Wiklander <jens.wiklander@linaro.org>
+M:	Jens Wiklander <jenswi@kernel.org>
 L:	op-tee@lists.trustedfirmware.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-optee-devices
@@ -20405,7 +20408,7 @@ F:	kernel/padata.c
 
 PAGE CACHE
 M:	Matthew Wilcox (Oracle) <willy@infradead.org>
-R:	Jan Kara <jack@suse.cz>
+M:	Jan Kara <jack@suse.cz>
 L:	linux-fsdevel@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Supported
@@ -23312,7 +23315,7 @@ L:	spacemit@lists.linux.dev
 S:	Maintained
 W:	https://github.com/spacemit-com/linux/wiki
 C:	irc://irc.libera.chat/spacemit
-T:	git https://github.com/spacemit-com/linux
+T:	https://git.kernel.org/pub/scm/linux/kernel/git/spacemit/linux.git
 F:	arch/riscv/boot/dts/spacemit/
 N:	spacemit
 K:	spacemit
@@ -23571,7 +23574,7 @@ F:	Documentation/devicetree/bindings/media/allwinner,sun8i-a83t-de2-rotate.yaml
 F:	drivers/media/platform/sunxi/sun8i-rotate/
 
 RPMB SUBSYSTEM
-M:	Jens Wiklander <jens.wiklander@linaro.org>
+M:	Jens Wiklander <jenswi@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/misc/rpmb-core.c
@@ -26525,7 +26528,7 @@ F:	drivers/media/i2c/tw9910.c
 F:	include/media/i2c/tw9910.h
 
 TEE SUBSYSTEM
-M:	Jens Wiklander <jens.wiklander@linaro.org>
+M:	Jens Wiklander <jenswi@kernel.org>
 R:	Sumit Garg <sumit.garg@kernel.org>
 L:	op-tee@lists.trustedfirmware.org (moderated for non-subscribers)
 S:	Maintained
@@ -28054,6 +28057,7 @@ F:	include/dt-bindings/usb/
 F:	include/linux/usb.h
 F:	include/linux/usb/
 F:	include/uapi/linux/usb/
+F:	rust/kernel/usb.rs
 
 USB TYPEC BUS FOR ALTERNATE MODES
 M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
