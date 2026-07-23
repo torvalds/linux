@@ -9,6 +9,7 @@
 #include <linux/stringify.h>
 #include <linux/seq_buf.h>
 #include <rv/instrumentation.h>
+#include <rv/kunit.h>
 #include <trace/events/task.h>
 #include <trace/events/sched.h>
 

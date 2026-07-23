@@ -57,6 +57,7 @@ void teardown_test(void *arg)
 	else
 		mon->rv_this->react = NULL;
 	active_ctx = NULL;
+	rv_mock_current(NULL);
 
 	if (mon->is_per_task)
 		*mon->task_slot = RV_PER_TASK_MONITOR_INIT;

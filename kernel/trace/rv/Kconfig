@@ -122,4 +122,7 @@ config RV_MONITORS_KUNIT_TEST
 	  These tests verify that monitors correctly detect violations by
 	  triggering fake events and validating the expected reactions.
 
+	  Enabling this may slightly increase overhead of some monitors if any
+	  unrelated KUnit test is running.
+
 	  If unsure, say N.

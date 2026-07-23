@@ -885,4 +885,30 @@ void rv_clear_testing(struct kunit_suite *suite)
 	mutex_unlock(&rv_interface_lock);
 }
 EXPORT_SYMBOL_IF_KUNIT(rv_clear_testing);
+
+/*
+ * rv_get_mock_current() is called only if we are running from a KUnit test.
+ * This can occur from a legitimate RV test or any unrelated test running when
+ * a real RV monitor is active and triggering events.
+ * We assume the former case is the only one where mock_current is not NULL and
+ * can occur only sequentially (KUnit doesn't run tests in parallel).
+ * We cannot rely on the test's context because there is no way to safely
+ * understand from which test we are running and KUnit utilities require
+ * locking, which is unsafe from NMI or scheduling context.
+ * Note that it is not possible for a real RV monitor to run when the RV KUnit
+ * tests are running (see rv_set_testing()).
+ */
+static struct task_struct *mock_current;
+
+void rv_mock_current(struct task_struct *tsk)
+{
+	mock_current = tsk;
+}
+EXPORT_SYMBOL_IF_KUNIT(rv_mock_current);
+
+struct task_struct *rv_get_mock_current(void)
+{
+	return mock_current ?: current;
+}
+EXPORT_SYMBOL_GPL(rv_get_mock_current);
 #endif

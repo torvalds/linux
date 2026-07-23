@@ -16,6 +16,7 @@
 
 #include <rv/automata.h>
 #include <linux/rv.h>
+#include <rv/kunit.h>
 #include <linux/stringify.h>
 #include <linux/bug.h>
 #include <linux/sched.h>

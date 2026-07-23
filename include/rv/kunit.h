@@ -2,7 +2,10 @@
 /*
  * Copyright (C) 2026-2029 Red Hat, Inc. Gabriele Monaco <gmonaco@redhat.com>
  *
- * Declaration of utilities to run KUnit tests.
+ * Declaration of wrappers to allow mocking core functionality, like current,
+ * and other testing utilities.
+ * Necessary only when mocking may be needed. If the RV KUnit test is
+ * enabled, the wrappers incur an additional function call overhead.
  */
 
 #ifndef _RV_KUNIT_H
@@ -56,6 +59,15 @@ struct rv_kunit_mon {
 void prepare_test(struct kunit *test, const struct rv_kunit_mon *mon);
 void teardown_test(void *arg);
 struct task_struct *rv_kunit_alloc_mock_task(struct kunit *test);
+
+void rv_mock_current(struct task_struct *tsk);
+struct task_struct *rv_get_mock_current(void);
+
+#define rv_get_current() (unlikely(kunit_get_current_test()) ? rv_get_mock_current() : current)
+
+#else /* !CONFIG_RV_MONITORS_KUNIT_TEST */
+
+#define rv_get_current() current
 
 #endif /* CONFIG_RV_MONITORS_KUNIT_TEST */
 #endif /* _RV_KUNIT_H */
