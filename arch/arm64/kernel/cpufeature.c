@@ -2153,16 +2153,12 @@ bool cpu_supports_bbml3(void)
 		MIDR_RANGE(MIDR_C1_PREMIUM, 1, 1, 0xf, 0xf),
 		{}
 	};
+	u64 mmfr2 = __read_sysreg_by_encoding(SYS_ID_AA64MMFR2_EL1);
 
-	if (!is_midr_in_range_list(supports_bbml3_list))
-		return false;
+	if (SYS_FIELD_GET(ID_AA64MMFR2_EL1, BBM, mmfr2) >= ID_AA64MMFR2_EL1_BBM_3)
+		return true;
 
-	/*
-	 * We currently ignore the ID_AA64MMFR2_EL1 register, and only care
-	 * about whether the MIDR check passes.
-	 */
-
-	return true;
+	return is_midr_in_range_list(supports_bbml3_list);
 }
 
 static bool has_bbml3(const struct arm64_cpu_capabilities *caps, int scope)
