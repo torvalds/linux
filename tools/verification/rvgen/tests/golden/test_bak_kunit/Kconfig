@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_TEST_BAK_KUNIT
+	depends on RV
+	# XXX: add dependencies if there
+	select LTL_MON_EVENTS_ID
+	bool "test_bak_kunit monitor"
+	help
+	  auto-generated
