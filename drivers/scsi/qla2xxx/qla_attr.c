@@ -1784,10 +1784,11 @@ qla2x00_min_supported_speed_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha) && !IS_QLA29XX(ha))
 		return scnprintf(buf, PAGE_SIZE, "\n");
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->min_supported_speed == 7 ? "128Gps" :
 	    ha->min_supported_speed == 6 ? "64Gps" :
 	    ha->min_supported_speed == 5 ? "32Gps" :
 	    ha->min_supported_speed == 4 ? "16Gps" :
@@ -1803,10 +1804,11 @@ qla2x00_max_supported_speed_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha) && !IS_QLA29XX(ha))
 		return scnprintf(buf, PAGE_SIZE, "\n");
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->max_supported_speed  == 3 ? "128Gps" :
 	    ha->max_supported_speed  == 2 ? "64Gps" :
 	    ha->max_supported_speed  == 1 ? "32Gps" :
 	    ha->max_supported_speed  == 0 ? "16Gps" : "unknown");
@@ -1887,6 +1889,7 @@ static const struct {
 	{ PORT_SPEED_16GB, "16" },
 	{ PORT_SPEED_32GB, "32" },
 	{ PORT_SPEED_64GB, "64" },
+	{ PORT_SPEED_128GB, "128" },
 	{ PORT_SPEED_10GB, "10" },
 };
 
@@ -2668,6 +2671,9 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	case PORT_SPEED_64GB:
 		speed = FC_PORTSPEED_64GBIT;
 		break;
+	case PORT_SPEED_128GB:
+		speed = FC_PORTSPEED_128GBIT;
+		break;
 	default:
 		speed = FC_PORTSPEED_UNKNOWN;
 		break;
@@ -3429,6 +3435,8 @@ qla2x00_get_host_supported_speeds(scsi_qla_host_t *vha, uint speeds)
 {
 	uint supported_speeds = FC_PORTSPEED_UNKNOWN;
 
+	if (speeds & FDMI_PORT_SPEED_128GB)
+		supported_speeds |= FC_PORTSPEED_128GBIT;
 	if (speeds & FDMI_PORT_SPEED_64GB)
 		supported_speeds |= FC_PORTSPEED_64GBIT;
 	if (speeds & FDMI_PORT_SPEED_32GB)
