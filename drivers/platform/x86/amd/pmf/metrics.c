@@ -73,7 +73,7 @@ int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer)
 			dev->mtable_size = sizeof(dev->m_table_v2);
 			break;
 		default:
-			dev_err(dev->dev, "Invalid CPU id: 0x%x", dev->cpu_id);
+			dev_err(dev->dev, "Invalid CPU id: 0x%x\n", dev->cpu_id);
 		}
 
 		dev->buf = devm_kzalloc(dev->dev, dev->mtable_size, GFP_KERNEL);
