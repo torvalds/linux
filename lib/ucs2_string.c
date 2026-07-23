@@ -8,7 +8,7 @@ ucs2_strnlen(const ucs2_char_t *s, size_t maxlength)
 {
         unsigned long length = 0;
 
-        while (*s++ != 0 && length < maxlength)
+	while (length < maxlength && *s++ != 0)
                 length++;
         return length;
 }
