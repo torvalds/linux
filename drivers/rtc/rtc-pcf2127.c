@@ -1184,12 +1184,7 @@ static int pcf2127_configure_interrupt_pins(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(pcf2127->regmap,
-			   PCF2131_REG_INT_A_MASK2, 0);
-	if (ret)
-		return ret;
-
-	return ret;
+	return regmap_write(pcf2127->regmap, PCF2131_REG_INT_A_MASK2, 0);
 }
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
