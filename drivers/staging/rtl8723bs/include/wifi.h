@@ -163,7 +163,6 @@ enum {
 #define SetDuration(pbuf, dur) \
 	(*(__le16 *)((size_t)(pbuf) + 2) = cpu_to_le16(0xffff & (dur)))
 
-
 #define SetPriority(pbuf, tid)	\
 	(*(__le16 *)(pbuf) |= cpu_to_le16(tid & 0xf))
 
@@ -192,12 +191,15 @@ enum {
 static inline unsigned char *rtl8723bs_get_ra(unsigned char *pframe)
 {
 	unsigned char *ra;
+
 	ra = GetAddr1Ptr(pframe);
 	return ra;
 }
+
 static inline unsigned char *get_ta(unsigned char *pframe)
 {
 	unsigned char *ta;
+
 	ta = GetAddr2Ptr(pframe);
 	return ta;
 }
@@ -224,7 +226,6 @@ static inline unsigned char *get_da(unsigned char *pframe)
 
 	return da;
 }
-
 
 static inline unsigned char *get_sa(unsigned char *pframe)
 {
@@ -272,11 +273,11 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 	return sa;
 }
 
-
 static inline int IsFrameTypeCtrl(unsigned char *pframe)
 {
 	return GetFrameType(pframe) == WIFI_CTRL_TYPE;
 }
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
@@ -334,7 +335,6 @@ struct ieee80211_ht_addt_info {
 	__le16 stbc_param;
 	unsigned char basic_set[16];
 } __packed;
-
 
 struct HT_caps_element {
 	union {
