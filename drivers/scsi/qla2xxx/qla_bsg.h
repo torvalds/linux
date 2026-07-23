@@ -40,6 +40,8 @@
 #define QL_VND_MBX_PASSTHRU		0x2B
 #define QL_VND_DPORT_DIAGNOSTICS_V2	0x2C
 #define QL_VND_IMG_SET_VALID	0x30
+#define QL_VND_READ_FLASH_BLOCK		0x33
+#define QL_VND_WRITE_FLASH_BLOCK	0x34
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -83,6 +85,20 @@
 #define ELS_OPCODE_BYTE			0x10
 
 /* BSG Vendor specific definations */
+
+#define QLA_IS_TIM	0x1
+#define QLA_IS_SECURE	0x2
+#define QLA_UPDATE_MBR	0x4
+
+struct qla_block_rw {
+	uint32_t region;
+	uint32_t rw_length;
+	uint32_t options;
+	uint32_t region_offset;
+	uint32_t chunk_length;
+	uint8_t  reserved[44];
+} __packed;
+
 #define A84_ISSUE_WRITE_TYPE_CMD        0
 #define A84_ISSUE_READ_TYPE_CMD         1
 #define A84_CLEANUP_CMD                 2

@@ -2640,6 +2640,24 @@ static struct isp_operations qla27xx_isp_ops = {
 	.initialize_adapter	= qla2x00_initialize_adapter,
 };
 
+static void *
+qla29xx_read_optrom_stub(struct scsi_qla_host *vha, void *buf,
+			 uint32_t offset, uint32_t length)
+{
+	ql_dbg(ql_dbg_init, vha, 0x0191,
+	    "read_optrom not supported on 29xx, use read_optrom_region.\n");
+	return NULL;
+}
+
+static int
+qla29xx_write_optrom_stub(struct scsi_qla_host *vha, void *buf,
+			  uint32_t offset, uint32_t length)
+{
+	ql_dbg(ql_dbg_init, vha, 0x0192,
+	    "write_optrom not supported on 29xx, use write_optrom_region.\n");
+	return QLA_FUNCTION_FAILED;
+}
+
 static struct isp_operations qla29xx_isp_ops = {
 	.pci_config		= qla25xx_pci_config,
 	.reset_chip		= qla24xx_reset_chip,
@@ -2670,8 +2688,10 @@ static struct isp_operations qla29xx_isp_ops = {
 	.beacon_on		= qla24xx_beacon_on,
 	.beacon_off		= qla24xx_beacon_off,
 	.beacon_blink		= qla83xx_beacon_blink,
-	.read_optrom		= qla25xx_read_optrom_data,
-	.write_optrom		= qla24xx_write_optrom_data,
+	.read_optrom		= qla29xx_read_optrom_stub,
+	.write_optrom		= qla29xx_write_optrom_stub,
+	.read_optrom_region	= qla29xx_read_optrom_data,
+	.write_optrom_region	= qla29xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 	.start_scsi_mq		= qla2xxx_dif_start_scsi_mq,
 	.abort_isp		= qla2x00_abort_isp,
