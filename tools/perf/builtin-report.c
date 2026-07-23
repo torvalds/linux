@@ -726,8 +726,11 @@ static int report__collapse_hists(struct report *rep)
 	evlist__for_each_entry(rep->session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 
-		if (pos->core.idx == 0)
-			hists->symbol_filter_str = rep->symbol_filter_str;
+		if (pos->core.idx == 0) {
+			hists->symbol_filter_str =
+				rep->symbol_filter_str ?
+				strdup(rep->symbol_filter_str) : NULL;
+		}
 
 		hists->socket_filter = rep->socket_filter;
 
