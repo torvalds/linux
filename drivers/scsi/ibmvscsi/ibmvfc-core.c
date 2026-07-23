@@ -1633,6 +1633,7 @@ void ibmvfc_init_event(struct ibmvfc_event *evt,
 			      void (*done) (struct ibmvfc_event *), u8 format)
 {
 	evt->cmnd = NULL;
+	evt->ls_req = NULL;
 	evt->sync_iu = NULL;
 	evt->eh_comp = NULL;
 	evt->crq.format = format;

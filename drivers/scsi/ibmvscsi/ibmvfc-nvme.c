@@ -62,10 +62,99 @@ static void ibmvfc_nvme_delete_queue(struct nvme_fc_local_port *lport, unsigned 
 	kfree(handle);
 }
 
+static void ibmvfc_ls_req_done(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_target *tgt = evt->tgt;
+	struct ibmvfc_passthru_mad *mad = &evt->xfer_iu->passthru;
+	struct fcnvme_ls_rqst_w0 *ls_rqst;
+	struct fcnvme_ls_cr_assoc_acc *ls_resp;
+	u32 status = be16_to_cpu(mad->common.status);
+	int rc = 0;
+
+	ls_rqst = (struct fcnvme_ls_rqst_w0 *)evt->ls_req->rqstaddr;
+	ls_resp = (struct fcnvme_ls_cr_assoc_acc *)evt->ls_req->rspaddr;
+
+	switch (status) {
+	case IBMVFC_MAD_SUCCESS:
+		tgt_dbg(tgt, "ls_req succeeded\n");
+		if ((ls_rqst->ls_cmd == FCNVME_LS_CREATE_ASSOCIATION) &&
+		    (ls_resp->hdr.w0.ls_cmd == FCNVME_LS_ACC)) {
+			tgt->assoc_id = be64_to_cpu(ls_resp->associd.association_id);
+			tgt_dbg(tgt, "assoc_id 0x%llx\n", tgt->assoc_id);
+		}
+		break;
+	case IBMVFC_MAD_DRIVER_FAILED:
+		break;
+	case IBMVFC_MAD_FAILED:
+	default:
+		tgt_info(tgt, "ls_req failed: %s (%x:%x) rc=0x%02X\n",
+			 ibmvfc_get_cmd_error(be16_to_cpu(mad->iu.status), be16_to_cpu(mad->iu.error)),
+			 be16_to_cpu(mad->iu.status), be16_to_cpu(mad->iu.error), status);
+		break;
+	}
+
+	if (status)
+		rc = -EIO;
+
+	evt->ls_req->done(evt->ls_req, rc);
+
+	kref_put(&tgt->kref, ibmvfc_release_tgt);
+	ibmvfc_free_event(evt);
+}
+
+static void ibmvfc_init_ls_req(struct ibmvfc_event *evt, struct nvmefc_ls_req *ls_req)
+{
+	struct ibmvfc_passthru_mad *mad = &evt->iu.passthru;
+
+	memset(mad, 0, sizeof(*mad));
+	mad->common.version = cpu_to_be32(2);
+	mad->common.opcode = cpu_to_be32(IBMVFC_NVMF_PASSTHRU);
+	mad->common.length = cpu_to_be16(sizeof(*mad) - sizeof(mad->fc_iu) - sizeof(mad->iu));
+	mad->cmd_ioba.va = cpu_to_be64((u64)be64_to_cpu(evt->crq.ioba) +
+				       offsetof(struct ibmvfc_passthru_mad, iu));
+	mad->cmd_ioba.len = cpu_to_be32(sizeof(mad->iu));
+	mad->iu.cmd_len = cpu_to_be32(ls_req->rqstlen);
+	mad->iu.rsp_len = cpu_to_be32(ls_req->rsplen);
+	mad->iu.cmd.va = cpu_to_be64(ls_req->rqstdma);
+	mad->iu.cmd.len = cpu_to_be32(ls_req->rqstlen);
+	mad->iu.rsp.va = cpu_to_be64(ls_req->rspdma);
+	mad->iu.rsp.len = cpu_to_be32(ls_req->rsplen);
+}
+
 static int ibmvfc_nvme_ls_req(struct nvme_fc_local_port *lport,
 			      struct nvme_fc_remote_port *rport,
 			      struct nvmefc_ls_req *ls_req)
 {
+	struct ibmvfc_host *vhost = lport->private;
+	struct ibmvfc_target *tgt = rport->private;
+	struct ibmvfc_passthru_mad *mad;
+	struct ibmvfc_event *evt;
+
+	kref_get(&tgt->kref);
+	evt = ibmvfc_get_event(&vhost->crq);
+	if (!evt) {
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
+		return -EBUSY;
+	}
+
+	ibmvfc_init_event(evt, ibmvfc_ls_req_done, IBMVFC_MAD_FORMAT);
+	evt->tgt = tgt;
+	evt->ls_req = ls_req;
+	ls_req->private = evt;
+
+	ibmvfc_init_ls_req(evt, ls_req);
+	mad = &evt->iu.passthru;
+	mad->iu.flags = cpu_to_be32(IBMVFC_FC4_LS_DSC_CTRL);
+	mad->iu.scsi_id = cpu_to_be64(tgt->scsi_id);
+	mad->iu.cancel_key = cpu_to_be32((u64)evt);
+	mad->iu.target_wwpn = cpu_to_be64(tgt->wwpn);
+
+	ibmvfc_dbg(vhost, "nvme_ls_req\n");
+	if (ibmvfc_send_event(evt, vhost, IBMVFC_FC4_LS_PLUS_CANCEL_TIMEOUT)) {
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
+		return -ENXIO;
+	}
+
 	return 0;
 }
 
