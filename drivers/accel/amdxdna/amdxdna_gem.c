@@ -436,6 +436,23 @@ static void amdxdna_gem_dev_obj_free(struct drm_gem_object *gobj)
 	amdxdna_gem_destroy_obj(abo);
 }
 
+static void amdxdna_mark_mapp_invalid(struct amdxdna_gem_obj *abo,
+				      struct vm_area_struct *vma)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(to_gobj(abo)->dev);
+	struct amdxdna_umap *mapp;
+
+	down_write(&xdna->notifier_lock);
+	abo->mem.map_invalid = true;
+	list_for_each_entry(mapp, &abo->mem.umap_list, node) {
+		if (compare_range(mapp, vma->vm_mm, vma->vm_start, vma->vm_end)) {
+			mapp->invalid = true;
+			break;
+		}
+	}
+	up_write(&xdna->notifier_lock);
+}
+
 static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 				struct vm_area_struct *vma)
 {
@@ -457,8 +474,7 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 				      &num_pages);
 		if (ret) {
 			XDNA_ERR(xdna, "Failed insert pages %d", ret);
-			vma->vm_ops->close(vma);
-			return ret;
+			amdxdna_mark_mapp_invalid(abo, vma);
 		}
 
 		return 0;
@@ -478,9 +494,9 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 		fault_ret = handle_mm_fault(vma, vma->vm_start + offset,
 					    FAULT_FLAG_WRITE, NULL);
 		if (fault_ret & VM_FAULT_ERROR) {
-			vma->vm_ops->close(vma);
 			XDNA_ERR(xdna, "Fault in page failed");
-			return -EFAULT;
+			amdxdna_mark_mapp_invalid(abo, vma);
+			break;
 		}
 
 		offset += PAGE_SIZE;
