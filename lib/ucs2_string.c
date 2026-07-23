@@ -6,18 +6,18 @@
 unsigned long
 ucs2_strnlen(const ucs2_char_t *s, size_t maxlength)
 {
-        unsigned long length = 0;
+	unsigned long length = 0;
 
 	while (length < maxlength && *s++ != 0)
-                length++;
-        return length;
+		length++;
+	return length;
 }
 EXPORT_SYMBOL(ucs2_strnlen);
 
 unsigned long
 ucs2_strlen(const ucs2_char_t *s)
 {
-        return ucs2_strnlen(s, ~0UL);
+	return ucs2_strnlen(s, ~0UL);
 }
 EXPORT_SYMBOL(ucs2_strlen);
 
@@ -28,7 +28,7 @@ EXPORT_SYMBOL(ucs2_strlen);
 unsigned long
 ucs2_strsize(const ucs2_char_t *data, unsigned long maxlength)
 {
-        return ucs2_strnlen(data, maxlength/sizeof(ucs2_char_t)) * sizeof(ucs2_char_t);
+	return ucs2_strnlen(data, maxlength/sizeof(ucs2_char_t)) * sizeof(ucs2_char_t);
 }
 EXPORT_SYMBOL(ucs2_strsize);
 
@@ -87,19 +87,19 @@ EXPORT_SYMBOL(ucs2_strscpy);
 int
 ucs2_strncmp(const ucs2_char_t *a, const ucs2_char_t *b, size_t len)
 {
-        while (1) {
-                if (len == 0)
-                        return 0;
-                if (*a < *b)
-                        return -1;
-                if (*a > *b)
-                        return 1;
-                if (*a == 0) /* implies *b == 0 */
-                        return 0;
-                a++;
-                b++;
-                len--;
-        }
+	while (1) {
+		if (len == 0)
+			return 0;
+		if (*a < *b)
+			return -1;
+		if (*a > *b)
+			return 1;
+		if (*a == 0) /* implies *b == 0 */
+			return 0;
+		a++;
+		b++;
+		len--;
+	}
 }
 EXPORT_SYMBOL(ucs2_strncmp);
 
