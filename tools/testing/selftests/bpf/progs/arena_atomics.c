@@ -28,8 +28,10 @@ bool skip_all_tests = true;
 
 #if defined(ENABLE_ATOMICS_TESTS) &&		  \
 	defined(__BPF_FEATURE_ADDR_SPACE_CAST) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
-	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64))
+	(defined(__TARGET_ARCH_arm64) || \
+	 defined(__TARGET_ARCH_x86) || \
+	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
+	 defined(__TARGET_ARCH_s390))
 bool skip_lacq_srel_tests __attribute((__section__(".data"))) = false;
 #else
 bool skip_lacq_srel_tests = true;
@@ -315,8 +317,10 @@ int load_acquire(const void *ctx)
 {
 #if defined(ENABLE_ATOMICS_TESTS) &&		  \
 	defined(__BPF_FEATURE_ADDR_SPACE_CAST) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
-	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64))
+	(defined(__TARGET_ARCH_arm64) || \
+	 defined(__TARGET_ARCH_x86) || \
+	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
+	 defined(__TARGET_ARCH_s390))
 
 #define LOAD_ACQUIRE_ARENA(SIZEOP, SIZE, SRC, DST)	\
 	{ asm volatile (				\
@@ -367,8 +371,10 @@ int store_release(const void *ctx)
 {
 #if defined(ENABLE_ATOMICS_TESTS) &&		  \
 	defined(__BPF_FEATURE_ADDR_SPACE_CAST) && \
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) || \
-	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64))
+	(defined(__TARGET_ARCH_arm64) || \
+	 defined(__TARGET_ARCH_x86) || \
+	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
+	 defined(__TARGET_ARCH_s390))
 
 #define STORE_RELEASE_ARENA(SIZEOP, DST, VAL)	\
 	{ asm volatile (			\
