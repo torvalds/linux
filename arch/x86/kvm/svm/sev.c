@@ -5159,7 +5159,7 @@ int sev_gmem_prepare(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_order)
 	return 0;
 }
 
-void sev_gmem_invalidate(kvm_pfn_t pfn, kvm_pfn_t nr_pages)
+void sev_gmem_make_shared(kvm_pfn_t pfn, kvm_pfn_t nr_pages)
 {
 	kvm_pfn_t end = pfn + nr_pages;
 

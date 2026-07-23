@@ -10599,7 +10599,7 @@ int kvm_arch_gmem_prepare(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn, int max_ord
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_RECLAIM
 void kvm_arch_gmem_reclaim(kvm_pfn_t pfn, kvm_pfn_t nr_pages)
 {
-	kvm_x86_call(gmem_invalidate)(pfn, nr_pages);
+	kvm_x86_call(gmem_make_shared)(pfn, nr_pages);
 }
 #endif
 
