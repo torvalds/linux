@@ -48,6 +48,12 @@ properties:
       VSEL0 register. When this pin is HIGH, VOUT is set by the VSEL1 register.
     maxItems: 1
 
+  regulator-initial-mode:
+    enum:
+      [ 1, 2 ]
+    description:
+      Defined in include/dt-bindings/regulator/fcs,fan53555-regulator.h
+
 required:
   - compatible
   - reg
@@ -56,6 +62,7 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/regulator/fcs,fan53555-regulator.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -68,6 +75,7 @@ examples:
             regulator-max-microvolt = <1800000>;
             vin-supply = <&parent_reg>;
             fcs,suspend-voltage-selector = <1>;
+            regulator-initial-mode = <FAN53555_REGULATOR_MODE_FORCE_PWM>;
         };
     };
 ...
