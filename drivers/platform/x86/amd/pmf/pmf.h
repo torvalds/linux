@@ -29,6 +29,10 @@
 #define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT 0x1507
 #define PCI_DEVICE_ID_AMD_1AH_M60H_ROOT 0x1122
 
+/* Aliases required by PCI_DEVICE_DATA() macro naming convention */
+#define PCI_DEVICE_ID_AMD_CPU_ID_RMB	AMD_CPU_ID_RMB
+#define PCI_DEVICE_ID_AMD_CPU_ID_PS	AMD_CPU_ID_PS
+
 struct cookie_header {
 	u32 sign;
 	u32 length;
@@ -392,6 +396,13 @@ struct pmf_cbi_ring_buffer {
 	int tail;
 };
 
+/* SoC-specific SMU mailbox register offsets */
+struct amd_pmf_smu_regs {
+	u32 msg_reg;
+	u32 resp_reg;
+	u32 arg_reg;
+};
+
 struct amd_pmf_dev {
 	void __iomem *regbase;
 	void __iomem *smu_virt_addr;
@@ -444,6 +455,7 @@ struct amd_pmf_dev {
 	struct mutex cbi_mutex;		     /* Protects ring buffer access */
 	struct mutex metrics_mutex;
 	u32 bios_output[BIOS_OUTPUT_MAX];
+	const struct amd_pmf_smu_regs *smu_regs;
 };
 
 struct apmf_sps_prop_granular_v2 {
