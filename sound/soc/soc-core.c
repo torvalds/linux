@@ -2707,9 +2707,9 @@ static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 	list_del(&component->list);
 }
 
-int snd_soc_component_initialize(struct snd_soc_component *component,
-				 const struct snd_soc_component_driver *driver,
-				 struct device *dev)
+static int soc_component_initialize(struct snd_soc_component *component,
+				    const struct snd_soc_component_driver *driver,
+				    struct device *dev)
 {
 	component->dapm = snd_soc_dapm_alloc(dev);
 	if (!component->dapm)
@@ -2735,11 +2735,10 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_component_initialize);
 
-int snd_soc_add_component(struct snd_soc_component *component,
-			  struct snd_soc_dai_driver *dai_drv,
-			  int num_dai)
+static int soc_component_add(struct snd_soc_component *component,
+			     struct snd_soc_dai_driver *dai_drv,
+			     int num_dai)
 {
 	struct snd_soc_card *card, *c;
 	int ret;
@@ -2778,7 +2777,6 @@ err_cleanup:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(snd_soc_add_component);
 
 int snd_soc_register_component_c(struct snd_soc_component *component,
 			const struct snd_soc_component_driver *component_driver,
@@ -2787,11 +2785,11 @@ int snd_soc_register_component_c(struct snd_soc_component *component,
 {
 	int ret;
 
-	ret = snd_soc_component_initialize(component, component_driver, component->dev);
+	ret = soc_component_initialize(component, component_driver, component->dev);
 	if (ret < 0)
 		return ret;
 
-	return snd_soc_add_component(component, dai_drv, num_dai);
+	return soc_component_add(component, dai_drv, num_dai);
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_component_c);
 
