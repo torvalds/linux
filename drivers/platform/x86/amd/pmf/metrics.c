@@ -136,28 +136,33 @@ static int amd_pmf_get_smu_metrics(struct amd_pmf_dev *dev, struct amd_pmf_npu_m
 	if (ret)
 		return ret;
 
-	ret = amd_pmf_set_dram_addr(dev, true);
-	if (ret)
-		return ret;
+	switch (dev->cpu_id) {
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
+	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
+		ret = amd_pmf_set_dram_addr(dev, true);
+		if (ret)
+			return ret;
 
-	memset(dev->buf, 0, dev->mtable_size);
+		memset(dev->buf, 0, dev->mtable_size);
 
-	/* Send SMU command to get NPU metrics */
-	ret = amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, METRICS_TABLE_ID, NULL);
-	if (ret) {
-		dev_err(dev->dev, "SMU command failed to get NPU metrics: %d\n", ret);
-		return ret;
+		/* Send SMU command to get NPU metrics */
+		ret = amd_pmf_send_cmd(dev, SET_TRANSFER_TABLE, SET_CMD, METRICS_TABLE_ID, NULL);
+		if (ret) {
+			dev_err(dev->dev, "SMU command failed to get NPU metrics: %d\n", ret);
+			return ret;
+		}
+
+		memcpy(&dev->m_table_v2, dev->buf, dev->mtable_size);
+
+		data->npuclk_freq = dev->m_table_v2.npuclk_freq;
+		for (i = 0; i < ARRAY_SIZE(data->npu_busy); i++)
+			data->npu_busy[i] = dev->m_table_v2.npu_busy[i];
+		data->npu_power = dev->m_table_v2.npu_power;
+		data->mpnpuclk_freq = dev->m_table_v2.mpnpuclk_freq;
+		data->npu_reads = dev->m_table_v2.npu_reads;
+		data->npu_writes = dev->m_table_v2.npu_writes;
+		break;
 	}
-
-	memcpy(&dev->m_table_v2, dev->buf, dev->mtable_size);
-
-	data->npuclk_freq = dev->m_table_v2.npuclk_freq;
-	for (i = 0; i < ARRAY_SIZE(data->npu_busy); i++)
-		data->npu_busy[i] = dev->m_table_v2.npu_busy[i];
-	data->npu_power = dev->m_table_v2.npu_power;
-	data->mpnpuclk_freq = dev->m_table_v2.mpnpuclk_freq;
-	data->npu_reads = dev->m_table_v2.npu_reads;
-	data->npu_writes = dev->m_table_v2.npu_writes;
 
 	return 0;
 }
