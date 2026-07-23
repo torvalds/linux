@@ -1243,11 +1243,7 @@ int mtk_pinconf_adv_drive_set(struct mtk_pinctrl *hw,
 	if (err)
 		return err;
 
-	err = mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV_E1, e1);
-	if (err)
-		return err;
-
-	return err;
+	return mtk_hw_set_value(hw, desc, PINCTRL_PIN_REG_DRV_E1, e1);
 }
 EXPORT_SYMBOL_GPL(mtk_pinconf_adv_drive_set);
 
