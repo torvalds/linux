@@ -29,6 +29,19 @@ static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
 			   func, component->name, reg);
 }
 
+struct snd_soc_component *snd_soc_component_alloc(struct device *dev)
+{
+	struct snd_soc_component *component = devm_kzalloc(dev, sizeof(*component), GFP_KERNEL);
+
+	if (!component)
+		return NULL;
+
+	component->dev = dev;
+
+	return component;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_alloc);
+
 /*
  * We might want to check substream by using list.
  * In such case, we can update these macros.
