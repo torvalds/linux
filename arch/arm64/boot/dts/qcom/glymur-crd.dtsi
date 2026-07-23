@@ -1208,6 +1208,8 @@
 };
 
 &usb_hs {
+	dr_mode = "host";
+
 	status = "okay";
 };
 

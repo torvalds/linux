@@ -4838,9 +4838,10 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis_enblslpm_quirk;
 
-			dr_mode = "host";
-
 			maximum-speed = "high-speed";
+
+			qcom,select-utmi-as-pipe-clk;
+			usb-role-switch;
 
 			status = "disabled";
 		};
