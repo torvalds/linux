@@ -4573,6 +4573,13 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	btrfs_free_fs_roots(fs_info);
 
 	/*
+	 * Drop metadata left stranded ahead of a zone write pointer while the
+	 * endio workqueues are still up, so the final iput() of the btree inode
+	 * below does not hang submitting a write that can no longer complete.
+	 */
+	btrfs_zoned_release_dirty_metadata(fs_info);
+
+	/*
 	 * We must make sure there is not any read request to
 	 * submit after we stop all workers.
 	 */
