@@ -2651,13 +2651,14 @@ static int hists_browser__zoom_map(struct hist_browser *browser, struct map *map
 	if (browser->hists->dso_filter) {
 		pstack__remove(browser->pstack, &browser->hists->dso_filter);
 		perf_hpp__set_elide(HISTC_DSO, false);
+		dso__put((struct dso *)browser->hists->dso_filter);
 		browser->hists->dso_filter = NULL;
 		ui_helpline__pop();
 	} else {
 		struct dso *dso = map__dso(map);
 		ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s DSO\"",
 				   __map__is_kernel(map) ? "the Kernel" : dso__short_name(dso));
-		browser->hists->dso_filter = dso;
+		browser->hists->dso_filter = dso__get(dso);
 		perf_hpp__set_elide(HISTC_DSO, true);
 		pstack__push(browser->pstack, &browser->hists->dso_filter);
 	}
@@ -3025,7 +3026,7 @@ static int evsel__hists_browse(struct evsel *evsel, int nr_events, const char *h
 	struct branch_info *bi = NULL;
 #define MAX_OPTIONS  32
 	char *options[MAX_OPTIONS];
-	struct popup_action actions[MAX_OPTIONS];
+	struct popup_action actions[MAX_OPTIONS], hotkey_act;
 	int nr_options = 0;
 	int key = -1;
 	char buf[128];
@@ -3498,6 +3499,13 @@ skip_scripting:
 out_free_stack:
 	pstack__delete(browser->pstack);
 	free_popup_actions(actions, MAX_OPTIONS);
+	thread__zput(hists->thread_filter);
+	dso__put((struct dso *)hists->dso_filter);
+	hists->dso_filter = NULL;
+	perf_hpp__set_elide(HISTC_DSO, false);
+	perf_hpp__set_elide(HISTC_THREAD, false);
+	hists__filter_by_dso(hists);
+	hists__filter_by_thread(hists);
 out:
 	hist_browser__delete(browser);
 	free_popup_options(options, MAX_OPTIONS);
