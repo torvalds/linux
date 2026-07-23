@@ -1694,6 +1694,9 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 static void
 amdgpu_bo_delete_mem_notify(struct ttm_buffer_object *bo)
 {
+	if (bo->resource && bo->resource->mem_type == TTM_PL_TT)
+		amdgpu_gtt_mgr_mark_bo_teardown(bo);
+
 	amdgpu_bo_move_notify(bo, false, NULL);
 }
 
