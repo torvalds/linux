@@ -4603,6 +4603,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4678,6 +4679,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4753,6 +4755,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4842,6 +4845,7 @@
 
 			qcom,select-utmi-as-pipe-clk;
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 		};
@@ -4913,6 +4917,7 @@
 			snps,dis_enblslpm_quirk;
 
 			dr_mode = "host";
+			wakeup-source;
 
 			status = "disabled";
 		};
