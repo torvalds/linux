@@ -6443,6 +6443,7 @@ static void ibmvfc_remove(struct vio_dev *vdev)
 
 	ibmvfc_wait_while_resetting(vhost);
 	kthread_stop(vhost->work_thread);
+	flush_work(&vhost->rport_add_work_q);
 	fc_remove_host(vhost->host);
 	scsi_remove_host(vhost->host);
 
