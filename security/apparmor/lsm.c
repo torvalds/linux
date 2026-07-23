@@ -2500,16 +2500,16 @@ static int __init apparmor_nf_ip_init(void)
 }
 #endif
 
-static char nulldfa_src[] __aligned(8) = {
+static const char nulldfa_src[] __aligned(8) = {
 	#include "nulldfa.in"
 };
-static struct aa_dfa *nulldfa;
+static struct aa_dfa *nulldfa __ro_after_init;
 
 static char stacksplitdfa_src[] __aligned(8) = {
 	#include "stacksplitdfa.in"
 };
-struct aa_dfa *stacksplitdfa;
-struct aa_policydb *nullpdb;
+struct aa_dfa *stacksplitdfa __ro_after_init;
+struct aa_policydb *nullpdb __ro_after_init;
 
 static int __init aa_setup_dfa_engine(void)
 {

@@ -96,8 +96,8 @@ struct aa_perms {
 #define AA_INDEX_NONE			0
 
 #define ALL_PERMS_MASK 0xffffffff
-extern struct aa_perms nullperms;
-extern struct aa_perms allperms;
+extern const struct aa_perms nullperms;
+extern const struct aa_perms allperms;
 
 /**
  * aa_perms_accum_raw - accumulate perms with out masking off overlapping perms

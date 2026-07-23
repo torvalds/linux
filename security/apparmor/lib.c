@@ -20,8 +20,8 @@
 #include "include/perms.h"
 #include "include/policy.h"
 
-struct aa_perms nullperms;
-struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
+const struct aa_perms nullperms;
+const struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
 			     .quiet = ALL_PERMS_MASK,
 			     .hide = ALL_PERMS_MASK };
 
@@ -30,7 +30,7 @@ struct val_table_ent {
 	int value;
 };
 
-static struct val_table_ent debug_values_table[] = {
+static const struct val_table_ent debug_values_table[] = {
 	{ "N", DEBUG_NONE },
 	{ "none", DEBUG_NONE },
 	{ "n", DEBUG_NONE },
@@ -49,10 +49,11 @@ static struct val_table_ent debug_values_table[] = {
 	{ NULL, 0 }
 };
 
-static struct val_table_ent *val_table_find_ent(struct val_table_ent *table,
-						const char *name, size_t len)
+static const struct val_table_ent *
+val_table_find_ent(const struct val_table_ent *table,
+		   const char *name, size_t len)
 {
-	struct val_table_ent *entry;
+	const struct val_table_ent *entry;
 
 	for (entry = table; entry->str != NULL; entry++) {
 		if (strncmp(entry->str, name, len) == 0 &&
@@ -64,7 +65,7 @@ static struct val_table_ent *val_table_find_ent(struct val_table_ent *table,
 
 int aa_parse_debug_params(const char *str)
 {
-	struct val_table_ent *ent;
+	const struct val_table_ent *ent;
 	const char *next;
 	int val = 0;
 

@@ -31,7 +31,7 @@
  *
  * NOTE: must be freed by kvfree (not kfree)
  */
-static struct table_header *unpack_table(char *blob, size_t bsize)
+static struct table_header *unpack_table(const char *blob, size_t bsize)
 {
 	struct table_header *table = ERR_PTR(-EPROTO);
 	struct table_header th;
@@ -312,11 +312,11 @@ static struct table_header *remap_data16_to_data32(struct table_header *old)
  *
  * Returns: an unpacked dfa ready for matching or ERR_PTR on failure
  */
-struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags)
+struct aa_dfa *aa_dfa_unpack(const void *blob, size_t size, int flags)
 {
 	int hsize;
 	int error = -ENOMEM;
-	char *data = blob;
+	const char *data = blob;
 	struct table_header *table = NULL;
 	struct aa_dfa *dfa = kzalloc_obj(struct aa_dfa);
 	if (!dfa)

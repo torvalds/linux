@@ -93,7 +93,7 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
  * Returns: %0 or error on failure
  */
 int aa_audit_file(const struct cred *subj_cred,
-		  struct aa_profile *profile, struct aa_perms *perms,
+		  struct aa_profile *profile, const struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, struct aa_label *tlabel,
 		  kuid_t ouid, const char *info, int error)

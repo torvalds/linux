@@ -136,7 +136,8 @@ static int audit_mount(const struct cred *subj_cred,
 		       const char *name, const char *src_name,
 		       const char *type, const char *trans,
 		       unsigned long flags, const void *data, u32 request,
-		       struct aa_perms *perms, const char *info, int error)
+		       const struct aa_perms *perms, const char *info,
+		       int error)
 {
 	int audit_type = AUDIT_APPARMOR_AUTO;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_MOUNT, op);

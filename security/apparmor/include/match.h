@@ -125,7 +125,7 @@ static inline size_t table_size(size_t len, size_t el_size)
 
 #define aa_state_t unsigned int
 
-struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags);
+struct aa_dfa *aa_dfa_unpack(const void *blob, size_t size, int flags);
 aa_state_t aa_dfa_match_len(struct aa_dfa *dfa, aa_state_t start,
 			    const char *str, int len);
 aa_state_t aa_dfa_match(struct aa_dfa *dfa, aa_state_t start,
