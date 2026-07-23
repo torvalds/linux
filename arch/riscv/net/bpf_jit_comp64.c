@@ -1841,7 +1841,12 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		if (aux->tail_call_reachable && insn->src_reg == BPF_PSEUDO_CALL)
 			emit_sd(RV_REG_SP, ctx->tcc_offset, RV_REG_TCC, ctx);
 
-		if (insn->src_reg != BPF_PSEUDO_CALL)
+		/*
+		 * arch_bpf_timed_may_goto() is emitted by the verifier and
+		 * returns its result in BPF_REG_AX instead of BPF_REG_0, so
+		 * skip the normal "move return register into R0".
+		 */
+		if (insn->src_reg != BPF_PSEUDO_CALL && addr != (u64)arch_bpf_timed_may_goto)
 			emit_mv(bpf_to_rv_reg(BPF_REG_0, ctx), RV_REG_A0, ctx);
 		break;
 	}
@@ -2158,6 +2163,11 @@ bool bpf_jit_supports_fsession(void)
 }
 
 bool bpf_jit_supports_subprog_tailcalls(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_timed_may_goto(void)
 {
 	return true;
 }
