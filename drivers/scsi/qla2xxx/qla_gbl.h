@@ -989,10 +989,8 @@ extern void qla24xx_process_purex_list(struct purex_list *);
 extern void qla2x00_dfs_create_rport(scsi_qla_host_t *vha, struct fc_port *fp);
 extern void qla2x00_dfs_remove_rport(scsi_qla_host_t *vha, struct fc_port *fp);
 extern void qla_wait_nvme_release_cmd_kref(srb_t *sp);
-extern void qla_nvme_abort_set_option
-		(struct abort_entry_24xx *abt, srb_t *sp);
-extern void qla_nvme_abort_process_comp_status
-		(struct abort_entry_24xx *abt, srb_t *sp);
+extern void qla_nvme_abort_set_option(void *pkt, srb_t *sp);
+extern void qla_nvme_abort_process_comp_status(void *pkt, srb_t *sp);
 struct scsi_qla_host *qla_find_host_by_vp_idx(struct scsi_qla_host *vha,
 	uint16_t vp_idx);
 

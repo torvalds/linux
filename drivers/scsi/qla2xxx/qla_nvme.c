@@ -1067,36 +1067,69 @@ int qla_nvme_register_hba(struct scsi_qla_host *vha)
 	return ret;
 }
 
-void qla_nvme_abort_set_option(struct abort_entry_24xx *abt, srb_t *orig_sp)
+void qla_nvme_abort_set_option(void *pkt, srb_t *orig_sp)
 {
 	struct qla_hw_data *ha;
+	struct abort_entry_24xx *abt = pkt;
 
 	if (!(ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(orig_sp)))
 		return;
 
 	ha = orig_sp->fcport->vha->hw;
 
+	/*
+	 * abort_entry_24xx_ext overlays abort_entry_24xx through 'options'
+	 * (offset 10), so options writes are stride-agnostic.  The drv
+	 * union sits at offset 56 in the 24xx layout but offset 24 in the
+	 * ext layout, so the drv writes need a typed pointer.
+	 */
 	WARN_ON_ONCE(abt->options & cpu_to_le16(BIT_0));
-	/* Use Driver Specified Retry Count */
 	abt->options |= cpu_to_le16(AOF_ABTS_RTY_CNT);
-	abt->drv.abts_rty_cnt = cpu_to_le16(2);
-	/* Use specified response timeout */
 	abt->options |= cpu_to_le16(AOF_RSP_TIMEOUT);
-	/* set it to 2 * r_a_tov in secs */
-	abt->drv.rsp_timeout = cpu_to_le16(2 * (ha->r_a_tov / 10));
+	if (IS_QLA29XX(ha)) {
+		struct abort_entry_24xx_ext *abt_ext = pkt;
+
+		abt_ext->drv.abts_rty_cnt = cpu_to_le16(2);
+		abt_ext->drv.rsp_timeout =
+		    cpu_to_le16(2 * (ha->r_a_tov / 10));
+	} else {
+		abt->drv.abts_rty_cnt = cpu_to_le16(2);
+		abt->drv.rsp_timeout = cpu_to_le16(2 * (ha->r_a_tov / 10));
+	}
 }
 
-void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *orig_sp)
+void qla_nvme_abort_process_comp_status(void *pkt, srb_t *orig_sp)
 {
 	u16	comp_status;
 	struct scsi_qla_host *vha;
+	u8	rjt_vendor_unique, rjt_reason_expl, rjt_reason_code;
+	struct abort_entry_24xx *abt = pkt;
 
 	if (!(ql2xabts_wait_nvme && QLA_ABTS_WAIT_ENABLED(orig_sp)))
 		return;
 
 	vha = orig_sp->fcport->vha;
 
+	/*
+	 * comp_status sits at offset 8 in both layouts (the
+	 * nport_handle/comp_status union), so the read is
+	 * stride-agnostic.  The fw union, like drv, lives at offset
+	 * 56 in the 24xx layout and offset 24 in the ext layout, so
+	 * those byte reads still need a typed pointer.
+	 */
 	comp_status = le16_to_cpu(abt->comp_status);
+	if (IS_QLA29XX(vha->hw)) {
+		struct abort_entry_24xx_ext *abt_ext = pkt;
+
+		rjt_vendor_unique = abt_ext->fw.ba_rjt_vendorUnique;
+		rjt_reason_expl = abt_ext->fw.ba_rjt_reasonCodeExpl;
+		rjt_reason_code = abt_ext->fw.ba_rjt_reasonCode;
+	} else {
+		rjt_vendor_unique = abt->fw.ba_rjt_vendorUnique;
+		rjt_reason_expl = abt->fw.ba_rjt_reasonCodeExpl;
+		rjt_reason_code = abt->fw.ba_rjt_reasonCode;
+	}
+
 	switch (comp_status) {
 	case CS_RESET:		/* reset event aborted */
 	case CS_ABORTED:	/* IOCB was cleaned */
@@ -1116,11 +1149,8 @@ void qla_nvme_abort_process_comp_status(struct abort_entry_24xx *abt, srb_t *ori
 	/* BA_RJT was received for the ABTS */
 	case CS_REJECT_RECEIVED:
 		ql_dbg(ql_dbg_async, vha, 0xf09e,
-		       "BA_RJT was received for the ABTS rjt_vendorUnique = %u",
-			abt->fw.ba_rjt_vendorUnique);
-		ql_dbg(ql_dbg_async + ql_dbg_mbx, vha, 0xf09e,
-		       "ba_rjt_reasonCodeExpl = %u, ba_rjt_reasonCode = %u\n",
-		       abt->fw.ba_rjt_reasonCodeExpl, abt->fw.ba_rjt_reasonCode);
+		    "BA_RJT was received for the ABTS rjt_vendorUnique=%u, ba_rjt_reasonCodeExpl=%u, ba_rjt_reasonCode=%u\n",
+		    rjt_vendor_unique, rjt_reason_expl, rjt_reason_code);
 		break;
 
 	case CS_COMPLETE:

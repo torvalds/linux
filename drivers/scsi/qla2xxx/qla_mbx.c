@@ -3324,7 +3324,7 @@ qla24xx_abort_command(srb_t *sp)
 {
 	int		rval;
 	unsigned long   flags = 0;
-
+	void		*abt_buf;
 	struct abort_entry_24xx *abt;
 	dma_addr_t	abt_dma;
 	uint32_t	handle;
@@ -3356,28 +3356,42 @@ qla24xx_abort_command(srb_t *sp)
 		return QLA_ERR_NOT_FOUND;
 	}
 
-	abt = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
-	if (abt == NULL) {
+	abt_buf = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &abt_dma);
+	if (abt_buf == NULL) {
 		ql_log(ql_log_warn, vha, 0x108d,
 		    "Failed to allocate abort IOCB.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
+	abt = abt_buf;
 
+	/*
+	 * abort_entry_24xx_ext overlays abort_entry_24xx through
+	 * req_que_no (offsets 0-17), and entry_status (offset 3) and
+	 * comp_status (offset 8) sit at identical offsets in both, so
+	 * the common header writes and the completion-status reads are
+	 * stride-agnostic and go through the 24xx view.  Only port_id
+	 * (24xx-only) and vp_index width / offset diverge per stride.
+	 */
 	abt->entry_type = ABORT_IOCB_TYPE;
 	abt->entry_count = 1;
 	abt->handle = make_handle(req->id, abt->handle);
 	abt->nport_handle = cpu_to_le16(fcport->loop_id);
 	abt->handle_to_abort = make_handle(req->id, handle);
-	abt->port_id[0] = fcport->d_id.b.al_pa;
-	abt->port_id[1] = fcport->d_id.b.area;
-	abt->port_id[2] = fcport->d_id.b.domain;
-	abt->vp_index = fcport->vha->vp_idx;
-
 	abt->req_que_no = cpu_to_le16(req->id);
-	/* Need to pass original sp */
-	qla_nvme_abort_set_option(abt, sp);
+	if (IS_QLA29XX(ha)) {
+		((struct abort_entry_24xx_ext *)abt)->vp_index =
+		    cpu_to_le16(fcport->vha->vp_idx);
+	} else {
+		abt->port_id[0] = fcport->d_id.b.al_pa;
+		abt->port_id[1] = fcport->d_id.b.area;
+		abt->port_id[2] = fcport->d_id.b.domain;
+		abt->vp_index = fcport->vha->vp_idx;
+	}
 
-	rval = qla2x00_issue_iocb(vha, abt, abt_dma, 0);
+	/* Need to pass original sp */
+	qla_nvme_abort_set_option(abt_buf, sp);
+
+	rval = qla2x00_issue_iocb(vha, abt_buf, abt_dma, 0);
 	if (rval != QLA_SUCCESS) {
 		ql_dbg(ql_dbg_mbx, vha, 0x108e,
 		    "Failed to issue IOCB (%x).\n", rval);
@@ -3386,11 +3400,11 @@ qla24xx_abort_command(srb_t *sp)
 		    "Failed to complete IOCB -- error status (%x).\n",
 		    abt->entry_status);
 		rval = QLA_FUNCTION_FAILED;
-	} else if (abt->nport_handle != cpu_to_le16(0)) {
+	} else if (abt->comp_status != cpu_to_le16(0)) {
 		ql_dbg(ql_dbg_mbx, vha, 0x1090,
 		    "Failed to complete IOCB -- completion status (%x).\n",
-		    le16_to_cpu(abt->nport_handle));
-		if (abt->nport_handle == cpu_to_le16(CS_IOCB_ERROR))
+		    le16_to_cpu(abt->comp_status));
+		if (abt->comp_status == cpu_to_le16(CS_IOCB_ERROR))
 			rval = QLA_FUNCTION_PARAMETER_ERROR;
 		else
 			rval = QLA_FUNCTION_FAILED;
@@ -3398,12 +3412,13 @@ qla24xx_abort_command(srb_t *sp)
 		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1091,
 		    "Done %s.\n", __func__);
 	}
+
 	if (rval == QLA_SUCCESS)
-		qla_nvme_abort_process_comp_status(abt, sp);
+		qla_nvme_abort_process_comp_status(abt_buf, sp);
 
 	qla_wait_nvme_release_cmd_kref(sp);
 
-	dma_pool_free(ha->s_dma_pool, abt, abt_dma);
+	dma_pool_free(ha->s_dma_pool, abt_buf, abt_dma);
 
 	return rval;
 }

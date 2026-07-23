@@ -3961,7 +3961,7 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 
 static void
 qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
-	struct abort_entry_24xx *pkt)
+	void *pkt)
 {
 	const char func[] = "ABT_IOCB";
 	srb_t *sp;
@@ -3973,7 +3973,14 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		return;
 
 	abt = &sp->u.iocb_cmd;
-	abt->u.abt.comp_status = pkt->comp_status;
+	/*
+	 * abort_entry_24xx_ext overlays abort_entry_24xx through the
+	 * nport_handle/comp_status union at offset 8, so reading
+	 * comp_status is stride-agnostic and goes through the 24xx view.
+	 */
+	abt->u.abt.comp_status =
+	    ((struct abort_entry_24xx *)pkt)->comp_status;
+
 	orig_sp = sp->cmd_sp;
 	/* Need to pass original sp */
 	if (orig_sp)
@@ -4175,8 +4182,7 @@ process_err:
 			qla_marker_iocb_entry(vha, rsp->req, pkt);
 			break;
 		case ABORT_IOCB_TYPE:
-			qla24xx_abort_iocb_entry(vha, rsp->req,
-			    (struct abort_entry_24xx *)pkt);
+			qla24xx_abort_iocb_entry(vha, rsp->req, pkt);
 			break;
 		case MBX_IOCB_TYPE:
 			qla24xx_mbx_iocb_entry(vha, rsp->req,

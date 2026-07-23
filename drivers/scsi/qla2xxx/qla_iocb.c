@@ -3926,32 +3926,50 @@ queuing_error:
 }
 
 static void
-qla24xx_abort_iocb(srb_t *sp, struct abort_entry_24xx *abt_iocb)
+qla24xx_abort_iocb(srb_t *sp, void *pkt)
 {
 	struct srb_iocb *aio = &sp->u.iocb_cmd;
 	scsi_qla_host_t *vha = sp->vha;
+	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = sp->qpair->req;
 	srb_t *orig_sp = sp->cmd_sp;
+	struct abort_entry_24xx *abt = pkt;
 
-	memset(abt_iocb, 0, sizeof(struct abort_entry_24xx));
-	abt_iocb->entry_type = ABORT_IOCB_TYPE;
-	abt_iocb->entry_count = 1;
-	abt_iocb->handle = make_handle(req->id, sp->handle);
-	if (sp->fcport) {
-		abt_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
-		abt_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
-		abt_iocb->port_id[1] = sp->fcport->d_id.b.area;
-		abt_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+	/*
+	 * abort_entry_24xx_ext overlays abort_entry_24xx through
+	 * req_que_no (offsets 0-17).  After that the layouts diverge:
+	 * the 24xx variant has 30 bytes of reserved_1 followed by
+	 * port_id[3] and a u8 vp_index at offsets 48-51, while the
+	 * ext variant places a __le16 vp_index at offset 18 and has
+	 * no port_id field.  Common-header writes go through one
+	 * struct abort_entry_24xx * view; only port_id / vp_index
+	 * branch on stride.
+	 */
+	memset(pkt, 0, qla_req_entry_size(ha));
+	abt->entry_type = ABORT_IOCB_TYPE;
+	abt->entry_count = 1;
+	abt->handle = make_handle(req->id, sp->handle);
+	if (sp->fcport)
+		abt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	abt->handle_to_abort =
+	    make_handle(le16_to_cpu(aio->u.abt.req_que_no),
+			aio->u.abt.cmd_hndl);
+	abt->req_que_no = aio->u.abt.req_que_no;
+	if (IS_QLA29XX(ha)) {
+		((struct abort_entry_24xx_ext *)pkt)->vp_index =
+		    cpu_to_le16(vha->vp_idx);
+	} else {
+		if (sp->fcport) {
+			abt->port_id[0] = sp->fcport->d_id.b.al_pa;
+			abt->port_id[1] = sp->fcport->d_id.b.area;
+			abt->port_id[2] = sp->fcport->d_id.b.domain;
+		}
+		abt->vp_index = vha->vp_idx;
 	}
-	abt_iocb->handle_to_abort =
-		make_handle(le16_to_cpu(aio->u.abt.req_que_no),
-			    aio->u.abt.cmd_hndl);
-	abt_iocb->vp_index = vha->vp_idx;
-	abt_iocb->req_que_no = aio->u.abt.req_que_no;
 
 	/* need to pass original sp */
 	if (orig_sp)
-		qla_nvme_abort_set_option(abt_iocb, orig_sp);
+		qla_nvme_abort_set_option(pkt, orig_sp);
 
 	/* Send the command to the firmware */
 	wmb();
