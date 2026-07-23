@@ -104,34 +104,26 @@ static void set_ucode_filename(struct otx_cpt_ucode *ucode,
 
 static char *get_eng_type_str(int eng_type)
 {
-	char *str = "unknown";
-
 	switch (eng_type) {
 	case OTX_CPT_SE_TYPES:
-		str = "SE";
-		break;
-
+		return "SE";
 	case OTX_CPT_AE_TYPES:
-		str = "AE";
-		break;
+		return "AE";
+	default:
+		return "unknown";
 	}
-	return str;
 }
 
 static char *get_ucode_type_str(int ucode_type)
 {
-	char *str = "unknown";
-
 	switch (ucode_type) {
 	case (1 << OTX_CPT_SE_TYPES):
-		str = "SE";
-		break;
-
+		return "SE";
 	case (1 << OTX_CPT_AE_TYPES):
-		str = "AE";
-		break;
+		return "AE";
+	default:
+		return "unknown";
 	}
-	return str;
 }
 
 static int get_ucode_type(struct otx_cpt_ucode_hdr *ucode_hdr, int *ucode_type)
