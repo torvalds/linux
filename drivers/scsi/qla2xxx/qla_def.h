@@ -4469,6 +4469,7 @@ struct qla_hw_data {
 	uint16_t	vpd_size;
 	uint16_t	vpd_base;
 	void		*vpd;
+	struct qla_flash_memo_block *fiv;
 
 	uint16_t	loop_reset_delay;
 	uint8_t		retry_count;

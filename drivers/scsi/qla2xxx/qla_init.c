@@ -4194,11 +4194,11 @@ qla24xx_detect_sfp(scsi_qla_host_t *vha)
 	used_nvram = 0;
 	ha->flags.lr_detected = 0;
 	if (IS_BPM_RANGE_CAPABLE(ha) &&
-	    (nv->enhanced_features & NEF_LR_DIST_ENABLE)) {
+	    (le16_to_cpu(nv->enhanced_features) & NEF_LR_DIST_ENABLE)) {
 		used_nvram = 1;
 		ha->flags.lr_detected = 1;
 		ha->lr_distance =
-		    (nv->enhanced_features >> LR_DIST_NV_POS)
+		    (le16_to_cpu(nv->enhanced_features) >> LR_DIST_NV_POS)
 		     & LR_DIST_NV_MASK;
 	}
 
@@ -9306,35 +9306,98 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
 		ha->vpd_size = FA_VPD_SIZE_82XX;
 
-	if (IS_QLA28XX(ha) || IS_QLA27XX(ha))
-		qla28xx_get_aux_images(vha, &active_regions);
-
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
 
-	faddr = ha->flt_region_vpd;
-	if (IS_QLA28XX(ha)) {
-		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
-			faddr = ha->flt_region_vpd_sec;
+	if (IS_QLA29XX(ha)) {
+		uint16_t fw_options = 0, r_code;
+		uint32_t vpd_r[] = {FLT_REG_VPD_0, FLT_REG_VPD_1,
+				    FLT_REG_VPD_2, FLT_REG_VPD_3};
+		uint32_t nvram_r[] = {FLT_REG_NVRAM_0, FLT_REG_NVRAM_1,
+				      FLT_REG_NVRAM_2, FLT_REG_NVRAM_3};
+		void *buf;
+
+		BUILD_BUG_ON((VPD_OFFSET + FA_NVRAM_VPD_SIZE +
+			      sizeof(struct qla_flash_memo_block)) >
+			     MAX_NVRAM_SIZE);
+
+		ha->fiv = (struct qla_flash_memo_block *)
+			((char *)ha->vpd + ha->vpd_size);
+
+		buf = qla29xx_read_optrom_data(vha, FLT_REG_FMB_PRI,
+					       fw_options, ha->fiv, 0,
+					       sizeof(struct qla_flash_memo_block));
+		if (!buf) {
+			ql_log(ql_log_info, vha, 0x01be,
+			    "Unable to read Flash Image Version.\n");
+		} else if (ha->fiv->signature != QLFC_FMB_SIG) {
+			ql_log(ql_log_warn, vha, 0x01bf,
+			    "Invalid FMB signature %#x, expected %#x.\n",
+			    le32_to_cpu(ha->fiv->signature),
+			    le32_to_cpu(QLFC_FMB_SIG));
+			ha->fiv = NULL;
+		} else {
+			ql_log(ql_log_info, vha, 0x0024,
+			    "Flash Image Version %u.%02u.%02u\n",
+			    ha->fiv->mbi_ver.major,
+			    ha->fiv->mbi_ver.minor,
+			    ha->fiv->mbi_ver.sub);
+		}
+
+		if (ha->port_no >= ARRAY_SIZE(vpd_r)) {
+			ql_log(ql_log_warn, vha, 0x002e,
+			    "Invalid port number %u, skipping VPD/NVRAM read.\n",
+			    ha->port_no);
+			goto out_29xx;
+		}
+
+		r_code = vpd_r[ha->port_no];
+		buf = qla29xx_read_optrom_data(vha, r_code, fw_options,
+					       ha->vpd, 0, ha->vpd_size);
+		if (!buf)
+			ql_log(ql_log_info, vha, 0x002d,
+			    "Unable to read VPD info.\n");
+
+		r_code = nvram_r[ha->port_no];
+		buf = qla29xx_read_optrom_data(vha, r_code, fw_options,
+					       ha->nvram, 0, ha->nvram_size);
+		if (!buf)
+			ql_log(ql_log_info, vha, 0x0013,
+			    "Unable to read nvram config info.\n");
+	} else {
+		if (IS_QLA28XX(ha) || IS_QLA27XX(ha))
+			qla28xx_get_aux_images(vha, &active_regions);
+
+		faddr = ha->flt_region_vpd;
+		if (IS_QLA28XX(ha)) {
+			if (active_regions.aux.vpd_nvram ==
+			    QLA27XX_SECONDARY_IMAGE)
+				faddr = ha->flt_region_vpd_sec;
+			ql_dbg(ql_dbg_init, vha, 0x0110,
+			    "Loading %s nvram image.\n",
+			    active_regions.aux.vpd_nvram ==
+			    QLA27XX_PRIMARY_IMAGE ?
+			    "primary" : "secondary");
+		}
+		ha->isp_ops->read_optrom(vha, ha->vpd, faddr << 2,
+					 ha->vpd_size);
+
+		/* Get NVRAM data into cache and calculate checksum. */
+		faddr = ha->flt_region_nvram;
+		if (IS_QLA28XX(ha)) {
+			if (active_regions.aux.vpd_nvram ==
+			    QLA27XX_SECONDARY_IMAGE)
+				faddr = ha->flt_region_nvram_sec;
+		}
 		ql_dbg(ql_dbg_init, vha, 0x0110,
 		    "Loading %s nvram image.\n",
 		    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
 		    "primary" : "secondary");
+		ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2,
+					 ha->nvram_size);
 	}
-	ha->isp_ops->read_optrom(vha, ha->vpd, faddr << 2, ha->vpd_size);
 
-	/* Get NVRAM data into cache and calculate checksum. */
-	faddr = ha->flt_region_nvram;
-	if (IS_QLA28XX(ha)) {
-		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
-			faddr = ha->flt_region_nvram_sec;
-	}
-	ql_dbg(ql_dbg_init, vha, 0x0110,
-	    "Loading %s nvram image.\n",
-	    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
-	    "primary" : "secondary");
-	ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2, ha->nvram_size);
-
+out_29xx:
 	dptr = (__force __le32 *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
@@ -9386,7 +9449,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->login_timeout = cpu_to_le16(0);
 		nv->firmware_options_1 =
 		    cpu_to_le32(BIT_14|BIT_13|BIT_2|BIT_1);
-		nv->firmware_options_2 = cpu_to_le32(2 << 4);
+		if (IS_QLA29XX(ha))
+			nv->firmware_options_2 = cpu_to_le32(BIT_4);
+		else
+			nv->firmware_options_2 = cpu_to_le32(BIT_5);
 		nv->firmware_options_2 |= cpu_to_le32(BIT_12);
 		nv->firmware_options_3 = cpu_to_le32(2 << 13);
 		nv->host_p = cpu_to_le32(BIT_11|BIT_10);
@@ -9468,9 +9534,13 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		icb->node_name[0] &= 0xF0;
 	}
 
-	if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
-		if ((nv->enhanced_features & BIT_7) == 0)
+	/* SCM Enabled in NVRAM */
+	if (IS_QLA29XX(ha) || IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
+		if ((le16_to_cpu(nv->enhanced_features) & BIT_7) == 0) {
+			ql_log(ql_log_info, vha, 0x0062,
+			       "USCM enabled in NVRAM\n");
 			ha->flags.scm_supported_a = 1;
+		}
 	}
 
 	/* Set host adapter parameters. */
@@ -9546,7 +9616,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* if not running MSI-X we need handshaking on interrupts */
 	if (!vha->hw->flags.msix_enabled &&
-	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)))
+	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+	     IS_QLA29XX(ha)))
 		icb->firmware_options_2 |= cpu_to_le32(BIT_22);
 
 	/* Enable ZIO. */

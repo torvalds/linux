@@ -1676,6 +1676,8 @@ struct qla_flt_location {
 #define FLT_REG_VPD_SEC_27XX_2	0xD8
 #define FLT_REG_VPD_SEC_27XX_3	0xDA
 #define FLT_REG_NVME_PARAMS_27XX	0x21
+#define FLT_REG_FMB_PRI		0xDF
+#define FLT_REG_FMB_SEC		0x124
 
 /* 28xx */
 #define FLT_REG_AUX_IMG_PRI_28XX	0x125
@@ -2110,7 +2112,7 @@ struct nvram_81xx {
 	 * BIT 7    = SCM Disabled if BIT is set (1)
 	 * BIT 8-15 = Unused
 	 */
-	uint16_t enhanced_features;
+	__le16	enhanced_features;
 
 	uint16_t reserved_24[4];
 
@@ -2337,5 +2339,43 @@ struct qla_fcp_prio_cfg {
 #define FA_FLASH_LAYOUT_ADDR_28	(0x11000/4)
 
 #define NVRAM_DUAL_FCP_NVME_FLAG_OFFSET	0x196
+
+struct qla_fmb_version {
+	uint8_t major;
+	uint8_t minor;
+	uint8_t sub;
+	uint8_t build;
+};
+
+struct qla_fmb_upd_time {
+	__le16   year;
+	uint8_t  month;
+	uint8_t  day;
+
+	uint8_t  hour;
+	uint8_t  minute;
+	uint8_t  second;
+	uint8_t  reserved;
+};
+
+struct qla_flash_memo_block {
+	__le32   signature;	/* "FMBS" */
+#define QLFC_FMB_SIG	cpu_to_le32(0x53424D46)
+	__le32   length;
+	__le32   version;
+#define QLFC_FMB_VERSION 3
+	__le32   checksum;
+	struct qla_fmb_version ffv_ver;
+	struct qla_fmb_version mbi_ver;
+	struct {
+		__le16   year;
+		uint8_t  month;
+		uint8_t  day;
+		uint8_t  reserve[4];
+	} bld_time;
+	uint8_t tool_id[4];
+	struct qla_fmb_upd_time upd_time;
+	struct qla_fmb_version  tool_version;
+};
 
 #endif
