@@ -617,9 +617,9 @@ struct ibmvfc_channel_enquiry {
 #define IBMVFC_SUPPORT_VARIABLE_SUBQ_MSG	0x02
 #define IBMVFC_NO_N_TO_M_CHANNELS_SUPPORT	0x04
 	__be32 num_scsi_subq_channels;
-	__be32 num_nvmeof_subq_channels;
+	__be32 num_nvme_subq_channels;
 	__be32 num_scsi_vas_channels;
-	__be32 num_nvmeof_vas_channels;
+	__be32 num_nvme_vas_channels;
 } __packed __aligned(8);
 
 struct ibmvfc_channel_setup_mad {
@@ -636,9 +636,9 @@ struct ibmvfc_channel_setup {
 #define IBMVFC_CHANNELS_CANCELED	0x04
 	__be32 reserved;
 	__be32 num_scsi_subq_channels;
-	__be32 num_nvmeof_subq_channels;
+	__be32 num_nvme_subq_channels;
 	__be32 num_scsi_vas_channels;
-	__be32 num_nvmeof_vas_channels;
+	__be32 num_nvme_vas_channels;
 	struct srp_direct_buf buffer;
 	__be64 reserved2[5];
 	__be64 channel_handles[IBMVFC_MAX_CHANNELS];
@@ -979,6 +979,7 @@ struct ibmvfc_host {
 	int log_level;
 	struct mutex passthru_mutex;
 	unsigned int max_vios_scsi_channels;
+	unsigned int max_vios_nvme_channels;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
@@ -991,6 +992,8 @@ struct ibmvfc_host {
 	unsigned int using_channels:1;
 	unsigned int do_enquiry:1;
 	unsigned int nvme_enabled:1;
+	unsigned int do_scsi_login:1;
+	unsigned int do_nvme_login:1;
 	unsigned int aborting_passthru:1;
 	unsigned int scan_complete:1;
 	int scan_timeout;
