@@ -945,6 +945,7 @@ static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
 	unsigned long flags;
 
 	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->nvme_scrqs);
 
 	/* Re-enable the CRQ */
 	do {
@@ -964,6 +965,7 @@ static int ibmvfc_reenable_crq_queue(struct ibmvfc_host *vhost)
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
 	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
+	ibmvfc_reg_sub_crqs(vhost, &vhost->nvme_scrqs);
 
 	return rc;
 }
@@ -983,6 +985,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	struct ibmvfc_queue *crq = &vhost->crq;
 
 	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->nvme_scrqs);
 
 	/* Close the CRQ */
 	do {
@@ -1016,6 +1019,7 @@ static int ibmvfc_reset_crq(struct ibmvfc_host *vhost)
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
 
 	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
+	ibmvfc_reg_sub_crqs(vhost, &vhost->nvme_scrqs);
 
 	return rc;
 }
@@ -6119,6 +6123,13 @@ static void ibmvfc_init_sub_crqs(struct ibmvfc_host *vhost)
 
 	ibmvfc_reg_sub_crqs(vhost, &vhost->scsi_scrqs);
 
+	if (vhost->nvme_enabled) {
+		if (ibmvfc_alloc_channels(vhost, &vhost->nvme_scrqs))
+			vhost->nvme_enabled = 0;
+		else
+			ibmvfc_reg_sub_crqs(vhost, &vhost->nvme_scrqs);
+	}
+
 	LEAVE;
 }
 
@@ -6147,8 +6158,10 @@ static void ibmvfc_release_sub_crqs(struct ibmvfc_host *vhost)
 		return;
 
 	ibmvfc_dereg_sub_crqs(vhost, &vhost->scsi_scrqs);
-
 	ibmvfc_release_channels(vhost, &vhost->scsi_scrqs);
+
+	ibmvfc_dereg_sub_crqs(vhost, &vhost->nvme_scrqs);
+	ibmvfc_release_channels(vhost, &vhost->nvme_scrqs);
 	LEAVE;
 }
 
