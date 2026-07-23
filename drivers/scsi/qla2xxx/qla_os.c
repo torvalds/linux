@@ -429,7 +429,8 @@ static void qla_init_base_qpair(struct scsi_qla_host *vha, struct req_que *req,
 	qla_cpu_update(rsp->qpair, raw_smp_processor_id());
 	ha->base_qpair->pdev = ha->pdev;
 
-	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha) ||
+	    IS_QLA29XX(ha))
 		ha->base_qpair->reqq_start_iocbs = qla_83xx_start_iocbs;
 }
 
@@ -2153,8 +2154,6 @@ iospace_error_exit:
 static int
 qla83xx_iospace_config(struct qla_hw_data *ha)
 {
-	uint16_t msix;
-
 	if (pci_request_selected_regions(ha->pdev, ha->bars,
 	    QLA2XXX_DRIVER_NAME)) {
 		ql_log_pci(ql_log_fatal, ha->pdev, 0x0117,
@@ -2203,10 +2202,18 @@ qla83xx_iospace_config(struct qla_hw_data *ha)
 	ha->msixbase = ioremap(pci_resource_start(ha->pdev, 2),
 			pci_resource_len(ha->pdev, 2));
 	if (ha->msixbase) {
+		int msix_cnt;
+
 		/* Read MSIX vector size of the board */
-		pci_read_config_word(ha->pdev,
-		    QLA_83XX_PCI_MSIX_CONTROL, &msix);
-		ha->msix_count = (msix & PCI_MSIX_FLAGS_QSIZE)  + 1;
+		msix_cnt = pci_msix_vec_count(ha->pdev);
+		if (msix_cnt <= 0) {
+			ql_log_pci(ql_log_warn, ha->pdev, 0x0120,
+				   "Failed to read MSI-X count (%d), falling back to base vectors.\n",
+				   msix_cnt);
+			goto mqiobase_exit;
+		}
+		ha->msix_count = msix_cnt;
+
 		/*
 		 * By default, driver uses at least two msix vectors
 		 * (default & rspq)
@@ -2796,6 +2803,20 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 		ha->device_type |= DT_T10_PI;
 		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
 		break;
+	case PCI_DEVICE_ID_QLOGIC_ISP2099:
+	case PCI_DEVICE_ID_QLOGIC_ISP2299:
+	case PCI_DEVICE_ID_QLOGIC_ISP2091:
+	case PCI_DEVICE_ID_QLOGIC_ISP2291:
+		ha->isp_type |= DT_ISP2299;
+		ha->isp_type |= DT_ISP2099;
+		ha->isp_type |= DT_ISP2091;
+		ha->isp_type |= DT_ISP2291;
+		ha->device_type |= DT_ZIO_SUPPORTED;
+		ha->device_type |= DT_FWI2;
+		ha->device_type |= DT_IIDMA;
+		ha->device_type |= DT_T10_PI;
+		ha->fw_srisc_address = RISC_START_ADDRESS_2400;
+		break;
 	}
 
 	if (IS_QLA82XX(ha))
@@ -2803,8 +2824,8 @@ qla2x00_set_isp_flags(struct qla_hw_data *ha)
 	else {
 		/* Get adapter physical port no from interrupt pin register. */
 		pci_read_config_byte(ha->pdev, PCI_INTERRUPT_PIN, &ha->port_no);
-		if (IS_QLA25XX(ha) || IS_QLA2031(ha) ||
-		    IS_QLA27XX(ha) || IS_QLA28XX(ha))
+		if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) ||
+		    IS_QLA28XX(ha) || IS_QLA29XX(ha))
 			ha->port_no--;
 		else
 			ha->port_no = !(ha->port_no & 1);
@@ -2936,7 +2957,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2081 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2281 ||
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2089 ||
-	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2289) {
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2289 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2099 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2299 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2091 ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2291) {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM);
 		mem_only = 1;
 		ql_dbg_pci(ql_dbg_init, pdev, 0x0007,
@@ -2998,7 +3023,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Set EEH reset type to fundamental if required by hba */
 	if (IS_QLA24XX(ha) || IS_QLA25XX(ha) || IS_QLA81XX(ha) ||
-	    IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
+	    IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+	    IS_QLA29XX(ha))
 		pdev->needs_freset = 1;
 
 	ha->prev_topology = 0;
@@ -3195,6 +3221,22 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->flash_data_off = FARX_ACCESS_FLASH_DATA_28XX;
 		ha->nvram_conf_off = ~0;
 		ha->nvram_data_off = ~0;
+	} else if (IS_QLA29XX(ha)) {
+		ha->portnum = PCI_FUNC(ha->pdev->devfn);
+		ha->max_fibre_devices = MAX_FIBRE_DEVICES_2400;
+		ha->mbx_count = MAILBOX_REGISTER_COUNT;
+		req_length = REQUEST_ENTRY_CNT_83XX;
+		rsp_length = RESPONSE_ENTRY_CNT_83XX;
+		ha->max_loop_id = SNS_LAST_LOOP_ID_2300;
+		ha->init_cb_size = sizeof(struct mid_init_cb_81xx);
+		ha->gid_list_info_size = 8;
+		ha->optrom_size = OPTROM_SIZE_28XX;
+		ha->nvram_npiv_size = QLA_MAX_VPORTS_QLA25XX;
+		ha->isp_ops = &qla27xx_isp_ops;
+		ha->flash_conf_off = ~0;
+		ha->flash_data_off = ~0;
+		ha->nvram_conf_off = ~0;
+		ha->nvram_data_off = ~0;
 	}
 
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001e,
@@ -3373,7 +3415,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	rsp->rsp_q_in = &ha->iobase->isp24.rsp_q_in;
 	rsp->rsp_q_out = &ha->iobase->isp24.rsp_q_out;
 	if (ha->mqenable || IS_QLA83XX(ha) || IS_QLA27XX(ha) ||
-	    IS_QLA28XX(ha)) {
+	    IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		req->req_q_in = &ha->mqiobase->isp25mq.req_q_in;
 		req->req_q_out = &ha->mqiobase->isp25mq.req_q_out;
 		rsp->rsp_q_in = &ha->mqiobase->isp25mq.rsp_q_in;
@@ -3898,7 +3940,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 		return;
 
 	if (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) ||
-	    IS_QLA28XX(ha)) {
+	    IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		if (ha->flags.fw_started)
 			qla2x00_abort_isp_cleanup(base_vha);
 	} else if (!IS_QLAFX00(ha)) {
@@ -4387,7 +4429,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 
 	/* Get consistent memory allocated for EX-INIT-CB. */
 	if (IS_CNA_CAPABLE(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) ||
-	    IS_QLA28XX(ha)) {
+	    IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		ha->ex_init_cb = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
 		    &ha->ex_init_cb_dma);
 		if (!ha->ex_init_cb)
@@ -4397,7 +4439,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	}
 
 	/* Get consistent memory allocated for Special Features-CB. */
-	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		ha->sf_init_cb = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL,
 						&ha->sf_init_cb_dma);
 		if (!ha->sf_init_cb)
@@ -8155,6 +8197,10 @@ static const struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2281) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2089) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2289) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2099) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2299) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2091) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2291) },
 	{ 0 },
 };
 MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);

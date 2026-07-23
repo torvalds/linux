@@ -2773,7 +2773,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	ha->isp_ops->reset_chip(vha);
 
 	/* Check for secure flash support */
-	if (IS_QLA28XX(ha)) {
+	if (IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		if (rd_reg_word(&reg->mailbox12) & BIT_0)
 			ha->flags.secure_adapter = 1;
 		ql_log(ql_log_info, vha, 0xffff, "Secure Adapter: %s\n",

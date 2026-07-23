@@ -3528,7 +3528,6 @@ struct isp_operations {
 #define QLA_MIDX_DEFAULT	0
 #define QLA_MIDX_RSP_Q		1
 #define QLA_PCI_MSIX_CONTROL	0xa2
-#define QLA_83XX_PCI_MSIX_CONTROL	0x92
 
 struct scsi_qla_host;
 
@@ -4287,6 +4286,10 @@ struct qla_hw_data {
 #define PCI_DEVICE_ID_QLOGIC_ISP2089	0x2089
 #define PCI_DEVICE_ID_QLOGIC_ISP2281	0x2281
 #define PCI_DEVICE_ID_QLOGIC_ISP2289	0x2289
+#define PCI_DEVICE_ID_QLOGIC_ISP2099	0x2099
+#define PCI_DEVICE_ID_QLOGIC_ISP2299	0x2299
+#define PCI_DEVICE_ID_QLOGIC_ISP2091	0x2091
+#define PCI_DEVICE_ID_QLOGIC_ISP2291	0x2291
 
 	uint32_t	isp_type;
 #define DT_ISP2100                      BIT_0
@@ -4316,7 +4319,11 @@ struct qla_hw_data {
 #define DT_ISP2089			BIT_24
 #define DT_ISP2281			BIT_25
 #define DT_ISP2289			BIT_26
-#define DT_ISP_LAST			(DT_ISP2289 << 1)
+#define DT_ISP2299			BIT_27
+#define DT_ISP2099			BIT_28
+#define DT_ISP2091			BIT_29
+#define DT_ISP2291			BIT_30
+#define DT_ISP_LAST			((uint32_t)DT_ISP2291 << 1)
 
 	uint32_t	device_type;
 #define DT_T10_PI                       BIT_25
@@ -4353,6 +4360,10 @@ struct qla_hw_data {
 #define IS_QLA2261(ha)	(DT_MASK(ha) & DT_ISP2261)
 #define IS_QLA2081(ha)	(DT_MASK(ha) & DT_ISP2081)
 #define IS_QLA2281(ha)	(DT_MASK(ha) & DT_ISP2281)
+#define IS_QLA2299(ha)	(DT_MASK(ha) & DT_ISP2299)
+#define IS_QLA2099(ha)	(DT_MASK(ha) & DT_ISP2099)
+#define IS_QLA2091(ha)	(DT_MASK(ha) & DT_ISP2091)
+#define IS_QLA2291(ha)	(DT_MASK(ha) & DT_ISP2291)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
@@ -4363,6 +4374,9 @@ struct qla_hw_data {
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
 #define IS_QLA27XX(ha)  (IS_QLA2071(ha) || IS_QLA2271(ha) || IS_QLA2261(ha))
 #define IS_QLA28XX(ha)	(IS_QLA2081(ha) || IS_QLA2281(ha))
+#define IS_QLA29XX(ha)	(IS_QLA2099(ha) || IS_QLA2299(ha) || \
+			 IS_QLA2091(ha) || IS_QLA2291(ha))
+
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
 #define IS_CNA_CAPABLE(ha)	(IS_QLA81XX(ha) || IS_QLA82XX(ha) || \
@@ -4372,9 +4386,10 @@ struct qla_hw_data {
 				IS_QLA25XX(ha) || IS_QLA81XX(ha) || \
 				IS_QLA82XX(ha) || IS_QLA83XX(ha) || \
 				IS_QLA8044(ha) || IS_QLA27XX(ha) || \
-				IS_QLA28XX(ha))
+				IS_QLA28XX(ha) || IS_QLA29XX(ha))
 #define IS_MSIX_NACK_CAPABLE(ha) (IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
-				IS_QLA27XX(ha) || IS_QLA28XX(ha))
+				IS_QLA27XX(ha) || IS_QLA28XX(ha) || \
+				IS_QLA29XX(ha))
 #define IS_NOPOLLING_TYPE(ha)	(IS_QLA81XX(ha) && (ha)->flags.msix_enabled)
 #define IS_FAC_REQUIRED(ha)	(IS_QLA81XX(ha) || IS_QLA83XX(ha) || \
 				IS_QLA27XX(ha) || IS_QLA28XX(ha))
@@ -4390,9 +4405,9 @@ struct qla_hw_data {
 #define HAS_EXTENDED_IDS(ha)    ((ha)->device_type & DT_EXTENDED_IDS)
 #define IS_CT6_SUPPORTED(ha)	((ha)->device_type & DT_CT6_SUPPORTED)
 #define IS_MQUE_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
-				 IS_QLA28XX(ha))
+				 IS_QLA28XX(ha) || IS_QLA29XX(ha))
 #define IS_BIDI_CAPABLE(ha) \
-    (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha))
+    (IS_QLA25XX(ha) || IS_QLA2031(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha) || IS_QLA29XX(ha))
 /* Bit 21 of fw_attributes decides the MCTP capabilities */
 #define IS_MCTP_CAPABLE(ha)	(IS_QLA2031(ha) && \
 				((ha)->fw_attributes_ext[0] & BIT_0))
@@ -4408,12 +4423,12 @@ struct qla_hw_data {
 	(QLA_NVME_IOS(_sp) && QLA_ABTS_FW_ENABLED(_sp->fcport->vha->hw))
 
 #define IS_PI_UNINIT_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
-					 IS_QLA28XX(ha))
+					 IS_QLA28XX(ha) || IS_QLA29XX(ha))
 #define IS_PI_IPGUARD_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
-					 IS_QLA28XX(ha))
+					 IS_QLA28XX(ha) || IS_QLA29XX(ha))
 #define IS_PI_DIFB_DIX0_CAPABLE(ha)	(0)
 #define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
-					IS_QLA28XX(ha))
+					IS_QLA28XX(ha) || IS_QLA29XX(ha))
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
 #define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
