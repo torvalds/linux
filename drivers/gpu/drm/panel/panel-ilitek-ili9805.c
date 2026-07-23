@@ -149,13 +149,11 @@ static int ili9805_power_on(struct ili9805 *ctx)
 	return 0;
 }
 
-static int ili9805_power_off(struct ili9805 *ctx)
+static void ili9805_power_off(struct ili9805 *ctx)
 {
 	gpiod_set_value(ctx->reset_gpio, 0);
 	regulator_disable(ctx->dvdd);
 	regulator_disable(ctx->avdd);
-
-	return 0;
 }
 
 static int ili9805_activate(struct ili9805 *ctx)
@@ -189,15 +187,13 @@ static int ili9805_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int ili9805_deactivate(struct ili9805 *ctx)
+static void ili9805_deactivate(struct ili9805 *ctx)
 {
 	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
 	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
 	mipi_dsi_usleep_range(&dsi_ctx, 5000, 10000);
 	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
-
-	return dsi_ctx.accum_err;
 }
 
 static int ili9805_unprepare(struct drm_panel *panel)
