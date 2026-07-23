@@ -743,10 +743,12 @@ static void bpf_jit_probe_load_pre(struct bpf_jit *jit, struct bpf_insn *insn,
 {
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
 	    BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-	    BPF_MODE(insn->code) != BPF_PROBE_MEM32)
+	    BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+	    BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return;
 
-	if (BPF_MODE(insn->code) == BPF_PROBE_MEM32) {
+	if (BPF_MODE(insn->code) == BPF_PROBE_MEM32 ||
+	    BPF_MODE(insn->code) == BPF_PROBE_ATOMIC) {
 		/* lgrl %r1,kern_arena */
 		EMIT6_PCREL_RILB(0xc4080000, REG_W1, jit->kern_arena);
 		probe->arena_reg = REG_W1;
@@ -758,7 +760,8 @@ static void bpf_jit_probe_load_pre(struct bpf_jit *jit, struct bpf_insn *insn,
 static void bpf_jit_probe_store_pre(struct bpf_jit *jit, struct bpf_insn *insn,
 				    struct bpf_jit_probe *probe)
 {
-	if (BPF_MODE(insn->code) != BPF_PROBE_MEM32)
+	if (BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+	    BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return;
 
 	/* lgrl %r1,kern_arena */
@@ -1621,11 +1624,11 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 		bool is32 = BPF_SIZE(insn->code) == BPF_W;
 
 		/*
-		 * Unlike loads and stores, atomics have only a base register,
-		 * but no index register. For the non-arena case, simply use
-		 * %dst as a base. For the arena case, use the work register
-		 * %r1: first, load the arena base into it, and then add %dst
-		 * to it.
+		 * Unlike loads and stores, s390 atomics have only a base
+		 * register, but no index register. For the non-arena case,
+		 * simply use %dst as a base. For the arena case, use the
+		 * work register %r1: first, load the arena base into it,
+		 * and then add %dst to it.
 		 */
 		probe.arena_reg = dst_reg;
 
@@ -1709,6 +1712,18 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 				      BPF_REG_0, src_reg,
 				      probe.arena_reg, off);
 			err = bpf_jit_probe_post(jit, fp, &probe);
+			if (err < 0)
+				return err;
+			break;
+		case BPF_LOAD_ACQ:
+			/* s390 has strong ordering, just use load */
+			err = emit_ldx(jit, fp, insn);
+			if (err < 0)
+				return err;
+			break;
+		case BPF_STORE_REL:
+			/* s390 has strong ordering, just use store */
+			err = emit_stx(jit, fp, insn);
 			if (err < 0)
 				return err;
 			break;
