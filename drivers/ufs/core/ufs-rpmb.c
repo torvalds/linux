@@ -152,8 +152,6 @@ int ufs_rpmb_probe(struct ufs_hba *hba)
 		return -EINVAL;
 	}
 
-	INIT_LIST_HEAD(&hba->rpmbs);
-
 	struct rpmb_descr descr = {
 		.type = RPMB_TYPE_UFS,
 		.route_frames = ufs_rpmb_route_frames,

@@ -10958,6 +10958,7 @@ int ufshcd_alloc_host(struct device *dev, struct ufs_hba **hba_handle)
 	hba->nop_out_timeout = NOP_OUT_TIMEOUT;
 	ufshcd_set_sg_entry_size(hba, sizeof(struct ufshcd_sg_entry));
 	INIT_LIST_HEAD(&hba->clk_list_head);
+	INIT_LIST_HEAD(&hba->rpmbs);
 	spin_lock_init(&hba->outstanding_lock);
 
 	*hba_handle = hba;
