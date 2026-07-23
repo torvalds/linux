@@ -682,7 +682,7 @@ static void ibmvfc_link_down(struct ibmvfc_host *vhost,
 
 	ENTER;
 	scsi_block_requests(vhost->host);
-	list_for_each_entry(tgt, &vhost->targets, queue)
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 		ibmvfc_del_tgt(tgt);
 	ibmvfc_set_host_state(vhost, state);
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_DEL);
@@ -715,7 +715,7 @@ static void ibmvfc_init_host(struct ibmvfc_host *vhost)
 		memset(vhost->async_crq.msgs.async, 0, PAGE_SIZE);
 		vhost->async_crq.cur = 0;
 
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (vhost->client_migrated)
 				tgt->need_login = 1;
 			else
@@ -1232,7 +1232,7 @@ static struct ibmvfc_target *__ibmvfc_get_target(struct scsi_target *starget)
 	struct ibmvfc_host *vhost = shost_priv(shost);
 	struct ibmvfc_target *tgt;
 
-	list_for_each_entry(tgt, &vhost->targets, queue)
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 		if (tgt->target_id == starget->id) {
 			kref_get(&tgt->kref);
 			return tgt;
@@ -1834,7 +1834,7 @@ static void ibmvfc_relogin(struct scsi_device *sdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (rport == tgt->rport) {
 			ibmvfc_del_tgt(tgt);
 			break;
@@ -2132,7 +2132,7 @@ static int ibmvfc_bsg_plogi(struct ibmvfc_host *vhost, unsigned int port_id)
 
 	ENTER;
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->scsi_id == port_id) {
 			issue_login = 0;
 			break;
@@ -3104,7 +3104,7 @@ static void ibmvfc_terminate_rport_io(struct fc_rport *rport)
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	found = 0;
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->scsi_id == rport->port_id) {
 			found++;
 			break;
@@ -3244,7 +3244,7 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 	case IBMVFC_AE_ELS_LOGO:
 	case IBMVFC_AE_ELS_PRLO:
 	case IBMVFC_AE_ELS_PLOGI:
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (!crq->scsi_id && !crq->wwpn && !crq->node_name)
 				break;
 			if (crq->scsi_id && cpu_to_be64(tgt->scsi_id) != crq->scsi_id)
@@ -4873,14 +4873,14 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 
 	/* Look to see if we already have a target allocated for this SCSI ID or WWPN */
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->wwpn == wwpn) {
 			wtgt = tgt;
 			break;
 		}
 	}
 
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->scsi_id == scsi_id) {
 			stgt = tgt;
 			break;
@@ -4937,7 +4937,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 	ibmvfc_init_tgt(tgt, ibmvfc_tgt_implicit_logout);
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	tgt->cancel_key = vhost->task_set++;
-	list_add_tail(&tgt->queue, &vhost->targets);
+	list_add_tail(&tgt->queue, &vhost->scsi_scrqs.targets);
 
 unlock_out:
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -4955,7 +4955,7 @@ static int ibmvfc_alloc_targets(struct ibmvfc_host *vhost)
 {
 	int i, rc;
 
-	for (i = 0, rc = 0; !rc && i < vhost->num_targets; i++)
+	for (i = 0, rc = 0; !rc && i < vhost->scsi_scrqs.num_targets; i++)
 		rc = ibmvfc_alloc_target(vhost, &vhost->scsi_scrqs.disc_buf[i]);
 
 	return rc;
@@ -4976,8 +4976,8 @@ static void ibmvfc_discover_targets_done(struct ibmvfc_event *evt)
 	switch (mad_status) {
 	case IBMVFC_MAD_SUCCESS:
 		ibmvfc_dbg(vhost, "Discover Targets succeeded\n");
-		vhost->num_targets = min_t(u32, be32_to_cpu(rsp->num_written),
-					   max_targets);
+		vhost->scsi_scrqs.num_targets = min_t(u32, be32_to_cpu(rsp->num_written),
+						      max_targets);
 		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_ALLOC_TGTS);
 		break;
 	case IBMVFC_MAD_FAILED:
@@ -5393,7 +5393,7 @@ static int ibmvfc_dev_init_to_do(struct ibmvfc_host *vhost)
 {
 	struct ibmvfc_target *tgt;
 
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->action == IBMVFC_TGT_ACTION_INIT ||
 		    tgt->action == IBMVFC_TGT_ACTION_INIT_WAIT)
 			return 1;
@@ -5413,7 +5413,7 @@ static int ibmvfc_dev_logo_to_do(struct ibmvfc_host *vhost)
 {
 	struct ibmvfc_target *tgt;
 
-	list_for_each_entry(tgt, &vhost->targets, queue) {
+	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 		if (tgt->action == IBMVFC_TGT_ACTION_LOGOUT_RPORT ||
 		    tgt->action == IBMVFC_TGT_ACTION_LOGOUT_RPORT_WAIT)
 			return 1;
@@ -5443,10 +5443,10 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
 		if (vhost->discovery_threads == disc_threads)
 			return 0;
-		list_for_each_entry(tgt, &vhost->targets, queue)
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 			if (tgt->action == IBMVFC_TGT_ACTION_INIT)
 				return 1;
-		list_for_each_entry(tgt, &vhost->targets, queue)
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 			if (tgt->action == IBMVFC_TGT_ACTION_INIT_WAIT)
 				return 0;
 		return 1;
@@ -5454,10 +5454,10 @@ static int __ibmvfc_work_to_do(struct ibmvfc_host *vhost)
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
 		if (vhost->discovery_threads == disc_threads)
 			return 0;
-		list_for_each_entry(tgt, &vhost->targets, queue)
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 			if (tgt->action == IBMVFC_TGT_ACTION_LOGOUT_RPORT)
 				return 1;
-		list_for_each_entry(tgt, &vhost->targets, queue)
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 			if (tgt->action == IBMVFC_TGT_ACTION_LOGOUT_RPORT_WAIT)
 				return 0;
 		return 1;
@@ -5645,12 +5645,12 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			vhost->job_step(vhost);
 		break;
 	case IBMVFC_HOST_ACTION_QUERY:
-		list_for_each_entry(tgt, &vhost->targets, queue)
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 			ibmvfc_init_tgt(tgt, ibmvfc_tgt_query_target);
 		ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY_TGTS);
 		break;
 	case IBMVFC_HOST_ACTION_QUERY_TGTS:
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_INIT) {
 				tgt->job_step(tgt);
 				break;
@@ -5662,7 +5662,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 		break;
 	case IBMVFC_HOST_ACTION_TGT_DEL:
 	case IBMVFC_HOST_ACTION_TGT_DEL_FAILED:
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_LOGOUT_RPORT) {
 				tgt->job_step(tgt);
 				break;
@@ -5674,7 +5674,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			return;
 		}
 
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
 				tgt_dbg(tgt, "Deleting rport\n");
 				rport = tgt->rport;
@@ -5749,7 +5749,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 		spin_lock_irqsave(vhost->host->host_lock, flags);
 		break;
 	case IBMVFC_HOST_ACTION_TGT_INIT:
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_INIT) {
 				tgt->job_step(tgt);
 				break;
@@ -6286,7 +6286,7 @@ static void ibmvfc_rport_add_thread(struct work_struct *work)
 		if (vhost->state != IBMVFC_ACTIVE)
 			break;
 
-		list_for_each_entry(tgt, &vhost->targets, queue) {
+		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
 			if (tgt->add_rport) {
 				did_work = 1;
 				tgt->add_rport = 0;
@@ -6351,7 +6351,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	shost->nr_hw_queues = mq_enabled ? min(max_scsi_queues, nr_scsi_hw_queues) : 1;
 
 	vhost = shost_priv(shost);
-	INIT_LIST_HEAD(&vhost->targets);
+	INIT_LIST_HEAD(&vhost->scsi_scrqs.targets);
 	INIT_LIST_HEAD(&vhost->purge);
 	sprintf(vhost->name, IBMVFC_NAME);
 	vhost->host = shost;

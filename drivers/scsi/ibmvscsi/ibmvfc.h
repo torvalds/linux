@@ -828,6 +828,8 @@ struct ibmvfc_channels {
 	unsigned int active_queues;
 	unsigned int desired_queues;
 	unsigned int max_queues;
+	int num_targets;
+	struct list_head targets;
 	int disc_buf_sz;
 	struct ibmvfc_discover_targets_entry *disc_buf;
 	dma_addr_t disc_buf_dma;
@@ -871,8 +873,6 @@ struct ibmvfc_host {
 #define IBMVFC_TRACE_SIZE	(sizeof(struct ibmvfc_trace_entry) * IBMVFC_NUM_TRACE_ENTRIES)
 	struct ibmvfc_trace_entry *trace;
 	atomic_t trace_index;
-	int num_targets;
-	struct list_head targets;
 	struct list_head purge;
 	struct device *dev;
 	struct dma_pool *sg_pool;
