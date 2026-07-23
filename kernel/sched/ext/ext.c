@@ -2669,6 +2669,7 @@ static void dispatch_to_local_dsq(struct scx_sched *sch, struct rq *rq,
 
 /**
  * finish_dispatch - Asynchronously finish dispatching a task
+ * @sch: the scheduler
  * @rq: current rq which is locked
  * @p: task to finish dispatching
  * @qseq_at_dispatch: qseq when @p started getting dispatched
@@ -5296,6 +5297,7 @@ static __printf(2, 3) bool handle_lockup(int exit_cpu, const char *fmt, ...)
 
 /**
  * scx_rcu_cpu_stall - sched_ext RCU CPU stall handler
+ * @stalled_mask: bit mask of stalled CPUs
  *
  * While there are various reasons why RCU CPU stalls can occur on a system
  * that may not be caused by the current BPF scheduler, try kicking out the
@@ -5390,6 +5392,7 @@ static DEFINE_IRQ_WORK(scx_hardlockup_irq_work, scx_hardlockup_irq_workfn);
 
 /**
  * scx_hardlockup - sched_ext hardlockup handler
+ * @cpu: the target CPU
  *
  * A poorly behaving BPF scheduler can trigger hard lockup by e.g. putting
  * numerous affinitized tasks in a single queue and directing all CPUs at it.
@@ -8426,7 +8429,7 @@ static void scx_dsq_insert_commit(struct scx_sched *sch, struct task_struct *p,
 __bpf_kfunc_start_defs();
 
 /**
- * scx_bpf_dsq_insert - Insert a task into the FIFO queue of a DSQ
+ * scx_bpf_dsq_insert___v2 - Insert a task into the FIFO queue of a DSQ
  * @p: task_struct to insert
  * @dsq_id: DSQ to insert into
  * @slice: duration @p can run for in nsecs, 0 to keep the current value
@@ -8756,7 +8759,7 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(const struct bpf_prog_aux *aux)
 }
 
 /**
- * scx_bpf_dsq_move_to_local - move a task from a DSQ to the current CPU's local DSQ
+ * scx_bpf_dsq_move_to_local___v2 - move a task from a DSQ to the current CPU's local DSQ
  * @dsq_id: DSQ to move task from. Must be a user-created DSQ
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  * @enq_flags: %SCX_ENQ_*
@@ -9485,7 +9488,7 @@ __bpf_kfunc void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags,
 }
 
 /**
- * scx_bpf_reenqueue_local - Re-enqueue tasks on a local DSQ
+ * scx_bpf_reenqueue_local___v2 - Re-enqueue tasks on a local DSQ
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Iterate over all of the tasks currently enqueued on the local DSQ of the
