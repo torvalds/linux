@@ -127,10 +127,7 @@ impl CommandToGsp for SetRegistry {
     type InitError = Infallible;
 
     fn init(&self) -> impl Init<Self::Command, Self::InitError> {
-        Self::Command::init(
-            self.entries.len() as u32,
-            self.variable_payload_len() as u32,
-        )
+        Self::Command::init(self.entries.len() as u32, self.size() as u32)
     }
 
     fn variable_payload_len(&self) -> usize {
