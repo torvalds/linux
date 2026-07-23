@@ -248,4 +248,6 @@ static int __init mt76x8_pinctrl_init(void)
 }
 core_initcall_sync(mt76x8_pinctrl_init);
 
+MODULE_DESCRIPTION("MediaTek MT76X8 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("MTK_PINCTRL");

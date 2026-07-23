@@ -1388,6 +1388,7 @@ static const struct of_device_id mt6858_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt6858-pinctrl", .data = &mt6858_data },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mt6858_pinctrl_of_match);
 
 static struct platform_driver mt6858_pinctrl_driver = {
 	.driver = {
@@ -1405,3 +1406,4 @@ static int __init mt6858_pinctrl_init(void)
 arch_initcall(mt6858_pinctrl_init);
 
 MODULE_DESCRIPTION("MediaTek MT6858 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");

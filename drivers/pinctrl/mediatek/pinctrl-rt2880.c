@@ -60,4 +60,6 @@ static int __init rt2880_pinctrl_init(void)
 }
 core_initcall_sync(rt2880_pinctrl_init);
 
+MODULE_DESCRIPTION("MediaTek RT2880 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("MTK_PINCTRL");

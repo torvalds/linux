@@ -965,11 +965,13 @@ static const struct of_device_id mt7986a_pinctrl_of_match[] = {
 	{.compatible = "mediatek,mt7986a-pinctrl",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt7986a_pinctrl_of_match);
 
 static const struct of_device_id mt7986b_pinctrl_of_match[] = {
 	{.compatible = "mediatek,mt7986b-pinctrl",},
 	{}
 };
+MODULE_DEVICE_TABLE(of, mt7986b_pinctrl_of_match);
 
 static int mt7986a_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1009,4 +1011,6 @@ static int __init mt7986_pinctrl_init(void)
 }
 arch_initcall(mt7986_pinctrl_init);
 
+MODULE_DESCRIPTION("MediaTek MT7986 Pinctrl Driver");
+MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS("MTK_PINCTRL");
