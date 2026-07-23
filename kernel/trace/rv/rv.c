@@ -181,6 +181,7 @@ int rv_get_task_monitor_slot(void)
 
 	return -EBUSY;
 }
+EXPORT_SYMBOL_GPL(rv_get_task_monitor_slot);
 
 void rv_put_task_monitor_slot(int slot)
 {
@@ -197,6 +198,7 @@ void rv_put_task_monitor_slot(int slot)
 
 	task_monitor_slots[slot] = false;
 }
+EXPORT_SYMBOL_GPL(rv_put_task_monitor_slot);
 
 /*
  * Monitors with a parent are nested,
