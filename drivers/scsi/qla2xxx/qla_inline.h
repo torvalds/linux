@@ -119,6 +119,25 @@ qla_sts_cont_data_size(struct qla_hw_data *ha)
 		sizeof_field(sts_cont_entry_t, data);
 }
 
+/**
+ * qla_logio_set_vp_index() - write vp_index into a login/logout IOCB.
+ * @ha: HBA pointer
+ * @pkt: logio IOCB (logio_entry_24xx or logio_entry_24xx_ext)
+ * @vp_idx: virtual port index
+ *
+ * vp_index widens from u8 (logio_entry_24xx) to __le16
+ * (logio_entry_24xx_ext) on 29xx; write the field at the right width.
+ */
+static inline void
+qla_logio_set_vp_index(struct qla_hw_data *ha, void *pkt, u16 vp_idx)
+{
+	if (IS_QLA29XX(ha))
+		((struct logio_entry_24xx_ext *)pkt)->vp_index =
+			cpu_to_le16(vp_idx);
+	else
+		((struct logio_entry_24xx *)pkt)->vp_index = vp_idx;
+}
+
 static inline void
 qla2x00_poll(struct rsp_que *rsp)
 {
