@@ -5857,6 +5857,51 @@ static void ibmvfc_log_ae(struct ibmvfc_host *vhost, int events)
 }
 
 /**
+ * ibmvfc_tgt_add_nvme_rport - Tell the FC transport about a new remote port
+ * @tgt:		ibmvfc target struct
+ *
+ **/
+static void ibmvfc_tgt_add_nvme_rport(struct ibmvfc_target *tgt)
+{
+	struct ibmvfc_host *vhost = tgt->vhost;
+	struct nvme_fc_remote_port *rport;
+	unsigned long flags;
+
+	tgt_dbg(tgt, "Adding NVMe rport\n");
+	ibmvfc_nvme_register_remoteport(tgt);
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	rport = tgt->nvme_remote_port;
+
+	if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
+		tgt_dbg(tgt, "Deleting NVMe rport\n");
+		list_del(&tgt->queue);
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		ibmvfc_nvme_unregister_remoteport(tgt);
+		timer_delete_sync(&tgt->timer);
+		kref_put(&tgt->kref, ibmvfc_release_tgt);
+		return;
+	} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {
+		tgt_dbg(tgt, "Deleting NVMe rport with outstanding I/O\n");
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
+		tgt->init_retries = 0;
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		ibmvfc_nvme_unregister_remoteport(tgt);
+		return;
+	} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DELETED_RPORT) {
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		return;
+	}
+
+	if (rport) {
+		tgt_dbg(tgt, "NVMe rport add succeeded\n");
+		tgt->target_id = tgt->nvme_remote_port->port_id;
+	} else
+		tgt_dbg(tgt, "NVMe rport add failed\n");
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+}
+
+/**
  * ibmvfc_tgt_add_rport - Tell the FC transport about a new remote port
  * @tgt:		ibmvfc target struct
  *
@@ -5920,6 +5965,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 	struct ibmvfc_target *tgt;
 	unsigned long flags;
 	struct fc_rport *rport;
+	struct nvme_fc_remote_port *nvme_rport;
 	LIST_HEAD(purge);
 	int rc;
 
@@ -6069,6 +6115,30 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 				spin_unlock_irqrestore(vhost->host->host_lock, flags);
 				if (rport)
 					fc_remote_port_delete(rport);
+				return;
+			}
+		}
+
+		list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue) {
+			if (tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
+				tgt_dbg(tgt, "Deleteing NVMe rport\n");
+				nvme_rport = tgt->nvme_remote_port;
+				list_del(&tgt->queue);
+				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
+				spin_unlock_irqrestore(vhost->host->host_lock, flags);
+				if (nvme_rport)
+					ibmvfc_nvme_unregister_remoteport(tgt);
+				timer_delete_sync(&tgt->timer);
+				kref_put(&tgt->kref, ibmvfc_release_tgt);
+				return;
+			} else if (rport && tgt->action == IBMVFC_TGT_ACTION_DEL_AND_LOGOUT_RPORT) {
+				tgt_dbg(tgt, "Deleting NVMe rport with outstanding I/O\n");
+				nvme_rport = tgt->nvme_remote_port;
+				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_LOGOUT_DELETED_RPORT);
+				tgt->init_retries = 0;
+				spin_unlock_irqrestore(vhost->host->host_lock, flags);
+				if (nvme_rport)
+					ibmvfc_nvme_unregister_remoteport(tgt);
 				return;
 			}
 		}
@@ -6658,6 +6728,7 @@ static void ibmvfc_rport_add_thread(struct work_struct *work)
 						 rport_add_work_q);
 	struct ibmvfc_target *tgt;
 	struct fc_rport *rport;
+	struct nvme_fc_remote_port *nvme_rport;
 	unsigned long flags;
 	int did_work;
 
@@ -6691,7 +6762,28 @@ static void ibmvfc_rport_add_thread(struct work_struct *work)
 				break;
 			}
 		}
-	} while(did_work);
+
+		list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue) {
+			if (tgt->add_rport) {
+				did_work = 1;
+				tgt->add_rport = 0;
+				kref_get(&tgt->kref);
+				nvme_rport = tgt->nvme_remote_port;
+				if (!nvme_rport) {
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+					ibmvfc_tgt_add_nvme_rport(tgt);
+				} else {
+					spin_unlock_irqrestore(vhost->host->host_lock, flags);
+					if (IS_ENABLED(CONFIG_NVME_FC))
+						nvme_fc_rescan_remoteport(nvme_rport);
+				}
+
+				kref_put(&tgt->kref, ibmvfc_release_tgt);
+				spin_lock_irqsave(vhost->host->host_lock, flags);
+				break;
+			}
+		}
+	} while (did_work);
 
 	if (vhost->state == IBMVFC_ACTIVE)
 		vhost->scan_complete = 1;
