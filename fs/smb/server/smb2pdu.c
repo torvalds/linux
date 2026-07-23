@@ -991,6 +991,24 @@ smb2_get_name(const char *src, const int maxlen, struct nls_table *local_nls)
 	return name;
 }
 
+/* Link a fully initialized async work item unless the connection is closing. */
+static bool ksmbd_conn_link_async_request(struct ksmbd_conn *conn,
+					  struct ksmbd_work *work)
+{
+	bool linked = false;
+
+	spin_lock(&conn->request_lock);
+	if (!ksmbd_conn_exiting(conn) && !ksmbd_conn_releasing(conn)) {
+		if (list_empty(&work->async_request_entry))
+			list_add_tail(&work->async_request_entry,
+				      &conn->async_requests);
+		linked = true;
+	}
+	spin_unlock(&conn->request_lock);
+
+	return linked;
+}
+
 int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 {
 	struct ksmbd_conn *conn = work->conn;
@@ -1003,19 +1021,21 @@ int setup_async_work(struct ksmbd_work *work, void (*fn)(void **), void **arg)
 	}
 	work->asynchronous = true;
 	work->async_id = id;
+	work->cancel_fn = fn;
+	work->cancel_argv = arg;
+
+	if (!ksmbd_conn_link_async_request(conn, work)) {
+		work->asynchronous = false;
+		work->async_id = 0;
+		work->cancel_fn = NULL;
+		work->cancel_argv = NULL;
+		ksmbd_release_id(&conn->async_ida, id);
+		return -ESHUTDOWN;
+	}
 
 	ksmbd_debug(SMB,
 		    "Send interim Response to inform async request id : %d\n",
 		    work->async_id);
-
-	work->cancel_fn = fn;
-	work->cancel_argv = arg;
-
-	if (list_empty(&work->async_request_entry)) {
-		spin_lock(&conn->request_lock);
-		list_add_tail(&work->async_request_entry, &conn->async_requests);
-		spin_unlock(&conn->request_lock);
-	}
 
 	return 0;
 }
@@ -11075,9 +11095,18 @@ int smb2_notify(struct ksmbd_work *work)
 		in_work->cancel_argv[1] = fp;
 		in_work->cancel_fn = smb2_notify_cancel_fn;
 	}
-	spin_lock(&work->conn->request_lock);
-	list_add_tail(&in_work->async_request_entry, &work->conn->async_requests);
-	spin_unlock(&work->conn->request_lock);
+
+	if (!ksmbd_conn_link_async_request(work->conn, in_work)) {
+		kfree(in_work->cancel_argv);
+		in_work->cancel_argv = NULL;
+		in_work->cancel_fn = NULL;
+		in_work->asynchronous = false;
+		ksmbd_fd_put(work, fp);
+		ksmbd_conn_write(in_work);
+		ksmbd_free_work_struct(in_work);
+		work->send_no_response = 1;
+		return 0;
+	}
 
 	spin_lock(&fp->f_lock);
 	list_add_tail(&in_work->notify_entry, &fp->notify_pendings);
