@@ -1516,7 +1516,7 @@ static int dispatch_thread_send_subtests(int sock_fd, struct test_state *state)
 	struct subtest_state *subtest_state;
 	int subtest_num = state->subtest_num;
 
-	state->subtest_states = malloc(subtest_num * sizeof(*subtest_state));
+	state->subtest_states = calloc(subtest_num, sizeof(*subtest_state));
 	if (!state->subtest_states) {
 		state->subtest_num = 0;
 		return -ENOMEM;
@@ -1524,8 +1524,6 @@ static int dispatch_thread_send_subtests(int sock_fd, struct test_state *state)
 
 	for (int i = 0; i < subtest_num; i++) {
 		subtest_state = &state->subtest_states[i];
-
-		memset(subtest_state, 0, sizeof(*subtest_state));
 
 		if (read_prog_test_msg(sock_fd, &msg, MSG_SUBTEST_DONE))
 			return 1;
