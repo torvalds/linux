@@ -63,7 +63,7 @@ static void disable_pagefault(void)
 	ltl_monitor_destroy();
 }
 
-static struct rv_monitor rv_pagefault = {
+static struct rv_monitor rv_this = {
 	.name = "pagefault",
 	.description = "Monitor that RT tasks do not raise page faults",
 	.enable = enable_pagefault,
@@ -72,12 +72,12 @@ static struct rv_monitor rv_pagefault = {
 
 static int __init register_pagefault(void)
 {
-	return rv_register_monitor(&rv_pagefault, &rv_rtapp);
+	return rv_register_monitor(&rv_this, &rv_rtapp);
 }
 
 static void __exit unregister_pagefault(void)
 {
-	rv_unregister_monitor(&rv_pagefault);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_pagefault);

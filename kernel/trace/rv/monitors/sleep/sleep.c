@@ -185,7 +185,7 @@ static void disable_sleep(void)
 	ltl_monitor_destroy();
 }
 
-static struct rv_monitor rv_sleep = {
+static struct rv_monitor rv_this = {
 	.name = "sleep",
 	.description = "Monitor that RT tasks do not undesirably sleep",
 	.enable = enable_sleep,
@@ -194,12 +194,12 @@ static struct rv_monitor rv_sleep = {
 
 static int __init register_sleep(void)
 {
-	return rv_register_monitor(&rv_sleep, &rv_rtapp);
+	return rv_register_monitor(&rv_this, &rv_rtapp);
 }
 
 static void __exit unregister_sleep(void)
 {
-	rv_unregister_monitor(&rv_sleep);
+	rv_unregister_monitor(&rv_this);
 }
 
 module_init(register_sleep);
