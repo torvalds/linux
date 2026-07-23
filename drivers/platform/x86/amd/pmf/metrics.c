@@ -10,7 +10,6 @@
  */
 
 #include <linux/array_size.h>
-#include <linux/bits.h>
 #include <linux/cleanup.h>
 #include <linux/container_of.h>
 #include <linux/device.h>
@@ -19,6 +18,7 @@
 #include <linux/ktime.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/wordpart.h>
 #include <linux/workqueue.h>
 
 #include "pmf.h"
@@ -82,8 +82,8 @@ int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer)
 	}
 
 	phys_addr = virt_to_phys(dev->buf);
-	hi = phys_addr >> 32;
-	low = phys_addr & GENMASK(31, 0);
+	hi = upper_32_bits(phys_addr);
+	low = lower_32_bits(phys_addr);
 
 	amd_pmf_send_cmd(dev, SET_DRAM_ADDR_HIGH, SET_CMD, hi, NULL);
 	amd_pmf_send_cmd(dev, SET_DRAM_ADDR_LOW, SET_CMD, low, NULL);
