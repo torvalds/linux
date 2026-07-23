@@ -11150,6 +11150,39 @@ int smb2_check_sign_req(struct ksmbd_work *work)
 }
 
 /**
+ * smb2_get_sign_rsp_iov() - get the iovecs used to sign a response
+ * @work: work that has the response iovecs
+ * @hdr: SMB2 header of the response
+ * @n_vec: set to the number of iovecs to sign
+ *
+ * Response data may be in another buffer. In this case, the response uses
+ * more than one iovec. Find the iovec that starts with @hdr. Sign this
+ * iovec and all iovecs after it.
+ *
+ * Return: The first iovec to sign.
+ */
+static struct kvec *smb2_get_sign_rsp_iov(struct ksmbd_work *work,
+					   struct smb2_hdr *hdr, int *n_vec)
+{
+	int i;
+
+	/*
+	 * iov[0] has the RFC1002 message length. It is not part of the SMB2
+	 * message, so do not sign it.
+	 */
+	for (i = 1; i <= work->iov_idx; i++) {
+		if (work->iov[i].iov_base == hdr) {
+			*n_vec = work->iov_idx - i + 1;
+			return &work->iov[i];
+		}
+	}
+
+	WARN_ON_ONCE(1);
+	*n_vec = 1;
+	return &work->iov[work->iov_idx];
+}
+
+/**
  * smb2_set_sign_rsp() - handler for rsp packet sign processing
  * @work:   smb work containing notify command buffer
  *
@@ -11159,18 +11192,13 @@ void smb2_set_sign_rsp(struct ksmbd_work *work)
 	struct smb2_hdr *hdr;
 	char signature[SMB2_HMACSHA256_SIZE];
 	struct kvec *iov;
-	int n_vec = 1;
+	int n_vec;
 
 	hdr = ksmbd_resp_buf_curr(work);
 	hdr->Flags |= SMB2_FLAGS_SIGNED;
 	memset(hdr->Signature, 0, SMB2_SIGNATURE_SIZE);
 
-	if (hdr->Command == SMB2_READ) {
-		iov = &work->iov[work->iov_idx - 1];
-		n_vec++;
-	} else {
-		iov = &work->iov[work->iov_idx];
-	}
+	iov = smb2_get_sign_rsp_iov(work, hdr, &n_vec);
 
 	ksmbd_sign_smb2_pdu(work->conn, work->sess->sess_key, iov, n_vec,
 			    signature);
@@ -11253,7 +11281,7 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 	char signature[SMB2_CMACAES_SIZE];
 	struct kvec *iov;
 	u16 command = conn->ops->get_cmd_val(work);
-	int n_vec = 1;
+	int n_vec;
 	char *signing_key;
 
 	hdr = ksmbd_resp_buf_curr(work);
@@ -11275,12 +11303,7 @@ void smb3_set_sign_rsp(struct ksmbd_work *work)
 	hdr->Flags |= SMB2_FLAGS_SIGNED;
 	memset(hdr->Signature, 0, SMB2_SIGNATURE_SIZE);
 
-	if (hdr->Command == SMB2_READ) {
-		iov = &work->iov[work->iov_idx - 1];
-		n_vec++;
-	} else {
-		iov = &work->iov[work->iov_idx];
-	}
+	iov = smb2_get_sign_rsp_iov(work, hdr, &n_vec);
 
 	ksmbd_sign_smb3_pdu(conn, signing_key, iov, n_vec, signature);
 	memcpy(hdr->Signature, signature, SMB2_SIGNATURE_SIZE);
