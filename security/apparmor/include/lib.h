@@ -338,8 +338,8 @@ __do_cleanup:								\
 		__new_ = (FN);						\
 	}								\
 __done:									\
-	if (PTR_ERR(__new_))						\
-		AA_DEBUG(DEBUG_LABEL, "label build failed\n");		\
+	if (IS_ERR(__new_))						\
+		AA_DEBUG(DEBUG_LABEL, "label build failed %ld\n", PTR_ERR(__new_)); \
 	(__new_);							\
 })
 
