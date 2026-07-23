@@ -13,12 +13,14 @@
 
 #include <linux/acpi.h>
 #include <linux/build_bug.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/kconfig.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/rwsem.h>
 #include <linux/sysfs.h>
 
 #include <asm/amd/node.h>
@@ -204,15 +206,20 @@ static int init_platform_device(struct device *dev)
 /*
  * The socket array is devm-managed and freed by the driver core, but the
  * metric-table DRAM regions are mapped with plain ioremap() during probe and
- * are therefore not covered by devres.
+ * the per-socket mutexes need an explicit mutex_destroy(), neither of which
+ * devres covers.
  *
- * Drop those mappings from a devres action so both remove and probe failure
- * unmap them exactly once, before the socket array they refer to is freed.
+ * Take the data-plane rwsem for write to drain any in-flight
+ * hsmp_send_message(), unmap the metric tables, destroy the mutexes and drop
+ * the global socket pointer, all before devres frees the array. Registered as
+ * a devres action so it runs on both remove and probe failure.
  */
 static void hsmp_pltdrv_release(void *data)
 {
+	guard(rwsem_write)(&hsmp_sock_rwsem);
 	hsmp_unmap_metric_tbls(hsmp_pdev);
 	hsmp_destroy_metric_read_locks(hsmp_pdev);
+	hsmp_pdev->sock = NULL;
 }
 
 static int hsmp_pltdrv_probe(struct platform_device *pdev)
@@ -231,7 +238,16 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = init_platform_device(&pdev->dev);
+	/*
+	 * init_platform_device() runs the mailbox handshake via the probe-only
+	 * senders, which issue messages through hsmp_send_message_locked() and
+	 * so require hsmp_sock_rwsem held. Hold it for write, matching probe's
+	 * role as a socket bring-up path. The lock is not held across
+	 * devm_add_action_or_reset() above so the release action, which also
+	 * takes it for write, does not deadlock if that registration fails.
+	 */
+	scoped_guard(rwsem_write, &hsmp_sock_rwsem)
+		ret = init_platform_device(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to init HSMP mailbox\n");
 		return ret;

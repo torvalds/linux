@@ -79,8 +79,8 @@ static inline int hsmp_create_sensor(struct device *dev, u16 sock_ind) { return 
 int hsmp_msg_get_nargs(u16 sock_ind, u32 msg_id, u32 *data, u8 num_args);
 
 /*
- * Serializes HSMP socket bring-up and teardown. ACPI probe and remove take it
- * for write.
+ * Gates the HSMP data plane: hsmp_send_message() takes it for read; probe and
+ * remove take it for write to bring sockets up and tear them down.
  */
 extern struct rw_semaphore hsmp_sock_rwsem;
 #endif /* HSMP_H */
