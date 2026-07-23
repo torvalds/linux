@@ -2359,7 +2359,6 @@ static int hists_browser__scnprintf_title(struct hist_browser *browser, char *bf
 
 struct popup_action {
 	unsigned long		time;
-	struct thread		*thread;
 	int (*fn)(struct hist_browser *browser, struct popup_action *act);
 	struct map_symbol	ms;
 	int			socket;
