@@ -57,6 +57,17 @@ struct mana_ib_create_rc_qp_resp {
 	__u32 queue_id[4];
 };
 
+struct mana_ib_create_uc_qp {
+	__aligned_u64 queue_buf[3];
+	__u32 queue_size[3];
+	__u32 comp_mask;
+};
+
+struct mana_ib_create_uc_qp_resp {
+	__u32 queue_id[3];
+	__u32 reserved;
+};
+
 struct mana_ib_create_wq {
 	__aligned_u64 wq_buf_addr;
 	__u32 wq_buf_size;
