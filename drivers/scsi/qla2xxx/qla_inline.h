@@ -103,6 +103,22 @@ qla_rsp_entry_size(struct qla_hw_data *ha)
 	return IS_QLA29XX(ha) ? sizeof(struct response_ext) : sizeof(response_t);
 }
 
+/**
+ * qla_sts_cont_data_size() - status-continuation IOCB data payload size.
+ * @ha: HBA pointer
+ *
+ * sts_cont_entry_t and struct sts_cont_entry_ext share the same header and
+ * data offset; only the trailing data[] size differs (60 vs 124 bytes).
+ * Returns that size so callers need not branch on the adapter type.
+ */
+static inline u32
+qla_sts_cont_data_size(struct qla_hw_data *ha)
+{
+	return IS_QLA29XX(ha) ?
+		sizeof_field(struct sts_cont_entry_ext, data) :
+		sizeof_field(sts_cont_entry_t, data);
+}
+
 static inline void
 qla2x00_poll(struct rsp_que *rsp)
 {
