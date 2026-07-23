@@ -106,7 +106,7 @@ static void avs_dsp_recovery(struct avs_dev *adev)
 			struct snd_soc_pcm_runtime *rtd;
 			struct snd_soc_card *card;
 
-			card = acomp->base.card;
+			card = acomp->base->card;
 			if (!card)
 				continue;
 
