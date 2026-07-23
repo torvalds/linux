@@ -564,10 +564,10 @@ typedef struct _nsp32_hw_data {
 
 	struct scsi_cmnd *CurrentSC;
 
-	struct pci_dev             *Pci;
-	const struct pci_device_id *pci_devid;
-	struct Scsi_Host           *Host;
-	spinlock_t                  Lock;
+	struct pci_dev    *Pci;
+	int                model;
+	struct Scsi_Host  *Host;
+	spinlock_t         Lock;
 
 	char info_str[100];
 
