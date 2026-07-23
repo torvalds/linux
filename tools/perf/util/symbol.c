@@ -2452,8 +2452,7 @@ static bool symbol__read_kptr_restrict(void)
 {
 	bool value = false;
 	FILE *fp = fopen("/proc/sys/kernel/kptr_restrict", "r");
-	bool used_root;
-	bool cap_syslog = perf_cap__capable(CAP_SYSLOG, &used_root);
+	bool cap_syslog = perf_cap__capable(CAP_SYSLOG);
 
 	if (fp != NULL) {
 		char line[8];

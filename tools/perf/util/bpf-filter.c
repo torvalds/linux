@@ -629,24 +629,20 @@ struct perf_bpf_filter_expr *perf_bpf_filter_expr__new(enum perf_bpf_filter_term
 
 static bool check_bpf_filter_capable(void)
 {
-	bool used_root;
+	int fd;
 
-	if (perf_cap__capable(CAP_BPF, &used_root))
+	if (perf_cap__capable(CAP_BPF))
 		return true;
 
-	if (!used_root) {
-		/* Check if root already pinned the filter programs and maps */
-		int fd = get_pinned_fd("filters");
-
-		if (fd >= 0) {
-			close(fd);
-			return true;
-		}
+	/* Check if root already pinned the filter programs and maps */
+	fd = get_pinned_fd("filters");
+	if (fd >= 0) {
+		close(fd);
+		return true;
 	}
 
-	pr_err("Error: BPF filter only works for %s!\n"
-	       "\tPlease run 'perf record --setup-filter pin' as root first.\n",
-	       used_root ? "root" : "users with the CAP_BPF capability");
+	pr_err("Error: BPF filter only works for users with the CAP_BPF capability!\n"
+	       "\tPlease run 'perf record --setup-filter pin' as root first.\n");
 
 	return false;
 }
