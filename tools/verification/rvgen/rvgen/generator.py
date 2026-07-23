@@ -7,6 +7,7 @@
 
 import platform
 import os
+from pathlib import Path
 
 
 class RVGenerator:
@@ -25,27 +26,29 @@ class RVGenerator:
             self.__fill_rv_kernel_dir()
 
     def __fill_rv_kernel_dir(self):
+        # find the kernel tree root relative to this file's location
+        resolved_path = Path(__file__).resolve()
+        if len(resolved_path.parents) > 4:
+            kernel_root = resolved_path.parents[4]
+            kernel_path = kernel_root / self.rv_dir
 
-        # first try if we are running in the kernel tree root
-        if os.path.exists(self.rv_dir):
-            return
+            if kernel_path.exists():
+                self.rv_dir = str(kernel_path)
+                return
 
-        # offset if we are running inside the kernel tree from verification/dot2
-        kernel_path = os.path.join("../..", self.rv_dir)
-
-        if os.path.exists(kernel_path):
-            self.rv_dir = kernel_path
+        # best effort if rvgen is installed and we are at the root of a kernel tree
+        if Path(self.rv_dir).exists():
             return
 
         if platform.system() != "Linux":
             raise OSError("I can only run on Linux.")
 
-        kernel_path = os.path.join(f"/lib/modules/{platform.release()}/build", self.rv_dir)
+        kernel_path = Path(f"/lib/modules/{platform.release()}/build") / self.rv_dir
 
         # if the current kernel is from a distro this may not be a full kernel tree
         # verify that one of the files we are going to modify is available
-        if os.path.exists(os.path.join(kernel_path, "rv_trace.h")):
-            self.rv_dir = kernel_path
+        if (kernel_path / "rv_trace.h").exists():
+            self.rv_dir = str(kernel_path)
             return
 
         raise FileNotFoundError("Could not find the rv directory, do you have the kernel source installed?")
