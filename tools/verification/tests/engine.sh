@@ -5,6 +5,8 @@ test_begin() {
 	# included correctly.
 	ctr=0
 	[ -z "$RV" ] && RV="../rv/rv"
+	[ -z "$RVGEN" ] && RVGEN="python3 ../rvgen"
+	[ -z "$GOLDEN_DIR" ] && GOLDEN_DIR="tests/golden"
 	[ -n "$TEST_COUNT" ] && echo "1..$TEST_COUNT"
 }
 
@@ -115,6 +117,38 @@ check_if_exists() {
 				"$unexpected_output" "$all_lines_pattern"
 			report "$desc"
 		fi
+	fi
+}
+
+check_and_compare_folder() {
+	# Run command, compare generated folder to golden, and cleanup
+	local desc=$1
+	local command=$2
+	local generated_dir=$3
+	local expected_output=$4
+	local unexpected_output=$5
+	local golden_dir="$GOLDEN_DIR/$generated_dir"
+
+	ctr=$((ctr + 1))
+	if [ -n "$TEST_COUNT" ]; then
+		rm -rf "$generated_dir"
+		_check "$desc" "$command" 0 "$expected_output" "$unexpected_output"
+
+		if [ "$fail" -eq 0 ] && [ ! -d "$generated_dir" ]; then
+			failure "# Generated directory not found: $generated_dir"
+		fi
+
+		if [ "$fail" -ne 0 ]; then
+			:
+		elif ! diff -r "$generated_dir" "$golden_dir" &> /dev/null; then
+			failure "# Directories differ:"
+			failbuf+=$(diff -r "$generated_dir" "$golden_dir" 2>&1 | sed 's/^/#   /')
+			failbuf+=$'\n'
+		fi
+
+		report "$1"
+
+		rm -rf "$generated_dir"
 	fi
 }
 

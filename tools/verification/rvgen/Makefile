@@ -13,6 +13,10 @@ all:
 .PHONY: clean
 clean:
 
+.PHONY: check
+check:
+	prove -o --directives -f tests/
+
 .PHONY: install
 install:
 	$(INSTALL) rvgen/automata.py -D -m 644 $(DESTDIR)$(PYLIB)/rvgen/automata.py
