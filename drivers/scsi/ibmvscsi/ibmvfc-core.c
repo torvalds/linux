@@ -4212,7 +4212,7 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 	ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 	switch (status) {
 	case IBMVFC_MAD_SUCCESS:
-		tgt_dbg(tgt, "Port Login succeeded\n");
+		tgt_dbg(tgt, "%s Port Login succeeded\n", proto_type[tgt->protocol]);
 		if (tgt->ids.port_name &&
 		    tgt->ids.port_name != wwn_to_u64(rsp->service_parms.port_name)) {
 			vhost->reinit = 1;
@@ -4240,9 +4240,9 @@ static void ibmvfc_tgt_plogi_done(struct ibmvfc_event *evt)
 		else
 			ibmvfc_del_tgt(tgt);
 
-		tgt_log(tgt, level, "Port Login failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
-			ibmvfc_get_cmd_error(be16_to_cpu(rsp->status), be16_to_cpu(rsp->error)),
-					     be16_to_cpu(rsp->status), be16_to_cpu(rsp->error),
+		tgt_log(tgt, level, "%s Port Login failed: %s (%x:%x) %s (%x) %s (%x) rc=0x%02X\n",
+			proto_type[tgt->protocol], ibmvfc_get_cmd_error(be16_to_cpu(rsp->status),
+			be16_to_cpu(rsp->error)), be16_to_cpu(rsp->status), be16_to_cpu(rsp->error),
 			ibmvfc_get_fc_type(be16_to_cpu(rsp->fc_type)), be16_to_cpu(rsp->fc_type),
 			ibmvfc_get_ls_explain(be16_to_cpu(rsp->fc_explain)), be16_to_cpu(rsp->fc_explain), status);
 		break;
@@ -4288,7 +4288,10 @@ static void ibmvfc_tgt_send_plogi(struct ibmvfc_target *tgt)
 	} else {
 		plogi->common.version = cpu_to_be32(1);
 	}
-	plogi->common.opcode = cpu_to_be32(IBMVFC_PORT_LOGIN);
+	if (tgt->protocol == IBMVFC_PROTO_SCSI)
+		plogi->common.opcode = cpu_to_be32(IBMVFC_PORT_LOGIN);
+	else
+		plogi->common.opcode = cpu_to_be32(IBMVFC_NVMF_PORT_LOGIN);
 	plogi->common.length = cpu_to_be16(sizeof(*plogi));
 	plogi->scsi_id = cpu_to_be64(tgt->scsi_id);
 
@@ -4297,7 +4300,7 @@ static void ibmvfc_tgt_send_plogi(struct ibmvfc_target *tgt)
 		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
 		kref_put(&tgt->kref, ibmvfc_release_tgt);
 	} else
-		tgt_dbg(tgt, "Sent port login\n");
+		tgt_dbg(tgt, "Sent %s port login\n", proto_type[tgt->protocol]);
 }
 
 /**
