@@ -1695,6 +1695,10 @@ struct qla_flt_location {
 #define FLT_REG_NVME_PARAMS_PRI_28XX	0x14E
 #define FLT_REG_NVME_PARAMS_SEC_28XX	0x179
 
+/* 29xx */
+#define FLT_REG_MINI_FLT		0x201
+#define FLT_REG_FW_DUMP_TMPLT		0x1A0
+
 struct qla_flt_region {
 	__le16	code;
 	uint8_t attribute;
@@ -1715,6 +1719,56 @@ struct qla_flt_header {
 #define FLT_REGION_SIZE		16
 #define FLT_MAX_REGIONS		0xFF
 #define FLT_REGIONS_SIZE	(FLT_REGION_SIZE * FLT_MAX_REGIONS)
+
+/* 29xx */
+#define FLT_HDR_VERSION		0x2
+
+struct qla_flt_region_header {
+	__le32	signature;
+	__le32	version;
+	__le32	length;
+	__le32	checksum;
+	__le16	region_count;
+	__le16	region_size;
+	__le32	segment_size;
+	__le32	res3;
+	__le32	res4;
+	__le32	res5;
+	__le32	res6;
+	__le32	res7;
+	__le32	res8;
+	__le32	res9;
+	__le32	res10;
+	__le32	res11;
+	__le32	res12;
+};
+
+struct qla_flt_region_data {
+	__le16	region_code;
+	__le16	reserved;
+	__le32	attribute;
+	__le32	image_length;
+	__le32	mbi_offset;
+	__le32	version;
+	__le32	card_type;
+	__le32	chip_revision;
+	__le32	res4;
+	__le32	res5;
+	__le32	res6;
+	__le32	res7;
+	__le32	res8;
+	__le32	res9;
+	__le32	res10;
+	__le32	res11;
+	__le32	res12;
+};
+
+struct qla_flash_layout {
+	struct qla_flt_region_header flt_header;
+	struct qla_flt_region_data region[];
+};
+
+#define FLT_DATA_MAX_REGIONS	0xFF
 
 /* Flash NPIV Configuration Table ********************************************/
 

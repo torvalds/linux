@@ -3237,6 +3237,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->flash_data_off = ~0;
 		ha->nvram_conf_off = ~0;
 		ha->nvram_data_off = ~0;
+		ha->flt_segment_length = QLA_SEGMENT_LENGTH;
 	}
 
 	ql_dbg_pci(ql_dbg_init, pdev, 0x001e,
@@ -4488,6 +4489,14 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 		goto fail_flt_buffer;
 	}
 
+	ha->flt_data = vzalloc(sizeof(struct qla_flash_layout) +
+			(sizeof(struct qla_flt_region_data) * FLT_MAX_REGIONS));
+	if (!ha->flt_data) {
+		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x001a,
+			   "Unable to allocate memory for mini FLT data.\n");
+		goto fail_flt;
+	}
+
 	/* allocate the purex dma pool */
 	ha->purex_dma_pool = dma_pool_create(name, &ha->pdev->dev,
 	    ELS_MAX_PAYLOAD, 8, 0);
@@ -4495,7 +4504,7 @@ qla2x00_mem_alloc(struct qla_hw_data *ha, uint16_t req_len, uint16_t rsp_len,
 	if (!ha->purex_dma_pool) {
 		ql_dbg_pci(ql_dbg_init, ha->pdev, 0x011b,
 		    "Unable to allocate purex_dma_pool.\n");
-		goto fail_flt;
+		goto fail_flt_data;
 	}
 
 	ha->elsrej.size = sizeof(struct fc_els_ls_rjt) + 16;
@@ -4528,6 +4537,9 @@ fail_lsrjt:
 			  ha->elsrej.c, ha->elsrej.cdma);
 fail_elsrej:
 	dma_pool_destroy(ha->purex_dma_pool);
+fail_flt_data:
+	vfree(ha->flt_data);
+	ha->flt_data = NULL;
 fail_flt:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct qla_flt_header) + FLT_REGIONS_SIZE,
 	    ha->flt, ha->flt_dma);
@@ -4962,6 +4974,10 @@ qla2x00_mem_free(struct qla_hw_data *ha)
 		    ha->flt, ha->flt_dma);
 	ha->flt = NULL;
 	ha->flt_dma = 0;
+
+	if (ha->flt_data)
+		vfree(ha->flt_data);
+	ha->flt_data = NULL;
 
 	if (ha->ms_iocb)
 		dma_pool_free(ha->s_dma_pool, ha->ms_iocb, ha->ms_iocb_dma);

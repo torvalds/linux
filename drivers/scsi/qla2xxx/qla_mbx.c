@@ -7254,3 +7254,147 @@ int qla_mpipt_validate_fw(scsi_qla_host_t *vha, u16 img_idx, uint16_t *state)
 
 	return rval;
 }
+
+int qla29xx_flash_block_read(scsi_qla_host_t *vha, dma_addr_t req_dma,
+			     uint32_t flash_addr, uint32_t flash_size,
+			     uint16_t reg_code, uint16_t opt)
+{
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval = 0;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1067,
+			"Entered %s options 0x%x.\n", __func__, opt);
+
+	memset(mcp->mb, 0, sizeof(mcp->mb));
+
+	if (!is_flash_read(opt)) {
+		ql_log(ql_log_info, vha, 0x1068,
+				"%s: Invalid flash option 0x%x.\n", __func__, opt);
+		return -EINVAL;
+	}
+
+	mcp->mb[0] = MBC_RD_WR_FLASH;
+
+	/* mailbox option field :
+	 *      TIM img or Img  : BIT_15 (1/0)
+	 *       Last seg img   : BIT_11 (1)
+	 *      First seg img   : BIT_10  (1)
+	 *      dword or block  : BIT_9  (1/0)
+	 *     flash MBR update : BIT_8  (1/0)
+	 * Secure or non-secure : BIT_7  (1/0)
+	 *        Write or Read : BIT_6  (1/0)
+	 *       Last block img : BIT_5  (1)
+	 *      First block img : BIT_4  (1)
+	 *         Request type : (BIT3 - BIT_0)
+	 *                        - Normal
+	 *                        - Normal, Force Sema
+	 *                        - Initialize
+	 *                        - Initialize, Force sema
+	 *                        - Abort secured update
+	 */
+	mcp->mb[1] = opt;
+	mcp->mb[2] = reg_code;
+
+	mcp->mb[3] = MSW(flash_size);
+	mcp->mb[4] = LSW(flash_size);
+
+	mcp->mb[5] = MSW(req_dma);
+	mcp->mb[6] = LSW(req_dma);
+	mcp->mb[7] = MSW(MSD(req_dma));
+	mcp->mb[8] = LSW(MSD(req_dma));
+
+	mcp->mb[9] = MSW(flash_addr);
+	mcp->mb[10] = LSW(flash_addr);
+
+	mcp->out_mb =
+		MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x103f,
+				"Failed=%x mb=(0x%x,0x%x,0x%x,0x%x).\n",
+				rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1043,
+				"Done %s mb=(0x%x,0x%x,0x%x).\n", __func__,
+				mcp->mb[0], mcp->mb[1],  mcp->mb[2]);
+	}
+
+	return rval;
+}
+
+int qla29xx_flash_block_write(scsi_qla_host_t *vha, dma_addr_t req_dma,
+			      uint32_t flash_addr, uint32_t flash_size,
+			      uint16_t reg_code, uint16_t opt)
+{
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	int rval = 0;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1069,
+			"Entered %s options 0x%x.\n", __func__, opt);
+
+	memset(mcp->mb, 0, sizeof(mcp->mb));
+
+	if (!is_flash_write(opt)) {
+		ql_log(ql_log_info, vha, 0x106a,
+				"%s: Invalid flash option 0x%x.\n", __func__, opt);
+		return -EINVAL;
+	}
+
+	mcp->mb[0] = MBC_RD_WR_FLASH;
+
+	/* mailbox option field :
+	 *      TIM img or Img  : BIT_15 (1/0)
+	 *       Last seg img   : BIT_11 (1)
+	 *      First seg img   : BIT_10  (1)
+	 *      dword or block  : BIT_9  (1/0)
+	 *     flash MBR update : BIT_8  (1/0)
+	 * Secure or non-secure : BIT_7  (1/0)
+	 *        Write or Read : BIT_6  (1/0)
+	 *       Last block img : BIT_5  (1)
+	 *      First block img : BIT_4  (1)
+	 *         Request type : (BIT3 - BIT_0)
+	 *                        - Normal
+	 *                        - Normal, Force Sema
+	 *                        - Initialize
+	 *                        - Initialize, Force sema
+	 *                        - Abort secured update
+	 */
+	mcp->mb[1] = opt;
+	mcp->mb[2] = reg_code;
+
+	mcp->mb[3] = MSW(flash_size);
+	mcp->mb[4] = LSW(flash_size);
+
+	mcp->mb[5] = MSW(req_dma);
+	mcp->mb[6] = LSW(req_dma);
+	mcp->mb[7] = MSW(MSD(req_dma));
+	mcp->mb[8] = LSW(MSD(req_dma));
+
+	mcp->mb[9] = MSW(flash_addr);
+	mcp->mb[10] = LSW(flash_addr);
+
+	mcp->out_mb =
+		MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval != QLA_SUCCESS) {
+		ql_dbg(ql_dbg_mbx, vha, 0x110a,
+				"Failed=%x mb=(0x%x,0x%x,0x%x,0x%x).\n",
+				rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3]);
+	} else {
+		ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x110b,
+				"Done %s mb=(0x%x,0x%x,0x%x).\n", __func__,
+				mcp->mb[0], mcp->mb[1],  mcp->mb[2]);
+	}
+
+	return rval;
+}

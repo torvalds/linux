@@ -1278,6 +1278,7 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 #define MBC_LOAD_RISC_RAM		9	/* Load RAM command. */
 #define MBC_DUMP_RISC_RAM		0xa	/* Dump RAM command. */
 #define MBC_SECURE_FLASH_UPDATE		0xa	/* Secure Flash Update(28xx) */
+#define MBC_RD_WR_FLASH			0xa	/* Read/write Dword/block Flash(29xx) */
 #define MBC_LOAD_RISC_RAM_EXTENDED	0xb	/* Load RAM extended. */
 #define MBC_DUMP_RISC_RAM_EXTENDED	0xc	/* Dump RAM extended. */
 #define MBC_WRITE_RAM_WORD_EXTENDED	0xd	/* Write RAM word extended */
@@ -4170,6 +4171,7 @@ struct qla_hw_data {
 #define EEH_FLUSH_RDY  1
 #define EEH_FLUSH_DONE 2
 		uint32_t	secure_mcu:1;
+		uint32_t	valid_flt:1;
 	} flags;
 
 	uint16_t max_exchg;
@@ -4498,6 +4500,8 @@ struct qla_hw_data {
 
 	struct qla_flt_header *flt;
 	dma_addr_t	flt_dma;
+	struct qla_flash_layout *flt_data;
+	uint32_t	fw_dump_tmplt_len;
 
 #define XGMAC_DATA_SIZE	4096
 	void		*xgmac_data;
@@ -4721,6 +4725,9 @@ struct qla_hw_data {
 	uint32_t	fdt_unprotect_sec_cmd;
 	uint32_t	fdt_protect_sec_cmd;
 	uint32_t	fdt_wrt_sts_reg_cmd;
+
+#define QLA_SEGMENT_LENGTH      0x25000
+	uint32_t        flt_segment_length;
 
 	struct {
 		uint32_t	flt_region_flt;
@@ -5348,6 +5355,14 @@ static inline bool qla_vha_mark_busy(scsi_qla_host_t *vha)
 /*
  * Flash support definitions
  */
+#define check_and_set_mbc_bits(bopt, dopt, bit_to_check, bit_to_set) {	\
+	if (bopt & bit_to_check)			\
+		dopt |= bit_to_set;			\
+}
+
+#define SET_FW_BIT(__opts, bit) ((__opts) |= (bit))
+#define CLEAR_FW_BIT(__opts, bit) ((__opts) &= ~(bit))
+
 #define OPTROM_SIZE_2300	0x20000
 #define OPTROM_SIZE_2322	0x100000
 #define OPTROM_SIZE_24XX	0x100000
@@ -5612,4 +5627,9 @@ struct ql_vnd_tgt_stats_resp {
 	(!_fcport || IS_SESSION_DELETED(_fcport) || atomic_read(&_fcport->state) != FCS_ONLINE || \
 	!_fcport->vha->hw->flags.fw_started)
 
+#define is_flash_read(_opt)	\
+	(!(_opt & BIT_9) && !(_opt & BIT_6))
+
+#define is_flash_write(_opt)	\
+	(!(_opt & BIT_9) && (_opt & BIT_6))
 #endif

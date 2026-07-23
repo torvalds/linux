@@ -580,6 +580,12 @@ extern int qla2xxx_read_remote_register(scsi_qla_host_t *, uint32_t,
 extern int qla2xxx_write_remote_register(scsi_qla_host_t *, uint32_t,
     uint32_t);
 void qla_no_op_mb(struct scsi_qla_host *vha);
+extern int qla29xx_flash_block_read(scsi_qla_host_t *vha, dma_addr_t req_dma,
+				    uint32_t flash_addr, uint32_t flash_size,
+				    uint16_t reg_code, uint16_t opt);
+extern int qla29xx_flash_block_write(scsi_qla_host_t *vha, dma_addr_t req_dma,
+				     uint32_t flash_addr, uint32_t flash_size,
+				     uint16_t reg_code, uint16_t opt);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.
@@ -682,7 +688,14 @@ struct purex_item *qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha,
 	void **pkt, struct rsp_que **rsp, bool is_purls, bool byte_order);
 int qla_mailbox_passthru(scsi_qla_host_t *vha, uint16_t *mbx_in,
 			 uint16_t *mbx_out);
-
+void *qla29xx_read_optrom_data(struct scsi_qla_host *vha,
+				       uint16_t reg_code, uint16_t opts,
+				       void *buf, uint32_t offset,
+				       uint32_t length);
+extern int qla29xx_write_optrom_data(struct scsi_qla_host *vha,
+				     uint16_t reg_code, uint16_t opts,
+				     void *buf, uint32_t offset,
+				     uint32_t length);
 /*
  * Global Function Prototypes in qla_dbg.c source file.
  */
