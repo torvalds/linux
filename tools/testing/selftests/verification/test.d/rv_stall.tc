@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-or-later
+# description: Test stall monitor
+# requires: available_reactors stall:monitor printk:reactor stress-ng:program
+
+THRESHOLD=/sys/module/stall/parameters/threshold_jiffies
+ORIG_THRESHOLD=$(cat $THRESHOLD)
+trap 'echo $ORIG_THRESHOLD > $THRESHOLD' EXIT
+
+load() { # returns true if there was a reaction
+	local lines_before cpu
+	cpu=$(($(nproc) - 1))
+	lines_before=$(dmesg | wc -l)
+	stress-ng --cpu 1 --taskset "$cpu" --sched rr --sched-prio 1 -t 3 &
+	stress-ng --cpu 5 --taskset "$cpu" -t 3 &
+	wait
+	dmesg | tail -n +$((lines_before + 1)) | grep -q "rv: monitor stall does not allow event"
+}
+
+echo 5000 > $THRESHOLD
+echo 1 > monitors/stall/enable
+echo printk > monitors/stall/reactors
+
+! load || false
+
+echo 0 > monitors/stall/enable
+echo 70 > $THRESHOLD
+echo 1 > monitors/stall/enable
+
+load
+
+echo nop > monitors/stall/reactors
+echo 0 > monitors/stall/enable
