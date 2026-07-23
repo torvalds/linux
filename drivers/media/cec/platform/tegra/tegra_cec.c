@@ -411,11 +411,8 @@ static int tegra_cec_probe(struct platform_device *pdev)
 		tegra_cec_irq_handler, tegra_cec_irq_thread_handler,
 		0, "cec_irq", &pdev->dev);
 
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Unable to request interrupt for device\n");
+	if (ret)
 		goto err_clk;
-	}
 
 	cec->adap = cec_allocate_adapter(&tegra_cec_ops, cec, TEGRA_CEC_NAME,
 			CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL |
