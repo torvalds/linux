@@ -145,14 +145,17 @@ int ibmvfc_nvme_register(struct ibmvfc_host *vhost)
 	pinfo.dev_loss_tmo = 0;
 
 	rc = nvme_fc_register_localport(&pinfo, &ibmvfc_nvme_fc_transport,
-					vhost->dev, &vhost->nvme_local_port);
+					get_device(vhost->dev),
+					&vhost->nvme_local_port);
 
 	if (!rc) {
 		ibmvfc_log(vhost, 2, "register_localport: host-traddr=nn-0x%llx:pn-0x%llx on portID:%x\n",
 			   pinfo.node_name, pinfo.port_name, pinfo.port_id);
 		vhost->nvme_local_port->private = vhost;
-	} else
+	} else {
 		dev_err(vhost->dev, "Failed to register NVMe fc localport (%d)\n", rc);
+		put_device(vhost->dev);
+	}
 
 	return rc;
 }
@@ -165,9 +168,17 @@ void ibmvfc_nvme_unregister(struct ibmvfc_host *vhost)
 		return;
 
 	if (vhost->nvme_local_port) {
+		ibmvfc_log(vhost, 2, "unregister_localport: host-traddr=nn-0x%llx:pn-0x%llx on portID:%x\n",
+			   vhost->nvme_local_port->node_name,
+			   vhost->nvme_local_port->port_name,
+			   vhost->nvme_local_port->port_id);
 		init_completion(&vhost->nvme_delete_done);
 		rc = nvme_fc_unregister_localport(vhost->nvme_local_port);
-		if (!rc)
+		if (!rc) {
 			wait_for_completion(&vhost->nvme_delete_done);
+		} else
+			dev_err(vhost->dev, "Failed to unregister NVMe fc localport (%d)\n", rc);
+
+		put_device(vhost->dev);
 	}
 }
