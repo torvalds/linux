@@ -373,22 +373,12 @@ static ssize_t set_param(struct file *filp, const char __user *buf,
 {
 	struct mlx5_ib_dbg_param *param = filp->private_data;
 	int offset = param->offset;
-	char lbuf[11] = { };
 	u32 var;
 	int ret;
 
-	if (count > sizeof(lbuf))
-		return -EINVAL;
-
-	if (copy_from_user(lbuf, buf, count))
-		return -EFAULT;
-
-	lbuf[sizeof(lbuf) - 1] = '\0';
-
-	if (kstrtou32(lbuf, 0, &var))
-		return -EINVAL;
-
-	ret = mlx5_ib_set_cc_params(param->dev, param->port_num, offset, var);
+	ret = kstrtou32_from_user(buf, count, 0, &var);
+	if (!ret)
+		ret = mlx5_ib_set_cc_params(param->dev, param->port_num, offset, var);
 	return ret ? ret : count;
 }
 
