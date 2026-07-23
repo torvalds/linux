@@ -26,6 +26,13 @@
 #define AMD_PMF_REGISTER_RESPONSE	0xA78
 #define AMD_PMF_REGISTER_ARGUMENT	0xA58
 
+/* PMF-SMU communication registers for 1AH_M80H */
+#define AMD_PMF_REGISTER_MESSAGE_V2	0xA04
+#define AMD_PMF_REGISTER_RESPONSE_V2	0xA08
+#define AMD_PMF_REGISTER_ARGUMENT0_V2	0xA0C
+#define AMD_PMF_REGISTER_ARGUMENT1_V2	0xAAC
+#define AMD_PMF_REGISTER_ARGUMENT2_V2	0xAB0
+
 /* Base address of SMU for mapping physical address to virtual address */
 #define AMD_PMF_MAPPING_SIZE		0x01000
 #define AMD_PMF_BASE_ADDR_OFFSET	0x10000
@@ -179,7 +186,7 @@ static void __maybe_unused amd_pmf_dump_registers(struct amd_pmf_dev *dev)
 	value = amd_pmf_reg_read(dev, dev->smu_regs->resp_reg);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_RESPONSE:%x\n", value);
 
-	value = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg);
+	value = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[0]);
 	dev_dbg(dev->dev, "AMD_PMF_REGISTER_ARGUMENT:%d\n", value);
 
 	value = amd_pmf_reg_read(dev, dev->smu_regs->msg_reg);
@@ -220,7 +227,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 	amd_pmf_reg_write(dev, dev->smu_regs->resp_reg, 0);
 
 	/* Write argument into argument register */
-	amd_pmf_reg_write(dev, dev->smu_regs->arg_reg, arg);
+	amd_pmf_reg_write(dev, dev->smu_regs->arg_reg[0], arg);
 
 	/* Write message ID to message ID register */
 	amd_pmf_reg_write(dev, dev->smu_regs->msg_reg, message);
@@ -239,7 +246,7 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 		if (get) {
 			/* PMFW may take longer time to return back the data */
 			usleep_range(DELAY_MIN_US, 10 * DELAY_MAX_US);
-			*data = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg);
+			*data = amd_pmf_reg_read(dev, dev->smu_regs->arg_reg[0]);
 		}
 		break;
 	case AMD_PMF_RESULT_CMD_REJECT_BUSY:
@@ -266,7 +273,18 @@ int amd_pmf_send_cmd(struct amd_pmf_dev *dev, u8 message, bool get, u32 arg, u32
 static const struct amd_pmf_smu_regs amd_pmf_smu_regs_v1 = {
 	.msg_reg	= AMD_PMF_REGISTER_MESSAGE,
 	.resp_reg	= AMD_PMF_REGISTER_RESPONSE,
-	.arg_reg	= AMD_PMF_REGISTER_ARGUMENT,
+	.arg_reg	= { AMD_PMF_REGISTER_ARGUMENT, 0, 0 },
+};
+
+/* 1AH_M80H uses an extended mailbox with three argument registers */
+static const struct amd_pmf_smu_regs amd_pmf_smu_regs_v2 = {
+	.msg_reg	= AMD_PMF_REGISTER_MESSAGE_V2,
+	.resp_reg	= AMD_PMF_REGISTER_RESPONSE_V2,
+	.arg_reg	= {
+		AMD_PMF_REGISTER_ARGUMENT0_V2,
+		AMD_PMF_REGISTER_ARGUMENT1_V2,
+		AMD_PMF_REGISTER_ARGUMENT2_V2,
+	},
 };
 
 static const struct pci_device_id pmf_pci_ids[] = {
@@ -274,6 +292,7 @@ static const struct pci_device_id pmf_pci_ids[] = {
 	{ PCI_DEVICE_DATA(AMD, CPU_ID_PS,     &amd_pmf_smu_regs_v1) },
 	{ PCI_DEVICE_DATA(AMD, 1AH_M20H_ROOT, &amd_pmf_smu_regs_v1) },
 	{ PCI_DEVICE_DATA(AMD, 1AH_M60H_ROOT, &amd_pmf_smu_regs_v1) },
+	{ PCI_DEVICE_DATA(AMD, 1AH_M80H_ROOT, &amd_pmf_smu_regs_v2) },
 	{ }
 };
 
@@ -563,6 +582,7 @@ static const struct acpi_device_id amd_pmf_acpi_ids[] = {
 	{"AMDI0105", 0},
 	{"AMDI0107", 0},
 	{"AMDI0108", 0},
+	{"AMDI0109", 0},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, amd_pmf_acpi_ids);

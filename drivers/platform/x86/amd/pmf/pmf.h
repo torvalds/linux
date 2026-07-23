@@ -28,6 +28,7 @@
 #define AMD_CPU_ID_PS                   0x14e8
 #define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT 0x1507
 #define PCI_DEVICE_ID_AMD_1AH_M60H_ROOT 0x1122
+#define PCI_DEVICE_ID_AMD_1AH_M80H_ROOT	0x115b
 
 /* Aliases required by PCI_DEVICE_DATA() macro naming convention */
 #define PCI_DEVICE_ID_AMD_CPU_ID_RMB	AMD_CPU_ID_RMB
@@ -400,7 +401,7 @@ struct pmf_cbi_ring_buffer {
 struct amd_pmf_smu_regs {
 	u32 msg_reg;
 	u32 resp_reg;
-	u32 arg_reg;
+	u32 arg_reg[3];
 };
 
 struct amd_pmf_dev {
