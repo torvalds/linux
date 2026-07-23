@@ -288,8 +288,8 @@ struct erofs_inode {
 			struct erofs_inode_fingerprint fingerprint;
 			spinlock_t ishare_lock;
 		};
-		/* for each real inode */
-		struct inode *sharedinode;
+		/* for each real filesystem inode */
+		struct dentry *sharedentry;
 	};
 #endif
 	/* the corresponding vfs inode */

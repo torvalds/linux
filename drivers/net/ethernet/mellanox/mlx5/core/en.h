@@ -984,7 +984,6 @@ struct mlx5e_priv {
 	struct mlx5e_mqprio_rl    *mqprio_rl;
 	struct dentry             *dfs_root;
 	struct mlx5_devcom_comp_dev *devcom;
-	struct ethtool_fec_hist_range *fec_ranges;
 };
 
 static inline u16 mlx5e_stats_nch_read(const struct mlx5e_priv *priv)

@@ -1717,11 +1717,6 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 		return -EPERM;
 	}
 
-	/* Check for previous session */
-	prev_id = le64_to_cpu(req->PreviousSessionId);
-	if (prev_id && prev_id != sess->id)
-		destroy_previous_session(conn, user, prev_id);
-
 	if (sess->state == SMB2_SESSION_VALID) {
 		/*
 		 * Reuse session if anonymous try to connect
@@ -1760,6 +1755,10 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 			goto out;
 		}
 	}
+
+	prev_id = le64_to_cpu(req->PreviousSessionId);
+	if (prev_id && prev_id != sess->id)
+		destroy_previous_session(conn, sess->user, prev_id);
 
 	/*
 	 * If session state is SMB2_SESSION_VALID, We can assume
@@ -9596,8 +9595,7 @@ bool smb2_is_sign_req(struct ksmbd_work *work, unsigned int command)
 	struct smb2_hdr *rcv_hdr2 = smb_get_msg(work->request_buf);
 
 	if ((rcv_hdr2->Flags & SMB2_FLAGS_SIGNED) &&
-	    command != SMB2_NEGOTIATE_HE &&
-	    command != SMB2_OPLOCK_BREAK_HE)
+	    command != SMB2_NEGOTIATE_HE)
 		return true;
 
 	return false;

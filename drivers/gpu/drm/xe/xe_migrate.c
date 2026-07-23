@@ -1313,6 +1313,7 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
  * content.
  * @src_bo: The buffer object @src is currently bound to.
  * @read_write : Creates BB commands for CCS read/write.
+ * @bound: Device is bound
  *
  * Directly clearing the BB lacks atomicity and can lead to undefined
  * behavior if the vCPU is halted mid-operation during the clearing
@@ -1325,7 +1326,8 @@ int xe_migrate_ccs_rw_copy(struct xe_tile *tile, struct xe_exec_queue *q,
  * Returns: None.
  */
 void xe_migrate_ccs_rw_copy_clear(struct xe_bo *src_bo,
-				  enum xe_sriov_vf_ccs_rw_ctxs read_write)
+				  enum xe_sriov_vf_ccs_rw_ctxs read_write,
+				  bool bound)
 {
 	struct xe_mem_pool_node *bb = src_bo->bb_ccs[read_write];
 	struct xe_device *xe = xe_bo_device(src_bo);
@@ -1339,13 +1341,15 @@ void xe_migrate_ccs_rw_copy_clear(struct xe_bo *src_bo,
 	bb_pool = ctx->mem.ccs_bb_pool;
 
 	scoped_guard(mutex, xe_mem_pool_bo_swap_guard(bb_pool)) {
-		xe_mem_pool_swap_shadow_locked(bb_pool);
+		if (bound) {
+			xe_mem_pool_swap_shadow_locked(bb_pool);
 
-		cs = xe_mem_pool_node_cpu_addr(bb);
-		memset(cs, MI_NOOP, bb->sa_node.size);
-		xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
+			cs = xe_mem_pool_node_cpu_addr(bb);
+			memset(cs, MI_NOOP, bb->sa_node.size);
+			xe_sriov_vf_ccs_rw_update_bb_addr(ctx);
 
-		xe_mem_pool_sync_shadow_locked(bb);
+			xe_mem_pool_sync_shadow_locked(bb);
+		}
 		xe_mem_pool_free_node(bb);
 		src_bo->bb_ccs[read_write] = NULL;
 	}

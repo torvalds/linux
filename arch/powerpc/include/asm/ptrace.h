@@ -53,9 +53,6 @@ struct pt_regs
 				unsigned long esr;
 			};
 			unsigned long result;
-			unsigned long exit_flags;
-			/* Maintain 16 byte interrupt stack alignment */
-			unsigned long __pt_regs_pad[3];
 		};
 	};
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_KUAP)
