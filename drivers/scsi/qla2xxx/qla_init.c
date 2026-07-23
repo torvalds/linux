@@ -3814,6 +3814,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
 	struct qla2xxx_fw_dump *fw_dump;
+	size_t req_entry_size = qla_req_entry_size(ha);
+	size_t rsp_entry_size = qla_rsp_entry_size(ha);
 
 	if (ha->fw_dump) {
 		ql_dbg(ql_dbg_init, vha, 0x00bd,
@@ -3852,9 +3854,9 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			 * Resizing must be done at end-of-dump processing.
 			 */
 			mq_size += (ha->max_req_queues - 1) *
-			    (req->length * sizeof(request_t));
+			    (req->length * req_entry_size);
 			mq_size += (ha->max_rsp_queues - 1) *
-			    (rsp->length * sizeof(response_t));
+			    (rsp->length * rsp_entry_size);
 		}
 		if (ha->tgt.atio_ring)
 			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
@@ -3890,8 +3892,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		/* Add space for spare MPI fw dump. */
 		dump_size += ha->fwdt[1].dump_size;
 	} else {
-		req_q_size = req->length * sizeof(request_t);
-		rsp_q_size = rsp->length * sizeof(response_t);
+		req_q_size = req->length * req_entry_size;
+		rsp_q_size = rsp->length * rsp_entry_size;
 		dump_size = offsetof(struct qla2xxx_fw_dump, isp);
 		dump_size += fixed_size + mem_size + req_q_size + rsp_q_size
 			+ eft_size;
@@ -4479,15 +4481,33 @@ void
 qla2x00_init_response_q_entries(struct rsp_que *rsp)
 {
 	uint16_t cnt;
-	response_t *pkt;
 
 	rsp->ring_ptr = rsp->ring;
 	rsp->ring_index    = 0;
 	rsp->status_srb = NULL;
-	pkt = rsp->ring_ptr;
-	for (cnt = 0; cnt < rsp->length; cnt++) {
-		pkt->signature = RESPONSE_PROCESSED;
-		pkt++;
+
+	if (rsp->hw && IS_QLA29XX(rsp->hw)) {
+		/*
+		 * 29xx uses a 128-byte response-ring stride.  The signature
+		 * field offset matches response_t, but the entry pitch is
+		 * sizeof(struct response_ext); walk via ring_ext_ptr / struct response_ext.
+		 */
+		struct response_ext *pkt;
+
+		rsp->ring_ext_ptr = rsp->ring_ext;
+		pkt = rsp->ring_ext_ptr;
+		for (cnt = 0; cnt < rsp->length; cnt++) {
+			pkt->signature = RESPONSE_PROCESSED;
+			pkt++;
+		}
+	} else {
+		response_t *pkt;
+
+		pkt = rsp->ring_ptr;
+		for (cnt = 0; cnt < rsp->length; cnt++) {
+			pkt->signature = RESPONSE_PROCESSED;
+			pkt++;
+		}
 	}
 }
 
@@ -4808,7 +4828,12 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
-		req->out_ptr = (uint16_t *)(req->ring + req->length);
+		if (IS_QLA29XX(ha))
+			req->out_ptr =
+			    (uint16_t *)(req->ring_ext + req->length);
+		else
+			req->out_ptr =
+			    (uint16_t *)(req->ring + req->length);
 		*req->out_ptr = 0;
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
@@ -4819,13 +4844,19 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req->ring_ptr  = req->ring;
 		req->ring_index    = 0;
 		req->cnt      = req->length;
+		if (IS_QLA29XX(ha))
+			req->ring_ext_ptr = req->ring_ext;
 	}
 
 	for (que = 0; que < ha->max_rsp_queues; que++) {
 		rsp = ha->rsp_q_map[que];
 		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
-		rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
+		if (IS_QLA29XX(ha))
+			rsp->in_ptr =
+			    (uint16_t *)(rsp->ring_ext + rsp->length);
+		else
+			rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
 		/* Initialize response queue entries */
 		if (IS_QLAFX00(ha))

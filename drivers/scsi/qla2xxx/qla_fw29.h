@@ -95,6 +95,17 @@ struct cmd_type_7_ext {
 	struct dsd64 dsd[NUM_CMD67_DSDS];	/* Data Segment Descriptors */
 };
 
+/*
+ * Inline data-DSD capacity of the 29xx cmd_type_crc_2_ext IOCB.  Unlike
+ * cmd_type_6_ext / cmd_type_7_ext (which carry NUM_CMD67_DSDS inline DSDs),
+ * CRC_2 places the bulk of its DSDs in the separate CRC-context DMA; only
+ * a single data_dsd is carried inline in both the u.nobundling and
+ * u.bundling variants.  Use this constant wherever the IOCB-reservation
+ * calculator needs the CRC_2 ext inline capacity so it stays in sync with
+ * the firmware-facing layout below.
+ */
+#define NUM_CRC2_EXT_INLINE_DSDS	1
+
 struct cmd_type_crc_2_ext {
 	uint8_t entry_type;		/* Entry type. */
 	uint8_t entry_count;		/* Entry count. */
@@ -683,4 +694,70 @@ struct vp_rpt_id_entry_24xx_ext {
 		} f2;
 	} u;
 };
+
+/*
+ * ISP queue - 64-Bit addressing, continuation entry structure definition
+ * for the 29xx extended (128-byte) IOCB ring.  Mirrors cont_a64_entry_t
+ * but carries 10 DSDs per entry instead of 5.
+ */
+#define NUM_CONT1_DSDS	10
+struct cont_a64_entry_ext {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+	uint32_t reserved;
+	struct dsd64 dsd[NUM_CONT1_DSDS];
+};
+
+/*
+ * 29xx extended Command Type FC-NVMe IOCB (128 bytes).
+ *
+ * The header layout up through 'byte_count' (offset 48) is identical to the
+ * 64-byte struct cmd_nvme used by 24xx-class adapters, so common code can
+ * populate those fields via either type.  Fields beyond 'byte_count' diverge:
+ * 29xx adds control_flags_2/vp_index/first_burst_rx_id/io_tag/..., drops
+ * port_id[3]+vp_index(byte), and carries NUM_NVME_DSDS inline DSDs.
+ */
+#define NUM_NVME_DSDS	4
+struct cmd_nvme_ext {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+	__le16	nport_handle;		/* N_PORT handle. */
+	__le16	timeout;		/* Command timeout. */
+
+	__le16	dseg_count;		/* Data segment count. */
+	__le16	nvme_rsp_dsd_len;	/* NVMe RSP DSD length */
+
+	uint64_t rsvd;
+
+	__le16	control_flags;		/* Control Flags (see struct cmd_nvme) */
+	__le16	nvme_cmnd_dseg_len;			/* Data segment length. */
+
+	__le64	 nvme_cmnd_dseg_address __packed;	/* Data segment address. */
+
+	__le64	 nvme_rsp_dseg_address __packed;	/* Data segment address. */
+
+	__le32	byte_count;		/* Total byte count. */
+
+	__le16	control_flags_2;
+	/*
+	 * vp_index layout matches the other 29xx extended IOCBs: only bits
+	 * [8:0] are meaningful (see CMD_EXT_VP_INDEX_MASK).
+	 */
+	__le16	vp_index;
+	__le32	first_burst_rx_id;
+	__le16	io_tag;
+	uint8_t vl_n_fctl;	/* VL(7:4) | RSVD(3:2) | F_CTL[17](1) | RSVD(0) */
+	uint8_t prtag_csctl;	/* Priority Tag or CS_CTL */
+	__le32	src_vm_id;	/* Source VM ID */
+	uint8_t reserved_2[16];
+
+	struct dsd64 nvme_dsd[NUM_NVME_DSDS];
+};
+
 #endif

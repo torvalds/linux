@@ -54,6 +54,55 @@ qla2x00_debounce_register(volatile __le16 __iomem *addr)
 	return (first);
 }
 
+/**
+ * qla29xx_calc_iocbs() - Determine number of Command-Type and Continuation
+ * IOCBs to allocate for the 29xx extended (128-byte) IOCB ring.
+ * @vha: HA context
+ * @dsds: number of data segment descriptors needed
+ * @iocb_dsds: number of DSDs embedded in the first (command) IOCB.  The
+ *	remaining DSDs ride on Continuation Type 1 Ext IOCBs which hold
+ *	NUM_CONT1_DSDS (10) each.
+ *
+ * Returns the total number of IOCB entries needed to carry @dsds.
+ */
+static inline uint16_t
+qla29xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds, uint8_t iocb_dsds)
+{
+	uint16_t iocbs = 1;
+
+	if (dsds > iocb_dsds) {
+		iocbs += (dsds - iocb_dsds) / NUM_CONT1_DSDS;
+		if ((dsds - iocb_dsds) % NUM_CONT1_DSDS)
+			iocbs++;
+	}
+	return iocbs;
+}
+
+/**
+ * qla_req_entry_size() - request-ring entry stride.
+ * @ha: HBA pointer
+ *
+ * Returns sizeof(struct request_ext) (128) on 29xx, sizeof(request_t) (64)
+ * everywhere else.
+ */
+static inline size_t
+qla_req_entry_size(struct qla_hw_data *ha)
+{
+	return IS_QLA29XX(ha) ? sizeof(struct request_ext) : sizeof(request_t);
+}
+
+/**
+ * qla_rsp_entry_size() - response-ring entry stride.
+ * @ha: HBA pointer
+ *
+ * Counterpart of qla_req_entry_size() for the response ring.
+ */
+static inline size_t
+qla_rsp_entry_size(struct qla_hw_data *ha)
+{
+	return IS_QLA29XX(ha) ? sizeof(struct response_ext) : sizeof(response_t);
+}
+
 static inline void
 qla2x00_poll(struct rsp_que *rsp)
 {
@@ -358,15 +407,130 @@ static inline void
 qla_83xx_start_iocbs(struct qla_qpair *qpair)
 {
 	struct req_que *req = qpair->req;
+	struct qla_hw_data *ha = qpair->vha->hw;
 
+	/*
+	 * 29xx uses the 128-byte-strided extended request ring; advance the
+	 * matching ring_ext_ptr so the next IOCB allocator sees the correct
+	 * slot.  All other 83xx-family generations (83xx/27xx/28xx) keep the
+	 * 64-byte ring_ptr.
+	 */
 	req->ring_index++;
-	if (req->ring_index == req->length) {
-		req->ring_index = 0;
-		req->ring_ptr = req->ring;
-	} else
-		req->ring_ptr++;
+	if (IS_QLA29XX(ha)) {
+		if (req->ring_index == req->length) {
+			req->ring_index = 0;
+			req->ring_ext_ptr = req->ring_ext;
+		} else {
+			req->ring_ext_ptr++;
+		}
+	} else {
+		if (req->ring_index == req->length) {
+			req->ring_index = 0;
+			req->ring_ptr = req->ring;
+		} else {
+			req->ring_ptr++;
+		}
+	}
 
 	wrt_reg_dword(req->req_q_in, req->ring_index);
+}
+
+/**
+ * qla_rsp_ring_advance() - Advance the response queue consumer pointer
+ * to the next IOCB slot, handling both 24xx (64-byte) and 29xx (128-byte)
+ * ring strides.
+ *
+ * On 29xx, ring_ext_ptr is the authoritative slot pointer (correct 128-byte
+ * pitch) and ring_ptr is kept in sync as a response_t view of the same slot
+ * so existing 24xx-shaped reads (rsp->ring_ptr->signature,
+ * (struct sts_entry_24xx *)rsp->ring_ptr, etc.) keep working unchanged; the
+ * first 64 bytes of struct response_ext are layout-compatible with response_t.
+ */
+static inline void
+qla_rsp_ring_advance(struct rsp_que *rsp)
+{
+	rsp->ring_index++;
+	if (rsp->ring_index == rsp->length) {
+		rsp->ring_index = 0;
+		rsp->ring_ptr = rsp->ring;
+		if (rsp->hw && IS_QLA29XX(rsp->hw))
+			rsp->ring_ext_ptr = rsp->ring_ext;
+	} else if (rsp->hw && IS_QLA29XX(rsp->hw)) {
+		rsp->ring_ext_ptr++;
+		rsp->ring_ptr = (response_t *)rsp->ring_ext_ptr;
+	} else {
+		rsp->ring_ptr++;
+	}
+}
+
+/**
+ * qla_req_ring_slot() - return the current request-ring producer slot.
+ * @ha: HBA pointer
+ * @req: request queue
+ *
+ * On 29xx the firmware-visible ring uses 128-byte-strided entries
+ * referenced by ring_ext_ptr; on earlier adapters the 64-byte ring
+ * referenced by ring_ptr is used.  The returned pointer is
+ * layout-compatible with request_t for common header writes; callers
+ * needing 29xx-specific fields should cast to struct request_ext.
+ */
+static inline void *
+qla_req_ring_slot(struct qla_hw_data *ha, struct req_que *req)
+{
+	return IS_QLA29XX(ha) ? (void *)req->ring_ext_ptr
+			      : (void *)req->ring_ptr;
+}
+
+/**
+ * qla_req_ring_advance() - advance request-ring producer pointer.
+ * @ha: HBA pointer
+ * @req: request queue
+ *
+ * Mirrors qla_rsp_ring_advance().  Does NOT publish the new producer
+ * index to firmware; callers that need to do so should follow with a
+ * wrt_reg_dword or qla_83xx_start_iocbs().
+ */
+static inline void
+qla_req_ring_advance(struct qla_hw_data *ha, struct req_que *req)
+{
+	req->ring_index++;
+	if (IS_QLA29XX(ha)) {
+		if (req->ring_index == req->length) {
+			req->ring_index = 0;
+			req->ring_ext_ptr = req->ring_ext;
+		} else {
+			req->ring_ext_ptr++;
+		}
+	} else {
+		if (req->ring_index == req->length) {
+			req->ring_index = 0;
+			req->ring_ptr = req->ring;
+		} else {
+			req->ring_ptr++;
+		}
+	}
+}
+
+/**
+ * qla_rsp_ring_rewind_to() - Restore the response queue consumer pointer
+ * to a previously-observed slot (used when we need to defer processing an
+ * IOCB whose continuation entries have not yet arrived).
+ * @rsp: response queue
+ * @pkt: 64-byte view of the slot to rewind to (captured from a prior read
+ *       of rsp->ring_ptr)
+ * @idx: matching ring_index value (also captured before the advance)
+ *
+ * On 29xx, pkt was originally obtained as (response_t *)rsp->ring_ext_ptr,
+ * so casting back to struct response_ext * recovers the 128-byte-stride slot
+ * pointer.
+ */
+static inline void
+qla_rsp_ring_rewind_to(struct rsp_que *rsp, response_t *pkt, uint16_t idx)
+{
+	rsp->ring_ptr = pkt;
+	rsp->ring_index = idx;
+	if (rsp->hw && IS_QLA29XX(rsp->hw))
+		rsp->ring_ext_ptr = (struct response_ext *)pkt;
 }
 
 static inline int

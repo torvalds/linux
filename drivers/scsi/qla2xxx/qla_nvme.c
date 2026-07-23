@@ -554,7 +554,8 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	unsigned long   flags;
 	uint32_t        *clr_ptr;
 	uint32_t        handle;
-	struct cmd_nvme *cmd_pkt;
+	struct cmd_nvme *cmd_pkt = NULL;
+	struct cmd_nvme_ext *cmd_pkt_ext = NULL;
 	uint16_t        cnt, i;
 	uint16_t        req_cnt;
 	uint16_t        tot_dsds;
@@ -584,7 +585,10 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 		rval = -EBUSY;
 		goto queuing_error;
 	}
-	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
+	if (IS_QLA29XX(ha))
+		req_cnt = qla29xx_calc_iocbs(vha, tot_dsds, NUM_NVME_DSDS);
+	else
+		req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 
 	sp->iores.res_type = RESOURCE_IOCB | RESOURCE_EXCH;
 	sp->iores.exch_cnt = 1;
@@ -629,19 +633,62 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	sp->handle = handle;
 	req->cnt -= req_cnt;
 
-	cmd_pkt = (struct cmd_nvme *)req->ring_ptr;
+	/*
+	 * 29xx operates on the 128-byte extended IOCB ring; the header
+	 * layout of struct cmd_nvme is identical to the head of struct
+	 * cmd_nvme_ext through 'byte_count', so the common-field writes
+	 * below go through cmd_pkt regardless of stride.  Divergent tail
+	 * fields (port_id/vp_index, DSD array) are handled via
+	 * IS_QLA29XX(ha) branches.
+	 *
+	 * Enforce the layout contract at compile time so any future
+	 * change to either struct that breaks the common-header overlap
+	 * fails the build rather than silently corrupting IOCBs.
+	 */
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, entry_type) !=
+		     offsetof(struct cmd_nvme_ext, entry_type));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, handle) !=
+		     offsetof(struct cmd_nvme_ext, handle));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, nport_handle) !=
+		     offsetof(struct cmd_nvme_ext, nport_handle));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, timeout) !=
+		     offsetof(struct cmd_nvme_ext, timeout));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, dseg_count) !=
+		     offsetof(struct cmd_nvme_ext, dseg_count));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, nvme_rsp_dsd_len) !=
+		     offsetof(struct cmd_nvme_ext, nvme_rsp_dsd_len));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, rsvd) !=
+		     offsetof(struct cmd_nvme_ext, rsvd));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, control_flags) !=
+		     offsetof(struct cmd_nvme_ext, control_flags));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, nvme_cmnd_dseg_len) !=
+		     offsetof(struct cmd_nvme_ext, nvme_cmnd_dseg_len));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, nvme_cmnd_dseg_address) !=
+		     offsetof(struct cmd_nvme_ext, nvme_cmnd_dseg_address));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, nvme_rsp_dseg_address) !=
+		     offsetof(struct cmd_nvme_ext, nvme_rsp_dseg_address));
+	BUILD_BUG_ON(offsetof(struct cmd_nvme, byte_count) !=
+		     offsetof(struct cmd_nvme_ext, byte_count));
+	BUILD_BUG_ON(sizeof_field(struct cmd_nvme, byte_count) !=
+		     sizeof_field(struct cmd_nvme_ext, byte_count));
+
+	if (IS_QLA29XX(ha))
+		cmd_pkt = (struct cmd_nvme *)req->ring_ext_ptr;
+	else
+		cmd_pkt = (struct cmd_nvme *)req->ring_ptr;
+	cmd_pkt_ext = (struct cmd_nvme_ext *)cmd_pkt;
 	cmd_pkt->handle = make_handle(req->id, handle);
 
 	/* Zero out remaining portion of packet. */
 	clr_ptr = (uint32_t *)cmd_pkt + 2;
-	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
+	if (IS_QLA29XX(ha))
+		memset(clr_ptr, 0, REQUEST_ENTRY_SIZE_EXT - 8);
+	else
+		memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
 
 	cmd_pkt->entry_status = 0;
-
-	/* Update entry type to indicate Command NVME IOCB */
 	cmd_pkt->entry_type = COMMAND_NVME;
 
-	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
 		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
 		qpair->counters.input_bytes += fd->payload_length;
@@ -666,18 +713,23 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	if (sp->fcport->edif.enable && fd->io_dir != 0)
 		cmd_pkt->control_flags |= cpu_to_le16(CF_EN_EDIF);
 
-	/* Set BIT_13 of control flags for Async event */
 	if (vha->flags.nvme2_enabled &&
-	    cmd->sqe.common.opcode == nvme_admin_async_event) {
+	    cmd->sqe.common.opcode == nvme_admin_async_event)
 		cmd_pkt->control_flags |= cpu_to_le16(CF_ADMIN_ASYNC_EVENT);
-	}
 
-	/* Set NPORT-ID */
 	cmd_pkt->nport_handle = cpu_to_le16(sp->fcport->loop_id);
-	cmd_pkt->port_id[0] = sp->fcport->d_id.b.al_pa;
-	cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
-	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
-	cmd_pkt->vp_index = sp->fcport->vha->vp_idx;
+	if (IS_QLA29XX(ha)) {
+		/*
+		 * 29xx extended NVMe IOCB has no port_id[] field; vp_index is
+		 * a 9-bit __le16 (see CMD_EXT_VP_INDEX_MASK).
+		 */
+		cmd_pkt_ext->vp_index = cpu_to_le16(sp->fcport->vha->vp_idx);
+	} else {
+		cmd_pkt->port_id[0] = sp->fcport->d_id.b.al_pa;
+		cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
+		cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
+		cmd_pkt->vp_index = sp->fcport->vha->vp_idx;
+	}
 
 	/* NVME RSP IU */
 	cmd_pkt->nvme_rsp_dsd_len = cpu_to_le16(fd->rsplen);
@@ -690,36 +742,51 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
 	cmd_pkt->byte_count = cpu_to_le32(fd->payload_length);
 
-	/* One DSD is available in the Command Type NVME IOCB */
-	avail_dsds = 1;
-	cur_dsd = &cmd_pkt->nvme_dsd;
+	/*
+	 * 24xx carries a single inline DSD in the NVMe command IOCB; 29xx
+	 * carries NUM_NVME_DSDS inline DSDs in the extended IOCB.
+	 */
+	if (IS_QLA29XX(ha)) {
+		avail_dsds = NUM_NVME_DSDS;
+		cur_dsd = &cmd_pkt_ext->nvme_dsd[0];
+	} else {
+		avail_dsds = 1;
+		cur_dsd = &cmd_pkt->nvme_dsd;
+	}
 	sgl = fd->first_sgl;
 
 	/* Load data segments */
 	for_each_sg(sgl, sg, tot_dsds, i) {
-		cont_a64_entry_t *cont_pkt;
-
 		/* Allocate additional continuation packets? */
 		if (avail_dsds == 0) {
-			/*
-			 * Five DSDs are available in the Continuation
-			 * Type 1 IOCB.
-			 */
+			if (IS_QLA29XX(ha)) {
+				struct cont_a64_entry_ext *cont_pkt;
 
-			/* Adjust ring index */
-			req->ring_index++;
-			if (req->ring_index == req->length) {
-				req->ring_index = 0;
-				req->ring_ptr = req->ring;
+				cont_pkt = qla2900_prep_cont_type1_iocb(vha,
+									req);
+				cur_dsd = cont_pkt->dsd;
+				avail_dsds = ARRAY_SIZE(cont_pkt->dsd);
 			} else {
-				req->ring_ptr++;
-			}
-			cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
-			put_unaligned_le32(CONTINUE_A64_TYPE,
-					   &cont_pkt->entry_type);
+				cont_a64_entry_t *cont_pkt;
 
-			cur_dsd = cont_pkt->dsd;
-			avail_dsds = ARRAY_SIZE(cont_pkt->dsd);
+				/*
+				 * Five DSDs are available in the 24xx
+				 * Continuation Type 1 IOCB.
+				 */
+				req->ring_index++;
+				if (req->ring_index == req->length) {
+					req->ring_index = 0;
+					req->ring_ptr = req->ring;
+				} else {
+					req->ring_ptr++;
+				}
+				cont_pkt = (cont_a64_entry_t *)req->ring_ptr;
+				put_unaligned_le32(CONTINUE_A64_TYPE,
+						   &cont_pkt->entry_type);
+
+				cur_dsd = cont_pkt->dsd;
+				avail_dsds = ARRAY_SIZE(cont_pkt->dsd);
+			}
 		}
 
 		append_dsd64(&cur_dsd, sg);
@@ -731,13 +798,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	wmb();
 
 	/* Adjust ring index. */
-	req->ring_index++;
-	if (req->ring_index == req->length) {
-		req->ring_index = 0;
-		req->ring_ptr = req->ring;
-	} else {
-		req->ring_ptr++;
-	}
+	qla_req_ring_advance(ha, req);
 
 	/* ignore nvme async cmd due to long timeout */
 	if (!nvme->u.nvme.aen_op)
@@ -746,7 +807,12 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	/* Set chip new ring index. */
 	wrt_reg_dword(req->req_q_in, req->ring_index);
 
-	if (vha->flags.process_response_queue &&
+	/*
+	 * 29xx inline response drain would require the 128-byte response ring
+	 * view, which the 24xx qla24xx_process_response_queue() does not walk;
+	 * skip here and rely on the normal ISR path.
+	 */
+	if (!IS_QLA29XX(ha) && vha->flags.process_response_queue &&
 	    rsp->ring_ptr->signature != RESPONSE_PROCESSED)
 		qla24xx_process_response_queue(vha, rsp);
 

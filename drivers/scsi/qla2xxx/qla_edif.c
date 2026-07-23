@@ -2989,6 +2989,21 @@ qla28xx_start_scsi_edif(srb_t *sp)
 	struct req_que *req = sp->qpair->req;
 	spinlock_t *lock = sp->qpair->qp_lock_ptr;
 
+	/*
+	 * EDIF on 29xx is not supported by this driver yet.  The EDIF fast
+	 * path builds 64-byte cmd_type_6 IOCBs and advances req->ring_ptr
+	 * with a 64-byte stride, which would corrupt the 128-byte extended
+	 * request ring that 29xx hardware uses.  A proper 29xx EDIF port
+	 * requires a cmd_type_6_ext-shaped submission path; until that is
+	 * implemented, refuse the command rather than risk ring corruption.
+	 */
+	if (IS_QLA29XX(ha)) {
+		ql_log(ql_log_warn, vha, 0x13ae,
+		    "EDIF is not supported on 29xx hardware; failing cmd sp=%p.\n",
+		    sp);
+		return QLA_FUNCTION_FAILED;
+	}
+
 	/* Setup device pointers. */
 	cmd = GET_CMD_SP(sp);
 
@@ -3129,7 +3144,8 @@ qla28xx_start_scsi_edif(srb_t *sp)
 			 * Five DSDs are available in the Continuation
 			 * Type 1 IOCB.
 			 */
-			cont_pkt = qla2x00_prep_cont_type1_iocb(vha, req);
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha,
+			    ha, req);
 			cur_dsd = cont_pkt->dsd;
 			avail_dsds = 5;
 		}

@@ -297,7 +297,9 @@ void qla_adjust_buf(struct scsi_qla_host *);
 void qla_els_pt_iocb(struct scsi_qla_host *vha,
 	struct els_entry_24xx *pkt, struct qla_els_pt_arg *a);
 cont_a64_entry_t *qla2x00_prep_cont_type1_iocb(scsi_qla_host_t *vha,
-		struct req_que *que);
+		struct qla_hw_data *ha, struct req_que *que);
+struct cont_a64_entry_ext *qla2900_prep_cont_type1_iocb(scsi_qla_host_t *vha,
+		struct req_que *req);
 extern uint16_t qla2x00_calc_iocbs_32(uint16_t);
 extern uint16_t qla2x00_calc_iocbs_64(uint16_t);
 extern void qla2x00_build_scsi_iocbs_32(srb_t *, cmd_entry_t *, uint16_t);

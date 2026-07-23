@@ -209,13 +209,7 @@ void __qla_consume_iocb(struct scsi_qla_host *vha,
 		new_pkt = rsp_q->ring_ptr;
 		*pkt = new_pkt;
 
-		rsp_q->ring_index++;
-		if (rsp_q->ring_index == rsp_q->length) {
-			rsp_q->ring_index = 0;
-			rsp_q->ring_ptr = rsp_q->ring;
-		} else {
-			rsp_q->ring_ptr++;
-		}
+		qla_rsp_ring_advance(rsp_q);
 
 		new_pkt->signature = RESPONSE_PROCESSED;
 		/* flush signature */
@@ -287,13 +281,7 @@ int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
 				break;
 			}
 
-			rsp_q->ring_index++;
-			if (rsp_q->ring_index == rsp_q->length) {
-				rsp_q->ring_index = 0;
-				rsp_q->ring_ptr = rsp_q->ring;
-			} else {
-				rsp_q->ring_ptr++;
-			}
+			qla_rsp_ring_advance(rsp_q);
 			no_bytes = (pending_bytes > sizeof(new_pkt->data)) ?
 			    sizeof(new_pkt->data) : pending_bytes;
 			if ((buffer_copy_offset + no_bytes) <= total_bytes) {
@@ -1212,13 +1200,7 @@ qla27xx_copy_fpin_pkt(struct scsi_qla_host *vha, void **pkt,
 				break;
 			}
 
-			rsp_q->ring_index++;
-			if (rsp_q->ring_index == rsp_q->length) {
-				rsp_q->ring_index = 0;
-				rsp_q->ring_ptr = rsp_q->ring;
-			} else {
-				rsp_q->ring_ptr++;
-			}
+			qla_rsp_ring_advance(rsp_q);
 			no_bytes = (pending_bytes > sizeof(new_pkt->data)) ?
 			    sizeof(new_pkt->data) : pending_bytes;
 			if ((buffer_copy_offset + no_bytes) <= total_bytes) {
@@ -2973,13 +2955,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 	while (rsp->ring_ptr->signature != RESPONSE_PROCESSED) {
 		pkt = (sts_entry_t *)rsp->ring_ptr;
 
-		rsp->ring_index++;
-		if (rsp->ring_index == rsp->length) {
-			rsp->ring_index = 0;
-			rsp->ring_ptr = rsp->ring;
-		} else {
-			rsp->ring_ptr++;
-		}
+		qla_rsp_ring_advance(rsp);
 
 		if (pkt->entry_status != 0) {
 			qla2x00_error_entry(vha, rsp, pkt);
@@ -3941,9 +3917,10 @@ static int qla_chk_cont_iocb_avail(struct scsi_qla_host *vha,
 }
 
 static void qla_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
-	struct mrk_entry_24xx *pkt)
+	void *pkt)
 {
 	const char func[] = "MRK-IOCB";
+	struct mrk_entry_24xx *mrk = pkt;
 	srb_t *sp;
 	int res = QLA_SUCCESS;
 
@@ -3954,7 +3931,7 @@ static void qla_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	if (!sp)
 		return;
 
-	if (pkt->entry_status) {
+	if (mrk->entry_status) {
 		ql_dbg(ql_dbg_taskm, vha, 0x8025, "marker failure.\n");
 		res = QLA_COMMAND_ERROR;
 	}
@@ -4003,13 +3980,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		pkt = (struct sts_entry_24xx *)rsp->ring_ptr;
 		cur_ring_index = rsp->ring_index;
 
-		rsp->ring_index++;
-		if (rsp->ring_index == rsp->length) {
-			rsp->ring_index = 0;
-			rsp->ring_ptr = rsp->ring;
-		} else {
-			rsp->ring_ptr++;
-		}
+		qla_rsp_ring_advance(rsp);
 
 		if (pkt->entry_status != 0) {
 			if (qla2x00_error_entry(vha, rsp, (sts_entry_t *) pkt))
@@ -4079,7 +4050,7 @@ process_err:
 					(struct nack_to_isp *)pkt);
 			break;
 		case MARKER_TYPE:
-			qla_marker_iocb_entry(vha, rsp->req, (struct mrk_entry_24xx *)pkt);
+			qla_marker_iocb_entry(vha, rsp->req, pkt);
 			break;
 		case ABORT_IOCB_TYPE:
 			qla24xx_abort_iocb_entry(vha, rsp->req,
@@ -4127,8 +4098,8 @@ process_err:
 					 * interrupt with all IOCBs to arrive
 					 * and re-process.
 					 */
-					rsp->ring_ptr = (response_t *)pkt;
-					rsp->ring_index = cur_ring_index;
+					qla_rsp_ring_rewind_to(rsp,
+					    (response_t *)pkt, cur_ring_index);
 
 					ql_dbg(ql_dbg_init, vha, 0x5091,
 					    "Defer processing ELS opcode %#x...\n",
@@ -4150,8 +4121,8 @@ process_err:
 		case PT_LS4_UNSOL:
 			p = (void *)pkt;
 			if (qla_chk_cont_iocb_avail(vha, rsp, (response_t *)pkt, rsp_in)) {
-				rsp->ring_ptr = (response_t *)pkt;
-				rsp->ring_index = cur_ring_index;
+				qla_rsp_ring_rewind_to(rsp, (response_t *)pkt,
+						       cur_ring_index);
 
 				ql_dbg(ql_dbg_init, vha, 0x2124,
 				       "Defer processing UNSOL LS req opcode %#x...\n",

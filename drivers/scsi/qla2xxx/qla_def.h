@@ -577,7 +577,7 @@ struct srb_iocb {
 			__le16 comp_status;
 
 			uint8_t modifier;
-			uint8_t vp_index;
+			uint16_t vp_index;
 			uint16_t loop_id;
 		} tmf;
 		struct {
@@ -2528,6 +2528,14 @@ struct imm_ntfy_from_isp {
 #define REQUEST_ENTRY_SIZE	(sizeof(request_t))
 
 
+/*
+ * 29xx (qla29xx) uses 128-byte ring entries for both request and response
+ * queues.  These macros give the size of an extended IOCB slot and are
+ * used when allocating from / zeroing the 29xx request ring via ring_ext_ptr.
+ */
+#define RESPONSE_ENTRY_SIZE_EXT (sizeof(struct response_ext))
+#define REQUEST_ENTRY_SIZE_EXT  (sizeof(struct request_ext))
+
 
 /*
  * Switch info gathering structure.
@@ -3789,6 +3797,14 @@ struct rsp_que {
 	dma_addr_t  dma;
 	response_t *ring;
 	response_t *ring_ptr;
+	/*
+	 * 29xx extended IOCB ring (128-byte entries) aliases of ring/ring_ptr.
+	 * Allocated when IS_QLA29XX(ha); set up at queue-init time to point at
+	 * the same DMA memory as 'ring' but typed for the 29xx stride.  24xx
+	 * code paths walk via ring_ptr; 29xx paths walk via ring_ext_ptr.
+	 */
+	struct response_ext *ring_ext;
+	struct response_ext *ring_ext_ptr;
 	__le32	__iomem *rsp_q_in;	/* FWI2-capable only. */
 	__le32	__iomem *rsp_q_out;
 	uint16_t  ring_index;
@@ -3816,6 +3832,14 @@ struct req_que {
 	dma_addr_t  dma;
 	request_t *ring;
 	request_t *ring_ptr;
+	/*
+	 * 29xx extended IOCB ring (128-byte entries) aliases of ring/ring_ptr.
+	 * Allocated when IS_QLA29XX(ha); set up at queue-init time to point at
+	 * the same DMA memory as 'ring' but typed for the 29xx stride.  24xx
+	 * code paths must not run on 29xx HW, and vice-versa.
+	 */
+	struct request_ext *ring_ext;
+	struct request_ext *ring_ext_ptr;
 	__le32	__iomem *req_q_in;	/* FWI2-capable only. */
 	__le32	__iomem *req_q_out;
 	uint16_t  ring_index;
@@ -4488,7 +4512,8 @@ struct qla_hw_data {
 #define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
 				IS_QLA28XX(ha))
 #define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
-#define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha) || IS_QLA28XX(ha))
+#define IS_SHADOW_REG_CAPABLE(ha)  (IS_QLA27XX(ha) || IS_QLA28XX(ha) || \
+				IS_QLA29XX(ha))
 #define IS_DPORT_CAPABLE(ha)  (IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
 				IS_QLA28XX(ha))
 #define IS_FAWWN_CAPABLE(ha)	(IS_QLA83XX(ha) || IS_QLA27XX(ha) || \
