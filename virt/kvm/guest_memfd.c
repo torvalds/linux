@@ -73,11 +73,11 @@ static bool kvm_gmem_is_shared_mem(struct inode *inode, pgoff_t index)
 static int __kvm_gmem_prepare_folio(struct kvm *kvm, struct kvm_memory_slot *slot,
 				    pgoff_t index, struct folio *folio)
 {
-#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_PREPARE
+#ifdef CONFIG_HAVE_KVM_ARCH_GMEM_CONVERT
 	kvm_pfn_t pfn = folio_file_pfn(folio, index);
 	gfn_t gfn = slot->base_gfn + index - slot->gmem.pgoff;
 
-	return kvm_arch_gmem_prepare(kvm, gfn, pfn, folio_order(folio));
+	return kvm_arch_gmem_make_private(kvm, gfn, pfn, folio_order(folio));
 #else
 	return 0;
 #endif

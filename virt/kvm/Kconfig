@@ -107,7 +107,7 @@ config KVM_GUEST_MEMFD
        select XARRAY_MULTI
        bool
 
-config HAVE_KVM_ARCH_GMEM_PREPARE
+config HAVE_KVM_ARCH_GMEM_CONVERT
        bool
        depends on KVM_GUEST_MEMFD
 
