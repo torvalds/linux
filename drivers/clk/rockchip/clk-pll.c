@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/iopoll.h>
+#include <linux/math64.h>
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include "clk.h"
@@ -906,6 +907,7 @@ static void rockchip_rk3588_pll_get_params(struct rockchip_clk_pll *pll,
  * For Fvco < 3 GHz: period jitter +-2% frac PLL, +-1.50% int PLL
  * Fvco = ((m + k / 65536) * Fin) / p
  * Fout = ((m + k / 65536) * Fin) / (p * 2^s)
+ * -32768 <= k <= 32767 (only available in frac PLLs, not int PLLs)
  */
 static unsigned long rockchip_rk3588_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 {
@@ -920,11 +922,10 @@ static unsigned long rockchip_rk3588_pll_recalc_rate(struct clk_hw *hw, unsigned
 
 	if (cur.k) {
 		/* fractional mode */
-		u64 frac_rate64 = prate * cur.k;
+		s64 frac_rate64 = (s64)prate * cur.k;
 
 		postdiv = cur.p * 65536;
-		do_div(frac_rate64, postdiv);
-		rate64 += frac_rate64;
+		rate64 += div_s64(frac_rate64, postdiv);
 	}
 	rate64 = rate64 >> cur.s;
 
