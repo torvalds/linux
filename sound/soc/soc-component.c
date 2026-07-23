@@ -42,6 +42,18 @@ struct snd_soc_component *snd_soc_component_alloc(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_alloc);
 
+void snd_soc_component_set_name(struct snd_soc_component *component, const char *name)
+{
+	component->name = name;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_name);
+
+const char *snd_soc_component_name(struct snd_soc_component *component)
+{
+	return component->name;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_name);
+
 /*
  * We might want to check substream by using list.
  * In such case, we can update these macros.
