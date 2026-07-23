@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_LTL_PERTASK
+	depends on RV
+	# XXX: add dependencies if there
+	select LTL_MON_EVENTS_ID
+	bool "ltl_pertask monitor"
+	help
+	  auto-generated

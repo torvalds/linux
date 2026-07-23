@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_TEST_HA
+	depends on RV
+	# XXX: add dependencies if there
+	select HA_MON_EVENTS_ID
+	bool "test_ha monitor"
+	help
+	  auto-generated

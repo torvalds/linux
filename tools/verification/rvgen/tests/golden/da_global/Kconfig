@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+config RV_MON_DA_GLOBAL
+	depends on RV
+	# XXX: add dependencies if there
+	select DA_MON_EVENTS_IMPLICIT
+	bool "da_global monitor"
+	help
+	  auto-generated
