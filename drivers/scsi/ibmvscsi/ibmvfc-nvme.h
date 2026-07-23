@@ -22,6 +22,8 @@
 #define IBMVFC_MAX_NVME_QUEUES	16
 #define IBMVFC_NVME_CHANNELS	8
 
+extern unsigned int ibmvfc_debug;
+
 struct ibmvfc_host;
 struct ibmvfc_target;
 
