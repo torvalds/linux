@@ -1092,19 +1092,29 @@ void ibmvfc_free_event(struct ibmvfc_event *evt)
 }
 
 /**
- * ibmvfc_scsi_eh_done - EH done function for queuecommand commands
+ * ibmvfc_vfc_eh_done - EH done function for queued IO
  * @evt:	ibmvfc event struct
  *
- * This function does not setup any error status, that must be done
- * before this function gets called.
+ * This function does not setup any error status for scsi commands, that must be
+ * done before this function gets called.
  **/
-static void ibmvfc_scsi_eh_done(struct ibmvfc_event *evt)
+static void ibmvfc_vfc_eh_done(struct ibmvfc_event *evt)
 {
 	struct scsi_cmnd *cmnd = evt->cmnd;
+	struct nvmefc_ls_req *ls_req = evt->ls_req;
+	struct nvmefc_fcp_req *fcp_req = evt->fcp_req;
 
 	if (cmnd) {
 		scsi_dma_unmap(cmnd);
 		scsi_done(cmnd);
+	} else if (fcp_req) {
+		fcp_req->rcv_rsplen = 0;
+		fcp_req->transferred_length = 0;
+		fcp_req->status = NVME_SC_INTERNAL;
+		fcp_req->done(fcp_req);
+	} else if (ls_req) {
+		ls_req->done(ls_req, -EIO);
+		kref_put(&evt->tgt->kref, ibmvfc_release_tgt);
 	}
 
 	ibmvfc_free_event(evt);
@@ -1146,8 +1156,10 @@ static void ibmvfc_fail_request(struct ibmvfc_event *evt, int error_code)
 	BUG_ON(!atomic_dec_and_test(&evt->active));
 	if (evt->cmnd) {
 		evt->cmnd->result = (error_code << 16);
-		evt->done = ibmvfc_scsi_eh_done;
-	} else
+		evt->done = ibmvfc_vfc_eh_done;
+	} else if (evt->fcp_req || evt->ls_req)
+		evt->done = ibmvfc_vfc_eh_done;
+	else
 		evt->xfer_iu->mad_common.status = cpu_to_be16(IBMVFC_MAD_DRIVER_FAILED);
 
 	timer_delete(&evt->timer);
@@ -1164,13 +1176,16 @@ static void ibmvfc_fail_request(struct ibmvfc_event *evt, int error_code)
 static void ibmvfc_purge_requests(struct ibmvfc_host *vhost, int error_code)
 {
 	struct ibmvfc_event *evt, *pos;
-	struct ibmvfc_queue *queues = vhost->scsi_scrqs.scrqs;
+	struct ibmvfc_queue *scsi_q = vhost->scsi_scrqs.scrqs;
+	struct ibmvfc_queue *nvme_q = vhost->nvme_scrqs.scrqs;
 	unsigned long flags;
-	int hwqs = 0;
+	int shwqs, nhwqs = 0;
 	int i;
 
-	if (vhost->using_channels)
-		hwqs = vhost->scsi_scrqs.active_queues;
+	if (vhost->using_channels) {
+		shwqs = vhost->scsi_scrqs.active_queues;
+		nhwqs = vhost->nvme_scrqs.active_queues;
+	}
 
 	ibmvfc_dbg(vhost, "Purging all requests\n");
 	spin_lock_irqsave(&vhost->crq.l_lock, flags);
@@ -1179,14 +1194,24 @@ static void ibmvfc_purge_requests(struct ibmvfc_host *vhost, int error_code)
 	list_splice_init(&vhost->crq.sent, &vhost->purge);
 	spin_unlock_irqrestore(&vhost->crq.l_lock, flags);
 
-	for (i = 0; i < hwqs; i++) {
-		spin_lock_irqsave(queues[i].q_lock, flags);
-		spin_lock(&queues[i].l_lock);
-		list_for_each_entry_safe(evt, pos, &queues[i].sent, queue_list)
+	for (i = 0; i < shwqs; i++) {
+		spin_lock_irqsave(scsi_q[i].q_lock, flags);
+		spin_lock(&scsi_q[i].l_lock);
+		list_for_each_entry_safe(evt, pos, &scsi_q[i].sent, queue_list)
 			ibmvfc_fail_request(evt, error_code);
-		list_splice_init(&queues[i].sent, &vhost->purge);
-		spin_unlock(&queues[i].l_lock);
-		spin_unlock_irqrestore(queues[i].q_lock, flags);
+		list_splice_init(&scsi_q[i].sent, &vhost->purge);
+		spin_unlock(&scsi_q[i].l_lock);
+		spin_unlock_irqrestore(scsi_q[i].q_lock, flags);
+	}
+
+	for (i = 0; i < nhwqs; i++) {
+		spin_lock_irqsave(nvme_q[i].q_lock, flags);
+		spin_lock(&nvme_q[i].l_lock);
+		list_for_each_entry_safe(evt, pos, &nvme_q[i].sent, queue_list)
+			ibmvfc_fail_request(evt, error_code);
+		list_splice_init(&nvme_q[i].sent, &vhost->purge);
+		spin_unlock(&nvme_q[i].l_lock);
+		spin_unlock_irqrestore(nvme_q[i].q_lock, flags);
 	}
 }
 
@@ -1818,7 +1843,9 @@ int ibmvfc_send_event(struct ibmvfc_event *evt,
 		dev_err(vhost->dev, "Send error (rc=%d)\n", rc);
 		if (evt->cmnd) {
 			evt->cmnd->result = DID_ERROR << 16;
-			evt->done = ibmvfc_scsi_eh_done;
+			evt->done = ibmvfc_vfc_eh_done;
+		} else if (evt->fcp_req || evt->ls_req) {
+			evt->done = ibmvfc_vfc_eh_done;
 		} else {
 			evt->xfer_iu->mad_common.status = cpu_to_be16(IBMVFC_MAD_CRQ_ERROR);
 			evt->done = evt->_done;
