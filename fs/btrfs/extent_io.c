@@ -4024,6 +4024,32 @@ void free_extent_buffer_stale(struct extent_buffer *eb)
 	release_extent_buffer(eb);
 }
 
+static void clear_extent_buffer_dirty(struct extent_buffer *eb)
+{
+	struct btrfs_fs_info *fs_info = eb->fs_info;
+
+	if (!test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags))
+		return;
+
+	buffer_tree_clear_mark(eb, PAGECACHE_TAG_DIRTY);
+	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -(s64)eb->len,
+				 fs_info->dirty_metadata_batch);
+
+	for (int i = 0; i < num_extent_folios(eb); i++) {
+		struct folio *folio = eb->folios[i];
+		bool last;
+
+		if (!folio_test_dirty(folio))
+			continue;
+		folio_lock(folio);
+		last = btrfs_meta_folio_clear_and_test_dirty(folio, eb);
+		if (last)
+			btrfs_clear_folio_dirty_tag(folio);
+		folio_unlock(folio);
+	}
+	WARN_ON(refcount_read(&eb->refs) == 0);
+}
+
 void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *eb)
 {
@@ -4048,26 +4074,42 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 		return;
 	}
 
-	if (!test_and_clear_bit(EXTENT_BUFFER_DIRTY, &eb->bflags))
+	clear_extent_buffer_dirty(eb);
+}
+
+/*
+ * On a zoned filesystem a freed tree block is kept dirty and flagged as
+ * EXTENT_BUFFER_ZONED_ZEROOUT so a later writeback zeroes it out and advances
+ * the zone write pointer. Such buffers still dirty when the filesystem is torn
+ * down can no longer be written back and are stale; if left dirty they hang the
+ * final iput() of the btree inode. Drop their dirty state, and the deferred
+ * zero-out along with it.
+ */
+void btrfs_zoned_release_dirty_metadata(struct btrfs_fs_info *fs_info)
+{
+	struct eb_batch batch;
+	unsigned long index = 0;
+
+	if (!btrfs_is_zoned(fs_info))
 		return;
 
-	buffer_tree_clear_mark(eb, PAGECACHE_TAG_DIRTY);
-	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -(s64)eb->len,
-				 fs_info->dirty_metadata_batch);
+	btrfs_zoned_meta_io_lock(fs_info);
+	eb_batch_init(&batch);
+	while (buffer_tree_get_ebs_tag(fs_info, &index, ULONG_MAX,
+				       PAGECACHE_TAG_DIRTY, &batch)) {
+		struct extent_buffer *eb;
 
-	for (int i = 0; i < num_extent_folios(eb); i++) {
-		struct folio *folio = eb->folios[i];
-		bool last;
-
-		if (!folio_test_dirty(folio))
-			continue;
-		folio_lock(folio);
-		last = btrfs_meta_folio_clear_and_test_dirty(folio, eb);
-		if (last)
-			btrfs_clear_folio_dirty_tag(folio);
-		folio_unlock(folio);
+		while ((eb = eb_batch_next(&batch)) != NULL) {
+			btrfs_tree_lock(eb);
+			if (test_and_clear_bit(EXTENT_BUFFER_ZONED_ZEROOUT,
+					       &eb->bflags))
+				clear_extent_buffer_dirty(eb);
+			btrfs_tree_unlock(eb);
+		}
+		eb_batch_release(&batch);
+		cond_resched();
 	}
-	WARN_ON(refcount_read(&eb->refs) == 0);
+	btrfs_zoned_meta_io_unlock(fs_info);
 }
 
 void set_extent_buffer_dirty(struct extent_buffer *eb)

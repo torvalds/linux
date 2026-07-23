@@ -393,6 +393,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  u32 bits_to_clear, unsigned long page_ops);
 void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *buf);
+void btrfs_zoned_release_dirty_metadata(struct btrfs_fs_info *fs_info);
 
 static inline void btrfs_clear_folio_dirty_tag(struct folio *folio)
 {
