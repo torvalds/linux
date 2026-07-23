@@ -22,9 +22,9 @@ class RVGenerator:
         self.description = extra_params.get("description", self.name) or "auto-generated"
         self.auto_patch = extra_params.get("auto_patch")
         if self.auto_patch:
-            self.__fill_rv_kernel_dir()
+            self._fill_rv_kernel_dir()
 
-    def __fill_rv_kernel_dir(self):
+    def _fill_rv_kernel_dir(self):
         # find the kernel tree root relative to this file's location
         resolved_path = Path(__file__).resolve()
         if len(resolved_path.parents) > 4:
