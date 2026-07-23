@@ -301,7 +301,6 @@ static int camif_media_dev_init(struct camif_dev *camif)
 	struct media_device *md = &camif->media_dev;
 	struct v4l2_device *v4l2_dev = &camif->v4l2_dev;
 	unsigned int ip_rev = camif->variant->ip_revision;
-	int ret;
 
 	memset(md, 0, sizeof(*md));
 	snprintf(md->model, sizeof(md->model), "Samsung S3C%s CAMIF",
@@ -316,11 +315,7 @@ static int camif_media_dev_init(struct camif_dev *camif)
 
 	media_device_init(md);
 
-	ret = v4l2_device_register(camif->dev, v4l2_dev);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return v4l2_device_register(camif->dev, v4l2_dev);
 }
 
 static void camif_clk_put(struct camif_dev *camif)
