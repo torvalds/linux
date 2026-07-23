@@ -2534,7 +2534,7 @@ qla24xx_sa_replace_iocb(srb_t *sp, struct sa_update_28xx *sa_update_iocb)
 
 void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 {
-	struct purex_entry_24xx *p = *pkt;
+	struct qla_hw_data *ha = vha->hw;
 	struct enode		*ptr;
 	int		sid;
 	u16 totlen;
@@ -2544,26 +2544,55 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	struct fc_port *fcport;
 	struct qla_els_pt_arg a;
 	be_id_t beid;
+	__le16 nport_handle;
+	__le32 rx_xchg_addr;
+	__le16 ox_id;
+	__le16 frame_size, status_flags, trunc_frame_size;
+	uint8_t s_id[3], d_id[3];
+	uint8_t vp_idx;
+	struct purex_entry_24xx *p = *pkt;
 
 	memset(&a, 0, sizeof(a));
 
+	/*
+	 * purex_entry_24xx_ext (29xx) overlays purex_entry_24xx for every
+	 * field touched here -- nport_handle, rx_xchg_addr, ox_id, frame_size,
+	 * status_flags, trunc_frame_size, s_id[3], d_id[3] -- with only
+	 * vp_idx differing in width (u8 at offset 6 vs __le16 at offsets 6-7,
+	 * with reserved2 at offset 7 in the 24xx layout). So all reads but
+	 * vp_idx go through a single struct purex_entry_24xx * view.
+	 */
+	nport_handle = p->nport_handle;
+	rx_xchg_addr = p->rx_xchg_addr;
+	ox_id = p->ox_id;
+	frame_size = p->frame_size;
+	status_flags = p->status_flags;
+	trunc_frame_size = p->trunc_frame_size;
+	memcpy(s_id, p->s_id, sizeof(s_id));
+	memcpy(d_id, p->d_id, sizeof(d_id));
+	if (IS_QLA29XX(ha))
+		vp_idx = le16_to_cpu(((struct purex_entry_24xx_ext *)
+				      *pkt)->vp_idx);
+	else
+		vp_idx = p->vp_idx;
+
 	a.els_opcode = ELS_AUTH_ELS;
-	a.nport_handle = p->nport_handle;
-	a.rx_xchg_address = p->rx_xchg_addr;
-	a.did.b.domain = p->s_id[2];
-	a.did.b.area   = p->s_id[1];
-	a.did.b.al_pa  = p->s_id[0];
+	a.nport_handle = nport_handle;
+	a.rx_xchg_address = rx_xchg_addr;
+	a.did.b.domain = s_id[2];
+	a.did.b.area   = s_id[1];
+	a.did.b.al_pa  = s_id[0];
 	a.tx_byte_count = a.tx_len = sizeof(struct fc_els_ls_rjt);
-	a.tx_addr = vha->hw->elsrej.cdma;
+	a.tx_addr = ha->elsrej.cdma;
 	a.vp_idx = vha->vp_idx;
 	a.control_flags = EPD_ELS_RJT;
-	a.ox_id = le16_to_cpu(p->ox_id);
+	a.ox_id = le16_to_cpu(ox_id);
 
-	sid = p->s_id[0] | (p->s_id[1] << 8) | (p->s_id[2] << 16);
+	sid = s_id[0] | (s_id[1] << 8) | (s_id[2] << 16);
 
-	totlen = (le16_to_cpu(p->frame_size) & 0x0fff) - PURX_ELS_HEADER_SIZE;
-	if (le16_to_cpu(p->status_flags) & 0x8000) {
-		totlen = le16_to_cpu(p->trunc_frame_size);
+	totlen = (le16_to_cpu(frame_size) & 0x0fff) - PURX_ELS_HEADER_SIZE;
+	if (le16_to_cpu(status_flags) & 0x8000) {
+		totlen = le16_to_cpu(trunc_frame_size);
 		qla_els_reject_iocb(vha, (*rsp)->qpair, &a);
 		__qla_consume_iocb(vha, pkt, rsp);
 		return;
@@ -2600,12 +2629,12 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 	purex = &ptr->u.purexinfo;
 	purex->pur_info.pur_sid = a.did;
 	purex->pur_info.pur_bytes_rcvd = totlen;
-	purex->pur_info.pur_rx_xchg_address = le32_to_cpu(p->rx_xchg_addr);
-	purex->pur_info.pur_nphdl = le16_to_cpu(p->nport_handle);
-	purex->pur_info.pur_did.b.domain =  p->d_id[2];
-	purex->pur_info.pur_did.b.area =  p->d_id[1];
-	purex->pur_info.pur_did.b.al_pa =  p->d_id[0];
-	purex->pur_info.vp_idx = p->vp_idx;
+	purex->pur_info.pur_rx_xchg_address = le32_to_cpu(rx_xchg_addr);
+	purex->pur_info.pur_nphdl = le16_to_cpu(nport_handle);
+	purex->pur_info.pur_did.b.domain =  d_id[2];
+	purex->pur_info.pur_did.b.area =  d_id[1];
+	purex->pur_info.pur_did.b.al_pa =  d_id[0];
+	purex->pur_info.vp_idx = vp_idx;
 
 	a.sid = purex->pur_info.pur_did;
 

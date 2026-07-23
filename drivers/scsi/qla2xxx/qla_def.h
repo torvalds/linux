@@ -5001,6 +5001,7 @@ struct active_regions {
 #define QLA_SET_DATA_RATE_LR	2 /* Set speed and initiate LR */
 
 #define QLA_DEFAULT_PAYLOAD_SIZE	64
+#define QLA_MAX_IOCB_SIZE		128
 /*
  * This item might be allocated with a size > sizeof(struct purex_item).
  * The "size" variable gives the size of the payload (which
@@ -5015,7 +5016,7 @@ struct purex_item {
 	atomic_t in_use;
 	uint16_t size;
 	struct {
-		uint8_t iocb[64];
+		u8 iocb[QLA_MAX_IOCB_SIZE];
 	} iocb;
 };
 

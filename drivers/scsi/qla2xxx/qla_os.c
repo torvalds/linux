@@ -6138,12 +6138,14 @@ retry_lock:
 }
 
 static bool
-qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
-	struct purex_entry_24xx *purex)
+qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha, void *pkt)
 {
+	struct purex_entry_24xx *purex = pkt;
 	char fwstr[16];
-	u32 sid = purex->s_id[2] << 16 | purex->s_id[1] << 8 | purex->s_id[0];
+	u32 sid;
 	struct port_database_24xx *pdb;
+
+	sid = purex->s_id[2] << 16 | purex->s_id[1] << 8 | purex->s_id[0];
 
 	/* Domain Controller is always logged-out. */
 	/* if RDP request is not from Domain Controller: */
@@ -6209,15 +6211,26 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 	uint8_t *sfp = NULL;
 	uint16_t sfp_flags = 0;
 	uint rsp_payload_length = sizeof(*rsp_payload);
+	uint8_t vp_idx;
+	size_t purex_sz;
 	int rval;
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0180,
 	    "%s: Enter\n", __func__);
 
+	if (IS_QLA29XX(ha)) {
+		vp_idx = le16_to_cpu(
+		    ((struct purex_entry_24xx_ext *)purex)->vp_idx);
+		purex_sz = sizeof(struct purex_entry_24xx_ext);
+	} else {
+		vp_idx = purex->vp_idx;
+		purex_sz = sizeof(*purex);
+	}
+
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0181,
 	    "-------- ELS REQ -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0182,
-	    purex, sizeof(*purex));
+	    purex, purex_sz);
 
 	if (qla25xx_rdp_rsp_reduce_size(vha, purex)) {
 		rsp_payload_length =
@@ -6257,7 +6270,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 	rsp_els->handle = 0;
 	rsp_els->nport_handle = purex->nport_handle;
 	rsp_els->tx_dsd_count = cpu_to_le16(1);
-	rsp_els->vp_index = purex->vp_idx;
+	rsp_els->vp_index = vp_idx;
 	rsp_els->sof_type = EST_SOFI3;
 	rsp_els->rx_xchg_address = purex->rx_xchg_addr;
 	rsp_els->rx_dsd_count = 0;
@@ -8378,6 +8391,7 @@ qla2x00_module_init(void)
 	BUILD_BUG_ON(sizeof(struct pt_ls4_request) != 64);
 	BUILD_BUG_ON(sizeof(struct pt_ls4_rx_unsol) != 64);
 	BUILD_BUG_ON(sizeof(struct purex_entry_24xx) != 64);
+	BUILD_BUG_ON(sizeof(struct purex_entry_24xx_ext) != 128);
 	BUILD_BUG_ON(sizeof(struct qla2100_fw_dump) != 123634);
 	BUILD_BUG_ON(sizeof(struct qla2300_fw_dump) != 136100);
 	BUILD_BUG_ON(sizeof(struct qla24xx_fw_dump) != 37976);

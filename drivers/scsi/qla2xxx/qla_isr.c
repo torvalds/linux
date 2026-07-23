@@ -202,6 +202,11 @@ void __qla_consume_iocb(struct scsi_qla_host *vha,
 	struct rsp_que *rsp_q = *rsp;
 	response_t *new_pkt;
 	uint16_t entry_count_remaining;
+	/*
+	 * entry_count is u8 at offset 1 in both purex_entry_24xx and
+	 * purex_entry_24xx_ext, so the 24xx view is layout-compatible with
+	 * either stride.
+	 */
 	struct purex_entry_24xx *purex = *pkt;
 
 	entry_count_remaining = purex->entry_count;
@@ -230,6 +235,14 @@ void __qla_consume_iocb(struct scsi_qla_host *vha,
 int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
 	void **pkt, struct rsp_que **rsp, u8 *buf, u32 buf_len)
 {
+	/*
+	 * purex_entry_24xx_ext overlays purex_entry_24xx for entry_count
+	 * (offset 1), frame_size (offset 12) and els_frame_payload (offset
+	 * 44, base address only -- the array size grows from 20 to 84
+	 * bytes).  Header fields are read through the 24xx view; the
+	 * initial payload memcpy uses a purex_entry_24xx_ext pointer on
+	 * 29xx so that FORTIFY_SOURCE sees the correct 84-byte source.
+	 */
 	struct purex_entry_24xx *purex = *pkt;
 	struct qla_hw_data *ha = vha->hw;
 	struct rsp_que *rsp_q = *rsp;
@@ -244,8 +257,8 @@ int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
 	u16 tpad;
 
 	entry_count_remaining = purex->entry_count;
-	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF)
-		- PURX_ELS_HEADER_SIZE;
+	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF) -
+		PURX_ELS_HEADER_SIZE;
 
 	/*
 	 * end of payload may not end in 4bytes boundary.  Need to
@@ -262,14 +275,24 @@ int __qla_copy_purex_to_buffer(struct scsi_qla_host *vha,
 	}
 
 	pending_bytes = total_bytes = tpad;
-	no_bytes = (pending_bytes > sizeof(purex->els_frame_payload))  ?
-	    sizeof(purex->els_frame_payload) : pending_bytes;
+	no_bytes = (pending_bytes > payload_size) ?
+		payload_size : pending_bytes;
+	if (IS_QLA29XX(ha)) {
+		struct purex_entry_24xx_ext *purex_ext = *pkt;
 
-	memcpy(buf, &purex->els_frame_payload[0], no_bytes);
+		memcpy(buf, &purex_ext->els_frame_payload[0], no_bytes);
+	} else {
+		memcpy(buf, &purex->els_frame_payload[0], no_bytes);
+	}
 	buffer_copy_offset += no_bytes;
 	pending_bytes -= no_bytes;
 	--entry_count_remaining;
 
+	/*
+	 * response_t::signature and struct response_ext::signature are both u32
+	 * at offset 60 (handle:4 + data[52]:60), so the 24xx view writes
+	 * the right slot regardless of stride.
+	 */
 	((response_t *)purex)->signature = RESPONSE_PROCESSED;
 	/* flush signature */
 	wmb();
@@ -849,6 +872,7 @@ qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
 			  struct rsp_que **rsp, bool is_purls,
 			  bool byte_order)
 {
+	struct purex_entry_24xx_ext *purex_ext = NULL;
 	struct purex_entry_24xx *purex = NULL;
 	struct pt_ls4_rx_unsol *purls = NULL;
 	struct qla_hw_data *ha = vha->hw;
@@ -867,6 +891,13 @@ qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
 			      PURX_ELS_HEADER_SIZE;
 		entry_count = entry_count_remaining = purls->entry_count;
 		payload_size = sizeof(purls->payload);
+	} else if (IS_QLA29XX(ha)) {
+		purex_ext = *pkt;
+		total_bytes = (le16_to_cpu(purex_ext->frame_size) & 0x0FFF) -
+			      PURX_ELS_HEADER_SIZE;
+		entry_count = entry_count_remaining =
+		    purex_ext->entry_count;
+		payload_size = sizeof(purex_ext->els_frame_payload);
 	} else {
 		purex = *pkt;
 		total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF) -
@@ -875,8 +906,8 @@ qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
 		payload_size = sizeof(purex->els_frame_payload);
 	}
 
-	if (total_bytes > sizeof(item->iocb.iocb))
-		total_bytes = sizeof(item->iocb.iocb);
+	if (total_bytes > QLA_MAX_IOCB_SIZE)
+		total_bytes = QLA_MAX_IOCB_SIZE;
 
 	pending_bytes = total_bytes;
 	no_bytes = (pending_bytes > payload_size) ? payload_size :
@@ -893,6 +924,8 @@ qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
 
 	if (is_purls)
 		memcpy(iocb_pkt, &purls->payload[0], no_bytes);
+	else if (IS_QLA29XX(ha))
+		memcpy(iocb_pkt, &purex_ext->els_frame_payload[0], no_bytes);
 	else
 		memcpy(iocb_pkt, &purex->els_frame_payload[0], no_bytes);
 	buffer_copy_offset += no_bytes;
@@ -901,6 +934,8 @@ qla27xx_copy_multiple_pkt(struct scsi_qla_host *vha, void **pkt,
 
 	if (is_purls)
 		((response_t *)purls)->signature = RESPONSE_PROCESSED;
+	else if (IS_QLA29XX(ha))
+		((struct response_ext *)purex_ext)->signature = RESPONSE_PROCESSED;
 	else
 		((response_t *)purex)->signature = RESPONSE_PROCESSED;
 	wmb();
@@ -1075,9 +1110,9 @@ qla24xx_alloc_purex_item(scsi_qla_host_t *vha, uint16_t size)
 	struct purex_item *item = NULL;
 	uint8_t item_hdr_size = sizeof(*item);
 
-	if (size > QLA_DEFAULT_PAYLOAD_SIZE) {
+	if (size > QLA_MAX_IOCB_SIZE) {
 		item = kzalloc(item_hdr_size +
-		    (size - QLA_DEFAULT_PAYLOAD_SIZE), GFP_ATOMIC);
+		    (size - QLA_MAX_IOCB_SIZE), GFP_ATOMIC);
 	} else {
 		if (atomic_inc_return(&vha->default_item.in_use) == 1) {
 			item = &vha->default_item;
@@ -1126,14 +1161,20 @@ qla24xx_queue_purex_item(scsi_qla_host_t *vha, struct purex_item *pkt,
 static struct purex_item
 *qla24xx_copy_std_pkt(struct scsi_qla_host *vha, void *pkt)
 {
+	struct qla_hw_data *ha = vha->hw;
 	struct purex_item *item;
+	u16 copy_sz;
 
-	item = qla24xx_alloc_purex_item(vha,
-					QLA_DEFAULT_PAYLOAD_SIZE);
+	if (IS_QLA29XX(ha))
+		copy_sz = sizeof(struct purex_entry_24xx_ext);
+	else
+		copy_sz = QLA_DEFAULT_PAYLOAD_SIZE;
+
+	item = qla24xx_alloc_purex_item(vha, copy_sz);
 	if (!item)
 		return item;
 
-	memcpy(&item->iocb, pkt, sizeof(item->iocb));
+	memcpy(&item->iocb, pkt, copy_sz);
 	return item;
 }
 
@@ -1165,8 +1206,8 @@ qla27xx_copy_fpin_pkt(struct scsi_qla_host *vha, void **pkt,
 	total_bytes = (le16_to_cpu(purex->frame_size) & 0x0FFF)
 	    - PURX_ELS_HEADER_SIZE;
 
-	if (total_bytes > sizeof(item->iocb.iocb))
-		total_bytes = sizeof(item->iocb.iocb);
+	if (total_bytes > QLA_MAX_IOCB_SIZE)
+		total_bytes = QLA_MAX_IOCB_SIZE;
 
 	pending_bytes = total_bytes;
 	entry_count = entry_count_remaining = purex->entry_count;
@@ -3996,6 +4037,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 {
 	void *pkt;
 	struct qla_hw_data *ha = vha->hw;
+	struct purex_entry_24xx_ext *purex_entry_ext;
 	struct purex_entry_24xx *purex_entry;
 	struct purex_item *pure_item;
 	struct pt_ls4_rx_unsol *p;
@@ -4113,8 +4155,16 @@ process_err:
 			    (struct vp_ctrl_entry_24xx *)pkt);
 			break;
 		case PUREX_IOCB_TYPE:
-			purex_entry = (void *)pkt;
-			switch (purex_entry->els_frame_payload[3]) {
+			if (IS_QLA29XX(ha)) {
+				purex_entry_ext = (void *)pkt;
+				purex_entry = NULL;
+			} else {
+				purex_entry = (void *)pkt;
+				purex_entry_ext = NULL;
+			}
+			switch (IS_QLA29XX(ha) ?
+			    purex_entry_ext->els_frame_payload[3] :
+			    purex_entry->els_frame_payload[3]) {
 			case ELS_RDP:
 				pure_item = qla24xx_copy_std_pkt(vha, pkt);
 				if (!pure_item)
@@ -4151,6 +4201,8 @@ process_err:
 
 					ql_dbg(ql_dbg_init, vha, 0x5091,
 					    "Defer processing ELS opcode %#x...\n",
+					    IS_QLA29XX(ha) ?
+					    purex_entry_ext->els_frame_payload[3] :
 					    purex_entry->els_frame_payload[3]);
 					return;
 				}
@@ -4158,7 +4210,9 @@ process_err:
 				break;
 			default:
 				ql_log(ql_log_warn, vha, 0x509c,
-				       "Discarding ELS Request opcode 0x%x\n",
+				       "Discarding ELS Request opcode 0x%x...\n",
+				       IS_QLA29XX(ha) ?
+				       purex_entry_ext->els_frame_payload[3] :
 				       purex_entry->els_frame_payload[3]);
 			}
 			break;
