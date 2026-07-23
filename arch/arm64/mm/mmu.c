@@ -779,18 +779,18 @@ out:
 
 static inline bool force_pte_mapping(void)
 {
-	const bool bbml2 = system_capabilities_finalized() ?
-		system_supports_bbml2_noabort() : cpu_supports_bbml2_noabort();
+	const bool bbml3 = system_capabilities_finalized() ?
+		system_supports_bbml3() : cpu_supports_bbml3();
 
 	if (debug_pagealloc_enabled())
 		return true;
-	if (bbml2)
+	if (bbml3)
 		return false;
 	return rodata_full || arm64_kfence_can_set_direct_map() || is_realm_world();
 }
 
 static DEFINE_MUTEX(pgtable_split_lock);
-static bool linear_map_requires_bbml2;
+static bool linear_map_requires_bbml3;
 
 int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
 {
@@ -803,15 +803,15 @@ int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
 	 * always pte-mapped), we must not go any further because taking the
 	 * mutex below may sleep. Do not call force_pte_mapping() here because
 	 * it could return a confusing result if called from a secondary cpu
-	 * prior to finalizing caps. Instead, linear_map_requires_bbml2 gives us
+	 * prior to finalizing caps. Instead, linear_map_requires_bbml3 gives us
 	 * what we need.
 	 */
-	if (!linear_map_requires_bbml2 || is_kfence_address((void *)start))
+	if (!linear_map_requires_bbml3 || is_kfence_address((void *)start))
 		return 0;
 
-	if (!system_supports_bbml2_noabort()) {
+	if (!system_supports_bbml3()) {
 		/*
-		 * !BBML2_NOABORT systems should not be trying to change
+		 * BBML3 systems should not be trying to change
 		 * permissions on anything that is not pte-mapped in the first
 		 * place. Just return early and let the permission change code
 		 * raise a warning if not already pte-mapped.
@@ -828,8 +828,8 @@ int split_kernel_leaf_mapping(unsigned long start, unsigned long end)
 
 		/*
 		 * Boot-time: Started secondary cpus but don't know if they
-		 * support BBML2_NOABORT yet. Can't allow splitting in this
-		 * window in case they don't.
+		 * support BBML3 yet. Can't allow splitting in this window
+		 * in case they don't.
 		 */
 		if (WARN_ON(num_online_cpus() > 1))
 			return -EBUSY;
@@ -934,11 +934,11 @@ static int range_split_to_ptes(unsigned long start, unsigned long end, gfp_t gfp
 	return ret;
 }
 
-u32 idmap_kpti_bbml2_flag;
+u32 idmap_kpti_bbml3_flag;
 
-static void __init init_idmap_kpti_bbml2_flag(void)
+static void __init init_idmap_kpti_bbml3_flag(void)
 {
-	WRITE_ONCE(idmap_kpti_bbml2_flag, 1);
+	WRITE_ONCE(idmap_kpti_bbml3_flag, 1);
 	/* Must be visible to other CPUs before stop_machine() is called. */
 	smp_mb();
 }
@@ -947,7 +947,7 @@ static int __init linear_map_split_to_ptes(void *__unused)
 {
 	/*
 	 * Repainting the linear map must be done by CPU0 (the boot CPU) because
-	 * that's the only CPU that we know supports BBML2. The other CPUs will
+	 * that's the only CPU that we know supports BBML3. The other CPUs will
 	 * be held in a waiting area with the idmap active.
 	 */
 	if (!smp_processor_id()) {
@@ -960,7 +960,7 @@ static int __init linear_map_split_to_ptes(void *__unused)
 		/*
 		 * Wait for all secondary CPUs to be put into the waiting area.
 		 */
-		smp_cond_load_acquire(&idmap_kpti_bbml2_flag, VAL == num_online_cpus());
+		smp_cond_load_acquire(&idmap_kpti_bbml3_flag, VAL == num_online_cpus());
 
 		/*
 		 * Walk all of the linear map [lstart, lend), except the kernel
@@ -979,7 +979,7 @@ static int __init linear_map_split_to_ptes(void *__unused)
 		 * Relies on dsb in flush_tlb_kernel_range() to avoid reordering
 		 * before any page table split operations.
 		 */
-		WRITE_ONCE(idmap_kpti_bbml2_flag, 0);
+		WRITE_ONCE(idmap_kpti_bbml3_flag, 0);
 	} else {
 		typedef void (wait_split_fn)(void);
 		extern wait_split_fn wait_linear_map_split_to_ptes;
@@ -988,7 +988,7 @@ static int __init linear_map_split_to_ptes(void *__unused)
 		wait_fn = (void *)__pa_symbol(wait_linear_map_split_to_ptes);
 
 		/*
-		 * At least one secondary CPU doesn't support BBML2 so cannot
+		 * At least one secondary CPU doesn't support BBML3 so cannot
 		 * tolerate the size of the live mappings changing. So have the
 		 * secondary CPUs wait for the boot CPU to make the changes
 		 * with the idmap active and init_mm inactive.
@@ -1003,8 +1003,8 @@ static int __init linear_map_split_to_ptes(void *__unused)
 
 void __init linear_map_maybe_split_to_ptes(void)
 {
-	if (linear_map_requires_bbml2 && !system_supports_bbml2_noabort()) {
-		init_idmap_kpti_bbml2_flag();
+	if (linear_map_requires_bbml3 && !system_supports_bbml3()) {
+		init_idmap_kpti_bbml3_flag();
 		stop_machine(linear_map_split_to_ptes, NULL, cpu_online_mask);
 	}
 }
@@ -1127,7 +1127,7 @@ bool arch_kfence_init_pool(void)
 	mutex_unlock(&pgtable_split_lock);
 
 	/*
-	 * Since the system supports bbml2_noabort, tlb invalidation is not
+	 * Since the system supports bbml3, tlb invalidation is not
 	 * required here; the pgtable mappings have been split to pte but larger
 	 * entries may safely linger in the TLB.
 	 */
@@ -1166,7 +1166,7 @@ static void __init map_mem(void)
 
 	arm64_kfence_map_pool();
 
-	linear_map_requires_bbml2 = !force_pte_mapping() && can_set_direct_map();
+	linear_map_requires_bbml3 = !force_pte_mapping() && can_set_direct_map();
 
 	if (force_pte_mapping())
 		flags |= NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
@@ -1333,7 +1333,7 @@ void __init kpti_install_ng_mappings(void)
 	if (arm64_use_ng_mappings)
 		return;
 
-	init_idmap_kpti_bbml2_flag();
+	init_idmap_kpti_bbml3_flag();
 	stop_machine(__kpti_install_ng_mappings, NULL, cpu_online_mask);
 }
 
@@ -1394,7 +1394,7 @@ void __pi_map_range(phys_addr_t *pte, u64 start, u64 end, phys_addr_t pa,
 		    u64 va_offset);
 
 static u8 idmap_ptes[IDMAP_LEVELS - 1][PAGE_SIZE] __aligned(PAGE_SIZE) __ro_after_init,
-	  kpti_bbml2_ptes[IDMAP_LEVELS - 1][PAGE_SIZE] __aligned(PAGE_SIZE) __ro_after_init;
+	  kpti_bbml3_ptes[IDMAP_LEVELS - 1][PAGE_SIZE] __aligned(PAGE_SIZE) __ro_after_init;
 
 static void __init create_idmap(void)
 {
@@ -1406,17 +1406,17 @@ static void __init create_idmap(void)
 		       IDMAP_ROOT_LEVEL, (pte_t *)idmap_pg_dir, false,
 		       __phys_to_virt(ptep) - ptep);
 
-	if (linear_map_requires_bbml2 ||
+	if (linear_map_requires_bbml3 ||
 	    (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0) && !arm64_use_ng_mappings)) {
-		phys_addr_t pa = __pa_symbol(&idmap_kpti_bbml2_flag);
+		phys_addr_t pa = __pa_symbol(&idmap_kpti_bbml3_flag);
 
 		/*
 		 * The KPTI G-to-nG conversion code needs a read-write mapping
 		 * of its synchronization flag in the ID map. This is also used
 		 * when splitting the linear map to ptes if a secondary CPU
-		 * doesn't support bbml2.
+		 * doesn't support bbml3.
 		 */
-		ptep = __pa_symbol(kpti_bbml2_ptes);
+		ptep = __pa_symbol(kpti_bbml3_ptes);
 		__pi_map_range(&ptep, pa, pa + sizeof(u32), pa, PAGE_KERNEL,
 			       IDMAP_ROOT_LEVEL, (pte_t *)idmap_pg_dir, false,
 			       __phys_to_virt(ptep) - ptep);

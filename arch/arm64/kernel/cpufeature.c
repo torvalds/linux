@@ -2131,21 +2131,10 @@ static bool hvhe_possible(const struct arm64_cpu_capabilities *entry,
 	return arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_HVHE);
 }
 
-bool cpu_supports_bbml2_noabort(void)
+bool cpu_supports_bbml3(void)
 {
-	/*
-	 * We want to allow usage of BBML2 in as wide a range of kernel contexts
-	 * as possible. This list is therefore an allow-list of known-good
-	 * implementations that both support BBML2 and additionally, fulfill the
-	 * extra constraint of never generating TLB conflict aborts when using
-	 * the relaxed BBML2 semantics (such aborts make use of BBML2 in certain
-	 * kernel contexts difficult to prove safe against recursive aborts).
-	 *
-	 * Note that implementations can only be considered "known-good" if their
-	 * implementors attest to the fact that the implementation never raises
-	 * TLB conflict aborts for BBML2 mapping granularity changes.
-	 */
-	static const struct midr_range supports_bbml2_noabort_list[] = {
+	/* CPUs that support BBML3 but dont advertise through ID_AA64MMFR2_EL1 */
+	static const struct midr_range supports_bbml3_list[] = {
 		MIDR_REV_RANGE(MIDR_CORTEX_X4, 0, 3, 0xf),
 		MIDR_REV_RANGE(MIDR_NEOVERSE_V3, 0, 2, 0xf),
 		MIDR_REV_RANGE(MIDR_NEOVERSE_V3AE, 0, 2, 0xf),
@@ -2165,8 +2154,7 @@ bool cpu_supports_bbml2_noabort(void)
 		{}
 	};
 
-	/* Does our cpu guarantee to never raise TLB conflict aborts? */
-	if (!is_midr_in_range_list(supports_bbml2_noabort_list))
+	if (!is_midr_in_range_list(supports_bbml3_list))
 		return false;
 
 	/*
@@ -2177,9 +2165,9 @@ bool cpu_supports_bbml2_noabort(void)
 	return true;
 }
 
-static bool has_bbml2_noabort(const struct arm64_cpu_capabilities *caps, int scope)
+static bool has_bbml3(const struct arm64_cpu_capabilities *caps, int scope)
 {
-	return cpu_supports_bbml2_noabort();
+	return cpu_supports_bbml3();
 }
 
 static void cpu_enable_pan(const struct arm64_cpu_capabilities *__unused)
@@ -3072,10 +3060,10 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, EVT, IMP)
 	},
 	{
-		.desc = "BBM Level 2 without TLB conflict abort",
-		.capability = ARM64_HAS_BBML2_NOABORT,
+		.desc = "BBM Level 3",
+		.capability = ARM64_HAS_BBML3,
 		.type = ARM64_CPUCAP_EARLY_LOCAL_CPU_FEATURE,
-		.matches = has_bbml2_noabort,
+		.matches = has_bbml3,
 	},
 	{
 		.desc = "52-bit Virtual Addressing for KVM (LPA2)",
