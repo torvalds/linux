@@ -16,6 +16,7 @@
 #include <linux/kconfig.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
+#include <linux/rwsem.h>
 #include <linux/semaphore.h>
 #include <linux/sysfs.h>
 
@@ -71,4 +72,10 @@ int hsmp_create_sensor(struct device *dev, u16 sock_ind);
 static inline int hsmp_create_sensor(struct device *dev, u16 sock_ind) { return 0; }
 #endif
 int hsmp_msg_get_nargs(u16 sock_ind, u32 msg_id, u32 *data, u8 num_args);
+
+/*
+ * Serializes HSMP socket bring-up and teardown. ACPI probe and remove take it
+ * for write.
+ */
+extern struct rw_semaphore hsmp_sock_rwsem;
 #endif /* HSMP_H */

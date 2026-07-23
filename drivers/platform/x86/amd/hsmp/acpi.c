@@ -15,12 +15,15 @@
 #include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/ioport.h>
 #include <linux/kstrtox.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/rwsem.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/topology.h>
@@ -482,10 +485,19 @@ static ssize_t hsmp_freq_limit_source_show(struct device *dev, struct device_att
 	return len;
 }
 
+/*
+ * Bring up one ACPI HSMP socket: parse its ACPI table, run the mailbox
+ * handshake and register its sysfs/hwmon interfaces.
+ *
+ * Called with hsmp_sock_rwsem held for write by hsmp_acpi_probe(), so the
+ * per-socket bring-up cannot race a concurrent probe or remove.
+ */
 static int init_acpi(struct device *dev)
 {
 	u16 sock_ind;
 	int ret;
+
+	lockdep_assert_held_write(&hsmp_sock_rwsem);
 
 	ret = hsmp_get_uid(dev, &sock_ind);
 	if (ret)
@@ -607,6 +619,14 @@ static int hsmp_acpi_probe(struct platform_device *pdev)
 	if (!hsmp_pdev)
 		return -ENOMEM;
 
+	/*
+	 * Multiple ACPI socket devices probe in parallel, but the is_probed
+	 * handshake and the one-time socket-array allocation below must run
+	 * exactly once.  Serialize the whole bring-up against concurrent
+	 * probe/remove by holding the socket rwsem for write.
+	 */
+	guard(rwsem_write)(&hsmp_sock_rwsem);
+
 	if (!hsmp_pdev->is_probed) {
 		hsmp_pdev->num_sockets = topology_max_packages();
 		if (!hsmp_pdev->num_sockets) {
@@ -642,6 +662,8 @@ static int hsmp_acpi_probe(struct platform_device *pdev)
 
 static void hsmp_acpi_remove(struct platform_device *pdev)
 {
+	guard(rwsem_write)(&hsmp_sock_rwsem);
+
 	/*
 	 * We register only one misc_device even on multi-socket system.
 	 * So, deregister should happen only once.
