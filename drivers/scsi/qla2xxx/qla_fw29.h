@@ -24,6 +24,33 @@
  * Access on a host-endian value via le16_to_cpu(vp_index) & CMD_EXT_VP_INDEX_MASK.
  */
 #define CMD_EXT_VP_INDEX_MASK		0x01ff
+
+/*
+ * Combined vp_index/sof_type field layout (used by ELS and ABTS ext IOCBs):
+ *   bits [8:0]   - VP index (9 bits)
+ *   bits [11:9]  - reserved
+ *   bits [15:12] - SOF type (4 bits)
+ */
+#define EXT_VP_SOF_VP_INDEX_MASK	0x01ff
+#define EXT_VP_SOF_SOF_TYPE_SHIFT	12
+#define EXT_VP_SOF_SOF_TYPE_MASK	0xf000
+
+static inline u16 qla_ext_get_vp_index(__le16 vp_sof)
+{
+	return le16_to_cpu(vp_sof) & EXT_VP_SOF_VP_INDEX_MASK;
+}
+
+static inline u16 qla_ext_get_sof_type(__le16 vp_sof)
+{
+	return (le16_to_cpu(vp_sof) >> EXT_VP_SOF_SOF_TYPE_SHIFT) & 0xf;
+}
+
+static inline __le16 qla_ext_build_vp_sof(u16 vp_idx, u16 sof_type)
+{
+	return cpu_to_le16((vp_idx & EXT_VP_SOF_VP_INDEX_MASK) |
+			   ((sof_type & 0xf) << EXT_VP_SOF_SOF_TYPE_SHIFT));
+}
+
 /*
  * ISP queue - command entry structure definition.
  */
@@ -393,9 +420,7 @@ struct els_entry_24xx_ext {
 
 	__le16	tx_dsd_count;
 
-	__le16	vp_index : 9;		/* VP Index 9bits */
-	__le16	reserved_1_sof : 3;
-	__le16	sof_type : 4;
+	__le16	vp_index_sof;		/* bits [8:0]=VP index, [15:12]=SOF type */
 
 	__le32	rx_xchg_address;	/* Receive exchange address. */
 	__le16	rx_dsd_count;
@@ -444,9 +469,7 @@ struct els_sts_entry_24xx_ext {
 
 	__le16	reserved_1;
 
-	__le16	vp_index : 9;		/* VP Index 9bits */
-	__le16	reserved_1_sof : 3;
-	__le16	sof_type : 4;
+	__le16	vp_index_sof;		/* bits [8:0]=VP index, [15:12]=SOF type */
 
 	__le32	rx_xchg_address;	/* Receive exchange address. */
 	__le16	reserved_2;
@@ -563,9 +586,7 @@ struct abts_entry_24xx_ext {
 	__le16	nport_handle;		/* type 0x54 only */
 
 	__le16	control_flags;		/* type 0x55 only */
-	__le16	vp_idx : 9;		/* VP index 9 bits */
-	__le16	reserved_1_sof : 3;
-	__le16	sof_type : 4;		/* sof_type is upper nibble */
+	__le16	vp_idx_sof;		/* bits [8:0]=VP index, [15:12]=SOF type */
 
 	__le32	rx_xch_addr;
 

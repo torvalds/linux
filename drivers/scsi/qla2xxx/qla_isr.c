@@ -90,13 +90,11 @@ static inline void display_Laser_info(scsi_qla_host_t *vha,
 	    (uint8_t *)(abts_ptr), sizeof(*(abts_ptr)));		\
 } while (0)
 
-#define QLA_BUILD_ABTS_BA_ACC(rsp, src, sof_val, fctl) do {		\
+#define QLA_BUILD_ABTS_BA_ACC(rsp, src, fctl) do {			\
 	memset((rsp), 0, sizeof(*(rsp)));				\
 	(rsp)->entry_type = ABTS_RSP_TYPE;				\
 	(rsp)->entry_count = 1;						\
 	(rsp)->nport_handle = (src)->nport_handle;			\
-	(rsp)->vp_idx = (src)->vp_idx;					\
-	(rsp)->sof_type = (sof_val);					\
 	(rsp)->rx_xch_addr = (src)->rx_xch_addr;			\
 	(rsp)->d_id[0] = (src)->s_id[0];				\
 	(rsp)->d_id[1] = (src)->s_id[1];				\
@@ -215,14 +213,17 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 	if (IS_QLA29XX(ha)) {
 		struct abts_entry_24xx_ext *rsp_ext = rsp_pkt;
 
-		QLA_BUILD_ABTS_BA_ACC(rsp_ext, abts_ext,
-		    abts_ext->sof_type, fctl);
+		QLA_BUILD_ABTS_BA_ACC(rsp_ext, abts_ext, fctl);
+		rsp_ext->vp_idx_sof = qla_ext_build_vp_sof(
+		    qla_ext_get_vp_index(abts_ext->vp_idx_sof),
+		    qla_ext_get_sof_type(abts_ext->vp_idx_sof));
 		QLA_LOG_ISSUE_ABTS_RSP(vha, rsp_ext, dma, rval);
 	} else {
 		struct abts_entry_24xx *abts_rsp = rsp_pkt;
 
-		QLA_BUILD_ABTS_BA_ACC(abts_rsp, abts,
-		    abts->sof_type & 0xf0, fctl);
+		QLA_BUILD_ABTS_BA_ACC(abts_rsp, abts, fctl);
+		abts_rsp->vp_idx = abts->vp_idx;
+		abts_rsp->sof_type = abts->sof_type & 0xf0;
 		QLA_LOG_ISSUE_ABTS_RSP(vha, abts_rsp, dma, rval);
 	}
 

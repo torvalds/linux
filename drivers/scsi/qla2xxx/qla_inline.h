@@ -890,8 +890,8 @@ qla_sts_fwi2_extract(struct qla_hw_data *ha, void *pkt,
  * Both layouts have the same 16-bit slot at offset 14, but it is encoded
  * differently:
  *   - 24xx: separate u8 vp_index + u8 sof_type with EST_SOFI3 (1 << 4)
- *   - 29xx: __le16 with bitfields { vp_index:9, reserved_1_sof:3,
- *           sof_type:4 } and ELS_EXT_EST_SOFI3
+ *   - 29xx: __le16 vp_index_sof with bits [8:0]=VP index, [15:12]=SOF type
+ *           and ELS_EXT_EST_SOFI3
  * so this is the single point in the driver that knows about that
  * encoding split.
  */
@@ -901,8 +901,8 @@ qla_els_set_vp_sof(struct scsi_qla_host *vha, void *pkt, u16 vp_idx)
 	if (IS_QLA29XX(vha->hw)) {
 		struct els_entry_24xx_ext *ext = pkt;
 
-		ext->vp_index = vp_idx;
-		ext->sof_type = ELS_EXT_EST_SOFI3;
+		ext->vp_index_sof =
+		    qla_ext_build_vp_sof(vp_idx, ELS_EXT_EST_SOFI3);
 	} else {
 		struct els_entry_24xx *e = pkt;
 
