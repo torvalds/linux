@@ -181,6 +181,7 @@ static int iwl_acpi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 
 	fwrt->dsm_revision = ACPI_DSM_REV;
 	fwrt->dsm_source = BIOS_SOURCE_ACPI;
+	fwrt->dsm_values[DSM_FUNC_QUERY] = (u32)query_func_val;
 
 	IWL_DEBUG_RADIO(fwrt, "ACPI DSM validity bitmap 0x%x\n",
 			(u32)query_func_val);
@@ -246,7 +247,7 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 	BUILD_BUG_ON(ARRAY_SIZE(fwrt->dsm_values) != DSM_FUNC_NUM_FUNCS);
 	BUILD_BUG_ON(BITS_PER_TYPE(fwrt->dsm_funcs_valid) < DSM_FUNC_NUM_FUNCS);
 
-	if (WARN_ON(func >= ARRAY_SIZE(fwrt->dsm_values) || !func))
+	if (WARN_ON(func >= ARRAY_SIZE(fwrt->dsm_values)))
 		return -EINVAL;
 
 	if (!(fwrt->dsm_funcs_valid & BIT(func))) {

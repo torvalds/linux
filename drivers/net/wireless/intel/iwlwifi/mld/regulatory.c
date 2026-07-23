@@ -16,8 +16,11 @@
 static ssize_t iwl_mld_get_lari_config_cmd_size(u8 cmd_ver)
 {
 	switch (cmd_ver) {
-	case 14:
+	case 15:
 		return sizeof(struct iwl_lari_config_change_cmd);
+	case 14:
+		return offsetof(struct iwl_lari_config_change_cmd,
+				oem_supported_dsm_bitmap);
 	case 13:
 		return offsetof(struct iwl_lari_config_change_cmd,
 				oem_uhb_allow_extension_bitmap);
@@ -425,6 +428,10 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	if (!ret)
 		cmd.oem_uhb_allow_extension_bitmap = cpu_to_le32(value);
 
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_QUERY, &value);
+	if (!ret)
+		cmd.oem_supported_dsm_bitmap = cpu_to_le32(value);
+
 	cmd.bios_wcpe_hdr.table_source = fwrt->puncturing_source;
 	cmd.bios_wcpe_hdr.table_revision = fwrt->puncturing_revision;
 	cmd.wcpe_bitmap = cpu_to_le32(fwrt->bios_puncturing);
@@ -441,7 +448,8 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	    !cmd.oem_11be_allow_bitmap &&
 	    !cmd.oem_11bn_allow_bitmap &&
 	    !cmd.oem_unii9_enable &&
-	    !cmd.wcpe_bitmap)
+	    !cmd.wcpe_bitmap &&
+	    !cmd.oem_supported_dsm_bitmap)
 		return;
 
 	cmd.bios_hdr.table_source = fwrt->dsm_source;
@@ -478,6 +486,9 @@ void iwl_mld_configure_lari(struct iwl_mld *mld)
 	IWL_DEBUG_RADIO(mld,
 			"sending LARI_CONFIG_CHANGE, wcpe_bitmap=0x%x\n",
 			le32_to_cpu(cmd.wcpe_bitmap));
+	IWL_DEBUG_RADIO(mld,
+			"sending LARI_CONFIG_CHANGE, oem_supported_dsm_bitmap=0x%x\n",
+			le32_to_cpu(cmd.oem_supported_dsm_bitmap));
 
 	ret = iwl_mld_send_cmd_pdu(mld,
 				   WIDE_ID(REGULATORY_AND_NVM_GROUP,

@@ -927,7 +927,7 @@ static int iwl_uefi_load_dsm_values(struct iwl_fw_runtime *fwrt)
 	 */
 	fwrt->dsm_funcs_valid |= BIT(DSM_FUNC_QUERY);
 
-	for (int func = 1; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
+	for (int func = 0; func < ARRAY_SIZE(fwrt->dsm_values); func++) {
 		if (!(fwrt->dsm_funcs_valid & BIT(func))) {
 			IWL_DEBUG_RADIO(fwrt, "DSM func %d not in 0x%x\n",
 					func, fwrt->dsm_funcs_valid);

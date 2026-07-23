@@ -697,6 +697,8 @@ struct iwl_lari_config_change_cmd_v8 {
  * @wcpe_bitmap: bitmap of puncturing enablement per MCC
  * @bios_wbem_hdr: 320 MHz per-MCC WBEM config header
  * @reserved: reserved
+ * @oem_supported_dsm_bitmap: DSM function 0 bitmap describing supported
+ *	DSM function indices
  */
 struct iwl_lari_config_change_cmd {
 	__le32 config_bitmap;
@@ -720,10 +722,13 @@ struct iwl_lari_config_change_cmd {
 	__le32 wcpe_bitmap;
 	struct iwl_bios_config_hdr bios_wbem_hdr;
 	__le32 reserved[10];
+	/* since version 15 */
+	__le32 oem_supported_dsm_bitmap;
 } __packed;
 /* LARI_CHANGE_CONF_CMD_S_VER_12
  * LARI_CHANGE_CONF_CMD_S_VER_13
  * LARI_CHANGE_CONF_CMD_S_VER_14
+ * LARI_CHANGE_CONF_CMD_S_VER_15
  */
 
 /* Activate UNII-1 (5.2GHz) for World Wide */
