@@ -1436,7 +1436,7 @@ static int amdgpu_uniras_clear_badpages_info(struct amdgpu_device *adev)
 				&req, sizeof(req), NULL, 0);
 	if (ret) {
 		dev_err(adev->dev, "Failed to clear bad pages info, ret: %d\n", ret);
-		return ret;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1536,7 +1536,7 @@ static int amdgpu_uniras_error_inject(struct amdgpu_device *adev,
 	inject_req.method = info->value;
 
 	return amdgpu_ras_mgr_handle_ras_cmd(adev, RAS_CMD__INJECT_ERROR,
-			&inject_req, sizeof(inject_req), &rsp, sizeof(rsp));
+	       &inject_req, sizeof(inject_req), &rsp, sizeof(rsp)) ? -EINVAL : 0;
 }
 
 /* wrapper of psp_ras_trigger_error */
