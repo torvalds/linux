@@ -201,6 +201,19 @@ static int init_platform_device(struct device *dev)
 	return 0;
 }
 
+/*
+ * The socket array is devm-managed and freed by the driver core, but the
+ * metric-table DRAM regions are mapped with plain ioremap() during probe and
+ * are therefore not covered by devres.
+ *
+ * Drop those mappings from a devres action so both remove and probe failure
+ * unmap them exactly once, before the socket array they refer to is freed.
+ */
+static void hsmp_pltdrv_release(void *data)
+{
+	hsmp_unmap_metric_tbls(hsmp_pdev);
+}
+
 static int hsmp_pltdrv_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -210,6 +223,10 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 				       GFP_KERNEL);
 	if (!hsmp_pdev->sock)
 		return -ENOMEM;
+
+	ret = devm_add_action_or_reset(&pdev->dev, hsmp_pltdrv_release, NULL);
+	if (ret)
+		return ret;
 
 	ret = init_platform_device(&pdev->dev);
 	if (ret) {
