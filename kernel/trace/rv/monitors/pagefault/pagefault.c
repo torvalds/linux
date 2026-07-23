@@ -86,3 +86,15 @@ module_exit(unregister_pagefault);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Nam Cao <namcao@linutronix.de>");
 MODULE_DESCRIPTION("pagefault: Monitor that RT tasks do not raise page faults");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "pagefault_kunit.h"
+
+const struct rv_pagefault_ops rv_pagefault_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_page_fault = handle_page_fault,
+	.handle_task_newtask = handle_task_newtask,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_pagefault_ops);
+#endif

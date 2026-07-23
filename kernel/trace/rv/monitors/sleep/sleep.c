@@ -208,3 +208,21 @@ module_exit(unregister_sleep);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Nam Cao <namcao@linutronix.de>");
 MODULE_DESCRIPTION("sleep: Monitor that RT tasks do not undesirably sleep");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "sleep_kunit.h"
+
+const struct rv_sleep_ops rv_sleep_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_sched_waking = handle_sched_waking,
+	.handle_sched_exit = handle_sched_exit,
+	.handle_sched_set_state = handle_sched_set_state,
+	.handle_contention_begin = handle_contention_begin,
+	.handle_contention_end = handle_contention_end,
+	.handle_sys_enter = handle_sys_enter,
+	.handle_sys_exit = handle_sys_exit,
+	.handle_task_newtask = handle_task_newtask,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_sleep_ops);
+#endif

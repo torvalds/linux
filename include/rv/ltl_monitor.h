@@ -172,3 +172,11 @@ static void __maybe_unused ltl_atom_pulse(struct task_struct *task, enum ltl_ato
 	ltl_atom_set(mon, atom, !value);
 	ltl_validate(task, mon);
 }
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#define RV_MON_OPS_INIT() {               \
+	.rv_this = &rv_this,              \
+	.is_per_task = true,              \
+	.task_slot = &ltl_monitor_slot,   \
+}
+#endif /* CONFIG_RV_MONITORS_KUNIT_TEST */
