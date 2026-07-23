@@ -381,6 +381,7 @@ struct ibmvfc_move_login {
 struct ibmvfc_prli_svc_parms {
 	u8 type;
 #define IBMVFC_SCSI_FCP_TYPE		0x08
+#define IBMVFC_NVME_FCP_TYPE		0x28
 	u8 type_ext;
 	__be16 flags;
 #define IBMVFC_PRLI_ORIG_PA_VALID			0x8000
@@ -396,6 +397,11 @@ struct ibmvfc_prli_svc_parms {
 #define IBMVFC_PRLI_TARGET_FUNC			0x00000010
 #define IBMVFC_PRLI_READ_FCP_XFER_RDY_DISABLED	0x00000002
 #define IBMVFC_PRLI_WR_FCP_XFER_RDY_DISABLED	0x00000001
+#define IBMVFC_PRLI_NVME_PI_CTRL		0x00000200
+#define IBMVFC_PRLI_NVME_SLER			0x00000100
+#define IBMVFC_PRLI_NVME_INITIATOR		0x00000020
+#define IBMVFC_PRLI_NVME_TARGET			0x00000010
+#define IBMVFC_PRLI_NVME_DISCOVERY		0x00000008
 } __packed __aligned(4);
 
 struct ibmvfc_process_login {
