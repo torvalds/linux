@@ -693,6 +693,7 @@ struct vp_rpt_id_entry_24xx_ext {
 			uint8_t remote_nport_id[4];
 		} f2;
 	} u;
+	uint8_t reserved_end[64];
 };
 
 /*
