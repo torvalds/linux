@@ -65,6 +65,7 @@ struct intel_tlv {
 
 /* CNVR */
 #define BTINTEL_CNVR_FMP2		0x910
+#define BTINTEL_CNVR_WHP2		0xA10	/* Whale Peak2 - Panther Lake */
 
 #define BTINTEL_IMG_BOOTLOADER		0x01	/* Bootloader image */
 #define BTINTEL_IMG_IML			0x02	/* Intermediate image */
@@ -202,6 +203,23 @@ struct btintel_sar_inc_pwr {
 	u8	le;
 	u8	le_2mhz;
 	u8	le_lr;
+};
+
+/* Bluetooth SAR feature (BRDS), Revision 2 - per-chain sub-band power limits */
+struct btintel_sar_band_limits {
+	u8	subband_2g4;
+	u8	subband_5g2;
+	u8	subband_5g8_5g9;
+	u8	subband_6g1;
+	u8	subband_6g3;
+};
+
+struct btintel_sar_rev2 {
+	u8	revision;
+	u32	bt_sar_bios;    /* 1: BIOS-managed SAR enabled */
+	u32	inc_power_mode; /* 0: supported, 1: disabled */
+	struct btintel_sar_band_limits chain_a;
+	struct btintel_sar_band_limits chain_b;
 };
 
 #define INTEL_HW_PLATFORM(cnvx_bt)	((u8)(((cnvx_bt) & 0x0000ff00) >> 8))
