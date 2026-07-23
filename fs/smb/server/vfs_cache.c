@@ -1894,7 +1894,7 @@ int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
 	down_write(&ci->m_lock);
 	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry,
 				lockdep_is_held(&ci->m_lock)) {
-		if (op->conn)
+		if (op->conn || op->o_fp != fp)
 			continue;
 		op->conn = ksmbd_conn_get(fp->conn);
 		op->sess = work->sess;
