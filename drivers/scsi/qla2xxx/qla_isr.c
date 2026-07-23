@@ -83,6 +83,8 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 	dma_addr_t dma;
 	uint32_t fctl;
 	int rval;
+	void *rsp_pkt;
+	size_t rsp_sz;
 
 	ql_dbg(ql_dbg_init, vha, 0x0286, "%s: entered.\n", __func__);
 
@@ -95,15 +97,22 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0287,
 	    (uint8_t *)abts, sizeof(*abts));
 
-	rsp_els = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_els), &dma,
+	if (IS_QLA29XX(ha))
+		rsp_sz = sizeof(struct els_entry_24xx_ext);
+	else
+		rsp_sz = sizeof(struct els_entry_24xx);
+
+	rsp_pkt = dma_alloc_coherent(&ha->pdev->dev, rsp_sz, &dma,
 	    GFP_KERNEL);
-	if (!rsp_els) {
+	if (!rsp_pkt) {
 		ql_log(ql_log_warn, vha, 0x0287,
 		    "Failed allocate dma buffer ABTS/ELS RSP.\n");
 		return;
 	}
+	rsp_els = rsp_pkt;
 
 	/* terminate exchange */
+	memset(rsp_pkt, 0, rsp_sz);
 	rsp_els->entry_type = ELS_IOCB_TYPE;
 	rsp_els->entry_count = 1;
 	rsp_els->nport_handle = cpu_to_le16(~0);
@@ -115,8 +124,8 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0283,
 	    "-------- ELS RSP -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0283,
-	    (uint8_t *)rsp_els, sizeof(*rsp_els));
-	rval = qla2x00_issue_iocb(vha, rsp_els, dma, 0);
+	    (uint8_t *)rsp_pkt, rsp_sz);
+	rval = qla2x00_issue_iocb(vha, rsp_pkt, dma, 0);
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0288,
 		    "%s: iocb failed to execute -> %x\n", __func__, rval);
@@ -131,7 +140,7 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 	}
 
 	/* send ABTS response */
-	abts_rsp = (void *)rsp_els;
+	abts_rsp = rsp_pkt;
 	memset(abts_rsp, 0, sizeof(*abts_rsp));
 	abts_rsp->entry_type = ABTS_RSP_TYPE;
 	abts_rsp->entry_count = 1;
@@ -182,7 +191,7 @@ qla24xx_process_abts(struct scsi_qla_host *vha, struct purex_item *pkt)
 		    "%s: done.\n", __func__);
 	}
 
-	dma_free_coherent(&ha->pdev->dev, sizeof(*rsp_els), rsp_els, dma);
+	dma_free_coherent(&ha->pdev->dev, rsp_sz, rsp_pkt, dma);
 }
 
 /**
@@ -2385,7 +2394,8 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 	case SRB_ELS_CMD_HST_NOLOGIN:
 		type = "els";
 		{
-			struct els_entry_24xx *els = (void *)pkt;
+			__le16 ctl_flags =
+				((struct els_entry_24xx *)pkt)->control_flags;
 			struct qla_bsg_auth_els_request *p =
 				(struct qla_bsg_auth_els_request *)bsg_job->request;
 
@@ -2395,7 +2405,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 			     e->d_id[2], e->d_id[1], e->d_id[0],
 			     comp_status, p->e.extra_rx_xchg_address, bsg_job);
 
-			if (!(le16_to_cpu(els->control_flags) & ECF_PAYLOAD_DESCR_MASK)) {
+			if (!(le16_to_cpu(ctl_flags) & ECF_PAYLOAD_DESCR_MASK)) {
 				if (sp->remap.remapped) {
 					n = sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
 						bsg_job->reply_payload.sg_cnt,

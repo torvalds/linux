@@ -6211,8 +6211,10 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 	uint8_t *sfp = NULL;
 	uint16_t sfp_flags = 0;
 	uint rsp_payload_length = sizeof(*rsp_payload);
-	uint8_t vp_idx;
+	u16 vp_idx;
 	size_t purex_sz;
+	size_t rsp_els_sz;
+	void *rsp_els_pkt = NULL;
 	int rval;
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0180,
@@ -6240,13 +6242,19 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 		    rsp_payload_length);
 	}
 
-	rsp_els = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_els),
+	if (IS_QLA29XX(ha))
+		rsp_els_sz = sizeof(struct els_entry_24xx_ext);
+	else
+		rsp_els_sz = sizeof(struct els_entry_24xx);
+
+	rsp_els_pkt = dma_alloc_coherent(&ha->pdev->dev, rsp_els_sz,
 	    &rsp_els_dma, GFP_KERNEL);
-	if (!rsp_els) {
+	if (!rsp_els_pkt) {
 		ql_log(ql_log_warn, vha, 0x0183,
-		    "Failed allocate dma buffer ELS RSP.\n");
+		    "Failed to allocate dma buffer ELS RSP.\n");
 		goto dealloc;
 	}
+	rsp_els = rsp_els_pkt;
 
 	rsp_payload = dma_alloc_coherent(&ha->pdev->dev, sizeof(*rsp_payload),
 	    &rsp_payload_dma, GFP_KERNEL);
@@ -6270,11 +6278,11 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha,
 	rsp_els->handle = 0;
 	rsp_els->nport_handle = purex->nport_handle;
 	rsp_els->tx_dsd_count = cpu_to_le16(1);
-	rsp_els->vp_index = vp_idx;
-	rsp_els->sof_type = EST_SOFI3;
 	rsp_els->rx_xchg_address = purex->rx_xchg_addr;
 	rsp_els->rx_dsd_count = 0;
 	rsp_els->opcode = purex->els_frame_payload[0];
+
+	qla_els_set_vp_sof(vha, rsp_els_pkt, vp_idx);
 
 	rsp_els->d_id[0] = purex->s_id[0];
 	rsp_els->d_id[1] = purex->s_id[1];
@@ -6575,13 +6583,13 @@ send:
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0184,
 	    "-------- ELS RSP -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0185,
-	    rsp_els, sizeof(*rsp_els));
+	    rsp_els_pkt, rsp_els_sz);
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0186,
 	    "-------- ELS RSP PAYLOAD -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0187,
 	    rsp_payload, rsp_payload_length);
 
-	rval = qla2x00_issue_iocb(vha, rsp_els, rsp_els_dma, 0);
+	rval = qla2x00_issue_iocb(vha, rsp_els_pkt, rsp_els_dma, 0);
 
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0188,
@@ -6605,9 +6613,9 @@ dealloc:
 	if (rsp_payload)
 		dma_free_coherent(&ha->pdev->dev, sizeof(*rsp_payload),
 		    rsp_payload, rsp_payload_dma);
-	if (rsp_els)
-		dma_free_coherent(&ha->pdev->dev, sizeof(*rsp_els),
-		    rsp_els, rsp_els_dma);
+	if (rsp_els_pkt)
+		dma_free_coherent(&ha->pdev->dev, rsp_els_sz,
+		    rsp_els_pkt, rsp_els_dma);
 }
 
 void
@@ -8376,6 +8384,7 @@ qla2x00_module_init(void)
 	BUILD_BUG_ON(sizeof(struct device_reg_82xx) != 1288);
 	BUILD_BUG_ON(sizeof(struct device_reg_fx00) != 216);
 	BUILD_BUG_ON(sizeof(struct els_entry_24xx) != 64);
+	BUILD_BUG_ON(sizeof(struct els_entry_24xx_ext) != 128);
 	BUILD_BUG_ON(sizeof(struct els_sts_entry_24xx) != 64);
 	BUILD_BUG_ON(sizeof(struct fxdisc_entry_fx00) != 64);
 	BUILD_BUG_ON(sizeof(struct imm_ntfy_from_isp) != 64);
