@@ -69,6 +69,7 @@ void mtk_rmw(struct mtk_pinctrl *pctl, u8 i, u32 reg, u32 mask, u32 set)
 
 	spin_unlock_irqrestore(&pctl->lock, flags);
 }
+EXPORT_SYMBOL_NS_GPL(mtk_rmw, "MTK_PINCTRL");
 
 static int mtk_hw_pin_field_lookup(struct mtk_pinctrl *hw,
 				   const struct mtk_pin_desc *desc,

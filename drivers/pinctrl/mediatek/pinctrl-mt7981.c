@@ -1058,3 +1058,5 @@ static int __init mt7981_pinctrl_init(void)
 	return platform_driver_register(&mt7981_pinctrl_driver);
 }
 arch_initcall(mt7981_pinctrl_init);
+
+MODULE_IMPORT_NS("MTK_PINCTRL");

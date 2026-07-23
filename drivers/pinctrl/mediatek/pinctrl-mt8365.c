@@ -495,3 +495,4 @@ arch_initcall(mtk_pinctrl_init);
 
 MODULE_DESCRIPTION("MediaTek MT8365 Pinctrl Driver");
 MODULE_AUTHOR("Zhiyong Tao <zhiyong.tao@mediatek.com>");
+MODULE_IMPORT_NS("MTK_PINCTRL");

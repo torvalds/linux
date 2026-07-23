@@ -591,3 +591,5 @@ static int __init mtk_pinctrl_init(void)
 }
 
 arch_initcall(mtk_pinctrl_init);
+
+MODULE_IMPORT_NS("MTK_PINCTRL");

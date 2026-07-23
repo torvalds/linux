@@ -11,7 +11,7 @@ config EINT_MTK
 	default PINCTRL_MTK_PARIS
 
 config PINCTRL_MTK
-	bool
+	tristate
 	depends on OF
 	select PINMUX
 	select GENERIC_PINCONF
@@ -22,13 +22,13 @@ config PINCTRL_MTK_V2
 	tristate
 
 config PINCTRL_MTK_MTMIPS
-	bool
+	tristate
 	depends on RALINK
 	select PINMUX
 	select GENERIC_PINCONF
 
 config PINCTRL_MTK_MOORE
-	bool
+	tristate
 	depends on OF
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
