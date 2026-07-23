@@ -212,6 +212,7 @@ static int init_platform_device(struct device *dev)
 static void hsmp_pltdrv_release(void *data)
 {
 	hsmp_unmap_metric_tbls(hsmp_pdev);
+	hsmp_destroy_metric_read_locks(hsmp_pdev);
 }
 
 static int hsmp_pltdrv_probe(struct platform_device *pdev)
@@ -223,6 +224,8 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 				       GFP_KERNEL);
 	if (!hsmp_pdev->sock)
 		return -ENOMEM;
+
+	hsmp_init_metric_read_locks(hsmp_pdev);
 
 	ret = devm_add_action_or_reset(&pdev->dev, hsmp_pltdrv_release, NULL);
 	if (ret)
