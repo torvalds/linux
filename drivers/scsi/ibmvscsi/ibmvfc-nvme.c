@@ -28,6 +28,40 @@ static void ibmvfc_nvme_remoteport_delete(struct nvme_fc_remote_port *rport)
 	complete(&tgt->nvme_delete_done);
 }
 
+static int ibmvfc_nvme_create_queue(struct nvme_fc_local_port *lport, unsigned int qidx,
+				    u16 qsize, void **handle)
+{
+	struct ibmvfc_host *vhost = lport->private;
+	struct ibmvfc_nvme_qhandle *qhandle;
+
+	if (!vhost->nvme_scrqs.active_queues)
+		return -ENODEV;
+
+	qhandle = kzalloc_obj(struct ibmvfc_nvme_qhandle);
+	if (!qhandle)
+		return -ENOMEM;
+
+	qhandle->cpu_id = raw_smp_processor_id();
+	qhandle->qidx = qidx;
+
+	/* Admin and first IO queue are both mapped to index 0 */
+	if (qidx)
+		qhandle->index = (qidx - 1) % vhost->nvme_scrqs.active_queues;
+	else
+		qhandle->index = qidx;
+
+	qhandle->queue = &vhost->nvme_scrqs.scrqs[qhandle->index];
+
+	*handle = qhandle;
+	return 0;
+}
+
+static void ibmvfc_nvme_delete_queue(struct nvme_fc_local_port *lport, unsigned int qidx,
+				     void *handle)
+{
+	kfree(handle);
+}
+
 static int ibmvfc_nvme_ls_req(struct nvme_fc_local_port *lport,
 			      struct nvme_fc_remote_port *rport,
 			      struct nvmefc_ls_req *ls_req)
@@ -59,8 +93,8 @@ static void ibmvfc_nvme_fcp_abort(struct nvme_fc_local_port *lport,
 static struct nvme_fc_port_template ibmvfc_nvme_fc_transport = {
 	.localport_delete	= ibmvfc_nvme_localport_delete,
 	.remoteport_delete	= ibmvfc_nvme_remoteport_delete,
-	.create_queue		= NULL,
-	.delete_queue		= NULL,
+	.create_queue		= ibmvfc_nvme_create_queue,
+	.delete_queue		= ibmvfc_nvme_delete_queue,
 	.ls_req			= ibmvfc_nvme_ls_req,
 	.ls_abort		= ibmvfc_nvme_ls_abort,
 	.fcp_io			= ibmvfc_nvme_fcp_io,
