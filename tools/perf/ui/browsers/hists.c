@@ -2826,6 +2826,8 @@ add_script_opt(struct hist_browser *browser,
 			time_optstr++;
 			time_act++;
 		}
+		if (he == NULL)
+			return n;
 		j = sprintf(tstr, " in ");
 		j += timestamp__scnprintf_usec(he->time, tstr + j,
 					       sizeof tstr - j);
