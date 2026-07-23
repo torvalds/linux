@@ -1039,7 +1039,8 @@ static int i3c_master_send_ccc_cmd_locked(struct i3c_master_controller *master,
 	if (!master->ops->send_ccc_cmd)
 		return -EOPNOTSUPP;
 
-	if ((cmd->id & I3C_CCC_DIRECT) && (!cmd->dests || !cmd->ndests))
+	if ((cmd->rnw || (cmd->id & I3C_CCC_DIRECT)) &&
+	    (!cmd->dests || !cmd->ndests))
 		return -EINVAL;
 
 	if (master->ops->supports_ccc_cmd &&
