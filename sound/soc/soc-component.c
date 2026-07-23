@@ -54,6 +54,18 @@ const char *snd_soc_component_name(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_name);
 
+void snd_soc_component_set_priv(struct snd_soc_component *component, void *priv)
+{
+	component->priv = priv;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_priv);
+
+void *snd_soc_component_to_priv(struct snd_soc_component *component)
+{
+	return component->priv;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_to_priv);
+
 /*
  * We might want to check substream by using list.
  * In such case, we can update these macros.
