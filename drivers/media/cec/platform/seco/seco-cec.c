@@ -619,7 +619,6 @@ static int secocec_probe(struct platform_device *pdev)
 					dev_name(&pdev->dev), secocec);
 
 	if (ret) {
-		dev_err(dev, "Cannot request IRQ %d\n", secocec->irq);
 		ret = -EIO;
 		goto err;
 	}
