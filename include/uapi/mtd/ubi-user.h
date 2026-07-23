@@ -289,6 +289,13 @@ enum {
  * If @disable_fm is not zero, ubi doesn't create new fastmap even the module
  * param 'fm_autoconvert' is set, and existed old fastmap will be destroyed
  * after doing full scanning.
+ *
+ * The @wl_threshold defines the maximum difference between the highest and the
+ * lowest erase counter value of eraseblocks of this UBI device. When this
+ * threshold is exceeded, UBI starts performing wear leveling by means of
+ * moving data from eraseblock with low erase counter to eraseblocks with high
+ * erase counter. If @wl_threshold is zero, the default kernel value of
+ * %CONFIG_MTD_UBI_WL_THRESHOLD is used. The accepted range is 2-65536.
  */
 struct ubi_attach_req {
 	__s32 ubi_num;
@@ -297,7 +304,8 @@ struct ubi_attach_req {
 	__s16 max_beb_per1024;
 	__s8 disable_fm;
 	__s8 need_resv_pool;
-	__s8 padding[8];
+	__s32 wl_threshold;
+	__s8 padding[4];
 };
 
 /*

@@ -516,6 +516,22 @@ struct ubi_debug_info {
  * @bgt_thread: background thread description object
  * @thread_enabled: if the background thread is enabled
  * @bgt_name: background thread name
+ * @wl_threshold: Maximum difference between two erase counters. If this
+ *		   threshold is exceeded, the WL sub-system starts moving
+ *		   data from used physical eraseblocks with low erase
+ *		   counter to free physical eraseblocks with high erase counter.
+ * @wl_free_max_diff: When a physical eraseblock is moved, the WL sub-system
+ *		       has to pick the target physical eraseblock to move to.
+ *		       The simplest way would be just to pick the one with the
+ *		       highest erase counter. But in certain workloads this
+ *		       could lead to an unlimited wear of one or few physical
+ *		       eraseblock. Indeed, imagine a situation when the picked
+ *		       physical eraseblock is constantly erased after the
+ *		       data is written to it. So, we have a constant which
+ *		       limits the highest erase counter of the free physical
+ *		       eraseblock to pick. Namely, the WL sub-system does not
+ *		       pick eraseblocks with erase counter greater than the
+ *		       lowest erase counter plus @wl_free_max_diff.
  *
  * @flash_size: underlying MTD device size (in bytes)
  * @peb_count: count of physical eraseblocks on the MTD device
@@ -623,6 +639,8 @@ struct ubi_device {
 	struct task_struct *bgt_thread;
 	int thread_enabled;
 	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
+	int wl_threshold;
+	int wl_free_max_diff;
 
 	/* I/O sub-system's stuff */
 	long long flash_size;
@@ -938,7 +956,8 @@ int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 /* build.c */
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 		       int vid_hdr_offset, int max_beb_per1024,
-		       bool disable_fm, bool need_resv_pool);
+		       bool disable_fm, bool need_resv_pool,
+		       int wl_threshold);
 int ubi_detach_mtd_dev(int ubi_num, int anyway);
 struct ubi_device *ubi_get_device(int ubi_num);
 void ubi_put_device(struct ubi_device *ubi);
