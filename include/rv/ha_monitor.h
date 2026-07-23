@@ -526,4 +526,25 @@ static inline bool ha_cancel_timer(struct ha_monitor *ha_mon)
 static inline void ha_cancel_timer_sync(struct ha_monitor *ha_mon) { }
 #endif
 
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#ifdef RV_MON_OPS_INIT
+#undef RV_MON_OPS_INIT
+#endif
+
+#if RV_MON_TYPE == RV_MON_PER_TASK
+#define RV_MON_OPS_INIT() {             \
+	.rv_this = &rv_this,            \
+	.is_per_task = true,            \
+	.task_slot = &task_mon_slot,    \
+	.task_reset = da_reset,         \
+}
+#else
+#define RV_MON_OPS_INIT() {                     \
+	.rv_this = &rv_this,                    \
+	.monitor_init = ha_monitor_init,        \
+	.monitor_destroy = ha_monitor_destroy,  \
+}
+#endif /* RV_MON_TYPE */
+#endif /* CONFIG_RV_MONITORS_KUNIT_TEST */
+
 #endif

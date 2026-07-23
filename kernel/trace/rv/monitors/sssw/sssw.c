@@ -112,3 +112,17 @@ module_exit(unregister_sssw);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("sssw: set state sleep and wakeup.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "sssw_kunit.h"
+
+const struct rv_sssw_ops rv_sssw_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.handle_sched_set_state = handle_sched_set_state,
+	.handle_sched_switch = handle_sched_switch,
+	.handle_sched_wakeup = handle_sched_wakeup,
+	.handle_signal_deliver = handle_signal_deliver,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_sssw_ops);
+#endif

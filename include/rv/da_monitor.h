@@ -311,6 +311,11 @@ static inline struct da_monitor *da_get_monitor(struct task_struct *tsk)
 	return &tsk->rv[task_mon_slot].da_mon;
 }
 
+static inline void da_reset(struct task_struct *tsk)
+{
+	da_monitor_reset(da_get_monitor(tsk));
+}
+
 /*
  * da_get_target - return the task associated to the monitor
  */
@@ -907,5 +912,22 @@ static inline void da_reset(da_id_type id, monitor_target target)
 		da_monitor_reset(da_mon);
 }
 #endif /* RV_MON_TYPE */
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#if RV_MON_TYPE == RV_MON_PER_TASK
+#define RV_MON_OPS_INIT() {             \
+	.rv_this = &rv_this,            \
+	.is_per_task = true,            \
+	.task_slot = &task_mon_slot,    \
+	.task_reset = da_reset,         \
+}
+#else
+#define RV_MON_OPS_INIT() {                     \
+	.rv_this = &rv_this,                    \
+	.monitor_init = da_monitor_init,        \
+	.monitor_destroy = da_monitor_destroy,  \
+}
+#endif /* RV_MON_TYPE */
+#endif /* CONFIG_RV_MONITORS_KUNIT_TEST */
 
 #endif

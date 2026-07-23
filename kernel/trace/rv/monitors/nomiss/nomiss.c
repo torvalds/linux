@@ -277,3 +277,21 @@ module_exit(unregister_nomiss);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gabriele Monaco <gmonaco@redhat.com>");
 MODULE_DESCRIPTION("nomiss: dl entities run to completion before their deadline.");
+
+#if IS_ENABLED(CONFIG_RV_MONITORS_KUNIT_TEST)
+#include <kunit/visibility.h>
+#include "nomiss_kunit.h"
+
+const struct rv_nomiss_ops rv_nomiss_ops = {
+	.mon = RV_MON_OPS_INIT(),
+	.deadline_thresh = &deadline_thresh,
+	.handle_dl_replenish = handle_dl_replenish,
+	.handle_dl_throttle = handle_dl_throttle,
+	.handle_dl_server_stop = handle_dl_server_stop,
+	.handle_sched_switch = handle_sched_switch,
+	.handle_sched_wakeup = handle_sched_wakeup,
+	.handle_sys_enter = handle_sys_enter,
+	.handle_newtask = handle_newtask,
+};
+EXPORT_SYMBOL_IF_KUNIT(rv_nomiss_ops);
+#endif
