@@ -1774,8 +1774,10 @@ static int ibmvfc_send_event(struct ibmvfc_event *evt,
 		if (evt->cmnd) {
 			evt->cmnd->result = DID_ERROR << 16;
 			evt->done = ibmvfc_scsi_eh_done;
-		} else
+		} else {
 			evt->xfer_iu->mad_common.status = cpu_to_be16(IBMVFC_MAD_CRQ_ERROR);
+			evt->done = evt->_done;
+		}
 
 		evt->done(evt);
 	} else {
