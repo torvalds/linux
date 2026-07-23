@@ -4035,7 +4035,7 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 }
 
 void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
-    struct pt_ls4_request *pkt, struct req_que *req)
+			   void *pkt, struct req_que *req)
 {
 	srb_t *sp;
 	const char func[] = "LS4_IOCB";
@@ -4045,7 +4045,9 @@ void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
 	if (!sp)
 		return;
 
-	comp_status = le16_to_cpu(pkt->status);
+	/* status lives at the same offset (8) in both IOCB strides */
+	comp_status = le16_to_cpu(((struct pt_ls4_request *)pkt)->status);
+
 	sp->done(sp, comp_status);
 }
 
@@ -4211,8 +4213,7 @@ process_err:
 			qlt_response_pkt_all_vps(vha, rsp, (response_t *)pkt);
 			break;
 		case PT_LS4_REQUEST:
-			qla24xx_nvme_ls4_iocb(vha, (struct pt_ls4_request *)pkt,
-			    rsp->req);
+			qla24xx_nvme_ls4_iocb(vha, pkt, rsp->req);
 			break;
 		case NOTIFY_ACK_TYPE:
 			if (((response_t *)pkt)->handle == QLA_TGT_SKIP_HANDLE)

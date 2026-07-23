@@ -1197,37 +1197,57 @@ static void qla_nvme_fc_format_rjt(void *buf, u8 ls_cmd, u8 reason,
 	rjt->rjt.vendor = vendor;
 }
 
+/*
+ * pt_ls4_request_ext overlays pt_ls4_request through exchange_address
+ * (offsets 0-27 are byte-identical), so the common-header writes go
+ * through one struct pt_ls4_request * view.  The ext layout has a wider
+ * __le16 vp_index and places tx_/rx_byte_count and dsd[] at different
+ * offsets, so those assignments diverge per stride.
+ */
 static void qla_nvme_lsrjt_pt_iocb(struct scsi_qla_host *vha,
-				   struct pt_ls4_request *lsrjt_iocb,
+				   void *lsrjt_iocb,
 				   struct qla_nvme_lsrjt_pt_arg *a)
 {
-	lsrjt_iocb->entry_type = PT_LS4_REQUEST;
-	lsrjt_iocb->entry_count = 1;
-	lsrjt_iocb->sys_define = 0;
-	lsrjt_iocb->entry_status = 0;
-	lsrjt_iocb->handle = QLA_SKIP_HANDLE;
-	lsrjt_iocb->nport_handle = a->nport_handle;
-	lsrjt_iocb->exchange_address = a->xchg_address;
-	lsrjt_iocb->vp_index = a->vp_idx;
+	struct qla_hw_data *ha = vha->hw;
+	struct pt_ls4_request *pkt = lsrjt_iocb;
 
-	lsrjt_iocb->control_flags = cpu_to_le16(a->control_flags);
+	pkt->entry_type = PT_LS4_REQUEST;
+	pkt->entry_count = 1;
+	pkt->sys_define = 0;
+	pkt->entry_status = 0;
+	pkt->handle = QLA_SKIP_HANDLE;
+	pkt->nport_handle = a->nport_handle;
+	pkt->exchange_address = a->xchg_address;
+	pkt->control_flags = cpu_to_le16(a->control_flags);
+	pkt->tx_dseg_count = cpu_to_le16(1);
+	pkt->rx_dseg_count = 0;
 
-	put_unaligned_le64(a->tx_addr, &lsrjt_iocb->dsd[0].address);
-	lsrjt_iocb->dsd[0].length = cpu_to_le32(a->tx_byte_count);
-	lsrjt_iocb->tx_dseg_count = cpu_to_le16(1);
-	lsrjt_iocb->tx_byte_count = cpu_to_le32(a->tx_byte_count);
+	if (IS_QLA29XX(ha)) {
+		struct pt_ls4_request_ext *ext = lsrjt_iocb;
 
-	put_unaligned_le64(a->rx_addr, &lsrjt_iocb->dsd[1].address);
-	lsrjt_iocb->dsd[1].length = 0;
-	lsrjt_iocb->rx_dseg_count = 0;
-	lsrjt_iocb->rx_byte_count = 0;
+		ext->vp_index = cpu_to_le16(a->vp_idx);
+		ext->tx_byte_count = cpu_to_le32(a->tx_byte_count);
+		ext->rx_byte_count = 0;
+		put_unaligned_le64(a->tx_addr, &ext->dsd[0].address);
+		ext->dsd[0].length = cpu_to_le32(a->tx_byte_count);
+		put_unaligned_le64(a->rx_addr, &ext->dsd[1].address);
+		ext->dsd[1].length = 0;
+	} else {
+		pkt->vp_index = a->vp_idx;
+		pkt->tx_byte_count = cpu_to_le32(a->tx_byte_count);
+		pkt->rx_byte_count = 0;
+		put_unaligned_le64(a->tx_addr, &pkt->dsd[0].address);
+		pkt->dsd[0].length = cpu_to_le32(a->tx_byte_count);
+		put_unaligned_le64(a->rx_addr, &pkt->dsd[1].address);
+		pkt->dsd[1].length = 0;
+	}
 }
 
 static int
 qla_nvme_ls_reject_iocb(struct scsi_qla_host *vha, struct qla_qpair *qp,
 			struct qla_nvme_lsrjt_pt_arg *a, bool is_xchg_terminate)
 {
-	struct pt_ls4_request *lsrjt_iocb;
+	void *lsrjt_iocb;
 
 	lsrjt_iocb = __qla2x00_alloc_iocbs(qp, NULL);
 	if (!lsrjt_iocb) {

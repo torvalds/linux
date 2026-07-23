@@ -296,6 +296,43 @@ struct ct_entry_24xx_ext {
 };
 
 /*
+ * 29xx extended Link Service pass-through request IOCB (128 bytes).
+ *
+ * Same wire purpose as the 64-byte struct pt_ls4_request used on 24xx-class
+ * adapters, but laid out for the 128-byte 29xx request ring:
+ *   - vp_index widened to __le16 (bits [8:0] meaningful, see
+ *     CMD_EXT_VP_INDEX_MASK).
+ *   - reserved area expanded to 32 bytes between exchange_address and
+ *     rx_byte_count.
+ *   - inline DSD capacity grown from 2 to 5.
+ * Header through 'tx_dseg_count' (offset 14) and the control_flags /
+ * exchange_address fields keep the same offsets as struct pt_ls4_request,
+ * so common code can populate them via either type once IS_QLA29XX(ha) is
+ * branched for the layout-divergent fields.
+ */
+#define NUM_PT_LS4_EXT_DSDS	5
+struct pt_ls4_request_ext {
+	uint8_t entry_type;
+	uint8_t entry_count;
+	uint8_t sys_define;
+	uint8_t entry_status;
+	uint32_t handle;
+	__le16	status;
+	__le16	nport_handle;
+	__le16	tx_dseg_count;
+	__le16	vp_index;	/* VP Index 9 bits; see CMD_EXT_VP_INDEX_MASK */
+	__le16	timeout;
+	__le16	control_flags;	/* CF_LS4_* (see struct pt_ls4_request) */
+	__le16	rx_dseg_count;
+	__le16	rsvd2;
+	__le32	exchange_address;
+	uint8_t rsvd3[32];
+	__le32	rx_byte_count;
+	__le32	tx_byte_count;
+	struct dsd64 dsd[NUM_PT_LS4_EXT_DSDS];
+};
+
+/*
  * ISP queue - PUREX IOCB entry structure definition
  */
 struct purex_entry_24xx_ext {
