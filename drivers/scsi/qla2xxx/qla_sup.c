@@ -1913,7 +1913,7 @@ next:
 			ql_log(ql_log_warn + ql_dbg_verbose, vha, 0x7095,
 			    "Write burst (%#lx dwords)...\n", dburst);
 			ret = qla2x00_load_ram(vha, optrom_dma,
-			    flash_data_addr(ha, faddr), dburst);
+			    flash_data_addr(ha, faddr), dburst, 0);
 			if (!ret) {
 				liter += dburst - 1;
 				faddr += dburst - 1;
@@ -3513,7 +3513,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		ql_log(ql_log_warn + ql_dbg_verbose, vha, 0x7095,
 		    "Write burst (%#lx dwords)...\n", dburst);
 		rval = qla2x00_load_ram(vha, optrom_dma,
-		    flash_data_addr(ha, faddr), dburst);
+		    flash_data_addr(ha, faddr), dburst, 0);
 		if (rval != QLA_SUCCESS) {
 			ql_log(ql_log_warn, vha, 0x7097,
 			    "Failed burst write at %x (%p/%#llx)...\n",

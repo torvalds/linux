@@ -618,7 +618,7 @@ mbx_done:
 
 int
 qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
-    uint32_t risc_code_size)
+		 uint32_t risc_code_size, int opt)
 {
 	int rval;
 	struct qla_hw_data *ha = vha->hw;
@@ -651,7 +651,14 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 		mcp->out_mb |= MBX_4;
 	}
 
-	mcp->in_mb = MBX_1|MBX_0;
+	if (IS_QLA29XX(ha)) {
+		mcp->mb[9] = opt;
+		mcp->out_mb |= MBX_9;
+		mcp->in_mb = MBX_3|MBX_2|MBX_1|MBX_0;
+	} else {
+		mcp->in_mb = MBX_1|MBX_0;
+	}
+
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -846,15 +853,19 @@ qla28xx_load_flash_firmware(scsi_qla_host_t *vha)
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
-	if (!IS_QLA28XX(ha))
+	if (!IS_QLA28XX(ha) && !IS_QLA29XX(ha))
 		return rval;
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x11a6,
 	       "Entered %s.\n", __func__);
 
 	mcp->mb[0] = MBC_LOAD_FLASH_FIRMWARE;
+	mcp->mb[1] = 0;
 	mcp->out_mb = MBX_2 | MBX_1 | MBX_0;
-	mcp->in_mb = MBX_0;
+	if (IS_QLA29XX(ha))
+		mcp->in_mb = MBX_1 | MBX_0;
+	else
+		mcp->in_mb = MBX_0;
 	mcp->tov = MBX_TOV_SECONDS;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(vha, mcp);

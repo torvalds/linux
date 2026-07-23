@@ -38,6 +38,7 @@ extern void qla24xx_update_fw_options(scsi_qla_host_t *);
 extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
 extern int qla24xx_load_risc(scsi_qla_host_t *, uint32_t *);
 extern int qla81xx_load_risc(scsi_qla_host_t *, uint32_t *);
+extern int qla29xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr);
 
 extern int qla2x00_perform_loop_resync(scsi_qla_host_t *);
 extern int qla2x00_loop_resync(scsi_qla_host_t *);
@@ -336,7 +337,7 @@ void qla2x00_els_dcmd2_iocb_timeout(void *data);
  * Global Function Prototypes in qla_mbx.c source file.
  */
 extern int
-qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
+qla2x00_load_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t, int);
 
 extern int
 qla2x00_dump_ram(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);

@@ -2640,6 +2640,45 @@ static struct isp_operations qla27xx_isp_ops = {
 	.initialize_adapter	= qla2x00_initialize_adapter,
 };
 
+static struct isp_operations qla29xx_isp_ops = {
+	.pci_config		= qla25xx_pci_config,
+	.reset_chip		= qla24xx_reset_chip,
+	.chip_diag		= qla24xx_chip_diag,
+	.config_rings		= qla24xx_config_rings,
+	.reset_adapter		= qla24xx_reset_adapter,
+	.nvram_config		= qla81xx_nvram_config,
+	.update_fw_options	= qla24xx_update_fw_options,
+	.load_risc		= qla29xx_load_risc,
+	.pci_info_str		= qla24xx_pci_info_str,
+	.fw_version_str		= qla24xx_fw_version_str,
+	.intr_handler		= qla24xx_intr_handler,
+	.enable_intrs		= qla24xx_enable_intrs,
+	.disable_intrs		= qla24xx_disable_intrs,
+	.abort_command		= qla24xx_abort_command,
+	.target_reset		= qla24xx_abort_target,
+	.lun_reset		= qla24xx_lun_reset,
+	.fabric_login		= qla24xx_login_fabric,
+	.fabric_logout		= qla24xx_fabric_logout,
+	.calc_req_entries	= NULL,
+	.build_iocbs		= NULL,
+	.prep_ms_iocb		= qla24xx_prep_ms_iocb,
+	.prep_ms_fdmi_iocb	= qla24xx_prep_ms_fdmi_iocb,
+	.read_nvram		= NULL,
+	.write_nvram		= NULL,
+	.fw_dump		= qla27xx_fwdump,
+	.mpi_fw_dump		= qla27xx_mpi_fwdump,
+	.beacon_on		= qla24xx_beacon_on,
+	.beacon_off		= qla24xx_beacon_off,
+	.beacon_blink		= qla83xx_beacon_blink,
+	.read_optrom		= qla25xx_read_optrom_data,
+	.write_optrom		= qla24xx_write_optrom_data,
+	.get_flash_version	= qla24xx_get_flash_version,
+	.start_scsi_mq		= qla2xxx_dif_start_scsi_mq,
+	.abort_isp		= qla2x00_abort_isp,
+	.iospace_config		= qla83xx_iospace_config,
+	.initialize_adapter	= qla2x00_initialize_adapter,
+};
+
 static inline void
 qla2x00_set_isp_flags(struct qla_hw_data *ha)
 {
@@ -3232,7 +3271,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_28XX;
 		ha->nvram_npiv_size = QLA_MAX_VPORTS_QLA25XX;
-		ha->isp_ops = &qla27xx_isp_ops;
+		ha->isp_ops = &qla29xx_isp_ops;
 		ha->flash_conf_off = ~0;
 		ha->flash_data_off = ~0;
 		ha->nvram_conf_off = ~0;
@@ -7676,6 +7715,7 @@ qla2x00_timer(struct timer_list *t)
 #define FW_ISP8031	9
 #define FW_ISP27XX	10
 #define FW_ISP28XX	11
+#define FW_ISP29XX	12
 
 #define FW_FILE_ISP21XX	"ql2100_fw.bin"
 #define FW_FILE_ISP22XX	"ql2200_fw.bin"
@@ -7689,6 +7729,7 @@ qla2x00_timer(struct timer_list *t)
 #define FW_FILE_ISP8031	"ql8300_fw.bin"
 #define FW_FILE_ISP27XX	"ql2700_fw.bin"
 #define FW_FILE_ISP28XX	"ql2800_fw.bin"
+#define FW_FILE_ISP29XX	"ql2900_fw.bin"
 
 
 static DEFINE_MUTEX(qla_fw_lock);
@@ -7706,6 +7747,7 @@ static struct fw_blob qla_fw_blobs[] = {
 	{ .name = FW_FILE_ISP8031, },
 	{ .name = FW_FILE_ISP27XX, },
 	{ .name = FW_FILE_ISP28XX, },
+	{ .name = FW_FILE_ISP29XX, },
 	{ .name = NULL, },
 };
 
@@ -7739,6 +7781,8 @@ qla2x00_request_firmware(scsi_qla_host_t *vha)
 		blob = &qla_fw_blobs[FW_ISP27XX];
 	} else if (IS_QLA28XX(ha)) {
 		blob = &qla_fw_blobs[FW_ISP28XX];
+	} else if (IS_QLA29XX(ha)) {
+		blob = &qla_fw_blobs[FW_ISP29XX];
 	} else {
 		return NULL;
 	}
@@ -8445,3 +8489,4 @@ MODULE_FIRMWARE(FW_FILE_ISP2300);
 MODULE_FIRMWARE(FW_FILE_ISP2322);
 MODULE_FIRMWARE(FW_FILE_ISP24XX);
 MODULE_FIRMWARE(FW_FILE_ISP25XX);
+MODULE_FIRMWARE(FW_FILE_ISP29XX);
