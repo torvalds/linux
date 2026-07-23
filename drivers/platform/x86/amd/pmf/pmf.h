@@ -14,10 +14,13 @@
 #include <linux/acpi.h>
 #include <linux/amd-pmf-io.h>
 #include <linux/circ_buf.h>
+#include <linux/compiler_attributes.h>
+#include <linux/compiler_types.h>
 #include <linux/input.h>
 #include <linux/mutex_types.h>
 #include <linux/platform_device.h>
 #include <linux/platform_profile.h>
+#include <linux/types.h>
 
 #define POLICY_BUF_MAX_SZ		0x4b000
 #define POLICY_SIGN_COOKIE		0x31535024
@@ -74,6 +77,10 @@ struct cookie_header {
 #define SET_P3T				0x23 /* P3T: Peak Package Power Limit */
 #define SET_PMF_PPT            0x25
 #define SET_PMF_PPT_APU_ONLY   0x26
+
+/* Message IDs for 1AH_M80H platform */
+#define GET_1AH_M80H_METRICS_TABLE_LOG_SAMPLE	0x0E
+#define GET_1AH_M80H_METRICS_TABLE_DRAM_ADDR	0x0F
 
 /* OS slider update notification */
 #define DC_BEST_PERF		0
@@ -138,6 +145,11 @@ struct cookie_header {
 #define BIOS_OUTPUT_MAX		10
 
 extern int metrics_table_loop_ms;
+
+#define AMD_PMF_METRIC_CORE_TYPE_MAX	4
+#define AMD_PMF_METRIC_CCX_MAX		4
+#define AMD_PMF_NUM_CLK_DPM_LEVELS	8
+#define AMD_PMF_NUM_MAX_CORES		12
 
 typedef void (*apmf_event_handler_t)(acpi_handle handle, u32 event, void *data);
 
@@ -249,6 +261,199 @@ struct apmf_fan_idx {
 	u8 fan_ctl_mode;
 	u32 fan_ctl_idx;
 } __packed;
+
+struct amd_pmf_metrics_iod {
+	u32 counter_acc;
+	/* Set Voltage */
+	u64 vddcr_set_voltage;
+	u64 vddcr_soc_set_voltage;
+	u64 vddcr_npu_set_voltage;
+	u64 vddcr_lp_set_voltage;
+	u64 vddcr_gfx_set_voltage;
+	u64 vdd_misc_set_voltage;
+	/* Telemetry Voltages */
+	u64 vddcr_telemetry_voltage;
+	u64 vddcr_soc_telemetry_voltage;
+	u64 vddcr_npu_telemetry_voltage;
+	u64 vddcr_lp_telemetry_voltage;
+	u64 vddcr_gfx_telemetry_voltage;
+	u64 vdd_misc_telemetry_voltage;
+	/* Telemetry Powers */
+	u64 vddcr_telemetry_power;
+	u64 vddcr_soc_telemetry_power;
+	u64 vddcr_npu_telemetry_power;
+	u64 vddcr_lp_telemetry_power;
+	u64 vddcr_gfx_telemetry_power;
+	u64 vdd_misc_telemetry_power;
+	/* Throttlers - Fast PPT */
+	u32 fppt_fused_limit;
+	u32 fppt_max_irm_limit;
+	u32 fppt_max_pbo_limit;
+	u32 fppt_limit;
+	u64 fppt_value_acc;
+	u32 fppt_residency_acc;
+	/* Throttlers - Slow PPT */
+	u32 sppt_fused_limit;
+	u32 sppt_max_irm_limit;
+	u32 sppt_max_pbo_limit;
+	u32 sppt_limit;
+	u64 sppt_value_acc;
+	u32 sppt_residency_acc;
+	/* Throttlers - STAPM */
+	u32 spl_fused_limit;
+	u32 spl_max_irm_limit;
+	u32 spl_max_pbo_limit;
+	u32 spl_limit;
+	u64 spl_value_acc;
+	u32 spl_residency_acc;
+	/* Throttlers - TDC VDDCR */
+	u32 tdc_vddcr_fused_limit;
+	u32 tdc_vddcr_max_irm_limit;
+	u32 tdc_vddcr_max_pbo_limit;
+	u32 tdc_vddcr_limit;
+	u64 tdc_vddcr_value_acc;
+	u32 tdc_vddcr_residency_acc;
+	/* Throttlers - TDC VDDCR_SOC */
+	u32 tdc_vddcr_soc_fused_limit;
+	u32 tdc_vddcr_soc_max_irm_limit;
+	u32 tdc_vddcr_soc_max_pbo_limit;
+	u32 tdc_vddcr_soc_limit;
+	u64 tdc_vddcr_soc_value_acc;
+	u32 tdc_vddcr_soc_residency_acc;
+	/* Throttlers - TDC VDDCR_NPU */
+	u32 tdc_vddcr_npu_fused_limit;
+	u32 tdc_vddcr_npu_max_irm_limit;
+	u32 tdc_vddcr_npu_max_pbo_limit;
+	u32 tdc_vddcr_npu_limit;
+	u64 tdc_vddcr_npu_value_acc;
+	u32 tdc_vddcr_npu_residency_acc;
+	/* Throttlers - TDC VDDCR_LP */
+	u32 tdc_vddcr_lp_fused_limit;
+	u32 tdc_vddcr_lp_max_irm_limit;
+	u32 tdc_vddcr_lp_max_pbo_limit;
+	u32 tdc_vddcr_lp_limit;
+	u64 tdc_vddcr_lp_value_acc;
+	u32 tdc_vddcr_lp_residency_acc;
+	/* Throttlers - TDC VDDCR_GFX */
+	u32 tdc_vddcr_gfx_fused_limit;
+	u32 tdc_vddcr_gfx_max_irm_limit;
+	u32 tdc_vddcr_gfx_max_pbo_limit;
+	u32 tdc_vddcr_gfx_limit;
+	u64 tdc_vddcr_gfx_value_acc;
+	u32 tdc_vddcr_gfx_residency_acc;
+	/* Throttlers - EDC VDDCR */
+	u32 edc_vddcr_fused_limit;
+	u32 edc_vddcr_max_irm_limit;
+	u32 edc_vddcr_max_pbo_limit;
+	u32 edc_vddcr_limit;
+	/* Throttlers - Thermal */
+	u32 thm_fused_limit;
+	u32 thm_limit;
+	u64 thm_value_acc;
+	u32 thm_residency_acc;
+	u32 prochot_residency_acc;
+	u64 gfx_temp_acc;
+	u64 soc_temp_acc;
+	u32 p3t_fused_limit;
+	u64 p3t_value_acc;
+	/* Power */
+	u64 system_power_acc;
+	u64 apu_power_acc;
+	u64 dgpu_power_acc;
+	u64 npu_power_acc;
+	/* Frequencies */
+	u64 fclk_freq_eff_acc;
+	u64 memclk_freq_eff_acc;
+	u64 lclk_freq_eff_acc;
+	u64 gfxclk_freq_eff_acc;
+	u64 socclk_freq_eff_acc;
+	u64 vclk_freq_eff_acc;
+	u64 vpeclk_freq_eff_acc;
+	u64 aieclk_freq_eff_acc;
+	u64 npuhclk_freq_eff_acc;
+	/* Bandwidth */
+	u64 dram_read_bandwidth;
+	u64 dram_write_bandwidth;
+	/* Activity Monitors */
+	u64 gfx_busy_acc;
+	u64 vcn_busy_acc;
+	u64 npu_busy_acc[3];
+	/* STT Limits */
+	u32 stt_min_limit;
+	u64 stt_apu_hotspot_temp_acc;
+	u64 stt_hs2_hotspot_temp_acc;
+	u32 stt_apu_temp_limit;
+	u64 stt_apu_skin_temp_acc;
+	/* Residencies */
+	u64 cpuoff_residency_ccx0;
+	u64 cpuoff_residency_ccx1;
+	u64 cpuoff_residency_ccx2;
+	u64 cpuoff_residency_ccx3;
+	/* DF-pstates */
+	u32 fclk_freq_table[AMD_PMF_NUM_CLK_DPM_LEVELS];
+	u32 uclk_freq_table[AMD_PMF_NUM_CLK_DPM_LEVELS];
+	u32 ddr_rate_table[AMD_PMF_NUM_CLK_DPM_LEVELS];
+	u8 dfpstate_source[AMD_PMF_NUM_CLK_DPM_LEVELS];
+	/* System */
+	u8 gfx_disabled;
+	u8 spare2[3];
+	u32 gfxclk_fmax;
+	u8 cclk_core_fuse_enable[AMD_PMF_METRIC_CORE_TYPE_MAX][AMD_PMF_NUM_MAX_CORES];
+	u8 cclk_core_enabled[AMD_PMF_METRIC_CORE_TYPE_MAX][AMD_PMF_NUM_MAX_CORES];
+	u32 cclk_fmax[AMD_PMF_METRIC_CORE_TYPE_MAX][AMD_PMF_NUM_MAX_CORES];
+	/* Overclock Capable */
+	u8 cpu_precise_and_direct_oc_capable;
+	u8 gfx_precise_and_direct_oc_capable;
+	u8 pbo_basic_oc_capable;
+	u8 pbo_advanced_oc_capable;
+	u8 pbo_nitro_oc_capable;
+	u8 memory_and_fabric_oc_capable;
+	u8 misc_oc_capable;
+	u8 extreme_cold_oc_capable;
+	u8 down_config_control_capable;
+	u8 spare0[3];
+	/* Overclock Status */
+	u32 fit_limit_scalar;
+	u8 ln2_enabled;
+	u8 cpu_precise_and_direct_oc_enabled;
+	u8 gfx_precise_and_direct_oc_enabled;
+	u8 spare1[2];
+	/* Voltage Guardband in PSM count */
+	s8 psm_guardband[5][5][3];
+	s32 core_power_limit_offset;
+	u32 max_freq_offset[5];
+	u64 npu_temp_acc;
+	u64 dfpstate_residency_acc[AMD_PMF_NUM_CLK_DPM_LEVELS];
+	u32 cclk_fboost;
+	/* PMF */
+	u32 pmf_fast_apu_ppt_limit;
+	u64 pmf_fast_apu_ppt_value_acc;
+	u32 pmf_fast_apu_ppt_residency_acc;
+	u32 pmf_slow_apu_ppt_limit;
+	u64 pmf_slow_apu_ppt_value_acc;
+	u32 pmf_slow_apu_ppt_residency_acc;
+	u32 pmf_fast_spm_limit;
+	u64 pmf_fast_spm_value_acc;
+	u32 pmf_fast_spm_residency_acc;
+	u32 pmf_slow_spm_limit;
+	u64 pmf_slow_spm_value_acc;
+	u32 pmf_slow_spm_residency_acc;
+	u32 spare3[5];
+} __packed __aligned(4);
+
+struct amd_pmf_metrics_ccx {
+	u64 core_c0[AMD_PMF_NUM_MAX_CORES];
+	u64 core_cc6[AMD_PMF_NUM_MAX_CORES];
+	u64 core_freq[AMD_PMF_NUM_MAX_CORES];
+	u64 core_freqeff[AMD_PMF_NUM_MAX_CORES];
+	u64 core_temp[AMD_PMF_NUM_MAX_CORES];
+	u64 core_power[AMD_PMF_NUM_MAX_CORES];
+} __packed __aligned(4);
+
+struct amd_pmf_metrics_v3 {
+	struct amd_pmf_metrics_iod iod;
+	struct amd_pmf_metrics_ccx ccx[AMD_PMF_METRIC_CCX_MAX];
+} __packed __aligned(4);
 
 struct smu_pmf_metrics_v2 {
 	u16 core_frequency[16];		/* MHz */
@@ -406,6 +611,12 @@ struct amd_pmf_smu_regs {
 	u32 arg_reg[3];
 };
 
+struct amd_pmf_arg_data {
+	u32 lo;
+	u32 hi;
+	u32 size;
+};
+
 struct amd_pmf_dev {
 	void __iomem *regbase;
 	void __iomem *smu_virt_addr;
@@ -459,6 +670,12 @@ struct amd_pmf_dev {
 	struct mutex metrics_mutex;
 	u32 bios_output[BIOS_OUTPUT_MAX];
 	const struct amd_pmf_smu_regs *smu_regs;
+	void __iomem *metrics_table_virt;	/* Mapped DRAM virtual address for metrics table */
+	phys_addr_t metrics_table_phys;		/* DRAM physical address for metrics table */
+	struct amd_pmf_metrics_v3 mtable_v3;	/* IOD and CCX */
+	struct amd_pmf_arg_data dram_addr;
+	struct amd_pmf_metrics_v3 prev_metrics;	/* Previous metrics for delta calculation */
+	bool npu_metrics_have_prev;
 };
 
 struct apmf_sps_prop_granular_v2 {
@@ -867,6 +1084,9 @@ int amd_pmf_notify_sbios_heartbeat_event_v2(struct amd_pmf_dev *dev, u8 flag);
 u32 fixp_q88_fromint(u32 val);
 int is_apmf_bios_input_notifications_supported(struct amd_pmf_dev *pdev);
 void amd_pmf_set_device(struct device *p_device);
+
+/* Metrics layer */
+int amd_pmf_get_tbl_dram_addr(struct amd_pmf_dev *dev);
 
 /* SPS Layer */
 int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf);

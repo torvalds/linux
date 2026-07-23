@@ -16,14 +16,100 @@
 #include <linux/device/devres.h>
 #include <linux/io.h>
 #include <linux/ktime.h>
+#include <linux/limits.h>
+#include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/string.h>
-#include <linux/types.h>
+#include <linux/units.h>
 #include <linux/wordpart.h>
 #include <linux/workqueue.h>
 
 #include "pmf.h"
 
 static struct device *pmf_device;
+
+static u16 amd_pmf_q10_acc_to_mW(u64 avg_acc)
+{
+	u64 val = DIV_U64_ROUND_CLOSEST(avg_acc, 1024) * MILLIWATT_PER_WATT;
+
+	return min_t(u16, val, U16_MAX);
+}
+
+static u16 amd_pmf_q10_acc_to_int(u64 avg_acc)
+{
+	u64 val = DIV_U64_ROUND_CLOSEST(avg_acc, 1024);
+
+	return min_t(u16, val, U16_MAX);
+}
+
+static u64 amd_pmf_avg_acc_metric(u32 curr_counter, u32 prev_counter,
+				  u64 curr_value, u64 prev_value)
+{
+	u32 counter_diff;
+	u64 val_diff;
+
+	/* Check for counter reset */
+	if (curr_counter <= prev_counter)
+		return 0;
+
+	counter_diff = curr_counter - prev_counter;
+
+	if (curr_value < prev_value)
+		return 0;
+
+	val_diff = curr_value - prev_value;
+
+	return DIV_U64_ROUND_CLOSEST(val_diff, counter_diff);
+}
+
+int amd_pmf_get_tbl_dram_addr(struct amd_pmf_dev *dev)
+{
+	int ret;
+
+	ret = amd_pmf_send_cmd(dev, GET_1AH_M80H_METRICS_TABLE_DRAM_ADDR, GET_CMD,
+			       ARG_NONE, &dev->dram_addr.lo);
+	if (ret) {
+		dev_err(dev->dev, "Failed to get DRAM address: %d\n", ret);
+		return ret;
+	}
+
+	dev->metrics_table_phys = ((u64)dev->dram_addr.hi << 32) | dev->dram_addr.lo;
+	dev->mtable_size = dev->dram_addr.size;
+
+	if (dev->mtable_size != sizeof(dev->mtable_v3)) {
+		dev_err(dev->dev, "Metrics table size mismatch: got %u, expected %zu\n",
+			dev->dram_addr.size, sizeof(dev->mtable_v3));
+		return -EINVAL;
+	}
+
+	dev->metrics_table_virt = devm_ioremap(dev->dev, dev->metrics_table_phys, dev->mtable_size);
+	if (!dev->metrics_table_virt) {
+		dev_err(dev->dev, "Failed to map DRAM address for PMF metrics table\n");
+		dev->metrics_table_phys = 0;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static int amd_pmf_get_metrics_table_log_sample(struct amd_pmf_dev *dev)
+{
+	int ret;
+
+	if (!dev->metrics_table_virt) {
+		dev_err(dev->dev, "Metrics DRAM not mapped\n");
+		return -EINVAL;
+	}
+
+	/* Send command to PMFW to update metrics table log sample */
+	ret = amd_pmf_send_cmd(dev, GET_1AH_M80H_METRICS_TABLE_LOG_SAMPLE, SET_CMD, ARG_NONE, NULL);
+	if (ret) {
+		dev_err(dev->dev, "Failed to request metrics log sample: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
 
 static void amd_pmf_get_metrics(struct work_struct *work)
 {
@@ -120,9 +206,43 @@ static int is_npu_metrics_supported(struct amd_pmf_dev *pdev)
 	switch (pdev->cpu_id) {
 	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
 	case PCI_DEVICE_ID_AMD_1AH_M60H_ROOT:
+	case PCI_DEVICE_ID_AMD_1AH_M80H_ROOT:
 		return 0;
 	default:
 		return -EOPNOTSUPP;
+	}
+}
+
+static void amd_pmf_calculate_acc_npu_metrics(struct amd_pmf_dev *dev,
+					      struct amd_pmf_npu_metrics *data)
+{
+	struct amd_pmf_metrics_iod *curr, *prev;
+	u64 val;
+	int i;
+
+	curr = &dev->mtable_v3.iod;
+	prev = &dev->prev_metrics.iod;
+
+	val = amd_pmf_avg_acc_metric(curr->counter_acc, prev->counter_acc,
+				     curr->npu_temp_acc, prev->npu_temp_acc);
+	data->npu_temp = amd_pmf_q10_acc_to_int(val);
+	val = amd_pmf_avg_acc_metric(curr->counter_acc, prev->counter_acc,
+				     curr->npu_power_acc, prev->npu_power_acc);
+	data->npu_power = amd_pmf_q10_acc_to_mW(val);
+	val = amd_pmf_avg_acc_metric(curr->counter_acc, prev->counter_acc,
+				     curr->npuhclk_freq_eff_acc,
+				     prev->npuhclk_freq_eff_acc);
+	data->mpnpuclk_freq = amd_pmf_q10_acc_to_int(val);
+	val = amd_pmf_avg_acc_metric(curr->counter_acc, prev->counter_acc,
+				     curr->aieclk_freq_eff_acc,
+				     prev->aieclk_freq_eff_acc);
+	data->npuclk_freq = amd_pmf_q10_acc_to_int(val);
+
+	for (i = 0; i < ARRAY_SIZE(curr->npu_busy_acc); i++) {
+		val = amd_pmf_avg_acc_metric(curr->counter_acc, prev->counter_acc,
+					     curr->npu_busy_acc[i],
+					     prev->npu_busy_acc[i]);
+		data->npu_busy[i] = amd_pmf_q10_acc_to_int(val);
 	}
 }
 
@@ -135,6 +255,8 @@ static int amd_pmf_get_smu_metrics(struct amd_pmf_dev *dev, struct amd_pmf_npu_m
 	ret = is_npu_metrics_supported(dev);
 	if (ret)
 		return ret;
+
+	memset(data, 0, sizeof(*data));
 
 	switch (dev->cpu_id) {
 	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
@@ -161,6 +283,28 @@ static int amd_pmf_get_smu_metrics(struct amd_pmf_dev *dev, struct amd_pmf_npu_m
 		data->mpnpuclk_freq = dev->m_table_v2.mpnpuclk_freq;
 		data->npu_reads = dev->m_table_v2.npu_reads;
 		data->npu_writes = dev->m_table_v2.npu_writes;
+		break;
+	case PCI_DEVICE_ID_AMD_1AH_M80H_ROOT:
+		ret = amd_pmf_get_metrics_table_log_sample(dev);
+		if (ret)
+			return ret;
+
+		memcpy_fromio(&dev->mtable_v3, dev->metrics_table_virt, sizeof(dev->mtable_v3));
+
+		/*
+		 * Ignore the first sample, as previous metrics is uninitialized (zero)
+		 * Metrics are calculated as:
+		 *	metrics = current_metrics - previous_metrics
+		 * Skipping the initial sample ensures accurate delta calculations.
+		 */
+		if (!dev->npu_metrics_have_prev) {
+			memcpy(&dev->prev_metrics, &dev->mtable_v3, sizeof(dev->mtable_v3));
+			dev->npu_metrics_have_prev = true;
+			return 0;
+		}
+
+		amd_pmf_calculate_acc_npu_metrics(dev, data);
+		memcpy(&dev->prev_metrics, &dev->mtable_v3, sizeof(dev->mtable_v3));
 		break;
 	}
 
