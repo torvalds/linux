@@ -36,7 +36,6 @@ extern int unprivileged_userns_apparmor_policy;
 extern int aa_unprivileged_unconfined_restricted;
 
 extern const char *const aa_profile_mode_names[];
-#define APPARMOR_MODE_NAMES_MAX_INDEX 4
 
 #define PROFILE_MODE(_profile, _mode)		\
 	((aa_g_profile_mode == (_mode)) ||	\
@@ -75,6 +74,7 @@ enum profile_mode {
 	APPARMOR_KILL,		/* kill task on access violation */
 	APPARMOR_UNCONFINED,	/* profile set to unconfined */
 	APPARMOR_USER,		/* modified complain mode to userspace */
+	PROFILE_MODE_NAMES_COUNT	/* Must be last entry */
 };
 
 

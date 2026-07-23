@@ -21,13 +21,13 @@
 #include "label.h"
 
 extern const char *const audit_mode_names[];
-#define AUDIT_MAX_INDEX 5
 enum audit_mode {
 	AUDIT_NORMAL,		/* follow normal auditing of accesses */
 	AUDIT_QUIET_DENIED,	/* quiet all denied access messages */
 	AUDIT_QUIET,		/* quiet all messages */
 	AUDIT_NOQUIET,		/* do not quiet audit messages */
-	AUDIT_ALL		/* audit all accesses */
+	AUDIT_ALL,		/* audit all accesses */
+	AUDIT_MODE_NAMES_COUNT	/* Must be last entry */
 };
 
 enum audit_type {
