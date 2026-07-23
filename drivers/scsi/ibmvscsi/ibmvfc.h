@@ -839,6 +839,8 @@ struct ibmvfc_target {
 	void (*job_step) (struct ibmvfc_target *);
 	struct timer_list timer;
 	struct kref kref;
+	struct completion nvme_delete_done;
+	struct nvme_fc_remote_port *nvme_remote_port;
 };
 
 /* a unit of work for the hosting partition */
@@ -1015,6 +1017,8 @@ struct ibmvfc_host {
 	struct work_struct rport_add_work_q;
 	wait_queue_head_t init_wait_q;
 	wait_queue_head_t work_wait_q;
+	struct nvme_fc_local_port *nvme_local_port;
+	struct completion nvme_delete_done;
 };
 
 static inline struct ibmvfc_host *ibmvfc_channels_to_vhost(struct ibmvfc_channels *channels)

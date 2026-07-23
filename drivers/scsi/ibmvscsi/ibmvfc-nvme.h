@@ -11,8 +11,8 @@
 #ifndef _IBMVFC_NVME_H
 #define _IBMVFC_NVME_H
 
-#include <uapi/scsi/fc/fc_fs.h>
-#include <uapi/scsi/fc/fc_els.h>
+#include <scsi/fc/fc_fs.h>
+#include <scsi/fc/fc_els.h>
 #include <linux/nvme-fc-driver.h>
 
 #include "ibmvfc.h"
