@@ -2080,7 +2080,7 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 						dev_name(pdata->dev), pdata);
 
 		if (ret)
-			return dev_err_probe(dev, ret, "failed to request interrupt\n");
+			return ret;
 	}
 
 	/*
