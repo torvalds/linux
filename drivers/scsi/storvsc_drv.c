@@ -520,6 +520,36 @@ static void storvsc_host_scan(struct work_struct *work)
 	scsi_scan_host(host);
 }
 
+#if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
+static int storvsc_user_scan(struct Scsi_Host *host,
+			     unsigned int channel,
+			     unsigned int id,
+			     u64 lun)
+{
+	unsigned int first_channel, last_channel;
+	unsigned int first_id, end_id;
+	unsigned int ch, target;
+
+	if ((channel != SCAN_WILD_CARD && channel > host->max_channel) ||
+	    (id != SCAN_WILD_CARD && id >= host->max_id) ||
+	    (lun != SCAN_WILD_CARD && lun >= host->max_lun))
+		return -EINVAL;
+
+	first_channel = channel == SCAN_WILD_CARD ? 0 : channel;
+	last_channel = channel == SCAN_WILD_CARD ? host->max_channel : channel;
+	first_id = id == SCAN_WILD_CARD ? 0 : id;
+	end_id = id == SCAN_WILD_CARD ? host->max_id : id + 1;
+
+	for (ch = first_channel; ch <= last_channel; ch++) {
+		for (target = first_id; target < end_id; target++)
+			scsi_scan_target(&host->shost_gendev, ch, target, lun,
+					 SCSI_SCAN_MANUAL);
+	}
+
+	return 0;
+}
+#endif
+
 static void storvsc_remove_lun(struct work_struct *work)
 {
 	struct storvsc_scan_work *wrk;
@@ -2232,6 +2262,8 @@ static int __init storvsc_drv_init(void)
 	fc_transport_template = fc_attach_transport(&fc_transport_functions);
 	if (!fc_transport_template)
 		return -ENODEV;
+
+	fc_transport_template->user_scan = storvsc_user_scan;
 #endif
 
 	ret = vmbus_driver_register(&storvsc_drv);
