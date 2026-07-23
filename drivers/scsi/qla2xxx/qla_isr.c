@@ -2307,8 +2307,9 @@ qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 static void
 qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
-    struct sts_entry_24xx *pkt, int iocb_type)
+		     void *pkt, int iocb_type)
 {
+	struct sts_entry_24xx *sts24 = pkt;
 	struct els_sts_entry_24xx *ese = (struct els_sts_entry_24xx *)pkt;
 	const char func[] = "ELS_CT_IOCB";
 	const char *type;
@@ -2331,9 +2332,9 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 
 	type = NULL;
 
-	comp_status = fw_status[0] = le16_to_cpu(pkt->comp_status);
-	fw_status[1] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_1);
-	fw_status[2] = le32_to_cpu(((struct els_sts_entry_24xx *)pkt)->error_subcode_2);
+	comp_status = fw_status[0] = le16_to_cpu(sts24->comp_status);
+	fw_status[1] = le32_to_cpu(ese->error_subcode_1);
+	fw_status[2] = le32_to_cpu(ese->error_subcode_2);
 
 	switch (sp->type) {
 	case SRB_ELS_CMD_RPT:
@@ -2669,7 +2670,9 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	srb_t *sp;
 	struct srb_iocb *iocb;
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
+	struct qla_hw_data *ha = vha->hw;
 	u16 comp_status;
+	struct qla_sts_fwi2 sf;
 
 	sp = qla2x00_get_sp_from_handle(vha, func, req, tsk);
 	if (!sp)
@@ -2691,18 +2694,19 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 		    "Async-%s error - hdl=%x completion status(%x).\n",
 		    type, sp->handle, comp_status);
 		iocb->u.tmf.data = QLA_FUNCTION_FAILED;
-	} else if ((le16_to_cpu(sts->scsi_status) &
-	    SS_RESPONSE_INFO_LEN_VALID)) {
-		host_to_fcp_swap(sts->data, sizeof(sts->data));
-		if (le32_to_cpu(sts->rsp_data_len) < 4) {
-			ql_log(ql_log_warn, fcport->vha, 0x503b,
-			    "Async-%s error - hdl=%x not enough response(%d).\n",
-			    type, sp->handle, sts->rsp_data_len);
-		} else if (sts->data[3]) {
-			ql_log(ql_log_warn, fcport->vha, 0x503c,
-			    "Async-%s error - hdl=%x response(%x).\n",
-			    type, sp->handle, sts->data[3]);
-			iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+	} else {
+		qla_sts_fwi2_extract(ha, tsk, &sf);
+		if (sf.scsi_status & SS_RESPONSE_INFO_LEN_VALID) {
+			if (sf.rsp_data_len < 4) {
+				ql_log(ql_log_warn, fcport->vha, 0x503b,
+				    "Async-%s error - hdl=%x not enough response(%d).\n",
+				    type, sp->handle, sf.rsp_data_len);
+			} else if (sf.data[3]) {
+				ql_log(ql_log_warn, fcport->vha, 0x503c,
+				    "Async-%s error - hdl=%x response(%x).\n",
+				    type, sp->handle, sf.data[3]);
+				iocb->u.tmf.data = QLA_FUNCTION_FAILED;
+			}
 		}
 	}
 
@@ -2731,7 +2735,8 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 
 	if (iocb->u.tmf.data != QLA_SUCCESS)
 		ql_dump_buffer(ql_dbg_async + ql_dbg_buffer, sp->vha, 0x5055,
-		    sts, sizeof(*sts));
+		    tsk, IS_QLA29XX(ha) ?
+		    sizeof(struct sts_entry_24xx_ext) : sizeof(*sts));
 
 	sp->done(sp, 0);
 }
@@ -2742,6 +2747,8 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	fc_port_t *fcport;
 	struct srb_iocb *iocb;
 	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)tsk;
+	struct sts_entry_24xx_ext *stsext = (struct sts_entry_24xx_ext *)tsk;
+	struct qla_hw_data *ha = vha->hw;
 	uint16_t        state_flags;
 	struct nvmefc_fcp_req *fd;
 	uint16_t        ret = QLA_SUCCESS;
@@ -2793,7 +2800,10 @@ static void qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		uint32_t *inbuf, *outbuf;
 		uint16_t iter;
 
-		inbuf = (uint32_t *)&sts->nvme_ersp_data;
+		if (IS_QLA29XX(ha))
+			inbuf = (uint32_t *)stsext->u2.nvme_ersp_data;
+		else
+			inbuf = (uint32_t *)&sts->nvme_ersp_data;
 		outbuf = (uint32_t *)fd->rspaddr;
 		iocb->u.nvme.rsp_pyld_len = sts->nvme_rsp_pyld_len;
 		if (unlikely(le16_to_cpu(iocb->u.nvme.rsp_pyld_len) >
@@ -3038,15 +3048,25 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t par_sense_len,
  * to indicate to the kernel that the HBA detected error.
  */
 static inline int
-qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
+qla2x00_handle_dif_error(srb_t *sp, void *pkt)
 {
 	struct scsi_qla_host *vha = sp->vha;
+	struct qla_hw_data *ha = vha->hw;
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
-	uint8_t		*ap = &sts24->data[12];
-	uint8_t		*ep = &sts24->data[20];
+	struct sts_entry_24xx *sts24 = pkt;
+	struct sts_entry_24xx_ext *stsext = pkt;
+	uint8_t		*ap, *ep;
 	uint32_t	e_ref_tag, a_ref_tag;
 	uint16_t	e_app_tag, a_app_tag;
 	uint16_t	e_guard, a_guard;
+
+	if (IS_QLA29XX(ha)) {
+		ap = stsext->act_dif;
+		ep = stsext->exp_dif;
+	} else {
+		ap = &sts24->data[12];
+		ep = &sts24->data[20];
+	}
 
 	/*
 	 * swab32 of the "data" field in the beginning of qla2x00_status_entry()
@@ -3060,7 +3080,7 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	e_ref_tag = get_unaligned_le32(ep + 4);
 
 	ql_dbg(ql_dbg_io, vha, 0x3023,
-	    "iocb(s) %p Returned STATUS.\n", sts24);
+	    "iocb(s) %px Returned STATUS.\n", pkt);
 
 	ql_dbg(ql_dbg_io, vha, 0x3024,
 	    "DIF ERROR in cmd 0x%x lba 0x%llx act ref"
@@ -3192,7 +3212,9 @@ qla25xx_process_bidir_status_iocb(scsi_qla_host_t *vha, void *pkt,
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		comp_status = le16_to_cpu(sts24->comp_status);
-		scsi_status = le16_to_cpu(sts24->scsi_status) & SS_MASK;
+		scsi_status = IS_QLA29XX(ha) ?
+		    le16_to_cpu(((struct sts_entry_24xx_ext *)pkt)->u2.scsi_status) & SS_MASK :
+		    le16_to_cpu(sts24->scsi_status) & SS_MASK;
 	} else {
 		comp_status = le16_to_cpu(sts->comp_status);
 		scsi_status = le16_to_cpu(sts->scsi_status) & SS_MASK;
@@ -3328,10 +3350,13 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	int res = 0;
 	uint16_t state_flags = 0;
 	uint16_t sts_qual = 0;
+	struct qla_sts_fwi2 sf;
 
 	if (IS_FWI2_CAPABLE(ha)) {
 		comp_status = le16_to_cpu(sts24->comp_status);
-		scsi_status = le16_to_cpu(sts24->scsi_status) & SS_MASK;
+		scsi_status = IS_QLA29XX(ha) ?
+		    le16_to_cpu(((struct sts_entry_24xx_ext *)pkt)->u2.scsi_status) & SS_MASK :
+		    le16_to_cpu(sts24->scsi_status) & SS_MASK;
 		state_flags = le16_to_cpu(sts24->state_flags);
 	} else {
 		comp_status = le16_to_cpu(sts->comp_status);
@@ -3402,7 +3427,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	}
 
 	/* Fast path completion. */
-	qla_chk_edif_rx_sa_delete_pending(vha, sp, sts24);
+	qla_chk_edif_rx_sa_delete_pending(vha, sp, pkt);
 	sp->qpair->cmd_completion_cnt++;
 
 	if (comp_status == CS_COMPLETE && scsi_status == 0) {
@@ -3429,20 +3454,20 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	sense_len = par_sense_len = rsp_info_len = resid_len =
 	    fw_resid_len = 0;
 	if (IS_FWI2_CAPABLE(ha)) {
+		qla_sts_fwi2_extract(ha, pkt, &sf);
 		if (scsi_status & SS_SENSE_LEN_VALID)
-			sense_len = le32_to_cpu(sts24->sense_len);
+			sense_len = sf.sense_len;
 		if (scsi_status & SS_RESPONSE_INFO_LEN_VALID)
-			rsp_info_len = le32_to_cpu(sts24->rsp_data_len);
+			rsp_info_len = sf.rsp_data_len;
 		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER))
-			resid_len = le32_to_cpu(sts24->rsp_residual_count);
+			resid_len = sf.rsp_residual_count;
 		if (comp_status == CS_DATA_UNDERRUN)
 			fw_resid_len = le32_to_cpu(sts24->residual_len);
-		rsp_info = sts24->data;
-		sense_data = sts24->data;
-		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
+		rsp_info = sf.data;
+		sense_data = sf.data;
+		par_sense_len = sf.data_sz;
+		sts_qual = sf.sts_qual;
 		ox_id = le16_to_cpu(sts24->ox_id);
-		par_sense_len = sizeof(sts24->data);
-		sts_qual = le16_to_cpu(sts24->status_qualifier);
 	} else {
 		if (scsi_status & SS_SENSE_LEN_VALID)
 			sense_len = le16_to_cpu(sts->req_sense_length);
@@ -3642,7 +3667,7 @@ check_scsi_status:
 		break;
 
 	case CS_DIF_ERROR:
-		logit = qla2x00_handle_dif_error(sp, sts24);
+		logit = qla2x00_handle_dif_error(sp, pkt);
 		res = cp->result;
 		break;
 
@@ -3667,7 +3692,8 @@ check_scsi_status:
 		    ox_id, cp->cmnd, scsi_bufflen(cp), rsp_info_len,
 		    resid_len, fw_resid_len, sp, cp);
 		ql_dump_buffer(ql_dbg_tgt + ql_dbg_verbose, vha, 0xe0ee,
-		    pkt, sizeof(*sts24));
+		    pkt, IS_QLA29XX(ha) ?
+		    sizeof(struct sts_entry_24xx_ext) : sizeof(*sts24));
 		res = DID_ERROR << 16;
 		vha->hw_err_cnt++;
 		break;
@@ -3968,7 +3994,7 @@ static void qla_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	struct rsp_que *rsp)
 {
-	struct sts_entry_24xx *pkt;
+	void *pkt;
 	struct qla_hw_data *ha = vha->hw;
 	struct purex_entry_24xx *purex_entry;
 	struct purex_item *pure_item;
@@ -3998,13 +4024,13 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 
 	while (rsp->ring_index != rsp_in &&
 		       rsp->ring_ptr->signature != RESPONSE_PROCESSED) {
-		pkt = (struct sts_entry_24xx *)rsp->ring_ptr;
+		pkt = (void *)rsp->ring_ptr;
 		cur_ring_index = rsp->ring_index;
 
 		qla_rsp_ring_advance(rsp);
 
-		if (pkt->entry_status != 0) {
-			if (qla2x00_error_entry(vha, rsp, (sts_entry_t *) pkt))
+		if (((response_t *)pkt)->entry_status != 0) {
+			if (qla2x00_error_entry(vha, rsp, (sts_entry_t *)pkt))
 				goto process_err;
 
 			((response_t *)pkt)->signature = RESPONSE_PROCESSED;
@@ -4013,7 +4039,7 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		}
 process_err:
 
-		switch (pkt->entry_type) {
+		switch (((response_t *)pkt)->entry_type) {
 		case STATUS_TYPE:
 			qla2x00_status_entry(vha, rsp, pkt);
 			break;
@@ -4064,7 +4090,7 @@ process_err:
 			    rsp->req);
 			break;
 		case NOTIFY_ACK_TYPE:
-			if (pkt->handle == QLA_TGT_SKIP_HANDLE)
+			if (((response_t *)pkt)->handle == QLA_TGT_SKIP_HANDLE)
 				qlt_response_pkt_all_vps(vha, rsp,
 				    (response_t *)pkt);
 			else
@@ -4157,7 +4183,8 @@ process_err:
 			/* Type Not Supported. */
 			ql_dbg(ql_dbg_async, vha, 0x5042,
 			       "Received unknown response pkt type 0x%x entry status=%x.\n",
-			       pkt->entry_type, pkt->entry_status);
+			       ((response_t *)pkt)->entry_type,
+			       ((response_t *)pkt)->entry_status);
 			break;
 		}
 		((response_t *)pkt)->signature = RESPONSE_PROCESSED;

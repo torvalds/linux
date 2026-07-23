@@ -818,3 +818,48 @@ static inline bool val_is_in_range(u32 val, u32 start, u32 end)
 	else
 		return false;
 }
+
+/*
+ * Common fields extracted from FWI2 status IOCBs.  Populated once so
+ * callers avoid duplicated IS_QLA29XX() branches for every field access.
+ */
+struct qla_sts_fwi2 {
+	u8  *data;
+	u32 data_sz;
+	u16 scsi_status;
+	u16 sts_qual;
+	u32 sense_len;
+	u32 rsp_data_len;
+	u32 rsp_residual_count;
+};
+
+static inline void
+qla_sts_fwi2_extract(struct qla_hw_data *ha, void *pkt,
+		      struct qla_sts_fwi2 *sf)
+{
+	if (IS_QLA29XX(ha)) {
+		struct sts_entry_24xx_ext *s = pkt;
+
+		sf->scsi_status = le16_to_cpu(s->u2.scsi_status);
+		sf->sts_qual = le16_to_cpu(s->u2.retry_delay_timer);
+		sf->sense_len = le32_to_cpu(s->u2.sense_len);
+		sf->rsp_data_len = le32_to_cpu(s->u2.rsp_data_len_ndma);
+		sf->rsp_residual_count = le32_to_cpu(s->u2.rsp_residual_count);
+		sf->data = s->u2.data;
+		sf->data_sz = sizeof(s->u2.data);
+		host_to_fcp_swap(s->u2.data, sizeof(s->u2.data));
+		host_to_fcp_swap(s->act_dif, sizeof(s->act_dif));
+		host_to_fcp_swap(s->exp_dif, sizeof(s->exp_dif));
+	} else {
+		struct sts_entry_24xx *s = pkt;
+
+		sf->scsi_status = le16_to_cpu(s->scsi_status);
+		sf->sts_qual = le16_to_cpu(s->status_qualifier);
+		sf->sense_len = le32_to_cpu(s->sense_len);
+		sf->rsp_data_len = le32_to_cpu(s->rsp_data_len);
+		sf->rsp_residual_count = le32_to_cpu(s->rsp_residual_count);
+		sf->data = s->data;
+		sf->data_sz = sizeof(s->data);
+		host_to_fcp_swap(s->data, sizeof(s->data));
+	}
+}

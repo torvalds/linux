@@ -3501,12 +3501,15 @@ static void __chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
 }
 
 void qla_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
-		srb_t *sp, struct sts_entry_24xx *sts24)
+		srb_t *sp, void *pkt)
 {
+	struct sts_entry_24xx *sts24 = pkt;
+	struct sts_entry_24xx_ext *stsext = pkt;
+	struct qla_hw_data *ha = vha->hw;
 	fc_port_t *fcport = sp->fcport;
-	/* sa_index used by this iocb */
 	struct scsi_cmnd *cmd = GET_CMD_SP(sp);
 	uint32_t handle;
+	uint16_t sa_index;
 
 	handle = (uint32_t)LSW(sts24->handle);
 
@@ -3514,8 +3517,12 @@ void qla_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha,
 	if (cmd->sc_data_direction != DMA_FROM_DEVICE)
 		return;
 
-	return __chk_edif_rx_sa_delete_pending(vha, fcport, handle,
-	   le16_to_cpu(sts24->edif_sa_index));
+	if (IS_QLA29XX(ha))
+		sa_index = le16_to_cpu(stsext->read_sa_index);
+	else
+		sa_index = le16_to_cpu(sts24->edif_sa_index);
+
+	return __chk_edif_rx_sa_delete_pending(vha, fcport, handle, sa_index);
 }
 
 void qlt_chk_edif_rx_sa_delete_pending(scsi_qla_host_t *vha, fc_port_t *fcport,
