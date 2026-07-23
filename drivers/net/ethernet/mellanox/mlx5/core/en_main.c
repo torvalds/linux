@@ -695,7 +695,7 @@ static void mlx5e_free_mpwqe_rq_drop_page(struct mlx5e_rq *rq)
 
 	dma_unmap_page(rq->pdev, rq->wqe_overflow.addr, page_size,
 		       rq->buff.map_dir);
-	 __free_pages(rq->wqe_overflow.page, page_order);
+	__free_pages(rq->wqe_overflow.page, page_order);
 }
 
 static int mlx5e_init_rxq_rq(struct mlx5e_channel *c, struct mlx5e_params *params,
