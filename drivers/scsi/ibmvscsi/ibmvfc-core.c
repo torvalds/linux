@@ -4948,25 +4948,32 @@ static void ibmvfc_tgt_query_target(struct ibmvfc_target *tgt)
  *	0 on success / other on failure
  **/
 static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
-			       struct ibmvfc_discover_targets_entry *target)
+			       struct ibmvfc_discover_targets_entry *target,
+			       enum ibmvfc_protocol protocol)
 {
 	struct ibmvfc_target *stgt = NULL;
 	struct ibmvfc_target *wtgt = NULL;
 	struct ibmvfc_target *tgt;
+	struct ibmvfc_channels *channels;
 	unsigned long flags;
 	u64 scsi_id = be32_to_cpu(target->scsi_id) & IBMVFC_DISC_TGT_SCSI_ID_MASK;
 	u64 wwpn = be64_to_cpu(target->wwpn);
 
+	if (protocol == IBMVFC_PROTO_SCSI)
+		channels = &vhost->scsi_scrqs;
+	else
+		channels = &vhost->nvme_scrqs;
+
 	/* Look to see if we already have a target allocated for this SCSI ID or WWPN */
 	spin_lock_irqsave(vhost->host->host_lock, flags);
-	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
+	list_for_each_entry(tgt, &channels->targets, queue) {
 		if (tgt->wwpn == wwpn) {
 			wtgt = tgt;
 			break;
 		}
 	}
 
-	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
+	list_for_each_entry(tgt, &channels->targets, queue) {
 		if (tgt->scsi_id == scsi_id) {
 			stgt = tgt;
 			break;
@@ -5014,6 +5021,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 
 	tgt = mempool_alloc(vhost->tgt_pool, GFP_NOIO);
 	memset(tgt, 0, sizeof(*tgt));
+	tgt->protocol = protocol;
 	tgt->scsi_id = scsi_id;
 	tgt->wwpn = wwpn;
 	tgt->vhost = vhost;
@@ -5023,7 +5031,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost,
 	ibmvfc_init_tgt(tgt, ibmvfc_tgt_implicit_logout);
 	spin_lock_irqsave(vhost->host->host_lock, flags);
 	tgt->cancel_key = vhost->task_set++;
-	list_add_tail(&tgt->queue, &vhost->scsi_scrqs.targets);
+	list_add_tail(&tgt->queue, &channels->targets);
 
 unlock_out:
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -5042,7 +5050,11 @@ static int ibmvfc_alloc_targets(struct ibmvfc_host *vhost)
 	int i, rc;
 
 	for (i = 0, rc = 0; !rc && i < vhost->scsi_scrqs.num_targets; i++)
-		rc = ibmvfc_alloc_target(vhost, &vhost->scsi_scrqs.disc_buf[i]);
+		rc = ibmvfc_alloc_target(vhost, &vhost->scsi_scrqs.disc_buf[i],
+					 vhost->scsi_scrqs.protocol);
+	for (i = 0; !rc && i < vhost->nvme_scrqs.num_targets; i++)
+		rc = ibmvfc_alloc_target(vhost, &vhost->nvme_scrqs.disc_buf[i],
+					 vhost->nvme_scrqs.protocol);
 
 	return rc;
 }
