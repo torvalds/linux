@@ -175,7 +175,6 @@ static int avs_create_dai_link(struct device *dev, int ssp_port, int tdm_slot,
 	if (!dl || !platform)
 		return -ENOMEM;
 
-	dl->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_port);
 	dl->name = devm_kasprintf(dev, GFP_KERNEL,
 				  AVS_STRING_FMT("SSP", "-Codec", ssp_port, tdm_slot));
 	dl->cpus = devm_kzalloc(dev, sizeof(*dl->cpus), GFP_KERNEL);
