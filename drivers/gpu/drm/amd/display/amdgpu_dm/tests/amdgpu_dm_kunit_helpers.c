@@ -8,6 +8,7 @@
 #include <kunit/test.h>
 #include <linux/module.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 
 #include "dc.h"
 #include "core_types.h"
@@ -136,7 +137,7 @@ struct amdgpu_dm_connector *dm_kunit_alloc_connector(struct kunit *test,
 {
 	struct amdgpu_dm_connector *aconnector;
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(adev_to_drm(adev), sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 
 	if (adev)

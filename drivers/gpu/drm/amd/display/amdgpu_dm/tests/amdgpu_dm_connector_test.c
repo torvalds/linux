@@ -13,6 +13,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_property.h>
@@ -1452,7 +1453,7 @@ static void dm_test_funcs_reset_sets_defaults(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1491,7 +1492,7 @@ static void dm_test_funcs_reset_edp_abm_level(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1529,7 +1530,7 @@ static void dm_test_funcs_reset_edp_abm_disabled(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1571,7 +1572,7 @@ static void dm_test_atomic_dup_state_copies_fields(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -2362,8 +2363,8 @@ static void setup_panel_type_fixture(struct kunit *test,
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->drm);
 	fixture->adev = drm_to_adev(fixture->drm);
 
-	fixture->aconnector = kunit_kzalloc(test, sizeof(*fixture->aconnector),
-					    GFP_KERNEL);
+	fixture->aconnector = drmm_kzalloc(fixture->drm, sizeof(*fixture->aconnector),
+					   GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->aconnector);
 	fixture->link = kunit_kzalloc(test, sizeof(*fixture->link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->link);
@@ -2557,9 +2558,9 @@ static void dm_test_update_subconnector_dp_with_sink(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2601,9 +2602,9 @@ static void dm_test_update_subconnector_dp_no_sink(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2644,9 +2645,9 @@ static void dm_test_update_subconnector_non_dp_noop(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2660,7 +2661,7 @@ static void dm_test_update_subconnector_non_dp_noop(struct kunit *test)
 
 	link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_HDMI_CONVERTER;
 	aconnector->dc_link = link;
-	aconnector->dc_sink = kunit_kzalloc(test, sizeof(*aconnector->dc_sink), GFP_KERNEL);
+	aconnector->dc_sink = drmm_kzalloc(drm, sizeof(*aconnector->dc_sink), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector->dc_sink);
 
 	update_subconnector_property(aconnector);
@@ -2807,7 +2808,7 @@ static struct amdgpu_dm_connector *dm_test_add_connector(struct kunit *test,
 {
 	struct amdgpu_dm_connector *aconnector;
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 
 	KUNIT_ASSERT_EQ(test,
@@ -3106,7 +3107,7 @@ static struct dm_test_panel_ctx *dm_test_panel_ctx_alloc(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, prop);
 	ctx->drm->mode_config.panel_type_property = prop;
 
-	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	ctx->aconnector = drmm_kzalloc(ctx->drm, sizeof(*ctx->aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
@@ -3115,7 +3116,7 @@ static struct dm_test_panel_ctx *dm_test_panel_ctx_alloc(struct kunit *test)
 	drm_object_attach_property(&ctx->aconnector->base.base, prop,
 				   DRM_MODE_PANEL_TYPE_UNKNOWN);
 
-	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	ctx->link = drmm_kzalloc(ctx->drm, sizeof(*ctx->link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
 	ctx->aconnector->dc_link = ctx->link;
 
@@ -3379,14 +3380,14 @@ static struct dm_test_fill_ctx *dm_test_fill_ctx_alloc(struct kunit *test)
 						       DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
 
-	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	ctx->aconnector = drmm_kzalloc(ctx->drm, sizeof(*ctx->aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
 				    &dm_test_connector_funcs,
 				    DRM_MODE_CONNECTOR_DisplayPort, NULL), 0);
 
-	ctx->conn_state = kunit_kzalloc(test, sizeof(*ctx->conn_state), GFP_KERNEL);
+	ctx->conn_state = drmm_kzalloc(ctx->drm, sizeof(*ctx->conn_state), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->conn_state);
 	ctx->stream = kunit_kzalloc(test, sizeof(*ctx->stream), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->stream);
