@@ -714,6 +714,8 @@ static void ibmvfc_link_down(struct ibmvfc_host *vhost,
 	scsi_block_requests(vhost->host);
 	list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue)
 		ibmvfc_del_tgt(tgt);
+	list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue)
+		ibmvfc_del_tgt(tgt);
 	ibmvfc_set_host_state(vhost, state);
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_TGT_DEL);
 	vhost->events_to_log |= IBMVFC_AE_LINKDOWN;
@@ -746,6 +748,12 @@ static void ibmvfc_init_host(struct ibmvfc_host *vhost)
 		vhost->async_crq.cur = 0;
 
 		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
+			if (vhost->client_migrated)
+				tgt->need_login = 1;
+			else
+				ibmvfc_del_tgt(tgt);
+		}
+		list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue) {
 			if (vhost->client_migrated)
 				tgt->need_login = 1;
 			else
@@ -1870,7 +1878,7 @@ static void ibmvfc_log_error(struct ibmvfc_event *evt)
  * @sdev:	scsi device struct
  *
  **/
-static void ibmvfc_relogin(struct scsi_device *sdev)
+static void ibmvfc_scsi_relogin(struct scsi_device *sdev)
 {
 	struct ibmvfc_host *vhost = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
@@ -1922,7 +1930,7 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 				memcpy(cmnd->sense_buffer, rsp->data.sense + rsp_len, sense_len);
 			if ((be16_to_cpu(vfc_cmd->status) & IBMVFC_VIOS_FAILURE) &&
 			    (be16_to_cpu(vfc_cmd->error) == IBMVFC_PLOGI_REQUIRED))
-				ibmvfc_relogin(cmnd->device);
+				ibmvfc_scsi_relogin(cmnd->device);
 
 			if (!cmnd->result && (!scsi_get_resid(cmnd) || (rsp->flags & FCP_RESID_OVER)))
 				cmnd->result = (DID_ERROR << 16);
@@ -3291,6 +3299,22 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 	case IBMVFC_AE_ELS_PRLO:
 	case IBMVFC_AE_ELS_PLOGI:
 		list_for_each_entry(tgt, &vhost->scsi_scrqs.targets, queue) {
+			if (!crq->scsi_id && !crq->wwpn && !crq->node_name)
+				break;
+			if (crq->scsi_id && cpu_to_be64(tgt->scsi_id) != crq->scsi_id)
+				continue;
+			if (crq->wwpn && cpu_to_be64(tgt->ids.port_name) != crq->wwpn)
+				continue;
+			if (crq->node_name && cpu_to_be64(tgt->ids.node_name) != crq->node_name)
+				continue;
+			if (tgt->need_login && be64_to_cpu(crq->event) == IBMVFC_AE_ELS_LOGO)
+				tgt->logo_rcvd = 1;
+			if (!tgt->need_login || be64_to_cpu(crq->event) == IBMVFC_AE_ELS_PLOGI) {
+				ibmvfc_del_tgt(tgt);
+				ibmvfc_reinit_host(vhost);
+			}
+		}
+		list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue) {
 			if (!crq->scsi_id && !crq->wwpn && !crq->node_name)
 				break;
 			if (crq->scsi_id && cpu_to_be64(tgt->scsi_id) != crq->scsi_id)
