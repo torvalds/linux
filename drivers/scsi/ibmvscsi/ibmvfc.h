@@ -1,22 +1,27 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * ibmvfc.h -- driver for IBM Power Virtual Fibre Channel Adapter
  *
  * Written By: Brian King <brking@linux.vnet.ibm.com>, IBM Corporation
  *
- * Copyright (C) IBM Corporation, 2008
+ * Copyright (C) IBM Corporation, 2008-2026
  */
 
 #ifndef _IBMVFC_H
 #define _IBMVFC_H
 
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <scsi/scsi_device.h>
 #include <scsi/viosrp.h>
 #include <linux/nvme.h>
 #include <linux/nvme-fc.h>
 
-#define IBMVFC_NAME	"ibmvfc"
+#include "ibmvfc-nvme.h"
+
+#define IBMVFC_NAME			"ibmvfc"
 #define IBMVFC_DRIVER_VERSION		"1.0.11"
 #define IBMVFC_DRIVER_DATE		"(April 12, 2013)"
 
@@ -984,6 +989,7 @@ struct ibmvfc_host {
 	unsigned int mq_enabled:1;
 	unsigned int using_channels:1;
 	unsigned int do_enquiry:1;
+	unsigned int nvme_enabled:1;
 	unsigned int aborting_passthru:1;
 	unsigned int scan_complete:1;
 	int scan_timeout;

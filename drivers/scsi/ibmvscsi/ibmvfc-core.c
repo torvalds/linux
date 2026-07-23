@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * ibmvfc.c -- driver for IBM Power Virtual Fibre Channel Adapter
  *
  * Written By: Brian King <brking@linux.vnet.ibm.com>, IBM Corporation
  *
- * Copyright (C) IBM Corporation, 2008
+ * Copyright (C) IBM Corporation, 2008-2026
  */
 
 #include <linux/module.h>
@@ -46,6 +47,9 @@ static unsigned int cls3_error = IBMVFC_CLS3_ERROR;
 static unsigned int mq_enabled = IBMVFC_MQ;
 static unsigned int nr_scsi_hw_queues = IBMVFC_SCSI_HW_QUEUES;
 static unsigned int nr_scsi_channels = IBMVFC_SCSI_CHANNELS;
+static unsigned int nvme_enabled = IBMVFC_NVME;
+static unsigned int nr_nvme_hw_queues = IBMVFC_NVME_HW_QUEUES;
+static unsigned int nr_nvme_channels = IBMVFC_NVME_CHANNELS;
 static unsigned int mig_channels_only = IBMVFC_MIG_NO_SUB_TO_CRQ;
 static unsigned int mig_no_less_channels = IBMVFC_MIG_NO_N_TO_M;
 
@@ -73,6 +77,16 @@ MODULE_PARM_DESC(mig_channels_only, "Prevent migration to non-channelized system
 module_param_named(mig_no_less_channels, mig_no_less_channels, uint, S_IRUGO);
 MODULE_PARM_DESC(mig_no_less_channels, "Prevent migration to system with less channels. "
 		 "[Default=" __stringify(IBMVFC_MIG_NO_N_TO_M) "]");
+
+module_param_named(nvme, nvme_enabled, uint, S_IRUGO);
+MODULE_PARM_DESC(nvme, "Enable NVMe over FC support. "
+		 "[Default=" __stringify(IBMVFC_NVME) "]");
+module_param_named(nvme_host_queues, nr_nvme_hw_queues, uint, S_IRUGO);
+MODULE_PARM_DESC(nvme_host_queues, "Number of NVMeoF Host submission queues. "
+		 "[Default=" __stringify(IBMVFC_NVME_HW_QUEUES) "]");
+module_param_named(nvme_hw_channels, nr_nvme_channels, uint, S_IRUGO);
+MODULE_PARM_DESC(nvme_hw_channels, "Number of hw NVMeoF channels to request. "
+		 "[Default=" __stringify(IBMVFC_NVME_CHANNELS) "]");
 
 module_param_named(init_timeout, init_timeout, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(init_timeout, "Initialization timeout in seconds. "
@@ -468,6 +482,7 @@ static const struct {
 	{ IBMVFC_FABRIC_BUSY, "fabric busy" },
 	{ IBMVFC_PORT_BUSY, "port busy" },
 	{ IBMVFC_BASIC_REJECT, "basic reject" },
+	{ IBMVFC_FC4_LS_REJECT, "fc4 ls reject" },
 };
 
 static const char *unknown_fc_type = "unknown fc type";
