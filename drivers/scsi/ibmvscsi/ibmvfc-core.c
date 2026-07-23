@@ -206,13 +206,6 @@ static long h_reg_sub_crq(unsigned long unit_address, unsigned long ioba,
 	return rc;
 }
 
-static int ibmvfc_check_caps(struct ibmvfc_host *vhost, unsigned long cap_flags)
-{
-	u64 host_caps = be64_to_cpu(vhost->login_buf->resp.capabilities);
-
-	return (host_caps & cap_flags) ? 1 : 0;
-}
-
 static int ibmvfc_nvme_active(struct ibmvfc_host *vhost)
 {
 	return (ibmvfc_check_caps(vhost, IBMVFC_SUPPORT_NVMEOF) &&
@@ -354,7 +347,7 @@ static int ibmvfc_get_err_index(u16 status, u16 error)
  * Return value:
  *	error description string
  **/
-static const char *ibmvfc_get_cmd_error(u16 status, u16 error)
+const char *ibmvfc_get_cmd_error(u16 status, u16 error)
 {
 	int rc = ibmvfc_get_err_index(status, error);
 	if (rc >= 0)
@@ -1076,7 +1069,7 @@ static int ibmvfc_valid_event(struct ibmvfc_event_pool *pool,
  * @evt:	ibmvfc_event to be freed
  *
  **/
-static void ibmvfc_free_event(struct ibmvfc_event *evt)
+void ibmvfc_free_event(struct ibmvfc_event *evt)
 {
 	struct ibmvfc_event_pool *pool = &evt->queue->evt_pool;
 	unsigned long flags;
@@ -1410,7 +1403,7 @@ static void ibmvfc_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  * @kref:		kref struct
  *
  **/
-static void ibmvfc_release_tgt(struct kref *kref)
+void ibmvfc_release_tgt(struct kref *kref)
 {
 	struct ibmvfc_target *tgt = container_of(kref, struct ibmvfc_target, kref);
 	mempool_free(tgt, tgt->vhost->tgt_pool);
@@ -1588,7 +1581,7 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
  *
  * Returns a free event from the pool.
  **/
-static struct ibmvfc_event *__ibmvfc_get_event(struct ibmvfc_queue *queue, int reserved)
+struct ibmvfc_event *__ibmvfc_get_event(struct ibmvfc_queue *queue, int reserved)
 {
 	struct ibmvfc_event *evt = NULL;
 	unsigned long flags;
@@ -1611,9 +1604,6 @@ out:
 	spin_unlock_irqrestore(&queue->l_lock, flags);
 	return evt;
 }
-
-#define ibmvfc_get_event(queue) __ibmvfc_get_event(queue, 0)
-#define ibmvfc_get_reserved_event(queue) __ibmvfc_get_event(queue, 1)
 
 /**
  * ibmvfc_locked_done - Calls evt completion with host_lock held
@@ -1639,7 +1629,7 @@ static void ibmvfc_locked_done(struct ibmvfc_event *evt)
  * @done:	Routine to call when the event is responded to
  * @format:	SRP or MAD format
  **/
-static void ibmvfc_init_event(struct ibmvfc_event *evt,
+void ibmvfc_init_event(struct ibmvfc_event *evt,
 			      void (*done) (struct ibmvfc_event *), u8 format)
 {
 	evt->cmnd = NULL;
@@ -1764,7 +1754,7 @@ static void ibmvfc_timeout(struct timer_list *t)
  *
  * Returns the value returned from ibmvfc_send_crq(). (Zero for success)
  **/
-static int ibmvfc_send_event(struct ibmvfc_event *evt,
+int ibmvfc_send_event(struct ibmvfc_event *evt,
 			     struct ibmvfc_host *vhost, unsigned long timeout)
 {
 	__be64 *crq_as_u64 = (__be64 *) &evt->crq;
