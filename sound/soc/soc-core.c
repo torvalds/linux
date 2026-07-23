@@ -2708,9 +2708,10 @@ static void snd_soc_del_component_unlocked(struct snd_soc_component *component)
 }
 
 static int soc_component_initialize(struct snd_soc_component *component,
-				    const struct snd_soc_component_driver *driver,
-				    struct device *dev)
+				    const struct snd_soc_component_driver *driver)
 {
+	struct device *dev = component->dev;
+
 	component->dapm = snd_soc_dapm_alloc(dev);
 	if (!component->dapm)
 		return -ENOMEM;
@@ -2730,7 +2731,6 @@ static int soc_component_initialize(struct snd_soc_component *component,
 		}
 	}
 
-	component->dev		= dev;
 	component->driver	= driver;
 
 	return 0;
@@ -2785,7 +2785,7 @@ int snd_soc_register_component_c(struct snd_soc_component *component,
 {
 	int ret;
 
-	ret = soc_component_initialize(component, component_driver, component->dev);
+	ret = soc_component_initialize(component, component_driver);
 	if (ret < 0)
 		return ret;
 
