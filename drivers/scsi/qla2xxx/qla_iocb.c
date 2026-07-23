@@ -2727,7 +2727,7 @@ qla2x00_adisc_iocb(srb_t *sp, struct mbx_entry *mbx)
 }
 
 static void
-qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
+qla24xx_tm_iocb(srb_t *sp, void *pkt)
 {
 	uint32_t flags;
 	uint64_t lun;
@@ -2736,26 +2736,39 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 	struct qla_hw_data *ha = vha->hw;
 	struct srb_iocb *iocb = &sp->u.iocb_cmd;
 	struct req_que *req = sp->qpair->req;
+	struct tsk_mgmt_entry *tsk;
 
 	flags = iocb->u.tmf.flags;
 	lun = iocb->u.tmf.lun;
 
+	/*
+	 * tsk_mgmt_entry_ext overlays tsk_mgmt_entry through control_flags
+	 * (offsets 0-27 are byte-identical), so the common header writes
+	 * go through one struct tsk_mgmt_entry * view.  The ext layout
+	 * has no port_id and uses a wider __le16 vp_index at a different
+	 * offset, so port_id / vp_index assignments diverge per stride.
+	 */
+	tsk = pkt;
 	tsk->entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->entry_count = 1;
 	tsk->handle = make_handle(req->id, tsk->handle);
 	tsk->nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->control_flags = cpu_to_le32(flags);
-	tsk->port_id[0] = fcport->d_id.b.al_pa;
-	tsk->port_id[1] = fcport->d_id.b.area;
-	tsk->port_id[2] = fcport->d_id.b.domain;
-	tsk->vp_index = fcport->vha->vp_idx;
+	if (IS_QLA29XX(ha)) {
+		((struct tsk_mgmt_entry_ext *)pkt)->vp_index =
+		    cpu_to_le16(fcport->vha->vp_idx);
+	} else {
+		tsk->port_id[0] = fcport->d_id.b.al_pa;
+		tsk->port_id[1] = fcport->d_id.b.area;
+		tsk->port_id[2] = fcport->d_id.b.domain;
+		tsk->vp_index = fcport->vha->vp_idx;
+	}
 
-	if (flags & (TCF_LUN_RESET | TCF_ABORT_TASK_SET|
-	    TCF_CLEAR_TASK_SET|TCF_CLEAR_ACA)) {
+	if (flags & (TCF_LUN_RESET | TCF_ABORT_TASK_SET |
+	    TCF_CLEAR_TASK_SET | TCF_CLEAR_ACA)) {
 		int_to_scsilun(lun, &tsk->lun);
-		host_to_fcp_swap((uint8_t *)&tsk->lun,
-			sizeof(tsk->lun));
+		host_to_fcp_swap((uint8_t *)&tsk->lun, sizeof(tsk->lun));
 	}
 }
 

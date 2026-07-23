@@ -3411,6 +3411,7 @@ qla24xx_abort_command(srb_t *sp)
 struct tsk_mgmt_cmd {
 	union {
 		struct tsk_mgmt_entry tsk;
+		struct tsk_mgmt_entry_ext tsk_ext;
 		struct sts_entry_24xx sts;
 		struct sts_entry_24xx_ext sts_ext;
 	} p;
@@ -3450,16 +3451,25 @@ __qla24xx_issue_tmf(char *name, uint32_t type, struct fc_port *fcport,
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
 
+	/*
+	 * tsk_mgmt_entry_ext overlays tsk_mgmt_entry through control_flags;
+	 * the common-header writes go through tsk->p.tsk and only port_id
+	 * (24xx-only) and vp_index width / offset diverge.
+	 */
 	tsk->p.tsk.entry_type = TSK_MGMT_IOCB_TYPE;
 	tsk->p.tsk.entry_count = 1;
 	tsk->p.tsk.handle = make_handle(req->id, tsk->p.tsk.handle);
 	tsk->p.tsk.nport_handle = cpu_to_le16(fcport->loop_id);
 	tsk->p.tsk.timeout = cpu_to_le16(ha->r_a_tov / 10 * 2);
 	tsk->p.tsk.control_flags = cpu_to_le32(type);
-	tsk->p.tsk.port_id[0] = fcport->d_id.b.al_pa;
-	tsk->p.tsk.port_id[1] = fcport->d_id.b.area;
-	tsk->p.tsk.port_id[2] = fcport->d_id.b.domain;
-	tsk->p.tsk.vp_index = fcport->vha->vp_idx;
+	if (IS_QLA29XX(ha)) {
+		tsk->p.tsk_ext.vp_index = cpu_to_le16(fcport->vha->vp_idx);
+	} else {
+		tsk->p.tsk.port_id[0] = fcport->d_id.b.al_pa;
+		tsk->p.tsk.port_id[1] = fcport->d_id.b.area;
+		tsk->p.tsk.port_id[2] = fcport->d_id.b.domain;
+		tsk->p.tsk.vp_index = fcport->vha->vp_idx;
+	}
 	if (type == TCF_LUN_RESET) {
 		int_to_scsilun(l, &tsk->p.tsk.lun);
 		host_to_fcp_swap((uint8_t *)&tsk->p.tsk.lun,
