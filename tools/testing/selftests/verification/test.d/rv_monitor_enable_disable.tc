@@ -10,7 +10,7 @@ test_simple_monitor() {
     grep -q "$monitor$" enabled_monitors
 
     echo 0 > "monitors/$prefix$monitor/enable"
-    ! grep -q "$monitor$" enabled_monitors
+    ! grep -q "$monitor$" enabled_monitors || false
 
     echo "$monitor" >> enabled_monitors
     grep -q 1 "monitors/$prefix$monitor/enable"
@@ -34,12 +34,12 @@ test_container_monitor() {
 	test -n "$nested"
 
     echo 0 > "monitors/$monitor/enable"
-    ! grep -q "^$monitor$" enabled_monitors
+    ! grep -q "^$monitor$" enabled_monitors || false
 
     for nested_dir in "monitors/$monitor"/*; do
         [ -d "$nested_dir" ] || continue
         nested=$(basename "$nested_dir")
-        ! grep -q "^$monitor:$nested$" enabled_monitors
+        ! grep -q "^$monitor:$nested$" enabled_monitors || false
     done
 
     echo "$monitor" >> enabled_monitors
@@ -71,5 +71,5 @@ for monitor_dir in monitors/*; do
     fi
 done
 
-! echo non_existent_monitor > enabled_monitors
-! grep -q "^non_existent_monitor$" enabled_monitors
+! echo non_existent_monitor > enabled_monitors || false
+! grep -q "^non_existent_monitor$" enabled_monitors || false
