@@ -4793,7 +4793,14 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		ql_dbg(ql_dbg_init, vha, 0x00fd,
 		    "Speed set by user : %s Gbps \n",
 		    qla2x00_get_link_speed_str(ha, ha->set_data_rate));
-		icb->firmware_options_3 = cpu_to_le32(ha->set_data_rate << 13);
+		/*
+		 * The ICB data-rate field is 3 bits (bits 13-15); rates above
+		 * 64G do not fit and would overflow into bit 16 (75 ohm
+		 * termination select). Such rates are forced via MBC_DATA_RATE.
+		 */
+		if (ha->set_data_rate <= PORT_SPEED_64GB)
+			icb->firmware_options_3 =
+			    cpu_to_le32(ha->set_data_rate << 13);
 	}
 
 	/* PCI posting */

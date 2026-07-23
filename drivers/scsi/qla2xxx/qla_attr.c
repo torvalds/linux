@@ -1835,7 +1835,7 @@ qla2x00_port_speed_store(struct device *dev, struct device_attribute *attr,
 		return rval;
 	speed = type;
 	if (type == 40 || type == 80 || type == 160 ||
-	    type == 320) {
+	    type == 320 || type == 640 || type == 1280) {
 		ql_dbg(ql_dbg_user, vha, 0x70d9,
 		    "Setting will be affected after a loss of sync\n");
 		type = type/10;
@@ -1859,6 +1859,12 @@ qla2x00_port_speed_store(struct device *dev, struct device_attribute *attr,
 		break;
 	case 32:
 		ha->set_data_rate = PORT_SPEED_32GB;
+		break;
+	case 64:
+		ha->set_data_rate = PORT_SPEED_64GB;
+		break;
+	case 128:
+		ha->set_data_rate = PORT_SPEED_128GB;
 		break;
 	default:
 		ql_log(ql_log_warn, vha, 0x1199,
