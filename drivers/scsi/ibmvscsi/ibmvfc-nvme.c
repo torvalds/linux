@@ -8,6 +8,7 @@
  * Copyright (C) IBM Corporation, 2026
  */
 
+#include <linux/dmapool.h>
 #include <scsi/scsi_transport_fc.h>
 
 #include "ibmvfc-nvme.h"
@@ -164,12 +165,149 @@ static void ibmvfc_nvme_ls_abort(struct nvme_fc_local_port *lport,
 {
 }
 
+static void ibmvfc_nvme_done(struct ibmvfc_event *evt)
+{
+	struct ibmvfc_cmd *vfc_cmd = &evt->xfer_iu->cmd;
+	struct nvmefc_fcp_req *fcp_req = evt->fcp_req;
+	struct nvme_fc_ersp_iu *ersp = (struct nvme_fc_ersp_iu *)fcp_req->rspaddr;
+	struct nvme_completion *cqe = &ersp->cqe;
+	struct nvme_command *sqe = &((struct nvme_fc_cmd_iu *)fcp_req->cmdaddr)->sqe;
+
+	ibmvfc_dbg(evt->vhost, "fc_done: (%x:%x)\n", be16_to_cpu(vfc_cmd->status),
+		   be16_to_cpu(vfc_cmd->error));
+	ibmvfc_dbg(evt->vhost, "fc_done: cmdlen: %d, rsplen %d, payload_len %d\n",
+		   fcp_req->cmdlen, fcp_req->rsplen, fcp_req->payload_length);
+
+	fcp_req->status = 0;
+	if (!vfc_cmd->status) {
+		fcp_req->rcv_rsplen = NVME_FC_SIZEOF_ZEROS_RSP;
+		fcp_req->transferred_length = fcp_req->payload_length;
+	} else if (be16_to_cpu(vfc_cmd->status) & IBMVFC_FC_NVME_STATUS) {
+		fcp_req->rcv_rsplen = sizeof(struct nvme_fc_ersp_iu);
+		fcp_req->transferred_length = be32_to_cpu(ersp->xfrd_len);
+		if (be16_to_cpu(vfc_cmd->error) & IBMVFC_NVMS_VALID_NODMA_CQE)
+			cqe->command_id = sqe->common.command_id;
+	} else {
+		fcp_req->rcv_rsplen = 0;
+		fcp_req->transferred_length = 0;
+		fcp_req->status = NVME_SC_INTERNAL;
+	}
+
+	fcp_req->done(fcp_req);
+	ibmvfc_free_event(evt);
+}
+
+static struct ibmvfc_cmd *ibmvfc_nvme_init_vfc_cmd(struct ibmvfc_event *evt,
+						   struct nvme_fc_remote_port *rport,
+						   struct nvmefc_fcp_req *fcp_req)
+{
+	struct ibmvfc_target *tgt = rport->private;
+	struct ibmvfc_cmd *vfc_cmd = &evt->iu.cmd;
+
+	memset(vfc_cmd, 0, sizeof(*vfc_cmd));
+
+	vfc_cmd->resp.va = cpu_to_be64(fcp_req->rspdma);
+	vfc_cmd->resp.len = cpu_to_be32(fcp_req->rsplen);
+	vfc_cmd->frame_type = cpu_to_be32(IBMVFC_NVME_FCP_TYPE);
+	vfc_cmd->flags |= cpu_to_be16(IBMVFC_NVMEOF_PROTOCOL);
+	vfc_cmd->payload_len = cpu_to_be32(fcp_req->cmdlen);
+	vfc_cmd->resp_len = cpu_to_be32(fcp_req->rsplen);
+	vfc_cmd->cancel_key = cpu_to_be32((u64)evt);
+	vfc_cmd->target_wwpn = cpu_to_be64(rport->port_name);
+	vfc_cmd->tgt_scsi_id = cpu_to_be64(rport->port_id);
+	vfc_cmd->assoc_id = cpu_to_be64(tgt->assoc_id);
+
+	memcpy(&vfc_cmd->v3nvme.iu, fcp_req->cmdaddr, fcp_req->cmdlen);
+
+	return vfc_cmd;
+}
+
+static void ibmvfc_nvme_map_sg_list(struct nvmefc_fcp_req *fcp_req,
+				    struct srp_direct_buf *md)
+{
+	int i;
+	struct scatterlist *sg;
+
+	for_each_sg(fcp_req->first_sgl, sg, fcp_req->sg_cnt, i) {
+		md[i].va = cpu_to_be64(sg_dma_address(sg));
+		md[i].len = cpu_to_be32(sg_dma_len(sg));
+		md[i].key = 0;
+	}
+}
+
+static int ibmvfc_nvme_map_sg_data(struct nvmefc_fcp_req *fcp_req,
+				    struct ibmvfc_event *evt,
+				    struct ibmvfc_cmd *vfc_cmd)
+{
+	struct srp_direct_buf *data = &vfc_cmd->ioba;
+	struct ibmvfc_host *vhost = evt->vhost;
+
+	if (!fcp_req->sg_cnt) {
+		vfc_cmd->flags |= cpu_to_be16(IBMVFC_NO_MEM_DESC);
+		return 0;
+	}
+
+	if (fcp_req->io_dir == NVMEFC_FCP_WRITE)
+		vfc_cmd->flags |= cpu_to_be16(IBMVFC_WRITE);
+	else
+		vfc_cmd->flags |= cpu_to_be16(IBMVFC_READ);
+
+	if (fcp_req->sg_cnt == 1) {
+		ibmvfc_nvme_map_sg_list(fcp_req, data);
+		return 0;
+	}
+
+	vfc_cmd->flags |= cpu_to_be16(IBMVFC_SCATTERLIST);
+
+	if (!evt->ext_list) {
+		evt->ext_list = dma_pool_alloc(vhost->sg_pool, GFP_ATOMIC,
+					       &evt->ext_list_token);
+
+		if (!evt->ext_list)
+			return -ENOMEM;
+	}
+
+	ibmvfc_nvme_map_sg_list(fcp_req, evt->ext_list);
+
+	data->va = cpu_to_be64(evt->ext_list_token);
+	data->len = cpu_to_be32(fcp_req->sg_cnt * sizeof(struct srp_direct_buf));
+	data->key = 0;
+	return 0;
+}
+
 static int ibmvfc_nvme_fcp_io(struct nvme_fc_local_port *lport,
 			      struct nvme_fc_remote_port *rport,
 			      void *hw_queue_handle,
 			      struct nvmefc_fcp_req *fcp_req)
 {
-	return 0;
+	struct ibmvfc_host *vhost = lport->private;
+	struct ibmvfc_nvme_qhandle *qhandle = hw_queue_handle;
+	struct ibmvfc_cmd *vfc_cmd;
+	struct ibmvfc_event *evt;
+	int rc;
+
+	ibmvfc_dbg(vhost, "nvme_fcp_io\n");
+	evt = ibmvfc_get_event(qhandle->queue);
+	if (!evt)
+		return -EBUSY;
+
+	evt->hwq = qhandle->index;
+	ibmvfc_dbg(vhost, "vfc-nvme-mq-%d\n", evt->hwq);
+
+	ibmvfc_init_event(evt, ibmvfc_nvme_done, IBMVFC_CMD_FORMAT);
+	evt->fcp_req = fcp_req;
+	fcp_req->private = evt;
+
+	vfc_cmd = ibmvfc_nvme_init_vfc_cmd(evt, rport, fcp_req);
+
+	vfc_cmd->correlation = cpu_to_be64((u64)evt);
+
+	if (likely(!(rc = ibmvfc_nvme_map_sg_data(fcp_req, evt, vfc_cmd))))
+		return ibmvfc_send_event(evt, vhost, 0);
+
+	ibmvfc_free_event(evt);
+
+	return rc;
 }
 
 static void ibmvfc_nvme_fcp_abort(struct nvme_fc_local_port *lport,

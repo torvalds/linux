@@ -853,6 +853,7 @@ struct ibmvfc_event {
 	struct ibmvfc_target *tgt;
 	struct scsi_cmnd *cmnd;
 	struct nvmefc_ls_req *ls_req;
+	struct nvmefc_fcp_req *fcp_req;
 	atomic_t free;
 	atomic_t active;
 	union ibmvfc_iu *xfer_iu;
