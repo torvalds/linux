@@ -1140,6 +1140,13 @@ properties:
 
       - items:
           - enum:
+              - imdt,qcs8550-sbc
+          - const: imdt,qcs8550-som
+          - const: qcom,qcs8550
+          - const: qcom,sm8550
+
+      - items:
+          - enum:
               - qcom,qcs8550-aim300-aiot
           - const: qcom,qcs8550-aim300
           - const: qcom,qcs8550
