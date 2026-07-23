@@ -4,6 +4,8 @@
 
 #include <linux/atomic.h> /* for atomic_long_t */
 #include <linux/mm.h> /* for PAGE_SHIFT */
+#include <linux/memcontrol.h> /* for mem_cgroup_swappiness() */
+
 struct mempolicy;
 struct swap_iocb;
 struct swap_memcg_table;
@@ -75,6 +77,18 @@ enum swap_cluster_flags {
 	CLUSTER_FLAG_DISCARD,
 	CLUSTER_FLAG_MAX,
 };
+
+extern int vm_swappiness;
+
+static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+{
+#ifdef CONFIG_MEMCG_V1
+	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) &&
+	    !mem_cgroup_disabled() && !mem_cgroup_is_root(memcg))
+		return READ_ONCE(memcg->swappiness);
+#endif
+	return READ_ONCE(vm_swappiness);
+}
 
 #ifdef CONFIG_SWAP
 #include <linux/swapops.h> /* for swp_offset */
