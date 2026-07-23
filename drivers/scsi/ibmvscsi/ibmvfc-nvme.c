@@ -374,11 +374,75 @@ static int ibmvfc_nvme_fcp_io(struct nvme_fc_local_port *lport,
 	return rc;
 }
 
+static void ibmvfc_init_fcp_abort(struct ibmvfc_event *evt,
+				  struct nvmefc_fcp_req *abort_req)
+{
+	struct ibmvfc_tmf *tmf;
+	struct ibmvfc_event *abt_evt = abort_req->private;
+	struct ibmvfc_target *tgt = abt_evt->tgt;
+
+	tmf = &evt->iu.tmf;
+	memset(tmf, 0, sizeof(*tmf));
+	tmf->common.version = cpu_to_be32(2);
+	tmf->common.opcode = cpu_to_be32(IBMVFC_NVMF_TMF_MAD);
+	tmf->common.length = cpu_to_be16(sizeof(*tmf));
+	tmf->flags = cpu_to_be32(IBMVFC_TMF_ABORT_TASK | IBMVFC_TMF_NVMF_ASSOC);
+	tmf->cancel_key = cpu_to_be32((u64)abt_evt);
+	tmf->my_cancel_key = cpu_to_be32((u64)evt);
+	tmf->target_wwpn = cpu_to_be64(tgt->wwpn);
+	tmf->assoc_id = cpu_to_be64(tgt->assoc_id);
+	tmf->task_tag = cpu_to_be64((u64)abt_evt);
+
+	init_completion(&evt->comp);
+}
+
 static void ibmvfc_nvme_fcp_abort(struct nvme_fc_local_port *lport,
 				  struct nvme_fc_remote_port *rport,
 				  void *hw_queue_handle,
 				  struct nvmefc_fcp_req *abort_req)
 {
+	struct ibmvfc_host *vhost = lport->private;
+	struct ibmvfc_target *tgt = rport->private;
+	struct ibmvfc_event *evt, *abt_evt = abort_req->private;
+	struct ibmvfc_queue *queue;
+	union ibmvfc_iu rsp;
+	unsigned long flags;
+	u16 status = 0;
+
+	if (!abt_evt)
+		return;
+
+	queue = abt_evt->queue;
+	if (!vhost->logged_in || !queue)
+		return;
+
+	evt = ibmvfc_get_event(queue);
+	if (!evt)
+		return;
+
+	spin_lock_irqsave(queue->q_lock, flags);
+	kref_get(&tgt->kref);
+	ibmvfc_init_event(evt, ibmvfc_sync_nvme_completion, IBMVFC_MAD_FORMAT);
+	ibmvfc_init_fcp_abort(evt, abort_req);
+	evt->sync_iu = &rsp;
+
+	if (ibmvfc_send_event(evt, vhost, default_timeout))
+		goto out;
+
+	spin_unlock_irqrestore(queue->q_lock, flags);
+
+	wait_for_completion(&evt->comp);
+	status = be16_to_cpu(rsp.mad_common.status);
+
+	spin_lock_irqsave(queue->q_lock, flags);
+	ibmvfc_free_event(evt);
+out:
+	spin_unlock_irqrestore(queue->q_lock, flags);
+
+	if (status)
+		ibmvfc_dbg(vhost, "fcp_abort: cancel failed with rc=%x\n", status);
+
+	kref_put(&tgt->kref, ibmvfc_release_tgt);
 }
 
 static struct nvme_fc_port_template ibmvfc_nvme_fc_transport = {
