@@ -5088,15 +5088,7 @@ static bool is_pfn_range_shared(kvm_pfn_t start, kvm_pfn_t end)
 	return true;
 }
 
-static u8 max_level_for_order(int order)
-{
-	if (order >= KVM_HPAGE_GFN_SHIFT(PG_LEVEL_2M))
-		return PG_LEVEL_2M;
-
-	return PG_LEVEL_4K;
-}
-
-static bool is_large_rmp_possible(struct kvm *kvm, kvm_pfn_t pfn, int order)
+static bool is_large_rmp_possible(kvm_pfn_t pfn, kvm_pfn_t nr_pages)
 {
 	kvm_pfn_t pfn_aligned = ALIGN_DOWN(pfn, PTRS_PER_PMD);
 
@@ -5105,14 +5097,14 @@ static bool is_large_rmp_possible(struct kvm *kvm, kvm_pfn_t pfn, int order)
 	 * PFN is currently shared, then the entire 2M-aligned range can be
 	 * set to private via a single 2M RMP entry.
 	 */
-	if (max_level_for_order(order) > PG_LEVEL_4K &&
+	if (nr_pages >= KVM_PAGES_PER_HPAGE(PG_LEVEL_2M) &&
 	    is_pfn_range_shared(pfn_aligned, pfn_aligned + PTRS_PER_PMD))
 		return true;
 
 	return false;
 }
 
-int sev_gmem_make_private(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_order)
+int sev_gmem_make_private(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn, kvm_pfn_t nr_pages)
 {
 	struct kvm_sev_info *sev = to_kvm_sev_info(kvm);
 	kvm_pfn_t pfn_aligned;
@@ -5123,6 +5115,9 @@ int sev_gmem_make_private(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_ord
 	if (!sev_snp_guest(kvm))
 		return 0;
 
+	if (WARN_ON_ONCE(nr_pages != 1))
+		return -EIO;
+
 	rc = snp_lookup_rmpentry(pfn, &assigned, &level);
 	if (rc) {
 		pr_err_ratelimited("SEV: Failed to look up RMP entry: GFN %llx PFN %llx error %d\n",
@@ -5131,12 +5126,12 @@ int sev_gmem_make_private(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_ord
 	}
 
 	if (assigned) {
-		pr_debug("%s: already assigned: gfn %llx pfn %llx max_order %d level %d\n",
-			 __func__, gfn, pfn, max_order, level);
+		pr_debug("%s: already assigned: gfn %llx pfn %llx nr_pages %llx level %d\n",
+			 __func__, gfn, pfn, nr_pages, level);
 		return 0;
 	}
 
-	if (is_large_rmp_possible(kvm, pfn, max_order)) {
+	if (is_large_rmp_possible(pfn, nr_pages)) {
 		level = PG_LEVEL_2M;
 		pfn_aligned = ALIGN_DOWN(pfn, PTRS_PER_PMD);
 		gfn_aligned = ALIGN_DOWN(gfn, PTRS_PER_PMD);
@@ -5153,8 +5148,8 @@ int sev_gmem_make_private(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_ord
 		return -EINVAL;
 	}
 
-	pr_debug("%s: updated: gfn %llx pfn %llx pfn_aligned %llx max_order %d level %d\n",
-		 __func__, gfn, pfn, pfn_aligned, max_order, level);
+	pr_debug("%s: updated: gfn %llx pfn %llx pfn_aligned %llx nr_pages %llx level %d\n",
+		 __func__, gfn, pfn, pfn_aligned, nr_pages, level);
 
 	return 0;
 }

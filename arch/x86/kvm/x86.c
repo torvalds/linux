@@ -10590,9 +10590,10 @@ bool kvm_arch_supports_gmem_init_shared(struct kvm *kvm)
 }
 
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_CONVERT
-int kvm_arch_gmem_make_private(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn, int max_order)
+int kvm_arch_gmem_make_private(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+			       kvm_pfn_t nr_pages)
 {
-	return kvm_x86_call(gmem_make_private)(kvm, pfn, gfn, max_order);
+	return kvm_x86_call(gmem_make_private)(kvm, gfn, pfn, nr_pages);
 }
 #endif
 

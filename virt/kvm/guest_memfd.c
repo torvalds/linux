@@ -77,7 +77,7 @@ static int __kvm_gmem_prepare_folio(struct kvm *kvm, struct kvm_memory_slot *slo
 	kvm_pfn_t pfn = folio_file_pfn(folio, index);
 	gfn_t gfn = slot->base_gfn + index - slot->gmem.pgoff;
 
-	return kvm_arch_gmem_make_private(kvm, gfn, pfn, folio_order(folio));
+	return kvm_arch_gmem_make_private(kvm, gfn, pfn, folio_nr_pages(folio));
 #else
 	return 0;
 #endif
