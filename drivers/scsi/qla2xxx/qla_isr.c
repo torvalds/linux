@@ -2359,6 +2359,22 @@ static void
 qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 		     void *pkt, int iocb_type)
 {
+	/*
+	 * els_sts_entry_24xx_ext (29xx) overlays els_sts_entry_24xx for every
+	 * field touched in this completion handler: comp_status (offset 8),
+	 * total_byte_count (32), error_subcode_1 (36), error_subcode_2 (40),
+	 * d_id[]/s_id[] (24..29), control_flags (30) all sit at byte-identical
+	 * offsets in both layouts (only vp_index/sof_type at offset 14-15 are
+	 * bit-packed differently, and that field is write-only on the issue
+	 * path -- we never read it here). All reads in this function are
+	 * therefore stride-agnostic and go through a single struct
+	 * els_sts_entry_24xx * view; the trailing reserved_4[] of the extended
+	 * layout is irrelevant on completion.
+	 *
+	 * Likewise els_entry_24xx_ext overlays els_entry_24xx through
+	 * control_flags (offset 30), so the SRB_ELS_CMD_HST_NOLOGIN ctl_flags
+	 * read below also goes through the 24xx view.
+	 */
 	struct sts_entry_24xx *sts24 = pkt;
 	struct els_sts_entry_24xx *ese = (struct els_sts_entry_24xx *)pkt;
 	const char func[] = "ELS_CT_IOCB";
@@ -2400,7 +2416,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 				(struct qla_bsg_auth_els_request *)bsg_job->request;
 
 			ql_dbg(ql_dbg_user, vha, 0x700f,
-			     "%s %s. portid=%02x%02x%02x status %x xchg %x bsg ptr %p\n",
+			     "%s %s complete portid=%02x%02x%02x status %x xchg %x bsg ptr %p\n",
 			     __func__, sc_to_str(p->e.sub_cmd),
 			     e->d_id[2], e->d_id[1], e->d_id[0],
 			     comp_status, p->e.extra_rx_xchg_address, bsg_job);
@@ -2461,14 +2477,15 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 		} else {
 			if (comp_status == CS_DATA_UNDERRUN) {
 				res =  DID_OK << 16;
-				els->u.els_plogi.len = cpu_to_le16(le32_to_cpu(
-					ese->total_byte_count));
+				els->u.els_plogi.len = cpu_to_le16(
+					le32_to_cpu(ese->total_byte_count));
 
 				if (sp->remap.remapped &&
 				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_ACC) {
 					ql_dbg(ql_dbg_user, vha, 0x503f,
 					    "%s IOCB Done LS_ACC %02x%02x%02x -> %02x%02x%02x",
-					    __func__, e->s_id[0], e->s_id[2], e->s_id[1],
+					    __func__,
+					    e->s_id[0], e->s_id[2], e->s_id[1],
 					    e->d_id[2], e->d_id[1], e->d_id[0]);
 					logit = 0;
 				}
@@ -2496,8 +2513,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 					ql_dbg(ql_dbg_user, vha, 0x503f,
 					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
 					    fw_status[1], fw_status[2],
-					    le32_to_cpu(((struct els_sts_entry_24xx *)
-						pkt)->total_byte_count),
+					    le32_to_cpu(ese->total_byte_count),
 					    e->s_id[0], e->s_id[2], e->s_id[1],
 					    e->d_id[2], e->d_id[1], e->d_id[0]);
 				}
@@ -2514,8 +2530,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 				ql_log(ql_log_info, vha, 0x503f,
 				    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
 				    fw_status[1], fw_status[2],
-				    le32_to_cpu(((struct els_sts_entry_24xx *)
-				    pkt)->total_byte_count),
+				    le32_to_cpu(ese->total_byte_count),
 				    e->s_id[0], e->s_id[2], e->s_id[1],
 				    e->d_id[2], e->d_id[1], e->d_id[0]);
 			}
