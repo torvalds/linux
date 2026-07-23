@@ -5475,14 +5475,14 @@
 
 			cci0_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci0_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -5512,14 +5512,14 @@
 
 			cci1_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci1_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
@@ -5549,14 +5549,14 @@
 
 			cci2_i2c0: i2c-bus@0 {
 				reg = <0>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
 
 			cci2_i2c1: i2c-bus@1 {
 				reg = <1>;
-				clock-frequency = <1000000>;
+				clock-frequency = <400000>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 			};
