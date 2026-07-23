@@ -29,18 +29,6 @@ static inline int _soc_component_ret_reg_rw(struct snd_soc_component *component,
 			   func, component->name, reg);
 }
 
-static inline int soc_component_field_shift(struct snd_soc_component *component,
-					    unsigned int mask)
-{
-	if (!mask) {
-		dev_err(component->dev,	"ASoC: error field mask is zero for %s\n",
-			component->name);
-		return 0;
-	}
-
-	return (ffs(mask) - 1);
-}
-
 /*
  * We might want to check substream by using list.
  * In such case, we can update these macros.
@@ -819,6 +807,18 @@ int snd_soc_component_update_bits_async(struct snd_soc_component *component,
 	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_update_bits_async);
+
+static inline int soc_component_field_shift(struct snd_soc_component *component,
+					    unsigned int mask)
+{
+	if (!mask) {
+		dev_err(component->dev,	"ASoC: error field mask is zero for %s\n",
+			component->name);
+		return 0;
+	}
+
+	return (ffs(mask) - 1);
+}
 
 /**
  * snd_soc_component_read_field() - Read register field value
