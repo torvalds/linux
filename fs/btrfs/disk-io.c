@@ -271,14 +271,15 @@ int btree_csum_one_bio(struct btrfs_bio *bbio)
 		return -EIO;
 
 	/*
-	 * If an extent_buffer is marked as EXTENT_BUFFER_ZONED_ZEROOUT, don't
-	 * checksum it but zero-out its content. This is done to preserve
-	 * ordering of I/O without unnecessarily writing out data.
+	 * An extent_buffer marked EXTENT_BUFFER_ZONED_ZEROOUT is written out as
+	 * zeros to preserve ordering of I/O without persisting the now
+	 * unnecessary block. The bio is fed from the shared zero page (see
+	 * write_one_eb()), so there is nothing to checksum here. Crucially, the
+	 * buffer's own content is left intact: it may still be referenced, e.g.
+	 * btrfs_free_tree_block() reads its header to add a delayed reference.
 	 */
-	if (test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags)) {
-		memzero_extent_buffer(eb, 0, eb->len);
+	if (test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags))
 		return 0;
-	}
 
 	if (WARN_ON_ONCE(found_start != eb->start))
 		return -EIO;
