@@ -3337,7 +3337,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				struct md_rdev *rdev = conf->mirrors[j].rdev;
 
 				if (rdev == NULL || test_bit(Faulty, &rdev->flags)) {
-					still_degraded = false;
+					still_degraded = true;
 					break;
 				}
 			}
