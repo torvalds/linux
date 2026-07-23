@@ -830,6 +830,72 @@ static int bpf_jit_probe_post(struct bpf_jit *jit, struct bpf_prog *fp,
 	return 0;
 }
 
+static int emit_ldx(struct bpf_jit *jit, struct bpf_prog *fp, struct bpf_insn *insn)
+{
+	struct bpf_jit_probe probe;
+
+	bpf_jit_probe_init(&probe);
+	bpf_jit_probe_load_pre(jit, insn, &probe);
+
+	switch (BPF_SIZE(insn->code)) {
+	case BPF_B: /* dst = *(u8 *)(ul) (src + off) */
+		/* llgc %dst,off(%src,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0090, insn->dst_reg, insn->src_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_H: /* dst = *(u16 *)(ul) (src + off) */
+		/* llgh %dst,off(%src,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0091, insn->dst_reg, insn->src_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_W: /* dst = *(u32 *)(ul) (src + off) */
+		/* llgf %dst,off(%src,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0016, insn->dst_reg, insn->src_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_DW: /* dst = *(u64 *)(ul) (src + off) */
+		/* lg %dst,off(%src,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0004, insn->dst_reg, insn->src_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	}
+
+	return bpf_jit_probe_post(jit, fp, &probe);
+}
+
+static int emit_stx(struct bpf_jit *jit, struct bpf_prog *fp, struct bpf_insn *insn)
+{
+	struct bpf_jit_probe probe;
+
+	bpf_jit_probe_init(&probe);
+	bpf_jit_probe_store_pre(jit, insn, &probe);
+
+	switch (BPF_SIZE(insn->code)) {
+	case BPF_B: /* *(u8 *)(dst + off) = src_reg */
+		/* stcy %src,off(%dst,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0072, insn->src_reg, insn->dst_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_H: /* (u16 *)(dst + off) = src */
+		/* sthy %src,off(%dst,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0070, insn->src_reg, insn->dst_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_W: /* *(u32 *)(dst + off) = src */
+		/* sty %src,off(%dst,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0050, insn->src_reg, insn->dst_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	case BPF_DW: /* (u64 *)(dst + off) = src */
+		/* stg %src,off(%dst,%arena) */
+		EMIT6_DISP_LH(0xe3000000, 0x0024, insn->src_reg, insn->dst_reg,
+			      probe.arena_reg, insn->off);
+		break;
+	}
+
+	return bpf_jit_probe_post(jit, fp, &probe);
+}
+
 /*
  * Sign- or zero-extend the register if necessary
  */
@@ -1477,44 +1543,13 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	 */
 	case BPF_STX | BPF_MEM | BPF_B: /* *(u8 *)(dst + off) = src_reg */
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_B:
-		bpf_jit_probe_store_pre(jit, insn, &probe);
-		/* stcy %src,off(%dst,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0072, src_reg, dst_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		jit->seen |= SEEN_MEM;
-		break;
 	case BPF_STX | BPF_MEM | BPF_H: /* (u16 *)(dst + off) = src */
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_H:
-		bpf_jit_probe_store_pre(jit, insn, &probe);
-		/* sthy %src,off(%dst,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0070, src_reg, dst_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		jit->seen |= SEEN_MEM;
-		break;
 	case BPF_STX | BPF_MEM | BPF_W: /* *(u32 *)(dst + off) = src */
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_W:
-		bpf_jit_probe_store_pre(jit, insn, &probe);
-		/* sty %src,off(%dst,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0050, src_reg, dst_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		jit->seen |= SEEN_MEM;
-		break;
 	case BPF_STX | BPF_MEM | BPF_DW: /* (u64 *)(dst + off) = src */
 	case BPF_STX | BPF_PROBE_MEM32 | BPF_DW:
-		bpf_jit_probe_store_pre(jit, insn, &probe);
-		/* stg %src,off(%dst,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0024, src_reg, dst_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
+		err = emit_stx(jit, fp, insn);
 		if (err < 0)
 			return err;
 		jit->seen |= SEEN_MEM;
@@ -1574,8 +1609,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	/*
 	 * BPF_ATOMIC
 	 */
+	case BPF_STX | BPF_ATOMIC | BPF_B:
+	case BPF_STX | BPF_ATOMIC | BPF_H:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
 	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_B:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_H:
 	case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
 	case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
 	{
@@ -1687,15 +1726,20 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 	case BPF_LDX | BPF_MEM | BPF_B: /* dst = *(u8 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
 	case BPF_LDX | BPF_PROBE_MEM32 | BPF_B:
-		bpf_jit_probe_load_pre(jit, insn, &probe);
-		/* llgc %dst,off(%src,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0090, dst_reg, src_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
+	case BPF_LDX | BPF_MEM | BPF_H: /* dst = *(u16 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
+	case BPF_LDX | BPF_PROBE_MEM32 | BPF_H:
+	case BPF_LDX | BPF_MEM | BPF_W: /* dst = *(u32 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
+	case BPF_LDX | BPF_PROBE_MEM32 | BPF_W:
+	case BPF_LDX | BPF_MEM | BPF_DW: /* dst = *(u64 *)(ul) (src + off) */
+	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
+	case BPF_LDX | BPF_PROBE_MEM32 | BPF_DW:
+		err = emit_ldx(jit, fp, insn);
 		if (err < 0)
 			return err;
 		jit->seen |= SEEN_MEM;
-		if (insn_is_zext(&insn[1]))
+		if (BPF_SIZE(insn->code) != BPF_DW && insn_is_zext(&insn[1]))
 			insn_count = 2;
 		break;
 	case BPF_LDX | BPF_MEMSX | BPF_B: /* dst = *(s8 *)(ul) (src + off) */
@@ -1708,20 +1752,6 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			return err;
 		jit->seen |= SEEN_MEM;
 		break;
-	case BPF_LDX | BPF_MEM | BPF_H: /* dst = *(u16 *)(ul) (src + off) */
-	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
-	case BPF_LDX | BPF_PROBE_MEM32 | BPF_H:
-		bpf_jit_probe_load_pre(jit, insn, &probe);
-		/* llgh %dst,off(%src,%arena) */
-		EMIT6_DISP_LH(0xe3000000, 0x0091, dst_reg, src_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		jit->seen |= SEEN_MEM;
-		if (insn_is_zext(&insn[1]))
-			insn_count = 2;
-		break;
 	case BPF_LDX | BPF_MEMSX | BPF_H: /* dst = *(s16 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEMSX | BPF_H:
 		bpf_jit_probe_load_pre(jit, insn, &probe);
@@ -1732,38 +1762,12 @@ static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp,
 			return err;
 		jit->seen |= SEEN_MEM;
 		break;
-	case BPF_LDX | BPF_MEM | BPF_W: /* dst = *(u32 *)(ul) (src + off) */
-	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
-	case BPF_LDX | BPF_PROBE_MEM32 | BPF_W:
-		bpf_jit_probe_load_pre(jit, insn, &probe);
-		/* llgf %dst,off(%src) */
-		jit->seen |= SEEN_MEM;
-		EMIT6_DISP_LH(0xe3000000, 0x0016, dst_reg, src_reg,
-			      probe.arena_reg, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		if (insn_is_zext(&insn[1]))
-			insn_count = 2;
-		break;
 	case BPF_LDX | BPF_MEMSX | BPF_W: /* dst = *(s32 *)(ul) (src + off) */
 	case BPF_LDX | BPF_PROBE_MEMSX | BPF_W:
 		bpf_jit_probe_load_pre(jit, insn, &probe);
 		/* lgf %dst,off(%src) */
 		jit->seen |= SEEN_MEM;
 		EMIT6_DISP_LH(0xe3000000, 0x0014, dst_reg, src_reg, REG_0, off);
-		err = bpf_jit_probe_post(jit, fp, &probe);
-		if (err < 0)
-			return err;
-		break;
-	case BPF_LDX | BPF_MEM | BPF_DW: /* dst = *(u64 *)(ul) (src + off) */
-	case BPF_LDX | BPF_PROBE_MEM | BPF_DW:
-	case BPF_LDX | BPF_PROBE_MEM32 | BPF_DW:
-		bpf_jit_probe_load_pre(jit, insn, &probe);
-		/* lg %dst,off(%src,%arena) */
-		jit->seen |= SEEN_MEM;
-		EMIT6_DISP_LH(0xe3000000, 0x0004, dst_reg, src_reg,
-			      probe.arena_reg, off);
 		err = bpf_jit_probe_post(jit, fp, &probe);
 		if (err < 0)
 			return err;
@@ -3028,13 +3032,6 @@ bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
 	if (!in_arena)
 		return true;
 	switch (insn->code) {
-	case BPF_STX | BPF_ATOMIC | BPF_B:
-	case BPF_STX | BPF_ATOMIC | BPF_H:
-	case BPF_STX | BPF_ATOMIC | BPF_W:
-	case BPF_STX | BPF_ATOMIC | BPF_DW:
-		if (bpf_atomic_is_load_store(insn))
-			return false;
-		break;
 	case BPF_LDX | BPF_MEMSX | BPF_B:
 	case BPF_LDX | BPF_MEMSX | BPF_H:
 	case BPF_LDX | BPF_MEMSX | BPF_W:
