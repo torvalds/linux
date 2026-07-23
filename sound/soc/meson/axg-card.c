@@ -107,6 +107,7 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 	struct snd_soc_dai_link *pad;
 	struct snd_soc_dai_link *lb;
 	struct snd_soc_dai_link_component *dlc;
+	struct device *dev = card->dev;
 	int ret;
 
 	/* extend links */
@@ -117,11 +118,11 @@ static int axg_card_add_tdm_loopback(struct snd_soc_card *card,
 	pad = &card->dai_link[*index];
 	lb = &card->dai_link[*index + 1];
 
-	lb->name = devm_kasprintf(card->dev, GFP_KERNEL, "%s-lb", pad->name);
+	lb->name = devm_kasprintf(dev, GFP_KERNEL, "%s-lb", pad->name);
 	if (!lb->name)
 		return -ENOMEM;
 
-	dlc = devm_kzalloc(card->dev, sizeof(*dlc), GFP_KERNEL);
+	dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
 	if (!dlc)
 		return -ENOMEM;
 
@@ -158,13 +159,14 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 					struct device_node *node,
 					struct axg_dai_link_tdm_data *be)
 {
+	struct device *dev = card->dev;
 	char propname[32];
 	u32 tx, rx;
 	int i;
 
-	be->tx_mask = devm_kcalloc(card->dev, AXG_TDM_NUM_LANES,
+	be->tx_mask = devm_kcalloc(dev, AXG_TDM_NUM_LANES,
 				   sizeof(*be->tx_mask), GFP_KERNEL);
-	be->rx_mask = devm_kcalloc(card->dev, AXG_TDM_NUM_LANES,
+	be->rx_mask = devm_kcalloc(dev, AXG_TDM_NUM_LANES,
 				   sizeof(*be->rx_mask), GFP_KERNEL);
 	if (!be->tx_mask || !be->rx_mask)
 		return -ENOMEM;
@@ -191,7 +193,7 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 
 	/* ... but the interface should at least have one direction */
 	if (!tx && !rx) {
-		dev_err(card->dev, "tdm link has no cpu slots\n");
+		dev_err(dev, "tdm link has no cpu slots\n");
 		return -EINVAL;
 	}
 
@@ -207,7 +209,7 @@ static int axg_card_parse_cpu_tdm_slots(struct snd_soc_card *card,
 		 * Error if the slots can't accommodate the largest mask or
 		 * if it is just too big
 		 */
-		dev_err(card->dev, "bad slot number\n");
+		dev_err(dev, "bad slot number\n");
 		return -EINVAL;
 	}
 
@@ -222,8 +224,9 @@ static int axg_card_parse_codecs_masks(struct snd_soc_card *card,
 				       struct axg_dai_link_tdm_data *be)
 {
 	struct axg_dai_link_tdm_mask *codec_mask;
+	struct device *dev = card->dev;
 
-	codec_mask = devm_kcalloc(card->dev, link->num_codecs,
+	codec_mask = devm_kcalloc(dev, link->num_codecs,
 				  sizeof(*codec_mask), GFP_KERNEL);
 	if (!codec_mask)
 		return -ENOMEM;
@@ -249,10 +252,11 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 	struct meson_card *priv = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai_link *link = &card->dai_link[*index];
 	struct axg_dai_link_tdm_data *be;
+	struct device *dev = card->dev;
 	int ret;
 
 	/* Allocate tdm link parameters */
-	be = devm_kzalloc(card->dev, sizeof(*be), GFP_KERNEL);
+	be = devm_kzalloc(dev, sizeof(*be), GFP_KERNEL);
 	if (!be)
 		return -ENOMEM;
 	priv->link_data[*index] = be;
@@ -266,7 +270,7 @@ static int axg_card_parse_tdm(struct snd_soc_card *card,
 
 	ret = axg_card_parse_cpu_tdm_slots(card, link, node, be);
 	if (ret) {
-		dev_err(card->dev, "error parsing tdm link slots\n");
+		dev_err(dev, "error parsing tdm link slots\n");
 		return ret;
 	}
 
@@ -310,9 +314,10 @@ static int axg_card_add_link(struct snd_soc_card *card, struct device_node *np,
 {
 	struct snd_soc_dai_link *dai_link = &card->dai_link[*index];
 	struct snd_soc_dai_link_component *cpu;
+	struct device *dev = card->dev;
 	int ret;
 
-	cpu = devm_kzalloc(card->dev, sizeof(*cpu), GFP_KERNEL);
+	cpu = devm_kzalloc(dev, sizeof(*cpu), GFP_KERNEL);
 	if (!cpu)
 		return -ENOMEM;
 
