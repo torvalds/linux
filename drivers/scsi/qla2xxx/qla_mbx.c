@@ -4106,8 +4106,10 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha, void *pkt)
 		return;
 
 	if (IS_QLA29XX(ha)) {
-		vp_idx = rptid_entry_ext->vp_idx;
-		vp_status = rptid_entry_ext->vp_status;
+		vp_idx = le16_to_cpu(rptid_entry_ext->vp_idx_status) &
+			 EXT_VP_STATUS_VP_INDEX_MASK;
+		vp_status = (le16_to_cpu(rptid_entry_ext->vp_idx_status) >>
+			     EXT_VP_STATUS_VP_STATUS_SHIFT) & 0x7f;
 	} else {
 		vp_idx = rptid_entry->vp_idx;
 		vp_status = rptid_entry->vp_status;
@@ -4231,7 +4233,8 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha, void *pkt)
 		ha->flags.gpsc_supported = 1;
 		ha->current_topology = ISP_CFG_F;
 		/* buffer to buffer credit flag */
-		vha->flags.bbcr_enable = (rptid_entry->u.f1.bbcr & 0xf) != 0;
+		vha->flags.bbcr_enable =
+		    (le16_to_cpu(rptid_entry->u.f1.bbcr) & 0xf) != 0;
 
 		if (vp_idx == 0) {
 			if (vp_status == VP_STAT_COMPL) {

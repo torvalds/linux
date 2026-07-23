@@ -52,6 +52,15 @@ static inline __le16 qla_ext_build_vp_sof(u16 vp_idx, u16 sof_type)
 }
 
 /*
+ * Combined vp_idx/vp_status field layout (vp_rpt_id_entry_24xx_ext):
+ *   bits [8:0]   - VP index (9 bits)
+ *   bits [15:9]  - VP status (7 bits)
+ */
+#define EXT_VP_STATUS_VP_INDEX_MASK	0x01ff
+#define EXT_VP_STATUS_VP_STATUS_SHIFT	9
+#define EXT_VP_STATUS_VP_STATUS_MASK	0xfe00
+
+/*
  * ISP queue - command entry structure definition.
  */
 #define NUM_CMD67_DSDS	4
@@ -708,8 +717,7 @@ struct vp_rpt_id_entry_24xx_ext {
 	__le32 resv1;
 	uint8_t vp_acquired;
 	uint8_t vp_setup;
-	__le16	vp_idx : 9;		/* VP Index 9bits */
-	__le16	vp_status : 7;		/* VP Status 7bits */
+	__le16	vp_idx_status;		/* bits [8:0]=VP index, [15:9]=VP status */
 
 	uint8_t port_id[3];
 	uint8_t format;
@@ -719,7 +727,7 @@ struct vp_rpt_id_entry_24xx_ext {
 			uint8_t vpstat1_subcode; /* vp_status=1 subcode */
 			uint8_t flags;
 
-			uint16_t fip_flags;
+			__le16 fip_flags;
 			uint8_t rsv2[12];
 
 			uint8_t ls_rjt_vendor;
@@ -730,13 +738,13 @@ struct vp_rpt_id_entry_24xx_ext {
 			__le16	flogi_acc_payload_size;	/* bits [8:0] meaningful */
 			uint8_t port_name[8];
 			uint8_t node_name[8];
-			uint16_t bbcr;
+			__le16 bbcr;
 			uint8_t reserved_5[6];
 		} f1;
 		struct vp_rpt_id_ext_f2 { /* format 2: N2N direct connect */
 			uint8_t vpstat1_subcode;
 			uint8_t flags;
-			uint16_t fip_flags;
+			__le16 fip_flags;
 			uint8_t rsv2[12];
 
 			uint8_t ls_rjt_vendor;
@@ -746,7 +754,7 @@ struct vp_rpt_id_entry_24xx_ext {
 
 			uint8_t port_name[8];
 			uint8_t node_name[8];
-			uint16_t bbcr;
+			__le16 bbcr;
 			uint8_t reserved_5[2];
 			uint8_t remote_nport_id[4];
 		} f2;
