@@ -36,4 +36,9 @@ struct swap_ops {
 	void (*submit_read)(struct swap_io_ctx *ctx);
 };
 
+void swap_fs_prepare_rw(struct swap_io_ctx *ctx, int rw, struct iov_iter *iter);
+bool swap_fs_can_merge(struct folio *folio, struct folio *prev_folio,
+		size_t prev_folio_size, int rw);
+int swap_fs_activate(struct swap_info_struct *sis, const struct swap_ops *ops);
+
 #endif /* _MM_SWAP_OPS_H */

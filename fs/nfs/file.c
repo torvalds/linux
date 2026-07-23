@@ -29,9 +29,8 @@
 #include <linux/pagemap.h>
 #include <linux/gfp.h>
 #include <linux/rmap.h>
-#include <linux/swap.h>
 #include <linux/compaction.h>
-
+#include <linux/swap_ops.h>
 #include <linux/uaccess.h>
 #include <linux/filelock.h>
 
@@ -575,6 +574,38 @@ static int nfs_launder_folio(struct folio *folio)
 	return ret;
 }
 
+#ifdef CONFIG_SWAP
+static void nfs_swap_submit_write(struct swap_io_ctx *ctx)
+{
+	struct swap_iocb *sio = ctx->sio;
+	struct iov_iter iter;
+	int ret;
+
+	swap_fs_prepare_rw(ctx, WRITE, &iter);
+	ret = nfs_file_direct_write(&sio->iocb, &iter, true);
+	if (ret != -EIOCBQUEUED)
+		sio->iocb.ki_complete(&sio->iocb, ret);
+}
+
+static void nfs_swap_submit_read(struct swap_io_ctx *ctx)
+{
+	struct swap_iocb *sio = ctx->sio;
+	struct iov_iter iter;
+	int ret;
+
+	swap_fs_prepare_rw(ctx, READ, &iter);
+	ret = nfs_file_direct_read(&sio->iocb, &iter, true);
+	if (ret != -EIOCBQUEUED)
+		sio->iocb.ki_complete(&sio->iocb, ret);
+}
+
+static const struct swap_ops nfs_swap_ops = {
+	.flags			= SWAP_OPS_F_REQUIRE_NOFS,
+	.submit_write		= nfs_swap_submit_write,
+	.submit_read		= nfs_swap_submit_read,
+	.can_merge		= swap_fs_can_merge,
+};
+
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 						sector_t *span)
 {
@@ -597,7 +628,7 @@ static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	ret = rpc_clnt_swap_activate(clnt);
 	if (ret)
 		return ret;
-	ret = swap_fs_activate(sis);
+	ret = swap_fs_activate(sis, &nfs_swap_ops);
 	if (ret < 0) {
 		rpc_clnt_swap_deactivate(clnt);
 		return ret;
@@ -620,6 +651,10 @@ static void nfs_swap_deactivate(struct file *file)
 	if (cl->rpc_ops->disable_swap)
 		cl->rpc_ops->disable_swap(file_inode(file));
 }
+#else
+#define nfs_swap_activate	NULL
+#define nfs_swap_deactivate	NULL
+#endif /* CONFIG_SWAP */
 
 const struct address_space_operations nfs_file_aops = {
 	.read_folio = nfs_read_folio,
@@ -636,7 +671,6 @@ const struct address_space_operations nfs_file_aops = {
 	.error_remove_folio = generic_error_remove_folio,
 	.swap_activate = nfs_swap_activate,
 	.swap_deactivate = nfs_swap_deactivate,
-	.swap_rw = nfs_swap_rw,
 };
 
 /*

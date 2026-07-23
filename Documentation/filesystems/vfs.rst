@@ -776,7 +776,6 @@ cache in your filesystem.  The following members are defined:
 		int (*error_remove_folio)(struct mapping *mapping, struct folio *);
 		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
-		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
 	};
 
 ``read_folio``
@@ -977,15 +976,12 @@ cache in your filesystem.  The following members are defined:
 	can be performed with minimal memory allocation.  It should call
 	add_swap_extent(), or the helper iomap_swapfile_activate(), and
 	return the number of extents added.  If IO should be submitted
-	through ->swap_rw(), it should call swap_fs_activate, otherwise IO will
-	be submitted directly to the block device ``sis->bdev``.
+	through the file system it should call swap_fs_activate, otherwise IO
+	will be submitted directly to the block device ``sis->bdev``.
 
 ``swap_deactivate``
 	Called during swapoff on files where swap_activate was
 	successful.
-
-``swap_rw``
-	Called to read or write swap pages when swap_fs_activate was called.
 
 The File Object
 ===============
