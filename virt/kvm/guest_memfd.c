@@ -530,11 +530,7 @@ static int kvm_gmem_error_folio(struct address_space *mapping, struct folio *fol
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_INVALIDATE
 static void kvm_gmem_free_folio(struct folio *folio)
 {
-	struct page *page = folio_page(folio, 0);
-	kvm_pfn_t pfn = page_to_pfn(page);
-	int order = folio_order(folio);
-
-	kvm_arch_gmem_invalidate(pfn, pfn + (1ul << order));
+	kvm_arch_gmem_invalidate(folio_file_pfn(folio, 0), folio_nr_pages(folio));
 }
 #endif
 

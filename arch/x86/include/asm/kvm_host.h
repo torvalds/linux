@@ -1906,7 +1906,7 @@ struct kvm_x86_ops {
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_PREPARE
 	int (*gmem_prepare)(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_order);
 #endif
-	void (*gmem_invalidate)(kvm_pfn_t start, kvm_pfn_t end);
+	void (*gmem_invalidate)(kvm_pfn_t pfn, kvm_pfn_t nr_pages);
 #ifdef CONFIG_HAVE_KVM_ARCH_GMEM_INVALIDATE
 	void (*gmem_invalidate_range)(struct kvm *kvm, struct kvm_gfn_range *range);
 #endif

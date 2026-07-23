@@ -5159,16 +5159,16 @@ int sev_gmem_prepare(struct kvm *kvm, kvm_pfn_t pfn, gfn_t gfn, int max_order)
 	return 0;
 }
 
-void sev_gmem_invalidate(kvm_pfn_t start, kvm_pfn_t end)
+void sev_gmem_invalidate(kvm_pfn_t pfn, kvm_pfn_t nr_pages)
 {
-	kvm_pfn_t pfn;
+	kvm_pfn_t end = pfn + nr_pages;
 
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return;
 
-	pr_debug("%s: PFN start 0x%llx PFN end 0x%llx\n", __func__, start, end);
+	pr_debug("%s: PFN start 0x%llx PFN end 0x%llx\n", __func__, pfn, end);
 
-	for (pfn = start; pfn < end;) {
+	while (pfn < end) {
 		bool use_2m_update = false;
 		int rc, rmp_level;
 		bool assigned;
