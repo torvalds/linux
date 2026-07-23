@@ -1340,4 +1340,48 @@ TEST(stress_wait)
 	close(stress_device);
 }
 
+TEST(wait_args_validation)
+{
+	struct ntsync_sem_args sem_args = { .count = 1, .max = 1 };
+	struct ntsync_wait_args wait_args = {0};
+	struct timespec timeout;
+	int fd, fd2, sem, ret;
+	__u32 index;
+
+	fd = open("/dev/ntsync", O_CLOEXEC | O_RDONLY);
+	ASSERT_GE(fd, 0);
+
+	fd2 = open("/dev/ntsync", O_CLOEXEC | O_RDONLY);
+	ASSERT_GE(fd2, 0);
+
+	sem = ioctl(fd, NTSYNC_IOC_CREATE_SEM, &sem_args);
+	EXPECT_GE(sem, 0);
+
+	ret = wait_any(fd, 1, &sem, 0, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	ret = wait_all(fd, 1, &sem, 0, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	clock_gettime(CLOCK_MONOTONIC, &timeout);
+	wait_args.timeout = timeout.tv_sec * 1000000000ULL + timeout.tv_nsec;
+	wait_args.count = 0;
+	wait_args.objs = 0;
+	wait_args.owner = 123;
+	wait_args.pad = 1;
+	ret = ioctl(fd, NTSYNC_IOC_WAIT_ANY, &wait_args);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	ret = wait_any(fd2, 1, &sem, 123, &index);
+	EXPECT_EQ(-1, ret);
+	EXPECT_EQ(EINVAL, errno);
+
+	close(sem);
+	close(fd2);
+	close(fd);
+}
+
 TEST_HARNESS_MAIN
