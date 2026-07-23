@@ -111,6 +111,10 @@ config HAVE_KVM_ARCH_GMEM_PREPARE
        bool
        depends on KVM_GUEST_MEMFD
 
+config HAVE_KVM_ARCH_GMEM_RECLAIM
+       bool
+       depends on KVM_GUEST_MEMFD
+
 config HAVE_KVM_ARCH_GMEM_INVALIDATE
        bool
        depends on KVM_GUEST_MEMFD
