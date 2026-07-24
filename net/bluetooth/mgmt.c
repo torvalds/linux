@@ -8176,6 +8176,118 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 				 NULL, 0);
 }
 
+static int load_conn_subrate(struct sock *sk, struct hci_dev *hdev, void *data,
+			     u16 len)
+{
+	struct mgmt_cp_load_conn_subrate *cp = data;
+	const u16 max_param_count = ((U16_MAX - sizeof(*cp)) /
+				     sizeof(struct mgmt_conn_subrate));
+	u16 param_count, expected_len;
+	int i;
+
+	if (!lmp_le_capable(hdev) || !le_sci_capable(hdev))
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_LOAD_CONN_SUBRATE,
+				       MGMT_STATUS_NOT_SUPPORTED);
+
+	param_count = __le16_to_cpu(cp->param_count);
+	if (param_count > max_param_count) {
+		bt_dev_err(hdev, "too big param_count value %u", param_count);
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_LOAD_CONN_SUBRATE,
+				       MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	expected_len = struct_size(cp, params, param_count);
+	if (expected_len != len) {
+		bt_dev_err(hdev, "expected %u bytes, got %u bytes",
+			   expected_len, len);
+		return mgmt_cmd_status(sk, hdev->id, MGMT_OP_LOAD_CONN_SUBRATE,
+				       MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	bt_dev_dbg(hdev, "param_count %u", param_count);
+
+	hci_dev_lock(hdev);
+
+	for (i = 0; i < param_count; i++) {
+		struct mgmt_conn_subrate *param = &cp->params[i];
+		struct hci_conn_params *hci_param;
+		u16 min, max, subrate_min, subrate_max;
+		u16 max_latency, cont_num, supv_timeout;
+		u8 addr_type;
+
+		bt_dev_dbg(hdev, "Adding subrate %pMR (type %u)",
+			   &param->addr.bdaddr, param->addr.type);
+
+		if (param->addr.type == BDADDR_LE_PUBLIC) {
+			addr_type = ADDR_LE_DEV_PUBLIC;
+		} else if (param->addr.type == BDADDR_LE_RANDOM) {
+			addr_type = ADDR_LE_DEV_RANDOM;
+		} else {
+			bt_dev_err(hdev, "ignoring invalid connection subrate parameters");
+			continue;
+		}
+
+		min = le16_to_cpu(param->min_interval);
+		max = le16_to_cpu(param->max_interval);
+		subrate_min = le16_to_cpu(param->subrate_min);
+		subrate_max = le16_to_cpu(param->subrate_max);
+		max_latency = le16_to_cpu(param->max_latency);
+		cont_num = le16_to_cpu(param->cont_num);
+		supv_timeout = le16_to_cpu(param->supv_timeout);
+
+		/* Validate the parameters before storing them. Reject
+		 * logically inconsistent values instead of forwarding them to
+		 * the controller.
+		 */
+		if (min > max || subrate_min > subrate_max ||
+		    subrate_min < 1 || supv_timeout < 1) {
+			bt_dev_err(hdev, "ignoring invalid connection subrate parameters");
+			continue;
+		}
+
+		hci_param = hci_conn_params_add(hdev, &param->addr.bdaddr,
+						addr_type);
+		if (!hci_param) {
+			bt_dev_err(hdev, "failed to add connection parameters");
+			continue;
+		}
+
+		hci_param->rate_min_interval = min;
+		hci_param->rate_max_interval = max;
+		hci_param->subrate_min = subrate_min;
+		hci_param->subrate_max = subrate_max;
+		hci_param->max_latency = max_latency;
+		hci_param->cont_num = cont_num;
+		hci_param->rate_supv_timeout = supv_timeout;
+
+		/* If the device is connected as central check if the
+		 * connection rate parameters need to be updated.
+		 */
+		if (!i && param_count == 1) {
+			struct hci_conn *conn;
+
+			conn = hci_conn_hash_lookup_le(hdev,
+						       &hci_param->addr,
+						       addr_type);
+			if (conn && conn->state == BT_CONNECTED &&
+			    conn->role == HCI_ROLE_MASTER &&
+			    (conn->le_rate_interval < min ||
+			     conn->le_rate_interval > max ||
+			     conn->le_subrate < subrate_min ||
+			     conn->le_subrate > subrate_max ||
+			     conn->le_rate_latency != max_latency ||
+			     conn->le_cont_num != cont_num ||
+			     conn->le_rate_supv_timeout != supv_timeout))
+				hci_le_conn_rate_request(hdev, conn);
+		}
+	}
+
+	hci_dev_unlock(hdev);
+
+	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_LOAD_CONN_SUBRATE, 0,
+				 NULL, 0);
+}
+
 static int set_external_config(struct sock *sk, struct hci_dev *hdev,
 			       void *data, u16 len)
 {
@@ -9593,6 +9705,8 @@ static const struct hci_mgmt_handler mgmt_handlers[] = {
 						HCI_MGMT_VAR_LEN },
 	{ mesh_send_cancel,        MGMT_MESH_SEND_CANCEL_SIZE },
 	{ mgmt_hci_cmd_sync,       MGMT_HCI_CMD_SYNC_SIZE, HCI_MGMT_VAR_LEN },
+	{ load_conn_subrate,       MGMT_LOAD_CONN_SUBRATE_SIZE,
+						HCI_MGMT_VAR_LEN },
 };
 
 void mgmt_index_added(struct hci_dev *hdev)
@@ -10739,6 +10853,23 @@ static struct hci_mgmt_chan chan = {
 int mgmt_init(void)
 {
 	return hci_mgmt_chan_register(&chan);
+}
+
+void mgmt_conn_subrate_notify(struct hci_dev *hdev, struct hci_conn *conn,
+			      u8 status)
+{
+	struct mgmt_ev_conn_subrate ev;
+
+	bacpy(&ev.addr.bdaddr, &conn->dst);
+	ev.addr.type = link_to_bdaddr(conn->type, conn->dst_type);
+	ev.status = mgmt_status(status);
+	ev.interval = cpu_to_le16(conn->le_rate_interval);
+	ev.subrate = cpu_to_le16(conn->le_subrate);
+	ev.latency = cpu_to_le16(conn->le_rate_latency);
+	ev.cont_num = cpu_to_le16(conn->le_cont_num);
+	ev.supv_timeout = cpu_to_le16(conn->le_rate_supv_timeout);
+
+	mgmt_event(MGMT_EV_CONN_SUBRATE, hdev, &ev, sizeof(ev), NULL);
 }
 
 void mgmt_exit(void)

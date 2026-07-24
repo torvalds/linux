@@ -7355,6 +7355,75 @@ int hci_le_conn_update_sync(struct hci_dev *hdev, struct hci_conn *conn,
 				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 }
 
+static int hci_le_conn_rate_request_sync(struct hci_dev *hdev, void *data)
+{
+	struct hci_conn *conn = data;
+	struct hci_conn_params *params;
+	struct hci_cp_le_conn_rate cp;
+
+	hci_dev_lock(hdev);
+
+	/* The request was queued asynchronously so re-validate the connection
+	 * and its parameters under hdev->lock. The connection may have been
+	 * torn down, or may not have a valid handle yet (still connecting),
+	 * and the parameters may have been removed in the meantime (e.g. by
+	 * Load Connection Parameters). Snapshot the rate values so the
+	 * blocking command below can run without holding hdev->lock.
+	 */
+	if (!hci_conn_valid(hdev, conn) ||
+	    HCI_CONN_HANDLE_UNSET(conn->handle)) {
+		hci_dev_unlock(hdev);
+		return -ECANCELED;
+	}
+
+	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+	if (!params) {
+		hci_dev_unlock(hdev);
+		return -ECANCELED;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+	cp.handle	= cpu_to_le16(conn->handle);
+	cp.interval_min	= cpu_to_le16(params->rate_min_interval);
+	cp.interval_max	= cpu_to_le16(params->rate_max_interval);
+	cp.subrate_min	= cpu_to_le16(params->subrate_min);
+	cp.subrate_max	= cpu_to_le16(params->subrate_max);
+	cp.max_latency	= cpu_to_le16(params->max_latency);
+	cp.cont_num	= cpu_to_le16(params->cont_num);
+	cp.supv_timeout	= cpu_to_le16(params->rate_supv_timeout);
+	cp.min_ce_len	= cpu_to_le16(0x0000);
+	cp.max_ce_len	= cpu_to_le16(0x0000);
+
+	hci_dev_unlock(hdev);
+
+	return __hci_cmd_sync_status(hdev, HCI_OP_LE_CONN_RATE,
+				     sizeof(cp), &cp, HCI_CMD_TIMEOUT);
+}
+
+static void hci_le_conn_rate_request_destroy(struct hci_dev *hdev, void *data,
+					     int err)
+{
+	struct hci_conn *conn = data;
+
+	hci_conn_put(conn);
+}
+
+int hci_le_conn_rate_request(struct hci_dev *hdev, struct hci_conn *conn)
+{
+	int err;
+
+	/* Hold a reference to the connection so it cannot be freed while the
+	 * request is pending or running on the cmd_sync worker.
+	 */
+	err = hci_cmd_sync_queue(hdev, hci_le_conn_rate_request_sync,
+				 hci_conn_get(conn),
+				 hci_le_conn_rate_request_destroy);
+	if (err < 0)
+		hci_conn_put(conn);
+
+	return err;
+}
+
 static void create_pa_complete(struct hci_dev *hdev, void *data, int err)
 {
 	struct hci_conn *conn = data;

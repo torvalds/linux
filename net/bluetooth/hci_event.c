@@ -5903,6 +5903,17 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		}
 	}
 
+	/* If we are central and have subrate parameters stored, queue a
+	 * connection rate request to apply them.
+	 */
+	if (conn->role == HCI_ROLE_MASTER && le_sci_capable(hdev)) {
+		struct hci_conn_params *p;
+
+		p = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
+		if (p && p->subrate_max)
+			hci_le_conn_rate_request(hdev, conn);
+	}
+
 unlock:
 	hci_update_passive_scan(hdev);
 	hci_dev_unlock(hdev);
@@ -7407,18 +7418,23 @@ static void hci_le_conn_rate_change_evt(struct hci_dev *hdev, void *data,
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
-	if (ev->status)
-		return;
-
 	hci_dev_lock(hdev);
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn) {
-		conn->le_rate_interval = le16_to_cpu(ev->interval);
-		conn->le_subrate = le16_to_cpu(ev->subrate);
-		conn->le_rate_latency = le16_to_cpu(ev->latency);
-		conn->le_cont_num = le16_to_cpu(ev->cont_number);
-		conn->le_rate_supv_timeout = le16_to_cpu(ev->supv_timeout);
+		/* Only update the stored rate parameters on success; on
+		 * failure the values in the event are not valid. Userspace is
+		 * notified either way.
+		 */
+		if (!ev->status) {
+			conn->le_rate_interval = le16_to_cpu(ev->interval);
+			conn->le_subrate = le16_to_cpu(ev->subrate);
+			conn->le_rate_latency = le16_to_cpu(ev->latency);
+			conn->le_cont_num = le16_to_cpu(ev->cont_number);
+			conn->le_rate_supv_timeout =
+				le16_to_cpu(ev->supv_timeout);
+		}
+		mgmt_conn_subrate_notify(hdev, conn, ev->status);
 	}
 
 	hci_dev_unlock(hdev);
