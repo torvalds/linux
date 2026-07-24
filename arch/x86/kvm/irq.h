@@ -130,8 +130,12 @@ static inline void kvm_warn_on_lost_irq(struct kvm_vcpu *vcpu)
 	 * another vCPU grabs the IRQ, or deasserts the interrupt (which is
 	 * level-triggered), then it's both expected and "fine" for an IRQ
 	 * seemingly be "lost" from this vCPU's perspective.
+	 *
+	 * Similarly, Xen's event channel isn't entirely within KVM's control,
+	 * e.g. Xen emulation can be disabled entirely per-VM, or the guest
+	 * can desassert an IRQ by writing to shared memory.
 	 */
-	WARN_ON_ONCE(!pic_in_kernel(vcpu->kvm));
+	WARN_ON_ONCE(!pic_in_kernel(vcpu->kvm) && !IS_ENABLED(CONFIG_KVM_XEN));
 }
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
