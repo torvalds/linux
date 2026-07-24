@@ -50,6 +50,7 @@ struct cxl_mbox_cmd {
  * @payload_size: Size of space for payload
  *                (CXL 3.1 8.2.8.4.3 Mailbox Capabilities Register)
  * @mbox_mutex: mutex protects device mailbox and firmware
+ * @feat_mutex: serializes multi-part Get/Set Feature transfers
  * @mbox_wait: rcuwait for mailbox
  * @mbox_send: @dev specific transport for transmitting mailbox commands
  * @feat_cap: Features capability
@@ -60,6 +61,7 @@ struct cxl_mailbox {
 	DECLARE_BITMAP(exclusive_cmds, CXL_MEM_COMMAND_ID_MAX);
 	size_t payload_size;
 	struct mutex mbox_mutex; /* lock to protect mailbox context */
+	struct mutex feat_mutex;
 	struct rcuwait mbox_wait;
 	int (*mbox_send)(struct cxl_mailbox *cxl_mbox, struct cxl_mbox_cmd *cmd);
 	enum cxl_features_capability feat_cap;

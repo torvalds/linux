@@ -1750,8 +1750,8 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 					     parent_dport, uport_dev,
 					     dport_dev);
 		if (IS_ERR(dport)) {
-			/* Port already exists, restart iteration */
-			if (PTR_ERR(dport) == -EAGAIN)
+			/* Port or dport already exists, restart iteration */
+			if (PTR_ERR(dport) == -EAGAIN || PTR_ERR(dport) == -EBUSY)
 				return 0;
 			return PTR_ERR(dport);
 		}
