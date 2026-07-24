@@ -508,7 +508,7 @@ static int host1x_device_add(struct host1x *host1x,
 	 * Add device even if there are no subdevs to ensure syncpoint functionality
 	 * is available regardless of whether any engine subdevices are present
 	 */
-	if (list_empty(&device->subdevs)) {
+	if (list_empty(&device->subdevs) && !device->registered) {
 		err = device_add(&device->dev);
 		if (err < 0)
 			dev_err(&device->dev, "failed to add device: %d\n", err);

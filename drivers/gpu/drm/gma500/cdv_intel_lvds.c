@@ -13,9 +13,9 @@
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "cdv_device.h"
 #include "intel_bios.h"
@@ -394,6 +394,10 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 	return 0;
 }
 
+static const struct drm_encoder_funcs cdv_intel_lvds_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs
 					cdv_intel_lvds_helper_funcs = {
 	.dpms = cdv_intel_lvds_encoder_dpms,
@@ -535,7 +539,8 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	if (ret)
 		goto err_destroy_ddc;
 
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_LVDS);
+	ret = drm_encoder_init(dev, encoder, &cdv_intel_lvds_funcs,
+			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret)
 		goto err_connector_cleanup;
 

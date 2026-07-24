@@ -348,6 +348,7 @@ static int fsl_ldb_probe(struct platform_device *pdev)
 		fsl_ldb->use_termination_resistor = true;
 
 	fsl_ldb->panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+	drm_panel_put(panel);
 	if (IS_ERR(fsl_ldb->panel_bridge))
 		return PTR_ERR(fsl_ldb->panel_bridge);
 

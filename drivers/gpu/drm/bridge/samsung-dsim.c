@@ -1934,6 +1934,7 @@ of_find_panel_or_bridge:
 	panel = of_drm_find_panel(remote);
 	if (!IS_ERR(panel)) {
 		next_bridge = devm_drm_panel_bridge_add(dev, panel);
+		drm_panel_put(panel);
 		if (IS_ERR(next_bridge)) {
 			ret = PTR_ERR(next_bridge);
 			next_bridge = NULL; // Inhibit the cleanup action on an ERR_PTR

@@ -610,6 +610,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 	if (lvds->panel) {
 		lvds->bridge = drm_panel_bridge_add_typed(lvds->panel, DRM_MODE_CONNECTOR_LVDS);
+		drm_panel_put(lvds->panel);
+		lvds->panel = NULL;
 		if (IS_ERR(lvds->bridge)) {
 			ret = PTR_ERR(lvds->bridge);
 			goto err_free_encoder;
@@ -646,6 +648,8 @@ err_free_bridge:
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
 err_put_remote:
+	if (lvds->panel)
+		drm_panel_put(lvds->panel);
 	of_node_put(remote);
 err_put_port:
 	of_node_put(port);

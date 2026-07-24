@@ -971,8 +971,10 @@ static int sun6i_dsi_attach(struct mipi_dsi_host *host,
 
 	if (IS_ERR(panel))
 		return PTR_ERR(panel);
-	if (!dsi->drm || !dsi->drm->registered)
+	if (!dsi->drm || !dsi->drm->registered) {
+		drm_panel_put(panel);
 		return -EPROBE_DEFER;
+	}
 
 	dsi->panel = panel;
 	dsi->device = device;
@@ -989,6 +991,8 @@ static int sun6i_dsi_detach(struct mipi_dsi_host *host,
 {
 	struct sun6i_dsi *dsi = host_to_sun6i_dsi(host);
 
+	if (dsi->panel)
+		drm_panel_put(dsi->panel);
 	dsi->panel = NULL;
 	dsi->device = NULL;
 

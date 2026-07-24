@@ -26,8 +26,12 @@ int falcon_wait_idle(struct falcon *falcon)
 {
 	u32 value;
 
-	return readl_poll_timeout(falcon->regs + FALCON_IDLESTATE, value,
-				  (value == 0), 10, 100000);
+	if (falcon->riscv)
+		return readl_poll_timeout(falcon->regs + RISCV_CPUCTL, value,
+					  (value & RISCV_CPUCTL_ACTIVE_STAT_ACTIVE), 10, 100000);
+	else
+		return readl_poll_timeout(falcon->regs + FALCON_IDLESTATE, value,
+					  (value == 0), 10, 100000);
 }
 
 static int falcon_dma_wait_not_full(struct falcon *falcon)
@@ -122,6 +126,17 @@ static int falcon_parse_firmware_image(struct falcon *falcon)
 	return 0;
 }
 
+static void falcon_parse_firmware_desc(struct falcon *falcon)
+{
+	struct falcon_fw_riscv_desc *desc =
+		(struct falcon_fw_riscv_desc *)falcon->firmware.desc_firmware->data;
+
+	falcon->firmware.code.offset = desc->code_offset;
+	falcon->firmware.code.size = desc->code_size;
+	falcon->firmware.data.offset = desc->data_offset;
+	falcon->firmware.data.size = desc->data_size;
+}
+
 int falcon_read_firmware(struct falcon *falcon, const char *name)
 {
 	int err;
@@ -133,7 +148,23 @@ int falcon_read_firmware(struct falcon *falcon, const char *name)
 
 	falcon->firmware.size = falcon->firmware.firmware->size;
 
+	if (falcon->riscv) {
+		/* Load separate descriptor */
+		char desc_name[128];
+
+		scnprintf(desc_name, sizeof(desc_name), "%s.desc", name);
+		err = request_firmware(&falcon->firmware.desc_firmware, desc_name, falcon->dev);
+		if (err < 0)
+			goto release_firmware;
+	}
+
 	return 0;
+
+release_firmware:
+	release_firmware(falcon->firmware.firmware);
+	falcon->firmware.firmware = NULL;
+
+	return err;
 }
 
 int falcon_load_firmware(struct falcon *falcon)
@@ -144,15 +175,21 @@ int falcon_load_firmware(struct falcon *falcon)
 	/* copy firmware image into local area. this also ensures endianness */
 	falcon_copy_firmware_image(falcon, firmware);
 
-	/* parse the image data */
-	err = falcon_parse_firmware_image(falcon);
-	if (err < 0) {
-		dev_err(falcon->dev, "failed to parse firmware image\n");
-		return err;
+	if (falcon->riscv) {
+		falcon_parse_firmware_desc(falcon);
+	} else {
+		err = falcon_parse_firmware_image(falcon);
+		if (err < 0) {
+			dev_err(falcon->dev, "failed to parse firmware image\n");
+			return err;
+		}
 	}
 
 	release_firmware(firmware);
 	falcon->firmware.firmware = NULL;
+
+	release_firmware(falcon->firmware.desc_firmware);
+	falcon->firmware.desc_firmware = NULL;
 
 	return 0;
 }
@@ -168,6 +205,9 @@ void falcon_exit(struct falcon *falcon)
 {
 	if (falcon->firmware.firmware)
 		release_firmware(falcon->firmware.firmware);
+
+	if (falcon->firmware.desc_firmware)
+		release_firmware(falcon->firmware.desc_firmware);
 }
 
 int falcon_boot(struct falcon *falcon)
@@ -229,9 +269,15 @@ int falcon_boot(struct falcon *falcon)
 			      FALCON_ITFEN_CTXEN,
 		      FALCON_ITFEN);
 
-	/* boot falcon */
-	falcon_writel(falcon, 0x00000000, FALCON_BOOTVEC);
-	falcon_writel(falcon, FALCON_CPUCTL_STARTCPU, FALCON_CPUCTL);
+	if (falcon->riscv) {
+		falcon_writel(falcon, RISCV_BCR_CTRL_CORE_SELECT_RISCV, RISCV_BCR_CTRL);
+		falcon_writel(falcon, 0x0, RISCV_BOOT_VECTOR_HI);
+		falcon_writel(falcon, 0x100000, RISCV_BOOT_VECTOR_LO);
+		falcon_writel(falcon, RISCV_CPUCTL_STARTCPU, RISCV_CPUCTL);
+	} else {
+		falcon_writel(falcon, 0x00000000, FALCON_BOOTVEC);
+		falcon_writel(falcon, FALCON_CPUCTL_STARTCPU, FALCON_CPUCTL);
+	}
 
 	err = falcon_wait_idle(falcon);
 	if (err < 0) {

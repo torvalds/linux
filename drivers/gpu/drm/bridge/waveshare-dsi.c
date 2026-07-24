@@ -169,6 +169,7 @@ static int ws_bridge_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, ret, "Failed to find remote panel\n");
 
 	ws->next_bridge = devm_drm_panel_bridge_add(dev, panel);
+	drm_panel_put(panel);
 	if (IS_ERR(ws->next_bridge))
 		return PTR_ERR(ws->next_bridge);
 

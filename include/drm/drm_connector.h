@@ -2377,7 +2377,10 @@ struct drm_connector {
 	 */
 	struct mutex edid_override_mutex;
 
-	/** @epoch_counter: used to detect any other changes in connector, besides status */
+	/**
+	 * @epoch_counter: Used to detect changes in connector. Increased when
+	 * the connector, including its status, is changed.
+	 */
 	u64 epoch_counter;
 
 	/**

@@ -3,6 +3,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/overflow.h>
 
 #include "pvr_cccb.h"
 #include "pvr_context.h"
@@ -36,9 +37,8 @@ static int get_xfer_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
@@ -66,9 +66,8 @@ static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_ctx_state_size(struct pvr_device *pvr_dev, enum drm_pvr_job_type type)

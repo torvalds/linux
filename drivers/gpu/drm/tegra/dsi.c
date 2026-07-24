@@ -1527,6 +1527,10 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 	if (!dsi->master) {
 		struct tegra_output *output = &dsi->output;
 
+		/*
+		 * tegra_output_probe() never populates a panel for DSI
+		 * outputs, so output->panel is always NULL here.
+		 */
 		output->panel = of_drm_find_panel(device->dev.of_node);
 		if (IS_ERR(output->panel))
 			output->panel = NULL;
@@ -1545,6 +1549,7 @@ static int tegra_dsi_host_detach(struct mipi_dsi_host *host,
 	struct tegra_output *output = &dsi->output;
 
 	if (output->panel && &device->dev == output->panel->dev) {
+		drm_panel_put(output->panel);
 		output->panel = NULL;
 
 		if (output->connector.dev)

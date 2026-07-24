@@ -660,6 +660,7 @@ static int lt9211_parse_dt(struct lt9211 *ctx)
 		return ret;
 	if (panel) {
 		panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+		drm_panel_put(panel);
 		if (IS_ERR(panel_bridge))
 			return PTR_ERR(panel_bridge);
 	}

@@ -135,6 +135,8 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	if (ret < 0) {
 		DRM_DEV_ERROR(drm_dev->dev,
 			      "failed to initialize encoder: %d\n", ret);
+		if (panel)
+			drm_panel_put(panel);
 		return ERR_PTR(ret);
 	}
 
@@ -143,6 +145,7 @@ struct rockchip_rgb *rockchip_rgb_init(struct device *dev,
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_LVDS);
+		drm_panel_put(panel);
 		if (IS_ERR(bridge))
 			return ERR_CAST(bridge);
 	}

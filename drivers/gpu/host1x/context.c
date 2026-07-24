@@ -24,7 +24,7 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 	struct host1x_memory_context_list *cdl = &host1x->context_list;
 	struct device_node *node = host1x->dev->of_node;
 	struct host1x_memory_context *ctx;
-	unsigned int i;
+	unsigned int devs, i;
 	int err;
 
 	cdl->devs = NULL;
@@ -35,7 +35,16 @@ int host1x_memory_context_list_init(struct host1x *host1x)
 	if (err < 0)
 		return 0;
 
-	cdl->len = err / 4;
+	devs = 0;
+
+	for (i = 0; i < err / 4; i++) {
+		u32 length;
+
+		of_property_read_u32_index(node, "iommu-map", i * 4 + 3, &length);
+		devs += length;
+	}
+
+	cdl->len = devs;
 	cdl->devs = kzalloc_objs(*cdl->devs, cdl->len);
 	if (!cdl->devs)
 		return -ENOMEM;

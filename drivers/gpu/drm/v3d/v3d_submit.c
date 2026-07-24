@@ -46,6 +46,9 @@ v3d_submit_lock_reservations(struct v3d_submit *submit)
 	for (i = 0; i < submit->job_count; i++) {
 		struct v3d_job *job = submit->jobs[i];
 
+		if (!job->has_implicit_dep)
+			continue;
+
 		for (j = 0; j < job->bo_count; j++) {
 			ret = drm_sched_job_add_implicit_dependencies(&job->base,
 								      job->bo[j],
@@ -71,7 +74,6 @@ v3d_submit_unlock_reservations(struct v3d_submit *submit)
 /**
  * v3d_lookup_bos() - Sets up job->bo[] with the GEM objects
  * referenced by the job.
- * @dev: DRM device
  * @file_priv: DRM file for this fd
  * @job: V3D job being set up
  * @bo_handles: GEM handles
@@ -85,23 +87,44 @@ v3d_submit_unlock_reservations(struct v3d_submit *submit)
  * failure, because that will happen at `v3d_job_free()`.
  */
 static int
-v3d_lookup_bos(struct v3d_submit *submit, u64 bo_handles, u32 bo_count)
+v3d_lookup_bos(struct drm_file *file_priv, struct v3d_job *job,
+	       u64 bo_handles, u32 bo_count)
 {
-	struct v3d_job *last_job = submit->jobs[submit->job_count - 1];
-
-	last_job->bo_count = bo_count;
-
-	if (!last_job->bo_count) {
-		/* See comment on bo_index for why we have to check
-		 * this.
-		 */
-		drm_warn(&submit->v3d->drm, "Rendering requires BOs\n");
+	if (!bo_count) {
+		drm_warn(&job->v3d->drm, "Rendering requires BOs\n");
 		return -EINVAL;
 	}
 
-	return drm_gem_objects_lookup(submit->file_priv,
+	job->bo_count = bo_count;
+
+	return drm_gem_objects_lookup(file_priv,
 				      (void __user *)(uintptr_t)bo_handles,
-				      last_job->bo_count, &last_job->bo);
+				      job->bo_count, &job->bo);
+}
+
+/**
+ * v3d_job_reference_bos() - Share another job's BOs with @dst
+ * @dst: job that acquires references to the BOs
+ * @src: job whose already-resolved BO list is shared
+ *
+ * For submissions with multiple jobs that use the same BOs, a trailing job
+ * shouldn't look the handles up again, as it could cause inconsistencies.
+ * Instead, it should reference the previous job's BOs.
+ */
+static int
+v3d_job_reference_bos(struct v3d_job *dst, struct v3d_job *src)
+{
+	dst->bo = kvmalloc_objs(*dst->bo, src->bo_count);
+	if (!dst->bo)
+		return -ENOMEM;
+
+	dst->bo_count = src->bo_count;
+	for (int i = 0; i < dst->bo_count; i++) {
+		dst->bo[i] = src->bo[i];
+		drm_gem_object_get(dst->bo[i]);
+	}
+
+	return 0;
 }
 
 static void
@@ -223,13 +246,14 @@ v3d_job_add_syncobjs(struct v3d_job *job, struct drm_file *file_priv,
 static const struct {
 	size_t size;
 	void (*free)(struct kref *ref);
+	bool has_implicit_dep;
 } v3d_job_types[] = {
-	[V3D_BIN]		= { sizeof(struct v3d_bin_job), v3d_job_free },
-	[V3D_RENDER]		= { sizeof(struct v3d_render_job), v3d_render_job_free },
-	[V3D_TFU]		= { sizeof(struct v3d_tfu_job), v3d_job_free },
-	[V3D_CSD]		= { sizeof(struct v3d_csd_job), v3d_job_free },
-	[V3D_CACHE_CLEAN]	= { sizeof(struct v3d_job), v3d_job_free },
-	[V3D_CPU]		= { sizeof(struct v3d_cpu_job), v3d_cpu_job_free },
+	[V3D_BIN]		= { sizeof(struct v3d_bin_job), v3d_job_free, false },
+	[V3D_RENDER]		= { sizeof(struct v3d_render_job), v3d_render_job_free, true },
+	[V3D_TFU]		= { sizeof(struct v3d_tfu_job), v3d_job_free, true },
+	[V3D_CSD]		= { sizeof(struct v3d_csd_job), v3d_job_free, true },
+	[V3D_CACHE_CLEAN]	= { sizeof(struct v3d_job), v3d_job_free, false },
+	[V3D_CPU]		= { sizeof(struct v3d_cpu_job), v3d_cpu_job_free, true },
 };
 
 static struct v3d_job *
@@ -251,6 +275,7 @@ v3d_submit_add_job(struct v3d_submit *submit, enum v3d_queue queue)
 	job->queue = queue;
 	job->file_priv = v3d_priv;
 	job->free = v3d_job_types[queue].free;
+	job->has_implicit_dep = v3d_job_types[queue].has_implicit_dep;
 
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
 				 1, v3d_priv, submit->file_priv->client_id);
@@ -518,13 +543,18 @@ v3d_setup_csd_jobs_and_bos(struct v3d_submit *submit,
 	if (ret)
 		return ret;
 
+	ret = v3d_lookup_bos(submit->file_priv, &job->base, args->bo_handles,
+			     args->bo_handle_count);
+	if (ret)
+		return ret;
+
 	job->args = *args;
 
 	clean_job = v3d_submit_add_job(submit, V3D_CACHE_CLEAN);
 	if (IS_ERR(clean_job))
 		return PTR_ERR(clean_job);
 
-	return v3d_lookup_bos(submit, args->bo_handles, args->bo_handle_count);
+	return v3d_job_reference_bos(clean_job, &job->base);
 }
 
 static void
@@ -1163,19 +1193,30 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
+	/*
+	 * We don't associate the BOs with the BIN job. Fences are only
+	 * attached to the last job in the submission chain, and BIN jobs
+	 * don't need implicit dependencies since depending on results from
+	 * another context is not a realistic scenario for binning.
+	 */
+	ret = v3d_lookup_bos(submit.file_priv, &render->base,
+			     args->bo_handles, args->bo_handle_count);
+	if (ret)
+		goto fail;
+
 	if (args->flags & DRM_V3D_SUBMIT_CL_FLUSH_CACHE) {
 		clean_job = v3d_submit_add_job(&submit, V3D_CACHE_CLEAN);
 		if (IS_ERR(clean_job)) {
 			ret = PTR_ERR(clean_job);
 			goto fail;
 		}
+
+		ret = v3d_job_reference_bos(clean_job, &render->base);
+		if (ret)
+			goto fail;
 	}
 
 	ret = v3d_attach_perfmon_to_jobs(&submit, args->perfmon_id);
-	if (ret)
-		goto fail;
-
-	ret = v3d_lookup_bos(&submit, args->bo_handles, args->bo_handle_count);
 	if (ret)
 		goto fail;
 
@@ -1557,7 +1598,8 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 	 * the CSD and clean jobs in the case of indirect CSD job.
 	 */
 	if (args->bo_handle_count) {
-		ret = v3d_lookup_bos(&submit, args->bo_handles, args->bo_handle_count);
+		ret = v3d_lookup_bos(submit.file_priv, &cpu_job->base,
+				     args->bo_handles, args->bo_handle_count);
 		if (ret)
 			goto fail;
 

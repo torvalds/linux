@@ -30,9 +30,9 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #include "cdv_device.h"
 #include "psb_drv.h"
@@ -251,6 +251,10 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 	kfree(gma_connector);
 }
 
+static const struct drm_encoder_funcs cdv_hdmi_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
 static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
 	.dpms = cdv_hdmi_dpms,
 	.prepare = gma_encoder_prepare,
@@ -329,8 +333,8 @@ void cdv_hdmi_init(struct drm_device *dev,
 	if (ret)
 		goto err_ddc_destroy;
 
-	ret = drm_simple_encoder_init(dev, &gma_encoder->base,
-				      DRM_MODE_ENCODER_TMDS);
+	ret = drm_encoder_init(dev, &gma_encoder->base, &cdv_hdmi_funcs,
+			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		goto err_connector_cleanup;
 

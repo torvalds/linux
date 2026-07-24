@@ -375,6 +375,11 @@ struct v3d_job {
 	void (*free)(struct kref *ref);
 
 	bool has_pm_ref;
+
+	/* Whether the job needs implicit dependencies, i.e. must wait for
+	 * other contexts still writing its BOs.
+	 */
+	bool has_implicit_dep;
 };
 
 struct v3d_bin_job {

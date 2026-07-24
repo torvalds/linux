@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/host1x.h>
 #include <linux/iommu.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -20,10 +21,16 @@
 #include "falcon.h"
 #include "vic.h"
 
+#define VIC_FALCON_DEBUGINFO			0x1094
+#define VIC_DEBUGINFO_DUMMY			0xabcd1234
+#define VIC_DEBUGINFO_CLEAR			0x0
+
 struct vic_config {
 	const char *firmware;
 	unsigned int version;
 	bool supports_sid;
+	bool has_riscv;
+	unsigned int transcfg_offset;
 };
 
 struct vic {
@@ -54,8 +61,8 @@ static void vic_writel(struct vic *vic, u32 value, unsigned int offset)
 
 static int vic_boot(struct vic *vic)
 {
-	u32 fce_ucode_size, fce_bin_data_offset, stream_id;
-	void *hdr;
+	u32 stream_id;
+	u32 val;
 	int err = 0;
 
 	if (vic->config->supports_sid && tegra_dev_iommu_get_stream_id(vic->dev, &stream_id)) {
@@ -63,7 +70,7 @@ static int vic_boot(struct vic *vic)
 
 		value = TRANSCFG_ATT(1, TRANSCFG_SID_FALCON) |
 			TRANSCFG_ATT(0, TRANSCFG_SID_HW);
-		vic_writel(vic, value, VIC_TFBIF_TRANSCFG);
+		vic_writel(vic, value, vic->config->transcfg_offset);
 
 		/*
 		 * STREAMID0 is used for input/output buffers. Initialize it to SID_VIC in case
@@ -85,31 +92,51 @@ static int vic_boot(struct vic *vic)
 			CG_WAKEUP_DLY_CNT(4),
 		   NV_PVIC_MISC_PRI_VIC_CG);
 
+	if (vic->config->has_riscv) {
+		/* Write a known pattern into DEBUGINFO register */
+		vic_writel(vic, VIC_DEBUGINFO_DUMMY, VIC_FALCON_DEBUGINFO);
+	}
+
 	err = falcon_boot(&vic->falcon);
 	if (err < 0)
 		return err;
 
-	hdr = vic->falcon.firmware.virt;
-	fce_bin_data_offset = *(u32 *)(hdr + VIC_UCODE_FCE_DATA_OFFSET);
+	if (vic->config->has_riscv) {
+		/* Check VIC has reached a proper initialized state */
+		err = readl_poll_timeout(vic->regs + VIC_FALCON_DEBUGINFO, val,
+					 val == VIC_DEBUGINFO_CLEAR,
+					 1000, 2000000);
+		if (err) {
+			dev_err(vic->dev, "VIC not initialized, timeout, val=0x%x\n", val);
+			return err;
+		}
+	} else {
+		u32 fce_ucode_size, fce_bin_data_offset;
+		dma_addr_t iova;
+		void *hdr;
 
-	/* Old VIC firmware needs kernel help with setting up FCE microcode. */
-	if (fce_bin_data_offset != 0x0 && fce_bin_data_offset != 0xa5a5a5a5) {
-		hdr = vic->falcon.firmware.virt +
-			*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
-		fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
+		iova = vic->falcon.firmware.iova;
+		hdr = vic->falcon.firmware.virt;
+		fce_bin_data_offset = *(u32 *)(hdr + VIC_UCODE_FCE_DATA_OFFSET);
 
-		falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
-				      fce_ucode_size);
-		falcon_execute_method(
-			&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
-			(vic->falcon.firmware.iova + fce_bin_data_offset) >> 8);
-	}
+		/* Old VIC firmware needs kernel help with setting up FCE microcode. */
+		if (fce_bin_data_offset != 0x0 && fce_bin_data_offset != 0xa5a5a5a5) {
+			hdr = vic->falcon.firmware.virt +
+				*(u32 *)(hdr + VIC_UCODE_FCE_HEADER_OFFSET);
+			fce_ucode_size = *(u32 *)(hdr + FCE_UCODE_SIZE_OFFSET);
 
-	err = falcon_wait_idle(&vic->falcon);
-	if (err < 0) {
-		dev_err(vic->dev,
-			"failed to set application ID and FCE base\n");
-		return err;
+			falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_SIZE,
+					      fce_ucode_size);
+			falcon_execute_method(&vic->falcon, VIC_SET_FCE_UCODE_OFFSET,
+					      (iova + fce_bin_data_offset) >> 8);
+		}
+
+		err = falcon_wait_idle(&vic->falcon);
+		if (err < 0) {
+			dev_err(vic->dev,
+				"failed to set application ID and FCE base\n");
+			return err;
+		}
 	}
 
 	return 0;
@@ -277,6 +304,8 @@ static int vic_load_firmware(struct vic *vic)
 
 	if (!vic->config->supports_sid) {
 		vic->can_use_context = false;
+	} else if (vic->config->has_riscv) {
+		vic->can_use_context = true;
 	} else if (fce_bin_data_offset != 0x0 && fce_bin_data_offset != 0xa5a5a5a5) {
 		/*
 		 * Firmware will access FCE through STREAMID0, so context
@@ -301,7 +330,6 @@ cleanup:
 	mutex_unlock(&lock);
 	return err;
 }
-
 
 static int __maybe_unused vic_runtime_resume(struct device *dev)
 {
@@ -417,6 +445,7 @@ static const struct vic_config vic_t186_config = {
 	.firmware = NVIDIA_TEGRA_186_VIC_FIRMWARE,
 	.version = 0x18,
 	.supports_sid = true,
+	.transcfg_offset = 0x2044,
 };
 
 #define NVIDIA_TEGRA_194_VIC_FIRMWARE "nvidia/tegra194/vic.bin"
@@ -425,6 +454,7 @@ static const struct vic_config vic_t194_config = {
 	.firmware = NVIDIA_TEGRA_194_VIC_FIRMWARE,
 	.version = 0x19,
 	.supports_sid = true,
+	.transcfg_offset = 0x2044,
 };
 
 #define NVIDIA_TEGRA_234_VIC_FIRMWARE "nvidia/tegra234/vic.bin"
@@ -433,6 +463,18 @@ static const struct vic_config vic_t234_config = {
 	.firmware = NVIDIA_TEGRA_234_VIC_FIRMWARE,
 	.version = 0x23,
 	.supports_sid = true,
+	.transcfg_offset = 0x2044,
+};
+
+#define NVIDIA_TEGRA_264_VIC_FIRMWARE "nvidia/tegra264/vic.bin"
+#define NVIDIA_TEGRA_264_VIC_DESC "nvidia/tegra264/vic.bin.desc"
+
+static const struct vic_config vic_t264_config = {
+	.firmware = NVIDIA_TEGRA_264_VIC_FIRMWARE,
+	.version = 0x264,
+	.supports_sid = true,
+	.has_riscv = true,
+	.transcfg_offset = 0x2244,
 };
 
 static const struct of_device_id tegra_vic_of_match[] = {
@@ -441,6 +483,7 @@ static const struct of_device_id tegra_vic_of_match[] = {
 	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
 	{ .compatible = "nvidia,tegra194-vic", .data = &vic_t194_config },
 	{ .compatible = "nvidia,tegra234-vic", .data = &vic_t234_config },
+	{ .compatible = "nvidia,tegra264-vic", .data = &vic_t264_config },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_vic_of_match);
@@ -495,6 +538,7 @@ static int vic_probe(struct platform_device *pdev)
 
 	vic->falcon.dev = dev;
 	vic->falcon.regs = vic->regs;
+	vic->falcon.riscv = vic->config->has_riscv;
 
 	err = falcon_init(&vic->falcon);
 	if (err < 0)
@@ -570,4 +614,8 @@ MODULE_FIRMWARE(NVIDIA_TEGRA_194_VIC_FIRMWARE);
 #endif
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)
 MODULE_FIRMWARE(NVIDIA_TEGRA_234_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_264_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_264_VIC_FIRMWARE);
+MODULE_FIRMWARE(NVIDIA_TEGRA_264_VIC_DESC);
 #endif

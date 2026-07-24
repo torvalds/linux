@@ -3208,11 +3208,11 @@ err_disable_clk:
 	return ret;
 }
 
-static void vc4_hdmi_put_ddc_device(void *ptr)
+static void vc4_hdmi_put_ddc(void *ptr)
 {
 	struct vc4_hdmi *vc4_hdmi = ptr;
 
-	put_device(&vc4_hdmi->ddc->dev);
+	i2c_put_adapter(vc4_hdmi->ddc);
 }
 
 static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
@@ -3266,14 +3266,14 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 	}
 
-	vc4_hdmi->ddc = of_find_i2c_adapter_by_node(ddc_node);
+	vc4_hdmi->ddc = of_get_i2c_adapter_by_node(ddc_node);
 	of_node_put(ddc_node);
 	if (!vc4_hdmi->ddc) {
 		drm_err(drm, "Failed to get ddc i2c adapter by node\n");
 		return -EPROBE_DEFER;
 	}
 
-	ret = devm_add_action_or_reset(dev, vc4_hdmi_put_ddc_device, vc4_hdmi);
+	ret = devm_add_action_or_reset(dev, vc4_hdmi_put_ddc, vc4_hdmi);
 	if (ret)
 		return ret;
 
