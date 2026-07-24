@@ -1934,7 +1934,7 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 static void mt7915_mac_severe_check(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
-	u32 trb;
+	u32 trb, ple_err;
 
 	if (!phy->omac_mask)
 		return;
@@ -1954,6 +1954,17 @@ static void mt7915_mac_severe_check(struct mt7915_phy *phy)
 				   phy->mt76->band_idx);
 
 	phy->trb_ts = trb;
+
+	ple_err = mt76_rr(dev, MT_SWDEF_PLE1_STATS);
+	if ((ple_err & MT_SWDEF_PLE1_MDP_RIOC_HANG_ERR) &&
+	    !(dev->ple1_sts & MT_SWDEF_PLE1_MDP_RIOC_HANG_ERR)) {
+		dev_warn(dev->mt76.dev,
+			 "band%d: PLE error 0x%x detected, triggering L1 SER\n",
+			 phy->mt76->band_idx, ple_err);
+		mt7915_mcu_set_ser(dev, SER_RECOVER, SER_SET_RECOVER_L1,
+				   phy->mt76->band_idx);
+	}
+	dev->ple1_sts = ple_err;
 }
 
 void mt7915_mac_sta_rc_work(struct work_struct *work)

@@ -296,6 +296,7 @@ struct mt7915_dev {
 	spinlock_t reg_lock;
 
 	u32 hw_pattern;
+	u32 ple1_sts;
 
 	bool dbdc_support;
 	bool flash_mode;
