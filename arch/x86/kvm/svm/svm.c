@@ -2221,7 +2221,6 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 	u64 vmcb12_gpa = kvm_rax_read(vcpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb12;
-	struct kvm_host_map map;
 	int ret;
 
 	if (nested_svm_check_permissions(vcpu))
@@ -2232,10 +2231,11 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 		return 1;
 	}
 
-	if (kvm_vcpu_map(vcpu, gpa_to_gfn(vmcb12_gpa), &map))
+	CLASS(kvm_vcpu_map_local, m)(vcpu, gpa_to_gfn(vmcb12_gpa));
+	if (m.ret)
 		return kvm_handle_memory_failure(vcpu, X86EMUL_IO_NEEDED, NULL);
 
-	vmcb12 = map.hva;
+	vmcb12 = m.map.hva;
 
 	ret = kvm_skip_emulated_instruction(vcpu);
 
@@ -2247,8 +2247,6 @@ static int vmload_vmsave_interception(struct kvm_vcpu *vcpu, bool vmload)
 	} else {
 		svm_copy_vmloadsave_state(vmcb12, svm->vmcb01.ptr);
 	}
-
-	kvm_vcpu_unmap(vcpu, &map);
 
 	return ret;
 }
