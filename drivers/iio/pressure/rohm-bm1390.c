@@ -805,7 +805,7 @@ static int bm1390_setup_trigger(struct bm1390_data *data, struct iio_dev *idev,
 					&bm1390_irq_thread_handler,
 					IRQF_ONESHOT, name, idev);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
+		return ret;
 
 
 	ret = devm_iio_trigger_register(data->dev, itrig);

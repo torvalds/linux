@@ -1339,7 +1339,7 @@ static int __bmp280_trigger_probe(struct iio_dev *indio_dev,
 					irq_thread_handler, IRQF_ONESHOT,
 					indio_dev->name, indio_dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "request IRQ failed.\n");
+		return ret;
 
 	ret = devm_iio_trigger_register(data->dev, data->trig);
 	if (ret)

@@ -309,10 +309,8 @@ static int dlh_probe(struct i2c_client *client)
 		ret = devm_request_irq(&client->dev, client->irq, dlh_interrupt,
 				       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
 				       st->info->name, indio_dev);
-		if (ret) {
-			dev_err(&client->dev, "failed to allocate threaded irq");
+		if (ret)
 			return ret;
-		}
 
 		st->use_interrupt = true;
 		init_completion(&st->completion);
