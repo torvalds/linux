@@ -251,11 +251,9 @@ static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
 	}
 
 	if (ret)
-		ret = -EOPNOTSUPP;
-	else
-		ret = ret_payload[1];
+		return ret;
 
-	return ret;
+	return ret_payload[1];
 }
 
 static int do_feature_check_call(const u32 api_id)
