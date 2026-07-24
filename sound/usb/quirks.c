@@ -2200,6 +2200,9 @@ struct usb_audio_quirk_flags_table {
 
 static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 	/* Device and string descriptor matches */
+	DEVICE_STRING_FLG(0x05ac, 0x110b, /* VID conflicts with Apple */
+			  "JKY Technology", NULL, /* Q2A */
+			  QUIRK_FLAG_FORCE_IFACE_RESET | QUIRK_FLAG_IFACE_DELAY),
 
 	/* Device matches */
 	DEVICE_FLG(0x001f, 0x0b21, /* AB13X USB Audio */
