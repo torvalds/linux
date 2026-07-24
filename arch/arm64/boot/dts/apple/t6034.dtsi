@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T6034 "M3 Max" SoC
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+#include "t6031.dtsi"
+
+/ {
+	compatible = "apple,t6034", "apple,arm-platform";
+};
+
+// Disable power-states for memory channels not present on the 14-core variant.
+&ps_amcc6 {
+	status = "disabled";
+};
+
+&ps_amcc7 {
+	status = "disabled";
+};
+
+&ps_dcs_24 {
+	status = "disabled";
+};
+
+&ps_dcs_25 {
+	status = "disabled";
+};
+
+&ps_dcs_26 {
+	status = "disabled";
+};
+
+&ps_dcs_27 {
+	status = "disabled";
+};
+
+&ps_dcs_28 {
+	status = "disabled";
+};
+
+&ps_dcs_29 {
+	status = "disabled";
+};
+
+&ps_dcs_30 {
+	status = "disabled";
+};
+
+&ps_dcs_31 {
+	status = "disabled";
+};
