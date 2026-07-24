@@ -223,28 +223,33 @@ static int __do_feature_check_call(const u32 api_id, u32 *ret_payload)
 	module_id = FIELD_GET(MODULE_ID_MASK, api_id);
 
 	/*
-	 * Feature check of APIs belonging to PM, XSEM, and TF-A are handled by calling
+	 * Feature check of APIs belonging to PM and XSEM are handled by calling
 	 * PM_FEATURE_CHECK API. For other modules, call PM_API_FEATURES API.
 	 */
-	if (module_id == PM_MODULE_ID || module_id == XSEM_MODULE_ID || module_id == TF_A_MODULE_ID)
+	if (module_id == PM_MODULE_ID || module_id == XSEM_MODULE_ID)
 		feature_check_api_id = PM_FEATURE_CHECK;
 	else
 		feature_check_api_id = PM_API_FEATURES;
 
-	/*
-	 * Feature check of TF-A APIs is done in the TF-A layer and it expects for
-	 * MODULE_ID_MASK bits of SMC's arg[0] to be the same as PM_MODULE_ID.
-	 */
-	if (module_id == TF_A_MODULE_ID) {
-		module_id = PM_MODULE_ID;
+	if (module_id == TF_A_MODULE_ID)
 		smc_arg[1] = api_id;
-	} else {
+	else
 		smc_arg[1] = (api_id & API_ID_MASK);
-	}
 
 	smc_arg[0] = PM_SIP_SVC | FIELD_PREP(MODULE_ID_MASK, module_id) | feature_check_api_id;
 
 	ret = do_fw_call(ret_payload, 2, smc_arg[0], smc_arg[1]);
+
+	/*
+	 * For TF-A APIs, if the feature check with PM_API_FEATURES fails,
+	 * retry with the legacy PM_FEATURE_CHECK for backward compatibility.
+	 */
+	if (module_id == TF_A_MODULE_ID && ret) {
+		smc_arg[0] = PM_SIP_SVC | FIELD_PREP(MODULE_ID_MASK, PM_MODULE_ID) |
+			     PM_FEATURE_CHECK;
+		ret = do_fw_call(ret_payload, 2, smc_arg[0], smc_arg[1]);
+	}
+
 	if (ret)
 		ret = -EOPNOTSUPP;
 	else
