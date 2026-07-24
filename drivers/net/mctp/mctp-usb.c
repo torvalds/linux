@@ -340,7 +340,10 @@ static int mctp_usb_probe(struct usb_interface *intf,
 	spin_lock_init(&dev->rx_lock);
 	usb_set_intfdata(intf, dev);
 
-	mctp_usblib_rx_init(&dev->rx);
+	rc = mctp_usblib_rx_init(&dev->rx, le16_to_cpu(ep_in->wMaxPacketSize),
+				 false);
+	if (rc)
+		goto err_free_netdev;
 	mctp_usblib_tx_init(&dev->tx, &tx_ops, dev);
 	init_usb_anchor(&dev->tx_anchor);
 
@@ -366,6 +369,7 @@ err_free_urb:
 err_fini_rxtx:
 	mctp_usblib_tx_fini(&dev->tx);
 	mctp_usblib_rx_fini(&dev->rx);
+err_free_netdev:
 	free_netdev(netdev);
 	return rc;
 }

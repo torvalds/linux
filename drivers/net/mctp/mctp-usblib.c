@@ -3,7 +3,7 @@
  * mctp-usblib.c - MCTP-over-USB (DMTF DSP0283) transport helper library
  *
  * DSP0283 is available at:
- * https://www.dmtf.org/sites/default/files/standards/documents/DSP0283_1.0.1.pdf
+ * https://www.dmtf.org/sites/default/files/standards/documents/DSP0283_1.1.0.pdf
  *
  * Copyright (C) 2024-2026 Code Construct Pty Ltd
  */
@@ -11,12 +11,23 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
+#include <linux/usb/ch9.h>
 #include <linux/usb/mctp-usb.h>
 #include <net/mctp.h>
 
-void mctp_usblib_rx_init(struct mctp_usblib_rx *rx)
+int mctp_usblib_rx_init(struct mctp_usblib_rx *rx, u16 ep_pktlen, bool span)
 {
+	if (!ep_pktlen)
+		return -EINVAL;
+
+	if (ep_pktlen & ~USB_ENDPOINT_MAXP_MASK)
+		return -EINVAL;
+
 	memset(rx, 0, sizeof(*rx));
+	rx->span = span;
+	rx->ep_pktlen = ep_pktlen;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_rx_init);
 
@@ -34,14 +45,50 @@ int mctp_usblib_rx_prepare(struct net_device *netdev,
 			   struct mctp_usblib_rx *rx,
 			   void **bufp, size_t *lenp, gfp_t gfp)
 {
-	const unsigned int len = MCTP_USB_1_0_XFER_SIZE;
-	struct sk_buff *skb;
+	struct sk_buff *skb = rx->skb;
+	unsigned int len = 0;
 
-	skb = __netdev_alloc_skb(netdev, len, gfp);
-	if (!skb)
-		return -ENOMEM;
+	if (skb && skb->len >= MCTP_USB_1_1_PKTLEN_MAX) {
+		/* something must have gone terribly wrong. clear and restart */
+		mctp_usblib_rx_cancel(rx);
+		skb = NULL;
+	}
+
+	len = rx->span ? roundup(MCTP_USB_1_1_PKTLEN_MAX, rx->ep_pktlen)
+		: MCTP_USB_1_0_XFER_SIZE;
+
+	if (!skb) {
+		skb = __netdev_alloc_skb(netdev, len, gfp);
+		if (!skb)
+			return -ENOMEM;
+
+	} else if (skb->cloned || skb_tailroom(skb) < rx->ep_pktlen) {
+		/* We always need to realloc if ->cloned, as we cannot
+		 * resubmit the (now-shared) skb buffer for possible DMA.
+		 *
+		 * Otherwise (if we have an un-cloned SKB): just ensure we
+		 * have sufficient space to prevent babble. Since we allocated
+		 * for max size in the last prepare (and have not consumed any
+		 * of that space for a prior MCTP packet, because !cloned), we
+		 * have sufficient data to finish the current MCTP packet.
+		 */
+		struct sk_buff *skb2;
+
+		skb2 = skb_copy_expand(skb, 0, len, gfp);
+		if (!skb2)
+			return -ENOMEM;
+		dev_kfree_skb_any(skb);
+		skb = skb2;
+	}
 
 	rx->skb = skb;
+
+	/* Spanning mode allows ZLPs, so we don't require exactly one
+	 * transfer packet. If we have extra tailroom, may as well use it,
+	 * and we have ensured that the tailroom >= ep_pktlen.
+	 */
+	if (rx->span)
+		len = rounddown(skb_tailroom(skb), rx->ep_pktlen);
 
 	*bufp = skb_tail_pointer(skb);
 	*lenp = len;
@@ -55,6 +102,9 @@ static void mctp_usblib_rx(struct net_device *netdev, struct sk_buff *skb)
 	struct pcpu_dstats *dstats = this_cpu_ptr(netdev->dstats);
 	struct mctp_skb_cb *cb;
 	unsigned long flags;
+
+	skb_reset_mac_header(skb);
+	skb_pull(skb, sizeof(struct mctp_usb_hdr));
 
 	/* we're called from an URB completion handler, and cannot assume local
 	 * irqs are always disabled
@@ -96,72 +146,89 @@ int mctp_usblib_rx_complete(struct net_device *netdev,
 
 	__skb_put(skb, len);
 
-	while (skb) {
-		struct sk_buff *skb2 = NULL;
+	for (;;) {
 		struct mctp_usb_hdr *hdr;
-		u16 hdr_len;
-		/* length of MCTP packet, no USB header */
-		u8 pkt_len;
+		struct sk_buff *skb2;
+		/* length of MCTP packet, including USB header */
+		u16 pkt_len;
 
-		skb_reset_mac_header(skb);
-		hdr = skb_pull_data(skb, sizeof(*hdr));
-		if (!hdr) {
-			rc = -ENOMSG;
+		/* no header yet, resubmit for the rest of the packet */
+		if (skb->len < sizeof(*hdr)) {
+			if (!rx->span) {
+				netdev_dbg(netdev,
+					   "rx: tiny xfer (%d) in non-span mode",
+					   skb->len);
+				rc = -ENOMSG;
+				goto err_reset;
+			}
 			break;
 		}
 
+		hdr = (struct mctp_usb_hdr *)skb->data;
+
 		if (be16_to_cpu(hdr->id) != MCTP_USB_DMTF_ID) {
+			/* By resetting here, will start the next IN transfer
+			 * at the beginning of the new skb. This will mean
+			 * we re-sync when we next see a spanned packet aligned
+			 * with the start of a transfer.
+			 *
+			 * In non-spanning mode, this just means we'll drop
+			 * the current transfer only
+			 */
 			netdev_dbg(netdev, "rx: invalid id %04x\n",
 				   be16_to_cpu(hdr->id));
 			rc = -EPROTO;
-			break;
+			goto err_reset;
 		}
 
-		hdr_len = be16_to_cpu(hdr->len) & MCTP_USB_1_0_PKTLEN_MAX;
-
-		if (hdr_len <
-		    sizeof(struct mctp_hdr) + sizeof(struct mctp_usb_hdr)) {
-			netdev_dbg(netdev, "rx: short packet (hdr) %d\n",
-				   hdr_len);
+		pkt_len = be16_to_cpu(hdr->len);
+		/* v1.1, with span enabled, has a 13-bit length */
+		pkt_len &= rx->span ?
+			MCTP_USB_1_1_PKTLEN_MAX : MCTP_USB_1_0_PKTLEN_MAX;
+		if (pkt_len < sizeof(*hdr) + sizeof(struct mctp_hdr)) {
+			netdev_dbg(netdev, "rx: invalid len %d\n", pkt_len);
 			rc = -EPROTO;
-			break;
+			goto err_reset;
 		}
 
-		/* we know we have at least sizeof(struct mctp_usb_hdr) here */
-		pkt_len = hdr_len - sizeof(struct mctp_usb_hdr);
+		/* span continues to the next transfer, resubmit */
 		if (pkt_len > skb->len) {
-			rc = -EPROTO;
-			netdev_dbg(netdev,
-				   "rx: short packet (xfer) %d, actual %d\n",
-				   hdr_len, skb->len);
+			if (!rx->span) {
+				netdev_dbg(netdev,
+					   "rx: short xfer (%d vs %d) in non-span mode",
+					   pkt_len, skb->len);
+				rc = -EPROTO;
+				goto err_reset;
+			}
 			break;
 		}
 
-		if (pkt_len < skb->len) {
-			/* more packets may follow - clone to a new
-			 * skb to use on the next iteration
-			 */
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (skb2) {
-				if (!skb_pull(skb2, pkt_len)) {
-					dev_kfree_skb_any(skb2);
-					skb2 = NULL;
-				}
-			} else {
-				mctp_usblib_rx_stats_single_drop(netdev);
-			}
-			skb_trim(skb, pkt_len);
+		/* we have (exactly) a complete packet, RX it directly */
+		if (pkt_len == skb->len) {
+			mctp_usblib_rx(netdev, skb);
+			rx->skb = NULL;
+			break;
 		}
 
-		mctp_usblib_rx(netdev, skb);
-		skb = skb2;
+		/* more packets follow - RX a clone so that we can continue
+		 * processing the current SKB, which may be the start of a
+		 * span.
+		 */
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2) {
+			skb_trim(skb2, pkt_len);
+			mctp_usblib_rx(netdev, skb2);
+		} else {
+			mctp_usblib_rx_stats_single_drop(netdev);
+		}
+		skb_pull(skb, pkt_len);
 	}
 
-	if (skb)
-		dev_kfree_skb_any(skb);
+	return 0;
 
+err_reset:
+	dev_kfree_skb_any(rx->skb);
 	rx->skb = NULL;
-
 	return rc;
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_rx_complete);
