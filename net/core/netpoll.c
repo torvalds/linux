@@ -38,8 +38,19 @@
 
 #define USEC_PER_POLL	50
 
+/*
+ * carrier_timeout is netconsole-specific and only kept here to preserve the
+ * netpoll.carrier_timeout module-parameter ABI. Its value is exposed to
+ * netconsole through netpoll_get_carrier_timeout().
+ */
 static unsigned int carrier_timeout = 4;
 module_param(carrier_timeout, uint, 0644);
+
+unsigned int netpoll_get_carrier_timeout(void)
+{
+	return carrier_timeout;
+}
+EXPORT_SYMBOL_GPL(netpoll_get_carrier_timeout);
 
 static netdev_tx_t netpoll_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev,
@@ -397,12 +408,11 @@ static char *egress_dev(struct netpoll *np, char *buf, size_t bufsz)
 	return buf;
 }
 
-static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev,
-				 unsigned int timeout)
+static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev)
 {
 	unsigned long atmost;
 
-	atmost = jiffies + timeout * HZ;
+	atmost = jiffies + carrier_timeout * HZ;
 	while (!netif_carrier_ok(ndev)) {
 		if (time_after(jiffies, atmost)) {
 			np_notice(np, "timeout waiting for carrier\n");
@@ -539,7 +549,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 
 		rtnl_unlock();
-		netpoll_wait_carrier(np, ndev, carrier_timeout);
+		netpoll_wait_carrier(np, ndev);
 		rtnl_lock();
 	}
 
