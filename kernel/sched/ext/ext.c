@@ -9781,6 +9781,50 @@ __bpf_kfunc u32 scx_bpf_cidperf_cur(s32 cid, const struct bpf_prog_aux *aux)
 	return arch_scale_freq_capacity(cpu);
 }
 
+/* validate and apply a cpuperf target, see scx_bpf_cpuperf_set() */
+static s32 scx_cpuperf_set(struct scx_sched *sch, s32 cpu, u32 perf)
+{
+	struct rq *rq, *locked_rq;
+	struct rq_flags rf;
+
+	if (unlikely(perf > SCX_CPUPERF_ONE)) {
+		scx_error(sch, "Invalid cpuperf target %u for CPU %d", perf, cpu);
+		return -EINVAL;
+	}
+
+	if (!scx_cpu_valid(sch, cpu, NULL))
+		return -EINVAL;
+
+	rq = cpu_rq(cpu);
+	locked_rq = scx_locked_rq();
+
+	/*
+	 * When called with an rq lock held, restrict the operation to the
+	 * corresponding CPU to prevent ABBA deadlocks.
+	 */
+	if (locked_rq && rq != locked_rq) {
+		scx_error(sch, "Invalid target CPU %d", cpu);
+		return -EINVAL;
+	}
+
+	/*
+	 * If no rq lock is held, allow to operate on any CPU by acquiring
+	 * the corresponding rq lock.
+	 */
+	if (!locked_rq) {
+		rq_lock_irqsave(rq, &rf);
+		update_rq_clock(rq);
+	}
+
+	rq->scx.cpuperf_target = perf;
+	cpufreq_update_util(rq, 0);
+
+	if (!locked_rq)
+		rq_unlock_irqrestore(rq, &rf);
+
+	return 0;
+}
+
 /**
  * scx_bpf_cpuperf_set - Set the relative performance target of a CPU
  * @cpu: CPU of interest
@@ -9806,39 +9850,7 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf, const struct bpf_prog_au
 	if (unlikely(!sch))
 		return;
 
-	if (unlikely(perf > SCX_CPUPERF_ONE)) {
-		scx_error(sch, "Invalid cpuperf target %u for CPU %d", perf, cpu);
-		return;
-	}
-
-	if (scx_cpu_valid(sch, cpu, NULL)) {
-		struct rq *rq = cpu_rq(cpu), *locked_rq = scx_locked_rq();
-		struct rq_flags rf;
-
-		/*
-		 * When called with an rq lock held, restrict the operation
-		 * to the corresponding CPU to prevent ABBA deadlocks.
-		 */
-		if (locked_rq && rq != locked_rq) {
-			scx_error(sch, "Invalid target CPU %d", cpu);
-			return;
-		}
-
-		/*
-		 * If no rq lock is held, allow to operate on any CPU by
-		 * acquiring the corresponding rq lock.
-		 */
-		if (!locked_rq) {
-			rq_lock_irqsave(rq, &rf);
-			update_rq_clock(rq);
-		}
-
-		rq->scx.cpuperf_target = perf;
-		cpufreq_update_util(rq, 0);
-
-		if (!locked_rq)
-			rq_unlock_irqrestore(rq, &rf);
-	}
+	scx_cpuperf_set(sch, cpu, perf);
 }
 
 /**
