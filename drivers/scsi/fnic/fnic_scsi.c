@@ -96,7 +96,7 @@ static const char *fnic_ioreq_state_to_str(unsigned int state)
 	return fnic_ioreq_state_str[state];
 }
 
-static const char *fnic_fcpio_status_to_str(unsigned int status)
+const char *fnic_fcpio_status_to_str(unsigned int status)
 {
 	if (status >= ARRAY_SIZE(fcpio_status_str) || !fcpio_status_str[status])
 		return "unknown";
@@ -186,7 +186,7 @@ fnic_count_lun_ioreqs(struct fnic *fnic, struct scsi_device *scsi_device)
 }
 
 /* Free up Copy Wq descriptors. Called with copy_wq lock held */
-static int free_wq_copy_descs(struct fnic *fnic, struct vnic_wq_copy *wq, unsigned int hwq)
+int free_wq_copy_descs(struct fnic *fnic, struct vnic_wq_copy *wq, unsigned int hwq)
 {
 	/* if no Ack received from firmware, then nothing to clean */
 	if (!fnic->fw_ack_recd[hwq])

@@ -155,7 +155,6 @@ void fnic_fdls_init(struct fnic *fnic, int usefip)
 				 iport->hwmac[3], iport->hwmac[4], iport->hwmac[5]);
 
 	INIT_LIST_HEAD(&iport->tport_list);
-	INIT_LIST_HEAD(&iport->tport_list_pending_del);
 
 	fnic_fdls_disc_init(iport);
 }
@@ -728,7 +727,7 @@ fdls_send_fcoe_frame(struct fnic *fnic, void *frame, int frame_size,
 	return ret;
 }
 
-void fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
+int fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
 						 int frame_size)
 {
 	struct fnic *fnic = iport->fnic;
@@ -736,7 +735,7 @@ void fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
 
 	/* If module unload is in-progress, don't send */
 	if (fnic->in_remove)
-		return;
+		return -ESHUTDOWN;
 
 	if (iport->fabric.flags & FNIC_FDLS_FPMA_LEARNT) {
 		srcmac = iport->fpma;
@@ -746,7 +745,7 @@ void fnic_send_fcoe_frame(struct fnic_iport_s *iport, void *frame,
 		dstmac = FCOE_ALL_FCF_MAC;
 	}
 
-	fdls_send_fcoe_frame(fnic, frame, frame_size, srcmac, dstmac);
+	return fdls_send_fcoe_frame(fnic, frame, frame_size, srcmac, dstmac);
 }
 
 int
@@ -1020,6 +1019,8 @@ void fnic_delete_fcp_tports(struct fnic *fnic)
 		fnic_del_tport_timer_sync(fnic, tport);
 		if (IS_FNIC_FCP_INITIATOR(fnic))
 			fnic_fdls_remove_tport(&fnic->iport, tport, flags);
+		else if (IS_FNIC_NVME_INITIATOR(fnic))
+			nvfnic_delete_tport(&fnic->iport, tport, flags);
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 }
@@ -1047,6 +1048,8 @@ void fnic_tport_event_handler(struct work_struct *work)
 			if (tport->state == FDLS_TGT_STATE_READY) {
 				if (IS_FNIC_FCP_INITIATOR(fnic))
 					fnic_fdls_add_tport(&fnic->iport, tport, flags);
+				else if (IS_FNIC_NVME_INITIATOR(fnic))
+					nvfnic_add_tport(fnic, tport, flags);
 			} else {
 				FNIC_FCS_DBG(KERN_INFO, fnic,
 					 "Target not ready. Add rport event dropped: 0x%x",
@@ -1059,6 +1062,8 @@ void fnic_tport_event_handler(struct work_struct *work)
 			if (tport->state == FDLS_TGT_STATE_OFFLINING) {
 				if (IS_FNIC_FCP_INITIATOR(fnic))
 					fnic_fdls_remove_tport(&fnic->iport, tport, flags);
+				else if (IS_FNIC_NVME_INITIATOR(fnic))
+					nvfnic_delete_tport(&fnic->iport, tport, flags);
 			} else {
 				FNIC_FCS_DBG(KERN_INFO, fnic,
 							 "remove rport event dropped tport fcid: 0x%x",

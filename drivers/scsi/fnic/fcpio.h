@@ -21,6 +21,18 @@
 #define FCPIO_HOST_SEQ_ID_RANGE_START       0x80
 #define FCPIO_HOST_SEQ_ID_RANGE_END         0xff
 
+struct fnic_nvme_io_event {
+	struct list_head links;
+	struct work_struct io_work;
+	void *arg1;
+};
+
+struct fnic_io_event_s {
+	struct list_head links;
+	struct work_struct io_work;
+	void *arg1;
+};
+
 /*
  * Command entry type
  */

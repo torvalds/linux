@@ -42,12 +42,12 @@ static struct kmem_cache *fdls_frame_cache;
 static struct kmem_cache *fdls_frame_elem_cache;
 static struct kmem_cache *fdls_frame_recv_cache;
 static LIST_HEAD(fnic_list);
-static DEFINE_SPINLOCK(fnic_list_lock);
 static DEFINE_IDA(fnic_ida);
 
 struct work_struct reset_fnic_work;
 LIST_HEAD(reset_fnic_list);
 DEFINE_SPINLOCK(reset_fnic_list_lock);
+DEFINE_SPINLOCK(fnic_list_lock);
 
 /* Supported devices by fnic module */
 static const struct pci_device_id fnic_id_table[] = {
@@ -89,6 +89,15 @@ module_param(fnic_fc_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_fc_trace_max_pages,
 		 "Total allocated memory pages for fc trace buffer");
 
+unsigned int nvme_dev_loss_tmo = 30;
+module_param_named(nvme_dev_loss_tmo, nvme_dev_loss_tmo, uint, 0644);
+MODULE_PARM_DESC(nvme_dev_loss_tmo, "configurable NVME dev loss timeout");
+
+unsigned int nvme_max_ios_to_process = 16;
+module_param(nvme_max_ios_to_process, uint, 0644);
+MODULE_PARM_DESC(nvme_max_ios_to_process,
+		"Maximum number of NVME IOs to process per work queue");
+
 static unsigned int fnic_max_qdepth = FNIC_DFLT_QUEUE_DEPTH;
 module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
@@ -100,6 +109,7 @@ MODULE_PARM_DESC(pc_rscn_handling_feature_flag,
 
 struct workqueue_struct *reset_fnic_work_queue;
 struct workqueue_struct *fnic_fip_queue;
+struct workqueue_struct *fnic_cmpl_queue;
 
 static int fnic_sdev_init(struct scsi_device *sdev)
 {
@@ -549,6 +559,9 @@ static int fnic_cleanup(struct fnic *fnic)
 		vnic_wq_copy_clean(&fnic->hw_copy_wq[i],
 				   fnic_wq_copy_cleanup_handler);
 
+	if (IS_FNIC_NVME_INITIATOR(fnic))
+		nvfnic_flush_nvme_io_list(fnic);
+
 	for (i = 0; i < fnic->cq_count; i++)
 		vnic_cq_clean(&fnic->cq[i]);
 	for (i = 0; i < fnic->intr_count; i++)
@@ -676,6 +689,59 @@ static int fnic_scsi_drv_init(struct fnic *fnic)
 	}
 
 	return 0;
+}
+
+static int fnic_nvme_drv_init(struct fnic *fnic)
+{
+	int ret;
+	int hwq;
+
+	fnic->fnic_max_tag_id = NVFNIC_FCPIO_TAG_POOL_SZ;
+
+	for (hwq = 0; hwq < fnic->wq_copy_count; hwq++) {
+		fnic->sw_copy_wq[hwq].ioreq_table_size = fnic->fnic_max_tag_id;
+		fnic->sw_copy_wq[hwq].io_req_table =
+			kzalloc((fnic->sw_copy_wq[hwq].ioreq_table_size + 1) *
+					sizeof(struct fnic_io_req *), GFP_KERNEL);
+
+		if (!fnic->sw_copy_wq[hwq].io_req_table) {
+			fnic_free_ioreq_tables_mq(fnic);
+			return -ENOMEM;
+		}
+	}
+
+	dev_info(&fnic->pdev->dev, "fnic copy wqs: %d, Q0 ioreq table size: %d\n",
+			fnic->wq_copy_count, fnic->sw_copy_wq[0].ioreq_table_size);
+
+	if (sbitmap_init_node(&fnic->nvfnic_tag_map, NVFNIC_FCPIO_TAG_POOL_SZ,
+			      -1, GFP_KERNEL, NUMA_NO_NODE, false, true)) {
+		dev_err(&fnic->pdev->dev,
+			"Unable to allocate tag pool\n");
+		ret = -ENOMEM;
+		goto out_free_ioreq_tables;
+	}
+
+	fnic->io_req_pool = mempool_create_slab_pool(2, fnic_io_req_cache);
+	if (!fnic->io_req_pool) {
+		ret = -ENOMEM;
+		goto out_free_sbitmap;
+	}
+
+	init_llist_head(&fnic->nvme_io_event_llist);
+	INIT_WORK(&fnic->nvme_io_cmpl_work, nvfnic_nvme_iodone_work);
+
+	ret = nvfnic_add_lport(fnic);
+	if (ret)
+		goto out_free_req_pool;
+
+	return 0;
+out_free_req_pool:
+	mempool_destroy(fnic->io_req_pool);
+out_free_sbitmap:
+	sbitmap_free(&fnic->nvfnic_tag_map);
+out_free_ioreq_tables:
+	fnic_free_ioreq_tables_mq(fnic);
+	return ret;
 }
 
 void fnic_mq_map_queues_cpus(struct Scsi_Host *host)
@@ -1057,6 +1123,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&fnic->frame_queue);
 	INIT_LIST_HEAD(&fnic->tx_queue);
 	INIT_LIST_HEAD(&fnic->tport_event_list);
+	init_llist_head(&fnic->nvme_io_event_llist);
 
 	INIT_DELAYED_WORK(&iport->oxid_pool.schedule_oxid_free_retry,
 	fdls_schedule_oxid_free_retry_work);
@@ -1091,6 +1158,10 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = fnic_scsi_drv_init(fnic);
 		if (err)
 			goto err_out_scsi_drv_init;
+	} else if (IS_FNIC_NVME_INITIATOR(fnic)) {
+		err = fnic_nvme_drv_init(fnic);
+		if (err)
+			goto err_out_nvme_drv_init;
 	}
 
 	err = fnic_stats_debugfs_init(fnic);
@@ -1113,6 +1184,7 @@ err_out_free_stats_debugfs:
 	fnic_free_ioreq_tables_mq(fnic);
 	if (IS_FNIC_FCP_INITIATOR(fnic))
 		scsi_remove_host(fnic->host);
+err_out_nvme_drv_init:
 err_out_scsi_drv_init:
 	fnic_free_intr(fnic);
 err_out_fnic_request_intr:
@@ -1190,6 +1262,8 @@ static void fnic_remove(struct pci_dev *pdev)
 
 	if (IS_FNIC_FCP_INITIATOR(fnic))
 		fnic_scsi_unload(fnic);
+	else if (IS_FNIC_NVME_INITIATOR(fnic))
+		nvfnic_nvme_unload(fnic);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
 		timer_delete_sync(&fnic->notify_timer);
@@ -1214,6 +1288,11 @@ static void fnic_remove(struct pci_dev *pdev)
 	 * cleaned up
 	 */
 	fnic_cleanup(fnic);
+
+	if (IS_FNIC_NVME_INITIATOR(fnic)) {
+		sbitmap_free(&fnic->nvfnic_tag_map);
+		fnic_free_ioreq_tables_mq(fnic);
+	}
 
 	spin_lock_irqsave(&fnic_list_lock, flags);
 	list_del(&fnic->list);
@@ -1356,6 +1435,15 @@ static int __init fnic_init_module(void)
 		goto err_create_fip_workq;
 	}
 
+	fnic_cmpl_queue =
+		alloc_workqueue("fnic_cmpl_wq",
+				WQ_PERCPU | WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
+	if (!fnic_cmpl_queue) {
+		pr_err("fnic completion work queue create failed\n");
+		err = -ENOMEM;
+		goto err_create_cmpl_workq;
+	}
+
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON) {
 		reset_fnic_work_queue =
 			create_singlethread_workqueue("reset_fnic_work_queue");
@@ -1387,6 +1475,8 @@ static int __init fnic_init_module(void)
 err_pci_register:
 	fc_release_transport(fnic_fc_transport);
 err_fc_transport:
+	destroy_workqueue(fnic_cmpl_queue);
+err_create_cmpl_workq:
 	destroy_workqueue(fnic_fip_queue);
 err_create_fip_workq:
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON)
@@ -1415,6 +1505,7 @@ err_create_fnic_sgl_slab_dflt:
 static void __exit fnic_cleanup_module(void)
 {
 	pci_unregister_driver(&fnic_driver);
+	destroy_workqueue(fnic_cmpl_queue);
 	destroy_workqueue(fnic_event_queue);
 
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON)
