@@ -137,6 +137,7 @@ enum ras_gpu_status {
 	RAS_GPU_STATUS__IN_RESET = 0x2,
 	RAS_GPU_STATUS__IS_RMA = 0x4,
 	RAS_GPU_STATUS__IS_VF = 0x8,
+	RAS_GPU_STATUS__DEVICE_LOST = 0x10,
 };
 
 enum ras_fw_eeprom_cmd {
@@ -374,6 +375,7 @@ int ras_core_query_block_ecc_data(struct ras_core_context *ras_core,
 bool ras_core_gpu_in_reset(struct ras_core_context *ras_core);
 bool ras_core_gpu_is_rma(struct ras_core_context *ras_core);
 bool ras_core_gpu_is_vf(struct ras_core_context *ras_core);
+bool ras_core_gpu_device_lost(struct ras_core_context *ras_core);
 bool ras_core_handle_nbio_irq(struct ras_core_context *ras_core, void *data);
 int ras_core_handle_fatal_error(struct ras_core_context *ras_core);
 

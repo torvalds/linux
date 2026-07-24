@@ -147,6 +147,20 @@ bool ras_core_gpu_is_vf(struct ras_core_context *ras_core)
 	return (status & RAS_GPU_STATUS__IS_VF) ? true : false;
 }
 
+bool ras_core_gpu_device_lost(struct ras_core_context *ras_core)
+{
+	uint32_t status = 0;
+
+	if (!ras_core)
+		return false;
+
+	if (ras_core->sys_fn &&
+		ras_core->sys_fn->check_gpu_status)
+		ras_core->sys_fn->check_gpu_status(ras_core, &status);
+
+	return (status & RAS_GPU_STATUS__DEVICE_LOST) ? true : false;
+}
+
 bool ras_core_gpu_is_rma(struct ras_core_context *ras_core)
 {
 	if (!ras_core)

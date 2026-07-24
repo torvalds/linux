@@ -294,6 +294,9 @@ static int send_psp_cmd(struct ras_core_context *ras_core,
 		   psp_ctx->in_fence_value) {
 		if (--timeout == 0)
 			break;
+
+		if (ras_core_gpu_device_lost(ras_core))
+			break;
 		/*
 		 * Shouldn't wait for timeout when err_event_athub occurs,
 		 * because gpu reset thread triggered and lock resource should
