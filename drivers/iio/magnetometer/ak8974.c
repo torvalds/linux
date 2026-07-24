@@ -926,11 +926,8 @@ static int ak8974_probe(struct i2c_client *i2c)
 						irq_trig,
 						ak8974->name,
 						ak8974);
-		if (ret) {
-			dev_err(&i2c->dev, "unable to request DRDY IRQ "
-				"- proceeding without IRQ\n");
+		if (ret)
 			goto no_irq;
-		}
 		ak8974->drdy_irq = true;
 	}
 
