@@ -45,6 +45,7 @@
 			dynamic-power-coefficient = <100>;
 
 			qcom,freq-domain = <&cpufreq_hw 0>;
+			#cooling-cells = <2>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -76,6 +77,7 @@
 			dynamic-power-coefficient = <100>;
 
 			qcom,freq-domain = <&cpufreq_hw 0>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@200 {
@@ -94,6 +96,7 @@
 			dynamic-power-coefficient = <100>;
 
 			qcom,freq-domain = <&cpufreq_hw 0>;
+			#cooling-cells = <2>;
 
 			l2_2: l2-cache {
 				compatible = "cache";
@@ -119,6 +122,7 @@
 			dynamic-power-coefficient = <238>;
 
 			qcom,freq-domain = <&cpufreq_hw 1>;
+			#cooling-cells = <2>;
 
 			l2_3: l2-cache {
 				compatible = "cache";
@@ -144,6 +148,7 @@
 			dynamic-power-coefficient = <238>;
 
 			qcom,freq-domain = <&cpufreq_hw 1>;
+			#cooling-cells = <2>;
 
 			l2_4: l2-cache {
 				compatible = "cache";
@@ -169,6 +174,7 @@
 			dynamic-power-coefficient = <238>;
 
 			qcom,freq-domain = <&cpufreq_hw 1>;
+			#cooling-cells = <2>;
 
 			l2_5: l2-cache {
 				compatible = "cache";
@@ -194,6 +200,7 @@
 			dynamic-power-coefficient = <238>;
 
 			qcom,freq-domain = <&cpufreq_hw 1>;
+			#cooling-cells = <2>;
 
 			l2_6: l2-cache {
 				compatible = "cache";
@@ -219,6 +226,7 @@
 			dynamic-power-coefficient = <588>;
 
 			qcom,freq-domain = <&cpufreq_hw 2>;
+			#cooling-cells = <2>;
 
 			l2_7: l2-cache {
 				compatible = "cache";
