@@ -11,6 +11,8 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 		.aborted = abort,
 	};
 
+	lockdep_assert_held(&dev->mutex);
+
 	if (!phy)
 		return;
 
@@ -24,7 +26,7 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 	    !test_bit(MT76_MCU_RESET, &dev->phy.state)) {
 		bool offchannel = phy->offchannel;
 
-		mt76_set_channel(phy, &phy->main_chandef, false);
+		__mt76_set_channel(phy, &phy->main_chandef, false);
 		if (offchannel)
 			mt76_offchannel_notify(phy, false);
 	}
@@ -41,7 +43,10 @@ void mt76_abort_scan(struct mt76_dev *dev)
 	spin_unlock_bh(&dev->scan_lock);
 
 	cancel_delayed_work_sync(&dev->scan_work);
+
+	mutex_lock(&dev->mutex);
 	mt76_scan_complete(dev, true);
+	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL_GPL(mt76_abort_scan);
 
@@ -139,7 +144,9 @@ void mt76_scan_work(struct work_struct *work)
 		goto probe;
 
 	if (dev->scan.chan_idx >= req->n_channels) {
+		mutex_lock(&dev->mutex);
 		mt76_scan_complete(dev, false);
+		mutex_unlock(&dev->mutex);
 		return;
 	}
 
