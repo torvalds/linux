@@ -73,7 +73,6 @@ netdev_tx_t netpoll_send_skb(struct netpoll *np, struct sk_buff *skb);
 void netpoll_zap_completion_queue(void);
 unsigned int netpoll_get_carrier_timeout(void);
 void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev);
-char *egress_dev(struct netpoll *np, char *buf, size_t bufsz);
 
 #ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)

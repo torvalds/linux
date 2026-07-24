@@ -354,6 +354,22 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 }
 
 /*
+ * Returns a pointer to a string representation of the identifier used
+ * to select the egress interface for the given netpoll instance. buf
+ * is used to format np->dev_mac when np->dev_name is empty; bufsz must
+ * be at least MAC_ADDR_STR_LEN + 1 to fit the formatted MAC address
+ * and its NUL terminator.
+ */
+static char *netcons_egress_dev(struct netpoll *np, char *buf, size_t bufsz)
+{
+	if (np->dev_name[0])
+		return np->dev_name;
+
+	snprintf(buf, bufsz, "%pM", np->dev_mac);
+	return buf;
+}
+
+/*
  * Take the IPv6 from ndev and populate local_ip structure in netpoll
  */
 static int netcons_take_ipv6(struct netpoll *np, struct net_device *ndev)
@@ -364,7 +380,7 @@ static int netcons_take_ipv6(struct netpoll *np, struct net_device *ndev)
 
 	if (!IS_ENABLED(CONFIG_IPV6)) {
 		np_err(np, "IPv6 is not supported %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		return -EINVAL;
 	}
 
@@ -386,7 +402,7 @@ static int netcons_take_ipv6(struct netpoll *np, struct net_device *ndev)
 	}
 	if (err) {
 		np_err(np, "no IPv6 address for %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		return err;
 	}
 
@@ -406,14 +422,14 @@ static int netcons_take_ipv4(struct netpoll *np, struct net_device *ndev)
 	in_dev = __in_dev_get_rtnl(ndev);
 	if (!in_dev) {
 		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		return -EDESTADDRREQ;
 	}
 
 	ifa = rtnl_dereference(in_dev->ifa_list);
 	if (!ifa) {
 		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		return -EDESTADDRREQ;
 	}
 
@@ -456,7 +472,7 @@ static int netcons_netpoll_setup(struct netpoll *np)
 
 	if (!ndev) {
 		np_err(np, "%s doesn't exist, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		err = -ENODEV;
 		goto unlock;
 	}
@@ -464,14 +480,14 @@ static int netcons_netpoll_setup(struct netpoll *np)
 
 	if (netdev_master_upper_dev_get(ndev)) {
 		np_err(np, "%s is a slave device, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
+		       netcons_egress_dev(np, buf, sizeof(buf)));
 		err = -EBUSY;
 		goto put;
 	}
 
 	if (!netif_running(ndev)) {
 		np_info(np, "device %s not up yet, forcing it\n",
-			egress_dev(np, buf, sizeof(buf)));
+			netcons_egress_dev(np, buf, sizeof(buf)));
 
 		err = dev_open(ndev, NULL);
 		if (err) {
