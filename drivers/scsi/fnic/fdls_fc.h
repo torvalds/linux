@@ -53,6 +53,7 @@
 
 #define FNIC_FCP_RSP_FCTL      (0x000099)
 #define FNIC_REQ_ABTS_FCTL     (0x000009)
+#define FNIC_NVME_LS_REQ_FCTL  (0x000029)
 
 #define FNIC_FC_PH_VER_HI      (0x20)
 #define FNIC_FC_PH_VER_LO      (0x20)

@@ -1018,7 +1018,8 @@ void fnic_delete_fcp_tports(struct fnic *fnic)
 					 "removing fcp rport fcid: 0x%x", tport->fcid);
 		fdls_set_tport_state(tport, FDLS_TGT_STATE_OFFLINING);
 		fnic_del_tport_timer_sync(fnic, tport);
-		fnic_fdls_remove_tport(&fnic->iport, tport, flags);
+		if (IS_FNIC_FCP_INITIATOR(fnic))
+			fnic_fdls_remove_tport(&fnic->iport, tport, flags);
 	}
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 }
@@ -1044,8 +1045,8 @@ void fnic_tport_event_handler(struct work_struct *work)
 			FNIC_FCS_DBG(KERN_INFO, fnic,
 						 "Add rport event");
 			if (tport->state == FDLS_TGT_STATE_READY) {
-				fnic_fdls_add_tport(&fnic->iport,
-					(struct fnic_tport_s *) cur_evt->arg1, flags);
+				if (IS_FNIC_FCP_INITIATOR(fnic))
+					fnic_fdls_add_tport(&fnic->iport, tport, flags);
 			} else {
 				FNIC_FCS_DBG(KERN_INFO, fnic,
 					 "Target not ready. Add rport event dropped: 0x%x",
@@ -1056,8 +1057,8 @@ void fnic_tport_event_handler(struct work_struct *work)
 			FNIC_FCS_DBG(KERN_INFO, fnic,
 						 "Remove rport event");
 			if (tport->state == FDLS_TGT_STATE_OFFLINING) {
-				fnic_fdls_remove_tport(&fnic->iport,
-					   (struct fnic_tport_s *) cur_evt->arg1, flags);
+				if (IS_FNIC_FCP_INITIATOR(fnic))
+					fnic_fdls_remove_tport(&fnic->iport, tport, flags);
 			} else {
 				FNIC_FCS_DBG(KERN_INFO, fnic,
 							 "remove rport event dropped tport fcid: 0x%x",
@@ -1110,12 +1111,15 @@ void fnic_reset_work_handler(struct work_struct *work)
 		spin_unlock_irqrestore(&reset_fnic_list_lock,
 							   reset_fnic_list_lock_flags);
 
-		dev_err(&cur_fnic->pdev->dev, "fnic: <%d>: issuing a host reset\n",
-			   cur_fnic->fnic_num);
-		host_reset_ret_code = fnic_host_reset(cur_fnic->host);
-		dev_err(&cur_fnic->pdev->dev,
-		   "fnic: <%d>: returned from host reset with status: %d\n",
-		   cur_fnic->fnic_num, host_reset_ret_code);
+		if (IS_FNIC_FCP_INITIATOR(cur_fnic)) {
+			dev_err(&cur_fnic->pdev->dev,
+				"fnic: <%d>: issuing a host reset\n",
+				cur_fnic->fnic_num);
+			host_reset_ret_code = fnic_host_reset(cur_fnic->host);
+			dev_err(&cur_fnic->pdev->dev,
+				"fnic: <%d>: returned from host reset with status: %d\n",
+				cur_fnic->fnic_num, host_reset_ret_code);
+		}
 
 		spin_lock_irqsave(&cur_fnic->fnic_lock, cur_fnic->lock_flags);
 		cur_fnic->pc_rscn_handling_status =

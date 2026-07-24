@@ -78,14 +78,17 @@
 #define FNIC_FDLS_FPMA_LEARNT             0x2
 
 /* tport flags */
-#define FNIC_FDLS_TPORT_IN_GPN_FT_LIST 0x1
-#define FNIC_FDLS_TGT_ABORT_ISSUED     0x2
-#define FNIC_FDLS_TPORT_SEND_ADISC     0x4
-#define FNIC_FDLS_RETRY_FRAME          0x8
-#define FNIC_FDLS_TPORT_BUSY	       0x10
-#define FNIC_FDLS_TPORT_TERMINATING      0x20
-#define FNIC_FDLS_TPORT_DELETED        0x40
-#define FNIC_FDLS_SCSI_REGISTERED      0x200
+#define FNIC_FDLS_TPORT_IN_GPN_FT_LIST        0x1
+#define FNIC_FDLS_TGT_ABORT_ISSUED            0x2
+#define FNIC_FDLS_TPORT_SEND_ADISC            0x4
+#define FNIC_FDLS_RETRY_FRAME                 0x8
+#define FNIC_FDLS_TPORT_BUSY                  0x10
+#define FNIC_FDLS_TPORT_TERMINATING           0x20
+#define FNIC_FDLS_TPORT_DELETED               0x40
+#define FNIC_FDLS_NVME_REGISTERED             0x80
+#define FNIC_FDLS_NVME_TPORT_CLEANUP_PENDING  0x100
+#define FNIC_FDLS_SCSI_REGISTERED             0x200
+#define FNIC_TPORT_CAN_BE_FREED               0x400
 
 /* Retry supported by rport(returned by prli service parameters) */
 #define FDLS_FC_RP_FLAGS_RETRY 0x1
