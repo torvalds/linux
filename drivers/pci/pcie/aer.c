@@ -1289,6 +1289,27 @@ void aer_recover_queue(int domain, unsigned int bus, unsigned int devfn,
 EXPORT_SYMBOL_GPL(aer_recover_queue);
 #endif
 
+static void aer_get_uncor_info(struct pci_dev *dev, struct aer_err_info *info,
+			       u32 status)
+{
+	u16 aer = dev->aer_cap;
+	u32 aercc;
+
+	/* Get First Error Pointer */
+	pci_read_config_dword(dev, aer + PCI_ERR_CAP, &aercc);
+	info->first_error = PCI_ERR_CAP_FEP(aercc);
+
+	/* Get TLP Prefix/Header Log */
+	if (tlp_header_logged(status, aercc)) {
+		info->tlp_header_valid = 1;
+		pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG,
+				  aer + PCI_ERR_PREFIX_LOG,
+				  aer_tlp_log_len(dev, aercc),
+				  aercc & PCI_ERR_CAP_TLP_LOG_FLIT,
+				  &info->tlp);
+	}
+}
+
 /**
  * aer_get_device_error_info - read error status from dev and store it to info
  * @info: pointer to structure to store the error record
@@ -1302,7 +1323,6 @@ int aer_get_device_error_info(struct aer_err_info *info, int i)
 {
 	struct pci_dev *dev;
 	int type, aer;
-	u32 aercc;
 
 	if (i >= AER_MAX_MULTI_ERR_DEVICES)
 		return 0;
@@ -1340,18 +1360,7 @@ int aer_get_device_error_info(struct aer_err_info *info, int i)
 		if (!(info->status & ~info->mask))
 			return 0;
 
-		/* Get First Error Pointer */
-		pci_read_config_dword(dev, aer + PCI_ERR_CAP, &aercc);
-		info->first_error = PCI_ERR_CAP_FEP(aercc);
-
-		if (tlp_header_logged(info->status & ~info->mask, aercc)) {
-			info->tlp_header_valid = 1;
-			pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG,
-					  aer + PCI_ERR_PREFIX_LOG,
-					  aer_tlp_log_len(dev, aercc),
-					  aercc & PCI_ERR_CAP_TLP_LOG_FLIT,
-					  &info->tlp);
-		}
+		aer_get_uncor_info(dev, info, info->status & ~info->mask);
 	}
 
 	return 1;
