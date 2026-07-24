@@ -61,7 +61,13 @@ properties:
     type: object
 
   reboot-mode:
-    type: object
+    $ref: /schemas/power/reset/syscon-reboot-mode.yaml
+    unevaluatedProperties: false
+
+    patternProperties:
+      # Negative look-ahead to disallow unsupported modes. The '$' has to be
+      # part of lookahead group to work, instead of trailing outside of ().
+      "^mode-(?!(bootloader$|loader$|normal$|recovery$))": false
 
 required:
   - compatible
