@@ -16,10 +16,17 @@ static void mt76_scan_complete(struct mt76_dev *dev, bool abort)
 
 	clear_bit(MT76_SCANNING, &phy->state);
 
-	if (dev->scan.chan && phy->main_chandef.chan && phy->offchannel &&
+	/* Re-program the operating channel even when the scan never left it:
+	 * any channel set during the scan ran with MT76_SCANNING held, which
+	 * left DFS radar detection disabled
+	 */
+	if (phy->main_chandef.chan &&
 	    !test_bit(MT76_MCU_RESET, &dev->phy.state)) {
+		bool offchannel = phy->offchannel;
+
 		mt76_set_channel(phy, &phy->main_chandef, false);
-		mt76_offchannel_notify(phy, false);
+		if (offchannel)
+			mt76_offchannel_notify(phy, false);
 	}
 	mt76_put_vif_phy_link(phy, dev->scan.vif, dev->scan.mlink);
 	memset(&dev->scan, 0, sizeof(dev->scan));
@@ -211,6 +218,7 @@ int mt76_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	dev->scan.vif = vif;
 	dev->scan.phy = phy;
 	dev->scan.mlink = mlink;
+	set_bit(MT76_SCANNING, &phy->state);
 	ieee80211_queue_delayed_work(dev->phy.hw, &dev->scan_work, 0);
 
 out:
