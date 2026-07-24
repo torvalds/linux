@@ -24,6 +24,10 @@
 
 #if IS_ENABLED(CONFIG_NVME_FC)
 
+static bool nvfnic_ls_req_cleanup(struct fnic_iport_s *iport,
+				  struct nvmefc_ls_req *lsreq,
+				  uint16_t oxid);
+
 int nvfnic_get_sg_count(struct fnic_io_req *io_req)
 {
 	return io_req->fcp_req->sg_cnt;
@@ -1279,6 +1283,23 @@ void nvfnic_ls_rsp_recv(struct fnic_iport_s *iport,
 	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 }
 
+static bool nvfnic_ls_req_cleanup(struct fnic_iport_s *iport,
+				  struct nvmefc_ls_req *lsreq,
+				  uint16_t oxid)
+{
+	struct nvfnic_ls_req *nvfnic_ls_req = lsreq->private;
+
+	if (!nvfnic_ls_req)
+		return false;
+
+	lsreq->private = NULL;
+	list_del(&nvfnic_ls_req->list);
+	fdls_free_oxid(iport, oxid, &nvfnic_ls_req->oxid);
+	nvfnic_ls_req->state = FNIC_LS_REQ_CMD_COMPLETE;
+
+	return true;
+}
+
 void nvfnic_ls_req_timeout(struct timer_list *t)
 {
 	struct nvfnic_ls_req *nvfnic_ls_req = timer_container_of(nvfnic_ls_req,
@@ -1288,6 +1309,7 @@ void nvfnic_ls_req_timeout(struct timer_list *t)
 	struct fnic_iport_s *iport = &fnic->iport;
 	struct fnic_tport_s *tport = (struct fnic_tport_s *) nvfnic_ls_req->tport;
 	uint16_t oxid = nvfnic_ls_req->oxid;
+	int timeout;
 
 	FNIC_NVME_DBG(KERN_INFO, fnic,
 		      "tport: 0x%x lsreq: 0x%x state: %d timeout\n",
@@ -1309,10 +1331,8 @@ void nvfnic_ls_req_timeout(struct timer_list *t)
 			      "tport: 0x%x lsreq: 0x%x abort timeout\n",
 			      tport->fcid, nvfnic_ls_req->oxid);
 
-		list_del(&nvfnic_ls_req->list);
 		ls_req = nvfnic_ls_req->ls_req;
-		fdls_free_oxid(iport, oxid, &nvfnic_ls_req->oxid);
-		ls_req->private = NULL;
+		nvfnic_ls_req_cleanup(iport, ls_req, oxid);
 		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
 		ls_req->done(ls_req, -ETIMEDOUT);
 		return;
@@ -1321,6 +1341,18 @@ void nvfnic_ls_req_timeout(struct timer_list *t)
 		FNIC_NVME_DBG(KERN_ERR, fnic,
 			      "tport: 0x%x lsreq: 0x%x sending abort\n",
 			      tport->fcid, nvfnic_ls_req->oxid);
+		nvfnic_ls_req->state = FNIC_LS_REQ_CMD_ABTS_PENDING;
+
+		if (fdls_send_ls_req_abts(iport, tport, nvfnic_ls_req->oxid) == 0) {
+			timeout = FNIC_LS_REQ_TMO_MSECS(ls_req->timeout);
+			mod_timer(&nvfnic_ls_req->ls_req_timer,
+				  round_jiffies(jiffies + msecs_to_jiffies(timeout)));
+			spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+			return;
+		}
+		FNIC_NVME_DBG(KERN_ERR, fnic,
+			      "tport: 0x%x lsreq: 0x%x cannot send abort\n",
+			      tport->fcid, oxid);
 	}
 
 	if (ls_req->private == NULL) {
@@ -1328,10 +1360,8 @@ void nvfnic_ls_req_timeout(struct timer_list *t)
 		return;
 	}
 
-	list_del(&nvfnic_ls_req->list);
 	ls_req = nvfnic_ls_req->ls_req;
-	fdls_free_oxid(iport, oxid, &nvfnic_ls_req->oxid);
-	ls_req->private = NULL;
+	nvfnic_ls_req_cleanup(iport, ls_req, oxid);
 
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
 	ls_req->done(ls_req, -ETIMEDOUT);
@@ -1442,11 +1472,7 @@ int nvfnic_ls_req_send(struct nvme_fc_local_port *lport,
 
 	ret = fnic_send_fcoe_frame(iport, frame, frame_size);
 	if (ret) {
-		list_del(&nvfnic_ls_req->list);
-		fdls_free_oxid(iport, nvfnic_ls_req->oxid,
-			       &nvfnic_ls_req->oxid);
-		nvfnic_ls_req->state = FNIC_LS_REQ_CMD_COMPLETE;
-		ls_req->private = NULL;
+		nvfnic_ls_req_cleanup(iport, ls_req, nvfnic_ls_req->oxid);
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		mempool_free(frame, fnic->frame_pool);
 		return ret;
@@ -1590,6 +1616,7 @@ void nvfnic_ls_req_abort(struct nvme_fc_local_port *lport,
 	struct nvfnic_ls_req *nvfnic_ls_req;
 	uint16_t oxid;
 	int timeout;
+	int ret;
 
 	spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 
@@ -1648,10 +1675,24 @@ void nvfnic_ls_req_abort(struct nvme_fc_local_port *lport,
 
 	/* Mark the state and flags */
 	nvfnic_ls_req->state = FNIC_LS_REQ_CMD_ABTS_PENDING;
-	timeout = FNIC_LS_REQ_TMO_MSECS(lsreq->timeout);
-	mod_timer(&nvfnic_ls_req->ls_req_timer,
-		  round_jiffies(jiffies + msecs_to_jiffies(timeout)));
+	oxid = nvfnic_ls_req->oxid;
+
+	ret = fdls_send_ls_req_abts(iport, tport, oxid);
+	if (!ret) {
+		timeout = FNIC_LS_REQ_TMO_MSECS(lsreq->timeout);
+		mod_timer(&nvfnic_ls_req->ls_req_timer,
+			  round_jiffies(jiffies + msecs_to_jiffies(timeout)));
+		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+		return;
+	}
+
+	if (!nvfnic_ls_req_cleanup(iport, lsreq, oxid)) {
+		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+		return;
+	}
+
 	spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
+	lsreq->done(lsreq, -EAGAIN);
 }
 
 bool nvfnic_queue_abort_io_req(struct fnic *fnic, int tag,
