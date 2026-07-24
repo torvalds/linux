@@ -365,3 +365,4 @@ void nsfs_get_root(struct path *path);
 void failfs_get_root(struct path *path);
 void __init failfs_init(void);
 bool failfs_mnt(const struct vfsmount *mnt);
+int failfs_current_chdir(void);

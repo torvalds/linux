@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/fs/super_types.h>
 #include <linux/fs_context.h>
+#include <linux/fs_struct.h>
 #include <linux/magic.h>
 #include <linux/mount.h>
 
@@ -132,6 +133,16 @@ static int failfs_init_fs_context(struct fs_context *fc)
 	fc->global	= true;
 	fc->sb_flags	|= SB_NOUSER;
 	fc->s_iflags	|= SB_I_NOEXEC | SB_I_NODEV;
+	return 0;
+}
+
+int failfs_current_chdir(void)
+{
+	struct path path;
+
+	failfs_get_root(&path);
+	set_fs_pwd(current->fs, &path);
+	path_put(&path);
 	return 0;
 }
 
