@@ -680,6 +680,12 @@ struct sta_rec_hdr_trans {
 	u8 mesh;
 } __packed;
 
+struct sta_rec_ps_leave {
+	__le16 tag;
+	__le16 len;
+	u8 __rsv[4];
+} __packed;
+
 struct sta_rec_mld_setup {
 	__le16 tag;
 	__le16 len;

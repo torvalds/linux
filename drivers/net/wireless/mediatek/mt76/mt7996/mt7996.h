@@ -928,6 +928,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
 				     struct ieee80211_vif *vif,
 				     struct mt7996_vif_link *link,
 				     struct mt7996_sta_link *msta_link);
+int mt7996_mcu_ps_leave(struct mt7996_dev *dev, struct mt7996_vif_link *link,
+			struct mt7996_sta_link *msta_link);
 int mt7996_mcu_cp_support(struct mt7996_dev *dev, u8 mode);
 int mt7996_mcu_set_emlsr_mode(struct mt7996_dev *dev,
 			      struct ieee80211_vif *vif,

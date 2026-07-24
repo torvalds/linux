@@ -2027,6 +2027,14 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
 			continue;
 
 		mt7996_mcu_wtbl_update_hdr_trans(dev, vif, link, msta_link);
+
+		/* HW cannot derive the BSSID from 4-address non-AMSDU frames,
+		 * so PS exit is missed on links other than the setup link.
+		 * Let the firmware wake those links instead.
+		 */
+		if (enabled && msta->deflink_id != link_id &&
+		    is_mt7996(&dev->mt76))
+			mt7996_mcu_ps_leave(dev, link, msta_link);
 	}
 
 	mutex_unlock(&dev->mt76.mutex);
