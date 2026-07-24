@@ -606,6 +606,8 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 	unsigned int link_id;
 	int i;
 
+	mutex_lock(&dev->mt76.mutex);
+
 	/* Remove all active links */
 	for_each_set_bit(link_id, &rem_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct mt7996_vif_link *link;
@@ -621,6 +623,8 @@ static void mt7996_remove_interface(struct ieee80211_hw *hw,
 
 		mt7996_vif_link_destroy(phy, link, vif, NULL);
 	}
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	ieee80211_iterate_active_interfaces_mtx(hw, 0, mt7996_remove_iter,
 						&rdata);
