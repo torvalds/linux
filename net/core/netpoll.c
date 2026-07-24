@@ -466,36 +466,6 @@ int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
 }
 EXPORT_SYMBOL_GPL(netpoll_take_ipv6);
 
-/*
- * Take the IPv4 from ndev and populate local_ip structure in netpoll
- */
-int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
-{
-	char buf[MAC_ADDR_STR_LEN + 1];
-	const struct in_ifaddr *ifa;
-	struct in_device *in_dev;
-
-	in_dev = __in_dev_get_rtnl(ndev);
-	if (!in_dev) {
-		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
-		return -EDESTADDRREQ;
-	}
-
-	ifa = rtnl_dereference(in_dev->ifa_list);
-	if (!ifa) {
-		np_err(np, "no IP address for %s, aborting\n",
-		       egress_dev(np, buf, sizeof(buf)));
-		return -EDESTADDRREQ;
-	}
-
-	np->local_ip.ip = ifa->ifa_local;
-	np_info(np, "local IP %pI4\n", &np->local_ip.ip);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(netpoll_take_ipv4);
-
 static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 {
 	struct netpoll_info *npinfo =

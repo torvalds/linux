@@ -74,7 +74,6 @@ void netpoll_zap_completion_queue(void);
 unsigned int netpoll_get_carrier_timeout(void);
 void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev);
 char *egress_dev(struct netpoll *np, char *buf, size_t bufsz);
-int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev);
 int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev);
 
 #ifdef CONFIG_NETPOLL

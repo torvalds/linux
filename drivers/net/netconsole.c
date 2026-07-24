@@ -37,6 +37,7 @@
 #include <linux/udp.h>
 #include <linux/netpoll.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/unaligned.h>
 #include <net/ip6_checksum.h>
 #include <linux/configfs.h>
@@ -352,6 +353,35 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 }
 
 /*
+ * Take the IPv4 from ndev and populate local_ip structure in netpoll
+ */
+static int netcons_take_ipv4(struct netpoll *np, struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	const struct in_ifaddr *ifa;
+	struct in_device *in_dev;
+
+	in_dev = __in_dev_get_rtnl(ndev);
+	if (!in_dev) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		return -EDESTADDRREQ;
+	}
+
+	ifa = rtnl_dereference(in_dev->ifa_list);
+	if (!ifa) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		return -EDESTADDRREQ;
+	}
+
+	np->local_ip.ip = ifa->ifa_local;
+	np_info(np, "local IP %pI4\n", &np->local_ip.ip);
+
+	return 0;
+}
+
+/*
  * Test whether the caller left np->local_ip unset, so that
  * netcons_netpoll_setup() should auto-populate it from the egress device.
  *
@@ -414,7 +444,7 @@ static int netcons_netpoll_setup(struct netpoll *np)
 
 	if (netcons_local_ip_unset(np)) {
 		if (!np->ipv6) {
-			err = netpoll_take_ipv4(np, ndev);
+			err = netcons_take_ipv4(np, ndev);
 			if (err)
 				goto put;
 		} else {
