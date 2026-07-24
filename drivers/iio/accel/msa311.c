@@ -1059,7 +1059,7 @@ static int msa311_setup_interrupts(struct msa311_priv *msa311)
 					msa311_irq_thread, IRQF_ONESHOT,
 					msa311->chip_name, indio_dev);
 	if (err)
-		return dev_err_probe(dev, err, "failed to request IRQ\n");
+		return err;
 
 	trig = devm_iio_trigger_alloc(dev, "%s-new-data", msa311->chip_name);
 	if (!trig)

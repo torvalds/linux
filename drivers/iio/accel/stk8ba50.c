@@ -438,11 +438,8 @@ static int stk8ba50_probe(struct i2c_client *client)
 				       stk8ba50_data_rdy_trig_poll,
 				       IRQF_TRIGGER_RISING | IRQF_NO_THREAD,
 				       "stk8ba50_event", indio_dev);
-		if (ret < 0) {
-			dev_err(&client->dev, "request irq %d failed\n",
-				client->irq);
+		if (ret)
 			goto err_power_off;
-		}
 
 		data->dready_trig = devm_iio_trigger_alloc(&client->dev,
 							   "%s-dev%d",

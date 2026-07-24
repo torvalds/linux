@@ -1435,7 +1435,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 					&kx022a_irq_thread_handler,
 					IRQF_ONESHOT, name, idev);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
+		return ret;
 
 	ret = devm_iio_trigger_register(dev, indio_trig);
 	if (ret)

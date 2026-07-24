@@ -550,11 +550,8 @@ static int stk8312_probe(struct i2c_client *client)
 						IRQF_ONESHOT,
 						"stk8312_event",
 						indio_dev);
-		if (ret < 0) {
-			dev_err(&client->dev, "request irq %d failed\n",
-				client->irq);
+		if (ret)
 			goto err_power_off;
-		}
 
 		data->dready_trig = devm_iio_trigger_alloc(&client->dev,
 							   "%s-dev%d",
