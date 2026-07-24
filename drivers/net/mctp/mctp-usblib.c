@@ -177,11 +177,13 @@ EXPORT_SYMBOL_GPL(mctp_usblib_rx_cancel);
 /* transmit context: encapsulates one transfer */
 struct mctp_usblib_tx_ctx {
 	struct mctp_usblib_tx *tx;
-	struct sk_buff *skb;
+	struct sk_buff_head skbs;
 	unsigned int len;
 	enum mctp_usblib_tx_buf_type {
 		TX_SINGLE,
+		TX_FLAT,
 	} buf_type;
+	u8 buf[] ____cacheline_aligned;
 };
 
 void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
@@ -191,13 +193,87 @@ void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
 	memset(tx, 0, sizeof(*tx));
 	tx->ops = *ops;
 	tx->priv = priv;
+	spin_lock_init(&tx->lock);
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_init);
 
-void mctp_usblib_tx_fini(struct mctp_usblib_tx *tx)
+static int mctp_usblib_tx_avail(struct mctp_usblib_tx_ctx *ctx)
 {
+	return ctx->buf_type == TX_SINGLE ? 0 : MCTP_USB_1_0_XFER_SIZE - ctx->len;
 }
-EXPORT_SYMBOL_GPL(mctp_usblib_tx_fini);
+
+static bool mctp_usblib_tx_should_send(struct mctp_usblib_tx_ctx *ctx)
+{
+	/* Use the baseline length (ie, BTU) as an approximate
+	 * "reasonably-sized" packet we could expect. If there is
+	 * insufficient capacity for that, then send.
+	 */
+	const size_t pkt_len = MCTP_USB_BTU + sizeof(struct mctp_usb_hdr);
+
+	return mctp_usblib_tx_avail(ctx) < pkt_len;
+}
+
+/*
+ * Returns zero on success, non-zero on failure - indicating that the new skb
+ * could not be appended. So, errors reported here to the TX path will result
+ * in the TX being transmitted.
+ */
+static int mctp_usblib_tx_append(struct mctp_usblib_tx_ctx *ctx,
+				 struct sk_buff *skb)
+{
+	if (ctx->buf_type == TX_SINGLE)
+		return -EINVAL;
+
+	if (mctp_usblib_tx_avail(ctx) < skb->len)
+		return -ENOBUFS;
+
+	__skb_queue_tail(&ctx->skbs, skb);
+
+	ctx->len += skb->len;
+
+	return 0;
+}
+
+static int mctp_usblib_tx_send(struct mctp_usblib_tx_ctx *ctx)
+{
+	void *buf;
+
+	/* If we have a qlen of 1, we only ended up packing a single skb,
+	 * despite allocating for multiple. Skip the copy and send directly
+	 * from the skb data.
+	 */
+	if (ctx->buf_type == TX_SINGLE || ctx->skbs.qlen == 1) {
+		buf = ctx->skbs.next->data;
+
+	} else if (ctx->buf_type == TX_FLAT) {
+		struct sk_buff *skb;
+		size_t pos = 0;
+
+		skb_queue_walk(&ctx->skbs, skb) {
+			skb_copy_bits(skb, 0, ctx->buf + pos, skb->len);
+			pos += skb->len;
+		}
+
+		buf = ctx->buf;
+	} else {
+		return -EINVAL;
+	}
+
+	return ctx->tx->ops.send(ctx, buf, ctx->len);
+}
+
+static void mctp_usblib_tx_ctx_free(struct mctp_usblib_tx_ctx *ctx,
+				    enum skb_drop_reason reason)
+{
+	struct sk_buff *skb;
+
+	if (!ctx)
+		return;
+
+	while ((skb = __skb_dequeue(&ctx->skbs)) != NULL)
+		dev_kfree_skb_any_reason(skb, reason);
+	kfree(ctx);
+}
 
 void *mctp_usblib_tx_ctx_priv(struct mctp_usblib_tx_ctx *tx_ctx)
 {
@@ -205,37 +281,39 @@ void *mctp_usblib_tx_ctx_priv(struct mctp_usblib_tx_ctx *tx_ctx)
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_ctx_priv);
 
-static struct mctp_usblib_tx_ctx *
-mctp_usblib_tx_ctx_create(struct mctp_usblib_tx *tx, struct sk_buff *skb)
+/* caller must ensure the tx & completion path is quiesced */
+void mctp_usblib_tx_fini(struct mctp_usblib_tx *tx)
 {
-	struct mctp_usblib_tx_ctx *ctx;
+	mctp_usblib_tx_ctx_free(tx->cur_ctx, SKB_DROP_REASON_NOT_SPECIFIED);
+}
+EXPORT_SYMBOL_GPL(mctp_usblib_tx_fini);
 
-	ctx = kzalloc_obj(*ctx, GFP_ATOMIC);
+static struct mctp_usblib_tx_ctx *
+mctp_usblib_tx_ctx_create(struct mctp_usblib_tx *tx, struct sk_buff *skb,
+			  bool single)
+{
+	enum mctp_usblib_tx_buf_type type;
+	struct mctp_usblib_tx_ctx *ctx;
+	size_t sz = 0;
+
+	if (single) {
+		type = TX_SINGLE;
+	} else {
+		type = TX_FLAT;
+		sz = MCTP_USB_1_0_XFER_SIZE;
+	}
+
+	ctx = kzalloc_flex(*ctx, buf, sz, GFP_ATOMIC);
 	if (!ctx)
 		return NULL;
 
 	ctx->tx = tx;
-	ctx->buf_type = TX_SINGLE;
-	ctx->skb = skb;
-	ctx->len += skb->len;
+	ctx->buf_type = type;
+	ctx->len = skb->len;
+	skb_queue_head_init(&ctx->skbs);
+	__skb_queue_tail(&ctx->skbs, skb);
 
 	return ctx;
-}
-
-static int mctp_usblib_tx_send(struct mctp_usblib_tx_ctx *ctx)
-{
-	struct mctp_usblib_tx *tx = ctx->tx;
-	void *buf = ctx->skb->data;
-
-	return tx->ops.send(ctx, buf, ctx->len);
-}
-
-static void mctp_usblib_tx_ctx_free(struct mctp_usblib_tx_ctx *ctx,
-				    enum skb_drop_reason reason)
-{
-	if (ctx)
-		dev_kfree_skb_any_reason(ctx->skb, reason);
-	kfree(ctx);
 }
 
 static void mctp_usblib_tx_stats_update(struct mctp_usblib_tx_ctx *ctx,
@@ -251,12 +329,13 @@ static void mctp_usblib_tx_stats_update(struct mctp_usblib_tx_ctx *ctx,
 		 * that there is a 4-byte header pushed to all skbs in
 		 * tx_skb_prepare()
 		 */
-		s64 len = ctx->len - sizeof(struct mctp_usb_hdr);
+		u64 n = ctx->skbs.qlen;
+		s64 len = ctx->len - (n * sizeof(struct mctp_usb_hdr));
 
-		u64_stats_inc(&dstats->tx_packets);
+		u64_stats_add(&dstats->tx_packets, n);
 		u64_stats_add(&dstats->tx_bytes, len);
 	} else {
-		u64_stats_inc(&dstats->tx_drops);
+		u64_stats_add(&dstats->tx_drops, ctx->skbs.qlen);
 	}
 	u64_stats_update_end_irqrestore(&dstats->syncp, flags);
 	put_cpu_ptr(dev->dstats);
@@ -327,8 +406,8 @@ static int mctp_usblib_tx_skb_prepare(struct sk_buff *skb,
 }
 
 /*
- * Push a new skb to the transfer. At present, no send must be in progress,
- * as we only handle single-packet USB transfers.
+ * Push a new skb to the transfer. May result in zero or more calls to
+ * ops->send().
  *
  * Takes ownership of @skb, including on error.
  */
@@ -336,36 +415,106 @@ int mctp_usblib_tx_push(struct net_device *dev,
 			struct mctp_usblib_tx *tx,
 			struct sk_buff *skb, bool more)
 {
-	struct mctp_usblib_tx_ctx *ctx;
+	struct mctp_usblib_tx_ctx *ctx, *send_ctx = NULL;
 	enum skb_drop_reason reason;
-	int rc;
+	const int max_tries = 3;
+	unsigned long flags;
+	int try = 1, rc;
 
+	rc = mctp_usblib_tx_skb_prepare(skb, &reason);
+	if (rc) {
+		mctp_usblib_tx_stats_single_drop(dev);
+		kfree_skb_reason(skb, reason);
+		/* we may still need to proceed, in case an existing ctx
+		 * is now sendable (ie.: !more).
+		 */
+		skb = NULL;
+	}
+
+	reason = SKB_DROP_REASON_NOT_SPECIFIED;
+retry:
+	/* Try and queue to the current context. We exit this critical section
+	 * with a few bits of state:
+	 *  - send_ctx: indicating a prior context that needs to be sent
+	 *  - skb: indicating that a skb still needs to be queued/sent
+	 */
+	spin_lock_irqsave(&tx->lock, flags);
+	ctx = tx->cur_ctx;
+	if (ctx) {
+		if (skb) {
+			rc = mctp_usblib_tx_append(ctx, skb);
+			if (rc) {
+				/* can't append to the pending tx - detach for
+				 * sending, and we'll create a new tx below.
+				 */
+				swap(tx->cur_ctx, send_ctx);
+			} else {
+				/* we have queued */
+				skb = NULL;
+				if (!more || mctp_usblib_tx_should_send(ctx))
+					swap(tx->cur_ctx, send_ctx);
+			}
+		} else if (!more) {
+			swap(tx->cur_ctx, send_ctx);
+		}
+	}
+	spin_unlock_irqrestore(&tx->lock, flags);
+
+	if (send_ctx) {
+		rc = mctp_usblib_tx_send(send_ctx);
+		if (rc) {
+			mctp_usblib_tx_stats_update(send_ctx, dev, false);
+			mctp_usblib_tx_ctx_free(send_ctx, reason);
+		}
+		send_ctx = NULL;
+	}
+
+	/* we have either queued, or the prepare failed; nothing more to do */
 	if (!skb)
 		return 0;
 
-	rc = mctp_usblib_tx_skb_prepare(skb, &reason);
-	if (rc)
-		goto err_drop_single;
-
-	ctx = mctp_usblib_tx_ctx_create(tx, skb);
+	ctx = mctp_usblib_tx_ctx_create(tx, skb, !more);
 	if (!ctx) {
-		rc = -ENOMEM;
-		reason = SKB_DROP_REASON_NOMEM;
-		goto err_drop_single;
+		netdev_dbg(dev, "TX context create failed\n");
+		mctp_usblib_tx_stats_single_drop(dev);
+		kfree_skb(skb);
+		return -ENOMEM;
 	}
 
-	rc = mctp_usblib_tx_send(ctx);
-	if (rc) {
-		mctp_usblib_tx_stats_update(ctx, dev, false);
-		mctp_usblib_tx_ctx_free(ctx, SKB_DROP_REASON_NOT_SPECIFIED);
+	/* if we're ready to send now, no need to enqueue */
+	if (!more || mctp_usblib_tx_should_send(ctx)) {
+		rc = mctp_usblib_tx_send(ctx);
+		if (rc) {
+			mctp_usblib_tx_stats_update(ctx, dev, false);
+			mctp_usblib_tx_ctx_free(ctx, reason);
+		}
+		return 0;
 	}
 
-	return rc;
+	spin_lock_irqsave(&tx->lock, flags);
+	if (!tx->cur_ctx) {
+		tx->cur_ctx = ctx;
+		ctx = NULL;
+	}
+	spin_unlock_irqrestore(&tx->lock, flags);
 
-err_drop_single:
-	mctp_usblib_tx_stats_single_drop(dev);
-	kfree_skb_reason(skb, reason);
-	return rc;
+	/* we may have lost the race with a concurrent tx; shouldn't happen, as
+	 * ndo_start_xmit should be serialised over one queue, but try again
+	 * from the top, as we may be able to queue the skb to that context.
+	 */
+	if (ctx) {
+		/* unlink the new (sole) skb, we don't want it freed with ctx */
+		__skb_queue_head_init(&ctx->skbs);
+		mctp_usblib_tx_ctx_free(ctx, reason);
+		if (++try > max_tries) {
+			kfree_skb(skb);
+			mctp_usblib_tx_stats_single_drop(dev);
+			return -EBUSY;
+		}
+		goto retry;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_push);
 
@@ -373,7 +522,18 @@ EXPORT_SYMBOL_GPL(mctp_usblib_tx_push);
 void mctp_usblib_tx_cancel(struct mctp_usblib_tx *tx, struct net_device *dev,
 			   enum skb_drop_reason reason)
 {
-	/* nothing to do at present, no ctx is persistent */
+	struct mctp_usblib_tx_ctx *ctx = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tx->lock, flags);
+	swap(tx->cur_ctx, ctx);
+	spin_unlock_irqrestore(&tx->lock, flags);
+
+	if (!ctx)
+		return;
+
+	mctp_usblib_tx_stats_update(ctx, dev, false);
+	mctp_usblib_tx_ctx_free(ctx, reason);
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_cancel);
 

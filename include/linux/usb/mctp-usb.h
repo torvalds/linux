@@ -58,10 +58,6 @@ void mctp_usblib_rx_cancel(struct mctp_usblib_rx *rx);
 /*
  * TX handle: created by mctp_usblib_tx_push() during the tx path, and
  * may persist across multiple packet transmits.
- *
- * Currently though, there is a 1:1 mapping between packets and transfers, so
- * the tx context will be cleared over each transmit. This will change in
- * future.
  */
 struct mctp_usblib_tx_ctx;
 
@@ -76,6 +72,10 @@ struct mctp_usblib_tx_ops {
 struct mctp_usblib_tx {
 	struct mctp_usblib_tx_ops ops;
 	void *priv;
+	/* protects access to cur_ctx */
+	spinlock_t lock;
+	/* context to which we are adding packets, cleared on send */
+	struct mctp_usblib_tx_ctx *cur_ctx;
 };
 
 void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
