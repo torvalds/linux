@@ -69,7 +69,7 @@ enum btc_wl_rfk_type {
 #define NM_EXEC false
 #define FC_EXEC true
 
-#define RTW89_COEX_ACT1_WORK_PERIOD	round_jiffies_relative(HZ * 4)
+#define RTW89_COEX_ACT1_WORK_PERIOD	round_jiffies_relative(HZ)
 #define RTW89_COEX_BT_DEVINFO_WORK_PERIOD	round_jiffies_relative(HZ * 16)
 #define RTW89_COEX_RFK_CHK_WORK_PERIOD	msecs_to_jiffies(300)
 #define BTC_RFK_PATH_MAP GENMASK(3, 0)
