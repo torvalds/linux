@@ -127,6 +127,11 @@ enum btc_fddt_en {
 	  ((__rssi == BTC_RSSI_ST_LOW || \
 	    __rssi == BTC_RSSI_ST_HIGH) ? 1 : 0); })
 
+/* Antenna TX/RX path position masks and helpers */
+#define BTC_ANT_TX_MASK 0xf0
+#define BTC_ANT_RX_MASK 0x0f
+#define BTC_ANT_SHIFT 4
+
 enum btc_ant {
 	BTC_ANT_SHARED = 0,
 	BTC_ANT_DEDICATED,
@@ -471,6 +476,20 @@ void btc_dw2b(u8 *buf, size_t idx, u32 val)
 	buf[idx + 1] = u32_get_bits(val, MASKBYTE1);
 	buf[idx + 2] = u32_get_bits(val, MASKBYTE2);
 	buf[idx + 3] = u32_get_bits(val, MASKBYTE3);
+}
+
+static inline
+u8 _btc_get_rf_path_from_ant_num(struct rtw89_btc *btc, u8 antnum)
+{
+	switch (antnum) {
+	default:
+	case 1:
+		return btc->mdinfo.ant.single_pos;
+	case 2:
+		return RF_PATH_AB;
+	case 3:
+		return RF_PATH_ABC;
+	}
 }
 
 #endif

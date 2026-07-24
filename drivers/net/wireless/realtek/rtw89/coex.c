@@ -3199,6 +3199,8 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 			rtw89_fw_h2c_cxdrv_init_v7(rtwdev, index);
 		else if (ver->fcxinit == 10)
 			rtw89_fw_h2c_cxdrv_init_v10(rtwdev, index);
+		else if (ver->fcxinit == 11)
+			rtw89_fw_h2c_cxdrv_init_v11(rtwdev, index);
 		else
 			rtw89_fw_h2c_cxdrv_init(rtwdev, index);
 		break;

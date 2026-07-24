@@ -5973,6 +5973,81 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_cxdrv_init_v11(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_init_info *init = &dm->init_info;
+	struct rtw89_h2c_cxinit_v11 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_init_v11\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxinit_v11 *)skb->data;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = 11;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
+
+	h2c->init.endian_type = init->endian_type;
+	h2c->init.init_mode = init->init_mode;
+	h2c->init.wl_init_ok = init->wl_init_ok;
+	h2c->init.bt0_function = init->bt0_function;
+
+	h2c->init.bt1_function = init->bt1_function;
+	h2c->init.bt2_function = init->bt2_function;
+	h2c->init.pta_mode = init->pta_mode;
+	h2c->init.pta_direction = init->pta_direction;
+
+	h2c->init.module.rfe_type = init->module.rfe_type;
+	h2c->init.module.wa_type = init->module.wa_type;
+	h2c->init.module.kt_ver = init->module.kt_ver;
+	h2c->init.module.kt_ver_adie = init->module.kt_ver_adie;
+
+	h2c->init.module.bt0_pos = init->module.bt0_pos;
+	h2c->init.module.bt0_sw_type = init->module.bt0_sw_type;
+	h2c->init.module.bt1_pos = init->module.bt1_pos;
+	h2c->init.module.bt1_sw_type = init->module.bt1_sw_type;
+
+	h2c->init.module.ant.type = init->module.ant.type;
+	h2c->init.module.ant.num = init->module.ant.num;
+	h2c->init.module.ant.isolation = init->module.ant.isolation;
+	h2c->init.module.ant.single_pos = init->module.ant.single_pos;
+
+	h2c->init.module.ant.stream_cnt = init->module.ant.stream_cnt;
+	h2c->init.module.ant.path_pos = init->module.ant.path_pos;
+	h2c->init.module.ant.btg_pos = init->module.ant.btg_pos;
+	h2c->init.module.ant.btg1_pos = init->module.ant.btg1_pos;
+	memcpy(h2c->init.module.ant.func, init->module.ant.func,
+	       sizeof(init->module.ant.func));
+
+	memcpy(h2c->init.module.ant.ant_xmap, init->module.ant.ant_xmap,
+	       sizeof(init->module.ant.ant_xmap));
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 #define PORT_DATA_OFFSET 4
 #define H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN 12
 #define H2C_LEN_CXDRVINFO_ROLE_SIZE(max_role_num) \

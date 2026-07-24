@@ -2721,25 +2721,33 @@ static u32 rtw8922a_chan_to_rf18_val(struct rtw89_dev *rtwdev,
 
 static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_module *md = &btc->mdinfo;
+	u8 i, j;
+	u8 tx_path_pos, rx_path_pos;
 
 	md->rfe_type = rtwdev->efuse.rfe_type;
 	md->kt_ver = rtwdev->hal.cv;
-	md->bt_solo = 0;
-	md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+	md->kt_ver_adie = rtwdev->hal.acv;
 	md->wa_type = 0;
 
-	md->ant.type = BTC_ANT_SHARED;
 	md->ant.num = 2;
-	md->ant.isolation = 10;
-	md->ant.diversity = 0;
-	md->ant.single_pos = RF_PATH_A;
-	md->ant.btg_pos = RF_PATH_B;
+	md->ant.single_pos = BTC_RF_S0;
 
 	if (md->kt_ver <= 1)
 		md->wa_type |= BTC_WA_HFP_ZB;
 
-	rtwdev->btc.cx.bt_ext.func_type = BTC_3CX_NONE;
+	btc->cx.bt0.ant_iso_to_wl = md->ant.isolation;
+	btc->cx.bt1.ant_iso_to_wl =  md->ant.isolation;
+
+	md->ant.stream_cnt = 2;
+	md->ant.btg_pos = RF_PATH_B;
+	md->ant.single_pos = RF_PATH_A;
+
+	btc->cx.bt0.band_56G_support = 0;
+	btc->cx.bt1.band_56G_support = 0;
+	btc->cx.bt0.func_type = BTC_BTF_BT;
+	btc->cx.bt1.func_type = BTC_BTF_NONE;
 
 	if (md->rfe_type == 0) {
 		rtwdev->btc.dm.error.map.rfe_type0 = true;
@@ -2747,17 +2755,69 @@ static void rtw8922a_btc_set_rfe(struct rtw89_dev *rtwdev)
 	}
 
 	md->ant.num = (md->rfe_type % 2) ?  2 : 3;
-
 	if (md->kt_ver == 0)
 		md->ant.num = 2;
 
-	if (md->ant.num == 3) {
-		md->ant.type = BTC_ANT_DEDICATED;
-		md->bt0_pos = BTC_BT_ALONE;
-	} else {
+	memset(btc->dm.ant_xmap, 0, sizeof(btc->dm.ant_xmap));
+
+	switch (md->ant.num) {
+	case 1:
 		md->ant.type = BTC_ANT_SHARED;
 		md->bt0_pos = BTC_BT_BTG;
+		md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
+		md->ant.btg_pos = BTC_RF_S0;
+		btc->dm.ant_xmap[BTC_RF_S0][BTC_BT_1ST] = 1;
+		md->ant.func[0] = BTC_EFMAP_BT0;
+		break;
+	case 2: /* 2-Ant */
+	default:
+		md->ant.type = BTC_ANT_SHARED;
+		md->bt0_pos = BTC_BT_BTG;
+		md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
+		btc->dm.wl_trx_nss_en = 1;
+		btc->dm.ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
+		md->ant.func[1] = BTC_EFMAP_BT0;
+		break;
+	case 3: /* 3-Ant, 3 different BT-configuration */
+		/* WL-S0 + WL-S1 + BT0-S0 */
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
+		md->bt0_sw_type = BTC_SWITCH_V1_NONE;
+		md->ant.func[2] = BTC_EFMAP_BT0;
 	}
+
+	tx_path_pos = _btc_get_rf_path_from_ant_num(btc, rtwdev->hal.tx_nss);
+	rx_path_pos = _btc_get_rf_path_from_ant_num(btc, rtwdev->hal.rx_nss);
+	/* Combine TX[7:4] and RX[3:0] into path_pos byte */
+	md->ant.path_pos = ((tx_path_pos << BTC_ANT_SHIFT) & BTC_ANT_TX_MASK) |
+			   (rx_path_pos & BTC_ANT_RX_MASK);
+
+	switch (btc->cx.bt_ext.chip_id) {
+	default:
+	case BTC_ESOC_NONE:
+		memset(&btc->cx.bt_ext, 0, sizeof(struct rtw89_btc_extsoc_info));
+		btc->cx.bt_ext.max_tx_pwr = RTW89_BTC_BT_DEF_LE_TX_PWR_1;
+		btc->cx.bt_ext.ant_iso_to_wl = RTW89_BTC_DEFAULT_ANISO;
+		break;
+	case BTC_ESOC_8771:
+		btc->cx.bt_ext.func_type = BTC_BTF_THREAD;
+		btc->cx.bt_ext.hw_coex = BTC_EXTSOC_INTF_PTA;
+		btc->cx.bt_ext.rf_band_map = 0x1; /* 2.4G only */
+		btc->cx.bt_ext.link_weight[BTC_BT_B2G] = 10;
+		btc->cx.bt_ext.profile_map[BTC_BT_B2G] |= BTC_BT_THREAD;
+		/* use GPIO 12~15 for Ext-4-wire-PTA */
+		btc->cx.bt_ext.hpta_cfg = BIT(12) | BIT(13) | BIT(14) | BIT(15);
+		md->ant.func[2] = BTC_EFMAP_ZB;
+		break;
+	}
+
+	btc->dm.ant_xmap[BTC_RF_S0][BTC_BT_EXT] = 0;
+	btc->dm.ant_xmap[BTC_RF_S1][BTC_BT_EXT] = 0;
+
+	for (i = BTC_RF_S0; i <= BTC_RF_S1; i++)
+		for (j = BTC_BT_1ST; j <= BTC_BT_EXT; j++)
+			md->ant.ant_xmap[i][j] = btc->dm.ant_xmap[i][j];
+
 	rtwdev->btc.btg_pos = md->ant.btg_pos;
 	rtwdev->btc.ant_type = md->ant.type;
 }

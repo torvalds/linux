@@ -2603,6 +2603,11 @@ struct rtw89_h2c_cxinit_v10 {
 	struct rtw89_btc_init_info_v10 init;
 } __packed;
 
+struct rtw89_h2c_cxinit_v11 {
+	struct rtw89_h2c_cxhdr_v7 hdr;
+	struct rtw89_btc_init_info_v11 init;
+} __packed;
+
 #define RTW89_H2C_CXROLE_V101_ROLE_STAT_CONNTECTED BIT(0)
 #define RTW89_H2C_CXROLE_V101_ROLE_STAT_PID GENMASK(3, 1)
 #define RTW89_H2C_CXROLE_V101_ROLE_STAT_PHY BIT(4)
@@ -5456,6 +5461,7 @@ int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v7(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v8(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_role_v10(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_init_v11(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_osi_info(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_osi_info_v6(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev, u8 type);

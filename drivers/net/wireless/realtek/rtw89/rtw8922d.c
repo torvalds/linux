@@ -3174,7 +3174,9 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	u8 efuse_bt_func, efuse_ant_info, bt_sw_gpio_pos;
-	u8 is_combo, is_bt_share;
+	u8 is_combo, is_bt_share, is_spdt;
+	u8 tx_path_pos, rx_path_pos;
+	u8 i, j;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s !!\n", __func__);
 
@@ -3192,7 +3194,8 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 	cx->bt0.ant_iso_to_wl = md->ant.isolation;
 	cx->bt1.ant_iso_to_wl = md->ant.isolation;
 
-	md->ant.stream_cnt = 2;
+	md->ant.stream_cnt = (rtwdev->hal.tx_nss << BTC_ANT_SHIFT) +
+				rtwdev->hal.rx_nss;
 	md->ant.btg_pos = BTC_RF_S1; /* BTG0 at WL-S1 */
 	md->ant.btg1_pos = BTC_RF_S0; /* BTG1 at WL-S0 if Dual-BTGA */
 
@@ -3203,19 +3206,20 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 
 	efuse_bt_func = rtwdev->efuse.bt_setting_2;
 
-	switch ((efuse_bt_func & 0xe0) >> 5) { /* 0xcd[7:5] */
+	is_spdt = !!(efuse_bt_func & BIT(5));
+
+	switch ((efuse_bt_func & 0xc0) >> 6) { /* 0xcd[7:6] */
 	default:
 	case 0:
-	case 1:
 		bt_sw_gpio_pos = 5;
 		break;
-	case 2:
+	case 1:
 		bt_sw_gpio_pos = 11;
 		break;
-	case 3:
+	case 2:
 		bt_sw_gpio_pos = 15;
 		break;
-	case 4:
+	case 3:
 		bt_sw_gpio_pos = 20;
 		break;
 	}
@@ -3233,9 +3237,8 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 	case 1: /* 1-Ant WL-S0 only & BT0 only */
 		md->ant.type = BTC_ANT_SHARED;
 		md->bt0_pos = BTC_BT_BTG;
-		md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+		md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
 		md->ant.btg_pos = BTC_RF_S0; /* BTG0 at WL-S0 */
-		md->ant.stream_cnt = 1;
 		md->ant.func[0] = BTC_EFMAP_BT0;
 		dm->ant_xmap[BTC_RF_S0][BTC_BT_1ST] = 1; /* BT0 shared with S0*/
 		dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 0; /* WL 1T1R no RF-S1 */
@@ -3265,13 +3268,13 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 
 		if (md->ant.func[0] == BTC_EFMAP_BT1) { /* if 2nd BT exist */
 			dm->ant_xmap[BTC_RF_S0][BTC_BT_2ND] = 1;
-			if (md->rfe_type == 12) { /* WL-S0 & BT1 by SPDT */
+			if (is_spdt) { /* WL-S0 & BT1 by SPDT */
 				md->bt1_pos = BTC_BT_ALONE;
 				/* Todo: set SPDT GPIO-ctrl */
 				md->bt1_sw_type = bt_sw_gpio_pos;
 			} else { /* WL-S0 & BT1-S1 by BTGA */
 				md->bt1_pos = BTC_BT_BTG;
-				md->bt1_sw_type = BTC_SWITCH_INTERNAL;
+				md->bt1_sw_type = BTC_SWITCH_V1_INTERNAL;
 			}
 		}
 
@@ -3284,7 +3287,7 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 			md->ant.func[2] = efuse_bt_func & (~BTC_EFMAP_BT0);
 			md->ant.type = BTC_ANT_SHARED;
 			md->bt0_pos = BTC_BT_BTG;
-			md->bt0_sw_type = BTC_SWITCH_INTERNAL;
+			md->bt0_sw_type = BTC_SWITCH_V1_INTERNAL;
 			dm->ant_xmap[BTC_RF_S1][BTC_BT_1ST] = 1;
 			dm->wl_trx_nss_en = 1; /* 1ss MIMO-PS capability */
 		} else {
@@ -3323,6 +3326,12 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 		md->bt1_sw_type = BTC_SWITCH_V1_NONE;
 		break;
 	}
+
+	tx_path_pos = _btc_get_rf_path_from_ant_num(btc, rtwdev->hal.tx_nss);
+	rx_path_pos = _btc_get_rf_path_from_ant_num(btc, rtwdev->hal.rx_nss);
+	/* Combine TX[7:4] and RX[3:0] into path_pos byte */
+	md->ant.path_pos = ((tx_path_pos << BTC_ANT_SHIFT) & BTC_ANT_TX_MASK) |
+			   (rx_path_pos & BTC_ANT_RX_MASK);
 
 	/*
 	 * if only BT0 at BTGA: 2-Ant, 3-Ant(BT1 used dedicated-ant)
@@ -3373,6 +3382,13 @@ static void rtw8922d_btc_set_rfe(struct rtw89_dev *rtwdev)
 
 	dm->ant_xmap[BTC_RF_S0][BTC_BT_EXT] = 0;
 	dm->ant_xmap[BTC_RF_S1][BTC_BT_EXT] = 0;
+
+	for (i = BTC_RF_S0; i <= BTC_RF_S1; i++)
+		for (j = BTC_BT_1ST; j <= BTC_BT_EXT; j++)
+			md->ant.ant_xmap[i][j] = dm->ant_xmap[i][j];
+
+	rtwdev->btc.btg_pos = md->ant.btg_pos;
+	rtwdev->btc.ant_type = md->ant.type;
 }
 
 static void rtw8922d_btc_init_cfg(struct rtw89_dev *rtwdev)

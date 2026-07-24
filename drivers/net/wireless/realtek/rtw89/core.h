@@ -1537,6 +1537,21 @@ struct rtw89_btc_ant_info_v10 {
 	u8 ant_xmap[2][4];
 } __packed;
 
+struct rtw89_btc_ant_info_v11 {
+	u8 type;
+	u8 num;
+	u8 isolation;
+	u8 single_pos;
+
+	u8 stream_cnt;
+	u8 path_pos;   /* WL path position: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;
+	u8 btg1_pos;
+	u8 func[5];
+	u8 ant_xmap[2][4];
+	u8 rsvd0[3];
+} __packed;
+
 struct rtw89_btc_ant_info {
 	u8 type;  /* shared, dedicated(non-shared) */
 	u8 num;   /* antenna count  */
@@ -1546,6 +1561,7 @@ struct rtw89_btc_ant_info {
 	u8 stream_cnt; /* spatial_stream count: Tx[7:4], Rx[3:0] */
 	u8 btg_pos;    /* BT0 btg-circuit at 0:WL-S0/1:WL-S1 */
 	u8 btg1_pos;   /* BT1 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 path_pos;   /* WL path position: Tx[7:4], Rx[3:0] */
 	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
 	u8 ant_xmap[2][4];
 
@@ -2387,10 +2403,25 @@ struct rtw89_btc_module_v10 {
 	struct rtw89_btc_ant_info_v10 ant;
 } __packed;
 
+struct rtw89_btc_module_v11 {
+	u8 rfe_type;
+	u8 wa_type;
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos;
+	u8 bt0_sw_type;
+	u8 bt1_pos;
+	u8 bt1_sw_type;
+
+	struct rtw89_btc_ant_info_v11 ant;
+} __packed;
+
 union rtw89_btc_module_info {
 	struct rtw89_btc_module_v0 md_v0;
 	struct rtw89_btc_module_v7 md_v7;
 	struct rtw89_btc_module_v10 md_v10;
+	struct rtw89_btc_module_v11 md_v11;
 };
 
 struct rtw89_btc_module {
@@ -2473,11 +2504,26 @@ struct rtw89_btc_init_info_v10 {
 	struct rtw89_btc_module_v10 module;
 } __packed;
 
+struct rtw89_btc_init_info_v11 {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	struct rtw89_btc_module_v11 module;
+};
+
 union rtw89_btc_init_info_u {
 	struct rtw89_btc_init_info_v0 init_v0;
 	struct rtw89_btc_init_info_v7 init_v7;
 	struct rtw89_btc_init_info_v10 init_v10;
 	struct rtw89_btc_init_info_v107 init_v107;
+	struct rtw89_btc_init_info_v11 init_v11;
 };
 
 struct rtw89_btc_init_info {
@@ -2547,6 +2593,7 @@ enum rtw89_btc_bt_func_type {
 #define RTW89_BTC_BT_DEF_BR_TX_PWR 4
 #define RTW89_BTC_BT_DEF_LE_TX_PWR 4
 #define RTW89_BTC_DEFAULT_ANISO 10
+#define RTW89_BTC_BT_DEF_LE_TX_PWR_1 10
 
 struct rtw89_btc_bt_scan_info_v1 {
 	__le16 win;
