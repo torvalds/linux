@@ -429,11 +429,9 @@ static int novatek_probe(struct mipi_dsi_device *dsi)
 		ctx->dsi[i]->mode_flags = desc->mode_flags;
 		ctx->dsi[i]->dsc = &ctx->dsc;
 		ret = devm_mipi_dsi_attach(dev, ctx->dsi[i]);
-		if (ret < 0) {
-			drm_panel_remove(&ctx->panel);
+		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "Failed to attach to DSI host\n");
-		}
 	}
 
 	if (desc->has_dcs_backlight) {
