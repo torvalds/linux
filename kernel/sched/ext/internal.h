@@ -2025,6 +2025,33 @@ extern struct scx_sched *scx_enabling_sub_sched;
 #define scx_error(sch, fmt, args...)						\
 	scx_exit((sch), SCX_EXIT_ERROR, 0, fmt, ##args)
 
+/**
+ * scx_root_protected_live - Root sched for paths that only run while live
+ *
+ * scx_root is published before the scheduler goes live and cleared only after
+ * it is fully drained, so a path that only executes while the scheduler is live
+ * can never race an update. Return the root sched with a plain load, never
+ * %NULL.
+ */
+static inline struct scx_sched *scx_root_protected_live(void)
+{
+	return rcu_dereference_protected(scx_root, true);
+}
+
+/**
+ * scx_root_protected - Root sched for contexts that exclude its updates
+ *
+ * Both scx_root updates run under the locks checked below, so holding one
+ * excludes them. Return the root sched with a plain load, %NULL if no scheduler
+ * is loaded.
+ */
+static inline struct scx_sched *scx_root_protected(void)
+{
+	return rcu_dereference_protected(scx_root,
+					 lockdep_is_cpus_held() ||
+					 lockdep_is_held(&scx_enable_mutex));
+}
+
 static inline struct scx_dispatch_q *scx_bypass_dsq(struct scx_sched *sch, s32 cpu)
 {
 	return &per_cpu_ptr(sch->pcpu, cpu)->bypass_dsq;

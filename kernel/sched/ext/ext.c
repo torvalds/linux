@@ -2798,7 +2798,7 @@ static inline void maybe_queue_balance_callback(struct rq *rq)
 
 static int balance_one(struct rq *rq, struct task_struct *prev)
 {
-	struct scx_sched *sch = scx_root;
+	struct scx_sched *sch = scx_root_protected_live();
 	s32 cpu = cpu_of(rq);
 
 	lockdep_assert_rq_held(rq);
@@ -2954,7 +2954,7 @@ preempt_reason_from_class(const struct sched_class *class)
 
 static void switch_class(struct rq *rq, struct task_struct *next)
 {
-	struct scx_sched *sch = scx_root;
+	struct scx_sched *sch = scx_root_protected_live();
 	const struct sched_class *next_class = next->sched_class;
 
 	if (!(sch->ops.flags & SCX_OPS_HAS_CPU_PREEMPT))
@@ -3345,7 +3345,7 @@ static void set_cpus_allowed_scx(struct task_struct *p,
 
 static void handle_hotplug(struct rq *rq, bool online)
 {
-	struct scx_sched *sch = scx_root;
+	struct scx_sched *sch = scx_root_protected();
 	s32 cpu = cpu_of(rq);
 	s32 cpu_or_cid = cpu;
 
@@ -3809,7 +3809,7 @@ int scx_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 #ifdef CONFIG_EXT_SUB_SCHED
 		struct scx_sched *sch = scx_cgroup_sched(kargs->cset->dfl_cgrp);
 #else
-		struct scx_sched *sch = scx_root;
+		struct scx_sched *sch = scx_root_protected_live();
 #endif
 		scx_set_task_state(p, SCX_TASK_INIT_BEGIN);
 		ret = __scx_init_task(sch, p, NULL, true);
@@ -5741,7 +5741,7 @@ void scx_disable_bypass_dsp(struct scx_sched *sch)
 static void unbypass_renotify_idle(struct rq *rq, struct scx_sched *pos,
 				   struct scx_sched_pcpu *pcpu)
 {
-	if (pos == scx_root) {
+	if (!pos->level) {
 		rq->scx.flags |= SCX_RQ_ROOT_IDLE_RENOTIFY;
 		return;
 	}
@@ -7109,7 +7109,7 @@ int scx_validate_ops(struct scx_sched *sch, const struct sched_ext_ops *ops)
 	 * enabled it.
 	 */
 	if ((ops->flags & SCX_OPS_TID_TO_TASK) && scx_parent(sch) &&
-	    !(scx_root->ops.flags & SCX_OPS_TID_TO_TASK)) {
+	    !(sch->ancestors[0]->ops.flags & SCX_OPS_TID_TO_TASK)) {
 		scx_error(sch, "SCX_OPS_TID_TO_TASK requires root scheduler to enable it");
 		return -EINVAL;
 	}

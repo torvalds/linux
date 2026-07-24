@@ -742,30 +742,29 @@ static void scx_idle_notify(struct rq *rq, bool idle, bool do_notify, bool root_
 {
 	s32 cpu = cpu_of(rq);
 	s32 cid = scx_cpu_arg(cpu);
+	struct scx_sched *root = scx_root_protected_live();
 	struct scx_sched *pos;
 
 	lockdep_assert_rq_held(rq);
 
 	/* with no sub-sched, only the root can be owed a notification */
 	if (!scx_has_subs()) {
-		struct scx_sched *sch = scx_root;
-
 		if ((do_notify || root_renotify) &&
-		    SCX_HAS_OP(sch, update_idle) && !scx_bypassing(sch, cpu))
-			SCX_CALL_OP(sch, update_idle, rq, cid, idle);
+		    SCX_HAS_OP(root, update_idle) && !scx_bypassing(root, cpu))
+			SCX_CALL_OP(root, update_idle, rq, cid, idle);
 		return;
 	}
 
-	pos = scx_next_descendant_pre(NULL, scx_root);
+	pos = scx_next_descendant_pre(NULL, root);
 	while (pos) {
 		bool forced = false;
 
 		if (unlikely(scx_missing_caps(pos, cpu, SCX_CAP_BASE))) {
-			pos = scx_skip_subtree_pre(pos, scx_root);
+			pos = scx_skip_subtree_pre(pos, root);
 			continue;
 		}
 
-		if (pos == scx_root) {
+		if (!pos->level) {
 			forced = root_renotify;
 		}
 #ifdef CONFIG_EXT_SUB_SCHED
@@ -777,7 +776,7 @@ static void scx_idle_notify(struct rq *rq, bool idle, bool do_notify, bool root_
 		if ((do_notify || forced) && SCX_HAS_OP(pos, update_idle) &&
 		    !scx_bypassing(pos, cpu))
 			SCX_CALL_OP(pos, update_idle, rq, cid, idle);
-		pos = scx_next_descendant_pre(pos, scx_root);
+		pos = scx_next_descendant_pre(pos, root);
 	}
 }
 
