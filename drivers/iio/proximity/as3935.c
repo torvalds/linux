@@ -428,10 +428,8 @@ static int as3935_probe(struct spi_device *spi)
 				dev_name(dev),
 				indio_dev);
 
-	if (ret) {
-		dev_err(dev, "unable to request irq\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret < 0) {

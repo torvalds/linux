@@ -638,12 +638,8 @@ static int vcnl3020_probe(struct i2c_client *client)
 					       NULL, vcnl3020_handle_irq_thread,
 					       IRQF_ONESHOT, indio_dev->name,
 					       indio_dev);
-		if (rc) {
-			dev_err(&client->dev,
-				"Error (%d) irq request failed (%u)\n", rc,
-				client->irq);
+		if (rc)
 			return rc;
-		}
 	}
 
 	return devm_iio_device_register(&client->dev, indio_dev);
