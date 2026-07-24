@@ -1469,6 +1469,10 @@ mt7915_mac_full_reset(struct mt7915_dev *dev)
 
 	mutex_unlock(&dev->mt76.mutex);
 
+	ieee80211_wake_queues(mt76_hw(dev));
+	if (ext_phy)
+		ieee80211_wake_queues(ext_phy->hw);
+
 	ieee80211_restart_hw(mt76_hw(dev));
 	if (ext_phy)
 		ieee80211_restart_hw(ext_phy->hw);

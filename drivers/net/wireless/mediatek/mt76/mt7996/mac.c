@@ -2512,6 +2512,8 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
 
 	mutex_unlock(&dev->mt76.mutex);
 
+	ieee80211_wake_queues(mt76_hw(dev));
+
 	ieee80211_restart_hw(mt76_hw(dev));
 }
 
