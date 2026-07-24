@@ -2647,10 +2647,19 @@ struct rtw89_btc_fbtc_btscan_v7 {
 	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
 } __packed;
 
+struct rtw89_btc_fbtc_btscan_v8 {
+	u8 fver; /* btc_ver::fcxbtscan */
+	u8 type;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
+	u8 rsvd1;
+	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
+} __packed;
+
 union rtw89_btc_fbtc_btscan {
 	struct rtw89_btc_fbtc_btscan_v1 v1;
 	struct rtw89_btc_fbtc_btscan_v2 v2;
 	struct rtw89_btc_fbtc_btscan_v7 v7;
+	struct rtw89_btc_fbtc_btscan_v8 v8;
 };
 
 struct rtw89_btc_bt_info {
@@ -3683,9 +3692,21 @@ struct rtw89_btc_fbtc_btver_v7 {
 	__le32 feature;
 } __packed;
 
+struct rtw89_btc_fbtc_btver_v8 {
+	u8 fver;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
+	u8 rsvd1;
+	u8 rsvd2;
+
+	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
+	__le32 fw_ver;
+	__le32 feature;
+} __packed;
+
 union rtw89_btc_fbtc_btver {
 	struct rtw89_btc_fbtc_btver_v1 v1;
 	struct rtw89_btc_fbtc_btver_v7 v7;
+	struct rtw89_btc_fbtc_btver_v8 v8;
 } __packed;
 
 struct rtw89_btc_fbtc_btafh {
@@ -3713,6 +3734,18 @@ struct rtw89_btc_fbtc_btafh_v7 {
 	u8 fver;
 	u8 map_type;
 	u8 rsvd0;
+	u8 rsvd1;
+	u8 afh_l[4]; /*bit0:2402, bit1:2403.... bit31:2433 */
+	u8 afh_m[4]; /*bit0:2434, bit1:2435.... bit31:2465 */
+	u8 afh_h[4]; /*bit0:2466, bit1:2467.....bit14:2480 */
+	u8 afh_le_a[4];
+	u8 afh_le_b[4];
+} __packed;
+
+struct rtw89_btc_fbtc_btafh_v8 {
+	u8 fver;
+	u8 map_type;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
 	u8 rsvd1;
 	u8 afh_l[4]; /*bit0:2402, bit1:2403.... bit31:2433 */
 	u8 afh_m[4]; /*bit0:2434, bit1:2435.... bit31:2465 */
@@ -4194,6 +4227,7 @@ union rtw89_btc_fbtc_btafh_info {
 	struct rtw89_btc_fbtc_btafh v1;
 	struct rtw89_btc_fbtc_btafh_v2 v2;
 	struct rtw89_btc_fbtc_btafh_v7 v7;
+	struct rtw89_btc_fbtc_btafh_v8 v8;
 };
 
 struct rtw89_btc_report_ctrl_state {

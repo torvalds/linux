@@ -1529,7 +1529,14 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 
 	switch (rpt_type) {
 	case BTC_RPT_TYPE_BT_VER:
-		if (ver->fcxbtver == 7) {
+		if (ver->fcxbtver == 8) {
+			pver->v8 = *(struct rtw89_btc_fbtc_btver_v8 *)pfinfo;
+			bt = pver->v8.bt_id ? &btc->cx.bt1 : &btc->cx.bt0;
+			bt->ver_info.fw = le32_to_cpu(pver->v8.fw_ver);
+			bt->ver_info.fw_coex = le32_get_bits(pver->v8.coex_ver,
+							     GENMASK(7, 0));
+			bt->feature = le32_to_cpu(pver->v8.feature);
+		} else if (ver->fcxbtver == 7) {
 			pver->v7 = *(struct rtw89_btc_fbtc_btver_v7 *)pfinfo;
 			bt->ver_info.fw = le32_to_cpu(pver->v7.fw_ver);
 			bt->ver_info.fw_coex = le32_get_bits(pver->v7.coex_ver,
@@ -1570,6 +1577,19 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 				    pscan_v7->para[i].intvl == 0)
 					scan_update = false;
 			}
+		} else if (ver->fcxbtscan == 8) {
+			struct rtw89_btc_fbtc_btscan_v8 *pscan_v8 =
+				(struct rtw89_btc_fbtc_btscan_v8 *)pfinfo;
+			struct rtw89_btc_bt_info *tbt =
+				pscan_v8->bt_id ? &btc->cx.bt1 : &btc->cx.bt0;
+
+			for (i = 0; i < CXSCAN_MAX; i++) {
+				tbt->scan_info_v2[i] = pscan_v8->para[i];
+				if ((pscan_v8->type & BIT(i)) &&
+				    pscan_v8->para[i].win == 0 &&
+				    pscan_v8->para[i].intvl == 0)
+					scan_update = false;
+			}
 		}
 		if (scan_update)
 			bt->scan_info_update = 1;
@@ -1596,6 +1616,22 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 			if (pafh_v7->map_type & RPT_BT_AFH_SEQ_LE) {
 				memcpy(&bt_linfo->afh_map_le[0], pafh_v7->afh_le_a, 4);
 				memcpy(&bt_linfo->afh_map_le[4], pafh_v7->afh_le_b, 1);
+			}
+		} else if (ver->fcxbtafh == 8) {
+			struct rtw89_btc_fbtc_btafh_v8 *pafh_v8 =
+				(struct rtw89_btc_fbtc_btafh_v8 *)pfinfo;
+			struct rtw89_btc_bt_info *tbt =
+				pafh_v8->bt_id ? &btc->cx.bt1 : &btc->cx.bt0;
+			struct rtw89_btc_bt_link_info *tbt_linfo = &tbt->link_info;
+
+			if (pafh_v8->map_type & RPT_BT_AFH_SEQ_LEGACY) {
+				memcpy(&tbt_linfo->afh_map[0], pafh_v8->afh_l, 4);
+				memcpy(&tbt_linfo->afh_map[4], pafh_v8->afh_m, 4);
+				memcpy(&tbt_linfo->afh_map[8], pafh_v8->afh_h, 2);
+			}
+			if (pafh_v8->map_type & RPT_BT_AFH_SEQ_LE) {
+				memcpy(&tbt_linfo->afh_map_le[0], pafh_v8->afh_le_a, 4);
+				memcpy(&tbt_linfo->afh_map_le[4], pafh_v8->afh_le_b, 1);
 			}
 		} else if (ver->fcxbtafh == 1) {
 			pafh_v1 = (struct rtw89_btc_fbtc_btafh *)pfinfo;
@@ -1882,6 +1918,12 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pfinfo = &pfwinfo->rpt_fbtc_btver.finfo.v7;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo.v7);
 			fwsubver->fcxbtver = pfwinfo->rpt_fbtc_btver.finfo.v7.fver;
+		} else if (ver->fcxbtver == 8) {
+			pfinfo = &pfwinfo->rpt_fbtc_btver.finfo.v8;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo.v8);
+			fwsubver->fcxbtver = pfwinfo->rpt_fbtc_btver.finfo.v8.fver;
+		} else {
+			goto err;
 		}
 		pcinfo->req_fver = ver->fcxbtver;
 		break;
@@ -1899,6 +1941,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v7;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v7);
 			fwsubver->fcxbtscan = pfwinfo->rpt_fbtc_btscan.finfo.v7.fver;
+		} else if (ver->fcxbtscan == 8) {
+			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v8;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v8);
+			fwsubver->fcxbtscan = pfwinfo->rpt_fbtc_btscan.finfo.v8.fver;
 		} else {
 			goto err;
 		}
@@ -1918,6 +1964,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v7;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v7);
 			fwsubver->fcxbtafh = pfwinfo->rpt_fbtc_btafh.finfo.v7.fver;
+		} else if (ver->fcxbtafh == 8) {
+			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v8;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v8);
+			fwsubver->fcxbtafh = pfwinfo->rpt_fbtc_btafh.finfo.v8.fver;
 		} else {
 			goto err;
 		}
