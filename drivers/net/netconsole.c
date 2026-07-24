@@ -48,6 +48,7 @@
 #include <linux/utsname.h>
 #include <linux/rtnetlink.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 
 MODULE_AUTHOR("Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
@@ -356,6 +357,20 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 	skb_queue_purge_reason(&nt->skb_pool, SKB_CONSUMED);
 }
 
+static void netcons_wait_carrier(struct netpoll *np, struct net_device *ndev)
+{
+	unsigned long atmost;
+
+	atmost = jiffies + netpoll_get_carrier_timeout() * HZ;
+	while (!netif_carrier_ok(ndev)) {
+		if (time_after(jiffies, atmost)) {
+			np_notice(np, "timeout waiting for carrier\n");
+			break;
+		}
+		msleep(1);
+	}
+}
+
 /*
  * Returns a pointer to a string representation of the identifier used
  * to select the egress interface for the given netpoll instance. buf
@@ -504,7 +519,7 @@ static int netcons_netpoll_setup(struct netconsole_target *nt)
 		}
 
 		rtnl_unlock();
-		netpoll_wait_carrier(np, ndev);
+		netcons_wait_carrier(np, ndev);
 		rtnl_lock();
 	}
 

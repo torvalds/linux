@@ -392,21 +392,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(__netpoll_setup);
 
-void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev)
-{
-	unsigned long atmost;
-
-	atmost = jiffies + carrier_timeout * HZ;
-	while (!netif_carrier_ok(ndev)) {
-		if (time_after(jiffies, atmost)) {
-			np_notice(np, "timeout waiting for carrier\n");
-			break;
-		}
-		msleep(1);
-	}
-}
-EXPORT_SYMBOL_GPL(netpoll_wait_carrier);
-
 static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 {
 	struct netpoll_info *npinfo =
