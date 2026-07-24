@@ -8675,13 +8675,14 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
 	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	struct ieee80211_p2p_noa_attr *noa_attr;
+	struct ieee80211_p2p_noa_desc *noa_desc;
 	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_link_sta *link_sta;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info r = {0};
-	struct rtw89_btc_wl_link_info *wlinfo = NULL;
-	u8 mode = 0;
+	u8 i, mode = 0;
 
 	rcu_read_lock();
 
@@ -8729,34 +8730,60 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], wifi_role=%d\n", rtwvif_link->wifi_role);
 
-	wlinfo = &wl->rlink_info[rtwvif_link->port][rtwvif_link->phy_idx];
+	if (vif->type == NL80211_IFTYPE_P2P_GO ||
+	    vif->type == NL80211_IFTYPE_P2P_CLIENT) {
+		noa_attr = &bss_conf->p2p_noa_attr;
 
-	wlinfo->mode = mode;
-	wlinfo->role = rtwvif_link->wifi_role;
-	wlinfo->phy = rtwvif_link->phy_idx;
-	wlinfo->pid = rtwvif_link->port;
-	wlinfo->active = true;
-	wlinfo->connected = MLME_LINKED;
-	wlinfo->bcn_period = bss_conf->beacon_int;
-	wlinfo->dtim_period = bss_conf->dtim_period;
-	wlinfo->band = chan->band_type;
-	wlinfo->ch = chan->channel;
-	wlinfo->bw = chan->band_width;
-	wlinfo->chdef.band = chan->band_type;
-	wlinfo->chdef.center_ch = chan->channel;
-	wlinfo->chdef.bw = chan->band_width;
-	wlinfo->chdef.chan = chan->primary_channel;
-	ether_addr_copy(r.mac_addr, rtwvif_link->mac_addr);
+		for (i = 0; i < RTW89_P2P_MAX_NOA_NUM; i++) {
+			noa_desc = &noa_attr->desc[i];
+			if (noa_desc->count != 0) {
+				r.noa = 1;
+				r.noa_duration = le32_to_cpu(noa_desc->duration);
+				break;
+			}
+		}
+	}
+
+	r.mode = mode;
+	r.role = rtwvif_link->wifi_role;
+	r.phy = rtwvif_link->phy_idx;
+	r.pid = rtwvif_link->port;
+	r.active = true;
+	if (vif->active_links) {
+		if (rtwvif_link->link_id < 16)
+			r.active = !!(vif->active_links & BIT(rtwvif_link->link_id));
+	}
+	r.bcn_period = bss_conf->beacon_int;
+	r.dtim_period = bss_conf->dtim_period;
+	r.band = chan->band_type;
+	r.ch = chan->channel;
+	r.bw = chan->band_width;
+	r.chdef.band = chan->band_type;
+	r.chdef.center_ch = chan->channel;
+	r.chdef.bw = chan->band_width;
+	r.chdef.chan = chan->primary_channel;
+
+	if (rtwsta_link && vif->type == NL80211_IFTYPE_STATION) {
+		r.mac_id = rtwsta_link->mac_id;
+		ether_addr_copy(r.mac_addr, rtwvif_link->mac_addr);
+	}
+
+	switch (state) {
+	case BTC_ROLE_MSTS_STA_CONN_END:
+	case BTC_ROLE_MSTS_AP_START:
+		r.connected = MLME_LINKED;
+		break;
+	default:
+		r.connected = MLME_NO_LINK;
+		break;
+	}
 
 	rcu_read_unlock();
 
-	if (rtwsta_link && vif->type == NL80211_IFTYPE_STATION)
-		wlinfo->mac_id = rtwsta_link->mac_id;
-
 	btc->dm.cnt_notify[BTC_NCNT_ROLE_INFO]++;
 
-	if (wlinfo->role == RTW89_WIFI_ROLE_STATION &&
-	    wlinfo->connected == MLME_NO_LINK)
+	if (r.role == RTW89_WIFI_ROLE_STATION &&
+	    r.connected == MLME_NO_LINK)
 		btc->dm.leak_ap = 0;
 
 	if (state == BTC_ROLE_MSTS_STA_CONN_START) {
@@ -8774,7 +8801,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	    state == BTC_ROLE_MSTS_STA_CONN_END)
 		wl->status.map._4way = false;
 
-	_update_wl_info(rtwdev, wlinfo);
+	_update_wl_info(rtwdev, &r);
 
 	_run_coex(rtwdev, BTC_RSN_NTFY_ROLE_INFO);
 }
