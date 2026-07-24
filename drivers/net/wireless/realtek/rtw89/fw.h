@@ -2391,6 +2391,16 @@ enum rtw89_btc_cxdrvinfo {
 	CXDRVINFO_MAX,
 };
 
+enum rtw89_fbtc_gpio_type {
+	CXDGPIO_EN_MAP = 0x0,
+	CXDGPIO_MUX_MAP = 0x1,
+	CXDGPIO_EXT_HPTA = 0x2,
+	CXDGPIO_EXT_HMBX = 0x3,
+	CXDGPIO_EXT_SWOUT = 0x4,
+	CXDGPIO_EXT_SWIN = 0x5,
+	CXDGPIO_MAX,
+};
+
 enum rtw89_scan_mode {
 	RTW89_SCAN_IMMEDIATE,
 	RTW89_SCAN_DELAY,

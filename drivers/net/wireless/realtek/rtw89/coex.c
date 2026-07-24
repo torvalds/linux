@@ -3206,6 +3206,212 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 		rtw89_set_coex_ctrl_lps(rtwdev, btc->btc_ctrl_lps);
 }
 
+static u8 _get_gpiosig_for_ver(struct rtw89_dev *rtwdev, u8 sig_v8)
+{
+	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
+
+	/* v8: gpio_ver >= 8, directly use v8 signal ID */
+	if (ver->fcxgpiodbg >= 8)
+		return sig_v8;
+
+	/* v7: gpio_ver < 8, convert v8 signal ID to v7 signal ID */
+	if (sig_v8 <= BTC_DBG_GNT_WL) {
+		return sig_v8;
+	} else if (sig_v8 <= BTC_DBG_GNT_WL1) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): sig %d not supported in v7\n",
+			    __func__, sig_v8);
+		return BTC_DBG_NUM;
+	} else if (sig_v8 >= BTC_DBG_NUM) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(): sig %d not available\n",
+			    __func__, sig_v8);
+		return BTC_DBG_NUM;
+	} else {
+		return sig_v8 - 2;
+	}
+}
+
+static u32 _convert_gpio_enmap_to_ver(struct rtw89_dev *rtwdev, u32 en_map_v8)
+{
+	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
+	u32 en_map_v7 = 0;
+	u32 bit;
+
+	/* v8: gpio_ver >= 8, directly use v8 en_map */
+	if (ver->fcxgpiodbg >= 8)
+		return en_map_v8;
+
+	/* v7: gpio_ver < 8, convert v8 en_map bitmap to v7 en_map bitmap */
+	/* bit 0-1: GNT_BT, GNT_WL - same position in both versions */
+	en_map_v7 |= en_map_v8 & GENMASK(1, 0);
+
+	/* bit 2-3: GNT_BT1, GNT_WL1 - not supported in v7, skip these bits */
+
+	/* bit 4-31: shift right by 2 positions (become bit 2-29 in v7) */
+	for (bit = BTC_DBG_BCN_EARLY; bit < BTC_DBG_NUM; bit++) {
+		if (en_map_v8 & BIT(bit))
+			en_map_v7 |= BIT(bit - 2);
+	}
+
+	return en_map_v7;
+}
+
+static u32 _convert_gpio_enmap_from_ver(struct rtw89_dev *rtwdev, u32 en_map)
+{
+	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
+	u32 en_map_v8 = 0;
+	u32 bit;
+
+	if (ver->fcxgpiodbg >= 8)
+		return en_map;
+
+	/* bit 0-1: GNT_BT, GNT_WL - same position in both versions */
+	en_map_v8 |= en_map & GENMASK(1, 0);
+
+	/* bit 2-29: shift left by 2 positions (become bit 4-31 in v8) */
+	for (bit = BTC_DBG_GNT_BT1; bit < BTC_DBG_NUM - 2; bit++) {
+		if (en_map & BIT(bit))
+			en_map_v8 |= BIT(bit + 2);
+	}
+
+	return en_map_v8;
+}
+
+static void _fw_set_gpio(struct rtw89_dev *rtwdev, u8 type, u32 val)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_fbtc_h2c_set_gpio *gpio = &btc->gpio;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	struct rtw89_fbtc_h2c_set_gpio_2b l2_h2c;
+	struct rtw89_fbtc_h2c_set_gpio_4b l4_h2c;
+	u8 gpio_ver = ver->fcxgpiodbg;
+	u8 buf[sizeof(l4_h2c)];
+	u8 len;
+
+	if (gpio_ver < 8 && type > CXDGPIO_MUX_MAP)
+		return;
+
+	if (type >= CXDGPIO_MAX)
+		return;
+
+	switch (type) {
+	case CXDGPIO_EN_MAP: /* GPIO debug signal en-map 0~31 */
+		val = _convert_gpio_enmap_to_ver(rtwdev, val);
+		gpio->en_map.data.type = CXDGPIO_EN_MAP;
+		gpio->en_map.data.fver = gpio_ver;
+		gpio->en_map.data.dlen = CXDGPIO_SET_L4;
+		gpio->en_map.data.en_map = val;
+		l4_h2c = gpio->en_map.fmt;
+		put_unaligned_le32(val, (u32 *)l4_h2c.data);
+		memcpy(buf, &l4_h2c, sizeof(l4_h2c));
+		len = sizeof(l4_h2c);
+		break;
+	case CXDGPIO_MUX_MAP: /* GPIO dbg: Signal to GPIO Mux */
+		gpio->mux.data.type = CXDGPIO_MUX_MAP;
+		gpio->mux.data.fver = gpio_ver;
+		gpio->mux.data.dlen = CXDGPIO_SET_L2;
+		gpio->mux.data.sig = _get_gpiosig_for_ver(rtwdev,
+							  FIELD_GET(GENMASK(7, 0), val));
+		if (gpio->mux.data.sig == 0xff)
+			return;
+		gpio->mux.data.gpio = FIELD_GET(GENMASK(15, 8), val);
+		l2_h2c = gpio->mux.fmt;
+		memcpy(buf, &l2_h2c, sizeof(l2_h2c));
+		len = sizeof(l2_h2c);
+		break;
+	case CXDGPIO_EXT_HPTA: /* GPIO config for Ext HW-PTA */
+		gpio->ext_pta.data.type = CXDGPIO_EXT_HPTA;
+		gpio->ext_pta.data.fver = gpio_ver;
+		gpio->ext_pta.data.dlen = CXDGPIO_SET_L2;
+		gpio->ext_pta.data.map_low = FIELD_GET(GENMASK(7, 0), val);
+		gpio->ext_pta.data.map_high = FIELD_GET(GENMASK(15, 8), val);
+		l2_h2c = gpio->ext_pta.fmt;
+		memcpy(buf, &l2_h2c, sizeof(l2_h2c));
+		len = sizeof(l2_h2c);
+		break;
+	case CXDGPIO_EXT_HMBX: /* GPIO config for Ext HW-mailbox */
+		gpio->ext_mb.data.type = CXDGPIO_EXT_HMBX;
+		gpio->ext_mb.data.fver = gpio_ver;
+		gpio->ext_mb.data.dlen = CXDGPIO_SET_L2;
+		gpio->ext_mb.data.map_low = FIELD_GET(GENMASK(7, 0), val);
+		gpio->ext_mb.data.map_high = FIELD_GET(GENMASK(15, 8), val);
+		l2_h2c = gpio->ext_mb.fmt;
+		memcpy(buf, &l2_h2c, sizeof(l2_h2c));
+		len = sizeof(l2_h2c);
+		break;
+	case CXDGPIO_EXT_SWOUT: /* GPIO config for Ext SW output (wlan_act) */
+		gpio->ext_swout.data.type = CXDGPIO_EXT_SWOUT;
+		gpio->ext_swout.data.fver = gpio_ver;
+		gpio->ext_swout.data.dlen = CXDGPIO_SET_L2;
+		gpio->ext_swout.data.map_low = FIELD_GET(GENMASK(7, 0), val);
+		gpio->ext_swout.data.map_high = FIELD_GET(GENMASK(15, 8), val);
+		l2_h2c = gpio->ext_swout.fmt;
+		memcpy(buf, &l2_h2c, sizeof(l2_h2c));
+		len = sizeof(l2_h2c);
+		break;
+	case CXDGPIO_EXT_SWIN: /* GPIO config for Ext SW input control */
+		gpio->ext_swin.data.type = CXDGPIO_EXT_SWIN;
+		gpio->ext_swin.data.fver = gpio_ver;
+		gpio->ext_swin.data.dlen = CXDGPIO_SET_L4;
+		gpio->ext_swin.data.in_map_low = FIELD_GET(GENMASK(7, 0), val);
+		gpio->ext_swin.data.in_map_high = FIELD_GET(GENMASK(15, 8), val);
+		gpio->ext_swin.data.int_map_low = FIELD_GET(GENMASK(23, 16), val);
+		gpio->ext_swin.data.int_map_high = FIELD_GET(GENMASK(31, 24), val);
+		l4_h2c = gpio->ext_swin.fmt;
+		put_unaligned_le32(val, (u32 *)l4_h2c.data);
+		memcpy(buf, &l4_h2c, sizeof(l4_h2c));
+		len = sizeof(l4_h2c);
+		break;
+	default:
+		return;
+	}
+
+	_send_fw_cmd(rtwdev, BTFC_SET, SET_GPIO_DBG, buf, len);
+}
+
+static void _set_ext_interface(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	u8 bt1_sw_type = BTC_SWITCH_INTERNAL;
+	u32 val;
+
+	if (btc->ver->fcxgpiodbg < 7)
+		return;
+
+	/* if BT1+WL-S0, route DBG_GNT_BT1 to control SPDT */
+	if ((rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT) &&
+	    btc->ver->fcxinit >= 10) {
+		if (btc->ver->fcxinit >= 10)
+			bt1_sw_type = btc->mdinfo.bt1_sw_type;
+		else
+			return;
+
+		if (bt1_sw_type > BTC_SWITCH_INTERNAL) {
+			_fw_set_gpio(rtwdev, CXDGPIO_EN_MAP,
+				     BIT(BTC_DBG_GNT_BT1));
+
+			val = (bt1_sw_type << 8) + BTC_DBG_GNT_BT1;
+			_fw_set_gpio(rtwdev, CXDGPIO_MUX_MAP, val);
+		}
+	}
+
+	/* set GPIO as Ext-PTA interface wire */
+	if (cx->bt_ext.hw_coex & BTC_EXTSOC_INTF_PTA)
+		_fw_set_gpio(rtwdev, CXDGPIO_EXT_HPTA, cx->bt_ext.hpta_cfg);
+
+	/* set GPIO as Ext-mailbox interface wire */
+	if (cx->bt_ext.hw_coex & BTC_EXTSOC_INTF_MBX)
+		_fw_set_gpio(rtwdev, CXDGPIO_EXT_HMBX, cx->bt_ext.hmbx_cfg);
+
+	/* set GPIO as Ext-SWIO interface wire */
+	if (cx->bt_ext.hw_coex & BTC_EXTSOC_INTF_SWIO) {
+		_fw_set_gpio(rtwdev, CXDGPIO_EXT_SWOUT, cx->bt_ext.swout_cfg);
+		_fw_set_gpio(rtwdev, CXDGPIO_EXT_SWIN, cx->bt_ext.swin_cfg);
+	}
+}
+
 static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -8251,6 +8457,7 @@ static void _set_init_info(struct rtw89_dev *rtwdev)
 	_fw_set_drv_info(rtwdev, CXDRVINFO_CTRL);
 	rtw89_btc_fw_set_slots(rtwdev);
 	btc_fw_set_monreg(rtwdev);
+	_set_ext_interface(rtwdev);
 	_set_wl_tx_power(rtwdev, RTW89_BTC_WL_DEF_TX_PWR, RTW89_PHY_0);
 }
 
@@ -9779,6 +9986,8 @@ static const char *id_to_gdbg(u32 id)
 	switch (id) {
 	CASE_BTC_GDBG_STR(GNT_BT);
 	CASE_BTC_GDBG_STR(GNT_WL);
+	CASE_BTC_GDBG_STR(GNT_BT1);
+	CASE_BTC_GDBG_STR(GNT_WL1);
 	CASE_BTC_GDBG_STR(BCN_EARLY);
 	CASE_BTC_GDBG_STR(WL_NULL0);
 	CASE_BTC_GDBG_STR(WL_NULL1);
@@ -9807,8 +10016,6 @@ static const char *id_to_gdbg(u32 id)
 	CASE_BTC_GDBG_STR(SLOT_B1FDD);
 	CASE_BTC_GDBG_STR(BT_CHANGE);
 	CASE_BTC_GDBG_STR(WL_CCA);
-	CASE_BTC_GDBG_STR(BT_LEAUDIO);
-	CASE_BTC_GDBG_STR(USER_DEF);
 	default:
 		return "unknown";
 	}
@@ -11487,8 +11694,8 @@ static int _show_gpio_dbg(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	union rtw89_btc_fbtc_gpio_dbg *gdbg = NULL;
 	char *p = buf, *end = buf + bufsz;
-	u8 *gpio_map, i;
-	u32 en_map;
+	u32 en_map_raw, en_map;
+	u8 *gpio_map, i, sig;
 
 	pcinfo = &pfwinfo->rpt_fbtc_gpio_dbg.cinfo;
 	gdbg = &rtwdev->btc.fwinfo.rpt_fbtc_gpio_dbg.finfo;
@@ -11499,27 +11706,32 @@ static int _show_gpio_dbg(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 		goto out;
 	}
 
-	if (ver->fcxgpiodbg == 7) {
-		en_map = le32_to_cpu(gdbg->v7.en_map);
+	if (ver->fcxgpiodbg == 7 || ver->fcxgpiodbg == 8) {
+		en_map_raw = le32_to_cpu(gdbg->v7.en_map);
 		gpio_map = gdbg->v7.gpio_map;
 	} else {
-		en_map = le32_to_cpu(gdbg->v1.en_map);
+		en_map_raw = le32_to_cpu(gdbg->v1.en_map);
 		gpio_map = gdbg->v1.gpio_map;
 	}
 
+	en_map = _convert_gpio_enmap_from_ver(rtwdev, en_map_raw);
 	if (!en_map)
 		goto out;
 
-	p += scnprintf(p, end - p, " %-15s : enable_map:0x%08x",
+	p += scnprintf(p, end - p, "\n\r %-15s : enable_map:0x%08x",
 		       "[gpio_dbg]", en_map);
 
-	for (i = 0; i < BTC_DBG_MAX1; i++) {
+	for (i = 0; i < BTC_DBG_NUM; i++) {
 		if (!(en_map & BIT(i)))
 			continue;
+
+		sig = ver->fcxgpiodbg >= 8 ? i : _get_gpiosig_for_ver(rtwdev, i);
+		if (sig >= BTC_DBG_NUM)
+			continue;
+
 		p += scnprintf(p, end - p, ", %s->GPIO%d", id_to_gdbg(i),
-			       gpio_map[i]);
+			       gpio_map[sig]);
 	}
-	p += scnprintf(p, end - p, "\n");
 
 out:
 	return p - buf;

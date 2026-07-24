@@ -3074,14 +3074,55 @@ enum rtw89_btc_afh_map_type { /*AFH MAP TYPE */
 	RPT_BT_AFH_SEQ_LE = 0x20
 };
 
-#define BTC_DBG_MAX1  32
+enum btc_wl_gpio_debug {
+	BTC_DBG_GNT_BT = 0,
+	BTC_DBG_GNT_WL = 1,
+	BTC_DBG_GNT_BT1 = 2,
+	BTC_DBG_GNT_WL1 = 3,
+	/* The following signals should 0-1 tiggle by each function-call */
+	BTC_DBG_BCN_EARLY = 4,
+	BTC_DBG_WL_NULL0 = 5,
+	BTC_DBG_WL_NULL1 = 6,
+	BTC_DBG_WL_RXISR = 7,
+	BTC_DBG_TDMA_ENTRY = 8,
+	BTC_DBG_A2DP_EMPTY = 9,
+	BTC_DBG_BT_RETRY = 10,
+	/* The following signals should 0-1 tiggle by state L/H */
+	BTC_DBG_BT_RELINK = 11,
+	BTC_DBG_SLOT_WL = 12,
+	BTC_DBG_SLOT_BT = 13,
+	/* The following signals should 0-1 tiggle by external*/
+	BTC_DBG_WL_ERR = 14,
+	BTC_DBG_WL_OK = 15,
+	/* The following signals appear only 1-active at same time*/
+	BTC_DBG_SLOT_B2W = 16,
+	BTC_DBG_SLOT_W1 = 17,
+	BTC_DBG_SLOT_W2 = 18,
+	BTC_DBG_SLOT_W2B = 19,
+	BTC_DBG_SLOT_B1 = 20,
+	BTC_DBG_SLOT_B2 = 21,
+	BTC_DBG_SLOT_B3 = 22,
+	BTC_DBG_SLOT_B4 = 23,
+	BTC_DBG_SLOT_LK = 24,
+	BTC_DBG_SLOT_E2G = 25,
+	BTC_DBG_SLOT_E5G = 26,
+	BTC_DBG_SLOT_EBT = 27,
+	BTC_DBG_SLOT_WLK = 28,
+	BTC_DBG_SLOT_B1FDD = 29,
+	BTC_DBG_BT_CHANGE = 30,
+	/* The following signals should 0-1 tiggle by external*/
+	BTC_DBG_WL_CCA = 31,
+
+	BTC_DBG_NUM,
+};
+
 struct rtw89_btc_fbtc_gpio_dbg_v1 {
 	u8 fver; /* btc_ver::fcxgpiodbg */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
 	__le32 pre_state; /* the debug signal is 1 or 0  */
-	u8 gpio_map[BTC_DBG_MAX1]; /*the debug signals to GPIO-Position */
+	u8 gpio_map[BTC_DBG_NUM]; /*the debug signals to GPIO-Position */
 } __packed;
 
 struct rtw89_btc_fbtc_gpio_dbg_v7 {
@@ -3090,7 +3131,7 @@ struct rtw89_btc_fbtc_gpio_dbg_v7 {
 	u8 rsvd1;
 	u8 rsvd2;
 
-	u8 gpio_map[BTC_DBG_MAX1];
+	u8 gpio_map[BTC_DBG_NUM];
 
 	__le32 en_map;
 	__le32 pre_state;
@@ -3099,6 +3140,120 @@ struct rtw89_btc_fbtc_gpio_dbg_v7 {
 union rtw89_btc_fbtc_gpio_dbg {
 	struct rtw89_btc_fbtc_gpio_dbg_v1 v1;
 	struct rtw89_btc_fbtc_gpio_dbg_v7 v7;
+};
+
+/*
+ * SET_GPIO_CTRL payload (max len = 7 bytes)
+ *
+ * type = CXDGPIO_EN_MAP
+ *   data.val[31:0] = debug signal enable map
+ *
+ * type = CXDGPIO_MUX_MAP
+ *   data.mux.sig  = debug signal id
+ *   data.mux.gpio = GPIO id
+ *
+ * type = CXDGPIO_EXT_HPTA / CXDGPIO_EXT_HMBX / CXDGPIO_EXT_SWOUT
+ *   data.map.map_low  = GPIO 7~0 map
+ *   data.map.map_high = GPIO 15~8 map
+ *
+ * type = CXDGPIO_EXT_SWIN
+ *   data.swin.in_map_low  = GPIO 7~0 input-en-map
+ *   data.swin.in_map_high = GPIO 15~8 input-en-map
+ *   data.swin.int_map_low = GPIO 7~0 interrupt source map
+ *   data.swin.int_map_high = GPIO 15~8 interrupt source map
+ */
+#define CXDGPIO_SET_L4 4
+#define CXDGPIO_SET_L2 2
+struct rtw89_fbtc_h2c_set_gpio_en_map {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u32 en_map;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_mux {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 sig;
+	u8 gpio;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_pta {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_mb {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_swout {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_swin {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 in_map_low;
+	u8 in_map_high;
+	u8 int_map_low;
+	u8 int_map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_2b {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 data[CXDGPIO_SET_L2];
+} __packed;
+
+struct rtw89_fbtc_h2c_set_gpio_4b {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 data[CXDGPIO_SET_L4];
+} __packed;
+
+union rtw89_fbtc_h2c_set_gpio_en_map_u {
+	struct rtw89_fbtc_h2c_set_gpio_4b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_en_map data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_mux_u {
+	struct rtw89_fbtc_h2c_set_gpio_2b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_mux data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_ext_pta_u {
+	struct rtw89_fbtc_h2c_set_gpio_2b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_ext_pta data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_ext_swin_u {
+	struct rtw89_fbtc_h2c_set_gpio_4b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_ext_swin data;
+};
+
+struct rtw89_fbtc_h2c_set_gpio {
+	union rtw89_fbtc_h2c_set_gpio_en_map_u en_map;
+	union rtw89_fbtc_h2c_set_gpio_mux_u mux;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_pta;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_mb;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_swout;
+	union rtw89_fbtc_h2c_set_gpio_ext_swin_u ext_swin;
 };
 
 struct rtw89_btc_fbtc_mreg_val_v1 {
@@ -4178,6 +4333,7 @@ struct rtw89_btc {
 	struct rtw89_btc_module mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
+	struct rtw89_fbtc_h2c_set_gpio gpio;
 
 	struct wiphy_work eapol_notify_work;
 	struct wiphy_work arp_notify_work;
