@@ -1636,11 +1636,11 @@ __power_supply_register(struct device *parent,
 	if (rc)
 		goto register_thermal_failed;
 
-	rc = power_supply_create_triggers(psy);
-	if (rc)
-		goto create_triggers_failed;
-
 	scoped_guard(rwsem_read, &psy->extensions_sem) {
+		rc = power_supply_create_triggers(psy);
+		if (rc)
+			goto create_triggers_failed;
+
 		rc = power_supply_add_hwmon_sysfs(psy);
 		if (rc)
 			goto add_hwmon_sysfs_failed;
