@@ -620,31 +620,48 @@ dput_and_out:
 
 SYSCALL_DEFINE2(fchroot, int, fd, unsigned int, flags)
 {
+	struct path path;
 	int error;
 
 	if (flags)
 		return -EINVAL;
 
-	CLASS(fd_raw, f)(fd);
-	if (fd_empty(f))
-		return -EBADF;
+	if (fd == FD_FAILFS_ROOT) {
+		if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT)) {
+			if (!task_no_new_privs(current))
+				return -EPERM;
+			/* A shared fs_struct lets a sibling exec setuid past the check above. */
+			if (current->fs->users != 1)
+				return -EINVAL;
+			/* Moving the root to failfs lifts the old root's ".." barrier. */
+			if (current_chrooted())
+				return -EPERM;
+		}
+		failfs_get_root(&path);
+	} else {
+		CLASS(fd_raw, f)(fd);
+		if (fd_empty(f))
+			return -EBADF;
 
-	if (!d_can_lookup(fd_file(f)->f_path.dentry))
-		return -ENOTDIR;
+		if (!d_can_lookup(fd_file(f)->f_path.dentry))
+			return -ENOTDIR;
 
-	error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
-	if (error)
-		return error;
+		error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
+		if (error)
+			return error;
 
-	if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT))
-		return -EPERM;
+		if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT))
+			return -EPERM;
 
-	error = security_path_chroot(&fd_file(f)->f_path);
-	if (error)
-		return error;
+		path = fd_file(f)->f_path;
+		path_get(&path);
+	}
 
-	set_fs_root(current->fs, &fd_file(f)->f_path);
-	return 0;
+	error = security_path_chroot(&path);
+	if (!error)
+		set_fs_root(current->fs, &path);
+	path_put(&path);
+	return error;
 }
 
 int chmod_common(const struct path *path, umode_t mode)
