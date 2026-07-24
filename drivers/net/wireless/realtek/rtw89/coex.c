@@ -1073,6 +1073,7 @@ static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 		}
 
 		btc->fwinfo.cnt_h2c++;
+		return 0;
 	} else { /* Fill H2C MACRO buffer(TLV format) temporarily */
 		if (btc->hbuf_cnt == 0)
 			_reset_h2c_macro(btc);
@@ -3500,6 +3501,8 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 
 		if (ver->fcxctrl == 7)
 			rtw89_fw_h2c_cxdrv_ctrl_v7(rtwdev, index);
+		else if (ver->fcxctrl == 9)
+			rtw89_fw_h2c_cxdrv_ctrl_v9(rtwdev, index);
 		else
 			rtw89_fw_h2c_cxdrv_ctrl(rtwdev, index);
 		break;
@@ -3893,7 +3896,7 @@ static void _set_bt_tx_power(struct rtw89_dev *rtwdev, bool force_exec, u8 bid,
 		if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
 			len = SET_RF_PARA_AX_LEN;
 
-		if (_send_fw_cmd(rtwdev, BTFC_SET, h2c_func, buf, len)) {
+		if (!_send_fw_cmd(rtwdev, BTFC_SET, h2c_func, buf, len)) {
 			btc->dm.rf_trx_para.bt_tx_power[i] = level;
 			if (rf_band == RTW89_BAND_2G)
 				bt->tx_power_now = level;
