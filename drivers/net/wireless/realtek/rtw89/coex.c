@@ -7233,6 +7233,7 @@ static void _update_wl_non_mlo_info(struct rtw89_dev *rtwdev)
 		mode = _chk_dbcc(rtwdev, cid_ch, cid_phy, cid_role, cnt, notv10);
 		mode_v0 = wl_rinfo->link_mode_v0;
 	} else if (!b2g && b5g && notv10) {
+		mode = _get_role_link_mode(wl_rinfo, cid_role[0], notv10);
 		mode_v0 = BTC_WLINK_V0_5G;
 	} else if (b2g && b5g) {
 		mode = BTC_WLINK_DB_MCC;
@@ -7247,6 +7248,7 @@ static void _update_wl_non_mlo_info(struct rtw89_dev *rtwdev)
 		}
 	} else {
 		mode = _get_role_link_mode(wl_rinfo, cid_role[0], notv10);
+		mode_v0 = wl_rinfo->link_mode_v0;
 	}
 
 	wl_rinfo->link_mode = mode;
@@ -8667,6 +8669,78 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	_run_coex(rtwdev, BTC_RSN_UPDATE_BT_INFO);
 }
 
+static void _ntfy_role_info(struct rtw89_dev *rtwdev, u8 rid,
+			    struct rtw89_btc_wl_link_info *info,
+			    enum btc_role_state reason)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_link_info *wlinfo = NULL;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	const struct rtw89_btc_ver *ver = btc->ver;
+	u8 rlink_id = info->phy; /* 1 role_id has 2 rlink_id(by HW_Band0/1) */
+	bool refresh_role = false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s(), role_id=%d, reason=%d\n",
+		    __func__, rid, reason);
+
+	if (rid >= ver->max_role_num || rlink_id >= RTW89_PHY_NUM)
+		return;
+
+	btc->dm.cnt_notify[BTC_NCNT_ROLE_INFO]++;
+
+	wlinfo = &wl->rlink_info[rid][rlink_id];
+	memcpy(wlinfo, info, sizeof(struct rtw89_btc_wl_link_info));
+
+	switch (reason) {
+	case BTC_ROLE_START:
+		wlinfo->active = true;
+		return;
+	case BTC_ROLE_STOP:
+		wlinfo->active = false;
+		return;
+	case BTC_ROLE_MSTS_STA_CONN_START:
+		wl->status.map.transacting = 1;
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy,
+					  &rtwdev->coex_act1_work);
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->coex_act1_work,
+					 RTW89_COEX_ACT1_WORK_PERIOD);
+		break;
+	case BTC_ROLE_MSTS_STA_CONN_END:
+		wl->status.map.transacting = 0;
+		refresh_role = true;
+		break;
+	case BTC_ROLE_MSTS_STA_DIS_CONN:
+		wl->status.map.transacting = 1;
+		refresh_role = false;
+		wiphy_delayed_work_cancel(rtwdev->hw->wiphy,
+					  &rtwdev->coex_act1_work);
+		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
+					 &rtwdev->coex_act1_work,
+					 RTW89_COEX_ACT1_WORK_PERIOD);
+		break;
+	case BTC_ROLE_MSTS_AP_START:
+	case BTC_ROLE_MSTS_AP_STOP:
+		refresh_role = true;
+		break;
+	case BTC_ROLE_STATE_UNKNOWN:
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s(), role_id=%d, Unknown reason return!\n",
+			    __func__, rid);
+		return;
+	default:
+		return;
+	}
+
+	if (refresh_role) {
+		_update_wl_info(rtwdev, wlinfo);
+		_fw_set_drv_info(rtwdev, CXDRVINFO_ROLE);
+	}
+
+	_run_coex(rtwdev, BTC_RSN_NTFY_ROLE_INFO);
+}
+
 void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      struct rtw89_sta_link *rtwsta_link,
@@ -8679,20 +8753,20 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_p2p_noa_desc *noa_desc;
 	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_link_sta *link_sta;
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_link_info r = {0};
-	u8 i, mode = 0;
+	u8 i, role_id, mode = 0;
 
 	rcu_read_lock();
 
 	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
 
+	role_id = rtwvif_link->port;
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], state=%d\n", state);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], role is STA=%d\n",
 		    vif->type == NL80211_IFTYPE_STATION);
-	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], port=%d\n", rtwvif_link->port);
+	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], port=%d\n", role_id);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], band=%d ch=%d bw=%d\n",
 		    chan->band_type, chan->channel, chan->band_width);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], associated=%d\n",
@@ -8747,7 +8821,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 	r.mode = mode;
 	r.role = rtwvif_link->wifi_role;
 	r.phy = rtwvif_link->phy_idx;
-	r.pid = rtwvif_link->port;
+	r.pid = role_id;
 	r.active = true;
 	if (vif->active_links) {
 		if (rtwvif_link->link_id < 16)
@@ -8780,30 +8854,7 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
 
 	rcu_read_unlock();
 
-	btc->dm.cnt_notify[BTC_NCNT_ROLE_INFO]++;
-
-	if (r.role == RTW89_WIFI_ROLE_STATION &&
-	    r.connected == MLME_NO_LINK)
-		btc->dm.leak_ap = 0;
-
-	if (state == BTC_ROLE_MSTS_STA_CONN_START) {
-		wl->status.map.transacting = 1;
-		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_act1_work);
-		wiphy_delayed_work_queue(rtwdev->hw->wiphy,
-					 &rtwdev->coex_act1_work,
-					 RTW89_COEX_ACT1_WORK_PERIOD);
-	} else {
-		wiphy_delayed_work_cancel(rtwdev->hw->wiphy, &rtwdev->coex_act1_work);
-		wl->status.map.transacting = 0;
-	}
-
-	if (state == BTC_ROLE_MSTS_STA_DIS_CONN ||
-	    state == BTC_ROLE_MSTS_STA_CONN_END)
-		wl->status.map._4way = false;
-
-	_update_wl_info(rtwdev, &r);
-
-	_run_coex(rtwdev, BTC_RSN_NTFY_ROLE_INFO);
+	_ntfy_role_info(rtwdev, role_id, &r, state);
 }
 
 void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_state)
