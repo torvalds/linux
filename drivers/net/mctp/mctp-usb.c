@@ -344,7 +344,7 @@ static int mctp_usb_probe(struct usb_interface *intf,
 				 false);
 	if (rc)
 		goto err_free_netdev;
-	mctp_usblib_tx_init(&dev->tx, &tx_ops, dev);
+	mctp_usblib_tx_init(&dev->tx, &tx_ops, dev, false);
 	init_usb_anchor(&dev->tx_anchor);
 
 	dev->ep_in = ep_in->bEndpointAddress;

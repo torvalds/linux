@@ -248,7 +248,7 @@ EXPORT_SYMBOL_GPL(mctp_usblib_rx_cancel);
 struct mctp_usblib_tx_ctx {
 	struct mctp_usblib_tx *tx;
 	struct sk_buff_head skbs;
-	unsigned int len;
+	unsigned int buf_len, len;
 	enum mctp_usblib_tx_buf_type {
 		TX_SINGLE,
 		TX_FLAT,
@@ -258,18 +258,19 @@ struct mctp_usblib_tx_ctx {
 
 void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
 			 const struct mctp_usblib_tx_ops *ops,
-			 void *priv)
+			 void *priv, bool span)
 {
 	memset(tx, 0, sizeof(*tx));
 	tx->ops = *ops;
 	tx->priv = priv;
+	tx->span = span;
 	spin_lock_init(&tx->lock);
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_init);
 
 static int mctp_usblib_tx_avail(struct mctp_usblib_tx_ctx *ctx)
 {
-	return ctx->buf_type == TX_SINGLE ? 0 : MCTP_USB_1_0_XFER_SIZE - ctx->len;
+	return ctx->buf_type == TX_SINGLE ? 0 : ctx->buf_len - ctx->len;
 }
 
 static bool mctp_usblib_tx_should_send(struct mctp_usblib_tx_ctx *ctx)
@@ -358,6 +359,12 @@ void mctp_usblib_tx_fini(struct mctp_usblib_tx *tx)
 }
 EXPORT_SYMBOL_GPL(mctp_usblib_tx_fini);
 
+/* Max size of a spanned TX. Since we allocate a separate span buffer, limit
+ * the tx-time allocations to 4k. Larger packets will be sent as single
+ * transfers.
+ */
+static const unsigned int TX_SPAN_MAX = 4096 - sizeof(struct mctp_usblib_tx_ctx);
+
 static struct mctp_usblib_tx_ctx *
 mctp_usblib_tx_ctx_create(struct mctp_usblib_tx *tx, struct sk_buff *skb,
 			  bool single)
@@ -366,11 +373,11 @@ mctp_usblib_tx_ctx_create(struct mctp_usblib_tx *tx, struct sk_buff *skb,
 	struct mctp_usblib_tx_ctx *ctx;
 	size_t sz = 0;
 
-	if (single) {
+	if (single || skb->len > TX_SPAN_MAX) {
 		type = TX_SINGLE;
 	} else {
 		type = TX_FLAT;
-		sz = MCTP_USB_1_0_XFER_SIZE;
+		sz = tx->span ? TX_SPAN_MAX : MCTP_USB_1_0_XFER_SIZE;
 	}
 
 	ctx = kzalloc_flex(*ctx, buf, sz, GFP_ATOMIC);
@@ -379,6 +386,7 @@ mctp_usblib_tx_ctx_create(struct mctp_usblib_tx *tx, struct sk_buff *skb,
 
 	ctx->tx = tx;
 	ctx->buf_type = type;
+	ctx->buf_len = sz;
 	ctx->len = skb->len;
 	skb_queue_head_init(&ctx->skbs);
 	__skb_queue_tail(&ctx->skbs, skb);
@@ -443,15 +451,17 @@ EXPORT_SYMBOL_GPL(mctp_usblib_tx_send_complete);
  *
  * On error, populates @reason.
  */
-static int mctp_usblib_tx_skb_prepare(struct sk_buff *skb,
+static int mctp_usblib_tx_skb_prepare(struct sk_buff *skb, bool span,
 				      enum skb_drop_reason *reason)
 {
+	unsigned long plen, max_len;
 	struct mctp_usb_hdr *hdr;
-	unsigned long plen;
 	int rc;
 
+	max_len = span ? MCTP_USB_1_1_PKTLEN_MAX : MCTP_USB_1_0_PKTLEN_MAX;
+
 	plen = skb->len;
-	if (plen + sizeof(*hdr) > MCTP_USB_1_0_PKTLEN_MAX) {
+	if (plen + sizeof(*hdr) > max_len) {
 		*reason = SKB_DROP_REASON_PKT_TOO_BIG;
 		return -EMSGSIZE;
 	}
@@ -490,7 +500,7 @@ int mctp_usblib_tx_push(struct net_device *dev,
 	unsigned long flags;
 	int try = 1, rc;
 
-	rc = mctp_usblib_tx_skb_prepare(skb, &reason);
+	rc = mctp_usblib_tx_skb_prepare(skb, tx->span, &reason);
 	if (rc) {
 		mctp_usblib_tx_stats_single_drop(dev);
 		kfree_skb_reason(skb, reason);

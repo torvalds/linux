@@ -81,6 +81,7 @@ struct mctp_usblib_tx_ops {
 struct mctp_usblib_tx {
 	struct mctp_usblib_tx_ops ops;
 	void *priv;
+	bool span;
 	/* protects access to cur_ctx */
 	spinlock_t lock;
 	/* context to which we are adding packets, cleared on send */
@@ -88,7 +89,8 @@ struct mctp_usblib_tx {
 };
 
 void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
-			 const struct mctp_usblib_tx_ops *ops, void *priv);
+			 const struct mctp_usblib_tx_ops *ops, void *priv,
+			 bool span);
 void mctp_usblib_tx_fini(struct mctp_usblib_tx *tx);
 
 void *mctp_usblib_tx_ctx_priv(struct mctp_usblib_tx_ctx *tx_ctx);
