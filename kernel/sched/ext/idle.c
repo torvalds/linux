@@ -1362,7 +1362,7 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu_node(const struct cpumask *cpus_allowed,
 /**
  * scx_bpf_pick_idle_cpu - Pick and claim an idle cpu
  * @cpus_allowed: Allowed cpumask
- * @flags: %SCX_PICK_IDLE_CPU_* flags
+ * @flags: %SCX_PICK_IDLE_* flags
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Pick and claim an idle cpu in @cpus_allowed. Returns the picked idle cpu
@@ -1409,7 +1409,7 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
  *			       or pick any CPU from @node
  * @cpus_allowed: Allowed cpumask
  * @node: target NUMA node
- * @flags: %SCX_PICK_IDLE_CPU_* flags
+ * @flags: %SCX_PICK_IDLE_* flags
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Pick and claim an idle cpu in @cpus_allowed. If none is available, pick any
@@ -1460,7 +1460,7 @@ __bpf_kfunc s32 scx_bpf_pick_any_cpu_node(const struct cpumask *cpus_allowed,
 /**
  * scx_bpf_pick_any_cpu - Pick and claim an idle cpu if available or pick any CPU
  * @cpus_allowed: Allowed cpumask
- * @flags: %SCX_PICK_IDLE_CPU_* flags
+ * @flags: %SCX_PICK_IDLE_* flags
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
  * Pick and claim an idle cpu in @cpus_allowed. If none is available, pick any
