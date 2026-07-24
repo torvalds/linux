@@ -84,11 +84,6 @@
 		uart0: serial@c8000000 {
 			compatible = "intel,xscale-uart";
 			reg = <0xc8000000 0x1000>;
-			/*
-			 * The reg-offset and reg-shift is a side effect
-			 * of running the platform in big endian mode.
-			 */
-			reg-offset = <3>;
 			reg-shift = <2>;
 			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
@@ -98,11 +93,6 @@
 		uart1: serial@c8001000 {
 			compatible = "intel,xscale-uart";
 			reg = <0xc8001000 0x1000>;
-			/*
-			 * The reg-offset and reg-shift is a side effect
-			 * of running the platform in big endian mode.
-			 */
-			reg-offset = <3>;
 			reg-shift = <2>;
 			interrupts = <13 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
