@@ -875,12 +875,13 @@ static void aer_print_source(struct pci_dev *dev, struct aer_err_info *info,
 {
 	u16 source = info->id;
 
-	pci_info(dev, "%s%s error message received from %04x:%02x:%02x.%d%s\n",
+	pci_info(dev, "%s%s Error message%s from %04x:%02x:%02x.%d%s\n",
 		 info->multi_error_valid ? "Multiple " : "",
 		 aer_error_severity_string[info->severity],
+		 info->multi_error_valid ? "s received, first one" : " received",
 		 pci_domain_nr(dev->bus), PCI_BUS_NUM(source),
 		 PCI_SLOT(source), PCI_FUNC(source),
-		 found ? "" : " (no details found");
+		 found ? "" : " (no details found)");
 }
 
 void aer_print_error(struct aer_err_info *info, int i)
@@ -888,13 +889,11 @@ void aer_print_error(struct aer_err_info *info, int i)
 	struct pci_dev *dev;
 	const char *level = info->level;
 	const char *bus_type = aer_err_bus(info);
-	int id;
 
 	if (WARN_ON_ONCE(i >= AER_MAX_MULTI_ERR_DEVICES))
 		return;
 
 	dev = info->dev[i];
-	id = pci_dev_id(dev);
 
 	pci_dev_aer_stats_incr(dev, info);
 	trace_aer_event(pci_name(dev), (info->status & ~info->mask),
@@ -906,7 +905,7 @@ void aer_print_error(struct aer_err_info *info, int i)
 	if (!info->status) {
 		pci_err(dev, "%s Bus Error: severity=%s (Inaccessible)\n",
 			bus_type, aer_error_severity_string[info->severity]);
-		goto out;
+		return;
 	}
 
 	aer_printk(level, dev, "%s Bus Error: severity=%s\n",
@@ -919,10 +918,6 @@ void aer_print_error(struct aer_err_info *info, int i)
 
 	if (info->tlp_header_valid)
 		pcie_print_tlp_log(dev, &info->tlp, level, dev_fmt("  "));
-
-out:
-	if (info->id && info->error_dev_num > 1 && info->id == id)
-		pci_err(dev, "  Error of this Agent is reported first\n");
 }
 
 #ifdef CONFIG_ACPI_APEI_PCIEAER
