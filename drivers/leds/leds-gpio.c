@@ -296,6 +296,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 			if (IS_ERR(led_dat->gpiod)) {
 				dev_info(dev, "Skipping unavailable LED gpio %s\n",
 					 template->name);
+				led_dat->gpiod = NULL;
 				continue;
 			}
 
