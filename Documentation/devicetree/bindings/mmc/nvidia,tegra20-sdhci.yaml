@@ -39,6 +39,10 @@ properties:
               - nvidia,tegra234-sdhci
           - const: nvidia,tegra186-sdhci
 
+      - items:
+          - const: nvidia,tegra238-sdhci
+          - const: nvidia,tegra194-sdhci
+
   reg:
     maxItems: 1
 
