@@ -514,7 +514,7 @@ static int pf1550_reg_init(struct pf1550_charger *chg)
 	 * a battery. The other supported mode is mode 2, the charger is turned
 	 * on to charge a battery when present.
 	 */
-	if (power_supply_get_battery_info(chg->charger, &info)) {
+	if (!power_supply_get_battery_info(chg->charger, &info)) {
 		ret = regmap_write(chg->pf1550->regmap,
 				   PF1550_CHARG_REG_CHG_OPER,
 				   PF1550_CHG_BAT_ON);
