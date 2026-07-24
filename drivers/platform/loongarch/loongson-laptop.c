@@ -30,7 +30,6 @@
 #define LOONGSON_ACPI_HKEY_HID	"LOON0000"
 
 #define ACPI_LAPTOP_NAME "loongson-laptop"
-#define ACPI_LAPTOP_ACPI_EVENT_PREFIX "loongson"
 
 #define MAX_ACPI_ARGS			3
 #define GENERIC_HOTKEY_MAP_MAX		64
@@ -167,8 +166,6 @@ static int __init setup_acpi_notify(struct generic_sub_driver *sub_driver)
 	}
 
 	sub_driver->device->driver_data = sub_driver;
-	sprintf(acpi_device_class(sub_driver->device), "%s/%s",
-		ACPI_LAPTOP_ACPI_EVENT_PREFIX, sub_driver->name);
 
 	status = acpi_install_notify_handler(*sub_driver->handle,
 			sub_driver->type, dispatch_acpi_notify, sub_driver);
