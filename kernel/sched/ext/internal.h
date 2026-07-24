@@ -1195,6 +1195,13 @@ struct scx_event_stats {
 	s64		SCX_EV_SUB_PREEMPT_DENIED;
 
 	/*
+	 * The number of times a kick was skipped because the sub-sched lacked
+	 * baseline access on the target cid. The preempt-part degradation of a
+	 * delivered kick is counted in SCX_EV_SUB_PREEMPT_DENIED instead.
+	 */
+	s64		SCX_EV_SUB_KICK_DENIED;
+
+	/*
 	 * The number of times a local DSQ reenq was dropped because the
 	 * sub-sched lacked baseline access on the target cid.
 	 */
@@ -1219,6 +1226,7 @@ struct scx_event_stats {
 	SCX_EVENT(SCX_EV_SUB_BYPASS_DISPATCH);				\
 	SCX_EVENT(SCX_EV_SUB_FORCED_ADMIT);				\
 	SCX_EVENT(SCX_EV_SUB_PREEMPT_DENIED);				\
+	SCX_EVENT(SCX_EV_SUB_KICK_DENIED);				\
 	SCX_EVENT(SCX_EV_SUB_REENQ_DENIED)
 
 struct scx_sched;

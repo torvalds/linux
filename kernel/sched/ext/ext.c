@@ -8118,6 +8118,7 @@ static bool kick_one_cpu(s32 cpu, struct scx_sched_pcpu *pcpu, struct rq *this_r
 	struct scx_rq *this_scx = &this_rq->scx;
 	const struct sched_class *cur_class;
 	bool should_wait = false;
+	bool kickable;
 	unsigned long flags;
 
 	raw_spin_rq_lock_irqsave(rq, flags);
@@ -8131,9 +8132,10 @@ static bool kick_one_cpu(s32 cpu, struct scx_sched_pcpu *pcpu, struct rq *this_r
 	 * business forcing a reschedule there - skip. This is the authoritative
 	 * cap check: ecaps is read here under @rq's lock.
 	 */
-	if ((cpu_online(cpu) || cpu == cpu_of(this_rq)) &&
-	    !sched_class_above(cur_class, &ext_sched_class) &&
-	    !scx_missing_caps(pcpu->sch, cpu, SCX_CAP_BASE)) {
+	kickable = (cpu_online(cpu) || cpu == cpu_of(this_rq)) &&
+		   !sched_class_above(cur_class, &ext_sched_class);
+
+	if (kickable && !scx_missing_caps(pcpu->sch, cpu, SCX_CAP_BASE)) {
 		if (cpumask_test_cpu(cpu, pcpu->cpus_to_preempt)) {
 			if (cur_class == &ext_sched_class) {
 				if (likely(!scx_missing_caps(pcpu->sch, cpu,
@@ -8157,6 +8159,9 @@ static bool kick_one_cpu(s32 cpu, struct scx_sched_pcpu *pcpu, struct rq *this_r
 
 		resched_curr(rq);
 	} else {
+		/* a kickable cpu was skipped solely for the missing caps */
+		if (kickable)
+			__scx_add_event(pcpu->sch, SCX_EV_SUB_KICK_DENIED, 1);
 		cpumask_clear_cpu(cpu, pcpu->cpus_to_preempt);
 		cpumask_clear_cpu(cpu, pcpu->cpus_to_wait);
 	}
@@ -8176,9 +8181,12 @@ static void kick_one_cpu_if_idle(s32 cpu, struct scx_sched_pcpu *pcpu,
 
 	/* idle kicks need baseline access too, see kick_one_cpu() */
 	if (!can_skip_idle_kick(rq) &&
-	    (cpu_online(cpu) || cpu == cpu_of(this_rq)) &&
-	    !scx_missing_caps(pcpu->sch, cpu, SCX_CAP_BASE))
-		resched_curr(rq);
+	    (cpu_online(cpu) || cpu == cpu_of(this_rq))) {
+		if (likely(!scx_missing_caps(pcpu->sch, cpu, SCX_CAP_BASE)))
+			resched_curr(rq);
+		else
+			__scx_add_event(pcpu->sch, SCX_EV_SUB_KICK_DENIED, 1);
+	}
 
 	raw_spin_rq_unlock_irqrestore(rq, flags);
 }
