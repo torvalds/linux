@@ -228,6 +228,7 @@ no_yield:
 out:
 	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d: %s", tid,
 		   result);
+	trace_kvm_s390_diag_9c(vcpu, tid, tcpu_cpu, result);
 	return 0;
 }
 

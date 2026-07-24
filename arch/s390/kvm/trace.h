@@ -283,6 +283,32 @@ TRACE_EVENT(kvm_s390_handle_diag,
 			   __print_symbolic(__entry->code, diagnose_codes))
 	);
 
+TRACE_EVENT(kvm_s390_diag_9c,
+	    TP_PROTO(VCPU_PROTO_COMMON, int target_vcpu, int target_cpu,
+		     const char *result),
+	    TP_ARGS(VCPU_ARGS_COMMON, target_vcpu, target_cpu, result),
+
+	    TP_STRUCT__entry(
+		    VCPU_FIELD_COMMON
+		    __field(int, target_vcpu)
+		    __field(int, target_cpu)
+		    __string(result, result)
+		    ),
+
+	    TP_fast_assign(
+		    VCPU_ASSIGN_COMMON
+		    __entry->target_vcpu = target_vcpu;
+		    __entry->target_cpu = target_cpu;
+		    __assign_str(result);
+		    ),
+
+	    VCPU_TP_PRINTK(
+		       "diag=9c target_vcpu=%d target_pcpu=%d result=%s",
+		       __entry->target_vcpu,
+		       __entry->target_cpu,
+		       __get_str(result))
+	);
+
 TRACE_EVENT(kvm_s390_handle_lctl,
 	    TP_PROTO(VCPU_PROTO_COMMON, int g, int reg1, int reg3, u64 addr),
 	    TP_ARGS(VCPU_ARGS_COMMON, g, reg1, reg3, addr),
