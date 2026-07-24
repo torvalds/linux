@@ -58,6 +58,17 @@ struct parsed_desc {
 	u32 valid;
 };
 
+struct xsk_tx_batch {
+	u32 tx_descs;
+	u32 reclaim_descs;
+	bool budget_limited;
+};
+
+static inline u32 xsk_tx_batch_cq_descs(const struct xsk_tx_batch *batch)
+{
+	return batch->tx_descs + batch->reclaim_descs;
+}
+
 /* The structure of the shared state of the rings are a simple
  * circular buffer, as outlined in
  * Documentation/core-api/circular-buffers.rst. For the Rx and
@@ -263,17 +274,18 @@ static inline void parse_desc(struct xsk_queue *q, struct xsk_buff_pool *pool,
 	parsed->mb = xp_mb_desc(desc);
 }
 
-static inline
-u32 xskq_cons_read_desc_batch(struct xsk_queue *q, struct xsk_buff_pool *pool,
-			      u32 max)
+static inline struct xsk_tx_batch
+xskq_cons_read_desc_batch(struct xdp_sock *xs, struct xsk_buff_pool *pool,
+			  struct xdp_desc *descs, u32 max)
 {
-	u32 cached_cons = q->cached_cons, nb_entries = 0;
-	struct xdp_desc *descs = pool->tx_descs;
-	u32 total_descs = 0, nr_frags = 0;
+	bool drain = READ_ONCE(xs->drain_cont);
+	u32 cached_cons, nb_entries = 0;
+	struct xsk_tx_batch batch = {};
+	struct xsk_queue *q = xs->tx;
+	u32 nr_frags = 0;
 
-	/* track first entry, if stumble upon *any* invalid descriptor, rewind
-	 * current packet that consists of frags and stop the processing
-	 */
+	cached_cons = q->cached_cons;
+
 	while (cached_cons != q->cached_prod && nb_entries < max) {
 		struct xdp_rxtx_ring *ring = (struct xdp_rxtx_ring *)q->ring;
 		u32 idx = cached_cons & q->ring_mask;
@@ -283,25 +295,42 @@ u32 xskq_cons_read_desc_batch(struct xsk_queue *q, struct xsk_buff_pool *pool,
 		cached_cons++;
 		parse_desc(q, pool, &descs[nb_entries], &parsed);
 		if (unlikely(!parsed.valid))
-			break;
+			drain = true;
+
+		nr_frags++;
+		nb_entries++;
 
 		if (likely(!parsed.mb)) {
-			total_descs += (nr_frags + 1);
-			nr_frags = 0;
-		} else {
-			nr_frags++;
-			if (nr_frags == pool->xdp_zc_max_segs) {
+			if (unlikely(drain)) {
+				batch.reclaim_descs = nr_frags;
+				WRITE_ONCE(xs->drain_cont, false);
 				nr_frags = 0;
 				break;
 			}
+
+			batch.tx_descs += nr_frags;
+			nr_frags = 0;
+			continue;
 		}
-		nb_entries++;
+
+		if (nr_frags == pool->xdp_zc_max_segs)
+			drain = true;
 	}
 
-	cached_cons -= nr_frags;
+	if (nr_frags) {
+		if (drain) {
+			batch.reclaim_descs = nr_frags;
+			WRITE_ONCE(xs->drain_cont, true);
+		} else {
+			if (nb_entries == max)
+				batch.budget_limited = true;
+			cached_cons -= nr_frags;
+		}
+	}
+
 	/* Release valid plus any invalid entries */
 	xskq_cons_release_n(q, cached_cons - q->cached_cons);
-	return total_descs;
+	return batch;
 }
 
 /* Functions for consumers */
