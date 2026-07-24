@@ -72,6 +72,18 @@ struct net_shaper {
  *
  * Each shaper is uniquely identified within the device with a 'handle'
  * comprising the shaper scope and a scope-specific id.
+ *
+ * Driver ops vs uAPI
+ * ------------------
+ * Members of the driver ops mirror the Netlink uAPI but driver calls do not
+ * map 1:1 to user calls. Drivers need to be careful when assuming that calls
+ * disallowed at the uAPI level will never be made at the driver level.
+ * The shaper core performs automatic reparenting and cleanup, generating
+ * additional calls. Notably:
+ *  - @group calls in the driver facing API may have nodes as leaves (user is
+ *    only allowed to construct groups with queues as leaves)
+ *  - @group calls may update leaf's parent if the parent is about
+ *    to be removed (re-parenting nodes explicitly is not supported in the uAPI)
  */
 struct net_shaper_ops {
 	/**
@@ -82,7 +94,6 @@ struct net_shaper_ops {
 	 * The @leaves arrays size is specified by @leaves_count.
 	 * Create either the @leaves and the @node shaper; or if they already
 	 * exists, links them together in the desired way.
-	 * @leaves scope must be NET_SHAPER_SCOPE_QUEUE.
 	 */
 	int (*group)(struct net_shaper_binding *binding, int leaves_count,
 		     const struct net_shaper *leaves,
