@@ -106,8 +106,13 @@ extern const struct ad5686_chip_info ad5683r_chip_info;
 /* dual-channel instances */
 extern const struct ad5686_chip_info ad5337r_chip_info;
 extern const struct ad5686_chip_info ad5338r_chip_info;
+extern const struct ad5686_chip_info ad5687_chip_info;
+extern const struct ad5686_chip_info ad5687r_chip_info;
+extern const struct ad5686_chip_info ad5689_chip_info;
+extern const struct ad5686_chip_info ad5689r_chip_info;
 
 /* quad-channel instances */
+extern const struct ad5686_chip_info ad5317r_chip_info;
 extern const struct ad5686_chip_info ad5684_chip_info;
 extern const struct ad5686_chip_info ad5684r_chip_info;
 extern const struct ad5686_chip_info ad5685r_chip_info;
@@ -120,7 +125,9 @@ extern const struct ad5686_chip_info ad5676_chip_info;
 extern const struct ad5686_chip_info ad5676r_chip_info;
 
 /* 16-channel instances */
+extern const struct ad5686_chip_info ad5674_chip_info;
 extern const struct ad5686_chip_info ad5674r_chip_info;
+extern const struct ad5686_chip_info ad5679_chip_info;
 extern const struct ad5686_chip_info ad5679r_chip_info;
 
 /**

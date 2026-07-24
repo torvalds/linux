@@ -175,10 +175,14 @@ static int ad5686_spi_probe(struct spi_device *spi)
 
 static const struct spi_device_id ad5686_spi_id[] = {
 	{ .name = "ad5310r", .driver_data = (kernel_ulong_t)&ad5310r_chip_info },
+	{ .name = "ad5313r", .driver_data = (kernel_ulong_t)&ad5338r_chip_info },
+	{ .name = "ad5317r", .driver_data = (kernel_ulong_t)&ad5317r_chip_info },
 	{ .name = "ad5672r", .driver_data = (kernel_ulong_t)&ad5672r_chip_info },
+	{ .name = "ad5674",  .driver_data = (kernel_ulong_t)&ad5674_chip_info },
 	{ .name = "ad5674r", .driver_data = (kernel_ulong_t)&ad5674r_chip_info },
 	{ .name = "ad5676",  .driver_data = (kernel_ulong_t)&ad5676_chip_info },
 	{ .name = "ad5676r", .driver_data = (kernel_ulong_t)&ad5676r_chip_info },
+	{ .name = "ad5679",  .driver_data = (kernel_ulong_t)&ad5679_chip_info },
 	{ .name = "ad5679r", .driver_data = (kernel_ulong_t)&ad5679r_chip_info },
 	{ .name = "ad5681r", .driver_data = (kernel_ulong_t)&ad5681r_chip_info },
 	{ .name = "ad5682r", .driver_data = (kernel_ulong_t)&ad5682r_chip_info },
@@ -190,16 +194,24 @@ static const struct spi_device_id ad5686_spi_id[] = {
 	{ .name = "ad5685r", .driver_data = (kernel_ulong_t)&ad5685r_chip_info },
 	{ .name = "ad5686",  .driver_data = (kernel_ulong_t)&ad5686_chip_info },
 	{ .name = "ad5686r", .driver_data = (kernel_ulong_t)&ad5686r_chip_info },
+	{ .name = "ad5687",  .driver_data = (kernel_ulong_t)&ad5687_chip_info },
+	{ .name = "ad5687r", .driver_data = (kernel_ulong_t)&ad5687r_chip_info },
+	{ .name = "ad5689",  .driver_data = (kernel_ulong_t)&ad5689_chip_info },
+	{ .name = "ad5689r", .driver_data = (kernel_ulong_t)&ad5689r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad5686_spi_id);
 
 static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5310r", .data = &ad5310r_chip_info },
+	{ .compatible = "adi,ad5313r", .data = &ad5338r_chip_info },
+	{ .compatible = "adi,ad5317r", .data = &ad5317r_chip_info },
 	{ .compatible = "adi,ad5672r", .data = &ad5672r_chip_info },
+	{ .compatible = "adi,ad5674",  .data = &ad5674_chip_info },
 	{ .compatible = "adi,ad5674r", .data = &ad5674r_chip_info },
 	{ .compatible = "adi,ad5676",  .data = &ad5676_chip_info },
 	{ .compatible = "adi,ad5676r", .data = &ad5676r_chip_info },
+	{ .compatible = "adi,ad5679",  .data = &ad5679_chip_info },
 	{ .compatible = "adi,ad5679r", .data = &ad5679r_chip_info },
 	{ .compatible = "adi,ad5681r", .data = &ad5681r_chip_info },
 	{ .compatible = "adi,ad5682r", .data = &ad5682r_chip_info },
@@ -210,6 +222,10 @@ static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5685r", .data = &ad5685r_chip_info },
 	{ .compatible = "adi,ad5686",  .data = &ad5686_chip_info },
 	{ .compatible = "adi,ad5686r", .data = &ad5686r_chip_info },
+	{ .compatible = "adi,ad5687",  .data = &ad5687_chip_info },
+	{ .compatible = "adi,ad5687r", .data = &ad5687r_chip_info },
+	{ .compatible = "adi,ad5689",  .data = &ad5689_chip_info },
+	{ .compatible = "adi,ad5689r", .data = &ad5689r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5686_of_match);

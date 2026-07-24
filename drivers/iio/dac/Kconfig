@@ -255,12 +255,14 @@ config AD5686_SPI
 	  Digital to Analog Converters:
 	  - Single-channel:
 	    AD5310R, AD5681R, AD5682R, AD5683, AD5683R
+	  - Dual-channel:
+	    AD5313R, AD5687, AD5687R, AD5689, AD5689R
 	  - Quad-channel:
-	    AD5684, AD5684R, AD5685R, AD5686, AD5686R
+	    AD5317R, AD5684, AD5684R, AD5685R, AD5686, AD5686R
 	  - 8-channel:
 	    AD5672R, AD5676, AD5676R
 	  - 16-channel:
-	    AD5674R, AD5679R
+	    AD5674, AD5674R, AD5679, AD5679R
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
@@ -275,11 +277,11 @@ config AD5696_I2C
 	  - Single-channel:
 	    AD5311R, AD5691R, AD5692R, AD5693, AD5693R
 	  - Dual-channel:
-	    AD5338R
+	    AD5338R, AD5697R
 	  - Quad-channel:
-	    AD5694, AD5694R, AD5695R, AD5696, AD5696R
+	    AD5316R, AD5694, AD5694R, AD5695R, AD5696, AD5696R
 	  - 8-channel:
-	    AD5671R, AD5675R
+	    AD5671R, AD5675, AD5675R
 	  - 16-channel:
 	    AD5673R, AD5677R
 

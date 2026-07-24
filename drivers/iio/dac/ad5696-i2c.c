@@ -78,10 +78,12 @@ static int ad5686_i2c_probe(struct i2c_client *i2c)
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
 	{ .name = "ad5311r", .driver_data = (kernel_ulong_t)&ad5311r_chip_info },
+	{ .name = "ad5316r", .driver_data = (kernel_ulong_t)&ad5317r_chip_info },
 	{ .name = "ad5337r", .driver_data = (kernel_ulong_t)&ad5337r_chip_info },
 	{ .name = "ad5338r", .driver_data = (kernel_ulong_t)&ad5338r_chip_info },
 	{ .name = "ad5671r", .driver_data = (kernel_ulong_t)&ad5672r_chip_info },
 	{ .name = "ad5673r", .driver_data = (kernel_ulong_t)&ad5674r_chip_info },
+	{ .name = "ad5675",  .driver_data = (kernel_ulong_t)&ad5676_chip_info },
 	{ .name = "ad5675r", .driver_data = (kernel_ulong_t)&ad5676r_chip_info },
 	{ .name = "ad5677r", .driver_data = (kernel_ulong_t)&ad5679r_chip_info },
 	{ .name = "ad5691r", .driver_data = (kernel_ulong_t)&ad5681r_chip_info },
@@ -93,16 +95,19 @@ static const struct i2c_device_id ad5686_i2c_id[] = {
 	{ .name = "ad5695r", .driver_data = (kernel_ulong_t)&ad5685r_chip_info },
 	{ .name = "ad5696",  .driver_data = (kernel_ulong_t)&ad5686_chip_info },
 	{ .name = "ad5696r", .driver_data = (kernel_ulong_t)&ad5686r_chip_info },
+	{ .name = "ad5697r", .driver_data = (kernel_ulong_t)&ad5687r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
 static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5311r", .data = &ad5311r_chip_info },
+	{ .compatible = "adi,ad5316r", .data = &ad5317r_chip_info },
 	{ .compatible = "adi,ad5337r", .data = &ad5337r_chip_info },
 	{ .compatible = "adi,ad5338r", .data = &ad5338r_chip_info },
 	{ .compatible = "adi,ad5671r", .data = &ad5672r_chip_info },
 	{ .compatible = "adi,ad5673r", .data = &ad5674r_chip_info },
+	{ .compatible = "adi,ad5675",  .data = &ad5676_chip_info },
 	{ .compatible = "adi,ad5675r", .data = &ad5676r_chip_info },
 	{ .compatible = "adi,ad5677r", .data = &ad5679r_chip_info },
 	{ .compatible = "adi,ad5691r", .data = &ad5681r_chip_info },
@@ -114,6 +119,7 @@ static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5695r", .data = &ad5685r_chip_info },
 	{ .compatible = "adi,ad5696",  .data = &ad5686_chip_info },
 	{ .compatible = "adi,ad5696r", .data = &ad5686r_chip_info },
+	{ .compatible = "adi,ad5697r", .data = &ad5687r_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5686_of_match);
