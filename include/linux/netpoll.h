@@ -32,9 +32,6 @@ struct netpoll {
 	char dev_name[IFNAMSIZ];
 	u8 dev_mac[ETH_ALEN];
 	const char *name;
-
-	union inet_addr local_ip, remote_ip;
-	bool ipv6;
 };
 
 #define np_info(np, fmt, ...)				\
