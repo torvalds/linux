@@ -1946,7 +1946,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 					bmi323_irq_thread_handler,
 					IRQF_ONESHOT, "bmi323-int", indio_dev);
 	if (ret)
-		return dev_err_probe(data->dev, ret, "Failed to request IRQ\n");
+		return ret;
 
 	ret = devm_iio_trigger_register(data->dev, data->trig);
 	if (ret)
