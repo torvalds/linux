@@ -618,6 +618,35 @@ dput_and_out:
 	return error;
 }
 
+SYSCALL_DEFINE2(fchroot, int, fd, unsigned int, flags)
+{
+	int error;
+
+	if (flags)
+		return -EINVAL;
+
+	CLASS(fd_raw, f)(fd);
+	if (fd_empty(f))
+		return -EBADF;
+
+	if (!d_can_lookup(fd_file(f)->f_path.dentry))
+		return -ENOTDIR;
+
+	error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
+	if (error)
+		return error;
+
+	if (!ns_capable(current_user_ns(), CAP_SYS_CHROOT))
+		return -EPERM;
+
+	error = security_path_chroot(&fd_file(f)->f_path);
+	if (error)
+		return error;
+
+	set_fs_root(current->fs, &fd_file(f)->f_path);
+	return 0;
+}
+
 int chmod_common(const struct path *path, umode_t mode)
 {
 	struct inode *inode = path->dentry->d_inode;
