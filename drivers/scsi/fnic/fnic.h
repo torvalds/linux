@@ -144,6 +144,9 @@
 #define PCI_SUBDEVICE_ID_CISCO_HELSINKI         0x02e4	/* VIC 15235 */
 #define PCI_SUBDEVICE_ID_CISCO_GOTHENBURG       0x02f2	/* VIC 15425 */
 
+#define IS_FNIC_FCP_INITIATOR(fnic) (fnic->role == FNIC_ROLE_FCP_INITIATOR)
+#define IS_FNIC_NVME_INITIATOR(fnic) (fnic->role == FNIC_ROLE_NVME_INITIATOR)
+
 struct fnic_pcie_device {
 	u32 device;
 	u8 *desc;
@@ -240,6 +243,9 @@ extern struct work_struct reset_fnic_work;
 #define FNIC_FCS_LOGGING 0x02
 #define FNIC_SCSI_LOGGING 0x04
 #define FNIC_ISR_LOGGING 0x08
+#define FNIC_FDLS_LOGGING 0x10
+#define FNIC_NVME_LOGGING 0x20
+#define FNIC_FIP_LOGGING 0x40
 
 #define FNIC_CHECK_LOGGING(LEVEL, CMD)				\
 do {								\
@@ -249,38 +255,39 @@ do {								\
 		} while (0);					\
 } while (0)
 
-#define FNIC_MAIN_DBG(kern_level, host, fnic_num, fmt, args...)		\
-	FNIC_CHECK_LOGGING(FNIC_MAIN_LOGGING,			\
-			 shost_printk(kern_level, host,			\
-				"fnic<%d>: %s: %d: " fmt, fnic_num,\
-				__func__, __LINE__, ##args);)
+#define fnic_printk(kern_level, fnic, fmt, ...)                      \
+	(IS_FNIC_FCP_INITIATOR(fnic) ?                                   \
+	shost_printk(kern_level, fnic->host, "fnic<%d>: %s: %d: " fmt,   \
+				fnic->fnic_num, __func__, __LINE__, ##__VA_ARGS__) : \
+	printk(kern_level "fnic<%d>: %s: %d: " fmt, fnic->fnic_num,      \
+				__func__, __LINE__, ##__VA_ARGS__))
 
-#define FNIC_FCS_DBG(kern_level, host, fnic_num, fmt, args...)		\
-	FNIC_CHECK_LOGGING(FNIC_FCS_LOGGING,			\
-			 shost_printk(kern_level, host,			\
-				"fnic<%d>: %s: %d: " fmt, fnic_num,\
-				__func__, __LINE__, ##args);)
+#define FNIC_MAIN_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_MAIN_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
 
-#define FNIC_FIP_DBG(kern_level, host, fnic_num, fmt, args...)		\
-	FNIC_CHECK_LOGGING(FNIC_FCS_LOGGING,			\
-			 shost_printk(kern_level, host,			\
-				"fnic<%d>: %s: %d: " fmt, fnic_num,\
-				__func__, __LINE__, ##args);)
+#define FNIC_FCS_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_FCS_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
 
-#define FNIC_SCSI_DBG(kern_level, host, fnic_num, fmt, args...)		\
-	FNIC_CHECK_LOGGING(FNIC_SCSI_LOGGING,			\
-			 shost_printk(kern_level, host,			\
-				"fnic<%d>: %s: %d: " fmt, fnic_num,\
-				__func__, __LINE__, ##args);)
+#define FNIC_FIP_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_FIP_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
 
-#define FNIC_ISR_DBG(kern_level, host, fnic_num, fmt, args...)		\
-	FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,			\
-			 shost_printk(kern_level, host,			\
-				"fnic<%d>: %s: %d: " fmt, fnic_num,\
-				__func__, __LINE__, ##args);)
+#define FNIC_SCSI_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_SCSI_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
 
-#define FNIC_MAIN_NOTE(kern_level, host, fmt, args...)          \
-	shost_printk(kern_level, host, fmt, ##args)
+#define FNIC_ISR_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_ISR_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
+
+#define FNIC_NVME_DBG(kern_level, fnic, fmt, args...)				\
+		FNIC_CHECK_LOGGING(FNIC_NVME_LOGGING,						\
+				fnic_printk(kern_level, fnic, fmt, ##args);)
+
+#define FNIC_MAIN_NOTE(kern_level, fnic, fmt, args...)				\
+			fnic_printk(kern_level, fnic, fmt, ##args)
 
 #define FNIC_WQ_COPY_MAX 64
 #define FNIC_WQ_MAX 1
@@ -325,6 +332,7 @@ enum fnic_state {
 
 enum fnic_role_e {
 	FNIC_ROLE_FCP_INITIATOR = 0,
+	FNIC_ROLE_NVME_INITIATOR,
 };
 
 enum fnic_evt {
@@ -598,7 +606,7 @@ fnic_debug_dump(struct fnic *fnic, uint8_t *u8arr, int len)
 	int i;
 
 	for (i = 0; i < len; i = i+8) {
-		FNIC_FCS_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+		FNIC_FCS_DBG(KERN_INFO, fnic,
 		    "%d: %02x %02x %02x %02x %02x %02x %02x %02x", i / 8,
 		    u8arr[i + 0], u8arr[i + 1], u8arr[i + 2], u8arr[i + 3],
 		    u8arr[i + 4], u8arr[i + 5], u8arr[i + 6], u8arr[i + 7]);
@@ -613,7 +621,7 @@ fnic_debug_dump_fc_frame(struct fnic *fnic, struct fc_frame_header *fchdr,
 
 	s_id = ntoh24(fchdr->fh_s_id);
 	d_id = ntoh24(fchdr->fh_d_id);
-	FNIC_FCS_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+	FNIC_FCS_DBG(KERN_INFO, fnic,
 		"%s packet contents: sid/did/type/oxid = 0x%x/0x%x/0x%x/0x%x (len = %d)\n",
 		pfx, s_id, d_id, fchdr->fh_type,
 		FNIC_STD_GET_OX_ID(fchdr), len);
