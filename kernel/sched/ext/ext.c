@@ -3807,7 +3807,7 @@ int scx_fork(struct task_struct *p, struct kernel_clone_args *kargs)
 
 	if (scx_init_task_enabled) {
 #ifdef CONFIG_EXT_SUB_SCHED
-		struct scx_sched *sch = kargs->cset->dfl_cgrp->scx_sched;
+		struct scx_sched *sch = scx_cgroup_sched(kargs->cset->dfl_cgrp);
 #else
 		struct scx_sched *sch = scx_root;
 #endif
@@ -4461,7 +4461,7 @@ int scx_tg_online(struct task_group *tg)
 		 * always belongs to the root sched.
 		 */
 		if (cgroup_on_dfl(tg->css.cgroup))
-			sch = tg->css.cgroup->scx_sched;
+			sch = scx_cgroup_sched(tg->css.cgroup);
 		else
 			sch = scx_tg_sched(&root_task_group);
 
@@ -4542,7 +4542,7 @@ int scx_cgroup_can_attach(struct cgroup_taskset *tset)
 		 * cgroup's sched and is reported through the
 		 * exit_task/init_task pair that the re-homing generates.
 		 */
-		if (!sch || sch != task_css_set(p)->mg_dst_cset->dfl_cgrp->scx_sched)
+		if (!sch || sch != scx_cgroup_sched(task_css_set(p)->mg_dst_cset->dfl_cgrp))
 			continue;
 
 		if (SCX_HAS_OP(sch, cgroup_prep_move)) {

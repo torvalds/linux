@@ -39,6 +39,20 @@ struct scx_dispatch_q *scx_local_or_reject_dsq(struct scx_sched *sch, struct rq 
 bool scx_task_reenq_on_cap_revoke(struct rq *rq, struct task_struct *p);
 void scx_reenq_reject(struct rq *rq);
 
+/*
+ * cgrp->scx_sched is written by root/sub enable/disable under all of
+ * scx_enable_mutex, scx_fork_rwsem and cgroup_mutex. A new cgroup inherits the
+ * parent's sched under just cgroup_mutex but is not yet reachable by the other
+ * two lock holders. Any one of the three locks stabilizes the association.
+ */
+static inline struct scx_sched *scx_cgroup_sched(struct cgroup *cgrp)
+{
+	return rcu_dereference_check(cgrp->scx_sched,
+				     lockdep_is_held(&cgroup_mutex) ||
+				     percpu_rwsem_is_held(&scx_fork_rwsem) ||
+				     lockdep_is_held(&scx_enable_mutex));
+}
+
 static inline const char *sch_cgrp_path(struct scx_sched *sch)
 {
 	return sch->cgrp_path;

@@ -1204,7 +1204,7 @@ dump:
 /* verify that a scheduler can be attached to @cgrp and return the parent */
 static struct scx_sched *find_parent_sched(struct cgroup *cgrp)
 {
-	struct scx_sched *parent = cgrp->scx_sched;
+	struct scx_sched *parent = scx_cgroup_sched(cgrp);
 	struct scx_sched *pos;
 
 	lockdep_assert_held(&scx_sched_lock);
@@ -1578,7 +1578,7 @@ static s32 scx_cgroup_task_migrating(struct cgroup_task_migrate_ctx *ctx)
 	if (!scx_cgroup_enabled)
 		return NOTIFY_OK;
 
-	to = ctx->dst_dcgrp->scx_sched;
+	to = scx_cgroup_sched(ctx->dst_dcgrp);
 	if (scx_task_on_sched(to, p))
 		return NOTIFY_OK;
 
@@ -1612,7 +1612,7 @@ static void scx_cgroup_task_migrated(struct cgroup_task_migrate_ctx *ctx)
 	if (!scx_cgroup_enabled)
 		return;
 
-	to = ctx->dst_dcgrp->scx_sched;
+	to = scx_cgroup_sched(ctx->dst_dcgrp);
 	if (scx_task_on_sched(to, p))
 		return;
 
@@ -1639,7 +1639,7 @@ static void scx_cgroup_task_migrate_canceled(struct cgroup_task_migrate_ctx *ctx
 	if (!scx_cgroup_enabled)
 		return;
 
-	to = ctx->dst_dcgrp->scx_sched;
+	to = scx_cgroup_sched(ctx->dst_dcgrp);
 	if (scx_task_on_sched(to, p))
 		return;
 
@@ -1653,6 +1653,7 @@ static s32 scx_cgroup_lifetime_notify(struct notifier_block *nb,
 {
 	struct cgroup *cgrp = data;
 	struct cgroup *parent = cgroup_parent(cgrp);
+	struct scx_sched *sch;
 
 	if (!cgroup_on_dfl(cgrp))
 		return NOTIFY_OK;
@@ -1661,12 +1662,13 @@ static s32 scx_cgroup_lifetime_notify(struct notifier_block *nb,
 	case CGROUP_LIFETIME_ONLINE:
 		/* inherit ->scx_sched from $parent */
 		if (parent)
-			rcu_assign_pointer(cgrp->scx_sched, parent->scx_sched);
+			rcu_assign_pointer(cgrp->scx_sched, scx_cgroup_sched(parent));
 		break;
 	case CGROUP_LIFETIME_OFFLINE:
 		/* if there is a sched attached, shoot it down */
-		if (cgrp->scx_sched && cgrp->scx_sched->cgrp == cgrp)
-			scx_exit(cgrp->scx_sched, SCX_EXIT_UNREG_KERN,
+		sch = scx_cgroup_sched(cgrp);
+		if (sch && sch->cgrp == cgrp)
+			scx_exit(sch, SCX_EXIT_UNREG_KERN,
 				 SCX_ECODE_RSN_CGROUP_OFFLINE,
 				 "cgroup %llu going offline", cgroup_id(cgrp));
 		break;
