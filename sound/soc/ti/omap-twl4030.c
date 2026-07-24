@@ -28,6 +28,7 @@
 #include "omap-mcbsp.h"
 
 struct omap_twl4030 {
+	struct snd_soc_jack_gpio hs_jack_gpio;
 	struct snd_soc_jack hs_jack;
 };
 
@@ -123,15 +124,6 @@ static struct snd_soc_jack_pin hs_jack_pins[] = {
 	},
 };
 
-/* Headset jack detection gpios */
-static struct snd_soc_jack_gpio hs_jack_gpios[] = {
-	{
-		.name = "ti,jack-det",
-		.report = SND_JACK_HEADSET,
-		.debounce_time = 200,
-	},
-};
-
 static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -144,9 +136,6 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 	 * only want to add the jack detection if the GPIO is there.
 	 */
 	if (of_property_present(card->dev->of_node, "ti,jack-det-gpio")) {
-		hs_jack_gpios[0].gpiod_dev = card->dev;
-		hs_jack_gpios[0].idx = 0;
-
 		ret = snd_soc_card_jack_new_pins(rtd->card, "Headset Jack",
 						 SND_JACK_HEADSET,
 						 &priv->hs_jack, hs_jack_pins,
@@ -154,9 +143,14 @@ static int omap_twl4030_init(struct snd_soc_pcm_runtime *rtd)
 		if (ret)
 			return ret;
 
-		ret = snd_soc_jack_add_gpios(&priv->hs_jack,
-					     ARRAY_SIZE(hs_jack_gpios),
-					     hs_jack_gpios);
+		priv->hs_jack_gpio.name = "ti,jack-det";
+		priv->hs_jack_gpio.report = SND_JACK_HEADSET;
+		priv->hs_jack_gpio.debounce_time = 200;
+		priv->hs_jack_gpio.gpiod_dev = card->dev;
+		priv->hs_jack_gpio.idx = 0;
+
+		ret = snd_soc_jack_add_gpios(&priv->hs_jack, 1,
+					     &priv->hs_jack_gpio);
 		if (ret)
 			return ret;
 	}
