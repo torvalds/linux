@@ -6616,6 +6616,64 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_cxdrv_mlo_v2(struct rtw89_dev *rtwdev, u8 type)
+{
+	struct rtw89_btc_wl_mlo_info *mlo = &rtwdev->btc.cx.wl.mlo_info;
+	struct rtw89_h2c_cxmlo_v2 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_mlo_v2\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxmlo_v2 *)skb->data;
+
+	h2c->hdr.type = type;
+	h2c->hdr.ver = 2;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
+
+	memcpy(h2c->mlo.wmode, mlo->wmode,
+	       sizeof(h2c->mlo.wmode));
+	memcpy(h2c->mlo.ch_type, mlo->ch_type,
+	       sizeof(h2c->mlo.ch_type));
+	memcpy(h2c->mlo.hwb_rf_band, mlo->hwb_rf_band,
+	       sizeof(h2c->mlo.hwb_rf_band));
+	memcpy(h2c->mlo.path_rf_band, mlo->path_rf_band,
+	       sizeof(h2c->mlo.path_rf_band));
+
+	h2c->mlo.wtype = mlo->wtype;
+	h2c->mlo.mrcx_mode = mlo->mrcx_mode;
+	h2c->mlo.mrcx_act_hwb_map = mlo->mrcx_act_hwb_map;
+	h2c->mlo.mrcx_bt_slot_rsp = mlo->mrcx_bt_slot_rsp;
+
+	h2c->mlo.rf_combination = mlo->rf_combination;
+	h2c->mlo.mlo_en = mlo->mlo_en;
+	h2c->mlo.mlo_adie = mlo->mlo_adie;
+	h2c->mlo.dual_hw_band_en = mlo->dual_hw_band_en;
+	h2c->mlo.link_status = cpu_to_le32(mlo->link_status);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_cxdrv_osi_info(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;

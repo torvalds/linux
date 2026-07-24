@@ -3274,6 +3274,9 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 index)
 		else
 			return;
 
+		if (ver->fcxmlo == 2)
+			rtw89_fw_h2c_cxdrv_mlo_v2(rtwdev, index);
+
 		break;
 	case CXDRVINFO_OSI:
 		if (!ver->fcxosi || ver->drvinfo_ver == 103)

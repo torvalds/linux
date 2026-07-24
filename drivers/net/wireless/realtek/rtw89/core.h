@@ -1783,6 +1783,25 @@ struct rtw89_btc_wl_dbcc_info {
 	u8 role[RTW89_PHY_NUM]; /* role in each phy */
 };
 
+struct rtw89_btc_wl_mlo_info_v2 {
+	u8 wmode[RTW89_PHY_NUM];
+	u8 ch_type[RTW89_PHY_NUM];
+	u8 hwb_rf_band[RTW89_PHY_NUM];
+	u8 path_rf_band[RTW89_PHY_NUM];
+
+	u8 wtype;
+	u8 mrcx_mode;
+	u8 mrcx_act_hwb_map;
+	u8 mrcx_bt_slot_rsp;
+
+	u8 rf_combination;
+	u8 mlo_en;
+	u8 mlo_adie;
+	u8 dual_hw_band_en;
+
+	__le32 link_status;
+} __packed;
+
 struct rtw89_btc_wl_mlo_info {
 	u8 wmode[RTW89_PHY_NUM]; /* enum phl_mr_wmode */
 	u8 ch_type[RTW89_PHY_NUM]; /* enum phl_mr_ch_type */
