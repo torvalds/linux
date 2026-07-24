@@ -28,6 +28,8 @@ struct mctp_usb {
 	u8 ep_in;
 	u8 ep_out;
 
+	struct mctp_usblib_rx rx;
+
 	struct urb *tx_urb;
 	struct urb *rx_urb;
 
@@ -125,24 +127,23 @@ static const unsigned long RX_RETRY_DELAY = HZ / 4;
 static int mctp_usb_rx_queue(struct mctp_usb *mctp_usb, gfp_t gfp)
 {
 	unsigned long flags;
-	struct sk_buff *skb;
+	size_t len;
+	void *buf;
 	int rc;
 
-	skb = __netdev_alloc_skb(mctp_usb->netdev, MCTP_USB_1_0_XFER_SIZE, gfp);
-	if (!skb) {
-		rc = -ENOMEM;
+	rc = mctp_usblib_rx_prepare(mctp_usb->netdev, &mctp_usb->rx,
+				    &buf, &len, gfp);
+	if (rc)
 		goto err_retry;
-	}
 
 	usb_fill_bulk_urb(mctp_usb->rx_urb, mctp_usb->usbdev,
 			  usb_rcvbulkpipe(mctp_usb->usbdev, mctp_usb->ep_in),
-			  skb->data, MCTP_USB_1_0_XFER_SIZE,
-			  mctp_usb_in_complete, skb);
+			  buf, len, mctp_usb_in_complete, mctp_usb);
 
 	rc = usb_submit_urb(mctp_usb->rx_urb, gfp);
 	if (rc) {
 		netdev_dbg(mctp_usb->netdev, "rx urb submit failure: %d\n", rc);
-		kfree_skb(skb);
+		mctp_usblib_rx_cancel(&mctp_usb->rx);
 		if (rc == -ENOMEM)
 			goto err_retry;
 	}
@@ -159,92 +160,27 @@ err_retry:
 
 static void mctp_usb_in_complete(struct urb *urb)
 {
-	struct sk_buff *skb = urb->context;
-	struct net_device *netdev = skb->dev;
-	struct mctp_usb *mctp_usb = netdev_priv(netdev);
-	struct mctp_skb_cb *cb;
-	unsigned int len;
+	struct mctp_usb *mctp_usb = urb->context;
+	struct net_device *netdev = mctp_usb->netdev;
 	int status;
 
 	status = urb->status;
 
 	switch (status) {
+	default:
+		netdev_dbg(netdev, "unexpected rx urb status: %d\n", status);
+		fallthrough;
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 	case -EPROTO:
-		kfree_skb(skb);
+		mctp_usblib_rx_cancel(&mctp_usb->rx);
 		return;
 	case 0:
+		mctp_usblib_rx_complete(netdev, &mctp_usb->rx,
+					urb->actual_length);
 		break;
-	default:
-		netdev_dbg(netdev, "unexpected rx urb status: %d\n", status);
-		kfree_skb(skb);
-		return;
 	}
-
-	len = urb->actual_length;
-	__skb_put(skb, len);
-
-	while (skb) {
-		struct sk_buff *skb2 = NULL;
-		struct mctp_usb_hdr *hdr;
-		u8 pkt_len; /* length of MCTP packet, no USB header */
-
-		skb_reset_mac_header(skb);
-		hdr = skb_pull_data(skb, sizeof(*hdr));
-		if (!hdr)
-			break;
-
-		if (be16_to_cpu(hdr->id) != MCTP_USB_DMTF_ID) {
-			netdev_dbg(netdev, "rx: invalid id %04x\n",
-				   be16_to_cpu(hdr->id));
-			break;
-		}
-
-		if (hdr->len <
-		    sizeof(struct mctp_hdr) + sizeof(struct mctp_usb_hdr)) {
-			netdev_dbg(netdev, "rx: short packet (hdr) %d\n",
-				   hdr->len);
-			break;
-		}
-
-		/* we know we have at least sizeof(struct mctp_usb_hdr) here */
-		pkt_len = hdr->len - sizeof(struct mctp_usb_hdr);
-		if (pkt_len > skb->len) {
-			netdev_dbg(netdev,
-				   "rx: short packet (xfer) %d, actual %d\n",
-				   hdr->len, skb->len);
-			break;
-		}
-
-		if (pkt_len < skb->len) {
-			/* more packets may follow - clone to a new
-			 * skb to use on the next iteration
-			 */
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-			if (skb2) {
-				if (!skb_pull(skb2, pkt_len)) {
-					kfree_skb(skb2);
-					skb2 = NULL;
-				}
-			}
-			skb_trim(skb, pkt_len);
-		}
-
-		dev_dstats_rx_add(netdev, skb->len);
-
-		skb->protocol = htons(ETH_P_MCTP);
-		skb_reset_network_header(skb);
-		cb = __mctp_cb(skb);
-		cb->halen = 0;
-		netif_rx(skb);
-
-		skb = skb2;
-	}
-
-	if (skb)
-		kfree_skb(skb);
 
 	mctp_usb_rx_queue(mctp_usb, GFP_ATOMIC);
 }
@@ -285,6 +221,8 @@ static int mctp_usb_stop(struct net_device *dev)
 
 	usb_kill_urb(mctp_usb->rx_urb);
 	usb_kill_urb(mctp_usb->tx_urb);
+
+	mctp_usblib_rx_cancel(&mctp_usb->rx);
 
 	return 0;
 }
@@ -341,6 +279,8 @@ static int mctp_usb_probe(struct usb_interface *intf,
 	spin_lock_init(&dev->rx_lock);
 	usb_set_intfdata(intf, dev);
 
+	mctp_usblib_rx_init(&dev->rx);
+
 	dev->ep_in = ep_in->bEndpointAddress;
 	dev->ep_out = ep_out->bEndpointAddress;
 
@@ -362,6 +302,7 @@ static int mctp_usb_probe(struct usb_interface *intf,
 err_free_urbs:
 	usb_free_urb(dev->tx_urb);
 	usb_free_urb(dev->rx_urb);
+	mctp_usblib_rx_fini(&dev->rx);
 	free_netdev(netdev);
 	return rc;
 }
@@ -371,6 +312,7 @@ static void mctp_usb_disconnect(struct usb_interface *intf)
 	struct mctp_usb *dev = usb_get_intfdata(intf);
 
 	mctp_unregister_netdev(dev->netdev);
+	mctp_usblib_rx_fini(&dev->rx);
 	usb_free_urb(dev->tx_urb);
 	usb_free_urb(dev->rx_urb);
 	free_netdev(dev->netdev);
