@@ -77,8 +77,6 @@ find_video(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-/* This depends on ACPI_WMI which is X86 only */
-#ifdef CONFIG_X86
 static bool nvidia_wmi_ec_supported(void)
 {
 	struct wmi_brightness_args args = {
@@ -100,12 +98,6 @@ static bool nvidia_wmi_ec_supported(void)
 	 */
 	return args.ret == WMI_BRIGHTNESS_SOURCE_EC;
 }
-#else
-static bool nvidia_wmi_ec_supported(void)
-{
-	return false;
-}
-#endif
 
 /* Force to use vendor driver when the ACPI device is known to be
  * buggy */
