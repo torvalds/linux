@@ -99,6 +99,9 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 	case SCLP_ERRNOTIFY_AQ_INFO_LOG:
 	case SCLP_ERRNOTIFY_AQ_OPTICS_DATA:
 	case SCLP_ERRNOTIFY_AQ_NVME_SMART_LOG:
+	case SCLP_ERRNOTIFY_AQ_ADAPTER_INITIALIZED:
+	case SCLP_ERRNOTIFY_AQ_RECOVERABLE_ERROR:
+	case SCLP_ERRNOTIFY_AQ_TELEMETRY_DATA:
 		break;
 	default:
 		return -EINVAL;
