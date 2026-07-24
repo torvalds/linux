@@ -5049,6 +5049,32 @@ int mt7996_mcu_twt_agrt_update(struct mt7996_dev *dev,
 				 &req, sizeof(req), true);
 }
 
+int mt7996_mcu_set_bssid_mapping_addr(struct mt76_dev *dev, u8 band_idx)
+{
+	enum {
+		BSSID_MAPPING_ADDR1,
+		BSSID_MAPPING_ADDR2,
+		BSSID_MAPPING_ADDR3,
+	};
+	struct {
+		u8 band_idx;
+		u8 _rsv1[3];
+
+		__le16 tag;
+		__le16 len;
+		u8 addr;
+		u8 _rsv2[3];
+	} __packed req = {
+		.band_idx = band_idx,
+		.tag = cpu_to_le16(UNI_BAND_CONFIG_BSSID_MAPPING_ADDR),
+		.len = cpu_to_le16(sizeof(req) - 4),
+		.addr = BSSID_MAPPING_ADDR1,
+	};
+
+	return mt76_mcu_send_msg(dev, MCU_WM_UNI_CMD(BAND_CONFIG),
+				 &req, sizeof(req), true);
+}
+
 int mt7996_mcu_set_rts_thresh(struct mt7996_phy *phy, u32 val)
 {
 	struct {
