@@ -40,6 +40,7 @@
 #include <linux/inetdevice.h>
 #include <linux/unaligned.h>
 #include <net/ip6_checksum.h>
+#include <net/addrconf.h>
 #include <linux/configfs.h>
 #include <linux/etherdevice.h>
 #include <linux/hex.h>
@@ -353,6 +354,47 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 }
 
 /*
+ * Take the IPv6 from ndev and populate local_ip structure in netpoll
+ */
+static int netcons_take_ipv6(struct netpoll *np, struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	int err = -EDESTADDRREQ;
+	struct inet6_dev *idev;
+
+	if (!IS_ENABLED(CONFIG_IPV6)) {
+		np_err(np, "IPv6 is not supported %s, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		return -EINVAL;
+	}
+
+	idev = __in6_dev_get(ndev);
+	if (idev) {
+		struct inet6_ifaddr *ifp;
+
+		read_lock_bh(&idev->lock);
+		list_for_each_entry(ifp, &idev->addr_list, if_list) {
+			if (!!(ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL) !=
+				!!(ipv6_addr_type(&np->remote_ip.in6) & IPV6_ADDR_LINKLOCAL))
+				continue;
+			/* Got the IP, let's return */
+			np->local_ip.in6 = ifp->addr;
+			err = 0;
+			break;
+		}
+		read_unlock_bh(&idev->lock);
+	}
+	if (err) {
+		np_err(np, "no IPv6 address for %s, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		return err;
+	}
+
+	np_info(np, "local IPv6 %pI6c\n", &np->local_ip.in6);
+	return 0;
+}
+
+/*
  * Take the IPv4 from ndev and populate local_ip structure in netpoll
  */
 static int netcons_take_ipv4(struct netpoll *np, struct net_device *ndev)
@@ -448,7 +490,7 @@ static int netcons_netpoll_setup(struct netpoll *np)
 			if (err)
 				goto put;
 		} else {
-			err = netpoll_take_ipv6(np, ndev);
+			err = netcons_take_ipv6(np, ndev);
 			if (err)
 				goto put;
 		}
