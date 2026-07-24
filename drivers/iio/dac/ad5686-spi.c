@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * AD5672R, AD5674R, AD5676, AD5676R, AD5679R,
- * AD5681R, AD5682R, AD5683, AD5683R, AD5684,
- * AD5684R, AD5685R, AD5686, AD5686R
- * Digital to analog converters driver
+ * SPI driver for AD5686 and similar Digital to Analog Converters
  *
  * Copyright 2018 Analog Devices Inc.
  */

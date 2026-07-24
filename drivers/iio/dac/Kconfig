@@ -251,9 +251,16 @@ config AD5686_SPI
 	depends on SPI
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5672R, AD5674R,
-	  AD5676, AD5676R, AD5679R, AD5684, AD5684R, AD5684R, AD5685R, AD5686,
-	  AD5686R Voltage Output Digital to Analog Converter.
+	  Say yes here to build support for Analog Devices Voltage Output
+	  Digital to Analog Converters:
+	  - Single-channel:
+	    AD5310R, AD5681R, AD5682R, AD5683, AD5683R
+	  - Quad-channel:
+	    AD5684, AD5684R, AD5685R, AD5686, AD5686R
+	  - 8-channel:
+	    AD5672R, AD5676, AD5676R
+	  - 16-channel:
+	    AD5674R, AD5679R
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
@@ -263,10 +270,18 @@ config AD5696_I2C
 	depends on I2C
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5311R, AD5337,
-	  AD5338R, AD5671R, AD5673R, AD5675R, AD5677R, AD5691R, AD5692R, AD5693,
-	  AD5693R, AD5694, AD5694R, AD5695R, AD5696, and AD5696R Digital to
-	  Analog converters.
+	  Say yes here to build support for Analog Devices Voltage Output
+	  Digital to Analog Converters:
+	  - Single-channel:
+	    AD5311R, AD5691R, AD5692R, AD5693, AD5693R
+	  - Dual-channel:
+	    AD5338R
+	  - Quad-channel:
+	    AD5694, AD5694R, AD5695R, AD5696, AD5696R
+	  - 8-channel:
+	    AD5671R, AD5675R
+	  - 16-channel:
+	    AD5673R, AD5677R
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad5696.
