@@ -558,11 +558,11 @@ static const char *aer_uncorrectable_error_string[] = {
 };
 
 static const char *aer_agent_string[] = {
-	"Receiver ID",
-	"Requester ID",
-	"Completer ID",
-	"Transmitter ID",
-	"Component ID",
+	"Receiver",
+	"Requester",
+	"Completer",
+	"Transmitter",
+	"Component",
 };
 
 #define aer_stats_dev_attr(name, stats_array, strings_array,		\
@@ -844,8 +844,8 @@ static void __aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 {
 	const char **strings;
 	unsigned long status = info->status & ~info->mask;
+	const char *errmsg, *agent, *layer;
 	const char *level = info->level;
-	const char *errmsg;
 	int i;
 
 	if (info->severity == AER_CORRECTABLE)
@@ -855,10 +855,17 @@ static void __aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 	for_each_set_bit(i, &status, 32) {
 		errmsg = strings[i];
-		if (!errmsg)
+		agent = aer_agent_string[AER_GET_AGENT(info->severity, BIT(i))];
+		layer = aer_error_layer[AER_GET_LAYER_ERROR(info->severity,
+								       BIT(i))];
+		if (!errmsg) {
 			errmsg = "Unknown Error Bit";
+			agent = "";
+			layer = "";
+		}
 
-		aer_printk(level, dev, "   [%2d] %-22s%s\n", i, errmsg,
+		aer_printk(level, dev, "  [%2d] %-17s | %-11s | %-17s%s\n",
+			   i, errmsg, agent, layer,
 				info->first_error == i ? " (First)" : "");
 	}
 }
@@ -879,9 +886,9 @@ static void aer_print_source(struct pci_dev *dev, struct aer_err_info *info,
 void aer_print_error(struct aer_err_info *info, int i)
 {
 	struct pci_dev *dev;
-	int layer, agent, id;
 	const char *level = info->level;
 	const char *bus_type = aer_err_bus(info);
+	int id;
 
 	if (WARN_ON_ONCE(i >= AER_MAX_MULTI_ERR_DEVICES))
 		return;
@@ -897,17 +904,13 @@ void aer_print_error(struct aer_err_info *info, int i)
 		return;
 
 	if (!info->status) {
-		pci_err(dev, "%s Bus Error: severity=%s, type=Inaccessible, (Unregistered Agent ID)\n",
+		pci_err(dev, "%s Bus Error: severity=%s (Inaccessible)\n",
 			bus_type, aer_error_severity_string[info->severity]);
 		goto out;
 	}
 
-	layer = AER_GET_LAYER_ERROR(info->severity, info->status);
-	agent = AER_GET_AGENT(info->severity, info->status);
-
-	aer_printk(level, dev, "%s Bus Error: severity=%s, type=%s, (%s)\n",
-		   bus_type, aer_error_severity_string[info->severity],
-		   aer_error_layer[layer], aer_agent_string[agent]);
+	aer_printk(level, dev, "%s Bus Error: severity=%s\n",
+		   bus_type, aer_error_severity_string[info->severity]);
 
 	aer_printk(level, dev, "  device [%04x:%04x] error status/mask=%08x/%08x\n",
 		   dev->vendor, dev->device, info->status, info->mask);
@@ -940,8 +943,8 @@ EXPORT_SYMBOL_GPL(cper_severity_to_aer);
 void pci_print_aer(struct pci_dev *dev, int aer_severity,
 		   struct aer_capability_regs *aer)
 {
+	int tlp_header_valid = 0;
 	const char *bus_type;
-	int layer, agent, tlp_header_valid = 0;
 	u32 status, mask;
 	struct aer_err_info info = {
 		.severity = aer_severity,
@@ -972,14 +975,9 @@ void pci_print_aer(struct pci_dev *dev, int aer_severity,
 	if (!aer_ratelimit(dev, info.severity))
 		return;
 
-	layer = AER_GET_LAYER_ERROR(aer_severity, status);
-	agent = AER_GET_AGENT(aer_severity, status);
-
 	aer_printk(info.level, dev, "aer_status: 0x%08x, aer_mask: 0x%08x\n",
 		   status, mask);
 	__aer_print_error(dev, &info);
-	aer_printk(info.level, dev, "aer_layer=%s, aer_agent=%s\n",
-		   aer_error_layer[layer], aer_agent_string[agent]);
 
 	if (aer_severity != AER_CORRECTABLE)
 		aer_printk(info.level, dev, "aer_uncor_severity: 0x%08x\n",
