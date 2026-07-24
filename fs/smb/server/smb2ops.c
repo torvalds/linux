@@ -297,8 +297,6 @@ int init_smb3_11_server(struct ksmbd_conn *conn)
 		conn->vals->req_capabilities |= SMB2_GLOBAL_CAP_MULTI_CHANNEL;
 
 	/* See init_smb3_02_server(): persistent handles require CA recovery. */
-
-	INIT_LIST_HEAD(&conn->preauth_sess_table);
 	return 0;
 }
 

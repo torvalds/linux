@@ -600,6 +600,17 @@ struct preauth_session *ksmbd_preauth_session_alloc(struct ksmbd_conn *conn,
 	return sess;
 }
 
+void ksmbd_preauth_session_destroy(struct ksmbd_conn *conn)
+{
+	struct preauth_session *sess, *tmp;
+
+	list_for_each_entry_safe(sess, tmp, &conn->preauth_sess_table,
+				 preauth_entry) {
+		list_del(&sess->preauth_entry);
+		kfree(sess);
+	}
+}
+
 void destroy_previous_session(struct ksmbd_conn *conn,
 			      struct ksmbd_user *user, u64 id)
 {
