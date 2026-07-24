@@ -140,6 +140,10 @@ static struct notifier_block regulator_quirk_nb = {
 
 static int __init rcar_gen2_regulator_quirk(void)
 {
+	static const char *const boards[] __initconst = {
+		"renesas,koelsch", "renesas,lager", "renesas,porter",
+		"renesas,stout", "renesas,gose", NULL
+	};
 	struct regulator_quirk *quirk, *pos, *tmp;
 	struct of_phandle_args *args;
 	const struct of_device_id *id;
@@ -147,11 +151,7 @@ static int __init rcar_gen2_regulator_quirk(void)
 	u32 mon, addr;
 	int ret;
 
-	if (!of_machine_is_compatible("renesas,koelsch") &&
-	    !of_machine_is_compatible("renesas,lager") &&
-	    !of_machine_is_compatible("renesas,porter") &&
-	    !of_machine_is_compatible("renesas,stout") &&
-	    !of_machine_is_compatible("renesas,gose"))
+	if (!of_machine_compatible_match(boards))
 		return -ENODEV;
 
 	for_each_matching_node_and_match(np, rcar_gen2_quirk_match, &id) {

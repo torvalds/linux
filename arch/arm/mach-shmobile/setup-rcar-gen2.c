@@ -56,6 +56,10 @@ static unsigned int __init get_extal_freq(void)
 
 static void __init rcar_gen2_timer_init(void)
 {
+	static const char *const fixed_freq_socs[] __initconst = {
+		"renesas,r8a7745", "renesas,r8a77470", "renesas,r8a7792",
+		"renesas,r8a7794", NULL
+	};
 	bool need_update = true;
 	void __iomem *base;
 	u32 freq;
@@ -76,10 +80,7 @@ static void __init rcar_gen2_timer_init(void)
 
 	secure_cntvoff_init();
 
-	if (of_machine_is_compatible("renesas,r8a7745") ||
-	    of_machine_is_compatible("renesas,r8a77470") ||
-	    of_machine_is_compatible("renesas,r8a7792") ||
-	    of_machine_is_compatible("renesas,r8a7794")) {
+	if (of_machine_compatible_match(fixed_freq_socs)) {
 		freq = 260000000 / 8;	/* ZS / 8 */
 	} else {
 		/* At Linux boot time the r8a7790 arch timer comes up
