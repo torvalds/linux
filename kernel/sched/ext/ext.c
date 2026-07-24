@@ -1071,6 +1071,18 @@ void schedule_dsq_reenq(struct scx_sched *sch, struct scx_dispatch_q *dsq,
 	if (dsq->id == SCX_DSQ_LOCAL) {
 		rq = container_of(dsq, struct rq, scx.local_dsq);
 
+		/*
+		 * A sub-sched lacking baseline access on the target cid has no
+		 * business triggering IPIs. The lockless test is fine: slipping
+		 * through right after a revoke is harmless and a wrong denial
+		 * can't happen - if the caller has seen its ownership, so does
+		 * this test.
+		 */
+		if (unlikely(scx_missing_caps(sch, cpu_of(rq), SCX_CAP_BASE))) {
+			__scx_add_event(sch, SCX_EV_SUB_REENQ_DENIED, 1);
+			return;
+		}
+
 		struct scx_sched_pcpu *sch_pcpu = per_cpu_ptr(sch->pcpu, cpu_of(rq));
 		struct scx_deferred_reenq_local *drl = &sch_pcpu->deferred_reenq_local;
 

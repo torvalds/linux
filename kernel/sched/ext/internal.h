@@ -1193,6 +1193,12 @@ struct scx_event_stats {
 	 * kick degrades to a plain reschedule.
 	 */
 	s64		SCX_EV_SUB_PREEMPT_DENIED;
+
+	/*
+	 * The number of times a local DSQ reenq was dropped because the
+	 * sub-sched lacked baseline access on the target cid.
+	 */
+	s64		SCX_EV_SUB_REENQ_DENIED;
 };
 
 #define SCX_EVENTS_LIST(SCX_EVENT)					\
@@ -1212,7 +1218,8 @@ struct scx_event_stats {
 	SCX_EVENT(SCX_EV_INSERT_NOT_OWNED);				\
 	SCX_EVENT(SCX_EV_SUB_BYPASS_DISPATCH);				\
 	SCX_EVENT(SCX_EV_SUB_FORCED_ADMIT);				\
-	SCX_EVENT(SCX_EV_SUB_PREEMPT_DENIED)
+	SCX_EVENT(SCX_EV_SUB_PREEMPT_DENIED);				\
+	SCX_EVENT(SCX_EV_SUB_REENQ_DENIED)
 
 struct scx_sched;
 
