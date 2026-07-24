@@ -1726,7 +1726,10 @@ int event_enable_trigger_print(struct seq_file *m,
 
 static void enable_trigger_private_data_free(struct event_trigger_data *data)
 {
-	kfree(data->private_data);
+	struct enable_trigger_data *enable_data = data->private_data;
+
+	trace_event_put_ref(enable_data->file->event_call);
+	kfree(enable_data);
 }
 
 void event_enable_trigger_free(struct event_trigger_data *data)
@@ -1741,7 +1744,6 @@ void event_enable_trigger_free(struct event_trigger_data *data)
 		/* Remove the SOFT_MODE flag */
 		trace_event_enable_disable(enable_data->file, 0, 1);
 		data->private_data_free = enable_trigger_private_data_free;
-		trace_event_put_ref(enable_data->file->event_call);
 		trigger_data_free(data);
 	}
 }
