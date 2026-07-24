@@ -951,6 +951,7 @@ enum btc_reason_and_action {
 	BTC_RSN_ACT1_WORK,
 	BTC_RSN_BT_DEVINFO_WORK,
 	BTC_RSN_RFK_CHK_WORK,
+	BTC_RSN_UPDATE_BT_LEAUDINFO,
 	BTC_RSN_NUM,
 	BTC_ACT_NONE = 100,
 	BTC_ACT_WL_ONLY,
@@ -975,6 +976,8 @@ enum btc_reason_and_action {
 	BTC_ACT_BT_A2DP_PAN,
 	BTC_ACT_BT_PAN_HID,
 	BTC_ACT_BT_A2DP_PAN_HID,
+	BTC_ACT_BT_BIS,
+	BTC_ACT_BT_CIS,
 	BTC_ACT_WL_25G_MCC,
 	BTC_ACT_WL_2G_MCC,
 	BTC_ACT_WL_2G_SCC,
@@ -6076,6 +6079,43 @@ static void _action_bt_pan_hid(struct rtw89_dev *rtwdev)
 	}
 }
 
+static void _action_bt_bis(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u16 policy_type;
+
+	if (dm->bis_tdma)
+		policy_type = BTC_CXP_OFFE_2GBWISOB;
+	else
+		policy_type = BTC_CXP_OFF_EQ0;
+
+	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_PTA);
+	_set_policy(rtwdev, policy_type, BTC_ACT_BT_BIS);
+}
+
+static void _action_bt_cis(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt0.link_info;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	u16 policy_type;
+
+	if (bt_linfo->a2dp_desc.active) {
+		dm->slot_dur[CXST_W1] = 80;
+		dm->slot_dur[CXST_B1] = 20;
+		policy_type = BTC_CXP_PFIX_TDW1B1;
+	} else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_UL)) {
+		policy_type = BTC_CXP_OFF_BWB0;
+	} else {
+		policy_type = BTC_CXP_OFF_BWB1;
+	}
+
+	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_PTA);
+	_set_policy(rtwdev, policy_type, BTC_ACT_BT_CIS);
+}
+
 static void _action_bt_a2dp_pan_hid(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -6692,6 +6732,7 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt0;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
+	struct rtw89_btc_bt_leaudio_desc leaudio = bt_linfo->leaudio_desc;
 	struct rtw89_btc_bt_hid_desc hid = bt_linfo->hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 	struct rtw89_btc_bt_pan_desc pan = bt_linfo->pan_desc;
@@ -6714,6 +6755,12 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 
 	if (bt_linfo->pan_desc.exist)
 		profile_map |= BTC_BT_PAN;
+
+	if (leaudio.bis_exist)
+		profile_map |= BTC_BT_BIS;
+
+	if (leaudio.cis_exist)
+		profile_map |= BTC_BT_CIS;
 
 	switch (profile_map) {
 	case BTC_BT_NOPROFILE:
@@ -6739,6 +6786,13 @@ static void _action_by_bt(struct rtw89_dev *rtwdev)
 		break;
 	case BTC_BT_PAN:
 		_action_bt_pan(rtwdev);
+		break;
+	case BTC_BT_BIS:
+		_action_bt_bis(rtwdev);
+		break;
+	case BTC_BT_CIS:
+	case BTC_BT_CIS | BTC_BT_HID:
+		_action_bt_cis(rtwdev);
 		break;
 	case BTC_BT_A2DP | BTC_BT_HFP:
 	case BTC_BT_A2DP | BTC_BT_HID:
@@ -7907,6 +7961,140 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, u8 bid)
 			    "[BTC], %s: bt status change!!\n", __func__);
 		/* TODO: Need to notify driver to update EXT-CTRL-BT-SLOT */
 	}
+}
+
+static void _update_bt_link_cnt(struct rtw89_dev *rtwdev,
+				struct rtw89_btc_bt_info *bt, bool b56g)
+{
+	struct rtw89_btc_bt_link_info *b = b56g ? &bt->link_info_56g :
+						  &bt->link_info;
+	struct rtw89_btc_bt_leaudio_desc *leaudio = &b->leaudio_desc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &b->a2dp_desc;
+	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
+	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
+	struct rtw89_btc_bt_pan_desc *pan = &b->pan_desc;
+
+	b->link_cnt.last = b->link_cnt.now;
+	b->link_cnt.now = 0;
+	b->link_cnt.chg = 0;
+
+	b->link_cnt.now += hfp->exist;
+	b->link_cnt.now += hid->exist;
+	b->link_cnt.now += a2dp->exist;
+	b->link_cnt.now += pan->exist;
+	b->link_cnt.now += leaudio->bis_exist;
+	b->link_cnt.now += leaudio->cis_exist;
+}
+
+static void _update_bt_leaudio_info(struct rtw89_dev *rtwdev, u8 bid,
+				    void *buf, u32 len)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_bt_info *bt = (bid == BTC_BT_1ST) ? &cx->bt0 : &cx->bt1;
+	struct rtw89_btc_bt_link_info *b = &bt->link_info;
+	struct rtw89_btc_bt_leaudio_info *src = buf;
+	struct rtw89_btc_bt_leaudio_desc *leaudio;
+	bool bt_56g = false, cis_exist, bis_exist;
+	u8 bis_cnt, cis_cnt;
+
+	if ((src->len & BIT(7)) && bt->band_56G_support) {
+		b = &bt->link_info_56g;
+		bt_56g = true;
+	}
+
+	leaudio = &b->leaudio_desc;
+
+	if (!memcmp(b->leaudio_raw_info, src, BTC_BTINFO_MAX)) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s return by leaudio-info duplicate!\n",
+			    __func__);
+		bt->bcnt[BTC_BCNT_LEAUDIO_INFOSAME]++;
+		return;
+	}
+
+	memcpy(b->leaudio_raw_info, src, BTC_BTINFO_MAX);
+
+	bis_exist = u8_get_bits(src->bis_cis, RTW89_BTC_LEAU_INFO_L2_BIS_EX);
+	cis_exist = u8_get_bits(src->bis_cis, RTW89_BTC_LEAU_INFO_L2_CIS_EX);
+	bis_cnt = u8_get_bits(src->bis_cis, RTW89_BTC_LEAU_INFO_L2_BIS_CNT);
+	cis_cnt = u8_get_bits(src->bis_cis, RTW89_BTC_LEAU_INFO_L2_CIS_CNT);
+
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s: bis_exist:%d bis_cnt:%d cis_exist:%d cis_cnt:%d rssi:%d\n",
+		    __func__, bis_exist, bis_cnt, cis_exist, cis_cnt, src->rssi);
+
+	if (!bis_exist && !cis_exist)
+		memset(leaudio, 0, sizeof(*leaudio));
+
+	leaudio->bis_cnt = bis_cnt;
+	leaudio->bis_exist = bis_exist;
+	leaudio->cis_cnt = cis_cnt;
+	leaudio->cis_exist = cis_exist;
+
+	if (leaudio->bis_exist)
+		b->status.map.profile_map |= BTC_BT_BIS;
+	else
+		b->status.map.profile_map &= ~BTC_BT_BIS;
+
+	if (leaudio->cis_exist)
+		b->status.map.profile_map |= BTC_BT_CIS;
+	else
+		b->status.map.profile_map &= ~BTC_BT_CIS;
+
+	_update_bt_link_cnt(rtwdev, bt, bt_56g);
+
+	leaudio->rssi = chip->ops->btc_get_bt_rssi(rtwdev, src->rssi);
+
+	leaudio->bis_cnt_last = leaudio->bis_cnt;
+	leaudio->bis_exist_last = leaudio->bis_exist;
+	leaudio->cis_cnt_last = leaudio->cis_cnt;
+	leaudio->cis_exist_last = leaudio->cis_exist;
+}
+
+static void _update_bt_bistdma_info(struct rtw89_dev *rtwdev, u8 bid,
+				    void *buf, u32 len)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_cx *cx = &btc->cx;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_bt_info *bt = (bid == BTC_BT_1ST) ? &cx->bt0 : &cx->bt1;
+	struct rtw89_btc_bt_link_info *b = &bt->link_info;
+	struct rtw89_btc_bt_bistdma_info_le *src = buf;
+	struct rtw89_btc_bt_leaudio_desc *leaudio;
+
+	if ((src->len & BIT(7)) && bt->band_56G_support)
+		b = &bt->link_info_56g;
+
+	leaudio = &b->leaudio_desc;
+
+	if (!memcmp(b->bistdma_raw_info, src, BTC_BTINFO_MAX)) {
+		rtw89_debug(rtwdev, RTW89_DBG_BTC,
+			    "[BTC], %s return by bistdma-info duplicate!\n",
+			    __func__);
+		bt->bcnt[BTC_BCNT_LEAUDIO_INFOSAME]++;
+		return;
+	}
+
+	memcpy(b->bistdma_raw_info, src, BTC_BTINFO_MAX);
+
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC], %s: bis_start_end:%d bis_trx:%d\n",
+		    __func__,
+		    u8_get_bits(src->bis, RTW89_BTC_BIS_INFO_L2_START_END),
+		    u8_get_bits(src->bis, RTW89_BTC_BIS_INFO_L2_TRX));
+
+	leaudio->bis_trx = u8_get_bits(src->bis, RTW89_BTC_BIS_INFO_L2_TRX);
+	leaudio->bis_start_end = u8_get_bits(src->bis,
+					     RTW89_BTC_BIS_INFO_L2_START_END);
+
+	leaudio->diff_t = (src->diff_t_hb * 256 + src->diff_t_lb) * 625 / 1000;
+
+	if (btc->ant_type == BTC_ANT_SHARED && leaudio->diff_t > 13)
+		dm->bis_tdma = true;
+	else
+		dm->bis_tdma = false;
 }
 
 #define BTC_BTINFO_PWR_LEN 5
@@ -9606,6 +9794,14 @@ void rtw89_btc_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case BTF_EVNT_CX_RUNINFO:
 		btc->dm.cnt_dm[BTC_DCNT_CX_RUNINFO]++;
 		break;
+	case BTF_EVNT_BT_LEAUDIO_INFO:
+		bt->bcnt[BTC_BCNT_LEAUDIO_INFOUPDATE]++;
+		if (buf[BTC_BTINFO_L0] == BTC_BTINFO_BISTDMA)
+			_update_bt_bistdma_info(rtwdev, bid, buf, len);
+		else
+			_update_bt_leaudio_info(rtwdev, bid, buf, len);
+		_run_coex(rtwdev, BTC_RSN_UPDATE_BT_LEAUDINFO);
+		break;
 	case BTF_EVNT_BT_QUERY_TXPWR:
 		bt->bcnt[BTC_BCNT_TXPWR_UPDATE]++;
 		_update_bt_txpwr_info(rtwdev, buf, len);
@@ -10107,6 +10303,7 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_RSN_STR(ACT1_WORK);
 	CASE_BTC_RSN_STR(BT_DEVINFO_WORK);
 	CASE_BTC_RSN_STR(RFK_CHK_WORK);
+	CASE_BTC_RSN_STR(UPDATE_BT_LEAUDINFO);
 
 	CASE_BTC_ACT_STR(NONE);
 	CASE_BTC_ACT_STR(WL_ONLY);
@@ -10131,6 +10328,8 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_ACT_STR(BT_A2DP_PAN);
 	CASE_BTC_ACT_STR(BT_PAN_HID);
 	CASE_BTC_ACT_STR(BT_A2DP_PAN_HID);
+	CASE_BTC_ACT_STR(BT_BIS);
+	CASE_BTC_ACT_STR(BT_CIS);
 	CASE_BTC_ACT_STR(WL_25G_MCC);
 	CASE_BTC_ACT_STR(WL_2G_MCC);
 	CASE_BTC_ACT_STR(WL_2G_SCC);

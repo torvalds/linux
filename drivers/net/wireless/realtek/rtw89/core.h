@@ -1383,6 +1383,8 @@ enum rtw89_btc_btinfo {
 	BTC_BTINFO_MAX
 };
 
+#define BTC_BTINFO_BISTDMA 0x48 /* cmd value that identifies BISTDMA data */
+
 enum rtw89_btc_dcnt {
 	BTC_DCNT_RUN = 0x0,
 	BTC_DCNT_CX_RUNINFO,
@@ -2167,6 +2169,31 @@ struct rtw89_btc_bt_txpwr_desc {
 	u8 le_gain_index;
 };
 
+struct rtw89_btc_bt_leaudio_info {
+	u8 cmd;
+	u8 len;
+	u8 bis_cis;
+#define RTW89_BTC_LEAU_INFO_L2_BIS_EX BIT(0)
+#define RTW89_BTC_LEAU_INFO_L2_BIS_CNT GENMASK(3, 1)
+#define RTW89_BTC_LEAU_INFO_L2_CIS_EX BIT(4)
+#define RTW89_BTC_LEAU_INFO_L2_CIS_CNT GENMASK(7, 5)
+	u8 rssi;
+	__le32 hbrsvd;
+} __packed;
+
+struct rtw89_btc_bt_bistdma_info_le {
+	u8 cmd;
+	u8 len;
+	u8 bis; /* BIT(2) ~ BIT(7) is rsvd */
+#define RTW89_BTC_BIS_INFO_L2_START_END BIT(0) /* 0: BIS start, 1: BIS end */
+#define RTW89_BTC_BIS_INFO_L2_TRX BIT(1) /* 0: BIS Tx, 1: BIS Rx */
+	u8 diff_t_lb;
+	u8 diff_t_hb; /* diff_t = (diff_t_hb * 256 + diff_t_lb) * 0.625 ms */
+	u8 hb1rsvd;
+	u8 hb2rsvd;
+	u8 hb3rsvd;
+} __packed;
+
 struct rtw89_btc_bt_leaudio_desc {
 	u32 bis_exist: 1;
 	u32 bis_exist_last: 1;
@@ -2177,7 +2204,9 @@ struct rtw89_btc_bt_leaudio_desc {
 	u32 rssi: 8;
 	u32 bis_cnt_last: 3;
 	u32 cis_cnt_last: 3;
-	u32 rsvd: 8;
+	u32 bis_trx: 1;
+	u32 bis_start_end: 1;
+	u32 rsvd: 6;
 
 	u16 diff_t;
 };
@@ -2213,6 +2242,9 @@ struct rtw89_btc_bt_link_info {
 	u8 ble_scan_en: 1;
 	u8 reinit: 1;
 	u8 rsvd: 6;
+
+	u8 leaudio_raw_info[BTC_BTINFO_MAX]; /* raw LE audio info from BT mailbox */
+	u8 bistdma_raw_info[BTC_BTINFO_MAX]; /* raw BIS-TDMA info from BT mailbox */
 };
 
 struct rtw89_btc_bind_bt_status {
@@ -4085,6 +4117,7 @@ struct rtw89_btc_dm {
 	u8 lps_ctrl_scbd: 1;
 	u8 lps_ctrl_scbd_last: 1;
 	u8 lps_ctrl_change: 1;
+	u8 bis_tdma: 1; /* BIS TDMA mode active */
 	u8 scbd_write_instant;
 	bool scbd_b2w_update;
 	bool scbd_w2b_update;
