@@ -40,7 +40,9 @@ properties:
           - const: nvidia,tegra186-sdhci
 
       - items:
-          - const: nvidia,tegra238-sdhci
+          - enum:
+              - nvidia,tegra238-sdhci
+              - nvidia,tegra264-sdhci
           - const: nvidia,tegra194-sdhci
 
   reg:
