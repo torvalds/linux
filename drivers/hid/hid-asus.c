@@ -99,6 +99,7 @@ MODULE_DESCRIPTION("Asus HID Keyboard and TouchPad");
 #define QUIRK_ROG_CLAYMORE_II_KEYBOARD	BIT(12)
 #define QUIRK_ROG_ALLY_XPAD		BIT(13)
 #define QUIRK_HID_FN_LOCK		BIT(14)
+#define QUIRK_FILTER_CAMERA_COMPANION	BIT(15)
 
 #define I2C_KEYBOARD_QUIRKS			(QUIRK_FIX_NOTEBOOK_REPORT | \
 						 QUIRK_NO_INIT_REPORTS | \
@@ -558,6 +559,17 @@ static int asus_raw_event(struct hid_device *hdev,
 		if (size == 2 && data[0] == 0x02 && data[1] == 0x00)
 			return -1;
 	}
+
+	/*
+	 * The camera-toggle key reports its vendor usage (0x85) together with a
+	 * companion state byte in the same array report, e.g. "5a 85 01" and
+	 * "5a 85 10" for the two toggle positions. The 0x10 companion aliases the
+	 * brightness-down vendor usage and would spuriously dim the panel, so drop
+	 * the companion slots and leave only the camera usage for input mapping.
+	 */
+	if (drvdata->quirks & QUIRK_FILTER_CAMERA_COMPANION &&
+	    report->id == FEATURE_KBD_REPORT_ID && size >= 3 && data[1] == 0x85)
+		memset(&data[2], 0, size - 2);
 
 	return 0;
 }
@@ -1228,6 +1240,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x6c: asus_map_key_clear(KEY_SLEEP);		break;
 		case 0x7c: asus_map_key_clear(KEY_MICMUTE);		break;
 		case 0x82: asus_map_key_clear(KEY_CAMERA);		break;
+		case 0x85: asus_map_key_clear(KEY_CAMERA);		break;
+		case 0x86: asus_map_key_clear(KEY_PROG1);	break; /* MyASUS key */
 		case 0x88: asus_map_key_clear(KEY_RFKILL);			break;
 		case 0xb5: asus_map_key_clear(KEY_CALC);			break;
 		case 0xc4: asus_map_key_clear(KEY_KBDILLUMUP);		break;
@@ -1237,6 +1251,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x7e: asus_map_key_clear(KEY_EMOJI_PICKER);	break;
 
 		case 0x8b: asus_map_key_clear(KEY_PROG1);	break; /* ProArt Creator Hub key */
+		case 0x5f: asus_map_key_clear(KEY_PROG2);	break; /* S-shaped programmable key */
 		case 0x6b: asus_map_key_clear(KEY_F21);		break; /* ASUS touchpad toggle */
 		case 0x38: asus_map_key_clear(KEY_PROG1);	break; /* ROG key */
 		case 0xba: asus_map_key_clear(KEY_PROG2);	break; /* Fn+C ASUS Splendid */
@@ -1655,6 +1670,9 @@ static const __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const struct hid_device_id asus_devices[] = {
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_I2C_KEYBOARD), I2C_KEYBOARD_QUIRKS},
+	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
+		USB_DEVICE_ID_ASUSTEK_I2C_ZENBOOK_KEYBOARD),
+	  I2C_KEYBOARD_QUIRKS | QUIRK_FILTER_CAMERA_COMPANION },
 	{ HID_I2C_DEVICE(USB_VENDOR_ID_ASUSTEK,
 		USB_DEVICE_ID_ASUSTEK_I2C_TOUCHPAD), I2C_TOUCHPAD_QUIRKS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ASUSTEK,
