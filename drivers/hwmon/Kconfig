@@ -335,6 +335,17 @@ config SENSORS_K10TEMP
 	  This driver can also be built as a module. If so, the module
 	  will be called k10temp.
 
+config SENSORS_KB9002
+	tristate "Kandou KB9002 PCIe retimer"
+	depends on I2C
+	help
+	  If you say yes here you get support for the integrated
+	  temperature sensor and firmware version readout on Kandou
+	  KB9002 PCIe 5.0 retimers, accessed over SMBus.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called kb9002.
+
 config SENSORS_KBATT
 	tristate "KEBA battery controller support"
 	depends on KEBA_CP500

@@ -13930,6 +13930,13 @@ S:	Maintained
 F:	Documentation/hwmon/k8temp.rst
 F:	drivers/hwmon/k8temp.c
 
+KANDOU KB9002 PCIE RETIMER HWMON DRIVER
+M:	Andy Chung <andy.chung@amd.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/kb9002.rst
+F:	drivers/hwmon/kb9002.c
+
 KASAN
 M:	Andrey Ryabinin <ryabinin.a.a@gmail.com>
 R:	Alexander Potapenko <glider@google.com>
