@@ -125,11 +125,6 @@ static int nvmem_layout_create_device(struct nvmem_device *nvmem,
 	return 0;
 }
 
-static const struct of_device_id of_nvmem_layout_skip_table[] = {
-	{ .compatible = "fixed-layout", },
-	{}
-};
-
 static int nvmem_layout_bus_populate(struct nvmem_device *nvmem,
 				     struct device_node *layout_dn)
 {
@@ -139,12 +134,6 @@ static int nvmem_layout_bus_populate(struct nvmem_device *nvmem,
 	if (!of_property_present(layout_dn, "compatible")) {
 		pr_debug("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, layout_dn);
-		return 0;
-	}
-
-	/* Fixed layouts are parsed manually somewhere else for now */
-	if (of_match_node(of_nvmem_layout_skip_table, layout_dn)) {
-		pr_debug("%s() - skipping %pOF node\n", __func__, layout_dn);
 		return 0;
 	}
 
