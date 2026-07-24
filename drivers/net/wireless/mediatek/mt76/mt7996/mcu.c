@@ -4023,6 +4023,9 @@ int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
 	struct mt7996_dev *dev = phy->dev;
 	int err, region, rdd_idx = mt7996_get_rdd_idx(phy, true);
 
+	if (rdd_idx < 0)
+		return -EINVAL;
+
 	if (!chandef) { /* disable offchain */
 		err = mt7996_mcu_rdd_cmd(dev, RDD_STOP, rdd_idx, 0);
 		if (err)
