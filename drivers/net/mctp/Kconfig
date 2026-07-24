@@ -57,6 +57,11 @@ config MCTP_TRANSPORT_USBLIB
 
 	  This will be automatically enabled by the transport driver.
 
+config MCTP_TRANSPORT_USBLIB_TEST
+        bool "MCTP usblib tests" if !KUNIT_ALL_TESTS
+        depends on MCTP_TRANSPORT_USBLIB=y && KUNIT=y
+        default KUNIT_ALL_TESTS
+
 config MCTP_TRANSPORT_USB
 	tristate "MCTP USB transport"
 	depends on USB

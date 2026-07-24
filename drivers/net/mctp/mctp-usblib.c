@@ -619,3 +619,7 @@ EXPORT_SYMBOL_GPL(mctp_usblib_tx_cancel);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jeremy Kerr <jk@codeconstruct.com.au>");
 MODULE_DESCRIPTION("MCTP USB transport library");
+
+#if IS_ENABLED(CONFIG_MCTP_TRANSPORT_USBLIB_TEST)
+#include "mctp-usblib-test.c"
+#endif
