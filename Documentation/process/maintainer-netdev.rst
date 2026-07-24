@@ -210,6 +210,10 @@ landed - describe your best guess and ask if it's correct. For example::
   I don't understand what the next steps are. Person X seems to be unhappy
   with A, should I do B and repost the patches?
 
+Don't reach out to maintainers or reviewers via private email and/or other
+communications channels: all the discussion must remain public, and
+requesting special attention is unfair towards the community, at best.
+
 .. _Changes requested:
 
 Changes requested
