@@ -2466,7 +2466,7 @@ static int ffs_epfiles_create(struct ffs_data *ffs)
 			mutex_init(&comp->mutex);
 			mutex_init(&comp->dmabufs_mutex);
 			INIT_LIST_HEAD(&comp->dmabufs);
-			snprintf(comp->name, sizeof(comp->name), "%s_rw",
+			snprintf(comp->name, sizeof(comp->name), "%.4s_rw",
 				 epfiles[i].name);
 			err = ffs_sb_create_file(ffs->sb, comp->name,
 						 comp, &ffs_epfile_operations);
