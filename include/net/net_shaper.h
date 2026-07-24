@@ -107,7 +107,12 @@ struct net_shaper_ops {
 	 * The @leaves array's size is specified by @leaves_count.
 	 *
 	 * @node and @leaves may or may not already exist
-	 * (see the "Implicit creation" note).
+	 * (see the "Implicit creation" note). If @node already exists,
+	 * the @leaves should be *added* to its children. In this case,
+	 * the @leaves array only holds new/modified leaves, not the full list.
+	 *
+	 * Re-parenting @leaves is implemented by a @group call on a new parent.
+	 * There's no explicit call to remove the children from the old parent.
 	 */
 	int (*group)(struct net_shaper_binding *binding, int leaves_count,
 		     const struct net_shaper *leaves,
@@ -128,6 +133,13 @@ struct net_shaper_ops {
 	 *
 	 * Removes the shaper configuration as identified by the given @handle
 	 * on the device specified by @binding, restoring the default behavior.
+	 *
+	 * Note that a @delete call on a NET_SHAPER_SCOPE_QUEUE shaper also
+	 * implicitly removes the associated queue from the scheduling
+	 * hierarchy. The driver must take care of that step.
+	 * @delete calls on NET_SHAPER_SCOPE_NODE should not require any
+	 * implicit re-parenting in the driver as core will re-parent the leaves
+	 * first, before deleting the SCOPE_NODE shaper.
 	 */
 	int (*delete)(struct net_shaper_binding *binding,
 		      const struct net_shaper_handle *handle,
