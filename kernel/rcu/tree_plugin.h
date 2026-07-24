@@ -976,7 +976,7 @@ static void __init rcu_bootup_announce(void)
 static void rcu_qs(void)
 {
 	RCU_LOCKDEP_WARN(preemptible(), "rcu_qs() invoked with preemption enabled!!!");
-	if (!__this_cpu_read(rcu_data.cpu_no_qs.s))
+	if (!this_cpu_read(rcu_data.cpu_no_qs.s))
 		return;
 	trace_rcu_grace_period(TPS("rcu_sched"),
 			       __this_cpu_read(rcu_data.gp_seq), TPS("cpuqs"));
