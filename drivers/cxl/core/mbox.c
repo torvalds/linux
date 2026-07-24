@@ -91,6 +91,10 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
  *
  * CXL_MBOX_OP_[GET_,INJECT_,CLEAR_]POISON: These commands require kernel
  * driver orchestration for safety.
+ *
+ * CXL_MBOX_OP_[GET_SUPPORTED_FEATURES,GET_FEATURE,SET_FEATURE]: Features are
+ * accessed through the fwctl ABI, which applies scope-based access control.
+ * The RAW path would bypass those checks, so it is not permitted here.
  */
 static u16 cxl_disabled_raw_commands[] = {
 	CXL_MBOX_OP_ACTIVATE_FW,
@@ -102,6 +106,9 @@ static u16 cxl_disabled_raw_commands[] = {
 	CXL_MBOX_OP_GET_POISON,
 	CXL_MBOX_OP_INJECT_POISON,
 	CXL_MBOX_OP_CLEAR_POISON,
+	CXL_MBOX_OP_GET_SUPPORTED_FEATURES,
+	CXL_MBOX_OP_GET_FEATURE,
+	CXL_MBOX_OP_SET_FEATURE,
 };
 
 /*
