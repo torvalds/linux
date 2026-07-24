@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(__netpoll_setup);
  * be at least MAC_ADDR_STR_LEN + 1 to fit the formatted MAC address
  * and its NUL terminator.
  */
-static char *egress_dev(struct netpoll *np, char *buf, size_t bufsz)
+char *egress_dev(struct netpoll *np, char *buf, size_t bufsz)
 {
 	if (np->dev_name[0])
 		return np->dev_name;
@@ -407,8 +407,9 @@ static char *egress_dev(struct netpoll *np, char *buf, size_t bufsz)
 	snprintf(buf, bufsz, "%pM", np->dev_mac);
 	return buf;
 }
+EXPORT_SYMBOL_GPL(egress_dev);
 
-static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev)
+void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev)
 {
 	unsigned long atmost;
 
@@ -421,11 +422,12 @@ static void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev)
 		msleep(1);
 	}
 }
+EXPORT_SYMBOL_GPL(netpoll_wait_carrier);
 
 /*
  * Take the IPv6 from ndev and populate local_ip structure in netpoll
  */
-static int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
+int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
 {
 	char buf[MAC_ADDR_STR_LEN + 1];
 	int err = -EDESTADDRREQ;
@@ -462,11 +464,12 @@ static int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev)
 	np_info(np, "local IPv6 %pI6c\n", &np->local_ip.in6);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(netpoll_take_ipv6);
 
 /*
  * Take the IPv4 from ndev and populate local_ip structure in netpoll
  */
-static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
+int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
 {
 	char buf[MAC_ADDR_STR_LEN + 1];
 	const struct in_ifaddr *ifa;
@@ -491,6 +494,7 @@ static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(netpoll_take_ipv4);
 
 /*
  * Test whether the caller left np->local_ip unset, so that
@@ -502,12 +506,13 @@ static int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
  * doing so would misclassify a caller-supplied address as unset and
  * silently overwrite it with whatever address the device exposes.
  */
-static bool netpoll_local_ip_unset(const struct netpoll *np)
+bool netpoll_local_ip_unset(const struct netpoll *np)
 {
 	if (np->ipv6)
 		return ipv6_addr_any(&np->local_ip.in6);
 	return !np->local_ip.ip;
 }
+EXPORT_SYMBOL_GPL(netpoll_local_ip_unset);
 
 int netpoll_setup(struct netpoll *np)
 {
