@@ -351,6 +351,86 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 	skb_queue_purge_reason(&nt->skb_pool, SKB_CONSUMED);
 }
 
+static int netcons_netpoll_setup(struct netpoll *np)
+{
+	struct net *net = current->nsproxy->net_ns;
+	char buf[MAC_ADDR_STR_LEN + 1];
+	struct net_device *ndev = NULL;
+	bool ip_overwritten = false;
+	int err;
+
+	rtnl_lock();
+	if (np->dev_name[0])
+		ndev = __dev_get_by_name(net, np->dev_name);
+	else if (is_valid_ether_addr(np->dev_mac))
+		ndev = dev_getbyhwaddr(net, ARPHRD_ETHER, np->dev_mac);
+
+	if (!ndev) {
+		np_err(np, "%s doesn't exist, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		err = -ENODEV;
+		goto unlock;
+	}
+	netdev_hold(ndev, &np->dev_tracker, GFP_KERNEL);
+
+	if (netdev_master_upper_dev_get(ndev)) {
+		np_err(np, "%s is a slave device, aborting\n",
+		       egress_dev(np, buf, sizeof(buf)));
+		err = -EBUSY;
+		goto put;
+	}
+
+	if (!netif_running(ndev)) {
+		np_info(np, "device %s not up yet, forcing it\n",
+			egress_dev(np, buf, sizeof(buf)));
+
+		err = dev_open(ndev, NULL);
+		if (err) {
+			np_err(np, "failed to open %s\n", ndev->name);
+			goto put;
+		}
+
+		rtnl_unlock();
+		netpoll_wait_carrier(np, ndev);
+		rtnl_lock();
+	}
+
+	if (netpoll_local_ip_unset(np)) {
+		if (!np->ipv6) {
+			err = netpoll_take_ipv4(np, ndev);
+			if (err)
+				goto put;
+		} else {
+			err = netpoll_take_ipv6(np, ndev);
+			if (err)
+				goto put;
+		}
+		ip_overwritten = true;
+	}
+
+	err = __netpoll_setup(np, ndev);
+	if (err)
+		goto put;
+	rtnl_unlock();
+
+	/* Make sure all NAPI polls which started before dev->npinfo
+	 * was visible have exited before we start calling NAPI poll.
+	 * NAPI skips locking if dev->npinfo is NULL.
+	 */
+	synchronize_rcu();
+
+	return 0;
+
+put:
+	DEBUG_NET_WARN_ON_ONCE(np->dev);
+	if (ip_overwritten)
+		memset(&np->local_ip, 0, sizeof(np->local_ip));
+	netdev_put(ndev, &np->dev_tracker);
+unlock:
+	rtnl_unlock();
+	return err;
+}
+
 /* Attempts to resume logging to a deactivated target. */
 static void resume_target(struct netconsole_target *nt)
 {
@@ -361,7 +441,7 @@ static void resume_target(struct netconsole_target *nt)
 	 */
 	netconsole_skb_pool_init(nt);
 
-	if (netpoll_setup(&nt->np)) {
+	if (netcons_netpoll_setup(&nt->np)) {
 		/* netpoll fails setup once, do not try again. */
 		netconsole_skb_pool_flush(nt);
 		nt->state = STATE_DISABLED;
@@ -840,7 +920,7 @@ static ssize_t enabled_store(struct config_item *item,
 		 */
 		netconsole_skb_pool_init(nt);
 
-		ret = netpoll_setup(&nt->np);
+		ret = netcons_netpoll_setup(&nt->np);
 		if (ret) {
 			netconsole_skb_pool_flush(nt);
 			goto out_unlock;
@@ -2430,7 +2510,7 @@ static struct netconsole_target *alloc_param_target(char *target_config,
 	 */
 	netconsole_skb_pool_init(nt);
 
-	err = netpoll_setup(&nt->np);
+	err = netcons_netpoll_setup(&nt->np);
 	if (err) {
 		pr_err("Not enabling netconsole for %s%d. Netpoll setup failed\n",
 		       NETCONSOLE_PARAM_TARGET_PREFIX, cmdline_count);
