@@ -1769,7 +1769,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_tdma.finfo.v1);
 			fwsubver->fcxtdma = 0;
 		} else if (ver->fcxtdma == 3 || ver->fcxtdma == 4 ||
-			   ver->fcxtdma == 7) {
+			   ver->fcxtdma == 7 || ver->fcxtdma == 8) {
 			pfinfo = &pfwinfo->rpt_fbtc_tdma.finfo.v3;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_tdma.finfo.v3);
 			fwsubver->fcxtdma = pfwinfo->rpt_fbtc_tdma.finfo.v3.fver;
@@ -2300,7 +2300,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 					    &pfwinfo->rpt_fbtc_tdma.finfo.v1,
 					    sizeof(dm->tdma_now)));
 		else if (ver->fcxtdma == 3 || ver->fcxtdma == 4 ||
-			 ver->fcxtdma == 7)
+			 ver->fcxtdma == 7 || ver->fcxtdma == 8)
 			_chk_btc_err(rtwdev, BTC_DCNT_TDMA_NONSYNC,
 				     memcmp(&dm->tdma_now,
 					    &pfwinfo->rpt_fbtc_tdma.finfo.v3.tdma,
