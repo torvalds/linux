@@ -2458,6 +2458,7 @@ mt7996_change_vif_links(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 		idx = get_free_idx(dev->mld_remap_idx_mask, 0, 15) - 1;
 		if (idx < 0) {
+			dev->mld_idx_mask &= ~BIT_ULL(mvif->mld_group_idx);
 			ret = -ENOSPC;
 			goto out;
 		}
