@@ -5144,6 +5144,7 @@ static const char *scx_cap_names[__SCX_NR_CAPS] = {
 	[__SCX_CAP_ENQ_IMMED]	= "enq_immed",
 	[__SCX_CAP_ENQ]		= "enq",
 	[__SCX_CAP_PREEMPT]	= "preempt",
+	[__SCX_CAP_PERF]	= "perf",
 };
 
 static ssize_t scx_attr_caps_show(struct kobject *kobj,
@@ -9786,6 +9787,7 @@ static s32 scx_cpuperf_set(struct scx_sched *sch, s32 cpu, u32 perf)
 {
 	struct rq *rq, *locked_rq;
 	struct rq_flags rf;
+	s32 ret;
 
 	if (unlikely(perf > SCX_CPUPERF_ONE)) {
 		scx_error(sch, "Invalid cpuperf target %u for CPU %d", perf, cpu);
@@ -9816,13 +9818,24 @@ static s32 scx_cpuperf_set(struct scx_sched *sch, s32 cpu, u32 perf)
 		update_rq_clock(rq);
 	}
 
-	rq->scx.cpuperf_target = perf;
-	cpufreq_update_util(rq, 0);
+	/*
+	 * ecaps updates are folded under the rq lock, making this test
+	 * authoritative: a write can never land after a revoke has taken
+	 * effect on @cpu.
+	 */
+	if (likely(!scx_missing_caps(sch, cpu, SCX_CAP_PERF))) {
+		rq->scx.cpuperf_target = perf;
+		cpufreq_update_util(rq, 0);
+		ret = 0;
+	} else {
+		__scx_add_event(sch, SCX_EV_SUB_CIDPERF_DENIED, 1);
+		ret = -EACCES;
+	}
 
 	if (!locked_rq)
 		rq_unlock_irqrestore(rq, &rf);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -9859,10 +9872,13 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf, const struct bpf_prog_au
  * @perf: target performance level [0, %SCX_CPUPERF_ONE]
  * @aux: implicit BPF argument to access bpf_prog_aux hidden from BPF progs
  *
- * cid-addressed equivalent of scx_bpf_cpuperf_set().
+ * cid-addressed equivalent of scx_bpf_cpuperf_set(). A sub-sched needs
+ * SCX_CAP_PERF on @cid. Returns 0 if the target was applied, -%EACCES if
+ * the write was denied for missing caps, other -errnos if @cid didn't
+ * resolve.
  */
-__bpf_kfunc void scx_bpf_cidperf_set(s32 cid, u32 perf,
-				     const struct bpf_prog_aux *aux)
+__bpf_kfunc s32 scx_bpf_cidperf_set(s32 cid, u32 perf,
+				    const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
 	s32 cpu;
@@ -9871,11 +9887,12 @@ __bpf_kfunc void scx_bpf_cidperf_set(s32 cid, u32 perf,
 
 	sch = scx_prog_sched(aux);
 	if (unlikely(!sch))
-		return;
+		return -ENODEV;
 	cpu = scx_cid_to_cpu(sch, cid);
 	if (cpu < 0)
-		return;
-	scx_bpf_cpuperf_set(cpu, perf, aux);
+		return cpu;
+
+	return scx_cpuperf_set(sch, cpu, perf);
 }
 
 /**

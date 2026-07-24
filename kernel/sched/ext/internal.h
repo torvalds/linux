@@ -1206,6 +1206,12 @@ struct scx_event_stats {
 	 * sub-sched lacked baseline access on the target cid.
 	 */
 	s64		SCX_EV_SUB_REENQ_DENIED;
+
+	/*
+	 * The number of times scx_bpf_cidperf_set() was denied because the
+	 * sub-sched lacked SCX_CAP_PERF on the target cid.
+	 */
+	s64		SCX_EV_SUB_CIDPERF_DENIED;
 };
 
 #define SCX_EVENTS_LIST(SCX_EVENT)					\
@@ -1227,7 +1233,8 @@ struct scx_event_stats {
 	SCX_EVENT(SCX_EV_SUB_FORCED_ADMIT);				\
 	SCX_EVENT(SCX_EV_SUB_PREEMPT_DENIED);				\
 	SCX_EVENT(SCX_EV_SUB_KICK_DENIED);				\
-	SCX_EVENT(SCX_EV_SUB_REENQ_DENIED)
+	SCX_EVENT(SCX_EV_SUB_REENQ_DENIED);				\
+	SCX_EVENT(SCX_EV_SUB_CIDPERF_DENIED)
 
 struct scx_sched;
 
@@ -1353,6 +1360,11 @@ struct scx_sched_pnode {
  *            - SCX_ENQ_PREEMPT inserts
  *            - SCX_KICK_PREEMPT kicks
  *
+ * PERF       control the cid's cpu power/perf management state, currently the
+ *            cpufreq target set through scx_bpf_cidperf_set(). Hardware
+ *            control is a separate axis from queue access: PERF neither
+ *            implies nor is implied by the caps above.
+ *
  * Implied caps apply to the holder's own use of a cid, not to delegation.
  * scx_bpf_sub_grant() delegates literally-held caps, so a cap held only through
  * implication is usable but cannot be re-delegated to a child. When granting a
@@ -1363,6 +1375,7 @@ enum scx_cap_flags {
 	__SCX_CAP_ENQ_IMMED		= 0,
 	__SCX_CAP_ENQ			= 1,
 	__SCX_CAP_PREEMPT		= 2,
+	__SCX_CAP_PERF			= 3,
 
 	__SCX_NR_CAPS,
 	__SCX_CAP_ALL			= BIT_U64(__SCX_NR_CAPS) - 1,
@@ -1370,6 +1383,7 @@ enum scx_cap_flags {
 	SCX_CAP_ENQ_IMMED		= BIT_U64(__SCX_CAP_ENQ_IMMED),
 	SCX_CAP_ENQ			= BIT_U64(__SCX_CAP_ENQ),
 	SCX_CAP_PREEMPT			= BIT_U64(__SCX_CAP_PREEMPT),
+	SCX_CAP_PERF			= BIT_U64(__SCX_CAP_PERF),
 
 	/* alias for minimal cap to make any use of a cpu */
 	SCX_CAP_BASE			= SCX_CAP_ENQ_IMMED,

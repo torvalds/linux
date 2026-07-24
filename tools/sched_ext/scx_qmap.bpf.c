@@ -1585,11 +1585,13 @@ __noinline void apply_partition(void)
 		cmask_copy(&qa.to_grant_cids.mask, &ssc->granted_cids.mask);
 		cmask_andnot(&qa.to_grant_cids.mask, &ssc->prev_granted.mask);
 
-		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ_IMMED,
+		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 				   (void *)(long)&qa.prev_rr_cids.mask);
-		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT | SCX_CAP_ENQ_IMMED,
+		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
+				   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 				   (void *)(long)&qa.to_revoke_cids.mask);
-		scx_bpf_sub_grant(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT | SCX_CAP_ENQ_IMMED,
+		scx_bpf_sub_grant(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
+				  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 				  (void *)(long)&qa.to_grant_cids.mask, NULL);
 	}
 
@@ -1605,7 +1607,8 @@ __noinline void apply_partition(void)
 
 		holder_cgid = qa.part.rr_slots[pos];	/* 0 = self, nothing to grant */
 		if (holder_cgid)
-			scx_bpf_sub_grant(holder_cgid, SCX_CAP_ENQ_IMMED,
+			scx_bpf_sub_grant(holder_cgid,
+					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 					  (void *)(long)&qa.rr_cids.mask, NULL);
 	}
 }
@@ -1696,10 +1699,12 @@ static void rr_advance(void)
 		 * time-share.
 		 */
 		if (old_cgid)
-			scx_bpf_sub_revoke(old_cgid, SCX_CAP_ENQ_IMMED,
+			scx_bpf_sub_revoke(old_cgid,
+					   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 					   (void *)(long)&qa.rr_cids.mask);
 		if (new_cgid)
-			scx_bpf_sub_grant(new_cgid, SCX_CAP_ENQ_IMMED,
+			scx_bpf_sub_grant(new_cgid,
+					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
 					  (void *)(long)&qa.rr_cids.mask, NULL);
 	}
 

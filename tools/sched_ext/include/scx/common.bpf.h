@@ -112,7 +112,7 @@ u32 scx_bpf_nr_cids(void) __ksym __weak;
 u32 scx_bpf_nr_online_cids(void) __ksym __weak;
 u32 scx_bpf_cidperf_cap(s32 cid) __ksym __weak;
 u32 scx_bpf_cidperf_cur(s32 cid) __ksym __weak;
-void scx_bpf_cidperf_set(s32 cid, u32 perf) __ksym __weak;
+s32 scx_bpf_cidperf_set(s32 cid, u32 perf) __ksym __weak;
 
 /* sub-scheduler cap control, scx_bpf_sub_caps() cgroup_id 0 == self */
 s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps, const struct scx_cmask *cmask,
