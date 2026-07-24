@@ -1046,7 +1046,8 @@ static long wwan_port_fops_ioctl(struct file *filp, unsigned int cmd,
 	struct wwan_port *port = filp->private_data;
 	int res;
 
-	if (port->type == WWAN_PORT_AT) {	/* AT port specific IOCTLs */
+	if (port->type == WWAN_PORT_AT || port->type == WWAN_PORT_QCDM) {
+		/* AT and QCDM port specific IOCTLs */
 		res = wwan_port_fops_at_ioctl(port, cmd, arg);
 		if (res != -ENOIOCTLCMD)
 			return res;
