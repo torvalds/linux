@@ -3763,7 +3763,7 @@ static struct dm_test_stream_ctx *dm_test_stream_ctx_alloc(struct kunit *test)
 						       DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
 
-	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	ctx->aconnector = drmm_kzalloc(ctx->drm, sizeof(*ctx->aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
@@ -4026,7 +4026,7 @@ static void dm_test_poll_dac_load_returns_cached(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 	adev = drm_to_adev(drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(drm, &aconnector->base,
@@ -4073,7 +4073,7 @@ static struct amdgpu_dm_connector *dm_test_reg_connector(struct kunit *test)
 						  DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(drm, &aconnector->base,
@@ -4528,7 +4528,7 @@ dm_test_modes_ctx_alloc(struct kunit *test, int connector_type)
 	ctx->drm = dm_test_alloc_drm(test);
 	ctx->aconnector = dm_test_add_connector(test, ctx->drm, connector_type);
 
-	ctx->aenc = kunit_kzalloc(test, sizeof(*ctx->aenc), GFP_KERNEL);
+	ctx->aenc = drmm_kzalloc(ctx->drm, sizeof(*ctx->aenc), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aenc);
 	KUNIT_ASSERT_EQ(test,
 			drmm_encoder_init(ctx->drm, &ctx->aenc->base, NULL,
