@@ -109,9 +109,16 @@ static void iso_conn_free(struct kref *ref)
 	BT_DBG("conn %p", conn);
 
 	if (conn->hcon) {
-		conn->hcon->iso_data = NULL;
-		if (!test_and_set_bit(ISO_CONN_DROPPED, conn->flags))
-			hci_conn_drop(conn->hcon);
+		spin_lock(&conn->hcon->proto_lock);
+
+		/* Check we are not racing with iso_conn_add */
+		if (conn->hcon->iso_data == conn) {
+			conn->hcon->iso_data = NULL;
+			if (!test_and_set_bit(ISO_CONN_DROPPED, conn->flags))
+				hci_conn_drop(conn->hcon);
+		}
+
+		spin_unlock(&conn->hcon->proto_lock);
 	}
 
 	kfree_skb(conn->rx_skb);
@@ -126,7 +133,21 @@ static void iso_conn_put(struct iso_conn *conn)
 
 	BT_DBG("conn %p refcnt %d", conn, kref_read(&conn->ref));
 
+	/* The following race vs. iso_conn_del() is possible:
+	 *
+	 * 1. conn->hcon != NULL here
+	 * 2. kref_put puts the last reference
+	 * 3. concurrent iso_conn_del() gets iso_conn_hold_unless_zero() -> NULL
+	 *    and returns immediately, so conn->hcon is not cleared
+	 * 4. iso_conn_free() dereferences conn->hcon
+	 *
+	 * To avoid UAF in step 4, take RCU before decrementing the refcount.
+	 */
+	rcu_read_lock();
+
 	kref_put(&conn->ref, iso_conn_free);
+
+	rcu_read_unlock();
 }
 
 static struct iso_conn *iso_conn_hold_unless_zero(struct iso_conn *conn)
@@ -205,22 +226,28 @@ static void iso_sock_disable_timer(struct sock *sk)
 
 /* ---- ISO connections ---- */
 static struct iso_conn *iso_conn_add(struct hci_conn *hcon)
+	__must_hold(&hcon->hdev->lock)
 {
-	struct iso_conn *conn = hcon->iso_data;
+	struct iso_conn *conn;
 
-	conn = iso_conn_hold_unless_zero(conn);
+	spin_lock(&hcon->proto_lock);
+
+	conn = iso_conn_hold_unless_zero(hcon->iso_data);
 	if (conn) {
 		if (!conn->hcon) {
 			iso_conn_lock(conn);
 			conn->hcon = hcon;
 			iso_conn_unlock(conn);
 		}
+		spin_unlock(&hcon->proto_lock);
 		return conn;
 	}
 
-	conn = kzalloc_obj(*conn);
-	if (!conn)
+	conn = kzalloc_obj(*conn, GFP_ATOMIC);
+	if (!conn) {
+		spin_unlock(&hcon->proto_lock);
 		return NULL;
+	}
 
 	kref_init(&conn->ref);
 	spin_lock_init(&conn->lock);
@@ -228,6 +255,8 @@ static struct iso_conn *iso_conn_add(struct hci_conn *hcon)
 	hcon->iso_data = conn;
 	conn->hcon = hcon;
 	conn->tx_sn = 0;
+
+	spin_unlock(&hcon->proto_lock);
 
 	BT_DBG("hcon %p conn %p", hcon, conn);
 
@@ -269,10 +298,12 @@ static void iso_chan_del(struct sock *sk, int err)
 static void iso_conn_del(struct hci_conn *hcon, int err)
 	__must_hold(&hcon->hdev->lock)
 {
-	struct iso_conn *conn = hcon->iso_data;
+	struct iso_conn *conn;
 	struct sock *sk;
 
-	conn = iso_conn_hold_unless_zero(conn);
+	spin_lock(&hcon->proto_lock);
+	conn = iso_conn_hold_unless_zero(hcon->iso_data);
+	spin_unlock(&hcon->proto_lock);
 	if (!conn)
 		return;
 
@@ -296,10 +327,12 @@ static void iso_conn_del(struct hci_conn *hcon, int err)
 
 done:
 	/* No sk access to conn->hcon any more (lock_sock + hdev->lock) */
+	spin_lock(&hcon->proto_lock);
 	iso_conn_lock(conn);
 	conn->hcon = NULL;
 	hcon->iso_data = NULL;
 	iso_conn_unlock(conn);
+	spin_unlock(&hcon->proto_lock);
 
 	iso_conn_put(conn);
 }
@@ -421,6 +454,8 @@ static int iso_connect_bis(struct sock *sk)
 			iso_pi(sk)->bc_sid = hcon->sid;
 	}
 
+	lockdep_assert_held(&hcon->hdev->lock);
+
 	conn = iso_conn_add(hcon);
 	if (!conn) {
 		hci_conn_drop(hcon);
@@ -523,6 +558,8 @@ static int iso_connect_cis(struct sock *sk)
 			goto unlock;
 		}
 	}
+
+	lockdep_assert_held(&hcon->hdev->lock);
 
 	conn = iso_conn_add(hcon);
 	if (!conn) {
@@ -855,8 +892,8 @@ static void iso_sock_disconn(struct sock *sk)
 		 */
 		if (bis_sk) {
 			hcon->state = BT_OPEN;
-			hcon->iso_data = NULL;
-			iso_pi(sk)->conn->hcon = NULL;
+			set_bit(ISO_CONN_DROPPED, iso_pi(sk)->conn->flags);
+
 			iso_sock_clear_timer(sk);
 			iso_chan_del(sk, bt_to_errno(hcon->abort_reason));
 			sock_put(bis_sk);
@@ -1305,6 +1342,8 @@ static int iso_listen_bis(struct sock *sk)
 		err = PTR_ERR(hcon);
 		goto unlock;
 	}
+
+	lockdep_assert_held(&hcon->hdev->lock);
 
 	conn = iso_conn_add(hcon);
 	if (!conn) {
@@ -2591,7 +2630,10 @@ int iso_recv(struct hci_dev *hdev, u16 handle, struct sk_buff *skb, u16 flags)
 		return -ENOENT;
 	}
 
+	spin_lock(&hcon->proto_lock);
 	conn = iso_conn_hold_unless_zero(hcon->iso_data);
+	spin_unlock(&hcon->proto_lock);
+
 	hcon = NULL;
 
 	hci_dev_unlock(hdev);
