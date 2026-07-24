@@ -496,24 +496,6 @@ int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev)
 }
 EXPORT_SYMBOL_GPL(netpoll_take_ipv4);
 
-/*
- * Test whether the caller left np->local_ip unset, so that
- * netpoll_setup() should auto-populate it from the egress device.
- *
- * np->local_ip is a union of __be32 (IPv4) and struct in6_addr (IPv6),
- * so an IPv6 address whose first 4 bytes are zero (e.g. ::1, ::2,
- * IPv4-mapped ::ffff:a.b.c.d) must not be tested via the IPv4 arm —
- * doing so would misclassify a caller-supplied address as unset and
- * silently overwrite it with whatever address the device exposes.
- */
-bool netpoll_local_ip_unset(const struct netpoll *np)
-{
-	if (np->ipv6)
-		return ipv6_addr_any(&np->local_ip.in6);
-	return !np->local_ip.ip;
-}
-EXPORT_SYMBOL_GPL(netpoll_local_ip_unset);
-
 static void rcu_cleanup_netpoll_info(struct rcu_head *rcu_head)
 {
 	struct netpoll_info *npinfo =

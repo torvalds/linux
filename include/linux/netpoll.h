@@ -76,7 +76,6 @@ void netpoll_wait_carrier(struct netpoll *np, struct net_device *ndev);
 char *egress_dev(struct netpoll *np, char *buf, size_t bufsz);
 int netpoll_take_ipv4(struct netpoll *np, struct net_device *ndev);
 int netpoll_take_ipv6(struct netpoll *np, struct net_device *ndev);
-bool netpoll_local_ip_unset(const struct netpoll *np);
 
 #ifdef CONFIG_NETPOLL
 static inline void *netpoll_poll_lock(struct napi_struct *napi)
