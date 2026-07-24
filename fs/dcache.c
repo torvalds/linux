@@ -434,7 +434,7 @@ static inline void __d_clear_type_and_inode(struct dentry *dentry)
 static void dentry_free(struct dentry *dentry)
 {
 	DENTRY_WARN_ONCE(d_really_is_positive(dentry), dentry);
-	DENTRY_WARN_ONCE(dentry->d_lockref.count >= 0, dentry);
+	DENTRY_WARN_ONCE(!lockref_is_dead(&dentry->d_lockref), dentry);
 	D_FLAG_VERIFY(dentry, 0);
 	if (unlikely(dname_external(dentry))) {
 		struct external_name *p = external_name(dentry);
@@ -782,7 +782,7 @@ static bool lock_for_kill(struct dentry *dentry)
  *
  * If @dentry is idle and remains such after we assemble the full
  * locking environment for eviction (see lock_for_kill() for details)
- * we mark it doomed (->d_lockref.count < 0) and proceed to detaching
+ * we mark it doomed (see lockref_mark_dead()) and proceed to detaching
  * it from any filesystem objects.  Otherwise we drop ->d_lock and
  * return %NULL.
  *
@@ -946,7 +946,7 @@ static inline bool fast_dput(struct dentry *dentry)
 	if (unlikely(ret < 0)) {
 		spin_lock(&dentry->d_lock);
 		rcu_read_unlock();
-		if (WARN_ON_ONCE(dentry->d_lockref.count <= 0)) {
+		if (WARN_ON_ONCE(lockref_is_dead_or_zero(&dentry->d_lockref))) {
 			spin_unlock(&dentry->d_lock);
 			return true;
 		}
@@ -1644,7 +1644,7 @@ static enum d_walk_ret select_collect(void *_data, struct dentry *dentry)
 	if (data->start == dentry)
 		goto out;
 
-	if (dentry->d_lockref.count <= 0) {
+	if (lockref_is_dead_or_zero(&dentry->d_lockref)) {
 		__move_to_shrink_list(dentry, &data->dispose);
 		data->found++;
 	}
@@ -1676,7 +1676,7 @@ static enum d_walk_ret select_collect2(void *_data, struct dentry *dentry)
 	if (data->start == dentry)
 		goto out;
 
-	if (dentry->d_lockref.count <= 0) {
+	if (lockref_is_dead_or_zero(&dentry->d_lockref)) {
 		if (!__move_to_shrink_list(dentry, &data->dispose)) {
 			/*
 			 * We need an enter RCU read-side critical area that
@@ -1747,7 +1747,7 @@ static void shrink_dcache_tree(struct dentry *parent, bool for_umount)
 			spin_lock(&v->d_lock);
 			rcu_read_unlock();
 
-			if (unlikely(v->d_lockref.count < 0)) {
+			if (unlikely(lockref_is_dead(&v->d_lockref))) {
 				// It's doomed; if it isn't dead yet, notify us
 				// once it becomes invisible to d_walk().
 				need_wait = d_add_waiter(v, &wait);
@@ -1823,7 +1823,7 @@ void shrink_dcache_for_umount(struct super_block *sb)
 		spin_unlock(&sb->s_roots_lock);
 		spin_lock(&dentry->d_lock);
 		rcu_read_unlock();
-		if (unlikely(dentry->d_lockref.count < 0)) {
+		if (unlikely(lockref_is_dead(&dentry->d_lockref))) {
 			struct completion_list wait;
 			bool need_wait = d_add_waiter(dentry, &wait);
 
@@ -2822,7 +2822,7 @@ retry:
 		spin_lock(&dentry->d_lock);
 		rcu_read_unlock();
 		/* now we can try to grab a reference */
-		if (unlikely(dentry->d_lockref.count < 0)) {
+		if (unlikely(lockref_is_dead(&dentry->d_lockref))) {
 			spin_unlock(&dentry->d_lock);
 			goto retry;
 		}
