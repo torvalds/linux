@@ -9144,14 +9144,13 @@ static bool _ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_path,
 		wl->rfk_info.state = BTC_WRFK_START;
 
 		btc->cx.wl.wcnt[BTC_WCNT_RFK_REQ]++;
-		btc->cx.wl.wcnt[BTC_WCNT_RFK_GO]++;
 		btc->dm.cnt_notify[BTC_NCNT_WL_RFK]++;
 
 		_write_scbd(rtwdev, BTC_ALL_BT, BTC_WSCB_WLRFK, true);
 		break;
 	case BTC_WRFK_ONESHOT_START:
 	case BTC_WRFK_ONESHOT_STOP:
-		wl->rfk_info.state = state;
+		btc->cx.wl.wcnt[BTC_WCNT_RFK_GO]++;
 		if (type != BTC_WRFKT_RXDCK)
 			return BTC_WRFK_ALLOW;
 		break;
@@ -9165,7 +9164,7 @@ static bool _ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_path,
 	default:
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s() warning state=%d\n", __func__, state);
-		break;
+		return result;
 	}
 
 	if (result == BTC_WRFK_ALLOW) {
