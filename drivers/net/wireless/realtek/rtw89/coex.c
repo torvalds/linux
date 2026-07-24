@@ -9779,10 +9779,13 @@ enum btc_bt_a2dp_type {
 	BTC_A2DP_TWS_RELAY = 2,
 };
 
-static int _show_bt_profile_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
+static int _show_bt_profile_info(struct rtw89_dev *rtwdev, char *buf,
+				 size_t bufsz, u8 bid)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt0.link_info;
+	struct rtw89_btc_bt_info *bt = (bid == BTC_BT_1ST) ?
+				       &btc->cx.bt0 : &btc->cx.bt1;
+	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_hfp_desc hfp = bt_linfo->hfp_desc;
 	struct rtw89_btc_bt_hid_desc hid = bt_linfo->hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
@@ -9835,15 +9838,16 @@ static int _show_bt_profile_info(struct rtw89_dev *rtwdev, char *buf, size_t buf
 	return p - buf;
 }
 
-static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
+static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz, u8 bid)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt0;
+	struct rtw89_btc_bt_info *bt = (bid == BTC_BT_1ST) ? &cx->bt0 : &cx->bt1;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_module *md = &btc->mdinfo;
+	u8 bt_pos = (bid == BTC_BT_1ST) ? md->bt0_pos : md->bt1_pos;
 	s8 br_dbm = bt->link_info.bt_txpwr_desc.br_dbm;
 	s8 le_dbm = bt->link_info.bt_txpwr_desc.le_dbm;
 	u8 hw_band = wl->role_info.pta_req_band;
@@ -9855,13 +9859,21 @@ static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 	if (!(btc->dm.coex_info_map & BTC_COEX_INFO_BT))
 		return 0;
 
-	p += scnprintf(p, end - p, "========== [BT Status] ==========\n");
+	if (bid == BTC_BT_2ND) {
+		if (!(rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT))
+			return 0;
+		if (!bt->enable.now)
+			return 0;
+	}
+
+	p += scnprintf(p, end - p, "========== [BT_%s Status] ==========\n",
+		       bid == BTC_BT_1ST ? "1ST" : "2ND");
 
 	p += scnprintf(p, end - p,
 		       " %-15s : enable:%s, btg:%s%s, connect:%s, ",
 		       "[status]", bt->enable.now ? "Y" : "N",
 		       bt->btg_type ? "Y" : "N",
-		       (bt->enable.now && (bt->btg_type != md->bt0_pos) ?
+		       (bt->enable.now && (bt->btg_type != bt_pos) ?
 			"(efuse-mismatch!!)" : ""),
 		       (bt_linfo->status.map.connect ? "Y" : "N"));
 
@@ -9927,7 +9939,7 @@ static int _show_bt_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 		       bt->bcnt[BTC_BCNT_INQPAG], bt->bcnt[BTC_BCNT_INQ],
 		       bt->bcnt[BTC_BCNT_PAGE], bt->bcnt[BTC_BCNT_IGNOWL]);
 
-	p += _show_bt_profile_info(rtwdev, p, end - p);
+	p += _show_bt_profile_info(rtwdev, p, end - p, bid);
 
 	p += scnprintf(p, end - p,
 		       " %-15s : raw_data[%02x %02x %02x %02x %02x %02x] (type:%s/cnt:%d/same:%d)\n",
@@ -12034,12 +12046,22 @@ static int _show_mreg_v7(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 			       dm->gnt_set[RTW89_PHY_0].gnt_bt0);
 
 	if (rtwdev->dbcc_en) {
-		p += scnprintf(p, end - p,
-			       ", phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]",
-			       dm->gnt_set[RTW89_PHY_1].gnt_wl_sw_en ? "SW" : "HW",
-			       dm->gnt_set[RTW89_PHY_1].gnt_wl,
-			       dm->gnt_set[RTW89_PHY_1].gnt_bt0_sw_en ? "SW" : "HW",
-			       dm->gnt_set[RTW89_PHY_1].gnt_bt0);
+		if (rtwdev->chip->para_ver & BTC_FEAT_DUAL_BT)
+			p += scnprintf(p, end - p,
+				       ", phy-1[gnt_wl:%s-%d/gnt_bt0:%s-%d/gnt_bt1:%s-%d]",
+				       dm->gnt_set[RTW89_PHY_1].gnt_wl_sw_en ? "SW" : "HW",
+				       dm->gnt_set[RTW89_PHY_1].gnt_wl,
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt0_sw_en ? "SW" : "HW",
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt0,
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt1_sw_en ? "SW" : "HW",
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt1);
+		else
+			p += scnprintf(p, end - p,
+				       ", phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]",
+				       dm->gnt_set[RTW89_PHY_1].gnt_wl_sw_en ? "SW" : "HW",
+				       dm->gnt_set[RTW89_PHY_1].gnt_wl,
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt0_sw_en ? "SW" : "HW",
+				       dm->gnt_set[RTW89_PHY_1].gnt_bt0);
 	}
 
 	pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
@@ -13020,7 +13042,8 @@ ssize_t rtw89_btc_dump_info(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 
 	p += _show_cx_info(rtwdev, p, end - p);
 	p += _show_wl_info(rtwdev, p, end - p);
-	p += _show_bt_info(rtwdev, p, end - p);
+	p += _show_bt_info(rtwdev, p, end - p, BTC_BT_1ST);
+	p += _show_bt_info(rtwdev, p, end - p, BTC_BT_2ND);
 	p += _show_dm_info(rtwdev, p, end - p);
 	p += _show_fw_dm_msg(rtwdev, p, end - p);
 
