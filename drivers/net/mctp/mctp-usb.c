@@ -29,8 +29,6 @@ struct mctp_usb {
 	u8 ep_out;
 
 	struct mctp_usblib_rx rx;
-
-	struct urb *tx_urb;
 	struct urb *rx_urb;
 	int in_err_count;
 	int in_err_orig;
@@ -40,82 +38,66 @@ struct mctp_usb {
 	spinlock_t rx_lock;
 	bool rx_stopped;
 	struct delayed_work rx_retry_work;
+
+	struct mctp_usblib_tx tx;
+	struct usb_anchor tx_anchor;
 };
 
 static void mctp_usb_out_complete(struct urb *urb)
 {
-	struct sk_buff *skb = urb->context;
-	struct net_device *netdev = skb->dev;
-	int status;
+	struct mctp_usblib_tx_ctx *tx_ctx = urb->context;
+	struct mctp_usb *mctp_usb = mctp_usblib_tx_ctx_priv(tx_ctx);
+	struct net_device *netdev = mctp_usb->netdev;
 
-	status = urb->status;
+	mctp_usblib_tx_send_complete(tx_ctx, netdev, urb->status == 0);
 
-	switch (status) {
-	case -ENOENT:
-	case -ECONNRESET:
-	case -ESHUTDOWN:
-	case -EPROTO:
-		dev_dstats_tx_dropped(netdev);
-		break;
-	case 0:
-		dev_dstats_tx_add(netdev, skb->len);
-		netif_wake_queue(netdev);
-		consume_skb(skb);
-		return;
-	default:
-		netdev_dbg(netdev, "unexpected tx urb status: %d\n", status);
-		dev_dstats_tx_dropped(netdev);
+	usb_free_urb(urb);
+
+	netif_wake_queue(netdev);
+}
+
+static int mctp_usb_tx_send(struct mctp_usblib_tx_ctx *tx_ctx,
+			    void *data, size_t len)
+{
+	struct mctp_usb *mctp_usb = mctp_usblib_tx_ctx_priv(tx_ctx);
+	struct urb *urb;
+	int rc;
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb)
+		return -ENOMEM;
+
+	usb_fill_bulk_urb(urb, mctp_usb->usbdev,
+			  usb_sndbulkpipe(mctp_usb->usbdev, mctp_usb->ep_out),
+			  data, len, mctp_usb_out_complete, tx_ctx);
+
+	netif_stop_queue(mctp_usb->netdev);
+
+	usb_anchor_urb(urb, &mctp_usb->tx_anchor);
+
+	rc = usb_submit_urb(urb, GFP_ATOMIC);
+	if (rc) {
+		netdev_dbg(mctp_usb->netdev, "TX urb submit failed, %d\n", rc);
+		usb_unanchor_urb(urb);
+		usb_free_urb(urb);
+		netif_start_queue(mctp_usb->netdev);
 	}
 
-	kfree_skb(skb);
+	return rc;
 }
+
+static const struct mctp_usblib_tx_ops tx_ops = {
+	.send = mctp_usb_tx_send,
+};
 
 static netdev_tx_t mctp_usb_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev)
 {
 	struct mctp_usb *mctp_usb = netdev_priv(dev);
-	struct mctp_usb_hdr *hdr;
-	unsigned int plen;
-	struct urb *urb;
-	int rc;
+	bool more = netdev_xmit_more();
 
-	plen = skb->len;
+	mctp_usblib_tx_push(dev, &mctp_usb->tx, skb, more);
 
-	if (plen + sizeof(*hdr) > MCTP_USB_1_0_PKTLEN_MAX)
-		goto err_drop;
-
-	rc = skb_cow_head(skb, sizeof(*hdr));
-	if (rc)
-		goto err_drop;
-
-	hdr = skb_push(skb, sizeof(*hdr));
-	if (!hdr)
-		goto err_drop;
-
-	hdr->id = cpu_to_be16(MCTP_USB_DMTF_ID);
-	hdr->rsvd = 0;
-	hdr->len = plen + sizeof(*hdr);
-
-	urb = mctp_usb->tx_urb;
-
-	usb_fill_bulk_urb(urb, mctp_usb->usbdev,
-			  usb_sndbulkpipe(mctp_usb->usbdev, mctp_usb->ep_out),
-			  skb->data, skb->len,
-			  mctp_usb_out_complete, skb);
-
-	/* Stops TX queue first to prevent race condition with URB complete */
-	netif_stop_queue(dev);
-	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc) {
-		netif_wake_queue(dev);
-		goto err_drop;
-	}
-
-	return NETDEV_TX_OK;
-
-err_drop:
-	dev_dstats_tx_dropped(dev);
-	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -297,8 +279,10 @@ static int mctp_usb_stop(struct net_device *dev)
 	flush_delayed_work(&mctp_usb->rx_retry_work);
 
 	usb_kill_urb(mctp_usb->rx_urb);
-	usb_kill_urb(mctp_usb->tx_urb);
 
+	usb_kill_anchored_urbs(&mctp_usb->tx_anchor);
+
+	mctp_usblib_tx_cancel(&mctp_usb->tx, dev, SKB_DROP_REASON_DEV_READY);
 	mctp_usblib_rx_cancel(&mctp_usb->rx);
 
 	return 0;
@@ -357,28 +341,30 @@ static int mctp_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, dev);
 
 	mctp_usblib_rx_init(&dev->rx);
+	mctp_usblib_tx_init(&dev->tx, &tx_ops, dev);
+	init_usb_anchor(&dev->tx_anchor);
 
 	dev->ep_in = ep_in->bEndpointAddress;
 	dev->ep_out = ep_out->bEndpointAddress;
 
-	dev->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	dev->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!dev->tx_urb || !dev->rx_urb) {
+	if (!dev->rx_urb) {
 		rc = -ENOMEM;
-		goto err_free_urbs;
+		goto err_fini_rxtx;
 	}
 
 	INIT_DELAYED_WORK(&dev->rx_retry_work, mctp_usb_rx_retry_work);
 
 	rc = mctp_register_netdev(netdev, NULL, MCTP_PHYS_BINDING_USB);
 	if (rc)
-		goto err_free_urbs;
+		goto err_free_urb;
 
 	return 0;
 
-err_free_urbs:
-	usb_free_urb(dev->tx_urb);
+err_free_urb:
 	usb_free_urb(dev->rx_urb);
+err_fini_rxtx:
+	mctp_usblib_tx_fini(&dev->tx);
 	mctp_usblib_rx_fini(&dev->rx);
 	free_netdev(netdev);
 	return rc;
@@ -390,7 +376,7 @@ static void mctp_usb_disconnect(struct usb_interface *intf)
 
 	mctp_unregister_netdev(dev->netdev);
 	mctp_usblib_rx_fini(&dev->rx);
-	usb_free_urb(dev->tx_urb);
+	mctp_usblib_tx_fini(&dev->tx);
 	usb_free_urb(dev->rx_urb);
 	free_netdev(dev->netdev);
 }

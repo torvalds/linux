@@ -55,4 +55,43 @@ int mctp_usblib_rx_complete(struct net_device *netdev,
 
 void mctp_usblib_rx_cancel(struct mctp_usblib_rx *rx);
 
+/*
+ * TX handle: created by mctp_usblib_tx_push() during the tx path, and
+ * may persist across multiple packet transmits.
+ *
+ * Currently though, there is a 1:1 mapping between packets and transfers, so
+ * the tx context will be cleared over each transmit. This will change in
+ * future.
+ */
+struct mctp_usblib_tx_ctx;
+
+struct mctp_usblib_tx_ops {
+	/* Start a USB TX for @data. On returning success, the implementation
+	 * must arrange for mctp_usblib_tx_send_complete() to be called at some
+	 * later point (eg., on urb completion).
+	 */
+	int (*send)(struct mctp_usblib_tx_ctx *tx_ctx, void *data, size_t len);
+};
+
+struct mctp_usblib_tx {
+	struct mctp_usblib_tx_ops ops;
+	void *priv;
+};
+
+void mctp_usblib_tx_init(struct mctp_usblib_tx *tx,
+			 const struct mctp_usblib_tx_ops *ops, void *priv);
+void mctp_usblib_tx_fini(struct mctp_usblib_tx *tx);
+
+void *mctp_usblib_tx_ctx_priv(struct mctp_usblib_tx_ctx *tx_ctx);
+
+int mctp_usblib_tx_push(struct net_device *dev,
+			struct mctp_usblib_tx *tx,
+			struct sk_buff *skb, bool more);
+
+void mctp_usblib_tx_send_complete(struct mctp_usblib_tx_ctx *tx_ctx,
+				  struct net_device *dev, bool ok);
+
+void mctp_usblib_tx_cancel(struct mctp_usblib_tx *tx, struct net_device *dev,
+			   enum skb_drop_reason reason);
+
 #endif /*  __LINUX_USB_MCTP_USB_H */
