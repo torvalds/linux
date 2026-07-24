@@ -4,9 +4,6 @@
 # x86 Platform-Specific Drivers
 #
 
-# Windows Management Interface
-obj-$(CONFIG_WMI_BMOF)		+= wmi-bmof.o
-
 # WMI drivers
 obj-$(CONFIG_HUAWEI_WMI)		+= huawei-wmi.o
 obj-$(CONFIG_MXM_WMI)			+= mxm-wmi.o

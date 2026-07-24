@@ -34,4 +34,16 @@ config ACPI_WMI_LEGACY_DEVICE_NAMES
 
 source "drivers/platform/wmi/tests/Kconfig"
 
+config WMI_BMOF
+	tristate "WMI embedded Binary MOF driver"
+	default ACPI_WMI
+	help
+	  Say Y here if you want to be able to read the firmware-embedded
+	  WMI Binary MOF (Managed Object Format) data. Using this requires
+	  userspace tools, see Documentation/wmi/devices/wmi-bmof.rst for
+	  details.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called wmi-bmof.
+
 endif # ACPI_WMI
