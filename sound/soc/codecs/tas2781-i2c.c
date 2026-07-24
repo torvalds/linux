@@ -617,12 +617,21 @@ static int tasdev_calib_stop_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *comp = snd_kcontrol_chip(kcontrol);
 	struct tasdevice_priv *priv = snd_soc_component_get_drvdata(comp);
+	int i;
 
 	guard(mutex)(&priv->codec_lock);
 	if (priv->chip_id == TAS2563)
 		tas2563_calib_stop_put(priv);
 	else
 		tas2781_calib_stop_put(priv);
+
+	/*
+	 * Set reloading-firmware flag after calibration, the flag will work
+	 * during next playback, then set to the program id after reloading
+	 * firmware.
+	 */
+	for (i = 0; i < priv->ndev; i++)
+		priv->tasdevice[i].cur_prog = -1;
 
 	return 1;
 }
