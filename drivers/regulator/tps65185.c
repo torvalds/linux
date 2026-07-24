@@ -183,7 +183,10 @@ static int tps65185_vposneg_enable(struct regulator_dev *rdev)
 	wait_for_completion_timeout(&data->pgood_completion,
 				    msecs_to_jiffies(PGOOD_TIMEOUT_MSECS));
 	dev_dbg(data->dev, "turned on");
-	if (gpiod_get_value_cansleep(data->pgood_gpio) != 1)
+	ret = gpiod_get_value_cansleep(data->pgood_gpio);
+	if (ret < 0)
+		return ret;
+	if (!ret)
 		return -ETIMEDOUT;
 
 	return 0;
