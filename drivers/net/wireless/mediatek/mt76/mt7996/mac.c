@@ -2485,10 +2485,10 @@ mt7996_mac_full_reset(struct mt7996_dev *dev)
 		phy->omac_mask = 0;
 
 	ieee80211_iterate_stations_atomic(hw, mt7996_mac_reset_sta_iter, dev);
+	mt76_reset_device(&dev->mt76);
 	ieee80211_iterate_active_interfaces_atomic(hw,
 						   IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER,
 						   mt7996_mac_reset_vif_iter, dev);
-	mt76_reset_device(&dev->mt76);
 
 	INIT_LIST_HEAD(&dev->sta_rc_list);
 	INIT_LIST_HEAD(&dev->twt_list);
