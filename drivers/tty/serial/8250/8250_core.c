@@ -720,12 +720,8 @@ int serial8250_register_8250_port(const struct uart_8250_port *up)
 	/* Preserve specified console flow control. */
 	cons_flow = uart_cons_flow_enabled(&uart->port);
 
-	if (uart->port.dev) {
-		if (uart_console(&uart->port))
-			uart->port.cons->flags &= ~CON_PRINTBUFFER;
-
+	if (uart->port.dev)
 		uart_remove_one_port(&serial8250_reg, &uart->port);
-	}
 
 	uart->port.ctrl_id	= up->port.ctrl_id;
 	uart->port.port_id	= up->port.port_id;
