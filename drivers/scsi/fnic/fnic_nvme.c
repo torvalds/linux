@@ -188,6 +188,36 @@ void nvfnic_release_nvme_ioreq_buf(struct fnic_iport_s *iport,
 			     fnic->io_sgl_pool[io_req->sgl_type]);
 }
 
+int nvfnic_get_nvmef_info(struct fnic *fnic, struct fnic_nvmef_info *info)
+{
+	int len = 0;
+	struct fnic_iport_s *iport = &fnic->iport;
+	int buf_size = info->buf_size;
+	struct fnic_tport_s *tport;
+	struct fnic_tport_s *next;
+	unsigned long flags;
+
+	if (buf_size <= 0)
+		return 0;
+
+	len += scnprintf(info->info_buffer + len, buf_size - len,
+			 "lport wwpn 0x%llx wwnn 0x%llx fcid 0x%06x\n",
+			 iport->wwpn, iport->wwnn, iport->fcid);
+
+	spin_lock_irqsave(&fnic->fnic_lock, flags);
+	list_for_each_entry_safe(tport, next, &iport->tport_list, links) {
+		if (len >= buf_size - 1)
+			break;
+
+		len += scnprintf(info->info_buffer + len, buf_size - len,
+				 "tport wwpn 0x%llx wwnn 0x%llx fcid 0x%06x\n",
+				 tport->wwpn, tport->wwnn, tport->fcid);
+	}
+	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+
+	return len;
+}
+
 inline int nvfnic_queue_wq_nvme_copy_desc(struct fnic *fnic,
 					       struct vnic_wq_copy *wq,
 					       struct fnic_io_req *io_req,
