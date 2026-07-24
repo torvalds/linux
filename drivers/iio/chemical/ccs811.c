@@ -484,10 +484,8 @@ static int ccs811_probe(struct i2c_client *client)
 						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
 						"ccs811_irq", indio_dev);
-		if (ret) {
-			dev_err(&client->dev, "irq request error %d\n", -ret);
+		if (ret)
 			goto err_poweroff;
-		}
 
 		data->drdy_trig = devm_iio_trigger_alloc(&client->dev,
 							 "%s-dev%d",

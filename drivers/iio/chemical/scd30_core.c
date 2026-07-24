@@ -686,7 +686,7 @@ static int scd30_setup_trigger(struct iio_dev *indio_dev)
 					IRQF_NO_AUTOEN,
 					indio_dev->name, indio_dev);
 	if (ret)
-		return dev_err_probe(dev, ret, "failed to request irq\n");
+		return ret;
 
 	return 0;
 }
