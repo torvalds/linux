@@ -843,8 +843,7 @@ static int hdc3020_probe(struct i2c_client *client)
 						IRQF_ONESHOT, "hdc3020",
 						indio_dev);
 		if (ret)
-			return dev_err_probe(&client->dev, ret,
-					     "Failed to request IRQ\n");
+			return ret;
 	}
 
 	ret = devm_iio_device_register(&data->client->dev, indio_dev);
