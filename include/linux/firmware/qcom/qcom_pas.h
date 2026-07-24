@@ -8,7 +8,9 @@
 #ifndef __QCOM_PAS_H
 #define __QCOM_PAS_H
 
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 struct qcom_pas_context {
@@ -21,6 +23,16 @@ struct qcom_pas_context {
 	ssize_t size;
 	bool use_tzmem;
 };
+
+static inline void __iomem *qcom_pas_ctx_map(struct qcom_pas_context *ctx)
+{
+	void __iomem *ptr = ioremap_wc(ctx->mem_phys, ctx->mem_size);
+
+	if (!ptr)
+		dev_err(ctx->dev, "unable to map memory region: %pa+%zx\n",
+			&ctx->mem_phys, ctx->mem_size);
+	return ptr;
+}
 
 bool qcom_pas_is_available(void);
 struct qcom_pas_context *devm_qcom_pas_context_alloc(struct device *dev,
