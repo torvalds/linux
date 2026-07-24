@@ -1849,11 +1849,8 @@ static int tsl2772_probe(struct i2c_client *clientp)
 						IRQF_ONESHOT,
 						"TSL2772_event",
 						indio_dev);
-		if (ret) {
-			dev_err(&clientp->dev,
-				"%s: irq request failed\n", __func__);
+		if (ret)
 			return ret;
-		}
 	} else {
 		indio_dev->channels = chip->chip_info->channel_without_events;
 	}
