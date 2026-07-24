@@ -1914,15 +1914,14 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
 {
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_port *parent;
-	struct device *dev;
 	int rc = -ENXIO;
 
 	parent = parent_port_of(port);
 	if (!parent)
 		return rc;
 
-	dev = device_find_child(&parent->dev, range,
-				match_switch_decoder_by_range);
+	struct device *dev __free(put_device) =
+		device_find_child(&parent->dev, range, match_switch_decoder_by_range);
 	if (!dev) {
 		dev_err(port->uport_dev,
 			"failed to find decoder mapping %#llx-%#llx\n",
@@ -1944,8 +1943,6 @@ static int find_pos_and_ways(struct cxl_port *port, struct range *range,
 			"failed to find %s:%s in target list of %s\n",
 			dev_name(&port->dev),
 			dev_name(port->parent_dport->dport_dev), dev_name(dev));
-
-	put_device(dev);
 
 	return rc;
 }
