@@ -567,8 +567,9 @@ static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
 					    struct vxlan_rdst *rdst)
 {
 	struct fib_nh_common *nhc;
+	__be16 dst_port = 0;
 
-	nhc = nexthop_path_fdb_result(nh, hash >> 1);
+	nhc = nexthop_path_fdb_result(nh, hash >> 1, &dst_port);
 	if (unlikely(!nhc))
 		return false;
 
@@ -582,6 +583,8 @@ static inline bool vxlan_fdb_nh_path_select(struct nexthop *nh,
 		rdst->remote_ip.sa.sa_family = AF_INET6;
 		break;
 	}
+
+	rdst->remote_port = dst_port;
 
 	return true;
 }
