@@ -460,6 +460,21 @@ static int ext4_xattr_inode_iget(struct inode *parent, unsigned long ea_ino,
 		inode_unlock(inode);
 	}
 
+	/*
+	 * Since this function resolves references from active xattr entries,
+	 * the EA inode must be in active state (i_nlink=1, ref_count>0).
+	 * i_nlink > 1, i_nlink == 0 (dangling reference), or ref_count == 0
+	 * (inconsistent with an active entry) all indicate on-disk corruption.
+	 */
+	if (inode->i_nlink != 1 || !ext4_xattr_inode_get_ref(inode)) {
+		ext4_error(parent->i_sb,
+			   "EA inode %lu has unexpected i_nlink=%u ref_count=%llu",
+			   ea_ino, inode->i_nlink,
+			   ext4_xattr_inode_get_ref(inode));
+		ext4_put_ea_inode(inode);
+		return -EFSCORRUPTED;
+	}
+
 	*ea_inode = inode;
 	return 0;
 }
