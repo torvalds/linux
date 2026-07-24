@@ -186,6 +186,7 @@ static int __init setup_acpi_notify(struct generic_sub_driver *sub_driver)
 
 static int loongson_hotkey_suspend(struct device *dev)
 {
+	bl_powered = false;
 	return 0;
 }
 
