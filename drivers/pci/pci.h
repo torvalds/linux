@@ -828,6 +828,9 @@ static inline bool pci_dev_binding_disallowed(struct pci_dev *dev)
  * @tlp_header_valid: Indicates if TLP field contains error information
  * @status: COR/UNCOR error status
  * @mask: COR/UNCOR mask
+ * @anfe_status: Advisory Non-Fatal Errors, i.e. Uncorrectable Errors signaled
+ *	as Correctable Errors (PCIe r7.0 sec 6.2.4.3).  Only used if @severity
+ *	is AER_CORRECTABLE and @status has Advisory Non-Fatal Error Status set.
  * @tlp: Transaction packet information
  */
 struct aer_err_info {
@@ -850,6 +853,7 @@ struct aer_err_info {
 
 	unsigned int status;
 	unsigned int mask;
+	u32 anfe_status;
 	struct pcie_tlp_log tlp;
 };
 
