@@ -16,10 +16,12 @@ properties:
   compatible:
     enum:
       - adi,ad5311r
+      - adi,ad5316r
       - adi,ad5337r
       - adi,ad5338r
       - adi,ad5671r
       - adi,ad5673r
+      - adi,ad5675
       - adi,ad5675r
       - adi,ad5677r
       - adi,ad5691r
@@ -31,6 +33,7 @@ properties:
       - adi,ad5695r
       - adi,ad5696
       - adi,ad5696r
+      - adi,ad5697r
 
   reg:
     maxItems: 1
@@ -86,6 +89,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - adi,ad5675
               - adi,ad5693
               - adi,ad5694
               - adi,ad5696
