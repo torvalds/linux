@@ -42,6 +42,7 @@ static struct dentry *wwan_debugfs_dir;
 
 /* WWAN port flags */
 #define WWAN_PORT_TX_OFF	0
+#define WWAN_PORT_EXCLUSIVE	1
 
 /**
  * struct wwan_device - The structure that defines a WWAN device
@@ -748,6 +749,12 @@ static int wwan_port_op_start(struct wwan_port *port)
 		goto out_unlock;
 	}
 
+	if (test_bit(WWAN_PORT_EXCLUSIVE, &port->flags) &&
+	    !capable(CAP_SYS_ADMIN)) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	/* If port is already started, don't start again */
 	if (!port->start_count)
 		ret = port->ops->start(port);
@@ -769,6 +776,7 @@ static void wwan_port_op_stop(struct wwan_port *port)
 		if (port->ops)
 			port->ops->stop(port);
 		skb_queue_purge(&port->rxq);
+		clear_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
 	}
 	mutex_unlock(&port->ops_lock);
 }
@@ -1028,6 +1036,22 @@ static long wwan_port_fops_at_ioctl(struct wwan_port *port, unsigned int cmd,
 			port->at_data.mdmbits |= mdmbits;
 		else
 			port->at_data.mdmbits = mdmbits;
+		break;
+	}
+
+	case TIOCEXCL:
+		set_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
+		break;
+
+	case TIOCNXCL:
+		clear_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
+		break;
+
+	case TIOCGEXCL:
+	{
+		int excl = test_bit(WWAN_PORT_EXCLUSIVE, &port->flags);
+
+		ret = put_user(excl, (int __user *)arg);
 		break;
 	}
 
