@@ -1,0 +1,89 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver vt7505
+====================
+
+Supported chips:
+
+  * Analog Devices MAX16545
+
+    Prefix: 'max16545'
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max16545b-max16545c.pdf
+
+  * Analog Devices MAX16550
+
+    Prefix: 'max16550'
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max16550.pdf
+
+  * Volterra VT7505
+
+    Prefix: 'vt7505'
+
+    Datasheet: Not publicly available; register-compatible with the MAX16545.
+
+Author: Georgi Vlaev <gvlaev@juniper.net>
+
+Description
+-----------
+
+This driver supports hardware monitoring for the Analog Devices MAX16545 and
+MAX16550, and the Volterra VT7505 PMBus controllers.
+
+The devices report input and output voltage, input and output current,
+input power, and temperature. All values use the PMBus direct data format.
+Peak (maximum) values for input voltage, output voltage, output current,
+input power and temperature are exposed and can be reset. Writing to any
+``*_reset_history`` attribute clears all of the device's peak values.
+
+The reported current and power values depend on the resistance of the
+external current-report resistor connected between the ILOAD pin and
+ground. This resistance can be provided via the ``adi,rload-ohms``
+device tree property; a default of 4750 ohms is used when it is absent.
+
+Sysfs entries
+-------------
+
+The limit and alarm attributes are created by the PMBus core for the limit
+registers that the device implements. See
+Documentation/hwmon/sysfs-interface.rst for the meaning of each attribute.
+
+======================= ========================================================
+in1_label               "vin"
+in1_input               Measured input voltage.
+in1_min                 Input undervoltage warning limit.
+in1_min_alarm           Input undervoltage warning alarm.
+in1_lcrit               Input undervoltage fault limit.
+in1_lcrit_alarm         Input undervoltage fault alarm.
+in1_highest             Historical maximum input voltage.
+in1_reset_history       Write to reset all peak values.
+in2_label               "vout1"
+in2_input               Measured output voltage.
+in2_min                 Output undervoltage warning limit.
+in2_min_alarm           Output undervoltage warning alarm.
+in2_highest             Historical maximum output voltage.
+in2_reset_history       Write to reset all peak values.
+curr1_label             "iin"
+curr1_input             Measured input current.
+curr1_alarm             Input current alarm.
+curr2_label             "iout1"
+curr2_input             Measured output current.
+curr2_max               Output overcurrent warning limit.
+curr2_max_alarm         Output overcurrent warning alarm.
+curr2_highest           Historical maximum output current.
+curr2_reset_history     Write to reset all peak values.
+power1_label            "pin"
+power1_input            Measured input power.
+power1_max              Input overpower warning limit.
+power1_alarm            Input overpower warning alarm.
+power1_input_highest    Historical maximum input power.
+power1_reset_history    Write to reset all peak values.
+temp1_input             Measured temperature.
+temp1_max               Overtemperature warning limit.
+temp1_max_alarm         Overtemperature warning alarm.
+temp1_crit              Overtemperature fault limit.
+temp1_crit_alarm        Overtemperature fault alarm.
+temp1_highest           Historical maximum temperature.
+temp1_reset_history     Write to reset all peak values.
+======================= ========================================================

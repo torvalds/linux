@@ -282,6 +282,7 @@ Hardware Monitoring Kernel Drivers
    vexpress
    via686a
    vt1211
+   vt7505
    w83627ehf
    w83627hf
    w83773g

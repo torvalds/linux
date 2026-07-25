@@ -28972,6 +28972,14 @@ S:	Maintained
 F:	Documentation/hwmon/vt1211.rst
 F:	drivers/hwmon/vt1211.c
 
+VT7505 HARDWARE MONITOR DRIVER
+M:	Sanman Pradhan <psanman@juniper.net>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/pmbus/adi,vt7505.yaml
+F:	Documentation/hwmon/vt7505.rst
+F:	drivers/hwmon/pmbus/vt7505.c
+
 VT8231 HARDWARE MONITOR DRIVER
 M:	Roger Lucas <vt8231@hiddenengine.co.uk>
 L:	linux-hwmon@vger.kernel.org

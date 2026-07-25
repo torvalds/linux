@@ -796,6 +796,15 @@ config SENSORS_UCD9200
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
 
+config SENSORS_VT7505
+	tristate "Analog Devices MAX16545, MAX16550 and Volterra VT7505"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices MAX16545, MAX16550 and Volterra VT7505 PMBus controllers.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called vt7505.
+
 config SENSORS_XDP710
 	tristate "Infineon XDP710 family"
 	help
