@@ -4076,7 +4076,7 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 		gfp_t gfp;
 
 		mapping = folio->mapping;
-		min_order = mapping_min_folio_order(folio->mapping);
+		min_order = mapping_min_folio_order(mapping);
 		if (new_order < min_order) {
 			ret = -EINVAL;
 			goto out;
@@ -4089,6 +4089,8 @@ static int __folio_split(struct folio *folio, unsigned int new_order,
 			ret = -EBUSY;
 			goto out;
 		}
+
+		mapping_set_update(&xas, mapping);
 
 		if (split_type == SPLIT_TYPE_UNIFORM) {
 			xas_set_order(&xas, folio->index, new_order);
