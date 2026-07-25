@@ -173,9 +173,25 @@ int fw_core_add_descriptor(struct fw_descriptor *desc)
 		return -EINVAL;
 
 	i = 0;
-	while (i < desc->length)
-		i += (desc->data[i] >> 16) + 1;
+	/*
+	 * Validate internal block structures within the descriptor. Each sub-block
+	 * encodes its length in the top 16 bits of its header quadlet.
+	 */
+	while (i < desc->length) {
+		u16 block_len = desc->data[i] >> 16;
 
+		/*
+		 * Guard against corrupted descriptors where an individual block length
+		 * claims to extend past the allocated end of desc->data, avoiding
+		 * out-of-bounds reads.
+		 */
+		if (block_len >= desc->length - i)
+			return -EINVAL;
+
+		i += block_len + 1;
+	}
+
+	/* The sum of sub-block lengths must match total descriptor length */
 	if (i != desc->length)
 		return -EINVAL;
 
