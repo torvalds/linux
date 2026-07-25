@@ -441,8 +441,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 	set_pte_at(mm, addr, ptep, pte_wrprotect(*ptep));
 }
 
-#define pte_same(A,B)	(pte_val(A) == pte_val(B))
-
 #endif /* !__ASSEMBLER__ */
 
 
@@ -475,6 +473,5 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTE_SAME
 
 #endif /* _PARISC_PGTABLE_H */
