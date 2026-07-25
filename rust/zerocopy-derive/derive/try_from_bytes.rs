@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -531,8 +531,8 @@ fn derive_has_field_struct_union(ctx: &Ctx, data: &dyn DataExt) -> TokenStream {
                 data,
                 Trait::ProjectField {
                     variant_id: variant_id.clone(),
-                    field: field.clone(),
-                    field_id: field_id.clone(),
+                    field,
+                    field_id,
                     invariants: parse_quote!((Aliasing, Alignment, #zerocopy_crate::invariant::Initialized)),
                 },
                 FieldBounds::None,
