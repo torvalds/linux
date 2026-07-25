@@ -61,11 +61,11 @@ static int ntfs_check_bad_windows_name(struct ntfs_volume *vol,
 				       const __le16 *wc,
 				       unsigned int wc_len)
 {
-	if (ntfs_check_bad_char(wc, wc_len))
-		return -EINVAL;
-
 	if (!NVolCheckWindowsNames(vol))
 		return 0;
+
+	if (ntfs_check_bad_char(wc, wc_len))
+		return -EINVAL;
 
 	/* Check for trailing space or dot. */
 	if (wc_len > 0 &&
