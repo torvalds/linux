@@ -72,12 +72,16 @@ static ssize_t do_read(void *data, size_t size)
 static void skip(size_t size)
 {
 	char buf[BUFSIZ];
-	size_t r;
+	ssize_t ret;
 
 	while (size) {
-		r = size > BUFSIZ ? BUFSIZ : size;
-		do_read(buf, r);
-		size -= r;
+		size_t len = size > BUFSIZ ? BUFSIZ : size;
+
+		ret = do_read(buf, len);
+		if (ret <= 0)
+			break;
+
+		size -= ret;
 	}
 }
 
