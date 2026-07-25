@@ -252,7 +252,7 @@ The following figure shows a typical organization of the logs::
 To stride over segment boundaries, this sequence of files may be split
 into multiple logs.  The sequence of logs that should be treated as
 logically one log, is delimited with flags marked in the segment
-summary.  The recovery code of nilfs2 looks this boundary information
+summary.  The recovery code of nilfs2 looks at this boundary information
 to ensure atomicity of updates.
 
 The super root block is inserted for every checkpoints.  It includes
