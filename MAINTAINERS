@@ -29400,7 +29400,7 @@ F:	net/xdp/
 F:	tools/testing/selftests/bpf/*xsk*
 
 XEN BLOCK SUBSYSTEM
-M:	Roger Pau Monné <roger.pau@citrix.com>
+M:	Roger Pau Monné <roger@xenproject.org>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 S:	Supported
 F:	drivers/block/xen*
