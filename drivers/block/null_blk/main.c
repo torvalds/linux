@@ -66,7 +66,7 @@ struct nullb_page {
 #define NULLB_PAGE_FREE (MAP_SZ - 2)
 
 static LIST_HEAD(nullb_list);
-static struct mutex lock;
+static DEFINE_MUTEX(lock);
 static int null_major;
 static DEFINE_IDA(nullb_indexes);
 static struct blk_mq_tag_set tag_set;
@@ -2165,8 +2165,6 @@ static int __init null_init(void)
 	ret = configfs_register_subsystem(&nullb_subsys);
 	if (ret)
 		return ret;
-
-	mutex_init(&lock);
 
 	null_major = register_blkdev(0, "nullb");
 	if (null_major < 0) {
