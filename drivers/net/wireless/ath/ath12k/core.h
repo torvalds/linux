@@ -160,14 +160,6 @@ enum ath12k_hw_rev {
 	ATH12K_HW_IPQ5424_HW10,
 };
 
-enum ath12k_firmware_mode {
-	/* the default mode, standard 802.11 functionality */
-	ATH12K_FIRMWARE_MODE_NORMAL,
-
-	/* factory tests etc */
-	ATH12K_FIRMWARE_MODE_FTM,
-};
-
 #define ATH12K_IRQ_NUM_MAX 57
 #define ATH12K_EXT_IRQ_NUM_MAX	16
 #define ATH12K_MAX_TCL_RING_NUM	3
@@ -1147,7 +1139,7 @@ struct ath12k_base {
 
 	struct ath12k_hw_group *ag;
 	struct ath12k_wsi_info wsi_info;
-	enum ath12k_firmware_mode fw_mode;
+	enum ath12k_qmi_firmware_mode fw_mode;
 	struct ath12k_ftm_event_obj ftm_event_obj;
 	bool hw_group_ref;
 

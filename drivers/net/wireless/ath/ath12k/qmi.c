@@ -3431,7 +3431,7 @@ out:
 }
 
 static int ath12k_qmi_wlanfw_mode_send(struct ath12k_base *ab,
-				       u32 mode)
+				       enum ath12k_qmi_firmware_mode mode)
 {
 	struct qmi_wlanfw_wlan_mode_req_msg_v01 req = {};
 	struct qmi_wlanfw_wlan_mode_resp_msg_v01 resp = {};
@@ -3631,7 +3631,7 @@ void ath12k_qmi_firmware_stop(struct ath12k_base *ab)
 }
 
 int ath12k_qmi_firmware_start(struct ath12k_base *ab,
-			      u32 mode)
+			      enum ath12k_qmi_firmware_mode mode)
 {
 	int ret;
 

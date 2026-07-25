@@ -17,6 +17,7 @@
 #include "mhi.h"
 #include "debug.h"
 #include "hal.h"
+#include "qmi.h"
 
 #define ATH12K_PCI_BAR_NUM		0
 #define ATH12K_PCI_DMA_MASK		36

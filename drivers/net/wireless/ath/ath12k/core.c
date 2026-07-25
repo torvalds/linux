@@ -23,6 +23,7 @@
 #include "wow.h"
 #include "dp_cmn.h"
 #include "peer.h"
+#include "qmi.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -1188,7 +1189,7 @@ err_mac_destroy:
 }
 
 static int ath12k_core_start_firmware(struct ath12k_base *ab,
-				      enum ath12k_firmware_mode mode)
+				      enum ath12k_qmi_firmware_mode mode)
 {
 	int ret;
 
