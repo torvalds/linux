@@ -456,7 +456,7 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 	man = ttm_manager_type(bo->bdev, (*res)->mem_type);
 	man->func->free(man, *res);
 	*res = NULL;
-	if (man->cg)
+	if (pool)
 		dmem_cgroup_uncharge(pool, bo->base.size);
 }
 EXPORT_SYMBOL(ttm_resource_free);
@@ -972,3 +972,55 @@ void ttm_resource_manager_create_debugfs(struct ttm_resource_manager *man,
 #endif
 }
 EXPORT_SYMBOL(ttm_resource_manager_create_debugfs);
+
+/**
+ * ttm_resource_manager_dmem_reclaim() - dmem cgroup reclaim callback for TTM
+ *                                       resource managers.
+ * @pool: The dmem cgroup pool state for the cgroup being reclaimed.
+ * @target_bytes: Number of bytes to try to free.
+ * @priv: The &ttm_resource_manager pointer, passed as @init.reclaim_priv to
+ *        dmem_cgroup_register_region().
+ *
+ * Drivers should use this as the @reclaim member of their own
+ * &struct dmem_cgroup_ops, with the &ttm_resource_manager pointer as
+ * @init.reclaim_priv.
+ *
+ * Return: 0 if some memory was freed, -ENOSPC if nothing was freed, or
+ *         another negative error code on fatal failure.
+ */
+int ttm_resource_manager_dmem_reclaim(struct dmem_cgroup_pool_state *pool,
+				      u64 target_bytes, void *priv)
+{
+	struct ttm_resource_manager *man = priv;
+	struct ttm_operation_ctx ctx = { .interruptible = true };
+	s64 freed;
+
+	freed = ttm_bo_evict_cgroup(man->bdev, man, pool, target_bytes, &ctx);
+	if (freed < 0)
+		return freed;
+
+	return freed > 0 ? 0 : -ENOSPC;
+}
+EXPORT_SYMBOL(ttm_resource_manager_dmem_reclaim);
+
+/**
+ * ttm_resource_manager_set_dmem_region() - Associate a dmem cgroup region with a
+ *                                        resource manager.
+ * @man: The resource manager.
+ * @region: The dmem cgroup region to associate, may be NULL or IS_ERR().
+ *
+ * When @region is valid, stores it in @man->cg so that TTM can look up the
+ * associated pool during charging and eviction-target selection.  When
+ * @region is %NULL, clears @man->cg to detach the region before teardown.
+ * An IS_ERR() @region is ignored, leaving @man->cg unchanged.
+ * The reclaim callback must be wired up using ttm_resource_manager_dmem_reclaim()
+ * in the driver's own &struct dmem_cgroup_ops, with the manager pointer as
+ * @init.reclaim_priv.
+ */
+void ttm_resource_manager_set_dmem_region(struct ttm_resource_manager *man,
+					  struct dmem_cgroup_region *region)
+{
+	if (!IS_ERR(region))
+		man->cg = region;
+}
+EXPORT_SYMBOL(ttm_resource_manager_set_dmem_region);
