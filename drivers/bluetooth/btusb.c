@@ -1379,10 +1379,8 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 		hci_skb_expect(skb) -= len;
 
 		if (skb->len == HCI_ACL_HDR_SIZE) {
-			__le16 dlen = hci_acl_hdr(skb)->dlen;
-
 			/* Complete ACL header */
-			hci_skb_expect(skb) = __le16_to_cpu(dlen);
+			hci_skb_expect(skb) = hci_acl_dlen(skb);
 
 			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
 				kfree_skb(skb);
