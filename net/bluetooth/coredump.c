@@ -30,8 +30,9 @@ struct hci_devcoredump_skb_pattern {
 
 #define DBG_UNEXPECTED_STATE() \
 	bt_dev_dbg(hdev, \
-		   "Unexpected packet (%d) for state (%d). ", \
-		   hci_dmp_cb(skb)->pkt_type, hdev->dump.state)
+		   "Unexpected packet (%d) for state %s.", \
+		   hci_dmp_cb(skb)->pkt_type, \
+		   hci_devcd_state_name(hdev->dump.state))
 
 #define MAX_DEVCOREDUMP_HDR_SIZE	512	/* bytes */
 
@@ -50,8 +51,9 @@ static int hci_devcd_update_hdr_state(char *buf, size_t size, int state)
 /* Call with hci_dev_lock only. */
 static int hci_devcd_update_state(struct hci_dev *hdev, int state)
 {
-	bt_dev_dbg(hdev, "Updating devcoredump state from %d to %d.",
-		   hdev->dump.state, state);
+	bt_dev_dbg(hdev, "Updating devcoredump state from %s to %s.",
+		   hci_devcd_state_name(hdev->dump.state),
+		   hci_devcd_state_name(state));
 
 	hdev->dump.state = state;
 
@@ -245,7 +247,7 @@ static void hci_devcd_dump(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	u32 size;
 
-	bt_dev_dbg(hdev, "state %d", hdev->dump.state);
+	bt_dev_dbg(hdev, "state %s", hci_devcd_state_name(hdev->dump.state));
 
 	size = hdev->dump.tail - hdev->dump.head;
 
@@ -368,8 +370,9 @@ void hci_devcd_rx(struct work_struct *work)
 			break;
 
 		default:
-			bt_dev_dbg(hdev, "Unknown packet (%d) for state (%d). ",
-				   hci_dmp_cb(skb)->pkt_type, hdev->dump.state);
+			bt_dev_dbg(hdev, "Unknown packet (%d) for state %s.",
+				   hci_dmp_cb(skb)->pkt_type,
+				   hci_devcd_state_name(hdev->dump.state));
 			break;
 		}
 
@@ -549,3 +552,31 @@ int hci_devcd_abort(struct hci_dev *hdev)
 	return 0;
 }
 EXPORT_SYMBOL(hci_devcd_abort);
+
+const char *hci_devcd_state_name(enum devcoredump_state state)
+{
+	const char *state_name = "Unknown";
+
+	switch (state) {
+	case HCI_DEVCOREDUMP_IDLE:
+		state_name = "IDLE";
+		break;
+	case HCI_DEVCOREDUMP_ACTIVE:
+		state_name = "ACTIVE";
+		break;
+	case HCI_DEVCOREDUMP_DONE:
+		state_name = "DONE";
+		break;
+	case HCI_DEVCOREDUMP_ABORT:
+		state_name = "ABORT";
+		break;
+	case HCI_DEVCOREDUMP_TIMEOUT:
+		state_name = "TIMEOUT";
+		break;
+	default:
+		break;
+	}
+
+	return state_name;
+}
+EXPORT_SYMBOL(hci_devcd_state_name);
