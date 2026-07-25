@@ -81,7 +81,9 @@ static irqreturn_t inexio_interrupt(struct serio *serio,
 	if (INEXIO_RESPONSE_BEGIN_BYTE&pinexio->data[0])
 		inexio_process_data(pinexio);
 	else
-		printk(KERN_DEBUG "inexio.c: unknown/unsynchronized data from device, byte %x\n",pinexio->data[0]);
+		dev_dbg(&serio->dev,
+			"unknown/unsynchronized data from device, byte %x\n",
+			pinexio->data[0]);
 
 	return IRQ_HANDLED;
 }
