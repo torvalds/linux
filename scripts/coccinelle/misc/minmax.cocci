@@ -17,7 +17,21 @@ virtual org
 virtual context
 virtual patch
 
-@rmax depends on !patch@
+@max_candidate@
+expression E1, E2, E3, E4;
+binary operator cmp = {>, >=};
+@@
+
+	(E1 cmp E2 ? E3 : E4)
+
+@min_candidate@
+expression E1, E2, E3, E4;
+binary operator cmp = {<, <=};
+@@
+
+	(E1 cmp E2 ? E3 : E4)
+
+@rmax depends on !patch && max_candidate@
 identifier func;
 expression x, y;
 binary operator cmp = {>, >=};
@@ -51,7 +65,7 @@ func(...)
 }
 
 // Ignore errcode returns.
-@errcode@
+@errcode depends on min_candidate@
 position p;
 identifier func;
 expression x;
@@ -65,7 +79,7 @@ func(...)
 	...>
 }
 
-@rmin depends on !patch@
+@rmin depends on !patch && min_candidate@
 identifier func;
 expression x, y;
 binary operator cmp = {<, <=};
@@ -98,7 +112,7 @@ func(...)
 	...>
 }
 
-@pmax depends on patch@
+@pmax depends on patch && max_candidate@
 identifier func;
 expression x, y;
 binary operator cmp = {>=, >};
@@ -131,7 +145,7 @@ func(...)
 	...>
 }
 
-@pmin depends on patch@
+@pmin depends on patch && min_candidate@
 identifier func;
 expression x, y;
 binary operator cmp = {<=, <};
