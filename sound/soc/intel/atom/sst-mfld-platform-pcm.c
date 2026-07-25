@@ -236,12 +236,7 @@ static int sst_platform_alloc_stream(struct snd_pcm_substream *substream,
 
 	stream->stream_info.str_id = str_params.stream_id;
 
-	ret_val = stream->ops->open(sst->dev, &str_params);
-	if (ret_val <= 0)
-		return ret_val;
-
-
-	return ret_val;
+	return stream->ops->open(sst->dev, &str_params);
 }
 
 static void sst_period_elapsed(void *arg)
