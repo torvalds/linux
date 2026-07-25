@@ -15,11 +15,33 @@ struct dmem_cgroup_pool_state;
 struct dmem_cgroup_region;
 
 /**
+ * struct dmem_cgroup_ops - Operations for a dmem cgroup region.
+ * @reclaim: Optional callback invoked when dmem.max is set below the current
+ *           usage of a pool. The driver should attempt to free at least
+ *           @target_bytes from @pool. May be called multiple times if usage
+ *           remains above the limit after returning.
+ *
+ *           Return: 0 if some progress was made (even if less than
+ *           @target_bytes was freed), -ENOSPC if no progress could be made
+ *           (the caller will retry up to a bounded number of times), or
+ *           another negative error code if a fatal error occurred (stops
+ *           further reclaim attempts immediately).
+ */
+struct dmem_cgroup_ops {
+	int (*reclaim)(struct dmem_cgroup_pool_state *pool,
+		       u64 target_bytes, void *priv);
+};
+
+/**
  * struct dmem_cgroup_init - Initialization parameters for a dmem cgroup region.
  * @size: Size of the region in bytes.
+ * @ops: Optional operations for this region. May be NULL.
+ * @reclaim_priv: Opaque pointer passed to @ops->reclaim. May be NULL.
  */
 struct dmem_cgroup_init {
 	u64 size;
+	const struct dmem_cgroup_ops *ops;
+	void *reclaim_priv;
 };
 
 #if IS_ENABLED(CONFIG_CGROUP_DMEM)
