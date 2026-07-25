@@ -308,6 +308,7 @@ static int tc9563_pwrctrl_set_l0s_l1_entry_delay(struct tc9563_pwrctrl *tc9563,
 static int tc9563_pwrctrl_set_tx_amplitude(struct tc9563_pwrctrl *tc9563,
 					   enum tc9563_pwrctrl_ports port)
 {
+	struct device *dev = tc9563->pwrctrl.dev;
 	u32 amp = tc9563->cfg[port].tx_amp;
 	int port_access;
 
@@ -327,6 +328,9 @@ static int tc9563_pwrctrl_set_tx_amplitude(struct tc9563_pwrctrl *tc9563,
 	case TC9563_DSP2:
 		port_access = 0x8;
 		break;
+	case TC9563_DSP3:
+		dev_dbg(dev, "Tx amplitude tuning not supported for DSP3\n");
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -345,6 +349,7 @@ static int tc9563_pwrctrl_disable_dfe(struct tc9563_pwrctrl *tc9563,
 				      enum tc9563_pwrctrl_ports port)
 {
 	struct tc9563_pwrctrl_cfg *cfg = &tc9563->cfg[port];
+	struct device *dev = tc9563->pwrctrl.dev;
 	int port_access, lane_access = 0x3;
 	u32 phy_rate = 0x21;
 
@@ -363,6 +368,9 @@ static int tc9563_pwrctrl_disable_dfe(struct tc9563_pwrctrl *tc9563,
 		port_access = 0x8;
 		lane_access = 0x1;
 		break;
+	case TC9563_DSP3:
+		dev_dbg(dev, "DFE tuning not supported for DSP3\n");
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -393,10 +401,16 @@ static int tc9563_pwrctrl_set_nfts(struct tc9563_pwrctrl *tc9563,
 		{TC9563_NFTS_2_5_GT, nfts[0]},
 		{TC9563_NFTS_5_GT, nfts[1]},
 	};
+	struct device *dev = tc9563->pwrctrl.dev;
 	int ret;
 
 	if (!nfts[0])
 		return 0;
+
+	if (port == TC9563_VDSP) {
+		dev_dbg(dev, "N_FTS tuning not supported for VDSP\n");
+		return 0;
+	}
 
 	ret =  tc9563_pwrctrl_i2c_write(tc9563->client, TC9563_PORT_SELECT,
 					BIT(port));
