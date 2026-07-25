@@ -596,12 +596,18 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 		ret = tc9563_pwrctrl_parse_device_dt(tc9563, child, port);
 		if (ret)
 			break;
-		/* Embedded ethernet device are under DSP3 */
+
+		/*
+		 * The integrated Ethernet MAC Endpoint under DSP3 is a single
+		 * device whose functions share the same config registers.
+		 */
 		if (port == TC9563_DSP3) {
-			for_each_child_of_node_scoped(child, child1) {
-				port++;
+			struct device_node *eth __free(device_node) =
+					of_get_next_available_child(child, NULL);
+
+			if (eth) {
 				ret = tc9563_pwrctrl_parse_device_dt(tc9563,
-								child1, port);
+								eth, TC9563_ETHERNET);
 				if (ret)
 					break;
 			}
