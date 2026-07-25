@@ -603,13 +603,13 @@ enum ath12k_qmi_mem_mode {
 
 enum ath12k_qmi_firmware_mode {
 	/* the default mode, standard 802.11 functionality */
-	ATH12K_FIRMWARE_MODE_NORMAL,
+	ATH12K_QMI_FIRMWARE_MODE_NORMAL,
 
 	/* factory tests etc */
-	ATH12K_FIRMWARE_MODE_FTM,
+	ATH12K_QMI_FIRMWARE_MODE_FTM,
 
-	/* firmware offline */
-	ATH12K_FIRMWARE_MODE_OFF = 4,
+	/* firmware offline; values 2-3 reserved by firmware ABI */
+	ATH12K_QMI_FIRMWARE_MODE_OFF = 4,
 };
 
 static inline void ath12k_qmi_set_event_block(struct ath12k_qmi *qmi, bool block)
