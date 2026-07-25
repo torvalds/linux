@@ -345,6 +345,7 @@ static ssize_t nullb_device_bool_attr_store(bool *val, const char *page,
 static ssize_t								\
 nullb_device_##NAME##_show(struct config_item *item, char *page)	\
 {									\
+	guard(mutex)(&lock);						\
 	return nullb_device_##TYPE##_attr_show(				\
 				to_nullb_device(item)->NAME, page);	\
 }									\
@@ -476,6 +477,7 @@ NULLB_DEVICE_ATTR(badblocks_partial_io, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
+	guard(mutex)(&lock);
 	return nullb_device_bool_attr_show(to_nullb_device(item)->power, page);
 }
 
