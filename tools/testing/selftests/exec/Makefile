@@ -21,6 +21,18 @@ TEST_GEN_PROGS += recursion-depth
 TEST_GEN_PROGS += null-argv
 TEST_GEN_PROGS += check-exec
 
+# Static ('T' flag) transparent binfmt_misc test; the asserting interpreter
+# is shared with the bpf harness's transparent case. No bpf toolchain needed.
+TEST_GEN_PROGS += binfmt_misc_transparent
+TEST_GEN_FILES += binfmt_transparent_interp
+
+# 'L' (loader substitution) binfmt_misc test: the payload runs as the main
+# image with a copy of the system loader substituted for its PT_INTERP and
+# asserts the native identity from inside; the static build proves the
+# override is dropped for a binary without PT_INTERP.
+TEST_GEN_PROGS += binfmt_misc_loader
+TEST_GEN_FILES += binfmt_loader_payload binfmt_loader_payload_static
+
 # binfmt_misc bpf-backed ('B') handler test: a libbpf harness plus its
 # struct_ops objects and the test interpreter/app it routes between. Only
 # built when clang, bpftool, the vmlinux BTF and libbpf are all present
@@ -35,7 +47,8 @@ HAVE_BPF_TOOLCHAIN ?= $(shell command -v $(CLANG) >/dev/null 2>&1 && \
 			pkg-config --exists libbpf 2>/dev/null && echo y)
 ifeq ($(HAVE_BPF_TOOLCHAIN),y)
 TEST_GEN_PROGS += binfmt_misc_bpf
-TEST_GEN_FILES += bpf_interp.bpf.o nix_origin.bpf.o
+TEST_GEN_FILES += bpf_interp.bpf.o nix_origin.bpf.o transparent.bpf.o
+TEST_GEN_FILES += loader.bpf.o
 TEST_GEN_FILES += binfmt_bpf_interp binfmt_bpf_app
 else
 $(info exec selftests: skipping binfmt_misc_bpf, needs clang, bpftool, vmlinux BTF and libbpf)
@@ -43,6 +56,8 @@ endif
 
 EXTRA_CLEAN := $(OUTPUT)/subdir.moved $(OUTPUT)/execveat.moved $(OUTPUT)/xxxxx*	\
 	       $(OUTPUT)/S_I*.test
+
+LOCAL_HDRS += binfmt_misc_common.h
 
 include ../lib.mk
 
@@ -86,20 +101,27 @@ LIBBPF_LDLIBS ?= -lbpf -lelf -lz
 
 $(OUTPUT)/vmlinux.h:
 	$(BPFTOOL) btf dump file $(VMLINUX_BTF) format c > $@
-	sed -i '/__ksym;$$/d' $@
 
+# BPF_NO_KFUNC_PROTOTYPES: the programs declare the kfuncs they use themselves.
 $(OUTPUT)/%.bpf.o: %.bpf.c $(OUTPUT)/vmlinux.h
-	$(CLANG) -g -O2 -target bpf -mcpu=v3 $(BPF_CFLAGS) $(LIBBPF_CFLAGS) -c $< -o $@
+	$(CLANG) -g -O2 -target bpf -mcpu=v3 -DBPF_NO_KFUNC_PROTOTYPES \
+		$(BPF_CFLAGS) $(LIBBPF_CFLAGS) -c $< -o $@
 
-$(OUTPUT)/binfmt_misc_bpf: binfmt_misc_bpf.c
+$(OUTPUT)/binfmt_misc_bpf: binfmt_misc_bpf.c binfmt_misc_common.h
 	$(CC) $(CFLAGS) $(LIBBPF_CFLAGS) $(LDFLAGS) $< $(LIBBPF_LDLIBS) -o $@
 
 $(OUTPUT)/binfmt_bpf_interp: binfmt_bpf_interp.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+
+$(OUTPUT)/binfmt_loader_payload: binfmt_loader_payload.c binfmt_misc_common.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -fPIE -pie $< -o $@
+
+$(OUTPUT)/binfmt_loader_payload_static: binfmt_loader_payload.c binfmt_misc_common.h
+	$(CC) $(CFLAGS) $(LDFLAGS) -static $< -o $@
 
 # PT_INTERP is set to the literal "$ORIGIN/binfmt_bpf_interp"; the nix_origin
 # handler resolves it relative to the binary at run time.
 $(OUTPUT)/binfmt_bpf_app: binfmt_bpf_app.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -Wl,--dynamic-linker,'$$ORIGIN/binfmt_bpf_interp' $< -o $@
 
-EXTRA_CLEAN += $(OUTPUT)/vmlinux.h $(OUTPUT)/bpf_interp.bpf.o $(OUTPUT)/nix_origin.bpf.o
+EXTRA_CLEAN += $(OUTPUT)/vmlinux.h $(OUTPUT)/*.bpf.o

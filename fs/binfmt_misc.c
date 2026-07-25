@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/array_size.h>
 #include <linux/binfmt_misc.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
@@ -49,7 +50,41 @@ enum binfmt_misc_entry_flags {
 	MISC_FMT_OPEN_BINARY	= (1U << 30),
 	MISC_FMT_CREDENTIALS	= (1U << 29),
 	MISC_FMT_OPEN_FILE	= (1U << 28),
+	MISC_FMT_TRANSPARENT	= (1U << 27),
+	MISC_FMT_LOADER		= (1U << 26),
 };
+
+/**
+ * struct binfmt_misc_flag - a flag character of the register string
+ * @c: the character userspace writes and reads back
+ * @flag: the entry flag it sets
+ * @implies: entry flags it turns on in addition
+ * @desc: what it does, for the registration debug output
+ */
+struct binfmt_misc_flag {
+	char		c;
+	unsigned long	flag;
+	unsigned long	implies;
+	const char	*desc;
+};
+
+static const struct binfmt_misc_flag misc_flags[] = {
+	{ 'P', MISC_FMT_PRESERVE_ARGV0,	0,			"preserve argv0"		},
+	{ 'O', MISC_FMT_OPEN_BINARY,	0,			"open binary"			},
+	{ 'C', MISC_FMT_CREDENTIALS,	MISC_FMT_OPEN_BINARY,	"credentials from the binary"	},
+	{ 'F', MISC_FMT_OPEN_FILE,	0,			"open interpreter file now"	},
+	{ 'T', MISC_FMT_TRANSPARENT,	MISC_FMT_OPEN_BINARY,	"transparent"			},
+	{ 'L', MISC_FMT_LOADER,		0,			"loader substitution"		},
+};
+
+/* Look up a flag character, NULL if @c is not one. */
+static const struct binfmt_misc_flag *misc_flag_by_char(const char c)
+{
+	for (int i = 0; i < ARRAY_SIZE(misc_flags); i++)
+		if (misc_flags[i].c == c)
+			return &misc_flags[i];
+	return NULL;
+}
 
 struct binfmt_misc_entry {
 	struct hlist_node node;
@@ -288,56 +323,97 @@ drop_staged:
 	return ERR_PTR(retval);
 }
 
-/*
- * the loader itself
+/**
+ * entry_invocation_flags - the invocation flags in effect for this exec
+ * @e: matched binary type handler
+ * @bprm: binary that is being executed
+ *
+ * A static entry fixes its flags at registration, a 'B' entry's load program
+ * picks them per exec with bpf_binprm_set_flags(). Translate the latter into
+ * the former, implications included, so the dispatch has one set to act on.
+ *
+ * Return: the invocation flags for this exec
  */
-static int load_misc_binary(struct linux_binprm *bprm)
+static unsigned long entry_invocation_flags(const struct binfmt_misc_entry *e,
+					    struct linux_binprm *bprm)
 {
-	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
-	const char *interpreter;
-	struct file *interp_file;
-	struct binfmt_misc *misc;
-	bool preserve_argv0, want_execfd, want_creds;
+	unsigned long flags = 0;
+	u64 bpf_flags;
+
+	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		return e->flags;
+
+	bpf_flags = bprm->bpf_flags;
+	/* Clear so they can't accumulate into a nested interpreter level. */
+	bprm->bpf_flags = 0;
+
+	if (bpf_flags & BPF_BINPRM_PRESERVE_ARGV0)
+		flags |= MISC_FMT_PRESERVE_ARGV0;
+	if (bpf_flags & BPF_BINPRM_EXECFD)
+		flags |= MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_CREDENTIALS)
+		flags |= MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_TRANSPARENT)
+		flags |= MISC_FMT_TRANSPARENT | MISC_FMT_OPEN_BINARY;
+	if (bpf_flags & BPF_BINPRM_LOADER)
+		flags |= MISC_FMT_LOADER;
+
+	return flags;
+}
+
+/**
+ * entry_open_interpreter - open the entry's interpreter for execution
+ * @e: matched binary type handler
+ * @interpreter: the interpreter selected for this exec
+ *
+ * An 'F' entry hands out a clone of the file it pre-opened at registration,
+ * any other entry opens the selected path.
+ *
+ * Return: the opened interpreter on success, an ERR_PTR on failure
+ */
+static struct file *entry_open_interpreter(const struct binfmt_misc_entry *e,
+					   const char *interpreter)
+{
+	struct file *interp_file __free(fput) = NULL;
 	int retval;
 
-	misc = current_binfmt_misc();
-	if (!READ_ONCE(misc->enabled))
-		return -ENOEXEC;
+	if (!(e->flags & MISC_FMT_OPEN_FILE))
+		return open_exec(interpreter);
 
-	fmt = get_binfmt_handler(misc, bprm);
-	if (!fmt)
-		return -ENOEXEC;
+	interp_file = file_clone_open(e->interp_file);
+	if (IS_ERR(interp_file))
+		return interp_file;
 
-	/* Need to be able to load the file after exec */
+	retval = exe_file_deny_write_access(interp_file);
+	if (retval)
+		return ERR_PTR(retval);
+
+	return no_free_ptr(interp_file);
+}
+
+/**
+ * build_interp_argv - splice the interpreter invocation into the argv
+ * @bprm: binary that is being executed
+ * @interpreter: the interpreter selected for this exec
+ * @flags: invocation flags in effect for this exec
+ *
+ * The interpreter becomes argv[0] and the binary its last argument, with an
+ * optional staged argument in between. The caller's argv[0] is dropped
+ * unless 'P' keeps it.
+ *
+ * Return: 0 on success, a negative error code on failure
+ */
+static int build_interp_argv(struct linux_binprm *bprm, const char *interpreter,
+			     unsigned long flags)
+{
+	int retval;
+
+	/* The interpreter has to be able to load the binary by path. */
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
 		return -ENOENT;
 
-	interpreter = entry_select_interpreter(fmt, bprm);
-	if (IS_ERR(interpreter))
-		return PTR_ERR(interpreter);
-
-	/*
-	 * The invocation flags are fixed at registration for a static handler
-	 * and chosen per exec by the load program, via bpf_binprm_set_flags(),
-	 * for a bpf one.
-	 */
-	if (test_bit(MISC_FMT_BPF_BIT, &fmt->flags)) {
-		u64 f = bprm->bpf_flags;
-
-		/* Clear so it can't accumulate into a nested interpreter level. */
-		bprm->bpf_flags = 0;
-
-		preserve_argv0 = f & BPF_BINPRM_PRESERVE_ARGV0;
-		want_creds = f & BPF_BINPRM_CREDENTIALS;
-		want_execfd = f & (BPF_BINPRM_CREDENTIALS | BPF_BINPRM_EXECFD);
-	} else {
-		preserve_argv0 = fmt->flags & MISC_FMT_PRESERVE_ARGV0;
-		want_creds = fmt->flags & MISC_FMT_CREDENTIALS;
-		want_execfd = fmt->flags & MISC_FMT_OPEN_BINARY;
-	}
-
 	/* The entry's own choice - not one accumulated from an earlier level. */
-	if (preserve_argv0) {
+	if (flags & MISC_FMT_PRESERVE_ARGV0) {
 		bprm->interp_flags |= BINPRM_FLAGS_PRESERVE_ARGV0;
 	} else {
 		retval = remove_arg_zero(bprm);
@@ -371,31 +447,83 @@ static int load_misc_binary(struct linux_binprm *bprm)
 		return retval;
 	bprm->argc++;
 
-	/* Update interp in case binfmt_script needs it. */
+	return 0;
+}
+
+/*
+ * the loader itself
+ */
+static int load_misc_binary(struct linux_binprm *bprm)
+{
+	struct binfmt_misc_entry *fmt __free(put_binfmt_handler) = NULL;
+	const char *interpreter;
+	struct file *interp_file;
+	struct binfmt_misc *misc;
+	unsigned long flags;
+	int retval;
+
+	/* Only binfmt_misc stages one and exec_binprm() clears it per round. */
+	WARN_ON_ONCE(bprm->loader);
+
+	misc = current_binfmt_misc();
+	if (!READ_ONCE(misc->enabled))
+		return -ENOEXEC;
+
+	fmt = get_binfmt_handler(misc, bprm);
+	if (!fmt)
+		return -ENOEXEC;
+
+	interpreter = entry_select_interpreter(fmt, bprm);
+	if (IS_ERR(interpreter))
+		return PTR_ERR(interpreter);
+
+	flags = entry_invocation_flags(fmt, bprm);
+
+	/* No argv is built for a staged argument to land in. */
+	if ((flags & (MISC_FMT_LOADER | MISC_FMT_TRANSPARENT)) &&
+	    bprm->bpf_interp_arg)
+		return -EINVAL;
+
+	/*
+	 * Stash the interpreter for binfmt_elf to consume in place of the
+	 * binary's PT_INTERP and decline the match, so the search continues
+	 * to the real format in the same round.
+	 */
+	if (flags & MISC_FMT_LOADER) {
+		interp_file = entry_open_interpreter(fmt, interpreter);
+		if (IS_ERR(interp_file)) {
+			retval = PTR_ERR(interp_file);
+			/* Declining here would run the binary's own PT_INTERP. */
+			return retval == -ENOEXEC ? -EACCES : retval;
+		}
+
+		bprm->loader = interp_file;
+		return -ENOEXEC;
+	}
+
+	if (!(flags & MISC_FMT_TRANSPARENT)) {
+		retval = build_interp_argv(bprm, interpreter, flags);
+		if (retval)
+			return retval;
+	}
+
+	/* Update interp for the next round; sched_prepare_exec reports it. */
 	retval = bprm_change_interp(interpreter, bprm);
 	if (retval < 0)
 		return retval;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE) {
-		interp_file = file_clone_open(fmt->interp_file);
-		if (!IS_ERR(interp_file)) {
-			int err = exe_file_deny_write_access(interp_file);
-
-			if (err) {
-				fput(interp_file);
-				interp_file = ERR_PTR(err);
-			}
-		}
-	} else {
-		interp_file = open_exec(interpreter);
-	}
+	interp_file = entry_open_interpreter(fmt, interpreter);
 	if (IS_ERR(interp_file))
 		return PTR_ERR(interp_file);
 
+	/* Raise only past the last failure, or an -ENOEXEC decline leaks it. */
+	if (flags & MISC_FMT_TRANSPARENT)
+		bprm->interp_flags |= BINPRM_FLAGS_TRANSPARENT_INTERP;
+
 	bprm->interpreter = interp_file;
-	if (want_execfd)
+	if (flags & MISC_FMT_OPEN_BINARY)
 		bprm->have_execfd = 1;
-	if (want_creds)
+	if (flags & MISC_FMT_CREDENTIALS)
 		bprm->execfd_creds = 1;
 	return 0;
 }
@@ -424,30 +552,16 @@ static char *scanarg(char *s, char del)
 	return s;
 }
 
+/* Parse the 'flags' field, stopping at the first character that is not one. */
 static char *check_special_flags(char *p, struct binfmt_misc_entry *e)
 {
 	for (;; p++) {
-		switch (*p) {
-		case 'P':
-			pr_debug("register: flag: P (preserve argv0)\n");
-			e->flags |= MISC_FMT_PRESERVE_ARGV0;
-			break;
-		case 'O':
-			pr_debug("register: flag: O (open binary)\n");
-			e->flags |= MISC_FMT_OPEN_BINARY;
-			break;
-		case 'C':
-			pr_debug("register: flag: C (preserve creds)\n");
-			/* C implies O */
-			e->flags |= MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY;
-			break;
-		case 'F':
-			pr_debug("register: flag: F: open interpreter file now\n");
-			e->flags |= MISC_FMT_OPEN_FILE;
-			break;
-		default:
+		const struct binfmt_misc_flag *f = misc_flag_by_char(*p);
+
+		if (!f)
 			return p;
-		}
+		pr_debug("register: flag: %c (%s)\n", f->c, f->desc);
+		e->flags |= f->flag | f->implies;
 	}
 }
 
@@ -570,7 +684,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 					      size_t count)
 {
 	struct binfmt_misc_entry *e __free(kfree) = NULL;
-	char *buf, *p;
+	char *buf, *p, *flags;
 	char del;
 
 	pr_debug("register: received %zu bytes\n", count);
@@ -595,7 +709,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	pr_debug("register: delim: %#x {%c}\n", del, del);
 
 	/* A flag-char delimiter runs the flag scan off the buffer. */
-	if (del == 'P' || del == 'O' || del == 'C' || del == 'F')
+	if (misc_flag_by_char(del))
 		return ERR_PTR(-EINVAL);
 
 	/* Pad the buffer with the delim to simplify parsing below. */
@@ -666,21 +780,38 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	}
 
 	/* Parse the 'flags' field. */
+	flags = p;
 	p = check_special_flags(p, e);
+
+	/*
+	 * A bpf handler decides the invocation flags per exec with
+	 * bpf_binprm_set_flags() rather than fixing them at registration, and
+	 * 'F' (pre-open a fixed interpreter) is meaningless for it, so a 'B'
+	 * entry's flags field has to be empty.
+	 */
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) && p != flags)
+		return ERR_PTR(-EINVAL);
+
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if ((e->flags & MISC_FMT_TRANSPARENT) &&
+	    (e->flags & MISC_FMT_PRESERVE_ARGV0))
+		return ERR_PTR(-EINVAL);
+
+	/* A native exec splices no argv, passes no execfd and needs no creds. */
+	if ((e->flags & MISC_FMT_LOADER) &&
+	    (e->flags & (MISC_FMT_TRANSPARENT | MISC_FMT_PRESERVE_ARGV0 |
+			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_BINARY)))
+		return ERR_PTR(-EINVAL);
+
 	if (*p == '\n')
 		p++;
 	if (p != buf + count)
 		return ERR_PTR(-EINVAL);
 
-	/*
-	 * A bpf handler decides the invocation flags per exec with
-	 * bpf_binprm_set_flags() rather than fixing them at registration, so a
-	 * 'B' entry carries no flags: 'P', 'C' and 'O' become per-exec choices
-	 * and 'F' (pre-open a fixed interpreter) is meaningless for it.
-	 */
-	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) &&
-	    (e->flags & (MISC_FMT_PRESERVE_ARGV0 | MISC_FMT_OPEN_BINARY |
-			 MISC_FMT_CREDENTIALS | MISC_FMT_OPEN_FILE)))
+	/* Non-F opens the interp at exec against the caller's cwd; require absolute. */
+	if ((e->flags & (MISC_FMT_LOADER | MISC_FMT_CREDENTIALS)) &&
+	    !(e->flags & MISC_FMT_OPEN_FILE) &&
+	    e->interpreter[0] != '/')
 		return ERR_PTR(-EINVAL);
 
 	return no_free_ptr(e);
@@ -743,14 +874,9 @@ static int bm_entry_show(struct seq_file *m, void *unused)
 
 	/* print the special flags */
 	seq_puts(m, "flags: ");
-	if (e->flags & MISC_FMT_PRESERVE_ARGV0)
-		seq_putc(m, 'P');
-	if (e->flags & MISC_FMT_OPEN_BINARY)
-		seq_putc(m, 'O');
-	if (e->flags & MISC_FMT_CREDENTIALS)
-		seq_putc(m, 'C');
-	if (e->flags & MISC_FMT_OPEN_FILE)
-		seq_putc(m, 'F');
+	for (int i = 0; i < ARRAY_SIZE(misc_flags); i++)
+		if (e->flags & misc_flags[i].flag)
+			seq_putc(m, misc_flags[i].c);
 	seq_putc(m, '\n');
 
 	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {

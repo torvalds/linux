@@ -62,6 +62,7 @@ struct linux_binprm {
 		is_check:1;
 	struct file *executable; /* Executable to pass to the interpreter */
 	struct file *interpreter;
+	struct file *loader;
 	struct file *file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -92,6 +93,28 @@ struct linux_binprm {
 /* preserve argv0 for the interpreter  */
 #define BINPRM_FLAGS_PRESERVE_ARGV0_BIT 3
 #define BINPRM_FLAGS_PRESERVE_ARGV0 (1 << BINPRM_FLAGS_PRESERVE_ARGV0_BIT)
+
+/* binfmt_misc dispatched to the interpreter transparently */
+#define BINPRM_FLAGS_TRANSPARENT_INTERP_BIT 4
+#define BINPRM_FLAGS_TRANSPARENT_INTERP (1 << BINPRM_FLAGS_TRANSPARENT_INTERP_BIT)
+
+/**
+ * bprm_at_flags - the AT_FLAGS this invocation implies
+ * @bprm: binary that is being executed
+ *
+ * Tell the program on the receiving end which dispatch contract it got.
+ *
+ * Return: the AT_FLAGS value for this exec
+ */
+static inline unsigned long bprm_at_flags(const struct linux_binprm *bprm)
+{
+	/* Transparency preserves the whole argv, argv[0] included. */
+	if (bprm->interp_flags & BINPRM_FLAGS_TRANSPARENT_INTERP)
+		return AT_FLAGS_TRANSPARENT_INTERP;
+	if (bprm->interp_flags & BINPRM_FLAGS_PRESERVE_ARGV0)
+		return AT_FLAGS_PRESERVE_ARGV0;
+	return 0;
+}
 
 /*
  * This structure defines the functions that are used to load the binary formats that
@@ -137,6 +160,8 @@ extern int begin_new_exec(struct linux_binprm * bprm);
 extern void setup_new_exec(struct linux_binprm * bprm);
 extern void finalize_exec(struct linux_binprm *bprm);
 extern void would_dump(struct linux_binprm *, struct file *);
+struct file *bprm_open_interpreter(struct linux_binprm *bprm, const char *path);
+void bprm_drop_loader(struct linux_binprm *bprm);
 
 extern int suid_dumpable;
 
