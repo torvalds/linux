@@ -2194,14 +2194,14 @@ static void __exit null_exit(void)
 
 	configfs_unregister_subsystem(&nullb_subsys);
 
-	unregister_blkdev(null_major, "nullb");
-
 	mutex_lock(&lock);
 	while (!list_empty(&nullb_list)) {
 		nullb = list_entry(nullb_list.next, struct nullb, list);
 		null_destroy_dev(nullb);
 	}
 	mutex_unlock(&lock);
+
+	unregister_blkdev(null_major, "nullb");
 
 	if (tag_set.ops)
 		blk_mq_free_tag_set(&tag_set);
