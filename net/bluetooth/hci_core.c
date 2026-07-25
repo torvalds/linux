@@ -2904,10 +2904,9 @@ int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb)
 		if (hci_conn_num(hdev, CIS_LINK) ||
 		    hci_conn_num(hdev, BIS_LINK) ||
 			hci_conn_num(hdev, PA_LINK)) {
-			__u16 handle = __le16_to_cpu(hci_acl_hdr(skb)->handle);
 			__u8 type;
 
-			type = hci_conn_lookup_type(hdev, hci_handle(handle));
+			type = hci_conn_lookup_type(hdev, hci_acl_handle(skb));
 			if (type == CIS_LINK || type == BIS_LINK ||
 			    type == PA_LINK)
 				hci_skb_pkt_type(skb) = HCI_ISODATA_PKT;
