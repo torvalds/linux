@@ -2074,6 +2074,14 @@ static void btusb_stop_traffic(struct btusb_data *data)
 	usb_kill_anchored_urbs(&data->ctrl_anchor);
 }
 
+static void btusb_prepare_reset(struct hci_dev *hdev)
+{
+	struct btusb_data *data = hci_get_drvdata(hdev);
+
+	btusb_stop_traffic(data);
+	usb_kill_anchored_urbs(&data->tx_anchor);
+}
+
 static int btusb_close(struct hci_dev *hdev)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
@@ -2918,8 +2926,7 @@ static int btusb_mtk_reset(struct hci_dev *hdev, void *rst_data)
 	/* Release MediaTek ISO data interface */
 	btusb_mtk_release_iso_intf(hdev);
 
-	btusb_stop_traffic(data);
-	usb_kill_anchored_urbs(&data->tx_anchor);
+	btusb_prepare_reset(hdev);
 
 	/* Toggle the hard reset line. The MediaTek device is going to
 	 * yank itself off the USB and then replug. The cleanup is handled
