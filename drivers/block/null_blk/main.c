@@ -502,15 +502,15 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 		return ret;
 
 	ret = count;
-	mutex_lock(&lock);
+	guard(mutex)(&lock);
 	if (!dev->power && newp) {
 		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
-			goto out;
+			return ret;
 
 		ret = null_add_dev(dev);
 		if (ret) {
 			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
-			goto out;
+			return ret;
 		}
 
 		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
@@ -524,8 +524,6 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 		clear_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
 	}
 
-out:
-	mutex_unlock(&lock);
 	return ret;
 }
 
@@ -588,13 +586,9 @@ static ssize_t nullb_device_zone_readonly_store(struct config_item *item,
 						const char *page, size_t count)
 {
 	struct nullb_device *dev = to_nullb_device(item);
-	ssize_t ret;
 
-	mutex_lock(&lock);
-	ret = zone_cond_store(dev, page, count, BLK_ZONE_COND_READONLY);
-	mutex_unlock(&lock);
-
-	return ret;
+	guard(mutex)(&lock);
+	return zone_cond_store(dev, page, count, BLK_ZONE_COND_READONLY);
 }
 CONFIGFS_ATTR_WO(nullb_device_, zone_readonly);
 
@@ -602,13 +596,9 @@ static ssize_t nullb_device_zone_offline_store(struct config_item *item,
 					       const char *page, size_t count)
 {
 	struct nullb_device *dev = to_nullb_device(item);
-	ssize_t ret;
 
-	mutex_lock(&lock);
-	ret = zone_cond_store(dev, page, count, BLK_ZONE_COND_OFFLINE);
-	mutex_unlock(&lock);
-
-	return ret;
+	guard(mutex)(&lock);
+	return zone_cond_store(dev, page, count, BLK_ZONE_COND_OFFLINE);
 }
 CONFIGFS_ATTR_WO(nullb_device_, zone_offline);
 
@@ -726,10 +716,9 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 	struct nullb_device *dev = to_nullb_device(item);
 
 	if (test_and_clear_bit(NULLB_DEV_FL_UP, &dev->flags)) {
-		mutex_lock(&lock);
+		guard(mutex)(&lock);
 		dev->power = false;
 		null_del_dev(dev->nullb);
-		mutex_unlock(&lock);
 	}
 	nullb_del_fault_config(dev);
 	config_item_put(item);
@@ -2100,14 +2089,13 @@ static struct nullb *null_find_dev_by_name(const char *name)
 {
 	struct nullb *nullb = NULL, *nb;
 
-	mutex_lock(&lock);
+	guard(mutex)(&lock);
 	list_for_each_entry(nb, &nullb_list, list) {
 		if (strcmp(nb->disk_name, name) == 0) {
 			nullb = nb;
 			break;
 		}
 	}
-	mutex_unlock(&lock);
 
 	return nullb;
 }
@@ -2121,9 +2109,9 @@ static int null_create_dev(void)
 	if (!dev)
 		return -ENOMEM;
 
-	mutex_lock(&lock);
-	ret = null_add_dev(dev);
-	mutex_unlock(&lock);
+	scoped_guard(mutex, &lock) {
+		ret = null_add_dev(dev);
+	}
 	if (ret) {
 		null_free_dev(dev);
 		return ret;
@@ -2215,12 +2203,12 @@ static void __exit null_exit(void)
 
 	configfs_unregister_subsystem(&nullb_subsys);
 
-	mutex_lock(&lock);
-	while (!list_empty(&nullb_list)) {
-		nullb = list_entry(nullb_list.next, struct nullb, list);
-		null_destroy_dev(nullb);
+	scoped_guard(mutex, &lock) {
+		while (!list_empty(&nullb_list)) {
+			nullb = list_entry(nullb_list.next, struct nullb, list);
+			null_destroy_dev(nullb);
+		}
 	}
-	mutex_unlock(&lock);
 
 	unregister_blkdev(null_major, "nullb");
 
