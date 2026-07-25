@@ -1950,8 +1950,13 @@ static int rbd_object_map_update_finish(struct rbd_obj_request *obj_req,
 	bool has_current_state;
 	void *p;
 
-	if (osd_req->r_result)
+	if (osd_req->r_result < 0)
 		return osd_req->r_result;
+
+	/*
+	 * Writes aren't allowed to return a data payload.
+	 */
+	WARN_ON_ONCE(osd_req->r_result > 0);
 
 	/*
 	 * Nothing to do for a snapshot object map.

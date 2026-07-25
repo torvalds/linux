@@ -4045,7 +4045,7 @@ struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, stru
 
 	fl = rcu_dereference_bh(qe->filter_chain);
 
-	switch (tcf_classify(skb, NULL, fl, &cl_res, false)) {
+	switch (tcf_classify_qdisc(skb, fl, &cl_res, false)) {
 	case TC_ACT_SHOT:
 		qdisc_qstats_drop(sch);
 		__qdisc_drop(skb, to_free);
@@ -4055,10 +4055,6 @@ struct sk_buff *tcf_qevent_handle(struct tcf_qevent *qe, struct Qdisc *sch, stru
 	case TC_ACT_QUEUED:
 	case TC_ACT_TRAP:
 		__qdisc_drop(skb, to_free);
-		*ret = __NET_XMIT_STOLEN;
-		return NULL;
-	case TC_ACT_REDIRECT:
-		skb_do_redirect(skb);
 		*ret = __NET_XMIT_STOLEN;
 		return NULL;
 	case TC_ACT_CONSUMED:

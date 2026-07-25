@@ -2048,6 +2048,7 @@ static int _btrfs_ioctl_get_subvol_info(struct inode *inode,
 			ret = -ENOENT;
 			goto out;
 		}
+		ret = 0;
 	}
 
 out:
