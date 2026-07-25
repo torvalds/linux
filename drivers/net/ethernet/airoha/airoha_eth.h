@@ -572,11 +572,12 @@ struct airoha_qdma {
 
 enum airoha_dev_flags {
 	AIROHA_DEV_F_WAN,
+	AIROHA_DEV_F_TX_QOS,
 };
 
 struct airoha_gdm_dev {
+	struct airoha_qdma __rcu *qdma;
 	struct airoha_gdm_port *port;
-	struct airoha_qdma *qdma;
 	struct airoha_eth *eth;
 
 	DECLARE_BITMAP(qos_sq_bmap, AIROHA_NUM_QOS_CHANNELS);
@@ -589,6 +590,11 @@ struct airoha_gdm_dev {
 	int nbq;
 
 	struct airoha_hw_stats stats;
+
+	/* Serialize netdev_tx_completed_queue() calls per TX queue during
+	 * QDMA migration.
+	 */
+	spinlock_t txq_lock[AIROHA_NUM_NETDEV_TX_RINGS];
 };
 
 struct airoha_gdm_port {
@@ -711,6 +717,16 @@ static inline bool airoha_is_7583(struct airoha_eth *eth)
 int airoha_get_fe_port(struct airoha_gdm_dev *dev);
 bool airoha_is_valid_gdm_dev(struct airoha_eth *eth,
 			     struct airoha_gdm_dev *dev);
+
+extern struct mutex flow_offload_mutex;
+
+static inline struct airoha_qdma *
+airoha_qdma_deref(struct airoha_gdm_dev *dev)
+{
+	return rcu_dereference_protected(dev->qdma,
+					 lockdep_rtnl_is_held() ||
+					 lockdep_is_held(&flow_offload_mutex));
+}
 
 void airoha_ppe_set_xmit_frame_size(struct airoha_gdm_dev *dev);
 void airoha_ppe_set_cpu_port(struct airoha_gdm_dev *dev, u8 ppe_id, u8 fport);
