@@ -130,12 +130,8 @@ static int smdk_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* Set S/PDIF uses internal source clock */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, SND_SOC_SPDIF_INT_MCLK,
-					rclk_rate, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return snd_soc_dai_set_sysclk(cpu_dai, SND_SOC_SPDIF_INT_MCLK,
+				      rclk_rate, SND_SOC_CLOCK_IN);
 }
 
 static const struct snd_soc_ops smdk_spdif_ops = {
