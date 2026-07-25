@@ -1779,7 +1779,7 @@ static void null_del_dev(struct nullb *nullb)
 
 	del_gendisk(nullb->disk);
 
-	if (test_bit(NULLB_DEV_FL_THROTTLED, &nullb->dev->flags)) {
+	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		hrtimer_cancel(&nullb->bw_timer);
 		atomic_long_set(&nullb->cur_bytes, LONG_MAX);
 		blk_mq_start_stopped_hw_queues(nullb->q, true);
@@ -1791,7 +1791,7 @@ static void null_del_dev(struct nullb *nullb)
 		blk_mq_free_tag_set(nullb->tag_set);
 	kfree(nullb->queues);
 	if (null_cache_active(nullb))
-		null_free_device_storage(nullb->dev, true);
+		null_free_device_storage(dev, true);
 	kfree(nullb);
 	dev->nullb = NULL;
 }
