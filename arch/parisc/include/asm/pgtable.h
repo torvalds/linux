@@ -435,12 +435,6 @@ static inline pte_t pte_swp_clear_exclusive(pte_t pte)
 bool ptep_clear_flush_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep);
 pte_t ptep_clear_flush(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep);
 
-struct mm_struct;
-static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	set_pte_at(mm, addr, ptep, pte_wrprotect(*ptep));
-}
-
 #endif /* !__ASSEMBLER__ */
 
 
@@ -472,6 +466,5 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
 
 #endif /* _PARISC_PGTABLE_H */
