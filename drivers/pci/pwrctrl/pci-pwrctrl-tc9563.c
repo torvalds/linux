@@ -80,7 +80,7 @@ enum tc9563_pwrctrl_ports {
 	TC9563_USP,
 	TC9563_DSP1,
 	TC9563_DSP2,
-	TC9563_DSP3,
+	TC9563_VDSP,
 	TC9563_ETHERNET,
 	TC9563_MAX
 };
@@ -328,8 +328,8 @@ static int tc9563_pwrctrl_set_tx_amplitude(struct tc9563_pwrctrl *tc9563,
 	case TC9563_DSP2:
 		port_access = 0x8;
 		break;
-	case TC9563_DSP3:
-		dev_dbg(dev, "Tx amplitude tuning not supported for DSP3\n");
+	case TC9563_VDSP:
+		dev_dbg(dev, "Tx amplitude tuning not supported for VDSP\n");
 		return 0;
 	default:
 		return -EINVAL;
@@ -368,8 +368,8 @@ static int tc9563_pwrctrl_disable_dfe(struct tc9563_pwrctrl *tc9563,
 		port_access = 0x8;
 		lane_access = 0x1;
 		break;
-	case TC9563_DSP3:
-		dev_dbg(dev, "DFE tuning not supported for DSP3\n");
+	case TC9563_VDSP:
+		dev_dbg(dev, "DFE tuning not supported for VDSP\n");
 		return 0;
 	default:
 		return -EINVAL;
@@ -618,10 +618,10 @@ static int tc9563_pwrctrl_probe(struct platform_device *pdev)
 			break;
 
 		/*
-		 * The integrated Ethernet MAC Endpoint under DSP3 is a single
+		 * The integrated Ethernet MAC Endpoint under VDSP is a single
 		 * device whose functions share the same config registers.
 		 */
-		if (port == TC9563_DSP3) {
+		if (port == TC9563_VDSP) {
 			struct device_node *eth __free(device_node) =
 					of_get_next_available_child(child, NULL);
 
