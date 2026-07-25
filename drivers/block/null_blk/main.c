@@ -383,6 +383,15 @@ static int nullb_update_nr_hw_queues(struct nullb_device *dev,
 		return 0;
 
 	/*
+	 * A shared tag_set is mapped via the module-wide queue counts, so a
+	 * per-device resize is meaningless. On shrink it would also leave
+	 * mq_map[] pointing at NULLed hctx slots, causing a NULL deref in
+	 * blk_mq_map_swqueue(). Reject it.
+	 */
+	if (dev->shared_tags)
+		return -EINVAL;
+
+	/*
 	 * Make sure at least one submit queue exists.
 	 */
 	if (!submit_queues)
