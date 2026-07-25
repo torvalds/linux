@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/minmax.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
@@ -167,11 +168,10 @@ int fw_core_add_descriptor(struct fw_descriptor *desc)
 {
 	size_t i;
 
-	/*
-	 * Check descriptor is valid; the length of all blocks in the
-	 * descriptor has to add up to exactly the length of the
-	 * block.
-	 */
+	/* Reject empty descriptors or those exceeding max Config ROM size (256 quadlets) */
+	if (!in_range(desc->length, 1, 256))
+		return -EINVAL;
+
 	i = 0;
 	while (i < desc->length)
 		i += (desc->data[i] >> 16) + 1;
