@@ -75,7 +75,7 @@ SoCs only:
 
 - clocks: 		Should contain the device's input clock, and should be
 			defined as per the bindings in,
-			Documentation/devicetree/bindings/clock/keystone-gate.txt
+			Documentation/devicetree/bindings/clock/ti,keystone,psc-clock.yaml
 
 The following are mandatory properties for Keystone 2 66AK2G SoCs only:
 
