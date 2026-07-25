@@ -3407,6 +3407,16 @@ static inline struct hci_iso_hdr *hci_iso_hdr(const struct sk_buff *skb)
 #define hci_handle(h)		(h & 0x0fff)
 #define hci_flags(h)		(h >> 12)
 
+static inline __u16 hci_acl_handle(const struct sk_buff *skb)
+{
+	return hci_handle(__le16_to_cpu(hci_acl_hdr(skb)->handle));
+}
+
+static inline __u16 hci_acl_dlen(const struct sk_buff *skb)
+{
+	return __le16_to_cpu(hci_acl_hdr(skb)->dlen);
+}
+
 /* ISO handle and flags pack/unpack */
 #define hci_iso_flags_pb(f)		(f & 0x0003)
 #define hci_iso_flags_ts(f)		((f >> 2) & 0x0001)
