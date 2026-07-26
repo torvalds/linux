@@ -1710,11 +1710,7 @@ static int sys_init_ax(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	ret = chip_func_en_ax(rtwdev);
-	if (ret)
-		return ret;
-
-	return ret;
+	return chip_func_en_ax(rtwdev);
 }
 
 const struct rtw89_mac_size_set rtw89_mac_size = {

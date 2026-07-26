@@ -929,11 +929,7 @@ static int sys_init_be(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	ret = chip_func_en_be(rtwdev);
-	if (ret)
-		return ret;
-
-	return ret;
+	return chip_func_en_be(rtwdev);
 }
 
 static int mac_func_en_be(struct rtw89_dev *rtwdev)
