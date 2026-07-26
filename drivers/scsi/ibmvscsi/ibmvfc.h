@@ -1,20 +1,27 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
  * ibmvfc.h -- driver for IBM Power Virtual Fibre Channel Adapter
  *
  * Written By: Brian King <brking@linux.vnet.ibm.com>, IBM Corporation
  *
- * Copyright (C) IBM Corporation, 2008
+ * Copyright (C) IBM Corporation, 2008-2026
  */
 
 #ifndef _IBMVFC_H
 #define _IBMVFC_H
 
+#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <scsi/scsi_device.h>
 #include <scsi/viosrp.h>
+#include <linux/nvme.h>
+#include <linux/nvme-fc.h>
 
-#define IBMVFC_NAME	"ibmvfc"
+#include "ibmvfc-nvme.h"
+
+#define IBMVFC_NAME			"ibmvfc"
 #define IBMVFC_DRIVER_VERSION		"1.0.11"
 #define IBMVFC_DRIVER_DATE		"(April 12, 2013)"
 
@@ -92,6 +99,7 @@ enum ibmvfc_cmd_status_flags {
 	IBMVFC_FC_SCSI_ERROR		= 0x0008,
 	IBMVFC_HW_EVENT_LOGGED		= 0x0010,
 	IBMVFC_VIOS_LOGGED		= 0x0020,
+	IBMVFC_FC_NVME_STATUS		= 0x0040,
 };
 
 enum ibmvfc_fabric_mapped_errors {
@@ -124,20 +132,37 @@ enum ibmvfc_vios_errors {
 	IBMVFC_COMMAND_FAILED			= 0x8000,
 };
 
+enum ibmvfc_fc_nvme_errors {
+	IBMVFC_NVMS_VALID_ERSP		= 0x0001,
+	IBMVFC_NVMS_VALID_NODMA_CQE	= 0x0002,
+};
+
 enum ibmvfc_mad_types {
 	IBMVFC_NPIV_LOGIN		= 0x0001,
-	IBMVFC_DISC_TARGETS	= 0x0002,
+	IBMVFC_DISC_TARGETS		= 0x0002,
+	IBMVFC_DISC_NVMF_TARGETS	= 0x0003,
 	IBMVFC_PORT_LOGIN		= 0x0004,
-	IBMVFC_PROCESS_LOGIN	= 0x0008,
-	IBMVFC_QUERY_TARGET	= 0x0010,
+	IBMVFC_NVMF_PORT_LOGIN		= 0x0005,
+	IBMVFC_PROCESS_LOGIN		= 0x0008,
+	IBMVFC_NVMF_PROCESS_LOGIN	= 0x0009,
+	IBMVFC_QUERY_TARGET		= 0x0010,
+	IBMVFC_NVMF_QUERY_TARGET	= 0x0011,
 	IBMVFC_MOVE_LOGIN		= 0x0020,
-	IBMVFC_IMPLICIT_LOGOUT	= 0x0040,
-	IBMVFC_PASSTHRU		= 0x0200,
-	IBMVFC_TMF_MAD		= 0x0100,
-	IBMVFC_NPIV_LOGOUT	= 0x0800,
-	IBMVFC_CHANNEL_ENQUIRY	= 0x1000,
-	IBMVFC_CHANNEL_SETUP	= 0x2000,
-	IBMVFC_CONNECTION_INFO	= 0x4000,
+	IBMVFC_NVMF_MOVE_LOGIN		= 0x0021,
+	IBMVFC_IMPLICIT_LOGOUT		= 0x0040,
+	IBMVFC_NVMF_IMPLICIT_LOGOUT	= 0x0041,
+	IBMVFC_RNID			= 0x0080,
+	IBMVFC_NVMF_RNID		= 0x0081,
+	IBMVFC_TMF_MAD			= 0x0100,
+	IBMVFC_NVMF_TMF_MAD		= 0x0101,
+	IBMVFC_PASSTHRU			= 0x0200,
+	IBMVFC_NVMF_PASSTHRU		= 0x0201,
+	IBMVFC_NPIV_LOGOUT		= 0x0800,
+	IBMVFC_CHANNEL_ENQUIRY		= 0x1000,
+	IBMVFC_CHANNEL_SETUP		= 0x2000,
+	IBMVFC_CONNECTION_INFO		= 0x4000,
+	IBMVFC_FABRIC_LOGIN		= 0x8000,
+	IBMVFC_NVMF_FABRIC_LOGIN	= 0x8001,
 };
 
 struct ibmvfc_mad_common {
@@ -175,11 +200,16 @@ struct ibmvfc_npiv_login {
 #define IBMVFC_FLUSH_ON_HALT		0x02
 	__be32 max_cmds;
 	__be64 capabilities;
-#define IBMVFC_CAN_MIGRATE		0x01
-#define IBMVFC_CAN_USE_CHANNELS		0x02
-#define IBMVFC_CAN_HANDLE_FPIN		0x04
-#define IBMVFC_CAN_USE_MAD_VERSION	0x08
-#define IBMVFC_CAN_SEND_VF_WWPN		0x10
+#define IBMVFC_CAN_MIGRATE		0x001
+#define IBMVFC_CAN_USE_CHANNELS		0x002
+#define IBMVFC_CAN_HANDLE_FPIN		0x004
+#define IBMVFC_CAN_USE_MAD_VERSION	0x008
+#define IBMVFC_CAN_SEND_VF_WWPN		0x010
+#define IBMVFC_YES_NVMEOF		0x020
+#define IBMVFC_YES_SCSI			0x040
+#define IBMVFC_CAN_USE_WWPN_ALL		0x080
+#define IBMVFC_USE_ASYNC_SUBQ		0x100
+#define IBMVFC_CAN_USE_NOOP_CMD		0x200
 	__be64 node_name;
 	struct srp_direct_buf async;
 	u8 partition_name[IBMVFC_MAX_NAME];
@@ -219,13 +249,18 @@ struct ibmvfc_npiv_login_resp {
 	__be16 error;
 	__be32 flags;
 #define IBMVFC_NATIVE_FC		0x01
-	__be32 reserved;
+	__be32 possible_nports;
 	__be64 capabilities;
-#define IBMVFC_CAN_FLUSH_ON_HALT	0x08
-#define IBMVFC_CAN_SUPPRESS_ABTS	0x10
-#define IBMVFC_MAD_VERSION_CAP		0x20
-#define IBMVFC_HANDLE_VF_WWPN		0x40
-#define IBMVFC_CAN_SUPPORT_CHANNELS	0x80
+#define IBMVFC_CAN_FLUSH_ON_HALT	0x0008
+#define IBMVFC_CAN_SUPPRESS_ABTS	0x0010
+#define IBMVFC_MAD_VERSION_CAP		0x0020
+#define IBMVFC_HANDLE_VF_WWPN		0x0040
+#define IBMVFC_CAN_SUPPORT_CHANNELS	0x0080
+#define IBMVFC_SUPPORT_NVMEOF		0x0100
+#define IBMVFC_SUPPORT_SCSI		0x0200
+#define IBMVFC_SUPPORT_WWPN_ALL		0x0400
+#define IBMVFC_ASYNC_SUBQ		0x0800
+#define IBMVFC_SUPPORT_NOOP_CMD		0x1000
 	__be32 max_cmds;
 	__be32 scsi_id_sz;
 	__be64 max_dma_len;
@@ -238,12 +273,23 @@ struct ibmvfc_npiv_login_resp {
 	u8 port_loc_code[IBMVFC_MAX_NAME];
 	u8 drc_name[IBMVFC_MAX_NAME];
 	struct ibmvfc_service_parms service_parms;
-	__be64 reserved2;
+	__be64 reserved;
 } __packed __aligned(8);
 
 union ibmvfc_npiv_login_data {
 	struct ibmvfc_npiv_login login;
 	struct ibmvfc_npiv_login_resp resp;
+} __packed __aligned(8);
+
+struct ibmvfc_fabric_login_mad {
+	struct ibmvfc_mad_common common;
+	__be64 flags;
+	__be64 capabilities;
+	__be64 nport_id;
+	__be16 status;
+	__be16 error;
+	__be32 reserved;
+	__be64 reserved2[16];
 } __packed __aligned(8);
 
 struct ibmvfc_discover_targets_entry {
@@ -287,6 +333,7 @@ enum ibmvfc_fc_type {
 	IBMVFC_FABRIC_BUSY	= 0x04,
 	IBMVFC_PORT_BUSY		= 0x05,
 	IBMVFC_BASIC_REJECT	= 0x06,
+	IBMVFC_FC4_LS_REJECT	= 0x07,
 };
 
 enum ibmvfc_gs_explain {
@@ -334,6 +381,7 @@ struct ibmvfc_move_login {
 struct ibmvfc_prli_svc_parms {
 	u8 type;
 #define IBMVFC_SCSI_FCP_TYPE		0x08
+#define IBMVFC_NVME_FCP_TYPE		0x28
 	u8 type_ext;
 	__be16 flags;
 #define IBMVFC_PRLI_ORIG_PA_VALID			0x8000
@@ -349,6 +397,11 @@ struct ibmvfc_prli_svc_parms {
 #define IBMVFC_PRLI_TARGET_FUNC			0x00000010
 #define IBMVFC_PRLI_READ_FCP_XFER_RDY_DISABLED	0x00000002
 #define IBMVFC_PRLI_WR_FCP_XFER_RDY_DISABLED	0x00000001
+#define IBMVFC_PRLI_NVME_PI_CTRL		0x00000200
+#define IBMVFC_PRLI_NVME_SLER			0x00000100
+#define IBMVFC_PRLI_NVME_INITIATOR		0x00000020
+#define IBMVFC_PRLI_NVME_TARGET			0x00000010
+#define IBMVFC_PRLI_NVME_DISCOVERY		0x00000008
 } __packed __aligned(4);
 
 struct ibmvfc_process_login {
@@ -377,20 +430,27 @@ struct ibmvfc_query_tgt {
 struct ibmvfc_implicit_logout {
 	struct ibmvfc_mad_common common;
 	__be64 old_scsi_id;
-	__be64 reserved[2];
+	__be64 reserved[8];
+	__be64 target_wwpn;
 } __packed __aligned(8);
 
 struct ibmvfc_tmf {
 	struct ibmvfc_mad_common common;
 	__be64 scsi_id;
-	struct scsi_lun lun;
+	union {
+		struct scsi_lun lun;
+		__be64 assoc_id;
+	};
 	__be32 flags;
-#define IBMVFC_TMF_ABORT_TASK		0x02
-#define IBMVFC_TMF_ABORT_TASK_SET	0x04
-#define IBMVFC_TMF_LUN_RESET		0x10
-#define IBMVFC_TMF_TGT_RESET		0x20
-#define IBMVFC_TMF_LUA_VALID		0x40
-#define IBMVFC_TMF_SUPPRESS_ABTS	0x80
+#define IBMVFC_TMF_ABORT_TASK		0x002
+#define IBMVFC_TMF_ABORT_TASK_SET	0x004
+#define IBMVFC_TMF_LUN_RESET		0x010
+#define IBMVFC_TMF_TGT_RESET		0x020
+#define IBMVFC_TMF_LUA_VALID		0x040
+#define IBMVFC_TMF_SUPPRESS_ABTS	0x080
+#define IBMVFC_TMF_NVMF_ASSOC		0x100
+#define IBMVFC_TMF_NVMF_TARGET		0x200
+#define IBMVFC_TMF_BITMASK_VALID	0x400
 	__be32 cancel_key;
 	__be32 my_cancel_key;
 	__be32 pad;
@@ -446,6 +506,8 @@ enum ibmvfc_cmd_flags {
 	IBMVFC_WRITE		= 0x0008,
 	IBMVFC_TMF			= 0x0080,
 	IBMVFC_CLASS_3_ERR	= 0x0100,
+	IBMVFC_NVMEOF_PROTOCOL	= 0x0200,
+	IBMVFC_NVMF_SLER	= 0x0400,
 };
 
 enum ibmvfc_fc_task_attr {
@@ -493,7 +555,7 @@ struct ibmvfc_cmd {
 	__be64 tgt_scsi_id;
 	__be64 tag;
 	__be64 target_wwpn;
-	__be64 reserved3;
+	__be64 assoc_id;
 	union {
 		struct {
 			struct ibmvfc_fcp_cmd_iu iu;
@@ -504,6 +566,15 @@ struct ibmvfc_cmd {
 			struct ibmvfc_fcp_cmd_iu iu;
 			struct ibmvfc_fcp_rsp rsp;
 		} v2;
+		struct {
+			__be64 reserved5[4];
+			struct ibmvfc_fcp_cmd_iu iu;
+			struct ibmvfc_fcp_rsp rsp;
+		} v3scsi;
+		struct {
+			__be64 reserved[4];
+			struct nvme_fc_cmd_iu iu;
+		} v3nvme;
 	};
 } __packed __aligned(8);
 
@@ -522,6 +593,9 @@ struct ibmvfc_passthru_iu {
 	__be32 flags;
 #define IBMVFC_FC_ELS		0x01
 #define IBMVFC_FC_CT_IU		0x02
+#define IBMVFC_PT_PRLI		0x04
+#define IBMVFC_FC4_LS_OTH	0x08
+#define IBMVFC_FC4_LS_DSC_CTRL	0x10
 	__be32 cancel_key;
 #define IBMVFC_PASSTHRU_CANCEL_KEY	0x80000000
 #define IBMVFC_INTERNAL_CANCEL_KEY	0x80000001
@@ -549,9 +623,9 @@ struct ibmvfc_channel_enquiry {
 #define IBMVFC_SUPPORT_VARIABLE_SUBQ_MSG	0x02
 #define IBMVFC_NO_N_TO_M_CHANNELS_SUPPORT	0x04
 	__be32 num_scsi_subq_channels;
-	__be32 num_nvmeof_subq_channels;
+	__be32 num_nvme_subq_channels;
 	__be32 num_scsi_vas_channels;
-	__be32 num_nvmeof_vas_channels;
+	__be32 num_nvme_vas_channels;
 } __packed __aligned(8);
 
 struct ibmvfc_channel_setup_mad {
@@ -559,7 +633,7 @@ struct ibmvfc_channel_setup_mad {
 	struct srp_direct_buf buffer;
 } __packed __aligned(8);
 
-#define IBMVFC_MAX_CHANNELS	502
+#define IBMVFC_MAX_CHANNELS	501
 
 struct ibmvfc_channel_setup {
 	__be32 flags;
@@ -568,12 +642,13 @@ struct ibmvfc_channel_setup {
 #define IBMVFC_CHANNELS_CANCELED	0x04
 	__be32 reserved;
 	__be32 num_scsi_subq_channels;
-	__be32 num_nvmeof_subq_channels;
+	__be32 num_nvme_subq_channels;
 	__be32 num_scsi_vas_channels;
-	__be32 num_nvmeof_vas_channels;
+	__be32 num_nvme_vas_channels;
 	struct srp_direct_buf buffer;
 	__be64 reserved2[5];
 	__be64 channel_handles[IBMVFC_MAX_CHANNELS];
+	__be64 async_sub_crq_handle;
 } __packed __aligned(8);
 
 struct ibmvfc_connection_info {
@@ -620,7 +695,8 @@ struct ibmvfc_trace_entry {
 
 enum ibmvfc_crq_formats {
 	IBMVFC_CMD_FORMAT		= 0x01,
-	IBMVFC_ASYNC_EVENT	= 0x02,
+	IBMVFC_ASYNC_EVENT		= 0x02,
+	IBMVFC_NOOP			= 0x03,
 	IBMVFC_MAD_FORMAT		= 0x04,
 };
 
@@ -639,6 +715,9 @@ enum ibmvfc_async_event {
 	IBMVFC_AE_RESUME			= 0x0800,
 	IBMVFC_AE_ADAPTER_FAILED	= 0x1000,
 	IBMVFC_AE_FPIN			= 0x2000,
+	IBMVFC_NVME_DISCONNECT		= 0x4000,
+	IBMVFC_NVMEOF_PROTO_AVAIL	= 0x40000000,
+	IBMVFC_SCSI_PROTO_AVAIL		= 0x80000000,
 };
 
 struct ibmvfc_async_desc {
@@ -683,13 +762,30 @@ struct ibmvfc_async_crq {
 	volatile __be64 scsi_id;
 	volatile __be64 wwpn;
 	volatile __be64 node_name;
-	__be64 reserved;
+	__be64 assoc_id;
+} __packed __aligned(8);
+
+struct ibmvfc_async_sub_crq {
+	volatile u8 valid;
+	u8 flags;
+#define IBMVFC_ASYNC_ID_IS_ASSOC_ID	0x01
+	u8 link_state;
+	u8 fpin_status;
+	__be16 event;
+	__be16 pad;
+	__be64 wwpn;
+	__be64 nport_id;
+	union {
+		__be64 node_name;
+		__be64 assoc_id;
+	} id;
 } __packed __aligned(8);
 
 union ibmvfc_iu {
 	struct ibmvfc_mad_common mad_common;
 	struct ibmvfc_npiv_login_mad npiv_login;
 	struct ibmvfc_npiv_logout_mad npiv_logout;
+	struct ibmvfc_fabric_login_mad fabric_login;
 	struct ibmvfc_discover_targets discover_targets;
 	struct ibmvfc_port_login plogi;
 	struct ibmvfc_process_login prli;
@@ -728,6 +824,7 @@ struct ibmvfc_target {
 	u64 scsi_id;
 	u64 wwpn;
 	u64 new_scsi_id;
+	u64 assoc_id;
 	struct fc_rport *rport;
 	int target_id;
 	enum ibmvfc_target_action action;
@@ -743,6 +840,8 @@ struct ibmvfc_target {
 	void (*job_step) (struct ibmvfc_target *);
 	struct timer_list timer;
 	struct kref kref;
+	struct completion nvme_delete_done;
+	struct nvme_fc_remote_port *nvme_remote_port;
 };
 
 /* a unit of work for the hosting partition */
@@ -753,6 +852,8 @@ struct ibmvfc_event {
 	struct ibmvfc_queue *queue;
 	struct ibmvfc_target *tgt;
 	struct scsi_cmnd *cmnd;
+	struct nvmefc_ls_req *ls_req;
+	struct nvmefc_fcp_req *fcp_req;
 	atomic_t free;
 	atomic_t active;
 	union ibmvfc_iu *xfer_iu;
@@ -828,6 +929,8 @@ struct ibmvfc_channels {
 	unsigned int active_queues;
 	unsigned int desired_queues;
 	unsigned int max_queues;
+	int num_targets;
+	struct list_head targets;
 	int disc_buf_sz;
 	struct ibmvfc_discover_targets_entry *disc_buf;
 	dma_addr_t disc_buf_dma;
@@ -871,8 +974,6 @@ struct ibmvfc_host {
 #define IBMVFC_TRACE_SIZE	(sizeof(struct ibmvfc_trace_entry) * IBMVFC_NUM_TRACE_ENTRIES)
 	struct ibmvfc_trace_entry *trace;
 	atomic_t trace_index;
-	int num_targets;
-	struct list_head targets;
 	struct list_head purge;
 	struct device *dev;
 	struct dma_pool *sg_pool;
@@ -880,6 +981,7 @@ struct ibmvfc_host {
 	struct ibmvfc_queue crq;
 	struct ibmvfc_queue async_crq;
 	struct ibmvfc_channels scsi_scrqs;
+	struct ibmvfc_channels nvme_scrqs;
 	struct ibmvfc_npiv_login login_info;
 	union ibmvfc_npiv_login_data *login_buf;
 	dma_addr_t login_buf_dma;
@@ -888,6 +990,7 @@ struct ibmvfc_host {
 	int log_level;
 	struct mutex passthru_mutex;
 	unsigned int max_vios_scsi_channels;
+	unsigned int max_vios_nvme_channels;
 	int task_set;
 	int init_retries;
 	int discovery_threads;
@@ -899,6 +1002,9 @@ struct ibmvfc_host {
 	unsigned int mq_enabled:1;
 	unsigned int using_channels:1;
 	unsigned int do_enquiry:1;
+	unsigned int nvme_enabled:1;
+	unsigned int do_scsi_login:1;
+	unsigned int do_nvme_login:1;
 	unsigned int aborting_passthru:1;
 	unsigned int scan_complete:1;
 	int scan_timeout;
@@ -914,7 +1020,36 @@ struct ibmvfc_host {
 	struct work_struct rport_add_work_q;
 	wait_queue_head_t init_wait_q;
 	wait_queue_head_t work_wait_q;
+	struct nvme_fc_local_port *nvme_local_port;
+	struct completion nvme_delete_done;
 };
+
+struct ibmvfc_event *__ibmvfc_get_event(struct ibmvfc_queue *queue, int reserved);
+#define ibmvfc_get_event(queue) __ibmvfc_get_event(queue, 0)
+#define ibmvfc_get_reserved_event(queue) __ibmvfc_get_event(queue, 1)
+
+void ibmvfc_init_event(struct ibmvfc_event *evt, void (*done) (struct ibmvfc_event *), u8 format);
+void ibmvfc_free_event(struct ibmvfc_event *evt);
+void ibmvfc_release_tgt(struct kref *kref);
+int ibmvfc_send_event(struct ibmvfc_event *evt, struct ibmvfc_host *vhost, unsigned long timeout);
+const char *ibmvfc_get_cmd_error(u16 status, u16 error);
+
+static inline int ibmvfc_check_caps(struct ibmvfc_host *vhost, unsigned long cap_flags)
+{
+	u64 host_caps = be64_to_cpu(vhost->login_buf->resp.capabilities);
+
+	return (host_caps & cap_flags) ? 1 : 0;
+}
+
+static inline struct ibmvfc_host *ibmvfc_channels_to_vhost(struct ibmvfc_channels *channels)
+{
+	if (channels->protocol == IBMVFC_PROTO_SCSI)
+		return container_of(channels, struct ibmvfc_host, scsi_scrqs);
+	else if (channels->protocol == IBMVFC_PROTO_NVME)
+		return container_of(channels, struct ibmvfc_host, nvme_scrqs);
+
+	return NULL;
+}
 
 #define DBG_CMD(CMD) do { if (ibmvfc_debug) CMD; } while (0)
 
