@@ -2227,6 +2227,7 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 {
 	struct vhost_virtqueue *vq;
 	bool is_log, was_log;
+	u64 old_features;
 	int i;
 
 	if (features & ~VHOST_SCSI_FEATURES)
@@ -2241,6 +2242,14 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 
 	if (!vs->dev.nvqs)
 		goto out;
+
+	old_features = vs->vqs[0].vq.acked_features;
+	if (vs->vs_tpg &&
+	    ((features ^ old_features) &
+	     ~(1ULL << VHOST_F_LOG_ALL))) {
+		mutex_unlock(&vs->dev.mutex);
+		return -EBUSY;
+	}
 
 	is_log = features & (1 << VHOST_F_LOG_ALL);
 	/*
