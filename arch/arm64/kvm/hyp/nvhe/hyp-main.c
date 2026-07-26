@@ -108,10 +108,16 @@ static void flush_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
 
 	hyp_vcpu->vcpu.arch.debug_owner = host_vcpu->arch.debug_owner;
 
-	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu))
+	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu)) {
 		hyp_vcpu->vcpu.arch.vcpu_debug_state = host_vcpu->arch.vcpu_debug_state;
-	else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu))
+	} else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu)) {
 		hyp_vcpu->vcpu.arch.external_debug_state = host_vcpu->arch.external_debug_state;
+		/*
+		 * The world switch loads MDSCR_EL1 from external_mdscr_el1
+		 * (ctxt_mdscr_el1()).
+		 */
+		hyp_vcpu->vcpu.arch.external_mdscr_el1 = host_vcpu->arch.external_mdscr_el1;
+	}
 }
 
 static void sync_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
