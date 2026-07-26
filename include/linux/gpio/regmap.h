@@ -3,6 +3,8 @@
 #ifndef _LINUX_GPIO_REGMAP_H
 #define _LINUX_GPIO_REGMAP_H
 
+#include <linux/types.h>
+
 struct device;
 struct fwnode_handle;
 struct gpio_regmap;
@@ -164,5 +166,8 @@ void *gpio_regmap_get_drvdata(struct gpio_regmap *gpio);
 
 int gpio_regmap_reqres_irq(struct gpio_regmap *gpio, unsigned int offset);
 void gpio_regmap_relres_irq(struct gpio_regmap *gpio, unsigned int offset);
+
+void gpio_regmap_enable_irq(struct gpio_regmap *gpio, irq_hw_number_t hwirq);
+void gpio_regmap_disable_irq(struct gpio_regmap *gpio, irq_hw_number_t hwirq);
 
 #endif /* _LINUX_GPIO_REGMAP_H */

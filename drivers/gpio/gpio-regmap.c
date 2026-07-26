@@ -346,6 +346,18 @@ void *gpio_regmap_get_drvdata(struct gpio_regmap *gpio)
 }
 EXPORT_SYMBOL_GPL(gpio_regmap_get_drvdata);
 
+void gpio_regmap_enable_irq(struct gpio_regmap *gpio, irq_hw_number_t hwirq)
+{
+	gpiochip_enable_irq(&gpio->gpio_chip, hwirq);
+}
+EXPORT_SYMBOL_GPL(gpio_regmap_enable_irq);
+
+void gpio_regmap_disable_irq(struct gpio_regmap *gpio, irq_hw_number_t hwirq)
+{
+	gpiochip_disable_irq(&gpio->gpio_chip, hwirq);
+}
+EXPORT_SYMBOL_GPL(gpio_regmap_disable_irq);
+
 /**
  * gpio_regmap_register() - Register a generic regmap GPIO controller
  * @config: configuration for gpio_regmap
