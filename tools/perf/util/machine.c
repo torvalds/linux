@@ -1411,8 +1411,10 @@ static int maps__set_modules_path_dir(struct maps *maps, char *path, size_t path
 		return -1;
 	}
 	/* Bounds check, should never happen. */
-	if (root_len >= path_size)
-		return -1;
+	if (root_len >= path_size) {
+		ret = -1;
+		goto out;
+	}
 	path[root_len++] = '/';
 	while ((dent = io_dir__readdir(&iod)) != NULL) {
 		if (io_dir__is_dir(&iod, dent)) {
