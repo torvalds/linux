@@ -832,7 +832,7 @@ static int sbs_get_battery_serial_number(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	sprintf(chip->serial, "%04x", ret);
+	sprintf(chip->serial, "%04x", (u16)ret);
 	val->strval = chip->serial;
 
 	return 0;
