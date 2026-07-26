@@ -182,6 +182,14 @@ static const struct dmi_system_id upside_down_sensor_dmi_ids[] = {
 		},
 		.driver_data = "SONY471A",
 	},
+	{
+		/* Samsung Galaxy Book5 Pro 360 */
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "960QHA"),
+		},
+		.driver_data = "OVTI02E1",
+	},
 	{} /* Terminating entry */
 };
 
