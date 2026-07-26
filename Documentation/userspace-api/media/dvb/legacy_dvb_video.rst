@@ -344,7 +344,7 @@ Variables
 
     -  ..
 
-       -  :rspan:`5` ``stuct play``
+       -  :rspan:`5` ``struct play``
 
        -  :rspan:`4` ``__s32 speed``
 
