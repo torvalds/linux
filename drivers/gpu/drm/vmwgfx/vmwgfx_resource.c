@@ -138,6 +138,7 @@ static void vmw_resource_release(struct kref *kref)
 		}
 		res->guest_memory_dirty = false;
 		vmw_resource_mob_detach(res);
+		vmw_bo_del_detached_resource(res->guest_memory_bo, res);
 		if (res->dirty)
 			res->func->dirty_free(res);
 		if (res->coherent)
