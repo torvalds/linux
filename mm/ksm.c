@@ -2700,7 +2700,7 @@ next_mm:
 			struct folio *folio;
 
 			if (ksm_test_exit(mm))
-				break;
+				goto no_vmas;
 
 			int found;
 
