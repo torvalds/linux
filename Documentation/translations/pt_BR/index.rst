@@ -76,6 +76,7 @@ kernel e sobre como ver seu trabalho integrado.
    Como começar <process/howto>
    Requisitos mínimos <process/changes>
    Conclave (Continuidade do projeto) <process/conclave>
+   Informações sobre clientes de email para Linux <process/email-clients>
    Modelos de Maturidade para Contribuição no Kernel Linux <process/contribution-maturity-model.rst>
    Manuais dos mantenedores <process/maintainer-handbooks>
    Processo do subsistema de rede (netdev) <process/maintainer-netdev>
