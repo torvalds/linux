@@ -703,6 +703,45 @@ static int aic32x4_set_processing_blocks(struct snd_soc_component *component,
 	return 0;
 }
 
+static int aic32x4_configure_rate(struct snd_soc_component *component,
+				  unsigned int rate, u8 *aosr, u8 *adc_rc,
+				  u8 *dac_rc, u8 *dosr_inc)
+{
+	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
+	u8 prb_rx, prb_tx;
+
+	if (rate <= 48000) {
+		*aosr = 128;
+		*adc_rc = 6;
+		*dac_rc = 8;
+		*dosr_inc = 8;
+		prb_rx = 1;
+		prb_tx = 1;
+	} else if (rate <= 96000) {
+		*aosr = 64;
+		*adc_rc = 6;
+		*dac_rc = 8;
+		*dosr_inc = 4;
+		prb_rx = 1;
+		prb_tx = (aic32x4->type == AIC32X4_TYPE_TAS2505) ? 1 : 9;
+	} else if (rate == 192000) {
+		*aosr = 32;
+		*adc_rc = 3;
+		*dac_rc = 4;
+		*dosr_inc = 2;
+		prb_rx = 13;
+		prb_tx = (aic32x4->type == AIC32X4_TYPE_TAS2505) ? 1 : 19;
+	} else {
+		dev_err(component->dev, "Sampling rate %u not supported\n", rate);
+		return -EINVAL;
+	}
+
+	if (aic32x4->type == AIC32X4_TYPE_TAS2505)
+		prb_rx = 0;
+
+	return aic32x4_set_processing_blocks(component, prb_rx, prb_tx);
+}
+
 static int aic32x4_setup_clocks(struct snd_soc_component *component,
 				unsigned int sample_rate, unsigned int channels,
 				unsigned int bit_depth)
@@ -729,37 +768,11 @@ static int aic32x4_setup_clocks(struct snd_soc_component *component,
 	if (ret)
 		return ret;
 
-	if (sample_rate <= 48000) {
-		aosr = 128;
-		adc_resource_class = 6;
-		dac_resource_class = 8;
-		dosr_increment = 8;
-		if (aic32x4->type == AIC32X4_TYPE_TAS2505)
-			aic32x4_set_processing_blocks(component, 0, 1);
-		else
-			aic32x4_set_processing_blocks(component, 1, 1);
-	} else if (sample_rate <= 96000) {
-		aosr = 64;
-		adc_resource_class = 6;
-		dac_resource_class = 8;
-		dosr_increment = 4;
-		if (aic32x4->type == AIC32X4_TYPE_TAS2505)
-			aic32x4_set_processing_blocks(component, 0, 1);
-		else
-			aic32x4_set_processing_blocks(component, 1, 9);
-	} else if (sample_rate == 192000) {
-		aosr = 32;
-		adc_resource_class = 3;
-		dac_resource_class = 4;
-		dosr_increment = 2;
-		if (aic32x4->type == AIC32X4_TYPE_TAS2505)
-			aic32x4_set_processing_blocks(component, 0, 1);
-		else
-			aic32x4_set_processing_blocks(component, 13, 19);
-	} else {
-		dev_err(component->dev, "Sampling rate not supported\n");
-		return -EINVAL;
-	}
+	ret = aic32x4_configure_rate(component, sample_rate, &aosr,
+				     &adc_resource_class, &dac_resource_class,
+				     &dosr_increment);
+	if (ret)
+		return ret;
 
 	/* PCM over I2S is always 2-channel */
 	if ((aic32x4->fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
