@@ -121,4 +121,7 @@ struct gpio_regmap *devm_gpio_regmap_register(struct device *dev,
 					      const struct gpio_regmap_config *config);
 void *gpio_regmap_get_drvdata(struct gpio_regmap *gpio);
 
+int gpio_regmap_reqres_irq(struct gpio_regmap *gpio, unsigned int offset);
+void gpio_regmap_relres_irq(struct gpio_regmap *gpio, unsigned int offset);
+
 #endif /* _LINUX_GPIO_REGMAP_H */
