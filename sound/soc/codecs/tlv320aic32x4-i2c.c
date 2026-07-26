@@ -1,11 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright 2011-2019 NW Digital Radio
  *
  * Author: Annaliese McDermond <nh6z@nh6z.net>
  *
  * Based on sound/soc/codecs/wm8974 and TI driver for kernel 2.6.27.
- *
  */
 
 #include <linux/i2c.h>

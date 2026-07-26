@@ -3,7 +3,6 @@
  * tlv320aic32x4.h
  */
 
-
 #ifndef _TLV320AIC32X4_H
 #define _TLV320AIC32X4_H
 
@@ -24,7 +23,7 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 
 /* tlv320aic32x4 register space (in decimal to match datasheet) */
 
-#define AIC32X4_REG(page, reg)	((page * 128) + reg)
+#define AIC32X4_REG(page, reg)	(((page) * 128) + (reg))
 
 #define	AIC32X4_PSEL		AIC32X4_REG(0, 0)
 
