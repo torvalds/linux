@@ -45,6 +45,12 @@ struct gpio_regmap {
 			      unsigned int base, unsigned int offset,
 			      unsigned int *reg, unsigned int *mask);
 
+	int (*value_xlate)(struct gpio_regmap *gpio,
+			   enum gpio_regmap_operation op,
+			   unsigned int base, unsigned int offset,
+			   unsigned int reg, unsigned int *mask,
+			   unsigned int *val);
+
 	void *driver_data;
 };
 
@@ -114,6 +120,13 @@ static int gpio_regmap_set(struct gpio_chip *chip, unsigned int offset,
 	else
 		mask_val = 0;
 
+	if (gpio->value_xlate) {
+		ret = gpio->value_xlate(gpio, GPIO_REGMAP_SET_OP, base, offset,
+					reg, &mask, &mask_val);
+		if (ret)
+			return ret;
+	}
+
 	/* ignore input values which shadow the old output value */
 	if (gpio->reg_dat_base == gpio->reg_set_base)
 		ret = regmap_write_bits(gpio->regmap, reg, mask, mask_val);
@@ -127,7 +140,7 @@ static int gpio_regmap_set_with_clear(struct gpio_chip *chip,
 				      unsigned int offset, int val)
 {
 	struct gpio_regmap *gpio = gpiochip_get_data(chip);
-	unsigned int base, reg, mask;
+	unsigned int base, reg, mask, value = 0;
 	int ret;
 
 	if (val)
@@ -138,6 +151,13 @@ static int gpio_regmap_set_with_clear(struct gpio_chip *chip,
 	ret = gpio->reg_mask_xlate(gpio, GPIO_REGMAP_SET_OP, base, offset, &reg, &mask);
 	if (ret)
 		return ret;
+
+	if (gpio->value_xlate) {
+		ret = gpio->value_xlate(gpio, GPIO_REGMAP_SET_OP, base, offset,
+					reg, &mask, &value);
+		if (ret)
+			return ret;
+	}
 
 	return regmap_write(gpio->regmap, reg, mask);
 }
@@ -247,6 +267,13 @@ static int gpio_regmap_set_direction(struct gpio_chip *chip,
 		val = output ? 0 : mask;
 	else
 		val = output ? mask : 0;
+
+	if (gpio->value_xlate) {
+		ret = gpio->value_xlate(gpio, GPIO_REGMAP_SET_DIR_OP, base, offset,
+					reg, &mask, &val);
+		if (ret)
+			return ret;
+	}
 
 	return regmap_update_bits(gpio->regmap, reg, mask, val);
 }
@@ -414,6 +441,8 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->reg_mask_xlate = config->reg_mask_xlate;
 	if (!gpio->reg_mask_xlate)
 		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
+
+	gpio->value_xlate = config->value_xlate;
 
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret < 0)

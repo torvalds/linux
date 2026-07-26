@@ -14,13 +14,13 @@ struct regmap;
 #define GPIO_REGMAP_ADDR(addr) ((addr) ? : GPIO_REGMAP_ADDR_ZERO)
 
 /**
- * enum gpio_regmap_operation - Operation type for reg_mask_xlate callback
+ * enum gpio_regmap_operation - Operation type for gpio_regmap callbacks
  *
  * Traditionally, the operation type was inferred from the base register.
  * However, that approach does not always work — for example, when all control
  * bits of a single GPIO reside in the same register. This enum allows the
- * reg_mask_xlate callback to explicitly distinguish between operation types.
- * The user is free to choose which method to use.
+ * callbacks (reg_mask_xlate and value_xlate) to explicitly distinguish between
+ * operation types. The user is free to choose which method to use.
  *
  * Read operation:
  * @GPIO_REGMAP_GET_OP: Indicates a read operation to get the current GPIO value.
@@ -81,6 +81,11 @@ enum gpio_regmap_operation {
  *			is used.
  * @init_valid_mask:	(Optional) Routine to initialize @valid_mask, to be used
  *			if not all GPIOs are valid.
+ * @value_xlate:	(Optional) Routine to translate the register value and
+ *			mask before writing. This allows driver-specific logic
+ *			to append additional bits (like write-enable masks)
+ *			dynamically based on the current operation
+ *			(GPIO_REGMAP_SET_OP and GPIO_REGMAP_SET_DIR_OP).
  * @drvdata:		(Optional) Pointer to driver specific data which is
  *			not used by gpio-remap but is provided "as is" to the
  *			driver callback(s).
@@ -137,6 +142,10 @@ struct gpio_regmap_config {
 	int (*init_valid_mask)(struct gpio_chip *gc,
 			       unsigned long *valid_mask,
 			       unsigned int ngpios);
+
+	int (*value_xlate)(struct gpio_regmap *gpio, enum gpio_regmap_operation,
+			   unsigned int base, unsigned int offset, unsigned int reg,
+			   unsigned int *mask, unsigned int *val);
 
 	void *drvdata;
 };
