@@ -222,25 +222,31 @@ static int aic32x4_set_mfp5_gpio(struct snd_kcontrol *kcontrol,
 	return 0;
 };
 
-static const struct snd_kcontrol_new aic32x4_mfp1[] = {
-	SOC_SINGLE_BOOL_EXT("MFP1 GPIO", 0, aic32x4_get_mfp1_gpio, NULL),
-};
-
-static const struct snd_kcontrol_new aic32x4_mfp2[] = {
-	SOC_SINGLE_BOOL_EXT("MFP2 GPIO", 0, NULL, aic32x4_set_mfp2_gpio),
-};
-
-static const struct snd_kcontrol_new aic32x4_mfp3[] = {
-	SOC_SINGLE_BOOL_EXT("MFP3 GPIO", 0, aic32x4_get_mfp3_gpio, NULL),
-};
-
-static const struct snd_kcontrol_new aic32x4_mfp4[] = {
-	SOC_SINGLE_BOOL_EXT("MFP4 GPIO", 0, NULL, aic32x4_set_mfp4_gpio),
-};
-
-static const struct snd_kcontrol_new aic32x4_mfp5[] = {
-	SOC_SINGLE_BOOL_EXT("MFP5 GPIO", 0, aic32x4_get_mfp5_gpio,
-		aic32x4_set_mfp5_gpio),
+static const struct {
+	unsigned int reg;
+	struct snd_kcontrol_new ctrl;
+} aic32x4_mfp_cfg[] = {
+	{
+		.reg = AIC32X4_DINCTL,
+		.ctrl = SOC_SINGLE_BOOL_EXT("MFP1 GPIO", 0, aic32x4_get_mfp1_gpio, NULL),
+	},
+	{
+		.reg = AIC32X4_DOUTCTL,
+		.ctrl = SOC_SINGLE_BOOL_EXT("MFP2 GPIO", 0, NULL, aic32x4_set_mfp2_gpio),
+	},
+	{
+		.reg = AIC32X4_SCLKCTL,
+		.ctrl = SOC_SINGLE_BOOL_EXT("MFP3 GPIO", 0, aic32x4_get_mfp3_gpio, NULL),
+	},
+	{
+		.reg = AIC32X4_MISOCTL,
+		.ctrl = SOC_SINGLE_BOOL_EXT("MFP4 GPIO", 0, NULL, aic32x4_set_mfp4_gpio),
+	},
+	{
+		.reg = AIC32X4_GPIOCTL,
+		.ctrl = SOC_SINGLE_BOOL_EXT("MFP5 GPIO", 0, aic32x4_get_mfp5_gpio,
+					    aic32x4_set_mfp5_gpio),
+	},
 };
 
 /* 0dB min, 0.5dB steps */
@@ -955,44 +961,14 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 	struct aic32x4_priv *aic32x4 = snd_soc_component_get_drvdata(component);
 
 	/* setup GPIO functions */
-	/* MFP1 */
-	if (aic32x4->gpio_func[0] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_component_write(component, AIC32X4_DINCTL,
-			  aic32x4->gpio_func[0]);
-		snd_soc_add_component_controls(component, aic32x4_mfp1,
-			ARRAY_SIZE(aic32x4_mfp1));
-	}
+	BUILD_BUG_ON(ARRAY_SIZE(aic32x4->gpio_func) != ARRAY_SIZE(aic32x4_mfp_cfg));
+	for (int i = 0; i < ARRAY_SIZE(aic32x4->gpio_func); i++) {
+		if (aic32x4->gpio_func[i] == AIC32X4_MFPX_DEFAULT_VALUE)
+			continue;
 
-	/* MFP2 */
-	if (aic32x4->gpio_func[1] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_component_write(component, AIC32X4_DOUTCTL,
-			  aic32x4->gpio_func[1]);
-		snd_soc_add_component_controls(component, aic32x4_mfp2,
-			ARRAY_SIZE(aic32x4_mfp2));
-	}
-
-	/* MFP3 */
-	if (aic32x4->gpio_func[2] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_component_write(component, AIC32X4_SCLKCTL,
-			  aic32x4->gpio_func[2]);
-		snd_soc_add_component_controls(component, aic32x4_mfp3,
-			ARRAY_SIZE(aic32x4_mfp3));
-	}
-
-	/* MFP4 */
-	if (aic32x4->gpio_func[3] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_component_write(component, AIC32X4_MISOCTL,
-			  aic32x4->gpio_func[3]);
-		snd_soc_add_component_controls(component, aic32x4_mfp4,
-			ARRAY_SIZE(aic32x4_mfp4));
-	}
-
-	/* MFP5 */
-	if (aic32x4->gpio_func[4] != AIC32X4_MFPX_DEFAULT_VALUE) {
-		snd_soc_component_write(component, AIC32X4_GPIOCTL,
-			  aic32x4->gpio_func[4]);
-		snd_soc_add_component_controls(component, aic32x4_mfp5,
-			ARRAY_SIZE(aic32x4_mfp5));
+		snd_soc_component_write(component, aic32x4_mfp_cfg[i].reg,
+					aic32x4->gpio_func[i]);
+		snd_soc_add_component_controls(component, &aic32x4_mfp_cfg[i].ctrl, 1);
 	}
 }
 
