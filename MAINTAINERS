@@ -11108,6 +11108,7 @@ F:	drivers/platform/x86/gpd-pocket-fan.c
 
 GPIB DRIVERS
 M:	Dave Penkler <dpenkler@gmail.com>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 S:	Maintained
 F:	drivers/gpib/
 F:	include/uapi/linux/gpib.h
@@ -19301,7 +19302,7 @@ F:	fs/ntfs3/
 
 NTSYNC SYNCHRONIZATION PRIMITIVE DRIVER
 M:	Elizabeth Figura <zfigura@codeweavers.com>
-L:	wine-devel@winehq.org
+L:	wine-devel@list.winehq.org
 S:	Supported
 F:	Documentation/userspace-api/ntsync.rst
 F:	drivers/misc/ntsync.c
