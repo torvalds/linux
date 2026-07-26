@@ -22,14 +22,14 @@ expression E1, E2, E3, E4;
 binary operator cmp = {>, >=};
 @@
 
-	(E1 cmp E2 ? E3 : E4)
+	E1 cmp E2 ? E3 : E4
 
 @min_candidate@
 expression E1, E2, E3, E4;
 binary operator cmp = {<, <=};
 @@
 
-	(E1 cmp E2 ? E3 : E4)
+	E1 cmp E2 ? E3 : E4
 
 @rmax depends on !patch && max_candidate@
 identifier func;
@@ -41,7 +41,7 @@ position p;
 func(...)
 {
 	<...
-*	((x) cmp@p (y) ? (x) : (y))
+*	(x) cmp@p (y) ? (x) : (y)
 	...>
 }
 
@@ -89,7 +89,7 @@ position p != errcode.p;
 func(...)
 {
 	<...
-*	((x) cmp@p (y) ? (x) : (y))
+*	(x) cmp@p (y) ? (x) : (y)
 	...>
 }
 
