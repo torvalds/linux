@@ -131,9 +131,9 @@ function mkinitrd() {
 	"$CROSS_COMPILE"gcc -static -O2 -nostdinc -nostdlib \
 		-I "$headers_dir/include" \
 		-I "$kernel_dir/tools/include/nolibc" \
-		-I "$test_dir" \
+		-I "$test_dir/lib/include" \
 		-o "$workspace_dir/test_binary" \
-		"$test_dir/$test_name.c" "$test_dir/luo_test_utils.c"
+		"$test_dir/$test_name.c" "$test_dir/lib/lu_utils.c"
 
 	"$CROSS_COMPILE"gcc -s -static -Os -nostdinc -nostdlib		\
 			-fno-asynchronous-unwind-tables -fno-ident	\
