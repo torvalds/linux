@@ -95,6 +95,7 @@ struct ksmbd_work {
 	bool				owns_conn_ref:1;
 	bool                            need_invalidate_rkey:1;
 	bool				request_open_chseq_tracked:1;
+	bool				session_setup_reauth:1;
 
 	unsigned int                    remote_key;
 	/* cancel works */

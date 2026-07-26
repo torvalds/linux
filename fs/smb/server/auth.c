@@ -463,6 +463,7 @@ int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 	memcpy(out_blob, resp->payload + resp->session_key_len,
 	       resp->spnego_blob_len);
 	*out_len = resp->spnego_blob_len;
+	sess->kerberos_expiry = resp->session_expiry;
 	retval = 0;
 out:
 	kvfree(resp);
@@ -717,8 +718,21 @@ static int ksmbd_get_encryption_key(struct ksmbd_work *work, __u64 ses_id,
 
 	if (enc)
 		sess = work->sess;
-	else
-		sess = ksmbd_session_lookup_all(work->conn, ses_id);
+	else {
+		/*
+		 * An encrypted SESSION_SETUP request may reauthenticate an expired
+		 * Kerberos session.  Keep using the established decryption key so
+		 * that the command can reach the session setup handler. Other
+		 * commands are rejected there with STATUS_NETWORK_SESSION_EXPIRED.
+		 */
+		sess = ksmbd_session_lookup(work->conn, ses_id);
+		if (sess && sess->state != SMB2_SESSION_VALID &&
+		    (sess->state != SMB2_SESSION_EXPIRED ||
+		     !sess->kerberos_expiry)) {
+			ksmbd_user_session_put(sess);
+			sess = NULL;
+		}
+	}
 	if (!sess)
 		return -EINVAL;
 

@@ -208,6 +208,9 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 				if (rc == -EINVAL)
 					conn->ops->set_rsp_status(work,
 						STATUS_INVALID_PARAMETER);
+				else if (rc == -EKEYEXPIRED)
+					conn->ops->set_rsp_status(work,
+						STATUS_NETWORK_SESSION_EXPIRED);
 				else
 					conn->ops->set_rsp_status(work,
 						STATUS_USER_SESSION_DELETED);
@@ -215,7 +218,11 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 					struct smb2_hdr *rsp_hdr;
 
 					rsp_hdr = ksmbd_resp_buf_curr(work);
-					rsp_hdr->Flags |= SMB2_FLAGS_SIGNED;
+					if (rc == -EKEYEXPIRED && work->sess &&
+					    conn->ops->set_sign_rsp)
+						conn->ops->set_sign_rsp(work);
+					else
+						rsp_hdr->Flags |= SMB2_FLAGS_SIGNED;
 				}
 				goto send;
 			} else if (rc > 0) {

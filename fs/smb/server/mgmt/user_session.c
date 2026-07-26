@@ -547,8 +547,8 @@ struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id)
 	return sess;
 }
 
-struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
-					       unsigned long long id)
+struct ksmbd_session *ksmbd_session_lookup_all_states(struct ksmbd_conn *conn,
+						      unsigned long long id)
 {
 	struct ksmbd_session *sess;
 
@@ -560,6 +560,15 @@ struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
 			sess = NULL;
 		}
 	}
+	return sess;
+}
+
+struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
+					       unsigned long long id)
+{
+	struct ksmbd_session *sess;
+
+	sess = ksmbd_session_lookup_all_states(conn, id);
 	if (sess && sess->state != SMB2_SESSION_VALID) {
 		ksmbd_user_session_put(sess);
 		sess = NULL;
@@ -639,6 +648,7 @@ void destroy_previous_session(struct ksmbd_conn *conn,
 	}
 
 	ksmbd_destroy_file_table(prev_sess);
+	prev_sess->kerberos_expiry = 0;
 	prev_sess->state = SMB2_SESSION_EXPIRED;
 	ksmbd_all_conn_set_status(id, KSMBD_SESS_NEED_SETUP);
 	ksmbd_launch_ksmbd_durable_scavenger();
