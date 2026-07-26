@@ -1241,11 +1241,16 @@ exit:
 	return ret;
 }
 
+static const struct regmap_config regmap_config = {
+	.val_bits = 8,
+	.reg_bits = 16,
+	.disable_locking = true,
+};
+
 static int ov2740_register_nvmem(struct i2c_client *client,
 				 struct ov2740 *ov2740)
 {
 	struct nvm_data *nvm;
-	struct regmap_config regmap_config = { };
 	struct regmap *regmap;
 	struct device *dev = ov2740->dev;
 	struct nvmem_config nvmem_config = {
@@ -1266,9 +1271,6 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 	if (!nvm)
 		return -ENOMEM;
 
-	regmap_config.val_bits = 8;
-	regmap_config.reg_bits = 16;
-	regmap_config.disable_locking = true;
 	regmap = devm_regmap_init_i2c(client, &regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
