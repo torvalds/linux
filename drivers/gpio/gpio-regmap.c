@@ -51,6 +51,9 @@ struct gpio_regmap {
 			   unsigned int reg, unsigned int *mask,
 			   unsigned int *val);
 
+	int (*set_config)(struct gpio_regmap *gpio, struct gpio_chip *chip,
+			  unsigned int offset, unsigned long config);
+
 	void *driver_data;
 };
 
@@ -306,6 +309,15 @@ static int gpio_regmap_direction_output(struct gpio_chip *chip,
 	return gpio_regmap_set_direction(chip, offset, true);
 }
 
+static int gpio_regmap_set_config(struct gpio_chip *chip,
+				  unsigned int offset,
+				  unsigned long cfg)
+{
+	struct gpio_regmap *gpio = gpiochip_get_data(chip);
+
+	return gpio->set_config(gpio, chip, offset, cfg);
+}
+
 int gpio_regmap_reqres_irq(struct gpio_regmap *gpio, unsigned int offset)
 {
 	return gpiochip_reqres_irq(&gpio->gpio_chip, offset);
@@ -443,6 +455,11 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
 
 	gpio->value_xlate = config->value_xlate;
+
+	if (config->set_config) {
+		gpio->set_config = config->set_config;
+		chip->set_config = gpio_regmap_set_config;
+	}
 
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret < 0)
