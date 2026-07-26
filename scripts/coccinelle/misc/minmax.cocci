@@ -45,7 +45,19 @@ func(...)
 	...>
 }
 
-@rmaxif depends on !patch@
+@maxif_candidate@
+expression x, y;
+expression max_val;
+binary operator cmp = {>, >=};
+@@
+
+if ((x) cmp (y)) {
+        max_val = (x);
+} else {
+        max_val = (y);
+}
+
+@rmaxif depends on !patch && maxif_candidate@
 identifier func;
 expression x, y;
 expression max_val;
@@ -93,7 +105,19 @@ func(...)
 	...>
 }
 
-@rminif depends on !patch@
+@minif_candidate@
+expression x, y;
+expression min_val;
+binary operator cmp = {<, <=};
+@@
+
+if ((x) cmp (y)) {
+        min_val = (x);
+} else {
+        min_val = (y);
+}
+
+@rminif depends on !patch && minif_candidate@
 identifier func;
 expression x, y;
 expression min_val;
@@ -126,7 +150,7 @@ func(...)
 	...>
 }
 
-@pmaxif depends on patch@
+@pmaxif depends on patch && maxif_candidate@
 identifier func;
 expression x, y;
 expression max_val;
@@ -160,7 +184,7 @@ func(...)
 	...>
 }
 
-@pminif depends on patch@
+@pminif depends on patch && maxif_candidate@
 identifier func;
 expression x, y;
 expression min_val;
