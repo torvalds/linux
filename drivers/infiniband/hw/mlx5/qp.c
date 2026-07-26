@@ -1138,7 +1138,8 @@ static int _create_kernel_qp(struct mlx5_ib_dev *dev,
 	void *qpc;
 	int err;
 
-	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
+	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR &&
+	    !MLX5_CAP_GEN(dev->mdev, qp_latency_sensitive_disable))
 		qp->bf.bfreg = &dev->fp_bfreg;
 	else
 		qp->bf.bfreg = &dev->bfreg;
@@ -2524,11 +2525,12 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(qpc, qpc, st, mlx5_st);
 	MLX5_SET(qpc, qpc, pm_state, MLX5_QP_PM_MIGRATED);
 
-	if (attr->qp_type != MLX5_IB_QPT_REG_UMR)
+	if (attr->qp_type == MLX5_IB_QPT_REG_UMR) {
+		if (!MLX5_CAP_GEN(dev->mdev, qp_latency_sensitive_disable))
+			MLX5_SET(qpc, qpc, latency_sensitive, 1);
+	} else {
 		MLX5_SET(qpc, qpc, pd, to_mpd(pd ? pd : devr->p0)->pdn);
-	else
-		MLX5_SET(qpc, qpc, latency_sensitive, 1);
-
+	}
 
 	if (qp->flags & IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK)
 		MLX5_SET(qpc, qpc, block_lb_mc, 1);
