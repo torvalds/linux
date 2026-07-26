@@ -829,11 +829,16 @@ int __arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	return ret;
 }
 
+bool arm_smmu_erratum_repeat_tlbi_cfgi(void)
+{
+	return static_branch_unlikely(&arm_smmu_erratum_repeat_tlbi_cfgi_key);
+}
+
 static bool arm_smmu_erratum_cmd_needs_repeating(struct arm_smmu_cmd *cmd)
 {
 	u8 opcode;
 
-	if (!static_branch_unlikely(&arm_smmu_erratum_repeat_tlbi_cfgi_key))
+	if (!arm_smmu_erratum_repeat_tlbi_cfgi())
 		return false;
 
 	opcode = FIELD_GET(CMDQ_0_OP, cmd->data[0]);
