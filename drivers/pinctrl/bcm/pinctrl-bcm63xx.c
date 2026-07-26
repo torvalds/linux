@@ -19,6 +19,7 @@
 #define BCM63XX_DATA_REG	0x0c
 
 static int bcm63xx_reg_mask_xlate(struct gpio_regmap *gpio,
+				  enum gpio_regmap_operation op,
 				  unsigned int base, unsigned int offset,
 				  unsigned int *reg, unsigned int *mask)
 {

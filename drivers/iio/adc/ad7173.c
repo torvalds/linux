@@ -560,8 +560,8 @@ out:
 	return ret;
 }
 
-static int ad7173_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
-			     unsigned int offset, unsigned int *reg,
+static int ad7173_mask_xlate(struct gpio_regmap *gpio, enum gpio_regmap_operation op,
+			     unsigned int base, unsigned int offset, unsigned int *reg,
 			     unsigned int *mask)
 {
 	*mask = AD7173_GPO_DATA(offset);
@@ -569,8 +569,8 @@ static int ad7173_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
 	return 0;
 }
 
-static int ad4111_mask_xlate(struct gpio_regmap *gpio, unsigned int base,
-			     unsigned int offset, unsigned int *reg,
+static int ad4111_mask_xlate(struct gpio_regmap *gpio, enum gpio_regmap_operation op,
+			     unsigned int base, unsigned int offset, unsigned int *reg,
 			     unsigned int *mask)
 {
 	*mask = AD4111_GPO01_DATA(offset);

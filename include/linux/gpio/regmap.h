@@ -14,6 +14,32 @@ struct regmap;
 #define GPIO_REGMAP_ADDR(addr) ((addr) ? : GPIO_REGMAP_ADDR_ZERO)
 
 /**
+ * enum gpio_regmap_operation - Operation type for reg_mask_xlate callback
+ *
+ * Traditionally, the operation type was inferred from the base register.
+ * However, that approach does not always work — for example, when all control
+ * bits of a single GPIO reside in the same register. This enum allows the
+ * reg_mask_xlate callback to explicitly distinguish between operation types.
+ * The user is free to choose which method to use.
+ *
+ * Read operation:
+ * @GPIO_REGMAP_GET_OP: Indicates a read operation to get the current GPIO value.
+ *
+ * Write operation:
+ * @GPIO_REGMAP_SET_OP: Indicates a write operation to set the GPIO output value.
+ *
+ * Direction operations:
+ * @GPIO_REGMAP_GET_DIR_OP: Indicates a read operation to get the GPIO direction.
+ * @GPIO_REGMAP_SET_DIR_OP: Indicates a write operation to set the GPIO direction.
+ */
+enum gpio_regmap_operation {
+	GPIO_REGMAP_GET_OP,
+	GPIO_REGMAP_SET_OP,
+	GPIO_REGMAP_GET_DIR_OP,
+	GPIO_REGMAP_SET_DIR_OP,
+};
+
+/**
  * struct gpio_regmap_config - Description of a generic regmap gpio_chip.
  * @parent:		The parent device
  * @regmap:		The regmap used to access the registers
@@ -104,9 +130,9 @@ struct gpio_regmap_config {
 	unsigned long regmap_irq_flags;
 #endif
 
-	int (*reg_mask_xlate)(struct gpio_regmap *gpio, unsigned int base,
-			      unsigned int offset, unsigned int *reg,
-			      unsigned int *mask);
+	int (*reg_mask_xlate)(struct gpio_regmap *gpio, enum gpio_regmap_operation,
+			      unsigned int base, unsigned int offset,
+			      unsigned int *reg, unsigned int *mask);
 
 	int (*init_valid_mask)(struct gpio_chip *gc,
 			       unsigned long *valid_mask,
