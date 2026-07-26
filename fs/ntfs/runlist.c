@@ -884,6 +884,13 @@ struct runlist_element *ntfs_mapping_pairs_decompress(const struct ntfs_volume *
 					ntfs_error(vol->sb, "lcn == -1");
 			}
 #endif
+			/* Check lcn is within the volume. */
+			if (unlikely(lcn >= (s64)vol->nr_clusters)) {
+				ntfs_error(vol->sb,
+						"LCN >= nr_clusters in mapping pairs array.");
+				goto err_out;
+			}
+
 			/* Check lcn is not below -1. */
 			if (unlikely(lcn < -1)) {
 				ntfs_error(vol->sb, "Invalid s64 < -1 in mapping pairs array.");
