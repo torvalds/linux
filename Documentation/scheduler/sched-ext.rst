@@ -106,7 +106,7 @@ counters. Each counter occupies one ``name value`` line:
     SCX_EV_ENQ_SKIP_EXITING 0
     SCX_EV_ENQ_SKIP_MIGRATION_DISABLED 0
     SCX_EV_REENQ_IMMED 0
-    SCX_EV_REENQ_LOCAL_REPEAT 0
+    SCX_EV_REENQ_REPEAT 0
     SCX_EV_REFILL_SLICE_DFL 456789
     SCX_EV_BYPASS_DURATION 0
     SCX_EV_BYPASS_DISPATCH 0
@@ -129,9 +129,9 @@ The counters are described in ``kernel/sched/ext/internal.h``; briefly:
   ``SCX_OPS_ENQ_MIGRATION_DISABLED`` is not set).
 * ``SCX_EV_REENQ_IMMED``: a task dispatched with ``SCX_ENQ_IMMED`` was
   re-enqueued because the target CPU was not available for immediate execution.
-* ``SCX_EV_REENQ_LOCAL_REPEAT``: a reenqueue of the local DSQ triggered
-  another reenqueue; recurring counts indicate incorrect ``SCX_ENQ_REENQ``
-  handling in the BPF scheduler.
+* ``SCX_EV_REENQ_REPEAT``: a reenqueue led to another reenqueue without the
+  task running in between; recurring counts indicate that the BPF scheduler
+  keeps re-deciding placements it can't honor.
 * ``SCX_EV_REFILL_SLICE_DFL``: a task's time slice was refilled with the
   default value (``SCX_SLICE_DFL``).
 * ``SCX_EV_BYPASS_DURATION``: total nanoseconds spent in bypass mode.

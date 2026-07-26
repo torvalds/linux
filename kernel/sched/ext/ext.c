@@ -1904,6 +1904,24 @@ void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	p->scx.flags &= ~SCX_TASK_IMMED;
 
 	/*
+	 * A task reenqueued too many times without running means the scheduler
+	 * keeps re-deciding a placement it can't honor, e.g. re-inserting to a
+	 * cid it lacks caps on. Eject the owning scheduler and strand the task
+	 * to be picked up during sched exit.
+	 */
+	if (enq_flags & SCX_ENQ_REENQ) {
+		if (++p->scx.reenq_cnt > 1)
+			__scx_add_event(sch, SCX_EV_REENQ_REPEAT, 1);
+
+		if (unlikely(p->scx.reenq_cnt > SCX_REENQ_MAX_REPEAT)) {
+			__scx_exit(sch, SCX_EXIT_ERROR_REENQ, 0, cpu_of(rq),
+				   "%s[%d] reenqueued %u times without running",
+				   p->comm, p->pid, p->scx.reenq_cnt);
+			return;
+		}
+	}
+
+	/*
 	 * If !scx_rq_online(), we already told the BPF scheduler that the CPU
 	 * is offline and are just running the hotplug path. Don't bother the
 	 * BPF scheduler.
@@ -2025,8 +2043,10 @@ static void clr_task_runnable(struct task_struct *p, bool reset_runnable_at)
 {
 	list_del_init(&p->scx.runnable_node);
 	WRITE_ONCE(p->scx.runnable_cpu, -1);
-	if (reset_runnable_at)
+	if (reset_runnable_at) {
 		p->scx.flags |= SCX_TASK_RESET_RUNNABLE_AT;
+		p->scx.reenq_cnt = 0;
+	}
 }
 
 static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int core_enq_flags)
@@ -3669,6 +3689,7 @@ static void scx_disable_task(struct scx_sched *sch, struct task_struct *p)
 	 */
 	p->scx.dsq_vtime = 0;
 	set_task_slice(p, 0);
+	p->scx.reenq_cnt = 0;
 
 	/*
 	 * Verify the task is not in BPF scheduler's custody. If flag
@@ -4066,8 +4087,8 @@ static void process_ddsp_deferred_locals(struct rq *rq)
  * Reenqueued tasks go through ops.enqueue() with %SCX_ENQ_REENQ |
  * %SCX_TASK_REENQ_IMMED. If the BPF scheduler dispatches back to the same local
  * DSQ with %SCX_ENQ_IMMED while the CPU is still unavailable, this triggers
- * another reenq cycle. Repetitions are bounded by %SCX_REENQ_LOCAL_MAX_REPEAT
- * in process_deferred_reenq_locals().
+ * another reenq cycle. Repetitions are bounded by %SCX_REENQ_MAX_REPEAT in
+ * scx_do_enqueue_task(), which ejects the task's owning scheduler.
  */
 static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 				    u64 *reenq_flags, u32 *reason)
@@ -4175,14 +4196,16 @@ static u32 reenq_local(struct scx_sched *sch, struct rq *rq, u64 reenq_flags)
 
 static void process_deferred_reenq_locals(struct rq *rq)
 {
-	u64 seq = ++rq->scx.deferred_reenq_locals_seq;
-
 	lockdep_assert_rq_held(rq);
 
+	/*
+	 * A task can be re-queued within this loop when a reenqueued task
+	 * bounces straight back to the local DSQ. That recursion is bounded by
+	 * the per-task reenqueue cap in scx_do_enqueue_task().
+	 */
 	while (true) {
 		struct scx_sched *sch;
 		u64 reenq_flags;
-		bool skip = false;
 
 		scoped_guard (raw_spinlock, &rq->scx.deferred_reenq_lock) {
 			struct scx_deferred_reenq_local *drl =
@@ -4201,27 +4224,12 @@ static void process_deferred_reenq_locals(struct rq *rq)
 			reenq_flags = drl->flags;
 			WRITE_ONCE(drl->flags, 0);
 			list_del_init(&drl->node);
-
-			if (likely(drl->seq != seq)) {
-				drl->seq = seq;
-				drl->cnt = 0;
-			} else {
-				if (unlikely(++drl->cnt > SCX_REENQ_LOCAL_MAX_REPEAT)) {
-					scx_error(sch, "SCX_ENQ_REENQ on SCX_DSQ_LOCAL repeated %u times",
-						  drl->cnt);
-					skip = true;
-				}
-
-				__scx_add_event(sch, SCX_EV_REENQ_LOCAL_REPEAT, 1);
-			}
 		}
 
-		if (!skip) {
-			/* see schedule_dsq_reenq() */
-			smp_mb();
+		/* see schedule_dsq_reenq() */
+		smp_mb();
 
-			reenq_local(sch, rq, reenq_flags);
-		}
+		reenq_local(sch, rq, reenq_flags);
 	}
 }
 
@@ -5941,6 +5949,8 @@ static const char *scx_exit_reason(enum scx_exit_kind kind)
 		return "scx_bpf_error";
 	case SCX_EXIT_ERROR_STALL:
 		return "runnable task stall";
+	case SCX_EXIT_ERROR_REENQ:
+		return "reenqueue limit";
 	default:
 		return "<UNKNOWN>";
 	}

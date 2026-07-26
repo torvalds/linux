@@ -319,9 +319,9 @@ bool scx_task_reenq_on_cap_revoke(struct rq *rq, struct task_struct *p)
  * Drain @rq->scx.reject_dsq, reenqueueing each task so the BPF re-decides
  * from p->scx.reenq_reason_*.
  *
- * A task can be re-rejected repeatedly, and there's no repeat limit here.
- * Rejection can't happen for root, and sub-scheds can be safely ejected after
- * triggering the stall watchdog.
+ * A task can be re-rejected repeatedly. The reenqueue is bounded per task in
+ * scx_do_enqueue_task(), which ejects the owning sub past SCX_REENQ_MAX_REPEAT.
+ * Rejection can't happen for root.
  */
 void scx_reenq_reject(struct rq *rq)
 {

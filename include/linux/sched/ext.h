@@ -198,6 +198,7 @@ struct sched_ext_entity {
 	u32			dsq_flags;	/* protected by DSQ lock */
 	u32			flags;		/* protected by rq lock */
 	u32			weight;
+	u32			reenq_cnt;	/* reenqueues since last run */
 	s32			sticky_cpu;
 	s32			holding_cpu;
 	s32			selected_cpu;

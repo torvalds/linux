@@ -56,6 +56,7 @@ enum scx_exit_kind {
 	SCX_EXIT_ERROR = 1024,	/* runtime error, error msg contains details */
 	SCX_EXIT_ERROR_BPF,	/* ERROR but triggered through scx_bpf_error() */
 	SCX_EXIT_ERROR_STALL,	/* watchdog detected stalled runnable tasks */
+	SCX_EXIT_ERROR_REENQ,	/* task hit reenqueue limit without running */
 };
 
 /*
@@ -1119,15 +1120,13 @@ struct scx_event_stats {
 	s64		SCX_EV_REENQ_IMMED;
 
 	/*
-	 * The number of times a reenq of local DSQ caused another reenq of
-	 * local DSQ. This can happen when %SCX_ENQ_IMMED races against a higher
-	 * priority class task even if the BPF scheduler always satisfies the
-	 * prerequisites for %SCX_ENQ_IMMED at the time of enqueue. However,
-	 * that scenario is very unlikely and this count going up regularly
-	 * indicates that the BPF scheduler is handling %SCX_ENQ_REENQ
-	 * incorrectly causing recursive reenqueues.
+	 * The number of times a reenqueue (%SCX_ENQ_REENQ) led to another
+	 * reenqueue without the task running in between. This count climbing
+	 * rapidly indicates that the BPF scheduler keeps re-deciding placements
+	 * it can't honor. A single task reenqueued more than
+	 * %SCX_REENQ_MAX_REPEAT times gets its owning scheduler ejected.
 	 */
-	s64		SCX_EV_REENQ_LOCAL_REPEAT;
+	s64		SCX_EV_REENQ_REPEAT;
 
 	/*
 	 * Total number of times a task's time slice was refilled with the
@@ -1221,7 +1220,7 @@ struct scx_event_stats {
 	SCX_EVENT(SCX_EV_ENQ_SKIP_EXITING);				\
 	SCX_EVENT(SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);			\
 	SCX_EVENT(SCX_EV_REENQ_IMMED);					\
-	SCX_EVENT(SCX_EV_REENQ_LOCAL_REPEAT);				\
+	SCX_EVENT(SCX_EV_REENQ_REPEAT);					\
 	SCX_EVENT(SCX_EV_REFILL_SLICE_DFL);				\
 	SCX_EVENT(SCX_EV_SLICE_CLAMPED);				\
 	SCX_EVENT(SCX_EV_SLICE_DENIED);					\
@@ -1260,8 +1259,6 @@ struct scx_dsp_ctx {
 struct scx_deferred_reenq_local {
 	struct list_head	node;
 	u64			flags;
-	u64			seq;
-	u32			cnt;
 };
 
 struct scx_sched_pcpu {
