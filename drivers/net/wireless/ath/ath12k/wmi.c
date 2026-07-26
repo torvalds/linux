@@ -9986,6 +9986,7 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 	void *ptr = skb->data;
 	struct ath12k *ar;
 	u16 tlv_tag;
+	u16 tlv_len;
 	u32 event_count;
 	int ret;
 
@@ -10001,10 +10002,17 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 
 	tlv = (struct wmi_tlv *)ptr;
 	tlv_tag = le32_get_bits(tlv->header, WMI_TLV_TAG);
+	tlv_len = le32_get_bits(tlv->header, WMI_TLV_LEN);
 	ptr += sizeof(*tlv);
 
 	if (tlv_tag != WMI_TAG_HALPHY_CTRL_PATH_EVENT_FIXED_PARAM) {
 		ath12k_warn(ab, "TPC stats without fixed param tlv at start\n");
+		return;
+	}
+
+	if (tlv_len < sizeof(*fixed_param)) {
+		ath12k_warn(ab, "TPC stats fixed param tlv len %u too short\n",
+			    tlv_len);
 		return;
 	}
 
