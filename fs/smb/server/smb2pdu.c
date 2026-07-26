@@ -4544,6 +4544,7 @@ int smb2_open(struct ksmbd_work *work)
 				goto err_out1;
 			}
 			alloc_size = le64_to_cpu(az_req->AllocationSize);
+			fp->allocation_size_set = true;
 			ksmbd_debug(SMB,
 				    "request smb2 create allocate size : %llu\n",
 				    alloc_size);
@@ -6172,6 +6173,30 @@ static int get_file_basic_info(struct smb2_query_info_rsp *rsp,
 	return 0;
 }
 
+static int get_file_allocation_stat(struct ksmbd_file *fp, struct kstat *stat)
+{
+	int ret;
+
+	/*
+	 * Buffered writes can leave delayed allocation in a state where two
+	 * consecutive queries report different block counts even when the
+	 * second write only overwrites the first one. Complete writeback before
+	 * reporting the filesystem allocation for an ordinary open.
+	 */
+	if (!fp->allocation_size_set) {
+		ret = file_write_and_wait(fp->filp);
+		if (ret)
+			return ret;
+	}
+
+	ret = vfs_getattr(&fp->filp->f_path, stat, STATX_BASIC_STATS,
+			  AT_STATX_SYNC_AS_STAT);
+	if (!ret && !fp->allocation_size_set)
+		fp->allocation_size = S_ISDIR(stat->mode) ? 0 : stat->blocks << 9;
+
+	return ret;
+}
+
 static int get_file_standard_info(struct smb2_query_info_rsp *rsp,
 				  struct ksmbd_file *fp, void *rsp_org)
 {
@@ -6180,8 +6205,7 @@ static int get_file_standard_info(struct smb2_query_info_rsp *rsp,
 	struct kstat stat;
 	int ret;
 
-	ret = vfs_getattr(&fp->filp->f_path, &stat, STATX_BASIC_STATS,
-			  AT_STATX_SYNC_AS_STAT);
+	ret = get_file_allocation_stat(fp, &stat);
 	if (ret)
 		return ret;
 
@@ -6250,8 +6274,7 @@ static int get_file_all_info(struct ksmbd_work *work,
 		return -EINVAL;
 	}
 
-	ret = vfs_getattr(&fp->filp->f_path, &stat, STATX_BASIC_STATS,
-			  AT_STATX_SYNC_AS_STAT);
+	ret = get_file_allocation_stat(fp, &stat);
 	if (ret) {
 		kfree(filename);
 		return ret;
@@ -6549,8 +6572,7 @@ static int get_file_network_open_info(struct smb2_query_info_rsp *rsp,
 		return -EACCES;
 	}
 
-	ret = vfs_getattr(&fp->filp->f_path, &stat, STATX_BASIC_STATS,
-			  AT_STATX_SYNC_AS_STAT);
+	ret = get_file_allocation_stat(fp, &stat);
 	if (ret)
 		return ret;
 
@@ -6683,8 +6705,7 @@ static int find_file_posix_info(struct smb2_query_info_rsp *rsp,
 		return -EACCES;
 	}
 
-	ret = vfs_getattr(&fp->filp->f_path, &stat, STATX_BASIC_STATS,
-			  AT_STATX_SYNC_AS_STAT);
+	ret = get_file_allocation_stat(fp, &stat);
 	if (ret)
 		return ret;
 
@@ -7817,6 +7838,7 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 	}
 
 	fp->allocation_size = le64_to_cpu(file_alloc_info->AllocationSize);
+	fp->allocation_size_set = true;
 	return 0;
 }
 
