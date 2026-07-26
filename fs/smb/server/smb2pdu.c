@@ -8011,7 +8011,7 @@ static int set_file_position_info(struct ksmbd_file *fp,
 	sector_size = inode->i_sb->s_blocksize;
 
 	if (current_byte_offset < 0 ||
-	    (fp->coption == FILE_NO_INTERMEDIATE_BUFFERING_LE &&
+	    (fp->coption & FILE_NO_INTERMEDIATE_BUFFERING_LE &&
 	     current_byte_offset & (sector_size - 1))) {
 		pr_err("CurrentByteOffset is not valid : %llu\n",
 		       current_byte_offset);
