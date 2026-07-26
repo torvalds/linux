@@ -31,10 +31,6 @@
 
 #include "tlv320aic32x4.h"
 
-struct aic32x4_setup_data {
-	unsigned int gpio_func[5];
-};
-
 struct aic32x4_priv {
 	struct regmap *regmap;
 	u32 power_cfg;
@@ -48,7 +44,8 @@ struct aic32x4_priv {
 	struct regulator *supply_dv;
 	struct regulator *supply_av;
 
-	struct aic32x4_setup_data *setup;
+	unsigned int gpio_func[5];
+
 	struct device *dev;
 	enum aic32x4_type type;
 
@@ -959,41 +956,41 @@ static void aic32x4_setup_gpios(struct snd_soc_component *component)
 
 	/* setup GPIO functions */
 	/* MFP1 */
-	if (aic32x4->setup->gpio_func[0] != AIC32X4_MFPX_DEFAULT_VALUE) {
+	if (aic32x4->gpio_func[0] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_DINCTL,
-			  aic32x4->setup->gpio_func[0]);
+			  aic32x4->gpio_func[0]);
 		snd_soc_add_component_controls(component, aic32x4_mfp1,
 			ARRAY_SIZE(aic32x4_mfp1));
 	}
 
 	/* MFP2 */
-	if (aic32x4->setup->gpio_func[1] != AIC32X4_MFPX_DEFAULT_VALUE) {
+	if (aic32x4->gpio_func[1] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_DOUTCTL,
-			  aic32x4->setup->gpio_func[1]);
+			  aic32x4->gpio_func[1]);
 		snd_soc_add_component_controls(component, aic32x4_mfp2,
 			ARRAY_SIZE(aic32x4_mfp2));
 	}
 
 	/* MFP3 */
-	if (aic32x4->setup->gpio_func[2] != AIC32X4_MFPX_DEFAULT_VALUE) {
+	if (aic32x4->gpio_func[2] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_SCLKCTL,
-			  aic32x4->setup->gpio_func[2]);
+			  aic32x4->gpio_func[2]);
 		snd_soc_add_component_controls(component, aic32x4_mfp3,
 			ARRAY_SIZE(aic32x4_mfp3));
 	}
 
 	/* MFP4 */
-	if (aic32x4->setup->gpio_func[3] != AIC32X4_MFPX_DEFAULT_VALUE) {
+	if (aic32x4->gpio_func[3] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_MISOCTL,
-			  aic32x4->setup->gpio_func[3]);
+			  aic32x4->gpio_func[3]);
 		snd_soc_add_component_controls(component, aic32x4_mfp4,
 			ARRAY_SIZE(aic32x4_mfp4));
 	}
 
 	/* MFP5 */
-	if (aic32x4->setup->gpio_func[4] != AIC32X4_MFPX_DEFAULT_VALUE) {
+	if (aic32x4->gpio_func[4] != AIC32X4_MFPX_DEFAULT_VALUE) {
 		snd_soc_component_write(component, AIC32X4_GPIOCTL,
-			  aic32x4->setup->gpio_func[4]);
+			  aic32x4->gpio_func[4]);
 		snd_soc_add_component_controls(component, aic32x4_mfp5,
 			ARRAY_SIZE(aic32x4_mfp5));
 	}
@@ -1016,8 +1013,7 @@ static int aic32x4_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (aic32x4->setup)
-		aic32x4_setup_gpios(component);
+	aic32x4_setup_gpios(component);
 
 	clk_set_parent(clocks[0].clk, clocks[1].clk);
 	clk_set_parent(clocks[2].clk, clocks[3].clk);
@@ -1173,8 +1169,7 @@ static int aic32x4_tas2505_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (aic32x4->setup)
-		aic32x4_setup_gpios(component);
+	aic32x4_setup_gpios(component);
 
 	clk_set_parent(clocks[0].clk, clocks[1].clk);
 	clk_set_parent(clocks[2].clk, clocks[3].clk);
@@ -1224,13 +1219,7 @@ static const struct snd_soc_component_driver soc_component_dev_aic32x4_tas2505 =
 static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
 		struct device_node *np)
 {
-	struct aic32x4_setup_data *aic32x4_setup;
 	int ret;
-
-	aic32x4_setup = devm_kzalloc(aic32x4->dev, sizeof(*aic32x4_setup),
-							GFP_KERNEL);
-	if (!aic32x4_setup)
-		return -ENOMEM;
 
 	ret = of_property_match_string(np, "clock-names", "mclk");
 	if (ret < 0)
@@ -1248,9 +1237,11 @@ static int aic32x4_parse_dt(struct aic32x4_priv *aic32x4,
 		gpiod_set_consumer_name(aic32x4->rstn_gpio, "tlv320aic32x4_rstn");
 	}
 
-	if (of_property_read_u32_array(np, "aic32x4-gpio-func",
-				aic32x4_setup->gpio_func, 5) >= 0)
-		aic32x4->setup = aic32x4_setup;
+	for (int i = 0; i < ARRAY_SIZE(aic32x4->gpio_func); i++)
+		aic32x4->gpio_func[i] = AIC32X4_MFPX_DEFAULT_VALUE;
+	of_property_read_u32_array(np, "aic32x4-gpio-func",
+				   aic32x4->gpio_func, ARRAY_SIZE(aic32x4->gpio_func));
+
 	return 0;
 }
 
