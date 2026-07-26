@@ -15,7 +15,6 @@
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
-#include <linux/cdev.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -24,7 +23,6 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-#include <linux/jiffies.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
 #include <linux/poll.h>
