@@ -9801,14 +9801,15 @@ static int fsctl_query_allocated_ranges(struct ksmbd_work *work, u64 id,
 	if (!in_count) {
 		struct file_allocated_range_buffer range;
 
-		ret = ksmbd_vfs_fqar_lseek(fp, start, length, &range, 1,
-					   out_count);
-		if (!ret && *out_count)
+		ret = ksmbd_vfs_query_allocated_ranges(fp, start, length,
+						       &range, 1, out_count);
+		if ((!ret || ret == -E2BIG) && *out_count)
 			ret = -ENOSPC;
 		*out_count = 0;
 	} else {
-		ret = ksmbd_vfs_fqar_lseek(fp, start, length,
-					   qar_rsp, in_count, out_count);
+		ret = ksmbd_vfs_query_allocated_ranges(fp, start, length,
+						       qar_rsp, in_count,
+						       out_count);
 	}
 	if (ret && ret != -E2BIG)
 		*out_count = 0;
@@ -9894,6 +9895,13 @@ static inline int fsctl_set_sparse(struct ksmbd_work *work, u64 id,
 	idmap = file_mnt_idmap(fp->filp);
 
 	old_fattr = fp->f_ci->m_fattr;
+	if (!sparse->SetSparse &&
+	    (old_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE)) {
+		ret = ksmbd_vfs_zero_holes(fp);
+		if (ret)
+			goto out;
+	}
+
 	if (sparse->SetSparse)
 		fp->f_ci->m_fattr |= FILE_ATTRIBUTE_SPARSE_FILE_LE;
 	else

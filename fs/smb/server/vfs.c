@@ -935,6 +935,8 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 			loff_t off, loff_t len)
 {
 	const struct cred *saved_cred;
+	loff_t pos = off, size;
+	char *zero_buf = NULL;
 	int err;
 
 	smb_break_all_levII_oplock(work, fp, 1);
@@ -951,15 +953,117 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 	}
 
 	saved_cred = override_creds(fp->filp->f_cred);
-	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE)
+	if (fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE) {
 		err = vfs_fallocate(fp->filp,
 				    FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				    off, len);
-	else
-		err = vfs_fallocate(fp->filp,
-				    FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE,
-				    off, len);
+	} else {
+		size = i_size_read(file_inode(fp->filp));
+		if (off >= size) {
+			err = 0;
+			goto out;
+		}
+
+		len = min(len, size - off);
+		zero_buf = kvzalloc(SZ_64K, GFP_KERNEL);
+		if (!zero_buf) {
+			err = -ENOMEM;
+			goto out;
+		}
+
+		while (len) {
+			ssize_t written;
+			size_t count = min_t(loff_t, len, SZ_64K);
+
+			written = kernel_write(fp->filp, zero_buf, count, &pos);
+			if (written < 0) {
+				err = written;
+				goto out;
+			}
+			if (!written) {
+				err = -EIO;
+				goto out;
+			}
+			len -= written;
+		}
+		err = 0;
+	}
+out:
 	revert_creds(saved_cred);
+	kvfree(zero_buf);
+	return err;
+}
+
+int ksmbd_vfs_zero_holes(struct ksmbd_file *fp)
+{
+	struct file *f = fp->filp;
+	const struct cred *saved_cred;
+	loff_t size, pos = 0;
+	char *zero_buf;
+	int err;
+
+	err = file_write_and_wait(f);
+	if (err)
+		return err;
+
+	size = i_size_read(file_inode(f));
+	if (!size)
+		return 0;
+
+	/*
+	 * FALLOC_FL_ZERO_RANGE may leave unwritten extents, which SEEK_DATA
+	 * reports as holes. Write zeroes into each hole so that clearing the
+	 * sparse attribute leaves the file fully allocated.
+	 */
+	zero_buf = kvzalloc(SZ_64K, GFP_KERNEL);
+	if (!zero_buf)
+		return -ENOMEM;
+
+	saved_cred = override_creds(f->f_cred);
+	while (pos < size) {
+		loff_t data, hole;
+
+		hole = vfs_llseek(f, pos, SEEK_HOLE);
+		if (hole == -ENXIO || hole >= size)
+			break;
+		if (hole < 0) {
+			err = hole;
+			goto out;
+		}
+
+		data = vfs_llseek(f, hole, SEEK_DATA);
+		if (data == -ENXIO) {
+			data = size;
+		} else if (data < 0) {
+			err = data;
+			goto out;
+		}
+		data = min(data, size);
+		if (data <= hole) {
+			err = -EIO;
+			goto out;
+		}
+
+		pos = hole;
+		while (pos < data) {
+			ssize_t written;
+			size_t count = min_t(loff_t, data - pos, SZ_64K);
+
+			written = kernel_write(f, zero_buf, count, &pos);
+			if (written < 0) {
+				err = written;
+				goto out;
+			}
+			if (!written) {
+				err = -EIO;
+				goto out;
+			}
+		}
+	}
+	err = file_write_and_wait(f);
+out:
+	revert_creds(saved_cred);
+	kvfree(zero_buf);
 	return err;
 }
 
@@ -990,51 +1094,36 @@ int ksmbd_vfs_trim_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 	return err;
 }
 
-int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
-			 struct file_allocated_range_buffer *ranges,
-			 unsigned int in_count, unsigned int *out_count)
+int ksmbd_vfs_query_allocated_ranges(struct ksmbd_file *fp, loff_t start,
+				     loff_t length,
+				     struct file_allocated_range_buffer *ranges,
+				     unsigned int in_count,
+				     unsigned int *out_count)
 {
 	struct file *f = fp->filp;
 	struct inode *inode = file_inode(fp->filp);
-	loff_t maxbytes = (u64)inode->i_sb->s_maxbytes, end, query_start;
-	loff_t query_length, size;
-	loff_t extent_start, extent_end;
+	loff_t maxbytes = inode->i_sb->s_maxbytes, size;
+	loff_t extent_start, extent_end, end;
 	int ret = 0;
 
+	*out_count = 0;
+	if (start < 0 || length < 0)
+		return -EINVAL;
 	if (start > maxbytes)
 		return -EFBIG;
-
 	if (!in_count)
 		return 0;
-
-	/*
-	 * Shrink request scope to what the fs can actually handle.
-	 */
-	if (length > maxbytes || (maxbytes - length) < start)
+	if (length > maxbytes || maxbytes - length < start)
 		length = maxbytes - start;
-
 	size = i_size_read(inode);
-	if (start >= size)
+	if (!length || start >= size)
 		return 0;
-
-	if (!length)
-		return 0;
-
-	if (start + length > size)
+	if (length > size - start)
 		length = size - start;
 
-	*out_count = 0;
-	query_start = start;
-	query_length = length;
 	end = start + length;
-	if (!(fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE)) {
-		ranges[0].file_offset = cpu_to_le64(query_start);
-		ranges[0].length = cpu_to_le64(query_length);
-		*out_count = 1;
-		return 0;
-	}
-
-	if (start < end) {
+	if ((fp->f_ci->m_fattr & FILE_ATTRIBUTE_SPARSE_FILE_LE) &&
+	    start < end) {
 		ret = file_write_and_wait_range(f, start, end - 1);
 		if (ret)
 			return ret;
@@ -1044,7 +1133,7 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		extent_start = vfs_llseek(f, start, SEEK_DATA);
 		if (extent_start < 0) {
 			if (extent_start != -ENXIO)
-				ret = (int)extent_start;
+				ret = extent_start;
 			break;
 		}
 
@@ -1054,7 +1143,7 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		extent_end = vfs_llseek(f, extent_start, SEEK_HOLE);
 		if (extent_end < 0) {
 			if (extent_end != -ENXIO)
-				ret = (int)extent_end;
+				ret = extent_end;
 			break;
 		} else if (extent_start >= extent_end) {
 			break;
@@ -1063,9 +1152,11 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		ranges[*out_count].file_offset = cpu_to_le64(extent_start);
 		ranges[(*out_count)++].length =
 			cpu_to_le64(min(extent_end, end) - extent_start);
-
 		start = extent_end;
 	}
+
+	if (!ret && start < end && *out_count == in_count)
+		ret = -E2BIG;
 
 	return ret;
 }
