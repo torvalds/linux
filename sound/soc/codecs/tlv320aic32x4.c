@@ -28,9 +28,12 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
-#include <sound/tlv320aic32x4.h>
 
 #include "tlv320aic32x4.h"
+
+struct aic32x4_setup_data {
+	unsigned int gpio_func[5];
+};
 
 struct aic32x4_priv {
 	struct regmap *regmap;
