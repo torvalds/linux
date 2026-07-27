@@ -15,7 +15,10 @@
 #include <linux/dev_printk.h>
 #include <linux/device/devres.h>
 #include <linux/i2c.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/math64.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
@@ -28,6 +31,9 @@
 #include <linux/types.h>
 #include <linux/unaligned.h>
 #include <linux/units.h>
+
+/* Arbitrary limit since channels are dynamic. */
+#define ADS112C14_MAX_MEASUREMENT_CHANNELS 16
 
 /* Datasheet t_d(RST) - time to wait after reset before next I2C use. */
 #define ADS112C14_DELAY_RESET_US 500
@@ -255,6 +261,8 @@ struct ads112c14_data {
 	u32 num_measurements;
 	u8 sys_mon_chan_short_gain_val;
 	int sys_mon_chan_short_scale_available[ARRAY_SIZE(ads112c14_pga_gains_x10)][2];
+	IIO_DECLARE_BUFFER_WITH_TS(__be32, scan, ADS112C14_MAX_MEASUREMENT_CHANNELS +
+						 ARRAY_SIZE(ads112c14_sys_mon_channels));
 };
 
 static bool ads112c14_writeable_reg(struct device *dev, unsigned int reg)
@@ -575,7 +583,7 @@ static int ads112c14_prepare_sys_mon_channel(struct ads112c14_data *data,
 
 static int ads112c14_single_conversion(struct ads112c14_data *data,
 				       const struct iio_chan_spec *chan,
-				       u8 *buf)
+				       u8 *buf, bool for_scan)
 {
 	struct i2c_client *client = to_i2c_client(regmap_get_device(data->regmap));
 	u32 reg_val;
@@ -604,6 +612,24 @@ static int ads112c14_single_conversion(struct ads112c14_data *data,
 				       1 * USEC_PER_MSEC, 100 * USEC_PER_MSEC);
 	if (ret)
 		return ret;
+
+	/*
+	 * When doing buffered read, we don't check the CRC, but rather pass it
+	 * along with the raw data. This way, we don't silently drop samples
+	 * with CRC errors, but rather leave it to userspace to decide what to
+	 * do.
+	 */
+	if (for_scan) {
+		u8 len = BITS_TO_BYTES(data->chip_info->resolution_bits) +
+			 (data->i2c_crc_enabled ? 1 : 0);
+
+		ret = i2c_smbus_read_i2c_block_data(client, ADS112C14_CMD_RDATA,
+						    len, buf);
+		if (ret < 0)
+			return ret;
+
+		return 0;
+	}
 
 	return ads112c14_i2c_read_bytes(client, ADS112C14_CMD_RDATA, buf,
 					BITS_TO_BYTES(data->chip_info->resolution_bits),
@@ -639,7 +665,7 @@ static int ads112c14_read_raw(struct iio_dev *indio_dev,
 		if (IIO_DEV_ACQUIRE_FAILED(claim))
 			return -EBUSY;
 
-		ret = ads112c14_single_conversion(data, chan, buf);
+		ret = ads112c14_single_conversion(data, chan, buf, false);
 		if (ret)
 			return ret;
 
@@ -765,6 +791,10 @@ static int ads112c14_write_raw(struct iio_dev *indio_dev,
 	const int (*scale_avail)[2];
 	u8 *gain_val;
 
+	IIO_DEV_ACQUIRE_DIRECT_MODE(indio_dev, claim);
+	if (IIO_DEV_ACQUIRE_FAILED(claim))
+		return -EBUSY;
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE: {
 		guard(mutex)(&data->lock);
@@ -863,6 +893,37 @@ static int ads112c14_read_label(struct iio_dev *indio_dev,
 	return sysfs_emit(label, "%s\n", label_source);
 }
 
+static irqreturn_t ads112c14_trigger_handler(int irq, void *private)
+{
+	struct iio_poll_func *pf = private;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ads112c14_data *data = iio_priv(indio_dev);
+	u32 offset = 0;
+	u32 i;
+	int ret;
+
+	iio_for_each_active_channel(indio_dev, i) {
+		const struct iio_chan_spec *chan = &indio_dev->channels[i];
+
+		ret = ads112c14_single_conversion(data, chan,
+						  (u8 *)&data->scan[offset++],
+						  true);
+		if (ret) {
+			dev_err_once(indio_dev->dev.parent,
+				     "failed to read channel %d: %pe; additional errors will be suppressed\n",
+				     chan->channel, ERR_PTR(ret));
+			goto out;
+		}
+	}
+
+	iio_push_to_buffers_with_ts(indio_dev, data->scan,
+				    sizeof(data->scan), pf->timestamp);
+out:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static const struct iio_info ads112c14_info = {
 	.read_raw = ads112c14_read_raw,
 	.read_avail = ads112c14_read_avail,
@@ -908,7 +969,7 @@ static int ads112c14_parse_channels(struct iio_dev *indio_dev,
 		return -ENOMEM;
 
 	channels = devm_kcalloc(dev, num_child_nodes +
-				ARRAY_SIZE(ads112c14_sys_mon_channels),
+				ARRAY_SIZE(ads112c14_sys_mon_channels) + 1,
 				sizeof(*channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
@@ -1069,14 +1130,47 @@ static int ads112c14_parse_channels(struct iio_dev *indio_dev,
 		if (spec->type == IIO_RESISTANCE)
 			spec->differential = 0;
 
+		spec->scan_type = (struct iio_scan_type){
+			.format = measurement->bipolar ?
+				  IIO_SCAN_FORMAT_SIGNED_INT :
+				  IIO_SCAN_FORMAT_UNSIGNED_INT,
+			.realbits = data->chip_info->resolution_bits,
+			.storagebits = 32,
+			.shift = 32 - data->chip_info->resolution_bits,
+			.endianness = IIO_BE,
+		};
+
 		i++;
 	}
 
 	data->num_measurements = i;
+	if (data->num_measurements > ADS112C14_MAX_MEASUREMENT_CHANNELS)
+		return dev_err_probe(dev, -EINVAL,
+				     "too many measurement channels defined\n");
+
 	memcpy(channels + i, ads112c14_sys_mon_channels, sizeof(ads112c14_sys_mon_channels));
 
+	for (u32 j = 0; j < ARRAY_SIZE(ads112c14_sys_mon_channels); j++) {
+		struct iio_chan_spec *spec = &channels[i];
+
+		/* Update the template that was already copied with dynamic values. */
+		spec->scan_index = i;
+		spec->scan_type = (struct iio_scan_type){
+			.format = IIO_SCAN_FORMAT_SIGNED_INT,
+			.realbits = data->chip_info->resolution_bits,
+			.storagebits = 32,
+			.shift = 32 - data->chip_info->resolution_bits,
+			.endianness = IIO_BE,
+		};
+
+		i++;
+	}
+
+	channels[i] = IIO_CHAN_SOFT_TIMESTAMP(i);
+	i++;
+
 	indio_dev->channels = channels;
-	indio_dev->num_channels = i + ARRAY_SIZE(ads112c14_sys_mon_channels);
+	indio_dev->num_channels = i;
 
 	return 0;
 }
@@ -1302,6 +1396,12 @@ static int ads112c14_probe(struct i2c_client *client)
 	indio_dev->name = info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ads112c14_info;
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      ads112c14_trigger_handler, NULL);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }
