@@ -196,9 +196,6 @@ static const struct rhashtable_params dsq_hash_params = {
 
 static LLIST_HEAD(dsqs_to_free);
 
-DEFINE_RAW_SPINLOCK(scx_exit_bstr_buf_lock);
-struct scx_bstr_buf scx_exit_bstr_buf;
-
 /* ops debug dump */
 static DEFINE_RAW_SPINLOCK(scx_dump_lock);
 
@@ -6760,6 +6757,32 @@ static void scx_disable_irq_workfn(struct irq_work *irq_work)
 	kthread_queue_work(sch->helper, &sch->disable_work);
 }
 
+/* finish exit_info and kick the disable work, ei->msg must already be set */
+static void scx_finish_exit(struct scx_sched *sch, enum scx_exit_kind kind,
+			    s64 exit_code, s32 exit_cpu)
+{
+	struct scx_exit_info *ei = sch->exit_info;
+
+	ei->exit_code = exit_code;
+#ifdef CONFIG_STACKTRACE
+	/*
+	 * stack_trace_save()'s NMI-safety is arch-dependent and undocumented.
+	 * Skip the backtrace when exiting from NMI.
+	 */
+	if (kind >= SCX_EXIT_ERROR && !in_nmi())
+		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
+#endif
+	/*
+	 * Set ei->kind and ->reason for scx_dump_state(). They'll be set again
+	 * in scx_disable_workfn().
+	 */
+	ei->kind = kind;
+	ei->reason = scx_exit_reason(ei->kind);
+	ei->exit_cpu = exit_cpu;
+
+	irq_work_queue(&sch->disable_irq_work);
+}
+
 bool scx_vexit(struct scx_sched *sch,
 	       enum scx_exit_kind kind, s64 exit_code, s32 exit_cpu,
 	       const char *fmt, va_list args)
@@ -6771,26 +6794,9 @@ bool scx_vexit(struct scx_sched *sch,
 	if (!scx_claim_exit(sch, kind))
 		return false;
 
-	ei->exit_code = exit_code;
-#ifdef CONFIG_STACKTRACE
-	/*
-	 * stack_trace_save()'s NMI-safety is arch-dependent and undocumented.
-	 * Skip the backtrace when exiting from NMI.
-	 */
-	if (kind >= SCX_EXIT_ERROR && !in_nmi())
-		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
-#endif
 	vscnprintf(ei->msg, SCX_EXIT_MSG_LEN, fmt, args);
 
-	/*
-	 * Set ei->kind and ->reason for scx_dump_state(). They'll be set again
-	 * in scx_disable_workfn().
-	 */
-	ei->kind = kind;
-	ei->reason = scx_exit_reason(ei->kind);
-	ei->exit_cpu = exit_cpu;
-
-	irq_work_queue(&sch->disable_irq_work);
+	scx_finish_exit(sch, kind, exit_code, exit_cpu);
 	return true;
 }
 
@@ -9604,12 +9610,38 @@ static s32 __bstr_format(struct scx_sched *sch, u64 *data_buf, char *line_buf,
 	return ret;
 }
 
-__printf(3, 0)
-s32 scx_bstr_format(struct scx_sched *sch, struct scx_bstr_buf *buf,
-		    char *fmt, unsigned long long *data, u32 data__sz)
+/*
+ * Exit @sch with the reason formatted from a BPF-supplied bstr format. The exit
+ * is claimed first and the reason is formatted directly into the winner-owned
+ * exit_info buffer, which allows use from any context including NMI.
+ *
+ * @fmt_blame is the sched blamed for formatting failures through the
+ * scx_error() calls in __bstr_format() and differs from @sch when a parent
+ * supplies the kill reason for a child. A formatting failure doesn't revert the
+ * claim - @sch still exits with the claimed kind and a fallback message.
+ */
+__printf(5, 0)
+bool scx_exit_bstr(struct scx_sched *sch, enum scx_exit_kind kind,
+		   s64 exit_code, struct scx_sched *fmt_blame, char *fmt,
+		   unsigned long long *data, u32 data__sz)
 {
-	return __bstr_format(sch, buf->data, buf->line, sizeof(buf->line),
-			     fmt, data, data__sz);
+	struct scx_exit_info *ei = sch->exit_info;
+	u64 data_buf[MAX_BPRINTF_VARARGS];
+	s32 ret;
+
+	guard(preempt)();
+
+	if (!scx_claim_exit(sch, kind))
+		return false;
+
+	ret = __bstr_format(fmt_blame, data_buf, ei->msg, SCX_EXIT_MSG_LEN,
+			    fmt, data, data__sz);
+	if (ret < 0)
+		scnprintf(ei->msg, SCX_EXIT_MSG_LEN,
+			  "exit message formatting failed (%d)", ret);
+
+	scx_finish_exit(sch, kind, exit_code, raw_smp_processor_id());
+	return true;
 }
 
 __bpf_kfunc_start_defs();
@@ -9631,14 +9663,13 @@ __bpf_kfunc void scx_bpf_exit_bstr(s64 exit_code, char *fmt,
 				   const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
+	guard(rcu)();
+
 	sch = scx_prog_sched(aux);
-	if (likely(sch) &&
-	    scx_bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		scx_exit(sch, SCX_EXIT_UNREG_BPF, exit_code, "%s", scx_exit_bstr_buf.line);
-	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
+	if (likely(sch))
+		scx_exit_bstr(sch, SCX_EXIT_UNREG_BPF, exit_code, sch, fmt,
+			      data, data__sz);
 }
 
 /**
@@ -9656,14 +9687,13 @@ __bpf_kfunc void scx_bpf_error_bstr(char *fmt, unsigned long long *data,
 				    u32 data__sz, const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *sch;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&scx_exit_bstr_buf_lock, flags);
+	guard(rcu)();
+
 	sch = scx_prog_sched(aux);
-	if (likely(sch) &&
-	    scx_bstr_format(sch, &scx_exit_bstr_buf, fmt, data, data__sz) >= 0)
-		scx_exit(sch, SCX_EXIT_ERROR_BPF, 0, "%s", scx_exit_bstr_buf.line);
-	raw_spin_unlock_irqrestore(&scx_exit_bstr_buf_lock, flags);
+	if (likely(sch))
+		scx_exit_bstr(sch, SCX_EXIT_ERROR_BPF, 0, sch, fmt, data,
+			      data__sz);
 }
 
 /**

@@ -2155,7 +2155,6 @@ __bpf_kfunc s32 scx_bpf_sub_kill_bstr(u64 cgroup_id, char *fmt,
 				      const struct bpf_prog_aux *aux)
 {
 	struct scx_sched *parent, *child;
-	s32 ret;
 
 	guard(rcu)();
 
@@ -2178,11 +2177,7 @@ __bpf_kfunc s32 scx_bpf_sub_kill_bstr(u64 cgroup_id, char *fmt,
 		return -EINVAL;
 	}
 
-	guard(raw_spinlock_irqsave)(&scx_exit_bstr_buf_lock);
-	ret = scx_bstr_format(parent, &scx_exit_bstr_buf, fmt, data, data__sz);
-	if (ret < 0)
-		return ret;
-	scx_exit(child, SCX_EXIT_PARENT_KILL, 0, "%s", scx_exit_bstr_buf.line);
+	scx_exit_bstr(child, SCX_EXIT_PARENT_KILL, 0, parent, fmt, data, data__sz);
 	return 0;
 }
 
