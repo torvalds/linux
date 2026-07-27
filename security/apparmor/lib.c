@@ -425,7 +425,7 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *))
 {
-	int type, error;
+	int error;
 	u32 denied = request & (~perms->allow | perms->deny);
 
 	if (likely(!denied)) {
@@ -434,17 +434,9 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		if (!request || !ad)
 			return 0;
 
-		type = AUDIT_APPARMOR_AUDIT;
 		error = 0;
 	} else {
 		error = -EACCES;
-
-		if (denied & perms->kill)
-			type = AUDIT_APPARMOR_KILL;
-		else if (denied == (denied & perms->complain))
-			type = AUDIT_APPARMOR_ALLOWED;
-		else
-			type = AUDIT_APPARMOR_DENIED;
 
 		if (denied == (denied & perms->hide))
 			error = -ENOENT;
@@ -453,6 +445,8 @@ int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		if (!ad || !denied)
 			return error;
 	}
+
+	int type = aa_select_audit_type(denied, perms);
 
 	if (ad) {
 		ad->subj_label = &profile->label;

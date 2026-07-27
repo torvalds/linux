@@ -184,6 +184,8 @@ struct apparmor_audit_data {
 		.common.apparmor_audit_data = &NAME,			\
 	};
 
+int aa_select_audit_type(u32 denied, const struct aa_perms *perms);
+
 void aa_audit_msg(int type, struct apparmor_audit_data *ad,
 		  void (*cb) (struct audit_buffer *, void *));
 int aa_audit(int type, struct aa_profile *profile,
@@ -197,6 +199,9 @@ int aa_audit(int type, struct aa_profile *profile,
 	(AD)->error;					\
 })
 
+int aa_audit_perm_error(struct aa_label *label, u32 request, int error,
+			struct apparmor_audit_data *ad,
+			void (*cb)(struct audit_buffer *, void *));
 
 static inline int complain_error(int error)
 {
