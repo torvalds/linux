@@ -48,17 +48,6 @@ static const uint32_t umc_v12_0_ma2na_mapping[] = {
 	24, 7,  29, 30,
 };
 
-static bool umc_v12_0_bit_wise_xor(uint32_t val)
-{
-	bool result = 0;
-	int i;
-
-	for (i = 0; i < 32; i++)
-		result = result ^ ((val >> i) & 0x1);
-
-	return result;
-}
-
 static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 			enum umc_memory_partition_mode nps,
 			struct umc_flip_bits *flip_bits)
@@ -159,7 +148,7 @@ static void __get_nps_pa_flip_bits(struct ras_core_context *ras_core,
 	}
 }
 
-static uint64_t  convert_nps_pa_to_row_pa(struct ras_core_context *ras_core,
+static uint64_t umc_v12_0_nps_pa_to_row_pa(struct ras_core_context *ras_core,
 		uint64_t pa, enum umc_memory_partition_mode nps, bool zero_pfn_ok)
 {
 	struct umc_flip_bits flip_bits = {0};
@@ -193,7 +182,7 @@ static int lookup_bad_pages_in_a_row(struct ras_core_context *ras_core,
 
 	__get_nps_pa_flip_bits(ras_core, nps, &flip_bits);
 
-	row_pa = convert_nps_pa_to_row_pa(ras_core, retired_addr, nps, true);
+	row_pa = umc_v12_0_nps_pa_to_row_pa(ras_core, retired_addr, nps, true);
 
 	err_addr = record->address;
 	/* get column bit 0 and 1 in mca address */
@@ -240,7 +229,7 @@ static int lookup_bad_pages_in_a_row(struct ras_core_context *ras_core,
 	return idx;
 }
 
-static int umc_v12_convert_ma_to_pa(struct ras_core_context *ras_core,
+static int umc_v12_0_ma2pa(struct ras_core_context *ras_core,
 			struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
 			uint32_t nps)
 {
@@ -277,20 +266,20 @@ static int umc_v12_convert_ma_to_pa(struct ras_core_context *ras_core,
 	/* apply bank hash algorithm */
 	bank0 =
 		bank_hash0 ^ (UMC_V12_0_XOR_EN0 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR0) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR0))));
+		(ras_umc_bit_wise_xor(col & UMC_V12_0_COL_XOR0) ^
+		(ras_umc_bit_wise_xor(row & UMC_V12_0_ROW_XOR0))));
 	bank1 =
 		bank_hash1 ^ (UMC_V12_0_XOR_EN1 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR1) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR1))));
+		(ras_umc_bit_wise_xor(col & UMC_V12_0_COL_XOR1) ^
+		(ras_umc_bit_wise_xor(row & UMC_V12_0_ROW_XOR1))));
 	bank2 =
 		bank_hash2 ^ (UMC_V12_0_XOR_EN2 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR2) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR2))));
+		(ras_umc_bit_wise_xor(col & UMC_V12_0_COL_XOR2) ^
+		(ras_umc_bit_wise_xor(row & UMC_V12_0_ROW_XOR2))));
 	bank3 =
 		bank_hash3 ^ (UMC_V12_0_XOR_EN3 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR3) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR3))));
+		(ras_umc_bit_wise_xor(col & UMC_V12_0_COL_XOR3) ^
+		(ras_umc_bit_wise_xor(row & UMC_V12_0_ROW_XOR3))));
 
 	bank = bank0 | (bank1 << 1) | (bank2 << 2) | (bank3 << 3);
 	err_addr &= ~0x3c0ULL;
@@ -360,22 +349,6 @@ static int umc_v12_convert_ma_to_pa(struct ras_core_context *ras_core,
 	return 0;
 }
 
-static int convert_ma_to_pa(struct ras_core_context *ras_core,
-			struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
-			uint32_t nps)
-{
-	int ret;
-
-	if (ras_psp_check_supported_cmd(ras_core, RAS_TA_CMD_ID__QUERY_ADDRESS))
-		ret = ras_umc_psp_convert_ma_to_pa(ras_core,
-				addr_in, addr_out, nps);
-	else
-		ret = umc_v12_convert_ma_to_pa(ras_core,
-				addr_in, addr_out, nps);
-
-	return ret;
-}
-
 static int convert_bank_to_nps_addr(struct ras_core_context *ras_core,
 			struct ras_bank_ecc *bank, struct umc_phy_addr *pa_addr, uint32_t nps)
 {
@@ -392,10 +365,10 @@ static int convert_bank_to_nps_addr(struct ras_core_context *ras_core,
 	addr_in.node_inst = ACA_IPID_2_DIE_ID(bank->ipid);
 	addr_in.socket_id = ACA_IPID_2_SOCKET_ID(bank->ipid);
 
-	ret = convert_ma_to_pa(ras_core, &addr_in, &addr_out, nps);
+	ret = ras_umc_ma2pa(ras_core, &addr_in, &addr_out, nps);
 	if (!ret) {
 		pa_addr->pa =
-			convert_nps_pa_to_row_pa(ras_core, addr_out.pa, nps, false);
+			umc_v12_0_nps_pa_to_row_pa(ras_core, addr_out.pa, nps, false);
 		pa_addr->channel_idx = addr_out.channel_idx;
 		pa_addr->bank = addr_out.bank;
 	}
@@ -427,68 +400,6 @@ static int umc_v12_0_bank_to_eeprom_record(struct ras_core_context *ras_core,
 		bank->nps, NULL, 0, bank->seq_no, true);
 
 	return 0;
-}
-
-static int convert_eeprom_record_to_nps_addr(struct ras_core_context *ras_core,
-			struct eeprom_umc_record *record, uint64_t *pa, uint32_t nps)
-{
-	struct device_system_info dev_info = {0};
-	struct umc_mca_addr addr_in;
-	struct umc_phy_addr addr_out;
-	int ret;
-
-	memset(&addr_in, 0, sizeof(addr_in));
-	memset(&addr_out, 0, sizeof(addr_out));
-
-	ras_core_get_device_system_info(ras_core, &dev_info);
-
-	addr_in.err_addr = record->address;
-	addr_in.ch_inst = record->mem_channel;
-	addr_in.umc_inst = record->mcumc_id;
-	addr_in.node_inst = UMC_INV_AID_NODE;
-	addr_in.socket_id = dev_info.socket_id;
-
-	ret = convert_ma_to_pa(ras_core, &addr_in, &addr_out, nps);
-	if (ret)
-		return ret;
-
-	*pa = convert_nps_pa_to_row_pa(ras_core, addr_out.pa, nps, false);
-
-	return 0;
-}
-
-static int umc_v12_0_eeprom_record_to_nps_record(struct ras_core_context *ras_core,
-				struct eeprom_umc_record *record, uint32_t nps)
-{
-	uint64_t ch_idx_v2, pa = 0;
-	uint32_t save_nps;
-	int ret = 0;
-
-	save_nps = EEPROM_RECORD_UMC_NPS_MODE(record);
-	/* eeprom v2 has no stored nps, always convert if the flag is set */
-	ch_idx_v2 = record->retired_row_pfn & UMC_CHANNEL_IDX_V2;
-
-	if (save_nps || ch_idx_v2) {
-		if ((nps == save_nps) && !ras_fw_eeprom_supported(ras_core)) {
-			record->cur_nps_retired_row_pfn =
-				EEPROM_RECORD_UMC_ADDR_PFN(record);
-		} else {
-			ret = convert_eeprom_record_to_nps_addr(ras_core,
-				record, &pa, nps);
-			if (!ret)
-				record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
-		}
-	} else {
-		/* old eeprom data format, the scope of channel index is
-		 * limited to umc instance
-		 */
-		/* TODO */
-		ret = -EOPNOTSUPP;
-	}
-
-	record->cur_nps = nps;
-
-	return ret;
 }
 
 static int umc_v12_0_eeprom_record_to_nps_pages(struct ras_core_context *ras_core,
@@ -580,10 +491,11 @@ static void umc_v12_0_mca_ipid_parse(struct ras_core_context *ras_core, uint64_t
 
 const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.bank_to_eeprom_record = umc_v12_0_bank_to_eeprom_record,
-	.eeprom_record_to_nps_record = umc_v12_0_eeprom_record_to_nps_record,
 	.eeprom_record_to_nps_pages = umc_v12_0_eeprom_record_to_nps_pages,
 	.bank_to_soc_pa = umc_12_0_bank_to_soc_pa,
 	.soc_pa_to_bank = umc_12_0_soc_pa_to_bank,
 	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,
+	.ma2pa = umc_v12_0_ma2pa,
+	.nps_pa_to_row_pa = umc_v12_0_nps_pa_to_row_pa,
 };
 

@@ -45,6 +45,8 @@
 
 #define UMC_ECC_NEW_DETECTED_TAG       0x1
 #define UMC_INV_MEM_PFN  (0xFFFFFFFFFFFFFFFF)
+/* invalid node instance value */
+#define UMC_INV_AID_NODE 0xffff
 
 /*
  * a flag to indicate v2 format channel index stored in eeprom
@@ -119,8 +121,6 @@ struct umc_bank_addr {
 struct ras_umc_ip_func {
 	int (*bank_to_eeprom_record)(struct ras_core_context *ras_core,
 			struct ras_bank_ecc *bank, struct eeprom_umc_record *record);
-	int (*eeprom_record_to_nps_record)(struct ras_core_context *ras_core,
-			struct eeprom_umc_record *record, uint32_t nps);
 	int (*eeprom_record_to_nps_pages)(struct ras_core_context *ras_core,
 			struct eeprom_umc_record *record, uint32_t nps,
 			uint64_t *pfns, uint32_t num);
@@ -130,6 +130,11 @@ struct ras_umc_ip_func {
 			uint64_t soc_pa, struct umc_bank_addr *bank_addr);
 	void (*mca_ipid_parse)(struct ras_core_context *ras_core, uint64_t ipid,
 			uint32_t *did, uint32_t *ch, uint32_t *umc_inst, uint32_t *sid);
+	int (*ma2pa)(struct ras_core_context *ras_core,
+		struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
+		uint32_t nps);
+	uint64_t (*nps_pa_to_row_pa)(struct ras_core_context *ras_core,
+		uint64_t pa, enum umc_memory_partition_mode nps, bool zero_pfn_ok);
 };
 
 struct eeprom_store_record {
@@ -184,7 +189,7 @@ int ras_umc_sw_init(struct ras_core_context *ras);
 int ras_umc_sw_fini(struct ras_core_context *ras);
 int ras_umc_hw_init(struct ras_core_context *ras);
 int ras_umc_hw_fini(struct ras_core_context *ras);
-int ras_umc_psp_convert_ma_to_pa(struct ras_core_context *ras_core,
+int ras_umc_psp_ma2pa(struct ras_core_context *ras_core,
 		struct umc_mca_addr *in, struct umc_phy_addr *out,
 		uint32_t nps);
 int ras_umc_handle_bad_pages(struct ras_core_context *ras_core, void *data);
@@ -207,4 +212,8 @@ int ras_umc_translate_soc_pa_and_bank(struct ras_core_context *ras_core,
 int ras_umc_convert_record_to_nps_pages(struct ras_core_context *ras_core,
 		struct eeprom_umc_record *record, uint32_t nps,
 		uint64_t *page_pfn, uint32_t max_pages);
+uint32_t ras_umc_bit_wise_xor(uint32_t val);
+int ras_umc_ma2pa(struct ras_core_context *ras_core,
+	struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
+	uint32_t nps);
 #endif

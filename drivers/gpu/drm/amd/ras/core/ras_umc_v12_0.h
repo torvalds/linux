@@ -296,9 +296,6 @@
 /* C2, C3, C4, R13, four MCA bits are looped in page retirement */
 #define UMC_V12_0_RETIRE_LOOP_BITS 4
 
-/* invalid node instance value */
-#define UMC_INV_AID_NODE 0xffff
-
 #define UMC_V12_0_AID_NUM_MAX     4
 #define UMC_V12_0_SOCKET_NUM_MAX  8
 

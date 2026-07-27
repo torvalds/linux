@@ -82,7 +82,7 @@ static const struct ras_umc_ip_func *ras_umc_get_ip_func(
 	return NULL;
 }
 
-int ras_umc_psp_convert_ma_to_pa(struct ras_core_context *ras_core,
+int ras_umc_psp_ma2pa(struct ras_core_context *ras_core,
 		struct umc_mca_addr *in, struct umc_phy_addr *out,
 		uint32_t nps)
 {
@@ -307,6 +307,95 @@ out:
 	return ret;
 }
 
+int ras_umc_ma2pa(struct ras_core_context *ras_core,
+	struct umc_mca_addr *addr_in, struct umc_phy_addr *addr_out,
+	uint32_t nps)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	int ret;
+
+	if (ras_psp_check_supported_cmd(ras_core, RAS_TA_CMD_ID__QUERY_ADDRESS)) {
+		ret = ras_umc_psp_ma2pa(ras_core, addr_in, addr_out, nps);
+	} else {
+		if (ras_umc->ip_func && ras_umc->ip_func->ma2pa) {
+			ret = ras_umc->ip_func->ma2pa(ras_core, addr_in, addr_out, nps);
+		} else {
+			RAS_DEV_ERR(ras_core->dev, "ma2pa is not supported!\n");
+			ret = -EOPNOTSUPP;
+		}
+	}
+
+	return ret;
+}
+
+static int ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *pa, uint32_t nps)
+{
+	struct device_system_info dev_info = {0};
+	struct umc_mca_addr addr_in;
+	struct umc_phy_addr addr_out;
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	int ret;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	memset(&addr_out, 0, sizeof(addr_out));
+
+	ras_core_get_device_system_info(ras_core, &dev_info);
+
+	addr_in.err_addr = record->address;
+	addr_in.ch_inst = record->mem_channel;
+	addr_in.umc_inst = record->mcumc_id;
+	addr_in.node_inst = UMC_INV_AID_NODE;
+	addr_in.socket_id = dev_info.socket_id;
+
+	ret = ras_umc_ma2pa(ras_core, &addr_in, &addr_out, nps);
+	if (ret)
+		return ret;
+
+	if (ras_umc->ip_func && ras_umc->ip_func->nps_pa_to_row_pa) {
+		*pa = ras_umc->ip_func->nps_pa_to_row_pa(ras_core, addr_out.pa,
+			nps, false);
+	} else {
+		RAS_DEV_ERR(ras_core->dev, "nps_pa_to_row_pa is not supported!\n");
+		return -EOPNOTSUPP;
+	}
+
+	return ret;
+}
+
+static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint32_t nps)
+{
+	uint64_t ch_idx_v2, pa = 0;
+	uint32_t save_nps;
+	int ret = 0;
+
+	save_nps = EEPROM_RECORD_UMC_NPS_MODE(record);
+	/* eeprom v2 has no stored nps, always convert if the flag is set */
+	ch_idx_v2 = record->retired_row_pfn & UMC_CHANNEL_IDX_V2;
+
+	if (save_nps || ch_idx_v2) {
+		if ((nps == save_nps) && !ras_fw_eeprom_supported(ras_core)) {
+			record->cur_nps_retired_row_pfn =
+				EEPROM_RECORD_UMC_ADDR_PFN(record);
+		} else {
+			ret = ras_umc_eeprom_rec2nps_addr(ras_core, record, &pa, nps);
+			if (!ret)
+				record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
+		}
+	} else {
+		/* old eeprom data format, the scope of channel index is
+		 * limited to umc instance
+		 */
+		/* TODO */
+		ret = -EOPNOTSUPP;
+	}
+
+	record->cur_nps = nps;
+
+	return ret;
+}
+
 static int ras_umc_get_new_records(struct ras_core_context *ras_core,
 			struct eeprom_umc_record *records, u32 num)
 {
@@ -343,12 +432,11 @@ static bool ras_umc_check_retired_record(struct ras_core_context *ras_core,
 
 	if (from_eeprom) {
 		nps = ras_umc->umc_err_data.umc_nps_mode;
-		if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_record) {
-			ret = ras_umc->ip_func->eeprom_record_to_nps_record(ras_core, record, nps);
-			if (ret)
-				RAS_DEV_WARN_RATELIMITED(ras_core->dev,
-					"Failed to adjust eeprom record, ret:%d", ret);
-		}
+		ret = ras_umc_eeprom_rec2nps_rec(ras_core, record, nps);
+		if (ret)
+			RAS_DEV_WARN_RATELIMITED(ras_core->dev,
+				"Failed to adjust eeprom record, ret:%d", ret);
+
 		return false;
 	}
 
@@ -804,4 +892,15 @@ int ras_umc_translate_soc_pa_and_bank(struct ras_core_context *ras_core,
 		ret = ras_umc->ip_func->soc_pa_to_bank(ras_core, *soc_pa, bank_addr);
 
 	return ret;
+}
+
+uint32_t ras_umc_bit_wise_xor(uint32_t val)
+{
+	uint32_t result = 0;
+	int i;
+
+	for (i = 0; i < 32; i++)
+		result = result ^ ((val >> i) & 0x1);
+
+	return result;
 }
