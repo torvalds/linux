@@ -1441,6 +1441,115 @@ static bool find_next_delalloc_bitmap(struct folio *folio,
 }
 
 /*
+ * Debug checks for fixup selection logic to help ensure the invariants
+ * we expect for fixup marking hold in practice.
+ *
+ * - A dirty block without a fixup bit is covered by delalloc or a running
+ *   ordered extent (it was dirtied by a reserving write path).
+ * - A block with a fixup bit is never covered by delalloc: every delalloc
+ *   setter holds the folio lock and cancels the fixup state of the blocks
+ *   it covers (btrfs_folio_set_dirty()) before releasing it.
+ */
+static void debug_check_writepage_fixup(struct btrfs_inode *inode, u64 start,
+				       u32 len, bool needs_fixup)
+{
+	struct btrfs_ordered_extent *ordered;
+	bool delalloc;
+
+	if (!IS_ENABLED(CONFIG_BTRFS_DEBUG))
+		return;
+
+	delalloc = btrfs_test_range_bit_exists(&inode->io_tree, start,
+					       start + len - 1, EXTENT_DELALLOC);
+	if (needs_fixup) {
+		if (unlikely(delalloc))
+			DEBUG_WARN("writeback: delalloc and fixup conflict. ino %llu start %llu",
+				   btrfs_ino(inode), start);
+	} else {
+		if (delalloc)
+			return;
+
+		ordered = btrfs_lookup_ordered_range(inode, start, len);
+		if (unlikely(!ordered))
+			DEBUG_WARN("dirty block, no delalloc, fixup, ordered. ino %llu start %llu",
+				   btrfs_ino(inode), start);
+		else
+			btrfs_put_ordered_extent(ordered);
+	}
+}
+
+/*
+ * Handle folios dirtied without a delalloc reservation, e.g.
+ * O_DIRECT read into a MAP_SHARED mapping dirtying via set_page_dirty_lock().
+ *
+ * btrfs_data_dirty_folio() records the affected blocks in the fixup bitmap
+ * and the folio fixup flag and we check them here in writeback.
+ *
+ * Don't submit such blocks and queue work for the fixup worker to reserve
+ * space for them so that they can be submitted properly by writeback.
+ *
+ * Return 1 if the folio needed fixup, 0 if not, and a negative error code
+ * on error.
+ */
+static noinline_for_stack int writepage_fixup(struct btrfs_inode *inode,
+					      struct folio *folio,
+					      struct btrfs_bio_ctrl *bio_ctrl)
+{
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(&inode->vfs_inode);
+	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
+	const u32 sectorsize = fs_info->sectorsize;
+	const u64 page_start = folio_pos(folio);
+	bool found_fixup = false;
+	unsigned int bit;
+
+	/*
+	 * A folio was dirtied without calling aops->dirty_folio() which we
+	 * explicitly assert is not allowed.
+	 */
+	if (unlikely(bitmap_empty(bio_ctrl->submit_bitmap, blocks_per_folio))) {
+		DEBUG_WARN();
+		btrfs_err_rl(fs_info,
+			     "root %lld ino %llu folio %llu is dirty with an empty dirty bitmap",
+			     btrfs_root_id(inode->root), btrfs_ino(inode),
+			     folio_pos(folio));
+		return -EUCLEAN;
+	}
+
+	/* Cheap check on the folio flag. Set iff the fixup bitmap is non-empty. */
+	if (likely(!folio_test_fixup_pending(folio)))
+		return 0;
+
+	for_each_set_bit(bit, bio_ctrl->submit_bitmap, blocks_per_folio) {
+		const u64 start = page_start + (bit << fs_info->sectorsize_bits);
+		const bool needs_fixup = btrfs_folio_test_fixup(fs_info, folio,
+								start, sectorsize);
+
+		debug_check_writepage_fixup(inode, start, sectorsize, needs_fixup);
+		if (needs_fixup) {
+			bitmap_clear(bio_ctrl->submit_bitmap, bit, 1);
+			found_fixup = true;
+		}
+	}
+	if (likely(found_fixup)) {
+		btrfs_queue_writepage_fixup(inode, folio);
+		folio_redirty_for_writepage(bio_ctrl->wbc, folio);
+		if (bitmap_empty(bio_ctrl->submit_bitmap, blocks_per_folio)) {
+			folio_unlock(folio);
+			return 1;
+		}
+		return 0;
+	}
+	/* We should always find fixup if the folio fixup flag was set. */
+	DEBUG_WARN();
+	btrfs_err_rl(fs_info,
+		     "root %lld ino %llu folio %llu is fixup with an empty fixup bitmap",
+		     btrfs_root_id(inode->root), btrfs_ino(inode),
+		     folio_pos(folio));
+
+	return -EUCLEAN;
+}
+
+/*
  * Do all of the delayed allocation setup.
  *
  * Return >0 if all the dirty blocks are submitted async (compression) or inlined.
@@ -1491,6 +1600,10 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 
 	/* Save the dirty bitmap as our submission bitmap will be a subset of it. */
 	btrfs_copy_subpage_dirty_bitmap(fs_info, folio, bio_ctrl->submit_bitmap);
+
+	ret = writepage_fixup(inode, folio, bio_ctrl);
+	if (ret)
+		return ret;
 
 	for_each_set_bitrange(start_bit, end_bit, bio_ctrl->submit_bitmap,
 			      blocks_per_folio) {

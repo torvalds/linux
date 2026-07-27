@@ -14,15 +14,15 @@ struct folio;
 /*
  * Extra info for subpage bitmap.
  *
- * For subpage we pack all uptodate/dirty/writeback bitmaps into
+ * For subpage we pack all uptodate/dirty/writeback/fixup bitmaps into
  * one larger bitmap.
  *
  * This structure records how they are organized in the bitmap:
  *
- * /- uptodate          /- dirty        /- writeback
- * |			|		|
- * v			v		v
- * |u|u|u|u|........|u|u|d|d|.......|d|d|w|w|.......|w|w|
+ * /- uptodate          /- dirty        /- writeback       /- fixup
+ * |			|		|		   |
+ * v			v		v		   v
+ * |u|u|u|u|........|u|u|d|d|.......|d|d|w|w|.....|w|w|f|f|.....|f|f|
  * |< sectors_per_page >|
  *
  * Unlike regular macro-like enums, here we do not go upper-case names, as
@@ -39,6 +39,14 @@ enum {
 	 * timing.
 	 */
 	btrfs_bitmap_nr_writeback,
+
+	/*
+	 * Blocks dirtied by the dirty_folio callback instead of a reserving
+	 * write path (e.g. set_page_dirty_lock() on a GUP pin).  They have
+	 * no space reservation and need the writepage fixup before they can
+	 * be submitted.
+	 */
+	btrfs_bitmap_nr_fixup,
 
 	btrfs_bitmap_nr_max
 };
@@ -164,6 +172,29 @@ bool btrfs_meta_folio_test_##name(struct folio *folio, const struct extent_buffe
 DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
 DECLARE_BTRFS_SUBPAGE_OPS(writeback);
+
+/*
+ * Fixup bit helpers.
+ *
+ * The fixup bit is data-only and has no plain set helper (setting happens
+ * together with dirtying in btrfs_subpage_set_fixup_dirty()), so it does not
+ * go through DECLARE_BTRFS_SUBPAGE_OPS().  For single-block folios the
+ * folio_*_fixup_pending() flag takes the place of the bitmap.
+ */
+void btrfs_subpage_clear_fixup(const struct btrfs_fs_info *fs_info,
+			       struct folio *folio, u64 start, u32 len);
+bool btrfs_subpage_test_fixup(const struct btrfs_fs_info *fs_info,
+			      struct folio *folio, u64 start, u32 len);
+bool btrfs_folio_test_fixup(const struct btrfs_fs_info *fs_info,
+			    struct folio *folio, u64 start, u32 len);
+void btrfs_folio_set_fixup_dirty(const struct btrfs_fs_info *fs_info,
+				 struct folio *folio, u64 start, u32 len);
+/* For a block that just got its space reserved; it stays dirty. */
+void btrfs_folio_clear_fixup(const struct btrfs_fs_info *fs_info,
+			     struct folio *folio, u64 start, u32 len);
+/* For callers discarding the data; clears the dirty bits too. */
+void btrfs_folio_clear_fixup_dirty(const struct btrfs_fs_info *fs_info,
+				   struct folio *folio, u64 start, u32 len);
 
 /*
  * Helper for error cleanup, where a folio will have its dirty flag cleared,
