@@ -492,13 +492,16 @@ static int psmouse_poll(struct psmouse *psmouse)
 			   PSMOUSE_CMD_POLL | (psmouse->pktsize << 8));
 }
 
-static bool psmouse_check_pnp_id(const char *id, const char * const ids[])
+static bool psmouse_check_pnp_id(const char *p, const char * const ids[])
 {
-	int i;
+	const char * const *id;
+	size_t len;
 
-	for (i = 0; ids[i]; i++)
-		if (!strcasecmp(id, ids[i]))
+	for (id = ids; *id; id++) {
+		len = strlen(*id);
+		if (!strncasecmp(p, *id, len) && (p[len] == ' ' || p[len] == '\0'))
 			return true;
+	}
 
 	return false;
 }
@@ -509,28 +512,26 @@ static bool psmouse_check_pnp_id(const char *id, const char * const ids[])
 bool psmouse_matches_pnp_id(struct psmouse *psmouse, const char * const ids[])
 {
 	struct serio *serio = psmouse->ps2dev.serio;
-	char *p, *fw_id_copy, *save_ptr;
-	bool found = false;
+	const char *p = serio->firmware_id;
 
-	if (strncmp(serio->firmware_id, "PNP: ", 5))
+	if (!strstarts(p, "PNP: "))
 		return false;
 
-	fw_id_copy = kstrndup(&serio->firmware_id[5],
-			      sizeof(serio->firmware_id) - 5,
-			      GFP_KERNEL);
-	if (!fw_id_copy)
-		return false;
-
-	save_ptr = fw_id_copy;
-	while ((p = strsep(&fw_id_copy, " ")) != NULL) {
-		if (psmouse_check_pnp_id(p, ids)) {
-			found = true;
+	p += 5;
+	while (*p) {
+		p = skip_spaces(p);
+		if (!*p)
 			break;
-		}
+
+		if (psmouse_check_pnp_id(p, ids))
+			return true;
+
+		p = strchr(p, ' ');
+		if (!p)
+			break;
 	}
 
-	kfree(save_ptr);
-	return found;
+	return false;
 }
 
 /*
