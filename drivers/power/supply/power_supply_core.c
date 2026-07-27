@@ -1777,6 +1777,14 @@ __power_supply_register(struct device *parent,
 	init_rwsem(&psy->extensions_sem);
 	INIT_LIST_HEAD(&psy->extensions);
 
+	if (desc->init) {
+		rc = desc->init(psy);
+		if (WARN_ON_ONCE(rc > 0))
+			rc = -EINVAL;
+		if (rc)
+			goto check_supplies_failed;
+	}
+
 	rc = device_add(dev);
 	if (rc)
 		goto device_add_failed;

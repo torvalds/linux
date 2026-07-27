@@ -285,6 +285,15 @@ struct power_supply_desc {
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
 	void (*external_power_changed)(struct power_supply *psy);
+	/*
+	 * Optional registration-time initialization. This runs in sleepable
+	 * process context after driver data and any battery info are available,
+	 * but before the device is added. The callback must not publish changes or
+	 * start asynchronous activity that can access the power supply before
+	 * registration completes. Return 0 on success or a negative errno on
+	 * failure.
+	 */
+	int (*init)(struct power_supply *psy);
 
 	/*
 	 * Set if thermal zone should not be created for this power supply.
