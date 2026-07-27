@@ -870,18 +870,6 @@ static inline bool obj_exts_in_slab(struct kmem_cache *s, struct slab *slab)
 #endif
 
 #if defined(CONFIG_SLAB_OBJ_EXT) && defined(CONFIG_64BIT)
-static bool obj_exts_in_object(struct kmem_cache *s, struct slab *slab)
-{
-	/*
-	 * Note we cannot rely on the SLAB_OBJ_EXT_IN_OBJ flag here and need to
-	 * check the stride. A cache can have SLAB_OBJ_EXT_IN_OBJ set, but
-	 * allocations within_slab_leftover are preferred. And those may be
-	 * possible or not depending on the particular slab's size.
-	 */
-	return obj_exts_in_slab(s, slab) &&
-	       (slab_get_stride(slab) == s->size);
-}
-
 static unsigned int obj_exts_offset_in_object(struct kmem_cache *s)
 {
 	unsigned int offset = get_info_end(s);
@@ -896,15 +884,19 @@ static unsigned int obj_exts_offset_in_object(struct kmem_cache *s)
 
 	return offset;
 }
-#else
-static inline bool obj_exts_in_object(struct kmem_cache *s, struct slab *slab)
-{
-	return false;
-}
 
+static inline void slab_set_obj_exts_in_object(struct slab *slab)
+{
+	slab->obj_exts_in_object = 1;
+}
+#else
 static inline unsigned int obj_exts_offset_in_object(struct kmem_cache *s)
 {
 	return 0;
+}
+
+static inline void slab_set_obj_exts_in_object(struct slab *slab)
+{
 }
 #endif
 
@@ -1206,7 +1198,7 @@ static void print_trailer(struct kmem_cache *s, struct slab *slab, u8 *p)
 
 	off += kasan_metadata_size(s, false);
 
-	if (obj_exts_in_object(s, slab))
+	if (obj_exts_in_object(slab))
 		off += sizeof(struct slabobj_ext);
 
 	if (off != size_from_object(s))
@@ -1411,7 +1403,7 @@ static int check_pad_bytes(struct kmem_cache *s, struct slab *slab, u8 *p)
 
 	off += kasan_metadata_size(s, false);
 
-	if (obj_exts_in_object(s, slab))
+	if (obj_exts_in_object(slab))
 		off += sizeof(struct slabobj_ext);
 
 	if (size_from_object(s) == off)
@@ -1439,7 +1431,7 @@ slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	length = slab_size(slab);
 	end = start + length;
 
-	if (obj_exts_in_slab(s, slab) && !obj_exts_in_object(s, slab)) {
+	if (obj_exts_in_slab(s, slab) && !obj_exts_in_object(slab)) {
 		remainder = length;
 		remainder -= obj_exts_offset_in_slab(s, slab);
 		remainder -= obj_exts_size_in_slab(slab);
@@ -2256,9 +2248,6 @@ static void alloc_slab_obj_exts_early(struct kmem_cache *s, struct slab *slab)
 	void *addr;
 	unsigned long obj_exts;
 
-	/* Initialize stride early to avoid memory ordering issues */
-	slab_set_stride(slab, sizeof(struct slabobj_ext));
-
 	if (!need_slab_obj_exts(s))
 		return;
 
@@ -2292,7 +2281,7 @@ static void alloc_slab_obj_exts_early(struct kmem_cache *s, struct slab *slab)
 		obj_exts |= MEMCG_DATA_OBJEXTS;
 #endif
 		slab->obj_exts = obj_exts;
-		slab_set_stride(slab, s->size);
+		slab_set_obj_exts_in_object(slab);
 	}
 }
 
@@ -3405,9 +3394,10 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags,
 		stat(s, ORDER_FALLBACK);
 	}
 
+	/* Initializes frozen, inuse, and any extra 64bit-only flags */
+	slab->counters = 0;
+
 	slab->objects = oo_objects(oo);
-	slab->inuse = 0;
-	slab->frozen = 0;
 
 	slab->slab_cache = s;
 
@@ -6540,7 +6530,7 @@ static inline size_t slab_ksize(struct slab *slab)
 	 */
 	if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER))
 		return s->inuse;
-	else if (obj_exts_in_object(s, slab))
+	else if (obj_exts_in_object(slab))
 		return s->inuse;
 	/*
 	 * Else we can use all the padding etc for the allocation

@@ -81,10 +81,10 @@ struct freelist_counters {
 #ifdef CONFIG_64BIT
 					/*
 					 * Some optimizations use free bits in 'counters' field
-					 * to save memory. In case ->stride field is not available,
+					 * to save memory. If these free bits are not available,
 					 * such optimizations are disabled.
 					 */
-					unsigned int stride;
+					unsigned obj_exts_in_object:1;
 #endif
 				};
 			};
@@ -617,22 +617,20 @@ static inline void put_slab_obj_exts(unsigned long obj_exts)
 }
 
 #ifdef CONFIG_64BIT
-static inline void slab_set_stride(struct slab *slab, unsigned int stride)
+static inline bool obj_exts_in_object(struct slab *slab)
 {
-	slab->stride = stride;
-}
-static inline unsigned int slab_get_stride(struct slab *slab)
-{
-	return slab->stride;
+	/*
+	 * Note we cannot rely on the SLAB_OBJ_EXT_IN_OBJ flag here and need to
+	 * check the per-slab bit. A cache can have SLAB_OBJ_EXT_IN_OBJ set, but
+	 * allocations within_slab_leftover are preferred. And those may be
+	 * possible or not depending on the particular slab's size.
+	 */
+	return slab->obj_exts_in_object;
 }
 #else
-static inline void slab_set_stride(struct slab *slab, unsigned int stride)
+static inline bool obj_exts_in_object(struct slab *slab)
 {
-	VM_WARN_ON_ONCE(stride != sizeof(struct slabobj_ext));
-}
-static inline unsigned int slab_get_stride(struct slab *slab)
-{
-	return sizeof(struct slabobj_ext);
+	return false;
 }
 #endif
 
@@ -657,8 +655,15 @@ slab_obj_ext(struct kmem_cache *s, struct slab *slab, unsigned long obj_exts,
 	VM_WARN_ON_ONCE(obj_exts != slab_obj_exts(slab));
 
 	index = obj_to_index(s, slab, obj);
-	obj_ext = (struct slabobj_ext *)(obj_exts +
-					 slab_get_stride(slab) * index);
+
+	if (!obj_exts_in_object(slab)) {
+		obj_ext = ((struct slabobj_ext *)obj_exts) + index;
+	} else {
+		unsigned int stride = s->size;
+
+		obj_ext = (struct slabobj_ext *)(obj_exts + index * stride);
+	}
+
 	return kasan_reset_tag(obj_ext);
 }
 
@@ -702,9 +707,10 @@ slab_obj_ext(struct kmem_cache *s, struct slab *slab, unsigned long obj_exts,
 	return NULL;
 }
 
-static inline void slab_set_stride(struct slab *slab, unsigned int stride) { }
-static inline unsigned int slab_get_stride(struct slab *slab) { return 0; }
-
+static inline bool obj_exts_in_object(struct slab *slab)
+{
+	return false;
+}
 
 #endif /* CONFIG_SLAB_OBJ_EXT */
 
