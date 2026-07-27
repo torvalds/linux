@@ -153,17 +153,19 @@ static inline void xsk_tx_metadata_to_compl(struct xsk_tx_metadata *meta,
 /**
  *  xsk_tx_metadata_request - Evaluate AF_XDP TX metadata at submission
  *  and call appropriate xsk_tx_metadata_ops operation.
- *  @meta: pointer to AF_XDP metadata area
+ *  @pmeta: pointer to pointer to AF_XDP metadata area
  *  @ops: pointer to struct xsk_tx_metadata_ops
  *  @priv: pointer to driver-private aread
  *
  *  This function should be called by the networking device when
  *  it prepares AF_XDP egress packet.
  */
-static inline void xsk_tx_metadata_request(const struct xsk_tx_metadata *meta,
+static inline void xsk_tx_metadata_request(struct xsk_tx_metadata **pmeta,
 					   const struct xsk_tx_metadata_ops *ops,
 					   void *priv)
 {
+	const struct xsk_tx_metadata *meta = *pmeta;
+
 	if (!meta)
 		return;
 
@@ -231,7 +233,7 @@ static inline void xsk_tx_metadata_to_compl(struct xsk_tx_metadata *meta,
 {
 }
 
-static inline void xsk_tx_metadata_request(struct xsk_tx_metadata *meta,
+static inline void xsk_tx_metadata_request(struct xsk_tx_metadata **pmeta,
 					   const struct xsk_tx_metadata_ops *ops,
 					   void *priv)
 {
