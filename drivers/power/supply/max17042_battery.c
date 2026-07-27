@@ -63,6 +63,8 @@
 #define MAX17042_RESISTANCE_LSB		1 / 4096 /* Ω */
 #define MAX17042_TEMPERATURE_LSB	1 / 256 /* °C */
 
+#define MAX17055_INIT_RETRY_DELAY_MS	10000
+
 struct max17042_chip {
 	struct device *dev;
 	struct regmap *regmap;
@@ -848,13 +850,13 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 		max17042_override_por(map, MAX17055_ModelCfg, config->model_cfg);
 }
 
-static void max17055_init_chip(struct max17042_chip *chip)
+static int max17055_init_chip(struct max17042_chip *chip)
 {
 	max17042_override_por_values(chip);
 
-	regmap_write_bits(chip->regmap, MAX17055_ModelCfg,
-			  MAX17055_MODELCFG_REFRESH_BIT,
-			  MAX17055_MODELCFG_REFRESH_BIT);
+	return regmap_write_bits(chip->regmap, MAX17055_ModelCfg,
+				 MAX17055_MODELCFG_REFRESH_BIT,
+				 MAX17055_MODELCFG_REFRESH_BIT);
 }
 
 static int max17042_init_chip(struct max17042_chip *chip)
@@ -862,10 +864,13 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	struct regmap *map = chip->regmap;
 	int ret;
 
-	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
-		max17055_init_chip(chip);
-	else
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055) {
+		ret = max17055_init_chip(chip);
+		if (ret)
+			return ret;
+	} else {
 		max17042_override_por_values(chip);
+	}
 
 	/* After Power up, the MAX17042 requires 500mS in order
 	 * to perform signal debouncing and initial SOC reporting
@@ -997,16 +1002,26 @@ static void max17042_init_worker(struct work_struct *work)
 {
 	struct max17042_chip *chip = container_of(to_delayed_work(work),
 				struct max17042_chip, work);
-	int ret;
+	int ret = 0;
 
 	/* Initialize registers according to values from config_data */
-	if (chip->enable_por_init && chip->config_data) {
+	if (chip->enable_por_init && chip->config_data)
 		ret = max17042_init_chip(chip);
-		if (ret)
-			return;
+
+	if (ret) {
+		if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055) {
+			dev_warn_ratelimited(chip->dev,
+				"initialization failed: %d, retrying\n", ret);
+			schedule_delayed_work(&chip->work,
+				msecs_to_jiffies(MAX17055_INIT_RETRY_DELAY_MS));
+		} else {
+			dev_err(chip->dev, "initialization failed: %d\n", ret);
+		}
+		return;
 	}
 
 	WRITE_ONCE(chip->init_complete, true);
+	power_supply_changed(chip->battery);
 }
 
 #ifdef CONFIG_OF
