@@ -1562,7 +1562,7 @@ void mt7925_scan_work(struct work_struct *work)
 	while (true) {
 		struct sk_buff *skb;
 		struct tlv *tlv;
-		int tlv_len;
+		u32 tlv_len;
 
 		spin_lock_bh(&phy->dev->mt76.lock);
 		skb = __skb_dequeue(&phy->scan_event_list);
@@ -1575,7 +1575,7 @@ void mt7925_scan_work(struct work_struct *work)
 		tlv = (struct tlv *)skb->data;
 		tlv_len = skb->len;
 
-		while (tlv_len > 0 && le16_to_cpu(tlv->len) <= tlv_len) {
+		mt7925_for_each_tlv(tlv, tlv_len) {
 			struct mt7925_mcu_scan_chinfo_event *evt;
 
 			switch (le16_to_cpu(tlv->tag)) {
@@ -1588,6 +1588,9 @@ void mt7925_scan_work(struct work_struct *work)
 				}
 				break;
 			case UNI_EVENT_SCAN_DONE_CHNLINFO:
+				if (le16_to_cpu(tlv->len) < sizeof(*tlv) + sizeof(*evt))
+					break;
+
 				evt = (struct mt7925_mcu_scan_chinfo_event *)tlv->data;
 
 				mt7925_regd_change(phy, evt->alpha2);
@@ -1599,9 +1602,6 @@ void mt7925_scan_work(struct work_struct *work)
 			default:
 				break;
 			}
-
-			tlv_len -= le16_to_cpu(tlv->len);
-			tlv = (struct tlv *)((char *)(tlv) + le16_to_cpu(tlv->len));
 		}
 
 		dev_kfree_skb(skb);

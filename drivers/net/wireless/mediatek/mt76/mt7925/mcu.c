@@ -409,16 +409,18 @@ mt7925_mcu_uni_hif_ctrl_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	tlv = (struct tlv *)skb->data;
 	tlv_len = skb->len;
 
-	while (tlv_len > 0 && le16_to_cpu(tlv->len) <= tlv_len) {
+	mt7925_for_each_tlv(tlv, tlv_len) {
 		switch (le16_to_cpu(tlv->tag)) {
 		case UNI_EVENT_HIF_CTRL_BASIC:
+			if (le16_to_cpu(tlv->len) <
+			    sizeof(struct mt7925_mcu_hif_ctrl_basic_tlv))
+				break;
+
 			mt7925_mcu_handle_hif_ctrl_basic(dev, tlv);
 			break;
 		default:
 			break;
 		}
-		tlv_len -= le16_to_cpu(tlv->len);
-		tlv = (struct tlv *)((char *)(tlv) + le16_to_cpu(tlv->len));
 	}
 }
 
@@ -426,22 +428,24 @@ static void
 mt7925_mcu_uni_roc_event(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	struct tlv *tlv;
-	int i = 0;
+	u32 tlv_len;
 
 	skb_pull(skb, sizeof(struct mt7925_mcu_rxd) + 4);
+	tlv = (struct tlv *)skb->data;
+	tlv_len = skb->len;
 
-	while (i < skb->len) {
-		tlv = (struct tlv *)(skb->data + i);
-
+	mt7925_for_each_tlv(tlv, tlv_len) {
 		switch (le16_to_cpu(tlv->tag)) {
 		case UNI_EVENT_ROC_GRANT:
+			if (le16_to_cpu(tlv->len) <
+			    sizeof(struct mt7925_roc_grant_tlv))
+				break;
+
 			mt7925_mcu_roc_handle_grant(dev, tlv);
 			break;
 		case UNI_EVENT_ROC_GRANT_SUB_LINK:
 			break;
 		}
-
-		i += le16_to_cpu(tlv->len);
 	}
 }
 
@@ -477,10 +481,13 @@ mt7925_mcu_tx_done_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	tlv = (struct tlv *)skb->data;
 	tlv_len = skb->len;
 
-	while (tlv_len > 0 && le16_to_cpu(tlv->len) <= tlv_len) {
+	mt7925_for_each_tlv(tlv, tlv_len) {
 		switch (le16_to_cpu(tlv->tag)) {
 		case UNI_EVENT_TX_DONE_MSG:
 			if (!is_mt7928(&dev->mt76))
+				break;
+
+			if (le16_to_cpu(tlv->len) < sizeof(*evt))
 				break;
 
 			evt = (struct mt7928_uni_txdone_event *)tlv;
@@ -509,8 +516,6 @@ mt7925_mcu_tx_done_event(struct mt792x_dev *dev, struct sk_buff *skb)
 		default:
 			break;
 		}
-		tlv_len -= le16_to_cpu(tlv->len);
-		tlv = (struct tlv *)((char *)(tlv) + le16_to_cpu(tlv->len));
 	}
 }
 
@@ -547,10 +552,13 @@ mt7925_mcu_rssi_monitor_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	tlv = (struct tlv *)skb->data;
 	tlv_len = skb->len;
 
-	while (tlv_len > 0 && le16_to_cpu(tlv->len) <= tlv_len) {
+	mt7925_for_each_tlv(tlv, tlv_len) {
 		switch (le16_to_cpu(tlv->tag)) {
 		case UNI_EVENT_RSSI_MONITOR_INFO:
-			event = (struct mt7925_uni_rssi_monitor_event *)skb->data;
+			if (le16_to_cpu(tlv->len) < sizeof(*event))
+				break;
+
+			event = (struct mt7925_uni_rssi_monitor_event *)tlv;
 			ieee80211_iterate_active_interfaces_atomic(dev->mt76.hw,
 								   IEEE80211_IFACE_ITER_RESUME_ALL,
 								   mt7925_mcu_rssi_monitor_iter,
@@ -559,8 +567,6 @@ mt7925_mcu_rssi_monitor_event(struct mt792x_dev *dev, struct sk_buff *skb)
 		default:
 			break;
 		}
-		tlv_len -= le16_to_cpu(tlv->len);
-		tlv = (struct tlv *)((char *)(tlv) + le16_to_cpu(tlv->len));
 	}
 }
 

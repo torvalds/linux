@@ -699,6 +699,25 @@ mt7925_mcu_get_cipher(int cipher)
 	}
 }
 
+static inline bool
+mt7925_mcu_tlv_valid(struct tlv *tlv, u32 rem)
+{
+	u16 len;
+
+	if (rem < sizeof(*tlv))
+		return false;
+
+	len = le16_to_cpu(tlv->len);
+
+	/* a length below the header size would not advance the cursor */
+	return len >= sizeof(*tlv) && len <= rem;
+}
+
+#define mt7925_for_each_tlv(tlv, rem)					\
+	for (; mt7925_mcu_tlv_valid(tlv, rem);				\
+	     (rem) -= le16_to_cpu((tlv)->len),				\
+	     (tlv) = (struct tlv *)((u8 *)(tlv) + le16_to_cpu((tlv)->len)))
+
 int mt7925_mcu_set_dbdc(struct mt76_phy *phy, bool enable);
 int mt7925_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_scan_request *scan_req);
