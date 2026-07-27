@@ -11,7 +11,7 @@ struct xfs_scrub;
 struct xchk_relax {
 	unsigned long	next_resched;
 	unsigned int	resched_nr;
-	bool		interruptible;
+	bool		killable;
 };
 
 /* Yield to the scheduler at most 10x per second. */
@@ -21,7 +21,7 @@ struct xchk_relax {
 	(struct xchk_relax){ \
 		.next_resched	= XCHK_RELAX_NEXT, \
 		.resched_nr	= 0, \
-		.interruptible	= true, \
+		.killable	= true, \
 	}
 
 /*
@@ -45,7 +45,7 @@ static inline int xchk_maybe_relax(struct xchk_relax *widget)
 		widget->next_resched = XCHK_RELAX_NEXT;
 	}
 
-	if (widget->interruptible && fatal_signal_pending(current))
+	if (widget->killable && fatal_signal_pending(current))
 		return -EINTR;
 
 	return 0;

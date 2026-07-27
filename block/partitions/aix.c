@@ -208,7 +208,14 @@ int aix_partition(struct parsed_partitions *state)
 		if (n) {
 			int foundlvs = 0;
 
-			for (i = 0; foundlvs < numlvs && i < state->limit; i += 1) {
+			/*
+			 * The lvd array was read as a single sector; only the
+			 * struct lvd entries that fit in it are valid.  Bound the
+			 * scan so an on-disk numlvs larger than that cannot walk
+			 * the read buffer out of bounds.
+			 */
+			for (i = 0; foundlvs < numlvs && i < state->limit &&
+				    i < SECTOR_SIZE / (int)sizeof(struct lvd); i++) {
 				lvip[i].pps_per_lv = be16_to_cpu(p[i].num_lps);
 				if (lvip[i].pps_per_lv)
 					foundlvs += 1;
