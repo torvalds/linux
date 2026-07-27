@@ -7432,9 +7432,6 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	if (!chip->support_rnr)
 		hw->wiphy->flags |= WIPHY_FLAG_SPLIT_SCAN_6GHZ;
 
-	if (chip->chip_gen == RTW89_CHIP_BE)
-		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
-
 	if (rtwdev->support_mlo) {
 		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
 		hw->wiphy->iftype_ext_capab = rtw89_iftypes_ext_capa;

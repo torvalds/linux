@@ -3792,7 +3792,8 @@ static void print_regdomain(const struct ieee80211_regdomain *rd)
 		}
 	}
 
-	pr_debug(" DFS Master region: %s", reg_dfs_region_str(rd->dfs_region));
+	pr_debug(" DFS Master region: %s\n",
+		 reg_dfs_region_str(rd->dfs_region));
 	print_rd_rules(rd);
 }
 

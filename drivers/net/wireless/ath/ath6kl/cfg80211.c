@@ -3437,7 +3437,7 @@ ath6kl_mgmt_stypes[NUM_NL80211_IFTYPES] = {
 	},
 };
 
-static struct cfg80211_ops ath6kl_cfg80211_ops = {
+static const struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.add_virtual_intf = ath6kl_cfg80211_add_iface,
 	.del_virtual_intf = ath6kl_cfg80211_del_iface,
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,

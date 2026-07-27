@@ -36,7 +36,7 @@ static struct usb_driver p54u_driver;
  * Note:
  *
  * Always update our wiki's device list (located at:
- * http://wireless.wiki.kernel.org/en/users/Drivers/p54/devices ),
+ * https://wireless.docs.kernel.org/en/latest/en/users/drivers/p54/devices.html ),
  * whenever you add a new device.
  */
 

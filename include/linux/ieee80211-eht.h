@@ -481,6 +481,7 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP		0x0100
 #define IEEE80211_MLC_BASIC_PRES_MLD_ID			0x0200
 #define IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP	0x0400
+#define IEEE80211_MLC_BASIC_PRES_ENH_CRIT_UPD		0x0800
 
 #define IEEE80211_MED_SYNC_DELAY_DURATION		0x00ff
 #define IEEE80211_MED_SYNC_DELAY_SYNC_OFDM_ED_THRESH	0x0f00
@@ -810,6 +811,49 @@ static inline u16 ieee80211_mle_get_ext_mld_capa_op(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_enh_crit_upd_info - returns the enhanced critical
+ *	updates information
+ * @data: pointer to the multi-link element
+ * Return: the enhanced critical updates information field, or %NULL
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ */
+static inline const struct ieee80211_enh_crit_upd *
+ieee80211_mle_get_enh_crit_upd_info(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/*
+	 * common points now at the beginning of
+	 * ieee80211_mle_basic_common_info
+	 */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_ENH_CRIT_UPD))
+		return NULL;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_EML_CAPA)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP)
+		common += 2;
+
+	return (const void *)common;
+}
+
+/**
  * ieee80211_mle_get_mld_id - returns the MLD ID
  * @data: pointer to the multi-link element
  * Return: The MLD ID in the given multi-link element, or 0 if not present
@@ -882,6 +926,8 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 			common += 1;
 		if (control & IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP)
 			common += 2;
+		if (control & IEEE80211_MLC_BASIC_PRES_ENH_CRIT_UPD)
+			common += 1;
 		break;
 	case IEEE80211_ML_CONTROL_TYPE_PREQ:
 		common += sizeof(struct ieee80211_mle_preq_common_info);
@@ -955,6 +1001,8 @@ enum ieee80211_mle_subelems {
 #define IEEE80211_MLE_STA_CONTROL_NSTR_LINK_PAIR_PRESENT	0x0200
 #define IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE		0x0400
 #define IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT	0x0800
+#define IEEE80211_MLE_STA_CONTROL_ENH_CRIT_UPD_PRESENT		0x1000
+#define IEEE80211_MLE_STA_CONTROL_AP_CONDUCTED_TX_PWR_PRESENT	0x2000
 
 struct ieee80211_mle_per_sta_profile {
 	__le16 control;
@@ -1000,6 +1048,12 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 	if (control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT)
 		info_len += 1;
 
+	if (control & IEEE80211_MLE_STA_CONTROL_ENH_CRIT_UPD_PRESENT)
+		info_len += 1;
+
+	if (control & IEEE80211_MLE_STA_CONTROL_AP_CONDUCTED_TX_PWR_PRESENT)
+		info_len += 1;
+
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len - 1 <= len;
 }
@@ -1038,6 +1092,44 @@ ieee80211_mle_basic_sta_prof_bss_param_ch_cnt(const struct ieee80211_mle_per_sta
 	}
 
 	return *pos;
+}
+
+/**
+ * ieee80211_mle_basic_sta_prof_enh_crit_upd - get per-STA profile enhanced
+ *	critical updates field
+ * @prof: the per-STA profile, having been checked with
+ *	ieee80211_mle_basic_sta_prof_size_ok() for the correct length
+ *
+ * Return: The enhanced critical updates field if present, %NULL otherwise.
+ */
+static inline const struct ieee80211_enh_crit_upd *
+ieee80211_mle_basic_sta_prof_enh_crit_upd(const struct ieee80211_mle_per_sta_profile *prof)
+{
+	u16 control = le16_to_cpu(prof->control);
+	const u8 *pos = prof->variable;
+
+	if (!(control & IEEE80211_MLE_STA_CONTROL_ENH_CRIT_UPD_PRESENT))
+		return NULL;
+
+	if (control & IEEE80211_MLE_STA_CONTROL_STA_MAC_ADDR_PRESENT)
+		pos += 6;
+	if (control & IEEE80211_MLE_STA_CONTROL_BEACON_INT_PRESENT)
+		pos += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_TSF_OFFS_PRESENT)
+		pos += 8;
+	if (control & IEEE80211_MLE_STA_CONTROL_DTIM_INFO_PRESENT)
+		pos += 2;
+	if (control & IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE &&
+	    control & IEEE80211_MLE_STA_CONTROL_NSTR_LINK_PAIR_PRESENT) {
+		if (control & IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE)
+			pos += 2;
+		else
+			pos += 1;
+	}
+	if (control & IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT)
+		pos += 1;
+
+	return (const void *)pos;
 }
 
 #define IEEE80211_MLE_STA_RECONF_CONTROL_LINK_ID			0x000f

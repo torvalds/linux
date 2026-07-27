@@ -454,8 +454,7 @@ static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
 				rejoin = true;
 			}
 
-			if (!pairwise && addr &&
-			    !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
+			if (!cfg80211_valid_key_idx(wdev, idx, pairwise, addr))
 				err = -ENOENT;
 			else
 				err = rdev_del_key(rdev, wdev, -1, idx, pairwise,

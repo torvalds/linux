@@ -557,6 +557,9 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;
 	}
 
+	if (tx->skb->protocol == htons(ETH_P_PREAUTH))
+		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+
 	return TX_CONTINUE;
 }
 
@@ -1309,10 +1312,17 @@ static struct txq_info *ieee80211_get_txq(struct ieee80211_local *local,
 	    (info->control.flags & IEEE80211_TX_CTRL_PS_RESPONSE))
 		return NULL;
 
+	/*
+	 * While (re)association request/response frames are not considered
+	 * bufferable MMPDUs, use the TXQ abstraction for the transmission of
+	 * these frames. This is specifically useful for drivers that might
+	 * associate other resources with the TXQ, e.g., encryption keys etc.
+	 */
 	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    unlikely(!ieee80211_is_data_present(hdr->frame_control))) {
 		if ((!ieee80211_is_mgmt(hdr->frame_control) ||
 		     ieee80211_is_bufferable_mmpdu(skb) ||
+		     ieee80211_is_assoc(hdr->frame_control) ||
 		     vif->type == NL80211_IFTYPE_STATION ||
 		     vif->type == NL80211_IFTYPE_NAN ||
 		     vif->type == NL80211_IFTYPE_NAN_DATA) &&
