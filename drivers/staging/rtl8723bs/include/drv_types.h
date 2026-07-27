@@ -389,6 +389,7 @@ struct adapter {
 static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 {
 	int	df = atomic_read(&adapter_to_dvobj(padapter)->disable_func);
+
 	df &= ~(func_bit);
 	atomic_set(&adapter_to_dvobj(padapter)->disable_func, df);
 }
