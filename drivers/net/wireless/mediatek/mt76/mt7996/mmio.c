@@ -490,6 +490,9 @@ int mt7996_mmio_wed_init(struct mt7996_dev *dev, void *pdev_ptr,
 	if (!wed_enable)
 		return 0;
 
+	if (hif2 && !mtk_wed_device_active(&dev->mt76.mmio.wed))
+		return 0;
+
 	dev->mt76.hwrro_mode = is_mt7996(&dev->mt76) ? MT76_HWRRO_V3
 						     : MT76_HWRRO_V3_1;
 
