@@ -384,6 +384,18 @@
 	status = "okay";
 };
 
+&pcie0 {
+	pinctrl-0 = <&pcie0_pins>;
+	pinctrl-names = "default";
+	num-lanes = <4>;
+	status = "okay";
+};
+
+&pcie_port0 {
+	clocks = <&versa3 5>;
+	clock-names = "ref";
+};
+
 &pinctrl {
 	eth0_pins: eth0 {
 		pins = "ET0_TXC_TXCLK";
@@ -428,6 +440,12 @@
 	i2c8_pins: i2c8 {
 		pinmux = <RZV2H_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
 			 <RZV2H_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
+	};
+
+	pcie0_pins: pcie0 {
+		pins = "PCIE0_RSTOUTB";
+		slew-rate = <0>;
+		renesas,output-impedance = <2>;
 	};
 
 	scif_pins: scif {
