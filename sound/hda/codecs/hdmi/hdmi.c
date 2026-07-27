@@ -1688,6 +1688,9 @@ int snd_hda_hdmi_generic_pcm_prepare(struct hda_pcm_stream *hinfo,
 		per_pin->channels = substream->runtime->channels;
 		per_pin->setup = true;
 
+		if (spec->ops.prepare)
+			spec->ops.prepare(codec, per_pin);
+
 		if (get_wcaps(codec, cvt_nid) & AC_WCAP_STRIPE) {
 			stripe = snd_hdac_get_stream_stripe_ctl(&codec->bus->core,
 								substream);

@@ -38,6 +38,25 @@ static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			return kvm_riscv_vcpu_mmio_store(vcpu, run,
 							 fault_addr,
 							 trap->htinst);
+		case EXC_INST_GUEST_PAGE_FAULT: {
+			/*
+			 * No memslot backs this GPA and an instruction fetch
+			 * cannot be emulated as MMIO. On bare metal a fetch
+			 * from an unbacked physical address raises an
+			 * instruction access fault, so reflect that back to
+			 * the guest.
+			 */
+			struct kvm_cpu_trap inst_trap = {
+				.sepc	= trap->sepc,
+				.scause	= EXC_INST_ACCESS,
+				.stval	= trap->stval,
+				.htval	= 0,
+				.htinst	= 0,
+			};
+
+			kvm_riscv_vcpu_trap_redirect(vcpu, &inst_trap);
+			return 1;
+		}
 		default:
 			return -EOPNOTSUPP;
 		};

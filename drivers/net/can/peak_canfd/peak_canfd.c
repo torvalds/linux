@@ -2,7 +2,7 @@
 /* Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
  *
  * Copyright (C) 2016-2025 PEAK System-Technik GmbH
- * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
+ * Author: Stéphane Grosjean <s.grosjean@peak-system.fr>
  */
 
 #include <linux/can.h>

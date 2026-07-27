@@ -653,6 +653,7 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 		gfp_t gfp_mask)
 {
 	unsigned long addr = (unsigned long) kbuf;
+	bool do_copy;
 	struct bio *bio;
 	int ret;
 
@@ -661,7 +662,8 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	if (!blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf))
+	do_copy = !blk_rq_aligned(rq->q, addr, len) || object_is_on_stack(kbuf);
+	if (do_copy)
 		bio = bio_copy_kern(rq, kbuf, len, gfp_mask);
 	else
 		bio = bio_map_kern(rq, kbuf, len, gfp_mask);
@@ -670,8 +672,11 @@ int blk_rq_map_kern(struct request *rq, void *kbuf, unsigned int len,
 		return PTR_ERR(bio);
 
 	ret = blk_rq_append_bio(rq, bio);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		if (do_copy)
+			bio_free_pages(bio);
 		blk_mq_map_bio_put(bio);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

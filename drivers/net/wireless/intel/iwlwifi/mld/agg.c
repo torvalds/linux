@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024-2026 Intel Corporation
  */
 #include "agg.h"
 #include "sta.h"
@@ -220,6 +220,11 @@ iwl_mld_reorder(struct iwl_mld *mld, struct napi_struct *napi,
 	 * have any BA sessions.
 	 */
 	if (baid == IWL_RX_REORDER_DATA_INVALID_BAID)
+		return IWL_MLD_PASS_SKB;
+
+	if (IWL_FW_CHECK(mld, baid >= ARRAY_SIZE(mld->fw_id_to_ba),
+			 "Got out-of-range BAID %u in reorder_data=0x%x\n",
+			 baid, reorder))
 		return IWL_MLD_PASS_SKB;
 
 	/* no sta yet */

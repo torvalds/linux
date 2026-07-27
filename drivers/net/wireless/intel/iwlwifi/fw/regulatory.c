@@ -389,7 +389,7 @@ bool iwl_add_mcc_to_tas_block_list(u16 *list, u8 *size, u16 mcc)
 	if (*size >= IWL_WTAS_BLACK_LIST_MAX)
 		return false;
 
-	list[*size++] = mcc;
+	list[(*size)++] = mcc;
 	return true;
 }
 IWL_EXPORT_SYMBOL(iwl_add_mcc_to_tas_block_list);
