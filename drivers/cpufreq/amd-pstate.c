@@ -106,6 +106,7 @@ static struct quirk_entry *quirks;
  *	3		balance_power
  *	4		power
  *	5		custom (for raw EPP values)
+ *	6		dynamic (platform profile driven selection)
  */
 enum energy_perf_value_index {
 	EPP_INDEX_DEFAULT = 0,
@@ -114,6 +115,7 @@ enum energy_perf_value_index {
 	EPP_INDEX_BALANCE_POWERSAVE,
 	EPP_INDEX_POWERSAVE,
 	EPP_INDEX_CUSTOM,
+	EPP_INDEX_DYNAMIC,
 	EPP_INDEX_MAX,
 };
 
@@ -124,6 +126,7 @@ static const char * const energy_perf_strings[] = {
 	[EPP_INDEX_BALANCE_POWERSAVE] = "balance_power",
 	[EPP_INDEX_POWERSAVE] = "power",
 	[EPP_INDEX_CUSTOM] = "custom",
+	[EPP_INDEX_DYNAMIC] = "dynamic",
 };
 static_assert(ARRAY_SIZE(energy_perf_strings) == EPP_INDEX_MAX);
 
@@ -134,7 +137,7 @@ static unsigned int epp_values[] = {
 	[EPP_INDEX_BALANCE_POWERSAVE] = AMD_CPPC_EPP_BALANCE_POWERSAVE,
 	[EPP_INDEX_POWERSAVE] = AMD_CPPC_EPP_POWERSAVE,
 };
-static_assert(ARRAY_SIZE(epp_values) == EPP_INDEX_MAX - 1);
+static_assert(ARRAY_SIZE(epp_values) == EPP_INDEX_MAX - 2);
 
 typedef int (*cppc_mode_transition_fn)(int);
 
@@ -1275,6 +1278,7 @@ EXPORT_SYMBOL_GPL(amd_pstate_clear_dynamic_epp);
 static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
+	u64 prev = READ_ONCE(cpudata->cppc_req_cached);
 	int ret;
 	u8 epp;
 
@@ -1315,6 +1319,9 @@ static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 cleanup:
 	amd_pstate_clear_dynamic_epp(policy);
 
+	epp = FIELD_GET(AMD_CPPC_EPP_PERF_MASK, prev);
+	/* Restore previous EPP if toggling Dynamic EPP failed. */
+	amd_pstate_set_epp(policy, epp);
 	return ret;
 }
 
@@ -1385,7 +1392,7 @@ static ssize_t show_amd_pstate_hw_prefcore(struct cpufreq_policy *policy,
 static ssize_t show_energy_performance_available_preferences(
 				struct cpufreq_policy *policy, char *buf)
 {
-	int offset = 0, i;
+	int i, offset = 0;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
@@ -1408,11 +1415,6 @@ ssize_t store_energy_performance_preference(struct cpufreq_policy *policy,
 	bool raw_epp = false;
 	u8 epp;
 
-	if (cpudata->dynamic_epp) {
-		pr_debug("EPP cannot be set when dynamic EPP is enabled\n");
-		return -EBUSY;
-	}
-
 	/*
 	 * if the value matches a number, use that, otherwise see if
 	 * matches an index in the energy_perf_strings array
@@ -1423,6 +1425,25 @@ ssize_t store_energy_performance_preference(struct cpufreq_policy *policy,
 		ret = sysfs_match_string(energy_perf_strings, buf);
 		if (ret < 0 || ret == EPP_INDEX_CUSTOM)
 			return -EINVAL;
+
+		if (ret == EPP_INDEX_DYNAMIC) {
+			if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
+				return -EBUSY;
+			/*
+			 * Dynamic EPP was already enabled for this CPU.
+			 * Nothing to do.
+			 */
+			if (cpudata->dynamic_epp)
+				return count;
+
+			cpudata->current_profile = PLATFORM_PROFILE_BALANCED;
+			ret = amd_pstate_set_dynamic_epp(policy);
+			if (ret)
+				return ret;
+
+			return count;
+		}
+
 		if (ret)
 			epp = epp_values[ret];
 		else
@@ -1433,6 +1454,13 @@ ssize_t store_energy_performance_preference(struct cpufreq_policy *policy,
 		pr_debug("EPP cannot be set under performance policy\n");
 		return -EBUSY;
 	}
+
+	/*
+	 * Dynamic EPP was enabled previously!
+	 * Switch back to the static EPP mode.
+	 */
+	if (cpudata->dynamic_epp)
+		amd_pstate_clear_dynamic_epp(policy);
 
 	ret = amd_pstate_set_epp(policy, epp);
 	if (ret)
@@ -1451,7 +1479,7 @@ ssize_t show_energy_performance_preference(struct cpufreq_policy *policy, char *
 
 	epp = FIELD_GET(AMD_CPPC_EPP_PERF_MASK, cpudata->cppc_req_cached);
 
-	if (cpudata->raw_epp)
+	if (!cpudata->dynamic_epp && cpudata->raw_epp)
 		return sysfs_emit(buf, "%u\n", epp);
 
 	switch (epp) {
@@ -1470,6 +1498,9 @@ ssize_t show_energy_performance_preference(struct cpufreq_policy *policy, char *
 	default:
 		return -EINVAL;
 	}
+
+	if (cpudata->dynamic_epp)
+		return sysfs_emit(buf, "dynamic(profile:%s)\n", energy_perf_strings[preference]);
 
 	return sysfs_emit(buf, "%s\n", energy_perf_strings[preference]);
 }
@@ -2030,6 +2061,18 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
+
+	/* Must be a switch between PERFORMANCE and POWERSAVE */
+	if (cpudata->policy != policy->policy) {
+		/*
+		 * Disable dynamic_epp when switching
+		 * out of CPUFREQ_POLICY_POWERSAVE.
+		 */
+		if (cpudata->dynamic_epp) {
+			WARN_ON_ONCE(cpudata->policy != CPUFREQ_POLICY_POWERSAVE);
+			amd_pstate_clear_dynamic_epp(policy);
+		}
+	}
 
 	cpudata->policy = policy->policy;
 
