@@ -523,6 +523,15 @@ amdgpu_userq_destroy(struct amdgpu_userq_mgr *uq_mgr, struct amdgpu_usermode_que
 	amdgpu_userq_cleanup(queue);
 	mutex_unlock(&uq_mgr->userq_mutex);
 
+	/*
+	 * A failed unmap means MES could not remove the hung queue and is now
+	 * unresponsive.  Recover the GPU here so the wedged MES does not fail
+	 * the next, unrelated queue submission and trigger a reset attributed
+	 * to an innocent workload.
+	 */
+	if (r)
+		queue_work(adev->reset_domain->wq, &uq_mgr->reset_work);
+
 	cancel_delayed_work_sync(&queue->hang_detect_work);
 	uq_funcs->mqd_destroy(queue);
 	queue->userq_mgr = NULL;
@@ -680,8 +689,8 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	/* Update VM owner at userq submit-time for page-fault attribution. */
 	amdgpu_vm_set_task_info(&fpriv->vm);
 
-	r = xa_err(xa_store_irq(&adev->userq_doorbell_xa, index, queue,
-				GFP_KERNEL));
+	r = xa_insert_irq(&adev->userq_doorbell_xa, index, queue,
+			  GFP_KERNEL);
 	if (r)
 		goto clean_mqd;
 

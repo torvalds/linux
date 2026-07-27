@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/pnp.h>
 #include <linux/console.h>
 
 #define PNP_NAME_LEN		50

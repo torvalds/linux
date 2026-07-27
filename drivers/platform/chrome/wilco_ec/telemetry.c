@@ -30,7 +30,6 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/wilco-ec.h>
 #include <linux/platform_device.h>

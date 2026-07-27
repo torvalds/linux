@@ -714,6 +714,26 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 	}
 
 	sc_xarray_element->rx_sc = rx_sc;
+
+	rx_sc->md_dst = metadata_dst_alloc(0, METADATA_MACSEC, GFP_KERNEL);
+	if (!rx_sc->md_dst) {
+		err = -ENOMEM;
+		goto destroy_sc_xarray_elemenet;
+	}
+
+	rx_sc->sci = ctx_rx_sc->sci;
+	rx_sc->active = ctx_rx_sc->active;
+	rx_sc->sc_xarray_element = sc_xarray_element;
+	rx_sc->md_dst->u.macsec_info.sci = rx_sc->sci;
+
+	/*
+	 * Publish the fully-initialised SC last: xa_alloc() makes
+	 * sc_xarray_element->rx_sc (and rx_sc->md_dst) reachable from the RX
+	 * datapath via xa_load().  Doing it only after md_dst is allocated and
+	 * initialised pairs with the rcu_read_lock()/xa_load() in
+	 * mlx5e_macsec_offload_handle_rx_skb(), so a reader can never observe
+	 * a non-NULL md_dst with uninitialised contents.
+	 */
 	err = xa_alloc(&macsec->sc_xarray, &sc_xarray_element->fs_id, sc_xarray_element,
 		       XA_LIMIT(1, MLX5_MACEC_RX_FS_ID_MAX), GFP_KERNEL);
 	if (err) {
@@ -721,27 +741,16 @@ static int mlx5e_macsec_add_rxsc(struct macsec_context *ctx)
 			netdev_err(ctx->netdev,
 				   "MACsec offload: unable to create entry for RX SC (%d Rx SCs already allocated)\n",
 				   MLX5_MACEC_RX_FS_ID_MAX);
-		goto destroy_sc_xarray_elemenet;
+		goto destroy_md_dst;
 	}
 
-	rx_sc->md_dst = metadata_dst_alloc(0, METADATA_MACSEC, GFP_KERNEL);
-	if (!rx_sc->md_dst) {
-		err = -ENOMEM;
-		goto erase_xa_alloc;
-	}
-
-	rx_sc->sci = ctx_rx_sc->sci;
-	rx_sc->active = ctx_rx_sc->active;
 	list_add_rcu(&rx_sc->rx_sc_list_element, rx_sc_list);
-
-	rx_sc->sc_xarray_element = sc_xarray_element;
-	rx_sc->md_dst->u.macsec_info.sci = rx_sc->sci;
 	mutex_unlock(&macsec->lock);
 
 	return 0;
 
-erase_xa_alloc:
-	xa_erase(&macsec->sc_xarray, sc_xarray_element->fs_id);
+destroy_md_dst:
+	dst_release(&rx_sc->md_dst->dst);
 destroy_sc_xarray_elemenet:
 	kfree(sc_xarray_element);
 destroy_rx_sc:
@@ -829,7 +838,7 @@ static void macsec_del_rxsc_ctx(struct mlx5e_macsec *macsec, struct mlx5e_macsec
 	 */
 	list_del_rcu(&rx_sc->rx_sc_list_element);
 	xa_erase(&macsec->sc_xarray, rx_sc->sc_xarray_element->fs_id);
-	metadata_dst_free(rx_sc->md_dst);
+	dst_release(&rx_sc->md_dst->dst);
 	kfree(rx_sc->sc_xarray_element);
 	kfree_rcu_mightsleep(rx_sc);
 }
@@ -1695,10 +1704,10 @@ void mlx5e_macsec_offload_handle_rx_skb(struct net_device *netdev,
 
 	rcu_read_lock();
 	sc_xarray_element = xa_load(&macsec->sc_xarray, fs_id);
-	rx_sc = sc_xarray_element->rx_sc;
-	if (rx_sc) {
-		dst_hold(&rx_sc->md_dst->dst);
-		skb_dst_set(skb, &rx_sc->md_dst->dst);
+	rx_sc = sc_xarray_element ? sc_xarray_element->rx_sc : NULL;
+	if (rx_sc && rx_sc->md_dst) {
+		if (dst_hold_safe(&rx_sc->md_dst->dst))
+			skb_dst_set(skb, &rx_sc->md_dst->dst);
 	}
 
 	rcu_read_unlock();

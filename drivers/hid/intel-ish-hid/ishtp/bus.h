@@ -8,7 +8,7 @@
 #define _LINUX_ISHTP_CL_BUS_H
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ishtp.h>
 #include <linux/intel-ish-client-if.h>
 
 struct ishtp_cl;

@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/kconfig.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/i3c.h>
 #include <linux/module.h>
 
 /**

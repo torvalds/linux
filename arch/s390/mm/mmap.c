@@ -64,7 +64,7 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
 
-static int get_align_mask(struct file *filp, unsigned long flags)
+static unsigned long get_align_mask(struct file *filp, unsigned long flags)
 {
 	if (filp && is_file_hugepages(filp))
 		return huge_page_mask_align(filp);

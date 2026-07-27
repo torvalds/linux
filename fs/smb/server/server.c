@@ -199,6 +199,12 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 				else
 					conn->ops->set_rsp_status(work,
 						STATUS_USER_SESSION_DELETED);
+				if (conn->ops->is_sign_req(work, conn->ops->get_cmd_val(work))) {
+					struct smb2_hdr *rsp_hdr;
+
+					rsp_hdr = ksmbd_resp_buf_curr(work);
+					rsp_hdr->Flags |= SMB2_FLAGS_SIGNED;
+				}
 				goto send;
 			} else if (rc > 0) {
 				rc = conn->ops->get_ksmbd_tcon(work);
@@ -237,11 +243,31 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 
 		if (work->sess &&
 		    (work->sess->sign || smb3_11_final_sess_setup_resp(work) ||
-		     conn->ops->is_sign_req(work, command)))
-			conn->ops->set_sign_rsp(work);
+		     conn->ops->is_sign_req(work, command))) {
+			if (command == SMB2_SESSION_SETUP_HE &&
+			    work->sess->dialect >= SMB30_PROT_ID &&
+			    conn->dialect < SMB30_PROT_ID)
+				smb3_set_sign_rsp(work);
+			else
+				conn->ops->set_sign_rsp(work);
+		}
 	} while (is_chained == true);
 
 send:
+	/*
+	 * Release any credit charge still outstanding for this request.  On
+	 * the normal path smb2_set_rsp_credits() already returned it, but the
+	 * abort, error and send-no-response paths skip that call, so the
+	 * charge would otherwise leak and eventually exhaust the connection's
+	 * outstanding credit window.
+	 */
+	if (work->credit_charge) {
+		spin_lock(&conn->credits_lock);
+		conn->outstanding_credits -= work->credit_charge;
+		work->credit_charge = 0;
+		spin_unlock(&conn->credits_lock);
+	}
+
 	if (work->tcon)
 		ksmbd_tree_connect_put(work->tcon);
 	smb3_preauth_hash_rsp(work);

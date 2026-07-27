@@ -52,7 +52,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/power_supply.h>
 
 #include "adc-battery-helper.h"

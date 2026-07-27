@@ -14,7 +14,6 @@
 #include <linux/string_choices.h>
 #include <linux/sysfs.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>

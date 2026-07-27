@@ -20,7 +20,6 @@
 #include <linux/kstrtox.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/seq_file.h>

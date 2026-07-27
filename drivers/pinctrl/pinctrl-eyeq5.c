@@ -25,7 +25,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>

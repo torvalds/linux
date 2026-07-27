@@ -164,7 +164,7 @@ struct vcap_admin {
 	struct list_head list; /* for insertion in vcap_control */
 	struct list_head rules; /* list of rules */
 	struct list_head enabled; /* list of enabled ports */
-	struct mutex lock; /* control access to rules */
+	struct vcap_control *vctrl; /* the control instance owning this vcap */
 	enum vcap_type vtype;  /* type of vcap */
 	int vinst; /* instance number within the same type */
 	int first_cid; /* first chain id in this vcap */
@@ -275,6 +275,7 @@ struct vcap_control {
 	const struct vcap_info *vcaps; /* client supplied vcap models */
 	const struct vcap_statistics *stats; /* client supplied vcap stats */
 	struct list_head list; /* list of vcap instances */
+	struct mutex lock; /* serialize access to all vcap instances */
 };
 
 #endif /* __VCAP_API__ */

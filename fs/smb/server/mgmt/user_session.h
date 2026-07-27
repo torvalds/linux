@@ -19,6 +19,7 @@
 struct ksmbd_file_table;
 
 struct channel {
+	char			sess_key[SMB2_NTLMV2_SESSKEY_SIZE];
 	__u8			smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	struct ksmbd_conn	*conn;
 };

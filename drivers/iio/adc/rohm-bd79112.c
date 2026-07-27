@@ -14,7 +14,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>

@@ -18,7 +18,6 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>

@@ -3,7 +3,6 @@
 #include <linux/array_size.h>
 #include <linux/dmi.h>
 #include <linux/export.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_utils.h>

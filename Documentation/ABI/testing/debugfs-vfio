@@ -29,3 +29,29 @@ Date:		Oct 2025
 KernelVersion:	6.18
 Contact:	Cédric Le Goater <clg@redhat.com>
 Description:	Read the migration features of the vfio device.
+
+What:		/sys/kernel/debug/vfio/<device>/pci
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alex Williamson <alex.williamson@nvidia.com>
+Description:	This debugfs file directory is used for debugging
+		VFIO PCI devices.
+
+What:		/sys/kernel/debug/vfio/<device>/pci/nointxmask
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alex Williamson <alex.williamson@nvidia.com>
+Description:	Read the nointxmask policy latched for this device.  This
+		policy governs whether the device may use PCI 2.3 style
+		INTx masking when supported, reporting a value of "N", or
+		requires APIC level INTx masking, reporting a value of "Y".
+
+What:		/sys/kernel/debug/vfio/<device>/pci/disable_idle_d3
+Date:		June 2026
+KernelVersion:	7.2
+Contact:	Alex Williamson <alex.williamson@nvidia.com>
+Description:	Read the disable_idle_d3 policy latched for this device.  This
+		policy governs whether the device PM runtime usage count is
+		kept elevated while the device is bound to the driver and
+		unused, reporting a value of "Y", or decremented to allow the
+		device to enter a low power state, reporting a value of "N".

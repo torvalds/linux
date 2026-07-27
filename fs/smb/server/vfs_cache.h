@@ -105,6 +105,7 @@ struct ksmbd_file {
 	__u64				change_time;
 	__u64				allocation_size;
 	__u64				itime;
+	__u64				open_mtime;
 
 	bool				is_nt_open;
 	bool				attrib_only;

@@ -309,7 +309,9 @@ static void analogix_dp_get_adjust_training_lane(struct analogix_dp_device *dp,
 	lane_count = dp->link_train.lane_count;
 	for (lane = 0; lane < lane_count; lane++) {
 		voltage_swing = drm_dp_get_adjust_request_voltage(link_status, lane);
+		voltage_swing >>= DP_TRAIN_VOLTAGE_SWING_SHIFT;
 		pre_emphasis = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
+		pre_emphasis >>= DP_TRAIN_PRE_EMPHASIS_SHIFT;
 		training_lane = DPCD_VOLTAGE_SWING_SET(voltage_swing) |
 				DPCD_PRE_EMPHASIS_SET(pre_emphasis);
 
@@ -355,7 +357,9 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	for (lane = 0; lane < lane_count; lane++) {
 		training_lane = analogix_dp_get_lane_link_training(dp, lane);
 		voltage_swing = drm_dp_get_adjust_request_voltage(link_status, lane);
+		voltage_swing >>= DP_TRAIN_VOLTAGE_SWING_SHIFT;
 		pre_emphasis = drm_dp_get_adjust_request_pre_emphasis(link_status, lane);
+		pre_emphasis >>= DP_TRAIN_PRE_EMPHASIS_SHIFT;
 
 		if (DPCD_VOLTAGE_SWING_GET(training_lane) == voltage_swing &&
 		    DPCD_PRE_EMPHASIS_GET(training_lane) == pre_emphasis)

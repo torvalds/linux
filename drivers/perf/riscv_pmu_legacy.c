@@ -8,7 +8,6 @@
  * which are in turn based on sparc64 and x86 code.
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/perf/riscv_pmu.h>
 #include <linux/platform_device.h>
 
