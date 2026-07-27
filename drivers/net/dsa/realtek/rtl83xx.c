@@ -160,7 +160,10 @@ rtl83xx_probe(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_init(&priv->vlan_lock);
+	ret = devm_mutex_init(dev, &priv->vlan_lock);
+	if (ret)
+		return ERR_PTR(ret);
+
 	mutex_init(&priv->l2_lock);
 
 	rc.lock_arg = priv;
