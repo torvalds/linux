@@ -379,11 +379,7 @@ static int ak8974_getresult(struct ak8974 *ak8974, __le16 *result)
 		return -ERANGE;
 	}
 
-	ret = regmap_bulk_read(ak8974->map, AK8974_DATA_X, result, 6);
-	if (ret)
-		return ret;
-
-	return ret;
+	return regmap_bulk_read(ak8974->map, AK8974_DATA_X, result, 6);
 }
 
 static irqreturn_t ak8974_drdy_irq(int irq, void *d)
