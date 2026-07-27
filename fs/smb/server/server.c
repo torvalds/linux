@@ -199,6 +199,12 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 				else
 					conn->ops->set_rsp_status(work,
 						STATUS_USER_SESSION_DELETED);
+				if (conn->ops->is_sign_req(work, conn->ops->get_cmd_val(work))) {
+					struct smb2_hdr *rsp_hdr;
+
+					rsp_hdr = ksmbd_resp_buf_curr(work);
+					rsp_hdr->Flags |= SMB2_FLAGS_SIGNED;
+				}
 				goto send;
 			} else if (rc > 0) {
 				rc = conn->ops->get_ksmbd_tcon(work);
@@ -237,8 +243,14 @@ static void __handle_ksmbd_work(struct ksmbd_work *work,
 
 		if (work->sess &&
 		    (work->sess->sign || smb3_11_final_sess_setup_resp(work) ||
-		     conn->ops->is_sign_req(work, command)))
-			conn->ops->set_sign_rsp(work);
+		     conn->ops->is_sign_req(work, command))) {
+			if (command == SMB2_SESSION_SETUP_HE &&
+			    work->sess->dialect >= SMB30_PROT_ID &&
+			    conn->dialect < SMB30_PROT_ID)
+				smb3_set_sign_rsp(work);
+			else
+				conn->ops->set_sign_rsp(work);
+		}
 	} while (is_chained == true);
 
 send:

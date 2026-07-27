@@ -289,6 +289,7 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 	int ret;
 	const char *comp = NULL;
 	u32 inode_flags;
+	bool prop_set = false;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
@@ -401,16 +402,15 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 	if (comp) {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression",
 				     comp, strlen(comp), 0);
-		if (unlikely(ret)) {
-			btrfs_abort_transaction(trans, ret);
+		if (ret)
 			goto out_end_trans;
-		}
+		prop_set = true;
 	} else {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression", NULL, 0, 0);
-		if (unlikely(ret && ret != -ENODATA)) {
-			btrfs_abort_transaction(trans, ret);
+		prop_set = (ret == 0);
+		/* If ret == -ENODATA ignore and proceed to update inode item. */
+		if (ret && ret != -ENODATA)
 			goto out_end_trans;
-		}
 	}
 
 update_flags:
@@ -420,6 +420,12 @@ update_flags:
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_set_ctime_current(&inode->vfs_inode);
 	ret = btrfs_update_inode(trans, inode);
+	/*
+	 * If we set a property or deleted one, we must abort if we fail to
+	 * update the inode, to avoid persisting an inconsistent state.
+	 */
+	if (unlikely(ret && prop_set))
+		btrfs_abort_transaction(trans, ret);
 
  out_end_trans:
 	btrfs_end_transaction(trans);

@@ -127,14 +127,24 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
 		return ret;
 	}
 
+	ret = handler->validate(inode, value, value_len);
+	if (ret)
+		return ret;
 	ret = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, value,
 			     value_len, flags);
 	if (ret)
 		return ret;
 	ret = handler->apply(inode, value, value_len);
-	if (ret) {
-		btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, NULL,
-			       0, flags);
+	/* We validated before, so it should not fail here. */
+	ASSERT(ret == 0);
+	if (unlikely(ret)) {
+		int ret2;
+
+		/* Try to delete xattr, if not possible abort transaction. */
+		ret2 = btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name,
+				      NULL, 0, flags);
+		if (unlikely(ret2))
+			btrfs_abort_transaction(trans, ret2);
 		return ret;
 	}
 

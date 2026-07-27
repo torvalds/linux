@@ -754,12 +754,10 @@ static void amd_pmu_enable_event(struct perf_event *event)
 	x86_pmu_enable_event(event);
 }
 
-static void amd_pmu_enable_all(int added)
+static void __amd_pmu_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int idx;
-
-	amd_brs_enable_all();
 
 	for_each_set_bit(idx, x86_pmu.cntr_mask, X86_PMC_IDX_MAX) {
 		/* only activate events which are marked as active */
@@ -773,6 +771,12 @@ static void amd_pmu_enable_all(int added)
 		if (cpuc->events[idx])
 			amd_pmu_enable_event(cpuc->events[idx]);
 	}
+}
+
+static void amd_pmu_enable_all(int added)
+{
+	amd_brs_enable_all();
+	__amd_pmu_enable_all();
 }
 
 static void amd_pmu_v2_enable_event(struct perf_event *event)
@@ -1561,7 +1565,7 @@ static inline void amd_pmu_reload_virt(void)
 		 * set global enable bits once again
 		 */
 		amd_pmu_v2_disable_all();
-		amd_pmu_enable_all(0);
+		__amd_pmu_enable_all();
 		amd_pmu_v2_enable_all(0);
 		return;
 	}
