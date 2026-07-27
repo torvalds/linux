@@ -189,6 +189,7 @@ config EROFS_FS_PCPU_KTHREAD_HIPRI
 config EROFS_FS_PAGE_CACHE_SHARE
 	bool "EROFS page cache share support (experimental)"
 	depends on EROFS_FS && EROFS_FS_XATTR
+	select FS_STACK
 	help
 	  This enables page cache sharing among inodes with identical
 	  content fingerprints on the same machine.
