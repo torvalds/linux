@@ -909,8 +909,7 @@ static int max17042_init_chip(struct max17042_chip *chip)
 	}
 
 	/* Init complete, Clear the POR bit */
-	regmap_update_bits(map, MAX17042_STATUS, STATUS_POR_BIT, 0x0);
-	return 0;
+	return regmap_clear_bits(map, MAX17042_STATUS, STATUS_POR_BIT);
 }
 
 static void max17042_set_soc_threshold(struct max17042_chip *chip, u16 off)
@@ -1253,7 +1252,10 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 
 	chip->irq = irq;
 
-	regmap_read(chip->regmap, MAX17042_STATUS, &val);
+	ret = regmap_read(chip->regmap, MAX17042_STATUS, &val);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to read status\n");
+
 	if (val & STATUS_POR_BIT) {
 		ret = devm_delayed_work_autocancel(dev, &chip->work,
 						   max17042_init_worker);
