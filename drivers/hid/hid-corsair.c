@@ -545,6 +545,7 @@ static void k90_cleanup_macro_functions(struct hid_device *dev)
 		kfree(k90->record_led.cdev.name);
 
 		kfree(k90);
+		drvdata->k90 = NULL;
 	}
 }
 
@@ -596,10 +597,10 @@ static int corsair_probe(struct hid_device *dev, const struct hid_device_id *id)
 
 static void corsair_remove(struct hid_device *dev)
 {
+	hid_hw_stop(dev);
+
 	k90_cleanup_macro_functions(dev);
 	k90_cleanup_backlight(dev);
-
-	hid_hw_stop(dev);
 }
 
 static int corsair_event(struct hid_device *dev, struct hid_field *field,
