@@ -171,23 +171,10 @@ static ssize_t airtime_flags_write(struct file *file,
 				   size_t count, loff_t *ppos)
 {
 	struct ieee80211_local *local = file->private_data;
-	char buf[16];
+	int ret;
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	if (count && buf[count - 1] == '\n')
-		buf[count - 1] = '\0';
-	else
-		buf[count] = '\0';
-
-	if (kstrtou16(buf, 0, &local->airtime_flags))
-		return -EINVAL;
-
-	return count;
+	ret = kstrtou16_from_user(user_buf, count, 0, &local->airtime_flags);
+	return ret ? : count;
 }
 
 static const struct debugfs_short_fops airtime_flags_ops = {
