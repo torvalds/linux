@@ -63,6 +63,8 @@
 #define MAX17042_RESISTANCE_LSB		1 / 4096 /* Ω */
 #define MAX17042_TEMPERATURE_LSB	1 / 256 /* °C */
 
+#define MAX17055_DPACC_FACTOR		44138
+#define MAX17055_DPACC_VCHG_FACTOR	51200
 #define MAX17055_INIT_RETRY_DELAY_MS	10000
 
 struct max17042_chip {
@@ -569,6 +571,24 @@ static int max17042_write_verify_reg(struct regmap *map, u8 reg, u32 value)
 	return ret;
 }
 
+static int max17055_write_verify_reg(struct regmap *map, u8 reg, u32 value)
+{
+	u32 read_value;
+	int ret;
+
+	ret = regmap_write(map, reg, value);
+	if (ret)
+		return ret;
+
+	usleep_range(1000, 2000);
+
+	ret = regmap_read(map, reg, &read_value);
+	if (ret)
+		return ret;
+
+	return read_value == value ? 0 : -EIO;
+}
+
 static inline void max17042_override_por(struct regmap *map,
 					 u8 reg, u16 value)
 {
@@ -804,8 +824,12 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 	max17042_override_por(map, MAX17042_CONFIG, config->config);
 	max17042_override_por(map, MAX17042_SHDNTIMER, config->shdntimer);
 
-	max17042_override_por(map, MAX17042_DesignCap, config->design_cap);
-	max17042_override_por(map, MAX17042_ICHGTerm, config->ichgt_term);
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
+		max17042_override_por(map, MAX17042_DesignCap,
+				      config->design_cap);
+		max17042_override_por(map, MAX17042_ICHGTerm,
+				      config->ichgt_term);
+	}
 
 	max17042_override_por(map, MAX17042_AtRate, config->at_rate);
 	max17042_override_por(map, MAX17042_LearnCFG, config->learn_cfg);
@@ -815,8 +839,10 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 
 	max17042_override_por(map, MAX17042_FullCAP, config->fullcap);
 	max17042_override_por(map, MAX17042_FullCAPNom, config->fullcapnom);
-	max17042_override_por(map, MAX17042_dQacc, config->dqacc);
-	max17042_override_por(map, MAX17042_dPacc, config->dpacc);
+	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
+		max17042_override_por(map, MAX17042_dQacc, config->dqacc);
+		max17042_override_por(map, MAX17042_dPacc, config->dpacc);
+	}
 
 	max17042_override_por(map, MAX17042_RCOMP0, config->rcomp0);
 	max17042_override_por(map, MAX17042_TempCo, config->tcompc0);
@@ -850,9 +876,74 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 		max17042_override_por(map, MAX17055_ModelCfg, config->model_cfg);
 }
 
+static int max17055_override_battery_values(struct max17042_chip *chip)
+{
+	struct max17042_config_data *config = chip->config_data;
+	struct regmap *map = chip->regmap;
+	unsigned int design_cap;
+	unsigned int model_cfg;
+	unsigned int dqacc;
+	u64 dpacc;
+	int ret;
+
+	if (config->design_cap) {
+		ret = max17055_write_verify_reg(map, MAX17042_DesignCap,
+						config->design_cap);
+		if (ret)
+			return ret;
+	}
+
+	if (config->dqacc) {
+		ret = max17055_write_verify_reg(map, MAX17042_dQacc,
+						config->dqacc);
+		if (ret)
+			return ret;
+	}
+
+	if (config->ichgt_term) {
+		ret = max17055_write_verify_reg(map, MAX17042_ICHGTerm,
+						config->ichgt_term);
+		if (ret)
+			return ret;
+	}
+
+	if (!config->design_cap && !config->dqacc)
+		return 0;
+
+	ret = regmap_read(map, MAX17042_DesignCap, &design_cap);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17042_dQacc, &dqacc);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17055_ModelCfg, &model_cfg);
+	if (ret)
+		return ret;
+
+	if (!design_cap || !dqacc)
+		return -ERANGE;
+
+	dpacc = (u64)dqacc *
+		(model_cfg & MAX17055_MODELCFG_VCHG_BIT ?
+		 MAX17055_DPACC_VCHG_FACTOR : MAX17055_DPACC_FACTOR);
+	do_div(dpacc, design_cap);
+	if (dpacc > U16_MAX)
+		return -ERANGE;
+
+	return max17055_write_verify_reg(map, MAX17042_dPacc, (u16)dpacc);
+}
+
 static int max17055_init_chip(struct max17042_chip *chip)
 {
+	int ret;
+
 	max17042_override_por_values(chip);
+
+	ret = max17055_override_battery_values(chip);
+	if (ret)
+		return ret;
 
 	return regmap_write_bits(chip->regmap, MAX17055_ModelCfg,
 				 MAX17055_MODELCFG_REFRESH_BIT,
