@@ -9219,11 +9219,7 @@ void scx_kick_cpu(struct scx_sched *sch, s32 cpu, u64 flags)
 	 * not mask NMIs, so kicking from NMI could corrupt it and is unsupported.
 	 */
 	if (unlikely(in_nmi())) {
-		if (!sch->warned_nmi_kick) {
-			sch->warned_nmi_kick = true;
-			pr_warn("sched_ext: %s: scx_bpf_kick_cpu() from NMI ignored\n",
-				sch->ops.name);
-		}
+		scx_error(sch, "scx_bpf_kick_cpu() called from NMI");
 		return;
 	}
 
