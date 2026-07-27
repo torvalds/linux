@@ -2064,6 +2064,9 @@ static inline void mark_obj_codetag_empty(const void *obj)
 	struct slab *obj_slab;
 	unsigned long slab_exts;
 
+	if (!slab_obj_ext_has_codetag())
+		return;
+
 	if (is_kfence_address(obj))
 		return;
 
@@ -2098,6 +2101,9 @@ static inline void handle_failed_objexts_alloc(struct slab *slab,
 		unsigned long obj_exts, struct slabobj_ext *vec)
 {
 	unsigned int stride;
+
+	if (!slab_obj_ext_has_codetag())
+		return;
 
 	/*
 	 * If vector previously failed to allocate then we have live
