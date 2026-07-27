@@ -730,7 +730,11 @@ slab_obj_ext(struct kmem_cache *s, struct slab *slab, unsigned long obj_exts,
 
 	VM_WARN_ON_ONCE(obj_exts != slab_obj_exts(slab));
 
-	index = obj_to_index(s, slab, obj);
+	/*
+	 * KFENCE objects have NULL obj_exts and thus can't reach this
+	 * and we don't need obj_to_index()
+	 */
+	index = __obj_to_index(s, slab_address(slab), obj);
 
 	if (!obj_exts_in_object(slab))
 		stride = slab_obj_ext_size(slab);

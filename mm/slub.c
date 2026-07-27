@@ -2067,9 +2067,6 @@ static inline void mark_obj_codetag_empty(const void *obj)
 	if (!slab_obj_ext_has_codetag())
 		return;
 
-	if (is_kfence_address(obj))
-		return;
-
 	obj_slab = virt_to_slab(obj);
 	slab_exts = slab_obj_exts(obj_slab);
 	if (slab_exts) {
@@ -2332,11 +2329,15 @@ static inline unsigned long
 prepare_slab_obj_exts_hook(struct kmem_cache *s, struct slab *slab,
 			   gfp_t flags, unsigned int alloc_flags, void *p)
 {
-	if (!slab_obj_exts(slab) &&
-	    alloc_slab_obj_exts(slab, s, flags, alloc_flags)) {
-		pr_warn_once("%s, %s: Failed to create slab extension vector!\n",
-			     __func__, s->name);
-		return 0;
+	if (!slab_obj_exts(slab)) {
+		if (is_kfence_address(p))
+			return 0;
+
+		if (alloc_slab_obj_exts(slab, s, flags, alloc_flags)) {
+			pr_warn_once("%s, %s: Failed to create slab extension vector!\n",
+				     __func__, s->name);
+			return 0;
+		}
 	}
 
 	return slab_obj_exts(slab);
@@ -2361,9 +2362,6 @@ __alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags,
 	if (alloc_flags & SLAB_ALLOC_NO_RECURSE)
 		return;
 
-	if (is_kfence_address(object))
-		return;
-
 	slab = virt_to_slab(object);
 	obj_exts = prepare_slab_obj_exts_hook(s, slab, flags, alloc_flags, object);
 	/*
@@ -2383,7 +2381,13 @@ __alloc_tagging_slab_alloc_hook(struct kmem_cache *s, void *object, gfp_t flags,
 
 		put_slab_obj_exts(obj_exts);
 	} else {
-		alloc_tag_set_inaccurate(current->alloc_tag);
+		/*
+		 * KFENCE allocations are rare and the amount of outstanding
+		 * ones is limited to a small number so it's not worth setting
+		 * tags as inaccurate because of them.
+		 */
+		if (!is_kfence_address(object))
+			alloc_tag_set_inaccurate(current->alloc_tag);
 	}
 }
 
@@ -2413,9 +2417,6 @@ __alloc_tagging_slab_free_hook(struct kmem_cache *s, struct slab *slab, void **p
 	get_slab_obj_exts(obj_exts);
 	for (int i = 0; i < objects; i++) {
 		struct slabobj_ext *ext;
-
-		if (is_kfence_address(p[i]))
-			continue;
 
 		ext = slab_obj_ext(s, slab, obj_exts, p[i]);
 		alloc_tag_sub(slab_obj_ext_codetag_ref(slab, ext), s->size);
