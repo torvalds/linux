@@ -456,12 +456,8 @@ static int tsl2583_chip_init_and_power_on(struct iio_dev *indio_dev)
 
 	usleep_range(3000, 3500);
 
-	ret = tsl2583_set_power_state(chip, TSL2583_CNTL_PWR_ON |
-					    TSL2583_CNTL_ADC_ENBL);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return tsl2583_set_power_state(chip,
+				       TSL2583_CNTL_PWR_ON | TSL2583_CNTL_ADC_ENBL);
 }
 
 /* Sysfs Interface Functions */
