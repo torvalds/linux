@@ -52,7 +52,7 @@ struct kmem_cache *kmem_cache;
 		SLAB_OBJ_EXT_IN_OBJ)
 
 #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
-			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
+			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT | SLAB_MAY_ACCOUNT)
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
@@ -358,6 +358,13 @@ struct kmem_cache *__kmem_cache_create_args(const char *name,
 		err = -EINVAL;
 		goto out_unlock;
 	}
+
+	/*
+	 * For now we assume any cache can be used with __GFP_ACCOUNT and thus
+	 * may need to store objcg pointers for objects
+	 */
+	if (!mem_cgroup_kmem_disabled())
+		flags |= SLAB_MAY_ACCOUNT;
 
 	/* Fail closed on bad usersize of useroffset values. */
 	if (!IS_ENABLED(CONFIG_HARDENED_USERCOPY) ||
@@ -984,11 +991,20 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type)
 #endif
 
 	/*
-	 * If CONFIG_MEMCG is enabled, disable cache merging for
-	 * KMALLOC_NORMAL caches.
+	 * If memcg_kmem is enabled and this is a KMALLOC_NORMAL cache and not
+	 * aliased with any other type, make sure it's never merged with any other
+	 * cache.
+	 *
+	 * In other cases the kmalloc cache may end up being used for a
+	 * __GFP_ACCOUNT allocation so mark it as such. The exception is a
+	 * KMALLOC_NO_OBJ_EXT cache.
 	 */
-	if (IS_ENABLED(CONFIG_MEMCG) && (type == KMALLOC_NORMAL))
-		flags |= SLAB_NO_MERGE;
+	if (!mem_cgroup_kmem_disabled()) {
+		if (type == KMALLOC_NORMAL && KMALLOC_RECLAIM != KMALLOC_NORMAL)
+			flags |= SLAB_NO_MERGE;
+		else if (!(flags & SLAB_NO_OBJ_EXT))
+			flags |= SLAB_MAY_ACCOUNT;
+	}
 
 	if (minalign > ARCH_KMALLOC_MINALIGN) {
 		aligned_size = ALIGN(aligned_size, minalign);

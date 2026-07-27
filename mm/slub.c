@@ -2558,7 +2558,7 @@ bool memcg_slab_post_charge(void *p, gfp_t flags)
 	 * of slab_obj_exts being allocated from the same slab and thus the slab
 	 * becoming effectively unfreeable.
 	 */
-	if (is_kmalloc_normal(s))
+	if (!cache_needs_objcg(s))
 		return true;
 
 	/* Ignore already charged objects. */
@@ -3436,6 +3436,10 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags,
 
 	slab->objects = oo_objects(oo);
 
+#ifdef CONFIG_64BIT
+	if (cache_needs_objcg(s))
+		slab->obj_exts_needs_objcg = 1;
+#endif
 	slab->slab_cache = s;
 
 	kasan_poison_slab(slab);
