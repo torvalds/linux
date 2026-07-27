@@ -41,9 +41,6 @@ void workingset_refault(struct folio *folio, void *shadow);
 void workingset_activation(struct folio *folio);
 
 /* mm/folio.c */
-void lru_note_cost_unlock_irq(struct lruvec *lruvec, bool file,
-		unsigned int nr_io, unsigned int nr_rotated);
-void lru_note_cost_refault(struct folio *folio);
 void folio_add_lru_vma(struct folio *folio, struct vm_area_struct *vma);
 
 static inline bool folio_may_be_lru_cached(struct folio *folio)
