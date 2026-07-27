@@ -69,7 +69,7 @@ struct max17042_chip {
 	struct power_supply *battery;
 	enum max170xx_chip_type chip_type;
 	struct max17042_config_data *config_data;
-	struct work_struct work;
+	struct delayed_work work;
 	int    irq;
 	int    task_period;
 	bool   enable_current_sense;
@@ -996,7 +996,7 @@ static irqreturn_t max17042_thread_handler(int id, void *dev)
 
 static void max17042_init_worker(struct work_struct *work)
 {
-	struct max17042_chip *chip = container_of(work,
+	struct max17042_chip *chip = container_of(to_delayed_work(work),
 				struct max17042_chip, work);
 	int ret;
 
@@ -1255,11 +1255,11 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 
 	regmap_read(chip->regmap, MAX17042_STATUS, &val);
 	if (val & STATUS_POR_BIT) {
-		ret = devm_work_autocancel(dev, &chip->work,
-					   max17042_init_worker);
+		ret = devm_delayed_work_autocancel(dev, &chip->work,
+						   max17042_init_worker);
 		if (ret)
 			return ret;
-		schedule_work(&chip->work);
+		schedule_delayed_work(&chip->work, 0);
 	} else {
 		WRITE_ONCE(chip->init_complete, true);
 	}
