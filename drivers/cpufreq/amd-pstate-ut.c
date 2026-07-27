@@ -59,6 +59,7 @@ static int amd_pstate_ut_check_freq(u32 index);
 static int amd_pstate_ut_epp(u32 index);
 static int amd_pstate_ut_check_driver(u32 index);
 static int amd_pstate_ut_check_freq_attrs(u32 index);
+static int amd_pstate_ut_check_floor_freq(u32 index);
 
 static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_acpi_cpc_valid",    amd_pstate_ut_acpi_cpc_valid   },
@@ -68,6 +69,7 @@ static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_epp",               amd_pstate_ut_epp              },
 	{"amd_pstate_ut_check_driver",      amd_pstate_ut_check_driver     },
 	{"amd_pstate_ut_check_freq_attrs",  amd_pstate_ut_check_freq_attrs },
+	{"amd_pstate_ut_check_floor_freq",  amd_pstate_ut_check_floor_freq },
 };
 
 static bool test_in_list(const char *list, const char *name)
@@ -560,6 +562,80 @@ out:
 	return ret;
 }
 
+static int amd_pstate_ut_check_floor_freq(u32 index)
+{
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
+	char *buf __free(cleanup_page) = NULL;
+	unsigned int orig_floor_freq;
+	unsigned int floor_freq;
+	int ret, cpu = 0;
+
+	if (!cpu_feature_enabled(X86_FEATURE_CPPC_PERF_PRIO))
+		return -EOPNOTSUPP;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return -ENODEV;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	guard(rwsem_write)(&policy->rwsem);
+
+	if (!policy->driver_data)
+		return -ENODEV;
+
+	/* Retrieve original floor frequency */
+	memset(buf, 0, PAGE_SIZE);
+	ret = show_amd_pstate_floor_freq(policy, buf);
+	if (ret < 0)
+		return ret;
+
+	ret = kstrtou32(buf, 0, &orig_floor_freq);
+	if (ret)
+		return ret;
+
+	memset(buf, 0, PAGE_SIZE);
+	snprintf(buf, PAGE_SIZE, "%u", policy->cpuinfo.min_freq);
+
+	/* Set floor frequency to cpuinfo.min_freq */
+	ret = store_amd_pstate_floor_freq(policy, buf, strlen(buf));
+	if (ret < 0) {
+		pr_err("Failed to set floor frequency to %s\n", buf);
+		return ret;
+	}
+
+	memset(buf, 0, PAGE_SIZE);
+	ret = show_amd_pstate_floor_freq(policy, buf);
+	if (ret < 0)
+		return ret;
+
+	strreplace(buf, '\n', '\0');
+	ret = kstrtou32(buf, 0, &floor_freq);
+	if (ret)
+		return ret;
+
+	/* Confirm sysfs reflects the change correctly. */
+	if (floor_freq != policy->cpuinfo.min_freq) {
+		pr_err("Floor frequency value mismatch: %u != %u\n",
+		       floor_freq, policy->cpuinfo.min_freq);
+		return -EINVAL;
+	}
+
+	memset(buf, 0, PAGE_SIZE);
+	snprintf(buf, PAGE_SIZE, "%u", orig_floor_freq);
+
+	/* Restore the original value. */
+	ret = store_amd_pstate_floor_freq(policy, buf, strlen(buf));
+	if (ret < 0) {
+		pr_err("Failed to restore floor frequency to %s\n", buf);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int __init amd_pstate_ut_init(void)
 {
 	u32 i = 0, arr_size = ARRAY_SIZE(amd_pstate_ut_cases);
@@ -578,10 +654,16 @@ static int __init amd_pstate_ut_init(void)
 
 		ret = amd_pstate_ut_cases[i].func(i);
 
-		if (ret)
+		if (ret) {
+			/* Platform does not support the feature being tested. */
+			if (ret == -EOPNOTSUPP) {
+				pr_err("%-4d %-20s\t skipped!\n", i+1, amd_pstate_ut_cases[i].name);
+				continue;
+			}
 			pr_err("%-4d %-20s\t fail: %d!\n", i+1, amd_pstate_ut_cases[i].name, ret);
-		else
+		} else {
 			pr_info("%-4d %-20s\t success!\n", i+1, amd_pstate_ut_cases[i].name);
+		}
 	}
 
 	return 0;

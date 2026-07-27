@@ -1505,8 +1505,7 @@ ssize_t show_energy_performance_preference(struct cpufreq_policy *policy, char *
 }
 EXPORT_SYMBOL_FOR_PSTATE_UT(show_energy_performance_preference);
 
-static ssize_t store_amd_pstate_floor_freq(struct cpufreq_policy *policy,
-					   const char *buf, size_t count)
+ssize_t store_amd_pstate_floor_freq(struct cpufreq_policy *policy, const char *buf, size_t count)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	union perf_cached perf = READ_ONCE(cpudata->perf);
@@ -1529,13 +1528,15 @@ static ssize_t store_amd_pstate_floor_freq(struct cpufreq_policy *policy,
 
 	return ret ?: count;
 }
+EXPORT_SYMBOL_FOR_PSTATE_UT(store_amd_pstate_floor_freq);
 
-static ssize_t show_amd_pstate_floor_freq(struct cpufreq_policy *policy, char *buf)
+ssize_t show_amd_pstate_floor_freq(struct cpufreq_policy *policy, char *buf)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 
 	return sysfs_emit(buf, "%u\n", cpudata->floor_freq);
 }
+EXPORT_SYMBOL_FOR_PSTATE_UT(show_amd_pstate_floor_freq);
 
 static ssize_t show_amd_pstate_floor_count(struct cpufreq_policy *policy, char *buf)
 {
