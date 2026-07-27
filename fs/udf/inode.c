@@ -142,7 +142,9 @@ void udf_evict_inode(struct inode *inode)
 		if (!inode->i_nlink) {
 			want_delete = 1;
 			udf_setsize(inode, 0);
-			udf_update_inode(inode, IS_SYNC(inode));
+			udf_update_inode(inode, 0);
+			if (IS_SYNC(inode))
+				udf_sync_inode_metadata(inode, NULL);
 		}
 		if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 		    inode->i_size != iinfo->i_lenExtents) {
@@ -1710,6 +1712,30 @@ int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
+int udf_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
+{
+	struct buffer_head *bh;
+	int err = 0;
+
+	bh = sb_getblk(inode->i_sb,
+			udf_get_lb_pblock(inode->i_sb,
+					  &UDF_I(inode)->i_location, 0));
+	if (!bh)
+		return -EIO;
+
+	sync_dirty_buffer(bh);
+	if (buffer_write_io_error(bh)) {
+		udf_warn(inode->i_sb, "IO error syncing udf inode [%08llx]\n",
+			 inode->i_ino);
+		err = -EIO;
+		goto out;
+	}
+	err = mmb_sync(&UDF_I(inode)->i_metadata_bhs);
+out:
+	brelse(bh);
+	return err;
+}
+
 static int udf_sync_inode(struct inode *inode)
 {
 	return udf_update_inode(inode, 1);
@@ -1732,7 +1758,6 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	uint32_t udfperms;
 	uint16_t icbflags;
 	uint16_t crclen;
-	int err = 0;
 	struct udf_sb_info *sbi = UDF_SB(inode->i_sb);
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	struct udf_inode_info *iinfo = UDF_I(inode);
@@ -1937,17 +1962,10 @@ finish:
 
 	/* write the data blocks */
 	mark_buffer_dirty(bh);
-	if (do_sync) {
-		sync_dirty_buffer(bh);
-		if (buffer_write_io_error(bh)) {
-			udf_warn(inode->i_sb, "IO error syncing udf inode [%08llx]\n",
-				 inode->i_ino);
-			err = -EIO;
-		}
-	}
 	brelse(bh);
+	set_inode_metadata_writeback(inode);
 
-	return err;
+	return 0;
 }
 
 struct inode *__udf_iget(struct super_block *sb, struct kernel_lb_addr *ino,

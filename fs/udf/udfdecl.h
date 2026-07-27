@@ -137,7 +137,6 @@ static inline unsigned int udf_dir_entry_len(struct fileIdentDesc *cfi)
 
 /* file.c */
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
-int udf_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 
 /* inode.c */
 extern struct inode *__udf_iget(struct super_block *, struct kernel_lb_addr *,
@@ -158,6 +157,7 @@ extern struct buffer_head *udf_bread(struct inode *inode, udf_pblk_t block,
 extern int udf_setsize(struct inode *, loff_t);
 extern void udf_evict_inode(struct inode *);
 extern int udf_write_inode(struct inode *, struct writeback_control *wbc);
+int udf_sync_inode_metadata(struct inode *, struct writeback_control *wbc);
 extern int inode_bmap(struct inode *inode, sector_t block,
 		      struct extent_position *pos, struct kernel_lb_addr *eloc,
 		      uint32_t *elen, sector_t *offset, int8_t *etype);
