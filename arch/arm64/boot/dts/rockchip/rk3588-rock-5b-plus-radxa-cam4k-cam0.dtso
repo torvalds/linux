@@ -9,6 +9,7 @@
 
 #include <dt-bindings/clock/rockchip,rk3588-cru.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/media/video-interfaces.h>
 #include <dt-bindings/pinctrl/rockchip.h>
 
 &{/} {
@@ -80,6 +81,7 @@
 
 &csi2_in {
 	csi2_input: endpoint {
+		bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
 		data-lanes = <1 2 3 4>;
 		link-frequencies = /bits/ 64 <445500000>;
 		remote-endpoint = <&imx415_output>;
