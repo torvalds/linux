@@ -43,6 +43,11 @@
 
 #if defined(CONFIG_DEBUG_FS)
 
+/* Encode milliwatts in the raw Q24.8 sensor report format used by UMR. */
+#define AMDGPU_DEBUGFS_PWR_MW_TO_Q24_8(power_mw) \
+	DIV_ROUND_CLOSEST_ULL((u64)(power_mw) * BIT(8), \
+			      MILLIWATT_PER_WATT)
+
 /**
  * amdgpu_debugfs_process_reg_op - Handle MMIO register reads/writes
  *
@@ -1103,6 +1108,10 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 		amdgpu_virt_disable_access_debugfs(adev);
 		return r;
 	}
+
+	if (idx == AMDGPU_PP_SENSOR_GPU_AVG_POWER ||
+	    idx == AMDGPU_PP_SENSOR_GPU_INPUT_POWER)
+		values[0] = AMDGPU_DEBUGFS_PWR_MW_TO_Q24_8(values[0]);
 
 	if (size > valuesize) {
 		amdgpu_virt_disable_access_debugfs(adev);
