@@ -87,7 +87,6 @@ static struct cpufreq_driver amd_pstate_driver;
 static struct cpufreq_driver amd_pstate_epp_driver;
 static int cppc_state = AMD_PSTATE_UNDEFINED;
 static bool amd_pstate_prefcore = true;
-static bool dynamic_epp;
 static struct quirk_entry *quirks;
 
 /*
@@ -1837,50 +1836,12 @@ static ssize_t prefcore_show(struct device *dev,
 	return sysfs_emit(buf, "%s\n", str_enabled_disabled(amd_pstate_prefcore));
 }
 
-static ssize_t dynamic_epp_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "%s\n", str_enabled_disabled(dynamic_epp));
-}
-
-static ssize_t dynamic_epp_store(struct device *a, struct device_attribute *b,
-				 const char *buf, size_t count)
-{
-	bool enabled;
-	int ret;
-
-	ret = kstrtobool(buf, &enabled);
-	if (ret)
-		return ret;
-
-	guard(mutex)(&amd_pstate_driver_lock);
-
-	if (cppc_state != AMD_PSTATE_ACTIVE) {
-		pr_debug("dynamic_epp can only be toggled in active mode\n");
-		return -EINVAL;
-	}
-
-	/* Nothing to do */
-	if (dynamic_epp == enabled)
-		return count;
-
-	/* reinitialize with desired dynamic EPP value */
-	dynamic_epp = enabled;
-	ret = amd_pstate_change_driver_mode(cppc_state);
-	if (ret)
-		dynamic_epp = false;
-
-	return ret ? ret : count;
-}
-
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(prefcore);
-static DEVICE_ATTR_RW(dynamic_epp);
 
 static struct attribute *pstate_global_attributes[] = {
 	&dev_attr_status.attr,
 	&dev_attr_prefcore.attr,
-	&dev_attr_dynamic_epp.attr,
 	NULL
 };
 
@@ -1987,10 +1948,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 		cpudata->current_profile = PLATFORM_PROFILE_BALANCED;
 	}
 
-	if (dynamic_epp)
-		ret = amd_pstate_set_dynamic_epp(policy);
-	else
-		ret = amd_pstate_set_epp(policy, cpudata->epp_default_dc);
+	ret = amd_pstate_set_epp(policy, cpudata->epp_default_dc);
 	if (ret)
 		goto free_cpudata1;
 
@@ -2401,19 +2359,8 @@ static int __init amd_prefcore_param(char *str)
 	return 0;
 }
 
-static int __init amd_dynamic_epp_param(char *str)
-{
-	if (!strcmp(str, "disable"))
-		dynamic_epp = false;
-	if (!strcmp(str, "enable"))
-		dynamic_epp = true;
-
-	return 0;
-}
-
 early_param("amd_pstate", amd_pstate_param);
 early_param("amd_prefcore", amd_prefcore_param);
-early_param("amd_dynamic_epp", amd_dynamic_epp_param);
 
 MODULE_AUTHOR("Huang Rui <ray.huang@amd.com>");
 MODULE_DESCRIPTION("AMD Processor P-state Frequency Driver");
