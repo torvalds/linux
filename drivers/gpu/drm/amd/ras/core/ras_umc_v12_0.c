@@ -489,6 +489,36 @@ static void umc_v12_0_mca_ipid_parse(struct ras_core_context *ras_core, uint64_t
 		*sid = ACA_IPID_2_SOCKET_ID(ipid);
 }
 
+/* part of DF address conversion algorithm, defined by HW,
+ * only eeprom v1 and v2 format(save_nps and CH_IDX_V2 are unset) use it,
+ * and the following conditions should be met when using it:
+ * nps mode: nps1
+ * umc number: 16
+ * hbm type: UMC_VRAM_TYPE_HBM
+ */
+static uint32_t umc_v12_0_get_die_id(uint64_t mca_addr, uint64_t pa)
+{
+	uint32_t die = 0;
+
+	/* we only calculate die id for nps1 mode(save_nps == ch_idx_v2 == 0) */
+	die += (((pa >> 12) & 0x1ULL) ^
+			((pa >> 20) & 0x1ULL) ^
+			((pa >> 27) & 0x1ULL) ^
+			((pa >> 34) & 0x1ULL) ^
+			((pa >> 41) & 0x1ULL));
+
+	/* the original PA_C4 and PA_R13 may be cleared in retired_page, so
+	 * get them from mca_addr.
+	 */
+	die += ((((pa >> 13) & 0x1ULL) ^
+			((mca_addr >> 5) & 0x1ULL) ^
+			((pa >> 28) & 0x1ULL) ^
+			((mca_addr >> 23) & 0x1ULL) ^
+			((pa >> 42) & 0x1ULL)) << 1);
+
+	return die;
+}
+
 const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.bank_to_eeprom_record = umc_v12_0_bank_to_eeprom_record,
 	.eeprom_record_to_nps_pages = umc_v12_0_eeprom_record_to_nps_pages,
@@ -497,5 +527,6 @@ const struct ras_umc_ip_func ras_umc_func_v12_0 = {
 	.mca_ipid_parse = umc_v12_0_mca_ipid_parse,
 	.ma2pa = umc_v12_0_ma2pa,
 	.nps_pa_to_row_pa = umc_v12_0_nps_pa_to_row_pa,
+	.get_die_id = umc_v12_0_get_die_id,
 };
 

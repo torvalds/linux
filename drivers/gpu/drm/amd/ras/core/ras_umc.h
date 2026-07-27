@@ -135,6 +135,7 @@ struct ras_umc_ip_func {
 		uint32_t nps);
 	uint64_t (*nps_pa_to_row_pa)(struct ras_core_context *ras_core,
 		uint64_t pa, enum umc_memory_partition_mode nps, bool zero_pfn_ok);
+	uint32_t (*get_die_id)(uint64_t mca_addr, uint64_t pa);
 };
 
 struct eeprom_store_record {

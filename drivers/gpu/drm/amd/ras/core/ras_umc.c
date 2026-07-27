@@ -328,8 +328,9 @@ int ras_umc_ma2pa(struct ras_core_context *ras_core,
 	return ret;
 }
 
-static int ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
-	struct eeprom_umc_record *record, uint64_t *pa, uint32_t nps)
+static int __ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
+	struct eeprom_umc_record *record, uint64_t *pa,
+	uint32_t nps, uint32_t die_id)
 {
 	struct device_system_info dev_info = {0};
 	struct umc_mca_addr addr_in;
@@ -345,7 +346,7 @@ static int ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
 	addr_in.err_addr = record->address;
 	addr_in.ch_inst = record->mem_channel;
 	addr_in.umc_inst = record->mcumc_id;
-	addr_in.node_inst = UMC_INV_AID_NODE;
+	addr_in.node_inst = die_id;
 	addr_in.socket_id = dev_info.socket_id;
 
 	ret = ras_umc_ma2pa(ras_core, &addr_in, &addr_out, nps);
@@ -361,6 +362,36 @@ static int ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
 	}
 
 	return ret;
+}
+
+static int ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record, uint64_t *pa, uint32_t nps)
+{
+	return __ras_umc_eeprom_rec2nps_addr(ras_core, record, pa, nps,
+			UMC_INV_AID_NODE);
+}
+
+/* For legacy eeprom data format, the scope of channel index is
+ * limited to umc instance, and die id is not stored, have to
+ * get it from PA
+ */
+static int ras_umc_eeprom_rec2nps_addr_legacy(struct ras_core_context *ras_core,
+		struct eeprom_umc_record *record, uint64_t *pa, uint32_t nps)
+{
+	uint32_t die_id;
+
+	/* the die id is derived from an NPS1-mode PA(legacy-format EEPROMs
+	 * only ever existed on NPS1 systems)
+	 */
+	if (ras_core->ras_umc.ip_func && ras_core->ras_umc.ip_func->get_die_id) {
+		die_id = ras_core->ras_umc.ip_func->get_die_id(record->address,
+			RAS_PFN_TO_ADDR(EEPROM_RECORD_UMC_ADDR_PFN(record)));
+	} else {
+		RAS_DEV_ERR(ras_core->dev, "get_die_id is not supported!\n");
+		return -EOPNOTSUPP;
+	}
+
+	return __ras_umc_eeprom_rec2nps_addr(ras_core, record, pa, nps, die_id);
 }
 
 static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
@@ -387,8 +418,9 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 		/* old eeprom data format, the scope of channel index is
 		 * limited to umc instance
 		 */
-		/* TODO */
-		ret = -EOPNOTSUPP;
+		ret = ras_umc_eeprom_rec2nps_addr_legacy(ras_core, record, &pa, nps);
+		if (!ret)
+			record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
 	}
 
 	record->cur_nps = nps;
