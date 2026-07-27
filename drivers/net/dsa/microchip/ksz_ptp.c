@@ -297,6 +297,31 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 			 tag_en ? PTP_ENABLE : 0);
 }
 
+int ksz8463_get_ts_info(struct dsa_switch *ds, int port,
+			struct kernel_ethtool_ts_info *ts)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_ptp_data *ptp_data;
+
+	ptp_data = &dev->ptp_data;
+
+	if (!ptp_data->clock)
+		return -ENODEV;
+
+	ts->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
+			      SOF_TIMESTAMPING_RX_HARDWARE |
+			      SOF_TIMESTAMPING_RAW_HARDWARE;
+
+	ts->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
+
+	ts->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
+			 BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT);
+
+	ts->phc_index = ptp_clock_index(ptp_data->clock);
+
+	return 0;
+}
+
 /* The function is return back the capability of timestamping feature when
  * requested through ethtool -T <interface> utility
  */
@@ -337,6 +362,72 @@ int ksz_hwtstamp_get(struct dsa_switch *ds, int port,
 
 	prt = &dev->ports[port];
 	*config = prt->tstamp_config;
+
+	return 0;
+}
+
+static int ksz8463_set_hwtstamp_config(struct ksz_device *dev,
+				       struct ksz_port *prt,
+				       struct kernel_hwtstamp_config *config)
+{
+	const u16 *regs = dev->info->regs;
+	int ret;
+
+	if (config->flags)
+		return -EINVAL;
+
+	switch (config->tx_type) {
+	case HWTSTAMP_TX_OFF:
+		prt->ptpmsg_irq[KSZ8463_SYNC_MSG].ts_en  = false;
+		prt->ptpmsg_irq[KSZ8463_XDREQ_PDRES_MSG].ts_en = false;
+		prt->hwts_tx_en = false;
+		break;
+	case HWTSTAMP_TX_ON:
+		prt->ptpmsg_irq[KSZ8463_SYNC_MSG].ts_en  = true;
+		prt->ptpmsg_irq[KSZ8463_XDREQ_PDRES_MSG].ts_en = true;
+		prt->hwts_tx_en = true;
+
+		ret = ksz_rmw16(dev, regs[PTP_MSG_CONF1], PTP_1STEP, 0);
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		prt->hwts_rx_en = false;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		prt->hwts_rx_en = true;
+		break;
+	default:
+		config->rx_filter = HWTSTAMP_FILTER_NONE;
+		return -ERANGE;
+	}
+
+	return ksz_ptp_enable_mode(dev);
+}
+
+int ksz8463_hwtstamp_set(struct dsa_switch *ds, int port,
+			 struct kernel_hwtstamp_config *config,
+			 struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *prt;
+	int ret;
+
+	prt = &dev->ports[port];
+
+	ret = ksz8463_set_hwtstamp_config(dev, prt, config);
+	if (ret)
+		return ret;
+
+	prt->tstamp_config = *config;
 
 	return 0;
 }
@@ -571,6 +662,31 @@ static void ksz_ptp_txtstamp_skb(struct ksz_device *dev,
 	skb_complete_tx_timestamp(skb, &hwtstamps);
 }
 
+static void ksz8463_set_pdelayresp_flag(struct ksz_port *prt,
+					struct sk_buff *skb)
+{
+	struct ptp_header *hdr;
+	unsigned int type;
+	u8 ptp_msg_type;
+
+	if (!ksz_is_ksz8463(prt->ksz_dev))
+		return;
+
+	if (skb_linearize(skb))
+		return;
+
+	type = ptp_classify_raw(skb);
+	if (type == PTP_CLASS_NONE)
+		return;
+
+	hdr = ptp_parse_header(skb, type);
+	if (!hdr)
+		return;
+
+	ptp_msg_type = ptp_get_msgtype(hdr, type);
+	prt->last_tx_is_pdelayresp = (ptp_msg_type == PTP_MSGTYPE_PDELAY_RESP);
+}
+
 void ksz_port_deferred_xmit(struct kthread_work *work)
 {
 	struct ksz_deferred_xmit_work *xmit_work = work_to_xmit_work(work);
@@ -586,6 +702,8 @@ void ksz_port_deferred_xmit(struct kthread_work *work)
 	skb_shinfo(clone)->tx_flags |= SKBTX_IN_PROGRESS;
 
 	reinit_completion(&prt->tstamp_msg_comp);
+
+	ksz8463_set_pdelayresp_flag(prt, skb);
 
 	dsa_enqueue_skb(skb, skb->dev);
 
@@ -979,7 +1097,22 @@ void ksz_ptp_clock_unregister(struct dsa_switch *ds)
 
 static int ksz_read_ts(struct ksz_port *port, u16 reg, u32 *ts)
 {
-	return ksz_read32(port->ksz_dev, reg, ts);
+	u16 ts_reg = reg;
+
+	/**
+	 * On KSZ8463 DREQ and DRESP timestamps share one interrupt line
+	 * so we have to check the nature of the latest event sent to know
+	 * where the timestamp is located
+	 */
+	if (ksz_is_ksz8463(port->ksz_dev)) {
+		const struct ksz_dev_ops *ops = port->ksz_dev->dev_ops;
+
+		if (port->last_tx_is_pdelayresp &&
+		    ts_reg == ops->get_port_addr(port->num, KSZ8463_REG_PORT_DREQ_TS))
+			ts_reg += KSZ8463_DRESP_TS_OFFSET;
+	}
+
+	return ksz_read32(port->ksz_dev, ts_reg, ts);
 }
 
 static irqreturn_t ksz_ptp_msg_thread_fn(int irq, void *dev_id)

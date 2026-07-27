@@ -242,8 +242,11 @@ static int ksz8463_girq_setup(struct ksz_device *dev)
 
 static int ksz8463_reset_switch(struct ksz_device *dev)
 {
-	ksz_cfg(dev, KSZ8463_REG_SW_RESET, KSZ8463_GLOBAL_SOFTWARE_RESET, true);
-	ksz_cfg(dev, KSZ8463_REG_SW_RESET, KSZ8463_GLOBAL_SOFTWARE_RESET,
+	ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+		KSZ8463_GLOBAL_SOFTWARE_RESET | KSZ8463_PTP_SOFTWARE_RESET,
+		true);
+	ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+		KSZ8463_GLOBAL_SOFTWARE_RESET | KSZ8463_PTP_SOFTWARE_RESET,
 		false);
 	return 0;
 }
@@ -2474,17 +2477,24 @@ static int ksz8463_setup(struct dsa_switch *ds)
 		ret = ksz8463_ptp_irq_setup(ds);
 		if (ret)
 			goto free_girq;
+
+		ret = ksz_ptp_clock_register(ds);
+		if (ret) {
+			dev_err(dev->dev, "Failed to register PTP clock: %d\n",
+				ret);
+			goto free_ptp_irq;
+		}
 	}
 
 	ret = ksz_mdio_register(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to register the mdio");
-		goto free_ptp_irq;
+		goto ptp_clock_unregister;
 	}
 
 	ret = ksz_dcb_init(dev);
 	if (ret)
-		goto free_ptp_irq;
+		goto ptp_clock_unregister;
 
 	/* start switch */
 	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
@@ -2492,6 +2502,9 @@ static int ksz8463_setup(struct dsa_switch *ds)
 
 	return 0;
 
+ptp_clock_unregister:
+	if (dev->irq > 0)
+		ksz_ptp_clock_unregister(ds);
 free_ptp_irq:
 	if (dev->irq > 0)
 		ksz8463_ptp_irq_free(ds);
@@ -2507,6 +2520,7 @@ static void ksz8463_teardown(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 
 	if (dev->irq > 0) {
+		ksz_ptp_clock_unregister(ds);
 		ksz8463_ptp_irq_free(ds);
 		ksz_irq_free(&dev->girq);
 	}
@@ -3129,9 +3143,9 @@ const struct dsa_switch_ops ksz8463_switch_ops = {
 	.port_max_mtu		= ksz88xx_max_mtu,
 	.suspend		= ksz_suspend,
 	.resume			= ksz_resume,
-	.get_ts_info		= ksz_get_ts_info,
+	.get_ts_info		= ksz8463_get_ts_info,
 	.port_hwtstamp_get	= ksz_hwtstamp_get,
-	.port_hwtstamp_set	= ksz_hwtstamp_set,
+	.port_hwtstamp_set	= ksz8463_hwtstamp_set,
 	.port_txtstamp		= ksz_port_txtstamp,
 	.port_rxtstamp		= ksz_port_rxtstamp,
 	.port_setup_tc		= ksz8_setup_tc,

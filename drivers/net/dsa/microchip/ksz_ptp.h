@@ -39,11 +39,16 @@ void ksz_ptp_clock_unregister(struct dsa_switch *ds);
 
 int ksz_get_ts_info(struct dsa_switch *ds, int port,
 		    struct kernel_ethtool_ts_info *ts);
+int ksz8463_get_ts_info(struct dsa_switch *ds, int port,
+			struct kernel_ethtool_ts_info *ts);
 int ksz_hwtstamp_get(struct dsa_switch *ds, int port,
 		     struct kernel_hwtstamp_config *config);
 int ksz_hwtstamp_set(struct dsa_switch *ds, int port,
 		     struct kernel_hwtstamp_config *config,
 		     struct netlink_ext_ack *extack);
+int ksz8463_hwtstamp_set(struct dsa_switch *ds, int port,
+			 struct kernel_hwtstamp_config *config,
+			 struct netlink_ext_ack *extack);
 void ksz_port_txtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb);
 void ksz_port_deferred_xmit(struct kthread_work *work);
 bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
@@ -82,10 +87,12 @@ static inline int ksz8463_ptp_irq_setup(struct dsa_switch *ds)
 static inline void ksz8463_ptp_irq_free(struct dsa_switch *ds) {}
 
 #define ksz_get_ts_info NULL
+#define ksz8463_get_ts_info NULL
 
 #define ksz_hwtstamp_get NULL
 
 #define ksz_hwtstamp_set NULL
+#define ksz8463_hwtstamp_set NULL
 
 #define ksz_port_rxtstamp NULL
 
