@@ -3218,6 +3218,12 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 	struct mt7996_twt_flow *flow;
 	u8 flowid, table_id, exp;
 
+	/* the firmware does not support iTWT agreements with MLD peers, and
+	 * driver TWT state is only tracked on the default link
+	 */
+	if (sta->mlo)
+		goto out;
+
 	if (mt7996_mac_check_twt_req(twt))
 		goto out;
 
