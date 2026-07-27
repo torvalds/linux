@@ -159,16 +159,6 @@ static const struct iio_chan_spec rcar_gyroadc_iio_channels_3[] = {
 	RCAR_GYROADC_CHAN(7),
 };
 
-static int rcar_gyroadc_set_power(struct rcar_gyroadc *priv, bool on)
-{
-	struct device *dev = priv->dev;
-
-	if (on)
-		return pm_runtime_resume_and_get(dev);
-
-	return pm_runtime_put_autosuspend(dev);
-}
-
 static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 				 struct iio_chan_spec const *chan,
 				 int *val, int *val2, long mask)
@@ -200,7 +190,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
 
-		ret = rcar_gyroadc_set_power(priv, true);
+		ret = pm_runtime_resume_and_get(priv->dev);
 		if (ret < 0) {
 			iio_device_release_direct(indio_dev);
 			return ret;
@@ -209,7 +199,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		*val = readl(priv->regs + datareg);
 		*val &= BIT(priv->sample_width) - 1;
 
-		ret = rcar_gyroadc_set_power(priv, false);
+		ret = pm_runtime_put_autosuspend(priv->dev);
 		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
