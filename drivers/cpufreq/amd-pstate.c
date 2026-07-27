@@ -75,7 +75,7 @@ const char *amd_pstate_get_mode_string(enum amd_pstate_mode mode)
 		mode = AMD_PSTATE_UNDEFINED;
 	return amd_pstate_mode_string[mode];
 }
-EXPORT_SYMBOL_GPL(amd_pstate_get_mode_string);
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_mode_string);
 
 struct quirk_entry {
 	u32 nominal_freq;
@@ -1272,7 +1272,7 @@ void amd_pstate_clear_dynamic_epp(struct cpufreq_policy *policy)
 	kfree(cpudata->profile_name);
 	cpudata->dynamic_epp = false;
 }
-EXPORT_SYMBOL_GPL(amd_pstate_clear_dynamic_epp);
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_clear_dynamic_epp);
 
 static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 {
@@ -1469,7 +1469,7 @@ ssize_t store_energy_performance_preference(struct cpufreq_policy *policy,
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(store_energy_performance_preference);
+EXPORT_SYMBOL_FOR_PSTATE_UT(store_energy_performance_preference);
 
 ssize_t show_energy_performance_preference(struct cpufreq_policy *policy, char *buf)
 {
@@ -1503,7 +1503,7 @@ ssize_t show_energy_performance_preference(struct cpufreq_policy *policy, char *
 
 	return sysfs_emit(buf, "%s\n", energy_perf_strings[preference]);
 }
-EXPORT_SYMBOL_GPL(show_energy_performance_preference);
+EXPORT_SYMBOL_FOR_PSTATE_UT(show_energy_performance_preference);
 
 static ssize_t store_amd_pstate_floor_freq(struct cpufreq_policy *policy,
 					   const char *buf, size_t count)
@@ -1603,7 +1603,7 @@ struct freq_attr **amd_pstate_get_current_attrs(void)
 		return NULL;
 	return current_pstate_driver->attr;
 }
-EXPORT_SYMBOL_GPL(amd_pstate_get_current_attrs);
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_current_attrs);
 
 static struct freq_attr **get_freq_attrs(void)
 {
@@ -1788,7 +1788,7 @@ int amd_pstate_get_status(void)
 {
 	return cppc_state;
 }
-EXPORT_SYMBOL_GPL(amd_pstate_get_status);
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_get_status);
 
 int amd_pstate_update_status(const char *buf, size_t size)
 {
@@ -1808,7 +1808,7 @@ int amd_pstate_update_status(const char *buf, size_t size)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(amd_pstate_update_status);
+EXPORT_SYMBOL_FOR_PSTATE_UT(amd_pstate_update_status);
 
 static ssize_t status_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)

@@ -11,6 +11,13 @@
 #include <linux/pm_qos.h>
 #include <linux/platform_profile.h>
 
+#if IS_MODULE(CONFIG_X86_AMD_PSTATE_UT)
+#define EXPORT_SYMBOL_FOR_PSTATE_UT(symbol) \
+	EXPORT_SYMBOL_FOR_MODULES(symbol, "amd-pstate-ut")
+#else
+#define EXPORT_SYMBOL_FOR_PSTATE_UT(symbol)
+#endif
+
 /*********************************************************************
  *                        AMD P-state INTERFACE                       *
  *********************************************************************/
