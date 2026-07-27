@@ -1560,7 +1560,11 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
 		raw_inode->i_block[n] = ei->i_data[n];
 	mark_buffer_dirty(bh);
-	if (wbc->sync_mode == WB_SYNC_ALL) {
+	/*
+	 * For sync(2) the generic code will call sync_blockdev() to write
+	 * all metadata more efficiently.
+	 */
+	if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync) {
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh)) {
 			printk ("IO error syncing ext2 inode [%s:%08lx]\n",
