@@ -267,7 +267,15 @@ void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_state)
  */
 static int psmouse_handle_byte(struct psmouse *psmouse)
 {
-	psmouse_ret_t rc = psmouse->protocol_handler(psmouse);
+	psmouse_ret_t rc;
+
+	/* protocol_handler is NULL when device is being disconnected */
+	if (unlikely(!psmouse->protocol_handler)) {
+		psmouse->pktcnt = 0;
+		return 0;
+	}
+
+	rc = psmouse->protocol_handler(psmouse);
 
 	switch (rc) {
 	case PSMOUSE_BAD_DATA:
@@ -1465,6 +1473,9 @@ static void psmouse_disconnect(struct serio *serio)
 		parent = psmouse_from_serio(serio->parent);
 		psmouse_deactivate(parent);
 	}
+
+	scoped_guard(serio_pause_rx, serio)
+		psmouse->protocol_handler = NULL;
 
 	if (psmouse->disconnect)
 		psmouse->disconnect(psmouse);
