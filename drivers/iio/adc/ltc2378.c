@@ -107,6 +107,8 @@
 
 struct ltc2378_chip_info {
 	const char *name;
+	unsigned int internal_ref_uV;
+	struct u32_fract internal_div;
 	struct iio_chan_spec chan[2]; /* 1 physical chan + 1 timestamp chan */
 	struct iio_chan_spec offload_chan;
 	unsigned int max_sample_rate_Hz;
@@ -143,6 +145,16 @@ struct ltc2378_state {
 		} data;
 		aligned_s64 timestamp;
 	} scan __aligned(IIO_DMA_MINALIGN);
+};
+
+static const struct ltc2378_chip_info ltc2338_18_chip_info = {
+	.name = "ltc2338-18",
+	.internal_ref_uV = 2048000,
+	.internal_div = { .numerator = 5, .denominator = 2 },
+	.chan = { LTC2378_DIFF_CHANNEL(18), IIO_CHAN_SOFT_TIMESTAMP(1) },
+	.offload_chan = LTC2378_OFFLOAD_DIFF_CHANNEL(18),
+	.max_sample_rate_Hz = 1 * HZ_PER_MHZ,
+	.tconv_ns = 527,
 };
 
 static const struct ltc2378_chip_info ltc2364_16_chip_info = {
@@ -382,8 +394,11 @@ static int ltc2378_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	}
-	case IIO_CHAN_INFO_SCALE:
+	case IIO_CHAN_INFO_SCALE: {
+		struct u32_fract fract = st->info->internal_div;
 		*val = st->ref_uV / MILLI;
+		if (fract.numerator && fract.denominator)
+			*val = mult_frac(*val, fract.numerator, fract.denominator);
 		/*
 		 * For all LTC2378-like devices, the amount of bits that express
 		 * voltage magnitude depend on the polarity / output code format:
@@ -396,6 +411,7 @@ static int ltc2378_read_raw(struct iio_dev *indio_dev,
 			*val2 = chan->scan_type.realbits;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = st->cnv_Hz;
 		return IIO_VAL_INT;
@@ -641,6 +657,28 @@ static const struct spi_offload_config ltc2378_offload_config = {
 			    SPI_OFFLOAD_CAP_RX_STREAM_DMA,
 };
 
+static int ltc2378_refin_setup(struct device *dev, struct ltc2378_state *st)
+{
+	int ret;
+
+	/*
+	 * The internal reference buffer amplifies both the internal reference
+	 * and REFIN by a factor of 2.
+	 */
+	ret = devm_regulator_get_enable_read_voltage(dev, "refin");
+	if (ret == -ENODEV) { /* refin is optional */
+		st->ref_uV = st->info->internal_ref_uV * 2;
+		return 0;
+	}
+
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to read refin regulator\n");
+
+	st->ref_uV = ret * 2;
+
+	return 0;
+}
+
 static int ltc2378_ref_setup(struct device *dev, struct ltc2378_state *st)
 {
 	int ret;
@@ -676,7 +714,10 @@ static int ltc2378_probe(struct spi_device *spi)
 	if (!st->info)
 		return -EINVAL;
 
-	ret = ltc2378_ref_setup(dev, st);
+	if (st->info->internal_ref_uV)
+		ret = ltc2378_refin_setup(dev, st);
+	else
+		ret = ltc2378_ref_setup(dev, st);
 	if (ret)
 		return ret;
 
@@ -750,6 +791,7 @@ static int ltc2378_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ltc2378_of_match[] = {
+	{ .compatible = "adi,ltc2338-18", .data = &ltc2338_18_chip_info },
 	{ .compatible = "adi,ltc2364-16", .data = &ltc2364_16_chip_info },
 	{ .compatible = "adi,ltc2364-18", .data = &ltc2364_18_chip_info },
 	{ .compatible = "adi,ltc2367-16", .data = &ltc2367_16_chip_info },
@@ -774,6 +816,7 @@ static const struct of_device_id ltc2378_of_match[] = {
 MODULE_DEVICE_TABLE(of, ltc2378_of_match);
 
 static const struct spi_device_id ltc2378_spi_id[] = {
+	{ .name = "ltc2338-18", .driver_data = (kernel_ulong_t)&ltc2338_18_chip_info },
 	{ .name = "ltc2364-16", .driver_data = (kernel_ulong_t)&ltc2364_16_chip_info },
 	{ .name = "ltc2364-18", .driver_data = (kernel_ulong_t)&ltc2364_18_chip_info },
 	{ .name = "ltc2367-16", .driver_data = (kernel_ulong_t)&ltc2367_16_chip_info },
