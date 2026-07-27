@@ -109,6 +109,7 @@ int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 	err = rxe_odp_init_pages(mr);
 	if (err) {
 		ib_umem_odp_release(umem_odp);
+		mr->umem = NULL;
 		return err;
 	}
 
