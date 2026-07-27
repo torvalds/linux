@@ -164,7 +164,9 @@ rtl83xx_probe(struct device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mutex_init(&priv->l2_lock);
+	ret = devm_mutex_init(dev, &priv->l2_lock);
+	if (ret)
+		return ERR_PTR(ret);
 
 	rc.lock_arg = priv;
 	priv->map = devm_regmap_init(dev, NULL, priv, &rc);
