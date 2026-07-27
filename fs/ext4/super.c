@@ -1608,9 +1608,13 @@ static int ext4_nfs_commit_metadata(struct inode *inode)
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL
 	};
+	int ret;
 
 	trace_ext4_nfs_commit_metadata(inode);
-	return ext4_write_inode(inode, &wbc);
+	ret = ext4_write_inode(inode, &wbc);
+	if (!ret && inode_state_read_once(inode) & I_METADATA_WRITEBACK)
+		ret = ext4_sync_inode_metadata(inode, &wbc);
+	return ret;
 }
 
 #ifdef CONFIG_QUOTA
@@ -1667,6 +1671,7 @@ static const struct super_operations ext4_sops = {
 	.free_inode	= ext4_free_in_core_inode,
 	.destroy_inode	= ext4_destroy_inode,
 	.write_inode	= ext4_write_inode,
+	.sync_inode_metadata = ext4_sync_inode_metadata,
 	.dirty_inode	= ext4_dirty_inode,
 	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,

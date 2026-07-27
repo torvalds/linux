@@ -46,7 +46,6 @@
 static int ext4_sync_parent(struct inode *inode)
 {
 	struct dentry *dentry, *next;
-	struct mapping_metadata_bhs *mmb;
 	int ret = 0;
 
 	if (!ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
@@ -69,12 +68,6 @@ static int ext4_sync_parent(struct inode *inode)
 		 * through ext4_evict_inode()) and so we are safe to flush
 		 * metadata blocks and the inode.
 		 */
-		mmb = ext4_i_metadata_bhs(inode);
-		if (mmb) {
-			ret = mmb_sync(mmb);
-			if (ret)
-				break;
-		}
 		ret = sync_inode_metadata(inode, 1);
 		if (ret)
 			break;
@@ -87,22 +80,11 @@ static int ext4_fsync_nojournal(struct file *file, loff_t start, loff_t end,
 				int datasync, bool *needs_barrier)
 {
 	struct inode *inode = file->f_inode;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,
-	};
 	int ret;
 
-	ret = mmb_fsync_noflush(file, ext4_i_metadata_bhs(inode),
-				start, end, datasync);
+	ret = sync_inode_metadata(inode, 1);
 	if (ret)
 		return ret;
-
-	/* Force writeout of inode table buffer to disk */
-	ret = ext4_write_inode(inode, &wbc);
-	if (ret)
-		return ret;
-
 	ret = ext4_sync_parent(inode);
 
 	if (test_opt(inode->i_sb, BARRIER))
@@ -160,6 +142,10 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (sb_rdonly(inode->i_sb))
 		goto out;
 
+	ret = file_write_and_wait_range(file, start, end);
+	if (ret)
+		goto out;
+
 	if (!EXT4_SB(inode->i_sb)->s_journal) {
 		ret = ext4_fsync_nojournal(file, start, end, datasync,
 					   &needs_barrier);
@@ -167,10 +153,6 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 			goto issue_flush;
 		goto out;
 	}
-
-	ret = file_write_and_wait_range(file, start, end);
-	if (ret)
-		goto out;
 
 	/*
 	 *  The caller's filemap_fdatawrite()/wait will sync the data.
