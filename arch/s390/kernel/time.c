@@ -65,6 +65,7 @@ ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
 EXPORT_SYMBOL(s390_epoch_delta_notifier);
 
 unsigned char ptff_function_mask[16];
+EXPORT_SYMBOL(ptff_function_mask);
 
 static unsigned long lpar_offset;
 static unsigned long initial_leap_seconds;

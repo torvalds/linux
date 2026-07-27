@@ -196,6 +196,7 @@ static int mwifiex_request_rgpower_table(struct mwifiex_private *priv)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	char rgpower_table_name[30];
 	char country_code[3];
+	int ret;
 
 	strscpy(country_code, domain_info->country_code, sizeof(country_code));
 
@@ -214,16 +215,17 @@ static int mwifiex_request_rgpower_table(struct mwifiex_private *priv)
 		adapter->rgpower_data = NULL;
 	}
 
-	if ((request_firmware(&adapter->rgpower_data, rgpower_table_name,
-			      adapter->dev))) {
+	ret = request_firmware_direct(&adapter->rgpower_data, rgpower_table_name,
+				      adapter->dev);
+
+	if (ret) {
 		mwifiex_dbg(
 			adapter, INFO,
-			"info: %s: failed to request regulatory power table\n",
-			__func__);
-		return -EIO;
+			"info: %s: failed to request regulatory power table: %d\n",
+			__func__, ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int mwifiex_dnld_rgpower_table(struct mwifiex_private *priv)

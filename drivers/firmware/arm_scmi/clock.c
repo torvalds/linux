@@ -718,7 +718,7 @@ static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 static int scmi_clock_determine_rate(const struct scmi_protocol_handle *ph,
 				     u32 clk_id, unsigned long *rate)
 {
-	u64 fmin, fmax, ftmp;
+	u64 fmin, fmax, ftmp, step;
 	struct scmi_clock_info *clk;
 	struct scmi_clock_desc *clkd;
 	struct clock_info *ci = ph->get_priv(ph);
@@ -749,11 +749,14 @@ static int scmi_clock_determine_rate(const struct scmi_protocol_handle *ph,
 		return 0;
 	}
 
-	ftmp = *rate - fmin;
-	ftmp += clkd->r.rates[RATE_STEP] - 1; /* to round up */
-	ftmp = div64_ul(ftmp, clkd->r.rates[RATE_STEP]);
+	step = clkd->r.rates[RATE_STEP];
+	if (!step)
+		return -EINVAL;
 
-	*rate = ftmp * clkd->r.rates[RATE_STEP] + fmin;
+	ftmp = *rate - fmin;
+	ftmp = DIV64_U64_ROUND_UP(ftmp, step);
+
+	*rate = ftmp * step + fmin;
 
 	return 0;
 }

@@ -2194,7 +2194,7 @@ static int prevent_memory_remove_notifier(struct notifier_block *nb,
 		}
 	}
 
-	if (!can_unmap_without_split(pfn, arg->nr_pages))
+	if (!can_unmap_without_split(arg->start_pfn, arg->nr_pages))
 		return NOTIFY_BAD;
 
 	return NOTIFY_OK;

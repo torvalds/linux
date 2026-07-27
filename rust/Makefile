@@ -84,11 +84,15 @@ core-flags := \
     --edition=$(core-edition) \
     $(call cfgs-to-flags,$(core-cfgs))
 
+zerocopy-cfgs := \
+    no_fp_fmt_parse
+
 zerocopy-flags := \
-    --cap-lints=allow
+    --cap-lints=allow \
+    $(call cfgs-to-flags,$(zerocopy-cfgs))
 
 zerocopy-envs := \
-    CARGO_PKG_VERSION=0.8.50
+    CARGO_PKG_VERSION=0.8.54
 
 proc_macro2-cfgs := \
     feature="proc-macro" \
@@ -128,11 +132,15 @@ syn-flags := \
     --extern quote \
     $(call cfgs-to-flags,$(syn-cfgs))
 
+zerocopy_derive-cfgs := \
+    zerocopy_unstable_linux
+
 zerocopy_derive-flags := \
     --cap-lints=allow \
     --extern proc_macro2 \
     --extern quote \
-    --extern syn
+    --extern syn \
+    $(call cfgs-to-flags,$(zerocopy_derive-cfgs))
 
 pin_init_internal-cfgs := \
     kernel USE_RUSTC_FEATURES
@@ -644,9 +652,11 @@ quiet_cmd_rustc_library = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) L 
 rust-analyzer:
 	$(Q)MAKEFLAGS= $(srctree)/scripts/generate_rust_analyzer.py \
 		--cfgs='core=$(core-cfgs)' $(core-edition) \
+		--cfgs='zerocopy=$(zerocopy-cfgs)' \
 		--cfgs='proc_macro2=$(proc_macro2-cfgs)' \
 		--cfgs='quote=$(quote-cfgs)' \
 		--cfgs='syn=$(syn-cfgs)' \
+		--cfgs='zerocopy_derive=$(zerocopy_derive-cfgs)' \
 		--cfgs='pin_init_internal=$(pin_init_internal-cfgs)' \
 		--cfgs='pin_init=$(pin_init-cfgs)' \
 		--envs='zerocopy=$(zerocopy-envs)' \

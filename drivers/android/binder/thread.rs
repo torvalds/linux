@@ -1295,7 +1295,6 @@ impl Thread {
                         inner.extended_error =
                             ExtendedError::new(info.debug_id as u32, err.reply, source.to_errno());
                     }
-                }
 
                 binder_debug!(
                     FailedTransaction,
@@ -1314,6 +1313,7 @@ impl Thread {
                     info.data_size,
                     info.offsets_size
                 );
+                }
             }
         }
 

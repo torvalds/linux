@@ -59,7 +59,9 @@ static int validate_gdte_nested(struct iommu_hwpt_amd_guest *gdte)
 	return 0;
 }
 
-static void *gdom_info_load_or_alloc_locked(struct xarray *xa, unsigned long index)
+static void *gdom_info_load_or_alloc_locked(struct xarray *xa,
+					    unsigned long index,
+					    unsigned long *flags)
 {
 	struct guest_domain_mapping_info *elm, *res;
 
@@ -67,13 +69,13 @@ static void *gdom_info_load_or_alloc_locked(struct xarray *xa, unsigned long ind
 	if (elm)
 		return elm;
 
-	xa_unlock(xa);
+	xa_unlock_irqrestore(xa, *flags);
 	elm = kzalloc_obj(struct guest_domain_mapping_info);
-	xa_lock(xa);
+	xa_lock_irqsave(xa, *flags);
 	if (!elm)
 		return ERR_PTR(-ENOMEM);
 
-	res = __xa_cmpxchg(xa, index, NULL, elm, GFP_KERNEL);
+	res = __xa_cmpxchg(xa, index, NULL, elm, GFP_ATOMIC);
 	if (xa_is_err(res))
 		res = ERR_PTR(xa_err(res));
 
@@ -95,6 +97,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 			      const struct iommu_user_data *user_data)
 {
 	int ret;
+	unsigned long irqflags;
 	struct nested_domain *ndom;
 	struct guest_domain_mapping_info *gdom_info;
 	struct amd_iommu_viommu *aviommu = container_of(viommu, struct amd_iommu_viommu, core);
@@ -136,11 +139,12 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	 * keep track of the gDomID mapping. When the S2 is changed, the INVALIDATE_IOMMU_PAGES
 	 * command must be issued for each hDomID in the xarray.
 	 */
-	xa_lock(&aviommu->gdomid_array);
+	xa_lock_irqsave(&aviommu->gdomid_array, irqflags);
 
-	gdom_info = gdom_info_load_or_alloc_locked(&aviommu->gdomid_array, ndom->gdom_id);
+	gdom_info = gdom_info_load_or_alloc_locked(&aviommu->gdomid_array,
+						   ndom->gdom_id, &irqflags);
 	if (IS_ERR(gdom_info)) {
-		xa_unlock(&aviommu->gdomid_array);
+		xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 		ret = PTR_ERR(gdom_info);
 		goto out_err;
 	}
@@ -148,7 +152,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	/* Check if gDomID exist */
 	if (refcount_inc_not_zero(&gdom_info->users)) {
 		ndom->gdom_info = gdom_info;
-		xa_unlock(&aviommu->gdomid_array);
+		xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 
 		pr_debug("%s: Found gdom_id=%#x, hdom_id=%#x\n",
 			  __func__, ndom->gdom_id, gdom_info->hdom_id);
@@ -161,7 +165,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	if (gdom_info->hdom_id <= 0) {
 		__xa_cmpxchg(&aviommu->gdomid_array,
 			     ndom->gdom_id, gdom_info, NULL, GFP_ATOMIC);
-		xa_unlock(&aviommu->gdomid_array);
+		xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 		ret = -ENOSPC;
 		goto out_err_gdom_info;
 	}
@@ -169,7 +173,7 @@ amd_iommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 	ndom->gdom_info = gdom_info;
 	refcount_set(&gdom_info->users, 1);
 
-	xa_unlock(&aviommu->gdomid_array);
+	xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 
 	pr_debug("%s: Allocate gdom_id=%#x, hdom_id=%#x\n",
 		 __func__, ndom->gdom_id, gdom_info->hdom_id);
@@ -257,14 +261,15 @@ static int nested_attach_device(struct iommu_domain *dom, struct device *dev,
 
 static void nested_domain_free(struct iommu_domain *dom)
 {
+	unsigned long irqflags;
 	struct guest_domain_mapping_info *curr;
-	struct nested_domain *ndom = to_ndomain(dom);
+	struct nested_domain *ndom __free(kfree) = to_ndomain(dom);
 	struct amd_iommu_viommu *aviommu = ndom->viommu;
 
-	xa_lock(&aviommu->gdomid_array);
+	xa_lock_irqsave(&aviommu->gdomid_array, irqflags);
 
 	if (!refcount_dec_and_test(&ndom->gdom_info->users)) {
-		xa_unlock(&aviommu->gdomid_array);
+		xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 		return;
 	}
 
@@ -275,7 +280,7 @@ static void nested_domain_free(struct iommu_domain *dom)
 	curr = __xa_cmpxchg(&aviommu->gdomid_array, ndom->gdom_id,
 			    ndom->gdom_info, NULL, GFP_ATOMIC);
 
-	xa_unlock(&aviommu->gdomid_array);
+	xa_unlock_irqrestore(&aviommu->gdomid_array, irqflags);
 	if (WARN_ON(!curr || xa_err(curr)))
 		return;
 
@@ -285,7 +290,6 @@ static void nested_domain_free(struct iommu_domain *dom)
 
 	amd_iommu_pdom_id_free(ndom->gdom_info->hdom_id);
 	kfree(curr);
-	kfree(ndom);
 }
 
 static const struct iommu_domain_ops nested_domain_ops = {

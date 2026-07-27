@@ -75,3 +75,4 @@ kunit_test_suite(maperror_suite);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("KUnit tests of SMB1 maperror");
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");

@@ -71,27 +71,27 @@
 	cfi_ld	s7, PT_R30
 	cfi_ld	s8, PT_R31
 	LONG_L  t0, sp, PT_CRMD
-	li.d	t1, 0x7 /* mask bit[1:0] PLV, bit[2] IE */
+	LONG_LI	t1, 0x7 /* mask bit[1:0] PLV, bit[2] IE */
 	csrxchg t0, t1, LOONGARCH_CSR_CRMD
 	.endm
 
 SYM_CODE_START(arch_rethook_trampoline)
 	UNWIND_HINT_UNDEFINED
-	addi.d	sp, sp, -PT_SIZE
+	PTR_ADDI sp, sp, -PT_SIZE
 	save_all_base_regs
 
-	addi.d	t0, sp, PT_SIZE
-	LONG_S	t0, sp, PT_R3
+	PTR_ADDI t0, sp, PT_SIZE
+	LONG_S	 t0, sp, PT_R3
 
-	move a0, sp /* pt_regs */
+	move	 a0, sp /* pt_regs */
 
-	bl arch_rethook_trampoline_callback
+	bl	 arch_rethook_trampoline_callback
 
 	/* use the result as the return-address */
-	move ra, a0
+	move	 ra, a0
 
 	restore_all_base_regs
-	addi.d	sp, sp, PT_SIZE
+	PTR_ADDI sp, sp, PT_SIZE
 
-	jr ra
+	jr	 ra
 SYM_CODE_END(arch_rethook_trampoline)

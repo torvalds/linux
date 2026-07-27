@@ -22,4 +22,12 @@ static inline unsigned int ttm_pool_beneficial_order(struct ttm_pool *pool)
 	return pool->alloc_flags & 0xff;
 }
 
+/*
+ * Implemented in ttm_pool.c, used by ttm_backup.c. Returns true if a fault
+ * should be injected mid-compound to test the reactive split-and-retry
+ * fallback in ttm_pool_backup(). Always returns false when
+ * CONFIG_FAULT_INJECTION is disabled.
+ */
+bool ttm_backup_fault_inject_folio(void);
+
 #endif

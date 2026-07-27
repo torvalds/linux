@@ -412,6 +412,7 @@ static int nsm_device_init_vq(struct virtio_device *vdev)
 }
 
 static const struct file_operations nsm_dev_fops = {
+	.owner = THIS_MODULE,
 	.unlocked_ioctl = nsm_dev_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
