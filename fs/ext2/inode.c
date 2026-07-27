@@ -39,8 +39,6 @@
 #include "acl.h"
 #include "xattr.h"
 
-static int __ext2_write_inode(struct inode *inode, int do_sync);
-
 /*
  * Test whether an inode is a fast symlink.
  */
@@ -83,11 +81,16 @@ void ext2_evict_inode(struct inode * inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	if (want_delete) {
+		struct writeback_control wbc = {
+			.sync_mode = inode_needs_sync(inode) ? WB_SYNC_ALL :
+							       WB_SYNC_NONE,
+		};
+
 		sb_start_intwrite(inode->i_sb);
 		/* set dtime */
 		EXT2_I(inode)->i_dtime	= ktime_get_real_seconds();
 		mark_inode_dirty(inode);
-		__ext2_write_inode(inode, inode_needs_sync(inode));
+		ext2_write_inode(inode, &wbc);
 		/* truncate to 0 */
 		inode->i_size = 0;
 		if (inode->i_blocks)
@@ -1466,7 +1469,7 @@ bad_inode:
 	return ERR_PTR(ret);
 }
 
-static int __ext2_write_inode(struct inode *inode, int do_sync)
+int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -1557,7 +1560,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
 		raw_inode->i_block[n] = ei->i_data[n];
 	mark_buffer_dirty(bh);
-	if (do_sync) {
+	if (wbc->sync_mode == WB_SYNC_ALL) {
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh)) {
 			printk ("IO error syncing ext2 inode [%s:%08lx]\n",
@@ -1568,11 +1571,6 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 	ei->i_state &= ~EXT2_STATE_NEW;
 	brelse (bh);
 	return err;
-}
-
-int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
-{
-	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 }
 
 int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,
