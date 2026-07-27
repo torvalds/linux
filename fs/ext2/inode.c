@@ -81,16 +81,11 @@ void ext2_evict_inode(struct inode * inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	if (want_delete) {
-		struct writeback_control wbc = {
-			.sync_mode = inode_needs_sync(inode) ? WB_SYNC_ALL :
-							       WB_SYNC_NONE,
-		};
-
 		sb_start_intwrite(inode->i_sb);
 		/* set dtime */
 		EXT2_I(inode)->i_dtime	= ktime_get_real_seconds();
 		mark_inode_dirty(inode);
-		ext2_write_inode(inode, &wbc);
+		sync_inode_metadata(inode, inode_needs_sync(inode));
 		/* truncate to 0 */
 		inode->i_size = 0;
 		if (inode->i_blocks)
@@ -1560,20 +1555,37 @@ int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
 		raw_inode->i_block[n] = ei->i_data[n];
 	mark_buffer_dirty(bh);
-	/*
-	 * For sync(2) the generic code will call sync_blockdev() to write
-	 * all metadata more efficiently.
-	 */
-	if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync) {
-		sync_dirty_buffer(bh);
-		if (buffer_req(bh) && !buffer_uptodate(bh)) {
-			printk ("IO error syncing ext2 inode [%s:%08lx]\n",
-				sb->s_id, (unsigned long) ino);
-			err = -EIO;
-		}
-	}
 	ei->i_state &= ~EXT2_STATE_NEW;
 	brelse (bh);
+	set_inode_metadata_writeback(inode);
+	return err;
+}
+
+int ext2_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
+{
+	struct buffer_head *bh;
+	struct ext2_inode *raw_inode = ext2_get_inode(inode->i_sb, inode->i_ino,
+						      &bh);
+	int err = 0;
+
+	if (IS_ERR(raw_inode))
+		return -EIO;
+	err = mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
+	if (err) {
+		ext2_error(inode->i_sb, __func__,
+			"Error syncing inode metadata ino=%lu\n",
+			(unsigned long)inode->i_ino);
+		goto out;
+	}
+	sync_dirty_buffer(bh);
+	if (buffer_write_io_error(bh)) {
+		ext2_error(inode->i_sb, __func__,
+			"IO error syncing inode %lu\n",
+			(unsigned long)inode->i_ino);
+		err = -EIO;
+	}
+out:
+	brelse(bh);
 	return err;
 }
 
