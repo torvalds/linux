@@ -281,7 +281,7 @@ struct qcom_smem {
 	struct smem_partition global_partition;
 	struct xarray partitions;
 
-	unsigned num_regions;
+	unsigned int num_regions;
 	struct smem_region regions[] __counted_by(num_regions);
 };
 
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(qcom_smem_is_available);
 
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_partition *part,
-				   unsigned item,
+				   unsigned int item,
 				   size_t size)
 {
 	struct smem_private_entry *hdr, *end;
@@ -460,7 +460,7 @@ bad_canary:
 }
 
 static int qcom_smem_alloc_global(struct qcom_smem *smem,
-				  unsigned item,
+				  unsigned int item,
 				  size_t size)
 {
 	struct smem_global_entry *entry;
@@ -503,7 +503,7 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
  *
  * Return: 0 on success, negative errno on failure.
  */
-int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
+int qcom_smem_alloc(unsigned int host, unsigned int item, size_t size)
 {
 	struct smem_partition *part;
 	unsigned long flags;
@@ -544,7 +544,7 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 EXPORT_SYMBOL_GPL(qcom_smem_alloc);
 
 static void *qcom_smem_get_global(struct qcom_smem *smem,
-				  unsigned item,
+				  unsigned int item,
 				  size_t *size)
 {
 	struct smem_header *header;
@@ -553,7 +553,6 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 	u64 entry_offset;
 	u32 e_size;
 	u32 aux_base;
-	unsigned i;
 
 	header = smem->regions[0].virt_base;
 	entry = &header->toc[item];
@@ -562,7 +561,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 
 	aux_base = le32_to_cpu(entry->aux_base) & AUX_BASE_MASK;
 
-	for (i = 0; i < smem->num_regions; i++) {
+	for (unsigned int i = 0; i < smem->num_regions; i++) {
 		region = &smem->regions[i];
 
 		if ((u32)region->aux_base == aux_base || !aux_base) {
@@ -584,7 +583,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 
 static void *qcom_smem_get_private(struct qcom_smem *smem,
 				   struct smem_partition *part,
-				   unsigned item,
+				   unsigned int item,
 				   size_t *size)
 {
 	struct smem_private_entry *e, *end;
@@ -683,7 +682,7 @@ invalid_canary:
  *
  * Return: a pointer to an SMEM item on success, ERR_PTR() on failure.
  */
-void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
+void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
 {
 	struct smem_partition *part;
 	void *ptr;
@@ -717,12 +716,12 @@ EXPORT_SYMBOL_GPL(qcom_smem_get);
  *
  * Return: number of available bytes on success, negative errno on failure.
  */
-int qcom_smem_get_free_space(unsigned host)
+int qcom_smem_get_free_space(unsigned int host)
 {
 	struct smem_partition *part;
 	struct smem_partition_header *phdr;
 	struct smem_header *header;
-	unsigned ret;
+	unsigned int ret;
 
 	if (IS_ERR(__smem))
 		return PTR_ERR(__smem);
