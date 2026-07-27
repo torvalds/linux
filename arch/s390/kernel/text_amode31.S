@@ -5,6 +5,7 @@
  * Copyright IBM Corp. 2019
  */
 
+#include <linux/cfi_types.h>
 #include <linux/linkage.h>
 #include <asm/asm-extable.h>
 #include <asm/errno.h>
@@ -26,7 +27,7 @@
 /*
  * int _diag14_amode31(unsigned long rx, unsigned long ry1, unsigned long subcode)
  */
-SYM_FUNC_START(_diag14_amode31)
+SYM_TYPED_FUNC_START(_diag14_amode31)
 	lgr	%r1,%r2
 	lgr	%r2,%r3
 	lgr	%r3,%r4
@@ -46,7 +47,7 @@ SYM_FUNC_END(_diag14_amode31)
 /*
  * int _diag210_amode31(struct diag210 *addr)
  */
-SYM_FUNC_START(_diag210_amode31)
+SYM_TYPED_FUNC_START(_diag210_amode31)
 	lgr	%r1,%r2
 	lhi	%r2,-1
 	sam31
@@ -64,7 +65,7 @@ SYM_FUNC_END(_diag210_amode31)
 /*
  * int diag8c(struct diag8c *addr, struct ccw_dev_id *devno, size_t len)
 */
-SYM_FUNC_START(_diag8c_amode31)
+SYM_TYPED_FUNC_START(_diag8c_amode31)
 	llgf	%r3,0(%r3)
 	sam31
 	diag	%r2,%r4,0x8c
@@ -77,7 +78,7 @@ SYM_FUNC_END(_diag8c_amode31)
 /*
  * int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode)
  */
-SYM_FUNC_START(_diag26c_amode31)
+SYM_TYPED_FUNC_START(_diag26c_amode31)
 	lghi	%r5,-EOPNOTSUPP
 	sam31
 	diag	%r2,%r4,0x26c
@@ -91,7 +92,7 @@ SYM_FUNC_END(_diag26c_amode31)
 /*
  * void _diag0c_amode31(unsigned long rx)
  */
-SYM_FUNC_START(_diag0c_amode31)
+SYM_TYPED_FUNC_START(_diag0c_amode31)
 	sam31
 	diag	%r2,%r2,0x0c
 	sam64
@@ -103,7 +104,7 @@ SYM_FUNC_END(_diag0c_amode31)
  *
  * Calls diag 308 subcode 1 and continues execution
  */
-SYM_FUNC_START(_diag308_reset_amode31)
+SYM_TYPED_FUNC_START(_diag308_reset_amode31)
 	larl	%r4,ctlregs		# Save control registers
 	stctg	%c0,%c15,0(%r4)
 	lg	%r2,0(%r4)		# Disable lowcore protection
