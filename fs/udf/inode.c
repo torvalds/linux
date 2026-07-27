@@ -52,7 +52,6 @@ struct udf_map_rq;
 
 static umode_t udf_convert_permissions(struct fileEntry *);
 static int udf_update_inode(struct inode *, int);
-static int udf_sync_inode(struct inode *inode);
 static int udf_alloc_i_data(struct inode *inode, size_t size);
 static int inode_getblk(struct inode *inode, struct udf_map_rq *map);
 static int udf_insert_aext(struct inode *, struct extent_position,
@@ -938,10 +937,7 @@ static int inode_getblk(struct inode *inode, struct udf_map_rq *map)
 	iinfo->i_next_alloc_goal = newblocknum + 1;
 	inode_set_ctime_current(inode);
 
-	if (IS_SYNC(inode))
-		udf_sync_inode(inode);
-	else
-		mark_inode_dirty(inode);
+	mark_inode_dirty(inode);
 	ret = 0;
 out_free:
 	brelse(prev_epos.bh);
@@ -1731,11 +1727,6 @@ int udf_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 out:
 	brelse(bh);
 	return err;
-}
-
-static int udf_sync_inode(struct inode *inode)
-{
-	return udf_update_inode(inode, 1);
 }
 
 static void udf_adjust_time(struct udf_inode_info *iinfo, struct timespec64 time)
