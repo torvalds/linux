@@ -63,6 +63,7 @@
 #define MAX17042_RESISTANCE_LSB		1 / 4096 /* Ω */
 #define MAX17042_TEMPERATURE_LSB	1 / 256 /* °C */
 
+#define MAX17055_DQACC_DIV		32
 #define MAX17055_DPACC_FACTOR		44138
 #define MAX17055_DPACC_VCHG_FACTOR	51200
 #define MAX17055_FSTAT_DNR_BIT		BIT(0)
@@ -1245,6 +1246,85 @@ static int max17042_init_defaults(struct max17042_chip *chip)
 	return 0;
 }
 
+static int max17042_apply_battery_properties(struct max17042_chip *chip,
+					     struct power_supply_battery_info *info)
+{
+	struct max17042_config_data *config;
+	struct device *dev = chip->dev;
+	bool have_design_cap;
+	bool have_ichgt_term;
+	u16 design_cap = 0;
+	u16 ichgt_term = 0;
+	u16 dqacc = 0;
+	u64 data64;
+
+	if (!info || chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055)
+		return 0;
+
+	have_design_cap = chip->enable_current_sense &&
+		info->charge_full_design_uah > 0;
+	have_ichgt_term = chip->enable_current_sense &&
+		info->charge_term_current_ua > 0;
+	if (!have_design_cap && !have_ichgt_term)
+		return 0;
+
+	if (have_design_cap) {
+		data64 = (u64)info->charge_full_design_uah * chip->r_sns;
+		do_div(data64, MAX17042_CAPACITY_LSB);
+		if (!data64)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity is too small for sense resistor\n");
+		if (data64 > U16_MAX)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity exceeds register range\n");
+
+		design_cap = (u16)data64;
+		dqacc = design_cap / MAX17055_DQACC_DIV;
+		if (!dqacc)
+			return dev_err_probe(dev, -ERANGE,
+					     "battery design capacity is too small for EZ config\n");
+	}
+
+	if (have_ichgt_term) {
+		data64 = (u64)info->charge_term_current_ua * chip->r_sns;
+		do_div(data64, MAX17042_CURRENT_LSB);
+		if (!data64)
+			return dev_err_probe(dev, -ERANGE,
+					     "charge termination current is too small for sense resistor\n");
+		if (data64 > S16_MAX)
+			return dev_err_probe(dev, -ERANGE,
+					     "charge termination current exceeds positive register range\n");
+
+		ichgt_term = (u16)data64;
+	}
+
+	config = chip->config_data;
+	if (!config) {
+		config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
+		if (!config)
+			return -ENOMEM;
+	}
+
+	if (have_design_cap) {
+		config->design_cap = design_cap;
+		config->dqacc = dqacc;
+	}
+	if (have_ichgt_term)
+		config->ichgt_term = ichgt_term;
+
+	chip->config_data = config;
+	chip->enable_por_init = true;
+
+	return 0;
+}
+
+static int max17042_init_battery(struct power_supply *psy)
+{
+	struct max17042_chip *chip = power_supply_get_drvdata(psy);
+
+	return max17042_apply_battery_properties(chip, psy->battery_info);
+}
+
 static const struct regmap_config max17042_regmap_config = {
 	.name = "max17042",
 	.reg_bits = 8,
@@ -1298,6 +1378,7 @@ static const struct power_supply_desc max17042_psy_desc = {
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
 	.external_power_changed	= power_supply_changed,
+	.init		= max17042_init_battery,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props),
 };
@@ -1308,6 +1389,7 @@ static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
 	.get_property	= max17042_get_property,
 	.set_property	= max17042_set_property,
 	.property_is_writeable	= max17042_property_is_writeable,
+	.init		= max17042_init_battery,
 	.properties	= max17042_battery_props,
 	.num_properties	= ARRAY_SIZE(max17042_battery_props) - 2,
 };
