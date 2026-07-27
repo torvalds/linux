@@ -125,6 +125,7 @@ enum max17055_register {
 
 	MAX17055_ConvgCfg	= 0x49,
 	MAX17055_VFRemCap	= 0x4A,
+	MAX17055_SoftWakeup	= 0x60,
 
 	MAX17055_STATUS2	= 0xB0,
 	MAX17055_POWER		= 0xB1,

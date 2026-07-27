@@ -65,7 +65,12 @@
 
 #define MAX17055_DPACC_FACTOR		44138
 #define MAX17055_DPACC_VCHG_FACTOR	51200
+#define MAX17055_FSTAT_DNR_BIT		BIT(0)
+#define MAX17055_DNR_POLL_US		10000
+#define MAX17055_DNR_TIMEOUT_US		2000000
 #define MAX17055_INIT_RETRY_DELAY_MS	10000
+#define MAX17055_REFRESH_POLL_US		10000
+#define MAX17055_REFRESH_TIMEOUT_US	1000000
 
 struct max17042_chip {
 	struct device *dev;
@@ -79,6 +84,8 @@ struct max17042_chip {
 	bool   enable_current_sense;
 	bool   enable_por_init;
 	bool   init_complete;
+	bool   hib_restore_pending;
+	u16    hib_cfg;
 	unsigned int r_sns;
 	int    vmin;	/* in millivolts */
 	int    vmax;	/* in millivolts */
@@ -935,19 +942,86 @@ static int max17055_override_battery_values(struct max17042_chip *chip)
 	return max17055_write_verify_reg(map, MAX17042_dPacc, (u16)dpacc);
 }
 
+static int max17055_restore_hibernate(struct max17042_chip *chip)
+{
+	int restore_hib_ret;
+	int soft_wakeup_ret;
+
+	soft_wakeup_ret = regmap_write(chip->regmap, MAX17055_SoftWakeup, 0);
+	restore_hib_ret = max17055_write_verify_reg(chip->regmap,
+						    MAX17055_HibCfg,
+						    chip->hib_cfg);
+	if (!soft_wakeup_ret && !restore_hib_ret)
+		chip->hib_restore_pending = false;
+
+	return soft_wakeup_ret ?: restore_hib_ret;
+}
+
 static int max17055_init_chip(struct max17042_chip *chip)
 {
+	struct regmap *map = chip->regmap;
+	unsigned int hib_cfg;
+	unsigned int model_cfg;
+	unsigned int fstat;
+	int restore_ret;
 	int ret;
+
+	if (chip->hib_restore_pending) {
+		ret = max17055_restore_hibernate(chip);
+		if (ret)
+			return ret;
+	}
+
+	ret = regmap_read_poll_timeout(map, MAX17042_FSTAT, fstat,
+				       !(fstat & MAX17055_FSTAT_DNR_BIT),
+				       MAX17055_DNR_POLL_US,
+				       MAX17055_DNR_TIMEOUT_US);
+	if (ret)
+		return ret;
+
+	ret = regmap_read(map, MAX17055_HibCfg, &hib_cfg);
+	if (ret)
+		return ret;
+
+	chip->hib_cfg = hib_cfg;
+	chip->hib_restore_pending = true;
+
+	ret = regmap_write(map, MAX17055_SoftWakeup, 0x0090);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = max17055_write_verify_reg(map, MAX17055_HibCfg, 0);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = regmap_write(map, MAX17055_SoftWakeup, 0);
+	if (ret)
+		goto restore_hibernate;
 
 	max17042_override_por_values(chip);
 
 	ret = max17055_override_battery_values(chip);
 	if (ret)
-		return ret;
+		goto restore_hibernate;
 
-	return regmap_write_bits(chip->regmap, MAX17055_ModelCfg,
-				 MAX17055_MODELCFG_REFRESH_BIT,
-				 MAX17055_MODELCFG_REFRESH_BIT);
+	ret = regmap_write_bits(map, MAX17055_ModelCfg,
+				MAX17055_MODELCFG_REFRESH_BIT,
+				MAX17055_MODELCFG_REFRESH_BIT);
+	if (ret)
+		goto restore_hibernate;
+
+	ret = regmap_read_poll_timeout(map, MAX17055_ModelCfg, model_cfg,
+				       !(model_cfg &
+					 MAX17055_MODELCFG_REFRESH_BIT),
+				       MAX17055_REFRESH_POLL_US,
+				       MAX17055_REFRESH_TIMEOUT_US);
+
+restore_hibernate:
+	restore_ret = max17055_restore_hibernate(chip);
+	if (restore_ret)
+		return restore_ret;
+
+	return ret;
 }
 
 static int max17042_init_chip(struct max17042_chip *chip)
@@ -961,15 +1035,10 @@ static int max17042_init_chip(struct max17042_chip *chip)
 			return ret;
 	} else {
 		max17042_override_por_values(chip);
-	}
 
-	/* After Power up, the MAX17042 requires 500mS in order
-	 * to perform signal debouncing and initial SOC reporting
-	 */
-	msleep(500);
+		/* Allow signal debouncing and initial SOC reporting. */
+		msleep(500);
 
-	if (chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055) {
-		/* Initialize configuration */
 		max17042_write_config_regs(chip);
 
 		/* write cell characterization data */
