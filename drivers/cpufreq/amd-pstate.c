@@ -1189,6 +1189,24 @@ static int amd_pstate_power_supply_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static int amd_pstate_get_epp_from_platform_profile(struct cpufreq_policy *policy,
+						    enum platform_profile_option profile)
+{
+	switch (profile) {
+	case PLATFORM_PROFILE_PERFORMANCE:
+		return AMD_CPPC_EPP_PERFORMANCE;
+	case PLATFORM_PROFILE_BALANCED:
+		return amd_pstate_get_balanced_epp(policy);
+	case PLATFORM_PROFILE_LOW_POWER:
+		return AMD_CPPC_EPP_POWERSAVE;
+	default:
+		break;
+	}
+
+	pr_err("Unknown Platform Profile %d\n", profile);
+	return -EOPNOTSUPP;
+}
+
 static int amd_pstate_profile_probe(void *drvdata, unsigned long *choices)
 {
 	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
@@ -1214,31 +1232,19 @@ static int amd_pstate_profile_set(struct device *dev,
 	struct amd_cpudata *cpudata = dev_get_drvdata(dev);
 	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpudata->cpu);
 	int ret;
+	u8 epp;
 
 	if (!policy)
 		return -ENODEV;
 
-	switch (profile) {
-	case PLATFORM_PROFILE_LOW_POWER:
-		ret = amd_pstate_set_epp(policy, AMD_CPPC_EPP_POWERSAVE);
-		if (ret)
-			return ret;
-		break;
-	case PLATFORM_PROFILE_BALANCED:
-		ret = amd_pstate_set_epp(policy,
-					 amd_pstate_get_balanced_epp(policy));
-		if (ret)
-			return ret;
-		break;
-	case PLATFORM_PROFILE_PERFORMANCE:
-		ret = amd_pstate_set_epp(policy, AMD_CPPC_EPP_PERFORMANCE);
-		if (ret)
-			return ret;
-		break;
-	default:
-		pr_err("Unknown Platform Profile %d\n", profile);
-		return -EOPNOTSUPP;
-	}
+	ret = amd_pstate_get_epp_from_platform_profile(policy, profile);
+	if (ret < 0)
+		return ret;
+
+	epp = (u8)ret;
+	ret = amd_pstate_set_epp(policy, epp);
+	if (ret)
+		return ret;
 
 	cpudata->current_profile = profile;
 
@@ -1272,20 +1278,11 @@ static int amd_pstate_set_dynamic_epp(struct cpufreq_policy *policy)
 	int ret;
 	u8 epp;
 
-	switch (cpudata->current_profile) {
-	case PLATFORM_PROFILE_PERFORMANCE:
-		epp = AMD_CPPC_EPP_PERFORMANCE;
-		break;
-	case PLATFORM_PROFILE_LOW_POWER:
-		epp = AMD_CPPC_EPP_POWERSAVE;
-		break;
-	case PLATFORM_PROFILE_BALANCED:
-		epp = amd_pstate_get_balanced_epp(policy);
-		break;
-	default:
-		pr_err("Unknown Platform Profile %d\n", cpudata->current_profile);
-		return -EOPNOTSUPP;
-	}
+	ret = amd_pstate_get_epp_from_platform_profile(policy, cpudata->current_profile);
+	if (ret < 0)
+		return ret;
+
+	epp = (u8)ret;
 	ret = amd_pstate_set_epp(policy, epp);
 	if (ret)
 		return ret;
