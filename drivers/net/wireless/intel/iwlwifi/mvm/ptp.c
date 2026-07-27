@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021 - 2023, 2025 Intel Corporation
+ * Copyright (C) 2021 - 2023, 2025-2026 Intel Corporation
  */
 
 #include "mvm.h"
@@ -120,6 +120,8 @@ iwl_mvm_get_crosstimestamp_fw(struct iwl_mvm *mvm, u32 *gp2, u64 *sys_time)
 
 	*sys_time = (u64)le32_to_cpu(resp->platform_timestamp_hi) << 32 |
 		le32_to_cpu(resp->platform_timestamp_lo);
+
+	iwl_free_resp(&cmd);
 
 	return ret;
 }

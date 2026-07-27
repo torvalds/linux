@@ -3137,9 +3137,11 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 3):
 	case IP_VERSION(11, 5, 4):
 	case IP_VERSION(11, 5, 6):
+		adev->family = AMDGPU_FAMILY_GC_11_5_0;
+		break;
 	case IP_VERSION(11, 7, 0):
 	case IP_VERSION(11, 7, 1):
-		adev->family = AMDGPU_FAMILY_GC_11_5_0;
+		adev->family = AMDGPU_FAMILY_GC_11_5_4;
 		break;
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):

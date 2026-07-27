@@ -96,7 +96,7 @@ config ARM_SCMI_POWER_CONTROL
 	  firmware.
 
 	  This driver can also be built as a module.  If so, the module will be
-	  called scmi_power_control. Note this may needed early in boot to catch
-	  early shutdown/reboot SCMI requests.
+	  called scmi_power_control. Note this may be needed early in boot to
+	  catch early shutdown/reboot SCMI requests.
 
 endmenu

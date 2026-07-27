@@ -829,6 +829,7 @@ static int panthor_fw_load(struct panthor_device *ptdev)
 	}
 
 	if (hdr.size > iter.size) {
+		ret = -EINVAL;
 		drm_err(&ptdev->base, "Firmware image is truncated\n");
 		goto out;
 	}
