@@ -34,10 +34,6 @@
 	wx\n	.req	w\n
 	.endr
 
-	.macro disable_daif
-	msr	daifset, #0xf
-	.endm
-
 /*
  * Save/restore interrupts.
  */
