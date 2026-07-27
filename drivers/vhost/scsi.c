@@ -972,6 +972,9 @@ vhost_scsi_mapal(struct vhost_scsi *vs, struct vhost_scsi_cmd *cmd,
 	if (prot_bytes) {
 		sgl_count = vhost_scsi_calc_sgls(prot_iter, prot_bytes,
 						 VHOST_SCSI_PREALLOC_PROT_SGLS);
+		if (sgl_count < 0)
+			return sgl_count;
+
 		cmd->prot_table.sgl = cmd->prot_sgl;
 		ret = sg_alloc_table_chained(&cmd->prot_table, sgl_count,
 					     cmd->prot_table.sgl,
@@ -1416,6 +1419,11 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			 * actual data payload length.
 			 */
 			if (prot_bytes) {
+				if (prot_bytes >= exp_data_len) {
+					vq_err(vq, "Protection data exceeds payload length\n");
+					goto err;
+				}
+
 				exp_data_len -= prot_bytes;
 				prot_iter = data_iter;
 				iov_iter_truncate(&prot_iter, prot_bytes);
