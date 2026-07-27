@@ -1776,6 +1776,13 @@ static ssize_t ucma_write_cm_event(struct ucma_file *file,
 		goto out;
 	}
 
+	rdma_lock_handler(ctx->cm_id);
+	if (!ctx->uid) {
+		kfree(uevent);
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
 	uevent->ctx = ctx;
 	uevent->resp.uid = ctx->uid;
 	uevent->resp.id = ctx->id;
@@ -1789,6 +1796,8 @@ static ssize_t ucma_write_cm_event(struct ucma_file *file,
 	mutex_unlock(&ctx->file->mut);
 	wake_up_interruptible(&ctx->file->poll_wait);
 
+err_unlock:
+	rdma_unlock_handler(ctx->cm_id);
 out:
 	ucma_put_ctx(ctx);
 	return ret;
