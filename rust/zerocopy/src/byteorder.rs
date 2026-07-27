@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2019 The Fuchsia Authors
 //
 // Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
@@ -100,6 +100,7 @@ mod private {
 
 #[allow(missing_copy_implementations, missing_debug_implementations)]
 #[doc(hidden)]
+#[derive(PartialEq)]
 pub enum Order {
     BigEndian,
     LittleEndian,
@@ -164,6 +165,42 @@ pub type BE = BigEndian;
 /// A type alias for [`LittleEndian`].
 pub type LE = LittleEndian;
 
+macro_rules! impl_dbg_trait {
+    ($name:ident, $native:ident) => {
+        impl<O: ByteOrder> Debug for $name<O> {
+            #[inline]
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                // This results in a format like "U16(42)".
+                f.debug_tuple(stringify!($name)).field(&self.get()).finish()
+            }
+        }
+    };
+}
+
+macro_rules! impl_dbg_traits {
+    ($name:ident, $native:ident, "floating point number") => {
+        #[cfg(not(no_fp_fmt_parse))]
+        impl_dbg_trait!($name, $native);
+
+        #[cfg(no_fp_fmt_parse)]
+        impl<O: ByteOrder> Debug for $name<O> {
+            #[inline]
+            fn fmt(&self, _f: &mut Formatter<'_>) -> fmt::Result {
+                panic!("floating point support is turned off");
+            }
+        }
+    };
+    ($name:ident, $native:ident, "unsigned integer") => {
+        impl_dbg_traits!($name, $native, @all_types);
+    };
+    ($name:ident, $native:ident, "signed integer") => {
+        impl_dbg_traits!($name, $native, @all_types);
+    };
+    ($name:ident, $native:ident, @all_types) => {
+        impl_dbg_trait!($name, $native);
+    };
+}
+
 macro_rules! impl_fmt_trait {
     ($name:ident, $native:ident, $trait:ident) => {
         impl<O: ByteOrder> $trait for $name<O> {
@@ -177,6 +214,8 @@ macro_rules! impl_fmt_trait {
 
 macro_rules! impl_fmt_traits {
     ($name:ident, $native:ident, "floating point number") => {
+        #[cfg(not(no_fp_fmt_parse))]
+        impl_fmt_trait!($name, $native, Display);
     };
     ($name:ident, $native:ident, "unsigned integer") => {
         impl_fmt_traits!($name, $native, @all_types);
@@ -687,16 +726,9 @@ example of how it can be used for parsing UDP packets.
             }
         }
 
+        impl_dbg_traits!($name, $native, $number_kind);
         impl_fmt_traits!($name, $native, $number_kind);
         impl_ops_traits!($name, $native, $number_kind);
-
-        impl<O: ByteOrder> Debug for $name<O> {
-            #[inline]
-            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-                // This results in a format like "U16(42)".
-                f.debug_tuple(stringify!($name)).field(&self.get()).finish()
-            }
-        }
     };
 }
 

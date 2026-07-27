@@ -180,7 +180,7 @@ static const struct platform_device_id avs_ssm4567_driver_ids[] = {
 	{
 		.name = "avs_ssm4567",
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, avs_ssm4567_driver_ids);
 

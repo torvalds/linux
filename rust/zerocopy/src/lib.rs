@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2018 The Fuchsia Authors
 //
 // Licensed under the 2-Clause BSD License <LICENSE-BSD or
@@ -12,7 +12,7 @@
 // After updating the following doc comment, make sure to run the following
 // command to update `README.md` based on its contents:
 //
-//   cargo -q run --manifest-path tools/Cargo.toml -p generate-readme > README.md
+//   (cd .. && cargo -q run --manifest-path tools/Cargo.toml -p generate-readme) > README.md
 
 //! ***<span style="font-size: 140%">Fast, safe, <span
 //! style="color:red;">compile error</span>. Pick two.</span>***
@@ -174,7 +174,7 @@
 //!
 //! [Miri]: https://github.com/rust-lang/miri
 //! [Kani]: https://github.com/model-checking/kani
-//! [soundness policy]: https://github.com/google/zerocopy/blob/main/POLICIES.md#soundness
+//! [soundness policy]: https://github.com/google/zerocopy/blob/main/zerocopy/POLICIES.md#soundness
 //!
 //! # Relationship to Project Safe Transmute
 //!
@@ -203,7 +203,7 @@
 //!
 //! See our [MSRV policy].
 //!
-//! [MSRV policy]: https://github.com/google/zerocopy/blob/main/POLICIES.md#msrv
+//! [MSRV policy]: https://github.com/google/zerocopy/blob/main/zerocopy/POLICIES.md#msrv
 //!
 //! # Changelog
 //!
@@ -435,6 +435,8 @@ const _: () = {
     WARNING
 };
 
+#[cfg(all(any(feature = "derive", test), zerocopy_unstable_linux))]
+pub use zerocopy_derive::most_traits;
 /// Implements [`KnownLayout`].
 ///
 /// This derive analyzes various aspects of a type's layout that are needed for
@@ -2832,7 +2834,7 @@ pub unsafe trait TryFromBytes {
     /// ```
     ///
     /// [`try_mut_from_bytes`]: TryFromBytes::try_mut_from_bytes
-    ///  
+    ///
     #[doc = codegen_header!("h5", "try_mut_from_bytes_with_elems")]
     ///
     /// See [`TryFromBytes::try_ref_from_bytes_with_elems`](#method.try_ref_from_bytes_with_elems.codegen).

@@ -42,7 +42,7 @@ static const struct platform_device_id db1200_pids[] = {
 		.name		= "db1550-i2s",
 		.driver_data	= 5,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, db1200_pids);
 

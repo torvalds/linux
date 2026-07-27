@@ -2935,8 +2935,8 @@ static const struct dev_pm_ops cs42l43_codec_pm_ops = {
 };
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
-	{ "cs42l43-codec", },
-	{}
+	{ .name = "cs42l43-codec" },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, cs42l43_codec_id_table);
 

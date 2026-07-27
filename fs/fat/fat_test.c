@@ -22,7 +22,7 @@ static void fat_checksum_test(struct kunit *test)
 
 static void fat_clus_to_blknr_test(struct kunit *test)
 {
-	struct msdos_sb_info sbi = {
+	static const struct msdos_sb_info sbi = {
 		.sec_per_clus = 4,
 		.data_start = 100,
 	};
@@ -34,7 +34,7 @@ static void fat_clus_to_blknr_test(struct kunit *test)
 
 static void fat_get_blknr_offset_test(struct kunit *test)
 {
-	struct msdos_sb_info sbi = {
+	static const struct msdos_sb_info sbi = {
 		.dir_per_block = 16,
 		.dir_per_block_bits = 4,
 	};
