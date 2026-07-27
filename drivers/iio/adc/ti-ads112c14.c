@@ -10,6 +10,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/cleanup.h>
+#include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/dev_printk.h>
 #include <linux/device/devres.h>
@@ -156,6 +157,9 @@ static const u32 ads112c14_pga_gains_x10[] = {
 	200, 320, 500, 640, 1000, 1280, 2000, 2560,	/* 8 - 15 */
 };
 
+#define ADS112C14_I2C_CRC8_POLYNOMIAL 0x07
+DECLARE_CRC8_TABLE(ads112c14_crc8_table);
+
 struct ads112c14_chip_info {
 	const char *name;
 	u8 device_id;
@@ -241,6 +245,7 @@ struct ads112c14_data {
 	struct regmap *regmap;
 	/* Synchronizes access to register value fields. */
 	struct mutex lock;
+	bool i2c_crc_enabled;
 	u32 avdd_uV;
 	u32 ext_ref_uV;
 	bool refp_is_avdd;
@@ -287,6 +292,120 @@ static const struct reg_default ads112c14_reg_defaults[] = {
 	{ ADS112C14_REG_GPIO_DATA_OUTPUT, 0 },
 	{ ADS112C14_REG_IDAC_MAG_CFG, 0 },
 	{ ADS112C14_REG_IDAC_MUX_CFG, FIELD_PREP_CONST(ADS112C14_IDAC_MUX_CFG_I2MUX, 1) },
+};
+
+/**
+ * ads112c14_i2c_read_bytes() - Read bytes from the device over I2C
+ * @client: I2C client for the device
+ * @cmd: Command to send to the device before reading
+ * @buf: Buffer to store the read bytes
+ * @len: Number of bytes to read
+ * @use_crc: Whether to use CRC8 for data integrity check
+ *
+ * If I2C_CRC is enabled, @use_crc may be set to true to perform a CRC8 check
+ * on the received data.
+ */
+static int ads112c14_i2c_read_bytes(struct i2c_client *client, u8 cmd,
+				    u8 *buf, u8 len, bool use_crc)
+{
+	u8 rx_buf[4]; /* Up to 3 data bytes + 1 CRC byte. */
+	u8 rx_len;
+	int ret;
+
+	rx_len = len + (use_crc ? 1 : 0);
+
+	if (rx_len > sizeof(rx_buf))
+		return -EINVAL;
+
+	ret = i2c_smbus_read_i2c_block_data(client, cmd, rx_len, rx_buf);
+	if (ret < 0)
+		return ret;
+
+	if (use_crc) {
+		u8 crc = crc8(ads112c14_crc8_table, rx_buf, len, CRC8_INIT_VALUE);
+
+		if (crc != rx_buf[len])
+			return -EBADMSG;
+	}
+
+	memcpy(buf, rx_buf, len);
+
+	return 0;
+}
+
+/**
+ * ads112c14_regmap_bus_read() - Read a register from the device
+ * @context: Pointer to the device context
+ * @reg_buf: Register address to read
+ * @reg_size: Size of the register address (should be 1)
+ * @val_buf: Buffer to store the read value
+ * @val_size: Size of the value to read
+ *
+ * Custom regmap read function that also does CRC check when enabled.
+ */
+static int ads112c14_regmap_bus_read(void *context, const void *reg_buf,
+				     size_t reg_size, void *val_buf,
+				     size_t val_size)
+{
+	struct ads112c14_data *data = context;
+	struct device *dev = regmap_get_device(data->regmap);
+	struct i2c_client *client = to_i2c_client(dev);
+	const u8 *cmd = reg_buf;
+
+	if (reg_size != 1)
+		return -EINVAL;
+
+	return ads112c14_i2c_read_bytes(client, cmd[0], val_buf, val_size,
+					data->i2c_crc_enabled);
+}
+
+/**
+ * ads112c14_regmap_bus_write() - Write a register to the device
+ * @context: Pointer to the device context
+ * @data_buf: Buffer containing the register address and value to write
+ * @count: Number of bytes to write
+ *
+ * Custom regmap write function that also does readback with CRC check of
+ * nonvolatile registers when CRC is enabled.
+ */
+static int ads112c14_regmap_bus_write(void *context, const void *data_buf,
+				      size_t count)
+{
+	struct ads112c14_data *data = context;
+	struct device *dev = regmap_get_device(data->regmap);
+	struct i2c_client *client = to_i2c_client(dev);
+	const u8 *tx = data_buf;
+	u8 reg, readback;
+	int ret;
+
+	if (count != 2)
+		return -EINVAL;
+
+	ret = i2c_smbus_write_byte_data(client, tx[0], tx[1]);
+	if (ret)
+		return ret;
+
+	reg = tx[0] & ~ADS112C14_CMD_WREG;
+
+	if (!data->i2c_crc_enabled || ads112c14_volatile_reg(dev, reg))
+		return 0;
+
+	ret = ads112c14_i2c_read_bytes(client, reg | ADS112C14_CMD_RREG,
+				       &readback, sizeof(readback), true);
+	if (ret)
+		return ret;
+
+	if (readback != tx[1])
+		return -EIO;
+
+	return 0;
+}
+
+static const struct regmap_bus ads112c14_regmap_bus = {
+	.read = ads112c14_regmap_bus_read,
+	.write = ads112c14_regmap_bus_write,
+	.reg_format_endian_default = REGMAP_ENDIAN_BIG,
+	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
 static const struct regmap_config ads112c14_regmap_config = {
@@ -486,13 +605,9 @@ static int ads112c14_single_conversion(struct ads112c14_data *data,
 	if (ret)
 		return ret;
 
-	ret = i2c_smbus_read_i2c_block_data(client, ADS112C14_CMD_RDATA,
-					    BITS_TO_BYTES(data->chip_info->resolution_bits),
-					    buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return ads112c14_i2c_read_bytes(client, ADS112C14_CMD_RDATA, buf,
+					BITS_TO_BYTES(data->chip_info->resolution_bits),
+					data->i2c_crc_enabled);
 }
 
 static int ads112c14_read_raw(struct iio_dev *indio_dev,
@@ -1121,7 +1236,8 @@ static int ads112c14_probe(struct i2c_client *client)
 	/* It takes some time for the internal reference to stabilize. */
 	fsleep(10 * USEC_PER_MSEC);
 
-	data->regmap = devm_regmap_init_i2c(client, &ads112c14_regmap_config);
+	data->regmap = devm_regmap_init(dev, &ads112c14_regmap_bus, data,
+					&ads112c14_regmap_config);
 	if (IS_ERR(data->regmap))
 		return dev_err_probe(dev, PTR_ERR(data->regmap),
 				     "failed to init regmap\n");
@@ -1157,6 +1273,13 @@ static int ads112c14_probe(struct i2c_client *client)
 			   ADS112C14_STATUS_MSB_AVDD_UVN);
 	if (ret)
 		return ret;
+
+	ret = regmap_set_bits(data->regmap, ADS112C14_REG_DIGITAL_CFG,
+			      ADS112C14_DIGITAL_CFG_I2C_CRC_EN);
+	if (ret)
+		return ret;
+
+	data->i2c_crc_enabled = true;
 
 	ret = regmap_read(data->regmap, ADS112C14_REG_DEVICE_ID, &reg_val);
 	if (ret)
@@ -1209,6 +1332,13 @@ static const struct i2c_device_id ads112c14_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ads112c14_id);
 
+static int ads112c14_i2c_add_driver(struct i2c_driver *driver)
+{
+	crc8_populate_msb(ads112c14_crc8_table, ADS112C14_I2C_CRC8_POLYNOMIAL);
+
+	return i2c_add_driver(driver);
+}
+
 static struct i2c_driver ads112c14_driver = {
 	.driver = {
 		.name = "ads112c14",
@@ -1217,7 +1347,7 @@ static struct i2c_driver ads112c14_driver = {
 	.probe = ads112c14_probe,
 	.id_table = ads112c14_id,
 };
-module_i2c_driver(ads112c14_driver);
+module_driver(ads112c14_driver, ads112c14_i2c_add_driver, i2c_del_driver);
 
 MODULE_AUTHOR("David Lechner (TI) <dlechner@baylibre.com>");
 MODULE_DESCRIPTION("TI ADS112C14 I2C ADC driver");
