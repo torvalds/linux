@@ -6256,6 +6256,10 @@ enum dmub_cmd_cacp_type {
 	 * Get CACP Histogram
 	 */
 	DMUB_CMD__CACP_GET_HISTOGRAM = 7,
+	/**
+	 * Get ACE curve area for IGT test validation.
+	 */
+	DMUB_CMD__CACP_GET_ACE_CURVE_AREA = 8,
 };
 
 /**
@@ -6642,6 +6646,50 @@ struct dmub_rb_cmd_cacp_get_histogram {
 	 * Explicit padding to 4 byte boundary.
 	 */
 	uint8_t pad;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ */
+struct dmub_cmd_cacp_get_ace_curve_area_in {
+	/**
+	 * eDP panel instance (0-based).
+	 */
+	uint8_t panel_inst;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+/**
+ * Data returned from FW in a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ */
+struct dmub_cmd_cacp_get_ace_curve_area_out {
+	/**
+	 * Computed area under the ACE PWL curve (trapezoidal integration).
+	 * Lower value = stronger dimming (higher CACP level).
+	 * Directly comparable across levels.
+	 */
+	uint32_t area;
+};
+
+/**
+ * Definition of a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+ * Uses inline response pattern: input and output share the data union.
+ */
+struct dmub_rb_cmd_cacp_get_ace_curve_area {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data union for input/output.
+	 */
+	union {
+		struct dmub_cmd_cacp_get_ace_curve_area_in in;
+		struct dmub_cmd_cacp_get_ace_curve_area_out out;
+	} data;
 };
 
 /**
@@ -7435,6 +7483,7 @@ struct dmub_rb_cmd_pr_copy_settings {
 union dmub_pr_runtime_flags {
 	struct {
 		uint32_t disable_abm_optimization : 1; // Disable ABM optimization for PR
+		uint32_t abm_periodic_ffu_allowed : 1; // DAL: scenario wants periodic ABM keep-alive FFU
 	} bitfields;
 	uint32_t u32All;
 };
@@ -7814,6 +7863,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__CACP_GET_HISTOGRAM command.
 	 */
 	struct dmub_rb_cmd_cacp_get_histogram cacp_get_histogram;
+
+	/**
+	 * Definition of a DMUB_CMD__CACP_GET_ACE_CURVE_AREA command.
+	 */
+	struct dmub_rb_cmd_cacp_get_ace_curve_area cacp_get_ace_curve_area;
 
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE command.
