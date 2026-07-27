@@ -246,6 +246,8 @@ static int udf_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	setattr_copy(&nop_mnt_idmap, inode, attr);
 	mark_inode_dirty(inode);
+	if (IS_SYNC(inode))
+		sync_inode_metadata(inode, 1);
 	return 0;
 }
 
