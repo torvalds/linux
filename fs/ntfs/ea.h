@@ -10,7 +10,8 @@
 extern const struct xattr_handler *const ntfs_xattr_handlers[];
 
 int ntfs_ea_set_wsl_not_symlink(struct ntfs_inode *ni, mode_t mode, dev_t dev);
-int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags);
+int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags,
+			  bool *has_lxmod);
 int ntfs_ea_set_wsl_inode(struct inode *inode, dev_t rdev, __le16 *ea_size,
 		unsigned int flags);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);

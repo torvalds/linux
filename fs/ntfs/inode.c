@@ -682,6 +682,7 @@ static int ntfs_read_locked_inode(struct inode *vi)
 	unsigned int name_len = 4, flags = 0;
 	int extend_sys = 0;
 	dev_t dev = 0;
+	bool has_lxmod = false;
 	bool vol_err = true;
 
 	ntfs_debug("Entering for i_ino 0x%llx.", ni->mft_no);
@@ -862,7 +863,7 @@ skip_attr_list_load:
 	err = ntfs_attr_lookup(AT_EA_INFORMATION, NULL, 0, 0, 0, NULL, 0, ctx);
 	if (!err) {
 		NInoSetHasEA(ni);
-		ntfs_ea_get_wsl_inode(vi, &dev, flags);
+		ntfs_ea_get_wsl_inode(vi, &dev, flags, &has_lxmod);
 	}
 
 	if (ni->flags & FILE_ATTR_REPARSE_POINT) {
@@ -886,16 +887,18 @@ skip_attr_list_load:
 
 	if (S_ISDIR(vi->i_mode)) {
 		/*
-		 * Apply the directory permissions mask set in the mount
-		 * options.
+		 * Apply the directory permissions mask set in the mount options
+		 * when no per-file WSL mode is present.
 		 */
-		vi->i_mode &= ~vol->dmask;
+		if (!has_lxmod)
+			vi->i_mode &= ~vol->dmask;
 		/* Things break without this kludge! */
 		if (vi->i_nlink > 1)
 			set_nlink(vi, 1);
 	} else {
-		/* Apply the file permissions mask set in the mount options. */
-		vi->i_mode &= ~vol->fmask;
+		/* Apply the file permissions mask when no WSL mode is present. */
+		if (!has_lxmod)
+			vi->i_mode &= ~vol->fmask;
 	}
 
 	/*

@@ -406,37 +406,35 @@ out:
  * Check for the presence of an EA "$LXDEV" (used by WSL)
  * and return its value as a device address
  */
-int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags)
+int ntfs_ea_get_wsl_inode(struct inode *inode, dev_t *rdevp, unsigned int flags,
+			  bool *has_lxmod)
 {
 	int err;
 	__le32 v;
+
+	*has_lxmod = false;
 
 	if (!(flags & NTFS_VOL_UID)) {
 		/* Load uid to lxuid EA */
 		err = ntfs_get_ea(inode, "$LXUID", sizeof("$LXUID") - 1, &v,
 				sizeof(v));
-		if (err < 0)
-			return err;
-		if (err != sizeof(v))
-			return -EIO;
-		i_uid_write(inode, le32_to_cpu(v));
+		if (err == sizeof(v))
+			i_uid_write(inode, le32_to_cpu(v));
 	}
 
 	if (!(flags & NTFS_VOL_GID)) {
 		/* Load gid to lxgid EA */
 		err = ntfs_get_ea(inode, "$LXGID", sizeof("$LXGID") - 1, &v,
 				sizeof(v));
-		if (err < 0)
-			return err;
-		if (err != sizeof(v))
-			return -EIO;
-		i_gid_write(inode, le32_to_cpu(v));
+		if (err == sizeof(v))
+			i_gid_write(inode, le32_to_cpu(v));
 	}
 
 	/* Load mode to lxmod EA */
 	err = ntfs_get_ea(inode, "$LXMOD", sizeof("$LXMOD") - 1, &v, sizeof(v));
 	if (err == sizeof(v)) {
 		inode->i_mode = le32_to_cpu(v);
+		*has_lxmod = true;
 	} else {
 		/* Everyone gets all permissions. */
 		inode->i_mode |= 0777;
