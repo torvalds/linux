@@ -5975,31 +5975,30 @@ static void refresh_watchdog(void)
 
 s32 scx_link_sched(struct scx_sched *sch)
 {
-	const char *err_msg = "";
-	s32 ret = 0;
-
 	scoped_guard(raw_spinlock_irqsave, &scx_bypass_lock)	/* for the parent bypass check */
 	scoped_guard(raw_spinlock, &scx_sched_lock) {
 #ifdef CONFIG_EXT_SUB_SCHED
 		struct scx_sched *parent = scx_parent(sch);
 
 		if (parent) {
+			s32 ret;
+
 			/*
 			 * Bypass state is spread across per-cpu flags and a
 			 * depth count, so inheriting it is tricky and has no
 			 * valid use case. Refuse it.
 			 */
 			if (READ_ONCE(parent->bypass_depth)) {
-				err_msg = "parent bypassing";
-				ret = -EBUSY;
-				break;
+				scx_error(sch, "parent bypassing (%d)", -EBUSY);
+				return -EBUSY;
 			}
 
 			ret = rhashtable_lookup_insert_fast(&scx_sched_hash,
 					&sch->hash_node, scx_sched_hash_params);
 			if (ret) {
-				err_msg = "failed to insert into scx_sched_hash";
-				break;
+				scx_error(sch, "failed to insert into scx_sched_hash (%d)",
+					  ret);
+				return ret;
 			}
 
 			list_add_tail_rcu(&sch->sibling, &parent->children);
@@ -6014,9 +6013,8 @@ s32 scx_link_sched(struct scx_sched *sch)
 				rhashtable_remove_fast(&scx_sched_hash, &sch->hash_node,
 						       scx_sched_hash_params);
 				list_del_rcu(&sch->sibling);
-				err_msg = "parent disabled";
-				ret = -ENOENT;
-				break;
+				scx_error(sch, "parent disabled (%d)", -ENOENT);
+				return -ENOENT;
 			}
 
 			sch->linked = true;
@@ -6024,15 +6022,6 @@ s32 scx_link_sched(struct scx_sched *sch)
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
 		list_add_tail_rcu(&sch->all, &scx_sched_all);
-	}
-
-	/*
-	 * scx_error() takes scx_sched_lock via scx_claim_exit(), so it must run after
-	 * the guard above is released.
-	 */
-	if (ret) {
-		scx_error(sch, "%s (%d)", err_msg, ret);
-		return ret;
 	}
 
 	refresh_watchdog();
