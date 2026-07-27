@@ -175,7 +175,9 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 	if (i2c_param.addressing_mode != HIDI2C_ADDRESSING_MODE_7BIT)
 		return -EOPNOTSUPP;
 
-	qcdev->i2c_slave_addr = i2c_param.device_address;
+	qcdev->i2c_config.addr_mode = HIDI2C_ADDRESSING_MODE_7BIT;
+
+	qcdev->i2c_config.target_addr = i2c_param.device_address;
 
 	ret = quicki2c_acpi_get_dsd_property(adev, QUICKI2C_ACPI_METHOD_NAME_ISUB,
 					     ACPI_TYPE_BUFFER, &i2c_config);
@@ -184,24 +186,32 @@ static int quicki2c_get_acpi_resources(struct quicki2c_device *qcdev)
 
 	if (i2c_param.connection_speed > 0 &&
 	    i2c_param.connection_speed <= QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_STANDARD;
-		qcdev->i2c_clock_hcnt = i2c_config.SMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.SMLX;
+		qcdev->i2c_config.speed = THC_I2C_STANDARD;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.SMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.SMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.SMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.SMRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_STANDARD_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
-		qcdev->i2c_clock_hcnt = i2c_config.FMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.FMLX;
+		qcdev->i2c_config.speed = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.FMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.FMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.FMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.FMRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FAST_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_FAST_AND_PLUS;
-		qcdev->i2c_clock_hcnt = i2c_config.FPHX;
-		qcdev->i2c_clock_lcnt = i2c_config.FPLX;
+		qcdev->i2c_config.speed = THC_I2C_FAST_AND_PLUS;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.FPHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.FPLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.FPTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.FPRD;
 	} else if (i2c_param.connection_speed > QUICKI2C_SUBIP_FASTPLUS_MODE_MAX_SPEED &&
 		   i2c_param.connection_speed <= QUICKI2C_SUBIP_HIGH_SPEED_MODE_MAX_SPEED) {
-		qcdev->i2c_speed_mode = THC_I2C_HIGH_SPEED;
-		qcdev->i2c_clock_hcnt = i2c_config.HMHX;
-		qcdev->i2c_clock_lcnt = i2c_config.HMLX;
+		qcdev->i2c_config.speed = THC_I2C_HIGH_SPEED;
+		qcdev->i2c_config.scl_hcnt = (u32)i2c_config.HMHX;
+		qcdev->i2c_config.scl_lcnt = (u32)i2c_config.HMLX;
+		qcdev->i2c_config.sda_tx_hold = (u32)i2c_config.HMTD;
+		qcdev->i2c_config.sda_rx_hold = (u32)i2c_config.HMRD;
 	} else {
 		return -EOPNOTSUPP;
 	}
@@ -411,10 +421,7 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 		return ERR_PTR(ret);
 	}
 
-	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
-				 qcdev->i2c_speed_mode,
-				 qcdev->i2c_clock_hcnt,
-				 qcdev->i2c_clock_lcnt);
+	ret = thc_i2c_subip_init(qcdev->thc_hw, &qcdev->i2c_config);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -958,10 +965,7 @@ static int quicki2c_restore(struct device *device)
 	if (ret)
 		return ret;
 
-	ret = thc_i2c_subip_init(qcdev->thc_hw, qcdev->i2c_slave_addr,
-				 qcdev->i2c_speed_mode,
-				 qcdev->i2c_clock_hcnt,
-				 qcdev->i2c_clock_lcnt);
+	ret = thc_i2c_subip_init(qcdev->thc_hw, &qcdev->i2c_config);
 	if (ret)
 		return ret;
 
