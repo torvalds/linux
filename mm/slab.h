@@ -558,7 +558,7 @@ struct slabobj_ext {
 	struct obj_cgroup *_objcg;
 #endif
 #ifdef CONFIG_MEM_ALLOC_PROFILING
-	union codetag_ref ref;
+	union codetag_ref _ctref;
 #endif
 } __aligned(8);
 
@@ -674,6 +674,14 @@ slab_obj_ext_set_objcg(struct slab *slab, struct slabobj_ext *obj_ext,
 		       struct obj_cgroup *objcg)
 {
 	obj_ext->_objcg = objcg;
+}
+#endif
+
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+static inline union codetag_ref *
+slab_obj_ext_codetag_ref(struct slab *slab, struct slabobj_ext *obj_ext)
+{
+	return &obj_ext->_ctref;
 }
 #endif
 
