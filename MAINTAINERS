@@ -7901,6 +7901,7 @@ F:	include/linux/fwnode.h
 F:	include/linux/kobj*
 F:	include/linux/ksysfs.h
 F:	include/linux/property.h
+F:	include/linux/sys_soc.h
 F:	include/linux/sysfs.h
 F:	kernel/ksysfs.c
 F:	lib/kobj*
