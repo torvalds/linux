@@ -575,7 +575,7 @@ config HIPERDISPATCH_ON
 	def_bool y
 	bool "Use hiperdispatch on vertical polarization by default"
 	depends on SCHED_TOPOLOGY
-	depends on PROC_SYSCTL
+	depends on SYSCTL
 	help
 	  Hiperdispatch aims to improve the CPU scheduler's decision
 	  making when using vertical polarization by adjusting CPU
@@ -893,7 +893,7 @@ config CMM_IUCV
 config APPLDATA_BASE
 	def_bool n
 	prompt "Linux - VM Monitor Stream, base infrastructure"
-	depends on PROC_SYSCTL
+	depends on SYSCTL
 	help
 	  This provides a kernel interface for creating and updating z/VM APPLDATA
 	  monitor records. The monitor records are updated at certain time

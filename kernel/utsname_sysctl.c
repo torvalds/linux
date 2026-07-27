@@ -13,7 +13,7 @@
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 
 static void *get_uts(const struct ctl_table *table)
 {
@@ -122,7 +122,7 @@ static const struct ctl_table uts_kern_table[] = {
 	},
 };
 
-#ifdef CONFIG_PROC_SYSCTL
+#ifdef CONFIG_SYSCTL
 /*
  * Notify userspace about a change in a certain entry of uts_kern_table,
  * identified by the parameter proc.

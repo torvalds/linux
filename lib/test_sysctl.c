@@ -7,7 +7,7 @@
 
 /*
  * This module provides an interface to the proc sysctl interfaces.  This
- * driver requires CONFIG_PROC_SYSCTL. It will not normally be loaded by the
+ * driver requires CONFIG_SYSCTL. It will not normally be loaded by the
  * system unless explicitly requested by name. You can also build this driver
  * into your kernel.
  */

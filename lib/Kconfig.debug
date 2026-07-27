@@ -2710,7 +2710,7 @@ config TEST_FIRMWARE
 
 config TEST_SYSCTL
 	tristate "sysctl test driver"
-	depends on PROC_SYSCTL
+	depends on SYSCTL
 	help
 	  This builds the "test_sysctl" module. This driver enables to test the
 	  proc sysctl interfaces available to drivers safely without affecting
