@@ -615,7 +615,7 @@ static inline size_t cache_obj_ext_size(struct kmem_cache *s)
 {
 	size_t sz = 0;
 
-	if (IS_ENABLED(CONFIG_MEMCG))
+	if (cache_needs_objcg(s))
 		sz += 1;
 
 	if (slab_obj_ext_has_codetag())
@@ -626,7 +626,15 @@ static inline size_t cache_obj_ext_size(struct kmem_cache *s)
 
 static inline size_t slab_obj_ext_size(struct slab *slab)
 {
-	return cache_obj_ext_size(slab->slab_cache);
+	size_t sz = 0;
+
+	if (slab_needs_objcg(slab))
+		sz += 1;
+
+	if (slab_obj_ext_has_codetag())
+		sz += 1;
+
+	return sizeof(struct slabobj_ext) * sz;
 }
 
 #ifdef CONFIG_SLAB_OBJ_EXT
@@ -738,6 +746,8 @@ slab_obj_ext(struct kmem_cache *s, struct slab *slab, unsigned long obj_exts,
 static inline struct obj_cgroup *
 slab_obj_ext_objcg(struct slab *slab, struct slabobj_ext *obj_ext)
 {
+	VM_WARN_ON_ONCE(!slab_needs_objcg(slab));
+
 	/* if objcg exists, it comes first, so we don't need to do anything */
 	return obj_ext->_objcg;
 }
@@ -746,6 +756,8 @@ static inline void
 slab_obj_ext_set_objcg(struct slab *slab, struct slabobj_ext *obj_ext,
 		       struct obj_cgroup *objcg)
 {
+	VM_WARN_ON_ONCE(!slab_needs_objcg(slab));
+
 	/* if objcg exists, it comes first, so we don't need to do anything */
 	obj_ext->_objcg = objcg;
 }
@@ -757,7 +769,7 @@ slab_obj_ext_codetag_ref(struct slab *slab, struct slabobj_ext *obj_ext)
 {
 	VM_WARN_ON_ONCE(!slab_obj_ext_has_codetag());
 
-	if (IS_ENABLED(CONFIG_MEMCG))
+	if (slab_needs_objcg(slab))
 		obj_ext += 1;
 
 	return &obj_ext->_ctref;
