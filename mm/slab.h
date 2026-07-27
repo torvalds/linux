@@ -555,7 +555,7 @@ static inline bool need_kmalloc_no_objext(void)
  */
 struct slabobj_ext {
 #ifdef CONFIG_MEMCG
-	struct obj_cgroup *objcg;
+	struct obj_cgroup *_objcg;
 #endif
 #ifdef CONFIG_MEM_ALLOC_PROFILING
 	union codetag_ref ref;
@@ -661,6 +661,21 @@ slab_obj_ext(struct kmem_cache *s, struct slab *slab, unsigned long obj_exts,
 					 slab_get_stride(slab) * index);
 	return kasan_reset_tag(obj_ext);
 }
+
+#ifdef CONFIG_MEMCG
+static inline struct obj_cgroup *
+slab_obj_ext_objcg(struct slab *slab, struct slabobj_ext *obj_ext)
+{
+	return obj_ext->_objcg;
+}
+
+static inline void
+slab_obj_ext_set_objcg(struct slab *slab, struct slabobj_ext *obj_ext,
+		       struct obj_cgroup *objcg)
+{
+	obj_ext->_objcg = objcg;
+}
+#endif
 
 int alloc_slab_obj_exts(struct slab *slab, struct kmem_cache *s,
 			gfp_t gfp, unsigned int alloc_flags);
