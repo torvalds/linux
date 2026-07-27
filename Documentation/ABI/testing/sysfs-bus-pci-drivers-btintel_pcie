@@ -1,0 +1,15 @@
+What:		/sys/bus/pci/devices/<BDF>/vendor_reset
+Date:		22-Jul-2026
+KernelVersion:	6.17
+Contact:	linux-bluetooth@vger.kernel.org
+Description:	This read-write attribute allows userspace to trigger a
+		Product Level Device Reset (PLDR) on Intel PCIe Bluetooth
+		controllers. Reading the attribute displays the supported
+		reset type. Writing integer 0 triggers PLDR. Any other
+		input is rejected with -EINVAL.
+
+		PLDR resets the entire on-chip platform shared between
+		Bluetooth and WiFi. This means any driver attached to
+		the WiFi device that shares hardware with this Bluetooth
+		device will be released, the platform will be reset, and
+		both the Bluetooth and WiFi devices will be re-probed.

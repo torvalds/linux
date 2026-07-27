@@ -2790,6 +2790,43 @@ static void btintel_pcie_hci_reset(struct hci_dev *hdev)
 	btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_FLR);
 }
 
+static ssize_t vendor_reset_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	unsigned int val;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct btintel_pcie_data *data = pci_get_drvdata(pdev);
+
+	if (!data || !data->hdev)
+		return -ENODEV;
+
+	if (kstrtouint(buf, 10, &val) || val != 0) {
+		bt_dev_warn(data->hdev, "PLDR rejected: invalid input");
+		return -EINVAL;
+	}
+
+	bt_dev_info(data->hdev, "PLDR triggered via sysfs");
+	btintel_pcie_request_reset(data, BTINTEL_PCIE_IOSF_PRR_PLDR);
+
+	return count;
+}
+
+static ssize_t vendor_reset_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	return sysfs_emit(buf, "0 - PLDR\n");
+}
+
+static DEVICE_ATTR_RW(vendor_reset);
+
+static struct attribute *btintel_pcie_attrs[] = {
+	&dev_attr_vendor_reset.attr,
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(btintel_pcie);
+
 static void btintel_pcie_hw_error(struct hci_dev *hdev, u8 code)
 {
 	struct btintel_pcie_dev_recovery *rec;
@@ -3250,6 +3287,7 @@ static struct pci_driver btintel_pcie_driver = {
 	.probe = btintel_pcie_probe,
 	.remove = btintel_pcie_remove,
 	.driver.pm = pm_sleep_ptr(&btintel_pcie_pm_ops),
+	.dev_groups = btintel_pcie_groups,
 #ifdef CONFIG_DEV_COREDUMP
 	.driver.coredump = btintel_pcie_coredump
 #endif
