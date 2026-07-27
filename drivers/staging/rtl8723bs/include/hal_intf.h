@@ -152,11 +152,6 @@ enum hal_odm_variable {
 	HAL_ODM_NOISE_MONITOR,
 };
 
-enum hal_intf_ps_func {
-	HAL_USB_SELECT_SUSPEND,
-	HAL_MAX_ID,
-};
-
 typedef s32 (*c2h_id_filter)(u8 *c2h_evt);
 
 #define RF_CHANGE_BY_INIT	0

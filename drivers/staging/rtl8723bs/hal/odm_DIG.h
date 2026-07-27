@@ -77,11 +77,6 @@ struct  false_ALARM_STATISTICS {
 	u32 Cnt_BW_LSC; /* Gary */
 };
 
-enum ODM_Pause_DIG_TYPE {
-	ODM_PAUSE_DIG = BIT(0),
-	ODM_RESUME_DIG = BIT(1)
-};
-
 #define		DM_DIG_THRESH_HIGH			40
 #define		DM_DIG_THRESH_LOW			35
 
