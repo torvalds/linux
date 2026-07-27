@@ -70,11 +70,11 @@ struct max17042_chip {
 	enum max170xx_chip_type chip_type;
 	struct max17042_config_data *config_data;
 	struct work_struct work;
-	int    init_complete;
 	int    irq;
 	int    task_period;
 	bool   enable_current_sense;
 	bool   enable_por_init;
+	bool   init_complete;
 	unsigned int r_sns;
 	int    vmin;	/* in millivolts */
 	int    vmax;	/* in millivolts */
@@ -257,7 +257,7 @@ static int max17042_get_property(struct power_supply *psy,
 	u32 data;
 	u64 data64;
 
-	if (!chip->init_complete)
+	if (!READ_ONCE(chip->init_complete))
 		return -EAGAIN;
 
 	switch (psp) {
@@ -1007,7 +1007,7 @@ static void max17042_init_worker(struct work_struct *work)
 			return;
 	}
 
-	chip->init_complete = 1;
+	WRITE_ONCE(chip->init_complete, true);
 }
 
 #ifdef CONFIG_OF
@@ -1261,7 +1261,7 @@ static int max17042_probe(struct i2c_client *client, struct device *dev, int irq
 			return ret;
 		schedule_work(&chip->work);
 	} else {
-		chip->init_complete = 1;
+		WRITE_ONCE(chip->init_complete, true);
 	}
 
 	return 0;
