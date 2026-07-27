@@ -190,8 +190,7 @@ int fat_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 	struct inode *fat_inode = MSDOS_SB(inode->i_sb)->fat_inode;
 	int err;
 
-	err = mmb_fsync_noflush(filp, &MSDOS_I(inode)->i_metadata_bhs,
-				start, end, datasync);
+	err = simple_fsync_noflush(filp, start, end, datasync);
 	if (err)
 		return err;
 
@@ -332,15 +331,15 @@ static int fat_free(struct inode *inode, int skip)
 	}
 	MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
 	fat_truncate_time(inode, NULL, FAT_UPDATE_CMTIME);
+	mark_inode_dirty(inode);
 	if (wait) {
-		err = fat_sync_inode(inode);
+		err = sync_inode_metadata(inode, 1);
 		if (err) {
 			MSDOS_I(inode)->i_start = i_start;
 			MSDOS_I(inode)->i_logstart = i_logstart;
 			return err;
 		}
-	} else
-		mark_inode_dirty(inode);
+	}
 
 	/* Write a new EOF, and get the remaining cluster chain for freeing. */
 	if (skip) {

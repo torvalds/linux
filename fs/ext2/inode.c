@@ -39,8 +39,6 @@
 #include "acl.h"
 #include "xattr.h"
 
-static int __ext2_write_inode(struct inode *inode, int do_sync);
-
 /*
  * Test whether an inode is a fast symlink.
  */
@@ -87,7 +85,7 @@ void ext2_evict_inode(struct inode * inode)
 		/* set dtime */
 		EXT2_I(inode)->i_dtime	= ktime_get_real_seconds();
 		mark_inode_dirty(inode);
-		__ext2_write_inode(inode, inode_needs_sync(inode));
+		sync_inode_metadata(inode, inode_needs_sync(inode));
 		/* truncate to 0 */
 		inode->i_size = 0;
 		if (inode->i_blocks)
@@ -1258,12 +1256,9 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
 	filemap_invalidate_unlock(inode->i_mapping);
 
 	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
-	if (inode_needs_sync(inode)) {
-		mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
+	mark_inode_dirty(inode);
+	if (inode_needs_sync(inode))
 		sync_inode_metadata(inode, 1);
-	} else {
-		mark_inode_dirty(inode);
-	}
 
 	return 0;
 }
@@ -1469,7 +1464,7 @@ bad_inode:
 	return ERR_PTR(ret);
 }
 
-static int __ext2_write_inode(struct inode *inode, int do_sync)
+int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct ext2_inode_info *ei = EXT2_I(inode);
 	struct super_block *sb = inode->i_sb;
@@ -1560,22 +1555,38 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 	} else for (n = 0; n < EXT2_N_BLOCKS; n++)
 		raw_inode->i_block[n] = ei->i_data[n];
 	mark_buffer_dirty(bh);
-	if (do_sync) {
-		sync_dirty_buffer(bh);
-		if (buffer_req(bh) && !buffer_uptodate(bh)) {
-			printk ("IO error syncing ext2 inode [%s:%08lx]\n",
-				sb->s_id, (unsigned long) ino);
-			err = -EIO;
-		}
-	}
 	ei->i_state &= ~EXT2_STATE_NEW;
 	brelse (bh);
+	set_inode_metadata_writeback(inode);
 	return err;
 }
 
-int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
+int ext2_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
 {
-	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	struct buffer_head *bh;
+	struct ext2_inode *raw_inode = ext2_get_inode(inode->i_sb, inode->i_ino,
+						      &bh);
+	int err = 0;
+
+	if (IS_ERR(raw_inode))
+		return -EIO;
+	err = mmb_sync(&EXT2_I(inode)->i_metadata_bhs);
+	if (err) {
+		ext2_error(inode->i_sb, __func__,
+			"Error syncing inode metadata ino=%lu\n",
+			(unsigned long)inode->i_ino);
+		goto out;
+	}
+	sync_dirty_buffer(bh);
+	if (buffer_write_io_error(bh)) {
+		ext2_error(inode->i_sb, __func__,
+			"IO error syncing inode %lu\n",
+			(unsigned long)inode->i_ino);
+		err = -EIO;
+	}
+out:
+	brelse(bh);
+	return err;
 }
 
 int ext2_getattr(struct mnt_idmap *idmap, const struct path *path,

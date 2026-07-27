@@ -623,7 +623,34 @@ out:
 
 EXPORT_SYMBOL_GPL(fat_build_inode);
 
-static int __fat_write_inode(struct inode *inode, int wait);
+static int __fat_write_inode(struct inode *inode);
+
+static int fat_sync_inode_metadata(struct inode *inode,
+				   struct writeback_control *wbc)
+{
+	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct buffer_head *bh;
+	loff_t i_pos;
+	sector_t blocknr;
+	int offset;
+
+	if (inode->i_ino == MSDOS_ROOT_INO)
+		return 0;
+	i_pos = fat_i_pos_read(sbi, inode);
+	if (!i_pos)
+		return 0;
+
+	fat_get_blknr_offset(sbi, i_pos, &blocknr, &offset);
+	bh = sb_find_get_block_nonatomic(inode->i_sb, blocknr);
+	/*
+	 * Buffer present? We leave buffer_dirty check for sync_dirty_buffer()
+	 * for proper synchronization with ongoing IO.
+	 */
+	if (bh && buffer_uptodate(bh))
+		sync_dirty_buffer(bh);
+	brelse(bh);
+	return mmb_sync(&MSDOS_I(inode)->i_metadata_bhs);
+}
 
 static void fat_free_eofblocks(struct inode *inode)
 {
@@ -640,7 +667,7 @@ static void fat_free_eofblocks(struct inode *inode)
 		 * any corruption on the next access to the cluster
 		 * chain for the file.
 		 */
-		err = __fat_write_inode(inode, inode_needs_sync(inode));
+		err = sync_inode_metadata(inode, inode_needs_sync(inode));
 		if (err) {
 			fat_msg(inode->i_sb, KERN_WARNING, "Failed to "
 					"update on disk inode for unused "
@@ -854,7 +881,7 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int __fat_write_inode(struct inode *inode, int wait)
+static int __fat_write_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -863,7 +890,7 @@ static int __fat_write_inode(struct inode *inode, int wait)
 	struct timespec64 mtime;
 	loff_t i_pos;
 	sector_t blocknr;
-	int err, offset;
+	int offset;
 
 	if (inode->i_ino == MSDOS_ROOT_INO)
 		return 0;
@@ -907,11 +934,9 @@ retry:
 	}
 	spin_unlock(&sbi->inode_hash_lock);
 	mark_buffer_dirty(bh);
-	err = 0;
-	if (wait)
-		err = sync_dirty_buffer(bh);
 	brelse(bh);
-	return err;
+	set_inode_metadata_writeback(inode);
+	return 0;
 }
 
 static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
@@ -925,23 +950,17 @@ static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
 		err = fat_clusters_flush(sb);
 		mutex_unlock(&MSDOS_SB(sb)->s_lock);
 	} else
-		err = __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+		err = __fat_write_inode(inode);
 
 	return err;
 }
-
-int fat_sync_inode(struct inode *inode)
-{
-	return __fat_write_inode(inode, 1);
-}
-
-EXPORT_SYMBOL_GPL(fat_sync_inode);
 
 static int fat_show_options(struct seq_file *m, struct dentry *root);
 static const struct super_operations fat_sops = {
 	.alloc_inode	= fat_alloc_inode,
 	.free_inode	= fat_free_inode,
 	.write_inode	= fat_write_inode,
+	.sync_inode_metadata = fat_sync_inode_metadata,
 	.evict_inode	= fat_evict_inode,
 	.put_super	= fat_put_super,
 	.statfs		= fat_statfs,

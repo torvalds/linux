@@ -68,17 +68,10 @@ static int bfs_readdir(struct file *f, struct dir_context *ctx)
 	return 0;
 }
 
-static int bfs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
-{
-	return mmb_fsync(file,
-			&BFS_I(file->f_mapping->host)->i_metadata_bhs,
-			start, end, datasync);
-}
-
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= bfs_readdir,
-	.fsync		= bfs_fsync,
+	.fsync		= simple_fsync,
 	.llseek		= generic_file_llseek,
 };
 

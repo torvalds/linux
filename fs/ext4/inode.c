@@ -186,6 +186,8 @@ void ext4_evict_inode(struct inode *inode)
 	if (EXT4_I(inode)->i_flags & EXT4_EA_INODE_FL)
 		ext4_evict_ea_inode(inode);
 	if (inode->i_nlink) {
+		struct mapping_metadata_bhs *mmb;
+
 		/*
 		 * If there's dirty page will lead to data loss, user
 		 * could see stale data.
@@ -195,9 +197,9 @@ void ext4_evict_inode(struct inode *inode)
 			ext4_warning_inode(inode, "data will be lost");
 
 		truncate_inode_pages_final(&inode->i_data);
-		/* Avoid mballoc special inode which has no proper iops */
-		if (!EXT4_SB(inode->i_sb)->s_journal)
-			mmb_sync(&EXT4_I(inode)->i_metadata_bhs);
+		mmb = ext4_i_metadata_bhs(inode);
+		if (mmb)
+			mmb_sync(mmb);
 		goto no_delete;
 	}
 
@@ -3452,6 +3454,7 @@ static bool ext4_release_folio(struct folio *folio, gfp_t wait)
 static bool ext4_inode_datasync_dirty(struct inode *inode)
 {
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
+	struct mapping_metadata_bhs *mmb;
 
 	if (journal) {
 		if (jbd2_transaction_committed(journal,
@@ -3462,8 +3465,9 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 		return true;
 	}
 
+	mmb = ext4_i_metadata_bhs(inode);
 	/* Any metadata buffers to write? */
-	if (mmb_has_buffers(&EXT4_I(inode)->i_metadata_bhs))
+	if (mmb && mmb_has_buffers(mmb))
 		return true;
 	return inode_state_read_once(inode) & I_DIRTY_DATASYNC;
 }
@@ -5795,6 +5799,10 @@ out_brelse:
  * ext4_mark_inode_dirty().  This is a correctness thing for WB_SYNC_ALL
  * writeback.
  *
+ * For nojournal mode all the work is done in ext4_sync_inode_metadata()
+ * because inode content is already copied into raw inode buffer and inode
+ * is marked with I_METADATA_WRITEBACK.
+ *
  * Note that we are absolutely dependent upon all inode dirtiers doing the
  * right thing: they *must* call mark_inode_dirty() after dirtying info in
  * which we are interested.
@@ -5820,42 +5828,54 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (unlikely(err))
 		return err;
 
-	if (EXT4_SB(inode->i_sb)->s_journal) {
-		if (ext4_journal_current_handle()) {
-			ext4_debug("called recursively, non-PF_MEMALLOC!\n");
-			dump_stack();
-			return -EIO;
-		}
+	if (!EXT4_SB(inode->i_sb)->s_journal)
+		return 0;
 
-		/*
-		 * No need to force transaction in WB_SYNC_NONE mode. Also
-		 * ext4_sync_fs() will force the commit after everything is
-		 * written.
-		 */
-		if (wbc->sync_mode != WB_SYNC_ALL || wbc->for_sync)
-			return 0;
-
-		err = ext4_fc_commit(EXT4_SB(inode->i_sb)->s_journal,
-						EXT4_I(inode)->i_sync_tid);
-	} else {
-		struct ext4_iloc iloc;
-
-		err = __ext4_get_inode_loc_noinmem(inode, &iloc);
-		if (err)
-			return err;
-		/*
-		 * sync(2) will flush the whole buffer cache. No need to do
-		 * it here separately for each inode.
-		 */
-		if (wbc->sync_mode == WB_SYNC_ALL && !wbc->for_sync)
-			sync_dirty_buffer(iloc.bh);
-		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
-			ext4_error_inode_block(inode, iloc.bh->b_blocknr, EIO,
-					       "IO error syncing inode");
-			err = -EIO;
-		}
-		brelse(iloc.bh);
+	if (ext4_journal_current_handle()) {
+		ext4_debug("called recursively, non-PF_MEMALLOC!\n");
+		dump_stack();
+		return -EIO;
 	}
+
+	/*
+	 * No need to force transaction in WB_SYNC_NONE mode. Also
+	 * ext4_sync_fs() will force the commit after everything is
+	 * written.
+	 */
+	if (wbc->sync_mode != WB_SYNC_ALL || wbc->for_sync)
+		return 0;
+
+	return ext4_fc_commit(EXT4_SB(inode->i_sb)->s_journal,
+						EXT4_I(inode)->i_sync_tid);
+}
+
+int ext4_sync_inode_metadata(struct inode *inode, struct writeback_control *wbc)
+{
+	struct ext4_iloc iloc;
+	struct mapping_metadata_bhs *mmb;
+	int err;
+
+	/* We should only get here in nojournal mode */
+	if (WARN_ON_ONCE(EXT4_SB(inode->i_sb)->s_journal))
+		return -EFSCORRUPTED;
+
+	err = __ext4_get_inode_loc_noinmem(inode, &iloc);
+	if (err)
+		return err;
+	mmb = READ_ONCE(EXT4_I(inode)->i_metadata_bhs);
+	if (mmb) {
+		err = mmb_sync(mmb);
+		if (err)
+			goto out;
+	}
+	sync_dirty_buffer(iloc.bh);
+	if (buffer_write_io_error(iloc.bh)) {
+		ext4_error_inode_block(inode, iloc.bh->b_blocknr, EIO,
+				       "IO error syncing inode");
+		err = -EIO;
+	}
+out:
+	brelse(iloc.bh);
 	return err;
 }
 
@@ -6403,6 +6423,20 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 	/* ext4_do_update_inode() does jbd2_journal_dirty_metadata */
 	err = ext4_do_update_inode(handle, inode, iloc);
 	put_bh(iloc->bh);
+	/*
+	 * Mark that there's metadata writeout pending for the inode so that it
+	 * gets properly flushed on fsync(2) and similar.
+	 */
+	if (!EXT4_SB(inode->i_sb)->s_journal) {
+		/*
+		 * Inode didn't need to go through dirtying, make sure it is
+		 * attached to wb so that writeback can handle it.
+		 */
+		spin_lock(&inode->i_lock);
+		inode_attach_wb(inode, NULL);
+		spin_unlock(&inode->i_lock);
+		set_inode_metadata_writeback(inode);
+	}
 	return err;
 }
 
