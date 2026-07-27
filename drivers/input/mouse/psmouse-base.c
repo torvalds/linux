@@ -256,9 +256,8 @@ static inline void __psmouse_set_state(struct psmouse *psmouse, enum psmouse_sta
  */
 void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_state)
 {
-	serio_pause_rx(psmouse->ps2dev.serio);
+	guard(serio_pause_rx)(psmouse->ps2dev.serio);
 	__psmouse_set_state(psmouse, new_state);
-	serio_continue_rx(psmouse->ps2dev.serio);
 }
 
 /*
@@ -1320,10 +1319,10 @@ static void psmouse_resync(struct work_struct *work)
 	bool failed = false, enabled = false;
 	int i;
 
-	mutex_lock(&psmouse_mutex);
+	guard(mutex)(&psmouse_mutex);
 
 	if (psmouse->state != PSMOUSE_RESYNCING)
-		goto out;
+		return;
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = psmouse_from_serio(serio->parent);
@@ -1401,8 +1400,6 @@ static void psmouse_resync(struct work_struct *work)
 
 	if (parent)
 		psmouse_activate(parent);
- out:
-	mutex_unlock(&psmouse_mutex);
 }
 
 /*
@@ -1413,7 +1410,7 @@ static void psmouse_cleanup(struct serio *serio)
 	struct psmouse *psmouse = psmouse_from_serio(serio);
 	struct psmouse *parent = NULL;
 
-	mutex_lock(&psmouse_mutex);
+	guard(mutex)(&psmouse_mutex);
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = psmouse_from_serio(serio->parent);
@@ -1449,8 +1446,6 @@ static void psmouse_cleanup(struct serio *serio)
 
 		psmouse_activate(parent);
 	}
-
-	mutex_unlock(&psmouse_mutex);
 }
 
 /*
@@ -1463,7 +1458,7 @@ static void psmouse_disconnect(struct serio *serio)
 
 	disable_work_sync(&psmouse->resync_work);
 
-	mutex_lock(&psmouse_mutex);
+	guard(mutex)(&psmouse_mutex);
 
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
 
@@ -1493,8 +1488,6 @@ static void psmouse_disconnect(struct serio *serio)
 
 	if (parent)
 		psmouse_activate(parent);
-
-	mutex_unlock(&psmouse_mutex);
 }
 
 static int psmouse_switch_protocol(struct psmouse *psmouse,
@@ -1663,14 +1656,12 @@ static int __psmouse_reconnect(struct serio *serio, bool fast_reconnect)
 	enum psmouse_type type;
 	int rc = -1;
 
-	mutex_lock(&psmouse_mutex);
+	lockdep_assert_held(&psmouse_mutex);
 
 	if (fast_reconnect) {
 		reconnect_handler = psmouse->fast_reconnect;
-		if (!reconnect_handler) {
-			rc = -ENOENT;
-			goto out_unlock;
-		}
+		if (!reconnect_handler)
+			return -ENOENT;
 	} else {
 		reconnect_handler = psmouse->reconnect;
 	}
@@ -1722,18 +1713,20 @@ out:
 	if (parent)
 		psmouse_activate(parent);
 
-out_unlock:
-	mutex_unlock(&psmouse_mutex);
 	return rc;
 }
 
 static int psmouse_reconnect(struct serio *serio)
 {
+	guard(mutex)(&psmouse_mutex);
+
 	return __psmouse_reconnect(serio, false);
 }
 
 static int psmouse_fast_reconnect(struct serio *serio)
 {
+	guard(mutex)(&psmouse_mutex);
+
 	return __psmouse_reconnect(serio, true);
 }
 
