@@ -247,8 +247,7 @@ static struct lm63_data *lm63_update_device(struct device *dev)
 					LM63_REG_TACH_LIMIT_MSB) << 8);
 		}
 
-		data->pwm1_freq = i2c_smbus_read_byte_data(client,
-				  LM63_REG_PWM_FREQ);
+		data->pwm1_freq = i2c_smbus_read_byte_data(client, LM63_REG_PWM_FREQ) & 0x1f;
 		if (data->pwm1_freq == 0)
 			data->pwm1_freq = 1;
 		data->pwm1[0] = i2c_smbus_read_byte_data(client,
@@ -1187,7 +1186,7 @@ static void lm63_init_client(struct lm63_data *data)
 		data->config |= 0x04;
 
 	/* We may need pwm1_freq before ever updating the client data */
-	data->pwm1_freq = i2c_smbus_read_byte_data(client, LM63_REG_PWM_FREQ);
+	data->pwm1_freq = i2c_smbus_read_byte_data(client, LM63_REG_PWM_FREQ) & 0x1f;
 	if (data->pwm1_freq == 0)
 		data->pwm1_freq = 1;
 
