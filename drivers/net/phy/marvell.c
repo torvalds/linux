@@ -753,7 +753,7 @@ static int m88e1111_config_inband(struct phy_device *phydev, unsigned int modes)
 	err = phy_modify(phydev, MII_M1111_PHY_EXT_SR,
 			 MII_M1111_HWCFG_SERIAL_AN_BYPASS, extsr);
 	if (err < 0)
-		return extsr;
+		return err;
 
 	return phy_modify_paged(phydev, MII_MARVELL_FIBER_PAGE, MII_BMCR,
 				BMCR_ANENABLE, bmcr);

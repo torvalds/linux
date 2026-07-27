@@ -484,10 +484,9 @@ EXPORT_SYMBOL_NS_GPL(sdca_fdl_process, "SND_SOC_SDCA");
  */
 int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 {
-	struct device *dev = interrupt->dev;
 	struct fdl_state *fdl_state;
 
-	fdl_state = devm_kzalloc(dev, sizeof(*fdl_state), GFP_KERNEL);
+	fdl_state = kzalloc_obj(*fdl_state);
 	if (!fdl_state)
 		return -ENOMEM;
 
@@ -502,3 +501,13 @@ int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_fdl_alloc_state, "SND_SOC_SDCA");
+
+/**
+ * sdca_fdl_free_state - free state for an FDL interrupt
+ * @interrupt: SDCA interrupt structure.
+ */
+void sdca_fdl_free_state(struct sdca_interrupt *interrupt)
+{
+	kfree(interrupt->priv);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_fdl_free_state, "SND_SOC_SDCA");

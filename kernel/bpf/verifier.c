@@ -9189,7 +9189,8 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 				return ret;
 			if (check_mem_reg(env, reg, argno, arg->mem_size))
 				return -EINVAL;
-			if (!(arg->arg_type & PTR_MAYBE_NULL) && (reg->type & PTR_MAYBE_NULL)) {
+			if (!(arg->arg_type & PTR_MAYBE_NULL) &&
+			    (type_may_be_null(reg->type) || bpf_register_is_null(reg))) {
 				bpf_log(log, "%s is expected to be non-NULL\n",
 					reg_arg_name(env, argno));
 				return -EINVAL;
