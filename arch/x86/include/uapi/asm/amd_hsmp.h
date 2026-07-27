@@ -612,11 +612,56 @@ struct hsmp_metric_table {
 	__u32 gfxclk_frequency[8];
 };
 
+/**
+ * struct hsmp_telemetry_data - Request descriptor for HSMP telemetry IOCTL
+ * @buf:       Input. Userspace pointer (encoded as __u64 to keep the layout
+ *             stable between 32-bit and 64-bit callers) to the destination
+ *             buffer that receives the metric table.
+ * @size:      Input. Size in bytes of the buffer pointed to by @buf, and the
+ *             number of bytes copied out on success.  Must be non-zero and no
+ *             larger than the metric table size firmware reports for this
+ *             socket; a larger value is rejected with -EINVAL rather than
+ *             short-written.  A smaller value returns the leading @size bytes
+ *             of the snapshot.  The kernel does not write this field back.
+ * @sock_ind:  Input. Socket index from which the metric table is read.
+ * @reserved:  Reserved for future use.  Callers should set this to zero;
+ *             future kernels may begin interpreting the field, so passing
+ *             a non-zero value today is not forwards compatible.
+ *
+ * Placing @buf first lets all fields fall on their natural alignment under
+ * the surrounding #pragma pack(4), so the struct is a tight 16 bytes with
+ * the same wire layout on 32-bit and 64-bit userspace.
+ *
+ * The metric table layout depends on the HSMP protocol version reported by
+ * firmware, which userspace can read from the protocol_version sysfs
+ * attribute.  Protocol version 6 uses struct hsmp_metric_table, so callers on
+ * that version pass sizeof(struct hsmp_metric_table).  Later version metrics
+ * table layout is documented in the Public PPR.
+ */
+struct hsmp_telemetry_data {
+	__u64	buf;
+	__u32	size;
+	__u16	sock_ind;
+	__u16	reserved;
+};
+
 /* Reset to default packing */
 #pragma pack()
 
 /* Define unique ioctl command for hsmp msgs using generic _IOWR */
 #define HSMP_BASE_IOCTL_NR	0xF8
 #define HSMP_IOCTL_CMD		_IOWR(HSMP_BASE_IOCTL_NR, 0, struct hsmp_message)
+
+/*
+ * Fetch the firmware metric (telemetry) table for a given socket via the
+ * HSMP character device.  This avoids the PAGE_SIZE limitation of the
+ * sysfs binary attribute path for tables larger than one page (such as the
+ * ~13 KB table used by HSMP protocol version 7).
+ *
+ * The direction is _IOW because the kernel only reads the request struct;
+ * the table itself is written to the buffer that @buf points at.
+ */
+#define HSMP_IOCTL_GET_TELEMETRY_DATA \
+	_IOW(HSMP_BASE_IOCTL_NR, 1, struct hsmp_telemetry_data)
 
 #endif /*_ASM_X86_AMD_HSMP_H_*/

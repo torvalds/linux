@@ -68,6 +68,13 @@ under per socket sysfs directory created at
 
 Note: lseek() is not supported as entire metrics table is read.
 
+The sysfs metrics_bin path supports only HSMP protocol version 6 and,
+because it is a file read, can return a torn snapshot if userspace
+reads in pieces.  The protocol version 7 metric table (~13 KB) also
+exceeds PAGE_SIZE, so a read returns ``-EOPNOTSUPP`` there.  For
+atomic reads on any protocol version, use the
+``HSMP_IOCTL_GET_TELEMETRY_DATA`` ioctl on /dev/hsmp (see below).
+
 Metrics table definitions will be documented as part of Public PPR.
 The same is defined in the amd_hsmp.h header.
 
@@ -167,7 +174,7 @@ Next thing, open the device file, as follows::
     exit(1);
   }
 
-The following IOCTL is defined:
+The following IOCTLs are defined:
 
 ``ioctl(file, HSMP_IOCTL_CMD, struct hsmp_message *msg)``
   The argument is a pointer to a::
@@ -179,6 +186,32 @@ The following IOCTL is defined:
     	__u32	args[HSMP_MAX_MSG_LEN];		/* argument/response buffer */
     	__u16	sock_ind;			/* socket number */
     };
+
+``ioctl(file, HSMP_IOCTL_GET_TELEMETRY_DATA, struct hsmp_telemetry_data *req)``
+  Atomically fetch the firmware metric (telemetry) table for a socket.
+  The ioctl copies the table in one shot, so unlike the metrics_bin
+  sysfs path it cannot return a torn snapshot and is not bounded by
+  PAGE_SIZE.  Required for HSMP protocol version 7+ (e.g. Family 1Ah
+  Model 50h-5Fh, whose table is ~13 KB).  Argument::
+
+    struct hsmp_telemetry_data {
+        __u64 buf; /* User pointer to destination buffer */
+        __u32 size; /* Size of @buf in bytes */
+        __u16 sock_ind; /* Socket index */
+        __u16 reserved; /* Reserved, must be zero */
+    };
+
+  ``size`` must be non-zero and no larger than the table size firmware
+  reports for that socket; a larger value is rejected with ``-EINVAL``
+  rather than short-written, and a smaller one returns the leading
+  ``size`` bytes of the snapshot.  A non-zero ``reserved`` is also
+  rejected with ``-EINVAL``.
+
+  The table layout depends on the protocol version, which userspace
+  reads from the ``protocol_version`` sysfs attribute.  On version 6
+  the table is ``struct hsmp_metric_table``, so callers pass
+  ``sizeof(struct hsmp_metric_table)``.  Later version metrics table
+  layout is documented in the Public PPR.
 
 The ioctl would return a non-zero on failure; you can read errno to see
 what happened. The transaction returns 0 on success.
