@@ -1067,12 +1067,14 @@ void scx_sub_disable(struct scx_sched *sch)
 	scx_cgroup_lock();
 
 	/*
-	 * An enable that failed before scx_link_sched() never owned a cgroup or
-	 * task and won't be waited on by an ancestor's drain_descendants().
-	 * Nothing to reparent and walking the tasks can misbehave as the task
-	 * ownership invariant (either owned by self or parent) does not hold.
+	 * An enable that failed before scx_link_sched() succeeded never owned a
+	 * cgroup or task and won't be waited on by an ancestor's
+	 * drain_descendants(). Nothing to reparent and walking the tasks can
+	 * misbehave as the task ownership invariant (either owned by self or
+	 * parent) does not hold. ->sibling can't identify this case - an undone
+	 * link leaves it non-empty.
 	 */
-	if (list_empty(&sch->sibling))
+	if (!sch->linked)
 		goto dump;
 
 	set_cgroup_sched(sch_cgroup(sch), parent);

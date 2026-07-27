@@ -5035,6 +5035,7 @@ static void scx_sched_free_rcu_work(struct work_struct *work)
 	struct scx_dispatch_q *dsq;
 	int cpu, node;
 
+	irq_work_sync(&sch->propagate_exit_irq_work);
 	irq_work_sync(&sch->disable_irq_work);
 	kthread_destroy_worker(sch->helper);
 	timer_shutdown_sync(&sch->bypass_lb_timer);
@@ -6004,18 +6005,6 @@ s32 scx_link_sched(struct scx_sched *sch)
 
 		if (parent) {
 			/*
-			 * scx_claim_exit() propagates exit_kind transition to
-			 * its sub-scheds while holding scx_sched_lock - either
-			 * we can see the parent's non-NONE exit_kind or the
-			 * parent can shoot us down.
-			 */
-			if (atomic_read(&parent->exit_kind) != SCX_EXIT_NONE) {
-				err_msg = "parent disabled";
-				ret = -ENOENT;
-				break;
-			}
-
-			/*
 			 * Bypass state is spread across per-cpu flags and a
 			 * depth count, so inheriting it is tricky and has no
 			 * valid use case. Refuse it.
@@ -6034,6 +6023,23 @@ s32 scx_link_sched(struct scx_sched *sch)
 			}
 
 			list_add_tail_rcu(&sch->sibling, &parent->children);
+
+			/*
+			 * Pairs with the mb after the ->aborting assertion in
+			 * scx_claim_exit(). Either we see ->aborting and back
+			 * out, or the exit path sees us and exits us.
+			 */
+			smp_mb();
+			if (unlikely(READ_ONCE(parent->aborting))) {
+				rhashtable_remove_fast(&scx_sched_hash, &sch->hash_node,
+						       scx_sched_hash_params);
+				list_del_rcu(&sch->sibling);
+				err_msg = "parent disabled";
+				ret = -ENOENT;
+				break;
+			}
+
+			sch->linked = true;
 		}
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
@@ -6057,10 +6063,11 @@ void scx_unlink_sched(struct scx_sched *sch)
 {
 	scoped_guard(raw_spinlock_irq, &scx_sched_lock) {
 #ifdef CONFIG_EXT_SUB_SCHED
-		if (scx_parent(sch)) {
+		if (sch->linked) {
 			rhashtable_remove_fast(&scx_sched_hash, &sch->hash_node,
 					       scx_sched_hash_params);
 			list_del_rcu(&sch->sibling);
+			sch->linked = false;
 		}
 #endif	/* CONFIG_EXT_SUB_SCHED */
 		list_del_rcu(&sch->all);
@@ -6270,12 +6277,36 @@ done:
 	scx_bypass(sch, false);
 }
 
+/**
+ * scx_propagate_exit_irq_workfn - Claim SCX_EXIT_PARENT on the exiting subtree
+ * @irq_work: &scx_sched.propagate_exit_irq_work
+ *
+ * Queued by scx_claim_exit() after a non-PARENT claim. Claims SCX_EXIT_PARENT
+ * on each descendant, giving every one its own disable work - most of disabling
+ * is serialized but ops.exit() can take arbitrarily long and running them in
+ * separate helper kthreads parallelizes it. No recursion as only non-PARENT
+ * claims propagate.
+ */
+static void scx_propagate_exit_irq_workfn(struct irq_work *irq_work)
+{
+	struct scx_sched *sch = container_of(irq_work, struct scx_sched,
+					     propagate_exit_irq_work);
+	struct scx_sched *pos;
+
+	scoped_guard (raw_spinlock_irqsave, &scx_sched_lock) {
+		scx_for_each_descendant_pre(pos, sch)
+			scx_disable(pos, SCX_EXIT_PARENT);
+	}
+}
+
 /*
  * Claim the exit on @sch. The caller must ensure that the helper kthread work
  * is kicked before the current task can be preempted. Once exit_kind is
  * claimed, scx_error() can no longer trigger, so if the current task gets
  * preempted and the BPF scheduler fails to schedule it back, the helper work
  * will never be kicked and the whole system can wedge.
+ *
+ * Lock-free and safe to call from any context including NMI.
  */
 static bool scx_claim_exit(struct scx_sched *sch, enum scx_exit_kind kind)
 {
@@ -6289,36 +6320,30 @@ static bool scx_claim_exit(struct scx_sched *sch, enum scx_exit_kind kind)
 	if (!atomic_try_cmpxchg(&sch->exit_kind, &none, kind))
 		return false;
 
-	/*
-	 * Some CPUs may be trapped in the dispatch paths. Set the aborting
-	 * flag to break potential live-lock scenarios, ensuring we can
-	 * successfully reach scx_bypass().
-	 */
-	WRITE_ONCE(sch->aborting, true);
+	if (kind == SCX_EXIT_PARENT) {
+		/* an ancestor is already sweeping the subtree */
+		WRITE_ONCE(sch->aborting, true);
+	} else {
+		struct scx_sched *pos;
 
-	trace_sched_ext_exit(sch, kind);
-
-	/*
-	 * Propagate exits to descendants immediately. Each has a dedicated
-	 * helper kthread and can run in parallel. While most of disabling is
-	 * serialized, running them in separate threads allows parallelizing
-	 * ops.exit(), which can take arbitrarily long prolonging bypass mode.
-	 *
-	 * To guarantee forward progress, this propagation must be in-line so
-	 * that ->aborting is synchronously asserted for all sub-scheds. The
-	 * propagation is also the interlocking point against sub-sched
-	 * attachment. See scx_link_sched().
-	 *
-	 * This doesn't cause recursions as propagation only takes place for
-	 * non-propagation exits.
-	 */
-	if (kind != SCX_EXIT_PARENT) {
-		scoped_guard (raw_spinlock_irqsave, &scx_sched_lock) {
-			struct scx_sched *pos;
+		/*
+		 * CPUs may be live-locked in the dispatch paths of @sch or its
+		 * descendants, which ->aborting breaks. Sweep the subtree
+		 * locklessly so that this works from NMI. smp_store_mb() orders
+		 * each node's ->aborting store before its children are walked -
+		 * either we see a racing scx_link_sched() on ->children or it
+		 * sees ->aborting.
+		 */
+		scoped_guard (rcu) {
 			scx_for_each_descendant_pre(pos, sch)
-				scx_disable(pos, SCX_EXIT_PARENT);
+				smp_store_mb(pos->aborting, true);
 		}
+
+		irq_work_queue(&sch->propagate_exit_irq_work);
 	}
+
+	/* fired after ->aborting is set so callbacks can't delay recovery */
+	trace_sched_ext_exit(sch, kind);
 
 	return true;
 }
@@ -6748,7 +6773,11 @@ bool scx_vexit(struct scx_sched *sch,
 
 	ei->exit_code = exit_code;
 #ifdef CONFIG_STACKTRACE
-	if (kind >= SCX_EXIT_ERROR)
+	/*
+	 * stack_trace_save()'s NMI-safety is arch-dependent and undocumented.
+	 * Skip the backtrace when exiting from NMI.
+	 */
+	if (kind >= SCX_EXIT_ERROR && !in_nmi())
 		ei->bt_len = stack_trace_save(ei->bt, SCX_EXIT_BT_LEN, 1);
 #endif
 	vscnprintf(ei->msg, SCX_EXIT_MSG_LEN, fmt, args);
@@ -6918,6 +6947,7 @@ struct scx_sched *scx_alloc_and_add_sched(struct scx_enable_cmd *cmd,
 	sch->slice_dfl = SCX_SLICE_DFL;
 	atomic_set(&sch->exit_kind, SCX_EXIT_NONE);
 	sch->disable_irq_work = IRQ_WORK_INIT_HARD(scx_disable_irq_workfn);
+	sch->propagate_exit_irq_work = IRQ_WORK_INIT_HARD(scx_propagate_exit_irq_workfn);
 	kthread_init_work(&sch->disable_work, scx_disable_workfn);
 	timer_setup(&sch->bypass_lb_timer, scx_bypass_lb_timerfn, 0);
 

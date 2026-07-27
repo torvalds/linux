@@ -1559,6 +1559,7 @@ struct scx_sched {
 	char			*cgrp_path;
 	struct kset		*sub_kset;
 
+	bool			linked;		/* on ->children, see scx_link_sched() */
 	bool			sub_attached;
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
@@ -1577,6 +1578,7 @@ struct scx_sched {
 	struct kthread_worker	*helper;
 	struct irq_work		disable_irq_work;
 	struct kthread_work	disable_work;
+	struct irq_work		propagate_exit_irq_work; /* see scx_claim_exit() */
 	struct timer_list	bypass_lb_timer;
 	cpumask_var_t		bypass_lb_donee_cpumask;
 	cpumask_var_t		bypass_lb_resched_cpumask;
