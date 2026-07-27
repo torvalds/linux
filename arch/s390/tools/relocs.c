@@ -405,6 +405,22 @@ static int do_reloc(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 	case R_390_GOTPCDBL:
 	case R_390_GOTOFF64:
 		break;
+	case R_390_32: {
+		static const char kcfipfx[] = "__kcfi_typeid_";
+
+		if (sym->st_shndx != SHN_ABS)
+			die("Unsupported relocation type: %d\n", r_type);
+		/*
+		 * Symbols with __kcfi_typeid_ prefix have constant values,
+		 * which do not change if bzImage is loaded at a different
+		 * physical address than the address for which it has been
+		 * compiled.
+		 */
+		if (!strncmp(kcfipfx, symname, sizeof(kcfipfx) - 1))
+			break;
+		die("Invalid absolute R_390_32 relocation: %s\n", symname);
+		break;
+	}
 	case R_390_64:
 		add_reloc(&relocs64, offset);
 		break;
