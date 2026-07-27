@@ -646,8 +646,13 @@ static int fat_sync_inode_metadata(struct inode *inode,
 	 * Buffer present? We leave buffer_dirty check for sync_dirty_buffer()
 	 * for proper synchronization with ongoing IO.
 	 */
-	if (bh && buffer_uptodate(bh))
+	if (bh && buffer_uptodate(bh)) {
 		sync_dirty_buffer(bh);
+		if (buffer_write_io_error(bh)) {
+			brelse(bh);
+			return -EIO;
+		}
+	}
 	brelse(bh);
 	return mmb_sync(&MSDOS_I(inode)->i_metadata_bhs);
 }
