@@ -2607,10 +2607,9 @@ static int devinet_conf_proc(const struct ctl_table *ctl, int write,
 static int devinet_sysctl_forward(const struct ctl_table *ctl, int write,
 				  void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct net *net = ctl->extra2;
 	int *valp = ctl->data;
 	int val = *valp;
-	loff_t pos = *ppos;
-	struct net *net = ctl->extra2;
 	int ret;
 
 	if (write && !ns_capable(net->user_ns, CAP_NET_ADMIN))
@@ -2623,7 +2622,6 @@ static int devinet_sysctl_forward(const struct ctl_table *ctl, int write,
 			if (!rtnl_net_trylock(net)) {
 				/* Restore the original values before restarting */
 				*valp = val;
-				*ppos = pos;
 				return restart_syscall();
 			}
 			if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING)) {
