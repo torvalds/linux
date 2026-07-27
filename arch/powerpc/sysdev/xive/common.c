@@ -1269,15 +1269,19 @@ int __init xive_smp_probe(void)
 {
 	int ret;
 
-	smp_ops->cause_ipi = xive_cause_ipi;
-
 	/* Register the IPI */
 	ret = xive_init_ipis();
 	if (ret < 0)
 		return ret;
 
 	/* Allocate and setup IPI for the boot CPU */
-	return xive_setup_cpu_ipi(smp_processor_id());
+	ret = xive_setup_cpu_ipi(smp_processor_id());
+	if (ret < 0)
+		return ret;
+
+	smp_ops->cause_ipi = xive_cause_ipi;
+
+	return 0;
 }
 
 #endif /* CONFIG_SMP */
