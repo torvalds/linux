@@ -67,6 +67,7 @@
 #define MAX17055_DPACC_FACTOR		44138
 #define MAX17055_DPACC_VCHG_FACTOR	51200
 #define MAX17055_FSTAT_DNR_BIT		BIT(0)
+#define MAX17055_VCHG_THRESHOLD_UV	4275000
 #define MAX17055_DNR_POLL_US		10000
 #define MAX17055_DNR_TIMEOUT_US		2000000
 #define MAX17055_INIT_RETRY_DELAY_MS	10000
@@ -84,6 +85,7 @@ struct max17042_chip {
 	int    task_period;
 	bool   enable_current_sense;
 	bool   enable_por_init;
+	bool   enable_vchg_override;
 	bool   init_complete;
 	bool   hib_restore_pending;
 	u16    hib_cfg;
@@ -880,7 +882,8 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 		max17042_override_por(map, MAX17047_V_empty, config->vempty);
 	}
 
-	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055 &&
+	    !chip->enable_vchg_override)
 		max17042_override_por(map, MAX17055_ModelCfg, config->model_cfg);
 }
 
@@ -915,7 +918,19 @@ static int max17055_override_battery_values(struct max17042_chip *chip)
 			return ret;
 	}
 
-	if (!config->design_cap && !config->dqacc)
+	if (chip->enable_vchg_override) {
+		ret = regmap_update_bits(map, MAX17055_ModelCfg,
+					 MAX17055_MODELCFG_VCHG_BIT,
+					 config->model_cfg &
+					 MAX17055_MODELCFG_VCHG_BIT);
+		if (ret)
+			return ret;
+
+		usleep_range(1000, 2000);
+	}
+
+	if (!config->design_cap && !config->dqacc &&
+	    !chip->enable_vchg_override)
 		return 0;
 
 	ret = regmap_read(map, MAX17042_DesignCap, &design_cap);
@@ -929,6 +944,10 @@ static int max17055_override_battery_values(struct max17042_chip *chip)
 	ret = regmap_read(map, MAX17055_ModelCfg, &model_cfg);
 	if (ret)
 		return ret;
+	if (chip->enable_vchg_override &&
+	    (model_cfg & MAX17055_MODELCFG_VCHG_BIT) !=
+	    (config->model_cfg & MAX17055_MODELCFG_VCHG_BIT))
+		return -EIO;
 
 	if (!design_cap || !dqacc)
 		return -ERANGE;
@@ -1253,9 +1272,11 @@ static int max17042_apply_battery_properties(struct max17042_chip *chip,
 	struct device *dev = chip->dev;
 	bool have_design_cap;
 	bool have_ichgt_term;
+	bool have_vchg;
 	u16 design_cap = 0;
 	u16 ichgt_term = 0;
 	u16 dqacc = 0;
+	u16 model_cfg = 0;
 	u64 data64;
 
 	if (!info || chip->chip_type != MAXIM_DEVICE_TYPE_MAX17055)
@@ -1265,7 +1286,8 @@ static int max17042_apply_battery_properties(struct max17042_chip *chip,
 		info->charge_full_design_uah > 0;
 	have_ichgt_term = chip->enable_current_sense &&
 		info->charge_term_current_ua > 0;
-	if (!have_design_cap && !have_ichgt_term)
+	have_vchg = info->voltage_max_design_uv >= 0;
+	if (!have_design_cap && !have_ichgt_term && !have_vchg)
 		return 0;
 
 	if (have_design_cap) {
@@ -1298,6 +1320,15 @@ static int max17042_apply_battery_properties(struct max17042_chip *chip,
 		ichgt_term = (u16)data64;
 	}
 
+	if (have_vchg) {
+		if (!info->voltage_max_design_uv)
+			return dev_err_probe(dev, -EINVAL,
+					     "battery design voltage must be positive\n");
+
+		if (info->voltage_max_design_uv > MAX17055_VCHG_THRESHOLD_UV)
+			model_cfg = MAX17055_MODELCFG_VCHG_BIT;
+	}
+
 	config = chip->config_data;
 	if (!config) {
 		config = devm_kzalloc(dev, sizeof(*config), GFP_KERNEL);
@@ -1311,6 +1342,11 @@ static int max17042_apply_battery_properties(struct max17042_chip *chip,
 	}
 	if (have_ichgt_term)
 		config->ichgt_term = ichgt_term;
+	if (have_vchg) {
+		config->model_cfg &= ~MAX17055_MODELCFG_VCHG_BIT;
+		config->model_cfg |= model_cfg;
+		chip->enable_vchg_override = true;
+	}
 
 	chip->config_data = config;
 	chip->enable_por_init = true;
