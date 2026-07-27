@@ -2829,7 +2829,7 @@ static struct mana_rxq *mana_create_rxq(struct mana_port_context *apc,
 
 	rxq = kvzalloc_flex(*rxq, rx_oobs, apc->rx_queue_size);
 	if (!rxq)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	rxq->ndev = ndev;
 	rxq->num_rx_buf = apc->rx_queue_size;
@@ -2930,7 +2930,7 @@ out:
 
 	mana_destroy_rxq(apc, rxq, false);
 
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void mana_create_rxq_debugfs(struct mana_port_context *apc, int idx)
@@ -2964,8 +2964,8 @@ static int mana_add_rx_queues(struct mana_port_context *apc,
 
 	for (i = 0; i < apc->num_queues; i++) {
 		rxq = mana_create_rxq(apc, i, &apc->eqs[i], ndev);
-		if (!rxq) {
-			err = -ENOMEM;
+		if (IS_ERR(rxq)) {
+			err = PTR_ERR(rxq);
 			netdev_err(ndev, "Failed to create rxq %d : %d\n", i, err);
 			goto out;
 		}
