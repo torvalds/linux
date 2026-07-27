@@ -169,6 +169,13 @@ alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
 alternative_else_nop_endif
 
+#ifdef CONFIG_ARM64_PSEUDO_NMI
+alternative_if ARM64_HAS_GIC_PRIO_MASKING
+	mov	x1, #GIC_PRIO_IRQON
+	msr_s	SYS_ICC_PMR_EL1, x1
+alternative_else_nop_endif
+#endif
+
 	ptrauth_keys_install_kernel_nosync x14, x1, x2, x3
 	isb
 	ret
