@@ -634,11 +634,12 @@ static int fat_sync_inode_metadata(struct inode *inode,
 	sector_t blocknr;
 	int offset;
 
+	/* The root directory has no directory entry of its own. */
 	if (inode->i_ino == MSDOS_ROOT_INO)
-		return 0;
+		goto sync_bhs;
 	i_pos = fat_i_pos_read(sbi, inode);
 	if (!i_pos)
-		return 0;
+		goto sync_bhs;
 
 	fat_get_blknr_offset(sbi, i_pos, &blocknr, &offset);
 	bh = sb_find_get_block_nonatomic(inode->i_sb, blocknr);
@@ -654,6 +655,7 @@ static int fat_sync_inode_metadata(struct inode *inode,
 		}
 	}
 	brelse(bh);
+sync_bhs:
 	return mmb_sync(&MSDOS_I(inode)->i_metadata_bhs);
 }
 
@@ -897,8 +899,11 @@ static int __fat_write_inode(struct inode *inode)
 	sector_t blocknr;
 	int offset;
 
-	if (inode->i_ino == MSDOS_ROOT_INO)
+	if (inode->i_ino == MSDOS_ROOT_INO) {
+		/* No entry to update but the metadata bh list may need syncing. */
+		set_inode_metadata_writeback(inode);
 		return 0;
+	}
 
 retry:
 	i_pos = fat_i_pos_read(sbi, inode);
