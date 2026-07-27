@@ -62,13 +62,36 @@ static int aiu_encoder_i2s_set_legacy_div(struct snd_soc_component *component,
 	return 0;
 }
 
+/*
+ * Return true if the given combination of channels and sample width requires
+ * the bs quirk. Return false otherwise.
+ */
+static bool aiu_encoder_is_bs_quirk(unsigned int channels, int width)
+{
+	return (channels == 8) && (width == 16);
+}
+
+static int aiu_encoder_check_bs_quirk(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params,
+				      struct snd_soc_dai *dai)
+{
+	struct gx_stream *other_stream = snd_soc_dai_dma_data_get(dai, !substream->stream);
+
+	/* Nothing to do if the other stream doesn't exist or it's not configured yet. */
+	if (!other_stream || !other_stream->channels)
+		return 0;
+
+	if (aiu_encoder_is_bs_quirk(other_stream->channels, other_stream->width) !=
+	    aiu_encoder_is_bs_quirk(params_channels(params), params_width(params)))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 					struct snd_pcm_hw_params *params,
 					unsigned int bs)
 {
-	struct aiu *aiu = snd_soc_component_get_drvdata(component);
-	struct gx_iface *iface = &aiu->i2s.iface;
-
 	/*
 	 * NOTE: this HW is odd.
 	 * In most configuration, the i2s divider is 'mclk / blck'.
@@ -76,25 +99,13 @@ static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 	 * increased by 50% to get the correct output rate.
 	 * No idea why !
 	 */
-	if (params_width(params) == 16 && params_channels(params) == 8) {
+	if (aiu_encoder_is_bs_quirk(params_channels(params), params_width(params))) {
 		if (bs % 2) {
 			dev_err(component->dev,
 				"Cannot increase i2s divider by 50%%\n");
 			return -EINVAL;
 		}
 		bs += bs / 2;
-		iface->bs_quirk = true;
-	} else {
-		/*
-		 * If the bs quirk is currently applied for one stream and another
-		 * ones tries to setup a configuration for which the quirk is
-		 * not required, then fail.
-		 */
-		if (iface->bs_quirk) {
-			dev_err(component->dev,
-				"bclk requirements are incompatible with active stream\n");
-			return -EINVAL;
-		}
 	}
 
 	/* Use CLK_MORE for mclk to bclk divider */
@@ -110,9 +121,11 @@ static int aiu_encoder_i2s_set_more_div(struct snd_soc_component *component,
 	return 0;
 }
 
-static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
-				      struct snd_pcm_hw_params *params)
+static int aiu_encoder_i2s_set_clocks(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params,
+				      struct snd_soc_dai *dai)
 {
+	struct snd_soc_component *component = dai->component;
 	struct aiu *aiu = snd_soc_component_get_drvdata(component);
 	struct gx_iface *iface = &aiu->i2s.iface;
 	unsigned int srate = params_rate(params);
@@ -133,10 +146,22 @@ static int aiu_encoder_i2s_set_clocks(struct snd_soc_component *component,
 
 	bs = fs / 64;
 
-	if (aiu->platform->has_clk_ctrl_more_i2s_div)
+	if (aiu->platform->has_clk_ctrl_more_i2s_div) {
+		/*
+		 * The hw rules added in startup() make this unreachable in the
+		 * sequential case, but both streams may be refined concurrently
+		 * before either commits its config, since only ops->hw_params
+		 * runs under the card's pcm_mutex. Re-check against the committed
+		 * state of the other stream, which is stable under that mutex.
+		 */
+		if (aiu_encoder_check_bs_quirk(substream, params, dai)) {
+			dev_err(dai->dev, "bclk requirements incompatible with other stream\n");
+			return -EINVAL;
+		}
 		ret = aiu_encoder_i2s_set_more_div(component, params, bs);
-	else
+	} else {
 		ret = aiu_encoder_i2s_set_legacy_div(component, params, bs);
+	}
 
 	if (ret)
 		return ret;
@@ -154,29 +179,14 @@ static int aiu_encoder_i2s_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
 	struct gx_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
-	struct gx_iface *iface = ts->iface;
-	struct snd_soc_component *component = dai->component;
 	int ret;
 
-	/*
-	 * Enforce interface wide rate symmetry only if there is more than
-	 * 1 stream active.
-	 */
-	if (snd_soc_dai_active(dai) > 1) {
-		if (iface->rate && iface->rate != params_rate(params)) {
-			dev_err(dai->dev, "can't set iface rate (%d != %d)\n",
-				iface->rate, params_rate(params));
-			return -EINVAL;
-		}
-	}
-
-	ret = aiu_encoder_i2s_set_clocks(component, params);
+	ret = aiu_encoder_i2s_set_clocks(substream, params, dai);
 	if (ret) {
 		dev_err(dai->dev, "setting i2s clocks failed: %d\n", ret);
 		return ret;
 	}
 
-	iface->rate = params_rate(params);
 	ts->physical_width = params_physical_width(params);
 	ts->width = params_width(params);
 	ts->channels = params_channels(params);
@@ -209,23 +219,23 @@ static int aiu_encoder_i2s_hw_free(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct gx_stream *ts = snd_soc_dai_get_dma_data(dai, substream);
-	struct gx_iface *iface = ts->iface;
 	struct snd_soc_component *component = dai->component;
 
 	/*
 	 * If this is the last substream being closed then disable the i2s
-	 * clock divider and clear 'iface->rate'.
+	 * clock divider.
 	 */
-	if (snd_soc_dai_active(dai) <= 1) {
+	if (snd_soc_dai_active(dai) <= 1)
 		aiu_encoder_i2s_divider_enable(component, 0);
-		iface->rate = 0;
-		iface->bs_quirk = false;
-	}
 
 	if (ts->clk_enabled) {
 		clk_disable_unprepare(ts->iface->mclk);
 		ts->clk_enabled = false;
 	}
+
+	ts->channels = 0;
+	ts->width = 0;
+	ts->physical_width = 0;
 
 	return 0;
 }
@@ -313,10 +323,45 @@ static const struct snd_pcm_hw_constraint_list hw_channel_constraints = {
 	.mask = 0,
 };
 
+static int aiu_encoder_i2s_pcm_hw_rule(struct snd_pcm_hw_params *params,
+				       struct snd_pcm_hw_rule *rule)
+{
+	struct gx_stream *other = rule->private;
+	struct snd_interval *ch = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	/*
+	 * The quirk is technically based on the significant bits whereas here
+	 * we're using the physical width for simplicity. This works because
+	 * S16_LE is the only format supported by this encoder that has:
+	 * significant bits = physical width = 16-bits
+	 */
+	struct snd_interval *phys_width = hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS);
+	struct snd_interval new_i;
+
+	if (other->channels == 0)
+		return 0;
+
+	snd_interval_any(&new_i);
+
+	if (rule->var == SNDRV_PCM_HW_PARAM_CHANNELS) {
+		if (aiu_encoder_is_bs_quirk(other->channels, other->width))
+			new_i.min = new_i.max = 8;
+		else if (snd_interval_single(phys_width) && phys_width->min == 16)
+			new_i.max = 2; /* Force 2ch */
+	} else { /* SNDRV_PCM_HW_PARAM_SAMPLE_BITS */
+		if (aiu_encoder_is_bs_quirk(other->channels, other->width))
+			new_i.min = new_i.max = 16;
+		else if (snd_interval_single(ch) && ch->min == 8)
+			new_i.min = 17; /* Request physical width > 16 bits */
+	}
+
+	return snd_interval_refine(hw_param_interval(params, rule->var), &new_i);
+}
+
 static int aiu_encoder_i2s_startup(struct snd_pcm_substream *substream,
 				   struct snd_soc_dai *dai)
 {
 	struct aiu *aiu = snd_soc_component_get_drvdata(dai->component);
+	struct gx_stream *other_stream = snd_soc_dai_dma_data_get(dai, !substream->stream);
 	int ret;
 
 	/* Make sure the encoder gets either 2 or 8 channels */
@@ -326,6 +371,31 @@ static int aiu_encoder_i2s_startup(struct snd_pcm_substream *substream,
 	if (ret) {
 		dev_err(dai->dev, "adding channels constraints failed: %d\n", ret);
 		return ret;
+	}
+
+	/*
+	 * If DAI supports both playback and capture streams ensure the bs-quirk is
+	 * handled correctly.
+	 * This is only valid for GX platforms (has_clk_ctrl_more_i2s_div=true).
+	 */
+	if (aiu->platform->has_clk_ctrl_more_i2s_div && other_stream) {
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  aiu_encoder_i2s_pcm_hw_rule,
+					  other_stream,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS, -1);
+		if (ret)
+			return ret;
+
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+					  aiu_encoder_i2s_pcm_hw_rule,
+					  other_stream,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  SNDRV_PCM_HW_PARAM_SAMPLE_BITS, -1);
+		if (ret)
+			return ret;
 	}
 
 	/*

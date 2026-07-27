@@ -19,12 +19,6 @@ struct gx_iface {
 
 	/* format is common to all the DAIs of the iface */
 	unsigned int fmt;
-
-	/* For component wide symmetry */
-	int rate;
-
-	/* Only for GX platform */
-	int bs_quirk;
 };
 
 struct gx_stream {
