@@ -64,7 +64,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
-#include <linux/gpio.h>
 #include <linux/irq.h>
 
 static int sn7516x_used = 1, sn7516x;
