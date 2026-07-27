@@ -9,8 +9,10 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
-    regs, //
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
 };
 
 use super::tu102::FLUSH_SYSMEM_ADDR_SHIFT;
@@ -41,7 +43,7 @@ pub(super) fn write_sysmem_flush_page_ga100(bar: Bar0<'_>, addr: u64) {
 }
 
 pub(super) fn display_enabled_ga100(bar: Bar0<'_>) -> bool {
-    !bar.read(regs::ga100::NV_FUSE_STATUS_OPT_DISPLAY)
+    !bar.read(crate::regs::ga100::NV_FUSE_STATUS_OPT_DISPLAY)
         .display_disabled()
 }
 

@@ -22,9 +22,11 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
     num::usize_into_u32,
-    regs, //
 };
 
 struct Gb100;

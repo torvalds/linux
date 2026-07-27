@@ -9,8 +9,10 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
-    regs, //
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
 };
 
 /// Shift applied to the sysmem address before it is written into `NV_PFB_NISO_FLUSH_SYSMEM_ADDR`,
@@ -31,7 +33,7 @@ pub(super) fn write_sysmem_flush_page_gm107(bar: Bar0<'_>, addr: u64) -> Result 
 }
 
 pub(super) fn display_enabled_gm107(bar: Bar0<'_>) -> bool {
-    !bar.read(regs::gm107::NV_FUSE_STATUS_OPT_DISPLAY)
+    !bar.read(crate::regs::gm107::NV_FUSE_STATUS_OPT_DISPLAY)
         .display_disabled()
 }
 

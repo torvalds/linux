@@ -12,8 +12,10 @@ use kernel::{
 
 use crate::{
     driver::Bar0,
-    fb::hal::FbHal,
-    regs, //
+    fb::{
+        hal::FbHal,
+        regs, //
+    },
 };
 
 struct Gb202;
