@@ -279,7 +279,8 @@ char *d_path(const struct path *path, char *buf, int buflen)
 	 * and instead have d_path return the mounted path.
 	 */
 	if (path->dentry->d_op && path->dentry->d_op->d_dname &&
-	    (!IS_ROOT(path->dentry) || path->dentry != path->mnt->mnt_root))
+	    (!IS_ROOT(path->dentry) || path->dentry != path->mnt->mnt_root ||
+	     failfs_mnt(path->mnt)))
 		return path->dentry->d_op->d_dname(path->dentry, buf, buflen);
 
 	rcu_read_lock();
