@@ -848,18 +848,24 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 		max17042_override_por(map, MAX17055_ModelCfg, config->model_cfg);
 }
 
+static void max17055_init_chip(struct max17042_chip *chip)
+{
+	max17042_override_por_values(chip);
+
+	regmap_write_bits(chip->regmap, MAX17055_ModelCfg,
+			  MAX17055_MODELCFG_REFRESH_BIT,
+			  MAX17055_MODELCFG_REFRESH_BIT);
+}
+
 static int max17042_init_chip(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 	int ret;
 
-	max17042_override_por_values(chip);
-
-	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055) {
-		regmap_write_bits(map, MAX17055_ModelCfg,
-				  MAX17055_MODELCFG_REFRESH_BIT,
-				  MAX17055_MODELCFG_REFRESH_BIT);
-	}
+	if (chip->chip_type == MAXIM_DEVICE_TYPE_MAX17055)
+		max17055_init_chip(chip);
+	else
+		max17042_override_por_values(chip);
 
 	/* After Power up, the MAX17042 requires 500mS in order
 	 * to perform signal debouncing and initial SOC reporting
