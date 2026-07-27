@@ -269,15 +269,19 @@ u32 convert_bytes_to_dwrr_mtu(u32 bytes)
 	return 0;
 }
 
-static void nix_rx_sync(struct rvu *rvu, int blkaddr)
+static int nix_rx_sync(struct rvu *rvu, int blkaddr)
 {
 	int err;
+
+	mutex_lock(&rvu->rsrc_lock);
 
 	/* Sync all in flight RX packets to LLC/DRAM */
 	rvu_write64(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0));
 	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
-	if (err)
+	if (err) {
 		dev_err(rvu->dev, "SYNC1: NIX RX software sync failed\n");
+		goto unlock;
+	}
 
 	/* SW_SYNC ensures all existing transactions are finished and pkts
 	 * are written to LLC/DRAM, queues should be teared down after
@@ -289,6 +293,10 @@ static void nix_rx_sync(struct rvu *rvu, int blkaddr)
 	err = rvu_poll_reg(rvu, blkaddr, NIX_AF_RX_SW_SYNC, BIT_ULL(0), true);
 	if (err)
 		dev_err(rvu->dev, "SYNC2: NIX RX software sync failed\n");
+
+unlock:
+	mutex_unlock(&rvu->rsrc_lock);
+	return err;
 }
 
 static bool is_valid_txschq(struct rvu *rvu, int blkaddr,
@@ -6346,6 +6354,25 @@ int rvu_mbox_handler_nix_bandprof_get_hwinfo(struct rvu *rvu, struct msg_req *re
 	/* Set the policer timeunit in nanosec */
 	tu = rvu_read64(rvu, blkaddr, NIX_AF_PL_TS) & GENMASK_ULL(9, 0);
 	rsp->policer_timeunit = (tu + 1) * 100;
+
+	return 0;
+}
+
+int rvu_mbox_handler_nix_rx_sw_sync(struct rvu *rvu, struct msg_req *req,
+				    struct msg_rsp *rsp)
+{
+	int blkaddr, nixlf, err;
+
+	/* NIX_AF_RX_SW_SYNC is global per NIX block; nix_rx_sync() serializes
+	 * access under rvu->rsrc_lock across mbox and teardown paths.
+	 */
+	err = nix_get_nixlf(rvu, req->hdr.pcifunc, &nixlf, &blkaddr);
+	if (err)
+		return err;
+
+	err = nix_rx_sync(rvu, blkaddr);
+	if (err)
+		return NIX_AF_ERR_RX_SW_SYNC_FAIL;
 
 	return 0;
 }
