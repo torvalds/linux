@@ -1460,14 +1460,11 @@ static void psmouse_disconnect(struct serio *serio)
 	struct psmouse *psmouse = psmouse_from_serio(serio);
 	struct psmouse *parent = NULL;
 
+	disable_work_sync(&psmouse->resync_work);
+
 	mutex_lock(&psmouse_mutex);
 
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
-
-	/* make sure we don't have a resync in progress */
-	mutex_unlock(&psmouse_mutex);
-	disable_work_sync(&psmouse->resync_work);
-	mutex_lock(&psmouse_mutex);
 
 	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
 		parent = psmouse_from_serio(serio->parent);
