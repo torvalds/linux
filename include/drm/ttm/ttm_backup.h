@@ -13,9 +13,8 @@
  * ttm_backup_handle_to_page_ptr() - Convert handle to struct page pointer
  * @handle: The handle to convert.
  *
- * Converts an opaque handle received from the
- * ttm_backup_backup_page() function to an (invalid)
- * struct page pointer suitable for a struct page array.
+ * Converts an opaque handle received from a ttm_backup_backup_*()
+ * function to an (invalid) struct page pointer suitable for a struct page array.
  *
  * Return: An (invalid) struct page pointer.
  */
@@ -59,9 +58,10 @@ int ttm_backup_copy_page(struct file *backup, struct page *dst,
 			 pgoff_t handle, bool intr, gfp_t additional_gfp);
 
 s64
-ttm_backup_backup_page(struct file *backup, struct page *page,
-		       bool writeback, pgoff_t idx, gfp_t page_gfp,
-		       gfp_t alloc_gfp);
+ttm_backup_backup_folio(struct file *backup, struct folio *folio,
+			unsigned int order, bool writeback, pgoff_t idx,
+			gfp_t folio_gfp, gfp_t alloc_gfp,
+			pgoff_t *nr_pages_backed);
 
 void ttm_backup_fini(struct file *backup);
 
