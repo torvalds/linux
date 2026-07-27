@@ -17,6 +17,8 @@
 static bool wed_enable;
 module_param(wed_enable, bool, 0644);
 
+#define INVALID_REG_ADDR	0xffffffff
+
 static const struct __base mt7996_reg_base[] = {
 	[WF_AGG_BASE]		= { { 0x820e2000, 0x820f2000, 0x830e2000 } },
 	[WF_ARB_BASE]		= { { 0x820e3000, 0x820f3000, 0x830e3000 } },
@@ -358,7 +360,7 @@ static u32 __mt7996_reg_addr(struct mt7996_dev *dev, u32 addr)
 		return dev->reg.map[i].mapped + ofs;
 	}
 
-	return 0;
+	return INVALID_REG_ADDR;
 }
 
 static u32 __mt7996_reg_remap_addr(struct mt7996_dev *dev, u32 addr)
@@ -390,7 +392,7 @@ void mt7996_memcpy_fromio(struct mt7996_dev *dev, void *buf, u32 offset,
 {
 	u32 addr = __mt7996_reg_addr(dev, offset);
 
-	if (addr) {
+	if (addr != INVALID_REG_ADDR) {
 		memcpy_fromio(buf, dev->mt76.mmio.regs + addr, len);
 		return;
 	}
@@ -406,7 +408,7 @@ static u32 mt7996_rr(struct mt76_dev *mdev, u32 offset)
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
 	u32 addr = __mt7996_reg_addr(dev, offset), val;
 
-	if (addr)
+	if (addr != INVALID_REG_ADDR)
 		return dev->bus_ops->rr(mdev, addr);
 
 	spin_lock_bh(&dev->reg_lock);
@@ -421,7 +423,7 @@ static void mt7996_wr(struct mt76_dev *mdev, u32 offset, u32 val)
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
 	u32 addr = __mt7996_reg_addr(dev, offset);
 
-	if (addr) {
+	if (addr != INVALID_REG_ADDR) {
 		dev->bus_ops->wr(mdev, addr, val);
 		return;
 	}
@@ -436,7 +438,7 @@ static u32 mt7996_rmw(struct mt76_dev *mdev, u32 offset, u32 mask, u32 val)
 	struct mt7996_dev *dev = container_of(mdev, struct mt7996_dev, mt76);
 	u32 addr = __mt7996_reg_addr(dev, offset);
 
-	if (addr)
+	if (addr != INVALID_REG_ADDR)
 		return dev->bus_ops->rmw(mdev, addr, mask, val);
 
 	spin_lock_bh(&dev->reg_lock);
