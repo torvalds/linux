@@ -955,21 +955,6 @@ static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-int fat_sync_inode(struct inode *inode)
-{
-	int err;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-	};
-
-	err = __fat_write_inode(inode);
-	if (err)
-		return err;
-	return fat_sync_inode_metadata(inode, &wbc);
-}
-
-EXPORT_SYMBOL_GPL(fat_sync_inode);
-
 static int fat_show_options(struct seq_file *m, struct dentry *root);
 static const struct super_operations fat_sops = {
 	.alloc_inode	= fat_alloc_inode,
