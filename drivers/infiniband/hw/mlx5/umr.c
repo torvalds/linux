@@ -518,7 +518,7 @@ static void *mlx5r_umr_alloc_xlt(size_t *nents, size_t ent_size, gfp_t gfp_mask)
 	size = min_t(size_t, ent_size * ALIGN(*nents, xlt_chunk_align),
 		     MLX5_MAX_UMR_CHUNK);
 	*nents = size / ent_size;
-	res = kmalloc(size, gfp_mask | __GFP_NOWARN);
+	res = kmalloc(PAGE_ALIGN(size), gfp_mask | __GFP_NOWARN);
 	if (res)
 		return res;
 
