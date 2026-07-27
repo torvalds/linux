@@ -137,6 +137,7 @@ enum rcar_i2c_type {
 	I2C_RCAR_GEN2,
 	I2C_RCAR_GEN3,
 	I2C_RCAR_GEN4,
+	I2C_RCAR_GEN5,
 };
 
 struct rcar_i2c_priv {
@@ -900,8 +901,12 @@ static int rcar_i2c_do_reset(struct rcar_i2c_priv *priv)
 	if (ret)
 		return ret;
 
-	return read_poll_timeout_atomic(reset_control_status, ret, ret == 0, 1,
-					100, false, priv->rstc);
+	/* SCMI based resets don't need to poll for success */
+	if (priv->devtype < I2C_RCAR_GEN5)
+		return read_poll_timeout_atomic(reset_control_status, ret, ret == 0,
+						1, 100, false, priv->rstc);
+
+	return 0;
 }
 
 static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
@@ -1111,6 +1116,7 @@ static const struct of_device_id rcar_i2c_dt_ids[] = {
 	{ .compatible = "renesas,rcar-gen2-i2c", .data = (void *)I2C_RCAR_GEN2 },
 	{ .compatible = "renesas,rcar-gen3-i2c", .data = (void *)I2C_RCAR_GEN3 },
 	{ .compatible = "renesas,rcar-gen4-i2c", .data = (void *)I2C_RCAR_GEN4 },
+	{ .compatible = "renesas,rcar-gen5-i2c", .data = (void *)I2C_RCAR_GEN5 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_i2c_dt_ids);
@@ -1194,9 +1200,15 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 			goto out_pm_put;
 		}
 
-		ret = reset_control_status(priv->rstc);
-		if (ret < 0)
-			goto out_pm_put;
+		/*
+		 * Gen5+ uses SCMI based reset which cannot report status.
+		 * Firmware has to ensure proper reset
+		 */
+		if (priv->devtype < I2C_RCAR_GEN5) {
+			ret = reset_control_status(priv->rstc);
+			if (ret < 0)
+				goto out_pm_put;
+		}
 
 		/* hard reset disturbs HostNotify local target, so disable it */
 		priv->flags &= ~ID_P_HOST_NOTIFY;
