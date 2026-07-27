@@ -36,6 +36,13 @@
 #include "ksz8_reg.h"
 #include "ksz8.h"
 
+/*
+ * We use only the high-byte (so odd addresses) of the 16-bits registers to fit
+ * in the common IRQ framework
+ */
+#define KSZ8463_REG_ISR			0x191
+#define KSZ8463_REG_IER			0x193
+
 /* ksz88x3_drive_strengths - Drive strength mapping for KSZ8863, KSZ8873, ..
  *			     variants.
  * This values are documented in KSZ8873 and KSZ8863 datasheets.
@@ -179,6 +186,58 @@ static int ksz8_pme_pwrite8(struct ksz_device *dev, int port, int offset, u8 dat
 	u8 table = (u8)(offset >> 8 | (port + 1));
 
 	return ksz8_ind_write8(dev, table, (u8)(offset), data);
+}
+
+static void ksz8463_irq_mask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked &= ~BIT(d->hwirq);
+}
+
+static void ksz8463_irq_unmask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked |= BIT(d->hwirq);
+}
+
+static const struct irq_chip ksz8463_irq_chip = {
+	.name			= "ksz8463-irq",
+	.irq_mask		= ksz8463_irq_mask,
+	.irq_unmask		= ksz8463_irq_unmask,
+	.irq_bus_lock		= ksz_irq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_irq_bus_sync_unlock,
+};
+
+static int ksz8463_irq_domain_map(struct irq_domain *d,
+				  unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &ksz8463_irq_chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz8463_irq_domain_ops = {
+	.map	= ksz8463_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static int ksz8463_girq_setup(struct ksz_device *dev)
+{
+	struct ksz_irq *girq = &dev->girq;
+
+	girq->nirqs = 8;
+	girq->reg_mask = KSZ8463_REG_IER;
+	girq->reg_status = KSZ8463_REG_ISR;
+	girq->masked = 0;
+	snprintf(girq->name, sizeof(girq->name), "ksz8463-girq");
+
+	girq->irq_num = dev->irq;
+
+	return ksz_irq_common_setup(dev, girq, &ksz8463_irq_domain_ops);
 }
 
 static int ksz8463_reset_switch(struct ksz_device *dev)
@@ -2407,21 +2466,50 @@ static int ksz8463_setup(struct dsa_switch *ds)
 	p = &dev->ports[dev->cpu_port];
 	p->learning = true;
 
+	if (dev->irq > 0) {
+		ret = ksz8463_girq_setup(dev);
+		if (ret)
+			return ret;
+
+		ret = ksz8463_ptp_irq_setup(ds);
+		if (ret)
+			goto free_girq;
+	}
+
 	ret = ksz_mdio_register(dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "failed to register the mdio");
-		return ret;
+		goto free_ptp_irq;
 	}
 
 	ret = ksz_dcb_init(dev);
 	if (ret)
-		return ret;
+		goto free_ptp_irq;
 
 	/* start switch */
 	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;
+
+free_ptp_irq:
+	if (dev->irq > 0)
+		ksz8463_ptp_irq_free(ds);
+free_girq:
+	if (dev->irq > 0)
+		ksz_irq_free(&dev->girq);
+
+	return ret;
+}
+
+static void ksz8463_teardown(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->irq > 0) {
+		ksz8463_ptp_irq_free(ds);
+		ksz_irq_free(&dev->girq);
+	}
 }
 
 /**
@@ -3010,6 +3098,7 @@ const struct dsa_switch_ops ksz8463_switch_ops = {
 	.get_tag_protocol	= ksz8463_get_tag_protocol,
 	.connect_tag_protocol   = ksz8463_connect_tag_protocol,
 	.setup			= ksz8463_setup,
+	.teardown		= ksz8463_teardown,
 	.phy_read		= ksz8463_phy_read16,
 	.phy_write		= ksz8463_phy_write16,
 	.phylink_get_caps	= ksz8_phylink_get_caps,

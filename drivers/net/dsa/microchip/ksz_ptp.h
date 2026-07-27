@@ -50,6 +50,8 @@ bool ksz_port_rxtstamp(struct dsa_switch *ds, int port, struct sk_buff *skb,
 		       unsigned int type);
 int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p);
 void ksz_ptp_irq_free(struct dsa_switch *ds, u8 p);
+int ksz8463_ptp_irq_setup(struct dsa_switch *ds);
+void ksz8463_ptp_irq_free(struct dsa_switch *ds);
 
 #else
 
@@ -71,6 +73,13 @@ static inline int ksz_ptp_irq_setup(struct dsa_switch *ds, u8 p)
 }
 
 static inline void ksz_ptp_irq_free(struct dsa_switch *ds, u8 p) {}
+
+static inline int ksz8463_ptp_irq_setup(struct dsa_switch *ds)
+{
+	return 0;
+}
+
+static inline void ksz8463_ptp_irq_free(struct dsa_switch *ds) {}
 
 #define ksz_get_ts_info NULL
 
