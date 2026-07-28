@@ -260,6 +260,7 @@
 #define RTL_8261C_CG				0x001cc898
 
 #define RTL8261C_CE_MODEL		0x00
+#define RTL8261D_MODEL			0x81
 #define RTL8261X_INT_AUTONEG_ERROR	BIT(0)
 #define RTL8261X_INT_PAGE_RECV		BIT(2)
 #define RTL8261X_INT_AUTONEG_DONE	BIT(3)
@@ -411,6 +412,10 @@ static int rtl8261x_probe(struct phy_device *phydev)
 	case RTL8261C_CE_MODEL:
 		priv->fw_name = RTL8261C_CE_FW_NAME;
 		phydev_info(phydev, "RTL8261C detected (sub_id 0x%02x)\n", sub_phy_id);
+		break;
+
+	case RTL8261D_MODEL:
+		phydev_info(phydev, "RTL8261D detected (sub_id 0x%02x)\n", sub_phy_id);
 		break;
 
 	default:
@@ -3397,7 +3402,7 @@ static struct phy_driver realtek_drvs[] = {
 		.write_mmd	= genphy_write_mmd_unsupported,
 	}, {
 		PHY_ID_MATCH_EXACT(RTL_8261C_CG),
-		.name			= "Realtek RTL8261C 10Gbps PHY",
+		.name			= "Realtek RTL8261C/D 10Gbps PHY",
 		.probe			= rtl8261x_probe,
 		.config_init		= rtl8261x_config_init,
 		.get_features		= rtl8261x_get_features,
