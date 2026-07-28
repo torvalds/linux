@@ -194,6 +194,14 @@ static const struct qcom_wdt_match_data match_data_ipq5424 = {
 	.powerunder_reason_val = 1,
 };
 
+static const struct qcom_wdt_match_data match_data_ipq9574 = {
+	.offset = reg_offset_data_kpss,
+	.pretimeout = true,
+	.max_tick_count = 0xFFFFFU,
+	.wdt_reason_val = 1,
+	.powerunder_reason_val = 32,
+};
+
 static const struct qcom_wdt_match_data match_data_kpss = {
 	.offset = reg_offset_data_kpss,
 	.pretimeout = true,
@@ -374,7 +382,9 @@ static const struct dev_pm_ops qcom_wdt_pm_ops = {
 };
 
 static const struct of_device_id qcom_wdt_of_table[] = {
+	{ .compatible = "qcom,apss-wdt-ipq5332", .data = &match_data_ipq9574 },
 	{ .compatible = "qcom,apss-wdt-ipq5424", .data = &match_data_ipq5424 },
+	{ .compatible = "qcom,apss-wdt-ipq9574", .data = &match_data_ipq9574 },
 	{ .compatible = "qcom,kpss-timer", .data = &match_data_apcs_tmr },
 	{ .compatible = "qcom,scss-timer", .data = &match_data_apcs_tmr },
 	{ .compatible = "qcom,kpss-wdt", .data = &match_data_kpss },
