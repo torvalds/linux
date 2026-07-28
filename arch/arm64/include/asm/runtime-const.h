@@ -36,6 +36,17 @@
 		:"r" (0u+(val)));				\
 	__ret; })
 
+#define runtime_const_mask_32(val, sym) ({			\
+	unsigned long __ret;					\
+	asm_inline("1:\t"					\
+		"ubfx %w0, %w1, #0, #32\n\t"			\
+		".pushsection runtime_mask_" #sym ",\"a\"\n\t"	\
+		".long 1b - .\n\t"				\
+		".popsection"					\
+		:"=r" (__ret)					\
+		:"r" (0u+(val)));				\
+	__ret; })
+
 #define runtime_const_init(type, sym) do {		\
 	extern s32 __start_runtime_##type##_##sym[];	\
 	extern s32 __stop_runtime_##type##_##sym[];	\
@@ -70,6 +81,41 @@ static inline void __runtime_fixup_shift(void *where, unsigned long val)
 	u32 insn = le32_to_cpu(*p);
 	insn &= 0xffc0ffff;
 	insn |= (val & 63) << 16;
+	aarch64_insn_patch_text_nosync(p, insn);
+}
+
+static inline void __runtime_fixup_mask(void *where, unsigned long val)
+{
+	unsigned int width = (val) ? __fls(val) + 1 : 0;
+	__le32 *p = where;
+	u32 insn;
+
+	/*
+	 * XXX: Current implementation only supports patching masks of
+	 * form GENMASK(n, 0) (n >= 0) using a single UBFX instruction
+	 * to improve performance, density, and covers all the current
+	 * use-cases.
+	 *
+	 * When the need arises to support any generic mask, and this
+	 * BUG_ON() is tripped, consider using a:
+	 *
+	 *   movz %w0, #imm16
+	 *   movk %w0, #imm16, lsl #16
+	 *
+	 * sequence to load the 32bit const mask, and perform a logical
+	 * and outside the asm block before returning the result. Fixup
+	 * can simply reuse the existing __runtime_fixup_16() to patch
+	 * the individual mov instructions.
+	 */
+	BUG_ON(!val || width > 32 || (GENMASK(width - 1, 0) != val));
+
+	/*
+	 * The width of the mask is encoded as (width - 1) in imms
+	 * which is 6 bits starting at bit #10.
+	 */
+	insn = le32_to_cpu(*p);
+	insn &= 0xffff03ff;
+	insn |= ((width - 1) & 0x1f) << 10;
 	aarch64_insn_patch_text_nosync(p, insn);
 }
 
