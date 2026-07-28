@@ -114,12 +114,9 @@ static int nft_dev_path_info(const struct net_device_path_stack *stack,
 			if (is_zero_ether_addr(info->h_source))
 				memcpy(info->h_source, path->dev->dev_addr, ETH_ALEN);
 
-			if (path->type == DEV_PATH_ETHERNET)
+			if (path->type == DEV_PATH_ETHERNET ||
+			    path->type == DEV_PATH_DSA)
 				break;
-			if (path->type == DEV_PATH_DSA) {
-				i = stack->num_paths;
-				break;
-			}
 
 			/* DEV_PATH_VLAN, DEV_PATH_PPPOE and DEV_PATH_TUN */
 			if (path->type == DEV_PATH_TUN) {

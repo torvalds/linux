@@ -2547,14 +2547,13 @@ static int dsa_user_fill_forward_path(struct net_device_path_ctx *ctx,
 				      struct net_device_path *path)
 {
 	struct dsa_port *dp = dsa_user_to_port(ctx->dev);
-	struct net_device *conduit = dsa_port_to_conduit(dp);
 	struct dsa_port *cpu_dp = dp->cpu_dp;
 
 	path->dev = ctx->dev;
 	path->type = DEV_PATH_DSA;
 	path->dsa.proto = cpu_dp->tag_ops->proto;
 	path->dsa.port = dp->index;
-	ctx->dev = conduit;
+	ctx->dev = NULL;
 
 	return 0;
 }
