@@ -37,6 +37,7 @@ use kernel::{
 
 use crate::{
     file::TyrDrmFileData,
+    fw::Firmware,
     gem::Bo,
     gpu,
     gpu::GpuInfo,
@@ -66,6 +67,9 @@ pub(crate) struct TyrPlatformDriverData<'bound> {
 pub(crate) struct TyrDrmRegistrationData<'drm> {
     /// Parent platform device.
     pub(crate) pdev: &'drm platform::Device<Bound>,
+
+    /// Firmware sections.
+    pub(crate) fw: Firmware<'drm>,
 
     #[pin]
     clks: Mutex<Clocks>,
@@ -144,10 +148,21 @@ impl platform::Driver for TyrPlatformDriver {
 
         let unreg_dev = drm::UnregisteredDevice::<TyrDrmDriver>::new(pdev, Ok(()))?;
 
-        let _mmu = Mmu::new(pdev.as_ref(), iomem.as_arc_borrow(), &gpu_info)?;
+        let mmu = Mmu::new(pdev.as_ref(), iomem.as_arc_borrow(), &gpu_info)?;
 
-        let reg_data = try_pin_init!(TyrDrmRegistrationData {
+        let firmware = Firmware::new(
+            pdev.as_ref(),
+            iomem.clone(),
+            &unreg_dev,
+            mmu.as_arc_borrow(),
+            &gpu_info,
+        )?;
+
+        firmware.boot()?;
+
+        let reg_data = pin_init!(TyrDrmRegistrationData {
                 pdev,
+                fw: firmware,
                 clks <- new_mutex!(Clocks {
                     core: core_clk,
                     stacks: stacks_clk,
@@ -167,9 +182,7 @@ impl platform::Driver for TyrPlatformDriver {
 
         let driver = TyrPlatformDriverData { _reg: reg };
 
-        // We need this to be dev_info!() because dev_dbg!() does not work at
-        // all in Rust for now, and we need to see whether probe succeeded.
-        dev_info!(pdev, "Tyr initialized correctly.\n");
+        dev_dbg!(pdev, "Tyr initialized correctly.");
         Ok(driver)
     }
 }

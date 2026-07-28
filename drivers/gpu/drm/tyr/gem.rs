@@ -72,7 +72,6 @@ pub(crate) fn new_dummy_object(ddev: &TyrDrmDevice) -> Result<ARef<Bo>> {
 /// An automatic VA allocation strategy will be added in the future.
 pub(crate) enum KernelBoVaAlloc {
     /// Explicit VA address specified by the caller.
-    #[expect(dead_code)]
     Explicit(u64),
 }
 
@@ -98,7 +97,6 @@ impl<'drm> KernelBo<'drm> {
     /// This function allocates a new shmem-backed GEM object and immediately maps
     /// it into the specified GPU virtual memory space. The mapping is automatically
     /// cleaned up when the [`KernelBo`] is dropped.
-    #[expect(dead_code)]
     pub(crate) fn new(
         ddev: &TyrDrmDevice,
         vm: Arc<Vm<'drm>>,
@@ -135,7 +133,6 @@ impl<'drm> KernelBo<'drm> {
         })
     }
 
-    #[expect(dead_code)]
     pub(crate) fn bo(&self) -> &Bo {
         &self.bo
     }
