@@ -3885,8 +3885,6 @@ static struct ib_mr *irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags,
 	struct irdma_device *iwdev = to_iwdev(ib_mr->device);
 	struct irdma_mr *iwmr = to_iwmr(ib_mr);
 	struct irdma_pbl *iwpbl = &iwmr->iwpbl;
-	bool dmabuf_revocable = iwmr->region && iwmr->region->is_dmabuf;
-	struct ib_umem_dmabuf *umem_dmabuf;
 	int ret;
 
 	ret = ib_no_udata_io(udata);
@@ -3903,26 +3901,9 @@ static struct ib_mr *irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (dmabuf_revocable) {
-		umem_dmabuf = to_ib_umem_dmabuf(iwmr->region);
-
-		ib_umem_dmabuf_revoke_lock(umem_dmabuf);
-
-		/* If the dmabuf has been revoked, it means that the region has
-		 * been invalidated in HW. We must not allow it to become valid
-		 * again unless the user is requesting a change in translation
-		 * which will end up dropping the umem dmabuf and allocating an
-		 * entirely new umem anyway.
-		 */
-		if (umem_dmabuf->revoked && !(flags & IB_MR_REREG_TRANS)) {
-			ret = -EINVAL;
-			goto err_unlock;
-		}
-	}
-
 	ret = irdma_hwdereg_mr(ib_mr);
 	if (ret)
-		goto err_unlock;
+		return ERR_PTR(ret);
 
 	if (flags & IB_MR_REREG_ACCESS)
 		iwmr->access = new_access;
@@ -3939,12 +3920,6 @@ static struct ib_mr *irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags,
 			iwpbl->pbl_allocated = false;
 		}
 
-		if (dmabuf_revocable) {
-			/* Must unlock before release to prevent deadlock */
-			ib_umem_dmabuf_revoke_unlock(umem_dmabuf);
-			dmabuf_revocable = false;
-		}
-
 		if (iwmr->region) {
 			ib_umem_release(iwmr->region);
 			iwmr->region = NULL;
@@ -3954,10 +3929,6 @@ static struct ib_mr *irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags,
 	} else {
 		ret = irdma_hwreg_mr(iwdev, iwmr, iwmr->access);
 	}
-
-err_unlock:
-	if (dmabuf_revocable)
-		ib_umem_dmabuf_revoke_unlock(umem_dmabuf);
 
 	return ret ? ERR_PTR(ret) : NULL;
 }
