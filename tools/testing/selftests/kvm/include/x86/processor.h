@@ -956,6 +956,11 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
 void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
 void kvm_x86_state_cleanup(struct kvm_x86_state *state);
 
+static inline bool kvm_x86_state_is_guest_mode(struct kvm_x86_state *state)
+{
+	return state->nested.size && (state->nested.flags & KVM_STATE_NESTED_GUEST_MODE);
+}
+
 const struct kvm_msr_list *kvm_get_msr_index_list(void);
 const struct kvm_msr_list *kvm_get_feature_msr_index_list(void);
 bool kvm_msr_is_in_save_restore_list(u32 msr_index);

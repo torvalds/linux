@@ -87,8 +87,13 @@ static void guest_access_memory(void *arg)
 static void l1_svm_code(struct svm_test_data *svm)
 {
 	generic_svm_setup(svm, guest_access_memory);
-	run_guest(svm->vmcb, svm->vmcb_gpa);
-	GUEST_ASSERT(false);
+	svm->vmcb->control.intercept_exceptions |= BIT(UD_VECTOR);
+
+	while (1) {
+		run_guest(svm->vmcb, svm->vmcb_gpa);
+		GUEST_ASSERT_EQ(svm->vmcb->control.exit_code,
+				(SVM_EXIT_EXCP_BASE + UD_VECTOR));
+	}
 }
 
 static void l1_vmx_code(struct vmx_pages *vmx)
@@ -97,8 +102,14 @@ static void l1_vmx_code(struct vmx_pages *vmx)
 	GUEST_ASSERT(load_vmcs(vmx));
 	prepare_vmcs(vmx, guest_access_memory);
 
+	GUEST_ASSERT(!vmwrite(EXCEPTION_BITMAP, BIT(UD_VECTOR)));
+
 	GUEST_ASSERT(!vmlaunch());
-	GUEST_ASSERT(false);
+	while (1) {
+		GUEST_ASSERT_EQ(vmreadz(VM_EXIT_REASON), EXIT_REASON_EXCEPTION_NMI);
+		GUEST_ASSERT_EQ(vmreadz(VM_EXIT_INTR_INFO) & 0xff, UD_VECTOR);
+		GUEST_ASSERT(!vmresume());
+	}
 }
 
 static void l1_guest_code(void *test_data)
@@ -136,6 +147,19 @@ static void vcpu_sigusr_ignore(void)
 	sigaction(SIGUSR1, &sa, NULL);
 }
 
+static void kvm_x86_state_queue_ud(struct kvm_x86_state *state)
+{
+	if (state->events.exception.pending || state->events.exception.injected)
+		return;
+
+	state->events.flags |= KVM_VCPUEVENT_VALID_PAYLOAD;
+	state->events.exception.pending = true;
+	state->events.exception.injected = false;
+	state->events.exception.nr = UD_VECTOR;
+	state->events.exception.has_error_code = false;
+	state->events.exception_has_payload = false;
+}
+
 static void run_test(bool nested)
 {
 	struct kvm_x86_state *state;
@@ -153,6 +177,7 @@ static void run_test(bool nested)
 	vm_install_exception_handler(vm, PF_VECTOR, guest_pf_handler);
 
 	if (nested) {
+		vm_enable_cap(vm, KVM_CAP_EXCEPTION_PAYLOAD, -2ul);
 		if (kvm_cpu_has(X86_FEATURE_SVM))
 			vcpu_alloc_svm(vm, &gva);
 		else
@@ -218,8 +243,17 @@ static void run_test(bool nested)
 
 		state = vcpu_save_state(vcpu);
 
+		/*
+		 * If the vCPU is in guest mode, inject a #UD to trigger an
+		 * L2->L1 VM-Exit every other iteration.
+		 */
+		if (kvm_x86_state_is_guest_mode(state) && i % 2 == 0)
+			kvm_x86_state_queue_ud(state);
+
 		kvm_vm_release(vm);
 		vcpu = vm_recreate_with_one_vcpu(vm);
+		if (nested)
+			vm_enable_cap(vm, KVM_CAP_EXCEPTION_PAYLOAD, -2ul);
 		vcpu_load_state(vcpu, state);
 		kvm_x86_state_cleanup(state);
 
@@ -241,7 +275,9 @@ int main(int argc, char *argv[])
 	pr_info("Running save+restore stress test...\n");
 	run_test(/*nested=*/false);
 
-	if (!kvm_cpu_has(X86_FEATURE_SVM) && !kvm_cpu_has(X86_FEATURE_VMX)) {
+	if (!kvm_has_cap(KVM_CAP_EXCEPTION_PAYLOAD) ||
+	    !kvm_has_cap(KVM_CAP_NESTED_STATE) ||
+	    (!kvm_cpu_has(X86_FEATURE_SVM) && !kvm_cpu_has(X86_FEATURE_VMX))) {
 		pr_info("Nested virtualization not supported, skipping nested test\n");
 		return 0;
 	}
