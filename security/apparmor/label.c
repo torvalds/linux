@@ -1290,9 +1290,9 @@ out:
  * If a subns profile is not to be matched should be prescreened with
  * visibility test.
  */
-static inline aa_state_t match_component(struct aa_profile *profile,
+static inline aa_state_t match_component(const struct aa_profile *profile,
 					 struct aa_ruleset *rules,
-					 struct aa_profile *tp,
+					 const struct aa_profile *tp,
 					 aa_state_t state)
 {
 	const char *ns_name;
@@ -1324,7 +1324,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_compound_match(struct aa_profile *profile,
+static int label_compound_match(const struct aa_profile *profile,
 				struct aa_ruleset *rules,
 				struct aa_label *label,
 				aa_state_t state, bool inview, u32 request,
@@ -1380,7 +1380,7 @@ fail:
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_components_match(struct aa_profile *profile,
+static int label_components_match(const struct aa_profile *profile,
 				  struct aa_ruleset *rules,
 				  struct aa_label *label, aa_state_t start,
 				  bool inview, u32 request,
@@ -1439,7 +1439,7 @@ fail:
  *
  * Returns: the state the match finished in, may be the none matching state
  */
-int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
+int aa_label_match(const struct aa_profile *profile, struct aa_ruleset *rules,
 		   struct aa_label *label, aa_state_t state, bool inview,
 		   u32 request, struct aa_perms *perms)
 {

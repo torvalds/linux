@@ -91,8 +91,8 @@ out:
  * If a subns profile is not to be matched should be prescreened with
  * visibility test.
  */
-static inline aa_state_t match_component(struct aa_profile *profile,
-					 struct aa_profile *tp,
+static inline aa_state_t match_component(const struct aa_profile *profile,
+					 const struct aa_profile *tp,
 					 bool stack, aa_state_t state)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];
@@ -127,7 +127,7 @@ static inline aa_state_t match_component(struct aa_profile *profile,
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_compound_match(struct aa_profile *profile,
+static int label_compound_match(const struct aa_profile *profile,
 				struct aa_label *label, bool stack,
 				aa_state_t state, bool inview, u32 request,
 				struct aa_perms *perms)
@@ -189,7 +189,7 @@ fail:
  * @perms should be preinitialized with allperms OR a previous permission
  *        check to be stacked.
  */
-static int label_components_match(struct aa_profile *profile,
+static int label_components_match(const struct aa_profile *profile,
 				  struct aa_label *label, bool stack,
 				  aa_state_t start, bool inview, u32 request,
 				  struct aa_perms *perms)
@@ -253,7 +253,7 @@ fail:
  *
  * Returns: the state the match finished in, may be the none matching state
  */
-static int label_match(struct aa_profile *profile, struct aa_label *label,
+static int label_match(const struct aa_profile *profile, struct aa_label *label,
 		       bool stack, aa_state_t state, bool inview, u32 request,
 		       struct aa_perms *perms)
 {
@@ -287,7 +287,7 @@ static int label_match(struct aa_profile *profile, struct aa_label *label,
  * currently only matches full label A//&B//&C or individual components A, B, C
  * not arbitrary combinations. Eg. A//&B, C
  */
-static int change_profile_perms(struct aa_profile *profile,
+static int change_profile_perms(const struct aa_profile *profile,
 				struct aa_label *target, bool stack,
 				u32 request, aa_state_t start,
 				struct aa_perms *perms)
@@ -311,7 +311,7 @@ static int change_profile_perms(struct aa_profile *profile,
  * Returns: number of extended attributes that matched, or < 0 on error
  */
 static int aa_xattrs_match(const struct path *path,
-			   struct aa_profile *profile, aa_state_t state)
+			   const struct aa_profile *profile, aa_state_t state)
 {
 	AA_BUG(!path);
 	AA_BUG(!profile);
@@ -319,7 +319,7 @@ static int aa_xattrs_match(const struct path *path,
 	int i;
 	struct dentry *d;
 	char *value = NULL;
-	struct aa_attachment *attach = &profile->attach;
+	const struct aa_attachment *attach = &profile->attach;
 	int size, value_size = 0, ret = attach->xattr_count;
 
 	if (!attach->xattr_count)

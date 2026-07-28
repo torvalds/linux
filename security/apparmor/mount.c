@@ -211,7 +211,7 @@ static int do_match_mnt(struct aa_policydb *policy, aa_state_t start,
 }
 
 
-static int path_flags(struct aa_profile *profile, const struct path *path)
+static int path_flags(const struct aa_profile *profile, const struct path *path)
 {
 	AA_BUG(!profile);
 	AA_BUG(!path);

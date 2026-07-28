@@ -856,7 +856,8 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 	.release	= ns_revision_release,
 };
 
-static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
+static void profile_query_cb(const struct aa_profile *profile,
+			     struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
 	struct aa_ruleset *rules = profile->label.rules[0];

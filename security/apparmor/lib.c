@@ -361,7 +361,8 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
  *
  * TODO: split into profile and ns based flags for when accumulating perms
  */
-void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
+void aa_apply_modes_to_perms(const struct aa_profile *profile,
+			     struct aa_perms *perms)
 {
 	if (KILL_MODE(profile))
 		perms->kill = ~perms->allow;
@@ -389,7 +390,7 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 	}
 }
 
-void aa_profile_match_label(struct aa_profile *profile,
+void aa_profile_match_label(const struct aa_profile *profile,
 			    struct aa_ruleset *rules,
 			    struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms)

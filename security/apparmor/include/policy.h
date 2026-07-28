@@ -433,7 +433,7 @@ static inline void aa_put_profile(struct aa_profile *p)
 		kref_put(&p->label.count.count, aa_label_kref);
 }
 
-static inline int AUDIT_MODE(struct aa_profile *profile)
+static inline int AUDIT_MODE(const struct aa_profile *profile)
 {
 	if (aa_g_audit != AUDIT_NORMAL)
 		return aa_g_audit;
