@@ -44,6 +44,7 @@ struct qcom_wdt_match_data {
 	bool pretimeout;
 	u32 max_tick_count;
 	u32 wdt_reason_val;
+	u32 powerunder_reason_val;
 };
 
 struct qcom_wdt {
@@ -164,7 +165,8 @@ static const struct watchdog_info qcom_wdt_info = {
 	.options	= WDIOF_KEEPALIVEPING
 			| WDIOF_MAGICCLOSE
 			| WDIOF_SETTIMEOUT
-			| WDIOF_CARDRESET,
+			| WDIOF_CARDRESET
+			| WDIOF_POWERUNDER,
 	.identity	= KBUILD_MODNAME,
 };
 
@@ -173,7 +175,8 @@ static const struct watchdog_info qcom_wdt_pt_info = {
 			| WDIOF_MAGICCLOSE
 			| WDIOF_SETTIMEOUT
 			| WDIOF_PRETIMEOUT
-			| WDIOF_CARDRESET,
+			| WDIOF_CARDRESET
+			| WDIOF_POWERUNDER,
 	.identity	= KBUILD_MODNAME,
 };
 
@@ -188,6 +191,7 @@ static const struct qcom_wdt_match_data match_data_ipq5424 = {
 	.pretimeout = true,
 	.max_tick_count = 0xFFFFFU,
 	.wdt_reason_val = 5,
+	.powerunder_reason_val = 1,
 };
 
 static const struct qcom_wdt_match_data match_data_kpss = {
@@ -197,12 +201,13 @@ static const struct qcom_wdt_match_data match_data_kpss = {
 };
 
 static int qcom_wdt_get_bootstatus(struct device *dev, struct qcom_wdt *wdt,
-				   u32 val)
+				   const struct qcom_wdt_match_data *data)
 {
 	struct device_node *imem;
 	struct resource res;
 	void __iomem *addr;
 	int ret;
+	int val;
 
 	imem = of_parse_phandle(dev->of_node, "sram", 0);
 	if (!imem) {
@@ -222,8 +227,11 @@ static int qcom_wdt_get_bootstatus(struct device *dev, struct qcom_wdt *wdt,
 	if (!addr)
 		return -ENOMEM;
 
-	if (readl(addr) == val)
+	val = readl(addr);
+	if (val == data->wdt_reason_val)
 		wdt->wdd.bootstatus = WDIOF_CARDRESET;
+	else if (val == data->powerunder_reason_val)
+		wdt->wdd.bootstatus = WDIOF_POWERUNDER;
 
 	iounmap(addr);
 
@@ -310,7 +318,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	wdt->wdd.parent = dev;
 	wdt->layout = data->offset;
 
-	ret = qcom_wdt_get_bootstatus(dev, wdt, data->wdt_reason_val);
+	ret = qcom_wdt_get_bootstatus(dev, wdt, data);
 	if (ret)
 		dev_err(dev, "failed to get the bootstatus, %d\n", ret);
 
