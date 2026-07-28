@@ -1140,22 +1140,15 @@ static void setup_gpio(struct pci_dev *pcidev, u8 __iomem *p)
 static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 							const struct software_node *node)
 {
-	struct platform_device *pdev;
+	struct platform_device_info pdevinfo = {
+		.name = "gpio_exar",
+		.id = PLATFORM_DEVID_AUTO,
+		.parent = &pcidev->dev,
+		.fwnode = dev_fwnode(&pcidev->dev),
+		.swnode = node,
+	};
 
-	pdev = platform_device_alloc("gpio_exar", PLATFORM_DEVID_AUTO);
-	if (!pdev)
-		return NULL;
-
-	pdev->dev.parent = &pcidev->dev;
-	device_set_node(&pdev->dev, dev_fwnode(&pcidev->dev));
-
-	if (device_add_software_node(&pdev->dev, node) < 0 ||
-	    platform_device_add(pdev) < 0) {
-		platform_device_put(pdev);
-		return NULL;
-	}
-
-	return pdev;
+	return platform_device_register_full(&pdevinfo);
 }
 
 static void __xr17v35x_unregister_gpio(struct platform_device *pdev)
