@@ -345,8 +345,8 @@ static int match_mnt_path_str(const struct cred *subj_cred,
 
 audit:
 	return audit_mount(subj_cred, profile, OP_MOUNT, mntpnt, devname,
-			   type, NULL,
-			   flags, data, AA_MAY_MOUNT, &perms, info, error);
+			   type, NULL, flags, !binary ? data : NULL,
+			   AA_MAY_MOUNT, &perms, info, error);
 }
 
 /**
