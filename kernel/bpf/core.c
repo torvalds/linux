@@ -2634,21 +2634,9 @@ static struct bpf_prog *bpf_prog_jit_compile(struct bpf_verifier_env *env, struc
 {
 #ifdef CONFIG_BPF_JIT
 	struct bpf_prog *orig_prog;
-	struct bpf_insn_aux_data *orig_insn_aux;
 
 	if (!bpf_prog_need_blind(prog))
 		return bpf_int_jit_compile(env, prog);
-
-	if (env) {
-		/*
-		 * If env is not NULL, we are called from the end of bpf_check(), at this
-		 * point, only insn_aux_data is used after failure, so it should be restored
-		 * on failure.
-		 */
-		orig_insn_aux = bpf_dup_insn_aux_data(env);
-		if (!orig_insn_aux)
-			return prog;
-	}
 
 	orig_prog = prog;
 	prog = bpf_jit_blind_constants(env, prog);
@@ -2662,8 +2650,6 @@ static struct bpf_prog *bpf_prog_jit_compile(struct bpf_verifier_env *env, struc
 	prog = bpf_int_jit_compile(env, prog);
 	if (prog->jited) {
 		bpf_jit_prog_release_other(prog, orig_prog);
-		if (env)
-			vfree(orig_insn_aux);
 		return prog;
 	}
 
@@ -2671,8 +2657,6 @@ static struct bpf_prog *bpf_prog_jit_compile(struct bpf_verifier_env *env, struc
 
 out_restore:
 	prog = orig_prog;
-	if (env)
-		bpf_restore_insn_aux_data(env, orig_insn_aux);
 #endif
 	return prog;
 }

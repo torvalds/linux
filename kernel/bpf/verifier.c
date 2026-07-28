@@ -20213,7 +20213,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 	if (!is_priv)
 		mutex_lock(&bpf_verifier_lock);
 
-	len = env->prog->len;
+	len = env->insn_aux_data_len = env->prog->len;
 	env->insn_aux_data =
 		__vmalloc(array_size(sizeof(struct bpf_insn_aux_data), len),
 			  GFP_KERNEL_ACCOUNT | __GFP_ZERO);
@@ -20468,7 +20468,7 @@ err_prep:
 	release_btfs(env);
 err_free_env:
 	if (env->insn_aux_data)
-		bpf_clear_insn_aux_data(env, 0, env->prog->len);
+		bpf_clear_insn_aux_data(env, 0, env->insn_aux_data_len);
 	vfree(env->insn_aux_data);
 	kvfree(env->fd_array);
 	bpf_stack_liveness_free(env);

@@ -230,6 +230,7 @@ static void adjust_insn_aux_data(struct bpf_verifier_env *env,
 	if (cnt == 1)
 		return;
 	prog_len = new_prog->len;
+	env->insn_aux_data_len = prog_len;
 
 	memmove(data + off + cnt - 1, data + off,
 		sizeof(struct bpf_insn_aux_data) * (prog_len - off - cnt + 1));
@@ -496,7 +497,6 @@ static int bpf_adj_linfo_after_remove(struct bpf_verifier_env *env, u32 off,
 void bpf_clear_insn_aux_data(struct bpf_verifier_env *env, int start, int len)
 {
 	struct bpf_insn_aux_data *aux_data = env->insn_aux_data;
-	struct bpf_insn *insns = env->prog->insnsi;
 	int end = start + len;
 	int i;
 
@@ -505,9 +505,6 @@ void bpf_clear_insn_aux_data(struct bpf_verifier_env *env, int start, int len)
 			kvfree(aux_data[i].jt);
 			aux_data[i].jt = NULL;
 		}
-
-		if (bpf_is_ldimm64(&insns[i]))
-			i++;
 	}
 }
 
@@ -520,7 +517,6 @@ static int verifier_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
 	if (bpf_prog_is_offloaded(env->prog->aux))
 		bpf_prog_offload_remove_insns(env, off, cnt);
 
-	/* Should be called before bpf_remove_insns, as it uses prog->insnsi */
 	bpf_clear_insn_aux_data(env, off, cnt);
 
 	err = bpf_remove_insns(env->prog, off, cnt);
@@ -539,6 +535,7 @@ static int verifier_remove_insns(struct bpf_verifier_env *env, u32 off, u32 cnt)
 
 	memmove(aux_data + off,	aux_data + off + cnt,
 		sizeof(*aux_data) * (orig_prog_len - off - cnt));
+	env->insn_aux_data_len -= cnt;
 
 	return 0;
 }
@@ -1057,26 +1054,6 @@ static void bpf_restore_subprog_starts(struct bpf_verifier_env *env, u32 *orig_s
 	env->subprog_info[env->subprog_cnt].start = env->prog->len;
 }
 
-struct bpf_insn_aux_data *bpf_dup_insn_aux_data(struct bpf_verifier_env *env)
-{
-	size_t size;
-	void *new_aux;
-
-	size = array_size(sizeof(struct bpf_insn_aux_data), env->prog->len);
-	new_aux = __vmalloc(size, GFP_KERNEL_ACCOUNT);
-	if (new_aux)
-		memcpy(new_aux, env->insn_aux_data, size);
-	return new_aux;
-}
-
-void bpf_restore_insn_aux_data(struct bpf_verifier_env *env,
-			       struct bpf_insn_aux_data *orig_insn_aux)
-{
-	/* the expanded elements are zero-filled, so no special handling is required */
-	vfree(env->insn_aux_data);
-	env->insn_aux_data = orig_insn_aux;
-}
-
 static int jit_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_prog *prog = env->prog, **func, *tmp;
@@ -1351,7 +1328,6 @@ int bpf_jit_subprogs(struct bpf_verifier_env *env)
 	bool blinded = false;
 	struct bpf_insn *insn;
 	struct bpf_prog *prog, *orig_prog;
-	struct bpf_insn_aux_data *orig_insn_aux;
 	u32 *orig_subprog_starts;
 
 	if (env->subprog_cnt <= 1)
@@ -1359,14 +1335,8 @@ int bpf_jit_subprogs(struct bpf_verifier_env *env)
 
 	prog = orig_prog = env->prog;
 	if (bpf_prog_need_blind(prog)) {
-		orig_insn_aux = bpf_dup_insn_aux_data(env);
-		if (!orig_insn_aux) {
-			err = -ENOMEM;
-			goto out_cleanup;
-		}
 		orig_subprog_starts = bpf_dup_subprog_starts(env);
 		if (!orig_subprog_starts) {
-			vfree(orig_insn_aux);
 			err = -ENOMEM;
 			goto out_cleanup;
 		}
@@ -1386,7 +1356,6 @@ int bpf_jit_subprogs(struct bpf_verifier_env *env)
 	if (blinded) {
 		bpf_jit_prog_release_other(prog, orig_prog);
 		kvfree(orig_subprog_starts);
-		vfree(orig_insn_aux);
 	}
 
 	return 0;
@@ -1416,7 +1385,6 @@ out_jit_err:
 
 out_restore:
 	bpf_restore_subprog_starts(env, orig_subprog_starts);
-	bpf_restore_insn_aux_data(env, orig_insn_aux);
 	kvfree(orig_subprog_starts);
 out_cleanup:
 	/* cleanup main prog to be interpreted */
