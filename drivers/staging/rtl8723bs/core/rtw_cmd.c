@@ -525,7 +525,7 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 {
 	u8 res = _FAIL;
 	struct cmd_obj *ph2c;
-	struct sitesurvey_parm *psurveyPara;
+	struct sitesurvey_parm *survey_para;
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
@@ -536,18 +536,18 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 	if (!ph2c)
 		return _FAIL;
 
-	psurveyPara = kzalloc_obj(*psurveyPara, GFP_ATOMIC);
-	if (!psurveyPara) {
+	survey_para = kzalloc_obj(*survey_para, GFP_ATOMIC);
+	if (!survey_para) {
 		kfree(ph2c);
 		return _FAIL;
 	}
 
 	rtw_free_network_queue(padapter, false);
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, psurveyPara, SITE_SURVEY_CMD);
+	init_h2fwcmd_w_parm_no_rsp(ph2c, survey_para, SITE_SURVEY_CMD);
 
 	/* psurveyPara->bsslimit = 48; */
-	psurveyPara->scan_mode = pmlmepriv->scan_mode;
+	survey_para->scan_mode = pmlmepriv->scan_mode;
 
 	/* prepare ssid list */
 	if (ssid) {
@@ -555,8 +555,8 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 
 		for (i = 0; i < ssid_num && i < RTW_SSID_SCAN_AMOUNT; i++) {
 			if (ssid[i].ssid_length) {
-				memcpy(&psurveyPara->ssid[i], &ssid[i], sizeof(struct ndis_802_11_ssid));
-				psurveyPara->ssid_num++;
+				memcpy(&survey_para->ssid[i], &ssid[i], sizeof(struct ndis_802_11_ssid));
+				survey_para->ssid_num++;
 			}
 		}
 	}
@@ -567,8 +567,8 @@ u8 rtw_sitesurvey_cmd(struct adapter  *padapter, struct ndis_802_11_ssid *ssid, 
 
 		for (i = 0; i < ch_num && i < RTW_CHANNEL_SCAN_AMOUNT; i++) {
 			if (ch[i].hw_value && !(ch[i].flags & RTW_IEEE80211_CHAN_DISABLED)) {
-				memcpy(&psurveyPara->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));
-				psurveyPara->ch_num++;
+				memcpy(&survey_para->ch[i], &ch[i], sizeof(struct rtw_ieee80211_channel));
+				survey_para->ch_num++;
 			}
 		}
 	}
