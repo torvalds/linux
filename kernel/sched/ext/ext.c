@@ -7520,6 +7520,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 
 	if (!scx_tryset_enable_state(SCX_ENABLED, SCX_ENABLING)) {
 		WARN_ON_ONCE(atomic_read(&sch->exit_kind) == SCX_EXIT_NONE);
+		ret = -EBUSY;
 		goto err_disable;
 	}
 
