@@ -330,6 +330,7 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 	struct nf_conntrack_helper *helper = NULL;
 	struct nf_conn *ct = exp->master;
 	struct net *net = read_pnet(&ct->ct_net);
+	struct nf_conntrack_ecache *ecache;
 	struct nf_conn_help *help;
 	int len;
 
@@ -341,6 +342,10 @@ void nf_ct_expect_init(struct nf_conntrack_expect *exp, unsigned int class,
 	exp->flags = 0;
 	exp->class = class;
 	exp->expectfn = NULL;
+
+	ecache = nf_ct_ecache_find(ct);
+	if (ecache)
+		exp->event_mask = ecache->expmask;
 
 	help = nfct_help(ct);
 	if (help)

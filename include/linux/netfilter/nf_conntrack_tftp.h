@@ -19,6 +19,7 @@ struct tftphdr {
 
 typedef unsigned int
 nf_nat_tftp_hook_fn(struct sk_buff *skb,
+		    struct nf_conn *ct,
 		    enum ip_conntrack_info ctinfo,
 		    struct nf_conntrack_expect *exp);
 
