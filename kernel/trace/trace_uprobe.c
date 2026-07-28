@@ -281,7 +281,7 @@ static bool trace_uprobe_is_busy(struct dyn_event *ev)
 static bool trace_uprobe_match_command_head(struct trace_uprobe *tu,
 					    int argc, const char **argv)
 {
-	char buf[MAX_COMMON_HEAD_LEN + 1];
+	char buf[64];
 	int len;
 
 	if (!argc)
