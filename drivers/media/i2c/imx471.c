@@ -334,12 +334,12 @@ static int imx471_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_EXPOSURE:
 		ret = cci_write(sensor->regmap, IMX471_REG_EXPOSURE,
-				ctrl->val, &ret);
+				ctrl->val, NULL);
 		break;
 	case V4L2_CID_VBLANK:
 		/* Update FLL that meets expected vertical blanking */
 		ret = cci_write(sensor->regmap, IMX471_REG_FLL,
-				format->height + ctrl->val, &ret);
+				format->height + ctrl->val, NULL);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = cci_write(sensor->regmap, IMX471_REG_TEST_PATTERN,
