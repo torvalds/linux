@@ -12,6 +12,7 @@ mod file;
 mod gem;
 mod gpu;
 mod regs;
+mod slot;
 
 kernel::module_platform_driver! {
     type: TyrPlatformDriver,
