@@ -1202,7 +1202,7 @@ static const struct of_device_id fsl_mc_bus_match_table[] = {
 MODULE_DEVICE_TABLE(of, fsl_mc_bus_match_table);
 
 static const struct acpi_device_id fsl_mc_bus_acpi_match_table[] = {
-	{"NXP0008", 0 },
+	{ .id = "NXP0008" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, fsl_mc_bus_acpi_match_table);
