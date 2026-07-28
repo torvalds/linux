@@ -365,6 +365,8 @@ struct sdw_dpn_prop {
  * @commit_register_supported: is PCP_Commit register supported
  * @scp_int1_mask: SCP_INT1_MASK desired settings
  * @lane_maps: Lane mapping for the slave, only valid if lane_control_support is set
+ * @bra_block_alignment: If non-zero the length of data in a BRA frame must be
+ *			 a multiple of this number of bytes.
  * @clock_reg_supported: the Peripheral implements the clock base and scale
  * registers introduced with the SoundWire 1.2 specification. SDCA devices
  * do not need to set this boolean property as the registers are required.
@@ -395,6 +397,7 @@ struct sdw_slave_prop {
 	u8 commit_register_supported;
 	u8 scp_int1_mask;
 	u8 lane_maps[SDW_MAX_LANES];
+	u32 bra_block_alignment;
 	bool clock_reg_supported;
 	bool use_domain_irq;
 };
