@@ -1164,6 +1164,8 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 	struct kfd_event *ev;
 	unsigned int temp;
 	uint32_t id, idx;
+	int user_gpu_id;
+	struct kfd_process_device *pdd;
 	int reset_cause = atomic_read(&dev->sram_ecc_flag) ?
 			KFD_HW_EXCEPTION_ECC :
 			KFD_HW_EXCEPTION_GPU_HANG;
@@ -1179,17 +1181,14 @@ void kfd_signal_reset_event(struct kfd_node *dev)
 
 	idx = srcu_read_lock(&kfd_processes_srcu);
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
-		int user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
-		struct kfd_process_device *pdd = kfd_get_process_device_data(dev, p);
+		pdd = kfd_get_process_device_data(dev, p);
+		if (!pdd)
+			/* no process is using this device */
+			continue;
+		user_gpu_id = kfd_process_get_user_gpu_id(p, dev->id);
 
 		if (unlikely(user_gpu_id == -EINVAL)) {
-			WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%x\n", dev->id);
-			continue;
-		}
-
-		if (unlikely(!pdd)) {
-			WARN_ONCE(1, "Could not get device data from process pid:%d\n",
-				  p->lead_thread->pid);
+			WARN_ONCE(1, "Could not get user_gpu_id from dev->id:%d\n", dev->id);
 			continue;
 		}
 
