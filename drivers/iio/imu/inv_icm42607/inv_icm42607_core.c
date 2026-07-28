@@ -19,6 +19,8 @@
 #include <linux/timekeeping.h>
 #include <linux/types.h>
 
+#include <asm/byteorder.h>
+
 #include "inv_icm42607.h"
 
 static bool inv_icm42607_is_readable_reg(struct device *dev, unsigned int reg)
@@ -104,6 +106,49 @@ const struct inv_icm42607_hw inv_icm42607p_hw_data = {
 };
 EXPORT_SYMBOL_NS_GPL(inv_icm42607p_hw_data, "IIO_ICM42607");
 
+const struct iio_mount_matrix *
+inv_icm42607_get_mount_matrix(struct iio_dev *indio_dev,
+			      const struct iio_chan_spec *chan)
+{
+	const struct inv_icm42607_state *st = iio_device_get_drvdata(indio_dev);
+
+	return &st->orientation;
+}
+
+static u32 inv_icm42607_odr_to_period_us(enum inv_icm42607_odr odr)
+{
+	static const u32 odr_periods[INV_ICM42607_ODR_NB] = {
+		/* Reserved values */
+		0, 0, 0, 0, 0,
+		/* 1600Hz */
+		625,
+		/* 800Hz */
+		1250,
+		/* 400Hz */
+		2500,
+		/* 200Hz */
+		5000,
+		/* 100 Hz */
+		10000,
+		/* 50Hz */
+		20000,
+		/* 25Hz */
+		40000,
+		/* 12.5Hz */
+		80000,
+		/* 6.25Hz */
+		160000,
+		/* 3.125Hz */
+		320000,
+		/* 1.5625Hz */
+		640000,
+	};
+
+	odr = clamp(odr, INV_ICM42607_ODR_1600HZ, INV_ICM42607_ODR_1_5625HZ_LP);
+
+	return odr_periods[odr];
+}
+
 int inv_icm42607_get_pwr_mgmt0(struct inv_icm42607_state *st,
 			       enum inv_icm42607_sensor_mode *gyro,
 			       enum inv_icm42607_sensor_mode *accel)
@@ -126,7 +171,7 @@ static int inv_icm42607_set_pwr_mgmt0(struct inv_icm42607_state *st,
 				      enum inv_icm42607_sensor_mode accel)
 {
 	enum inv_icm42607_sensor_mode oldaccel, oldgyro;
-	unsigned int sleepval_us;
+	unsigned int sleepval_us, odr_us;
 	unsigned int val;
 	s64 disable_wait;
 	int ret;
@@ -163,21 +208,29 @@ static int inv_icm42607_set_pwr_mgmt0(struct inv_icm42607_state *st,
 	 * If a state change occurs from off to on, sleep for the startup time
 	 * of the sensor. Since more than one sensor can be transitioned from
 	 * off to on, select the maximum time from each of the sensors changing
-	 * from off to on. The startup time for the temp sensor is considerably
+	 * from off to on. Also account for the time it takes for the first
+	 * sample to be ready by looking up the odr value and adding it to the
+	 * sleep time. The startup time for the temp sensor is considerably
 	 * smaller than the startup time for the other sensors and one or more
 	 * are required to be on for the temp sensor to function, so any start
 	 * delay should be enough.
 	 */
 	sleepval_us = 0;
-	if (accel && !oldaccel)
+	odr_us = 0;
+	if (accel && !oldaccel) {
 		sleepval_us = max(sleepval_us, INV_ICM42607_ACCEL_STARTUP_TIME_US);
+		odr_us = max(odr_us, inv_icm42607_odr_to_period_us(st->conf.accel.odr));
+	}
 
 	if (gyro && !oldgyro) {
 		sleepval_us = max(sleepval_us, INV_ICM42607_GYRO_STARTUP_TIME_US);
+		odr_us = max(odr_us, inv_icm42607_odr_to_period_us(st->conf.gyro.odr));
 		/* Track the earliest we can turn off the gyroscope. */
 		st->conf.gyro_stop = ktime_add_us(ktime_get(),
 						  INV_ICM42607_GYRO_STOP_TIME_US);
 	}
+
+	sleepval_us += odr_us;
 
 	/*
 	 * Only sleep if sleepval_us is greater than 0 in case some platforms
@@ -186,6 +239,174 @@ static int inv_icm42607_set_pwr_mgmt0(struct inv_icm42607_state *st,
 	 */
 	if (sleepval_us > 0)
 		fsleep(sleepval_us);
+
+	return 0;
+}
+
+/*
+ * Sanity test between old and new config values, and note if we need
+ * to update register config0 or config1.
+ */
+static void inv_icm42607_update_config(struct inv_icm42607_sensor_conf *conf,
+				       struct inv_icm42607_sensor_conf *oldconf,
+				       bool *config0, bool *config1)
+{
+	if (conf->mode < 0)
+		conf->mode = oldconf->mode;
+	if (conf->fs < 0)
+		conf->fs = oldconf->fs;
+	if (conf->odr < 0)
+		conf->odr = oldconf->odr;
+	if (conf->filter < 0)
+		conf->filter = oldconf->filter;
+
+	*config0 = (conf->fs != oldconf->fs) || (conf->odr != oldconf->odr);
+
+	*config1 = (conf->filter != oldconf->filter);
+}
+
+int inv_icm42607_set_sensor_conf(struct inv_icm42607_state *st,
+				 struct inv_icm42607_sensor_conf *conf,
+				 enum iio_chan_type chan_type)
+{
+	enum inv_icm42607_sensor_mode accel_mode, gyro_mode;
+	struct inv_icm42607_sensor_conf *oldconf;
+	bool config0, config1;
+	unsigned int val;
+	int ret;
+
+	switch (chan_type) {
+	case IIO_ACCEL:
+		oldconf = &st->conf.accel;
+		break;
+	case IIO_ANGL_VEL:
+		oldconf = &st->conf.gyro;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Since we are only making one-shot calls today, we can avoid needless
+	 * on/off cycles if we rely on the runtime power management to handle
+	 * shutting off the sensors when not in use. The downside is if we
+	 * enable both sensors then only read from one, we have to wait for
+	 * runtime PM to turn it off. So just keep the mode of the sensor we
+	 * are not actively using to whatever it's already set as.
+	 */
+	ret = inv_icm42607_get_pwr_mgmt0(st, &gyro_mode, &accel_mode);
+	if (ret)
+		return ret;
+
+	inv_icm42607_update_config(conf, oldconf, &config0, &config1);
+
+	if (config0) {
+		if (chan_type == IIO_ANGL_VEL) {
+			val = FIELD_PREP(INV_ICM42607_GYRO_CONFIG0_FS_SEL_MASK, conf->fs);
+			val |= FIELD_PREP(INV_ICM42607_GYRO_CONFIG0_ODR_MASK, conf->odr);
+			ret = regmap_write(st->map, INV_ICM42607_REG_GYRO_CONFIG0, val);
+		} else {
+			val = FIELD_PREP(INV_ICM42607_ACCEL_CONFIG0_FS_SEL_MASK, conf->fs);
+			val |= FIELD_PREP(INV_ICM42607_ACCEL_CONFIG0_ODR_MASK, conf->odr);
+			ret = regmap_write(st->map, INV_ICM42607_REG_ACCEL_CONFIG0, val);
+		}
+		if (ret)
+			return ret;
+
+		oldconf->fs = conf->fs;
+		oldconf->odr = conf->odr;
+	}
+
+	if (config1) {
+		if (chan_type == IIO_ANGL_VEL) {
+			val = FIELD_PREP(INV_ICM42607_GYRO_CONFIG1_FILTER_MASK,
+					 conf->filter);
+			ret = regmap_update_bits(st->map, INV_ICM42607_REG_GYRO_CONFIG1,
+						 INV_ICM42607_GYRO_CONFIG1_FILTER_MASK, val);
+		} else {
+			val = FIELD_PREP(INV_ICM42607_ACCEL_CONFIG1_FILTER_MASK,
+					 conf->filter);
+			ret = regmap_update_bits(st->map, INV_ICM42607_REG_ACCEL_CONFIG1,
+						 INV_ICM42607_ACCEL_CONFIG1_FILTER_MASK, val);
+		}
+		if (ret)
+			return ret;
+
+		oldconf->filter = conf->filter;
+	}
+
+	oldconf->mode = conf->mode;
+
+	switch (chan_type) {
+	case IIO_ACCEL:
+		return inv_icm42607_set_pwr_mgmt0(st, gyro_mode, conf->mode);
+	case IIO_ANGL_VEL:
+		return inv_icm42607_set_pwr_mgmt0(st, conf->mode, accel_mode);
+	default:
+		return -EINVAL;
+	}
+}
+
+int inv_icm42607_read_sensor(struct iio_dev *indio_dev,
+			     struct iio_chan_spec const *chan,
+			     s16 *val)
+{
+	struct inv_icm42607_sensor_conf conf = INV_ICM42607_SENSOR_CONF_INIT;
+	struct inv_icm42607_state *st = iio_device_get_drvdata(indio_dev);
+	struct inv_icm42607_sensor_state *sensor_st = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(st->map);
+	unsigned int reg;
+	__be16 data;
+	int ret;
+
+	if ((chan->type != IIO_ANGL_VEL) && (chan->type != IIO_ACCEL))
+		return -EINVAL;
+
+	switch (chan->channel2) {
+	case IIO_MOD_X:
+		if (chan->type == IIO_ANGL_VEL)
+			reg = INV_ICM42607_REG_GYRO_DATA_X1;
+		else
+			reg = INV_ICM42607_REG_ACCEL_DATA_X1;
+		break;
+	case IIO_MOD_Y:
+		if (chan->type == IIO_ANGL_VEL)
+			reg = INV_ICM42607_REG_GYRO_DATA_Y1;
+		else
+			reg = INV_ICM42607_REG_ACCEL_DATA_Y1;
+		break;
+	case IIO_MOD_Z:
+		if (chan->type == IIO_ANGL_VEL)
+			reg = INV_ICM42607_REG_GYRO_DATA_Z1;
+		else
+			reg = INV_ICM42607_REG_ACCEL_DATA_Z1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	PM_RUNTIME_ACQUIRE_AUTOSUSPEND(dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
+		return ret;
+
+	guard(mutex)(&st->lock);
+
+	/* enable sensor */
+	conf.mode = sensor_st->power_mode;
+	conf.filter = sensor_st->filter;
+	ret = inv_icm42607_set_sensor_conf(st, &conf, chan->type);
+	if (ret)
+		return ret;
+
+	/* read sensor register data */
+	ret = regmap_bulk_read(st->map, reg, &data, sizeof(data));
+	if (ret)
+		return ret;
+
+	*val = be16_to_cpu(data);
+	if (*val == INV_ICM42607_DATA_INVALID)
+		return -EINVAL;
 
 	return 0;
 }
@@ -408,6 +629,11 @@ int inv_icm42607_core_probe(struct regmap *regmap,
 
 	pm_runtime_set_autosuspend_delay(dev, INV_ICM42607_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
+
+	/* Initialize IIO device for Accel */
+	st->indio_accel = inv_icm42607_accel_init(st);
+	if (IS_ERR(st->indio_accel))
+		return PTR_ERR(st->indio_accel);
 
 	return 0;
 }
