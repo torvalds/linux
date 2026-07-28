@@ -1681,8 +1681,13 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			continue;
 
 		sec = elf_getscn(syms_ss->elf, sym.st_shndx);
-		if (!sec)
+		if (!sec) {
+			if (dynsym && ehdr.e_shnum &&
+			    sym.st_shndx < SHN_LORESERVE &&
+			    sym.st_shndx >= ehdr.e_shnum)
+				continue;
 			goto out_elf_end;
+		}
 
 		gelf_getshdr(sec, &shdr);
 
