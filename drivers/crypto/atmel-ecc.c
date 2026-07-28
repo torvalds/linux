@@ -106,17 +106,14 @@ static int atmel_ecdh_set_secret(struct crypto_kpp *tfm, const void *buf,
 	atmel_i2c_init_genkey_cmd(cmd, DATA_SLOT_2);
 
 	ret = atmel_i2c_send_receive(ctx->client, cmd);
-	if (ret)
-		goto free_public_key;
+	if (ret) {
+		kfree(public_key);
+		goto free_cmd;
+	}
 
 	memcpy(public_key, &cmd->data[RSP_DATA_IDX], ATMEL_ECC_PUBKEY_SIZE);
 	ctx->public_key = public_key;
 
-	kfree(cmd);
-	return 0;
-
-free_public_key:
-	kfree(public_key);
 free_cmd:
 	kfree(cmd);
 	return ret;
