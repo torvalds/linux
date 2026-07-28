@@ -39,6 +39,7 @@
  * @min_limit_perf: Cached value of the performance corresponding to policy->min
  * @max_limit_perf: Cached value of the performance corresponding to policy->max
  * @bios_min_perf: Cached perf value corresponding to the "Requested CPU Min Frequency" BIOS option
+ * @val: Raw 64-bit value for atomic access via READ_ONCE()/WRITE_ONCE()
  */
 union perf_cached {
 	struct {
@@ -96,7 +97,12 @@ struct amd_aperf_mperf {
  * @epp_default_ac: Default EPP value for AC power source
  * @epp_default_dc: Default EPP value for DC power source
  * @dynamic_epp: Whether dynamic EPP is enabled
+ * @raw_epp: Whether the last EPP write was a raw numeric value rather than a
+ *	     named preference
  * @power_nb: Notifier block for power events
+ * @current_profile: Currently selected platform profile option
+ * @ppdev: Device registered with the platform profile handler
+ * @profile_name: Name under which @ppdev is registered
  *
  * The amd_cpudata is key private data for each CPU thread in AMD P-State, and
  * represents all the attributes and goals that AMD P-State requests at runtime.
