@@ -867,6 +867,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	unsigned long rate = op->max_freq;
 	int ret;
 	uint64_t size_kb;
+	u32 reg;
 
 	/*
 	 * Return when following condition all meet,
@@ -895,6 +896,15 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		    4 * spi_get_chipselect(spi, 0));
 
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
+
+	/*
+	 * Per the FlexSPI reference manual (initialization sequence), MCR0 and
+	 * the DLL control registers should be configured while the module is in
+	 * stop mode (MCR0[MDIS] = 1). Enter stop mode before reconfiguring the
+	 * RX sample clock source and the DLL, then exit stop mode afterwards.
+	 */
+	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
+	fspi_writel(f, reg | FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
 
 	nxp_fspi_select_rx_sample_clk_source(f, op_is_dtr);
 	rate = min(f->max_rate, op->max_freq);
@@ -927,6 +937,10 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		nxp_fspi_dll_calibration(f);
 	else
 		nxp_fspi_dll_override(f);
+
+	/* Exit stop mode now that MCR0 and the DLL have been reconfigured. */
+	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
+	fspi_writel(f, reg & ~FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
 
 	f->pre_op_rate = op->max_freq;
 
