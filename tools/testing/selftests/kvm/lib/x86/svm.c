@@ -164,19 +164,22 @@ void run_guest(struct vmcb *vmcb, u64 vmcb_gpa)
 {
 	asm volatile (
 		"vmload %[vmcb_gpa]\n\t"
-		"mov rflags, %%r15\n\t"	// rflags
-		"mov %%r15, 0x170(%[vmcb])\n\t"
-		"mov guest_regs, %%r15\n\t"	// rax
-		"mov %%r15, 0x1f8(%[vmcb])\n\t"
+		"mov rflags, %%r15\n\t"
+		"mov %%r15, %[vmcb_rflags]\n\t"
+		"mov %[guest_regs_rax], %%r15\n\t"
+		"mov %%r15, %[vmcb_rax]\n\t"
 		LOAD_GPR_C
 		"vmrun %[vmcb_gpa]\n\t"
 		SAVE_GPR_C
-		"mov 0x170(%[vmcb]), %%r15\n\t"	// rflags
+		"mov %[vmcb_rflags], %%r15\n\t"
 		"mov %%r15, rflags\n\t"
-		"mov 0x1f8(%[vmcb]), %%r15\n\t"	// rax
-		"mov %%r15, guest_regs\n\t"
+		"mov %[vmcb_rax], %%r15\n\t"	// rax
+		"mov %%r15, %[guest_regs_rax]\n\t"
 		"vmsave %[vmcb_gpa]\n\t"
-		: : [vmcb] "r" (vmcb), [vmcb_gpa] "a" (vmcb_gpa)
+		: [vmcb_rflags] "+m" (vmcb->save.rflags),
+		  [vmcb_rax] "+m" (vmcb->save.rax),
+		  [guest_regs_rax] "+rm" (guest_regs.rax)
+		: [vmcb_gpa] "a" (vmcb_gpa)
 		: "r15", "memory");
 }
 
