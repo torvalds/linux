@@ -13,21 +13,8 @@
 #include <ufs/ufshcd.h>
 #include "ufshcd-priv.h"
 
-static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,
-				       struct utp_upiu_query *qr)
-{
-	int desc_size = be16_to_cpu(qr->length);
-
-	if (desc_size <= 0)
-		return -EINVAL;
-
-	*desc_len = min_t(int, QUERY_DESC_MAX_SIZE, desc_size);
-
-	return 0;
-}
-
 static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
-				     uint8_t **desc_buff, int *desc_len,
+				     u8 **desc_buff, u16 *desc_len,
 				     enum query_opcode desc_op)
 {
 	struct ufs_bsg_request *bsg_request = job->request;
@@ -39,10 +26,13 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 		goto out;
 
 	qr = &bsg_request->upiu_req.qr;
-	if (ufs_bsg_get_query_desc_size(hba, desc_len, qr)) {
+	*desc_len = be16_to_cpu(qr->length);
+	if (*desc_len == 0) {
 		dev_err(hba->dev, "Illegal desc size\n");
 		return -EINVAL;
 	}
+
+	*desc_len = min(*desc_len, QUERY_DESC_MAX_SIZE);
 
 	if (*desc_len > job->request_payload.payload_len) {
 		dev_err(hba->dev, "Illegal desc size\n");
@@ -136,8 +126,9 @@ static int ufs_bsg_request(struct bsg_job *job)
 	struct ufs_hba *hba = shost_priv(dev_to_shost(job->dev->parent));
 	struct uic_command uc = {};
 	int msgcode;
-	uint8_t *buff = NULL;
-	int desc_len = 0;
+	u8 *buff = NULL;
+	u16 desc_len = 0;
+	int buff_len;
 	enum query_opcode desc_op = UPIU_QUERY_OPCODE_NOP;
 	int ret;
 	bool rpmb = false;
@@ -156,9 +147,11 @@ static int ufs_bsg_request(struct bsg_job *job)
 		fallthrough;
 	case UPIU_TRANSACTION_NOP_OUT:
 	case UPIU_TRANSACTION_TASK_REQ:
+		buff_len = desc_len;
 		ret = ufshcd_exec_raw_upiu_cmd(hba, &bsg_request->upiu_req,
 					       &bsg_reply->upiu_rsp, msgcode,
-					       buff, &desc_len, desc_op);
+					       buff, &buff_len, desc_op);
+		desc_len = buff_len;
 		if (ret)
 			dev_err(hba->dev, "exe raw upiu: error code %d\n", ret);
 		else if (desc_op == UPIU_QUERY_OPCODE_READ_DESC && desc_len) {
