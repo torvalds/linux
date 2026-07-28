@@ -673,7 +673,7 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 	}
 
 	nbytes = 0;
-	while (nbytes < iov_iter_count(to)) {
+	while (iov_iter_count(to)) {
 		struct tbstream_frame *sf;
 		size_t size, sf_size;
 
@@ -695,7 +695,7 @@ tbstream_dev_fops_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 		}
 
 		sf_size = tb_ring_frame_size(&sf->frame);
-		size = min(iov_iter_count(to) - nbytes, sf_size);
+		size = min(iov_iter_count(to), sf_size);
 
 		if (copy_page_to_iter(sf->page, sf->offset, size, to) != size) {
 			ret = -EFAULT;
@@ -765,10 +765,10 @@ tbstream_dev_fops_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 	}
 
 	nbytes = 0;
-	while (nbytes < iov_iter_count(from)) {
+	while (iov_iter_count(from)) {
 		size_t size;
 
-		size = min(iov_iter_count(from) - nbytes, TB_MAX_FRAME_SIZE);
+		size = min(iov_iter_count(from), TB_MAX_FRAME_SIZE);
 		ret = tbstream_dev_send_data(sdev, from, size);
 		if (ret) {
 			/*
