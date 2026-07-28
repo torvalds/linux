@@ -427,7 +427,7 @@ static void gmc_v12_1_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 
 		if (all_hub) {
 			/* invalidate mm_hub */
-			if (test_bit(AMDGPU_MMHUB1(0), adev->vmhubs_mask)) {
+			if (test_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask)) {
 				input.hub_id = AMDGPU_MMHUB0(0);
 				adev->mes.funcs->invalidate_tlbs_pasid(&adev->mes, &input);
 			}
