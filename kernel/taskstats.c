@@ -361,8 +361,6 @@ static int parse(struct nlattr *na, struct cpumask *mask)
 	int len;
 	int ret;
 
-	if (na == NULL)
-		return 1;
 	len = nla_len(na);
 	if (len > TASKSTATS_CPUMASK_MAXLEN)
 		return -E2BIG;
