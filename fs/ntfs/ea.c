@@ -808,6 +808,12 @@ err_out:
 	return err;
 }
 
+static bool ntfs_is_reserved_lxattr(const char *name)
+{
+	return !strcmp(name, "$LXUID") || !strcmp(name, "$LXGID") ||
+	       !strcmp(name, "$LXMOD") || !strcmp(name, "$LXDEV");
+}
+
 static int ntfs_setxattr(const struct xattr_handler *handler,
 		struct mnt_idmap *idmap, struct dentry *unused,
 		struct inode *inode, const char *name, const void *value,
@@ -819,6 +825,9 @@ static int ntfs_setxattr(const struct xattr_handler *handler,
 
 	if (NVolShutdown(ni->vol))
 		return -EIO;
+
+	if (ntfs_is_reserved_lxattr(name) && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	if (!strcmp(name, SYSTEM_DOS_ATTRIB)) {
 		if (sizeof(u8) != size) {
