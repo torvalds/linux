@@ -11,7 +11,6 @@
 #include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/ip.h>
-#include <linux/phy.h>
 #include <linux/udp.h>
 #include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
@@ -716,13 +715,13 @@ out:
 static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 {
 	unsigned char paddr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x01};
-	struct phy_device *phydev = priv->dev->phydev;
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	struct mac_device_info *mac = priv->hw;
 	struct stmmac_test_priv *tpriv;
 	unsigned int pkt_count;
 	int i, ret = 0;
 
-	if (!phydev || (!phydev->pause && !phydev->asym_pause))
+	if (!(mac->link.caps & MAC_SYM_PAUSE))
 		return -EOPNOTSUPP;
 
 	tpriv = kzalloc_obj(*tpriv);
