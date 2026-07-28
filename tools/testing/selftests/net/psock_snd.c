@@ -41,6 +41,7 @@ static bool	cfg_use_vlan;
 static bool	cfg_use_vnet;
 static bool	cfg_drop;
 static bool	cfg_aux_data;
+static bool	cfg_ignore_outgoing;
 
 static char	*cfg_ifname = "lo";
 static int	cfg_mtu	= 1500;
@@ -377,7 +378,14 @@ static int setup_sniffer(void)
 			error(1, errno, "setsockopt PACKET_AUXDATA");
 
 	pair_udp_setfilter(fd);
-	do_bind(fd);
+
+	/* binding to ETH_P_ALL adds the sniffer to ptype_all, which will see
+	 * the dev_queue_xmit_nit copy. ignore_outgoing should suppress this.
+	 */
+	if (cfg_ignore_outgoing)
+		do_bind_proto(fd, ETH_P_ALL);
+	else
+		do_bind(fd);
 
 	return fd;
 }
@@ -386,7 +394,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "abcCdDgl:qt:vV")) != -1) {
+	while ((c = getopt(argc, argv, "abcCdDgil:qt:vV")) != -1) {
 		switch (c) {
 		case 'a':
 			cfg_aux_data = true;
@@ -408,6 +416,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'g':
 			cfg_use_gso = true;
+			break;
+		case 'i':
+			cfg_ignore_outgoing = true;
 			break;
 		case 'l':
 			cfg_payload_len = strtoul(optarg, NULL, 0);
@@ -443,6 +454,10 @@ static void parse_opts(int argc, char **argv)
 
 	if (cfg_aux_data && cfg_drop)
 		error(1, 0, "option aux data (-a) conflicts with drop (-D)");
+
+	if (cfg_ignore_outgoing && (cfg_drop || cfg_aux_data))
+		error(1, 0,
+		      "option ignore outgoing (-i) conflicts with -D and -a");
 }
 
 static void check_packet_stats(int fd, unsigned int expected_packets)
@@ -486,12 +501,77 @@ static void check_packet_stats(int fd, unsigned int expected_packets)
 		error(1, 0, "stats: tp_drops %u != 0 after clear", st.tp_drops);
 }
 
+static void set_ignore_outgoing(int fd, int val)
+{
+	socklen_t len = sizeof(int);
+	int got = -1;
+
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)))
+		error(1, errno, "setsockopt PACKET_IGNORE_OUTGOING %d", val);
+
+	if (getsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING, &got, &len))
+		error(1, errno, "getsockopt PACKET_IGNORE_OUTGOING");
+	if (got != val)
+		error(1, 0, "getsockopt: expected %d got %d", val, got);
+}
+
+static void check_ignore_outgoing_range(int fd)
+{
+	int val;
+
+	/* Values outside [0, 1] must be rejected with -EINVAL. */
+	val = 2;
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)) != -1 || errno != EINVAL)
+		error(1, errno,
+		      "setsockopt PACKET_IGNORE_OUTGOING val=2: expected EINVAL");
+
+	val = -1;
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)) != -1 || errno != EINVAL)
+		error(1, errno,
+		      "setsockopt PACKET_IGNORE_OUTGOING val=-1: expected EINVAL");
+}
+
+static void test_ignore_outgoing(int fds)
+{
+	char *expected = tbuf + sizeof(struct virtio_net_hdr);
+	int expected_len;
+
+	/* ptype_all sniffer on loopback should produce two copies per packet
+	 * (RX and TX).
+	 */
+	expected_len = do_tx();
+	expected_len -= sizeof(struct virtio_net_hdr);
+	do_rx(fds, expected_len, expected, true, PACKET_OUTGOING);
+	do_rx(fds, expected_len, expected, true, PACKET_HOST);
+	check_packet_stats(fds, 2);
+
+	/* 0 and 1 accepted; anything else rejected. */
+	set_ignore_outgoing(fds, 0);
+	set_ignore_outgoing(fds, 1);
+	check_ignore_outgoing_range(fds);
+
+	/* With PACKET_IGNORE_OUTGOING set, only the rx copy survives. */
+	do_tx();
+	do_rx(fds, expected_len, expected, true, PACKET_HOST);
+	if (recv(fds, rbuf, sizeof(rbuf), 0) != -1 || errno != EAGAIN)
+		error(1, errno, "expected EAGAIN, got extra packet");
+	check_packet_stats(fds, 1);
+}
+
 static void run_test(void)
 {
 	int fdr, fds, total_len;
 
 	fdr = setup_rx();
 	fds = setup_sniffer();
+
+	if (cfg_ignore_outgoing) {
+		test_ignore_outgoing(fds);
+		goto out;
+	}
 
 	total_len = do_tx();
 
