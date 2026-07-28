@@ -344,7 +344,7 @@ int aa_remount(const struct cred *subj_cred,
 	buffer = aa_get_buffer(false);
 	if (!buffer)
 		return -ENOMEM;
-	error = fn_for_each_confined(label, profile,
+	error = fn_for_each(label, profile,
 			match_mnt(profile, path, buffer, NULL, NULL, NULL,
 				  flags, data, binary, &ad));
 	aa_put_buffer(buffer);
@@ -382,7 +382,7 @@ int aa_bind_mount(const struct cred *subj_cred,
 	if (!buffer || !old_buffer)
 		goto out;
 
-	error = fn_for_each_confined(label, profile,
+	error = fn_for_each(label, profile,
 			match_mnt(profile, path, buffer, &old_path,
 				  old_buffer, NULL, flags, NULL, false, &ad));
 out:
@@ -413,7 +413,7 @@ int aa_mount_change_type(const struct cred *subj_cred,
 	buffer = aa_get_buffer(false);
 	if (!buffer)
 		return -ENOMEM;
-	error = fn_for_each_confined(label, profile,
+	error = fn_for_each(label, profile,
 			match_mnt(profile, path, buffer, NULL, NULL, NULL,
 				  flags, NULL, false, &ad));
 	aa_put_buffer(buffer);
@@ -444,7 +444,7 @@ int aa_move_mount(const struct cred *subj_cred,
 	if (!our_mnt(from_path->mnt))
 		/* moving a mount detached from the namespace */
 		from_path = NULL;
-	error = fn_for_each_confined(label, profile,
+	error = fn_for_each(label, profile,
 			match_mnt(profile, to_path, to_buffer, from_path,
 				  from_buffer, NULL, MS_MOVE, NULL, false,
 				  &ad));
@@ -521,12 +521,12 @@ int aa_new_mount(const struct cred *subj_cred, struct aa_label *label,
 			error = -ENOMEM;
 			goto out;
 		}
-		error = fn_for_each_confined(label, profile,
+		error = fn_for_each(label, profile,
 				match_mnt(profile, path, buffer, dev_path,
 					  dev_buffer, type, flags, data,
 					  binary, &ad));
 	} else {
-		error = fn_for_each_confined(label, profile,
+		error = fn_for_each(label, profile,
 				match_mnt_path_str(profile, path, buffer,
 						   dev_name, type, flags, data,
 						   binary, NULL, &ad));
@@ -591,7 +591,7 @@ int aa_umount(const struct cred *subj_cred, struct aa_label *label,
 	if (!buffer)
 		return -ENOMEM;
 
-	error = fn_for_each_confined(label, profile,
+	error = fn_for_each(label, profile,
 			profile_umount(profile, &path, buffer, &ad));
 	aa_put_buffer(buffer);
 
