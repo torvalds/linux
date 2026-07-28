@@ -86,7 +86,7 @@ extern struct aa_sfs_entry aa_sfs_entry_network[];
 extern struct aa_sfs_entry aa_sfs_entry_networkv9[];
 
 int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
-		aa_state_t state, u32 request, struct aa_perms *p,
+		aa_state_t state, u32 request, const struct aa_perms *p,
 		struct apparmor_audit_data *ad);
 /* passing in state returned by XXX_mediates_AF() */
 aa_state_t aa_match_to_prot(struct aa_policydb *policy, aa_state_t state,

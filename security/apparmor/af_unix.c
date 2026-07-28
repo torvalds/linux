@@ -173,7 +173,7 @@ static aa_state_t match_to_peer(struct aa_policydb *policy, aa_state_t state,
 static aa_state_t match_label(struct aa_profile *profile,
 			      struct aa_ruleset *rule, aa_state_t state,
 			      u32 request, struct aa_profile *peer,
-			      struct aa_perms *p,
+			      const struct aa_perms *p,
 			      struct apparmor_audit_data *ad)
 {
 	AA_BUG(!profile);

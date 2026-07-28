@@ -167,7 +167,7 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 /* standard permission lookup pattern - supports early bailout */
 int aa_do_perms(struct aa_profile *profile, struct aa_policydb *policy,
 		aa_state_t state, u32 request,
-		struct aa_perms *p, struct apparmor_audit_data *ad)
+		const struct aa_perms *p, struct apparmor_audit_data *ad)
 {
 	struct aa_perms perms;
 

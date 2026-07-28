@@ -421,7 +421,7 @@ void aa_profile_match_label(struct aa_profile *profile,
  *       error code will indicate whether there was an explicit deny
  *	 with a positive value.
  */
-int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
+int aa_check_perms(struct aa_profile *profile, const struct aa_perms *perms,
 		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *))
 {
