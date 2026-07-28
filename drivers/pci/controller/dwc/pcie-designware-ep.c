@@ -1538,8 +1538,11 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	if (ret)
 		return ret;
 
-	if (ep->ops->pre_init)
-		ep->ops->pre_init(ep);
+	if (ep->ops->pre_init) {
+		ret = ep->ops->pre_init(ep);
+		if (ret)
+			return ret;
+	}
 
 	ret = pci_epc_mem_init(epc, ep->phys_base, ep->addr_size,
 			       ep->page_size);
