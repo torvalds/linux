@@ -296,14 +296,20 @@ static int ufshcd_mcq_get_tag(struct ufs_hba *hba, struct cq_entry *cqe)
 	if (hba->ufs_version >= ufshci_version(4, 1))
 		return cqe->task_tag;
 
-	/* sizeof(struct utp_transfer_cmd_desc) must be a multiple of 128 */
+	/* Both UCD types must have a size that is a multiple of 128 bytes */
 	BUILD_BUG_ON(sizeof(struct utp_transfer_cmd_desc) & GENMASK(6, 0));
+	BUILD_BUG_ON(sizeof(struct utp_devman_cmd_desc) & GENMASK(6, 0));
 
 	/* Bits 63:7 UCD base address, 6:5 are reserved, 4:0 is SQ ID */
-	addr = (le64_to_cpu(cqe->command_desc_base_addr) & CQE_UCD_BA) -
-		hba->ucdl_dma_addr;
+	addr = le64_to_cpu(cqe->command_desc_base_addr) & CQE_UCD_BA;
 
-	return div_u64(addr, ufshcd_get_ucd_size(hba));
+	/* The devman UCD is outside the pool; return its reserved tag. */
+	if (unlikely(addr == hba->devman_ucd_dma_addr))
+		return hba->dev_cmd.tag;
+
+	/* Pool entries follow the reserved tags. */
+	return div_u64(addr - hba->ucdl_dma_addr, ufshcd_get_ucd_size(hba)) +
+		UFSHCD_NUM_RESERVED;
 }
 
 static void ufshcd_mcq_process_cqe(struct ufs_hba *hba,

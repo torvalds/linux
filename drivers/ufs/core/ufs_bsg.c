@@ -19,10 +19,12 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 {
 	struct ufs_bsg_request *bsg_request = job->request;
 	struct utp_upiu_query *qr;
+	u16 max_desc_len;
 	u8 *descp;
 
 	if (desc_op != UPIU_QUERY_OPCODE_WRITE_DESC &&
-	    desc_op != UPIU_QUERY_OPCODE_READ_DESC)
+	    desc_op != UPIU_QUERY_OPCODE_READ_DESC &&
+	    desc_op != UPIU_QUERY_OPCODE_AGGREGATED_READ)
 		goto out;
 
 	qr = &bsg_request->upiu_req.qr;
@@ -32,7 +34,9 @@ static int ufs_bsg_alloc_desc_buffer(struct ufs_hba *hba, struct bsg_job *job,
 		return -EINVAL;
 	}
 
-	*desc_len = min(*desc_len, QUERY_DESC_MAX_SIZE);
+	max_desc_len = desc_op == UPIU_QUERY_OPCODE_AGGREGATED_READ ?
+		       QUERY_AGGREGATED_MAX_SIZE : QUERY_DESC_MAX_SIZE;
+	*desc_len = min(*desc_len, max_desc_len);
 
 	if (*desc_len > job->request_payload.payload_len) {
 		dev_err(hba->dev, "Illegal desc size\n");
@@ -98,6 +102,9 @@ static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *j
 		if (!payload->payload_len || !payload->sg_cnt)
 			return -EINVAL;
 
+		if (payload->sg_cnt > UFSHCD_DEVMAN_SG_ENTRIES)
+			return -EINVAL;
+
 		sg_cnt = dma_map_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);
 		if (unlikely(!sg_cnt))
 			return -ENOMEM;
@@ -154,7 +161,8 @@ static int ufs_bsg_request(struct bsg_job *job)
 		desc_len = buff_len;
 		if (ret)
 			dev_err(hba->dev, "exe raw upiu: error code %d\n", ret);
-		else if (desc_op == UPIU_QUERY_OPCODE_READ_DESC && desc_len) {
+		else if ((desc_op == UPIU_QUERY_OPCODE_READ_DESC ||
+			  desc_op == UPIU_QUERY_OPCODE_AGGREGATED_READ) && desc_len) {
 			bsg_reply->reply_payload_rcv_len =
 				sg_copy_from_buffer(job->request_payload.sg_list,
 						    job->request_payload.sg_cnt,

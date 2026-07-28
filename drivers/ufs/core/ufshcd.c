@@ -2944,23 +2944,44 @@ static void ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct scsi_cmnd *cmd)
 static void ufshcd_init_lrb(struct ufs_hba *hba, struct scsi_cmnd *cmd)
 {
 	const int i = scsi_cmd_to_rq(cmd)->tag;
-	struct utp_transfer_cmd_desc *cmd_descp =
-		(void *)hba->ucdl_base_addr + i * ufshcd_get_ucd_size(hba);
 	struct utp_transfer_req_desc *utrdlp = hba->utrdl_base_addr;
-	dma_addr_t cmd_desc_element_addr =
-		hba->ucdl_dma_addr + i * ufshcd_get_ucd_size(hba);
 	u16 response_offset = le16_to_cpu(utrdlp[i].response_upiu_offset);
 	u16 prdt_offset = le16_to_cpu(utrdlp[i].prd_table_offset);
 	struct ufshcd_lrb *lrb = scsi_cmd_priv(cmd);
+	u8 *command_upiu, *response_upiu, *prd_table;
+	dma_addr_t cmd_desc_element_addr;
+
+	/* The reserved tag uses a dedicated UCD outside the pool. */
+	if (unlikely(blk_mq_is_reserved_rq(scsi_cmd_to_rq(cmd)))) {
+		struct utp_devman_cmd_desc *cmd_descp = hba->devman_ucd_base_addr;
+
+		cmd_desc_element_addr = hba->devman_ucd_dma_addr;
+		command_upiu = cmd_descp->command_upiu;
+		response_upiu = cmd_descp->response_upiu;
+		prd_table = cmd_descp->prd_table;
+	} else {
+		int slot = i - UFSHCD_NUM_RESERVED;
+		struct utp_transfer_cmd_desc *cmd_descp;
+
+		/* Non-reserved tags start at UFSHCD_NUM_RESERVED, so slot >= 0. */
+		WARN_ON_ONCE(slot < 0);
+		cmd_descp = (void *)hba->ucdl_base_addr + slot * ufshcd_get_ucd_size(hba);
+
+		cmd_desc_element_addr =
+			hba->ucdl_dma_addr + slot * ufshcd_get_ucd_size(hba);
+		command_upiu = cmd_descp->command_upiu;
+		response_upiu = cmd_descp->response_upiu;
+		prd_table = cmd_descp->prd_table;
+	}
 
 	lrb->utr_descriptor_ptr = utrdlp + i;
 	lrb->utrd_dma_addr =
 		hba->utrdl_dma_addr + i * sizeof(struct utp_transfer_req_desc);
-	lrb->ucd_req_ptr = (struct utp_upiu_req *)cmd_descp->command_upiu;
+	lrb->ucd_req_ptr = (struct utp_upiu_req *)command_upiu;
 	lrb->ucd_req_dma_addr = cmd_desc_element_addr;
-	lrb->ucd_rsp_ptr = (struct utp_upiu_rsp *)cmd_descp->response_upiu;
+	lrb->ucd_rsp_ptr = (struct utp_upiu_rsp *)response_upiu;
 	lrb->ucd_rsp_dma_addr = cmd_desc_element_addr + response_offset;
-	lrb->ucd_prdt_ptr = (struct ufshcd_sg_entry *)cmd_descp->prd_table;
+	lrb->ucd_prdt_ptr = (struct ufshcd_sg_entry *)prd_table;
 	lrb->ucd_prdt_dma_addr = cmd_desc_element_addr + prdt_offset;
 }
 
@@ -3157,6 +3178,7 @@ static void ufshcd_setup_dev_cmd(struct ufs_hba *hba, struct scsi_cmnd *cmd,
 	__ufshcd_setup_cmd(hba, cmd, lun, tag);
 	lrbp->intr_cmd = true; /* No interrupt aggregation */
 	hba->dev_cmd.type = cmd_type;
+	hba->dev_cmd.tag = tag;
 }
 
 /*
@@ -3998,8 +4020,8 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 {
 	size_t utmrdl_size, utrdl_size, ucdl_size;
 
-	/* Allocate memory for UTP command descriptors */
-	ucdl_size = ufshcd_get_ucd_size(hba) * hba->nutrs;
+	/* The reserved tag uses the dedicated UCD below, not this pool. */
+	ucdl_size = ufshcd_get_ucd_size(hba) * (hba->nutrs - UFSHCD_NUM_RESERVED);
 	hba->ucdl_base_addr = dmam_alloc_coherent(hba->dev,
 						  ucdl_size,
 						  &hba->ucdl_dma_addr,
@@ -4013,6 +4035,21 @@ static int ufshcd_memory_alloc(struct ufs_hba *hba)
 		dev_err(hba->dev,
 			"Command Descriptor Memory allocation failed\n");
 		goto out;
+	}
+
+	/* Dedicated UCD for the reserved tag; allocate once (survives MCQ re-init). */
+	if (!hba->devman_ucd_base_addr) {
+		hba->devman_ucd_base_addr =
+			dmam_alloc_coherent(hba->dev,
+					    ufshcd_get_devman_ucd_size(hba),
+					    &hba->devman_ucd_dma_addr,
+					    GFP_KERNEL);
+		if (!hba->devman_ucd_base_addr ||
+		    WARN_ON(hba->devman_ucd_dma_addr & (128 - 1))) {
+			dev_err(hba->dev,
+				"Devman Command Descriptor Memory allocation failed\n");
+			goto out;
+		}
 	}
 
 	/*
@@ -4081,23 +4118,38 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 	dma_addr_t cmd_desc_element_addr;
 	u16 response_offset;
 	u16 prdt_offset;
+	u16 response_len;
 	int cmd_desc_size;
 	int i;
 
 	utrdlp = hba->utrdl_base_addr;
 
-	response_offset =
-		offsetof(struct utp_transfer_cmd_desc, response_upiu);
-	prdt_offset =
-		offsetof(struct utp_transfer_cmd_desc, prd_table);
-
 	cmd_desc_size = ufshcd_get_ucd_size(hba);
 	cmd_desc_dma_addr = hba->ucdl_dma_addr;
 
 	for (i = 0; i < hba->nutrs; i++) {
+		/*
+		 * Reserved tags (low end) use the dedicated devman UCD with a
+		 * larger response area; other tags index the pool at i - RESERVED.
+		 */
+		if (i < UFSHCD_NUM_RESERVED) {
+			cmd_desc_element_addr = hba->devman_ucd_dma_addr;
+			response_offset = offsetof(struct utp_devman_cmd_desc,
+						   response_upiu);
+			prdt_offset = offsetof(struct utp_devman_cmd_desc,
+					       prd_table);
+			response_len = ALIGNED_DEVMAN_RSP_SIZE;
+		} else {
+			cmd_desc_element_addr = cmd_desc_dma_addr +
+				cmd_desc_size * (i - UFSHCD_NUM_RESERVED);
+			response_offset = offsetof(struct utp_transfer_cmd_desc,
+						   response_upiu);
+			prdt_offset = offsetof(struct utp_transfer_cmd_desc,
+					       prd_table);
+			response_len = ALIGNED_UPIU_SIZE;
+		}
+
 		/* Configure UTRD with command descriptor base address */
-		cmd_desc_element_addr =
-				(cmd_desc_dma_addr + (cmd_desc_size * i));
 		utrdlp[i].command_desc_base_addr =
 				cpu_to_le64(cmd_desc_element_addr);
 
@@ -4108,14 +4160,14 @@ static void ufshcd_host_memory_configure(struct ufs_hba *hba)
 			utrdlp[i].prd_table_offset =
 				cpu_to_le16(prdt_offset);
 			utrdlp[i].response_upiu_length =
-				cpu_to_le16(ALIGNED_UPIU_SIZE);
+				cpu_to_le16(response_len);
 		} else {
 			utrdlp[i].response_upiu_offset =
 				cpu_to_le16(response_offset >> 2);
 			utrdlp[i].prd_table_offset =
 				cpu_to_le16(prdt_offset >> 2);
 			utrdlp[i].response_upiu_length =
-				cpu_to_le16(ALIGNED_UPIU_SIZE >> 2);
+				cpu_to_le16(response_len >> 2);
 		}
 	}
 }
@@ -7638,7 +7690,8 @@ static int ufshcd_issue_devman_upiu_cmd(struct ufs_hba *hba,
 
 	/* just copy the upiu response as it is */
 	memcpy(rsp_upiu, lrbp->ucd_rsp_ptr, sizeof(*rsp_upiu));
-	if (desc_buff && desc_op == UPIU_QUERY_OPCODE_READ_DESC) {
+	if (desc_buff && (desc_op == UPIU_QUERY_OPCODE_READ_DESC ||
+			  desc_op == UPIU_QUERY_OPCODE_AGGREGATED_READ)) {
 		u8 *descp = (u8 *)lrbp->ucd_rsp_ptr + sizeof(*rsp_upiu);
 		u16 resp_len = be16_to_cpu(lrbp->ucd_rsp_ptr->header
 					   .data_segment_length);
@@ -7810,10 +7863,7 @@ int ufshcd_advanced_rpmb_req_handler(struct ufs_hba *hba, struct utp_upiu_req *r
 		 * Message is 02h
 		 */
 		if (ehs_len == 2 && rsp_ehs) {
-			/*
-			 * ucd_rsp_ptr points to a buffer with a length of 512 bytes
-			 * (ALIGNED_UPIU_SIZE = 512), and the EHS data just starts from byte32
-			 */
+			/* EHS data starts from byte32 of the devman UCD response area. */
 			ehs_data = (u8 *)lrbp->ucd_rsp_ptr + EHS_OFFSET_IN_RESPONSE;
 			memcpy(rsp_ehs, ehs_data, ehs_len * 32);
 		}
@@ -9239,7 +9289,7 @@ static void ufshcd_release_sdb_queue(struct ufs_hba *hba, int nutrs)
 {
 	size_t ucdl_size, utrdl_size;
 
-	ucdl_size = ufshcd_get_ucd_size(hba) * nutrs;
+	ucdl_size = ufshcd_get_ucd_size(hba) * (nutrs - UFSHCD_NUM_RESERVED);
 	dmam_free_coherent(hba->dev, ucdl_size, hba->ucdl_base_addr,
 			   hba->ucdl_dma_addr);
 
