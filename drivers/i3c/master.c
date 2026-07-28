@@ -5,6 +5,7 @@
  * Author: Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
+#include <dt-bindings/i3c/i3c.h>
 #include <linux/acpi.h>
 #include <linux/atomic.h>
 #include <linux/bitmap.h>
@@ -1164,6 +1165,51 @@ static int i3c_master_rstdaa_locked(struct i3c_master_controller *master,
 }
 
 /**
+ * i3c_master_setaasa_locked() - start a SETAASA procedure (Set All Addresses to Static Address)
+ * @master: I3C master object
+ *
+ * Send a SETAASA CCC command to set all attached I3C devices' dynamic addresses to
+ * their static address.
+ *
+ * This function must be called with the bus lock held in write mode.
+ *
+ * First, the SETHID CCC command is sent, followed by the SETAASA CCC.
+ *
+ * Return: 0 in case of success, a positive I3C error code if the error is
+ * one of the official Mx error codes, and a negative error code otherwise.
+ */
+static int i3c_master_setaasa_locked(struct i3c_master_controller *master)
+{
+	struct i3c_ccc_cmd_dest dest;
+	struct i3c_ccc_cmd cmd;
+	int ret;
+
+	/*
+	 * Send SETHID CCC command. Though it is a standard CCC command specified
+	 * in JESD300-5, we are not defining a separate macro to be explicit that
+	 * the value falls under the vendor specific range.
+	 */
+	i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 0);
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_VENDOR(0, true), &dest, 1);
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+	if (ret && cmd.err == I3C_ERROR_M2)
+		ret = 0;
+	if (ret)
+		return ret;
+
+	/* Send SETAASA CCC command */
+	i3c_ccc_cmd_dest_init(&dest, I3C_BROADCAST_ADDR, 0);
+	i3c_ccc_cmd_init(&cmd, false, I3C_CCC_SETAASA, &dest, 1);
+	ret = i3c_master_send_ccc_cmd_locked(master, &cmd);
+	i3c_ccc_cmd_dest_cleanup(&dest);
+	if (ret && cmd.err == I3C_ERROR_M2)
+		ret = 0;
+
+	return ret;
+}
+
+/**
  * i3c_master_entdaa_locked() - start a DAA (Dynamic Address Assignment)
  *				procedure
  * @master: master used to send frames on the bus
@@ -1939,14 +1985,32 @@ static int i3c_master_early_i3c_dev_add(struct i3c_master_controller *master,
 	int ret;
 
 	i3cdev = i3c_master_alloc_i3c_dev(master, &info);
-	if (IS_ERR(i3cdev))
-		return -ENOMEM;
+	if (IS_ERR(i3cdev)) {
+		ret = -ENOMEM;
+		goto err_reserve_addr;
+	}
 
 	i3cdev->boardinfo = boardinfo;
 
 	ret = i3c_master_attach_i3c_dev(master, i3cdev);
 	if (ret)
 		goto err_free_dev;
+
+	/*
+	 * For devices using SETAASA instead of ENTDAA, the address is statically
+	 * assigned. Update the dynamic address to the provided static address.
+	 * Reattach the I3C device after updating the dynamic address with the same
+	 * static address. It is not mandatory for such devices to implement CCC
+	 * commands like GETPID, GETDCR etc. Hence, we can return after reattaching.
+	 */
+	if (i3cdev->boardinfo->static_addr_method & I3C_ADDR_METHOD_SETAASA) {
+		i3cdev->info.dyn_addr = i3cdev->boardinfo->static_addr;
+		ret = i3c_master_reattach_i3c_dev_locked(i3cdev, 0);
+		if (ret)
+			goto err_detach_dev;
+
+		return 0;
+	}
 
 	ret = i3c_master_setdasa_locked(master, i3cdev->info.static_addr,
 					i3cdev->boardinfo->init_dyn_addr);
@@ -1970,6 +2034,16 @@ err_detach_dev:
 	i3c_master_detach_i3c_dev(i3cdev);
 err_free_dev:
 	i3c_master_free_i3c_dev(i3cdev);
+err_reserve_addr:
+	/*
+	 * A target using SETAASA may still get the static address on the
+	 * SETAASA broadcast even if attach fails here. Keep the address
+	 * reserved so that it is not assigned to another device during DAA.
+	 */
+	if (boardinfo->static_addr_method & I3C_ADDR_METHOD_SETAASA)
+		i3c_bus_set_addr_slot_status(&master->bus,
+					     boardinfo->static_addr,
+					     I3C_ADDR_SLOT_RSVD);
 
 	return ret;
 }
@@ -2342,6 +2416,19 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 
 		if (i3cboardinfo->static_addr)
 			i3c_master_early_i3c_dev_add(master, i3cboardinfo);
+	}
+
+	/*
+	 * SETAASA is a broadcast CCC. Issue it after SETDASA so that devices
+	 * configured for SETDASA (or supporting both methods) are assigned
+	 * first, matching MIPI DISCO guidance to prefer SETDASA when both are
+	 * available. Targets that already have a dynamic address ignore the
+	 * later SETAASA broadcast.
+	 */
+	if (master->addr_method & I3C_ADDR_METHOD_SETAASA) {
+		ret = i3c_master_setaasa_locked(master);
+		if (ret)
+			goto err_rstdaa;
 	}
 
 	ret = i3c_master_do_daa(master);
@@ -2795,7 +2882,7 @@ i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 	struct i3c_dev_boardinfo *boardinfo;
 	struct device *dev = &master->dev;
 	enum i3c_addr_slot_status addrstatus;
-	u32 init_dyn_addr = 0;
+	u32 init_dyn_addr = 0, static_addr_method = 0;
 
 	boardinfo = devm_kzalloc(dev, sizeof(*boardinfo), GFP_KERNEL);
 	if (!boardinfo)
@@ -2813,7 +2900,19 @@ i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 
 	boardinfo->static_addr = reg[0];
 
+	if (!fwnode_property_read_u32(fwnode, "mipi-i3c-static-method", &static_addr_method))
+		boardinfo->static_addr_method = static_addr_method &
+					(I3C_ADDR_METHOD_SETDASA | I3C_ADDR_METHOD_SETAASA);
+
 	if (!fwnode_property_read_u32(fwnode, "assigned-address", &init_dyn_addr)) {
+		/*
+		 * When a device advertises both SETDASA and SETAASA, an explicit
+		 * dynamic address selects SETDASA (MIPI DISCO prefers it); drop
+		 * SETAASA so it is not used for this device.
+		 */
+		if (boardinfo->static_addr_method & I3C_ADDR_METHOD_SETDASA)
+			boardinfo->static_addr_method &= ~I3C_ADDR_METHOD_SETAASA;
+
 		if (init_dyn_addr > I3C_MAX_ADDR)
 			return -EINVAL;
 
@@ -2822,6 +2921,14 @@ i3c_master_add_i3c_boardinfo(struct i3c_master_controller *master,
 		if (addrstatus != I3C_ADDR_SLOT_FREE)
 			return -EINVAL;
 	}
+
+	if (boardinfo->static_addr_method & I3C_ADDR_METHOD_SETAASA) {
+		/* For SETAASA, static address is taken as the dynamic address. */
+		init_dyn_addr = boardinfo->static_addr;
+	}
+
+	/* Update the address methods required for device discovery */
+	master->addr_method |= boardinfo->static_addr_method;
 
 	boardinfo->pid = ((u64)reg[1] << 32) | reg[2];
 
@@ -3458,6 +3565,7 @@ int i3c_master_register(struct i3c_master_controller *master,
 	master->dev.release = i3c_masterdev_release;
 	master->ops = ops;
 	master->secondary = secondary;
+	master->addr_method = I3C_ADDR_METHOD_SETDASA;
 	INIT_LIST_HEAD(&master->boardinfo.i2c);
 	INIT_LIST_HEAD(&master->boardinfo.i3c);
 
