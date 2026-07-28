@@ -57,6 +57,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	struct sdw_port_config *pconfig;
 	unsigned int pdi0_buf_size_pre_frame;
 	unsigned int pdi1_buf_size_pre_frame;
+	unsigned int max_data_per_frame;
 	unsigned int pdi0_buffer_size_;
 	unsigned int pdi1_buffer_size_;
 	unsigned int pdi0_buffer_size;
@@ -168,11 +169,24 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 	pdi0_buffer_size = 0;
 	pdi1_buffer_size = 0;
 	num_frames = 0;
+
+	if (slave->prop.bra_max_data_per_frame) {
+		max_data_per_frame = slave->prop.bra_max_data_per_frame;
+		if (max_data_per_frame > SDW_BRA_MAX_BYTES_PER_FRAME) {
+			dev_warn(&slave->dev,
+				 "BRA max_data_per_frame %u exceeds limit %u, clamping\n",
+				 max_data_per_frame, SDW_BRA_MAX_BYTES_PER_FRAME);
+			max_data_per_frame = SDW_BRA_MAX_BYTES_PER_FRAME;
+		}
+	} else {
+		max_data_per_frame = SDW_BRA_MAX_BYTES_PER_FRAME;
+	}
+
 	/* Add up pdi buffer size and frame numbers of each BPT sections */
 	for (i = 0; i < msg->sections; i++) {
 		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
 						     cdns->bus.params.col,
-						     msg->sec[i].len, SDW_BPT_MSG_MAX_BYTES,
+						     msg->sec[i].len, max_data_per_frame,
 						     slave->prop.bra_block_alignment,
 						     &data_per_frame, &pdi0_buffer_size_,
 						     &pdi1_buffer_size_, &num_frames_);
@@ -197,7 +211,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 		/* Get buffer size of a full frame */
 		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
 						     cdns->bus.params.col,
-						     data_per_frame, SDW_BPT_MSG_MAX_BYTES,
+						     data_per_frame, max_data_per_frame,
 						     slave->prop.bra_block_alignment,
 						     &data_per_frame, &pdi0_buf_size_pre_frame,
 						     &pdi1_buf_size_pre_frame, &fake_num_frames);

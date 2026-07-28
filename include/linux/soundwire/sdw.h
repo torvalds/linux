@@ -843,6 +843,14 @@ struct sdw_defer {
  */
 #define SDW_BPT_MSG_MAX_BYTES  (1024 * 1024)
 
+/*
+ * According to mipi SoundWire DisCo Specification_v2-1,
+ * this maximum value shall not exceed 470.
+ * Note that the largest number of bytes accessible by a single BRA operation is limited to 470
+ * bytes when using lane 0, but goes up to 502 bytes when using one of the optional extra lanes.
+ */
+#define SDW_BRA_MAX_BYTES_PER_FRAME  470
+
 struct sdw_bpt_msg;
 
 /**
