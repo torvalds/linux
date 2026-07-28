@@ -1018,7 +1018,6 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct netdev_queue *queue;
 	struct tun_file *tfile;
 	int len = skb->len;
-	int ret;
 
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
@@ -1073,33 +1072,13 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	nf_reset_ct(skb);
 
-	queue = netdev_get_tx_queue(dev, txq);
-
-	spin_lock(&tfile->tx_ring.producer_lock);
-	ret = __ptr_ring_produce(&tfile->tx_ring, skb);
-	if (!qdisc_txq_has_no_queue(queue) &&
-	    __ptr_ring_check_produce(&tfile->tx_ring) == -ENOSPC) {
-		netif_tx_stop_queue(queue);
-		/* Paired with smp_mb() in __tun_wake_queue() */
-		smp_mb__after_atomic();
-		if (!__ptr_ring_check_produce(&tfile->tx_ring))
-			netif_tx_wake_queue(queue);
-	}
-	spin_unlock(&tfile->tx_ring.producer_lock);
-
-	if (ret) {
-		/* This should be a rare case if a qdisc is present, but
-		 * can happen due to lltx.
-		 * Since skb_tx_timestamp(), skb_orphan(),
-		 * run_ebpf_filter() and pskb_trim() could have tinkered
-		 * with the SKB, returning NETDEV_TX_BUSY is unsafe and
-		 * we must drop instead.
-		 */
+	if (ptr_ring_produce(&tfile->tx_ring, skb)) {
 		drop_reason = SKB_DROP_REASON_FULL_RING;
 		goto drop;
 	}
 
 	/* dev->lltx requires to do our own update of trans_start */
+	queue = netdev_get_tx_queue(dev, txq);
 	txq_trans_cond_update(queue);
 
 	/* Notify and wake up reader process */
