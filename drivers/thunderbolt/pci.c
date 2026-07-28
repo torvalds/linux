@@ -112,7 +112,6 @@ static int nhi_pci_init_msi(struct tb_nhi *nhi)
 {
 	struct tb_nhi_pci *nhi_pci = nhi_to_pci(nhi);
 	struct pci_dev *pdev = to_pci_dev(nhi->dev);
-	struct device *dev = &pdev->dev;
 	int res, irq, nvec;
 
 	ida_init(&nhi_pci->msix_ida);
@@ -139,7 +138,7 @@ static int nhi_pci_init_msi(struct tb_nhi *nhi)
 		res = devm_request_irq(&pdev->dev, irq, nhi_msi,
 				       IRQF_NO_SUSPEND, "thunderbolt", nhi);
 		if (res)
-			return dev_err_probe(dev, res, "request_irq failed, aborting\n");
+			return res;
 	}
 
 	return 0;
