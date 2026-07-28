@@ -24,6 +24,7 @@ extern bool host_cpu_is_amd;
 extern bool host_cpu_is_hygon;
 extern bool host_cpu_is_amd_compatible;
 extern u64 guest_tsc_khz;
+extern struct kvm_mmu guest_mmu;
 
 #ifndef MAX_NR_CPUID_ENTRIES
 #define MAX_NR_CPUID_ENTRIES 100
