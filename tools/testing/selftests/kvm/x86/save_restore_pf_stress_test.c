@@ -8,10 +8,13 @@
 #include <pthread.h>
 #include <signal.h>
 #include <unistd.h>
+#include <getopt.h>
 
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "svm_util.h"
+#include "vmx.h"
 
 #define NR_ITERATIONS		500
 
@@ -81,6 +84,31 @@ static void guest_access_memory(void *arg)
 	}
 }
 
+static void l1_svm_code(struct svm_test_data *svm)
+{
+	generic_svm_setup(svm, guest_access_memory);
+	run_guest(svm->vmcb, svm->vmcb_gpa);
+	GUEST_ASSERT(false);
+}
+
+static void l1_vmx_code(struct vmx_pages *vmx)
+{
+	GUEST_ASSERT(prepare_for_vmx_operation(vmx));
+	GUEST_ASSERT(load_vmcs(vmx));
+	prepare_vmcs(vmx, guest_access_memory);
+
+	GUEST_ASSERT(!vmlaunch());
+	GUEST_ASSERT(false);
+}
+
+static void l1_guest_code(void *test_data)
+{
+	if (this_cpu_has(X86_FEATURE_SVM))
+		l1_svm_code(test_data);
+	else
+		l1_vmx_code(test_data);
+}
+
 static void *sigusr_thread_fn(void *arg)
 {
 	pthread_t vcpu_thread = (pthread_t)arg;
@@ -108,7 +136,7 @@ static void vcpu_sigusr_ignore(void)
 	sigaction(SIGUSR1, &sa, NULL);
 }
 
-int main(int argc, char *argv[])
+static void run_test(bool nested)
 {
 	struct kvm_x86_state *state;
 	int r, i, level;
@@ -121,8 +149,16 @@ int main(int argc, char *argv[])
 	gva_t gva;
 	u64 pte;
 
-	vm = vm_create_with_one_vcpu(&vcpu, guest_access_memory);
+	vm = vm_create_with_one_vcpu(&vcpu, nested ? l1_guest_code : guest_access_memory);
 	vm_install_exception_handler(vm, PF_VECTOR, guest_pf_handler);
+
+	if (nested) {
+		if (kvm_cpu_has(X86_FEATURE_SVM))
+			vcpu_alloc_svm(vm, &gva);
+		else
+			vcpu_alloc_vmx(vm, &gva);
+		vcpu_args_set(vcpu, 1, gva);
+	}
 
 	/* Allocate a page and write the pattern to it */
 	gva = vm_alloc_page(vm);
@@ -193,10 +229,24 @@ int main(int argc, char *argv[])
 
 	sync_global_from_guest(vm, guest_faults);
 	TEST_ASSERT(guest_faults, "No guest page faults triggered");
-	pr_info("Guest page faults: %lu\n", guest_faults);
+	pr_info("Guest page faults%s: %lu\n", nested ? " (in L2)" : "", guest_faults);
 
 	pthread_cancel(sigusr_thread);
 	pthread_join(sigusr_thread, NULL);
 	kvm_vm_free(vm);
+}
+
+int main(int argc, char *argv[])
+{
+	pr_info("Running save+restore stress test...\n");
+	run_test(/*nested=*/false);
+
+	if (!kvm_cpu_has(X86_FEATURE_SVM) && !kvm_cpu_has(X86_FEATURE_VMX)) {
+		pr_info("Nested virtualization not supported, skipping nested test\n");
+		return 0;
+	}
+
+	pr_info("Running save+restore stress test with a nested guest...\n");
+	run_test(/*nested=*/true);
 	return 0;
 }
