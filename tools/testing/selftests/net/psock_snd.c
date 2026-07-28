@@ -314,25 +314,22 @@ static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
 {
 	char cmsg_buf[1024] __attribute__((aligned(8))) = {};
 	bool aux = is_psock && cfg_aux_data;
-	struct msghdr msg = {};
-	struct iovec iov[1];
+	struct iovec iov = {
+		.iov_base = rbuf,
+		.iov_len = sizeof(rbuf),
+	};
+	struct msghdr msg = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
 	int ret;
 
 	if (aux) {
-		iov[0].iov_base = rbuf;
-		iov[0].iov_len = sizeof(rbuf);
-
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-
 		msg.msg_control = cmsg_buf;
 		msg.msg_controllen = sizeof(cmsg_buf);
-
-		ret = recvmsg(fd, &msg, 0);
-	} else {
-		ret = recv(fd, rbuf, sizeof(rbuf), 0);
 	}
 
+	ret = recvmsg(fd, &msg, 0);
 	if (ret == -1)
 		error(1, errno, "recv");
 	if (ret != expected_len)
@@ -341,11 +338,8 @@ static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
 	if (memcmp(rbuf, expected, ret))
 		error(1, 0, "recv: data mismatch");
 
-	if (aux) {
-		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
-
-		check_aux_data(cmsg, expected_len);
-	}
+	if (aux)
+		check_aux_data(CMSG_FIRSTHDR(&msg), expected_len);
 
 	fprintf(stderr, "rx: %u\n", ret);
 }
