@@ -96,7 +96,8 @@ struct pmbus_data {
 
 	u32 flags;		/* from platform data */
 
-	u8 revision;	/* The PMBus revision the device is compliant with */
+	bool have_pmbus_revision;
+	u8 revision;		/* The PMBus revision the device is compliant with */
 
 	int exponent[PMBUS_PAGES];
 				/* linear mode: exponent for output voltages */
@@ -2847,9 +2848,16 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	if (!(data->flags & PMBUS_NO_WRITE_PROTECT))
 		pmbus_init_wp(client, data);
 
-	ret = i2c_smbus_read_byte_data(client, PMBUS_REVISION);
-	if (ret >= 0)
-		data->revision = ret;
+	if (info->have_pmbus_revision) {
+		data->have_pmbus_revision = true;
+		data->revision = info->pmbus_revision;
+	} else {
+		ret = i2c_smbus_read_byte_data(client, PMBUS_REVISION);
+		if (ret >= 0) {
+			data->have_pmbus_revision = true;
+			data->revision = ret;
+		}
+	}
 
 	if (data->info->pages)
 		pmbus_clear_faults(client);
@@ -3539,6 +3547,17 @@ static int pmbus_debugfs_get(void *data, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_ops, pmbus_debugfs_get, NULL,
 			 "0x%02llx\n");
 
+static int pmbus_debugfs_get_revision(void *data, u64 *val)
+{
+	struct pmbus_data *pdata = data;
+
+	*val = pdata->revision;
+
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(pmbus_debugfs_revision_ops, pmbus_debugfs_get_revision, NULL,
+			 "0x%02llx\n");
+
 static int pmbus_debugfs_get_status(void *data, u64 *val)
 {
 	struct pmbus_debugfs_entry *entry = data;
@@ -3694,14 +3713,9 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 				    &entries[idx++],
 				    &pmbus_debugfs_ops);
 	}
-	if (pmbus_check_byte_register(client, 0, PMBUS_REVISION)) {
-		entries[idx].client = client;
-		entries[idx].page = 0;
-		entries[idx].reg = PMBUS_REVISION;
-		debugfs_create_file("pmbus_revision", 0444, debugfs,
-				    &entries[idx++],
-				    &pmbus_debugfs_ops);
-	}
+	if (data->have_pmbus_revision)
+		debugfs_create_file("pmbus_revision", 0444, debugfs, data,
+				    &pmbus_debugfs_revision_ops);
 
 	for (i = 0; i < ARRAY_SIZE(pmbus_debugfs_block_data); i++) {
 		const struct pmbus_debugfs_data *d = &pmbus_debugfs_block_data[i];

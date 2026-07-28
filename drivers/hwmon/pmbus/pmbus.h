@@ -420,10 +420,12 @@ enum pmbus_data_format { linear = 0, ieee754, direct, vid };
 enum vrm_version { vr11 = 0, vr12, vr13, imvp9, amd625mv, nvidia195mv };
 
 /* PMBus revision identifiers */
-#define PMBUS_REV_10 0x00	/* PMBus revision 1.0 */
-#define PMBUS_REV_11 0x11	/* PMBus revision 1.1 */
-#define PMBUS_REV_12 0x22	/* PMBus revision 1.2 */
-#define PMBUS_REV_13 0x33	/* PMBus revision 1.3 */
+#define PMBUS_REV_10	0x00	/* PMBus revision 1.0 */
+#define PMBUS_REV_11	0x11	/* PMBus revision 1.1 */
+#define PMBUS_REV_12	0x22	/* PMBus revision 1.2 */
+#define PMBUS_REV_13	0x33	/* PMBus revision 1.3 */
+#define PMBUS_REV_131	0x44	/* PMBus revision 1.3.1 */
+#define PMBUS_REV_14	0x55	/* PMBus revision 1.4 */
 
 /* Operation type flags for pmbus_update_ts */
 #define PMBUS_OP_WRITE		BIT(0)
@@ -488,6 +490,16 @@ struct pmbus_driver_info {
 	int access_delay;		/* in microseconds */
 	int write_delay;		/* in microseconds */
 	int page_change_delay;		/* in microseconds */
+
+	/*
+	 * Some chips do not support the PMBUS_REVISION command.
+	 * Drivers for such chips can report the supported PMBus revision here.
+	 *
+	 * Drivers must set have_pmbus_revision to true and provide the
+	 * supported PMBus version in pmbus_revision.
+	 */
+	bool have_pmbus_revision;	/* true if pmbus_revision is valid */
+	u8 pmbus_revision;		/* PMBus revision */
 };
 
 /* Regulator ops */

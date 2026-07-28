@@ -23,6 +23,8 @@ static struct pmbus_driver_info max20830_info = {
 		PMBUS_HAVE_TEMP |
 		PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_STATUS_INPUT | PMBUS_HAVE_STATUS_TEMP,
+	.have_pmbus_revision = true,
+	.pmbus_revision = PMBUS_REV_13,
 };
 
 static int max20830_probe(struct i2c_client *client)
