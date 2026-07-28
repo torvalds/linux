@@ -21,6 +21,10 @@ TEST_GEN_PROGS += recursion-depth
 TEST_GEN_PROGS += null-argv
 TEST_GEN_PROGS += check-exec
 
+# binfmt_misc must not be reachable as an exec source or as a stacking layer,
+# or an 'F' entry can pin the instance that owns it. Unprivileged, no bpf.
+TEST_GEN_PROGS += binfmt_misc_selfpin
+
 # Static ('T' flag) transparent binfmt_misc test; the asserting interpreter
 # is shared with the bpf harness's transparent case. No bpf toolchain needed.
 TEST_GEN_PROGS += binfmt_misc_transparent
@@ -90,6 +94,12 @@ $(OUTPUT)/script-exec.inc: $(CHECK_EXEC_SAMPLES)/script-exec.inc
 	cp $< $@
 $(OUTPUT)/script-noexec.inc: $(CHECK_EXEC_SAMPLES)/script-noexec.inc
 	cp $< $@
+
+# Reuses setup_userns()/write_file() from the filesystems selftests. Their
+# wrappers.h wants the uapi headers, so ask for them here rather than widening
+# CFLAGS for every program in this directory.
+$(OUTPUT)/binfmt_misc_selfpin: CFLAGS += $(TOOLS_INCLUDES)
+$(OUTPUT)/binfmt_misc_selfpin: ../filesystems/utils.c
 
 # --- binfmt_misc bpf ('B') handler test ---------------------------------
 # The struct_ops bpf objects are compiled against the running kernel's BTF.
