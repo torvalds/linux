@@ -2415,6 +2415,8 @@ static const struct usb_audio_quirk_flags_table quirk_flags_table[] = {
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
 	DEVICE_FLG(0x1bcf, 0x2283, /* NexiGo N930AF FHD Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE | QUIRK_FLAG_MIC_RES_16),
+	DEVICE_FLG(0x1e0b, 0xd01e, /* Generic USB Audio Device */
+		   QUIRK_FLAG_PLAYBACK_URB_FIXUP),
 	DEVICE_FLG(0x1ff7, 0x0f81, /* SC13A Webcam */
 		   QUIRK_FLAG_GET_SAMPLE_RATE),
 	DEVICE_FLG(0x2040, 0x7200, /* Hauppauge HVR-950Q */
@@ -2624,6 +2626,7 @@ static const char *const snd_usb_audio_quirk_flag_names[] = {
 	QUIRK_STRING_ENTRY(MIXER_CAPTURE_LINEAR_VOL),
 	QUIRK_STRING_ENTRY(IFB_SILENCE_ON_EMPTY),
 	QUIRK_STRING_ENTRY(MIXER_GET_CUR_BROKEN),
+	QUIRK_STRING_ENTRY(PLAYBACK_URB_FIXUP),
 	NULL
 };
 
