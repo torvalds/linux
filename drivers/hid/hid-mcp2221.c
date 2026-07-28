@@ -865,6 +865,9 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 	u8 *buf;
 	struct mcp2221 *mcp = hid_get_drvdata(hdev);
 
+	if (size < 4)
+		return 0;
+
 	switch (data[0]) {
 
 	case MCP2221_I2C_WR_DATA:
@@ -927,6 +930,10 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 					break;
 				}
 				if (mcp->rxbuf_idx + data[3] > mcp->rxbuf_size) {
+					mcp->status = -EINVAL;
+					break;
+				}
+				if (4 + data[3] > size) {
 					mcp->status = -EINVAL;
 					break;
 				}
