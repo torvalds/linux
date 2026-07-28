@@ -396,8 +396,7 @@ static inline unsigned int x86_model(unsigned int eax)
 #define PTE_GET_PA(pte)		((pte) & PHYSICAL_PAGE_MASK)
 #define PTE_GET_PFN(pte)        (PTE_GET_PA(pte) >> PAGE_SHIFT)
 
-/* General Registers in 64-Bit Mode */
-struct gpr64_regs {
+struct guest_regs {
 	u64 rax;
 	u64 rcx;
 	u64 rdx;
@@ -415,6 +414,34 @@ struct gpr64_regs {
 	u64 r14;
 	u64 r15;
 };
+
+extern struct guest_regs guest_regs;
+
+#define GUEST_REG_OFFSET(name) \
+	[off_##name] "i" (offsetof(struct guest_regs, name))
+
+#define GUEST_REGS_OFFSETS	\
+	GUEST_REG_OFFSET(rax),	\
+	GUEST_REG_OFFSET(rcx),	\
+	GUEST_REG_OFFSET(rdx),	\
+	GUEST_REG_OFFSET(rbx),	\
+	GUEST_REG_OFFSET(rsp),	\
+	GUEST_REG_OFFSET(rbp),	\
+	GUEST_REG_OFFSET(rsi),	\
+	GUEST_REG_OFFSET(rdi),	\
+	GUEST_REG_OFFSET(r8),	\
+	GUEST_REG_OFFSET(r9),	\
+	GUEST_REG_OFFSET(r10),	\
+	GUEST_REG_OFFSET(r11),	\
+	GUEST_REG_OFFSET(r12),	\
+	GUEST_REG_OFFSET(r13),	\
+	GUEST_REG_OFFSET(r14),	\
+	GUEST_REG_OFFSET(r15)
+
+#define GUEST_REG(name) "guest_regs + %c[off_" #name "]"
+
+#define GUEST_SWITCH_GPR_ASM(name) \
+	"xchg %%" #name ", " GUEST_REG(name) "\n\t"
 
 struct desc64 {
 	u16 limit0;

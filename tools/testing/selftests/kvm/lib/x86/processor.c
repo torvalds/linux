@@ -29,6 +29,8 @@ bool host_cpu_is_amd_compatible;
 bool is_forced_emulation_enabled;
 u64 guest_tsc_khz;
 
+struct guest_regs guest_regs;
+
 const char *ex_str(int vector)
 {
 	switch (vector) {
