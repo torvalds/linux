@@ -1165,36 +1165,6 @@ static int uvd_v6_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 }
 
 #define AMDGPU_UVD_STATUS_BUSY_MASK    0xfd
-static bool uvd_v6_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-	u32 srbm_soft_reset = 0;
-	u32 tmp = RREG32(mmSRBM_STATUS);
-
-	if (REG_GET_FIELD(tmp, SRBM_STATUS, UVD_RQ_PENDING) ||
-	    REG_GET_FIELD(tmp, SRBM_STATUS, UVD_BUSY) ||
-	    (RREG32(mmUVD_STATUS) & AMDGPU_UVD_STATUS_BUSY_MASK))
-		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_UVD, 1);
-
-	if (srbm_soft_reset) {
-		adev->uvd.inst->srbm_soft_reset = srbm_soft_reset;
-		return true;
-	} else {
-		adev->uvd.inst->srbm_soft_reset = 0;
-		return false;
-	}
-}
-
-static int uvd_v6_0_pre_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	if (!adev->uvd.inst->srbm_soft_reset)
-		return 0;
-
-	uvd_v6_0_stop(adev);
-	return 0;
-}
 
 static int uvd_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
@@ -1225,18 +1195,6 @@ static int uvd_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 	}
 
 	return 0;
-}
-
-static int uvd_v6_0_post_soft_reset(struct amdgpu_ip_block *ip_block)
-{
-	struct amdgpu_device *adev = ip_block->adev;
-
-	if (!adev->uvd.inst->srbm_soft_reset)
-		return 0;
-
-	mdelay(5);
-
-	return uvd_v6_0_start(adev);
 }
 
 static int uvd_v6_0_set_interrupt_state(struct amdgpu_device *adev,
@@ -1538,10 +1496,7 @@ static const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.resume = uvd_v6_0_resume,
 	.is_idle = uvd_v6_0_is_idle,
 	.wait_for_idle = uvd_v6_0_wait_for_idle,
-	.check_soft_reset = uvd_v6_0_check_soft_reset,
-	.pre_soft_reset = uvd_v6_0_pre_soft_reset,
 	.soft_reset = uvd_v6_0_soft_reset,
-	.post_soft_reset = uvd_v6_0_post_soft_reset,
 	.set_clockgating_state = uvd_v6_0_set_clockgating_state,
 	.set_powergating_state = uvd_v6_0_set_powergating_state,
 	.get_clockgating_state = uvd_v6_0_get_clockgating_state,

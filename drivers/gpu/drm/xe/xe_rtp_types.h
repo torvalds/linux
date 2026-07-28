@@ -22,20 +22,37 @@ struct xe_gt;
  */
 struct xe_rtp_action {
 	/** @reg: Register */
-	struct xe_reg		reg;
+	struct xe_reg reg;
+
 	/**
 	 * @clr_bits: bits to clear when updating register. It's always a
 	 * superset of bits being modified
 	 */
-	u32			clr_bits;
-	/** @set_bits: bits to set when updating register */
-	u32			set_bits;
+	u32 clr_bits;
+
+	union {
+		/** @set_bits: bits to set when updating register */
+		u32 set_bits;
+
+		/** @set_func: function to provide bits to set when updating register */
+		u32 (*set_func)(struct xe_gt *gt,
+				struct xe_hw_engine *hwe);
+	};
+
 #define XE_RTP_NOCHECK		.read_mask = 0
 	/** @read_mask: mask for bits to consider when reading value back */
-	u32			read_mask;
+	u32 read_mask;
+
 #define XE_RTP_ACTION_FLAG_ENGINE_BASE		BIT(0)
 	/** @flags: flags to apply on rule evaluation or action */
-	u8			flags;
+	u8 flags;
+
+	/**
+	 * @use_func:
+	 *   Internal flag indicating @set_func should be called instead of
+	 *   using @set_bits.
+	 */
+	u8 use_func:1;
 };
 
 enum {
@@ -69,6 +86,7 @@ struct xe_rtp_rule {
 			u8 platform;
 			u8 subplatform;
 		};
+
 		/*
 		 * MATCH_GRAPHICS_VERSION / XE_RTP_MATCH_GRAPHICS_VERSION_RANGE /
 		 * MATCH_MEDIA_VERSION  / XE_RTP_MATCH_MEDIA_VERSION_RANGE
@@ -78,15 +96,18 @@ struct xe_rtp_rule {
 #define XE_RTP_END_VERSION_UNDEFINED	U32_MAX
 			u32 ver_end;
 		};
+
 		/* MATCH_STEP */
 		struct {
 			u8 step_start;
 			u8 step_end;
 		};
+
 		/* MATCH_ENGINE_CLASS / MATCH_NOT_ENGINE_CLASS */
 		struct {
 			u8 engine_class;
 		};
+
 		/* MATCH_FUNC */
 		bool (*match_func)(const struct xe_device *xe,
 				   const struct xe_gt *gt,
@@ -110,6 +131,16 @@ struct xe_rtp_entry {
 	const char *name;
 	const struct xe_rtp_rule *rules;
 	u8 n_rules;
+};
+
+struct xe_rtp_table_sr {
+	const struct xe_rtp_entry_sr *entries;
+	size_t n_entries;
+};
+
+struct xe_rtp_table {
+	const struct xe_rtp_entry *entries;
+	size_t n_entries;
 };
 
 enum xe_rtp_process_type {

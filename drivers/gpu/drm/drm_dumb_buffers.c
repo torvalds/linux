@@ -32,7 +32,6 @@
 #include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
-#include "drm_internal.h"
 
 /**
  * DOC: overview

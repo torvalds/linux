@@ -1469,6 +1469,18 @@ static void gen8_de_irq_handler(struct intel_display *display, u32 master_ctl)
 				found = true;
 			}
 
+			if (DISPLAY_VER(display) == 35) {
+				if (iir & CMTG_VBLANK_A) {
+					intel_handle_vblank(display, PIPE_A);
+					found = true;
+				}
+
+				if (iir & CMTG_VBLANK_B) {
+					intel_handle_vblank(display, PIPE_B);
+					found = true;
+				}
+			}
+
 			if (DISPLAY_VER(display) >= 11) {
 				u32 te_trigger = iir & (DSI0_TE | DSI1_TE);
 
@@ -2665,4 +2677,11 @@ void intel_display_irq_snapshot_print(const struct intel_display_irq_snapshot *s
 
 	drm_printf(p, "DERRMR: 0x%08x\n", snapshot->derrmr);
 	drm_printf(p, "ERR_INT: 0x%08x\n", snapshot->err_int);
+}
+
+void intel_display_irq_port_interrupt_mask(struct intel_display *display, u32 bits, bool mask)
+{
+	spin_lock_irq(&display->irq.lock);
+	bdw_update_port_irq(display, bits, mask ? 0 : bits);
+	spin_unlock_irq(&display->irq.lock);
 }

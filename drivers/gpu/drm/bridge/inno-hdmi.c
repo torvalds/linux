@@ -13,7 +13,6 @@
 #include <linux/i2c.h>
 #include <linux/hdmi.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
@@ -879,7 +878,7 @@ static void inno_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs inno_hdmi_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_enable = inno_hdmi_bridge_atomic_enable,
 	.atomic_disable = inno_hdmi_bridge_atomic_disable,
 	.detect = inno_hdmi_bridge_detect,

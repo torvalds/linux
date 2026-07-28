@@ -99,7 +99,8 @@ How to enable automated testing on your tree
 ============================================
 
 1. Create a Linux tree in https://gitlab.freedesktop.org/ if you don't have one
-yet
+yet, by forking https://gitlab.freedesktop.org/drm/kernel (this allows GitLab
+to internally track that these are the same git objects).
 
 2. In your kernel repo's configuration (eg.
 https://gitlab.freedesktop.org/janedoe/linux/-/settings/ci_cd), change the

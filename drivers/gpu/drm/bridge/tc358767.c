@@ -527,7 +527,7 @@ static ssize_t tc_aux_transfer(struct drm_dp_aux *aux,
 	 * address-only transfer
 	 */
 	if (size)
-		size = FIELD_GET(AUX_BYTES, auxstatus);
+		size = min_t(size_t, size, FIELD_GET(AUX_BYTES, auxstatus));
 	msg->reply = FIELD_GET(AUX_STATUS, auxstatus);
 
 	switch (request) {
@@ -1933,7 +1933,7 @@ static const struct drm_bridge_funcs tc_dpi_bridge_funcs = {
 	.atomic_disable = tc_dpi_bridge_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_get_input_bus_fmts = tc_dpi_atomic_get_input_bus_fmts,
 };
 
@@ -1949,7 +1949,7 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.edid_read = tc_edid_read,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
 	.atomic_get_output_bus_fmts = tc_edp_atomic_get_output_bus_fmts,
 };
@@ -2329,6 +2329,7 @@ static int tc_probe_dpi_bridge_endpoint(struct tc_data *tc)
 
 	if (panel) {
 		bridge = devm_drm_panel_bridge_add(dev, panel);
+		drm_panel_put(panel);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 	}
@@ -2359,6 +2360,7 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 		struct drm_bridge *panel_bridge;
 
 		panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+		drm_panel_put(panel);
 		if (IS_ERR(panel_bridge))
 			return PTR_ERR(panel_bridge);
 

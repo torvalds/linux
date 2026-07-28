@@ -186,7 +186,7 @@ static int lcdif_load(struct drm_device *drm)
 
 	ret = lcdif_attach_bridge(lcdif);
 	if (ret)
-		return dev_err_probe(drm->dev, ret, "Cannot connect bridge\n");
+		return ret;
 
 	drm->mode_config.min_width	= LCDIF_MIN_XRES;
 	drm->mode_config.min_height	= LCDIF_MIN_YRES;

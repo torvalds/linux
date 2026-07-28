@@ -686,7 +686,7 @@ static int sun4i_backend_init_sat(struct device *dev) {
 	ret = clk_prepare_enable(backend->sat_clk);
 	if (ret) {
 		dev_err(dev, "Couldn't enable the SAT clock\n");
-		return ret;
+		goto err_assert_reset;
 	}
 
 	return 0;

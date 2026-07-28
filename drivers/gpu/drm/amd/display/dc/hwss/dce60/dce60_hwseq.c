@@ -332,12 +332,12 @@ dce60_program_front_end_for_pipe(
 				plane_state->rotation);
 
 	/* Moved programming gamma from dc to hwss */
-	if (pipe_ctx->plane_state->update_flags.bits.full_update ||
-			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
-			pipe_ctx->plane_state->update_flags.bits.gamma_change)
+	if (pipe_ctx->plane_state->update_bits.full_update ||
+			pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_bits.gamma_change)
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
-	if (pipe_ctx->plane_state->update_flags.bits.full_update)
+	if (pipe_ctx->plane_state->update_bits.full_update)
 		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 
 	DC_LOG_SURFACE(

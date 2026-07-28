@@ -729,8 +729,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.ignore_pg = false,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
+	.disable_dpp_power_gate = false,
+	.disable_hubp_power_gate = false,
 	.disable_optc_power_gate = true,
 	.disable_dsc_power_gate = false,
 	.disable_dio_power_gate = true,
@@ -762,7 +762,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.dpp = true,
 			.dsc = true,/*dscclk and dsc pg*/
-			.hdmistream = false,
+			.hdmistream = true,
 			.hdmichar = true,
 			.dpstream = true,
 			.symclk32_se = true,
@@ -801,6 +801,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.replay_skip_crtc_disabled = true,
 	.psr_skip_crtc_disable = true,
 	.force_odm2to1_for_edp_pixclk_mhz = 0, // disable the policy for now
+	.iommu_mismatch_temp_wka = 0x7,
 };
 
 static const struct dc_check_config config_defaults = {
@@ -1881,7 +1882,7 @@ static struct link_encoder *dcn42_link_enc_create_minimal(
 {
 	struct dcn20_link_encoder *enc20;
 
-	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) > ctx->dc->res_pool->res_cap->num_dig_link_enc)
+	if ((unsigned int)(eng_id - ENGINE_ID_DIGA) >= ctx->dc->res_pool->res_cap->num_dig_link_enc)
 		return NULL;
 
 	enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
@@ -1893,6 +1894,8 @@ static struct link_encoder *dcn42_link_enc_create_minimal(
 			ctx,
 			&link_enc_feature,
 			&link_enc_regs[eng_id - ENGINE_ID_DIGA],
+			&le_shift,
+			&le_mask,
 			eng_id);
 
 	return &enc20->enc10.base;
@@ -2142,6 +2145,7 @@ static bool dcn42_resource_construct(
 	dc->config.use_pipe_ctx_sync_logic = true;
 	dc->config.dc_mode_clk_limit_support = false;
 	dc->config.enable_windowed_mpo_odm = true;
+	dc->config.set_pipe_unlock_order = true; /* Need to ensure DET gets freed before allocating */
 	/* Use psp mailbox to enable assr */
 	dc->config.use_assr_psp_message = true;
 	/* dcn42 and afterward always support external panel replay */

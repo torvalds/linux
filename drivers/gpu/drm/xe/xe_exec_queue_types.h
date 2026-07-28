@@ -318,8 +318,6 @@ struct xe_exec_queue_ops {
 	void (*resume)(struct xe_exec_queue *q);
 	/** @reset_status: check exec queue reset status */
 	bool (*reset_status)(struct xe_exec_queue *q);
-	/** @active: check exec queue is active */
-	bool (*active)(struct xe_exec_queue *q);
 };
 
 #endif

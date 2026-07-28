@@ -149,19 +149,20 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 	xmit_work_fn = tagger_data->xmit_work_fn;
 	xmit_worker = priv->xmit_worker;
 
-	if (!xmit_work_fn || !xmit_worker)
+	if (!xmit_work_fn || !xmit_worker) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	xmit_work = kzalloc_obj(*xmit_work, GFP_ATOMIC);
-	if (!xmit_work)
+	if (!xmit_work) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_user_xmit
-	 * won't really free the packet.
-	 */
 	xmit_work->dp = dp;
-	xmit_work->skb = skb_get(skb);
+	xmit_work->skb = skb;
 
 	kthread_queue_work(xmit_worker, &xmit_work->work);
 
@@ -401,10 +402,7 @@ static struct sk_buff
 			kfree_skb(priv->stampable_skb);
 		}
 
-		/* Hold a reference to avoid dsa_switch_rcv
-		 * from freeing the skb.
-		 */
-		priv->stampable_skb = skb_get(skb);
+		priv->stampable_skb = skb;
 		spin_unlock(&priv->meta_lock);
 
 		/* Tell DSA we got nothing */
@@ -436,6 +434,7 @@ static struct sk_buff
 			dev_err_ratelimited(ds->dev,
 					    "Unexpected meta frame\n");
 			spin_unlock(&priv->meta_lock);
+			kfree_skb(skb);
 			return NULL;
 		}
 
@@ -443,6 +442,7 @@ static struct sk_buff
 			dev_err_ratelimited(ds->dev,
 					    "Meta frame on wrong port\n");
 			spin_unlock(&priv->meta_lock);
+			kfree_skb(skb);
 			return NULL;
 		}
 
@@ -501,18 +501,21 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	/* Normal data plane traffic and link-local frames are tagged with
 	 * a tag_8021q VLAN which we have to strip
 	 */
-	if (sja1105_skb_has_tag_8021q(skb))
+	if (sja1105_skb_has_tag_8021q(skb)) {
 		dsa_8021q_rcv(skb, &source_port, &switch_id, &vbid, &vid);
-	else if (source_port == -1 && switch_id == -1)
+	} else if (source_port == -1 && switch_id == -1) {
 		/* Packets with no source information have no chance of
 		 * getting accepted, drop them straight away.
 		 */
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	skb->dev = dsa_tag_8021q_find_user(netdev, source_port, switch_id,
 					   vid, vbid);
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -539,12 +542,15 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 	if (!ds) {
 		net_err_ratelimited("%s: cannot find switch id %d\n",
 				    conduit->name, switch_id);
+		kfree_skb(skb);
 		return NULL;
 	}
 
 	tagger_data = sja1105_tagger_data(ds);
-	if (!tagger_data->meta_tstamp_handler)
+	if (!tagger_data->meta_tstamp_handler) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	for (i = 0; i <= n_ts; i++) {
 		u8 ts_id, source_port, dir;
@@ -562,6 +568,7 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 	}
 
 	/* Discard the meta frame, we've consumed the timestamps it contained */
+	kfree_skb(skb);
 	return NULL;
 }
 
@@ -572,8 +579,10 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 {
 	u16 rx_header;
 
-	if (unlikely(!pskb_may_pull(skb, SJA1110_HEADER_LEN)))
+	if (unlikely(!pskb_may_pull(skb, SJA1110_HEADER_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	/* skb->data points to skb_mac_header(skb) + ETH_HLEN, which is exactly
 	 * what we need because the caller has checked the EtherType (which is
@@ -609,8 +618,10 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 		 * padding and trailer we need to account for the fact that
 		 * skb->data points to skb_mac_header(skb) + ETH_HLEN.
 		 */
-		if (pskb_trim_rcsum(skb, start_of_padding - ETH_HLEN))
+		if (pskb_trim_rcsum(skb, start_of_padding - ETH_HLEN)) {
+			kfree_skb(skb);
 			return NULL;
+		}
 	/* Trap-to-host frame, no timestamp trailer */
 	} else {
 		*source_port = SJA1110_RX_HEADER_SRC_PORT(rx_header);
@@ -653,6 +664,7 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 

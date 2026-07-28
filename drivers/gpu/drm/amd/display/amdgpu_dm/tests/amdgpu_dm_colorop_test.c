@@ -9,7 +9,10 @@
 #include <drm/drm_colorop.h>
 #include <drm/drm_kunit_helpers.h>
 
+#include "dc.h"
+#include "amdgpu.h"
 #include "amdgpu_dm_colorop.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* Tests for amdgpu_dm_supported_degam_tfs */
 
@@ -133,6 +136,30 @@ static void kunit_colorop_pipeline_destroy(void *drm)
 	drm_colorop_pipeline_destroy((struct drm_device *)drm);
 }
 
+static void dm_expect_colorop_pipeline(struct kunit *test, struct drm_device *drm,
+				       const struct drm_prop_enum_list *list,
+				       const enum drm_colorop_type *expected,
+				       int expected_count)
+{
+	struct drm_colorop *op, *first = NULL;
+	int i = 0;
+
+	drm_for_each_colorop(op, drm) {
+		if (op->base.id == (uint32_t)list->type) {
+			first = op;
+			break;
+		}
+	}
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, first);
+
+	for (op = first; op; op = op->next, i++) {
+		KUNIT_ASSERT_LT(test, i, expected_count);
+		KUNIT_EXPECT_EQ(test, op->type, expected[i]);
+		KUNIT_EXPECT_NOT_NULL(test, op->bypass_property);
+	}
+	KUNIT_EXPECT_EQ(test, i, expected_count);
+}
+
 /**
  * dm_test_initialize_default_pipeline() - Verify amdgpu_dm_build_default_pipeline()
  *   produces the expected colorop chain with all ops bypassable.
@@ -154,8 +181,6 @@ static void dm_test_initialize_default_pipeline(struct kunit *test)
 	struct drm_device *drm;
 	struct drm_plane *plane;
 	struct drm_prop_enum_list list = {};
-	struct drm_colorop *op, *first = NULL;
-	int i = 0;
 	int ret;
 
 	dev = drm_kunit_helper_alloc_device(test);
@@ -185,20 +210,102 @@ static void dm_test_initialize_default_pipeline(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	kfree(list.name);
 
-	drm_for_each_colorop(op, drm) {
-		if (op->base.id == (uint32_t)list.type) {
-			first = op;
-			break;
-		}
-	}
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, first);
+	dm_expect_colorop_pipeline(test, drm, &list, expected, ARRAY_SIZE(expected));
+}
 
-	for (op = first; op; op = op->next, i++) {
-		KUNIT_ASSERT_LT(test, i, (int)ARRAY_SIZE(expected));
-		KUNIT_EXPECT_EQ(test, op->type, expected[i]);
-		KUNIT_EXPECT_NOT_NULL(test, op->bypass_property);
-	}
-	KUNIT_EXPECT_EQ(test, i, (int)ARRAY_SIZE(expected));
+static void dm_test_initialize_default_pipeline_caps(struct kunit *test,
+					     bool dpp_hw_3d_lut,
+					     bool mpc_preblend,
+					     const enum drm_colorop_type *expected,
+					     int expected_count)
+{
+	struct drm_prop_enum_list list = {};
+	struct amdgpu_device *adev;
+	struct drm_device *drm;
+	struct drm_plane *plane;
+	struct dc *dc;
+	int ret;
+
+	adev = dm_kunit_alloc_adev(test);
+	drm = &adev->ddev;
+
+	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dc);
+	adev->dm.dc = dc;
+	adev->dm.dc->caps.color.dpp.hw_3d_lut = dpp_hw_3d_lut;
+	adev->dm.dc->caps.color.mpc.preblend = mpc_preblend;
+
+	plane = drm_kunit_helper_create_primary_plane(test, drm,
+						       NULL, NULL, NULL, 0, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, plane);
+
+	kunit_add_action(test, kunit_colorop_pipeline_destroy, drm);
+
+	ret = amdgpu_dm_initialize_default_pipeline(plane, &list);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+	kfree(list.name);
+
+	dm_expect_colorop_pipeline(test, drm, &list, expected, expected_count);
+}
+
+/**
+ * dm_test_initialize_default_pipeline_dpp_3d_lut() - Test DPP 3D LUT cap.
+ * @test: KUnit test context.
+ */
+static void dm_test_initialize_default_pipeline_dpp_3d_lut(struct kunit *test)
+{
+	static const enum drm_colorop_type expected[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+
+	dm_test_initialize_default_pipeline_caps(test, true, false,
+						 expected, ARRAY_SIZE(expected));
+}
+
+/**
+ * dm_test_initialize_default_pipeline_mpc_preblend() - Test MPC preblend cap.
+ * @test: KUnit test context.
+ */
+static void dm_test_initialize_default_pipeline_mpc_preblend(struct kunit *test)
+{
+	static const enum drm_colorop_type expected[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+		DRM_COLOROP_3D_LUT,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+
+	dm_test_initialize_default_pipeline_caps(test, false, true,
+						 expected, ARRAY_SIZE(expected));
+}
+
+/**
+ * dm_test_initialize_default_pipeline_no_3d_lut() - Test no 3D LUT caps.
+ * @test: KUnit test context.
+ */
+static void dm_test_initialize_default_pipeline_no_3d_lut(struct kunit *test)
+{
+	static const enum drm_colorop_type expected[] = {
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_MULTIPLIER,
+		DRM_COLOROP_CTM_3X4,
+		DRM_COLOROP_1D_CURVE,
+		DRM_COLOROP_1D_LUT,
+	};
+
+	dm_test_initialize_default_pipeline_caps(test, false, false,
+						 expected, ARRAY_SIZE(expected));
 }
 
 static struct kunit_case dm_colorop_test_cases[] = {
@@ -224,6 +331,9 @@ static struct kunit_case dm_colorop_test_cases[] = {
 	KUNIT_CASE(dm_test_degam_and_blnd_tfs_match),
 	/* amdgpu_dm_initialize_default_pipeline */
 	KUNIT_CASE(dm_test_initialize_default_pipeline),
+	KUNIT_CASE(dm_test_initialize_default_pipeline_dpp_3d_lut),
+	KUNIT_CASE(dm_test_initialize_default_pipeline_mpc_preblend),
+	KUNIT_CASE(dm_test_initialize_default_pipeline_no_3d_lut),
 	{}
 };
 

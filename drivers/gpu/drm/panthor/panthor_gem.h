@@ -325,6 +325,8 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 
 void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo);
 
+struct panthor_gem_object *panthor_dummy_bo_create(struct panthor_device *ptdev);
+
 #ifdef CONFIG_DEBUG_FS
 void panthor_gem_debugfs_init(struct drm_minor *minor);
 #endif

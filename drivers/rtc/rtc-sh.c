@@ -13,7 +13,6 @@
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  */
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>

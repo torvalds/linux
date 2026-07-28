@@ -5,6 +5,8 @@
 #define PVR_ROGUE_FWIF_CHECK_H
 
 #include <linux/build_bug.h>
+#include <linux/overflow.h>
+#include <linux/stddef.h>
 
 #define OFFSET_CHECK(type, member, offset) \
 	static_assert(offsetof(type, member) == (offset), \
@@ -12,6 +14,21 @@
 
 #define SIZE_CHECK(type, size) \
 	static_assert(sizeof(type) == (size), #type " is incorrect size")
+
+/*
+ * Where the last member of a struct is a flexible array member, using
+ * SIZE_CHECK() is pointless. If the structure is not already padded to
+ * alignment without the flexible array member, sizeof() will not match the
+ * offset of the flexible array member and the "correct" sizeof() value is
+ * completely meaningless.
+ *
+ * In those instances, use FLEX_ARRAY_CHECK() instead to assert that the final
+ * field is a flexible array member and that it behaves as expected.
+ */
+#define FLEX_ARRAY_CHECK(type, member)                            \
+	static_assert(flex_array_size((type *)NULL, member, 1) == \
+			      sizeof_field(type, member[0]),      \
+		      #type "->" #member " is incorrect size")
 
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, path, 0);
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, info, 200);
@@ -157,7 +174,7 @@ OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_pm_deallocated_mask_stat
 OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_dm_pds_mtilefree_status, 4);
 OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, ctx_state_flags, 8);
 OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_isp_store, 12);
-SIZE_CHECK(struct rogue_fwif_frag_ctx_state, 16);
+FLEX_ARRAY_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_isp_store);
 
 OFFSET_CHECK(struct rogue_fwif_compute_ctx_state, ctx_state_flags, 0);
 SIZE_CHECK(struct rogue_fwif_compute_ctx_state, 4);

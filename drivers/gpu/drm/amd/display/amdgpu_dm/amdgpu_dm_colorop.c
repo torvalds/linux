@@ -235,3 +235,4 @@ int amdgpu_dm_initialize_default_pipeline(struct drm_plane *plane, struct drm_pr
 
 	return amdgpu_dm_build_default_pipeline(dev, plane, hw_3d_lut, list);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_initialize_default_pipeline);

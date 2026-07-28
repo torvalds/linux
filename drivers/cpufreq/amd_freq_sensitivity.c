@@ -14,7 +14,6 @@
 #include <linux/pci.h>
 #include <linux/percpu-defs.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 
 #include <asm/msr.h>
 #include <asm/cpufeature.h>

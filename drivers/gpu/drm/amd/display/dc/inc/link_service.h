@@ -193,6 +193,7 @@ struct link_service {
 			struct aux_payload *payload);
 	bool (*is_in_aux_transaction_mode)(struct ddc_service *ddc);
 	uint32_t (*get_aux_defer_delay)(struct ddc_service *ddc);
+	uint8_t (*get_ddc_aux_inst)(const struct dc_link *link);
 
 
 	/*************************** DP Capability ****************************/

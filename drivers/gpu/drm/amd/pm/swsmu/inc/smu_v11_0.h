@@ -199,8 +199,6 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable);
 
 int smu_v11_0_register_irq_handler(struct smu_context *smu);
 
-int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu);
-
 int smu_v11_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 		struct pp_smu_nv_clock_table *max_clocks);
 

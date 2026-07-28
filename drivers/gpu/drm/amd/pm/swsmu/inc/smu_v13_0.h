@@ -180,8 +180,6 @@ int smu_v13_0_gfx_off_control(struct smu_context *smu, bool enable);
 
 int smu_v13_0_register_irq_handler(struct smu_context *smu);
 
-int smu_v13_0_set_azalia_d3_pme(struct smu_context *smu);
-
 int smu_v13_0_get_max_sustainable_clocks_by_dc(struct smu_context *smu,
 					       struct pp_smu_nv_clock_table *max_clocks);
 
@@ -255,10 +253,6 @@ void smu_v13_0_init_msg_ctl(struct smu_context *smu,
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
 
-int smu_v13_0_get_pptable_from_firmware(struct smu_context *smu,
-					void **table,
-					uint32_t *size,
-					uint32_t pptable_id);
 
 int smu_v13_0_update_pcie_parameters(struct smu_context *smu,
 				     uint8_t pcie_gen_cap,

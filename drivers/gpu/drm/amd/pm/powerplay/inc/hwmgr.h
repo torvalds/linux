@@ -829,4 +829,24 @@ int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
 int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
 
+static inline uint32_t pp_entries_max(const struct pp_hwmgr *hwmgr,
+				      const void *sub_table,
+				      size_t hdr_size, size_t rec_size)
+{
+	const char *pp_start = hwmgr->soft_pp_table;
+	const char *pp_end   = pp_start + hwmgr->soft_pp_table_size;
+	const char *entries  = (const char *)sub_table + hdr_size;
+
+	if (!hwmgr->hardcode_pp_table) {
+		struct amdgpu_device *adev = hwmgr->adev;
+		const char *bios_end = (const char *)adev->bios + adev->bios_size;
+
+		if (pp_end > bios_end)
+			return 0;
+	}
+	if (!rec_size || entries >= pp_end)
+		return 0;
+	return (uint32_t)((pp_end - entries) / rec_size);
+}
+
 #endif /* _HWMGR_H_ */

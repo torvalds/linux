@@ -154,6 +154,7 @@ struct netdevsim {
 	struct dentry *pp_dfs;
 	struct dentry *qr_dfs;
 	struct dentry *vlan_dfs;
+	struct dentry *ethtool_ddir;
 
 	struct nsim_ethtool ethtool;
 	struct netdevsim __rcu *peer;
@@ -169,6 +170,7 @@ void nsim_destroy(struct netdevsim *ns);
 bool netdev_is_nsim(struct net_device *dev);
 
 void nsim_ethtool_init(struct netdevsim *ns);
+void nsim_ethtool_fini(struct netdevsim *ns);
 
 void nsim_udp_tunnels_debugfs_create(struct nsim_dev *nsim_dev);
 int nsim_udp_tunnels_info_create(struct nsim_dev *nsim_dev,

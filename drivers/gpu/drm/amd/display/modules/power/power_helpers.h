@@ -146,6 +146,16 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		struct dmcu_iram_parameters params,
 		unsigned int inst);
 
+bool dmub_is_abm_supported(struct resource_pool *res_pool,
+		unsigned int inst);
+bool dmub_set_abm_event(struct resource_pool *res_pool,
+		unsigned int full_screen, unsigned int trans_info,
+		unsigned int hdr_mode, unsigned int scaling_enable,
+		unsigned int scaling_strength_map, unsigned int inst);
+bool dmub_set_abm_strength(struct resource_pool *res_pool,
+		unsigned int strength,
+		unsigned int inst);
+
 void init_replay_config(struct dc_link *link, struct replay_config *pr_config);
 void set_replay_coasting_vtotal(struct dc_link *link,
 	enum replay_coasting_vtotal_type type,

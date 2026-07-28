@@ -307,6 +307,11 @@ static int ivpu_open(struct drm_device *dev, struct drm_file *file)
 		return -ENODEV;
 
 	limits = ivpu_user_limits_get(vdev);
+	if (IS_ERR(limits) && PTR_ERR(limits) == -EMFILE) {
+		/* Context limit may be held by jobs pending deferred cleanup */
+		flush_work(&vdev->job_destroy_work);
+		limits = ivpu_user_limits_get(vdev);
+	}
 	if (IS_ERR(limits)) {
 		ret = PTR_ERR(limits);
 		goto err_dev_exit;
@@ -510,9 +515,9 @@ void ivpu_prepare_for_reset(struct ivpu_device *vdev)
 {
 	ivpu_hw_irq_disable(vdev);
 	disable_irq(vdev->irq);
-	flush_work(&vdev->irq_ipc_work);
 	flush_work(&vdev->irq_dct_work);
 	flush_work(&vdev->context_abort_work);
+	flush_work(&vdev->job_destroy_work);
 	ivpu_ipc_disable(vdev);
 	ivpu_mmu_disable(vdev);
 }
@@ -584,6 +589,11 @@ static const struct drm_driver driver = {
 	.major = 1,
 };
 
+static void ivpu_destroy_workqueue(void *wq)
+{
+	destroy_workqueue(wq);
+}
+
 static int ivpu_irq_init(struct ivpu_device *vdev)
 {
 	struct pci_dev *pdev = to_pci_dev(vdev->drm.dev);
@@ -595,16 +605,26 @@ static int ivpu_irq_init(struct ivpu_device *vdev)
 		return ret;
 	}
 
-	INIT_WORK(&vdev->irq_ipc_work, ivpu_ipc_irq_work_fn);
 	INIT_WORK(&vdev->irq_dct_work, ivpu_pm_irq_dct_work_fn);
 	INIT_WORK(&vdev->context_abort_work, ivpu_context_abort_work_fn);
+	init_llist_head(&vdev->job_destroy_list);
+	INIT_WORK(&vdev->job_destroy_work, ivpu_job_destroy_work_fn);
+
+	vdev->job_destroy_wq = alloc_workqueue("ivpu_job_destroy", WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+	if (!vdev->job_destroy_wq)
+		return -ENOMEM;
+
+	ret = devm_add_action_or_reset(vdev->drm.dev, ivpu_destroy_workqueue, vdev->job_destroy_wq);
+	if (ret)
+		return ret;
 
 	ivpu_irq_handlers_init(vdev);
 
 	vdev->irq = pci_irq_vector(pdev, 0);
 
-	ret = devm_request_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
-			       IRQF_NO_AUTOEN, DRIVER_NAME, vdev);
+	ret = devm_request_threaded_irq(vdev->drm.dev, vdev->irq, ivpu_hw_irq_handler,
+					ivpu_ipc_irq_thread_handler, IRQF_NO_AUTOEN,
+					DRIVER_NAME, vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to request an IRQ %d\n", ret);
 

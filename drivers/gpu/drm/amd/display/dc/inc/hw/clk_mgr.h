@@ -30,6 +30,7 @@
 #include "dc.h"
 #include "core_types.h"
 #include "dm_pp_smu.h"
+struct utm_qos_model;
 
 /* Constants */
 #define DDR4_DRAM_WIDTH   64
@@ -311,12 +312,15 @@ struct clk_bw_params {
 	struct wm_table wm_table;
 	struct dummy_pstate_entry dummy_pstate_table[4];
 	struct clk_limit_table_entry dc_mode_limit;
+	const struct utm_qos_model *utm_qos_model;
 };
 /* Public interfaces */
 
 struct clk_states {
 	uint32_t dprefclk_khz;
 };
+
+struct block_sequence_state;
 
 struct clk_mgr_funcs {
 	/*
@@ -336,6 +340,8 @@ struct clk_mgr_funcs {
 	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
 	void (*exit_low_power_state)(struct clk_mgr *clk_mgr);
 	bool (*is_ips_supported)(struct clk_mgr *clk_mgr);
+
+	void (*set_idle_power_optimizations)(struct clk_mgr *clk_mgr, bool enable);
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
@@ -405,6 +411,12 @@ struct clk_mgr_funcs {
 	void (*get_requested_memory_qos)(
 			struct clk_mgr *clk_mgr,
 			struct dc_requested_memory_qos *qos);
+
+	void (*build_clock_update_for_bls)(struct clk_mgr *clk_mgr,
+			struct dc_state *context, bool safe_to_lower,
+			struct block_sequence_state *seq_state);
+
+	void (*execute_clk_mgr_block_sequence)(struct clk_mgr *clk_mgr);
 };
 
 struct clk_mgr {

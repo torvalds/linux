@@ -7,7 +7,6 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -16,6 +15,7 @@
 #include <drm/drm_utils.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_accel.h>
+#include <drm/drm_managed.h>
 #include <drm/ethosu_accel.h>
 
 #include "ethosu_drv.h"
@@ -155,6 +155,7 @@ static int ethosu_open(struct drm_device *ddev, struct drm_file *file)
 	if (ret)
 		goto err_put_mod;
 
+	ethosu_perfmon_open_file(priv);
 	file->driver_priv = no_free_ptr(priv);
 	return 0;
 
@@ -166,6 +167,7 @@ err_put_mod:
 static void ethosu_postclose(struct drm_device *ddev, struct drm_file *file)
 {
 	ethosu_job_close(file->driver_priv);
+	ethosu_perfmon_close_file(file->driver_priv);
 	kfree(file->driver_priv);
 	module_put(THIS_MODULE);
 }
@@ -180,6 +182,10 @@ static const struct drm_ioctl_desc ethosu_drm_driver_ioctls[] = {
 	ETHOSU_IOCTL(BO_MMAP_OFFSET, bo_mmap_offset, 0),
 	ETHOSU_IOCTL(CMDSTREAM_BO_CREATE, cmdstream_bo_create, 0),
 	ETHOSU_IOCTL(SUBMIT, submit, 0),
+	ETHOSU_IOCTL(PERFMON_CREATE, perfmon_create, 0),
+	ETHOSU_IOCTL(PERFMON_DESTROY, perfmon_destroy, 0),
+	ETHOSU_IOCTL(PERFMON_GET_VALUES, perfmon_get_values, 0),
+	ETHOSU_IOCTL(PERFMON_SET_GLOBAL, perfmon_set_global, 0),
 };
 
 DEFINE_DRM_ACCEL_FOPS(ethosu_drm_driver_fops);
@@ -315,8 +321,14 @@ static int ethosu_init(struct ethosu_device *ethosudev)
 
 	ethosu_sram_init(ethosudev);
 
+	if (!ethosu_is_u65(ethosudev))
+		ethosudev->pmu_regs += 0x1000;
+
+	ethosudev->npu_info.pmu_counters = FIELD_GET(PMCR_NUM_EVENT_CNT_MASK,
+		readl_relaxed(ethosudev->pmu_regs + NPU_REG_PMCR));
+
 	dev_info(ethosudev->base.dev,
-		 "Ethos-U NPU, arch v%ld.%ld.%ld, rev r%ldp%ld, cmd stream ver%ld, %d MACs, %dKB SRAM\n",
+		 "Ethos-U NPU, arch v%ld.%ld.%ld, rev r%ldp%ld, cmd stream ver%ld, %d MACs, %dKB SRAM, %d PMU cntrs\n",
 		 FIELD_GET(ID_ARCH_MAJOR_MASK, id),
 		 FIELD_GET(ID_ARCH_MINOR_MASK, id),
 		 FIELD_GET(ID_ARCH_PATCH_MASK, id),
@@ -324,7 +336,8 @@ static int ethosu_init(struct ethosu_device *ethosudev)
 		 FIELD_GET(ID_VER_MINOR_MASK, id),
 		 FIELD_GET(CONFIG_CMD_STREAM_VER_MASK, config),
 		 1 << FIELD_GET(CONFIG_MACS_PER_CC_MASK, config),
-		 ethosudev->npu_info.sram_size / 1024);
+		 ethosudev->npu_info.sram_size / 1024,
+		 ethosudev->npu_info.pmu_counters);
 
 	return 0;
 }
@@ -343,10 +356,15 @@ static int ethosu_probe(struct platform_device *pdev)
 	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40));
 
 	ethosudev->regs = devm_platform_ioremap_resource(pdev, 0);
+	ethosudev->pmu_regs = ethosudev->regs;
 
 	ethosudev->num_clks = devm_clk_bulk_get_all(&pdev->dev, &ethosudev->clks);
 	if (ethosudev->num_clks < 0)
 		return ethosudev->num_clks;
+
+	ret = drmm_mutex_init(&ethosudev->base, &ethosudev->perfmon_state.lock);
+	if (ret)
+		return ret;
 
 	ret = ethosu_job_init(ethosudev);
 	if (ret)

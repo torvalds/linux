@@ -337,42 +337,43 @@ static bool xe_rtp_cfeg_wmtp_disabled(const struct xe_device *xe,
 	return xe_mmio_read32(&hwe->gt->mmio, XEHP_FUSE4) & CFEG_WMTP_DISABLE;
 }
 
+static u32 blit_cctl_val(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	return REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, gt->mocs.uc_index) |
+		REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, gt->mocs.uc_index);
+}
+
+static const struct xe_rtp_table_sr lrc_setup = XE_RTP_TABLE_SR(
+	/*
+	 * Some blitter commands do not have a field for MOCS, those
+	 * commands will use MOCS index pointed by BLIT_CCTL.
+	 * BLIT_CCTL registers are needed to be programmed to un-cached.
+	 */
+	{ XE_RTP_NAME("BLIT_CCTL_default_MOCS"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
+		       ENGINE_CLASS(COPY)),
+	  XE_RTP_ACTIONS(FIELD_SET_FUNC(BLIT_CCTL(0),
+					BLIT_CCTL_DST_MOCS_MASK |
+					BLIT_CCTL_SRC_MOCS_MASK,
+					blit_cctl_val,
+					XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/* Disable WMTP if HW doesn't support it */
+	{ XE_RTP_NAME("DISABLE_WMTP_ON_UNSUPPORTED_HW"),
+	  XE_RTP_RULES(FUNC(xe_rtp_cfeg_wmtp_disabled)),
+	  XE_RTP_ACTIONS(FIELD_SET(CS_CHICKEN1(0),
+				   PREEMPT_GPGPU_LEVEL_MASK,
+				   PREEMPT_GPGPU_THREAD_GROUP_LEVEL)),
+	  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE)
+	},
+);
+
 static void
 hw_engine_setup_default_lrc_state(struct xe_hw_engine *hwe)
 {
-	struct xe_gt *gt = hwe->gt;
-	const u8 mocs_write_idx = gt->mocs.uc_index;
-	const u8 mocs_read_idx = gt->mocs.uc_index;
-	u32 blit_cctl_val = REG_FIELD_PREP(BLIT_CCTL_DST_MOCS_MASK, mocs_write_idx) |
-			    REG_FIELD_PREP(BLIT_CCTL_SRC_MOCS_MASK, mocs_read_idx);
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
-	const struct xe_rtp_entry_sr lrc_setup[] = {
-		/*
-		 * Some blitter commands do not have a field for MOCS, those
-		 * commands will use MOCS index pointed by BLIT_CCTL.
-		 * BLIT_CCTL registers are needed to be programmed to un-cached.
-		 */
-		{ XE_RTP_NAME("BLIT_CCTL_default_MOCS"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
-			       ENGINE_CLASS(COPY)),
-		  XE_RTP_ACTIONS(FIELD_SET(BLIT_CCTL(0),
-				 BLIT_CCTL_DST_MOCS_MASK |
-				 BLIT_CCTL_SRC_MOCS_MASK,
-				 blit_cctl_val,
-				 XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/* Disable WMTP if HW doesn't support it */
-		{ XE_RTP_NAME("DISABLE_WMTP_ON_UNSUPPORTED_HW"),
-		  XE_RTP_RULES(FUNC(xe_rtp_cfeg_wmtp_disabled)),
-		  XE_RTP_ACTIONS(FIELD_SET(CS_CHICKEN1(0),
-					   PREEMPT_GPGPU_LEVEL_MASK,
-					   PREEMPT_GPGPU_THREAD_GROUP_LEVEL)),
-		  XE_RTP_ENTRY_FLAG(FOREACH_ENGINE)
-		},
-	};
 
-	xe_rtp_process_to_sr(&ctx, lrc_setup, ARRAY_SIZE(lrc_setup),
-			     &hwe->reg_lrc, true);
+	xe_rtp_process_to_sr(&ctx, &lrc_setup, &hwe->reg_lrc, true);
 }
 
 void xe_hw_engine_setup_reg_lrc(struct xe_hw_engine *hwe)
@@ -386,89 +387,94 @@ void xe_hw_engine_setup_reg_lrc(struct xe_hw_engine *hwe)
 	xe_tuning_process_lrc(hwe);
 }
 
+/*
+ * RING_CMD_CCTL specifies the default MOCS entry that will be
+ * used by the command streamer when executing commands that
+ * don't have a way to explicitly specify a MOCS setting.
+ * The default should usually reference whichever MOCS entry
+ * corresponds to uncached behavior, although use of a WB cached
+ * entry is recommended by the spec in certain circumstances on
+ * specific platforms.
+ * Bspec: 72161
+ */
+static u32 ring_cmd_cctl_val(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u8 mocs_read_idx = gt->mocs.uc_index;
+
+	if (hwe->class == XE_ENGINE_CLASS_COMPUTE && IS_DGFX(xe) &&
+	    (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC))
+		mocs_read_idx = gt->mocs.wb_index;
+
+	return REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, gt->mocs.uc_index) |
+		REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, mocs_read_idx);
+}
+
+static const struct xe_rtp_table_sr engine_sr = XE_RTP_TABLE_SR(
+	{ XE_RTP_NAME("RING_CMD_CCTL_default_MOCS"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(FIELD_SET_FUNC(RING_CMD_CCTL(0),
+					CMD_CCTL_WRITE_OVERRIDE_MASK |
+					CMD_CCTL_READ_OVERRIDE_MASK,
+					ring_cmd_cctl_val,
+					XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Disable HW status page updates for interrupts"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(SET(RING_HWSTAM(0), ~0x0,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Disable engine 'legacy' mode"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
+	  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_DISABLE_LEGACY_MODE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/*
+	 * To allow the GSC engine to go idle on MTL we need to enable
+	 * idle messaging and set the hysteresis value (we use 0xA=5us
+	 * as recommended in spec). On platforms after MTL this is
+	 * enabled by default.
+	 */
+	{ XE_RTP_NAME("MTL GSCCS IDLE MSG enable"),
+	  XE_RTP_RULES(MEDIA_VERSION(1300), ENGINE_CLASS(OTHER)),
+	  XE_RTP_ACTIONS(CLR(RING_PSMI_CTL(0),
+			     IDLE_MSG_DISABLE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)),
+			 FIELD_SET(RING_PWRCTX_MAXCNT(0),
+				   IDLE_WAIT_TIME,
+				   0xA,
+				   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	/* Enable Priority Mem Read */
+	{ XE_RTP_NAME("Priority_Mem_Read"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
+	  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1(0), CS_PRIORITY_MEM_READ,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+	{ XE_RTP_NAME("Enable CCS Engine(s)"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1255, XE_RTP_END_VERSION_UNDEFINED),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(SET(RCU_MODE, RCU_MODE_CCS_ENABLE))
+	},
+	/* Use Fixed slice CCS mode */
+	{ XE_RTP_NAME("RCU_MODE_FIXED_SLICE_CCS_MODE"),
+	  XE_RTP_RULES(FUNC(xe_hw_engine_match_fixed_cslice_mode)),
+	  XE_RTP_ACTIONS(FIELD_SET(RCU_MODE, RCU_MODE_FIXED_SLICE_CCS_MODE,
+				   RCU_MODE_FIXED_SLICE_CCS_MODE))
+	},
+	{ XE_RTP_NAME("Enable MSI-X interrupt support"),
+	  XE_RTP_RULES(FUNC(xe_rtp_match_has_msix)),
+	  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_MSIX_INTERRUPT_ENABLE,
+			     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
+	},
+);
+
 static void
 hw_engine_setup_default_state(struct xe_hw_engine *hwe)
 {
-	struct xe_gt *gt = hwe->gt;
-	struct xe_device *xe = gt_to_xe(gt);
-	/*
-	 * RING_CMD_CCTL specifies the default MOCS entry that will be
-	 * used by the command streamer when executing commands that
-	 * don't have a way to explicitly specify a MOCS setting.
-	 * The default should usually reference whichever MOCS entry
-	 * corresponds to uncached behavior, although use of a WB cached
-	 * entry is recommended by the spec in certain circumstances on
-	 * specific platforms.
-	 * Bspec: 72161
-	 */
-	const u8 mocs_write_idx = gt->mocs.uc_index;
-	const u8 mocs_read_idx = hwe->class == XE_ENGINE_CLASS_COMPUTE && IS_DGFX(xe) &&
-				 (GRAPHICS_VER(xe) >= 20 || xe->info.platform == XE_PVC) ?
-				 gt->mocs.wb_index : gt->mocs.uc_index;
-	u32 ring_cmd_cctl_val = REG_FIELD_PREP(CMD_CCTL_WRITE_OVERRIDE_MASK, mocs_write_idx) |
-				REG_FIELD_PREP(CMD_CCTL_READ_OVERRIDE_MASK, mocs_read_idx);
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
-	const struct xe_rtp_entry_sr engine_entries[] = {
-		{ XE_RTP_NAME("RING_CMD_CCTL_default_MOCS"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(FIELD_SET(RING_CMD_CCTL(0),
-					   CMD_CCTL_WRITE_OVERRIDE_MASK |
-					   CMD_CCTL_READ_OVERRIDE_MASK,
-					   ring_cmd_cctl_val,
-					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Disable HW status page updates for interrupts"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(SET(RING_HWSTAM(0), ~0x0,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Disable engine 'legacy' mode"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_always)),
-		  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_DISABLE_LEGACY_MODE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/*
-		 * To allow the GSC engine to go idle on MTL we need to enable
-		 * idle messaging and set the hysteresis value (we use 0xA=5us
-		 * as recommended in spec). On platforms after MTL this is
-		 * enabled by default.
-		 */
-		{ XE_RTP_NAME("MTL GSCCS IDLE MSG enable"),
-		  XE_RTP_RULES(MEDIA_VERSION(1300), ENGINE_CLASS(OTHER)),
-		  XE_RTP_ACTIONS(CLR(RING_PSMI_CTL(0),
-				     IDLE_MSG_DISABLE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)),
-				 FIELD_SET(RING_PWRCTX_MAXCNT(0),
-					   IDLE_WAIT_TIME,
-					   0xA,
-					   XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		/* Enable Priority Mem Read */
-		{ XE_RTP_NAME("Priority_Mem_Read"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(2001, XE_RTP_END_VERSION_UNDEFINED)),
-		  XE_RTP_ACTIONS(SET(CSFE_CHICKEN1(0), CS_PRIORITY_MEM_READ,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-		{ XE_RTP_NAME("Enable CCS Engine(s)"),
-		  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1255, XE_RTP_END_VERSION_UNDEFINED),
-			       FUNC(xe_rtp_match_first_render_or_compute)),
-		  XE_RTP_ACTIONS(SET(RCU_MODE, RCU_MODE_CCS_ENABLE))
-		},
-		/* Use Fixed slice CCS mode */
-		{ XE_RTP_NAME("RCU_MODE_FIXED_SLICE_CCS_MODE"),
-		  XE_RTP_RULES(FUNC(xe_hw_engine_match_fixed_cslice_mode)),
-		  XE_RTP_ACTIONS(FIELD_SET(RCU_MODE, RCU_MODE_FIXED_SLICE_CCS_MODE,
-					   RCU_MODE_FIXED_SLICE_CCS_MODE))
-		},
-		{ XE_RTP_NAME("Enable MSI-X interrupt support"),
-		  XE_RTP_RULES(FUNC(xe_rtp_match_has_msix)),
-		  XE_RTP_ACTIONS(SET(GFX_MODE(0), GFX_MSIX_INTERRUPT_ENABLE,
-				     XE_RTP_ACTION_FLAG(ENGINE_BASE)))
-		},
-	};
 
-	xe_rtp_process_to_sr(&ctx, engine_entries, ARRAY_SIZE(engine_entries),
-			     &hwe->reg_sr, false);
+	xe_rtp_process_to_sr(&ctx, &engine_sr, &hwe->reg_sr, false);
 }
 
 static const struct engine_info *find_engine_info(enum xe_engine_class class, int instance)
@@ -574,6 +580,8 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 	hw_engine_setup_default_state(hwe);
 
 	xe_reg_sr_init(&hwe->reg_whitelist, hwe->name, gt_to_xe(gt));
+	xe_reg_sr_init(&hwe->oa_whitelist, hwe->name, gt_to_xe(gt));
+	xe_reg_sr_init(&hwe->oa_sr, hwe->name, gt_to_xe(gt));
 	xe_reg_whitelist_process_engine(hwe);
 }
 
@@ -628,7 +636,7 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		hwe->exl_port = xe_execlist_port_create(xe, hwe);
 		if (IS_ERR(hwe->exl_port)) {
 			err = PTR_ERR(hwe->exl_port);
-			goto err_hwsp;
+			goto err_name;
 		}
 	} else {
 		/* GSCCS has a special interrupt for reset */
@@ -648,8 +656,6 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 
 	return devm_add_action_or_reset(xe->drm.dev, hw_engine_fini, hwe);
 
-err_hwsp:
-	xe_bo_unpin_map_no_vm(hwe->hwsp);
 err_name:
 	hwe->name = NULL;
 

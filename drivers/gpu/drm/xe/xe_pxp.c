@@ -59,6 +59,7 @@ bool xe_pxp_is_enabled(const struct xe_pxp *pxp)
 static bool pxp_prerequisites_done(const struct xe_pxp *pxp)
 {
 	struct xe_gt *gt = pxp->gt;
+	bool huc_ok;
 	bool ready;
 
 	CLASS(xe_force_wake, fw_ref)(gt_to_fw(gt), XE_FORCEWAKE_ALL);
@@ -73,9 +74,14 @@ static bool pxp_prerequisites_done(const struct xe_pxp *pxp)
 	 */
 	XE_WARN_ON(!xe_force_wake_ref_has_domain(fw_ref.domains, XE_FORCEWAKE_ALL));
 
-	/* PXP requires both HuC authentication via GSC and GSC proxy initialized */
-	ready = xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC) &&
-		xe_gsc_proxy_init_done(&gt->uc.gsc);
+	/*
+	 * PXP requires GSC proxy to be initialized. On platforms where the HuC
+	 * is loaded by the kernel driver (i.e., pre media 35) PXP also requires
+	 * the HuC to be authenticated by GSC.
+	 */
+	huc_ok = MEDIA_VER(gt_to_xe(gt)) >= 35 ||
+		 xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC);
+	ready = huc_ok && xe_gsc_proxy_init_done(&gt->uc.gsc);
 
 	return ready;
 }
@@ -97,9 +103,13 @@ int xe_pxp_get_readiness_status(struct xe_pxp *pxp)
 	if (!xe_pxp_is_enabled(pxp))
 		return -ENODEV;
 
-	/* if the GSC or HuC FW are in an error state, PXP will never work */
-	if (xe_uc_fw_status_to_error(pxp->gt->uc.huc.fw.status) ||
-	    xe_uc_fw_status_to_error(pxp->gt->uc.gsc.fw.status))
+	/* If the GSC FW is in an error state, PXP will never work */
+	if (xe_uc_fw_status_to_error(pxp->gt->uc.gsc.fw.status))
+		return -EIO;
+
+	/* Same for HuC FW, but only if the kernel owns HuC-loading (i.e. pre-NVL) */
+	if (MEDIA_VER(gt_to_xe(pxp->gt)) < 35 &&
+	    xe_uc_fw_status_to_error(pxp->gt->uc.huc.fw.status))
 		return -EIO;
 
 	guard(xe_pm_runtime)(pxp->xe);
@@ -361,6 +371,7 @@ static void pxp_fini(void *arg)
 int xe_pxp_init(struct xe_device *xe)
 {
 	struct xe_gt *gt = xe->tiles[0].media_gt;
+	bool gsc_ok, huc_ok;
 	struct xe_pxp *pxp;
 	int err;
 
@@ -375,10 +386,14 @@ int xe_pxp_init(struct xe_device *xe)
 	if (!(gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0)))
 		return 0;
 
-	/* PXP requires both GSC and HuC firmwares to be available */
-	if (!xe_uc_fw_is_loadable(&gt->uc.gsc.fw) ||
-	    !xe_uc_fw_is_loadable(&gt->uc.huc.fw)) {
-		drm_info(&xe->drm, "skipping PXP init due to missing FW dependencies");
+	/* PXP requires GSC FW to be available. Pre-NVL it also requires HuC FW */
+	gsc_ok = xe_uc_fw_is_loadable(&gt->uc.gsc.fw);
+	huc_ok = MEDIA_VER(xe) >= 35 || xe_uc_fw_is_loadable(&gt->uc.huc.fw);
+
+	if (!gsc_ok || !huc_ok) {
+		drm_info(&xe->drm, "Skipping PXP due to unsatisfied FW deps - GSC=%s, HuC=%s\n",
+			 str_yes_no(gsc_ok),
+			 MEDIA_VER(xe) >= 35 ? "not needed" : str_yes_no(huc_ok));
 		return 0;
 	}
 

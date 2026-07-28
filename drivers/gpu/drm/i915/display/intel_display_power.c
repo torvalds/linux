@@ -14,7 +14,9 @@
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
 #include "intel_combo_phy.h"
+#include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display.h"
 #include "intel_display_power.h"
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"
@@ -30,6 +32,8 @@
 #include "intel_pch_refclk.h"
 #include "intel_pmdemand.h"
 #include "intel_pps_regs.h"
+#include "intel_psr.h"
+#include "intel_psr_regs.h"
 #include "intel_snps_phy.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
@@ -267,7 +271,7 @@ sanitize_target_dc_state(struct intel_display *display,
 	static const u32 states[] = {
 		DC_STATE_EN_UPTO_DC6,
 		DC_STATE_EN_UPTO_DC5,
-		DC_STATE_EN_DC3CO,
+		DC_STATE_EN_UPTO_DC3CO,
 		DC_STATE_DISABLE,
 	};
 	int i;
@@ -285,6 +289,19 @@ sanitize_target_dc_state(struct intel_display *display,
 	return target_dc_state;
 }
 
+bool intel_display_power_get_and_reset_dc3co_to_dc6(struct intel_display *display)
+{
+	struct i915_power_domains *power_domains = &display->power.domains;
+	bool ret;
+
+	mutex_lock(&power_domains->lock);
+	ret = power_domains->dc3co_to_dc6;
+	power_domains->dc3co_to_dc6 = false;
+	mutex_unlock(&power_domains->lock);
+
+	return ret;
+}
+
 /**
  * intel_display_power_set_target_dc_state - Set target dc state.
  * @display: display device
@@ -300,6 +317,7 @@ void intel_display_power_set_target_dc_state(struct intel_display *display,
 	struct i915_power_well *power_well;
 	bool dc_off_enabled;
 	struct i915_power_domains *power_domains = &display->power.domains;
+	u32 old_target_dc_state;
 
 	mutex_lock(&power_domains->lock);
 	power_well = lookup_power_well(display, SKL_DISP_DC_OFF);
@@ -320,7 +338,16 @@ void intel_display_power_set_target_dc_state(struct intel_display *display,
 	if (!dc_off_enabled)
 		intel_power_well_enable(display, power_well);
 
+	old_target_dc_state =  power_domains->target_dc_state;
 	power_domains->target_dc_state = state;
+
+	/*
+	 * CMTG must be restored explicitly after DC6 exit. The dc3co_to_dc6
+	 * flag helps CMTG determine whether restoration is required.
+	 */
+	if (old_target_dc_state == DC_STATE_EN_UPTO_DC3CO &&
+	    power_domains->target_dc_state == DC_STATE_EN_UPTO_DC6)
+		power_domains->dc3co_to_dc6 = true;
 
 	if (!dc_off_enabled)
 		intel_power_well_disable(display, power_well);
@@ -356,6 +383,144 @@ unlock:
 	mutex_unlock(&power_domains->lock);
 
 	return current_dc_state;
+}
+
+bool intel_display_power_dc3co_supported(struct intel_display *display)
+{
+	struct i915_power_domains *power_domains = &display->power.domains;
+
+	if (!HAS_DC3CO(display))
+		return false;
+
+	return (power_domains->allowed_dc_mask & DC_STATE_EN_UPTO_DC3CO) == DC_STATE_EN_UPTO_DC3CO;
+}
+
+bool intel_display_power_dc3co_allowed(struct intel_display *display)
+{
+	struct intel_dc3co_state *dc3co = &display->power.dc3co;
+	bool allowed;
+
+	if (!intel_display_power_dc3co_supported(display))
+		return false;
+
+	mutex_lock(&dc3co->lock);
+	allowed = dc3co->allowed;
+	mutex_unlock(&dc3co->lock);
+
+	return allowed;
+}
+
+void intel_display_power_dc3co_update(struct intel_display *display, u32 trigger)
+{
+	struct intel_dc3co_state *dc3co = &display->power.dc3co;
+
+	if (!intel_display_power_dc3co_supported(display))
+		return;
+
+	mutex_lock(&dc3co->lock);
+	dc3co->trigger = trigger;
+	dc3co->allowed = !!trigger;
+	mutex_unlock(&dc3co->lock);
+}
+
+static bool intel_dc3co_port_pipe_compatible(struct intel_dp *intel_dp,
+					     const struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
+	enum port port = dig_port->base.port;
+	int num_pipes = intel_crtc_num_joined_pipes(crtc_state);
+
+	/* Need to follow 1:1 mapping because of CMTG restriction */
+	if (DISPLAY_VER(to_intel_display(crtc_state)) == 35)
+		return num_pipes == 1 &&
+		       ((pipe == PIPE_A && port == PORT_A) ||
+			(pipe == PIPE_B && port == PORT_B));
+	else
+		return num_pipes == 1 && pipe <= PIPE_B && port <= PORT_B;
+}
+
+void intel_display_power_dc3co_compute(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
+	struct intel_encoder *encoder;
+	struct intel_dp *intel_dp;
+	u8 active_pipes = 0;
+	enum pipe pipe;
+	u32 trigger = DC3CO_TRIGGER_NONE;
+
+	if (!intel_display_power_dc3co_supported(display))
+		return;
+
+	for_each_intel_crtc(display, crtc)
+		active_pipes |= crtc->active ? BIT(crtc->pipe) : 0;
+
+	active_pipes = intel_calc_active_pipes(state, active_pipes);
+
+	if (hweight8(active_pipes) != 1)
+		goto done;
+
+	pipe = ffs(active_pipes) - 1;
+	crtc = intel_crtc_for_pipe(display, pipe);
+
+	crtc_state = to_intel_crtc_state(crtc->base.state);
+
+	for_each_intel_encoder_mask(display->drm, encoder,
+				    crtc_state->uapi.encoder_mask) {
+		if (encoder->type != INTEL_OUTPUT_EDP)
+			goto done;
+
+		intel_dp = enc_to_intel_dp(encoder);
+
+		if (!intel_dc3co_port_pipe_compatible(intel_dp, crtc_state))
+			goto done;
+
+		if (intel_psr2_in_deep_sleep(intel_dp))
+			goto done;
+	}
+
+	if (crtc_state->has_lobf)
+		trigger |= DC3CO_TRIGGER_LOBF;
+	if (crtc_state->has_panel_replay && intel_dp->as_sdp_supported)
+		trigger |= DC3CO_TRIGGER_PANEL_REPLAY;
+	if (crtc_state->has_sel_update)
+		trigger |= DC3CO_TRIGGER_PSR2;
+
+done:
+	intel_display_power_dc3co_update(display, trigger);
+}
+
+/*
+ * Select the target DC state for this commit and return the async-put delay
+ * to use when releasing the DC_OFF reference.
+ *
+ * Picks DC_STATE_EN_UPTO_DC3CO when DC3CO can be enabled
+ * otherwise falls back to default DC state of DC_STATE_EN_UPTO_DC6.
+ * The chosen target is programmed via intel_display_power_set_target_dc_state().
+ *
+ * Returns the async-put delay (in ms) to use when releasing the DC_OFF
+ * reference: DC3CO_PUT_ASYNC_DELAY_MS when DC3CO was selected, otherwise
+ * DC6_PUT_ASYNC_DELAY_MS.
+ */
+int intel_display_power_select_target_dc_state(struct intel_atomic_state *state)
+{
+	struct intel_display *display = to_intel_display(state);
+	u32 target_dc_state;
+
+	if (!intel_display_power_dc3co_supported(display))
+		return DC6_PUT_ASYNC_DELAY_MS;
+
+	if (intel_display_power_dc3co_allowed(display))
+		target_dc_state = DC_STATE_EN_UPTO_DC3CO;
+	else
+		target_dc_state = DC_STATE_EN_UPTO_DC6;
+
+	intel_display_power_set_target_dc_state(display, target_dc_state);
+
+	return target_dc_state == DC_STATE_EN_UPTO_DC3CO ?
+		DC3CO_PUT_ASYNC_DELAY_MS : DC6_PUT_ASYNC_DELAY_MS;
 }
 
 static void __async_put_domains_mask(struct i915_power_domains *power_domains,
@@ -956,7 +1121,9 @@ static u32 get_allowed_dc_mask(struct intel_display *display, int enable_dc)
 	if (!HAS_DISPLAY(display))
 		return 0;
 
-	if (DISPLAY_VER(display) >= 20)
+	if (DISPLAY_VER(display) >= 35)
+		max_dc = 4;
+	else if (DISPLAY_VER(display) >= 20)
 		max_dc = 2;
 	else if (display->platform.dg2)
 		max_dc = 1;
@@ -999,10 +1166,10 @@ static u32 get_allowed_dc_mask(struct intel_display *display, int enable_dc)
 
 	switch (requested_dc) {
 	case 4:
-		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6;
+		mask |= DC_STATE_EN_UPTO_DC3CO | DC_STATE_EN_UPTO_DC6;
 		break;
 	case 3:
-		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC5;
+		mask |= DC_STATE_EN_UPTO_DC3CO | DC_STATE_EN_UPTO_DC5;
 		break;
 	case 2:
 		mask |= DC_STATE_EN_UPTO_DC6;
@@ -1037,6 +1204,7 @@ int intel_display_power_init(struct intel_display *display)
 		sanitize_target_dc_state(display, DC_STATE_EN_UPTO_DC6);
 
 	mutex_init(&power_domains->lock);
+	mutex_init(&display->power.dc3co.lock);
 
 	INIT_DELAYED_WORK(&power_domains->async_put_work,
 			  intel_display_power_put_async_work);
@@ -1634,9 +1802,12 @@ static void tgl_bw_buddy_init(struct intel_display *display)
 	if (table[config].page_mask == 0) {
 		drm_dbg_kms(display->drm,
 			    "Unknown memory configuration; disabling address buddy logic.\n");
-		for_each_set_bit(i, &abox_mask, BITS_PER_TYPE(abox_mask))
-			intel_de_write(display, BW_BUDDY_CTL(i),
-				       BW_BUDDY_DISABLE);
+
+		if (DISPLAY_VER(display) < 20) {
+			for_each_set_bit(i, &abox_mask, BITS_PER_TYPE(abox_mask))
+				intel_de_write(display, BW_BUDDY_CTL(i),
+					       BW_BUDDY_DISABLE);
+		}
 	} else {
 		for_each_set_bit(i, &abox_mask, BITS_PER_TYPE(abox_mask)) {
 			intel_de_write(display, BW_BUDDY_PAGE_MASK(i),

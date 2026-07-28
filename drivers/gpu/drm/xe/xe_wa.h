@@ -6,6 +6,7 @@
 #ifndef _XE_WA_H_
 #define _XE_WA_H_
 
+#include <kunit/visibility.h>
 #include "xe_assert.h"
 
 struct drm_printer;
@@ -23,6 +24,12 @@ void xe_wa_process_lrc(struct xe_hw_engine *hwe);
 void xe_wa_apply_tile_workarounds(struct xe_tile *tile);
 void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p);
 int xe_wa_gt_dump(struct xe_gt *gt, struct drm_printer *p);
+
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+extern const struct xe_rtp_table_sr gt_was;
+extern __maybe_unused const struct xe_rtp_table oob_was;
+extern __maybe_unused const struct xe_rtp_table device_oob_was;
+#endif
 
 /**
  * XE_GT_WA - Out-of-band GT workarounds, to be queried and called as needed.

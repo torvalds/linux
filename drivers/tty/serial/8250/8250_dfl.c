@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 
 #include <linux/serial.h>

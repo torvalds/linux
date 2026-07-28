@@ -303,6 +303,190 @@ bool cm3_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 	return true;
 }
 
+/* Linear interpolation of tf_pts entries, where (i >> 4) is the integer tf_pts
+ * index, (i & 0xf) is the 1/16 sub-position.
+ */
+static struct fixed31_32 interp_tf_pts(const struct fixed31_32 *output_tf_channel, int i)
+{
+	struct fixed31_32 in_plus_one, in, value;
+	uint32_t t = i & 0xf;
+
+	in_plus_one = output_tf_channel[(i >> 4) + 1];
+	in = output_tf_channel[i >> 4];
+	value = dc_fixpt_sub(in_plus_one, in);
+	value = dc_fixpt_shr(dc_fixpt_mul_int(value, t), 4);
+	value = dc_fixpt_add(in, value);
+
+	return value;
+}
+
+bool cm3_helper_translate_curve_to_degamma_hw_format(
+				const struct dc_transfer_func *output_tf,
+				struct pwl_params *lut_params)
+{
+	struct curve_points3 *corner_points;
+	struct pwl_result_data *rgb_resulted;
+	struct pwl_result_data *rgb;
+	struct pwl_result_data *rgb_plus_1;
+
+	int32_t region_start, region_end;
+	int32_t i;
+	uint32_t j, k, seg_distr[MAX_REGIONS_NUMBER], increment, start_index, hw_points;
+
+	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
+		return false;
+
+	corner_points = lut_params->corner_points;
+	rgb_resulted = lut_params->rgb_resulted;
+	hw_points = 0;
+
+	memset(lut_params, 0, sizeof(struct pwl_params));
+	memset(seg_distr, 0, sizeof(seg_distr));
+
+	if (output_tf->tf == TRANSFER_FUNCTION_PQ ||
+	    output_tf->tf == TRANSFER_FUNCTION_SRGB) {
+		/* 9 segments
+		 * segments are from 2^-9 to 0
+		 */
+		const uint8_t SEG_COUNT = 9;
+		seg_distr[0] = 0; // Since we only have one point in darkest region
+		for (k = 1; k < SEG_COUNT; k++)
+			seg_distr[k] = k - 1; // 2^(k-1) points per region; halves as k decreases
+
+		region_start = -SEG_COUNT;
+		region_end = 0;
+	} else {
+		/* 12 segments
+		 * segments are from 2^-12 to 2^0
+		 * There are less than 256 points, for optimization
+		 */
+		const uint8_t SEG_COUNT = 12;
+
+		for (i = 0; i < SEG_COUNT; i++)
+			seg_distr[i] = 4;
+
+		region_start = -SEG_COUNT;
+		region_end = 0;
+	}
+
+	for (i = region_end - region_start; i < MAX_REGIONS_NUMBER ; i++)
+		seg_distr[i] = -1;
+
+	for (k = 0; k < MAX_REGIONS_NUMBER; k++) {
+		if (seg_distr[k] != -1)
+			hw_points += (1 << seg_distr[k]);
+	}
+
+	j = 0;
+	for (k = 0; k < (region_end - region_start); k++) {
+		increment = (NUMBER_SW_SEGMENTS << 4) / (1 << seg_distr[k]);
+		start_index = (region_start + k + MAX_LOW_POINT) *
+				NUMBER_SW_SEGMENTS;
+		for (i = (start_index << 4);
+		     i < (start_index << 4) + (NUMBER_SW_SEGMENTS << 4);
+		     i += increment) {
+			if (j == hw_points - 1)
+				break;
+			if ((i >> 4) + 1 >= TRANSFER_FUNC_POINTS)
+				return false;
+
+			rgb_resulted[j].red = interp_tf_pts(output_tf->tf_pts.red, i);
+			rgb_resulted[j].green = interp_tf_pts(output_tf->tf_pts.green, i);
+			rgb_resulted[j].blue = interp_tf_pts(output_tf->tf_pts.blue, i);
+			j++;
+		}
+	}
+
+	/* last point */
+	start_index = (region_end + MAX_LOW_POINT) * NUMBER_SW_SEGMENTS;
+	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
+
+	corner_points[0].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
+					     dc_fixpt_from_int(region_start));
+	corner_points[0].green.x = corner_points[0].red.x;
+	corner_points[0].blue.x = corner_points[0].red.x;
+	corner_points[1].red.x = dc_fixpt_pow(dc_fixpt_from_int(2),
+					     dc_fixpt_from_int(region_end));
+	corner_points[1].green.x = corner_points[1].red.x;
+	corner_points[1].blue.x = corner_points[1].red.x;
+
+	corner_points[0].red.y = rgb_resulted[0].red;
+	corner_points[0].green.y = rgb_resulted[0].green;
+	corner_points[0].blue.y = rgb_resulted[0].blue;
+
+	/* see comment above, m_arrPoints[1].y should be the Y value for the
+	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
+	 */
+	corner_points[1].red.y = rgb_resulted[hw_points - 1].red;
+	corner_points[1].green.y = rgb_resulted[hw_points - 1].green;
+	corner_points[1].blue.y = rgb_resulted[hw_points - 1].blue;
+	corner_points[1].red.slope = dc_fixpt_zero;
+	corner_points[1].green.slope = dc_fixpt_zero;
+	corner_points[1].blue.slope = dc_fixpt_zero;
+
+	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
+		/* for PQ, we want to have a straight line from last HW X point,
+		 * and the slope to be such that we hit 1.0 at 10000 nits.
+		 */
+		const struct fixed31_32 end_value =
+				dc_fixpt_from_int(125);
+
+		corner_points[1].red.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].red.y),
+			dc_fixpt_sub(end_value, corner_points[1].red.x));
+		corner_points[1].green.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].green.y),
+			dc_fixpt_sub(end_value, corner_points[1].green.x));
+		corner_points[1].blue.slope = dc_fixpt_div(
+			dc_fixpt_sub(dc_fixpt_one, corner_points[1].blue.y),
+			dc_fixpt_sub(end_value, corner_points[1].blue.x));
+	}
+
+	lut_params->hw_points_num = hw_points;
+
+	k = 0;
+	for (i = 1; i < MAX_REGIONS_NUMBER; i++) {
+		if (seg_distr[k] != -1) {
+			lut_params->arr_curve_points[k].segments_num =
+					seg_distr[k];
+			lut_params->arr_curve_points[i].offset =
+					lut_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
+		}
+		k++;
+	}
+
+	if (seg_distr[k] != -1)
+		lut_params->arr_curve_points[k].segments_num = seg_distr[k];
+
+	rgb = rgb_resulted;
+	rgb_plus_1 = rgb_resulted + 1;
+
+	i = 1;
+	while (i != hw_points + 1) {
+		if (dc_fixpt_lt(rgb_plus_1->red, rgb->red))
+			rgb_plus_1->red = rgb->red;
+		if (dc_fixpt_lt(rgb_plus_1->green, rgb->green))
+			rgb_plus_1->green = rgb->green;
+		if (dc_fixpt_lt(rgb_plus_1->blue, rgb->blue))
+			rgb_plus_1->blue = rgb->blue;
+
+		rgb->delta_red   = dc_fixpt_sub(rgb_plus_1->red,   rgb->red);
+		rgb->delta_green = dc_fixpt_sub(rgb_plus_1->green, rgb->green);
+		rgb->delta_blue  = dc_fixpt_sub(rgb_plus_1->blue,  rgb->blue);
+
+		++rgb_plus_1;
+		++rgb;
+		++i;
+	}
+	cm3_helper_convert_to_custom_float(rgb_resulted,
+						lut_params->corner_points,
+						hw_points, false);
+
+	return true;
+}
+
 bool cm3_helper_convert_to_custom_float(
 		struct pwl_result_data *rgb_resulted,
 		struct curve_points3 *corner_points,

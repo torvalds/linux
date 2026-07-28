@@ -155,6 +155,7 @@ extern "C" {
 /* Panel type property */
 #define DRM_MODE_PANEL_TYPE_UNKNOWN	0
 #define DRM_MODE_PANEL_TYPE_OLED	1
+#define DRM_MODE_PANEL_TYPE_LCD		2
 
 /*
  * DRM_MODE_ROTATE_<degrees>

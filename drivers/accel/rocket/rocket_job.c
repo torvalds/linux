@@ -8,6 +8,7 @@
 #include <drm/drm_gem.h>
 #include <drm/rocket_accel.h>
 #include <linux/interrupt.h>
+#include <linux/overflow.h>
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -102,6 +103,7 @@ rocket_copy_tasks(struct drm_device *dev,
 
 fail:
 	kvfree(rjob->tasks);
+	rjob->tasks = NULL;
 	return ret;
 }
 
@@ -188,14 +190,19 @@ static int rocket_job_push(struct rocket_job *job)
 	struct rocket_device *rdev = job->rdev;
 	struct drm_gem_object **bos;
 	struct ww_acquire_ctx acquire_ctx;
+	u32 bo_count;
 	int ret = 0;
 
-	bos = kvmalloc_array(job->in_bo_count + job->out_bo_count, sizeof(void *),
-			     GFP_KERNEL);
+	if (check_add_overflow(job->in_bo_count, job->out_bo_count, &bo_count))
+		return -EINVAL;
+
+	bos = kvmalloc_array(bo_count, sizeof(*bos), GFP_KERNEL);
+	if (!bos)
+		return -ENOMEM;
 	memcpy(bos, job->in_bos, job->in_bo_count * sizeof(void *));
 	memcpy(&bos[job->in_bo_count], job->out_bos, job->out_bo_count * sizeof(void *));
 
-	ret = drm_gem_lock_reservations(bos, job->in_bo_count + job->out_bo_count, &acquire_ctx);
+	ret = drm_gem_lock_reservations(bos, bo_count, &acquire_ctx);
 	if (ret)
 		goto err;
 
@@ -220,7 +227,7 @@ static int rocket_job_push(struct rocket_job *job)
 	rocket_attach_object_fences(job->out_bos, job->out_bo_count, job->inference_done_fence);
 
 err_unlock:
-	drm_gem_unlock_reservations(bos, job->in_bo_count + job->out_bo_count, &acquire_ctx);
+	drm_gem_unlock_reservations(bos, bo_count, &acquire_ctx);
 err:
 	kvfree(bos);
 
@@ -310,13 +317,13 @@ static struct dma_fence *rocket_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->done_fence);
 	job->done_fence = dma_fence_get(fence);
 
-	ret = pm_runtime_get_sync(core->dev);
+	ret = pm_runtime_resume_and_get(core->dev);
 	if (ret < 0)
-		return fence;
+		goto err_put_fences;
 
 	ret = iommu_attach_group(job->domain->domain, core->iommu_group);
 	if (ret < 0)
-		return fence;
+		goto err_put_pm;
 
 	scoped_guard(mutex, &core->job_lock) {
 		core->in_flight_job = job;
@@ -324,6 +331,14 @@ static struct dma_fence *rocket_job_run(struct drm_sched_job *sched_job)
 	}
 
 	return fence;
+
+err_put_pm:
+	pm_runtime_put(core->dev);
+err_put_fences:
+	dma_fence_put(job->done_fence);
+	job->done_fence = NULL;
+	dma_fence_put(fence);
+	return ERR_PTR(ret);
 }
 
 static void rocket_job_handle_irq(struct rocket_core *core)
@@ -548,6 +563,7 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 	kref_init(&rjob->refcount);
 
 	rjob->rdev = rdev;
+	rjob->domain = rocket_iommu_domain_get(file_priv);
 
 	ret = drm_sched_job_init(&rjob->base,
 				 &file_priv->sched_entity,
@@ -572,8 +588,6 @@ static int rocket_ioctl_submit_job(struct drm_device *dev, struct drm_file *file
 		goto out_cleanup_job;
 
 	rjob->out_bo_count = job->out_bo_handle_count;
-
-	rjob->domain = rocket_iommu_domain_get(file_priv);
 
 	ret = rocket_job_push(rjob);
 	if (ret)

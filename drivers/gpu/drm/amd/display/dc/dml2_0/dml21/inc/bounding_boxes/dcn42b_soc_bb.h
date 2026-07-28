@@ -75,7 +75,7 @@ static const struct dml2_soc_bb dml2_socbb_dcn42b = {
 				.clk_values_khz = {2},
 		},
 		.uclk = {
-				.clk_values_khz = {400000},
+				.clk_values_khz = {2400000},
 				.num_clk_values = 1,
 		},
 		.fclk = {
@@ -222,6 +222,44 @@ static const struct dml2_soc_bb dml2_socbb_dcn42b = {
 	.mcache_size_bytes = 0,
 	.mcache_line_size_bytes = 0,
 	.max_fclk_for_uclk_dpm_khz = 2200 * 1000,
+};
+
+static const struct dml2_ip_capabilities dml2_dcn42b_max_ip_caps = {
+	.pipe_count = 4,
+	.otg_count = 3,
+	.num_dsc = 3,
+	.max_num_dp2p0_streams = 3,
+	.max_num_hdmi_frl_outputs = 0,
+	.max_num_dp2p0_outputs = 2,
+	.rob_buffer_size_kbytes = 64,
+	.config_return_buffer_size_in_kbytes = 1792,
+	.config_return_buffer_segment_size_in_kbytes = 64,
+	.meta_fifo_size_in_kentries = 32,
+	.compressed_buffer_segment_size_in_kbytes = 64,
+	.cursor_buffer_size = 24,
+	.max_flip_time_us = 110,
+	.max_flip_time_lines = 50,
+	.hostvm_mode = 0,
+	.subvp_drr_scheduling_margin_us = 100,
+	.subvp_prefetch_end_to_mall_start_us = 15,
+	.subvp_fw_processing_delay = 15,
+	.max_vactive_det_fill_delay_us = 400,
+
+	.fams2 = {
+		.max_allow_delay_us = 100 * 1000,
+		.scheduling_delay_us = 550,
+		.vertical_interrupt_ack_delay_us = 40,
+		.allow_programming_delay_us = 18,
+		.min_allow_width_us = 20,
+		.subvp_df_throttle_delay_us = 100,
+		.subvp_programming_delay_us = 200,
+		.subvp_prefetch_to_mall_delay_us = 18,
+		.drr_programming_delay_us = 35,
+
+		.lock_timeout_us = 5000,
+		.recovery_timeout_us = 5000,
+		.flip_programming_delay_us = 300,
+	},
 };
 
 #endif

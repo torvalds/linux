@@ -239,11 +239,13 @@ bool dcn30_set_blend_lut(
 	bool result = true;
 	const struct pwl_params *blend_lut = NULL;
 
-	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
-		blend_lut = &plane_state->blend_tf.pwl;
-	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
+	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
+		blend_lut = &plane_state->cm.blend_func.pwl;
+	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		result = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
-				&plane_state->blend_tf, &dpp_base->regamma_params, false);
+				&plane_state->cm.blend_func,
+				&dpp_base->regamma_params,
+				false);
 		if (!result)
 			return result;
 

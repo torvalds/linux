@@ -203,10 +203,6 @@ int smu_v14_0_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_v14_0_set_default_dpm_tables(struct smu_context *smu);
 
-int smu_v14_0_get_pptable_from_firmware(struct smu_context *smu,
-					void **table,
-					uint32_t *size,
-					uint32_t pptable_id);
 
 int smu_v14_0_od_edit_dpm_table(struct smu_context *smu,
 			enum PP_OD_DPM_TABLE_COMMAND type,

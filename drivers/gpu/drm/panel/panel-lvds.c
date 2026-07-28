@@ -126,7 +126,7 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 	struct device_node *np = lvds->dev->of_node;
 	int ret;
 
-	ret = of_drm_get_panel_orientation(np, &lvds->orientation);
+	ret = drm_of_get_panel_orientation(np, &lvds->orientation);
 	if (ret < 0) {
 		dev_err(lvds->dev, "%pOF: failed to get orientation %d\n", np, ret);
 		return ret;

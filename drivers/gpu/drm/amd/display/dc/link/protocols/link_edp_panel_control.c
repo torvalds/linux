@@ -29,6 +29,7 @@
  */
 
 #include "link_edp_panel_control.h"
+#include "link_ddc.h"
 #include "link_dpcd.h"
 #include "link_dp_capability.h"
 #include "dm_helpers.h"
@@ -160,9 +161,7 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 	if (link->is_dds && !link->dpcd_caps.panel_luminance_control)
 		return true;
 
-	// use internal backlight control if dmub capabilities are not present
-	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
-		!link->dc->caps.dmub_caps.aux_backlight_support) {
+	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX) {
 		uint8_t backlight_enable = 0;
 		struct target_luminance_value *target_luminance = NULL;
 
@@ -272,10 +271,11 @@ bool edp_backlight_enable_aux(struct dc_link *link, bool enable)
 
 	if (link->is_dds)
 		return true;
-	if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_ENABLE,
-		&backlight_enable, 1) != DC_OK)
-		return false;
-
+	if (!link->dpcd_caps.panel_luminance_control) {
+		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_ENABLE,
+			&backlight_enable, 1) != DC_OK)
+			return false;
+	}
 	return true;
 }
 
@@ -788,10 +788,7 @@ bool edp_setup_psr(struct dc_link *link,
 		}
 	}
 
-	if (dc->config.dp_connector_no_native_i2c && link->no_ddc_pin)
-		psr_context->channel = (enum channel_id)link->aux_hw_inst;
-	else
-		psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
+	psr_context->channel = link_get_ddc_aux_inst(link);
 	psr_context->transmitterId = link->link_enc->transmitter;
 	psr_context->engineId = link->link_enc->preferred_engine;
 
@@ -1024,7 +1021,7 @@ bool edp_setup_freesync_replay(struct dc_link *link, const struct dc_stream_stat
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	replay_context.aux_inst = link->ddc->ddc_pin->hw_info.ddc_channel;
+	replay_context.aux_inst = link_get_ddc_aux_inst(link);
 	replay_context.digbe_inst = link->link_enc->transmitter;
 	replay_context.digfe_inst = link->link_enc->preferred_engine;
 

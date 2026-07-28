@@ -42,7 +42,7 @@ static void test_sanitycheck(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_fence_signal(f);
 	dma_fence_put(f);
@@ -55,7 +55,7 @@ static void test_signaling(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	if (dma_fence_is_signaled(f)) {
 		KUNIT_FAIL(test, "Fence unexpectedly signaled on creation");
@@ -127,7 +127,7 @@ static void test_late_add_callback(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_fence_signal(f);
 
@@ -209,7 +209,7 @@ static void test_status(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	if (dma_fence_get_status(f)) {
 		KUNIT_FAIL(test, "Fence unexpectedly has signaled status on creation");
@@ -233,7 +233,7 @@ static void test_error(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	dma_fence_set_error(f, -EIO);
 
@@ -260,7 +260,7 @@ static void test_wait(struct kunit *test)
 	f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, f);
 
-	dma_fence_enable_sw_signaling(f);
+	dma_fence_enable_signaling(f);
 
 	if (dma_fence_wait_timeout(f, false, 0) != 0) {
 		KUNIT_FAIL(test, "Wait reported complete before being signaled");
@@ -300,7 +300,7 @@ static void test_wait_timeout(struct kunit *test)
 	wt.f = mock_fence();
 	KUNIT_ASSERT_NOT_NULL(test, wt.f);
 
-	dma_fence_enable_sw_signaling(wt.f);
+	dma_fence_enable_signaling(wt.f);
 
 	if (dma_fence_wait_timeout(wt.f, false, 1) != 0) {
 		KUNIT_FAIL(test, "Wait reported complete before being signaled");
@@ -379,7 +379,7 @@ static int thread_signal_callback(void *arg)
 			break;
 		}
 
-		dma_fence_enable_sw_signaling(f1);
+		dma_fence_enable_signaling(f1);
 
 		rcu_assign_pointer(t->fences[t->id], f1);
 		smp_wmb();

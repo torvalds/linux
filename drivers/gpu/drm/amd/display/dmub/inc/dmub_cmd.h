@@ -246,14 +246,14 @@
  * OS/FW agnostic memcpy
  */
 #ifndef dmub_memcpy
-#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
+#define dmub_memcpy(dest, source, bytes) ((void)memcpy((dest), (source), (bytes)))
 #endif
 
 /**
  * OS/FW agnostic memset
  */
 #ifndef dmub_memset
-#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#define dmub_memset(dest, val, bytes) ((void)memset((dest), (val), (bytes)))
 #endif
 
 /**
@@ -1702,6 +1702,17 @@ enum dmub_gpint_command {
 	 * ARGS: 1 - Power off
 	 */
 	DMUB_GPINT__PANEL_POWER_OFF_SEQ = 138,
+	/**
+	 * DESC: Gets panel polarity bias.
+	 * ARGS: 0 - Get panel polarity bias
+	 */
+	DMUB_GPINT__PANEL_POLARITY_GET_BIAS = 139,
+	/**
+	 * DESC: Enables panel polarity.
+	 * ARGS: 0 - Disable panel polarity
+	 *       1 - Enable panel polarity
+	 */
+	DMUB_GPINT__PANEL_POLARITY_DEBUG_ENABLE = 140,
 };
 
 /**
@@ -1800,28 +1811,13 @@ enum dmub_inbox0_command {
  *
  * Command IDs should be treated as stable ABI.
  * Do not reuse or modify IDs.
+ * Note that command IDs 1-4 have been deprecated.
  */
 enum dmub_cmd_type {
 	/**
 	 * Invalid command.
 	 */
 	DMUB_CMD__NULL = 0,
-	/**
-	 * Read modify write register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE = 1,
-	/**
-	 * Field update register sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ = 2,
-	/**
-	 * Burst write sequence offload.
-	 */
-	DMUB_CMD__REG_SEQ_BURST_WRITE = 3,
-	/**
-	 * Reg wait sequence offload.
-	 */
-	DMUB_CMD__REG_REG_WAIT = 4,
 	/**
 	 * Workaround to avoid HUBP underflow during NV12 playback.
 	 */
@@ -1972,6 +1968,11 @@ enum dmub_cmd_type {
 	DMUB_CMD__BOOT_TIME_CRC = 96,
 
 	/**
+	 * Command type use for all Panel Polarity commands.
+	 */
+	DMUB_CMD__PANEL_POLARITY = 97,
+
+	/**
 	 * Command type use for VBIOS shared commands.
 	 */
 	DMUB_CMD__VBIOS = 128,
@@ -2041,98 +2042,6 @@ struct dmub_cmd_header {
 	unsigned int reserved1 : 2; /**< reserved bits */
 };
 
-/*
- * struct dmub_cmd_read_modify_write_sequence - Read modify write
- *
- * 60 payload bytes can hold up to 5 sets of read modify writes,
- * each take 3 dwords.
- *
- * number of sequences = header.payload_bytes / sizeof(struct dmub_cmd_read_modify_write_sequence)
- *
- * modify_mask = 0xffff'ffff means all fields are going to be updated.  in this case
- * command parser will skip the read and we can use modify_mask = 0xffff'ffff as reg write
- */
-struct dmub_cmd_read_modify_write_sequence {
-	uint32_t addr; /**< register address */
-	uint32_t modify_mask; /**< modify mask */
-	uint32_t modify_value; /**< modify value */
-};
-
-/**
- * Maximum number of ops in read modify write sequence.
- */
-#define DMUB_READ_MODIFY_WRITE_SEQ__MAX 5
-
-/**
- * struct dmub_cmd_read_modify_write_sequence - Read modify write command.
- */
-struct dmub_rb_cmd_read_modify_write {
-	struct dmub_cmd_header header;  /**< command header */
-	/**
-	 * Read modify write sequence.
-	 */
-	struct dmub_cmd_read_modify_write_sequence seq[DMUB_READ_MODIFY_WRITE_SEQ__MAX];
-};
-
-/*
- * Update a register with specified masks and values sequeunce
- *
- * 60 payload bytes can hold address + up to 7 sets of mask/value combo, each take 2 dword
- *
- * number of field update sequence = (header.payload_bytes - sizeof(addr)) / sizeof(struct read_modify_write_sequence)
- *
- *
- * USE CASE:
- *   1. auto-increment register where additional read would update pointer and produce wrong result
- *   2. toggle a bit without read in the middle
- */
-
-struct dmub_cmd_reg_field_update_sequence {
-	uint32_t modify_mask; /**< 0xffff'ffff to skip initial read */
-	uint32_t modify_value; /**< value to update with */
-};
-
-/**
- * Maximum number of ops in field update sequence.
- */
-#define DMUB_REG_FIELD_UPDATE_SEQ__MAX 7
-
-/**
- * struct dmub_rb_cmd_reg_field_update_sequence - Field update command.
- */
-struct dmub_rb_cmd_reg_field_update_sequence {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register address */
-	/**
-	 * Field update sequence.
-	 */
-	struct dmub_cmd_reg_field_update_sequence seq[DMUB_REG_FIELD_UPDATE_SEQ__MAX];
-};
-
-
-/**
- * Maximum number of burst write values.
- */
-#define DMUB_BURST_WRITE_VALUES__MAX  14
-
-/*
- * struct dmub_rb_cmd_burst_write - Burst write
- *
- * support use case such as writing out LUTs.
- *
- * 60 payload bytes can hold up to 14 values to write to given address
- *
- * number of payload = header.payload_bytes / sizeof(struct read_modify_write_sequence)
- */
-struct dmub_rb_cmd_burst_write {
-	struct dmub_cmd_header header; /**< command header */
-	uint32_t addr; /**< register start address */
-	/**
-	 * Burst write register values.
-	 */
-	uint32_t write_values[DMUB_BURST_WRITE_VALUES__MAX];
-};
-
 /**
  * struct dmub_rb_cmd_common - Common command header
  */
@@ -2142,24 +2051,6 @@ struct dmub_rb_cmd_common {
 	 * Padding to RB_CMD_SIZE
 	 */
 	uint8_t cmd_buffer[DMUB_RB_CMD_SIZE - sizeof(struct dmub_cmd_header)];
-};
-
-/**
- * struct dmub_cmd_reg_wait_data - Register wait data
- */
-struct dmub_cmd_reg_wait_data {
-	uint32_t addr; /**< Register address */
-	uint32_t mask; /**< Mask for register bits */
-	uint32_t condition_field_value; /**< Value to wait for */
-	uint32_t time_out_us; /**< Time out for reg wait in microseconds */
-};
-
-/**
- * struct dmub_rb_cmd_reg_wait - Register wait command
- */
-struct dmub_rb_cmd_reg_wait {
-	struct dmub_cmd_header header; /**< Command header */
-	struct dmub_cmd_reg_wait_data reg_wait; /**< Register wait data */
 };
 
 /**
@@ -4491,6 +4382,15 @@ enum dmub_cmd_replay_type {
 };
 
 /*
+ * Panel Polarity sub-types
+ */
+enum dmub_cmd_panel_polarity_type {
+	DMUB_CMD__PANEL_POLARITY_ENABLE = 0,
+	DMUB_CMD__PANEL_POLARITY_GET_BIAS = 1,
+	DMUB_CMD__PANEL_POLARITY_RESET = 2,
+};
+
+/*
  * Panel Replay sub-types
  */
 enum dmub_cmd_panel_replay_type {
@@ -6440,9 +6340,42 @@ struct dmub_cmd_cacp_set_backlight_data {
 	uint8_t panel_mask;
 
 	/**
+	 * AUX HW Instance.
+	 */
+	uint8_t aux_inst;
+
+	/**
 	 * Explicit padding to 4 byte boundary.
 	 */
-	uint8_t pad[2];
+	uint8_t pad[1];
+
+	/**
+	 * Backlight control type.
+	 * Value 0 is PWM backlight control.
+	 * Value 1 is VAUX backlight control.
+	 * Value 2 is AMD DPCD AUX backlight control.
+	 */
+	enum dmub_backlight_control_type backlight_control_type;
+
+	/**
+	 * Minimum luminance in nits.
+	 */
+	uint32_t min_luminance;
+
+	/**
+	 * Maximum luminance in nits.
+	 */
+	uint32_t max_luminance;
+
+	/**
+	 * Minimum backlight in pwm.
+	 */
+	uint32_t min_backlight_pwm;
+
+	/**
+	 * Maximum backlight in pwm.
+	 */
+	uint32_t max_backlight_pwm;
 };
 
 /**
@@ -7123,6 +7056,80 @@ struct dmub_cmd_pr_enable_data {
 	uint8_t pad[2];
 };
 
+struct dmub_cmd_panel_polarity_enable_data {
+	/**
+	 * Panel Polarity enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[2];
+};
+
+struct dmub_cmd_panel_polarity_reset_data {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	/**
+	 * @pad: Align structure to 4 byte boundary.
+	 */
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_input {
+	/**
+	 * OTG instance
+	 */
+	uint8_t otg_inst;
+	uint8_t pad[3];
+};
+
+struct dmub_cmd_panel_polarity_get_bias_output {
+	/**
+	 * Accumulated Polarity Bias
+	 */
+	int32_t accumulated_bias;
+};
+
+struct dmub_rb_cmd_panel_polarity_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_enable_data data;
+};
+
+
+struct dmub_rb_cmd_panel_polarity_get_bias {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	union dmub_cmd_panel_polarity_get_bias_data {
+		struct dmub_cmd_panel_polarity_get_bias_input input; /**< Input */
+		struct dmub_cmd_panel_polarity_get_bias_output output; /**< Output */
+		uint32_t output_raw; /**< Raw data output */
+	} data;
+};
+
+struct dmub_rb_cmd_panel_polarity_reset {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	struct dmub_cmd_panel_polarity_reset_data data;
+};
+
+
 /**
  * Definition of a DMUB_CMD__PR_ENABLE command.
  * Panel Replay enable/disable is controlled using action in data.
@@ -7362,22 +7369,6 @@ union dmub_rb_cmd {
 	 * Elements shared with all commands.
 	 */
 	struct dmub_rb_cmd_common cmd_common;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_READ_MODIFY_WRITE command.
-	 */
-	struct dmub_rb_cmd_read_modify_write read_modify_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_FIELD_UPDATE_SEQ command.
-	 */
-	struct dmub_rb_cmd_reg_field_update_sequence reg_field_update_seq;
-	/**
-	 * Definition of a DMUB_CMD__REG_SEQ_BURST_WRITE command.
-	 */
-	struct dmub_rb_cmd_burst_write burst_write;
-	/**
-	 * Definition of a DMUB_CMD__REG_REG_WAIT command.
-	 */
-	struct dmub_rb_cmd_reg_wait reg_wait;
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL command.
 	 */
@@ -7754,6 +7745,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_pr_update_state pr_update_state;
 
 	struct dmub_rb_cmd_pr_general_cmd pr_general_cmd;
+
 	/**
 	 * Definition of a DMUB_CMD__IHC command.
 	 */
@@ -7762,6 +7754,13 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__BOOT_TIME_CRC_INIT command.
 	 */
 	struct dmub_rb_cmd_boot_time_crc_init boot_time_crc_init;
+
+	/**
+	 * Definition of a DMUB_CMD__PANEL_POLARITY_ENABLE command.
+	 */
+	struct dmub_rb_cmd_panel_polarity_enable panel_polarity_enable;
+	struct dmub_rb_cmd_panel_polarity_get_bias panel_polarity_get_bias;
+	struct dmub_rb_cmd_panel_polarity_reset panel_polarity_reset;
 };
 
 /**

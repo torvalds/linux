@@ -38,6 +38,11 @@ struct hibmc_drm_private {
 	/* hw */
 	void __iomem   *mmio;
 
+	/* vram */
+	void __iomem *vram;
+	resource_size_t	vram_base;
+	resource_size_t	vram_size;
+
 	/* drm */
 	struct drm_device dev;
 	struct drm_plane primary_plane;

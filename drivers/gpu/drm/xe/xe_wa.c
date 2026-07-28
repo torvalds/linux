@@ -130,7 +130,7 @@
 __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field overrides in table");
 
-static const struct xe_rtp_entry_sr gt_was[] = {
+VISIBLE_IF_KUNIT const struct xe_rtp_table_sr gt_was = XE_RTP_TABLE_SR(
 	/* Workarounds applying over a range of IPs */
 
 	{ XE_RTP_NAME("14011060649"),
@@ -293,7 +293,7 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	  XE_RTP_ACTIONS(SET(MMIOATSREQLIMIT_GAM_WALK_3D,
 			     DIS_ATS_WRONLY_PG))
 	},
-	{ XE_RTP_NAME("14026144927, 16029437861"),
+	{ XE_RTP_NAME("14026144927, 16029437861, 14026127056"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(3510), GRAPHICS_STEP(A0, B0)),
 	  XE_RTP_ACTIONS(SET(L3SQCREG2, L3_SQ_DISABLE_COAMA_2WAY_COH |
 			     L3_SQ_DISABLE_COAMA))
@@ -306,9 +306,10 @@ static const struct xe_rtp_entry_sr gt_was[] = {
 	  XE_RTP_RULES(GRAPHICS_VERSION(3510), GRAPHICS_STEP(A0, B0)),
 	  XE_RTP_ACTIONS(SET(GUC_INTR_CHICKEN, DISABLE_SIGNALING_ENGINES))
 	},
-};
+);
+EXPORT_SYMBOL_IF_KUNIT(gt_was);
 
-static const struct xe_rtp_entry_sr engine_was[] = {
+static const struct xe_rtp_table_sr engine_was = XE_RTP_TABLE_SR(
 	/* Workarounds applying over a range of IPs */
 
 	{ XE_RTP_NAME("22010931296, 18011464164, 14010919138"),
@@ -586,12 +587,12 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 
 	/* Xe3p_LPG*/
 
-	{ XE_RTP_NAME("22021149932"),
+	{ XE_RTP_NAME("22021149932, 14026290593"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(3510), GRAPHICS_STEP(A0, B0),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(LSC_CHICKEN_BIT_0_UDW, SAMPLER_LD_LSC_DISABLE))
 	},
-	{ XE_RTP_NAME("14025676848"),
+	{ XE_RTP_NAME("14025676848, 14026270459"),
 	  XE_RTP_RULES(GRAPHICS_VERSION(3510), GRAPHICS_STEP(A0, B0),
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(LSC_CHICKEN_BIT_0_UDW, LSCFE_SAME_ADDRESS_ATOMICS_COALESCING_DISABLE))
@@ -614,9 +615,9 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 		       FUNC(xe_rtp_match_first_render_or_compute)),
 	  XE_RTP_ACTIONS(SET(TDL_CHICKEN, BIT_APQ_OPT_DIS))
 	},
-};
+);
 
-static const struct xe_rtp_entry_sr lrc_was[] = {
+static const struct xe_rtp_table_sr lrc_was = XE_RTP_TABLE_SR(
 	{ XE_RTP_NAME("16011163337"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210), ENGINE_CLASS(RENDER)),
 	  /* read verification is ignored due to 1608008084. */
@@ -794,21 +795,31 @@ static const struct xe_rtp_entry_sr lrc_was[] = {
 		       ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(CHICKEN_RASTER_1, DIS_CLIP_NEGATIVE_BOUNDING_BOX))
 	},
-};
+);
 
-static __maybe_unused const struct xe_rtp_entry oob_was[] = {
+static const struct xe_rtp_entry oob_was_entries[] = {
 #include <generated/xe_wa_oob.c>
-	{}
 };
 
-static_assert(ARRAY_SIZE(oob_was) - 1 == _XE_WA_OOB_COUNT);
+static_assert(ARRAY_SIZE(oob_was_entries)  == _XE_WA_OOB_COUNT);
 
-static __maybe_unused const struct xe_rtp_entry device_oob_was[] = {
+VISIBLE_IF_KUNIT __maybe_unused const struct xe_rtp_table oob_was = {
+	.entries = oob_was_entries,
+	.n_entries = ARRAY_SIZE(oob_was_entries),
+};
+EXPORT_SYMBOL_IF_KUNIT(oob_was);
+
+static const struct xe_rtp_entry device_oob_was_entries[] = {
 #include <generated/xe_device_wa_oob.c>
-	{}
 };
 
-static_assert(ARRAY_SIZE(device_oob_was) - 1 == _XE_DEVICE_WA_OOB_COUNT);
+static_assert(ARRAY_SIZE(device_oob_was_entries) == _XE_DEVICE_WA_OOB_COUNT);
+
+VISIBLE_IF_KUNIT __maybe_unused const struct xe_rtp_table device_oob_was = {
+	.entries = device_oob_was_entries,
+	.n_entries = ARRAY_SIZE(device_oob_was_entries),
+};
+EXPORT_SYMBOL_IF_KUNIT(device_oob_was);
 
 __diag_pop();
 
@@ -824,10 +835,10 @@ void xe_wa_process_device_oob(struct xe_device *xe)
 {
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(xe);
 
-	xe_rtp_process_ctx_enable_active_tracking(&ctx, xe->wa_active.oob, ARRAY_SIZE(device_oob_was));
+	xe_rtp_process_ctx_enable_active_tracking(&ctx, xe->wa_active.oob, device_oob_was.n_entries);
 
 	xe->wa_active.oob_initialized = true;
-	xe_rtp_process(&ctx, device_oob_was);
+	xe_rtp_process(&ctx, &device_oob_was);
 }
 
 /**
@@ -842,9 +853,9 @@ void xe_wa_process_gt_oob(struct xe_gt *gt)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx, gt->wa_active.oob,
-						  ARRAY_SIZE(oob_was));
+						  oob_was.n_entries);
 	gt->wa_active.oob_initialized = true;
-	xe_rtp_process(&ctx, oob_was);
+	xe_rtp_process(&ctx, &oob_was);
 }
 
 /**
@@ -859,9 +870,8 @@ void xe_wa_process_gt(struct xe_gt *gt)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(gt);
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx, gt->wa_active.gt,
-						  ARRAY_SIZE(gt_was));
-	xe_rtp_process_to_sr(&ctx, gt_was, ARRAY_SIZE(gt_was),
-			     &gt->reg_sr, false);
+						  gt_was.n_entries);
+	xe_rtp_process_to_sr(&ctx, &gt_was, &gt->reg_sr, false);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_wa_process_gt);
 
@@ -878,9 +888,8 @@ void xe_wa_process_engine(struct xe_hw_engine *hwe)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx, hwe->gt->wa_active.engine,
-						  ARRAY_SIZE(engine_was));
-	xe_rtp_process_to_sr(&ctx, engine_was, ARRAY_SIZE(engine_was),
-			     &hwe->reg_sr, false);
+						  engine_was.n_entries);
+	xe_rtp_process_to_sr(&ctx, &engine_was, &hwe->reg_sr, false);
 }
 
 /**
@@ -896,9 +905,8 @@ void xe_wa_process_lrc(struct xe_hw_engine *hwe)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
 
 	xe_rtp_process_ctx_enable_active_tracking(&ctx, hwe->gt->wa_active.lrc,
-						  ARRAY_SIZE(lrc_was));
-	xe_rtp_process_to_sr(&ctx, lrc_was, ARRAY_SIZE(lrc_was),
-			     &hwe->reg_lrc, true);
+						  lrc_was.n_entries);
+	xe_rtp_process_to_sr(&ctx, &lrc_was, &hwe->reg_lrc, true);
 }
 
 /**
@@ -912,7 +920,7 @@ int xe_wa_device_init(struct xe_device *xe)
 	unsigned long *p;
 
 	p = drmm_kzalloc(&xe->drm,
-			 sizeof(*p) * BITS_TO_LONGS(ARRAY_SIZE(device_oob_was)),
+			 sizeof(*p) * BITS_TO_LONGS(device_oob_was.n_entries),
 			 GFP_KERNEL);
 
 	if (!p)
@@ -935,10 +943,10 @@ int xe_wa_gt_init(struct xe_gt *gt)
 	size_t n_oob, n_lrc, n_engine, n_gt, total;
 	unsigned long *p;
 
-	n_gt = BITS_TO_LONGS(ARRAY_SIZE(gt_was));
-	n_engine = BITS_TO_LONGS(ARRAY_SIZE(engine_was));
-	n_lrc = BITS_TO_LONGS(ARRAY_SIZE(lrc_was));
-	n_oob = BITS_TO_LONGS(ARRAY_SIZE(oob_was));
+	n_gt = BITS_TO_LONGS(gt_was.n_entries);
+	n_engine = BITS_TO_LONGS(engine_was.n_entries);
+	n_lrc = BITS_TO_LONGS(lrc_was.n_entries);
+	n_oob = BITS_TO_LONGS(oob_was.n_entries);
 	total = n_gt + n_engine + n_lrc + n_oob;
 
 	p = drmm_kzalloc(&xe->drm, sizeof(*p) * total, GFP_KERNEL);
@@ -962,9 +970,9 @@ void xe_wa_device_dump(struct xe_device *xe, struct drm_printer *p)
 	size_t idx;
 
 	drm_printf(p, "Device OOB Workarounds\n");
-	for_each_set_bit(idx, xe->wa_active.oob, ARRAY_SIZE(device_oob_was))
-		if (device_oob_was[idx].name)
-			drm_printf_indent(p, 1, "%s\n", device_oob_was[idx].name);
+	for_each_set_bit(idx, xe->wa_active.oob, device_oob_was.n_entries)
+		if (device_oob_was.entries[idx].name)
+			drm_printf_indent(p, 1, "%s\n", device_oob_was.entries[idx].name);
 }
 
 /**
@@ -979,24 +987,24 @@ int xe_wa_gt_dump(struct xe_gt *gt, struct drm_printer *p)
 	size_t idx;
 
 	drm_printf(p, "GT Workarounds\n");
-	for_each_set_bit(idx, gt->wa_active.gt, ARRAY_SIZE(gt_was))
-		drm_printf_indent(p, 1, "%s\n", gt_was[idx].name);
+	for_each_set_bit(idx, gt->wa_active.gt, gt_was.n_entries)
+		drm_printf_indent(p, 1, "%s\n", gt_was.entries[idx].name);
 
 	drm_puts(p, "\n");
 	drm_printf(p, "Engine Workarounds\n");
-	for_each_set_bit(idx, gt->wa_active.engine, ARRAY_SIZE(engine_was))
-		drm_printf_indent(p, 1, "%s\n", engine_was[idx].name);
+	for_each_set_bit(idx, gt->wa_active.engine, engine_was.n_entries)
+		drm_printf_indent(p, 1, "%s\n", engine_was.entries[idx].name);
 
 	drm_puts(p, "\n");
 	drm_printf(p, "LRC Workarounds\n");
-	for_each_set_bit(idx, gt->wa_active.lrc, ARRAY_SIZE(lrc_was))
-		drm_printf_indent(p, 1, "%s\n", lrc_was[idx].name);
+	for_each_set_bit(idx, gt->wa_active.lrc, lrc_was.n_entries)
+		drm_printf_indent(p, 1, "%s\n", lrc_was.entries[idx].name);
 
 	drm_puts(p, "\n");
 	drm_printf(p, "OOB Workarounds\n");
-	for_each_set_bit(idx, gt->wa_active.oob, ARRAY_SIZE(oob_was))
-		if (oob_was[idx].name)
-			drm_printf_indent(p, 1, "%s\n", oob_was[idx].name);
+	for_each_set_bit(idx, gt->wa_active.oob, oob_was.n_entries)
+		if (oob_was.entries[idx].name)
+			drm_printf_indent(p, 1, "%s\n", oob_was.entries[idx].name);
 	return 0;
 }
 

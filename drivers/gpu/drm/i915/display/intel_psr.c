@@ -88,22 +88,6 @@
  * issues the self-refresh re-enable code is done from a work queue, which
  * must be correctly synchronized/cancelled when shutting down the pipe."
  *
- * DC3CO (DC3 clock off)
- *
- * On top of PSR2, GEN12 adds a intermediate power savings state that turns
- * clock off automatically during PSR2 idle state.
- * The smaller overhead of DC3co entry/exit vs. the overhead of PSR2 deep sleep
- * entry/exit allows the HW to enter a low-power state even when page flipping
- * periodically (for instance a 30fps video playback scenario).
- *
- * Every time a flips occurs PSR2 will get out of deep sleep state(if it was),
- * so DC3CO is enabled and tgl_dc3co_disable_work is schedule to run after 6
- * frames, if no other flip occurs and the function above is executed, DC3CO is
- * disabled and PSR2 is configured to enter deep sleep, resetting again in case
- * of another flip.
- * Front buffer modifications do not trigger DC3CO activation on purpose as it
- * would bring a lot of complexity and most of the moderns systems will only
- * use page flips.
  */
 
 /*
@@ -1098,10 +1082,11 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	u32 psr_val = 0;
 	u8 idle_frames;
 
-	/* Wa_16025596647 */
-	if ((DISPLAY_VER(display) == 20 ||
-	     IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
-	    is_dc5_dc6_blocked(intel_dp) && intel_dp->psr.pkg_c_latency_used)
+	/* DC3CO / Wa_16025596647 */
+	if (intel_dp->psr.dc3co_allowed ||
+	    ((DISPLAY_VER(display) == 20 ||
+	      IS_DISPLAY_VERx100_STEP(display, 3000, STEP_A0, STEP_B0)) &&
+	     is_dc5_dc6_blocked(intel_dp) && intel_dp->psr.pkg_c_latency_used))
 		idle_frames = 0;
 	else
 		idle_frames = psr_compute_idle_frames(intel_dp);
@@ -1218,108 +1203,6 @@ static void psr2_program_idle_frames(struct intel_dp *intel_dp,
 	intel_de_rmw(display, EDP_PSR2_CTL(display, cpu_transcoder),
 		     EDP_PSR2_IDLE_FRAMES_MASK,
 		     EDP_PSR2_IDLE_FRAMES(idle_frames));
-}
-
-static void tgl_psr2_enable_dc3co(struct intel_dp *intel_dp)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-
-	psr2_program_idle_frames(intel_dp, 0);
-	intel_display_power_set_target_dc_state(display, DC_STATE_EN_DC3CO);
-}
-
-static void tgl_psr2_disable_dc3co(struct intel_dp *intel_dp)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-
-	intel_display_power_set_target_dc_state(display, DC_STATE_EN_UPTO_DC6);
-	psr2_program_idle_frames(intel_dp, psr_compute_idle_frames(intel_dp));
-}
-
-static void tgl_dc3co_disable_work(struct work_struct *work)
-{
-	struct intel_dp *intel_dp =
-		container_of(work, typeof(*intel_dp), psr.dc3co_work.work);
-
-	mutex_lock(&intel_dp->psr.lock);
-	/* If delayed work is pending, it is not idle */
-	if (delayed_work_pending(&intel_dp->psr.dc3co_work))
-		goto unlock;
-
-	tgl_psr2_disable_dc3co(intel_dp);
-unlock:
-	mutex_unlock(&intel_dp->psr.lock);
-}
-
-static void tgl_disallow_dc3co_on_psr2_exit(struct intel_dp *intel_dp)
-{
-	if (!intel_dp->psr.dc3co_exitline)
-		return;
-
-	cancel_delayed_work(&intel_dp->psr.dc3co_work);
-	/* Before PSR2 exit disallow dc3co*/
-	tgl_psr2_disable_dc3co(intel_dp);
-}
-
-static bool
-dc3co_is_pipe_port_compatible(struct intel_dp *intel_dp,
-			      struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	enum pipe pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
-	enum port port = dig_port->base.port;
-
-	if (display->platform.alderlake_p || DISPLAY_VER(display) >= 14)
-		return pipe <= PIPE_B && port <= PORT_B;
-	else
-		return pipe == PIPE_A && port == PORT_A;
-}
-
-static void
-tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
-				  struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	const u32 crtc_vdisplay = crtc_state->uapi.adjusted_mode.crtc_vdisplay;
-	struct i915_power_domains *power_domains = &display->power.domains;
-	u32 exit_scanlines;
-
-	/*
-	 * FIXME: Due to the changed sequence of activating/deactivating DC3CO,
-	 * disable DC3CO until the changed dc3co activating/deactivating sequence
-	 * is applied. B.Specs:49196
-	 */
-	return;
-
-	/*
-	 * DMC's DC3CO exit mechanism has an issue with Selective Fecth
-	 * TODO: when the issue is addressed, this restriction should be removed.
-	 */
-	if (crtc_state->enable_psr2_sel_fetch)
-		return;
-
-	if (!(power_domains->allowed_dc_mask & DC_STATE_EN_DC3CO))
-		return;
-
-	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
-		return;
-
-	/* Wa_16011303918:adl-p */
-	if (intel_display_wa(display, INTEL_DISPLAY_WA_16011303918))
-		return;
-
-	/*
-	 * DC3CO Exit time 200us B.Spec 49196
-	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
-	 */
-	exit_scanlines =
-		intel_usecs_to_scanlines(&crtc_state->uapi.adjusted_mode, 200) + 1;
-
-	if (drm_WARN_ON(display->drm, exit_scanlines > crtc_vdisplay))
-		return;
-
-	crtc_state->dc3co_exitline = crtc_vdisplay - exit_scanlines;
 }
 
 static bool intel_psr2_sel_fetch_config_valid(struct intel_dp *intel_dp,
@@ -1522,9 +1405,6 @@ int _intel_psr_min_set_context_latency(const struct intel_crtc_state *crtc_state
 	    needs_panel_replay)
 		return 0;
 
-	if (intel_vrr_always_use_vrr_tg(display))
-		return 0;
-
 	return 1;
 }
 
@@ -1696,8 +1576,6 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 			    psr_max_h, psr_max_v);
 		return false;
 	}
-
-	tgl_dc3co_exitline_compute_config(intel_dp, crtc_state);
 
 	return true;
 }
@@ -1893,6 +1771,50 @@ static bool intel_psr_needs_wa_18037818876(struct intel_dp *intel_dp,
 		!crtc_state->has_sel_update);
 }
 
+static void psr2_dc3co_disable_locked(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	if (intel_dp->psr.dc3co_allowed) {
+		intel_dp->psr.dc3co_allowed = false;
+		intel_display_power_set_target_dc_state(display, DC_STATE_EN_UPTO_DC6);
+		psr2_program_idle_frames(intel_dp, psr_compute_idle_frames(intel_dp));
+	}
+}
+
+static void psr2_dc3co_disable_work(struct work_struct *work)
+{
+	struct intel_dp *intel_dp =
+		container_of(work, typeof(*intel_dp), psr.dc3co_work.work);
+
+	mutex_lock(&intel_dp->psr.lock);
+	psr2_dc3co_disable_locked(intel_dp);
+	mutex_unlock(&intel_dp->psr.lock);
+}
+
+static void
+psr2_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+
+	if (!intel_dp->psr.dc3co_allowed)
+		return;
+
+	if (!intel_dp->psr.sel_update_enabled ||
+	    !intel_dp->psr.active)
+		return;
+	/*
+	 * At every frontbuffer flush flip event modified delay of delayed work,
+	 * when delayed work schedules that means display has been idle.
+	 */
+	if (!(frontbuffer_bits &
+	    INTEL_FRONTBUFFER_ALL_MASK(intel_dp->psr.pipe)))
+		return;
+
+	mod_delayed_work(display->wq.unordered, &intel_dp->psr.dc3co_work,
+			 intel_dp->psr.dc3co_exit_delay);
+}
+
 static
 void intel_psr_set_non_psr_pipes(struct intel_dp *intel_dp,
 				 struct intel_crtc_state *crtc_state)
@@ -2013,12 +1935,6 @@ void intel_psr_get_config(struct intel_encoder *encoder,
 	}
 
 	pipe_config->enable_psr2_su_region_et = intel_dp->psr.su_region_et_enabled;
-
-	if (DISPLAY_VER(display) >= 12) {
-		val = intel_de_read(display,
-				    TRANS_EXITLINE(display, cpu_transcoder));
-		pipe_config->dc3co_exitline = REG_FIELD_GET(EXITLINE_MASK, val);
-	}
 unlock:
 	mutex_unlock(&intel_dp->psr.lock);
 }
@@ -2146,16 +2062,6 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 
 	psr_irq_control(intel_dp);
 
-	/*
-	 * TODO: if future platforms supports DC3CO in more than one
-	 * transcoder, EXITLINE will need to be unset when disabling PSR
-	 */
-	if (intel_dp->psr.dc3co_exitline)
-		intel_de_rmw(display,
-			     TRANS_EXITLINE(display, cpu_transcoder),
-			     EXITLINE_MASK,
-			     intel_dp->psr.dc3co_exitline << EXITLINE_SHIFT | EXITLINE_ENABLE);
-
 	if (HAS_PSR_HW_TRACKING(display) && HAS_PSR2_SEL_FETCH(display))
 		intel_de_rmw(display, CHICKEN_PAR1_1, IGNORE_PSR2_HW_TRACKING,
 			     intel_dp->psr.psr2_sel_fetch_enabled ?
@@ -2255,7 +2161,6 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	/* DC5/DC6 requires at least 6 idle frames */
 	val = usecs_to_jiffies(intel_get_frame_time_us(crtc_state) * 6);
 	intel_dp->psr.dc3co_exit_delay = val;
-	intel_dp->psr.dc3co_exitline = crtc_state->dc3co_exitline;
 	intel_dp->psr.psr2_sel_fetch_enabled = crtc_state->enable_psr2_sel_fetch;
 	intel_dp->psr.su_region_et_enabled = crtc_state->enable_psr2_su_region_et;
 	intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
@@ -2334,8 +2239,6 @@ static void intel_psr_exit(struct intel_dp *intel_dp)
 		intel_de_rmw(display, TRANS_DP2_CTL(intel_dp->psr.transcoder),
 			     TRANS_DP2_PANEL_REPLAY_ENABLE, 0);
 	} else if (intel_dp->psr.sel_update_enabled) {
-		tgl_disallow_dc3co_on_psr2_exit(intel_dp);
-
 		val = intel_de_rmw(display,
 				   EDP_PSR2_CTL(display, cpu_transcoder),
 				   EDP_PSR2_ENABLE, 0);
@@ -2356,6 +2259,27 @@ static void intel_psr_exit(struct intel_dp *intel_dp)
 		drm_WARN_ON(display->drm, !(val & EDP_PSR_ENABLE));
 	}
 	intel_dp->psr.active = false;
+}
+
+bool intel_psr2_in_deep_sleep(struct intel_dp *intel_dp)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	enum transcoder cpu_transcoder;
+	bool in_deep_sleep = false;
+	u32 val;
+
+	mutex_lock(&intel_dp->psr.lock);
+
+	if (!intel_dp->psr.enabled || !intel_dp->psr.sel_update_enabled)
+		goto out;
+
+	cpu_transcoder = intel_dp->psr.transcoder;
+	val = intel_de_read(display, EDP_PSR2_STATUS(display, cpu_transcoder));
+	in_deep_sleep = (val & EDP_PSR2_STATUS_STATE_MASK) ==
+		EDP_PSR2_STATUS_STATE_DEEP_SLEEP;
+out:
+	mutex_unlock(&intel_dp->psr.lock);
+	return in_deep_sleep;
 }
 
 static void intel_psr_wait_exit_locked(struct intel_dp *intel_dp)
@@ -2448,6 +2372,8 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	intel_dp->psr.psr2_sel_fetch_cff_enabled = false;
 	intel_dp->psr.active_non_psr_pipes = 0;
 	intel_dp->psr.pkg_c_latency_used = 0;
+	cancel_delayed_work(&intel_dp->psr.dc3co_work);
+	intel_dp->psr.dc3co_allowed = false;
 }
 
 /**
@@ -2535,8 +2461,13 @@ void intel_psr_resume(struct intel_dp *intel_dp)
 		goto out;
 	}
 
-	if (--intel_dp->psr.pause_counter == 0)
+	if (--intel_dp->psr.pause_counter == 0) {
 		intel_psr_activate(intel_dp);
+		/* re-arm cancelled dc3co work from pause */
+		if (intel_dp->psr.dc3co_allowed)
+			mod_delayed_work(display->wq.unordered, &intel_dp->psr.dc3co_work,
+					 intel_dp->psr.dc3co_exit_delay);
+	}
 
 out:
 	mutex_unlock(&psr->lock);
@@ -3240,9 +3171,12 @@ void intel_psr_post_plane_update(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
+	bool dc3co_allowed;
 
 	if (!crtc_state->has_psr)
 		return;
+
+	dc3co_allowed = intel_display_power_dc3co_allowed(display);
 
 	verify_panel_replay_dsc_state(crtc_state);
 
@@ -3271,6 +3205,8 @@ void intel_psr_post_plane_update(struct intel_atomic_state *state,
 			keep_disabled = true;
 		}
 
+		intel_dp->psr.dc3co_allowed = dc3co_allowed;
+
 		if (!psr->enabled && !keep_disabled)
 			intel_psr_enable_locked(intel_dp, crtc_state);
 		else if (psr->enabled && !crtc_state->wm_level_disabled)
@@ -3286,6 +3222,11 @@ void intel_psr_post_plane_update(struct intel_atomic_state *state,
 		 * invalidate -> flip -> flush sequence.
 		 */
 		intel_dp->psr.busy_frontbuffer_bits = 0;
+
+		if (intel_dp->psr.dc3co_allowed) {
+			mod_delayed_work(display->wq.unordered, &intel_dp->psr.dc3co_work,
+					 intel_dp->psr.dc3co_exit_delay);
+		}
 
 		mutex_unlock(&psr->lock);
 	}
@@ -3659,34 +3600,6 @@ void intel_psr_invalidate(struct intel_display *display,
 		mutex_unlock(&intel_dp->psr.lock);
 	}
 }
-/*
- * When we will be completely rely on PSR2 S/W tracking in future,
- * intel_psr_flush() will invalidate and flush the PSR for ORIGIN_FLIP
- * event also therefore tgl_dc3co_flush_locked() require to be changed
- * accordingly in future.
- */
-static void
-tgl_dc3co_flush_locked(struct intel_dp *intel_dp, unsigned int frontbuffer_bits,
-		       enum fb_op_origin origin)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-
-	if (!intel_dp->psr.dc3co_exitline || !intel_dp->psr.sel_update_enabled ||
-	    !intel_dp->psr.active)
-		return;
-
-	/*
-	 * At every frontbuffer flush flip event modified delay of delayed work,
-	 * when delayed work schedules that means display has been idle.
-	 */
-	if (!(frontbuffer_bits &
-	    INTEL_FRONTBUFFER_ALL_MASK(intel_dp->psr.pipe)))
-		return;
-
-	tgl_psr2_enable_dc3co(intel_dp);
-	mod_delayed_work(display->wq.unordered, &intel_dp->psr.dc3co_work,
-			 intel_dp->psr.dc3co_exit_delay);
-}
 
 static void _psr_flush_handle(struct intel_dp *intel_dp)
 {
@@ -3773,7 +3686,7 @@ void intel_psr_flush(struct intel_display *display,
 		if (origin == ORIGIN_FLIP ||
 		    (origin == ORIGIN_CURSOR_UPDATE &&
 		     !intel_dp->psr.psr2_sel_fetch_enabled)) {
-			tgl_dc3co_flush_locked(intel_dp, frontbuffer_bits, origin);
+			psr2_dc3co_flush_locked(intel_dp, frontbuffer_bits);
 			goto unlock;
 		}
 
@@ -3832,7 +3745,7 @@ void intel_psr_init(struct intel_dp *intel_dp)
 		intel_dp->psr.link_standby = connector->panel.vbt.psr.full_link;
 
 	INIT_WORK(&intel_dp->psr.work, intel_psr_work);
-	INIT_DELAYED_WORK(&intel_dp->psr.dc3co_work, tgl_dc3co_disable_work);
+	INIT_DELAYED_WORK(&intel_dp->psr.dc3co_work, psr2_dc3co_disable_work);
 	mutex_init(&intel_dp->psr.lock);
 }
 

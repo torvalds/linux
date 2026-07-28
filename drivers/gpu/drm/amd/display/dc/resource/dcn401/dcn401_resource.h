@@ -622,7 +622,8 @@ int dcn401_get_power_profile(const struct dc_state *context);
 	SR(DCHUBBUB_MEM_PWR_MODE_CTRL),                                          \
 	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL1),                                    \
 	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL2),									 \
-	SR(DCHUBBUB_CTRL_STATUS)
+	SR(DCHUBBUB_CTRL_STATUS),                                                \
+	SR(DCHUBBUB_ARB_MALL_CNTL)
 
 /* DCCG */
 

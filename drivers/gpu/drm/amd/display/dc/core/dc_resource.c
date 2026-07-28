@@ -4412,14 +4412,13 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	struct dc_stream_state *unchanged_streams[MAX_PIPES] = { 0 };
 	struct dc_stream_state *del_streams[MAX_PIPES] = { 0 };
 	struct dc_stream_state *add_streams[MAX_PIPES] = { 0 };
-	int old_stream_count = context->stream_count;
+	unsigned int old_stream_count = context->stream_count;
 	enum dc_status res = DC_ERROR_UNEXPECTED;
-	int unchanged_streams_count = 0;
-	int del_streams_count = 0;
-	int add_streams_count = 0;
+	unsigned int unchanged_streams_count = 0;
+	unsigned int del_streams_count = 0;
+	unsigned int add_streams_count = 0;
 	bool found = false;
-	int i, j;
-	unsigned int k;
+	unsigned int i, j, k;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 

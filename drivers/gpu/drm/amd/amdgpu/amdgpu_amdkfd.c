@@ -957,3 +957,17 @@ int amdgpu_amdkfd_config_sq_perfmon(struct amdgpu_device *adev, uint32_t xcp_id,
 
 	return r;
 }
+
+/* Reset an MES queue */
+int amdgpu_amdkfd_reset_mes_queue(struct amdgpu_device *adev,
+				  uint32_t node_id,
+				  int queue_type,
+				  int pipe, int queue,
+				  unsigned int db)
+{
+	if (!adev->kfd.init_complete)
+		return 0;
+
+	return kgd2kfd_reset_mes_queue(adev->kfd.dev, node_id, queue_type,
+				       pipe, queue, db);
+}

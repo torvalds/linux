@@ -7,6 +7,7 @@
 
 #include <asm/assembly.h>
 #include <uapi/asm/ptrace.h>
+#include <linux/compiler.h>
 
 #define task_regs(task) ((struct pt_regs *) ((char *)(task) + TASK_REGS))
 

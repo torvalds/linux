@@ -3,7 +3,6 @@
 
 #include <linux/dev_printk.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/string.h>

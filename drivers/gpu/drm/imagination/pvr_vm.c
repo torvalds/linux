@@ -1019,7 +1019,8 @@ copy_out:
 	if (err < 0)
 		return err;
 
-	args->size = sizeof(query);
+	if (args->size > sizeof(query))
+		args->size = sizeof(query);
 	return 0;
 }
 
@@ -1069,7 +1070,8 @@ copy_out:
 	if (err < 0)
 		return err;
 
-	args->size = sizeof(query);
+	if (args->size > sizeof(query))
+		args->size = sizeof(query);
 	return 0;
 }
 

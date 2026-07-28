@@ -182,8 +182,15 @@ static int exynos_dp_probe(struct platform_device *pdev)
 
 out:
 	dp->adp = analogix_dp_probe(dev, &dp->plat_data);
-	if (IS_ERR(dp->adp))
+	if (IS_ERR(dp->adp)) {
+		/*
+		 * The driver core does not invoke remove() for failed probes,
+		 * so release the probe-time panel reference here.
+		 */
+		if (dp->plat_data.panel)
+			drm_panel_put(dp->plat_data.panel);
 		return PTR_ERR(dp->adp);
+	}
 
 	if (dp->plat_data.panel || dp->plat_data.next_bridge)
 		return component_add(&pdev->dev, &exynos_dp_ops);
@@ -193,6 +200,16 @@ out:
 
 static void exynos_dp_remove(struct platform_device *pdev)
 {
+	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
+
+	/*
+	 * Release the probe-time reference from of_drm_find_panel(). If bind
+	 * ran, the panel_bridge holds a second reference that devm cleanup
+	 * will release when the bridge is destroyed after remove() returns.
+	 */
+	if (dp->plat_data.panel)
+		drm_panel_put(dp->plat_data.panel);
+
 	component_del(&pdev->dev, &exynos_dp_ops);
 }
 

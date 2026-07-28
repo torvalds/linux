@@ -20,7 +20,8 @@ static void virtio_gpu_vram_free(struct drm_gem_object *obj)
 		if (unmap)
 			virtio_gpu_cmd_unmap(vgdev, bo);
 
-		virtio_gpu_cmd_unref_resource(vgdev, bo);
+		virtio_gpu_remove_from_restore_list(bo);
+		virtio_gpu_cmd_unref_resource(vgdev, bo, false);
 		virtio_gpu_notify(vgdev);
 		return;
 	}
@@ -206,6 +207,8 @@ int virtio_gpu_vram_create(struct virtio_gpu_device *vgdev,
 
 	obj = &vram->base.base.base;
 	obj->funcs = &virtio_gpu_vram_funcs;
+
+	INIT_LIST_HEAD(&vram->base.restore_node);
 
 	params->size = PAGE_ALIGN(params->size);
 	drm_gem_private_object_init(vgdev->ddev, obj, params->size);

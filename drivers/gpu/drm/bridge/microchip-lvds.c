@@ -167,6 +167,9 @@ static void mchp_lvds_atomic_disable(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs mchp_lvds_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = mchp_lvds_attach,
 	.atomic_enable = mchp_lvds_atomic_enable,
 	.atomic_disable = mchp_lvds_atomic_disable,

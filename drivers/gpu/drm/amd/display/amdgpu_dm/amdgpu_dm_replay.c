@@ -121,14 +121,14 @@ bool amdgpu_dm_set_replay_caps(struct dc_link *link, struct amdgpu_dm_connector 
 
 	debug_flags = (union replay_debug_flags *)&pr_config.debug_flags;
 	debug_flags->u32All = 0;
-	debug_flags->bitfields.visual_confirm =
-		link->ctx->dc->debug.visual_confirm == VISUAL_CONFIRM_REPLAY;
+	debug_flags->bitfields.visual_confirm =	dc->debug.visual_confirm == VISUAL_CONFIRM_REPLAY;
 	debug_flags->bitfields.skip_crtc_disabled = dc->debug.replay_skip_crtc_disabled;
 
 	init_replay_config(link, &pr_config);
 
 	return true;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_set_replay_caps);
 
 /*
  * amdgpu_dm_link_setup_replay() - config replay settings
@@ -144,7 +144,6 @@ bool amdgpu_dm_link_setup_replay(struct dc_stream_state *stream,
 {
 	struct dc_link *link;
 	unsigned int static_coasting_vtotal;
-	unsigned int nom_coasting_vtotal;
 
 	if (!stream || !stream->link || !vrr_params)
 		return false;
@@ -159,16 +158,16 @@ bool amdgpu_dm_link_setup_replay(struct dc_stream_state *stream,
 	calculate_replay_link_off_frame_count(link, stream->timing.v_total,
 			stream->timing.h_total);
 
-	nom_coasting_vtotal = stream->timing.v_total;
 	static_coasting_vtotal = mod_freesync_calc_v_total_from_refresh(stream,
 			vrr_params->min_refresh_in_uhz);
 
 	set_replay_coasting_vtotal(link, PR_COASTING_TYPE_NOM,
-			nom_coasting_vtotal);
+			stream->timing.v_total);
 	set_replay_coasting_vtotal(link, PR_COASTING_TYPE_STATIC,
 			static_coasting_vtotal);
 	return true;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_link_setup_replay);
 
 /*
  * amdgpu_dm_replay_set_event() - set or clear replay event for a stream
@@ -208,3 +207,4 @@ bool amdgpu_dm_replay_set_event(struct amdgpu_display_manager *dm,
 	return mod_power_set_replay_event(dm->power_module, stream,
 					 set_event, event, wait_for_disable);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_replay_set_event);

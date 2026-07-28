@@ -54,6 +54,7 @@
 #include "dce/dce_i2c_hw.h"
 #include "dce/dmub_abm_lcd.h"
 #include "dio/dcn10/dcn10_dio.h"
+#include "dce/dmub_abm_cacp.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -536,9 +537,11 @@ static void dcn31_reset_back_end_for_pipe(
 	}
 	ASSERT(!pipe_ctx->top_pipe);
 
-	dc->hwss.set_abm_immediate_disable(pipe_ctx);
-
 	link = pipe_ctx->stream->link;
+
+	if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->skip_implict_edp_power_control))
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 	if (dc->hwseq)
 		dc->hwseq->wa_state.skip_blank_stream = false;
@@ -554,9 +557,11 @@ static void dcn31_reset_back_end_for_pipe(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
 
-	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
-
-	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+	if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->skip_implict_edp_power_control)) {
+		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+	}
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -585,7 +590,12 @@ static void dcn31_reset_back_end_for_pipe(
 	 * screen only, the dpms_off would be true but
 	 * VBIOS lit up eDP, so check link status too.
 	 */
-	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+	if (link->connector_signal == SIGNAL_TYPE_EDP &&
+	    link->skip_implict_edp_power_control) {
+		/* DMSS is holding the panel across the commit; skip dpms-off. */
+		if (pipe_ctx->stream_res.audio)
+			dc->hwss.disable_audio_stream(pipe_ctx);
+	} else if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 		dc->link_srv->set_dpms_off(pipe_ctx);
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
@@ -718,6 +728,34 @@ static void dmub_abm_set_backlight(struct dc_context *dc,
 	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
+static bool dmub_cacp_set_backlight(struct dc_context *dc,
+	struct set_backlight_level_params *backlight_level_params,
+	unsigned int panel_inst)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.cacp_set_backlight.header.type = DMUB_CMD__CACP;
+	cmd.cacp_set_backlight.header.sub_type = DMUB_CMD__CACP_SET_BACKLIGHT;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.aux_inst = backlight_level_params->aux_inst;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.frame_ramp = backlight_level_params->frame_ramp;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.backlight_user_level =
+		backlight_level_params->backlight_pwm_u16_16;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.backlight_control_type =
+		(enum dmub_backlight_control_type)backlight_level_params->control_type;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.min_luminance = backlight_level_params->min_luminance;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.max_luminance = backlight_level_params->max_luminance;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.min_backlight_pwm = backlight_level_params->min_backlight_pwm;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.max_backlight_pwm = backlight_level_params->max_backlight_pwm;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.version = DMUB_CMD_CACP_CONTROL_VERSION_1;
+	cmd.cacp_set_backlight.cacp_set_backlight_data.panel_mask = (0x01 << panel_inst);
+	cmd.cacp_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_cacp_set_backlight_data);
+
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return true;
+}
+
 bool dcn31_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	struct set_backlight_level_params *backlight_level_params)
 {
@@ -726,20 +764,38 @@ bool dcn31_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	uint32_t otg_inst;
+	struct dc_link *link = pipe_ctx->stream->link;
 
 	if (!abm || !tg || !panel_cntl)
 		return false;
 
 	otg_inst = tg->inst;
 
+	if (link && link->panel_config.cacp.cacp_supported)
+		dcn21_dmub_cacp_set_pipe(abm, otg_inst,
+			SET_CACP_PIPE_NORMAL,
+			panel_cntl->inst,
+			panel_cntl->pwrseq_inst);
+	else
 		dcn21_dmub_abm_set_pipe(abm,
 			otg_inst,
 			SET_ABM_PIPE_NORMAL,
 			panel_cntl->inst,
 			panel_cntl->pwrseq_inst);
 
-	if (backlight_level_params->control_type != BACKLIGHT_CONTROL_AMD_AUX)
+	if (link && link->panel_type == PANEL_TYPE_OLED) {
+		/* For OLED panel with AMD AUX, skip set backlight call */
+		if (backlight_level_params->control_type == BACKLIGHT_CONTROL_VESA_AUX)
+			dmub_cacp_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+	} else if (link && link->panel_type == PANEL_TYPE_MINILED) {
+		/* For MiniLED panel we need to check if CACP or ABM is being used */
+		if (link->panel_config.cacp.cacp_supported)
+			dmub_cacp_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+		else
+			dmub_abm_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+	} else {
 		dmub_abm_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+	}
 
 	return true;
 }

@@ -323,6 +323,25 @@ struct xe_reg_sr;
 	  .read_mask = 0, ##__VA_ARGS__ }
 
 /**
+ * XE_RTP_ACTION_FIELD_SET_FUNC: Set a bit range to the value returned by a function
+ * @reg_: Register
+ * @mask_bits_: Mask of bits to be changed in the register, forming a field
+ * @func_: Function that returns value to set in the field denoted by @mask_bits_
+ * @...: Additional fields to override in the struct xe_rtp_action entry
+ *
+ * This macro works like XE_RTP_ACTION_FIELD_SET(), except that the
+ * field value is evaluated at the time the RTP table is processed.
+ *
+ * @func_ will only be called a single time, when the RTP table is being
+ * processed.  After processing, the value in the reg_sr entry is fixed and
+ * will not be re-evaluated.
+ */
+#define XE_RTP_ACTION_FIELD_SET_FUNC(reg_, mask_bits_, func_, ...)		\
+	{ .reg = XE_RTP_DROP_CAST(reg_),					\
+	  .clr_bits = mask_bits_, .set_func = func_, .use_func = 1,		\
+	  .read_mask = mask_bits_, ##__VA_ARGS__ }
+
+/**
  * XE_RTP_ACTION_WHITELIST - Add register to userspace whitelist
  * @reg_: Register
  * @val_: Whitelist-specific flags to set
@@ -461,6 +480,24 @@ struct xe_reg_sr;
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
 
+/*
+ * Note: ARRAY_SIZE() cannot be used here because it expands through
+ * __must_be_array() -> __BUILD_BUG_ON_ZERO_MSG() -> _Static_assert inside
+ * sizeof(struct{}), which clang < 21 rejects when the compound literal
+ * contains non-compile-time-constant initializers.
+ */
+#define XE_RTP_TABLE_SR(...) { \
+	.entries = (const struct xe_rtp_entry_sr[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry_sr[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry_sr), \
+}
+
+#define XE_RTP_TABLE(...) { \
+	.entries = (const struct xe_rtp_entry[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry), \
+}
+
 #define XE_RTP_PROCESS_CTX_INITIALIZER(arg__) _Generic((arg__),							\
 	struct xe_hw_engine * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
 	struct xe_gt * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT },	\
@@ -471,12 +508,12 @@ void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
 					       size_t n_entries);
 
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
-			  const struct xe_rtp_entry_sr *entries,
-			  size_t n_entries, struct xe_reg_sr *sr,
+			  const struct xe_rtp_table_sr *table,
+			  struct xe_reg_sr *sr,
 			  bool process_in_vf);
 
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
-		    const struct xe_rtp_entry *entries);
+		    const struct xe_rtp_table *table);
 
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
 

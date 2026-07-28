@@ -720,20 +720,17 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		return false;
 	}
 
-	/* remove writeback info for disabled writeback pipes from stream */
+	/* remove writeback info for the requested writeback pipe from stream */
 	for (i = 0, j = 0; i < stream->num_wb_info; i++) {
-		if (stream->writeback_info[i].wb_enabled) {
+		/* drop every entry that targets the pipe being removed */
+		if (stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst)
+			continue;
 
-			if (stream->writeback_info[i].dwb_pipe_inst == dwb_pipe_inst)
-				stream->writeback_info[i].wb_enabled = false;
-
-			/* trim the array */
-			if (j < i) {
-				memcpy(&stream->writeback_info[j], &stream->writeback_info[i],
-						sizeof(struct dc_writeback_info));
-				j++;
-			}
-		}
+		/* keep this entry, compacting it down when earlier entries were removed */
+		if (j != i)
+			memcpy(&stream->writeback_info[j], &stream->writeback_info[i],
+					sizeof(struct dc_writeback_info));
+		j++;
 	}
 	stream->num_wb_info = j;
 

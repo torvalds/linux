@@ -142,6 +142,30 @@ struct displayid_formula_timing_block {
 	struct displayid_formula_timings_9 timings[];
 } __packed;
 
+#define DISPLAYID_DEVICE_TECH_UNSPECIFIED	0
+#define DISPLAYID_DEVICE_TECH_LCD		1
+#define DISPLAYID_DEVICE_TECH_OLED		2
+
+#define DISPLAYID_DISPLAY_PARAMS_DEVICE_TECH	GENMASK(6, 4)
+
+struct displayid_display_params_block {
+	struct displayid_block base;
+	__le16 horiz_image_size;
+	__le16 vert_image_size;
+	__le16 horiz_pixel_count;
+	__le16 vert_pixel_count;
+	u8 features;
+	u8 primary_color1[3];
+	u8 primary_color2[3];
+	u8 primary_color3[3];
+	u8 white_point[3];
+	__le16 max_luminance_full;
+	__le16 max_luminance_10;
+	__le16 min_luminance;
+	u8 color_depth_and_tech;	/* [2:0] depth, [6:4] device tech, [7] theme */
+	u8 gamma_eotf;
+} __packed;
+
 #define DISPLAYID_VESA_MSO_OVERLAP	GENMASK(3, 0)
 #define DISPLAYID_VESA_MSO_MODE		GENMASK(6, 5)
 

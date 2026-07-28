@@ -404,8 +404,7 @@ fallback:
 	 * Some older platforms don't have tables or don't have complete tables.
 	 * Newer platforms should always have the required info.
 	 */
-	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 2000 &&
-	    !gt_to_xe(gt)->info.force_execlist)
+	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 2000)
 		xe_gt_err(gt, "Slice/Subslice counts missing from hwconfig table; using typical fallback values\n");
 
 	if (gt_to_xe(gt)->info.platform == XE_PVC)
@@ -507,7 +506,7 @@ void xe_gt_mcr_init_early(struct xe_gt *gt)
 	spin_lock_init(&gt->mcr_lock);
 
 	if (gt->info.type == XE_GT_TYPE_MEDIA) {
-		drm_WARN_ON(&xe->drm, MEDIA_VER(xe) < 13);
+		xe_gt_WARN_ON(gt, MEDIA_VER(xe) < 13);
 
 		if (MEDIA_VER(xe) >= 30) {
 			gt->steering[OADDRM].ranges = xe2lpm_gpmxmt_steering_table;
@@ -662,9 +661,9 @@ bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 
 	for (int type = 0; type < IMPLICIT_STEERING; type++) {
 		if (reg_in_steering_type_ranges(gt, reg, type)) {
-			drm_WARN(&gt_to_xe(gt)->drm, !gt->steering[type].initialized,
-				 "Uninitialized usage of MCR register %s/%#x\n",
-				 xe_steering_types[type].name, reg.addr);
+			xe_gt_WARN(gt, !gt->steering[type].initialized,
+				   "Uninitialized usage of MCR register %s/%#x\n",
+				   xe_steering_types[type].name, reg.addr);
 
 			*group = gt->steering[type].group_target;
 			*instance = gt->steering[type].instance_target;
@@ -679,9 +678,9 @@ bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
 	 * Not found in a steering table and not a register with implicit
 	 * steering. Just steer to 0/0 as a guess and raise a warning.
 	 */
-	drm_WARN(&gt_to_xe(gt)->drm, true,
-		 "Did not find MCR register %#x in any MCR steering table\n",
-		 reg.addr);
+	xe_gt_WARN(gt, true,
+		   "Did not find MCR register %#x in any MCR steering table\n",
+		   reg.addr);
 	*group = 0;
 	*instance = 0;
 
@@ -710,7 +709,7 @@ static void mcr_lock(struct xe_gt *gt) __acquires(&gt->mcr_lock)
 		ret = xe_mmio_wait32(&gt->mmio, STEER_SEMAPHORE, 0x1, 0x1, 10, NULL,
 				     true);
 
-	drm_WARN_ON_ONCE(&xe->drm, ret == -ETIMEDOUT);
+	xe_gt_WARN_ON_ONCE(gt, ret == -ETIMEDOUT);
 }
 
 static void mcr_unlock(struct xe_gt *gt) __releases(&gt->mcr_lock)

@@ -254,46 +254,6 @@
 		SRI_ARR(STREAM_MAPPER_CONTROL, DIG, id),\
 		SRI_ARR(DIG_FE_AUDIO_CNTL, DIG, id)
 
-/* HPO DP stream encoder */
-/* Not in DCN42B:
- * SRI_ARR(DP_SYM32_ENC_VID_CRC_CONTROL, DP_SYM32_ENC, id),
- * SRI_ARR(DP_SYM32_ENC_HBLANK_CONTROL, DP_SYM32_ENC, id),
- */
-#define DCN42B_HPO_DP_STREAM_ENC_REG_LIST_RI(id)                                             \
-	SR_ARR(DP_STREAM_MAPPER_CONTROL0, id),                                                  \
-		SR_ARR(DP_STREAM_MAPPER_CONTROL1, id),                                              \
-		SR_ARR(DP_STREAM_MAPPER_CONTROL2, id),                                              \
-		SR_ARR(DP_STREAM_MAPPER_CONTROL3, id),                                              \
-		SRI_ARR(DP_STREAM_ENC_CLOCK_CONTROL, DP_STREAM_ENC, id),                            \
-		SRI_ARR(DP_STREAM_ENC_INPUT_MUX_CONTROL, DP_STREAM_ENC, id),                        \
-		SRI_ARR(DP_STREAM_ENC_AUDIO_CONTROL, DP_STREAM_ENC, id),                            \
-		SRI_ARR(DP_STREAM_ENC_CLOCK_RAMP_ADJUSTER_FIFO_STATUS_CONTROL0, DP_STREAM_ENC, id), \
-		SRI_ARR(DP_SYM32_ENC_CONTROL, DP_SYM32_ENC, id),                                    \
-		SRI_ARR(DP_SYM32_ENC_VID_PIXEL_FORMAT, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_VID_PIXEL_FORMAT_DOUBLE_BUFFER_CONTROL, DP_SYM32_ENC, id),     \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA0, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA1, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA2, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA3, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA4, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA5, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA6, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA7, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA8, DP_SYM32_ENC, id),                                   \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA_CONTROL, DP_SYM32_ENC, id),                            \
-		SRI_ARR(DP_SYM32_ENC_VID_MSA_DOUBLE_BUFFER_CONTROL, DP_SYM32_ENC, id),              \
-		SRI_ARR(DP_SYM32_ENC_VID_FIFO_CONTROL, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_VID_STREAM_CONTROL, DP_SYM32_ENC, id),                         \
-		SRI_ARR(DP_SYM32_ENC_VID_VBID_CONTROL, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_SDP_CONTROL, DP_SYM32_ENC, id),                                \
-		SRI_ARR(DP_SYM32_ENC_SDP_GSP_CONTROL0, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_SDP_GSP_CONTROL2, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_SDP_GSP_CONTROL3, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_SDP_GSP_CONTROL5, DP_SYM32_ENC, id),                           \
-		SRI_ARR(DP_SYM32_ENC_SDP_GSP_CONTROL11, DP_SYM32_ENC, id),                          \
-		SRI_ARR(DP_SYM32_ENC_SDP_METADATA_PACKET_CONTROL, DP_SYM32_ENC, id),                \
-		SRI_ARR(DP_SYM32_ENC_SDP_AUDIO_CONTROL0, DP_SYM32_ENC, id)
-
 /*HPO DP link encoder regs */
 #define DCN42B_HPO_DP_LINK_ENC_REG_LIST_RI(id)                    \
 	SRI_ARR(DP_LINK_ENC_CLOCK_CONTROL, DP_LINK_ENC, id),         \
@@ -344,7 +304,6 @@
  *  DCCG_SRII(PHASE, DP_DTO, 3),
  *  DCCG_SRII(MODULO, DP_DTO, 3),
  *	SR(DSCCLK3_DTO_PARAM),
- *	SR(HDMISTREAMCLK_CNTL),
  *  SR(SYMCLKD_CLOCK_ENABLE),
  *  SR(SYMCLKE_CLOCK_ENABLE)
  */
@@ -360,6 +319,7 @@
 	SR(PHYBSYMCLK_CLOCK_CNTL), \
 	SR(PHYCSYMCLK_CLOCK_CNTL), \
 	SR(DPSTREAMCLK_CNTL), \
+	SR(HDMISTREAMCLK_CNTL), \
 	SR(SYMCLK32_SE_CNTL), \
 	SR(SYMCLK32_LE_CNTL), \
 	DCCG_SRII(PIXEL_RATE_CNTL, OTG, 0), \
@@ -518,7 +478,8 @@
 		SRII_ARR_2(MODULO, DP_DTO, 2, index),                   \
 		SRII_ARR_2(PIXEL_RATE_CNTL, OTG, 0, index),             \
 		SRII_ARR_2(PIXEL_RATE_CNTL, OTG, 1, index),             \
-		SRII_ARR_2(PIXEL_RATE_CNTL, OTG, 2, index)
+		SRII_ARR_2(PIXEL_RATE_CNTL, OTG, 2, index),				\
+		SR_ARR(OTG_PIXEL_RATE_DIV, index)
 
 /* ABM */
 #define ABM_DCN42B_REG_LIST_RI(id)                               \
@@ -542,120 +503,6 @@
 		SRI_ARR(DC_ABM1_ACE_OFFSET_SLOPE_DATA, ABM, id),        \
 		SRI_ARR(DC_ABM1_ACE_PWL_CNTL, ABM, id)
 
-/* HUBP */
-/* Not in DCN42B: HUBPREQ_DEBUG_DB and HUBPREQ_DEBUG */
-#define HUBP_REG_LIST_DCN42B_RI(id)                                         \
-	SRI_ARR(DCN_DMDATA_VM_CNTL, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_3, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_4, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_5, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_6, HUBPREQ, id),                               \
-	SRI_ARR(VBLANK_PARAMETERS_5, HUBPREQ, id),                             \
-	SRI_ARR(VBLANK_PARAMETERS_6, HUBPREQ, id),                             \
-	HUBP_REG_LIST_DCN_VM_RI(id),                                            \
-	SRI_ARR(PREFETCH_SETTINGS, HUBPREQ, id),                               \
-	SRI_ARR(PREFETCH_SETTINGS_C, HUBPREQ, id),                             \
-	SRI_ARR(DCN_VM_SYSTEM_APERTURE_LOW_ADDR, HUBPREQ, id),                 \
-	SRI_ARR(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR, HUBPREQ, id),                \
-	SRI_ARR(CURSOR_SETTINGS, HUBPREQ, id),                                 \
-	SRI_ARR(CURSOR_SURFACE_ADDRESS_HIGH, CURSOR0_, id),                    \
-	SRI_ARR(CURSOR_SURFACE_ADDRESS, CURSOR0_, id),                         \
-	SRI_ARR(CURSOR_SIZE, CURSOR0_, id),                                    \
-	SRI_ARR(CURSOR_CONTROL, CURSOR0_, id),                                 \
-	SRI_ARR(CURSOR_POSITION, CURSOR0_, id),                                \
-	SRI_ARR(CURSOR_HOT_SPOT, CURSOR0_, id),                                \
-	SRI_ARR(CURSOR_DST_OFFSET, CURSOR0_, id),                              \
-	SRI_ARR(DMDATA_ADDRESS_HIGH, CURSOR0_, id),                            \
-	SRI_ARR(DMDATA_ADDRESS_LOW, CURSOR0_, id),                             \
-	SRI_ARR(DMDATA_CNTL, CURSOR0_, id),                                    \
-	SRI_ARR(DMDATA_SW_CNTL, CURSOR0_, id),                                 \
-	SRI_ARR(DMDATA_QOS_CNTL, CURSOR0_, id),                                \
-	SRI_ARR(DMDATA_SW_DATA, CURSOR0_, id),                                 \
-	SRI_ARR(DMDATA_STATUS, CURSOR0_, id),                                  \
-	SRI_ARR(FLIP_PARAMETERS_0, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_1, HUBPREQ, id),                               \
-	SRI_ARR(FLIP_PARAMETERS_2, HUBPREQ, id),                               \
-	SRI_ARR(DCN_CUR1_TTU_CNTL0, HUBPREQ, id),                              \
-	SRI_ARR(DCN_CUR1_TTU_CNTL1, HUBPREQ, id),                              \
-	SRI_ARR(DCSURF_FLIP_CONTROL2, HUBPREQ, id),                            \
-	SRI_ARR(VMID_SETTINGS_0, HUBPREQ, id),                                 \
-	SRI_ARR(DCHUBP_CNTL, HUBP, id),                                        \
-	SRI_ARR(DCSURF_ADDR_CONFIG, HUBP, id),                                 \
-	SRI_ARR(DCSURF_TILING_CONFIG, HUBP, id),                               \
-	SRI_ARR(DCSURF_SURFACE_PITCH, HUBPREQ, id),                            \
-	SRI_ARR(DCSURF_SURFACE_PITCH_C, HUBPREQ, id),                          \
-	SRI_ARR(DCSURF_SURFACE_CONFIG, HUBP, id),                              \
-	SRI_ARR(DCSURF_FLIP_CONTROL, HUBPREQ, id),                             \
-	SRI_ARR(DCSURF_PRI_VIEWPORT_DIMENSION, HUBP, id),                      \
-	SRI_ARR(DCSURF_PRI_VIEWPORT_START, HUBP, id),                          \
-	SRI_ARR(DCSURF_SEC_VIEWPORT_DIMENSION, HUBP, id),                      \
-	SRI_ARR(DCSURF_SEC_VIEWPORT_START, HUBP, id),                          \
-	SRI_ARR(DCSURF_PRI_VIEWPORT_DIMENSION_C, HUBP, id),                    \
-	SRI_ARR(DCSURF_PRI_VIEWPORT_START_C, HUBP, id),                        \
-	SRI_ARR(DCSURF_SEC_VIEWPORT_DIMENSION_C, HUBP, id),                    \
-	SRI_ARR(DCSURF_SEC_VIEWPORT_START_C, HUBP, id),                        \
-	SRI_ARR(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH, HUBPREQ, id),             \
-	SRI_ARR(DCSURF_PRIMARY_SURFACE_ADDRESS, HUBPREQ, id),                  \
-	SRI_ARR(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH, HUBPREQ, id),           \
-	SRI_ARR(DCSURF_SECONDARY_SURFACE_ADDRESS, HUBPREQ, id),                \
-	SRI_ARR(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, HUBPREQ, id),        \
-	SRI_ARR(DCSURF_PRIMARY_META_SURFACE_ADDRESS, HUBPREQ, id),             \
-	SRI_ARR(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH, HUBPREQ, id),      \
-	SRI_ARR(DCSURF_SECONDARY_META_SURFACE_ADDRESS, HUBPREQ, id),           \
-	SRI_ARR(DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C, HUBPREQ, id),           \
-	SRI_ARR(DCSURF_PRIMARY_SURFACE_ADDRESS_C, HUBPREQ, id),                \
-	SRI_ARR(DCSURF_SECONDARY_SURFACE_ADDRESS_HIGH_C, HUBPREQ, id),         \
-	SRI_ARR(DCSURF_SECONDARY_SURFACE_ADDRESS_C, HUBPREQ, id),              \
-	SRI_ARR(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C, HUBPREQ, id),      \
-	SRI_ARR(DCSURF_PRIMARY_META_SURFACE_ADDRESS_C, HUBPREQ, id),           \
-	SRI_ARR(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH_C, HUBPREQ, id),    \
-	SRI_ARR(DCSURF_SECONDARY_META_SURFACE_ADDRESS_C, HUBPREQ, id),         \
-	SRI_ARR(DCSURF_SURFACE_INUSE, HUBPREQ, id),                            \
-	SRI_ARR(DCSURF_SURFACE_INUSE_HIGH, HUBPREQ, id),                       \
-	SRI_ARR(DCSURF_SURFACE_INUSE_C, HUBPREQ, id),                          \
-	SRI_ARR(DCSURF_SURFACE_INUSE_HIGH_C, HUBPREQ, id),                     \
-	SRI_ARR(DCSURF_SURFACE_EARLIEST_INUSE, HUBPREQ, id),                   \
-	SRI_ARR(DCSURF_SURFACE_EARLIEST_INUSE_HIGH, HUBPREQ, id),              \
-	SRI_ARR(DCSURF_SURFACE_EARLIEST_INUSE_C, HUBPREQ, id),                 \
-	SRI_ARR(DCSURF_SURFACE_EARLIEST_INUSE_HIGH_C, HUBPREQ, id),            \
-	SRI_ARR(DCSURF_SURFACE_CONTROL, HUBPREQ, id),                          \
-	SRI_ARR(DCSURF_SURFACE_FLIP_INTERRUPT, HUBPREQ, id),                   \
-	SRI_ARR(HUBPRET_CONTROL, HUBPRET, id),                                 \
-	SRI_ARR(HUBPRET_READ_LINE_STATUS, HUBPRET, id),                        \
-	SRI_ARR(DCN_EXPANSION_MODE, HUBPREQ, id),                              \
-	SRI_ARR(DCHUBP_REQ_SIZE_CONFIG, HUBP, id),                             \
-	SRI_ARR(DCHUBP_REQ_SIZE_CONFIG_C, HUBP, id),                           \
-	SRI_ARR(BLANK_OFFSET_0, HUBPREQ, id),                                  \
-	SRI_ARR(BLANK_OFFSET_1, HUBPREQ, id),                                  \
-	SRI_ARR(DST_DIMENSIONS, HUBPREQ, id),                                  \
-	SRI_ARR(DST_AFTER_SCALER, HUBPREQ, id),                                \
-	SRI_ARR(VBLANK_PARAMETERS_0, HUBPREQ, id),                             \
-	SRI_ARR(REF_FREQ_TO_PIX_FREQ, HUBPREQ, id),                            \
-	SRI_ARR(VBLANK_PARAMETERS_1, HUBPREQ, id),                             \
-	SRI_ARR(VBLANK_PARAMETERS_3, HUBPREQ, id),                             \
-	SRI_ARR(NOM_PARAMETERS_4, HUBPREQ, id),                                \
-	SRI_ARR(NOM_PARAMETERS_5, HUBPREQ, id),                                \
-	SRI_ARR(PER_LINE_DELIVERY_PRE, HUBPREQ, id),                           \
-	SRI_ARR(PER_LINE_DELIVERY, HUBPREQ, id),                               \
-	SRI_ARR(VBLANK_PARAMETERS_2, HUBPREQ, id),                             \
-	SRI_ARR(VBLANK_PARAMETERS_4, HUBPREQ, id),                             \
-	SRI_ARR(NOM_PARAMETERS_6, HUBPREQ, id),                                \
-	SRI_ARR(NOM_PARAMETERS_7, HUBPREQ, id),                                \
-	SRI_ARR(DCN_TTU_QOS_WM, HUBPREQ, id),                                  \
-	SRI_ARR(DCN_GLOBAL_TTU_CNTL, HUBPREQ, id),                             \
-	SRI_ARR(DCN_SURF0_TTU_CNTL0, HUBPREQ, id),                             \
-	SRI_ARR(DCN_SURF0_TTU_CNTL1, HUBPREQ, id),                             \
-	SRI_ARR(DCN_SURF1_TTU_CNTL0, HUBPREQ, id),                             \
-	SRI_ARR(DCN_SURF1_TTU_CNTL1, HUBPREQ, id),                             \
-	SRI_ARR(DCN_CUR0_TTU_CNTL0, HUBPREQ, id),                              \
-	SRI_ARR(DCN_CUR0_TTU_CNTL1, HUBPREQ, id),                              \
-	SRI_ARR(HUBP_CLK_CNTL, HUBP, id),                                      \
-	SRI_ARR(HUBPRET_READ_LINE_VALUE, HUBPRET, id),                         \
-	SRI_ARR(DCHUBP_MALL_CONFIG, HUBP, id),                                 \
-	SRI_ARR(DCHUBP_VMPG_CONFIG, HUBP, id),                                 \
-	SRI_ARR(UCLK_PSTATE_FORCE, HUBPREQ, id),                               \
-	SRI_ARR(HUBP_3DLUT_DLG_PARAM, CURSOR0_, id),                           \
-	HUBP_3DLUT_FL_REG_LIST_DCN401(id)
 struct dcn42b_resource_pool {
 	struct resource_pool base;
 };

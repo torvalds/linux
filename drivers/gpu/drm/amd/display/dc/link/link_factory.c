@@ -143,6 +143,7 @@ static void construct_link_service_ddc(struct link_service *link_srv)
 			link_aux_transfer_with_retries_no_mutex;
 	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
 	link_srv->get_aux_defer_delay = link_get_aux_defer_delay;
+	link_srv->get_ddc_aux_inst = link_get_ddc_aux_inst;
 }
 
 /* link dp capability implements dp specific link capability retrieval sequence.
@@ -441,7 +442,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 
 	channel = CHANNEL_ID_UNKNOWN;
 
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
+	if (link->force_to_use_aux) {
 		channel = link->aux_hw_inst + 1;
 	} else {
 		ddc = get_ddc_pin(link->ddc);
@@ -576,6 +577,8 @@ static bool construct_phy(struct dc_link *link,
 		link->is_internal_display = (disp_connect_caps_info.INTERNAL_DISPLAY != 0);
 		DC_LOG_DC("BIOS object table - is_internal_display: %d", link->is_internal_display);
 		link->no_ddc_pin = disp_connect_caps_info.NO_DDC_PIN != 0;
+		link->force_to_use_aux = link->dc->config.dp_connector_no_native_i2c
+				&& link->no_ddc_pin;
 	}
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
@@ -598,7 +601,7 @@ static bool construct_phy(struct dc_link *link,
 		goto ddc_create_fail;
 	}
 
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
+	if (link->force_to_use_aux) {
 		link->ddc_hw_inst = link->aux_hw_inst;
 	} else {
 		/* Embedded display connectors such as LVDS may not have DDC. */

@@ -330,7 +330,8 @@ static enum drm_mode_status ch7033_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static void ch7033_bridge_disable(struct drm_bridge *bridge)
+static void ch7033_bridge_disable(struct drm_bridge *bridge,
+				  struct drm_atomic_commit *commit)
 {
 	struct ch7033_priv *priv = bridge_to_ch7033_priv(bridge);
 
@@ -338,7 +339,8 @@ static void ch7033_bridge_disable(struct drm_bridge *bridge)
 	regmap_update_bits(priv->regmap, 0x52, RESETDB, 0x00);
 }
 
-static void ch7033_bridge_enable(struct drm_bridge *bridge)
+static void ch7033_bridge_enable(struct drm_bridge *bridge,
+				 struct drm_atomic_commit *commit)
 {
 	struct ch7033_priv *priv = bridge_to_ch7033_priv(bridge);
 
@@ -514,11 +516,14 @@ static void ch7033_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs ch7033_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = ch7033_bridge_attach,
 	.detach = ch7033_bridge_detach,
 	.mode_valid = ch7033_bridge_mode_valid,
-	.disable = ch7033_bridge_disable,
-	.enable = ch7033_bridge_enable,
+	.atomic_disable = ch7033_bridge_disable,
+	.atomic_enable = ch7033_bridge_enable,
 	.mode_set = ch7033_bridge_mode_set,
 };
 

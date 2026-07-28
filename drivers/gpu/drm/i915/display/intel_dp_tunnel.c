@@ -11,6 +11,7 @@
 #include "intel_display_limits.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_link_caps.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_tunnel.h"
@@ -56,8 +57,9 @@ static int kbytes_to_mbits(int kbytes)
 
 static int get_current_link_bw(struct intel_dp *intel_dp)
 {
-	int rate = intel_dp_max_common_rate(intel_dp);
-	int lane_count = intel_dp_max_common_lane_count(intel_dp);
+	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
+	int rate = intel_dp_max_common_rate(link_caps);
+	int lane_count = intel_dp_link_caps_max_common_lane_count(link_caps);
 
 	return intel_dp_max_link_data_rate(intel_dp, rate, lane_count);
 }

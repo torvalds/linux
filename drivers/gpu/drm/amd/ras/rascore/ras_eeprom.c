@@ -746,6 +746,9 @@ static int ras_eeprom_update_header(struct ras_eeprom_control *control)
 	int res;
 
 	bad_page_count = ras_umc_get_badpage_count(ras_core);
+	ras_core_event_notify(ras_core, RAS_EVENT_ID__UPDATE_BAD_PAGE_NUM,
+			      &bad_page_count);
+
 	/* Modify the header if it exceeds.
 	 */
 	if (threshold_config != 0 &&

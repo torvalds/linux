@@ -824,7 +824,6 @@ static const struct file_operations fops = {
 
 #define DRIVER_FEATURES_GPU ( \
 		DRIVER_GEM | \
-		DRIVER_GEM_GPUVA | \
 		DRIVER_RENDER | \
 		DRIVER_SYNCOBJ | \
 		DRIVER_SYNCOBJ_TIMELINE | \
@@ -832,7 +831,6 @@ static const struct file_operations fops = {
 
 #define DRIVER_FEATURES_KMS ( \
 		DRIVER_GEM | \
-		DRIVER_GEM_GPUVA | \
 		DRIVER_ATOMIC | \
 		DRIVER_MODESET | \
 		0 )

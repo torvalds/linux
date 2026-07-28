@@ -267,6 +267,24 @@ static int amdgpu_ras_sys_put_gpu_mem(struct ras_core_context *ras_core,
 	return 0;
 }
 
+static int amdgpu_ras_sys_check_address_sanity(struct ras_core_context *ras_core,
+						uint64_t addr)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
+
+	if ((addr >= adev->gmc.mc_vram_size &&
+	    adev->gmc.mc_vram_size) ||
+	    (addr >= RAS_UMC_INJECT_ADDR_LIMIT))
+		return -EINVAL;
+
+	if (addr >= adev->gmc.real_vram_size) {
+		RAS_DEV_WARN(ras_core->dev, "Recorded address out of range: 0x%llx!\n", addr);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 const struct ras_sys_func amdgpu_ras_sys_fn = {
 	.ras_notifier = amdgpu_ras_sys_event_notifier,
 	.get_utc_second_timestamp = amdgpu_ras_sys_get_utc_second_timestamp,
@@ -277,4 +295,5 @@ const struct ras_sys_func amdgpu_ras_sys_fn = {
 	.detect_ras_interrupt = amdgpu_ras_sys_detect_ras_interrupt,
 	.get_gpu_mem = amdgpu_ras_sys_get_gpu_mem,
 	.put_gpu_mem = amdgpu_ras_sys_put_gpu_mem,
+	.check_address_sanity = amdgpu_ras_sys_check_address_sanity,
 };

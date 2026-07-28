@@ -262,6 +262,11 @@ struct amdgpu_rlc_funcs {
 	bool (*is_rlcg_access_range)(struct amdgpu_device *adev, uint32_t reg);
 };
 
+struct amdgpu_rlc_reg_funcs {
+	u32  (*rreg32)(struct amdgpu_device *adev, u32 reg, u32 acc_flags, u32 hwip, u32 xcc_id);
+	void (*wreg32)(struct amdgpu_device *adev, u32 reg, u32 val, u32 acc_flags, u32 hwip, u32 xcc_id);
+};
+
 struct amdgpu_rlcg_reg_access_ctrl {
 	uint32_t scratch_reg0;
 	uint32_t scratch_reg1;
@@ -303,6 +308,7 @@ struct amdgpu_rlc {
 	/* safe mode for updating CG/PG state */
 	bool in_safe_mode[AMDGPU_MAX_RLC_INSTANCES];
 	const struct amdgpu_rlc_funcs *funcs;
+	const struct amdgpu_rlc_reg_funcs *reg_funcs;
 
 	/* for firmware data */
 	u32 save_and_restore_offset;
@@ -374,4 +380,8 @@ void amdgpu_gfx_rlc_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_rlc_init_microcode(struct amdgpu_device *adev,
 				  uint16_t version_major,
 				  uint16_t version_minor);
+
+void amdgpu_early_init_rlc_reg_funcs(struct amdgpu_device *adev);
+void amdgpu_init_rlc_reg_funcs(struct amdgpu_device *adev);
+
 #endif

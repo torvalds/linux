@@ -30,7 +30,6 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/of_device.h>
@@ -44,8 +43,9 @@
  *
  * This driver supports the following PowerVR/IMG graphics cores from Imagination Technologies:
  *
- * * AXE-1-16M (found in Texas Instruments AM62)
- * * BXS-4-64 MC1 (found in Texas Instruments J721S2/AM68)
+ * * AXE-1-16M (33.15.11.3)
+ * * BXM-4-64 MC1 (36.52.104.182)
+ * * BXS-4-64 MC1 (36.53.104.796)
  */
 
 /**
@@ -515,7 +515,8 @@ copy_out:
 	if (err < 0)
 		return err;
 
-	args->size = sizeof(query);
+	if (args->size > sizeof(query))
+		args->size = sizeof(query);
 	return 0;
 }
 
@@ -596,7 +597,8 @@ copy_out:
 	if (err < 0)
 		return err;
 
-	args->size = sizeof(query);
+	if (args->size > sizeof(query))
+		args->size = sizeof(query);
 	return 0;
 }
 
@@ -1255,14 +1257,13 @@ pvr_set_uobj_array(const struct drm_pvr_obj_array *out, u32 min_stride, u32 obj_
 			if (copy_to_user(out_ptr, in_ptr, cpy_elem_size))
 				return -EFAULT;
 
-			out_ptr += obj_size;
-			in_ptr += out->stride;
-		}
+			if (out->stride > obj_size &&
+			    clear_user(out_ptr + cpy_elem_size, out->stride - obj_size)) {
+				return -EFAULT;
+			}
 
-		if (out->stride > obj_size &&
-		    clear_user(u64_to_user_ptr(out->array + obj_size),
-			       out->stride - obj_size)) {
-			return -EFAULT;
+			out_ptr += out->stride;
+			in_ptr += obj_size;
 		}
 	}
 
@@ -1378,7 +1379,7 @@ pvr_drm_driver_postclose(__always_unused struct drm_device *drm_dev,
 DEFINE_DRM_GEM_FOPS(pvr_drm_driver_fops);
 
 static struct drm_driver pvr_drm_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_GEM_GPUVA | DRIVER_RENDER |
+	.driver_features = DRIVER_GEM | DRIVER_RENDER |
 			   DRIVER_SYNCOBJ | DRIVER_SYNCOBJ_TIMELINE,
 	.open = pvr_drm_driver_open,
 	.postclose = pvr_drm_driver_postclose,

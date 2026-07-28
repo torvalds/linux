@@ -518,9 +518,6 @@ void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 {
 	union dmub_rb_cmd cmd = { 0 };
 
-	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
-		return;
-
 	memset(&cmd, 0, sizeof(cmd));
 
 	/* Prepare fw command */
@@ -1302,9 +1299,6 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return true;
 
-	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
-		return true;
-
 	dc_ctx = dc_dmub_srv->ctx;
 
 	if (wait) {
@@ -1344,9 +1338,6 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	volatile const struct dmub_shared_state_ips_fw *ips_fw;
 	struct dc_dmub_srv *dc_dmub_srv;
 	union dmub_rb_cmd cmd = {0};
-
-	if (dc->debug.dmcub_emulation)
-		return;
 
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
@@ -1465,9 +1456,6 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
 	uint32_t rcg_exit_count = 0, ips1_exit_count = 0, ips2_exit_count = 0, ips1z8_exit_count = 0;
-
-	if (dc->debug.dmcub_emulation)
-		return;
 
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
@@ -1920,6 +1908,8 @@ static void dc_dmub_srv_ib_based_fams2_update_config(struct dc *dc,
 	config->global.features.bits.enable = enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable;
 	config->global.features.bits.enable_ppt_check = dc->debug.fams2_config.bits.enable_ppt_check;
 
+	dmub_srv_flush_buffer_mem(dc->ctx->dmub_srv->dmub, &dc->ctx->dmub_srv->dmub->ib_mem_gart);
+
 	dm_execute_dmub_cmd_list(dc->ctx, 1, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
@@ -2085,7 +2075,7 @@ bool dc_dmub_srv_ips_query_residency_info(const struct dc_context *ctx, uint8_t 
 	union dmub_rb_cmd cmd;
 	uint32_t bytes = sizeof(struct dmub_ips_residency_info);
 
-	dmub_flush_buffer_mem(&ctx->dmub_srv->dmub->scratch_mem_fb);
+	dmub_srv_flush_buffer_mem(ctx->dmub_srv->dmub, &ctx->dmub_srv->dmub->scratch_mem_fb);
 	memset(&cmd, 0, sizeof(cmd));
 
 	cmd.ips_query_residency_info.header.type = DMUB_CMD__IPS;
@@ -2137,9 +2127,7 @@ bool dmub_lsdma_init(struct dc_dmub_srv *dc_dmub_srv)
 
 bool dmub_lsdma_send_linear_copy_command(
 	struct dc_dmub_srv *dc_dmub_srv,
-	uint64_t src_addr,
-	uint64_t dst_addr,
-	uint32_t count
+	struct lsdma_linear_copy_params copy_data
 )
 {
 	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
@@ -2154,11 +2142,20 @@ bool dmub_lsdma_send_linear_copy_command(
 	cmd.cmd_common.header.sub_type = DMUB_CMD__LSDMA_LINEAR_COPY;
 	wait_type                      = DM_DMUB_WAIT_TYPE_NO_WAIT;
 
-	lsdma_data->u.linear_copy_data.count   = count - 1; // LSDMA controller expects bytes to copy -1
-	lsdma_data->u.linear_copy_data.src_lo  = src_addr & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.src_hi  = (src_addr >> 32) & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.dst_lo  = dst_addr & 0xFFFFFFFF;
-	lsdma_data->u.linear_copy_data.dst_hi  = (dst_addr >> 32) & 0xFFFFFFFF;
+	lsdma_data->u.linear_copy_data.count   = copy_data.count;
+	lsdma_data->u.linear_copy_data.src_lo  = copy_data.src_lo;
+	lsdma_data->u.linear_copy_data.src_hi  = copy_data.src_hi;
+	lsdma_data->u.linear_copy_data.dst_lo  = copy_data.dst_lo;
+	lsdma_data->u.linear_copy_data.dst_hi  = copy_data.dst_hi;
+	lsdma_data->u.linear_copy_data.tmz     = copy_data.tmz;
+	lsdma_data->u.linear_copy_data.data_format = copy_data.data_format;
+	lsdma_data->u.linear_copy_data.num_type = copy_data.num_type;
+	lsdma_data->u.linear_copy_data.read_compress = copy_data.read_compress;
+	lsdma_data->u.linear_copy_data.write_compress = copy_data.write_compress;
+	lsdma_data->u.linear_copy_data.max_com = copy_data.max_com;
+	lsdma_data->u.linear_copy_data.max_uncom = copy_data.max_uncom;
+	lsdma_data->u.linear_copy_data.cache_policy_src = copy_data.cache_policy_src;
+	lsdma_data->u.linear_copy_data.cache_policy_dst = copy_data.cache_policy_dst;
 
 	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
 
@@ -2203,6 +2200,12 @@ bool dmub_lsdma_send_linear_sub_window_copy_command(
 	lsdma_data->u.linear_sub_window_copy_data.rect_y           = copy_data.rect_y;
 	lsdma_data->u.linear_sub_window_copy_data.src_cache_policy = copy_data.src_cache_policy;
 	lsdma_data->u.linear_sub_window_copy_data.dst_cache_policy = copy_data.dst_cache_policy;
+	lsdma_data->u.linear_sub_window_copy_data.data_format      = copy_data.data_format;
+	lsdma_data->u.linear_sub_window_copy_data.num_type         = copy_data.num_type;
+	lsdma_data->u.linear_sub_window_copy_data.read_compress    = copy_data.read_compress;
+	lsdma_data->u.linear_sub_window_copy_data.write_compress   = copy_data.write_compress;
+	lsdma_data->u.linear_sub_window_copy_data.max_com          = copy_data.max_com;
+	lsdma_data->u.linear_sub_window_copy_data.max_uncom        = copy_data.max_uncom;
 
 	result = dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, wait_type);
 

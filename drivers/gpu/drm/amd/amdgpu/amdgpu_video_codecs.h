@@ -1,4 +1,6 @@
-/* Copyright 2018 Advanced Micro Devices, Inc.
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ *
+ * Copyright 2026 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -17,23 +19,29 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: AMD
- *
  */
+#ifndef __AMDGPU_VIDEO_CODECS_H__
+#define __AMDGPU_VIDEO_CODECS_H__
 
-#include "power_helpers.h"
-#include "dc/inc/hw/dmcu.h"
-#include "dc/inc/hw/abm.h"
-#include "dc.h"
-#include "core_types.h"
-#include "dmub_cmd.h"
+#include <linux/types.h>
 
-#define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
-#define bswap16_based_on_endian(big_endian, value) \
-	((big_endian) ? cpu_to_be16(value) : cpu_to_le16(value))
+#define codec_info_build(type, width, height, level) \
+			 .codec_type = type,\
+			 .max_width = width,\
+			 .max_height = height,\
+			 .max_pixels_per_frame = height * width,\
+			 .max_level = level,
 
-bool mod_power_only_edp(const struct dc_state *context, const struct dc_stream_state *stream)
-{
-	return context && context->stream_count == 1 && dc_is_embedded_signal(stream->signal);
-}
+struct amdgpu_video_codec_info {
+	u32 codec_type;
+	u32 max_width;
+	u32 max_height;
+	u32 max_pixels_per_frame;
+	u32 max_level;
+};
+
+struct amdgpu_video_codecs {
+	const u32 codec_count;
+	const struct amdgpu_video_codec_info *codec_array;
+};
+#endif

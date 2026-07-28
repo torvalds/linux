@@ -34,6 +34,7 @@
 #include "amdgpu_smu.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_video_codecs.h"
 
 #include "gc/gc_12_0_0_offset.h"
 #include "gc/gc_12_0_0_sh_mask.h"
@@ -238,16 +239,6 @@ const struct amdgpu_ip_block_version soc24_common_ip_block = {
 	.funcs = &soc24_common_ip_funcs,
 };
 
-static bool soc24_need_full_reset(struct amdgpu_device *adev)
-{
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(12, 0, 0):
-	case IP_VERSION(12, 0, 1):
-	default:
-		return true;
-	}
-}
-
 static bool soc24_need_reset_on_init(struct amdgpu_device *adev)
 {
 	u32 sol_reg;
@@ -330,7 +321,6 @@ static const struct amdgpu_asic_funcs soc24_asic_funcs = {
 	.get_xclk = &soc24_get_xclk,
 	.get_config_memsize = &soc24_get_config_memsize,
 	.init_doorbell_index = &soc24_init_doorbell_index,
-	.need_full_reset = &soc24_need_full_reset,
 	.need_reset_on_init = &soc24_need_reset_on_init,
 	.get_pcie_replay_count = &soc24_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
@@ -496,8 +486,36 @@ static int soc24_common_suspend(struct amdgpu_ip_block *ip_block)
 	return soc24_common_hw_fini(ip_block);
 }
 
+static bool soc24_need_reset_on_resume(struct amdgpu_device *adev)
+{
+	u32 sol_reg1, sol_reg2;
+
+	/* Will reset for the following suspend abort cases.
+	 * 1) Only reset dGPU side.
+	 * 2) S3 suspend got aborted and TOS is active.
+	 *    As for dGPU suspend abort cases the SOL value
+	 *    will be kept as zero at this resume point.
+	 */
+	if (!(adev->flags & AMD_IS_APU) && adev->in_s3) {
+		sol_reg1 = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_81);
+		msleep(100);
+		sol_reg2 = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_81);
+
+		return (sol_reg1 != sol_reg2);
+	}
+
+	return false;
+}
+
 static int soc24_common_resume(struct amdgpu_ip_block *ip_block)
 {
+	struct amdgpu_device *adev = ip_block->adev;
+
+	if (soc24_need_reset_on_resume(adev)) {
+		dev_info(adev->dev, "S3 suspend aborted, resetting...");
+		soc24_asic_reset(adev);
+	}
+
 	return soc24_common_hw_init(ip_block);
 }
 

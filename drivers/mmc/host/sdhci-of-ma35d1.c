@@ -20,7 +20,6 @@
 #include <linux/minmax.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>

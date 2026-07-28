@@ -29,6 +29,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_wb.h"
+#include "amdgpu_dm_kunit_helpers.h"
 #include "amdgpu_display.h"
 #include "dc.h"
 
@@ -40,7 +41,7 @@ static const u32 amdgpu_dm_wb_formats[] = {
 	DRM_FORMAT_XRGB2101010,
 };
 
-static int amdgpu_dm_wb_encoder_atomic_check(struct drm_encoder *encoder,
+STATIC_IFN_KUNIT int amdgpu_dm_wb_encoder_atomic_check(struct drm_encoder *encoder,
 					struct drm_crtc_state *crtc_state,
 					struct drm_connector_state *conn_state)
 {
@@ -59,9 +60,11 @@ static int amdgpu_dm_wb_encoder_atomic_check(struct drm_encoder *encoder,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < sizeof(amdgpu_dm_wb_formats) / sizeof(u32); i++) {
-		if (fb->format->format == amdgpu_dm_wb_formats[i])
+	for (i = 0; i < ARRAY_SIZE(amdgpu_dm_wb_formats); i++) {
+		if (fb->format->format == amdgpu_dm_wb_formats[i]) {
 			found = true;
+			break;
+		}
 	}
 
 	if (!found) {
@@ -72,15 +75,17 @@ static int amdgpu_dm_wb_encoder_atomic_check(struct drm_encoder *encoder,
 
 	return 0;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_wb_encoder_atomic_check);
 
 
-static int amdgpu_dm_wb_connector_get_modes(struct drm_connector *connector)
+STATIC_IFN_KUNIT int amdgpu_dm_wb_connector_get_modes(struct drm_connector *connector)
 {
 	/* Maximum resolution supported by DWB */
 	return drm_add_modes_noedid(connector, 3840, 2160);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_wb_connector_get_modes);
 
-static int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb_connector,
+STATIC_IFN_KUNIT int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb_connector,
 			       struct drm_writeback_job *job)
 {
 	struct amdgpu_framebuffer *afb;
@@ -102,13 +107,15 @@ static int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb_connector
 
 	r = amdgpu_bo_reserve(rbo, true);
 	if (r) {
-		drm_err(adev_to_drm(adev), "fail to reserve bo (%d)\n", r);
+		drm_err(adev_to_drm(adev), "fail to reserve bo: %pe\n", ERR_PTR(r));
 		return r;
 	}
 
 	r = dma_resv_reserve_fences(rbo->tbo.base.resv, TTM_NUM_MOVE_FENCES);
-	if (r)
+	if (r) {
+		drm_err(adev_to_drm(adev), "reserving fence slot failed: %pe\n", ERR_PTR(r));
 		goto error_unlock;
+	}
 
 	domain = amdgpu_display_supported_domains(adev, rbo->flags);
 
@@ -116,13 +123,13 @@ static int amdgpu_dm_wb_prepare_job(struct drm_writeback_connector *wb_connector
 	r = amdgpu_bo_pin(rbo, domain);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
-			DRM_ERROR("Failed to pin framebuffer with error %d\n", r);
+			DRM_ERROR("Failed to pin framebuffer: %pe\n", ERR_PTR(r));
 		goto error_unlock;
 	}
 
 	r = amdgpu_ttm_alloc_gart(&rbo->tbo);
 	if (unlikely(r != 0)) {
-		DRM_ERROR("%p bind failed\n", rbo);
+		DRM_ERROR("%p bind failed: %pe\n", rbo, ERR_PTR(r));
 		goto error_unpin;
 	}
 
@@ -141,8 +148,9 @@ error_unlock:
 	amdgpu_bo_unreserve(rbo);
 	return r;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_wb_prepare_job);
 
-static void amdgpu_dm_wb_cleanup_job(struct drm_writeback_connector *connector,
+STATIC_IFN_KUNIT void amdgpu_dm_wb_cleanup_job(struct drm_writeback_connector *connector,
 				struct drm_writeback_job *job)
 {
 	struct amdgpu_bo *rbo;
@@ -154,7 +162,7 @@ static void amdgpu_dm_wb_cleanup_job(struct drm_writeback_connector *connector,
 	rbo = gem_to_amdgpu_bo(job->fb->obj[0]);
 	r = amdgpu_bo_reserve(rbo, false);
 	if (unlikely(r)) {
-		DRM_ERROR("failed to reserve rbo before unpin\n");
+		DRM_ERROR("failed to reserve rbo before unpin: %pe\n", ERR_PTR(r));
 		return;
 	}
 
@@ -162,6 +170,7 @@ static void amdgpu_dm_wb_cleanup_job(struct drm_writeback_connector *connector,
 	amdgpu_bo_unreserve(rbo);
 	amdgpu_bo_unref(&rbo);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_wb_cleanup_job);
 
 static const struct drm_encoder_helper_funcs amdgpu_dm_wb_encoder_helper_funcs = {
 	.atomic_check = amdgpu_dm_wb_encoder_atomic_check,
@@ -187,7 +196,7 @@ int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
 {
 	struct dc *dc = dm->dc;
 	struct dc_link *link = dc_get_link_at_index(dc, link_index);
-	int res = 0;
+	int res;
 
 	wbcon->link = link;
 
@@ -211,3 +220,4 @@ int amdgpu_dm_wb_connector_init(struct amdgpu_display_manager *dm,
 
 	return 0;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_wb_connector_init);

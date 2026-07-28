@@ -21,11 +21,10 @@
 #define CG_IDLE_CG_EN				(1 << 6)
 #define CG_WAKEUP_DLY_CNT(val)			((val & 0xf) << 16)
 
-#define VIC_TFBIF_TRANSCFG	0x00002044
-#define  TRANSCFG_ATT(i, v)	(((v) & 0x3) << (i * 4))
-#define  TRANSCFG_SID_HW	0
-#define  TRANSCFG_SID_PHY	1
-#define  TRANSCFG_SID_FALCON	2
+#define TRANSCFG_ATT(i, v)	(((v) & 0x3) << ((i) * 4))
+#define TRANSCFG_SID_HW		0
+#define TRANSCFG_SID_PHY	1
+#define TRANSCFG_SID_FALCON	2
 
 /* Firmware offsets */
 

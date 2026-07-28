@@ -981,19 +981,8 @@ static int fuse_iomap_read_folio_range_async(const struct iomap_iter *iter,
 	return ret;
 }
 
-static void fuse_iomap_submit_read(const struct iomap_iter *iter,
-		struct iomap_read_folio_ctx *ctx)
-{
-	struct fuse_fill_read_data *data = ctx->read_ctx;
-
-	if (data->ia)
-		fuse_send_readpages(data->ia, data->file, data->nr_bytes,
-				    data->fc->async_read);
-}
-
 static const struct iomap_read_ops fuse_iomap_read_ops = {
 	.read_folio_range = fuse_iomap_read_folio_range_async,
-	.submit_read = fuse_iomap_submit_read,
 };
 
 static int fuse_read_folio(struct file *file, struct folio *folio)
@@ -1116,6 +1105,9 @@ static void fuse_readahead(struct readahead_control *rac)
 		return;
 
 	iomap_readahead(&fuse_iomap_ops, &ctx, NULL);
+	if (data.ia)
+		fuse_send_readpages(data.ia, data.file, data.nr_bytes,
+				    fc->async_read);
 }
 
 static ssize_t fuse_cache_read_iter(struct kiocb *iocb, struct iov_iter *to)

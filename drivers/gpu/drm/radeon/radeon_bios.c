@@ -596,20 +596,59 @@ static bool radeon_read_disabled_bios(struct radeon_device *rdev)
 		return legacy_read_disabled_bios(rdev);
 }
 
+/**
+ * radeon_acpi_vfct_match() - Check if a VFCT entry matches the device
+ * @rdev: Radeon device
+ * @vhdr: VFCT image header to check
+ *
+ * VFCT entries contain the PCI bus number as recorded during BIOS POST.
+ * On systems where the kernel renumbers PCI buses (e.g. pci=realloc or
+ * resource conflicts), the runtime bus number may differ from the POST
+ * value.  Match by device identity (vendor + device + function) and use
+ * the bus number as a preference: exact bus match is preferred, but when
+ * the bus numbers disagree we accept the entry if the device identity
+ * matches.
+ *
+ * Returns: 0 on match, -ENODEV on no match
+ */
+static int radeon_acpi_vfct_match(struct radeon_device *rdev,
+				  VFCT_IMAGE_HEADER *vhdr)
+{
+	/* Vendor and device IDs must always match */
+	if (vhdr->VendorID != rdev->pdev->vendor ||
+	    vhdr->DeviceID != rdev->pdev->device)
+		return -ENODEV;
+
+	if (vhdr->PCIDevice != PCI_SLOT(rdev->pdev->devfn) ||
+	    vhdr->PCIFunction != PCI_FUNC(rdev->pdev->devfn))
+		return -ENODEV;
+
+	/* Exact bus number match - preferred */
+	if (vhdr->PCIBus == rdev->pdev->bus->number)
+		return 0;
+
+	/* Bus mismatch but device identity matches (PCI renumbering case) */
+	dev_notice(&rdev->pdev->dev,
+		   "VFCT bus number mismatch: table %u != runtime %u, matching by device identity (vendor 0x%04x device 0x%04x)\n",
+		   vhdr->PCIBus, rdev->pdev->bus->number,
+		   rdev->pdev->vendor, rdev->pdev->device);
+	return 0;
+}
+
 #ifdef CONFIG_ACPI
 static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 {
 	struct acpi_table_header *hdr;
 	acpi_size tbl_size;
 	UEFI_ACPI_VFCT *vfct;
-	unsigned offset;
+	unsigned int offset;
 	bool r = false;
 
 	if (!ACPI_SUCCESS(acpi_get_table("VFCT", 1, &hdr)))
 		return false;
 	tbl_size = hdr->length;
 	if (tbl_size < sizeof(UEFI_ACPI_VFCT)) {
-		DRM_ERROR("ACPI VFCT table present but broken (too short #1)\n");
+		dev_warn(&rdev->pdev->dev, "ACPI VFCT table present but broken (too short #1),skipping\n");
 		goto out;
 	}
 
@@ -622,33 +661,34 @@ static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 
 		offset += sizeof(VFCT_IMAGE_HEADER);
 		if (offset > tbl_size) {
-			DRM_ERROR("ACPI VFCT image header truncated\n");
+			dev_warn(&rdev->pdev->dev, "ACPI VFCT image header truncated,skipping\n");
 			goto out;
 		}
 
 		offset += vhdr->ImageLength;
 		if (offset > tbl_size) {
-			DRM_ERROR("ACPI VFCT image truncated\n");
+			dev_warn(&rdev->pdev->dev, "ACPI VFCT image truncated,skipping\n");
 			goto out;
 		}
 
 		if (vhdr->ImageLength &&
-		    vhdr->PCIBus == rdev->pdev->bus->number &&
-		    vhdr->PCIDevice == PCI_SLOT(rdev->pdev->devfn) &&
-		    vhdr->PCIFunction == PCI_FUNC(rdev->pdev->devfn) &&
-		    vhdr->VendorID == rdev->pdev->vendor &&
-		    vhdr->DeviceID == rdev->pdev->device) {
+		    !radeon_acpi_vfct_match(rdev, vhdr)) {
 			rdev->bios = kmemdup(&vbios->VbiosContent,
 					     vhdr->ImageLength,
 					     GFP_KERNEL);
-			if (rdev->bios)
-				r = true;
 
+			if (!rdev->bios ||
+			    rdev->bios[0] != 0x55 || rdev->bios[1] != 0xaa) {
+				kfree(rdev->bios);
+				rdev->bios = NULL;
+				goto out;
+			}
+			r = true;
 			goto out;
 		}
 	}
 
-	DRM_ERROR("ACPI VFCT table present but broken (too short #2)\n");
+	dev_warn(&rdev->pdev->dev, "ACPI VFCT table present but broken (too short #2),skipping\n");
 
 out:
 	acpi_put_table(hdr);

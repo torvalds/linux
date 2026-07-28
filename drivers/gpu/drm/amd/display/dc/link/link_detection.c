@@ -497,6 +497,12 @@ static void query_hdcp_capability(enum signal_type signal, struct dc_link *link)
 		msg22.data = link->hdcp_caps.rx_caps.raw;
 		msg22.length = sizeof(link->hdcp_caps.rx_caps.raw);
 		msg22.msg_id = HDCP_MESSAGE_ID_RX_CAPS;
+		if (link->force_to_use_aux && (signal == SIGNAL_TYPE_HDMI_TYPE_A)) {
+			// case with passive dongle with i2c over aux
+			msg22.data = &link->hdcp_caps.rx_caps.fields.version;
+			msg22.length = sizeof(link->hdcp_caps.rx_caps.fields.version);
+			msg22.msg_id = HDCP_MESSAGE_ID_HDCP2VERSION;
+		}
 	} else {
 		msg22.data = &link->hdcp_caps.rx_caps.fields.version;
 		msg22.length = sizeof(link->hdcp_caps.rx_caps.fields.version);
@@ -597,7 +603,24 @@ static bool detect_dp(struct dc_link *link,
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
 		if (!detect_dp_sink_caps(link)) {
-			return false;
+			if (link->force_to_use_aux) {
+				sink_caps->signal = dp_passive_dongle_detection(link->ddc, sink_caps, audio_support);
+				link->dpcd_caps.dongle_type = sink_caps->dongle_type;
+				link->dpcd_caps.is_dongle_type_one = sink_caps->is_dongle_type_one;
+				link->dpcd_caps.dpcd_rev.raw = 0;
+				/* Type 1 dongles do not work with I2C over Aux and also some of
+				 * Type 2 dongles do not support I2C over Aux well, so for these
+				 * cases when native Aux transactons fails and I2C over Aux fails
+				 * report that nothing is connected, as we can't tell is it bad
+				 * DP sink or bad passive dongle.
+				 */
+				if (sink_caps->dongle_type == DISPLAY_DONGLE_NONE)
+					return false;
+				else
+					return true;
+			} else {
+				return false;
+			}
 		}
 
 		if (is_dp_branch_device(link))
@@ -623,7 +646,7 @@ static bool detect_dp(struct dc_link *link,
 		link->dpcd_caps.sink_count.bits.SINK_COUNT = 1;
 		/* NUTMEG requires that we use HBR, doesn't work with RBR. */
 		if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_00001A)
-			link->preferred_link_setting.link_rate = LINK_RATE_HIGH;
+			link->wa_flags.dp_skip_rbr = true;
 	}
 
 	return true;
@@ -933,7 +956,7 @@ static bool should_verify_link_capability_destructively(struct dc_link *link,
 		destrictive = true;
 		if (is_hdmi_frl_in_use(link)) {
 			destrictive = false;
-		} else if (link->dc->config.skip_frl_pretraining) {
+		} else if (link->local_sink->edid_caps.panel_patch.skip_frl_pre_training) {
 			for (i = 0; i < MAX_PIPES; i++) {
 				if (pipes[i].stream != NULL &&
 					pipes[i].stream->link == link) {
@@ -1164,8 +1187,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			    link->link_enc->features.flags.bits.DP_IS_USB_C == 1) {
 
 				/* if alt mode times out, return false */
-				if (!wait_for_entering_dp_alt_mode(link))
+				if (!wait_for_entering_dp_alt_mode(link)) {
+					if (prev_sink)
+						dc_sink_release(prev_sink);
 					return false;
+				}
 			}
 
 			if (!detect_dp(link, &sink_caps, reason)) {

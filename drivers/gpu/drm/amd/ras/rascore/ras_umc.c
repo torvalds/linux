@@ -406,7 +406,7 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
 	uint64_t page_pfn[16];
-	int count = 0, j;
+	int count = 0, i, j;
 
 	if (!data->space_left &&
 		ras_umc_realloc_err_data_space(ras_core, data, 256)) {
@@ -418,10 +418,23 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 					bps, bps->cur_nps, page_pfn, ARRAY_SIZE(page_pfn));
 	if (count > 0) {
 		for (j = 0; j < count; j++) {
+			if (ras_core_check_address_sanity(ras_core,
+				page_pfn[j] << AMDGPU_GPU_PAGE_SHIFT)) {
+
+				for (i = 0; i < data->count; i++)
+					if (page_pfn[j] == data->bps[i].cur_nps_retired_row_pfn)
+						break;
+				data->bps[data->count].cur_nps_retired_row_pfn = U64_MAX;
+				data->count++;
+				data->space_left--;
+				continue;
+			}
+
 			bps->cur_nps_retired_row_pfn = page_pfn[j];
 			memcpy(&data->bps[data->count], bps, sizeof(*data->bps));
 			data->count++;
 			data->space_left--;
+			data->bad_page_num++;
 		}
 	} else {
 		RAS_DEV_ERR(ras_core->dev, "Failed to convert record to nps pages!");
@@ -429,6 +442,14 @@ static int ras_umc_update_eeprom_ram_data(struct ras_core_context *ras_core,
 	}
 
 	return 0;
+}
+
+static void ras_umc_update_bad_pages(struct ras_core_context *ras_core)
+{
+	struct ras_umc *ras_umc = &ras_core->ras_umc;
+	struct eeprom_store_record *data = &ras_umc->umc_err_data.ram_data;
+
+	data->bad_page_num_old = data->bad_page_num;
 }
 
 /* it deal with vram only. */
@@ -506,6 +527,7 @@ int ras_umc_load_bad_pages(struct ras_core_context *ras_core)
 	} else {
 		ras_core->ras_umc.umc_err_data.last_retired_pfn = UMC_INV_MEM_PFN;
 		ret = ras_umc_add_bad_pages(ras_core, bps, ras_num_recs, true);
+		ras_umc_update_bad_pages(ras_core);
 	}
 
 	kfree(bps);
@@ -521,7 +543,8 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 {
 	struct ras_umc *ras_umc = &ras_core->ras_umc;
 	struct eeprom_store_record *data = &ras_umc->umc_err_data.rom_data;
-	uint32_t eeprom_record_num;
+	struct eeprom_store_record *ram_data = &ras_umc->umc_err_data.ram_data;
+	uint32_t eeprom_record_num, logical_count = 0;
 	int save_count;
 	int ret = 0;
 
@@ -534,6 +557,7 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 		eeprom_record_num = ras_eeprom_get_record_count(ras_core);
 	mutex_lock(&ras_umc->umc_lock);
 	save_count = data->count - eeprom_record_num;
+	logical_count = ram_data->bad_page_num - ram_data->bad_page_num_old;
 	/* only new entries are saved */
 	if (save_count > 0) {
 		if (ras_fw_eeprom_supported(ras_core))
@@ -547,8 +571,8 @@ static int ras_umc_save_bad_pages(struct ras_core_context *ras_core)
 			ret = -EIO;
 			goto exit;
 		}
-
-		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n", save_count);
+		ras_umc_update_bad_pages(ras_core);
+		RAS_DEV_INFO(ras_core->dev, "Saved %d pages to EEPROM table.\n", logical_count);
 	}
 
 exit:

@@ -999,15 +999,21 @@ void dcn42_get_smu_clocks(struct clk_mgr_internal *clk_mgr_int)
 			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_fclk_levels = dpm_clks->NumFclkLevelsEnabled;
 			clk_mgr_base->bw_params->clk_table.num_entries = dpm_clks->NumFclkLevelsEnabled;
 
-			/* Memory Pstate table is in reverse order*/
+			/* Memory Pstate table is in reverse order for dcn42. Proper way to map this is for pmfw to provide an fclk indexed uclk key since we consume fclk matched pairs.*/
 			ASSERT(dpm_clks->NumMemPstatesEnabled <= NUM_MEM_PSTATE_LEVELS);
 			if (dpm_clks->NumMemPstatesEnabled > NUM_MEM_PSTATE_LEVELS)
 				dpm_clks->NumMemPstatesEnabled = NUM_MEM_PSTATE_LEVELS;
-			for (i = 0; i < dpm_clks->NumMemPstatesEnabled; i++) {
-				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].memclk_mhz = dpm_clks->MemPstateTable[i].MemClk;
-				clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].wck_ratio = dcn42_convert_wck_ratio(dpm_clks->MemPstateTable[i].WckRatio)	;
+			for (i = 0; i < dpm_clks->NumDcfClkLevelsEnabled; i++) {
+				if (i < dpm_clks->NumMemPstatesEnabled) {
+					clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].memclk_mhz = dpm_clks->MemPstateTable[i].MemClk;
+					clk_mgr_base->bw_params->clk_table.entries[dpm_clks->NumMemPstatesEnabled - 1 - i].wck_ratio = dcn42_convert_wck_ratio(dpm_clks->MemPstateTable[i].WckRatio);
+				} else {
+					clk_mgr_base->bw_params->clk_table.entries[i].memclk_mhz = dpm_clks->MemPstateTable[0].MemClk;
+					clk_mgr_base->bw_params->clk_table.entries[i].wck_ratio = dcn42_convert_wck_ratio(dpm_clks->MemPstateTable[0].WckRatio);
+				}
 			}
-			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels = dpm_clks->NumMemPstatesEnabled;
+
+			clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels = dpm_clks->NumDcfClkLevelsEnabled;
 
 			/* DTBCLK*/
 			clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz = 600; /* Fixed on platform */

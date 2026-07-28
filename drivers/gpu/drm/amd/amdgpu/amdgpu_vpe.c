@@ -789,7 +789,7 @@ static int vpe_ring_test_ring(struct amdgpu_ring *ring)
 	uint64_t wb_addr;
 	int ret;
 
-	ret = amdgpu_device_wb_get(adev, &index);
+	ret = amdgpu_wb_get(adev, &index);
 	if (ret) {
 		dev_err(adev->dev, "(%d) failed to allocate wb slot\n", ret);
 		return ret;
@@ -818,7 +818,7 @@ static int vpe_ring_test_ring(struct amdgpu_ring *ring)
 
 	ret = -ETIMEDOUT;
 out:
-	amdgpu_device_wb_free(adev, index);
+	amdgpu_wb_free(adev, index);
 
 	return ret;
 }
@@ -833,7 +833,7 @@ static int vpe_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	uint64_t wb_addr;
 	int ret;
 
-	ret = amdgpu_device_wb_get(adev, &index);
+	ret = amdgpu_wb_get(adev, &index);
 	if (ret) {
 		dev_err(adev->dev, "(%d) failed to allocate wb slot\n", ret);
 		return ret;
@@ -872,7 +872,7 @@ err1:
 	amdgpu_ib_free(&ib, NULL);
 	dma_fence_put(f);
 err0:
-	amdgpu_device_wb_free(adev, index);
+	amdgpu_wb_free(adev, index);
 
 	return ret;
 }

@@ -10,7 +10,6 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/clk.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/errno.h>

@@ -39,7 +39,6 @@
 #include <linux/io.h>
 #include <linux/leds.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 

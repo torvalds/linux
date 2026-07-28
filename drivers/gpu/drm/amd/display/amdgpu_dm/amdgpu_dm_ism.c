@@ -502,6 +502,7 @@ void amdgpu_dm_ism_commit_event(struct amdgpu_dm_ism *ism,
 
 	} while (next_event < DM_ISM_NUM_EVENTS);
 }
+EXPORT_IF_KUNIT(amdgpu_dm_ism_commit_event);
 
 
 static void dm_ism_delayed_work_func(struct work_struct *work)
@@ -568,6 +569,7 @@ void amdgpu_dm_ism_disable(struct amdgpu_display_manager *dm)
 		disable_delayed_work_sync(&ism->sso_delayed_work);
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_ism_disable);
 
 /**
  * amdgpu_dm_ism_force_full_power - Force every CRTC's ISM FSM to FULL_POWER
@@ -603,6 +605,7 @@ void amdgpu_dm_ism_force_full_power(struct amdgpu_display_manager *dm)
 					   DM_ISM_EVENT_EXIT_IDLE_REQUESTED);
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_ism_force_full_power);
 
 /**
  * amdgpu_dm_ism_enable - enable the ISM
@@ -626,6 +629,7 @@ void amdgpu_dm_ism_enable(struct amdgpu_display_manager *dm)
 		enable_delayed_work(&ism->sso_delayed_work);
 	}
 }
+EXPORT_IF_KUNIT(amdgpu_dm_ism_enable);
 
 void amdgpu_dm_ism_init(struct amdgpu_dm_ism *ism,
 			struct amdgpu_dm_ism_config *config)

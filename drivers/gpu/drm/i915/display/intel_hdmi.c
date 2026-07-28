@@ -71,7 +71,7 @@
 
 bool intel_hdmi_is_frl(u32 clock)
 {
-	u32 rates[] = { 300000, 600000, 800000, 1000000, 1200000 };
+	static const u32 rates[] = { 300000, 600000, 800000, 1000000, 1200000 };
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
@@ -2729,6 +2729,32 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *_
 }
 
 /*
+ * HDMI 2.0 spec, section 6.1.3.1 (Scrambling Control): after
+ * enabling Scrambling_Enable and starting scrambled video
+ * transmission, poll Scrambling_Status for up to 200 ms.
+ */
+void
+intel_hdmi_poll_for_scrambling_enable(const struct intel_crtc_state *crtc_state,
+				      struct drm_connector *_connector)
+{
+	struct intel_connector *connector = to_intel_connector(_connector);
+	struct intel_display *display = to_intel_display(crtc_state);
+	bool scrambling_enabled = false;
+	int ret;
+
+	if (!crtc_state->hdmi_scrambling)
+		return;
+
+	/* Poll for a max of 200 msec as per HDMI spec */
+	ret = poll_timeout_us(scrambling_enabled = drm_scdc_get_scrambling_status(&connector->base),
+			      scrambling_enabled, 1000, 200 * 1000, false);
+	if (ret)
+		drm_dbg_kms(display->drm,
+			    "[CONNECTOR:%d:%s] Timed out waiting for scrambling enable\n",
+			    connector->base.base.id, connector->base.name);
+}
+
+/*
  * intel_hdmi_handle_sink_scrambling: handle sink scrambling/clock ratio setup
  * @encoder: intel_encoder
  * @connector: drm_connector
@@ -2799,14 +2825,14 @@ static u8 bxt_encoder_to_ddc_pin(struct intel_encoder *encoder)
 
 	switch (port) {
 	case PORT_B:
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	case PORT_C:
-		ddc_pin = GMBUS_PIN_2_BXT;
+		ddc_pin = GMBUS_PIN_2;
 		break;
 	default:
 		MISSING_CASE(port);
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	}
 	return ddc_pin;
@@ -2819,20 +2845,17 @@ static u8 cnp_encoder_to_ddc_pin(struct intel_encoder *encoder)
 
 	switch (port) {
 	case PORT_B:
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	case PORT_C:
-		ddc_pin = GMBUS_PIN_2_BXT;
+		ddc_pin = GMBUS_PIN_2;
 		break;
 	case PORT_D:
-		ddc_pin = GMBUS_PIN_4_CNP;
-		break;
-	case PORT_F:
-		ddc_pin = GMBUS_PIN_3_BXT;
+		ddc_pin = GMBUS_PIN_4;
 		break;
 	default:
 		MISSING_CASE(port);
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	}
 	return ddc_pin;
@@ -2844,12 +2867,12 @@ static u8 icl_encoder_to_ddc_pin(struct intel_encoder *encoder)
 	enum port port = encoder->port;
 
 	if (intel_encoder_is_combo(encoder))
-		return GMBUS_PIN_1_BXT + port;
+		return GMBUS_PIN_1 + port;
 	else if (intel_encoder_is_tc(encoder))
-		return GMBUS_PIN_9_TC1_ICP + intel_encoder_to_tc(encoder);
+		return GMBUS_PIN_9_TC1 + intel_encoder_to_tc(encoder);
 
 	drm_WARN(display->drm, 1, "Unknown port:%c\n", port_name(port));
-	return GMBUS_PIN_2_BXT;
+	return GMBUS_PIN_2;
 }
 
 static u8 mcc_encoder_to_ddc_pin(struct intel_encoder *encoder)
@@ -2859,17 +2882,17 @@ static u8 mcc_encoder_to_ddc_pin(struct intel_encoder *encoder)
 
 	switch (phy) {
 	case PHY_A:
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	case PHY_B:
-		ddc_pin = GMBUS_PIN_2_BXT;
+		ddc_pin = GMBUS_PIN_2;
 		break;
 	case PHY_C:
-		ddc_pin = GMBUS_PIN_9_TC1_ICP;
+		ddc_pin = GMBUS_PIN_9_TC1;
 		break;
 	default:
 		MISSING_CASE(phy);
-		ddc_pin = GMBUS_PIN_1_BXT;
+		ddc_pin = GMBUS_PIN_1;
 		break;
 	}
 	return ddc_pin;
@@ -2889,9 +2912,9 @@ static u8 rkl_encoder_to_ddc_pin(struct intel_encoder *encoder)
 	 * all outputs.
 	 */
 	if (INTEL_PCH_TYPE(display) >= PCH_TGP && phy >= PHY_C)
-		return GMBUS_PIN_9_TC1_ICP + phy - PHY_C;
+		return GMBUS_PIN_9_TC1 + phy - PHY_C;
 
-	return GMBUS_PIN_1_BXT + phy;
+	return GMBUS_PIN_1 + phy;
 }
 
 static u8 gen9bc_tgp_encoder_to_ddc_pin(struct intel_encoder *encoder)
@@ -2908,9 +2931,9 @@ static u8 gen9bc_tgp_encoder_to_ddc_pin(struct intel_encoder *encoder)
 	 * all outputs.
 	 */
 	if (INTEL_PCH_TYPE(display) >= PCH_TGP && phy >= PHY_C)
-		return GMBUS_PIN_9_TC1_ICP + phy - PHY_C;
+		return GMBUS_PIN_9_TC1 + phy - PHY_C;
 
-	return GMBUS_PIN_1_BXT + phy;
+	return GMBUS_PIN_1 + phy;
 }
 
 static u8 dg1_encoder_to_ddc_pin(struct intel_encoder *encoder)
@@ -2929,9 +2952,9 @@ static u8 adls_encoder_to_ddc_pin(struct intel_encoder *encoder)
 	 * except first combo output.
 	 */
 	if (phy == PHY_A)
-		return GMBUS_PIN_1_BXT;
+		return GMBUS_PIN_1;
 
-	return GMBUS_PIN_9_TC1_ICP + phy - PHY_B;
+	return GMBUS_PIN_9_TC1 + phy - PHY_B;
 }
 
 static u8 g4x_encoder_to_ddc_pin(struct intel_encoder *encoder)

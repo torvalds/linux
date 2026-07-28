@@ -53,6 +53,7 @@ struct amdgpu_usermode_queue {
 	enum amdgpu_userq_state state;
 	uint64_t		doorbell_handle;
 	uint64_t		doorbell_index;
+	u32			doorbell_offset;
 	uint64_t		flags;
 	struct amdgpu_mqd_prop	*userq_prop;
 	struct amdgpu_userq_mgr *userq_mgr;
@@ -99,6 +100,9 @@ struct amdgpu_usermode_queue {
 		} va;
 		u64 va_array[6];
 	} userq_vas;
+
+	uint32_t	proc_ctx_array_index;
+	uint32_t	gang_ctx_array_index;
 };
 
 struct amdgpu_userq_funcs {
@@ -111,8 +115,7 @@ struct amdgpu_userq_funcs {
 	int (*map)(struct amdgpu_usermode_queue *queue);
 	int (*preempt)(struct amdgpu_usermode_queue *queue);
 	int (*restore)(struct amdgpu_usermode_queue *queue);
-	int (*detect_and_reset)(struct amdgpu_device *adev,
-		  int queue_type);
+	int (*reset)(struct amdgpu_usermode_queue *queue);
 };
 
 /* Usermode queues for gfx */
@@ -127,6 +130,8 @@ struct amdgpu_userq_mgr {
 	struct amdgpu_device		*adev;
 	struct delayed_work		resume_work;
 	struct drm_file			*file;
+	struct mutex			proc_ctx_lock;
+	struct amdgpu_userq_obj		proc_ctx_obj;
 
 	/**
 	 * @reset_work:
@@ -176,6 +181,16 @@ void amdgpu_userq_pre_reset(struct amdgpu_device *adev);
 int amdgpu_userq_post_reset(struct amdgpu_device *adev, bool vram_lost);
 void amdgpu_userq_start_hang_detect_work(struct amdgpu_usermode_queue *queue);
 void amdgpu_userq_process_fence_irq(struct amdgpu_device *adev, u32 doorbell);
+
+/*
+ * CP packs the per-process doorbell_id of the queue in
+ * CTXID0[9:0] on priv-fault (same encoding KFD uses via
+ * KFD_CTXID0_DOORBELL_ID_MASK)
+ */
+#define AMDGPU_CTXID0_DOORBELL_ID_MASK	0x3ff
+
+void amdgpu_userq_process_reset_irq(struct amdgpu_device *adev,
+				    u32 pasid, u32 doorbell_offset);
 
 int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 				   struct amdgpu_usermode_queue *queue,

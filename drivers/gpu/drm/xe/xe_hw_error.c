@@ -437,6 +437,16 @@ static void hw_error_source_handler(struct xe_tile *tile, const enum hardware_er
 	if (!IS_DGFX(xe))
 		return;
 
+	/*
+	 * Hardware errors are reported through System Controller on the platforms that
+	 * support it, and never routed as direct IRQ to SGUnit. So we should never be
+	 * here for those platforms.
+	 */
+	if (xe->info.has_sysctrl) {
+		drm_err_ratelimited(&xe->drm, HW_ERR "Invalid error routing\n");
+		return;
+	}
+
 	spin_lock_irqsave(&xe->irq.lock, flags);
 	err_src = xe_mmio_read32(&tile->mmio, DEV_ERR_STAT_REG(hw_err));
 	if (!err_src) {
@@ -516,14 +526,6 @@ void xe_hw_error_irq_handler(struct xe_tile *tile, const u32 master_ctl)
 	}
 }
 
-static int hw_error_info_init(struct xe_device *xe)
-{
-	if (xe->info.platform != XE_PVC)
-		return 0;
-
-	return xe_drm_ras_init(xe);
-}
-
 /*
  * Process hardware errors during boot
  */
@@ -550,16 +552,11 @@ static void process_hw_errors(struct xe_device *xe)
 void xe_hw_error_init(struct xe_device *xe)
 {
 	struct xe_tile *tile = xe_device_get_root_tile(xe);
-	int ret;
 
 	if (!IS_DGFX(xe) || IS_SRIOV_VF(xe))
 		return;
 
 	INIT_WORK(&tile->csc_hw_error_work, csc_hw_error_work);
-
-	ret = hw_error_info_init(xe);
-	if (ret)
-		drm_err(&xe->drm, "Failed to initialize XE DRM RAS (%pe)\n", ERR_PTR(ret));
 
 	process_hw_errors(xe);
 }

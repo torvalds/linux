@@ -181,6 +181,12 @@ uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw)
 		return 40000000;
 	case 0b110:
 		return 48000000;
+	case 0b111:
+		return 64000000;
+	case 0b1000:
+		return 80000000;
+	case 0b1001:
+		return 96000000;
 	}
 
 	return 0;
@@ -750,8 +756,10 @@ static bool decide_dp_link_settings(struct dc_link *link, struct dc_link_setting
 	if (req_bw > dp_link_bandwidth_kbps(link, &link->verified_link_cap))
 		return false;
 
-	if (link->preferred_link_setting.link_rate != LINK_RATE_UNKNOWN)
-		initial_link_setting.link_rate = link->preferred_link_setting.link_rate;
+	if (link->wa_flags.dp_skip_rbr) {
+		initial_link_setting.link_rate = LINK_RATE_HIGH;
+		current_link_setting.link_rate = LINK_RATE_HIGH;
+	}
 
 	/* search for the minimum link setting that:
 	 * 1. is supported according to the link training result
@@ -2242,10 +2250,14 @@ void detect_edp_sink_caps(struct dc_link *link)
 	/*
 	 * ALPM is only valid for eDP v1.4 or higher.
 	 */
-	if (link->dpcd_caps.dpcd_rev.raw >= DP_EDP_14)
+	if (link->dpcd_caps.dpcd_rev.raw >= DP_EDP_14) {
 		core_link_read_dpcd(link, DP_RECEIVER_ALPM_CAP,
 			&link->dpcd_caps.alpm_caps.raw,
 			sizeof(link->dpcd_caps.alpm_caps.raw));
+		core_link_read_dpcd(link, DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_CAP,
+			&link->dpcd_caps.psr_info.psr_active_vtotal_control_cap,
+			sizeof(link->dpcd_caps.psr_info.psr_active_vtotal_control_cap));
+	}
 
 	/*
 	 * Read REPLAY info
@@ -2573,7 +2585,7 @@ bool dp_is_sink_present(struct dc_link *link)
 	/* We can't perform the step below for ASICs with no Native
 	 * I2C signaling support on DP connectors, so skip it.
 	 */
-	if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin)
+	if (link->force_to_use_aux)
 		return present;
 
 	ddc = get_ddc_pin(link->ddc);

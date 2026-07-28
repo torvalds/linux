@@ -15,6 +15,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
@@ -380,7 +381,7 @@ static int boe_th101mb31ig002_dsi_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->reset),
 				     "Failed to get reset GPIO\n");
 
-	ret = of_drm_get_panel_orientation(dsi->dev.of_node,
+	ret = drm_of_get_panel_orientation(dsi->dev.of_node,
 					   &ctx->orientation);
 	if (ret)
 		return dev_err_probe(&dsi->dev, ret,

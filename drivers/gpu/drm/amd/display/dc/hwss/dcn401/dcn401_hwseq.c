@@ -321,7 +321,7 @@ void dcn401_init_hw(struct dc *dc)
 			user_level = link->panel_cntl->stored_backlight_registers.USER_LEVEL;
 		}
 
-		if (link->ctx->dc->config.dp_connector_no_native_i2c && link->no_ddc_pin) {
+		if (link->force_to_use_aux) {
 			struct graphics_object_i2c_info i2c_info;
 			struct ddc *ddc_pin;
 			struct gpio_ddc_hw_info hw_info;
@@ -410,37 +410,27 @@ static void dcn401_get_mcm_lut_xable_from_pipe_ctx(struct dc *dc, struct pipe_ct
 		enum MCM_LUT_XABLE *lut3d_xable,
 		enum MCM_LUT_XABLE *lut1d_xable)
 {
-	enum dc_cm2_shaper_3dlut_setting shaper_3dlut_setting = DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL;
-	bool lut1d_enable = false;
 	struct mpc *mpc = dc->res_pool->mpc;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
 
 	if (!pipe_ctx->plane_state)
 		return;
-	shaper_3dlut_setting = pipe_ctx->plane_state->mcm_shaper_3dlut_setting;
-	lut1d_enable = pipe_ctx->plane_state->mcm_lut1d_enable;
+
 	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
 	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
 
-	*lut1d_xable = lut1d_enable ? MCM_LUT_ENABLE : MCM_LUT_DISABLE;
-
-	switch (shaper_3dlut_setting) {
-	case DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL:
-		*lut3d_xable = *shaper_xable = MCM_LUT_DISABLE;
-		break;
-	case DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER:
-		*lut3d_xable = MCM_LUT_DISABLE;
-		*shaper_xable = MCM_LUT_ENABLE;
-		break;
-	case DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT:
-		*lut3d_xable = *shaper_xable = MCM_LUT_ENABLE;
-		break;
-	}
+	*lut1d_xable = pipe_ctx->plane_state->cm.flags.bits.blend_enable ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
+	*shaper_xable = pipe_ctx->plane_state->cm.flags.bits.shaper_enable ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
+	*lut3d_xable = (pipe_ctx->plane_state->cm.flags.bits.shaper_enable &&
+			pipe_ctx->plane_state->cm.flags.bits.lut3d_enable) ?
+		MCM_LUT_ENABLE : MCM_LUT_DISABLE;
 }
 
 void dcn401_populate_mcm_luts(struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		struct dc_cm2_func_luts mcm_luts,
+		const struct dc_plane_cm *cm,
 		bool lut_bank_a)
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
@@ -448,14 +438,17 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	int mpcc_id = hubp->inst;
 	struct mpc *mpc = dc->res_pool->mpc;
 	union mcm_lut_params m_lut_params;
-	enum dc_cm2_transfer_func_source lut3d_src = mcm_luts.lut3d_data.lut3d_src;
+	const bool lut3d_dma = !!cm->flags.bits.lut3d_dma_enable;
 	enum hubp_3dlut_fl_format format = 0;
 	enum hubp_3dlut_fl_mode mode;
-	enum hubp_3dlut_fl_width width = 0;
+	/* Width was previously hard-coded to TRANSFORMED via local_mcm build,
+	 * preserve identical behavior.
+	 */
+	enum hubp_3dlut_fl_width width = hubp_3dlut_fl_width_transformed;
 	enum hubp_3dlut_fl_addressing_mode addr_mode;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g = 0;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b = 0;
-	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r = 0;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
+	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
 	enum MCM_LUT_XABLE shaper_xable = MCM_LUT_DISABLE;
 	enum MCM_LUT_XABLE lut3d_xable = MCM_LUT_DISABLE;
 	enum MCM_LUT_XABLE lut1d_xable = MCM_LUT_DISABLE;
@@ -464,13 +457,13 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	dcn401_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
 	/* 1D LUT */
-	if (mcm_luts.lut1d_func) {
+	{
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
-		if (mcm_luts.lut1d_func->type == TF_TYPE_HWPWL)
-			m_lut_params.pwl = &mcm_luts.lut1d_func->pwl;
-		else if (mcm_luts.lut1d_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
+		if (cm->blend_func.type == TF_TYPE_HWPWL)
+			m_lut_params.pwl = &cm->blend_func.pwl;
+		else if (cm->blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 			rval = cm3_helper_translate_curve_to_hw_format(mpc->ctx,
-					mcm_luts.lut1d_func,
+					&cm->blend_func,
 					&dpp_base->regamma_params, false);
 			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
 		}
@@ -483,14 +476,14 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	}
 
 	/* Shaper */
-	if (mcm_luts.shaper && mcm_luts.lut3d_data.mpc_3dlut_enable) {
+	if (cm->flags.bits.lut3d_enable) {
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
-		if (mcm_luts.shaper->type == TF_TYPE_HWPWL)
-			m_lut_params.pwl = &mcm_luts.shaper->pwl;
-		else if (mcm_luts.shaper->type == TF_TYPE_DISTRIBUTED_POINTS) {
+		if (cm->shaper_func.type == TF_TYPE_HWPWL)
+			m_lut_params.pwl = &cm->shaper_func.pwl;
+		else if (cm->shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 			ASSERT(false);
 			rval = cm3_helper_translate_curve_to_hw_format(mpc->ctx,
-					mcm_luts.shaper,
+					&cm->shaper_func,
 					&dpp_base->regamma_params, true);
 			m_lut_params.pwl = rval ? &dpp_base->regamma_params : NULL;
 		}
@@ -503,42 +496,43 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	}
 
 	/* 3DLUT */
-	switch (lut3d_src) {
-	case DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM:
+	if (!lut3d_dma) {
+		/* SYSMEM (legacy lut3d_func) */
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
 		if (hubp->funcs->hubp_enable_3dlut_fl)
 			hubp->funcs->hubp_enable_3dlut_fl(hubp, false);
 
-		if (mcm_luts.lut3d_data.lut3d_func && mcm_luts.lut3d_data.lut3d_func->state.bits.initialized) {
-			m_lut_params.lut3d = &mcm_luts.lut3d_data.lut3d_func->lut_3d;
+		if (cm->lut3d_func.state.bits.initialized) {
+			m_lut_params.lut3d = &cm->lut3d_func.lut_3d;
 			if (mpc->funcs->populate_lut)
 				mpc->funcs->populate_lut(mpc, MCM_LUT_3DLUT, m_lut_params, lut_bank_a, mpcc_id);
 			if (mpc->funcs->program_lut_mode)
 				mpc->funcs->program_lut_mode(mpc, MCM_LUT_3DLUT, lut3d_xable, lut_bank_a,
 						mpcc_id);
 		}
-		break;
-	case DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM:
-		switch (mcm_luts.lut3d_data.gpu_mem_params.size) {
-		case DC_CM2_GPU_MEM_SIZE_333333:
+	} else {
+		/* VIDMEM (3DLUT DMA Fast Load) */
+
+		/* Select width based on the requested LUT size */
+		switch (cm->lut3d_dma.size) {
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+		case CM_LUT_SIZE_333333:
 			if (dc->caps.color.mpc.rmcm_3d_lut_caps.lut_dim_caps.dim_33)
 				width = hubp_3dlut_fl_width_33;
 			break;
-		case DC_CM2_GPU_MEM_SIZE_171717:
+#endif // CONFIG_DRM_AMD_DC_DCN4_2
+		case CM_LUT_SIZE_171717:
 			width = hubp_3dlut_fl_width_17;
 			break;
-		case DC_CM2_GPU_MEM_SIZE_TRANSFORMED:
-			width = hubp_3dlut_fl_width_transformed;
-			break;
 		default:
-			//TODO: handle default case
+			/* keep default hubp_3dlut_fl_width_transformed */
 			break;
 		}
 
 		//check for support
 		if (mpc->funcs->mcm.is_config_supported &&
 			!mpc->funcs->mcm.is_config_supported(width))
-			break;
+			return;
 
 		if (mpc->funcs->program_lut_read_write_control)
 			mpc->funcs->program_lut_read_write_control(mpc, MCM_LUT_3DLUT, lut_bank_a, mpcc_id);
@@ -546,21 +540,24 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 			mpc->funcs->program_lut_mode(mpc, MCM_LUT_3DLUT, lut3d_xable, lut_bank_a, mpcc_id);
 
 		if (hubp->funcs->hubp_program_3dlut_fl_addr)
-			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, mcm_luts.lut3d_data.gpu_mem_params.addr);
+			hubp->funcs->hubp_program_3dlut_fl_addr(hubp, cm->lut3d_dma.addr);
 
+		/* bit_depth was previously zero-initialized in local_mcm,
+		 * preserve identical behavior.
+		 */
 		if (mpc->funcs->mcm.program_bit_depth)
-			mpc->funcs->mcm.program_bit_depth(mpc, mcm_luts.lut3d_data.gpu_mem_params.bit_depth, mpcc_id);
+			mpc->funcs->mcm.program_bit_depth(mpc, 0, mpcc_id);
 
-		switch (mcm_luts.lut3d_data.gpu_mem_params.layout) {
-		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB:
+		switch (cm->lut3d_dma.swizzle) {
+		case CM_LUT_3D_SWIZZLE_LINEAR_RGB:
 			mode = hubp_3dlut_fl_mode_native_1;
 			addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
 			break;
-		case DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR:
+		case CM_LUT_3D_SWIZZLE_LINEAR_BGR:
 			mode = hubp_3dlut_fl_mode_native_2;
 			addr_mode = hubp_3dlut_fl_addressing_mode_sw_linear;
 			break;
-		case DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR:
+		case CM_LUT_1D_PACKED_LINEAR:
 			mode = hubp_3dlut_fl_mode_transform;
 			addr_mode = hubp_3dlut_fl_addressing_mode_simple_linear;
 			break;
@@ -575,15 +572,17 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (hubp->funcs->hubp_program_3dlut_fl_addressing_mode)
 			hubp->funcs->hubp_program_3dlut_fl_addressing_mode(hubp, addr_mode);
 
-		switch (mcm_luts.lut3d_data.gpu_mem_params.format_params.format) {
-		case DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12MSB:
+		switch (cm->lut3d_dma.format) {
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB:
 			format = hubp_3dlut_fl_format_unorm_12msb_bitslice;
 			break;
-		case DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12LSB:
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB:
 			format = hubp_3dlut_fl_format_unorm_12lsb_bitslice;
 			break;
-		case DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10:
+		case CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10:
 			format = hubp_3dlut_fl_format_float_fp1_5_10;
+			break;
+		default:
 			break;
 		}
 		if (hubp->funcs->hubp_program_3dlut_fl_format)
@@ -591,24 +590,20 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		if (hubp->funcs->hubp_update_3dlut_fl_bias_scale &&
 				mpc->funcs->mcm.program_bias_scale) {
 			mpc->funcs->mcm.program_bias_scale(mpc,
-				mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.bias,
-				mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.scale,
+				cm->lut3d_dma.bias,
+				cm->lut3d_dma.scale,
 				mpcc_id);
 			hubp->funcs->hubp_update_3dlut_fl_bias_scale(hubp,
-						mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.bias,
-						mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.scale);
+				cm->lut3d_dma.bias,
+				cm->lut3d_dma.scale);
 		}
 
-		//navi 4x has a bug and r and blue are swapped and need to be worked around here in
-		//TODO: need to make a method for get_xbar per asic OR do the workaround in program_crossbar for 4x
-		switch (mcm_luts.lut3d_data.gpu_mem_params.component_order) {
-		case DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA:
-		default:
-			crossbar_bit_slice_cr_r = hubp_3dlut_fl_crossbar_bit_slice_0_15;
-			crossbar_bit_slice_y_g = hubp_3dlut_fl_crossbar_bit_slice_16_31;
-			crossbar_bit_slice_cb_b = hubp_3dlut_fl_crossbar_bit_slice_32_47;
-			break;
-		}
+		/* component_order was previously hard-coded to RGBA in local_mcm,
+		 * preserve identical behavior.
+		 */
+		crossbar_bit_slice_cr_r = hubp_3dlut_fl_crossbar_bit_slice_0_15;
+		crossbar_bit_slice_y_g = hubp_3dlut_fl_crossbar_bit_slice_16_31;
+		crossbar_bit_slice_cb_b = hubp_3dlut_fl_crossbar_bit_slice_32_47;
 
 		if (hubp->funcs->hubp_program_3dlut_fl_crossbar)
 			hubp->funcs->hubp_program_3dlut_fl_crossbar(hubp,
@@ -634,8 +629,6 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 				mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, MCM_LUT_DISABLE, lut_bank_a, mpcc_id);
 			}
 		}
-		break;
-
 	}
 }
 
@@ -660,19 +653,19 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 	const struct pwl_params *lut_params = NULL;
 	bool rval;
 
-	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
-		dcn401_populate_mcm_luts(dc, pipe_ctx, plane_state->mcm_luts, plane_state->lut_bank_a);
+	if (plane_state->cm.flags.bits.lut3d_dma_enable) {
+		dcn401_populate_mcm_luts(dc, pipe_ctx, &plane_state->cm, plane_state->lut_bank_a);
 		return true;
 	}
 
 	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
 	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
 	// 1D LUT
-	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
-		lut_params = &plane_state->blend_tf.pwl;
-	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
+	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
+		lut_params = &plane_state->cm.blend_func.pwl;
+	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		rval = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
-							       &plane_state->blend_tf,
+							       &plane_state->cm.blend_func,
 							       &dpp_base->regamma_params, false);
 		lut_params = rval ? &dpp_base->regamma_params : NULL;
 	}
@@ -680,12 +673,12 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 	lut_params = NULL;
 
 	// Shaper
-	if (plane_state->in_shaper_func.type == TF_TYPE_HWPWL)
-		lut_params = &plane_state->in_shaper_func.pwl;
-	else if (plane_state->in_shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+	if (plane_state->cm.shaper_func.type == TF_TYPE_HWPWL)
+		lut_params = &plane_state->cm.shaper_func.pwl;
+	else if (plane_state->cm.shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		// TODO: dpp_base replace
 		rval = cm3_helper_translate_curve_to_hw_format(plane_state->ctx,
-							       &plane_state->in_shaper_func,
+							       &plane_state->cm.shaper_func,
 							       &dpp_base->shaper_params, true);
 		lut_params = rval ? &dpp_base->shaper_params : NULL;
 	}
@@ -693,8 +686,8 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 
 	// 3D
 	if (mpc->funcs->program_3dlut) {
-		if (plane_state->lut3d_func.state.bits.initialized == 1)
-			result &= mpc->funcs->program_3dlut(mpc, &plane_state->lut3d_func.lut_3d, mpcc_id);
+		if (plane_state->cm.lut3d_func.state.bits.initialized == 1)
+			result &= mpc->funcs->program_3dlut(mpc, &plane_state->cm.lut3d_func.lut_3d, mpcc_id);
 		else
 			result &= mpc->funcs->program_3dlut(mpc, NULL, mpcc_id);
 	}
@@ -1108,8 +1101,11 @@ void dcn401_disable_link_output(struct dc_link *link,
 		disable_link_output_symclk_on_tx_off(link, DP_UNKNOWN_ENCODING);
 		link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 	} else {
-		link_hwss->disable_link_output(link, link_res, signal);
-		link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		if (!(signal == SIGNAL_TYPE_EDP &&
+		      link->skip_implict_edp_power_control)) {
+			link_hwss->disable_link_output(link, link_res, signal);
+			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		}
 	}
 
 	if (signal == SIGNAL_TYPE_EDP &&
@@ -1428,7 +1424,7 @@ void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
 		if (pipe_ctx->plane_state &&
 				pipe_ctx->plane_state->dcc.enable &&
 				pipe_ctx->plane_state->flip_immediate &&
-				pipe_ctx->plane_state->update_flags.bits.addr_update) {
+				pipe_ctx->plane_state->update_bits.addr_update) {
 			is_wait_needed = true;
 			break;
 		}
@@ -1503,6 +1499,57 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 	}
 }
 
+void dcn401_prepare_bandwidth_sequence(struct dc *dc,
+		struct dc_state *context,
+		struct block_sequence_state *seq_state)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+	bool p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
+	unsigned int compbuf_size = 0;
+
+	/* Any transition into P-State support should disable MCLK switching first to avoid hangs */
+	if (p_state_change_support) {
+		dc->optimized_required = true;
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = false;
+	}
+
+	if (dc->clk_mgr->dc_mode_softmax_enabled)
+		if (dc->clk_mgr->clks.dramclk_khz <= (int)dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz > (int)dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+			hwss_add_clk_mgr_set_max_memclk(seq_state, dc->clk_mgr,
+					dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz);
+
+	/* Build bandwidth and display clocks back-to-back (SW calc + append BLS steps) */
+	if (dc->clk_mgr->funcs->build_clock_update_for_bls)
+		dc->clk_mgr->funcs->build_clock_update_for_bls(
+				dc->clk_mgr, context, false, seq_state);
+
+	hwss_add_hubbub_program_watermarks(seq_state, dc, hubbub,
+					&context->bw_ctx.bw.dcn.watermarks,
+					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+					false);
+
+	if (hubbub->funcs->program_arbiter)
+		hwss_add_hubbub_program_arbiter(seq_state, dc, hubbub,
+				&context->bw_ctx.bw.dcn.arb_regs, false);
+
+	if (hubbub->funcs->program_compbuf_segments) {
+		compbuf_size = context->bw_ctx.bw.dcn.arb_regs.compbuf_size;
+		dc->optimized_required |= (compbuf_size != dc->current_state->bw_ctx.bw.dcn.arb_regs.compbuf_size);
+
+		hwss_add_hubbub_program_compbuf_segments(seq_state, hubbub, compbuf_size, false);
+	}
+
+	if (dc->debug.fams2_config.bits.enable) {
+		dcn401_dmub_hw_control_lock(dc, context, true);
+		dcn401_fams2_update_config(dc, context, false);
+		dcn401_dmub_hw_control_lock(dc, context, false);
+	}
+
+	if (p_state_change_support != context->bw_ctx.bw.dcn.clk.p_state_change_support)
+		context->bw_ctx.bw.dcn.clk.p_state_change_support = p_state_change_support;
+}
+
 void dcn401_optimize_bandwidth(
 		struct dc *dc,
 		struct dc_state *context)
@@ -1554,6 +1601,50 @@ void dcn401_optimize_bandwidth(
 						pipe_ctx->hubp_regs.dlg_regs.min_dst_y_next_start);
 		}
 	}
+}
+
+/*
+ * optimize_bandwidth_sequence is unused for now. It will be used when
+ * dc_commit_state_no_check is moved into block sequence pattern, similar
+ * to how commit_planes_do_stream_update_sequence replaces
+ * commit_planes_do_stream_update.
+ */
+void dcn401_optimize_bandwidth_sequence(struct dc *dc,
+		struct dc_state *context,
+		struct block_sequence_state *seq_state)
+{
+	struct hubbub *hubbub = dc->res_pool->hubbub;
+
+	/* enable fams2 if needed */
+	if (dc->debug.fams2_config.bits.enable) {
+		dcn401_dmub_hw_control_lock(dc, context, true);
+		dcn401_fams2_update_config(dc, context, true);
+		dcn401_dmub_hw_control_lock(dc, context, false);
+	}
+
+	hwss_add_hubbub_program_watermarks(seq_state, dc, hubbub,
+					&context->bw_ctx.bw.dcn.watermarks,
+					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
+					true);
+
+	if (hubbub->funcs->program_arbiter)
+		hwss_add_hubbub_program_arbiter(seq_state, dc, hubbub,
+				&context->bw_ctx.bw.dcn.arb_regs, true);
+
+	if (dc->clk_mgr->dc_mode_softmax_enabled)
+		if (dc->clk_mgr->clks.dramclk_khz > (int)dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&
+				context->bw_ctx.bw.dcn.clk.dramclk_khz <= (int)dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000)
+			hwss_add_clk_mgr_set_max_memclk(seq_state, dc->clk_mgr,
+					dc->clk_mgr->bw_params->dc_mode_softmax_memclk);
+
+	if (hubbub->funcs->program_compbuf_segments)
+		hwss_add_hubbub_program_compbuf_segments(seq_state, hubbub,
+				context->bw_ctx.bw.dcn.arb_regs.compbuf_size, true);
+
+	/* Build bandwidth and display clocks (SW calc + append BLS steps) */
+	if (dc->clk_mgr->funcs->build_clock_update_for_bls)
+		dc->clk_mgr->funcs->build_clock_update_for_bls(
+				dc->clk_mgr, context, true, seq_state);
 }
 
 void dcn401_dmub_hw_control_lock(struct dc *dc,
@@ -1999,10 +2090,9 @@ void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx)
 
 	for (odm_pipe = pipe_ctx; odm_pipe != NULL; odm_pipe = odm_pipe->next_odm_pipe) {
 		for (mpc_pipe = odm_pipe; mpc_pipe != NULL; mpc_pipe = mpc_pipe->bottom_pipe) {
-			if (mpc_pipe->plane_state && mpc_pipe->plane_state->mcm_luts.lut3d_data.lut3d_src
-						== DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
-					&& mpc_pipe->plane_state->mcm_shaper_3dlut_setting
-						== DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT) {
+			if (mpc_pipe->plane_state &&
+					mpc_pipe->plane_state->cm.flags.bits.lut3d_enable &&
+					mpc_pipe->plane_state->cm.flags.bits.lut3d_dma_enable) {
 				wa_pipes[wa_pipe_ct++] = mpc_pipe;
 			}
 		}
@@ -2063,7 +2153,12 @@ void dcn401_reset_back_end_for_pipe(
 	 * screen only, the dpms_off would be true but
 	 * VBIOS lit up eDP, so check link status too.
 	 */
-	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+	if (link->connector_signal == SIGNAL_TYPE_EDP &&
+	    link->skip_implict_edp_power_control) {
+		/* DMSS is holding the panel across the commit; skip dpms-off. */
+		if (pipe_ctx->stream_res.audio)
+			dc->hwss.disable_audio_stream(pipe_ctx);
+	} else if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 		dc->link_srv->set_dpms_off(pipe_ctx);
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
@@ -2088,12 +2183,15 @@ void dcn401_reset_back_end_for_pipe(
 	 * parent pipe.
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
+		if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
+		      link->skip_implict_edp_power_control)) {
 
-		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+			dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
-		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+			pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
-		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+			pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+		}
 		if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 			pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -2276,18 +2374,18 @@ void dcn401_program_pipe(
 	}
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.raw ||
-	    pipe_ctx->plane_state->update_flags.raw ||
+	    dc_pipe_update_bits_is_any_set(&pipe_ctx->plane_state->update_bits) ||
 	    pipe_ctx->stream->update_flags.raw))
 		dc->hwss.update_dchubp_dpp(dc, pipe_ctx, context);
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.bits.enable ||
-		pipe_ctx->plane_state->update_flags.bits.hdr_mult))
+		pipe_ctx->plane_state->update_bits.hdr_mult))
 		hws->funcs.set_hdr_multiplier(pipe_ctx);
 
 	if (pipe_ctx->plane_state &&
-		(pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
-			pipe_ctx->plane_state->update_flags.bits.gamma_change ||
-			pipe_ctx->plane_state->update_flags.bits.lut_3d ||
+		(pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_bits.gamma_change ||
+			pipe_ctx->plane_state->update_bits.lut_3d ||
 			pipe_ctx->update_flags.bits.enable))
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
@@ -2346,7 +2444,7 @@ void dcn401_program_pipe(
 			pipe_ctx->stream_res.test_pattern_params.offset);
 	}
 	if (pipe_ctx->plane_state
-		&& pipe_ctx->plane_state->update_flags.bits.cm_hist_change
+		&& pipe_ctx->plane_state->update_bits.cm_hist_change
 		&& hws->funcs.program_cm_hist)
 		hws->funcs.program_cm_hist(dc, pipe_ctx, pipe_ctx->plane_state);
 }
@@ -2427,7 +2525,7 @@ void dcn401_program_pipe_sequence(
 	}
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.raw ||
-	    pipe_ctx->plane_state->update_flags.raw ||
+	    dc_pipe_update_bits_is_any_set(&pipe_ctx->plane_state->update_bits) ||
 	    pipe_ctx->stream->update_flags.raw)) {
 
 		if (dc->hwss.update_dchubp_dpp_sequence)
@@ -2435,15 +2533,15 @@ void dcn401_program_pipe_sequence(
 	}
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.bits.enable ||
-		pipe_ctx->plane_state->update_flags.bits.hdr_mult)) {
+		pipe_ctx->plane_state->update_bits.hdr_mult)) {
 
 		hws->funcs.set_hdr_multiplier_sequence(pipe_ctx, seq_state);
 	}
 
 	if (pipe_ctx->plane_state &&
-		(pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
-			pipe_ctx->plane_state->update_flags.bits.gamma_change ||
-			pipe_ctx->plane_state->update_flags.bits.lut_3d ||
+		(pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_bits.gamma_change ||
+			pipe_ctx->plane_state->update_bits.lut_3d ||
 			pipe_ctx->update_flags.bits.enable)) {
 
 		hwss_add_dpp_set_input_transfer_func(seq_state, dc, pipe_ctx, pipe_ctx->plane_state);
@@ -2501,7 +2599,7 @@ void dcn401_program_pipe_sequence(
 	}
 
 	if (pipe_ctx->plane_state
-			&& pipe_ctx->plane_state->update_flags.bits.cm_hist_change
+			&& pipe_ctx->plane_state->update_bits.cm_hist_change
 			&& hws->funcs.program_cm_hist) {
 
 		hwss_add_dpp_program_cm_hist(seq_state, pipe_ctx->plane_res.dpp,
@@ -2655,7 +2753,7 @@ void dcn401_program_front_end_for_ctx(
 		pipe = &context->res_ctx.pipe_ctx[i];
 		if (!pipe->top_pipe && !pipe->prev_odm_pipe
 			&& pipe->stream && pipe->stream->num_wb_info > 0
-			&& (pipe->update_flags.raw || (pipe->plane_state && pipe->plane_state->update_flags.raw)
+			&& (pipe->update_flags.raw || (pipe->plane_state && dc_pipe_update_bits_is_any_set(&pipe->plane_state->update_bits))
 				|| pipe->stream->update_flags.raw)
 			&& hws->funcs.program_all_writeback_pipes_in_tree)
 			hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
@@ -3741,10 +3839,10 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	/* Step 7: DPP setup - input CSC and format setup */
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
-			plane_state->update_flags.bits.bpp_change ||
-			plane_state->update_flags.bits.input_csc_change ||
-			plane_state->update_flags.bits.color_space_change ||
-			plane_state->update_flags.bits.coeff_reduction_change) {
+			plane_state->update_bits.bpp_change ||
+			plane_state->update_bits.input_csc_change ||
+			plane_state->update_bits.color_space_change ||
+			plane_state->update_bits.coeff_reduction_change) {
 		hwss_add_dpp_setup_dpp(seq_state, pipe_ctx);
 
 		/* Step 8: DPP cursor matrix setup */
@@ -3761,8 +3859,8 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	/* Step 10: MPCC updates */
 	if (pipe_ctx->update_flags.bits.mpcc ||
 	     pipe_ctx->update_flags.bits.plane_changed ||
-	     plane_state->update_flags.bits.global_alpha_change ||
-	     plane_state->update_flags.bits.per_pixel_alpha_change) {
+	     plane_state->update_bits.global_alpha_change ||
+	     plane_state->update_bits.per_pixel_alpha_change) {
 
 		/* Check if update_mpcc_sequence is implemented and prefer it over single MPC_UPDATE_MPCC step */
 		if (hws->funcs.update_mpcc_sequence)
@@ -3771,9 +3869,9 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 
 	/* Step 11: DPP scaler setup */
 	if (pipe_ctx->update_flags.bits.scaler ||
-			plane_state->update_flags.bits.scaling_change ||
-			plane_state->update_flags.bits.position_change ||
-			plane_state->update_flags.bits.per_pixel_alpha_change ||
+			plane_state->update_bits.scaling_change ||
+			plane_state->update_bits.position_change ||
+			plane_state->update_bits.per_pixel_alpha_change ||
 			pipe_ctx->stream->update_flags.bits.scaling) {
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->plane_state->per_pixel_alpha;
 		ASSERT(pipe_ctx->plane_res.scl_data.lb_params.depth == LB_PIXEL_DEPTH_36BPP);
@@ -3782,8 +3880,8 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 
 	/* Step 12: HUBP viewport programming */
 	if (pipe_ctx->update_flags.bits.viewport ||
-	     (context == dc->current_state && plane_state->update_flags.bits.position_change) ||
-	     (context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
+	     (context == dc->current_state && plane_state->update_bits.position_change) ||
+	     (context == dc->current_state && plane_state->update_bits.scaling_change) ||
 	     (context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
 		hwss_add_hubp_mem_program_viewport(seq_state, hubp,
 			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
@@ -3815,7 +3913,7 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed ||
 			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->stream->update_flags.bits.gamut_remap ||
-			plane_state->update_flags.bits.gamut_remap_change ||
+			plane_state->update_bits.gamut_remap_change ||
 			pipe_ctx->stream->update_flags.bits.out_csc) {
 
 		/* Gamut remap */
@@ -3830,14 +3928,14 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->update_flags.bits.opp_changed ||
-			plane_state->update_flags.bits.pixel_format_change ||
-			plane_state->update_flags.bits.horizontal_mirror_change ||
-			plane_state->update_flags.bits.rotation_change ||
-			plane_state->update_flags.bits.swizzle_change ||
-			plane_state->update_flags.bits.dcc_change ||
-			plane_state->update_flags.bits.bpp_change ||
-			plane_state->update_flags.bits.scaling_change ||
-			plane_state->update_flags.bits.plane_size_change) {
+			plane_state->update_bits.pixel_format_change ||
+			plane_state->update_bits.horizontal_mirror_change ||
+			plane_state->update_bits.rotation_change ||
+			plane_state->update_bits.swizzle_change ||
+			plane_state->update_bits.dcc_change ||
+			plane_state->update_bits.bpp_change ||
+			plane_state->update_bits.scaling_change ||
+			plane_state->update_bits.plane_size_change) {
 		struct plane_size size = plane_state->plane_size;
 
 		size.surface_size = pipe_ctx->plane_res.scl_data.viewport;
@@ -3851,7 +3949,7 @@ void dcn401_update_dchubp_dpp_sequence(struct dc *dc,
 	/* Step 19: Update plane address (with SubVP support) */
 	if (pipe_ctx->update_flags.bits.enable ||
 	     pipe_ctx->update_flags.bits.plane_changed ||
-	     plane_state->update_flags.bits.addr_update) {
+	     plane_state->update_bits.addr_update) {
 
 		/* SubVP save surface address if needed */
 		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) && pipe_mall_type == SUBVP_MAIN) {
@@ -3924,7 +4022,7 @@ void dcn401_update_mpcc_sequence(struct dc *dc,
 	mpcc_id = hubp->inst;
 
 	/* Step 1: Update blending if no full update needed */
-	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
+	if (!pipe_ctx->plane_state->update_bits.full_update &&
 	    !pipe_ctx->update_flags.bits.mpcc) {
 
 		/* Update blending configuration */

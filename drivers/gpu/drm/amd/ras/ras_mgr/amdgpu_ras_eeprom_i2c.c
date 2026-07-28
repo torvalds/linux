@@ -67,7 +67,7 @@ static int ras_eeprom_i2c_config(struct ras_core_context *ras_core)
 	struct ras_eeprom_control *control = &ras_core->ras_eeprom;
 	u8 i2c_addr;
 
-	if (amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
+	if (adev->bios && amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
 		/* The address given by VBIOS is an 8-bit, wire-format
 		 * address, i.e. the most significant byte.
 		 *

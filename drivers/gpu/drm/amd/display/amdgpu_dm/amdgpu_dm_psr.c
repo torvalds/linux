@@ -32,8 +32,8 @@
 #include "modules/power/power_helpers.h"
 #include "amdgpu_dm_kunit_helpers.h"
 
-
-static bool link_supports_psrsu(struct dc_link *link)
+STATIC_IFN_KUNIT
+bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
 
@@ -60,6 +60,7 @@ static bool link_supports_psrsu(struct dc_link *link)
 	/* Temporarily disable PSR-SU to avoid glitches */
 	return false;
 }
+EXPORT_IF_KUNIT(link_supports_psrsu);
 
 STATIC_IFN_KUNIT
 void amdgpu_dm_psr_fill_caps(struct dc_link *link, struct psr_caps *caps)
@@ -134,6 +135,7 @@ bool amdgpu_dm_set_psr_caps(struct dc_link *link, struct amdgpu_dm_connector *ac
 	amdgpu_dm_psr_fill_caps(link, &aconnector->psr_caps);
 	return true;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_set_psr_caps);
 
 /*
  * amdgpu_dm_psr_is_active_allowed() - check if psr is allowed on any stream
@@ -157,6 +159,7 @@ bool amdgpu_dm_psr_is_active_allowed(struct amdgpu_display_manager *dm)
 	}
 	return false;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_psr_is_active_allowed);
 
 /*
  * amdgpu_dm_psr_set_event() - set or clear PSR event for stream
@@ -190,3 +193,47 @@ bool amdgpu_dm_psr_set_event(struct amdgpu_display_manager *dm, struct dc_stream
 				       set_event, event, wait_for_disable);
 }
 EXPORT_IF_KUNIT(amdgpu_dm_psr_set_event);
+
+#if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+/**
+ * amdgpu_dm_psr_get_dc_feature_mask() - Get DC feature mask for KUnit tests.
+ *
+ * Return: Current value of amdgpu_dc_feature_mask.
+ */
+unsigned int amdgpu_dm_psr_get_dc_feature_mask(void)
+{
+	return amdgpu_dc_feature_mask;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_psr_get_dc_feature_mask);
+
+/**
+ * amdgpu_dm_psr_set_dc_feature_mask() - Set DC feature mask for KUnit tests.
+ * @feature_mask: DC feature mask to set while testing amdgpu_dm_psr_fill_caps().
+ */
+void amdgpu_dm_psr_set_dc_feature_mask(unsigned int feature_mask)
+{
+	amdgpu_dc_feature_mask = feature_mask;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_psr_set_dc_feature_mask);
+
+/**
+ * amdgpu_dm_psr_get_dc_debug_mask() - Get DC debug mask for KUnit tests.
+ *
+ * Return: Current value of amdgpu_dc_debug_mask.
+ */
+unsigned int amdgpu_dm_psr_get_dc_debug_mask(void)
+{
+	return amdgpu_dc_debug_mask;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_psr_get_dc_debug_mask);
+
+/**
+ * amdgpu_dm_psr_set_dc_debug_mask() - Set DC debug mask for KUnit tests.
+ * @debug_mask: DC debug mask to set while testing link_supports_psrsu().
+ */
+void amdgpu_dm_psr_set_dc_debug_mask(unsigned int debug_mask)
+{
+	amdgpu_dc_debug_mask = debug_mask;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_psr_set_dc_debug_mask);
+#endif

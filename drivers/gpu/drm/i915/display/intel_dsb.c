@@ -210,6 +210,18 @@ static int dsb_scanline_to_hw(struct intel_atomic_state *state,
 	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
 }
 
+static
+bool pre_commit_use_safe_window(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc->base.dev);
+
+	if (intel_vrr_always_use_vrr_tg(display))
+		return true;
+
+	return pre_commit_is_vrr_active(state, crtc);
+}
+
 /*
  * Bspec suggests that we should always set DSB_SKIP_WAITS_EN. We have approach
  * different from what is explained in Bspec on how flip is considered being
@@ -229,7 +241,7 @@ static u32 dsb_chicken(struct intel_atomic_state *state,
 	u32 chicken = intel_psr_use_trans_push(new_crtc_state) ?
 		DSB_SKIP_WAITS_EN : 0;
 
-	if (pre_commit_is_vrr_active(state, crtc))
+	if (pre_commit_use_safe_window(state, crtc))
 		chicken |= DSB_CTRL_WAIT_SAFE_WINDOW |
 			DSB_CTRL_NO_WAIT_VBLANK |
 			DSB_INST_WAIT_SAFE_WINDOW |
@@ -798,6 +810,12 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 		end = intel_vrr_vmax_vblank_start(crtc_state);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	} else if (pre_commit_use_safe_window(state, crtc)) {
+		int vblank_delay = crtc_state->set_context_latency;
+
+		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
 	} else {
 		int vblank_delay = intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 
@@ -891,7 +909,7 @@ void intel_dsb_wait_for_delayed_vblank(struct intel_atomic_state *state,
 		&crtc_state->hw.adjusted_mode;
 	int wait_scanlines;
 
-	if (pre_commit_is_vrr_active(state, crtc)) {
+	if (pre_commit_use_safe_window(state, crtc)) {
 		/*
 		 * If the push happened before the vmin decision boundary
 		 * we don't know how far we are from the undelayed vblank.
@@ -902,9 +920,17 @@ void intel_dsb_wait_for_delayed_vblank(struct intel_atomic_state *state,
 		 * the hardware itself guarantees that we're SCL lines
 		 * away from the delayed vblank, and we won't be inside
 		 * the vmin safe window so this extra wait does nothing.
+		 *
+		 * Experimentally, DSB may observe a slightly stale
+		 * PIPEDSL value. When the actual scanline has just reached
+		 * safe_window_start, WAIT_DSL_OUT may complete immediately
+		 * due to the stale value.
+		 *
+		 * Shift the start back by one scanline to ensure the wait
+		 * window is entered reliably.
 		 */
 		intel_dsb_wait_scanline_out(state, dsb,
-					    intel_vrr_safe_window_start(crtc_state),
+					    intel_vrr_safe_window_start(crtc_state) - 1,
 					    intel_vrr_vmin_safe_window_end(crtc_state));
 		/*
 		 * When the push is sent during vblank it will trigger

@@ -479,6 +479,7 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	if (panel) {
 		bridge = drm_panel_bridge_add_typed(panel,
 						    DRM_MODE_CONNECTOR_DSI);
+		drm_panel_put(panel);
 		if (IS_ERR(bridge))
 			return PTR_ERR(bridge);
 
@@ -1290,7 +1291,7 @@ static const struct drm_bridge_funcs tc358768_bridge_funcs = {
 
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_get_input_bus_fmts = tc358768_atomic_get_input_bus_fmts,
 };
 

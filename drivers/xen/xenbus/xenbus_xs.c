@@ -417,6 +417,12 @@ static char **split_strings(char *strings, unsigned int len, unsigned int *num)
 {
 	char *p, **ret;
 
+	if (len && strings[len - 1]) {
+		pr_err_once("malformed XS_DIRECTORY reply\n");
+		kfree(strings);
+		return ERR_PTR(-EIO);
+	}
+
 	/* Count the strings. */
 	*num = count_strings(strings, len);
 

@@ -65,7 +65,7 @@ struct dcn_dsc_reg_state;
 struct dcn_optc_reg_state;
 struct dcn_dccg_reg_state;
 
-#define DC_VER "3.2.384"
+#define DC_VER "3.2.389"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -591,7 +591,6 @@ struct dc_config {
 	bool enable_mipi_converter_optimization;
 	bool enable_frl;
 	bool force_hdmi21_frl_enc_enable;
-	bool skip_frl_pretraining;
 	bool use_default_clock_table;
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
@@ -633,6 +632,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_SMARTMUX_DGPU = 10,
 	VISUAL_CONFIRM_REPLAY = 12,
 	VISUAL_CONFIRM_SUBVP = 14,
+	VISUAL_CONFIRM_ABM = 15,
 	VISUAL_CONFIRM_MCLK_SWITCH = 16,
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
@@ -1129,8 +1129,6 @@ struct dc_debug_options {
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
 	bool ips_disallow_entry;
-	bool dmub_offload_enabled;
-	bool dmcub_emulation;
 	bool disable_idle_power_optimizations;
 	unsigned int mall_size_override;
 	unsigned int mall_additional_timer_percent;
@@ -1152,7 +1150,6 @@ struct dc_debug_options {
 	bool validate_dml_output;
 	bool enable_dmcub_surface_flip;
 	bool usbc_combo_phy_reset_wa;
-	bool force_vrr;
 	bool force_fva;
 	int max_frl_rate;
 	unsigned int  force_frl_rate;
@@ -1290,6 +1287,10 @@ struct dc_debug_options {
 	unsigned int min_deep_sleep_dcfclk_khz;
 	unsigned int force_odm2to1_for_edp_pixclk_mhz;
 	bool enable_replay_esd_recovery;
+	uint8_t iommu_mismatch_temp_wka;
+	bool disable_dynamic_expansion_for_test_pattern;
+	uint32_t dml21_custom_derate_num_dpms;
+	uint32_t dml21_custom_derate_at_dpm[DML2_MAX_NUM_DPM_LVL];
 };
 
 
@@ -1332,7 +1333,6 @@ struct dc_init_data {
 	enum dce_environment dce_environment;
 
 	struct dmub_offload_funcs *dmub_if;
-	struct dc_reg_helper_state *dmub_offload;
 
 	struct dc_config flags;
 	uint64_t log_mask;
@@ -1488,6 +1488,47 @@ struct dc_3dlut {
 	struct fixed31_32 hdr_multiplier;
 	union dc_3dlut_state state;
 };
+
+/* 3DLUT DMA (Fast Load) params */
+struct dc_3dlut_dma {
+	struct dc_plane_address addr;
+	enum dc_cm_lut_swizzle swizzle;
+	enum dc_cm_lut_pixel_format format;
+	uint16_t bias; /* FP1.5.10 */
+	uint16_t scale; /* FP1.5.10 */
+	enum dc_cm_lut_size size;
+};
+
+/* color manager */
+union dc_plane_cm_flags {
+	unsigned int all;
+	struct {
+		unsigned int shaper_enable    : 1;
+		unsigned int lut3d_enable     : 1;
+		unsigned int blend_enable     : 1;
+		/* whether legacy (lut3d_func) or DMA is valid */
+		unsigned int lut3d_dma_enable : 1;
+#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
+		/* RMCM lut to be used instead of MCM */
+		unsigned int rmcm_enable	 : 1;
+		unsigned int reserved: 27;
+#else
+		unsigned int reserved: 28;
+#endif
+	} bits;
+};
+
+struct dc_plane_cm {
+	struct kref refcount;
+	struct dc_transfer_func shaper_func;
+	union {
+		struct dc_3dlut lut3d_func;
+		struct dc_3dlut_dma lut3d_dma;
+	};
+	struct dc_transfer_func blend_func;
+	union dc_plane_cm_flags flags;
+};
+
 /*
  * This structure is filled in by dc_surface_get_status and contains
  * the last requested address and the currently active address so the called
@@ -1501,46 +1542,119 @@ struct dc_plane_status {
 	struct cm_hist cm_hist;
 };
 
-union surface_update_flags {
-
-	struct {
-		uint32_t addr_update:1;
-		/* Medium updates */
-		uint32_t dcc_change:1;
-		uint32_t color_space_change:1;
-		uint32_t horizontal_mirror_change:1;
-		uint32_t per_pixel_alpha_change:1;
-		uint32_t global_alpha_change:1;
-		uint32_t hdr_mult:1;
-		uint32_t rotation_change:1;
-		uint32_t swizzle_change:1;
-		uint32_t scaling_change:1;
-		uint32_t position_change:1;
-		uint32_t in_transfer_func_change:1;
-		uint32_t input_csc_change:1;
-		uint32_t coeff_reduction_change:1;
-		uint32_t pixel_format_change:1;
-		uint32_t plane_size_change:1;
-		uint32_t gamut_remap_change:1;
-		uint32_t cursor_csc_color_matrix_change:1;
-
-		/* Full updates */
-		uint32_t new_plane:1;
-		uint32_t bpp_change:1;
-		uint32_t gamma_change:1;
-		uint32_t bandwidth_change:1;
-		uint32_t clock_change:1;
-		uint32_t stereo_format_change:1;
-		uint32_t lut_3d:1;
-		uint32_t tmz_changed:1;
-		uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
-		uint32_t full_update:1;
-		uint32_t sdr_white_level_nits:1;
-		uint32_t cm_hist_change:1;
-	} bits;
-
-	uint32_t raw;
+struct pipe_update_bits {
+	uint32_t addr_update:1;
+	uint32_t dcc_change:1;
+	uint32_t color_space_change:1;
+	uint32_t horizontal_mirror_change:1;
+	uint32_t per_pixel_alpha_change:1;
+	uint32_t global_alpha_change:1;
+	uint32_t hdr_mult:1;
+	uint32_t rotation_change:1;
+	uint32_t swizzle_change:1;
+	uint32_t scaling_change:1;
+	uint32_t position_change:1;
+	uint32_t in_transfer_func_change:1;
+	uint32_t input_csc_change:1;
+	uint32_t coeff_reduction_change:1;
+	uint32_t pixel_format_change:1;
+	uint32_t plane_size_change:1;
+	uint32_t gamut_remap_change:1;
+	uint32_t cursor_csc_color_matrix_change:1;
+	uint32_t new_plane:1;
+	uint32_t bpp_change:1;
+	uint32_t gamma_change:1;
+	uint32_t bandwidth_change:1;
+	uint32_t clock_change:1;
+	uint32_t stereo_format_change:1;
+	uint32_t lut_3d:1;
+	uint32_t tmz_changed:1;
+	uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
+	uint32_t full_update:1;
+	uint32_t sdr_white_level_nits:1;
+	uint32_t cm_hist_change:1;
+	/* NOTE: When adding a new field, also update:
+	 *   - dc_pipe_update_bits_set_full()
+	 *   - dc_pipe_update_bits_is_any_set()
+	 */
 };
+
+static inline void dc_pipe_update_bits_clear(struct pipe_update_bits *flags)
+{
+	/* memset ensures padding bits are zeroed */
+	memset(flags, 0, sizeof(*flags));
+}
+
+static inline void dc_pipe_update_bits_set_full(struct pipe_update_bits *flags)
+{
+	dc_pipe_update_bits_clear(flags);
+	flags->addr_update = 1;
+	flags->dcc_change = 1;
+	flags->color_space_change = 1;
+	flags->horizontal_mirror_change = 1;
+	flags->per_pixel_alpha_change = 1;
+	flags->global_alpha_change = 1;
+	flags->hdr_mult = 1;
+	flags->rotation_change = 1;
+	flags->swizzle_change = 1;
+	flags->scaling_change = 1;
+	flags->position_change = 1;
+	flags->in_transfer_func_change = 1;
+	flags->input_csc_change = 1;
+	flags->coeff_reduction_change = 1;
+	flags->pixel_format_change = 1;
+	flags->plane_size_change = 1;
+	flags->gamut_remap_change = 1;
+	flags->cursor_csc_color_matrix_change = 1;
+	flags->new_plane = 1;
+	flags->bpp_change = 1;
+	flags->gamma_change = 1;
+	flags->bandwidth_change = 1;
+	flags->clock_change = 1;
+	flags->stereo_format_change = 1;
+	flags->lut_3d = 1;
+	flags->tmz_changed = 1;
+	flags->mcm_transfer_function_enable_change = 1;
+	flags->full_update = 1;
+	flags->sdr_white_level_nits = 1;
+	flags->cm_hist_change = 1;
+}
+
+static inline bool dc_pipe_update_bits_is_any_set(const struct pipe_update_bits *flags)
+{
+	return flags->addr_update ||
+		flags->dcc_change ||
+		flags->color_space_change ||
+		flags->horizontal_mirror_change ||
+		flags->per_pixel_alpha_change ||
+		flags->global_alpha_change ||
+		flags->hdr_mult ||
+		flags->rotation_change ||
+		flags->swizzle_change ||
+		flags->scaling_change ||
+		flags->position_change ||
+		flags->in_transfer_func_change ||
+		flags->input_csc_change ||
+		flags->coeff_reduction_change ||
+		flags->pixel_format_change ||
+		flags->plane_size_change ||
+		flags->gamut_remap_change ||
+		flags->cursor_csc_color_matrix_change ||
+		flags->new_plane ||
+		flags->bpp_change ||
+		flags->gamma_change ||
+		flags->bandwidth_change ||
+		flags->clock_change ||
+		flags->stereo_format_change ||
+		flags->lut_3d ||
+		flags->tmz_changed ||
+		flags->mcm_transfer_function_enable_change ||
+		flags->full_update ||
+		flags->sdr_white_level_nits ||
+		flags->cm_hist_change;
+}
+
+bool dc_check_address_only_update(struct pipe_update_bits update_bits);
 
 #define DC_REMOVE_PLANE_POINTERS 1
 
@@ -1566,14 +1680,22 @@ struct dc_plane_state {
 	struct fixed31_32 hdr_mult;
 	struct colorspace_transform gamut_remap_matrix;
 
+	enum dc_color_space color_space;
+
+#ifndef TRIM_CM2
 	// TODO: No longer used, remove
 	struct dc_hdr_static_metadata hdr_static_ctx;
-
-	enum dc_color_space color_space;
 
 	struct dc_3dlut lut3d_func;
 	struct dc_transfer_func in_shaper_func;
 	struct dc_transfer_func blend_tf;
+	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
+	bool mcm_lut1d_enable;
+	struct dc_cm2_func_luts mcm_luts;
+#endif /* TRIM_CM2 */
+	bool lut_bank_a;
+	enum mpcc_movable_cm_location mcm_location;
+	struct dc_plane_cm cm;
 
 	struct dc_transfer_func *gamcor_tf;
 	enum surface_pixel_format format;
@@ -1590,7 +1712,7 @@ struct dc_plane_state {
 	bool horizontal_mirror;
 	unsigned int layer_index;
 
-	union surface_update_flags update_flags;
+	struct pipe_update_bits update_bits;
 	bool flip_int_enabled;
 	bool skip_manual_trigger;
 
@@ -1610,11 +1732,6 @@ struct dc_plane_state {
 
 	bool is_statically_allocated;
 	enum chroma_cositing cositing;
-	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
-	bool mcm_lut1d_enable;
-	struct dc_cm2_func_luts mcm_luts;
-	bool lut_bank_a;
-	enum mpcc_movable_cm_location mcm_location;
 	struct dc_csc_transform cursor_csc_color_matrix;
 	bool adaptive_sharpness_en;
 	int adaptive_sharpness_policy;
@@ -1728,6 +1845,10 @@ struct dc_scratch_space {
 	 * of ddc_pin to know which aux instance is associated with link.
 	 */
 	bool no_ddc_pin;
+	/** When set, forces all native I2C communication on this DP connector
+	 *  to use the I2C-over-AUX protocol instead of native I2C signaling.
+	 */
+	bool force_to_use_aux;
 	enum gpio_ddc_line aux_hw_inst;
 
 	enum gpio_ddc_line ddc_hw_inst;
@@ -1815,6 +1936,8 @@ struct dc_scratch_space {
 		bool dp_skip_DID2;
 		bool dp_skip_reset_segment;
 		bool dp_skip_fs_144hz;
+		/* Some DP bridges don't work with RBR and must use HBR. */
+		bool dp_skip_rbr;
 		bool dp_mot_reset_segment;
 		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
 		bool dpia_mst_dsc_always_on;
@@ -1978,17 +2101,7 @@ struct dc_surface_update {
 
 	const struct dc_csc_transform *input_csc_color_matrix;
 	const struct fixed31_32 *coeff_reduction_factor;
-	const struct dc_transfer_func *func_shaper;
-	const struct dc_3dlut *lut3d_func;
-	const struct dc_transfer_func *blend_tf;
 	const struct colorspace_transform *gamut_remap_matrix;
-	/*
-	 * Color Transformations for pre-blend MCM (Shaper, 3DLUT, 1DLUT)
-	 *
-	 * change cm2_params.component_settings: Full update
-	 * change cm2_params.cm2_luts: Fast update
-	 */
-	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_plane_cm *cm;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
 	unsigned int sdr_white_level_nits;
@@ -2033,6 +2146,10 @@ struct dc_transfer_func *dc_create_transfer_func(void);
 struct dc_3dlut *dc_create_3dlut_func(void);
 void dc_3dlut_func_release(struct dc_3dlut *lut);
 void dc_3dlut_func_retain(struct dc_3dlut *lut);
+
+struct dc_plane_cm *dc_plane_cm_create(void);
+void dc_plane_cm_release(struct dc_plane_cm *cm);
+void dc_plane_cm_retain(struct dc_plane_cm *cm);
 
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
@@ -2881,6 +2998,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 		uint32_t ext_id);
 bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
+bool dc_get_flip_pending_on_otg(struct dc *dc, int otg_inst);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);
 
@@ -2894,6 +3012,8 @@ void dc_set_power_state(
 void dc_resume(struct dc *dc);
 
 void dc_power_down_on_boot(struct dc *dc);
+
+void dc_disable_dangling_timing_generators(struct dc *dc);
 
 /*
  * HDCP Interfaces

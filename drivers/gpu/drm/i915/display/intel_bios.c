@@ -623,6 +623,21 @@ get_lfp_data_tail(const struct bdb_lfp_data *data,
 		return NULL;
 }
 
+static bool is_panel_type_valid(int panel_type)
+{
+	return panel_type >= 0 && panel_type < 16;
+}
+
+static bool is_panel_type_pnp(int panel_type)
+{
+	return panel_type == 0xff;
+}
+
+static bool is_panel_type_valid_or_pnp(int panel_type)
+{
+	return is_panel_type_valid(panel_type) || is_panel_type_pnp(panel_type);
+}
+
 static int opregion_get_panel_type(struct intel_display *display,
 				   const struct intel_bios_encoder_data *devdata,
 				   const struct drm_edid *drm_edid, bool use_fallback)
@@ -640,15 +655,21 @@ static int vbt_get_panel_type(struct intel_display *display,
 	if (!lfp_options)
 		return -1;
 
-	if (lfp_options->panel_type > 0xf &&
-	    lfp_options->panel_type != 0xff) {
+	if (!is_panel_type_valid_or_pnp(lfp_options->panel_type)) {
 		drm_dbg_kms(display->drm, "Invalid VBT panel type 0x%x\n",
 			    lfp_options->panel_type);
 		return -1;
 	}
 
-	if (devdata && devdata->child.handle == DEVICE_HANDLE_LFP2)
+	if (devdata && devdata->child.handle == DEVICE_HANDLE_LFP2) {
+		if (!is_panel_type_valid_or_pnp(lfp_options->panel_type2)) {
+			drm_dbg_kms(display->drm, "Invalid VBT panel type 2 0x%x\n",
+				    lfp_options->panel_type2);
+			return -1;
+		}
+
 		return lfp_options->panel_type2;
+	}
 
 	drm_WARN_ON(display->drm,
 		    devdata && devdata->child.handle != DEVICE_HANDLE_LFP1);
@@ -762,13 +783,12 @@ static int get_panel_type(struct intel_display *display,
 				    panel_types[i].name, panel_types[i].panel_type);
 	}
 
-	if (panel_types[PANEL_TYPE_OPREGION].panel_type >= 0)
+	if (is_panel_type_valid(panel_types[PANEL_TYPE_OPREGION].panel_type))
 		i = PANEL_TYPE_OPREGION;
-	else if (panel_types[PANEL_TYPE_VBT].panel_type == 0xff &&
-		 panel_types[PANEL_TYPE_PNPID].panel_type >= 0)
+	else if (is_panel_type_pnp(panel_types[PANEL_TYPE_VBT].panel_type) &&
+		 is_panel_type_valid(panel_types[PANEL_TYPE_PNPID].panel_type))
 		i = PANEL_TYPE_PNPID;
-	else if (panel_types[PANEL_TYPE_VBT].panel_type != 0xff &&
-		 panel_types[PANEL_TYPE_VBT].panel_type >= 0)
+	else if (is_panel_type_valid(panel_types[PANEL_TYPE_VBT].panel_type))
 		i = PANEL_TYPE_VBT;
 	else
 		i = PANEL_TYPE_FALLBACK;
@@ -2197,52 +2217,52 @@ static u8 translate_iboost(struct intel_display *display, u8 val)
 
 static const u8 cnp_ddc_pin_map[] = {
 	[0] = 0, /* N/A */
-	[GMBUS_PIN_1_BXT] = DDC_BUS_DDI_B,
-	[GMBUS_PIN_2_BXT] = DDC_BUS_DDI_C,
-	[GMBUS_PIN_4_CNP] = DDC_BUS_DDI_D, /* sic */
-	[GMBUS_PIN_3_BXT] = DDC_BUS_DDI_F, /* sic */
+	[GMBUS_PIN_1] = DDC_BUS_DDI_B,
+	[GMBUS_PIN_2] = DDC_BUS_DDI_C,
+	[GMBUS_PIN_4] = DDC_BUS_DDI_D, /* sic */
+	[GMBUS_PIN_3] = DDC_BUS_DDI_F, /* sic */
 };
 
 static const u8 icp_ddc_pin_map[] = {
-	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
-	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
-	[GMBUS_PIN_3_BXT] = TGL_DDC_BUS_DDI_C,
-	[GMBUS_PIN_9_TC1_ICP] = ICL_DDC_BUS_PORT_1,
-	[GMBUS_PIN_10_TC2_ICP] = ICL_DDC_BUS_PORT_2,
-	[GMBUS_PIN_11_TC3_ICP] = ICL_DDC_BUS_PORT_3,
-	[GMBUS_PIN_12_TC4_ICP] = ICL_DDC_BUS_PORT_4,
-	[GMBUS_PIN_13_TC5_TGP] = TGL_DDC_BUS_PORT_5,
-	[GMBUS_PIN_14_TC6_TGP] = TGL_DDC_BUS_PORT_6,
+	[GMBUS_PIN_1] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_3] = TGL_DDC_BUS_DDI_C,
+	[GMBUS_PIN_9_TC1] = ICL_DDC_BUS_PORT_1,
+	[GMBUS_PIN_10_TC2] = ICL_DDC_BUS_PORT_2,
+	[GMBUS_PIN_11_TC3] = ICL_DDC_BUS_PORT_3,
+	[GMBUS_PIN_12_TC4] = ICL_DDC_BUS_PORT_4,
+	[GMBUS_PIN_13_TC5] = TGL_DDC_BUS_PORT_5,
+	[GMBUS_PIN_14_TC6] = TGL_DDC_BUS_PORT_6,
 };
 
 static const u8 rkl_pch_tgp_ddc_pin_map[] = {
-	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
-	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
-	[GMBUS_PIN_9_TC1_ICP] = RKL_DDC_BUS_DDI_D,
-	[GMBUS_PIN_10_TC2_ICP] = RKL_DDC_BUS_DDI_E,
+	[GMBUS_PIN_1] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1] = RKL_DDC_BUS_DDI_D,
+	[GMBUS_PIN_10_TC2] = RKL_DDC_BUS_DDI_E,
 };
 
 static const u8 adls_ddc_pin_map[] = {
-	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
-	[GMBUS_PIN_9_TC1_ICP] = ADLS_DDC_BUS_PORT_TC1,
-	[GMBUS_PIN_10_TC2_ICP] = ADLS_DDC_BUS_PORT_TC2,
-	[GMBUS_PIN_11_TC3_ICP] = ADLS_DDC_BUS_PORT_TC3,
-	[GMBUS_PIN_12_TC4_ICP] = ADLS_DDC_BUS_PORT_TC4,
+	[GMBUS_PIN_1] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_9_TC1] = ADLS_DDC_BUS_PORT_TC1,
+	[GMBUS_PIN_10_TC2] = ADLS_DDC_BUS_PORT_TC2,
+	[GMBUS_PIN_11_TC3] = ADLS_DDC_BUS_PORT_TC3,
+	[GMBUS_PIN_12_TC4] = ADLS_DDC_BUS_PORT_TC4,
 };
 
 static const u8 gen9bc_tgp_ddc_pin_map[] = {
-	[GMBUS_PIN_2_BXT] = DDC_BUS_DDI_B,
-	[GMBUS_PIN_9_TC1_ICP] = DDC_BUS_DDI_C,
-	[GMBUS_PIN_10_TC2_ICP] = DDC_BUS_DDI_D,
+	[GMBUS_PIN_2] = DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1] = DDC_BUS_DDI_C,
+	[GMBUS_PIN_10_TC2] = DDC_BUS_DDI_D,
 };
 
 static const u8 adlp_ddc_pin_map[] = {
-	[GMBUS_PIN_1_BXT] = ICL_DDC_BUS_DDI_A,
-	[GMBUS_PIN_2_BXT] = ICL_DDC_BUS_DDI_B,
-	[GMBUS_PIN_9_TC1_ICP] = ADLP_DDC_BUS_PORT_TC1,
-	[GMBUS_PIN_10_TC2_ICP] = ADLP_DDC_BUS_PORT_TC2,
-	[GMBUS_PIN_11_TC3_ICP] = ADLP_DDC_BUS_PORT_TC3,
-	[GMBUS_PIN_12_TC4_ICP] = ADLP_DDC_BUS_PORT_TC4,
+	[GMBUS_PIN_1] = ICL_DDC_BUS_DDI_A,
+	[GMBUS_PIN_2] = ICL_DDC_BUS_DDI_B,
+	[GMBUS_PIN_9_TC1] = ADLP_DDC_BUS_PORT_TC1,
+	[GMBUS_PIN_10_TC2] = ADLP_DDC_BUS_PORT_TC2,
+	[GMBUS_PIN_11_TC3] = ADLP_DDC_BUS_PORT_TC3,
+	[GMBUS_PIN_12_TC4] = ADLP_DDC_BUS_PORT_TC4,
 };
 
 static u8 map_ddc_pin(struct intel_display *display, u8 vbt_pin)

@@ -6,6 +6,8 @@
 #ifndef _XE_TUNING_H_
 #define _XE_TUNING_H_
 
+#include <kunit/visibility.h>
+
 struct drm_printer;
 struct xe_gt;
 struct xe_hw_engine;
@@ -15,5 +17,9 @@ void xe_tuning_process_gt(struct xe_gt *gt);
 void xe_tuning_process_engine(struct xe_hw_engine *hwe);
 void xe_tuning_process_lrc(struct xe_hw_engine *hwe);
 int xe_tuning_dump(struct xe_gt *gt, struct drm_printer *p);
+
+#if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
+extern const struct xe_rtp_table_sr gt_tunings;
+#endif
 
 #endif

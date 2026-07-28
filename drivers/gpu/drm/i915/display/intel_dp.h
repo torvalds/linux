@@ -59,8 +59,6 @@ int intel_dp_get_active_pipes(struct intel_dp *intel_dp,
 			      struct drm_modeset_acquire_ctx *ctx,
 			      u8 *pipe_mask);
 void intel_dp_flush_connector_commits(struct intel_connector *connector);
-void intel_dp_link_check(struct intel_encoder *encoder);
-void intel_dp_check_link_state(struct intel_dp *intel_dp);
 void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode);
 void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 					   const struct intel_crtc_state *crtc_state);
@@ -73,7 +71,8 @@ void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_flush_work(struct drm_encoder *encoder);
-int intel_dp_compute_config(struct intel_encoder *encoder,
+int intel_dp_compute_config(struct intel_atomic_state *state,
+			    struct intel_encoder *encoder,
 			    struct intel_crtc_state *pipe_config,
 			    struct drm_connector_state *conn_state);
 bool intel_dp_needs_8b10b_fec(const struct intel_crtc_state *crtc_state,
@@ -102,17 +101,13 @@ void intel_edp_backlight_off(const struct drm_connector_state *conn_state);
 void intel_edp_fixup_vbt_bpp(struct intel_encoder *encoder, int pipe_bpp);
 void intel_dp_mst_suspend(struct intel_display *display);
 void intel_dp_mst_resume(struct intel_display *display);
+int intel_dp_rate_limit_len(const int *rates, int len, int max_rate);
 int intel_dp_max_source_lane_count(struct intel_digital_port *dig_port);
 int intel_dp_max_link_rate(struct intel_dp *intel_dp);
 int intel_dp_max_lane_count(struct intel_dp *intel_dp);
 int intel_dp_config_required_rate(const struct intel_crtc_state *crtc_state);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
-int intel_dp_max_common_rate(struct intel_dp *intel_dp);
-int intel_dp_max_common_lane_count(struct intel_dp *intel_dp);
-int intel_dp_common_rate(struct intel_dp *intel_dp, int index);
 int intel_dp_rate_index(const int *rates, int len, int rate);
-int intel_dp_link_config_index(struct intel_dp *intel_dp, int link_rate, int lane_count);
-void intel_dp_link_config_get(struct intel_dp *intel_dp, int idx, int *link_rate, int *lane_count);
 void intel_dp_update_sink_caps(struct intel_dp *intel_dp);
 void intel_dp_reset_link_params(struct intel_dp *intel_dp);
 
@@ -209,8 +204,6 @@ void intel_dp_get_dsc_sink_cap(u8 dpcd_rev,
 			       struct intel_connector *connector);
 bool intel_dp_has_gamut_metadata_dip(struct intel_encoder *encoder);
 
-bool intel_dp_link_params_valid(struct intel_dp *intel_dp, int link_rate,
-				u8 lane_count);
 bool intel_dp_has_connector(struct intel_dp *intel_dp,
 			    const struct drm_connector_state *conn_state);
 int intel_dp_dsc_max_src_input_bpc(struct intel_display *display);
@@ -242,5 +235,8 @@ bool intel_dp_joiner_candidate_valid(struct intel_connector *connector,
 		for_each_if(intel_dp_joiner_candidate_valid(__connector, (__mode)->hdisplay, __num_joined_pipes))
 
 u8 intel_dp_as_sdp_transmission_time(void);
+
+int intel_dp_link_init(struct intel_dp *intel_dp);
+void intel_dp_link_cleanup(struct intel_dp *intel_dp);
 
 #endif /* __INTEL_DP_H__ */

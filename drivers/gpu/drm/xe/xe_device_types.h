@@ -144,8 +144,6 @@ struct xe_device {
 		 * Keep all flags below alphabetically sorted
 		 */
 
-		/** @info.force_execlist: Forced execlist submission */
-		u8 force_execlist:1;
 		/** @info.has_access_counter: Device supports access counter */
 		u8 has_access_counter:1;
 		/** @info.has_asid: Has address space ID */
@@ -156,6 +154,8 @@ struct xe_device {
 		u8 has_cached_pt:1;
 		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
 		u8 has_device_atomics_on_smem:1;
+		/** @info.has_drm_ras: Device supports drm_ras (Reliability, Availability, Serviceability) */
+		u8 has_drm_ras:1;
 		/** @info.has_fan_control: Device supports fan control */
 		u8 has_fan_control:1;
 		/** @info.has_flat_ccs: Whether flat CCS metadata is used */
@@ -483,6 +483,9 @@ struct xe_device {
 	/** @needs_flr_on_fini: requests function-reset on fini */
 	bool needs_flr_on_fini;
 
+	/** @in_reset: Indicates if device is in reset */
+	atomic_t in_reset;
+
 	/** @wedged: Struct to control Wedged States and mode */
 	struct {
 		/** @wedged.flag: Xe device faced a critical error and is now blocked. */
@@ -494,6 +497,9 @@ struct xe_device {
 		/** @wedged.inconsistent_reset: Inconsistent reset policy state between GTs */
 		bool inconsistent_reset;
 	} wedged;
+
+	/** @devres_group: devres group */
+	void *devres_group;
 
 	/** @bo_device: Struct to control async free of BOs */
 	struct xe_bo_dev {

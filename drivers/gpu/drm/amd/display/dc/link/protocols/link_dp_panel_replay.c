@@ -25,6 +25,7 @@
 
 #include "link_dp_panel_replay.h"
 #include "link_edp_panel_control.h"
+#include "link_ddc.h"
 #include "link_dpcd.h"
 #include "dm_helpers.h"
 #include "dc/dc_dmub_srv.h"
@@ -119,7 +120,7 @@ static bool dp_setup_panel_replay(struct dc_link *link, const struct dc_stream_s
 	if (!dp_pr_get_panel_inst(dc, link, &panel_inst))
 		return false;
 
-	replay_context.aux_inst = link->ddc->ddc_pin->hw_info.ddc_channel;
+	replay_context.aux_inst = (enum channel_id) link_get_ddc_aux_inst(link);
 	replay_context.digbe_inst = link->link_enc->transmitter;
 	replay_context.digfe_inst = link->link_enc->preferred_engine;
 

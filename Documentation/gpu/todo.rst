@@ -55,7 +55,7 @@ There are still drivers that use drm_simple_display_pipe. The task here is to
 convert them to use regular atomic helpers. Search for a driver that calls
 drm_simple_display_pipe_init() and inline all helpers from drm_simple_kms_helper.c
 into the driver, such that no simple-KMS interfaces are required. Please also
-rename all inlined fucntions according to driver conventions.
+rename all inlined functions according to driver conventions.
 
 Contact: Thomas Zimmermann, respective driver maintainer
 
@@ -896,10 +896,11 @@ complection of submission.
 One minor feature still missing is a generic DRM IOCTL to query the error
 status of binary and timeline drm_syncobj.
 
-This should probably be improved by implementing the necessary kernel interface
-and adding support for that in the userspace stack.
+This was already improved by implementing the necessary kernel interface
+(patches are on the dri-devel mailing list) but adding support for that in the
+userspace stack is still missing.
 
-Contact: Christian König
+Contact: Christian König, Michel Dänzer
 
 Level: Starter
 
@@ -947,6 +948,47 @@ do so if yes.
 Contact: Philipp Stanner <phasta@kernel.org>
 
 Level: Intermediate
+
+Replace the lockless queue with a locked list
+---------------------------------------------
+
+drm_sched is the only user in the entire kernel of a special lockless queue, the
+spsc_queue. This queue utilizes:
+
+- preempt_disable()
+- atomic instructions
+- memory barriers
+- ACCESS_ONCE()
+
+whereas a conventional spinlock utilizes:
+
+- preempt_disable()
+- 1 atomic instruction for taking / releasing the lock
+- memory barriers
+
+Moreover, drm_sched_entity_push_job(), the only user of spsc_queue_push(), has
+to take a lock in some situations anyways and calls to it are often serialized
+with a driver lock.
+
+It is, thus, highly questionable whether the lockless queue grants any advantage
+at all. Considering that its internals are not well documented and its correctness
+is not formally proven, it seems desirable to replace the queue with a mere list
+or hlist that is protected by a spinlock.
+
+Tasks:
+
+- Replace the spsc_queue in drm/sched (and those who might access the scheduler's
+  internal queue) with a spinlock + (h)list.
+- Ideally, check with some micro benchmarks and real world tests (preferably
+  with amdgpu) for relevant performance regressions.
+- Remove the spsc_queue from the kernel altogether.
+
+Contact:
+
+- Philipp Stanner <phasta@kernel.org>
+- Christian König <christian.koenig@amd.com>
+
+Level: Beginner
 
 Outside DRM
 ===========

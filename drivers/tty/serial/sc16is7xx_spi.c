@@ -2,7 +2,6 @@
 /* SC16IS7xx SPI interface driver */
 
 #include <linux/dev_printk.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>

@@ -2701,7 +2701,8 @@ static double dml_get_return_bandwidth_available(
 	bool is_hvm_only,
 	double dcfclk_mhz,
 	double fclk_mhz,
-	double dram_bw_mbps)
+	double dram_bw_mbps,
+	unsigned int uclk_dpm_level)
 {
 	double return_bw_mbps = 0.;
 	double ideal_sdp_bandwidth = (double)soc->return_bus_width_bytes * dcfclk_mhz;
@@ -2722,9 +2723,16 @@ static double dml_get_return_bandwidth_available(
 			derate_fabric_factor = soc->qos_parameters.derate_table.dcn_mall_prefetch_average.fclk_derate_percent / 100.0;
 			derate_dram_factor = soc->qos_parameters.derate_table.dcn_mall_prefetch_average.dram_derate_percent_pixel / 100.0;
 		} else { // just assume sys_active
-			derate_sdp_factor = soc->qos_parameters.derate_table.system_active_average.dcfclk_derate_percent / 100.0;
-			derate_fabric_factor = soc->qos_parameters.derate_table.system_active_average.fclk_derate_percent / 100.0;
-			derate_dram_factor = soc->qos_parameters.derate_table.system_active_average.dram_derate_percent_pixel / 100.0;
+			// use per dpm derates if the values are populated. Otherwise use global derates
+			derate_sdp_factor = soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dcfclk_derate_percent[uclk_dpm_level] != 0 ?
+				soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dcfclk_derate_percent[uclk_dpm_level] / 100.0 :
+				soc->qos_parameters.derate_table.system_active_average.dcfclk_derate_percent / 100.0;
+			derate_fabric_factor = soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.fclk_derate_percent[uclk_dpm_level] != 0 ?
+				soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.fclk_derate_percent[uclk_dpm_level] / 100.0 :
+				soc->qos_parameters.derate_table.system_active_average.fclk_derate_percent / 100.0;
+			derate_dram_factor = soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dram_derate_percent_pixel[uclk_dpm_level] != 0 ?
+				soc->qos_parameters.derate_table_per_dpm.system_active_derates_per_dpm.dram_derate_percent_pixel[uclk_dpm_level] / 100.0 :
+				soc->qos_parameters.derate_table.system_active_average.dram_derate_percent_pixel / 100.0;
 		}
 	} else { // urgent bw
 		if (state_type == dml2_core_internal_soc_state_svp_prefetch) {
@@ -2778,6 +2786,7 @@ static double dml_get_return_bandwidth_available(
 	DML_LOG_VERBOSE("DML::%s: derate_fabric_bandwidth = %f (derate %f)\n", __func__, derate_fabric_bandwidth, derate_fabric_factor);
 	DML_LOG_VERBOSE("DML::%s: derate_dram_bandwidth = %f (derate %f)\n", __func__, derate_dram_bandwidth, derate_dram_factor);
 	DML_LOG_VERBOSE("DML::%s: return_bw_mbps = %f\n", __func__, return_bw_mbps);
+	DML_LOG_VERBOSE("DML::%s: uclk_dpm_level = %u\n", __func__, uclk_dpm_level);
 	return return_bw_mbps;
 }
 
@@ -2793,7 +2802,8 @@ static noinline_for_stack void calculate_bandwidth_available(
 	bool HostVMEnable,
 	double dcfclk_mhz,
 	double fclk_mhz,
-	double dram_bw_mbps)
+	double dram_bw_mbps,
+	unsigned int uclk_dpm_level)
 {
 	unsigned int n, m;
 
@@ -2812,9 +2822,10 @@ static noinline_for_stack void calculate_bandwidth_available(
 				0, // hvm_only
 				dcfclk_mhz,
 				fclk_mhz,
-				dram_bw_mbps);
+				dram_bw_mbps,
+				uclk_dpm_level);
 
-			urg_bandwidth_available[m][n] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 0, dcfclk_mhz, fclk_mhz, dram_bw_mbps);
+			urg_bandwidth_available[m][n] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 0, dcfclk_mhz, fclk_mhz, dram_bw_mbps, uclk_dpm_level);
 
 
 #ifdef __DML_VBA_DEBUG__
@@ -2824,8 +2835,8 @@ static noinline_for_stack void calculate_bandwidth_available(
 
 			// urg_bandwidth_available_vm_only is indexed by soc_state
 			if (n == dml2_core_internal_bw_dram) {
-				urg_bandwidth_available_vm_only[m] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 1, dcfclk_mhz, fclk_mhz, dram_bw_mbps);
-				urg_bandwidth_available_pixel_and_vm[m] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 0, dcfclk_mhz, fclk_mhz, dram_bw_mbps);
+				urg_bandwidth_available_vm_only[m] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 1, dcfclk_mhz, fclk_mhz, dram_bw_mbps, uclk_dpm_level);
+				urg_bandwidth_available_pixel_and_vm[m] = dml_get_return_bandwidth_available(soc, m, n, 0, HostVMEnable, 0, dcfclk_mhz, fclk_mhz, dram_bw_mbps, uclk_dpm_level);
 			}
 		}
 
@@ -9483,7 +9494,8 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 		display_cfg->hostvm_enable,
 		mode_lib->ms.DCFCLK,
 		mode_lib->ms.FabricClock,
-		mode_lib->ms.dram_bw_mbps);
+		mode_lib->ms.dram_bw_mbps,
+		mode_lib->ms.active_min_uclk_dpm_index);
 
 	calculate_bandwidth_available(
 		mode_lib->ms.support.avg_bandwidth_available_min,
@@ -9498,10 +9510,12 @@ static bool dml_core_mode_support(struct dml2_core_calcs_mode_support_ex *in_out
 		mode_lib->ms.MaxDCFCLK,
 		mode_lib->ms.MaxFabricClock,
 #ifdef DML_MODE_SUPPORT_USE_DPM_DRAM_BW
-		mode_lib->ms.dram_bw_mbps);
+		mode_lib->ms.dram_bw_mbps,
 #else
-		mode_lib->ms.max_dram_bw_mbps);
+		mode_lib->ms.max_dram_bw_mbps,
 #endif
+		mode_lib->ms.active_min_uclk_dpm_index);
+
 
 	// Average BW support check
 	calculate_avg_bandwidth_required(
@@ -10958,7 +10972,8 @@ static bool dml_core_mode_programming(struct dml2_core_calcs_mode_programming_ex
 		display_cfg->hostvm_enable,
 		mode_lib->mp.Dcfclk,
 		mode_lib->mp.FabricClock,
-		mode_lib->mp.dram_bw_mbps);
+		mode_lib->mp.dram_bw_mbps,
+		mode_lib->mp.active_min_uclk_dpm_index);
 
 
 	calculate_hostvm_inefficiency_factor(

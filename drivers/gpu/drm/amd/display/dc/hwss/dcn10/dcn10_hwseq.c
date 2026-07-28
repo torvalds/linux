@@ -2981,7 +2981,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpcc_id = hubp->inst;
 
 	/* If there is no full update, don't need to touch MPC tree*/
-	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
+	if (!pipe_ctx->plane_state->update_bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		return;
@@ -3041,7 +3041,7 @@ static void dcn10_update_dchubp_dpp(
 	/* If request max dpp clk is lower than current dispclk, no need to
 	 * divided by 2
 	 */
-	if (plane_state->update_flags.bits.full_update) {
+	if (plane_state->update_bits.full_update) {
 
 		/* new calculated dispclk, dppclk are stored in
 		 * context->bw_ctx.bw.dcn.clk.dispclk_khz / dppclk_khz. current
@@ -3096,7 +3096,7 @@ static void dcn10_update_dchubp_dpp(
 	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
 	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
 	 */
-	if (plane_state->update_flags.bits.full_update) {
+	if (plane_state->update_bits.full_update) {
 		hubp->funcs->hubp_vtg_sel(hubp, pipe_ctx->stream_res.tg->inst);
 
 		hubp->funcs->hubp_setup(
@@ -3113,26 +3113,26 @@ static void dcn10_update_dchubp_dpp(
 
 	size.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
-	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.bpp_change)
+	if (plane_state->update_bits.full_update ||
+		plane_state->update_bits.bpp_change)
 		dcn10_update_dpp(dpp, plane_state);
 
-	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.per_pixel_alpha_change ||
-		plane_state->update_flags.bits.global_alpha_change)
+	if (plane_state->update_bits.full_update ||
+		plane_state->update_bits.per_pixel_alpha_change ||
+		plane_state->update_bits.global_alpha_change)
 		hws->funcs.update_mpcc(dc, pipe_ctx);
 
-	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.per_pixel_alpha_change ||
-		plane_state->update_flags.bits.global_alpha_change ||
-		plane_state->update_flags.bits.scaling_change ||
-		plane_state->update_flags.bits.position_change) {
+	if (plane_state->update_bits.full_update ||
+		plane_state->update_bits.per_pixel_alpha_change ||
+		plane_state->update_bits.global_alpha_change ||
+		plane_state->update_bits.scaling_change ||
+		plane_state->update_bits.position_change) {
 		update_scaler(pipe_ctx);
 	}
 
-	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.scaling_change ||
-		plane_state->update_flags.bits.position_change) {
+	if (plane_state->update_bits.full_update ||
+		plane_state->update_bits.scaling_change ||
+		plane_state->update_bits.position_change) {
 		hubp->funcs->mem_program_viewport(
 			hubp,
 			&pipe_ctx->plane_res.scl_data.viewport,
@@ -3150,7 +3150,7 @@ static void dcn10_update_dchubp_dpp(
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
 	}
 
-	if (plane_state->update_flags.bits.full_update) {
+	if (plane_state->update_bits.full_update) {
 		/*gamut remap*/
 		dc->hwss.program_gamut_remap(pipe_ctx);
 
@@ -3161,15 +3161,15 @@ static void dcn10_update_dchubp_dpp(
 				pipe_ctx->stream_res.opp->inst);
 	}
 
-	if (plane_state->update_flags.bits.full_update ||
-		plane_state->update_flags.bits.pixel_format_change ||
-		plane_state->update_flags.bits.horizontal_mirror_change ||
-		plane_state->update_flags.bits.rotation_change ||
-		plane_state->update_flags.bits.swizzle_change ||
-		plane_state->update_flags.bits.dcc_change ||
-		plane_state->update_flags.bits.bpp_change ||
-		plane_state->update_flags.bits.scaling_change ||
-		plane_state->update_flags.bits.plane_size_change) {
+	if (plane_state->update_bits.full_update ||
+		plane_state->update_bits.pixel_format_change ||
+		plane_state->update_bits.horizontal_mirror_change ||
+		plane_state->update_bits.rotation_change ||
+		plane_state->update_bits.swizzle_change ||
+		plane_state->update_bits.dcc_change ||
+		plane_state->update_bits.bpp_change ||
+		plane_state->update_bits.scaling_change ||
+		plane_state->update_bits.plane_size_change) {
 		hubp->funcs->hubp_program_surface_config(
 			hubp,
 			plane_state->format,
@@ -3278,16 +3278,16 @@ void dcn10_program_pipe(
 		hws->funcs.blank_pixel_data(dc, pipe_ctx, blank);
 	}
 
-	if (pipe_ctx->plane_state->update_flags.bits.full_update)
+	if (pipe_ctx->plane_state->update_bits.full_update)
 		dcn10_enable_plane(dc, pipe_ctx, context);
 
 	dcn10_update_dchubp_dpp(dc, pipe_ctx, context);
 
 	hws->funcs.set_hdr_multiplier(pipe_ctx);
 
-	if (pipe_ctx->plane_state->update_flags.bits.full_update ||
-			pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
-			pipe_ctx->plane_state->update_flags.bits.gamma_change)
+	if (pipe_ctx->plane_state->update_bits.full_update ||
+			pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_bits.gamma_change)
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
@@ -3296,7 +3296,7 @@ void dcn10_program_pipe(
 	 * Always call this for now since it does memcmp inside before
 	 * doing heavy calculation and programming
 	 */
-	if (pipe_ctx->plane_state->update_flags.bits.full_update)
+	if (pipe_ctx->plane_state->update_bits.full_update)
 		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
 }
 

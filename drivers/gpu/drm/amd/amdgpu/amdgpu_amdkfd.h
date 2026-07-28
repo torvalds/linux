@@ -210,6 +210,7 @@ int amdgpu_amdkfd_evict_userptr(struct mmu_interval_notifier *mni,
 int amdgpu_amdkfd_bo_validate_and_fence(struct amdgpu_bo *bo,
 					uint32_t domain,
 					struct dma_fence *fence);
+int amdgpu_amdkfd_set_sigbus_delay(struct task_struct *task, u32 ms);
 #else
 static inline
 bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
@@ -240,6 +241,11 @@ int amdgpu_amdkfd_bo_validate_and_fence(struct amdgpu_bo *bo,
 					struct dma_fence *fence)
 {
 	return 0;
+}
+static inline
+int amdgpu_amdkfd_set_sigbus_delay(struct task_struct *task, u32 ms)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 /* Shared API */
@@ -275,7 +281,11 @@ int amdgpu_amdkfd_stop_sched(struct amdgpu_device *adev, uint32_t node_id);
 int amdgpu_amdkfd_config_sq_perfmon(struct amdgpu_device *adev, uint32_t xcp_id,
 	bool core_override_enable, bool reg_override_enable, bool perfmon_override_enable);
 bool amdgpu_amdkfd_compute_active(struct amdgpu_device *adev, uint32_t node_id);
-
+int amdgpu_amdkfd_reset_mes_queue(struct amdgpu_device *adev,
+				  uint32_t node_id,
+				  int queue_type,
+				  int pipe, int queue,
+				  unsigned int db);
 
 /* Read user wptr from a specified user address space with page fault
  * disabled. The memory must be pinned and mapped to the hardware when
@@ -326,9 +336,9 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 int amdgpu_amdkfd_gpuvm_dmaunmap_mem(struct kgd_mem *mem, void *drm_priv);
 int amdgpu_amdkfd_gpuvm_sync_memory(
 		struct amdgpu_device *adev, struct kgd_mem *mem, bool intr);
-int amdgpu_amdkfd_gpuvm_map_gtt_bo_to_kernel(struct kgd_mem *mem,
-					     void **kptr, uint64_t *size);
-void amdgpu_amdkfd_gpuvm_unmap_gtt_bo_from_kernel(struct kgd_mem *mem);
+int amdgpu_amdkfd_gpuvm_map_bo_to_kernel(struct kgd_mem *mem, void **kptr,
+					 u64 *size, u32 domain);
+void amdgpu_amdkfd_gpuvm_unmap_bo_from_kernel(struct kgd_mem *mem);
 
 int amdgpu_amdkfd_map_gtt_bo_to_gart(struct amdgpu_bo *bo, struct amdgpu_bo **bo_gart);
 
@@ -446,6 +456,9 @@ bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entr
 			       bool retry_fault);
 void kgd2kfd_lock_kfd(void);
 void kgd2kfd_teardown_processes(struct amdgpu_device *adev);
+int kgd2kfd_reset_mes_queue(struct kfd_dev *kfd, uint32_t node_id,
+			    int queue_type, int pipe, int queue,
+			    unsigned int db);
 
 #else
 static inline int kgd2kfd_init(void)
@@ -574,6 +587,13 @@ static inline void kgd2kfd_lock_kfd(void)
 
 static inline void kgd2kfd_teardown_processes(struct amdgpu_device *adev)
 {
+}
+
+static inline int kgd2kfd_reset_mes_queue(struct kfd_dev *kfd, uint32_t node_id,
+					  int queue_type, int pipe, int queue,
+					  unsigned int db)
+{
+	return 0;
 }
 
 #endif

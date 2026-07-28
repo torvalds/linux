@@ -50,11 +50,16 @@
 #include "qxl_object.h"
 
 static const struct pci_device_id pciidlist[] = {
-	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8,
-	  0xffff00, 0 },
-	{ 0x1b36, 0x100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_OTHER << 8,
-	  0xffff00, 0 },
-	{ 0, 0, 0 },
+	{
+		PCI_DEVICE(0x1b36, 0x0100),
+		.class = PCI_CLASS_DISPLAY_VGA << 8,
+		.class_mask = 0xffff00
+	}, {
+		PCI_DEVICE(0x1b36, 0x0100),
+		.class = PCI_CLASS_DISPLAY_OTHER << 8,
+		.class_mask = 0xffff00
+	},
+	{ },
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 

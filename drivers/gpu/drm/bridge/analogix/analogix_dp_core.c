@@ -328,7 +328,7 @@ static int analogix_dp_process_clock_recovery(struct analogix_dp_device *dp)
 	u8 voltage_swing, pre_emphasis, training_lane;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	usleep_range(100, 101);
+	drm_dp_link_train_clock_recovery_delay(&dp->aux, dp->dpcd);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -389,7 +389,7 @@ static int analogix_dp_process_equalizer_training(struct analogix_dp_device *dp)
 	u32 reg;
 	u8 link_status[DP_LINK_STATUS_SIZE];
 
-	usleep_range(400, 401);
+	drm_dp_link_train_channel_eq_delay(&dp->aux, dp->dpcd);
 
 	lane_count = dp->link_train.lane_count;
 
@@ -619,7 +619,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	for (;;) {
 		timeout_loop++;
-		if (analogix_dp_is_slave_video_stream_clock_on(dp) == 0)
+		if (analogix_dp_is_slave_video_stream_clock_on(dp))
 			break;
 		if (timeout_loop > DP_TIMEOUT_LOOP_COUNT) {
 			dev_err(dp->dev, "Timeout of slave video streamclk ok\n");
@@ -647,7 +647,7 @@ static int analogix_dp_config_video(struct analogix_dp_device *dp)
 
 	for (;;) {
 		timeout_loop++;
-		if (analogix_dp_is_video_stream_on(dp) == 0) {
+		if (analogix_dp_is_video_stream_on(dp)) {
 			done_count++;
 			if (done_count > 10)
 				break;
@@ -749,6 +749,12 @@ static int analogix_dp_fast_link_train_detection(struct analogix_dp_device *dp)
 static int analogix_dp_commit(struct analogix_dp_device *dp)
 {
 	int ret;
+
+	ret = drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd);
+	if (ret < 0) {
+		dev_err(dp->dev, "failed to read dpcd caps: %d\n", ret);
+		return ret;
+	}
 
 	ret = analogix_dp_train_link(dp);
 	if (ret) {
@@ -870,7 +876,7 @@ static int analogix_dp_bridge_atomic_check(struct drm_bridge *bridge,
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	u32 mask = BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444) | BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422);
 
-	if (is_rockchip(dp->plat_data->dev_type)) {
+	if (analogix_dp_is_rockchip(dp->plat_data->dev_type)) {
 		if ((di->color_formats & mask)) {
 			DRM_DEBUG_KMS("Swapping display color format from YUV to RGB\n");
 			di->color_formats &= ~mask;
@@ -1223,7 +1229,7 @@ static void analogix_dp_bridge_atomic_post_disable(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_pre_enable = analogix_dp_bridge_atomic_pre_enable,
 	.atomic_enable = analogix_dp_bridge_atomic_enable,
 	.atomic_disable = analogix_dp_bridge_atomic_disable,
@@ -1249,6 +1255,7 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		video_info->max_link_rate = 0x0A;
 		video_info->max_lane_count = 0x04;
 		break;
+	case RK3576_EDP:
 	case RK3588_EDP:
 		video_info->max_link_rate = 0x14;
 		video_info->max_lane_count = 0x04;

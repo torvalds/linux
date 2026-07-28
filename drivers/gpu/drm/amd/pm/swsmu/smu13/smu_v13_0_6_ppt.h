@@ -117,7 +117,6 @@ int smu_v13_0_12_get_system_power(struct smu_context *smu,
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
 extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 extern const struct smu_temp_funcs smu_v13_0_12_temp_funcs;
-extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 
 #if defined(SWSMU_CODE_LAYER_L2)
 #include "smu_cmn.h"
@@ -145,15 +144,15 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 	SMU_SCALAR(SMU_MATTR(ACCUMULATION_COUNTER), SMU_MUNIT(NONE),           \
 		   SMU_MTYPE(U64), accumulation_counter);                      \
 	SMU_SCALAR(SMU_MATTR(PROCHOT_RESIDENCY_ACC), SMU_MUNIT(NONE),          \
-		   SMU_MTYPE(U32), prochot_residency_acc);                     \
+		   SMU_MTYPE(U64), prochot_residency_acc);                     \
 	SMU_SCALAR(SMU_MATTR(PPT_RESIDENCY_ACC), SMU_MUNIT(NONE),              \
-		   SMU_MTYPE(U32), ppt_residency_acc);                         \
+		   SMU_MTYPE(U64), ppt_residency_acc);                         \
 	SMU_SCALAR(SMU_MATTR(SOCKET_THM_RESIDENCY_ACC), SMU_MUNIT(NONE),       \
-		   SMU_MTYPE(U32), socket_thm_residency_acc);                  \
+		   SMU_MTYPE(U64), socket_thm_residency_acc);                  \
 	SMU_SCALAR(SMU_MATTR(VR_THM_RESIDENCY_ACC), SMU_MUNIT(NONE),           \
-		   SMU_MTYPE(U32), vr_thm_residency_acc);                      \
+		   SMU_MTYPE(U64), vr_thm_residency_acc);                      \
 	SMU_SCALAR(SMU_MATTR(HBM_THM_RESIDENCY_ACC), SMU_MUNIT(NONE),          \
-		   SMU_MTYPE(U32), hbm_thm_residency_acc);                     \
+		   SMU_MTYPE(U64), hbm_thm_residency_acc);                     \
 	SMU_SCALAR(SMU_MATTR(GFXCLK_LOCK_STATUS), SMU_MUNIT(NONE),             \
 		   SMU_MTYPE(U32), gfxclk_lock_status);                        \
 	SMU_SCALAR(SMU_MATTR(PCIE_LINK_WIDTH), SMU_MUNIT(NONE),                \
@@ -164,11 +163,11 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 		   SMU_MTYPE(U16), xgmi_link_width);                           \
 	SMU_SCALAR(SMU_MATTR(XGMI_LINK_SPEED), SMU_MUNIT(SPEED_1),             \
 		   SMU_MTYPE(U16), xgmi_link_speed);                           \
-	SMU_SCALAR(SMU_MATTR(GFX_ACTIVITY_ACC), SMU_MUNIT(PERCENT),            \
-		   SMU_MTYPE(U32), gfx_activity_acc);                          \
-	SMU_SCALAR(SMU_MATTR(MEM_ACTIVITY_ACC), SMU_MUNIT(PERCENT),            \
-		   SMU_MTYPE(U32), mem_activity_acc);                          \
-	SMU_SCALAR(SMU_MATTR(PCIE_BANDWIDTH_ACC), SMU_MUNIT(PERCENT),          \
+	SMU_SCALAR(SMU_MATTR(GFX_ACTIVITY_ACC), SMU_MUNIT(NONE),            \
+		   SMU_MTYPE(U64), gfx_activity_acc);                          \
+	SMU_SCALAR(SMU_MATTR(MEM_ACTIVITY_ACC), SMU_MUNIT(NONE),            \
+		   SMU_MTYPE(U64), mem_activity_acc);                          \
+	SMU_SCALAR(SMU_MATTR(PCIE_BANDWIDTH_ACC), SMU_MUNIT(NONE),          \
 		   SMU_MTYPE(U64), pcie_bandwidth_acc);                        \
 	SMU_SCALAR(SMU_MATTR(PCIE_BANDWIDTH_INST), SMU_MUNIT(BW_1),            \
 		   SMU_MTYPE(U64), pcie_bandwidth_inst);                       \
@@ -179,9 +178,9 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 	SMU_SCALAR(SMU_MATTR(PCIE_REPLAY_ROVER_COUNT_ACC), SMU_MUNIT(NONE),    \
 		   SMU_MTYPE(U64), pcie_replay_rover_count_acc);               \
 	SMU_SCALAR(SMU_MATTR(PCIE_NAK_SENT_COUNT_ACC), SMU_MUNIT(NONE),        \
-		   SMU_MTYPE(U32), pcie_nak_sent_count_acc);                   \
+		   SMU_MTYPE(U64), pcie_nak_sent_count_acc);                   \
 	SMU_SCALAR(SMU_MATTR(PCIE_NAK_RCVD_COUNT_ACC), SMU_MUNIT(NONE),        \
-		   SMU_MTYPE(U32), pcie_nak_rcvd_count_acc);                   \
+		   SMU_MTYPE(U64), pcie_nak_rcvd_count_acc);                   \
 	SMU_ARRAY(SMU_MATTR(XGMI_READ_DATA_ACC), SMU_MUNIT(DATA_1),            \
 		  SMU_MTYPE(U64), xgmi_read_data_acc,                          \
 		  SMU_13_0_6_NUM_XGMI_LINKS);                                  \
@@ -204,7 +203,7 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 	SMU_SCALAR(SMU_MATTR(CURRENT_UCLK), SMU_MUNIT(CLOCK_1),                \
 		   SMU_MTYPE(U16), current_uclk);                              \
 	SMU_SCALAR(SMU_MATTR(PCIE_LC_PERF_OTHER_END_RECOVERY),                 \
-		   SMU_MUNIT(NONE), SMU_MTYPE(U32),                            \
+		   SMU_MUNIT(NONE), SMU_MTYPE(U64),                            \
 		   pcie_lc_perf_other_end_recovery);                           \
 	SMU_ARRAY(SMU_MATTR(GFX_BUSY_INST), SMU_MUNIT(PERCENT),                \
 		  SMU_MTYPE(U32), gfx_busy_inst, SMU_13_0_6_MAX_XCC);          \
@@ -212,7 +211,7 @@ extern const struct ras_smu_drv smu_v13_0_12_ras_smu_drv;
 		  jpeg_busy, SMU_13_0_6_MAX_JPEG);                             \
 	SMU_ARRAY(SMU_MATTR(VCN_BUSY), SMU_MUNIT(PERCENT), SMU_MTYPE(U16),     \
 		  vcn_busy, SMU_13_0_6_MAX_VCN);                               \
-	SMU_ARRAY(SMU_MATTR(GFX_BUSY_ACC), SMU_MUNIT(PERCENT), SMU_MTYPE(U64), \
+	SMU_ARRAY(SMU_MATTR(GFX_BUSY_ACC), SMU_MUNIT(NONE), SMU_MTYPE(U64), \
 		  gfx_busy_acc, SMU_13_0_6_MAX_XCC);                           \
 	SMU_ARRAY(SMU_MATTR(GFX_BELOW_HOST_LIMIT_PPT_ACC), SMU_MUNIT(NONE),    \
 		  SMU_MTYPE(U64), gfx_below_host_limit_ppt_acc,                \
@@ -257,7 +256,7 @@ void smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table,
 		  jpeg_busy, SMU_13_0_6_MAX_JPEG);                             \
 	SMU_ARRAY(SMU_MATTR(VCN_BUSY), SMU_MUNIT(PERCENT), SMU_MTYPE(U16),     \
 		  vcn_busy, SMU_13_0_6_MAX_VCN);                               \
-	SMU_ARRAY(SMU_MATTR(GFX_BUSY_ACC), SMU_MUNIT(PERCENT), SMU_MTYPE(U64), \
+	SMU_ARRAY(SMU_MATTR(GFX_BUSY_ACC), SMU_MUNIT(NONE), SMU_MTYPE(U64), \
 		  gfx_busy_acc, SMU_13_0_6_MAX_XCC);                           \
 	SMU_ARRAY(SMU_MATTR(GFX_BELOW_HOST_LIMIT_PPT_ACC), SMU_MUNIT(NONE),    \
 		  SMU_MTYPE(U64), gfx_below_host_limit_ppt_acc,                \

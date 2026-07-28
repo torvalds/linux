@@ -581,6 +581,7 @@
 		SRI_ARR(DCHUBP_VMPG_CONFIG, HUBP, id),                         \
 		SRI_ARR(UCLK_PSTATE_FORCE, HUBPREQ, id),                       \
 		SRI_ARR(HUBP_3DLUT_DLG_PARAM, CURSOR0_, id),                   \
+		SRI_ARR(DST_Y_DELTA_DRQ_LIMIT, HUBPREQ, id),               \
 		HUBP_3DLUT_FL_REG_LIST_DCN401(id)
 struct dcn42_resource_pool {
 	struct resource_pool base;

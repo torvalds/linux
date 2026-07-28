@@ -43,6 +43,11 @@ enum drm_ethosu_ioctl_id {
 
 	/** @DRM_ETHOSU_SUBMIT: Submit a job and BOs to run. */
 	DRM_ETHOSU_SUBMIT,
+
+	DRM_ETHOSU_PERFMON_CREATE,
+	DRM_ETHOSU_PERFMON_DESTROY,
+	DRM_ETHOSU_PERFMON_GET_VALUES,
+	DRM_ETHOSU_PERFMON_SET_GLOBAL,
 };
 
 /**
@@ -79,6 +84,7 @@ struct drm_ethosu_npu_info {
 	__u32 config;
 
 	__u32 sram_size;
+	__u32 pmu_counters;
 };
 
 /**
@@ -220,8 +226,52 @@ struct drm_ethosu_submit {
 	/** Input: Number of jobs passed in. */
 	__u32 job_count;
 
-	/** Reserved, must be zero. */
+	/** Input: Id returned by DRM_ETHOSU_PERFMON_CREATE */
+	__u32 perfmon_id;
+};
+
+#define DRM_ETHOSU_MAX_PERF_EVENT_COUNTERS	8
+#define DRM_ETHOSU_MAX_PERF_COUNTERS \
+	(DRM_ETHOSU_MAX_PERF_EVENT_COUNTERS + 1)
+
+struct drm_ethosu_perfmon_create {
+	__u32 id;
+	__u32 ncounters;
+	__u16 counters[DRM_ETHOSU_MAX_PERF_EVENT_COUNTERS];
+};
+
+struct drm_ethosu_perfmon_destroy {
+	__u32 id;
 	__u32 pad;
+};
+
+/*
+ * Returns the values of the performance counters tracked by this
+ * perfmon (as an array of (ncounters + 1) u64 values).
+ *
+ * No implicit synchronization is performed, so the user has to
+ * guarantee that any jobs using this perfmon have already been
+ * completed.
+ */
+struct drm_ethosu_perfmon_get_values {
+	__u32 id;
+	__u32 pad;
+	__u64 values_ptr;
+};
+
+#define DRM_ETHOSU_PERFMON_CLEAR_GLOBAL    0x0001
+
+/**
+ * struct drm_ethosu_perfmon_set_global - ioctl to define a global performance
+ * monitor
+ *
+ * The global performance monitor will be used for all jobs. If a global
+ * performance monitor is defined, jobs with a self-defined performance
+ * monitor won't be allowed.
+ */
+struct drm_ethosu_perfmon_set_global {
+	__u32 flags;
+	__u32 id;
 };
 
 /**
@@ -252,6 +302,14 @@ enum {
 		DRM_IOCTL_ETHOSU(WR, CMDSTREAM_BO_CREATE, cmdstream_bo_create),
 	DRM_IOCTL_ETHOSU_SUBMIT =
 		DRM_IOCTL_ETHOSU(WR, SUBMIT, submit),
+	DRM_IOCTL_ETHOSU_PERFMON_CREATE =
+		DRM_IOCTL_ETHOSU(WR, PERFMON_CREATE, perfmon_create),
+	DRM_IOCTL_ETHOSU_PERFMON_DESTROY =
+		DRM_IOCTL_ETHOSU(WR, PERFMON_DESTROY, perfmon_destroy),
+	DRM_IOCTL_ETHOSU_PERFMON_GET_VALUES =
+		DRM_IOCTL_ETHOSU(WR, PERFMON_GET_VALUES, perfmon_get_values),
+	DRM_IOCTL_ETHOSU_PERFMON_SET_GLOBAL =
+		DRM_IOCTL_ETHOSU(WR, PERFMON_SET_GLOBAL, perfmon_set_global),
 };
 
 #if defined(__cplusplus)

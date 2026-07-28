@@ -977,6 +977,8 @@ void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
 	case IP_VERSION(11, 5, 3):
 	case IP_VERSION(11, 5, 4):
 	case IP_VERSION(11, 5, 6):
+	case IP_VERSION(11, 7, 0):
+	case IP_VERSION(11, 7, 1):
 		/* Don't enable it by default yet.
 		 */
 		if (amdgpu_tmz < 1) {
@@ -1761,10 +1763,15 @@ int amdgpu_gmc_init_mem_ranges(struct amdgpu_device *adev)
 		valid = true;
 	else
 		valid = amdgpu_gmc_validate_partition_info(adev);
-	if (!valid) {
-		/* TODO: handle invalid case */
+	if (!valid)
 		dev_warn(adev->dev,
 			 "Mem ranges not matching with hardware config\n");
+
+	if (!adev->gmc.num_mem_partitions) {
+		dev_err(adev->dev, "num_mem_partitions is zero\n");
+		kfree(adev->gmc.mem_partitions);
+		adev->gmc.mem_partitions = NULL;
+		return -EINVAL;
 	}
 
 	return 0;

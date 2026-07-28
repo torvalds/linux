@@ -963,14 +963,13 @@ static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 
 	PERF_TRACE();
 	/*power on isharp_delta_mem first*/
-	if (dpp_base->ctx->dc->caps.ips_v2_support) {
-		/*HW default is LS, need to wake up*/
-		REG_UPDATE_2(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
-					ISHARP_DELTA_LUT_MEM_PWR_FORCE, 0,
-					ISHARP_DELTA_LUT_MEM_PWR_DIS, 1);
-		REG_WAIT(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
-			ISHARP_DELTA_LUT_MEM_PWR_STATE, 0, 1, 100);
-	}
+	REG_UPDATE_2(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
+		     ISHARP_DELTA_LUT_MEM_PWR_FORCE, 0,
+		     ISHARP_DELTA_LUT_MEM_PWR_DIS, 1);
+
+	REG_WAIT(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
+		ISHARP_DELTA_LUT_MEM_PWR_STATE, 0, 1, 100);
+
 	/* ISHARP_MODE */
 	REG_SET_6(ISHARP_MODE, 0,
 		ISHARP_EN, scl_data->dscl_prog_data.isharp_en,
@@ -1049,12 +1048,10 @@ static void dpp401_dscl_program_isharp(struct dpp *dpp_base,
 	}
 
 	/*power on isharp_delta_mem first*/
-	if (dpp_base->ctx->dc->caps.ips_v2_support) {
-		/*HW default is LS, need to wake up*/
-		REG_UPDATE_SEQ_2(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
-					ISHARP_DELTA_LUT_MEM_PWR_FORCE, 0,
-					ISHARP_DELTA_LUT_MEM_PWR_DIS, 0);
-	}
+	REG_UPDATE_SEQ_2(ISHARP_DELTA_LUT_MEM_PWR_CTRL,
+			 ISHARP_DELTA_LUT_MEM_PWR_FORCE, 0,
+			 ISHARP_DELTA_LUT_MEM_PWR_DIS, 0);
+
 	PERF_TRACE();
 } // dpp401_dscl_program_isharp
 /**

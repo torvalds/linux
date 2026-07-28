@@ -37,6 +37,7 @@
 #include "xe_oa.h"
 #include "xe_observation.h"
 #include "xe_pm.h"
+#include "xe_reg_whitelist.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
 #include "xe_sync.h"
@@ -885,6 +886,9 @@ static void xe_oa_stream_destroy(struct xe_oa_stream *stream)
 
 	mutex_destroy(&stream->stream_lock);
 
+	if (stream->sample)
+		xe_reg_dewhitelist_oa_regs(stream->gt);
+
 	xe_oa_disable_metric_set(stream);
 	xe_exec_queue_put(stream->k_exec_q);
 
@@ -1698,11 +1702,12 @@ static int xe_oa_release(struct inode *inode, struct file *file)
 static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct xe_oa_stream *stream = file->private_data;
+	int ret = xe_observation_paranoid_check();
 	struct xe_bo *bo = stream->oa_buffer.bo;
 
-	if (xe_observation_paranoid && !perfmon_capable()) {
+	if (ret) {
 		drm_dbg(&stream->oa->xe->drm, "Insufficient privilege to map OA buffer\n");
-		return -EACCES;
+		return ret;
 	}
 
 	/* Can mmap the entire OA buffer or nothing (no partial OA buffer mmaps) */
@@ -1884,6 +1889,9 @@ static int xe_oa_stream_open_ioctl_locked(struct xe_oa *oa,
 		ret = stream_fd;
 		goto err_disable;
 	}
+
+	if (stream->sample)
+		xe_reg_whitelist_oa_regs(stream->gt);
 
 	/* Hold a reference on the drm device till stream_fd is released */
 	drm_dev_get(&stream->oa->xe->drm);
@@ -2073,10 +2081,12 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 		privileged_op = true;
 	}
 
-	if (privileged_op && xe_observation_paranoid && !perfmon_capable()) {
-		drm_dbg(&oa->xe->drm, "Insufficient privileges to open xe OA stream\n");
-		ret = -EACCES;
-		goto err_exec_q;
+	if (privileged_op) {
+		ret = xe_observation_paranoid_check();
+		if (ret) {
+			drm_dbg(&oa->xe->drm, "Insufficient privileges to open xe OA stream\n");
+			goto err_exec_q;
+		}
 	}
 
 	if (!param.exec_q && !param.sample) {
@@ -2358,9 +2368,10 @@ int xe_oa_add_config_ioctl(struct drm_device *dev, u64 data, struct drm_file *fi
 		return -ENODEV;
 	}
 
-	if (xe_observation_paranoid && !perfmon_capable()) {
+	err = xe_observation_paranoid_check();
+	if (err) {
 		drm_dbg(&oa->xe->drm, "Insufficient privileges to add xe OA config\n");
-		return -EACCES;
+		return err;
 	}
 
 	err = copy_from_user(&param, u64_to_user_ptr(data), sizeof(param));
@@ -2460,9 +2471,10 @@ int xe_oa_remove_config_ioctl(struct drm_device *dev, u64 data, struct drm_file 
 		return -ENODEV;
 	}
 
-	if (xe_observation_paranoid && !perfmon_capable()) {
+	ret = xe_observation_paranoid_check();
+	if (ret) {
 		drm_dbg(&oa->xe->drm, "Insufficient privileges to remove xe OA config\n");
-		return -EACCES;
+		return ret;
 	}
 
 	ret = get_user(arg, ptr);

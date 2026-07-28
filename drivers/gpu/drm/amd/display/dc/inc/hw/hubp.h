@@ -108,7 +108,7 @@ struct hubp_fl_3dlut_config {
 	uint16_t scale;
 	struct dc_plane_address address;
 	enum hubp_3dlut_fl_addressing_mode addr_mode;
-	enum dc_cm2_gpu_mem_layout layout;
+	enum dc_cm_lut_swizzle layout;
 	uint8_t protection_bits;
 	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
 	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;

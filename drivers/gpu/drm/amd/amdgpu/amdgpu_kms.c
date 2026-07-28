@@ -46,6 +46,7 @@
 #include "amdgpu_reset.h"
 #include "amd_pcie.h"
 #include "amdgpu_userq.h"
+#include "amdgpu_video_codecs.h"
 
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
@@ -1424,6 +1425,33 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 }
 
 /**
+ * amdgpu_proc_options_ioctl - set per-fd user options
+ *
+ * @dev: drm dev pointer
+ * @data: pointer to struct drm_amdgpu_proc_options
+ * @filp: drm file
+ *
+ * Sets options stored on the per-file amdgpu_fpriv. Currently the only
+ * supported option is %AMDGPU_PROC_OPTIONS_OP_KFD_SIGBUS_DELAY which
+ * controls how KFD delivers SIGBUS for poison/RAS events to the calling
+ * process (immediate, suppressed, or delayed by N milliseconds).
+ */
+int amdgpu_proc_options_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *filp)
+{
+	struct drm_amdgpu_proc_options *args = data;
+
+	switch (args->op) {
+	case AMDGPU_PROC_OPTIONS_OP_KFD_SIGBUS_DELAY:
+		return amdgpu_amdkfd_set_sigbus_delay(current,
+						      args->kfd_sigbus_delay.value);
+	default:
+		DRM_DEBUG_KMS("Invalid user option op %u\n", args->op);
+		return -EINVAL;
+	}
+}
+
+/**
  * amdgpu_driver_open_kms - drm callback for open
  *
  * @dev: drm dev pointer
@@ -1504,8 +1532,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	if (r)
 		goto error_vm;
 
-	mutex_init(&fpriv->bo_list_lock);
-	idr_init_base(&fpriv->bo_list_handles, 1);
+	xa_init_flags(&fpriv->bo_list_handles, XA_FLAGS_ALLOC1);
 
 	r = amdgpu_userq_mgr_init(&fpriv->userq_mgr, file_priv, adev);
 	if (r)
@@ -1550,8 +1577,8 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	struct amdgpu_fpriv *fpriv = file_priv->driver_priv;
 	struct amdgpu_bo_list *list;
 	struct amdgpu_bo *pd;
+	unsigned long handle;
 	u32 pasid;
-	int handle;
 
 	if (!fpriv)
 		return;
@@ -1587,11 +1614,9 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 		amdgpu_pasid_free_delayed(pd->tbo.base.resv, pasid);
 	amdgpu_bo_unref(&pd);
 
-	idr_for_each_entry(&fpriv->bo_list_handles, list, handle)
+	xa_for_each(&fpriv->bo_list_handles, handle, list)
 		amdgpu_bo_list_put(list);
-
-	idr_destroy(&fpriv->bo_list_handles);
-	mutex_destroy(&fpriv->bo_list_lock);
+	xa_destroy(&fpriv->bo_list_handles);
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;

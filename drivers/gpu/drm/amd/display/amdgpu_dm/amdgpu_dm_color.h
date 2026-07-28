@@ -87,10 +87,10 @@ void __drm_3dlut32_to_dc_3dlut(const struct drm_color_lut32 *lut,
 				struct tetrahedral_params *params,
 				bool use_tetrahedral_9,
 				int bit_depth);
-struct dc_3dlut;
+struct dc_plane_cm;
 void amdgpu_dm_atomic_lut3d(const struct drm_color_lut *drm_lut3d,
 			     uint32_t drm_lut3d_size,
-			     struct dc_3dlut *lut);
+			     struct dc_plane_cm *cm);
 int __set_colorop_3dlut(const struct drm_color_lut32 *drm_lut3d,
 			uint32_t drm_lut3d_size,
 			struct dc_3dlut *lut);
@@ -105,12 +105,12 @@ int amdgpu_dm_atomic_shaper_lut(const struct drm_color_lut *shaper_lut,
 				bool has_rom,
 				enum dc_transfer_func_predefined tf,
 				uint32_t shaper_size,
-				struct dc_transfer_func *func_shaper);
+				struct dc_plane_cm *cm);
 int amdgpu_dm_atomic_blend_lut(const struct drm_color_lut *blend_lut,
 			       bool has_rom,
 			       enum dc_transfer_func_predefined tf,
 			       uint32_t blend_size,
-			       struct dc_transfer_func *func_blend);
+			       struct dc_plane_cm *cm);
 int __set_colorop_in_tf_1d_curve(struct dc_plane_state *dc_plane_state,
 				 struct drm_colorop_state *colorop_state);
 #endif

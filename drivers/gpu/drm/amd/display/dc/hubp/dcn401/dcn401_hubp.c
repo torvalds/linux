@@ -136,7 +136,7 @@ void hubp401_program_3dlut_fl_config(
 	uint32_t mpc_width = {(cfg->width == 17) ? 0 : 1};
 	uint32_t width = {cfg->width};
 
-	if (cfg->layout == DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR)
+	if (cfg->layout == CM_LUT_1D_PACKED_LINEAR)
 		width = (cfg->width == 17) ? 4916 : 35940;
 
 	REG_UPDATE_2(_3DLUT_FL_CONFIG,

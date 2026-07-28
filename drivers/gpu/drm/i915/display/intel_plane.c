@@ -67,7 +67,7 @@ static void intel_plane_state_reset(struct intel_plane_state *plane_state,
 {
 	memset(plane_state, 0, sizeof(*plane_state));
 
-	__drm_atomic_helper_plane_state_reset(&plane_state->uapi, &plane->base);
+	__drm_atomic_helper_plane_state_init(&plane_state->uapi, &plane->base);
 
 	plane_state->scaler_id = -1;
 	plane_state->fence_id = -1;
@@ -408,25 +408,27 @@ intel_plane_colorop_replace_blob(struct intel_plane_state *plane_state,
 }
 
 static void
-intel_plane_color_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
+intel_plane_color_copy_uapi_to_hw_state(struct intel_atomic_state *state,
+					struct intel_plane_state *plane_state,
 					const struct intel_plane_state *from_plane_state,
 					struct intel_crtc *crtc)
 {
 	struct drm_colorop *iter_colorop, *colorop;
 	struct drm_colorop_state *new_colorop_state;
-	struct drm_atomic_commit *state = plane_state->uapi.state;
 	struct intel_colorop *intel_colorop;
 	struct drm_property_blob *blob;
-	struct intel_atomic_state *intel_atomic_state = to_intel_atomic_state(state);
-	struct intel_crtc_state *new_crtc_state = intel_atomic_state ?
-		intel_atomic_get_new_crtc_state(intel_atomic_state, crtc) : NULL;
+	struct intel_crtc_state *new_crtc_state = state ?
+		intel_atomic_get_new_crtc_state(state, crtc) : NULL;
 	bool changed = false;
 	int i = 0;
+
+	if (!state)
+		return;
 
 	iter_colorop = from_plane_state->uapi.color_pipeline;
 
 	while (iter_colorop) {
-		for_each_new_colorop_in_state(state, colorop, new_colorop_state, i) {
+		for_each_new_colorop_in_state(&state->base, colorop, new_colorop_state, i) {
 			if (new_colorop_state->colorop == iter_colorop) {
 				blob = new_colorop_state->bypass ? NULL : new_colorop_state->data;
 				intel_colorop = to_intel_colorop(colorop);
@@ -442,7 +444,8 @@ intel_plane_color_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 		new_crtc_state->plane_color_changed = true;
 }
 
-void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
+void intel_plane_copy_uapi_to_hw_state(struct intel_atomic_state *state,
+				       struct intel_plane_state *plane_state,
 				       const struct intel_plane_state *from_plane_state,
 				       struct intel_crtc *crtc)
 {
@@ -471,19 +474,25 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 	plane_state->uapi.src = drm_plane_state_src(&from_plane_state->uapi);
 	plane_state->uapi.dst = drm_plane_state_dest(&from_plane_state->uapi);
 
-	intel_plane_color_copy_uapi_to_hw_state(plane_state, from_plane_state, crtc);
+	intel_plane_color_copy_uapi_to_hw_state(state, plane_state, from_plane_state, crtc);
 }
 
-void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
-			       const struct intel_plane_state *from_plane_state)
+static void intel_plane_y_copy_hw_state(struct intel_plane_state *y_plane_state,
+					const struct intel_plane_state *uv_plane_state)
 {
-	intel_plane_clear_hw_state(plane_state);
+	intel_plane_clear_hw_state(y_plane_state);
 
-	memcpy(&plane_state->hw, &from_plane_state->hw,
-	       sizeof(plane_state->hw));
+	y_plane_state->hw.crtc = uv_plane_state->hw.crtc;
+	y_plane_state->hw.fb = uv_plane_state->hw.fb;
+	if (y_plane_state->hw.fb)
+		drm_framebuffer_get(y_plane_state->hw.fb);
 
-	if (plane_state->hw.fb)
-		drm_framebuffer_get(plane_state->hw.fb);
+	y_plane_state->hw.alpha	= uv_plane_state->hw.alpha;
+	y_plane_state->hw.pixel_blend_mode = uv_plane_state->hw.pixel_blend_mode;
+	y_plane_state->hw.rotation = uv_plane_state->hw.rotation;
+	y_plane_state->hw.color_encoding = uv_plane_state->hw.color_encoding;
+	y_plane_state->hw.color_range = uv_plane_state->hw.color_range;
+	y_plane_state->hw.scaling_filter = uv_plane_state->hw.scaling_filter;
 }
 
 static void unlink_nv12_plane(struct intel_crtc_state *crtc_state,
@@ -868,7 +877,8 @@ static int plane_atomic_check(struct intel_atomic_state *state,
 					   old_primary_crtc_plane_state,
 					   new_primary_crtc_plane_state);
 
-	intel_plane_copy_uapi_to_hw_state(new_plane_state,
+	intel_plane_copy_uapi_to_hw_state(state,
+					  new_plane_state,
 					  new_primary_crtc_plane_state,
 					  crtc);
 
@@ -1607,17 +1617,17 @@ static int intel_get_scanout_buffer(struct drm_plane *plane,
 	if (fb == intel_fbdev_framebuffer(display->fbdev.fbdev)) {
 		intel_fbdev_get_map(display, &sb->map[0]);
 	} else {
+		unsigned int (*tiling)(unsigned int x, unsigned int y, unsigned int width) = NULL;
 		int ret;
 		/* Can't disable tiling if DPT is in use */
 		if (intel_fb_uses_dpt(&fb->base)) {
 			if (fb->base.format->cpp[0] != 4)
 				return -EOPNOTSUPP;
-			fb->panic_tiling = intel_get_tiling_func(fb->base.modifier);
-			if (!fb->panic_tiling)
+			tiling = intel_get_tiling_func(fb->base.modifier);
+			if (!tiling)
 				return -EOPNOTSUPP;
 		}
-		sb->private = fb;
-		ret = intel_parent_panic_setup(display, fb->panic, sb);
+		ret = intel_parent_panic_setup(display, fb->panic, sb, obj, tiling);
 		if (ret)
 			return ret;
 	}
@@ -1688,7 +1698,7 @@ static void link_nv12_planes(struct intel_crtc_state *crtc_state,
 	crtc_state->rel_data_rate[y_plane->id] = crtc_state->rel_data_rate_y[uv_plane->id];
 
 	/* Copy parameters to Y plane */
-	intel_plane_copy_hw_state(y_plane_state, uv_plane_state);
+	intel_plane_y_copy_hw_state(y_plane_state, uv_plane_state);
 	y_plane_state->uapi.src = uv_plane_state->uapi.src;
 	y_plane_state->uapi.dst = uv_plane_state->uapi.dst;
 

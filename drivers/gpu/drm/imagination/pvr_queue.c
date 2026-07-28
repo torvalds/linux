@@ -3,6 +3,7 @@
 
 #include <drm/drm_managed.h>
 #include <drm/gpu_scheduler.h>
+#include <linux/overflow.h>
 
 #include "pvr_cccb.h"
 #include "pvr_context.h"
@@ -36,9 +37,8 @@ static int get_xfer_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
@@ -66,9 +66,8 @@ static int get_frag_ctx_state_size(struct pvr_device *pvr_dev)
 			return err;
 	}
 
-	return sizeof(struct rogue_fwif_frag_ctx_state) +
-	       (num_isp_store_registers *
-		sizeof(((struct rogue_fwif_frag_ctx_state *)0)->frag_reg_isp_store[0]));
+	return struct_size_t(struct rogue_fwif_frag_ctx_state,
+			     frag_reg_isp_store, num_isp_store_registers);
 }
 
 static int get_ctx_state_size(struct pvr_device *pvr_dev, enum drm_pvr_job_type type)
@@ -1439,11 +1438,12 @@ void pvr_queue_kill(struct pvr_queue *queue)
 /**
  * pvr_queue_destroy() - Destroy a queue.
  * @queue: The queue to destroy.
+ * @cleanup_queue_entity: Whether to cleanup the queue entity.
  *
  * Cleanup the queue and free the resources attached to it. Should be
  * called from the context release function.
  */
-void pvr_queue_destroy(struct pvr_queue *queue)
+void pvr_queue_destroy(struct pvr_queue *queue, bool cleanup_queue_entity)
 {
 	if (!queue)
 		return;
@@ -1453,7 +1453,8 @@ void pvr_queue_destroy(struct pvr_queue *queue)
 	mutex_unlock(&queue->ctx->pvr_dev->queues.lock);
 
 	drm_sched_fini(&queue->scheduler);
-	drm_sched_entity_fini(&queue->entity);
+	if (cleanup_queue_entity)
+		drm_sched_entity_fini(&queue->entity);
 
 	if (WARN_ON(queue->last_queued_job_scheduled_fence))
 		dma_fence_put(queue->last_queued_job_scheduled_fence);

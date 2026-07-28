@@ -5,7 +5,6 @@
 // Copyright (C) 2009 Jon Smirl, Digispeaker
 // Author: Jon Smirl <jonsmirl@gmail.com>
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/time.h>

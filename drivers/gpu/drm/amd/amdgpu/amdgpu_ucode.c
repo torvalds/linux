@@ -1478,7 +1478,8 @@ void amdgpu_ucode_ip_version_decode(struct amdgpu_device *adev, int block_type, 
 		ip_name = "isp";
 		break;
 	default:
-		BUG();
+		WARN(1, "invalid HWIP %d\n", block_type);
+		return;
 	}
 
 	maj = IP_VERSION_MAJ(version);

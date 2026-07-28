@@ -41,7 +41,11 @@ AMDGPUDM = \
 	amdgpu_dm_quirks.o \
 	amdgpu_dm_wb.o \
 	amdgpu_dm_colorop.o \
-	amdgpu_dm_ism.o
+	amdgpu_dm_ism.o \
+	amdgpu_dm_backlight.o \
+	amdgpu_dm_audio.o \
+	amdgpu_dm_dmub.o \
+	amdgpu_dm_connector.o
 
 ifdef CONFIG_DRM_AMD_DC_FP
 AMDGPUDM += dc_fpu.o

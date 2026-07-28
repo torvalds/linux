@@ -214,6 +214,9 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs ge_b850v3_lvds_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = ge_b850v3_lvds_attach,
 	.detect = ge_b850v3_lvds_bridge_detect,
 	.edid_read = ge_b850v3_lvds_edid_read,

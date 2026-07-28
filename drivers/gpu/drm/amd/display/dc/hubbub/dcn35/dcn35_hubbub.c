@@ -571,7 +571,7 @@ void dcn35_dchvm_init(struct hubbub *hubbub)
 
 	if (riommu_active) {
 		// Disable gating and memory power requests
-		REG_UPDATE(DCHVM_MEM_CTRL, HVM_GPUVMRET_PWR_REQ_DIS, 1);
+		REG_UPDATE_2(DCHVM_MEM_CTRL, HVM_GPUVMRET_PWR_REQ_DIS, 1, HVM_GPUVMRET_FORCE_REQ, 0);
 		REG_UPDATE_4(DCHVM_CLK_CTRL,
 						HVM_DISPCLK_R_GATE_DIS, 1,
 						HVM_DISPCLK_G_GATE_DIS, 1,

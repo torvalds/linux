@@ -61,6 +61,7 @@
 #include "xe_psmi.h"
 #include "xe_pxp.h"
 #include "xe_query.h"
+#include "xe_ras.h"
 #include "xe_shrinker.h"
 #include "xe_soc_remapper.h"
 #include "xe_survivability_mode.h"
@@ -396,7 +397,7 @@ static const struct drm_driver regular_driver = {
 	    XE_DISPLAY_DRIVER_FEATURES |
 	    DRIVER_GEM |
 	    DRIVER_RENDER | DRIVER_SYNCOBJ |
-	    DRIVER_SYNCOBJ_TIMELINE | DRIVER_GEM_GPUVA,
+	    DRIVER_SYNCOBJ_TIMELINE,
 	.open = xe_file_open,
 	.postclose = xe_file_close,
 
@@ -427,7 +428,7 @@ static const struct drm_ioctl_desc xe_ioctls_admin_only[] = {
 static const struct drm_driver admin_only_driver = {
 	.driver_features =
 	    XE_DISPLAY_DRIVER_FEATURES |
-	    DRIVER_GEM | DRIVER_RENDER | DRIVER_GEM_GPUVA,
+	    DRIVER_GEM | DRIVER_RENDER,
 	.open = xe_file_open,
 	.postclose = xe_file_close,
 	.ioctls = xe_ioctls_admin_only,
@@ -738,9 +739,11 @@ static void vf_update_device_info(struct xe_device *xe)
 	xe->info.probe_display = 0;
 	xe->info.has_heci_cscfi = 0;
 	xe->info.has_heci_gscfi = 0;
+	xe->info.has_i2c = 0;
 	xe->info.has_late_bind = 0;
 	xe->info.skip_guc_pc = 1;
 	xe->info.skip_pcode = 1;
+	xe->info.has_drm_ras = false;
 }
 
 static int xe_device_vram_alloc(struct xe_device *xe)
@@ -949,6 +952,15 @@ int xe_device_probe(struct xe_device *xe)
 			return err;
 	}
 
+	/*
+	 * Wa_16029380221: The affected GT will always use non-coherent
+	 * access to page tables, so we must do uncached writes from the
+	 * CPU.
+	 */
+	for_each_gt(gt, xe, id)
+		if (XE_GT_WA(gt, 16029380221))
+			xe->info.has_cached_pt = false;
+
 	for_each_tile(tile, xe, id) {
 		err = xe_ggtt_init_early(tile->mem.ggtt);
 		if (err)
@@ -988,6 +1000,16 @@ int xe_device_probe(struct xe_device *xe)
 	err = xe_ttm_stolen_mgr_init(xe);
 	if (err)
 		return err;
+
+	err = xe_soc_remapper_init(xe);
+	if (err)
+		return err;
+
+	err = xe_sysctrl_init(xe);
+	if (err)
+		return err;
+
+	xe_ras_init(xe);
 
 	/*
 	 * Now that GT is initialized (TTM in particular),
@@ -1029,10 +1051,6 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_nvm_init(xe);
 
-	err = xe_soc_remapper_init(xe);
-	if (err)
-		return err;
-
 	err = xe_heci_gsc_init(xe);
 	if (err)
 		return err;
@@ -1068,10 +1086,6 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_unregister_display;
 
 	err = xe_pmu_register(&xe->pmu);
-	if (err)
-		goto err_unregister_display;
-
-	err = xe_sysctrl_init(xe);
 	if (err)
 		goto err_unregister_display;
 
@@ -1129,14 +1143,14 @@ void xe_device_shutdown(struct xe_device *xe)
 
 	drm_dbg(&xe->drm, "Shutting down device\n");
 
-	xe_display_pm_shutdown(xe);
+	xe_display_shutdown(xe);
 
 	xe_irq_suspend(xe);
 
 	for_each_gt(gt, xe, id)
 		xe_gt_shutdown(gt);
 
-	xe_display_pm_shutdown_late(xe);
+	xe_display_shutdown_late(xe);
 
 	if (!xe_driver_flr_disabled(xe)) {
 		/* BOOM! */

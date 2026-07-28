@@ -44,7 +44,7 @@ multi_lrc_create_parent(struct intel_gt *gt, u8 class,
 	}
 
 	if (i <= 1)
-		return ERR_PTR(0);
+		return NULL;
 
 	logical_sort(siblings, i);
 

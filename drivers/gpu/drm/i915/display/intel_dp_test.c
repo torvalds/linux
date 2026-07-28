@@ -14,6 +14,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
+#include "intel_dp_link_caps.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
 #include "intel_dp_test.h"
@@ -32,6 +33,7 @@ void intel_dp_test_compute_config(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits)
 {
+	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	/* For DP Compliance we override the computed bpp for the pipe */
@@ -54,9 +56,8 @@ void intel_dp_test_compute_config(struct intel_dp *intel_dp,
 		 */
 		if (intel_dp_link_params_valid(intel_dp, intel_dp->compliance.test_link_rate,
 					       intel_dp->compliance.test_lane_count)) {
-			index = intel_dp_rate_index(intel_dp->common_rates,
-						    intel_dp->num_common_rates,
-						    intel_dp->compliance.test_link_rate);
+			index = intel_dp_link_caps_common_rate_idx(link_caps,
+								   intel_dp->compliance.test_link_rate);
 			if (index >= 0) {
 				limits->min_rate = intel_dp->compliance.test_link_rate;
 				limits->max_rate = intel_dp->compliance.test_link_rate;

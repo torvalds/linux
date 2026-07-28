@@ -128,6 +128,35 @@ union stream_update_flags {
 	uint32_t raw;
 };
 
+static inline void stream_update_flags_clear(union stream_update_flags *flags)
+{
+	flags->raw = 0;
+}
+
+static inline void stream_update_flags_set_full(union stream_update_flags *flags)
+{
+	stream_update_flags_clear(flags);
+	flags->bits.scaling = 1;
+	flags->bits.out_tf = 1;
+	flags->bits.out_csc = 1;
+	flags->bits.abm_level = 1;
+	flags->bits.dpms_off = 1;
+	flags->bits.gamut_remap = 1;
+	flags->bits.wb_update = 1;
+	flags->bits.dsc_changed = 1;
+	flags->bits.mst_bw = 1;
+	flags->bits.crtc_timing_adjust = 1;
+	flags->bits.fams_changed = 1;
+	flags->bits.scaler_sharpener = 1;
+	flags->bits.sharpening_required = 1;
+	flags->bits.cursor_attr = 1;
+	flags->bits.cursor_pos = 1;
+	flags->bits.periodic_interrupt = 1;
+	flags->bits.info_frame = 1;
+	flags->bits.dmdata = 1;
+	flags->bits.dither = 1;
+}
+
 struct test_pattern {
 	enum dp_test_pattern type;
 	enum dp_test_pattern_color_space color_space;

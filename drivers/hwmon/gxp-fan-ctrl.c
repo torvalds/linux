@@ -6,7 +6,6 @@
 #include <linux/hwmon.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
 #define OFS_FAN_INST	0 /* Is 0 because plreg base will be set at INST */

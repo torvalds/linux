@@ -1066,11 +1066,11 @@ bool dcn20_set_blend_lut(
 	bool result = true;
 	const struct pwl_params *blend_lut = NULL;
 
-	if (plane_state->blend_tf.type == TF_TYPE_HWPWL)
-		blend_lut = &plane_state->blend_tf.pwl;
-	else if (plane_state->blend_tf.type == TF_TYPE_DISTRIBUTED_POINTS) {
+	if (plane_state->cm.blend_func.type == TF_TYPE_HWPWL)
+		blend_lut = &plane_state->cm.blend_func.pwl;
+	else if (plane_state->cm.blend_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-				&plane_state->blend_tf,
+				&plane_state->cm.blend_func,
 				&dpp_base->regamma_params, false);
 		blend_lut = &dpp_base->regamma_params;
 	}
@@ -1086,19 +1086,19 @@ bool dcn20_set_shaper_3dlut(
 	bool result = true;
 	const struct pwl_params *shaper_lut = NULL;
 
-	if (plane_state->in_shaper_func.type == TF_TYPE_HWPWL)
-		shaper_lut = &plane_state->in_shaper_func.pwl;
-	else if (plane_state->in_shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
+	if (plane_state->cm.shaper_func.type == TF_TYPE_HWPWL)
+		shaper_lut = &plane_state->cm.shaper_func.pwl;
+	else if (plane_state->cm.shaper_func.type == TF_TYPE_DISTRIBUTED_POINTS) {
 		cm_helper_translate_curve_to_hw_format(plane_state->ctx,
-				&plane_state->in_shaper_func,
+				&plane_state->cm.shaper_func,
 				&dpp_base->shaper_params, true);
 		shaper_lut = &dpp_base->shaper_params;
 	}
 
 	result = dpp_base->funcs->dpp_program_shaper_lut(dpp_base, shaper_lut);
-	if (plane_state->lut3d_func.state.bits.initialized == 1)
+	if (plane_state->cm.lut3d_func.state.bits.initialized == 1)
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base,
-								&plane_state->lut3d_func.lut_3d);
+								&plane_state->cm.lut3d_func.lut_3d);
 	else
 		result = dpp_base->funcs->dpp_program_3dlut(dpp_base, NULL);
 
@@ -1733,10 +1733,10 @@ void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
-			plane_state->update_flags.bits.bpp_change ||
-			plane_state->update_flags.bits.input_csc_change ||
-			plane_state->update_flags.bits.color_space_change ||
-			plane_state->update_flags.bits.coeff_reduction_change) {
+			plane_state->update_bits.bpp_change ||
+			plane_state->update_bits.input_csc_change ||
+			plane_state->update_bits.color_space_change ||
+			plane_state->update_bits.coeff_reduction_change) {
 		struct dc_bias_and_scale bns_params = plane_state->bias_and_scale;
 
 		// program the input csc
@@ -1760,16 +1760,16 @@ void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.mpcc
 			|| pipe_ctx->update_flags.bits.plane_changed
-			|| plane_state->update_flags.bits.global_alpha_change
-			|| plane_state->update_flags.bits.per_pixel_alpha_change) {
+			|| plane_state->update_bits.global_alpha_change
+			|| plane_state->update_bits.per_pixel_alpha_change) {
 		// MPCC inst is equal to pipe index in practice
 		hws->funcs.update_mpcc(dc, pipe_ctx);
 	}
 
 	if (pipe_ctx->update_flags.bits.scaler ||
-			plane_state->update_flags.bits.scaling_change ||
-			plane_state->update_flags.bits.position_change ||
-			plane_state->update_flags.bits.per_pixel_alpha_change ||
+			plane_state->update_bits.scaling_change ||
+			plane_state->update_bits.position_change ||
+			plane_state->update_bits.per_pixel_alpha_change ||
 			pipe_ctx->stream->update_flags.bits.scaling) {
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->plane_state->per_pixel_alpha;
 		ASSERT(pipe_ctx->plane_res.scl_data.lb_params.depth == LB_PIXEL_DEPTH_36BPP);
@@ -1779,8 +1779,8 @@ void dcn20_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->update_flags.bits.viewport ||
-			(context == dc->current_state && plane_state->update_flags.bits.position_change) ||
-			(context == dc->current_state && plane_state->update_flags.bits.scaling_change) ||
+			(context == dc->current_state && plane_state->update_bits.position_change) ||
+			(context == dc->current_state && plane_state->update_bits.scaling_change) ||
 			(context == dc->current_state && pipe_ctx->stream->update_flags.bits.scaling)) {
 
 		hubp->funcs->mem_program_viewport(
@@ -1812,7 +1812,7 @@ void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed
 			|| pipe_ctx->update_flags.bits.plane_changed
 			|| pipe_ctx->stream->update_flags.bits.gamut_remap
-			|| plane_state->update_flags.bits.gamut_remap_change
+			|| plane_state->update_bits.gamut_remap_change
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
 		/* dpp/cm gamut remap*/
 		dc->hwss.program_gamut_remap(pipe_ctx);
@@ -1828,14 +1828,14 @@ void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->update_flags.bits.opp_changed ||
-			plane_state->update_flags.bits.pixel_format_change ||
-			plane_state->update_flags.bits.horizontal_mirror_change ||
-			plane_state->update_flags.bits.rotation_change ||
-			plane_state->update_flags.bits.swizzle_change ||
-			plane_state->update_flags.bits.dcc_change ||
-			plane_state->update_flags.bits.bpp_change ||
-			plane_state->update_flags.bits.scaling_change ||
-			plane_state->update_flags.bits.plane_size_change) {
+			plane_state->update_bits.pixel_format_change ||
+			plane_state->update_bits.horizontal_mirror_change ||
+			plane_state->update_bits.rotation_change ||
+			plane_state->update_bits.swizzle_change ||
+			plane_state->update_bits.dcc_change ||
+			plane_state->update_bits.bpp_change ||
+			plane_state->update_bits.scaling_change ||
+			plane_state->update_bits.plane_size_change) {
 		struct plane_size size = plane_state->plane_size;
 
 		size.surface_size = pipe_ctx->plane_res.scl_data.viewport;
@@ -1853,7 +1853,7 @@ void dcn20_update_dchubp_dpp(
 
 	if (pipe_ctx->update_flags.bits.enable ||
 		pipe_ctx->update_flags.bits.plane_changed ||
-		plane_state->update_flags.bits.addr_update) {
+		plane_state->update_bits.addr_update) {
 		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) &&
 				pipe_mall_type == SUBVP_MAIN) {
 			union block_sequence_params params;
@@ -1969,18 +1969,18 @@ static void dcn20_program_pipe(
 	}
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.raw ||
-	    pipe_ctx->plane_state->update_flags.raw ||
+	    dc_pipe_update_bits_is_any_set(&pipe_ctx->plane_state->update_bits) ||
 	    pipe_ctx->stream->update_flags.raw))
 		dcn20_update_dchubp_dpp(dc, pipe_ctx, context);
 
 	if (pipe_ctx->plane_state && (pipe_ctx->update_flags.bits.enable ||
-		pipe_ctx->plane_state->update_flags.bits.hdr_mult))
+		pipe_ctx->plane_state->update_bits.hdr_mult))
 		hws->funcs.set_hdr_multiplier(pipe_ctx);
 
 	if (pipe_ctx->plane_state &&
-		(pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||
-			pipe_ctx->plane_state->update_flags.bits.gamma_change ||
-			pipe_ctx->plane_state->update_flags.bits.lut_3d ||
+		(pipe_ctx->plane_state->update_bits.in_transfer_func_change ||
+			pipe_ctx->plane_state->update_bits.gamma_change ||
+			pipe_ctx->plane_state->update_bits.lut_3d ||
 			pipe_ctx->update_flags.bits.enable))
 		hws->funcs.set_input_transfer_func(dc, pipe_ctx, pipe_ctx->plane_state);
 
@@ -2186,7 +2186,7 @@ void dcn20_program_front_end_for_ctx(
 		pipe = &context->res_ctx.pipe_ctx[i];
 		if (!pipe->top_pipe && !pipe->prev_odm_pipe
 			&& pipe->stream && pipe->stream->num_wb_info > 0
-			&& (pipe->update_flags.raw || (pipe->plane_state && pipe->plane_state->update_flags.raw)
+			&& (pipe->update_flags.raw || (pipe->plane_state && dc_pipe_update_bits_is_any_set(&pipe->plane_state->update_bits))
 				|| pipe->stream->update_flags.raw)
 			&& hws->funcs.program_all_writeback_pipes_in_tree)
 			hws->funcs.program_all_writeback_pipes_in_tree(dc, pipe->stream, context);
@@ -2998,7 +2998,7 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	mpcc_id = hubp->inst;
 
 	/* If there is no full update, don't need to touch MPC tree*/
-	if (!pipe_ctx->plane_state->update_flags.bits.full_update &&
+	if (!pipe_ctx->plane_state->update_bits.full_update &&
 		!pipe_ctx->update_flags.bits.mpcc) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);

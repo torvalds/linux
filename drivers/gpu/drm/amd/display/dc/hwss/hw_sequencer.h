@@ -894,6 +894,36 @@ struct disable_audio_stream_params {
 	struct pipe_ctx *pipe_ctx;
 };
 
+struct clk_mgr_set_max_memclk_params {
+	struct clk_mgr *clk_mgr;
+	unsigned int memclk_mhz;
+};
+
+struct clk_mgr_update_clocks_params {
+	struct clk_mgr *clk_mgr;
+};
+
+struct hubbub_program_watermarks_params {
+	struct dc *dc;
+	struct hubbub *hubbub;
+	union dcn_watermark_set *watermarks;
+	unsigned int refclk_mhz;
+	bool safe_to_lower;
+};
+
+struct hubbub_program_arbiter_params {
+	struct dc *dc;
+	struct hubbub *hubbub;
+	struct dml2_display_arb_regs *arb_regs;
+	bool safe_to_lower;
+};
+
+struct hubbub_program_compbuf_segments_params {
+	struct hubbub *hubbub;
+	unsigned int compbuf_size;
+	bool safe_to_lower;
+};
+
 struct prepare_bandwidth_params {
 	struct dc *dc;
 	struct dc_state *context;
@@ -1057,6 +1087,11 @@ union block_sequence_params {
 	struct disable_audio_stream_params disable_audio_stream_params;
 	struct prepare_bandwidth_params prepare_bandwidth_params;
 	struct link_set_dpms_on_params link_set_dpms_on_params;
+	struct clk_mgr_set_max_memclk_params clk_mgr_set_max_memclk_params;
+	struct clk_mgr_update_clocks_params clk_mgr_update_clocks_params;
+	struct hubbub_program_watermarks_params hubbub_program_watermarks_params;
+	struct hubbub_program_arbiter_params hubbub_program_arbiter_params;
+	struct hubbub_program_compbuf_segments_params hubbub_program_compbuf_segments_params;
 };
 
 enum block_sequence_func {
@@ -1209,6 +1244,11 @@ enum block_sequence_func {
 	DISABLE_AUDIO_STREAM,
 	PREPARE_BANDWIDTH,
 	LINK_SET_DPMS_ON,
+	CLK_MGR_SET_MAX_MEMCLK,
+	CLK_MGR_UPDATE_CLOCKS,
+	HUBBUB_PROGRAM_WATERMARKS,
+	HUBBUB_PROGRAM_ARBITER,
+	HUBBUB_PROGRAM_COMPBUF_SEGMENTS,
 	/* This must be the last value in this enum, add new ones above */
 	HWSS_BLOCK_SEQUENCE_FUNC_COUNT
 };
@@ -1316,8 +1356,14 @@ struct hw_sequencer_funcs {
 
 	/* Bandwidth Related */
 	void (*prepare_bandwidth)(struct dc *dc, struct dc_state *context);
+	void (*prepare_bandwidth_sequence)(struct dc *dc,
+			struct dc_state *context,
+			struct block_sequence_state *seq_state);
 	bool (*update_bandwidth)(struct dc *dc, struct dc_state *context);
 	void (*optimize_bandwidth)(struct dc *dc, struct dc_state *context);
+	void (*optimize_bandwidth_sequence)(struct dc *dc,
+			struct dc_state *context,
+			struct block_sequence_state *seq_state);
 
 	/* Infopacket Related */
 	void (*set_avmute)(struct pipe_ctx *pipe_ctx, bool enable);
@@ -2474,5 +2520,41 @@ void hwss_add_prepare_bandwidth(struct block_sequence_state *seq_state,
 void hwss_add_link_set_dpms_on(struct block_sequence_state *seq_state,
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx);
+
+/* Clock manager BLS executor functions */
+void hwss_clk_mgr_set_max_memclk(union block_sequence_params *params);
+void hwss_clk_mgr_update_clocks(union block_sequence_params *params);
+
+void hwss_hubbub_program_watermarks(union block_sequence_params *params);
+
+void hwss_hubbub_program_arbiter(union block_sequence_params *params);
+
+void hwss_hubbub_program_compbuf_segments(union block_sequence_params *params);
+
+/* Clock manager BLS add-helper functions */
+void hwss_add_clk_mgr_set_max_memclk(struct block_sequence_state *seq_state,
+		struct clk_mgr *clk_mgr,
+		unsigned int memclk_mhz);
+
+void hwss_add_clk_mgr_update_clocks(struct block_sequence_state *seq_state,
+		struct clk_mgr *clk_mgr);
+
+void hwss_add_hubbub_program_watermarks(struct block_sequence_state *seq_state,
+		struct dc *dc,
+		struct hubbub *hubbub,
+		union dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz,
+		bool safe_to_lower);
+
+void hwss_add_hubbub_program_arbiter(struct block_sequence_state *seq_state,
+		struct dc *dc,
+		struct hubbub *hubbub,
+		struct dml2_display_arb_regs *arb_regs,
+		bool safe_to_lower);
+
+void hwss_add_hubbub_program_compbuf_segments(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub,
+		unsigned int compbuf_size,
+		bool safe_to_lower);
 
 #endif /* __DC_HW_SEQUENCER_H__ */

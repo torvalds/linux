@@ -1619,7 +1619,7 @@ drm_syncobj_timeline_signal_ioctl(struct drm_device *dev, void *data,
 		goto err_points;
 	}
 
-	chains = kmalloc_array(args->count_handles, sizeof(void *), GFP_KERNEL);
+	chains = kmalloc_objs(*chains, args->count_handles, GFP_KERNEL);
 	if (!chains) {
 		ret = -ENOMEM;
 		goto err_points;

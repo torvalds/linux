@@ -1229,23 +1229,28 @@ static void skl_set_cdclk(struct intel_display *display,
 
 static void skl_sanitize_cdclk(struct intel_display *display)
 {
-	u32 cdctl, expected;
+	u32 cdctl, expected, swf18;
 
 	/*
 	 * check if the pre-os initialized the display
 	 * There is SWF18 scratchpad register defined which is set by the
 	 * pre-os which can be used by the OS drivers to check the status
 	 */
-	if ((intel_de_read(display, SWF_ILK(0x18)) & 0x00FFFFFF) == 0)
+	swf18 = intel_de_read(display, SWF_ILK(0x18));
+	if ((swf18 & 0x00FFFFFF) == 0) {
+		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to SWF18 0x%x\n", swf18);
 		goto sanitize;
+	}
 
 	intel_update_cdclk(display);
 	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
 
 	/* Is PLL enabled and locked ? */
 	if (display->cdclk.hw.vco == 0 ||
-	    display->cdclk.hw.cdclk == display->cdclk.hw.bypass)
+	    display->cdclk.hw.cdclk == display->cdclk.hw.bypass) {
+		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to PLL not enabled/locked\n");
 		goto sanitize;
+	}
 
 	/* DPLL okay; verify the cdclock
 	 *
@@ -1261,8 +1266,11 @@ static void skl_sanitize_cdclk(struct intel_display *display)
 		cdctl &= ~CDCLK_FREQ_DECIMAL_MASK;
 		cdctl |= expected & CDCLK_FREQ_DECIMAL_MASK;
 
-		if (cdctl != expected)
+		if (cdctl != expected) {
+			drm_dbg_kms(display->drm, "Sanitizing CDCLK due to CDCLK_CTL 0x%x, expected 0x%x)\n",
+				    intel_de_read(display, CDCLK_CTL), expected);
 			goto sanitize;
+		}
 
 		drm_dbg_kms(display->drm, "Sanitizing CDCLK decimal divider (CDCLK_CTL 0x%x, expected 0x%x)\n",
 			    intel_de_read(display, CDCLK_CTL), expected);
@@ -1274,8 +1282,6 @@ static void skl_sanitize_cdclk(struct intel_display *display)
 	return;
 
 sanitize:
-	drm_dbg_kms(display->drm, "Sanitizing cdclk programmed by pre-os\n");
-
 	/* force cdclk programming */
 	display->cdclk.hw.cdclk = 0;
 	/* force full PLL disable + enable */
@@ -1938,14 +1944,17 @@ static void adlp_cdclk_pll_crawl(struct intel_display *display, int vco)
 	display->cdclk.hw.vco = vco;
 }
 
+static u32 bxt_cdclk_cd2x_pipe_mask(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) >= 11)
+		return ICL_CDCLK_CD2X_PIPE_MASK;
+	else
+		return BXT_CDCLK_CD2X_PIPE_MASK;
+}
+
 static u32 bxt_cdclk_cd2x_pipe(struct intel_display *display, enum pipe pipe)
 {
-	if (DISPLAY_VER(display) >= 12) {
-		if (pipe == INVALID_PIPE)
-			return TGL_CDCLK_CD2X_PIPE_NONE;
-		else
-			return TGL_CDCLK_CD2X_PIPE(pipe);
-	} else if (DISPLAY_VER(display) >= 11) {
+	if (DISPLAY_VER(display) >= 11) {
 		if (pipe == INVALID_PIPE)
 			return ICL_CDCLK_CD2X_PIPE_NONE;
 		else
@@ -2340,18 +2349,24 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
 
 	if (display->cdclk.hw.vco == 0 ||
-	    display->cdclk.hw.cdclk == display->cdclk.hw.bypass)
+	    display->cdclk.hw.cdclk == display->cdclk.hw.bypass) {
+		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to PLL not enabled/locked\n");
 		goto sanitize;
+	}
 
 	/* Make sure this is a legal cdclk value for the platform */
 	cdclk = bxt_calc_cdclk(display, display->cdclk.hw.cdclk);
-	if (cdclk != display->cdclk.hw.cdclk)
+	if (cdclk != display->cdclk.hw.cdclk) {
+		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to bad CDCLK frequency\n");
 		goto sanitize;
+	}
 
 	/* Make sure the VCO is correct for the cdclk */
 	vco = bxt_calc_cdclk_pll_vco(display, cdclk);
-	if (vco != display->cdclk.hw.vco)
+	if (vco != display->cdclk.hw.vco) {
+		drm_dbg_kms(display->drm, "Sanitizing CDCLK due to bad VCO frequency\n");
 		goto sanitize;
+	}
 
 	/*
 	 * Some BIOS versions leave an incorrect decimal frequency value and
@@ -2366,7 +2381,7 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 	 * dividers both syncing to an active pipe, or asynchronously
 	 * (PIPE_NONE).
 	 */
-	cdctl &= ~bxt_cdclk_cd2x_pipe(display, INVALID_PIPE);
+	cdctl &= ~bxt_cdclk_cd2x_pipe_mask(display);
 	cdctl |= bxt_cdclk_cd2x_pipe(display, INVALID_PIPE);
 
 	if (cdctl != expected) {
@@ -2375,8 +2390,11 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 			cdctl |= expected & CDCLK_FREQ_DECIMAL_MASK;
 		}
 
-		if (cdctl != expected)
+		if (cdctl != expected) {
+			drm_dbg_kms(display->drm, "Sanitizing CDCLK due to CDCLK_CTL 0x%x, expected 0x%x\n",
+				    intel_de_read(display, CDCLK_CTL), expected);
 			goto sanitize;
+		}
 
 		drm_dbg_kms(display->drm, "Sanitizing CDCLK decimal divider (CDCLK_CTL 0x%x, expected 0x%x)\n",
 			    intel_de_read(display, CDCLK_CTL), expected);
@@ -2388,8 +2406,6 @@ static void bxt_sanitize_cdclk(struct intel_display *display)
 	return;
 
 sanitize:
-	drm_dbg_kms(display->drm, "Sanitizing cdclk programmed by pre-os\n");
-
 	/* force cdclk programming */
 	display->cdclk.hw.cdclk = 0;
 

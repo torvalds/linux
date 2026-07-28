@@ -286,7 +286,6 @@ struct amdgpu_gmc {
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
 	uint8_t			vram_vendor;
-	uint32_t                srbm_soft_reset;
 	bool			prt_warning;
 	uint32_t		sdpif_register;
 	/* apertures */

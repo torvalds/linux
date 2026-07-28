@@ -50,6 +50,8 @@ int v3d_power_suspend(struct device *dev)
 	struct v3d_dev *v3d = to_v3d_dev(drm);
 	int ret;
 
+	v3d_perfmon_suspend(v3d);
+
 	v3d_irq_disable(v3d);
 
 	v3d_clean_caches(v3d);
@@ -84,6 +86,8 @@ int v3d_power_resume(struct device *dev)
 	v3d_init_hw_state(v3d);
 	v3d_mmu_set_page_table(v3d);
 	v3d_irq_enable(v3d);
+
+	v3d_perfmon_resume(v3d);
 
 	return 0;
 }

@@ -89,6 +89,15 @@ bool amdgpu_is_atpx_hybrid(void)
 	return amdgpu_atpx_priv.atpx.is_hybrid;
 }
 
+static bool amdgpu_atpx_buffer_validate(const union acpi_object *obj,
+					size_t min_size)
+{
+	return obj && obj->type == ACPI_TYPE_BUFFER &&
+	       obj->buffer.length >= sizeof(u16) &&
+	       obj->buffer.length >= *(u16 *)obj->buffer.pointer &&
+	       *(u16 *)obj->buffer.pointer >= min_size;
+}
+
 /**
  * amdgpu_atpx_call - call an ATPX method
  *
@@ -179,15 +188,15 @@ static int amdgpu_atpx_validate(struct amdgpu_atpx *atpx)
 		if (!info)
 			return -EIO;
 
-		memset(&output, 0, sizeof(output));
-
-		size = *(u16 *) info->buffer.pointer;
-		if (size < 10) {
-			pr_err("ATPX buffer is too small: %zu\n", size);
+		if (!amdgpu_atpx_buffer_validate(info, sizeof(output))) {
+			pr_err("Invalid ATPX GET_PX_PARAMETERS response\n");
 			kfree(info);
 			return -EINVAL;
 		}
-		size = min(sizeof(output), size);
+
+		memset(&output, 0, sizeof(output));
+
+		size = min(sizeof(output), (size_t)*(u16 *)info->buffer.pointer);
 
 		memcpy(&output, info->buffer.pointer, size);
 
@@ -258,15 +267,15 @@ static int amdgpu_atpx_verify_interface(struct amdgpu_atpx *atpx)
 	if (!info)
 		return -EIO;
 
-	memset(&output, 0, sizeof(output));
-
-	size = *(u16 *) info->buffer.pointer;
-	if (size < 8) {
-		pr_err("ATPX buffer is too small: %zu\n", size);
+	if (!amdgpu_atpx_buffer_validate(info, sizeof(output))) {
+		pr_err("Invalid ATPX VERIFY_INTERFACE response\n");
 		err = -EINVAL;
 		goto out;
 	}
-	size = min(sizeof(output), size);
+
+	memset(&output, 0, sizeof(output));
+
+	size = min(sizeof(output), (size_t)*(u16 *)info->buffer.pointer);
 
 	memcpy(&output, info->buffer.pointer, size);
 

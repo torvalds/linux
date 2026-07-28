@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_file.h>
@@ -182,6 +183,87 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	return ret;
 }
 
+static int drm_mode_config_plane_create_state(struct drm_plane *plane)
+{
+	struct drm_plane_state *plane_state;
+
+	if (!plane->funcs->atomic_create_state)
+		return 0;
+
+	plane_state = plane->funcs->atomic_create_state(plane);
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
+
+	plane->state = plane_state;
+
+	return 0;
+}
+
+static int drm_mode_config_plane_reset_with_create_state(struct drm_plane *plane)
+{
+	if (plane->state) {
+		plane->funcs->atomic_destroy_state(plane, plane->state);
+		plane->state = NULL;
+	}
+
+	return drm_mode_config_plane_create_state(plane);
+}
+
+static int drm_mode_config_crtc_create_state(struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *crtc_state;
+
+	if (!crtc->funcs->atomic_create_state)
+		return 0;
+
+	crtc_state = crtc->funcs->atomic_create_state(crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	if (drm_dev_has_vblank(crtc->dev))
+		drm_crtc_vblank_reset(crtc);
+
+	crtc->state = crtc_state;
+
+	return 0;
+}
+
+static int drm_mode_config_crtc_reset_with_create_state(struct drm_crtc *crtc)
+{
+	if (crtc->state) {
+		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
+		crtc->state = NULL;
+	}
+
+	return drm_mode_config_crtc_create_state(crtc);
+}
+
+static int drm_mode_config_connector_create_state(struct drm_connector *connector)
+{
+	struct drm_connector_state *conn_state;
+
+	if (!connector->funcs->atomic_create_state)
+		return 0;
+
+	conn_state = connector->funcs->atomic_create_state(connector);
+	if (IS_ERR(conn_state))
+		return PTR_ERR(conn_state);
+
+	connector->state = conn_state;
+
+	return 0;
+}
+
+static int drm_mode_config_connector_reset_with_create_state(struct drm_connector *connector)
+{
+	if (connector->state) {
+		connector->funcs->atomic_destroy_state(connector, connector->state);
+		connector->state = NULL;
+	}
+
+	return drm_mode_config_connector_create_state(connector);
+}
+
 /**
  * drm_mode_config_reset - call ->reset callbacks
  * @dev: drm device
@@ -189,6 +271,10 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
  * This functions calls all the crtc's, encoder's and connector's ->reset
  * callback. Drivers can use this in e.g. their driver load or resume code to
  * reset hardware and software state.
+ *
+ * Note that &drm_private_obj structures are expected to be stable across
+ * suspend/resume cycles, and drm_mode_config_reset() does not affect these
+ * structures.
  */
 void drm_mode_config_reset(struct drm_device *dev)
 {
@@ -202,25 +288,122 @@ void drm_mode_config_reset(struct drm_device *dev)
 	drm_for_each_colorop(colorop, dev)
 		drm_colorop_reset(colorop);
 
-	drm_for_each_plane(plane, dev)
+	drm_for_each_plane(plane, dev) {
 		if (plane->funcs->reset)
 			plane->funcs->reset(plane);
+		else if (plane->funcs->atomic_create_state)
+			drm_mode_config_plane_reset_with_create_state(plane);
+	}
 
-	drm_for_each_crtc(crtc, dev)
+	drm_for_each_crtc(crtc, dev) {
 		if (crtc->funcs->reset)
 			crtc->funcs->reset(crtc);
+		else if (crtc->funcs->atomic_create_state)
+			drm_mode_config_crtc_reset_with_create_state(crtc);
+	}
 
 	drm_for_each_encoder(encoder, dev)
 		if (encoder->funcs && encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter)
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->funcs->reset)
 			connector->funcs->reset(connector);
+		else if (connector->funcs->atomic_create_state)
+			drm_mode_config_connector_reset_with_create_state(connector);
+	}
 	drm_connector_list_iter_end(&conn_iter);
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
+
+/**
+ * drm_mode_config_create_initial_state - Allocates the initial state
+ * @dev: drm device
+ *
+ * This functions creates the initial state for all the objects. Drivers
+ * can use this in e.g. probe to initialize their software state.
+ *
+ * It has two main differences with drm_mode_config_reset(): the reset()
+ * hooks aren't called and thus the hardware will be left untouched, but
+ * also the &drm_private_obj structures will be initialized as opposed
+ * to drm_mode_config_reset() that skips them.
+ *
+ * Returns: 0 on success, negative error value on failure.
+ */
+int drm_mode_config_create_initial_state(struct drm_device *dev)
+{
+	struct drm_crtc *crtc;
+	struct drm_colorop *colorop;
+	struct drm_plane *plane;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_private_obj *privobj;
+	int ret;
+
+	drm_for_each_privobj(privobj, dev) {
+		struct drm_private_state *privobj_state;
+
+		if (privobj->state)
+			continue;
+
+		if (!privobj->funcs->atomic_create_state)
+			continue;
+
+		privobj_state = privobj->funcs->atomic_create_state(privobj);
+		if (IS_ERR(privobj_state))
+			return PTR_ERR(privobj_state);
+
+		privobj->state = privobj_state;
+	}
+
+	drm_for_each_colorop(colorop, dev) {
+		struct drm_colorop_state *colorop_state;
+
+		if (colorop->state)
+			continue;
+
+		colorop_state = drm_atomic_helper_colorop_create_state(colorop);
+		if (IS_ERR(colorop_state))
+			return PTR_ERR(colorop_state);
+
+		colorop->state = colorop_state;
+	}
+
+	drm_for_each_plane(plane, dev) {
+		if (plane->state)
+			continue;
+
+		ret = drm_mode_config_plane_create_state(plane);
+		if (ret)
+			return ret;
+	}
+
+	drm_for_each_crtc(crtc, dev) {
+		if (crtc->state)
+			continue;
+
+		ret = drm_mode_config_crtc_create_state(crtc);
+		if (ret)
+			return ret;
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->state)
+			continue;
+
+		ret = drm_mode_config_connector_create_state(connector);
+		if (ret) {
+			drm_connector_list_iter_end(&conn_iter);
+			return ret;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mode_config_create_initial_state);
 
 /*
  * Global properties
@@ -674,6 +857,25 @@ static void validate_encoder_possible_crtcs(struct drm_encoder *encoder)
 	     encoder->possible_crtcs, crtc_mask);
 }
 
+static void validate_blend_mode_for_alpha_formats(struct drm_plane *plane)
+{
+	const struct drm_format_info *fmt;
+	u32 i;
+
+	/* blend mode property supported, no need to check anything */
+	if (plane->blend_mode_property)
+		return;
+
+	for (i = 0; i < plane->format_count; i++) {
+		fmt = drm_format_info(plane->format_types[i]);
+		if (fmt->has_alpha) {
+			WARN(1, "[PLANE:%d:%s] pixel format with alpha exposed but blend mode not setup",
+			     plane->base.id, plane->name);
+			break;
+		}
+	}
+}
+
 void drm_mode_config_validate(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
@@ -732,6 +934,8 @@ void drm_mode_config_validate(struct drm_device *dev)
 	drm_for_each_plane(plane, dev) {
 		if (plane->type == DRM_PLANE_TYPE_PRIMARY)
 			num_primary++;
+
+		validate_blend_mode_for_alpha_formats(plane);
 	}
 
 	WARN(num_primary != dev->mode_config.num_crtc,

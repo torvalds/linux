@@ -120,8 +120,7 @@ static void ddc_service_construct(
 	ddc_service->link = init_data->link;
 	ddc_service->ctx = init_data->ctx;
 
-	if (ddc_service->link && ddc_service->ctx->dc->config.dp_connector_no_native_i2c &&
-		ddc_service->link->no_ddc_pin) {
+	if (ddc_service->link && ddc_service->link->force_to_use_aux) {
 		// Obtain aux instance info from i2c_info without GPIO DDC pin info
 		if (dcb->funcs->get_connector_aux_info(dcb, init_data->id, &i2c_info) == BP_RESULT_OK)
 			ddc_service->link->aux_hw_inst = (uint8_t)i2c_info.i2c_line;
@@ -251,6 +250,21 @@ static uint32_t defer_delay_converter_wa(
 }
 
 #define DP_TRANSLATOR_DELAY 5
+
+/**
+ * link_get_ddc_aux_inst - Return the AUX/DDC hardware instance for a link.
+ * @link: the link to query
+ *
+ * Return: aux_hw_inst when I2C is forced over AUX, otherwise the DDC pin
+ * channel index.
+ */
+uint8_t link_get_ddc_aux_inst(const struct dc_link *link)
+{
+	if (link->force_to_use_aux)
+		return link->aux_hw_inst;
+	ASSERT(link->ddc->ddc_pin->hw_info.ddc_channel <= 0xFF);
+	return (uint8_t)link->ddc->ddc_pin->hw_info.ddc_channel;
+}
 
 uint32_t link_get_aux_defer_delay(struct ddc_service *ddc)
 {
@@ -526,7 +540,7 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 	if (ddc->link->ep_type != DISPLAY_ENDPOINT_PHY)
 		return true;
 
-	if (ddc->ctx->dc->config.dp_connector_no_native_i2c && ddc->link->no_ddc_pin) {
+	if (ddc->link->force_to_use_aux) {
 		if (ddc->ctx->dc->res_pool->engines[ddc->link->aux_hw_inst]->funcs->configure_timeout) {
 			ddc->ctx->dc->res_pool->engines[ddc->link->aux_hw_inst]->funcs->configure_timeout(ddc, timeout);
 			result = true;

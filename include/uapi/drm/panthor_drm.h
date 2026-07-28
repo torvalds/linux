@@ -253,6 +253,9 @@ enum drm_panthor_dev_query_type {
 	 * @DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO: Query allowed group priorities information.
 	 */
 	DRM_PANTHOR_DEV_QUERY_GROUP_PRIORITIES_INFO,
+
+	/** @DRM_PANTHOR_DEV_QUERY_MMU_INFO: Query MMU information. */
+	DRM_PANTHOR_DEV_QUERY_MMU_INFO,
 };
 
 /**
@@ -488,6 +491,16 @@ struct drm_panthor_timestamp_info {
 };
 
 /**
+ * struct drm_panthor_mmu_info - MMU information
+ *
+ * Structure grouping all queryable information relating to the MMU.
+ */
+struct drm_panthor_mmu_info {
+	/** @page_size_bitmap: Allowed page sizes */
+	__u64 page_size_bitmap;
+};
+
+/**
  * struct drm_panthor_group_priorities_info - Group priorities information
  *
  * Structure grouping all queryable information relating to the allowed group priorities.
@@ -602,6 +615,18 @@ enum drm_panthor_vm_bind_op_flags {
 	DRM_PANTHOR_VM_BIND_OP_MAP_UNCACHED = 1 << 2,
 
 	/**
+	 * @DRM_PANTHOR_VM_BIND_OP_MAP_SPARSE: Sparsely map a virtual memory range
+	 *
+	 * Only valid with DRM_PANTHOR_VM_BIND_OP_TYPE_MAP.
+	 *
+	 * When this flag is set, the whole vm_bind range is mapped over a dummy object in a cyclic
+	 * fashion, and all GPU reads from addresses in the range return undefined values. This flag
+	 * being set means drm_panthor_vm_bind_op::bo_offset and drm_panthor_vm_bind_op::bo_handle
+	 * must both be set to 0. DRM_PANTHOR_VM_BIND_OP_MAP_NOEXEC must also be set.
+	 */
+	DRM_PANTHOR_VM_BIND_OP_MAP_SPARSE = 1 << 3,
+
+	/**
 	 * @DRM_PANTHOR_VM_BIND_OP_TYPE_MASK: Mask used to determine the type of operation.
 	 */
 	DRM_PANTHOR_VM_BIND_OP_TYPE_MASK = (int)(0xfu << 28),
@@ -664,7 +689,6 @@ struct drm_panthor_vm_bind_op {
 	 * This array shall not be empty for sync-only operations.
 	 */
 	struct drm_panthor_obj_array syncs;
-
 };
 
 /**

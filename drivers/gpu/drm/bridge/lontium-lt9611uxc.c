@@ -465,6 +465,9 @@ static void lt9611uxc_hdmi_audio_shutdown(struct drm_bridge *bridge,
 }
 
 static const struct drm_bridge_funcs lt9611uxc_bridge_funcs = {
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.attach = lt9611uxc_bridge_attach,
 	.mode_valid = lt9611uxc_bridge_mode_valid,
 	.mode_set = lt9611uxc_bridge_mode_set,

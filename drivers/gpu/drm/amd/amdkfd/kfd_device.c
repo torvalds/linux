@@ -169,6 +169,8 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 	case IP_VERSION(11, 5, 3):
 	case IP_VERSION(11, 5, 4):
 	case IP_VERSION(11, 5, 6):
+	case IP_VERSION(11, 7, 0):
+	case IP_VERSION(11, 7, 1):
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
 	case IP_VERSION(12, 0, 0):
@@ -451,6 +453,14 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
                         gfx_target_version = 110504;
                         f2g = &gfx_v11_kfd2kgd;
                         break;
+		case IP_VERSION(11, 7, 0):
+			gfx_target_version = 110700;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
+		case IP_VERSION(11, 7, 1):
+			gfx_target_version = 110701;
+			f2g = &gfx_v11_kfd2kgd;
+			break;
 		case IP_VERSION(12, 0, 0):
 			gfx_target_version = 120000;
 			f2g = &gfx_v12_kfd2kgd;
@@ -1794,6 +1804,30 @@ void kgd2kfd_teardown_processes(struct amdgpu_device *adev)
 	/* wait all kfd processes use adev terminate */
 	while (!!atomic_read(&adev->kfd.dev->kfd_processes_count))
 		cond_resched();
+}
+
+int kgd2kfd_reset_mes_queue(struct kfd_dev *kfd, uint32_t node_id,
+			    int queue_type, int pipe, int queue,
+			    unsigned int db)
+{
+	struct kfd_node *node;
+	int ret;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+	node = kfd->nodes[node_id];
+
+	ret = kfd_reset_queue_mes(node->dqm, queue_type, pipe, queue, db);
+	if (ret)
+		dev_err(kfd_device, "Error resetting queue\n");
+
+	return ret;
 }
 
 #if defined(CONFIG_DEBUG_FS)

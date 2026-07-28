@@ -13,6 +13,7 @@
 #include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -76,6 +77,9 @@ static int dcss_kms_bridge_connector_init(struct dcss_kms_dev *kms)
 					  &panel, &bridge);
 	if (ret)
 		return ret;
+
+	if (panel)
+		drm_panel_put(panel);
 
 	if (!bridge) {
 		dev_err(ddev->dev, "No bridge found %d.\n", ret);

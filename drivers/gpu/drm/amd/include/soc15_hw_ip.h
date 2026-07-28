@@ -44,6 +44,7 @@
 #define SDPMUX_HWID                                       19
 #define NTB_HWID                                          20
 #define VPE_HWID                                          21
+#define UMSCH_HWID                                        22
 #define IOHC_HWID                                         24
 #define L2IMU_HWID                                        28
 #define VCE_HWID                                          32

@@ -70,6 +70,7 @@ struct ivpu_ipc_info {
 	struct gen_pool *mm_tx;
 	struct ivpu_bo *mem_tx;
 	struct ivpu_bo *mem_rx;
+	struct kmem_cache *rx_msg_cache;
 
 	atomic_t rx_msg_count;
 
@@ -90,7 +91,7 @@ void ivpu_ipc_disable(struct ivpu_device *vdev);
 void ivpu_ipc_reset(struct ivpu_device *vdev);
 
 void ivpu_ipc_irq_handler(struct ivpu_device *vdev);
-void ivpu_ipc_irq_work_fn(struct work_struct *work);
+irqreturn_t ivpu_ipc_irq_thread_handler(int irq, void *ptr);
 
 void ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 			   u32 channel, ivpu_ipc_rx_callback_t callback);

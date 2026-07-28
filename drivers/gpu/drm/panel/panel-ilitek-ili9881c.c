@@ -16,6 +16,7 @@
 
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 #include <video/mipi_display.h>
@@ -2571,7 +2572,7 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->reset),
 				     "Couldn't get our reset GPIO\n");
 
-	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &ctx->orientation);
+	ret = drm_of_get_panel_orientation(dsi->dev.of_node, &ctx->orientation);
 	if (ret) {
 		dev_err(&dsi->dev, "%pOF: failed to get orientation: %d\n",
 			dsi->dev.of_node, ret);

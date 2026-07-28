@@ -1766,12 +1766,17 @@ static ssize_t smu_v15_0_8_get_gpu_metrics(struct smu_context *smu, void **table
 		idx++;
 	}
 
-	/* Per-VCN clocks */
+	/* Per-VCN clocks and busy */
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		inst = GET_INST(VCN, i);
 		if (inst >= 0) {
 			gpu_metrics->current_vclk0[i] = SMUQ10_ROUND(metrics->VclkFrequency[inst]);
 			gpu_metrics->current_dclk0[i] = SMUQ10_ROUND(metrics->DclkFrequency[inst]);
+			gpu_metrics->vcn_busy[i] = SMUQ10_ROUND(metrics->VcnBusy[inst]);
+			for (j = 0; j < NUM_JPEG_RINGS_FW; ++j)
+				gpu_metrics->jpeg_busy[(i * NUM_JPEG_RINGS_FW) + j] =
+					SMUQ10_ROUND(metrics->JpegBusy[(inst * NUM_JPEG_RINGS_FW)
+								       + j]);
 		}
 	}
 

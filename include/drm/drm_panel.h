@@ -337,18 +337,10 @@ int drm_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector
 
 #if defined(CONFIG_OF) && defined(CONFIG_DRM_PANEL)
 struct drm_panel *of_drm_find_panel(const struct device_node *np);
-int of_drm_get_panel_orientation(const struct device_node *np,
-				 enum drm_panel_orientation *orientation);
 #else
 static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
 	return ERR_PTR(-ENODEV);
-}
-
-static inline int of_drm_get_panel_orientation(const struct device_node *np,
-					       enum drm_panel_orientation *orientation)
-{
-	return -ENODEV;
 }
 #endif
 

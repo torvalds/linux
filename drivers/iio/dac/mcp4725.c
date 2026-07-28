@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 #include <linux/iio/iio.h>

@@ -819,7 +819,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_hpo_pg_support = false,
 	.enable_single_display_2to1_odm_policy = true,
 	.disable_idle_power_optimizations = false,
-	.dmcub_emulation = false,
 	.disable_boot_optimizations = false,
 	.disable_unbounded_requesting = false,
 	.disable_mem_low_power = false,
@@ -1189,7 +1188,7 @@ static struct link_encoder *dcn31_link_enc_create_minimal(
 {
 	struct dcn20_link_encoder *enc20;
 
-	if (((unsigned int)eng_id - ENGINE_ID_DIGA) > ctx->dc->res_pool->res_cap->num_dig_link_enc)
+	if (((unsigned int)eng_id - ENGINE_ID_DIGA) >= ctx->dc->res_pool->res_cap->num_dig_link_enc)
 		return NULL;
 
 	enc20 = kzalloc_obj(struct dcn20_link_encoder);
@@ -1201,6 +1200,8 @@ static struct link_encoder *dcn31_link_enc_create_minimal(
 			ctx,
 			&link_enc_feature,
 			&link_enc_regs[eng_id - ENGINE_ID_DIGA],
+			&le_shift,
+			&le_mask,
 			eng_id);
 
 	return &enc20->enc10.base;
@@ -2029,7 +2030,6 @@ static bool dcn35_resource_construct(
 	if (dc->config.forceHBR2CP2520)
 		dc->caps.force_dp_tps4_for_cp2520 = false;
 	dc->caps.hdmi_hpo = true;
-	dc->config.skip_frl_pretraining = true;
 	dc->caps.dp_hpo = true;
 	dc->caps.dp_hdmi21_pcon_support = true;
 

@@ -17,7 +17,6 @@
 #include <linux/limits.h>
 #include <linux/math.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>

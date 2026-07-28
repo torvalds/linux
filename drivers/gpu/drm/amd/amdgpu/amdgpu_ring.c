@@ -264,31 +264,31 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 			return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->rptr_offs);
+	r = amdgpu_wb_get(adev, &ring->rptr_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring rptr_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->wptr_offs);
+	r = amdgpu_wb_get(adev, &ring->wptr_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring wptr_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->fence_offs);
+	r = amdgpu_wb_get(adev, &ring->fence_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring fence_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->trail_fence_offs);
+	r = amdgpu_wb_get(adev, &ring->trail_fence_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring trail_fence_offs wb alloc failed\n", r);
 		return r;
 	}
 
-	r = amdgpu_device_wb_get(adev, &ring->cond_exe_offs);
+	r = amdgpu_wb_get(adev, &ring->cond_exe_offs);
 	if (r) {
 		dev_err(adev->dev, "(%d) ring cond_exec_polling wb alloc failed\n", r);
 		return r;
@@ -401,11 +401,11 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 
 	ring->sched.ready = false;
 
-	amdgpu_device_wb_free(ring->adev, ring->rptr_offs);
-	amdgpu_device_wb_free(ring->adev, ring->wptr_offs);
+	amdgpu_wb_free(ring->adev, ring->rptr_offs);
+	amdgpu_wb_free(ring->adev, ring->wptr_offs);
 
-	amdgpu_device_wb_free(ring->adev, ring->cond_exe_offs);
-	amdgpu_device_wb_free(ring->adev, ring->fence_offs);
+	amdgpu_wb_free(ring->adev, ring->cond_exe_offs);
+	amdgpu_wb_free(ring->adev, ring->fence_offs);
 
 	amdgpu_bo_free_kernel(&ring->ring_obj,
 			      &ring->gpu_addr,
@@ -931,6 +931,194 @@ int amdgpu_ring_reset_helper_end(struct amdgpu_ring *ring,
 
 	/* set an error on all fences from the context and reemit */
 	amdgpu_ring_set_fence_errors_and_reemit(ring, guilty_fence);
+
+	return 0;
+}
+
+/**
+ * amdgpu_multi_ring_reset_helper_begin() - Prepare multiple rings for a reset.
+ *
+ * @ring_type_mask: Bitmask of affected ring types
+ * @guilty_ring: The ring which is guilty of causing a reset.
+ * @guilty_fence: The fence which didn't signal on the guilty ring.
+ *
+ * Useful when performing a GPU reset method that affects
+ * multiple rings at the same time, such as an IP block soft
+ * reset. For example, a GFX IP block soft reset will affect
+ * every graphics and compute queue.
+ *
+ * This function should be called before such a reset.
+ *
+ * Prepare the affected rings before the reset, make sure to
+ * minimize collateral damage, and backup the contents of
+ * the rings. Then the caller can call the actual HW specific
+ * reset function.
+ *
+ * After the reset is complete, the caller should then call
+ * amdgpu_multi_ring_reset_helper_end() to restore the rings.
+ */
+void amdgpu_multi_ring_reset_helper_begin(const u32 ring_type_mask,
+					  struct amdgpu_ring *guilty_ring,
+					  struct amdgpu_fence *guilty_fence)
+{
+	struct amdgpu_device *adev = guilty_ring->adev;
+	struct amdgpu_fence *ring_guilty_fence;
+	struct amdgpu_ring *ring;
+	bool rings_busy;
+	int i;
+	u32 t;
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/* Don't accept new submissions on the ring. */
+		if (amdgpu_ring_sched_ready(ring) && !drm_sched_is_stopped(&ring->sched))
+			drm_sched_wqueue_stop(&ring->sched);
+
+		/*
+		 * Clear the preempt condition to stop the ring
+		 * from starting its next submission. This ensures
+		 * that only the currently executing submission
+		 * can be rejected because of the reset and helps
+		 * minimize collateral damage.
+		 */
+		if (ring->funcs->init_cond_exec)
+			amdgpu_ring_set_preempt_cond_exec(ring, false);
+	}
+
+	/* Flush HDP cache so the GPU can see the updated COND_EXEC values */
+	amdgpu_device_flush_hdp(adev, NULL);
+
+	/*
+	 * Give some time for non-guilty rings to finish their
+	 * current submission, to try to minimize collateral damage.
+	 *
+	 * Note that this is just a best effort, but really there
+	 * is no way to really know which ring is actually responsible
+	 * because different rings may share resources, eg. a compute
+	 * ring may hog shader engines, causing a graphics ring to hang.
+	 */
+	for (t = 0; t < adev->usec_timeout; t += 10000) {
+		rings_busy = false;
+
+		/* Check if any of the non-guilty rings are busy */
+		for (i = 0; i < adev->num_rings; ++i) {
+			ring = adev->rings[i];
+
+			if (!(BIT(ring->funcs->type) & ring_type_mask))
+				continue;
+
+			if (ring == guilty_ring)
+				continue;
+
+			rings_busy |=
+				atomic_read(&ring->fence_drv.last_seq) !=
+				READ_ONCE(ring->fence_drv.sync_seq);
+		}
+
+		if (!rings_busy)
+			break;
+
+		mdelay(10);
+	}
+
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/*
+		 * Find guilty fences, ie. the fences that didn't signal
+		 * on each ring. At this point there is no way to know
+		 * which one is really responsible for the hang, and no
+		 * way to save any of them, so we treat all of them as guilty.
+		 */
+		ring_guilty_fence =
+			ring == guilty_ring ? guilty_fence :
+			amdgpu_ring_find_guilty_fence(ring);
+
+		/*
+		 * Backup current contents of the ring.
+		 * The helper takes care to only reemit unsignalled fences
+		 * so we don't have to worry about that here.
+		 */
+		amdgpu_ring_reset_helper_begin(ring, ring_guilty_fence);
+	}
+}
+
+/**
+ * amdgpu_multi_ring_reset_helper_end() - Prepare multiple rings for a reset.
+ *
+ * @ring_type_mask: Bitmask of affected ring types
+ * @guilty_ring: The ring which is guilty of causing a reset.
+ * @ret: Return code from the reset function.
+ *
+ * After calling amdgpu_multi_ring_reset_helper_begin()
+ * and executing the actual reset method, call this
+ * function to restore normal operation.
+ *
+ * In case the reset failed, this function should still
+ * be called to restore preemption state, but it won't attempt to
+ * fully restore the ring contents.
+ */
+int amdgpu_multi_ring_reset_helper_end(const u32 ring_type_mask,
+				       struct amdgpu_ring *guilty_ring, int ret)
+{
+	struct amdgpu_device *adev = guilty_ring->adev;
+	struct amdgpu_ring *ring;
+	int i, r;
+
+	/* Set preempt condition, rings are now allowed to execute submissions */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		if (ring->funcs->init_cond_exec)
+			amdgpu_ring_set_preempt_cond_exec(ring, true);
+	}
+
+	/* Flush HDP cache so the GPU can see the updated COND_EXEC values */
+	amdgpu_device_flush_hdp(adev, NULL);
+
+	/* If the reset was unsuccessful, return without restoring anything else. */
+	if (ret)
+		return ret;
+
+	/* Restore contents of all rings */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		/* Restore contents of the ring */
+		r = amdgpu_ring_reset_helper_end(ring, ring->guilty_fence);
+		if (r) {
+			dev_err(adev->dev,
+				"Failed to recover ring %s after soft reset\n",
+				ring->name);
+			return r;
+		}
+	}
+
+	/* Accept submissions on all rings again */
+	for (i = 0; i < adev->num_rings; ++i) {
+		ring = adev->rings[i];
+
+		if (!(BIT(ring->funcs->type) & ring_type_mask))
+			continue;
+
+		if (!amdgpu_ring_sched_ready(ring))
+			continue;
+
+		drm_sched_wqueue_start(&ring->sched);
+	}
 
 	return 0;
 }

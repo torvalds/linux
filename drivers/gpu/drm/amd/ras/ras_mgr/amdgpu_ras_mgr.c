@@ -95,11 +95,35 @@ static int amdgpu_ras_mgr_init_aca_config(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint64_t amdgpu_ras_mgr_reserved_vram_size(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	uint64_t reserved_pages_in_bytes = 0;
+
+	if (!con || (adev->flags & AMD_IS_APU))
+		return 0;
+
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 12):
+		reserved_pages_in_bytes = RAS_RESERVED_VRAM_SIZE_DEFAULT;
+		break;
+	case IP_VERSION(13, 0, 14):
+		reserved_pages_in_bytes = (RAS_RESERVED_VRAM_SIZE_DEFAULT << 1);
+		break;
+	default:
+		break;
+	}
+	return reserved_pages_in_bytes;
+}
+
 static int amdgpu_ras_mgr_init_eeprom_config(struct amdgpu_device *adev,
 		struct ras_core_config *config)
 {
 	struct ras_eeprom_config *eeprom_cfg = &config->eeprom_cfg;
+	uint64_t ras_reserved_vram_size;
 
+	ras_reserved_vram_size = amdgpu_ras_mgr_reserved_vram_size(adev);
 	eeprom_cfg->eeprom_sys_fn = &amdgpu_ras_eeprom_i2c_sys_func;
 	eeprom_cfg->eeprom_i2c_adapter = adev->pm.ras_eeprom_i2c_bus;
 	if (eeprom_cfg->eeprom_i2c_adapter) {
@@ -133,13 +157,28 @@ static int amdgpu_ras_mgr_init_eeprom_config(struct amdgpu_device *adev,
 			div64_u64(adev->gmc.mc_vram_size, TYPICAL_ECC_BAD_PAGE_RATE);
 	else if (amdgpu_bad_page_threshold == WARN_NONSTOP_OVER_THRESHOLD)
 		eeprom_cfg->eeprom_record_threshold_count =
-				COUNT_BAD_PAGE_THRESHOLD(RAS_RESERVED_VRAM_SIZE_DEFAULT);
+				COUNT_BAD_PAGE_THRESHOLD(ras_reserved_vram_size);
 	else
 		eeprom_cfg->eeprom_record_threshold_count = amdgpu_bad_page_threshold;
 
 	eeprom_cfg->eeprom_record_threshold_config = amdgpu_bad_page_threshold;
 
 	return 0;
+}
+
+static bool amdgpu_ras_mgr_eeprom_is_supported(struct amdgpu_device *adev)
+{
+	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 12):
+	case IP_VERSION(13, 0, 14):
+		return (adev->gmc.is_app_apu) ? false : true;
+	default:
+		return false;
+	}
 }
 
 static int amdgpu_ras_mgr_init_mp1_config(struct amdgpu_device *adev,
@@ -266,7 +305,8 @@ static struct ras_core_context *amdgpu_ras_mgr_create_ras_core(struct amdgpu_dev
 		init_config.aca_ip_version = IP_VERSION(1, 0, 0);
 
 	init_config.sys_fn = &amdgpu_ras_sys_fn;
-	init_config.ras_eeprom_supported = true;
+	init_config.ras_eeprom_supported =
+		amdgpu_ras_mgr_eeprom_is_supported(adev);
 	init_config.poison_supported =
 		amdgpu_ras_is_poison_mode_supported(adev);
 
@@ -292,8 +332,7 @@ static int amdgpu_ras_mgr_sw_init(struct amdgpu_ip_block *ip_block)
 
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
-	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
-	    adev->debug_enable_ras_aca)
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6))
 		con->uniras_enabled = true;
 	else
 		return 0;
@@ -423,6 +462,28 @@ static int amdgpu_ras_mgr_hw_fini(struct amdgpu_ip_block *ip_block)
 	ras_mgr->ras_is_ready = false;
 
 	return 0;
+}
+
+int amdgpu_ras_mgr_resume_after_reset(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	struct amdgpu_ip_block *ip_block;
+
+	if (!con || !con->uniras_enabled)
+		return 0;
+
+	if (!ras_mgr || !ras_mgr->ras_core)
+		return -EINVAL;
+
+	if (ras_mgr->ras_is_ready)
+		return 0;
+
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_RAS);
+	if (!ip_block)
+		return -EINVAL;
+
+	return amdgpu_ras_mgr_hw_init(ip_block);
 }
 
 struct amdgpu_ras_mgr *amdgpu_ras_mgr_get_context(struct amdgpu_device *adev)
@@ -732,4 +793,14 @@ int amdgpu_ras_mgr_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 
 	return ras_core_convert_soc_pa_to_cur_nps_pages(ras_mgr->ras_core,
 			addr, nps_page_addr, max_page_count);
+}
+
+int amdgpu_ras_mgr_set_debug_mode(struct amdgpu_device *adev, bool enable)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	if (!ras_mgr || !ras_mgr->ras_core || !ras_mgr->ras_is_ready)
+		return false;
+
+	return ras_core_set_debug_mode(ras_mgr->ras_core, enable);
 }

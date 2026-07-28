@@ -4,6 +4,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/perf_event.h>
 #include <linux/sysctl.h>
 
 #include <uapi/drm/xe_drm.h>
@@ -12,8 +13,27 @@
 #include "xe_oa.h"
 #include "xe_observation.h"
 
-u32 xe_observation_paranoid = true;
+static u32 xe_observation_paranoid = true;
 static struct ctl_table_header *sysctl_header;
+
+/**
+ * xe_observation_paranoid_check - Gate access to xe observation streams.
+ *
+ * When the xe-specific observation_paranoid sysctl is enabled (the
+ * default), defer to perf_allow_cpu() so that access is governed by the
+ * same policy as system-wide perf CPU events: kernel.perf_event_paranoid
+ * plus the security_perf_event_open() LSM hook. When the sysctl has been
+ * cleared by a privileged user, observation is open to all callers.
+ *
+ * Return: 0 if access is permitted, a negative errno otherwise.
+ */
+int xe_observation_paranoid_check(void)
+{
+	if (!xe_observation_paranoid)
+		return 0;
+
+	return perf_allow_cpu();
+}
 
 static int xe_oa_ioctl(struct drm_device *dev, struct drm_xe_observation_param *arg,
 		       struct drm_file *file)
@@ -83,11 +103,13 @@ static const struct ctl_table observation_ctl_table[] = {
 };
 
 /**
- * xe_observation_sysctl_register - Register xe_observation_paranoid sysctl
+ * xe_observation_sysctl_register - Register the observation_paranoid sysctl
  *
- * Normally only superuser/root can access observation stream
- * data. However, superuser can set xe_observation_paranoid sysctl to 0 to
- * allow non-privileged users to also access observation data.
+ * When dev.xe.observation_paranoid is set (the default), access to
+ * observation streams follows the system-wide perf_allow_cpu() policy:
+ * kernel.perf_event_paranoid plus the security_perf_event_open() LSM
+ * hook. A privileged user can clear the sysctl to bypass that gate and
+ * allow unprivileged access to observation data.
  *
  * Return: always returns 0
  */

@@ -277,6 +277,49 @@ enum gpio_config_type {
 	GPIO_CONFIG_TYPE_I2C_AUX_DUAL_MODE
 };
 
+struct gpio_id_offset_entry {
+	uint32_t offset;
+	uint32_t mask;
+
+	bool check_mask;
+
+	enum gpio_id id;
+	uint32_t en;
+};
+
+#define GPIO_ENTRY(_offset, _id, _en) \
+	{ \
+		.offset = REG(_offset), \
+		.check_mask = false, \
+		.id = (_id), \
+		.en = (_en), \
+	}
+
+#define GPIO_MASK_ENTRY(_offset, _mask, _id, _en) \
+	{ \
+		.offset = REG(_offset), \
+		.mask = (_mask), \
+		.check_mask = true, \
+		.id = (_id), \
+		.en = (_en), \
+	}
+
+struct gpio_pin_entry {
+	enum gpio_id id;
+	uint32_t en;
+
+	uint32_t offset;
+	uint32_t mask;
+};
+
+#define GPIO_PIN_ENTRY(_id, _en, _offset, _mask) \
+	{ \
+		.id = (_id), \
+		.en = (_en), \
+		.offset = REG(_offset), \
+		.mask = (_mask), \
+	}
+
 /* DDC configuration */
 
 enum gpio_ddc_config_type {
@@ -291,6 +334,11 @@ struct gpio_ddc_config {
 	enum gpio_ddc_config_type type;
 	bool data_en_bit_present;
 	bool clock_en_bit_present;
+};
+
+struct gpio_ddc_offset_entry {
+	uint32_t offset;
+	uint32_t en;
 };
 
 /* HPD configuration */

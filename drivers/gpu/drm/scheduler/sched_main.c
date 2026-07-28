@@ -588,15 +588,6 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       u32 credits, void *owner,
 		       uint64_t drm_client_id)
 {
-	if (!entity->rq) {
-		/* This will most likely be followed by missing frames
-		 * or worse--a blank screen--leave a trail in the
-		 * logs, so this can be debugged easier.
-		 */
-		dev_err(job->sched->dev, "%s: entity has no rq!\n", __func__);
-		return -ENOENT;
-	}
-
 	if (unlikely(!credits)) {
 		pr_err("*ERROR* %s: credits cannot be 0!\n", __func__);
 		return -EINVAL;

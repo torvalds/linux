@@ -71,8 +71,21 @@ enum dml2_qos_param_type {
 	dml2_qos_param_type_dcn4x
 };
 
+//Indicies mapped to DPM level
+// Unpopulated indicies should fallback to the global derate value.
+struct dml2_soc_derate_values_per_dpm {
+	unsigned int dram_derate_percent_pixel[DML_MAX_CLK_TABLE_SIZE];
+	unsigned int fclk_derate_percent[DML_MAX_CLK_TABLE_SIZE];
+	unsigned int dcfclk_derate_percent[DML_MAX_CLK_TABLE_SIZE];
+};
+
+struct dml2_soc_derates_per_dpm {
+	struct dml2_soc_derate_values_per_dpm system_active_derates_per_dpm;
+};
+
 struct dml2_soc_qos_parameters {
 	struct dml2_soc_derates derate_table;
+	struct dml2_soc_derates_per_dpm derate_table_per_dpm;
 	struct {
 		unsigned int base_latency_us;
 		unsigned int scaling_factor_us;

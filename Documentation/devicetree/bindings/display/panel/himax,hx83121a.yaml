@@ -40,6 +40,9 @@ properties:
   vddi-supply:
     description: power supply for IC
 
+  bl-supply:
+    description: power supply for backlight, in case it's managed via DSC
+
   backlight: true
   ports: true
 

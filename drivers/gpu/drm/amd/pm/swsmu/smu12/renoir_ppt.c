@@ -1444,7 +1444,6 @@ static int renoir_get_enabled_mask(struct smu_context *smu,
 }
 
 static const struct pptable_funcs renoir_ppt_funcs = {
-	.set_power_state = NULL,
 	.emit_clk_levels = renoir_emit_clk_levels,
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,

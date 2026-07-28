@@ -443,9 +443,11 @@ static void draw_txt_rectangle(struct drm_scanout_buffer *sb,
 			rec.x1 += (drm_rect_width(clip) - (line_len * font->width)) / 2;
 
 		for (j = 0; j < line_len; j++) {
-			src = drm_draw_get_char_bitmap(font, msg[i].txt[j], font_pitch);
+			src = font_data_glyph_buf(font->data, font->width, font->height,
+						  (unsigned char)msg[i].txt[j]);
 			rec.x2 = rec.x1 + font->width;
-			drm_panic_blit(sb, &rec, src, font_pitch, 1, color);
+			if (src)
+				drm_panic_blit(sb, &rec, src, font_pitch, 1, color);
 			rec.x1 += font->width;
 		}
 	}

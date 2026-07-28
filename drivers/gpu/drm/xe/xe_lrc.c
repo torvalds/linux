@@ -2618,13 +2618,19 @@ void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
 	kfree(snapshot);
 }
 
+static bool engine_valid_for_utilization(struct xe_gt *gt, struct xe_hw_engine *hwe)
+{
+	/* The USM-reserved copy engine runs kernel migrate contexts queried here */
+	return hwe && (!xe_hw_engine_is_reserved(hwe) || xe_gt_is_usm_hwe(gt, hwe));
+}
+
 static struct xe_hw_engine *engine_id_to_hwe(struct xe_gt *gt, u32 engine_id)
 {
 	u16 class = REG_FIELD_GET(ENGINE_CLASS_ID, engine_id);
 	u16 instance = REG_FIELD_GET(ENGINE_INSTANCE_ID, engine_id);
 	struct xe_hw_engine *hwe = xe_gt_hw_engine(gt, class, instance, false);
 
-	if (xe_gt_WARN_ONCE(gt, !hwe || xe_hw_engine_is_reserved(hwe),
+	if (xe_gt_WARN_ONCE(gt, !engine_valid_for_utilization(gt, hwe),
 			    "Unexpected engine class:instance %d:%d for utilization\n",
 			    class, instance))
 		return NULL;

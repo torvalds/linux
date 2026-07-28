@@ -6,8 +6,10 @@
 #ifndef __IVPU_JOB_H__
 #define __IVPU_JOB_H__
 
-#include <linux/kref.h>
 #include <linux/idr.h>
+#include <linux/kref.h>
+#include <linux/llist.h>
+#include <linux/workqueue.h>
 
 #include "ivpu_gem.h"
 
@@ -47,6 +49,7 @@ struct ivpu_cmdq {
  * @vdev:                Pointer to the VPU device
  * @file_priv:           The client context that submitted this job
  * @done_fence:          Fence signaled when job completes
+ * @destroy_node:        List node for deferred resource cleanup after job completion
  * @cmd_buf_vpu_addr:    VPU address of the command buffer for this job
  * @cmdq_id:             Command queue ID used for submission
  * @job_id:              Unique job ID for tracking and status reporting
@@ -61,6 +64,7 @@ struct ivpu_job {
 	struct ivpu_device *vdev;
 	struct ivpu_file_priv *file_priv;
 	struct dma_fence *done_fence;
+	struct llist_node destroy_node;
 	u64 cmd_buf_vpu_addr;
 	u32 cmdq_id;
 	u32 job_id;
@@ -87,6 +91,7 @@ void ivpu_job_done_consumer_init(struct ivpu_device *vdev);
 void ivpu_job_done_consumer_fini(struct ivpu_device *vdev);
 bool ivpu_job_handle_engine_error(struct ivpu_device *vdev, u32 job_id, u32 job_status);
 void ivpu_context_abort_work_fn(struct work_struct *work);
+void ivpu_job_destroy_work_fn(struct work_struct *work);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);
 

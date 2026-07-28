@@ -174,14 +174,16 @@ static void tfp410_detach(struct drm_bridge *bridge)
 	}
 }
 
-static void tfp410_enable(struct drm_bridge *bridge)
+static void tfp410_enable(struct drm_bridge *bridge,
+			  struct drm_atomic_commit *commit)
 {
 	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
 
 	gpiod_set_value_cansleep(dvi->powerdown, 0);
 }
 
-static void tfp410_disable(struct drm_bridge *bridge)
+static void tfp410_disable(struct drm_bridge *bridge,
+			   struct drm_atomic_commit *commit)
 {
 	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
 
@@ -242,10 +244,10 @@ static int tfp410_atomic_check(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs tfp410_bridge_funcs = {
 	.attach		= tfp410_attach,
 	.detach		= tfp410_detach,
-	.enable		= tfp410_enable,
-	.disable	= tfp410_disable,
+	.atomic_enable = tfp410_enable,
+	.atomic_disable = tfp410_disable,
 	.mode_valid	= tfp410_mode_valid,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_get_input_bus_fmts = tfp410_get_input_bus_fmts,

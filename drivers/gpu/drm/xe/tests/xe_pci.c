@@ -311,40 +311,44 @@ const void *xe_pci_id_gen_param(struct kunit *test, const void *prev, char *desc
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_pci_id_gen_param);
 
-static void fake_init_devid(struct xe_device *xe)
+static int fake_probe_info(struct xe_device *xe,
+			   const struct xe_device_desc *desc,
+			   struct xe_pci_fake_data *data,
+			   struct xe_probed_info *probed_info)
 {
-	/* Nothing to do, just keep zero. */
-}
+	probed_info->tile_count = 1 + desc->max_remote_tiles;
 
-static int fake_read_gmdid(struct xe_device *xe, enum xe_gmdid_type type,
-			   u32 *ver, u32 *revid)
-{
-	struct kunit *test = kunit_get_current_test();
-	struct xe_pci_fake_data *data = test->priv;
-
-	if (type == GMDID_MEDIA) {
-		*ver = data->media_verx100;
-		*revid = xe_step_to_gmdid(data->step.media);
+	if (!data || desc->pre_gmdid_graphics_ip) {
+		probed_info->graphics_ip = desc->pre_gmdid_graphics_ip;
+		probed_info->media_ip = desc->pre_gmdid_media_ip;
 	} else {
-		*ver = data->graphics_verx100;
-		*revid = xe_step_to_gmdid(data->step.graphics);
+		probed_info->graphics_ip = find_graphics_ip(data->graphics_verx100);
+
+		if (data->media_verx100) {
+			probed_info->media_ip = find_media_ip(data->media_verx100);
+			xe_assert(xe, probed_info->media_ip);
+		}
 	}
 
-	return 0;
-}
+	xe_assert(xe, probed_info->graphics_ip);
+	if (!probed_info->graphics_ip)
+		return -ENODEV;
 
-static void fake_xe_info_probe_tile_count(struct xe_device *xe)
-{
-	/* Nothing to do, just use the statically defined value. */
+	if (data)
+		probed_info->step = data->step;
+
+	return 0;
 }
 
 int xe_pci_fake_device_init(struct xe_device *xe)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct xe_pci_fake_data *data = test->priv;
+	struct xe_probed_info probed_info = {};
 	const struct pci_device_id *ent = pciidlist;
 	const struct xe_device_desc *desc;
 	const struct xe_subplatform_desc *subplatform_desc;
+	int err;
 
 	if (!data) {
 		desc = (const void *)ent->driver_data;
@@ -374,13 +378,12 @@ done:
 	xe->sriov.__mode = data && data->sriov_mode ?
 			   data->sriov_mode : XE_SRIOV_MODE_NONE;
 
-	kunit_activate_static_stub(test, init_devid, fake_init_devid);
-	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);
-	kunit_activate_static_stub(test, xe_info_probe_tile_count,
-				   fake_xe_info_probe_tile_count);
+	err = fake_probe_info(xe, desc, data, &probed_info);
+	if (err)
+		return err;
 
-	xe_info_init_early(xe, desc, subplatform_desc);
-	xe_info_init(xe, desc);
+	xe_info_init_early(xe, desc, subplatform_desc, &probed_info);
+	xe_info_init(xe, desc, &probed_info);
 
 	return 0;
 }

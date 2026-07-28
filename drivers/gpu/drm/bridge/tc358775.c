@@ -598,7 +598,7 @@ static const struct drm_bridge_funcs tc_bridge_funcs = {
 	.atomic_enable = tc_bridge_atomic_enable,
 	.mode_valid = tc_mode_valid,
 	.atomic_post_disable = tc_bridge_atomic_post_disable,
-	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_create_state = drm_atomic_helper_bridge_create_state,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 };

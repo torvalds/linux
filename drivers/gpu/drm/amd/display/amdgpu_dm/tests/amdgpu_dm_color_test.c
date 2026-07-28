@@ -1159,19 +1159,19 @@ static void dm_test_verify_lut_sizes_invalid_degamma_valid_gamma(struct kunit *t
  */
 static void dm_test_atomic_lut3d_zero_size(struct kunit *test)
 {
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 	u32 initialized;
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* Pre-set initialized so we can confirm it is cleared */
-	lut->state.bits.initialized = 1;
+	cm->lut3d_func.state.bits.initialized = 1;
 
-	amdgpu_dm_atomic_lut3d(NULL, 0, lut);
+	amdgpu_dm_atomic_lut3d(NULL, 0, cm);
 
 	/* Copy bit-field: typeof cannot be applied to a bit-field */
-	initialized = lut->state.bits.initialized;
+	initialized = cm->lut3d_func.state.bits.initialized;
 	KUNIT_EXPECT_EQ(test, initialized, 0U);
 }
 
@@ -1183,22 +1183,22 @@ static void dm_test_atomic_lut3d_nonzero_state_bits(struct kunit *test)
 {
 	const uint32_t lut3d_size = 5;
 	struct drm_color_lut *lut_data;
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 	u32 initialized;
 
 	lut_data = kunit_kcalloc(test, lut3d_size, sizeof(*lut_data), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, lut_data);
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
-	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, lut);
+	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, cm);
 
 	/* Copy bit-field: typeof cannot be applied to a bit-field */
-	initialized = lut->state.bits.initialized;
+	initialized = cm->lut3d_func.state.bits.initialized;
 	KUNIT_EXPECT_EQ(test, initialized, 1U);
-	KUNIT_EXPECT_FALSE(test, lut->lut_3d.use_tetrahedral_9);
-	KUNIT_EXPECT_TRUE(test, lut->lut_3d.use_12bits);
+	KUNIT_EXPECT_FALSE(test, cm->lut3d_func.lut_3d.use_tetrahedral_9);
+	KUNIT_EXPECT_TRUE(test, cm->lut3d_func.lut_3d.use_12bits);
 }
 
 /**
@@ -1209,29 +1209,29 @@ static void dm_test_atomic_lut3d_data_forwarded(struct kunit *test)
 {
 	const uint32_t lut3d_size = 5;
 	struct drm_color_lut *lut_data;
-	struct dc_3dlut *lut;
+	struct dc_plane_cm *cm;
 
 	lut_data = kunit_kcalloc(test, lut3d_size, sizeof(*lut_data), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, lut_data);
 
-	lut = kunit_kzalloc(test, sizeof(*lut), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, lut);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	lut_data[0].red   = 0xFFFF;
 	lut_data[0].green = 0x8000;
 	lut_data[0].blue  = 0x4000;
 
-	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, lut);
+	amdgpu_dm_atomic_lut3d(lut_data, lut3d_size, cm);
 
 	/*
 	 * use_tetrahedral_9 == false → data goes into tetrahedral_17.
 	 * lut[0] maps to lut0[0] (first element of the first group).
 	 */
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].red,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].red,
 			drm_color_lut_extract(0xFFFF, MAX_COLOR_3DLUT_BITDEPTH));
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].green,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].green,
 			drm_color_lut_extract(0x8000, MAX_COLOR_3DLUT_BITDEPTH));
-	KUNIT_EXPECT_EQ(test, lut->lut_3d.tetrahedral_17.lut0[0].blue,
+	KUNIT_EXPECT_EQ(test, cm->lut3d_func.lut_3d.tetrahedral_17.lut0[0].blue,
 			drm_color_lut_extract(0x4000, MAX_COLOR_3DLUT_BITDEPTH));
 }
 
@@ -1398,19 +1398,19 @@ static void dm_test_set_atomic_regamma_bypass(struct kunit *test)
  */
 static void dm_test_atomic_shaper_lut_bypass(struct kunit *test)
 {
-	struct dc_transfer_func *func_shaper;
+	struct dc_plane_cm *cm;
 
-	func_shaper = kunit_kzalloc(test, sizeof(*func_shaper), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, func_shaper);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* size=0 and tf=LINEAR: must take the bypass branch */
 	KUNIT_EXPECT_EQ(test,
 		amdgpu_dm_atomic_shaper_lut(NULL, false,
 					    TRANSFER_FUNCTION_LINEAR,
-					    0, func_shaper),
+					    0, cm),
 		0);
-	KUNIT_EXPECT_EQ(test, (int)func_shaper->type, (int)TF_TYPE_BYPASS);
-	KUNIT_EXPECT_EQ(test, (int)func_shaper->tf, (int)TRANSFER_FUNCTION_LINEAR);
+	KUNIT_EXPECT_EQ(test, (int)cm->shaper_func.type, (int)TF_TYPE_BYPASS);
+	KUNIT_EXPECT_EQ(test, (int)cm->shaper_func.tf, (int)TRANSFER_FUNCTION_LINEAR);
 }
 
 /**
@@ -1419,19 +1419,19 @@ static void dm_test_atomic_shaper_lut_bypass(struct kunit *test)
  */
 static void dm_test_atomic_blend_lut_bypass(struct kunit *test)
 {
-	struct dc_transfer_func *func_blend;
+	struct dc_plane_cm *cm;
 
-	func_blend = kunit_kzalloc(test, sizeof(*func_blend), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, func_blend);
+	cm = kunit_kzalloc(test, sizeof(*cm), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, cm);
 
 	/* size=0 and tf=LINEAR: must take the bypass branch */
 	KUNIT_EXPECT_EQ(test,
 		amdgpu_dm_atomic_blend_lut(NULL, false,
 					   TRANSFER_FUNCTION_LINEAR,
-					   0, func_blend),
+					   0, cm),
 		0);
-	KUNIT_EXPECT_EQ(test, (int)func_blend->type, (int)TF_TYPE_BYPASS);
-	KUNIT_EXPECT_EQ(test, (int)func_blend->tf, (int)TRANSFER_FUNCTION_LINEAR);
+	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.type, (int)TF_TYPE_BYPASS);
+	KUNIT_EXPECT_EQ(test, (int)cm->blend_func.tf, (int)TRANSFER_FUNCTION_LINEAR);
 }
 
 /* ---- Tests for __set_colorop_in_tf_1d_curve ---- */

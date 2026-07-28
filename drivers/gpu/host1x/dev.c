@@ -41,6 +41,7 @@
 #include "hw/host1x06.h"
 #include "hw/host1x07.h"
 #include "hw/host1x08.h"
+#include "hw/host1x10.h"
 
 void host1x_common_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -287,7 +288,47 @@ static const struct host1x_info host1x08_info = {
 	.reserve_vblank_syncpts = false,
 };
 
+static const struct host1x_sid_entry tegra264_sid_table[] = {
+	{ /* SE1 MMIO     */  .base = 0x1650, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE2 MMIO     */  .base = 0x1658, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE4 MMIO     */  .base = 0x1660, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE1 ch       */  .base = 0x1738, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE2 ch       */  .base = 0x1740, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE4 ch       */  .base = 0x1748, .offset = 0x90,  .limit = 0x90  },
+	{ /* VIC ch       */  .base = 0x1790, .offset = 0x30,  .limit = 0x30  },
+	{ /* VIC MMIO     */  .base = 0x1688, .offset = 0x34,  .limit = 0x34  },
+	{ /* TSEC MMIO    */  .base = 0x1690, .offset = 0x30,  .limit = 0x34  },
+	{ /* VI MMIO      */  .base = 0x1698, .offset = 0x800, .limit = 0x800 },
+	{ /* VI_THI MMIO  */  .base = 0x16a0, .offset = 0x30,  .limit = 0x34  },
+	{ /* ISP MMIO     */  .base = 0x1680, .offset = 0x800, .limit = 0x800 },
+	{ /* ISP_THI MMIO */  .base = 0x16a8, .offset = 0x30,  .limit = 0x34  },
+	{ /* VI2 MMIO     */  .base = 0x16b8, .offset = 0x800, .limit = 0x800 },
+	{ /* VI2_THI MMIO */  .base = 0x16c0, .offset = 0x30,  .limit = 0x34  },
+	{ /* ISP1 MMIO    */  .base = 0x16c8, .offset = 0x800, .limit = 0x800 },
+	{ /* ISP1_THI MMIO */ .base = 0x16d0, .offset = 0x30,  .limit = 0x34  },
+};
+
+static const struct host1x_info host1x10_info = {
+	.nb_channels = 63,
+	.nb_pts = 1024,
+	.nb_mlocks = 24,
+	.nb_bases = 0,
+	.init = host1x10_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.has_wide_gather = true,
+	.has_hypervisor = true,
+	.has_common = true,
+	.num_sid_entries = ARRAY_SIZE(tegra264_sid_table),
+	.sid_table = tegra264_sid_table,
+	.streamid_vm_table = { 0x1004, 128 },
+	.classid_vm_table = { 0x1404, 25 },
+	.mmio_vm_table = { 0x1504, 25 },
+	.reserve_vblank_syncpts = false,
+};
+
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra264-host1x", .data = &host1x10_info, },
 	{ .compatible = "nvidia,tegra234-host1x", .data = &host1x08_info, },
 	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x07_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },

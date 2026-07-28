@@ -15,8 +15,6 @@ bool dml2_core_create(enum dml2_project_id project_id, struct dml2_core_instance
 
 	memset(out, 0, sizeof(struct dml2_core_instance));
 
-	out->project_id = project_id;
-
 	switch (project_id) {
 	case dml2_project_dcn4x_stage1:
 		result = false;

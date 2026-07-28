@@ -96,6 +96,23 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 void process_output(struct hdcp_workqueue *hdcp_work);
+bool hdcp_get_content_protection_from_status(
+	unsigned int hdcp_content_type,
+	enum mod_hdcp_encryption_status encryption_status,
+	unsigned int *content_protection);
+void hdcp_get_link_display_adjustments(
+	bool enable_encryption,
+	u8 content_type,
+	bool fused_io_supported,
+	bool hdcp_lc_force_fw_enable,
+	bool hdcp_lc_enable_sw_fallback,
+	struct mod_hdcp_link_adjustment *link_adjust,
+	struct mod_hdcp_display_adjustment *display_adjust);
+void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
+					    struct hdcp_workqueue *hdcp_w,
+					    unsigned int conn_index,
+					    bool enable_encryption);
+void event_property_update(struct work_struct *work);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */
