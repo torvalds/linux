@@ -171,18 +171,23 @@ static int build_packet(int payload_len)
 	return off + payload_len;
 }
 
-static void do_bind(int fd)
+static void do_bind_proto(int fd, uint16_t proto)
 {
 	struct sockaddr_ll laddr = {0};
 
 	laddr.sll_family = AF_PACKET;
-	laddr.sll_protocol = htons(ETH_P_IP);
+	laddr.sll_protocol = htons(proto);
 	laddr.sll_ifindex = if_nametoindex(cfg_ifname);
 	if (!laddr.sll_ifindex)
 		error(1, errno, "if_nametoindex");
 
 	if (bind(fd, (void *)&laddr, sizeof(laddr)))
 		error(1, errno, "bind");
+}
+
+static void do_bind(int fd)
+{
+	do_bind_proto(fd, ETH_P_IP);
 }
 
 static void do_send(int fd, char *buf, int len)
