@@ -18,6 +18,7 @@
 
 /delete-node/ &pmc8380_6;
 /delete-node/ &pmc8380_6_thermal;
+/delete-node/ &pmc8380_6_die_temp;
 
 / {
 	model = "Lenovo ThinkBook 16 Gen 7 QOY";

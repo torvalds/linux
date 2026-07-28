@@ -10,6 +10,7 @@
 
 /delete-node/ &pmc8380_6;
 /delete-node/ &pmc8380_6_thermal;
+/delete-node/ &pmc8380_6_die_temp;
 
 / {
 	model = "Qualcomm Technologies, Inc. X1P42100 CRD";

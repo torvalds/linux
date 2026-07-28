@@ -6,7 +6,9 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/spmi/spmi.h>
+#include "qcom-adc5-gen3.h"
 
 / {
 	thermal-zones {
@@ -277,6 +279,134 @@
 
 			status = "disabled";
 		};
+
+		pmk8550_vadc: adc@9000 {
+			compatible = "qcom,spmi-adc5-gen3";
+			reg = <0x9000>, <0x9100>;
+			interrupts-extended = <&spmi_bus0 0x0 0x90 0x1 IRQ_TYPE_EDGE_RISING>,
+					      <&spmi_bus0 0x0 0x91 0x1 IRQ_TYPE_EDGE_RISING>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#io-channel-cells = <1>;
+			pinctrl-0 = <&sys_therm_0_gpio3>, <&sys_therm_1_gpio4>;
+			pinctrl-names = "default";
+
+			channel@3 {
+				reg = <ADC5_GEN3_DIE_TEMP(0)>;
+				label = "pmk8550_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@103 {
+				reg = <ADC5_GEN3_DIE_TEMP(1)>;
+				label = "pm8550_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@144 {
+				reg = <ADC5_GEN3_AMUX1_THM_100K_PU(1)>;
+				label = "pm8550_therm_2";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@145 {
+				reg = <ADC5_GEN3_AMUX2_THM_100K_PU(1)>;
+				label = "pm8550_therm_3";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@146 {
+				reg = <ADC5_GEN3_AMUX3_THM_100K_PU(1)>;
+				label = "pm8550_therm_4";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@147 {
+				reg = <ADC5_GEN3_AMUX4_THM_100K_PU(1)>;
+				label = "pm8550_therm_5";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@148 {
+				reg = <ADC5_GEN3_AMUX5_THM_100K_PU(1)>;
+				label = "pm8550_therm_6";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@14a {
+				reg = <ADC5_GEN3_AMUX1_GPIO_100K_PU(1)>;
+				label = "pm8550_gpio_01";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@14b {
+				reg = <ADC5_GEN3_AMUX2_GPIO_100K_PU(1)>;
+				label = "pm8550_gpio_02";
+				qcom,ratiometric;
+				qcom,hw-settle-time = <200>;
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@18e {
+				reg = <ADC5_GEN3_VPH_PWR(1)>;
+				label = "pm8550_vph_pwr";
+				qcom,pre-scaling = <1 3>;
+			};
+
+			channel@203 {
+				reg = <ADC5_GEN3_DIE_TEMP(2)>;
+				label = "pm8550ve_2_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@303 {
+				reg = <ADC5_GEN3_DIE_TEMP(3)>;
+				label = "pmc8380_3_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@403 {
+				reg = <ADC5_GEN3_DIE_TEMP(4)>;
+				label = "pmc8380_4_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@503 {
+				reg = <ADC5_GEN3_DIE_TEMP(5)>;
+				label = "pmc8380_5_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			pmc8380_6_die_temp: channel@603 {
+				reg = <ADC5_GEN3_DIE_TEMP(6)>;
+				label = "pmc8380_6_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@803 {
+				reg = <ADC5_GEN3_DIE_TEMP(8)>;
+				label = "pm8550ve_8_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+
+			channel@903 {
+				reg = <ADC5_GEN3_DIE_TEMP(9)>;
+				label = "pm8550ve_9_die_temp";
+				qcom,pre-scaling = <1 1>;
+			};
+		};
 	};
 
 	/* PMC8380C */
@@ -291,6 +421,8 @@
 			reg = <0xa00>;
 			interrupts = <0x1 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(1)>;
+			io-channel-names = "thermal";
 		};
 
 		pm8550_gpios: gpio@8800 {
@@ -301,6 +433,18 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+
+			sys_therm_0_gpio3: sys-therm-0-gpio3-state {
+				pins = "gpio3";
+				function = PMIC_GPIO_FUNC_NORMAL;
+				bias-high-impedance;
+			};
+
+			sys_therm_1_gpio4: sys-therm-1-gpio4-state {
+				pins = "gpio4";
+				function = PMIC_GPIO_FUNC_NORMAL;
+				bias-high-impedance;
+			};
 		};
 
 		pm8550_flash: led-controller@ee00 {
@@ -329,6 +473,8 @@
 			reg = <0xa00>;
 			interrupts = <0x2 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(2)>;
+			io-channel-names = "thermal";
 		};
 
 		pm8550ve_2_gpios: gpio@8800 {
@@ -354,6 +500,8 @@
 			reg = <0xa00>;
 			interrupts = <0x3 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(3)>;
+			io-channel-names = "thermal";
 		};
 
 		pmc8380_3_gpios: gpio@8800 {
@@ -378,6 +526,8 @@
 			reg = <0xa00>;
 			interrupts = <0x4 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(4)>;
+			io-channel-names = "thermal";
 		};
 
 		pmc8380_4_gpios: gpio@8800 {
@@ -402,6 +552,8 @@
 			reg = <0xa00>;
 			interrupts = <0x5 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(5)>;
+			io-channel-names = "thermal";
 		};
 
 		pmc8380_5_gpios: gpio@8800 {
@@ -426,6 +578,8 @@
 			reg = <0xa00>;
 			interrupts = <0x6 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(6)>;
+			io-channel-names = "thermal";
 		};
 
 		pmc8380_6_gpios: gpio@8800 {
@@ -451,6 +605,8 @@
 			reg = <0xa00>;
 			interrupts = <0x8 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(8)>;
+			io-channel-names = "thermal";
 		};
 
 		pm8550ve_8_gpios: gpio@8800 {
@@ -476,6 +632,8 @@
 			reg = <0xa00>;
 			interrupts = <0x9 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
 			#thermal-sensor-cells = <0>;
+			io-channels = <&pmk8550_vadc ADC5_GEN3_DIE_TEMP(9)>;
+			io-channel-names = "thermal";
 		};
 
 		pm8550ve_9_gpios: gpio@8800 {
