@@ -124,7 +124,6 @@ static int atmel_ecdh_generate_public_key(struct kpp_request *req)
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct atmel_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
 	size_t copied, nbytes;
-	int ret = 0;
 
 	if (ctx->do_fallback) {
 		kpp_request_set_tfm(req, ctx->fallback);
@@ -142,9 +141,9 @@ static int atmel_ecdh_generate_public_key(struct kpp_request *req)
 				     sg_nents_for_len(req->dst, nbytes),
 				     ctx->public_key, nbytes);
 	if (copied != nbytes)
-		ret = -EINVAL;
+		return -EINVAL;
 
-	return ret;
+	return 0;
 }
 
 static int atmel_ecdh_compute_shared_secret(struct kpp_request *req)
