@@ -220,6 +220,13 @@ void zfcp_dbf_hba_fsf_uss(char *tag, struct zfcp_fsf_req *req)
 	rec->u.uss.lun = srb->fcp_lun;
 	memcpy(&rec->u.uss.queue_designator, &srb->queue_designator,
 	       sizeof(rec->u.uss.queue_designator));
+	rec->u.uss.length = srb->length;
+	rec->u.uss.res1 = srb->res1;
+	rec->u.uss.res2 = srb->res2;
+	rec->u.uss.class = srb->class;
+	rec->u.uss.res3 = srb->res3;
+	rec->u.uss.s_id = ntoh24(srb->s_id);
+	memcpy(&rec->u.uss.res4, &srb->res4, sizeof(rec->u.uss.res4));
 
 	/* status read buffer payload length */
 	rec->pl_len = (!srb->length) ? 0 : srb->length -

@@ -149,6 +149,13 @@ struct zfcp_dbf_hba_res {
  * @d_id: destination ID
  * @lun: logical unit number
  * @queue_designator: queue designator
+ * @length: buffer length
+ * @res1: reserved field 1
+ * @res2: reserved field 2
+ * @class: class of service
+ * @res3: reserved field 3
+ * @s_id: source ID
+ * @res4: reserved field 4
  */
 struct zfcp_dbf_hba_uss {
 	u32 status_type;
@@ -156,6 +163,13 @@ struct zfcp_dbf_hba_uss {
 	u32 d_id;
 	u64 lun;
 	u64 queue_designator;
+	u32 length;
+	u32 res1;
+	u8 res2;
+	u32 class;
+	u8 res3;
+	u32 s_id;
+	u8 res4[20];
 } __packed;
 
 /**
