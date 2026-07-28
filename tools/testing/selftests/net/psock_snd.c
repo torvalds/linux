@@ -310,10 +310,13 @@ static void check_aux_data(struct cmsghdr *cmsg, int expected_len)
 		error(1, 0, "cmsg tp_snaplen != %u", expected_len);
 }
 
-static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
+/* expected_pkttype < 0 skips the sll_pkttype check. */
+static void do_rx(int fd, int expected_len, char *expected, bool is_psock,
+		  int expected_pkttype)
 {
 	char cmsg_buf[1024] __attribute__((aligned(8))) = {};
 	bool aux = is_psock && cfg_aux_data;
+	struct sockaddr_ll saddr = {};
 	struct iovec iov = {
 		.iov_base = rbuf,
 		.iov_len = sizeof(rbuf),
@@ -328,6 +331,10 @@ static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
 		msg.msg_control = cmsg_buf;
 		msg.msg_controllen = sizeof(cmsg_buf);
 	}
+	if (is_psock) {
+		msg.msg_name = &saddr;
+		msg.msg_namelen = sizeof(saddr);
+	}
 
 	ret = recvmsg(fd, &msg, 0);
 	if (ret == -1)
@@ -340,6 +347,10 @@ static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
 
 	if (aux)
 		check_aux_data(CMSG_FIRSTHDR(&msg), expected_len);
+
+	if (expected_pkttype >= 0 && saddr.sll_pkttype != expected_pkttype)
+		error(1, 0, "recv: sll_pkttype %d != %d",
+		      saddr.sll_pkttype, expected_pkttype);
 
 	fprintf(stderr, "rx: %u\n", ret);
 }
@@ -492,11 +503,11 @@ static void run_test(void)
 	/* BPF filter accepts only this length, vlan changes MAC */
 	if (cfg_payload_len == DATA_LEN && !cfg_use_vlan) {
 		do_rx(fds, total_len - sizeof(struct virtio_net_hdr),
-		      tbuf + sizeof(struct virtio_net_hdr), true);
+		      tbuf + sizeof(struct virtio_net_hdr), true, -1);
 		check_packet_stats(fds, 1);
 	}
 
-	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len, false);
+	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len, false, -1);
 
 out:
 	if (close(fds))
