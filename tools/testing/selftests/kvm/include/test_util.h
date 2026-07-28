@@ -23,6 +23,7 @@
 
 #include <linux/mman.h>
 #include <linux/types.h>
+#include <linux/stringify.h>
 
 #define msecs_to_usecs(msec)    ((msec) * 1000ULL)
 

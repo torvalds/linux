@@ -6,7 +6,6 @@
  */
 #include <asm/kvm_para.h>
 #include <linux/kvm_para.h>
-#include <linux/stringify.h>
 #include <stdint.h>
 
 #include "kvm_test_harness.h"

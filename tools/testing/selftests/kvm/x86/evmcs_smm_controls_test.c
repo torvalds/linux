@@ -22,9 +22,6 @@
 
 #define SYNC_PORT	0xe
 
-#define STR(x) #x
-#define XSTR(s) STR(s)
-
 /*
  * SMI handler: runs in real-address mode.
  * Reports SMRAM_STAGE via port IO, then does RSM.
@@ -37,7 +34,7 @@ static u8 smi_handler[] = {
 
 static inline void sync_with_host(u64 phase)
 {
-	asm volatile("in $" XSTR(SYNC_PORT) ", %%al \n"
+	asm volatile("in $" __stringify(SYNC_PORT) ", %%al \n"
 		     : "+a" (phase));
 }
 
