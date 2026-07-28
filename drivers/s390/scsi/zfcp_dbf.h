@@ -175,6 +175,18 @@ struct zfcp_dbf_hba_uss {
 } __packed;
 
 /**
+ * struct zfcp_dbf_hba_uas - trace record for sysfs unit add store
+ * @wwpn: remote port wwn
+ * @fcp_lun: FCP LUN
+ * @ret: return value
+ */
+struct zfcp_dbf_hba_uas {
+	u64 wwpn;
+	u64 fcp_lun;
+	u32 ret;
+} __packed;
+
+/**
  * struct zfcp_dbf_hba_fces - trace record for FC Endpoint Security
  * @req_issued: timestamp when request was issued
  * @fsf_status: fsf status
@@ -200,6 +212,7 @@ struct zfcp_dbf_hba_fces {
  * @ZFCP_DBF_HBA_BIT: bit error trace record
  * @ZFCP_DBF_HBA_BASIC: basic adapter event, only trace tag, no other data
  * @ZFCP_DBF_HBA_FCES: FC Endpoint Security trace record
+ * @ZFCP_DBF_HBA_UAS: unit add store trace record
  */
 enum zfcp_dbf_hba_id {
 	ZFCP_DBF_HBA_RES	= 1,
@@ -207,6 +220,7 @@ enum zfcp_dbf_hba_id {
 	ZFCP_DBF_HBA_BIT	= 3,
 	ZFCP_DBF_HBA_BASIC	= 4,
 	ZFCP_DBF_HBA_FCES	= 5,
+	ZFCP_DBF_HBA_UAS        = 6,
 };
 
 /**
@@ -223,6 +237,7 @@ enum zfcp_dbf_hba_id {
  * @u.uss:  data for unsolicited status buffer
  * @u.be:   data for bit error unsolicited status buffer
  * @u.fces: data for FC Endpoint Security
+ * @u.uas:  data for unit add store
  */
 struct zfcp_dbf_hba {
 	u8 id;
@@ -237,6 +252,7 @@ struct zfcp_dbf_hba {
 		struct zfcp_dbf_hba_uss uss;
 		struct fsf_bit_error_payload be;
 		struct zfcp_dbf_hba_fces fces;
+		struct zfcp_dbf_hba_uas uas;
 	} u;
 } __packed;
 

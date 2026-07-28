@@ -266,6 +266,42 @@ log:
 }
 
 /**
+ * zfcp_dbf_hba_uas - trace event for sysfs unit add store
+ * @tag: tag indicating which kind of unit add store condition occurred
+ * @level: debug trace level
+ * @adapter: pointer to struct zfcp_adapter
+ * @wwpn: remote port wwn
+ * @fcp_lun: FCP LUN
+ * @ret: return value
+ */
+void zfcp_dbf_hba_uas(char *tag, int level, struct zfcp_adapter *adapter,
+		      u64 wwpn, u64 fcp_lun, int ret)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_hba *rec = &dbf->hba_buf;
+	unsigned long flags;
+
+	if (unlikely(!debug_level_enabled(dbf->hba, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->hba_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_HBA_UAS;
+	rec->fsf_req_id = ~0u;
+	rec->fsf_req_status = ~0u;
+	rec->fsf_cmd = ~0u;
+	rec->fsf_seq_no = ~0u;
+	rec->u.uas.wwpn = wwpn;
+	rec->u.uas.fcp_lun = fcp_lun;
+	rec->u.uas.ret = ret;
+
+	debug_event(dbf->hba, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->hba_lock, flags);
+}
+
+/**
  * zfcp_dbf_hba_bit_err - trace event for bit error conditions
  * @tag: tag indicating which kind of bit error unsolicited status was received
  * @req: request which caused the bit_error condition
