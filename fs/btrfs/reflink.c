@@ -687,10 +687,10 @@ static void btrfs_double_mmap_unlock(struct btrfs_inode *inode1, struct btrfs_in
 static int btrfs_extent_same_range(struct btrfs_inode *src, u64 loff, u64 len,
 				   struct btrfs_inode *dst, u64 dst_loff)
 {
-	const u64 end = dst_loff + len - 1;
 	struct extent_state *cached_state = NULL;
 	struct btrfs_fs_info *fs_info = src->root->fs_info;
 	const u32 bs = fs_info->sectorsize;
+	const u64 end = round_up(dst_loff + len, bs) - 1;
 	int ret;
 
 	/*
@@ -799,7 +799,7 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	 * because we have already locked the inode's i_mmap_lock in exclusive
 	 * mode.
 	 */
-	end = destoff + len - 1;
+	end = round_up(destoff + len, bs) - 1;
 	btrfs_lock_extent(&inode->io_tree, destoff, end, &cached_state);
 	ret = btrfs_clone(src, inode, off, olen, len, destoff, false);
 	btrfs_unlock_extent(&inode->io_tree, destoff, end, &cached_state);
