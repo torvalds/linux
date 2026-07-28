@@ -101,7 +101,6 @@ struct amdgpu_usermode_queue {
 		u64 va_array[6];
 	} userq_vas;
 
-	uint32_t	proc_ctx_array_index;
 	uint32_t	gang_ctx_array_index;
 };
 
@@ -133,6 +132,8 @@ struct amdgpu_userq_mgr {
 	struct mutex			proc_ctx_lock;
 	struct amdgpu_userq_obj		proc_ctx_obj;
 
+	bool				proc_ctx_allocated;
+	uint32_t			proc_ctx_array_index;
 	/**
 	 * @reset_work:
 	 *

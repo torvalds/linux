@@ -1040,13 +1040,13 @@ int amdgpu_mes_rs64mem_setup_bitmaps(struct amdgpu_mes *mes)
  * amdgpu_mes_alloc_proc_ctx_index - allocate a process context slot
  *
  * @mes: MES instance
- * @queue: Usermode queue receiving the allocated process context index
+ * @index: the allocated process context index
  *
  * Returns 0 on success, -ENOSPC if all slots are used, or
  * -EOPNOTSUPP if RS64 local memory is unavailable.
  */
 int amdgpu_mes_alloc_proc_ctx_index(struct amdgpu_mes *mes,
-				    struct amdgpu_usermode_queue *queue)
+				    uint32_t *index)
 {
 	unsigned long bit;
 
@@ -1061,7 +1061,7 @@ int amdgpu_mes_alloc_proc_ctx_index(struct amdgpu_mes *mes,
 		return -ENOSPC;
 	}
 	set_bit(bit, mes->proc_ctx_bitmap);
-	queue->proc_ctx_array_index = (uint32_t)bit;
+	*index = (uint32_t)bit;
 	amdgpu_mes_unlock(mes);
 
 	return 0;
@@ -1071,18 +1071,18 @@ int amdgpu_mes_alloc_proc_ctx_index(struct amdgpu_mes *mes,
   * amdgpu_mes_free_proc_ctx_index - free a process context slot
   *
   * @mes: MES instance
-  * @queue: Usermode queue whose process context index is released
+  * @index: process context index is released
   */
 void amdgpu_mes_free_proc_ctx_index(struct amdgpu_mes *mes,
-				    struct amdgpu_usermode_queue *queue)
+				    uint32_t index)
 {
 	if (!mes->use_rs64mem || !mes->proc_ctx_bitmap)
 		return;
-	if (queue->proc_ctx_array_index >= mes->proc_ctx_array_size)
+	if (index >= mes->proc_ctx_array_size)
 		return;
 
 	amdgpu_mes_lock(mes);
-	clear_bit(queue->proc_ctx_array_index, mes->proc_ctx_bitmap);
+	clear_bit(index, mes->proc_ctx_bitmap);
 	amdgpu_mes_unlock(mes);
 }
 
@@ -1090,13 +1090,13 @@ void amdgpu_mes_free_proc_ctx_index(struct amdgpu_mes *mes,
   * amdgpu_mes_alloc_gang_ctx_index - allocate a gang context slot
   *
   * @mes: MES instance
-  * @queue: Usermode queue receiving the allocated gang context index
+  * @index: the allocated gang context index
   *
   * Returns 0 on success, -ENOSPC if all slots are used, or
   * -EOPNOTSUPP if RS64 local memory is unavailable.
   */
 int amdgpu_mes_alloc_gang_ctx_index(struct amdgpu_mes *mes,
-				    struct amdgpu_usermode_queue *queue)
+				    uint32_t *index)
 {
 	unsigned long bit;
 
@@ -1111,7 +1111,7 @@ int amdgpu_mes_alloc_gang_ctx_index(struct amdgpu_mes *mes,
 		return -ENOSPC;
 	}
 	set_bit(bit, mes->gang_ctx_bitmap);
-	queue->gang_ctx_array_index = bit;
+	*index = bit;
 	amdgpu_mes_unlock(mes);
 
 	return 0;
@@ -1121,18 +1121,18 @@ int amdgpu_mes_alloc_gang_ctx_index(struct amdgpu_mes *mes,
   * amdgpu_mes_free_gang_ctx_index - free a gang context slot
   *
   * @mes: MES instance
-  * @queue: Usermode queue whose gang context index is released
+  * @index: gang context index is released
   */
 void amdgpu_mes_free_gang_ctx_index(struct amdgpu_mes *mes,
-				    struct amdgpu_usermode_queue *queue)
+				    uint32_t index)
 {
 	if (!mes->use_rs64mem || !mes->gang_ctx_bitmap)
 		return;
-	if (queue->gang_ctx_array_index >= mes->gang_ctx_array_size)
+	if (index >= mes->gang_ctx_array_size)
 		return;
 
 	amdgpu_mes_lock(mes);
-	clear_bit(queue->gang_ctx_array_index, mes->gang_ctx_bitmap);
+	clear_bit(index, mes->gang_ctx_bitmap);
 	amdgpu_mes_unlock(mes);
 }
 
