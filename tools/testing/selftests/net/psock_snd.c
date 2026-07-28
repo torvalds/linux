@@ -440,7 +440,7 @@ static void parse_opts(int argc, char **argv)
 		error(1, 0, "option aux data (-a) conflicts with drop (-D)");
 }
 
-static void check_packet_stats(int fd)
+static void check_packet_stats(int fd, unsigned int expected_packets)
 {
 	struct tpacket_stats st = {};
 	socklen_t len = sizeof(st);
@@ -459,8 +459,9 @@ static void check_packet_stats(int fd)
 		if (st.tp_drops == 0)
 			error(1, 0, "stats: expected drops but tp_drops == 0");
 	} else {
-		if (st.tp_packets != 1)
-			error(1, 0, "stats: tp_packets %u != 1", st.tp_packets);
+		if (st.tp_packets != expected_packets)
+			error(1, 0, "stats: tp_packets %u != %u",
+			      st.tp_packets, expected_packets);
 
 		if (st.tp_drops != 0)
 			error(1, 0, "stats: tp_drops %u != 0", st.tp_drops);
@@ -490,7 +491,7 @@ static void run_test(void)
 	total_len = do_tx();
 
 	if (cfg_drop) {
-		check_packet_stats(fds);
+		check_packet_stats(fds, 0);
 		goto out;
 	}
 
@@ -498,7 +499,7 @@ static void run_test(void)
 	if (cfg_payload_len == DATA_LEN && !cfg_use_vlan) {
 		do_rx(fds, total_len - sizeof(struct virtio_net_hdr),
 		      tbuf + sizeof(struct virtio_net_hdr), true);
-		check_packet_stats(fds);
+		check_packet_stats(fds, 1);
 	}
 
 	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len, false);
