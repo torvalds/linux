@@ -11,6 +11,7 @@ mod driver;
 mod file;
 mod gem;
 mod gpu;
+mod mmu;
 mod regs;
 mod slot;
 
