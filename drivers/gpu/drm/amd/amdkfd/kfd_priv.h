@@ -635,6 +635,7 @@ struct queue {
 	void *gang_ctx_bo;
 	uint64_t gang_ctx_gpu_addr;
 	void *gang_ctx_cpu_ptr;
+	uint32_t gang_ctx_array_index;
 
 	struct amdgpu_bo *wptr_bo_gart;
 };
@@ -870,6 +871,8 @@ struct kfd_process_device {
 	void *proc_ctx_bo;
 	uint64_t proc_ctx_gpu_addr;
 	void *proc_ctx_cpu_ptr;
+
+	uint32_t proc_ctx_array_index;
 
 	/* Tracks queue reset status */
 	bool has_reset_queue;

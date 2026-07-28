@@ -1215,9 +1215,12 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		kfd_free_process_doorbells(pdd->dev->kfd, pdd);
 
 		if (pdd->dev->kfd->shared_resources.enable_mes &&
-			pdd->proc_ctx_cpu_ptr)
+			pdd->proc_ctx_cpu_ptr) {
+			amdgpu_mes_free_proc_ctx_index(&pdd->dev->adev->mes,
+						       pdd->proc_ctx_array_index);
 			amdgpu_amdkfd_free_kernel_mem(pdd->dev->adev,
 						   &pdd->proc_ctx_bo);
+		}
 		/*
 		 * before destroying pdd, make sure to report availability
 		 * for auto suspend

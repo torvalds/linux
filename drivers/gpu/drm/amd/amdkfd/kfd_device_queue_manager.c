@@ -226,8 +226,10 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	/* MES unit for quantum is 100ns */
 	queue_input.process_quantum = KFD_MES_PROCESS_QUANTUM;  /* Equivalent to 10ms. */
 	queue_input.process_context_addr = pdd->proc_ctx_gpu_addr;
+	queue_input.process_context_array_index = pdd->proc_ctx_array_index;
 	queue_input.gang_quantum = KFD_MES_GANG_QUANTUM; /* Equivalent to 1ms */
 	queue_input.gang_context_addr = q->gang_ctx_gpu_addr;
+	queue_input.gang_context_array_index = q->gang_ctx_array_index;
 	queue_input.inprocess_gang_priority = q->properties.priority;
 	queue_input.gang_global_priority_level =
 					AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
@@ -303,6 +305,7 @@ static int remove_queue_mes_on_reset_option(struct device_queue_manager *dqm, st
 	queue_input.queue_type = convert_to_amdgpu_ring_type(q->properties.type);
 	queue_input.remove_queue_after_reset = flush_mes_queue;
 	queue_input.xcc_id = ffs(dqm->dev->xcc_mask) - 1;
+	queue_input.gang_context_array_index = q->gang_ctx_array_index;
 
 	amdgpu_mes_lock(&adev->mes);
 	r = adev->mes.funcs->remove_hw_queue(&adev->mes, &queue_input);
