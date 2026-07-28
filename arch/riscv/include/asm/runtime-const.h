@@ -159,6 +159,23 @@
 	__ret;							\
 })
 
+#define runtime_const_mask_32(val, sym)				\
+({								\
+	u32 __ret;						\
+	asm_inline(".option push\n\t"				\
+		".option norvc\n\t"				\
+		"1:\t"						\
+		SLLI " %[__ret],%[__val],12\n\t"		\
+		SRLI " %[__ret],%[__ret],12\n\t"		\
+		".option pop\n\t"				\
+		".pushsection runtime_mask_" #sym ",\"a\"\n\t"	\
+		".long 1b - .\n\t"				\
+		".popsection"					\
+		: [__ret] "=r" (__ret)				\
+		: [__val] "r" (val));				\
+	__ret;							\
+})
+
 #define runtime_const_init(type, sym) do {			\
 	extern s32 __start_runtime_##type##_##sym[];		\
 	extern s32 __stop_runtime_##type##_##sym[];		\
@@ -260,6 +277,33 @@ static inline void __runtime_fixup_shift(void *where, unsigned long val)
 	mutex_lock(&text_mutex);
 	patch_text_nosync(where, &res, sizeof(insn));
 	mutex_unlock(&text_mutex);
+}
+
+static inline void __runtime_fixup_mask(void *where, unsigned long val)
+{
+	unsigned int width = (val) ? __fls(val) + 1 : 0;
+
+	/*
+	 * XXX: Current implementation only supports patching masks of
+	 * form GENMASK(width, 0) (width >= 0) using a SRLI + SLLI
+	 * sequence instead of LUI + ADDI + AND sequence to improve
+	 * performance, density, and covers all the current use-cases.
+	 *
+	 * When the need arises to support any generic mask, and this
+	 * BUG_ON() is tripped, consider using a:
+	 *
+	 *   lui  %[__ret], #imm16
+	 *   addi %[__ret], #imm16
+	 *
+	 * sequence to load the 32bit const mask, and perform a logical
+	 * and outside the asm block before returning the result. Fixup
+	 * can simply reuse the existing __runtime_fixup_32() to patch
+	 * the LUI + ADDI sequence.
+	 */
+	BUG_ON(!val || width > 31 || (GENMASK(width - 1, 0) != val));
+
+	__runtime_fixup_shift(where, 32 - width);
+	__runtime_fixup_shift(where + 4, 32 - width);
 }
 
 static inline void runtime_const_fixup(void (*fn)(void *, unsigned long),
