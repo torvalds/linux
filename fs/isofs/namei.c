@@ -10,6 +10,26 @@
 #include <linux/gfp.h>
 #include "isofs.h"
 
+bool isofs_dir_record_valid(struct iso_directory_record *de,
+			    unsigned long offset,
+			    unsigned long bufsize)
+{
+	unsigned int len;
+	unsigned int name_len;
+	unsigned long min_len = offsetof(struct iso_directory_record, name);
+
+	if (offset > bufsize || bufsize - offset < min_len)
+		return false;
+
+	len = isonum_711(de->length);
+	name_len = isonum_711(de->name_len);
+	if (len < min_len || name_len > len - min_len)
+		return false;
+	if (len > bufsize - offset)
+		return false;
+	return true;
+}
+
 static int
 isofs_cmp(struct dentry *dentry, const char *compare, int dlen)
 {
@@ -88,16 +108,16 @@ isofs_find_entry(struct inode *dir, struct dentry *dentry,
 			de = tmpde;
 		}
 
-		dlen = de->name_len[0];
-		dpnt = de->name;
-		/* Basic sanity check, whether name doesn't exceed dir entry */
-		if (de_len < dlen + sizeof(struct iso_directory_record)) {
+		if (!isofs_dir_record_valid(de, de == tmpde ? 0 : offset_saved,
+					    de == tmpde ? de_len : bufsize)) {
 			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
 			       " in block %lu of inode %llu\n", block,
 			       dir->i_ino);
 			brelse(bh);
 			return 0;
 		}
+		dlen = de->name_len[0];
+		dpnt = de->name;
 
 		if (sbi->s_rock &&
 		    ((i = get_rock_ridge_filename(de, tmpname, dir)))) {

@@ -149,10 +149,8 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 			}
 			de = tmpde;
 		}
-		/* Basic sanity check, whether name doesn't exceed dir entry */
-		if (de_len < sizeof(struct iso_directory_record) ||
-		    de_len < de->name_len[0] +
-					sizeof(struct iso_directory_record)) {
+		if (!isofs_dir_record_valid(de, de == tmpde ? 0 : offset_saved,
+					    de == tmpde ? de_len : bufsize)) {
 			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
 			       " in block %lu of inode %llu\n", block,
 			       inode->i_ino);
@@ -299,5 +297,4 @@ const struct inode_operations isofs_dir_inode_operations =
 	.lookup = isofs_lookup,
 	.fileattr_get = isofs_fileattr_get,
 };
-
 
