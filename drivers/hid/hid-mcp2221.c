@@ -1049,6 +1049,8 @@ static void mcp2221_hid_unregister(void *ptr)
 {
 	struct hid_device *hdev = ptr;
 
+	if (hdev->io_started)
+		hid_device_io_stop(hdev);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 }
