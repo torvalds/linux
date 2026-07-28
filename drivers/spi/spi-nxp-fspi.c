@@ -859,8 +859,8 @@ static void nxp_fspi_dll_override(struct nxp_fspi *f)
  * Value for rest of the CS FLSHxxCR0 register would be zero.
  *
  */
-static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
-				const struct spi_mem_op *op)
+static int nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
+			       const struct spi_mem_op *op)
 {
 	/* flexspi only support one DTR mode: 8D-8D-8D */
 	bool op_is_dtr = op->cmd.dtr && op->addr.dtr && op->dummy.dtr && op->data.dtr;
@@ -881,7 +881,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	if ((f->selected == spi_get_chipselect(spi, 0)) &&
 	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr) &&
 	    (f->pre_op_rate == op->max_freq))
-		return;
+		return 0;
 
 	/* Reset FLSHxxCR0 registers */
 	fspi_writel(f, 0, f->iobase + FSPI_FLSHA1CR0);
@@ -922,12 +922,19 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	nxp_fspi_clk_disable_unprep(f);
 
 	ret = clk_set_rate(f->clk, rate);
-	if (ret)
-		return;
+	if (ret) {
+		/*
+		 * clk_set_rate() failed with the clocks already disabled.
+		 * Re-enable them so the enable count matches what the caller's
+		 * pm_runtime_put() (runtime_suspend) will drop.
+		 */
+		nxp_fspi_clk_prep_enable(f);
+		return ret;
+	}
 
 	ret = nxp_fspi_clk_prep_enable(f);
 	if (ret)
-		return;
+		return ret;
 
 	/*
 	 * If clock rate > 100MHz, then switch from DLL override mode to
@@ -945,6 +952,8 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	f->pre_op_rate = op->max_freq;
 
 	f->selected = spi_get_chipselect(spi, 0);
+
+	return 0;
 }
 
 static int nxp_fspi_read_ahb(struct nxp_fspi *f, const struct spi_mem_op *op)
@@ -1132,7 +1141,16 @@ static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 				   FSPI_STS0_ARB_IDLE, 1, POLL_TOUT, true);
 	WARN_ON(err);
 
-	nxp_fspi_select_mem(f, mem->spi, op);
+	err = nxp_fspi_select_mem(f, mem->spi, op);
+	if (err) {
+		/*
+		 * On failure the FlexSPI clock may be left disabled, so avoid
+		 * any further register access (which would trigger a synchronous
+		 * external abort) and bail out.
+		 */
+		pm_runtime_put_autosuspend(f->dev);
+		return err;
+	}
 
 	nxp_fspi_prepare_lut(f, op);
 	/*
