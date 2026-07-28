@@ -186,7 +186,7 @@ struct mxc_isi_dma_buffer {
 };
 
 struct mxc_isi_input {
-	unsigned int			enable_count;
+	u64				enabled_streams;
 };
 
 struct mxc_isi_crossbar {
@@ -259,6 +259,14 @@ struct mxc_isi_pipe {
 	u8				acquired_res;
 	u8				chained_res;
 	bool				chained;
+
+	unsigned int			input;
+	/*
+	 * Stream on the connected crossbar input, expressed as a bitmask. Zero
+	 * when the pipeline is disabled, a single bit set when the pipeline is
+	 * enabled (as each pipeline processes a single stream).
+	 */
+	u64				input_stream;
 };
 
 struct mxc_isi_m2m {

@@ -816,6 +816,7 @@ int mxc_isi_pipe_init(struct mxc_isi_dev *isi, unsigned int id)
 	pipe->acquired_res = 0;
 	pipe->chained_res = 0;
 	pipe->chained = false;
+	pipe->input = UINT_MAX;
 
 	sd = &pipe->sd;
 	v4l2_subdev_init(sd, &mxc_isi_pipe_subdev_ops);
