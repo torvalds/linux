@@ -3623,13 +3623,17 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 	unsigned long stopat;
 	unsigned long stoppedat;
 
-	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
-	if (READ_ONCE(rcu_fwd_emergency_stop))
+	if (READ_ONCE(rcu_fwd_emergency_stop)) {
+		pr_alert("%s: Emergency stop, so no forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 		return; /* Get out of the way quickly, no GP wait! */
-	if (!cur_ops->call)
+	}
+	if (!cur_ops->call) {
+		pr_alert("%s: No ->call(), so no forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 		return; /* Can't do call_rcu() fwd prog without ->call. */
+	}
 
 	/* Loop continuously posting RCU callbacks. */
+	pr_alert("%s: Starting forward-progress test %d\n", __func__, rfp->rcu_fwd_id);
 	atomic_inc(&rcu_fwd_cb_nodelay);
 	cur_ops->sync(); /* Later readers see above write. */
 	WRITE_ONCE(rfp->rcu_fwd_startat, jiffies);
