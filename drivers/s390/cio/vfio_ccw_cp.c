@@ -523,6 +523,7 @@ static dma64_t *get_guest_idal(struct ccw1 *ccw, struct channel_program *cp, int
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	dma64_t *idaws;
 	dma32_t *idaws_f1;
+	u64 first_idaw;
 	int idal_len = idaw_nr * sizeof(*idaws);
 	int idaw_size = idal_is_2k(cp) ? PAGE_SIZE / 2 : PAGE_SIZE;
 	int idaw_mask = ~(idaw_size - 1);
@@ -538,6 +539,18 @@ static dma64_t *get_guest_idal(struct ccw1 *ccw, struct channel_program *cp, int
 		if (ret) {
 			kfree(idaws);
 			return ERR_PTR(ret);
+		}
+
+		idaws_f1 = (dma32_t *)idaws;
+		if (cp->orb.cmd.c64)
+			first_idaw = dma64_to_u64(idaws[0]);
+		else
+			first_idaw = dma32_to_u32(idaws_f1[0]);
+
+		/* Unexpected mismatch from earlier read */
+		if (first_idaw != cp->guest_iova) {
+			kfree(idaws);
+			return ERR_PTR(-EINVAL);
 		}
 	} else {
 		/* Fabricate an IDAL based off CCW data address */
@@ -603,6 +616,9 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 	} else {
 		iova = dma32_to_u32(ccw->cda);
 	}
+
+	/* Save the read address for later */
+	cp->guest_iova = iova;
 
 	/* Format-1 IDAWs operate on 2K each */
 	if (!cp->orb.cmd.c64)
