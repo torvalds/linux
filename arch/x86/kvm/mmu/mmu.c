@@ -1718,11 +1718,11 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 	struct kvm_rmap_head *rmap_head;
 	struct rmap_iterator iter;
 	unsigned long rmap_val;
+	u64 old_spte, new_spte;
 	bool young = false;
 	u64 *sptep;
 	gfn_t gfn;
 	int level;
-	u64 spte;
 
 	for (level = PG_LEVEL_4K; level <= KVM_MAX_HUGEPAGE_LEVEL; level++) {
 		for (gfn = range->start; gfn < range->end;
@@ -1730,8 +1730,8 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 			rmap_head = gfn_to_rmap(gfn, level, range->slot);
 			rmap_val = kvm_rmap_lock_readonly(rmap_head);
 
-			for_each_rmap_spte_lockless(rmap_val, &iter, sptep, spte) {
-				if (!is_accessed_spte(spte))
+			for_each_rmap_spte_lockless(rmap_val, &iter, sptep, old_spte) {
+				if (!is_accessed_spte(old_spte))
 					continue;
 
 				if (test_only) {
@@ -1739,17 +1739,18 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 					return true;
 				}
 
-				if (spte_ad_enabled(spte))
-					clear_bit((ffs(shadow_accessed_mask) - 1),
-						  (unsigned long *)sptep);
+				if (spte_ad_enabled(old_spte))
+					new_spte = old_spte & ~shadow_accessed_mask;
 				else
-					/*
-					 * If the following cmpxchg fails, the
-					 * spte is being concurrently modified
-					 * and should most likely stay young.
-					 */
-					cmpxchg64(sptep, spte,
-					      mark_spte_for_access_track(spte));
+					new_spte = mark_spte_for_access_track(old_spte);
+
+				/*
+				 * Don't bother retrying if the CMPXCHG fails,
+				 * i.e. if another CPU modified the SPTE.  The
+				 * SPTE is either being zapped or is likely
+				 * still in-use, i.e. is still young.
+				 */
+				cmpxchg64(sptep, old_spte, new_spte);
 				young = true;
 			}
 
