@@ -512,8 +512,10 @@ tbstream_dev_alloc_tx(struct tbstream_dev *sdev, enum tbstream_frame_pdf pdf,
 	dma_sync_single_for_cpu(dma_dev, sf->frame.buffer_phy, size,
 				DMA_TO_DEVICE);
 	if (pdf == TBSTREAM_DATA) {
-		if (copy_page_from_iter(sf->page, 0, size, from) != size)
+		if (copy_page_from_iter(sf->page, 0, size, from) != size) {
+			sdev->tx_ring.cons--;
 			return ERR_PTR(-EFAULT);
+		}
 	} else {
 		memset(page_address(sf->page), 0, size);
 	}
