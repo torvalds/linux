@@ -139,155 +139,19 @@ void mpc60_program_rmcm_lut_read_write_control(struct mpc *mpc, const enum MCM_L
 	}
 }
 
-void mpc60_select_3dlut_ram(
-	struct mpc *mpc,
-	enum dc_lut_mode mode,
-	bool is_color_channel_12bits,
-	uint32_t mpcc_id)
+static void mpc60_program_lut_read_write_control(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const bool lut_bank_a,
+		const unsigned int bit_depth,
+		const int mpcc_id)
 {
-	(void)mode;
 	struct dcn60_mpc *mpc60 = TO_DCN60_MPC(mpc);
-
-	REG_UPDATE(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id],
-		MPCC_MCM_3DLUT_30BIT_EN, is_color_channel_12bits == true ? 0 : 1);
-}
-
-static enum dc_lut_mode get3dlut_config(
-	struct mpc *mpc,
-	bool *is_17x17x17,
-	bool *is_12bits_color_channel,
-	int mpcc_id)
-{
-	uint32_t i_mode, i_enable_10bits, lut_size;
-	enum dc_lut_mode mode;
-	struct dcn60_mpc *mpc60 = TO_DCN60_MPC(mpc);
-
-	REG_GET(MPCC_MCM_3DLUT_MODE[mpcc_id],
-		MPCC_MCM_3DLUT_MODE_CURRENT, &i_mode);
-
-	REG_GET(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id],
-		MPCC_MCM_3DLUT_30BIT_EN, &i_enable_10bits);
-
-	switch (i_mode) {
-	case 0:
-		mode = LUT_BYPASS;
-		break;
-	case 1:
-		mode = LUT_RAM_A;
-		break;
-	case 2:
-		mode = LUT_RAM_B;
-		break;
-	default:
-		mode = LUT_BYPASS;
-		break;
-	}
-	if (i_enable_10bits > 0)
-		*is_12bits_color_channel = false;
-	else
-		*is_12bits_color_channel = true;
-
-	REG_GET(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_SIZE, &lut_size);
-
-	if (lut_size == 0)
-		*is_17x17x17 = true;
-	else
-		*is_17x17x17 = false;
-
-	return mode;
-}
-
-bool mpc60_program_3dlut(
-	struct mpc *mpc,
-	const struct tetrahedral_params *params,
-	int mpcc_id)
-{
-	enum dc_lut_mode mode;
-	bool is_17x17x17;
-	bool is_12bits_color_channel;
-	const struct dc_rgb *lut0;
-	const struct dc_rgb *lut1;
-	const struct dc_rgb *lut2;
-	const struct dc_rgb *lut3;
-	int lut_size0;
-	int lut_size;
-
-	if (params == NULL) {
-		mpc32_set_3dlut_mode(mpc, LUT_BYPASS, false, false, mpcc_id);
-		return false;
-	}
-	mpc32_power_on_shaper_3dlut(mpc, mpcc_id, true);
-
-	mode = get3dlut_config(mpc, &is_17x17x17, &is_12bits_color_channel, mpcc_id);
-
-	if (mode == LUT_BYPASS || mode == LUT_RAM_B)
-		mode = LUT_RAM_A;
-	else
-		mode = LUT_RAM_B;
-
-	is_17x17x17 = !params->use_tetrahedral_9;
-	is_12bits_color_channel = params->use_12bits;
-	if (is_17x17x17) {
-		lut0 = params->tetrahedral_17.lut0;
-		lut1 = params->tetrahedral_17.lut1;
-		lut2 = params->tetrahedral_17.lut2;
-		lut3 = params->tetrahedral_17.lut3;
-		lut_size0 = sizeof(params->tetrahedral_17.lut0) /
-			sizeof(params->tetrahedral_17.lut0[0]);
-		lut_size = sizeof(params->tetrahedral_17.lut1) /
-			sizeof(params->tetrahedral_17.lut1[0]);
-	} else {
-		lut0 = params->tetrahedral_9.lut0;
-		lut1 = params->tetrahedral_9.lut1;
-		lut2 = params->tetrahedral_9.lut2;
-		lut3 = params->tetrahedral_9.lut3;
-		lut_size0 = sizeof(params->tetrahedral_9.lut0) /
-			sizeof(params->tetrahedral_9.lut0[0]);
-		lut_size = sizeof(params->tetrahedral_9.lut1) /
-			sizeof(params->tetrahedral_9.lut1[0]);
-	}
-
-	mpc60_select_3dlut_ram(mpc, mode,
-				is_12bits_color_channel, mpcc_id);
-	mpc32_select_3dlut_ram_mask(mpc, 0x1, mpcc_id);
-	if (is_12bits_color_channel)
-		mpc32_set3dlut_ram12(mpc, lut0, lut_size0, mpcc_id);
-	else
-		mpc32_set3dlut_ram10(mpc, lut0, lut_size0, mpcc_id);
-
-	mpc32_select_3dlut_ram_mask(mpc, 0x2, mpcc_id);
-	if (is_12bits_color_channel)
-		mpc32_set3dlut_ram12(mpc, lut1, lut_size, mpcc_id);
-	else
-		mpc32_set3dlut_ram10(mpc, lut1, lut_size, mpcc_id);
-
-	mpc32_select_3dlut_ram_mask(mpc, 0x4, mpcc_id);
-	if (is_12bits_color_channel)
-		mpc32_set3dlut_ram12(mpc, lut2, lut_size, mpcc_id);
-	else
-		mpc32_set3dlut_ram10(mpc, lut2, lut_size, mpcc_id);
-
-	mpc32_select_3dlut_ram_mask(mpc, 0x8, mpcc_id);
-	if (is_12bits_color_channel)
-		mpc32_set3dlut_ram12(mpc, lut3, lut_size, mpcc_id);
-	else
-		mpc32_set3dlut_ram10(mpc, lut3, lut_size, mpcc_id);
-
-	mpc32_set_3dlut_mode(mpc, mode, is_12bits_color_channel,
-		is_17x17x17, mpcc_id);
-
-	if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
-		mpc32_power_on_shaper_3dlut(mpc, mpcc_id, false);
-
-	return true;
-}
-
-void mpc60_program_lut_read_write_control(struct mpc *mpc, const enum MCM_LUT_ID id, bool lut_bank_a, int mpcc_id)
-{
 
 	switch (id) {
 	case MCM_LUT_3DLUT:
 		mpc32_select_3dlut_ram_mask(mpc, 0xf, mpcc_id);
+		REG_UPDATE(MPCC_MCM_3DLUT_READ_WRITE_CONTROL[mpcc_id],
+				MPCC_MCM_3DLUT_30BIT_EN, (bit_depth == 10) ? 1 : 0);
 		break;
 	case MCM_LUT_SHAPER:
 		mpc32_configure_shaper_lut(mpc, lut_bank_a, mpcc_id);
@@ -296,6 +160,100 @@ void mpc60_program_lut_read_write_control(struct mpc *mpc, const enum MCM_LUT_ID
 		mpc32_configure_post1dlut(mpc, lut_bank_a, mpcc_id);
 		break;
 	}
+}
+
+static uint32_t mpc60_cm_lut_size_to_3dlut_size(const enum dc_cm_lut_size cm_size)
+{
+	uint32_t size = 0;
+
+	switch (cm_size) {
+	case CM_LUT_SIZE_999:
+		size = 1;
+		break;
+	case CM_LUT_SIZE_171717:
+		size = 0;
+		break;
+	default:
+		/* invalid LUT size for MCM */
+		ASSERT(false);
+		size = 0;
+		break;
+	}
+
+	return size;
+}
+
+static void mpc60_program_lut_mode(
+		struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const bool enable,
+		const bool lut_bank_a,
+		const enum dc_cm_lut_size size,
+		const int mpcc_id)
+{
+	uint32_t lut_size;
+	struct dcn60_mpc *mpc60 = TO_DCN60_MPC(mpc);
+
+	switch (id) {
+	case MCM_LUT_3DLUT:
+		if (enable) {
+			lut_size = mpc60_cm_lut_size_to_3dlut_size(size);
+			REG_UPDATE_2(MPCC_MCM_3DLUT_MODE[mpcc_id],
+					MPCC_MCM_3DLUT_MODE, 1,
+					MPCC_MCM_3DLUT_SIZE, lut_size);
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_shaper_3dlut(mpc, mpcc_id, false);
+			REG_UPDATE(MPCC_MCM_3DLUT_MODE[mpcc_id], MPCC_MCM_3DLUT_MODE, 0);
+		}
+		break;
+	case MCM_LUT_SHAPER:
+		if (enable) {
+			REG_UPDATE(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_LUT_MODE, lut_bank_a ? 1 : 2);
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_shaper_3dlut(mpc, mpcc_id, false);
+			REG_UPDATE(MPCC_MCM_SHAPER_CONTROL[mpcc_id], MPCC_MCM_SHAPER_LUT_MODE, 0);
+		}
+		break;
+	case MCM_LUT_1DLUT:
+		if (enable) {
+			REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+					MPCC_MCM_1DLUT_MODE, 2);
+		} else {
+			if (mpc->ctx->dc->debug.enable_mem_low_power.bits.mpc)
+				mpc32_power_on_blnd_lut(mpc, mpcc_id, false);
+			REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+					MPCC_MCM_1DLUT_MODE, 0);
+		}
+		REG_UPDATE(MPCC_MCM_1DLUT_CONTROL[mpcc_id],
+				MPCC_MCM_1DLUT_SELECT, lut_bank_a ? 0 : 1);
+		break;
+	}
+}
+
+static bool mpc60_program_3dlut(
+	struct mpc *mpc,
+	const struct tetrahedral_params *params,
+	int mpcc_id)
+{
+	union mcm_lut_params lut_params = { 0 };
+	lut_params.lut3d = params;
+
+	mpc60_program_lut_read_write_control(mpc,
+			MCM_LUT_3DLUT,
+			true,
+			params->use_12bits ? 12 : 10,
+			mpcc_id);
+	mpc401_populate_lut(mpc, MCM_LUT_3DLUT, &lut_params, true, mpcc_id);
+	mpc60_program_lut_mode(mpc,
+		MCM_LUT_3DLUT,
+		true,
+		true,
+		params->use_tetrahedral_9 ? CM_LUT_SIZE_999 : CM_LUT_SIZE_171717,
+		mpcc_id);
+
+	return true;
 }
 
 static const struct mpc_funcs dcn60_mpc_funcs = {
@@ -328,15 +286,8 @@ static const struct mpc_funcs dcn60_mpc_funcs = {
 	.get_3dlut_fast_load_status = mpc401_get_3dlut_fast_load_status,
 	.populate_lut = mpc401_populate_lut,
 	.program_lut_read_write_control = mpc60_program_lut_read_write_control,
-	.program_lut_mode = mpc401_program_lut_mode,
-	.mcm = {
-		.program_lut_read_write_control = mpc42_program_lut_read_write_control,
-		.program_3dlut_size = mpc42_program_3dlut_size,
-		.program_bias_scale = mpc42_program_3dlut_fl_bias_scale,
-		.program_bit_depth = mpc42_program_bit_depth,
-		.is_config_supported = mpc42_is_config_supported,
-		.populate_lut = mpc42_populate_lut,
-	},
+	.program_lut_mode = mpc60_program_lut_mode,
+	.get_lut_mode = mpc401_get_lut_mode,
 	.rmcm = {
 		.enable_3dlut_fl = mpc42_enable_3dlut_fl,
 		.update_3dlut_fast_load_select = mpc42_update_3dlut_fast_load_select,
@@ -345,9 +296,9 @@ static const struct mpc_funcs dcn60_mpc_funcs = {
 		.program_3dlut_size = mpc42_program_rmcm_3dlut_size,
 		.program_bias_scale = mpc42_program_rmcm_3dlut_fast_load_bias_scale,
 		.program_bit_depth = mpc42_program_rmcm_bit_depth,
-		.is_config_supported = mpc42_is_rmcm_config_supported,
 		.power_on_shaper_3dlut = mpc42_power_on_rmcm_shaper_3dlut,
 		.populate_lut = mpc42_populate_rmcm_lut,
+		.get_3dlut_mode = mpc42_get_rmcm_3dlut_mode,
 	},
 };
 

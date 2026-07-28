@@ -166,7 +166,6 @@ static const struct hwseq_private_funcs dcn401_private_funcs = {
 	.calculate_dccg_k1_k2_values = NULL,
 	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
 	.reset_back_end_for_pipe = dcn401_reset_back_end_for_pipe,
-	.populate_mcm_luts = NULL,
 	.perform_3dlut_wa_unlock = dcn401_perform_3dlut_wa_unlock,
 	.program_pipe_sequence = dcn401_program_pipe_sequence,
 	.dc_ip_request_cntl = dcn401_dc_ip_request_cntl,

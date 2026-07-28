@@ -39,8 +39,7 @@ void dcn401_init_hw(struct dc *dc);
 bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 				const struct dc_plane_state *plane_state);
 bool dcn401_set_output_transfer_func(struct set_output_transfer_func_params *params);
-void dcn401_trigger_3dlut_dma_load(struct dc *dc,
-				struct pipe_ctx *pipe_ctx);
+void dcn401_trigger_3dlut_dma_load(struct pipe_ctx *pipe_ctx);
 void dcn401_calculate_dccg_tmds_div_value(struct pipe_ctx *pipe_ctx,
 				unsigned int *tmds_div);
 enum dc_status dcn401_enable_stream_timing(
@@ -48,10 +47,6 @@ enum dc_status dcn401_enable_stream_timing(
 				struct dc_state *context,
 				struct dc *dc);
 void dcn401_enable_stream(struct pipe_ctx *pipe_ctx);
-void dcn401_populate_mcm_luts(struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		const struct dc_plane_cm *cm,
-		bool lut_bank_a);
 void dcn401_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable);
 
 void dcn401_disable_link_output(struct dc_link *link,

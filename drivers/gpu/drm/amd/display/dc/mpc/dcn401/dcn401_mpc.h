@@ -206,21 +206,32 @@ void dcn401_mpc_construct(struct dcn401_mpc *mpc401,
 	int num_rmu);
 
 void mpc401_set_movable_cm_location(struct mpc *mpc, enum mpcc_movable_cm_location location, int mpcc_id);
-void mpc401_populate_lut(struct mpc *mpc, const enum MCM_LUT_ID id, const union mcm_lut_params params,
-		bool lut_bank_a, int mpcc_id);
+void mpc401_populate_lut(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const union mcm_lut_params *params,
+		bool lut_bank_a,
+		int mpcc_id);
 
 void mpc401_program_lut_mode(
 		struct mpc *mpc,
 		const enum MCM_LUT_ID id,
-		const enum MCM_LUT_XABLE xable,
-		bool lut_bank_a,
-		int mpcc_id);
+		const bool enable,
+		const bool lut_bank_a,
+		const enum dc_cm_lut_size size,
+		const int mpcc_id);
+
+void mpc401_get_lut_mode(struct mpc *mpc,
+		const enum MCM_LUT_ID id,
+		const int mpcc_id,
+		bool *enable,
+		bool *lut_bank_a);
 
 void mpc401_program_lut_read_write_control(
 		struct mpc *mpc,
 		const enum MCM_LUT_ID id,
-		bool lut_bank_a,
-		int mpcc_id);
+		const bool lut_bank_a,
+		const unsigned int bit_depth,
+		const int mpcc_id);
 
 void mpc401_set_gamut_remap(
 	struct mpc *mpc,

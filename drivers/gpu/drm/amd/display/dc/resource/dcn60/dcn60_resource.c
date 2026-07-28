@@ -584,6 +584,7 @@ static const struct resource_caps res_cap_dcn6_0 = {
 	.num_mpc_3dlut = 4,
 	.num_dsc = 4,
 	.num_aux = 4,
+	.num_rmcm = 2,
 };
 
 static const struct dc_plane_cap plane_cap = {

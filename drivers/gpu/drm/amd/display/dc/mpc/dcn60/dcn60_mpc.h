@@ -469,19 +469,4 @@ void mpc60_program_rmcm_lut_read_write_control(struct mpc *mpc,
 	bool lut_bank_a,
 	bool enabled,
 	int mpcc_id);
-
-void mpc60_select_3dlut_ram(struct mpc *mpc,
-	enum dc_lut_mode mode,
-	bool is_color_channel_12bits,
-	uint32_t mpcc_id);
-
-bool mpc60_program_3dlut(struct mpc *mpc,
-	const struct tetrahedral_params *params,
-	int mpcc_id);
-
-void mpc60_program_lut_read_write_control(struct mpc *mpc,
-	const enum MCM_LUT_ID id,
-	bool lut_bank_a,
-	int mpcc_id);
-
 #endif /* DCN60_MPC_H_ */

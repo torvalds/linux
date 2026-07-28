@@ -1459,6 +1459,7 @@ struct dc_transfer_func {
 	enum dc_transfer_func_predefined tf;
 	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
 	uint32_t sdr_ref_white_level;
+	struct fixed31_32 hdr_multiplier;
 	union {
 		struct pwl_params pwl;
 		struct dc_transfer_func_distributed_points tf_pts;
@@ -1509,13 +1510,11 @@ struct lut_mem_mapping {
 struct dc_rmcm_3dlut {
 	bool isInUse;
 	const struct dc_stream_state *stream;
-	uint8_t protection_bits;
 };
 
 struct dc_3dlut {
 	struct kref refcount;
 	struct tetrahedral_params lut_3d;
-	struct fixed31_32 hdr_multiplier;
 	union dc_3dlut_state state;
 };
 
@@ -1595,7 +1594,6 @@ struct pipe_update_bits {
 	uint32_t stereo_format_change:1;
 	uint32_t lut_3d:1;
 	uint32_t tmz_changed:1;
-	uint32_t mcm_transfer_function_enable_change:1; /* disable or enable MCM transfer func */
 	uint32_t full_update:1;
 	uint32_t sdr_white_level_nits:1;
 	uint32_t cm_hist_change:1;
@@ -1640,7 +1638,6 @@ static inline void dc_pipe_update_bits_set_full(struct pipe_update_bits *flags)
 	flags->stereo_format_change = 1;
 	flags->lut_3d = 1;
 	flags->tmz_changed = 1;
-	flags->mcm_transfer_function_enable_change = 1;
 	flags->full_update = 1;
 	flags->sdr_white_level_nits = 1;
 	flags->cm_hist_change = 1;
@@ -1674,7 +1671,6 @@ static inline bool dc_pipe_update_bits_is_any_set(const struct pipe_update_bits 
 		flags->stereo_format_change ||
 		flags->lut_3d ||
 		flags->tmz_changed ||
-		flags->mcm_transfer_function_enable_change ||
 		flags->full_update ||
 		flags->sdr_white_level_nits ||
 		flags->cm_hist_change;
@@ -1709,18 +1705,16 @@ struct dc_plane_state {
 	enum dc_color_space color_space;
 
 #ifndef TRIM_CM2
-	// TODO: No longer used, remove
+	bool lut_bank_a;
 	struct dc_hdr_static_metadata hdr_static_ctx;
-
 	struct dc_3dlut lut3d_func;
 	struct dc_transfer_func in_shaper_func;
 	struct dc_transfer_func blend_tf;
 	enum dc_cm2_shaper_3dlut_setting mcm_shaper_3dlut_setting;
 	bool mcm_lut1d_enable;
 	struct dc_cm2_func_luts mcm_luts;
-#endif /* TRIM_CM2 */
-	bool lut_bank_a;
 	enum mpcc_movable_cm_location mcm_location;
+#endif /* TRIM_CM2 */
 	struct dc_plane_cm cm;
 
 	struct dc_transfer_func *gamcor_tf;

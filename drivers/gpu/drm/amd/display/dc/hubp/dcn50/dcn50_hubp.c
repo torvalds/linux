@@ -7,6 +7,7 @@
 #include "reg_helper.h"
 #include "basics/conversion.h"
 #include "dcn50_hubp.h"
+#include "dcn42/dcn42_hubp.h"
 
 #define REG(reg)\
 	hubp2->hubp_regs->reg
@@ -500,16 +501,11 @@ static struct hubp_funcs dcn50_hubp_funcs = {
 	.hubp_update_mall_sel = hubp401_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,
 	.hubp_program_mcache_id_and_split_coordinate = hubp401_program_mcache_id_and_split_coordinate,
-	.hubp_update_3dlut_fl_bias_scale = hubp401_update_3dlut_fl_bias_scale,
-	.hubp_program_3dlut_fl_mode = hubp401_program_3dlut_fl_mode,
-	.hubp_program_3dlut_fl_format = hubp401_program_3dlut_fl_format,
 	.hubp_program_3dlut_fl_addr = hubp401_program_3dlut_fl_addr,
+	.hubp_program_3dlut_fl_config = hubp42_program_3dlut_fl_config,
 	.hubp_program_3dlut_fl_dlg_param = hubp401_program_3dlut_fl_dlg_param,
 	.hubp_enable_3dlut_fl = hubp401_enable_3dlut_fl,
-	.hubp_program_3dlut_fl_addressing_mode = hubp401_program_3dlut_fl_addressing_mode,
-	.hubp_program_3dlut_fl_width = hubp401_program_3dlut_fl_width,
-	.hubp_program_3dlut_fl_tmz_protected = hubp401_program_3dlut_fl_tmz_protected,
-	.hubp_program_3dlut_fl_crossbar = hubp401_program_3dlut_fl_crossbar,
+	.hubp_program_3dlut_fl_crossbar = hubp42_program_3dlut_fl_crossbar,
 	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
 	.hubp_clear_tiling = hubp401_clear_tiling,
 	.hubp_read_reg_state = hubp3_read_reg_state

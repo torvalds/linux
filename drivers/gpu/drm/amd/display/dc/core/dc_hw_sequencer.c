@@ -1457,6 +1457,24 @@ void hwss_build_fast_sequence(struct dc *dc,
 					(*num_steps)++;
 				}
 
+				if (current_mpc_pipe->plane_state->update_bits.hdr_mult) {
+					struct fixed31_32 multiplier = current_mpc_pipe->plane_state->hdr_mult;
+					uint32_t hw_mult = 0x1f000; // 1.0 default multiplier
+					struct custom_float_format fmt;
+
+					fmt.exponenta_bits = 6;
+					fmt.mantissa_bits = 12;
+					fmt.sign = true;
+
+					if (!dc_fixpt_eq(multiplier, dc_fixpt_from_int(0)) && // check != 0
+						convert_to_custom_float_format(multiplier, &fmt, &hw_mult)) {
+						block_sequence[*num_steps].params.dpp_set_hdr_multiplier_params.dpp = current_mpc_pipe->plane_res.dpp;
+						block_sequence[*num_steps].params.dpp_set_hdr_multiplier_params.hw_mult = hw_mult;
+						block_sequence[*num_steps].func = DPP_SET_HDR_MULTIPLIER;
+						(*num_steps)++;
+					}
+				}
+
 				if (dc->hwss.program_gamut_remap &&
 						(current_mpc_pipe->plane_state->update_bits.gamut_remap_change ||
 						 current_mpc_pipe->stream->update_flags.bits.gamut_remap)) {
