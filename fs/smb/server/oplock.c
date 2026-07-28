@@ -90,6 +90,7 @@ static struct oplock_info *alloc_opinfo(struct ksmbd_work *work,
 	opinfo->conn = ksmbd_conn_get(work->conn);
 	opinfo->level = SMB2_OPLOCK_LEVEL_NONE;
 	opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_lock_init(&opinfo->state_lock);
 	opinfo->pending_break = 0;
 	opinfo->fid = id;
 	opinfo->Tid = Tid;
@@ -546,14 +547,23 @@ void close_id_del_oplock(struct ksmbd_file *fp)
 	opinfo_del(opinfo);
 
 	rcu_assign_pointer(fp->f_opinfo, NULL);
-	if (opinfo->op_state == OPLOCK_ACK_WAIT) {
-		opinfo->op_state = OPLOCK_CLOSING;
-		wake_up_interruptible_all(&opinfo->oplock_q);
-		if (opinfo->is_lease) {
-			atomic_set(&opinfo->breaking_cnt, 0);
-			wake_up_interruptible_all(&opinfo->oplock_brk);
-		}
-	}
+	spin_lock(&opinfo->state_lock);
+	if (opinfo->op_state == OPLOCK_ACK_WAIT && opinfo->is_lease)
+		atomic_set(&opinfo->breaking_cnt, 0);
+	/*
+	 * An opinfo that has been removed from the inode list is terminal. Keep
+	 * this transition and releasing pending_break under state_lock. a breaker
+	 * takes the same lock before it acquires pending_break or sets ACK_WAIT.
+	 */
+	opinfo->op_state = OPLOCK_CLOSING;
+	clear_bit_unlock(0, &opinfo->pending_break);
+	spin_unlock(&opinfo->state_lock);
+	wake_up_interruptible_all(&opinfo->oplock_q);
+	if (opinfo->is_lease)
+		wake_up_interruptible_all(&opinfo->oplock_brk);
+	/* memory barrier is needed for wake_up_bit() */
+	smp_mb__after_atomic();
+	wake_up_bit(&opinfo->pending_break, 0);
 
 	opinfo_count_dec(fp);
 	atomic_dec(&opinfo->refcount);
@@ -735,12 +745,18 @@ static bool wait_for_break_ack(struct oplock_info *opinfo)
 
 	/* is this a timeout ? */
 	if (!rc) {
+		spin_lock(&opinfo->state_lock);
+		if (opinfo->op_state == OPLOCK_CLOSING) {
+			spin_unlock(&opinfo->state_lock);
+			return false;
+		}
 		if (opinfo->is_lease) {
 			opinfo->o_lease->state = SMB2_LEASE_NONE_LE;
 			lease_update_oplock_levels(opinfo->o_lease);
 		}
 		opinfo->level = SMB2_OPLOCK_LEVEL_NONE;
 		opinfo->op_state = OPLOCK_STATE_NONE;
+		spin_unlock(&opinfo->state_lock);
 		return true;
 	}
 
@@ -755,9 +771,35 @@ static void wake_up_oplock_break(struct oplock_info *opinfo)
 	wake_up_bit(&opinfo->pending_break, 0);
 }
 
+static bool oplock_break_set_ack_wait(struct oplock_info *opinfo)
+{
+	bool ret = false;
+
+	spin_lock(&opinfo->state_lock);
+	if (opinfo->op_state != OPLOCK_CLOSING) {
+		opinfo->op_state = OPLOCK_ACK_WAIT;
+		ret = true;
+	}
+	spin_unlock(&opinfo->state_lock);
+
+	return ret;
+}
+
 static int oplock_break_pending(struct oplock_info *opinfo, int req_op_level)
 {
-	while (test_and_set_bit(0, &opinfo->pending_break)) {
+	for (;;) {
+		bool closing;
+
+		spin_lock(&opinfo->state_lock);
+		closing = opinfo->op_state == OPLOCK_CLOSING;
+		if (!closing && !test_and_set_bit(0, &opinfo->pending_break)) {
+			spin_unlock(&opinfo->state_lock);
+			break;
+		}
+		spin_unlock(&opinfo->state_lock);
+		if (closing)
+			return -ENOENT;
+
 		if (opinfo->is_lease)
 			opinfo->o_lease->reuse_epoch = true;
 
@@ -766,9 +808,12 @@ static int oplock_break_pending(struct oplock_info *opinfo, int req_op_level)
 		/* Not immediately break to none. */
 		opinfo->open_trunc = 0;
 
-		if (opinfo->op_state == OPLOCK_CLOSING)
+		spin_lock(&opinfo->state_lock);
+		closing = opinfo->op_state == OPLOCK_CLOSING;
+		spin_unlock(&opinfo->state_lock);
+		if (closing)
 			return -ENOENT;
-		else if (opinfo->level <= req_op_level) {
+		if (opinfo->level <= req_op_level) {
 			if (opinfo->is_lease == false)
 				return 1;
 
@@ -1146,7 +1191,11 @@ again:
 
 		if (lease->state & (SMB2_LEASE_WRITE_CACHING_LE |
 				SMB2_LEASE_HANDLE_CACHING_LE)) {
-			brk_opinfo->op_state = OPLOCK_ACK_WAIT;
+			if (!oplock_break_set_ack_wait(brk_opinfo)) {
+				atomic_dec_if_positive(&brk_opinfo->breaking_cnt);
+				wake_up_oplock_break(brk_opinfo);
+				return -ENOENT;
+			}
 		} else
 			atomic_dec(&brk_opinfo->breaking_cnt);
 
@@ -1201,8 +1250,12 @@ again:
 			return err < 0 ? err : 0;
 
 		if (brk_opinfo->level == SMB2_OPLOCK_LEVEL_BATCH ||
-		    brk_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE)
-			brk_opinfo->op_state = OPLOCK_ACK_WAIT;
+		    brk_opinfo->level == SMB2_OPLOCK_LEVEL_EXCLUSIVE) {
+			if (!oplock_break_set_ack_wait(brk_opinfo)) {
+				wake_up_oplock_break(brk_opinfo);
+				return -ENOENT;
+			}
+		}
 
 		/*
 		 * Keep a conflicting CREATE asynchronous while waiting for an
@@ -1776,7 +1829,10 @@ next:
 
 		if (!brk_op->is_lease && !send_oplock_break) {
 			brk_op->level = SMB2_OPLOCK_LEVEL_NONE;
-			brk_op->op_state = OPLOCK_STATE_NONE;
+			spin_lock(&brk_op->state_lock);
+			if (brk_op->op_state != OPLOCK_CLOSING)
+				brk_op->op_state = OPLOCK_STATE_NONE;
+			spin_unlock(&brk_op->state_lock);
 		} else {
 			oplock_break(brk_op,
 				     brk_op->is_lease && !is_trunc ?

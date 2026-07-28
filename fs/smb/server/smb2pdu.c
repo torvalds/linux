@@ -10824,7 +10824,10 @@ err_out:
 	smb2_set_err_rsp(work);
 
 out:
-	opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_lock(&opinfo->state_lock);
+	if (opinfo->op_state != OPLOCK_CLOSING)
+		opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_unlock(&opinfo->state_lock);
 	wake_up_interruptible_all(&opinfo->oplock_q);
 out_no_state_change:
 	opinfo_put(opinfo);
@@ -10915,9 +10918,12 @@ static void smb21_lease_break_ack(struct ksmbd_work *work)
 	if (ret)
 		goto err_out;
 
-	opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_lock(&opinfo->state_lock);
+	if (opinfo->op_state != OPLOCK_CLOSING)
+		opinfo->op_state = OPLOCK_STATE_NONE;
+	spin_unlock(&opinfo->state_lock);
 	wake_up_interruptible_all(&opinfo->oplock_q);
-	atomic_dec(&opinfo->breaking_cnt);
+	atomic_dec_if_positive(&opinfo->breaking_cnt);
 	wake_up_interruptible_all(&opinfo->oplock_brk);
 	opinfo_put(opinfo);
 	return;

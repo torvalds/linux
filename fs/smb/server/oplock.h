@@ -66,6 +66,7 @@ struct oplock_info {
 	struct ksmbd_file	*o_fp;
 	int                     level;
 	int                     op_state;
+	spinlock_t		state_lock;
 	unsigned long		pending_break;
 	u64			fid;
 	atomic_t		breaking_cnt;
