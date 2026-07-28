@@ -1220,7 +1220,7 @@ int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation)
 {
 	const struct drm_pagemap_devmem_ops *ops = devmem_allocation->ops;
 	struct drm_pagemap_iova_state state = {};
-	unsigned long npages, mpages = 0;
+	unsigned long npages, mpages;
 	struct page **pages;
 	unsigned long *src, *dst;
 	struct drm_pagemap_addr *pagemap_addr;
@@ -1231,6 +1231,7 @@ int drm_pagemap_evict_to_ram(struct drm_pagemap_devmem *devmem_allocation)
 	npages = devmem_allocation->size >> PAGE_SHIFT;
 
 retry:
+	mpages = 0;
 	if (!mmget_not_zero(devmem_allocation->mm))
 		return -EFAULT;
 
