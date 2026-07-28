@@ -490,8 +490,12 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 	kaddr = kbase + (u32)(vmf->address);
 
 	if (raw_res_spin_lock_irqsave(&arena->spinlock, flags))
-		/* Make a reasonable effort to address impossible case */
-		return VM_FAULT_RETRY;
+		/*
+		 * A failed lock means a possible deadlock was detected. Don't
+		 * return VM_FAULT_RETRY: this handler never took mmap_lock, but
+		 * the fault path would re-take it on retry and deadlock. Fail.
+		 */
+		return VM_FAULT_SIGBUS;
 
 	page = vmalloc_to_page((void *)kaddr);
 	if (page) {
