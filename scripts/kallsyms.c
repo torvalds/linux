@@ -398,11 +398,13 @@ static void write_src(void)
 		strcpy((char *)table[i]->sym, buf);
 		printf("\t/* %s */\n", table[i]->sym);
 	}
+	printf(".size kallsyms_names, . - kallsyms_names\n");
 	printf("\n");
 
 	output_label("kallsyms_markers");
 	for (i = 0; i < markers_cnt; i++)
 		printf("\t.long\t%u\n", markers[i]);
+	printf(".size kallsyms_markers, . - kallsyms_markers\n");
 	printf("\n");
 
 	free(markers);
@@ -415,6 +417,7 @@ static void write_src(void)
 		printf("\t.asciz\t\"%s\"\n", buf);
 		off += strlen(buf) + 1;
 	}
+	printf(".size kallsyms_token_table, . - kallsyms_token_table\n");
 	printf("\n");
 
 	output_label("kallsyms_token_index");
@@ -441,6 +444,7 @@ static void write_src(void)
 			       (unsigned int)table[i]->addr, table[i]->sym);
 		}
 	}
+	printf(".size kallsyms_offsets, . - kallsyms_offsets\n");
 	printf("\n");
 
 	sort_symbols_by_name();
