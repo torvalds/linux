@@ -112,7 +112,6 @@ struct ppc4xx_spi {
 	struct spi_bitbang bitbang;
 	struct completion done;
 
-	int irqnum;
 	/* need this to set the SPI clock */
 	unsigned int opb_freq;
 
@@ -339,7 +338,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	struct device *dev = &op->dev;
 	struct device_node *opbnp;
 	int ret;
-	const unsigned int *clk;
+	unsigned int opb_freq;
 	void __iomem *regs;
 	int irqnum;
 
@@ -390,22 +389,21 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 	/* Get the clock (Hz) for the OPB */
-	clk = of_get_property(opbnp, "clock-frequency", NULL);
+	ret = of_property_read_u32(opbnp, "clock-frequency", &opb_freq);
 	of_node_put(opbnp);
-	if (clk == NULL) {
+	if (ret) {
 		dev_err(dev, "OPB: no clock-frequency property set\n");
 		return -ENODEV;
 	}
-	hw->opb_freq = *clk;
+
+	hw->opb_freq = opb_freq;
 	hw->opb_freq >>= 2;
-
 	hw->regs = regs;
-	hw->irqnum = irqnum;
 
-	ret = devm_request_irq(&op->dev, hw->irqnum, spi_ppc4xx_int,
+	ret = devm_request_irq(&op->dev, irqnum, spi_ppc4xx_int,
 			  0, "spi_ppc4xx_of", hw);
 	if (ret)
-		return dev_err_probe(dev, ret, "unable to allocate interrupt\n");
+		return ret;
 
 	spi_ppc4xx_enable(hw);
 
