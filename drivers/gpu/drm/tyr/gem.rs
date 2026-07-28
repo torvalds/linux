@@ -5,8 +5,12 @@
 //! DRM's GEM subsystem with shmem backing.
 
 use kernel::{
-    drm::gem,
-    prelude::*, //
+    drm::gem::{
+        self,
+        shmem, //
+    },
+    prelude::*,
+    sync::aref::ARef, //
 };
 
 use crate::driver::{
@@ -33,4 +37,22 @@ impl gem::DriverObject for BoData {
     fn new(_dev: &TyrDrmDevice, _size: usize, args: BoCreateArgs) -> impl PinInit<Self, Error> {
         try_pin_init!(Self { flags: args.flags })
     }
+}
+
+/// Type alias for Tyr GEM buffer objects.
+pub(crate) type Bo = gem::shmem::Object<BoData>;
+
+/// Creates a dummy GEM object to serve as the root of a GPUVM.
+pub(crate) fn new_dummy_object(ddev: &TyrDrmDevice) -> Result<ARef<Bo>> {
+    let bo = Bo::new(
+        ddev,
+        4096,
+        shmem::ObjectConfig {
+            map_wc: true,
+            parent_resv_obj: None,
+        },
+        BoCreateArgs { flags: 0 },
+    )?;
+
+    Ok(bo)
 }

@@ -10,7 +10,6 @@
 //! The [`SlotManager`] manages the assignment of virtual address spaces to hardware address-space
 //! (AS) slots. MMU commands such as updates and flushes are carried out by the
 //! [`AddressSpaceManager`] which actually writes to the MMU registers.
-#![expect(dead_code)]
 
 use core::ops::Range;
 

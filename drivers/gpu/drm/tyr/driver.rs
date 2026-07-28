@@ -37,7 +37,7 @@ use kernel::{
 
 use crate::{
     file::TyrDrmFileData,
-    gem::BoData,
+    gem::Bo,
     gpu,
     gpu::GpuInfo,
     mmu::Mmu,
@@ -194,7 +194,7 @@ impl drm::Driver for TyrDrmDriver {
     type Data = ();
     type RegistrationData<'drm> = TyrDrmRegistrationData<'drm>;
     type File = TyrDrmFileData;
-    type Object = drm::gem::shmem::Object<BoData>;
+    type Object = Bo;
     type ParentDevice<Ctx: DeviceContext> = platform::Device<Ctx>;
 
     const INFO: drm::DriverInfo = INFO;
