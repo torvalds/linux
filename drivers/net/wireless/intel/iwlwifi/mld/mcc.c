@@ -95,6 +95,8 @@ iwl_mld_get_regdomain(struct iwl_mld *mld,
 	struct iwl_mcc_update_resp_v8 *resp;
 	u8 resp_ver = iwl_fw_lookup_notif_ver(mld->fw, IWL_ALWAYS_LONG_GROUP,
 					      MCC_UPDATE_CMD, 0);
+	enum iwl_puncturing_status puncturing_status;
+	u16 mcc;
 
 	IWL_DEBUG_LAR(mld, "Getting regdomain data for %s from FW\n", alpha2);
 
@@ -116,12 +118,13 @@ iwl_mld_get_regdomain(struct iwl_mld *mld,
 	}
 	IWL_DEBUG_LAR(mld, "MCC update response version: %d\n", resp_ver);
 
+	mcc = le16_to_cpu(resp->mcc);
 	regd = iwl_parse_nvm_mcc_info(mld->trans,
 				      __le32_to_cpu(resp->n_channels),
-				      resp->channels,
-				      __le16_to_cpu(resp->mcc),
+				      resp->channels, mcc,
 				      __le16_to_cpu(resp->geo_info),
-				      le32_to_cpu(resp->cap), resp_ver);
+				      le32_to_cpu(resp->cap), resp_ver,
+				      &puncturing_status);
 
 	if (IS_ERR(regd)) {
 		IWL_DEBUG_LAR(mld, "Could not get parse update from FW %ld\n",
@@ -135,18 +138,25 @@ iwl_mld_get_regdomain(struct iwl_mld *mld,
 
 	mld->mcc_src = resp->source_id;
 
+	if (puncturing_status == IWL_PUNCTURING_STATUS_ENABLED)
+		__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING,
+			    mld->hw->flags);
+	else if (puncturing_status == IWL_PUNCTURING_STATUS_DISABLED)
+		ieee80211_hw_set(mld->hw, DISALLOW_PUNCTURING);
+
+	if (resp_ver >= 10)
+		goto out;
+
 	/* FM follows BIOS/MCC policy, WH disallows puncturing only in US/CA. */
 	if (CSR_HW_RFID_TYPE(mld->trans->info.hw_rf_id) == IWL_CFG_RF_TYPE_FM) {
-		if (!iwl_puncturing_is_allowed_in_bios(mld->bios_enable_puncturing,
-						       le16_to_cpu(resp->mcc)))
+		if (!iwl_puncturing_is_allowed_in_bios(mld->fwrt.bios_puncturing,
+						       mcc))
 			ieee80211_hw_set(mld->hw, DISALLOW_PUNCTURING);
 		else
 			__clear_bit(IEEE80211_HW_DISALLOW_PUNCTURING,
 				    mld->hw->flags);
 	} else if (CSR_HW_RFID_TYPE(mld->trans->info.hw_rf_id) ==
-			IWL_CFG_RF_TYPE_WH) {
-		u16 mcc = le16_to_cpu(resp->mcc);
-
+		   IWL_CFG_RF_TYPE_WH) {
 		if (mcc == IWL_MCC_US || mcc == IWL_MCC_CANADA)
 			ieee80211_hw_set(mld->hw, DISALLOW_PUNCTURING);
 		else

@@ -25,5 +25,6 @@ int iwl_mld_ftm_start(struct iwl_mld *mld, struct ieee80211_vif *vif,
 void iwl_mld_handle_ftm_resp_notif(struct iwl_mld *mld,
 				   struct iwl_rx_packet *pkt);
 void iwl_mld_ftm_restart_cleanup(struct iwl_mld *mld);
+void iwl_mld_ftm_abort(struct iwl_mld *mld, struct cfg80211_pmsr_request *req);
 
 #endif /* __iwl_mld_ftm_initiator_h__ */

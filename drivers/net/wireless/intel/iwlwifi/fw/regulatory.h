@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2023-2025 Intel Corporation
+ * Copyright (C) 2023-2026 Intel Corporation
  */
 
 #ifndef __fw_regulatory_h__
@@ -30,6 +30,7 @@
 #define BIOS_GEO_MIN_PROFILE_NUM	3
 
 #define IWL_SAR_ENABLE_MSK		BIT(0)
+#define IWL_REDUCE_POWER_FLAGS_POS	1
 
 /* PPAG gain value bounds in 1/8 dBm */
 #define IWL_PPAG_MIN_LB	-16

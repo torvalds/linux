@@ -155,8 +155,8 @@ static void iwl_mvm_rx_monitor_notif(struct iwl_mvm *mvm,
 	if (notif->type != cpu_to_le32(IWL_DP_MON_NOTIF_TYPE_EXT_CCA))
 		return;
 
-	/* FIXME: should fetch the link and not the vif */
-	vif = iwl_mvm_get_vif_by_macid(mvm, notif->link_id);
+	/* mac_id = link_id since we don't support MLO */
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, notif->link_id, false);
 	if (!vif || vif->type != NL80211_IFTYPE_STATION)
 		return;
 
@@ -707,6 +707,7 @@ static const struct iwl_hcmd_names iwl_mvm_regulatory_and_nvm_names[] = {
 	HCMD_NAME(NVM_ACCESS_COMPLETE),
 	HCMD_NAME(NVM_GET_INFO),
 	HCMD_NAME(TAS_CONFIG),
+	HCMD_NAME(LARI_CONFIG_EXTENSION),
 };
 
 /* Please keep this array *SORTED* by hex value.
@@ -954,7 +955,7 @@ static void iwl_mvm_frob_txf_key_iter(struct ieee80211_hw *hw,
 		}
 		match++;
 		if (match == keylen) {
-			memset(txf->buf + i - keylen, 0xAA, keylen);
+			memset(txf->buf + i + 1 - keylen, 0xAA, keylen);
 			match = 0;
 		}
 	}
@@ -1535,6 +1536,7 @@ void iwl_mvm_stop_device(struct iwl_mvm *mvm)
 	iwl_fw_cancel_timestamp(&mvm->fwrt);
 
 	clear_bit(IWL_MVM_STATUS_FIRMWARE_RUNNING, &mvm->status);
+	mvm->sf_state = SF_UNINIT;
 
 	iwl_mvm_pause_tcm(mvm, false);
 
@@ -2090,7 +2092,7 @@ static void iwl_op_mode_mvm_device_powered_off(struct iwl_op_mode *op_mode)
 
 	mutex_lock(&mvm->mutex);
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
-	iwl_mvm_stop_device(mvm);
+	iwl_mvm_restart_cleanup(mvm);
 	mvm->fast_resume = false;
 	mutex_unlock(&mvm->mutex);
 }

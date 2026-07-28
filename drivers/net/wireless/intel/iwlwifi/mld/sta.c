@@ -355,10 +355,9 @@ static void iwl_mld_fill_pkt_ext(struct iwl_mld *mld,
 
 	for (int i = 0; i < MAX_HE_SUPP_NSS; i++) {
 		for (int bw = 0;
-		     bw < ARRAY_SIZE(*pkt_ext->pkt_ext_qam_th[i]);
+		     bw < ARRAY_SIZE(pkt_ext->pkt_ext_qam_th[i]);
 		     bw++) {
-			u8 *qam_th =
-				&pkt_ext->pkt_ext_qam_th[i][bw][0];
+			u8 *qam_th = pkt_ext->pkt_ext_qam_th[i][bw];
 
 			IWL_DEBUG_HT(mld,
 				     "PPE table: nss[%d] bw[%d] PPET8 = %d, PPET16 = %d\n",
