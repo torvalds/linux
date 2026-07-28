@@ -1,0 +1,21 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflow_medium
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflowY_medium
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		The calibration medium the flow sensor uses to convert its
+		raw reading into a volumetric flow rate.  Liquid flow sensors
+		are factory-calibrated per medium, so the selected medium has
+		to match the fluid actually flowing through the sensor for the
+		reported flow rate to be correct.
+
+		Reading returns the currently active medium; writing one of the
+		strings listed in in_volumeflow_medium_available selects it.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflow_medium_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_volumeflowY_medium_available
+KernelVersion:	7.3
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Space separated list of the calibration media supported by the
+		device, e.g. "water ipa".

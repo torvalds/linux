@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Liquid / gas flow sensor drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Flow sensors"
+
+config SENSIRION_SLF3S
+	tristate "Sensirion SLF3S liquid flow sensor"
+	depends on I2C
+	select CRC8
+	help
+	  Say yes here to build support for the Sensirion SLF3S family of
+	  digital liquid-flow sensors (SLF3S-0600F, SLF3S-1300F and
+	  SLF3S-4000B).  The driver reports the volumetric flow rate and the
+	  embedded temperature reading via the standard IIO interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called slf3s.
+
+endmenu
