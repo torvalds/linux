@@ -138,6 +138,7 @@ struct inv_icm42607_hw {
  *  @lock:		lock for serializing multiple registers access.
  *  @map:		regmap pointer.
  *  @indio_accel:	accelerometer IIO device.
+ *  @indio_gyro:	gyroscope IIO device.
  *  @vddio_supply:	I/O voltage regulator for the chip.
  *  @vddio_en:		I/O voltage status for runtime PM.
  *  @conf:		chip sensors configurations.
@@ -148,6 +149,7 @@ struct inv_icm42607_state {
 	struct mutex lock;
 	struct regmap *map;
 	struct iio_dev *indio_accel;
+	struct iio_dev *indio_gyro;
 	struct regulator *vddio_supply;
 	bool vddio_en;
 	struct inv_icm42607_conf conf;
@@ -411,6 +413,8 @@ int inv_icm42607_read_sensor(struct iio_dev *indio_dev,
 int inv_icm42607_core_probe(struct regmap *regmap,
 			    const struct inv_icm42607_hw *hw,
 			    inv_icm42607_bus_setup bus_setup);
+
+struct iio_dev *inv_icm42607_gyro_init(struct inv_icm42607_state *st);
 
 struct iio_dev *inv_icm42607_accel_init(struct inv_icm42607_state *st);
 
