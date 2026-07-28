@@ -218,6 +218,7 @@ int sdw_cdns_bpt_find_bandwidth(int command, /* 0: write, 1: read */
 int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 				   int row, int col, unsigned int data_bytes,
 				   unsigned int requested_bytes_per_frame,
+				   unsigned int bra_block_alignment,
 				   unsigned int *data_per_frame, unsigned int *pdi0_buffer_size,
 				   unsigned int *pdi1_buffer_size, unsigned int *num_frames);
 

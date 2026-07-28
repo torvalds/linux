@@ -173,6 +173,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
 						     cdns->bus.params.col,
 						     msg->sec[i].len, SDW_BPT_MSG_MAX_BYTES,
+						     slave->prop.bra_block_alignment,
 						     &data_per_frame, &pdi0_buffer_size_,
 						     &pdi1_buffer_size_, &num_frames_);
 		if (ret < 0)
@@ -197,6 +198,7 @@ static int intel_ace2x_bpt_open_stream(struct sdw_intel *sdw, struct sdw_slave *
 		ret = sdw_cdns_bpt_find_buffer_sizes(command, cdns->bus.params.row,
 						     cdns->bus.params.col,
 						     data_per_frame, SDW_BPT_MSG_MAX_BYTES,
+						     slave->prop.bra_block_alignment,
 						     &data_per_frame, &pdi0_buf_size_pre_frame,
 						     &pdi1_buf_size_pre_frame, &fake_num_frames);
 		if (ret < 0)

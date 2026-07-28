@@ -2135,6 +2135,7 @@ EXPORT_SYMBOL(sdw_cdns_bpt_find_bandwidth);
 int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 				   int row, int col, unsigned int data_bytes,
 				   unsigned int requested_bytes_per_frame,
+				   unsigned int bra_block_alignment,
 				   unsigned int *data_per_frame, unsigned int *pdi0_buffer_size,
 				   unsigned int *pdi1_buffer_size, unsigned int *num_frames)
 {
@@ -2158,6 +2159,16 @@ int sdw_cdns_bpt_find_buffer_sizes(int command, /* 0: write, 1: read */
 	 */
 	if (requested_bytes_per_frame < actual_bpt_bytes)
 		actual_bpt_bytes = requested_bytes_per_frame;
+
+	if (bra_block_alignment) {
+		/* align to a multiple of bra_block_alignment */
+		if (actual_bpt_bytes < bra_block_alignment) {
+			pr_err("effective bytes per frame %u is smaller than block alignment %u\n",
+			       actual_bpt_bytes, bra_block_alignment);
+			return -EINVAL;
+		}
+		actual_bpt_bytes -= (actual_bpt_bytes % bra_block_alignment);
+	}
 
 	*data_per_frame = actual_bpt_bytes;
 
