@@ -413,6 +413,7 @@ struct guest_regs {
 	u64 r13;
 	u64 r14;
 	u64 r15;
+	u64 rflags;
 };
 
 extern struct guest_regs guest_regs;
@@ -436,7 +437,8 @@ extern struct guest_regs guest_regs;
 	GUEST_REG_OFFSET(r12),	\
 	GUEST_REG_OFFSET(r13),	\
 	GUEST_REG_OFFSET(r14),	\
-	GUEST_REG_OFFSET(r15)
+	GUEST_REG_OFFSET(r15),	\
+	GUEST_REG_OFFSET(rflags)
 
 #define GUEST_REG(name) "guest_regs + %c[off_" #name "]"
 

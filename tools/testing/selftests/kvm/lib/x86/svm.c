@@ -13,8 +13,6 @@
 
 #define SEV_DEV_PATH "/dev/sev"
 
-u64 rflags;
-
 /* Allocate memory regions for nested SVM tests.
  *
  * Input Args:
@@ -161,7 +159,7 @@ void run_guest(struct vmcb *vmcb, u64 vmcb_gpa)
 {
 	asm volatile (
 		"vmload %[vmcb_gpa]\n\t"
-		"mov rflags, %%r15\n\t"
+		"mov " GUEST_REG(rflags) ", %%r15\n\t"
 		"mov %%r15, %[vmcb_rflags]\n\t"
 		"mov " GUEST_REG(rax) ", %%r15\n\t"
 		"mov %%r15, %[vmcb_rax]\n\t"
@@ -169,7 +167,7 @@ void run_guest(struct vmcb *vmcb, u64 vmcb_gpa)
 		"vmrun %[vmcb_gpa]\n\t"
 		SVM_SWITCH_GPRS_ASM
 		"mov %[vmcb_rflags], %%r15\n\t"
-		"mov %%r15, rflags\n\t"
+		"mov %%r15, " GUEST_REG(rflags) "\n\t"
 		"mov %[vmcb_rax], %%r15\n\t"	// rax
 		"mov %%r15, " GUEST_REG(rax) "\n\t"
 		"vmsave %[vmcb_gpa]\n\t"
