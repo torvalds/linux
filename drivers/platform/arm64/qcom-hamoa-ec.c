@@ -92,8 +92,10 @@ static int qcom_ec_read(struct qcom_ec *ec, u8 cmd, u8 resp_len, u8 *resp)
 		return ret;
 	else if (ret == 0 || ret == 0xff)
 		return -EOPNOTSUPP;
+	else if (ret != resp_len)
+		return -EIO;
 
-	if (resp[0] >= resp_len)
+	if (resp[0] != resp_len - 1)
 		return -EINVAL;
 
 	return 0;
