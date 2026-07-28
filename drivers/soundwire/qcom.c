@@ -1633,6 +1633,7 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 
 	prop = &ctrl->bus.prop;
 	prop->max_clk_freq = DEFAULT_CLK_FREQ;
+	prop->mclk_freq = DEFAULT_CLK_FREQ;
 	prop->num_clk_gears = 0;
 	prop->num_clk_freq = MAX_FREQ_NUM;
 	prop->clk_freq = &qcom_swrm_freq_tbl[0];
