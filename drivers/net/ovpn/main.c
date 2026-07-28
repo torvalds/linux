@@ -260,8 +260,11 @@ static struct rtnl_link_ops ovpn_link_ops = {
 
 static int __init ovpn_init(void)
 {
-	int err = rtnl_link_register(&ovpn_link_ops);
+	int err;
 
+	ovpn_tcp_init();
+
+	err = rtnl_link_register(&ovpn_link_ops);
 	if (err) {
 		pr_err("ovpn: can't register rtnl link ops: %d\n", err);
 		return err;
@@ -272,8 +275,6 @@ static int __init ovpn_init(void)
 		pr_err("ovpn: can't register netlink family: %d\n", err);
 		goto unreg_rtnl;
 	}
-
-	ovpn_tcp_init();
 
 	return 0;
 
