@@ -68,11 +68,12 @@ static const int cpa_warn_level = CPA_PROTECT;
  */
 static DEFINE_SPINLOCK(cpa_lock);
 
-#define CPA_FLUSHTLB 1
-#define CPA_ARRAY 2
-#define CPA_PAGES_ARRAY 4
-#define CPA_NO_CHECK_ALIAS 8 /* Do not search for aliases */
-#define CPA_COLLAPSE 16 /* try to collapse large pages */
+#define CPA_FLUSHTLB		0x01
+#define CPA_ARRAY		0x02
+#define CPA_PAGES_ARRAY		0x04
+#define CPA_NO_CHECK_ALIAS	0x08 /* Do not search for aliases */
+#define CPA_COLLAPSE		0x10 /* try to collapse large pages */
+#define CPA_DEBUG_PAGEALLOC	0x20
 
 static inline pgprot_t cachemode2pgprot(enum page_cache_mode pcm)
 {
@@ -1990,6 +1991,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 {
 	unsigned long numpages = cpa->numpages;
 	unsigned long rempages = numpages;
+	bool lock = true;
 	int ret = 0;
 
 	/*
@@ -1998,6 +2000,29 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 	if (!(pgprot_val(cpa->mask_set) | pgprot_val(cpa->mask_clr)) &&
 	    !cpa->force_split)
 		return ret;
+
+	/*
+	 * DEBUG_PAGEALLOC is special; it is called from any context the
+	 * page-allocator is, which violates the normal cpa_lock locking
+	 * rules.
+	 *
+	 * However, since it is part of the page-allocator, things are still
+	 * properly serialized by the page-allocator locking and the fact that
+	 * when a page is owned by the page-allocator, it isn't owned by
+	 * anybody else. That is, you *SHOULD NOT* be calling cpa() on memory
+	 * that isn't allocated.
+	 *
+	 * Additionally, DEBUG_PAGEALLOC ensures (per probe_page_size_mask())
+	 * that the kernel mapping is 4k pages, therefore there are no large
+	 * pages to split/collapse.
+	 *
+	 * Furthermore, the page-allocator strictly manages pages that
+	 * *exist*, avoiding pgd_lock.
+	 *
+	 * Therefore, it is safe to not take cpa_lock.
+	 */
+	if (debug_pagealloc_enabled() && (cpa->flags & CPA_DEBUG_PAGEALLOC))
+		lock = false;
 
 	while (rempages) {
 		/*
@@ -2009,9 +2034,12 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int primary)
 		if (cpa->flags & (CPA_ARRAY | CPA_PAGES_ARRAY))
 			cpa->numpages = 1;
 
-		spin_lock(&cpa_lock);
-		ret = __change_page_attr(cpa, primary);
-		spin_unlock(&cpa_lock);
+		if (lock) {
+			guard(spinlock)(&cpa_lock);
+			ret = __change_page_attr(cpa, primary);
+		} else {
+			ret = __change_page_attr(cpa, primary);
+		}
 		if (ret)
 			goto out;
 
@@ -2590,7 +2618,7 @@ int set_pages_rw(struct page *page, int numpages)
 	return set_memory_rw(addr, numpages);
 }
 
-static int __set_pages_p(struct page *page, int numpages)
+static int __set_pages_p(struct page *page, int numpages, unsigned int cpa_flags)
 {
 	unsigned long tempaddr = (unsigned long) page_address(page);
 	struct cpa_data cpa = { .vaddr = &tempaddr,
@@ -2598,7 +2626,7 @@ static int __set_pages_p(struct page *page, int numpages)
 				.numpages = numpages,
 				.mask_set = __pgprot(_PAGE_PRESENT | _PAGE_RW),
 				.mask_clr = __pgprot(0),
-				.flags = CPA_NO_CHECK_ALIAS };
+				.flags = CPA_NO_CHECK_ALIAS | cpa_flags };
 
 	/*
 	 * No alias checking needed for setting present flag. otherwise,
@@ -2609,7 +2637,7 @@ static int __set_pages_p(struct page *page, int numpages)
 	return __change_page_attr_set_clr(&cpa, 1);
 }
 
-static int __set_pages_np(struct page *page, int numpages)
+static int __set_pages_np(struct page *page, int numpages, unsigned int cpa_flags)
 {
 	unsigned long tempaddr = (unsigned long) page_address(page);
 	struct cpa_data cpa = { .vaddr = &tempaddr,
@@ -2617,7 +2645,7 @@ static int __set_pages_np(struct page *page, int numpages)
 				.numpages = numpages,
 				.mask_set = __pgprot(0),
 				.mask_clr = __pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY),
-				.flags = CPA_NO_CHECK_ALIAS };
+				.flags = CPA_NO_CHECK_ALIAS | cpa_flags };
 
 	/*
 	 * No alias checking needed for setting not present flag. otherwise,
@@ -2630,20 +2658,20 @@ static int __set_pages_np(struct page *page, int numpages)
 
 int set_direct_map_invalid_noflush(struct page *page)
 {
-	return __set_pages_np(page, 1);
+	return __set_pages_np(page, 1, 0);
 }
 
 int set_direct_map_default_noflush(struct page *page)
 {
-	return __set_pages_p(page, 1);
+	return __set_pages_p(page, 1, 0);
 }
 
 int set_direct_map_valid_noflush(struct page *page, unsigned nr, bool valid)
 {
 	if (valid)
-		return __set_pages_p(page, nr);
+		return __set_pages_p(page, nr, 0);
 
-	return __set_pages_np(page, nr);
+	return __set_pages_np(page, nr, 0);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
@@ -2662,15 +2690,23 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	 * and hence no memory allocations during large page split.
 	 */
 	if (enable)
-		__set_pages_p(page, numpages);
+		__set_pages_p(page, numpages, CPA_DEBUG_PAGEALLOC);
 	else
-		__set_pages_np(page, numpages);
+		__set_pages_np(page, numpages, CPA_DEBUG_PAGEALLOC);
 
 	/*
-	 * We should perform an IPI and flush all tlbs,
-	 * but that can deadlock->flush only current cpu.
-	 * Preemption needs to be disabled around __flush_tlb_all() due to
-	 * CR3 reload in __native_flush_tlb().
+	 * We should perform an IPI and flush all tlbs, but that can
+	 * deadlock, settle for a local flush.
+	 *
+	 * Not doing a global TLB flush means that remote CPUs will retain
+	 * stale TLB entries. In case of P->NP (on free) this means the remote
+	 * CPUs will not take the faults, making the debug scheme less
+	 * reliable. On the NP->P (on alloc) this means the remote CPUs can
+	 * take a spurious fault. However spurious_kernel_fault() will observe
+	 * *_present() and fix it up.
+	 *
+	 * Preemption needs to be disabled around __flush_tlb_all() due to CR3
+	 * reload in __native_flush_tlb().
 	 */
 	preempt_disable();
 	__flush_tlb_all();
