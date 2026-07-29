@@ -160,6 +160,9 @@ static void drm_log_draw_kmsg_record(struct drm_log_scanout *scanout,
 {
 	u32 prefix_len = 0;
 
+	if (!len)
+		return;
+
 	if (len > TS_PREFIX_LEN && s[0] == '[' && s[6] == '.' && s[TS_PREFIX_LEN] == ']')
 		prefix_len = TS_PREFIX_LEN + 1;
 
