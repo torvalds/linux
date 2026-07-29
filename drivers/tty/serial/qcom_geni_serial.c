@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
+#include <linux/irq_work.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/panic_notifier.h>
@@ -89,6 +90,7 @@
 #define DEF_TX_WM			2
 #define DEF_FIFO_WIDTH_BITS		32
 #define UART_RX_WM			2
+#define CONSOLE_TX_CHUNK_SIZE		32
 
 /* SE_UART_LOOPBACK_CFG */
 #define RX_TX_SORTED			BIT(0)
@@ -153,7 +155,8 @@ struct qcom_geni_serial_port {
 	bool rx_tx_swap;
 	bool cts_rts_swap;
 	bool manual_flow;
-
+	bool tx_kick_enabled;
+	struct irq_work tx_kick;
 	struct qcom_geni_private_data private_data;
 	const struct qcom_geni_device_data *dev_data;
 	struct dev_pm_domain_list *pd_list;
@@ -168,6 +171,8 @@ static struct uart_driver qcom_geni_uart_driver;
 static void __qcom_geni_serial_cancel_tx_cmd(struct uart_port *uport);
 static void qcom_geni_serial_cancel_tx_cmd(struct uart_port *uport);
 static int qcom_geni_serial_port_setup(struct uart_port *uport);
+static void qcom_geni_serial_start_tx_fifo(struct uart_port *uport);
+static void qcom_geni_serial_resume_tx(struct uart_port *uport);
 
 static inline struct qcom_geni_serial_port *to_dev_port(struct uart_port *uport)
 {
@@ -539,49 +544,123 @@ __qcom_geni_serial_console_write(struct uart_port *uport, const char *s,
 	qcom_geni_serial_poll_tx_done(uport);
 }
 
-static void qcom_geni_serial_console_write(struct console *co, const char *s,
-			      unsigned int count)
+static void qcom_geni_serial_console_takeover(struct uart_port *uport,
+					       bool preserve_tx)
 {
-	struct uart_port *uport;
-	struct qcom_geni_serial_port *port;
-	u32 m_irq_en, s_irq_en;
-	bool locked = true;
-	unsigned long flags;
+	if (qcom_geni_serial_main_active(uport)) {
+		struct qcom_geni_serial_port *port = to_dev_port(uport);
 
-	WARN_ON(co->index < 0 || co->index >= GENI_UART_CONS_PORTS);
+		if (preserve_tx) {
+			if (port->tx_remaining == 0)
+				qcom_geni_serial_poll_tx_done(uport);
+			else
+				qcom_geni_serial_drain_fifo(uport);
+		}
+
+		qcom_geni_serial_cancel_tx_cmd(uport);
+	}
+}
+
+static void qcom_geni_serial_console_write_thread(struct console *co,
+						  struct nbcon_write_context *wctxt)
+{
+	struct qcom_geni_serial_port *port;
+	struct uart_port *uport;
+	unsigned int offset = 0;
 
 	port = get_port_from_line(co->index, true, NULL);
 	if (IS_ERR(port))
 		return;
 
 	uport = &port->uport;
-	if (oops_in_progress)
-		locked = uart_port_trylock_irqsave(uport, &flags);
-	else
-		uart_port_lock_irqsave(uport, &flags);
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
+
+	qcom_geni_serial_console_takeover(uport, true);
+	if (!nbcon_exit_unsafe(wctxt))
+		return;
+
+	while (offset < wctxt->len) {
+		/*
+		 * Printk records can be much larger than the FIFO. Limit one
+		 * M-side command to 32 source bytes so atomic console output can
+		 * take over between commands instead of waiting for the record.
+		 */
+		unsigned int count = min_t(unsigned int, wctxt->len - offset,
+						   CONSOLE_TX_CHUNK_SIZE);
+
+		if (!nbcon_enter_unsafe(wctxt))
+			return;
+
+		__qcom_geni_serial_console_write(uport, wctxt->outbuf + offset,
+						 count);
+		offset += count;
+
+		if (!nbcon_exit_unsafe(wctxt))
+			return;
+	}
+
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
+
+	qcom_geni_serial_resume_tx(uport);
+	nbcon_exit_unsafe(wctxt);
+}
+
+static void qcom_geni_serial_console_write_atomic(struct console *co,
+						  struct nbcon_write_context *wctxt)
+{
+	struct qcom_geni_serial_port *port;
+	struct uart_port *uport;
+	u32 m_irq_en, s_irq_en;
+
+	port = get_port_from_line(co->index, true, NULL);
+	if (IS_ERR(port))
+		return;
+
+	uport = &port->uport;
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
 
 	m_irq_en = readl(uport->membase + SE_GENI_M_IRQ_EN);
 	s_irq_en = readl(uport->membase + SE_GENI_S_IRQ_EN);
 	writel(0, uport->membase + SE_GENI_M_IRQ_EN);
 	writel(0, uport->membase + SE_GENI_S_IRQ_EN);
 
-	if (qcom_geni_serial_main_active(uport)) {
-		/* Wait for completion or drain FIFO */
-		if (!locked || port->tx_remaining == 0)
-			qcom_geni_serial_poll_tx_done(uport);
-		else
-			qcom_geni_serial_drain_fifo(uport);
-
-		qcom_geni_serial_cancel_tx_cmd(uport);
-	}
-
-	__qcom_geni_serial_console_write(uport, s, count);
+	qcom_geni_serial_console_takeover(uport, false);
+	__qcom_geni_serial_console_write(uport, wctxt->outbuf, wctxt->len);
 
 	writel(m_irq_en, uport->membase + SE_GENI_M_IRQ_EN);
 	writel(s_irq_en, uport->membase + SE_GENI_S_IRQ_EN);
+	nbcon_exit_unsafe(wctxt);
 
-	if (locked)
-		uart_port_unlock_irqrestore(uport, flags);
+	/* Restart TTY data left queued when atomic output canceled M TX. */
+	if (READ_ONCE(port->tx_kick_enabled))
+		irq_work_queue(&port->tx_kick);
+}
+
+static void qcom_geni_serial_console_device_lock(struct console *co,
+						  unsigned long *flags)
+{
+	struct qcom_geni_serial_port *port;
+
+	port = get_port_from_line(co->index, true, NULL);
+	if (IS_ERR(port))
+		return;
+
+	__uart_port_lock_irqsave(&port->uport, flags);
+}
+
+static void qcom_geni_serial_console_device_unlock(struct console *co,
+						    unsigned long flags)
+{
+	struct qcom_geni_serial_port *port;
+
+	port = get_port_from_line(co->index, true, NULL);
+	if (IS_ERR(port))
+		return;
+
+	__uart_port_unlock_irqrestore(&port->uport, flags);
 }
 
 static void handle_rx_console(struct uart_port *uport, u32 bytes, bool drop)
@@ -736,6 +815,29 @@ static void qcom_geni_serial_start_tx_fifo(struct uart_port *uport)
 	irq_en |= M_TX_FIFO_WATERMARK_EN | M_CMD_DONE_EN;
 	writel(DEF_TX_WM, uport->membase + SE_GENI_TX_WATERMARK_REG);
 	writel(irq_en, uport->membase +	SE_GENI_M_IRQ_EN);
+}
+
+/* Caller holds the UART port lock. */
+static void qcom_geni_serial_resume_tx(struct uart_port *uport)
+{
+	if (!uart_tx_stopped(uport) &&
+	    !kfifo_is_empty(&uport->state->port.xmit_fifo))
+		qcom_geni_serial_start_tx_fifo(uport);
+}
+
+static void qcom_geni_serial_restart_tx(struct irq_work *work)
+{
+	struct qcom_geni_serial_port *port = container_of(work,
+						      struct qcom_geni_serial_port, tx_kick);
+	struct uart_port *uport = &port->uport;
+
+	if (!READ_ONCE(port->tx_kick_enabled) || !uport->state || uport->suspended)
+		return;
+
+	uart_port_lock(uport);
+	if (READ_ONCE(port->tx_kick_enabled) && uport->state && !uport->suspended)
+		qcom_geni_serial_resume_tx(uport);
+	uart_port_unlock(uport);
 }
 
 static void qcom_geni_serial_stop_tx_fifo(struct uart_port *uport)
@@ -1182,6 +1284,11 @@ static int setup_fifos(struct qcom_geni_serial_port *port)
 
 static void qcom_geni_serial_shutdown(struct uart_port *uport)
 {
+	struct qcom_geni_serial_port *port = to_dev_port(uport);
+
+	/* Atomic console output queues tx_kick without taking the port lock. */
+	WRITE_ONCE(port->tx_kick_enabled, false);
+	irq_work_sync(&port->tx_kick);
 	disable_irq(uport->irq);
 
 	uart_port_lock_irq(uport);
@@ -1291,6 +1398,7 @@ static int qcom_geni_serial_startup(struct uart_port *uport)
 	uart_port_unlock_irq(uport);
 
 	enable_irq(uport->irq);
+	WRITE_ONCE(port->tx_kick_enabled, true);
 
 	return 0;
 }
@@ -1637,10 +1745,13 @@ static void console_unregister(struct uart_driver *drv)
 
 static struct console cons_ops = {
 	.name = "ttyMSM",
-	.write = qcom_geni_serial_console_write,
+	.write_atomic = qcom_geni_serial_console_write_atomic,
+	.write_thread = qcom_geni_serial_console_write_thread,
+	.device_lock = qcom_geni_serial_console_device_lock,
+	.device_unlock = qcom_geni_serial_console_device_unlock,
 	.device = uart_console_device,
 	.setup = qcom_geni_console_setup,
-	.flags = CON_PRINTBUFFER,
+	.flags = CON_PRINTBUFFER | CON_NBCON,
 	.index = -1,
 	.data = &qcom_geni_console_driver,
 };
@@ -1938,6 +2049,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 
 	port->private_data.drv = drv;
 	uport->private_data = &port->private_data;
+	init_irq_work(&port->tx_kick, qcom_geni_serial_restart_tx);
 	platform_set_drvdata(pdev, port);
 
 	irq_set_status_flags(uport->irq, IRQ_NOAUTOEN);
@@ -1999,6 +2111,8 @@ static void qcom_geni_serial_remove(struct platform_device *pdev)
 
 	atomic_notifier_chain_unregister(&panic_notifier_list, &port->panic_nb);
 
+	WRITE_ONCE(port->tx_kick_enabled, false);
+	irq_work_sync(&port->tx_kick);
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
 	ida_free(&port_ida, uport->line);
