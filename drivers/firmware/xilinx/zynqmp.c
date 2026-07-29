@@ -3,7 +3,7 @@
  * Xilinx Zynq MPSoC Firmware layer
  *
  *  Copyright (C) 2014-2022 Xilinx, Inc.
- *  Copyright (C) 2022 - 2025 Advanced Micro Devices, Inc.
+ *  Copyright (C) 2022 - 2026 Advanced Micro Devices, Inc.
  *
  *  Michal Simek <michal.simek@amd.com>
  *  Davorin Mista <davorin.mista@aggios.com>
@@ -13,6 +13,7 @@
 
 #include <linux/arm-smccc.h>
 #include <linux/compiler.h>
+#include <linux/crash_dump.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/mfd/core.h>
@@ -2068,6 +2069,44 @@ static struct attribute *zynqmp_firmware_attrs[] = {
 
 ATTRIBUTE_GROUPS(zynqmp_firmware);
 
+/**
+ * zynqmp_clear_pm_state() - Clear subsystem state
+ * @dev: Device pointer used for logging
+ *
+ * Clears PM specific data in EL3 firmware.
+ *
+ * Return: Returns status, either success or error
+ */
+static int zynqmp_clear_pm_state(struct device *dev)
+{
+	u32 pm_family_code;
+	int ret;
+
+	/* Get the Family code of platform */
+	ret = zynqmp_pm_get_family_info(&pm_family_code);
+	if (ret < 0)
+		return ret;
+
+	/* Supporting on Versal and Versal Net platforms only */
+	if (pm_family_code == PM_VERSAL_FAMILY_CODE ||
+	    pm_family_code == PM_VERSAL_NET_FAMILY_CODE) {
+		/* Check if EL3 firmware supports TF_A_CLEAR_PM_STATE */
+		ret = do_feature_check_call(TF_A_CLEAR_PM_STATE);
+		if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_1)) {
+			/* Clear PM specific data in EL3 firmware */
+			ret = zynqmp_pm_invoke_fn(TF_A_CLEAR_PM_STATE, NULL, 0);
+			if (ret)
+				dev_err(dev,
+					"Failed to clear EL3 PM subsystem state: %d\n", ret);
+		} else {
+			dev_warn(dev, "TF_A_CLEAR_PM_STATE is not supported by EL3 firmware: %d\n", ret);
+			ret = 0;
+		}
+	}
+
+	return ret;
+}
+
 static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2121,6 +2160,9 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	if (is_kdump_kernel())
+		zynqmp_clear_pm_state(dev);
+
 	/* Check trustzone version number */
 	ret = zynqmp_pm_get_trustzone_version(&pm_tz_version);
 	if (ret)
@@ -2152,6 +2194,11 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 	}
 
 	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+}
+
+static void zynqmp_firmware_shutdown(struct platform_device *pdev)
+{
+	zynqmp_clear_pm_state(&pdev->dev);
 }
 
 static void zynqmp_firmware_remove(struct platform_device *pdev)
@@ -2213,5 +2260,6 @@ static struct platform_driver zynqmp_firmware_driver = {
 	},
 	.probe = zynqmp_firmware_probe,
 	.remove = zynqmp_firmware_remove,
+	.shutdown = zynqmp_firmware_shutdown,
 };
 module_platform_driver(zynqmp_firmware_driver);
