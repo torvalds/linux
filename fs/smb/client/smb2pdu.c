@@ -4893,6 +4893,7 @@ out:
 	    smb2_should_replay(tcon,
 			       &rdata->retries,
 			       &rdata->cur_sleep)) {
+		rdata->replay = true;
 		trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_retry_needed);
 		__set_bit(NETFS_SREQ_NEED_RETRY, &rdata->subreq.flags);
 	}
