@@ -2000,8 +2000,14 @@ static void wait_for_xmitr(struct uart_8250_port *up, int bits)
 
 	tx_ready = wait_for_lsr(up, bits);
 
-	/* Wait up to 1s for flow control if necessary */
-	if (uart_console_hwflow_active(&up->port)) {
+	/*
+	 * Wait up to 1s for flow control if necessary.
+	 * When 'no_console_suspend' is active (in the window between
+	 * suspend() and resume()), flow control is temporarily ignored
+	 * because the canary workaround is not reliable in all situations,
+	 * leading to flow control timeouts for every character.
+	 */
+	if (uart_console_hwflow_active(&up->port) && !up->canary) {
 		for (tmout = 1000000; tmout; tmout--) {
 			unsigned int msr = serial_in(up, UART_MSR);
 			up->msr_saved_flags |= msr & MSR_SAVE_FLAGS;

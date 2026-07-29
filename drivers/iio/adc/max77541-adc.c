@@ -6,7 +6,6 @@
 
 #include <linux/bitfield.h>
 #include <linux/iio/iio.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/units.h>

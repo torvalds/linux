@@ -2,7 +2,6 @@
 /* Copyright (c) 2021, Linaro Ltd <loic.poulain@linaro.org> */
 #include <linux/kernel.h>
 #include <linux/mhi.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/wwan.h>
 

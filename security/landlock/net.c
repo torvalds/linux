@@ -351,6 +351,14 @@ static int hook_socket_sendmsg(struct socket *const sock,
 	access_mask_t access_request;
 	int ret = 0;
 
+	if ((msg->msg_flags & MSG_FASTOPEN) && address && sk_is_tcp(sock->sk)) {
+		ret = current_check_access_socket(
+			sock, address, addrlen, LANDLOCK_ACCESS_NET_CONNECT_TCP,
+			true);
+		if (ret != 0)
+			return ret;
+	}
+
 	if (sk_is_udp(sock->sk))
 		access_request = LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP;
 	else

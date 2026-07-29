@@ -6,7 +6,7 @@
  * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
  */
 
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ipack.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 

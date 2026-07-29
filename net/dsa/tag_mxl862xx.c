@@ -64,6 +64,7 @@ static struct sk_buff *mxl862_tag_rcv(struct sk_buff *skb,
 
 	if (unlikely(!pskb_may_pull(skb, MXL862_HEADER_LEN))) {
 		dev_warn_ratelimited(&dev->dev, "Cannot pull SKB, packet dropped\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -73,6 +74,7 @@ static struct sk_buff *mxl862_tag_rcv(struct sk_buff *skb,
 		dev_warn_ratelimited(&dev->dev,
 				     "Invalid special tag marker, packet dropped, tag: %8ph\n",
 				     mxl862_tag);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -83,6 +85,7 @@ static struct sk_buff *mxl862_tag_rcv(struct sk_buff *skb,
 		dev_warn_ratelimited(&dev->dev,
 				     "Invalid source port, packet dropped, tag: %8ph\n",
 				     mxl862_tag);
+		kfree_skb(skb);
 		return NULL;
 	}
 

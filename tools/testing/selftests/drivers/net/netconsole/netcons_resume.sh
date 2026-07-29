@@ -44,7 +44,8 @@ function trigger_reactivation() {
 	# Restore MACs
 	ip netns exec "${NAMESPACE}" ip link set "${DSTIF}" \
 		address "${SAVED_DSTMAC}"
-	if [ "${BINDMODE}" == "mac" ]; then
+	if [ "${BINDMODE}" == "mac" ] &&
+		[ "$(mac_get "${SRCIF}")" != "${SAVED_SRCMAC}" ]; then
 		ip link set dev "${SRCIF}" down
 		ip link set dev "${SRCIF}" address "${SAVED_SRCMAC}"
 		# Rename device in order to trigger target resume, as initial

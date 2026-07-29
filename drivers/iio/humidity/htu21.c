@@ -19,7 +19,6 @@
 #include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 

@@ -14,7 +14,6 @@
 #include <linux/iopoll.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

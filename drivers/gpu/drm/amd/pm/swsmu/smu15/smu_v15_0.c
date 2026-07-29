@@ -664,6 +664,7 @@ int smu_v15_0_gfx_off_control(struct smu_context *smu, bool enable)
 
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(15, 0, 0):
+	case IP_VERSION(15, 0, 9):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)

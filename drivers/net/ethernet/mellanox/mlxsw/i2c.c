@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_data/mlxreg.h>
 #include <linux/slab.h>
 

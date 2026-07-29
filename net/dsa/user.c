@@ -935,13 +935,12 @@ static netdev_tx_t dsa_user_xmit(struct sk_buff *skb, struct net_device *dev)
 		eth_skb_pad(skb);
 
 	/* Transmit function may have to reallocate the original SKB,
-	 * in which case it must have freed it. Only free it here on error.
+	 * in which case it must have freed it. Taggers will drop the
+	 * passed skb on error.
 	 */
 	nskb = p->xmit(skb, dev);
-	if (!nskb) {
-		kfree_skb(skb);
+	if (!nskb)
 		return NETDEV_TX_OK;
-	}
 
 	return dsa_enqueue_skb(nskb, dev);
 }

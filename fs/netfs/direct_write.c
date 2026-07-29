@@ -166,13 +166,16 @@ static int netfs_unbuffered_write(struct netfs_io_request *wreq)
 		 */
 		subreq->error = -EAGAIN;
 		trace_netfs_sreq(subreq, netfs_sreq_trace_retry);
-		if (subreq->transferred > 0)
+		if (subreq->transferred > 0) {
 			iov_iter_advance(&wreq->buffer.iter, subreq->transferred);
+			wreq->transferred += subreq->transferred;
+		}
 
 		if (stream->source == NETFS_UPLOAD_TO_SERVER &&
 		    wreq->netfs_ops->retry_request)
 			wreq->netfs_ops->retry_request(wreq, stream);
 
+		__clear_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
 		__clear_bit(NETFS_SREQ_NEED_RETRY, &subreq->flags);
 		__clear_bit(NETFS_SREQ_BOUNDARY, &subreq->flags);
 		__clear_bit(NETFS_SREQ_FAILED, &subreq->flags);
@@ -186,17 +189,10 @@ static int netfs_unbuffered_write(struct netfs_io_request *wreq)
 
 		netfs_get_subrequest(subreq, netfs_sreq_trace_get_resubmit);
 
-		if (stream->prepare_write) {
+		if (stream->prepare_write)
 			stream->prepare_write(subreq);
-			__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
-			netfs_stat(&netfs_n_wh_retry_write_subreq);
-		} else {
-			struct iov_iter source;
-
-			netfs_reset_iter(subreq);
-			source = subreq->io_iter;
-			netfs_reissue_write(stream, subreq, &source);
-		}
+		__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
+		netfs_stat(&netfs_n_wh_retry_write_subreq);
 	}
 
 	netfs_unbuffered_write_done(wreq);

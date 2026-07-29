@@ -1280,8 +1280,10 @@ static int kvm_s390_vm_stop_migration(struct kvm *kvm)
 	 * PGSTEs might have cmma_d set.
 	 */
 	WRITE_ONCE(kvm->arch.migration_mode, 0);
-	if (kvm->arch.use_cmma)
-		kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
+	if (!kvm->arch.use_cmma)
+		return 0;
+
+	kvm_s390_sync_request_broadcast(kvm, KVM_REQ_STOP_MIGRATION);
 	/* Clear cmma_d on all existing PGSTEs and set cmma_dirty_pages to 0. */
 	gmap_set_cmma_all_clean(kvm->arch.gmap);
 	atomic64_set(&kvm->arch.cmma_dirty_pages, 0);

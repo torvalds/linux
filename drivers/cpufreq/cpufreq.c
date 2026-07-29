@@ -2586,6 +2586,9 @@ static void cpufreq_update_pressure(struct cpufreq_policy *policy)
 
 	cpu = cpumask_first(policy->related_cpus);
 	max_freq = arch_scale_freq_ref(cpu);
+	if (!max_freq)
+		max_freq = policy->cpuinfo.max_freq;
+
 	capped_freq = policy->max;
 
 	/*

@@ -3584,6 +3584,7 @@ ublk_batch_auto_buf_reg(const struct ublk_batch_io *uc,
 #define UBLK_CMD_BATCH_TMP_BUF_SZ  (48 * 10)
 struct ublk_batch_io_iter {
 	void __user *uaddr;
+	const u8 *kaddr;
 	unsigned done, total;
 	unsigned char elem_bytes;
 	/* copy to this buffer from user space */
@@ -3632,7 +3633,10 @@ static int ublk_walk_cmd_buf(struct ublk_batch_io_iter *iter,
 	while (iter->done < iter->total) {
 		unsigned int len = min(sizeof(iter->buf), iter->total - iter->done);
 
-		if (copy_from_user(iter->buf, iter->uaddr + iter->done, len)) {
+		if (iter->kaddr) {
+			memcpy(iter->buf, iter->kaddr + iter->done, len);
+		} else if (copy_from_user(iter->buf, iter->uaddr + iter->done,
+				  len)) {
 			pr_warn("ublk%d: read batch cmd buffer failed\n",
 					data->ub->dev_info.dev_id);
 			return -EFAULT;
@@ -3723,7 +3727,13 @@ static int ublk_handle_batch_prep_cmd(const struct ublk_batch_io_data *data)
 		.total = uc->nr_elem * uc->elem_bytes,
 		.elem_bytes = uc->elem_bytes,
 	};
+	void *cmd_buf;
 	int ret;
+
+	cmd_buf = vmemdup_user(iter.uaddr, iter.total);
+	if (IS_ERR(cmd_buf))
+		return PTR_ERR(cmd_buf);
+	iter.kaddr = cmd_buf;
 
 	mutex_lock(&data->ub->mutex);
 	ret = ublk_walk_cmd_buf(&iter, data, ublk_batch_prep_io);
@@ -3731,6 +3741,7 @@ static int ublk_handle_batch_prep_cmd(const struct ublk_batch_io_data *data)
 	if (ret && iter.done)
 		ublk_batch_revert_prep_cmd(&iter, data);
 	mutex_unlock(&data->ub->mutex);
+	kvfree(cmd_buf);
 	return ret;
 }
 

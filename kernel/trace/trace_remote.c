@@ -979,32 +979,29 @@ EXPORT_SYMBOL_GPL(trace_remote_free_buffer);
 int trace_remote_alloc_buffer(struct trace_buffer_desc *desc, size_t desc_size, size_t buffer_size,
 			      const struct cpumask *cpumask)
 {
+	size_t min_desc_size = trace_buffer_desc_size(buffer_size, cpumask_weight(cpumask));
 	unsigned int nr_pages = max(DIV_ROUND_UP(buffer_size, PAGE_SIZE), 2UL) + 1;
-	void *desc_end = desc + desc_size;
 	struct ring_buffer_desc *rb_desc;
 	int cpu, ret = -ENOMEM;
 
-	if (desc_size < struct_size(desc, __data, 0))
+	if (desc_size < min_desc_size)
 		return -EINVAL;
 
 	desc->nr_cpus = 0;
-	desc->struct_len = struct_size(desc, __data, 0);
+	desc->struct_len = min_desc_size;
 
-	rb_desc = (struct ring_buffer_desc *)&desc->__data[0];
+	rb_desc = __first_ring_buffer_desc(desc);
 
 	for_each_cpu(cpu, cpumask) {
 		unsigned int id;
-
-		if ((void *)rb_desc + struct_size(rb_desc, page_va, nr_pages) > desc_end) {
-			ret = -EINVAL;
-			goto err;
-		}
 
 		rb_desc->cpu = cpu;
 		rb_desc->nr_page_va = 0;
 		rb_desc->meta_va = (unsigned long)__get_free_page(GFP_KERNEL);
 		if (!rb_desc->meta_va)
 			goto err;
+
+		desc->nr_cpus++;
 
 		for (id = 0; id < nr_pages; id++) {
 			rb_desc->page_va[id] = (unsigned long)__get_free_page(GFP_KERNEL);
@@ -1013,9 +1010,6 @@ int trace_remote_alloc_buffer(struct trace_buffer_desc *desc, size_t desc_size, 
 
 			rb_desc->nr_page_va++;
 		}
-		desc->nr_cpus++;
-		desc->struct_len += offsetof(struct ring_buffer_desc, page_va);
-		desc->struct_len += struct_size(rb_desc, page_va, rb_desc->nr_page_va);
 		rb_desc = __next_ring_buffer_desc(rb_desc);
 	}
 

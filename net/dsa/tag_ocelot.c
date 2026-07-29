@@ -107,14 +107,16 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	ocelot_xfh_get_rew_val(extraction, &rew_val);
 
 	skb->dev = dsa_conduit_find_user(netdev, 0, src_port);
-	if (!skb->dev)
+	if (!skb->dev) {
 		/* The switch will reflect back some frames sent through
 		 * sockets opened on the bare DSA conduit. These will come back
 		 * with src_port equal to the index of the CPU port, for which
 		 * there is no user registered. So don't print any error
 		 * message here (ignore and drop those frames).
 		 */
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	dsa_default_offload_fwd_mark(skb);
 	skb->priority = qos_class;

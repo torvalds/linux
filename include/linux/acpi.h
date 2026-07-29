@@ -13,7 +13,7 @@
 #include <linux/ioport.h>	/* for struct resource */
 #include <linux/resource_ext.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/acpi.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
 #include <linux/node.h>

@@ -13,7 +13,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/mfd/adp5585.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/notifier.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

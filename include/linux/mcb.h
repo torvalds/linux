@@ -8,7 +8,7 @@
 #ifndef _LINUX_MCB_H
 #define _LINUX_MCB_H
 
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/mcb.h>
 #include <linux/device.h>
 #include <linux/irqreturn.h>
 

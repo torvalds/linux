@@ -11,7 +11,6 @@
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/set_memory.h>

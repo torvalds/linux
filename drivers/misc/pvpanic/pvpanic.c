@@ -15,7 +15,6 @@
 #include <linux/kstrtox.h>
 #include <linux/limits.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/panic_notifier.h>
 #include <linux/platform_device.h>

@@ -11,7 +11,6 @@
 #include <linux/dmaengine.h>
 #include <linux/if_arp.h>
 #include <linux/interrupt.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
