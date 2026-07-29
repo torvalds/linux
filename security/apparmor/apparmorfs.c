@@ -525,7 +525,7 @@ cleanup:
  * @userbuf: user buffer to copy data from  (NOT NULL)
  * @buffer_size: size of user buffer
  * @pos: position write is at in the file (NOT NULL)
- * @compressed_data Ptr on compressed data. *compressed_data is allocated there
+ * @compressed_data: Ptr on compressed data. *compressed_data is allocated there
  *
  * Returns: kernel buffer containing copy of user buffer data or an
  *          ERR_PTR on failure.
