@@ -789,14 +789,14 @@ static const struct mbox_chan_ops mhuv2_receiver_ops = {
 	.last_tx_done = mhuv2_receiver_last_tx_done,
 };
 
-static struct mbox_chan *mhuv2_mbox_of_xlate(struct mbox_controller *mbox,
-					     const struct of_phandle_args *pa)
+static struct mbox_chan *mhuv2_mbox_fw_xlate(struct mbox_controller *mbox,
+					     const struct fwnode_reference_args *pa)
 {
 	struct mhuv2 *mhu = mhu_from_mbox(mbox);
 	struct mbox_chan *chans = mbox->chans;
 	int channel = 0, i, offset, doorbell, protocol, windows;
 
-	if (pa->args_count != 2)
+	if (pa->nargs != 2)
 		return ERR_PTR(-EINVAL);
 
 	offset = pa->args[0];
@@ -828,7 +828,7 @@ static struct mbox_chan *mhuv2_mbox_of_xlate(struct mbox_controller *mbox,
 	}
 
 out:
-	dev_err(mbox->dev, "Couldn't xlate to a valid channel (%d: %d)\n",
+	dev_err(mbox->dev, "Couldn't xlate to a valid channel (%llu: %d)\n",
 		pa->args[0], doorbell);
 	return ERR_PTR(-ENODEV);
 }
@@ -1071,7 +1071,7 @@ static int mhuv2_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	mhu->mbox.dev = dev;
-	mhu->mbox.of_xlate = mhuv2_mbox_of_xlate;
+	mhu->mbox.fw_xlate = mhuv2_mbox_fw_xlate;
 
 	if (of_device_is_compatible(np, "arm,mhuv2-tx"))
 		ret = mhuv2_tx_init(adev, mhu, reg);
