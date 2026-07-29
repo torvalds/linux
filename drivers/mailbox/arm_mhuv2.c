@@ -931,11 +931,10 @@ static int mhuv2_allocate_channels(struct mhuv2 *mhu)
 static int mhuv2_parse_channels(struct mhuv2 *mhu)
 {
 	struct device *dev = mhu->mbox.dev;
-	const struct device_node *np = dev->of_node;
 	int ret, count;
 	u32 *protocols;
 
-	count = of_property_count_u32_elems(np, MHUV2_PROTOCOL_PROP);
+	count = device_property_count_u32(dev, MHUV2_PROTOCOL_PROP);
 	if (count <= 0 || count % 2) {
 		dev_err(dev, "Invalid %s property (%d)\n", MHUV2_PROTOCOL_PROP,
 			count);
@@ -946,7 +945,7 @@ static int mhuv2_parse_channels(struct mhuv2 *mhu)
 	if (!protocols)
 		return -ENOMEM;
 
-	ret = of_property_read_u32_array(np, MHUV2_PROTOCOL_PROP, protocols, count);
+	ret = device_property_read_u32_array(dev, MHUV2_PROTOCOL_PROP, protocols, count);
 	if (ret) {
 		dev_err(dev, "Failed to read %s property: %d\n",
 			MHUV2_PROTOCOL_PROP, ret);
