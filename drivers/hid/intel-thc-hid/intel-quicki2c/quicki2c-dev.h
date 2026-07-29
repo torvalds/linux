@@ -189,6 +189,8 @@ struct acpi_device;
  * @i2c_max_frame_size: Max RX frame size (unit in Bytes)
  * @i2c_int_delay_enable: Indicate interrupt delay feature enabled or not
  * @i2c_int_delay: Interrupt detection delay value (unit in 10 us)
+ * @recover_work: Work structure for recovery
+ * @recovery_disabled: Whether recovery work is blocked during teardown
  */
 struct quicki2c_device {
 	struct device *dev;
@@ -220,6 +222,9 @@ struct quicki2c_device {
 	u32 i2c_max_frame_size;
 	u32 i2c_int_delay_enable;
 	u32 i2c_int_delay;
+
+	struct work_struct recover_work;
+	bool recovery_disabled;
 };
 
 #endif /* _QUICKI2C_DEV_H_ */

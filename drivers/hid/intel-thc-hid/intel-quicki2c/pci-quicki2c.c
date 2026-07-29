@@ -255,28 +255,33 @@ static irqreturn_t quicki2c_irq_quick_handler(int irq, void *dev_id)
 }
 
 /**
- * try_recover - Try to recovery THC and Device
- * @qcdev: Pointer to quicki2c_device structure
+ * try_recover - Recover callback to recover THC
+ * @work: pointer to work_struct
  *
  * This function is an error handler, called when fatal error happens.
- * It try to reset touch device and re-configure THC to recovery
- * communication between touch device and THC.
- *
- * Return: 0 if successful or error code on failure
+ * It try to reset Touch Device and re-configure THC to recover
+ * transferring between Device and THC.
  */
-static int try_recover(struct quicki2c_device *qcdev)
+static void try_recover(struct work_struct *work)
 {
-	int ret;
+	struct quicki2c_device *qcdev = container_of(work, struct quicki2c_device, recover_work);
 
-	thc_dma_unconfigure(qcdev->thc_hw);
+	if (READ_ONCE(qcdev->recovery_disabled))
+		return;
 
-	ret = thc_dma_configure(qcdev->thc_hw);
-	if (ret) {
-		dev_err(qcdev->dev, "Reconfig DMA failed\n");
-		return ret;
+	if (pm_runtime_resume_and_get(qcdev->dev))
+		return;
+
+	thc_interrupt_enable(qcdev->thc_hw, false);
+
+	if (thc_rxdma_reset(qcdev->thc_hw)) {
+		qcdev->state = QUICKI2C_DISABLED;
+		dev_err(qcdev->dev, "RxDMA reset failed during recover, disable QuickI2C\n");
+	} else {
+		thc_interrupt_enable(qcdev->thc_hw, true);
 	}
 
-	return 0;
+	pm_runtime_put_autosuspend(qcdev->dev);
 }
 
 static int handle_input_report(struct quicki2c_device *qcdev)
@@ -353,11 +358,10 @@ static irqreturn_t quicki2c_irq_thread_handler(int irq, void *dev_id)
 	}
 
 exit:
-	thc_interrupt_enable(qcdev->thc_hw, true);
-
 	if (err_recover)
-		if (try_recover(qcdev))
-			qcdev->state = QUICKI2C_DISABLED;
+		schedule_work(&qcdev->recover_work);
+	else
+		thc_interrupt_enable(qcdev->thc_hw, true);
 
 	pm_runtime_put_autosuspend(qcdev->dev);
 
@@ -396,6 +400,8 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
 	qcdev->ddata = ddata;
 
 	init_waitqueue_head(&qcdev->reset_ack_wq);
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+	INIT_WORK(&qcdev->recover_work, try_recover);
 
 	/* THC hardware init */
 	qcdev->thc_hw = thc_dev_init(qcdev->dev, qcdev->mem_addr);
@@ -446,6 +452,9 @@ static struct quicki2c_device *quicki2c_dev_init(struct pci_dev *pdev, void __io
  */
 static void quicki2c_dev_deinit(struct quicki2c_device *qcdev)
 {
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
+
 	thc_interrupt_quiesce(qcdev->thc_hw, true);
 	thc_interrupt_enable(qcdev->thc_hw, false);
 	thc_ltr_unconfig(qcdev->thc_hw);
@@ -779,11 +788,12 @@ static void quicki2c_remove(struct pci_dev *pdev)
 		return;
 
 	quicki2c_hid_remove(qcdev);
+
+	quicki2c_dev_deinit(qcdev);
+
 	quicki2c_dma_deinit(qcdev);
 
 	pm_runtime_get_noresume(qcdev->dev);
-
-	quicki2c_dev_deinit(qcdev);
 
 	pci_clear_master(pdev);
 }
@@ -803,10 +813,10 @@ static void quicki2c_shutdown(struct pci_dev *pdev)
 	if (!qcdev)
 		return;
 
+	quicki2c_dev_deinit(qcdev);
+
 	/* Must stop DMA before reboot to avoid DMA entering into unknown state */
 	quicki2c_dma_deinit(qcdev);
-
-	quicki2c_dev_deinit(qcdev);
 }
 
 static int quicki2c_suspend(struct device *device)
@@ -832,6 +842,9 @@ static int quicki2c_suspend(struct device *device)
 	ret = thc_i2c_subip_regs_save(qcdev->thc_hw);
 	if (ret)
 		return ret;
+
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
 
 	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
 	if (ret)
@@ -874,6 +887,8 @@ static int quicki2c_resume(struct device *device)
 	if (ret)
 		return ret;
 
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+
 	if (!device_may_wakeup(qcdev->dev))
 		return quicki2c_set_power(qcdev, HIDI2C_ON);
 
@@ -889,6 +904,9 @@ static int quicki2c_freeze(struct device *device)
 	qcdev = pci_get_drvdata(pdev);
 	if (!qcdev)
 		return -ENODEV;
+
+	WRITE_ONCE(qcdev->recovery_disabled, true);
+	cancel_work_sync(&qcdev->recover_work);
 
 	ret = thc_interrupt_quiesce(qcdev->thc_hw, true);
 	if (ret)
@@ -921,6 +939,8 @@ static int quicki2c_thaw(struct device *device)
 	if (ret)
 		return ret;
 
+	WRITE_ONCE(qcdev->recovery_disabled, false);
+
 	return 0;
 }
 
@@ -944,6 +964,8 @@ static int quicki2c_poweroff(struct device *device)
 	thc_interrupt_enable(qcdev->thc_hw, false);
 
 	thc_ltr_unconfig(qcdev->thc_hw);
+
+	quicki2c_dev_deinit(qcdev);
 
 	quicki2c_dma_deinit(qcdev);
 
