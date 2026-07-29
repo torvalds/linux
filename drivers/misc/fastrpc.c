@@ -51,6 +51,17 @@
 /* Sequence number occupies bits 63:16 of the ctxid / message context */
 #define FASTRPC_CTXID_SEQ_SHIFT	16
 #define FASTRPC_CTXID_SEQ_MASK	GENMASK_ULL(63, 16)
+
+/*
+ * Newer DSP firmware implements a PD (Protection Domain) notification
+ * framework that sends PD state notifications upon request. The PD exit
+ * notification is unconditionally sent by the DSP with this fixed sentinel
+ * in the context field rather than the context of an outstanding invocation.
+ * Since the fastrpc driver does not support the DSP PD notification framework,
+ * this message must be dropped rather than matched against the context idr.
+ */
+#define FASTRPC_DSP_PD_NOTIFY_CTX	0xABCDABCD
+
 #define INIT_FILELEN_MAX (2 * 1024 * 1024)
 #define INIT_FILE_NAMELEN_MAX (128)
 #define FASTRPC_DEVICE_NAME	"fastrpc"
@@ -2700,6 +2711,14 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 
 	if (!cctx)
 		return -ENODEV;
+
+	/*
+	 * A PD exit notification from the DSP PD notification framework carries
+	 * this sentinel rather than a real context. Drop it: a real context is
+	 * (idr_index << 4) | pd and can never collide with this value.
+	 */
+	if (rsp->ctx == FASTRPC_DSP_PD_NOTIFY_CTX)
+		return 0;
 
 	ctxid = FIELD_GET(FASTRPC_CTXID_MASK, rsp->ctx);
 
