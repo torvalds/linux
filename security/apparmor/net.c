@@ -199,7 +199,7 @@ static struct aa_perms *early_match(struct aa_policydb *policy,
 	return p;
 }
 
-static aa_state_t aa_dfa_match_be16(struct aa_dfa *dfa, aa_state_t state,
+static aa_state_t aa_dfa_match_be16(const struct aa_dfa *dfa, aa_state_t state,
 					  u16 data)
 {
 	__be16 buffer = cpu_to_be16(data);

@@ -1483,7 +1483,7 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
  * @dfa: the dfa to check accept indexes are in range
  * @table_size: the permission table size the indexes should be within
  */
-static bool verify_dfa_accept_index(struct aa_dfa *dfa, int table_size)
+static bool verify_dfa_accept_index(const struct aa_dfa *dfa, int table_size)
 {
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {

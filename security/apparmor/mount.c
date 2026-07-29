@@ -129,7 +129,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  *
  * Returns: next state after flags match
  */
-static aa_state_t match_mnt_flags(struct aa_dfa *dfa, aa_state_t state,
+static aa_state_t match_mnt_flags(const struct aa_dfa *dfa, aa_state_t state,
 				    unsigned long flags)
 {
 	unsigned int i;

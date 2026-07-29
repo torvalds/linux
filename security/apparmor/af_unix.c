@@ -67,7 +67,7 @@ static int unix_fs_perm(const char *op, u32 mask, const struct cred *subj_cred,
 #define SHUTDOWN_ADDR "\x03"		/* path addr is shutdown and cleared */
 #define FS_ADDR "/"			/* path addr in fs */
 
-static aa_state_t match_addr(struct aa_dfa *dfa, aa_state_t state,
+static aa_state_t match_addr(const struct aa_dfa *dfa, aa_state_t state,
 			     struct sockaddr_un *addr, int addrlen)
 {
 	if (addr)
