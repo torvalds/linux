@@ -4571,6 +4571,22 @@ retry_remove_space:
 	return err;
 }
 
+/*
+ * Pre-allocate blocks for the range [@offset, @offset + @len). Allocated
+ * blocks are marked as unwritten by default. If EXT4_GET_BLOCKS_ZERO is
+ * set, the allocated blocks are zeroed on disk and their extents are
+ * converted to written state.
+ *
+ * When @new_size is nonzero, the caller intends to extend the file, and
+ * the file size should be updated to the end of the allocated blocks.
+ *
+ * Allocation may partially succeed due to some non-fatal issues. In that
+ * case, i_disksize (and i_size) is advanced up to the successfully
+ * processed portion of the range.
+ *
+ * Return 0 on success, or a negative error code on failure or partial
+ * failure.
+ */
 static int ext4_alloc_file_blocks(struct file *file, loff_t offset, loff_t len,
 				  loff_t new_size, int flags)
 {
@@ -4585,6 +4601,7 @@ static int ext4_alloc_file_blocks(struct file *file, loff_t offset, loff_t len,
 	loff_t epos = 0, old_size = i_size_read(inode);
 	unsigned int blkbits = inode->i_blkbits;
 	bool alloc_zero = false;
+	bool orphan = false;
 
 	BUG_ON(!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS));
 	map.m_lblk = offset >> blkbits;
@@ -4659,19 +4676,49 @@ retry:
 
 		if (alloc_zero &&
 		    (map.m_flags & (EXT4_MAP_MAPPED | EXT4_MAP_UNWRITTEN))) {
+			ext4_lblk_t converted;
+
+			WARN_ON_ONCE(map.m_lblk + map.m_len >
+				EXT4_B_TO_LBLK(inode, new_size ?: old_size));
+
 			ret = ext4_issue_zeroout(inode, map.m_lblk, map.m_pblk,
 						 map.m_len);
-			if (likely(!ret))
-				ret = ext4_convert_unwritten_extents(NULL,
-					inode, (loff_t)map.m_lblk << blkbits,
-					(loff_t)map.m_len << blkbits, NULL);
-			if (ret)
+			if (unlikely(ret))
 				break;
+
+			handle = ext4_journal_start(inode, EXT4_HT_MAP_BLOCKS,
+						    credits);
+			if (IS_ERR(handle)) {
+				ret = PTR_ERR(handle);
+				break;
+			}
+
+			ret = ext4_convert_unwritten_extents(handle,
+					inode, (loff_t)map.m_lblk << blkbits,
+					(loff_t)map.m_len << blkbits,
+					&converted);
+			if (ret)
+				map.m_len = converted;
+
+			/*
+			 * If blocks beyond i_disksize are converted, add
+			 * the inode to the orphan list and advance the epos.
+			 */
+			if (new_size && converted) {
+				ret2 = ext4_orphan_add(handle, inode);
+				ret = ret ? ret : ret2;
+				orphan = true;
+			}
+
+			ret3 = ext4_journal_stop(handle);
+			ret = ret ? ret : ret3;
 		}
 
 		map.m_lblk += map.m_len;
 		map.m_len = len_lblk = len_lblk - map.m_len;
 		epos = EXT4_LBLK_TO_B(inode, map.m_lblk);
+		if (ret)
+			break;
 	}
 
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
@@ -4687,11 +4734,23 @@ retry:
 	if (epos > new_size)
 		epos = new_size;
 
-	handle = ext4_journal_start(inode, EXT4_HT_MISC, 1);
-	if (IS_ERR(handle))
-		return ret ? ret : PTR_ERR(handle);
+	handle = ext4_journal_start(inode, EXT4_HT_MISC, 2);
+	if (IS_ERR(handle)) {
+		/*
+		 * The conversion has successfully completed. Not much to
+		 * do with the error here so just cleanup the orphan list
+		 * and hope for the best.
+		 */
+		if (orphan && inode->i_nlink)
+			ext4_orphan_del(NULL, inode);
+		ret2 = PTR_ERR(handle);
+		goto out;
+	}
 
 	ext4_update_inode_size(inode, epos);
+	if (orphan && inode->i_nlink)
+		ext4_orphan_del(handle, inode);
+
 	ret2 = ext4_mark_inode_dirty(handle, inode);
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 	ret3 = ext4_journal_stop(handle);
@@ -4699,6 +4758,9 @@ retry:
 
 	if (epos > old_size)
 		pagecache_isize_extended(inode, old_size, epos);
+out:
+	if (ret2)
+		ext4_std_error(inode->i_sb, ret2);
 
 	return ret ? ret : ret2;
 }
