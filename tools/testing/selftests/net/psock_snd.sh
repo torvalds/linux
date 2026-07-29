@@ -102,4 +102,9 @@ echo "test drops statistics"
 echo "test aux data"
 ./in_netns.sh ./psock_snd -a
 
+# test ignore outgoing
+
+echo "test ignore outgoing"
+./in_netns.sh ./psock_snd -i
+
 echo "OK. All tests passed"

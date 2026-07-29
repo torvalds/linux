@@ -41,6 +41,7 @@ static bool	cfg_use_vlan;
 static bool	cfg_use_vnet;
 static bool	cfg_drop;
 static bool	cfg_aux_data;
+static bool	cfg_ignore_outgoing;
 
 static char	*cfg_ifname = "lo";
 static int	cfg_mtu	= 1500;
@@ -171,18 +172,23 @@ static int build_packet(int payload_len)
 	return off + payload_len;
 }
 
-static void do_bind(int fd)
+static void do_bind_proto(int fd, uint16_t proto)
 {
 	struct sockaddr_ll laddr = {0};
 
 	laddr.sll_family = AF_PACKET;
-	laddr.sll_protocol = htons(ETH_P_IP);
+	laddr.sll_protocol = htons(proto);
 	laddr.sll_ifindex = if_nametoindex(cfg_ifname);
 	if (!laddr.sll_ifindex)
 		error(1, errno, "if_nametoindex");
 
 	if (bind(fd, (void *)&laddr, sizeof(laddr)))
 		error(1, errno, "bind");
+}
+
+static void do_bind(int fd)
+{
+	do_bind_proto(fd, ETH_P_IP);
 }
 
 static void do_send(int fd, char *buf, int len)
@@ -305,29 +311,33 @@ static void check_aux_data(struct cmsghdr *cmsg, int expected_len)
 		error(1, 0, "cmsg tp_snaplen != %u", expected_len);
 }
 
-static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
+/* expected_pkttype < 0 skips the sll_pkttype check. */
+static void do_rx(int fd, int expected_len, char *expected, bool is_psock,
+		  int expected_pkttype)
 {
 	char cmsg_buf[1024] __attribute__((aligned(8))) = {};
 	bool aux = is_psock && cfg_aux_data;
-	struct msghdr msg = {};
-	struct iovec iov[1];
+	struct sockaddr_ll saddr = {};
+	struct iovec iov = {
+		.iov_base = rbuf,
+		.iov_len = sizeof(rbuf),
+	};
+	struct msghdr msg = {
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
 	int ret;
 
 	if (aux) {
-		iov[0].iov_base = rbuf;
-		iov[0].iov_len = sizeof(rbuf);
-
-		msg.msg_iov = iov;
-		msg.msg_iovlen = 1;
-
 		msg.msg_control = cmsg_buf;
 		msg.msg_controllen = sizeof(cmsg_buf);
-
-		ret = recvmsg(fd, &msg, 0);
-	} else {
-		ret = recv(fd, rbuf, sizeof(rbuf), 0);
+	}
+	if (is_psock) {
+		msg.msg_name = &saddr;
+		msg.msg_namelen = sizeof(saddr);
 	}
 
+	ret = recvmsg(fd, &msg, 0);
 	if (ret == -1)
 		error(1, errno, "recv");
 	if (ret != expected_len)
@@ -336,11 +346,12 @@ static void do_rx(int fd, int expected_len, char *expected, bool is_psock)
 	if (memcmp(rbuf, expected, ret))
 		error(1, 0, "recv: data mismatch");
 
-	if (aux) {
-		struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+	if (aux)
+		check_aux_data(CMSG_FIRSTHDR(&msg), expected_len);
 
-		check_aux_data(cmsg, expected_len);
-	}
+	if (expected_pkttype >= 0 && saddr.sll_pkttype != expected_pkttype)
+		error(1, 0, "recv: sll_pkttype %d != %d",
+		      saddr.sll_pkttype, expected_pkttype);
 
 	fprintf(stderr, "rx: %u\n", ret);
 }
@@ -367,7 +378,14 @@ static int setup_sniffer(void)
 			error(1, errno, "setsockopt PACKET_AUXDATA");
 
 	pair_udp_setfilter(fd);
-	do_bind(fd);
+
+	/* binding to ETH_P_ALL adds the sniffer to ptype_all, which will see
+	 * the dev_queue_xmit_nit copy. ignore_outgoing should suppress this.
+	 */
+	if (cfg_ignore_outgoing)
+		do_bind_proto(fd, ETH_P_ALL);
+	else
+		do_bind(fd);
 
 	return fd;
 }
@@ -376,7 +394,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "abcCdDgl:qt:vV")) != -1) {
+	while ((c = getopt(argc, argv, "abcCdDgil:qt:vV")) != -1) {
 		switch (c) {
 		case 'a':
 			cfg_aux_data = true;
@@ -398,6 +416,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'g':
 			cfg_use_gso = true;
+			break;
+		case 'i':
+			cfg_ignore_outgoing = true;
 			break;
 		case 'l':
 			cfg_payload_len = strtoul(optarg, NULL, 0);
@@ -433,9 +454,13 @@ static void parse_opts(int argc, char **argv)
 
 	if (cfg_aux_data && cfg_drop)
 		error(1, 0, "option aux data (-a) conflicts with drop (-D)");
+
+	if (cfg_ignore_outgoing && (cfg_drop || cfg_aux_data))
+		error(1, 0,
+		      "option ignore outgoing (-i) conflicts with -D and -a");
 }
 
-static void check_packet_stats(int fd)
+static void check_packet_stats(int fd, unsigned int expected_packets)
 {
 	struct tpacket_stats st = {};
 	socklen_t len = sizeof(st);
@@ -454,8 +479,9 @@ static void check_packet_stats(int fd)
 		if (st.tp_drops == 0)
 			error(1, 0, "stats: expected drops but tp_drops == 0");
 	} else {
-		if (st.tp_packets != 1)
-			error(1, 0, "stats: tp_packets %u != 1", st.tp_packets);
+		if (st.tp_packets != expected_packets)
+			error(1, 0, "stats: tp_packets %u != %u",
+			      st.tp_packets, expected_packets);
 
 		if (st.tp_drops != 0)
 			error(1, 0, "stats: tp_drops %u != 0", st.tp_drops);
@@ -475,6 +501,66 @@ static void check_packet_stats(int fd)
 		error(1, 0, "stats: tp_drops %u != 0 after clear", st.tp_drops);
 }
 
+static void set_ignore_outgoing(int fd, int val)
+{
+	socklen_t len = sizeof(int);
+	int got = -1;
+
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)))
+		error(1, errno, "setsockopt PACKET_IGNORE_OUTGOING %d", val);
+
+	if (getsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING, &got, &len))
+		error(1, errno, "getsockopt PACKET_IGNORE_OUTGOING");
+	if (got != val)
+		error(1, 0, "getsockopt: expected %d got %d", val, got);
+}
+
+static void check_ignore_outgoing_range(int fd)
+{
+	int val;
+
+	/* Values outside [0, 1] must be rejected with -EINVAL. */
+	val = 2;
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)) != -1 || errno != EINVAL)
+		error(1, errno,
+		      "setsockopt PACKET_IGNORE_OUTGOING val=2: expected EINVAL");
+
+	val = -1;
+	if (setsockopt(fd, SOL_PACKET, PACKET_IGNORE_OUTGOING,
+		       &val, sizeof(val)) != -1 || errno != EINVAL)
+		error(1, errno,
+		      "setsockopt PACKET_IGNORE_OUTGOING val=-1: expected EINVAL");
+}
+
+static void test_ignore_outgoing(int fds)
+{
+	char *expected = tbuf + sizeof(struct virtio_net_hdr);
+	int expected_len;
+
+	/* ptype_all sniffer on loopback should produce two copies per packet
+	 * (RX and TX).
+	 */
+	expected_len = do_tx();
+	expected_len -= sizeof(struct virtio_net_hdr);
+	do_rx(fds, expected_len, expected, true, PACKET_OUTGOING);
+	do_rx(fds, expected_len, expected, true, PACKET_HOST);
+	check_packet_stats(fds, 2);
+
+	/* 0 and 1 accepted; anything else rejected. */
+	set_ignore_outgoing(fds, 0);
+	set_ignore_outgoing(fds, 1);
+	check_ignore_outgoing_range(fds);
+
+	/* With PACKET_IGNORE_OUTGOING set, only the rx copy survives. */
+	do_tx();
+	do_rx(fds, expected_len, expected, true, PACKET_HOST);
+	if (recv(fds, rbuf, sizeof(rbuf), 0) != -1 || errno != EAGAIN)
+		error(1, errno, "expected EAGAIN, got extra packet");
+	check_packet_stats(fds, 1);
+}
+
 static void run_test(void)
 {
 	int fdr, fds, total_len;
@@ -482,21 +568,26 @@ static void run_test(void)
 	fdr = setup_rx();
 	fds = setup_sniffer();
 
+	if (cfg_ignore_outgoing) {
+		test_ignore_outgoing(fds);
+		goto out;
+	}
+
 	total_len = do_tx();
 
 	if (cfg_drop) {
-		check_packet_stats(fds);
+		check_packet_stats(fds, 0);
 		goto out;
 	}
 
 	/* BPF filter accepts only this length, vlan changes MAC */
 	if (cfg_payload_len == DATA_LEN && !cfg_use_vlan) {
 		do_rx(fds, total_len - sizeof(struct virtio_net_hdr),
-		      tbuf + sizeof(struct virtio_net_hdr), true);
-		check_packet_stats(fds);
+		      tbuf + sizeof(struct virtio_net_hdr), true, -1);
+		check_packet_stats(fds, 1);
 	}
 
-	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len, false);
+	do_rx(fdr, cfg_payload_len, tbuf + total_len - cfg_payload_len, false, -1);
 
 out:
 	if (close(fds))
