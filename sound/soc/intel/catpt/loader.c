@@ -652,10 +652,10 @@ int catpt_boot_firmware(struct catpt_dev *cdev, bool restore)
 	if (!ret) {
 		dev_err(cdev->dev, "firmware ready timeout\n");
 		return -ETIMEDOUT;
-	/* Wake up does not mean FW is ready, an exception could occur. */
-	} else if (!cdev->ipc.ready) {
-		return -EREMOTEIO;
 	}
+	/* Wake up does not mean FW is ready, an exception could occur. */
+	if (!cdev->ipc.ready)
+		return -EREMOTEIO;
 
 	/* update sram pg & clock once done booting */
 	catpt_dsp_update_srampge(cdev, &cdev->dram, cdev->spec->dram_mask);
