@@ -10,7 +10,6 @@
 struct nvmem_device {
 	struct module		*owner;
 	struct device		dev;
-	struct list_head	node;
 	int			stride;
 	int			word_size;
 	int			id;
