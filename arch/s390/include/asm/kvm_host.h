@@ -476,6 +476,11 @@ struct s390_map_info {
 	__u64 guest_addr;
 	__u64 addr;
 	struct page *page;
+	/*
+	 * True if the page is long-term pinned. False if long-term pinning
+	 * failed and this entry exists only to preserve MAP/UNMAP symmetry.
+	 */
+	bool pinned;
 };
 
 struct s390_io_adapter {
