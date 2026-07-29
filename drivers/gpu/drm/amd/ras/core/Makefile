@@ -40,6 +40,6 @@ RAS_CORE_FILES = ras_core.o \
 			ras_eeprom_fw.o
 
 
-RAS_CORE = $(addprefix $(AMD_GPU_RAS_PATH)/rascore/,$(RAS_CORE_FILES))
+RAS_CORE = $(addprefix $(AMD_GPU_RAS_PATH)/core/,$(RAS_CORE_FILES))
 
 AMD_GPU_RAS_FILES += $(RAS_CORE)
