@@ -443,11 +443,16 @@ static void init_steering_dss(struct xe_gt *gt)
 
 static void init_steering_oaddrm(struct xe_gt *gt)
 {
+	u64 hwe_mask = XE_HW_ENGINE_VCS0 | XE_HW_ENGINE_VECS0;
+
+	/* TODO: Add 'VD per SCMI' and 'VE per SCMI' values into 'struct xe_media_desc' */
+	if (MEDIA_VERx100(gt_to_xe(gt)) >= 3500)
+		hwe_mask |= XE_HW_ENGINE_VCS1 | XE_HW_ENGINE_VECS1;
 	/*
 	 * First instance is only terminated if the entire first media slice
-	 * is absent (i.e., no VCS0 or VECS0).
+	 * is absent (i.e., no engines in hwe_mask).
 	 */
-	if (gt->info.engine_mask & (XE_HW_ENGINE_VCS0 | XE_HW_ENGINE_VECS0))
+	if (gt->info.engine_mask & hwe_mask)
 		gt->steering[OADDRM].group_target = 0;
 	else
 		gt->steering[OADDRM].group_target = 1;
