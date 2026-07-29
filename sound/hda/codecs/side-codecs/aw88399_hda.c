@@ -140,12 +140,54 @@ static int aw88399_hda_init(struct aw88399_hda *aw88399)
 	return 0;
 }
 
+static int aw88399_swap_channels(struct aw88399_hda *aw88399)
+{
+	/*
+	 * Certain Lenovo Legion laptops have their
+	 * I2C wiring reversed: 0x34 is physically the right speaker,
+	 * 0x35 is the left. Swap channels to correct L/R assignment.
+	 * This is a model-specific hardware wiring issue, not a driver bug.
+	 */
+	aw88399->channel = 1 - aw88399->channel;
+	dev_dbg(aw88399->dev,
+		"Channel swap applied: index %d -> channel %d\n",
+		aw88399->index, aw88399->channel);
+	return 0;
+}
+
+static int aw88399_skip_bsts_check(struct aw88399_hda *aw88399)
+{
+	/*
+	 * BSTS (boost-finished) status bit does not reliably report on
+	 * some hardware. On certain Lenovo Legion laptops, both amps
+	 * report BSTS=0 (boost not finished) during normal playback
+	 * despite clean audio output. Skip BSTS in the startup status
+	 * check to avoid false init failures.
+	 */
+	aw88399->bsts_unreliable = true;
+	dev_dbg(aw88399->dev, "BSTS status check disabled\n");
+	return 0;
+}
+
+static int aw88399_apply_legion_quirks(struct aw88399_hda *aw88399)
+{
+	aw88399_swap_channels(aw88399);
+	aw88399_skip_bsts_check(aw88399);
+	return 0;
+}
+
 struct aw88399_prop_model {
 	const char *ssid;
 	int (*apply_prop)(struct aw88399_hda *aw88399);
 };
 
 static const struct aw88399_prop_model aw88399_prop_model_table[] = {
+	{ "17AA3906", aw88399_apply_legion_quirks },
+	{ "17AA3907", aw88399_apply_legion_quirks },
+	{ "17AA3927", aw88399_apply_legion_quirks },
+	{ "17AA3928", aw88399_apply_legion_quirks },
+	{ "17AA3938", aw88399_apply_legion_quirks },
+	{ "17AA3939", aw88399_apply_legion_quirks },
 	{ }
 };
 
