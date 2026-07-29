@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/lockdep.h>
 #include <linux/dmi.h>
@@ -8109,17 +8110,18 @@ u32 lpfc_rx_monitor_report(struct lpfc_hba *phba,
 	u32 cnt = 0;
 	char tmp[DBG_LOG_STR_SZ] = {0};
 	bool log_to_kmsg = (!buf || !buf_len) ? true : false;
+	struct seq_buf s;
 
 	if (!log_to_kmsg) {
 		/* clear the buffer to be sure */
 		memset(buf, 0, buf_len);
 
-		scnprintf(buf, buf_len, "\t%-16s%-16s%-16s%-16s%-8s%-8s%-8s"
-					"%-8s%-8s%-8s%-16s\n",
-					"MaxBPI", "Tot_Data_CMF",
-					"Tot_Data_Cmd", "Tot_Data_Cmpl",
-					"Lat(us)", "Avg_IO", "Max_IO", "Bsy",
-					"IO_cnt", "Info", "BWutil(ms)");
+		seq_buf_init(&s, buf, buf_len);
+		seq_buf_printf(&s, "\t%-16s%-16s%-16s%-16s%-8s%-8s%-8s%-8s%-8s%-8s%-16s\n",
+			       "MaxBPI", "Tot_Data_CMF",
+			       "Tot_Data_Cmd", "Tot_Data_Cmpl",
+			       "Lat(us)", "Avg_IO", "Max_IO", "Bsy",
+			       "IO_cnt", "Info", "BWutil(ms)");
 	}
 
 	/* Needs to be _irq because record is called from timer interrupt
@@ -8131,24 +8133,27 @@ u32 lpfc_rx_monitor_report(struct lpfc_hba *phba,
 
 		/* Read out this entry's data. */
 		if (!log_to_kmsg) {
-			/* If !log_to_kmsg, then store to buf. */
+			/*
+			 * Drop a record whole if it does not fit, without
+			 * consuming its ring entry.
+			 */
 			scnprintf(tmp, sizeof(tmp),
-				  "%03d:\t%-16llu%-16llu%-16llu%-16llu%-8llu"
-				  "%-8llu%-8llu%-8u%-8u%-8u%u(%u)\n",
-				  *head_idx, entry->max_bytes_per_interval,
-				  entry->cmf_bytes, entry->total_bytes,
-				  entry->rcv_bytes, entry->avg_io_latency,
-				  entry->avg_io_size, entry->max_read_cnt,
+				  "%03d:\t%-16llu%-16llu%-16llu%-16llu%-8llu%-8llu%-8llu%-8u%-8u%-8u%u(%u)\n",
+				  *head_idx,
+				  entry->max_bytes_per_interval,
+				  entry->cmf_bytes,
+				  entry->total_bytes,
+				  entry->rcv_bytes,
+				  entry->avg_io_latency,
+				  entry->avg_io_size,
+				  entry->max_read_cnt,
 				  entry->cmf_busy, entry->io_cnt,
-				  entry->cmf_info, entry->timer_utilization,
+				  entry->cmf_info,
+				  entry->timer_utilization,
 				  entry->timer_interval);
 
-			/* Check for buffer overflow */
-			if ((strlen(buf) + strlen(tmp)) >= buf_len)
+			if (seq_buf_puts(&s, tmp) < 0)
 				break;
-
-			/* Append entry's data to buffer */
-			strlcat(buf, tmp, buf_len);
 		} else {
 			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
 					"4410 %02u: MBPI %llu Xmit %llu "
