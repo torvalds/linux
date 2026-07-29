@@ -59,7 +59,7 @@ impl<T, I: PinInit<T>> ops::Deref for StaticInit<T, I> {
             println!("doing init");
             let ptr = self.cell.get().cast::<T>();
             match self.init.take() {
-                Some(f) => unsafe { f.__init(ptr).unwrap() },
+                Some(f) => unsafe { pin_init::raw_init(ptr, f) },
                 None => unsafe { core::hint::unreachable_unchecked() },
             }
             self.present.set(true);
@@ -74,7 +74,8 @@ unsafe impl PinInit<CMutex<usize>> for CountInit {
     unsafe fn __init(self, slot: *mut CMutex<usize>) -> Result<(), core::convert::Infallible> {
         let init = CMutex::new(0);
         std::thread::sleep(std::time::Duration::from_millis(1000));
-        unsafe { init.__init(slot) }
+        unsafe { pin_init::raw_init(slot, init) };
+        Ok(())
     }
 }
 

@@ -917,13 +917,15 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     ///
     /// Same as `__init`.
     #[inline(always)]
-    #[cfg_attr(not(kernel), deprecated = "use `__init` instead")]
+    #[cfg_attr(not(kernel), deprecated = "use `raw_try_init` instead")]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: Per safety requirement.
         unsafe { self.__init(slot) }
     }
 
     /// Initializes `slot`.
+    ///
+    /// It is not recommended to call this directly. Use [`raw_init`] or [`raw_try_init`].
     ///
     /// # Safety
     ///
@@ -958,6 +960,34 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     {
         ChainPinInit(self, f, __internal::PhantomInvariant::new())
     }
+}
+
+/// Initializes `slot` with an initializer.
+///
+/// # Safety
+///
+/// - `slot` is a valid pointer to uninitialized memory.
+/// - `slot` will not move until it is dropped, i.e. it will be pinned.
+///   If `init` implements `Init<T, E>`, this requirement is cancelled and it may be moved.
+#[inline(always)]
+pub unsafe fn raw_init<T>(slot: *mut T, init: impl PinInit<T>) {
+    // SAFETY: Per safety requirement.
+    unsafe { init.__init(slot).unwrap_or_else(|e| match e {}) }
+}
+
+/// Fallibly initializes `slot` with an initializer.
+///
+/// # Safety
+///
+/// - `slot` is a valid pointer to uninitialized memory.
+/// - the caller does not touch `slot` when `Err` is returned, they are only permitted to
+///   deallocate.
+/// - `slot` will not move until it is dropped, i.e. it will be pinned.
+///   If `init` implements `Init<T, E>`, this requirement is cancelled and it may be moved.
+#[inline(always)]
+pub unsafe fn raw_try_init<T, E>(slot: *mut T, init: impl PinInit<T, E>) -> Result<(), E> {
+    // SAFETY: Per safety requirement.
+    unsafe { init.__init(slot) }
 }
 
 /// An initializer returned by [`PinInit::pin_chain`].
