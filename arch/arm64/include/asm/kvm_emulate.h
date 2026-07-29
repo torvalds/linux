@@ -506,6 +506,12 @@ static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 	return __vcpu_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
 }
 
+/* In nVHE hyp code, registers are always in memory: use the raw accessors. */
+#if defined(__KVM_NVHE_HYPERVISOR__)
+#define vcpu_read_sys_reg(v, r)		__vcpu_sys_reg(v, r)
+#define vcpu_write_sys_reg(v, x, r)	__vcpu_assign_sys_reg(v, r, x)
+#endif
+
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
 {
 	if (vcpu_mode_is_32bit(vcpu)) {
