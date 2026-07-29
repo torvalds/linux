@@ -554,6 +554,9 @@ static void vfio_pci_core_map_bars(struct vfio_pci_core_device *vdev)
 
 		vdev->barmap[bar] = IOMEM_ERR_PTR(-ENODEV);
 
+		if (pdev->non_mappable_bars)
+			continue;
+
 		if (!pci_resource_len(pdev, i))
 			continue;
 
