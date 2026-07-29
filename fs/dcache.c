@@ -1794,7 +1794,12 @@ static void do_one_tree(struct dentry *dentry)
 {
 	shrink_dcache_tree(dentry, true);
 	d_walk(dentry, dentry, umount_check);
-	d_drop(dentry);
+	spin_lock(&dentry->d_lock);
+	__d_drop(dentry);
+	/* A busy root survives the dput() below so don't leave it on ->s_roots. */
+	if (unlikely(!hlist_unhashed(&dentry->d_sib)))
+		unlink_secondary_root(dentry);
+	spin_unlock(&dentry->d_lock);
 	dput(dentry);
 }
 
