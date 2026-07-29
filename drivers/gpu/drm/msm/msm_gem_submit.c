@@ -260,6 +260,9 @@ static int submit_lookup_cmds(struct msm_gem_submit *submit,
 			ret = -ENOMEM;
 			goto out;
 		}
+
+		submit->nr_cmds = i + 1;
+
 		ret = copy_from_user(submit->cmd[i].relocs, userptr, sz);
 		if (ret) {
 			ret = -EFAULT;
@@ -718,8 +721,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		if (ret)
 			goto out;
 	}
-
-	submit->nr_cmds = args->nr_cmds;
 
 	idr_preload(GFP_KERNEL);
 
