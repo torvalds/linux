@@ -1093,7 +1093,9 @@ static void msm_gem_free_object(struct drm_gem_object *obj)
 		 */
 		kvfree(msm_obj->pages);
 
-		drm_prime_gem_destroy(obj, msm_obj->sgt);
+		/* In msm_gem_import() error path, sgt won't be set yet: */
+		if (msm_obj->sgt)
+			drm_prime_gem_destroy(obj, msm_obj->sgt);
 	} else {
 		msm_gem_vunmap(obj);
 		put_pages(obj);
@@ -1282,11 +1284,13 @@ fail:
 }
 
 struct drm_gem_object *msm_gem_import(struct drm_device *dev,
-		struct dma_buf *dmabuf, struct sg_table *sgt)
+				      struct dma_buf_attachment *attach,
+				      struct sg_table *sgt)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
 	struct drm_gem_object *obj;
+	struct dma_buf *dmabuf = attach->dmabuf;
 	size_t size, npages;
 	int ret;
 
@@ -1296,13 +1300,17 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
+	/*
+	 * Set import_attach here in case we hit an error path that ends
+	 * up in drm_gem_object_put() -> msm_gem_free_object()
+	 */
+	obj->import_attach = attach;
 	drm_gem_private_object_init(dev, obj, size);
 
 	npages = size / PAGE_SIZE;
 
 	msm_obj = to_msm_bo(obj);
 	msm_gem_lock(obj);
-	msm_obj->sgt = sgt;
 	msm_obj->pages = kvmalloc_objs(struct page *, npages);
 	if (!msm_obj->pages) {
 		msm_gem_unlock(obj);
@@ -1327,6 +1335,9 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	ret = drm_gem_create_mmap_offset(obj);
 	if (ret)
 		goto fail;
+
+	/* Now that we are past potential failure points, set sgt: */
+	msm_obj->sgt = sgt;
 
 	return obj;
 
