@@ -63,11 +63,29 @@ properties:
       - const: ptp_ref
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    maxItems: 17
 
   interrupt-names:
+    minItems: 1
     items:
       - const: macirq
+      - const: tx-queue-0
+      - const: tx-queue-1
+      - const: tx-queue-2
+      - const: tx-queue-3
+      - const: tx-queue-4
+      - const: tx-queue-5
+      - const: tx-queue-6
+      - const: tx-queue-7
+      - const: rx-queue-0
+      - const: rx-queue-1
+      - const: rx-queue-2
+      - const: rx-queue-3
+      - const: rx-queue-4
+      - const: rx-queue-5
+      - const: rx-queue-6
+      - const: rx-queue-7
 
   iommus:
     minItems: 1
@@ -149,9 +167,35 @@ required:
   - clocks
   - clock-names
   - altr,sysmgr-syscon
+  - interrupts
+  - interrupt-names
 
 allOf:
   - $ref: snps,dwmac.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: altr,socfpga-stmmac-agilex5
+    then:
+      properties:
+        interrupts:
+          minItems: 17
+
+        interrupt-names:
+          minItems: 17
+
+        dma-coherent: true
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+
+        interrupt-names:
+          maxItems: 1
+
+        dma-coherent: false
 
 unevaluatedProperties: false
 
