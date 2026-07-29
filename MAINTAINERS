@@ -4176,11 +4176,11 @@ F:	include/linux/async_tx.h
 
 AT24 EEPROM DRIVER
 M:	Bartosz Golaszewski <brgl@kernel.org>
-L:	linux-i2c@vger.kernel.org
+L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux.git
 F:	Documentation/devicetree/bindings/eeprom/at24.yaml
-F:	drivers/misc/eeprom/at24.c
+F:	drivers/nvmem/at24.c
 
 ATA OVER ETHERNET (AOE) DRIVER
 M:	"Justin Sanders" <justin@coraid.com>

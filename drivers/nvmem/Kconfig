@@ -28,6 +28,93 @@ source "drivers/nvmem/layouts/Kconfig"
 
 # Devices
 
+if NVMEM_SYSFS
+
+config EEPROM_AT24
+	tristate "I2C EEPROMs / RAMs / ROMs from most vendors"
+	depends on I2C && SYSFS
+	select REGMAP
+	select REGMAP_I2C
+	help
+	  Enable this driver to get read/write support to most I2C EEPROMs
+	  and compatible devices like FRAMs, SRAMs, ROMs etc. After you
+	  configure the driver to know about each chip on your target
+	  board.  Use these generic chip names, instead of vendor-specific
+	  ones like at24c64, 24lc02 or fm24c04:
+
+	     24c00, 24c01, 24c02, spd (readonly 24c02), 24c04, 24c08,
+	     24c16, 24c32, 24c64, 24c128, 24c256, 24c512, 24c1024, 24c2048
+
+	  Unless you like data loss puzzles, always be sure that any chip
+	  you configure as a 24c32 (32 kbit) or larger is NOT really a
+	  24c16 (16 kbit) or smaller, and vice versa. Marking the chip
+	  as read-only won't help recover from this. Also, if your chip
+	  has any software write-protect mechanism you may want to review the
+	  code to make sure this driver won't turn it on by accident.
+
+	  If you use this with an SMBus adapter instead of an I2C adapter,
+	  full functionality is not available.  Only smaller devices are
+	  supported (24c16 and below, max 4 kByte).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at24.
+
+config EEPROM_AT25
+	tristate "SPI EEPROMs (FRAMs) from most vendors"
+	depends on SPI && SYSFS
+	select SPI_MEM
+	help
+	  Enable this driver to get read/write support to most SPI EEPROMs
+	  and Cypress FRAMs,
+	  after you configure the board init code to know about each eeprom
+	  on your target board.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at25.
+
+config EEPROM_93XX46
+	tristate "Microwire EEPROM 93XX46 support"
+	depends on SPI && SYSFS
+	select REGMAP
+	help
+	  Driver for the microwire EEPROM chipsets 93xx46x. The driver
+	  supports both read and write commands and also the command to
+	  erase the whole EEPROM.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called eeprom_93xx46.
+
+	  If unsure, say N.
+
+config EEPROM_EE1004
+	tristate "SPD EEPROMs on DDR4 memory modules"
+	depends on I2C && SYSFS
+	help
+	  Enable this driver to get read support to SPD EEPROMs following
+	  the JEDEC EE1004 standard. These are typically found on DDR4
+	  SDRAM memory modules.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ee1004.
+
+config EEPROM_M24LR
+	tristate "STMicroelectronics M24LR RFID/NFC EEPROM support"
+	depends on I2C && SYSFS
+	select REGMAP_I2C
+	help
+	  This enables support for STMicroelectronics M24LR RFID/NFC EEPROM
+	  chips. These dual-interface devices expose two I2C addresses:
+	  one for EEPROM memory access and another for control and system
+	  configuration (e.g. UID, password handling).
+
+	  This driver provides a sysfs interface for control functions and
+	  integrates with the nvmem subsystem for EEPROM access.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called m24lr.
+
+endif # NVMEM_SYSFS
+
 config NVMEM_AIROHA_SMC_EFUSES
 	tristate "Airoha SMC eFuse support"
 	depends on ARCH_AIROHA || COMPILE_TEST

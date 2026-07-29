@@ -10,6 +10,11 @@ nvmem_layouts-y			:= layouts.o
 obj-y				+= layouts/
 
 # Devices
+obj-$(CONFIG_EEPROM_AT24)		+= at24.o
+obj-$(CONFIG_EEPROM_AT25)		+= at25.o
+obj-$(CONFIG_EEPROM_93XX46)		+= eeprom_93xx46.o
+obj-$(CONFIG_EEPROM_EE1004)		+= ee1004.o
+obj-$(CONFIG_EEPROM_M24LR)		+= m24lr.o
 obj-$(CONFIG_NVMEM_AIROHA_SMC_EFUSES)	+= nvmem-airoha-smc-efuses.o
 nvmem-airoha-smc-efuses-y 		:= airoha-smc-efuses.o
 obj-$(CONFIG_NVMEM_AN8855_EFUSE)	+= nvmem-an8855-efuse.o
