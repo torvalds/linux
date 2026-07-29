@@ -11,6 +11,14 @@
 #include <linux/mlx5/driver.h>
 #include "sf/vhca_event.h"
 
+TRACE_EVENT(mlx5_sf_host_pf_disabled,
+	    TP_PROTO(const struct mlx5_core_dev *dev),
+	    TP_ARGS(dev),
+	    TP_STRUCT__entry(__string(devname, dev_name(dev->device))),
+	    TP_fast_assign(__assign_str(devname);),
+	    TP_printk("(%s)\n", __get_str(devname))
+);
+
 TRACE_EVENT(mlx5_sf_add,
 	    TP_PROTO(const struct mlx5_core_dev *dev,
 		     unsigned int port_index,
