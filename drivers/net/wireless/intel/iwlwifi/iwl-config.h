@@ -415,6 +415,7 @@ struct iwl_mac_cfg {
  * @vht_mu_mimo_supported: VHT MU-MIMO support
  * @nvm_type: see &enum iwl_nvm_type
  * @uhb_supported: ultra high band channels supported
+ * @unii9_supported: UNII-9 channels supported
  * @eht_supported: EHT supported
  * @uhr_supported: UHR supported
  * @num_rbds: number of receive buffer descriptors to use
@@ -450,6 +451,7 @@ struct iwl_rf_cfg {
 	    lp_xtal_workaround:1,
 	    vht_mu_mimo_supported:1,
 	    uhb_supported:1,
+	    unii9_supported:1,
 	    eht_supported:1,
 	    uhr_supported:1;
 	u8 valid_tx_ant;

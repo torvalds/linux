@@ -3555,7 +3555,6 @@ restart:
 
 	pci_sriov_set_totalvfs(adapter->pdev, idpf_get_max_vfs(adapter));
 	num_max_vports = idpf_get_max_vports(adapter);
-	adapter->max_vports = num_max_vports;
 	adapter->vports = kzalloc_objs(*adapter->vports, num_max_vports);
 	if (!adapter->vports)
 		return -ENOMEM;
@@ -3575,6 +3574,12 @@ restart:
 			err);
 		goto err_netdev_alloc;
 	}
+
+	/* Set max_vports only after vports, netdevs and vport_config buffers
+	 * are allocated to make sure max_vport bound loops don't end up
+	 * crashing, following allocation errors on init.
+	 */
+	adapter->max_vports = num_max_vports;
 
 	/* Start the mailbox task before requesting vectors. This will ensure
 	 * vector information response from mailbox is handled

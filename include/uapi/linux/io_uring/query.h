@@ -23,7 +23,7 @@ enum {
 	IO_URING_QUERY_OPCODES			= 0,
 	IO_URING_QUERY_ZCRX			= 1,
 	IO_URING_QUERY_SCQ			= 2,
-	IO_URING_QUERY_ZCRX_NOTIF		= 3,
+	IO_URING_QUERY_ZCRX_EVENT		= 3,
 
 	__IO_URING_QUERY_MAX,
 };
@@ -63,13 +63,13 @@ struct io_uring_query_zcrx {
 	__u64 __resv2;
 };
 
-struct io_uring_query_zcrx_notif {
-	/* Bitmask of supported ZCRX_NOTIF_* flags */
-	__u32 notif_flags;
-	/* Size of io_uring_zcrx_notif_stats */
-	__u32 notif_stats_size;
+struct io_uring_query_zcrx_event {
+	/* Bitmask of supported ZCRX_EVENT_* flags */
+	__u32 event_flags;
+	/* Size of zcrx_stats */
+	__u32 stats_size;
 	/* Required alignment for the stats struct within the region (ie stats_offset) */
-	__u32 notif_stats_off_alignment;
+	__u32 stats_off_alignment;
 	__u32 __resv1;
 	__u64 __resv2[4];
 };
