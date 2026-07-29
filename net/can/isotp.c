@@ -2050,13 +2050,18 @@ static __init int isotp_module_init(void)
 
 	pr_info("can: isotp protocol (max_pdu_size %d)\n", max_pdu_size);
 
-	err = can_proto_register(&isotp_can_proto);
-	if (err < 0)
-		pr_err("can: registration of isotp protocol failed %pe\n", ERR_PTR(err));
-	else
-		register_netdevice_notifier(&canisotp_notifier);
+	err = register_netdevice_notifier(&canisotp_notifier);
+	if (err)
+		return err;
 
-	return err;
+	err = can_proto_register(&isotp_can_proto);
+	if (err < 0) {
+		pr_err("can: registration of isotp protocol failed %pe\n", ERR_PTR(err));
+		unregister_netdevice_notifier(&canisotp_notifier);
+		return err;
+	}
+
+	return 0;
 }
 
 static __exit void isotp_module_exit(void)
