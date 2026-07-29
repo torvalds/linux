@@ -246,7 +246,9 @@ struct fsf_status_read_buffer {
 	u8 d_id[3];
 	u32 class;
 	u64 fcp_lun;
-	u8  res3[24];
+	u8 res3;
+	u8 s_id[3];
+	u8 res4[20];
 	union {
 		u8  data[FSF_STATUS_READ_PAYLOAD_SIZE];
 		u32 word[FSF_STATUS_READ_PAYLOAD_SIZE/sizeof(u32)];

@@ -4,7 +4,7 @@
  *
  * External function declarations.
  *
- * Copyright IBM Corp. 2002, 2023
+ * Copyright IBM Corp. 2002, 2026
  */
 
 #ifndef ZFCP_EXT_H
@@ -49,6 +49,8 @@ extern void zfcp_dbf_hba_fsf_fces(char *tag, const struct zfcp_fsf_req *req,
 extern void zfcp_dbf_hba_fsf_reqid(const char *const tag, const int level,
 				   struct zfcp_adapter *const adapter,
 				   const u64 req_id);
+extern void zfcp_dbf_hba_uas(char *tag, int level, struct zfcp_adapter *adapter,
+			     u64 wwpn, u64 fcp_lun, int ret);
 extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_def_err(struct zfcp_adapter *, u64, u16, void **);
 extern void zfcp_dbf_san_req(char *, struct zfcp_fsf_req *, u32);
