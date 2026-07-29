@@ -85,9 +85,8 @@ static unsigned long direct_pages_count[PG_LEVEL_NUM];
 void update_page_count(int level, unsigned long pages)
 {
 	/* Protect against CPA */
-	spin_lock(&pgd_lock);
+	guard(spinlock)(&pgd_lock);
 	direct_pages_count[level] += pages;
-	spin_unlock(&pgd_lock);
 }
 
 static void split_page_count(int level)
@@ -1075,16 +1074,11 @@ static int __should_split_large_page(pte_t *kpte, unsigned long address,
 static int should_split_large_page(pte_t *kpte, unsigned long address,
 				   struct cpa_data *cpa)
 {
-	int do_split;
-
 	if (cpa->force_split)
 		return 1;
 
-	spin_lock(&pgd_lock);
-	do_split = __should_split_large_page(kpte, address, cpa);
-	spin_unlock(&pgd_lock);
-
-	return do_split;
+	guard(spinlock)(&pgd_lock);
+	return __should_split_large_page(kpte, address, cpa);
 }
 
 static void split_set_pte(struct cpa_data *cpa, pte_t *pte, unsigned long pfn,
@@ -1135,16 +1129,14 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	bool nx, rw;
 	pte_t *tmp;
 
-	spin_lock(&pgd_lock);
+	guard(spinlock)(&pgd_lock);
 	/*
 	 * Check for races, another CPU might have split this page
 	 * up for us already:
 	 */
 	tmp = _lookup_address_cpa(cpa, address, &level, &nx, &rw);
-	if (tmp != kpte) {
-		spin_unlock(&pgd_lock);
+	if (tmp != kpte)
 		return 1;
-	}
 
 	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
 
@@ -1177,7 +1169,6 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 		break;
 
 	default:
-		spin_unlock(&pgd_lock);
 		return 1;
 	}
 
@@ -1225,7 +1216,6 @@ __split_large_page(struct cpa_data *cpa, pte_t *kpte, unsigned long address,
 	 * just split large page entry.
 	 */
 	flush_tlb_all();
-	spin_unlock(&pgd_lock);
 
 	return 0;
 }
@@ -1374,7 +1364,7 @@ static int collapse_pud_page(pud_t *pud, unsigned long addr,
  */
 static int collapse_large_pages(unsigned long addr, struct list_head *pgtables)
 {
-	int collapsed = 0;
+	int collapsed;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -1382,26 +1372,24 @@ static int collapse_large_pages(unsigned long addr, struct list_head *pgtables)
 
 	addr &= PMD_MASK;
 
-	spin_lock(&pgd_lock);
+	guard(spinlock)(&pgd_lock);
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd))
-		goto out;
+		return 0;
 	p4d = p4d_offset(pgd, addr);
 	if (p4d_none(*p4d))
-		goto out;
+		return 0;
 	pud = pud_offset(p4d, addr);
 	if (!pud_present(*pud) || pud_leaf(*pud))
-		goto out;
+		return 0;
 	pmd = pmd_offset(pud, addr);
 	if (!pmd_present(*pmd) || pmd_leaf(*pmd))
-		goto out;
+		return 0;
 
 	collapsed = collapse_pmd_page(pmd, addr, pgtables);
 	if (collapsed)
 		collapsed += collapse_pud_page(pud, addr, pgtables);
 
-out:
-	spin_unlock(&pgd_lock);
 	return collapsed;
 }
 
