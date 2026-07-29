@@ -1711,8 +1711,25 @@ static int ssd130x_update_bl(struct backlight_device *bdev)
 	return 0;
 }
 
-static const struct backlight_ops ssd130xfb_bl_ops = {
-	.update_status	= ssd130x_update_bl,
+static int ssd133x_update_bl(struct backlight_device *bdev)
+{
+	struct ssd130x_device *ssd130x = bl_get_data(bdev);
+
+	ssd130x->contrast = backlight_get_brightness(bdev);
+
+	return ssd133x_set_contrast(ssd130x, ssd130x->contrast);
+}
+
+static const struct backlight_ops ssd130xfb_bl_ops[] = {
+	[SSD130X_FAMILY] = {
+		.update_status	= ssd130x_update_bl,
+	},
+	[SSD132X_FAMILY] = {
+		.update_status	= ssd130x_update_bl,
+	},
+	[SSD133X_FAMILY] = {
+		.update_status	= ssd133x_update_bl,
+	},
 };
 
 static void ssd130x_parse_properties(struct ssd130x_device *ssd130x)
@@ -1919,7 +1936,8 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 		return ERR_PTR(ret);
 
 	bl = devm_backlight_device_register(dev, dev_name(dev), dev, ssd130x,
-					    &ssd130xfb_bl_ops, NULL);
+					    &ssd130xfb_bl_ops[ssd130x->device_info->family_id],
+					    NULL);
 	if (IS_ERR(bl))
 		return ERR_PTR(dev_err_probe(dev, PTR_ERR(bl),
 					     "Unable to register backlight device\n"));
