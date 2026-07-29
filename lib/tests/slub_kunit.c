@@ -162,7 +162,10 @@ static void test_kmalloc_redzone_access(struct kunit *test)
 }
 
 struct test_kfree_rcu_struct {
-	struct rcu_head rcu;
+	union {
+		struct rcu_head rcu;
+		struct kvfree_rcu_head kvrcu;
+	};
 };
 
 static void test_kfree_rcu(struct kunit *test)
@@ -296,7 +299,7 @@ static void test_krealloc_redzone_zeroing(struct kunit *test)
 #if defined(CONFIG_PERF_EVENTS) || (defined(CONFIG_KPROBES) && defined(CONFIG_SMP))
 #define NR_ITERATIONS 1000
 #define NR_OBJECTS 1000
-static void *objects[NR_OBJECTS];
+static struct test_kfree_rcu_struct *objects[NR_OBJECTS];
 
 struct test_nolock_context {
 	struct kunit *test;
@@ -311,15 +314,16 @@ struct test_nolock_context {
 #endif
 };
 
-static void test_kmalloc_kfree(void)
+static void test_kmalloc_and_friends(void)
 {
 	int i, j;
+	bool can_use_kfree_rcu = !IS_BUILTIN(CONFIG_SLUB_KUNIT_TEST);
 
 	for (i = 0; i < NR_ITERATIONS; i++) {
 		for (j = 0; j < NR_OBJECTS; j++) {
-			gfp_t gfp = (i % 2) ? GFP_KERNEL : GFP_KERNEL_ACCOUNT;
+			gfp_t gfp = (i & 1) ? GFP_KERNEL : GFP_KERNEL_ACCOUNT;
 
-			objects[j] = kmalloc(64, gfp);
+			objects[j] = kmalloc_obj(*objects[j], gfp);
 			if (!objects[j]) {
 				j--;
 				while (j >= 0)
@@ -328,26 +332,35 @@ static void test_kmalloc_kfree(void)
 			}
 		}
 
-		for (j = 0; j < NR_OBJECTS; j++)
-			kfree(objects[j]);
+		for (j = 0; j < NR_OBJECTS; j++) {
+			if (can_use_kfree_rcu && (i & 2))
+				kfree_rcu(objects[j], rcu);
+			else
+				kfree(objects[j]);
+		}
 	}
 }
 
 static void test_nolock(struct test_nolock_context *ctx)
 {
-	void *objp;
+	struct test_kfree_rcu_struct *objp;
 	gfp_t gfp;
+	bool can_use_kfree_rcu = !IS_BUILTIN(CONFIG_SLUB_KUNIT_TEST);
 
 	/* __GFP_ACCOUNT to test kmalloc_nolock() in alloc_slab_obj_exts() */
-	gfp = (ctx->callback_count % 2) ? 0 : __GFP_ACCOUNT;
-	objp = kmalloc_nolock(64, gfp, NUMA_NO_NODE);
+	gfp = (ctx->callback_count & 1) ? 0 : __GFP_ACCOUNT;
+	objp = kmalloc_nolock(sizeof(*objp), gfp, NUMA_NO_NODE);
 
 	if (objp)
 		ctx->alloc_ok++;
 	else
 		ctx->alloc_fail++;
 
-	kfree_nolock(objp);
+	if (can_use_kfree_rcu && (ctx->callback_count & 2))
+		kfree_rcu_nolock(objp, kvrcu);
+	else
+		kfree_nolock(objp);
+
 	ctx->callback_count++;
 }
 #endif
@@ -397,14 +410,14 @@ static void disable_perf_events(struct test_nolock_context *ctx)
 	perf_event_release_kernel(ctx->event);
 }
 
-static void test_kmalloc_kfree_nolock_perf(struct kunit *test)
+static void test_kmalloc_nolock_and_friends_perf(struct kunit *test)
 {
 	struct test_nolock_context ctx = { .test = test };
 
 	if (!enable_perf_events(&ctx))
 		kunit_skip(test, "Failed to enable perf event, skipping");
 
-	test_kmalloc_kfree();
+	test_kmalloc_and_friends();
 
 	disable_perf_events(&ctx);
 	KUNIT_EXPECT_EQ(test, 0, slab_errors);
@@ -438,14 +451,14 @@ static void unregister_slab_kprobes(struct test_nolock_context *ctx)
 	unregister_kprobe(&ctx->kprobe);
 }
 
-static void test_kmalloc_kfree_nolock_kprobe(struct kunit *test)
+static void test_kmalloc_nolock_and_friends_kprobe(struct kunit *test)
 {
 	struct test_nolock_context ctx = { .test = test };
 
 	if (!register_slab_kprobes(&ctx))
 		kunit_skip(test, "Failed to register kprobe, skipping");
 
-	test_kmalloc_kfree();
+	test_kmalloc_and_friends();
 
 	unregister_slab_kprobes(&ctx);
 	KUNIT_EXPECT_EQ(test, 0, slab_errors);
@@ -477,10 +490,10 @@ static struct kunit_case test_cases[] = {
 	KUNIT_CASE(test_leak_destroy),
 	KUNIT_CASE(test_krealloc_redzone_zeroing),
 #ifdef CONFIG_PERF_EVENTS
-	KUNIT_CASE_SLOW(test_kmalloc_kfree_nolock_perf),
+	KUNIT_CASE_SLOW(test_kmalloc_nolock_and_friends_perf),
 #endif
 #if defined(CONFIG_KPROBES) && defined(CONFIG_SMP)
-	KUNIT_CASE_SLOW(test_kmalloc_kfree_nolock_kprobe),
+	KUNIT_CASE_SLOW(test_kmalloc_nolock_and_friends_kprobe),
 #endif
 	{}
 };
