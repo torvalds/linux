@@ -10565,12 +10565,6 @@ L:	linuxppc-dev@lists.ozlabs.org
 S:	Orphan
 F:	drivers/usb/phy/phy-fsl-usb*
 
-FREEVXFS FILESYSTEM
-M:	Christoph Hellwig <hch@infradead.org>
-S:	Maintained
-W:	ftp://ftp.openlinux.org/pub/people/hch/vxfs
-F:	fs/freevxfs/
-
 FREEZER
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 R:	Pavel Machek <pavel@kernel.org>
