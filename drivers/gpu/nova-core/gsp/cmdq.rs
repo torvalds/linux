@@ -645,8 +645,8 @@ impl CmdqInner {
         // SAFETY: `msg_header` and `cmd` are valid references, and not touched if the initializer
         // fails.
         unsafe {
-            msg_element.__init(core::ptr::from_mut(dst.header))?;
-            command.init().__init(core::ptr::from_mut(cmd))?;
+            pin_init::raw_try_init(core::ptr::from_mut(dst.header), msg_element)?;
+            pin_init::raw_try_init(core::ptr::from_mut(cmd), command.init())?;
         }
 
         // Fill the variable-length payload, which may be empty.

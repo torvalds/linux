@@ -621,7 +621,7 @@ pub(crate) fn module(info: ModuleInfo) -> Result<TokenStream> {
                     // SAFETY: No data race, since `__MOD` can only be accessed by this module
                     // and there only `__init` and `__exit` access it. These functions are only
                     // called once and `__exit` cannot be called before or during `__init`.
-                    match unsafe { initer.__pinned_init(__MOD.as_mut_ptr()) } {
+                    match unsafe { ::pin_init::raw_try_init(__MOD.as_mut_ptr(), initer) } {
                         Ok(m) => 0,
                         Err(e) => e.to_errno(),
                     }
