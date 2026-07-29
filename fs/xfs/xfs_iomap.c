@@ -2173,7 +2173,7 @@ const struct iomap_ops xfs_buffered_write_iomap_ops = {
 	.iomap_end		= xfs_buffered_write_iomap_end,
 };
 
-static int
+int
 xfs_read_iomap_begin(
 	struct inode		*inode,
 	loff_t			offset,
