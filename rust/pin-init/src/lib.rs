@@ -917,7 +917,8 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     ///
     /// Same as `__init`.
     #[inline(always)]
-    #[cfg_attr(not(kernel), deprecated = "use `raw_try_init` instead")]
+    #[cfg(not(kernel))]
+    #[deprecated = "use `raw_try_init` instead"]
     unsafe fn __pinned_init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: Per safety requirement.
         unsafe { self.__init(slot) }
