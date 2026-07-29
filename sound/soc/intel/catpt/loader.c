@@ -569,8 +569,7 @@ static int catpt_load_firmware(struct catpt_dev *cdev,
 }
 
 static int catpt_load_image(struct catpt_dev *cdev, struct dma_chan *chan,
-			    const char *name, const char *signature,
-			    bool restore)
+			    const char *name, bool restore)
 {
 	struct catpt_fw_hdr *fw;
 	struct firmware *img;
@@ -583,7 +582,7 @@ static int catpt_load_image(struct catpt_dev *cdev, struct dma_chan *chan,
 		return ret;
 
 	fw = (struct catpt_fw_hdr *)img->data;
-	if (strncmp(fw->signature, signature, FW_SIGNATURE_SIZE)) {
+	if (strncmp(fw->signature, FW_SIGNATURE, FW_SIGNATURE_SIZE)) {
 		dev_err(cdev->dev, "firmware signature mismatch\n");
 		ret = -EINVAL;
 		goto release_fw;
@@ -617,8 +616,7 @@ static int catpt_load_images(struct catpt_dev *cdev, bool restore)
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	ret = catpt_load_image(cdev, chan, cdev->spec->fw_name,
-			       FW_SIGNATURE, restore);
+	ret = catpt_load_image(cdev, chan, cdev->spec->fw_name, restore);
 	if (ret)
 		goto release_dma_chan;
 
