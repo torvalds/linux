@@ -68,21 +68,51 @@ struct net_shaper {
  * The operations are serialized via a per device lock.
  *
  * Device not supporting any kind of nesting should not provide the
- * group operation.
+ * @group operation.
  *
  * Each shaper is uniquely identified within the device with a 'handle'
  * comprising the shaper scope and a scope-specific id.
+ *
+ * Driver ops vs uAPI
+ * ------------------
+ * Members of the driver ops mirror the Netlink uAPI but driver calls do not
+ * map 1:1 to user calls. Drivers need to be careful when assuming that calls
+ * disallowed at the uAPI level will never be made at the driver level.
+ * The shaper core performs automatic reparenting and cleanup, generating
+ * additional calls. Notably:
+ *  - @group calls in the driver facing API may have nodes as leaves (user is
+ *    only allowed to construct groups with queues as leaves)
+ *  - @group calls may update leaf's parent if the parent is about
+ *    to be removed (re-parenting nodes explicitly is not supported in the uAPI)
+ *
+ * Implicit creation
+ * -----------------
+ * Shapers are created implicitly, meaning that @set and @group operations
+ * are called both for existing and new shapers. The driver has to infer
+ * whether the operation is an update or a creation by tracking the handles.
+ * Removal of shapers is explicit and done with a @delete call.
+ *
+ * The @set operation implicitly creates NET_SHAPER_SCOPE_NETDEV and
+ * NET_SHAPER_SCOPE_QUEUE shapers.
+ * The @group operation implicitly creates NET_SHAPER_SCOPE_NETDEV and
+ * NET_SHAPER_SCOPE_NODE shapers (the group shaper itself), as well as
+ * NET_SHAPER_SCOPE_QUEUE shapers (leaves).
  */
 struct net_shaper_ops {
 	/**
-	 * @group: create the specified shapers scheduling group
+	 * @group: create a scheduling group or add leaves
 	 *
-	 * Nest the @leaves shapers identified under the * @node shaper.
+	 * Nest the @leaves shapers identified under the @node shaper.
 	 * All the shapers belong to the device specified by @binding.
-	 * The @leaves arrays size is specified by @leaves_count.
-	 * Create either the @leaves and the @node shaper; or if they already
-	 * exists, links them together in the desired way.
-	 * @leaves scope must be NET_SHAPER_SCOPE_QUEUE.
+	 * The @leaves array's size is specified by @leaves_count.
+	 *
+	 * @node and @leaves may or may not already exist
+	 * (see the "Implicit creation" note). If @node already exists,
+	 * the @leaves should be *added* to its children. In this case,
+	 * the @leaves array only holds new/modified leaves, not the full list.
+	 *
+	 * Re-parenting @leaves is implemented by a @group call on a new parent.
+	 * There's no explicit call to remove the children from the old parent.
 	 */
 	int (*group)(struct net_shaper_binding *binding, int leaves_count,
 		     const struct net_shaper *leaves,
@@ -103,6 +133,13 @@ struct net_shaper_ops {
 	 *
 	 * Removes the shaper configuration as identified by the given @handle
 	 * on the device specified by @binding, restoring the default behavior.
+	 *
+	 * Note that a @delete call on a NET_SHAPER_SCOPE_QUEUE shaper also
+	 * implicitly removes the associated queue from the scheduling
+	 * hierarchy. The driver must take care of that step.
+	 * @delete calls on NET_SHAPER_SCOPE_NODE should not require any
+	 * implicit re-parenting in the driver as core will re-parent the leaves
+	 * first, before deleting the SCOPE_NODE shaper.
 	 */
 	int (*delete)(struct net_shaper_binding *binding,
 		      const struct net_shaper_handle *handle,
