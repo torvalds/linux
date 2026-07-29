@@ -6,6 +6,7 @@
  * Copyright (C) 2013 Maxime Ripard <maxime.ripard@free-electrons.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -13,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kref.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
 #include <linux/gpio/consumer.h>
@@ -468,27 +470,23 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 	const struct bin_attribute **pattrs;
 	struct bin_attribute *attrs;
 	unsigned int ncells = 0, i = 0;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&nvmem_mutex);
+	guard(mutex)(&nvmem_mutex);
 
 	if (list_empty(&nvmem->cells) || nvmem->sysfs_cells_populated)
-		goto unlock_mutex;
+		return 0;
 
 	/* Allocate an array of attributes with a sentinel */
 	ncells = list_count_nodes(&nvmem->cells);
 	pattrs = devm_kcalloc(&nvmem->dev, ncells + 1,
 			      sizeof(struct bin_attribute *), GFP_KERNEL);
-	if (!pattrs) {
-		ret = -ENOMEM;
-		goto unlock_mutex;
-	}
+	if (!pattrs)
+		return -ENOMEM;
 
 	attrs = devm_kcalloc(&nvmem->dev, ncells, sizeof(struct bin_attribute), GFP_KERNEL);
-	if (!attrs) {
-		ret = -ENOMEM;
-		goto unlock_mutex;
-	}
+	if (!attrs)
+		return -ENOMEM;
 
 	/* Initialize each attribute to take the name and size of the cell */
 	list_for_each_entry(entry, &nvmem->cells, node) {
@@ -501,10 +499,8 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 		attrs[i].size = entry->bytes;
 		attrs[i].read = &nvmem_cell_attr_read;
 		attrs[i].private = entry;
-		if (!attrs[i].attr.name) {
-			ret = -ENOMEM;
-			goto unlock_mutex;
-		}
+		if (!attrs[i].attr.name)
+			return -ENOMEM;
 
 		pattrs[i] = &attrs[i];
 		i++;
@@ -514,12 +510,9 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 
 	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)
-		goto unlock_mutex;
+		return ret;
 
 	nvmem->sysfs_cells_populated = true;
-
-unlock_mutex:
-	mutex_unlock(&nvmem_mutex);
 
 	return ret;
 }
@@ -558,9 +551,8 @@ static const struct bus_type nvmem_bus_type = {
 static void nvmem_cell_entry_drop(struct nvmem_cell_entry *cell)
 {
 	blocking_notifier_call_chain(&nvmem_notifier, NVMEM_CELL_REMOVE, cell);
-	mutex_lock(&nvmem_mutex);
-	list_del(&cell->node);
-	mutex_unlock(&nvmem_mutex);
+	scoped_guard(mutex, &nvmem_mutex)
+		list_del(&cell->node);
 	of_node_put(cell->np);
 	kfree_const(cell->name);
 	kfree(cell);
@@ -576,9 +568,8 @@ static void nvmem_device_remove_all_cells(const struct nvmem_device *nvmem)
 
 static void nvmem_cell_entry_add(struct nvmem_cell_entry *cell)
 {
-	mutex_lock(&nvmem_mutex);
-	list_add_tail(&cell->node, &cell->nvmem->cells);
-	mutex_unlock(&nvmem_mutex);
+	scoped_guard(mutex, &nvmem_mutex)
+		list_add_tail(&cell->node, &cell->nvmem->cells);
 	blocking_notifier_call_chain(&nvmem_notifier, NVMEM_CELL_ADD, cell);
 }
 
@@ -728,14 +719,14 @@ nvmem_find_cell_entry_by_name(struct nvmem_device *nvmem, const char *cell_id)
 {
 	struct nvmem_cell_entry *iter, *cell = NULL;
 
-	mutex_lock(&nvmem_mutex);
+	guard(mutex)(&nvmem_mutex);
+
 	list_for_each_entry(iter, &nvmem->cells, node) {
 		if (strcmp(cell_id, iter->name) == 0) {
 			cell = iter;
 			break;
 		}
 	}
-	mutex_unlock(&nvmem_mutex);
 
 	return cell;
 }
@@ -1125,11 +1116,11 @@ static struct nvmem_device *__nvmem_device_get(void *data,
 	struct nvmem_device *nvmem = NULL;
 	struct device *dev;
 
-	mutex_lock(&nvmem_mutex);
-	dev = bus_find_device(&nvmem_bus_type, NULL, data, match);
-	if (dev)
-		nvmem = to_nvmem_device(dev);
-	mutex_unlock(&nvmem_mutex);
+	scoped_guard(mutex, &nvmem_mutex) {
+		dev = bus_find_device(&nvmem_bus_type, NULL, data, match);
+		if (dev)
+			nvmem = to_nvmem_device(dev);
+	}
 	if (!nvmem)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -1339,7 +1330,7 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 
 	dev_id = dev_name(dev);
 
-	mutex_lock(&nvmem_lookup_mutex);
+	guard(mutex)(&nvmem_lookup_mutex);
 
 	list_for_each_entry(lookup, &nvmem_lookup_list, node) {
 		if ((strcmp(lookup->dev_id, dev_id) == 0) &&
@@ -1347,11 +1338,9 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 			/* This is the right entry. */
 			nvmem = __nvmem_device_get((void *)lookup->nvmem_name,
 						   device_match_name);
-			if (IS_ERR(nvmem)) {
+			if (IS_ERR(nvmem))
 				/* Provider may not be registered yet. */
-				cell = ERR_CAST(nvmem);
-				break;
-			}
+				return ERR_CAST(nvmem);
 
 			cell_entry = nvmem_find_cell_entry_by_name(nvmem,
 								   lookup->cell_name);
@@ -1367,7 +1356,6 @@ nvmem_cell_get_from_lookup(struct device *dev, const char *con_id)
 		}
 	}
 
-	mutex_unlock(&nvmem_lookup_mutex);
 	return cell;
 }
 
@@ -1381,18 +1369,16 @@ static void nvmem_layout_module_put(struct nvmem_device *nvmem)
 static struct nvmem_cell_entry *
 nvmem_find_cell_entry_by_node(struct nvmem_device *nvmem, struct device_node *np)
 {
-	struct nvmem_cell_entry *iter, *cell = NULL;
+	struct nvmem_cell_entry *cell;
 
-	mutex_lock(&nvmem_mutex);
-	list_for_each_entry(iter, &nvmem->cells, node) {
-		if (np == iter->np) {
-			cell = iter;
-			break;
-		}
+	guard(mutex)(&nvmem_mutex);
+
+	list_for_each_entry(cell, &nvmem->cells, node) {
+		if (np == cell->np)
+			return cell;
 	}
-	mutex_unlock(&nvmem_mutex);
 
-	return cell;
+	return NULL;
 }
 
 static int nvmem_layout_module_get_optional(struct nvmem_device *nvmem)
@@ -2125,10 +2111,10 @@ void nvmem_add_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries)
 {
 	int i;
 
-	mutex_lock(&nvmem_lookup_mutex);
+	guard(mutex)(&nvmem_lookup_mutex);
+
 	for (i = 0; i < nentries; i++)
 		list_add_tail(&entries[i].node, &nvmem_lookup_list);
-	mutex_unlock(&nvmem_lookup_mutex);
 }
 EXPORT_SYMBOL_GPL(nvmem_add_cell_lookups);
 
@@ -2143,10 +2129,10 @@ void nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries)
 {
 	int i;
 
-	mutex_lock(&nvmem_lookup_mutex);
+	guard(mutex)(&nvmem_lookup_mutex);
+
 	for (i = 0; i < nentries; i++)
 		list_del(&entries[i].node);
-	mutex_unlock(&nvmem_lookup_mutex);
 }
 EXPORT_SYMBOL_GPL(nvmem_del_cell_lookups);
 
