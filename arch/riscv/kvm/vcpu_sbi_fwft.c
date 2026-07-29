@@ -598,6 +598,8 @@ static void kvm_sbi_ext_fwft_reset(struct kvm_vcpu *vcpu)
 		if (feature->reset)
 			feature->reset(vcpu);
 	}
+
+	vcpu->arch.csr_dirty = true;
 }
 
 static void kvm_sbi_ext_fwft_validate(struct kvm_vcpu *vcpu)
