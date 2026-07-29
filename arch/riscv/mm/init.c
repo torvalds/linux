@@ -1625,7 +1625,7 @@ static void __meminit remove_pud_mapping(pud_t *pud_base, unsigned long addr, un
 
 	for (; addr < end; addr = next) {
 		next = pud_addr_end(addr, end);
-		pudp = pud_base + pud_index(addr);
+		pudp = pgtable_l4_enabled ? pud_base + pud_index(addr) : pud_base;
 		pud = pudp_get(pudp);
 		if (!pud_present(pud))
 			continue;
@@ -1656,7 +1656,7 @@ static void __meminit remove_p4d_mapping(p4d_t *p4d_base, unsigned long addr, un
 
 	for (; addr < end; addr = next) {
 		next = p4d_addr_end(addr, end);
-		p4dp = p4d_base + p4d_index(addr);
+		p4dp = pgtable_l5_enabled ? p4d_base + p4d_index(addr) : p4d_base;
 		p4d = p4dp_get(p4dp);
 		if (!p4d_present(p4d))
 			continue;
