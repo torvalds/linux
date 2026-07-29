@@ -2630,15 +2630,7 @@ static const char *const snd_usb_audio_quirk_flag_names[] = {
 	NULL
 };
 
-const char *snd_usb_quirk_flag_find_name(unsigned long index)
-{
-	if (index >= ARRAY_SIZE(snd_usb_audio_quirk_flag_names))
-		return NULL;
-
-	return snd_usb_audio_quirk_flag_names[index];
-}
-
-u64 snd_usb_quirk_flags_from_name(const char *name)
+static u64 snd_usb_quirk_flags_from_name(const char *name)
 {
 	int i;
 
