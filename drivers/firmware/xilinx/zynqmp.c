@@ -2073,7 +2073,7 @@ ATTRIBUTE_GROUPS(zynqmp_firmware);
  * zynqmp_clear_pm_state() - Clear subsystem state
  * @dev: Device pointer used for logging
  *
- * Clears PM specific data in EL3 firmware.
+ * Clears PM specific data in EL3 and platform firmware.
  *
  * Return: Returns status, either success or error
  */
@@ -2100,6 +2100,19 @@ static int zynqmp_clear_pm_state(struct device *dev)
 					"Failed to clear EL3 PM subsystem state: %d\n", ret);
 		} else {
 			dev_warn(dev, "TF_A_CLEAR_PM_STATE is not supported by EL3 firmware: %d\n", ret);
+			ret = 0;
+		}
+
+		/* Check if the firmware supports the PM_DEV_ALL_PERIPH node ID */
+		ret = do_feature_check_call(PM_RELEASE_NODE);
+		if (ret >= 0 && ((ret & FIRMWARE_VERSION_MASK) >= PM_API_VERSION_3)) {
+			/* Attempt to release all peripheral devices via firmware */
+			ret = zynqmp_pm_release_node(PM_DEV_ALL_PERIPH);
+			if (ret)
+				dev_err(dev, "Failed to release all peripheral devices: %d\n", ret);
+		} else {
+			dev_warn(dev,
+				 "Bulk device release is not supported by firmware: %d\n", ret);
 			ret = 0;
 		}
 	}
