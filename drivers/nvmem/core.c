@@ -57,25 +57,28 @@ static BLOCKING_NOTIFIER_HEAD(nvmem_notifier);
 static int __nvmem_reg_read(struct nvmem_device *nvmem, unsigned int offset,
 			    void *val, size_t bytes)
 {
-	if (!nvmem->reg_read)
+	struct nvmem_operations *ops = nvmem->ops;
+
+	if (!ops->reg_read)
 		return -EOPNOTSUPP;
 
-	return nvmem->reg_read(nvmem->priv, offset, val, bytes);
+	return ops->reg_read(nvmem->priv, offset, val, bytes);
 }
 
 static int __nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
 			     void *val, size_t bytes)
 {
+	struct nvmem_operations *ops = nvmem->ops;
 	int ret, wr_ok;
 
-	if (!nvmem->reg_write)
+	if (!ops->reg_write)
 		return -EOPNOTSUPP;
 
 	ret = gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
 	if (ret)
 		return ret;
 
-	wr_ok = nvmem->reg_write(nvmem->priv, offset, val, bytes);
+	wr_ok = ops->reg_write(nvmem->priv, offset, val, bytes);
 
 	ret = gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
 	if (ret)
@@ -286,6 +289,8 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 {
+	struct nvmem_operations *ops = nvmem->ops;
+
 	umode_t mode = 0400;
 
 	if (!nvmem->root_only)
@@ -294,10 +299,10 @@ static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 	if (!nvmem->read_only)
 		mode |= 0200;
 
-	if (!nvmem->reg_write)
+	if (!ops->reg_write)
 		mode &= ~0200;
 
-	if (!nvmem->reg_read)
+	if (!ops->reg_read)
 		mode &= ~0444;
 
 	return mode;
@@ -328,6 +333,7 @@ static umode_t nvmem_attr_is_visible(struct kobject *kobj,
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
+	struct nvmem_operations *ops = nvmem->ops;
 
 	/*
 	 * If the device has no .reg_write operation, do not allow
@@ -336,7 +342,7 @@ static umode_t nvmem_attr_is_visible(struct kobject *kobj,
 	 * can be forced into read-write mode using the 'force_ro'
 	 * attribute.
 	 */
-	if (attr == &dev_attr_force_ro.attr && !nvmem->reg_write)
+	if (attr == &dev_attr_force_ro.attr && !ops->reg_write)
 		return 0;	/* Attribute not visible */
 
 	return attr->mode;
@@ -537,6 +543,7 @@ static void nvmem_release(struct device *dev)
 
 	ida_free(&nvmem_ida, nvmem->id);
 	gpiod_put(nvmem->wp_gpio);
+	kfree(nvmem->ops);
 	kfree(nvmem);
 }
 
@@ -897,6 +904,7 @@ EXPORT_SYMBOL_GPL(nvmem_layout_unregister);
 
 struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 {
+	struct nvmem_operations *ops;
 	struct nvmem_device *nvmem;
 	int rval;
 
@@ -910,8 +918,15 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (!nvmem)
 		return ERR_PTR(-ENOMEM);
 
+	ops = kzalloc_obj(*ops);
+	if (!ops) {
+		kfree(nvmem);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	rval = ida_alloc(&nvmem_ida, GFP_KERNEL);
 	if (rval < 0) {
+		kfree(ops);
 		kfree(nvmem);
 		return ERR_PTR(rval);
 	}
@@ -921,6 +936,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->dev.type = &nvmem_provider_type;
 	nvmem->dev.bus = &nvmem_bus_type;
 	nvmem->dev.parent = config->dev;
+	nvmem->ops = ops;
 
 	device_initialize(&nvmem->dev);
 
@@ -937,6 +953,9 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	INIT_LIST_HEAD(&nvmem->cells);
 	nvmem->fixup_dt_cell_info = config->fixup_dt_cell_info;
 
+	ops->reg_read = config->reg_read;
+	ops->reg_write = config->reg_write;
+
 	nvmem->owner = config->owner;
 	if (!nvmem->owner && config->dev->driver)
 		nvmem->owner = config->dev->driver->owner;
@@ -946,8 +965,6 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	nvmem->root_only = config->root_only;
 	nvmem->priv = config->priv;
 	nvmem->type = config->type;
-	nvmem->reg_read = config->reg_read;
-	nvmem->reg_write = config->reg_write;
 	nvmem->keepout = config->keepout;
 	nvmem->nkeepout = config->nkeepout;
 	if (config->of_node)
@@ -973,7 +990,7 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 		goto err_put_device;
 
 	nvmem->read_only = device_property_present(config->dev, "read-only") ||
-			   config->read_only || !nvmem->reg_write;
+			   config->read_only || !ops->reg_write;
 
 #ifdef CONFIG_NVMEM_SYSFS
 	nvmem->dev.groups = nvmem_dev_groups;

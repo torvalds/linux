@@ -7,6 +7,12 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
 
+/* Hold pointers to callbacks owned by the nvmem provider module. */
+struct nvmem_operations {
+	nvmem_reg_read_t	reg_read;
+	nvmem_reg_write_t	reg_write;
+};
+
 struct nvmem_device {
 	struct module		*owner;
 	struct device		dev;
@@ -26,10 +32,9 @@ struct nvmem_device {
 				   struct nvmem_cell_info *cell);
 	const struct nvmem_keepout *keepout;
 	unsigned int		nkeepout;
-	nvmem_reg_read_t	reg_read;
-	nvmem_reg_write_t	reg_write;
 	struct gpio_desc	*wp_gpio;
 	struct nvmem_layout	*layout;
+	struct nvmem_operations	*ops;
 	void *priv;
 	bool			sysfs_cells_populated;
 };
