@@ -787,31 +787,38 @@ static bool smb2_lock_sequence_applicable(struct ksmbd_work *work,
 {
 	return fp->is_resilient || fp->is_durable || fp->is_persistent ||
 	       (work->conn->dialect >= SMB30_PROT_ID &&
-		(work->conn->cli_cap & SMB2_GLOBAL_CAP_MULTI_CHANNEL));
+		(work->conn->vals->req_capabilities &
+		 SMB2_GLOBAL_CAP_MULTI_CHANNEL));
 }
 
-static void smb2_verify_lock_sequence(struct ksmbd_work *work,
-				      struct ksmbd_file *fp,
-				      struct smb2_lock_req *req)
+static bool smb2_verify_lock_sequence(struct ksmbd_work *work,
+				       struct ksmbd_file *fp,
+				       struct smb2_lock_req *req)
 {
 	u32 val, index;
 	u8 sequence;
+	bool replay = false;
 
 	if (work->conn->dialect == SMB20_PROT_ID ||
 	    !smb2_lock_sequence_applicable(work, fp))
-		return;
+		return false;
 
 	val = le32_to_cpu(req->LockSequenceNumber);
 	sequence = val & 0xf;
 	index = val >> 4;
 	if (!index || index > KSMBD_LOCK_SEQ_ARRAY_SIZE)
-		return;
+		return false;
 
 	spin_lock(&fp->f_lock);
-	if (fp->lock_seq[index - 1].valid &&
-	    fp->lock_seq[index - 1].sequence != sequence)
-		fp->lock_seq[index - 1].valid = false;
+	if (fp->lock_seq[index - 1].valid) {
+		if (fp->lock_seq[index - 1].sequence == sequence)
+			replay = true;
+		else
+			fp->lock_seq[index - 1].valid = false;
+	}
 	spin_unlock(&fp->f_lock);
+
+	return replay;
 }
 
 static void smb2_update_lock_sequence(struct ksmbd_work *work,
@@ -9194,6 +9201,7 @@ int smb2_lock(struct ksmbd_work *work)
 	LIST_HEAD(rollback_list);
 	int prior_lock = 0, bkt;
 	unsigned int id = KSMBD_NO_FID, pid = KSMBD_NO_FID;
+	bool lock_replayed;
 
 	WORK_BUFFERS(work, req, rsp);
 
@@ -9226,7 +9234,9 @@ int smb2_lock(struct ksmbd_work *work)
 	if (err)
 		goto out2;
 
-	smb2_verify_lock_sequence(work, fp, req);
+	lock_replayed = smb2_verify_lock_sequence(work, fp, req);
+	if (lock_replayed)
+		goto lock_success;
 
 	filp = fp->filp;
 	lock_count = le16_to_cpu(req->LockCount);
@@ -9493,6 +9503,7 @@ skip:
 	if (atomic_read(&fp->f_ci->op_count) > 1)
 		smb_break_all_oplock(work, fp);
 
+lock_success:
 	rsp->StructureSize = cpu_to_le16(4);
 	ksmbd_debug(SMB, "successful in taking lock\n");
 	rsp->hdr.Status = STATUS_SUCCESS;
@@ -9500,7 +9511,8 @@ skip:
 	err = ksmbd_iov_pin_rsp(work, rsp, sizeof(struct smb2_lock_rsp));
 	if (err)
 		goto out;
-	smb2_update_lock_sequence(work, fp, req);
+	if (!lock_replayed)
+		smb2_update_lock_sequence(work, fp, req);
 
 	ksmbd_fd_put(work, fp);
 	return 0;

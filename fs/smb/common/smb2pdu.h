@@ -847,8 +847,8 @@ struct smb2_lock_req {
 	__le16 StructureSize; /* Must be 48 */
 	__le16 LockCount;
 	/*
-	 * The least significant four bits are the index, the other 28 bits are
-	 * the lock sequence number (0 to 64). See MS-SMB2 2.2.26
+	 * The least significant four bits are the lock sequence number. The
+	 * other 28 bits are the index (0 to 64). See MS-SMB2 2.2.26.
 	 */
 	__le32 LockSequenceNumber;
 	__u64  PersistentFileId;
