@@ -1339,6 +1339,15 @@ static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (!data)
 		return 0;
 
+	if (data[IFLA_MACVLAN_BC_QUEUE_LEN] &&
+	    nla_get_u32(data[IFLA_MACVLAN_BC_QUEUE_LEN]) >
+			MACVLAN_DEFAULT_BC_QUEUE_LEN &&
+	    !capable(CAP_NET_ADMIN)) {
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_MACVLAN_BC_QUEUE_LEN],
+				    "bc_queue_len above the default requires CAP_NET_ADMIN in the initial user namespace");
+		return -EPERM;
+	}
+
 	if (data[IFLA_MACVLAN_FLAGS] &&
 	    nla_get_u16(data[IFLA_MACVLAN_FLAGS]) & ~(MACVLAN_FLAG_NOPROMISC |
 						      MACVLAN_FLAG_NODST))
