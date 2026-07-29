@@ -738,6 +738,7 @@ struct ubifs_jhead {
  * struct ubifs_zbranch - key/coordinate/length branch stored in znodes.
  * @key: key
  * @znode: znode address in memory
+ * @leaf: leaf node
  * @lnum: LEB number of the target node (indexing node or data node)
  * @offs: target node offset within @lnum
  * @len: target node length
@@ -801,7 +802,7 @@ struct ubifs_znode {
  * @gc_seq: GC sequence number to detect races with GC
  * @cnt: number of data nodes for bulk read
  * @blk_cnt: number of data blocks including holes
- * @oef: end of file reached
+ * @eof: end of file reached
  */
 struct bu_info {
 	union ubifs_key key;
@@ -985,7 +986,7 @@ struct ubifs_budg_info {
 };
 
 /**
- * ubifs_stats_info - per-FS statistics information.
+ * struct ubifs_stats_info - per-FS statistics information.
  * @magic_errors: number of bad magic numbers (will be reset with a new mount).
  * @node_errors: number of bad nodes (will be reset with a new mount).
  * @crc_errors: number of bad crcs (will be reset with a new mount).
@@ -1051,6 +1052,7 @@ struct ubifs_debug_info;
  * @rw_incompat: the media is not R/W compatible
  * @assert_action: action to take when a ubifs_assert() fails
  * @authenticated: flag indigating the FS is mounted in authenticated mode
+ * @superblock_need_write: superblock node needs to be written
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -1588,8 +1590,9 @@ int ubifs_prepare_auth_node(struct ubifs_info *c, void *node,
  * @expected: first hash
  * @got: second hash
  *
- * Compare two hashes @expected and @got. Returns 0 when they are equal, a
- * negative error code otherwise.
+ * Compare two hashes @expected and @got.
+ *
+ * Returns: 0 when they are equal, a negative error code otherwise.
  */
 static inline int ubifs_check_hash(const struct ubifs_info *c,
 				   const u8 *expected, const u8 *got)
@@ -1603,8 +1606,9 @@ static inline int ubifs_check_hash(const struct ubifs_info *c,
  * @expected: first HMAC
  * @got: second HMAC
  *
- * Compare two hashes @expected and @got. Returns 0 when they are equal, a
- * negative error code otherwise.
+ * Compare two hashes @expected and @got.
+ *
+ * Returns: 0 when they are equal, a negative error code otherwise.
  */
 static inline int ubifs_check_hmac(const struct ubifs_info *c,
 				   const u8 *expected, const u8 *got)
@@ -1644,7 +1648,7 @@ static inline void ubifs_exit_authentication(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  * @br: branch to get the hash from
  *
- * This returns a pointer to the hash of a branch. Since the key already is a
+ * Returns: a pointer to the hash of a branch. Since the key already is a
  * dynamically sized object we cannot use a struct member here.
  */
 static inline u8 *ubifs_branch_hash(struct ubifs_info *c,
@@ -1694,7 +1698,7 @@ static inline int ubifs_node_verify_hmac(const struct ubifs_info *c,
  * ubifs_auth_node_sz - returns the size of an authentication node
  * @c: UBIFS file-system description object
  *
- * This function returns the size of an authentication node which can
+ * Returns: the size of an authentication node which can
  * be 0 for unauthenticated filesystems or the real size of an auth node
  * authentication is enabled.
  */
