@@ -3348,7 +3348,7 @@
 #define DEFAULT_AX_RX_FLTR (B_AX_A_A1_MATCH | B_AX_A_BC | B_AX_A_MC |	       \
 			    B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH |	       \
 			    B_AX_A_PWR_MGNT | B_AX_A_FTM_REQ |		       \
-			    u32_encode_bits(3, B_AX_UID_FILTER_MASK) |	       \
+			    FIELD_PREP_CONST(B_AX_UID_FILTER_MASK, 3) |       \
 			    B_AX_A_BCN_CHK_EN)
 #define B_AX_RX_FLTR_CFG_MASK ((u32)~B_AX_RX_MPDU_MAX_LEN_MASK)
 
@@ -8209,6 +8209,10 @@
 #define B_BE_A_BC BIT(2)
 #define B_BE_A_A1_MATCH BIT(1)
 #define B_BE_SNIFFER_MODE BIT(0)
+#define DEFAULT_BE_RX_FLTR (B_BE_A_BC_CAM_MATCH | B_BE_A_UC_CAM_MATCH |        \
+			    B_BE_A_MC | B_BE_A_BC | B_BE_A_A1_MATCH |          \
+			    FIELD_PREP_CONST(B_BE_UID_FILTER_MASK, 15) |       \
+			    B_BE_A_FTM_REQ | B_BE_A_BCN_CHK_EN)
 
 #define R_BE_CTRL_FLTR 0x11424
 #define R_BE_CTRL_FLTR_C1 0x15424

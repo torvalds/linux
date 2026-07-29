@@ -1063,6 +1063,7 @@ struct rtw89_mac_gen_def {
 	const u32 *mem_base_addrs;
 	u32 mem_page_size;
 	u32 rx_fltr;
+	u32 default_rx_fltr;
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
 	u32 ps_status;
