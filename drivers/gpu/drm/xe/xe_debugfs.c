@@ -614,6 +614,72 @@ static const struct file_operations disable_late_binding_fops = {
 	.write = disable_late_binding_set,
 };
 
+#ifdef CONFIG_DRM_XE_DEBUG_PAGE_SIZE
+static const char * const page_size_alloc_mode_names[] = {
+	[XE_PAGE_SIZE_ALLOC_CTRL_MODE_NONE]    = "none",
+	[XE_PAGE_SIZE_ALLOC_CTRL_MODE_ONLY_2M] = "only_2m",
+	[XE_PAGE_SIZE_ALLOC_CTRL_MODE_ONLY_1G] = "only_1g",
+	[XE_PAGE_SIZE_ALLOC_CTRL_MODE_MIXED]   = "mixed",
+};
+
+static ssize_t page_size_alloc_mode_show(struct file *f, char __user *ubuf,
+					 size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	char buf[32];
+	int len;
+	enum xe_page_size_alloc_ctrl_mode mode;
+
+	mode = READ_ONCE(xe->page_size_alloc_ctrl.mode);
+	if (mode >= ARRAY_SIZE(page_size_alloc_mode_names) ||
+	    !page_size_alloc_mode_names[mode])
+		len = scnprintf(buf, sizeof(buf), "unknown\n");
+	else
+		len = scnprintf(buf, sizeof(buf), "%s\n",
+				page_size_alloc_mode_names[mode]);
+	return simple_read_from_buffer(ubuf, size, pos, buf, len);
+}
+
+static ssize_t page_size_alloc_mode_set(struct file *f, const char __user *ubuf,
+					size_t size, loff_t *pos)
+{
+	struct xe_device *xe = file_inode(f)->i_private;
+	int ret;
+	char buf[32];
+	int mode;
+
+	if (*pos)
+		return -ESPIPE;
+
+	if (size > sizeof(buf) - 1)
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(buf, sizeof(buf) - 1, pos, ubuf, size);
+	if (ret < 0)
+		return ret;
+	buf[ret] = '\0';
+
+	mode = sysfs_match_string(page_size_alloc_mode_names, buf);
+	if (mode < 0)
+		return mode;
+
+	mutex_lock(&xe->page_size_alloc_ctrl.lock);
+	if (mode == XE_PAGE_SIZE_ALLOC_CTRL_MODE_MIXED)
+		xe->page_size_alloc_ctrl.cur_index = 0;
+	WRITE_ONCE(xe->page_size_alloc_ctrl.mode,
+		   (enum xe_page_size_alloc_ctrl_mode)mode);
+	mutex_unlock(&xe->page_size_alloc_ctrl.lock);
+
+	return size;
+}
+
+static const struct file_operations page_size_alloc_mode_fops = {
+	.owner = THIS_MODULE,
+	.read = page_size_alloc_mode_show,
+	.write = page_size_alloc_mode_set,
+};
+#endif
+
 void xe_debugfs_register(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
@@ -665,6 +731,18 @@ void xe_debugfs_register(struct xe_device *xe)
 	debugfs_create_file("disable_late_binding", 0600, root, xe,
 			    &disable_late_binding_fops);
 
+#ifdef CONFIG_DRM_XE_DEBUG_PAGE_SIZE
+	/*
+	 * Expose a debugfs knob to control user BO page-size allocation:
+	 * "none"    - default behavior
+	 * "only_2m" - force 2M page allocations
+	 * "only_1g" - force 1G page allocations
+	 * "mixed"   - select 4K, 64K, 2M, and 1G in round-robin order
+	 */
+	if (xe_debug_page_size_supported(xe))
+		debugfs_create_file("page_size_alloc_mode", 0600, root, xe,
+				    &page_size_alloc_mode_fops);
+#endif
 	/*
 	 * Don't expose page reclaim configuration file if not supported by the
 	 * hardware initially.
