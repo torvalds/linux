@@ -8530,10 +8530,9 @@ static void ca0132_set_dsp_msr(struct hda_codec *codec, bool is96k)
 
 static bool ca0132_download_dsp_images(struct hda_codec *codec)
 {
-	bool dsp_loaded = false;
 	struct ca0132_spec *spec = codec->spec;
 	const struct dsp_image_seg *dsp_os_image;
-	const struct firmware *fw_entry = NULL;
+	const struct firmware *fw_entry __free(firmware) = NULL;
 	/*
 	 * Alternate firmwares for different variants. The Recon3Di apparently
 	 * can use the default firmware, but I'll leave the option in case
@@ -8573,15 +8572,10 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 	dsp_os_image = (struct dsp_image_seg *)(fw_entry->data);
 	if (dspload_image(codec, dsp_os_image, 0, 0, true, 0)) {
 		codec_err(codec, "ca0132 DSP load image failed\n");
-		goto exit_download;
+		return false;
 	}
 
-	dsp_loaded = dspload_wait_loaded(codec);
-
-exit_download:
-	release_firmware(fw_entry);
-
-	return dsp_loaded;
+	return dspload_wait_loaded(codec);
 }
 
 static void ca0132_download_dsp(struct hda_codec *codec)
