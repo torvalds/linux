@@ -871,8 +871,7 @@ static int catpt_set_dspvol(struct catpt_dev *cdev, u8 stream_id, long *ctlvol)
 	return CATPT_IPC_RET(ret);
 }
 
-static int catpt_volume_info(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_info *uinfo)
+static int catpt_volume_info(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = CATPT_CHANNELS_MAX;
