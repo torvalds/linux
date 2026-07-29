@@ -55,10 +55,10 @@ static BLOCKING_NOTIFIER_HEAD(nvmem_notifier);
 static int __nvmem_reg_read(struct nvmem_device *nvmem, unsigned int offset,
 			    void *val, size_t bytes)
 {
-	if (nvmem->reg_read)
-		return nvmem->reg_read(nvmem->priv, offset, val, bytes);
+	if (!nvmem->reg_read)
+		return -EOPNOTSUPP;
 
-	return -EINVAL;
+	return nvmem->reg_read(nvmem->priv, offset, val, bytes);
 }
 
 static int __nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
@@ -66,14 +66,14 @@ static int __nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
 {
 	int ret;
 
-	if (nvmem->reg_write) {
-		gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
-		ret = nvmem->reg_write(nvmem->priv, offset, val, bytes);
-		gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
-		return ret;
-	}
+	if (!nvmem->reg_write)
+		return -EOPNOTSUPP;
 
-	return -EINVAL;
+	gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
+	ret = nvmem->reg_write(nvmem->priv, offset, val, bytes);
+	gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
+
+	return ret;
 }
 
 static int nvmem_access_with_keepouts(struct nvmem_device *nvmem,
@@ -231,13 +231,12 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 
 	count = round_down(count, nvmem->word_size);
 
-	if (!nvmem->reg_read)
-		return -EPERM;
-
 	rc = nvmem_reg_read(nvmem, pos, buf, count);
-
-	if (rc)
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return -EPERM;
 		return rc;
+	}
 
 	return count;
 }
@@ -264,13 +263,15 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 	count = round_down(count, nvmem->word_size);
 
-	if (!nvmem->reg_write || nvmem->read_only)
+	if (nvmem->read_only)
 		return -EPERM;
 
 	rc = nvmem_reg_write(nvmem, pos, buf, count);
-
-	if (rc)
+	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return -EPERM;
 		return rc;
+	}
 
 	return count;
 }
