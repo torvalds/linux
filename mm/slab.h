@@ -353,6 +353,37 @@ static inline int objs_per_slab(const struct kmem_cache *cache,
 }
 
 /*
+ * kvfree_rcu_head offset can be only less than page size.
+ * Calculate the start address while preserving the KASAN tag.
+ */
+static inline void *kvmalloc_obj_start_addr(void *head)
+{
+	unsigned long offset;
+
+	if (unlikely(is_vmalloc_addr(head))) {
+		offset = offset_in_page(head);
+	} else {
+		struct slab *slab = virt_to_slab(head);
+
+		if (!slab) {
+			offset = offset_in_page(head);
+		} else if (is_kfence_address(head)) {
+			offset = head - kfence_object_start(head);
+		} else {
+			struct kmem_cache *s = slab->slab_cache;
+			unsigned int idx = __obj_to_index(s, slab_address(slab), head);
+			void *obj = slab_address(slab) + s->size * idx;
+
+			obj = fixup_red_left(s, obj);
+			obj = kasan_reset_tag(obj);
+			offset = kasan_reset_tag(head) - obj;
+		}
+	}
+
+	return head - offset;
+}
+
+/*
  * State of the slab allocator.
  *
  * This is used to describe the states of the allocator during bootup.
@@ -787,6 +818,7 @@ void __check_heap_object(const void *ptr, unsigned long n,
 			 const struct slab *slab, bool to_user);
 
 void deferred_work_barrier(void);
+void defer_kfree_rcu(struct kvfree_rcu_head *head);
 
 static inline bool slub_debug_orig_size(struct kmem_cache *s)
 {

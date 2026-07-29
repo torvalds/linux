@@ -1098,19 +1098,21 @@ static inline void rcu_read_unlock_migrate(void)
 /*
  * In mm/slab_common.c, no suitable header to include here.
  */
-void kvfree_call_rcu(struct rcu_head *head, void *ptr);
+void kvfree_call_rcu(struct kvfree_rcu_head *head, void *ptr);
 
 /*
  * The BUILD_BUG_ON() makes sure the rcu_head offset can be handled. See the
  * comment of kfree_rcu() for details.
  */
-#define kvfree_rcu_arg_2(ptr, rhf)					\
+#define kvfree_rcu_arg_2(ptr, kvrhf)					\
 do {									\
 	typeof (ptr) ___p = (ptr);					\
+	struct kvfree_rcu_head *___head;				\
 									\
 	if (___p) {							\
-		BUILD_BUG_ON(offsetof(typeof(*(ptr)), rhf) >= 4096);	\
-		kvfree_call_rcu(&((___p)->rhf), (void *) (___p));	\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), kvrhf) >= 4096);	\
+		___head = (struct kvfree_rcu_head *) &(___p)->kvrhf;	\
+		kvfree_call_rcu(___head, (void *) (___p));		\
 	}								\
 } while (0)
 

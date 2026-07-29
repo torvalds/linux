@@ -6681,43 +6681,21 @@ static void free_large_kmalloc(struct page *page, void *object)
  */
 void kvfree_rcu_cb(struct rcu_head *head)
 {
-	void *obj = head;
-	struct page *page;
-	struct slab *slab;
-	struct kmem_cache *s;
-	void *slab_addr;
+	void *obj;
+
+	obj = kvmalloc_obj_start_addr(head);
 
 	if (is_vmalloc_addr(obj)) {
-		obj = (void *) PAGE_ALIGN_DOWN((unsigned long)obj);
 		vfree(obj);
-		return;
-	}
-
-	page = virt_to_page(obj);
-	slab = page_slab(page);
-	if (!slab) {
-		/*
-		 * rcu_head offset can be only less than page size so no need to
-		 * consider allocation order
-		 */
-		obj = (void *) PAGE_ALIGN_DOWN((unsigned long)obj);
-		free_large_kmalloc(page, obj);
-		return;
-	}
-
-	s = slab->slab_cache;
-	slab_addr = slab_address(slab);
-
-	if (is_kfence_address(obj)) {
-		obj = kfence_object_start(obj);
 	} else {
-		unsigned int idx = __obj_to_index(s, slab_addr, obj);
+		struct page *page = virt_to_page(obj);
+		struct slab *slab = page_slab(page);
 
-		obj = slab_addr + s->size * idx;
-		obj = fixup_red_left(s, obj);
+		if (slab)
+			slab_free(slab->slab_cache, slab, obj, _RET_IP_);
+		else
+			free_large_kmalloc(page, obj);
 	}
-
-	slab_free(s, slab, obj, _RET_IP_);
 }
 
 /**
