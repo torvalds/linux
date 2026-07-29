@@ -460,10 +460,9 @@ static int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 	return 0;
 }
 
-static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
-			      const struct nvmem_config *config)
+static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem)
 {
-	if (config->compat)
+	if (nvmem->flags & FLAG_COMPAT)
 		device_remove_bin_file(nvmem->base_dev, &nvmem->eeprom);
 }
 
@@ -530,8 +529,7 @@ static int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 {
 	return -ENOSYS;
 }
-static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
-				      const struct nvmem_config *config)
+static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem)
 {
 }
 
@@ -1056,8 +1054,7 @@ err_remove_dev:
 	device_del(&nvmem->dev);
 err_remove_cells:
 	nvmem_device_remove_all_cells(nvmem);
-	if (config->compat)
-		nvmem_sysfs_remove_compat(nvmem, config);
+	nvmem_sysfs_remove_compat(nvmem);
 err_put_device:
 	put_device(&nvmem->dev);
 
@@ -1073,8 +1070,7 @@ static void nvmem_device_release(struct kref *kref)
 
 	blocking_notifier_call_chain(&nvmem_notifier, NVMEM_REMOVE, nvmem);
 
-	if (nvmem->flags & FLAG_COMPAT)
-		device_remove_bin_file(nvmem->base_dev, &nvmem->eeprom);
+	nvmem_sysfs_remove_compat(nvmem);
 
 	nvmem_device_remove_all_cells(nvmem);
 	nvmem_destroy_layout(nvmem);
