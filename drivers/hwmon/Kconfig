@@ -414,7 +414,6 @@ config SENSORS_ARCTIC_FAN_CONTROLLER
 config SENSORS_ARM_SCMI
 	tristate "ARM SCMI Sensors"
 	depends on ARM_SCMI_PROTOCOL
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver provides support for temperature, voltage, current
 	  and power sensors available on SCMI based platforms. The actual
@@ -426,7 +425,6 @@ config SENSORS_ARM_SCMI
 config SENSORS_ARM_SCPI
 	tristate "ARM SCPI Sensors"
 	depends on ARM_SCPI_PROTOCOL
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver provides support for temperature, voltage, current
 	  and power sensors available on ARM Ltd's SCP based platforms. The
@@ -446,7 +444,6 @@ config SENSORS_ASB100
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
 	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	select REGMAP
 	help
 	  This driver provides support for ASPEED AST2400/AST2500 PWM
@@ -799,7 +796,6 @@ config SENSORS_G762
 config SENSORS_GPIO_FAN
 	tristate "GPIO fan"
 	depends on GPIOLIB || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to GPIO lines.
 
@@ -1381,7 +1377,6 @@ config SENSORS_MAX6639
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
 	depends on I2C
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for the MAX6650 / MAX6651
 	  sensor chips.
@@ -1756,7 +1751,6 @@ config SENSORS_PC87427
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support"
 	depends on IIO
-	depends on THERMAL || !THERMAL_OF
 	help
 	  This driver supports NTC thermistors sensor reading and its
 	  interpretation. The driver can also monitor the temperature and
@@ -1957,7 +1951,6 @@ config SENSORS_PT5161L
 config SENSORS_PWM_FAN
 	tristate "PWM fan"
 	depends on PWM || COMPILE_TEST
-	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for fans connected to PWM lines.
 	  The driver uses the generic PWM interface, thus it will work on a
@@ -1969,7 +1962,6 @@ config SENSORS_PWM_FAN
 config SENSORS_QNAP_MCU_HWMON
 	tristate "QNAP MCU hardware monitoring"
 	depends on MFD_QNAP_MCU
-	depends on THERMAL || THERMAL=n
 	help
 	  Say yes here to enable support for fan and temperature sensor
 	  connected to a QNAP MCU, as found in a number of QNAP network
