@@ -2223,19 +2223,22 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int i, sessions = 0;
 	unsigned long flags;
-	int rc;
 	u32 dma_bits;
+	u32 sid = 0;
+	int rc;
 
 	cctx = dev_get_drvdata(dev->parent);
 	if (!cctx)
 		return -EINVAL;
 
 	of_property_read_u32(dev->of_node, "qcom,nsessions", &sessions);
+	if (of_property_read_u32(dev->of_node, "reg", &sid))
+		dev_info(dev, "FastRPC Session ID not specified in DT\n");
 
 	spin_lock_irqsave(&cctx->lock, flags);
 	if (cctx->sesscount >= FASTRPC_MAX_SESSIONS) {
-		dev_err(&pdev->dev, "too many sessions\n");
 		spin_unlock_irqrestore(&cctx->lock, flags);
+		dev_err(&pdev->dev, "too many sessions\n");
 		return -ENOSPC;
 	}
 	dma_bits = cctx->soc_data->dma_addr_bits_default;
@@ -2244,12 +2247,10 @@ static int fastrpc_cb_probe(struct platform_device *pdev)
 	sess->valid = true;
 	sess->dev = dev;
 	dev_set_drvdata(dev, sess);
+	sess->sid = sid;
 
 	if (cctx->domain_id == CDSP_DOMAIN_ID)
 		dma_bits = cctx->soc_data->dma_addr_bits_cdsp;
-
-	if (of_property_read_u32(dev->of_node, "reg", &sess->sid))
-		dev_info(dev, "FastRPC Session ID not specified in DT\n");
 
 	if (sessions > 0) {
 		struct fastrpc_session_ctx *dup_sess;
