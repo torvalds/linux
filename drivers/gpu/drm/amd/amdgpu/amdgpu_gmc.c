@@ -630,16 +630,6 @@ int amdgpu_gmc_ras_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-int amdgpu_gmc_ras_late_init(struct amdgpu_device *adev)
-{
-	return 0;
-}
-
-void amdgpu_gmc_ras_fini(struct amdgpu_device *adev)
-{
-
-}
-
 	/*
 	 * The latest engine allocation on gfx9/10 is:
 	 * Engine 2, 3: firmware
