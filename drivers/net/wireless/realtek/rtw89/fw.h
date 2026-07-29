@@ -3119,6 +3119,7 @@ struct rtw89_h2c_scanofld_be {
 	__le32 w11; /* Added after SCAN_OFFLOAD_BE_V2 */
 	/* struct rtw89_h2c_scanofld_be_macc_role (flexible number) */
 	/* struct rtw89_h2c_scanofld_be_opch (flexible number) */
+	/* probe SSID list (flexible number); Added after SCAN_OFFLOAD_BE_V3 */
 } __packed;
 
 #define RTW89_H2C_SCANOFLD_BE_W0_OP GENMASK(1, 0)
@@ -5599,6 +5600,11 @@ int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 				   struct rtw89_vif_link *rtwvif_link);
 int rtw89_pno_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif_link *rtwvif_link);
+int rtw89_hw_scan_append_wildcard_probe_req(struct rtw89_dev *rtwdev,
+					    struct rtw89_vif_link *rtwvif_link,
+					    const u8 *mac_addr, bool wowlan);
+void rtw89_hw_scan_calc_req_ssid(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link, bool wowlan);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 			  const struct rtw89_pkt_drop_params *params);

@@ -5989,6 +5989,7 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_MACID_PAUSE_SLEEP,
 	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V0,
 	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V1,
+	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V2,
 	RTW89_FW_FEATURE_WOW_REASON_V1,
 	RTW89_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY,
 			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V0,
@@ -7184,6 +7185,9 @@ struct rtw89_hw_scan_info {
 	struct list_head chan_list;
 	struct rtw89_chan op_chan;
 	struct rtw89_hw_scan_extra_op extra_op;
+	u8 wildcard_pkt_id[NUM_NL80211_BANDS];
+	u16 ssid_total_len;
+	int n_ssids;
 	bool connected;
 	bool abort;
 	u16 delay; /* in unit of ms */

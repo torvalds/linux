@@ -934,6 +934,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 100, 0, SER_POST_RECOVER_DMAC),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 108, 0, SIM_SER_L0L1_BY_HALT_H2C),
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 109, 1, SCAN_OFFLOAD_BE_V1),
+	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 113, 2, SCAN_OFFLOAD_BE_V2),
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 0, 0, 0, MACID_PAUSE_SLEEP),
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 35, 75, 2, SCAN_OFFLOAD),
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 35, 75, 2, BEACON_FILTER),
@@ -949,6 +950,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922D, ge, 0, 35, 108, 0, SIM_SER_L0L1_BY_HALT_H2C),
 	__CFG_FW_FEAT(RTL8922D, lt, 0, 35, 109, 1, SCAN_OFFLOAD_BE_V1),
 	__CFG_FW_FEAT(RTL8922D, lt, 0, 35, 113, 0, RFK_TXIQK_V0),
+	__CFG_FW_FEAT(RTL8922D, lt, 0, 35, 113, 2, SCAN_OFFLOAD_BE_V2),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -7498,6 +7500,7 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	struct rtw89_h2c_chinfo_elem_be *elem;
 	struct rtw89_mac_chinfo_be *ch_info;
 	struct rtw89_h2c_chinfo_be *h2c;
+	bool wildcard_by_drv;
 	struct sk_buff *skb;
 	unsigned int cond;
 	u8 ver = U8_MAX;
@@ -7516,6 +7519,10 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
 		ver = 0;
 
+	wildcard_by_drv = !(RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V0, &rtwdev->fw) ||
+			    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V1, &rtwdev->fw) ||
+			    RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V2, &rtwdev->fw));
+
 	skb_put(skb, sizeof(*h2c));
 	h2c = (struct rtw89_h2c_chinfo_be *)skb->data;
 
@@ -7525,6 +7532,8 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 				  RTW89_H2C_CHINFO_ARG_MAC_IDX_MASK);
 
 	list_for_each_entry(ch_info, chan_list, list) {
+		bool with_probe_id = ch_info->probe_id != RTW89_SCANOFLD_PKT_NONE;
+
 		elem = (struct rtw89_h2c_chinfo_elem_be *)skb_put(skb, sizeof(*elem));
 
 		elem->w0 = le32_encode_bits(ch_info->dwell_time, RTW89_H2C_CHINFO_BE_W0_DWELL) |
@@ -7542,7 +7551,7 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 					    RTW89_H2C_CHINFO_BE_W1_RANDOM) |
 			   le32_encode_bits(ch_info->notify_action,
 					    RTW89_H2C_CHINFO_BE_W1_NOTIFY) |
-			   le32_encode_bits(ch_info->probe_id != 0xff ? 1 : 0,
+			   le32_encode_bits(wildcard_by_drv || with_probe_id,
 					    RTW89_H2C_CHINFO_BE_W1_PROBE) |
 			   le32_encode_bits(ch_info->leave_crit,
 					    RTW89_H2C_CHINFO_BE_W1_EARLY_LEAVE_CRIT) |
@@ -7707,6 +7716,34 @@ static void rtw89_scan_get_6g_disabled_chan(struct rtw89_dev *rtwdev,
 	}
 }
 
+void rtw89_hw_scan_calc_req_ssid(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link, bool wowlan)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct cfg80211_scan_request *req = rtwvif->scan_req;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct cfg80211_sched_scan_request *nd_config;
+	struct cfg80211_ssid *s;
+	u16 sum = 0, n_ssids;
+	int i, num = 0;
+
+	nd_config = rtw_wow->nd_config;
+	n_ssids = wowlan ? nd_config->n_match_sets : req->n_ssids;
+
+	for (i = 0; i < n_ssids; i++) {
+		s = wowlan ? &nd_config->match_sets[i].ssid : &req->ssids[i];
+		if (s->ssid_len == 0)
+			continue;
+
+		num++;
+		sum += s->ssid_len + 1;
+	}
+
+	scan_info->n_ssids = num;
+	scan_info->ssid_total_len = sum;
+}
+
 int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 				 struct rtw89_scan_option *option,
 				 struct rtw89_vif_link *rtwvif_link,
@@ -7721,18 +7758,21 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	struct rtw89_hw_scan_extra_op scan_op[2] = {};
 	struct rtw89_chan *op = &scan_info->op_chan;
 	struct rtw89_h2c_scanofld_be_opch *opch;
-	struct rtw89_pktofld_info *pkt_info;
 	struct rtw89_h2c_scanofld_be *h2c;
 	struct ieee80211_vif *vif;
 	struct sk_buff *skb;
 	u8 macc_role_size = sizeof(*macc_role) * option->num_macc_role;
 	u8 opch_size = sizeof(*opch) * option->num_opch;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct cfg80211_sched_scan_request *nd_config;
+	u8 *probe_id = scan_info->wildcard_pkt_id;
 	enum rtw89_scan_be_opmode opmode;
-	u8 probe_id[NUM_NL80211_BANDS];
 	u8 scan_offload_ver = U8_MAX;
 	u8 cfg_len = sizeof(*h2c);
+	struct cfg80211_ssid *s;
 	unsigned int cond;
 	u8 ver = U8_MAX;
+	u8 n_ssids = 0;
 	u8 policy_val;
 	void *ptr;
 	u8 txnull;
@@ -7754,9 +7794,14 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	} else if (RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V1, &rtwdev->fw)) {
 		cfg_len = offsetofend(typeof(*h2c), w9);
 		scan_offload_ver = 1;
+	} else if (RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD_BE_V2, &rtwdev->fw)) {
+		scan_offload_ver = 2;
 	}
 
 	len = cfg_len + macc_role_size + opch_size;
+	if (scan_offload_ver > 2)
+		len += scan_info->ssid_total_len;
+
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan offload\n");
@@ -7767,20 +7812,8 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	h2c = (struct rtw89_h2c_scanofld_be *)skb->data;
 	ptr = skb->data;
 
-	memset(probe_id, RTW89_SCANOFLD_PKT_NONE, sizeof(probe_id));
-
 	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
 		ver = 0;
-
-	if (!wowlan) {
-		list_for_each_entry(pkt_info, &scan_info->pkt_list[NL80211_BAND_6GHZ], list) {
-			if (pkt_info->wildcard_6ghz) {
-				/* Provide wildcard as template */
-				probe_id[NL80211_BAND_6GHZ] = pkt_info->id;
-				break;
-			}
-		}
-	}
 
 	h2c->w0 = le32_encode_bits(option->operation, RTW89_H2C_SCANOFLD_BE_W0_OP) |
 		  le32_encode_bits(option->scan_mode,
@@ -7800,7 +7833,10 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 		  le32_encode_bits(option->norm_cy, RTW89_H2C_SCANOFLD_BE_W2_NORM_CY) |
 		  le32_encode_bits(option->opch_end, RTW89_H2C_SCANOFLD_BE_W2_OPCH_END);
 
-	h2c->w3 = le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_SSID) |
+	if (scan_offload_ver > 2)
+		n_ssids = scan_info->n_ssids;
+
+	h2c->w3 = le32_encode_bits(n_ssids, RTW89_H2C_SCANOFLD_BE_W3_NUM_SSID) |
 		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_SHORT_SSID) |
 		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_BSSID) |
 		  le32_encode_bits(probe_id[NL80211_BAND_2GHZ], RTW89_H2C_SCANOFLD_BE_W3_PROBEID);
@@ -7927,6 +7963,24 @@ flex_member:
 		ptr += sizeof(*opch);
 	}
 
+	if (scan_offload_ver <= 2)
+		goto set_hdr;
+
+	nd_config = rtw_wow->nd_config;
+	n_ssids = wowlan ? nd_config->n_match_sets : req->n_ssids;
+
+	for (i = 0; i < n_ssids; i++) {
+		s = wowlan ? &nd_config->match_sets[i].ssid : &req->ssids[i];
+		if (s->ssid_len == 0)
+			continue;
+
+		memcpy(ptr, &s->ssid_len, 1);
+		ptr++;
+		memcpy(ptr, s->ssid, s->ssid_len);
+		ptr += s->ssid_len;
+	}
+
+set_hdr:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_SCANOFLD_BE, 1, 1,
@@ -9256,13 +9310,18 @@ void rtw89_fw_st_dbg_dump(struct rtw89_dev *rtwdev)
 
 static void rtw89_hw_scan_release_pkt_list(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
 	struct list_head *pkt_list = rtwdev->scan_info.pkt_list;
 	struct rtw89_pktofld_info *info, *tmp;
-	u8 idx;
+	u8 idx, wildcard_pkt_id;
 
 	for (idx = NL80211_BAND_2GHZ; idx < NUM_NL80211_BANDS; idx++) {
 		if (!(rtwdev->chip->support_bands & BIT(idx)))
 			continue;
+
+		wildcard_pkt_id = scan_info->wildcard_pkt_id[idx];
+		if (wildcard_pkt_id != RTW89_SCANOFLD_PKT_NONE)
+			rtw89_fw_h2c_del_pkt_offload(rtwdev, wildcard_pkt_id);
 
 		list_for_each_entry_safe(info, tmp, &pkt_list[idx], list) {
 			if (test_bit(info->id, rtwdev->pkt_offload))
@@ -9358,15 +9417,73 @@ out:
 	return ret;
 }
 
+int rtw89_hw_scan_append_wildcard_probe_req(struct rtw89_dev *rtwdev,
+					    struct rtw89_vif_link *rtwvif_link,
+					    const u8 *mac_addr, bool wowlan)
+{
+	static const u8 basic_rate_ie[] = {WLAN_EID_SUPP_RATES, 0x08, 0x0c, 0x12,
+					   0x18, 0x24, 0x30, 0x48, 0x60, 0x6c};
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct cfg80211_scan_request *req = rtwvif->scan_req;
+	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+	struct cfg80211_sched_scan_request *nd_config;
+	enum nl80211_band band;
+	struct sk_buff *skb;
+	int ret;
+	u8 id;
+
+	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
+		if (!(rtwdev->chip->support_bands & BIT(band)))
+			continue;
+
+		if (wowlan) {
+			nd_config = rtw_wow->nd_config;
+
+			skb = ieee80211_probereq_get(rtwdev->hw, rtwvif_link->mac_addr, NULL, 0,
+						     nd_config->ie_len +
+						     sizeof(basic_rate_ie));
+			if (!skb)
+				return -ENOMEM;
+
+			skb_put_data(skb, basic_rate_ie, sizeof(basic_rate_ie));
+			skb_put_data(skb, nd_config->ie, nd_config->ie_len);
+		} else {
+			skb = ieee80211_probereq_get(rtwdev->hw, mac_addr,
+						     NULL, 0, req->ie_len);
+			if (!skb)
+				return -ENOMEM;
+
+			skb_put_data(skb, ies->ies[band], ies->len[band]);
+			skb_put_data(skb, ies->common_ies, ies->common_ie_len);
+		}
+
+		ret = rtw89_fw_h2c_add_pkt_offload(rtwdev, &id, skb);
+		kfree_skb(skb);
+
+		if (ret)
+			return ret;
+
+		scan_info->wildcard_pkt_id[band] = id;
+	}
+
+	return 0;
+}
+
 static int rtw89_hw_scan_update_probe_req(struct rtw89_dev *rtwdev,
 					  struct rtw89_vif_link *rtwvif_link,
 					  const u8 *mac_addr)
 {
 	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
 	struct cfg80211_scan_request *req = rtwvif->scan_req;
-	struct sk_buff *skb;
 	u8 num = req->n_ssids, i;
+	struct sk_buff *skb;
 	int ret;
+
+	ret = rtw89_hw_scan_append_wildcard_probe_req(rtwdev, rtwvif_link, mac_addr, false);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num; i++) {
 		skb = ieee80211_probereq_get(rtwdev->hw, mac_addr,
@@ -9675,6 +9792,9 @@ static void rtw89_hw_scan_add_chan_be(struct rtw89_dev *rtwdev, int chan_type,
 			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
 				break;
 		}
+
+		if (scan_info->n_ssids)
+			ch_info->fw_probe0_ssids = GENMASK(scan_info->n_ssids - 1, 0);
 	}
 
 	if (ch_info->ch_band == RTW89_BAND_6G) {
@@ -10277,6 +10397,10 @@ int rtw89_hw_scan_start(struct rtw89_dev *rtwdev,
 	rtwdev->scan_info.delay = 0;
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
+	rtw89_hw_scan_calc_req_ssid(rtwdev, rtwvif_link, false);
+
+	memset(rtwdev->scan_info.wildcard_pkt_id, RTW89_SCANOFLD_PKT_NONE,
+	       sizeof(rtwdev->scan_info.wildcard_pkt_id));
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
 		get_random_mask_addr(mac_addr, req->mac_addr,
