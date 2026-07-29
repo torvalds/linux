@@ -42,12 +42,12 @@ static struct kmem_cache *fdls_frame_cache;
 static struct kmem_cache *fdls_frame_elem_cache;
 static struct kmem_cache *fdls_frame_recv_cache;
 static LIST_HEAD(fnic_list);
-static DEFINE_SPINLOCK(fnic_list_lock);
 static DEFINE_IDA(fnic_ida);
 
 struct work_struct reset_fnic_work;
 LIST_HEAD(reset_fnic_list);
 DEFINE_SPINLOCK(reset_fnic_list_lock);
+DEFINE_SPINLOCK(fnic_list_lock);
 
 /* Supported devices by fnic module */
 static const struct pci_device_id fnic_id_table[] = {
@@ -89,6 +89,15 @@ module_param(fnic_fc_trace_max_pages, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_fc_trace_max_pages,
 		 "Total allocated memory pages for fc trace buffer");
 
+unsigned int nvme_dev_loss_tmo = 30;
+module_param_named(nvme_dev_loss_tmo, nvme_dev_loss_tmo, uint, 0644);
+MODULE_PARM_DESC(nvme_dev_loss_tmo, "configurable NVME dev loss timeout");
+
+unsigned int nvme_max_ios_to_process = 16;
+module_param(nvme_max_ios_to_process, uint, 0644);
+MODULE_PARM_DESC(nvme_max_ios_to_process,
+		"Maximum number of NVME IOs to process per work queue");
+
 static unsigned int fnic_max_qdepth = FNIC_DFLT_QUEUE_DEPTH;
 module_param(fnic_max_qdepth, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_max_qdepth, "Queue depth to report for each LUN");
@@ -100,6 +109,7 @@ MODULE_PARM_DESC(pc_rscn_handling_feature_flag,
 
 struct workqueue_struct *reset_fnic_work_queue;
 struct workqueue_struct *fnic_fip_queue;
+struct workqueue_struct *fnic_cmpl_queue;
 
 static int fnic_sdev_init(struct scsi_device *sdev)
 {
@@ -185,7 +195,7 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 	u32 port_speed = vnic_dev_port_speed(fnic->vdev);
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 
-	FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_MAIN_DBG(KERN_INFO, fnic,
 				  "port_speed: %d Mbps", port_speed);
 	atomic64_set(&fnic_stats->misc_stats.port_speed_in_mbps, port_speed);
 
@@ -235,7 +245,7 @@ static void fnic_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_128GBIT;
 		break;
 	default:
-		FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_INFO, fnic,
 					  "Unknown FC speed: %d Mbps", port_speed);
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		break;
@@ -261,7 +271,7 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_DEBUG, fnic,
 					  "fnic: Get vnic stats failed: 0x%x", ret);
 		return stats;
 	}
@@ -287,64 +297,66 @@ static struct fc_host_statistics *fnic_get_stats(struct Scsi_Host *host)
 void fnic_dump_fchost_stats(struct Scsi_Host *host,
 				struct fc_host_statistics *stats)
 {
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	struct fnic *fnic = *((struct fnic **) shost_priv(host));
+
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: seconds since last reset = %llu\n",
 			stats->seconds_since_last_reset);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: tx frames		= %llu\n",
 			stats->tx_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: tx words		= %llu\n",
 			stats->tx_words);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: rx frames		= %llu\n",
 			stats->rx_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: rx words		= %llu\n",
 			stats->rx_words);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: lip count		= %llu\n",
 			stats->lip_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: nos count		= %llu\n",
 			stats->nos_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: error frames		= %llu\n",
 			stats->error_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: dumped frames	= %llu\n",
 			stats->dumped_frames);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: link failure count	= %llu\n",
 			stats->link_failure_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: loss of sync count	= %llu\n",
 			stats->loss_of_sync_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: loss of signal count	= %llu\n",
 			stats->loss_of_signal_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: prim seq protocol err count = %llu\n",
 			stats->prim_seq_protocol_err_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: invalid tx word count= %llu\n",
 			stats->invalid_tx_word_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: invalid crc count	= %llu\n",
 			stats->invalid_crc_count);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: fcp input requests	= %llu\n",
 			stats->fcp_input_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: fcp output requests	= %llu\n",
 			stats->fcp_output_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: fcp control requests	= %llu\n",
 			stats->fcp_control_requests);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: fcp input megabytes	= %llu\n",
 			stats->fcp_input_megabytes);
-	FNIC_MAIN_NOTE(KERN_NOTICE, host,
+	FNIC_MAIN_NOTE(KERN_NOTICE, fnic,
 			"fnic: fcp output megabytes	= %llu\n",
 			stats->fcp_output_megabytes);
 	return;
@@ -370,7 +382,7 @@ static void fnic_reset_host_stats(struct Scsi_Host *host)
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
 	if (ret) {
-		FNIC_MAIN_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_DEBUG, fnic,
 				"fnic: Reset vnic stats failed"
 				" 0x%x", ret);
 		return;
@@ -547,6 +559,9 @@ static int fnic_cleanup(struct fnic *fnic)
 		vnic_wq_copy_clean(&fnic->hw_copy_wq[i],
 				   fnic_wq_copy_cleanup_handler);
 
+	if (IS_FNIC_NVME_INITIATOR(fnic))
+		nvfnic_flush_nvme_io_list(fnic);
+
 	for (i = 0; i < fnic->cq_count; i++)
 		vnic_cq_clean(&fnic->cq[i]);
 	for (i = 0; i < fnic->intr_count; i++)
@@ -676,6 +691,59 @@ static int fnic_scsi_drv_init(struct fnic *fnic)
 	return 0;
 }
 
+static int fnic_nvme_drv_init(struct fnic *fnic)
+{
+	int ret;
+	int hwq;
+
+	fnic->fnic_max_tag_id = NVFNIC_FCPIO_TAG_POOL_SZ;
+
+	for (hwq = 0; hwq < fnic->wq_copy_count; hwq++) {
+		fnic->sw_copy_wq[hwq].ioreq_table_size = fnic->fnic_max_tag_id;
+		fnic->sw_copy_wq[hwq].io_req_table =
+			kzalloc((fnic->sw_copy_wq[hwq].ioreq_table_size + 1) *
+					sizeof(struct fnic_io_req *), GFP_KERNEL);
+
+		if (!fnic->sw_copy_wq[hwq].io_req_table) {
+			fnic_free_ioreq_tables_mq(fnic);
+			return -ENOMEM;
+		}
+	}
+
+	dev_info(&fnic->pdev->dev, "fnic copy wqs: %d, Q0 ioreq table size: %d\n",
+			fnic->wq_copy_count, fnic->sw_copy_wq[0].ioreq_table_size);
+
+	if (sbitmap_init_node(&fnic->nvfnic_tag_map, NVFNIC_FCPIO_TAG_POOL_SZ,
+			      -1, GFP_KERNEL, NUMA_NO_NODE, false, true)) {
+		dev_err(&fnic->pdev->dev,
+			"Unable to allocate tag pool\n");
+		ret = -ENOMEM;
+		goto out_free_ioreq_tables;
+	}
+
+	fnic->io_req_pool = mempool_create_slab_pool(2, fnic_io_req_cache);
+	if (!fnic->io_req_pool) {
+		ret = -ENOMEM;
+		goto out_free_sbitmap;
+	}
+
+	init_llist_head(&fnic->nvme_io_event_llist);
+	INIT_WORK(&fnic->nvme_io_cmpl_work, nvfnic_nvme_iodone_work);
+
+	ret = nvfnic_add_lport(fnic);
+	if (ret)
+		goto out_free_req_pool;
+
+	return 0;
+out_free_req_pool:
+	mempool_destroy(fnic->io_req_pool);
+out_free_sbitmap:
+	sbitmap_free(&fnic->nvfnic_tag_map);
+out_free_ioreq_tables:
+	fnic_free_ioreq_tables_mq(fnic);
+	return ret;
+}
+
 void fnic_mq_map_queues_cpus(struct Scsi_Host *host)
 {
 	struct fnic *fnic = *((struct fnic **) shost_priv(host));
@@ -684,16 +752,16 @@ void fnic_mq_map_queues_cpus(struct Scsi_Host *host)
 	struct blk_mq_queue_map *qmap = &host->tag_set.map[HCTX_TYPE_DEFAULT];
 
 	if (intr_mode == VNIC_DEV_INTR_MODE_MSI || intr_mode == VNIC_DEV_INTR_MODE_INTX) {
-		FNIC_MAIN_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_ERR, fnic,
 			"intr_mode is not msix\n");
 		return;
 	}
 
-	FNIC_MAIN_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_MAIN_DBG(KERN_INFO, fnic,
 			"qmap->nr_queues: %d\n", qmap->nr_queues);
 
 	if (l_pdev == NULL) {
-		FNIC_MAIN_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_MAIN_DBG(KERN_ERR, fnic,
 						"l_pdev is null\n");
 		return;
 	}
@@ -842,7 +910,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_fnic_get_config;
 	}
 
-	switch (fnic->config.flags & 0xff0) {
+	switch (fnic->config.flags & FNIC_ROLE_CONFIG_MASK) {
 	case VFCF_FC_INITIATOR:
 		{
 			host =
@@ -861,8 +929,28 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 					fnic->fnic_num);
 		}
 		break;
+	case VFCF_FC_TARGET:
+		dev_info(&fnic->pdev->dev,
+			 "fnic: %d is scsi target\n",
+			 fnic->fnic_num);
+		err = -EOPNOTSUPP;
+		goto err_out_fnic_role;
+	case VFCF_FC_NVME_INITIATOR:
+		fnic_nvmef_debugfs_init(fnic);
+		fnic->role = FNIC_ROLE_NVME_INITIATOR;
+		dev_info(&fnic->pdev->dev, "fnic: %d is NVME initiator\n",
+			fnic->fnic_num);
+		break;
+	case VFCF_FC_NVME_TARGET:
+		dev_info(&fnic->pdev->dev,
+			 "fnic: %d is NVME target\n",
+			 fnic->fnic_num);
+		err = -EOPNOTSUPP;
+		goto err_out_fnic_role;
 	default:
-		dev_info(&fnic->pdev->dev, "fnic: %d has no role defined\n", fnic->fnic_num);
+		dev_info(&fnic->pdev->dev,
+			"fnic: %d has no role defined (0x%x)\n",
+			fnic->fnic_num, fnic->config.flags & FNIC_ROLE_CONFIG_MASK);
 		err = -EINVAL;
 		goto err_out_fnic_role;
 	}
@@ -995,11 +1083,16 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	iport->max_flogi_retries = fnic->config.flogi_retries;
 	iport->max_plogi_retries = fnic->config.plogi_retries;
 	iport->plogi_timeout = fnic->config.plogi_timeout;
-	iport->service_params =
-		(FNIC_FCP_SP_INITIATOR | FNIC_FCP_SP_RD_XRDY_DIS |
-		 FNIC_FCP_SP_CONF_CMPL);
-	if (fnic->config.flags & VFCF_FCP_SEQ_LVL_ERR)
-		iport->service_params |= FNIC_FCP_SP_RETRY;
+	if (IS_FNIC_FCP_INITIATOR(fnic)) {
+		iport->service_params = (FNIC_FCP_SP_INITIATOR |
+				FNIC_FCP_SP_RD_XRDY_DIS | FNIC_FCP_SP_CONF_CMPL);
+		if (fnic->config.flags & VFCF_FCP_SEQ_LVL_ERR)
+			iport->service_params |= FNIC_FCP_SP_RETRY;
+	} else if (IS_FNIC_NVME_INITIATOR(fnic)) {
+		iport->service_params = (FNIC_NVME_SP_INITIATOR);
+		if (fnic->config.flags & VFCF_FCP_SEQ_LVL_ERR)
+			iport->service_params |= FNIC_NVME_SP_SLER;
+	}
 
 	iport->boot_time = jiffies;
 	iport->e_d_tov = fnic->config.ed_tov;
@@ -1031,6 +1124,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_LIST_HEAD(&fnic->frame_queue);
 	INIT_LIST_HEAD(&fnic->tx_queue);
 	INIT_LIST_HEAD(&fnic->tport_event_list);
+	init_llist_head(&fnic->nvme_io_event_llist);
 
 	INIT_DELAYED_WORK(&iport->oxid_pool.schedule_oxid_free_retry,
 	fdls_schedule_oxid_free_retry_work);
@@ -1061,9 +1155,15 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	fnic_fdls_init(fnic, (fnic->config.flags & VFCF_FIP_CAPABLE));
 
-	err = fnic_scsi_drv_init(fnic);
-	if (err)
-		goto err_out_scsi_drv_init;
+	if (IS_FNIC_FCP_INITIATOR(fnic)) {
+		err = fnic_scsi_drv_init(fnic);
+		if (err)
+			goto err_out_scsi_drv_init;
+	} else if (IS_FNIC_NVME_INITIATOR(fnic)) {
+		err = fnic_nvme_drv_init(fnic);
+		if (err)
+			goto err_out_nvme_drv_init;
+	}
 
 	err = fnic_stats_debugfs_init(fnic);
 	if (err) {
@@ -1083,7 +1183,9 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 err_out_free_stats_debugfs:
 	fnic_stats_debugfs_remove(fnic);
 	fnic_free_ioreq_tables_mq(fnic);
-	scsi_remove_host(fnic->host);
+	if (IS_FNIC_FCP_INITIATOR(fnic))
+		scsi_remove_host(fnic->host);
+err_out_nvme_drv_init:
 err_out_scsi_drv_init:
 	fnic_free_intr(fnic);
 err_out_fnic_request_intr:
@@ -1109,7 +1211,10 @@ err_out_free_resources:
 err_out_fnic_alloc_vnic_res:
 	fnic_clear_intr_mode(fnic);
 err_out_fnic_set_intr_mode:
-	scsi_host_put(fnic->host);
+	if (IS_FNIC_NVME_INITIATOR(fnic))
+		fnic_nvmef_debugfs_remove(fnic);
+	if (IS_FNIC_FCP_INITIATOR(fnic))
+		scsi_host_put(fnic->host);
 err_out_fnic_role:
 err_out_scsi_host_alloc:
 err_out_fnic_get_config:
@@ -1158,7 +1263,10 @@ static void fnic_remove(struct pci_dev *pdev)
 	 */
 	flush_workqueue(fnic_event_queue);
 
-	fnic_scsi_unload(fnic);
+	if (IS_FNIC_FCP_INITIATOR(fnic))
+		fnic_scsi_unload(fnic);
+	else if (IS_FNIC_NVME_INITIATOR(fnic))
+		nvfnic_nvme_unload(fnic);
 
 	if (vnic_dev_get_intr_mode(fnic->vdev) == VNIC_DEV_INTR_MODE_MSI)
 		timer_delete_sync(&fnic->notify_timer);
@@ -1175,6 +1283,7 @@ static void fnic_remove(struct pci_dev *pdev)
 	if ((fnic_fdmi_support == 1) && (fnic->iport.fabric.fdmi_pending > 0))
 		timer_delete_sync(&fnic->iport.fabric.fdmi_timer);
 
+	fnic_nvmef_debugfs_remove(fnic);
 	fnic_stats_debugfs_remove(fnic);
 
 	/*
@@ -1183,6 +1292,11 @@ static void fnic_remove(struct pci_dev *pdev)
 	 * cleaned up
 	 */
 	fnic_cleanup(fnic);
+
+	if (IS_FNIC_NVME_INITIATOR(fnic)) {
+		sbitmap_free(&fnic->nvfnic_tag_map);
+		fnic_free_ioreq_tables_mq(fnic);
+	}
 
 	spin_lock_irqsave(&fnic_list_lock, flags);
 	list_del(&fnic->list);
@@ -1202,8 +1316,10 @@ static void fnic_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 	ida_free(&fnic_ida, fnic->fnic_num);
-	fnic_scsi_unload_cleanup(fnic);
-	scsi_host_put(fnic->host);
+	if (IS_FNIC_FCP_INITIATOR(fnic)) {
+		fnic_scsi_unload_cleanup(fnic);
+		scsi_host_put(fnic->host);
+	}
 	kfree(fnic);
 }
 
@@ -1323,6 +1439,15 @@ static int __init fnic_init_module(void)
 		goto err_create_fip_workq;
 	}
 
+	fnic_cmpl_queue =
+		alloc_workqueue("fnic_cmpl_wq",
+				WQ_PERCPU | WQ_HIGHPRI | WQ_MEM_RECLAIM, 0);
+	if (!fnic_cmpl_queue) {
+		pr_err("fnic completion work queue create failed\n");
+		err = -ENOMEM;
+		goto err_create_cmpl_workq;
+	}
+
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON) {
 		reset_fnic_work_queue =
 			create_singlethread_workqueue("reset_fnic_work_queue");
@@ -1354,6 +1479,8 @@ static int __init fnic_init_module(void)
 err_pci_register:
 	fc_release_transport(fnic_fc_transport);
 err_fc_transport:
+	destroy_workqueue(fnic_cmpl_queue);
+err_create_cmpl_workq:
 	destroy_workqueue(fnic_fip_queue);
 err_create_fip_workq:
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON)
@@ -1382,6 +1509,7 @@ err_create_fnic_sgl_slab_dflt:
 static void __exit fnic_cleanup_module(void)
 {
 	pci_unregister_driver(&fnic_driver);
+	destroy_workqueue(fnic_cmpl_queue);
 	destroy_workqueue(fnic_event_queue);
 
 	if (pc_rscn_handling_feature_flag == PC_RSCN_HANDLING_FEATURE_ON)

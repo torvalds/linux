@@ -27,7 +27,7 @@ void fnic_fcoe_reset_vlans(struct fnic *fnic)
 	}
 
 	spin_unlock_irqrestore(&fnic->vlans_lock, flags);
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "Reset vlan complete\n");
 }
 
@@ -46,7 +46,7 @@ void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 
 	frame = fdls_alloc_frame(iport);
 	if (frame == NULL) {
-		FNIC_FIP_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_ERR, fnic,
 		     "Failed to allocate frame to send VLAN req");
 		return;
 	}
@@ -54,10 +54,10 @@ void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 	fnic_fcoe_reset_vlans(fnic);
 
 	fnic->set_vlan(fnic, 0);
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "set vlan done\n");
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "got MAC 0x%x:%x:%x:%x:%x:%x\n", iport->hwmac[0],
 		     iport->hwmac[1], iport->hwmac[2], iport->hwmac[3],
 		     iport->hwmac[4], iport->hwmac[5]);
@@ -81,13 +81,13 @@ void fnic_fcoe_send_vlan_req(struct fnic *fnic)
 
 	iport->fip.state = FDLS_FIP_VLAN_DISCOVERY_STARTED;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "Send VLAN req\n");
 	fnic_send_fip_frame(iport, frame, frame_size);
 
 	vlan_tov = jiffies + msecs_to_jiffies(FCOE_CTLR_FIPVLAN_TOV);
 	mod_timer(&fnic->retry_fip_timer, round_jiffies(vlan_tov));
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fip timer set\n");
 }
 
@@ -111,11 +111,11 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 	struct fip_vlan_desc *vlan_desc;
 	unsigned long flags;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fnic 0x%p got vlan resp\n", fnic);
 
 	desc_len = be16_to_cpu(vlan_notif->fip.fip_dl_len);
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "desc_len %d\n", desc_len);
 
 	spin_lock_irqsave(&fnic->vlans_lock, flags);
@@ -128,23 +128,20 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 
 		if (vlan_desc->fd_desc.fip_dtype == FIP_DT_VLAN) {
 			if (vlan_desc->fd_desc.fip_dlen != 1) {
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					     "Invalid descriptor length(%x) in VLan response\n",
 					     vlan_desc->fd_desc.fip_dlen);
 
 			}
 			num_vlan++;
 			vid = be16_to_cpu(vlan_desc->fd_vlan);
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num,
+			FNIC_FIP_DBG(KERN_INFO, fnic,
 				     "process_vlan_resp: FIP VLAN %d\n", vid);
 			vlan = kzalloc_obj(*vlan);
 
 			if (!vlan) {
 				/* retry from timer */
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					     "Mem Alloc failure\n");
 				spin_unlock_irqrestore(&fnic->vlans_lock,
 						       flags);
@@ -155,14 +152,14 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 			list_add_tail(&vlan->list, &fnic->vlan_list);
 			break;
 		}
-		FNIC_FIP_DBG(KERN_INFO, fnic->host,
-			     fnic->fnic_num,
-			     "Invalid descriptor type(%x) in VLan response\n",
-			     vlan_desc->fd_desc.fip_dtype);
 		/*
-		 * Note : received a type=2 descriptor here i.e. FIP
-		 * MAC Address Descriptor
+		 * Note : skip any type=2 descriptor here
+		 * (i.e. FIP MAC Address Descriptor)
 		 */
+		if (vlan_desc->fd_desc.fip_dtype != FIP_DT_MAC)
+			FNIC_FIP_DBG(KERN_INFO, fnic,
+				     "Invalid descriptor type(0x%x) in vlan response\n",
+				     vlan_desc->fd_desc.fip_dtype);
 		cur_desc += vlan_desc->fd_desc.fip_dlen;
 		desc_len -= vlan_desc->fd_desc.fip_dlen;
 	}
@@ -170,7 +167,7 @@ void fnic_fcoe_process_vlan_resp(struct fnic *fnic, struct fip_header *fiph)
 	/* any VLAN descriptors present ? */
 	if (num_vlan == 0) {
 		atomic64_inc(&fnic_stats->vlan_stats.resp_withno_vlanID);
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "fnic 0x%p No VLAN descriptors in FIP VLAN response\n",
 			     fnic);
 	}
@@ -195,7 +192,7 @@ void fnic_fcoe_start_fcf_discovery(struct fnic *fnic)
 
 	frame = fdls_alloc_frame(iport);
 	if (frame == NULL) {
-		FNIC_FIP_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_ERR, fnic,
 		     "Failed to allocate frame to start FCF discovery");
 		return;
 	}
@@ -222,7 +219,7 @@ void fnic_fcoe_start_fcf_discovery(struct fnic *fnic)
 
 	FNIC_STD_SET_NODE_NAME(&pdisc_sol->name_desc.fd_wwn, iport->wwnn);
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "Start FCF discovery\n");
 	fnic_send_fip_frame(iport, frame, frame_size);
 
@@ -257,16 +254,14 @@ void fnic_fcoe_fip_discovery_resp(struct fnic *fnic, struct fip_header *fiph)
 	switch (iport->fip.state) {
 	case FDLS_FIP_FCF_DISCOVERY_STARTED:
 		if (be16_to_cpu(disc_adv->fip.fip_flags) & FIP_FL_SOL) {
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num,
+			FNIC_FIP_DBG(KERN_INFO, fnic,
 				     "fnic 0x%p Solicited adv\n", fnic);
 
 			if ((disc_adv->prio_desc.fd_pri <
 			     iport->selected_fcf.fcf_priority)
 			    && (be16_to_cpu(disc_adv->fip.fip_flags) & FIP_FL_AVAIL)) {
 
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					     "fnic 0x%p FCF Available\n", fnic);
 				memcpy(iport->selected_fcf.fcf_mac,
 				       disc_adv->mac_desc.fd_mac, ETH_ALEN);
@@ -274,8 +269,8 @@ void fnic_fcoe_fip_discovery_resp(struct fnic *fnic, struct fip_header *fiph)
 				    disc_adv->prio_desc.fd_pri;
 				iport->selected_fcf.fka_adv_period =
 				    be32_to_cpu(disc_adv->fka_adv_desc.fd_fka_period);
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num, "adv time %d",
+				FNIC_FIP_DBG(KERN_INFO, fnic,
+					     "adv time %d",
 					     iport->selected_fcf.fka_adv_period);
 				iport->selected_fcf.ka_disabled =
 				    (disc_adv->fka_adv_desc.fd_flags & 1);
@@ -294,8 +289,7 @@ void fnic_fcoe_fip_discovery_resp(struct fnic *fnic, struct fip_header *fiph)
 					iport->selected_fcf.fka_adv_period =
 					    be32_to_cpu(disc_adv->fka_adv_desc.fd_fka_period);
 					FNIC_FIP_DBG(KERN_INFO,
-						     fnic->host,
-						     fnic->fnic_num,
+						     fnic,
 						     "change fka to %d",
 						     iport->selected_fcf.fka_adv_period);
 				}
@@ -362,7 +356,7 @@ void fnic_fcoe_start_flogi(struct fnic *fnic)
 
 	frame = fdls_alloc_frame(iport);
 	if (frame == NULL) {
-		FNIC_FIP_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_ERR, fnic,
 		     "Failed to allocate frame to start FIP FLOGI");
 		return;
 	}
@@ -415,7 +409,7 @@ void fnic_fcoe_start_flogi(struct fnic *fnic)
 	oxid = fdls_alloc_oxid(iport, FNIC_FRAME_TYPE_FABRIC_FLOGI,
 		&iport->active_oxid_fabric_req);
 	if (oxid == FNIC_UNASSIGNED_OXID) {
-		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FCS_DBG(KERN_INFO, fnic,
 		     "Failed to allocate OXID to send FIP FLOGI");
 		mempool_free(frame, fnic->frame_pool);
 		return;
@@ -427,7 +421,7 @@ void fnic_fcoe_start_flogi(struct fnic *fnic)
 	FNIC_STD_SET_NODE_NAME(&pflogi_req->flogi_desc.flogi.els.fl_wwnn,
 			iport->wwnn);
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "FIP start FLOGI\n");
 	fnic_send_fip_frame(iport, frame, frame_size);
 	iport->fip.flogi_retry++;
@@ -457,11 +451,11 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 	struct fnic_stats *fnic_stats = &fnic->fnic_stats;
 	struct fc_frame_header *fchdr = &flogi_rsp->rsp_desc.flogi.fchdr;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fnic 0x%p FIP FLOGI rsp\n", fnic);
 	desc_len = be16_to_cpu(flogi_rsp->fip.fip_dl_len);
 	if (desc_len != 38) {
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "Invalid Descriptor List len (%x). Dropping frame\n",
 			     desc_len);
 		return;
@@ -471,7 +465,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 	      && (flogi_rsp->rsp_desc.fd_desc.fip_dlen == 36))
 	    || !((flogi_rsp->mac_desc.fd_desc.fip_dtype == 2)
 		 && (flogi_rsp->mac_desc.fd_desc.fip_dlen == 2))) {
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "Dropping frame invalid type and len mix\n");
 		return;
 	}
@@ -484,7 +478,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 	    || (s_id != FC_FID_FLOGI)
 	    || (frame_type != FNIC_FABRIC_FLOGI_RSP)
 	    || (fchdr->fh_type != 0x01)) {
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "Dropping invalid frame: s_id %x F %x R %x t %x OX_ID %x\n",
 			     s_id, fchdr->fh_f_ctl[0], fchdr->fh_r_ctl,
 			     fchdr->fh_type, FNIC_STD_GET_OX_ID(fchdr));
@@ -492,7 +486,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 	}
 
 	if (iport->fip.state == FDLS_FIP_FLOGI_STARTED) {
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "fnic 0x%p rsp for pending FLOGI\n", fnic);
 
 		oxid = FNIC_STD_GET_OX_ID(fchdr);
@@ -502,8 +496,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 		if ((be16_to_cpu(flogi_rsp->fip.fip_dl_len) == FIP_FLOGI_LEN)
 		    && (flogi_rsp->rsp_desc.flogi.els.fl_cmd == ELS_LS_ACC)) {
 
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num,
+			FNIC_FIP_DBG(KERN_INFO, fnic,
 				     "fnic 0x%p FLOGI success\n", fnic);
 			memcpy(iport->fpma, flogi_rsp->mac_desc.fd_mac, ETH_ALEN);
 			iport->fcid =
@@ -519,8 +512,7 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 
 			if (fnic_fdls_register_portid(iport, iport->fcid, NULL)
 			    != 0) {
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					     "fnic 0x%p flogi registration failed\n",
 					     fnic);
 				return;
@@ -528,8 +520,8 @@ void fnic_fcoe_process_flogi_resp(struct fnic *fnic, struct fip_header *fiph)
 
 			iport->fip.state = FDLS_FIP_FLOGI_COMPLETE;
 			iport->state = FNIC_IPORT_STATE_FABRIC_DISC;
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num, "iport->state:%d\n",
+			FNIC_FIP_DBG(KERN_INFO, fnic,
+				     "iport->state:%d\n",
 				     iport->state);
 			fnic_fdls_disc_start(iport);
 			if (!((iport->selected_fcf.ka_disabled)
@@ -575,7 +567,7 @@ void fnic_common_fip_cleanup(struct fnic *fnic)
 
 	if (!iport->usefip)
 		return;
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fnic 0x%p fip cleanup\n", fnic);
 
 	iport->fip.state = FDLS_FIP_INIT;
@@ -617,7 +609,7 @@ void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
 	int found = false;
 	int max_count = 0;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fnic 0x%p clear virtual link handler\n", fnic);
 
 	if (!((cvl_msg->fcf_mac_desc.fd_desc.fip_dtype == 2)
@@ -625,7 +617,7 @@ void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
 	    || !((cvl_msg->name_desc.fd_desc.fip_dtype == 4)
 		 && (cvl_msg->name_desc.fd_desc.fip_dlen == 3))) {
 
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "invalid mix: ft %x fl %x ndt %x ndl %x",
 			     cvl_msg->fcf_mac_desc.fd_desc.fip_dtype,
 			     cvl_msg->fcf_mac_desc.fd_desc.fip_dlen,
@@ -640,8 +632,7 @@ void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
 			if (!((cvl_msg->vn_ports_desc[i].fd_desc.fip_dtype == 11)
 			      && (cvl_msg->vn_ports_desc[i].fd_desc.fip_dlen == 5))) {
 
-				FNIC_FIP_DBG(KERN_INFO, fnic->host,
-					     fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					     "Invalid type and len mix type: %d len: %d\n",
 					     cvl_msg->vn_ports_desc[i].fd_desc.fip_dtype,
 					     cvl_msg->vn_ports_desc[i].fd_desc.fip_dlen);
@@ -664,12 +655,12 @@ void fnic_fcoe_process_cvl(struct fnic *fnic, struct fip_header *fiph)
 			spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 			max_count++;
 			if (max_count >= FIP_FNIC_RESET_WAIT_COUNT) {
-				FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+				FNIC_FIP_DBG(KERN_INFO, fnic,
 					 "Rthr waited too long. Skipping handle link event %p\n",
 					 fnic);
 				return;
 			}
-			FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+			FNIC_FIP_DBG(KERN_INFO, fnic,
 				 "fnic reset in progress. Link event needs to wait %p",
 				 fnic);
 		}
@@ -714,7 +705,7 @@ int fdls_fip_recv_frame(struct fnic *fnic, void *frame)
 		return true;
 	}
 
-	FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FCS_DBG(KERN_INFO, fnic,
 		"Not a FIP Frame");
 	return false;
 }
@@ -724,7 +715,7 @@ void fnic_work_on_fip_timer(struct work_struct *work)
 	struct fnic *fnic = container_of(work, struct fnic, fip_timer_work);
 	struct fnic_iport_s *iport = &fnic->iport;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "FIP timeout\n");
 
 	if (iport->fip.state == FDLS_FIP_VLAN_DISCOVERY_STARTED) {
@@ -732,7 +723,7 @@ void fnic_work_on_fip_timer(struct work_struct *work)
 	} else if (iport->fip.state == FDLS_FIP_FCF_DISCOVERY_STARTED) {
 		u8 zmac[ETH_ALEN] = { 0, 0, 0, 0, 0, 0 };
 
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "FCF Discovery timeout\n");
 		if (memcmp(iport->selected_fcf.fcf_mac, zmac, ETH_ALEN) != 0) {
 
@@ -754,13 +745,13 @@ void fnic_work_on_fip_timer(struct work_struct *work)
 					  round_jiffies(fcf_tov));
 			}
 		} else {
-			FNIC_FIP_DBG(KERN_INFO, fnic->host,
-				     fnic->fnic_num, "FCF Discovery timeout\n");
+			FNIC_FIP_DBG(KERN_INFO, fnic,
+				     "FCF Discovery timeout\n");
 			fnic_vlan_discovery_timeout(fnic);
 		}
 	} else if (iport->fip.state == FDLS_FIP_FLOGI_STARTED) {
 		fdls_schedule_oxid_free(iport, &iport->active_oxid_fabric_req);
-		FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_INFO, fnic,
 			     "FLOGI timeout\n");
 		if (iport->fip.flogi_retry < fnic->config.flogi_retries)
 			fnic_fcoe_start_flogi(fnic);
@@ -807,7 +798,7 @@ void fnic_handle_enode_ka_timer(struct timer_list *t)
 
 	frame = fdls_alloc_frame(iport);
 	if (frame == NULL) {
-		FNIC_FIP_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_ERR, fnic,
 		     "Failed to allocate frame to send enode ka");
 		return;
 	}
@@ -828,7 +819,7 @@ void fnic_handle_enode_ka_timer(struct timer_list *t)
 	memcpy(penode_ka->eth.h_dest, iport->selected_fcf.fcf_mac, ETH_ALEN);
 	memcpy(penode_ka->mac_desc.fd_mac, iport->hwmac, ETH_ALEN);
 
-	FNIC_FIP_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_DEBUG, fnic,
 		     "Handle enode KA timer\n");
 	fnic_send_fip_frame(iport, frame, frame_size);
 	enode_ka_tov = jiffies
@@ -861,7 +852,7 @@ void fnic_handle_vn_ka_timer(struct timer_list *t)
 
 	frame = fdls_alloc_frame(iport);
 	if (frame == NULL) {
-		FNIC_FIP_DBG(KERN_ERR, fnic->host, fnic->fnic_num,
+		FNIC_FIP_DBG(KERN_ERR, fnic,
 		     "Failed to allocate frame to send vn ka");
 		return;
 	}
@@ -887,7 +878,7 @@ void fnic_handle_vn_ka_timer(struct timer_list *t)
 	memcpy(pvn_port_ka->vn_port_desc.fd_fc_id, fcid, 3);
 	FNIC_STD_SET_NPORT_NAME(&pvn_port_ka->vn_port_desc.fd_wwpn, iport->wwpn);
 
-	FNIC_FIP_DBG(KERN_DEBUG, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_DEBUG, fnic,
 		     "Handle vnport KA timer\n");
 	fnic_send_fip_frame(iport, frame, frame_size);
 	vn_ka_tov = jiffies + msecs_to_jiffies(FIP_VN_KA_PERIOD);
@@ -977,7 +968,7 @@ void fnic_work_on_fcs_ka_timer(struct work_struct *work)
 	*fnic = container_of(work, struct fnic, fip_timer_work);
 	struct fnic_iport_s *iport = &fnic->iport;
 
-	FNIC_FIP_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
+	FNIC_FIP_DBG(KERN_INFO, fnic,
 		     "fnic 0x%p fcs ka timeout\n", fnic);
 
 	fnic_common_fip_cleanup(fnic);
