@@ -26,6 +26,7 @@ properties:
           - enum:
               - qcom,glymur-fastrpc
               - qcom,hawi-fastrpc
+              - qcom,nord-fastrpc
           - const: qcom,kaanapali-fastrpc
 
   label:
@@ -35,6 +36,8 @@ properties:
       - sdsp
       - cdsp
       - cdsp1
+      - cdsp2
+      - cdsp3
       - gdsp0
       - gdsp1
 
