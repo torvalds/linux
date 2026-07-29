@@ -192,9 +192,13 @@ static int brcm_nvram_parse(struct brcm_nvram *priv)
 	}
 
 	len = le32_to_cpu(header->len);
-	if (len > priv->nvmem_size) {
-		dev_err(dev, "NVRAM length (%zd) exceeds mapped size (%zd)\n", len,
-			priv->nvmem_size);
+	if (len < sizeof(*header)) {
+		dev_err(dev, "NVRAM length (%zd) too small\n", len);
+		return -EINVAL;
+	}
+	if (len > priv->data_len) {
+		dev_err(dev, "NVRAM length (%zd) exceeds data size (%zd)\n", len,
+			priv->data_len);
 		return -EINVAL;
 	}
 
