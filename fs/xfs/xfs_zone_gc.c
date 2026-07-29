@@ -103,6 +103,7 @@ struct xfs_gc_bio {
 	/* Open Zone being written to */
 	struct xfs_open_zone		*oz;
 
+	/* Realtime group currently being reclaimed */
 	struct xfs_rtgroup		*victim_rtg;
 
 	/* Bio used for reads and writes, including the bvec used by it */
