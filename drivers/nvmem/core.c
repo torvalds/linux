@@ -64,16 +64,22 @@ static int __nvmem_reg_read(struct nvmem_device *nvmem, unsigned int offset,
 static int __nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
 			     void *val, size_t bytes)
 {
-	int ret;
+	int ret, wr_ok;
 
 	if (!nvmem->reg_write)
 		return -EOPNOTSUPP;
 
-	gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
-	ret = nvmem->reg_write(nvmem->priv, offset, val, bytes);
-	gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
+	ret = gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
+	if (ret)
+		return ret;
 
-	return ret;
+	wr_ok = nvmem->reg_write(nvmem->priv, offset, val, bytes);
+
+	ret = gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
+	if (ret)
+		return ret;
+
+	return wr_ok;
 }
 
 static int nvmem_access_with_keepouts(struct nvmem_device *nvmem,
