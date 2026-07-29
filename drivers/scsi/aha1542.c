@@ -1083,7 +1083,7 @@ static int isa_registered;
 #ifdef CONFIG_PNP
 static const struct pnp_device_id aha1542_pnp_ids[] = {
 	{ .id = "ADP1542" },
-	{ .id = "" }
+	{ }
 };
 MODULE_DEVICE_TABLE(pnp, aha1542_pnp_ids);
 
