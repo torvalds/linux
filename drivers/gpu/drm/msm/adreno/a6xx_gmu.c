@@ -1554,7 +1554,7 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 		flags |= MSM_BO_MAP_PRIV;
 	}
 
-	bo->obj = msm_gem_new(dev, size, flags);
+	bo->obj = msm_gem_new(dev, size, flags, NULL);
 	if (IS_ERR(bo->obj))
 		return PTR_ERR(bo->obj);
 

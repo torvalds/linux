@@ -1136,25 +1136,23 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		size_t size, uint32_t flags, uint32_t *handle,
 		char *name)
 {
-	struct drm_gem_object *obj;
+	struct drm_gem_object *obj, *r_obj = NULL;
 	int ret;
 
-	obj = msm_gem_new(dev, size, flags);
+	if (flags & MSM_BO_NO_SHARE) {
+		struct msm_context *ctx = file->driver_priv;
+		struct drm_gpuvm *vm = msm_context_vm(dev, ctx);
+
+		r_obj = drm_gpuvm_resv_obj(vm);
+	}
+
+	obj = msm_gem_new(dev, size, flags, r_obj);
 
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
 	if (name)
 		msm_gem_object_set_name(obj, "%s", name);
-
-	if (flags & MSM_BO_NO_SHARE) {
-		struct msm_context *ctx = file->driver_priv;
-		struct drm_gem_object *r_obj = drm_gpuvm_resv_obj(ctx->vm);
-
-		drm_gem_object_get(r_obj);
-
-		obj->resv = r_obj->resv;
-	}
 
 	ret = drm_gem_handle_create(file, obj, handle);
 
@@ -1251,7 +1249,9 @@ static int msm_gem_init_bookkeeping(struct drm_gem_object *obj)
 	return drm_gem_create_mmap_offset(obj);
 }
 
-struct drm_gem_object *msm_gem_new(struct drm_device *dev, size_t size, uint32_t flags)
+struct drm_gem_object *
+msm_gem_new(struct drm_device *dev, size_t size, uint32_t flags,
+	    struct drm_gem_object *r_obj)
 {
 	struct drm_gem_object *obj = NULL;
 	int ret;
@@ -1267,6 +1267,11 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, size_t size, uint32_t
 	ret = msm_gem_new_impl(dev, flags, &obj);
 	if (ret)
 		return ERR_PTR(ret);
+
+	if (flags & MSM_BO_NO_SHARE) {
+		drm_gem_object_get(r_obj);
+		obj->resv = r_obj->resv;
+	}
 
 	ret = drm_gem_object_init(dev, obj, size);
 	if (ret)
@@ -1311,6 +1316,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	 * up in drm_gem_object_put() -> msm_gem_free_object()
 	 */
 	obj->import_attach = attach;
+	obj->resv = dmabuf->resv;
 	drm_gem_private_object_init(dev, obj, size);
 
 	npages = size / PAGE_SIZE;
@@ -1346,7 +1352,7 @@ void *msm_gem_kernel_new(struct drm_device *dev, size_t size, uint32_t flags,
 			 uint64_t *iova)
 {
 	void *vaddr;
-	struct drm_gem_object *obj = msm_gem_new(dev, size, flags);
+	struct drm_gem_object *obj = msm_gem_new(dev, size, flags, NULL);
 	int ret;
 
 	if (IS_ERR(obj))
