@@ -138,7 +138,7 @@ static int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *ch
 	return 0;
 }
 
-static int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
+static int catpt_store_dram_data(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	int i;
 
@@ -184,7 +184,7 @@ int catpt_store_firmware_context(struct catpt_dev *cdev)
 	if (ret)
 		goto exit;
 
-	ret = catpt_store_memdumps(cdev, chan);
+	ret = catpt_store_dram_data(cdev, chan);
 	if (ret) {
 		dev_err(cdev->dev, "store memdumps failed: %d\n", ret);
 		goto exit;
@@ -232,7 +232,7 @@ catpt_restore_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 	return 0;
 }
 
-static int catpt_restore_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
+static int catpt_restore_dram_data(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	int i;
 
@@ -267,9 +267,9 @@ static int catpt_restore_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 	return 0;
 }
 
-static int catpt_restore_fwimage(struct catpt_dev *cdev,
-				 struct dma_chan *chan, dma_addr_t paddr,
-				 struct catpt_fw_block_hdr *blk)
+static int catpt_restore_dram_rodata(struct catpt_dev *cdev,
+				     struct dma_chan *chan, dma_addr_t paddr,
+				     struct catpt_fw_block_hdr *blk)
 {
 	struct resource r1 = {};
 	int i;
@@ -365,7 +365,7 @@ static int catpt_restore_basefw(struct catpt_dev *cdev,
 	print_hex_dump_debug(__func__, DUMP_PREFIX_OFFSET, 8, 4,
 			     basefw, sizeof(*basefw), false);
 
-	/* restore basefw image */
+	/* Restore IRAM and .rodata for DRAM based on the firmware image. */
 	for (i = 0; i < basefw->blocks; i++) {
 		struct catpt_fw_block_hdr *blk;
 
@@ -377,8 +377,8 @@ static int catpt_restore_basefw(struct catpt_dev *cdev,
 					       blk, false);
 			break;
 		default:
-			ret = catpt_restore_fwimage(cdev, chan, paddr + offset,
-						    blk);
+			ret = catpt_restore_dram_rodata(cdev, chan, paddr + offset,
+							blk);
 			break;
 		}
 
@@ -390,8 +390,8 @@ static int catpt_restore_basefw(struct catpt_dev *cdev,
 		offset += sizeof(*blk) + blk->size;
 	}
 
-	/* then proceed with memory dumps */
-	ret = catpt_restore_memdumps(cdev, chan);
+	/* Then proceed with DRAM .data saved before D3. */
+	ret = catpt_restore_dram_data(cdev, chan);
 	if (ret)
 		dev_err(cdev->dev, "restore memdumps failed: %d\n", ret);
 
@@ -568,8 +568,8 @@ static int catpt_load_firmware(struct catpt_dev *cdev,
 	return 0;
 }
 
-static int catpt_load_image(struct catpt_dev *cdev, struct dma_chan *chan,
-			    const char *name, bool restore)
+static int catpt_request_load_firmware(struct catpt_dev *cdev, struct dma_chan *chan,
+				       const char *name, bool restore)
 {
 	struct catpt_fw_hdr *fw;
 	struct firmware *img;
@@ -607,7 +607,7 @@ release_fw:
 	return ret;
 }
 
-static int catpt_load_images(struct catpt_dev *cdev, bool restore)
+static int catpt_request_dma_load_firmware(struct catpt_dev *cdev, bool restore)
 {
 	struct dma_chan *chan;
 	int ret;
@@ -616,7 +616,7 @@ static int catpt_load_images(struct catpt_dev *cdev, bool restore)
 	if (IS_ERR(chan))
 		return PTR_ERR(chan);
 
-	ret = catpt_load_image(cdev, chan, cdev->spec->fw_name, restore);
+	ret = catpt_request_load_firmware(cdev, chan, cdev->spec->fw_name, restore);
 	if (ret)
 		goto release_dma_chan;
 
@@ -636,7 +636,7 @@ int catpt_boot_firmware(struct catpt_dev *cdev, bool restore)
 
 	catpt_dsp_stall(cdev, true);
 
-	ret = catpt_load_images(cdev, restore);
+	ret = catpt_request_dma_load_firmware(cdev, restore);
 	if (ret) {
 		dev_err(cdev->dev, "load binaries failed: %d\n", ret);
 		return ret;
