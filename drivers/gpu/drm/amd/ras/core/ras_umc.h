@@ -72,6 +72,10 @@
  * in bad page retirement
  */
 #define UMC_PA_FLIP_BITS_NUM 4
+/* bits [63:58] of pa carry the nps mode for RAS_TA_PA_TO_MCA,
+ * RAS TA will use it to get the nps related to pa
+ */
+#define UMC_PA_NPS_SHIFT 58
 
 enum umc_memory_partition_mode {
 	UMC_MEMORY_PARTITION_MODE_NONE = 0,

@@ -328,6 +328,33 @@ int ras_umc_ma2pa(struct ras_core_context *ras_core,
 	return ret;
 }
 
+static int ras_umc_pa2ma(struct ras_core_context *ras_core, uint64_t pa,
+	uint64_t *mca, uint32_t nps)
+{
+	struct ras_ta_query_address_input addr_in;
+	struct ras_ta_query_address_output addr_out;
+	int ret;
+
+	if (!ras_psp_check_supported_cmd(ras_core, RAS_TA_CMD_ID__QUERY_ADDRESS))
+		return -EOPNOTSUPP;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	memset(&addr_out, 0, sizeof(addr_out));
+	/* nps: the pa belongs to, always NPS1 for legacy eeprom data */
+	addr_in.pa.pa = pa | ((uint64_t)nps << UMC_PA_NPS_SHIFT);
+	addr_in.addr_type = RAS_TA_PA_TO_MCA;
+	ret = ras_psp_query_address(ras_core, &addr_in, &addr_out);
+	if (ret) {
+		RAS_DEV_WARN_RATELIMITED(ras_core->dev,
+			"Failed to query RAS MCA address for 0x%llx, ret:%d\n", pa, ret);
+
+		return -EREMOTEIO;
+	}
+
+	*mca = addr_out.ma.err_addr;
+	return 0;
+}
+
 static int __ras_umc_eeprom_rec2nps_addr(struct ras_core_context *ras_core,
 	struct eeprom_umc_record *record, uint64_t *pa,
 	uint32_t nps, uint32_t die_id)
@@ -404,6 +431,7 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 	save_nps = EEPROM_RECORD_UMC_NPS_MODE(record);
 	/* eeprom v2 has no stored nps, always convert if the flag is set */
 	ch_idx_v2 = record->retired_row_pfn & UMC_CHANNEL_IDX_V2;
+	record->cur_nps = nps;
 
 	if (save_nps || ch_idx_v2) {
 		if ((nps == save_nps) && !ras_fw_eeprom_supported(ras_core)) {
@@ -415,6 +443,18 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 				record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
 		}
 	} else {
+		/* for specific old eeprom data, mca address is not stored(0 is
+		 * default value), calc it from pa(it's nps1 in this case, other
+		 * nps modes are introduced later)
+		 */
+		if (record->address == 0) {
+			ret = ras_umc_pa2ma(ras_core,
+				RAS_PFN_TO_ADDR(EEPROM_RECORD_UMC_ADDR_PFN(record)),
+				&record->address, UMC_MEMORY_PARTITION_MODE_NPS1);
+			if (ret)
+				return ret;
+		}
+
 		/* old eeprom data format, the scope of channel index is
 		 * limited to umc instance
 		 */
@@ -422,8 +462,6 @@ static int ras_umc_eeprom_rec2nps_rec(struct ras_core_context *ras_core,
 		if (!ret)
 			record->cur_nps_retired_row_pfn = RAS_ADDR_TO_PFN(pa);
 	}
-
-	record->cur_nps = nps;
 
 	return ret;
 }
