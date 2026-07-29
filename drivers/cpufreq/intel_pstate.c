@@ -2870,6 +2870,7 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
+	unsigned int freq = policy->min;
 	struct cpudata *cpu;
 
 	if (!policy->cpuinfo.max_freq)
@@ -2885,7 +2886,23 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 
 	intel_pstate_update_perf_limits(cpu, policy->min, policy->max);
 
-	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (hwp_active) {
+		/*
+		 * The active mode only requires an update util hook if HWP
+		 * boost is used and the policy is not "performance".
+		 */
+		if (hwp_boost && cpu->policy != CPUFREQ_POLICY_PERFORMANCE) {
+			intel_pstate_set_update_util_hook(policy->cpu);
+		} else {
+			intel_pstate_clear_update_util_hook(policy->cpu);
+			if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
+				freq = cpu->max_perf_ratio * cpu->pstate.scaling;
+				if (cpu->pstate.scaling != cpu->pstate.perf_ctl_scaling)
+					freq = rounddown(freq, cpu->pstate.perf_ctl_scaling);
+			}
+		}
+		intel_pstate_hwp_set(policy->cpu);
+	} else if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		int pstate = max(cpu->pstate.min_pstate, cpu->max_perf_ratio);
 
 		/*
@@ -2894,25 +2911,17 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		 */
 		intel_pstate_clear_update_util_hook(policy->cpu);
 		intel_pstate_set_pstate(cpu, pstate);
+		freq = pstate * cpu->pstate.scaling;
 	} else {
 		intel_pstate_set_update_util_hook(policy->cpu);
 	}
-
-	if (hwp_active) {
-		/*
-		 * When hwp_boost was active before and dynamically it
-		 * was turned off, in that case we need to clear the
-		 * update util hook.
-		 */
-		if (!hwp_boost)
-			intel_pstate_clear_update_util_hook(policy->cpu);
-		intel_pstate_hwp_set(policy->cpu);
-	}
 	/*
-	 * policy->cur is never updated with the intel_pstate driver, but it
-	 * is used as a stale frequency value. So, keep it within limits.
+	 * policy->cur is never updated in the intel_pstate driver, but it is
+	 * used as a stale frequency value, so set it to reflect the actual
+	 * requested P-state in the "performance" policy case and to the min
+	 * otherwise.
 	 */
-	policy->cur = policy->min;
+	policy->cur = freq;
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
