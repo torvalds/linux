@@ -1469,5 +1469,7 @@ struct sdca_control_range *sdca_selector_find_range(struct device *dev,
 struct sdca_cluster *sdca_id_find_cluster(struct device *dev,
 					  struct sdca_function_data *function,
 					  const int id);
+struct sdca_entity *sdca_find_entity_by_label(struct sdca_function_data *function,
+						     const char *entity_label);
 
 #endif
