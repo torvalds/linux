@@ -1004,12 +1004,15 @@ static void bpf_shim_tramp_link_release(struct bpf_link *link)
 {
 	struct bpf_shim_tramp_link *shim_link =
 		container_of(link, struct bpf_shim_tramp_link, link.link);
+	int err;
 
 	/* paired with 'shim_link->trampoline = tr' in bpf_trampoline_link_cgroup_shim */
 	if (!shim_link->trampoline)
 		return;
 
-	WARN_ON_ONCE(bpf_trampoline_unlink_prog(&shim_link->link.node, shim_link->trampoline, NULL));
+	err = bpf_trampoline_unlink_prog(&shim_link->link.node, shim_link->trampoline, NULL);
+	WARN_ONCE(err, "bpf_trampoline_unlink_prog failed: %d\n", err);
+
 	bpf_trampoline_put(shim_link->trampoline);
 }
 
@@ -1720,15 +1723,16 @@ int bpf_trampoline_multi_detach(struct bpf_prog *prog, struct bpf_tracing_multi_
 {
 	struct bpf_tracing_multi_data *data = &link->data;
 	struct bpf_tracing_multi_node *mnode;
-	int i;
+	int i, err;
 
 	trampoline_lock_all();
 
 	for_each_mnode(mnode, link) {
 		data->entry = &mnode->entry;
 		bpf_trampoline_multi_attach_init(mnode->trampoline);
-		WARN_ON_ONCE(__bpf_trampoline_unlink_prog(&mnode->node, mnode->trampoline,
-					NULL, &trampoline_multi_ops, data));
+		err = __bpf_trampoline_unlink_prog(&mnode->node, mnode->trampoline, NULL,
+					&trampoline_multi_ops, data);
+		WARN_ONCE(err, "__bpf_trampoline_unlink_prog failed: %d\n", err);
 	}
 
 	if (ftrace_hash_count(data->unreg))
