@@ -1140,8 +1140,12 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	int ret;
 
 	if (flags & MSM_BO_NO_SHARE) {
+		struct msm_drm_private *priv = dev->dev_private;
 		struct msm_context *ctx = file->driver_priv;
 		struct drm_gpuvm *vm = msm_context_vm(dev, ctx);
+
+		if (!priv->gpu || !vm)
+			return UERR(EINVAL, dev, "not supported with shared VM");
 
 		r_obj = drm_gpuvm_resv_obj(vm);
 	}
