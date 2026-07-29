@@ -38,7 +38,7 @@ pub trait InPlaceInit<T>: Sized {
     fn pin_init(init: impl PinInit<T>) -> Result<Pin<Self>, AllocError> {
         // SAFETY: We delegate to `init` and only change the error type.
         let init = unsafe {
-            pin_init_from_closure(|slot| match init.__pinned_init(slot) {
+            pin_init_from_closure(|slot| match init.__init(slot) {
                 Ok(()) => Ok(()),
                 Err(i) => match i {},
             })
@@ -109,7 +109,7 @@ impl<T> InPlaceInit<T> for Arc<T> {
         let slot = slot.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
-        unsafe { init.__pinned_init(slot)? };
+        unsafe { init.__init(slot)? };
         // SAFETY: All fields have been initialized and this is the only `Arc` to that data.
         Ok(unsafe { Pin::new_unchecked(this.assume_init()) })
     }
@@ -149,7 +149,7 @@ impl<T> InPlaceWrite<T> for Box<MaybeUninit<T>> {
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
-        unsafe { init.__pinned_init(slot)? };
+        unsafe { init.__init(slot)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { self.assume_init() }.into())
     }

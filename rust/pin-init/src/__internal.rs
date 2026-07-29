@@ -181,7 +181,7 @@ impl<T> StackInit<T> {
             unsafe { this.value.assume_init_drop() };
         }
         // SAFETY: The memory slot is valid and this type ensures that it will stay pinned.
-        unsafe { init.__pinned_init(this.value.as_mut_ptr())? };
+        unsafe { init.__init(this.value.as_mut_ptr())? };
         // INVARIANT: `this.value` is initialized above.
         this.is_init = true;
         // SAFETY: The slot is now pinned, since we will never give access to `&mut T`.
@@ -289,7 +289,7 @@ impl<T: ?Sized> Slot<Pinned, T> {
         // - when `Err` is returned, we also propagate the error without touching `ptr`;
         //   also `self` is consumed so it cannot be touched further.
         // - the drop guard will not hand out `&mut` (only `Pin<&mut T>`).
-        unsafe { init.__pinned_init(self.ptr)? };
+        unsafe { init.__init(self.ptr)? };
 
         // SAFETY:
         // - `self.ptr` is valid, properly aligned and pinned per type invariant.
@@ -396,9 +396,9 @@ impl<T: ?Sized> Default for AlwaysFail<T> {
     }
 }
 
-// SAFETY: `__pinned_init` always fails, which is always okay.
+// SAFETY: `__init` always fails, which is always okay.
 unsafe impl<T: ?Sized> PinInit<T, ()> for AlwaysFail<T> {
-    unsafe fn __pinned_init(self, _slot: *mut T) -> Result<(), ()> {
+    unsafe fn __init(self, _slot: *mut T) -> Result<(), ()> {
         Err(())
     }
 }
