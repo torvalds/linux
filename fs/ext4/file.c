@@ -436,7 +436,8 @@ static int ext4_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 		error = ext4_convert_unwritten_extents_atomic(NULL, inode, pos,
 							      size);
 	else if (!error && size && flags & IOMAP_DIO_UNWRITTEN)
-		error = ext4_convert_unwritten_extents(NULL, inode, pos, size);
+		error = ext4_convert_unwritten_extents(NULL, inode, pos, size,
+						       NULL);
 	if (error)
 		return error;
 	/*
