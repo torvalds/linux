@@ -1287,7 +1287,6 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 
 			seglen = ipv6_payload_len(skb, ipv6h_check);
 		} else {
-			WARN_ON(1);  /* shouldn't happen */
 			continue;
 		}
 
