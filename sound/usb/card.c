@@ -715,7 +715,7 @@ static void snd_usb_init_quirk_flags(int idx, struct snd_usb_audio *chip)
 
 	/* old style option found: the position-based integer value */
 	if (quirk_flags[idx] &&
-	    !kstrtou32(quirk_flags[idx], 0, &chip->quirk_flags)) {
+	    !kstrtou64(quirk_flags[idx], 0, &chip->quirk_flags)) {
 		snd_usb_apply_flag_dbg("module param", chip, chip->quirk_flags);
 		return;
 	}

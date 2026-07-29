@@ -2145,7 +2145,7 @@ struct usb_string_match {
 
 struct usb_audio_quirk_flags_table {
 	u32 id;
-	u32 flags;
+	u64 flags;
 	const struct usb_string_match *usb_string_match;
 };
 
@@ -2638,7 +2638,7 @@ const char *snd_usb_quirk_flag_find_name(unsigned long index)
 	return snd_usb_audio_quirk_flag_names[index];
 }
 
-u32 snd_usb_quirk_flags_from_name(const char *name)
+u64 snd_usb_quirk_flags_from_name(const char *name)
 {
 	int i;
 
@@ -2647,7 +2647,7 @@ u32 snd_usb_quirk_flags_from_name(const char *name)
 
 	for (i = 0; snd_usb_audio_quirk_flag_names[i]; i++) {
 		if (strcasecmp(name, snd_usb_audio_quirk_flag_names[i]) == 0)
-			return BIT_U32(i);
+			return BIT_U64(i);
 	}
 
 	return 0;
@@ -2705,7 +2705,7 @@ void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 {
 	u16 chip_vid = USB_ID_VENDOR(chip->usb_id);
 	u16 chip_pid = USB_ID_PRODUCT(chip->usb_id);
-	u32 mask_flags, unmask_flags, bit;
+	u64 mask_flags, unmask_flags, bit;
 	char *p, *field, *flag;
 	bool is_unmask;
 	u16 vid, pid;
@@ -2759,7 +2759,7 @@ void snd_usb_init_quirk_flags_parse_string(struct snd_usb_audio *chip,
 				is_unmask = false;
 			}
 
-			if (!kstrtou32(flag, 16, &bit)) {
+			if (!kstrtou64(flag, 16, &bit)) {
 				if (is_unmask)
 					unmask_flags |= bit;
 				else

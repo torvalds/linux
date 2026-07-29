@@ -44,7 +44,7 @@ struct snd_usb_audio {
 	atomic_t active;
 	atomic_t shutdown;
 	struct snd_refcount usage_count;
-	unsigned int quirk_flags;
+	u64 quirk_flags;
 	unsigned int need_delayed_register:1; /* warn for delayed registration */
 	int num_interfaces;
 	int last_iface;
@@ -298,7 +298,7 @@ enum {
 /* Please also edit snd_usb_audio_quirk_flag_names */
 };
 
-#define QUIRK_FLAG(x)	BIT_U32(QUIRK_TYPE_ ## x)
+#define QUIRK_FLAG(x)	BIT_U64(QUIRK_TYPE_ ## x)
 
 #define QUIRK_FLAG_GET_SAMPLE_RATE		QUIRK_FLAG(GET_SAMPLE_RATE)
 #define QUIRK_FLAG_SHARE_MEDIA_DEVICE		QUIRK_FLAG(SHARE_MEDIA_DEVICE)
