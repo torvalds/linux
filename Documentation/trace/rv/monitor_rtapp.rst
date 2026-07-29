@@ -67,6 +67,8 @@ thread to sleep for one of the following reasons:
     variables as safe for real-time. As an alternative, the librtpi library
     exists to provide a conditional variable implementation that is correct for
     real-time applications in Linux.
+  - Real-time thread waiting for events using `epoll_wait`, which is a
+    real-time-safe syscall for sleeping as it uses PI-aware locking.
 
 Beside the reason for sleeping, the eventual waker should also be
 real-time-safe. Namely, one of:
@@ -113,6 +115,10 @@ The monitor's specification is::
 
   ALLOWLIST = BLOCK_ON_RT_MUTEX
            or FUTEX_LOCK_PI
+
+`ABORT_SLEEP` represents a task restoring its state to `TASK_RUNNING` before
+entering the scheduler. In this case, the task does not actually block, so the
+task is back to runnable without any wakeup sequence unsafe for real-time.
 
 Beside the scenarios described above, this specification also defines an allow list
 to handle some special cases:
