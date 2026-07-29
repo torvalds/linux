@@ -171,7 +171,6 @@ nxpwifi_del_rx_reorder_entry(struct nxpwifi_private *priv,
 	list_del_rcu(&tbl->list);
 	spin_unlock_bh(&priv->rx_reorder_tbl_lock[tid]);
 
-	kfree(tbl->rx_reorder_ptr);
 	kfree_rcu(tbl, rcu);
 
 	atomic_set(&priv->adapter->rx_ba_teardown_pending, 0);
@@ -262,7 +261,6 @@ static void
 nxpwifi_11n_create_rx_reorder_tbl(struct nxpwifi_private *priv, u8 *ta,
 				  int tid, int win_size, int seq_num)
 {
-	int i;
 	struct nxpwifi_rx_reorder_tbl *tbl, *new_node;
 	u16 last_seq = 0;
 	struct nxpwifi_sta_node *node;
@@ -273,11 +271,16 @@ nxpwifi_11n_create_rx_reorder_tbl(struct nxpwifi_private *priv, u8 *ta,
 		nxpwifi_11n_dispatch_pkt_until_start_win(priv, tbl, seq_num);
 		return;
 	}
+
+	if (win_size <= 0)
+		return;
+
 	/* if !tbl then create one */
-	new_node = kzalloc_obj(*new_node, GFP_KERNEL);
+	new_node = kzalloc_flex(*new_node, rx_reorder_ptr, win_size);
 	if (!new_node)
 		return;
 
+	new_node->win_size = win_size;
 	INIT_LIST_HEAD(&new_node->list);
 	new_node->tid = tid;
 	memcpy(new_node->ta, ta, ETH_ALEN);
@@ -311,25 +314,11 @@ nxpwifi_11n_create_rx_reorder_tbl(struct nxpwifi_private *priv, u8 *ta,
 		new_node->flags |= RXREOR_INIT_WINDOW_SHIFT;
 	}
 
-	new_node->win_size = win_size;
-
-	new_node->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
-					   GFP_KERNEL);
-	if (!new_node->rx_reorder_ptr) {
-		kfree(new_node);
-		nxpwifi_dbg(priv->adapter, ERROR,
-			    "%s: failed to alloc reorder_ptr\n", __func__);
-		return;
-	}
-
 	new_node->timer_context.ptr = new_node;
 	new_node->timer_context.priv = priv;
 	new_node->timer_context.timer_is_set = false;
 
 	timer_setup(&new_node->timer_context.timer, nxpwifi_flush_data, 0);
-
-	for (i = 0; i < win_size; ++i)
-		new_node->rx_reorder_ptr[i] = NULL;
 
 	spin_lock_bh(&priv->rx_reorder_tbl_lock[tid]);
 	list_add_tail_rcu(&new_node->list, &priv->rx_reorder_tbl_ptr[tid]);
