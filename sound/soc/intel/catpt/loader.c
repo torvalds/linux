@@ -26,7 +26,7 @@ struct catpt_fw_hdr {
 	u32 reserved[4];
 } __packed;
 
-struct catpt_fw_mod_hdr {
+struct catpt_fw_module_hdr {
 	char signature[FW_SIGNATURE_SIZE];
 	u32 mod_size;
 	u32 blocks;
@@ -357,7 +357,7 @@ static int catpt_load_block(struct catpt_dev *cdev,
 
 static int catpt_restore_basefw(struct catpt_dev *cdev,
 				struct dma_chan *chan, dma_addr_t paddr,
-				struct catpt_fw_mod_hdr *basefw)
+				struct catpt_fw_module_hdr *basefw)
 {
 	u32 offset = sizeof(*basefw);
 	int ret, i;
@@ -400,7 +400,7 @@ static int catpt_restore_basefw(struct catpt_dev *cdev,
 
 static int catpt_restore_module(struct catpt_dev *cdev,
 				struct dma_chan *chan, dma_addr_t paddr,
-				struct catpt_fw_mod_hdr *mod)
+				struct catpt_fw_module_hdr *mod)
 {
 	u32 offset = sizeof(*mod);
 	int i;
@@ -441,7 +441,7 @@ static int catpt_restore_module(struct catpt_dev *cdev,
 
 static int catpt_load_module(struct catpt_dev *cdev,
 			     struct dma_chan *chan, dma_addr_t paddr,
-			     struct catpt_fw_mod_hdr *mod)
+			     struct catpt_fw_module_hdr *mod)
 {
 	struct catpt_module_type *type;
 	u32 offset = sizeof(*mod);
@@ -497,10 +497,10 @@ static int catpt_restore_firmware(struct catpt_dev *cdev,
 			     fw, sizeof(*fw), false);
 
 	for (i = 0; i < fw->modules; i++) {
-		struct catpt_fw_mod_hdr *mod;
+		struct catpt_fw_module_hdr *mod;
 		int ret;
 
-		mod = (struct catpt_fw_mod_hdr *)((u8 *)fw + offset);
+		mod = (struct catpt_fw_module_hdr *)((u8 *)fw + offset);
 		if (strncmp(fw->signature, mod->signature,
 			    FW_SIGNATURE_SIZE)) {
 			dev_err(cdev->dev, "module signature mismatch\n");
@@ -543,10 +543,10 @@ static int catpt_load_firmware(struct catpt_dev *cdev,
 			     fw, sizeof(*fw), false);
 
 	for (i = 0; i < fw->modules; i++) {
-		struct catpt_fw_mod_hdr *mod;
+		struct catpt_fw_module_hdr *mod;
 		int ret;
 
-		mod = (struct catpt_fw_mod_hdr *)((u8 *)fw + offset);
+		mod = (struct catpt_fw_module_hdr *)((u8 *)fw + offset);
 		if (strncmp(fw->signature, mod->signature,
 			    FW_SIGNATURE_SIZE)) {
 			dev_err(cdev->dev, "module signature mismatch\n");
