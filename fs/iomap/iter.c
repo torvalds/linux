@@ -10,11 +10,12 @@
  * Release the iter folio batch. Note that the iomap flag is meant to control
  * the I/O path for the mapping and may not be set in error situations.
  */
-static inline void iomap_iter_clean_fbatch(struct iomap_iter *iter)
+static inline void iomap_iter_clean_fbatch(const struct iomap_iter *iter,
+		struct iomap *iomap)
 {
 	if (!iter->fbatch)
 		return;
-	iter->iomap.flags &= ~IOMAP_F_FOLIO_BATCH;
+	iomap->flags &= ~IOMAP_F_FOLIO_BATCH;
 	if (folio_batch_count(iter->fbatch)) {
 		folio_batch_release(iter->fbatch);
 		folio_batch_reinit(iter->fbatch);
@@ -46,9 +47,60 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
 }
 
 /**
- * iomap_iter - iterate over a ranges in a file
- * @iter: iteration structue
- * @ops: iomap ops provided by the file system
+ * iomap_iter_continue - decide whether iteration should continue
+ * @iter: iteration structure
+ * @iomap: the mapping that was just processed
+ * @srcmap: the source mapping that was just processed
+ *
+ * Helper normally called via iomap_iter_next(). Called after the previous
+ * mapping has been finished to determine whether there is more of the file
+ * range left to process.
+ *
+ * Returns 1 if there is more work to do, in which case @iomap and @srcmap are
+ * cleared so the caller can produce the next mapping; zero if the range is
+ * fully consumed; or a negative errno on error.
+ */
+int iomap_iter_continue(const struct iomap_iter *iter, struct iomap *iomap,
+		struct iomap *srcmap, int ret)
+{
+	const bool stale = iomap->flags & IOMAP_F_STALE;
+	const ssize_t advanced = iter->pos - iter->iter_start_pos;
+
+	if (ret < 0 && !advanced)
+		return ret;
+
+	/*
+	 * Use iter->len to determine whether to continue onto the next mapping.
+	 * Explicitly terminate on error status or if the current iter has not
+	 * advanced at all (i.e. no work was done for some reason) unless the
+	 * mapping has been marked stale and needs to be reprocessed.
+	 */
+	if (WARN_ON_ONCE(iter->status > 0))
+		/* detect old return semantics where this would advance */
+		ret = -EIO;
+	else if (iter->status < 0)
+		ret = iter->status;
+	else if (iter->len == 0 || (!advanced && !stale))
+		ret = 0;
+	else
+		ret = 1;
+
+	iomap_iter_clean_fbatch(iter, iomap);
+
+	if (ret <= 0)
+		return ret;
+
+	memset(iomap, 0, sizeof(*iomap));
+	memset(srcmap, 0, sizeof(*srcmap));
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iomap_iter_continue);
+
+/**
+ * iomap_iter - iterate over ranges in a file
+ * @iter: iteration structure
+ * @ops: iomap ops provided by the filesystem
  *
  * Iterate over filesystem-provided space mappings for the provided file range.
  *
@@ -62,65 +114,17 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
  */
 int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 {
-	bool stale = iter->iomap.flags & IOMAP_F_STALE;
-	ssize_t advanced;
-	u64 olen;
 	int ret;
 
 	trace_iomap_iter(iter, ops, _RET_IP_);
 
-	if (!iter->iomap.length)
-		goto begin;
-
-	/*
-	 * Calculate how far the iter was advanced and the original length bytes
-	 * for ->iomap_end().
-	 */
-	advanced = iter->pos - iter->iter_start_pos;
-	olen = iter->len + advanced;
-
-	if (ops->iomap_end) {
-		ret = ops->iomap_end(iter->inode, iter->iter_start_pos,
-				iomap_length_trim(iter, iter->iter_start_pos,
-						  olen),
-				advanced, iter->flags, &iter->iomap);
-		if (ret < 0 && !advanced)
-			goto error;
-	}
-
-	/* detect old return semantics where this would advance */
-	if (WARN_ON_ONCE(iter->status > 0))
-		iter->status = -EIO;
-
-	/*
-	 * Use iter->len to determine whether to continue onto the next mapping.
-	 * Explicitly terminate on error status or if the current iter has not
-	 * advanced at all (i.e. no work was done for some reason) unless the
-	 * mapping has been marked stale and needs to be reprocessed.
-	 */
-	if (iter->status < 0)
-		ret = iter->status;
-	else if (iter->len == 0 || (!advanced && !stale))
-		ret = 0;
-	else
-		ret = 1;
-	iomap_iter_clean_fbatch(iter);
+	ret = iomap_iter_next(iter, &iter->iomap, &iter->srcmap,
+			ops->iomap_begin, ops->iomap_end);
 	iter->status = 0;
-	if (ret <= 0)
-		return ret;
+	if (ret > 0)
+		iomap_iter_done(iter);
+	else if (ret < 0)
+		iomap_iter_clean_fbatch(iter, &iter->iomap);
 
-	memset(&iter->iomap, 0, sizeof(iter->iomap));
-	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
-
-begin:
-	ret = ops->iomap_begin(iter->inode, iter->pos, iter->len, iter->flags,
-			       &iter->iomap, &iter->srcmap);
-	if (ret < 0)
-		goto error;
-	iomap_iter_done(iter);
-	return 1;
-
-error:
-	iomap_iter_clean_fbatch(iter);
 	return ret;
 }
