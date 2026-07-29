@@ -81,7 +81,7 @@ catpt_request_region(struct resource *root, resource_size_t size)
 	return __request_region(root, addr, size, NULL, 0);
 }
 
-int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
+static int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	struct catpt_stream_runtime *stream;
 
@@ -108,7 +108,7 @@ int catpt_store_streams_context(struct catpt_dev *cdev, struct dma_chan *chan)
 	return 0;
 }
 
-int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *chan)
+static int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	int i;
 
@@ -138,7 +138,7 @@ int catpt_store_module_states(struct catpt_dev *cdev, struct dma_chan *chan)
 	return 0;
 }
 
-int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
+static int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 {
 	int i;
 
@@ -169,6 +169,39 @@ int catpt_store_memdumps(struct catpt_dev *cdev, struct dma_chan *chan)
 	}
 
 	return 0;
+}
+
+int catpt_store_firmware_context(struct catpt_dev *cdev)
+{
+	struct dma_chan *chan;
+	int ret;
+
+	chan = catpt_dma_request_config_chan(cdev);
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+
+	ret = catpt_dsp_stall(cdev, true);
+	if (ret)
+		goto exit;
+
+	ret = catpt_store_memdumps(cdev, chan);
+	if (ret) {
+		dev_err(cdev->dev, "store memdumps failed: %d\n", ret);
+		goto exit;
+	}
+
+	ret = catpt_store_module_states(cdev, chan);
+	if (ret) {
+		dev_err(cdev->dev, "store module states failed: %d\n", ret);
+		goto exit;
+	}
+
+	ret = catpt_store_streams_context(cdev, chan);
+	if (ret)
+		dev_err(cdev->dev, "store streams ctx failed: %d\n", ret);
+exit:
+	dma_release_channel(chan);
+	return ret;
 }
 
 static int
