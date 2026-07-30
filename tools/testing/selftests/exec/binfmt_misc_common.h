@@ -117,16 +117,16 @@ static inline int artifact_path(char *out, size_t sz, const char *name)
 }
 
 /* Probe kernel support for a registration flag with a throwaway entry. */
-static inline int binfmt_flag_supported(char flag)
+static inline bool binfmt_flag_supported(char flag)
 {
 	char rule[64];
 
 	snprintf(rule, sizeof(rule), ":bm_flag_probe:E::bmprobe::/bin/true:%c",
 		 flag);
 	if (write_reg(rule))
-		return -1;
+		return false;
 	unregister("bm_flag_probe");
-	return 0;
+	return true;
 }
 
 /*

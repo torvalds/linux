@@ -56,7 +56,7 @@ FIXTURE_SETUP(transparent)
 	ASSERT_EQ(create_target(), 0);
 
 	/* Skip the whole suite on a kernel that does not know 'T'. */
-	if (binfmt_flag_supported('T')) {
+	if (!binfmt_flag_supported('T')) {
 		ASSERT_EQ(errno, EINVAL);
 		SKIP(return, "kernel without the 'T' flag");
 	}

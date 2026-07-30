@@ -258,7 +258,7 @@ TEST_F(bpf_handler, transparent_dispatch)
 	char src[PATH_MAX], cmd[PATH_MAX + 16];
 
 	/* Probe for transparent-mode support via its static counterpart. */
-	if (binfmt_flag_supported('T'))
+	if (!binfmt_flag_supported('T'))
 		SKIP(return, "kernel without transparent mode");
 
 	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_transparent_interp"), 0);
