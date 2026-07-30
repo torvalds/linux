@@ -356,7 +356,6 @@ struct bq25630_data {
 	struct regmap_field *regfields[BQ25630_REGF_MAX];
 
 	struct power_supply *psy;
-	struct power_supply_battery_info *batinfo;
 
 	/* State status from IRQs. */
 	u8 statregs[BQ25630_NR_STAT_REGS];
@@ -668,6 +667,7 @@ static int bq25630_reset(struct bq25630_data *data)
 
 static int bq25630_setup(struct bq25630_data *data)
 {
+	struct power_supply_battery_info *batinfo;
 	int ret;
 
 	ret = bq25630_reset(data);
@@ -684,69 +684,78 @@ static int bq25630_setup(struct bq25630_data *data)
 		return ret;
 	}
 
+	ret = power_supply_get_battery_info(data->psy, &batinfo);
+	if (ret) {
+		dev_err(data->dev, "Could not get battery info (%d)\n", ret);
+		return ret;
+	}
+
 	/*
 	 * Set values according to battery info. Warn on missing "dangerous"
 	 * properties.
 	 */
-	if (data->batinfo->voltage_min_design_uv >= 0) {
+	if (batinfo->voltage_min_design_uv >= 0) {
 		ret = bq25630_write_limit(data, BQ25630_REGF_VSYSMIN,
 					  BQ25630_VSYSMIN_MIN,
 					  BQ25630_VSYSMIN_MAX,
 					  BQ25630_VSYSMIN_STEP,
 					  BQ25630_VSYSMIN_MIN_REGVAL,
-					  data->batinfo->voltage_min_design_uv);
+					  batinfo->voltage_min_design_uv);
 		if (ret)
-			return ret;
+			goto out_put_batinfo;
 	} else
 		dev_warn(data->dev,
 			 "Using default value for minimum voltage\n");
 
-	if (data->batinfo->constant_charge_voltage_max_uv >= 0) {
+	if (batinfo->constant_charge_voltage_max_uv >= 0) {
 		ret = bq25630_write_limit(
 			data, BQ25630_REGF_VREG, BQ25630_VREG_MIN,
 			BQ25630_VREG_MAX, BQ25630_VREG_STEP,
 			BQ25630_VREG_MIN_REGVAL,
-			data->batinfo->constant_charge_voltage_max_uv);
+			batinfo->constant_charge_voltage_max_uv);
 		if (ret)
-			return ret;
+			goto out_put_batinfo;
 	} else
 		dev_warn(data->dev,
 			 "Using default value for maximum constant charge voltage\n");
 
-	if (data->batinfo->constant_charge_current_max_ua >= 0) {
+	if (batinfo->constant_charge_current_max_ua >= 0) {
 		ret = bq25630_write_limit(
 			data, BQ25630_REGF_ICHG, BQ25630_ICHG_MIN,
 			BQ25630_ICHG_MAX, BQ25630_ICHG_STEP,
 			BQ25630_ICHG_MIN_REGVAL,
-			data->batinfo->constant_charge_current_max_ua);
+			batinfo->constant_charge_current_max_ua);
 		if (ret)
-			return ret;
+			goto out_put_batinfo;
 	} else
 		dev_warn(data->dev,
 			 "Using default value for maximum constant charge current\n");
 
-	if (data->batinfo->charge_term_current_ua >= 0) {
+	if (batinfo->charge_term_current_ua >= 0) {
 		ret = bq25630_write_limit(
 			data, BQ25630_REGF_ITERM, BQ25630_ITERM_MIN,
 			BQ25630_ITERM_MAX, BQ25630_ITERM_STEP,
 			BQ25630_ITERM_MIN_REGVAL,
-			data->batinfo->charge_term_current_ua);
+			batinfo->charge_term_current_ua);
 		if (ret)
-			return ret;
+			goto out_put_batinfo;
 	}
 
-	if (data->batinfo->precharge_current_ua >= 0) {
+	if (batinfo->precharge_current_ua >= 0) {
 		ret = bq25630_write_limit(data, BQ25630_REGF_IPRECHG,
 					  BQ25630_IPRECHG_MIN,
 					  BQ25630_IPRECHG_MAX,
 					  BQ25630_IPRECHG_STEP,
 					  BQ25630_IPRECHG_MIN_REGVAL,
-					  data->batinfo->precharge_current_ua);
+					  batinfo->precharge_current_ua);
 		if (ret)
-			return ret;
+			goto out_put_batinfo;
 	}
 
-	return 0;
+out_put_batinfo:
+	power_supply_put_battery_info(data->psy, batinfo);
+
+	return ret;
 }
 
 static int bq25630_charger_get_property(struct power_supply *psy,
@@ -1023,11 +1032,6 @@ static int bq25630_probe(struct i2c_client *client)
 	if (IS_ERR(data->psy))
 		return dev_err_probe(data->dev, PTR_ERR(data->psy),
 			      "Could not register power supply\n");
-
-	ret = power_supply_get_battery_info(data->psy, &data->batinfo);
-	if (ret)
-		return dev_err_probe(data->dev, ret,
-				     "Could not get battery info\n");
 
 	/*
 	 * Device sends active low 256 µs pulse to report status and fault.
