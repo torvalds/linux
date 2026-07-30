@@ -6512,6 +6512,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 	struct ftrace_hash *new_direct_functions;
 	struct ftrace_hash *new_filter_hash = NULL;
 	struct ftrace_hash *old_filter_hash;
+	struct ftrace_hash *direct_hash;
 	struct ftrace_func_entry *entry;
 	struct ftrace_func_entry *del;
 	unsigned long size;
@@ -6523,10 +6524,12 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 		return -EINVAL;
 	if (!(ops->flags & FTRACE_OPS_FL_ENABLED))
 		return -EINVAL;
-	if (direct_functions == EMPTY_HASH)
-		return -EINVAL;
 
 	mutex_lock(&direct_mutex);
+
+	direct_hash = rcu_dereference_protected(direct_functions, lockdep_is_held(&direct_mutex));
+	if (direct_hash == EMPTY_HASH)
+		goto out_unlock;
 
 	old_filter_hash = ops->func_hash ? ops->func_hash->filter_hash : NULL;
 
@@ -6537,7 +6540,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 	size = 1 << hash->size_bits;
 	for (int i = 0; i < size; i++) {
 		hlist_for_each_entry(entry, &hash->buckets[i], hlist) {
-			del = __ftrace_lookup_ip(direct_functions, entry->ip);
+			del = __ftrace_lookup_ip(direct_hash, entry->ip);
 			if (!del || del->direct != entry->direct)
 				goto out_unlock;
 		}
@@ -6548,7 +6551,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 	if (!new_filter_hash)
 		goto out_unlock;
 
-	new_direct_functions = hash_sub(direct_functions, hash);
+	new_direct_functions = hash_sub(direct_hash, hash);
 	if (!new_direct_functions)
 		goto out_unlock;
 
@@ -6575,7 +6578,7 @@ int update_ftrace_direct_del(struct ftrace_ops *ops, struct ftrace_hash *hash)
 		/* free the new_direct_functions */
 		old_direct_functions = new_direct_functions;
 	} else {
-		old_direct_functions = direct_functions;
+		old_direct_functions = direct_hash;
 		rcu_assign_pointer(direct_functions, new_direct_functions);
 	}
 
