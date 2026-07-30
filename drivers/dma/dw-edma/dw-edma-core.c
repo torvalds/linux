@@ -764,6 +764,7 @@ static int dw_edma_emul_irq_alloc(struct dw_edma *dw)
 		return virq;
 
 	irq_set_chip_and_handler(virq, &dw_edma_emul_irqchip, handle_level_irq);
+	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_data(virq, dw);
 	irq_set_noprobe(virq);
 
