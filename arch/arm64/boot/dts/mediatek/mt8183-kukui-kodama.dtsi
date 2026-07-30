@@ -86,7 +86,7 @@
 };
 
 &i2c2 {
-        pinctrl-names = "default";
+	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
 	status = "okay";
 	clock-frequency = <400000>;
@@ -101,7 +101,7 @@
 };
 
 &i2c4 {
-        pinctrl-names = "default";
+	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
 	clock-frequency = <400000>;
@@ -381,5 +381,5 @@
 };
 
 &i2c_tunnel {
-        google,remote-bus = <2>;
+	google,remote-bus = <2>;
 };

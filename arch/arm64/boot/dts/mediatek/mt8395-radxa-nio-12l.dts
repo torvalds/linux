@@ -1033,6 +1033,23 @@
 
 &pmic {
 	interrupts-extended = <&pio 222 IRQ_TYPE_LEVEL_HIGH>;
+	vsys-smps-supply = <&vsys>;
+	vsys-vcore-supply = <&vsys>;
+	vsys-vgpu11-supply = <&vsys>;
+	vsys-vgpu12-supply = <&vsys>;
+	vsys-vpa-supply = <&vsys>;
+	vsys-vproc1-supply = <&vsys>;
+	vsys-vproc2-supply = <&vsys>;
+	vsys-vpu-supply = <&vsys>;
+	vsys-vs1-supply = <&vsys>;
+	vsys-vs2-supply = <&vsys>;
+	vsys-vmodem-supply = <&vsys>;
+	vsys-ldo1-supply = <&vsys_buck>;
+	vsys-ldo2-supply = <&vsys_buck>;
+	vs1-ldo1-supply = <&mt6359_vs1_buck_reg>;
+	vs1-ldo2-supply = <&mt6359_vs1_buck_reg>;
+	vs2-ldo1-supply = <&mt6359_vs2_buck_reg>;
+	vs2-ldo2-supply = <&mt6359_vs2_buck_reg>;
 
 	mt6365keys: keys {
 		compatible = "mediatek,mt6365-keys", "mediatek,mt6359-keys";
