@@ -762,9 +762,9 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 	hu->proto = p;
 
 	err = hci_uart_register_dev(hu);
-	if (err) {
+	if (err)
 		return err;
-	}
+
 
 	set_bit(HCI_UART_PROTO_READY, &hu->flags);
 	clear_bit(HCI_UART_PROTO_INIT, &hu->flags);
