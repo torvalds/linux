@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 
 #include "amdgpu.h"
+#include "amdgpu_reset.h"
 #include "amdgpu_smu.h"
 #include "smu_internal.h"
 #include "atom.h"
@@ -994,7 +995,7 @@ static int smu_late_init(struct amdgpu_ip_block *ip_block)
 		return ret;
 	}
 
-	if (adev->in_suspend)
+	if (adev->in_suspend || amdgpu_reset_in_recovery(adev))
 		smu_restore_ppt_limits(smu, false);
 	smu_restore_dpm_user_profile(smu);
 
