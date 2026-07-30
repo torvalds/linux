@@ -1320,10 +1320,10 @@ config DETECT_HUNG_TASK_BLOCKER
 	depends on !PREEMPT_RT
 	default y
 	help
-	  Say Y here to show the blocker task's stacktrace who acquires
-	  the mutex lock which "hung tasks" are waiting.
-	  This will add overhead a bit but shows suspicious tasks and
-	  call trace if it comes from waiting a mutex.
+	  Say Y here to show a possible blocker task's stacktrace when
+	  a hung task is waiting on a mutex, semaphore, or rwsem.
+	  This will add a bit of overhead but shows suspicious tasks and
+	  call traces for waits on one of these locks.
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
