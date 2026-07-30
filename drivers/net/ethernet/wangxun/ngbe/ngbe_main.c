@@ -177,7 +177,7 @@ static void ngbe_irq_enable(struct wx *wx, bool queues)
 
 	wr32(wx, WX_PX_MISC_IEN, mask);
 
-	/* mask interrupt */
+	/* unmask interrupt */
 	if (queues)
 		wx_intr_enable(wx, NGBE_INTR_ALL);
 	else
