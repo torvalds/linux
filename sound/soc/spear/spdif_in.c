@@ -55,7 +55,7 @@ static int spdif_in_dai_probe(struct snd_soc_dai *dai)
 	struct spdif_in_dev *host = snd_soc_dai_get_drvdata(dai);
 
 	host->dma_params_rx.filter_data = &host->dma_params;
-	dai->capture_dma_data = &host->dma_params_rx;
+	snd_soc_dai_dma_data_set_capture(dai, &host->dma_params_rx);
 
 	return 0;
 }
