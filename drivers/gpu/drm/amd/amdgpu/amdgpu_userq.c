@@ -25,6 +25,7 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_exec.h>
 #include <linux/pm_runtime.h>
+#include <linux/overflow.h>
 #include <drm/drm_drv.h>
 
 #include "amdgpu.h"
@@ -238,24 +239,30 @@ int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 {
 	struct amdgpu_bo_va_mapping *va_map;
 	struct amdgpu_vm *vm = queue->vm;
-	u64 user_addr;
-	u64 size;
+	u64 start_addr;
+	u64 end_addr;
+	u64 start_page;
 
 	/* Caller must hold vm->root.bo reservation */
 	dma_resv_assert_held(queue->vm->root.bo->tbo.base.resv);
 
-	user_addr = (addr & AMDGPU_GMC_HOLE_MASK) >> AMDGPU_GPU_PAGE_SHIFT;
-	size = expected_size >> AMDGPU_GPU_PAGE_SHIFT;
+	if (!expected_size)
+		return -EINVAL;
 
-	va_map = amdgpu_vm_bo_lookup_mapping(vm, user_addr);
+	start_addr = addr & AMDGPU_GMC_HOLE_MASK;
+	if (check_add_overflow(start_addr, expected_size - 1, &end_addr))
+		return -EINVAL;
+
+	start_page = start_addr >> AMDGPU_GPU_PAGE_SHIFT;
+
+	va_map = amdgpu_vm_bo_lookup_mapping(vm, start_page);
 	if (!va_map)
 		return -EINVAL;
 
-	/* Only validate the userq whether resident in the VM mapping range */
-	if (user_addr >= va_map->start  &&
-	    va_map->last - user_addr + 1 >= size) {
+	/* Lookup guarantees start_page is mapped; ensure full span is covered. */
+	if ((end_addr >> AMDGPU_GPU_PAGE_SHIFT) <= va_map->last) {
 		va_map->bo_va->userq_va_mapped = true;
-		*va_out = user_addr;
+		*va_out = start_page;
 		return 0;
 	}
 
