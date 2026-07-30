@@ -967,7 +967,11 @@ impl<T: KnownSize + AsBytes + ?Sized> debugfs::BinaryWriter for Coherent<T> {
             return Ok(0);
         };
 
-        let count = self.size().saturating_sub(offset_val).min(writer.len());
+        if offset_val >= self.size() {
+            return Ok(0);
+        }
+
+        let count = (self.size() - offset_val).min(writer.len());
 
         writer.write_dma(self, offset_val, count)?;
 
