@@ -85,6 +85,8 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1: PRE1 pipe Histogram Measurement
  * @RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2: PRE2 pipe Histogram Measurement
  * @RPPX1_PARAMS_BLOCK_TYPE_HIST_POST: POST pipe Histogram Measurement
+ * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1: PRE1 pipe Black Level Subtraction
+ * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2: PRE2 pipe Black Level Subtraction
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -96,6 +98,8 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2,
 	RPPX1_PARAMS_BLOCK_TYPE_HIST_POST,
+	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2,
 };
 
 /**
@@ -331,6 +335,105 @@ struct rppx1_hist_params {
 };
 
 /**
+ * struct rppx1_bls_fixed - BLS fixed subtraction values
+ *
+ * Fixed black level values subtracted from sensor data per Bayer channel.
+ * Negative values result in addition.
+ *
+ * The PRE1 pipe BLS module operates on a 24-bits input data and fixed black
+ * levels are stored as a signed 2's complement representation ranging from
+ * -2^24 to 2^24-1.
+ *
+ * The PRE2 pipe BLS module operates on a 12-bits input data and fixed black
+ * levels are stored as a signed 2's complement representation ranging from
+ * -2^12 to 2^12-1.
+ *
+ * Userspace is expected to provide fixed black level values with a bit-depth
+ * matching the one of pipe in use.
+ *
+ * These subtraction values are matched with the sensor native Bayer components
+ * ordering according to the cropping configuration on the input port.
+ *
+ * @a: subtraction value for channel A
+ * @b: subtraction value for channel B
+ * @c: subtraction value for channel C
+ * @d: subtraction value for channel D
+ */
+struct rppx1_bls_fixed {
+	__u32 a;
+	__u32 b;
+	__u32 c;
+	__u32 d;
+};
+
+/**
+ * enum rppx1_bls_mode - BLS subtraction mode
+ *
+ * Select if subtracted black level come from fixed or measured values.
+ *
+ * @RPPX1_BLS_MODE_FIXED: subtract fixed values
+ * @RPPX1_BLS_MODE_MEAS: subtract measured values
+ */
+enum rppx1_bls_mode {
+	RPPX1_BLS_MODE_FIXED,
+	RPPX1_BLS_MODE_MEAS,
+};
+
+/**
+ * enum rppx1_bls_win_en: BLS measurement configuration
+ *
+ * Select the measurement window to use for measured black level values.
+ *
+ * @RPPX1_BLS_WIN_EN_OFF: disable measurement
+ * @RPPX1_BLS_WIN_EN_WIN1: Enable measurement from window 1
+ * @RPPX1_BLS_WIN_EN_WIN2: enable measurement from window 2
+ * @RPPX1_BLS_WIN_EN_WIN12: enable measurement from window 1 and window 2
+ */
+enum rppx1_bls_win_en {
+	RPPX1_BLS_WIN_EN_OFF,
+	RPPX1_BLS_WIN_EN_WIN1,
+	RPPX1_BLS_WIN_EN_WIN2,
+	RPPX1_BLS_WIN_EN_WIN12,
+};
+
+/**
+ * struct rppx1_bls_params - RPP-X1 Black Level Subtraction Module
+ *
+ * The RPP-X1 Black Level Subtraction module is available on the PRE1 and PRE2
+ * pre-fusion pipes. Userspace selects which pipe to operate by setting the
+ * @header.type field to RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1 or
+ * RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2.
+ *
+ * The BLS module operates on fixed or measured data according to the setting of
+ * the @mode field. When RPPX1_BLS_MODE_FIXED is used userspace shall provide
+ * the per-channel black levels in @fixed. When RPPX1_BLS_MODE_MEAS is used
+ * userspace shall configure the measurement windows @window1 and optionally
+ * @window2 to select the optically black pixels region in the input frame. The
+ * @samples fields controls how many measure samples are used for averaging the
+ * measured black levels.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1 or
+ *	    type == RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2)
+ * @window1: BLS measurement window 1 (14 bits)
+ * @window2: BLS measurement window 2 (14 bits)
+ * @fixed: fixed subtraction values (see enum rppx1_bls_fixed)
+ * @mode: BLS subtraction mode (see enum rppx1_bls_mode)
+ * @en_windows: BLS measurement mode (see rppx1_bls_win_en)
+ * @samples: log2 of the number of measured pixels per Bayer position
+ * @reserved: padding
+ */
+struct rppx1_bls_params {
+	struct v4l2_isp_params_block_header header;
+	struct rppx1_window window1;
+	struct rppx1_window window2;
+	struct rppx1_bls_fixed fixed;
+	__u8 mode;
+	__u8 en_windows;
+	__u8 samples;
+	__u8 reserved[5];
+};
+
+/**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
  * Some types are reported twice as the same block might be instantiated in
@@ -345,7 +448,9 @@ struct rppx1_hist_params {
 	sizeof(struct rppx1_exm_params)				+	\
 	sizeof(struct rppx1_hist_params)			+	\
 	sizeof(struct rppx1_hist_params)			+	\
-	sizeof(struct rppx1_hist_params))
+	sizeof(struct rppx1_hist_params)			+	\
+	sizeof(struct rppx1_bls_params)				+	\
+	sizeof(struct rppx1_bls_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
