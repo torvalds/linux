@@ -3784,11 +3784,11 @@ static int ublk_batch_commit_io(struct ublk_queue *ubq,
 	ret = ublk_batch_commit_io_check(ubq, io, &buf);
 	if (!ret) {
 		io->res = elem->result;
-		io->buf = buf;
 		req = ublk_fill_io_cmd(io, data->cmd);
 
 		if (auto_reg)
 			ublk_clear_auto_buf_reg(io, data->cmd, &buf_idx);
+		io->buf = buf;
 		compl = ublk_need_complete_req(data->ub, io);
 	}
 	ublk_io_unlock(io);
