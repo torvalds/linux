@@ -396,7 +396,7 @@ il_dbgfs_stations_read(struct file *file, char __user *user_buf, size_t count,
 	int i, j, pos = 0;
 	ssize_t ret;
 	/* Add 30 for initial string */
-	const size_t bufsz = 30 + sizeof(char) * 500 * (il->num_stations);
+	const size_t bufsz = 30 + sizeof(char) * 500 * max_sta;
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
 	if (!buf)
