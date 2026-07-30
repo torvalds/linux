@@ -1084,6 +1084,7 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 err_out_exit_acpi:
 	powernow_k8_cpu_exit_acpi(data);
+	kfree(data->powernow_table);
 
 err_out:
 	kfree(data);
