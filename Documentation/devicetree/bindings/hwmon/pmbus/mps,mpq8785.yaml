@@ -18,6 +18,7 @@ properties:
       - mps,mpm3695
       - mps,mpm3695-25
       - mps,mpm82504
+      - mps,mpq8646
       - mps,mpq8785
 
   reg:
@@ -52,7 +53,9 @@ allOf:
   - if:
       properties:
         compatible:
-          const: mps,mpq8785
+          enum:
+            - mps,mpq8646
+            - mps,mpq8785
     then:
       properties:
         mps,vout-fb-divider-ratio-permille:
