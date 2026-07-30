@@ -820,11 +820,11 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	size_t bytes = iov_iter_count(iter);
 	loff_t valid, i_size, vbo, end;
 	unsigned int dio_flags;
-	ssize_t err;
+	ssize_t ret;
 
-	err = check_read_restriction(inode);
-	if (err)
-		return err;
+	ret = check_read_restriction(inode);
+	if (ret)
+		return ret;
 
 	if (!bytes)
 		return 0; /* skip atime */
@@ -867,17 +867,17 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 		if (ni->file.run_da.count) {
 			/* Direct I/O is not compatible with delalloc. */
-			err = ni_allocate_da_blocks(ni);
-			if (err)
+			ret = ni_allocate_da_blocks(ni);
+			if (ret)
 				goto out;
 		}
 
-		err = iomap_dio_rw(iocb, iter, &ntfs_iomap_ops, NULL, dio_flags,
+		ret = iomap_dio_rw(iocb, iter, &ntfs_iomap_ops, NULL, dio_flags,
 				   NULL, 0);
 
-		if (err <= 0)
+		if (ret <= 0)
 			goto out;
-		end = vbo + err;
+		end = vbo + ret;
 		if (valid < end) {
 			size_t to_zero = end - valid;
 			/* Fix iter. */
@@ -889,35 +889,36 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			bytes = i_size - vbo;
 		iov_iter_zero(bytes, iter);
 		iocb->ki_pos += bytes;
-		err = bytes;
+		ret = bytes;
 	}
 
 out:
 	inode_unlock_shared(inode);
 	file_accessed(file);
-	return err;
+	return ret;
 }
 
 /*
  * ntfs_file_splice_read - file_operations::splice_read
  */
-static ssize_t ntfs_file_splice_read(struct file *in, loff_t *ppos,
+static ssize_t ntfs_file_splice_read(struct file *file, loff_t *ppos,
 				     struct pipe_inode_info *pipe, size_t len,
 				     unsigned int flags)
 {
-	struct inode *inode = file_inode(in);
-	ssize_t err;
+	struct inode *inode = file_inode(file);
+	struct ntfs_inode *ni = ntfs_i(inode);
+	ssize_t ret;
 
-	err = check_read_restriction(inode);
-	if (err)
-		return err;
+	ret = check_read_restriction(inode);
+	if (ret)
+		return ret;
 
-	if (is_compressed(ntfs_i(inode))) {
+	if (is_compressed(ni)) {
 		/* Turn off readahead for compressed files. */
-		in->f_ra.ra_pages = 0;
+		file->f_ra.ra_pages = 0;
 	}
 
-	return filemap_splice_read(in, ppos, pipe, len, flags);
+	return filemap_splice_read(file, ppos, pipe, len, flags);
 }
 
 /*
