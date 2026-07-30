@@ -5,10 +5,12 @@ config VIDEO_RCAR_ISP
 	depends on V4L_PLATFORM_DRIVERS
 	depends on VIDEO_DEV && OF
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on VIDEO_RENESAS_VSP1
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select RESET_CONTROLLER
 	select V4L2_FWNODE
+	select VIDEO_DCT_RPPX1
 	help
 	  Support for Renesas R-Car Image Signal Processor (ISP).
 	  Enable this to support the Renesas R-Car Image Signal

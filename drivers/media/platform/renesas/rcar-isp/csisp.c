@@ -11,14 +11,13 @@
  */
 
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/reset.h>
 
 #include <media/mipi-csi2.h>
-#include <media/v4l2-subdev.h>
+#include <media/v4l2-async.h>
+
+#include "risp-core.h"
 
 #define ISPINPUTSEL0_REG				0x0008
 #define ISPINPUTSEL0_SEL_CSI0				BIT(31)
@@ -158,6 +157,7 @@ struct rcar_isp {
 	struct device *dev;
 	void __iomem *csbase;
 	struct reset_control *rstc;
+	struct rcar_isp_core core;
 
 	enum rcar_isp_input csi_input;
 
@@ -452,6 +452,21 @@ static int risp_parse_dt(struct rcar_isp *isp)
 }
 
 /* -----------------------------------------------------------------------------
+ * ISP Core connection
+ */
+
+static int risp_cs_registered(struct v4l2_subdev *sd)
+{
+	struct rcar_isp *isp = sd_to_isp(sd);
+
+	return risp_core_registered(&isp->core, sd);
+}
+
+static const struct v4l2_subdev_internal_ops risp_cs_internal_ops = {
+	.registered = risp_cs_registered,
+};
+
+/* -----------------------------------------------------------------------------
  * Platform Device Driver
  */
 
@@ -477,7 +492,7 @@ static int risp_probe_resources(struct rcar_isp *isp,
 	if (IS_ERR(isp->csbase))
 		return PTR_ERR(isp->csbase);
 
-	isp->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	isp->rstc = devm_reset_control_get_shared(&pdev->dev, NULL);
 
 	return PTR_ERR_OR_ZERO(isp->rstc);
 }
@@ -541,14 +556,31 @@ static int risp_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_notifier;
 
+	ret = risp_core_probe(&isp->core, pdev, isp->csbase, isp->rstc);
+	switch (ret) {
+	case 0:
+		/* The device have an ISP core. */
+		isp->subdev.internal_ops = &risp_cs_internal_ops;
+		break;
+	case -ENODEV:
+		/* The device don't have an ISP core, that is OK. */
+		ret = 0;
+		break;
+	default:
+		/* Something went wrong registering the ISP core. */
+		goto error_subdev;
+	}
+
 	ret = v4l2_async_register_subdev(&isp->subdev);
 	if (ret < 0)
-		goto error_subdev;
+		goto error_core;
 
 	dev_info(isp->dev, "Using CSI-2 input: %u\n", isp->csi_input);
 
 	return 0;
 
+error_core:
+	risp_core_remove(&isp->core);
 error_subdev:
 	v4l2_subdev_cleanup(&isp->subdev);
 error_notifier:
@@ -563,6 +595,8 @@ error_pm:
 static void risp_remove(struct platform_device *pdev)
 {
 	struct rcar_isp *isp = platform_get_drvdata(pdev);
+
+	risp_core_remove(&isp->core);
 
 	v4l2_async_nf_unregister(&isp->notifier);
 	v4l2_async_nf_cleanup(&isp->notifier);
