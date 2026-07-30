@@ -6415,14 +6415,8 @@ int mlx5e_priv_init(struct mlx5e_priv *priv,
 	if (!priv->channel_stats)
 		goto err_free_tx_rates;
 
-	priv->fec_ranges = kzalloc_objs(*priv->fec_ranges, ETHTOOL_FEC_HIST_MAX);
-	if (!priv->fec_ranges)
-		goto err_free_channel_stats;
-
 	return 0;
 
-err_free_channel_stats:
-	kfree(priv->channel_stats);
 err_free_tx_rates:
 	kfree(priv->tx_rates);
 err_free_txq2sq_stats:
@@ -6447,7 +6441,6 @@ void mlx5e_priv_cleanup(struct mlx5e_priv *priv)
 	if (!priv->mdev)
 		return;
 
-	kfree(priv->fec_ranges);
 	for (i = 0; i < priv->stats_nch; i++)
 		kvfree(priv->channel_stats[i]);
 	kfree(priv->channel_stats);

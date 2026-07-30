@@ -6525,6 +6525,9 @@ int qeth_siocdevprivate(struct net_device *dev, struct ifreq *rq, void __user *d
 	struct qeth_card *card = dev->ml_priv;
 	int rc = 0;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	switch (cmd) {
 	case SIOC_QETH_ADP_SET_SNMP_CONTROL:
 		rc = qeth_snmp_command(card, data);

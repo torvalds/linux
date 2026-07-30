@@ -22736,7 +22736,8 @@ F:	drivers/watchdog/realtek_otto_wdt.c
 
 REALTEK RTL83xx SMI DSA ROUTER CHIPS
 M:	Linus Walleij <linusw@kernel.org>
-M:	Alvin Šipraga <alsi@bang-olufsen.dk>
+M:	Luiz Angelo Daros de Luca <luizluca@gmail.com>
+R:	Alvin Šipraga <alvin.sipraga@analog.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/realtek.yaml
 F:	drivers/net/dsa/realtek/*
@@ -24633,8 +24634,7 @@ SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
 M:	D. Wythe <alibuda@linux.alibaba.com>
 M:	Dust Li <dust.li@linux.alibaba.com>
 M:	Sidraya Jayagond <sidraya@linux.ibm.com>
-M:	Wenjia Zhang <wenjia@linux.ibm.com>
-R:	Mahanta Jambigi <mjambigi@linux.ibm.com>
+M:	Mahanta Jambigi <mjambigi@linux.ibm.com>
 R:	Tony Lu <tonylu@linux.alibaba.com>
 R:	Wen Gu <guwen@linux.alibaba.com>
 L:	linux-rdma@vger.kernel.org

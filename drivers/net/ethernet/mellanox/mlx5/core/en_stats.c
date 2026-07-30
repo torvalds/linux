@@ -1550,7 +1550,7 @@ static bool fec_rs_validate_hist_type(int mode, int hist_type)
 
 static u8
 fec_rs_histogram_fill_ranges(struct mlx5e_priv *priv, int mode,
-			     const struct ethtool_fec_hist_range **ranges)
+			     struct ethtool_fec_hist_range *ranges)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 out[MLX5_ST_SZ_DW(pphcr_reg)] = {0};
@@ -1558,8 +1558,6 @@ fec_rs_histogram_fill_ranges(struct mlx5e_priv *priv, int mode,
 	int sz = MLX5_ST_SZ_BYTES(pphcr_reg);
 	u8 hist_type, num_of_bins;
 
-	memset(priv->fec_ranges, 0,
-	       ETHTOOL_FEC_HIST_MAX * sizeof(*priv->fec_ranges));
 	MLX5_SET(pphcr_reg, in, local_port, 1);
 	if (mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPHCR, 0, 0))
 		return 0;
@@ -1575,12 +1573,11 @@ fec_rs_histogram_fill_ranges(struct mlx5e_priv *priv, int mode,
 	for (int i = 0; i < num_of_bins; i++) {
 		void *bin_range = MLX5_ADDR_OF(pphcr_reg, out, bin_range[i]);
 
-		priv->fec_ranges[i].high = MLX5_GET(bin_range_layout, bin_range,
-						    high_val);
-		priv->fec_ranges[i].low = MLX5_GET(bin_range_layout, bin_range,
-						   low_val);
+		ranges[i].high = MLX5_GET(bin_range_layout, bin_range,
+					  high_val);
+		ranges[i].low = MLX5_GET(bin_range_layout, bin_range,
+					 low_val);
 	}
-	*ranges = priv->fec_ranges;
 
 	return num_of_bins;
 }
@@ -1622,10 +1619,12 @@ static void fec_set_histograms_stats(struct mlx5e_priv *priv, int mode,
 	case MLX5E_FEC_LLRS_272_257_1:
 	case MLX5E_FEC_RS_544_514_INTERLEAVED_QUAD:
 		num_of_bins =
-			fec_rs_histogram_fill_ranges(priv, mode, &hist->ranges);
-		if (num_of_bins)
+			fec_rs_histogram_fill_ranges(priv, mode, hist->ranges_buf);
+		if (num_of_bins) {
+			hist->ranges = hist->ranges_buf;
 			return fec_rs_histogram_fill_stats(priv, num_of_bins,
 							   hist);
+		}
 		break;
 	default:
 		return;
