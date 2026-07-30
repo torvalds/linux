@@ -419,6 +419,9 @@ void drm_log_register(struct drm_device *dev)
 {
 	struct drm_log *new;
 
+	if (!scale)
+		scale = 1;
+
 	new = kzalloc_obj(*new);
 	if (!new)
 		goto err_warn;
