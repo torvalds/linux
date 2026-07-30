@@ -502,17 +502,32 @@ static void hv_reserve_irq_vectors(void)
 	#define HYPERV_DBG_ASSERT_VECTOR	0x2C
 	#define HYPERV_DBG_SERVICE_VECTOR	0x2D
 
+	/*
+	 * The hypervisor delivers these three to the NT HAL and refuses to
+	 * map a device interrupt to any of them.
+	 *
+	 * The hypervisor will provide a hint in the future when these
+	 * vectors become available to use.
+	 */
+	#define HAL_NT_APC_VECTOR		0x1F
+	#define HAL_NT_DPC_VECTOR		0x2F
+	#define HAL_NT_CLOCK_IPI_VECTOR		0xD2
+
 	if (cpu_feature_enabled(X86_FEATURE_FRED))
 		return;
 
 	if (test_and_set_bit(HYPERV_DBG_ASSERT_VECTOR, system_vectors) ||
 	    test_and_set_bit(HYPERV_DBG_SERVICE_VECTOR, system_vectors) ||
-	    test_and_set_bit(HYPERV_DBG_FASTFAIL_VECTOR, system_vectors))
+	    test_and_set_bit(HYPERV_DBG_FASTFAIL_VECTOR, system_vectors) ||
+	    test_and_set_bit(HAL_NT_APC_VECTOR, system_vectors) ||
+	    test_and_set_bit(HAL_NT_DPC_VECTOR, system_vectors) ||
+	    test_and_set_bit(HAL_NT_CLOCK_IPI_VECTOR, system_vectors))
 		BUG();
 
-	pr_info("Hyper-V: reserve vectors: 0x%x 0x%x 0x%x\n",
+	pr_info("Hyper-V: reserve vectors: 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 		HYPERV_DBG_ASSERT_VECTOR, HYPERV_DBG_SERVICE_VECTOR,
-		HYPERV_DBG_FASTFAIL_VECTOR);
+		HYPERV_DBG_FASTFAIL_VECTOR, HAL_NT_APC_VECTOR,
+		HAL_NT_DPC_VECTOR, HAL_NT_CLOCK_IPI_VECTOR);
 }
 
 static void __init ms_hyperv_init_platform(void)
