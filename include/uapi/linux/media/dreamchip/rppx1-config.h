@@ -87,6 +87,7 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_HIST_POST: POST pipe Histogram Measurement
  * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1: PRE1 pipe Black Level Subtraction
  * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2: PRE2 pipe Black Level Subtraction
+ * @RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST: POST pipe Color Correction
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -100,6 +101,7 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_HIST_POST,
 	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2,
+	RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST,
 };
 
 /**
@@ -434,6 +436,31 @@ struct rppx1_bls_params {
 };
 
 /**
+ * struct rppx1_ccor_params - Color CORrection configuration
+ *
+ * The CCOR (Color Correction) module is available on the MAIN_POST pipe. It
+ * performs color space correction on a pixel-per-pixel basis using a 3x3 matrix
+ * of coefficients and per-color channel offsets.
+ *
+ * The matrix coefficients are represented as 16 bits signed fixed point values
+ * in Q4.12 format ranging from -8 to +7.999.
+ *
+ * The per-channel color offsets are represented as 2's complement values
+ * stored in 25 bits ranging from -16777216 to 16777215.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST)
+ * @coeff: color correction matrix coefficients, 16 bits signed Q4.12
+ * @reserved: padding
+ * @offset: R, G, B offsets, 2's complement 25 bits
+ */
+struct rppx1_ccor_params {
+	struct v4l2_isp_params_block_header header;
+	__u16 coeff[3][3];
+	__u16 reserved;
+	__u32 offset[3];
+};
+
+/**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
  * Some types are reported twice as the same block might be instantiated in
@@ -450,7 +477,8 @@ struct rppx1_bls_params {
 	sizeof(struct rppx1_hist_params)			+	\
 	sizeof(struct rppx1_hist_params)			+	\
 	sizeof(struct rppx1_bls_params)				+	\
-	sizeof(struct rppx1_bls_params))
+	sizeof(struct rppx1_bls_params)				+	\
+	sizeof(struct rppx1_ccor_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
