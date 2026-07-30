@@ -2700,7 +2700,7 @@ static void get_jack_mode_name(struct hda_codec *codec, hda_nid_t pin,
 {
 	struct hda_gen_spec *spec = codec->spec;
 
-	snd_hda_get_pin_label(codec, pin, &spec->autocfg, name, name_len, NULL);
+	snd_hda_get_pin_label(codec, pin, &spec->autocfg, name, name_len);
 	strlcat(name, " Jack Mode", name_len);
 }
 
