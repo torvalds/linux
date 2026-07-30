@@ -448,16 +448,16 @@ static u64 mem_addr_to_sys_addr(u64 maddr)
 	return maddr;
 }
 
-static u64 mem_slice_hash(u64 addr, u64 mask, u64 hash_init, int intlv_bit)
+static u64 mem_slice_hash(u64 addr, u64 mask, u64 hash_init)
 {
+	/* The interleave bit in @addr is a zero. */
 	u64 hash_addr = addr & mask, hash = hash_init;
-	u64 intlv = (addr >> intlv_bit) & 1;
 	int i;
 
 	for (i = 6; i < 20; i++)
 		hash ^= (hash_addr >> i) & 1;
 
-	return hash ^ intlv;
+	return hash;
 }
 
 static u64 tgl_err_addr_to_mem_addr(u64 eaddr, int mc)
@@ -478,7 +478,7 @@ static u64 tgl_err_addr_to_mem_addr(u64 eaddr, int mc)
 	maddr = GET_BITFIELD(eaddr, intlv_bit, 63) << (intlv_bit + 1) |
 		GET_BITFIELD(eaddr, 0, intlv_bit - 1);
 
-	hash = mem_slice_hash(maddr, mask, mc, intlv_bit);
+	hash = mem_slice_hash(maddr, mask, mc);
 
 	return maddr | (hash << intlv_bit);
 }
