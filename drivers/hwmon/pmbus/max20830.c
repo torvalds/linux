@@ -20,6 +20,12 @@ struct max20830_data {
 	u32 vout_rfb2;
 };
 
+static const char * const supported_chip_ids[] = {
+	"MAX20830",
+	"MAX20830C",
+	"MAX20840C",
+};
+
 /*
  * MAX20830 only supports READ_VOUT for VOUT monitoring.
  *
@@ -83,7 +89,7 @@ static int max20830_probe(struct i2c_client *client)
 {
 	u8 buf[I2C_SMBUS_BLOCK_MAX + 1] = {};
 	struct max20830_data *data;
-	int ret;
+	int i, ret;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -105,13 +111,12 @@ static int max20830_probe(struct i2c_client *client)
 	 * which do not support SMBus block reads.
 	 */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA)) {
-		/* Reads 9 Data bytes from MAX20830 */
 		ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
 		if (ret < 0)
 			return dev_err_probe(&client->dev, ret,
 					     "Failed to read IC_DEVICE_ID\n");
 	} else {
-		/* Reads 1 length byte + 9 Data bytes from MAX20830 */
+		/* Reads 1 length byte + data bytes */
 		ret = i2c_smbus_read_i2c_block_data(client, PMBUS_IC_DEVICE_ID,
 						    MAX20830_IC_DEVICE_ID_LENGTH + 1,
 						    buf);
@@ -127,20 +132,25 @@ static int max20830_probe(struct i2c_client *client)
 		ret = ret - 1;
 	}
 
-	/*
-	 * MAX20830 IC_DEVICE_ID sends string data "MAX20830\0".
-	 * Return value should at least be 9 bytes of data.
-	 */
+	/* Verify we read the expected number of bytes */
 	if (ret < MAX20830_IC_DEVICE_ID_LENGTH)
 		return dev_err_probe(&client->dev, -ENODEV,
-				     "IC_DEVICE_ID too short: expected at least 9 bytes, got %d\n",
-				     ret);
+				     "IC_DEVICE_ID too short: expected %d bytes, got %d\n",
+				     MAX20830_IC_DEVICE_ID_LENGTH, ret);
 
-	/* 9 bytes of data, buf[0]-buf[7] = "MAX20830", buf[8] = '\0' */
-	buf[MAX20830_IC_DEVICE_ID_LENGTH - 1] = '\0';
-	if (strncmp(buf, "MAX20830", MAX20830_IC_DEVICE_ID_LENGTH - 1))
+	/* Null-terminate the string */
+	buf[ret] = '\0';
+
+	/* Verify the device ID matches what we expect */
+	for (i = 0; i < ARRAY_SIZE(supported_chip_ids); i++) {
+		if (!strcmp(buf, supported_chip_ids[i]))
+			break;
+	}
+
+	/* No match found - unsupported device */
+	if (i == ARRAY_SIZE(supported_chip_ids))
 		return dev_err_probe(&client->dev, -ENODEV,
-				     "Unsupported device: '%s'\n", buf);
+				     "Unsupported device: '%*pE'\n", ret, buf);
 
 	return pmbus_do_probe(client, &data->info);
 }
