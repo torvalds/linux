@@ -2144,22 +2144,26 @@ static int navi10_get_power_limit(struct smu_context *smu,
 		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
 	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t power_limit, od_percent_upper = 0, od_percent_lower = 0;
+	uint32_t current_limit, default_limit;
+	uint32_t od_percent_upper = 0, od_percent_lower = 0;
 
-	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
-		/* the last hope to figure out the ppt limit */
-		if (!pptable) {
-			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
-			return -EINVAL;
-		}
-		power_limit =
-			pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+	if (!pptable) {
+		dev_err(smu->adev->dev,
+			"Cannot get PPT limit due to pptable missing!");
+		return -EINVAL;
 	}
 
+	default_limit = smu->adev->pm.ac_power ?
+		pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
+		pptable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
+
+	if (smu_v11_0_get_current_power_limit(smu, &current_limit))
+		current_limit = default_limit;
+
 	if (current_power_limit)
-		*current_power_limit = power_limit;
+		*current_power_limit = current_limit;
 	if (default_power_limit)
-		*default_power_limit = power_limit;
+		*default_power_limit = default_limit;
 
 	if (powerplay_table) {
 		if (smu->od_enabled &&
@@ -2173,15 +2177,15 @@ static int navi10_get_power_limit(struct smu_context *smu,
 	}
 
 	dev_dbg(smu->adev->dev, "od percent upper:%d, od percent lower:%d (default power: %d)\n",
-					od_percent_upper, od_percent_lower, power_limit);
+		 od_percent_upper, od_percent_lower, default_limit);
 
 	if (max_power_limit) {
-		*max_power_limit = power_limit * (100 + od_percent_upper);
+		*max_power_limit = default_limit * (100 + od_percent_upper);
 		*max_power_limit /= 100;
 	}
 
 	if (min_power_limit) {
-		*min_power_limit = power_limit * (100 - od_percent_lower);
+		*min_power_limit = default_limit * (100 - od_percent_lower);
 		*min_power_limit /= 100;
 	}
 

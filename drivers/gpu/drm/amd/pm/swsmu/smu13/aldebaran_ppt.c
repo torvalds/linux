@@ -1156,8 +1156,12 @@ static int aldebaran_get_power_limit(struct smu_context *smu,
 
 	if (current_power_limit)
 		*current_power_limit = power_limit;
-	if (default_power_limit)
-		*default_power_limit = power_limit;
+	if (default_power_limit) {
+		if (pptable)
+			*default_power_limit = pptable->PptLimit;
+		else
+			*default_power_limit = power_limit;
+	}
 
 	if (max_power_limit) {
 		if (pptable)
