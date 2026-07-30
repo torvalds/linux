@@ -6141,7 +6141,7 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 
 		list_for_each_entry(tgt, &vhost->nvme_scrqs.targets, queue) {
 			if (tgt->action == IBMVFC_TGT_ACTION_DEL_RPORT) {
-				tgt_dbg(tgt, "Deleteing NVMe rport\n");
+				tgt_dbg(tgt, "Deleting NVMe rport\n");
 				nvme_rport = tgt->nvme_remote_port;
 				list_del(&tgt->queue);
 				ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_DELETED_RPORT);
