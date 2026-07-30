@@ -19,6 +19,7 @@
 static inline bool al_is_valid_le(const struct ntfs_inode *ni,
 				  struct ATTR_LIST_ENTRY *le)
 {
+	ni = ni->base;
 	if (!le || !ni->attr_list.le || !ni->attr_list.size)
 		return false;
 
@@ -28,6 +29,7 @@ static inline bool al_is_valid_le(const struct ntfs_inode *ni,
 
 void al_destroy(struct ntfs_inode *ni)
 {
+	ni = ni->base;
 	run_close(&ni->attr_list.run);
 	kvfree(ni->attr_list.le);
 	ni->attr_list.le = NULL;
@@ -47,6 +49,7 @@ int ntfs_load_attr_list(struct ntfs_inode *ni, struct ATTRIB *attr)
 	size_t lsize;
 	void *le = NULL;
 
+	ni = ni->base;
 	if (ni->attr_list.size)
 		return 0;
 
@@ -199,6 +202,7 @@ struct ATTR_LIST_ENTRY *al_find_ex(struct ntfs_inode *ni,
 	struct ATTR_LIST_ENTRY *ret = NULL;
 	u32 type_in = le32_to_cpu(type);
 
+	ni = ni->base;
 	while ((le = al_enumerate(ni, le))) {
 		u64 le_vcn;
 		int diff = le32_to_cpu(le->type) - type_in;
@@ -256,6 +260,7 @@ static struct ATTR_LIST_ENTRY *al_find_le_to_insert(struct ntfs_inode *ni,
 	struct ATTR_LIST_ENTRY *le = NULL, *prev;
 	u32 type_in = le32_to_cpu(type);
 
+	ni = ni->base;
 	/* List entries are sorted by type, name and VCN. */
 	while ((le = al_enumerate(ni, prev = le))) {
 		int diff = le32_to_cpu(le->type) - type_in;
@@ -305,6 +310,7 @@ int al_add_le(struct ntfs_inode *ni, enum ATTR_TYPE type, const __le16 *name,
 	u64 new_size;
 	typeof(ni->attr_list) *al = &ni->attr_list;
 
+	ni = ni->base;
 	/*
 	 * Compute the size of the new 'le'
 	 */
@@ -374,8 +380,10 @@ bool al_remove_le(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le)
 {
 	u16 size;
 	size_t off;
-	typeof(ni->attr_list) *al = &ni->attr_list;
+	typeof(ni->attr_list) *al;
 
+	ni = ni->base;
+	al = &ni->attr_list;
 	if (!al_is_valid_le(ni, le))
 		return false;
 
@@ -395,7 +403,10 @@ int al_update(struct ntfs_inode *ni, int sync)
 {
 	int err;
 	struct ATTRIB *attr;
-	typeof(ni->attr_list) *al = &ni->attr_list;
+	typeof(ni->attr_list) *al;
+
+	ni = ni->base;
+	al = &ni->attr_list;
 
 	if (!al->dirty || !al->size)
 		return 0;

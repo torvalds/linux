@@ -184,7 +184,7 @@ int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 		      struct cpu_str *uni, u32 max_ulen,
 		      enum utf16_endian endian)
 {
-	int ret, slen;
+	int ret, slen, i;
 	const u8 *end;
 	struct nls_table *nls = sbi->options->nls;
 	u16 *uname = uni->name;
@@ -194,50 +194,83 @@ int ntfs_nls_to_utf16(struct ntfs_sb_info *sbi, const u8 *name, u32 name_len,
 	if (!nls) {
 		/* utf8 -> utf16 */
 		ret = _utf8s_to_utf16s(name, name_len, endian, uname, max_ulen);
-		uni->len = ret;
-		return ret;
-	}
+	} else {
+		for (ret = 0, end = name + name_len; name < end;
+		     ret++, name += slen) {
+			if (ret >= max_ulen)
+				return -ENAMETOOLONG;
 
-	for (ret = 0, end = name + name_len; name < end; ret++, name += slen) {
-		if (ret >= max_ulen)
-			return -ENAMETOOLONG;
-
-		slen = nls->char2uni(name, end - name, uname + ret);
-		if (!slen)
-			return -EINVAL;
-		if (slen < 0)
-			return slen;
-	}
+			slen = nls->char2uni(name, end - name, uname + ret);
+			if (!slen)
+				return -EINVAL;
+			if (slen < 0)
+				return slen;
+		}
 
 #ifdef __BIG_ENDIAN
-	if (endian == UTF16_LITTLE_ENDIAN) {
-		int i = ret;
+		if (endian == UTF16_LITTLE_ENDIAN) {
+			i = ret;
 
-		while (i--) {
-			__cpu_to_le16s(uname);
-			uname++;
+			while (i--) {
+				__cpu_to_le16s(uname);
+				uname++;
+			}
 		}
-	}
 #else
-	if (endian == UTF16_BIG_ENDIAN) {
-		int i = ret;
+		if (endian == UTF16_BIG_ENDIAN) {
+			i = ret;
 
-		while (i--) {
-			__cpu_to_be16s(uname);
-			uname++;
+			while (i--) {
+				__cpu_to_be16s(uname);
+				uname++;
+			}
 		}
-	}
 #endif
+	}
 
 	uni->len = ret;
+	uni->ads_len = 0;
+	if (ret > 0 && sbi->options->ads) {
+		uname = uni->name;
+		/* Find delimiter in range [1 : ret-2). */
+		for (i = 1; i + 1 < ret; i++) {
+			if (uname[i] == ':') {
+				uni->ads_len = ret - i - 1;
+				uni->len = i;
+				uname[i] = 0;
+				ret = i;
+
+				uname += i + 1;
+				i = uni->ads_len;
+				/* Return ADS name as little endian. Always */
+#ifdef __BIG_ENDIAN
+				if (endian == UTF16_LITTLE_ENDIAN) {
+					while (i--) {
+						__cpu_to_le16s(uname);
+						uname++;
+					}
+				}
+#else
+				if (endian == UTF16_BIG_ENDIAN) {
+					while (i--) {
+						__cpu_to_be16s(uname);
+						uname++;
+					}
+				}
+#endif
+				break;
+			}
+		}
+	}
+
 	return ret;
 }
 
 /*
  * dir_search_u - Helper function.
  */
-struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
-			   struct ntfs_fnd *fnd)
+struct inode *dir_search_flags(struct inode *dir, const struct cpu_str *uni,
+			       struct ntfs_fnd *fnd, u32 flags)
 {
 	int err = 0;
 	struct super_block *sb = dir->i_sb;
@@ -267,7 +300,7 @@ struct inode *dir_search_u(struct inode *dir, const struct cpu_str *uni,
 		goto out;
 	}
 
-	inode = ntfs_iget5(sb, &e->ref, uni);
+	inode = ntfs_iget5_flags(sb, &e->ref, uni, flags);
 	if (!IS_ERR(inode) && is_bad_inode(inode)) {
 		iput(inode);
 		err = -EINVAL;

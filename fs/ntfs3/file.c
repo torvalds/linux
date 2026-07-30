@@ -753,7 +753,9 @@ int ntfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	setattr_copy(idmap, inode, attr);
 
-	if (mode != inode->i_mode) {
+	if (!is_ni_base(ni)) {
+		ia_valid &= ~ATTR_SIZE;
+	} else if (mode != inode->i_mode) {
 		err = ntfs_acl_chmod(idmap, dentry);
 		if (err)
 			goto out;
@@ -828,6 +830,22 @@ static ssize_t ntfs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	if (!bytes)
 		return 0; /* skip atime */
+
+	if (ni->file.ads.len == ARRAY_SIZE(QUERY_STREAMS) &&
+	    !memcmp(ni->file.ads.name, QUERY_STREAMS, sizeof(QUERY_STREAMS))) {
+		/* Query ADS. */
+		if (unlikely(iocb->ki_flags & IOCB_DIRECT)) {
+			ntfs_inode_warn(
+				inode,
+				"direct I/O for streams is not supported");
+			return -EOPNOTSUPP;
+		}
+
+		inode_lock_shared(inode);
+		ret = ni_query_ads(ni, &iocb->ki_pos, iter);
+		inode_unlock_shared(inode);
+		return ret;
+	}
 
 	if (is_compressed(ni)) {
 		if (iocb->ki_flags & IOCB_DIRECT) {
@@ -1421,7 +1439,8 @@ static int ntfs_file_release(struct inode *inode, struct file *file)
 		down_write(&ni->file.run_lock);
 
 		/* Deallocate preallocated. */
-		err = attr_set_size_ex(ni, ATTR_DATA, NULL, 0, &ni->file.run,
+		err = attr_set_size_ex(ni, ATTR_DATA, ni->file.ads.name,
+				       ni->file.ads.len, &ni->file.run,
 				       inode->i_size, &ni->i_valid, false, NULL,
 				       true);
 
