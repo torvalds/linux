@@ -488,12 +488,52 @@ static void smu_set_user_clk_dependencies(struct smu_context *smu, enum smu_clk_
 		return;
 }
 
+static void smu_restore_ppt_limits(struct smu_context *smu,
+				   bool restore_defaults)
+{
+	enum smu_power_src_type power_source;
+	struct smu_ppt_limit_range *range;
+	uint32_t restore_mask;
+	uint32_t limit;
+	int i, ret;
+
+	power_source = smu->adev->pm.ac_power ?
+		SMU_POWER_SOURCE_AC : SMU_POWER_SOURCE_DC;
+	restore_mask = smu->user_dpm_profile.ppt_limit_user_mask[power_source] &
+		smu->ppt_limits.supported_mask;
+	if (!restore_mask && !restore_defaults)
+		return;
+
+	smu->user_dpm_profile.flags |= SMU_DPM_USER_PROFILE_RESTORE;
+
+	for (i = SMU_PPT_LIMIT_PPT0; i < SMU_LIMIT_TYPE_COUNT; i++) {
+		if (!(smu->ppt_limits.supported_mask & BIT(i)))
+			continue;
+
+		if (restore_mask & BIT(i)) {
+			limit = smu->user_dpm_profile.ppt_limits[power_source][i];
+		} else if (restore_defaults) {
+			range = &smu->ppt_limits.range[power_source][i];
+			limit = range->default_value;
+		} else {
+			continue;
+		}
+
+		ret = smu_set_ppt_limit(smu, i, limit);
+		if (ret)
+			dev_err(smu->adev->dev,
+				"Failed to restore PPT%d limit: %d\n", i, ret);
+	}
+
+	smu->user_dpm_profile.flags &= ~SMU_DPM_USER_PROFILE_RESTORE;
+}
+
 /**
  * smu_restore_dpm_user_profile - reinstate user dpm profile
  *
  * @smu:	smu_context pointer
  *
- * Restore saved user power limits, clock frequencies and fan settings.
+ * Restore saved user clock frequencies and fan settings.
  */
 static void smu_restore_dpm_user_profile(struct smu_context *smu)
 {
@@ -508,17 +548,6 @@ static void smu_restore_dpm_user_profile(struct smu_context *smu)
 
 	/* Enable restore flag */
 	smu->user_dpm_profile.flags |= SMU_DPM_USER_PROFILE_RESTORE;
-
-	/* set the user dpm power limits */
-	for (int i = SMU_PPT_LIMIT_PPT0; i < SMU_LIMIT_TYPE_COUNT; i++) {
-		if (!smu->user_dpm_profile.ppt_limits[i])
-			continue;
-		ret = smu_set_ppt_limit(smu, i,
-					    smu->user_dpm_profile.ppt_limits[i]);
-		if (ret)
-			dev_err(smu->adev->dev,
-				"Failed to set %d PPT limit value\n", i);
-	}
 
 	/* set the user dpm clock configurations */
 	if (smu_dpm_ctx->dpm_level == AMD_DPM_FORCED_LEVEL_MANUAL) {
@@ -930,7 +959,7 @@ static int smu_late_init(struct amdgpu_ip_block *ip_block)
 	 * is unnecessary.
 	 */
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0;
-	smu_set_ac_dc(smu);
+	smu_set_ac_dc(smu, false);
 
 	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 1)) ||
 	    (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 3)))
@@ -965,6 +994,8 @@ static int smu_late_init(struct amdgpu_ip_block *ip_block)
 		return ret;
 	}
 
+	if (adev->in_suspend)
+		smu_restore_ppt_limits(smu, false);
 	smu_restore_dpm_user_profile(smu);
 
 	return 0;
@@ -2742,7 +2773,7 @@ static int smu_set_watermarks_for_clock_ranges(void *handle,
 	return smu_set_watermarks_table(smu, clock_ranges);
 }
 
-int smu_set_ac_dc(struct smu_context *smu)
+int smu_set_ac_dc(struct smu_context *smu, bool restore_ppt_policy)
 {
 	int ret = 0;
 
@@ -2750,17 +2781,22 @@ int smu_set_ac_dc(struct smu_context *smu)
 		return -EOPNOTSUPP;
 
 	/* controlled by firmware */
-	if (smu->dc_controlled_by_gpio)
-		return 0;
+	if (!smu->dc_controlled_by_gpio) {
+		ret = smu_set_power_source(smu,
+					   smu->adev->pm.ac_power ?
+					   SMU_POWER_SOURCE_AC :
+					   SMU_POWER_SOURCE_DC);
+		if (ret) {
+			dev_err(smu->adev->dev, "Failed to switch to %s mode!\n",
+				smu->adev->pm.ac_power ? "AC" : "DC");
+			return ret;
+		}
+	}
 
-	ret = smu_set_power_source(smu,
-				   smu->adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
-				   SMU_POWER_SOURCE_DC);
-	if (ret)
-		dev_err(smu->adev->dev, "Failed to switch to %s mode!\n",
-		       smu->adev->pm.ac_power ? "AC" : "DC");
+	if (restore_ppt_policy)
+		smu_restore_ppt_limits(smu, true);
 
-	return ret;
+	return 0;
 }
 
 const struct amd_ip_funcs smu_ip_funcs = {
@@ -3016,8 +3052,11 @@ static int smu_set_ppt_limit(void *handle, uint32_t limit_type, uint32_t limit)
 	ret = smu->ppt_funcs->set_ppt_limit(smu, limit_type, limit);
 	if (ret)
 		return ret;
-	if (!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE))
-		smu->user_dpm_profile.ppt_limits[limit_type] = limit;
+	if (!(smu->user_dpm_profile.flags & SMU_DPM_USER_PROFILE_RESTORE)) {
+		smu->user_dpm_profile.ppt_limits[power_source][limit_type] = limit;
+		smu->user_dpm_profile.ppt_limit_user_mask[power_source] |=
+			BIT(limit_type);
+	}
 
 	return 0;
 }
