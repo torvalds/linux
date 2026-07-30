@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Internal CPU capabilities constants, keep this list sorted
+# Internal CPU capabilities constants
 
 ALWAYS_BOOT
 ALWAYS_SYSTEM
