@@ -18340,6 +18340,13 @@ S:	Maintained
 F:	Documentation/hwmon/mpq82d00.rst
 F:	drivers/hwmon/pmbus/mpq82d00.c
 
+MPS MPQ8646 PMBUS DRIVER
+M:	Vincent Jardin <vjardin@free.fr>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/mpq8646.rst
+F:	drivers/hwmon/pmbus/mpq8646.c
+
 MR800 AVERMEDIA USB FM RADIO DRIVER
 M:	Alexey Klimov <alexey.klimov@linaro.org>
 L:	linux-media@vger.kernel.org
