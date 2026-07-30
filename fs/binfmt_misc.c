@@ -24,6 +24,7 @@
 #include <linux/fs_context.h>
 #include <linux/init.h>
 #include <linux/kstrtox.h>
+#include <linux/list.h>
 #include <linux/magic.h>
 #include <linux/module.h>
 #include <linux/printk.h>
@@ -98,6 +99,24 @@ static const struct binfmt_misc_flag *misc_flag_by_char(const char c)
 	return NULL;
 }
 
+/**
+ * struct binfmt_misc_interp - an interpreter an entry was registered with
+ * @list: link in the entry's list, in registration order
+ * @file: the file, opened at registration and never resolved again
+ * @path: the path it was registered under, used as the name the interpreter
+ *        runs under; stored after @name in the same allocation
+ * @name: the name a load program selects it by; empty for the fixed
+ *        interpreter of a static 'F' entry
+ *
+ * Owned by the entry and living exactly as long as it does.
+ */
+struct binfmt_misc_interp {
+	struct list_head	list;
+	struct file		*file;
+	const char		*path;
+	char			name[];
+};
+
 struct binfmt_misc_entry {
 	struct hlist_node node;
 	unsigned long flags;		/* type, status, etc. */
@@ -108,9 +127,9 @@ struct binfmt_misc_entry {
 	const char *interpreter;	/* filename of interpreter */
 	char *name;
 	struct dentry *dentry;
-	struct file *interp_file;
 	const struct binfmt_misc_ops *bpf_ops;	/* bpf-backed handler ('B') */
 	const char *bpf_ops_name;
+	struct list_head interps;	/* the interpreters it bound */
 	refcount_t users;		/* sync removal with load_misc_binary() */
 	struct rcu_head rcu;
 	char buf[];			/* register string, fields point in here */
@@ -233,6 +252,82 @@ static struct binfmt_misc_entry *get_binfmt_handler(struct binfmt_misc *misc,
 	return search_binfmt_handler(misc, bprm);
 }
 
+/* Undo the open_exec() a pre-opened interpreter file came from. */
+static void close_interp_file(struct file *f)
+{
+	if (IS_ERR_OR_NULL(f))
+		return;
+	exe_file_allow_write_access(f);
+	filp_close(f, NULL);
+}
+
+/*
+ * Open an interpreter @path for execution: now, in the writer's context,
+ * and - since binfmt_misc mounts can be unprivileged - with @cred, the
+ * credentials the control file being written was opened with, not the
+ * writer's own.
+ */
+static struct file *open_interp_file(const struct cred *cred, const char *path)
+{
+	struct file *f;
+
+	scoped_with_creds(cred)
+		f = open_exec(path);
+	if (IS_ERR(f))
+		pr_notice("register: failed to install interpreter %s\n", path);
+	return f;
+}
+
+/* Release the interpreters an entry was registered with. */
+static void entry_put_interpreters(struct binfmt_misc_entry *e)
+{
+	struct binfmt_misc_interp *interp, *tmp;
+
+	list_for_each_entry_safe(interp, tmp, &e->interps, list) {
+		list_del(&interp->list);
+		close_interp_file(interp->file);
+		kfree(interp);
+	}
+}
+
+/**
+ * entry_attach_interpreter - bind an opened interpreter to @e
+ * @e: entry being configured
+ * @name: name a load program can select it by; empty for the fixed
+ *        interpreter of a static entry
+ * @path: the path @f was opened from
+ * @f: the interpreter, opened for execution
+ *
+ * Every exec runs a clone of @f, so the path decided which file is bound
+ * and nothing else: it is not resolved again, in any namespace.
+ *
+ * The caller has to have established that @e cannot be matched yet, and
+ * owns @f until this succeeds.
+ *
+ * Return: 0 on success, a negative errno on failure
+ */
+static int entry_attach_interpreter(struct binfmt_misc_entry *e,
+				    const char *name, const char *path,
+				    struct file *f)
+{
+	size_t nlen = strlen(name), plen = strlen(path);
+	struct binfmt_misc_interp *interp;
+
+	/* One allocation, both strings in it, like the entry's own buffer. */
+	interp = kmalloc(struct_size(interp, name, nlen + plen + 2),
+			 GFP_KERNEL_ACCOUNT);
+	if (!interp)
+		return -ENOMEM;
+
+	interp->path = interp->name + nlen + 1;
+	strscpy(interp->name, name, nlen + 1);
+	strscpy(interp->name + nlen + 1, path, plen + 1);
+	interp->file = f;
+	list_add_tail(&interp->list, &e->interps);
+	pr_debug("register: interpreter: %s {%s}\n", name, path);
+	return 0;
+}
+
 static void bm_entry_free_rcu(struct rcu_head *rcu)
 {
 	struct binfmt_misc_entry *e = container_of(rcu, struct binfmt_misc_entry, rcu);
@@ -249,21 +344,22 @@ static void bm_entry_free_rcu(struct rcu_head *rcu)
  *
  * Free entry syncing with load_misc_binary() and defer final free to
  * load_misc_binary() in case it is using the binary type handler we were
- * requested to remove.
+ * requested to remove. Also the teardown for a registration that fails
+ * before add_entry() publishes the entry.
  */
 static void put_binfmt_handler(struct binfmt_misc_entry *e)
 {
+	if (IS_ERR_OR_NULL(e))
+		return;
+
 	if (refcount_dec_and_test(&e->users)) {
-		if (e->flags & MISC_FMT_OPEN_FILE) {
-			exe_file_allow_write_access(e->interp_file);
-			filp_close(e->interp_file, NULL);
-		}
+		entry_put_interpreters(e);
 		/* Walkers may still dereference this entry, even sleeping. */
 		call_srcu(&bm_entries_srcu, &e->rcu, bm_entry_free_rcu);
 	}
 }
 
-DEFINE_FREE(put_binfmt_handler, struct binfmt_misc_entry *, if (_T) put_binfmt_handler(_T))
+DEFINE_FREE(put_binfmt_handler, struct binfmt_misc_entry *, put_binfmt_handler(_T))
 
 /**
  * current_binfmt_misc - get the binfmt_misc instance of the caller's user namespace
@@ -392,12 +488,15 @@ static struct file *entry_open_interpreter(const struct binfmt_misc_entry *e,
 					   const char *interpreter)
 {
 	struct file *interp_file __free(fput) = NULL;
+	struct binfmt_misc_interp *interp;
 	int retval;
 
 	if (!(e->flags & MISC_FMT_OPEN_FILE))
 		return open_exec(interpreter);
 
-	interp_file = file_clone_open(e->interp_file);
+	/* An 'F' entry pre-opened exactly one interpreter. */
+	interp = list_first_entry(&e->interps, struct binfmt_misc_interp, list);
+	interp_file = file_clone_open(interp->file);
 	if (IS_ERR(interp_file))
 		return interp_file;
 
@@ -718,6 +817,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	p = buf = e->buf;
 
 	memset(e, 0, sizeof(*e));
+	INIT_LIST_HEAD(&e->interps);
 	if (copy_from_user(buf, buffer, count))
 		return ERR_PTR(-EFAULT);
 
@@ -842,6 +942,8 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	    e->interpreter[0] != '/')
 		return ERR_PTR(-EINVAL);
 
+	/* Born holding one reference; put_binfmt_handler() is the teardown. */
+	refcount_set(&e->users, 1);
 	return no_free_ptr(e);
 }
 
@@ -1167,7 +1269,6 @@ static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 		return -ENOMEM;
 	}
 
-	refcount_set(&e->users, 1);
 	e->dentry = dentry;
 	inode->i_private = e;
 	inode->i_fop = &bm_entry_operations;
@@ -1187,9 +1288,8 @@ static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
-	struct binfmt_misc_entry *e __free(kfree) = NULL;
+	struct binfmt_misc_entry *e __free(put_binfmt_handler) = NULL;
 	struct super_block *sb = file_inode(file)->i_sb;
-	struct file *f = NULL;
 	int err;
 
 	e = create_entry(buffer, count);
@@ -1206,33 +1306,20 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 	}
 
 	if (e->flags & MISC_FMT_OPEN_FILE) {
-		/*
-		 * Now that we support unprivileged binfmt_misc mounts make
-		 * sure we use the credentials that the register @file was
-		 * opened with to also open the interpreter. Before that this
-		 * didn't matter much as only a privileged process could open
-		 * the register file.
-		 */
-		scoped_with_creds(file->f_cred)
-			f = open_exec(e->interpreter);
-		if (IS_ERR(f)) {
-			pr_notice("register: failed to install interpreter file %s\n",
-				 e->interpreter);
+		struct file *f = open_interp_file(file->f_cred, e->interpreter);
+
+		if (IS_ERR(f))
 			return PTR_ERR(f);
+		err = entry_attach_interpreter(e, "", e->interpreter, f);
+		if (err) {
+			close_interp_file(f);
+			return err;
 		}
-		e->interp_file = f;
 	}
 
 	err = add_entry(e, sb);
-	if (err) {
-		if (f) {
-			exe_file_allow_write_access(f);
-			filp_close(f, NULL);
-		}
-		if (e->bpf_ops)
-			binfmt_misc_put_ops(e->bpf_ops);
+	if (err)
 		return err;
-	}
 
 	/* The entry is owned by its inode now. */
 	retain_and_null_ptr(e);
