@@ -123,6 +123,43 @@
 #define MEM_SLICE_HASH_MASK(v)		(GET_BITFIELD(v, 6, 19) << 6)
 #define MEM_SLICE_HASH_LSB_MASK_BIT(v)	GET_BITFIELD(v, 24, 26)
 
+/*
+ * A slice represents a portion of memory space participating in an
+ * interleave relationship within the memory hierarchy.
+ *
+ * It can represent in different levels such as:
+ *
+ *   - a pair of memory controllers
+ *   - a memory controller
+ *   - a memory channel
+ *   - a memory sub-channel / DIMM
+ *
+ * +--------+
+ * |        |
+ * | Zone 1 |
+ * |        |
+ * +--------+  +--------+
+ * |        |  |        |
+ * |        |  |        |
+ * | Zone 0 |  | Zone 0 |
+ * |        |  |        |
+ * |        |  |        |
+ * +--------+  +--------+
+ *
+ *  Slice L     Slice S
+ *
+ * Memory space is divided into:
+ *
+ *   - Zone 0 : Interleaved region
+ *   - Zone 1 : Non-interleaved region (upper part of the large slice).
+ */
+struct slice {
+	/* Slice address. */
+	u64 addr;
+	/* Slice that @addr belongs to. */
+	int id;
+};
+
 struct igen6_imc {
 	int mc;
 	struct mem_ctl_info *mci;
@@ -323,6 +360,102 @@ static struct work_struct ecclog_work;
 #define DID_NVL_H_SKU3	0xd704
 #define DID_NVL_H_SKU4	0xd705
 
+/* Remove the interleave bit and shift upper part down to fill gap. */
+static u64 squeeze_addr(u64 addr, int intlv_bit)
+{
+	u64 slice_addr;
+
+	slice_addr  = GET_BITFIELD(addr, intlv_bit + 1, 63) << intlv_bit;
+	slice_addr |= GET_BITFIELD(addr, 0, intlv_bit - 1);
+
+	return slice_addr;
+}
+
+/* Shift the upper bits up and insert a zero at the @intlv_bit bit position. */
+static u64 inflate_addr(u64 addr, int intlv_bit)
+{
+	u64 inflated_addr;
+
+	/* Insert a zero at @intlv_bit position. */
+	inflated_addr  = GET_BITFIELD(addr, intlv_bit, 63) << (intlv_bit + 1);
+	inflated_addr |= GET_BITFIELD(addr, 0, intlv_bit - 1);
+
+	return inflated_addr;
+}
+
+static u64 compute_hash(u64 addr, u64 hash_mask, u64 hash_base, int intlv_bit)
+{
+	u64 hash_addr;
+	int i;
+
+	/*
+	 * In hash mode, @intlv_bit is the lowest selected bit of @addr
+	 * to be XORed. While @mask may or may not include this @intlv_bit,
+	 * we enforce that @mask includes @intlv_bit to ensure @intlv_bit is
+	 * XORed exactly once.
+	 */
+	hash_mask |= BIT_ULL(intlv_bit);
+	hash_addr  = addr & hash_mask;
+
+	for (i = 6; i < 20; i++)
+		hash_base ^= (hash_addr >> i) & 1;
+
+	return hash_base;
+}
+
+/*
+ * Converts a higher-level address (system / IMC / channel) into a lower-level
+ * slice address and identifier.
+ */
+static void translate_to_lower_level(u64 addr, u64 hash_mask, u64 hash_base,
+				     int intlv_bit, u64 s_size, int l_map,
+				     struct slice *slice)
+{
+	/* In non-interleave zone. */
+	if (addr >= 2 * s_size) {
+		slice->addr = addr - s_size;
+		slice->id  = l_map;
+		return;
+	}
+
+	/* In interleave zone. */
+	slice->addr = squeeze_addr(addr, intlv_bit);
+
+	/* Non-hash mode. */
+	if (!hash_mask) {
+		slice->id = GET_BITFIELD(addr, intlv_bit, intlv_bit);
+		return;
+	}
+
+	/* Hash mode. */
+	slice->id = compute_hash(addr, hash_mask, hash_base, intlv_bit);
+}
+
+/* Reconstruct address for upper memory hierarchy level. */
+static u64 translate_to_upper_level(u64 addr, u64 hash_mask, u64 hash_base,
+				    int intlv_bit, u64 s_size)
+{
+	u64 inflated_addr, hash_val;
+
+	/* In non-interleave zone. */
+	if (addr >= s_size)
+		return addr + s_size;
+
+	/*
+	 * In interleave zone.
+	 *
+	 * Insert a zero at @intlv_bit position.
+	 */
+	inflated_addr = inflate_addr(addr, intlv_bit);
+
+	/*
+	 * Reconstruct the removed interleave bit and use it to replace
+	 * the zero at @intlv_bit position.
+	 */
+	hash_val = compute_hash(inflated_addr, hash_mask, hash_base, intlv_bit);
+	return inflated_addr | (hash_val << intlv_bit);
+}
+
 static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 {
 	union  {
@@ -490,21 +623,9 @@ static u64 mem_addr_to_sys_addr(u64 maddr)
 	return maddr;
 }
 
-static u64 mem_slice_hash(u64 addr, u64 mask, u64 hash_init)
-{
-	/* The interleave bit in @addr is a zero. */
-	u64 hash_addr = addr & mask, hash = hash_init;
-	int i;
-
-	for (i = 6; i < 20; i++)
-		hash ^= (hash_addr >> i) & 1;
-
-	return hash;
-}
-
 static u64 tgl_err_addr_to_mem_addr(u64 eaddr, int mc)
 {
-	u64 maddr, hash, mask, ms_s_size;
+	u64 mask, ms_s_size;
 	int intlv_bit;
 	u32 ms_hash;
 
@@ -517,12 +638,7 @@ static u64 tgl_err_addr_to_mem_addr(u64 eaddr, int mc)
 	mask = MEM_SLICE_HASH_MASK(ms_hash);
 	intlv_bit = MEM_SLICE_HASH_LSB_MASK_BIT(ms_hash) + 6;
 
-	maddr = GET_BITFIELD(eaddr, intlv_bit, 63) << (intlv_bit + 1) |
-		GET_BITFIELD(eaddr, 0, intlv_bit - 1);
-
-	hash = mem_slice_hash(maddr, mask, mc);
-
-	return maddr | (hash << intlv_bit);
+	return translate_to_upper_level(eaddr, mask, mc, intlv_bit, ms_s_size);
 }
 
 static u64 tgl_err_addr_to_sys_addr(u64 eaddr, int mc)
@@ -544,8 +660,9 @@ static u64 adl_err_addr_to_sys_addr(u64 eaddr, int mc)
 
 static u64 adl_err_addr_to_imc_addr(u64 eaddr, int mc)
 {
-	u64 imc_addr, ms_s_size = igen6_pvt->ms_s_size;
+	u64 ms_s_size = igen6_pvt->ms_s_size;
 	struct igen6_imc *imc = &igen6_pvt->imc[mc];
+	struct slice slice;
 	int intlv_bit;
 	u32 mc_hash;
 
@@ -556,10 +673,8 @@ static u64 adl_err_addr_to_imc_addr(u64 eaddr, int mc)
 
 	intlv_bit = MAC_MC_HASH_LSB(mc_hash) + 6;
 
-	imc_addr = GET_BITFIELD(eaddr, intlv_bit + 1, 63) << intlv_bit |
-		   GET_BITFIELD(eaddr, 0, intlv_bit - 1);
-
-	return imc_addr;
+	translate_to_lower_level(eaddr, 0, 0, intlv_bit, ms_s_size, 0, &slice);
+	return slice.addr;
 }
 
 static enum mem_type ptl_h_get_mem_type(struct igen6_imc *imc)
@@ -998,62 +1113,13 @@ static void set_dimm_params(struct igen6_imc *imc, int chan)
 	imc->dimm_s_size[chan] = MAD_DIMM_CH_DIMM_S_SIZE(val);
 }
 
-static int decode_chan_idx(u64 addr, u64 mask, int intlv_bit)
-{
-	u64 hash_addr, hash = 0;
-	int i;
-
-	/*
-	 * In hash mode, the @intlv_bit is the lowest selected bit of @addr
-	 * to be XORed. While @mask may or may not include this @intlv_bit,
-	 * we enforce that @mask includes @intlv_bit to ensure @intlv_bit is
-	 * XORed exactly once.
-	 */
-	mask |= 1 << intlv_bit;
-	hash_addr = addr & mask;
-
-	for (i = 6; i < 20; i++)
-		hash ^= (hash_addr >> i) & 1;
-
-	return (int)hash;
-}
-
-static u64 decode_channel_addr(u64 addr, int intlv_bit)
-{
-	u64 channel_addr;
-
-	/* Remove the interleave bit and shift upper part down to fill gap */
-	channel_addr  = GET_BITFIELD(addr, intlv_bit + 1, 63) << intlv_bit;
-	channel_addr |= GET_BITFIELD(addr, 0, intlv_bit - 1);
-
-	return channel_addr;
-}
-
-static void decode_addr(u64 addr, u32 hash, u64 s_size, int l_map,
-			int *idx, u64 *sub_addr)
-{
-	int intlv_bit = CHANNEL_HASH_LSB_MASK_BIT(hash) + 6;
-
-	if (addr >= 2 * s_size) {
-		*sub_addr = addr - s_size;
-		*idx = l_map;
-		return;
-	}
-
-	*sub_addr = decode_channel_addr(addr, intlv_bit);
-
-	if (CHANNEL_HASH_MODE(hash))
-		*idx = decode_chan_idx(addr, CHANNEL_HASH_MASK(hash), intlv_bit);
-	else
-		*idx = GET_BITFIELD(addr, intlv_bit, intlv_bit);
-}
-
 static int igen6_decode(struct decoded_addr *res)
 {
 	struct igen6_imc *imc = &igen6_pvt->imc[res->mc];
-	u64 addr = res->imc_addr, sub_addr, s_size;
-	int idx, l_map;
-	u32 hash;
+	u64 addr = res->imc_addr, s_size;
+	int intlv_bit, l_map;
+	u32 hash, hash_mask;
+	struct slice slice;
 
 	if (addr >= igen6_tom) {
 		edac_dbg(0, "Address 0x%llx out of range\n", addr);
@@ -1064,17 +1130,25 @@ static int igen6_decode(struct decoded_addr *res)
 	hash   = readl(imc->window + CHANNEL_HASH_OFFSET);
 	s_size = imc->ch_s_size;
 	l_map  = imc->ch_l_map;
-	decode_addr(addr, hash, s_size, l_map, &idx, &sub_addr);
-	res->channel_idx  = idx;
-	res->channel_addr = sub_addr;
+	hash_mask = CHANNEL_HASH_MODE(hash) ? CHANNEL_HASH_MASK(hash) : 0;
+	intlv_bit = CHANNEL_HASH_LSB_MASK_BIT(hash) + 6;
+
+	translate_to_lower_level(addr, hash_mask, 0, intlv_bit, s_size, l_map, &slice);
+
+	res->channel_idx  = slice.id;
+	res->channel_addr = slice.addr;
 
 	/* Decode sub-channel/DIMM */
 	hash   = readl(imc->window + CHANNEL_EHASH_OFFSET);
-	s_size = imc->dimm_s_size[idx];
-	l_map  = imc->dimm_l_map[idx];
-	decode_addr(res->channel_addr, hash, s_size, l_map, &idx, &sub_addr);
-	res->sub_channel_idx  = idx;
-	res->sub_channel_addr = sub_addr;
+	s_size = imc->dimm_s_size[res->channel_idx];
+	l_map  = imc->dimm_l_map[res->channel_idx];
+	hash_mask = CHANNEL_HASH_MODE(hash) ? CHANNEL_HASH_MASK(hash) : 0;
+	intlv_bit = CHANNEL_HASH_LSB_MASK_BIT(hash) + 6;
+
+	translate_to_lower_level(res->channel_addr, hash_mask, 0, intlv_bit, s_size, l_map, &slice);
+
+	res->sub_channel_idx  = slice.id;
+	res->sub_channel_addr = slice.addr;
 
 	return 0;
 }
