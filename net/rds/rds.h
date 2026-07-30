@@ -445,6 +445,12 @@ struct rds_message {
 
 	void			*m_final_op;
 
+	/* Unpins the ops' user pages and frees the message from
+	 * process context when the final put happens in atomic
+	 * context: dirtying the pages on unpin can sleep.
+	 */
+	struct work_struct	m_unpin_work;
+
 	struct {
 		struct rm_atomic_op {
 			int			op_type;
@@ -468,6 +474,7 @@ struct rds_message {
 			unsigned int		op_mapped:1;
 			unsigned int		op_silent:1;
 			unsigned int		op_active:1;
+			unsigned int		op_unpin_deferred:1;
 			struct scatterlist	*op_sg;
 			struct rds_notifier	*op_notifier;
 
@@ -483,6 +490,7 @@ struct rds_message {
 			unsigned int		op_mapped:1;
 			unsigned int		op_silent:1;
 			unsigned int		op_active:1;
+			unsigned int		op_unpin_deferred:1;
 			unsigned int		op_bytes;
 			unsigned int		op_nents;
 			unsigned int		op_count;
@@ -972,6 +980,8 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 			  struct cmsghdr *cmsg);
 void rds_rdma_free_op(struct rm_rdma_op *ro);
 void rds_atomic_free_op(struct rm_atomic_op *ao);
+void rds_rdma_op_unpin_pages(struct rm_rdma_op *ro);
+void rds_atomic_op_unpin_page(struct rm_atomic_op *ao);
 void rds_rdma_send_complete(struct rds_message *rm, int wc_status);
 void rds_atomic_send_complete(struct rds_message *rm, int wc_status);
 int rds_cmsg_atomic(struct rds_sock *rs, struct rds_message *rm,
