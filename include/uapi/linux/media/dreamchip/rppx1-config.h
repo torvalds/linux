@@ -42,12 +42,86 @@ struct rppx1_window {
  */
 
 /**
+ * enum rppx1_params_block_type - RPP-X1 extensible params block types
+ *
+ * NOTE: Only append to the enumeration as the numbers are uAPI.
+ *
+ * @RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST: AWB Measurement Configuration
+ */
+enum rppx1_params_block_type {
+	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
+};
+
+/**
+ * enum rppx1_wbmeas_mode - AWB measurement mode
+ *
+ * @RPPX1_WBMEAS_MODE_YCBCR: YCbCr measurement mode
+ * @RPPX1_WBMEAS_MODE_RGB: RGB measurement mode
+ */
+enum rppx1_wbmeas_mode {
+	RPPX1_WBMEAS_MODE_YCBCR,
+	RPPX1_WBMEAS_MODE_RGB,
+};
+
+/**
+ * struct rppx1_wbmeas_params - AWB measurement configuration
+ *
+ * The Auto-White Balance measurement module is available on the MAIN_POST pipe.
+ * It supports two measurement modes, selected by the @mode field. The
+ * measurement window is programmed through the @wnd field.
+ *
+ * To support measurement in YCbCr mode a color conversion matrix with
+ * programmable offset is available in the @ccor_coeff and @ccor_offs fields.
+ * The color conversion matrix coefficients are represented as 16 bits signed
+ * Q4.12 numbers ranging from -8 to +7.99. The per-color channel offsets are
+ * represented as 25 bits 2's complement integer numbers ranging from -16777216
+ * to +16777215.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST)
+ * @wnd: measurement window
+ * @mode: measurement mode (from enum rppx1_wbmeas_mode)
+ * @ymax_cmp: enable Y_MAX compare using @max_y
+ * @frames: number of frames for mean value calculation (0 = 1 frame)
+ * @reserved: padding
+ * @ref_cr_max_r: reference Cr or max red value in RGB mode, 24 bits
+ * @ref_cb_max_b: reference Cb or max blue value in RGB mode, 24 bits
+ * @min_y_max_g: luminance minimum value or max green value in RGB mode, 24 bits
+ * @max_y: luminance maximum value, only valid if @mode is set to YCbCr and
+ *	   @ymax_cmp is set to enabled, 24 bits
+ * @max_csum: chrominance sum maximum value, 24 bits
+ * @min_c: chrominance minimum value, 24 bits
+ * @ccor_coeff: coefficients for color conversion matrix, signed 16 bits Q4.6
+ * @reserved2: padding
+ * @ccor_offs: R-G-B color conversion coefficients, signed 25 bits 2's complement
+ * @reserved3: padding
+ */
+struct rppx1_wbmeas_params {
+	struct v4l2_isp_params_block_header header;
+	struct rppx1_window wnd;
+	__u8 mode;
+	__u8 ymax_cmp;
+	__u8 frames;
+	__u8 reserved;
+	__u32 ref_cr_max_r;
+	__u32 ref_cb_max_b;
+	__u32 min_y_max_g;
+	__u32 max_y;
+	__u32 max_csum;
+	__u32 min_c;
+	__u16 ccor_coeff[3][3];
+	__u16 reserved2;
+	__u32 ccor_offs[3];
+	__u32 reserved3;
+};
+
+/**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
  * Some types are reported twice as the same block might be instantiated in
  * multiple pipes.
  */
-#define RPPX1_PARAMS_MAX_SIZE 0
+#define RPPX1_PARAMS_MAX_SIZE						\
+	(sizeof(struct rppx1_wbmeas_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
@@ -59,11 +133,40 @@ struct rppx1_window {
  */
 
 /**
+ * enum rppx1_stats_block_type - RPP-X1 extensible stats block types
+ *
+ * NOTE: Only append to the enumeration as the numbers are uAPI.
+ *
+ * @RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST: post-fusion white-balance measurement
+ */
+enum rppx1_stats_block_type {
+	RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST,
+};
+
+/**
+ * struct rppx1_wbmeas_stats - AWB statistics
+ *
+ * @header: block header (type = RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST)
+ * @cnt: Number of pixels matched
+ * @mean_y_or_g: mean Y (or G in RGB mode) value, 24-bit
+ * @mean_cb_or_b: mean Cb (or B in RGB mode) value, 24-bit
+ * @mean_cr_or_r: mean Cr (or R in RGB mode) value, 24-bit
+ */
+struct rppx1_wbmeas_stats {
+	struct v4l2_isp_block_header header;
+	__u32 cnt;
+	__u32 mean_y_or_g;
+	__u32 mean_cb_or_b;
+	__u32 mean_cr_or_r;
+};
+
+/**
  * RPPX1_STATS_MAX_SIZE - Maximum size of all RPP-X1 statistics
  *
  * Some types are reported twice as the same block might be instantiated in
  * multiple pipes.
  */
-#define RPPX1_STATS_MAX_SIZE 0
+#define RPPX1_STATS_MAX_SIZE						\
+	(sizeof(struct rppx1_wbmeas_stats))
 
 #endif /* __UAPI_RPP_X1_CONFIG_H */
