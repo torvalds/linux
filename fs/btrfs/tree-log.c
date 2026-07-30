@@ -5592,6 +5592,15 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 	if (!btrfs_fs_incompat(fs_info, NO_HOLES) || i_size == 0)
 		return 0;
 
+	/*
+	 * If there are no prealloc extents (which can be located past i_size),
+	 * and disk space used is greater than or equals to i_size, then there
+	 * are no holes.
+	 */
+	if (!(inode->flags & BTRFS_INODE_PREALLOC) &&
+	    i_size <= inode_get_bytes(&inode->vfs_inode))
+		return 0;
+
 	key.objectid = ino;
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
