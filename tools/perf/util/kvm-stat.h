@@ -69,7 +69,7 @@ struct kvm_events_ops {
 };
 
 struct exit_reasons_table {
-	unsigned long exit_code;
+	u64 exit_code;
 	const char *reason;
 };
 
