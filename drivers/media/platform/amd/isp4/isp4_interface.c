@@ -148,12 +148,9 @@ static void isp4if_gpu_mem_free(struct isp4_interface *ispif,
 				struct isp4if_gpu_mem_info **mem_info_ptr)
 {
 	struct isp4if_gpu_mem_info *mem_info = *mem_info_ptr;
-	struct device *dev = ispif->dev;
 
-	if (!mem_info) {
-		dev_err(dev, "invalid mem_info\n");
+	if (!mem_info)
 		return;
-	}
 
 	*mem_info_ptr = NULL;
 	isp_kernel_buffer_free(&mem_info->mem_handle, &mem_info->gpu_mc_addr,
@@ -201,6 +198,7 @@ static int isp4if_alloc_fw_gpumem(struct isp4_interface *ispif)
 
 error_no_memory:
 	dev_err(dev, "failed to allocate gpu memory\n");
+	isp4if_dealloc_fw_gpumem(ispif);
 	return -ENOMEM;
 }
 
