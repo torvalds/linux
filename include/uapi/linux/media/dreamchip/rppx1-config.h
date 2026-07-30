@@ -88,6 +88,8 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1: PRE1 pipe Black Level Subtraction
  * @RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2: PRE2 pipe Black Level Subtraction
  * @RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST: POST pipe Color Correction
+ * @RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE1: PRE1 pipe Lens Shading Correction
+ * @RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2: PRE2 pipe Lens Shading Correction
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -102,6 +104,8 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_BLS_PRE2,
 	RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST,
+	RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2,
 };
 
 /**
@@ -460,6 +464,52 @@ struct rppx1_ccor_params {
 	__u32 offset[3];
 };
 
+/* Lens Shade Correction */
+#define RPPX1_LSC_SAMPLES_MAX 17
+#define RPPX1_LSC_NUM_SECTORS 16
+
+/**
+ * struct rppx1_lsc_params - Lens Shading Correction configuration
+ *
+ * The RPP-X1 Lens shading correction module is available on the PRE1 and PRE2
+ * pre-fusion pipes. Userspace selects which pipe to operate by setting the
+ * @header.type field to RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE1 or
+ * RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2.
+ *
+ * The module applies per-color channel correction factors @r_data, @gr_data,
+ * @gb_data and @b_data as a 16x16 grid mapped on the image. The size of each
+ * grid segment is expressed by the @x_sect_size and @y_sect_size arrays.  Each
+ * segment shall be at least 8 pixels in size and the sum of all horizontal
+ * segments @x_sect_size shall match the input frame size width.
+ *
+ * The correction factors values are expressed as unsigned Q2.10 integers
+ * ranging from 1 to 3.999.
+ *
+ * Pre-calculated interpolation factors shall be provided in the @x_grad
+ * and @y_grad fields, expressed as 12 bits integer values.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_LSC)
+ * @r_data: correction factors for the red channel in Q2.10 format
+ * @gr_data: correction factors for the green (red) channel in Q2.10 format
+ * @gb_data: correction factors for the green (blue) channel in Q2.10 format
+ * @b_data: correction factors for the blue channel in Q2.10 format
+ * @x_grad: Interpolation gradients for each horizontal sector (12 bits)
+ * @y_grad: Interpolation gradients for each vertical sector (12 bits)
+ * @x_sect_size: Horizontal sectors sizes
+ * @y_sect_size: Vertical sectors sizes
+ */
+struct rppx1_lsc_params {
+	struct v4l2_isp_params_block_header header;
+	__u16 r_data[RPPX1_LSC_SAMPLES_MAX][RPPX1_LSC_SAMPLES_MAX];
+	__u16 gr_data[RPPX1_LSC_SAMPLES_MAX][RPPX1_LSC_SAMPLES_MAX];
+	__u16 gb_data[RPPX1_LSC_SAMPLES_MAX][RPPX1_LSC_SAMPLES_MAX];
+	__u16 b_data[RPPX1_LSC_SAMPLES_MAX][RPPX1_LSC_SAMPLES_MAX];
+	__u16 x_grad[RPPX1_LSC_NUM_SECTORS];
+	__u16 y_grad[RPPX1_LSC_NUM_SECTORS];
+	__u16 x_sect_size[RPPX1_LSC_NUM_SECTORS];
+	__u16 y_sect_size[RPPX1_LSC_NUM_SECTORS];
+};
+
 /**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
@@ -478,7 +528,9 @@ struct rppx1_ccor_params {
 	sizeof(struct rppx1_hist_params)			+	\
 	sizeof(struct rppx1_bls_params)				+	\
 	sizeof(struct rppx1_bls_params)				+	\
-	sizeof(struct rppx1_ccor_params))
+	sizeof(struct rppx1_ccor_params)			+	\
+	sizeof(struct rppx1_lsc_params)				+	\
+	sizeof(struct rppx1_lsc_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
