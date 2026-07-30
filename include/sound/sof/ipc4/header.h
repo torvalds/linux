@@ -660,9 +660,9 @@ enum sof_ipc4_mod_init_ext_obj_id {
 
 /* DP module memory configuration data object for object array */
 struct sof_ipc4_mod_init_ext_dp_memory_data {
-	u32 domain_id;		/* userspace domain ID */
-	u32 stack_bytes;	/* stack size in bytes, 0 means default size */
-	u32 heap_bytes;		/* stack size in bytes, 0 means default size */
+	u32 domain_id;			/* userspace domain ID */
+	u32 stack_bytes;		/* required stack size in bytes */
+	u32 heap_bytes;		/* required heap size in bytes */
 } __packed __aligned(4);
 
 /*
@@ -732,7 +732,7 @@ enum sof_ipc4_glb_pipe_ext_obj_id {
 struct sof_ipc4_glb_pipe_ext_obj_memory_data {
 	u32 domain_id;		/* userspace domain ID */
 	u32 stack_bytes;	/* stack size in bytes */
-	u32 heap_bytes;	/* heap size in bytes */
+	u32 heap_bytes;		/* heap size in bytes */
 } __packed __aligned(4);
 
 /** @}*/
