@@ -2952,6 +2952,23 @@ void btrfs_queue_writepage_fixup(struct btrfs_inode *inode, struct folio *folio)
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_writepage_fixup *fixup;
 
+	/*
+	 * Disallow queueing more fixup during unmount to break the cycle
+	 * of writeback queuing fixup queuing writeback etc.
+	 *
+	 * If it actually hit, then something which was fixup wasn't written
+	 * which we should warn about.
+	 */
+	if (btrfs_fs_closing(fs_info)) {
+		btrfs_warn_rl(fs_info,
+	"dropping unqueued fixup blocks at unmount. root %lld ino %llu folio %llu",
+			      btrfs_root_id(inode->root), btrfs_ino(inode),
+			      folio_pos(folio));
+		btrfs_folio_clear_fixup_dirty(fs_info, folio,
+					      folio_pos(folio), folio_size(folio));
+		return;
+	}
+
 	fixup = kzalloc_obj(*fixup, GFP_NOFS);
 	if (!fixup)
 		return;
