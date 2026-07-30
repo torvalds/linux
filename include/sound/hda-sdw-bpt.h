@@ -27,7 +27,7 @@ int hda_sdw_bpt_send_async(struct device *dev, struct hdac_ext_stream *bpt_tx_st
 int hda_sdw_bpt_wait(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
 		     struct hdac_ext_stream *bpt_rx_stream);
 
-int hda_sdw_bpt_close(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
+int hda_sdw_bpt_close(struct device *dev, int link_id, struct hdac_ext_stream *bpt_tx_stream,
 		      struct snd_dma_buffer *dmab_tx_bdl, struct hdac_ext_stream *bpt_rx_stream,
 		      struct snd_dma_buffer *dmab_rx_bdl);
 
@@ -58,7 +58,8 @@ static inline int hda_sdw_bpt_wait(struct device *dev, struct hdac_ext_stream *b
 	return -EOPNOTSUPP;
 }
 
-static inline int hda_sdw_bpt_close(struct device *dev, struct hdac_ext_stream *bpt_tx_stream,
+static inline int hda_sdw_bpt_close(struct device *dev, int link_id,
+				    struct hdac_ext_stream *bpt_tx_stream,
 				    struct snd_dma_buffer *dmab_tx_bdl,
 				    struct hdac_ext_stream *bpt_rx_stream,
 				    struct snd_dma_buffer *dmab_rx_bdl)
