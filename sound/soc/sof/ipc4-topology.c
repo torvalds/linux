@@ -163,11 +163,11 @@ static const struct sof_topology_token comp_ext_tokens[] = {
 	{SOF_TKN_COMP_SCHED_DOMAIN, SND_SOC_TPLG_TUPLE_TYPE_STRING, get_token_comp_domain,
 		offsetof(struct snd_sof_widget, comp_domain)},
 	{SOF_TKN_COMP_DOMAIN_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct snd_sof_widget, dp_domain_id)},
+		offsetof(struct snd_sof_widget, domain_id)},
 	{SOF_TKN_COMP_HEAP_BYTES_REQUIREMENT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct snd_sof_widget, dp_heap_bytes)},
+		offsetof(struct snd_sof_widget, heap_bytes)},
 	{SOF_TKN_COMP_STACK_BYTES_REQUIREMENT, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
-		offsetof(struct snd_sof_widget, dp_stack_bytes)},
+		offsetof(struct snd_sof_widget, stack_bytes)},
 };
 
 static const struct sof_topology_token gain_tokens[] = {
@@ -3118,7 +3118,7 @@ static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
 
 	/* Add object array objects after ext_init */
 
-	/* Add dp_memory_data if comp_domain indicates DP */
+	/* Add memory_data if comp_domain indicates DP */
 	if (swidget->comp_domain == SOF_COMP_DOMAIN_DP) {
 		hdr = (struct sof_ipc4_module_init_ext_object *)&payload[ext_pos];
 		hdr->header = SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_MASK |
@@ -3127,9 +3127,9 @@ static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
 								     sizeof(u32)));
 		ext_pos += DIV_ROUND_UP(sizeof(*hdr), sizeof(u32));
 		dp_mem_data = (struct sof_ipc4_mod_init_ext_dp_memory_data *)&payload[ext_pos];
-		dp_mem_data->domain_id = swidget->dp_domain_id;
-		dp_mem_data->stack_bytes = swidget->dp_stack_bytes;
-		dp_mem_data->heap_bytes = swidget->dp_heap_bytes;
+		dp_mem_data->domain_id = swidget->domain_id;
+		dp_mem_data->stack_bytes = swidget->stack_bytes;
+		dp_mem_data->heap_bytes = swidget->heap_bytes;
 		ext_pos += DIV_ROUND_UP(sizeof(*dp_mem_data), sizeof(u32));
 	}
 
