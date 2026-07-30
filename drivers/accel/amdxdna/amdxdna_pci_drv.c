@@ -109,10 +109,15 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 {
 	struct amdxdna_dev *xdna = to_xdna_dev(ddev);
 	struct amdxdna_client *client;
+	int ret;
 
 	client = kzalloc_obj(*client);
 	if (!client)
 		return -ENOMEM;
+
+	ret = init_srcu_struct(&client->hwctx_srcu);
+	if (ret)
+		goto free_client;
 
 	client->pid = pid_nr(rcu_access_pointer(filp->pid));
 	client->xdna = xdna;
@@ -125,13 +130,12 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 			XDNA_WARN(xdna, "PASID not available for pid %d", client->pid);
 			if (!amdxdna_use_carveout(xdna)) {
 				XDNA_ERR(xdna, "PASID unavailable and carveout not configured");
-				kfree(client);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto cleanup_srcu;
 			}
 		}
 	}
 	mmgrab(client->mm);
-	init_srcu_struct(&client->hwctx_srcu);
 	xa_init_flags(&client->hwctx_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&client->dev_heap_xa, XA_FLAGS_ALLOC);
 	drm_mm_init(&client->dev_heap_mm, xdna->dev_info->dev_mem_base,
@@ -149,6 +153,12 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 
 	XDNA_DBG(xdna, "pid %d opened", client->pid);
 	return 0;
+
+cleanup_srcu:
+	cleanup_srcu_struct(&client->hwctx_srcu);
+free_client:
+	kfree(client);
+	return ret;
 }
 
 static void amdxdna_client_cleanup(struct amdxdna_client *client)
@@ -373,7 +383,10 @@ static int amdxdna_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	drmm_mutex_init(ddev, &xdna->dev_lock);
+	ret = drmm_mutex_init(ddev, &xdna->dev_lock);
+	if (ret)
+		return ret;
+
 	init_rwsem(&xdna->notifier_lock);
 	INIT_LIST_HEAD(&xdna->client_list);
 	pci_set_drvdata(pdev, xdna);

@@ -67,6 +67,7 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	char *sym = NULL;
 	struct kvec iov;
 	bool directory;
+	int path_len;
 	int rc = 0;
 
 	if (strlen(symname) > REPARSE_SYM_PATH_MAX)
@@ -168,7 +169,21 @@ static int create_native_symlink(const unsigned int xid, struct inode *inode,
 	if (!(sbflags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
 		sym[0] = sym[1] = sym[2] = sym[5] = '_';
 
-	path = cifs_convert_path_to_utf16(sym, cifs_sb);
+	/*
+	 * On a POSIX paths mount the symlink target is stored verbatim, so
+	 * convert it with cifs_strndup_to_utf16().  cifs_convert_path_to_utf16()
+	 * must not be used here: it strips a leading path separator (it is
+	 * meant for share-relative SMB paths), which would corrupt an absolute
+	 * POSIX symlink target such as "/foo/bar".  Using NO_MAP_UNI_RSVD also
+	 * matches the readback path in smb2_parse_native_symlink().
+	 */
+	if (sbflags & CIFS_MOUNT_POSIX_PATHS)
+		path = cifs_strndup_to_utf16(sym, strlen(sym), &path_len,
+					     cifs_sb->local_nls,
+					     NO_MAP_UNI_RSVD);
+	else
+		path = cifs_convert_path_to_utf16(sym, cifs_sb);
+
 	if (!path) {
 		rc = -ENOMEM;
 		goto out;

@@ -822,7 +822,7 @@ static int spinand_mtd_regular_page_read(struct mtd_info *mtd, loff_t from,
 	bool disable_ecc = false;
 	bool ecc_failed = false;
 	unsigned int retry_mode = 0;
-	int ret;
+	int ret = 0;
 
 	old_stats = mtd->ecc_stats;
 
