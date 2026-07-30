@@ -61,12 +61,23 @@ struct snd_seq_timer *snd_seq_timer_new(void)
 void snd_seq_timer_delete(struct snd_seq_timer **tmr)
 {
 	struct snd_seq_timer *t = *tmr;
-	*tmr = NULL;
+	struct snd_timer_instance *ti;
 
 	if (t == NULL) {
 		pr_debug("ALSA: seq: snd_seq_timer_delete() called with NULL timer\n");
 		return;
 	}
+
+	scoped_guard(spinlock_irq, &t->lock) {
+		ti = t->timeri;
+		t->timeri = NULL;
+	}
+	if (ti) {
+		snd_timer_close(ti);
+		snd_timer_instance_free(ti);
+	}
+
+	*tmr = NULL;
 	t->running = 0;
 
 	/* reset time */
@@ -351,11 +362,10 @@ static int initialize_timer(struct snd_seq_timer *tmr)
 	tmr->ticks = 1;
 	if (!(t->hw.flags & SNDRV_TIMER_HW_SLAVE)) {
 		unsigned long r = snd_timer_resolution(tmr->timeri);
-		if (r) {
-			tmr->ticks = (unsigned int)(1000000000uL / (r * freq));
-			if (! tmr->ticks)
-				tmr->ticks = 1;
-		}
+		unsigned long den;
+
+		if (r && !check_mul_overflow(r, freq, &den))
+			tmr->ticks = max(1U, (unsigned int)(1000000000uL / den));
 	}
 	tmr->initialized = 1;
 	return 0;
