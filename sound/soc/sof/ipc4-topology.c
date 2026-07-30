@@ -1371,6 +1371,22 @@ sof_ipc4_update_resource_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage += total;
 
+	/*
+	 * If this is not a Data Processing module instance, add the
+	 * required heap sizes to the sum of all module instances belonging
+	 * to the same pipeline, and find the maximum stack requirement
+	 * among all module instances belonging to the same pipeline.
+	 */
+	if (swidget->comp_domain != SOF_COMP_DOMAIN_DP) {
+		pipe_widget->heap_bytes += swidget->heap_bytes;
+		if (pipe_widget->stack_bytes < swidget->stack_bytes)
+			pipe_widget->stack_bytes = swidget->stack_bytes;
+
+		dev_dbg(sdev->dev, "%s mem reqs to %s heap %u stack %u",
+			swidget->widget->name, pipe_widget->widget->name,
+			pipe_widget->heap_bytes, pipe_widget->stack_bytes);
+	}
+
 	/* Update base_config->cpc from the module manifest */
 	sof_ipc4_update_cpc_from_manifest(sdev, fw_module, base_config);
 
@@ -1688,6 +1704,8 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
 	pipeline->mem_usage = 0;
+	pipe_widget->heap_bytes = 0;
+	pipe_widget->stack_bytes = 0;
 
 	if (WIDGET_IS_AIF(swidget->id) || swidget->id == snd_soc_dapm_buffer) {
 		if (pipeline->use_chain_dma) {
@@ -3085,11 +3103,11 @@ static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_contr
 	return 0;
 }
 
-static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
-					     struct snd_sof_widget *swidget,
-					     struct sof_ipc4_msg *msg,
-					     void *ipc_data, u32 ipc_size,
-					     void **new_data)
+static int sof_ipc4_widget_mod_init_msg_payload(struct snd_sof_dev *sdev,
+						struct snd_sof_widget *swidget,
+						struct sof_ipc4_msg *msg,
+						void *ipc_data, u32 ipc_size,
+						void **new_data)
 {
 	struct sof_ipc4_mod_init_ext_dp_memory_data *dp_mem_data;
 	struct sof_ipc4_module_init_ext_init *ext_init;
@@ -3113,13 +3131,14 @@ static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
 
 	/* Add ext_init first and set objects array flag to 1 */
 	ext_init = (struct sof_ipc4_module_init_ext_init *)payload;
-	ext_init->word0 |= SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_MASK;
 	ext_pos = DIV_ROUND_UP(sizeof(*ext_init), sizeof(u32));
 
 	/* Add object array objects after ext_init */
 
 	/* Add memory_data if comp_domain indicates DP */
 	if (swidget->comp_domain == SOF_COMP_DOMAIN_DP) {
+		ext_init->word0 |= SOF_IPC4_MOD_INIT_EXT_OBJ_ARRAY_MASK;
+
 		hdr = (struct sof_ipc4_module_init_ext_object *)&payload[ext_pos];
 		hdr->header = SOF_IPC4_MOD_INIT_EXT_OBJ_LAST_MASK |
 			SOF_IPC4_MOD_INIT_EXT_OBJ_ID(SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA) |
@@ -3132,7 +3151,6 @@ static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
 		dp_mem_data->heap_bytes = swidget->heap_bytes;
 		ext_pos += DIV_ROUND_UP(sizeof(*dp_mem_data), sizeof(u32));
 	}
-
 	/* If another array object is added, remember clear previous OBJ_LAST bit */
 
 	/* Calculate final size and check that it fits to max payload size */
@@ -3154,6 +3172,69 @@ static int sof_ipc4_widget_setup_msg_payload(struct snd_sof_dev *sdev,
 	msg->extension |= SOF_IPC4_MOD_EXT_PARAM_SIZE(DIV_ROUND_UP(new_size, sizeof(u32)));
 
 	return new_size;
+}
+
+static void sof_ipc4_widget_pipe_ext_obj_memory_data(struct snd_sof_dev *sdev,
+						     struct snd_sof_widget *swidget,
+						     u32 *payload, u32 *ext_pos,
+						     struct sof_ipc4_glb_pipe_ext_object **hdr)
+{
+	struct sof_ipc4_glb_pipe_ext_obj_memory_data *mem_data;
+
+	*hdr = (struct sof_ipc4_glb_pipe_ext_object *)&payload[*ext_pos];
+	(*hdr)->header =
+		SOF_IPC4_GLB_PIPE_EXT_OBJ_ID(SOF_IPC4_GLB_PIPE_DATA_ID_MEM_DATA) |
+		SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS(DIV_ROUND_UP(sizeof(*mem_data),
+							     sizeof(u32)));
+	*ext_pos += DIV_ROUND_UP(sizeof(**hdr), sizeof(u32));
+	mem_data = (struct sof_ipc4_glb_pipe_ext_obj_memory_data *)&payload[*ext_pos];
+	mem_data->domain_id = swidget->domain_id;
+	mem_data->stack_bytes = swidget->stack_bytes;
+	mem_data->heap_bytes = swidget->heap_bytes;
+	*ext_pos += DIV_ROUND_UP(sizeof(*mem_data), sizeof(u32));
+
+	dev_dbg(sdev->dev,
+		"%s; domain_id %u stack %u heap %u bytes",
+		swidget->widget->name, mem_data->domain_id, mem_data->stack_bytes,
+		mem_data->heap_bytes);
+}
+
+static int sof_ipc4_widget_pipe_create_msg_payload(struct snd_sof_dev *sdev,
+						   struct snd_sof_widget *swidget,
+						   struct sof_ipc4_msg *msg,
+						   void **new_data)
+{
+	struct sof_ipc4_glb_pipe_payload *payload_hdr;
+	struct sof_ipc4_glb_pipe_ext_object *hdr = NULL;
+	u32 *payload;
+	u32 ext_pos;
+
+	payload = kzalloc(sdev->ipc->max_payload_size, GFP_KERNEL);
+	if (!payload)
+		return -ENOMEM;
+
+	/* Add sof_ipc4_glb_pipe_payload and set array bit to  1 */
+	payload_hdr = (struct sof_ipc4_glb_pipe_payload *)payload;
+	payload_hdr->word0 |= SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY_MASK;
+	ext_pos = DIV_ROUND_UP(sizeof(*payload_hdr), sizeof(u32));
+
+	sof_ipc4_widget_pipe_ext_obj_memory_data(sdev, swidget, payload, &ext_pos, &hdr);
+	/* Add following array objects here */
+
+	/* Mark end of object array */
+	hdr->header |= SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST_MASK;
+
+	/* Put total payload size in words to the payload header */
+	payload_hdr->word0 |= SOF_IPC4_GLB_PIPE_PAYLOAD_WORDS(ext_pos);
+	*new_data = payload;
+
+	/* Update msg extension bits according to the payload changes */
+	msg->extension |= SOF_IPC4_GLB_PIPE_PAYLOAD_MASK;
+
+	dev_dbg(sdev->dev, "%s: payload word0 %#x", swidget->widget->name,
+		payload_hdr->word0);
+
+	return ext_pos * sizeof(int32_t);
 }
 
 static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
@@ -3309,8 +3390,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 			swidget->widget->name, swidget->pipeline_id, module_id,
 			swidget->instance_id, swidget->core);
 
-		ret = sof_ipc4_widget_setup_msg_payload(sdev, swidget, msg, ipc_data, ipc_size,
-							&ext_data);
+		ret = sof_ipc4_widget_mod_init_msg_payload(sdev, swidget, msg, ipc_data, ipc_size,
+							   &ext_data);
 		if (ret < 0)
 			goto fail;
 
@@ -3322,6 +3403,17 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		dev_dbg(sdev->dev, "Create pipeline %s (pipe %d) - instance %d, core %d\n",
 			swidget->widget->name, swidget->pipeline_id,
 			swidget->instance_id, swidget->core);
+
+		msg->extension &= ~SOF_IPC4_GLB_PIPE_PAYLOAD_MASK;
+		ret = sof_ipc4_widget_pipe_create_msg_payload(sdev, swidget, msg,
+							      &ext_data);
+		if (ret < 0)
+			goto fail;
+
+		if (ret > 0) {
+			ipc_size = ret;
+			ipc_data = ext_data;
+		}
 	}
 
 	msg->data_size = ipc_size;
@@ -3379,6 +3471,8 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 				swidget->widget->name);
 
 		pipeline->mem_usage = 0;
+		swidget->heap_bytes = 0;
+		swidget->stack_bytes = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
 		ida_free(&pipeline_ida, swidget->instance_id);
 		swidget->instance_id = -EINVAL;
