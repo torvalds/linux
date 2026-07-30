@@ -4116,7 +4116,6 @@ struct rtw89_btc_dm {
 	u8 fdd_en: 1;
 	u8 tdd_en: 1;
 	u8 lps_ctrl_scbd: 1;
-	u8 lps_ctrl_scbd_last: 1;
 	u8 lps_ctrl_change: 1;
 	u8 bis_tdma: 1; /* BIS TDMA mode active */
 	u8 scbd_write_instant;

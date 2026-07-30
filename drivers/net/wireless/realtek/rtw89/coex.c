@@ -3238,8 +3238,6 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 	else
 		btc->btc_ctrl_lps = dm->lps_ctrl_scbd;
 
-	dm->lps_ctrl_scbd_last = dm->lps_ctrl_scbd;
-
 	if (btc->btc_ctrl_lps == 1)
 		rtw89_set_coex_ctrl_lps(rtwdev, btc->btc_ctrl_lps);
 
@@ -7778,6 +7776,35 @@ void rtw89_coex_rfk_chk_work(struct wiphy *wiphy, struct wiphy_work *work)
 	}
 }
 
+static void _update_bt_ctrl_lps(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_info *bt0 = &btc->cx.bt0;
+	struct rtw89_btc_bt_info *bt1 = &btc->cx.bt1;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	bool lps_ctrl = false;
+
+	if (dm->out_of_band || dm->freerun)
+		lps_ctrl = false;
+	else if (bt0->whql_test || bt1->whql_test)
+		lps_ctrl = true;
+	else if (bt0->link_info.a2dp_desc.exist ||
+		 bt0->link_info.hfp_desc.exist ||
+		 bt0->link_info.pan_desc.exist)
+		lps_ctrl = true;
+	else if (bt1->link_info.a2dp_desc.exist ||
+		 bt1->link_info.hfp_desc.exist ||
+		 bt1->link_info.pan_desc.exist)
+		lps_ctrl = true;
+
+	if (dm->lps_ctrl_scbd != lps_ctrl) {
+		dm->lps_ctrl_scbd = lps_ctrl;
+		dm->lps_ctrl_change = true;
+	} else {
+		dm->lps_ctrl_change = false;
+	}
+}
+
 static void _update_bt_scbd(struct rtw89_dev *rtwdev, u8 bid)
 {
 	struct rtw89_btc_bt_link_info *bt_2g, *bt_56g;
@@ -7786,7 +7813,7 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, u8 bid)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_bt_info *bt;
 	u32 val, any_bt_connect, any_bt_6g_connect = 0;
-	bool bt_link_change = false, lps_ctrl = false;
+	bool bt_link_change = false;
 	u8 id, id_start, id_stop;
 
 	if (!rtwdev->chip->scbd || bid > BTC_ALL_BT)
@@ -7879,24 +7906,11 @@ static void _update_bt_scbd(struct rtw89_dev *rtwdev, u8 bid)
 			bt_56g->status.map.connect = any_bt_6g_connect;
 		}
 
-		/* if specific profile exist */
-		if (bt->link_info.a2dp_desc.exist ||
-		    bt->link_info.pan_desc.exist ||
-		    bt->link_info.hfp_desc.exist ||
-		    bt->whql_test)
-			lps_ctrl = true;
-
-		if (dm->lps_ctrl_scbd  != lps_ctrl) {
-			dm->lps_ctrl_scbd  = lps_ctrl;
-			bt_link_change = true;
-			dm->lps_ctrl_change = true;
-		} else {
-			dm->lps_ctrl_change = false;
-		}
-
 		bt->run_patch_code = !!(val & BTC_BSCB_PATCH_CODE);
 		bt->scbd = val;
 	}
+
+	_update_bt_ctrl_lps(rtwdev);
 
 	if (bt_link_change) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -9136,6 +9150,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 bid, u8 *buf, u32 len)
 					 RTW89_COEX_BT_DEVINFO_WORK_PERIOD);
 	}
 
+	_update_bt_ctrl_lps(rtwdev);
 	_run_coex(rtwdev, BTC_RSN_UPDATE_BT_INFO);
 }
 
