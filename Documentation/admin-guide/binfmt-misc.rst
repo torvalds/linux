@@ -195,9 +195,62 @@ and derive the interpreter from the binary's location. It selects the
 interpreter by calling the ``bpf_binprm_set_interp()`` kfunc with an
 absolute path and returning ``0``. A match is committed: a failing
 ``load`` fails the exec with its error instead of falling through to later
-entries; ``-ENOEXEC`` lets the remaining binary formats have a go. The
-interpreter is opened with the credentials of the task doing the exec,
-exactly as a statically registered interpreter would be.
+entries; ``-ENOEXEC`` lets the remaining binary formats have a go. A path
+selected this way is opened with the credentials of the task doing the
+exec, exactly as a statically registered interpreter without ``F`` would
+be.
+
+An entry can instead bind the interpreters its handler may use, so that no
+path is resolved at exec time at all. An entry registered with ``D`` is not
+matchable yet, which is what leaves it open to being given them, one
+``+name path`` write at a time::
+
+    echo ':qemu:B::::my_handler:D' > register
+    echo '+aarch64 /usr/bin/qemu-aarch64' > qemu
+    echo '+arm /usr/bin/qemu-arm' > qemu
+    echo 1 > qemu
+
+Each path is opened during its write, in the writing process's context and
+with the credentials the entry file was opened with, exactly the way ``F``
+pre-opens a static entry's interpreter; the paths must be absolute. The
+path is everything past the first space, so there is nothing it cannot
+express, and no interpreter has to fit in a register string. An entry
+binds at most 100 interpreters; a write past that is refused with
+``-ENOSPC``. To bind a file that has no path of its own - already
+unlinked, a ``memfd``, or reachable only in another mount namespace -
+open it and write ``/proc/self/fd/N``.
+
+The ``load`` program then selects one per exec by name with the
+``bpf_binprm_select_interp()`` kfunc, and every exec runs a clone of the
+file that was opened. The path decides which file is bound and nothing
+else: it is not resolved again, in any namespace, so what it holds later -
+or what it holds in the namespace of whoever runs the binary - no longer
+decides anything.
+
+Enabling the entry ends this. Its interpreters are read at exec time with
+nothing but a reference held on the entry, so an entry that has ever been
+matchable can never have its set changed again: the first ``1`` seals it,
+from then on ``+`` is refused with ``-EBUSY``, and an entry registered
+without ``D`` is sealed from the start. Binding a name twice is refused
+with ``-EEXIST``.
+
+Selection is by name so that the configuration and the program need not
+agree on an order, and so that a handler is not tied to where a distribution
+puts its interpreters. A name is a single word of printable ASCII, at most
+32 characters; a name the entry did not bind gives the program ``-ENOENT``,
+which it can act on or return. The interpreter runs under the path it was
+registered under, and the entry reports what it bound::
+
+    $ cat /proc/sys/fs/binfmt_misc/qemu
+    enabled
+    bpf my_handler
+    bpf-interpreter aarch64 /usr/bin/qemu-aarch64
+    bpf-interpreter arm /usr/bin/qemu-arm
+    flags:
+
+The path reported is the one the interpreter was bound under, which named
+the file at that moment; it is not re-resolved, so it is a record of what
+was bound rather than a promise about what that path holds now.
 
 The ``load`` program can also pass a single argument to the interpreter with
 the ``bpf_binprm_set_interp_arg()`` kfunc. It is inserted between the
@@ -234,9 +287,10 @@ handler can decide them differently for each binary it handles:
   flag). It excludes the other flags and a staged interpreter argument.
 
 Because these are program choices, a ``B`` entry carries no invocation
-flags in the register string; ``F`` (pre-open a fixed interpreter) has no
-meaning for it. The registration directive ``D`` is the exception: it
-decides how the entry starts out, not how the interpreter is invoked.
+flags in the register string; ``F`` has none to spell for it either, since
+the interpreters it binds already pre-open what ``F`` would. The
+registration directive ``D`` is the exception: it decides how the entry
+starts out, not how the interpreter is invoked.
 
 A handler is looked up only in the user namespace the struct_ops map was
 registered in. Handlers are not inherited, so an entry can only reference a
