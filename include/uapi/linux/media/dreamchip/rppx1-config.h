@@ -47,9 +47,15 @@ struct rppx1_window {
  * NOTE: Only append to the enumeration as the numbers are uAPI.
  *
  * @RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST: AWB Measurement Configuration
+ * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1: PRE1 pipe White Balance Gains
+ * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2: PRE2 White Balance Gains
+ * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST: MAIN_POST White Balance Gains
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
+	RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2,
+	RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST,
 };
 
 /**
@@ -115,13 +121,45 @@ struct rppx1_wbmeas_params {
 };
 
 /**
+ * struct rppx1_awbg_params  - WB gain configuration
+ *
+ * The RPP-X1 White Balance Gain module is available in the PRE1 and PRE2
+ * pre-fusion pipes and in the MAIN_POST post-fusion pipe. Userspace selects
+ * which pipe to operate by setting the @header.type field to
+ * RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1, RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2
+ * or RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST.
+ *
+ * The White Balance module allows to specify per-color channel gains, expressed
+ * as unsigned fixed-point values as 18 bits unsigned integers in Q6.12 format
+ * with a maximum of 63.999.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1 or
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2 or
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST)
+ * @gain_red: gain for red component, 18-bit (unsigned Q6.12)
+ * @gain_green_r: gain for green component in red lines, 18-bit (unsigned Q6.12)
+ * @gain_blue: gain for blue component, 18-bit (unsigned Q6.12)
+ * @gain_green_b: gain for green component in blue lines, 18-bit (unsigned Q6.12)
+ */
+struct rppx1_awbg_params {
+	struct v4l2_isp_params_block_header header;
+	__u32 gain_red;
+	__u32 gain_green_r;
+	__u32 gain_blue;
+	__u32 gain_green_b;
+};
+
+/**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
  * Some types are reported twice as the same block might be instantiated in
  * multiple pipes.
  */
 #define RPPX1_PARAMS_MAX_SIZE						\
-	(sizeof(struct rppx1_wbmeas_params))
+	(sizeof(struct rppx1_wbmeas_params)			+	\
+	sizeof(struct rppx1_awbg_params)			+	\
+	sizeof(struct rppx1_awbg_params)			+	\
+	sizeof(struct rppx1_awbg_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
