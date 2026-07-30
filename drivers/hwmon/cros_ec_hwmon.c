@@ -236,8 +236,13 @@ static int cros_ec_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			ret = cros_ec_hwmon_read_temp_threshold(priv->cros_ec, channel,
 								cros_ec_hwmon_attr_to_thres(attr),
 								&threshold);
-			if (ret == 0)
-				*val = cros_ec_hwmon_kelvin_to_millicelsius(threshold);
+			if (ret == 0) {
+				/* Limit to sensible, non-overflowing values. */
+				if (threshold > 255 + 273)
+					*val = 255000;
+				else
+					*val = cros_ec_hwmon_kelvin_to_millicelsius(threshold);
+			}
 		}
 	}
 
