@@ -1329,14 +1329,12 @@ void kvfree_rcu_barrier(void)
 	deferred_work_barrier();
 	rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
 
 void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
 {
 	deferred_work_barrier();
 	rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier_on_cache);
 
 void __init kvfree_rcu_init(void)
 {
@@ -2163,7 +2161,6 @@ void kvfree_rcu_barrier(void)
 	flush_all_rcu_sheaves();
 	__kvfree_rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
 
 /**
  * kvfree_rcu_barrier_on_cache - Wait for in-flight kvfree_rcu() calls on a
@@ -2186,7 +2183,6 @@ void kvfree_rcu_barrier_on_cache(struct kmem_cache *s)
 	rcu_barrier();
 	__kvfree_rcu_barrier();
 }
-EXPORT_SYMBOL_GPL(kvfree_rcu_barrier_on_cache);
 
 static unsigned long
 kfree_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
