@@ -484,6 +484,7 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 	return data;
 }
 
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
 static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 {
 	if (slen < dlen) {
@@ -581,7 +582,15 @@ fail:
 	return ERR_PTR(error);
 
 }
-
+#else
+static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf __always_unused,
+						  size_t buffer_size __always_unused,
+						  loff_t *pos __always_unused,
+						  char **compressed_data __always_unused)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif /* CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY */
 struct aa_user_hdr {
 	uint8_t version;
 	uint8_t compress_level;
@@ -2604,8 +2613,10 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_FILE_STRING("permstable32", PERMS32STR),
 	AA_SFS_FILE_U64("state32",	1),
 	AA_SFS_DIR("unconfined_restrictions",   aa_sfs_entry_unconfined),
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
 	AA_SFS_FILE_BOOLEAN("compressed_load",	1),
 	AA_SFS_FILE_BOOLEAN("extended_policy_header",	1),
+#endif
 	{ }
 };
 
@@ -2670,8 +2681,10 @@ static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
 	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
 	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
 	AA_SFS_FILE_FOPS("raw_data_compression_level_min", 0444, &seq_ns_compress_min_fops),
 	AA_SFS_FILE_FOPS("raw_data_compression_level_max", 0444, &seq_ns_compress_max_fops),
+#endif
 	AA_SFS_DIR("features", aa_sfs_entry_features),
 	{ }
 };

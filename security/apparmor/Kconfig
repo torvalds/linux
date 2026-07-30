@@ -93,6 +93,18 @@ config SECURITY_APPARMOR_EXPORT_BINARY
 	  also increases policy load time. This option is required for
 	  checkpoint and restore support, and debugging of loaded policy.
 
+config SECURITY_APPARMOR_COMPRESSED_POLICY
+	bool "Allow loading policy in a compressed format"
+	depends on SECURITY_APPARMOR
+	select ZSTD_DECOMPRESS
+	default y
+	help
+	  This option allows loading policy from userspace in a
+	  compressed format. This allows for userspace to not have to
+	  decrompress caches before loading policy, and also allows
+	  for less kernel memory to be used when "exporting the raw
+	  binary policy" is enabled.
+
 config SECURITY_APPARMOR_PARANOID_LOAD
 	bool "Perform full verification of loaded policy"
 	depends on SECURITY_APPARMOR
