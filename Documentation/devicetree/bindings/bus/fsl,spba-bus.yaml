@@ -28,6 +28,7 @@ select:
         enum:
           - fsl,aipi-bus
           - fsl,aips
+          - fsl,eim-bus
           - fsl,emi
           - fsl,emi-bus
           - fsl,spba-bus
@@ -36,13 +37,14 @@ select:
 
 properties:
   $nodename:
-    pattern: "^((spba|emi)-bus|bus)(@[0-9a-f]+)?$"
+    pattern: "^((spba|emi|eim)-bus|bus)(@[0-9a-f]+)?$"
 
   compatible:
     items:
       - enum:
           - fsl,aipi-bus
           - fsl,aips
+          - fsl,eim-bus
           - fsl,emi
           - fsl,emi-bus
           - fsl,spba-bus

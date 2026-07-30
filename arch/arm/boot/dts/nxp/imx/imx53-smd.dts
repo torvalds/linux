@@ -306,7 +306,6 @@
 					 <&clks IMX5_CLK_SSI_EXT1_PODF>;
 		assigned-clock-rates = <0>, <24000000>;
 		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
-		clock-names = "xclk";
 		DVDD-supply = <&ldo9_reg>;
 		AVDD-supply = <&ldo7_reg>;
 		reset-gpios = <&gpio6 9 GPIO_ACTIVE_LOW>;

@@ -24,6 +24,7 @@ properties:
           - const: fsl,fpga-qixis
       - items:
           - enum:
+              - fsl,ls1021aqds-fpga
               - fsl,ls1043aqds-fpga
               - fsl,ls1043ardb-fpga
               - fsl,ls1046aqds-fpga

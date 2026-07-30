@@ -339,6 +339,20 @@
 	assigned-clock-parents = <&clks IMX7D_PLL_SYS_MAIN_240M_CLK>;
 	uart-has-rtscts;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4329-bt";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_bluetooth>;
+
+		max-speed = <3000000>;
+
+		reset-gpios = <&gpio4 18 GPIO_ACTIVE_LOW>;
+		device-wakeup-gpios = <&gpio4 17 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wakeup";
+	};
 };
 
 &usbotg1 {
@@ -401,6 +415,15 @@
 };
 
 &iomuxc {
+	pinctrl_bluetooth: bluetoothgrp {
+		fsl,pins = <
+			MX7D_PAD_ECSPI1_MOSI__GPIO4_IO17	0x14
+			MX7D_PAD_ECSPI1_MISO__GPIO4_IO18	0x14
+			MX7D_PAD_SD2_RESET_B__GPIO5_IO11	0x14
+		>;
+
+	};
+
 	pinctrl_ecspi3: ecspi3grp {
 		fsl,pins = <
 			MX7D_PAD_I2C1_SCL__ECSPI3_MISO		0x2
