@@ -106,6 +106,30 @@ static int check_output(const char *cmd, const char *expected)
 	return strncmp(buf, expected, strlen(expected)) ? -1 : 0;
 }
 
+/* Does the kernel BTF know struct binfmt_misc_ops (CONFIG_BINFMT_MISC_BPF)? */
+static bool have_binfmt_misc_ops(void)
+{
+	struct btf *btf = btf__load_vmlinux_btf();
+	bool have;
+
+	have = btf && btf__find_by_name_kind(btf, "binfmt_misc_ops",
+					     BTF_KIND_STRUCT) >= 0;
+	btf__free(btf);
+	return have;
+}
+
+/* The reason bpf handler cases cannot run here, NULL if they can. */
+static const char *bpf_handler_unsupported(void)
+{
+	if (getuid() != 0)
+		return "test must be run as root";
+	if (!have_binfmt_misc_ops())
+		return "no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)";
+	if (!binfmt_misc_available())
+		return "no binfmt_misc";
+	return NULL;
+}
+
 /* An attached handler with its 'B' entry activated. */
 struct bpf_case {
 	struct bpf_object *obj;
@@ -190,23 +214,10 @@ FIXTURE(bpf_handler) {
 FIXTURE_SETUP(bpf_handler)
 {
 	char src[PATH_MAX];
-	struct btf *btf;
+	const char *why = bpf_handler_unsupported();
 
-	if (getuid() != 0)
-		SKIP(return, "test must be run as root");
-
-	/* The kernel must know struct binfmt_misc_ops (CONFIG_BINFMT_MISC_BPF). */
-	btf = btf__load_vmlinux_btf();
-	if (!btf || btf__find_by_name_kind(btf, "binfmt_misc_ops",
-					   BTF_KIND_STRUCT) < 0) {
-		btf__free(btf);
-		SKIP(return,
-		     "no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)");
-	}
-	btf__free(btf);
-
-	if (!binfmt_misc_available())
-		SKIP(return, "no binfmt_misc");
+	if (why)
+		SKIP(return, "%s", why);
 
 	/* Shared test interpreter. */
 	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_bpf_interp"), 0);
