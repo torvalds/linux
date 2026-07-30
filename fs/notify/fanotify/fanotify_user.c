@@ -112,7 +112,12 @@ static DECLARE_DELAYED_WORK(perm_group_work, perm_group_watchdog);
 
 static void perm_group_watchdog_schedule(void)
 {
-	schedule_delayed_work(&perm_group_work, secs_to_jiffies(perm_group_timeout));
+	int timeout = READ_ONCE(perm_group_timeout);
+
+	if (!timeout)
+		return;
+
+	schedule_delayed_work(&perm_group_work, secs_to_jiffies(timeout));
 }
 
 static void perm_group_watchdog(struct work_struct *work)
