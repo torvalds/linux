@@ -723,4 +723,11 @@ void snd_hda_codec_display_power(struct hda_codec *codec, bool enable);
 #define codec_dbg(codec, fmt, args...) \
 	dev_dbg(hda_codec_dev(codec), fmt, ##args)
 
+/* append a suffix string safely; equivalent with strlcat() */
+static inline void hda_append_suffix(char *str, const char *suffix, size_t size)
+{
+	size_t len = strnlen(str, size);
+	strscpy(str + len, suffix, size - len);
+}
+
 #endif /* __SOUND_HDA_LOCAL_H */

@@ -2701,7 +2701,7 @@ static void get_jack_mode_name(struct hda_codec *codec, hda_nid_t pin,
 	struct hda_gen_spec *spec = codec->spec;
 
 	snd_hda_get_pin_label(codec, pin, &spec->autocfg, name, name_len);
-	strlcat(name, " Jack Mode", name_len);
+	hda_append_suffix(name, " Jack Mode", name_len);
 }
 
 static int get_out_jack_num_items(struct hda_codec *codec, hda_nid_t pin)
@@ -5678,7 +5678,7 @@ static void fill_pcm_stream_name(char *str, size_t len, const char *sfx,
 			break;
 		}
 	}
-	strlcat(str, sfx, len);
+	hda_append_suffix(str, sfx, len);
 }
 
 /* copy PCM stream info from @default_str, and override non-NULL entries
