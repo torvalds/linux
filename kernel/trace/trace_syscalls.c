@@ -1451,6 +1451,11 @@ static void perf_syscall_enter(void *ignore, struct pt_regs *regs, long id)
 		if (syscall_get_data(sys_data, args, &user_ptr,
 				     &size, user_sizes, &uargs, buf_size) < 0)
 			return;
+
+		/* The above may have caused a migration */
+		head = this_cpu_ptr(sys_data->enter_event->perf_events);
+		if (hlist_empty(head))
+			return;
 	}
 
 	/* get the size after alignment with the u32 buffer size field */

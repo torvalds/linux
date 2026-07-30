@@ -104,7 +104,7 @@ wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
 # Send the message
 echo "${MSG}: ${TARGET}" > /dev/kmsg
 # Wait until socat saves the file to disk
-busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
+busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}" || true
 # Check if the message was not corrupted
 validate_fragmented_result "${OUTPUT_FILE}"
 
@@ -117,6 +117,6 @@ disable_release_append
 listen_port_and_save_to "${OUTPUT_FILE}" &
 wait_local_port_listen "${NAMESPACE}" "${PORT}" udp
 echo "${MSG}: ${TARGET}" > /dev/kmsg
-busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}"
+busywait "${BUSYWAIT_TIMEOUT}" test -s "${OUTPUT_FILE}" || true
 validate_fragmented_result "${OUTPUT_FILE}"
 exit "${ksft_pass}"

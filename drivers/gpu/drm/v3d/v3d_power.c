@@ -54,8 +54,15 @@ int v3d_power_suspend(struct device *dev)
 
 	v3d_clean_caches(v3d);
 
+	/* Wait until V3D has no active or pending AXI transactions. */
+	v3d_idle_axi(v3d, 0);
+	v3d_idle_gca(v3d);
+
 	ret = v3d_suspend_sms(v3d);
 	if (ret) {
+		/* Staying active: undo the GMP STOP_REQ from v3d_idle_axi(). */
+		V3D_WRITE(V3D_GMP_CFG(v3d->ver),
+			  V3D_READ(V3D_GMP_CFG(v3d->ver)) & ~V3D_GMP_CFG_STOP_REQ);
 		v3d_irq_enable(v3d);
 		return ret;
 	}
