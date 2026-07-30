@@ -543,9 +543,14 @@ static int ublk_thread_init(struct ublk_thread *t, unsigned long long extra_flag
 		unsigned max_nr_ios_per_thread = nr_ios / dev->nthreads;
 		max_nr_ios_per_thread += !!(nr_ios % dev->nthreads);
 
+		t->auto_buf_stride = max_nr_ios_per_thread;
 		t->nr_bufs = max_nr_ios_per_thread;
+		if ((extra_flags & UBLKS_Q_ROTATE_AUTO_BUF) &&
+		    (dev->dev_info.flags & UBLK_F_AUTO_BUF_REG))
+			t->nr_bufs *= 2;
 	} else {
 		t->nr_bufs = 0;
+		t->auto_buf_stride = 0;
 	}
 
 	if (ublk_dev_batch_io(dev))
@@ -1439,6 +1444,8 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 		extra_flags = UBLKS_Q_AUTO_BUF_REG_FALLBACK;
 	if (ctx->no_ublk_fixed_fd)
 		extra_flags |= UBLKS_Q_NO_UBLK_FIXED_FD;
+	if (ctx->rotate_auto_buf)
+		extra_flags |= UBLKS_Q_ROTATE_AUTO_BUF;
 
 	for (i = 0; i < dinfo->nr_hw_queues; i++) {
 		dev->q[i].dev = dev;
@@ -2072,7 +2079,7 @@ static void __cmd_create_help(char *exe, bool recovery)
 	printf("\t[--nthreads threads] [--per_io_tasks]\n");
 	printf("\t[--integrity_capable] [--integrity_reftag] [--metadata_size SIZE] "
 		 "[--pi_offset OFFSET] [--csum_type ip|t10dif|nvme] [--tag_size SIZE]\n");
-	printf("\t[--batch|-b] [--no_auto_part_scan]\n");
+	printf("\t[--batch|-b] [--rotate_auto_buf] [--no_auto_part_scan]\n");
 	printf("\t[--io_desc_size SIZE]\n");
 	printf("\t[target options] [backfile1] [backfile2] ...\n");
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
@@ -2147,6 +2154,7 @@ int main(int argc, char *argv[])
 		{ "tag_size",		1,	NULL,  0 },
 		{ "safe",		0,	NULL,  0 },
 		{ "batch",              0,      NULL, 'b'},
+		{ "rotate_auto_buf",	0,	NULL,  0 },
 		{ "no_auto_part_scan",	0,	NULL,  0 },
 		{ "shmem_zc",		0,	NULL,  0  },
 		{ "htlb",		1,	NULL,  0  },
@@ -2236,6 +2244,8 @@ int main(int argc, char *argv[])
 				ctx.flags |= UBLK_F_AUTO_BUF_REG;
 			if (!strcmp(longopts[option_idx].name, "auto_zc_fallback"))
 				ctx.auto_zc_fallback = 1;
+			if (!strcmp(longopts[option_idx].name, "rotate_auto_buf"))
+				ctx.rotate_auto_buf = 1;
 			if (!strcmp(longopts[option_idx].name, "nthreads"))
 				ctx.nthreads = strtol(optarg, NULL, 10);
 			if (!strcmp(longopts[option_idx].name, "per_io_tasks"))
@@ -2344,6 +2354,13 @@ int main(int argc, char *argv[])
 			(ctx.flags & UBLK_F_BATCH_IO) &&
 			(ctx.nthreads > ctx.nr_hw_queues)) {
 		ublk_err("too many threads for F_AUTO_BUF_REG & F_BATCH_IO\n");
+		return -EINVAL;
+	}
+
+	if (ctx.rotate_auto_buf &&
+	    !((ctx.flags & UBLK_F_AUTO_BUF_REG) &&
+	      (ctx.flags & UBLK_F_BATCH_IO))) {
+		ublk_err("rotate_auto_buf requires --auto_zc and --batch\n");
 		return -EINVAL;
 	}
 

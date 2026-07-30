@@ -23,6 +23,7 @@ TEST_PROGS += test_generic_17.sh
 TEST_PROGS += test_batch_01.sh
 TEST_PROGS += test_batch_02.sh
 TEST_PROGS += test_batch_03.sh
+TEST_PROGS += test_batch_04.sh
 
 TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_null_02.sh
