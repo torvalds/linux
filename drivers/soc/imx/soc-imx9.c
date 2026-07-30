@@ -35,6 +35,8 @@ static int imx9_soc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, err, "%s: missing model property\n", __func__);
 
 	attr->family = devm_kasprintf(dev, GFP_KERNEL, "Freescale i.MX");
+	if (!attr->family)
+		return -ENOMEM;
 
 	/*
 	 * Retrieve the soc id, rev & uid info:
@@ -52,11 +54,18 @@ static int imx9_soc_probe(struct platform_device *pdev)
 	rev_minor = SOC_REV_MINOR(res.a1);
 
 	attr->soc_id = devm_kasprintf(dev, GFP_KERNEL, "i.MX%2x", soc_id);
+	if (!attr->soc_id)
+		return -ENOMEM;
+
 	attr->revision = devm_kasprintf(dev, GFP_KERNEL, "%d.%d", rev_major, rev_minor);
+	if (!attr->revision)
+		return -ENOMEM;
 
 	uid127_64 = res.a2;
 	uid63_0 = res.a3;
 	attr->serial_number = devm_kasprintf(dev, GFP_KERNEL, "%016llx%016llx", uid127_64, uid63_0);
+	if (!attr->serial_number)
+		return -ENOMEM;
 
 	sdev = soc_device_register(attr);
 	if (IS_ERR(sdev))
