@@ -150,12 +150,12 @@ static int spdif_in_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static const struct snd_soc_dai_ops spdif_in_dai_ops = {
 	.shutdown	= spdif_in_shutdown,
+	.probe = spdif_in_dai_probe,
 	.trigger	= spdif_in_trigger,
 	.hw_params	= spdif_in_hw_params,
 };
 
 static struct snd_soc_dai_driver spdif_in_dai = {
-	.probe = spdif_in_dai_probe,
 	.capture = {
 		.channels_min = 2,
 		.channels_max = 2,
