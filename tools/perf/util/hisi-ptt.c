@@ -42,7 +42,7 @@ static enum hisi_ptt_pkt_type hisi_ptt_check_packet_type(unsigned char *buf,
 {
 	uint32_t head;
 
-	if (len < HISI_PTT_FIELD_LENTH)
+	if (len < HISI_PTT_FIELD_LENGTH)
 		return HISI_PTT_4DW_PKT;
 
 	head = get_unaligned_le32(buf);
