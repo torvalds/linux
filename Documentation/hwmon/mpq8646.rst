@@ -246,6 +246,45 @@ The only writable entry is ``alarm_poll_interval_ms`` (the alarm-poll
 worker cadence, see above), it is driver-local and never touches the
 chip.
 
+Unsafe provisioning
+-------------------
+
+Available only when ``CONFIG_SENSORS_MPQ8646_DEBUG_UNSAFE=y``
+(``default n``, it is for boards bring up only). They WRITE to the regulator.
+On many designs the MPQ8646 powers the main CPU core rail, so a wrong write can
+brown out the board or persist a bad setpoint into finite-cycle NVM.
+WARNING: Some wrong register writes can and likely will physically damage or
+destroy the chip and/or the board. An explicit warning banner is printed at probe
+time when this option is enabled.
+
+===============================  ===============  =========================================================
+File                             PMBus / MFR cmd  Description
+===============================  ===============  =========================================================
+``store_all``                    0x15             STORE_USER_ALL Send-Byte (commit RAM config to NVM)
+``restore_all``                  0x16             RESTORE_USER_ALL Send-Byte (revert RAM to last-NVM image)
+``clear_protection_last``        0x08             CLEAR_LAST_FAULT Send-Byte
+``clear_protection_last_force``  --               gated CLEAR_LAST_FAULT, see below
+``on_off_config``                0x02 (byte)      PMBus vs CTRL-pin on/off source + active polarity
+``vout_margin_high``             0x25 (word)      margin-high VOUT setpoint
+``vout_margin_low``              0x26 (word)      margin-low VOUT setpoint
+``mfr_pmbus_lock``               0xEE (word)      programmable PMBus write-lock
+``mfr_product_rev_user``         0xC2 (word)      user-programmable product revision
+===============================  ===============  =========================================================
+
+``clear_protection_last`` writes ``CLEAR_LAST_FAULT`` (0x08) Send-Byte.
+The chip silently no-ops unless ``MFR_CFG_EXT`` (0xF5) bit[6] is set.
+
+``clear_protection_last_force`` performs the unlock with the following
+six-step dancing:
+
+1. read ``WRITE_PROTECT`` (0x10) and ``MFR_CFG_EXT`` (0xF5) for restore
+2. clear ``WRITE_PROTECT`` if set
+3. set ``MFR_CFG_EXT`` bit[6] = 1, preserving other bits
+4. send ``CLEAR_LAST_FAULT`` (0x08)
+5. restore ``MFR_CFG_EXT`` (with retry to handle the chip's
+   undocumented post-NVM-write busy window)
+6. restore ``WRITE_PROTECT``
+
 Devicetree
 ----------
 

@@ -637,6 +637,26 @@ config SENSORS_MPQ8646
 	  This driver can also be built as a module. If so, the module
 	  will be called mpq8646.
 
+config SENSORS_MPQ8646_DEBUG_UNSAFE
+	bool "MPQ8646 unsafe write/provisioning debugfs (DANGEROUS)"
+	depends on SENSORS_MPQ8646 && DEBUG_FS
+	default n
+	help
+	  Expose additional WRITE-able debugfs files in the client's
+	  pmbus debugfs directory,
+	  /sys/kernel/debug/i2c/i2c-<bus>/<bus>-<addr>/
+
+	  These are provisioning and bring-up aids. On many designs the
+	  MPQ8646 powers the SoC core rail, so a wrong write can brown out
+	  or permanently mis-provision the board.
+
+	  WARNING: Wrong register writes can and likely will physically
+	  damage or destroy the chip and/or the board.
+
+	  It shall never be set in a production, shipping, or default configuration.
+
+	  If unsure, say N.
+
 config SENSORS_PIM4328
 	tristate "Flex PIM4328 and compatibles"
 	help
