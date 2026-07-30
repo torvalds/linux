@@ -212,9 +212,12 @@ enum smu_power_src_type {
 };
 
 enum smu_ppt_limit_type {
-	SMU_DEFAULT_PPT_LIMIT = 0,
-	SMU_FAST_PPT_LIMIT,
+	SMU_PPT_LIMIT_PPT0 = 0,
+	SMU_PPT_LIMIT_PPT1,
 	SMU_LIMIT_TYPE_COUNT,
+	SMU_DEFAULT_PPT_LIMIT = SMU_PPT_LIMIT_PPT0,
+	SMU_SLOW_PPT_LIMIT = SMU_PPT_LIMIT_PPT0,
+	SMU_FAST_PPT_LIMIT = SMU_PPT_LIMIT_PPT1,
 };
 
 enum smu_ppt_limit_level {
@@ -222,6 +225,20 @@ enum smu_ppt_limit_level {
 	SMU_PPT_LIMIT_CURRENT,
 	SMU_PPT_LIMIT_DEFAULT,
 	SMU_PPT_LIMIT_MAX,
+};
+
+struct smu_ppt_limit_range {
+	uint32_t default_value;
+	uint32_t min;
+	uint32_t max;
+	uint32_t od_min;
+	uint32_t od_max;
+};
+
+struct smu_ppt_limit_context {
+	struct smu_ppt_limit_range
+		range[SMU_POWER_SOURCE_COUNT][SMU_LIMIT_TYPE_COUNT];
+	uint32_t supported_mask;
 };
 
 enum smu_memory_pool_size {
@@ -234,7 +251,7 @@ enum smu_memory_pool_size {
 
 struct smu_user_dpm_profile {
 	uint32_t fan_mode;
-	uint32_t power_limits[SMU_LIMIT_TYPE_COUNT];
+	uint32_t ppt_limits[SMU_LIMIT_TYPE_COUNT];
 	uint32_t fan_speed_pwm;
 	uint32_t fan_speed_rpm;
 	uint32_t flags;
@@ -719,10 +736,7 @@ struct smu_context {
 	uint32_t pstate_mclk;
 
 	bool od_enabled;
-	uint32_t current_power_limit;
-	uint32_t default_power_limit;
-	uint32_t max_power_limit;
-	uint32_t min_power_limit;
+	struct smu_ppt_limit_context ppt_limits;
 
 	/* soft pptable */
 	uint32_t ppt_offset_bytes;
@@ -1045,19 +1059,11 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 
 	/**
-	 * @get_power_limit: Get the device's power limits.
+	 * @get_ppt_limit: Get the effective runtime PPT0 or PPT1 limit.
 	 */
-	int (*get_power_limit)(struct smu_context *smu,
-					uint32_t *current_power_limit,
-					uint32_t *default_power_limit,
-					uint32_t *max_power_limit,
-					uint32_t *min_power_limit);
-
-	/**
-	 * @get_ppt_limit: Get the device's ppt limits.
-	 */
-	int (*get_ppt_limit)(struct smu_context *smu, uint32_t *ppt_limit,
-			enum smu_ppt_limit_type limit_type, enum smu_ppt_limit_level limit_level);
+	int (*get_ppt_limit)(struct smu_context *smu,
+			     enum smu_ppt_limit_type limit_type,
+			     uint32_t *current_ppt_limit);
 
 	/**
 	 * @set_df_cstate: Set data fabric cstate.
@@ -1245,11 +1251,11 @@ struct pptable_funcs {
 	int (*notify_display_change)(struct smu_context *smu);
 
 	/**
-	 * @set_power_limit: Set power limit in watts.
+	 * @set_ppt_limit: Set the PPT0 or PPT1 limit in watts.
 	 */
-	int (*set_power_limit)(struct smu_context *smu,
-			       enum smu_ppt_limit_type limit_type,
-			       uint32_t limit);
+	int (*set_ppt_limit)(struct smu_context *smu,
+			     enum smu_ppt_limit_type limit_type,
+			     uint32_t limit);
 
 	/**
 	 * @init_max_sustainable_clocks: Populate max sustainable clock speed
@@ -1915,10 +1921,10 @@ smu_driver_table_update_cache_time(struct smu_context *smu,
 }
 
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
-int smu_get_power_limit(void *handle,
-			uint32_t *limit,
-			enum pp_power_limit_level pp_limit_level,
-			enum pp_power_type pp_power_type);
+int smu_get_ppt_limit(void *handle,
+		      uint32_t *limit,
+		      enum pp_power_limit_level pp_limit_level,
+		      enum pp_power_type pp_power_type);
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
 bool smu_link_reset_is_support(struct smu_context *smu);

@@ -145,12 +145,13 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu);
 
 int smu_v13_0_notify_display_change(struct smu_context *smu);
 
-int smu_v13_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit);
+int smu_v13_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit);
 
-int smu_v13_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit);
+int smu_v13_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit);
 
 int smu_v13_0_init_max_sustainable_clocks(struct smu_context *smu);
 
