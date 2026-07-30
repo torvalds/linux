@@ -166,17 +166,23 @@ xfs_file_fsync(
 	}
 
 	/*
-	 * If we only have a single device, and the log force about was
-	 * a no-op we might have to flush the data device cache here.
-	 * This can only happen for fdatasync/O_DSYNC if we were overwriting
-	 * an already allocated file and thus do not have any metadata to
-	 * commit.
+	 * If the log force was a no-op, we may still need to flush the
+	 * file data target cache here. This can happen for fdatasync/O_DSYNC
+	 * when no metadata needed to be committed.
+	 *
+	 * Use the inode's actual file data target rather than assuming the
+	 * main data device. Realtime inodes with a separate realtime device
+	 * are flushed before the log force, so this fallback only applies
+	 * when the file data target is the same as the log target.
 	 */
-	if (!log_flushed && !XFS_IS_REALTIME_INODE(ip) &&
-	    mp->m_logdev_targp == mp->m_ddev_targp) {
-		err2 = blkdev_issue_flush(mp->m_ddev_targp->bt_bdev);
-		if (err2 && !error)
-			error = err2;
+	if (!log_flushed) {
+		struct xfs_buftarg *file_targp = xfs_inode_buftarg(ip);
+
+		if (mp->m_logdev_targp == file_targp) {
+			err2 = blkdev_issue_flush(file_targp->bt_bdev);
+			if (err2 && !error)
+				error = err2;
+		}
 	}
 
 	return error;
