@@ -32,6 +32,36 @@ struct rppx1_window {
 	__u16 v_size;
 };
 
+/**
+ * enum rppx1_meas_chan - Measurement point for the Histogram and EXM Modules
+ *
+ * Measurement points for the RPP-X1 Histogram measurement module and Exposure
+ * measurement module.
+ *
+ * All tap points are available for the PRE1/PRE2 pipes. Only
+ * RPPX1_MEAS_CHAN_SEL4 and RPPX1_MEAS_CHAN_SEL7 are available for the
+ * MAIN_POST pipe.
+ *
+ * @RPPX1_MEAS_CHAN_SEL0: after input acquisition
+ * @RPPX1_MEAS_CHAN_SEL1: after black level subtraction
+ * @RPPX1_MEAS_CHAN_SEL2: after sensor gamma linearization
+ * @RPPX1_MEAS_CHAN_SEL3: after lens shading correction
+ * @RPPX1_MEAS_CHAN_SEL4: after auto white balance gains
+ * @RPPX1_MEAS_CHAN_SEL5: after defect pixel correction
+ * @RPPX1_MEAS_CHAN_SEL6: after denoise pre-filter
+ * @RPPX1_MEAS_CHAN_SEL7: after demosaicing
+ */
+enum rppx1_meas_chan {
+	RPPX1_MEAS_CHAN_SEL0,
+	RPPX1_MEAS_CHAN_SEL1,
+	RPPX1_MEAS_CHAN_SEL2,
+	RPPX1_MEAS_CHAN_SEL3,
+	RPPX1_MEAS_CHAN_SEL4,
+	RPPX1_MEAS_CHAN_SEL5,
+	RPPX1_MEAS_CHAN_SEL6,
+	RPPX1_MEAS_CHAN_SEL7,
+};
+
 /* ---------------------------------------------------------------------------
  * Parameter Structures
  *
@@ -50,12 +80,16 @@ struct rppx1_window {
  * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1: PRE1 pipe White Balance Gains
  * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2: PRE2 White Balance Gains
  * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST: MAIN_POST White Balance Gains
+ * @RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1: PRE1 pipe Exposure Measurement
+ * @RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2: PRE2 pipe Exposure Measurement
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
 	RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_AWBG_PRE2,
 	RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST,
+	RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2,
 };
 
 /**
@@ -150,6 +184,66 @@ struct rppx1_awbg_params {
 };
 
 /**
+ * enum rppx1_exm_mode - Exposure measurement mode
+ *
+ * Exaposure measurement mode selection (RGB/Bayer).
+ *
+ * @RPPX1_EXP_MEASURING_MODE_DISABLED: no measurement
+ * @RPPX1_EXP_MEASURING_MODE_RGB: Y/R/G/B measurement
+ * @RPPX1_EXP_MEASURING_MODE_BAYER: Bayer RGB measurement
+ */
+enum rppx1_exm_mode {
+	RPPX1_EXP_MEASURING_MODE_DISABLED,
+	RPPX1_EXP_MEASURING_MODE_RGB,
+	RPPX1_EXP_MEASURING_MODE_BAYER,
+};
+
+/**
+ * struct rppx1_exm_params - Exposure measurement configuration
+ *
+ * The RPP-X1 Exposure measurement unit is available on the PRE1 and PRE2
+ * pre-fusion pipes. Userspace selects which pipe to operate by setting
+ * the @header.type field to RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1 or
+ * RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2.
+ *
+ * Exposure measurement is performed in the RGB or Bayer domain, according to
+ * the setting of the @mode field. The exposure measurement tap point is
+ * selected according to the value of @channel_sel.
+ *
+ * The exposure measurement is performed on an input window specified in @wnd.
+ * To each color component a programmable weight coefficient is associated.
+ * Coefficients are represented as unsigned 8 bits integer values in Q1.7 format
+ * ranging from 0 to 1.992.
+ *
+ * The @last_line fields controls when the exposure measurement completes. It
+ * is usually programmed to the value of (@wnd.v_offs + @wnd.v_size + 1).
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1 or
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2)
+ * @wnd: measurement window coordinates
+ * @mode: exposure measure mode (from enum rppx1_exm_mode)
+ * @last_line: line number for which the exposure measurement completes
+ * @channel_sel: exposure measurement point (see enum rppx1_meas_chan)
+ * @coeff_r: coefficient for the red Bayer sample or red color channel, Q1.7
+ * @coeff_g_gr: coefficient for the green/red Bayer sample or green color channel, Q1.7
+ * @coeff_b: coefficient for the blue Bayer sample or blue color channel, Q1.7
+ * @coeff_gb: coefficient for the green/blue Bayer sample, unused in RGB mode, Q1.7
+ * @reserved: padding
+ */
+struct rppx1_exm_params {
+	struct v4l2_isp_params_block_header header;
+	struct rppx1_window wnd;
+	__u32 mode;
+	__u32 last_line;
+	__u8 channel_sel;
+	__u8 coeff_r;
+	__u8 coeff_g_gr;
+	__u8 coeff_b;
+	__u8 coeff_gb;
+	__u8 reserved[3];
+};
+
+/**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
  * Some types are reported twice as the same block might be instantiated in
@@ -159,7 +253,9 @@ struct rppx1_awbg_params {
 	(sizeof(struct rppx1_wbmeas_params)			+	\
 	sizeof(struct rppx1_awbg_params)			+	\
 	sizeof(struct rppx1_awbg_params)			+	\
-	sizeof(struct rppx1_awbg_params))
+	sizeof(struct rppx1_awbg_params)			+	\
+	sizeof(struct rppx1_exm_params)				+	\
+	sizeof(struct rppx1_exm_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
@@ -176,9 +272,13 @@ struct rppx1_awbg_params {
  * NOTE: Only append to the enumeration as the numbers are uAPI.
  *
  * @RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST: post-fusion white-balance measurement
+ * @RPPX1_STATS_BLOCK_TYPE_EXM_PRE1: pre-fusion pipe1 exposure measurement
+ * @RPPX1_STATS_BLOCK_TYPE_EXM_PRE2: pre-fusion pipe2 exposure measurement
  */
 enum rppx1_stats_block_type {
 	RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST,
+	RPPX1_STATS_BLOCK_TYPE_EXM_PRE1,
+	RPPX1_STATS_BLOCK_TYPE_EXM_PRE2,
 };
 
 /**
@@ -198,6 +298,25 @@ struct rppx1_wbmeas_stats {
 	__u32 mean_cr_or_r;
 };
 
+/* Exposure Measurement */
+#define RPPX1_EXM_NUM_WIN 25
+
+/**
+ * struct rppx1_exm_stats - Exposure measurement
+ *
+ * RPP-X1 exposure measurement calculates the mean value on 25 programmable
+ * windows on the input picture.
+ *
+ * @header: block header (type = RPPX1_STATS_BLOCK_TYPE_EXM_PRE1)
+ * @exp_mean: mean luminance values per block, up to 20-bit
+ * @reserved: padding
+ */
+struct rppx1_exm_stats {
+	struct v4l2_isp_block_header header;
+	__u32 exp_mean[RPPX1_EXM_NUM_WIN];
+	__u32 reserved;
+};
+
 /**
  * RPPX1_STATS_MAX_SIZE - Maximum size of all RPP-X1 statistics
  *
@@ -205,6 +324,8 @@ struct rppx1_wbmeas_stats {
  * multiple pipes.
  */
 #define RPPX1_STATS_MAX_SIZE						\
-	(sizeof(struct rppx1_wbmeas_stats))
+	(sizeof(struct rppx1_wbmeas_stats)			+	\
+	sizeof(struct rppx1_exm_stats)				+	\
+	sizeof(struct rppx1_exm_stats))
 
 #endif /* __UAPI_RPP_X1_CONFIG_H */
