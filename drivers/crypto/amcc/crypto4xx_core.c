@@ -1294,14 +1294,14 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	core_dev->irq = platform_get_irq(ofdev, 0);
 	if (core_dev->irq < 0) {
 		rc = core_dev->irq;
-		goto err_iomap;
+		goto err_tasklet;
 	}
-	rc = devm_request_irq(&ofdev->dev, core_dev->irq,
-			      is_revb ? crypto4xx_ce_interrupt_handler_revb :
-					crypto4xx_ce_interrupt_handler,
-			      0, KBUILD_MODNAME, dev);
+	rc = request_irq(core_dev->irq,
+			 is_revb ? crypto4xx_ce_interrupt_handler_revb :
+				   crypto4xx_ce_interrupt_handler,
+			 0, KBUILD_MODNAME, dev);
 	if (rc)
-		goto err_iomap;
+		goto err_tasklet;
 
 	/* need to setup pdr, rdr, gdr and sdr before this */
 	crypto4xx_hw_init(core_dev->dev);
@@ -1310,12 +1310,14 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	rc = crypto4xx_register_alg(core_dev->dev, crypto4xx_alg,
 			       ARRAY_SIZE(crypto4xx_alg));
 	if (rc)
-		goto err_iomap;
+		goto err_irq;
 
 	ppc4xx_trng_probe(core_dev);
 	return 0;
 
-err_iomap:
+err_irq:
+	free_irq(core_dev->irq, dev);
+err_tasklet:
 	tasklet_kill(&core_dev->tasklet);
 err_build_sdr:
 	crypto4xx_destroy_sdr(core_dev->dev);
@@ -1331,6 +1333,11 @@ static void crypto4xx_remove(struct platform_device *ofdev)
 
 	ppc4xx_trng_remove(core_dev);
 
+	/*
+	 * Free IRQ before killing the tasklet to prevent the interrupt
+	 * handler from rescheduling the tasklet after it has been killed.
+	 */
+	free_irq(core_dev->irq, dev);
 	tasklet_kill(&core_dev->tasklet);
 	/* Un-register with Linux CryptoAPI */
 	crypto4xx_unregister_alg(core_dev->dev);
