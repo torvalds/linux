@@ -289,7 +289,7 @@ static void __percpu_ref_switch_mode(struct percpu_ref *ref,
  * @confirm_switch: optional confirmation callback
  *
  * There's no reason to use this function for the usual reference counting.
- * Use percpu_ref_kill[_and_confirm]().
+ * Use percpu_ref_kill() or percpu_ref_kill_and_confirm().
  *
  * Schedule switching of @ref to atomic mode.  All its percpu counts will
  * be collected to the main atomic counter.  On completion, when all CPUs

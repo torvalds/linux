@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2019 The Fuchsia Authors
 //
 // Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
@@ -128,6 +128,40 @@ derive!(Unaligned => derive_unaligned => crate::derive::unaligned::derive_unalig
 derive!(ByteHash => derive_hash => crate::derive::derive_hash);
 derive!(ByteEq => derive_eq => crate::derive::derive_eq);
 derive!(SplitAt => derive_split_at => crate::derive::derive_split_at);
+
+#[cfg_attr(not(zerocopy_unstable_linux), doc(hidden))]
+#[proc_macro_derive(most_traits, attributes(zerocopy))]
+pub fn most_traits(ts: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(ts as DeriveInput);
+    let ctx = match Ctx::try_from_derive_input(ast) {
+        Ok(ctx) => ctx,
+        Err(e) => return e.into_compile_error().into(),
+    }
+    .skip_on_error();
+
+    // top-level traits for which to attempt a derive
+    let derives: [(fn(&Ctx, Trait) -> _, _); 6] = [
+        (crate::derive::known_layout::derive, Trait::KnownLayout),
+        (crate::derive::derive_immutable, Trait::Immutable),
+        (crate::derive::from_bytes::derive_from_bytes, Trait::FromBytes),
+        (crate::derive::into_bytes::derive_into_bytes, Trait::IntoBytes),
+        (crate::derive::derive_split_at, Trait::SplitAt),
+        (crate::derive::unaligned::derive_unaligned, Trait::Unaligned),
+    ];
+
+    let mut tokens = proc_macro2::TokenStream::new();
+    for (derive, t) in derives {
+        tokens.extend(derive(&ctx, t))
+    }
+
+    // We wrap in `const_block` as a backstop in case any derive fails
+    // to wrap its output in `const_block` (and thus fails to annotate)
+    // with the full set of `#[allow(...)]` attributes).
+    let ts = const_block([Some(tokens)]);
+    #[cfg(test)]
+    crate::util::testutil::check_hygiene(ts.clone());
+    ts.into()
+}
 
 /// Deprecated: prefer [`FromZeros`] instead.
 #[deprecated(since = "0.8.0", note = "`FromZeroes` was renamed to `FromZeros`")]

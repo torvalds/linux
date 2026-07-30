@@ -37,6 +37,7 @@
 #include "xe_oa.h"
 #include "xe_observation.h"
 #include "xe_pm.h"
+#include "xe_reg_whitelist.h"
 #include "xe_sched_job.h"
 #include "xe_sriov.h"
 #include "xe_sync.h"
@@ -884,6 +885,9 @@ static void xe_oa_stream_destroy(struct xe_oa_stream *stream)
 	WRITE_ONCE(u->exclusive_stream, NULL);
 
 	mutex_destroy(&stream->stream_lock);
+
+	if (stream->sample)
+		xe_reg_dewhitelist_oa_regs(stream->gt);
 
 	xe_oa_disable_metric_set(stream);
 	xe_exec_queue_put(stream->k_exec_q);
@@ -1884,6 +1888,9 @@ static int xe_oa_stream_open_ioctl_locked(struct xe_oa *oa,
 		ret = stream_fd;
 		goto err_disable;
 	}
+
+	if (stream->sample)
+		xe_reg_whitelist_oa_regs(stream->gt);
 
 	/* Hold a reference on the drm device till stream_fd is released */
 	drm_dev_get(&stream->oa->xe->drm);

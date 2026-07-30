@@ -8,7 +8,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
 

@@ -59,11 +59,13 @@ static inline int shrinker_unit_alloc(struct shrinker_info *new,
 	return 0;
 }
 
-void free_shrinker_info(struct mem_cgroup *memcg)
+static void __free_shrinker_info(struct mem_cgroup *memcg)
 {
 	struct mem_cgroup_per_node *pn;
 	struct shrinker_info *info;
 	int nid;
+
+	lockdep_assert_held(&shrinker_mutex);
 
 	for_each_node(nid) {
 		pn = memcg->nodeinfo[nid];
@@ -72,6 +74,13 @@ void free_shrinker_info(struct mem_cgroup *memcg)
 		kvfree(info);
 		rcu_assign_pointer(pn->shrinker_info, NULL);
 	}
+}
+
+void free_shrinker_info(struct mem_cgroup *memcg)
+{
+	mutex_lock(&shrinker_mutex);
+	__free_shrinker_info(memcg);
+	mutex_unlock(&shrinker_mutex);
 }
 
 int alloc_shrinker_info(struct mem_cgroup *memcg)
@@ -98,8 +107,8 @@ int alloc_shrinker_info(struct mem_cgroup *memcg)
 	return ret;
 
 err:
+	__free_shrinker_info(memcg);
 	mutex_unlock(&shrinker_mutex);
-	free_shrinker_info(memcg);
 	return -ENOMEM;
 }
 

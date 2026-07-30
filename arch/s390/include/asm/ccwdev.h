@@ -10,7 +10,7 @@
 #define _S390_CCWDEV_H_
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ccw.h>
 #include <asm/chsc.h>
 #include <asm/fcx.h>
 #include <asm/irq.h>

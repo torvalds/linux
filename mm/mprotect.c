@@ -143,7 +143,7 @@ static __always_inline void prot_commit_flush_ptes(struct vm_area_struct *vma,
  * !PageAnonExclusive() pages, starting from start_idx. Caller must enforce
  * that the ptes point to consecutive pages of the same anon large folio.
  */
-static __always_inline int page_anon_exclusive_sub_batch(int start_idx, int max_len,
+static __always_inline int page_anon_exclusive_batch(int start_idx, int max_len,
 		struct page *first_page, bool expected_anon_exclusive)
 {
 	int idx;
@@ -174,16 +174,16 @@ static __always_inline void commit_anon_folio_batch(struct vm_area_struct *vma,
 		pte_t oldpte, pte_t ptent, int nr_ptes, struct mmu_gather *tlb)
 {
 	bool expected_anon_exclusive;
-	int sub_batch_idx = 0;
+	int batch_idx = 0;
 	int len;
 
 	while (nr_ptes) {
-		expected_anon_exclusive = PageAnonExclusive(first_page + sub_batch_idx);
-		len = page_anon_exclusive_sub_batch(sub_batch_idx, nr_ptes,
+		expected_anon_exclusive = PageAnonExclusive(first_page + batch_idx);
+		len = page_anon_exclusive_batch(batch_idx, nr_ptes,
 					first_page, expected_anon_exclusive);
 		prot_commit_flush_ptes(vma, addr, ptep, oldpte, ptent, len,
-				       sub_batch_idx, expected_anon_exclusive, tlb);
-		sub_batch_idx += len;
+				       batch_idx, expected_anon_exclusive, tlb);
+		batch_idx += len;
 		nr_ptes -= len;
 	}
 }
@@ -708,16 +708,9 @@ static int prot_none_hugetlb_entry(pte_t *pte, unsigned long hmask,
 		0 : -EACCES;
 }
 
-static int prot_none_test(unsigned long addr, unsigned long next,
-			  struct mm_walk *walk)
-{
-	return 0;
-}
-
 static const struct mm_walk_ops prot_none_walk_ops = {
 	.pte_entry		= prot_none_pte_entry,
 	.hugetlb_entry		= prot_none_hugetlb_entry,
-	.test_walk		= prot_none_test,
 	.walk_lock		= PGWALK_WRLOCK,
 };
 
@@ -753,7 +746,7 @@ mprotect_fixup(struct vma_iterator *vmi, struct mmu_gather *tlb,
 	    !vma_flags_test_any_mask(&new_vma_flags, VMA_ACCESS_FLAGS)) {
 		pgprot_t new_pgprot = vm_get_page_prot(newflags);
 
-		error = walk_page_range(current->mm, start, end,
+		error = walk_page_range_vma(vma, start, end,
 				&prot_none_walk_ops, &new_pgprot);
 		if (error)
 			return error;

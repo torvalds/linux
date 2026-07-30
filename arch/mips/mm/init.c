@@ -426,10 +426,11 @@ static inline void __init highmem_init(void)
 	unsigned long tmp;
 
 	/*
-	 * If CPU cannot support HIGHMEM discard the memory above highstart_pfn
+	 * If CPU cannot support HIGHMEM discard any memory above highstart_pfn
 	 */
 	if (cpu_has_dc_aliases) {
-		memblock_remove(PFN_PHYS(highstart_pfn), -1);
+		if (highstart_pfn)
+			memblock_remove(PFN_PHYS(highstart_pfn), -1);
 		return;
 	}
 

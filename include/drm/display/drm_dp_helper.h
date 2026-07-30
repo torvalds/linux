@@ -115,6 +115,7 @@ struct drm_dp_vsc_sdp {
  * @duration_decr_ms: Successive frame duration decrease
  * @target_rr_divider: Target refresh rate divider
  * @mode: Adaptive Sync Operation Mode
+ * @coasting_vtotal: Coasting vtotal
  */
 struct drm_dp_as_sdp {
 	unsigned char sdp_type;

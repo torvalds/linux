@@ -8,7 +8,6 @@
 #include <linux/container_of.h>
 #include <linux/dmi.h>
 #include <linux/lockdep.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_data/cros_ec_commands.h>

@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
-#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 

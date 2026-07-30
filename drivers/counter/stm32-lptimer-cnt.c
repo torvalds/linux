@@ -13,7 +13,6 @@
 #include <linux/bitfield.h>
 #include <linux/counter.h>
 #include <linux/mfd/stm32-lptimer.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>

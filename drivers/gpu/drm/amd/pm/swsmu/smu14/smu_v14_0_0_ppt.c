@@ -1701,6 +1701,50 @@ static int smu_v14_0_0_restore_user_od_settings(struct smu_context *smu)
 	return 0;
 }
 
+/*
+ * Link any xHCI controller sharing the GPU's PCIe root port as a consumer
+ * of the GPU so the GPU resumes first, avoiding an xHCI resume race.
+ */
+static int smu_v14_0_0_set_power_dep(struct smu_context *smu, bool enable)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct pci_dev *gpu_pdev = adev->pdev;
+	struct pci_dev *root_port, *usb_pdev = NULL;
+	struct device_link *link;
+
+	if (!enable) {
+		if (smu->usb_power_link) {
+			device_link_del(smu->usb_power_link);
+			smu->usb_power_link = NULL;
+		}
+		return 0;
+	}
+
+	root_port = pcie_find_root_port(gpu_pdev);
+	while ((usb_pdev = pci_get_class(PCI_CLASS_SERIAL_USB_XHCI, usb_pdev))) {
+		struct pci_dev *usb_root;
+
+		usb_root = pcie_find_root_port(usb_pdev);
+		if (usb_root != root_port)
+			continue;
+
+		/* Create device link: USB (consumer) depends on GPU (supplier) */
+		link = device_link_add(&usb_pdev->dev, &gpu_pdev->dev,
+				       DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME);
+		if (link) {
+			smu->usb_power_link = link;
+			drm_info(adev_to_drm(adev), "USB controller %s D0 power state depends on %s\n",
+				 pci_name(usb_pdev), pci_name(gpu_pdev));
+			/* Only create one link for the first USB controller found */
+			break;
+		}
+	}
+
+	pci_dev_put(usb_pdev);
+
+	return 0;
+}
+
 static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.check_fw_version = smu_cmn_check_fw_version,
@@ -1734,6 +1778,7 @@ static const struct pptable_funcs smu_v14_0_0_ppt_funcs = {
 	.dpm_set_umsch_mm_enable = smu_v14_0_0_set_umsch_mm_enable,
 	.get_dpm_clock_table = smu_v14_0_common_get_dpm_table,
 	.set_mall_enable = smu_v14_0_common_set_mall_enable,
+	.set_power_dep = smu_v14_0_0_set_power_dep,
 };
 
 static void smu_v14_0_0_init_msg_ctl(struct smu_context *smu)

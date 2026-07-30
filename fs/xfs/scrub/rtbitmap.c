@@ -258,7 +258,7 @@ xchk_rtbitmap(
 	 * the last free extent we saw and the last possible extent in the rt
 	 * group.
 	 */
-	last_rgbno = rtg->rtg_extents * mp->m_sb.sb_rextsize - 1;
+	last_rgbno = rtg->rtg_extents * mp->m_sb.sb_rextsize;
 	if (rtb->next_free_rgbno < last_rgbno)
 		xchk_xref_has_rt_owner(sc, rtb->next_free_rgbno,
 				last_rgbno - rtb->next_free_rgbno);

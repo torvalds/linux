@@ -33,6 +33,28 @@
 
 #include "pmc.h"
 
+static const struct amd_pmc_bit_map soc15_ip_blk_v3[] = {
+	{"VDDCR",	BIT(0)},
+	{"VDDCR_LP",	BIT(1)},
+	{"LSOCV",	BIT(2)},
+	{"DISPLAY",	BIT(3)},
+	{"VCN",		BIT(4)},
+	{"JPEG",	BIT(5)},
+	{"UMSCH",	BIT(6)},
+	{"VPE",		BIT(7)},
+	{"MPM",		BIT(8)},
+	{"NPU",		BIT(9)},
+	{"USB_HC0",	BIT(10)},
+	{"eUSB_HC0",	BIT(11)},
+	{"RT0_ADP_HC1", BIT(12)},
+	{"RT1_ADP_HC1", BIT(13)},
+	{"RT2_ADP_HC2", BIT(14)},
+	{"USB4_RT0",	BIT(15)},
+	{"USB4_RT1",	BIT(16)},
+	{"USB4-RT2",	BIT(17)},
+	{"LAPIC",	BIT(18)},
+};
+
 static const struct amd_pmc_bit_map soc15_ip_blk_v2[] = {
 	{"DISPLAY",     BIT(0)},
 	{"CPU",         BIT(1)},
@@ -159,9 +181,9 @@ static const struct amd_pmc_cpu_info amd_1ah_m80_cpu_info = {
 	.smu_msg	= AMD_PMC_REGISTER_MSG_1AH_80H,
 	.smu_arg	= AMD_PMC_REGISTER_ARG_1AH_80H,
 	.smu_rsp	= AMD_PMC_REGISTER_RSP_1AH_80H,
-	.num_ips	= ARRAY_SIZE(soc15_ip_blk),
+	.num_ips	= ARRAY_SIZE(soc15_ip_blk_v3),
 	.scratch_reg	= AMD_PMC_SCRATCH_REG_1AH,
-	.ips_ptr	= soc15_ip_blk,
+	.ips_ptr	= soc15_ip_blk_v3,
 	.os_hint	= MSG_OS_HINT_RN,
 };
 
@@ -735,11 +757,11 @@ static bool amd_pmc_want_suspend_delay(struct amd_pmc_dev *pdev)
 	} else if (delay_suspend == 1) {
 		if (!intermediate_wakeup)
 			dev_info(pdev->dev, "Delaying suspend by 2.5s because delay_suspend=1. If this solves problems on your machine, please report this whole line to: platform-driver-x86@vger.kernel.org so it can be automatically detected as affected in the future. System Vendor: \"%s\" Product Name: \"%s\" Product Family: \"%s\" Board Vendor: \"%s\" Board Name: \"%s\"\n",
-				 dmi_get_system_info(DMI_SYS_VENDOR),
-				 dmi_get_system_info(DMI_PRODUCT_NAME),
-				 dmi_get_system_info(DMI_PRODUCT_FAMILY),
-				 dmi_get_system_info(DMI_BOARD_VENDOR),
-				 dmi_get_system_info(DMI_BOARD_NAME));
+				 dmi_get_system_info(DMI_SYS_VENDOR) ?: "(Unknown)",
+				 dmi_get_system_info(DMI_PRODUCT_NAME) ?: "(Unknown)",
+				 dmi_get_system_info(DMI_PRODUCT_FAMILY) ?: "(Unknown)",
+				 dmi_get_system_info(DMI_BOARD_VENDOR) ?: "(Unknown)",
+				 dmi_get_system_info(DMI_BOARD_NAME) ?: "(Unknown)");
 		return true;
 	}
 	return false;

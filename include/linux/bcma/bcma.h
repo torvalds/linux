@@ -3,7 +3,7 @@
 #define LINUX_BCMA_H_
 
 #include <linux/pci.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/bcma.h>
 
 #include <linux/bcma/bcma_driver_arm_c9.h>
 #include <linux/bcma/bcma_driver_chipcommon.h>

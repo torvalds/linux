@@ -50,7 +50,7 @@ int bnge_hwrm_cfa_l2_set_rx_mask(struct bnge_dev *bd,
 void bnge_hwrm_stat_ctx_free(struct bnge_net *bn);
 int bnge_hwrm_stat_ctx_alloc(struct bnge_net *bn);
 int hwrm_ring_free_send_msg(struct bnge_net *bn, struct bnge_ring_struct *ring,
-			    u32 ring_type, int cmpl_ring_id);
+			    u32 ring_type, u32 cmpl_ring_id);
 int hwrm_ring_alloc_send_msg(struct bnge_net *bn,
 			     struct bnge_ring_struct *ring,
 			     u32 ring_type, u32 map_index);

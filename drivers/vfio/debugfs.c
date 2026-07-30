@@ -97,6 +97,7 @@ void vfio_device_debugfs_init(struct vfio_device *vdev)
 void vfio_device_debugfs_exit(struct vfio_device *vdev)
 {
 	debugfs_remove_recursive(vdev->debug_root);
+	vdev->debug_root = NULL;
 }
 
 void vfio_debugfs_create_root(void)

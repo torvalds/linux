@@ -15,7 +15,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/max7360.h>
-#include <linux/mod_devicetable.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/property.h>

@@ -446,7 +446,7 @@ static void mlock_vma_pages_range(struct vm_area_struct *vma,
 	vma_flags_reset_once(vma, new_vma_flags);
 
 	lru_add_drain();
-	walk_page_range(vma->vm_mm, start, end, &mlock_walk_ops, NULL);
+	walk_page_range_vma(vma, start, end, &mlock_walk_ops, NULL);
 	lru_add_drain();
 
 	if (vma_flags_test(new_vma_flags, VMA_IO_BIT)) {

@@ -73,6 +73,7 @@ Readahead
 Writeback
 ---------
 
+.. kernel-doc:: include/linux/writeback.h
 .. kernel-doc:: mm/page-writeback.c
    :export:
 

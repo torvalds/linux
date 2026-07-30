@@ -42,7 +42,12 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
  * Use cache_wbinv_all() here and need to be improved in future.
  */
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
-#define flush_cache_vmap(start, end)		cache_wbinv_all()
+
+static inline void flush_cache_vmap(unsigned long start, unsigned long end)
+{
+	cache_wbinv_all();
+}
+
 #define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		cache_wbinv_all()
 

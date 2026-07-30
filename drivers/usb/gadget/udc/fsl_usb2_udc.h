@@ -470,6 +470,7 @@ struct fsl_ep {
 #define EP_DIR_OUT	0
 
 struct fsl_udc {
+	struct device *dev;
 	struct usb_gadget gadget;
 	struct usb_gadget_driver *driver;
 	struct fsl_usb2_platform_data *pdata;

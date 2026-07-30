@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

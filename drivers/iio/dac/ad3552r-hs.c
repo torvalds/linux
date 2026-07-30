@@ -12,7 +12,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/iio/backend.h>
 #include <linux/iio/buffer.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/units.h>

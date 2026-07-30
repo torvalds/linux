@@ -10,6 +10,7 @@
  */
 
 #include "rvv.h"
+#include "pq_arch.h"
 
 #ifdef __riscv_vector
 #error "This code must be built without compiler support for vector"

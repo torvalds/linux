@@ -16,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/framer/framer.h>
 #include <linux/hdlc.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>

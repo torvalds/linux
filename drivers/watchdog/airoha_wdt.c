@@ -147,6 +147,9 @@ static int airoha_wdt_probe(struct platform_device *pdev)
 
 	/* Watchdog ticks at half the bus rate */
 	airoha_wdt->wdt_freq = clk_get_rate(bus_clk) / 2;
+	if (!airoha_wdt->wdt_freq)
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid clock frequency\n");
 
 	/* Initialize struct watchdog device */
 	wdog_dev = &airoha_wdt->wdog_dev;

@@ -16,7 +16,6 @@
 #include <linux/irqreturn.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

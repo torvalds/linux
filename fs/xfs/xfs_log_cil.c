@@ -1710,7 +1710,7 @@ xlog_cil_push_background(
 static void
 xlog_cil_push_now(
 	struct xlog	*log,
-	xfs_lsn_t	push_seq,
+	xfs_csn_t	push_seq,
 	bool		async)
 {
 	struct xfs_cil	*cil = log->l_cilp;

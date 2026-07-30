@@ -1026,8 +1026,23 @@ rpc_free_auth(struct rpc_clnt *clnt)
 	return NULL;
 }
 
-/*
- * Release reference to the RPC client
+/**
+ * rpc_hold_client - acquire a reference on an rpc_clnt
+ * @clnt: rpc_clnt to pin
+ *
+ * Pairs with rpc_release_client().
+ */
+void rpc_hold_client(struct rpc_clnt *clnt)
+{
+	refcount_inc(&clnt->cl_count);
+}
+
+/**
+ * rpc_release_client - release a reference on an rpc_clnt
+ * @clnt: rpc_clnt to release
+ *
+ * Pairs with rpc_hold_client(). The rpc_clnt's resources are
+ * freed once its reference count drops to zero.
  */
 void
 rpc_release_client(struct rpc_clnt *clnt)

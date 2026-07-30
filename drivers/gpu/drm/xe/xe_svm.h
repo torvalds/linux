@@ -394,8 +394,19 @@ static inline struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_inst
 #define xe_svm_assert_in_notifier(vm__) \
 	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
 
-#define xe_svm_assert_held_read(vm__) \
+/*
+ * Assert the svm notifier_lock is held. Read mode by default; write mode
+ * when CONFIG_DRM_XE_USERPTR_INVAL_INJECT is on, because that path forces
+ * a userptr invalidation that ends in drm_gpusvm_unmap_pages() with
+ * ctx->in_notifier=true, which requires the lock held for write.
+ */
+#if IS_ENABLED(CONFIG_DRM_XE_USERPTR_INVAL_INJECT)
+#define xe_svm_assert_held_read_or_inject_write(vm__) \
+	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
+#else
+#define xe_svm_assert_held_read_or_inject_write(vm__) \
 	lockdep_assert_held_read(&(vm__)->svm.gpusvm.notifier_lock)
+#endif
 
 #define xe_svm_notifier_lock(vm__)	\
 	drm_gpusvm_notifier_lock(&(vm__)->svm.gpusvm)
@@ -409,7 +420,7 @@ static inline struct drm_pagemap *xe_drm_pagemap_from_fd(int fd, u32 region_inst
 #else
 #define xe_svm_assert_in_notifier(...) do {} while (0)
 
-static inline void xe_svm_assert_held_read(struct xe_vm *vm)
+static inline void xe_svm_assert_held_read_or_inject_write(struct xe_vm *vm)
 {
 }
 
