@@ -17,6 +17,7 @@
 
 static const struct v4l2_isp_stats_block_type_info
 rppx1_stats_blocks_info[] = {
+	RPPX1_STATS_BLOCK_INFO(HIST_POST, hist),
 	RPPX1_STATS_BLOCK_INFO(EXM_PRE1, exm),
 	RPPX1_STATS_BLOCK_INFO(WBMEAS_POST, wbmeas),
 };
@@ -34,6 +35,15 @@ void rppx1_stats_fill_isr(struct rppx1 *rpp, u32 isc, void *buf)
 	union rppx1_stats_block *block;
 
 	v4l2_isp_stats_init_buffer(stats, V4L2_ISP_VERSION_V1);
+
+	if (isc & RPPX1_IRQ_ID_POST_HIST_MEAS) {
+		block = rppx1_init_stats_block(rpp, stats,
+					       RPPX1_STATS_BLOCK_TYPE_HIST_POST);
+		if (IS_ERR(block))
+			return;
+
+		rpp_module_call(&rpp->post.hist, fill_stats, block);
+	}
 
 	if (isc & RPPX1_IRQ_ID_PRE1_EXM) {
 		block = rppx1_init_stats_block(rpp, stats,

@@ -82,6 +82,9 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST: MAIN_POST White Balance Gains
  * @RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1: PRE1 pipe Exposure Measurement
  * @RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2: PRE2 pipe Exposure Measurement
+ * @RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1: PRE1 pipe Histogram Measurement
+ * @RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2: PRE2 pipe Histogram Measurement
+ * @RPPX1_PARAMS_BLOCK_TYPE_HIST_POST: POST pipe Histogram Measurement
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -90,6 +93,9 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_AWBG_POST,
 	RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_EXM_PRE2,
+	RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2,
+	RPPX1_PARAMS_BLOCK_TYPE_HIST_POST,
 };
 
 /**
@@ -243,6 +249,87 @@ struct rppx1_exm_params {
 	__u8 reserved[3];
 };
 
+/* Histogram */
+#define RPPX1_HIST_WEIGHT_GRIDS_SIZE 25
+
+/**
+ * enum rppx1_hist_mode - Histogram measurement mode
+ *
+ * Histogram measurement mode. Select which channel or combination of channels
+ * the histogram measurement is performed on.
+ *
+ * @RPPX1_HIST_MODE_DISABLE: histogram disabled
+ * @RPPX1_HIST_MODE_RGB_COMBINED: combined RGB histogram
+ * @RPPX1_HIST_MODE_R_HISTOGRAM: red channel histogram
+ * @RPPX1_HIST_MODE_GR_HISTOGRAM: green/red channel histogram
+ * @RPPX1_HIST_MODE_B_HISTOGRAM: blue channel histogram
+ * @RPPX1_HIST_MODE_GB_HISTOGRAM: green/blue histogram
+ */
+enum rppx1_hist_mode {
+	RPPX1_HIST_MODE_DISABLE,
+	RPPX1_HIST_MODE_RGB_COMBINED,
+	RPPX1_HIST_MODE_R_HISTOGRAM,
+	RPPX1_HIST_MODE_GR_HISTOGRAM,
+	RPPX1_HIST_MODE_B_HISTOGRAM,
+	RPPX1_HIST_MODE_GB_HISTOGRAM,
+};
+
+/**
+ * struct rppx1_hist_params - Histogram measurement configuration
+ *
+ * The RPP-X1 Histogram measurement unit is available on the PRE1, PRE2 and
+ * MAIN_POST pipes. Userspace selects which pipe to operate by setting the
+ * @header.type field to RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1,
+ * RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2 or
+ * RPPX1_PARAMS_BLOCK_TYPE_HIST_POST.
+ *
+ * The histogram measurement point is selected using the @channel field while
+ * histogram measurement mode is selected using the @mode field.
+ *
+ * Histogram measurement is performed by programming subsampling factors using
+ * the @v_stepsize and @h_step_inc fields and by weighted windowing, by
+ * programming the size of the measurement window @wnd with @weights associated
+ * to each cell of the 5x5 measurement grid. Weights are represented as 5 bits
+ * integer values ranging from 0 to 16.
+ *
+ * The @last_line fields controls when the histogram measurement completes. It
+ * is usually programmed to the value of (@wnd.v_offs + @wnd.v_size - 1).
+ *
+ * Histogram values are calculated by applying a per-color channel coefficient
+ * represented as an 8 bits unsigned Q1.7 integer value. The @sample_offs and
+ * @sample_shift fields allow to reduce the color dynamic range on which
+ * histogram data are produced.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE1,
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_HIST_PRE2 or
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_HIST_POST)
+ * @wnd: measurement window coordinates
+ * @last_line: line number for which the histogram measurement completes
+ * @v_stepsize: vertical subsampling divider, 7 bits
+ * @h_step_inc: horizontal subsampling step counter, 17 bits
+ * @sample_offs: sample offset, 24 bits
+ * @mode: histogram measurement mode (from enum rppx1_hist_mode)
+ * @channel_sel: histogram measurement point (see enum rppx1_meas_chan)
+ * @weights: weighting factors for each sub-window (5x5 grid)
+ * @coeff: R-G-B coefficients, 8 bits unsigned Q1.7
+ * @sample_shift: sample shift, 4 bits
+ * @reserved: padding
+ */
+struct rppx1_hist_params {
+	struct v4l2_isp_params_block_header header;
+	struct rppx1_window wnd;
+	__u32 last_line;
+	__u32 v_stepsize;
+	__u32 h_step_inc;
+	__u32 sample_offs;
+	__u8 mode;
+	__u8 channel_sel;
+	__u8 weights[RPPX1_HIST_WEIGHT_GRIDS_SIZE];
+	__u8 coeff[3];
+	__u8 sample_shift;
+	__u8 reserved;
+};
+
 /**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
@@ -255,7 +342,10 @@ struct rppx1_exm_params {
 	sizeof(struct rppx1_awbg_params)			+	\
 	sizeof(struct rppx1_awbg_params)			+	\
 	sizeof(struct rppx1_exm_params)				+	\
-	sizeof(struct rppx1_exm_params))
+	sizeof(struct rppx1_exm_params)				+	\
+	sizeof(struct rppx1_hist_params)			+	\
+	sizeof(struct rppx1_hist_params)			+	\
+	sizeof(struct rppx1_hist_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
@@ -274,11 +364,17 @@ struct rppx1_exm_params {
  * @RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST: post-fusion white-balance measurement
  * @RPPX1_STATS_BLOCK_TYPE_EXM_PRE1: pre-fusion pipe1 exposure measurement
  * @RPPX1_STATS_BLOCK_TYPE_EXM_PRE2: pre-fusion pipe2 exposure measurement
+ * @RPPX1_STATS_BLOCK_TYPE_HIST_PRE1: pre-fusion pipe1 histogram
+ * @RPPX1_STATS_BLOCK_TYPE_HIST_PRE2: pre-fusion pipe2 histogram
+ * @RPPX1_STATS_BLOCK_TYPE_HIST_POST: post-fusion histogram
  */
 enum rppx1_stats_block_type {
 	RPPX1_STATS_BLOCK_TYPE_WBMEAS_POST,
 	RPPX1_STATS_BLOCK_TYPE_EXM_PRE1,
 	RPPX1_STATS_BLOCK_TYPE_EXM_PRE2,
+	RPPX1_STATS_BLOCK_TYPE_HIST_PRE1,
+	RPPX1_STATS_BLOCK_TYPE_HIST_PRE2,
+	RPPX1_STATS_BLOCK_TYPE_HIST_POST,
 };
 
 /**
@@ -317,6 +413,20 @@ struct rppx1_exm_stats {
 	__u32 reserved;
 };
 
+/* Histogram */
+#define RPPX1_HIST_NUM_BINS 32
+
+/**
+ * struct rppx1_hist_stats - Histogram statistics
+ *
+ * @header: block header (type = RPPX1_STATS_BLOCK_TYPE_HIST_POST)
+ * @hist_bins: accumulation histogram results in unsigned 20-bit Q16.4 format
+ */
+struct rppx1_hist_stats {
+	struct v4l2_isp_block_header header;
+	__u32 hist_bins[RPPX1_HIST_NUM_BINS];
+};
+
 /**
  * RPPX1_STATS_MAX_SIZE - Maximum size of all RPP-X1 statistics
  *
@@ -326,6 +436,9 @@ struct rppx1_exm_stats {
 #define RPPX1_STATS_MAX_SIZE						\
 	(sizeof(struct rppx1_wbmeas_stats)			+	\
 	sizeof(struct rppx1_exm_stats)				+	\
-	sizeof(struct rppx1_exm_stats))
+	sizeof(struct rppx1_exm_stats)				+	\
+	sizeof(struct rppx1_hist_stats)				+	\
+	sizeof(struct rppx1_hist_stats)				+	\
+	sizeof(struct rppx1_hist_stats))
 
 #endif /* __UAPI_RPP_X1_CONFIG_H */
