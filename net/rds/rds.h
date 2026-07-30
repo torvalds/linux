@@ -320,7 +320,10 @@ struct rds_mr {
 	unsigned int		r_invalidate:1;
 	unsigned int		r_write:1;
 
-	struct rds_sock		*r_sock; /* back pointer to the socket that owns us */
+	struct rds_sock		*r_sock; /* socket that owns us; counted
+					  * reference, dropped by
+					  * __rds_put_mr_final()
+					  */
 	struct rds_transport	*r_trans;
 	void			*r_trans_private;
 };
