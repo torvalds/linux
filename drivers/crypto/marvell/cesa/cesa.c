@@ -544,6 +544,8 @@ static void mv_cesa_remove(struct platform_device *pdev)
 	struct mv_cesa_dev *cesa = platform_get_drvdata(pdev);
 
 	mv_cesa_remove_algs(cesa);
+
+	cesa_dev = NULL;
 }
 
 static const struct platform_device_id mv_cesa_plat_id_table[] = {
