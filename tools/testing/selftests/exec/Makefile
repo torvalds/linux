@@ -25,6 +25,10 @@ TEST_GEN_PROGS += check-exec
 # or an 'F' entry can pin the instance that owns it. Unprivileged, no bpf.
 TEST_GEN_PROGS += binfmt_misc_selfpin
 
+# 'D' (register disabled) binfmt_misc test: an entry that exists but does
+# not dispatch until it is enabled. Static magic entry, no bpf toolchain.
+TEST_GEN_PROGS += binfmt_misc_disabled
+
 # Static ('T' flag) transparent binfmt_misc test; the asserting interpreter
 # is shared with the bpf harness's transparent case. No bpf toolchain needed.
 TEST_GEN_PROGS += binfmt_misc_transparent
