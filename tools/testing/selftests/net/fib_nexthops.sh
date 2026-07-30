@@ -30,6 +30,7 @@ IPV4_TESTS="
 	ipv4_large_res_grp
 	ipv4_compat_mode
 	ipv4_fdb_grp_fcnal
+	ipv4_fdb_port_fcnal
 	ipv4_mpath_select
 	ipv4_torture
 	ipv4_res_torture
@@ -44,6 +45,7 @@ IPV6_TESTS="
 	ipv6_large_res_grp
 	ipv6_compat_mode
 	ipv6_fdb_grp_fcnal
+	ipv6_fdb_port_fcnal
 	ipv6_mpath_select
 	ipv6_torture
 	ipv6_res_torture
@@ -432,6 +434,15 @@ check_nexthop_fdb_support()
 	fi
 }
 
+check_nexthop_fdb_port_support()
+{
+	$IP nexthop help 2>&1 | grep -q "dst_port"
+	if [ $? -ne 0 ]; then
+		echo "SKIP: iproute2 too old, missing nexthop dst_port support"
+		return $ksft_skip
+	fi
+}
+
 check_nexthop_res_support()
 {
 	$IP nexthop help 2>&1 | grep -q resilient
@@ -541,6 +552,42 @@ ipv6_fdb_grp_fcnal()
 	$IP link del dev vx10
 }
 
+ipv6_fdb_port_fcnal()
+{
+	echo
+	echo "IPv6 fdb nexthop dst_port functional"
+	echo "------------------------------------"
+
+	check_nexthop_fdb_port_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	# NHA_DST_PORT: optional per-nexthop VXLAN destination UDP port,
+	# letting an fdb nexthop group balance a flow across legs that share
+	# an underlay IP but listen on different UDP ports.
+	run_cmd "$IP nexthop add id 80 via 2001:db8:91::2 fdb dst_port 4790"
+	check_nexthop "id 80" \
+		"id 80 via 2001:db8:91::2 scope link fdb dst_port 4790"
+	log_test $? 0 "Fdb nexthop with dst_port"
+
+	run_cmd "$IP nexthop add id 81 fdb dst_port 4790"
+	log_test $? 2 "Fdb nexthop with dst_port but no gateway"
+
+	run_cmd "$IP nexthop add id 81 via 2001:db8:91::2 fdb dst_port 0"
+	log_test $? 2 "Fdb nexthop with dst_port 0"
+
+	run_cmd "$IP nexthop add id 82 via 2001:db8:91::2 fdb dst_port 4789"
+	run_cmd "$IP nexthop add id 83 via 2001:db8:91::3 fdb dst_port 5789"
+	run_cmd "$IP nexthop add id 106 group 82/83 fdb"
+	check_nexthop "id 106" "id 106 group 82/83 fdb"
+	log_test $? 0 "Fdb nexthop group with legs differing in dst_port"
+
+	run_cmd "$IP nexthop add id 84 via 2001:db8:91::2 fdb"
+	check_nexthop "id 84" "id 84 via 2001:db8:91::2 scope link fdb"
+	log_test $? 0 "Fdb nexthop without dst_port omits dst_port"
+}
+
 ipv4_fdb_grp_fcnal()
 {
 	local rc
@@ -639,6 +686,42 @@ ipv4_fdb_grp_fcnal()
 	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
+}
+
+ipv4_fdb_port_fcnal()
+{
+	echo
+	echo "IPv4 fdb nexthop dst_port functional"
+	echo "------------------------------------"
+
+	check_nexthop_fdb_port_support
+	if [ $? -eq $ksft_skip ]; then
+		return $ksft_skip
+	fi
+
+	# NHA_DST_PORT: optional per-nexthop VXLAN destination UDP port,
+	# letting an fdb nexthop group balance a flow across legs that share
+	# an underlay IP but listen on different UDP ports.
+	run_cmd "$IP nexthop add id 30 via 172.16.1.2 fdb dst_port 4790"
+	check_nexthop "id 30" \
+		"id 30 via 172.16.1.2 scope link fdb dst_port 4790"
+	log_test $? 0 "Fdb nexthop with dst_port"
+
+	run_cmd "$IP nexthop add id 31 fdb dst_port 4790"
+	log_test $? 2 "Fdb nexthop with dst_port but no gateway"
+
+	run_cmd "$IP nexthop add id 31 via 172.16.1.2 fdb dst_port 0"
+	log_test $? 2 "Fdb nexthop with dst_port 0"
+
+	run_cmd "$IP nexthop add id 32 via 172.16.1.2 fdb dst_port 4789"
+	run_cmd "$IP nexthop add id 33 via 172.16.1.3 fdb dst_port 5789"
+	run_cmd "$IP nexthop add id 105 group 32/33 fdb"
+	check_nexthop "id 105" "id 105 group 32/33 fdb"
+	log_test $? 0 "Fdb nexthop group with legs differing in dst_port"
+
+	run_cmd "$IP nexthop add id 34 via 172.16.1.2 fdb"
+	check_nexthop "id 34" "id 34 via 172.16.1.2 scope link fdb"
+	log_test $? 0 "Fdb nexthop without dst_port omits dst_port"
 }
 
 ipv4_mpath_select()
