@@ -42,7 +42,8 @@
 
 #define GET_BITFIELD(v, lo, hi) (((v) & GENMASK_ULL(hi, lo)) >> (lo))
 
-#define NUM_IMC				2 /* Max memory controllers */
+/* Probing upper bound, not a hardware capability limit. */
+#define MAX_IMC_TO_PROBE		8
 #define NUM_CHANNELS			2 /* Max channels */
 #define NUM_DIMMS			2 /* Max DIMMs per channel */
 
@@ -182,11 +183,11 @@ static struct res_config {
 } *res_cfg;
 
 static struct igen6_pvt {
-	struct igen6_imc imc[NUM_IMC];
 	void __iomem *memss_pma_cr;
 	u64 ms_hash;
 	u64 ms_s_size;
 	int ms_l_map;
+	struct igen6_imc imc[];
 } *igen6_pvt;
 
 /* The top of low usable DRAM */
@@ -351,6 +352,46 @@ static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
 	edac_dbg(2, "MCHBAR 0x%llx (reg 0x%llx)\n", *mchbar, u.v);
 
 	return 0;
+}
+
+/* Check whether the memory controller is absent. */
+static bool imc_absent(void __iomem *window)
+{
+	return readl(window + MAD_INTER_CHANNEL_OFFSET) == ~0;
+}
+
+/* Return MMIO base address of the memory controller if it's present, otherwise return NULL. */
+static void __iomem *map_imc_window(u64 mchbar, int pmc)
+{
+	void __iomem *window;
+
+	window = ioremap(mchbar + pmc * MCHBAR_SIZE, MCHBAR_SIZE);
+	if (!window)
+		return NULL;
+
+	if (imc_absent(window)) {
+		iounmap(window);
+		return NULL;
+	}
+
+	return window;
+}
+
+/* Return the number of present memory controllers. */
+static int get_imc_num(u64 mchbar)
+{
+	void __iomem *window;
+	int lmc, pmc;
+
+	for (lmc = 0, pmc = 0; pmc < MAX_IMC_TO_PROBE; pmc++) {
+		window = map_imc_window(mchbar, pmc);
+		if (window) {
+			iounmap(window);
+			lmc++;
+		}
+	}
+
+	return lmc;
 }
 
 static bool ehl_ibecc_available(struct pci_dev *pdev)
@@ -1457,18 +1498,27 @@ static struct igen6_pvt *igen6_pvt_setup(struct pci_dev *pdev)
 {
 	void __iomem *memss_pma_cr;
 	struct igen6_pvt *pvt;
+	int imc_num, rc;
 	u64 mchbar;
-	int rc;
-
-	pvt = kzalloc_obj(*igen6_pvt);
-	if (!pvt)
-		return NULL;
 
 	rc = get_mchbar(pdev, &mchbar);
-	if (rc) {
-		kfree(pvt);
+	if (rc)
+		return NULL;
+
+	imc_num = get_imc_num(mchbar);
+	if (!imc_num) {
+		igen6_printk(KERN_ERR, "No mc found.\n");
 		return NULL;
 	}
+	edac_dbg(2, "%d mcs found.\n", imc_num);
+
+	/* Use the runtime detected IMC count. */
+	if (res_cfg->num_imc != imc_num)
+		res_cfg->num_imc = imc_num;
+
+	pvt = kzalloc_flex(*pvt, imc, imc_num);
+	if (!pvt)
+		return NULL;
 
 	memss_pma_cr = ioremap(mchbar, MCHBAR_SIZE * 2);
 	if (!memss_pma_cr) {
@@ -1551,12 +1601,6 @@ static void igen6_check(struct mem_ctl_info *mci)
 
 	if (!ecclog_gen_pool_add(imc->mc, ecclog))
 		irq_work_queue(&ecclog_irq_work);
-}
-
-/* Check whether the memory controller is absent. */
-static bool igen6_imc_absent(void __iomem *window)
-{
-	return readl(window + MAD_INTER_CHANNEL_OFFSET) == ~0;
 }
 
 static void imc_release(struct device *dev)
@@ -1670,26 +1714,15 @@ static int igen6_register_mcis(struct pci_dev *pdev, u64 mchbar)
 {
 	void __iomem *window;
 	int lmc, pmc, rc;
-	u64 base;
 
-	for (lmc = 0, pmc = 0; pmc < NUM_IMC; pmc++) {
-		base   = mchbar + pmc * MCHBAR_SIZE;
-		window = ioremap(base, MCHBAR_SIZE);
-		if (!window) {
-			igen6_printk(KERN_ERR, "Failed to ioremap 0x%llx for mc%d\n", base, pmc);
-			rc = -ENOMEM;
-			goto out_unregister_mcis;
-		}
-
-		if (igen6_imc_absent(window)) {
-			iounmap(window);
-			edac_dbg(2, "Skip absent mc%d\n", pmc);
+	for (lmc = 0, pmc = 0; pmc < MAX_IMC_TO_PROBE; pmc++) {
+		window = map_imc_window(mchbar, pmc);
+		if (!window)
 			continue;
-		}
 
 		rc = igen6_register_mci(lmc, window, pdev);
 		if (rc)
-			goto out_iounmap;
+			goto err_unregister;
 
 		/* Done, if all present MCs are detected and registered. */
 		if (++lmc >= res_cfg->num_imc)
@@ -1709,10 +1742,8 @@ static int igen6_register_mcis(struct pci_dev *pdev, u64 mchbar)
 
 	return 0;
 
-out_iounmap:
+err_unregister:
 	iounmap(window);
-
-out_unregister_mcis:
 	igen6_unregister_mcis();
 
 	return rc;
