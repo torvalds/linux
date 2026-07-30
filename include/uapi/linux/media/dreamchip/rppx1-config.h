@@ -92,6 +92,8 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2: PRE2 pipe Lens Shading Correction
  * @RPPX1_PARAMS_BLOCK_TYPE_GA_HV: Human Vision Pipe Gamma Out Correction
  * @RPPX1_PARAMS_BLOCK_TYPE_GA_MV: Machine Vision Gamma Out Correction
+ * @RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE1: PRE1 pipe Linearization (Sensor De-gamma)
+ * @RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE2: PRE2 pipe Linearization (Sensor De-gamma)
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -110,6 +112,8 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2,
 	RPPX1_PARAMS_BLOCK_TYPE_GA_HV,
 	RPPX1_PARAMS_BLOCK_TYPE_GA_MV,
+	RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE1,
+	RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE2,
 };
 
 /**
@@ -561,6 +565,48 @@ struct rppx1_ga_params {
 	__u8 reserved[3];
 };
 
+/* Linearization (Sensor De-gamma) */
+#define RPPX1_LIN_SAMPLE_POINTS_NUM 16
+#define RPPX1_LIN_DEGAMMA_CURVE_NUM 17
+
+/**
+ * struct rppx1_lin_params - Linearization (Sensor De-gamma) configuration
+ *
+ * The RPP-X1 linearization module is available on the PRE1 and PRE2 pre-fusion
+ * pipes. Userspace selects which pipe to operate by setting the @header.type
+ * field to RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE1 or
+ * RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE2.
+ *
+ * The LIN module applies the per-color channel de-gamma linearization curves
+ * @curve_r, @curve_g and @curve_b defined on the input sampling points @dx.
+ *
+ * For the PRE1 pipe the de-gamma curves values are 24-bits, for the PRE2 pipe
+ * the de-gamma curve values are 12-bits.
+ *
+ * For the PRE1 pipe de-gamma module sampling points @dx values are in the range
+ * [0, 15] (4 bits). For the PRE2 pipe de-gamma module sampling points values
+ * are in the range [0, 7] (3 bits).
+ *
+ * Userspace is expected to provide the curve values and sampling points with a
+ * bit-depth matching the one of pipe in use.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE1 or
+ *	    RPPX1_PARAMS_BLOCK_TYPE_LIN_PRE2)
+ * @curve_r: de-gamma linearization curve for red channel
+ * @curve_g: de-gamma linearization curve for green channel
+ * @curve_b: de-gamma linearization curve for blue channel
+ * @dx: input sampling points
+ * @reserved: padding
+ */
+struct rppx1_lin_params {
+	struct v4l2_isp_params_block_header header;
+	__u32 curve_r[RPPX1_LIN_DEGAMMA_CURVE_NUM];
+	__u32 curve_g[RPPX1_LIN_DEGAMMA_CURVE_NUM];
+	__u32 curve_b[RPPX1_LIN_DEGAMMA_CURVE_NUM];
+	__u8 dx[RPPX1_LIN_SAMPLE_POINTS_NUM];
+	__u32 reserved;
+};
+
 /**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
@@ -583,7 +629,9 @@ struct rppx1_ga_params {
 	sizeof(struct rppx1_lsc_params)				+	\
 	sizeof(struct rppx1_lsc_params)				+	\
 	sizeof(struct rppx1_ga_params)				+	\
-	sizeof(struct rppx1_ga_params))
+	sizeof(struct rppx1_ga_params)				+	\
+	sizeof(struct rppx1_lin_params)				+	\
+	sizeof(struct rppx1_lin_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures
