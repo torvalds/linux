@@ -149,7 +149,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
  * @curve:		elliptic curve domain parameters
  * @pk:			public key as a point
  *
- * Valdiate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
+ * Validate public key according to SP800-56A section 5.6.2.3.4 ECC Partial
  * Public-Key Validation Routine.
  *
  * Note: There is no check that the public key is in the correct elliptic curve
@@ -166,7 +166,7 @@ int ecc_is_pubkey_valid_partial(const struct ecc_curve *curve,
  * @curve:		elliptic curve domain parameters
  * @pk:			public key as a point
  *
- * Valdiate public key according to SP800-56A section 5.6.2.3.3 ECC Full
+ * Validate public key according to SP800-56A section 5.6.2.3.3 ECC Full
  * Public-Key Validation Routine.
  *
  * Return: 0 if validation is successful, -EINVAL if validation is failed.
