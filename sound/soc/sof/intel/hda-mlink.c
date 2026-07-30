@@ -894,6 +894,24 @@ void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_NS(hda_bus_ml_reset_losidv, "SND_SOC_SOF_HDA_MLINK");
 
+enum hda_bus_ml_link_type hda_bus_ml_link_get_type(struct hdac_ext_link *hlink)
+{
+	struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
+
+	if (!h2link->alt)
+		return HDA_BUS_ML_LINK_HDA;
+
+	switch (h2link->elid) {
+	case AZX_REG_ML_LEPTR_ID_SDW:
+		return HDA_BUS_ML_LINK_SDW;
+	case AZX_REG_ML_LEPTR_ID_INTEL_UAOL:
+		return HDA_BUS_ML_LINK_UAOL;
+	default:
+		return HDA_BUS_ML_LINK_OTHER;
+	}
+}
+EXPORT_SYMBOL_NS(hda_bus_ml_link_get_type, "SND_SOC_SOF_HDA_MLINK");
+
 int hda_bus_ml_resume(struct hdac_bus *bus)
 {
 	struct hdac_ext_link *hlink;
