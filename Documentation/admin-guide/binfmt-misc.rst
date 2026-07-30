@@ -107,6 +107,15 @@ Here is what the fields mean:
             ``PT_INTERP``. See the "Loader substitution" section
             below. ``L`` rejects ``T``, ``P``, ``O`` and ``C``;
             ``F`` composes.
+      ``D`` - registered disabled
+            The entry is created disabled instead of being matchable at
+            once, and has to be enabled by writing ``1`` to its file
+            before it dispatches anything. This splits a registration
+            into creating the entry and activating it, leaving room to
+            configure it in between - which is what a ``B`` entry that
+            binds interpreters needs; see the bpf section below. The flag
+            is spent on the registration and is not read back: what an
+            entry file reports afterwards is whether it is enabled.
 
 
 There are some restrictions:
@@ -224,8 +233,10 @@ handler can decide them differently for each binary it handles:
   ``PT_INTERP`` and runs the binary as a fully native exec (the ``L``
   flag). It excludes the other flags and a staged interpreter argument.
 
-Because these are program choices, a ``B`` entry carries no flags in the
-register string; ``F`` (pre-open a fixed interpreter) has no meaning for it.
+Because these are program choices, a ``B`` entry carries no invocation
+flags in the register string; ``F`` (pre-open a fixed interpreter) has no
+meaning for it. The registration directive ``D`` is the exception: it
+decides how the entry starts out, not how the interpreter is invoked.
 
 A handler is looked up only in the user namespace the struct_ops map was
 registered in. Handlers are not inherited, so an entry can only reference a
