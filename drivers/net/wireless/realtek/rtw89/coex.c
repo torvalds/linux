@@ -7973,6 +7973,8 @@ static void _update_bt_link_cnt(struct rtw89_dev *rtwdev,
 	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
 	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
 	struct rtw89_btc_bt_pan_desc *pan = &b->pan_desc;
+	u8 bt_rf_band = b56g ? BTC_BT_B5G : BTC_BT_B2G;
+	u8 val;
 
 	b->link_cnt.last = b->link_cnt.now;
 	b->link_cnt.now = 0;
@@ -7984,6 +7986,27 @@ static void _update_bt_link_cnt(struct rtw89_dev *rtwdev,
 	b->link_cnt.now += pan->exist;
 	b->link_cnt.now += leaudio->bis_exist;
 	b->link_cnt.now += leaudio->cis_exist;
+
+	if (leaudio->bis_exist || a2dp->sink) {
+		val = 70;
+	} else if (a2dp->exist) {
+		val = 40;
+		if (a2dp->vendor_id == 0x4c)
+			val += 10;
+		if (hid->exist)
+			val += 10;
+	} else if (pan->exist || pan->active || a2dp->active ||
+		   b->status.map.inq_pag) {
+		val = 30;
+	} else if (b->link_cnt.now == 0) {
+		val = 5;
+	} else {
+		val = 9;
+	}
+	bt->link_weight[bt_rf_band] = val;
+
+	if (b->link_cnt.last != b->link_cnt.now)
+		b->link_cnt.chg = 1;
 }
 
 static void _update_bt_leaudio_info(struct rtw89_dev *rtwdev, u8 bid,
@@ -9012,8 +9035,6 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 		    "[BTC], %s(): bt_info[2]=0x%02x\n",
 		    __func__, bt->raw_info[2]);
 
-	b->link_cnt.last = b->link_cnt.now;
-	b->link_cnt.now = 0;
 	hid->type = 0;
 
 	/* parse raw info low-Byte2 */
@@ -9026,13 +9047,10 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	bt->bcnt[BTC_BCNT_INQPAG] += !!(bt->inq_pag.now && !bt->inq_pag.last);
 
 	hfp->exist = btinfo.lb2.hfp;
-	b->link_cnt.now += (u8)hfp->exist;
 	hid->exist = btinfo.lb2.hid;
-	b->link_cnt.now += (u8)hid->exist;
 	a2dp->exist = btinfo.lb2.a2dp;
-	b->link_cnt.now += (u8)a2dp->exist;
 	pan->exist = btinfo.lb2.pan;
-	b->link_cnt.now += (u8)pan->exist;
+	_update_bt_link_cnt(rtwdev, bt, 0);
 	btc->dm.trx_info.bt_profile = u32_get_bits(btinfo.val, BT_PROFILE_PROTOCOL_MASK);
 
 	/* parse raw info low-Byte3 */
