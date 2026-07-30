@@ -206,13 +206,54 @@ static int __pdsc_devcmd_locked(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 	else
 		memcpy_fromio(comp, &pdsc->cmd_regs->comp, sizeof(*comp));
 
+	if (err != -ETIMEDOUT && err != -EAGAIN)
+		pdsc_deferred_dma_free(pdsc);
+
 	return err;
+}
+
+void pdsc_deferred_dma_add(struct pdsc *pdsc, struct pdsc_deferred_dma *entry,
+			   dma_addr_t dma_addr, void *va, size_t size,
+			   enum dma_data_direction dir)
+{
+	entry->dma_addr = dma_addr;
+	entry->va = va;
+	entry->size = size;
+	entry->dir = dir;
+
+	spin_lock(&pdsc->deferred_dma_lock);
+	list_add_tail(&entry->list, &pdsc->deferred_dma_list);
+	spin_unlock(&pdsc->deferred_dma_lock);
+}
+
+void pdsc_deferred_dma_free(struct pdsc *pdsc)
+{
+	struct pdsc_deferred_dma *entry, *tmp;
+	LIST_HEAD(local_list);
+
+	spin_lock(&pdsc->deferred_dma_lock);
+	list_splice_init(&pdsc->deferred_dma_list, &local_list);
+	spin_unlock(&pdsc->deferred_dma_lock);
+
+	list_for_each_entry_safe(entry, tmp, &local_list, list) {
+		dma_unmap_single(pdsc->dev, entry->dma_addr,
+				 entry->size, entry->dir);
+		kfree(entry->va);
+		list_del(&entry->list);
+		kfree(entry);
+	}
 }
 
 int pdsc_devcmd_locked(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 		       union pds_core_dev_comp *comp, int max_seconds)
 {
 	return __pdsc_devcmd_locked(pdsc, cmd, comp, max_seconds, true);
+}
+
+int pdsc_devcmd_locked_nomsg(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
+			     union pds_core_dev_comp *comp, int max_seconds)
+{
+	return __pdsc_devcmd_locked(pdsc, cmd, comp, max_seconds, false);
 }
 
 int pdsc_devcmd(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
@@ -225,6 +266,47 @@ int pdsc_devcmd(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 	mutex_unlock(&pdsc->devcmd_lock);
 
 	return err;
+}
+
+static int __pdsc_devcmd_with_data(struct pdsc *pdsc,
+				   union pds_core_dev_cmd *cmd,
+				   const void *data, size_t data_len,
+				   union pds_core_dev_comp *comp,
+				   int max_seconds, bool do_msg)
+{
+	int err;
+
+	mutex_lock(&pdsc->devcmd_lock);
+	if (!pdsc->cmd_regs) {
+		err = -ENXIO;
+		goto unlock;
+	}
+	if (data_len > sizeof(pdsc->cmd_regs->data)) {
+		err = -ENOSPC;
+		goto unlock;
+	}
+	memcpy_toio(&pdsc->cmd_regs->data, data, data_len);
+	err = __pdsc_devcmd_locked(pdsc, cmd, comp, max_seconds, do_msg);
+unlock:
+	mutex_unlock(&pdsc->devcmd_lock);
+
+	return err;
+}
+
+int pdsc_devcmd_with_data(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
+			  const void *data, size_t data_len,
+			  union pds_core_dev_comp *comp, int max_seconds)
+{
+	return __pdsc_devcmd_with_data(pdsc, cmd, data, data_len,
+				       comp, max_seconds, true);
+}
+
+int pdsc_devcmd_with_data_nomsg(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
+				const void *data, size_t data_len,
+				union pds_core_dev_comp *comp, int max_seconds)
+{
+	return __pdsc_devcmd_with_data(pdsc, cmd, data, data_len,
+				       comp, max_seconds, false);
 }
 
 int pdsc_devcmd_init(struct pdsc *pdsc)

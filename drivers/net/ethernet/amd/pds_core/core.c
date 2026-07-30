@@ -489,6 +489,15 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 		pdsc_devcmd_reset(pdsc);
 
 	pci_clear_master(pdsc->pdev);
+	if (!pdsc->pdev->is_virtfn) {
+		u16 val;
+
+		/* Flush any in-flight DMA before freeing buffers.
+		 * A config read completion cannot return until all prior
+		 * device-initiated memory writes have completed.
+		 */
+		pci_read_config_word(pdsc->pdev, PCI_VENDOR_ID, &val);
+	}
 
 	pdsc_core_uninit(pdsc);
 

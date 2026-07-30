@@ -90,13 +90,7 @@ int pdsc_dl_flash_update(struct devlink *dl,
 {
 	struct pdsc *pdsc = devlink_priv(dl);
 
-	if (params->component) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Component update not supported by this device");
-		return -EOPNOTSUPP;
-	}
-
-	return pdsc_firmware_update(pdsc, params->fw, extack);
+	return pdsc_firmware_update(pdsc, params, extack);
 }
 
 static char *fw_slotnames[] = {
