@@ -37,6 +37,8 @@
 #include <linux/uaccess.h>
 #include <linux/user_namespace.h>
 
+#include "internal.h"
+
 /* Entry status and match type bit numbers. */
 enum binfmt_misc_entry_bits {
 	MISC_FMT_ENABLED_BIT	= 0,
@@ -52,7 +54,16 @@ enum binfmt_misc_entry_flags {
 	MISC_FMT_OPEN_FILE	= (1U << 28),
 	MISC_FMT_TRANSPARENT	= (1U << 27),
 	MISC_FMT_LOADER		= (1U << 26),
+	MISC_FMT_DISABLED	= (1U << 25),
 };
+
+/* The flags that shape the invocation; a 'B' handler picks those per exec. */
+#define MISC_FMT_INVOCATION_FLAGS (MISC_FMT_PRESERVE_ARGV0 |	\
+				   MISC_FMT_OPEN_BINARY |	\
+				   MISC_FMT_CREDENTIALS |	\
+				   MISC_FMT_OPEN_FILE |		\
+				   MISC_FMT_TRANSPARENT |	\
+				   MISC_FMT_LOADER)
 
 /**
  * struct binfmt_misc_flag - a flag character of the register string
@@ -75,6 +86,7 @@ static const struct binfmt_misc_flag misc_flags[] = {
 	{ 'F', MISC_FMT_OPEN_FILE,	0,			"open interpreter file now"	},
 	{ 'T', MISC_FMT_TRANSPARENT,	MISC_FMT_OPEN_BINARY,	"transparent"			},
 	{ 'L', MISC_FMT_LOADER,		0,			"loader substitution"		},
+	{ 'D', MISC_FMT_DISABLED,	0,			"register disabled"		},
 };
 
 /* Look up a flag character, NULL if @c is not one. */
@@ -175,7 +187,12 @@ search_binfmt_handler(struct binfmt_misc *misc, struct linux_binprm *bprm)
 	/* Walk all the registered handlers. */
 	hlist_for_each_entry_rcu(e, &misc->entries, node,
 				 srcu_read_lock_held(&bm_entries_srcu)) {
-		/* Make sure this one is currently enabled. */
+		/*
+		 * Make sure this one is currently enabled. An entry enters
+		 * the list at most once and only whole: its configuration is
+		 * ordered before the rcu insertion that makes it visible
+		 * here.
+		 */
 		if (!test_bit(MISC_FMT_ENABLED_BIT, &e->flags))
 			continue;
 
@@ -684,7 +701,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 					      size_t count)
 {
 	struct binfmt_misc_entry *e __free(kfree) = NULL;
-	char *buf, *p, *flags;
+	char *buf, *p;
 	char del;
 
 	pr_debug("register: received %zu bytes\n", count);
@@ -780,17 +797,28 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	}
 
 	/* Parse the 'flags' field. */
-	flags = p;
 	p = check_special_flags(p, e);
 
 	/*
 	 * A bpf handler decides the invocation flags per exec with
 	 * bpf_binprm_set_flags() rather than fixing them at registration, and
 	 * 'F' (pre-open a fixed interpreter) is meaningless for it, so a 'B'
-	 * entry's flags field has to be empty.
+	 * entry carries no invocation flags.
 	 */
-	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) && p != flags)
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) &&
+	    (e->flags & MISC_FMT_INVOCATION_FLAGS))
 		return ERR_PTR(-EINVAL);
+
+	/*
+	 * 'D' is a directive for this registration rather than a lasting
+	 * property, so consume it: the entry is created disabled and stays
+	 * out of the search list until '1' is written to its entry file.
+	 * The first enable publishes it, for good.
+	 */
+	if (e->flags & MISC_FMT_DISABLED) {
+		e->flags &= ~MISC_FMT_DISABLED;
+		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
+	}
 
 	/* Transparency preserves the whole argv, argv[0] included. */
 	if ((e->flags & MISC_FMT_TRANSPARENT) &&
@@ -851,6 +879,12 @@ static int parse_command(const char __user *buffer, size_t count)
 }
 
 /* generic stuff */
+
+/* The root directory's inode; its lock serializes configuring an instance. */
+static struct inode *bm_root_inode(struct super_block *sb)
+{
+	return d_inode(sb->s_root);
+}
 
 static void bm_seq_hex(struct seq_file *m, const u8 *data, int size)
 {
@@ -992,10 +1026,11 @@ static void remove_binfmt_handler(struct binfmt_misc *misc,
 /* Remove @e unless it was already removed. */
 static void bm_remove_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 {
-	struct inode *root = d_inode(sb->s_root);
+	struct inode *root = bm_root_inode(sb);
 
 	inode_lock_nested(root, I_MUTEX_PARENT);
-	if (!hlist_unhashed(&e->node))
+	/* A staged entry is not hashed; the dentry says if it was removed. */
+	if (!d_unhashed(e->dentry))
 		remove_binfmt_handler(i_binfmt_misc(root), e);
 	inode_unlock(root);
 }
@@ -1004,13 +1039,21 @@ static void bm_remove_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 static void bm_remove_all_entries(struct binfmt_misc *misc,
 				  struct super_block *sb)
 {
-	struct inode *root = d_inode(sb->s_root);
-	struct binfmt_misc_entry *e;
-	struct hlist_node *next;
+	struct inode *root = bm_root_inode(sb);
+	struct dentry *child = NULL;
 
 	inode_lock_nested(root, I_MUTEX_PARENT);
-	hlist_for_each_entry_safe(e, next, &misc->entries, node)
-		remove_binfmt_handler(misc, e);
+	/*
+	 * Walk the directory rather than the search list: a staged entry
+	 * is in the former but not yet in the latter. The control files
+	 * carry no entry and stay.
+	 */
+	while ((child = find_next_child(sb->s_root, child))) {
+		struct binfmt_misc_entry *e = d_inode(child)->i_private;
+
+		if (e)
+			remove_binfmt_handler(misc, e);
+	}
 	inode_unlock(root);
 }
 
@@ -1067,9 +1110,27 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 	case BM_CMD_DISABLE:
 		clear_bit(MISC_FMT_ENABLED_BIT, &e->flags);
 		break;
-	case BM_CMD_ENABLE:
+	case BM_CMD_ENABLE: {
+		struct inode *root = bm_root_inode(inode->i_sb);
+
+		/*
+		 * The first enable publishes a 'D' entry into the search
+		 * list, whole. The lock keeps that ordered against a second
+		 * enable and against removal; a removed entry has nothing
+		 * left to publish.
+		 */
+		inode_lock(root);
 		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
+		if (hlist_unhashed(&e->node) && !d_unhashed(e->dentry)) {
+			struct binfmt_misc *misc = i_binfmt_misc(inode);
+
+			spin_lock(&misc->entries_lock);
+			hlist_add_head_rcu(&e->node, &misc->entries);
+			spin_unlock(&misc->entries_lock);
+		}
+		inode_unlock(root);
 		break;
+	}
 	case BM_CMD_REMOVE:
 		bm_remove_entry(e, inode->i_sb);
 		break;
@@ -1112,10 +1173,13 @@ static int add_entry(struct binfmt_misc_entry *e, struct super_block *sb)
 	inode->i_fop = &bm_entry_operations;
 
 	d_make_persistent(dentry, inode);
-	misc = i_binfmt_misc(inode);
-	spin_lock(&misc->entries_lock);
-	hlist_add_head_rcu(&e->node, &misc->entries);
-	spin_unlock(&misc->entries_lock);
+	/* A 'D' entry stays out of the search list until its first enable. */
+	if (test_bit(MISC_FMT_ENABLED_BIT, &e->flags)) {
+		misc = i_binfmt_misc(inode);
+		spin_lock(&misc->entries_lock);
+		hlist_add_head_rcu(&e->node, &misc->entries);
+		spin_unlock(&misc->entries_lock);
+	}
 	simple_done_creating(dentry);
 	return 0;
 }
