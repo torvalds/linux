@@ -344,13 +344,15 @@ static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 	 * if this is a VHE guest hypervisor returning to its own
 	 * userspace, or the hypervisor performing a local exception
 	 * return. No need to save/restore registers, no need to
-	 * switch S2 MMU. Just do the canonical ERET.
+	 * switch S2 MMU. Just do the canonical ERET unless we are in
+	 * nested context.
 	 *
-	 * Unless the trap has to be forwarded further down the line,
-	 * of course...
+	 * Note that this is made possible because KVM itself never traps
+	 * ERET when running an L2. The consequence is that any ERET trap is
+	 * the result of HCR_EL2 or HFGITR_EL2 programming by L1 for its own
+	 * guest, and the exception must be forwarded to L1.
 	 */
-	if ((__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_NV) ||
-	    (__vcpu_sys_reg(vcpu, HFGITR_EL2) & HFGITR_EL2_ERET))
+	if (is_nested_ctxt(vcpu))
 		return false;
 
 	spsr = read_sysreg_el1(SYS_SPSR);
