@@ -536,12 +536,63 @@ enum sof_ipc4_notification_type {
 	SOF_IPC4_NOTIFY_TYPE_LAST,
 };
 
+enum sof_ipc4_resource_type {
+	SOF_IPC4_MODULE_INSTANCE,
+	SOF_IPC4_PIPELINE,
+	SOF_IPC4_GATEWAY,
+	SOF_IPC4_EDF_TASK,
+	SOF_IPC4_INVALID_RESOURCE_TYPE,
+};
+
+enum sof_ipc4_event_type {
+	/* Underrun detected by the Mixer */
+	SOF_IPC4_MIXER_UNDERRUN_DETECTED = 1,
+	/* Error caught during data processing */
+	SOF_IPC4_PROCESS_DATA_ERROR = 3,
+	/* Underrun detected by gateway. */
+	SOF_IPC4_GATEWAY_UNDERRUN_DETECTED = 6,
+	/* Overrun detected by gateway */
+	SOF_IPC4_GATEWAY_OVERRUN_DETECTED,
+};
+
+/**
+ * struct sof_ipc4_process_data_error_event_data - process data error event payload
+ * @error_code: Error code returned by data processing function
+ */
+struct sof_ipc4_process_data_error_event_data {
+	uint32_t error_code;
+};
+
+/**
+ * struct sof_ipc4_mixer_underrun_event_data - mixer underrun event payload
+ * @eos_flag: Indicates EndOfStream
+ * @data_mixed: Data processed by module (in bytes)
+ * @expected_data_mixed: Expected data to be processed (in bytes)
+ */
+struct sof_ipc4_mixer_underrun_event_data {
+	uint32_t eos_flag;
+	uint32_t data_mixed;
+	uint32_t expected_data_mixed;
+};
+
+/**
+ * union sof_ipc4_resource_event_data - resource event specific payload
+ * @dws: Raw event data payload as six dwords
+ * @process_data_error: SOF_IPC4_PROCESS_DATA_ERROR payload
+ * @mixer_underrun: SOF_IPC4_MIXER_UNDERRUN_DETECTED payload
+ */
+union sof_ipc4_resource_event_data {
+	uint32_t dws[6];
+	struct sof_ipc4_process_data_error_event_data process_data_error;
+	struct sof_ipc4_mixer_underrun_event_data mixer_underrun;
+};
+
 struct sof_ipc4_notify_resource_data {
 	uint32_t resource_type;
 	uint32_t resource_id;
 	uint32_t event_type;
 	uint32_t reserved;
-	uint32_t data[6];
+	union sof_ipc4_resource_event_data data;
 } __packed __aligned(4);
 
 #define SOF_IPC4_DEBUG_DESCRIPTOR_SIZE		12 /* 3 x u32 */
