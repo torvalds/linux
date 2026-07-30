@@ -7878,6 +7878,16 @@ F:	drivers/block/drbd/
 F:	include/linux/drbd*
 F:	lib/lru_cache.c
 
+DREAMCHIP RPPX1 ISP
+M:	Jacopo Mondi <jacopo.mondi+renesas@ideasonboard.com>
+M:	Jai Luthra <jai.luthra+renesas@ideasonboard.com>
+M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/userspace-api/media/v4l/metafmt-rppx1.rst
+F:	drivers/media/platform/dreamchip/rppx1/
+F:	include/uapi/linux/media/dreamchip/rppx1-config.h
+
 DRIVER COMPONENT FRAMEWORK
 L:	dri-devel@lists.freedesktop.org
 F:	drivers/base/component.c
