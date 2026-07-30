@@ -351,6 +351,9 @@ static struct work_struct ecclog_work;
 #define DID_PTL_H_SKU13	0xb02a
 #define DID_PTL_H_SKU14	0xb00a
 
+/* Starfire */
+#define DID_STF_SKU1	0xb02b
+
 /* Wildcat Lake */
 #define DID_WCL_SKU1	0xfd00
 
@@ -885,6 +888,7 @@ static struct res_config mtl_p_cfg = {
 	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
 };
 
+/* Shared by Panther Lake-H and Starfire */
 static struct res_config ptl_h_cfg = {
 	.machine_check			= true,
 	.num_imc			= 2,
@@ -1013,6 +1017,7 @@ static struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_PTL_H_SKU12), .driver_data = (kernel_ulong_t)&ptl_h_cfg },
 	{ PCI_VDEVICE(INTEL, DID_PTL_H_SKU13), .driver_data = (kernel_ulong_t)&ptl_h_cfg },
 	{ PCI_VDEVICE(INTEL, DID_PTL_H_SKU14), .driver_data = (kernel_ulong_t)&ptl_h_cfg },
+	{ PCI_VDEVICE(INTEL, DID_STF_SKU1), .driver_data = (kernel_ulong_t)&ptl_h_cfg },
 	{ PCI_VDEVICE(INTEL, DID_NVL_H_SKU1), .driver_data = (kernel_ulong_t)&nvl_h_cfg },
 	{ PCI_VDEVICE(INTEL, DID_NVL_H_SKU2), .driver_data = (kernel_ulong_t)&nvl_h_cfg },
 	{ PCI_VDEVICE(INTEL, DID_NVL_H_SKU3), .driver_data = (kernel_ulong_t)&nvl_h_cfg },
