@@ -2861,39 +2861,69 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 	if (available_fmt->num_output_formats) {
 		struct sof_ipc4_audio_format *in_fmt;
 		struct sof_ipc4_pin_format *pin_fmt;
-		u32 out_ref_rate, out_ref_channels;
-		int out_ref_valid_bits, out_ref_type;
+		u32 ref_rate, ref_channels;
+		int ref_valid_bits, ref_type;
 
 		if (available_fmt->num_input_formats) {
+			/*
+			 * The process module can change parameters and their operation
+			 * depends on the direction:
+			 * Playback: typically they have single output format. This is
+			 *	     to 'force' the conversion from input to output.
+			 *	     Use the input format as reference since the single
+			 *	     format is going to be picked.
+			 * Capture: typically they have multiple output formats to
+			 *	    convert from dai (input) to FE (output) parameters.
+			 *          Use the input format as base and replace the param
+			 *	    which is changed by the module with the FE parameter
+			 *	    Reason: we can have module which changes the
+			 *	            parameters in path, we cannot use the full
+			 *		    FE param set for the module output lookup.
+			 */
 			in_fmt = &available_fmt->input_pin_fmts[input_fmt_index].audio_fmt;
 
-			out_ref_rate = in_fmt->sampling_frequency;
-			out_ref_channels =
+			ref_rate = in_fmt->sampling_frequency;
+			ref_channels =
 				SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(in_fmt->fmt_cfg);
-			out_ref_valid_bits =
+			ref_valid_bits =
 				SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(in_fmt->fmt_cfg);
-			out_ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
+			ref_type = sof_ipc4_fmt_cfg_to_type(in_fmt->fmt_cfg);
 		} else {
 			/* for modules without input formats, use FE params as reference */
-			out_ref_rate = params_rate(fe_params);
-			out_ref_channels = params_channels(fe_params);
+			ref_rate = params_rate(fe_params);
+			ref_channels = params_channels(fe_params);
 			ret = sof_ipc4_get_sample_type(sdev, fe_params);
 			if (ret < 0)
 				return ret;
-			out_ref_type = (u32)ret;
+			ref_type = (u32)ret;
 
-			out_ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
-			if (out_ref_valid_bits < 0)
-				return out_ref_valid_bits;
+			ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
+			if (ref_valid_bits < 0)
+				return ref_valid_bits;
 		}
 
+		if (dir == SNDRV_PCM_STREAM_CAPTURE) {
+			if (available_fmt->changed_params & BIT(SNDRV_PCM_HW_PARAM_RATE))
+				ref_rate = params_rate(fe_params);
+			if (available_fmt->changed_params & BIT(SNDRV_PCM_HW_PARAM_CHANNELS))
+				ref_channels = params_channels(fe_params);
+			if (available_fmt->changed_params & BIT(SNDRV_PCM_HW_PARAM_FORMAT)) {
+				ref_valid_bits = sof_ipc4_get_valid_bits(sdev, fe_params);
+				if (ref_valid_bits < 0)
+					return ref_valid_bits;
+
+				ref_type = sof_ipc4_get_sample_type(sdev, fe_params);
+				if (ref_type < 0)
+					return ref_type;
+			}
+		}
 		output_fmt_index = sof_ipc4_init_output_audio_fmt(sdev, swidget,
 								  &process->base_config,
 								  available_fmt,
-								  out_ref_rate,
-								  out_ref_channels,
-								  out_ref_valid_bits,
-								  out_ref_type);
+								  ref_rate,
+								  ref_channels,
+								  ref_valid_bits,
+								  ref_type);
 		if (output_fmt_index < 0)
 			return output_fmt_index;
 
@@ -2907,9 +2937,7 @@ static int sof_ipc4_prepare_process_module(struct snd_sof_widget *swidget,
 			/* modify the pipeline params with the output format */
 			ret = sof_ipc4_update_hw_params(sdev, pipeline_params,
 							&process->output_format,
-							BIT(SNDRV_PCM_HW_PARAM_FORMAT) |
-							BIT(SNDRV_PCM_HW_PARAM_CHANNELS) |
-							BIT(SNDRV_PCM_HW_PARAM_RATE));
+							available_fmt->changed_params);
 			if (ret)
 				return ret;
 		}
