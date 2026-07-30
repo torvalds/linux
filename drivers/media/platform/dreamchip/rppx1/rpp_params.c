@@ -30,6 +30,8 @@ rppx1_ext_params_blocks_info[] = {
 	RPPX1_PARAMS_BLOCK_INFO(EXM_PRE1, exm),
 	RPPX1_PARAMS_BLOCK_INFO(EXM_PRE2, exm),
 	RPPX1_PARAMS_BLOCK_INFO(WBMEAS_POST, wbmeas),
+	RPPX1_PARAMS_BLOCK_INFO(GA_HV, ga),
+	RPPX1_PARAMS_BLOCK_INFO(GA_MV, ga),
 };
 
 int rppx1_params(struct rppx1 *rpp, struct vb2_buffer *vb, size_t max_size,
@@ -83,6 +85,9 @@ int rppx1_params(struct rppx1 *rpp, struct vb2_buffer *vb, size_t max_size,
 			break;
 		case RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST:
 			module = &rpp->post.wbmeas;
+			break;
+		case RPPX1_PARAMS_BLOCK_TYPE_GA_HV:
+			module = &rpp->hv.ga;
 			break;
 		default:
 			dev_warn(rpp->dev,

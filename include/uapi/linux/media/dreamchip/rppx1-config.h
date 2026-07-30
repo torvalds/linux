@@ -90,6 +90,8 @@ enum rppx1_meas_chan {
  * @RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST: POST pipe Color Correction
  * @RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE1: PRE1 pipe Lens Shading Correction
  * @RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2: PRE2 pipe Lens Shading Correction
+ * @RPPX1_PARAMS_BLOCK_TYPE_GA_HV: Human Vision Pipe Gamma Out Correction
+ * @RPPX1_PARAMS_BLOCK_TYPE_GA_MV: Machine Vision Gamma Out Correction
  */
 enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_WBMEAS_POST,
@@ -106,6 +108,8 @@ enum rppx1_params_block_type {
 	RPPX1_PARAMS_BLOCK_TYPE_CCOR_POST,
 	RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE1,
 	RPPX1_PARAMS_BLOCK_TYPE_LSC_PRE2,
+	RPPX1_PARAMS_BLOCK_TYPE_GA_HV,
+	RPPX1_PARAMS_BLOCK_TYPE_GA_MV,
 };
 
 /**
@@ -510,6 +514,53 @@ struct rppx1_lsc_params {
 	__u16 y_sect_size[RPPX1_LSC_NUM_SECTORS];
 };
 
+/* Gamma Out */
+#define RPPX1_GA_MAX_SAMPLES 17
+
+/**
+ * enum rppx1_ga_seg_mode - Gamma out curve segmentation mode
+ *
+ * Segmentation mode of the 16 input sampling points for the Gamma Out
+ * Correction module.
+ *
+ * @RPPX1_GA_SEG_MODE_LOGARITHMIC: logarithmic-like segmentation mode
+ * @RPPX1_GA_SEG_MODE_EQUIDISTANT: equidistant segmentation mode
+ */
+enum rppx1_ga_seg_mode {
+	RPPX1_GA_SEG_MODE_LOGARITHMIC,
+	RPPX1_GA_SEG_MODE_EQUIDISTANT
+};
+
+/**
+ * struct rppx1_ga_params - Gamma Out Correction configuration
+ *
+ * The Gamma Out Correction module is available on the Human Vision Output
+ * Pipe (HV) and the Machine Vision Output Pipe (MV). Userspace selects
+ * which pipe to operate by setting the @header.type field to
+ * RPPX1_PARAMS_BLOCK_TYPE_GA_HV or RPPX1_PARAMS_BLOCK_TYPE_GA_MV.
+ *
+ * The module allows to apply a @gamma_y gamma correction curve to RGB data
+ * represented as a table of 16 entries. The 16 input sampling points can be
+ * equidistant or segmented using a logarithmic scale according to the value of
+ * @mode.
+ *
+ * The gamma curve values are 12 bits on the HV output pipe and 24 bits on the
+ * MV output pipe. Userspace is expected to provide the curve values with a
+ * bit-depth matching the one of pipe in use.
+ *
+ * @header: block header (type = RPPX1_PARAMS_BLOCK_TYPE_GA_HV or
+ *	    type = RPPX1_PARAMS_BLOCK_TYPE_GA_MV)
+ * @gamma_y: gamma out curve y-axis values
+ * @mode: gamma curve input segmentation mode (see rppx1_ga_seg_mode)
+ * @reserved: padding
+ */
+struct rppx1_ga_params {
+	struct v4l2_isp_params_block_header header;
+	__u32 gamma_y[RPPX1_GA_MAX_SAMPLES];
+	__u8 mode;
+	__u8 reserved[3];
+};
+
 /**
  * RPPX1_PARAMS_MAX_SIZE - Maximum size of all RPP-X1 parameter blocks
  *
@@ -530,7 +581,9 @@ struct rppx1_lsc_params {
 	sizeof(struct rppx1_bls_params)				+	\
 	sizeof(struct rppx1_ccor_params)			+	\
 	sizeof(struct rppx1_lsc_params)				+	\
-	sizeof(struct rppx1_lsc_params))
+	sizeof(struct rppx1_lsc_params)				+	\
+	sizeof(struct rppx1_ga_params)				+	\
+	sizeof(struct rppx1_ga_params))
 
 /* ---------------------------------------------------------------------------
  * Statistics Structures

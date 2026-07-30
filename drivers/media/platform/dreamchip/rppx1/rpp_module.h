@@ -54,6 +54,7 @@ union rppx1_params_block {
 	struct rppx1_hist_params hist;
 	struct rppx1_exm_params exm;
 	struct rppx1_wbmeas_params wbmeas;
+	struct rppx1_ga_params ga;
 };
 
 union rppx1_stats_block {
