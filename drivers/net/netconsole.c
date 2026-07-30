@@ -37,8 +37,10 @@
 #include <linux/udp.h>
 #include <linux/netpoll.h>
 #include <linux/inet.h>
+#include <linux/inetdevice.h>
 #include <linux/unaligned.h>
 #include <net/ip6_checksum.h>
+#include <net/addrconf.h>
 #include <linux/configfs.h>
 #include <linux/etherdevice.h>
 #include <linux/hex.h>
@@ -46,6 +48,7 @@
 #include <linux/utsname.h>
 #include <linux/rtnetlink.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
 
 MODULE_AUTHOR("Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
@@ -175,9 +178,10 @@ enum target_state {
  * @np:		The netpoll structure for this target.
  *		Contains the other userspace visible parameters:
  *		dev_name	(read-write)
- *		local_ip	(read-write)
- *		remote_ip	(read-write)
  *		local_mac	(read-only)
+ * @local_ip:	Source IP address of the target (read-write).
+ * @remote_ip:	Destination IP address of the target (read-write).
+ * @ipv6:	Whether the target addresses are IPv6 (read-write).
  * @local_port:	Source UDP port of the target (read-write).
  * @remote_port: Destination UDP port of the target (read-write).
  * @remote_mac:	Destination ethernet address of the target (read-write).
@@ -208,6 +212,8 @@ struct netconsole_target {
 	bool			extended;
 	bool			release;
 	struct netpoll		np;
+	union inet_addr		local_ip, remote_ip;
+	bool			ipv6;
 	u16			local_port, remote_port;
 	u8			remote_mac[ETH_ALEN];
 	/* protected by target_list_lock; +1 gives scnprintf() room for its
@@ -351,6 +357,208 @@ static void netconsole_skb_pool_flush(struct netconsole_target *nt)
 	skb_queue_purge_reason(&nt->skb_pool, SKB_CONSUMED);
 }
 
+static void netcons_wait_carrier(struct netpoll *np, struct net_device *ndev)
+{
+	unsigned long atmost;
+
+	atmost = jiffies + netpoll_get_carrier_timeout() * HZ;
+	while (!netif_carrier_ok(ndev)) {
+		if (time_after(jiffies, atmost)) {
+			np_notice(np, "timeout waiting for carrier\n");
+			break;
+		}
+		msleep(1);
+	}
+}
+
+/*
+ * Returns a pointer to a string representation of the identifier used
+ * to select the egress interface for the given netpoll instance. buf
+ * is used to format np->dev_mac when np->dev_name is empty; bufsz must
+ * be at least MAC_ADDR_STR_LEN + 1 to fit the formatted MAC address
+ * and its NUL terminator.
+ */
+static char *netcons_egress_dev(struct netpoll *np, char *buf, size_t bufsz)
+{
+	if (np->dev_name[0])
+		return np->dev_name;
+
+	snprintf(buf, bufsz, "%pM", np->dev_mac);
+	return buf;
+}
+
+/*
+ * Populate the target's local_ip with the IPv6 address from ndev.
+ */
+static int netcons_take_ipv6(struct netconsole_target *nt,
+			     struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	struct netpoll *np = &nt->np;
+	int err = -EDESTADDRREQ;
+	struct inet6_dev *idev;
+
+	if (!IS_ENABLED(CONFIG_IPV6)) {
+		np_err(np, "IPv6 is not supported %s, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		return -EINVAL;
+	}
+
+	idev = __in6_dev_get(ndev);
+	if (idev) {
+		struct inet6_ifaddr *ifp;
+
+		read_lock_bh(&idev->lock);
+		list_for_each_entry(ifp, &idev->addr_list, if_list) {
+			if (!!(ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL) !=
+				!!(ipv6_addr_type(&nt->remote_ip.in6) & IPV6_ADDR_LINKLOCAL))
+				continue;
+			/* Got the IP, let's return */
+			nt->local_ip.in6 = ifp->addr;
+			err = 0;
+			break;
+		}
+		read_unlock_bh(&idev->lock);
+	}
+	if (err) {
+		np_err(np, "no IPv6 address for %s, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		return err;
+	}
+
+	np_info(np, "local IPv6 %pI6c\n", &nt->local_ip.in6);
+	return 0;
+}
+
+/*
+ * Populate the target's local_ip with the IPv4 address from ndev.
+ */
+static int netcons_take_ipv4(struct netconsole_target *nt,
+			     struct net_device *ndev)
+{
+	char buf[MAC_ADDR_STR_LEN + 1];
+	struct netpoll *np = &nt->np;
+	const struct in_ifaddr *ifa;
+	struct in_device *in_dev;
+
+	in_dev = __in_dev_get_rtnl(ndev);
+	if (!in_dev) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		return -EDESTADDRREQ;
+	}
+
+	ifa = rtnl_dereference(in_dev->ifa_list);
+	if (!ifa) {
+		np_err(np, "no IP address for %s, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		return -EDESTADDRREQ;
+	}
+
+	nt->local_ip.ip = ifa->ifa_local;
+	np_info(np, "local IP %pI4\n", &nt->local_ip.ip);
+
+	return 0;
+}
+
+/*
+ * Test whether the caller left nt->local_ip unset, so that
+ * netcons_netpoll_setup() should auto-populate it from the egress device.
+ *
+ * nt->local_ip is a union of __be32 (IPv4) and struct in6_addr (IPv6),
+ * so an IPv6 address whose first 4 bytes are zero (e.g. ::1, ::2,
+ * IPv4-mapped ::ffff:a.b.c.d) must not be tested via the IPv4 arm —
+ * doing so would misclassify a caller-supplied address as unset and
+ * silently overwrite it with whatever address the device exposes.
+ */
+static bool netcons_local_ip_unset(const struct netconsole_target *nt)
+{
+	if (nt->ipv6)
+		return ipv6_addr_any(&nt->local_ip.in6);
+	return !nt->local_ip.ip;
+}
+
+static int netcons_netpoll_setup(struct netconsole_target *nt)
+{
+	struct net *net = current->nsproxy->net_ns;
+	char buf[MAC_ADDR_STR_LEN + 1];
+	struct net_device *ndev = NULL;
+	struct netpoll *np = &nt->np;
+	bool ip_overwritten = false;
+	int err;
+
+	rtnl_lock();
+	if (np->dev_name[0])
+		ndev = __dev_get_by_name(net, np->dev_name);
+	else if (is_valid_ether_addr(np->dev_mac))
+		ndev = dev_getbyhwaddr(net, ARPHRD_ETHER, np->dev_mac);
+
+	if (!ndev) {
+		np_err(np, "%s doesn't exist, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		err = -ENODEV;
+		goto unlock;
+	}
+	netdev_hold(ndev, &np->dev_tracker, GFP_KERNEL);
+
+	if (netdev_master_upper_dev_get(ndev)) {
+		np_err(np, "%s is a slave device, aborting\n",
+		       netcons_egress_dev(np, buf, sizeof(buf)));
+		err = -EBUSY;
+		goto put;
+	}
+
+	if (!netif_running(ndev)) {
+		np_info(np, "device %s not up yet, forcing it\n",
+			netcons_egress_dev(np, buf, sizeof(buf)));
+
+		err = dev_open(ndev, NULL);
+		if (err) {
+			np_err(np, "failed to open %s\n", ndev->name);
+			goto put;
+		}
+
+		rtnl_unlock();
+		netcons_wait_carrier(np, ndev);
+		rtnl_lock();
+	}
+
+	if (netcons_local_ip_unset(nt)) {
+		if (!nt->ipv6) {
+			err = netcons_take_ipv4(nt, ndev);
+			if (err)
+				goto put;
+		} else {
+			err = netcons_take_ipv6(nt, ndev);
+			if (err)
+				goto put;
+		}
+		ip_overwritten = true;
+	}
+
+	err = __netpoll_setup(np, ndev);
+	if (err)
+		goto put;
+	rtnl_unlock();
+
+	/* Make sure all NAPI polls which started before dev->npinfo
+	 * was visible have exited before we start calling NAPI poll.
+	 * NAPI skips locking if dev->npinfo is NULL.
+	 */
+	synchronize_rcu();
+
+	return 0;
+
+put:
+	DEBUG_NET_WARN_ON_ONCE(np->dev);
+	if (ip_overwritten)
+		memset(&nt->local_ip, 0, sizeof(nt->local_ip));
+	netdev_put(ndev, &np->dev_tracker);
+unlock:
+	rtnl_unlock();
+	return err;
+}
+
 /* Attempts to resume logging to a deactivated target. */
 static void resume_target(struct netconsole_target *nt)
 {
@@ -361,7 +569,7 @@ static void resume_target(struct netconsole_target *nt)
 	 */
 	netconsole_skb_pool_init(nt);
 
-	if (netpoll_setup(&nt->np)) {
+	if (netcons_netpoll_setup(nt)) {
 		/* netpoll fails setup once, do not try again. */
 		netconsole_skb_pool_flush(nt);
 		nt->state = STATE_DISABLED;
@@ -506,17 +714,17 @@ static void netconsole_print_banner(struct netconsole_target *nt)
 	struct netpoll *np = &nt->np;
 
 	np_info(np, "local port %d\n", nt->local_port);
-	if (np->ipv6)
-		np_info(np, "local IPv6 address %pI6c\n", &np->local_ip.in6);
+	if (nt->ipv6)
+		np_info(np, "local IPv6 address %pI6c\n", &nt->local_ip.in6);
 	else
-		np_info(np, "local IPv4 address %pI4\n", &np->local_ip.ip);
+		np_info(np, "local IPv4 address %pI4\n", &nt->local_ip.ip);
 	np_info(np, "interface name '%s'\n", np->dev_name);
 	np_info(np, "local ethernet address '%pM'\n", np->dev_mac);
 	np_info(np, "remote port %d\n", nt->remote_port);
-	if (np->ipv6)
-		np_info(np, "remote IPv6 address %pI6c\n", &np->remote_ip.in6);
+	if (nt->ipv6)
+		np_info(np, "remote IPv6 address %pI6c\n", &nt->remote_ip.in6);
 	else
-		np_info(np, "remote IPv4 address %pI4\n", &np->remote_ip.ip);
+		np_info(np, "remote IPv4 address %pI4\n", &nt->remote_ip.ip);
 	np_info(np, "remote ethernet address %pM\n", nt->remote_mac);
 }
 
@@ -647,20 +855,20 @@ static ssize_t local_ip_show(struct config_item *item, char *buf)
 {
 	struct netconsole_target *nt = to_target(item);
 
-	if (nt->np.ipv6)
-		return sysfs_emit(buf, "%pI6c\n", &nt->np.local_ip.in6);
+	if (nt->ipv6)
+		return sysfs_emit(buf, "%pI6c\n", &nt->local_ip.in6);
 	else
-		return sysfs_emit(buf, "%pI4\n", &nt->np.local_ip);
+		return sysfs_emit(buf, "%pI4\n", &nt->local_ip);
 }
 
 static ssize_t remote_ip_show(struct config_item *item, char *buf)
 {
 	struct netconsole_target *nt = to_target(item);
 
-	if (nt->np.ipv6)
-		return sysfs_emit(buf, "%pI6c\n", &nt->np.remote_ip.in6);
+	if (nt->ipv6)
+		return sysfs_emit(buf, "%pI6c\n", &nt->remote_ip.in6);
 	else
-		return sysfs_emit(buf, "%pI4\n", &nt->np.remote_ip);
+		return sysfs_emit(buf, "%pI4\n", &nt->remote_ip);
 }
 
 static ssize_t local_mac_show(struct config_item *item, char *buf)
@@ -840,7 +1048,7 @@ static ssize_t enabled_store(struct config_item *item,
 		 */
 		netconsole_skb_pool_init(nt);
 
-		ret = netpoll_setup(&nt->np);
+		ret = netcons_netpoll_setup(nt);
 		if (ret) {
 			netconsole_skb_pool_flush(nt);
 			goto out_unlock;
@@ -1014,10 +1222,10 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	}
 
-	ipv6 = netpoll_parse_ip_addr(buf, &nt->np.local_ip);
+	ipv6 = netpoll_parse_ip_addr(buf, &nt->local_ip);
 	if (ipv6 == -1)
 		goto out_unlock;
-	nt->np.ipv6 = !!ipv6;
+	nt->ipv6 = !!ipv6;
 
 	ret = count;
 out_unlock:
@@ -1039,10 +1247,10 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 		goto out_unlock;
 	}
 
-	ipv6 = netpoll_parse_ip_addr(buf, &nt->np.remote_ip);
+	ipv6 = netpoll_parse_ip_addr(buf, &nt->remote_ip);
 	if (ipv6 == -1)
 		goto out_unlock;
-	nt->np.ipv6 = !!ipv6;
+	nt->ipv6 = !!ipv6;
 
 	ret = count;
 out_unlock:
@@ -1842,8 +2050,8 @@ repeat:
 	return skb;
 }
 
-static void netpoll_udp_checksum(struct netpoll *np, struct sk_buff *skb,
-				 int len)
+static void netpoll_udp_checksum(struct netconsole_target *nt,
+				 struct sk_buff *skb, int len)
 {
 	struct udphdr *udph;
 	int udp_len;
@@ -1853,14 +2061,14 @@ static void netpoll_udp_checksum(struct netpoll *np, struct sk_buff *skb,
 
 	/* check needs to be set, since it will be consumed in csum_partial */
 	udph->check = 0;
-	if (np->ipv6)
-		udph->check = csum_ipv6_magic(&np->local_ip.in6,
-					      &np->remote_ip.in6,
+	if (nt->ipv6)
+		udph->check = csum_ipv6_magic(&nt->local_ip.in6,
+					      &nt->remote_ip.in6,
 					      udp_len, IPPROTO_UDP,
 					      csum_partial(udph, udp_len, 0));
 	else
-		udph->check = csum_tcpudp_magic(np->local_ip.ip,
-						np->remote_ip.ip,
+		udph->check = csum_tcpudp_magic(nt->local_ip.ip,
+						nt->remote_ip.ip,
 						udp_len, IPPROTO_UDP,
 						csum_partial(udph, udp_len, 0));
 	if (udph->check == 0)
@@ -1869,7 +2077,6 @@ static void netpoll_udp_checksum(struct netpoll *np, struct sk_buff *skb,
 
 static void push_udp(struct netconsole_target *nt, struct sk_buff *skb, int len)
 {
-	struct netpoll *np = &nt->np;
 	struct udphdr *udph;
 	int udp_len;
 
@@ -1883,7 +2090,7 @@ static void push_udp(struct netconsole_target *nt, struct sk_buff *skb, int len)
 	udph->dest = htons(nt->remote_port);
 	udp_set_len_short(udph, udp_len);
 
-	netpoll_udp_checksum(np, skb, len);
+	netpoll_udp_checksum(nt, skb, len);
 }
 
 static void push_eth(struct netconsole_target *nt, struct sk_buff *skb)
@@ -1895,13 +2102,14 @@ static void push_eth(struct netconsole_target *nt, struct sk_buff *skb)
 	skb_reset_mac_header(skb);
 	ether_addr_copy(eth->h_source, np->dev->dev_addr);
 	ether_addr_copy(eth->h_dest, nt->remote_mac);
-	if (np->ipv6)
+	if (nt->ipv6)
 		eth->h_proto = htons(ETH_P_IPV6);
 	else
 		eth->h_proto = htons(ETH_P_IP);
 }
 
-static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
+static void push_ipv4(struct netconsole_target *nt, struct sk_buff *skb,
+		      int len)
 {
 	static atomic_t ip_ident;
 	struct iphdr *iph;
@@ -1922,13 +2130,14 @@ static void push_ipv4(struct netpoll *np, struct sk_buff *skb, int len)
 	iph->ttl = 64;
 	iph->protocol = IPPROTO_UDP;
 	iph->check = 0;
-	put_unaligned(np->local_ip.ip, &iph->saddr);
-	put_unaligned(np->remote_ip.ip, &iph->daddr);
+	put_unaligned(nt->local_ip.ip, &iph->saddr);
+	put_unaligned(nt->remote_ip.ip, &iph->daddr);
 	iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	skb->protocol = htons(ETH_P_IP);
 }
 
-static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
+static void push_ipv6(struct netconsole_target *nt, struct sk_buff *skb,
+		      int len)
 {
 	struct ipv6hdr *ip6h;
 
@@ -1945,8 +2154,8 @@ static void push_ipv6(struct netpoll *np, struct sk_buff *skb, int len)
 	ip6h->payload_len = htons(sizeof(struct udphdr) + len);
 	ip6h->nexthdr = IPPROTO_UDP;
 	ip6h->hop_limit = 32;
-	ip6h->saddr = np->local_ip.in6;
-	ip6h->daddr = np->remote_ip.in6;
+	ip6h->saddr = nt->local_ip.in6;
+	ip6h->daddr = nt->remote_ip.in6;
 
 	skb->protocol = htons(ETH_P_IPV6);
 }
@@ -1962,7 +2171,7 @@ static int netpoll_send_udp(struct netconsole_target *nt, const char *msg,
 		WARN_ON_ONCE(!irqs_disabled());
 
 	udp_len = len + sizeof(struct udphdr);
-	if (np->ipv6)
+	if (nt->ipv6)
 		ip_len = udp_len + sizeof(struct ipv6hdr);
 	else
 		ip_len = udp_len + sizeof(struct iphdr);
@@ -1978,10 +2187,10 @@ static int netpoll_send_udp(struct netconsole_target *nt, const char *msg,
 	skb_put(skb, len);
 
 	push_udp(nt, skb, len);
-	if (np->ipv6)
-		push_ipv6(np, skb, len);
+	if (nt->ipv6)
+		push_ipv6(nt, skb, len);
 	else
-		push_ipv4(np, skb, len);
+		push_ipv4(nt, skb, len);
 	push_eth(nt, skb);
 	skb->dev = np->dev;
 
@@ -2320,11 +2529,11 @@ static int netconsole_parser_cmdline(struct netconsole_target *nt, char *opt)
 		if (!delim)
 			goto parse_failed;
 		*delim = 0;
-		ipv6 = netpoll_parse_ip_addr(cur, &np->local_ip);
+		ipv6 = netpoll_parse_ip_addr(cur, &nt->local_ip);
 		if (ipv6 < 0)
 			goto parse_failed;
 		else
-			np->ipv6 = (bool)ipv6;
+			nt->ipv6 = (bool)ipv6;
 		cur = delim;
 	}
 	cur++;
@@ -2366,13 +2575,13 @@ static int netconsole_parser_cmdline(struct netconsole_target *nt, char *opt)
 	if (!delim)
 		goto parse_failed;
 	*delim = 0;
-	ipv6 = netpoll_parse_ip_addr(cur, &np->remote_ip);
+	ipv6 = netpoll_parse_ip_addr(cur, &nt->remote_ip);
 	if (ipv6 < 0)
 		goto parse_failed;
-	else if (ipversion_set && np->ipv6 != (bool)ipv6)
+	else if (ipversion_set && nt->ipv6 != (bool)ipv6)
 		goto parse_failed;
 	else
-		np->ipv6 = (bool)ipv6;
+		nt->ipv6 = (bool)ipv6;
 	cur = delim + 1;
 
 	if (*cur != 0) {
@@ -2430,7 +2639,7 @@ static struct netconsole_target *alloc_param_target(char *target_config,
 	 */
 	netconsole_skb_pool_init(nt);
 
-	err = netpoll_setup(&nt->np);
+	err = netcons_netpoll_setup(nt);
 	if (err) {
 		pr_err("Not enabling netconsole for %s%d. Netpoll setup failed\n",
 		       NETCONSOLE_PARAM_TARGET_PREFIX, cmdline_count);
