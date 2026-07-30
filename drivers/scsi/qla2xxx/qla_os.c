@@ -3721,6 +3721,14 @@ skip_dpc:
 	if (test_bit(UNLOADING, &base_vha->dpc_flags))
 		return -ENODEV;
 
+	/*
+	 * FW dump can happens before sysfs nodes are created.  If sysfs nodes
+	 * are unavailable then udev script will not be able to read the fw dump.
+	 * Notify udev to read again, now that sysfs nodes are available.
+	 */
+	if (ha->fw_dumped || ha->mpi_fw_dumped)
+		qla2x00_post_uevent_work(base_vha, QLA_UEVENT_CODE_FW_DUMP);
+
 	return 0;
 
 probe_failed:

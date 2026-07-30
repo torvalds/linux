@@ -3275,47 +3275,37 @@ qla81xx_reset_mpi(scsi_qla_host_t *vha)
 	return qla81xx_write_mpi_register(vha, mb);
 }
 
-static int
-qla_chk_risc_recovery(scsi_qla_host_t *vha)
+/* save MB regs at start of day for fw dump */
+static void
+qla_save_mbregs(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	__le16 __iomem *mbptr = &reg->mailbox0;
 	int i;
-	u16 mb[32];
-	int rc = QLA_SUCCESS;
+	u16 *mb = ha->mbregs;
 
-	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-		return rc;
+	if ((!IS_QLA27XX(ha) && !IS_QLA28XX(ha) && !IS_QLA29XX(ha)) ||
+	    vha->flags.init_done)
+		return;
 
-	/* this check is only valid after RISC reset */
-	mb[0] = rd_reg_word(mbptr);
-	mbptr++;
-	if (mb[0] == 0xf) {
-		rc = QLA_FUNCTION_FAILED;
-
-		for (i = 1; i < 32; i++) {
-			mb[i] = rd_reg_word(mbptr);
-			mbptr++;
-		}
-
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[0-7] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[0], mb[1], mb[2], mb[3], mb[4], mb[5], mb[6], mb[7]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[8-15] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[8], mb[9], mb[10], mb[11], mb[12], mb[13], mb[14],
-		       mb[15]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[16-23] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[16], mb[17], mb[18], mb[19], mb[20], mb[21], mb[22],
-		       mb[23]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[24-31] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[24], mb[25], mb[26], mb[27], mb[28], mb[29], mb[30],
-		       mb[31]);
+	for (i = 0; i < 32; i++) {
+		mb[i] = rd_reg_word(mbptr);
+		mbptr++;
 	}
-	return rc;
+
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[0-7] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[0], mb[1], mb[2], mb[3], mb[4], mb[5], mb[6], mb[7]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[8-15] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[8], mb[9], mb[10], mb[11], mb[12], mb[13], mb[14], mb[15]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[16-23] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[16], mb[17], mb[18], mb[19], mb[20], mb[21], mb[22], mb[23]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[24-31] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[24], mb[25], mb[26], mb[27], mb[28], mb[29], mb[30], mb[31]);
 }
 
 /**
@@ -3334,7 +3324,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	uint16_t wd;
 	static int abts_cnt; /* ISP abort retry counts */
 	int rval = QLA_SUCCESS;
-	int print = 1;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -3431,9 +3420,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		barrier();
 		if (cnt) {
 			mdelay(1);
-			if (print && qla_chk_risc_recovery(vha))
-				print = 0;
-
 			wd = rd_reg_word(&reg->mailbox0);
 		} else {
 			rval = QLA_FUNCTION_TIMEOUT;
@@ -3452,6 +3438,8 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	     rd_reg_word(&reg->mailbox0));
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	qla_save_mbregs(vha);
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x015f,
 	    "Driver in %s mode\n",
@@ -3813,18 +3801,11 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
-	struct qla2xxx_fw_dump *fw_dump;
+	struct qla2xxx_fw_dump *fw_dump, *prev_fw_dump;
+	void *prev_mpi_fw_dump;
 	size_t req_entry_size = qla_req_entry_size(ha);
 	size_t rsp_entry_size = qla_rsp_entry_size(ha);
 
-	if (ha->fw_dump) {
-		ql_dbg(ql_dbg_init, vha, 0x00bd,
-		    "Firmware dump already allocated.\n");
-		return;
-	}
-
-	ha->fw_dumped = 0;
-	ha->fw_dump_cap_flags = 0;
 	dump_size = fixed_size = mem_size = eft_size = fce_size = mq_size = 0;
 	req_q_size = rsp_q_size = 0;
 
@@ -3907,13 +3888,11 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				ha->exlogin_size;
 	}
 
+	ql_dbg(ql_dbg_init, vha, 0x00c5,
+	    "%s dump_size %d fw_dump_len %d fw_dump_alloc_len %d\n",
+	    __func__, dump_size, ha->fw_dump_len, ha->fw_dump_alloc_len);
+
 	if (!ha->fw_dump_len || dump_size > ha->fw_dump_alloc_len) {
-
-		ql_dbg(ql_dbg_init, vha, 0x00c5,
-		    "%s dump_size %d fw_dump_len %d fw_dump_alloc_len %d\n",
-		    __func__, dump_size, ha->fw_dump_len,
-		    ha->fw_dump_alloc_len);
-
 		fw_dump = vmalloc(dump_size);
 		if (!fw_dump) {
 			ql_log(ql_log_warn, vha, 0x00c4,
@@ -3921,9 +3900,26 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			    dump_size / 1024);
 		} else {
 			mutex_lock(&ha->optrom_mutex);
-			if (ha->fw_dumped) {
-				memcpy(fw_dump, ha->fw_dump, ha->fw_dump_len);
-				vfree(ha->fw_dump);
+
+			if (ha->fw_dumped || ha->mpi_fw_dumped) {
+				prev_fw_dump = ha->fw_dump;
+
+				if (ha->fw_dumped)
+					memcpy(fw_dump, prev_fw_dump,
+					    ha->fw_dump_len);
+
+				if (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+				    IS_QLA29XX(ha)) {
+					prev_mpi_fw_dump = ha->mpi_fw_dump;
+					ha->mpi_fw_dump = (char *)fw_dump +
+						ha->fwdt[0].dump_size;
+
+					if (ha->mpi_fw_dumped)
+						memcpy(ha->mpi_fw_dump,
+						    prev_mpi_fw_dump,
+						    ha->mpi_fw_dump_len);
+				}
+				vfree(prev_fw_dump);
 				ha->fw_dump = fw_dump;
 				ha->fw_dump_alloc_len =  dump_size;
 				ql_dbg(ql_dbg_init, vha, 0x00c5,
@@ -3942,7 +3938,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				if (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
 				    IS_QLA29XX(ha)) {
 					ha->mpi_fw_dump = (char *)fw_dump +
-						ha->fwdt[1].dump_size;
+						ha->fwdt[0].dump_size;
 					mutex_unlock(&ha->optrom_mutex);
 					return;
 				}
@@ -4339,6 +4335,16 @@ execute_fw_with_lr:
 
 		rval = qla2x00_verify_checksum(vha, srisc_address);
 		if (rval == QLA_SUCCESS) {
+			/*
+			 * Alloc a guestimate dump buffer to capture any failure
+			 * during early phase of driver load.
+			 */
+			if (ql2xallocfwdump &&
+			    (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+			     IS_QLA29XX(ha)) &&
+			    !vha->flags.init_done)
+				qla2x00_alloc_fw_dump(vha);
+
 			/* Start firmware execution. */
 			ql_dbg(ql_dbg_init, vha, 0x00ca,
 			    "Starting firmware.\n");
@@ -4935,6 +4941,8 @@ next_check:
 		ql_dbg(ql_dbg_init, vha, 0x00d3,
 		    "Init Firmware -- success.\n");
 		vha->u_ql2xexchoffld = vha->u_ql2xiniexchg = 0;
+		vha->hw->flags.t262_fail = 0;
+		vha->hw->flags.t272_fail = 0;
 	}
 
 	return (rval);
