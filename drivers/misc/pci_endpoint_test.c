@@ -1094,7 +1094,7 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 	left = wait_for_completion_timeout(&test->irq_raised, msecs_to_jiffies(1000));
 
 	status = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
-	if (!left || (status & STATUS_DOORBELL_ENABLE_FAIL)) {
+	if (!left || !(status & STATUS_DOORBELL_ENABLE_SUCCESS)) {
 		dev_err(dev, "Failed to enable doorbell\n");
 		return -EINVAL;
 	}
@@ -1133,7 +1133,7 @@ static int pci_endpoint_test_doorbell(struct pci_endpoint_test *test)
 
 	status |= pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_STATUS);
 
-	if (status & STATUS_DOORBELL_DISABLE_FAIL) {
+	if (!(status & STATUS_DOORBELL_DISABLE_SUCCESS)) {
 		dev_err(dev, "Failed to disable doorbell\n");
 		return -EINVAL;
 	}
