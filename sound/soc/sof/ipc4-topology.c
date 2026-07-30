@@ -406,6 +406,39 @@ sof_ipc4_get_input_pin_audio_fmt(struct snd_sof_widget *swidget, int pin_index)
 	return NULL;
 }
 
+static void
+sof_ipc4_evaluate_params_change(struct sof_ipc4_available_audio_format *available_fmt)
+{
+	struct sof_ipc4_audio_format *fmt;
+	u32 in_rate, in_channels, in_valid_bits;
+	u32 out_rate, out_channels, out_valid_bits;
+	u32 changed_params = 0;
+	int i, j;
+
+	for (i = 0; i < available_fmt->num_input_formats; i++) {
+		fmt = &available_fmt->input_pin_fmts[i].audio_fmt;
+		in_rate = fmt->sampling_frequency;
+		in_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+		in_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+		for (j = 0; j < available_fmt->num_output_formats; j++) {
+			fmt = &available_fmt->output_pin_fmts[j].audio_fmt;
+			out_rate = fmt->sampling_frequency;
+			out_channels = SOF_IPC4_AUDIO_FORMAT_CFG_CHANNELS_COUNT(fmt->fmt_cfg);
+			out_valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
+
+			if (in_rate != out_rate)
+				changed_params |= BIT(SNDRV_PCM_HW_PARAM_RATE);
+			if (in_channels != out_channels)
+				changed_params |= BIT(SNDRV_PCM_HW_PARAM_CHANNELS);
+			if (in_valid_bits != out_valid_bits)
+				changed_params |= BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+		}
+	}
+
+	available_fmt->changed_params = changed_params;
+}
+
 /**
  * sof_ipc4_get_audio_fmt - get available audio formats from swidget->tuples
  * @scomp: pointer to pointer to SOC component
@@ -496,6 +529,8 @@ static int sof_ipc4_get_audio_fmt(struct snd_soc_component *scomp,
 		sof_ipc4_dbg_audio_format(scomp->dev, out_format,
 					  available_fmt->num_output_formats);
 	}
+
+	sof_ipc4_evaluate_params_change(available_fmt);
 
 	return 0;
 
@@ -661,6 +696,9 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 	if (ret)
 		goto free_copier;
 
+	/* Copier can only change format */
+	available_fmt->changed_params &= BIT(SNDRV_PCM_HW_PARAM_FORMAT);
+
 	/*
 	 * This callback is used by host copier and module-to-module copier,
 	 * and only host copier needs to set gtw_cfg.
@@ -788,6 +826,9 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 				     &ipc4_copier->data.base_config);
 	if (ret)
 		goto free_copier;
+
+	/* Copier can only change format */
+	available_fmt->changed_params &= BIT(SNDRV_PCM_HW_PARAM_FORMAT);
 
 	ret = sof_update_ipc_object(scomp, &node_type,
 				    SOF_COPIER_TOKENS, swidget->tuples,

@@ -197,12 +197,15 @@ struct sof_ipc4_pin_format {
  * @input_pin_fmts: Available input pin formats
  * @num_input_formats: Number of input pin formats
  * @num_output_formats: Number of output pin formats
+ * @changed_params: Mask of changed params by the module instance between it's
+ *		    input and output formts (rate, channels, depth)
  */
 struct sof_ipc4_available_audio_format {
 	struct sof_ipc4_pin_format *output_pin_fmts;
 	struct sof_ipc4_pin_format *input_pin_fmts;
 	u32 num_input_formats;
 	u32 num_output_formats;
+	u32 changed_params;
 };
 
 /**
