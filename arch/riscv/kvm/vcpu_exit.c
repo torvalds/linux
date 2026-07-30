@@ -11,6 +11,7 @@
 #include <asm/insn-def.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nacl.h>
+#include "trace.h"
 
 static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			     struct kvm_cpu_trap *trap)
@@ -219,6 +220,9 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	/* If we got host interrupt then do nothing */
 	if (trap->scause & CAUSE_IRQ_FLAG)
 		return 1;
+
+	trace_kvm_vcpu_exit(vcpu->vcpu_id, trap->sepc, trap->scause,
+			    trap->stval, trap->htval, trap->htinst);
 
 	/* Handle guest traps */
 	ret = -EFAULT;

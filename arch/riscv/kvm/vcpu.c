@@ -440,6 +440,8 @@ int kvm_riscv_vcpu_set_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
 	__set_bit(irq, vcpu->arch.irqs_pending_mask);
 	raw_spin_unlock_irqrestore(&vcpu->arch.irqs_pending_lock, flags);
 
+	trace_kvm_vcpu_irq(vcpu->vcpu_id, irq, 1);
+
 	kvm_vcpu_kick(vcpu);
 
 	return 0;
@@ -465,6 +467,8 @@ int kvm_riscv_vcpu_unset_interrupt(struct kvm_vcpu *vcpu, unsigned int irq)
 	__clear_bit(irq, vcpu->arch.irqs_pending);
 	__set_bit(irq, vcpu->arch.irqs_pending_mask);
 	raw_spin_unlock_irqrestore(&vcpu->arch.irqs_pending_lock, flags);
+
+	trace_kvm_vcpu_irq(vcpu->vcpu_id, irq, 0);
 
 	return 0;
 }
