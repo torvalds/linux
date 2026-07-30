@@ -613,6 +613,9 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return ret;
 	}
 
+	/* Host DMA is not running */
+	hstream->running = false;
+
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR,
 				sd_offset + SOF_HDA_ADSP_REG_SD_STS,
 				SOF_HDA_CL_DMA_SD_INT_MASK,
