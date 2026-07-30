@@ -21,9 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __RAS_LOG_RING_H__
-#define __RAS_LOG_RING_H__
-#include "ras_aca.h"
+#ifndef __LOG_RING_H__
+#define __LOG_RING_H__
+#include "aca.h"
 
 #define MAX_RECORD_PER_BATCH 32
 

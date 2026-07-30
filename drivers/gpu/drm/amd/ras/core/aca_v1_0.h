@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __RAS_ACA_V1_0_H__
-#define __RAS_ACA_V1_0_H__
+#ifndef __ACA_V1_0_H__
+#define __ACA_V1_0_H__
 #include "ras.h"
 
 #define ACA__REG__FIELD(x, h, l)		  (((x) & GENMASK_ULL(h, l)) >> l)

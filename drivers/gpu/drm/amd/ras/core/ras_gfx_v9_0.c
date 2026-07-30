@@ -23,7 +23,7 @@
  */
 #include "ras.h"
 #include "ras_gfx_v9_0.h"
-#include "ras_core_status.h"
+#include "core_status.h"
 
 enum ta_gfx_v9_subblock {
 	/*CPC*/

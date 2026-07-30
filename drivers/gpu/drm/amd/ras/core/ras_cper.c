@@ -22,8 +22,8 @@
  *
  */
 #include "ras.h"
-#include "ras_core_status.h"
-#include "ras_log_ring.h"
+#include "core_status.h"
+#include "log_ring.h"
 #include "ras_cper.h"
 
 static const struct ras_cper_guid MCE	= CPER_NOTIFY__MCE;

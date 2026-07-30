@@ -22,7 +22,7 @@
  *
  */
 
-#include "ras_eeprom.h"
+#include "eeprom.h"
 #include "ras.h"
 
 /* These are memory addresses as would be seen by one or more EEPROM

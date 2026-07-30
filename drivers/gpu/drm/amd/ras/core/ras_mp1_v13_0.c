@@ -23,7 +23,7 @@
  */
 #include "ras.h"
 #include "ras_mp1.h"
-#include "ras_core_status.h"
+#include "core_status.h"
 #include "ras_mp1_v13_0.h"
 
 #define RAS_MP1_MSG_QueryValidMcaCount                0x36

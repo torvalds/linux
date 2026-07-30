@@ -25,7 +25,7 @@
 #include "ras.h"
 #include "ras_gfx_v9_0.h"
 #include "ras_gfx.h"
-#include "ras_core_status.h"
+#include "core_status.h"
 
 static const struct ras_gfx_ip_func *ras_gfx_get_ip_funcs(
 				struct ras_core_context *ras_core, uint32_t ip_version)

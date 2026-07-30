@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __RAS_EEPROM_H__
-#define __RAS_EEPROM_H__
+#ifndef __EEPROM_H__
+#define __EEPROM_H__
 #include "ras_sys.h"
 
 #define RAS_TABLE_VER_V1           0x00010000

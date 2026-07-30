@@ -22,7 +22,7 @@
  *
  */
 #include "ras.h"
-#include "ras_ta_if.h"
+#include "ta_if.h"
 #include "ras_psp.h"
 #include "ras_psp_v13_0.h"
 

@@ -24,7 +24,7 @@
 #ifndef __RAS_PSP_H__
 #define __RAS_PSP_H__
 #include "ras.h"
-#include "ras_ta_if.h"
+#include "ta_if.h"
 
 struct ras_core_context;
 struct ras_ta_trigger_error_input;

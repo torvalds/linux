@@ -21,8 +21,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef __RAS_EEPROM_FW_H__
-#define __RAS_EEPROM_FW_H__
+#ifndef __EEPROM_FW_H__
+#define __EEPROM_FW_H__
 
 struct ras_fw_eeprom_control {
 	uint32_t version;

@@ -22,7 +22,7 @@
  *
  */
 #include "ras.h"
-#include "ras_core_status.h"
+#include "core_status.h"
 
 #define RAS_SEQNO_FIFO_SIZE (128 * sizeof(uint64_t))
 

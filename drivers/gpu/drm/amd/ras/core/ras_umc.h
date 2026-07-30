@@ -25,8 +25,8 @@
 #ifndef __RAS_UMC_H__
 #define __RAS_UMC_H__
 #include "ras.h"
-#include "ras_eeprom.h"
-#include "ras_cmd.h"
+#include "eeprom.h"
+#include "cmd.h"
 
 #define UMC_VRAM_TYPE_UNKNOWN 0
 #define UMC_VRAM_TYPE_GDDR1   1

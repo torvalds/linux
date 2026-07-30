@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __RAS_CORE_STATUS_H__
-#define __RAS_CORE_STATUS_H__
+#ifndef __CORE_STATUS_H__
+#define __CORE_STATUS_H__
 
 #define RAS_CORE_OK                       0
 #define RAS_CORE_NOT_SUPPORTED            248

@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef __RAS_CMD_H__
-#define __RAS_CMD_H__
+#ifndef __CMD_H__
+#define __CMD_H__
 #include "ras.h"
-#include "ras_eeprom.h"
-#include "ras_log_ring.h"
+#include "eeprom.h"
+#include "log_ring.h"
 #include "ras_cper.h"
 
 #define RAS_CMD_MAX_IN_SIZE 256

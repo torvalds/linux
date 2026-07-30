@@ -23,7 +23,7 @@
  */
 #include "ras.h"
 #include "ras_umc.h"
-#include "ras_core_status.h"
+#include "core_status.h"
 #include "ras_umc_v12_0.h"
 
 #define NumDieInterleaved 4

@@ -19,25 +19,25 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 #
-RAS_CORE_FILES = ras_core.o \
+RAS_CORE_FILES = core.o \
 			ras_mp1.o \
 			ras_mp1_v13_0.o \
-			ras_aca.o  \
-			ras_aca_v1_0.o \
-			ras_eeprom.o \
+			aca.o  \
+			aca_v1_0.o \
+			eeprom.o \
 			ras_umc.o \
 			ras_umc_v12_0.o \
-			ras_cmd.o \
+			cmd.o \
 			ras_gfx.o \
 			ras_gfx_v9_0.o \
 			ras_process.o \
 			ras_nbio.o \
 			ras_nbio_v7_9.o \
-			ras_log_ring.o \
+			log_ring.o \
 			ras_cper.o \
 			ras_psp.o \
 			ras_psp_v13_0.o \
-			ras_eeprom_fw.o
+			eeprom_fw.o
 
 
 RAS_CORE = $(addprefix $(AMD_GPU_RAS_PATH)/core/,$(RAS_CORE_FILES))

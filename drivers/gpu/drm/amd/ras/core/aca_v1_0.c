@@ -22,9 +22,9 @@
  *
  */
 #include "ras.h"
-#include "ras_aca.h"
-#include "ras_core_status.h"
-#include "ras_aca_v1_0.h"
+#include "aca.h"
+#include "core_status.h"
+#include "aca_v1_0.h"
 
 struct ras_aca_hwip {
 	int hwid;

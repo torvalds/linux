@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __RAS_ACA_H__
-#define __RAS_ACA_H__
+#ifndef __ACA_H__
+#define __ACA_H__
 #include "ras.h"
 
 #define MAX_SOCKET_NUM_PER_HIVE 8

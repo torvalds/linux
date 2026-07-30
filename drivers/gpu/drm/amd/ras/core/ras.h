@@ -26,17 +26,17 @@
 #define __RAS_H__
 #include "ras_sys.h"
 #include "ras_umc.h"
-#include "ras_aca.h"
-#include "ras_eeprom.h"
-#include "ras_core_status.h"
+#include "aca.h"
+#include "eeprom.h"
+#include "core_status.h"
 #include "ras_process.h"
 #include "ras_gfx.h"
-#include "ras_cmd.h"
+#include "cmd.h"
 #include "ras_nbio.h"
 #include "ras_mp1.h"
 #include "ras_psp.h"
-#include "ras_log_ring.h"
-#include "ras_eeprom_fw.h"
+#include "log_ring.h"
+#include "eeprom_fw.h"
 
 #define RAS_HW_ERR		"[Hardware Error]: "
 

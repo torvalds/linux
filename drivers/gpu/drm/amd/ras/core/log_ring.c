@@ -22,8 +22,8 @@
  *
  */
 #include "ras.h"
-#include "ras_core_status.h"
-#include "ras_log_ring.h"
+#include "core_status.h"
+#include "log_ring.h"
 
 #define RAS_LOG_MAX_QUERY_SIZE   0xC000
 #define RAS_LOG_MEM_TEMP_SIZE    0x200

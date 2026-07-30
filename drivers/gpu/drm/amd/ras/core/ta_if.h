@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef _RAS_TA_IF_H
-#define _RAS_TA_IF_H
+#ifndef _TA_IF_H
+#define _TA_IF_H
 #include "ras.h"
 
 #define RAS_TA_HOST_IF_VER	0

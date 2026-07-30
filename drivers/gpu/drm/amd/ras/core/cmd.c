@@ -22,7 +22,7 @@
  *
  */
 #include "ras.h"
-#include "ras_cmd.h"
+#include "cmd.h"
 
 #define RAS_CMD_MAJOR_VERSION 6
 #define RAS_CMD_MINOR_VERSION 0
