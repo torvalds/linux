@@ -518,6 +518,7 @@ struct dw_pcie_ep {
 
 	/* MSI outbound iATU state */
 	bool			msi_iatu_mapped;
+	size_t			msi_iatu_mapped_offset;
 	u64			msi_msg_addr;
 	size_t			msi_map_size;
 };

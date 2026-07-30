@@ -1032,6 +1032,8 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 		 * there is no unified way to check if we have operations in
 		 * flight, thus we don't know if we should WARN() or not.
 		 */
+		/* flush posted write before unmap */
+		readl(ep->msi_mem + ep->msi_iatu_mapped_offset);
 		dw_pcie_ep_unmap_addr(epc, func_no, 0, ep->msi_mem_phys);
 		ep->msi_iatu_mapped = false;
 	}
@@ -1044,6 +1046,7 @@ int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 			return ret;
 
 		ep->msi_iatu_mapped = true;
+		ep->msi_iatu_mapped_offset = offset;
 		ep->msi_msg_addr = msg_addr;
 		ep->msi_map_size = map_size;
 	}
