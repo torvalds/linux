@@ -4280,7 +4280,9 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha, void *pkt)
 			if (!found)
 				return;
 
+			spin_lock_irqsave(&ha->vport_slock, flags);
 			qla_update_host_map(vp, id);
+			spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 			/*
 			 * Cannot configure here as we are still sitting on the
