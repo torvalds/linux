@@ -2376,17 +2376,23 @@ static int smu_v13_0_7_get_ppt_limit(struct smu_context *smu,
 				     enum smu_ppt_limit_type limit_type,
 				     uint32_t *ppt_limit)
 {
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	SkuTable_t *skutable = &pptable->SkuTable;
-	uint32_t pp_limit = smu->adev->pm.ac_power ?
-		skutable->SocketPowerLimitAc[PPT_THROTTLER_PPT0] :
-		skutable->SocketPowerLimitDc[PPT_THROTTLER_PPT0];
+	OverDriveTableExternal_t od_table;
+	int ret;
 
 	if (limit_type != SMU_PPT_LIMIT_PPT0)
 		return -EOPNOTSUPP;
 
-	if (smu_v13_0_get_ppt_limit(smu, limit_type, ppt_limit))
-		*ppt_limit = pp_limit;
+	ret = smu_v13_0_get_ppt_limit(smu, limit_type, ppt_limit);
+	if (ret)
+		return ret;
+
+	ret = smu_v13_0_7_get_overdrive_table(smu, &od_table);
+	if (ret)
+		return ret;
+
+	if (od_table.OverDriveTable.Ppt > 0)
+		*ppt_limit = *ppt_limit *
+			(100 + od_table.OverDriveTable.Ppt) / 100;
 
 	return 0;
 }
@@ -2665,22 +2671,23 @@ static int smu_v13_0_7_set_ppt_limit(struct smu_context *smu,
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	SkuTable_t *skutable = &pptable->SkuTable;
-	uint32_t msg_limit = skutable->MsgLimits.Power[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
+	uint32_t msg_limit = skutable->MsgLimits.Power
+		[PPT_THROTTLER_PPT0][POWER_SOURCE_AC];
 	struct smu_table_context *table_context = &smu->smu_table;
 	OverDriveTableExternal_t *od_table =
 		(OverDriveTableExternal_t *)table_context->overdrive_table;
-	uint32_t current_limit;
+	OverDriveTableExternal_t current_od_table;
 	int ret = 0;
 
 	if (limit_type != SMU_PPT_LIMIT_PPT0)
 		return -EINVAL;
 
-	ret = smu_v13_0_7_get_ppt_limit(smu, limit_type, &current_limit);
-	if (ret)
-		return ret;
-
 	if (limit <= msg_limit) {
-		if (current_limit > msg_limit) {
+		ret = smu_v13_0_7_get_overdrive_table(smu, &current_od_table);
+		if (ret)
+			return ret;
+
+		if (current_od_table.OverDriveTable.Ppt) {
 			od_table->OverDriveTable.Ppt = 0;
 			od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_PPT_BIT;
 
