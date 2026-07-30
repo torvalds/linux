@@ -774,6 +774,7 @@ static int isys_probe(struct auxiliary_device *auxdev,
 	return 0;
 
 out_cleanup:
+	isys_notifier_cleanup(isys);
 	isys_unregister_devices(isys);
 out_cleanup_fw:
 	ipu7_fw_isys_release(isys);
