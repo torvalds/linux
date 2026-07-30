@@ -201,6 +201,8 @@ static const union nf_inet_addr zeromask = {};
 #undef mtype_same_set
 #undef mtype_kadt
 #undef mtype_uadt
+#undef mtype_bucket_size
+#undef mtype_hash_size
 
 #undef mtype_add
 #undef mtype_del
@@ -246,6 +248,8 @@ static const union nf_inet_addr zeromask = {};
 #define mtype_same_set		IPSET_TOKEN(MTYPE, _same_set)
 #define mtype_kadt		IPSET_TOKEN(MTYPE, _kadt)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
+#define mtype_bucket_size	IPSET_TOKEN(MTYPE, _bucket_size)
+#define mtype_hash_size		IPSET_TOKEN(MTYPE, _hash_size)
 
 #define mtype_add		IPSET_TOKEN(MTYPE, _add)
 #define mtype_del		IPSET_TOKEN(MTYPE, _del)
@@ -1358,6 +1362,24 @@ out:
 	return ret;
 }
 
+static u32 mtype_hash_size(const struct htype *h)
+{
+	const struct htable *t;
+	u8 htable_bits;
+
+	rcu_read_lock();
+	t = rcu_dereference(h->table);
+	htable_bits = t->htable_bits;
+	rcu_read_unlock();
+
+	return jhash_size(htable_bits);
+}
+
+static u32 mtype_bucket_size(const struct htype *h)
+{
+	return h->bucketsize;
+}
+
 /* Reply a HEADER request: fill out the header part of the set */
 static int
 mtype_head(struct ip_set *set, struct sk_buff *skb)
@@ -1368,21 +1390,20 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 	size_t memsize;
 	u32 elements = 0;
 	size_t ext_size = 0;
-	u8 htable_bits;
 
 	rcu_read_lock_bh();
 	t = rcu_dereference_bh(h->table);
 	mtype_ext_size(set, &elements, &ext_size);
 	memsize = mtype_ahash_memsize(h, t) + ext_size + atomic64_read(&set->ext_size);
-	htable_bits = t->htable_bits;
 	rcu_read_unlock_bh();
 
 	nested = nla_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
-	if (nla_put_net32(skb, IPSET_ATTR_HASHSIZE,
-			  htonl(jhash_size(htable_bits))) ||
-	    nla_put_net32(skb, IPSET_ATTR_MAXELEM, htonl(h->maxelem)))
+
+	if (nla_put_net32(skb, IPSET_ATTR_HASHSIZE, htonl(mtype_hash_size(h))))
+		goto nla_put_failure;
+	if (nla_put_net32(skb, IPSET_ATTR_MAXELEM, htonl(h->maxelem)))
 		goto nla_put_failure;
 #ifdef IP_SET_HASH_WITH_BITMASK
 	/* if netmask is set to anything other than HOST_MASK we know that the user supplied netmask
@@ -1406,8 +1427,9 @@ mtype_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 #endif
 	if (set->flags & IPSET_CREATE_FLAG_BUCKETSIZE) {
-		if (nla_put_u8(skb, IPSET_ATTR_BUCKETSIZE, h->bucketsize) ||
-		    nla_put_net32(skb, IPSET_ATTR_INITVAL, htonl(h->initval)))
+		if (nla_put_u8(skb, IPSET_ATTR_BUCKETSIZE, mtype_bucket_size(h)))
+			goto nla_put_failure;
+		if (nla_put_net32(skb, IPSET_ATTR_INITVAL, htonl(h->initval)))
 			goto nla_put_failure;
 	}
 	if (nla_put_net32(skb, IPSET_ATTR_REFERENCES, htonl(set->ref)) ||
@@ -1721,6 +1743,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	INIT_LIST_HEAD(&t->ad);
 	RCU_INIT_POINTER(h->table, t);
 	set->data = h;
+
 #ifndef IP_SET_PROTO_UNDEF
 	if (set->family == NFPROTO_IPV4) {
 #endif
@@ -1749,7 +1772,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 #endif
 	}
 	pr_debug("create %s hashsize %u (%u) maxelem %u: %p(%p)\n",
-		 set->name, jhash_size(t->htable_bits),
+		 set->name, mtype_hash_size(h),
 		 t->htable_bits, h->maxelem, set->data, t);
 
 	return 0;
