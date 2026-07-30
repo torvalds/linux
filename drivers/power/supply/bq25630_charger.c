@@ -665,8 +665,9 @@ static int bq25630_reset(struct bq25630_data *data)
 	return 0;
 }
 
-static int bq25630_setup(struct bq25630_data *data)
+static int bq25630_setup(struct power_supply *psy)
 {
+	struct bq25630_data *data = power_supply_get_drvdata(psy);
 	struct power_supply_battery_info *batinfo;
 	int ret;
 
@@ -684,7 +685,7 @@ static int bq25630_setup(struct bq25630_data *data)
 		return ret;
 	}
 
-	ret = power_supply_get_battery_info(data->psy, &batinfo);
+	ret = power_supply_get_battery_info(psy, &batinfo);
 	if (ret) {
 		dev_err(data->dev, "Could not get battery info (%d)\n", ret);
 		return ret;
@@ -753,7 +754,7 @@ static int bq25630_setup(struct bq25630_data *data)
 	}
 
 out_put_batinfo:
-	power_supply_put_battery_info(data->psy, batinfo);
+	power_supply_put_battery_info(psy, batinfo);
 
 	return ret;
 }
@@ -976,6 +977,7 @@ static const struct power_supply_desc bq25630_charger_psy_desc = {
 	.get_property = bq25630_charger_get_property,
 	.set_property = bq25630_charger_set_property,
 	.property_is_writeable = bq25630_charger_property_is_writeable,
+	.init = bq25630_setup,
 };
 
 static int bq25630_probe(struct i2c_client *client)
@@ -1047,10 +1049,6 @@ static int bq25630_probe(struct i2c_client *client)
 					NULL, data);
 	if (ret)
 		return dev_err_probe(data->dev, ret, "Could not request IRQ\n");
-
-	ret = bq25630_setup(data);
-	if (ret)
-		return ret;
 
 	return 0;
 }
