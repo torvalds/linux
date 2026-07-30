@@ -99,8 +99,8 @@ config WATCHDOG_PRETIMEOUT_GOV_SEL
 if WATCHDOG_PRETIMEOUT_GOV
 
 config WATCHDOG_PRETIMEOUT_GOV_DUMP
-	bool "Dump watchdog pretimeout governor"
-	depends on WATCHDOG_CORE=y
+	tristate "Dump watchdog pretimeout governor"
+	depends on WATCHDOG_CORE
 	default WATCHDOG_CORE
 	help
 	  Dump watchdog pretimeout governor, all cpu backtrace is
