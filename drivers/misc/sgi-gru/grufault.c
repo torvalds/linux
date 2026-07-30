@@ -112,21 +112,6 @@ static void gru_unlock_gts(struct gru_thread_state *gts)
 }
 
 /*
- * Set a CB.istatus to active using a user virtual address. This must be done
- * just prior to a TFH RESTART. The new cb.istatus is an in-cache status ONLY.
- * If the line is evicted, the status may be lost. The in-cache update
- * is necessary to prevent the user from seeing a stale cb.istatus that will
- * change as soon as the TFH restart is complete. Races may cause an
- * occasional failure to clear the cb.istatus, but that is ok.
- */
-static void gru_cb_set_istatus_active(struct gru_instruction_bits *cbk)
-{
-	if (cbk) {
-		cbk->istatus = CBS_ACTIVE;
-	}
-}
-
-/*
  * Read & clear a TFM
  *
  * The GRU has an array of fault maps. A map is private to a cpu
@@ -354,7 +339,12 @@ static int gru_try_dropin(struct gru_state *gru,
 		gru_flush_cache_cbe(cbe);
 	}
 
-	gru_cb_set_istatus_active(cbk);
+	/*
+	 * Set CB.istatus active in cache before restarting the TFH to avoid
+	 * exposing stale pre-restart status. Cacheline eviction may lose the
+	 * update, but an occasional stale status is harmless.
+	 */
+	cbk->istatus = CBS_ACTIVE;
 	gts->ustats.tlbdropin++;
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
