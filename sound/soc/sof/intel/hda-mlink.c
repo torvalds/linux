@@ -884,19 +884,6 @@ int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 	return 0;
 } EXPORT_SYMBOL_NS(hdac_bus_eml_sdw_map_stream_ch, "SND_SOC_SOF_HDA_MLINK");
 
-void hda_bus_ml_put_all(struct hdac_bus *bus)
-{
-	struct hdac_ext_link *hlink;
-
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		struct hdac_ext2_link *h2link = hdac_ext_link_to_ext2(hlink);
-
-		if (!h2link->alt)
-			snd_hdac_ext_bus_link_put(bus, hlink);
-	}
-}
-EXPORT_SYMBOL_NS(hda_bus_ml_put_all, "SND_SOC_SOF_HDA_MLINK");
-
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus)
 {
 	struct hdac_ext_link *hlink;

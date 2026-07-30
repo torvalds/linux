@@ -49,7 +49,6 @@ int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num);
 int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 				   int channel_mask, int stream_id, int dir);
 
-void hda_bus_ml_put_all(struct hdac_bus *bus);
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus);
 int hda_bus_ml_resume(struct hdac_bus *bus);
 int hda_bus_ml_suspend(struct hdac_bus *bus);
@@ -169,7 +168,6 @@ hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
 	return 0;
 }
 
-static inline void hda_bus_ml_put_all(struct hdac_bus *bus) { }
 static inline void hda_bus_ml_reset_losidv(struct hdac_bus *bus) { }
 static inline int hda_bus_ml_resume(struct hdac_bus *bus) { return 0; }
 static inline int hda_bus_ml_suspend(struct hdac_bus *bus) { return 0; }
