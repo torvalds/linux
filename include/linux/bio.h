@@ -383,6 +383,30 @@ static inline bool bio_in_atomic(void)
 	return !preemptible();
 }
 
+void __bio_complete_in_task(struct bio *bio);
+
+/**
+ * bio_complete_in_task - ensure a bio is completed in preemptible task context
+ * @bio: bio to complete
+ *
+ * If called from non-task context, offload the bio completion to a worker
+ * thread and return %true. Else return %false and do nothing.
+ *
+ * Uses BIO_COMPLETE_IN_TASK as a sentinel: if set, the bio was already
+ * deferred and we are running in the worker — return %false so the
+ * callback proceeds instead of re-deferring.
+ */
+static inline bool bio_complete_in_task(struct bio *bio)
+{
+	if (bio_flagged(bio, BIO_COMPLETE_IN_TASK))
+		return false;
+	if (!bio_in_atomic())
+		return false;
+	bio_set_flag(bio, BIO_COMPLETE_IN_TASK);
+	__bio_complete_in_task(bio);
+	return true;
+}
+
 extern void bio_endio(struct bio *);
 
 /**
