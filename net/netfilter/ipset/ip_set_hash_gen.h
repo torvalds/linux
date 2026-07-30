@@ -195,6 +195,7 @@ static const union nf_inet_addr zeromask = {};
 #undef mtype_ext_cleanup
 #undef mtype_add_cidr
 #undef mtype_del_cidr
+#undef mtype_del_cidr_all
 #undef mtype_ahash_memsize
 #undef mtype_flush
 #undef mtype_destroy
@@ -242,6 +243,7 @@ static const union nf_inet_addr zeromask = {};
 #define mtype_ext_cleanup	IPSET_TOKEN(MTYPE, _ext_cleanup)
 #define mtype_add_cidr		IPSET_TOKEN(MTYPE, _add_cidr)
 #define mtype_del_cidr		IPSET_TOKEN(MTYPE, _del_cidr)
+#define mtype_del_cidr_all	IPSET_TOKEN(MTYPE, _del_cidr_all)
 #define mtype_ahash_memsize	IPSET_TOKEN(MTYPE, _ahash_memsize)
 #define mtype_flush		IPSET_TOKEN(MTYPE, _flush)
 #define mtype_destroy		IPSET_TOKEN(MTYPE, _destroy)
@@ -410,6 +412,17 @@ unlock:
 }
 #endif
 
+static void
+mtype_del_cidr_all(struct ip_set *set, struct htype *h, const struct mtype_elem *data)
+{
+#ifdef IP_SET_HASH_WITH_NETS
+	int k;
+
+	for (k = 0; k < IPSET_NET_COUNT; k++)
+		mtype_del_cidr(set, h, DCIDR_GET(data->cidr, k), k);
+#endif
+}
+
 /* Calculate the actual memory size of the set data */
 static size_t
 mtype_ahash_memsize(const struct htype *h, const struct htable *t)
@@ -551,9 +564,6 @@ mtype_gc_do(struct ip_set *set, struct htype *h, struct htable *t, u32 r)
 	struct mtype_elem *data;
 	u32 i, j, d;
 	size_t dsize = set->dsize;
-#ifdef IP_SET_HASH_WITH_NETS
-	u8 k;
-#endif
 	u8 pos, htable_bits = t->htable_bits;
 
 	spin_lock_bh(&t->hregion[r].lock);
@@ -574,11 +584,7 @@ mtype_gc_do(struct ip_set *set, struct htype *h, struct htable *t, u32 r)
 			pr_debug("expired %u/%u\n", i, j);
 			clear_bit(j, n->used);
 			smp_mb__after_atomic();
-#ifdef IP_SET_HASH_WITH_NETS
-			for (k = 0; k < IPSET_NET_COUNT; k++)
-				mtype_del_cidr(set, h,
-					DCIDR_GET(data->cidr, k), k);
-#endif
+			mtype_del_cidr_all(set, h, data);
 			t->hregion[r].elements--;
 			ip_set_ext_destroy(set, data);
 			d++;
@@ -1004,11 +1010,7 @@ mtype_add(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 			j = 0;
 		data = ahash_data(n, j, set->dsize);
 		if (!deleted) {
-#ifdef IP_SET_HASH_WITH_NETS
-			for (i = 0; i < IPSET_NET_COUNT; i++)
-				mtype_del_cidr(set, h,
-					DCIDR_GET(data->cidr, i), i);
-#endif
+			mtype_del_cidr_all(set, h, data);
 			ip_set_ext_destroy(set, data);
 			t->hregion[r].elements--;
 		}
@@ -1163,11 +1165,7 @@ mtype_del(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 		if (i + 1 == pos)
 			smp_store_release(&n->pos, --pos);
 		t->hregion[r].elements--;
-#ifdef IP_SET_HASH_WITH_NETS
-		for (j = 0; j < IPSET_NET_COUNT; j++)
-			mtype_del_cidr(set, h,
-				DCIDR_GET(d->cidr, j), j);
-#endif
+		mtype_del_cidr_all(set, h, d);
 		ip_set_ext_destroy(set, data);
 
 		if (t->resizing && ext && ext->target) {
