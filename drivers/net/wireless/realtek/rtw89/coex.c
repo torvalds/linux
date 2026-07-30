@@ -8167,6 +8167,10 @@ static void _set_bind_info(struct rtw89_btc *btc, u8 type)
 	memset(bd, 0, sizeof(*bd));
 	/* compare BT 2GHz/5GHz profile by link-weighting */
 	for (i = 0; i < BTC_BT_BMAX; i++) {
+		if (!cx->bt0.enable.now)
+			cx->bt0.link_weight[i] = 0;
+		if (!cx->bt1.enable.now)
+			cx->bt1.link_weight[i] = 0;
 		link_weight[BTC_BT_1ST][i] = cx->bt0.link_weight[i];
 		link_weight[BTC_BT_2ND][i] = cx->bt1.link_weight[i];
 		link_weight[BTC_BT_EXT][i] = cx->bt_ext.link_weight[i];
