@@ -341,7 +341,7 @@ out:
  * For traceroute-style ICMP echo requests, send a TTL exceeded reply back to
  * the source. Other ICMP types are simply dropped.
  *
- * Return: NET_XMIT_SUCCESS if the reply was queued, NET_RX_DROP otherwise
+ * Return: NET_RX_SUCCESS if the reply was queued, NET_RX_DROP otherwise
  */
 static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 					 struct sk_buff *skb)
@@ -382,8 +382,8 @@ static int batadv_recv_icmp_ttl_exceeded(struct batadv_priv *bat_priv,
 	icmp_packet->ttl = BATADV_TTL;
 
 	res = batadv_send_skb_to_orig(skb, orig_node, NULL);
-	if (res == NET_RX_SUCCESS)
-		ret = NET_XMIT_SUCCESS;
+	if (res == NET_XMIT_SUCCESS)
+		ret = NET_RX_SUCCESS;
 
 	/* skb was consumed */
 	skb = NULL;
