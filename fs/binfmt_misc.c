@@ -24,6 +24,7 @@
 #include <linux/fs_context.h>
 #include <linux/init.h>
 #include <linux/kstrtox.h>
+#include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/magic.h>
 #include <linux/module.h>
@@ -98,24 +99,6 @@ static const struct binfmt_misc_flag *misc_flag_by_char(const char c)
 			return &misc_flags[i];
 	return NULL;
 }
-
-/**
- * struct binfmt_misc_interp - an interpreter an entry was registered with
- * @list: link in the entry's list, in registration order
- * @file: the file, opened at registration and never resolved again
- * @path: the path it was registered under, used as the name the interpreter
- *        runs under; stored after @name in the same allocation
- * @name: the name a load program selects it by; empty for the fixed
- *        interpreter of a static 'F' entry
- *
- * Owned by the entry and living exactly as long as it does.
- */
-struct binfmt_misc_interp {
-	struct list_head	list;
-	struct file		*file;
-	const char		*path;
-	char			name[];
-};
 
 struct binfmt_misc_entry {
 	struct hlist_node node;
@@ -252,6 +235,24 @@ static struct binfmt_misc_entry *get_binfmt_handler(struct binfmt_misc *misc,
 	return search_binfmt_handler(misc, bprm);
 }
 
+/**
+ * binfmt_misc_find_interp - find a bound interpreter by name
+ * @interps: the interpreters the matched entry was registered with
+ * @name: the name to look for
+ *
+ * Return: the interpreter on success, NULL if @interps has none by that name
+ */
+const struct binfmt_misc_interp *
+binfmt_misc_find_interp(const struct list_head *interps, const char *name)
+{
+	struct binfmt_misc_interp *interp;
+
+	list_for_each_entry(interp, interps, list)
+		if (!strcmp(interp->name, name))
+			return interp;
+	return NULL;
+}
+
 /* Undo the open_exec() a pre-opened interpreter file came from. */
 static void close_interp_file(struct file *f)
 {
@@ -260,6 +261,8 @@ static void close_interp_file(struct file *f)
 	exe_file_allow_write_access(f);
 	filp_close(f, NULL);
 }
+
+DEFINE_FREE(close_interp_file, struct file *, close_interp_file(_T))
 
 /*
  * Open an interpreter @path for execution: now, in the writer's context,
@@ -293,7 +296,7 @@ static void entry_put_interpreters(struct binfmt_misc_entry *e)
 /**
  * entry_attach_interpreter - bind an opened interpreter to @e
  * @e: entry being configured
- * @name: name a load program can select it by; empty for the fixed
+ * @name: name the load program will select it by; empty for the fixed
  *        interpreter of a static entry
  * @path: the path @f was opened from
  * @f: the interpreter, opened for execution
@@ -301,8 +304,8 @@ static void entry_put_interpreters(struct binfmt_misc_entry *e)
  * Every exec runs a clone of @f, so the path decided which file is bound
  * and nothing else: it is not resolved again, in any namespace.
  *
- * The caller has to have established that @e cannot be matched yet, and
- * owns @f until this succeeds.
+ * The caller has to have validated @name and @path, established that @e
+ * cannot be matched yet, and owns @f until this succeeds.
  *
  * Return: 0 on success, a negative errno on failure
  */
@@ -312,6 +315,11 @@ static int entry_attach_interpreter(struct binfmt_misc_entry *e,
 {
 	size_t nlen = strlen(name), plen = strlen(path);
 	struct binfmt_misc_interp *interp;
+
+	if (binfmt_misc_find_interp(&e->interps, name))
+		return -EEXIST;
+	if (list_count_nodes(&e->interps) >= BINFMT_MISC_INTERP_MAX)
+		return -ENOSPC;
 
 	/* One allocation, both strings in it, like the entry's own buffer. */
 	interp = kmalloc(struct_size(interp, name, nlen + plen + 2),
@@ -323,7 +331,8 @@ static int entry_attach_interpreter(struct binfmt_misc_entry *e,
 	strscpy(interp->name, name, nlen + 1);
 	strscpy(interp->name + nlen + 1, path, plen + 1);
 	interp->file = f;
-	list_add_tail(&interp->list, &e->interps);
+	/* Publish the node: a lockless cat may be walking the list. */
+	list_add_tail_rcu(&interp->list, &e->interps);
 	pr_debug("register: interpreter: %s {%s}\n", name, path);
 	return 0;
 }
@@ -361,6 +370,20 @@ static void put_binfmt_handler(struct binfmt_misc_entry *e)
 
 DEFINE_FREE(put_binfmt_handler, struct binfmt_misc_entry *, put_binfmt_handler(_T))
 
+/* Drop everything a load program staged for this exec. */
+static void drop_staged_selection(struct linux_binprm *bprm)
+{
+	kfree(bprm->bpf_interp);
+	bprm->bpf_interp = NULL;
+	kfree(bprm->bpf_interp_arg);
+	bprm->bpf_interp_arg = NULL;
+	if (bprm->bpf_interp_file) {
+		fput(bprm->bpf_interp_file);
+		bprm->bpf_interp_file = NULL;
+	}
+	bprm->bpf_flags = 0;
+}
+
 /**
  * current_binfmt_misc - get the binfmt_misc instance of the caller's user namespace
  *
@@ -394,7 +417,8 @@ static struct binfmt_misc *current_binfmt_misc(void)
  * @bprm: binary that is being executed
  *
  * A static entry carries its interpreter path, for a 'B' entry the
- * handler's load program selects it. The match is committed, so a failing
+ * handler's load program selects it, either by path or by the name of one
+ * of the interpreters the entry bound. The match is committed, so a failing
  * program fails the exec.
  *
  * Return: the interpreter on success, an ERR_PTR on failure
@@ -404,15 +428,20 @@ static const char *entry_select_interpreter(const struct binfmt_misc_entry *e,
 {
 	int retval;
 
+	/*
+	 * Drop what a previous chain level staged before anything can pick it
+	 * up. A static entry stages nothing but consumes a staged file just
+	 * like a 'B' entry does.
+	 */
+	drop_staged_selection(bprm);
+
 	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
 		return e->interpreter;
 
-	/* Drop any interpreter or flags a previous chain level staged. */
-	kfree(bprm->bpf_interp);
-	bprm->bpf_interp = NULL;
-	bprm->bpf_flags = 0;
-
+	/* The interpreters this entry lets the program choose from. */
+	bprm->bpf_interps = &e->interps;
 	retval = e->bpf_ops->load(bprm);
+	bprm->bpf_interps = NULL;
 	if (retval) {
 		/* Keep a program-supplied error within errno range. */
 		if (retval > 0 || retval < -MAX_ERRNO)
@@ -430,9 +459,7 @@ static const char *entry_select_interpreter(const struct binfmt_misc_entry *e,
 
 drop_staged:
 	/* A failing load leaves nothing behind for later entries. */
-	kfree(bprm->bpf_interp_arg);
-	bprm->bpf_interp_arg = NULL;
-	bprm->bpf_flags = 0;
+	drop_staged_selection(bprm);
 	return ERR_PTR(retval);
 }
 
@@ -477,26 +504,36 @@ static unsigned long entry_invocation_flags(const struct binfmt_misc_entry *e,
 /**
  * entry_open_interpreter - open the entry's interpreter for execution
  * @e: matched binary type handler
+ * @bprm: binary that is being executed
  * @interpreter: the interpreter selected for this exec
  *
  * An 'F' entry hands out a clone of the file it pre-opened at registration,
- * any other entry opens the selected path.
+ * and so does a 'B' entry whose load program selected one of the
+ * interpreters it bound. Any other entry opens the selected path.
  *
  * Return: the opened interpreter on success, an ERR_PTR on failure
  */
 static struct file *entry_open_interpreter(const struct binfmt_misc_entry *e,
+					   struct linux_binprm *bprm,
 					   const char *interpreter)
 {
 	struct file *interp_file __free(fput) = NULL;
 	struct binfmt_misc_interp *interp;
+	struct file *bound;
 	int retval;
 
-	if (!(e->flags & MISC_FMT_OPEN_FILE))
+	if (bprm->bpf_interp_file) {
+		bound = bprm->bpf_interp_file;
+	} else if (e->flags & MISC_FMT_OPEN_FILE) {
+		/* An 'F' entry pre-opened exactly one interpreter. */
+		interp = list_first_entry(&e->interps,
+					  struct binfmt_misc_interp, list);
+		bound = interp->file;
+	} else {
 		return open_exec(interpreter);
+	}
 
-	/* An 'F' entry pre-opened exactly one interpreter. */
-	interp = list_first_entry(&e->interps, struct binfmt_misc_interp, list);
-	interp_file = file_clone_open(interp->file);
+	interp_file = file_clone_open(bound);
 	if (IS_ERR(interp_file))
 		return interp_file;
 
@@ -606,7 +643,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	 * to the real format in the same round.
 	 */
 	if (flags & MISC_FMT_LOADER) {
-		interp_file = entry_open_interpreter(fmt, interpreter);
+		interp_file = entry_open_interpreter(fmt, bprm, interpreter);
 		if (IS_ERR(interp_file)) {
 			retval = PTR_ERR(interp_file);
 			/* Declining here would run the binary's own PT_INTERP. */
@@ -628,7 +665,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (retval < 0)
 		return retval;
 
-	interp_file = entry_open_interpreter(fmt, interpreter);
+	interp_file = entry_open_interpreter(fmt, bprm, interpreter);
 	if (IS_ERR(interp_file))
 		return PTR_ERR(interp_file);
 
@@ -902,7 +939,7 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	/*
 	 * A bpf handler decides the invocation flags per exec with
 	 * bpf_binprm_set_flags() rather than fixing them at registration, and
-	 * 'F' (pre-open a fixed interpreter) is meaningless for it, so a 'B'
+	 * the interpreters it binds pre-open what 'F' would have, so a 'B'
 	 * entry carries no invocation flags.
 	 */
 	if (test_bit(MISC_FMT_BPF_BIT, &e->flags) &&
@@ -913,7 +950,8 @@ static struct binfmt_misc_entry *create_entry(const char __user *buffer,
 	 * 'D' is a directive for this registration rather than a lasting
 	 * property, so consume it: the entry is created disabled and stays
 	 * out of the search list until '1' is written to its entry file.
-	 * The first enable publishes it, for good.
+	 * Staying out is what leaves it open to being given interpreters;
+	 * the first enable publishes it, for good.
 	 */
 	if (e->flags & MISC_FMT_DISABLED) {
 		e->flags &= ~MISC_FMT_DISABLED;
@@ -955,18 +993,17 @@ enum bm_command {
 	BM_CMD_REMOVE,	/* "-1" */
 };
 
+/* Longest of the commands above, "-1\n". */
+#define MAX_COMMAND_LENGTH 3
+
 /*
  * Parse what userspace wrote to /status or an entry file: '1' enables,
  * '0' disables and '-1' removes the entry or all entries.
  */
-static int parse_command(const char __user *buffer, size_t count)
+static int parse_command(const char *s, size_t count)
 {
-	char s[4];
-
-	if (count > 3)
+	if (count > MAX_COMMAND_LENGTH)
 		return -EINVAL;
-	if (copy_from_user(s, buffer, count))
-		return -EFAULT;
 	if (!count)
 		return BM_CMD_IGNORE;
 	if (s[count - 1] == '\n')
@@ -978,6 +1015,18 @@ static int parse_command(const char __user *buffer, size_t count)
 	if (count == 2 && s[0] == '-' && s[1] == '1')
 		return BM_CMD_REMOVE;
 	return -EINVAL;
+}
+
+/* Copy in a command from a file that takes nothing else, and parse it. */
+static int read_command(const char __user *buffer, size_t count)
+{
+	char s[MAX_COMMAND_LENGTH + 1];
+
+	if (count > sizeof(s) - 1)
+		return -EINVAL;
+	if (copy_from_user(s, buffer, count))
+		return -EFAULT;
+	return parse_command(s, count);
 }
 
 /* generic stuff */
@@ -1003,10 +1052,23 @@ static int bm_entry_show(struct seq_file *m, void *unused)
 	else
 		seq_puts(m, "disabled\n");
 
-	if (test_bit(MISC_FMT_BPF_BIT, &e->flags))
+	if (test_bit(MISC_FMT_BPF_BIT, &e->flags)) {
+		struct binfmt_misc_interp *interp;
+
 		seq_printf(m, "bpf %s\n", e->bpf_ops->name);
-	else
+		/*
+		 * A staged entry's set can still grow, so every binding is
+		 * rcu-published. The open file pins the entry and with it
+		 * every node, so rcu is for the tearing, not the lifetime.
+		 */
+		rcu_read_lock();
+		list_for_each_entry_rcu(interp, &e->interps, list)
+			seq_printf(m, "bpf-interpreter %s %s\n",
+				   interp->name, interp->path);
+		rcu_read_unlock();
+	} else {
 		seq_printf(m, "interpreter %s\n", e->interpreter);
+	}
 
 	/* print the special flags */
 	seq_puts(m, "flags: ");
@@ -1201,12 +1263,111 @@ static int bm_entry_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/*
+ * Longest '+<name> <path>' a write can spell, and with it the longest
+ * command an entry file takes: the two delimiters and a newline on top of
+ * the two names.
+ */
+#define MAX_BINDING_LENGTH (BINFMT_MISC_INTERP_NAME_MAX + PATH_MAX + 3)
+
+/**
+ * bm_entry_add_interp - bind another interpreter to a staged entry
+ * @e: the entry
+ * @file: the entry file being written to, for its credentials
+ * @buf: the '+<name> <path>' command, parsed in place and owned by the caller
+ * @count: its length
+ *
+ * A 'D' entry is registered outside the search list, which is what leaves
+ * it open to being configured: it cannot be matched, so no exec can be
+ * holding its interpreters and the set can still grow. Its first enable
+ * publishes it and ends that. One interpreter per write, up to
+ * BINFMT_MISC_INTERP_MAX of them, none of which has to fit in a register
+ * string.
+ *
+ * Return: @count on success, a negative errno on failure
+ */
+static ssize_t bm_entry_add_interp(struct binfmt_misc_entry *e,
+				   struct file *file, char *buf, size_t count)
+{
+	struct file *f __free(close_interp_file) = NULL;
+	struct inode *root = bm_root_inode(file_inode(file)->i_sb);
+	size_t nlen, plen;
+	char *name, *path;
+	int retval;
+
+	/* Settled before the open: type is fixed, publication is permanent. */
+	if (!test_bit(MISC_FMT_BPF_BIT, &e->flags))
+		return -EINVAL;
+	if (!hlist_unhashed_lockless(&e->node))
+		return -EBUSY;
+
+	/* '+<name> <path>': the path is everything past the first space. */
+	name = buf + 1;
+	path = strchr(name, ' ');
+	if (!path)
+		return -EINVAL;
+	*path++ = '\0';
+
+	plen = strlen(path);
+	/* The command has to end at the write, like a register string. */
+	if (path + plen != buf + count)
+		return -EINVAL;
+	if (plen && path[plen - 1] == '\n')
+		path[--plen] = '\0';
+	/* Resolved now, so a relative path would name the writer's cwd. */
+	if (path[0] != '/')
+		return -EINVAL;
+
+	nlen = path - name - 1;
+	if (!nlen || nlen > BINFMT_MISC_INTERP_NAME_MAX)
+		return -EINVAL;
+	/* The name prints between delimiters, so keep it a printable word. */
+	for (const char *p = name; *p; p++)
+		if (!isascii(*p) || !isgraph(*p))
+			return -EINVAL;
+
+	/* Opened before the lock: resolving it may walk this very filesystem. */
+	f = open_interp_file(file->f_cred, path);
+	if (IS_ERR(f))
+		return PTR_ERR(f);
+
+	inode_lock(root);
+	if (d_unhashed(e->dentry))
+		retval = -ENOENT;	/* removed while we were opening it */
+	else if (!hlist_unhashed(&e->node))
+		retval = -EBUSY;	/* published while we were opening it */
+	else
+		retval = entry_attach_interpreter(e, name, path, f);
+	inode_unlock(root);
+	if (retval)
+		return retval;
+
+	/* The file is owned by the entry now. */
+	retain_and_null_ptr(f);
+	return count;
+}
+
 static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
 	struct binfmt_misc_entry *e = inode->i_private;
-	int res = parse_command(buffer, count);
+	char *buf __free(kfree) = NULL;
+	int res;
+
+	/* A binding is the longest command this file takes. */
+	if (count > MAX_BINDING_LENGTH)
+		return -E2BIG;
+
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	/* '+<name> <path>' binds an interpreter, everything else toggles. */
+	if (buf[0] == '+')
+		return bm_entry_add_interp(e, file, buf, count);
+
+	res = parse_command(buf, count);
 
 	switch (res) {
 	case BM_CMD_DISABLE:
@@ -1218,8 +1379,9 @@ static ssize_t bm_entry_write(struct file *file, const char __user *buffer,
 		/*
 		 * The first enable publishes a 'D' entry into the search
 		 * list, whole. The lock keeps that ordered against a second
-		 * enable and against removal; a removed entry has nothing
-		 * left to publish.
+		 * enable, against removal - a removed entry has nothing left
+		 * to publish - and against binding: what can be matched can
+		 * no longer be configured.
 		 */
 		inode_lock(root);
 		set_bit(MISC_FMT_ENABLED_BIT, &e->flags);
@@ -1348,7 +1510,7 @@ static ssize_t bm_status_write(struct file *file, const char __user *buffer,
 		size_t count, loff_t *ppos)
 {
 	struct binfmt_misc *misc;
-	int res = parse_command(buffer, count);
+	int res = read_command(buffer, count);
 
 	misc = i_binfmt_misc(file_inode(file));
 	switch (res) {

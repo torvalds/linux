@@ -5,10 +5,40 @@
 #include <linux/types.h>
 
 struct bpf_prog;
+struct file;
 struct linux_binprm;
 struct user_namespace;
 
 #define BINFMT_MISC_OPS_NAME_MAX 16
+
+/* Longest name a 'B' entry can bind an interpreter under. */
+#define BINFMT_MISC_INTERP_NAME_MAX 32
+
+/* Most interpreters one entry can bind. */
+#define BINFMT_MISC_INTERP_MAX 100
+
+/**
+ * struct binfmt_misc_interp - an interpreter an entry was registered with
+ * @list: link in the entry's list, in registration order
+ * @file: the file, opened at registration and never resolved again
+ * @path: the path it was registered under, used as the name the interpreter
+ *        runs under; stored after @name in the same allocation
+ * @name: the name the load program selects it by; empty for the fixed
+ *        interpreter of a static 'F' entry
+ *
+ * Owned by the entry and living exactly as long as it does. The list head
+ * is handed to the handler's load program for the duration of one exec,
+ * which picks one with bpf_binprm_select_interp().
+ */
+struct binfmt_misc_interp {
+	struct list_head	list;
+	struct file		*file;
+	const char		*path;
+	char			name[];
+};
+
+const struct binfmt_misc_interp *
+binfmt_misc_find_interp(const struct list_head *interps, const char *name);
 
 /**
  * enum bpf_binprm_flags - per-exec invocation flags a load program can request
@@ -42,10 +72,11 @@ enum bpf_binprm_flags {
  *         so it can read the binary to decide, but the verifier rejects
  *         the interpreter selection kfuncs in it
  * @load:  select an interpreter for the matched @bprm via
- *         bpf_binprm_set_interp() and return zero; a match is committed, so
- *         a failure fails the exec instead of falling through to later
- *         entries; -ENOEXEC does not fail the exec but moves on to the
- *         remaining binary formats
+ *         bpf_binprm_set_interp(), or one the entry bound via
+ *         bpf_binprm_select_interp(), and return zero; a match is
+ *         committed, so a failure fails the exec instead of falling
+ *         through to later entries; -ENOEXEC does not fail the exec but
+ *         moves on to the remaining binary formats
  * @name: name that 'B' entries reference the handler by
  */
 struct binfmt_misc_ops {

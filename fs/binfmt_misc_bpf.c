@@ -7,6 +7,15 @@
  * namespace it was registered in. A binfmt_misc 'B' entry activates it:
  *
  *   echo ':entry:B::::<handler-name>:' > <binfmt_misc>/register
+ *
+ * The entry can bind the interpreters the handler may run its binaries
+ * with, each opened by the write that binds it and selected by name per
+ * exec. An entry registered with 'D' is not matchable yet, which is what
+ * leaves it open to being given them:
+ *
+ *   echo ':entry:B::::<handler-name>:D' > <binfmt_misc>/register
+ *   echo '+<name> <path>' > <binfmt_misc>/entry
+ *   echo 1 > <binfmt_misc>/entry
  */
 
 #include <linux/binfmt_misc.h>
@@ -16,6 +25,8 @@
 #include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/cred.h>
+#include <linux/file.h>
+#include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/limits.h>
 #include <linux/slab.h>
@@ -88,6 +99,20 @@ bool bpf_prog_is_binfmt_misc_ops(const struct bpf_prog *prog)
 	       prog->aux->st_ops == &bpf_binfmt_misc_ops;
 }
 
+/*
+ * Replace the staged interpreter selection: naming a path drops a bound
+ * file, selecting a bound interpreter carries its file along.
+ */
+static void bm_bpf_stage_selection(struct linux_binprm *bprm, char *path,
+				   struct file *f)
+{
+	if (bprm->bpf_interp_file)
+		fput(bprm->bpf_interp_file);
+	kfree(bprm->bpf_interp);
+	bprm->bpf_interp = path;
+	bprm->bpf_interp_file = f;
+}
+
 __bpf_kfunc_start_defs();
 
 /**
@@ -100,7 +125,8 @@ __bpf_kfunc_start_defs();
  * before returning zero; the verifier rejects the call from any other
  * program, including the handler's own match program. The path is opened
  * with the credentials of the task doing the exec after the program
- * returns.
+ * returns. Calling it again replaces the selection, as does selecting an
+ * interpreter the entry bound with bpf_binprm_select_interp().
  *
  * Return: 0 on success, a negative errno on failure
  */
@@ -124,8 +150,50 @@ __bpf_kfunc int bpf_binprm_set_interp(struct linux_binprm *bprm,
 	if (!interp)
 		return -ENOMEM;
 
-	kfree(bprm->bpf_interp);
-	bprm->bpf_interp = interp;
+	bm_bpf_stage_selection(bprm, interp, NULL);
+	return 0;
+}
+
+/**
+ * bpf_binprm_select_interp - run this exec under an interpreter the entry bound
+ * @bprm: binary that is being executed
+ * @name: name the interpreter was registered under
+ * @name__sz: size of the @name buffer, including the terminating NUL
+ *
+ * To be called from the load program of a struct binfmt_misc_ops handler
+ * instead of bpf_binprm_set_interp(). It selects one of the interpreters
+ * the matched entry was registered with, each of which was opened once when
+ * the entry was registered. Nothing is resolved at exec time, so no
+ * filesystem view can redirect the interpreter.
+ *
+ * The interpreter runs under the path the entry registered it under.
+ * Calling it again replaces the selection.
+ *
+ * Return: 0 on success, -ENOENT if the matched entry bound no interpreter
+ * of that name, a negative errno on failure
+ */
+__bpf_kfunc int bpf_binprm_select_interp(struct linux_binprm *bprm,
+					 const char *name, size_t name__sz)
+{
+	const struct binfmt_misc_interp *interp;
+	size_t len;
+	char *path;
+
+	if (!name__sz)
+		return -EINVAL;
+	len = strnlen(name, name__sz);
+	if (len == name__sz || !len)
+		return -EINVAL;
+
+	interp = binfmt_misc_find_interp(bprm->bpf_interps, name);
+	if (!interp)
+		return -ENOENT;
+
+	path = kstrdup(interp->path, GFP_KERNEL);
+	if (!path)
+		return -ENOMEM;
+
+	bm_bpf_stage_selection(bprm, path, get_file(interp->file));
 	return 0;
 }
 
@@ -208,6 +276,7 @@ __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(bm_bpf_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_binprm_set_interp, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_binprm_select_interp, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_binprm_set_interp_arg, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_binprm_set_flags, KF_SLEEPABLE)
 BTF_KFUNCS_END(bm_bpf_kfunc_ids)
