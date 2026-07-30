@@ -432,6 +432,10 @@ int hda_bus_ml_init(struct hdac_bus *bus)
 	if (!bus->mlcap)
 		return 0;
 
+	/* Enumeration is a one time operation, skip if already done */
+	if (!list_empty(&bus->hlink_list))
+		return 0;
+
 	link_count = readl(bus->mlcap + AZX_REG_ML_MLCD) + 1;
 
 	dev_dbg(bus->dev, "HDAudio Multi-Link count: %d\n", link_count);

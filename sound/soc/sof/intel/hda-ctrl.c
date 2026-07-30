@@ -223,6 +223,14 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool detect_codec)
 	/* Accept unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 
+	/* Perform a one-time enumeration of the Multi-Link capability */
+	ret = hda_bus_ml_init(bus);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: failed to enumerate multi-links\n",
+			__func__);
+		goto err;
+	}
+
 	if (detect_codec)
 		hda_codec_detect_mask(sdev);
 
