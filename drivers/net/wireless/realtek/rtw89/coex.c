@@ -9005,23 +9005,46 @@ static u8 _update_bt_rssi_level(struct rtw89_dev *rtwdev, u8 rssi)
 
 #define BT_PROFILE_PROTOCOL_MASK GENMASK(7, 4)
 
-static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
+static void _update_bt_info(struct rtw89_dev *rtwdev, u8 bid, u8 *buf, u32 len)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_bt_a2dp_desc *a2dp;
 	struct rtw89_btc_cx *cx = &btc->cx;
-	struct rtw89_btc_bt_info *bt = &cx->bt0;
-	struct rtw89_btc_bt_link_info *b = &bt->link_info;
-	struct rtw89_btc_bt_hfp_desc *hfp = &b->hfp_desc;
-	struct rtw89_btc_bt_hid_desc *hid = &b->hid_desc;
-	struct rtw89_btc_bt_a2dp_desc *a2dp = &b->a2dp_desc;
-	struct rtw89_btc_bt_pan_desc *pan = &b->pan_desc;
+	struct rtw89_btc_bt_hfp_desc *hfp;
+	struct rtw89_btc_bt_hid_desc *hid;
+	struct rtw89_btc_bt_pan_desc *pan;
+	struct rtw89_btc_bt_link_info *b;
+	struct rtw89_btc_bt_info *bt;
 	union btc_btinfo btinfo;
+	u8 is_bt_56g = 0;
+	u8 *raw_info;
 
-	if (buf[BTC_BTINFO_L1] != 6)
+	/* Bit7 is used for RF-band: 0:BT_2.4 GHz, 1:BT_5/6 GHz */
+	if ((buf[BTC_BTINFO_L1] & 0x7f) != 6)
 		return;
 
-	if (!memcmp(bt->raw_info, buf, BTC_BTINFO_MAX)) {
+	bt = (bid == BTC_BT_1ST) ? &cx->bt0 : &cx->bt1;
+
+	if ((buf[BTC_BTINFO_L1] & BIT(7)) && bt->band_56G_support) {
+		b = &bt->link_info_56g;
+		is_bt_56g = 1;
+		if (b->status.map.connect)
+			bt->rf_band_map |= BIT(RTW89_BAND_5G);
+		else
+			bt->rf_band_map &= ~BIT(RTW89_BAND_5G);
+	} else {
+		b = &bt->link_info;
+		bt->rf_band_map |= BIT(RTW89_BAND_2G);
+	}
+
+	hfp = &b->hfp_desc;
+	hid = &b->hid_desc;
+	a2dp = &b->a2dp_desc;
+	pan = &b->pan_desc;
+	raw_info = is_bt_56g ? bt->raw_info_56g : bt->raw_info;
+
+	if (!memcmp(raw_info, buf, BTC_BTINFO_MAX)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): return by bt-info duplicate!!\n",
 			    __func__);
@@ -9029,16 +9052,16 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 		return;
 	}
 
-	memcpy(bt->raw_info, buf, BTC_BTINFO_MAX);
+	memcpy(raw_info, buf, BTC_BTINFO_MAX);
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): bt_info[2]=0x%02x\n",
-		    __func__, bt->raw_info[2]);
+		    __func__, raw_info[2]);
 
 	hid->type = 0;
 
 	/* parse raw info low-Byte2 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_L2];
+	btinfo.val = raw_info[BTC_BTINFO_L2];
 	b->status.map.connect = btinfo.lb2.connect;
 	b->status.map.sco_busy = btinfo.lb2.sco_busy;
 	b->status.map.acl_busy = btinfo.lb2.acl_busy;
@@ -9050,11 +9073,11 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	hid->exist = btinfo.lb2.hid;
 	a2dp->exist = btinfo.lb2.a2dp;
 	pan->exist = btinfo.lb2.pan;
-	_update_bt_link_cnt(rtwdev, bt, 0);
+	_update_bt_link_cnt(rtwdev, bt, is_bt_56g);
 	btc->dm.trx_info.bt_profile = u32_get_bits(btinfo.val, BT_PROFILE_PROTOCOL_MASK);
 
 	/* parse raw info low-Byte3 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_L3];
+	btinfo.val = raw_info[BTC_BTINFO_L3];
 	if (btinfo.lb3.retry != 0)
 		bt->bcnt[BTC_BCNT_RETRY]++;
 	b->cqddr = btinfo.lb3.cqddr;
@@ -9065,14 +9088,14 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 
 	b->status.map.mesh_busy = btinfo.lb3.mesh_busy;
 	/* parse raw info high-Byte0 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_H0];
+	btinfo.val = raw_info[BTC_BTINFO_H0];
 	/* raw val is dBm unit, translate from -100~ 0dBm to 0~100%*/
 	b->rssi = chip->ops->btc_get_bt_rssi(rtwdev, btinfo.hb0.rssi);
 	bt->rssi_level = _update_bt_rssi_level(rtwdev, b->rssi);
 	btc->dm.trx_info.bt_rssi = bt->rssi_level;
 
 	/* parse raw info high-Byte1 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_H1];
+	btinfo.val = raw_info[BTC_BTINFO_H1];
 	b->status.map.ble_connect = btinfo.hb1.ble_connect;
 	if (btinfo.hb1.ble_connect) {
 		if (hid->exist)
@@ -9101,7 +9124,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 	b->multi_link.now = btinfo.hb1.multi_link;
 
 	/* parse raw info high-Byte2 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_H2];
+	btinfo.val = raw_info[BTC_BTINFO_H2];
 	pan->active = !!btinfo.hb2.pan_active;
 
 	bt->bcnt[BTC_BCNT_AFH] += !!(btinfo.hb2.afh_update && !b->afh_update);
@@ -9114,7 +9137,7 @@ static void _update_bt_info(struct rtw89_dev *rtwdev, u8 *buf, u32 len)
 		hid->type |= (hid->slot_info == BTC_HID_218 ?
 			      BTC_HID_218 : BTC_HID_418);
 	/* parse raw info high-Byte3 */
-	btinfo.val = bt->raw_info[BTC_BTINFO_H3];
+	btinfo.val = raw_info[BTC_BTINFO_H3];
 	a2dp->bitpool = btinfo.hb3.a2dp_bitpool;
 
 	if (b->tx_3m != (u32)btinfo.hb3.tx_3m)
@@ -9785,7 +9808,7 @@ void rtw89_btc_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], handle C2H BT INFO with data %8ph\n", buf);
 		bt->bcnt[BTC_BCNT_INFOUPDATE]++;
-		_update_bt_info(rtwdev, buf, len);
+		_update_bt_info(rtwdev, bid, buf, len);
 		break;
 	case BTF_EVNT_BT_SCBD:
 		bt->bcnt[BTC_BCNT_SCBDUPDATE]++;

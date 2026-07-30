@@ -2705,7 +2705,8 @@ struct rtw89_btc_bt_info {
 	struct rtw89_btc_rf_para rf_para;
 	union rtw89_btc_bt_rfk_info_map rfk_info;
 
-	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
+	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox (2.4G) */
+	u8 raw_info_56g[BTC_BTINFO_MAX]; /* raw bt info from mailbox (5/6G) */
 	u8 txpwr_info[BTC_BTINFO_MAX];
 	u8 link_weight[BTC_BT_BMAX]; /* Link Weight for RF-band/HWB selection */
 	u8 rssi_level;
