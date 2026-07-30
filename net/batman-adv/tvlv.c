@@ -383,8 +383,9 @@ end:
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Return: success if the handler was not found or the return value of the
- * handler callback.
+ * Return: NET_RX_SUCCESS if the handler was not found or the return value of
+ * the handler callback. The latter is NET_RX_SUCCESS or NET_RX_DROP for the
+ * unicast handler and additionally a negative errno code for the mcast handler.
  */
 static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 				    struct batadv_tvlv_handler *tvlv_handler,
@@ -524,8 +525,9 @@ static bool batadv_tvlv_containers_contain(void *tvlv_value,
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Return: success when processing an OGM or the return value of all called
- * handler callbacks.
+ * Return: NET_RX_SUCCESS when processing an OGM or the combined return value of
+ * all called handler callbacks. The latter is NET_RX_SUCCESS, NET_RX_DROP or,
+ * for BATADV_MCAST packets, a negative errno code.
  */
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				   u8 packet_type,
@@ -540,6 +542,7 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 	u16 tvlv_value_cont_len;
 	u8 cifnotfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
 	int ret = NET_RX_SUCCESS;
+	int res;
 
 	while ((tvlv_hdr = batadv_tvlv_hdr_next(&tvlv_value, &tvlv_value_len))) {
 		tvlv_value_cont_len = ntohs(tvlv_hdr->len);
@@ -548,10 +551,13 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 						       tvlv_hdr->type,
 						       tvlv_hdr->version);
 
-		ret |= batadv_tvlv_call_handler(bat_priv, tvlv_handler,
-						packet_type, orig_node, skb,
-						tvlv_hdr + 1,
-						tvlv_value_cont_len);
+		res = batadv_tvlv_call_handler(bat_priv, tvlv_handler,
+					       packet_type, orig_node, skb,
+					       tvlv_hdr + 1,
+					       tvlv_value_cont_len);
+		if (ret == NET_RX_SUCCESS || res < 0)
+			ret = res;
+
 		batadv_tvlv_handler_put(tvlv_handler);
 	}
 
