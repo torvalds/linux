@@ -19,6 +19,7 @@
 #include <linux/stringify.h>
 #include <linux/nmi.h>
 #include <linux/cpu.h>
+#include <linux/export.h>
 #include <linux/sched/debug.h>
 
 #ifdef arch_trigger_cpumask_backtrace
@@ -129,4 +130,10 @@ bool nmi_cpu_backtrace(struct pt_regs *regs)
 	return false;
 }
 NOKPROBE_SYMBOL(nmi_cpu_backtrace);
+
+void cpumask_backtrace(const cpumask_t *mask, int exclude_cpu)
+{
+	arch_trigger_cpumask_backtrace(mask, exclude_cpu);
+}
+EXPORT_SYMBOL_GPL(cpumask_backtrace);
 #endif
