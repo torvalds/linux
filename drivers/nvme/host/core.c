@@ -5223,7 +5223,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 
 	BUILD_BUG_ON(NVME_DSM_MAX_RANGES * sizeof(struct nvme_dsm_range) >
 			PAGE_SIZE);
-	ctrl->discard_page = alloc_page(GFP_KERNEL);
+	ctrl->discard_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!ctrl->discard_page) {
 		ret = -ENOMEM;
 		goto out;
