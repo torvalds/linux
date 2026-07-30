@@ -4113,9 +4113,9 @@ static int arm_smmu_insert_master(struct arm_smmu_device *smmu,
 	}
 
 	/* Put the ids into order for sorted to_merge/to_unref arrays */
-	sort_nonatomic(master->streams, master->num_streams,
-		       sizeof(master->streams[0]), arm_smmu_stream_id_cmp,
-		       NULL);
+	sort(master->streams, master->num_streams,
+	     sizeof(master->streams[0]), arm_smmu_stream_id_cmp,
+	     NULL);
 
 	mutex_lock(&smmu->streams_mutex);
 	for (i = 0; i < fwspec->num_ids; i++) {
