@@ -708,8 +708,6 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		int max_dest_rd_atomic = attr->max_dest_rd_atomic ?
 			roundup_pow_of_two(attr->max_dest_rd_atomic) : 0;
 
-		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
-
 		/*
 		 * Not gated by IB_QP_STATE, so the responder task is live.
 		 * Quiesce recv_task like rxe_qp_reset() before swapping the
@@ -718,6 +716,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		 */
 		rxe_disable_task(&qp->recv_task);
 		free_rd_atomic_resources(qp);
+		qp->attr.max_dest_rd_atomic = max_dest_rd_atomic;
 		err = alloc_rd_atomic_resources(qp, max_dest_rd_atomic);
 		/*
 		 * On ENOMEM leave recv_task quiesced: qp->resp.resources is
