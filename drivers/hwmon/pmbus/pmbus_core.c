@@ -3461,10 +3461,9 @@ static int pmbus_write_smbalert_mask(struct i2c_client *client, u8 page, u8 reg,
 	return ret;
 }
 
-static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
+void pmbus_check_and_notify_faults(struct i2c_client *client)
 {
-	struct pmbus_data *data = pdata;
-	struct i2c_client *client = to_i2c_client(data->dev);
+	struct pmbus_data *data = i2c_get_clientdata(client);
 	int i, status, event;
 
 	guard(pmbus_lock)(client);
@@ -3477,6 +3476,15 @@ static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
 	}
 
 	pmbus_clear_faults(client);
+}
+EXPORT_SYMBOL_NS_GPL(pmbus_check_and_notify_faults, "PMBUS");
+
+static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
+{
+	struct pmbus_data *data = pdata;
+	struct i2c_client *client = to_i2c_client(data->dev);
+
+	pmbus_check_and_notify_faults(client);
 
 	return IRQ_HANDLED;
 }
