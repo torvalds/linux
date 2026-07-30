@@ -218,10 +218,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 
 	host->io_base = io_base;
 	host->irq = platform_get_irq(pdev, 0);
-	if (host->irq < 0) {
-		dev_warn(&pdev->dev, "failed to get IRQ: %d\n", host->irq);
+	if (host->irq < 0)
 		return host->irq;
-	}
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
@@ -243,10 +241,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, host->irq, spdif_in_irq, 0,
 			"spdif-in", host);
-	if (ret) {
-		dev_warn(&pdev->dev, "request_irq failed\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &spdif_in_component,
 					      &spdif_in_dai, 1);
