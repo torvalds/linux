@@ -24,6 +24,7 @@
  */
 static struct platform_device *drm_dev;
 static struct rocket_device *rdev;
+static void *rdev_group;
 
 static void
 rocket_iommu_domain_destroy(struct kref *kref)
@@ -163,14 +164,19 @@ static int rocket_probe(struct platform_device *pdev)
 
 	if (rdev == NULL) {
 		/* First core probing, initialize DRM device. */
+		rdev_group = devres_open_group(&drm_dev->dev, NULL, GFP_KERNEL);
+		if (!rdev_group)
+			return -ENOMEM;
 		rdev = rocket_device_init(drm_dev, &rocket_drm_driver);
 		if (IS_ERR(rdev)) {
 			int err = PTR_ERR(rdev);
 
 			dev_err(&pdev->dev, "failed to initialize rocket device\n");
 			rdev = NULL;
+			devres_release_group(&drm_dev->dev, rdev_group);
 			return err;
 		}
+		devres_close_group(&drm_dev->dev, rdev_group);
 	}
 
 	unsigned int core = rdev->num_cores;
@@ -190,6 +196,7 @@ static int rocket_probe(struct platform_device *pdev)
 		if (rdev->num_cores == 0) {
 			rocket_device_fini(rdev);
 			rdev = NULL;
+			devres_release_group(&drm_dev->dev, rdev_group);
 		}
 	}
 
@@ -213,6 +220,7 @@ static void rocket_remove(struct platform_device *pdev)
 		/* Last core removed, deinitialize DRM device. */
 		rocket_device_fini(rdev);
 		rdev = NULL;
+		devres_release_group(&drm_dev->dev, rdev_group);
 	}
 }
 
