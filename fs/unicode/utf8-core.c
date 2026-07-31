@@ -204,17 +204,19 @@ int utf8_parse_version(char *version)
 	substring_t args[3];
 	unsigned int maj, min, rev;
 	static const struct match_token token[] = {
-		{1, "%d.%d.%d"},
+		{1, "%u.%u.%u"},
 		{0, NULL}
 	};
 
 	if (match_token(version, token, args) != 1)
 		return -EINVAL;
 
-	if (match_int(&args[0], &maj) || match_int(&args[1], &min) ||
-	    match_int(&args[2], &rev))
+	if (match_uint(&args[0], &maj) || match_uint(&args[1], &min) ||
+	    match_uint(&args[2], &rev))
 		return -EINVAL;
 
+	if (maj > U8_MAX || min > U8_MAX || rev > U8_MAX)
+		return -EINVAL;
 	return UNICODE_AGE(maj, min, rev);
 }
 EXPORT_SYMBOL(utf8_parse_version);
