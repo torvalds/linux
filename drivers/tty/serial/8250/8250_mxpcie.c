@@ -58,6 +58,10 @@
 /* Enhanced Function Register (EFR) */
 #define MOXA_PUART_EFR				0x0A
 #define MOXA_PUART_EFR_ENHANCED			BIT(4)
+#define MOXA_PUART_EFR_AUTO_RTS			BIT(6)
+#define MOXA_PUART_EFR_AUTO_CTS			BIT(7)
+#define MOXA_PUART_EFR_RX_FLOW_MASK		GENMASK(1, 0)
+#define MOXA_PUART_EFR_TX_FLOW_MASK		GENMASK(3, 2)
 
 #define MOXA_PUART_TTL		0x10	/* Tx Interrupt Trigger Level */
 #define MOXA_PUART_RTL		0x11	/* Rx Interrupt Trigger Level */
@@ -146,6 +150,29 @@ static void mxpcie8250_set_interface(struct mxpcie8250 *priv,
 		FIELD_MODIFY(MOXA_EVEN_RS_MASK, &cval, mode);
 
 	iowrite8(cval, uir_addr);
+}
+
+static void mxpcie8250_set_termios(struct uart_port *port,
+				   struct ktermios *new,
+				   const struct ktermios *old)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	struct tty_struct *tty = port->state->port.tty;
+	unsigned int cflag = tty->termios.c_cflag;
+	u8 efr;
+
+	serial8250_do_set_termios(port, new, old);
+
+	up->port.status &= ~(UPSTAT_AUTORTS | UPSTAT_AUTOCTS);
+
+	efr = serial_in(up, MOXA_PUART_EFR);
+	efr &= ~(MOXA_PUART_EFR_AUTO_RTS | MOXA_PUART_EFR_AUTO_CTS);
+
+	if (cflag & CRTSCTS) {
+		efr |= (MOXA_PUART_EFR_AUTO_RTS | MOXA_PUART_EFR_AUTO_CTS);
+		up->port.status |= (UPSTAT_AUTORTS | UPSTAT_AUTOCTS);
+	}
+	serial_out(up, MOXA_PUART_EFR, efr);
 }
 
 static int mxpcie8250_startup(struct uart_port *port)
@@ -285,6 +312,7 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	up.port.iobase = 0;
 	up.port.regshift = 0;
 
+	up.port.set_termios = mxpcie8250_set_termios;
 	up.port.startup = mxpcie8250_startup;
 	up.port.shutdown = mxpcie8250_shutdown;
 
