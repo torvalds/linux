@@ -10132,6 +10132,7 @@ int smb2_ioctl(struct ksmbd_work *work)
 	case FSCTL_QUERY_NETWORK_INTERFACE_INFO:
 	case FSCTL_VALIDATE_NEGOTIATE_INFO:
 	case FSCTL_PIPE_WAIT:
+	case FSCTL_PIPE_TRANSCEIVE:
 		no_fileid_ioctl = true;
 		break;
 	default:
