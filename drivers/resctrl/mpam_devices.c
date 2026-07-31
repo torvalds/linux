@@ -1196,8 +1196,7 @@ static u64 mpam_msmon_overflow_val(enum mpam_device_features type,
 {
 	u64 overflow_val = __mpam_msmon_overflow_val(type);
 
-	if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc) &&
-	    type != mpam_feat_msmon_mbwu_63counter)
+	if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc))
 		overflow_val *= 64;
 
 	return overflow_val;
@@ -1293,8 +1292,7 @@ static void __ris_msmon_read(void *arg)
 			now = FIELD_GET(MSMON___VALUE, now);
 		}
 
-		if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc) &&
-		    m->type != mpam_feat_msmon_mbwu_63counter)
+		if (mpam_has_quirk(T241_MBW_COUNTER_SCALE_64, msc))
 			now *= 64;
 
 		if (nrdy)
