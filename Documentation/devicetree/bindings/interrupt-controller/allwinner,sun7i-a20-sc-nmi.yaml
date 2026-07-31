@@ -33,6 +33,9 @@ properties:
               - allwinner,sun50i-a100-nmi
               - allwinner,sun50i-h616-nmi
           - const: allwinner,sun9i-a80-nmi
+      - items:
+          - const: allwinner,sun60i-a733-nmi
+          - const: allwinner,sun55i-a523-nmi
 
   reg:
     maxItems: 1
