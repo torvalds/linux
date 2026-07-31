@@ -428,6 +428,8 @@ FANOTIFY_ME(struct fanotify_event *event)
 	return container_of(event, struct fanotify_mnt_event, fae);
 }
 
+#define FANOTIFY_NO_RANGE	((loff_t)-1)
+
 /*
  * Structure for permission fanotify events. It gets allocated and freed in
  * fanotify_handle_event() since we wait there for user response. When the
@@ -438,7 +440,7 @@ FANOTIFY_ME(struct fanotify_event *event)
 struct fanotify_perm_event {
 	struct fanotify_event fae;
 	struct path path;
-	const loff_t *ppos;		/* optional file range info */
+	loff_t pos;			/* FANOTIFY_NO_RANGE if unavailable */
 	size_t count;
 	u32 response;			/* userspace answer to the event */
 	unsigned short state;		/* state of the event */
@@ -468,7 +470,7 @@ static inline bool fanotify_event_has_access_range(struct fanotify_event *event)
 	if (!(event->mask & FANOTIFY_PRE_CONTENT_EVENTS))
 		return false;
 
-	return FANOTIFY_PERM(event)->ppos;
+	return FANOTIFY_PERM(event)->pos != FANOTIFY_NO_RANGE;
 }
 
 static inline struct fanotify_event *FANOTIFY_E(struct fsnotify_event *fse)

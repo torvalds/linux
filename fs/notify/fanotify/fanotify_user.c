@@ -680,12 +680,9 @@ static size_t copy_range_info_to_user(struct fanotify_event *event,
 	if (WARN_ON_ONCE(info_len > count))
 		return -EFAULT;
 
-	if (WARN_ON_ONCE(!pevent->ppos))
-		return -EINVAL;
-
 	info.hdr.info_type = FAN_EVENT_INFO_TYPE_RANGE;
 	info.hdr.len = info_len;
-	info.offset = *(pevent->ppos);
+	info.offset = pevent->pos;
 	info.count = pevent->count;
 
 	if (copy_to_user(buf, &info, info_len))
