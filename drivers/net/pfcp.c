@@ -227,12 +227,13 @@ exit_err:
 	return err;
 }
 
-static void __pfcp_dellink(struct net_device *dev, struct list_head *head)
+static void __pfcp_dellink(struct net *net, struct net_device *dev,
+			   struct list_head *head)
 {
 	struct pfcp_dev *pfcp = netdev_priv(dev);
 
-	list_del(&pfcp->list);
-	unregister_netdevice_queue(dev, head);
+	list_del_init(&pfcp->list);
+	unregister_netdevice_queue_net(net, dev, head);
 }
 
 static void pfcp_dellink(struct net_device *dev, struct list_head *head)
@@ -243,7 +244,8 @@ static void pfcp_dellink(struct net_device *dev, struct list_head *head)
 	pn = net_generic(pfcp->net, pfcp_net_id);
 
 	mutex_lock(&pn->lock);
-	__pfcp_dellink(dev, head);
+	if (!list_empty(&pfcp->list))
+		__pfcp_dellink(dev_net(dev), dev, head);
 	mutex_unlock(&pn->lock);
 }
 
@@ -274,7 +276,7 @@ static void __net_exit pfcp_net_exit_rtnl(struct net *net,
 	mutex_lock(&pn->lock);
 
 	list_for_each_entry_safe(pfcp, pfcp_next, &pn->pfcp_dev_list, list)
-		__pfcp_dellink(pfcp->dev, dev_to_kill);
+		__pfcp_dellink(net, pfcp->dev, dev_to_kill);
 
 	mutex_unlock(&pn->lock);
 }
