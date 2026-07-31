@@ -45,6 +45,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
+#include <drm/intel/step.h>
 
 #include "g4x_dp.h"
 #include "g4x_hdmi.h"
@@ -2233,6 +2234,29 @@ static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 				   pixel_rate);
 }
 
+static u32 ilk_pipe_pixel_rate_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	u32 pixel_rate = crtc_state->hw.pipe_mode.crtc_clock;
+	unsigned int ppc = HAS_2PPC(display) ? 2 : 1;
+	struct drm_rect src;
+
+	/*
+	 * We only use IF-ID interlacing. If we ever use
+	 * PF-ID we'll need to adjust the pixel_rate here.
+	 */
+
+	if (!crtc_state->pch_pfit.enabled)
+		return pixel_rate;
+
+	drm_rect_init(&src, 0, 0,
+		      drm_rect_width(&crtc_state->pipe_src) << 16,
+		      drm_rect_height(&crtc_state->pipe_src) << 16);
+
+	return intel_adjusted_rate_cdclk(&src, &crtc_state->pch_pfit.dst,
+					 pixel_rate, ppc);
+}
+
 static void intel_mode_from_crtc_timings(struct drm_display_mode *mode,
 					 const struct drm_display_mode *timings)
 {
@@ -2258,13 +2282,17 @@ static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 
-	if (HAS_GMCH(display))
+	if (HAS_GMCH(display)) {
 		/* FIXME calculate proper pipe pixel rate for GMCH pfit */
 		crtc_state->pixel_rate =
 			crtc_state->hw.pipe_mode.crtc_clock;
-	else
+		crtc_state->pixel_rate_cdclk = crtc_state->pixel_rate;
+	} else {
 		crtc_state->pixel_rate =
 			ilk_pipe_pixel_rate(crtc_state);
+		crtc_state->pixel_rate_cdclk =
+			ilk_pipe_pixel_rate_cdclk(crtc_state);
+	}
 }
 
 static void intel_joiner_adjust_timings(const struct intel_crtc_state *crtc_state,
@@ -2457,6 +2485,19 @@ static int intel_crtc_set_context_latency(struct intel_crtc_state *crtc_state)
 
 	set_context_latency = max(set_context_latency,
 				  intel_psr_min_set_context_latency(crtc_state));
+
+	/*
+	 * From PTL onwards, the set context latency can be in the vactive
+	 * region, letting the safe window start some lines before the vblank
+	 * start. With modes that have a smaller vblank region, the computed
+	 * guardband is clamped to the vblank length, making the undelayed and
+	 * delayed vblank coincide. If the SCL is also 0, the 'safe window'
+	 * becomes effectively 0, and the DSB configured to wait for it gets
+	 * stalled, since the hardware never signals the safe window. Keep the
+	 * set context latency at a minimum of 1 to avoid this.
+	 */
+	if (DISPLAY_VER(display) >= 30)
+		set_context_latency = max(1, set_context_latency);
 
 	return set_context_latency;
 }
@@ -2737,6 +2778,10 @@ void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state,
 		       HSYNC_START(adjusted_mode->crtc_hsync_start - 1) |
 		       HSYNC_END(adjusted_mode->crtc_hsync_end - 1));
 
+	if (display->platform.novalake &&
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+		crtc_vtotal = 1;
+
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),
 		       VACTIVE(crtc_vdisplay - 1) |
 		       VTOTAL(crtc_vtotal - 1));
@@ -2830,6 +2875,10 @@ void intel_set_transcoder_timings_lrr(const struct intel_crtc_state *crtc_state,
 	 * The double buffer latch point for TRANS_VTOTAL
 	 * is the transcoder's undelayed vblank.
 	 */
+	if (display->platform.novalake &&
+	    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+		crtc_vtotal = 1;
+
 	intel_de_write(display, TRANS_VTOTAL(display, transcoder),
 		       VACTIVE(crtc_vdisplay - 1) |
 		       VTOTAL(crtc_vtotal - 1));
@@ -3758,9 +3807,9 @@ static void enabled_joiner_pipes(struct intel_display *display,
 	}
 }
 
-static u8 hsw_panel_transcoders(struct intel_display *display)
+static u16 hsw_panel_transcoders(struct intel_display *display)
 {
-	u8 panel_transcoder_mask = BIT(TRANSCODER_EDP);
+	u16 panel_transcoder_mask = BIT(TRANSCODER_EDP);
 
 	if (DISPLAY_VER(display) >= 11)
 		panel_transcoder_mask |= BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
@@ -3768,13 +3817,13 @@ static u8 hsw_panel_transcoders(struct intel_display *display)
 	return panel_transcoder_mask;
 }
 
-static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
+static u16 hsw_enabled_transcoders(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	u8 panel_transcoder_mask = hsw_panel_transcoders(display);
+	u16 panel_transcoder_mask = hsw_panel_transcoders(display);
 	enum transcoder cpu_transcoder;
 	u8 primary_pipe, secondary_pipes;
-	u8 enabled_transcoders = 0;
+	u16 enabled_transcoders = 0;
 
 	/*
 	 * XXX: Do intel_display_power_get_if_enabled before reading this (for
@@ -3835,18 +3884,18 @@ static u8 hsw_enabled_transcoders(struct intel_crtc *crtc)
 	return enabled_transcoders;
 }
 
-static bool has_edp_transcoders(u8 enabled_transcoders)
+static bool has_edp_transcoders(u16 enabled_transcoders)
 {
 	return enabled_transcoders & BIT(TRANSCODER_EDP);
 }
 
-static bool has_dsi_transcoders(u8 enabled_transcoders)
+static bool has_dsi_transcoders(u16 enabled_transcoders)
 {
 	return enabled_transcoders & (BIT(TRANSCODER_DSI_0) |
 				      BIT(TRANSCODER_DSI_1));
 }
 
-static bool has_pipe_transcoders(u8 enabled_transcoders)
+static bool has_pipe_transcoders(u16 enabled_transcoders)
 {
 	return enabled_transcoders & ~(BIT(TRANSCODER_EDP) |
 				       BIT(TRANSCODER_DSI_0) |
@@ -3854,7 +3903,7 @@ static bool has_pipe_transcoders(u8 enabled_transcoders)
 }
 
 static void assert_enabled_transcoders(struct intel_display *display,
-				       u8 enabled_transcoders)
+				       u16 enabled_transcoders)
 {
 	/* Only one type of transcoder please */
 	drm_WARN_ON(display->drm,
@@ -5373,6 +5422,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_I(pch_pfit.casf.strength);
 
 		PIPE_CONF_CHECK_I(scaler_state.scaler_id);
+		PIPE_CONF_CHECK_I(pixel_rate_cdclk);
 		PIPE_CONF_CHECK_I(pixel_rate);
 
 		PIPE_CONF_CHECK_X(gamma_mode);
@@ -5871,7 +5921,7 @@ static int intel_atomic_check_crtcs(struct intel_atomic_state *state)
 }
 
 static bool intel_cpu_transcoders_need_modeset(struct intel_atomic_state *state,
-					       u8 transcoders)
+					       u16 transcoders)
 {
 	const struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
@@ -6507,7 +6557,7 @@ int intel_atomic_check(struct drm_device *dev,
 		}
 
 		if (is_trans_port_sync_mode(new_crtc_state)) {
-			u8 trans = new_crtc_state->sync_mode_slaves_mask;
+			u16 trans = new_crtc_state->sync_mode_slaves_mask;
 
 			if (new_crtc_state->master_transcoder != INVALID_TRANSCODER)
 				trans |= BIT(new_crtc_state->master_transcoder);

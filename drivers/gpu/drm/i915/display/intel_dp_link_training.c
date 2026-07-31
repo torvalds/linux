@@ -21,6 +21,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <kunit/visibility.h>
+
 #include <linux/debugfs.h>
 #include <linux/iopoll.h>
 
@@ -1846,124 +1848,57 @@ static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool reduce_link_params_in_bw_order(struct intel_dp *intel_dp,
-					   const struct intel_crtc_state *crtc_state,
-					   int *new_link_rate, int *new_lane_count)
-{
-	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
-	struct intel_dp_link_config forced_params;
-	int link_rate;
-	int lane_count;
-	int i;
-
-	intel_dp_link_caps_get_forced_params(link_caps, &forced_params);
-
-	i = intel_dp_link_config_index(intel_dp->link.caps,
-				       crtc_state->port_clock, crtc_state->lane_count);
-	for (i--; i >= 0; i--) {
-		intel_dp_link_config_get(intel_dp->link.caps, i, &link_rate, &lane_count);
-
-		if ((forced_params.rate &&
-		     forced_params.rate != link_rate) ||
-		    (forced_params.lane_count &&
-		     forced_params.lane_count != lane_count))
-			continue;
-
-		break;
-	}
-
-	if (i < 0)
-		return false;
-
-	*new_link_rate = link_rate;
-	*new_lane_count = lane_count;
-
-	return true;
-}
-
-static int reduce_link_rate(struct intel_dp *intel_dp, int current_rate)
-{
-	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
-	struct intel_dp_link_config forced_params;
-	int rate_index;
-	int new_rate;
-
-	intel_dp_link_caps_get_forced_params(link_caps, &forced_params);
-	if (forced_params.rate)
-		return -1;
-
-	rate_index = intel_dp_link_caps_common_rate_idx(link_caps,
-							current_rate);
-
-	if (rate_index <= 0)
-		return -1;
-
-	new_rate = intel_dp_common_rate(link_caps, rate_index - 1);
-
-	/* TODO: Make switching from UHBR to non-UHBR rates work. */
-	if (drm_dp_is_uhbr_rate(current_rate) != drm_dp_is_uhbr_rate(new_rate))
-		return -1;
-
-	return new_rate;
-}
-
-static int reduce_lane_count(struct intel_dp *intel_dp, int current_lane_count)
-{
-	struct intel_dp_link_config forced_params;
-
-	intel_dp_link_caps_get_forced_params(intel_dp->link.caps, &forced_params);
-	if (forced_params.lane_count)
-		return -1;
-
-	if (current_lane_count == 1)
-		return -1;
-
-	return current_lane_count >> 1;
-}
-
-static bool reduce_link_params_in_rate_lane_order(struct intel_dp *intel_dp,
-						  const struct intel_crtc_state *crtc_state,
-						  int *new_link_rate, int *new_lane_count)
-{
-	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
-	int link_rate;
-	int lane_count;
-
-	lane_count = crtc_state->lane_count;
-	link_rate = reduce_link_rate(intel_dp, crtc_state->port_clock);
-	if (link_rate < 0) {
-		lane_count = reduce_lane_count(intel_dp, crtc_state->lane_count);
-		link_rate = intel_dp_max_common_rate(link_caps);
-	}
-
-	if (lane_count < 0)
-		return false;
-
-	*new_link_rate = link_rate;
-	*new_lane_count = lane_count;
-
-	return true;
-}
-
 static bool reduce_link_params(struct intel_dp *intel_dp, const struct intel_crtc_state *crtc_state,
 			       int *new_link_rate, int *new_lane_count)
 {
-	/* TODO: Use the same fallback logic on SST as on MST. */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
-		return reduce_link_params_in_bw_order(intel_dp, crtc_state,
-						      new_link_rate, new_lane_count);
-	else
-		return reduce_link_params_in_rate_lane_order(intel_dp, crtc_state,
-							     new_link_rate, new_lane_count);
+	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
+	struct intel_dp_link_caps_order order =
+		intel_dp_link_caps_connector_fallback_order(is_mst);
+	struct intel_dp_link_config old_config = {
+		.rate = crtc_state->port_clock,
+		.lane_count = crtc_state->lane_count,
+	};
+	struct intel_dp_link_caps_iter iter;
+	struct intel_dp_link_config config;
+	bool old_found = false;
+	bool new_found = false;
+
+	intel_dp_link_caps_iter_start(&iter, link_caps, order, INTEL_DP_LINK_CAPS_FILTER_ALL);
+	for_each_dp_link_config(&iter, &config) {
+		if (!old_found) {
+			if (config.rate == old_config.rate &&
+			    config.lane_count == old_config.lane_count)
+				old_found = true;
+
+			continue;
+		}
+
+		*new_link_rate = config.rate;
+		*new_lane_count = config.lane_count;
+		new_found = true;
+
+		break;
+	}
+	intel_dp_link_caps_iter_end(&iter);
+
+	return new_found;
 }
 
-static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
-						   const struct intel_crtc_state *crtc_state)
+VISIBLE_IF_KUNIT
+int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
+					    const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
 	struct intel_dp_link_config max_link_limits;
+	struct intel_dp_link_config current_config = {
+		.rate = crtc_state->port_clock,
+		.lane_count = crtc_state->lane_count,
+	};
 	int new_link_rate;
 	int new_lane_count;
+	int err = -1;
 
 	if (intel_dp_is_edp(intel_dp) && !intel_dp->use_max_params) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
@@ -1972,15 +1907,48 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 		return 0;
 	}
 
+	/*
+	 * Temporarily reset the max link limit before selecting the fallback
+	 * config.
+	 *
+	 * After fallback, the current logic narrows the allowed configurations
+	 * to the selected config's rate and lane count. That can make a later
+	 * fallback candidate fall outside the current max_limit, so reset it
+	 * before searching.
+	 *
+	 * TODO: Constrain the allowed configurations by only disabling individual
+	 * configurations and remove setting maximum link parameters.
+	 */
+	intel_dp_link_caps_get_max_limits(link_caps, &max_link_limits);
+	intel_dp_link_caps_reset_max_limits(link_caps);
+
+	/*
+	 * TODO: Make fallback depend only on disabling the current config,
+	 * once max_limit no longer constrains the allowed config set. Then
+	 * disabling the current config will define the allowed configs for
+	 * the subsequent modeset, so there will be no need to select a
+	 * reduced config separately here.
+	 */
 	if (!reduce_link_params(intel_dp, crtc_state, &new_link_rate, &new_lane_count))
-		return -1;
+		goto out_restore_max_limits;
 
 	if (intel_dp_is_edp(intel_dp) &&
 	    !intel_dp_can_link_train_fallback_for_edp(intel_dp, new_link_rate, new_lane_count)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX,
 		       "Retrying Link training for eDP with same parameters\n");
-		return 0;
+
+		err = 0;
+
+		goto out_restore_max_limits;
 	}
+
+	/*
+	 * Shouldn't fail: the current config was enabled, and reducing the
+	 * link parameters should still leave the fallback config allowed.
+	 */
+	if (drm_WARN_ON(display->drm,
+			!intel_dp_link_caps_disable_config(link_caps, &current_config)))
+		return -1;
 
 	lt_dbg(intel_dp, DP_PHY_DPRX,
 	       "Reducing link parameters from %dx%d to %dx%d\n",
@@ -1990,10 +1958,19 @@ static int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	max_link_limits.rate = new_link_rate;
 	max_link_limits.lane_count = new_lane_count;
 
-	/* TODO: handle an update failure */
-	intel_dp_link_caps_set_max_limits(link_caps, &max_link_limits);
+	err = 0;
 
-	return 0;
+out_restore_max_limits:
+	/*
+	 * Shouldn't fail: setting max_limits can only fail if they drop below
+	 * the optionally forced rate/lane-count parameters, but the reduced
+	 * config was chosen to satisfy those constraints.
+	 */
+	if (drm_WARN_ON(display->drm,
+			!intel_dp_link_caps_set_max_limits(link_caps, &max_link_limits)))
+		err = -1;
+
+	return err;
 }
 
 static bool intel_dp_schedule_fallback_link_training(struct intel_atomic_state *state,
@@ -2834,3 +2811,32 @@ void intel_dp_link_training_cleanup(struct intel_dp_link_training *link_training
 {
 	kfree(link_training);
 }
+
+#if IS_ENABLED(CONFIG_KUNIT)
+
+#define __INIT_MEMBER(__name, __fn) \
+	.__name = __fn,
+
+#define INTEL_DP_LINK_TRAINING_TEST_OPS_INIT \
+	INTEL_DP_LINK_TRAINING_TEST_OPS_MEMBERS(__INIT_MEMBER)
+
+#ifdef I915
+
+const struct intel_dp_link_training_test_ops i915_display_dp_link_training_test_ops = {
+	INTEL_DP_LINK_TRAINING_TEST_OPS_INIT
+};
+EXPORT_SYMBOL(i915_display_dp_link_training_test_ops);
+
+#else
+
+const struct intel_dp_link_training_test_ops intel_display_dp_link_training_test_ops = {
+	INTEL_DP_LINK_TRAINING_TEST_OPS_INIT
+};
+EXPORT_SYMBOL(intel_display_dp_link_training_test_ops);
+
+#endif	/* I915 */
+
+#undef INTEL_DP_LINK_TRAINING_TEST_OPS_INIT
+#undef __INIT_MEMBER
+
+#endif	/* CONFIG_KUNIT */

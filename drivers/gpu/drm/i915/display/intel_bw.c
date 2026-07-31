@@ -14,6 +14,7 @@
 #include "intel_display_regs.h"
 #include "intel_display_types.h"
 #include "intel_display_utils.h"
+#include "intel_display_wa.h"
 #include "intel_dram.h"
 #include "intel_mchbar.h"
 #include "intel_parent.h"
@@ -51,6 +52,8 @@ struct intel_qgv_point {
 };
 
 #define DEPROGBWPCLIMIT		60
+
+#define PEAK_BW_THRESHOLD	20000
 
 struct intel_psf_gv_point {
 	u8 clk; /* clock in multiples of 16.6666 MHz */
@@ -184,7 +187,7 @@ static int icl_pcode_restrict_qgv_points(struct intel_display *display,
 {
 	int ret;
 
-	if (DISPLAY_VER(display) >= 14)
+	if (HAS_PMDEMAND(display))
 		return 0;
 
 	/* bspec says to keep retrying for at least 1 ms */
@@ -246,12 +249,10 @@ static bool is_y_tile(struct intel_display *display)
 	return !HAS_4TILE(display);
 }
 
-static int icl_get_qgv_points(struct intel_display *display,
-			      const struct dram_info *dram_info,
-			      struct intel_qgv_info *qi)
+static int icl_init_qgv_info(struct intel_display *display,
+			     const struct dram_info *dram_info,
+			     struct intel_qgv_info *qi)
 {
-	int i, ret;
-
 	qi->num_qgv_points = dram_info->num_qgv_points;
 	qi->num_psf_points = dram_info->num_psf_gv_points;
 
@@ -272,7 +273,14 @@ static int icl_get_qgv_points(struct intel_display *display,
 		case INTEL_DRAM_LPDDR4:
 		case INTEL_DRAM_LPDDR5:
 			qi->t_bl = 16;
-			qi->max_numchannels = 8;
+			/*
+			 * Wa_16030862157
+			 * Xe3p supports a fully-populated 16-channel LPDDR
+			 * config (4 memory controllers x 4 channels); earlier
+			 * D14+ platforms top out at 8.
+			 */
+			qi->max_numchannels =
+				intel_display_wa(display, INTEL_DISPLAY_WA_16030862157) ? 16 : 8;
 			qi->channel_width = 16;
 			qi->deinterleave = 4;
 			break;
@@ -322,6 +330,18 @@ static int icl_get_qgv_points(struct intel_display *display,
 		qi->t_bl = dram_info->type == INTEL_DRAM_DDR4 ? 4 : 8;
 		qi->max_numchannels = 1;
 	}
+
+	return 0;
+}
+
+static int icl_get_qgv_points(struct intel_display *display,
+			      const struct dram_info *dram_info,
+			      struct intel_qgv_info *qi)
+{
+	int i, ret;
+
+	if (icl_init_qgv_info(display, dram_info, qi))
+		return -EINVAL;
 
 	if (drm_WARN_ON(display->drm,
 			qi->num_qgv_points > ARRAY_SIZE(qi->points)))
@@ -511,6 +531,19 @@ static const struct intel_display_bw_params *get_display_bw_params(struct intel_
 	return NULL;
 }
 
+static void update_sagv_status(struct intel_display *display, int qgv_points)
+{
+	/*
+	 * In case if SAGV is disabled in BIOS, we always get 1
+	 * SAGV point, but we can't send PCode commands to restrict it
+	 * as it will fail and pointless anyway.
+	 */
+	if (qgv_points == 1)
+		display->sagv.status = I915_SAGV_NOT_CONTROLLED;
+	else
+		display->sagv.status = I915_SAGV_ENABLED;
+}
+
 static int icl_get_bw_info(struct intel_display *display,
 			   const struct dram_info *dram_info,
 			   const struct intel_soc_bw_params *soc_bw_params,
@@ -569,15 +602,6 @@ static int icl_get_bw_info(struct intel_display *display,
 				    i, j, bi->num_planes, bi->deratedbw[j]);
 		}
 	}
-	/*
-	 * In case if SAGV is disabled in BIOS, we always get 1
-	 * SAGV point, but we can't send PCode commands to restrict it
-	 * as it will fail and pointless anyway.
-	 */
-	if (qi.num_qgv_points == 1)
-		display->sagv.status = I915_SAGV_NOT_CONTROLLED;
-	else
-		display->sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -585,6 +609,32 @@ static int icl_get_bw_info(struct intel_display *display,
 static int tgl_peakbw(int num_channels, int channel_width, int dclk)
 {
 	return num_channels * (channel_width / 8) * dclk;
+}
+
+static void xe3_add_peakbw_threshold(struct intel_display *display)
+{
+	u8 qgv_points = display->bw.num_qgv_points;
+
+	if (!HAS_PEAK_BW_THRESHOLD(display))
+		return;
+
+	if (qgv_points >= I915_NUM_QGV_POINTS) {
+		drm_dbg_kms(display->drm, "QGV points maxed out; skipping peak bandwidth threshold.\n");
+		return;
+	}
+
+	if (qgv_points <= 1)
+		return;
+
+	display->bw.num_qgv_points++;
+
+	display->bw.peakbw[qgv_points] = PEAK_BW_THRESHOLD;
+
+	for (int i = 0; i < ARRAY_SIZE(display->bw.max); i++)
+		display->bw.max[i].deratedbw[qgv_points] = PEAK_BW_THRESHOLD;
+
+	drm_dbg_kms(display->drm, "An extra QGV point %d added for Peak bw threshold of %d\n",
+		    qgv_points, PEAK_BW_THRESHOLD);
 }
 
 static int tgl_get_bw_info(struct intel_display *display,
@@ -624,10 +674,16 @@ static int tgl_get_bw_info(struct intel_display *display,
 
 	ipqdepth = min(ipqdepthpch, display_bw_params->displayrtids / num_channels);
 	/*
+	 * Wa_16030862157
 	 * clperchgroup = 4kpagespermempage * clperchperblock,
-	 * clperchperblock = 8 / num_channels * interleave
+	 * clperchperblock = max(8 / num_channels, 1) * interleave
+	 *
+	 * The 8 / num_channels truncating divide collapses to 0 for
+	 * >8-channel configs (16-channel: 8 / 16 = 0); the max(..., 1) floor
+	 * keeps clperchperblock >= 1 there while preserving the literal
+	 * truncating divide for <=8-channel configs.
 	 */
-	clperchgroup = 4 * (8 / num_channels) * qi.deinterleave;
+	clperchgroup = 4 * max(8 / num_channels, 1) * qi.deinterleave;
 
 	display->bw.num_qgv_points = qi.num_qgv_points;
 	display->bw.num_psf_gv_points = qi.num_psf_points;
@@ -681,6 +737,9 @@ static int tgl_get_bw_info(struct intel_display *display,
 		drm_dbg_kms(display->drm, "QGV %d: peakbw=%u\n", i, display->bw.peakbw[i]);
 	}
 
+	/* For xe3 cases add an extra qgv point for Peak bw threshold */
+	xe3_add_peakbw_threshold(display);
+
 	for (i = 0; i < qi.num_psf_points; i++) {
 		const struct intel_psf_gv_point *sp = &qi.psf_points[i];
 
@@ -688,16 +747,6 @@ static int tgl_get_bw_info(struct intel_display *display,
 
 		drm_dbg_kms(display->drm, "PSF GV %d: bw=%u\n", i, display->bw.psf_bw[i]);
 	}
-
-	/*
-	 * In case if SAGV is disabled in BIOS, we always get 1
-	 * SAGV point, but we can't send PCode commands to restrict it
-	 * as it will fail and pointless anyway.
-	 */
-	if (qi.num_qgv_points == 1)
-		display->sagv.status = I915_SAGV_NOT_CONTROLLED;
-	else
-		display->sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -718,8 +767,6 @@ static void dg2_get_bw_info(struct intel_display *display)
 	/* Bandwidth does not depend on # of planes; set all groups the same */
 	for (i = 1; i < ARRAY_SIZE(display->bw.max); i++)
 		display->bw.max[i] = display->bw.max[0];
-
-	display->sagv.status = I915_SAGV_NOT_CONTROLLED;
 }
 
 static int xe2_hpd_get_bw_info(struct intel_display *display,
@@ -767,7 +814,6 @@ static int xe2_hpd_get_bw_info(struct intel_display *display,
 	 * battery and plugged-in operation.
 	 */
 	drm_WARN_ON(display->drm, qi.num_qgv_points != 2);
-	display->sagv.status = I915_SAGV_ENABLED;
 
 	return 0;
 }
@@ -868,6 +914,8 @@ void intel_bw_init_hw(struct intel_display *display)
 	} else if (DISPLAY_VER(display) == 11) {
 		icl_get_bw_info(display, dram_info, soc_bw_params, display_bw_params);
 	}
+
+	update_sagv_status(display, display->bw.num_qgv_points);
 }
 
 static unsigned int intel_bw_num_active_planes(struct intel_display *display,
@@ -1238,7 +1286,7 @@ static int intel_bw_check_qgv_points(struct intel_display *display,
 
 	data_rate = DIV_ROUND_UP(data_rate, 1000);
 
-	if (DISPLAY_VER(display) >= 14)
+	if (HAS_PMDEMAND(display))
 		return mtl_find_qgv_points(display, data_rate, num_active_planes,
 					   new_bw_state);
 	else

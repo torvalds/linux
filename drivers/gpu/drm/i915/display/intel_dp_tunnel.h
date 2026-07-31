@@ -54,6 +54,10 @@ int intel_dp_tunnel_atomic_check_state(struct intel_atomic_state *state,
 
 void intel_dp_tunnel_atomic_alloc_bw(struct intel_atomic_state *state);
 
+void intel_dp_tunnel_uhbr_lanes_wa_apply(struct intel_dp *intel_dp);
+bool intel_dp_tunnel_uhbr_lanes_wa_setup(struct intel_dp *intel_dp);
+void intel_dp_tunnel_uhbr_lanes_wa_reset(struct intel_dp *intel_dp);
+
 int intel_dp_tunnel_mgr_init(struct intel_display *display);
 void intel_dp_tunnel_mgr_cleanup(struct intel_display *display);
 
@@ -127,6 +131,19 @@ static inline int
 intel_dp_tunnel_atomic_alloc_bw(struct intel_atomic_state *state)
 {
 	return 0;
+}
+
+static inline void intel_dp_tunnel_uhbr_lanes_wa_apply(struct intel_dp *intel_dp)
+{
+}
+
+static inline bool intel_dp_tunnel_uhbr_lanes_wa_setup(struct intel_dp *intel_dp)
+{
+	return false;
+}
+
+static inline void intel_dp_tunnel_uhbr_lanes_wa_reset(struct intel_dp *intel_dp)
+{
 }
 
 static inline int

@@ -29,8 +29,13 @@ bool intel_plane_can_async_flip(struct intel_plane *plane,
 unsigned int intel_adjusted_rate(const struct drm_rect *src,
 				 const struct drm_rect *dst,
 				 unsigned int rate);
+unsigned int intel_adjusted_rate_cdclk(const struct drm_rect *src,
+				       const struct drm_rect *dst,
+				       unsigned int rate, unsigned int ppc);
 unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *plane_state);
+unsigned int intel_plane_pixel_rate_cdclk(const struct intel_crtc_state *crtc_state,
+					  const struct intel_plane_state *plane_state);
 
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 				   const struct intel_plane_state *plane_state,

@@ -275,6 +275,9 @@ void intel_sagv_pre_plane_update(struct intel_atomic_state *state)
 	if (!intel_has_sagv(display))
 		return;
 
+	if (HAS_PMDEMAND(display))
+		return;
+
 	if (DISPLAY_VER(display) >= 11)
 		icl_sagv_pre_plane_update(state);
 	else
@@ -293,6 +296,9 @@ void intel_sagv_post_plane_update(struct intel_atomic_state *state)
 	 * as it will throw an error. So have to check it here.
 	 */
 	if (!intel_has_sagv(display))
+		return;
+
+	if (HAS_PMDEMAND(display))
 		return;
 
 	if (DISPLAY_VER(display) >= 11)
@@ -3856,7 +3862,7 @@ void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
 		return;
 
 	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
-	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb_y[plane->id], 0, 0);
 
 	crtc_state->wm.skl.plane_min_ddb[plane->id] = 0;
 	crtc_state->wm.skl.plane_interim_ddb[plane->id] = 0;

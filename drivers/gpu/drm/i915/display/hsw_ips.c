@@ -207,7 +207,7 @@ static int _hsw_ips_min_cdclk(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 
 	if (display->platform.broadwell)
-		return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
+		return DIV_ROUND_UP(crtc_state->pixel_rate_cdclk * 100, 95);
 
 	/* no IPS specific limits to worry about */
 	return 0;

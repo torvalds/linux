@@ -5,6 +5,7 @@
  */
 
 #include <drm/drm_print.h>
+#include <drm/intel/step.h>
 
 #include "intel_alpm.h"
 #include "intel_cmtg.h"
@@ -1105,6 +1106,11 @@ void intel_vrr_get_config(struct intel_crtc_state *crtc_state)
 
 			crtc_state->vrr.vmin += intel_vrr_vmin_flipline_offset(display);
 		}
+
+		if (display->platform.novalake &&
+		    IS_DISPLAY_STEP(display, STEP_A0, STEP_C0))
+			crtc_state->hw.adjusted_mode.crtc_vtotal =
+				intel_vrr_vmin_vtotal(crtc_state);
 
 		if (HAS_AS_SDP(display)) {
 			trans_vrr_vsync =

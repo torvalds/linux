@@ -39,6 +39,7 @@ driver. The display driver isn't an independent driver in that sense.
    frontbuffer
    hotplug
    dp-link-training
+   dp-link-capabilities
    plane
    psr
    snps-phy

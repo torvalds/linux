@@ -58,10 +58,12 @@ static int kbytes_to_mbits(int kbytes)
 static int get_current_link_bw(struct intel_dp *intel_dp)
 {
 	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
-	int rate = intel_dp_max_common_rate(link_caps);
-	int lane_count = intel_dp_link_caps_max_common_lane_count(link_caps);
+	struct intel_dp_link_config max_bw_config;
 
-	return intel_dp_max_link_data_rate(intel_dp, rate, lane_count);
+	intel_dp_link_caps_get_max_bw_config(link_caps, &max_bw_config);
+
+	return intel_dp_max_link_data_rate(intel_dp, max_bw_config.rate,
+						     max_bw_config.lane_count);
 }
 
 static int __update_tunnel_state(struct intel_dp *intel_dp, bool force_sink_update)
@@ -827,6 +829,51 @@ void intel_dp_tunnel_atomic_alloc_bw(struct intel_atomic_state *state)
 {
 	atomic_decrease_bw(state);
 	atomic_increase_bw(state);
+}
+
+static u8 lane_count_mask(int lane_count)
+{
+	return BIT(ilog2(lane_count));
+}
+
+void intel_dp_tunnel_uhbr_lanes_wa_apply(struct intel_dp *intel_dp)
+{
+	struct intel_connector *connector = intel_dp->attached_connector;
+	struct intel_dp_link_caps_order order =
+		intel_dp_link_caps_connector_compute_order(connector);
+	struct intel_dp_link_caps *link_caps = intel_dp->link.caps;
+	struct intel_dp_link_config link_config;
+	struct intel_dp_link_caps_iter iter;
+
+	if (!intel_dp->disabled_uhbr_lane_mask)
+		return;
+
+	intel_dp_link_caps_iter_start(&iter, link_caps, order, INTEL_DP_LINK_CAPS_FILTER_ALL);
+	for_each_dp_link_config(&iter, &link_config) {
+		if (drm_dp_is_uhbr_rate(link_config.rate) &&
+		    lane_count_mask(link_config.lane_count) & intel_dp->disabled_uhbr_lane_mask)
+			intel_dp_link_caps_disable_config(link_caps, &link_config);
+	}
+	intel_dp_link_caps_iter_end(&iter);
+}
+
+bool intel_dp_tunnel_uhbr_lanes_wa_setup(struct intel_dp *intel_dp)
+{
+	u8 old_mask = intel_dp->disabled_uhbr_lane_mask;
+
+	if (!intel_dp_tunnel_bw_alloc_is_enabled(intel_dp) ||
+	    drm_dp_tunnel_128b132b_lane0_mapping_supported(intel_dp->tunnel))
+		intel_dp->disabled_uhbr_lane_mask = 0;
+	else
+		/* TODO: Add support for keeping 2 lanes enabled as well. */
+		intel_dp->disabled_uhbr_lane_mask = lane_count_mask(1) | lane_count_mask(2);
+
+	return intel_dp->disabled_uhbr_lane_mask != old_mask;
+}
+
+void intel_dp_tunnel_uhbr_lanes_wa_reset(struct intel_dp *intel_dp)
+{
+	intel_dp->disabled_uhbr_lane_mask = 0;
 }
 
 /**

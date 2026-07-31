@@ -19,7 +19,23 @@
 #include "xe_fb_pin.h"
 #include "xe_ggtt.h"
 #include "xe_mmio.h"
+#include "xe_ttm_stolen_mgr.h"
 #include "xe_vram_types.h"
+
+static bool is_pte_local(u64 pte)
+{
+	return pte & XE_GGTT_PTE_DM;
+}
+
+static bool has_lmembar(struct xe_device *xe)
+{
+	return GRAPHICS_VERx100(xe) >= 1270;
+}
+
+static bool need_pte_local(struct xe_device *xe)
+{
+	return IS_DGFX(xe) || has_lmembar(xe);
+}
 
 static struct xe_bo *
 initial_plane_bo(struct xe_device *xe,
@@ -37,16 +53,20 @@ initial_plane_bo(struct xe_device *xe,
 	flags = XE_BO_FLAG_FORCE_WC | XE_BO_FLAG_GGTT;
 
 	base = round_down(plane_config->base, page_size);
+	size = round_up(plane_config->base + plane_config->size,
+			page_size);
+	size -= base;
+
 	if (IS_DGFX(xe)) {
 		u64 pte = xe_ggtt_read_pte(tile0->mem.ggtt, base);
 
-		if (!(pte & XE_GGTT_PTE_DM)) {
-			drm_err(&xe->drm,
-				"Initial plane programming missing DM bit\n");
+		if (is_pte_local(pte) != need_pte_local(xe)) {
+			drm_err(&xe->drm, "Initial plane PTE has bad local memory bit\n");
 			return NULL;
 		}
 
 		phys_base = pte & ~(page_size - 1);
+
 		flags |= XE_BO_FLAG_VRAM0;
 
 		/*
@@ -60,14 +80,26 @@ initial_plane_bo(struct xe_device *xe,
 			return NULL;
 		}
 
-		drm_dbg(&xe->drm,
-			"Using phys_base=%pa, based on initial plane programming\n",
-			&phys_base);
+		drm_dbg_kms(&xe->drm,
+			    "Using phys_base=%pa, based on initial plane programming\n",
+			    &phys_base);
 	} else {
-		struct ttm_resource_manager *stolen = ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
+		struct ttm_resource_manager *stolen;
+		u64 pte;
 
-		if (!stolen)
+		stolen = ttm_manager_type(&xe->ttm, XE_PL_STOLEN);
+		if (!stolen) {
+			drm_dbg_kms(&xe->drm, "No stolen for initial FB\n");
 			return NULL;
+		}
+
+		pte = xe_ggtt_read_pte(tile0->mem.ggtt, base);
+
+		if (is_pte_local(pte) != need_pte_local(xe)) {
+			drm_err(&xe->drm, "Initial plane PTE has bad local memory bit\n");
+			return NULL;
+		}
+
 		phys_base = base;
 		flags |= XE_BO_FLAG_STOLEN;
 
@@ -79,16 +111,12 @@ initial_plane_bo(struct xe_device *xe,
 		}
 	}
 
-	size = round_up(plane_config->base + plane_config->size,
-			page_size);
-	size -= base;
-
 	bo = xe_bo_create_pin_map_at_novm(xe, tile0, size, phys_base,
 					  ttm_bo_type_kernel, flags, 0, false);
 	if (IS_ERR(bo)) {
-		drm_dbg(&xe->drm,
-			"Failed to create bo phys_base=%pa size %u with flags %x: %li\n",
-			&phys_base, size, flags, PTR_ERR(bo));
+		drm_dbg_kms(&xe->drm,
+			    "Failed to create bo phys_base=%pa size %u with flags %x: %li\n",
+			    &phys_base, size, flags, PTR_ERR(bo));
 		return NULL;
 	}
 

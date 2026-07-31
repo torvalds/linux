@@ -2908,9 +2908,9 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 }
 
 /* pixels per CDCLK */
-static int intel_cdclk_ppc(struct intel_display *display, bool double_wide)
+int intel_cdclk_ppc(struct intel_display *display, bool double_wide)
 {
-	return DISPLAY_VER(display) >= 10 || double_wide ? 2 : 1;
+	return HAS_2PPC(display) || double_wide ? 2 : 1;
 }
 
 /* max pixel rate as % of CDCLK (not accounting for PPC) */
@@ -2936,7 +2936,7 @@ static int _intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state,
 
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	return _intel_pixel_rate_to_cdclk(crtc_state, crtc_state->pixel_rate);
+	return _intel_pixel_rate_to_cdclk(crtc_state, crtc_state->pixel_rate_cdclk);
 }
 
 static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)

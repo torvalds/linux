@@ -128,11 +128,10 @@ intel_find_initial_plane_obj(struct intel_crtc *crtc,
 
 	/*
 	 * TODO:
-	 *   Disable planes if get_initial_plane_config() failed.
 	 *   Make sure things work if the surface base is not page aligned.
 	 */
 	if (!plane_config->fb)
-		return;
+		goto nofb;
 
 	if (intel_alloc_initial_plane_obj(display, plane_config)) {
 		fb = plane_config->fb;
@@ -184,7 +183,8 @@ nofb:
 	 * simplest solution is to just disable the primary plane now and
 	 * pretend the BIOS never had it enabled.
 	 */
-	intel_plane_disable_noatomic(crtc, plane);
+	if (plane_state->uapi.visible)
+		intel_plane_disable_noatomic(crtc, plane);
 }
 
 static void plane_config_fini(struct intel_display *display,

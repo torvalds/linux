@@ -6,6 +6,7 @@
 
 #include <linux/types.h>
 
+struct intel_connector;
 struct intel_crtc_state;
 struct intel_display;
 struct intel_dp;
@@ -13,7 +14,7 @@ struct link_config_limits;
 
 void intel_dp_test_reset(struct intel_dp *intel_dp);
 void intel_dp_test_request(struct intel_dp *intel_dp);
-void intel_dp_test_compute_config(struct intel_dp *intel_dp,
+bool intel_dp_test_compute_config(struct intel_connector *connector,
 				  struct intel_crtc_state *pipe_config,
 				  struct link_config_limits *limits);
 bool intel_dp_test_phy(struct intel_dp *intel_dp);

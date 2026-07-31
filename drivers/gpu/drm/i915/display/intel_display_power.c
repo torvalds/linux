@@ -1290,7 +1290,7 @@ static void gen9_dbuf_enable(struct intel_display *display)
 
 	slices_mask = BIT(DBUF_S1) | display->dbuf.enabled_slices;
 
-	if (DISPLAY_VER(display) >= 14)
+	if (HAS_PMDEMAND(display))
 		intel_pmdemand_program_dbuf(display, slices_mask);
 
 	/*
@@ -1304,7 +1304,7 @@ static void gen9_dbuf_disable(struct intel_display *display)
 {
 	gen9_dbuf_slices_update(display, 0);
 
-	if (DISPLAY_VER(display) >= 14)
+	if (HAS_PMDEMAND(display))
 		intel_pmdemand_program_dbuf(display, 0);
 }
 

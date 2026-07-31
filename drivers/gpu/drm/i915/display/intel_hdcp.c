@@ -1075,6 +1075,7 @@ static int intel_hdcp1_enable(struct intel_connector *connector)
 		ret = intel_hdcp_auth(connector);
 		if (!ret) {
 			hdcp->hdcp_encrypted = true;
+			hdcp->hdcp2_encrypted = false;
 			return 0;
 		}
 
@@ -2109,6 +2110,7 @@ static int _intel_hdcp2_enable(struct intel_atomic_state *state,
 		    hdcp->content_type);
 
 	hdcp->hdcp2_encrypted = true;
+	hdcp->hdcp_encrypted = false;
 	return 0;
 }
 

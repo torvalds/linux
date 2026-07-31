@@ -264,6 +264,50 @@ unsigned int intel_adjusted_rate(const struct drm_rect *src,
 				dst_w * dst_h);
 }
 
+static unsigned int hscale_cdclk(const struct drm_rect *src,
+				 const struct drm_rect *dst,
+				 unsigned int ppc)
+{
+	unsigned int hscale;
+
+	hscale = drm_rect_calc_hscale(src, dst, 0, INT_MAX);
+	hscale = max(hscale, 0x10000);
+
+	/*
+	 * Double the fractional part due to some 2 PPC granularity issue
+	 *
+	 * FIXME: BSpec calls for doubling only the <0.5 fractional part,
+	 * and rounding it down to a unit fraction. In practice that is
+	 * not sufficient, and we need a more aggressive CDCLK bump in
+	 * many cases. The updated formula was derived empirically.
+	 * This may need to be updated once we have better undestading
+	 * of what's happening in the hardware...
+	 */
+	return (hscale & ~0xffff) + ppc * (hscale & 0xffff);
+}
+
+static unsigned int vscale_cdclk(const struct drm_rect *src,
+				 const struct drm_rect *dst)
+{
+	unsigned int vscale;
+
+	vscale = drm_rect_calc_vscale(src, dst, 0, INT_MAX);
+	vscale = max(vscale, 0x10000);
+
+	return vscale;
+}
+
+unsigned int intel_adjusted_rate_cdclk(const struct drm_rect *src,
+				       const struct drm_rect *dst,
+				       unsigned int rate,
+				       unsigned int ppc)
+{
+	unsigned int hscale = hscale_cdclk(src, dst, ppc);
+	unsigned int vscale = vscale_cdclk(src, dst);
+
+	return DIV64_U64_ROUND_UP((u64)rate * hscale * vscale, 1ull << 32);
+}
+
 unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 				    const struct intel_plane_state *plane_state)
 {
@@ -282,6 +326,17 @@ unsigned int intel_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
 	return intel_adjusted_rate(&plane_state->uapi.src,
 				   &plane_state->uapi.dst,
 				   crtc_state->pixel_rate);
+}
+
+unsigned int intel_plane_pixel_rate_cdclk(const struct intel_crtc_state *crtc_state,
+					  const struct intel_plane_state *plane_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	unsigned int ppc = HAS_2PPC(display) ? 2 : 1;
+
+	return intel_adjusted_rate_cdclk(&plane_state->uapi.src,
+					 &plane_state->uapi.dst,
+					 crtc_state->pixel_rate_cdclk, ppc);
 }
 
 unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,

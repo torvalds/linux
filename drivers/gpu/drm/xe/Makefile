@@ -374,6 +374,9 @@ xe-$(CONFIG_DRM_XE_DP_TUNNEL) += \
 
 obj-$(CONFIG_DRM_XE) += xe.o
 obj-$(CONFIG_DRM_XE_KUNIT_TEST) += tests/
+ifeq ($(CONFIG_DRM_XE_DISPLAY),y)
+	obj-$(CONFIG_DRM_XE_KUNIT_TEST) += display/tests/
+endif
 
 # header test
 hdrtest_find_args := -not -path xe_rtp_helpers.h

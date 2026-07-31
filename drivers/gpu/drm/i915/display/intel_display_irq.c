@@ -1262,7 +1262,7 @@ gen8_de_misc_irq_handler(struct intel_display *display, u32 iir)
 		}
 	}
 
-	if (DISPLAY_VER(display) >= 14) {
+	if (HAS_PMDEMAND(display)) {
 		if (iir & (XELPDP_PMDEMAND_RSP |
 			   XELPDP_PMDEMAND_RSPTOUT_ERR)) {
 			if (iir & XELPDP_PMDEMAND_RSPTOUT_ERR)
