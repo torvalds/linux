@@ -1072,6 +1072,8 @@ mshv_partition_ioctl_create_vp(struct mshv_partition *partition,
 	struct mshv_vp *vp;
 	struct page *intercept_msg_page, *register_page, *ghcb_page;
 	struct hv_stats_page *stats_pages[2];
+	struct file *file;
+	int fd;
 	long ret;
 
 	if (copy_from_user(&args, arg, sizeof(args)))
@@ -1117,8 +1119,10 @@ mshv_partition_ioctl_create_vp(struct mshv_partition *partition,
 		goto unmap_ghcb_page;
 
 	vp = kzalloc_obj(*vp);
-	if (!vp)
+	if (!vp) {
+		ret = -ENOMEM;
 		goto unmap_stats_pages;
+	}
 
 	vp->vp_partition = mshv_partition_get(partition);
 	if (!vp->vp_partition) {
@@ -1144,21 +1148,40 @@ mshv_partition_ioctl_create_vp(struct mshv_partition *partition,
 	if (ret)
 		goto put_partition;
 
-	/*
-	 * Keep anon_inode_getfd last: it installs fd in the file struct and
-	 * thus makes the state accessible in user space.
-	 */
-	ret = anon_inode_getfd("mshv_vp", &mshv_vp_fops, vp,
-			       O_RDWR | O_CLOEXEC);
-	if (ret < 0)
+	fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
 		goto remove_debugfs_vp;
+	}
+
+	file = anon_inode_getfile("mshv_vp", &mshv_vp_fops, vp,
+				  O_RDWR | O_CLOEXEC);
+	if (IS_ERR(file)) {
+		ret = PTR_ERR(file);
+		goto put_unused_vp_fd;
+	}
 
 	/* already exclusive with the partition mutex for all ioctls */
 	partition->pt_vp_count++;
-	partition->pt_vp_array[args.vp_index] = vp;
+	/*
+	 * Pairs with smp_load_acquire() in mshv_try_assert_irq_fast(), which
+	 * can run concurrently from an irqfd waker without holding pt_mutex.
+	 * The release ensures the VP's initialising stores are visible to any
+	 * reader that observes a non-NULL pointer in pt_vp_array.
+	 */
+	smp_store_release(&partition->pt_vp_array[args.vp_index], vp);
+
+	/*
+	 * fd_install() is the userspace-visibility commit point.  Must be the
+	 * last operation that can fail or be observed.
+	 */
+	fd_install(fd, file);
+	ret = fd;
 
 	goto out;
 
+put_unused_vp_fd:
+	put_unused_fd(fd);
 remove_debugfs_vp:
 	mshv_debugfs_vp_remove(vp);
 put_partition:

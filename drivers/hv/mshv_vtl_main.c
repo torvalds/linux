@@ -129,6 +129,7 @@ mshv_ioctl_create_vtl(void __user *user_arg, struct device *module_dev)
 	file = anon_inode_getfile("mshv_vtl", &mshv_vtl_fops,
 				  vtl, O_RDWR);
 	if (IS_ERR(file)) {
+		put_unused_fd(fd);
 		kfree(vtl);
 		return PTR_ERR(file);
 	}
@@ -801,7 +802,7 @@ static vm_fault_t mshv_vtl_fault(struct vm_fault *vmf)
 	int cpu = vmf->pgoff & MSHV_PG_OFF_CPU_MASK;
 	int real_off = vmf->pgoff >> MSHV_REAL_OFF_SHIFT;
 
-	if (!cpu_online(cpu))
+	if (cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return VM_FAULT_SIGBUS;
 	/*
 	 * CPU Hotplug is not supported in VTL2 in OpenHCL, where this kernel driver exists.
@@ -1148,11 +1149,21 @@ static int mshv_vtl_hvcall_call(struct mshv_vtl_hvcall_fd *fd,
 	 */
 	in = (void *)__get_free_page(GFP_KERNEL);
 	out = (void *)__get_free_page(GFP_KERNEL);
+	if (!in || !out) {
+		ret = -ENOMEM;
+		goto free_pages;
+	}
 
 	if (copy_from_user(in, (void __user *)hvcall.input_ptr, hvcall.input_size)) {
 		ret = -EFAULT;
 		goto free_pages;
 	}
+
+	/*
+	 * The caller supplies output_size, so clear the range copied back to
+	 * userspace in case the hypercall writes fewer bytes than requested.
+	 */
+	memset(out, 0, hvcall.output_size);
 
 	hvcall.status = hv_do_hypercall(hvcall.control, in, out);
 
