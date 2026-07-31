@@ -684,7 +684,7 @@ static int renesas_i3c_daa(struct i3c_master_controller *m)
 
 	init_completion(&xfer->comp);
 	cmd = xfer->cmds;
-	cmd->rx_count = 0;
+	cmd->rx_count = i3c->maxdevs;
 
 	PM_RUNTIME_ACQUIRE_IF_ENABLED_AUTOSUSPEND(i3c->dev, pm);
 	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
