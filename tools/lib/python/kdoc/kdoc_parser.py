@@ -601,7 +601,8 @@ class KernelDoc:
         if not suggestions:
             return ""
 
-        return f"(did you mean one of: '{"', '".join(suggestions)}')"
+        joined_suggestions = "', '".join(suggestions)
+        return f"(did you mean one of: '{joined_suggestions}')"
 
     def check_sections(self, ln, decl_name, decl_type):
         """
