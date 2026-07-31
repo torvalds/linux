@@ -2,7 +2,7 @@
 /*
  * Core driver for the S32 CC (Common Chassis) pin controller
  *
- * Copyright 2017-2022,2024-2026 NXP
+ * Copyright 2017-2022,2024-2025 NXP
  * Copyright (C) 2022 SUSE LLC
  * Copyright 2015-2016 Freescale Semiconductor, Inc.
  */
@@ -10,7 +10,6 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio/regmap.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -39,40 +38,6 @@
 #define S32_MSCR_IBE		BIT(19)
 #define S32_MSCR_ODE		BIT(20)
 #define S32_MSCR_OBE		BIT(21)
-
-#define S32_GPIO_OP_SHIFT	16
-#define S32_GPIO_OP_MASK	GENMASK(19, 16)
-
-#define S32_GPIO_OP_DIR		0 /* MSCR direction */
-#define S32_GPIO_OP_DAT		BIT(S32_GPIO_OP_SHIFT) /* PGPDI read */
-#define S32_GPIO_OP_SET		BIT(S32_GPIO_OP_SHIFT + 1) /* PGPDO write */
-
-/*
- * [15:12] = GPIO bank / gpio range index
- * [11:0]  = real register offset or pin id
- */
-#define S32_GPIO_BANK_SHIFT    12
-#define S32_GPIO_BANK_MASK    GENMASK(15, 12)
-#define S32_GPIO_REG_MASK    GENMASK(11, 0)
-
-#define S32_GPIO_ENCODE(bank, off) \
-	((((bank) << S32_GPIO_BANK_SHIFT) & S32_GPIO_BANK_MASK) | \
-		((off) & S32_GPIO_REG_MASK))
-
-#define S32_GPIO_DECODE_BANK(reg) \
-	(((reg) & S32_GPIO_BANK_MASK) >> S32_GPIO_BANK_SHIFT)
-
-#define S32_GPIO_DECODE_OFF(reg) \
-	((reg) & S32_GPIO_REG_MASK)
-
-/*
- * PGPDOs are 16bit registers that come in big endian
- * order if they are grouped in pairs of two.
- *
- * For example, the order is PGPDO1, PGPDO0, PGPDO3, PGPDO2...
- */
-#define S32_PGPD(N)		(((N) ^ 1) * 2)
-#define S32_PGPD_SIZE		16
 
 enum s32_write_type {
 	S32_PINCONF_UPDATE_ONLY,
@@ -108,18 +73,6 @@ struct s32_pinctrl_mem_region {
 };
 
 /*
- * struct s32_gpio_regmaps - GPIO register maps for a SIUL2 instance
- * @pgpdo: regmap for Parallel GPIO Pad Data Out registers
- * @pgpdi: regmap for Parallel GPIO Pad Data In registers
- * @range: GPIO range info
- */
-struct s32_gpio_regmaps {
-	struct regmap *pgpdo;
-	struct regmap *pgpdi;
-	const struct s32_gpio_range *range;
-};
-
-/*
  * struct gpio_pin_config - holds pin configuration for GPIO's
  * @pin_id: Pin ID for this GPIO
  * @config: Pin settings
@@ -145,12 +98,6 @@ struct s32_pinctrl_context {
  * @pctl: a pointer to the pinctrl device structure
  * @regions: reserved memory regions with start/end pin
  * @info: structure containing information about the pin
- * @gpio_regmaps: PGPDO/PGPDI regmaps for each SIUL2 module
- * @num_gpio_regmaps: number of GPIO regmap entries
- * @gpio_regmap: regmap bridging gpio-regmap to SIUL2 registers
- * @gpio_rgm: gpio-regmap instance registered for this controller
- * @ngpio: total number of GPIO line offsets
- * @gpio_names: GPIO line names array passed to gpio-regmap
  * @gpio_configs: saved configurations for GPIO pins
  * @gpio_configs_lock: lock for the `gpio_configs` list
  * @saved_context: configuration saved over system sleep
@@ -160,12 +107,6 @@ struct s32_pinctrl {
 	struct pinctrl_dev *pctl;
 	struct s32_pinctrl_mem_region *regions;
 	struct s32_pinctrl_soc_info *info;
-	struct s32_gpio_regmaps *gpio_regmaps;
-	unsigned int num_gpio_regmaps;
-	struct regmap *gpio_regmap;
-	struct gpio_regmap *gpio_rgm;
-	unsigned int ngpio;
-	const char *const *gpio_names;
 	struct list_head gpio_configs;
 	spinlock_t gpio_configs_lock;
 #ifdef CONFIG_PM_SLEEP
@@ -415,63 +356,6 @@ static int s32_pmx_get_funcs_count(struct pinctrl_dev *pctldev)
 	return info->nfunctions;
 }
 
-static int s32_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
-				       struct pinctrl_gpio_range *range,
-				       unsigned int pin)
-{
-	struct s32_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct gpio_pin_config *gpio_pin __free(kfree) = NULL;
-	unsigned int config;
-	int ret;
-
-	ret = s32_regmap_read(pctldev, pin, &config);
-	if (ret)
-		return ret;
-
-	gpio_pin = kmalloc_obj(*gpio_pin, GFP_KERNEL);
-	if (!gpio_pin)
-		return -ENOMEM;
-
-	gpio_pin->pin_id = pin;
-	gpio_pin->config = config;
-
-	/* GPIO pin means SSS = 0 */
-	ret = s32_regmap_update(pctldev, pin,
-				S32_MSCR_SSS_MASK | S32_MSCR_IBE,
-				S32_MSCR_IBE);
-	if (ret)
-		return ret;
-
-	scoped_guard(spinlock_irqsave, &ipctl->gpio_configs_lock)
-		list_add(&no_free_ptr(gpio_pin)->list, &ipctl->gpio_configs);
-
-	return 0;
-}
-
-static void s32_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
-				      struct pinctrl_gpio_range *range,
-				      unsigned int pin)
-{
-	struct s32_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct gpio_pin_config *gpio_pin, *found = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ipctl->gpio_configs_lock, flags);
-	list_for_each_entry(gpio_pin, &ipctl->gpio_configs, list) {
-		if (gpio_pin->pin_id == pin) {
-			list_del(&gpio_pin->list);
-			found = gpio_pin;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&ipctl->gpio_configs_lock, flags);
-
-	if (found) {
-		s32_regmap_write(pctldev, found->pin_id, found->config);
-		kfree(found);
-	}
-}
-
 static const char *s32_pmx_get_func_name(struct pinctrl_dev *pctldev,
 					 unsigned int selector)
 {
@@ -493,6 +377,67 @@ static int s32_pmx_get_groups(struct pinctrl_dev *pctldev,
 	*num_groups = info->functions[selector].ngroups;
 
 	return 0;
+}
+
+static int s32_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
+				       struct pinctrl_gpio_range *range,
+				       unsigned int offset)
+{
+	struct s32_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
+	struct gpio_pin_config *gpio_pin;
+	unsigned int config;
+	unsigned long flags;
+	int ret;
+
+	ret = s32_regmap_read(pctldev, offset, &config);
+	if (ret)
+		return ret;
+
+	/* Save current configuration */
+	gpio_pin = kmalloc_obj(*gpio_pin);
+	if (!gpio_pin)
+		return -ENOMEM;
+
+	gpio_pin->pin_id = offset;
+	gpio_pin->config = config;
+	INIT_LIST_HEAD(&gpio_pin->list);
+
+	spin_lock_irqsave(&ipctl->gpio_configs_lock, flags);
+	list_add(&gpio_pin->list, &ipctl->gpio_configs);
+	spin_unlock_irqrestore(&ipctl->gpio_configs_lock, flags);
+
+	/* GPIO pin means SSS = 0 */
+	config &= ~S32_MSCR_SSS_MASK;
+
+	return s32_regmap_write(pctldev, offset, config);
+}
+
+static void s32_pmx_gpio_disable_free(struct pinctrl_dev *pctldev,
+				      struct pinctrl_gpio_range *range,
+				      unsigned int offset)
+{
+	struct s32_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
+	struct gpio_pin_config *gpio_pin, *tmp;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&ipctl->gpio_configs_lock, flags);
+
+	list_for_each_entry_safe(gpio_pin, tmp, &ipctl->gpio_configs, list) {
+		if (gpio_pin->pin_id == offset) {
+			ret = s32_regmap_write(pctldev, gpio_pin->pin_id,
+						 gpio_pin->config);
+			if (ret != 0)
+				goto unlock;
+
+			list_del(&gpio_pin->list);
+			kfree(gpio_pin);
+			break;
+		}
+	}
+
+unlock:
+	spin_unlock_irqrestore(&ipctl->gpio_configs_lock, flags);
 }
 
 static int s32_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
@@ -704,9 +649,9 @@ static void s32_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 
 	ret = s32_regmap_read(pctldev, pin_id, &config);
 	if (ret)
-		seq_printf(s, "error %d", ret);
-	else
-		seq_printf(s, "0x%x", config);
+		return;
+
+	seq_printf(s, "0x%x", config);
 }
 
 static void s32_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
@@ -724,11 +669,8 @@ static void s32_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	for (i = 0; i < grp->data.npins; i++) {
 		name = pin_get_name(pctldev, grp->data.pins[i]);
 		ret = s32_regmap_read(pctldev, grp->data.pins[i], &config);
-		if (ret) {
-			seq_printf(s, "%s: error %d\n", name, ret);
-			continue;
-		}
-
+		if (ret)
+			return;
 		seq_printf(s, "%s: 0x%x\n", name, config);
 	}
 }
@@ -740,477 +682,6 @@ static const struct pinconf_ops s32_pinconf_ops = {
 	.pin_config_dbg_show = s32_pinconf_dbg_show,
 	.pin_config_group_dbg_show = s32_pinconf_group_dbg_show,
 };
-
-static void s32_gpio_free_saved_configs(void *data)
-{
-	struct s32_pinctrl *ipctl = data;
-	struct gpio_pin_config *gpio_pin, *tmp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ipctl->gpio_configs_lock, flags);
-	list_for_each_entry_safe(gpio_pin, tmp, &ipctl->gpio_configs, list) {
-		list_del(&gpio_pin->list);
-		kfree(gpio_pin);
-	}
-	spin_unlock_irqrestore(&ipctl->gpio_configs_lock, flags);
-}
-
-static unsigned int s32_pin2pad(unsigned int pin)
-{
-	return pin / S32_PGPD_SIZE;
-}
-
-static u16 s32_pin2mask(unsigned int pin)
-{
-	/*
-	 * From Reference manual :
-	 * PGPDOx[PPDOy] = GPDO(x × 16) + (15 - y)[PDO_(x × 16) + (15 - y)]
-	 */
-	return BIT(S32_PGPD_SIZE - 1 - pin % S32_PGPD_SIZE);
-}
-
-static int s32_gpio_get_range(struct s32_pinctrl *ipctl,
-			      unsigned int gpio,
-			      unsigned int *pin,
-			      unsigned int *bank)
-{
-	const struct s32_pinctrl_soc_data *soc_data = ipctl->info->soc_data;
-	const struct s32_gpio_range *range;
-	int i;
-
-	for (i = 0; i < soc_data->num_gpio_ranges; i++) {
-		range = &soc_data->gpio_ranges[i];
-
-		if (gpio < range->gpio_base ||
-		    gpio >= range->gpio_base + range->gpio_num)
-			continue;
-
-		if (pin)
-			*pin = range->pin_base + gpio - range->gpio_base;
-
-		if (bank)
-			*bank = i;
-
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static int s32_gpio_pad_map_xlate(struct s32_pinctrl *ipctl,
-				  unsigned int gpio,
-				  unsigned int *reg_offset,
-				  u16 *mask)
-{
-	const struct s32_pinctrl_soc_data *soc_data = ipctl->info->soc_data;
-	const struct s32_gpio_pad_map *map;
-	unsigned int bit;
-	int i;
-
-	if (!soc_data->gpio_pad_maps || !soc_data->num_gpio_pad_maps)
-		return -EINVAL;
-
-	for (i = 0; i < soc_data->num_gpio_pad_maps; i++) {
-		map = &soc_data->gpio_pad_maps[i];
-
-		if (gpio < map->gpio_start || gpio > map->gpio_end)
-			continue;
-
-		bit = gpio - map->gpio_start;
-		*mask = BIT(S32_PGPD_SIZE - 1 - bit);
-		*reg_offset = S32_PGPD(map->pad);
-
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static bool s32_gpio_pin_is_sparse(struct s32_pinctrl *ipctl, unsigned int pin)
-{
-	const struct s32_pinctrl_soc_data *soc_data = ipctl->info->soc_data;
-	const struct s32_gpio_range *range;
-	int i;
-
-	for (i = 0; i < soc_data->num_gpio_ranges; i++) {
-		range = &soc_data->gpio_ranges[i];
-		if (pin >= range->pin_base &&
-		    pin < range->pin_base + range->gpio_num)
-			return range->sparse;
-	}
-
-	return false;
-}
-
-static int s32_gpio_xlate_pgpd(struct s32_pinctrl *ipctl,
-			       unsigned int pin,
-			       unsigned int *reg_offset,
-			       u16 *mask)
-{
-	int ret;
-
-	/*
-	 * Try the pad map first. For sparse ranges (SIUL2_1), only pins
-	 * listed in the pad map are valid, return the error directly without
-	 * falling back to the linear layout.
-	 * For linear ranges (SIUL2_0), fall back to the linear pad-to-PGPD
-	 * formula if no pad map entry matches.
-	 */
-	ret = s32_gpio_pad_map_xlate(ipctl, pin, reg_offset, mask);
-	if (ret != -EINVAL)
-		return ret;
-
-	if (s32_gpio_pin_is_sparse(ipctl, pin))
-		return -EINVAL;
-
-	/* Linear layout fallback for non-sparse ranges. */
-	*mask = s32_pin2mask(pin);
-	*reg_offset = S32_PGPD(s32_pin2pad(pin));
-
-	return 0;
-}
-
-static int s32_gpio_reg_mask_xlate(struct gpio_regmap *gpio,
-				   unsigned int base, unsigned int offset,
-				   unsigned int *reg, unsigned int *mask)
-{
-	struct s32_pinctrl *ipctl = gpio_regmap_get_drvdata(gpio);
-	unsigned int pgpd_reg, pin, bank;
-	u16 pgpd_mask;
-	int ret;
-
-	ret = s32_gpio_get_range(ipctl, offset, &pin, &bank);
-	if (ret)
-		return ret;
-
-	switch (base) {
-	case S32_GPIO_OP_DIR:
-		/*
-		 * Direction is controlled through MSCR OBE.
-		 * Encode the real pin id in the virtual register.
-		 */
-		*reg = S32_GPIO_OP_DIR | pin;
-		*mask = S32_MSCR_OBE;
-		return 0;
-
-	case S32_GPIO_OP_DAT:
-	case S32_GPIO_OP_SET:
-		ret = s32_gpio_xlate_pgpd(ipctl, pin, &pgpd_reg, &pgpd_mask);
-		if (ret)
-			return ret;
-		/*
-		 * Encode both the GPIO bank and the real PGPD register offset.
-		 */
-		*reg = base | S32_GPIO_ENCODE(bank, pgpd_reg);
-		*mask = pgpd_mask;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int s32_gpio_reg_read(void *context, unsigned int reg,
-			     unsigned int *val)
-{
-	struct s32_pinctrl *ipctl = context;
-	unsigned int op = reg & S32_GPIO_OP_MASK;
-	unsigned int vreg = reg & ~S32_GPIO_OP_MASK;
-	unsigned int bank;
-	unsigned int offset;
-	struct regmap *map;
-
-	switch (op) {
-	case S32_GPIO_OP_DIR:
-		/*
-		 * Lower bits contain the real MSCR pin id.
-		 */
-		offset = S32_GPIO_DECODE_OFF(vreg);
-
-		return s32_regmap_read(ipctl->pctl, offset, val);
-
-	case S32_GPIO_OP_DAT:
-		bank = S32_GPIO_DECODE_BANK(vreg);
-		offset = S32_GPIO_DECODE_OFF(vreg);
-
-		if (bank >= ipctl->num_gpio_regmaps)
-			return -EINVAL;
-
-		map = ipctl->gpio_regmaps[bank].pgpdi;
-		if (!map)
-			return -ENODEV;
-
-		return regmap_read(map, offset, val);
-
-	case S32_GPIO_OP_SET:
-		/*
-		 * gpio-regmap uses update_bits() for set, so it needs to read
-		 * the output register before writing the updated value.
-		 */
-		bank = S32_GPIO_DECODE_BANK(vreg);
-		offset = S32_GPIO_DECODE_OFF(vreg);
-
-		if (bank >= ipctl->num_gpio_regmaps)
-			return -EINVAL;
-
-		map = ipctl->gpio_regmaps[bank].pgpdo;
-		if (!map)
-			return -ENODEV;
-
-		return regmap_read(map, offset, val);
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int s32_gpio_reg_write(void *context, unsigned int reg,
-			      unsigned int val)
-{
-	struct s32_pinctrl *ipctl = context;
-	unsigned int op = reg & S32_GPIO_OP_MASK;
-	unsigned int vreg = reg & ~S32_GPIO_OP_MASK;
-	unsigned int bank, offset, config;
-	struct regmap *map;
-
-	switch (op) {
-	case S32_GPIO_OP_DIR:
-		/*
-		 * gpio-regmap sets S32_MSCR_OBE for output and clears it for
-		 * input. Keep IBE enabled for GPIOs in both cases.
-		 */
-		offset = S32_GPIO_DECODE_OFF(vreg);
-
-		config = S32_MSCR_IBE;
-		if (val & S32_MSCR_OBE)
-			config |= S32_MSCR_OBE;
-
-		return s32_regmap_update(ipctl->pctl, offset,
-					 S32_MSCR_OBE | S32_MSCR_IBE,
-					 config);
-
-	case S32_GPIO_OP_SET:
-		bank = S32_GPIO_DECODE_BANK(vreg);
-		offset = S32_GPIO_DECODE_OFF(vreg);
-
-		if (bank >= ipctl->num_gpio_regmaps)
-			return -EINVAL;
-
-		map = ipctl->gpio_regmaps[bank].pgpdo;
-		if (!map)
-			return -ENODEV;
-
-		return regmap_write(map, offset, val);
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static const struct regmap_bus s32_gpio_regmap_bus = {
-	.reg_read = s32_gpio_reg_read,
-	.reg_write = s32_gpio_reg_write,
-};
-
-static const struct regmap_config s32_gpio_regmap_config = {
-	.name = "s32-gpio",
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 1,
-	.max_register = S32_GPIO_OP_SET | S32_GPIO_BANK_MASK | S32_GPIO_REG_MASK,
-	.cache_type = REGCACHE_NONE,
-	.fast_io = true,
-};
-
-static int s32_gpio_get_ngpio(const struct s32_pinctrl_soc_data *soc_data,
-			      unsigned int *ngpio)
-{
-	const struct s32_gpio_range *range;
-	unsigned int end, max = 0;
-	int i;
-
-	if (!soc_data->gpio_ranges || !soc_data->num_gpio_ranges)
-		return -EINVAL;
-
-	for (i = 0; i < soc_data->num_gpio_ranges; i++) {
-		range = &soc_data->gpio_ranges[i];
-
-		if (!range->gpio_num)
-			return -EINVAL;
-
-		end = range->gpio_base + range->gpio_num;
-
-		/*
-		 * gpio_ranges must be ordered by gpio_base and must not overlap.
-		 * The GPIO line space size is derived from the highest range end.
-		 */
-		if (i > 0 && range->gpio_base < max)
-			return -EINVAL;
-
-		if (end > max)
-			max = end;
-	}
-
-	*ngpio = max;
-
-	return 0;
-}
-
-static int s32_init_gpio_regmap(struct platform_device *pdev,
-				struct s32_pinctrl *ipctl)
-{
-	ipctl->gpio_regmap =
-		devm_regmap_init(&pdev->dev, &s32_gpio_regmap_bus,
-				 ipctl, &s32_gpio_regmap_config);
-	if (IS_ERR(ipctl->gpio_regmap))
-		return dev_err_probe(&pdev->dev,
-				     PTR_ERR(ipctl->gpio_regmap),
-				     "Failed to init GPIO regmap\n");
-
-	return 0;
-}
-
-static int s32_init_valid_mask(struct gpio_chip *chip, unsigned long *mask,
-			       unsigned int ngpios)
-{
-	struct gpio_regmap *gpio = gpiochip_get_data(chip);
-	struct s32_pinctrl *ipctl = gpio_regmap_get_drvdata(gpio);
-	unsigned int gpio_num, pin, reg_offset;
-	u16 pgpd_mask;
-	int ret;
-
-	bitmap_zero(mask, ngpios);
-
-	for (gpio_num = 0; gpio_num < ngpios; gpio_num++) {
-		ret = s32_gpio_get_range(ipctl, gpio_num, &pin, NULL);
-		if (ret)
-			continue;
-
-		ret = s32_gpio_xlate_pgpd(ipctl, pin, &reg_offset, &pgpd_mask);
-		if (ret)
-			continue;
-
-		bitmap_set(mask, gpio_num, 1);
-	}
-
-	return 0;
-}
-
-static int s32_gpio_populate_names(struct s32_pinctrl *ipctl)
-{
-	char **names;
-	unsigned int gpio;
-	unsigned int pin;
-	char port;
-	int ret;
-
-	names = devm_kcalloc(ipctl->dev, ipctl->ngpio, sizeof(*names),
-			     GFP_KERNEL);
-	if (!names)
-		return -ENOMEM;
-
-	for (gpio = 0; gpio < ipctl->ngpio; gpio++) {
-		ret = s32_gpio_get_range(ipctl, gpio, &pin, NULL);
-		if (ret)
-			continue;
-
-		port = 'A' + pin / 16;
-
-		names[gpio] = devm_kasprintf(ipctl->dev, GFP_KERNEL,
-					     "P%c_%02u", port, pin & 0xf);
-		if (!names[gpio])
-			return -ENOMEM;
-	}
-
-	ipctl->gpio_names = (const char *const *)names;
-
-	return 0;
-}
-
-static int s32_pinctrl_init_gpio_regmaps(struct platform_device *pdev,
-					 struct s32_pinctrl *ipctl)
-{
-	const struct s32_pinctrl_soc_data *soc_data = ipctl->info->soc_data;
-	static const struct regmap_config pgpd_config = {
-		.reg_bits = 32,
-		.val_bits = 16,
-		.reg_stride = 2,
-	};
-	struct regmap_config cfg;
-	struct resource *res;
-	void __iomem *base;
-	unsigned int pgpdo_idx, pgpdi_idx;
-	unsigned int i;
-
-	if (!soc_data->gpio_ranges || !soc_data->num_gpio_ranges)
-		return 0;
-
-	ipctl->num_gpio_regmaps = soc_data->num_gpio_ranges;
-	ipctl->gpio_regmaps = devm_kcalloc(&pdev->dev, ipctl->num_gpio_regmaps,
-					   sizeof(*ipctl->gpio_regmaps),
-					   GFP_KERNEL);
-	if (!ipctl->gpio_regmaps)
-		return -ENOMEM;
-
-	for (i = 0; i < ipctl->num_gpio_regmaps; i++) {
-		ipctl->gpio_regmaps[i].range = &soc_data->gpio_ranges[i];
-
-		/*
-		 * GPIO resources are placed after the pinctrl regions
-		 */
-		pgpdo_idx = soc_data->mem_regions + i * 2;
-		pgpdi_idx = soc_data->mem_regions + i * 2 + 1;
-
-		/* PGPDO */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, pgpdo_idx);
-		if (!res)
-			return dev_err_probe(&pdev->dev, -ENOENT,
-						 "Missing PGPDO resource %u\n", i);
-
-		base = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(base))
-			return PTR_ERR(base);
-
-		cfg = pgpd_config;
-		cfg.name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "pgpdo%u", i);
-		if (!cfg.name)
-			return -ENOMEM;
-
-		cfg.max_register = resource_size(res) - cfg.reg_stride;
-
-		ipctl->gpio_regmaps[i].pgpdo =
-			devm_regmap_init_mmio(&pdev->dev, base, &cfg);
-		if (IS_ERR(ipctl->gpio_regmaps[i].pgpdo))
-			return dev_err_probe(&pdev->dev,
-						 PTR_ERR(ipctl->gpio_regmaps[i].pgpdo),
-						 "Failed to init PGPDO regmap %u\n", i);
-
-		/* PGPDI */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, pgpdi_idx);
-		if (!res)
-			return dev_err_probe(&pdev->dev, -ENOENT,
-						 "Missing PGPDI resource %u\n", i);
-
-		base = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(base))
-			return PTR_ERR(base);
-
-		cfg = pgpd_config;
-		cfg.name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "pgpdi%u", i);
-		if (!cfg.name)
-			return -ENOMEM;
-
-		cfg.max_register = resource_size(res) - cfg.reg_stride;
-
-		ipctl->gpio_regmaps[i].pgpdi =
-			devm_regmap_init_mmio(&pdev->dev, base, &cfg);
-		if (IS_ERR(ipctl->gpio_regmaps[i].pgpdi))
-			return dev_err_probe(&pdev->dev,
-						 PTR_ERR(ipctl->gpio_regmaps[i].pgpdi),
-						 "Failed to init PGPDI regmap %u\n", i);
-	}
-
-	return 0;
-}
 
 #ifdef CONFIG_PM_SLEEP
 static bool s32_pinctrl_should_save(struct s32_pinctrl *ipctl,
@@ -1238,7 +709,8 @@ int s32_pinctrl_suspend(struct device *dev)
 	const struct pinctrl_pin_desc *pin;
 	const struct s32_pinctrl_soc_info *info = ipctl->info;
 	struct s32_pinctrl_context *saved_context = &ipctl->saved_context;
-	int i, ret;
+	int i;
+	int ret;
 	unsigned int config;
 
 	for (i = 0; i < info->soc_data->npins; i++) {
@@ -1249,7 +721,7 @@ int s32_pinctrl_suspend(struct device *dev)
 
 		ret = s32_regmap_read(ipctl->pctl, pin->number, &config);
 		if (ret)
-			return ret;
+			return -EINVAL;
 
 		saved_context->pads[i] = config;
 	}
@@ -1264,7 +736,7 @@ int s32_pinctrl_resume(struct device *dev)
 	const struct s32_pinctrl_soc_info *info = ipctl->info;
 	const struct pinctrl_pin_desc *pin;
 	struct s32_pinctrl_context *saved_context = &ipctl->saved_context;
-	int i, ret;
+	int ret, i;
 
 	for (i = 0; i < info->soc_data->npins; i++) {
 		pin = &info->soc_data->pins[i];
@@ -1273,7 +745,7 @@ int s32_pinctrl_resume(struct device *dev)
 			continue;
 
 		ret = s32_regmap_write(ipctl->pctl, pin->number,
-				 saved_context->pads[i]);
+					 saved_context->pads[i]);
 		if (ret)
 			return ret;
 	}
@@ -1456,11 +928,9 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 #ifdef CONFIG_PM_SLEEP
 	struct s32_pinctrl_context *saved_context;
 #endif
-	struct gpio_regmap_config gpio_cfg = {};
 	struct pinctrl_desc *s32_pinctrl_desc;
 	struct s32_pinctrl_soc_info *info;
 	struct s32_pinctrl *ipctl;
-	unsigned int ngpio;
 	int ret;
 
 	if (!soc_data || !soc_data->pins || !soc_data->npins)
@@ -1486,11 +956,6 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	INIT_LIST_HEAD(&ipctl->gpio_configs);
 	spin_lock_init(&ipctl->gpio_configs_lock);
 
-	ret = devm_add_action_or_reset(&pdev->dev,
-				       s32_gpio_free_saved_configs, ipctl);
-	if (ret)
-		return ret;
-
 	s32_pinctrl_desc =
 		devm_kzalloc(&pdev->dev, sizeof(*s32_pinctrl_desc), GFP_KERNEL);
 	if (!s32_pinctrl_desc)
@@ -1508,11 +973,6 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Fail to probe dt properties\n");
-
-	ret = s32_pinctrl_init_gpio_regmaps(pdev, ipctl);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "Failed to init GPIO regmaps\n");
 
 	ret = devm_pinctrl_register_and_init(&pdev->dev, s32_pinctrl_desc,
 					     ipctl, &ipctl->pctl);
@@ -1535,42 +995,7 @@ int s32_pinctrl_probe(struct platform_device *pdev,
 		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to enable pinctrl\n");
 
-	/* Setup GPIO if GPIO ranges are defined */
-	if (!soc_data->gpio_ranges || !soc_data->num_gpio_ranges)
-		return 0;
-
-	ret = s32_gpio_get_ngpio(soc_data, &ngpio);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Invalid GPIO ranges\n");
-
-	ipctl->ngpio = ngpio;
-
-	ret = s32_gpio_populate_names(ipctl);
-	if (ret)
-		return ret;
-
-	ret = s32_init_gpio_regmap(pdev, ipctl);
-	if (ret)
-		return ret;
-
-	gpio_cfg.parent = &pdev->dev;
-	gpio_cfg.fwnode = dev_fwnode(&pdev->dev);
-	gpio_cfg.label = dev_name(&pdev->dev);
-	gpio_cfg.regmap = ipctl->gpio_regmap;
-	gpio_cfg.ngpio = ngpio;
-	gpio_cfg.names = ipctl->gpio_names;
-	gpio_cfg.reg_dir_out_base = GPIO_REGMAP_ADDR(S32_GPIO_OP_DIR);
-	gpio_cfg.reg_dat_base = GPIO_REGMAP_ADDR(S32_GPIO_OP_DAT);
-	gpio_cfg.reg_set_base = GPIO_REGMAP_ADDR(S32_GPIO_OP_SET);
-	gpio_cfg.reg_mask_xlate = s32_gpio_reg_mask_xlate;
-	gpio_cfg.init_valid_mask = s32_init_valid_mask;
-	gpio_cfg.drvdata = ipctl;
-
-	ipctl->gpio_rgm = devm_gpio_regmap_register(&pdev->dev, &gpio_cfg);
-	if (IS_ERR(ipctl->gpio_rgm))
-		return dev_err_probe(&pdev->dev,
-				     PTR_ERR(ipctl->gpio_rgm),
-				     "Unable to add gpio_regmap chip\n");
+	dev_info(&pdev->dev, "Initialized S32 pinctrl driver\n");
 
 	return 0;
 }

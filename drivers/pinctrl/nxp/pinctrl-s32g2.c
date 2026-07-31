@@ -3,7 +3,7 @@
  * NXP S32G pinctrl driver
  *
  * Copyright 2015-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2018, 2020-2022, 2025-2026 NXP
+ * Copyright 2017-2018, 2020-2022 NXP
  * Copyright (C) 2022 SUSE LLC
  */
 
@@ -773,48 +773,17 @@ static const struct s32_pin_range s32_pin_ranges_siul2[] = {
 	S32_PIN_RANGE(942, 1007),
 };
 
-static const struct s32_gpio_range s32_gpio_ranges_siul2[] = {
-	S32_GPIO_RANGE(0, 0, 102),
-	/* SIUL2_1: sparse layout, PGPD mapping required for all pins */
-	{ .gpio_base = 112, .pin_base = 112, .gpio_num = 79, .sparse = true },
-};
-
-/*
- * SIUL2_1 GPIO ranges mapped to sparse PGPD pads.
- *
- * SIUL2_1 does not expose GPIO data registers as a linear pad
- * sequence. Each entry describes a contiguous GPIO offset range
- * and the PGPD pad servicing that range.
- */
-static const struct s32_gpio_pad_map s32g_gpio_pad_maps[] = {
-	{ 112, 122, 7  }, /* PH_00 .. PH_10 -> PGPD7  */
-	{ 144, 159, 9  }, /* PJ_00 .. PJ_15 -> PGPD9  */
-	{ 160, 175, 10 }, /* PK_00 .. PK_15 -> PGPD10 */
-	{ 176, 190, 11 }, /* PL_00 .. PL_14 -> PGPD11 */
-};
-
-/* Legacy data for old DT bindings without GPIO support */
-static const struct s32_pinctrl_soc_data legacy_s32g_pinctrl_data = {
+static const struct s32_pinctrl_soc_data s32_pinctrl_data = {
 	.pins = s32_pinctrl_pads_siul2,
 	.npins = ARRAY_SIZE(s32_pinctrl_pads_siul2),
 	.mem_pin_ranges = s32_pin_ranges_siul2,
 	.mem_regions = ARRAY_SIZE(s32_pin_ranges_siul2),
-};
-
-static const struct s32_pinctrl_soc_data s32g_pinctrl_data = {
-	.pins = s32_pinctrl_pads_siul2,
-	.npins = ARRAY_SIZE(s32_pinctrl_pads_siul2),
-	.mem_pin_ranges = s32_pin_ranges_siul2,
-	.mem_regions = ARRAY_SIZE(s32_pin_ranges_siul2),
-	.gpio_ranges = s32_gpio_ranges_siul2,
-	.num_gpio_ranges = ARRAY_SIZE(s32_gpio_ranges_siul2),
-	.gpio_pad_maps = s32g_gpio_pad_maps,
-	.num_gpio_pad_maps = ARRAY_SIZE(s32g_gpio_pad_maps),
 };
 
 static const struct of_device_id s32_pinctrl_of_match[] = {
 	{
 		.compatible = "nxp,s32g2-siul2-pinctrl",
+		.data = &s32_pinctrl_data,
 	},
 	{ /* sentinel */ }
 };
@@ -823,16 +792,8 @@ MODULE_DEVICE_TABLE(of, s32_pinctrl_of_match);
 static int s32g_pinctrl_probe(struct platform_device *pdev)
 {
 	const struct s32_pinctrl_soc_data *soc_data;
-	struct device_node *np = pdev->dev.of_node;
 
-	/*
-	 * Legacy DTs only describe the pinctrl resources.
-	 * New DT changes extend the same node with GPIO resources.
-	 */
-	if (of_property_present(np, "gpio-controller"))
-		soc_data = &s32g_pinctrl_data;
-	else
-		soc_data = &legacy_s32g_pinctrl_data;
+	soc_data = of_device_get_match_data(&pdev->dev);
 
 	return s32_pinctrl_probe(pdev, soc_data);
 }
