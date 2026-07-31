@@ -1052,9 +1052,30 @@ static struct geneve_sock *geneve_socket_create(struct net *net,
 	return gs;
 }
 
-static void __geneve_sock_release(struct geneve_sock *gs)
+static void __geneve_sock_release(struct geneve_dev *geneve, bool ipv6)
 {
-	if (!gs || --gs->refcnt)
+	struct geneve_dev_node *node;
+	struct geneve_sock *gs;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	if (ipv6) {
+		gs = rtnl_dereference(geneve->sock6);
+		rcu_assign_pointer(geneve->sock6, NULL);
+		node = &geneve->hlist6;
+	} else
+#endif
+	{
+		gs = rtnl_dereference(geneve->sock4);
+		rcu_assign_pointer(geneve->sock4, NULL);
+		node = &geneve->hlist4;
+	}
+
+	if (!gs)
+		return;
+
+	hlist_del_init_rcu(&node->hlist);
+
+	if (--gs->refcnt)
 		return;
 
 	list_del(&gs->list);
@@ -1065,19 +1086,10 @@ static void __geneve_sock_release(struct geneve_sock *gs)
 
 static void geneve_sock_release(struct geneve_dev *geneve)
 {
-	struct geneve_sock *gs4 = rtnl_dereference(geneve->sock4);
 #if IS_ENABLED(CONFIG_IPV6)
-	struct geneve_sock *gs6 = rtnl_dereference(geneve->sock6);
-
-	rcu_assign_pointer(geneve->sock6, NULL);
+	__geneve_sock_release(geneve, true);
 #endif
-
-	rcu_assign_pointer(geneve->sock4, NULL);
-
-	__geneve_sock_release(gs4);
-#if IS_ENABLED(CONFIG_IPV6)
-	__geneve_sock_release(gs6);
-#endif
+	__geneve_sock_release(geneve, false);
 }
 
 static struct geneve_sock *geneve_find_sock(struct net *net,
@@ -1187,10 +1199,6 @@ static int geneve_stop(struct net_device *dev)
 {
 	struct geneve_dev *geneve = netdev_priv(dev);
 
-	hlist_del_init_rcu(&geneve->hlist4.hlist);
-#if IS_ENABLED(CONFIG_IPV6)
-	hlist_del_init_rcu(&geneve->hlist6.hlist);
-#endif
 	geneve_sock_release(geneve);
 	return 0;
 }
