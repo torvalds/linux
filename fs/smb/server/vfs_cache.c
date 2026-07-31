@@ -1618,9 +1618,12 @@ void ksmbd_launch_ksmbd_durable_scavenger(void)
 
 	server_conf.dh_task = kthread_run(ksmbd_durable_scavenger,
 				     (void *)NULL, "ksmbd-durable-scavenger");
-	if (IS_ERR(server_conf.dh_task))
+	if (IS_ERR(server_conf.dh_task)) {
 		pr_err("cannot start conn thread, err : %ld\n",
 		       PTR_ERR(server_conf.dh_task));
+		server_conf.dh_task = NULL;
+		durable_scavenger_running = false;
+	}
 	mutex_unlock(&durable_scavenger_lock);
 }
 
