@@ -35,21 +35,15 @@
 	PMU_EVENT_ATTR_ID(_name, arm_cspmu_sysfs_event_show, _config)
 
 
-/* Default event id mask */
-#define ARM_CSPMU_EVENT_MASK	GENMASK_ULL(63, 0)
-
-/* Default filter value mask */
-#define ARM_CSPMU_FILTER_MASK	GENMASK_ULL(63, 0)
-
 /* Default event format */
 #define ARM_CSPMU_FORMAT_EVENT_ATTR	\
-	ARM_CSPMU_FORMAT_ATTR(event, "config:0-32")
+	PMU_EVENT_ATTR_ID(event, arm_cspmu_default_format_show, 0)
 
 /* Default filter format */
 #define ARM_CSPMU_FORMAT_FILTER_ATTR	\
-	ARM_CSPMU_FORMAT_ATTR(filter, "config1:0-31")
+	PMU_EVENT_ATTR_ID(filter, arm_cspmu_default_format_show, 1)
 #define ARM_CSPMU_FORMAT_FILTER2_ATTR	\
-	ARM_CSPMU_FORMAT_ATTR(filter2, "config2:0-31")
+	PMU_EVENT_ATTR_ID(filter2, arm_cspmu_default_format_show, 2)
 
 /*
  * This is the default event number for cycle count, if supported, since the
@@ -78,6 +72,7 @@
 #define PMEVFILT2R			0x800
 #define PMEVFILTR			0xA00
 #define PMCNTENSET			0xC00
+#define PMCNTEN				0xC10
 #define PMCNTENCLR			0xC20
 #define PMINTENSET			0xC40
 #define PMINTENCLR			0xC60
@@ -87,6 +82,8 @@
 #define PMCFGR				0xE00
 #define PMCR				0xE04
 #define PMIIDR				0xE08
+#define PMCR_64				0xE10
+#define PMDEVARCH			0xFBC
 #define PMPIDR0				0xFE0
 #define PMPIDR1				0xFE4
 #define PMPIDR2				0xFE8
@@ -154,6 +151,10 @@
 #define ARM_CSPMU_IMPL_ID_NVIDIA	0x36B
 #define ARM_CSPMU_IMPL_ID_AMPERE	0xA16
 
+/* PMDEVARCH */
+#define ARM_CSPMU_PMDEVARCH_PRESENT	BIT(20)
+#define ARM_CSPMU_PMDEVARCH_ARCHPART	GENMASK(11, 0)
+
 struct arm_cspmu;
 
 /* This tracks the events assigned to each counter in the PMU. */
@@ -183,7 +184,7 @@ struct arm_cspmu_impl_ops {
 	/* Check if the event corresponds to cycle count event */
 	bool (*is_cycle_counter_event)(const struct perf_event *event);
 	/* Decode event type/id from configs */
-	u32 (*event_type)(const struct perf_event *event);
+	u64 (*event_type)(const struct perf_event *event);
 	/* Set/reset event filters */
 	void (*set_cc_filter)(struct arm_cspmu *cspmu,
 			      const struct perf_event *event);
@@ -234,6 +235,7 @@ struct arm_cspmu {
 	int irq;
 
 	bool has_atomic_dword;
+	bool has_ext64;
 	u32 pmcfgr;
 	u32 num_logical_ctrs;
 	u32 num_set_clr_reg;
@@ -249,6 +251,9 @@ struct arm_cspmu {
 ssize_t arm_cspmu_sysfs_event_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf);
+
+ssize_t arm_cspmu_default_format_show(struct device *dev,
+				      struct device_attribute *attr, char *buf);
 
 /* Register vendor backend. */
 int arm_cspmu_impl_register(const struct arm_cspmu_impl_match *impl_match);
