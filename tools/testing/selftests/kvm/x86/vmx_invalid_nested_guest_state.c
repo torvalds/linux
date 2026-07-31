@@ -9,7 +9,7 @@
 
 #include "kselftest.h"
 
-#define ARBITRARY_IO_PORT 0x2000
+#define ARBITRARY_IO_PORT 0x80
 
 static struct kvm_vm *vm;
 
@@ -19,8 +19,8 @@ static void l2_guest_code(void)
 	 * Generate an exit to L0 userspace, i.e. main(), via I/O to an
 	 * arbitrary port.
 	 */
-	asm volatile("inb %%dx, %%al"
-		     : : [port] "d" (ARBITRARY_IO_PORT) : "rax");
+	asm volatile("inb $" __stringify(ARBITRARY_IO_PORT) ", %%al"
+		     ::: "rax");
 }
 
 static void l1_guest_code(struct vmx_pages *vmx_pages)
