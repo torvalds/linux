@@ -5,7 +5,7 @@
 # (the min_unref_scans module parameter).
 #
 # kmemleak only reports an object once it has stayed unreferenced for
-# min_unref_scans consecutive scans. The default of 1 reports on the first
+# min_unref_scans consecutive scans. A threshold of 1 reports on the first
 # scan (historical behaviour); higher values filter transient false
 # positives where a live object's only reference is briefly invisible to a
 # single scan (e.g. an RCU tree update in flight while the scan runs). The
@@ -16,8 +16,7 @@
 #   - a freshly allocated object is greyed on its first scan (its checksum
 #     settles then), so nothing can be reported before that priming scan;
 #     each case below primes once first,
-#   - with the default threshold (min_unref_scans=1) one scan after priming
-#     reports the orphans,
+#   - at min_unref_scans=1 one scan after priming reports the orphans,
 #   - raising the threshold to 2 needs two scans after priming: one is not
 #     enough, the second reports,
 #   - the parameter reads back what was written.
@@ -105,9 +104,8 @@ echo 3 > "$PARAM"
 # scan. Every case below runs this priming scan before counting.
 prime() { scan; }
 
-# 1) min_unref_scans=1 (default): one scan after priming reports the
-#    orphans. This also establishes that the helper produces detectable
-#    orphans here.
+# 1) min_unref_scans=1: one scan after priming reports the orphans. This
+#    also establishes that the helper produces detectable orphans here.
 echo 1 > "$PARAM"
 gen_orphans
 prime
