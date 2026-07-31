@@ -151,10 +151,8 @@ retry:
 	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
-		if (old.k) {
-			cond_resched();
+		if (old.k)
 			goto retry;
-		}
 		new = old;
 		new.k = 1;
 	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
@@ -189,10 +187,8 @@ retry:
 	ic = &kvm->arch.sca->ipte_control;
 	old = READ_ONCE(*ic);
 	do {
-		if (old.kg) {
-			cond_resched();
+		if (old.kg)
 			goto retry;
-		}
 		new = old;
 		new.k = 1;
 		new.kh++;

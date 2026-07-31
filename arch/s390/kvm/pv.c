@@ -429,7 +429,7 @@ static int kvm_s390_pv_deinit_vm_fast(struct kvm *kvm, u16 *rc, u16 *rrc)
 	};
 	int cc;
 
-	cc = uv_call_sched(0, (u64)&uvcb);
+	cc = uv_call(0, (u64)&uvcb);
 	if (rc)
 		*rc = uvcb.header.rc;
 	if (rrc)
@@ -746,7 +746,7 @@ int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 	}
 	gmap_split_huge_pages(kvm->arch.gmap);
 
-	cc = uv_call_sched(0, (u64)&uvcb);
+	cc = uv_call(0, (u64)&uvcb);
 	*rc = uvcb.header.rc;
 	*rrc = uvcb.header.rrc;
 	KVM_UV_EVENT(kvm, 3, "PROTVIRT CREATE VM: handle %llx len %llx rc %x rrc %x flags %04x",
@@ -832,7 +832,6 @@ int kvm_s390_pv_unpack(struct kvm *kvm, unsigned long addr, unsigned long size,
 	while (offset < size) {
 		ret = unpack_one(kvm, addr, tweak, offset, rc, rrc);
 		if (ret == -EAGAIN) {
-			cond_resched();
 			if (fatal_signal_pending(current))
 				break;
 			continue;
@@ -875,7 +874,7 @@ int kvm_s390_pv_dump_cpu(struct kvm_vcpu *vcpu, void *buff, u16 *rc, u16 *rrc)
 	};
 	int cc;
 
-	cc = uv_call_sched(0, (u64)&uvcb);
+	cc = uv_call(0, (u64)&uvcb);
 	*rc = uvcb.header.rc;
 	*rrc = uvcb.header.rrc;
 	return cc;
@@ -959,7 +958,7 @@ int kvm_s390_pv_dump_stor_state(struct kvm *kvm, void __user *buff_user,
 	/* We will loop until the user buffer is filled or an error occurs */
 	do {
 		/* Get 1MB worth of guest storage state data */
-		cc = uv_call_sched(0, (u64)&uvcb);
+		cc = uv_call(0, (u64)&uvcb);
 
 		/* All or nothing */
 		if (cc) {
@@ -1037,7 +1036,7 @@ int kvm_s390_pv_dump_complete(struct kvm *kvm, void __user *buff_user,
 		return -ENOMEM;
 	complete.dump_area_origin = (u64)compl_data;
 
-	ret = uv_call_sched(0, (u64)&complete);
+	ret = uv_call(0, (u64)&complete);
 	*rc = complete.header.rc;
 	*rrc = complete.header.rrc;
 	KVM_UV_EVENT(kvm, 3, "PROTVIRT DUMP COMPLETE: rc %x rrc %x",

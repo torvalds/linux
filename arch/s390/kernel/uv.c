@@ -896,7 +896,7 @@ int uv_retrieve_secret(u16 secret_idx, u8 *buf, size_t buf_size)
 		.buf_size = buf_size,
 	};
 
-	uv_call_sched(0, (u64)&uvcb);
+	uv_call(0, (u64)&uvcb);
 
 	switch (uvcb.header.rc) {
 	case UVC_RC_EXECUTED:
