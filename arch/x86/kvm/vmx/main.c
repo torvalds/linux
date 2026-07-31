@@ -165,6 +165,16 @@ static int vt_handle_exit(struct kvm_vcpu *vcpu,
 	return vmx_handle_exit(vcpu, fastpath);
 }
 
+static bool vt_unhandleable_emulation_required(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu)) {
+		WARN_ON_ONCE(to_vt(vcpu)->emulation_required);
+		return false;
+	}
+
+	return vmx_unhandleable_emulation_required(vcpu);
+}
+
 static int vt_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	if (unlikely(is_td_vcpu(vcpu)))
@@ -944,6 +954,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.handle_exit = vt_op(handle_exit),
 	.skip_emulated_instruction = vmx_skip_emulated_instruction,
 	.update_emulated_instruction = vmx_update_emulated_instruction,
+	.unhandleable_emulation_required = vt_op(unhandleable_emulation_required),
 	.set_interrupt_shadow = vt_op(set_interrupt_shadow),
 	.get_interrupt_shadow = vt_op(get_interrupt_shadow),
 	.patch_hypercall = vt_op(patch_hypercall),
