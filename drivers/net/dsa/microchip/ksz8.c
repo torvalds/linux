@@ -36,6 +36,13 @@
 #include "ksz8_reg.h"
 #include "ksz8.h"
 
+/*
+ * We use only the high-byte (so odd addresses) of the 16-bits registers to fit
+ * in the common IRQ framework
+ */
+#define KSZ8463_REG_ISR			0x191
+#define KSZ8463_REG_IER			0x193
+
 /* ksz88x3_drive_strengths - Drive strength mapping for KSZ8863, KSZ8873, ..
  *			     variants.
  * This values are documented in KSZ8873 and KSZ8863 datasheets.
@@ -181,6 +188,69 @@ static int ksz8_pme_pwrite8(struct ksz_device *dev, int port, int offset, u8 dat
 	return ksz8_ind_write8(dev, table, (u8)(offset), data);
 }
 
+static void ksz8463_irq_mask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked &= ~BIT(d->hwirq);
+}
+
+static void ksz8463_irq_unmask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked |= BIT(d->hwirq);
+}
+
+static const struct irq_chip ksz8463_irq_chip = {
+	.name			= "ksz8463-irq",
+	.irq_mask		= ksz8463_irq_mask,
+	.irq_unmask		= ksz8463_irq_unmask,
+	.irq_bus_lock		= ksz_irq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_irq_bus_sync_unlock,
+};
+
+static int ksz8463_irq_domain_map(struct irq_domain *d,
+				  unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &ksz8463_irq_chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz8463_irq_domain_ops = {
+	.map	= ksz8463_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static int ksz8463_girq_setup(struct ksz_device *dev)
+{
+	struct ksz_irq *girq = &dev->girq;
+
+	girq->nirqs = 8;
+	girq->reg_mask = KSZ8463_REG_IER;
+	girq->reg_status = KSZ8463_REG_ISR;
+	girq->masked = 0;
+	snprintf(girq->name, sizeof(girq->name), "ksz8463-girq");
+
+	girq->irq_num = dev->irq;
+
+	return ksz_irq_common_setup(dev, girq, &ksz8463_irq_domain_ops);
+}
+
+static int ksz8463_reset_switch(struct ksz_device *dev)
+{
+	ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+		KSZ8463_GLOBAL_SOFTWARE_RESET | KSZ8463_PTP_SOFTWARE_RESET,
+		true);
+	ksz_cfg(dev, KSZ8463_REG_SW_RESET,
+		KSZ8463_GLOBAL_SOFTWARE_RESET | KSZ8463_PTP_SOFTWARE_RESET,
+		false);
+	return 0;
+}
+
 static int ksz8_reset_switch(struct ksz_device *dev)
 {
 	if (ksz_is_ksz88x3(dev)) {
@@ -189,11 +259,6 @@ static int ksz8_reset_switch(struct ksz_device *dev)
 			KSZ8863_GLOBAL_SOFTWARE_RESET | KSZ8863_PCS_RESET, true);
 		ksz_cfg(dev, KSZ8863_REG_SW_RESET,
 			KSZ8863_GLOBAL_SOFTWARE_RESET | KSZ8863_PCS_RESET, false);
-	} else if (ksz_is_ksz8463(dev)) {
-		ksz_cfg(dev, KSZ8463_REG_SW_RESET,
-			KSZ8463_GLOBAL_SOFTWARE_RESET, true);
-		ksz_cfg(dev, KSZ8463_REG_SW_RESET,
-			KSZ8463_GLOBAL_SOFTWARE_RESET, false);
 	} else {
 		/* reset switch */
 		ksz_write8(dev, REG_POWER_MANAGEMENT_1,
@@ -2026,6 +2091,50 @@ static void ksz88x3_config_rmii_clk(struct ksz_device *dev)
 		KSZ88X3_PORT3_RMII_CLK_INTERNAL, rmii_clk_internal);
 }
 
+static void ksz8463_config_cpu_port(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p;
+	u8 fiber_ports = 0;
+	const u32 *masks;
+	const u16 *regs;
+	int i;
+
+	masks = dev->info->masks;
+	regs = dev->info->regs;
+
+	ksz_cfg(dev, regs[S_TAIL_TAG_CTRL], masks[SW_TAIL_TAG_ENABLE], true);
+
+	ksz8_port_setup(dev, dev->cpu_port, true);
+
+	for (i = 0; i < dev->phy_port_cnt; i++)
+		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
+
+	for (i = 0; i < dev->phy_port_cnt; i++) {
+		p = &dev->ports[i];
+		ksz_port_cfg(dev, i, regs[P_STP_CTRL], PORT_FORCE_FLOW_CTRL,
+			     p->fiber);
+		if (p->fiber)
+			fiber_ports |= (1 << i);
+	}
+
+	/* Setup fiber ports. */
+	if (fiber_ports) {
+		fiber_ports &= 3;
+		regmap_update_bits(ksz_regmap_16(dev), KSZ8463_REG_CFG_CTRL,
+				   fiber_ports << PORT_COPPER_MODE_S,
+				   0);
+		regmap_update_bits(ksz_regmap_16(dev), KSZ8463_REG_DSP_CTRL_6,
+				   COPPER_RECEIVE_ADJUSTMENT, 0);
+	}
+
+	/* Turn off PTP function as the switch enables it by default */
+	regmap_update_bits(ksz_regmap_16(dev), KSZ8463_PTP_MSG_CONF1,
+			   PTP_ENABLE, 0);
+	regmap_update_bits(ksz_regmap_16(dev), KSZ8463_PTP_CLK_CTRL,
+			   PTP_CLK_ENABLE, 0);
+}
+
 static void ksz8_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -2033,7 +2142,6 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 	const u32 *masks;
 	const u16 *regs;
 	u8 remote;
-	u8 fiber_ports = 0;
 	int i;
 
 	masks = dev->info->masks;
@@ -2064,32 +2172,6 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 		else
 			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
 				     PORT_FORCE_FLOW_CTRL, false);
-		if (p->fiber)
-			fiber_ports |= (1 << i);
-	}
-	if (ksz_is_ksz8463(dev)) {
-		/* Setup fiber ports. */
-		if (fiber_ports) {
-			fiber_ports &= 3;
-			regmap_update_bits(ksz_regmap_16(dev),
-					   KSZ8463_REG_CFG_CTRL,
-					   fiber_ports << PORT_COPPER_MODE_S,
-					   0);
-			regmap_update_bits(ksz_regmap_16(dev),
-					   KSZ8463_REG_DSP_CTRL_6,
-					   COPPER_RECEIVE_ADJUSTMENT, 0);
-		}
-
-		/* Turn off PTP function as the switch's proprietary way of
-		 * handling timestamp is not supported in current Linux PTP
-		 * stack implementation.
-		 */
-		regmap_update_bits(ksz_regmap_16(dev),
-				   KSZ8463_PTP_MSG_CONF1,
-				   PTP_ENABLE, 0);
-		regmap_update_bits(ksz_regmap_16(dev),
-				   KSZ8463_PTP_CLK_CTRL,
-				   PTP_CLK_ENABLE, 0);
 	}
 }
 
@@ -2300,6 +2382,150 @@ static void ksz88xx_r_mib_stats64(struct ksz_device *dev, int port)
 	spin_unlock(&mib->stats64_lock);
 }
 
+static int ksz8463_setup(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+	u16 storm_mask, storm_rate;
+	struct ksz_port *p;
+	const u16 *regs;
+	int i, ret;
+
+	regs = dev->info->regs;
+
+	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
+				       dev->info->num_vlans, GFP_KERNEL);
+	if (!dev->vlan_cache)
+		return -ENOMEM;
+
+	ret = ksz8463_reset_switch(dev);
+	if (ret) {
+		dev_err(ds->dev, "failed to reset switch\n");
+		return ret;
+	}
+
+	/* set broadcast storm protection 10% rate */
+	storm_mask = BROADCAST_STORM_RATE;
+	storm_rate = (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
+	storm_mask = swab16(storm_mask);
+	storm_rate = swab16(storm_rate);
+	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
+			   storm_mask, storm_rate);
+
+	ksz8463_config_cpu_port(ds);
+
+	ksz8_enable_stp_addr(dev);
+
+	ds->num_tx_queues = dev->info->num_tx_queues;
+
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_MULTICAST_CTRL],
+			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
+
+	ksz_init_mib_timer(dev);
+
+	ds->configure_vlan_while_not_filtering = false;
+	ds->dscp_prio_mapping_is_global = true;
+	ds->mtu_enforcement_ingress = true;
+
+	/* We rely on software untagging on the CPU port, so that we
+	 * can support both tagged and untagged VLANs
+	 */
+	ds->untag_bridge_pvid = true;
+
+	/* VLAN filtering is partly controlled by the global VLAN
+	 * Enable flag
+	 */
+	ds->vlan_filtering_is_global = true;
+
+	/* Enable automatic fast aging when link changed detected. */
+	ksz_cfg(dev, S_LINK_AGING_CTRL, SW_LINK_AUTO_AGING, true);
+
+	/* Enable aggressive back off algorithm in half duplex mode. */
+	ret = ksz_rmw8(dev, REG_SW_CTRL_1, SW_AGGR_BACKOFF, SW_AGGR_BACKOFF);
+	if (ret)
+		return ret;
+
+	/*
+	 * Make sure unicast VLAN boundary is set as default and
+	 * enable no excessive collision drop.
+	 */
+	ret = ksz_rmw8(dev, REG_SW_CTRL_2,
+		       UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
+		       UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
+	if (ret)
+		return ret;
+
+	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_REPLACE_VID, false);
+
+	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
+
+	for (i = 0; i < (dev->info->num_vlans / 4); i++)
+		ksz8_r_vlan_entries(dev, i);
+
+	/* Start with learning disabled on standalone user ports, and enabled
+	 * on the CPU port. In lack of other finer mechanisms, learning on the
+	 * CPU port will avoid flooding bridge local addresses on the network
+	 * in some cases.
+	 */
+	p = &dev->ports[dev->cpu_port];
+	p->learning = true;
+
+	if (dev->irq > 0) {
+		ret = ksz8463_girq_setup(dev);
+		if (ret)
+			return ret;
+
+		ret = ksz8463_ptp_irq_setup(ds);
+		if (ret)
+			goto free_girq;
+
+		ret = ksz_ptp_clock_register(ds);
+		if (ret) {
+			dev_err(dev->dev, "Failed to register PTP clock: %d\n",
+				ret);
+			goto free_ptp_irq;
+		}
+	}
+
+	ret = ksz_mdio_register(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to register the mdio");
+		goto ptp_clock_unregister;
+	}
+
+	ret = ksz_dcb_init(dev);
+	if (ret)
+		goto ptp_clock_unregister;
+
+	/* start switch */
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
+			   SW_START, SW_START);
+
+	return 0;
+
+ptp_clock_unregister:
+	if (dev->irq > 0)
+		ksz_ptp_clock_unregister(ds);
+free_ptp_irq:
+	if (dev->irq > 0)
+		ksz8463_ptp_irq_free(ds);
+free_girq:
+	if (dev->irq > 0)
+		ksz_irq_free(&dev->girq);
+
+	return ret;
+}
+
+static void ksz8463_teardown(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->irq > 0) {
+		ksz_ptp_clock_unregister(ds);
+		ksz8463_ptp_irq_free(ds);
+		ksz_irq_free(&dev->girq);
+	}
+}
+
 /**
  * ksz88x3_drive_strength_write() - Set the drive strength configuration for
  *				    KSZ8863 compatible chip variants.
@@ -2445,10 +2671,6 @@ static int ksz8_setup(struct dsa_switch *ds)
 	/* set broadcast storm protection 10% rate */
 	storm_mask = BROADCAST_STORM_RATE;
 	storm_rate = (BROADCAST_STORM_VALUE * BROADCAST_STORM_PROT_RATE) / 100;
-	if (ksz_is_ksz8463(dev)) {
-		storm_mask = swab16(storm_mask);
-		storm_rate = swab16(storm_rate);
-	}
 	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
 			   storm_mask, storm_rate);
 
@@ -2499,7 +2721,7 @@ static int ksz8_setup(struct dsa_switch *ds)
 
 	ksz_cfg(dev, S_MIRROR_CTRL, SW_MIRROR_RX_TX, false);
 
-	if (!ksz_is_ksz88x3(dev) && !ksz_is_ksz8463(dev))
+	if (!ksz_is_ksz88x3(dev))
 		ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
 
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
@@ -2623,6 +2845,9 @@ static u32 ksz8_get_port_addr(int port, int offset)
 
 static u32 ksz8463_get_port_addr(int port, int offset)
 {
+	if (offset >= KSZ8463_PTP_CLK_CTRL)
+		return offset + 0x20 * port;
+
 	return offset + 0x18 * port;
 }
 
@@ -2755,7 +2980,7 @@ static enum dsa_tag_protocol ksz8463_get_tag_protocol(struct dsa_switch *ds,
 						      int port,
 						      enum dsa_tag_protocol mp)
 {
-	return DSA_TAG_PROTO_KSZ9893;
+	return DSA_TAG_PROTO_KSZ8463;
 }
 
 static int ksz8463_connect_tag_protocol(struct dsa_switch *ds,
@@ -2763,7 +2988,7 @@ static int ksz8463_connect_tag_protocol(struct dsa_switch *ds,
 {
 	struct ksz_tagger_data *tagger_data;
 
-	if (proto != DSA_TAG_PROTO_KSZ9893)
+	if (proto != DSA_TAG_PROTO_KSZ8463)
 		return -EPROTONOSUPPORT;
 
 	tagger_data = ksz_tagger_data(ds);
@@ -2889,8 +3114,8 @@ const struct ksz_dev_ops ksz88xx_dev_ops = {
 const struct dsa_switch_ops ksz8463_switch_ops = {
 	.get_tag_protocol	= ksz8463_get_tag_protocol,
 	.connect_tag_protocol   = ksz8463_connect_tag_protocol,
-	.setup			= ksz8_setup,
-	.teardown		= ksz_teardown,
+	.setup			= ksz8463_setup,
+	.teardown		= ksz8463_teardown,
 	.phy_read		= ksz8463_phy_read16,
 	.phy_write		= ksz8463_phy_write16,
 	.phylink_get_caps	= ksz8_phylink_get_caps,
@@ -2918,9 +3143,9 @@ const struct dsa_switch_ops ksz8463_switch_ops = {
 	.port_max_mtu		= ksz88xx_max_mtu,
 	.suspend		= ksz_suspend,
 	.resume			= ksz_resume,
-	.get_ts_info		= ksz_get_ts_info,
+	.get_ts_info		= ksz8463_get_ts_info,
 	.port_hwtstamp_get	= ksz_hwtstamp_get,
-	.port_hwtstamp_set	= ksz_hwtstamp_set,
+	.port_hwtstamp_set	= ksz8463_hwtstamp_set,
 	.port_txtstamp		= ksz_port_txtstamp,
 	.port_rxtstamp		= ksz_port_rxtstamp,
 	.port_setup_tc		= ksz8_setup_tc,
