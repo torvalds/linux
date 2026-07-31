@@ -14047,6 +14047,7 @@ F:	kernel/umh.c
 
 KERNEL VIRTUAL MACHINE (KVM)
 M:	Paolo Bonzini <pbonzini@redhat.com>
+R:	Sean Christopherson <seanjc@google.com>
 L:	kvm@vger.kernel.org
 S:	Supported
 W:	http://www.linux-kvm.org
