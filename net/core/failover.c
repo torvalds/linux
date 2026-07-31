@@ -302,9 +302,7 @@ EXPORT_SYMBOL_GPL(failover_unregister);
 static __init int
 failover_init(void)
 {
-	register_netdevice_notifier(&failover_notifier);
-
-	return 0;
+	return register_netdevice_notifier(&failover_notifier);
 }
 module_init(failover_init);
 
