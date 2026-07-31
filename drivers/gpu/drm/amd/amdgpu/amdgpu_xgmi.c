@@ -559,7 +559,7 @@ static int amdgpu_xgmi_sysfs_add_dev_info(struct amdgpu_device *adev,
 		pr_err("failed to create xgmi_num_links\n");
 
 	/* Create xgmi port num file if supported */
-	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG) {
+	if (adev->psp.xgmi_context.supports_ext_link_info) {
 		ret = device_create_file(adev->dev, &dev_attr_xgmi_port_num);
 		if (ret)
 			dev_err(adev->dev, "failed to create xgmi_port_num\n");
@@ -595,7 +595,7 @@ remove_file:
 	device_remove_file(adev->dev, &dev_attr_xgmi_error);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
-	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG)
+	if (adev->psp.xgmi_context.supports_ext_link_info)
 		device_remove_file(adev->dev, &dev_attr_xgmi_port_num);
 
 success:
@@ -613,7 +613,7 @@ static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 	device_remove_file(adev->dev, &dev_attr_xgmi_error);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_hops);
 	device_remove_file(adev->dev, &dev_attr_xgmi_num_links);
-	if (adev->psp.xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG)
+	if (adev->psp.xgmi_context.supports_ext_link_info)
 		device_remove_file(adev->dev, &dev_attr_xgmi_port_num);
 
 	if (hive->kobj.parent != (&adev->dev->kobj))

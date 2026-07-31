@@ -188,6 +188,7 @@ struct dc_panel_patch {
 	unsigned int skip_audio_sab_check;
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
+	bool disable_second_tile;
 	unsigned int disable_colorimetry;
 	uint8_t blankstream_before_otg_off;
 	bool oled_optimize_display_on;
@@ -1414,28 +1415,20 @@ enum dc_cm_lut_swizzle {
 
 enum dc_cm_lut_pixel_format {
 	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB,
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12MSB,
-#endif
 	CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB,
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 	CM_LUT_PIXEL_FORMAT_BGRA16161616_UNORM_12LSB,
-#endif
 	CM_LUT_PIXEL_FORMAT_RGBA16161616_FLOAT_FP1_5_10,
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 	CM_LUT_PIXEL_FORMAT_BGRA16161616_FLOAT_FP1_5_10
-#endif
 };
 
 enum dc_cm_lut_size {
 	CM_LUT_SIZE_NONE,
 	CM_LUT_SIZE_999,
 	CM_LUT_SIZE_171717,
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 	CM_LUT_SIZE_333333,
 	CM_LUT_SIZE_454545,
 	CM_LUT_SIZE_656565,
-#endif
 };
 
 #ifndef TRIM_CM2

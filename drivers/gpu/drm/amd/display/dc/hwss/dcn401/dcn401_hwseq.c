@@ -89,28 +89,31 @@ void dcn401_initialize_min_clocks(struct dc *dc)
 			true);
 }
 
-void dcn401_program_gamut_remap(struct pipe_ctx *pipe_ctx)
+void dcn401_program_gamut_remap(struct program_gamut_remap_params *params)
 {
+	struct mpc *mpc = params->mpc;
+	int mpcc_id = params->mpcc_id;
+	const struct dc_stream_state *stream = params->stream;
+	const struct dc_plane_state *plane = params->plane;
+	bool is_top_pipe = params->is_top_pipe;
 	unsigned int i = 0;
 	struct mpc_grph_gamut_adjustment mpc_adjust;
-	unsigned int mpcc_id = pipe_ctx->plane_res.mpcc_inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
 
 	//For now assert if location is not pre-blend
-	if (pipe_ctx->plane_state)
-		ASSERT(pipe_ctx->plane_state->mcm_location == MPCC_MOVABLE_CM_LOCATION_BEFORE);
+	if (plane)
+		ASSERT(plane->mcm_location == MPCC_MOVABLE_CM_LOCATION_BEFORE);
 
 	// program MPCC_MCM_FIRST_GAMUT_REMAP
 	memset(&mpc_adjust, 0, sizeof(mpc_adjust));
 	mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 	mpc_adjust.mpcc_gamut_remap_block_id = MPCC_MCM_FIRST_GAMUT_REMAP;
 
-	if (pipe_ctx->plane_state &&
-		pipe_ctx->plane_state->gamut_remap_matrix.enable_remap == true) {
+	if (plane &&
+		plane->gamut_remap_matrix.enable_remap == true) {
 		mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
 			mpc_adjust.temperature_matrix[i] =
-			pipe_ctx->plane_state->gamut_remap_matrix.matrix[i];
+			plane->gamut_remap_matrix.matrix[i];
 	}
 
 	mpc->funcs->set_gamut_remap(mpc, mpcc_id, &mpc_adjust);
@@ -126,12 +129,12 @@ void dcn401_program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 	mpc_adjust.mpcc_gamut_remap_block_id = MPCC_OGAM_GAMUT_REMAP;
 
-	if (pipe_ctx->top_pipe == NULL) {
-		if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
+	if (is_top_pipe) {
+		if (stream->gamut_remap_matrix.enable_remap == true) {
 			mpc_adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 			for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
 				mpc_adjust.temperature_matrix[i] =
-				pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+				stream->gamut_remap_matrix.matrix[i];
 		}
 	}
 
@@ -515,12 +518,10 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 
 		/* Select width based on the requested LUT size */
 		switch (cm->lut3d_dma.size) {
-#if defined(CONFIG_DRM_AMD_DC_DCN4_2)
 		case CM_LUT_SIZE_333333:
 			if (dc->caps.color.mpc.rmcm_3d_lut_caps.lut_dim_caps.dim_33)
 				width = hubp_3dlut_fl_width_33;
 			break;
-#endif // CONFIG_DRM_AMD_DC_DCN4_2
 		case CM_LUT_SIZE_171717:
 			width = hubp_3dlut_fl_width_17;
 			break;
@@ -695,24 +696,24 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 	return result;
 }
 
-bool dcn401_set_output_transfer_func(struct dc *dc,
-				struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+bool dcn401_set_output_transfer_func(struct set_output_transfer_func_params *otf_params)
 {
-	(void)dc;
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dpp *dpp = otf_params->dpp;
+	struct mpc *mpc = otf_params->mpc;
+	int mpcc_id = otf_params->mpcc_id;
+	bool is_top_pipe = otf_params->is_top_pipe;
+	const struct dc_stream_state *stream = otf_params->stream;
 	const struct pwl_params *params = NULL;
 	bool ret = false;
 
 	/* program OGAM or 3DLUT only for the top pipe*/
-	if (resource_is_pipe_type(pipe_ctx, OPP_HEAD)) {
+	if (is_top_pipe) {
 		/*program shaper and 3dlut in MPC*/
-		ret = dcn32_set_mpc_shaper_3dlut(pipe_ctx, stream);
+		ret = dcn32_set_mpc_shaper_3dlut(dpp, mpc, mpcc_id, stream);
 		if (ret == false && mpc->funcs->set_output_gamma) {
 			if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
 				params = &stream->out_transfer_func.pwl;
-			else if (pipe_ctx->stream->out_transfer_func.type ==
+			else if (stream->out_transfer_func.type ==
 					TF_TYPE_DISTRIBUTED_POINTS &&
 					cm3_helper_translate_curve_to_hw_format(stream->ctx,
 					&stream->out_transfer_func,
@@ -1101,11 +1102,8 @@ void dcn401_disable_link_output(struct dc_link *link,
 		disable_link_output_symclk_on_tx_off(link, DP_UNKNOWN_ENCODING);
 		link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
 	} else {
-		if (!(signal == SIGNAL_TYPE_EDP &&
-		      link->skip_implict_edp_power_control)) {
-			link_hwss->disable_link_output(link, link_res, signal);
-			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
-		}
+		link_hwss->disable_link_output(link, link_res, signal);
+		link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
 	}
 
 	if (signal == SIGNAL_TYPE_EDP &&
@@ -2153,12 +2151,7 @@ void dcn401_reset_back_end_for_pipe(
 	 * screen only, the dpms_off would be true but
 	 * VBIOS lit up eDP, so check link status too.
 	 */
-	if (link->connector_signal == SIGNAL_TYPE_EDP &&
-	    link->skip_implict_edp_power_control) {
-		/* DMSS is holding the panel across the commit; skip dpms-off. */
-		if (pipe_ctx->stream_res.audio)
-			dc->hwss.disable_audio_stream(pipe_ctx);
-	} else if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
 		dc->link_srv->set_dpms_off(pipe_ctx);
 	else if (pipe_ctx->stream_res.audio)
 		dc->hwss.disable_audio_stream(pipe_ctx);
@@ -2183,15 +2176,12 @@ void dcn401_reset_back_end_for_pipe(
 	 * parent pipe.
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
-		if (!(link->connector_signal == SIGNAL_TYPE_EDP &&
-		      link->skip_implict_edp_power_control)) {
 
-			dc->hwss.set_abm_immediate_disable(pipe_ctx);
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
-			pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
-			pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
-		}
+		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 		if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 			pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -2396,7 +2386,7 @@ void dcn401_program_pipe(
 	if (pipe_ctx->update_flags.bits.enable ||
 	    pipe_ctx->update_flags.bits.plane_changed ||
 	    pipe_ctx->stream->update_flags.bits.out_tf)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 
 	/* If the pipe has been enabled or has a different opp, we
 	 * should reprogram the fmt. This deals with cases where
@@ -2554,7 +2544,7 @@ void dcn401_program_pipe_sequence(
 	if (pipe_ctx->update_flags.bits.enable ||
 			pipe_ctx->update_flags.bits.plane_changed ||
 			pipe_ctx->stream->update_flags.bits.out_tf) {
-		hwss_add_dpp_set_output_transfer_func(seq_state, dc, pipe_ctx, pipe_ctx->stream);
+		hwss_add_dpp_set_output_transfer_func(seq_state, dc, pipe_ctx);
 	}
 
 	/* If the pipe has been enabled or has a different opp, we

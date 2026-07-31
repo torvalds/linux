@@ -382,8 +382,9 @@ static void imu_v12_0_program_rlc_ram(struct amdgpu_device *adev)
 				(const u32)ARRAY_SIZE(imu_rlc_ram_golden_12_0_1));
 		break;
 	default:
-		BUG();
-		break;
+		WARN(1, "Invalid GFX/IMU IP version 0x%08x\n",
+		     amdgpu_ip_version(adev, GC_HWIP, 0));
+		return;
 	}
 
 	//Indicate the latest entry

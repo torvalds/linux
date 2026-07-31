@@ -33,6 +33,7 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn314_resource.h"
 
 #include "dcn20/dcn20_resource.h"
@@ -2051,6 +2052,7 @@ static bool dcn314_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 
 	dc->caps.max_disp_clock_khz_at_vmin = 650000;
 

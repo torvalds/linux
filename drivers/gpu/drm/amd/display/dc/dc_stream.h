@@ -329,7 +329,6 @@ struct dc_stream_state {
 
 	enum dc_drr_trigger_mode drr_trigger_mode;
 
-	struct dc_update_scratch_space *update_scratch;
 	bool firmware_controlled_hdr_info_packet;
 };
 
@@ -408,32 +407,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_stream_state *dc_stream,
 		struct dc_stream_update *stream_update);
 
-struct dc_update_scratch_space;
+struct dc_state_update;
 
-size_t dc_update_scratch_space_size(void);
-
-struct dc_update_scratch_space *dc_update_planes_and_stream_init(
-		struct dc *dc,
-		struct dc_surface_update *surface_updates,
-		int surface_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_stream_update *stream_update
-);
-
-// Locked, false is failed
-bool dc_update_planes_and_stream_prepare(
-		struct dc_update_scratch_space *scratch
-);
-
-// Unlocked
-void dc_update_planes_and_stream_execute(
-		const struct dc_update_scratch_space *scratch
-);
-
-// Locked, true if call again
-bool dc_update_planes_and_stream_cleanup(
-		struct dc_update_scratch_space *scratch
-);
 
 /*
  * Set up surface attributes and associate to a stream
@@ -518,7 +493,8 @@ void dc_enable_stereo(
 /* Triggers multi-stream synchronization. */
 void dc_trigger_sync(struct dc *dc, struct dc_state *context);
 
-struct surface_update_descriptor dc_check_update_surfaces_for_stream(
+/* Shim: packs args into dc_state_update and calls dc_check_state_update(). */
+struct dc_update_descriptor dc_check_update_surfaces_for_stream(
 		const struct dc_check_config *check_config,
 		struct dc_surface_update *updates,
 		int surface_count,

@@ -33,7 +33,7 @@
 #include "amdgpu_display.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "amdgpu_dm_crtc.h"
 #include "amdgpu_dm_hdcp.h"
 #include "amdgpu_dm_mst_types.h"
@@ -1960,23 +1960,26 @@ static void dm_crtc_high_irq_handler(struct amdgpu_device *adev,
 	bool is_dcn = amdgpu_ip_version(adev, DCE_HWIP, 0) != 0;
 
 	if (acrtc->wb_conn && acrtc->wb_pending) {
-		struct dc_stream_state *stream = acrtc->dm_irq_params.stream;
-		unsigned int v_total, refresh_hz;
-
-		v_total = stream->adjust.v_total_max ?
-			  stream->adjust.v_total_max : stream->timing.v_total;
-		refresh_hz = div_u64((uint64_t) stream->timing.pix_clk_100hz *
-			     100LL, (v_total * stream->timing.h_total));
-		mdelay(1000 / refresh_hz);
-
-		/*
-		 * Completion (signalling the out fence and releasing the vblank
-		 * reference taken in dm_set_writeback()) is handled by the shared
-		 * helper, which is also used by the teardown path.
-		 */
-		if (amdgpu_dm_crtc_complete_writeback(acrtc))
+		if (acrtc->wb_frame_done) {
+			/*
+			 * Second vblank: the DMA for the captured frame has
+			 * had a full frame period to flush to memory. Signal
+			 * the out fence now.
+			 */
+			amdgpu_dm_crtc_complete_writeback(acrtc);
+		} else {
+			/*
+			 * First vblank after arming: the frame has been
+			 * scanned out and the DMA is finishing. Disable
+			 * writeback immediately to prevent the hardware from
+			 * starting a new capture that would overwrite the
+			 * buffer. Signal completion on the next vblank to
+			 * ensure the DMA is fully flushed to memory.
+			 */
 			dc_stream_fc_disable_writeback(adev->dm.dc,
 						       acrtc->dm_irq_params.stream, 0);
+			acrtc->wb_frame_done = true;
+		}
 	}
 
 	vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);

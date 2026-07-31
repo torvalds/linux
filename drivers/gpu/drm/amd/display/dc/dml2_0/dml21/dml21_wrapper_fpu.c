@@ -45,7 +45,22 @@ void dml21_init(const struct dc *in_dc, struct dml2_context *dml_ctx, const stru
 
 void dml21_reinit(const struct dc *in_dc, struct dml2_context *dml_ctx, const struct dml2_configuration_options *config)
 {
-	dml21_init(in_dc, dml_ctx, config);
+	struct dml2_instance *dml2 = dml_ctx->v21.dml_init.dml2_instance;
+
+	dml21_populate_configuration_options(in_dc, dml_ctx, config);
+
+	dml21_populate_dml_init_params(&dml_ctx->v21.dml_init, &dml_ctx->config, in_dc);
+
+	// Skip full re-initialization if soc_bb, ip_caps and pmo_options are unchanged
+	if (memcmp(&dml2->soc_bbox, &dml_ctx->v21.dml_init.soc_bb,
+			sizeof(struct dml2_soc_bb)) == 0 &&
+		memcmp(&dml2->ip_caps, &dml_ctx->v21.dml_init.ip_caps,
+			sizeof(struct dml2_ip_capabilities)) == 0 &&
+		memcmp(&dml2->pmo_options, &dml_ctx->v21.dml_init.options.pmo_options,
+			sizeof(struct dml2_pmo_options)) == 0)
+		return;
+
+	dml2_initialize_instance(&dml_ctx->v21.dml_init);
 }
 
 static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state,
@@ -60,6 +75,7 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	int num_pipes;
 	unsigned int dml_phantom_prog_idx;
+	unsigned int stream_wb_idx;
 
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
 
@@ -102,6 +118,15 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 			}
 		}
 
+		/* program WB */
+		for (stream_wb_idx = 0; stream_wb_idx < stream_prog->stream_descriptor->writeback.active_writebacks_per_stream; stream_wb_idx++) {
+			dml21_program_dc_mcif_arb_params(in_ctx,
+					context,
+					stream_prog,
+					stream_wb_idx,
+					dc_main_pipes[0]->stream->writeback_info[stream_wb_idx].dwb_pipe_inst);
+		}
+
 		/* copy per plane mcache allocation */
 		memcpy(&context->bw_ctx.bw.dcn.mcache_allocations[dml_prog_idx], &pln_prog->mcache_allocation, sizeof(struct dml2_mcache_surface_allocation));
 		if (pln_prog->phantom_plane.valid) {
@@ -128,6 +153,11 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 			in_ctx->v21.dml_init.soc_bb.clk_table.dppclk.clk_values_khz[in_ctx->v21.dml_init.soc_bb.clk_table.dppclk.num_clk_values - 1];
 	} else {
 		context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz = in_ctx->v21.dml_init.soc_bb.clk_table.dppclk.clk_values_khz[0];
+	}
+
+	if (dc->config.forced_clocks || dc->debug.max_disp_clk) {
+		context->bw_ctx.bw.dcn.clk.bw_dispclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz;
+		context->bw_ctx.bw.dcn.clk.bw_dppclk_khz = context->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
 	}
 
 	/* get global mall allocation */

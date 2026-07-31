@@ -11,10 +11,14 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_property.h>
 #include <linux/hdmi.h>
+#include <linux/i2c.h>
 
 #include "dc.h"
 #include "amdgpu.h"
@@ -24,6 +28,7 @@
 #include "amdgpu_dm_connector.h"
 #include "amdgpu_dm_backlight.h"
 #include "include/grph_object_id.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* Tests for get_subconnector_type() */
 
@@ -1449,7 +1454,7 @@ static void dm_test_funcs_reset_sets_defaults(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1488,7 +1493,7 @@ static void dm_test_funcs_reset_edp_abm_level(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1526,7 +1531,7 @@ static void dm_test_funcs_reset_edp_abm_disabled(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -1568,7 +1573,7 @@ static void dm_test_atomic_dup_state_copies_fields(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_test_connector_funcs,
@@ -2359,8 +2364,8 @@ static void setup_panel_type_fixture(struct kunit *test,
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->drm);
 	fixture->adev = drm_to_adev(fixture->drm);
 
-	fixture->aconnector = kunit_kzalloc(test, sizeof(*fixture->aconnector),
-					    GFP_KERNEL);
+	fixture->aconnector = drmm_kzalloc(fixture->drm, sizeof(*fixture->aconnector),
+					   GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->aconnector);
 	fixture->link = kunit_kzalloc(test, sizeof(*fixture->link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, fixture->link);
@@ -2554,9 +2559,9 @@ static void dm_test_update_subconnector_dp_with_sink(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2598,9 +2603,9 @@ static void dm_test_update_subconnector_dp_no_sink(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2641,9 +2646,9 @@ static void dm_test_update_subconnector_non_dp_noop(struct kunit *test)
 						   DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
-	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	link = drmm_kzalloc(drm, sizeof(*link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, link);
 
 	drmm_connector_init(drm, &aconnector->base, &dm_test_connector_funcs,
@@ -2657,7 +2662,7 @@ static void dm_test_update_subconnector_non_dp_noop(struct kunit *test)
 
 	link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_HDMI_CONVERTER;
 	aconnector->dc_link = link;
-	aconnector->dc_sink = kunit_kzalloc(test, sizeof(*aconnector->dc_sink), GFP_KERNEL);
+	aconnector->dc_sink = drmm_kzalloc(drm, sizeof(*aconnector->dc_sink), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector->dc_sink);
 
 	update_subconnector_property(aconnector);
@@ -2804,7 +2809,7 @@ static struct amdgpu_dm_connector *dm_test_add_connector(struct kunit *test,
 {
 	struct amdgpu_dm_connector *aconnector;
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(drm, sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 
 	KUNIT_ASSERT_EQ(test,
@@ -3103,7 +3108,7 @@ static struct dm_test_panel_ctx *dm_test_panel_ctx_alloc(struct kunit *test)
 	KUNIT_ASSERT_NOT_NULL(test, prop);
 	ctx->drm->mode_config.panel_type_property = prop;
 
-	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	ctx->aconnector = drmm_kzalloc(ctx->drm, sizeof(*ctx->aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
@@ -3112,7 +3117,7 @@ static struct dm_test_panel_ctx *dm_test_panel_ctx_alloc(struct kunit *test)
 	drm_object_attach_property(&ctx->aconnector->base.base, prop,
 				   DRM_MODE_PANEL_TYPE_UNKNOWN);
 
-	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	ctx->link = drmm_kzalloc(ctx->drm, sizeof(*ctx->link), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
 	ctx->aconnector->dc_link = ctx->link;
 
@@ -3376,14 +3381,14 @@ static struct dm_test_fill_ctx *dm_test_fill_ctx_alloc(struct kunit *test)
 						       DRIVER_MODESET);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
 
-	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	ctx->aconnector = drmm_kzalloc(ctx->drm, sizeof(*ctx->aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
 	KUNIT_ASSERT_EQ(test,
 		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
 				    &dm_test_connector_funcs,
 				    DRM_MODE_CONNECTOR_DisplayPort, NULL), 0);
 
-	ctx->conn_state = kunit_kzalloc(test, sizeof(*ctx->conn_state), GFP_KERNEL);
+	ctx->conn_state = drmm_kzalloc(ctx->drm, sizeof(*ctx->conn_state), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->conn_state);
 	ctx->stream = kunit_kzalloc(test, sizeof(*ctx->stream), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, ctx->stream);
@@ -3604,6 +3609,1659 @@ static void dm_test_fill_stream_aspect_ratio(struct kunit *test)
 			(int)ASPECT_RATIO_16_9);
 }
 
+/* Tests for create_stream_for_sink() */
+
+/*
+ * Build the inputs for create_stream_for_sink(). The connector is registered
+ * against a real kunit drm_device so that to_amdgpu_dm_connector() and the drm
+ * debug helpers resolve. The DC link carries a zeroed dc_context so that
+ * dc_create_stream_for_sink() can allocate and construct a stream.
+ *
+ * By default no dc_sink is attached, so create_stream_for_sink() builds a fake
+ * VIRTUAL sink. The VIRTUAL signal keeps the DSC, audio and DP/HDMI infoframe
+ * paths as no-ops, making the exercised behaviour deterministic.
+ */
+struct dm_test_stream_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_context *dc_ctx;
+	struct dc_link *link;
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode *mode;
+};
+
+static struct dm_test_stream_ctx *dm_test_stream_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx;
+	struct device *dev;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	ctx->drm = __drm_kunit_helper_alloc_drm_device(test, dev,
+						       sizeof(*ctx->drm), 0,
+						       DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(ctx->drm, &ctx->aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_DisplayPort, NULL), 0);
+
+	ctx->dc_ctx = kunit_kzalloc(test, sizeof(*ctx->dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dc_ctx);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->ctx = ctx->dc_ctx;
+	ctx->link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+	ctx->aconnector->dc_link = ctx->link;
+	ctx->aconnector->dc_sink = NULL;
+
+	ctx->dm_state = kunit_kzalloc(test, sizeof(*ctx->dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dm_state);
+	ctx->dm_state->scaling = RMX_OFF;
+
+	ctx->mode = kunit_kzalloc(test, sizeof(*ctx->mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->mode);
+	ctx->mode->hdisplay = 1920;
+	ctx->mode->vdisplay = 1080;
+	ctx->mode->clock = 148500;
+
+	return ctx;
+}
+
+/**
+ * dm_test_create_stream_fake_sink_success - Test a stream is built from a fake sink
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_fake_sink_success(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_sets_dm_context - Test dm_stream_context points to aconnector
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_sets_dm_context(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_PTR_EQ(test, stream->dm_stream_context, ctx->aconnector);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_virtual_signal - Test the fake sink yields a VIRTUAL signal
+ * @test: The KUnit test context
+ */
+static void dm_test_create_stream_virtual_signal(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_EQ(test, (int)stream->signal, (int)SIGNAL_TYPE_VIRTUAL);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_scaling_src - Test the source rect follows the mode
+ * @test: The KUnit test context
+ *
+ * With scaling off the full-screen source viewport matches the requested mode.
+ */
+static void dm_test_create_stream_scaling_src(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_stream_state *stream;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_EQ(test, (int)stream->src.width, 1920);
+	KUNIT_EXPECT_EQ(test, (int)stream->src.height, 1080);
+	dc_stream_release(stream);
+}
+
+/**
+ * dm_test_create_stream_existing_sink - Test the existing-sink retain path
+ * @test: The KUnit test context
+ *
+ * When the connector already has a dc_sink, create_stream_for_sink() reuses it
+ * instead of building a fake sink.
+ */
+static void dm_test_create_stream_existing_sink(struct kunit *test)
+{
+	struct dm_test_stream_ctx *ctx = dm_test_stream_ctx_alloc(test);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_stream_state *stream;
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+	sink->sink_signal = SIGNAL_TYPE_VIRTUAL;
+
+	ctx->aconnector->dc_sink = sink;
+
+	stream = create_stream_for_sink(&ctx->aconnector->base, ctx->mode,
+					ctx->dm_state, NULL, 8);
+
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+	KUNIT_EXPECT_PTR_EQ(test, stream->sink, sink);
+
+	dc_stream_release(stream);
+	dc_sink_release(sink);
+}
+
+/* Tests for amdgpu_dm_connector_detect() */
+
+/*
+ * A non-DisplayPort connector keeps update_subconnector_property() a no-op and,
+ * because the kunit thread is not the poll worker, the analog poll branch is
+ * skipped. That leaves the forced-state and dc_sink presence branches as the
+ * deterministic behaviour to exercise.
+ */
+static struct amdgpu_dm_connector *dm_test_detect_connector(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	return dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+}
+
+/**
+ * dm_test_detect_force_on - Test DRM_FORCE_ON reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_on(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_ON;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_force_on_digital - Test DRM_FORCE_ON_DIGITAL reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_on_digital(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_ON_DIGITAL;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_force_off - Test DRM_FORCE_OFF reports disconnected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_force_off(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_disconnected);
+}
+
+/**
+ * dm_test_detect_sink_present - Test a present dc_sink reports connected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_sink_present(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+	struct dc_sink *sink;
+
+	sink = kunit_kzalloc(test, sizeof(*sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	aconnector->dc_sink = sink;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_connected);
+}
+
+/**
+ * dm_test_detect_no_sink - Test a missing dc_sink reports disconnected
+ * @test: The KUnit test context
+ */
+static void dm_test_detect_no_sink(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_detect_connector(test);
+
+	aconnector->base.force = DRM_FORCE_UNSPECIFIED;
+	aconnector->dc_sink = NULL;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_detect(&aconnector->base, false),
+		(int)connector_status_disconnected);
+}
+
+/* Tests for amdgpu_dm_connector_poll() */
+
+/**
+ * dm_test_poll_dac_load_returns_cached - Test the DAC load detection shortcut
+ * @test: The KUnit test context
+ *
+ * When the previous connection was established by analog DAC load detection and
+ * polling is not forced, the connector is not re-detected and its cached status
+ * is returned unchanged. The connector is embedded in an amdgpu_device so that
+ * drm_to_adev() resolves.
+ */
+static void dm_test_poll_dac_load_returns_cached(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+	struct dc_sink *local_sink;
+	struct drm_device *drm;
+	struct device *dev;
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						  offsetof(struct amdgpu_device, ddev),
+						  DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+	adev = drm_to_adev(drm);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(drm, &aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA, NULL), 0);
+
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link);
+	local_sink = kunit_kzalloc(test, sizeof(*local_sink), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, local_sink);
+
+	link->local_sink = local_sink;
+	link->type = dc_connection_analog_load;
+	aconnector->dc_link = link;
+
+	/* The cached status that the shortcut must return unchanged. */
+	aconnector->base.status = connector_status_connected;
+
+	KUNIT_EXPECT_EQ(test,
+		(int)amdgpu_dm_connector_poll(aconnector, false),
+		(int)connector_status_connected);
+}
+
+/* Tests for amdgpu_dm_connector_late_register() and _unregister() */
+
+/*
+ * Build an amdgpu_dm_connector embedded in an amdgpu_device so drm_to_adev()
+ * resolves. A VGA connector keeps amdgpu_dm_should_create_sysfs() false (sysfs
+ * and DP AUX branches skipped) and bl_idx == -1 turns backlight registration
+ * into a no-op, leaving the register/unregister bookkeeping safe to exercise.
+ */
+static struct amdgpu_dm_connector *dm_test_reg_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_device *drm;
+	struct device *dev;
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						  offsetof(struct amdgpu_device, ddev),
+						  DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test,
+		drmm_connector_init(drm, &aconnector->base,
+				    &dm_test_connector_funcs,
+				    DRM_MODE_CONNECTOR_VGA, NULL), 0);
+
+	aconnector->bl_idx = -1;
+
+	return aconnector;
+}
+
+/**
+ * dm_test_late_register_non_dp_succeeds - Test late_register on a plain connector
+ * @test: The KUnit test context
+ *
+ * With sysfs, backlight and DP AUX registration all skipped, late_register
+ * completes successfully.
+ */
+static void dm_test_late_register_non_dp_succeeds(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_reg_connector(test);
+
+	KUNIT_EXPECT_EQ(test,
+		amdgpu_dm_connector_late_register(&aconnector->base), 0);
+}
+
+/**
+ * dm_test_unregister_non_dp_noop - Test unregister tolerates an unregistered connector
+ * @test: The KUnit test context
+ *
+ * No sysfs group was created, the CEC notifier is NULL and the DP AUX channel
+ * was never registered, so unregister must be a safe no-op.
+ */
+static void dm_test_unregister_non_dp_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector = dm_test_reg_connector(test);
+
+	KUNIT_EXPECT_FALSE(test, amdgpu_dm_should_create_sysfs(aconnector));
+
+	amdgpu_dm_connector_unregister(&aconnector->base);
+}
+
+/* Tests for amdgpu_dm_connector_destroy() */
+
+/*
+ * amdgpu_dm_connector_destroy() ends with drm_connector_cleanup() followed by
+ * kfree(connector), so the connector must be initialised with the unmanaged
+ * drm_connector_init() and allocated with kzalloc() (the function frees it, so
+ * kunit_kzalloc() would double free at teardown). It is embedded in an
+ * amdgpu_device so drm_to_adev() resolves and a dc_link carries a dc_context so
+ * dc_sink_create() works for the sink-release branches.
+ */
+struct dm_test_destroy_ctx {
+	struct drm_device *drm;
+	struct dc_context *dc_ctx;
+	struct dc_link *link;
+};
+
+static struct dm_test_destroy_ctx *dm_test_destroy_ctx_alloc(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx;
+	struct amdgpu_device *adev;
+	struct device *dev;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	dev = drm_kunit_helper_alloc_device(test);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	ctx->drm = __drm_kunit_helper_alloc_drm_device(test, dev, sizeof(*adev),
+						       offsetof(struct amdgpu_device, ddev),
+						       DRIVER_MODESET);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx->drm);
+
+	ctx->dc_ctx = kunit_kzalloc(test, sizeof(*ctx->dc_ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dc_ctx);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->ctx = ctx->dc_ctx;
+
+	return ctx;
+}
+
+/*
+ * Allocate a connector the destroy path can free. Uses kzalloc() (not
+ * kunit_kzalloc) and the unmanaged drm_connector_init() because the function
+ * under test calls drm_connector_cleanup() + kfree(connector).
+ *
+ * drm_connector_init() requires funcs->destroy to be set, so a dedicated funcs
+ * table wires it to amdgpu_dm_connector_destroy() (the test invokes it
+ * directly; the connector is removed from the device before teardown).
+ */
+static const struct drm_connector_funcs dm_test_destroy_funcs = {
+	.reset = amdgpu_dm_connector_funcs_reset,
+	.atomic_duplicate_state = amdgpu_dm_connector_atomic_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.destroy = amdgpu_dm_connector_destroy,
+};
+
+static struct amdgpu_dm_connector *
+dm_test_destroy_connector(struct kunit *test, struct drm_device *drm)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kzalloc(sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_ASSERT_EQ(test,
+		drm_connector_init(drm, &aconnector->base,
+				   &dm_test_destroy_funcs,
+				   DRM_MODE_CONNECTOR_VGA), 0);
+	aconnector->bl_idx = -1;
+
+	return aconnector;
+}
+
+/**
+ * dm_test_destroy_minimal - Test destroy tears down a bare connector
+ * @test: The KUnit test context
+ *
+ * With no MST, backlight, sinks or registered AUX/CEC, destroy must clean up
+ * and free the connector without crashing.
+ */
+static void dm_test_destroy_minimal(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+}
+
+/**
+ * dm_test_destroy_releases_dc_sink - Test destroy releases the dc_sink
+ * @test: The KUnit test context
+ */
+static void dm_test_destroy_releases_dc_sink(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	/* Extra reference so the sink survives destroy for inspection. */
+	dc_sink_retain(sink);
+	aconnector->dc_sink = sink;
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, (int)kref_read(&sink->refcount), 1);
+	dc_sink_release(sink);
+}
+
+/**
+ * dm_test_destroy_releases_dc_em_sink - Test destroy releases the emulated sink
+ * @test: The KUnit test context
+ */
+static void dm_test_destroy_releases_dc_em_sink(struct kunit *test)
+{
+	struct dm_test_destroy_ctx *ctx = dm_test_destroy_ctx_alloc(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_destroy_connector(test, ctx->drm);
+	struct dc_sink_init_data sink_init = { 0 };
+	struct dc_sink *sink;
+
+	sink_init.link = ctx->link;
+	sink_init.sink_signal = SIGNAL_TYPE_VIRTUAL;
+	sink = dc_sink_create(&sink_init);
+	KUNIT_ASSERT_NOT_NULL(test, sink);
+
+	dc_sink_retain(sink);
+	aconnector->dc_em_sink = sink;
+
+	amdgpu_dm_connector_destroy(&aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, (int)kref_read(&sink->refcount), 1);
+	dc_sink_release(sink);
+}
+
+/* Tests for dm_encoder_helper_disable() */
+
+/**
+ * dm_test_encoder_disable_noop - Test the disable hook is a no-op
+ * @test: The KUnit test context
+ *
+ * dm_encoder_helper_disable() has an empty body; calling it must neither touch
+ * the encoder nor crash.
+ */
+static void dm_test_encoder_disable_noop(struct kunit *test)
+{
+	struct drm_encoder *encoder;
+
+	encoder = kunit_kzalloc(test, sizeof(*encoder), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, encoder);
+
+	dm_encoder_helper_disable(encoder);
+}
+
+/* Tests for dm_encoder_helper_atomic_check() */
+
+/*
+ * dm_encoder_helper_atomic_check() reads back through to_amdgpu_encoder(),
+ * to_amdgpu_dm_connector() and to_dm_connector_state(), so the encoder,
+ * connector and connector-state are stacked in their containers and wired
+ * together through conn_state->connector.
+ */
+struct dm_test_atomic_check_ctx {
+	struct drm_device *drm;
+	struct amdgpu_encoder *aenc;
+	struct amdgpu_dm_connector *aconnector;
+	struct dm_connector_state *dm_state;
+	struct drm_crtc_state *crtc_state;
+};
+
+static struct dm_test_atomic_check_ctx *
+dm_test_atomic_check_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_atomic_check_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+
+	ctx->aenc = kunit_kzalloc(test, sizeof(*ctx->aenc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aenc);
+	ctx->aenc->base.dev = ctx->drm;
+
+	ctx->aconnector = kunit_kzalloc(test, sizeof(*ctx->aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aconnector);
+	ctx->aconnector->base.connector_type = connector_type;
+
+	ctx->dm_state = kunit_kzalloc(test, sizeof(*ctx->dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->dm_state);
+	ctx->dm_state->base.connector = &ctx->aconnector->base;
+
+	ctx->crtc_state = kunit_kzalloc(test, sizeof(*ctx->crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->crtc_state);
+
+	return ctx;
+}
+
+/**
+ * dm_test_atomic_check_edp_native_keeps_scaling - Test native eDP mode is left alone
+ * @test: The KUnit test context
+ *
+ * On an eDP connector whose adjusted mode matches the panel's native mode,
+ * drm_crtc_helper_mode_valid_fixed() returns MODE_OK so scaling is untouched.
+ */
+static void dm_test_atomic_check_edp_native_keeps_scaling(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1080;
+	ctx->crtc_state->adjusted_mode.hdisplay = 1920;
+	ctx->crtc_state->adjusted_mode.vdisplay = 1080;
+	ctx->dm_state->scaling = RMX_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->dm_state->scaling, (int)RMX_OFF);
+}
+
+/**
+ * dm_test_atomic_check_lvds_non_native_enables_scaling - Test non-native LVDS turns on scaling
+ * @test: The KUnit test context
+ *
+ * On an LVDS connector whose adjusted mode differs from the native mode and is
+ * currently RMX_OFF, the check enables RMX_ASPECT scaling and still returns 0.
+ */
+static void dm_test_atomic_check_lvds_non_native_enables_scaling(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_LVDS);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1080;
+	ctx->crtc_state->adjusted_mode.hdisplay = 1280;
+	ctx->crtc_state->adjusted_mode.vdisplay = 720;
+	ctx->dm_state->scaling = RMX_OFF;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->dm_state->scaling, (int)RMX_ASPECT);
+}
+
+/**
+ * dm_test_atomic_check_non_mst_returns_zero - Test non-MST connectors short-circuit
+ * @test: The KUnit test context
+ *
+ * A non-eDP/LVDS connector with no MST output port hits the early ``return 0``
+ * before any topology state is touched.
+ */
+static void dm_test_atomic_check_non_mst_returns_zero(struct kunit *test)
+{
+	struct dm_test_atomic_check_ctx *ctx =
+		dm_test_atomic_check_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->aconnector->mst_output_port = NULL;
+
+	KUNIT_EXPECT_EQ(test,
+		dm_encoder_helper_atomic_check(&ctx->aenc->base,
+					       ctx->crtc_state,
+					       &ctx->dm_state->base), 0);
+}
+
+/* Tests for hdmi_cec_unset_edid() */
+
+/**
+ * dm_test_hdmi_cec_unset_edid_no_notifier - Test the no-notifier no-op path
+ * @test: The KUnit test context
+ *
+ * With aconnector->notifier NULL the function returns early and must not crash.
+ */
+static void dm_test_hdmi_cec_unset_edid_no_notifier(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	hdmi_cec_unset_edid(aconnector);
+}
+
+/* Tests for create_eml_sink() and handle_edid_mgmt() */
+
+/*
+ * create_eml_sink() reads EDID off the connector's DDC. Forcing the connector
+ * DRM_FORCE_OFF makes drm_edid_read_ddc() return NULL before touching any i2c
+ * adapter, exercising the "no EDID" branch without real hardware. aux_mode is
+ * set so the embedded DP AUX ddc is selected (no i2c adapter pointer needed).
+ */
+struct dm_test_edid_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+};
+
+static struct dm_test_edid_ctx *
+dm_test_edid_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_edid_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+	ctx->aconnector = dm_test_add_connector(test, ctx->drm, connector_type);
+
+	ctx->link = kunit_kzalloc(test, sizeof(*ctx->link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->link);
+	ctx->link->aux_mode = true;
+	ctx->aconnector->dc_link = ctx->link;
+
+	ctx->aconnector->base.force = DRM_FORCE_OFF;
+
+	return ctx;
+}
+
+/**
+ * dm_test_create_eml_sink_no_edid - Test the no-EDID branch creates no sink
+ * @test: The KUnit test context
+ *
+ * When no EDID can be read the function logs an error and returns without
+ * allocating an emulated sink.
+ */
+static void dm_test_create_eml_sink_no_edid(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	create_eml_sink(ctx->aconnector);
+
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->dc_em_sink);
+}
+
+/**
+ * dm_test_handle_edid_mgmt_dp_sets_link_caps - Test DP seeds verified link caps
+ * @test: The KUnit test context
+ *
+ * For a DisplayPort link the function primes verified_link_cap before reading
+ * EDID so a headless force-on connector can still modeset.
+ */
+static void dm_test_handle_edid_mgmt_dp_sets_link_caps(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	ctx->link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
+
+	handle_edid_mgmt(ctx->aconnector);
+
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.lane_count,
+			(int)LANE_COUNT_FOUR);
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.link_rate,
+			(int)LINK_RATE_HIGH2);
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->dc_em_sink);
+}
+
+/**
+ * dm_test_handle_edid_mgmt_non_dp_leaves_caps - Test non-DP links keep zeroed caps
+ * @test: The KUnit test context
+ *
+ * A non-DisplayPort link skips the verified_link_cap seeding entirely.
+ */
+static void dm_test_handle_edid_mgmt_non_dp_leaves_caps(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+
+	handle_edid_mgmt(ctx->aconnector);
+
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.lane_count, 0);
+	KUNIT_EXPECT_EQ(test, (int)ctx->link->verified_link_cap.link_rate, 0);
+}
+
+/*
+ * Context for the connector funcs / modes tests: a managed DRM device with a
+ * registered connector and a managed encoder attached to it, so helpers that
+ * walk connector->encoder relationships resolve correctly.
+ */
+struct dm_test_modes_ctx {
+	struct drm_device *drm;
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_encoder *aenc;
+};
+
+static struct dm_test_modes_ctx *
+dm_test_modes_ctx_alloc(struct kunit *test, int connector_type)
+{
+	struct dm_test_modes_ctx *ctx;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
+	ctx->drm = dm_test_alloc_drm(test);
+	ctx->aconnector = dm_test_add_connector(test, ctx->drm, connector_type);
+
+	ctx->aenc = kunit_kzalloc(test, sizeof(*ctx->aenc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx->aenc);
+	KUNIT_ASSERT_EQ(test,
+			drmm_encoder_init(ctx->drm, &ctx->aenc->base, NULL,
+					  DRM_MODE_ENCODER_TMDS, NULL), 0);
+	KUNIT_ASSERT_EQ(test,
+			drm_connector_attach_encoder(&ctx->aconnector->base,
+						     &ctx->aenc->base), 0);
+
+	return ctx;
+}
+
+/**
+ * dm_test_funcs_force_no_edid - Test force() leaves drm_edid NULL when no EDID
+ * @test: The KUnit test context
+ *
+ * A headless force-on DisplayPort connector reads no EDID, so the cached
+ * drm_edid pointer must stay NULL after the force callback runs.
+ */
+static void dm_test_funcs_force_no_edid(struct kunit *test)
+{
+	struct dm_test_edid_ctx *ctx =
+		dm_test_edid_ctx_alloc(test, DRM_MODE_CONNECTOR_DisplayPort);
+
+	amdgpu_dm_connector_funcs_force(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_NULL(test, ctx->aconnector->drm_edid);
+}
+
+/**
+ * dm_test_validate_stream_null_stream - Test NULL stream returns unexpected
+ * @test: The KUnit test context
+ *
+ * With a NULL stream the validation jumps straight to cleanup without ever
+ * dereferencing the dc handle and reports DC_ERROR_UNEXPECTED.
+ */
+static void dm_test_validate_stream_null_stream(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test,
+			(int)dm_validate_stream_and_context(NULL, NULL),
+			(int)DC_ERROR_UNEXPECTED);
+}
+
+/**
+ * dm_test_to_encoder_no_encoder - Test connector with no encoder returns NULL
+ * @test: The KUnit test context
+ */
+static void dm_test_to_encoder_no_encoder(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	KUNIT_EXPECT_NULL(test,
+			  amdgpu_dm_connector_to_encoder(&aconnector->base));
+}
+
+/**
+ * dm_test_to_encoder_returns_attached - Test the attached encoder is returned
+ * @test: The KUnit test context
+ */
+static void dm_test_to_encoder_returns_attached(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	KUNIT_EXPECT_PTR_EQ(test,
+			    amdgpu_dm_connector_to_encoder(&ctx->aconnector->base),
+			    &ctx->aenc->base);
+}
+
+/**
+ * dm_test_native_mode_no_encoder - Test native mode resolution is a no-op
+ * @test: The KUnit test context
+ *
+ * Without an encoder there is nothing to copy into, so the call must return
+ * cleanly without dereferencing a NULL encoder.
+ */
+static void dm_test_native_mode_no_encoder(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_get_native_mode(&aconnector->base);
+}
+
+/**
+ * dm_test_native_mode_empty_probed_zeroes_clock - Test empty probed list clears mode
+ * @test: The KUnit test context
+ *
+ * With no probed modes there is no preferred mode to copy, so the encoder's
+ * native mode is memset to zero (clock becomes 0).
+ */
+static void dm_test_native_mode_empty_probed_zeroes_clock(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.clock = 148500;
+
+	amdgpu_dm_get_native_mode(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.clock, 0);
+}
+
+/**
+ * dm_test_native_mode_copies_preferred - Test the preferred mode is copied
+ * @test: The KUnit test context
+ *
+ * The preferred probed mode is duplicated into the encoder's native mode.
+ */
+static void dm_test_native_mode_copies_preferred(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+	struct drm_display_mode *mode;
+
+	mode = drm_mode_create(ctx->drm);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+	mode->type = DRM_MODE_TYPE_PREFERRED;
+	mode->clock = 148500;
+	mode->hdisplay = 1920;
+	mode->vdisplay = 1080;
+	drm_mode_probed_add(&ctx->aconnector->base, mode);
+
+	amdgpu_dm_get_native_mode(&ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.hdisplay, 1920);
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.vdisplay, 1080);
+	KUNIT_EXPECT_EQ(test, ctx->aenc->native_mode.clock, 148500);
+}
+
+/**
+ * dm_test_create_common_mode_overrides - Test common mode inherits native timing
+ * @test: The KUnit test context
+ *
+ * A new common mode takes its pixel clock and porches from the encoder's
+ * native mode but overrides the visible resolution and clears PREFERRED.
+ */
+static void dm_test_create_common_mode_overrides(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+	struct drm_display_mode *mode;
+
+	ctx->aenc->native_mode.clock = 148500;
+	ctx->aenc->native_mode.htotal = 2200;
+	ctx->aenc->native_mode.type = DRM_MODE_TYPE_PREFERRED;
+
+	mode = amdgpu_dm_create_common_mode(&ctx->aenc->base, "800x600",
+					    800, 600);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	KUNIT_EXPECT_EQ(test, mode->hdisplay, 800);
+	KUNIT_EXPECT_EQ(test, mode->vdisplay, 600);
+	KUNIT_EXPECT_EQ(test, mode->clock, 148500);
+	KUNIT_EXPECT_EQ(test, mode->htotal, 2200);
+	KUNIT_EXPECT_FALSE(test, mode->type & DRM_MODE_TYPE_PREFERRED);
+	KUNIT_EXPECT_STREQ(test, mode->name, "800x600");
+
+	drm_mode_destroy(ctx->drm, mode);
+}
+
+/**
+ * dm_test_add_common_modes_non_edp_noop - Test non-eDP/LVDS adds no modes
+ * @test: The KUnit test context
+ *
+ * Common scaled modes are only added for eDP/LVDS panels; an HDMI connector
+ * is left untouched.
+ */
+static void dm_test_add_common_modes_non_edp_noop(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_HDMIA);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1200;
+
+	amdgpu_dm_connector_add_common_modes(&ctx->aenc->base,
+					     &ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aconnector->num_modes, 0);
+}
+
+/**
+ * dm_test_add_common_modes_edp_adds - Test eDP adds the smaller common modes
+ * @test: The KUnit test context
+ *
+ * For an eDP panel with a 1920x1200 native mode every common mode strictly
+ * smaller than the native one is added (10 of the 11 entries).
+ */
+static void dm_test_add_common_modes_edp_adds(struct kunit *test)
+{
+	struct dm_test_modes_ctx *ctx =
+		dm_test_modes_ctx_alloc(test, DRM_MODE_CONNECTOR_eDP);
+
+	ctx->aenc->native_mode.hdisplay = 1920;
+	ctx->aenc->native_mode.vdisplay = 1200;
+
+	amdgpu_dm_connector_add_common_modes(&ctx->aenc->base,
+					     &ctx->aconnector->base);
+
+	KUNIT_EXPECT_EQ(test, ctx->aconnector->num_modes, 10);
+}
+
+/**
+ * dm_test_ddc_get_modes_null_edid - Test a NULL EDID resets the mode count
+ * @test: The KUnit test context
+ */
+static void dm_test_ddc_get_modes_null_edid(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector =
+		dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	aconnector->num_modes = 5;
+
+	amdgpu_dm_connector_ddc_get_modes(&aconnector->base, NULL);
+
+	KUNIT_EXPECT_EQ(test, aconnector->num_modes, 0);
+}
+
+/**
+ * dm_test_add_fs_modes_no_preferred_mode - Test no preferred mode yields no modes
+ * @test: The KUnit test context
+ *
+ * A writeback connector has no highest-refresh-rate mode, so add_fs_modes()
+ * cannot build any FreeSync video modes and returns 0.
+ */
+static void dm_test_add_fs_modes_no_preferred_mode(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_WRITEBACK;
+
+	KUNIT_EXPECT_EQ(test, (int)add_fs_modes(aconnector), 0);
+}
+
+/**
+ * dm_test_add_freesync_modes_null_edid_noop - Test NULL EDID adds no modes
+ * @test: The KUnit test context
+ *
+ * Without an EDID the FreeSync video modes cannot be derived, so the mode
+ * count is left unchanged.
+ */
+static void dm_test_add_freesync_modes_null_edid_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->num_modes = 7;
+
+	amdgpu_dm_connector_add_freesync_modes(&aconnector->base, NULL);
+
+	KUNIT_EXPECT_EQ(test, aconnector->num_modes, 7);
+}
+
+/* EDID extension block tag values (avoids pulling in private drm headers). */
+#define DM_TEST_CEA_EXT		0x02
+#define DM_TEST_DISPLAYID_EXT	0x70
+
+/**
+ * dm_test_i2c_func_returns_flags - Test the i2c functionality flags
+ * @test: The KUnit test context
+ *
+ * The algorithm advertises plain I2C plus emulated SMBUS regardless of the
+ * adapter argument, which it never dereferences.
+ */
+static void dm_test_i2c_func_returns_flags(struct kunit *test)
+{
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_i2c_func(NULL),
+			I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL);
+}
+
+/**
+ * dm_test_i2c_xfer_no_ddc_pin - Test transfers without a DDC pin are rejected
+ * @test: The KUnit test context
+ *
+ * When the backing ddc_service has no ddc_pin the transfer bails out early
+ * with -EIO before touching the message buffers or the dc handle.
+ */
+static void dm_test_i2c_xfer_no_ddc_pin(struct kunit *test)
+{
+	struct amdgpu_i2c_adapter *i2c;
+	struct ddc_service *ddc;
+
+	i2c = kunit_kzalloc(test, sizeof(*i2c), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, i2c);
+	ddc = kunit_kzalloc(test, sizeof(*ddc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ddc);
+
+	i2c->ddc_service = ddc;
+	i2c_set_adapdata(&i2c->base, i2c);
+
+	/* ddc->ddc_pin is NULL -> transfer is rejected with -EIO. */
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_i2c_xfer(&i2c->base, NULL, 0), -EIO);
+}
+
+/**
+ * dm_test_get_amd_vsdb_unsupported - Test a zero VSDB version reports no support
+ * @test: The KUnit test context
+ */
+static void dm_test_get_amd_vsdb_unsupported(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.display_info.amd_vsdb.version = 0;
+	aconnector->base.display_info.amd_vsdb.replay_mode = false;
+
+	KUNIT_EXPECT_EQ(test, get_amd_vsdb(aconnector, &vsdb_info), 0);
+	KUNIT_EXPECT_EQ(test, vsdb_info.amd_vsdb_version, 0);
+}
+
+/**
+ * dm_test_get_amd_vsdb_supported - Test a non-zero VSDB version is reported
+ * @test: The KUnit test context
+ *
+ * The display info's VSDB version and replay mode are copied out and a
+ * non-zero version reports support.
+ */
+static void dm_test_get_amd_vsdb_supported(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->base.display_info.amd_vsdb.version = 2;
+	aconnector->base.display_info.amd_vsdb.replay_mode = true;
+
+	KUNIT_EXPECT_EQ(test, get_amd_vsdb(aconnector, &vsdb_info), 1);
+	KUNIT_EXPECT_EQ(test, vsdb_info.amd_vsdb_version, 2);
+	KUNIT_EXPECT_TRUE(test, vsdb_info.replay_mode);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_null_edid - Test NULL EDID returns -ENODEV
+ * @test: The KUnit test context
+ */
+static void dm_test_parse_hdmi_amd_vsdb_null_edid(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, NULL, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_no_extensions - Test EDID without extensions
+ * @test: The KUnit test context
+ *
+ * An EDID that declares no extension blocks has no CEA block to parse.
+ */
+static void dm_test_parse_hdmi_amd_vsdb_no_extensions(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+	struct edid *edid;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	edid = kunit_kzalloc(test, sizeof(*edid), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, edid);
+
+	edid->extensions = 0;
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, edid, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_hdmi_amd_vsdb_no_cea_ext - Test EDID with no CEA extension
+ * @test: The KUnit test context
+ *
+ * An extension block that is not a CEA block leaves no VSDB to parse.
+ */
+static void dm_test_parse_hdmi_amd_vsdb_no_cea_ext(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_hdmi_vsdb_info vsdb_info = {0};
+	struct edid *edid;
+	u8 *raw;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	/* Base block + one extension block that is NOT a CEA extension. */
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+	raw[EDID_LENGTH] = DM_TEST_DISPLAYID_EXT;
+
+	KUNIT_EXPECT_EQ(test,
+			parse_hdmi_amd_vsdb(aconnector, edid, &vsdb_info),
+			-ENODEV);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_null_edid - Test NULL EDID leaves range untouched
+ * @test: The KUnit test context
+ */
+static void dm_test_parse_displayid_vrr_null_edid(struct kunit *test)
+{
+	struct drm_connector *connector;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+
+	parse_edid_displayid_vrr(connector, NULL);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 0);
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.min_vfreq, 0);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_no_displayid - Test EDID without a DisplayID ext
+ * @test: The KUnit test context
+ *
+ * Without a DisplayID extension block there is no dynamic range to extract.
+ */
+static void dm_test_parse_displayid_vrr_no_displayid(struct kunit *test)
+{
+	struct drm_connector *connector;
+	struct edid *edid;
+	u8 *raw;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+	raw[EDID_LENGTH] = DM_TEST_CEA_EXT;
+
+	parse_edid_displayid_vrr(connector, edid);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 0);
+}
+
+/**
+ * dm_test_parse_displayid_vrr_sets_range - Test a DisplayID VRR block is parsed
+ * @test: The KUnit test context
+ *
+ * A DisplayID dynamic video timing range descriptor populates the connector's
+ * monitor refresh range.
+ */
+static void dm_test_parse_displayid_vrr_sets_range(struct kunit *test)
+{
+	struct drm_connector *connector;
+	struct edid *edid;
+	u8 *raw, *ext;
+
+	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, connector);
+	raw = kunit_kzalloc(test, 2 * EDID_LENGTH, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, raw);
+	edid = (struct edid *)raw;
+	edid->extensions = 1;
+
+	ext = raw + EDID_LENGTH;
+	ext[0] = DM_TEST_DISPLAYID_EXT;
+	/*
+	 * DisplayID dynamic video timing range descriptor, parsed from offset
+	 * 1: tag 0x25, flags 0 (single-byte max), payload length 9, then the
+	 * min/max vfreq bytes.
+	 */
+	ext[1] = 0x25;
+	ext[2] = 0x00;
+	ext[3] = 9;
+	ext[10] = 40;
+	ext[11] = 144;
+
+	parse_edid_displayid_vrr(connector, edid);
+
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.min_vfreq, 40);
+	KUNIT_EXPECT_EQ(test, connector->display_info.monitor_range.max_vfreq, 144);
+}
+
+/**
+ * dm_test_mode_valid_interlace_rejected - Test interlaced modes are rejected
+ * @test: The KUnit test context
+ *
+ * Interlaced modes are rejected up front with MODE_ERROR before any sink or
+ * stream validation is attempted.
+ */
+static void dm_test_mode_valid_interlace_rejected(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_display_mode *mode;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	mode = kunit_kzalloc(test, sizeof(*mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	mode->flags = DRM_MODE_FLAG_INTERLACE;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_connector_mode_valid(&aconnector->base, mode),
+			MODE_ERROR);
+}
+
+/**
+ * dm_test_mode_valid_dblscan_rejected - Test doublescan modes are rejected
+ * @test: The KUnit test context
+ *
+ * Doublescan modes are rejected up front with MODE_ERROR.
+ */
+static void dm_test_mode_valid_dblscan_rejected(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_display_mode *mode;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	mode = kunit_kzalloc(test, sizeof(*mode), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, mode);
+
+	mode->flags = DRM_MODE_FLAG_DBLSCAN;
+
+	KUNIT_EXPECT_EQ(test,
+			amdgpu_dm_connector_mode_valid(&aconnector->base, mode),
+			MODE_ERROR);
+}
+
+/**
+ * dm_test_hdmi_cec_set_edid_no_notifier - Test the no-notifier no-op path
+ * @test: The KUnit test context
+ *
+ * With aconnector->notifier NULL the function returns early and must not crash.
+ */
+static void dm_test_hdmi_cec_set_edid_no_notifier(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	amdgpu_dm_hdmi_cec_set_edid(aconnector);
+}
+
+/**
+ * dm_test_s3_handle_hdmi_cec_suspend - Test the suspend pass over connectors
+ * @test: The KUnit test context
+ *
+ * Suspend iterates all connectors, skipping writeback ones and calling the
+ * unset path on the rest; with NULL notifiers this is a crash-free no-op.
+ */
+static void dm_test_s3_handle_hdmi_cec_suspend(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_WRITEBACK);
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_s3_handle_hdmi_cec(drm, true);
+}
+
+/**
+ * dm_test_s3_handle_hdmi_cec_resume - Test the resume pass over connectors
+ * @test: The KUnit test context
+ *
+ * Resume iterates all connectors, skipping writeback ones and calling the set
+ * path on the rest; with NULL notifiers this is a crash-free no-op.
+ */
+static void dm_test_s3_handle_hdmi_cec_resume(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_WRITEBACK);
+	dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+
+	amdgpu_dm_s3_handle_hdmi_cec(drm, false);
+}
+
+/**
+ * dm_test_create_validate_stream_null_dm_state - Test NULL state returns NULL
+ * @test: The KUnit test context
+ *
+ * Without a connector state there is nothing to validate against, so the
+ * helper bails out with NULL before touching the dc handle.
+ */
+static void dm_test_create_validate_stream_null_dm_state(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	KUNIT_EXPECT_NULL(test,
+			  amdgpu_dm_create_validate_stream_for_sink(&aconnector->base,
+								    NULL, NULL, NULL));
+}
+
+/**
+ * dm_test_update_after_detect_mst_noop - Test MST connectors are left to drm_mst
+ * @test: The KUnit test context
+ *
+ * An MST connector is handled by the drm_mst framework, so the function
+ * returns immediately and never dereferences the (NULL) dc_link.
+ */
+static void dm_test_update_after_detect_mst_noop(struct kunit *test)
+{
+	struct amdgpu_dm_connector *aconnector;
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+
+	aconnector->mst_mgr.mst_state = true;
+
+	amdgpu_dm_update_connector_after_detect(aconnector);
+}
+
+/**
+ * dm_test_update_after_detect_sink_unchanged - Test the short-pulse no-op path
+ * @test: The KUnit test context
+ *
+ * When the link reports no local sink and the connector already has no
+ * dc_sink, the "sink didn't change" path returns without touching DC.
+ */
+static void dm_test_update_after_detect_sink_unchanged(struct kunit *test)
+{
+	struct drm_device *drm = dm_test_alloc_drm(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct dc_link *link;
+
+	aconnector = dm_test_add_connector(test, drm, DRM_MODE_CONNECTOR_HDMIA);
+	link = kunit_kzalloc(test, sizeof(*link), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, link);
+
+	aconnector->dc_link = link;
+
+	/* link->local_sink and aconnector->dc_sink are both NULL. */
+	amdgpu_dm_update_connector_after_detect(aconnector);
+
+	KUNIT_EXPECT_NULL(test, aconnector->dc_sink);
+}
+
+/* Tests for amdgpu_dm_update_stream_scaling_settings() */
+
+/**
+ * dm_test_update_scaling_null_mode - Test NULL mode leaves the stream rects untouched
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_null_mode(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, NULL, NULL, stream);
+
+	/* NULL mode: early return before touching src/dst */
+	KUNIT_EXPECT_EQ(test, stream->src.width, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 0);
+}
+
+/**
+ * dm_test_update_scaling_fullscreen_default - Test full-screen default with no dm_state
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_fullscreen_default(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct drm_display_mode mode = { 0 };
+
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 2560;
+	stream->timing.v_addressable = 1440;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, NULL, stream);
+
+	/* src = mode, dst = timing addressable, no centering without dm_state */
+	KUNIT_EXPECT_EQ(test, stream->src.width, 1920);
+	KUNIT_EXPECT_EQ(test, stream->src.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 2560);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1440);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_full - Test RMX_FULL keeps a full-size, centered dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_full(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1280;
+	mode.vdisplay = 720;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_FULL;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* RMX_FULL: dst stays full addressable, offset 0 */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1920);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_aspect_pillarbox - Test RMX_ASPECT preserves aspect ratio
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_aspect_pillarbox(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	/* 4:3 source on a 16:9 panel -> pillarboxed */
+	mode.hdisplay = 1024;
+	mode.vdisplay = 768;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_ASPECT;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/*
+	 * src.width*dst.height (1024*1080) < src.height*dst.width (768*1920):
+	 * width scaled to src.width*dst.height/src.height = 1440, height stays
+	 * 1080, centered horizontally at (1920-1440)/2 = 240.
+	 */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1440);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1080);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 240);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 0);
+}
+
+/**
+ * dm_test_update_scaling_rmx_aspect_letterbox - Test RMX_ASPECT letterboxes wide sources
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_aspect_letterbox(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	/* 16:9 source on a 4:3 panel -> letterboxed */
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 1024;
+	stream->timing.v_addressable = 768;
+	dm_state->scaling = RMX_ASPECT;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1024);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 576);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 0);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 96);
+}
+
+/**
+ * dm_test_update_scaling_rmx_center - Test RMX_CENTER centers a 1:1 dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_rmx_center(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1280;
+	mode.vdisplay = 720;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_CENTER;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* RMX_CENTER: dst = src, centered on the addressable area */
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1280);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 720);
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 320);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 180);
+}
+
+/**
+ * dm_test_update_scaling_underscan - Test underscan borders shrink and offset dst
+ * @test: The KUnit test context
+ */
+static void dm_test_update_scaling_underscan(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct dc_stream_state *stream = dm_kunit_alloc_stream(test, NULL);
+	struct dm_connector_state *dm_state;
+	struct drm_display_mode mode = { 0 };
+
+	dm_state = kunit_kzalloc(test, sizeof(*dm_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, dm_state);
+
+	mode.hdisplay = 1920;
+	mode.vdisplay = 1080;
+	stream->timing.h_addressable = 1920;
+	stream->timing.v_addressable = 1080;
+	dm_state->scaling = RMX_FULL;
+	dm_state->underscan_enable = true;
+	dm_state->underscan_hborder = 64;
+	dm_state->underscan_vborder = 32;
+
+	amdgpu_dm_update_stream_scaling_settings(&adev->ddev, &mode, dm_state, stream);
+
+	/* Full dst, then underscan: x/y += border/2, width/height -= border */
+	KUNIT_EXPECT_EQ(test, stream->dst.x, 32);
+	KUNIT_EXPECT_EQ(test, stream->dst.y, 16);
+	KUNIT_EXPECT_EQ(test, stream->dst.width, 1856);
+	KUNIT_EXPECT_EQ(test, stream->dst.height, 1048);
+}
+
 static struct kunit_case amdgpu_dm_connector_tests[] = {
 	/* get_subconnector_type */
 	KUNIT_CASE(dm_test_subconnector_type_none),
@@ -3798,6 +5456,99 @@ static struct kunit_case amdgpu_dm_connector_tests[] = {
 	KUNIT_CASE(dm_test_fill_stream_color_depth_requested_bpc),
 	KUNIT_CASE(dm_test_fill_stream_content_type),
 	KUNIT_CASE(dm_test_fill_stream_aspect_ratio),
+	/* create_stream_for_sink */
+	KUNIT_CASE(dm_test_create_stream_fake_sink_success),
+	KUNIT_CASE(dm_test_create_stream_sets_dm_context),
+	KUNIT_CASE(dm_test_create_stream_virtual_signal),
+	KUNIT_CASE(dm_test_create_stream_scaling_src),
+	KUNIT_CASE(dm_test_create_stream_existing_sink),
+	/* amdgpu_dm_connector_detect */
+	KUNIT_CASE(dm_test_detect_force_on),
+	KUNIT_CASE(dm_test_detect_force_on_digital),
+	KUNIT_CASE(dm_test_detect_force_off),
+	KUNIT_CASE(dm_test_detect_sink_present),
+	KUNIT_CASE(dm_test_detect_no_sink),
+	/* amdgpu_dm_connector_poll */
+	KUNIT_CASE(dm_test_poll_dac_load_returns_cached),
+	/* amdgpu_dm_connector_late_register */
+	KUNIT_CASE(dm_test_late_register_non_dp_succeeds),
+	/* amdgpu_dm_connector_unregister */
+	KUNIT_CASE(dm_test_unregister_non_dp_noop),
+	/* amdgpu_dm_connector_destroy */
+	KUNIT_CASE(dm_test_destroy_minimal),
+	KUNIT_CASE(dm_test_destroy_releases_dc_sink),
+	KUNIT_CASE(dm_test_destroy_releases_dc_em_sink),
+	/* dm_encoder_helper_disable */
+	KUNIT_CASE(dm_test_encoder_disable_noop),
+	/* dm_encoder_helper_atomic_check */
+	KUNIT_CASE(dm_test_atomic_check_edp_native_keeps_scaling),
+	KUNIT_CASE(dm_test_atomic_check_lvds_non_native_enables_scaling),
+	KUNIT_CASE(dm_test_atomic_check_non_mst_returns_zero),
+	/* hdmi_cec_unset_edid */
+	KUNIT_CASE(dm_test_hdmi_cec_unset_edid_no_notifier),
+	/* create_eml_sink */
+	KUNIT_CASE(dm_test_create_eml_sink_no_edid),
+	/* handle_edid_mgmt */
+	KUNIT_CASE(dm_test_handle_edid_mgmt_dp_sets_link_caps),
+	KUNIT_CASE(dm_test_handle_edid_mgmt_non_dp_leaves_caps),
+	/* amdgpu_dm_connector_funcs_force */
+	KUNIT_CASE(dm_test_funcs_force_no_edid),
+	/* dm_validate_stream_and_context */
+	KUNIT_CASE(dm_test_validate_stream_null_stream),
+	/* amdgpu_dm_connector_to_encoder */
+	KUNIT_CASE(dm_test_to_encoder_no_encoder),
+	KUNIT_CASE(dm_test_to_encoder_returns_attached),
+	/* amdgpu_dm_get_native_mode */
+	KUNIT_CASE(dm_test_native_mode_no_encoder),
+	KUNIT_CASE(dm_test_native_mode_empty_probed_zeroes_clock),
+	KUNIT_CASE(dm_test_native_mode_copies_preferred),
+	/* amdgpu_dm_create_common_mode */
+	KUNIT_CASE(dm_test_create_common_mode_overrides),
+	/* amdgpu_dm_connector_add_common_modes */
+	KUNIT_CASE(dm_test_add_common_modes_non_edp_noop),
+	KUNIT_CASE(dm_test_add_common_modes_edp_adds),
+	/* amdgpu_dm_connector_ddc_get_modes */
+	KUNIT_CASE(dm_test_ddc_get_modes_null_edid),
+	/* add_fs_modes */
+	KUNIT_CASE(dm_test_add_fs_modes_no_preferred_mode),
+	/* amdgpu_dm_connector_add_freesync_modes */
+	KUNIT_CASE(dm_test_add_freesync_modes_null_edid_noop),
+	/* amdgpu_dm_i2c_func */
+	KUNIT_CASE(dm_test_i2c_func_returns_flags),
+	/* amdgpu_dm_i2c_xfer */
+	KUNIT_CASE(dm_test_i2c_xfer_no_ddc_pin),
+	/* get_amd_vsdb */
+	KUNIT_CASE(dm_test_get_amd_vsdb_unsupported),
+	KUNIT_CASE(dm_test_get_amd_vsdb_supported),
+	/* parse_hdmi_amd_vsdb */
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_null_edid),
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_no_extensions),
+	KUNIT_CASE(dm_test_parse_hdmi_amd_vsdb_no_cea_ext),
+	/* parse_edid_displayid_vrr */
+	KUNIT_CASE(dm_test_parse_displayid_vrr_null_edid),
+	KUNIT_CASE(dm_test_parse_displayid_vrr_no_displayid),
+	KUNIT_CASE(dm_test_parse_displayid_vrr_sets_range),
+	/* amdgpu_dm_connector_mode_valid */
+	KUNIT_CASE(dm_test_mode_valid_interlace_rejected),
+	KUNIT_CASE(dm_test_mode_valid_dblscan_rejected),
+	/* amdgpu_dm_hdmi_cec_set_edid */
+	KUNIT_CASE(dm_test_hdmi_cec_set_edid_no_notifier),
+	/* amdgpu_dm_s3_handle_hdmi_cec */
+	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_suspend),
+	KUNIT_CASE(dm_test_s3_handle_hdmi_cec_resume),
+	/* amdgpu_dm_create_validate_stream_for_sink */
+	KUNIT_CASE(dm_test_create_validate_stream_null_dm_state),
+	/* amdgpu_dm_update_connector_after_detect */
+	KUNIT_CASE(dm_test_update_after_detect_mst_noop),
+	KUNIT_CASE(dm_test_update_after_detect_sink_unchanged),
+	/* amdgpu_dm_update_stream_scaling_settings */
+	KUNIT_CASE(dm_test_update_scaling_null_mode),
+	KUNIT_CASE(dm_test_update_scaling_fullscreen_default),
+	KUNIT_CASE(dm_test_update_scaling_rmx_full),
+	KUNIT_CASE(dm_test_update_scaling_rmx_aspect_pillarbox),
+	KUNIT_CASE(dm_test_update_scaling_rmx_aspect_letterbox),
+	KUNIT_CASE(dm_test_update_scaling_rmx_center),
+	KUNIT_CASE(dm_test_update_scaling_underscan),
 	{}
 };
 

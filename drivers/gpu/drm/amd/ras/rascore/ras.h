@@ -137,6 +137,7 @@ enum ras_gpu_status {
 	RAS_GPU_STATUS__IN_RESET = 0x2,
 	RAS_GPU_STATUS__IS_RMA = 0x4,
 	RAS_GPU_STATUS__IS_VF = 0x8,
+	RAS_GPU_STATUS__DEVICE_LOST = 0x10,
 };
 
 enum ras_fw_eeprom_cmd {
@@ -278,6 +279,7 @@ struct ras_psp_config {
 
 struct ras_umc_config {
 	uint32_t umc_vram_type;
+	uint32_t num_umc;
 };
 
 struct ras_eeprom_config {
@@ -301,6 +303,7 @@ struct ras_core_config {
 
 	bool poison_supported;
 	bool ras_eeprom_supported;
+	uint ras_debug_mask;
 	const struct ras_sys_func *sys_fn;
 
 	struct ras_aca_config aca_cfg;
@@ -372,6 +375,7 @@ int ras_core_query_block_ecc_data(struct ras_core_context *ras_core,
 bool ras_core_gpu_in_reset(struct ras_core_context *ras_core);
 bool ras_core_gpu_is_rma(struct ras_core_context *ras_core);
 bool ras_core_gpu_is_vf(struct ras_core_context *ras_core);
+bool ras_core_gpu_device_lost(struct ras_core_context *ras_core);
 bool ras_core_handle_nbio_irq(struct ras_core_context *ras_core, void *data);
 int ras_core_handle_fatal_error(struct ras_core_context *ras_core);
 
@@ -403,4 +407,5 @@ int ras_core_convert_soc_pa_to_cur_nps_pages(struct ras_core_context *ras_core,
 int ras_core_check_address_sanity(struct ras_core_context *ras_core, uint64_t addr);
 
 int ras_core_set_debug_mode(struct ras_core_context *ras_core, bool enable);
+bool ras_core_is_ce_log_disabled(struct ras_core_context *ras_core);
 #endif

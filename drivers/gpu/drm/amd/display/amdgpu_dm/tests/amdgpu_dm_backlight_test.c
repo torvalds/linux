@@ -56,14 +56,7 @@ static void setup_test_connector(struct kunit *test,
 
 static void setup_test_dm_ddev(struct kunit *test, struct amdgpu_display_manager *dm)
 {
-	struct drm_device *ddev;
-
-	ddev = kunit_kzalloc(test, sizeof(*ddev), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ddev);
-
-	INIT_LIST_HEAD(&ddev->mode_config.connector_list);
-	spin_lock_init(&ddev->mode_config.connector_list_lock);
-	dm->ddev = ddev;
+	dm->ddev = dm_kunit_alloc_drm_with_connector_list(test);
 }
 
 /* Tests for dm_find_stream_with_link() */
@@ -333,6 +326,11 @@ static int dm_test_get_backlight_level_error(const struct dc_link *link)
 	return DC_ERROR_UNEXPECTED;
 }
 
+static void dm_test_unregister_backlight_device(void *data)
+{
+	backlight_device_unregister(data);
+}
+
 static bool dm_test_get_backlight_level_nits(struct dc_link *link,
 					     uint32_t *avg,
 					     uint32_t *peak)
@@ -468,6 +466,52 @@ static void dm_test_register_backlight_device_negative_index(struct kunit *test)
 
 	amdgpu_dm_register_backlight_device(aconnector);
 	KUNIT_EXPECT_NULL(test, adev->dm.backlight_dev[0]);
+}
+
+/**
+ * dm_test_register_backlight_device_success - Test native backlight registration
+ * @test: The KUnit test context
+ *
+ * A native backlight device must be registered with the calculated
+ * properties, and its initial readback must retain the initial brightness.
+ */
+static void dm_test_register_backlight_device_success(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct amdgpu_dm_backlight_caps *caps;
+	struct dc_link *link = dm_kunit_alloc_link(test);
+	struct drm_minor *primary;
+	unsigned int max;
+
+	setup_test_link_service(test, link);
+	link->dc->link_srv->edp_get_backlight_level = dm_test_get_backlight_level_error;
+	primary = kunit_kzalloc(test, sizeof(*primary), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, primary);
+	adev->ddev.primary = primary;
+	adev->dm.backlight_link[0] = link;
+
+	aconnector = dm_kunit_alloc_connector(test, adev, link);
+	aconnector->bl_idx = 0;
+	aconnector->base.kdev = adev->ddev.dev;
+	caps = &adev->dm.backlight_caps[0];
+	caps->min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+	caps->max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	caps->ac_level = 50;
+	caps->dc_level = 25;
+	max = 0x101 * AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+
+	amdgpu_dm_register_backlight_device(aconnector);
+
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.backlight_dev[0]);
+	KUNIT_EXPECT_EQ(test, adev->dm.backlight_dev[0]->props.max_brightness, max);
+	KUNIT_EXPECT_EQ(test, adev->dm.backlight_dev[0]->props.brightness,
+			DIV_ROUND_CLOSEST(max * caps->ac_level, 100));
+	KUNIT_EXPECT_EQ(test, adev->dm.brightness[0],
+			adev->dm.backlight_dev[0]->props.brightness);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			dm_test_unregister_backlight_device,
+			adev->dm.backlight_dev[0]), 0);
 }
 
 static struct drm_connector *setup_panel_power_savings_connector(struct kunit *test,
@@ -1868,6 +1912,7 @@ static struct kunit_case dm_backlight_test_cases[] = {
 	KUNIT_CASE(dm_test_backlight_get_brightness_uses_device_index),
 	/* amdgpu_dm_register_backlight_device */
 	KUNIT_CASE(dm_test_register_backlight_device_negative_index),
+	KUNIT_CASE(dm_test_register_backlight_device_success),
 	/* panel_power_savings_show / store */
 	KUNIT_CASE(dm_test_panel_power_savings_show_maps_disable_to_zero),
 	KUNIT_CASE(dm_test_panel_power_savings_show_reports_level),

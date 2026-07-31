@@ -171,6 +171,9 @@ static int amdgpu_ras_sys_check_gpu_status(struct ras_core_context *ras_core,
 	if (amdgpu_in_reset(adev) || amdgpu_ras_in_recovery(adev))
 		gpu_status |= RAS_GPU_STATUS__IN_RESET;
 
+	if (amdgpu_device_bus_status_check(adev))
+		gpu_status |= RAS_GPU_STATUS__DEVICE_LOST;
+
 	if (amdgpu_sriov_vf(adev))
 		gpu_status |= RAS_GPU_STATUS__IS_VF;
 

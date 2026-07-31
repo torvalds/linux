@@ -368,9 +368,10 @@ static void expand_implict_subvp(const struct display_configuation_with_meta *di
 static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_instance *core, const struct display_configuation_with_meta *display_cfg,
 	const struct dml2_display_cfg *svp_expanded_display_cfg, struct dml2_display_cfg_programming *programming, struct dml2_core_scratch *scratch)
 {
-	unsigned int stream_index, plane_index, pipe_offset, stream_already_populated_mask, main_plane_index, mcache_index;
+	unsigned int stream_index, plane_index, pipe_offset, stream_already_populated_mask, main_plane_index, mcache_index, dwb_index;
 	unsigned int total_main_mcaches_required = 0;
 	int total_pipe_regs_copied = 0;
+	int total_dwb_regs_copied = 0;
 	int dml_internal_pipe_index = 0;
 	const struct dml2_plane_parameters *main_plane;
 	const struct dml2_plane_parameters *phantom_plane;
@@ -385,6 +386,8 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 	// Get watermarks uses display config for ref clock override, so it doesn't matter whether we pass the pre or post expansion
 	// display config
 	dml2_core_calcs_get_watermarks(&display_cfg->display_config, &core->clean_me_up.mode_lib, &programming->global_regs.wm_regs[0]);
+
+	dml2_core_calcs_get_mcif_arb_params(&core->clean_me_up.mode_lib, &programming->mcif_global_regs);
 
 	// Check if FAMS2 is required
 	if (display_cfg->stage3.performed && display_cfg->stage3.success) {
@@ -470,6 +473,19 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 					programming->stream_programming[main_plane->stream_index].uclk_pstate_method,
 					plane_index);
 
+				/* populate DWB */
+				for (dwb_index = 0; dwb_index < svp_expanded_display_cfg->stream_descriptors[main_plane->stream_index].writeback.active_writebacks_per_stream; dwb_index++) {
+					programming->stream_programming[main_plane->stream_index].mcif_regs[dwb_index] = &programming->mcif_regs[total_dwb_regs_copied];
+					memset(programming->stream_programming[main_plane->stream_index].mcif_regs[dwb_index], 0, sizeof(struct dml2_mcif_per_pipe_register_set));
+					total_dwb_regs_copied++;
+
+					dml2_core_calcs_get_per_dwb_params(svp_expanded_display_cfg,
+							&core->clean_me_up.mode_lib,
+							programming->stream_programming[main_plane->stream_index].mcif_regs[dwb_index],
+							main_plane->stream_index,
+							dwb_index);
+				}
+
 				stream_already_populated_mask |= (0x1 << main_plane->stream_index);
 			}
 			dml_internal_pipe_index++;
@@ -537,6 +553,10 @@ bool core_dcn4_mode_support(struct dml2_core_mode_support_in_out *in_out)
 	l->mode_support_ex_params.min_clk_table = in_out->min_clk_table;
 	l->mode_support_ex_params.min_clk_index = in_out->min_clk_index;
 	l->mode_support_ex_params.out_evaluation_info = &in_out->mode_support_result.cfg_support_info.clean_me_up.support_info;
+
+	l->mode_support_ex_params.uclk_pstate_switch_modes =
+		in_out->display_cfg->stage3.performed ?
+			in_out->display_cfg->stage3.pstate_switch_modes : NULL;
 
 	result = dml2_core_calcs_mode_support_ex(&l->mode_support_ex_params);
 
@@ -661,10 +681,12 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 	unsigned int pipe_offset;
 	int dml_internal_pipe_index;
 	int total_pipe_regs_copied = 0;
+	int total_dwb_regs_copied = 0;
 	int stream_already_populated_mask = 0;
 
 	int main_stream_index;
 	unsigned int plane_index;
+	unsigned int dwb_index;
 
 	expand_implict_subvp(in_out->display_cfg, &l->svp_expanded_display_cfg, &core->scratch);
 
@@ -687,6 +709,8 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 
 			dml2_core_calcs_get_arb_params(&l->svp_expanded_display_cfg, &core->clean_me_up.mode_lib, &in_out->programming->global_regs.arb_regs);
 			dml2_core_calcs_get_watermarks(&l->svp_expanded_display_cfg, &core->clean_me_up.mode_lib, &in_out->programming->global_regs.wm_regs[0]);
+
+			dml2_core_calcs_get_mcif_arb_params(&core->clean_me_up.mode_lib, &in_out->programming->mcif_global_regs);
 
 			dml_internal_pipe_index = 0;
 
@@ -732,6 +756,18 @@ bool core_dcn4_mode_programming(struct dml2_core_mode_programming_in_out *in_out
 						in_out->programming->stream_programming[main_stream_index].stream_descriptor = &in_out->programming->display_config.stream_descriptors[main_stream_index];
 						in_out->programming->stream_programming[main_stream_index].num_odms_required = in_out->cfg_support_info->stream_support_info[main_stream_index].odms_used;
 						dml2_core_calcs_get_stream_programming(&core->clean_me_up.mode_lib, &in_out->programming->stream_programming[main_stream_index], dml_internal_pipe_index);
+
+						for (dwb_index = 0; dwb_index < l->svp_expanded_display_cfg.stream_descriptors[main_stream_index].writeback.active_writebacks_per_stream; dwb_index++) {
+							in_out->programming->stream_programming[main_stream_index].mcif_regs[dwb_index] = &in_out->programming->mcif_regs[total_dwb_regs_copied];
+							memset(in_out->programming->stream_programming[main_stream_index].mcif_regs[dwb_index], 0, sizeof(struct dml2_mcif_per_pipe_register_set));
+							total_dwb_regs_copied++;
+
+							dml2_core_calcs_get_per_dwb_params(&l->svp_expanded_display_cfg,
+									&core->clean_me_up.mode_lib,
+									in_out->programming->stream_programming[main_stream_index].mcif_regs[dwb_index],
+									main_stream_index,
+									dwb_index);
+						}
 
 						stream_already_populated_mask |= (0x1 << main_stream_index);
 					}

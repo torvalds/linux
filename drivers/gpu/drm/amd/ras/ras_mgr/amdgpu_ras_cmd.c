@@ -73,15 +73,6 @@ static int amdgpu_ras_trigger_error_end(struct ras_core_context *ras_core,
 	return 0;
 }
 
-static uint64_t local_addr_to_xgmi_global_addr(struct ras_core_context *ras_core,
-					   uint64_t addr)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)ras_core->dev;
-	struct amdgpu_xgmi *xgmi = &adev->gmc.xgmi;
-
-	return (addr + xgmi->physical_node_id * xgmi->node_segment_size);
-}
-
 /*
  * UMC error injection is dispatched by the RAS TA using the injection method
  * carried in struct ras_cmd_inject_error_req. Only the "coherent" methods
@@ -154,9 +145,11 @@ static int amdgpu_ras_inject_error(struct ras_core_context *ras_core,
 				return RAS_CMD__ERROR_INVALID_INPUT_DATA;
 			}
 
-			/* Calculate XGMI relative offset */
-			if (adev->gmc.xgmi.num_physical_nodes > 1)
-				req->address = local_addr_to_xgmi_global_addr(ras_core, req->address);
+			/*
+			 * Calculate XGMI relative offset if in XGMI hive,
+			 * adapt to A+A platform with mc fb offset calculated.
+			 */
+			req->address += adev->vm_manager.vram_base_offset;
 		}
 	}
 

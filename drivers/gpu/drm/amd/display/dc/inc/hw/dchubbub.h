@@ -145,12 +145,6 @@ struct dcn_hubbub_reg_state {
 	uint32_t compbuf_ctrl;
 };
 
-struct hubbub_system_latencies {
-	uint32_t max_latency_ns;
-	uint32_t avg_latency_ns;
-	uint32_t min_latency_ns;
-};
-
 struct hubbub_urgent_latency_params {
 	uint32_t refclk_mhz;
 	uint32_t t_win_ns;
@@ -158,6 +152,12 @@ struct hubbub_urgent_latency_params {
 	uint32_t bw_factor_x1000;
 };
 
+struct hubbub;
+struct dchub_init_data;
+struct dc_dcc_surface_param;
+struct dc_surface_dcc_cap;
+union dcn_watermark_set;
+struct dml2_display_arb_regs;
 struct hubbub_funcs {
 	void (*update_dchub)(
 			struct hubbub *hubbub,
@@ -274,9 +274,11 @@ struct hubbub_funcs {
 				const struct hubbub_urgent_latency_params *params);
 		uint32_t (*get_urgent_ramp_latency_ns)(struct hubbub *hubbub,
 				uint32_t refclk_mhz);
-		void (*start_measuring_unbounded_bandwidth)(
+		void (*arm_measuring_out_of_order_bandwidth)(
 				struct hubbub *hubbub);
-		uint32_t (*get_unbounded_bandwidth_mbps)(struct hubbub *hubbub,
+		void (*start_measuring_out_of_order_bandwidth)(
+				struct hubbub *hubbub);
+		uint32_t (*get_out_of_order_bandwidth_mbps)(struct hubbub *hubbub,
 				uint32_t refclk_mhz, uint32_t *duration_ns);
 		void (*start_measuring_in_order_bandwidth)(
 				struct hubbub *hubbub);

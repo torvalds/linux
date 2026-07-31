@@ -265,7 +265,7 @@ static int aca_parse_bank_default(struct ras_core_context *ras_core,
 	ecc->bank_info.addr = bank->regs[ACA_REG_IDX__ADDR];
 
 	if (aca_check_bank_is_de(ras_core, status)) {
-		ecc->de_count = 0;
+		ecc->de_count = 1;
 	} else {
 		if (bank->ecc_type == RAS_ERR_TYPE__UE)
 			ecc->ue_count = 1;

@@ -279,6 +279,8 @@ struct dml2_per_stream_programming {
 
 	enum dml2_pstate_method uclk_pstate_method;
 
+	struct dml2_mcif_per_pipe_register_set *mcif_regs[DML2_MAX_WRITEBACK];
+
 	struct {
 		bool enabled;
 		struct dml2_stream_parameters descriptor;
@@ -436,12 +438,14 @@ struct dml2_display_cfg_programming {
 	} z8_stutter;
 
 	struct dml2_dchub_global_register_set global_regs;
+	struct dml2_mcif_global_register_set mcif_global_regs;
 
 	struct dml2_per_plane_programming plane_programming[DML2_MAX_PLANES];
 	struct dml2_per_stream_programming stream_programming[DML2_MAX_PLANES];
 
 	// Don't access this structure directly, access it through plane_programming.pipe_regs
 	struct dml2_dchub_per_pipe_register_set pipe_regs[DML2_MAX_PLANES];
+	struct dml2_mcif_per_pipe_register_set mcif_regs[DML2_MAX_WRITEBACK];
 
 	struct {
 		struct {
@@ -457,6 +461,7 @@ struct dml2_display_cfg_programming {
 			double fclk_pstate_change_us;
 			double usr_retraining_us;
 			double temp_read_or_ppt_watermark_us;
+			double writeback_temp_read_or_ppt_watermark_us;
 		} watermarks;
 
 		struct {

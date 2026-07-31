@@ -232,6 +232,7 @@ struct psp_xgmi_context {
 	struct ta_context		context;
 	struct psp_xgmi_topology_info	top_info;
 	bool				supports_extended_data;
+	bool				supports_ext_link_info;
 	uint8_t				xgmi_ta_caps;
 };
 
@@ -656,5 +657,6 @@ int amdgpu_psp_reg_program_no_ring(struct psp_context *psp, uint32_t val,
 void amdgpu_psp_debugfs_init(struct amdgpu_device *adev);
 int amdgpu_psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 			   enum psp_gfx_fw_type *type);
+int psp_set_mmhub_eco_sec_level(struct amdgpu_device *adev);
 
 #endif

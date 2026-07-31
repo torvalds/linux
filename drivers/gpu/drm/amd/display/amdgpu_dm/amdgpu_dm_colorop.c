@@ -31,7 +31,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_dm_colorop.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "dc.h"
 
 const u64 amdgpu_dm_supported_degam_tfs =

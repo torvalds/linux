@@ -596,6 +596,7 @@ static bool radeon_read_disabled_bios(struct radeon_device *rdev)
 		return legacy_read_disabled_bios(rdev);
 }
 
+#ifdef CONFIG_ACPI
 /**
  * radeon_acpi_vfct_match() - Check if a VFCT entry matches the device
  * @rdev: Radeon device
@@ -635,7 +636,6 @@ static int radeon_acpi_vfct_match(struct radeon_device *rdev,
 	return 0;
 }
 
-#ifdef CONFIG_ACPI
 static bool radeon_acpi_vfct_bios(struct radeon_device *rdev)
 {
 	struct acpi_table_header *hdr;

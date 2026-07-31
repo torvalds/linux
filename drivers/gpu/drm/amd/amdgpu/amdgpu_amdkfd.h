@@ -286,6 +286,7 @@ int amdgpu_amdkfd_reset_mes_queue(struct amdgpu_device *adev,
 				  int queue_type,
 				  int pipe, int queue,
 				  unsigned int db);
+int amdgpu_amdkfd_evict_svm_bo(struct amdgpu_bo *bo);
 
 /* Read user wptr from a specified user address space with page fault
  * disabled. The memory must be pinned and mapped to the hardware when

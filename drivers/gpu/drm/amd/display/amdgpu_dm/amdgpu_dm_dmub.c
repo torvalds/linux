@@ -38,7 +38,7 @@
 #include "amdgpu_ucode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_dmub.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include <linux/component.h>
 #include <linux/firmware.h>
 
@@ -385,7 +385,7 @@ dm_dmub_send_vbios_gpint_command(struct amdgpu_device *adev,
 	return DMUB_STATUS_TIMEOUT;
 }
 
-static void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
+STATIC_IFN_KUNIT void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev)
 {
 	void *bb;
 	long long addr;
@@ -440,6 +440,7 @@ free_bb:
 	return NULL;
 
 }
+EXPORT_IF_KUNIT(dm_dmub_get_vbios_bounding_box);
 
 enum dmub_ips_disable_type dm_get_default_ips_mode(
 	struct amdgpu_device *adev)
@@ -829,8 +830,9 @@ out:
 	mutex_unlock(&adev->dm.dpia_aux_lock);
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_process_dmub_aux_transfer_sync);
 
-static void abort_fused_io(
+STATIC_IFN_KUNIT void abort_fused_io(
 		struct dc_context *ctx,
 		const struct dmub_cmd_fused_request *request
 )
@@ -844,6 +846,7 @@ static void abort_fused_io(
 	io->request = *request;
 	dm_execute_dmub_cmd(ctx, &command, DM_DMUB_WAIT_TYPE_NO_WAIT);
 }
+EXPORT_IF_KUNIT(abort_fused_io);
 
 static bool execute_fused_io(
 		struct amdgpu_device *dev,
@@ -931,6 +934,7 @@ int amdgpu_dm_process_dmub_set_config_sync(
 	mutex_unlock(&adev->dm.dpia_aux_lock);
 	return ret;
 }
+EXPORT_IF_KUNIT(amdgpu_dm_process_dmub_set_config_sync);
 
 bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
 {
@@ -939,6 +943,7 @@ bool dm_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd, e
 	guard(spinlock_irqsave)(&adev->dm.dmub_lock);
 	return dc_dmub_srv_cmd_run(ctx->dmub_srv, cmd, wait_type);
 }
+EXPORT_IF_KUNIT(dm_execute_dmub_cmd);
 
 bool dm_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
 {

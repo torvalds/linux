@@ -39,6 +39,7 @@
 #if IS_ENABLED(CONFIG_HSA_AMD)
 #include "kfd_priv.h"
 #endif
+#include "kfd_svm.h"
 
 /* Total memory size in system memory and all GPU VRAM. Used to
  * estimate worst case amount of memory to reserve for page tables
@@ -711,7 +712,8 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 		goto err;
 	}
 
-	ret = amdgpu_job_alloc(adev, NULL, NULL, NULL, 1, &job, 0);
+	ret = amdgpu_job_alloc(adev, NULL, NULL, NULL, 1, 0, GFP_KERNEL,
+			       &job);
 	if (ret)
 		goto err;
 
@@ -970,4 +972,25 @@ int amdgpu_amdkfd_reset_mes_queue(struct amdgpu_device *adev,
 
 	return kgd2kfd_reset_mes_queue(adev->kfd.dev, node_id, queue_type,
 				       pipe, queue, db);
+}
+
+int amdgpu_amdkfd_evict_svm_bo(struct amdgpu_bo *bo)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	int r = 0;
+
+	dma_resv_iter_begin(&cursor, bo->tbo.base.resv, DMA_RESV_USAGE_BOOKKEEP);
+	dma_resv_for_each_fence_unlocked(&cursor, fence) {
+		struct amdgpu_amdkfd_fence *f = to_amdgpu_amdkfd_fence(fence);
+
+		if (f && f->svm_bo) {
+			r = svm_range_evict_svm_bo(f->svm_bo);
+			if (r)
+				break;
+		}
+	}
+	dma_resv_iter_end(&cursor);
+
+	return r;
 }

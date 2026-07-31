@@ -4325,8 +4325,7 @@ bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
 
 static bool planes_changed_for_existing_stream(struct dc_state *context,
 					       struct dc_stream_state *stream,
-					       const struct dc_validation_set set[],
-					       unsigned int set_count)
+					       const struct dc_validation_set *set)
 {
 	unsigned int i, j;
 	struct dc_stream_status *stream_status = NULL;
@@ -4343,18 +4342,18 @@ static bool planes_changed_for_existing_stream(struct dc_state *context,
 		return false;
 	}
 
-	for (i = 0; i < set_count; i++)
-		if (set[i].stream == stream)
+	for (i = 0; i < set->stream_count; i++)
+		if (set->streams[i].stream == stream)
 			break;
 
-	if (i == set_count)
+	if (i == set->stream_count)
 		ASSERT(0);
 
-	if (set[i].plane_count != stream_status->plane_count)
+	if (set->streams[i].plane_count != stream_status->plane_count)
 		return true;
 
-	for (j = 0; j < set[i].plane_count; j++)
-		if (set[i].plane_states[j] != stream_status->plane_states[j])
+	for (j = 0; j < set->streams[i].plane_count; j++)
+		if (set->streams[i].plane_states[j] != stream_status->plane_states[j])
 			return true;
 
 	return false;
@@ -4363,34 +4362,66 @@ static bool planes_changed_for_existing_stream(struct dc_state *context,
 static bool add_all_planes_for_stream(
 		const struct dc *dc,
 		struct dc_stream_state *stream,
-		const struct dc_validation_set set[],
-		unsigned int set_count,
+		const struct dc_validation_set *set,
 		struct dc_state *state)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < set_count; i++)
-		if (set[i].stream == stream)
+	for (i = 0; i < set->stream_count; i++)
+		if (set->streams[i].stream == stream)
 			break;
 
-	if (i == set_count) {
+	if (i == set->stream_count) {
 		dm_error("Stream %p not found in set!\n", stream);
 		return false;
 	}
 
-	for (j = 0; j < set[i].plane_count; j++)
-		if (!dc_state_add_plane(dc, stream, set[i].plane_states[j], state))
+	for (j = 0; j < set->streams[i].plane_count; j++)
+		if (!dc_state_add_plane(dc, stream, set->streams[i].plane_states[j], state))
 			return false;
 
 	return true;
 }
 
 /**
+ * resource_validate_probe_set - Validate a probe descriptor set against the ASIC.
+ * @dc:          DC instance providing the HWSS capability hooks
+ * @probes:      desired probe descriptors
+ * @probe_count: number of valid entries in @probes
+ *
+ * Return: DC_OK if achievable, otherwise a DC error.
+ */
+enum dc_status resource_validate_probe_set(struct dc *dc,
+		const struct dc_probe_state *probes,
+		uint8_t probe_count)
+{
+	uint8_t i;
+
+	if (probe_count == 0)
+		return DC_OK;
+
+	if (!dc->hwss.program_perfmon)
+		return DC_NOT_SUPPORTED;
+
+	if (probe_count > MAX_PROBES)
+		return DC_NOT_SUPPORTED;
+
+	for (i = 0; i < probe_count; i++) {
+		if (probes[i].target_state == DC_PROBE_MEASURING)
+			return DC_NOT_SUPPORTED;
+
+		if (probes[i].scope.type != DC_PROBE_SCOPE_GLOBAL)
+			return DC_NOT_SUPPORTED;
+	}
+
+	return DC_OK;
+}
+
+/**
  * dc_validate_with_context - Validate and update the potential new stream in the context object
  *
  * @dc: Used to get the current state status
- * @set: An array of dc_validation_set with all the current streams reference
- * @set_count: Total of streams
+ * @set: Root validation object holding all streams and their planes
  * @context: New context
  * @validate_mode: identify the validation mode
  *
@@ -4404,8 +4435,7 @@ static bool add_all_planes_for_stream(
  * In case of success, return DC_OK (1), otherwise, return a DC error.
  */
 enum dc_status dc_validate_with_context(struct dc *dc,
-					const struct dc_validation_set set[],
-					unsigned int set_count,
+					const struct dc_validation_set *set,
 					struct dc_state *context,
 					enum dc_validate_mode validate_mode)
 {
@@ -4426,8 +4456,8 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	for (i = 0; i < old_stream_count; i++) {
 		struct dc_stream_state *stream = context->streams[i];
 
-		for (j = 0; j < set_count; j++) {
-			if (stream == set[j].stream) {
+		for (j = 0; j < set->stream_count; j++) {
+			if (stream == set->streams[j].stream) {
 				found = true;
 				break;
 			}
@@ -4440,8 +4470,8 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	}
 
 	/* Second, build a list of new streams */
-	for (i = 0; i < set_count; i++) {
-		struct dc_stream_state *stream = set[i].stream;
+	for (i = 0; i < set->stream_count; i++) {
+		struct dc_stream_state *stream = set->streams[i].stream;
 
 		for (j = 0; j < old_stream_count; j++) {
 			if (stream == context->streams[j]) {
@@ -4459,10 +4489,10 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	/* Build a list of unchanged streams which is necessary for handling
 	 * planes change such as added, removed, and updated.
 	 */
-	for (i = 0; i < set_count; i++) {
+	for (i = 0; i < set->stream_count; i++) {
 		/* Check if stream is part of the delete list */
 		for (j = 0; j < del_streams_count; j++) {
-			if (set[i].stream == del_streams[j]) {
+			if (set->streams[i].stream == del_streams[j]) {
 				found = true;
 				break;
 			}
@@ -4471,7 +4501,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		if (!found) {
 			/* Check if stream is part of the add list */
 			for (j = 0; j < add_streams_count; j++) {
-				if (set[i].stream == add_streams[j]) {
+				if (set->streams[i].stream == add_streams[j]) {
 					found = true;
 					break;
 				}
@@ -4479,7 +4509,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		}
 
 		if (!found)
-			unchanged_streams[unchanged_streams_count++] = set[i].stream;
+			unchanged_streams[unchanged_streams_count++] = set->streams[i].stream;
 
 		found = false;
 	}
@@ -4488,8 +4518,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	for (i = 0; i < unchanged_streams_count; i++) {
 		if (planes_changed_for_existing_stream(context,
 						       unchanged_streams[i],
-						       set,
-						       set_count)) {
+						       set)) {
 
 			if (!dc_state_rem_all_planes_for_stream(dc,
 							  unchanged_streams[i],
@@ -4557,7 +4586,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		if (res != DC_OK)
 			goto fail;
 
-		if (!add_all_planes_for_stream(dc, add_streams[i], set, set_count, context)) {
+		if (!add_all_planes_for_stream(dc, add_streams[i], set, context)) {
 			res = DC_FAIL_ATTACH_SURFACES;
 			goto fail;
 		}
@@ -4567,9 +4596,8 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	for (i = 0; i < unchanged_streams_count; i++) {
 		if (planes_changed_for_existing_stream(context,
 						       unchanged_streams[i],
-						       set,
-						       set_count)) {
-			if (!add_all_planes_for_stream(dc, unchanged_streams[i], set, set_count, context)) {
+						       set)) {
+			if (!add_all_planes_for_stream(dc, unchanged_streams[i], set, context)) {
 				res = DC_FAIL_ATTACH_SURFACES;
 				goto fail;
 			}
@@ -4759,6 +4787,10 @@ enum dc_status dc_validate_global_state(
 
 	if (result == DC_OK)
 		result = dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, validate_mode);
+
+	if (result == DC_OK)
+		result = resource_validate_probe_set(dc, new_ctx->probes,
+				(uint8_t)new_ctx->probe_count);
 
 	return result;
 }

@@ -328,12 +328,6 @@ static void dm_test_get_plane_modifiers(struct kunit *test)
 	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, adev);
 
-	adev->family = AMDGPU_FAMILY_SI;
-	KUNIT_EXPECT_EQ(test,
-			amdgpu_dm_plane_get_plane_modifiers(adev, DRM_PLANE_TYPE_PRIMARY, &mods),
-			0);
-	KUNIT_EXPECT_PTR_EQ(test, mods, NULL);
-
 	adev->family = AMDGPU_FAMILY_NV;
 	KUNIT_ASSERT_EQ(test,
 			amdgpu_dm_plane_get_plane_modifiers(adev, DRM_PLANE_TYPE_CURSOR, &mods),
@@ -410,62 +404,6 @@ static void dm_test_get_min_max_dc_plane_scaling(struct kunit *test)
 	amdgpu_dm_plane_get_min_max_dc_plane_scaling(&adev->ddev, fb, &min_downscale, &max_upscale);
 	KUNIT_EXPECT_EQ(test, min_downscale, 250);
 	KUNIT_EXPECT_EQ(test, max_upscale, 1600);
-}
-
-/**
- * dm_test_fill_plane_buffer_attributes_gfx8() - Verify graphics path and GFX8 tiling fill.
- * @test: KUnit test context.
- *
- * Verify if GFX8 plane buffer attributes and tiling fields are filled correctly.
- */
-static void dm_test_fill_plane_buffer_attributes_gfx8(struct kunit *test)
-{
-	struct amdgpu_device *adev;
-	struct amdgpu_framebuffer *afb;
-	struct dc_tiling_info *tiling_info;
-	struct plane_size *plane_size;
-	struct dc_plane_dcc_param *dcc;
-	struct dc_plane_address *address;
-	uint64_t tiling_flags = 0;
-	int ret;
-
-	adev = kunit_kzalloc(test, sizeof(*adev), GFP_KERNEL);
-	afb = kunit_kzalloc(test, sizeof(*afb), GFP_KERNEL);
-	tiling_info = kunit_kzalloc(test, sizeof(*tiling_info), GFP_KERNEL);
-	plane_size = kunit_kzalloc(test, sizeof(*plane_size), GFP_KERNEL);
-	dcc = kunit_kzalloc(test, sizeof(*dcc), GFP_KERNEL);
-	address = kunit_kzalloc(test, sizeof(*address), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, adev);
-	KUNIT_ASSERT_NOT_NULL(test, afb);
-	KUNIT_ASSERT_NOT_NULL(test, tiling_info);
-	KUNIT_ASSERT_NOT_NULL(test, plane_size);
-	KUNIT_ASSERT_NOT_NULL(test, dcc);
-	KUNIT_ASSERT_NOT_NULL(test, address);
-
-	adev->family = AMDGPU_FAMILY_SI;
-	afb->address = 0x12345000ULL;
-	afb->base.width = 1920;
-	afb->base.height = 1080;
-	afb->base.offsets[0] = 0x1000;
-	afb->base.pitches[0] = 7680;
-	afb->base.format = drm_format_info(DRM_FORMAT_XRGB8888);
-	KUNIT_ASSERT_NOT_NULL(test, afb->base.format);
-
-	tiling_flags |= AMDGPU_TILING_SET(ARRAY_MODE, DC_ARRAY_1D_TILED_THIN1);
-	tiling_flags |= AMDGPU_TILING_SET(PIPE_CONFIG, 5);
-
-	ret = amdgpu_dm_plane_fill_plane_buffer_attributes(adev, afb,
-		SURFACE_PIXEL_FORMAT_GRPH_ARGB8888, ROTATION_ANGLE_0,
-		tiling_flags, tiling_info, plane_size, dcc, address, true);
-
-	KUNIT_EXPECT_EQ(test, ret, 0);
-	KUNIT_EXPECT_EQ(test, plane_size->surface_size.width, 1920);
-	KUNIT_EXPECT_EQ(test, plane_size->surface_size.height, 1080);
-	KUNIT_EXPECT_EQ(test, plane_size->surface_pitch, 1920);
-	KUNIT_EXPECT_EQ(test, address->type, (int)PLN_ADDR_TYPE_GRAPHICS);
-	KUNIT_EXPECT_TRUE(test, address->tmz_surface);
-	KUNIT_EXPECT_EQ(test, (int)tiling_info->gfx8.array_mode, (int)DC_ARRAY_1D_TILED_THIN1);
-	KUNIT_EXPECT_EQ(test, tiling_info->gfx8.pipe_config, 5U);
 }
 
 /**
@@ -999,86 +937,6 @@ static void dm_test_add_modifier_noop_when_mods_null(struct kunit *test)
 }
 
 /**
- * dm_test_fill_gfx8_tiling_info_2d_tiled() - Verify GFX8 2D tiled flag parsing.
- * @test: KUnit test context.
- *
- * Verify if 2D tiled GFX8 flags populate expected tiling fields.
- */
-static void dm_test_fill_gfx8_tiling_info_2d_tiled(struct kunit *test)
-{
-	struct dc_tiling_info tiling_info = {0};
-	uint64_t tiling_flags = 0;
-
-	tiling_flags |= AMDGPU_TILING_SET(ARRAY_MODE, DC_ARRAY_2D_TILED_THIN1);
-	tiling_flags |= AMDGPU_TILING_SET(BANK_WIDTH, 2);
-	tiling_flags |= AMDGPU_TILING_SET(BANK_HEIGHT, 1);
-	tiling_flags |= AMDGPU_TILING_SET(MACRO_TILE_ASPECT, 3);
-	tiling_flags |= AMDGPU_TILING_SET(TILE_SPLIT, 4);
-	tiling_flags |= AMDGPU_TILING_SET(NUM_BANKS, 2);
-	tiling_flags |= AMDGPU_TILING_SET(PIPE_CONFIG, 7);
-
-	amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(&tiling_info, tiling_flags);
-
-	KUNIT_EXPECT_EQ(test, (int)tiling_info.gfxversion, (int)DcGfxVersion8);
-	KUNIT_EXPECT_EQ(test, (int)tiling_info.gfx8.array_mode, (int)DC_ARRAY_2D_TILED_THIN1);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.bank_width, 2U);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.bank_height, 1U);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.tile_aspect, 3U);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.tile_split, 4U);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.num_banks, 2U);
-	KUNIT_EXPECT_EQ(test, (int)tiling_info.gfx8.tile_mode,
-			(int)DC_ADDR_SURF_MICRO_TILING_DISPLAY);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.pipe_config, 7U);
-}
-
-/**
- * dm_test_fill_gfx8_tiling_info_1d_tiled() - Verify GFX8 1D tiled flag parsing.
- * @test: KUnit test context.
- *
- * Verify if 1D tiled GFX8 flags populate array mode and pipe config.
- */
-static void dm_test_fill_gfx8_tiling_info_1d_tiled(struct kunit *test)
-{
-	struct dc_tiling_info tiling_info = {0};
-	uint64_t tiling_flags = 0;
-
-	tiling_flags |= AMDGPU_TILING_SET(ARRAY_MODE, DC_ARRAY_1D_TILED_THIN1);
-	tiling_flags |= AMDGPU_TILING_SET(PIPE_CONFIG, 5);
-
-	amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(&tiling_info, tiling_flags);
-
-	KUNIT_EXPECT_EQ(test, (int)tiling_info.gfx8.array_mode, (int)DC_ARRAY_1D_TILED_THIN1);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.pipe_config, 5U);
-}
-
-/**
- * dm_test_fill_gfx8_tiling_info_other_mode() - Verify non-1D/non-2D mode handling.
- * @test: KUnit test context.
- *
- * Verify if unsupported array mode keeps preset fields and updates pipe config.
- */
-static void dm_test_fill_gfx8_tiling_info_other_mode(struct kunit *test)
-{
-	struct dc_tiling_info tiling_info = {0};
-	uint64_t tiling_flags = 0;
-
-	tiling_info.gfxversion = 0x7f;
-	tiling_info.gfx8.array_mode = 0x7f;
-	tiling_info.gfx8.tile_mode = 0x7f;
-	tiling_info.gfx8.num_banks = 0x7f;
-
-	tiling_flags |= AMDGPU_TILING_SET(PIPE_CONFIG, 6);
-
-	amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags(&tiling_info, tiling_flags);
-
-	KUNIT_EXPECT_EQ(test, tiling_info.gfxversion, 0x7f);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.array_mode, 0x7f);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.tile_mode, 0x7f);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.num_banks, 0x7f);
-	KUNIT_EXPECT_EQ(test, tiling_info.gfx8.pipe_config, 6U);
-}
-
-/**
  * dm_test_fill_gfx9_tiling_info_from_device_pre_10_3() - Verify GFX9 field copy before 10.3.
  * @test: KUnit test context.
  *
@@ -1405,7 +1263,7 @@ static int dm_test_plane_attrs(struct amdgpu_device *adev,
 			       struct dc_plane_address *address)
 {
 	return amdgpu_dm_plane_fill_plane_buffer_attributes(adev, afb, format,
-		ROTATION_ANGLE_0, 0, tiling_info, plane_size, dcc, address,
+		ROTATION_ANGLE_0, tiling_info, plane_size, dcc, address,
 		false);
 }
 
@@ -3201,7 +3059,6 @@ static struct kunit_case amdgpu_dm_plane_test_cases[] = {
 	KUNIT_CASE(dm_test_get_min_max_dc_plane_scaling),
 	KUNIT_CASE(dm_test_get_min_max_dc_plane_scaling_fp16),
 	/* amdgpu_dm_plane_fill_plane_buffer_attributes() */
-	KUNIT_CASE(dm_test_fill_plane_buffer_attributes_gfx8),
 	KUNIT_CASE(dm_test_fill_plane_buffer_attributes_video),
 	KUNIT_CASE(dm_test_fill_plane_buffer_attributes_gfx12),
 	/* amdgpu_dm_plane_get_cursor_position() */
@@ -3251,10 +3108,6 @@ static struct kunit_case amdgpu_dm_plane_test_cases[] = {
 	KUNIT_CASE(dm_test_add_modifier_appends_value),
 	KUNIT_CASE(dm_test_add_modifier_grows_capacity),
 	KUNIT_CASE(dm_test_add_modifier_noop_when_mods_null),
-	/* amdgpu_dm_plane_fill_gfx8_tiling_info_from_flags() */
-	KUNIT_CASE(dm_test_fill_gfx8_tiling_info_2d_tiled),
-	KUNIT_CASE(dm_test_fill_gfx8_tiling_info_1d_tiled),
-	KUNIT_CASE(dm_test_fill_gfx8_tiling_info_other_mode),
 	/* amdgpu_dm_plane_fill_gfx9_tiling_info_from_device() */
 	KUNIT_CASE(dm_test_fill_gfx9_tiling_info_from_device_pre_10_3),
 	KUNIT_CASE(dm_test_fill_gfx9_tiling_info_from_device_10_3_plus),

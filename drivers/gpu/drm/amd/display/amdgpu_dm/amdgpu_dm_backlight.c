@@ -47,7 +47,7 @@
 
 #include "amdgpu_dm_trace.h"
 #include "amd_shared.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 				     int bl_idx)

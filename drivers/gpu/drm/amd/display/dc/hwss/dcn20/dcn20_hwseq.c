@@ -1019,26 +1019,30 @@ void dcn20_program_output_csc(struct dc *dc,
 	}
 }
 
-bool dcn20_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
-				const struct dc_stream_state *stream)
+bool dcn20_set_output_transfer_func(struct set_output_transfer_func_params *otf_params)
 {
-	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dpp *dpp = otf_params->dpp;
+	struct mpc *mpc = otf_params->mpc;
+	int mpcc_id = otf_params->mpcc_id;
+	bool is_top_pipe = otf_params->is_top_pipe;
+	const struct dc_stream_state *stream = otf_params->stream;
+	struct dc *dc = dpp->ctx->dc;
 	const struct pwl_params *params = NULL;
+
 	/*
 	 * program OGAM only for the top pipe
 	 * if there is a pipe split then fix diagnostic is required:
 	 * how to pass OGAM parameter for stream.
 	 * if programming for all pipes is required then remove condition
-	 * pipe_ctx->top_pipe == NULL ,but then fix the diagnostic.
+	 * is_top_pipe ,but then fix the diagnostic.
 	 */
 	if (mpc->funcs->power_on_mpc_mem_pwr)
 		mpc->funcs->power_on_mpc_mem_pwr(mpc, mpcc_id, true);
-	if (pipe_ctx->top_pipe == NULL
+	if (is_top_pipe
 			&& mpc->funcs->set_output_gamma) {
 		if (stream->out_transfer_func.type == TF_TYPE_HWPWL)
 			params = &stream->out_transfer_func.pwl;
-		else if (pipe_ctx->stream->out_transfer_func.type ==
+		else if (stream->out_transfer_func.type ==
 			TF_TYPE_DISTRIBUTED_POINTS &&
 			cm_helper_translate_curve_to_hw_format(dc->ctx,
 			&stream->out_transfer_func,
@@ -1815,7 +1819,7 @@ void dcn20_update_dchubp_dpp(
 			|| plane_state->update_bits.gamut_remap_change
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
 		/* dpp/cm gamut remap*/
-		dc->hwss.program_gamut_remap(pipe_ctx);
+		hwss_program_gamut_remap(pipe_ctx);
 
 		/*call the dcn2 method which uses mpc csc*/
 		dc->hwss.program_output_csc(dc,
@@ -1991,7 +1995,7 @@ static void dcn20_program_pipe(
 	if (pipe_ctx->update_flags.bits.enable ||
 	    pipe_ctx->update_flags.bits.plane_changed ||
 	    pipe_ctx->stream->update_flags.bits.out_tf)
-		hws->funcs.set_output_transfer_func(dc, pipe_ctx, pipe_ctx->stream);
+		hwss_set_output_transfer_func(dc, pipe_ctx);
 
 	/* If the pipe has been enabled or has a different opp, we
 	 * should reprogram the fmt. This deals with cases where

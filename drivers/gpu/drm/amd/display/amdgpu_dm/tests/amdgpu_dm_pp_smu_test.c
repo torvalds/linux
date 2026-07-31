@@ -16,6 +16,7 @@
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_pp_smu.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
 
 /* ---- Stub DPM layer ---- */
 
@@ -2321,6 +2322,23 @@ static void dm_test_nv_get_uclk_dpm_states_fail(struct kunit *test)
 			(int)PP_SMU_RESULT_FAIL);
 }
 
+/* Tests for amdgpu_dm_smu_write_watermarks_table() */
+
+/**
+ * dm_test_smu_write_watermarks_table_default - Test watermarks table skips non-Navi1x IP versions
+ * @test: The KUnit test context
+ */
+static void dm_test_smu_write_watermarks_table_default(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+
+	/*
+	 * A zeroed adev reports DCE IP version 0, which is not one of the
+	 * Navi1x versions handled by the switch, so the function returns early.
+	 */
+	KUNIT_EXPECT_EQ(test, amdgpu_dm_smu_write_watermarks_table(adev), 0);
+}
+
 static struct kunit_case dm_pp_smu_test_cases[] = {
 	/* get_default_clock_levels */
 	KUNIT_CASE(dm_test_default_clock_levels_display),
@@ -2440,6 +2458,8 @@ static struct kunit_case dm_pp_smu_test_cases[] = {
 	KUNIT_CASE(dm_test_nv_get_uclk_dpm_states_ok),
 	KUNIT_CASE(dm_test_nv_get_uclk_dpm_states_unsupported),
 	KUNIT_CASE(dm_test_nv_get_uclk_dpm_states_fail),
+	/* amdgpu_dm_smu_write_watermarks_table */
+	KUNIT_CASE(dm_test_smu_write_watermarks_table_default),
 	{}
 };
 

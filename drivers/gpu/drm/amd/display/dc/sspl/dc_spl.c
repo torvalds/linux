@@ -9,11 +9,19 @@
 
 #define IDENTITY_RATIO(ratio) (SPL_NAMESPACE(spl_fixpt_u3d19(ratio)) == (1 << 19))
 #define MIN_VIEWPORT_SIZE 12
-
 static bool spl_is_yuv420(enum spl_pixel_format format)
 {
 	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
 		(format <= SPL_PIXEL_FORMAT_420BPP10))
+		return true;
+
+	return false;
+}
+
+static bool spl_is_yuv422(enum spl_pixel_format format)
+{
+	if ((format >= SPL_PIXEL_FORMAT_422BPP8) &&
+		(format <= SPL_PIXEL_FORMAT_422BPP12))
 		return true;
 
 	return false;
@@ -468,6 +476,12 @@ static void spl_calculate_scaling_ratios(struct spl_in *spl_in,
 	if (spl_is_yuv420(spl_in->basic_in.format)) {
 		spl_scratch->scl_data.ratios.horz_c.value /= 2;
 		spl_scratch->scl_data.ratios.vert_c.value /= 2;
+	} else if (spl_is_yuv422(spl_in->basic_in.format)) {
+		if (spl_in->basic_in.rotation == SPL_ROTATION_ANGLE_90 ||
+			spl_in->basic_in.rotation == SPL_ROTATION_ANGLE_270)
+			spl_scratch->scl_data.ratios.vert_c.value /= 2;
+		else
+			spl_scratch->scl_data.ratios.horz_c.value /= 2;
 	}
 	spl_scratch->scl_data.ratios.horz = spl_fixpt_truncate(
 			spl_scratch->scl_data.ratios.horz, 19);
@@ -612,7 +626,8 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 	struct spl_rect recout_clip_in_recout_dst;
 	struct spl_rect overlap_in_active_timing;
 	struct spl_rect odm_slice = calculate_odm_slice_in_timing_active(spl_in);
-	int vpc_div = spl_is_subsampled_format(spl_in->basic_in.format) ? 2 : 1;
+	int vp_hc_div = spl_is_subsampled_format(spl_in->basic_in.format) ? 2 : 1;
+	int vp_vc_div = spl_is_yuv420(spl_in->basic_in.format) ? 2 : 1;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 	struct spl_fixed31_32 init_adj_h = spl_fixpt_zero;
 	struct spl_fixed31_32 init_adj_v = spl_fixpt_zero;
@@ -667,6 +682,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 	if (orthogonal_rotation) {
 		spl_swap(src.width, src.height);
 		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
+		spl_swap(vp_hc_div, vp_vc_div);
 		spl_swap(init_adj_h, init_adj_v);
 	}
 
@@ -685,7 +701,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 			flip_horz_scan_dir,
 			recout_clip_in_recout_dst.x,
 			spl_scratch->scl_data.recout.width,
-			src.width / vpc_div,
+			src.width / vp_hc_div,
 			spl_scratch->scl_data.taps.h_taps_c,
 			spl_scratch->scl_data.ratios.horz_c,
 			init_adj_h,
@@ -707,7 +723,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 			flip_vert_scan_dir,
 			recout_clip_in_recout_dst.y,
 			spl_scratch->scl_data.recout.height,
-			src.height / vpc_div,
+			src.height / vp_vc_div,
 			spl_scratch->scl_data.taps.v_taps_c,
 			spl_scratch->scl_data.ratios.vert_c,
 			init_adj_v,
@@ -719,12 +735,13 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		spl_swap(spl_scratch->scl_data.viewport.width, spl_scratch->scl_data.viewport.height);
 		spl_swap(spl_scratch->scl_data.viewport_c.x, spl_scratch->scl_data.viewport_c.y);
 		spl_swap(spl_scratch->scl_data.viewport_c.width, spl_scratch->scl_data.viewport_c.height);
+		spl_swap(vp_hc_div, vp_vc_div);
 	}
 	spl_scratch->scl_data.viewport.x += src.x;
 	spl_scratch->scl_data.viewport.y += src.y;
-	SPL_ASSERT(src.x % vpc_div == 0 && src.y % vpc_div == 0);
-	spl_scratch->scl_data.viewport_c.x += src.x / vpc_div;
-	spl_scratch->scl_data.viewport_c.y += src.y / vpc_div;
+	SPL_ASSERT(src.x % vp_hc_div == 0 && src.y % vp_vc_div == 0);
+	spl_scratch->scl_data.viewport_c.x += src.x / vp_hc_div;
+	spl_scratch->scl_data.viewport_c.y += src.y / vp_vc_div;
 }
 
 static void spl_handle_3d_recout(struct spl_in *spl_in, struct spl_rect *recout)
@@ -760,6 +777,7 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 				const struct spl_scaler_data *data,
 				bool enable_isharp, bool enable_easf)
 {
+	(void)enable_easf;
 	const long long one = spl_fixpt_one.value;
 	enum spl_pixel_format pixel_format = spl_in->basic_in.format;
 
@@ -894,7 +912,8 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 static void spl_get_taps_non_adaptive_scaler(
 		struct spl_scratch *spl_scratch,
 		const struct spl_taps *in_taps,
-		bool is_subsampled)
+		bool is_horz_subsampled,
+		bool is_vert_subsampled)
 {
 	bool check_max_downscale = false;
 
@@ -959,11 +978,10 @@ static void spl_get_taps_non_adaptive_scaler(
 		spl_scratch->scl_data.taps.h_taps = 1;
 	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
 		spl_scratch->scl_data.taps.v_taps = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_horz_subsampled)
 		spl_scratch->scl_data.taps.h_taps_c = 1;
-	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_subsampled)
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_vert_subsampled)
 		spl_scratch->scl_data.taps.v_taps_c = 1;
-
 }
 
 /* Calculate optimal number of taps */
@@ -977,12 +995,13 @@ static bool spl_get_optimal_number_of_taps(
 	unsigned int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
 	bool skip_easf          = false;
-	bool is_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
+	bool is_horz_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
+	bool is_vert_subsampled = spl_is_yuv420(spl_in->basic_in.format);
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
 		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_horz_subsampled, is_vert_subsampled);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -991,7 +1010,7 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
 	if (spl_in->scaling_quality.integer_scaling) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_horz_subsampled, is_vert_subsampled);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
@@ -1007,15 +1026,15 @@ static bool spl_get_optimal_number_of_taps(
 	 * taps = 4 for upscaling
 	 */
 	if (skip_easf) {
-		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_subsampled);
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps, is_horz_subsampled, is_vert_subsampled);
 	}
 	else {
-		if (spl_is_video_format(spl_in->basic_in.format)) {
+		if (spl_is_subsampled_format(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
 			spl_scratch->scl_data.taps.h_taps_c = 4;
 			spl_scratch->scl_data.taps.v_taps_c = 4;
-		} else { /* RGB */
+		} else { /* RGB / YUV444 */
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
 			spl_scratch->scl_data.taps.h_taps_c = 6;
@@ -1149,10 +1168,10 @@ static bool spl_get_optimal_number_of_taps(
 			(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))) {
 			spl_scratch->scl_data.taps.h_taps = 1;
 			spl_scratch->scl_data.taps.v_taps = 1;
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_horz_subsampled)
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_subsampled)
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_vert_subsampled)
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 
 			*enable_easf_v = false;
@@ -1166,11 +1185,11 @@ static bool spl_get_optimal_number_of_taps(
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert)))
 				spl_scratch->scl_data.taps.v_taps = 1;
 
-			if ((!*enable_easf_h) && !is_subsampled &&
+			if ((!*enable_easf_h) && !is_horz_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c)))
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if ((!*enable_easf_v) && !is_subsampled &&
+			if ((!*enable_easf_v) && !is_vert_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c)))
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 
@@ -1693,6 +1712,7 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 		const struct spl_scaler_data *data, struct spl_fixed31_32 ratio,
 		enum system_setup setup, enum scale_to_sharpness_policy scale_to_sharpness_policy)
 {
+	(void)format;
 	/* Turn off sharpener if not required */
 	if (!enable_isharp) {
 		dscl_prog_data->isharp_en = 0;
@@ -1823,6 +1843,144 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	SPL_NAMESPACE(spl_set_blur_scale_data(dscl_prog_data, data));
 }
 
+static void determine_upsp_values(struct spl_in *spl_in, struct dscl_prog_data *dscl_prog_data)
+{
+	dscl_prog_data->upsp_mode = spl_in->upsp_mode;
+
+	if (dscl_prog_data->upsp_mode == UPSP_BYPASS) { //Set all UPSP register fields to 0 if bypass
+		dscl_prog_data->upsp_v_num_taps = UPSP_2_TAPS;
+		dscl_prog_data->upsp_h_num_taps = UPSP_2_TAPS;
+		dscl_prog_data->upsp_boundary_mode = UPSP_BOUNDARY_EDGE;
+		dscl_prog_data->upsp_v_init_int = 0x0;
+		dscl_prog_data->upsp_v_init_frac = 0x0;
+		dscl_prog_data->upsp_v_coef_tap0_p0 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap1_p0 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap2_p0 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap3_p0 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap0_p1 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap1_p1 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap2_p1 = 0x0;
+		dscl_prog_data->upsp_v_coef_tap3_p1 = 0x0;
+		dscl_prog_data->upsp_h_init_int = 0x0;
+		dscl_prog_data->upsp_h_init_frac = 0x0;
+		dscl_prog_data->upsp_h_coef_tap0_p0 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap1_p0 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap2_p0 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap3_p0 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap0_p1 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap1_p1 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap2_p1 = 0x0;
+		dscl_prog_data->upsp_h_coef_tap3_p1 = 0x0;
+		dscl_prog_data->upsp_clamp_max = 0x0;
+		dscl_prog_data->upsp_clamp_min = 0x0;
+	} else {
+		dscl_prog_data->upsp_v_num_taps = UPSP_4_TAPS;
+		dscl_prog_data->upsp_h_num_taps = UPSP_4_TAPS;
+		dscl_prog_data->upsp_boundary_mode = UPSP_BOUNDARY_EDGE;
+		dscl_prog_data->upsp_clamp_max = 0xFFF;//4095
+		dscl_prog_data->upsp_clamp_min = 0x0;
+
+		if (spl_in->basic_in.cositing == CHROMA_COSITING_TOPLEFT) { //Vertical Subsampling: Co-sited
+			if (dscl_prog_data->upsp_v_num_taps == UPSP_4_TAPS) {
+				dscl_prog_data->upsp_v_init_int = 0x3;
+				dscl_prog_data->upsp_v_init_frac = 0x0;
+				dscl_prog_data->upsp_v_coef_tap0_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap1_p0 = 0x40;
+				dscl_prog_data->upsp_v_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap0_p1 = 0xFC;
+				dscl_prog_data->upsp_v_coef_tap1_p1 = 0x24;
+				dscl_prog_data->upsp_v_coef_tap2_p1 = 0x24;
+				dscl_prog_data->upsp_v_coef_tap3_p1 = 0xFC;
+			} else { //2 taps
+				dscl_prog_data->upsp_v_init_int = 0x2;
+				dscl_prog_data->upsp_v_init_frac = 0x0;
+				dscl_prog_data->upsp_v_coef_tap0_p0 = 0x40;
+				dscl_prog_data->upsp_v_coef_tap1_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap0_p1 = 0x20;
+				dscl_prog_data->upsp_v_coef_tap1_p1 = 0x20;
+				dscl_prog_data->upsp_v_coef_tap2_p1 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap3_p1 = 0x00;
+			}
+		} else { //Vertical Subsampling: Interstitial
+			if (dscl_prog_data->upsp_v_num_taps == UPSP_4_TAPS) {
+				dscl_prog_data->upsp_v_init_int = 0x2;
+				dscl_prog_data->upsp_v_init_frac = 0x1;
+				dscl_prog_data->upsp_v_coef_tap0_p0 = 0xFB;
+				dscl_prog_data->upsp_v_coef_tap1_p0 = 0x2F;
+				dscl_prog_data->upsp_v_coef_tap2_p0 = 0x19;
+				dscl_prog_data->upsp_v_coef_tap3_p0 = 0xFD;
+				dscl_prog_data->upsp_v_coef_tap0_p1 = 0xFD;
+				dscl_prog_data->upsp_v_coef_tap1_p1 = 0x19;
+				dscl_prog_data->upsp_v_coef_tap2_p1 = 0x2F;
+				dscl_prog_data->upsp_v_coef_tap3_p1 = 0xFB;
+			} else { //2 taps
+				dscl_prog_data->upsp_v_init_int = 0x1;
+				dscl_prog_data->upsp_v_init_frac = 0x1;
+				dscl_prog_data->upsp_v_coef_tap0_p0 = 0x28;
+				dscl_prog_data->upsp_v_coef_tap1_p0 = 0x18;
+				dscl_prog_data->upsp_v_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap0_p1 = 0x18;
+				dscl_prog_data->upsp_v_coef_tap1_p1 = 0x28;
+				dscl_prog_data->upsp_v_coef_tap2_p1 = 0x00;
+				dscl_prog_data->upsp_v_coef_tap3_p1 = 0x00;
+			}
+		}
+		if (spl_in->basic_in.cositing == CHROMA_COSITING_LEFT || spl_in->basic_in.cositing == CHROMA_COSITING_TOPLEFT) { //Horizontal Subsampling: Co-sited
+			if (dscl_prog_data->upsp_h_num_taps == UPSP_4_TAPS) {
+				dscl_prog_data->upsp_h_init_int = 0x3;
+				dscl_prog_data->upsp_h_init_frac = 0x0;
+				dscl_prog_data->upsp_h_coef_tap0_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap1_p0 = 0x40;
+				dscl_prog_data->upsp_h_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap0_p1 = 0xFC;
+				dscl_prog_data->upsp_h_coef_tap1_p1 = 0x24;
+				dscl_prog_data->upsp_h_coef_tap2_p1 = 0x24;
+				dscl_prog_data->upsp_h_coef_tap3_p1 = 0xFC;
+			} else { //2 taps
+				dscl_prog_data->upsp_h_init_int = 0x2;
+				dscl_prog_data->upsp_h_init_frac = 0x0;
+				dscl_prog_data->upsp_h_coef_tap0_p0 = 0x40;
+				dscl_prog_data->upsp_h_coef_tap1_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap0_p1 = 0x20;
+				dscl_prog_data->upsp_h_coef_tap1_p1 = 0x20;
+				dscl_prog_data->upsp_h_coef_tap2_p1 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap3_p1 = 0x00;
+			}
+		} else { //Horizontal Subsampling: Interstitial
+			if (dscl_prog_data->upsp_h_num_taps == UPSP_4_TAPS) {
+				dscl_prog_data->upsp_h_init_int = 0x2;
+				dscl_prog_data->upsp_h_init_frac = 0x1;
+				dscl_prog_data->upsp_h_coef_tap0_p0 = 0xFB;
+				dscl_prog_data->upsp_h_coef_tap1_p0 = 0x2F;
+				dscl_prog_data->upsp_h_coef_tap2_p0 = 0x19;
+				dscl_prog_data->upsp_h_coef_tap3_p0 = 0xFD;
+				dscl_prog_data->upsp_h_coef_tap0_p1 = 0xFD;
+				dscl_prog_data->upsp_h_coef_tap1_p1 = 0x19;
+				dscl_prog_data->upsp_h_coef_tap2_p1 = 0x2F;
+				dscl_prog_data->upsp_h_coef_tap3_p1 = 0xFB;
+			} else { //2 taps
+				dscl_prog_data->upsp_h_init_int = 0x1;
+				dscl_prog_data->upsp_h_init_frac = 0x1;
+				dscl_prog_data->upsp_h_coef_tap0_p0 = 0x28;
+				dscl_prog_data->upsp_h_coef_tap1_p0 = 0x18;
+				dscl_prog_data->upsp_h_coef_tap2_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap3_p0 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap0_p1 = 0x18;
+				dscl_prog_data->upsp_h_coef_tap1_p1 = 0x28;
+				dscl_prog_data->upsp_h_coef_tap2_p1 = 0x00;
+				dscl_prog_data->upsp_h_coef_tap3_p1 = 0x00;
+			}
+		}
+	}
+}
+
 /* Calculate recout, scaling ratio, and viewport, then get optimal number of taps */
 static bool spl_calculate_number_of_taps(struct spl_in *spl_in, struct spl_scratch *spl_scratch, struct spl_out *spl_out,
 	bool *enable_easf_v, bool *enable_easf_h, bool *enable_isharp)
@@ -1864,6 +2022,8 @@ bool SPL_NAMESPACE(spl_calculate_scaler_params(struct spl_in *spl_in, struct spl
 	enum system_setup setup;
 	bool enable_isharp = false;
 	const struct spl_scaler_data *data = &spl_scratch.scl_data;
+
+	determine_upsp_values(spl_in, spl_out->dscl_prog_data);
 
 	res = spl_calculate_number_of_taps(spl_in, &spl_scratch, spl_out,
 		&enable_easf_v, &enable_easf_h, &enable_isharp);

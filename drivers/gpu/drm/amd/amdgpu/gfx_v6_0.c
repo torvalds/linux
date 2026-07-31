@@ -347,7 +347,8 @@ static int gfx_v6_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_HAINAN:
 		chip_name = "hainan";
 		break;
-	default: BUG();
+	default:
+		return -EINVAL;
 	}
 
 	err = amdgpu_ucode_request(adev, &adev->gfx.pfp_fw,
@@ -1736,8 +1737,8 @@ static void gfx_v6_0_constants_init(struct amdgpu_device *adev)
 		gb_addr_config = HAINAN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:
-		BUG();
-		break;
+		dev_warn(adev->dev, "Unsupported asic_type 0x%08x\n", adev->asic_type);
+		return;
 	}
 
 	WREG32(mmGRBM_CNTL, (0xff << GRBM_CNTL__READ_TIMEOUT__SHIFT));
@@ -2202,7 +2203,7 @@ static u64 gfx_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 	else if (ring == &adev->gfx.compute_ring[1])
 		return RREG32(mmCP_RB2_WPTR);
 	else
-		BUG();
+		return 0;
 }
 
 static void gfx_v6_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
@@ -2223,8 +2224,6 @@ static void gfx_v6_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	} else if (ring == &adev->gfx.compute_ring[1]) {
 		WREG32(mmCP_RB2_WPTR, lower_32_bits(ring->wptr));
 		(void)RREG32(mmCP_RB2_WPTR);
-	} else {
-		BUG();
 	}
 
 }
@@ -3310,7 +3309,6 @@ static void gfx_v6_0_set_compute_eop_interrupt_state(struct amdgpu_device *adev,
 		}
 
 	default:
-		BUG();
 		break;
 
 	}

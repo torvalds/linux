@@ -68,8 +68,8 @@ svm_migrate_gart_map(struct amdgpu_ring *ring,
 				     AMDGPU_FENCE_OWNER_UNDEFINED,
 				     num_dw * 4 + num_bytes,
 				     AMDGPU_IB_POOL_DELAYED,
-				     &job,
-				     AMDGPU_KERNEL_JOB_ID_KFD_GART_MAP);
+				     AMDGPU_KERNEL_JOB_ID_KFD_GART_MAP,
+				     &job);
 	if (r)
 		return r;
 

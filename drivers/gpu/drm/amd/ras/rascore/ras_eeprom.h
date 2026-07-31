@@ -36,10 +36,10 @@
 
 /*
  * Bad address pfn : eeprom_umc_record.retired_row_pfn[39:0],
- * nps mode: eeprom_umc_record.retired_row_pfn[47:40]
+ * nps mode: eeprom_umc_record.retired_row_pfn[46:40]
  */
 #define EEPROM_RECORD_UMC_ADDR_MASK 0xFFFFFFFFFFULL
-#define EEPROM_RECORD_UMC_NPS_MASK  0xFF0000000000ULL
+#define EEPROM_RECORD_UMC_NPS_MASK  0x7F0000000000ULL
 #define EEPROM_RECORD_UMC_NPS_SHIFT 40
 
 #define EEPROM_RECORD_UMC_NPS_MODE(RECORD) \

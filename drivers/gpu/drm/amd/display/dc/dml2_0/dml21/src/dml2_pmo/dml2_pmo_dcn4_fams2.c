@@ -1710,7 +1710,7 @@ static void build_pstate_meta_per_stream(struct dml2_pmo_instance *pmo,
 	/* common */
 	stream_pstate_meta->valid = true;
 	stream_pstate_meta->otg_vline_time_us = (double)timing->h_total / timing->pixel_clock_khz * 1000.0;
-	stream_pstate_meta->nom_vtotal = stream_descriptor->timing.vblank_nom + stream_descriptor->timing.v_active;
+	stream_pstate_meta->nom_vtotal = stream_descriptor->timing.v_total;
 	stream_pstate_meta->nom_refresh_rate_hz = timing->pixel_clock_khz * 1000.0 /
 			(stream_pstate_meta->nom_vtotal * timing->h_total);
 	stream_pstate_meta->nom_frame_time_us =

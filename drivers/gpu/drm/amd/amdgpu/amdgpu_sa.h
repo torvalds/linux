@@ -35,6 +35,7 @@ struct amdgpu_sa_manager {
 	struct amdgpu_bo		*bo;
 	uint64_t			gpu_addr;
 	void				*cpu_ptr;
+	gfp_t				gfp_flags;
 };
 
 static inline struct amdgpu_sa_manager *
@@ -57,7 +58,7 @@ static inline void *amdgpu_sa_bo_cpu_addr(struct drm_suballoc *sa_bo)
 
 int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 			      struct amdgpu_sa_manager *sa_manager,
-			      unsigned size, u32 align, u32 domain);
+			      unsigned size, gfp_t gfp_flags);
 void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
 			       struct amdgpu_sa_manager *sa_manager);
 int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,

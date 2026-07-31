@@ -779,6 +779,25 @@ bool dpmm_dcn4_map_mode_to_soc_dpm(struct dml2_dpmm_map_mode_to_soc_dpm_params_i
 	return result;
 }
 
+static void dpmm_dcn4_map_mcif_watermarks(struct dml2_dpmm_map_watermarks_params_in_out *in_out)
+{
+	const struct dml2_core_internal_display_mode_lib *mode_lib = &in_out->core->clean_me_up.mode_lib;
+	struct dml2_mcif_global_register_set *mcif_regs = &in_out->programming->mcif_global_regs;
+
+	/* MCIF */
+	mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A].urgent = (int unsigned)(mode_lib->mp.Watermark.WritebackUrgentWatermark * 1000.0);
+	mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A].uclk_pstate = (int unsigned)(mode_lib->mp.Watermark.WritebackDRAMClockChangeWatermark * 1000.0);
+	mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A].fclk_pstate = (int unsigned)(mode_lib->mp.Watermark.WritebackFCLKChangeWatermark * 1000.0);
+	mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A].temp_read_or_ppt = (int unsigned)(mode_lib->mp.Watermark.writeback_temp_read_or_ppt_watermark_us * 1000.0);
+
+	/* replicate sets A through D */
+	memcpy(&mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_B], &mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A], sizeof(mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A]));
+	memcpy(&mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_C], &mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A], sizeof(mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A]));
+	memcpy(&mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_D], &mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A], sizeof(mcif_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_A]));
+
+	mcif_regs->num_watermark_sets = 4;
+}
+
 bool dpmm_dcn4_map_watermarks(struct dml2_dpmm_map_watermarks_params_in_out *in_out)
 {
 	const struct dml2_display_cfg *display_cfg = &in_out->display_cfg->display_config;
@@ -820,6 +839,8 @@ bool dpmm_dcn4_map_watermarks(struct dml2_dpmm_map_watermarks_params_in_out *in_
 	dchubbub_regs->wm_regs[DML2_DCHUB_WATERMARK_SET_B].frac_urg_bw_mall = (unsigned int)(mode_lib->mp.FractionOfUrgentBandwidthMALL * 1000);
 
 	dchubbub_regs->num_watermark_sets = 2;
+
+	dpmm_dcn4_map_mcif_watermarks(in_out);
 
 	return true;
 }

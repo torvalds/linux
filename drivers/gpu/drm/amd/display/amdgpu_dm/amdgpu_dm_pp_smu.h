@@ -11,6 +11,9 @@
 struct amd_pp_display_configuration;
 struct pp_smu_wm_range_sets;
 struct dm_pp_wm_sets_with_clock_ranges_soc15;
+struct amdgpu_device;
+
+int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 void build_pm_display_cfg(struct amd_pp_display_configuration *pm_display_cfg,

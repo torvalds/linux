@@ -26,11 +26,7 @@
 #include "dm_services.h"
 #include "basics/conversion.h"
 
-#define DIVIDER 10000
 
-/* S2D13 value in [-3.00...0.9999] */
-#define S2D13_MIN (-3 * DIVIDER)
-#define S2D13_MAX (3 * DIVIDER)
 
 uint16_t fixed_point_to_int_frac(
 	struct fixed31_32 arg,
@@ -74,28 +70,44 @@ uint16_t fixed_point_to_int_frac(
 	return result;
 }
 /*
- * convert_float_matrix - This converts a double into HW register spec defined format S2D13.
+ * convert_float_matrix - This converts a double into HW register spec defined format S2D13 / S3D12.
  */
 void convert_float_matrix(
 	uint16_t *matrix,
-	struct fixed31_32 *flt,
+	const struct fixed31_32 *flt,
+	enum cm_gamut_coef_format format,
 	uint32_t buffer_size)
 {
-	const struct fixed31_32 min_2_13 =
-		dc_fixpt_from_fraction(S2D13_MIN, DIVIDER);
-	const struct fixed31_32 max_2_13 =
-		dc_fixpt_from_fraction(S2D13_MAX, DIVIDER);
+	struct fixed31_32 min;
+	struct fixed31_32 max;
+	uint8_t num_int_bits;
+	uint8_t num_dec_bits;
 	uint32_t i;
+
+	if (format == CM_GAMUT_REMAP_COEF_FORMAT_S2_13) {
+		min = dc_fixpt_from_fraction(S2D13_MIN, DIVIDER);
+		max = dc_fixpt_from_fraction(S2D13_MAX, DIVIDER);
+		num_int_bits = 2;
+		num_dec_bits = 13;
+	} else if (format == CM_GAMUT_REMAP_COEF_FORMAT_S3_12) {
+		min = dc_fixpt_from_fraction(S3D12_MIN, DIVIDER);
+		max = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
+		num_int_bits = 3;
+		num_dec_bits = 12;
+	} else {
+		ASSERT(false);
+		return;
+	}
 
 	for (i = 0; i < buffer_size; ++i) {
 		uint32_t reg_value =
 				fixed_point_to_int_frac(
 					dc_fixpt_clamp(
 						flt[i],
-						min_2_13,
-						max_2_13),
-						2,
-						13);
+						min,
+						max),
+						num_int_bits,
+						num_dec_bits);
 
 		matrix[i] = (uint16_t)reg_value;
 	}
@@ -129,10 +141,27 @@ static struct fixed31_32 int_frac_to_fixed_point(uint16_t arg,
  */
 void convert_hw_matrix(struct fixed31_32 *matrix,
 		       uint16_t *reg,
+			   enum cm_gamut_coef_format format,
 		       uint32_t buffer_size)
 {
-	for (uint32_t i = 0; i < buffer_size; ++i)
-		matrix[i] = int_frac_to_fixed_point(reg[i], 2, 13);
+	uint8_t num_int_bits;
+	uint8_t num_dec_bits;
+	uint32_t i;
+
+	if (format == CM_GAMUT_REMAP_COEF_FORMAT_S2_13) {
+		num_int_bits = 2;
+		num_dec_bits = 13;
+	} else if (format == CM_GAMUT_REMAP_COEF_FORMAT_S3_12) {
+		num_int_bits = 3;
+		num_dec_bits = 12;
+	} else {
+		ASSERT(false);
+		return;
+	}
+
+	for (i = 0; i < buffer_size; ++i)
+		matrix[i] = int_frac_to_fixed_point(reg[i],
+							num_int_bits, num_dec_bits);
 }
 
 static uint32_t find_gcd(uint32_t a, uint32_t b)

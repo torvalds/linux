@@ -36,7 +36,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_dm_trace.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 
 	unsigned long long
 	dm_get_elapse_time_in_ns(struct dc_context *ctx,
@@ -96,3 +96,56 @@ bool dm_query_extended_brightness_caps(struct dc_context *ctx,
 	return true;
 }
 EXPORT_IF_KUNIT(dm_query_extended_brightness_caps);
+
+void*
+dm_allocate_gpu_mem(
+		struct amdgpu_device *adev,
+		enum dc_gpu_mem_alloc_type type,
+		size_t size,
+		long long *addr)
+{
+	struct dal_allocation *da;
+	u32 domain = (type == DC_MEM_ALLOC_TYPE_GART) ?
+		AMDGPU_GEM_DOMAIN_GTT : AMDGPU_GEM_DOMAIN_VRAM;
+	int ret;
+
+	da = kzalloc_obj(*da);
+	if (!da)
+		return NULL;
+
+	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+				      domain, &da->bo,
+				      &da->gpu_addr, &da->cpu_ptr);
+
+	*addr = da->gpu_addr;
+
+	if (ret) {
+		kfree(da);
+		return NULL;
+	}
+
+	/* add da to list in dm */
+	list_add(&da->list, &adev->dm.da_list);
+
+	return da->cpu_ptr;
+}
+
+void
+dm_free_gpu_mem(
+		struct amdgpu_device *adev,
+		enum dc_gpu_mem_alloc_type type,
+		void *pvMem)
+{
+	struct dal_allocation *da;
+
+	/* walk the da list in DM */
+	list_for_each_entry(da, &adev->dm.da_list, list) {
+		if (pvMem == da->cpu_ptr) {
+			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
+			list_del(&da->list);
+			kfree(da);
+			break;
+		}
+	}
+
+}

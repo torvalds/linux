@@ -448,6 +448,9 @@ int kfd_reset_queue_mes(struct device_queue_manager *dqm, int queue_type,
 static int reset_queues_mes(struct device_queue_manager *dqm, struct queue *q)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)dqm->dev->adev;
+	struct drm_wedge_task_info *info = NULL;
+	struct amdgpu_task_info *ti = NULL;
+	struct kfd_process_device *pdd;
 	unsigned int num_hung = 0;
 	int r = 0;
 	struct mes_remove_queue_input queue_input;
@@ -476,13 +479,27 @@ static int reset_queues_mes(struct device_queue_manager *dqm, struct queue *q)
 	r = amdgpu_gfx_reset_mes_compute(adev, NULL, NULL, NULL, &num_hung, &queue_input);
 	if (r)
 		goto fail;
+	pdd = kfd_get_process_device_data(q->device, q->process);
+	if (pdd) {
+		ti = amdgpu_vm_get_task_info_pasid(adev, pdd->pasid);
+		if (ti) {
+			amdgpu_vm_print_task_info(adev, ti);
+			info = &ti->task;
+		}
+	}
 
 	dqm->detect_hang_count = num_hung;
 	/* When MES doesn't detect any queue hang, no reset happens. Don't signal reset
 	 * event.
 	 */
-	if (dqm->detect_hang_count)
+	if (dqm->detect_hang_count) {
 		kfd_signal_reset_event(dqm->dev);
+		if (pdd && pdd->has_reset_queue) {
+			atomic_inc(&adev->gpu_reset_counter);
+			drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE, info);
+		}
+	}
+	amdgpu_vm_put_task_info(ti);
 
 fail:
 	dqm->detect_hang_count = 0;

@@ -10,12 +10,14 @@
 
 #include "resource.h"
 #include "include/irq_service_interface.h"
+#include "basics/conversion.h"
 #include "dcn401_resource.h"
 
 #include "dcn20/dcn20_resource.h"
 #include "dcn30/dcn30_resource.h"
 #include "dcn32/dcn32_resource.h"
 #include "dcn321/dcn321_resource.h"
+#include "dcn35/dcn35_resource.h"
 
 #include "dcn10/dcn10_ipp.h"
 #include "dcn401/dcn401_hubbub.h"
@@ -58,7 +60,7 @@
 #include "dcn31/dcn31_panel_cntl.h"
 
 #include "dcn30/dcn30_dwb.h"
-#include "dcn32/dcn32_mmhubbub.h"
+#include "dcn401/dcn401_mmhubbub.h"
 
 #include "dcn/dcn_4_1_0_offset.h"
 #include "dcn/dcn_4_1_0_sh_mask.h"
@@ -435,17 +437,17 @@ static const struct dcn30_dwbc_mask dwbc401_mask = {
 };
 
 
-#define mcif_wb_regs_dcn3_init(id)\
-	MCIF_WB_COMMON_REG_LIST_DCN32_RI(id)
+#define mcif_wb_regs_dcn401_init(id) \
+	MCIF_WB_COMMON_REG_LIST_DCN4_01_RI(id)
 
-static struct dcn30_mmhubbub_registers mcif_wb30_regs[1];
+static struct dcn35_mmhubbub_registers mcif_wb401_regs[1];
 
-static const struct dcn30_mmhubbub_shift mcif_wb30_shift = {
-	MCIF_WB_COMMON_MASK_SH_LIST_DCN32(__SHIFT)
+static const struct dcn401_mmhubbub_shift mcif_wb401_shift = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN4_01(__SHIFT)
 };
 
-static const struct dcn30_mmhubbub_mask mcif_wb30_mask = {
-	MCIF_WB_COMMON_MASK_SH_LIST_DCN32(_MASK)
+static const struct dcn401_mmhubbub_mask mcif_wb401_mask = {
+	MCIF_WB_COMMON_MASK_SH_LIST_DCN4_01(_MASK)
 };
 
 #define dsc_regs_init(id)\
@@ -1704,13 +1706,13 @@ static bool dcn401_mmhubbub_create(struct dc_context *ctx, struct resource_pool 
 		}
 
 #undef REG_STRUCT
-#define REG_STRUCT mcif_wb30_regs
-		mcif_wb_regs_dcn3_init(0);
+#define REG_STRUCT mcif_wb401_regs
+		mcif_wb_regs_dcn401_init(0);
 
-		dcn32_mmhubbub_construct(mcif_wb30, ctx,
-				&mcif_wb30_regs[i],
-				&mcif_wb30_shift,
-				&mcif_wb30_mask,
+		dcn401_mmhubbub_construct(mcif_wb30, ctx,
+				&mcif_wb401_regs[i],
+				&mcif_wb401_shift,
+				&mcif_wb401_mask,
 				i);
 
 		pool->mcif_wb[i] = &mcif_wb30->base;
@@ -2130,6 +2132,7 @@ static bool dcn401_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 	dc->caps.color.mpc.preblend = true;
+	dc->caps.color.mpc.max_gamut_remap_coeff = dc_fixpt_from_fraction(S3D12_MAX, DIVIDER);
 	/* HACK: Force FRL support until BIOS is ready. */
 	dc->config.force_hdmi21_frl_enc_enable = true;
 	dc->config.use_spl = true;

@@ -8,6 +8,7 @@
 #include <kunit/test.h>
 #include <linux/module.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 
 #include "dc.h"
 #include "core_types.h"
@@ -45,23 +46,32 @@ struct dc_link *dm_kunit_alloc_link(struct kunit *test)
 }
 EXPORT_SYMBOL(dm_kunit_alloc_link);
 
-struct dc_link *dm_kunit_alloc_link_with_ctx(struct kunit *test)
+struct dc *dm_kunit_alloc_dc_with_ctx(struct kunit *test)
 {
-	struct dc_link *link;
 	struct dc_context *ctx;
 	struct dc *dc;
-
-	link = dm_kunit_alloc_link(test);
-
-	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, ctx);
 
 	dc = kunit_kzalloc(test, sizeof(*dc), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, dc);
 
-	link->ctx = ctx;
-	ctx->dc = dc;
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, ctx);
+
 	dc->ctx = ctx;
+	ctx->dc = dc;
+
+	return dc;
+}
+EXPORT_SYMBOL(dm_kunit_alloc_dc_with_ctx);
+
+struct dc_link *dm_kunit_alloc_link_with_ctx(struct kunit *test)
+{
+	struct dc_link *link;
+	struct dc *dc;
+
+	link = dm_kunit_alloc_link(test);
+	dc = dm_kunit_alloc_dc_with_ctx(test);
+	link->ctx = dc->ctx;
 
 	return link;
 }
@@ -127,7 +137,7 @@ struct amdgpu_dm_connector *dm_kunit_alloc_connector(struct kunit *test,
 {
 	struct amdgpu_dm_connector *aconnector;
 
-	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	aconnector = drmm_kzalloc(adev_to_drm(adev), sizeof(*aconnector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, aconnector);
 
 	if (adev)
@@ -137,6 +147,20 @@ struct amdgpu_dm_connector *dm_kunit_alloc_connector(struct kunit *test,
 	return aconnector;
 }
 EXPORT_SYMBOL(dm_kunit_alloc_connector);
+
+struct drm_device *dm_kunit_alloc_drm_with_connector_list(struct kunit *test)
+{
+	struct drm_device *dev;
+
+	dev = kunit_kzalloc(test, sizeof(*dev), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+
+	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+	spin_lock_init(&dev->mode_config.connector_list_lock);
+
+	return dev;
+}
+EXPORT_SYMBOL(dm_kunit_alloc_drm_with_connector_list);
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_DESCRIPTION("KUnit test helpers for amdgpu_dm tests");

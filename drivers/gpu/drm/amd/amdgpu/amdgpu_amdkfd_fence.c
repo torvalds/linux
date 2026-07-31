@@ -92,7 +92,7 @@ struct amdgpu_amdkfd_fence *to_amdgpu_amdkfd_fence(struct dma_fence *f)
 		return NULL;
 
 	fence = container_of(f, struct amdgpu_amdkfd_fence, base);
-	if (f->ops == &amdkfd_fence_ops)
+	if (rcu_access_pointer(f->ops) == &amdkfd_fence_ops)
 		return fence;
 
 	return NULL;
@@ -134,9 +134,6 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	 */
 	if (!fence->svm_bo) {
 		if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, fence->context_id, f))
-			return true;
-	} else {
-		if (!svm_range_schedule_evict_svm_bo(fence))
 			return true;
 	}
 	return false;

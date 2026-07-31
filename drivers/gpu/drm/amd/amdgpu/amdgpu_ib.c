@@ -351,6 +351,30 @@ free_fence:
  */
 int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 {
+	const int sizes[AMDGPU_IB_POOL_MAX] = {
+		[AMDGPU_IB_POOL_DELAYED] = SZ_1M,
+		[AMDGPU_IB_POOL_IMMEDIATE] = SZ_128K,
+		[AMDGPU_IB_POOL_DIRECT] = SZ_512K
+	};
+	const gfp_t gfp_flags[AMDGPU_IB_POOL_MAX] = {
+		/*
+		 * For normal page table updates and recoverable retry faults
+		 * (for SVM), further restricted by the VM eviction lock to not
+		 * wait for memory reclaim.
+		 */
+		[AMDGPU_IB_POOL_DELAYED] = GFP_KERNEL,
+		/*
+		 * For redirecting unrecoverable retry faults to the dummy page
+		 * or set the PRT bits. dma_fence submissions might depend on
+		 * that so we need the emmergency reserves.
+		 */
+		[AMDGPU_IB_POOL_IMMEDIATE] = GFP_ATOMIC,
+		/*
+		 * For IB tests during GPU resets. Only very small and temporary
+		 * allocation to allow dma_fences to signal.
+		 */
+		[AMDGPU_IB_POOL_DIRECT] = GFP_ATOMIC
+	};
 	int r, i;
 
 	if (adev->ib_pool_ready)
@@ -358,8 +382,7 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++) {
 		r = amdgpu_sa_bo_manager_init(adev, &adev->ib_pools[i],
-					      AMDGPU_IB_POOL_SIZE, 256,
-					      AMDGPU_GEM_DOMAIN_GTT);
+					      sizes[i], gfp_flags[i]);
 		if (r)
 			goto error;
 	}
@@ -391,6 +414,17 @@ void amdgpu_ib_pool_fini(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++)
 		amdgpu_sa_bo_manager_fini(adev, &adev->ib_pools[i]);
 	adev->ib_pool_ready = false;
+}
+
+/**
+ * amdgpu_ib_pool_gfp_flags - Returns the gfp flags to use for each pool
+ * @adev: amdgpu device pointer
+ * @type: the IB pool type
+ */
+gfp_t amdgpu_ib_pool_gfp_flags(struct amdgpu_device *adev,
+			       enum amdgpu_ib_pool_type type)
+{
+	return adev->ib_pools[type].gfp_flags;
 }
 
 /**

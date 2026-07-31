@@ -68,8 +68,6 @@ enum amdgpu_ring_priority_level {
 
 #define to_amdgpu_ring(s) container_of((s), struct amdgpu_ring, sched)
 
-#define AMDGPU_IB_POOL_SIZE	(1024 * 1024)
-
 enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_GFX		= AMDGPU_HW_IP_GFX,
 	AMDGPU_RING_TYPE_COMPUTE	= AMDGPU_HW_IP_COMPUTE,
@@ -585,6 +583,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		       struct dma_fence **f);
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
+gfp_t amdgpu_ib_pool_gfp_flags(struct amdgpu_device *adev,
+			       enum amdgpu_ib_pool_type type);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
 bool amdgpu_ring_sched_ready(struct amdgpu_ring *ring);
 void amdgpu_ring_backup_unprocessed_commands(struct amdgpu_ring *ring,

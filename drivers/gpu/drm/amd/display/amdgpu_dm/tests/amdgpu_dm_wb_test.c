@@ -12,6 +12,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_kunit_helpers.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_writeback.h>
@@ -266,7 +267,7 @@ static void dm_test_wb_get_modes_returns_modes(struct kunit *test)
 						   DRIVER_MODESET | DRIVER_ATOMIC);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_wb_test_connector_funcs,
@@ -301,7 +302,7 @@ static void dm_test_wb_get_modes_bounded_by_max(struct kunit *test)
 						   DRIVER_MODESET | DRIVER_ATOMIC);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, drm);
 
-	connector = kunit_kzalloc(test, sizeof(*connector), GFP_KERNEL);
+	connector = drmm_kzalloc(drm, sizeof(*connector), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, connector);
 
 	drmm_connector_init(drm, connector, &dm_wb_test_connector_funcs,

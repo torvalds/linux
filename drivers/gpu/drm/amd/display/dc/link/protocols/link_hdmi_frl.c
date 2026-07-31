@@ -1090,7 +1090,7 @@ void hdmi_frl_decide_link_settings(struct dc_stream_state *stream,
 		&stream->link->frl_verified_link_cap);
 
 	if (stream->link->frl_flags.force_frl_rate != 0 &&
-		stream->link->frl_flags.force_frl_rate < stream->link->frl_verified_link_cap.frl_link_rate) {
+		stream->link->frl_flags.force_frl_rate <= stream->link->frl_verified_link_cap.frl_link_rate) {
 		switch (stream->link->frl_flags.force_frl_rate) {
 		case HDMI_FRL_LINK_RATE_3GBPS:
 			temp_settings.frl_link_rate = HDMI_FRL_LINK_RATE_3GBPS;

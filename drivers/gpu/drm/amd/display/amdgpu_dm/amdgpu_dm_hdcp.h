@@ -44,6 +44,12 @@ struct mod_hdcp_link;
 struct mod_hdcp_display;
 struct cp_psp;
 struct amdgpu_device;
+struct psp_context;
+struct file;
+struct kobject;
+struct bin_attribute;
+struct mod_hdcp_atomic_op_i2c;
+struct mod_hdcp_atomic_op_aux;
 
 struct hdcp_workqueue {
 	struct work_struct cpirq_work;
@@ -113,6 +119,37 @@ void hdcp_update_display_encryption_control(struct hdcp_workqueue *hdcp_work,
 					    unsigned int conn_index,
 					    bool enable_encryption);
 void event_property_update(struct work_struct *work);
+void event_property_validate(struct work_struct *work);
+void event_callback(struct work_struct *work);
+void event_watchdog_timer(struct work_struct *work);
+void event_cpirq(struct work_struct *work);
+void link_lock(struct hdcp_workqueue *work, bool lock);
+void hdcp_remove_display(struct hdcp_workqueue *hdcp_work, unsigned int link_index,
+			 struct amdgpu_dm_connector *aconnector);
+uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size);
+int psp_set_srm(struct psp_context *psp, u8 *srm, uint32_t srm_size, uint32_t *srm_version);
+bool enable_assr(void *handle, struct dc_link *link);
+void update_config(void *handle, struct cp_psp_stream_config *config);
+ssize_t srm_data_write(struct file *filp, struct kobject *kobj,
+		       const struct bin_attribute *bin_attr, char *buffer,
+		       loff_t pos, size_t count);
+ssize_t srm_data_read(struct file *filp, struct kobject *kobj,
+		      const struct bin_attribute *bin_attr, char *buffer,
+		      loff_t pos, size_t count);
+bool lp_write_i2c(void *handle, uint32_t address, const uint8_t *data, uint32_t size);
+bool lp_read_i2c(void *handle, uint32_t address, uint8_t offset, uint8_t *data, uint32_t size);
+bool lp_write_dpcd(void *handle, uint32_t address, const uint8_t *data, uint32_t size);
+bool lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size);
+bool lp_atomic_write_poll_read_i2c(void *handle,
+				   const struct mod_hdcp_atomic_op_i2c *write,
+				   const struct mod_hdcp_atomic_op_i2c *poll,
+				   struct mod_hdcp_atomic_op_i2c *read,
+				   uint32_t poll_timeout_us, uint8_t poll_mask_msb);
+bool lp_atomic_write_poll_read_aux(void *handle,
+				   const struct mod_hdcp_atomic_op_aux *write,
+				   const struct mod_hdcp_atomic_op_aux *poll,
+				   struct mod_hdcp_atomic_op_aux *read,
+				   uint32_t poll_timeout_us, uint8_t poll_mask_msb);
 #endif
 
 #endif /* AMDGPU_DM_AMDGPU_DM_HDCP_H_ */

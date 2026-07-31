@@ -59,7 +59,7 @@ static void mes_v12_0_ring_set_wptr(struct amdgpu_ring *ring)
 			     ring->wptr);
 		WDOORBELL64(ring->doorbell_index, ring->wptr);
 	} else {
-		BUG();
+		dev_warn_once(adev->dev, "%s requires doorbell!\n", __func__);
 	}
 }
 
@@ -70,12 +70,15 @@ static u64 mes_v12_0_ring_get_rptr(struct amdgpu_ring *ring)
 
 static u64 mes_v12_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
+	struct amdgpu_device *adev = ring->adev;
 	u64 wptr;
 
-	if (ring->use_doorbell)
+	if (ring->use_doorbell) {
 		wptr = atomic64_read((atomic64_t *)ring->wptr_cpu_addr);
-	else
-		BUG();
+	} else {
+		dev_warn_once(adev->dev, "%s requires doorbell!\n", __func__);
+		wptr = 0;
+	}
 	return wptr;
 }
 
@@ -279,8 +282,8 @@ static int convert_to_mes_queue_type(int queue_type)
 	else if (queue_type == AMDGPU_RING_TYPE_MES)
 		return MES_QUEUE_TYPE_SCHQ;
 	else
-		BUG();
-	return -1;
+		WARN(1, "Invalid queue type %d\n", queue_type);
+	return MES_QUEUE_TYPE_GFX;
 }
 
 static int convert_to_mes_priority_level(int priority_level)

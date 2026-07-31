@@ -400,6 +400,25 @@ static void jpeg_v5_3_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
 }
 
 /**
+ * jpeg_v5_3_0_set_mmhub_eco_sec_level - set jpeg sec lvl reg
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * request psp to set secure lvl
+ */
+static int jpeg_v5_3_0_set_mmhub_eco_sec_level(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		/* Request to PSP to program JPEG secure lvl */
+		r = psp_set_mmhub_eco_sec_level(adev);
+	}
+
+	return r;
+}
+
+/**
  * jpeg_v5_3_0_start - start JPEG block
  *
  * @adev: amdgpu_device pointer
@@ -421,6 +440,11 @@ static int jpeg_v5_3_0_start(struct amdgpu_device *adev)
 
 	/* disable power gating */
 	r = jpeg_v5_3_0_disable_power_gating(adev);
+	if (r)
+		return r;
+
+	/* program JPEG secure lvl register */
+	r = jpeg_v5_3_0_set_mmhub_eco_sec_level(adev);
 	if (r)
 		return r;
 

@@ -33,7 +33,7 @@
 #include "amdgpu_dm_irq.h"
 #include "amdgpu_pm.h"
 #include "dm_pp_smu.h"
-#include "amdgpu_dm_kunit_helpers.h"
+#include "dm_helpers.h"
 #include "amdgpu_dm_pp_smu.h"
 
 STATIC_IFN_KUNIT void build_pm_display_cfg(
@@ -792,3 +792,55 @@ void dm_pp_get_funcs(
 	}
 }
 EXPORT_IF_KUNIT(dm_pp_get_funcs);
+
+int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
+{
+	int ret = 0;
+
+	/* This interface is for dGPU Navi1x.Linux dc-pplib interface depends
+	 * on window driver dc implementation.
+	 * For Navi1x, clock settings of dcn watermarks are fixed. the settings
+	 * should be passed to smu during boot up and resume from s3.
+	 * boot up: dc calculate dcn watermark clock settings within dc_create,
+	 * dcn20_resource_construct
+	 * then call pplib functions below to pass the settings to smu:
+	 * smu_set_watermarks_for_clock_ranges
+	 * smu_set_watermarks_table
+	 * navi10_set_watermarks_table
+	 * smu_write_watermarks_table
+	 *
+	 * For Renoir, clock settings of dcn watermark are also fixed values.
+	 * dc has implemented different flow for window driver:
+	 * dc_hardware_init / dc_set_power_state
+	 * dcn10_init_hw
+	 * notify_wm_ranges
+	 * set_wm_ranges
+	 * -- Linux
+	 * smu_set_watermarks_for_clock_ranges
+	 * renoir_set_watermarks_table
+	 * smu_write_watermarks_table
+	 *
+	 * For Linux,
+	 * dc_hardware_init -> amdgpu_dm_init
+	 * dc_set_power_state --> dm_resume
+	 *
+	 * therefore, this function apply to navi10/12/14 but not Renoir
+	 * *
+	 */
+	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
+	case IP_VERSION(2, 0, 2):
+	case IP_VERSION(2, 0, 0):
+		break;
+	default:
+		return 0;
+	}
+
+	ret = amdgpu_dpm_write_watermarks_table(adev);
+	if (ret) {
+		drm_err(adev_to_drm(adev), "Failed to update WMTABLE!\n");
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_IF_KUNIT(amdgpu_dm_smu_write_watermarks_table);

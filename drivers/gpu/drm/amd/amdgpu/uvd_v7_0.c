@@ -225,8 +225,9 @@ static int uvd_v7_0_enc_get_create_msg(struct amdgpu_ring *ring, u32 handle,
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, NULL, NULL, ib_size_dw * 4,
-				     AMDGPU_IB_POOL_DIRECT, &job,
-				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST);
+				     AMDGPU_IB_POOL_DIRECT,
+				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST,
+				     &job);
 	if (r)
 		return r;
 
@@ -289,8 +290,9 @@ static int uvd_v7_0_enc_get_destroy_msg(struct amdgpu_ring *ring, u32 handle,
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, NULL, NULL, ib_size_dw * 4,
-				     AMDGPU_IB_POOL_DIRECT, &job,
-				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST);
+				     AMDGPU_IB_POOL_DIRECT,
+				     AMDGPU_KERNEL_JOB_ID_VCN_RING_TEST,
+				     &job);
 	if (r)
 		return r;
 

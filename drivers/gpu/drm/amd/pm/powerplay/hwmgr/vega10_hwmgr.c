@@ -3967,8 +3967,8 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 	if (ret)
 		return ret;
 
-	/* SMC returning actual watts, keep consistent with legacy asics, low 8 bit as 8 fractional bits */
-	*query = value << 8;
+	/* SMC returns whole Watts, while power sensors use milliwatts. */
+	*query = value * MILLIWATT_PER_WATT;
 
 	return 0;
 }

@@ -359,14 +359,13 @@ void dml21_handle_phantom_streams_planes(const struct dc *dc, struct dc_state *c
 					main_plane = main_stream_status->plane_states[dc_plane_index];
 
 					/* create phantom planes for subvp enabled plane */
-					dml21_add_phantom_plane(dml_ctx,
-							dc,
-							context,
-							phantom_stream,
-							main_plane,
-							&dml_ctx->v21.mode_programming.programming->plane_programming[dml_plane_index]);
-
-					phantoms_added = true;
+					if (dml21_add_phantom_plane(dml_ctx,
+								    dc,
+								    context,
+								    phantom_stream,
+								    main_plane,
+								    &dml_ctx->v21.mode_programming.programming->plane_programming[dml_plane_index]))
+						phantoms_added = true;
 				}
 			}
 		}
@@ -531,4 +530,21 @@ void dml21_build_fams2_programming(const struct dc *dc,
 bool dml21_is_plane1_enabled(enum dml2_source_format_class source_format)
 {
 	return source_format >= dml2_420_8 && source_format <= dml2_rgbe_alpha;
+}
+
+void dml21_program_dc_mcif_arb_params(struct dml2_context *dml_ctx,
+		struct dc_state *context,
+		struct dml2_per_stream_programming *stream_prog,
+		unsigned int wb_index,
+		unsigned int dwb_inst)
+{
+	/* DC struct contains global reg for every WB instance */
+	memcpy(&context->bw_ctx.bw.dcn.bw_writeback.mcif_wb_arb[dwb_inst].dcn4x.global_regs,
+			&dml_ctx->v21.mode_programming.programming->mcif_global_regs,
+			sizeof(struct dml2_mcif_global_register_set));
+
+	/* copy per-DWB pipe registers */
+	memcpy(&context->bw_ctx.bw.dcn.bw_writeback.mcif_wb_arb[dwb_inst].dcn4x.inst_regs,
+			stream_prog->mcif_regs[wb_index],
+			sizeof(struct dml2_mcif_per_pipe_register_set));
 }

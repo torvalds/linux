@@ -8,7 +8,14 @@
 #include <kunit/test.h>
 #include <linux/device.h>
 
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_audio_component.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_eld.h>
+#include <drm/drm_kunit_helpers.h>
+#include <drm/drm_probe_helper.h>
 
 #include "dc.h"
 #include "dc/inc/core_types.h"
@@ -17,6 +24,46 @@
 #include "amdgpu_mode.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_audio.h"
+#include "amdgpu_dm_kunit_test_helpers.h"
+
+static const struct drm_connector_funcs dm_test_audio_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+};
+
+static void dm_test_audio_connector_cleanup(void *data)
+{
+	drm_connector_cleanup(data);
+}
+
+static struct drm_atomic_commit *dm_test_audio_alloc_atomic_state(struct kunit *test,
+								 unsigned int num_connector,
+								 unsigned int num_crtc)
+{
+	struct drm_atomic_commit *state;
+
+	state = kunit_kzalloc(test, sizeof(*state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, state);
+
+	state->num_connector = num_connector;
+	if (num_connector) {
+		state->connectors = kunit_kcalloc(test, num_connector,
+						  sizeof(*state->connectors),
+						  GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, state->connectors);
+	}
+
+	if (num_crtc) {
+		state->crtcs = kunit_kcalloc(test, num_crtc, sizeof(*state->crtcs),
+					     GFP_KERNEL);
+		KUNIT_ASSERT_NOT_NULL(test, state->crtcs);
+	}
+
+	return state;
+}
 
 /* Tests for amdgpu_dm_audio_init() */
 
@@ -392,6 +439,22 @@ static void dm_test_pin_eld_notify(void *audio_ptr, int port, int pipe)
 	dm_test_eld_notify_ptr = audio_ptr;
 }
 
+static void dm_test_audio_setup_notify_component(struct kunit *test,
+						 struct amdgpu_device *adev)
+{
+	struct drm_audio_component *acomp;
+	struct drm_audio_component_audio_ops *audio_ops;
+
+	acomp = kunit_kzalloc(test, sizeof(*acomp), GFP_KERNEL);
+	audio_ops = kunit_kzalloc(test, sizeof(*audio_ops), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acomp);
+	KUNIT_ASSERT_NOT_NULL(test, audio_ops);
+
+	audio_ops->pin_eld_notify = dm_test_pin_eld_notify;
+	acomp->audio_ops = audio_ops;
+	adev->dm.audio_component = acomp;
+}
+
 /**
  * dm_test_eld_notify_invokes_callback - Test ELD notify forwards to hda driver
  * @test: The KUnit test context
@@ -569,6 +632,581 @@ static void dm_test_audio_init_pins_zero_count(struct kunit *test)
 
 /* End of tests for amdgpu_dm_audio_init_pins() */
 
+/* Tests for amdgpu_dm_audio_component_get_eld() */
+
+/**
+ * dm_test_audio_component_get_eld_copies_matching_connector - Test ELD lookup
+ * @test: The KUnit test context
+ *
+ * The bound component callback should find the connector whose audio instance
+ * matches the requested port, report it enabled, and copy the connector ELD.
+ */
+static void dm_test_audio_component_get_eld_copies_matching_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector *wb_connector;
+	struct drm_audio_component *acomp;
+	struct device *kdev;
+	unsigned char buf[DRM_ELD_HEADER_BLOCK_SIZE + 8] = {0};
+	bool enabled = false;
+	int ret;
+
+	kdev = adev->ddev.dev;
+	KUNIT_ASSERT_NOT_NULL(test, kdev);
+	acomp = kunit_kzalloc(test, sizeof(*acomp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acomp);
+	wb_connector = kunit_kzalloc(test, sizeof(*wb_connector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, wb_connector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, wb_connector,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_WRITEBACK), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, wb_connector), 0);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, &aconnector->base,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_HDMIA), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, &aconnector->base), 0);
+
+	mutex_init(&adev->dm.audio_lock);
+	aconnector->audio_inst = 3;
+	aconnector->base.eld[DRM_ELD_BASELINE_ELD_LEN] = 2;
+	aconnector->base.eld[DRM_ELD_VER] = DRM_ELD_VER_CEA861D;
+	aconnector->base.eld[DRM_ELD_SPEAKER] = DRM_ELD_SPEAKER_FLR;
+	dev_set_drvdata(kdev, &adev->ddev);
+
+	KUNIT_ASSERT_EQ(test, amdgpu_dm_audio_component_bind(kdev, NULL, acomp), 0);
+	ret = acomp->ops->get_eld(kdev, 3, 0, &enabled, buf, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, DRM_ELD_HEADER_BLOCK_SIZE + 8);
+	KUNIT_EXPECT_TRUE(test, enabled);
+	KUNIT_EXPECT_EQ(test, memcmp(buf, aconnector->base.eld, ret), 0);
+}
+
+/**
+ * dm_test_audio_component_get_eld_no_match - Test ELD lookup miss
+ * @test: The KUnit test context
+ *
+ * A non-matching connector should leave the audio port disabled and return an
+ * empty ELD size without copying data.
+ */
+static void dm_test_audio_component_get_eld_no_match(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_audio_component *acomp;
+	struct device *kdev;
+	unsigned char buf[DRM_ELD_HEADER_BLOCK_SIZE] = {0x5a};
+	bool enabled = true;
+	int ret;
+
+	kdev = adev->ddev.dev;
+	KUNIT_ASSERT_NOT_NULL(test, kdev);
+	acomp = kunit_kzalloc(test, sizeof(*acomp), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, acomp);
+
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_EQ(test, drm_connector_init(&adev->ddev, &aconnector->base,
+						 &dm_test_audio_connector_funcs,
+						 DRM_MODE_CONNECTOR_HDMIA), 0);
+	KUNIT_ASSERT_EQ(test, kunit_add_action_or_reset(test,
+			 dm_test_audio_connector_cleanup, &aconnector->base), 0);
+
+	mutex_init(&adev->dm.audio_lock);
+	aconnector->audio_inst = 4;
+	dev_set_drvdata(kdev, &adev->ddev);
+
+	KUNIT_ASSERT_EQ(test, amdgpu_dm_audio_component_bind(kdev, NULL, acomp), 0);
+	ret = acomp->ops->get_eld(kdev, 3, 0, &enabled, buf, sizeof(buf));
+
+	KUNIT_EXPECT_EQ(test, ret, 0);
+	KUNIT_EXPECT_FALSE(test, enabled);
+	KUNIT_EXPECT_EQ(test, buf[0], 0x5a);
+}
+
+/* Tests for amdgpu_dm_commit_audio() */
+
+/**
+ * dm_test_commit_audio_notifies_removed_connector - Test removal notification
+ * @test: The KUnit test context
+ *
+ * When a connector loses its CRTC, commit_audio should clear its audio
+ * instance and notify the audio component for the old pin.
+ */
+static void dm_test_commit_audio_notifies_removed_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 0);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = 5;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	old_conn_state->crtc = crtc;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+
+	dm_test_eld_notify_count = 0;
+	dm_test_eld_notify_port = -1;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, -1);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 1);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_port, 5);
+}
+
+/**
+ * dm_test_commit_audio_notifies_added_connector - Test addition notification
+ * @test: The KUnit test context
+ *
+ * When a modeset enables a connector with a stream status, commit_audio should
+ * store the stream audio instance and notify the audio component for that pin.
+ */
+static void dm_test_commit_audio_notifies_added_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *dm_crtc_state;
+	struct dc_stream_state *stream;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	adev->dm.dc = kunit_kzalloc(test, sizeof(*adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc);
+	adev->dm.dc->current_state = kunit_kzalloc(test,
+							 sizeof(*adev->dm.dc->current_state),
+							 GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc->current_state);
+	stream->ctx = kunit_kzalloc(test, sizeof(*stream->ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream->ctx);
+	stream->ctx->dc = adev->dm.dc;
+	adev->dm.dc->current_state->stream_count = 1;
+	adev->dm.dc->current_state->streams[0] = stream;
+	adev->dm.dc->current_state->stream_status[0].audio_inst = 8;
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = -1;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	crtc->index = 0;
+	new_conn_state->crtc = crtc;
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.mode_changed = true;
+	dm_crtc_state->stream = stream;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+	state->crtcs[0].ptr = crtc;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	dm_test_eld_notify_count = 0;
+	dm_test_eld_notify_port = -1;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 8);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 2);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_port, 8);
+}
+
+/**
+ * dm_test_commit_audio_skips_writeback_removal - Test writeback removal skip
+ * @test: The KUnit test context
+ *
+ * Writeback connectors do not represent an HDA audio pin, so removal-style
+ * notifications should leave their audio instance untouched.
+ */
+static void dm_test_commit_audio_skips_writeback_removal(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 0);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = 9;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_WRITEBACK;
+	old_conn_state->crtc = crtc;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 9);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 0);
+}
+
+/**
+ * dm_test_commit_audio_skips_without_new_crtc_state - Test missing CRTC state
+ * @test: The KUnit test context
+ *
+ * A connector still attached to the same CRTC should not notify if the atomic
+ * state does not contain a new CRTC state for that CRTC.
+ */
+static void dm_test_commit_audio_skips_without_new_crtc_state(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = 4;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	crtc->index = 0;
+	old_conn_state->crtc = crtc;
+	new_conn_state->crtc = crtc;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 4);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 0);
+}
+
+/**
+ * dm_test_commit_audio_skips_without_stream_status - Test missing DC status
+ * @test: The KUnit test context
+ *
+ * If the new CRTC stream is absent from the current DC state, additions should
+ * be skipped because there is no audio instance to publish.
+ */
+static void dm_test_commit_audio_skips_without_stream_status(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *dm_crtc_state;
+	struct dc_stream_state *stream;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	adev->dm.dc = kunit_kzalloc(test, sizeof(*adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc);
+	adev->dm.dc->current_state = kunit_kzalloc(test,
+							 sizeof(*adev->dm.dc->current_state),
+							 GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc->current_state);
+	stream->ctx = kunit_kzalloc(test, sizeof(*stream->ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream->ctx);
+	stream->ctx->dc = adev->dm.dc;
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = -1;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	crtc->index = 0;
+	new_conn_state->crtc = crtc;
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.mode_changed = true;
+	dm_crtc_state->stream = stream;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+	state->crtcs[0].ptr = crtc;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, -1);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 1);
+}
+
+/**
+ * dm_test_commit_audio_skips_detached_connector - Test detached connector skip
+ * @test: The KUnit test context
+ *
+ * A connector that remains detached across the commit should not notify or
+ * alter the stored audio instance.
+ */
+static void dm_test_commit_audio_skips_detached_connector(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 0);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+
+	aconnector->audio_inst = 11;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 11);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 0);
+}
+
+/**
+ * dm_test_commit_audio_skips_without_modeset - Test no-modeset skip
+ * @test: The KUnit test context
+ *
+ * A connector that stays on the same CRTC should not notify if that CRTC does
+ * not need a modeset.
+ */
+static void dm_test_commit_audio_skips_without_modeset(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *dm_crtc_state;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+
+	aconnector->audio_inst = 12;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	crtc->index = 0;
+	old_conn_state->crtc = crtc;
+	new_conn_state->crtc = crtc;
+	dm_crtc_state->base.crtc = crtc;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+	state->crtcs[0].ptr = crtc;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 12);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 0);
+}
+
+/**
+ * dm_test_commit_audio_skips_addition_without_stream - Test NULL stream skip
+ * @test: The KUnit test context
+ *
+ * A modeset still sends the removal-side ELD notification, but the addition
+ * side must skip if the new DM CRTC state has no stream.
+ */
+static void dm_test_commit_audio_skips_addition_without_stream(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *dm_crtc_state;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = 13;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	crtc->index = 0;
+	old_conn_state->crtc = crtc;
+	new_conn_state->crtc = crtc;
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.mode_changed = true;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+	state->crtcs[0].ptr = crtc;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	dm_test_eld_notify_count = 0;
+	dm_test_eld_notify_port = -1;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, -1);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 1);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_port, 13);
+}
+
+/**
+ * dm_test_commit_audio_skips_writeback_addition - Test writeback addition skip
+ * @test: The KUnit test context
+ *
+ * Even with a valid modeset and stream status, writeback connectors must not
+ * publish an HDA audio instance.
+ */
+static void dm_test_commit_audio_skips_writeback_addition(struct kunit *test)
+{
+	struct amdgpu_device *adev = dm_kunit_alloc_adev(test);
+	struct drm_atomic_commit *state;
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_connector_state *old_conn_state;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct dm_crtc_state *dm_crtc_state;
+	struct dc_stream_state *stream;
+
+	state = dm_test_audio_alloc_atomic_state(test, 1, 1);
+	aconnector = kunit_kzalloc(test, sizeof(*aconnector), GFP_KERNEL);
+	old_conn_state = kunit_kzalloc(test, sizeof(*old_conn_state), GFP_KERNEL);
+	new_conn_state = kunit_kzalloc(test, sizeof(*new_conn_state), GFP_KERNEL);
+	crtc = kunit_kzalloc(test, sizeof(*crtc), GFP_KERNEL);
+	dm_crtc_state = kunit_kzalloc(test, sizeof(*dm_crtc_state), GFP_KERNEL);
+	stream = kunit_kzalloc(test, sizeof(*stream), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, aconnector);
+	KUNIT_ASSERT_NOT_NULL(test, old_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, new_conn_state);
+	KUNIT_ASSERT_NOT_NULL(test, crtc);
+	KUNIT_ASSERT_NOT_NULL(test, dm_crtc_state);
+	KUNIT_ASSERT_NOT_NULL(test, stream);
+
+	adev->dm.dc = kunit_kzalloc(test, sizeof(*adev->dm.dc), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc);
+	adev->dm.dc->current_state = kunit_kzalloc(test,
+							 sizeof(*adev->dm.dc->current_state),
+							 GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, adev->dm.dc->current_state);
+	stream->ctx = kunit_kzalloc(test, sizeof(*stream->ctx), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_NULL(test, stream->ctx);
+	stream->ctx->dc = adev->dm.dc;
+	adev->dm.dc->current_state->stream_count = 1;
+	adev->dm.dc->current_state->streams[0] = stream;
+	adev->dm.dc->current_state->stream_status[0].audio_inst = 14;
+
+	mutex_init(&adev->dm.audio_lock);
+	dm_test_audio_setup_notify_component(test, adev);
+	aconnector->audio_inst = 15;
+	aconnector->base.connector_type = DRM_MODE_CONNECTOR_WRITEBACK;
+	crtc->index = 0;
+	new_conn_state->crtc = crtc;
+	dm_crtc_state->base.crtc = crtc;
+	dm_crtc_state->base.mode_changed = true;
+	dm_crtc_state->stream = stream;
+	state->connectors[0].ptr = &aconnector->base;
+	state->connectors[0].old_state = old_conn_state;
+	state->connectors[0].new_state = new_conn_state;
+	state->crtcs[0].ptr = crtc;
+	state->crtcs[0].new_state = &dm_crtc_state->base;
+
+	dm_test_eld_notify_count = 0;
+
+	amdgpu_dm_commit_audio(&adev->ddev, state);
+
+	KUNIT_EXPECT_EQ(test, aconnector->audio_inst, 15);
+	KUNIT_EXPECT_EQ(test, dm_test_eld_notify_count, 0);
+}
+
 static struct kunit_case dm_audio_test_cases[] = {
 	/* amdgpu_dm_audio_init */
 	KUNIT_CASE(dm_test_audio_init_disabled),
@@ -593,6 +1231,19 @@ static struct kunit_case dm_audio_test_cases[] = {
 	KUNIT_CASE(dm_test_eld_notify_no_component),
 	KUNIT_CASE(dm_test_eld_notify_null_audio_ops),
 	KUNIT_CASE(dm_test_eld_notify_null_callback),
+	/* amdgpu_dm_audio_component_get_eld */
+	KUNIT_CASE(dm_test_audio_component_get_eld_copies_matching_connector),
+	KUNIT_CASE(dm_test_audio_component_get_eld_no_match),
+	/* amdgpu_dm_commit_audio */
+	KUNIT_CASE(dm_test_commit_audio_notifies_removed_connector),
+	KUNIT_CASE(dm_test_commit_audio_notifies_added_connector),
+	KUNIT_CASE(dm_test_commit_audio_skips_writeback_removal),
+	KUNIT_CASE(dm_test_commit_audio_skips_without_new_crtc_state),
+	KUNIT_CASE(dm_test_commit_audio_skips_without_stream_status),
+	KUNIT_CASE(dm_test_commit_audio_skips_detached_connector),
+	KUNIT_CASE(dm_test_commit_audio_skips_without_modeset),
+	KUNIT_CASE(dm_test_commit_audio_skips_addition_without_stream),
+	KUNIT_CASE(dm_test_commit_audio_skips_writeback_addition),
 	{}
 };
 

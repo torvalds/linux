@@ -123,6 +123,8 @@ static void amdgpu_userq_hang_detect_work(struct work_struct *work)
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *userq_funcs =
 		adev->userq_funcs[queue->queue_type];
+	struct drm_wedge_task_info *info = NULL;
+	struct amdgpu_task_info *ti = NULL;
 	bool gpu_reset = false;
 
 	if (unlikely(adev->debug_disable_gpu_ring_reset)) {
@@ -137,6 +139,14 @@ static void amdgpu_userq_hang_detect_work(struct work_struct *work)
 	if (!amdgpu_gpu_recovery)
 		return;
 
+	if (queue->vm && queue->vm->pasid) {
+		ti = amdgpu_vm_get_task_info_pasid(adev, queue->vm->pasid);
+		if (ti) {
+			amdgpu_vm_print_task_info(adev, ti);
+			info = &ti->task;
+		}
+	}
+
 	if (amdgpu_userq_is_reset_type_supported(adev, queue->queue_type,
 						 AMDGPU_RESET_TYPE_PER_QUEUE)) {
 		int r;
@@ -146,11 +156,17 @@ static void amdgpu_userq_hang_detect_work(struct work_struct *work)
 							 queue, NULL, NULL);
 		else
 			r = userq_funcs->reset(queue);
-		if (r)
+		if (r) {
 			gpu_reset = true;
+		} else {
+			atomic_inc(&adev->gpu_reset_counter);
+			amdgpu_userq_fence_driver_force_completion(queue);
+			drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE, info);
+		}
 	} else {
 		gpu_reset = true;
 	}
+	amdgpu_vm_put_task_info(ti);
 
 	/*
 	 * Don't schedule the work here! Scheduling or queue work from one reset
@@ -985,6 +1001,7 @@ amdgpu_userq_vm_validate_and_restore_queue(struct amdgpu_userq_mgr *uq_mgr)
 	struct amdgpu_vm *vm = &fpriv->vm;
 	unsigned long key, tmp_key;
 	struct amdgpu_bo_va *bo_va;
+	struct amdgpu_usermode_queue *queue;
 	struct amdgpu_bo *bo;
 	struct drm_exec exec;
 	struct xarray xa;
@@ -1099,6 +1116,24 @@ retry_lock:
 	list_for_each_entry(bo_va, &vm->always_valid.idle, base.vm_status)
 		dma_fence_wait(bo_va->last_pt_update, false);
 	dma_fence_wait(vm->last_update, false);
+
+	xa_for_each(&uq_mgr->userq_xa, tmp_key, queue) {
+		bo = queue->wptr_obj.obj;
+		if (!bo) {
+			ret = -EINVAL;
+			goto unlock_all;
+		}
+
+		ret = amdgpu_ttm_alloc_gart(&bo->tbo);
+		if (unlikely(ret)) {
+			drm_file_err(uq_mgr->file,
+				     "failed to bind wptr bo to gart on resume, qid=%lu ret=%d\n",
+				     tmp_key, ret);
+			goto unlock_all;
+		}
+
+		queue->wptr_obj.gpu_addr = amdgpu_bo_gpu_offset(bo);
+	}
 
 	ret = amdgpu_evf_mgr_rearm(&fpriv->evf_mgr, &exec);
 	if (ret) {

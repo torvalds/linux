@@ -146,6 +146,38 @@ int amdgpu_dm_encoder_init(struct drm_device *dev,
 			   uint32_t link_index);
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
+int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
+		       struct i2c_msg *msgs, int num);
+u32 amdgpu_dm_i2c_func(struct i2c_adapter *adap);
+void parse_edid_displayid_vrr(struct drm_connector *connector,
+			      const struct edid *edid);
+int get_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+		 struct amdgpu_hdmi_vsdb_info *vsdb_info);
+int parse_hdmi_amd_vsdb(struct amdgpu_dm_connector *aconnector,
+			const struct edid *edid,
+			struct amdgpu_hdmi_vsdb_info *vsdb_info);
+void amdgpu_dm_connector_funcs_force(struct drm_connector *connector);
+enum dc_status dm_validate_stream_and_context(struct dc *dc,
+					      struct dc_stream_state *stream);
+struct drm_encoder *amdgpu_dm_connector_to_encoder(struct drm_connector *connector);
+void amdgpu_dm_get_native_mode(struct drm_connector *connector);
+struct drm_display_mode *amdgpu_dm_create_common_mode(struct drm_encoder *encoder,
+						      const char *name,
+						      int hdisplay, int vdisplay);
+void amdgpu_dm_connector_add_common_modes(struct drm_encoder *encoder,
+					  struct drm_connector *connector);
+void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
+				       const struct drm_edid *drm_edid);
+uint add_fs_modes(struct amdgpu_dm_connector *aconnector);
+void amdgpu_dm_connector_add_freesync_modes(struct drm_connector *connector,
+					    const struct drm_edid *drm_edid);
+void hdmi_cec_unset_edid(struct amdgpu_dm_connector *aconnector);
+void create_eml_sink(struct amdgpu_dm_connector *aconnector);
+void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector);
+void dm_encoder_helper_disable(struct drm_encoder *encoder);
+int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
+				   struct drm_crtc_state *crtc_state,
+				   struct drm_connector_state *conn_state);
 enum drm_mode_subconnector get_subconnector_type(struct dc_link *link);
 void update_subconnector_property(struct amdgpu_dm_connector *aconnector);
 void amdgpu_dm_fbc_init(struct drm_connector *connector);
@@ -158,6 +190,19 @@ void fill_stream_properties_from_drm_display_mode(
 	const struct drm_connector_state *connector_state,
 	const struct dc_stream_state *old_stream,
 	int requested_bpc);
+struct dc_stream_state *
+create_stream_for_sink(struct drm_connector *connector,
+		       const struct drm_display_mode *drm_mode,
+		       const struct dm_connector_state *dm_state,
+		       const struct dc_stream_state *old_stream,
+		       int requested_bpc);
+enum drm_connector_status
+amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force);
+enum drm_connector_status
+amdgpu_dm_connector_detect(struct drm_connector *connector, bool force);
+void amdgpu_dm_connector_unregister(struct drm_connector *connector);
+int amdgpu_dm_connector_late_register(struct drm_connector *connector);
+void amdgpu_dm_connector_destroy(struct drm_connector *connector);
 enum display_content_type
 get_output_content_type(const struct drm_connector_state *connector_state);
 bool adjust_colour_depth_from_display_info(struct dc_crtc_timing *timing_out,

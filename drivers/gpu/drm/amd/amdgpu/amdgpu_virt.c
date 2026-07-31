@@ -2090,3 +2090,39 @@ int amdgpu_virt_send_remote_ras_cmd(struct amdgpu_device *adev,
 
 	return ret;
 }
+
+int amdgpu_virt_ptl_request(struct amdgpu_device *adev, u32 req_code,
+			    uint32_t *ptl_state, uint32_t *fmt1, uint32_t *fmt2)
+{
+	int ret;
+
+	if (!ptl_state || !fmt1 || !fmt2)
+		return -EINVAL;
+
+	if (!amdgpu_sriov_ptl_support(adev) ||
+	    !adev->virt.ops || !adev->virt.ops->req_ptl_update)
+		return -EOPNOTSUPP;
+
+	if (req_code == PSP_PTL_PERF_MON_SET && *ptl_state) {
+		if (*fmt1 == *fmt2) {
+			dev_warn(adev->dev,
+				"PTL formats must be different (fmt1=%u, fmt2=%u)\n",
+				*fmt1, *fmt2);
+			return -EINVAL;
+		}
+	}
+
+	ret = adev->virt.ops->req_ptl_update(adev, req_code, *ptl_state, *fmt1, *fmt2);
+	if (ret) {
+		dev_warn(adev->dev, "VF PTL update request failed: %d\n", ret);
+		return ret;
+	}
+
+	if (req_code == PSP_PTL_PERF_MON_QUERY) {
+		*ptl_state = adev->virt.ptl_state;
+		*fmt1 = adev->virt.ptl_pref_format1;
+		*fmt2 = adev->virt.ptl_pref_format2;
+	}
+
+	return 0;
+}

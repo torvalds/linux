@@ -1215,9 +1215,10 @@ static int renoir_get_smu_metrics_data(struct smu_context *smu,
 		    ((amdgpu_ip_version(adev, MP1_HWIP, 0) ==
 		      IP_VERSION(12, 0, 0)) &&
 		     (adev->pm.fw_version >= 0x373200)))
-			*value = metrics->CurrentSocketPower << 8;
+			*value = metrics->CurrentSocketPower *
+				 MILLIWATT_PER_WATT;
 		else
-			*value = (metrics->CurrentSocketPower << 8) / 1000;
+			*value = metrics->CurrentSocketPower;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = (metrics->GfxTemperature / 100) *

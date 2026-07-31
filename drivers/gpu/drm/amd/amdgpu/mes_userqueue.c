@@ -70,27 +70,23 @@ mes_userq_create_wptr_mapping(struct amdgpu_device *adev,
 		ret = -EINVAL;
 		goto fail_map;
 	}
-
-	/* TODO use eviction fence instead of pinning. */
-	ret = amdgpu_bo_pin(wptr_obj->obj, AMDGPU_GEM_DOMAIN_GTT);
+	/* Keep WPTR BO under eviction-fence control instead of pinning. */
+	ret = amdgpu_evf_mgr_attach_fence(&uq_mgr_to_fpriv(uq_mgr)->evf_mgr, wptr_obj->obj);
 	if (ret) {
-		DRM_ERROR("Failed to pin wptr bo. ret %d\n", ret);
+		DRM_ERROR("Failed to attach eviction fence to wptr bo. ret %d\n", ret);
 		goto fail_map;
 	}
 
 	ret = amdgpu_ttm_alloc_gart(&wptr_obj->obj->tbo);
 	if (ret) {
-		DRM_ERROR("Failed to bind bo to GART. ret %d\n", ret);
-		goto fail_alloc_gart;
+		DRM_ERROR("Failed to bind wptr bo to GART. ret %d\n", ret);
+		goto fail_map;
 	}
 
 	queue->wptr_obj.gpu_addr = amdgpu_bo_gpu_offset(wptr_obj->obj);
 
 	drm_exec_fini(&exec);
 	return 0;
-
-fail_alloc_gart:
-	amdgpu_bo_unpin(wptr_obj->obj);
 fail_map:
 	amdgpu_bo_unref(&wptr_obj->obj);
 fail_lock:
@@ -239,9 +235,7 @@ int mes_userq_reset_queue(struct amdgpu_device *adev,
 				r = mes_userq_unmap(uq);
 				if (r)
 					return r;
-				atomic_inc(&adev->gpu_reset_counter);
 				amdgpu_userq_fence_driver_force_completion(uq);
-				drm_dev_wedged_event(adev_to_drm(adev), DRM_WEDGE_RECOVERY_NONE, NULL);
 				break;
 			}
 		}
@@ -513,9 +507,6 @@ static void mes_userq_mqd_destroy(struct amdgpu_usermode_queue *queue)
 	amdgpu_bo_free_kernel(&queue->mqd.obj, &queue->mqd.gpu_addr,
 			      &queue->mqd.cpu_ptr);
 
-	amdgpu_bo_reserve(queue->wptr_obj.obj, true);
-	amdgpu_bo_unpin(queue->wptr_obj.obj);
-	amdgpu_bo_unreserve(queue->wptr_obj.obj);
 	amdgpu_bo_unref(&queue->wptr_obj.obj);
 }
 

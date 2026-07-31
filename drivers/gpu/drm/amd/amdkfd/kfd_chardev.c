@@ -1783,6 +1783,9 @@ static int kfd_ptl_control(struct kfd_process_device *pdd, bool enable)
 	uint32_t ptl_state = enable ? 1 : 0;
 	int ret;
 
+	if (ptl->hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
+		return -EOPNOTSUPP;
+
 	if (!pdd->dev->kfd2kgd || !pdd->dev->kfd2kgd->ptl_ctrl)
 		return -EOPNOTSUPP;
 
@@ -1801,7 +1804,7 @@ int kfd_ptl_disable_request(struct kfd_process_device *pdd,
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
 	int ret = 0;
 
-	if (!ptl->hw_supported)
+	if (ptl->hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&ptl->mutex);
@@ -1833,7 +1836,7 @@ int kfd_ptl_disable_release(struct kfd_process_device *pdd,
 	struct amdgpu_ptl *ptl = &adev->psp.ptl;
 	int ret = 0;
 
-	if (!ptl->hw_supported)
+	if (ptl->hw_supported_state != AMDGPU_PTL_HW_SUPPORTED)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&ptl->mutex);
@@ -3112,10 +3115,14 @@ static int kfd_ioctl_set_debug_trap(struct file *filep, struct kfd_process *p, v
 		goto out;
 	}
 
-	/* Check if target is still PTRACED. */
+	/*
+	 * Verify debugger has permission to debug target process.
+	 * For cross-process debugging, require active ptrace relationship.
+	 * This applies to ALL operations to prevent unauthorized interference.
+	 */
 	rcu_read_lock();
-	if (target != p && args->op != KFD_IOC_DBG_TRAP_DISABLE
-				&& ptrace_parent(target->lead_thread) != current) {
+	if (target != p && ptrace_parent(target->lead_thread) != current
+			&& target->debugger_process != p) {
 		pr_err("PID %i is not PTRACED and cannot be debugged\n", args->pid);
 		r = -EPERM;
 	}
@@ -3349,7 +3356,7 @@ static inline uint32_t profile_lock_device(struct kfd_process *p,
 			kfd->profiler_process = p;
 			status = 0;
 			mutex_unlock(&kfd->profiler_lock);
-			if (ptl->hw_supported) {
+			if (ptl->hw_supported_state == AMDGPU_PTL_HW_SUPPORTED) {
 				status = kfd_ptl_disable_request(pdd, p);
 				if (status != 0)
 					dev_err(kfd_device,
@@ -3367,7 +3374,7 @@ static inline uint32_t profile_lock_device(struct kfd_process *p,
 		status = 0;
 		mutex_unlock(&kfd->profiler_lock);
 
-		if (ptl->hw_supported) {
+		if (ptl->hw_supported_state == AMDGPU_PTL_HW_SUPPORTED) {
 			status = kfd_ptl_disable_release(pdd, p);
 			if (status)
 				dev_err(kfd_device,
@@ -3715,10 +3722,10 @@ static int kfd_mmio_mmap(struct kfd_node *dev, struct kfd_process *process,
 				vma->vm_page_prot);
 }
 
-
 static int kfd_mmap(struct file *filep, struct vm_area_struct *vma)
 {
 	struct kfd_process *process;
+	struct kfd_process_device *pdd;
 	struct kfd_node *dev = NULL;
 	unsigned long mmap_offset;
 	unsigned int gpu_id;
@@ -3732,8 +3739,10 @@ static int kfd_mmap(struct file *filep, struct vm_area_struct *vma)
 
 	mmap_offset = vma->vm_pgoff << PAGE_SHIFT;
 	gpu_id = KFD_MMAP_GET_GPU_ID(mmap_offset);
-	if (gpu_id)
-		dev = kfd_device_by_id(gpu_id);
+
+	pdd = kfd_process_device_data_by_id(process, gpu_id);
+	if (pdd)
+		dev = pdd->dev;
 
 	switch (mmap_offset & KFD_MMAP_TYPE_MASK) {
 	case KFD_MMAP_TYPE_DOORBELL:

@@ -25,6 +25,7 @@
 #include "dc_types.h"
 #include "core_types.h"
 #include "core_status.h"
+#include "dc.h"
 #include "dc_state.h"
 #include "dc_state_priv.h"
 #include "dc_stream_priv.h"
@@ -359,6 +360,10 @@ void dc_state_destruct(struct dc_state *state)
 	}
 	state->phantom_plane_count = 0;
 
+	memset(state->probes, 0, sizeof(state->probes));
+	memset(state->probe_status, 0, sizeof(state->probe_status));
+	state->probe_count = 0;
+
 	state->stream_mask = 0;
 	memset(&state->res_ctx, 0, sizeof(state->res_ctx));
 	memset(&state->pp_display_cfg, 0, sizeof(state->pp_display_cfg));
@@ -678,28 +683,67 @@ bool dc_state_add_all_planes_for_stream(
 /* Private dc_state functions */
 
 /**
- * dc_state_get_stream_status - Get stream status from given dc state
- * @state: DC state to find the stream status in
- * @stream: The stream to get the stream status for
+ * dc_state_get_status - Unified status readback for dc_state.
+ * @status:  output object populated per options->types
+ * @options: selects source state, status classes to fill, and optional filters
  *
- * The given stream is expected to exist in the given dc state. Otherwise, NULL
- * will be returned.
+ * Return: DC_OK on success, DC_ERROR_UNEXPECTED if options or state is NULL.
+ */
+enum dc_status dc_state_get_status(struct dc_state_status *status,
+		const struct dc_get_status_options *options)
+{
+	uint8_t i;
+
+	if (!status || !options || !options->state)
+		return DC_ERROR_UNEXPECTED;
+
+	if (options->types & DC_GET_STATUS_STREAM) {
+		status->stream_count = 0;
+		for (i = 0; i < options->state->stream_count; i++) {
+			if (options->stream &&
+					options->stream != options->state->streams[i])
+				continue;
+			status->stream_status[status->stream_count++] =
+					&options->state->stream_status[i];
+		}
+	}
+
+	if (options->types & DC_GET_STATUS_PROBE) {
+		status->probe_count = 0;
+		for (i = 0; i < options->state->probe_count; i++) {
+			if (options->probe &&
+					options->probe->type != options->state->probes[i].type)
+				continue;
+			status->probe_status[status->probe_count++] =
+					&options->state->probe_status[i];
+		}
+	}
+
+	return DC_OK;
+}
+
+/**
+ * dc_state_get_stream_status - Shim for dc_state_get_status.
+ * @state:  state to search
+ * @stream: stream to find status for
+ *
+ * Return: pointer to the matching dc_stream_status, or NULL if not found.
  */
 struct dc_stream_status *dc_state_get_stream_status(
 		struct dc_state *state,
 		const struct dc_stream_state *stream)
 {
-	uint8_t i;
+	struct dc_state_status status = {};
+	struct dc_get_status_options options = {
+		.state  = state,
+		.types  = DC_GET_STATUS_STREAM,
+		.stream = stream,
+	};
 
-	if (state == NULL)
+	if (dc_state_get_status(&status, &options) != DC_OK)
 		return NULL;
 
-	for (i = 0; i < state->stream_count; i++) {
-		if (stream == state->streams[i])
-			return &state->stream_status[i];
-	}
-
-	return NULL;
+	return status.stream_count > 0 ? status.stream_status[0] : NULL;
 }
 
 enum mall_stream_type dc_state_get_pipe_subvp_type(const struct dc_state *state,

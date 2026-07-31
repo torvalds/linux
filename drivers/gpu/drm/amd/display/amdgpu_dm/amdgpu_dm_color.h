@@ -44,6 +44,7 @@ struct dc_plane_state;
 struct fixed31_32;
 struct tetrahedral_params;
 struct dc_transfer_func;
+struct dc_3dlut;
 
 #if IS_ENABLED(CONFIG_DRM_AMD_DC_KUNIT_TEST)
 /*
@@ -63,6 +64,20 @@ void __drm_ctm_to_dc_matrix(const struct drm_color_ctm *ctm,
 			     struct fixed31_32 *matrix);
 void __drm_ctm_3x4_to_dc_matrix(const struct drm_color_ctm_3x4 *ctm,
 				 struct fixed31_32 *matrix);
+int __set_legacy_tf(struct dc_transfer_func *func,
+		    const struct drm_color_lut *lut, uint32_t lut_size,
+		    bool has_rom);
+int __set_output_tf(struct dc_transfer_func *func,
+		    const struct drm_color_lut *lut, uint32_t lut_size,
+		    bool has_rom);
+int __set_output_tf_32(struct dc_transfer_func *func,
+		       const struct drm_color_lut32 *lut, uint32_t lut_size,
+		       bool has_rom);
+struct dc_color_caps;
+int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *func,
+		   const struct drm_color_lut *lut, uint32_t lut_size);
+int __set_input_tf_32(struct dc_color_caps *caps, struct dc_transfer_func *func,
+		      const struct drm_color_lut32 *lut, uint32_t lut_size);
 enum dc_transfer_func_predefined
 amdgpu_tf_to_dc_tf(enum amdgpu_transfer_function tf);
 enum dc_transfer_func_predefined
@@ -113,6 +128,17 @@ int amdgpu_dm_atomic_blend_lut(const struct drm_color_lut *blend_lut,
 			       struct dc_plane_cm *cm);
 int __set_colorop_in_tf_1d_curve(struct dc_plane_state *dc_plane_state,
 				 struct drm_colorop_state *colorop_state);
+struct drm_plane_state;
+struct drm_colorop;
+int __set_dm_plane_colorop_degamma(struct drm_plane_state *plane_state,
+				   struct dc_plane_state *dc_plane_state,
+				   struct drm_colorop *colorop);
+int __set_dm_plane_colorop_3x4_matrix(struct drm_plane_state *plane_state,
+				      struct dc_plane_state *dc_plane_state,
+				      struct drm_colorop *colorop);
+int __set_dm_plane_colorop_multiplier(struct drm_plane_state *plane_state,
+				      struct dc_plane_state *dc_plane_state,
+				      struct drm_colorop *colorop);
 #endif
 
 #endif /* __AMDGPU_DM_COLOR_H__ */

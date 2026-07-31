@@ -526,7 +526,7 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 					  snapshot_req, sizeof(struct ras_cmd_cper_snapshot_req),
 					  snapshot_rsp, sizeof(struct ras_cmd_cper_snapshot_rsp));
 	if (r)
-		return r;
+		return -EINVAL;
 
 	if (!snapshot_rsp->total_cper_num) {
 		if (!read_header)
@@ -568,7 +568,7 @@ static ssize_t amdgpu_ras_cper_debugfs_read(struct file *f, char __user *buf,
 						  record_rsp,
 						  sizeof(struct ras_cmd_cper_record_rsp));
 		if (r)
-			return r;
+			return -EINVAL;
 
 		if (!record_rsp->real_data_size || !record_rsp->real_cper_num)
 			break;

@@ -346,7 +346,7 @@ static bool ras_umc_check_retired_record(struct ras_core_context *ras_core,
 		if (ras_umc->ip_func && ras_umc->ip_func->eeprom_record_to_nps_record) {
 			ret = ras_umc->ip_func->eeprom_record_to_nps_record(ras_core, record, nps);
 			if (ret)
-				RAS_DEV_WARN(ras_core->dev,
+				RAS_DEV_WARN_RATELIMITED(ras_core->dev,
 					"Failed to adjust eeprom record, ret:%d", ret);
 		}
 		return false;
@@ -691,6 +691,7 @@ int ras_umc_hw_init(struct ras_core_context *ras_core)
 	ras_umc->umc_err_data.umc_nps_mode = nps;
 
 	ras_umc->umc_vram_type = ras_core->config->umc_cfg.umc_vram_type;
+	ras_umc->num_umc = ras_core->config->umc_cfg.num_umc;
 	if (!ras_umc->umc_vram_type) {
 		RAS_DEV_ERR(ras_core->dev, "Invalid UMC VRAM Type: %u!\n",
 			ras_umc->umc_vram_type);

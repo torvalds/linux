@@ -27,10 +27,10 @@
 #define __DC_LINK_DPMS_H__
 
 #include "link_service.h"
-void link_set_dpms_on(
+enum dc_status link_set_dpms_on(
 		struct dc_state *state,
 		struct pipe_ctx *pipe_ctx);
-void link_set_dpms_off(struct pipe_ctx *pipe_ctx);
+enum dc_status link_set_dpms_off(struct pipe_ctx *pipe_ctx);
 void link_resume(struct dc_link *link);
 void link_blank_all_dp_displays(struct dc *dc);
 void link_blank_all_edp_displays(struct dc *dc);

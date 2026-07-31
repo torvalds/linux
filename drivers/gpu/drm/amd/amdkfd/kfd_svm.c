@@ -69,7 +69,6 @@ struct criu_svm_metadata {
 	struct kfd_criu_svm_range_priv_data data;
 };
 
-static void svm_range_evict_svm_bo_worker(struct work_struct *work);
 static bool
 svm_range_cpu_invalidate_pagetables(struct mmu_interval_notifier *mni,
 				    const struct mmu_notifier_range *range,
@@ -97,7 +96,7 @@ static void svm_range_unlink(struct svm_range *prange)
 
 	if (prange->svm_bo) {
 		spin_lock(&prange->svm_bo->list_lock);
-		list_del(&prange->svm_bo_list);
+		list_del_init(&prange->svm_bo_list);
 		spin_unlock(&prange->svm_bo->list_lock);
 	}
 
@@ -285,6 +284,17 @@ static void svm_range_free(struct svm_range *prange, bool do_unmap)
 
 	pr_debug("svms 0x%p prange 0x%p [0x%lx 0x%lx]\n", prange->svms, prange,
 		 prange->start, prange->last);
+
+	/* Unlink from range_list; no-op if already unlinked. */
+	if (prange->svm_bo) {
+		spin_lock(&prange->svm_bo->list_lock);
+		list_del_init(&prange->svm_bo_list);
+		spin_unlock(&prange->svm_bo->list_lock);
+	}
+
+	/* Wait for any in-flight eviction of this range to finish. */
+	mutex_lock(&prange->migrate_mutex);
+	mutex_unlock(&prange->migrate_mutex);
 
 	svm_range_vram_node_free(prange);
 	if (do_unmap)
@@ -588,7 +598,6 @@ svm_range_vram_node_new(struct kfd_node *node, struct svm_range *prange,
 					   mm,
 					   svm_bo, p->context_id);
 	mmput(mm);
-	INIT_WORK(&svm_bo->eviction_work, svm_range_evict_svm_bo_worker);
 	svm_bo->evicting = 0;
 	memset(&bp, 0, sizeof(bp));
 	bp.size = prange->npages * PAGE_SIZE;
@@ -3631,39 +3640,36 @@ svm_range_trigger_migration(struct mm_struct *mm, struct svm_range *prange,
 	return 0;
 }
 
-int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence)
+int svm_range_evict_svm_bo(struct svm_range_bo *svm_bo)
 {
-	/* Dereferencing fence->svm_bo is safe here because the fence hasn't
-	 * signaled yet and we're under the protection of the fence->lock.
-	 * After the fence is signaled in svm_range_bo_release, we cannot get
-	 * here any more.
-	 *
-	 * Reference is dropped in svm_range_evict_svm_bo_worker.
-	 */
-	if (svm_bo_ref_unless_zero(fence->svm_bo)) {
-		WRITE_ONCE(fence->svm_bo->evicting, 1);
-		schedule_work(&fence->svm_bo->eviction_work);
-	}
-
-	return 0;
-}
-
-static void svm_range_evict_svm_bo_worker(struct work_struct *work)
-{
-	struct svm_range_bo *svm_bo;
 	struct mm_struct *mm;
 	int r = 0;
 
-	svm_bo = container_of(work, struct svm_range_bo, eviction_work);
+	if (!svm_bo_ref_unless_zero(svm_bo))
+		return 0;
 
-	if (mmget_not_zero(svm_bo->eviction_fence->mm)) {
-		mm = svm_bo->eviction_fence->mm;
-	} else {
+	if (!mmget_not_zero(svm_bo->eviction_fence->mm)) {
 		svm_range_bo_unref(svm_bo);
-		return;
+		return 0;
+	}
+	mm = svm_bo->eviction_fence->mm;
+
+	/*
+	 * Called with the BO reserved; lock order is mmap_lock -> BO
+	 * reservation. Only trylock mmap to invert that order safely: a
+	 * trylock never blocks, so it cannot deadlock against the reservation
+	 * and lockdep records no reverse dependency. On contention return
+	 * -EBUSY so TTM skips this BO.
+	 */
+	if (!mmap_read_trylock(mm)) {
+		pr_debug("skip eviction, contended to take mmap_read lock\n");
+		mmput_async(mm);
+		svm_range_bo_unref(svm_bo);
+		return -EBUSY;
 	}
 
-	mmap_read_lock(mm);
+	WRITE_ONCE(svm_bo->evicting, 1);
+
 	spin_lock(&svm_bo->list_lock);
 	while (!list_empty(&svm_bo->range_list) && !r) {
 		struct svm_range *prange =
@@ -3671,13 +3677,24 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 						struct svm_range, svm_bo_list);
 		int retries = 3;
 
+		/*
+		 * Trylock migrate_mutex under list_lock, before unlinking the
+		 * range, so svm_range_free() cannot free it under us. On
+		 * contention the owner is migrating this range; skip the BO.
+		 */
+		if (!mutex_trylock(&prange->migrate_mutex)) {
+			pr_debug("skip eviction, contended migrate_mutex\n");
+			/* Clear evicting so the BO keeps being reused. */
+			WRITE_ONCE(svm_bo->evicting, 0);
+			r = -EBUSY;
+			break;
+		}
 		list_del_init(&prange->svm_bo_list);
 		spin_unlock(&svm_bo->list_lock);
 
 		pr_debug("svms 0x%p [0x%lx 0x%lx]\n", prange->svms,
 			 prange->start, prange->last);
 
-		mutex_lock(&prange->migrate_mutex);
 		do {
 			/* migrate all vram pages in this prange to sys ram
 			 * after that prange->actual_loc should be zero
@@ -3701,15 +3718,24 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 	}
 	spin_unlock(&svm_bo->list_lock);
 	mmap_read_unlock(mm);
-	mmput(mm);
+	/* Defer mmput: exit_mmap() must not run under the BO reservation. */
+	mmput_async(mm);
 
-	dma_fence_signal(&svm_bo->eviction_fence->base);
+	/*
+	 * Only signal the eviction fence once the ranges have been processed.
+	 * On -EBUSY we bailed out without migrating; leave the BO in VRAM and
+	 * let TTM retry later.
+	 */
+	if (r != -EBUSY)
+		dma_fence_signal(&svm_bo->eviction_fence->base);
 
 	/* This is the last reference to svm_bo, after svm_range_vram_node_free
 	 * has been called in svm_migrate_vram_to_ram
 	 */
 	WARN_ONCE(!r && kref_read(&svm_bo->kref) != 1, "This was not the last reference\n");
 	svm_range_bo_unref(svm_bo);
+
+	return r;
 }
 
 static int

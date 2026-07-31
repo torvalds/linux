@@ -1713,8 +1713,9 @@ static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
 	owner = (void *)(unsigned long)atomic_inc_return(&counter);
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, &entity, owner,
-				     ib_size_dw * sizeof(uint32_t), 0, &job,
-				     AMDGPU_KERNEL_JOB_ID_CLEANER_SHADER);
+				     ib_size_dw * sizeof(uint32_t), 0,
+				     AMDGPU_KERNEL_JOB_ID_CLEANER_SHADER,
+				     &job);
 	if (r)
 		goto err;
 

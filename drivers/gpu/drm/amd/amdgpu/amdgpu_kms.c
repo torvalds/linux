@@ -1211,7 +1211,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 					return -EINVAL;
 				}
 			}
-			ui32 >>= 8;
+			ui32 /= MILLIWATT_PER_WATT;
 			break;
 		case AMDGPU_INFO_SENSOR_GPU_INPUT_POWER:
 			/* get input GPU power */
@@ -1220,7 +1220,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 						   (void *)&ui32, &ui32_size)) {
 				return -EINVAL;
 			}
-			ui32 >>= 8;
+			ui32 /= MILLIWATT_PER_WATT;
 			break;
 		case AMDGPU_INFO_SENSOR_VDDNB:
 			/* get VDDNB in millivolts */
@@ -1376,11 +1376,11 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 		memset(&gpuvm_fault, 0, sizeof(gpuvm_fault));
 
-		xa_lock_irqsave(&adev->vm_manager.pasids, flags);
+		amdgpu_pasid_lock(&flags);
 		gpuvm_fault.addr = vm->fault_info.addr;
 		gpuvm_fault.status = vm->fault_info.status;
 		gpuvm_fault.vmhub = vm->fault_info.vmhub;
-		xa_unlock_irqrestore(&adev->vm_manager.pasids, flags);
+		amdgpu_pasid_unlock(flags);
 
 		return copy_to_user(out, &gpuvm_fault,
 				    min((size_t)size, sizeof(gpuvm_fault))) ? -EFAULT : 0;
@@ -1465,7 +1465,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_fpriv *fpriv;
 	struct drm_exec exec;
-	int r, pasid;
+	int r, pasid = 0;
 
 	/* Ensure IB tests are run on ring */
 	flush_delayed_work(&adev->delayed_init_work);
@@ -1488,21 +1488,22 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		goto out_suspend;
 	}
 
-	pasid = amdgpu_pasid_alloc(16);
-	if (pasid < 0) {
-		dev_warn(adev->dev, "No more PASIDs available!");
-		pasid = 0;
-	}
-
 	r = amdgpu_xcp_open_device(adev, fpriv, file_priv);
 	if (r)
 		goto error_pasid;
 
 	amdgpu_debugfs_vm_init(file_priv);
 
-	r = amdgpu_vm_init(adev, &fpriv->vm, fpriv->xcp_id, pasid);
+	r = amdgpu_vm_init(adev, &fpriv->vm, fpriv->xcp_id);
 	if (r)
 		goto error_pasid;
+
+	pasid = amdgpu_pasid_alloc(16, fpriv);
+	if (pasid < 0) {
+		dev_warn(adev->dev, "No more PASIDs available!");
+		pasid = 0;
+	}
+	fpriv->vm.pasid = pasid;
 
 	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
@@ -1547,12 +1548,14 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	goto out_suspend;
 
 error_vm:
+	if (pasid) {
+		amdgpu_pasid_free(pasid);
+		pasid = 0;
+	}
+
 	amdgpu_vm_fini(adev, &fpriv->vm);
 
 error_pasid:
-	if (pasid)
-		amdgpu_pasid_free(pasid);
-
 	kfree(fpriv);
 
 out_suspend:
@@ -1608,10 +1611,11 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 	}
 
 	amdgpu_ctx_mgr_fini(&fpriv->ctx_mgr);
-	amdgpu_vm_fini(adev, &fpriv->vm);
 
 	if (pasid)
 		amdgpu_pasid_free_delayed(pd->tbo.base.resv, pasid);
+
+	amdgpu_vm_fini(adev, &fpriv->vm);
 	amdgpu_bo_unref(&pd);
 
 	xa_for_each(&fpriv->bo_list_handles, handle, list)

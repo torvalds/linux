@@ -32,6 +32,7 @@
 #include "inc/hw/link_encoder.h"
 #include "inc/core_status.h"
 #include "inc/hw/hw_shared.h"
+#include "inc/hw/dchubbub.h"
 #include "dsc/dsc.h"
 #include "link_service_types.h"
 
@@ -53,7 +54,6 @@ struct drr_params;
 struct dc_underflow_debug_data;
 struct dsc_optc_config;
 struct vm_system_aperture_param;
-struct dc_measured_memory_qos;
 struct stream_encoder;
 struct hpo_dp_stream_encoder;
 struct hpo_frl_stream_encoder;
@@ -95,7 +95,13 @@ struct set_input_transfer_func_params {
 };
 
 struct program_gamut_remap_params {
-	struct pipe_ctx *pipe_ctx;
+	struct transform *xfm;
+	struct dpp *dpp;
+	struct mpc *mpc;
+	int mpcc_id;
+	const struct dc_stream_state *stream;
+	const struct dc_plane_state *plane;
+	bool is_top_pipe;
 };
 
 struct hubp_enable_3dlut_fl_params {
@@ -132,8 +138,11 @@ struct program_bias_and_scale_params {
 };
 
 struct set_output_transfer_func_params {
-	struct dc *dc;
-	struct pipe_ctx *pipe_ctx;
+	struct transform *xfm;
+	struct dpp *dpp;
+	struct mpc *mpc;
+	int mpcc_id;
+	bool is_top_pipe;
 	const struct dc_stream_state *stream;
 };
 
@@ -569,6 +578,77 @@ struct hubbub_soft_reset_params {
 	struct hubbub *hubbub;
 	void (*hubbub_soft_reset)(struct hubbub *hubbub, bool reset);
 	bool reset;
+};
+
+struct hubbub_perfmon_reset_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_arm_out_of_order_bw_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_start_out_of_order_bw_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_start_in_order_bw_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_start_memory_latencies_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_start_urgent_assertion_count_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_start_urgent_ramp_latency_params {
+	struct hubbub *hubbub;
+	struct hubbub_urgent_latency_params latency_params;
+};
+
+struct hubbub_perfmon_start_prefetch_data_size_params {
+	struct hubbub *hubbub;
+};
+
+struct hubbub_perfmon_get_out_of_order_bw_params {
+	struct hubbub *hubbub;
+	uint32_t       refclk_mhz;
+	uint32_t      *bandwidth_mbps;
+	uint32_t      *duration_ns;
+};
+
+struct hubbub_perfmon_get_in_order_bw_params {
+	struct hubbub *hubbub;
+	uint32_t       refclk_mhz;
+	uint32_t       min_duration_ns;
+	uint32_t      *bandwidth_mbps;
+	uint32_t      *duration_ns;
+};
+
+struct hubbub_perfmon_get_memory_latencies_params {
+	struct hubbub                        *hubbub;
+	uint32_t                              refclk_mhz;
+	struct dc_probe_latencies            *result;
+};
+
+struct hubbub_perfmon_get_urgent_assertion_count_params {
+	struct hubbub *hubbub;
+	uint32_t       refclk_mhz;
+	uint32_t      *assertion_count;
+};
+
+struct hubbub_perfmon_get_prefetch_data_size_params {
+	struct hubbub *hubbub;
+	uint32_t      *prefetch_data_size;
+};
+
+struct hubbub_perfmon_get_urgent_ramp_latency_params {
+	struct hubbub *hubbub;
+	uint32_t       refclk_mhz;
+	uint32_t      *latency_ns;
 };
 
 struct hubp_clk_cntl_params {
@@ -1022,6 +1102,20 @@ union block_sequence_params {
 	struct hubp_set_blank_en_params hubp_set_blank_en_params;
 	struct hubp_disable_control_params hubp_disable_control_params;
 	struct hubbub_soft_reset_params hubbub_soft_reset_params;
+	struct hubbub_perfmon_reset_params hubbub_perfmon_reset_params;
+	struct hubbub_perfmon_arm_out_of_order_bw_params hubbub_perfmon_arm_out_of_order_bw_params;
+	struct hubbub_perfmon_start_out_of_order_bw_params hubbub_perfmon_start_out_of_order_bw_params;
+	struct hubbub_perfmon_start_in_order_bw_params hubbub_perfmon_start_in_order_bw_params;
+	struct hubbub_perfmon_start_memory_latencies_params hubbub_perfmon_start_memory_latencies_params;
+	struct hubbub_perfmon_start_urgent_assertion_count_params hubbub_perfmon_start_urgent_assertion_count_params;
+	struct hubbub_perfmon_start_urgent_ramp_latency_params hubbub_perfmon_start_urgent_ramp_latency_params;
+	struct hubbub_perfmon_start_prefetch_data_size_params hubbub_perfmon_start_prefetch_data_size_params;
+	struct hubbub_perfmon_get_out_of_order_bw_params hubbub_perfmon_get_out_of_order_bw_params;
+	struct hubbub_perfmon_get_in_order_bw_params hubbub_perfmon_get_in_order_bw_params;
+	struct hubbub_perfmon_get_memory_latencies_params hubbub_perfmon_get_memory_latencies_params;
+	struct hubbub_perfmon_get_urgent_assertion_count_params hubbub_perfmon_get_urgent_assertion_count_params;
+	struct hubbub_perfmon_get_prefetch_data_size_params hubbub_perfmon_get_prefetch_data_size_params;
+	struct hubbub_perfmon_get_urgent_ramp_latency_params hubbub_perfmon_get_urgent_ramp_latency_params;
 	struct hubp_clk_cntl_params hubp_clk_cntl_params;
 	struct hubp_init_params hubp_init_params;
 	struct hubp_set_vm_system_aperture_settings_params hubp_set_vm_system_aperture_settings_params;
@@ -1249,6 +1343,20 @@ enum block_sequence_func {
 	HUBBUB_PROGRAM_WATERMARKS,
 	HUBBUB_PROGRAM_ARBITER,
 	HUBBUB_PROGRAM_COMPBUF_SEGMENTS,
+	HUBBUB_PERFMON_RESET,
+	HUBBUB_PERFMON_ARM_OUT_OF_ORDER_BW,
+	HUBBUB_PERFMON_START_OUT_OF_ORDER_BW,
+	HUBBUB_PERFMON_START_IN_ORDER_BW,
+	HUBBUB_PERFMON_START_MEMORY_LATENCIES,
+	HUBBUB_PERFMON_START_URGENT_ASSERTION_COUNT,
+	HUBBUB_PERFMON_START_URGENT_RAMP_LATENCY,
+	HUBBUB_PERFMON_START_PREFETCH_DATA_SIZE,
+	HUBBUB_PERFMON_GET_OUT_OF_ORDER_BW,
+	HUBBUB_PERFMON_GET_IN_ORDER_BW,
+	HUBBUB_PERFMON_GET_MEMORY_LATENCIES,
+	HUBBUB_PERFMON_GET_URGENT_ASSERTION_COUNT,
+	HUBBUB_PERFMON_GET_PREFETCH_DATA_SIZE,
+	HUBBUB_PERFMON_GET_URGENT_RAMP_LATENCY,
 	/* This must be the last value in this enum, add new ones above */
 	HWSS_BLOCK_SEQUENCE_FUNC_COUNT
 };
@@ -1389,7 +1497,7 @@ struct hw_sequencer_funcs {
 	void (*program_cursor_offload_now)(struct dc *dc, const struct pipe_ctx *pipe);
 
 	/* Colour Related */
-	void (*program_gamut_remap)(struct pipe_ctx *pipe_ctx);
+	void (*program_gamut_remap)(struct program_gamut_remap_params *params);
 	void (*program_output_csc)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			enum dc_color_space colorspace,
 			uint16_t *matrix, int opp_id);
@@ -1582,14 +1690,16 @@ struct hw_sequencer_funcs {
 			struct dc_underflow_debug_data *out_data);
 
 	/**
-	 * measure_memory_qos - Measure memory QoS metrics
-	 * @dc: DC structure
-	 * @qos: Pointer to dc_measured_memory_qos struct to populate with measured values
+	 * program_perfmon - Program/transition perfmon probes for a commit.
+	 * @dc:      DC structure
+	 * @context: target state; probes, probe_count, and probe_status are
+	 *           read from and written to this object
 	 *
-	 * Populates the provided dc_measured_memory_qos struct with peak bandwidth, average bandwidth,
-	 * max latency, min latency, and average latency from hardware performance counters.
+	 * Invoked during the execute phase of dc_update_state. The hook resolves
+	 * each probe's transition by diffing @context against dc->current_state
+	 * and latches MEASURED results into @context->probe_status.
 	 */
-	void (*measure_memory_qos)(struct dc *dc, struct dc_measured_memory_qos *qos);
+	void (*program_perfmon)(struct dc *dc, struct dc_state *context);
 
 };
 
@@ -1866,6 +1976,34 @@ void hwss_hubp_disable_control(union block_sequence_params *params);
 
 void hwss_hubbub_soft_reset(union block_sequence_params *params);
 
+void hwss_hubbub_perfmon_reset(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_arm_out_of_order_bw(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_out_of_order_bw(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_in_order_bw(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_memory_latencies(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_urgent_assertion_count(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_urgent_ramp_latency(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_start_prefetch_data_size(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_out_of_order_bw(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_in_order_bw(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_memory_latencies(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_urgent_assertion_count(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_prefetch_data_size(union block_sequence_params *params);
+
+void hwss_hubbub_perfmon_get_urgent_ramp_latency(union block_sequence_params *params);
+
 void hwss_hubp_clk_cntl(union block_sequence_params *params);
 
 void hwss_hubp_init(union block_sequence_params *params);
@@ -1940,7 +2078,7 @@ void hwss_set_cursor_position(union block_sequence_params *params);
 
 void hwss_set_cursor_sdr_white_level(union block_sequence_params *params);
 
-void hwss_program_gamut_remap(union block_sequence_params *params);
+void hwss_program_gamut_remap(struct pipe_ctx *pipe_ctx);
 
 void hwss_program_output_csc(union block_sequence_params *params);
 
@@ -1987,7 +2125,9 @@ void hwss_add_optc_program_manual_trigger(struct block_sequence_state *seq_state
 		struct pipe_ctx *pipe_ctx);
 
 void hwss_add_dpp_set_output_transfer_func(struct block_sequence_state *seq_state,
-		struct dc *dc, struct pipe_ctx *pipe_ctx, struct dc_stream_state *stream);
+		struct dc *dc, struct pipe_ctx *pipe_ctx);
+
+void hwss_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx);
 
 void hwss_add_mpc_update_visual_confirm(struct block_sequence_state *seq_state,
 		struct dc *dc, struct pipe_ctx *pipe_ctx, int mpcc_id);
@@ -2201,6 +2341,54 @@ void hwss_add_hubbub_soft_reset(struct block_sequence_state *seq_state,
 		struct hubbub *hubbub,
 		void (*hubbub_soft_reset)(struct hubbub *hubbub, bool reset),
 		bool reset);
+
+void hwss_add_hubbub_perfmon_reset(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_arm_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_start_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_start_in_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_start_memory_latencies(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_start_urgent_assertion_count(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_start_urgent_ramp_latency(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub,
+		const struct hubbub_urgent_latency_params *latency_params);
+
+void hwss_add_hubbub_perfmon_start_prefetch_data_size(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub);
+
+void hwss_add_hubbub_perfmon_get_out_of_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *bandwidth_mbps, uint32_t *duration_ns);
+
+void hwss_add_hubbub_perfmon_get_in_order_bw(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz, uint32_t min_duration_ns,
+		uint32_t *bandwidth_mbps, uint32_t *duration_ns);
+
+void hwss_add_hubbub_perfmon_get_memory_latencies(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		struct dc_probe_latencies *result);
+
+void hwss_add_hubbub_perfmon_get_urgent_assertion_count(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *assertion_count);
+
+void hwss_add_hubbub_perfmon_get_prefetch_data_size(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t *prefetch_data_size);
+
+void hwss_add_hubbub_perfmon_get_urgent_ramp_latency(struct block_sequence_state *seq_state,
+		struct hubbub *hubbub, uint32_t refclk_mhz,
+		uint32_t *latency_ns);
 
 void hwss_add_hubp_clk_cntl(struct block_sequence_state *seq_state,
 		struct hubp *hubp,

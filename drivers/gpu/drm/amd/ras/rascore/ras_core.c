@@ -28,6 +28,10 @@
 
 #define IS_LEAP_YEAR(x) ((x % 4 == 0 && x % 100 != 0) || x % 400 == 0)
 
+enum RAS_DEBUG_MASK {
+	RAS_DEBUG_DISABLE_RAS_CE_LOG = 9,
+};
+
 static const char * const ras_block_name[] = {
 	"umc",
 	"sdma",
@@ -141,6 +145,20 @@ bool ras_core_gpu_is_vf(struct ras_core_context *ras_core)
 		ras_core->sys_fn->check_gpu_status(ras_core, &status);
 
 	return (status & RAS_GPU_STATUS__IS_VF) ? true : false;
+}
+
+bool ras_core_gpu_device_lost(struct ras_core_context *ras_core)
+{
+	uint32_t status = 0;
+
+	if (!ras_core)
+		return false;
+
+	if (ras_core->sys_fn &&
+		ras_core->sys_fn->check_gpu_status)
+		ras_core->sys_fn->check_gpu_status(ras_core, &status);
+
+	return (status & RAS_GPU_STATUS__DEVICE_LOST) ? true : false;
 }
 
 bool ras_core_gpu_is_rma(struct ras_core_context *ras_core)
@@ -543,6 +561,11 @@ int ras_core_set_status(struct ras_core_context *ras_core, bool enable)
 bool ras_core_is_enabled(struct ras_core_context *ras_core)
 {
 	return ras_core->ras_core_enabled;
+}
+
+bool ras_core_is_ce_log_disabled(struct ras_core_context *ras_core)
+{
+	return !!(ras_core->config->ras_debug_mask & BIT(RAS_DEBUG_DISABLE_RAS_CE_LOG));
 }
 
 uint64_t ras_core_get_utc_second_timestamp(struct ras_core_context *ras_core)
