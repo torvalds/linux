@@ -869,8 +869,9 @@ static void validate_blend_mode_for_alpha_formats(struct drm_plane *plane)
 	for (i = 0; i < plane->format_count; i++) {
 		fmt = drm_format_info(plane->format_types[i]);
 		if (fmt->has_alpha) {
-			WARN(1, "[PLANE:%d:%s] pixel format with alpha exposed but blend mode not setup",
-			     plane->base.id, plane->name);
+			drm_warn(plane->dev,
+				 "[PLANE:%d:%s] pixel format with alpha exposed but blend mode not setup. Please fix.\n",
+				 plane->base.id, plane->name);
 			break;
 		}
 	}
