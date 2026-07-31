@@ -575,7 +575,7 @@ config PINCTRL_STMFX
 
 config PINCTRL_SX150X
 	tristate "Semtech SX150x I2C GPIO expander pinctrl driver"
-	depends on I2C=y
+	depends on I2C
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
