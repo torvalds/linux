@@ -38,6 +38,8 @@ struct fuse_iqueue;
  * @FR_PRIVATE:		request is on private list
  * @FR_ASYNC:		request is asynchronous
  * @FR_URING:		request is handled through fuse-io-uring
+ * @FR_SYNC_WAKEUP:	use synchronous wakeup when queueing this request to
+ *			give the scheduler a hint about the waker task
  */
 enum fuse_req_flag {
 	FR_ISREPLY,
@@ -53,6 +55,7 @@ enum fuse_req_flag {
 	FR_PRIVATE,
 	FR_ASYNC,
 	FR_URING,
+	FR_SYNC_WAKEUP,
 };
 
 /**

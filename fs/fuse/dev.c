@@ -213,10 +213,13 @@ EXPORT_SYMBOL_GPL(fuse_req_hash);
 /*
  * A new request is available, wake fiq->waitq
  */
-static void fuse_dev_wake_and_unlock(struct fuse_iqueue *fiq)
+static void fuse_dev_wake_and_unlock(struct fuse_iqueue *fiq, bool sync)
 __releases(fiq->lock)
 {
-	wake_up(&fiq->waitq);
+	if (sync)
+		wake_up_sync(&fiq->waitq);
+	else
+		wake_up(&fiq->waitq);
 	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
 	spin_unlock(&fiq->lock);
 }
@@ -233,7 +236,7 @@ void fuse_dev_queue_forget(struct fuse_iqueue *fiq,
 	if (fiq->connected) {
 		fiq->forget_list_tail->next = forget;
 		fiq->forget_list_tail = forget;
-		fuse_dev_wake_and_unlock(fiq);
+		fuse_dev_wake_and_unlock(fiq, false);
 	} else {
 		kfree(forget);
 		spin_unlock(&fiq->lock);
@@ -255,7 +258,7 @@ void fuse_dev_queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 			list_del_init(&req->intr_entry);
 			spin_unlock(&fiq->lock);
 		} else  {
-			fuse_dev_wake_and_unlock(fiq);
+			fuse_dev_wake_and_unlock(fiq, false);
 		}
 	} else {
 		spin_unlock(&fiq->lock);
@@ -285,11 +288,13 @@ EXPORT_SYMBOL_GPL(fuse_request_assign_unique);
 
 static void fuse_dev_queue_req(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
+	bool sync = test_and_clear_bit(FR_SYNC_WAKEUP, &req->flags);
+
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
 		fuse_request_assign_unique_locked(fiq, req);
 		list_add_tail(&req->list, &fiq->pending);
-		fuse_dev_wake_and_unlock(fiq);
+		fuse_dev_wake_and_unlock(fiq, sync);
 	} else {
 		spin_unlock(&fiq->lock);
 		req->out.h.error = -ENOTCONN;
@@ -752,6 +757,11 @@ static void __fuse_request_send(struct fuse_req *req)
 	/* acquire extra reference, since request is still needed after
 	   fuse_request_end() */
 	__fuse_get_request(req);
+	/*
+	 * This is a synchronous request: the caller will block waiting for
+	 * the answer. Hint the scheduler via wake_up_sync().
+	 */
+	set_bit(FR_SYNC_WAKEUP, &req->flags);
 	fuse_send_one(fiq, req);
 
 	request_wait_answer(req);
@@ -1824,7 +1834,7 @@ void fuse_chan_resend(struct fuse_chan *fch)
 	}
 	/* iq and pq requests are both oldest to newest */
 	list_splice(&to_queue, &fiq->pending);
-	fuse_dev_wake_and_unlock(fiq);
+	fuse_dev_wake_and_unlock(fiq, false);
 }
 
 /* Look up request on processing list by unique ID */
