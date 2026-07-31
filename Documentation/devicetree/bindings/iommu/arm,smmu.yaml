@@ -38,6 +38,7 @@ properties:
               - qcom,eliza-smmu-500
               - qcom,glymur-smmu-500
               - qcom,hawi-smmu-500
+              - qcom,ipq9650-smmu-500
               - qcom,kaanapali-smmu-500
               - qcom,maili-smmu-500
               - qcom,milos-smmu-500
@@ -625,6 +626,7 @@ allOf:
                 - qcom,eliza-smmu-500
                 - qcom,glymur-smmu-500
                 - qcom,hawi-smmu-500
+                - qcom,ipq9650-smmu-500
                 - qcom,kaanapali-smmu-500
                 - qcom,maili-smmu-500
                 - qcom,milos-smmu-500
