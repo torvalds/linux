@@ -296,7 +296,7 @@ int main(int argc, char **argv)
 		kvm_sched_getaffinity(0, sizeof(available_cpus), &available_cpus);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_create(&vcpu_threads[i], NULL, vcpu_thread_main, vcpus[i]);
+		kvm_pthread_create(&vcpu_threads[i], NULL, vcpu_thread_main, vcpus[i]);
 
 	for (i = 0; i < nr_vcpus; i++) {
 		struct kvm_vcpu *vcpu = vcpus[i];

@@ -311,10 +311,10 @@ static void run_test(void)
 	pthread_barrier_init(&test_setup_barrier, NULL, nr_vcpus + nr_devices + 1);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_create(&vcpu_threads[i], NULL, vcpu_worker_thread, vcpus[i]);
+		kvm_pthread_create(&vcpu_threads[i], NULL, vcpu_worker_thread, vcpus[i]);
 
 	for (i = 0; i < nr_devices; i++)
-		pthread_create(&lpi_threads[i], NULL, lpi_worker_thread, (void *)i);
+		kvm_pthread_create(&lpi_threads[i], NULL, lpi_worker_thread, (void *)i);
 
 	pthread_barrier_wait(&test_setup_barrier);
 

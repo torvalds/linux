@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu[3];
 	gva_t hcall_page;
 	pthread_t threads[2];
-	int stage = 1, r;
+	int stage = 1;
 	struct ucall uc;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_SEND_IPI));
@@ -272,11 +272,8 @@ int main(int argc, char *argv[])
 	vcpu_args_set(vcpu[0], 2, hcall_page, addr_gva2gpa(vm, hcall_page));
 	vcpu_set_hv_cpuid(vcpu[0]);
 
-	r = pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", r);
-
-	r = pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
-	TEST_ASSERT(!r, "pthread_create failed errno=%d", errno);
+	kvm_pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
+	kvm_pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
 
 	while (true) {
 		vcpu_run(vcpu[0]);
@@ -306,5 +303,5 @@ done:
 	cancel_join_vcpu_thread(threads[1], vcpu[2]);
 	kvm_vm_free(vm);
 
-	return r;
+	return 0;
 }

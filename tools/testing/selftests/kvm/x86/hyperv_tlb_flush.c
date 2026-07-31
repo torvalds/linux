@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
 	u64 *pte;
 	struct test_data *data;
 	struct ucall uc;
-	int stage = 1, r, i;
+	int stage = 1, i;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TLBFLUSH));
 
@@ -632,11 +632,8 @@ int main(int argc, char *argv[])
 	vcpu_set_msr(vcpu[2], HV_X64_MSR_VP_INDEX, WORKER_VCPU_ID_2);
 	vcpu_set_hv_cpuid(vcpu[2]);
 
-	r = pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
-	TEST_ASSERT(!r, "pthread_create() failed");
-
-	r = pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
-	TEST_ASSERT(!r, "pthread_create() failed");
+	kvm_pthread_create(&threads[0], NULL, vcpu_thread, vcpu[1]);
+	kvm_pthread_create(&threads[1], NULL, vcpu_thread, vcpu[2]);
 
 	while (true) {
 		vcpu_run(vcpu[0]);

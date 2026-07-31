@@ -141,27 +141,21 @@ static void test_run(struct kvm_vm *vm)
 {
 	pthread_t pt_vcpu_migration;
 	unsigned int i;
-	int ret;
 
 	pthread_mutex_init(&vcpu_done_map_lock, NULL);
 	vcpu_done_map = bitmap_zalloc(test_args.nr_vcpus);
 	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap");
 
-	for (i = 0; i < (unsigned long)test_args.nr_vcpus; i++) {
-		ret = pthread_create(&pt_vcpu_run[i], NULL, test_vcpu_run,
-				     (void *)(unsigned long)i);
-		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread", i);
-	}
+	for (i = 0; i < (unsigned long)test_args.nr_vcpus; i++)
+		kvm_pthread_create(&pt_vcpu_run[i], NULL, test_vcpu_run,
+				   (void *)(unsigned long)i);
 
 	/* Spawn a thread to control the vCPU migrations */
 	if (test_args.migration_freq_ms) {
 		srand(time(NULL));
 
-		ret = pthread_create(&pt_vcpu_migration, NULL,
-					test_vcpu_migration, NULL);
-		TEST_ASSERT(!ret, "Failed to create the migration pthread");
+		kvm_pthread_create(&pt_vcpu_migration, NULL, test_vcpu_migration, NULL);
 	}
-
 
 	for (i = 0; i < test_args.nr_vcpus; i++)
 		pthread_join(pt_vcpu_run[i], NULL);

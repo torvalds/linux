@@ -894,8 +894,7 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Testing shinfo lock corruption (KVM_XEN_HVM_EVTCHN_SEND)\n");
 
-				ret = pthread_create(&thread, NULL, &juggle_shinfo_state, (void *)vm);
-				TEST_ASSERT(ret == 0, "pthread_create() failed: %s", strerror(ret));
+				kvm_pthread_create(&thread, NULL, &juggle_shinfo_state, (void *)vm);
 
 				struct kvm_irq_routing_xen_evtchn uxe = {
 					.port = 1,

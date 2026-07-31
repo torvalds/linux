@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 	pthread_t cpu_threads[NR_TEST_VCPUS];
 	unsigned long cpu;
 	for (cpu = 0; cpu < NR_TEST_VCPUS; cpu++)
-		pthread_create(&cpu_threads[cpu], NULL, run_vcpu, (void *)cpu);
+		kvm_pthread_create(&cpu_threads[cpu], NULL, run_vcpu, (void *)cpu);
 
 	unsigned long failures = 0;
 	for (cpu = 0; cpu < NR_TEST_VCPUS; cpu++) {

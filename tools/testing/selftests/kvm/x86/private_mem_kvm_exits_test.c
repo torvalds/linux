@@ -65,9 +65,8 @@ static void test_private_access_memslot_deleted(void)
 	/* Request to access page privately */
 	vm_mem_set_private(vm, EXITS_TEST_GPA, EXITS_TEST_SIZE);
 
-	pthread_create(&vm_thread, NULL,
-		       (void *(*)(void *))run_vcpu_get_exit_reason,
-		       (void *)vcpu);
+	kvm_pthread_create(&vm_thread, NULL,
+			   (pthread_fn_t)run_vcpu_get_exit_reason, (void *)vcpu);
 
 	vm_mem_region_delete(vm, EXITS_TEST_SLOT);
 

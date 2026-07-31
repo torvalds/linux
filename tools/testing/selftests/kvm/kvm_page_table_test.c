@@ -364,8 +364,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	*current_stage = KVM_BEFORE_MAPPINGS;
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_create(&vcpu_threads[i], NULL, vcpu_worker,
-			       test_args.vcpus[i]);
+		kvm_pthread_create(&vcpu_threads[i], NULL, vcpu_worker,
+				   test_args.vcpus[i]);
 
 	vcpus_complete_new_stage(*current_stage);
 	pr_info("Started all vCPUs successfully\n");

@@ -412,7 +412,7 @@ static void test_mem_conversions(enum vm_mem_backing_src_type src_type, u32 nr_v
 		 */
 		virt_map(vm, gpa, gpa, PER_CPU_DATA_SIZE / vm->page_size);
 
-		pthread_create(&threads[i], NULL, __test_mem_conversions, vcpus[i]);
+		kvm_pthread_create(&threads[i], NULL, __test_mem_conversions, vcpus[i]);
 	}
 
 	WRITE_ONCE(run_vcpus, true);

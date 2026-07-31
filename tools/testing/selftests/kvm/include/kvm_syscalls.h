@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <pthread.h>
 #include <sched.h>
 #include <test_util.h>
 
@@ -96,6 +97,10 @@ __KVM_SYSCALL_DEFINE(ftruncate, 2, unsigned int, fd, off_t, length);
 __KVM_SYSCALL_DEFINE(madvise, 3, void *, addr, size_t, length, int, advice);
 __KVM_SYSCALL_DEFINE(sched_getaffinity, 3, pid_t, pid, size_t, cpusetsize, cpu_set_t *, mask);
 __KVM_SYSCALL_DEFINE(sched_setaffinity, 3, pid_t, pid, size_t, cpusetsize, cpu_set_t *, mask);
+
+typedef void *(*pthread_fn_t)(void *);
+__KVM_SYSCALL_DEFINE(pthread_create, 4, pthread_t *, thread,
+		     const pthread_attr_t *, attr, pthread_fn_t, fn, void *, arg);
 
 #define kvm_free_fd(fd)		\
 do {				\
