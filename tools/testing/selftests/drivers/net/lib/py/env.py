@@ -114,10 +114,11 @@ class NetDrvEpEnv(NetDrvEnvBase):
     nsim_v4_pfx = "192.0.2."
     nsim_v6_pfx = "2001:db8::"
 
-    def __init__(self, src_path, nsim_test=None):
+    def __init__(self, src_path, nsim_test=None, queue_count=None):
         super().__init__(src_path)
 
         self._stats_settle_time = None
+        self._queue_count = queue_count
 
         # Things we try to destroy
         self.remote = None
@@ -173,9 +174,13 @@ class NetDrvEpEnv(NetDrvEnvBase):
         self._required_cmd = {}
 
     def create_local(self):
+        nsim_kwargs = {}
+        if self._queue_count:
+            nsim_kwargs["queue_count"] = self._queue_count
+
         self._netns = NetNS()
-        self._ns = NetdevSimDev()
-        self._ns_peer = NetdevSimDev(ns=self._netns)
+        self._ns = NetdevSimDev(**nsim_kwargs)
+        self._ns_peer = NetdevSimDev(ns=self._netns, **nsim_kwargs)
 
         with open("/proc/self/ns/net") as nsfd0, \
              open("/var/run/netns/" + self._netns.name) as nsfd1:
