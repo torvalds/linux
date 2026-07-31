@@ -9377,6 +9377,10 @@ void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
 {
 	struct bio *discard_bio = NULL;
 
+	/* Discard is optional, so silently skip members that do not support it. */
+	if (unlikely(!bdev_max_discard_sectors(rdev->bdev)))
+		return;
+
 	__blkdev_issue_discard(rdev->bdev, start, size, GFP_NOIO, &discard_bio);
 	if (!discard_bio)
 		return;
