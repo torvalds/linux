@@ -6706,6 +6706,9 @@ static void bnxt_fill_hw_rss_tbl(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 	bool no_rss = !(vnic->flags & BNXT_VNIC_RSS_FLAG);
 	u16 i, j;
 
+	if (!vnic->rss_table)
+		return;
+
 	/* Fill the RSS indirection table with ring group ids */
 	for (i = 0, j = 0; i < HW_HASH_INDEX_SIZE; i++) {
 		if (!no_rss)
@@ -6745,13 +6748,8 @@ static void
 __bnxt_hwrm_vnic_set_rss(struct bnxt *bp, struct hwrm_vnic_rss_cfg_input *req,
 			 struct bnxt_vnic_info *vnic)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		bnxt_fill_hw_rss_tbl_p5(bp, vnic);
-		if (bp->flags & BNXT_FLAG_CHIP_P7)
-			req->flags |= VNIC_RSS_CFG_REQ_FLAGS_IPSEC_HASH_TYPE_CFG_SUPPORT;
-	} else {
-		bnxt_fill_hw_rss_tbl(bp, vnic);
-	}
+	if (bp->flags & BNXT_FLAG_CHIP_P7)
+		req->flags |= VNIC_RSS_CFG_REQ_FLAGS_IPSEC_HASH_TYPE_CFG_SUPPORT;
 
 	if (bp->rss_hash_delta) {
 		req->hash_type = cpu_to_le32(bp->rss_hash_delta);
@@ -6803,6 +6801,7 @@ static int bnxt_hwrm_vnic_set_rss_p5(struct bnxt *bp,
 	if (!set_rss)
 		return hwrm_req_send(bp, req);
 
+	bnxt_fill_hw_rss_tbl_p5(bp, vnic);
 	__bnxt_hwrm_vnic_set_rss(bp, req, vnic);
 	ring_tbl_map = vnic->rss_table_dma_addr;
 	nr_ctxs = bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings);
@@ -10866,6 +10865,7 @@ static int __bnxt_setup_vnic(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 	}
 
 skip_rss_ctx:
+	bnxt_fill_hw_rss_tbl(bp, vnic);
 	/* configure default vnic, ring grp */
 	rc = bnxt_hwrm_vnic_cfg(bp, vnic);
 	if (rc) {
