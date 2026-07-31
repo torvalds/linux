@@ -2254,8 +2254,10 @@ retry:
 	expires_next = hrtimer_update_next_event(cpu_base);
 	cpu_base->hang_detected = false;
 	if (expires_next < now) {
-		if (++retries < 3)
+		if (++retries < 3) {
+			cpu_base->nr_retries++;
 			goto retry;
+		}
 
 		delta = ktime_sub(now, entry_time);
 		cpu_base->max_hang_time = max_t(unsigned int, cpu_base->max_hang_time, delta);
