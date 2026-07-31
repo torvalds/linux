@@ -14415,6 +14415,7 @@ F:	drivers/video/backlight/ktz8866.c
 KVM GUEST_MEMFD
 M:	Sean Christopherson <seanjc@google.com>
 M:	Paolo Bonzini <pbonzini@redhat.com>
+R:	David Hildenbrand <david@kernel.org>
 L:	kvm@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
