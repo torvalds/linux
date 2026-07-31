@@ -947,3 +947,12 @@ elp_unregister:
 
 	return ret;
 }
+
+/**
+ * batadv_v_deinit() - B.A.T.M.A.N. V deinitialization function
+ */
+void batadv_v_deinit(void)
+{
+	batadv_recv_handler_unregister(BATADV_OGM2);
+	batadv_recv_handler_unregister(BATADV_ELP);
+}

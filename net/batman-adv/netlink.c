@@ -1556,14 +1556,18 @@ struct genl_family batadv_netlink_family __ro_after_init = {
 
 /**
  * batadv_netlink_register() - register batadv genl netlink family
+ *
+ * Return: 0 on success or negative error number in case of failure
  */
-void __init batadv_netlink_register(void)
+int __init batadv_netlink_register(void)
 {
 	int ret;
 
 	ret = genl_register_family(&batadv_netlink_family);
 	if (ret)
 		pr_warn("unable to register netlink family\n");
+
+	return ret;
 }
 
 /**

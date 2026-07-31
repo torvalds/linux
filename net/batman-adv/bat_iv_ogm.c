@@ -2802,3 +2802,11 @@ handler_unregister:
 out:
 	return ret;
 }
+
+/**
+ * batadv_iv_deinit() - B.A.T.M.A.N. IV deinitialization function
+ */
+void batadv_iv_deinit(void)
+{
+	batadv_recv_handler_unregister(BATADV_IV_OGM);
+}
