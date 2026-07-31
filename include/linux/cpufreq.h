@@ -379,6 +379,7 @@ struct cpufreq_driver {
 	void		(*adjust_perf)(struct cpufreq_policy *policy,
 				       unsigned long min_perf,
 				       unsigned long target_perf,
+				       unsigned long max_perf,
 				       unsigned long capacity);
 
 	/*
@@ -624,6 +625,7 @@ unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 void cpufreq_driver_adjust_perf(struct cpufreq_policy *policy,
 				unsigned long min_perf,
 				unsigned long target_perf,
+				unsigned long max_perf,
 				unsigned long capacity);
 bool cpufreq_driver_has_adjust_perf(void);
 int cpufreq_driver_target(struct cpufreq_policy *policy,

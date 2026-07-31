@@ -2225,14 +2225,17 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
  * @policy: cpufreq policy object of the target CPU.
  * @min_perf: Minimum (required) performance level (units of @capacity).
  * @target_perf: Target (desired) performance level (units of @capacity).
+ * @max_perf: Maximum (allowed) performance level (units of @capacity).
  * @capacity: Capacity of the target CPU.
  *
- * Carry out a fast performance level switch of @cpu without sleeping.
+ * Carry out a fast performance level adjustment for the CPU represented by
+ * @policy without sleeping.
  *
  * The driver's ->adjust_perf() callback invoked by this function must be
- * suitable for being called from within RCU-sched read-side critical sections
- * and it is expected to select a suitable performance level equal to or above
- * @min_perf and preferably equal to or below @target_perf.
+ * suitable for calling from within RCU-sched read-side critical sections and
+ * it is expected to program the processor to select suitable performance
+ * levels between @min_perf and @max_perf inclusive and preferably close to
+ * @target_perf going forward for the CPU represented by @policy.
  *
  * This function must not be called if policy->fast_switch_enabled is unset.
  *
@@ -2244,9 +2247,10 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
 void cpufreq_driver_adjust_perf(struct cpufreq_policy *policy,
 				 unsigned long min_perf,
 				 unsigned long target_perf,
+				 unsigned long max_perf,
 				 unsigned long capacity)
 {
-	cpufreq_driver->adjust_perf(policy, min_perf, target_perf, capacity);
+	cpufreq_driver->adjust_perf(policy, min_perf, target_perf, max_perf, capacity);
 }
 
 /**
