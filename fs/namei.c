@@ -4337,14 +4337,16 @@ static int may_o_create(struct mnt_idmap *idmap,
 }
 
 /**
- * atomic_open() - attempt to atomically look up, create and open a file
- * from a negative dentry.
+ * atomic_open() - atomically look up, create and open a file
  * @path:          parent directory path
  * @dentry:        child to ->atomic_open()
  * @file:          file to attach child to
  * @open_flag:     open flags
  * @mode:          create mode
  * @create_error:  return value from may_o_create()
+ *
+ * Attempt to look up, create and open @dentry, which must be negative, in a
+ * single call into the filesystem.
  *
  * If a non-error dentry is returned then: when FMODE_OPENED is set,
  * the file will have been attached to @file by the filesystem calling
@@ -4354,8 +4356,8 @@ static int may_o_create(struct mnt_idmap *idmap,
  * FMODE_CREATED is set when the call to ->atomic_open() actually created
  * the file.
  *
- * Returns the opened/looked-up dentry on success or ERR_PTR(-E) on failure.
- * On error, atomic_open() consumes @dentry.
+ * Returns: the opened or looked-up dentry, or ERR_PTR() on failure.  The
+ * reference to @dentry is consumed in either case.
  */
 static struct dentry *atomic_open(const struct path *path, struct dentry *dentry,
 				  struct file *file,
@@ -4375,6 +4377,7 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 		if (file->f_mode & FMODE_OPENED) {
 			/* finish_open() called */
 			struct dentry *opened = file->f_path.dentry;
+
 			if (unlikely(opened != dentry)) {
 				dput(dentry);
 				dentry = dget(opened);
@@ -4382,6 +4385,7 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 		} else if (likely(file->f_path.dentry != DENTRY_NOT_SET)) {
 			/* finish_no_open() called */
 			struct dentry *replaced = file->f_path.dentry;
+
 			if (replaced) {
 				dput(dentry);
 				dentry = replaced;
@@ -4390,8 +4394,9 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 				error = -ENOENT;
 		} else {
 			const char *fsname = dentry->d_sb->s_type->name;
+
 			WARN(1, "%s: ->atomic_open() left file->f_path.dentry unset!\n",
-			        fsname);
+			     fsname);
 			error = -EIO;
 		}
 	}
@@ -4417,17 +4422,16 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 /*
  * Look up and maybe create and open the last component.
  *
- * Must be called with parent locked (exclusive in O_CREAT case).
+ * Takes the parent inode lock itself, exclusive if O_CREAT was requested and
+ * shared otherwise, and drops it again before returning.  The caller must not
+ * hold it.
  *
- * Returns 0 on success, that is, if
- *  the file was successfully atomically created (if necessary) and opened, or
- *  the file was not completely opened at this time, though lookups and
- *  creations were performed.
- * These case are distinguished by presence of FMODE_OPENED on file->f_mode.
- * In the latter case dentry returned in @path might be negative if O_CREAT
- * hadn't been specified.
+ * On success returns the dentry of the last component.  If FMODE_OPENED is set
+ * on file->f_mode the file was also opened and attached to @file; otherwise
+ * only lookup and creation were performed and the caller has to open it.  In
+ * the latter case the dentry may be negative if O_CREAT hadn't been specified.
  *
- * An error code is returned on failure.
+ * Returns ERR_PTR() on failure.
  */
 static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 				  const struct open_flags *op)
@@ -4452,8 +4456,7 @@ retry:
 		got_write = !mnt_want_write(nd->path.mnt);
 		/*
 		 * do _not_ fail yet - we might not need that or fail with
-		 * a different error; let lookup_open() decide; we'll be
-		 * dropping this one anyway.
+		 * a different error; we'll be dropping this one anyway.
 		 */
 	}
 	if (open_flag & O_CREAT)
@@ -4540,8 +4543,10 @@ retry:
 		}
 	}
 	if (dentry->d_inode || !(op->open_flag & O_CREAT)) {
-		/* No need to create a file. If lookup returned a positive
-		 * dentry, the file will be opened in do_open(). */
+		/*
+		 * No need to create a file.  If lookup returned a positive
+		 * dentry, the file will be opened in do_open().
+		 */
 		goto out;
 	}
 
@@ -4607,7 +4612,7 @@ out_dput:
  * @mode: initial permissions for file
  *
  * Open a file after lookup and/or create.  This provides similar
- * functionality open_last_lookups() for non-VFS users, particularly
+ * functionality to open_last_lookups() for non-VFS users, particularly
  * nfsd.
  * It uses ->atomic_open or ->lookup / ->create / ->open as appropriate.
  *
