@@ -467,25 +467,17 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 			XDNA_ERR(xdna, "Failed shmem mmap %d", ret);
 			return ret;
 		}
-
-		/* The buffer is based on memory pages. Fix the flag. */
-		vm_flags_mod(vma, VM_MIXEDMAP, VM_PFNMAP);
-		ret = vm_insert_pages(vma, vma->vm_start, abo->base.pages,
-				      &num_pages);
+	} else {
+		vma->vm_private_data = NULL;
+		vma->vm_ops = NULL;
+		ret = dma_buf_mmap(abo->dma_buf, vma, 0);
 		if (ret) {
-			XDNA_ERR(xdna, "Failed insert pages %d", ret);
-			amdxdna_mark_mapp_invalid(abo, vma);
+			XDNA_ERR(xdna, "Failed to mmap dma buf %d", ret);
+			return ret;
 		}
 
-		return 0;
-	}
-
-	vma->vm_private_data = NULL;
-	vma->vm_ops = NULL;
-	ret = dma_buf_mmap(abo->dma_buf, vma, 0);
-	if (ret) {
-		XDNA_ERR(xdna, "Failed to mmap dma buf %d", ret);
-		return ret;
+		/* Drop the reference drm_gem_mmap_obj() acquired.*/
+		drm_gem_object_put(to_gobj(abo));
 	}
 
 	do {
@@ -501,9 +493,6 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 
 		offset += PAGE_SIZE;
 	} while (--num_pages);
-
-	/* Drop the reference drm_gem_mmap_obj() acquired.*/
-	drm_gem_object_put(to_gobj(abo));
 
 	return 0;
 }
