@@ -880,6 +880,7 @@ int rhashtable_walk_start_check(struct rhashtable_iter *iter)
 		iter->walker.tbl = rht_dereference_rcu(ht->tbl, ht);
 		iter->slot = 0;
 		iter->skip = 0;
+		iter->p = NULL;
 		return -EAGAIN;
 	}
 
@@ -1262,7 +1263,7 @@ static void rhashtable_free_one(struct rhashtable *ht, struct rhash_head *obj,
 	list = container_of(obj, struct rhlist_head, rhead);
 	do {
 		obj = &list->rhead;
-		list = rht_dereference(list->next, ht);
+		list = rcu_dereference_raw(list->next);
 		free_fn(rht_obj(ht, obj), arg);
 	} while (list);
 }
