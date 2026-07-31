@@ -21,7 +21,7 @@ struct gpio_shared_proxy_data {
 	struct gpio_chip gc;
 	struct gpio_shared_desc *shared_desc;
 	struct device *dev;
-	bool voted_high;
+	bool voted_change;
 };
 
 static int
@@ -33,52 +33,54 @@ gpio_shared_proxy_set_unlocked(struct gpio_shared_proxy_data *proxy, int value)
 
 	lockdep_assert_held(&shared_desc->mutex);
 
-	if (value) {
-	       /* User wants to set value to high. */
-		if (proxy->voted_high)
-			/* Already voted for high, nothing to do. */
+	if (value != shared_desc->def_val) {
+	       /* User wants to vote for a value change. */
+		if (proxy->voted_change)
+			/* Already voted for a change, nothing to do. */
 			goto out;
 
-		/* Haven't voted for high yet. */
-		if (!shared_desc->highcnt) {
+		/* Haven't voted for a value change yet. */
+		if (!shared_desc->votecnt) {
 			/*
-			 * Current value is low, need to actually set value
-			 * to high.
+			 * Current value is default, need to actually set value
+			 * to the opposite.
 			 */
-			ret = gpiod_set_value_cansleep(desc, 1);
+			ret = gpiod_set_value_cansleep(desc, value);
 			if (ret)
 				goto out;
 		}
 
-		shared_desc->highcnt++;
-		proxy->voted_high = true;
+		shared_desc->votecnt++;
+		proxy->voted_change = true;
 
 		goto out;
 	}
 
-	/* Desired value is low. */
-	if (!proxy->voted_high)
-		/* We didn't vote for high, nothing to do. */
+	/* Desired value is the default. */
+	if (!proxy->voted_change)
+		/* We didn't vote for change previously, nothing to do. */
 		goto out;
 
-	/* We previously voted for high. */
-	if (shared_desc->highcnt == 1) {
-		/* This is the last remaining vote for high, set value  to low. */
-		ret = gpiod_set_value_cansleep(desc, 0);
+	/* We previously voted for change. */
+	if (shared_desc->votecnt == 1) {
+		/* This is the last remaining vote for change, set value to default. */
+		ret = gpiod_set_value_cansleep(desc, shared_desc->def_val);
 		if (ret)
 			goto out;
 	}
 
-	shared_desc->highcnt--;
-	proxy->voted_high = false;
+	shared_desc->votecnt--;
+	proxy->voted_change = false;
 
 out:
-	if (shared_desc->highcnt)
+	if (shared_desc->votecnt)
 		dev_dbg(proxy->dev,
-			"Voted for value '%s', effective value is 'high', number of votes for 'high': %u\n",
-			str_high_low(value), shared_desc->highcnt);
+			"Voted for value '%s', effective value is '%s', number of votes: %u\n",
+			str_high_low(value), str_high_low(!shared_desc->def_val),
+			shared_desc->votecnt);
 	else
-		dev_dbg(proxy->dev, "Voted for value 'low', effective value is 'low'\n");
+		dev_dbg(proxy->dev, "Voted for value '%s', effective value is '%s'\n",
+			str_high_low(value), str_high_low(shared_desc->def_val));
 
 	return ret;
 }
@@ -106,8 +108,8 @@ static void gpio_shared_proxy_free(struct gpio_chip *gc, unsigned int offset)
 
 	guard(mutex)(&shared_desc->mutex);
 
-	if (proxy->voted_high) {
-		ret = gpio_shared_proxy_set_unlocked(proxy, 0);
+	if (proxy->voted_change) {
+		ret = gpio_shared_proxy_set_unlocked(proxy, shared_desc->def_val);
 		if (ret)
 			dev_err(proxy->dev,
 				"Failed to unset the shared GPIO value on release: %d\n", ret);
@@ -196,13 +198,9 @@ static int gpio_shared_proxy_direction_output(struct gpio_chip *gc,
 		if (ret)
 			return ret;
 
-		if (value) {
-			proxy->voted_high = true;
-			shared_desc->highcnt = 1;
-		} else {
-			proxy->voted_high = false;
-			shared_desc->highcnt = 0;
-		}
+		shared_desc->def_val = value;
+		shared_desc->votecnt = 0;
+		proxy->voted_change = false;
 
 		return 0;
 	}

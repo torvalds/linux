@@ -77,6 +77,7 @@ struct ceph_fs_client;
 struct ceph_cap;
 
 #define MDS_AUTH_UID_ANY -1
+#define CEPH_GET_CAPS_WAIT_TIMEOUT (5 * HZ)
 #define CEPH_CAP_FLUSH_WAIT_TIMEOUT_SEC 60
 #define CEPH_CAP_FLUSH_MAX_DUMP_ENTRIES 5
 #define CEPH_CAP_FLUSH_MAX_DUMP_ITERS 5

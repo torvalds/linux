@@ -9,6 +9,7 @@ RDMA Controller
      1-2. Why RDMA controller needed?
      1-3. How is RDMA controller implemented?
    2. Usage Examples
+   3. RDMA Interface Files
 
 1. Overview
 ===========
@@ -115,3 +116,68 @@ Following resources can be accounted by rdma controller.
 (d) Delete resource limit::
 
 	echo mlx4_0 hca_handle=max hca_object=max > /sys/fs/cgroup/rdma/1/rdma.max
+
+3. RDMA Interface Files
+========================
+
+The following interface files are available in each non-root RDMA cgroup.
+
+  rdma.max
+	A read-write file which describes the configured resource limit
+	for an RDMA/IB device.  See the Usage Examples above.
+
+  rdma.current
+	A read-only file which describes the current resource usage.
+
+  rdma.peak
+	A read-only nested-keyed file which shows the historical high
+	watermark of resource usage per device since the cgroup was created.
+
+	An example for mlx4 and ocrdma device follows::
+
+	  mlx4_0 hca_handle=1 hca_object=20
+	  ocrdma1 hca_handle=0 hca_object=23
+
+  rdma.events
+	A read-only nested-keyed file which exists on non-root cgroups
+	and contains the following keys:
+
+	  max
+		The number of times a process in this cgroup or its
+		descendants attempted an RDMA resource allocation that
+		was rejected because a rdma.max limit in the subtree
+		was reached.  This is a hierarchical counter propagated
+		upward to all ancestor cgroups.  A value change in this
+		file generates a file modified event.
+
+	  alloc_fail
+		The number of RDMA resource allocation attempts that
+		originated in this cgroup or its descendants and failed
+		due to a rdma.max limit being reached.  This is a
+		hierarchical counter propagated upward.
+
+	An example for mlx4 device follows::
+
+	  mlx4_0 hca_handle.max=5 hca_handle.alloc_fail=3 hca_object.max=0 hca_object.alloc_fail=0
+
+  rdma.events.local
+	Similar to rdma.events but the fields are local to the cgroup,
+	i.e. not hierarchical.  The file modified event generated on this
+	file reflects only the local events.
+
+	The following nested keys are defined.
+
+	  max
+		The number of times a process in this cgroup or its
+		descendants attempted an RDMA resource allocation that
+		was rejected because this cgroup's own rdma.max limit
+		was reached.
+
+	  alloc_fail
+		The number of RDMA resource allocation attempts
+		originating from this cgroup that failed due to this
+		cgroup's or an ancestor's rdma.max limit.
+
+	An example for mlx4 device follows::
+
+	  mlx4_0 hca_handle.max=5 hca_handle.alloc_fail=0 hca_object.max=0 hca_object.alloc_fail=0

@@ -158,6 +158,25 @@ static int pfuze100_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	return ret;
 }
 
+static int pfuze100_ldo_set_suspend_disable(struct regulator_dev *rdev)
+{
+	struct pfuze_chip *pfuze100 = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+	struct pfuze_regulator *desc = &pfuze100->regulator_descs[id];
+
+	/*
+	 * Set the standby bit so the LDO output is turned off when the PMIC
+	 * receives a STANDBY event, using the per-regulator stby_reg/stby_mask
+	 * that describe the standby control for each LDO.
+	 *
+	 * The stby_mask only covers the VGENxSTBY bit. The VGENxLPWR stays at
+	 * its reset value of 0, so the LDO is switched off rather than put
+	 * into low-power mode.
+	 */
+	return regmap_update_bits(pfuze100->regmap, desc->stby_reg,
+				  desc->stby_mask, desc->stby_mask);
+}
+
 static const struct regulator_ops pfuze100_ldo_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -165,6 +184,7 @@ static const struct regulator_ops pfuze100_ldo_regulator_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_suspend_disable = pfuze100_ldo_set_suspend_disable,
 };
 
 static const struct regulator_ops pfuze100_fixed_regulator_ops = {

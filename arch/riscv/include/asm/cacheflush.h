@@ -40,7 +40,7 @@ do {							\
 		flush_icache_mm(vma->vm_mm, 0);		\
 } while (0)
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(CONFIG_MMU)
 /* This is accessed in assembly code. cpumask_var_t would be too complex. */
 extern DECLARE_BITMAP(new_valid_map_cpus, NR_CPUS);
 extern char _end[];
@@ -56,7 +56,8 @@ static inline void mark_new_valid_map(void)
 #define flush_cache_vmap flush_cache_vmap
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
-	if (is_vmalloc_or_module_addr((void *)start))
+	if (is_vmalloc_or_module_addr((void *)start) ||
+	    (start >= VMEMMAP_START && end <= VMEMMAP_END))
 		mark_new_valid_map();
 }
 #define flush_cache_vmap_early(start, end)	local_flush_tlb_kernel_range(start, end)

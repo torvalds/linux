@@ -385,6 +385,8 @@ static bool iomap_ioend_can_merge(struct iomap_ioend *ioend,
 
 	if (ioend->io_bio.bi_status != next->io_bio.bi_status)
 		return false;
+	if (ioend->io_private != next->io_private)
+		return false;
 	if (next->io_flags & IOMAP_IOEND_BOUNDARY)
 		return false;
 	if ((ioend->io_flags & IOMAP_IOEND_NOMERGE_FLAGS) !=
