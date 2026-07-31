@@ -1509,7 +1509,7 @@ static void disable_vbios_mode_if_required(
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
-	struct dc *dc = kzalloc_obj(*dc);
+	struct dc *dc = kvzalloc_obj(*dc);
 	unsigned int full_pipe_count;
 
 	if (!dc)
@@ -1557,7 +1557,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 
 destruct_dc:
 	dc_destruct(dc);
-	kfree(dc);
+	kvfree(dc);
 	return NULL;
 }
 
@@ -1606,7 +1606,7 @@ void dc_deinit_callbacks(struct dc *dc)
 void dc_destroy(struct dc **dc)
 {
 	dc_destruct(*dc);
-	kfree(*dc);
+	kvfree(*dc);
 	*dc = NULL;
 }
 
@@ -4077,8 +4077,6 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 {
 	int j;
 	struct block_sequence_state seq_state = { .steps = block_sequence, .num_steps = num_steps };
-	struct dsc_config dsc_cfgs[MAX_PIPES];
-	struct dsc_optc_config dsc_optc_cfgs[MAX_PIPES];
 	unsigned int dsc_cfg_index = 0;
 	*num_steps = 0; // Initialize to 0
 
@@ -4150,11 +4148,13 @@ static void commit_planes_do_stream_update_sequence(struct dc *dc,
 
 			if (stream_update->dsc_config)
 				if (dsc_cfg_index < MAX_PIPES) {
+					struct dsc_config dsc_cfg;
+					struct dsc_optc_config dsc_optc_cfg;
+
 					add_link_update_dsc_config_sequence(&seq_state,
 						pipe_ctx,
-						&dsc_cfgs[dsc_cfg_index],
-						&dsc_optc_cfgs[dsc_cfg_index]);
-					dsc_cfg_index++;
+						&dsc_cfg,
+						&dsc_optc_cfg);
 				}
 
 			if (stream_update->mst_bw_update) {
@@ -6163,6 +6163,51 @@ bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 {
 	dal_irq_service_ack(dc->res_pool->irqs, src);
+}
+
+/*
+ * dc_get_flip_pending_on_otg() - Check if a GRPH_FLIP is still pending on OTG
+ *
+ * @dc: display core context @otg_inst: OTG instance to query
+ *
+ * Reads the HUBP flip-pending status for the pipe(s) bound to @otg_inst,
+ * returning true if any of them has not yet latched its programmed surface
+ * address.
+ *
+ * Unlike dc_plane_get_status(), this does not take or mutate a dc_plane_state,
+ * so it is safe to call from interrupt context without racing a concurrent
+ * commit that may be updating plane state.
+ *
+ * Return: true if a flip is still pending on the OTG, false otherwise.
+ */
+bool dc_get_flip_pending_on_otg(struct dc *dc, int otg_inst)
+{
+	bool flip_pending = false;
+	int i;
+
+	if (!dc || !dc->current_state)
+		return false;
+
+	dc_exit_ips_for_hw_access(dc);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+		struct hubp *hubp = pipe_ctx->plane_res.hubp;
+
+		if (!pipe_ctx->plane_state || !pipe_ctx->stream_res.tg)
+			continue;
+
+		if (pipe_ctx->stream_res.tg->inst != otg_inst)
+			continue;
+
+		if (hubp && hubp->funcs->hubp_is_flip_pending &&
+		    hubp->funcs->hubp_is_flip_pending(hubp)) {
+			flip_pending = true;
+			break;
+		}
+	}
+
+	return flip_pending;
 }
 
 void dc_power_down_on_boot(struct dc *dc)

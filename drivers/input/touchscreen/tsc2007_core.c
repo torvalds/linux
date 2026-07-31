@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/platform_data/tsc2007.h>
 #include "tsc2007.h"

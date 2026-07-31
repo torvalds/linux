@@ -6,7 +6,6 @@
 #include <linux/err.h>
 #include <linux/extcon.h>
 #include <linux/i2c.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_graph.h>
 #include <linux/property.h>
 #include <linux/interrupt.h>

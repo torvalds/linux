@@ -8,7 +8,6 @@
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
 #include <linux/mdio/mdio-mscc-miim.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of_mdio.h>
 #include <linux/pcs-lynx.h>
 #include <linux/dsa/ocelot.h>

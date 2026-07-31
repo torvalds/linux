@@ -1434,10 +1434,19 @@ static int cs35l41_get_acpi_mute_state(struct cs35l41_hda *cs35l41, acpi_handle 
 	guid_parse(CS35L41_UUID, &guid);
 
 	if (cs35l41_dsm_supported(handle, CS35L41_DSM_GET_MUTE)) {
-		ret = acpi_evaluate_dsm(handle, &guid, 0, CS35L41_DSM_GET_MUTE, NULL);
+		ret = acpi_evaluate_dsm_typed(handle, &guid, 0,
+			      CS35L41_DSM_GET_MUTE, NULL,
+			      ACPI_TYPE_BUFFER);
+
 		if (!ret)
 			return -EINVAL;
+		if (!ret->buffer.length || !ret->buffer.pointer) {
+			ACPI_FREE(ret);
+			return -EINVAL;
+		}
+
 		mute = *ret->buffer.pointer;
+		ACPI_FREE(ret);
 		dev_dbg(cs35l41->dev, "CS35L41_DSM_GET_MUTE: %d\n", mute);
 	}
 

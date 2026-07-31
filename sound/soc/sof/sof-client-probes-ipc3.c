@@ -107,7 +107,7 @@ static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 	struct device *dev = &cdev->auxdev.dev;
 	struct sof_ipc_probe_info_params msg = {{{0}}};
 	struct sof_ipc_probe_info_params *reply;
-	size_t bytes;
+	size_t bytes, elem_size, payload_size;
 	int ret;
 
 	*params = NULL;
@@ -128,14 +128,29 @@ static int ipc3_probes_info(struct sof_client_dev *cdev, unsigned int cmd,
 	if (ret < 0 || reply->rhdr.error < 0)
 		goto exit;
 
+	payload_size = reply->rhdr.hdr.size;
+	if (payload_size < offsetof(struct sof_ipc_probe_info_params, dma)) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	if (!reply->num_elems)
 		goto exit;
 
 	if (cmd == SOF_IPC_PROBE_DMA_INFO)
-		bytes = sizeof(reply->dma[0]);
+		elem_size = sizeof(reply->dma[0]);
 	else
-		bytes = sizeof(reply->desc[0]);
-	bytes *= reply->num_elems;
+		elem_size = sizeof(reply->desc[0]);
+
+	payload_size -= offsetof(struct sof_ipc_probe_info_params, dma);
+	if (reply->num_elems > payload_size / elem_size) {
+		dev_err(dev, "%s: invalid probe info element count %u\n",
+			__func__, reply->num_elems);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	bytes = reply->num_elems * elem_size;
 	*params = kmemdup(&reply->dma[0], bytes, GFP_KERNEL);
 	if (!*params) {
 		ret = -ENOMEM;

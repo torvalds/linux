@@ -73,6 +73,7 @@ static struct sk_buff *gsw1xx_tag_rcv(struct sk_buff *skb,
 
 	if (unlikely(!pskb_may_pull(skb, GSW1XX_HEADER_LEN))) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet, cannot pull SKB\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -81,6 +82,7 @@ static struct sk_buff *gsw1xx_tag_rcv(struct sk_buff *skb,
 	if (unlikely(ntohs(gsw1xx_tag[0]) != ETH_P_MXLGSW)) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid special tag\n");
 		dev_warn_ratelimited(&dev->dev, "Tag: %8ph\n", gsw1xx_tag);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -90,6 +92,7 @@ static struct sk_buff *gsw1xx_tag_rcv(struct sk_buff *skb,
 	if (!skb->dev) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid source port\n");
 		dev_warn_ratelimited(&dev->dev, "Tag: %8ph\n", gsw1xx_tag);
+		kfree_skb(skb);
 		return NULL;
 	}
 

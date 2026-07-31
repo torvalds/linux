@@ -3,6 +3,7 @@
 #define _ASM_PARISC_PARISC_DEVICE_H_
 
 #include <linux/device.h>
+#include <linux/device-id/parisc.h>
 
 struct parisc_device {
 	struct resource hpa;		/* Hard Physical Address */

@@ -7,7 +7,6 @@
 #include <linux/limits.h>
 #include <linux/mhi.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/overflow.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>

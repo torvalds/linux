@@ -272,16 +272,13 @@ static int __init imsic_early_acpi_init(union acpi_subtable_headers *header,
 	rc = imsic_setup_state(imsic_acpi_fwnode, imsic);
 	if (rc) {
 		pr_err("%pfwP: failed to setup state (error %d)\n", imsic_acpi_fwnode, rc);
-		return rc;
+		goto cleanup;
 	}
 
 	/* Do early setup of IMSIC state and IPIs */
 	rc = imsic_early_probe(imsic_acpi_fwnode);
-	if (rc) {
-		irq_domain_free_fwnode(imsic_acpi_fwnode);
-		imsic_acpi_fwnode = NULL;
-		return rc;
-	}
+	if (rc)
+		goto cleanup;
 
 	rc = imsic_platform_acpi_probe(imsic_acpi_fwnode);
 
@@ -300,8 +297,12 @@ static int __init imsic_early_acpi_init(union acpi_subtable_headers *header,
 	 * DT where IPI works but MSI probe fails for some reason.
 	 */
 	return 0;
-}
 
+cleanup:
+	irq_domain_free_fwnode(imsic_acpi_fwnode);
+	imsic_acpi_fwnode = NULL;
+	return rc;
+}
 IRQCHIP_ACPI_DECLARE(riscv_imsic, ACPI_MADT_TYPE_IMSIC, NULL,
 		     1, imsic_early_acpi_init);
 #endif

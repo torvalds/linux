@@ -830,7 +830,7 @@ static struct uprobe *hprobe_expire(struct hprobe *hprobe, bool get)
 		if (try_cmpxchg(&hprobe->state, &hstate, uprobe ? HPROBE_STABLE : HPROBE_GONE)) {
 			/* We won the race, we are the ones to unlock SRCU */
 			__srcu_read_unlock(&uretprobes_srcu, hprobe->srcu_idx);
-			return get ? get_uprobe(uprobe) : uprobe;
+			return get && uprobe ? get_uprobe(uprobe) : uprobe;
 		}
 
 		/*

@@ -822,6 +822,7 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 
 fail_and_close:
 	hid_hw_close(hdev);
+	hid_device_io_stop(hdev);
 fail_and_stop:
 	hid_hw_stop(hdev);
 	return ret;

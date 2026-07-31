@@ -4,7 +4,6 @@
  */
 
 #include <linux/dmi.h>
-#include <linux/mod_devicetable.h>
 #include "core.h"
 #include "common.h"
 #include "brcm_hw_ids.h"
