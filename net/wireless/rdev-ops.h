@@ -775,7 +775,7 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       const void *buf, size_t len,
 				       const u8 *dest, __be16 proto,
 				       const bool noencrypt, int link,
-				       u64 *cookie)
+				       u64 cookie)
 {
 	int ret;
 	trace_rdev_tx_control_port(&rdev->wiphy, dev, buf, len,
@@ -783,7 +783,7 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 	ret = rdev->ops->tx_control_port(&rdev->wiphy, dev, buf, len,
 					 dest, proto, noencrypt, link, cookie);
 	if (cookie)
-		trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
+		trace_rdev_return_int_cookie(&rdev->wiphy, ret, cookie);
 	else
 		trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
