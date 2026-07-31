@@ -794,11 +794,10 @@ static int rtl8366rb_setup_all_leds_off(struct realtek_priv *priv)
 static int rtl8366rb_port_set_isolation(struct realtek_priv *priv, int port,
 					u32 mask)
 {
-	/* Bit 0 enables isolation so set this if we enable isolation
-	 * any of the ports an clear it if we disable on all of them.
+	/* Bit 0 enables isolation, the mask indicates allowed forwarding
+	 * ports
 	 */
-	if (mask)
-		mask = RTL8366RB_PORT_ISO_PORTS(mask) | RTL8366RB_PORT_ISO_EN;
+	mask = RTL8366RB_PORT_ISO_PORTS(mask) | RTL8366RB_PORT_ISO_EN;
 
 	return regmap_write(priv->map, RTL8366RB_PORT_ISO(port),
 			    mask);
@@ -974,7 +973,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		if (!dsa_port_is_user(dp))
 			continue;
 
-		/* Forward only to the CPU */
+		/* Forward only to the CPU(s), isolate from all other ports */
 		ret = rtl8366rb_port_set_isolation(priv, dp->index, upports_mask);
 		if (ret)
 			return ret;
