@@ -303,7 +303,7 @@ static inline int loopback_jiffies_timer_stop(struct loopback_pcm *dpcm)
 /* call in cable->lock */
 static inline int loopback_hrtimer_stop(struct loopback_pcm *dpcm)
 {
-	hrtimer_cancel(&dpcm->hrtimer);
+	hrtimer_try_to_cancel(&dpcm->hrtimer);
 
 	return 0;
 }
