@@ -732,6 +732,7 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	int			status;
 	struct usb_ep		*ep = NULL;
 	struct f_uac1_legacy_opts	*audio_opts;
+	bool			bound_here = false;
 
 	audio_opts = container_of(f->fi, struct f_uac1_legacy_opts, func_inst);
 	audio->card.gadget = c->cdev->gadget;
@@ -741,6 +742,7 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		if (status < 0)
 			return status;
 		audio_opts->bound = true;
+		bound_here = true;
 	}
 	us = usb_gstrings_attach(cdev, uac1_strings, ARRAY_SIZE(strings_uac1));
 	if (IS_ERR(us))
@@ -789,7 +791,11 @@ f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	gaudio_cleanup(&audio->card);
+	/* Only tear down the ALSA devices if this bind opened them; the */
+	if (bound_here) {
+		gaudio_cleanup(&audio->card);
+		audio_opts->bound = false;
+	}
 	return status;
 }
 
