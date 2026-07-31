@@ -1392,6 +1392,22 @@ again:
 	}
 }
 
+static void assert_folio_range(const struct btrfs_inode *inode,
+			       u64 start, u64 end)
+{
+	const u32 blocksize = inode->root->fs_info->sectorsize;
+
+	/*
+	 * For btrfs page cache, a folio always contains at least one block,
+	 * so the range should always be block size aligned.
+	 */
+	ASSERT(IS_ALIGNED(start, blocksize) && IS_ALIGNED(end + 1, blocksize),
+	       "blocksize=%u root=%lld ino=%llu start=%llu end=%llu mapping min order=%u",
+	       blocksize, btrfs_root_id(inode->root), btrfs_ino(inode),
+	       start, end,
+	       mapping_min_folio_order(inode->vfs_inode.i_mapping));
+}
+
 int btrfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct inode *vfs_inode = folio->mapping->host;
@@ -1407,6 +1423,7 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 	struct fsverity_info *vi = NULL;
 	int ret;
 
+	assert_folio_range(inode, start, end);
 	lock_extents_for_read(inode, start, end, &cached_state);
 	if (folio_pos(folio) < i_size_read(vfs_inode))
 		vi = fsverity_get_info(vfs_inode);
@@ -1914,6 +1931,7 @@ static noinline_for_stack int extent_writepage_io(struct btrfs_inode *inode,
 	ASSERT(start >= folio_start, "start=%llu folio_start=%llu", start, folio_start);
 	ASSERT(end <= folio_end, "start=%llu len=%u folio_start=%llu folio_size=%zu",
 	       start, len, folio_start, folio_size(folio));
+	assert_folio_range(inode, folio_start, folio_end - 1);
 
 	/*
 	 * We are about to checksum and write out the data, so it must not be
@@ -2976,6 +2994,7 @@ void btrfs_readahead(struct readahead_control *rac)
 	struct extent_map *em_cached = NULL;
 	struct fsverity_info *vi = NULL;
 
+	assert_folio_range(inode, start, end);
 	lock_extents_for_read(inode, start, end, &cached_state);
 	/* We don't use cached state for a bulk unlock, just free it. */
 	btrfs_free_extent_state(cached_state);
