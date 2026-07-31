@@ -202,7 +202,7 @@ static int sc8280xp_snd_hw_params(struct snd_pcm_substream *substream,
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     0, mclk_freq,
 						     SND_SOC_CLOCK_IN);
-			if (ret)
+			if (ret && ret != -ENOTSUPP)
 				return ret;
 		}
 		break;
