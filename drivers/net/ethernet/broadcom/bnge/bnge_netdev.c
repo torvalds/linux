@@ -2144,16 +2144,16 @@ err_del_l2_filter:
 	return rc;
 }
 
-static bool bnge_mc_list_updated(struct bnge_net *bn, u32 *rx_mask)
+static bool bnge_mc_list_updated(struct bnge_net *bn, u32 *rx_mask,
+				 const struct netdev_hw_addr_list *mc)
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
-	struct net_device *dev = bn->netdev;
 	struct netdev_hw_addr *ha;
 	int mc_count = 0, off = 0;
 	bool update = false;
 	u8 *haddr;
 
-	netdev_for_each_mc_addr(ha, dev) {
+	netdev_hw_addr_list_for_each(ha, mc) {
 		if (mc_count >= BNGE_MAX_MC_ADDRS) {
 			*rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
 			vnic->mc_list_count = 0;
@@ -2177,17 +2177,17 @@ static bool bnge_mc_list_updated(struct bnge_net *bn, u32 *rx_mask)
 	return update;
 }
 
-static bool bnge_uc_list_updated(struct bnge_net *bn)
+static bool bnge_uc_list_updated(struct bnge_net *bn,
+				 const struct netdev_hw_addr_list *uc)
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
-	struct net_device *dev = bn->netdev;
 	struct netdev_hw_addr *ha;
 	int off = 0;
 
-	if (netdev_uc_count(dev) != (vnic->uc_filter_count - 1))
+	if (netdev_hw_addr_list_count(uc) != (vnic->uc_filter_count - 1))
 		return true;
 
-	netdev_for_each_uc_addr(ha, dev) {
+	netdev_hw_addr_list_for_each(ha, uc) {
 		if (!ether_addr_equal(ha->addr, vnic->uc_list + off))
 			return true;
 
@@ -2201,7 +2201,8 @@ static bool bnge_promisc_ok(struct bnge_net *bn)
 	return true;
 }
 
-static int bnge_cfg_def_vnic(struct bnge_net *bn)
+static int bnge_cfg_rx_mode(struct bnge_net *bn, struct netdev_hw_addr_list *uc,
+			    bool snapshot)
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
 	struct net_device *dev = bn->netdev;
@@ -2211,7 +2212,7 @@ static int bnge_cfg_def_vnic(struct bnge_net *bn)
 	bool uc_update;
 
 	netif_addr_lock_bh(dev);
-	uc_update = bnge_uc_list_updated(bn);
+	uc_update = bnge_uc_list_updated(bn, uc);
 	netif_addr_unlock_bh(dev);
 
 	if (!uc_update)
@@ -2226,22 +2227,28 @@ static int bnge_cfg_def_vnic(struct bnge_net *bn)
 
 	vnic->uc_filter_count = 1;
 
-	netif_addr_lock_bh(dev);
-	if (netdev_uc_count(dev) > (BNGE_MAX_UC_ADDRS - 1)) {
+	if (!snapshot)
+		netif_addr_lock_bh(dev);
+	if (netdev_hw_addr_list_count(uc) > (BNGE_MAX_UC_ADDRS - 1)) {
 		vnic->rx_mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
 	} else {
-		netdev_for_each_uc_addr(ha, dev) {
+		netdev_hw_addr_list_for_each(ha, uc) {
 			memcpy(vnic->uc_list + off, ha->addr, ETH_ALEN);
 			off += ETH_ALEN;
 			vnic->uc_filter_count++;
 		}
 	}
-	netif_addr_unlock_bh(dev);
+	if (!snapshot)
+		netif_addr_unlock_bh(dev);
 
 	for (i = 1, off = 0; i < vnic->uc_filter_count; i++, off += ETH_ALEN) {
 		rc = bnge_hwrm_set_vnic_filter(bn, 0, i, vnic->uc_list + off);
 		if (rc) {
-			netdev_err(dev, "HWRM vnic filter failure rc: %d\n", rc);
+			if (rc == -EAGAIN)
+				netdev_warn(dev, "FW busy while setting vnic filter, will retry\n");
+			else
+				netdev_err(dev, "HWRM vnic filter failure rc: %d\n",
+					   rc);
 			vnic->uc_filter_count = i;
 			return rc;
 		}
@@ -2695,11 +2702,11 @@ static int bnge_init_chip(struct bnge_net *bn)
 	} else if (bn->netdev->flags & IFF_MULTICAST) {
 		u32 mask = 0;
 
-		bnge_mc_list_updated(bn, &mask);
+		bnge_mc_list_updated(bn, &mask, &bn->netdev->mc);
 		vnic->rx_mask |= mask;
 	}
 
-	rc = bnge_cfg_def_vnic(bn);
+	rc = bnge_cfg_rx_mode(bn, &bn->netdev->uc, false);
 	if (rc)
 		goto err_out;
 	return 0;
