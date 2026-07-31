@@ -149,12 +149,17 @@ void wait_for_child_setup(pid_t pid)
 
 int main(int argc, char **argv)
 {
-	u32 i;
-	int s, r;
+	cpu_set_t allowed_cpu_set;
+	int s, r, cpu, i;
 	pid_t pid;
 
-	for (i = 0; i < VCPU_NUM; i++)
-		CPU_SET(i, &threads_cpu_set);
+	kvm_sched_getaffinity(0, sizeof(cpu_set_t), &allowed_cpu_set);
+
+	for (i = 0; i < VCPU_NUM && CPU_COUNT(&allowed_cpu_set); i++) {
+		cpu = kvm_pick_random_cpu(&allowed_cpu_set);
+		CPU_CLR(cpu, &allowed_cpu_set);
+		CPU_SET(cpu, &threads_cpu_set);
+	}
 
 	sem = sem_open("vm_sem", O_CREAT | O_EXCL, 0644, 0);
 	sem_unlink("vm_sem");
