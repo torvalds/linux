@@ -1083,7 +1083,6 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_info);
  * @dev: the parent device
  * @name: hwmon name attribute
  * @drvdata: driver data to attach to created device
- * @extra_groups: pointer to list of additional non-standard attribute groups
  *
  * The use of this function is restricted. It is provided for legacy reasons
  * and must only be called from the thermal subsystem.
@@ -1095,13 +1094,12 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_info);
  */
 struct device *
 hwmon_device_register_for_thermal(struct device *dev, const char *name,
-				  void *drvdata,
-				  const struct attribute_group **extra_groups)
+				  void *drvdata)
 {
 	if (!name || !dev)
 		return ERR_PTR(-EINVAL);
 
-	return __hwmon_device_register(dev, name, drvdata, NULL, extra_groups);
+	return __hwmon_device_register(dev, name, drvdata, NULL, NULL);
 }
 EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, "HWMON_THERMAL");
 
