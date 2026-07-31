@@ -168,6 +168,9 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 
 	kvm_riscv_gstage_wp_range(&gstage, start, end);
 
+	if (kvm_dirty_log_manual_protect_and_init_set(kvm))
+		mmu_split_huge_pages(&gstage, start, end);
+
 	/*
 	 * Remote TLB flush is not needed here since callers of
 	 * kvm_arch_mmu_enable_log_dirty_pt_masked() already do it.
