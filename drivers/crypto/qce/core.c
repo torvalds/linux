@@ -54,14 +54,14 @@ static void qce_unregister_algs(void *data)
 static int devm_qce_register_algs(struct qce_device *qce)
 {
 	const struct qce_algo_ops *ops;
-	int i, j, ret = -ENODEV;
+	int i, ret;
 
 	for (i = 0; i < ARRAY_SIZE(qce_ops); i++) {
 		ops = qce_ops[i];
 		ret = ops->register_algs(qce);
 		if (ret) {
-			for (j = i - 1; j >= 0; j--)
-				qce_ops[j]->unregister_algs(qce);
+			while (i--)
+				qce_ops[i]->unregister_algs(qce);
 			return ret;
 		}
 	}
