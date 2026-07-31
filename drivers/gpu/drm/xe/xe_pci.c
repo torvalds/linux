@@ -22,6 +22,7 @@
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_mmio.h"
@@ -36,6 +37,7 @@
 #include "xe_step.h"
 #include "xe_survivability_mode.h"
 #include "xe_tile.h"
+#include "xe_tile_printk.h"
 
 enum toggle_d3cold {
 	D3COLD_DISABLE,
@@ -120,6 +122,7 @@ static const struct xe_graphics_desc graphics_xe2 = {
 static const struct xe_graphics_desc graphics_xe3p_lpg = {
 	XE2_GFX_FEATURES,
 	.has_indirect_ring_state = 1,
+	.has_uncorrectable_error_reporting = 1,
 	.multi_queue_engine_class_mask = BIT(XE_ENGINE_CLASS_COPY) | BIT(XE_ENGINE_CLASS_COMPUTE),
 	.num_geometry_xecore_fuse_regs = 3,
 	.num_compute_xecore_fuse_regs = 3,
@@ -129,6 +132,7 @@ static const struct xe_graphics_desc graphics_xe3p_xpc = {
 	XE2_GFX_FEATURES,
 	.has_access_counter = 0,
 	.has_indirect_ring_state = 1,
+	.has_uncorrectable_error_reporting = 1,
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_BCS8, XE_HW_ENGINE_BCS1) |
 		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0),
@@ -145,6 +149,14 @@ static const struct xe_media_desc media_xem = {
 };
 
 static const struct xe_media_desc media_xelpmp = {
+	.hw_engine_mask =
+		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
+		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
+		BIT(XE_HW_ENGINE_GSCCS0)
+};
+
+static const struct xe_media_desc media_xe3p_hpm = {
+	.has_uncorrectable_error_reporting = 1,
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
 		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
@@ -186,7 +198,7 @@ static const struct xe_ip media_ips[] = {
 	{ 3000, "Xe3_LPM", &media_xelpmp },
 	{ 3002, "Xe3_LPM", &media_xelpmp },
 	{ 3500, "Xe3p_LPM", &media_xelpmp },
-	{ 3503, "Xe3p_HPM", &media_xelpmp },
+	{ 3503, "Xe3p_HPM", &media_xe3p_hpm },
 };
 
 #define MULTI_LRC_MASK \
@@ -449,7 +461,6 @@ static const struct xe_device_desc nvls_desc = {
 	.has_sriov = true,
 	.max_gt_per_tile = 2,
 	MULTI_LRC_MASK,
-	.require_force_probe = true,
 	.va_bits = 48,
 	.vm_max_level = 4,
 };
@@ -809,7 +820,8 @@ static int xe_info_init_early(struct xe_device *xe,
 
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
-				 desc->has_display;
+				 desc->has_display &&
+				 !xe_device_is_admin_only(xe);
 
 	xe_assert(xe, desc->max_gt_per_tile > 0);
 	xe_assert(xe, desc->max_gt_per_tile <= XE_MAX_GT_PER_TILE);
@@ -864,7 +876,7 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	struct xe_gt *gt;
 
 	if (!xe_configfs_primary_gt_allowed(to_pci_dev(xe->drm.dev))) {
-		xe_info(xe, "Primary GT disabled via configfs\n");
+		xe_tile_info(tile, "Primary GT disabled via configfs\n");
 		return NULL;
 	}
 
@@ -875,7 +887,13 @@ static struct xe_gt *alloc_primary_gt(struct xe_tile *tile,
 	gt->info.type = XE_GT_TYPE_MAIN;
 	gt->info.id = tile->id * xe->info.max_gt_per_tile;
 	gt->info.has_indirect_ring_state = graphics_desc->has_indirect_ring_state;
+	gt->info.has_uncorrectable_error_reporting =
+		graphics_desc->has_uncorrectable_error_reporting;
 	gt->info.multi_queue_engine_class_mask = graphics_desc->multi_queue_engine_class_mask;
+	if (!xe_configfs_get_enable_multi_queue(to_pci_dev(xe->drm.dev))) {
+		xe_gt_info(gt, "Multi-queue disabled via configfs\n");
+		gt->info.multi_queue_engine_class_mask = 0;
+	}
 	gt->info.engine_mask = graphics_desc->hw_engine_mask;
 	gt->info.num_geometry_xecore_fuse_regs = graphics_desc->num_geometry_xecore_fuse_regs;
 	gt->info.num_compute_xecore_fuse_regs = graphics_desc->num_compute_xecore_fuse_regs;
@@ -906,7 +924,7 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 	struct xe_gt *gt;
 
 	if (!xe_configfs_media_gt_allowed(to_pci_dev(xe->drm.dev))) {
-		xe_info(xe, "Media GT disabled via configfs\n");
+		xe_tile_info(tile, "Media GT disabled via configfs\n");
 		return NULL;
 	}
 
@@ -920,6 +938,7 @@ static struct xe_gt *alloc_media_gt(struct xe_tile *tile,
 	gt->info.type = XE_GT_TYPE_MEDIA;
 	gt->info.id = tile->id * xe->info.max_gt_per_tile + 1;
 	gt->info.has_indirect_ring_state = media_desc->has_indirect_ring_state;
+	gt->info.has_uncorrectable_error_reporting = media_desc->has_uncorrectable_error_reporting;
 	gt->info.engine_mask = media_desc->hw_engine_mask;
 
 	return gt;
@@ -1098,6 +1117,12 @@ static void xe_pci_remove(struct pci_dev *pdev)
 		return;
 
 	xe_device_remove(xe);
+
+	/*
+	 * Preserve remove-time flush after moving destroy work to module
+	 * lifetime.
+	 */
+	xe_destroy_wq_flush();
 	xe_pm_fini(xe);
 }
 

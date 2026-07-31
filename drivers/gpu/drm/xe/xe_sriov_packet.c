@@ -3,6 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
+#include "abi/xe_driver_klvs_abi.h"
+
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_guc_klv_helpers.h"
@@ -352,19 +354,13 @@ ssize_t xe_sriov_packet_write_single(struct xe_device *xe, unsigned int vfid,
 	return copied;
 }
 
-#define MIGRATION_KLV_DEVICE_DEVID_KEY	0xf001u
-#define MIGRATION_KLV_DEVICE_DEVID_LEN	1u
-#define MIGRATION_KLV_DEVICE_REVID_KEY	0xf002u
-#define MIGRATION_KLV_DEVICE_REVID_LEN	1u
-
 #define MIGRATION_DESCRIPTOR_DWORDS	(GUC_KLV_LEN_MIN + MIGRATION_KLV_DEVICE_DEVID_LEN + \
 					 GUC_KLV_LEN_MIN + MIGRATION_KLV_DEVICE_REVID_LEN)
 static int pf_descriptor_init(struct xe_device *xe, unsigned int vfid)
 {
 	struct xe_sriov_packet **desc = pf_pick_descriptor(xe, vfid);
 	struct xe_sriov_packet *data;
-	unsigned int len = 0;
-	u32 *klvs;
+	u32 *klvs, *end;
 	int ret;
 
 	data = xe_sriov_packet_alloc(xe);
@@ -379,18 +375,53 @@ static int pf_descriptor_init(struct xe_device *xe, unsigned int vfid)
 	}
 
 	klvs = data->vaddr;
-	klvs[len++] = PREP_GUC_KLV_CONST(MIGRATION_KLV_DEVICE_DEVID_KEY,
-					 MIGRATION_KLV_DEVICE_DEVID_LEN);
-	klvs[len++] = xe->info.devid;
-	klvs[len++] = PREP_GUC_KLV_CONST(MIGRATION_KLV_DEVICE_REVID_KEY,
-					 MIGRATION_KLV_DEVICE_REVID_LEN);
-	klvs[len++] = xe->info.revid;
+	end = klvs + MIGRATION_DESCRIPTOR_DWORDS;
 
-	xe_assert(xe, len == MIGRATION_DESCRIPTOR_DWORDS);
+	klvs = xe_guc_klv_encode_u32(klvs, end - klvs,
+				     MIGRATION_KLV_DEVICE_DEVID_KEY,
+				     xe->info.devid);
+	klvs = xe_guc_klv_encode_u32(klvs, end - klvs,
+				     MIGRATION_KLV_DEVICE_REVID_KEY,
+				     xe->info.revid);
+	xe_assert(xe, !IS_ERR(klvs));
+	xe_assert(xe, klvs == end);
 
 	*desc = data;
 
 	return 0;
+}
+
+static int descriptor_decoder(void *arg, u16 key, u16 len, const u32 *value)
+{
+	struct xe_device *xe = arg;
+
+	xe_sriov_dbg_verbose(xe, "found KLV %#x %s\n", key, xe_guc_klv_key_to_string(key));
+
+	switch (key) {
+	case MIGRATION_KLV_DEVICE_DEVID_KEY:
+		if (*value != xe->info.devid) {
+			xe_sriov_warn(xe, "Aborting migration, devid mismatch %#06x!=%#06x\n",
+				      *value, xe->info.devid);
+			return -ENODEV;
+		}
+		break;
+	case MIGRATION_KLV_DEVICE_REVID_KEY:
+		if (*value != xe->info.revid) {
+			xe_sriov_warn(xe, "Aborting migration, revid mismatch %#06x!=%#06x\n",
+				      *value, xe->info.revid);
+			return -ENODEV;
+		}
+		break;
+	default:
+		if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
+			struct drm_printer p = xe_dbg_printer(xe);
+
+			xe_sriov_dbg(xe, "unexpected KLV %#x in descriptor!\n", key);
+			xe_guc_klv_print_one(key, len, value, &p);
+		}
+		return 0;
+	}
+	return 1;
 }
 
 /**
@@ -409,6 +440,7 @@ int xe_sriov_packet_process_descriptor(struct xe_device *xe, unsigned int vfid,
 {
 	u32 num_dwords = data->hdr.size / sizeof(u32);
 	u32 *klvs = data->vaddr;
+	int ret;
 
 	xe_assert(xe, data->hdr.type == XE_SRIOV_PACKET_TYPE_DESCRIPTOR);
 
@@ -418,47 +450,18 @@ int xe_sriov_packet_process_descriptor(struct xe_device *xe, unsigned int vfid,
 		return -EINVAL;
 	}
 
-	while (num_dwords >= GUC_KLV_LEN_MIN) {
-		u32 key = FIELD_GET(GUC_KLV_0_KEY, klvs[0]);
-		u32 len = FIELD_GET(GUC_KLV_0_LEN, klvs[0]);
+	ret = xe_guc_klv_count(klvs, num_dwords);
+	if (ret < 0) {
+		xe_sriov_warn(xe, "Aborting migration, corrupted descriptor KLVs (%pe)\n",
+			      ERR_PTR(ret));
+		return ret;
+	}
 
-		klvs += GUC_KLV_LEN_MIN;
-		num_dwords -= GUC_KLV_LEN_MIN;
-
-		if (len > num_dwords) {
-			xe_sriov_warn(xe, "Aborting migration, truncated KLV %#x, len %u\n",
-				      key, len);
-			return -EINVAL;
-		}
-
-		switch (key) {
-		case MIGRATION_KLV_DEVICE_DEVID_KEY:
-			if (*klvs != xe->info.devid) {
-				xe_sriov_warn(xe,
-					      "Aborting migration, devid mismatch %#06x!=%#06x\n",
-					      *klvs, xe->info.devid);
-				return -ENODEV;
-			}
-			break;
-		case MIGRATION_KLV_DEVICE_REVID_KEY:
-			if (*klvs != xe->info.revid) {
-				xe_sriov_warn(xe,
-					      "Aborting migration, revid mismatch %#06x!=%#06x\n",
-					      *klvs, xe->info.revid);
-				return -ENODEV;
-			}
-			break;
-		default:
-			xe_sriov_dbg(xe,
-				     "Skipping unknown migration KLV %#x, len=%u\n",
-				     key, len);
-			print_hex_dump_bytes("desc: ", DUMP_PREFIX_OFFSET, klvs,
-					     min(SZ_64, len * sizeof(u32)));
-			break;
-		}
-
-		klvs += len;
-		num_dwords -= len;
+	ret = xe_guc_klv_parser(klvs, num_dwords, xe, descriptor_decoder);
+	if (ret < 0) {
+		xe_sriov_warn(xe, "Aborting migration, descriptor parsing failed (%pe)\n",
+			      ERR_PTR(ret));
+		return ret;
 	}
 
 	return 0;
@@ -519,3 +522,7 @@ int xe_sriov_packet_save_init(struct xe_device *xe, unsigned int vfid)
 
 	return 0;
 }
+
+#if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)
+#include "tests/xe_sriov_packet_kunit.c"
+#endif

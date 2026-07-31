@@ -381,10 +381,11 @@ static ssize_t sched_group_engines_read(struct file *file, char __user *buf,
 
 	if (group < num_groups) {
 		for_each_hw_engine(hwe, gt, id) {
-			u8 guc_class = xe_engine_class_to_guc_class(hwe->class);
+			u8 guc_class = xe_hwe_to_guc_class(hwe);
+			u16 guc_logical_instance = xe_hwe_guc_logical_instance(hwe);
 			u32 mask = groups[group].engines[guc_class];
 
-			if (mask & BIT(hwe->logical_instance)) {
+			if (mask & BIT(guc_logical_instance)) {
 				strlcat(engines, hwe->name, sizeof(engines));
 				strlcat(engines, " ", sizeof(engines));
 			}

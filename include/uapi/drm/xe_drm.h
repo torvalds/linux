@@ -2537,21 +2537,21 @@ struct drm_xe_exec_queue_set_property {
  * Refer to Documentation/netlink/specs/drm_ras.yaml for complete interface specification.
  *
  * Node Registration
- * =================
+ * -----------------
  *
  * The driver registers DRM RAS nodes for each error severity level.
  * enum drm_xe_ras_error_severity defines the node-id, while DRM_XE_RAS_ERROR_SEVERITY_NAMES maps
  * node-id to node-name.
  *
  * Error Classification
- * ====================
+ * --------------------
  *
  * Each node contains a list of error counters. Each error is identified by a error-id and
  * an error-name. enum drm_xe_ras_error_component defines the error-id, while
  * DRM_XE_RAS_ERROR_COMPONENT_NAMES maps error-id to error-name.
  *
  * User Interface
- * ==============
+ * --------------
  *
  * To retrieve error values of a error counter, userspace applications should
  * follow the below steps:

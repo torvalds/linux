@@ -10,6 +10,7 @@
 #include "xe_pci.h"
 #include "xe_pm.h"
 #include "xe_printk.h"
+#include "xe_ras.h"
 #include "xe_survivability_mode.h"
 
 static void prepare_device_for_reset(struct pci_dev *pdev)
@@ -32,6 +33,21 @@ static void prepare_device_for_reset(struct pci_dev *pdev)
 		xe_gt_declare_wedged(gt);
 
 	pci_disable_device(pdev);
+}
+
+static pci_ers_result_t ras_action_to_pci_result(struct pci_dev *pdev, u8 action)
+{
+	switch (action) {
+	case XE_RAS_RECOVERY_ACTION_RECOVERED:
+		return PCI_ERS_RESULT_RECOVERED;
+	case XE_RAS_RECOVERY_ACTION_RESET:
+		prepare_device_for_reset(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case XE_RAS_RECOVERY_ACTION_DISCONNECT:
+		return PCI_ERS_RESULT_DISCONNECT;
+	default:
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
 }
 
 static pci_ers_result_t xe_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
@@ -62,11 +78,12 @@ static pci_ers_result_t xe_pci_error_detected(struct pci_dev *pdev, pci_channel_
 static pci_ers_result_t xe_pci_error_mmio_enabled(struct pci_dev *pdev)
 {
 	struct xe_device *xe = pdev_to_xe_device(pdev);
+	enum xe_ras_recovery_action action;
 
 	xe_info(xe, "PCI error: MMIO enabled\n");
+	action = xe_ras_process_errors(xe);
 
-	/* TODO: Query system controller for the type of error and take appropriate action */
-	return PCI_ERS_RESULT_RECOVERED;
+	return ras_action_to_pci_result(pdev, action);
 }
 
 static pci_ers_result_t xe_pci_error_slot_reset(struct pci_dev *pdev)

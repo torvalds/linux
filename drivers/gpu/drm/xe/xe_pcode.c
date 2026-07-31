@@ -11,10 +11,14 @@
 
 #include <drm/drm_managed.h>
 
+#include "regs/xe_pmt.h"
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_mmio.h"
 #include "xe_pcode_api.h"
+#include "xe_pm.h"
+#include "xe_printk.h"
+#include "xe_vsec.h"
 
 /**
  * DOC: PCODE
@@ -350,3 +354,31 @@ int xe_pcode_probe_early(struct xe_device *xe)
 	return xe_pcode_ready(xe, false);
 }
 ALLOW_ERROR_INJECTION(xe_pcode_probe_early, ERRNO); /* See xe_pci_probe */
+
+/**
+ * xe_get_pcode_version - Read pcode version via PMT telemetry
+ * @xe: xe instance
+ * @version: pointer to struct xe_pcode_version to store version info
+ *
+ * Reads the pcode version from PMT telemetry and fills the
+ * provided @version structure.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int xe_get_pcode_version(struct xe_device *xe, struct xe_pcode_version *version)
+{
+	int ret = 0;
+
+	guard(xe_pm_runtime)(xe);
+
+	ret = xe_pmt_telem_read(xe->drm.dev,
+				xe_mmio_read32(xe_root_tile_mmio(xe), PUNIT_TELEMETRY_GUID),
+				(u64 *)version, PUNIT_VERSION_OFFSET, sizeof(*version));
+	if (ret != sizeof(*version)) {
+		xe_warn(xe, "pcode version read from PMT failed, ret %pe\n", ERR_PTR(ret));
+		return ret;
+	}
+	xe_dbg(xe, "pcode version major %u minor %u engg %u\n", version->major,
+	       version->minor, version->engg);
+	return 0;
+}

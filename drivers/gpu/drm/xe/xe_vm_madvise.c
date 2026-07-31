@@ -657,7 +657,7 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 				 xe_device_is_l2_flush_optimized(xe) &&
 				 (pat_index != 19 && coh_mode != XE_COH_2WAY))) {
 			err = -EINVAL;
-			goto madv_fini;
+			goto free_vmas;
 		}
 	}
 

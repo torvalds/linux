@@ -647,10 +647,6 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 			xe_hw_engine_enable_ring(hwe);
 	}
 
-	/* We reserve the highest BCS instance for USM */
-	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
-		gt->usm.reserved_bcs_instance = hwe->instance;
-
 	/* Ensure IDLEDLY is lower than MAXCNT */
 	adjust_idledly(hwe);
 
@@ -662,20 +658,80 @@ err_name:
 	return err;
 }
 
-static void hw_engine_setup_logical_mapping(struct xe_gt *gt)
+static int hw_engine_setup_logical_and_paging_mapping(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int num_copy_engines = 0, num_paging_engines = 0;
+	unsigned int reserved_logical_bcs_start;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
 	int class;
+
+	for_each_hw_engine(hwe, gt, id)
+		if (hwe->class == XE_ENGINE_CLASS_COPY)
+			num_copy_engines++;
+
+	if (num_copy_engines && xe->info.has_usm)
+		num_paging_engines = 1;
+
+	if (IS_SRIOV_VF(xe)) {
+		u32 vf_num_paging_engines;
+
+		/*
+		 * PF could in theory reserve multiple paging engines, which
+		 * internally the submission/scheduling backend can load balance
+		 * from. Not something we currently expect, but we are at the
+		 * mercy of the PF, so we just need try our best to mirror the
+		 * paging configuration.
+		 */
+		vf_num_paging_engines = xe_gt_sriov_vf_paging_engines(gt);
+		if (vf_num_paging_engines) {
+			/* This should only be non-zero on NVL-S+ */
+			if (xe_gt_WARN_ON(gt, xe->info.platform < XE_NOVALAKE_S))
+				return -EINVAL;
+
+			num_paging_engines = vf_num_paging_engines;
+		}
+	}
+
+	if (xe_gt_WARN_ON(gt, num_paging_engines > num_copy_engines))
+		return -EINVAL;
+
+	/*
+	 * On PF, we just reserve the highest BCS instance for USM.
+	 *
+	 * Note: This is now a requirement going forward. The PF must ALWAYS
+	 * reserve BCS instances in top-down order, that way the VF has a chance
+	 * of discovering the physical BCS instance mappings for paging engines,
+	 * in conjunction with vf_num_paging_engines. In some places we might
+	 * only have the physical instance, and from hw pov there is no such
+	 * thing as a paging engine. For example, the page fault descriptor,
+	 * which comes directly from the hw, will use the physical engine
+	 * instance.
+	 */
+	reserved_logical_bcs_start = num_copy_engines - num_paging_engines;
 
 	/* FIXME: Doing a simple logical mapping that works for most hardware */
 	for (class = 0; class < XE_ENGINE_CLASS_MAX; ++class) {
-		struct xe_hw_engine *hwe;
-		enum xe_hw_engine_id id;
 		int logical_instance = 0;
 
-		for_each_hw_engine(hwe, gt, id)
-			if (hwe->class == class)
+		for_each_hw_engine(hwe, gt, id) {
+			if (hwe->class == class) {
 				hwe->logical_instance = logical_instance++;
+
+				if (class == XE_ENGINE_CLASS_COPY &&
+				    hwe->logical_instance >=
+					    reserved_logical_bcs_start) {
+					if (!gt->usm.paging_hwe0)
+						gt->usm.paging_hwe0 = hwe;
+					gt->usm.paging_logical_mask |=
+						BIT(hwe->logical_instance);
+				}
+			}
+		}
 	}
+
+	return 0;
 }
 
 static void read_media_fuses(struct xe_gt *gt)
@@ -894,7 +950,10 @@ int xe_hw_engines_init(struct xe_gt *gt)
 			return err;
 	}
 
-	hw_engine_setup_logical_mapping(gt);
+	err = hw_engine_setup_logical_and_paging_mapping(gt);
+	if (err)
+		return err;
+
 	err = xe_hw_engine_setup_groups(gt);
 	if (err)
 		return err;
@@ -1043,8 +1102,7 @@ bool xe_hw_engine_is_reserved(struct xe_hw_engine *hwe)
 	    hwe->logical_instance >= gt->ccs_mode)
 		return true;
 
-	return xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY &&
-		hwe->instance == gt->usm.reserved_bcs_instance;
+	return xe_gt_is_usm_hwe(gt, hwe);
 }
 
 const char *xe_hw_engine_class_to_str(enum xe_engine_class class)

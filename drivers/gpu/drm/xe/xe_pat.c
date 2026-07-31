@@ -25,6 +25,7 @@
 								   0x4800, 0x4804, \
 								   0x4848, 0x484c)
 #define _PAT_PTA				0x4820
+#define _PAT_TR_PTA				0x48cc
 
 #define XE2_NO_PROMOTE				REG_BIT(10)
 #define XE2_COMP_EN				REG_BIT(9)
@@ -256,6 +257,7 @@ static const struct xe_pat_table_entry xe3p_xpc_pat_table[] = {
 
 static const struct xe_pat_table_entry xe3p_primary_pat_pta = XE2_PAT(0, 0, 0, 0, 0, 3);
 static const struct xe_pat_table_entry xe3p_media_pat_pta = XE2_PAT(0, 0, 0, 0, 0, 2);
+static const struct xe_pat_table_entry xe3p_pat_tr_pta = XE2_PAT(0, 0, 0, 0, 0, 0);
 
 static const struct xe_pat_table_entry xe3p_lpg_pat_table[] = {
 	[ 0] = XE2_PAT( 0, 0, 0, 0, 3, 0 ),
@@ -325,11 +327,26 @@ static const struct xe_pat_table_entry *gt_pta_entry(struct xe_gt *gt)
 	return NULL;
 }
 
+static const struct xe_pat_table_entry *gt_tr_pta_entry(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	if (xe_gt_is_main_type(gt))
+		return xe->pat.pat_primary_tr_pta;
+
+	if (xe_gt_is_media_type(gt))
+		return xe->pat.pat_media_tr_pta;
+
+	xe_assert(xe, false);
+	return NULL;
+}
+
 static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[],
 			int n_entries)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	const struct xe_pat_table_entry *pta_entry = gt_pta_entry(gt);
+	const struct xe_pat_table_entry *tr_pta_entry = gt_tr_pta_entry(gt);
 
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg reg = XE_REG(_PAT_INDEX(i));
@@ -342,6 +359,9 @@ static void program_pat(struct xe_gt *gt, const struct xe_pat_table_entry table[
 
 	if (pta_entry)
 		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_PTA), pta_entry->value);
+
+	if (tr_pta_entry)
+		xe_mmio_write32(&gt->mmio, XE_REG(_PAT_TR_PTA), tr_pta_entry->value);
 }
 
 static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry table[],
@@ -349,6 +369,7 @@ static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry ta
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	const struct xe_pat_table_entry *pta_entry = gt_pta_entry(gt);
+	const struct xe_pat_table_entry *tr_pta_entry = gt_tr_pta_entry(gt);
 
 	for (int i = 0; i < n_entries; i++) {
 		struct xe_reg_mcr reg_mcr = XE_REG_MCR(_PAT_INDEX(i));
@@ -361,6 +382,9 @@ static void program_pat_mcr(struct xe_gt *gt, const struct xe_pat_table_entry ta
 
 	if (pta_entry)
 		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_PTA), pta_entry->value);
+
+	if (tr_pta_entry)
+		xe_gt_mcr_multicast_write(gt, XE_REG_MCR(_PAT_TR_PTA), tr_pta_entry->value);
 }
 
 static int xelp_dump(struct xe_gt *gt, struct drm_printer *p)
@@ -531,6 +555,16 @@ static int xe2_dump(struct xe_gt *gt, struct drm_printer *p)
 	drm_printf(p, "Page Table Access:\n");
 	xe->pat.ops->entry_dump(p, "PTA_MODE", pat, false);
 
+	if (gt_tr_pta_entry(gt)) {
+		if (xe_gt_is_media_type(gt))
+			pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_TR_PTA));
+		else
+			pat = xe_gt_mcr_unicast_read_any(gt, XE_REG_MCR(_PAT_TR_PTA));
+
+		drm_printf(p, "TRTT Page Table Access:\n");
+		xe->pat.ops->entry_dump(p, "TR_PTA_MODE", pat, false);
+	}
+
 	if (xe_gt_is_media_type(gt))
 		pat = xe_mmio_read32(&gt->mmio, XE_REG(_PAT_ATS));
 	else
@@ -577,6 +611,8 @@ void xe_pat_init_early(struct xe_device *xe)
 		if (!IS_DGFX(xe)) {
 			xe->pat.pat_primary_pta = &xe3p_primary_pat_pta;
 			xe->pat.pat_media_pta = &xe3p_media_pat_pta;
+			xe->pat.pat_primary_tr_pta = &xe3p_pat_tr_pta;
+			xe->pat.pat_media_tr_pta = &xe3p_pat_tr_pta;
 		}
 		xe->pat.n_entries = ARRAY_SIZE(xe3p_lpg_pat_table);
 		xe->pat.idx[XE_CACHE_NONE] = 3;
@@ -701,6 +737,7 @@ int xe_pat_dump_sw_config(struct xe_gt *gt, struct drm_printer *p)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	const struct xe_pat_table_entry *pta_entry = gt_pta_entry(gt);
+	const struct xe_pat_table_entry *tr_pta_entry = gt_tr_pta_entry(gt);
 	char label[PAT_LABEL_LEN];
 
 	if (!xe->pat.table || !xe->pat.n_entries)
@@ -729,6 +766,13 @@ int xe_pat_dump_sw_config(struct xe_gt *gt, struct drm_printer *p)
 
 		drm_printf(p, "Page Table Access:\n");
 		xe->pat.ops->entry_dump(p, "PTA_MODE", pat, false);
+	}
+
+	if (tr_pta_entry) {
+		u32 pat = tr_pta_entry->value;
+
+		drm_printf(p, "TRTT Page Table Access:\n");
+		xe->pat.ops->entry_dump(p, "TR_PTA_MODE", pat, false);
 	}
 
 	if (xe->pat.pat_ats) {

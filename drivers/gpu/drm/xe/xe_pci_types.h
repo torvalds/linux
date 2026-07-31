@@ -79,12 +79,14 @@ struct xe_graphics_desc {
 	u8 has_ctx_tlb_inval:1;
 	u8 has_usm:1;
 	u8 has_64bit_timestamp:1;
+	u8 has_uncorrectable_error_reporting:1;
 };
 
 struct xe_media_desc {
 	u64 hw_engine_mask;	/* hardware engines provided by media IP */
 
 	u8 has_indirect_ring_state:1;
+	u8 has_uncorrectable_error_reporting:1;
 };
 
 struct xe_ip {
