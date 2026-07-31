@@ -2552,9 +2552,6 @@ static int cfg80211_rtw_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	padapter = rtw_netdev_priv(ndev);
 
-	/* cookie generation */
-	*cookie = (unsigned long)buf;
-
 	/* indicate ack before issue frame to avoid racing with rsp frame */
 	rtw_cfg80211_mgmt_tx_status(padapter, *cookie, buf, len, ack, GFP_KERNEL);
 
