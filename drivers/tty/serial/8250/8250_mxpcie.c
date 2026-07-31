@@ -103,6 +103,7 @@
 
 struct mxpcie8250_port {
 	int line;
+	u8 rx_trig_level;
 };
 
 struct mxpcie8250 {
@@ -249,8 +250,27 @@ static void mxpcie8250_set_termios(struct uart_port *port,
 	serial_out(up, MOXA_PUART_EFR, efr);
 }
 
+static int mxpcie8250_get_rxtrig(struct uart_port *port)
+{
+	return serial_port_in(port, MOXA_PUART_RTL);
+}
+
+static int mxpcie8250_set_rxtrig(struct uart_port *port, unsigned char bytes)
+{
+	struct mxpcie8250 *priv = dev_get_drvdata(port->dev);
+
+	if (bytes > port->fifosize)
+		return -EINVAL;
+
+	serial_port_out(port, MOXA_PUART_RTL, bytes);
+	priv->port[port->port_id].rx_trig_level = bytes;
+
+	return 0;
+}
+
 static int mxpcie8250_startup(struct uart_port *port)
 {
+	struct mxpcie8250 *priv = dev_get_drvdata(port->dev);
 	struct uart_8250_port *up = up_to_u8250p(port);
 	int ret;
 
@@ -275,7 +295,7 @@ static int mxpcie8250_startup(struct uart_port *port)
 	serial_out(up, MOXA_PUART_SFR, MOXA_PUART_SFR_950);
 
 	serial_out(up, MOXA_PUART_TTL, MOXA_PUART_TX_TRIG_DEFAULT);
-	serial_out(up, MOXA_PUART_RTL, MOXA_PUART_RX_TRIG_DEFAULT);
+	serial_out(up, MOXA_PUART_RTL, priv->port[port->port_id].rx_trig_level);
 	serial_out(up, MOXA_PUART_FCL, MOXA_PUART_RX_FLOW_LOW_DEFAULT);
 	serial_out(up, MOXA_PUART_FCH, MOXA_PUART_RX_FLOW_HIGH_DEFAULT);
 
@@ -533,6 +553,8 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	up.port.regshift = 0;
 
 	up.port.set_termios = mxpcie8250_set_termios;
+	up.port.get_rxtrig = mxpcie8250_get_rxtrig;
+	up.port.set_rxtrig = mxpcie8250_set_rxtrig;
 	up.port.startup = mxpcie8250_startup;
 	up.port.shutdown = mxpcie8250_shutdown;
 	up.port.throttle = mxpcie8250_throttle;
@@ -554,6 +576,7 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 				up.port.iotype, priv->port[i].line);
 			break;
 		}
+		priv->port[i].rx_trig_level = MOXA_PUART_RX_TRIG_DEFAULT;
 	}
 	pci_set_drvdata(pdev, priv);
 
