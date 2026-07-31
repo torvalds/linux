@@ -3467,7 +3467,7 @@ static int airoha_alloc_gdm_device(struct airoha_eth *eth,
 	netdev->dev.of_node = of_node_get(np);
 	dev = netdev_priv(netdev);
 	u64_stats_init(&dev->stats.syncp);
-	for (i = 0; i < ARRAY_SIZE(dev->txq_lock); i++)
+	for (i = 0; i < AIROHA_NUM_NETDEV_TX_RINGS; i++)
 		spin_lock_init(&dev->txq_lock[i]);
 	dev->port = port;
 	dev->eth = eth;
