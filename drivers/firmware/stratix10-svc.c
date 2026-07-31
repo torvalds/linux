@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
 #include <linux/firmware/intel/stratix10-smc.h>
 #include <linux/firmware/intel/stratix10-svc-client.h>
 #include <linux/types.h>
@@ -45,6 +46,7 @@
 
 /* stratix10 service layer clients */
 #define STRATIX10_RSU				"stratix10-rsu"
+#define SOCFPGA_HWMON				"socfpga-hwmon"
 
 /* Maximum number of SDM client IDs. */
 #define MAX_SDM_CLIENT_IDS			16
@@ -104,9 +106,11 @@ struct stratix10_svc_chan;
 /**
  * struct stratix10_svc - svc private data
  * @stratix10_svc_rsu: pointer to stratix10 RSU device
+ * @stratix10_svc_hwmon: pointer to stratix10 HWMON device
  */
 struct stratix10_svc {
 	struct platform_device *stratix10_svc_rsu;
+	struct platform_device *stratix10_svc_hwmon;
 };
 
 /**
@@ -445,13 +449,15 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
  * svc_thread_recv_status_ok() - handle the successful status
  * @p_data: pointer to service data structure
  * @cb_data: pointer to callback data structure to service client
- * @res: result from SMC or HVC call
+ * @res: result from SMC or HVC call (a0-a3; used for routing and most commands)
+ * @res12: full v1.2 result for %COMMAND_RSU_GET_DEVICE_INFO, else NULL
  *
  * Send back the correspond status to the service clients.
  */
 static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 				      struct stratix10_svc_cb_data *cb_data,
-				      struct arm_smccc_res res)
+				      struct arm_smccc_res res,
+				      struct arm_smccc_1_2_regs *res12)
 {
 	cb_data->kaddr1 = NULL;
 	cb_data->kaddr2 = NULL;
@@ -513,6 +519,16 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		res.a2 = res.a2 * BYTE_TO_WORD_SIZE;
 		cb_data->kaddr2 = &res.a2;
 		break;
+	case COMMAND_RSU_GET_DEVICE_INFO:
+		if (WARN_ON(!res12)) {
+			cb_data->status = BIT(SVC_STATUS_ERROR);
+			break;
+		}
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = res12;
+		cb_data->kaddr2 = NULL;
+		cb_data->kaddr3 = NULL;
+		break;
 	default:
 		pr_warn("it shouldn't happen\n");
 		break;
@@ -521,6 +537,10 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 	pr_debug("%s: call receive_cb\n", __func__);
 	p_data->chan->scl->receive_cb(p_data->chan->scl, cb_data);
 }
+
+static void svc_smccc_1_2_full(struct stratix10_svc_controller *ctrl,
+			       const struct arm_smccc_1_2_regs *args,
+			       struct arm_smccc_1_2_regs *res);
 
 /**
  * svc_normal_to_secure_thread() - the function to run in the kthread
@@ -539,6 +559,7 @@ static int svc_normal_to_secure_thread(void *data)
 	struct stratix10_svc_data *pdata = NULL;
 	struct stratix10_svc_cb_data *cbdata = NULL;
 	struct arm_smccc_res res;
+	struct arm_smccc_1_2_regs res12 = { 0 };
 	unsigned long a0, a1, a2, a3, a4, a5, a6, a7;
 	int ret_fifo = 0;
 
@@ -727,6 +748,16 @@ static int svc_normal_to_secure_thread(void *data)
 			a5 = (unsigned long)pdata->paddr_output;
 			a6 = (unsigned long)pdata->size_output / BYTE_TO_WORD_SIZE;
 			break;
+		case COMMAND_RSU_GET_DEVICE_INFO:
+			a0 = INTEL_SIP_SMC_RSU_GET_DEVICE_INFO;
+			a1 = 0;
+			a2 = 0;
+			a3 = 0;
+			a4 = 0;
+			a5 = 0;
+			a6 = 0;
+			a7 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			mutex_unlock(&ctrl->sdm_lock);
@@ -740,7 +771,18 @@ static int svc_normal_to_secure_thread(void *data)
 		pr_debug(" a3=0x%016x\n", (unsigned int)a3);
 		pr_debug(" a4=0x%016x\n", (unsigned int)a4);
 		pr_debug(" a5=0x%016x\n", (unsigned int)a5);
-		ctrl->invoke_fn(a0, a1, a2, a3, a4, a5, a6, a7, &res);
+		if (pdata->command == COMMAND_RSU_GET_DEVICE_INFO) {
+			struct arm_smccc_1_2_regs args12 = { 0 };
+
+			args12.a0 = INTEL_SIP_SMC_RSU_GET_DEVICE_INFO;
+			svc_smccc_1_2_full(ctrl, &args12, &res12);
+			res.a0 = res12.a0;
+			res.a1 = res12.a1;
+			res.a2 = res12.a2;
+			res.a3 = res12.a3;
+		} else {
+			ctrl->invoke_fn(a0, a1, a2, a3, a4, a5, a6, a7, &res);
+		}
 
 		pr_debug("%s: %s: after SMC call -- res.a0=0x%016x",
 			 __func__, chan->name, (unsigned int)res.a0);
@@ -763,9 +805,15 @@ static int svc_normal_to_secure_thread(void *data)
 		}
 
 		switch (res.a0) {
-		case INTEL_SIP_SMC_STATUS_OK:
-			svc_thread_recv_status_ok(pdata, cbdata, res);
+		case INTEL_SIP_SMC_STATUS_OK: {
+			struct arm_smccc_1_2_regs *devinfo_res =
+				(pdata->command == COMMAND_RSU_GET_DEVICE_INFO) ?
+				&res12 : NULL;
+
+			svc_thread_recv_status_ok(pdata, cbdata, res,
+						  devinfo_res);
 			break;
+		}
 		case INTEL_SIP_SMC_STATUS_BUSY:
 			switch (pdata->command) {
 			case COMMAND_RECONFIG_DATA_SUBMIT:
@@ -806,10 +854,16 @@ static int svc_normal_to_secure_thread(void *data)
 		case INTEL_SIP_SMC_RSU_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
 			cbdata->status = BIT(SVC_STATUS_ERROR);
-			cbdata->kaddr1 = &res.a1;
-			cbdata->kaddr2 = (res.a2) ?
-				svc_pa_to_va(res.a2) : NULL;
-			cbdata->kaddr3 = (res.a3) ? &res.a3 : NULL;
+			if (pdata->command == COMMAND_RSU_GET_DEVICE_INFO) {
+				cbdata->kaddr1 = &res12;
+				cbdata->kaddr2 = NULL;
+				cbdata->kaddr3 = NULL;
+			} else {
+				cbdata->kaddr1 = &res.a1;
+				cbdata->kaddr2 = (res.a2) ?
+					svc_pa_to_va(res.a2) : NULL;
+				cbdata->kaddr3 = (res.a3) ? &res.a3 : NULL;
+			}
 			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 		default:
@@ -1023,6 +1077,31 @@ static void svc_smccc_hvc(unsigned long a0, unsigned long a1,
 			  struct arm_smccc_res *res)
 {
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
+}
+
+/**
+ * svc_smccc_1_2_full() - SMC/HVC v1.2 call matching the sync channel method
+ * @ctrl: service controller (selects SMC vs HVC)
+ * @args: arguments
+ * @res: full register-file result (a0-a17)
+ */
+static void svc_smccc_1_2_full(struct stratix10_svc_controller *ctrl,
+			       const struct arm_smccc_1_2_regs *args,
+			       struct arm_smccc_1_2_regs *res)
+{
+	if (ctrl->invoke_fn == svc_smccc_smc) {
+		arm_smccc_1_2_smc(args, res);
+	} else if (ctrl->invoke_fn == svc_smccc_hvc) {
+		arm_smccc_1_2_hvc(args, res);
+	} else {
+		WARN_ON_ONCE(1);
+		/*
+		 * INTEL_SIP_SMC_STATUS_OK is 0; zero-filled res would be misrouted
+		 * as success. Force an error path and clear fabricated payload.
+		 */
+		memset(res, 0, sizeof(*res));
+		res->a0 = INTEL_SIP_SMC_STATUS_ERROR;
+	}
 }
 
 /**
@@ -1329,6 +1408,14 @@ int stratix10_svc_async_send(struct stratix10_svc_chan *chan, void *msg,
 		args.a0 = INTEL_SIP_SMC_ASYNC_RSU_NOTIFY;
 		args.a2 = p_msg->arg[0];
 		break;
+	case COMMAND_HWMON_READTEMP:
+		args.a0 = INTEL_SIP_SMC_ASYNC_HWMON_READTEMP;
+		args.a2 = p_msg->arg[0];
+		break;
+	case COMMAND_HWMON_READVOLT:
+		args.a0 = INTEL_SIP_SMC_ASYNC_HWMON_READVOLT;
+		args.a2 = p_msg->arg[0];
+		break;
 	default:
 		dev_err(ctrl->dev, "Invalid command ,%d\n", p_msg->command);
 		ret = -EINVAL;
@@ -1421,6 +1508,10 @@ static int stratix10_svc_async_prepare_response(struct stratix10_svc_chan *chan,
 		 * executed by the client.
 		 */
 		data->kaddr1 = (void *)&handle->res;
+		break;
+	case COMMAND_HWMON_READTEMP:
+	case COMMAND_HWMON_READVOLT:
+		data->kaddr1 = (void *)&handle->res.a2;
 		break;
 
 	default:
@@ -2016,16 +2107,38 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_put_device;
 
+	if (IS_ENABLED(CONFIG_SENSORS_ALTERA_SOCFPGA_HWMON)) {
+		svc->stratix10_svc_hwmon =
+			platform_device_alloc(SOCFPGA_HWMON, 0);
+		if (!svc->stratix10_svc_hwmon) {
+			dev_err(dev, "failed to allocate %s device\n",
+				SOCFPGA_HWMON);
+		} else {
+			svc->stratix10_svc_hwmon->dev.parent = dev;
+
+			ret = platform_device_add(svc->stratix10_svc_hwmon);
+			if (ret) {
+				dev_err(dev, "failed to add %s device: %d\n",
+					SOCFPGA_HWMON, ret);
+				platform_device_put(svc->stratix10_svc_hwmon);
+				svc->stratix10_svc_hwmon = NULL;
+			}
+		}
+	}
+
 	ret = of_platform_default_populate(dev_of_node(dev), NULL, dev);
 	if (ret)
-		goto err_unregister_rsu_dev;
+		goto err_unregister_clients;
 
 	pr_info("Intel Service Layer Driver Initialized\n");
 
 	return 0;
 
-err_unregister_rsu_dev:
-	platform_device_unregister(svc->stratix10_svc_rsu);
+err_unregister_clients:
+	if (svc->stratix10_svc_hwmon)
+		platform_device_unregister(svc->stratix10_svc_hwmon);
+	if (svc->stratix10_svc_rsu)
+		platform_device_unregister(svc->stratix10_svc_rsu);
 	goto err_free_fifos;
 err_put_device:
 	platform_device_put(svc->stratix10_svc_rsu);
@@ -2050,6 +2163,8 @@ static void stratix10_svc_drv_remove(struct platform_device *pdev)
 	struct stratix10_svc *svc = ctrl->svc;
 
 	platform_device_unregister(svc->stratix10_svc_rsu);
+	if (svc->stratix10_svc_hwmon)
+		platform_device_unregister(svc->stratix10_svc_hwmon);
 
 	stratix10_svc_async_exit(ctrl);
 
