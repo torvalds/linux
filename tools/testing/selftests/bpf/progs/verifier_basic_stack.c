@@ -97,4 +97,45 @@ __naked void misaligned_read_from_stack(void)
 "	::: __clobber_all);
 }
 
+SEC("socket")
+__description("stack pointer arithmetic preserves frame number")
+__failure __msg("R7 invalid mem access 'scalar'")
+__naked void stack_ptr_arith_preserves_frameno(void)
+{
+	asm volatile ("\
+		r3 = 0;						\
+		*(u64 *)(r10 - 8) = r3;			\
+		r1 = %[map_hash_8b] ll;			\
+		r2 = r10;					\
+		r2 += -8;					\
+		call %[bpf_map_lookup_elem];		\
+		if r0 != 0 goto +2;			\
+		r0 = 0;						\
+		exit;						\
+		r1 = r0;					\
+		r2 = 0;						\
+		r3 = 0;						\
+		call stack_ptr_arith_preserves_frameno_subprog;\
+		r0 = 0;						\
+		exit;						\
+	":
+	: __imm(bpf_map_lookup_elem),
+	  __imm_addr(map_hash_8b)
+	: __clobber_all);
+}
+
+static __used __naked void stack_ptr_arith_preserves_frameno_subprog(void)
+{
+	asm volatile ("\
+		*(u64 *)(r10 - 8) = r1;			\
+		r6 = -8;					\
+		r6 += r10;					\
+		*(u64 *)(r6 + 0) = r2;			\
+		r7 = *(u64 *)(r10 - 8);			\
+		*(u64 *)(r7 + 0) = r3;			\
+		r0 = 0;						\
+		exit;						\
+	"::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
