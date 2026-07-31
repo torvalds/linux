@@ -639,8 +639,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	hda_bus_ml_init(bus);
-
 	/* Skip SoundWire if it is not supported */
 	if (!(interface_mask & BIT(SOF_DAI_INTEL_ALH)))
 		goto skip_soundwire;
@@ -683,8 +681,6 @@ skip_soundwire:
 
 	if (!HDA_IDISP_CODEC(bus->codec_mask))
 		hda_codec_i915_display_power(sdev, false);
-
-	hda_bus_ml_put_all(bus);
 
 	return 0;
 }

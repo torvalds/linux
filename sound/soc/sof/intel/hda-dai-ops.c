@@ -20,7 +20,7 @@
 /* These ops are only applicable for the HDA DAI's in their current form */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 /*
- * This function checks if the host dma channel corresponding
+ * This function checks if the host DMA stream corresponding
  * to the link DMA stream_tag argument is assigned to one
  * of the FEs connected to the BE DAI.
  */
@@ -42,23 +42,53 @@ static bool hda_check_fes(struct snd_soc_pcm_runtime *rtd,
 }
 
 static struct hdac_ext_stream *
-hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream)
+hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream,
+		       enum hda_bus_ml_link_type link_type)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
 	struct sof_intel_hda_stream *hda_stream;
 	const struct sof_intel_dsp_desc *chip;
 	struct snd_sof_dev *sdev;
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *hstream = NULL;
-
 	int stream_dir = substream->stream;
+	bool is_multi = link_type == HDA_BUS_ML_LINK_HDA || link_type == HDA_BUS_ML_LINK_UAOL;
+	bool is_play = stream_dir == SNDRV_PCM_STREAM_PLAYBACK;
+	bool is_sdw = link_type == HDA_BUS_ML_LINK_SDW;
+	bool is_hda = link_type == HDA_BUS_ML_LINK_HDA;
+	u32 concur_block_mask = 0;
+	u32 seq_block_mask = 0;
+	unsigned int stream_idx;
 
 	if (!bus->ppcap) {
 		dev_err(bus->dev, "stream type not supported\n");
 		return NULL;
 	}
 
+	/*
+	 * On ACE2+ the link DMA stream allocator must avoid two HW errata,
+	 * see the comment on struct sof_intel_hda_dev.
+	 *
+	 * - Concurrent cross-direction: SoundWire conflicts with HDA, iDisp
+	 *   and UAOL on the same physical stream index; SSP and DMIC are safe.
+	 * - Sequential playback: a stream index previously used by an HDA/iDisp
+	 *   link cannot drive any non-HDA/iDisp link in the same direction
+	 *   until the next controller reset.
+	 *
+	 * The masks are protected by bus->reg_lock; sample them inside the
+	 * lock together with the stream walk to keep the decision atomic
+	 * with concurrent allocations and releases.
+	 */
 	guard(spinlock_irq)(&bus->reg_lock);
+
+	if (is_sdw)
+		concur_block_mask = sof_hda->link_dma_active_multi_mask[!stream_dir];
+	else if (is_multi)
+		concur_block_mask = sof_hda->link_dma_active_sdw_mask[!stream_dir];
+	if (is_play && !is_hda)
+		seq_block_mask = sof_hda->link_dma_out_hda_used_mask;
+
 	list_for_each_entry(hstream, &bus->stream_list, list) {
 		struct hdac_ext_stream *hext_stream =
 			stream_to_hdac_ext_stream(hstream);
@@ -68,6 +98,12 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 		hda_stream = hstream_to_sof_hda_stream(hext_stream);
 		sdev = hda_stream->sdev;
 		chip = get_chip_info(sdev->pdata);
+
+		stream_idx = hstream->stream_tag - 1;
+
+		/* skip streams blocked by the ACE2+ allocator constraints */
+		if ((concur_block_mask | seq_block_mask) & BIT(stream_idx))
+			continue;
 
 		/* check if link is available */
 		if (!hext_stream->link_locked) {
@@ -95,7 +131,7 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 
 				/*
 				 * This must be a hostless stream.
-				 * So reserve the host DMA channel.
+				 * So reserve the host DMA stream.
 				 */
 				hda_stream->host_reserved = 1;
 				break;
@@ -109,6 +145,16 @@ hda_link_stream_assign(struct hdac_bus *bus, struct snd_pcm_substream *substream
 
 		res->link_locked = 1;
 		res->link_substream = substream;
+
+		stream_idx = res->hstream.stream_tag - 1;
+		if (is_sdw)
+			sof_hda->link_dma_active_sdw_mask[stream_dir] |= BIT(stream_idx);
+		else if (is_multi)
+			sof_hda->link_dma_active_multi_mask[stream_dir] |= BIT(stream_idx);
+
+		/* persistent OUT HDA/iDisp shadow, cleared only on CRST# */
+		if (is_hda && is_play)
+			sof_hda->link_dma_out_hda_used_mask |= BIT(stream_idx);
 	}
 
 	return res;
@@ -143,11 +189,13 @@ static struct hdac_ext_stream *hda_ipc4_get_hext_stream(struct snd_sof_dev *sdev
 
 static struct hdac_ext_stream *hda_assign_hext_stream(struct snd_sof_dev *sdev,
 						      struct snd_soc_dai *cpu_dai,
-						      struct snd_pcm_substream *substream)
+						      struct snd_pcm_substream *substream,
+						      struct hdac_ext_link *hlink)
 {
 	struct hdac_ext_stream *hext_stream;
+	enum hda_bus_ml_link_type link_type = hda_bus_ml_link_get_type(hlink);
 
-	hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream);
+	hext_stream = hda_link_stream_assign(sof_to_bus(sdev), substream, link_type);
 	if (!hext_stream)
 		return NULL;
 
@@ -160,6 +208,22 @@ static void hda_release_hext_stream(struct snd_sof_dev *sdev, struct snd_soc_dai
 				    struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hext_stream = hda_get_hext_stream(sdev, cpu_dai, substream);
+	struct sof_intel_hda_dev *sof_hda = sdev->pdata->hw_pdata;
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	int dir = substream->stream;
+	unsigned int stream_idx = hext_stream->hstream.stream_tag - 1;
+
+	/*
+	 * Drop the stream index from the per-direction active concurrency masks.
+	 * The two masks are mutually exclusive for a given stream/direction
+	 * (and a stream of the SSP/DMIC kind appears in neither), so a blind
+	 * clear of both is safe and lets us avoid having to remember the
+	 * link type at allocation time.
+	 */
+	scoped_guard(spinlock_irq, &bus->reg_lock) {
+		sof_hda->link_dma_active_sdw_mask[dir] &= ~BIT(stream_idx);
+		sof_hda->link_dma_active_multi_mask[dir] &= ~BIT(stream_idx);
+	}
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream, NULL);
 	snd_hdac_ext_stream_release(hext_stream, HDAC_EXT_STREAM_TYPE_LINK);
