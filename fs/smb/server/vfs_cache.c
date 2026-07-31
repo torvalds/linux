@@ -1655,7 +1655,7 @@ void ksmbd_stop_durable_scavenger(void)
 int ksmbd_vfs_set_durable_owner(struct ksmbd_file *fp,
 				struct ksmbd_user *user)
 {
-	char *name;
+	char *name, *old_name;
 
 	if (!user)
 		return -EINVAL;
@@ -1666,10 +1666,12 @@ int ksmbd_vfs_set_durable_owner(struct ksmbd_file *fp,
 		return -ENOMEM;
 
 	spin_lock(&fp->f_lock);
+	old_name = fp->owner.name;
 	fp->owner.uid = user->uid;
 	fp->owner.gid = user->gid;
 	fp->owner.name = name;
 	spin_unlock(&fp->f_lock);
+	kfree(old_name);
 
 	return 0;
 }
