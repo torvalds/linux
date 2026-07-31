@@ -649,6 +649,10 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 #endif
 		ret = rsm_load_state_32(ctxt, &smram.smram32);
 
+	if (ret == X86EMUL_CONTINUE &&
+	    kvm_x86_call(unhandleable_emulation_required)(vcpu))
+		ret = X86EMUL_UNHANDLEABLE;
+
 	/*
 	 * If RSM fails and triggers shutdown, architecturally the shutdown
 	 * occurs *before* the transition to guest mode.  But due to KVM's
