@@ -24635,12 +24635,6 @@ M:	Dimitri Sivanich <dimitri.sivanich@hpe.com>
 S:	Maintained
 F:	drivers/misc/sgi-gru/
 
-SGI XP/XPC/XPNET DRIVER
-M:	Robin Holt <robinmholt@gmail.com>
-M:	Steve Wahl <steve.wahl@hpe.com>
-S:	Maintained
-F:	drivers/misc/sgi-xp/
-
 SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
 M:	D. Wythe <alibuda@linux.alibaba.com>
 M:	Dust Li <dust.li@linux.alibaba.com>

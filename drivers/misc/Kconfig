@@ -163,19 +163,6 @@ config ENCLOSURE_SERVICES
 	  driver (SCSI/ATA) which supports enclosures
 	  or a SCSI enclosure device (SES) to use these services.
 
-config SGI_XP
-	tristate "Support communication between SGI SSIs"
-	depends on NET
-	depends on X86_UV && SMP
-	depends on X86_64 || BROKEN
-	select SGI_GRU if X86_64 && SMP
-	help
-	  An SGI machine can be divided into multiple Single System
-	  Images which act independently of each other and have
-	  hardware based memory protection from the others.  Enabling
-	  this feature will allow for direct communication between SSIs
-	  based on a network adapter and DMA messaging.
-
 config SMPRO_ERRMON
 	tristate "Ampere Computing SMPro error monitor driver"
 	depends on MFD_SMPRO || COMPILE_TEST
