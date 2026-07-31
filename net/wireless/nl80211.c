@@ -22046,6 +22046,10 @@ static void nl80211_frame_tx_status(struct wireless_dev *wdev,
 	struct sk_buff *msg;
 	void *hdr;
 
+	/* userspace not interested in zero-cookie status */
+	if (!status->cookie)
+		return;
+
 	if (command == NL80211_CMD_FRAME_TX_STATUS)
 		trace_cfg80211_mgmt_tx_status(wdev, status->cookie,
 					      status->ack);
