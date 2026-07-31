@@ -4745,10 +4745,10 @@ smb3_init_transform_rq(struct TCP_Server_Info *server, int num_rqst,
 			size_t cur_size = 0;
 			rc = netfs_alloc_folioq_buffer(NULL, &buffer, &cur_size,
 						       size, GFP_NOFS);
+			new->rq_buffer = buffer;
 			if (rc < 0)
 				goto err_free;
 
-			new->rq_buffer = buffer;
 			iov_iter_folio_queue(&new->rq_iter, ITER_SOURCE,
 					     buffer, 0, 0, size);
 

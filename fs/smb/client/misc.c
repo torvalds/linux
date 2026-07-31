@@ -525,24 +525,11 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 	}
 	spin_unlock(&cifs_inode->open_file_lock);
 
-	if (failed_cfile) {
-		if (OPEN_FMODE(failed_cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(failed_cfile->dentry))->time_last_write,
-					  jiffies);
-		}
+	if (failed_cfile)
 		_cifsFileInfo_put(failed_cfile, false, false);
-	}
 
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
-		struct cifsFileInfo *cfile = tmp_list->cfile;
-
-		if (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(cfile->dentry))->time_last_write,
-					  jiffies);
-		}
-		_cifsFileInfo_put(cfile, false, false);
+		_cifsFileInfo_put(tmp_list->cfile, false, false);
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
@@ -576,24 +563,11 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	if (failed_cfile) {
-		if (OPEN_FMODE(failed_cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(failed_cfile->dentry))->time_last_write,
-					  jiffies);
-		}
+	if (failed_cfile)
 		_cifsFileInfo_put(failed_cfile, true, false);
-	}
 
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
-		struct cifsFileInfo *cfile = tmp_list->cfile;
-
-		if (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(cfile->dentry))->time_last_write,
-					  jiffies);
-		}
-		_cifsFileInfo_put(cfile, true, false);
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
@@ -663,24 +637,11 @@ void cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon,
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	if (failed_cfile) {
-		if (OPEN_FMODE(failed_cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(failed_cfile->dentry))->time_last_write,
-					  jiffies);
-		}
+	if (failed_cfile)
 		_cifsFileInfo_put(failed_cfile, true, false);
-	}
 
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
-		struct cifsFileInfo *cfile = tmp_list->cfile;
-
-		if (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&CIFS_I(d_inode(cfile->dentry))->time_last_write,
-					  jiffies);
-		}
-		_cifsFileInfo_put(cfile, true, false);
+		_cifsFileInfo_put(tmp_list->cfile, true, false);
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
