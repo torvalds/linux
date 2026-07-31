@@ -14644,7 +14644,7 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 
 	cookie = cfg80211_assign_cookie(rdev);
 	err = rdev_remain_on_channel(rdev, wdev, chandef.chan,
-				     duration, &cookie, rx_addr);
+				     duration, cookie, rx_addr);
 
 	if (err)
 		goto free_msg;
@@ -14885,7 +14885,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 
 	params.chan = chandef.chan;
 	cookie = cfg80211_assign_cookie(rdev);
-	err = cfg80211_mlme_mgmt_tx(rdev, wdev, &params, &cookie);
+	err = cfg80211_mlme_mgmt_tx(rdev, wdev, &params, cookie);
 	if (err)
 		goto free_msg;
 
@@ -16374,7 +16374,7 @@ static int nl80211_probe_peer(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	cookie = cfg80211_assign_cookie(rdev);
-	err = rdev_probe_peer(rdev, dev, addr, &cookie);
+	err = rdev_probe_peer(rdev, dev, addr, cookie);
 	if (err)
 		goto free_msg;
 
