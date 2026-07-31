@@ -2306,6 +2306,8 @@ static const struct snd_pci_quirk power_save_denylist[] = {
 	SND_PCI_QUIRK(0x1028, 0x0962, "Dell ALC3271", 0),
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=220210 */
 	SND_PCI_QUIRK(0x17aa, 0x5079, "Lenovo Thinkpad E15", 0),
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=220694 */
+	SND_PCI_QUIRK(0x103c, 0x8a6b, "HP 89E9", 0),
 	{}
 };
 

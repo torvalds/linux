@@ -1851,6 +1851,17 @@ static void rt722_sdca_jack_preset(struct rt722_sdca_priv *rt722)
 	}
 }
 
+static void rt722_sdca_reset(struct rt722_sdca_priv *rt722)
+{
+	rt722_sdca_index_update_bits(rt722, RT722_VENDOR_REG,
+		RT722_LDO1_CTL, RT722_HIDDEN_REG_SW_RESET,
+		RT722_HIDDEN_REG_SW_RESET);
+	rt722_sdca_index_update_bits(rt722, RT722_VENDOR_HDA_CTL,
+		RT722_HDA_LEGACY_RESET_CTL, 0x1, 0x1);
+	if (rt722->hw_vid == RT722_VA)
+		rt722_sdca_index_write(rt722, RT722_VENDOR_REG, RT722_LDO1_CTL, 0xb091);
+}
+
 int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(dev);
@@ -1887,6 +1898,9 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	rt722_sdca_index_read(rt722, RT722_VENDOR_REG, RT722_JD_PRODUCT_NUM, &val);
 	rt722->hw_vid = (val & 0x0f00) >> 8;
 	dev_dbg(&slave->dev, "%s hw_vid=0x%x\n", __func__, rt722->hw_vid);
+
+	if (!rt722->first_hw_init)
+		rt722_sdca_reset(rt722);
 
 	rt722_sdca_dmic_preset(rt722);
 	rt722_sdca_amp_preset(rt722);
