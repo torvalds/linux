@@ -2502,12 +2502,13 @@ err_free_cfg:
 	return err;
 }
 
-static void __geneve_dellink(struct net_device *dev, struct list_head *head)
+static void __geneve_dellink(struct net *net, struct net_device *dev,
+			     struct list_head *head)
 {
 	struct geneve_dev *geneve = netdev_priv(dev);
 
-	list_del(&geneve->next);
-	unregister_netdevice_queue(dev, head);
+	list_del_init(&geneve->next);
+	unregister_netdevice_queue_net(net, dev, head);
 }
 
 static void geneve_dellink(struct net_device *dev, struct list_head *head)
@@ -2518,7 +2519,8 @@ static void geneve_dellink(struct net_device *dev, struct list_head *head)
 	gn = net_generic(geneve->net, geneve_net_id);
 
 	mutex_lock(&gn->lock);
-	__geneve_dellink(dev, head);
+	if (!list_empty(&geneve->next))
+		__geneve_dellink(dev_net(dev), dev, head);
 	mutex_unlock(&gn->lock);
 }
 
@@ -2754,7 +2756,7 @@ static void __net_exit geneve_exit_rtnl_net(struct net *net,
 	mutex_lock(&gn->lock);
 
 	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next)
-		__geneve_dellink(geneve->dev, dev_to_kill);
+		__geneve_dellink(net, geneve->dev, dev_to_kill);
 
 	mutex_unlock(&gn->lock);
 }
