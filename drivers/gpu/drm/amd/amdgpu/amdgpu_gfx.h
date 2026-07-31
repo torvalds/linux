@@ -535,6 +535,9 @@ struct amdgpu_gfx {
 	struct mutex                    userq_sch_mutex;
 	u64				userq_sch_req_count[MAX_XCP];
 	bool				userq_sch_inactive[MAX_XCP];
+	/* atomic bitmap of faulted gfx UQ slots (index = pipe | queue << 2) */
+	unsigned long			userq_priv_fault_slots;
+	struct work_struct		userq_priv_fault_work;
 	unsigned long			enforce_isolation_jiffies[MAX_XCP];
 	unsigned long			enforce_isolation_time[MAX_XCP];
 
