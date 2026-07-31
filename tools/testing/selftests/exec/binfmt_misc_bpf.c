@@ -9,7 +9,7 @@
  *
  *     echo ':name:B::::<handler>:' > /proc/sys/fs/binfmt_misc/register
  *
- * Three self-contained cases are exercised:
+ * Five self-contained cases are exercised:
  *
  *   1. bpf_interp: the match program matches a synthetic aarch64 ELF header
  *      from the prefetched bprm->buf and the load program routes it to a
@@ -26,6 +26,11 @@
  *      (binfmt_loader_payload) runs as the main image with the selected
  *      interpreter substituted for its PT_INTERP and asserts the native
  *      identity from inside.
+ *   5. interp_bind: an entry registered disabled with 'D' is given its
+ *      interpreters one write at a time, and the load program picks one by
+ *      name per exec. Replacing what the path holds afterwards changes
+ *      nothing, which is the point of binding a file rather than resolving
+ *      a name at exec time. Enabling the entry seals it.
  *
  * The first two route to a test interpreter that prints BPF_INTERP_RAN,
  * proving the program's chosen interpreter actually ran.
@@ -54,6 +59,12 @@
 #define TRANS_EXPECT	"TRANSPARENT_OK"
 #define LOADER_INTERP	"/tmp/binfmt_loader_interp"
 #define LOADER_PATH	"/tmp/binfmt_bpf_loader.ldrtest"
+#define BIND_FIRST	"/tmp/binfmt_bind_first"
+#define BIND_SECOND	"/tmp/binfmt_bind_second"
+#define BIND_ARM_PATH	"/tmp/binfmt_bind_arm"
+#define BIND_RISCV_PATH	"/tmp/binfmt_bind_riscv"
+#define BIND_EXPECT	"BIND_RAN "
+#define BIND_MAX	100
 
 /* A minimal 64-bit little-endian ELF header, padded to the read size. */
 static int create_fake_elf(const char *path, unsigned short machine)
@@ -82,11 +93,17 @@ static int create_fake_elf(const char *path, unsigned short machine)
 	return 0;
 }
 
-static int register_entry(const char *name, const char *handler)
+/*
+ * Register a 'B' entry for @handler. With @flags "D" the entry is created
+ * disabled, which is what leaves it open to being given interpreters.
+ */
+static int register_entry(const char *name, const char *handler,
+			  const char *flags)
 {
 	char rule[PATH_MAX];
 
-	snprintf(rule, sizeof(rule), ":%s:B::::%s:", name, handler);
+	snprintf(rule, sizeof(rule), ":%s:B::::%s:%s", name, handler,
+		 flags ? flags : "");
 	return write_reg(rule);
 }
 
@@ -106,6 +123,30 @@ static int check_output(const char *cmd, const char *expected)
 	return strncmp(buf, expected, strlen(expected)) ? -1 : 0;
 }
 
+/* Does the kernel BTF know struct binfmt_misc_ops (CONFIG_BINFMT_MISC_BPF)? */
+static bool have_binfmt_misc_ops(void)
+{
+	struct btf *btf = btf__load_vmlinux_btf();
+	bool have;
+
+	have = btf && btf__find_by_name_kind(btf, "binfmt_misc_ops",
+					     BTF_KIND_STRUCT) >= 0;
+	btf__free(btf);
+	return have;
+}
+
+/* The reason bpf handler cases cannot run here, NULL if they can. */
+static const char *bpf_handler_unsupported(void)
+{
+	if (getuid() != 0)
+		return "test must be run as root";
+	if (!have_binfmt_misc_ops())
+		return "no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)";
+	if (!binfmt_misc_available())
+		return "no binfmt_misc";
+	return NULL;
+}
+
 /* An attached handler with its 'B' entry activated. */
 struct bpf_case {
 	struct bpf_object *obj;
@@ -115,10 +156,12 @@ struct bpf_case {
 
 /*
  * Load @objfile, attach its struct_ops map @handler (which publishes the
- * handler) and activate a 'B' entry named @entry that references it.
+ * handler) and register a 'B' entry named @entry that references it, with
+ * @flags as the entry's register-string flags.
  */
-static int bpf_case_start(struct bpf_case *c, const char *objfile,
-			  const char *handler, const char *entry)
+static int bpf_case_start_flags(struct bpf_case *c, const char *objfile,
+				const char *handler, const char *entry,
+				const char *flags)
 {
 	struct bpf_map *map;
 
@@ -148,7 +191,7 @@ static int bpf_case_start(struct bpf_case *c, const char *objfile,
 		c->link = NULL;
 		goto fail;
 	}
-	if (register_entry(entry, handler)) {
+	if (register_entry(entry, handler, flags)) {
 		fprintf(stderr, "register 'B' entry '%s' failed\n", entry);
 		goto fail;
 	}
@@ -160,6 +203,12 @@ fail:
 	c->obj = NULL;
 	c->link = NULL;
 	return -1;
+}
+
+static int bpf_case_start(struct bpf_case *c, const char *objfile,
+			  const char *handler, const char *entry)
+{
+	return bpf_case_start_flags(c, objfile, handler, entry, NULL);
 }
 
 static void bpf_case_stop(struct bpf_case *c)
@@ -190,23 +239,10 @@ FIXTURE(bpf_handler) {
 FIXTURE_SETUP(bpf_handler)
 {
 	char src[PATH_MAX];
-	struct btf *btf;
+	const char *why = bpf_handler_unsupported();
 
-	if (getuid() != 0)
-		SKIP(return, "test must be run as root");
-
-	/* The kernel must know struct binfmt_misc_ops (CONFIG_BINFMT_MISC_BPF). */
-	btf = btf__load_vmlinux_btf();
-	if (!btf || btf__find_by_name_kind(btf, "binfmt_misc_ops",
-					   BTF_KIND_STRUCT) < 0) {
-		btf__free(btf);
-		SKIP(return,
-		     "no struct binfmt_misc_ops in the kernel BTF (CONFIG_BINFMT_MISC_BPF)");
-	}
-	btf__free(btf);
-
-	if (!binfmt_misc_available())
-		SKIP(return, "no binfmt_misc");
+	if (why)
+		SKIP(return, "%s", why);
 
 	/* Shared test interpreter. */
 	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_bpf_interp"), 0);
@@ -258,7 +294,7 @@ TEST_F(bpf_handler, transparent_dispatch)
 	char src[PATH_MAX], cmd[PATH_MAX + 16];
 
 	/* Probe for transparent-mode support via its static counterpart. */
-	if (binfmt_flag_supported('T'))
+	if (!binfmt_flag_supported('T'))
 		SKIP(return, "kernel without transparent mode");
 
 	ASSERT_EQ(artifact_path(src, sizeof(src), "binfmt_transparent_interp"), 0);
@@ -305,6 +341,228 @@ TEST_F(bpf_handler, loader_substitution)
 	unsetenv("BINFMT_TEST_INTERP");
 	unlink(LOADER_PATH);
 	unlink(LOADER_INTERP);
+}
+
+/* The errno an exec of @path fails with, 0 if it succeeded. */
+static int exec_errno(const char *path)
+{
+	int status;
+	pid_t pid;
+
+	pid = fork();
+	if (pid == 0) {
+		execl(path, path, (char *)NULL);
+		_exit(errno);
+	}
+	if (pid < 0 || waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
+		return -1;
+	return WEXITSTATUS(status);
+}
+
+/* Install a copy of the bound-interpreter test binary at @path. */
+static int install_interp(const char *path)
+{
+	char src[PATH_MAX];
+
+	if (artifact_path(src, sizeof(src), "binfmt_bind_interp"))
+		return -1;
+	return copy_file(src, path);
+}
+
+/* Bind @path to @entry under @name, the '+' command of a disabled entry. */
+static int entry_bind(const char *entry, const char *name, const char *path)
+{
+	char cmd[PATH_MAX];
+
+	snprintf(cmd, sizeof(cmd), "+%s %s\n", name, path);
+	return entry_command(entry, cmd);
+}
+
+FIXTURE(bound_interp) {
+	char obj[PATH_MAX];
+	struct bpf_case c;
+	bool started;
+};
+
+FIXTURE_SETUP(bound_interp)
+{
+	const char *why = bpf_handler_unsupported();
+
+	if (why)
+		SKIP(return, "%s", why);
+	if (!binfmt_flag_supported('D')) {
+		ASSERT_EQ(errno, EINVAL);
+		SKIP(return, "kernel without the 'D' flag");
+	}
+
+	ASSERT_EQ(install_interp(BIND_FIRST), 0);
+	ASSERT_EQ(install_interp(BIND_SECOND), 0);
+
+	ASSERT_EQ(artifact_path(self->obj, sizeof(self->obj),
+				"interp_bind.bpf.o"), 0);
+
+	/*
+	 * Registered disabled, so it cannot be matched yet and can still be
+	 * given interpreters. Each path is resolved once, by its write(2);
+	 * from here on the entry holds the files themselves.
+	 */
+	ASSERT_EQ(bpf_case_start_flags(&self->c, self->obj, "interp_bind",
+				       "test_interp_bind", "D"), 0);
+	self->started = true;
+
+	ASSERT_EQ(entry_bind("test_interp_bind", "first", BIND_FIRST), 0);
+	ASSERT_EQ(entry_bind("test_interp_bind", "second", BIND_SECOND), 0);
+}
+
+FIXTURE_TEARDOWN(bound_interp)
+{
+	if (self->started)
+		bpf_case_stop(&self->c);
+	unlink(BIND_FIRST);
+	unlink(BIND_SECOND);
+	unlink(AARCH64_PATH);
+	unlink(BIND_RISCV_PATH);
+	unlink(BIND_ARM_PATH);
+}
+
+/* Enabling is what makes the configured entry matchable. */
+static int activate(const char *entry)
+{
+	return entry_command(entry, "1\n");
+}
+
+/* One entry, one interpreter per guest architecture, picked per exec. */
+TEST_F(bound_interp, selects_by_name)
+{
+	ASSERT_EQ(create_fake_elf(AARCH64_PATH, EM_AARCH64), 0);
+	ASSERT_EQ(create_fake_elf(BIND_RISCV_PATH, EM_RISCV), 0);
+
+	/* Disabled, so it does not match and no format claims the binary. */
+	EXPECT_EQ(exec_errno(AARCH64_PATH), ENOEXEC);
+
+	ASSERT_EQ(activate("test_interp_bind"), 0);
+	EXPECT_EQ(check_output(AARCH64_PATH, BIND_EXPECT BIND_FIRST), 0);
+	EXPECT_EQ(check_output(BIND_RISCV_PATH, BIND_EXPECT BIND_SECOND), 0);
+}
+
+/* What was bound is what runs, whatever the path holds afterwards. */
+TEST_F(bound_interp, path_no_longer_decides)
+{
+	char other[PATH_MAX];
+
+	ASSERT_EQ(create_fake_elf(AARCH64_PATH, EM_AARCH64), 0);
+	ASSERT_EQ(activate("test_interp_bind"), 0);
+
+	/* Bound interpreters are pinned against writes, exactly like 'F'. */
+	EXPECT_TRUE(write_denied(BIND_FIRST));
+
+	/* Replace the path with a different binary: a new file, new inode. */
+	ASSERT_EQ(artifact_path(other, sizeof(other), "binfmt_bpf_interp"), 0);
+	ASSERT_EQ(unlink(BIND_FIRST), 0);
+	ASSERT_EQ(copy_file(other, BIND_FIRST), 0);
+
+	EXPECT_EQ(check_output(AARCH64_PATH, BIND_EXPECT BIND_FIRST), 0);
+}
+
+/* The entry reports what it bound, under the names it bound them as. */
+TEST_F(bound_interp, entry_reports_bindings)
+{
+	EXPECT_TRUE(entry_shows("test_interp_bind",
+				"bpf-interpreter first " BIND_FIRST));
+	EXPECT_TRUE(entry_shows("test_interp_bind",
+				"bpf-interpreter second " BIND_SECOND));
+}
+
+/* Selecting a name the entry did not bind fails the exec. */
+TEST_F(bound_interp, unbound_name_fails)
+{
+	ASSERT_EQ(create_fake_elf(BIND_ARM_PATH, EM_ARM), 0);
+	ASSERT_EQ(activate("test_interp_bind"), 0);
+
+	EXPECT_EQ(exec_errno(BIND_ARM_PATH), ENOENT);
+}
+
+/* Activating seals it: what can be matched cannot be changed. */
+TEST_F(bound_interp, sealed_once_active)
+{
+	ASSERT_EQ(activate("test_interp_bind"), 0);
+
+	EXPECT_EQ(entry_bind("test_interp_bind", "third", BIND_SECOND), -EBUSY);
+	EXPECT_FALSE(entry_shows("test_interp_bind",
+				 "bpf-interpreter third " BIND_SECOND));
+}
+
+/* The seal is for good: disabling the entry again reopens nothing. */
+TEST_F(bound_interp, disable_does_not_unseal)
+{
+	ASSERT_EQ(activate("test_interp_bind"), 0);
+	ASSERT_EQ(entry_command("test_interp_bind", "0\n"), 0);
+
+	EXPECT_EQ(entry_bind("test_interp_bind", "third", BIND_SECOND), -EBUSY);
+}
+
+/* An entry registered without 'D' is sealed from the start. */
+TEST_F(bound_interp, born_sealed)
+{
+	/* A second entry for the handler the fixture already published. */
+	ASSERT_EQ(register_entry("test_born_sealed", "interp_bind", NULL), 0);
+
+	EXPECT_EQ(entry_bind("test_born_sealed", "first", BIND_FIRST), -EBUSY);
+	unregister("test_born_sealed");
+}
+
+/* A name is bound once; a second use of it is refused. */
+TEST_F(bound_interp, duplicate_name_refused)
+{
+	EXPECT_EQ(entry_bind("test_interp_bind", "first", BIND_SECOND), -EEXIST);
+}
+
+/* A name is a printable word: the entry file reports 'name path' lines. */
+TEST_F(bound_interp, name_must_be_printable)
+{
+	/* A control character would forge a line into the entry file. */
+	EXPECT_EQ(entry_bind("test_interp_bind", "a\tb", BIND_FIRST), -EINVAL);
+	EXPECT_EQ(entry_bind("test_interp_bind", "a\nb", BIND_FIRST), -EINVAL);
+
+	/* A space cannot even be spelled: the path starts after the first one. */
+	EXPECT_EQ(entry_bind("test_interp_bind", "a b", BIND_FIRST), -EINVAL);
+}
+
+/* The command ends at the write: bytes past an embedded nul are refused. */
+TEST_F(bound_interp, trailing_bytes_refused)
+{
+	char cmd[PATH_MAX];
+	size_t len;
+	int fd;
+
+	/* entry_command() cannot spell a nul, so write the buffer raw. */
+	snprintf(cmd, sizeof(cmd), "+nul %s", BIND_FIRST);
+	len = strlen(cmd) + 1;
+	memcpy(cmd + len, "junk", sizeof("junk"));
+	len += sizeof("junk");
+
+	fd = open(BINFMT_DIR "/test_interp_bind", O_WRONLY | O_CLOEXEC);
+	ASSERT_GE(fd, 0);
+	EXPECT_EQ(write(fd, cmd, len), -1);
+	EXPECT_EQ(errno, EINVAL);
+	close(fd);
+
+	EXPECT_FALSE(entry_shows("test_interp_bind",
+				 "bpf-interpreter nul " BIND_FIRST));
+}
+
+/* An entry binds at most BIND_MAX interpreters. */
+TEST_F(bound_interp, capped_bindings)
+{
+	char name[16];
+	int i;
+
+	/* The fixture bound "first" and "second" already. */
+	for (i = 2; i < BIND_MAX; i++) {
+		snprintf(name, sizeof(name), "n%d", i);
+		ASSERT_EQ(entry_bind("test_interp_bind", name, BIND_FIRST), 0);
+	}
+	EXPECT_EQ(entry_bind("test_interp_bind", "over", BIND_FIRST), -ENOSPC);
 }
 
 TEST_HARNESS_MAIN

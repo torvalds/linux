@@ -93,6 +93,45 @@ static inline void unregister(const char *name)
 	}
 }
 
+/* Write @line to @entry's file, reporting the errno it was refused with. */
+static inline int entry_command(const char *entry, const char *line)
+{
+	char path[PATH_MAX];
+	int fd, retval = 0;
+	size_t len = strlen(line);
+
+	snprintf(path, sizeof(path), BINFMT_DIR "/%s", entry);
+	fd = open(path, O_WRONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -errno;
+	if (write(fd, line, len) != (ssize_t)len)
+		retval = -errno;
+	close(fd);
+	return retval;
+}
+
+/* Does @entry's file report @line? */
+static inline bool entry_shows(const char *entry, const char *line)
+{
+	char path[PATH_MAX], buf[PATH_MAX];
+	bool found = false;
+	FILE *fp;
+
+	snprintf(path, sizeof(path), BINFMT_DIR "/%s", entry);
+	fp = fopen(path, "r");
+	if (!fp)
+		return false;
+	while (fgets(buf, sizeof(buf), fp)) {
+		buf[strcspn(buf, "\n")] = '\0';
+		if (!strcmp(buf, line)) {
+			found = true;
+			break;
+		}
+	}
+	fclose(fp);
+	return found;
+}
+
 /* Mount binfmt_misc unless it already is, and report whether it is usable. */
 static inline bool binfmt_misc_available(void)
 {
@@ -117,16 +156,16 @@ static inline int artifact_path(char *out, size_t sz, const char *name)
 }
 
 /* Probe kernel support for a registration flag with a throwaway entry. */
-static inline int binfmt_flag_supported(char flag)
+static inline bool binfmt_flag_supported(char flag)
 {
 	char rule[64];
 
 	snprintf(rule, sizeof(rule), ":bm_flag_probe:E::bmprobe::/bin/true:%c",
 		 flag);
 	if (write_reg(rule))
-		return -1;
+		return false;
 	unregister("bm_flag_probe");
-	return 0;
+	return true;
 }
 
 /*

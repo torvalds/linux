@@ -1477,6 +1477,8 @@ static void free_bprm(struct linux_binprm *bprm)
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);
 	kfree(bprm->bpf_interp);
+	if (bprm->bpf_interp_file)
+		fput(bprm->bpf_interp_file);
 	kfree(bprm->bpf_interp_arg);
 	kfree(bprm->fdpath);
 	kfree(bprm);

@@ -14,7 +14,10 @@ struct coredump_params;
 
 /* Interpreter selection staged by a bpf binfmt_misc handler. */
 struct binfmt_misc_bpf {
+	/* interpreters the matched entry bound, selectable by name */
+	const struct list_head *bpf_interps;
 	const char *bpf_interp;		/* interpreter selected by a bpf handler */
+	struct file *bpf_interp_file;	/* the bound interpreter it selected */
 	const char *bpf_interp_arg;	/* interpreter argument from a bpf handler */
 	u64 bpf_flags;			/* enum bpf_binprm_flags from a bpf handler */
 };

@@ -25,6 +25,10 @@ TEST_GEN_PROGS += check-exec
 # or an 'F' entry can pin the instance that owns it. Unprivileged, no bpf.
 TEST_GEN_PROGS += binfmt_misc_selfpin
 
+# 'D' (register disabled) binfmt_misc test: an entry that exists but does
+# not dispatch until it is enabled. Static magic entry, no bpf toolchain.
+TEST_GEN_PROGS += binfmt_misc_disabled
+
 # Static ('T' flag) transparent binfmt_misc test; the asserting interpreter
 # is shared with the bpf harness's transparent case. No bpf toolchain needed.
 TEST_GEN_PROGS += binfmt_misc_transparent
@@ -52,8 +56,8 @@ HAVE_BPF_TOOLCHAIN ?= $(shell command -v $(CLANG) >/dev/null 2>&1 && \
 ifeq ($(HAVE_BPF_TOOLCHAIN),y)
 TEST_GEN_PROGS += binfmt_misc_bpf
 TEST_GEN_FILES += bpf_interp.bpf.o nix_origin.bpf.o transparent.bpf.o
-TEST_GEN_FILES += loader.bpf.o
-TEST_GEN_FILES += binfmt_bpf_interp binfmt_bpf_app
+TEST_GEN_FILES += loader.bpf.o interp_bind.bpf.o
+TEST_GEN_FILES += binfmt_bpf_interp binfmt_bpf_app binfmt_bind_interp
 else
 $(info exec selftests: skipping binfmt_misc_bpf, needs clang, bpftool, vmlinux BTF and libbpf)
 endif
@@ -121,6 +125,9 @@ $(OUTPUT)/binfmt_misc_bpf: binfmt_misc_bpf.c binfmt_misc_common.h
 	$(CC) $(CFLAGS) $(LIBBPF_CFLAGS) $(LDFLAGS) $< $(LIBBPF_LDLIBS) -o $@
 
 $(OUTPUT)/binfmt_bpf_interp: binfmt_bpf_interp.c
+	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+
+$(OUTPUT)/binfmt_bind_interp: binfmt_bind_interp.c
 	$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
 
 $(OUTPUT)/binfmt_loader_payload: binfmt_loader_payload.c binfmt_misc_common.h
