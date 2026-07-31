@@ -630,11 +630,11 @@ static int __init ksmbd_server_init(void)
 
 	ret = server_conf_init();
 	if (ret)
-		goto err_unregister;
+		goto err_proc_cleanup;
 
 	ret = ksmbd_work_pool_init();
 	if (ret)
-		goto err_unregister;
+		goto err_proc_cleanup;
 
 	ret = ksmbd_init_file_cache();
 	if (ret)
@@ -680,6 +680,8 @@ err_exit_file_cache:
 	ksmbd_exit_file_cache();
 err_destroy_work_pools:
 	ksmbd_work_pool_destroy();
+err_proc_cleanup:
+	ksmbd_proc_cleanup();
 err_unregister:
 	class_unregister(&ksmbd_control_class);
 
