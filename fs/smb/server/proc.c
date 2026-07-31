@@ -239,14 +239,14 @@ void ksmbd_proc_reset(void)
 		percpu_counter_set(&ksmbd_counters.counters[i], 0);
 }
 
-void ksmbd_proc_init(void)
+int ksmbd_proc_init(void)
 {
 	int i;
-	int retval;
+	int retval = -ENOMEM;
 
 	ksmbd_proc_fs = proc_mkdir("fs/ksmbd", NULL);
 	if (!ksmbd_proc_fs)
-		return;
+		return retval;
 
 	if (!proc_mkdir_mode("sessions", 0400, ksmbd_proc_fs))
 		goto err_out;
@@ -257,11 +257,14 @@ void ksmbd_proc_init(void)
 			goto err_out;
 	}
 
-	if (!ksmbd_proc_create("server", proc_show_ksmbd_stats, NULL))
+	if (!ksmbd_proc_create("server", proc_show_ksmbd_stats, NULL)) {
+		retval = -ENOMEM;
 		goto err_out;
+	}
 
 	ksmbd_proc_reset();
-	return;
+	return 0;
 err_out:
 	ksmbd_proc_cleanup();
+	return retval;
 }

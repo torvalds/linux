@@ -620,7 +620,9 @@ static int __init ksmbd_server_init(void)
 		return ret;
 	}
 
-	ksmbd_proc_init();
+	ret = ksmbd_proc_init();
+	if (ret)
+		goto err_unregister;
 	create_proc_sessions();
 	create_proc_shares();
 
