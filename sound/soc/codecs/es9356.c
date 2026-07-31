@@ -20,8 +20,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
-#include <sound/sdca_function.h>
-#include <sound/sdca_regmap.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <sound/jack.h>
