@@ -2202,18 +2202,13 @@ static bool bnge_promisc_ok(struct bnge_net *bn)
 }
 
 static int bnge_cfg_rx_mode(struct bnge_net *bn, struct netdev_hw_addr_list *uc,
-			    bool snapshot)
+			    bool uc_update, bool snapshot)
 {
 	struct bnge_vnic_info *vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
 	struct net_device *dev = bn->netdev;
 	struct bnge_dev *bd = bn->bd;
 	struct netdev_hw_addr *ha;
 	int i, off = 0, rc;
-	bool uc_update;
-
-	netif_addr_lock_bh(dev);
-	uc_update = bnge_uc_list_updated(bn, uc);
-	netif_addr_unlock_bh(dev);
 
 	if (!uc_update)
 		goto skip_uc;
@@ -2267,11 +2262,56 @@ skip_uc:
 		vnic->mc_list_count = 0;
 		rc = bnge_hwrm_cfa_l2_set_rx_mask(bd, vnic);
 	}
-	if (rc)
-		netdev_err(dev, "HWRM cfa l2 rx mask failure rc: %d\n",
-			   rc);
+	if (rc) {
+		if (rc == -EAGAIN) {
+			netdev_warn(dev, "FW busy while setting l2 rx mask in CFA, will retry\n");
+			vnic->rx_mask &= ~BNGE_RX_MASK_CFG_FLAGS;
+		} else {
+			netdev_err(dev, "HWRM CFA L2 rx mask failure rc: %d\n",
+				   rc);
+		}
+	}
 
 	return rc;
+}
+
+static int bnge_set_rx_mode(struct net_device *dev,
+			    struct netdev_hw_addr_list *uc,
+			    struct netdev_hw_addr_list *mc)
+{
+	struct bnge_net *bn = netdev_priv(dev);
+	struct bnge_vnic_info *vnic;
+	bool mc_update = false;
+	bool uc_update;
+	u32 mask;
+
+	if (!test_bit(BNGE_STATE_OPEN, &bn->bd->state))
+		return 0;
+
+	vnic = &bn->vnic_info[BNGE_VNIC_DEFAULT];
+	mask = vnic->rx_mask;
+	mask &= ~BNGE_RX_MASK_CFG_FLAGS;
+
+	if (dev->flags & IFF_PROMISC)
+		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS;
+
+	uc_update = bnge_uc_list_updated(bn, uc);
+
+	if (dev->flags & IFF_BROADCAST)
+		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_BCAST;
+	if (dev->flags & IFF_ALLMULTI) {
+		mask |= CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST;
+		vnic->mc_list_count = 0;
+	} else if (dev->flags & IFF_MULTICAST) {
+		mc_update = bnge_mc_list_updated(bn, &mask, mc);
+	}
+
+	if (mask != vnic->rx_mask || uc_update || mc_update) {
+		vnic->rx_mask = mask;
+		return bnge_cfg_rx_mode(bn, uc, uc_update, true);
+	}
+
+	return 0;
 }
 
 static void bnge_disable_int(struct bnge_net *bn)
@@ -2706,9 +2746,13 @@ static int bnge_init_chip(struct bnge_net *bn)
 		vnic->rx_mask |= mask;
 	}
 
-	rc = bnge_cfg_rx_mode(bn, &bn->netdev->uc, false);
-	if (rc)
+	rc = bnge_cfg_rx_mode(bn, &bn->netdev->uc, true, false);
+	if (rc == -EAGAIN) {
+		netif_rx_mode_schedule_retry(bn->netdev);
+		rc = 0;
+	} else if (rc) {
 		goto err_out;
+	}
 	return 0;
 
 err_out:
@@ -3202,6 +3246,7 @@ static const struct net_device_ops bnge_netdev_ops = {
 	.ndo_stop		= bnge_close,
 	.ndo_start_xmit		= bnge_start_xmit,
 	.ndo_get_stats64	= bnge_get_stats64,
+	.ndo_set_rx_mode_async	= bnge_set_rx_mode,
 	.ndo_features_check	= bnge_features_check,
 };
 
