@@ -46,6 +46,23 @@
 /* UART */
 #define MOXA_PUART_BASE_BAUD		921600
 #define MOXA_PUART_OFFSET		0x200
+#define MOXA_PUART_TX_TRIG_DEFAULT	0
+#define MOXA_PUART_RX_TRIG_DEFAULT	96
+#define MOXA_PUART_RX_FLOW_LOW_DEFAULT	16
+#define MOXA_PUART_RX_FLOW_HIGH_DEFAULT	110
+
+/* Special Function Register (SFR) */
+#define MOXA_PUART_SFR		0x07
+#define MOXA_PUART_SFR_950	BIT(5)
+
+/* Enhanced Function Register (EFR) */
+#define MOXA_PUART_EFR				0x0A
+#define MOXA_PUART_EFR_ENHANCED			BIT(4)
+
+#define MOXA_PUART_TTL		0x10	/* Tx Interrupt Trigger Level */
+#define MOXA_PUART_RTL		0x11	/* Rx Interrupt Trigger Level */
+#define MOXA_PUART_FCL		0x12	/* Flow Control Low Trigger Level */
+#define MOXA_PUART_FCH		0x13	/* Flow Control High Trigger Level */
 
 #define MOXA_GPIO_DIRECTION	0x09
 #define MOXA_GPIO_OUTPUT	0x0A
@@ -129,6 +146,49 @@ static void mxpcie8250_set_interface(struct mxpcie8250 *priv,
 		FIELD_MODIFY(MOXA_EVEN_RS_MASK, &cval, mode);
 
 	iowrite8(cval, uir_addr);
+}
+
+static int mxpcie8250_startup(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	int ret;
+
+	ret = serial8250_do_startup(port);
+	if (ret)
+		return ret;
+
+	/*
+	 * The TX FIFO write pointer (w_ptr) and read pointer (r_ptr)
+	 * are driven by different clocks: w_ptr uses the PCIe clock
+	 * and r_ptr uses the UART clock. When TX FIFO flush is requested,
+	 * w_ptr may be cleared before r_ptr, so the UART can still observe
+	 * pending TX data.
+	 *
+	 * It is recommended to clear the FIFOs at least 5 times to ensure
+	 * both pointers are reset.
+	 */
+	for (unsigned int i = 0; i < 5; ++i)
+		serial_out(up, UART_FCR, UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
+
+	serial_out(up, MOXA_PUART_EFR, MOXA_PUART_EFR_ENHANCED);
+	serial_out(up, MOXA_PUART_SFR, MOXA_PUART_SFR_950);
+
+	serial_out(up, MOXA_PUART_TTL, MOXA_PUART_TX_TRIG_DEFAULT);
+	serial_out(up, MOXA_PUART_RTL, MOXA_PUART_RX_TRIG_DEFAULT);
+	serial_out(up, MOXA_PUART_FCL, MOXA_PUART_RX_FLOW_LOW_DEFAULT);
+	serial_out(up, MOXA_PUART_FCH, MOXA_PUART_RX_FLOW_HIGH_DEFAULT);
+
+	return 0;
+}
+
+static void mxpcie8250_shutdown(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	serial_out(up, MOXA_PUART_EFR, 0);
+	serial_out(up, MOXA_PUART_SFR, 0);
+
+	serial8250_do_shutdown(port);
 }
 
 static void mxpcie8250_init_board(struct pci_dev *pdev, struct mxpcie8250 *priv)
@@ -224,6 +284,9 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	up.port.iotype = UPIO_MEM;
 	up.port.iobase = 0;
 	up.port.regshift = 0;
+
+	up.port.startup = mxpcie8250_startup;
+	up.port.shutdown = mxpcie8250_shutdown;
 
 	for (unsigned int i = 0; i < num_ports; i++) {
 		mxpcie8250_setup_port(pdev, priv, &up, i);
