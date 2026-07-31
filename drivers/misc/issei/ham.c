@@ -132,6 +132,12 @@ static int __issei_ham_process_ham_rsp(struct issei_device *idev, const u8 *buf,
 {
 	struct ham_bus_message *hdr = (struct ham_bus_message *)buf;
 
+	if (length < sizeof(*hdr)) {
+		dev_err(&idev->dev, "Small bus message size %zu < %zu\n",
+			length, sizeof(*hdr));
+		return -EPROTO;
+	}
+
 	switch (hdr->cmd) {
 	case HAM_BUS_CMD_START_RSP:
 		return issei_ham_start_rsp(idev, buf, length);
