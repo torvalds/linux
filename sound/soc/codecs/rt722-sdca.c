@@ -1892,6 +1892,9 @@ int rt722_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	rt722_sdca_amp_preset(rt722);
 	rt722_sdca_jack_preset(rt722);
 
+	if (rt722->hs_jack && (!rt722->first_hw_init))
+		rt722_sdca_jack_init(rt722);
+
 	if (rt722->first_hw_init) {
 		regcache_cache_bypass(rt722->regmap, false);
 		regcache_mark_dirty(rt722->regmap);
