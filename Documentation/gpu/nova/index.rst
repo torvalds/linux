@@ -33,3 +33,4 @@ vGPU manager VFIO driver and the nova-drm driver.
    core/fsp
    core/fwsec
    core/falcon
+   core/tlv
