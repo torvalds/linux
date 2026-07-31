@@ -1081,12 +1081,6 @@ static inline void ip_vs_bind_xmit_v6(struct ip_vs_conn *cp)
 #endif
 
 
-static inline int ip_vs_dest_totalconns(struct ip_vs_dest *dest)
-{
-	return atomic_read(&dest->activeconns)
-		+ atomic_read(&dest->inactconns);
-}
-
 /*
  *	Bind a connection entry with a virtual service destination
  *	Called just after a new connection entry is created.
@@ -1153,8 +1147,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		 */
 		if (!(flags & IP_VS_CONN_F_INACTIVE))
 			atomic_inc(&dest->activeconns);
-		else
-			atomic_inc(&dest->inactconns);
+		atomic_inc(&dest->totalconns);
 	} else {
 		/* It is a persistent connection/template, so increase
 		   the persistent connection counter */
@@ -1162,7 +1155,7 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	}
 
 	if (dest->u_threshold != 0 &&
-	    ip_vs_dest_totalconns(dest) >= dest->u_threshold)
+	    atomic_read(&dest->totalconns) >= dest->u_threshold)
 		dest->flags |= IP_VS_DEST_F_OVERLOAD;
 }
 
@@ -1244,13 +1237,10 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 
 	/* Update the connection counters */
 	if (!(cp->flags & IP_VS_CONN_F_TEMPLATE)) {
-		/* It is a normal connection, so decrease the inactconns
-		   or activeconns counter */
-		if (cp->flags & IP_VS_CONN_F_INACTIVE) {
-			atomic_dec(&dest->inactconns);
-		} else {
+		/* It is a normal connection, so decrease the counters */
+		if (!(cp->flags & IP_VS_CONN_F_INACTIVE))
 			atomic_dec(&dest->activeconns);
-		}
+		atomic_dec(&dest->totalconns);
 	} else {
 		/* It is a persistent connection/template, so decrease
 		   the persistent connection counter */
@@ -1258,10 +1248,10 @@ static inline void ip_vs_unbind_dest(struct ip_vs_conn *cp)
 	}
 
 	if (dest->l_threshold != 0) {
-		if (ip_vs_dest_totalconns(dest) < dest->l_threshold)
+		if (atomic_read(&dest->totalconns) < dest->l_threshold)
 			dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
 	} else if (dest->u_threshold != 0) {
-		if (ip_vs_dest_totalconns(dest) * 4 < dest->u_threshold * 3)
+		if (atomic_read(&dest->totalconns) * 4 < dest->u_threshold * 3)
 			dest->flags &= ~IP_VS_DEST_F_OVERLOAD;
 	} else {
 		if (dest->flags & IP_VS_DEST_F_OVERLOAD)
