@@ -187,8 +187,7 @@ void uffd_stop_demand_paging(struct uffd_desc *uffd)
 			    "Unable to write to pipefd %i for uffd_desc %p", i, uffd);
 
 	for (i = 0; i < uffd->num_readers; ++i)
-		TEST_ASSERT(!pthread_join(uffd->readers[i], NULL),
-			    "Pthread_join failed on reader %i for uffd_desc %p", i, uffd);
+		kvm_pthread_join(uffd->readers[i], NULL);
 
 	close(uffd->uffd);
 

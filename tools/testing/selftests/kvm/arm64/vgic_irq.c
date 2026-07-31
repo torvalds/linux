@@ -1007,8 +1007,8 @@ static void test_vgic_two_cpus(void *gcode)
 	kvm_pthread_create(&thr[0], NULL, test_vcpu_run, vcpus[0]);
 	kvm_pthread_create(&thr[1], NULL, test_vcpu_run, vcpus[1]);
 
-	pthread_join(thr[0], NULL);
-	pthread_join(thr[1], NULL);
+	kvm_pthread_join(thr[0], NULL);
+	kvm_pthread_join(thr[1], NULL);
 
 	close(gic_fd);
 	kvm_vm_free(vm);

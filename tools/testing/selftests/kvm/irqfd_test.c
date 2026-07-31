@@ -139,5 +139,5 @@ int main(int argc, char *argv[])
 	}
 
 	WRITE_ONCE(done, true);
-	pthread_join(racing_thread, NULL);
+	kvm_pthread_join(racing_thread, NULL);
 }

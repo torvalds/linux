@@ -321,13 +321,13 @@ static void run_test(void)
 	clock_gettime(CLOCK_MONOTONIC, &start);
 
 	for (i = 0; i < nr_devices; i++)
-		pthread_join(lpi_threads[i], NULL);
+		kvm_pthread_join(lpi_threads[i], NULL);
 
 	delta = timespec_elapsed(start);
 	write_guest_global(vm, test_data.request_vcpus_stop, true);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_join(vcpu_threads[i], NULL);
+		kvm_pthread_join(vcpu_threads[i], NULL);
 
 	report_stats(delta);
 }

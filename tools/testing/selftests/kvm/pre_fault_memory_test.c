@@ -116,7 +116,7 @@ static void pre_fault_memory(struct kvm_vcpu *vcpu, u64 base_gpa, u64 offset,
 		 */
 		if (!slot_recreated) {
 			WRITE_ONCE(data.recreate_slot, true);
-			pthread_join(slot_worker, NULL);
+			kvm_pthread_join(slot_worker, NULL);
 			slot_recreated = true;
 
 			/*

@@ -225,15 +225,9 @@ static void *vcpu_thread(void *arg)
 static void cancel_join_vcpu_thread(pthread_t thread, struct kvm_vcpu *vcpu)
 {
 	void *retval;
-	int r;
 
-	r = pthread_cancel(thread);
-	TEST_ASSERT(!r, "pthread_cancel on vcpu_id=%d failed with errno=%d",
-		    vcpu->id, r);
-
-	r = pthread_join(thread, &retval);
-	TEST_ASSERT(!r, "pthread_join on vcpu_id=%d failed with errno=%d",
-		    vcpu->id, r);
+	kvm_pthread_cancel(thread);
+	kvm_pthread_join(thread, &retval);
 	TEST_ASSERT(retval == PTHREAD_CANCELED,
 		    "expected retval=%p, got %p", PTHREAD_CANCELED,
 		    retval);

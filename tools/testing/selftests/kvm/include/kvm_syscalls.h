@@ -101,6 +101,8 @@ __KVM_SYSCALL_DEFINE(sched_setaffinity, 3, pid_t, pid, size_t, cpusetsize, cpu_s
 typedef void *(*pthread_fn_t)(void *);
 __KVM_SYSCALL_DEFINE(pthread_create, 4, pthread_t *, thread,
 		     const pthread_attr_t *, attr, pthread_fn_t, fn, void *, arg);
+__KVM_SYSCALL_DEFINE(pthread_join, 2, pthread_t, thread, void **, thread_return);
+__KVM_SYSCALL_DEFINE(pthread_cancel, 1, pthread_t, thread);
 
 #define kvm_free_fd(fd)		\
 do {				\

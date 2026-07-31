@@ -312,7 +312,7 @@ void memstress_join_vcpu_threads(int nr_vcpus)
 	WRITE_ONCE(memstress_args.stop_vcpus, true);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_join(vcpu_threads[i].thread, NULL);
+		kvm_pthread_join(vcpu_threads[i].thread, NULL);
 }
 
 static void toggle_dirty_logging(struct kvm_vm *vm, int slots, bool enable)

@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 	unsigned long failures = 0;
 	for (cpu = 0; cpu < NR_TEST_VCPUS; cpu++) {
 		void *this_cpu_failures;
-		pthread_join(cpu_threads[cpu], &this_cpu_failures);
+		kvm_pthread_join(cpu_threads[cpu], &this_cpu_failures);
 		failures += (unsigned long)this_cpu_failures;
 	}
 

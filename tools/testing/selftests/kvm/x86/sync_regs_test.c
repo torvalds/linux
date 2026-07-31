@@ -199,8 +199,8 @@ static void race_sync_regs(struct kvm_vcpu *vcpu, void *racer)
 		}
 	}
 
-	TEST_ASSERT_EQ(pthread_cancel(thread), 0);
-	TEST_ASSERT_EQ(pthread_join(thread, NULL), 0);
+	kvm_pthread_cancel(thread);
+	kvm_pthread_join(thread, NULL);
 
 	kvm_x86_state_cleanup(state);
 }

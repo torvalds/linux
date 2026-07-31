@@ -158,10 +158,10 @@ static void test_run(struct kvm_vm *vm)
 	}
 
 	for (i = 0; i < test_args.nr_vcpus; i++)
-		pthread_join(pt_vcpu_run[i], NULL);
+		kvm_pthread_join(pt_vcpu_run[i], NULL);
 
 	if (test_args.migration_freq_ms)
-		pthread_join(pt_vcpu_migration, NULL);
+		kvm_pthread_join(pt_vcpu_migration, NULL);
 
 	bitmap_free(vcpu_done_map);
 }

@@ -381,7 +381,7 @@ static void free_vm(struct vm_data *data)
 
 static void wait_guest_exit(struct vm_data *data)
 {
-	pthread_join(data->vcpu_thread, NULL);
+	kvm_pthread_join(data->vcpu_thread, NULL);
 }
 
 static void let_guest_run(struct sync_area *sync)

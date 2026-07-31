@@ -70,7 +70,7 @@ static void test_private_access_memslot_deleted(void)
 
 	vm_mem_region_delete(vm, EXITS_TEST_SLOT);
 
-	pthread_join(vm_thread, &thread_return);
+	kvm_pthread_join(vm_thread, &thread_return);
 	exit_reason = (u32)(u64)thread_return;
 
 	TEST_ASSERT_EQ(exit_reason, KVM_EXIT_MEMORY_FAULT);

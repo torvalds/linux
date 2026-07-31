@@ -356,7 +356,7 @@ int main(int argc, char **argv)
 	WRITE_AND_SYNC_TO_GUEST(vm, done, true);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_join(vcpu_threads[i], NULL);
+		kvm_pthread_join(vcpu_threads[i], NULL);
 
 	return 0;
 }

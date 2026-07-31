@@ -418,7 +418,7 @@ static void test_mem_conversions(enum vm_mem_backing_src_type src_type, u32 nr_v
 	WRITE_ONCE(run_vcpus, true);
 
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_join(threads[i], NULL);
+		kvm_pthread_join(threads[i], NULL);
 
 	kvm_vm_free(vm);
 

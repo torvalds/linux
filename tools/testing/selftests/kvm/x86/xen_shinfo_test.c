@@ -437,7 +437,6 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	pthread_t thread;
 	bool verbose;
-	int ret;
 
 	verbose = argc > 1 && (!strncmp(argv[1], "-v", 3) ||
 			       !strncmp(argv[1], "--verbose", 10));
@@ -948,11 +947,8 @@ int main(int argc, char *argv[])
 				TEST_ASSERT(!evtchn_irq_expected,
 					    "Expected event channel IRQ but it didn't happen");
 
-				ret = pthread_cancel(thread);
-				TEST_ASSERT(ret == 0, "pthread_cancel() failed: %s", strerror(ret));
-
-				ret = pthread_join(thread, 0);
-				TEST_ASSERT(ret == 0, "pthread_join() failed: %s", strerror(ret));
+				kvm_pthread_cancel(thread);
+				kvm_pthread_join(thread, 0);
 				goto done;
 
 			case TEST_GUEST_SAW_IRQ:

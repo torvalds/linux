@@ -409,7 +409,7 @@ int main(int argc, char *argv[])
 
 	/* Sanity check that the vCPUs actually ran. */
 	for (i = 0; i < nr_vcpus; i++)
-		pthread_join(threads[i], NULL);
+		kvm_pthread_join(threads[i], NULL);
 
 	/*
 	 * Deliberately exit without deleting the remaining memslots or closing

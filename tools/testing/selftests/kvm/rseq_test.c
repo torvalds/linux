@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
 		    "  e.g. via cpuidle.off=1 or via -l <latency>, or run with -u to\n"
 		    "  disable this sanity check.", i);
 
-	pthread_join(migration_thread, NULL);
+	kvm_pthread_join(migration_thread, NULL);
 
 	kvm_vm_free(vm);
 
