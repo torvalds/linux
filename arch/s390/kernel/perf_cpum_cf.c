@@ -1493,7 +1493,6 @@ static int cfset_all_copy(unsigned long arg, cpumask_t *mask)
 			goto out;
 		}
 		uptr += sizeof(struct s390_ctrset_cpudata) + cpuhw->used;
-		cond_resched();
 	}
 	cpus = cpumask_weight(mask);
 	if (put_user(cpus, &ctrset_read->no_cpus))
