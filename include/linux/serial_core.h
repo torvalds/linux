@@ -460,6 +460,8 @@ struct uart_port {
 					       unsigned int baud,
 					       unsigned int quot,
 					       unsigned int quot_frac);
+	int			(*get_rxtrig)(struct uart_port *port);
+	int			(*set_rxtrig)(struct uart_port *port, unsigned char bytes);
 	int			(*startup)(struct uart_port *port);
 	void			(*shutdown)(struct uart_port *port);
 	void			(*throttle)(struct uart_port *port);
