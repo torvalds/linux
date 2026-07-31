@@ -132,6 +132,9 @@ struct imx8mq_usb_phy {
 	u32 comp_dis_tune;
 };
 
+struct imx8mq_usb_phy_drvdata {
+	const struct phy_ops *ops;
+};
 
 static void tca_blk_orientation_set(struct tca_blk *tca,
 				enum typec_orientation orientation);
@@ -660,13 +663,25 @@ static const struct phy_ops imx8mp_usb_phy_ops = {
 	.owner		= THIS_MODULE,
 };
 
+static const struct imx8mq_usb_phy_drvdata imx8mq_usb_phy_data = {
+	.ops = &imx8mq_usb_phy_ops,
+};
+
+static const struct imx8mq_usb_phy_drvdata imx8mp_usb_phy_data = {
+	.ops = &imx8mp_usb_phy_ops,
+};
+
+static const struct imx8mq_usb_phy_drvdata imx95_usb_phy_data = {
+	.ops = &imx8mp_usb_phy_ops,
+};
+
 static const struct of_device_id imx8mq_usb_phy_of_match[] = {
 	{.compatible = "fsl,imx8mq-usb-phy",
-	 .data = &imx8mq_usb_phy_ops,},
+	 .data = &imx8mq_usb_phy_data,},
 	{.compatible = "fsl,imx8mp-usb-phy",
-	 .data = &imx8mp_usb_phy_ops,},
+	 .data = &imx8mp_usb_phy_data,},
 	{.compatible = "fsl,imx95-usb-phy",
-	 .data = &imx8mp_usb_phy_ops,},
+	 .data = &imx95_usb_phy_data,},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, imx8mq_usb_phy_of_match);
@@ -684,7 +699,7 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct device *dev = &pdev->dev;
 	struct imx8mq_usb_phy *imx_phy;
-	const struct phy_ops *phy_ops;
+	const struct imx8mq_usb_phy_drvdata *phy_data;
 	int ret;
 
 	imx_phy = devm_kzalloc(dev, sizeof(*imx_phy), GFP_KERNEL);
@@ -719,14 +734,14 @@ static int imx8mq_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(imx_phy->vbus))
 		return dev_err_probe(dev, PTR_ERR(imx_phy->vbus), "failed to get vbus\n");
 
-	phy_ops = of_device_get_match_data(dev);
-	if (!phy_ops)
+	phy_data = of_device_get_match_data(dev);
+	if (!phy_data)
 		return -EINVAL;
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
-	imx_phy->phy = devm_phy_create(dev, NULL, phy_ops);
+	imx_phy->phy = devm_phy_create(dev, NULL, phy_data->ops);
 	if (IS_ERR(imx_phy->phy)) {
 		ret = dev_err_probe(dev, PTR_ERR(imx_phy->phy),
 				    "failed to create PHY\n");
