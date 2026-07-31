@@ -414,6 +414,34 @@ out:
 	return false;
 }
 
+/*
+ * Try to work out if the card was booted or not, just checks if
+ * one of the dram config registers matches what is in the config
+ * table if there is one.
+ */
+static int tdfxfb_hw_init(struct fb_info *info, struct pci_dev *pdev)
+{
+	struct tdfx_par *par = info->par;
+	struct tdfx_bios_cfg cfg;
+	bool have_cfg = tdfxfb_get_bios_cfg(pdev, &cfg);
+
+	/*
+	 * Can't tell if the card is booted or not,
+	 * also cannot boot it. Card might not function.
+	 */
+	if (!have_cfg)
+		return 0;
+
+	/* Card is, probably, already configured. */
+	if (tdfx_inl(par, DRAMINIT0) == le32_to_cpu(cfg.draminit0))
+		return 0;
+
+	dev_err(&pdev->dev,
+		"Card hasn't booted and is unusable\n");
+
+	return -ENODEV;
+}
+
 static void do_write_regs(struct fb_info *info, struct banshee_reg *reg)
 {
 	struct tdfx_par *par = info->par;
@@ -1508,6 +1536,9 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				info->fix.id);
 		goto out_err_regbase;
 	}
+
+	if (tdfxfb_hw_init(info, pdev))
+		goto out_err_regbase;
 
 	info->fix.smem_start = pci_resource_start(pdev, 1);
 	info->fix.smem_len = do_lfb_size(default_par, pdev->device);
