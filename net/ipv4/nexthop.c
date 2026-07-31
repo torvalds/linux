@@ -4219,12 +4219,22 @@ static const struct rtnl_msg_handler nexthop_rtnl_msg_handlers[] __initconst = {
 
 static int __init nexthop_init(void)
 {
-	register_pernet_subsys(&nexthop_net_ops);
+	int err;
 
-	register_netdevice_notifier(&nh_netdev_notifier);
+	err = register_pernet_subsys(&nexthop_net_ops);
+	if (err)
+		return err;
+
+	err = register_netdevice_notifier(&nh_netdev_notifier);
+	if (err)
+		goto err_unregister_pernet;
 
 	rtnl_register_many(nexthop_rtnl_msg_handlers);
 
 	return 0;
+
+err_unregister_pernet:
+	unregister_pernet_subsys(&nexthop_net_ops);
+	return err;
 }
 subsys_initcall(nexthop_init);
