@@ -398,7 +398,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #define _TRACE_PERF_INIT(call)
 #endif /* CONFIG_PERF_EVENTS */
 
-#ifdef CONFIG_BPF_EVENTS
+#if defined(CONFIG_BPF_EVENTS) && defined(CONFIG_DEBUG_INFO_BTF)
 /*
  * Per-template BTF id list, populated at link time by resolve_btfids:
  *   [0] FUNC   __bpf_trace_<call>     (the BPF dispatcher)
@@ -406,8 +406,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
  * Exposed via the events/<sys>/<name>/btf_ids tracefs file.
  */
 #define _TRACE_BTF_IDS_DECLARE(call)					\
-	extern u32 __bpf_trace_btf_ids_##call[];			\
-	BTF_ID_LIST_GLOBAL(__bpf_trace_btf_ids_##call, 2)		\
+	BTF_ID_LIST(__bpf_trace_btf_ids_##call)				\
 	BTF_ID(func,   __bpf_trace_##call)				\
 	BTF_ID(struct, trace_event_raw_##call)
 
@@ -417,7 +416,7 @@ static inline notrace int trace_event_get_offsets_##call(		\
 #else
 #define _TRACE_BTF_IDS_DECLARE(call)
 #define _TRACE_BTF_IDS_INIT(call)
-#endif /* CONFIG_BPF_EVENTS */
+#endif /* CONFIG_BPF_EVENTS && CONFIG_DEBUG_INFO_BTF */
 
 #include "stages/stage6_event_callback.h"
 
