@@ -69,8 +69,8 @@ struct geneve_skb_cb {
 /* per-network namespace private data for this module */
 struct geneve_net {
 	struct list_head	geneve_list;
-	/* sock_list is protected by rtnl lock */
 	struct list_head	sock_list;
+	struct mutex		lock;
 };
 
 static unsigned int geneve_net_id;
@@ -1035,9 +1035,6 @@ static struct geneve_sock *geneve_socket_create(struct net *net,
 	for (h = 0; h < VNI_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&gs->vni_list[h]);
 
-	/* Initialize the geneve udp offloads structure */
-	udp_tunnel_notify_add_rx_port(sk, UDP_TUNNEL_TYPE_GENEVE);
-
 	/* Mark socket as an encapsulation socket */
 	memset(&tunnel_cfg, 0, sizeof(tunnel_cfg));
 	tunnel_cfg.sk_user_data = gs;
@@ -1056,6 +1053,7 @@ static void __geneve_sock_release(struct geneve_dev *geneve, bool ipv6)
 {
 	struct geneve_dev_node *node;
 	struct geneve_sock *gs;
+	struct geneve_net *gn;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
@@ -1073,12 +1071,19 @@ static void __geneve_sock_release(struct geneve_dev *geneve, bool ipv6)
 	if (!gs)
 		return;
 
+	gn = net_generic(sock_net(gs->sk), geneve_net_id);
+	mutex_lock(&gn->lock);
+
 	hlist_del_init_rcu(&node->hlist);
 
-	if (--gs->refcnt)
+	if (--gs->refcnt) {
+		mutex_unlock(&gn->lock);
 		return;
+	}
 
 	list_del(&gs->list);
+	mutex_unlock(&gn->lock);
+
 	udp_tunnel_notify_del_rx_port(gs->sk, UDP_TUNNEL_TYPE_GENEVE);
 	udp_tunnel_sock_release(gs->sk);
 	kfree_rcu(gs, rcu);
@@ -1135,22 +1140,31 @@ static int geneve_sock_add(struct geneve_dev *geneve,
 	struct net *net = geneve->net;
 	struct geneve_dev_node *node;
 	struct geneve_sock *gs;
+	struct geneve_net *gn;
+	bool created = false;
 	__u8 vni[3];
+	int ret = 0;
 	__u32 hash;
+
+	gn = net_generic(net, geneve_net_id);
+	mutex_lock(&gn->lock);
 
 	gs = geneve_find_sock(net, geneve, cfg, ipv6);
 	if (gs) {
 		gs->refcnt++;
-		goto out;
+	} else {
+		gs = geneve_socket_create(net, geneve, cfg, ipv6);
+		if (IS_ERR(gs)) {
+			ret = PTR_ERR(gs);
+			goto out;
+		}
+
+		created = true;
 	}
 
-	gs = geneve_socket_create(net, geneve, cfg, ipv6);
-	if (IS_ERR(gs))
-		return PTR_ERR(gs);
-
-out:
 	gs->collect_md = cfg->collect_md;
 	gs->gro_hint = cfg->gro_hint;
+
 #if IS_ENABLED(CONFIG_IPV6)
 	if (ipv6) {
 		rcu_assign_pointer(geneve->sock6, gs);
@@ -1166,7 +1180,16 @@ out:
 	tunnel_id_to_vni(cfg->info.key.tun_id, vni);
 	hash = geneve_net_vni_hash(vni);
 	hlist_add_head_rcu(&node->hlist, &gs->vni_list[hash]);
-	return 0;
+
+out:
+	mutex_unlock(&gn->lock);
+
+	if (created) {
+		/* Initialize the geneve udp offloads structure */
+		udp_tunnel_notify_add_rx_port(gs->sk, UDP_TUNNEL_TYPE_GENEVE);
+	}
+
+	return ret;
 }
 
 static int geneve_open(struct net_device *dev)
@@ -1743,6 +1766,8 @@ static void geneve_offload_rx_ports(struct net_device *dev, bool push)
 
 	ASSERT_RTNL();
 
+	mutex_lock(&gn->lock);
+
 	list_for_each_entry(gs, &gn->sock_list, list) {
 		if (push) {
 			udp_tunnel_push_rx_port(dev, gs->sk,
@@ -1752,6 +1777,8 @@ static void geneve_offload_rx_ports(struct net_device *dev, bool push)
 						UDP_TUNNEL_TYPE_GENEVE);
 		}
 	}
+
+	mutex_unlock(&gn->lock);
 }
 
 static struct geneve_config *geneve_config_alloc(const struct geneve_config *src)
@@ -1968,6 +1995,9 @@ static struct geneve_dev *geneve_find_dev(struct geneve_net *gn,
 
 	*tun_on_same_port = false;
 	*tun_collect_md = false;
+
+	mutex_lock(&gn->lock);
+
 	list_for_each_entry(geneve, &gn->geneve_list, next) {
 		const struct geneve_config *gcfg = rtnl_dereference(geneve->cfg);
 
@@ -1982,6 +2012,9 @@ static struct geneve_dev *geneve_find_dev(struct geneve_net *gn,
 		    !memcmp(&info->key.u, &gcfg->info.key.u, sizeof(info->key.u)))
 			t = geneve;
 	}
+
+	mutex_unlock(&gn->lock);
+
 	return t;
 }
 
@@ -2076,7 +2109,10 @@ static int geneve_configure(struct net *net, struct net_device *dev,
 		return err;
 	}
 
+	mutex_lock(&gn->lock);
 	list_add(&geneve->next, &gn->geneve_list);
+	mutex_unlock(&gn->lock);
+
 	return 0;
 }
 
@@ -2466,12 +2502,24 @@ err_free_cfg:
 	return err;
 }
 
-static void geneve_dellink(struct net_device *dev, struct list_head *head)
+static void __geneve_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct geneve_dev *geneve = netdev_priv(dev);
 
 	list_del(&geneve->next);
 	unregister_netdevice_queue(dev, head);
+}
+
+static void geneve_dellink(struct net_device *dev, struct list_head *head)
+{
+	struct geneve_dev *geneve = netdev_priv(dev);
+	struct geneve_net *gn;
+
+	gn = net_generic(geneve->net, geneve_net_id);
+
+	mutex_lock(&gn->lock);
+	__geneve_dellink(dev, head);
+	mutex_unlock(&gn->lock);
 }
 
 static size_t geneve_get_size(const struct net_device *dev)
@@ -2692,6 +2740,8 @@ static __net_init int geneve_init_net(struct net *net)
 
 	INIT_LIST_HEAD(&gn->geneve_list);
 	INIT_LIST_HEAD(&gn->sock_list);
+	mutex_init(&gn->lock);
+
 	return 0;
 }
 
@@ -2701,8 +2751,12 @@ static void __net_exit geneve_exit_rtnl_net(struct net *net,
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_dev *geneve, *next;
 
+	mutex_lock(&gn->lock);
+
 	list_for_each_entry_safe(geneve, next, &gn->geneve_list, next)
-		geneve_dellink(geneve->dev, dev_to_kill);
+		__geneve_dellink(geneve->dev, dev_to_kill);
+
+	mutex_unlock(&gn->lock);
 }
 
 static void __net_exit geneve_exit_net(struct net *net)
