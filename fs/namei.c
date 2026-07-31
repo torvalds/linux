@@ -4417,17 +4417,16 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 /*
  * Look up and maybe create and open the last component.
  *
- * Must be called with parent locked (exclusive in O_CREAT case).
+ * Takes the parent inode lock itself, exclusive if O_CREAT was requested and
+ * shared otherwise, and drops it again before returning.  The caller must not
+ * hold it.
  *
- * Returns 0 on success, that is, if
- *  the file was successfully atomically created (if necessary) and opened, or
- *  the file was not completely opened at this time, though lookups and
- *  creations were performed.
- * These case are distinguished by presence of FMODE_OPENED on file->f_mode.
- * In the latter case dentry returned in @path might be negative if O_CREAT
- * hadn't been specified.
+ * On success returns the dentry of the last component.  If FMODE_OPENED is set
+ * on file->f_mode the file was also opened and attached to @file; otherwise
+ * only lookup and creation were performed and the caller has to open it.  In
+ * the latter case the dentry may be negative if O_CREAT hadn't been specified.
  *
- * An error code is returned on failure.
+ * Returns ERR_PTR() on failure.
  */
 static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 				  const struct open_flags *op)
@@ -4452,8 +4451,7 @@ retry:
 		got_write = !mnt_want_write(nd->path.mnt);
 		/*
 		 * do _not_ fail yet - we might not need that or fail with
-		 * a different error; let lookup_open() decide; we'll be
-		 * dropping this one anyway.
+		 * a different error; we'll be dropping this one anyway.
 		 */
 	}
 	if (open_flag & O_CREAT)
