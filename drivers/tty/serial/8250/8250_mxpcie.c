@@ -61,8 +61,20 @@
 #define MOXA_PUART_EFR_AUTO_RTS			BIT(6)
 #define MOXA_PUART_EFR_AUTO_CTS			BIT(7)
 #define MOXA_PUART_EFR_RX_FLOW_MASK		GENMASK(1, 0)
+#define MOXA_PUART_EFR_RX_FLOW_DISABLED		0x0
+#define MOXA_PUART_EFR_RX_FLOW_XON2_XOFF2	0x1
+#define MOXA_PUART_EFR_RX_FLOW_XON1_XOFF1	0x2
+#define MOXA_PUART_EFR_RX_FLOW_COPY_TX		0x3
 #define MOXA_PUART_EFR_TX_FLOW_MASK		GENMASK(3, 2)
+#define MOXA_PUART_EFR_TX_FLOW_DISABLED		0x0
+#define MOXA_PUART_EFR_TX_FLOW_XON2_XOFF2	0x1
+#define MOXA_PUART_EFR_TX_FLOW_XON1_XOFF1	0x2
+#define MOXA_PUART_EFR_TX_FLOW_RESERVED		0x3
 
+#define MOXA_PUART_XON1		0x0B
+#define MOXA_PUART_XON2		0x0C
+#define MOXA_PUART_XOFF1	0x0D
+#define MOXA_PUART_XOFF2	0x0E
 #define MOXA_PUART_TTL		0x10	/* Tx Interrupt Trigger Level */
 #define MOXA_PUART_RTL		0x11	/* Rx Interrupt Trigger Level */
 #define MOXA_PUART_FCL		0x12	/* Flow Control Low Trigger Level */
@@ -159,11 +171,11 @@ static void mxpcie8250_set_termios(struct uart_port *port,
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct tty_struct *tty = port->state->port.tty;
 	unsigned int cflag = tty->termios.c_cflag;
-	u8 efr;
+	u8 efr, val;
 
 	serial8250_do_set_termios(port, new, old);
 
-	up->port.status &= ~(UPSTAT_AUTORTS | UPSTAT_AUTOCTS);
+	up->port.status &= ~(UPSTAT_AUTORTS | UPSTAT_AUTOCTS | UPSTAT_AUTOXOFF);
 
 	efr = serial_in(up, MOXA_PUART_EFR);
 	efr &= ~(MOXA_PUART_EFR_AUTO_RTS | MOXA_PUART_EFR_AUTO_CTS);
@@ -172,6 +184,21 @@ static void mxpcie8250_set_termios(struct uart_port *port,
 		efr |= (MOXA_PUART_EFR_AUTO_RTS | MOXA_PUART_EFR_AUTO_CTS);
 		up->port.status |= (UPSTAT_AUTORTS | UPSTAT_AUTOCTS);
 	}
+	/* Set on-chip software flow control character */
+	serial_out(up, MOXA_PUART_XON1, START_CHAR(tty));
+	serial_out(up, MOXA_PUART_XON2, START_CHAR(tty));
+	serial_out(up, MOXA_PUART_XOFF1, STOP_CHAR(tty));
+	serial_out(up, MOXA_PUART_XOFF2, STOP_CHAR(tty));
+
+	val = I_IXON(tty) ? MOXA_PUART_EFR_RX_FLOW_XON1_XOFF1 : MOXA_PUART_EFR_RX_FLOW_DISABLED;
+	FIELD_MODIFY(MOXA_PUART_EFR_RX_FLOW_MASK, &efr, val);
+
+	val = I_IXOFF(tty) ? MOXA_PUART_EFR_TX_FLOW_XON1_XOFF1 : MOXA_PUART_EFR_TX_FLOW_DISABLED;
+	FIELD_MODIFY(MOXA_PUART_EFR_TX_FLOW_MASK, &efr, val);
+
+	if (I_IXOFF(tty))
+		up->port.status |= UPSTAT_AUTOXOFF;
+
 	serial_out(up, MOXA_PUART_EFR, efr);
 }
 
@@ -216,6 +243,24 @@ static void mxpcie8250_shutdown(struct uart_port *port)
 	serial_out(up, MOXA_PUART_SFR, 0);
 
 	serial8250_do_shutdown(port);
+}
+
+static void mxpcie8250_throttle(struct uart_port *port)
+{
+	guard(uart_port_lock_irqsave)(port);
+
+	port->ops->stop_rx(port);
+}
+
+static void mxpcie8250_unthrottle(struct uart_port *port)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+
+	guard(uart_port_lock_irqsave)(port);
+
+	up->ier |= UART_IER_RLSI | UART_IER_RDI;
+	port->read_status_mask |= UART_LSR_DR;
+	serial_out(up, UART_IER, up->ier);
 }
 
 static void mxpcie8250_init_board(struct pci_dev *pdev, struct mxpcie8250 *priv)
@@ -315,6 +360,8 @@ static int mxpcie8250_probe(struct pci_dev *pdev, const struct pci_device_id *id
 	up.port.set_termios = mxpcie8250_set_termios;
 	up.port.startup = mxpcie8250_startup;
 	up.port.shutdown = mxpcie8250_shutdown;
+	up.port.throttle = mxpcie8250_throttle;
+	up.port.unthrottle = mxpcie8250_unthrottle;
 
 	for (unsigned int i = 0; i < num_ports; i++) {
 		mxpcie8250_setup_port(pdev, priv, &up, i);
