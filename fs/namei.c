@@ -4377,6 +4377,7 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 		if (file->f_mode & FMODE_OPENED) {
 			/* finish_open() called */
 			struct dentry *opened = file->f_path.dentry;
+
 			if (unlikely(opened != dentry)) {
 				dput(dentry);
 				dentry = dget(opened);
@@ -4384,6 +4385,7 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 		} else if (likely(file->f_path.dentry != DENTRY_NOT_SET)) {
 			/* finish_no_open() called */
 			struct dentry *replaced = file->f_path.dentry;
+
 			if (replaced) {
 				dput(dentry);
 				dentry = replaced;
@@ -4392,8 +4394,9 @@ static struct dentry *atomic_open(const struct path *path, struct dentry *dentry
 				error = -ENOENT;
 		} else {
 			const char *fsname = dentry->d_sb->s_type->name;
+
 			WARN(1, "%s: ->atomic_open() left file->f_path.dentry unset!\n",
-			        fsname);
+			     fsname);
 			error = -EIO;
 		}
 	}
@@ -4540,8 +4543,10 @@ retry:
 		}
 	}
 	if (dentry->d_inode || !(op->open_flag & O_CREAT)) {
-		/* No need to create a file. If lookup returned a positive
-		 * dentry, the file will be opened in do_open(). */
+		/*
+		 * No need to create a file.  If lookup returned a positive
+		 * dentry, the file will be opened in do_open().
+		 */
 		goto out;
 	}
 
