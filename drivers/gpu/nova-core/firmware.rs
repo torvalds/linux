@@ -22,10 +22,7 @@ use crate::{
     },
     gpu,
     gsp::boot_firmware_files,
-    num::{
-        FromSafeCast,
-        IntoSafeCast, //
-    },
+    num::IntoSafeCast, //
 };
 
 pub(crate) mod booter;
@@ -388,16 +385,6 @@ impl<'a> BinFirmware<'a> {
             .filter(|hdr| hdr.bin_magic == BIN_MAGIC)
             .map(|hdr| Self { hdr, fw })
             .ok_or(EINVAL)
-    }
-
-    /// Returns the data payload of the firmware, or `None` if the data range is out of bounds of
-    /// the firmware image.
-    fn data(&self) -> Option<&[u8]> {
-        let fw_start = usize::from_safe_cast(self.hdr.data_offset);
-        let fw_size = usize::from_safe_cast(self.hdr.data_size);
-        let fw_end = fw_start.checked_add(fw_size)?;
-
-        self.fw.get(fw_start..fw_end)
     }
 }
 
