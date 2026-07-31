@@ -140,12 +140,10 @@ static void vt_vcpu_put(struct kvm_vcpu *vcpu)
 	vmx_vcpu_put(vcpu);
 }
 
-static int vt_vcpu_pre_run(struct kvm_vcpu *vcpu)
+static bool vt_vcpu_needs_initialization(struct kvm_vcpu *vcpu)
 {
-	if (is_td_vcpu(vcpu))
-		return tdx_vcpu_pre_run(vcpu);
-
-	return vmx_vcpu_pre_run(vcpu);
+	return is_td_vcpu(vcpu) &&
+	       tdx_vcpu_needs_initialization(vcpu);
 }
 
 static fastpath_t vt_vcpu_run(struct kvm_vcpu *vcpu, u64 run_flags)
@@ -949,7 +947,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.flush_tlb_gva = vt_op(flush_tlb_gva),
 	.flush_tlb_guest = vt_op(flush_tlb_guest),
 
-	.vcpu_pre_run = vt_op(vcpu_pre_run),
+	.vcpu_needs_initialization = vt_op_tdx_only(vcpu_needs_initialization),
 	.vcpu_run = vt_op(vcpu_run),
 	.handle_exit = vt_op(handle_exit),
 	.skip_emulated_instruction = vmx_skip_emulated_instruction,

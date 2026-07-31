@@ -6109,11 +6109,6 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-int vmx_vcpu_pre_run(struct kvm_vcpu *vcpu)
-{
-	return 1;
-}
-
 /*
  * Indicate a busy-waiting vcpu in spinlock. We do not enable the PAUSE
  * exiting, so only get here on cpu with PAUSE-Loop-Exiting.

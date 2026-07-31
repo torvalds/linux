@@ -3530,6 +3530,11 @@ skip_vmsa_free:
 	__sev_es_unmap_ghcb(svm);
 }
 
+bool sev_vcpu_needs_initialization(struct kvm_vcpu *vcpu)
+{
+	return to_kvm_sev_info(vcpu->kvm)->need_init;
+}
+
 int pre_sev_run(struct vcpu_svm *svm, int cpu)
 {
 	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, cpu);

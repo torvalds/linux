@@ -907,13 +907,10 @@ void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
 }
 
-int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
+bool tdx_vcpu_needs_initialization(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(to_tdx(vcpu)->state != VCPU_TD_STATE_INITIALIZED ||
-		     to_kvm_tdx(vcpu->kvm)->state != TD_STATE_RUNNABLE))
-		return -EINVAL;
-
-	return 1;
+	return to_tdx(vcpu)->state != VCPU_TD_STATE_INITIALIZED ||
+	       to_kvm_tdx(vcpu->kvm)->state != TD_STATE_RUNNABLE;
 }
 
 static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)

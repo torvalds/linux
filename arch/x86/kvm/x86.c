@@ -8862,12 +8862,15 @@ static int kvm_x86_vcpu_pre_run(struct kvm_vcpu *vcpu)
 	    !kvm_apic_init_sipi_allowed(vcpu))
 		return -EINVAL;
 
+	if (kvm_x86_call(vcpu_needs_initialization)(vcpu))
+		return -EINVAL;
+
 	if (kvm_x86_call(unhandleable_emulation_required)(vcpu)) {
 		kvm_prepare_emulation_failure_exit(vcpu);
 		return 0;
 	}
 
-	return kvm_x86_call(vcpu_pre_run)(vcpu);
+	return 1;
 }
 
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
