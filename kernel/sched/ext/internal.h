@@ -925,8 +925,8 @@ struct sched_ext_ops {
 	u32 cid_shard_size;
 
 	/**
-	 * @cgroup_id: When >1, attach the scheduler as a sub-scheduler on the
-	 * specified cgroup.
+	 * @sub_cgroup_id: When >1, attach the scheduler as a sub-scheduler
+	 * on the specified cgroup.
 	 */
 	u64 sub_cgroup_id;
 
