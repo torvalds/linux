@@ -292,9 +292,6 @@ int adf_cfg_add_key_value_param(struct adf_accel_dev *accel_dev,
 			 "%ld", (*((long *)val)));
 	} else if (type == ADF_STR) {
 		strscpy(key_val->val, (char *)val);
-	} else if (type == ADF_HEX) {
-		snprintf(key_val->val, ADF_CFG_MAX_VAL_LEN_IN_BYTES,
-			 "0x%lx", (unsigned long)val);
 	} else {
 		dev_err(&GET_DEV(accel_dev), "Unknown type given.\n");
 		kfree(key_val);
