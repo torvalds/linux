@@ -4337,14 +4337,16 @@ static int may_o_create(struct mnt_idmap *idmap,
 }
 
 /**
- * atomic_open() - attempt to atomically look up, create and open a file
- * from a negative dentry.
+ * atomic_open() - atomically look up, create and open a file
  * @path:          parent directory path
  * @dentry:        child to ->atomic_open()
  * @file:          file to attach child to
  * @open_flag:     open flags
  * @mode:          create mode
  * @create_error:  return value from may_o_create()
+ *
+ * Attempt to look up, create and open @dentry, which must be negative, in a
+ * single call into the filesystem.
  *
  * If a non-error dentry is returned then: when FMODE_OPENED is set,
  * the file will have been attached to @file by the filesystem calling
@@ -4354,8 +4356,8 @@ static int may_o_create(struct mnt_idmap *idmap,
  * FMODE_CREATED is set when the call to ->atomic_open() actually created
  * the file.
  *
- * Returns the opened/looked-up dentry on success or ERR_PTR(-E) on failure.
- * On error, atomic_open() consumes @dentry.
+ * Returns: the opened or looked-up dentry, or ERR_PTR() on failure.  The
+ * reference to @dentry is consumed in either case.
  */
 static struct dentry *atomic_open(const struct path *path, struct dentry *dentry,
 				  struct file *file,
@@ -4605,7 +4607,7 @@ out_dput:
  * @mode: initial permissions for file
  *
  * Open a file after lookup and/or create.  This provides similar
- * functionality open_last_lookups() for non-VFS users, particularly
+ * functionality to open_last_lookups() for non-VFS users, particularly
  * nfsd.
  * It uses ->atomic_open or ->lookup / ->create / ->open as appropriate.
  *
