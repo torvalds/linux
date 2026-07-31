@@ -2,6 +2,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "smm.h"
 #include "vmx.h"
 
 #include <string.h>
@@ -10,6 +11,22 @@
 #include "kselftest.h"
 
 #define ARBITRARY_IO_PORT 0x80
+
+/*
+ * The 64-bit SMRAM state-save area starts at SMBASE + 0xfe00.  TR starts at
+ * offset 0xfe90, and attributes is the second 16-bit field in the descriptor.
+ */
+#define SMRAM64_TR_ATTRIBUTES_OFFSET	0xfe92
+#define SMRAM_GPA			0x1000000
+
+/*
+ * SMI handler that runs in 16-bit Real Mode.  Syncs with L0 via port I/O, then
+ * executes RSM to trigger the consumption of invalid guest state.
+ */
+static u8 smi_handler[] = {
+	0xe4, ARBITRARY_IO_PORT,	/* IN $ARBITRARY_IO_PORT, %al */
+	0x0f, 0xaa,			/* RSM */
+};
 
 static void l2_guest_code(void)
 {
@@ -114,9 +131,45 @@ static void test_invalid_l2_guest_state(void)
 	kvm_vm_free(vm);
 }
 
+static void test_invalid_l2_guest_state_rsm(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	u16 *tr_attrs;
+
+	if (!kvm_has_cap(KVM_CAP_X86_SMM))
+		return;
+
+	vm = vm_create_and_run_l2(&vcpu);
+
+	/*
+	 * Inject SMI while L2 is active, run the vCPU to get I/O exit from L1,
+	 * then stuff TR in the SMRAM state-save area so that RSM restores
+	 * invalid L2 state.
+	 */
+	setup_smram(vm, vcpu, SMRAM_GPA, smi_handler, sizeof(smi_handler));
+	inject_smi(vcpu);
+
+	vcpu_run_to_io(vcpu, false);
+
+	/* Clear the present bit in SMRAM to make TR unusable. */
+	tr_attrs = addr_gpa2hva(vm, SMRAM_GPA + SMRAM64_TR_ATTRIBUTES_OFFSET);
+	*tr_attrs &= ~BIT(7);
+
+	vcpu_run(vcpu);
+
+	/*
+	 * For RSM, L1 gets the SHUTDOWN because RSM is architecturally defined
+	 * to result in shutdown if the CPU detects invalid state in SMRAM.
+	 */
+	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_SHUTDOWN);
+	kvm_vm_free(vm);
+}
+
 int main(int argc, char *argv[])
 {
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 
 	test_invalid_l2_guest_state();
+	test_invalid_l2_guest_state_rsm();
 }
