@@ -343,6 +343,8 @@ static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
 	strscpy(p->dev_name, hid, sizeof(p->dev_name));
 	physdev = get_device(acpi_get_first_physical_node(adev));
 	acpi_dev_put(adev);
+	if (!physdev)
+		return -ENODEV;
 
 	property = "ti,dev-index";
 	ret = device_property_count_u32(physdev, property);
@@ -385,7 +387,6 @@ static int tas2781_read_acpi(struct tas2781_hda *tas_hda,
 err:
 	dev_err(p->dev, "read acpi error, ret: %d\n", ret);
 	put_device(physdev);
-	acpi_dev_put(adev);
 
 	return ret;
 }
