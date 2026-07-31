@@ -26,7 +26,7 @@
 #include "amdgpu_smu.h"
 
 #define SMU15_DRIVER_IF_VERSION_INV 0xFFFFFFFF
-#define SMU15_DRIVER_IF_VERSION_SMU_V15_0 0x7
+#define SMU15_DRIVER_IF_VERSION_SMU_V15_0 0x9
 
 
 #define FEATURE_MASK(feature) (1ULL << feature)

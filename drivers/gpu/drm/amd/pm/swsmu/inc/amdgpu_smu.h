@@ -1348,7 +1348,7 @@ struct pptable_funcs {
 	u32 (*set_gfx_off_residency)(struct smu_context *smu, bool start);
 
 	/**
-	 * @get_gfx_off_residency: Average GFXOFF residency % during the logging interval
+	 * @get_gfx_off_residency: Live GFXOFF residency percentage
 	 */
 	u32 (*get_gfx_off_residency)(struct smu_context *smu, uint32_t *residency);
 

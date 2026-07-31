@@ -309,7 +309,8 @@ int vmw_validation_add_resource(struct vmw_validation_context *ctx,
 	}
 	node->res = vmw_resource_reference_unless_doomed(res);
 	if (!node->res) {
-		hash_del_rcu(&node->hash.head);
+		if (ctx->sw_context)
+			hash_del_rcu(&node->hash.head);
 		return -ESRCH;
 	}
 

@@ -41,6 +41,17 @@ TRACE_EVENT(pvr_job_submit_ioctl,
 		      __entry->count)
 );
 
+#define PVR_JOB_GET_HWRT_FW_ADDR(job)                                                  \
+	({                                                                             \
+		struct pvr_job *_job = (job);                                          \
+		u32 _hwrt_fw_addr = 0;                                                 \
+										       \
+		if (_job && _job->hwrt)                                                \
+			pvr_fw_object_get_fw_addr(_job->hwrt->fw_obj, &_hwrt_fw_addr); \
+										       \
+		_hwrt_fw_addr;                                                         \
+	})
+
 #define PVR_JOB_TYPE_TO_STR(val)                                         \
 	__print_symbolic(val,                                            \
 			 { DRM_PVR_JOB_TYPE_GEOMETRY, "geometry" },      \
@@ -64,9 +75,7 @@ TRACE_EVENT(pvr_job_create,
 			   __entry->ctx = job->ctx;
 			   __entry->fw_obj = job->ctx->fw_obj;
 			   pvr_fw_object_get_fw_addr(job->ctx->fw_obj, &__entry->fw_addr);
-			   __entry->hwrt_addr = job->hwrt ?
-						job->hwrt->fw_obj->fw_addr_offset :
-						0;
+			   __entry->hwrt_addr = PVR_JOB_GET_HWRT_FW_ADDR(job);
 			   __entry->job = job;
 			   __entry->job_type = job->type;
 			   __entry->sync_op_count = sync_op_count;),
@@ -82,6 +91,7 @@ TRACE_EVENT(pvr_job_create,
 );
 
 #undef PVR_JOB_TYPE_TO_STR
+#undef PVR_JOB_GET_HWRT_FW_ADDR
 
 TRACE_EVENT(pvr_job_submit_fw,
 	    TP_PROTO(struct pvr_job *job),

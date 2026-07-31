@@ -33,8 +33,21 @@
 
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_0_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_5_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_15_0_5_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_9_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_15_0_9_ta.bin");
+
+#define regMPASP_PCRU0_MPASP_C2PMSG_64                                         0x4280
+#define regMPASP_PCRU0_MPASP_C2PMSG_64_BASE_IDX                                2
+#define regMPASP_PCRU0_MPASP_C2PMSG_67                                         0x4283
+#define regMPASP_PCRU0_MPASP_C2PMSG_67_BASE_IDX                                2
+#define regMPASP_PCRU0_MPASP_C2PMSG_69                                         0x4285
+#define regMPASP_PCRU0_MPASP_C2PMSG_69_BASE_IDX                                2
+#define regMPASP_PCRU0_MPASP_C2PMSG_70                                         0x4286
+#define regMPASP_PCRU0_MPASP_C2PMSG_70_BASE_IDX                                2
+#define regMPASP_PCRU0_MPASP_C2PMSG_71                                         0x4287
+#define regMPASP_PCRU0_MPASP_C2PMSG_71_BASE_IDX                                2
 
 static int psp_v15_0_0_init_microcode(struct psp_context *psp)
 {
@@ -71,14 +84,25 @@ static int psp_v15_0_0_ring_stop(struct psp_context *psp,
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_SMN_C2PMSG_101),
 				   0x80000000, 0x80000000, false);
 	} else {
-		/* Write the ring destroy command*/
-		WREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64,
-			     GFX_CTRL_CMD_ID_DESTROY_RINGS);
-		/* there might be handshake issue with hardware which needs delay */
-		mdelay(20);
-		/* Wait for response flag (bit 31) */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64),
-				   0x80000000, 0x80000000, false);
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(15, 0, 5)) {
+				/* Write the ring destroy command*/
+			WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_64,
+					GFX_CTRL_CMD_ID_DESTROY_RINGS);
+			/* there might be handshake issue with hardware which needs delay */
+			mdelay(20);
+			/* Wait for response flag (bit 31) */
+			ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_64),
+					0x80000000, 0x80000000, false);
+			} else {
+				/* Write the ring destroy command*/
+				WREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64,
+						GFX_CTRL_CMD_ID_DESTROY_RINGS);
+				/* there might be handshake issue with hardware which needs delay */
+				mdelay(20);
+				/* Wait for response flag (bit 31) */
+				ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64),
+						0x80000000, 0x80000000, false);
+		}
 	}
 
 	return ret;
@@ -118,13 +142,43 @@ static int psp_v15_0_0_ring_create(struct psp_context *psp,
 				   0x80000000, 0x8000FFFF, false);
 
 	} else {
-		/* Wait for sOS ready for ring creation */
-		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64),
-				   0x80000000, 0x80000000, false);
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(15, 0, 5)) {
+			/* Wait for sOS ready for ring creation */
+			ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_64),
+					0x80000000, 0x80000000, false);
 		if (ret) {
 			DRM_ERROR("Failed to wait for trust OS ready for ring creation\n");
 			return ret;
 		}
+
+		/* Write low address of the ring to C2PMSG_69 */
+		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
+		WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_69, psp_ring_reg);
+		/* Write high address of the ring to C2PMSG_70 */
+		psp_ring_reg = upper_32_bits(ring->ring_mem_mc_addr);
+		WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_70, psp_ring_reg);
+		/* Write size of ring to C2PMSG_71 */
+		psp_ring_reg = ring->ring_size;
+		WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_71, psp_ring_reg);
+		/* Write the ring initialization command to C2PMSG_64 */
+		psp_ring_reg = ring_type;
+		psp_ring_reg = psp_ring_reg << 16;
+		WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_64, psp_ring_reg);
+
+		/* there might be handshake issue with hardware which needs delay */
+		mdelay(20);
+
+		/* Wait for response flag (bit 31) in C2PMSG_64 */
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_64),
+				   0x80000000, 0x8000FFFF, false);
+		} else {
+			/* Wait for sOS ready for ring creation */
+			ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64),
+					   0x80000000, 0x80000000, false);
+			if (ret) {
+				DRM_ERROR("Failed to wait for trust OS ready for ring creation\n");
+				return ret;
+			}
 
 		/* Write low address of the ring to C2PMSG_69 */
 		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
@@ -146,6 +200,7 @@ static int psp_v15_0_0_ring_create(struct psp_context *psp,
 		/* Wait for response flag (bit 31) in C2PMSG_64 */
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_64),
 				   0x80000000, 0x8000FFFF, false);
+		}
 	}
 
 	return ret;
@@ -176,8 +231,12 @@ static uint32_t psp_v15_0_0_ring_get_wptr(struct psp_context *psp)
 
 	if (amdgpu_sriov_vf(adev))
 		data = RREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_102);
-	else
-		data = RREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_67);
+	else {
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(15, 0, 5))
+			data = RREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_67);
+		else
+			data = RREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_67);
+		}
 
 	return data;
 }
@@ -190,8 +249,12 @@ static void psp_v15_0_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
 		WREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_102, value);
 		WREG32_SOC15(MP0, 0, regMPASP_SMN_C2PMSG_101,
 			     GFX_CTRL_CMD_ID_CONSUME_CMD);
-	} else
-		WREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_67, value);
+	} else {
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(15, 0, 5))
+			WREG32_SOC15(MP0, 0, regMPASP_PCRU0_MPASP_C2PMSG_67, value);
+		else
+			WREG32_SOC15(MP0, 0, regMPASP_PCRU1_MPASP_C2PMSG_67, value);
+	}
 }
 
 static const struct psp_funcs psp_v15_0_0_funcs = {
