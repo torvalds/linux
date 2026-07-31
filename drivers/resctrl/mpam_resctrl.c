@@ -606,6 +606,16 @@ static bool cache_has_usable_csu(struct mpam_class *class)
 	return true;
 }
 
+static bool class_has_usable_mbwu(struct mpam_class *class)
+{
+	struct mpam_props *cprops = &class->props;
+
+	if (!mpam_has_feature(mpam_feat_msmon_mbwu, cprops))
+		return false;
+
+	return true;
+}
+
 /*
  * Calculate the worst-case percentage change from each implemented step
  * in the control.
@@ -982,6 +992,24 @@ static void mpam_resctrl_pick_counters(void)
 			default:
 				break;
 			}
+		}
+
+		if (class_has_usable_mbwu(class) &&
+		    topology_matches_l3(class) &&
+		    traffic_matches_l3(class)) {
+			pr_debug("class %u has usable MBWU, and matches L3 topology and traffic\n",
+				 class->level);
+
+			/*
+			 * An MSC measures bandwidth for a path determined by
+			 * its location in hardware. We can't distinguish
+			 * traffic by destination so we don't know if it's
+			 * staying on the same NUMA node. Hence, we can't
+			 * calculate mbm_local except when we only have one L3
+			 * and it's equivalent to mbm_total and so always use
+			 * mbm_total.
+			 */
+			counter_update_class(QOS_L3_MBM_TOTAL_EVENT_ID, class);
 		}
 	}
 }
