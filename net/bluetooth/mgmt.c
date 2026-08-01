@@ -3876,6 +3876,8 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 	}
 
 	if (addr->type == BDADDR_LE_PUBLIC || addr->type == BDADDR_LE_RANDOM) {
+		lockdep_assert_held(&conn->hdev->lock);
+
 		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
 		if (!err)
 			err = mgmt_cmd_complete(sk, hdev->id, mgmt_op,

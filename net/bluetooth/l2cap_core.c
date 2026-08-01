@@ -1791,6 +1791,7 @@ static void l2cap_unregister_all_users(struct l2cap_conn *conn)
 }
 
 static void l2cap_conn_del(struct hci_conn *hcon, int err)
+	__must_hold(&hcon->hdev->lock)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_chan *chan, *l;
@@ -7153,6 +7154,7 @@ static void process_pending_rx(struct work_struct *work)
 }
 
 static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon)
+	__must_hold(&hcon->hdev->lock)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct hci_chan *hchan;
@@ -7358,6 +7360,8 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 		goto done;
 	}
 
+	lockdep_assert_held(&hcon->hdev->lock);
+
 	conn = l2cap_conn_add(hcon);
 	if (!conn) {
 		hci_conn_drop(hcon);
@@ -7528,6 +7532,7 @@ static struct l2cap_chan *l2cap_global_fixed_chan(struct l2cap_chan *c,
 }
 
 static void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
+	__must_hold(&hcon->hdev->lock)
 {
 	struct hci_dev *hdev = hcon->hdev;
 	struct l2cap_conn *conn;
@@ -7603,6 +7608,7 @@ int l2cap_disconn_ind(struct hci_conn *hcon)
 }
 
 static void l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
+	__must_hold(&hcon->hdev->lock)
 {
 	if (hcon->type != ACL_LINK && hcon->type != LE_LINK)
 		return;
@@ -7630,6 +7636,7 @@ static inline void l2cap_check_encryption(struct l2cap_chan *chan, u8 encrypt)
 }
 
 static void l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
+	__must_hold(&hcon->hdev->lock)
 {
 	struct l2cap_conn *conn = hcon->l2cap_data;
 	struct l2cap_chan *chan;
@@ -7813,6 +7820,8 @@ int l2cap_recv_acldata(struct hci_dev *hdev, u16 handle,
 		kfree_skb(skb);
 		return -ENOENT;
 	}
+
+	lockdep_assert_held(&hcon->hdev->lock);
 
 	hci_conn_enter_active_mode(hcon, BT_POWER_FORCE_ACTIVE_OFF);
 

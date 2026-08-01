@@ -775,7 +775,7 @@ struct hci_conn {
 	struct hci_dev	*hdev;
 
 	spinlock_t	proto_lock; /* lock guarding protocol data */
-	void		*l2cap_data;
+	void		*l2cap_data __guarded_by(&proto_lock, &hdev->lock);
 	void		*sco_data;
 	void		*iso_data __guarded_by(&proto_lock);
 
