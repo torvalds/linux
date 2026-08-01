@@ -1,0 +1,197 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Devices used on die 0 on the Apple T6032 "M3 Ultra" SoC and present on
+ * Apple T6030 ("M3 Pro") and T6031 / T6034 ("M3 Max").
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+	aic: interrupt-controller@292400000 {
+		compatible = "apple,t6031-aic3", "apple,t8122-aic3";
+		#interrupt-cells = <4>;
+		interrupt-controller;
+
+		reg = <0x00000002 0x92400000 0x00000000 0x1cc000>,
+		      <0x00000002 0x92440000 0x00000000 0x4000>;
+		reg-names = "core", "event";
+		power-domains = <&ps_aic>;
+	};
+
+	wdt: watchdog@2a02d4000 {
+		compatible = "apple,t6031-wdt", "apple,t8103-wdt";
+		reg = <0x2 0xa02d4000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 718 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	pinctrl_smc: pinctrl@2a4820000 {
+		compatible = "apple,t6031-pinctrl", "apple,t8103-pinctrl";
+		reg = <0x2 0xa4820000 0x0 0x4000>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-ranges = <&pinctrl_smc 0 0 30>;
+		apple,npins = <30>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 904 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 905 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 906 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 907 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 908 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 909 IRQ_TYPE_LEVEL_HIGH>,
+				<AIC_IRQ 0 910 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	i2c0: i2c@391010000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91010000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1326 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c0_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c0>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+	};
+
+	i2c1: i2c@391014000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91014000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1327 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c1_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c1>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c2: i2c@391018000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91018000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1328 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c2_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c2>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c3: i2c@39101c000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x9101c000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1329 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c3_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c3>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c4: i2c@391020000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91020000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1330 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c4_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c4>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c5: i2c@391024000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91024000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1331 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c5_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c5>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c6: i2c@391028000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91028000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1332 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c6_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c6>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c7: i2c@39102c000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x9102c000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1333 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c7_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c7>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	i2c8: i2c@391030000 {
+		compatible = "apple,t6031-i2c", "apple,t8103-i2c";
+		reg = <0x3 0x91030000 0x0 0x4000>;
+		clocks = <&clkref>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1334 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-0 = <&i2c8_pins>;
+		pinctrl-names = "default";
+		power-domains = <&ps_i2c8>;
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+		status = "disabled";
+	};
+
+	fpwm0: pwm@391040000 {
+		compatible = "apple,t6031-fpwm", "apple,s5l-fpwm";
+		reg = <0x3 0x91040000 0x0 0x4000>;
+		power-domains = <&ps_fpwm0>;
+		clocks = <&clkref>;
+		#pwm-cells = <2>;
+		status = "disabled";
+	};
+
+	serial0: serial@391200000 {
+		compatible = "apple,s5l-uart";
+		reg = <0x3 0x91200000 0x0 0x4000>;
+		reg-io-width = <4>;
+		interrupt-parent = <&aic>;
+		interrupts = <AIC_IRQ 0 1303 IRQ_TYPE_LEVEL_HIGH>;
+		/*
+		 * TODO: figure out the clocking properly, there may
+		 * be a third selectable clock.
+		 */
+		clocks = <&clkref>, <&clkref>;
+		clock-names = "uart", "clk_uart_baud0";
+		power-domains = <&ps_uart0>;
+		status = "disabled";
+	};

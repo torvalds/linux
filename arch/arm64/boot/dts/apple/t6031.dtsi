@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Apple T6031 "M3 Max" SoC
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+#include <dt-bindings/interrupt-controller/apple-aic.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/apple.h>
+
+#include "multi-die-cpp.h"
+
+#include "t6031-base.dtsi"
+
+/ {
+	compatible = "apple,t6031", "apple,arm-platform";
+
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	soc: soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+
+		ranges;
+		nonposted-mmio;
+		/* Required to get >32-bit DMA via DARTs */
+		dma-ranges = <0 0 0 0 0xffffffff 0xffffc000>;
+
+		// filled via templated includes at the end of the file
+	};
+};
+
+#define DIE
+#define DIE_NO 0
+
+&soc {
+	#include "t6031-die0.dtsi"
+	#include "t6031-dieX.dtsi"
+};
+
+#include "t6031-gpio-pins.dtsi"
+#include "t6031-pmgr.dtsi"
+
+#undef DIE
+#undef DIE_NO
