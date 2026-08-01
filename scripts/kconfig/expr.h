@@ -307,6 +307,7 @@ tristate expr_calc_value(struct expr *e);
 struct expr *expr_eliminate_dups(struct expr *e);
 struct expr *expr_transform(struct expr *e);
 bool expr_contains_symbol(struct expr *dep, struct symbol *sym);
+bool expr_contains_symbol_negated(struct expr *dep, struct symbol *sym);
 bool expr_depends_symbol(struct expr *dep, struct symbol *sym);
 struct expr *expr_trans_compare(struct expr *e, enum expr_type type, struct symbol *sym);
 
