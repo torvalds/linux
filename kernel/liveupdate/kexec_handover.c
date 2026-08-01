@@ -1533,24 +1533,8 @@ static void __init kho_mem_retrieve(void)
 	const struct kho_radix_walk_cb cb = {
 		.leaf = kho_preserved_memory_reserve,
 	};
-	const void *fdt = kho_get_fdt();
-	void *mem_map = kho_get_mem_map(fdt);
-	int err;
 
-	/*
-	 * kho_get_mem_map() should always succeed. If it fails, kho_populate()
-	 * catches that and never sets kho_in.scratch_phys, which stops memory
-	 * retrieval.
-	 */
-	if (WARN_ON(!mem_map))
-		return;
-
-	err = kho_radix_init_tree(&kho_in.radix_tree, mem_map);
-	if (err)
-		goto err;
-
-	err = kho_radix_walk_tree(&kho_in.radix_tree, &cb, NULL);
-	if (err)
+	if (kho_radix_walk_tree(&kho_in.radix_tree, &cb, NULL))
 		goto err;
 
 	return;
@@ -1762,8 +1746,20 @@ fs_initcall(kho_init);
 
 void __init kho_memory_init_early(void)
 {
+	const void *fdt = kho_get_fdt();
+	void *mem_map;
+
 	if (!is_kho_boot())
 		return;
+
+	/*
+	 * kho_get_mem_map() should always succeed. If it fails, kho_populate()
+	 * catches that and never sets kho_in.scratch_phys, which stops memory
+	 * retrieval.
+	 */
+	mem_map = kho_get_mem_map(fdt);
+	if (WARN_ON(!mem_map))
+		goto err;
 
 	/*
 	 * kho_scratch_overlap() needs kho_scratch to be initialized. It
@@ -1771,6 +1767,19 @@ void __init kho_memory_init_early(void)
 	 * early.
 	 */
 	kho_scratch = phys_to_virt(kho_in.scratch_phys);
+
+	if (kho_radix_init_tree(&kho_in.radix_tree, mem_map))
+		goto err;
+
+	return;
+
+err:
+	/*
+	 * Failed to initialize preserved memory radix tree. Clear FDT
+	 * and scratch so KHO users don't treat it as a KHO boot.
+	 */
+	kho_in.fdt_phys = 0;
+	kho_in.scratch_phys = 0;
 }
 
 void __init kho_memory_init(void)
