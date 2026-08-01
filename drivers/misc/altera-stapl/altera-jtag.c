@@ -17,9 +17,9 @@
 #include "altera-jtag.h"
 
 #define	alt_jtag_io(a, b, c)\
-		astate->config->jtag_io(astate->config->dev, a, b, c);
+		astate->config->jtag_io(astate->config->dev, a, b, c)
 
-#define	alt_malloc(a)	kzalloc(a, GFP_KERNEL);
+#define	alt_malloc(a)	kzalloc(a, GFP_KERNEL)
 
 /*
  * This structure shows, for each JTAG state, which state is reached after
