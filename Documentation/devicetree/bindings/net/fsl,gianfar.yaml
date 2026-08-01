@@ -234,7 +234,7 @@ examples:
                              <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
             };
 
-            queue-group@2d14000  {
+            queue-group@2d14000 {
                 reg = <0x0 0x2d14000 0x0 0x1000>;
                 interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
                              <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
