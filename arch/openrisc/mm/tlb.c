@@ -74,11 +74,11 @@ void local_flush_tlb_all(void)
 
 #define flush_dtlb_page_eir(addr) mtspr(SPR_DTLBEIR, addr)
 #define flush_dtlb_page_no_eir(addr) \
-	mtspr_off(SPR_DTLBMR_BASE(0), DTLB_OFFSET(addr), 0);
+	mtspr_off(SPR_DTLBMR_BASE(0), DTLB_OFFSET(addr), 0)
 
 #define flush_itlb_page_eir(addr) mtspr(SPR_ITLBEIR, addr)
 #define flush_itlb_page_no_eir(addr) \
-	mtspr_off(SPR_ITLBMR_BASE(0), ITLB_OFFSET(addr), 0);
+	mtspr_off(SPR_ITLBMR_BASE(0), ITLB_OFFSET(addr), 0)
 
 void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 {
