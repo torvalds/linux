@@ -8274,6 +8274,44 @@ static int get_constant_map_key(struct bpf_verifier_env *env,
 
 static bool can_elide_value_nullness(const struct bpf_map *map);
 
+static int process_map_ptr_arg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
+			       argno_t argno, struct bpf_call_arg_meta *meta)
+{
+	/* Use map_uid (which is unique id of inner map) to reject:
+	 * inner_map1 = bpf_map_lookup_elem(outer_map, key1)
+	 * inner_map2 = bpf_map_lookup_elem(outer_map, key2)
+	 * if (inner_map1 && inner_map2) {
+	 *     timer = bpf_map_lookup_elem(inner_map1);
+	 *     if (timer)
+	 *         // mismatch would have been allowed
+	 *         bpf_timer_init(timer, inner_map2);
+	 * }
+	 *
+	 * Comparing map_ptr is enough to distinguish normal and outer maps.
+	 */
+	if (meta->map.ptr &&
+	    (meta->map.ptr != reg->map_ptr || meta->map.uid != reg->map_uid)) {
+		argno_t obj_argno = argno_from_reg(reg_from_argno(argno) - 1);
+		struct btf_record *rec = meta->map.ptr->record;
+		const char *obj_name = "workqueue";
+
+		if (rec->timer_off >= 0)
+			obj_name = "timer";
+		else if (rec->task_work_off >= 0)
+			obj_name = "bpf_task_work";
+
+		verbose(env, "%s pointer in %s map_uid=%d ",
+			obj_name, reg_arg_name(env, obj_argno), meta->map.uid);
+		verbose(env, "doesn't match map pointer in %s map_uid=%d\n",
+			reg_arg_name(env, argno), reg->map_uid);
+		return -EINVAL;
+	}
+
+	meta->map.ptr = reg->map_ptr;
+	meta->map.uid = reg->map_uid;
+	return 0;
+}
+
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 			  struct bpf_call_arg_meta *meta,
 			  const struct bpf_func_proto *fn,
@@ -8349,29 +8387,9 @@ skip_type_check:
 	switch (base_type(arg_type)) {
 	case ARG_CONST_MAP_PTR:
 		/* bpf_map_xxx(map_ptr) call: remember that map_ptr */
-		if (meta->map.ptr) {
-			/* Use map_uid (which is unique id of inner map) to reject:
-			 * inner_map1 = bpf_map_lookup_elem(outer_map, key1)
-			 * inner_map2 = bpf_map_lookup_elem(outer_map, key2)
-			 * if (inner_map1 && inner_map2) {
-			 *     timer = bpf_map_lookup_elem(inner_map1);
-			 *     if (timer)
-			 *         // mismatch would have been allowed
-			 *         bpf_timer_init(timer, inner_map2);
-			 * }
-			 *
-			 * Comparing map_ptr is enough to distinguish normal and outer maps.
-			 */
-			if (meta->map.ptr != reg->map_ptr ||
-			    meta->map.uid != reg->map_uid) {
-				verbose(env,
-					"timer pointer in R1 map_uid=%d doesn't match map pointer in R2 map_uid=%d\n",
-					meta->map.uid, reg->map_uid);
-				return -EINVAL;
-			}
-		}
-		meta->map.ptr = reg->map_ptr;
-		meta->map.uid = reg->map_uid;
+		err = process_map_ptr_arg(env, reg, argno, meta);
+		if (err)
+			return err;
 		break;
 	case ARG_PTR_TO_MAP_KEY:
 		/* bpf_map_xxx(..., map_ptr, ..., key) call:
@@ -12123,36 +12141,9 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 					reg_arg_name(env, argno));
 				return -EINVAL;
 			}
-			if (meta->map.ptr && (reg->map_ptr->record->wq_off >= 0 ||
-					      reg->map_ptr->record->task_work_off >= 0)) {
-				/* Use map_uid (which is unique id of inner map) to reject:
-				 * inner_map1 = bpf_map_lookup_elem(outer_map, key1)
-				 * inner_map2 = bpf_map_lookup_elem(outer_map, key2)
-				 * if (inner_map1 && inner_map2) {
-				 *     wq = bpf_map_lookup_elem(inner_map1);
-				 *     if (wq)
-				 *         // mismatch would have been allowed
-				 *         bpf_wq_init(wq, inner_map2);
-				 * }
-				 *
-				 * Comparing map_ptr is enough to distinguish normal and outer maps.
-				 */
-				if (meta->map.ptr != reg->map_ptr ||
-				    meta->map.uid != reg->map_uid) {
-					if (reg->map_ptr->record->task_work_off >= 0) {
-						verbose(env,
-							"bpf_task_work pointer in R2 map_uid=%d doesn't match map pointer in R3 map_uid=%d\n",
-							meta->map.uid, reg->map_uid);
-						return -EINVAL;
-					}
-					verbose(env,
-						"workqueue pointer in R1 map_uid=%d doesn't match map pointer in R2 map_uid=%d\n",
-						meta->map.uid, reg->map_uid);
-					return -EINVAL;
-				}
-			}
-			meta->map.ptr = reg->map_ptr;
-			meta->map.uid = reg->map_uid;
+			ret = process_map_ptr_arg(env, reg, argno, meta);
+			if (ret < 0)
+				return ret;
 			fallthrough;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
 		case KF_ARG_PTR_TO_BTF_ID:
