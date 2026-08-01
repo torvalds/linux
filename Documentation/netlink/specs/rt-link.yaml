@@ -928,6 +928,11 @@ attribute-sets:
         name: vfinfo-list
         type: nest
         nested-attributes: vfinfo-list-attrs
+        doc: |
+          Per-VF details. The list holds at most 256 VFs, or 128 when
+          statistics are included, because it is one attribute and has to fit
+          in a u16 length. A device with more VFs than that reports a
+          truncated list; num-vf still carries the real count.
       -
         name: stats64
         type: binary

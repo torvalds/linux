@@ -1174,12 +1174,27 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->rx_nohandler = b->rx_nohandler;
 }
 
+/* Cap the number of VFs that IFLA_VFINFO_LIST describes. The nest is one
+ * netlink attribute, so everything inside it has to fit in the u16 nla_len.
+ * The cap is a fixed number rather than whatever happens to fit, so that the
+ * limit is a property of the interface instead of one of the requested
+ * attribute set and the host's alignment requirements. The largest per-VF
+ * encoding is 368 bytes with statistics and GUIDs and 236 bytes without
+ * statistics, so both values keep the nest well inside U16_MAX.
+ */
+static int rtnl_vfinfo_cap(int num_vfs, u32 ext_filter_mask)
+{
+	return min(num_vfs,
+		   ext_filter_mask & RTEXT_FILTER_SKIP_STATS ? 256 : 128);
+}
+
 /* All VF info */
 static inline int rtnl_vfinfo_size(const struct net_device *dev,
 				   u32 ext_filter_mask)
 {
 	if (dev->dev.parent && (ext_filter_mask & RTEXT_FILTER_VF)) {
-		int num_vfs = dev_num_vf(dev->dev.parent);
+		int num_vfs = rtnl_vfinfo_cap(dev_num_vf(dev->dev.parent),
+					      ext_filter_mask);
 		size_t size = nla_total_size(0);
 		size += num_vfs *
 			(nla_total_size(0) +
@@ -1716,6 +1731,11 @@ static noinline_for_stack int rtnl_fill_vf(struct sk_buff *skb,
 	vfinfo = nla_nest_start_noflag(skb, IFLA_VFINFO_LIST);
 	if (!vfinfo)
 		return -EMSGSIZE;
+
+	/* IFLA_NUM_VF above stays the device's VF count; the list itself is
+	 * capped so that its length cannot overflow nla_len.
+	 */
+	num_vfs = rtnl_vfinfo_cap(num_vfs, ext_filter_mask);
 
 	for (i = 0; i < num_vfs; i++) {
 		if (rtnl_fill_vfinfo(skb, dev, i, ext_filter_mask)) {
