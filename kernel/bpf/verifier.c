@@ -7704,8 +7704,7 @@ static int process_iter_next_call(struct bpf_verifier_env *env, int insn_idx,
 
 static bool arg_type_is_mem_size(enum bpf_arg_type type)
 {
-	return type == ARG_CONST_SIZE ||
-	       type == ARG_CONST_SIZE_OR_ZERO;
+	return type == ARG_MEM_SIZE || type == ARG_MEM_SIZE_OR_ZERO;
 }
 
 static bool arg_type_is_raw_mem(enum bpf_arg_type type)
@@ -7851,8 +7850,8 @@ static const struct bpf_reg_types dynptr_types = {
 static const struct bpf_reg_types *compatible_reg_types[__BPF_ARG_TYPE_MAX] = {
 	[ARG_PTR_TO_MAP_KEY]		= &mem_types,
 	[ARG_PTR_TO_MAP_VALUE]		= &mem_types,
-	[ARG_CONST_SIZE]		= &scalar_types,
-	[ARG_CONST_SIZE_OR_ZERO]	= &scalar_types,
+	[ARG_MEM_SIZE]			= &scalar_types,
+	[ARG_MEM_SIZE_OR_ZERO]		= &scalar_types,
 	[ARG_CONST_ALLOC_SIZE_OR_ZERO]	= &scalar_types,
 	[ARG_CONST_MAP_PTR]		= &const_map_ptr_types,
 	[ARG_PTR_TO_CTX]		= &context_types,
@@ -8470,13 +8469,13 @@ skip_type_check:
 				err = check_ptr_alignment(env, reg, 0, fn->arg_size[arg], true);
 		}
 		break;
-	case ARG_CONST_SIZE:
+	case ARG_MEM_SIZE:
 		err = check_mem_size_reg(env, reg_state(env, regno - 1), reg,
 					 argno_from_reg(regno - 1), argno,
 					 fn->arg_type[arg - 1] & MEM_WRITE ? BPF_WRITE : BPF_READ,
 					 false, meta);
 		break;
-	case ARG_CONST_SIZE_OR_ZERO:
+	case ARG_MEM_SIZE_OR_ZERO:
 		err = check_mem_size_reg(env, reg_state(env, regno - 1), reg,
 					 argno_from_reg(regno - 1), argno,
 					 fn->arg_type[arg - 1] & MEM_WRITE ? BPF_WRITE : BPF_READ,

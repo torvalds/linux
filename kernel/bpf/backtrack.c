@@ -636,7 +636,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
  * r5 += 1
  * ...
  * call bpf_perf_event_output#25
- *   where .arg5_type = ARG_CONST_SIZE_OR_ZERO
+ *   where .arg5_type = ARG_MEM_SIZE_OR_ZERO
  *
  * and this case:
  * r6 = 1

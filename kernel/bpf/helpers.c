@@ -278,7 +278,7 @@ const struct bpf_func_proto bpf_get_current_comm_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_MEM_SIZE,
 };
 
 #if defined(CONFIG_QUEUED_SPINLOCKS) || defined(CONFIG_BPF_ARCH_SPINLOCK)
@@ -539,7 +539,7 @@ const struct bpf_func_proto bpf_strtol_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_MEM_SIZE,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_UNINIT | MEM_WRITE | MEM_ALIGNED,
 	.arg4_size	= sizeof(s64),
@@ -567,7 +567,7 @@ const struct bpf_func_proto bpf_strtoul_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_MEM_SIZE,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_UNINIT | MEM_WRITE | MEM_ALIGNED,
 	.arg4_size	= sizeof(u64),
@@ -583,7 +583,7 @@ static const struct bpf_func_proto bpf_strncmp_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg2_type	= ARG_CONST_SIZE,
+	.arg2_type	= ARG_MEM_SIZE,
 	.arg3_type	= ARG_PTR_TO_CONST_STR,
 };
 
@@ -627,7 +627,7 @@ const struct bpf_func_proto bpf_get_ns_current_pid_tgid_proto = {
 	.arg1_type	= ARG_ANYTHING,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type      = ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type      = ARG_CONST_SIZE,
+	.arg4_type      = ARG_MEM_SIZE,
 };
 
 static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
@@ -653,7 +653,7 @@ const struct bpf_func_proto bpf_event_output_data_proto =  {
 	.arg2_type      = ARG_CONST_MAP_PTR,
 	.arg3_type      = ARG_ANYTHING,
 	.arg4_type      = ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type      = ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type      = ARG_MEM_SIZE_OR_ZERO,
 };
 
 BPF_CALL_3(bpf_copy_from_user, void *, dst, u32, size,
@@ -675,7 +675,7 @@ const struct bpf_func_proto bpf_copy_from_user_proto = {
 	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 };
 
@@ -706,7 +706,7 @@ const struct bpf_func_proto bpf_copy_from_user_task_proto = {
 	.might_sleep	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_BTF_ID,
 	.arg4_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
@@ -1093,10 +1093,10 @@ const struct bpf_func_proto bpf_snprintf_proto = {
 	.gpl_only	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM_OR_NULL | MEM_WRITE,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_PTR_TO_CONST_STR,
 	.arg4_type	= ARG_PTR_TO_MEM | PTR_MAYBE_NULL | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 static void *map_key_from_value(struct bpf_map *map, void *value, u32 *arr_idx)
@@ -1888,7 +1888,7 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT | MEM_WRITE,
 };
@@ -1943,7 +1943,7 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_PTR_TO_DYNPTR,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
@@ -2004,7 +2004,7 @@ static const struct bpf_func_proto bpf_dynptr_write_proto = {
 	.arg1_type	= ARG_PTR_TO_DYNPTR,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg5_type	= ARG_ANYTHING,
 };
 

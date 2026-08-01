@@ -137,7 +137,7 @@ int helper_param_not_ok(void *ctx)
 
 	p = bpf_rdonly_cast(0, 0);
 	/*
-	 * Any helper with ARG_CONST_SIZE_OR_ZERO constraint will do,
+	 * Any helper with ARG_MEM_SIZE_OR_ZERO constraint will do,
 	 * the most permissive constraint
 	 */
 	bpf_copy_from_user(p, 0, (void *)42);

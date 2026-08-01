@@ -888,8 +888,8 @@ enum bpf_arg_type {
 	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
 	ARG_PTR_TO_ARENA,
 
-	ARG_CONST_SIZE,		/* number of bytes accessed from memory */
-	ARG_CONST_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
+	ARG_MEM_SIZE,		/* number of bytes accessed from memory */
+	ARG_MEM_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */

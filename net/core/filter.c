@@ -1747,7 +1747,7 @@ static const struct bpf_func_proto bpf_skb_store_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 	.arg5_type	= ARG_ANYTHING,
 };
 
@@ -1784,7 +1784,7 @@ static const struct bpf_func_proto bpf_skb_load_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 };
 
 int __bpf_skb_load_bytes(const struct sk_buff *skb, u32 offset, void *to, u32 len)
@@ -1823,7 +1823,7 @@ static const struct bpf_func_proto bpf_flow_dissector_load_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_skb_load_bytes_relative, const struct sk_buff *, skb,
@@ -1867,7 +1867,7 @@ static const struct bpf_func_proto bpf_skb_load_bytes_relative_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 	.arg5_type	= ARG_ANYTHING,
 };
 
@@ -2063,9 +2063,9 @@ static const struct bpf_func_proto bpf_csum_diff_proto = {
 	.pkt_access	= true,
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_MEM | PTR_MAYBE_NULL | MEM_RDONLY,
-	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg2_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg3_type	= ARG_PTR_TO_MEM | PTR_MAYBE_NULL | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg4_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg5_type	= ARG_ANYTHING,
 };
 
@@ -2626,7 +2626,7 @@ static const struct bpf_func_proto bpf_redirect_neigh_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_ANYTHING,
 	.arg2_type      = ARG_PTR_TO_MEM | PTR_MAYBE_NULL | MEM_RDONLY,
-	.arg3_type      = ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type      = ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -4199,7 +4199,7 @@ static const struct bpf_func_proto bpf_xdp_load_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 };
 
 int __bpf_xdp_load_bytes(struct xdp_buff *xdp, u32 offset, void *buf, u32 len)
@@ -4231,7 +4231,7 @@ static const struct bpf_func_proto bpf_xdp_store_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 };
 
 int __bpf_xdp_store_bytes(struct xdp_buff *xdp, u32 offset, void *buf, u32 len)
@@ -4794,7 +4794,7 @@ static const struct bpf_func_proto bpf_skb_event_output_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 BTF_ID_LIST_SINGLE(bpf_skb_output_btf_ids, struct, sk_buff)
@@ -4808,7 +4808,7 @@ const struct bpf_func_proto bpf_skb_output_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 static unsigned short bpf_tunnel_key_af(u64 flags)
@@ -4891,7 +4891,7 @@ static const struct bpf_func_proto bpf_skb_get_tunnel_key_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -4926,7 +4926,7 @@ static const struct bpf_func_proto bpf_skb_get_tunnel_opt_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 };
 
 static struct metadata_dst __percpu *md_dst;
@@ -5008,7 +5008,7 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_key_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -5036,7 +5036,7 @@ static const struct bpf_func_proto bpf_skb_set_tunnel_opt_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 };
 
 static const struct bpf_func_proto *
@@ -5208,7 +5208,7 @@ static const struct bpf_func_proto bpf_xdp_event_output_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 BTF_ID_LIST_SINGLE(bpf_xdp_output_btf_ids, struct, xdp_buff)
@@ -5222,7 +5222,7 @@ const struct bpf_func_proto bpf_xdp_output_proto = {
 	.arg2_type	= ARG_CONST_MAP_PTR,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 BPF_CALL_1(bpf_get_socket_cookie, struct sk_buff *, skb)
@@ -5769,7 +5769,7 @@ const struct bpf_func_proto bpf_sk_setsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sk_getsockopt, struct sock *, sk, int, level,
@@ -5786,7 +5786,7 @@ const struct bpf_func_proto bpf_sk_getsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sk_setsockopt_nodelay, struct sock *, sk, int, level,
@@ -5810,7 +5810,7 @@ const struct bpf_func_proto bpf_sk_setsockopt_nodelay_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_unlocked_sk_setsockopt, struct sock *, sk, int, level,
@@ -5827,7 +5827,7 @@ const struct bpf_func_proto bpf_unlocked_sk_setsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_unlocked_sk_getsockopt, struct sock *, sk, int, level,
@@ -5844,7 +5844,7 @@ const struct bpf_func_proto bpf_unlocked_sk_getsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sock_addr_setsockopt, struct bpf_sock_addr_kern *, ctx,
@@ -5861,7 +5861,7 @@ static const struct bpf_func_proto bpf_sock_addr_setsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sock_addr_getsockopt, struct bpf_sock_addr_kern *, ctx,
@@ -5878,7 +5878,7 @@ static const struct bpf_func_proto bpf_sock_addr_getsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 static int sk_bpf_set_get_bypass_prot_mem(struct sock *sk,
@@ -5923,7 +5923,7 @@ static const struct bpf_func_proto bpf_sock_create_setsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sock_create_getsockopt, struct sock *, sk, int, level,
@@ -5949,7 +5949,7 @@ static const struct bpf_func_proto bpf_sock_create_getsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_sock_ops_setsockopt, struct bpf_sock_ops_kern *, bpf_sock,
@@ -5975,7 +5975,7 @@ static const struct bpf_func_proto bpf_sock_ops_setsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 static int bpf_sock_ops_get_syn(struct bpf_sock_ops_kern *bpf_sock,
@@ -6085,7 +6085,7 @@ static const struct bpf_func_proto bpf_sock_ops_getsockopt_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_2(bpf_sock_ops_cb_flags_set, struct bpf_sock_ops_kern *, bpf_sock,
@@ -6152,7 +6152,7 @@ static const struct bpf_func_proto bpf_bind_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 };
 
 #ifdef CONFIG_XFRM
@@ -6205,7 +6205,7 @@ static const struct bpf_func_proto bpf_skb_get_xfrm_state_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 	.arg5_type	= ARG_ANYTHING,
 };
 #endif
@@ -6612,7 +6612,7 @@ static const struct bpf_func_proto bpf_xdp_fib_lookup_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
 	.arg2_type      = ARG_PTR_TO_MEM | MEM_WRITE,
-	.arg3_type      = ARG_CONST_SIZE,
+	.arg3_type      = ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -6672,7 +6672,7 @@ static const struct bpf_func_proto bpf_skb_fib_lookup_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type      = ARG_PTR_TO_CTX,
 	.arg2_type      = ARG_PTR_TO_MEM | MEM_WRITE,
-	.arg3_type      = ARG_CONST_SIZE,
+	.arg3_type      = ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -6870,7 +6870,7 @@ static const struct bpf_func_proto bpf_lwt_in_push_encap_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE
+	.arg4_type	= ARG_MEM_SIZE
 };
 
 static const struct bpf_func_proto bpf_lwt_xmit_push_encap_proto = {
@@ -6880,7 +6880,7 @@ static const struct bpf_func_proto bpf_lwt_xmit_push_encap_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE
+	.arg4_type	= ARG_MEM_SIZE
 };
 
 #if IS_ENABLED(CONFIG_IPV6_SEG6_BPF)
@@ -6924,7 +6924,7 @@ static const struct bpf_func_proto bpf_lwt_seg6_store_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE
+	.arg4_type	= ARG_MEM_SIZE
 };
 
 static void bpf_update_srh_state(struct sk_buff *skb)
@@ -7013,7 +7013,7 @@ static const struct bpf_func_proto bpf_lwt_seg6_action_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg4_type	= ARG_CONST_SIZE
+	.arg4_type	= ARG_MEM_SIZE
 };
 
 BPF_CALL_3(bpf_lwt_seg6_adjust_srh, struct sk_buff *, skb, u32, offset,
@@ -7254,7 +7254,7 @@ static const struct bpf_func_proto bpf_skc_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCK_COMMON_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7273,7 +7273,7 @@ static const struct bpf_func_proto bpf_sk_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7292,7 +7292,7 @@ static const struct bpf_func_proto bpf_sk_lookup_udp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7316,7 +7316,7 @@ static const struct bpf_func_proto bpf_tc_skc_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCK_COMMON_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7340,7 +7340,7 @@ static const struct bpf_func_proto bpf_tc_sk_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7364,7 +7364,7 @@ static const struct bpf_func_proto bpf_tc_sk_lookup_udp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7402,7 +7402,7 @@ static const struct bpf_func_proto bpf_xdp_sk_lookup_udp_proto = {
 	.ret_type       = RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type      = ARG_PTR_TO_CTX,
 	.arg2_type      = ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type      = ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type      = ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type      = ARG_ANYTHING,
 	.arg5_type      = ARG_ANYTHING,
 };
@@ -7426,7 +7426,7 @@ static const struct bpf_func_proto bpf_xdp_skc_lookup_tcp_proto = {
 	.ret_type       = RET_PTR_TO_SOCK_COMMON_OR_NULL,
 	.arg1_type      = ARG_PTR_TO_CTX,
 	.arg2_type      = ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type      = ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type      = ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type      = ARG_ANYTHING,
 	.arg5_type      = ARG_ANYTHING,
 };
@@ -7450,7 +7450,7 @@ static const struct bpf_func_proto bpf_xdp_sk_lookup_tcp_proto = {
 	.ret_type       = RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type      = ARG_PTR_TO_CTX,
 	.arg2_type      = ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type      = ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type      = ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type      = ARG_ANYTHING,
 	.arg5_type      = ARG_ANYTHING,
 };
@@ -7470,7 +7470,7 @@ static const struct bpf_func_proto bpf_sock_addr_skc_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCK_COMMON_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7489,7 +7489,7 @@ static const struct bpf_func_proto bpf_sock_addr_sk_lookup_tcp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7508,7 +7508,7 @@ static const struct bpf_func_proto bpf_sock_addr_sk_lookup_udp_proto = {
 	.ret_type	= RET_PTR_TO_SOCKET_OR_NULL,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 	.arg5_type	= ARG_ANYTHING,
 };
@@ -7828,9 +7828,9 @@ static const struct bpf_func_proto bpf_tcp_check_syncookie_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(bpf_tcp_gen_syncookie, struct sock *, sk, void *, iph, u32, iph_len,
@@ -7897,9 +7897,9 @@ static const struct bpf_func_proto bpf_tcp_gen_syncookie_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg5_type	= ARG_CONST_SIZE,
+	.arg5_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_3(bpf_sk_assign, struct sk_buff *, skb, struct sock *, sk, u64, flags)
@@ -8053,7 +8053,7 @@ static const struct bpf_func_proto bpf_sock_ops_load_hdr_opt_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_WRITE,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -8131,7 +8131,7 @@ static const struct bpf_func_proto bpf_sock_ops_store_hdr_opt_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -8226,7 +8226,7 @@ static const struct bpf_func_proto bpf_tcp_raw_gen_syncookie_ipv4_proto = {
 	.arg1_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_RDONLY,
 	.arg1_size	= sizeof(struct iphdr),
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 BPF_CALL_3(bpf_tcp_raw_gen_syncookie_ipv6, struct ipv6hdr *, iph,
@@ -8258,7 +8258,7 @@ static const struct bpf_func_proto bpf_tcp_raw_gen_syncookie_ipv6_proto = {
 	.arg1_type	= ARG_PTR_TO_FIXED_SIZE_MEM | MEM_RDONLY,
 	.arg1_size	= sizeof(struct ipv6hdr),
 	.arg2_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 };
 
 BPF_CALL_2(bpf_tcp_raw_check_syncookie_ipv4, struct iphdr *, iph,
@@ -11731,7 +11731,7 @@ static const struct bpf_func_proto sk_reuseport_load_bytes_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 };
 
 BPF_CALL_5(sk_reuseport_load_bytes_relative,
@@ -11749,7 +11749,7 @@ static const struct bpf_func_proto sk_reuseport_load_bytes_relative_proto = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg4_type	= ARG_CONST_SIZE,
+	.arg4_type	= ARG_MEM_SIZE,
 	.arg5_type	= ARG_ANYTHING,
 };
 

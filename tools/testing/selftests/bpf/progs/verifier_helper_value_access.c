@@ -91,7 +91,7 @@ l0_%=:	exit;						\
 
 /* Call a function taking a pointer and a size which doesn't allow the size to
  * be zero (i.e. bpf_trace_printk() declares the second argument to be
- * ARG_CONST_SIZE, not ARG_CONST_SIZE_OR_ZERO). We attempt to pass zero for the
+ * ARG_MEM_SIZE, not ARG_MEM_SIZE_OR_ZERO). We attempt to pass zero for the
  * size and expect to fail.
  */
 SEC("tracepoint")

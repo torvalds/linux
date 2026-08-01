@@ -781,7 +781,7 @@ const struct bpf_func_proto bpf_get_stack_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -797,7 +797,7 @@ const struct bpf_func_proto bpf_get_stack_sleepable_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -831,7 +831,7 @@ const struct bpf_func_proto bpf_get_task_stack_proto = {
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -848,7 +848,7 @@ const struct bpf_func_proto bpf_get_task_stack_sleepable_proto = {
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 
@@ -911,7 +911,7 @@ const struct bpf_func_proto bpf_get_stack_proto_pe = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_MEM_SIZE_OR_ZERO,
 	.arg4_type	= ARG_ANYTHING,
 };
 

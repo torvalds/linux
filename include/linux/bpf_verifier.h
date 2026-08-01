@@ -15,7 +15,7 @@
  * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
  */
 #define BPF_MAX_VAR_OFF	(1 << 29)
-/* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
+/* Maximum variable size permitted for ARG_MEM_SIZE[_OR_ZERO].  This ensures
  * that converting umax_value to int cannot overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
