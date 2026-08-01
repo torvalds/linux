@@ -1479,6 +1479,12 @@ struct ret_mem_desc {
 	bool found;
 };
 
+/* A constant scalar argument; Populated by process_const_arg() */
+struct arg_constant_desc {
+	u64 value;
+	bool found;
+};
+
 struct bpf_call_arg_meta {
 	/* Common */
 	struct btf *btf;
@@ -1496,10 +1502,7 @@ struct bpf_call_arg_meta {
 	u32 kfunc_flags;
 	const struct btf_type *func_proto;
 	const char *func_name;
-	struct {
-		u64 value;
-		bool found;
-	} arg_constant;
+	struct arg_constant_desc arg_constant;
 
 	/* arg_{btf,btf_id,owning_ref} are used by kfunc-specific handling,
 	 * generally to pass info about user-defined local kptr types to later
