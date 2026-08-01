@@ -28,7 +28,7 @@ int BPF_PROG(get_task_exe_file_kfunc_null)
 }
 
 SEC("lsm.s/inode_getxattr")
-__failure __msg("R1 pointer type STRUCT task_struct must point to scalar, or struct with scalar")
+__failure __msg("R1 is fp expected STRUCT task_struct")
 int BPF_PROG(get_task_exe_file_kfunc_fp)
 {
 	u64 x;
@@ -98,7 +98,7 @@ int BPF_PROG(path_d_path_kfunc_null)
 }
 
 SEC("lsm.s/task_alloc")
-__failure __msg("R1 must be referenced or trusted")
+__failure __msg("dereference of modified untrusted_ptr_")
 int BPF_PROG(path_d_path_kfunc_untrusted_from_argument, struct task_struct *task)
 {
 	struct path *root;
@@ -112,7 +112,7 @@ int BPF_PROG(path_d_path_kfunc_untrusted_from_argument, struct task_struct *task
 }
 
 SEC("lsm.s/file_open")
-__failure __msg("R1 must be referenced or trusted")
+__failure __msg("dereference of modified untrusted_ptr_")
 int BPF_PROG(path_d_path_kfunc_untrusted_from_current)
 {
 	struct path *pwd;
