@@ -2131,6 +2131,9 @@ mt76_vif_link(struct mt76_dev *dev, struct ieee80211_vif *vif, int link_id)
 	if (!link_id)
 		return mlink;
 
+	if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return NULL;
+
 	return mt76_dereference(mvif->link[link_id], dev);
 }
 
