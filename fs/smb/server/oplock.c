@@ -1035,6 +1035,40 @@ out:
 	ksmbd_conn_put(conn);
 }
 
+/*
+ * Select and pin the connection used for a lease break before doing any
+ * allocations which may sleep. opinfo->conn is cleared under ci->m_lock,
+ * while lease->l_lb and the lease table lifetime are protected by
+ * lease_list_lock.
+ */
+static struct ksmbd_conn *smb2_lease_break_conn_get(struct oplock_info *opinfo)
+{
+	struct lease *lease = opinfo->o_lease;
+	struct lease_table *lb;
+	struct ksmbd_conn *conn;
+
+	/* Keep the connection which owns the open, when it is still active. */
+	down_read(&lease->ci->m_lock);
+	conn = READ_ONCE(opinfo->conn);
+	if (conn && !ksmbd_conn_releasing(conn))
+		conn = ksmbd_conn_get(conn);
+	else
+		conn = NULL;
+	up_read(&lease->ci->m_lock);
+
+	if (conn || lease->version != 2)
+		return conn;
+
+	/* Otherwise route v2 lease breaks through the shared lease channel. */
+	read_lock(&lease_list_lock);
+	lb = lease->l_lb;
+	if (lb && lb->conn && !ksmbd_conn_releasing(lb->conn))
+		conn = ksmbd_conn_get(lb->conn);
+	read_unlock(&lease_list_lock);
+
+	return conn;
+}
+
 /**
  * smb2_lease_break_noti() - break lease when a new client request
  *			write lease
@@ -1052,27 +1086,20 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo, bool sync,
 	struct lease_break_info *br_info;
 	struct lease *lease = opinfo->o_lease;
 
-	conn = READ_ONCE(opinfo->conn);
-	/*
-	 * Keep a break on the channel which owns this open.  A lease table is
-	 * shared by connections with the same client GUID, so its connection
-	 * can belong to another active channel.  Only use it after the owning
-	 * channel is being released.
-	 */
-	if ((!conn || ksmbd_conn_releasing(conn)) && lease->version == 2 &&
-	    lease->l_lb && lease->l_lb->conn &&
-	    !ksmbd_conn_releasing(lease->l_lb->conn))
-		conn = lease->l_lb->conn;
+	conn = smb2_lease_break_conn_get(opinfo);
 	if (!conn)
 		return ksmbd_invalidate_durable_fd(opinfo->fid);
 
 	work = ksmbd_alloc_work_struct();
-	if (!work)
+	if (!work) {
+		ksmbd_conn_put(conn);
 		return -ENOMEM;
+	}
 
 	br_info = kmalloc_obj(struct lease_break_info, KSMBD_DEFAULT_GFP);
 	if (!br_info) {
 		ksmbd_free_work_struct(work);
+		ksmbd_conn_put(conn);
 		return -ENOMEM;
 	}
 
@@ -1088,7 +1115,8 @@ static int smb2_lease_break_noti(struct oplock_info *opinfo, bool sync,
 	memcpy(br_info->lease_key, lease->lease_key, SMB2_LEASE_KEY_SIZE);
 
 	work->request_buf = (char *)br_info;
-	work->conn = ksmbd_conn_get(conn);
+	/* Transfer the reference acquired by smb2_lease_break_conn_get(). */
+	work->conn = conn;
 	work->sess = opinfo->sess;
 
 	ksmbd_conn_r_count_inc(conn);
