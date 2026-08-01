@@ -5030,7 +5030,7 @@ F:	kernel/bpf/ringbuf.c
 
 BPF [SECURITY & LSM] (Security Audit and Enforcement using BPF)
 M:	KP Singh <kpsingh@kernel.org>
-M:	Matt Bobrowski <mattbobrowski@google.com>
+M:	Matt Bobrowski <matt@bobrowski.net>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	Documentation/bpf/prog_lsm.rst
