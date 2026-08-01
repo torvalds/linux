@@ -99,8 +99,7 @@
 		s2mps15_osc: clocks {
 			compatible = "samsung,s2mps13-clk";
 			#clock-cells = <1>;
-			clock-output-names = "s2mps13_ap", "s2mps13_cp",
-				"s2mps13_bt";
+			clock-output-names = "s2mps13_ap", "s2mps13_cp", "s2mps13_bt";
 		};
 
 		regulators {

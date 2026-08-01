@@ -234,60 +234,60 @@
 
 &cmu_aud {
 	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>,
-		<&cmu_aud CLK_MOUT_SCLK_AUD_I2S>,
-		<&cmu_aud CLK_MOUT_SCLK_AUD_PCM>,
-		<&cmu_top CLK_MOUT_AUD_PLL>,
-		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
-		<&cmu_top CLK_MOUT_SCLK_AUDIO0>,
-		<&cmu_top CLK_MOUT_SCLK_AUDIO1>,
-		<&cmu_top CLK_MOUT_SCLK_SPDIF>,
+			  <&cmu_aud CLK_MOUT_SCLK_AUD_I2S>,
+			  <&cmu_aud CLK_MOUT_SCLK_AUD_PCM>,
+			  <&cmu_top CLK_MOUT_AUD_PLL>,
+			  <&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+			  <&cmu_top CLK_MOUT_SCLK_AUDIO0>,
+			  <&cmu_top CLK_MOUT_SCLK_AUDIO1>,
+			  <&cmu_top CLK_MOUT_SCLK_SPDIF>,
 
-		<&cmu_aud CLK_DIV_AUD_CA5>,
-		<&cmu_aud CLK_DIV_ACLK_AUD>,
-		<&cmu_aud CLK_DIV_PCLK_DBG_AUD>,
-		<&cmu_aud CLK_DIV_SCLK_AUD_I2S>,
-		<&cmu_aud CLK_DIV_SCLK_AUD_PCM>,
-		<&cmu_aud CLK_DIV_SCLK_AUD_SLIMBUS>,
-		<&cmu_aud CLK_DIV_SCLK_AUD_UART>,
-		<&cmu_top CLK_DIV_SCLK_AUDIO0>,
-		<&cmu_top CLK_DIV_SCLK_AUDIO1>,
-		<&cmu_top CLK_DIV_SCLK_PCM1>,
-		<&cmu_top CLK_DIV_SCLK_I2S1>;
+			  <&cmu_aud CLK_DIV_AUD_CA5>,
+			  <&cmu_aud CLK_DIV_ACLK_AUD>,
+			  <&cmu_aud CLK_DIV_PCLK_DBG_AUD>,
+			  <&cmu_aud CLK_DIV_SCLK_AUD_I2S>,
+			  <&cmu_aud CLK_DIV_SCLK_AUD_PCM>,
+			  <&cmu_aud CLK_DIV_SCLK_AUD_SLIMBUS>,
+			  <&cmu_aud CLK_DIV_SCLK_AUD_UART>,
+			  <&cmu_top CLK_DIV_SCLK_AUDIO0>,
+			  <&cmu_top CLK_DIV_SCLK_AUDIO1>,
+			  <&cmu_top CLK_DIV_SCLK_PCM1>,
+			  <&cmu_top CLK_DIV_SCLK_I2S1>;
 
 	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>,
-		<&cmu_aud CLK_MOUT_AUD_PLL_USER>,
-		<&cmu_aud CLK_MOUT_AUD_PLL_USER>,
-		<&cmu_top CLK_FOUT_AUD_PLL>,
-		<&cmu_top CLK_MOUT_AUD_PLL>,
-		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
-		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
-		<&cmu_top CLK_SCLK_AUDIO0>;
+				 <&cmu_aud CLK_MOUT_AUD_PLL_USER>,
+				 <&cmu_aud CLK_MOUT_AUD_PLL_USER>,
+				 <&cmu_top CLK_FOUT_AUD_PLL>,
+				 <&cmu_top CLK_MOUT_AUD_PLL>,
+				 <&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+				 <&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+				 <&cmu_top CLK_SCLK_AUDIO0>;
 
 	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
-		<196608001>, <65536001>, <32768001>, <49152001>,
-		<2048001>, <24576001>, <196608001>,
-		<24576001>, <98304001>, <2048001>, <49152001>;
+			       <196608001>, <65536001>, <32768001>, <49152001>,
+			       <2048001>, <24576001>, <196608001>,
+			       <24576001>, <98304001>, <2048001>, <49152001>;
 };
 
 &cmu_fsys {
 	assigned-clocks = <&cmu_top CLK_MOUT_SCLK_USBDRD30>,
-		<&cmu_top CLK_MOUT_SCLK_USBHOST30>,
-		<&cmu_fsys CLK_MOUT_SCLK_USBDRD30_USER>,
-		<&cmu_fsys CLK_MOUT_SCLK_USBHOST30_USER>,
-		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_USER>,
-		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_USER>,
-		<&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_USER>,
-		<&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_USER>,
-		<&cmu_top CLK_DIV_SCLK_USBDRD30>,
-		<&cmu_top CLK_DIV_SCLK_USBHOST30>;
+			  <&cmu_top CLK_MOUT_SCLK_USBHOST30>,
+			  <&cmu_fsys CLK_MOUT_SCLK_USBDRD30_USER>,
+			  <&cmu_fsys CLK_MOUT_SCLK_USBHOST30_USER>,
+			  <&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_USER>,
+			  <&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_USER>,
+			  <&cmu_fsys CLK_MOUT_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_USER>,
+			  <&cmu_fsys CLK_MOUT_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_USER>,
+			  <&cmu_top CLK_DIV_SCLK_USBDRD30>,
+			  <&cmu_top CLK_DIV_SCLK_USBHOST30>;
 	assigned-clock-parents = <&cmu_top CLK_MOUT_BUS_PLL_USER>,
-		<&cmu_top CLK_MOUT_BUS_PLL_USER>,
-		<&cmu_top CLK_SCLK_USBDRD30_FSYS>,
-		<&cmu_top CLK_SCLK_USBHOST30_FSYS>,
-		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY>,
-		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY>,
-		<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY>,
-		<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY>;
+				 <&cmu_top CLK_MOUT_BUS_PLL_USER>,
+				 <&cmu_top CLK_SCLK_USBDRD30_FSYS>,
+				 <&cmu_top CLK_SCLK_USBHOST30_FSYS>,
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK_PHY>,
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK_PHY>,
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK_PHY>,
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK_PHY>;
 	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
 			       <66700000>, <66700000>;
 };
@@ -347,6 +347,7 @@
 
 		port@0 {
 			reg = <0>;
+
 			tv_to_hdmi: endpoint {
 				remote-endpoint = <&hdmi_to_tv>;
 			};
@@ -386,6 +387,7 @@
 
 		port@0 {
 			reg = <0>;
+
 			hdmi_to_tv: endpoint {
 				remote-endpoint = <&tv_to_hdmi>;
 			};
@@ -393,6 +395,7 @@
 
 		port@1 {
 			reg = <1>;
+
 			hdmi_to_mhl: endpoint {
 				remote-endpoint = <&mhl_to_hdmi>;
 			};
@@ -416,8 +419,7 @@
 		s2mps13_osc: clocks {
 			compatible = "samsung,s2mps13-clk";
 			#clock-cells = <1>;
-			clock-output-names = "s2mps13_ap", "s2mps13_cp",
-				"s2mps13_bt";
+			clock-output-names = "s2mps13_ap", "s2mps13_cp", "s2mps13_bt";
 		};
 
 		regulators {
@@ -433,6 +435,7 @@
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -450,6 +453,7 @@
 				regulator-min-microvolt = <1300000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -460,6 +464,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -469,6 +474,7 @@
 				regulator-name = "VDD10_MIPI2L_1.0V_AP";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -479,6 +485,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -489,6 +496,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -499,6 +507,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -508,6 +517,7 @@
 				regulator-name = "VDD33_USB30_3.0V_AP";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -518,6 +528,7 @@
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -535,6 +546,7 @@
 				regulator-min-microvolt = <950000>;
 				regulator-max-microvolt = <950000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -545,6 +557,7 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -555,6 +568,7 @@
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -721,6 +735,7 @@
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -731,6 +746,7 @@
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -741,6 +757,7 @@
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -751,6 +768,7 @@
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -761,6 +779,7 @@
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -771,6 +790,7 @@
 				regulator-min-microvolt = <600000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
+
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -855,6 +875,7 @@
 
 			port@0 {
 				reg = <0>;
+
 				mhl_to_hdmi: endpoint {
 					remote-endpoint = <&hdmi_to_mhl>;
 				};
@@ -862,6 +883,7 @@
 
 			port@1 {
 				reg = <1>;
+
 				mhl_to_musb_con: endpoint {
 					remote-endpoint = <&musb_con_to_mhl>;
 				};
@@ -906,6 +928,7 @@
 
 					port@3 {
 						reg = <3>;
+
 						musb_con_to_mhl: endpoint {
 							remote-endpoint = <&mhl_to_musb_con>;
 						};
@@ -924,6 +947,7 @@
 
 		regulators {
 			compatible = "maxim,max77843-regulator";
+
 			safeout1_reg: SAFEOUT1 {
 				regulator-name = "SAFEOUT1";
 				regulator-min-microvolt = <3300000>;
@@ -981,7 +1005,7 @@
 	fifo-depth = <0x80>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_qrdy &sd0_bus1 &sd0_bus4
-			&sd0_bus8 &sd0_rdqs>;
+		     &sd0_bus8 &sd0_rdqs>;
 	bus-width = <8>;
 	assigned-clocks = <&cmu_top CLK_SCLK_MMC0_FSYS>;
 	assigned-clock-rates = <800000000>;
@@ -1304,7 +1328,7 @@
 		interrupt-parent = <&gpa0>;
 		interrupts = <4 IRQ_TYPE_NONE>;
 		clocks = <&pmu_system_controller 0>,
-			<&s2mps13_osc S2MPS11_CLK_BT>;
+			 <&s2mps13_osc S2MPS11_CLK_BT>;
 		clock-names = "mclk1", "mclk2";
 
 		gpio-controller;

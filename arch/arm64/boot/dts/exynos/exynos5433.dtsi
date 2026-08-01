@@ -57,12 +57,15 @@
 				core0 {
 					cpu = <&cpu0>;
 				};
+
 				core1 {
 					cpu = <&cpu1>;
 				};
+
 				core2 {
 					cpu = <&cpu2>;
 				};
+
 				core3 {
 					cpu = <&cpu3>;
 				};
@@ -72,12 +75,15 @@
 				core0 {
 					cpu = <&cpu4>;
 				};
+
 				core1 {
 					cpu = <&cpu5>;
 				};
+
 				core2 {
 					cpu = <&cpu6>;
 				};
+
 				core3 {
 					cpu = <&cpu7>;
 				};
@@ -243,38 +249,47 @@
 			opp-hz = /bits/ 64 <400000000>;
 			opp-microvolt = <900000>;
 		};
+
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <925000>;
 		};
+
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <950000>;
 		};
+
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <975000>;
 		};
+
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <1000000>;
 		};
+
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <1050000>;
 		};
+
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <1075000>;
 		};
+
 		opp-1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
 			opp-microvolt = <1112500>;
 		};
+
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1112500>;
 		};
+
 		opp-1300000000 {
 			opp-hz = /bits/ 64 <1300000000>;
 			opp-microvolt = <1150000>;
@@ -289,58 +304,72 @@
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <900000>;
 		};
+
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <900000>;
 		};
+
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
 			opp-microvolt = <912500>;
 		};
+
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <912500>;
 		};
+
 		opp-900000000 {
 			opp-hz = /bits/ 64 <900000000>;
 			opp-microvolt = <937500>;
 		};
+
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <975000>;
 		};
+
 		opp-1100000000 {
 			opp-hz = /bits/ 64 <1100000000>;
 			opp-microvolt = <1012500>;
 		};
+
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <1037500>;
 		};
+
 		opp-1300000000 {
 			opp-hz = /bits/ 64 <1300000000>;
 			opp-microvolt = <1062500>;
 		};
+
 		opp-1400000000 {
 			opp-hz = /bits/ 64 <1400000000>;
 			opp-microvolt = <1087500>;
 		};
+
 		opp-1500000000 {
 			opp-hz = /bits/ 64 <1500000000>;
 			opp-microvolt = <1125000>;
 		};
+
 		opp-1600000000 {
 			opp-hz = /bits/ 64 <1600000000>;
 			opp-microvolt = <1137500>;
 		};
+
 		opp-1700000000 {
 			opp-hz = /bits/ 64 <1700000000>;
 			opp-microvolt = <1175000>;
 		};
+
 		opp-1800000000 {
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <1212500>;
 		};
+
 		opp-1900000000 {
 			opp-hz = /bits/ 64 <1900000000>;
 			opp-microvolt = <1262500>;
@@ -752,7 +781,7 @@
 			reg = <0x10060000 0x200>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peris CLK_PCLK_TMU0_APBIF>,
-				<&cmu_peris CLK_SCLK_TMU0>;
+				 <&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
 
@@ -764,7 +793,7 @@
 			reg = <0x10068000 0x200>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peris CLK_PCLK_TMU0_APBIF>,
-				<&cmu_peris CLK_SCLK_TMU0>;
+				 <&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
 
@@ -776,7 +805,7 @@
 			reg = <0x10070000 0x200>;
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
-				<&cmu_peris CLK_SCLK_TMU1>;
+				 <&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
 
@@ -788,7 +817,7 @@
 			reg = <0x10078000 0x200>;
 			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
-				<&cmu_peris CLK_SCLK_TMU1>;
+				 <&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
 
@@ -800,7 +829,7 @@
 			reg = <0x1007c000 0x200>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peris CLK_PCLK_TMU1_APBIF>,
-				<&cmu_peris CLK_SCLK_TMU1>;
+				 <&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
 
@@ -812,17 +841,17 @@
 				     "samsung,exynos4210-mct";
 			reg = <0x101c0000 0x800>;
 			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&xxti>, <&cmu_peris CLK_PCLK_MCT>;
 			clock-names = "fin_pll", "mct";
 		};
@@ -960,21 +989,21 @@
 			compatible = "samsung,exynos5433-decon";
 			reg = <0x13800000 0x2104>;
 			clocks = <&cmu_disp CLK_PCLK_DECON>,
-				<&cmu_disp CLK_ACLK_DECON>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON0X>,
-				<&cmu_disp CLK_ACLK_XIU_DECON0X>,
-				<&cmu_disp CLK_PCLK_SMMU_DECON0X>,
-				<&cmu_disp CLK_ACLK_SMMU_DECON1X>,
-				<&cmu_disp CLK_ACLK_XIU_DECON1X>,
-				<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
-				<&cmu_disp CLK_SCLK_DECON_VCLK>,
-				<&cmu_disp CLK_SCLK_DECON_ECLK>,
-				<&cmu_disp CLK_SCLK_DSD>;
+				 <&cmu_disp CLK_ACLK_DECON>,
+				 <&cmu_disp CLK_ACLK_SMMU_DECON0X>,
+				 <&cmu_disp CLK_ACLK_XIU_DECON0X>,
+				 <&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+				 <&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+				 <&cmu_disp CLK_ACLK_XIU_DECON1X>,
+				 <&cmu_disp CLK_PCLK_SMMU_DECON1X>,
+				 <&cmu_disp CLK_SCLK_DECON_VCLK>,
+				 <&cmu_disp CLK_SCLK_DECON_ECLK>,
+				 <&cmu_disp CLK_SCLK_DSD>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
-				"aclk_xiu_decon0x", "pclk_smmu_decon0x",
-				"aclk_smmu_decon1x", "aclk_xiu_decon1x",
-				"pclk_smmu_decon1x", "sclk_decon_vclk",
-				"sclk_decon_eclk", "dsd";
+				      "aclk_xiu_decon0x", "pclk_smmu_decon0x",
+				      "aclk_smmu_decon1x", "aclk_xiu_decon1x",
+				      "pclk_smmu_decon1x", "sclk_decon_vclk",
+				      "sclk_decon_eclk", "dsd";
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
@@ -992,6 +1021,7 @@
 
 				port@0 {
 					reg = <0>;
+
 					decon_to_mic: endpoint {
 						remote-endpoint =
 							<&mic_to_decon>;
@@ -1038,15 +1068,15 @@
 			phys = <&mipi_phy 1>;
 			phy-names = "dsim";
 			clocks = <&cmu_disp CLK_PCLK_DSIM0>,
-				<&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8>,
-				<&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0>,
-				<&cmu_disp CLK_SCLK_RGB_VCLK_TO_DSIM0>,
-				<&cmu_disp CLK_SCLK_DSIM0>;
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8>,
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0>,
+				 <&cmu_disp CLK_SCLK_RGB_VCLK_TO_DSIM0>,
+				 <&cmu_disp CLK_SCLK_DSIM0>;
 			clock-names = "bus_clk",
-					"phyclk_mipidphy0_bitclkdiv8",
-					"phyclk_mipidphy0_rxclkesc0",
-					"sclk_rgb_vclk_to_dsim0",
-					"sclk_mipi";
+				      "phyclk_mipidphy0_bitclkdiv8",
+				      "phyclk_mipidphy0_rxclkesc0",
+				      "sclk_rgb_vclk_to_dsim0",
+				      "sclk_mipi";
 			power-domains = <&pd_disp>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1059,6 +1089,7 @@
 
 				port@0 {
 					reg = <0>;
+
 					dsi_to_mic: endpoint {
 						remote-endpoint = <&mic_to_dsi>;
 					};
@@ -1070,7 +1101,7 @@
 			compatible = "samsung,exynos5433-mic";
 			reg = <0x13930000 0x48>;
 			clocks = <&cmu_disp CLK_PCLK_MIC0>,
-				<&cmu_disp CLK_SCLK_RGB_VCLK_TO_MIC0>;
+				 <&cmu_disp CLK_SCLK_RGB_VCLK_TO_MIC0>;
 			clock-names = "pclk_mic0", "sclk_rgb_vclk_to_mic0";
 			power-domains = <&pd_disp>;
 			samsung,disp-syscon = <&syscon_disp>;
@@ -1083,6 +1114,7 @@
 
 				port@0 {
 					reg = <0>;
+
 					mic_to_decon: endpoint {
 						remote-endpoint =
 							<&decon_to_mic>;
@@ -1091,6 +1123,7 @@
 
 				port@1 {
 					reg = <1>;
+
 					mic_to_dsi: endpoint {
 						remote-endpoint = <&dsi_to_mic>;
 					};
@@ -1103,19 +1136,19 @@
 			reg = <0x13970000 0x70000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_disp CLK_PCLK_HDMI>,
-				<&cmu_disp CLK_PCLK_HDMIPHY>,
-				<&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO>,
-				<&cmu_disp CLK_PHYCLK_HDMI_PIXEL>,
-				<&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY>,
-				<&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_TMDS_CLKO_USER>,
-				<&cmu_disp CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY>,
-				<&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_PIXEL_CLKO_USER>,
-				<&xxti>, <&cmu_disp CLK_SCLK_HDMI_SPDIF>;
+				 <&cmu_disp CLK_PCLK_HDMIPHY>,
+				 <&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO>,
+				 <&cmu_disp CLK_PHYCLK_HDMI_PIXEL>,
+				 <&cmu_disp CLK_PHYCLK_HDMIPHY_TMDS_CLKO_PHY>,
+				 <&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_TMDS_CLKO_USER>,
+				 <&cmu_disp CLK_PHYCLK_HDMIPHY_PIXEL_CLKO_PHY>,
+				 <&cmu_disp CLK_MOUT_PHYCLK_HDMIPHY_PIXEL_CLKO_USER>,
+				 <&xxti>, <&cmu_disp CLK_SCLK_HDMI_SPDIF>;
 			clock-names = "hdmi_pclk", "hdmi_i_pclk",
-				"i_tmds_clk", "i_pixel_clk",
-				"tmds_clko", "tmds_clko_user",
-				"pixel_clko", "pixel_clko_user",
-				"oscclk", "i_spdif_clk";
+				      "i_tmds_clk", "i_pixel_clk",
+				      "tmds_clko", "tmds_clko_user",
+				      "pixel_clko", "pixel_clko_user",
+				      "oscclk", "i_spdif_clk";
 			phy = <&hdmiphy>;
 			ddc = <&hsi2c_11>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
@@ -1219,30 +1252,37 @@
 					opp-hz = /bits/ 64 <160000000>;
 					opp-microvolt = <1000000>;
 				};
+
 				opp-267000000 {
 					opp-hz = /bits/ 64 <267000000>;
 					opp-microvolt = <1000000>;
 				};
+
 				opp-350000000 {
 					opp-hz = /bits/ 64 <350000000>;
 					opp-microvolt = <1025000>;
 				};
+
 				opp-420000000 {
 					opp-hz = /bits/ 64 <420000000>;
 					opp-microvolt = <1025000>;
 				};
+
 				opp-500000000 {
 					opp-hz = /bits/ 64 <500000000>;
 					opp-microvolt = <1075000>;
 				};
+
 				opp-550000000 {
 					opp-hz = /bits/ 64 <550000000>;
 					opp-microvolt = <1125000>;
 				};
+
 				opp-600000000 {
 					opp-hz = /bits/ 64 <600000000>;
 					opp-microvolt = <1150000>;
 				};
+
 				opp-700000000 {
 					opp-hz = /bits/ 64 <700000000>;
 					opp-microvolt = <1150000>;
@@ -1437,7 +1477,7 @@
 			reg = <0x14c10000 0x100>;
 			interrupts = <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peric CLK_PCLK_UART0>,
-				<&cmu_peric CLK_SCLK_UART0>;
+				 <&cmu_peric CLK_SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_bus>;
@@ -1450,7 +1490,7 @@
 			reg = <0x14c20000 0x100>;
 			interrupts = <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peric CLK_PCLK_UART1>,
-				<&cmu_peric CLK_SCLK_UART1>;
+				 <&cmu_peric CLK_SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_bus>;
@@ -1463,7 +1503,7 @@
 			reg = <0x14c30000 0x100>;
 			interrupts = <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_peric CLK_PCLK_UART2>,
-				<&cmu_peric CLK_SCLK_UART2>;
+				 <&cmu_peric CLK_SCLK_UART2>;
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_bus>;
@@ -1480,8 +1520,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&cmu_peric CLK_PCLK_SPI0>,
-				<&cmu_peric CLK_SCLK_SPI0>,
-				<&cmu_peric CLK_SCLK_IOCLK_SPI0>;
+				 <&cmu_peric CLK_SCLK_SPI0>,
+				 <&cmu_peric CLK_SCLK_IOCLK_SPI0>;
 			clock-names = "spi", "spi_busclk0", "spi_ioclk";
 			samsung,spi-src-clk = <0>;
 			pinctrl-names = "default";
@@ -1501,8 +1541,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&cmu_peric CLK_PCLK_SPI1>,
-				<&cmu_peric CLK_SCLK_SPI1>,
-				<&cmu_peric CLK_SCLK_IOCLK_SPI1>;
+				 <&cmu_peric CLK_SCLK_SPI1>,
+				 <&cmu_peric CLK_SCLK_IOCLK_SPI1>;
 			clock-names = "spi", "spi_busclk0", "spi_ioclk";
 			samsung,spi-src-clk = <0>;
 			pinctrl-names = "default";
@@ -1522,8 +1562,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&cmu_peric CLK_PCLK_SPI2>,
-				<&cmu_peric CLK_SCLK_SPI2>,
-				<&cmu_peric CLK_SCLK_IOCLK_SPI2>;
+				 <&cmu_peric CLK_SCLK_SPI2>,
+				 <&cmu_peric CLK_SCLK_IOCLK_SPI2>;
 			clock-names = "spi", "spi_busclk0", "spi_ioclk";
 			samsung,spi-src-clk = <0>;
 			pinctrl-names = "default";
@@ -1543,8 +1583,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&cmu_peric CLK_PCLK_SPI3>,
-				<&cmu_peric CLK_SCLK_SPI3>,
-				<&cmu_peric CLK_SCLK_IOCLK_SPI3>;
+				 <&cmu_peric CLK_SCLK_SPI3>,
+				 <&cmu_peric CLK_SCLK_IOCLK_SPI3>;
 			clock-names = "spi", "spi_busclk0", "spi_ioclk";
 			samsung,spi-src-clk = <0>;
 			pinctrl-names = "default";
@@ -1564,8 +1604,8 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&cmu_peric CLK_PCLK_SPI4>,
-				<&cmu_peric CLK_SCLK_SPI4>,
-				<&cmu_peric CLK_SCLK_IOCLK_SPI4>;
+				 <&cmu_peric CLK_SCLK_SPI4>,
+				 <&cmu_peric CLK_SCLK_IOCLK_SPI4>;
 			clock-names = "spi", "spi_busclk0", "spi_ioclk";
 			samsung,spi-src-clk = <0>;
 			pinctrl-names = "default";
@@ -1802,9 +1842,9 @@
 		usbdrd30: usb@15400000 {
 			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBDRD30>,
-				<&cmu_fsys CLK_SCLK_USBDRD30>,
-				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
-				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>;
+				 <&cmu_fsys CLK_SCLK_USBDRD30>,
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>;
 			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1815,8 +1855,8 @@
 			usbdrd_dwc3: usb@0 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBDRD30>,
-					<&cmu_fsys CLK_ACLK_USBDRD30>,
-					<&cmu_fsys CLK_SCLK_USBDRD30>;
+					 <&cmu_fsys CLK_ACLK_USBDRD30>,
+					 <&cmu_fsys CLK_SCLK_USBDRD30>;
 				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x0 0x10000>;
 				interrupts = <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
@@ -1829,11 +1869,10 @@
 			compatible = "samsung,exynos5433-usbdrd-phy";
 			reg = <0x15500000 0x100>;
 			clocks = <&cmu_fsys CLK_ACLK_USBDRD30>, <&xxti>,
-				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
-				<&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>,
-				<&cmu_fsys CLK_SCLK_USBDRD30>;
-			clock-names = "phy", "ref", "phy_utmi", "phy_pipe",
-					"itp";
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PHYCLOCK>,
+				 <&cmu_fsys CLK_PHYCLK_USBDRD30_UDRD30_PIPE_PCLK>,
+				 <&cmu_fsys CLK_SCLK_USBDRD30>;
+			clock-names = "phy", "ref", "phy_utmi", "phy_pipe", "itp";
 			#phy-cells = <1>;
 			samsung,pmu-syscon = <&pmu_system_controller>;
 
@@ -1844,11 +1883,10 @@
 			compatible = "samsung,exynos5433-usbdrd-phy";
 			reg = <0x15580000 0x100>;
 			clocks = <&cmu_fsys CLK_ACLK_USBHOST30>, <&xxti>,
-				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
-				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>,
-				<&cmu_fsys CLK_SCLK_USBHOST30>;
-			clock-names = "phy", "ref", "phy_utmi", "phy_pipe",
-					"itp";
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>,
+				 <&cmu_fsys CLK_SCLK_USBHOST30>;
+			clock-names = "phy", "ref", "phy_utmi", "phy_pipe", "itp";
 			#phy-cells = <1>;
 			samsung,pmu-syscon = <&pmu_system_controller>;
 
@@ -1858,9 +1896,9 @@
 		usbhost30: usb@15a00000 {
 			compatible = "samsung,exynos5433-dwusb3";
 			clocks = <&cmu_fsys CLK_ACLK_USBHOST30>,
-				<&cmu_fsys CLK_SCLK_USBHOST30>,
-				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
-				<&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>;
+				 <&cmu_fsys CLK_SCLK_USBHOST30>,
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PHYCLOCK>,
+				 <&cmu_fsys CLK_PHYCLK_USBHOST30_UHOST30_PIPE_PCLK>;
 			clock-names = "aclk", "susp_clk", "phyclk", "pipe_pclk";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -1871,8 +1909,8 @@
 			usbhost_dwc3: usb@0 {
 				compatible = "snps,dwc3";
 				clocks = <&cmu_fsys CLK_SCLK_USBHOST30>,
-					<&cmu_fsys CLK_ACLK_USBHOST30>,
-					<&cmu_fsys CLK_SCLK_USBHOST30>;
+					 <&cmu_fsys CLK_ACLK_USBHOST30>,
+					 <&cmu_fsys CLK_SCLK_USBHOST30>;
 				clock-names = "ref", "bus_early", "suspend";
 				reg = <0x0 0x10000>;
 				interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>;
@@ -1889,7 +1927,7 @@
 			#size-cells = <0>;
 			reg = <0x15540000 0x2000>;
 			clocks = <&cmu_fsys CLK_ACLK_MMC0>,
-				<&cmu_fsys CLK_SCLK_MMC0>;
+				 <&cmu_fsys CLK_SCLK_MMC0>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
 
@@ -1904,7 +1942,7 @@
 			#size-cells = <0>;
 			reg = <0x15550000 0x2000>;
 			clocks = <&cmu_fsys CLK_ACLK_MMC1>,
-				<&cmu_fsys CLK_SCLK_MMC1>;
+				 <&cmu_fsys CLK_SCLK_MMC1>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
 
@@ -1919,7 +1957,7 @@
 			#size-cells = <0>;
 			reg = <0x15560000 0x2000>;
 			clocks = <&cmu_fsys CLK_ACLK_MMC2>,
-				<&cmu_fsys CLK_SCLK_MMC2>;
+				 <&cmu_fsys CLK_SCLK_MMC2>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
 
@@ -1974,8 +2012,8 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&cmu_aud CLK_PCLK_AUD_I2S>,
-					<&cmu_aud CLK_SCLK_AUD_I2S>,
-					<&cmu_aud CLK_SCLK_I2S_BCLK>;
+					 <&cmu_aud CLK_SCLK_AUD_I2S>,
+					 <&cmu_aud CLK_SCLK_I2S_BCLK>;
 				clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 				#clock-cells = <1>;
 				pinctrl-names = "default";
@@ -1991,7 +2029,7 @@
 				reg = <0x11460000 0x100>;
 				interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&cmu_aud CLK_PCLK_AUD_UART>,
-					<&cmu_aud CLK_SCLK_AUD_UART>;
+					 <&cmu_aud CLK_SCLK_AUD_UART>;
 				clock-names = "uart", "clk_uart_baud0";
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart_aud_bus>;
@@ -2037,14 +2075,10 @@
 
 	timer: timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 13
-				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 14
-				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 11
-				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
-			<GIC_PPI 10
-				(GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 };
 
