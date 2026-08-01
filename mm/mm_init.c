@@ -2671,6 +2671,8 @@ void __init __weak mem_init(void)
 
 void __init mm_core_init_early(void)
 {
+	kho_memory_init_early();
+
 	free_area_init();
 
 	hugetlb_cma_reserve();

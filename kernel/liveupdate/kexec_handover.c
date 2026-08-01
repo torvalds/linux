@@ -1537,8 +1537,6 @@ static void __init kho_mem_retrieve(void)
 	void *mem_map = kho_get_mem_map(fdt);
 	int err;
 
-	kho_scratch = phys_to_virt(kho_in.scratch_phys);
-
 	/*
 	 * kho_get_mem_map() should always succeed. If it fails, kho_populate()
 	 * catches that and never sets kho_in.scratch_phys, which stops memory
@@ -1761,6 +1759,19 @@ err_free_scratch:
 	return err;
 }
 fs_initcall(kho_init);
+
+void __init kho_memory_init_early(void)
+{
+	if (!is_kho_boot())
+		return;
+
+	/*
+	 * kho_scratch_overlap() needs kho_scratch to be initialized. It
+	 * is used by free_area_init() on KHO boots, so initialize it
+	 * early.
+	 */
+	kho_scratch = phys_to_virt(kho_in.scratch_phys);
+}
 
 void __init kho_memory_init(void)
 {
