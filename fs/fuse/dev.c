@@ -406,7 +406,8 @@ void fuse_chan_max_background_set(struct fuse_chan *fch, unsigned int val)
 	fch->max_background = val;
 	fch->blocked = fch->num_background >= fch->max_background;
 	if (!fch->blocked)
-		wake_up(&fch->blocked_waitq);
+		wake_up_nr(&fch->blocked_waitq,
+			   fch->max_background - fch->num_background);
 	spin_unlock(&fch->bg_lock);
 }
 
