@@ -42,7 +42,7 @@
 	};
 
 	/* USB0 MUX to switch connect to Card-Edge only after BootROM */
-	usb0_sec_mux: mux-controller{
+	usb0_sec_mux: mux-controller {
 		compatible = "gpio-mux";
 		#mux-control-cells = <0>;
 		mux-gpios = <&pio 3 9 GPIO_ACTIVE_HIGH>; /* PD9 */
