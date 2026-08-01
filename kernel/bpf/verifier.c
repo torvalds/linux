@@ -11072,7 +11072,6 @@ enum kfunc_ptr_arg_type {
 	KF_ARG_PTR_TO_CALLBACK,
 	KF_ARG_PTR_TO_RB_ROOT,
 	KF_ARG_PTR_TO_RB_NODE,
-	KF_ARG_PTR_TO_NULL,
 	KF_ARG_PTR_TO_CONST_STR,
 	KF_ARG_CONST_MAP_PTR,
 	KF_ARG_PTR_TO_TIMER,
@@ -11349,11 +11348,6 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 	    meta->func_id == special_kfunc_list[KF_bpf_session_cookie])
 		return KF_ARG_PTR_TO_CTX;
 
-	if (arg + 1 < nargs &&
-	    (is_kfunc_arg_mem_size(meta->btf, &args[arg + 1]) ||
-	     is_kfunc_arg_const_mem_size(meta->btf, &args[arg + 1])))
-		arg_mem_size = true;
-
 	/* In this function, we verify the kfunc's BTF as per the argument type,
 	 * leaving the rest of the verification with respect to the register
 	 * type to our caller. When a set of conditions hold in the BTF type of
@@ -11361,10 +11355,6 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 	 */
 	if (btf_is_prog_ctx_type(&env->log, meta->btf, t, resolve_prog_type(env->prog), arg))
 		return KF_ARG_PTR_TO_CTX;
-
-	if (is_kfunc_arg_nullable(meta->btf, &args[arg]) && bpf_register_is_null(reg) &&
-	    !arg_mem_size)
-		return KF_ARG_PTR_TO_NULL;
 
 	if (is_kfunc_arg_alloc_obj(meta->btf, &args[arg]))
 		return KF_ARG_PTR_TO_ALLOC_BTF_ID;
@@ -11426,6 +11416,11 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 
 	if (is_kfunc_arg_callback(env, meta->btf, &args[arg]))
 		return KF_ARG_PTR_TO_CALLBACK;
+
+	if (arg + 1 < nargs &&
+	    (is_kfunc_arg_mem_size(meta->btf, &args[arg + 1]) ||
+	     is_kfunc_arg_const_mem_size(meta->btf, &args[arg + 1])))
+		arg_mem_size = true;
 
 	/* This is the catch all argument type of register types supported by
 	 * check_helper_mem_access. However, we only allow when argument type is
@@ -12127,6 +12122,9 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		ref_t = btf_type_skip_modifiers(btf, t->type, &ref_id);
 		ref_tname = btf_name_by_offset(btf, ref_t->name_off);
 
+		if (is_kfunc_arg_nullable(meta->btf, &args[i]) && bpf_register_is_null(reg))
+			continue;
+
 		kf_arg_type = get_kfunc_ptr_arg_type(env, regs, meta, t, ref_t, ref_tname,
 						     args, i, nargs, argno, reg);
 		if (kf_arg_type < 0)
@@ -12139,8 +12137,6 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		}
 
 		switch (kf_arg_type) {
-		case KF_ARG_PTR_TO_NULL:
-			continue;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
 		case KF_ARG_PTR_TO_BTF_ID:
 			if (!is_trusted_reg(env, reg)) {
@@ -12405,19 +12401,16 @@ check_ok:
 		case KF_ARG_PTR_TO_MEM_SIZE:
 		{
 			struct bpf_reg_state *buff_reg = reg;
-			const struct btf_param *buff_arg = &args[i];
 			struct bpf_reg_state *size_reg = get_func_arg_reg(caller, regs, i + 1);
 			argno_t next_argno = argno_from_arg(i + 2);
 
-			if (!bpf_register_is_null(buff_reg) || !is_kfunc_arg_nullable(meta->btf, buff_arg)) {
-				ret = check_mem_size_reg(env, buff_reg, size_reg, argno, next_argno,
-							 BPF_READ | BPF_WRITE, true, meta);
-				if (ret < 0) {
-					verbose(env, "%s and ", reg_arg_name(env, argno));
-					verbose(env, "%s memory, len pair leads to invalid memory access\n",
-						reg_arg_name(env, next_argno));
-					return ret;
-				}
+			ret = check_mem_size_reg(env, buff_reg, size_reg, argno, next_argno,
+						 BPF_READ | BPF_WRITE, true, meta);
+			if (ret < 0) {
+				verbose(env, "%s and ", reg_arg_name(env, argno));
+				verbose(env, "%s memory, len pair leads to invalid memory access\n",
+					reg_arg_name(env, next_argno));
+				return ret;
 			}
 			break;
 		}
