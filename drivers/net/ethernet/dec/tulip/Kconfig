@@ -5,9 +5,9 @@
 
 config NET_TULIP
 	bool "DEC - Tulip devices"
-	depends on (PCI || EISA || CARDBUS)
+	depends on PCI
 	help
-	  This selects the "Tulip" family of EISA/PCI network cards.
+	  This selects the "Tulip" family of PCI network cards.
 
 if NET_TULIP
 
@@ -139,16 +139,4 @@ config ULI526X
 	  To compile this driver as a module, choose M here. The module will
 	  be called uli526x.
 	  
-config PCMCIA_XIRCOM
-	tristate "Xircom CardBus support"
-	depends on CARDBUS
-	help
-	  This driver is for the Digital "Tulip" Ethernet CardBus adapters.
-	  It should work with most DEC 21*4*-based chips/ethercards, as well
-	  as with work-alike chips from Lite-On (PNIC) and Macronix (MXIC) and
-	  ASIX.
-
-	  To compile this driver as a module, choose M here. The module will
-	  be called xircom_cb.  If unsure, say N.
-
 endif # NET_TULIP
