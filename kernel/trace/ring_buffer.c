@@ -405,11 +405,11 @@ static void free_buffer_page(struct buffer_page *bpage)
  */
 #define alloc_cpu_buffer(cpu) (struct ring_buffer_per_cpu *)		\
 	kzalloc_node(ALIGN(sizeof(struct ring_buffer_per_cpu),		\
-			   cache_line_size()), GFP_KERNEL, cpu_to_node(cpu));
+			   cache_line_size()), GFP_KERNEL, cpu_to_node(cpu))
 
 #define alloc_cpu_page(cpu) (struct buffer_page *)			\
 	kzalloc_node(ALIGN(sizeof(struct buffer_page),			\
-			   cache_line_size()), GFP_KERNEL, cpu_to_node(cpu));
+			   cache_line_size()), GFP_KERNEL, cpu_to_node(cpu))
 
 static struct buffer_data_page *alloc_cpu_data(int cpu, int order)
 {
