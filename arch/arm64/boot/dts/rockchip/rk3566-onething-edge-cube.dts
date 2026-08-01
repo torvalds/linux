@@ -310,7 +310,7 @@
 	status = "okay";
 };
 
-&usb_host1_xhci  {
+&usb_host1_xhci {
 	status = "okay";
 };
 
