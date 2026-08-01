@@ -156,6 +156,11 @@ static unsigned long kho_radix_get_table_index(unsigned long key,
  * intermediate nodes do not exist along the path, they are allocated and added
  * to the tree.
  *
+ * NOTE: Currently only keys of width up to %KHO_RADIX_KEY_WIDTH are supported.
+ * This limit only exists because current users of the radix tree don't use more
+ * than that. Changing the maximum width requires changing the tree depth, which
+ * needs bumping the ABI version.
+ *
  * Return: 0 on success, or a negative error code on failure.
  */
 int kho_radix_add_key(struct kho_radix_tree *tree, unsigned long key)
@@ -171,6 +176,9 @@ int kho_radix_add_key(struct kho_radix_tree *tree, unsigned long key)
 
 	if (WARN_ON_ONCE(!tree->root))
 		return -EINVAL;
+
+	if (unlikely(fls64(key) > KHO_RADIX_KEY_WIDTH))
+		return -ERANGE;
 
 	might_sleep();
 
@@ -242,6 +250,10 @@ void kho_radix_del_key(struct kho_radix_tree *tree, unsigned long key)
 	unsigned int i, idx;
 
 	if (WARN_ON_ONCE(!tree->root))
+		return;
+
+	/* Keys wider than KHO_RADIX_KEY_WIDTH are not allowed to be added. */
+	if (unlikely(fls64(key) > KHO_RADIX_KEY_WIDTH))
 		return;
 
 	might_sleep();
