@@ -32,6 +32,7 @@
 			vci-supply = <&s2mpg10_ldo22m>;
 			vddi-supply = <&s2mpg11_bucka>;
 			/* format properties to be added by actual board */
+
 			status = "disabled";
 		};
 	};
@@ -98,6 +99,7 @@
 			/* size to be updated by actual board */
 			reg = <0x0 0xfac00000 0x0>;
 			no-map;
+
 			status = "disabled";
 		};
 	};
@@ -856,8 +858,9 @@
 };
 
 &ufs_0 {
-	status = "okay";
 	vcc-supply = <&ufs_0_fixed_vcc_reg>;
+
+	status = "okay";
 };
 
 &ufs_0_phy {
@@ -867,6 +870,7 @@
 &usbdrd31 {
 	vdd10-supply = <&reg_placeholder>;
 	vdd33-supply = <&reg_placeholder>;
+
 	status = "okay";
 };
 
@@ -875,6 +879,7 @@
 	usb-role-switch;
 	role-switch-default-mode = "peripheral";
 	maximum-speed = "super-speed-plus";
+
 	status = "okay";
 
 	port {
@@ -893,6 +898,7 @@
 	vdd33-usb20-supply = <&reg_placeholder>;
 	vdda-usbdp-supply = <&reg_placeholder>;
 	vddh-usbdp-supply = <&reg_placeholder>;
+
 	status = "okay";
 
 	port {
@@ -904,20 +910,24 @@
 
 &usi_uart {
 	samsung,clkreq-on; /* needed for UART mode */
+
 	status = "okay";
 };
 
 &usi8 {
 	samsung,mode = <USI_MODE_I2C>;
+
 	status = "okay";
 };
 
 &usi12 {
 	samsung,mode = <USI_MODE_I2C>;
+
 	status = "okay";
 };
 
 &watchdog_cl0 {
 	timeout-sec = <30>;
+
 	status = "okay";
 };
