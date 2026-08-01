@@ -235,16 +235,17 @@ void mt7603_wtbl_set_smps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	sta->smps = enabled;
 }
 
-void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
-			bool enabled)
+static void
+__mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+		     bool enabled, bool filter)
 {
 	int idx = sta->wcid.idx;
 	u32 addr;
 
-	spin_lock_bh(&dev->ps_lock);
+	lockdep_assert_held(&dev->ps_lock);
 
 	if (sta->ps == enabled)
-		goto out;
+		return;
 
 	mt76_wr(dev, MT_PSE_RTA,
 		FIELD_PREP(MT_PSE_RTA_TAG_ID, idx) |
@@ -255,7 +256,7 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 
 	mt76_poll(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY, 0, 5000);
 
-	if (enabled)
+	if (enabled && filter)
 		mt7603_filter_tx(dev, sta->vif->idx, idx, false);
 
 	addr = mt7603_wtbl1_addr(idx);
@@ -264,8 +265,34 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 		 enabled * MT_WTBL1_W3_POWER_SAVE);
 	mt76_clear(dev, MT_WTBL1_OR, MT_WTBL1_OR_PSM_WRITE);
 	sta->ps = enabled;
+}
 
-out:
+void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
+			bool enabled)
+{
+	spin_lock_bh(&dev->ps_lock);
+	__mt7603_wtbl_set_ps(dev, sta, enabled, enabled);
+	spin_unlock_bh(&dev->ps_lock);
+}
+
+void mt7603_wtbl_sta_ps(struct mt7603_dev *dev, struct mt7603_sta *sta, bool ps)
+{
+	spin_lock_bh(&dev->ps_lock);
+	sta->ps_sleeping = ps;
+	__mt7603_wtbl_set_ps(dev, sta, ps, ps);
+	spin_unlock_bh(&dev->ps_lock);
+}
+
+void mt7603_wtbl_restore_ps(struct mt7603_dev *dev, struct mt7603_sta *sta)
+{
+	spin_lock_bh(&dev->ps_lock);
+	/*
+	 * Frames that are already queued for the station belong to the service
+	 * period that has just been served, so unlike on a sleep transition
+	 * they must not be pulled back into the PS queue.
+	 */
+	if (sta->ps_sleeping)
+		__mt7603_wtbl_set_ps(dev, sta, true, false);
 	spin_unlock_bh(&dev->ps_lock);
 }
 
@@ -1816,6 +1843,39 @@ out:
 	mt7603_adjust_sensitivity(dev);
 }
 
+/*
+ * Releasing buffered frames turns off the PSE redirect for a station, since
+ * the released frames would otherwise be looped back into the driver PS queue
+ * again. mac80211 never tells us when the service period is over, so hardware
+ * buffering has to be re-armed here for every station that is still known to
+ * be asleep. Waiting for the PSD queue to drain makes sure that the released
+ * frames have already passed the redirect stage.
+ */
+static void
+mt7603_mac_ps_check(struct mt7603_dev *dev)
+{
+	int i;
+
+	if (dev->mphy.q_tx[MT_TXQ_PSD]->queued)
+		return;
+
+	rcu_read_lock();
+	for (i = 0; i < MT7603_WTBL_STA; i++) {
+		struct mt76_wcid *wcid = mt76_wcid_ptr(dev, i);
+		struct mt7603_sta *msta;
+
+		if (!wcid || !wcid->sta)
+			continue;
+
+		msta = container_of(wcid, struct mt7603_sta, wcid);
+		if (msta->ps || !msta->ps_sleeping)
+			continue;
+
+		mt7603_wtbl_restore_ps(dev, msta);
+	}
+	rcu_read_unlock();
+}
+
 void mt7603_mac_work(struct work_struct *work)
 {
 	struct mt7603_dev *dev = container_of(work, struct mt7603_dev,
@@ -1830,6 +1890,7 @@ void mt7603_mac_work(struct work_struct *work)
 	dev->mphy.mac_work_count++;
 	mt76_update_survey(&dev->mphy);
 	mt7603_edcca_check(dev);
+	mt7603_mac_ps_check(dev);
 
 	for (i = 0, idx = 0; i < 2; i++) {
 		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
