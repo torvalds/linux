@@ -155,7 +155,7 @@ examples:
     #include <dt-bindings/clock/r8a7790-cpg-mssr.h>
     #include <dt-bindings/power/r8a7790-sysc.h>
 
-    pci@ee090000  {
+    pci@ee090000 {
         compatible = "renesas,pci-r8a7790", "renesas,pci-rcar-gen2";
         device_type = "pci";
         reg = <0xee090000 0xc00>,
