@@ -6871,11 +6871,11 @@ static int check_helper_mem_access(struct bpf_verifier_env *env, struct bpf_reg_
 static int check_mem_size_reg(struct bpf_verifier_env *env,
 			      struct bpf_reg_state *mem_reg,
 			      struct bpf_reg_state *size_reg, argno_t mem_argno,
-			      argno_t size_argno, enum bpf_access_type access_type,
+			      argno_t size_argno, u32 access_type,
 			      bool zero_size_allowed,
 			      struct bpf_call_arg_meta *meta)
 {
-	int err;
+	int err = 0;
 
 	/* This is used to refine r0 return value bounds for helpers
 	 * that enforce this value as an upper bound on return values.
@@ -6912,8 +6912,14 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 			reg_arg_name(env, size_argno));
 		return -EACCES;
 	}
-	err = check_helper_mem_access(env, mem_reg, mem_argno, reg_umax(size_reg),
-				      access_type, zero_size_allowed, meta);
+
+	if (access_type & BPF_READ)
+		err = check_helper_mem_access(env, mem_reg, mem_argno, reg_umax(size_reg),
+					      BPF_READ, zero_size_allowed, meta);
+	if (!err && access_type & BPF_WRITE)
+		err = check_helper_mem_access(env, mem_reg, mem_argno, reg_umax(size_reg),
+					      BPF_WRITE, zero_size_allowed, meta);
+
 	if (!err) {
 		int regno = reg_from_argno(size_argno);
 
@@ -6922,6 +6928,7 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 		else
 			err = mark_stack_arg_precision(env, arg_idx_from_argno(size_argno));
 	}
+
 	return err;
 }
 
@@ -6979,18 +6986,6 @@ static int process_const_alloc_mem_size(struct bpf_verifier_env *env, struct bpf
 	ret_mem->found = true;
 
 	return 0;
-}
-
-static int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg_state *mem_reg,
-				    struct bpf_reg_state *size_reg, argno_t mem_argno,
-				    argno_t size_argno, struct bpf_call_arg_meta *meta)
-{
-	int err;
-
-	err = check_mem_size_reg(env, mem_reg, size_reg, mem_argno, size_argno, BPF_READ, true, meta);
-	err = err ?: check_mem_size_reg(env, mem_reg, size_reg, mem_argno, size_argno, BPF_WRITE, true, meta);
-
-	return err;
 }
 
 enum {
@@ -12397,8 +12392,8 @@ check_ok:
 			argno_t next_argno = argno_from_arg(i + 2);
 
 			if (!bpf_register_is_null(buff_reg) || !is_kfunc_arg_nullable(meta->btf, buff_arg)) {
-				ret = check_kfunc_mem_size_reg(env, buff_reg, size_reg,
-							       argno, next_argno, meta);
+				ret = check_mem_size_reg(env, buff_reg, size_reg, argno, next_argno,
+							 BPF_READ | BPF_WRITE, true, meta);
 				if (ret < 0) {
 					verbose(env, "%s and ", reg_arg_name(env, argno));
 					verbose(env, "%s memory, len pair leads to invalid memory access\n",
