@@ -6669,7 +6669,7 @@ static int check_stack_range_initialized(
 	 */
 	bool clobber = type == BPF_WRITE;
 	/*
-	 * Negative access_size signals global subprog/kfunc arg check where
+	 * Negative access_size signals global subprog arg check where
 	 * STACK_POISON slots are acceptable. static stack liveness
 	 * might have determined that subprog doesn't read them,
 	 * but BTF based global subprog validation isn't accurate enough.
@@ -6933,9 +6933,10 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 }
 
 static int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-			 argno_t argno, u32 mem_size, struct bpf_call_arg_meta *meta)
+			 argno_t argno, u32 mem_size, enum bpf_access_type access_type,
+			 struct bpf_call_arg_meta *meta)
 {
-	int err;
+	int size, err = 0;
 
 	if (bpf_register_is_null(reg))
 		return 0;
@@ -6946,10 +6947,16 @@ static int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg
 		return -EACCES;
 	}
 
-	int size = base_type(reg->type) == PTR_TO_STACK ? -(int)mem_size : mem_size;
+	/*
+	 * Only a global subprog (meta == NULL) may read poisoned stack slots:
+	 * its static stack liveness proved the callee body skips them.
+	 */
+	size = (!meta && base_type(reg->type) == PTR_TO_STACK) ? -(int)mem_size : mem_size;
 
-	err = check_helper_mem_access(env, reg, argno, size, BPF_READ, true, meta);
-	err = err ?: check_helper_mem_access(env, reg, argno, size, BPF_WRITE, true, meta);
+	if (access_type & BPF_READ)
+		err = check_helper_mem_access(env, reg, argno, size, BPF_READ, true, meta);
+	if (!err && (access_type & BPF_WRITE))
+		err = check_helper_mem_access(env, reg, argno, size, BPF_WRITE, true, meta);
 
 	return err;
 }
@@ -8455,9 +8462,8 @@ skip_type_check:
 		 * next is_mem_size argument below.
 		 */
 		if (arg_type & MEM_FIXED_SIZE) {
-			err = check_helper_mem_access(env, reg, argno, fn->arg_size[arg],
-						      arg_type & MEM_WRITE ? BPF_WRITE : BPF_READ,
-						      false, meta);
+			err = check_mem_reg(env, reg, argno_from_reg(regno), fn->arg_size[arg],
+					    arg_type & MEM_WRITE ? BPF_WRITE : BPF_READ, meta);
 			if (err)
 				return err;
 			if (arg_type & MEM_ALIGNED)
@@ -9229,7 +9235,7 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 			ret = check_func_arg_reg_off(env, reg, argno, ARG_DONTCARE);
 			if (ret < 0)
 				return ret;
-			if (check_mem_reg(env, reg, argno, arg->mem_size, NULL))
+			if (check_mem_reg(env, reg, argno, arg->mem_size, BPF_READ | BPF_WRITE, NULL))
 				return -EINVAL;
 			if (!(arg->arg_type & PTR_MAYBE_NULL) &&
 			    (type_may_be_null(reg->type) || bpf_register_is_null(reg))) {
@@ -12379,7 +12385,7 @@ check_ok:
 					ref_tname, PTR_ERR(resolve_ret));
 				return -EINVAL;
 			}
-			ret = check_mem_reg(env, reg, argno, type_size, meta);
+			ret = check_mem_reg(env, reg, argno, type_size, BPF_READ | BPF_WRITE, meta);
 			if (ret < 0)
 				return ret;
 			break;
