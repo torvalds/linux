@@ -913,7 +913,7 @@ static bool ata_scsi_lpm_supported(struct ata_port *ap)
 		return false;
 
 	ata_for_each_link(link, ap, EDGE) {
-		ata_for_each_dev(dev, &ap->link, ENABLED) {
+		ata_for_each_dev(dev, link, ENABLED) {
 			if (dev->quirks & ATA_QUIRK_NOLPM)
 				return false;
 		}
