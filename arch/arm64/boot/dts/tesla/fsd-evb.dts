@@ -65,9 +65,10 @@
 };
 
 &ethernet0 {
+	phy-mode = "rgmii-id";
+
 	status = "okay";
 
-	phy-mode = "rgmii-id";
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
@@ -75,9 +76,10 @@
 };
 
 &ethernet1 {
+	phy-mode = "rgmii-id";
+
 	status = "okay";
 
-	phy-mode = "rgmii-id";
 	fixed-link {
 		speed = <1000>;
 		full-duplex;
