@@ -1228,6 +1228,7 @@ static int digi_startup_device(struct usb_serial *serial)
 
 static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
 {
+	struct digi_serial *serial_priv = usb_get_serial_data(port->serial);
 	struct digi_port *priv;
 
 	priv = kzalloc_obj(*priv);
@@ -1235,6 +1236,10 @@ static int digi_port_init(struct usb_serial_port *port, unsigned port_num)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->dp_port_lock);
+
+	if (port == serial_priv->ds_oob_port)
+		lockdep_set_subclass(&priv->dp_port_lock, SINGLE_DEPTH_NESTING);
+
 	priv->dp_port_num = port_num;
 	init_waitqueue_head(&priv->dp_transmit_idle_wait);
 	init_waitqueue_head(&priv->dp_flush_wait);
@@ -1279,14 +1284,14 @@ static int digi_startup(struct usb_serial *serial)
 	serial_priv->ds_oob_port_num = oob_port_num;
 	serial_priv->ds_oob_port = serial->port[oob_port_num];
 
+	usb_set_serial_data(serial, serial_priv);
+
 	ret = digi_port_init(serial_priv->ds_oob_port,
 						serial_priv->ds_oob_port_num);
 	if (ret) {
 		kfree(serial_priv);
 		return ret;
 	}
-
-	usb_set_serial_data(serial, serial_priv);
 
 	return 0;
 }
