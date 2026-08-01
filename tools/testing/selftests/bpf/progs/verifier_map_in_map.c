@@ -154,7 +154,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("socket")
 __description("forgot null checking on the inner map pointer")
-__failure __msg("R1 type=map_value_or_null expected=map_ptr")
+__failure __msg("R1 type=map_ptr_or_null expected=map_ptr")
 __failure_unpriv
 __naked void on_the_inner_map_pointer(void)
 {

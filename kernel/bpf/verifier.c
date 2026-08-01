@@ -1854,32 +1854,34 @@ static void __mark_dynptr_reg(struct bpf_reg_state *reg, enum bpf_dynptr_type ty
 	reg->dynptr.first_slot = first_slot;
 }
 
+/*
+ * Refine the return type of the bpf_map_lookup_elem() for special map types:
+ * map-in-map, xskmap, sockmap and sockhash.
+ */
+static void refine_map_lookup_value(struct bpf_reg_state *reg)
+{
+	enum bpf_type_flag maybe_null = reg->type & PTR_MAYBE_NULL;
+	const struct bpf_map *map = reg->map_ptr;
+
+	if (map->inner_map_meta) {
+		reg->type = CONST_PTR_TO_MAP | maybe_null;
+		reg->map_ptr = map->inner_map_meta;
+		/* transfer reg's id which is unique for every map_lookup_elem
+		 * as UID of the inner map.
+		 */
+		if (btf_record_has_field(map->inner_map_meta->record,
+					 BPF_TIMER | BPF_WORKQUEUE | BPF_TASK_WORK))
+			reg->map_uid = reg->id;
+	} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
+		reg->type = PTR_TO_XDP_SOCK | maybe_null;
+	} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
+		   map->map_type == BPF_MAP_TYPE_SOCKHASH) {
+		reg->type = PTR_TO_SOCKET | maybe_null;
+	}
+}
+
 static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
 {
-	if (base_type(reg->type) == PTR_TO_MAP_VALUE) {
-		const struct bpf_map *map = reg->map_ptr;
-
-		if (map->inner_map_meta) {
-			reg->type = CONST_PTR_TO_MAP;
-			reg->map_ptr = map->inner_map_meta;
-			/* transfer reg's id which is unique for every map_lookup_elem
-			 * as UID of the inner map.
-			 */
-			if (btf_record_has_field(map->inner_map_meta->record,
-						 BPF_TIMER | BPF_WORKQUEUE | BPF_TASK_WORK)) {
-				reg->map_uid = reg->id;
-			}
-		} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
-			reg->type = PTR_TO_XDP_SOCK;
-		} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
-			   map->map_type == BPF_MAP_TYPE_SOCKHASH) {
-			reg->type = PTR_TO_SOCKET;
-		} else {
-			reg->type = PTR_TO_MAP_VALUE;
-		}
-		return;
-	}
-
 	reg->type &= ~PTR_MAYBE_NULL;
 }
 
@@ -6926,8 +6928,6 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 static int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
 			 argno_t argno, u32 mem_size, struct bpf_call_arg_meta *meta)
 {
-	bool may_be_null = type_may_be_null(reg->type);
-	struct bpf_reg_state saved_reg;
 	int err;
 
 	if (bpf_register_is_null(reg))
@@ -6939,22 +6939,10 @@ static int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg
 		return -EACCES;
 	}
 
-	/* Assuming that the register contains a value check if the memory
-	 * access is safe. Temporarily save and restore the register's state as
-	 * the conversion shouldn't be visible to a caller.
-	 */
-	if (may_be_null) {
-		saved_reg = *reg;
-		mark_ptr_not_null_reg(reg);
-	}
-
 	int size = base_type(reg->type) == PTR_TO_STACK ? -(int)mem_size : mem_size;
 
 	err = check_helper_mem_access(env, reg, argno, size, BPF_READ, true, meta);
 	err = err ?: check_helper_mem_access(env, reg, argno, size, BPF_WRITE, true, meta);
-
-	if (may_be_null)
-		*reg = saved_reg;
 
 	return err;
 }
@@ -6997,20 +6985,10 @@ static int check_kfunc_mem_size_reg(struct bpf_verifier_env *env, struct bpf_reg
 				    struct bpf_reg_state *size_reg, argno_t mem_argno,
 				    argno_t size_argno, struct bpf_call_arg_meta *meta)
 {
-	bool may_be_null = type_may_be_null(mem_reg->type);
-	struct bpf_reg_state saved_reg;
 	int err;
-
-	if (may_be_null) {
-		saved_reg = *mem_reg;
-		mark_ptr_not_null_reg(mem_reg);
-	}
 
 	err = check_mem_size_reg(env, mem_reg, size_reg, mem_argno, size_argno, BPF_READ, true, meta);
 	err = err ?: check_mem_size_reg(env, mem_reg, size_reg, mem_argno, size_argno, BPF_WRITE, true, meta);
-
-	if (may_be_null)
-		*mem_reg = saved_reg;
 
 	return err;
 }
@@ -10522,10 +10500,12 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		regs[BPF_REG_0].map_ptr = meta.map.ptr;
 		regs[BPF_REG_0].map_uid = meta.map.uid;
 		regs[BPF_REG_0].type = PTR_TO_MAP_VALUE | ret_flag;
-		if (!type_may_be_null(ret_flag) &&
+		if (type_may_be_null(ret_flag) ||
 		    btf_record_has_field(meta.map.ptr->record, BPF_SPIN_LOCK | BPF_RES_SPIN_LOCK)) {
 			regs[BPF_REG_0].id = ++env->id_gen;
 		}
+		/* requires regs[BPF_REG_0].id to be set because of the map-in-map case */
+		refine_map_lookup_value(&regs[BPF_REG_0]);
 		break;
 	case RET_PTR_TO_SOCKET:
 		mark_reg_known_zero(env, regs, BPF_REG_0);
@@ -10623,7 +10603,7 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 		return -EINVAL;
 	}
 
-	if (type_may_be_null(regs[BPF_REG_0].type))
+	if (type_may_be_null(regs[BPF_REG_0].type) && !regs[BPF_REG_0].id)
 		regs[BPF_REG_0].id = ++env->id_gen;
 
 	if (is_ptr_cast_function(func_id) &&
@@ -12370,7 +12350,8 @@ check_ok:
 				return ret;
 			break;
 		case KF_ARG_CONST_MAP_PTR:
-			if (base_type(reg->type) != CONST_PTR_TO_MAP) {
+			if (base_type(reg->type) != CONST_PTR_TO_MAP ||
+			    type_may_be_null(reg->type)) {
 				verbose(env, "pointer in %s isn't map pointer\n",
 					reg_arg_name(env, argno));
 				return -EINVAL;
