@@ -583,6 +583,14 @@ fail:
 
 }
 #else
+static int decompress_zstd(char *src __always_unused,
+			   size_t slen __always_unused,
+			   char *dst __always_unused,
+			   size_t dlen __always_unused)
+{
+	return -EINVAL;
+}
+
 static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf __always_unused,
 						  size_t buffer_size __always_unused,
 						  loff_t *pos __always_unused,
@@ -1450,6 +1458,12 @@ static int seq_ns_name_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+SEQ_NS_FOPS(stacked);
+SEQ_NS_FOPS(nsstacked);
+SEQ_NS_FOPS(level);
+SEQ_NS_FOPS(name);
+
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 static int seq_ns_compress_min_show(struct seq_file *seq, void *v)
 {
 	seq_printf(seq, "%d\n", AA_MIN_CLEVEL);
@@ -1462,16 +1476,11 @@ static int seq_ns_compress_max_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-SEQ_NS_FOPS(stacked);
-SEQ_NS_FOPS(nsstacked);
-SEQ_NS_FOPS(level);
-SEQ_NS_FOPS(name);
 SEQ_NS_FOPS(compress_min);
 SEQ_NS_FOPS(compress_max);
 
 
 /* policy/raw_data/ * file ops */
-#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 #define SEQ_RAWDATA_FOPS(NAME)						      \
 static int seq_rawdata_ ##NAME ##_open(struct inode *inode, struct file *file)\
 {									      \
@@ -2681,7 +2690,7 @@ static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
 	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
 	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
-#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 	AA_SFS_FILE_FOPS("raw_data_compression_level_min", 0444, &seq_ns_compress_min_fops),
 	AA_SFS_FILE_FOPS("raw_data_compression_level_max", 0444, &seq_ns_compress_max_fops),
 #endif
