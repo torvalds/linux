@@ -755,6 +755,7 @@
 				<&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -766,6 +767,7 @@
 				<&cmu_peris CLK_SCLK_TMU0>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -777,6 +779,7 @@
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -788,6 +791,7 @@
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -799,6 +803,7 @@
 				<&cmu_peris CLK_SCLK_TMU1>;
 			clock-names = "tmu_apbif", "tmu_sclk";
 			#thermal-sensor-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -825,24 +830,28 @@
 		ppmu_d0_cpu: ppmu@10480000 {
 			compatible = "samsung,exynos-ppmu-v2";
 			reg = <0x10480000 0x2000>;
+
 			status = "disabled";
 		};
 
 		ppmu_d0_general: ppmu@10490000 {
 			compatible = "samsung,exynos-ppmu-v2";
 			reg = <0x10490000 0x2000>;
+
 			status = "disabled";
 		};
 
 		ppmu_d1_cpu: ppmu@104b0000 {
 			compatible = "samsung,exynos-ppmu-v2";
 			reg = <0x104b0000 0x2000>;
+
 			status = "disabled";
 		};
 
 		ppmu_d1_general: ppmu@104c0000 {
 			compatible = "samsung,exynos-ppmu-v2";
 			reg = <0x104c0000 0x2000>;
+
 			status = "disabled";
 		};
 
@@ -972,9 +981,10 @@
 				     <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
 			samsung,disp-sysreg = <&syscon_disp>;
-			status = "disabled";
 			iommus = <&sysmmu_decon0x>, <&sysmmu_decon1x>;
 			iommu-names = "m0", "m1";
+
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -1015,9 +1025,10 @@
 			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 212 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
 			iommus = <&sysmmu_tv0x>, <&sysmmu_tv1x>;
 			iommu-names = "m0", "m1";
+
+			status = "disabled";
 		};
 
 		dsi: dsi@13900000 {
@@ -1037,9 +1048,10 @@
 					"sclk_rgb_vclk_to_dsim0",
 					"sclk_mipi";
 			power-domains = <&pd_disp>;
-			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			status = "disabled";
 
 			ports {
 				#address-cells = <1>;
@@ -1062,6 +1074,7 @@
 			clock-names = "pclk_mic0", "sclk_rgb_vclk_to_mic0";
 			power-domains = <&pd_disp>;
 			samsung,disp-syscon = <&syscon_disp>;
+
 			status = "disabled";
 
 			ports {
@@ -1108,6 +1121,7 @@
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			samsung,sysreg-phandle = <&syscon_disp>;
 			#sound-dai-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -1195,6 +1209,7 @@
 			clock-names = "core";
 			power-domains = <&pd_g3d>;
 			operating-points-v2 = <&gpu_opp_table>;
+
 			status = "disabled";
 
 			gpu_opp_table: opp-table {
@@ -1426,6 +1441,7 @@
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_bus>;
+
 			status = "disabled";
 		};
 
@@ -1438,6 +1454,7 @@
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_bus>;
+
 			status = "disabled";
 		};
 
@@ -1450,6 +1467,7 @@
 			clock-names = "uart", "clk_uart_baud0";
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_bus>;
+
 			status = "disabled";
 		};
 
@@ -1470,6 +1488,7 @@
 			pinctrl-0 = <&spi0_bus>;
 			num-cs = <1>;
 			fifo-depth = <256>;
+
 			status = "disabled";
 		};
 
@@ -1490,6 +1509,7 @@
 			pinctrl-0 = <&spi1_bus>;
 			num-cs = <1>;
 			fifo-depth = <64>;
+
 			status = "disabled";
 		};
 
@@ -1510,6 +1530,7 @@
 			pinctrl-0 = <&spi2_bus>;
 			num-cs = <1>;
 			fifo-depth = <64>;
+
 			status = "disabled";
 		};
 
@@ -1530,6 +1551,7 @@
 			pinctrl-0 = <&spi3_bus>;
 			num-cs = <1>;
 			fifo-depth = <64>;
+
 			status = "disabled";
 		};
 
@@ -1550,6 +1572,7 @@
 			pinctrl-0 = <&spi4_bus>;
 			num-cs = <1>;
 			fifo-depth = <64>;
+
 			status = "disabled";
 		};
 
@@ -1560,6 +1583,7 @@
 			clock-names = "adc";
 			clocks = <&cmu_peric CLK_PCLK_ADCIF>;
 			#io-channel-cells = <1>;
+
 			status = "disabled";
 		};
 
@@ -1575,6 +1599,7 @@
 			clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 			#clock-cells = <1>;
 			#sound-dai-cells = <1>;
+
 			status = "disabled";
 		};
 
@@ -1590,6 +1615,7 @@
 			clocks = <&cmu_peric CLK_PCLK_PWM>;
 			clock-names = "timers";
 			#pwm-cells = <3>;
+
 			status = "disabled";
 		};
 
@@ -1604,6 +1630,7 @@
 			pinctrl-0 = <&hs_i2c0_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C0>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1618,6 +1645,7 @@
 			pinctrl-0 = <&hs_i2c1_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C1>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1632,6 +1660,7 @@
 			pinctrl-0 = <&hs_i2c2_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C2>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1646,6 +1675,7 @@
 			pinctrl-0 = <&hs_i2c3_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C3>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1660,6 +1690,7 @@
 			pinctrl-0 = <&hs_i2c4_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C4>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1674,6 +1705,7 @@
 			pinctrl-0 = <&hs_i2c5_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C5>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1688,6 +1720,7 @@
 			pinctrl-0 = <&hs_i2c6_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C6>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1702,6 +1735,7 @@
 			pinctrl-0 = <&hs_i2c7_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C7>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1716,6 +1750,7 @@
 			pinctrl-0 = <&hs_i2c8_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C8>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1730,6 +1765,7 @@
 			pinctrl-0 = <&hs_i2c9_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C9>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1744,6 +1780,7 @@
 			pinctrl-0 = <&hs_i2c10_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C10>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1758,6 +1795,7 @@
 			pinctrl-0 = <&hs_i2c11_bus>;
 			clocks = <&cmu_peric CLK_PCLK_HSI2C11>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -1771,6 +1809,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x15400000 0x10000>;
+
 			status = "disabled";
 
 			usbdrd_dwc3: usb@0 {
@@ -1797,6 +1836,7 @@
 					"itp";
 			#phy-cells = <1>;
 			samsung,pmu-syscon = <&pmu_system_controller>;
+
 			status = "disabled";
 		};
 
@@ -1811,6 +1851,7 @@
 					"itp";
 			#phy-cells = <1>;
 			samsung,pmu-syscon = <&pmu_system_controller>;
+
 			status = "disabled";
 		};
 
@@ -1824,6 +1865,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x15a00000 0x10000>;
+
 			status = "disabled";
 
 			usbhost_dwc3: usb@0 {
@@ -1850,6 +1892,7 @@
 				<&cmu_fsys CLK_SCLK_MMC0>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -1864,6 +1907,7 @@
 				<&cmu_fsys CLK_SCLK_MMC1>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -1878,6 +1922,7 @@
 				<&cmu_fsys CLK_SCLK_MMC2>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -1937,6 +1982,7 @@
 				pinctrl-0 = <&i2s0_bus>;
 				power-domains = <&pd_aud>;
 				#sound-dai-cells = <1>;
+
 				status = "disabled";
 			};
 
@@ -1950,6 +1996,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&uart_aud_bus>;
 				power-domains = <&pd_aud>;
+
 				status = "disabled";
 			};
 		};
@@ -1960,6 +2007,7 @@
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			samsung,fsys-sysreg = <&syscon_fsys>;
 			#phy-cells = <0>;
+
 			status = "disabled";
 		};
 
@@ -1982,6 +2030,7 @@
 			phys = <&pcie_phy>;
 			ranges = <0x81000000 0 0	  0x0c001000 0 0x00010000>,
 				 <0x82000000 0 0x0c011000 0x0c011000 0 0x03feefff>;
+
 			status = "disabled";
 		};
 	};

@@ -103,11 +103,13 @@
 &pwm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_tout3>;
+
 	status = "okay";
 };
 
 &serial_0 {
 	pinctrl-0 = <&uart0_bus_dual>;
+
 	status = "okay";
 };
 
@@ -120,17 +122,20 @@
 };
 
 &ufs_0 {
-	status = "okay";
 	vcc-supply = <&ufs_0_fixed_vcc_reg>;
+
+	status = "okay";
 };
 
 &ufs_1 {
-	status = "okay";
 	vcc-supply = <&ufs_1_fixed_vcc_reg>;
+
+	status = "okay";
 };
 
 &usi_0 {
 	samsung,clkreq-on; /* needed for UART mode */
+
 	status = "okay";
 };
 

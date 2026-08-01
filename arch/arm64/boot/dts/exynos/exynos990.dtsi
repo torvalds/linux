@@ -320,6 +320,7 @@
 			clock-names = "phy", "ref";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <1>;
+
 			status = "disabled";
 		};
 
@@ -332,6 +333,7 @@
 			clock-names = "bus_early", "ref";
 			#address-cells = <1>;
 			#size-cells = <1>;
+
 			status = "disabled";
 
 			usbdrd_dwc3: usb@0 {

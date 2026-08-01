@@ -307,6 +307,7 @@
 				 <&cmu_fsys CLK_GOUT_MMC_EMBD_SDCLKIN>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -321,6 +322,7 @@
 				 <&cmu_peri CLK_GOUT_UART0_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <64>;
+
 			status = "disabled";
 		};
 
@@ -335,6 +337,7 @@
 				 <&cmu_peri CLK_GOUT_UART1_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <256>;
+
 			status = "disabled";
 		};
 
@@ -349,6 +352,7 @@
 				 <&cmu_peri CLK_GOUT_UART2_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <256>;
+
 			status = "disabled";
 		};
 
@@ -363,6 +367,7 @@
 			pinctrl-0 = <&i2c0_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C0_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -377,6 +382,7 @@
 			pinctrl-0 = <&i2c1_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C1_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -391,6 +397,7 @@
 			pinctrl-0 = <&i2c2_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C2_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -405,6 +412,7 @@
 			pinctrl-0 = <&i2c3_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C3_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -419,6 +427,7 @@
 			pinctrl-0 = <&i2c4_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C4_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -433,6 +442,7 @@
 			pinctrl-0 = <&i2c5_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C5_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -447,6 +457,7 @@
 			pinctrl-0 = <&i2c6_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C6_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 
@@ -461,6 +472,7 @@
 			pinctrl-0 = <&i2c7_bus>;
 			clocks = <&cmu_peri CLK_GOUT_I2C7_PCLK>;
 			clock-names = "i2c";
+
 			status = "disabled";
 		};
 	};

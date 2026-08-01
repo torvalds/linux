@@ -286,6 +286,7 @@
 			clocks = <&clock_peric0 PCLK_UART0>,
 				 <&clock_peric0 SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
+
 			status = "disabled";
 		};
 
@@ -296,6 +297,7 @@
 			clocks = <&clock_peric1 PCLK_UART1>,
 				 <&clock_peric1 SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
+
 			status = "disabled";
 		};
 
@@ -306,6 +308,7 @@
 			clocks = <&clock_peric1 PCLK_UART2>,
 				 <&clock_peric1 SCLK_UART2>;
 			clock-names = "uart", "clk_uart_baud0";
+
 			status = "disabled";
 		};
 
@@ -316,6 +319,7 @@
 			clocks = <&clock_peric1 PCLK_UART3>,
 				 <&clock_peric1 SCLK_UART3>;
 			clock-names = "uart", "clk_uart_baud0";
+
 			status = "disabled";
 		};
 
@@ -388,6 +392,7 @@
 			pinctrl-0 = <&hs_i2c0_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C0>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -401,6 +406,7 @@
 			pinctrl-0 = <&hs_i2c1_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C1>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -414,6 +420,7 @@
 			pinctrl-0 = <&hs_i2c2_bus>;
 			clocks = <&clock_peric1 PCLK_HSI2C2>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -427,6 +434,7 @@
 			pinctrl-0 = <&hs_i2c3_bus>;
 			clocks = <&clock_peric1 PCLK_HSI2C3>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -440,6 +448,7 @@
 			pinctrl-0 = <&hs_i2c4_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C4>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -453,6 +462,7 @@
 			pinctrl-0 = <&hs_i2c5_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C5>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -466,6 +476,7 @@
 			pinctrl-0 = <&hs_i2c6_bus>;
 			clocks = <&clock_peric1 PCLK_HSI2C6>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -479,6 +490,7 @@
 			pinctrl-0 = <&hs_i2c7_bus>;
 			clocks = <&clock_peric1 PCLK_HSI2C7>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -492,6 +504,7 @@
 			pinctrl-0 = <&hs_i2c8_bus>;
 			clocks = <&clock_peric1 PCLK_HSI2C8>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -505,6 +518,7 @@
 			pinctrl-0 = <&hs_i2c9_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C9>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -518,6 +532,7 @@
 			pinctrl-0 = <&hs_i2c10_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C10>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -531,6 +546,7 @@
 			pinctrl-0 = <&hs_i2c11_bus>;
 			clocks = <&clock_peric0 PCLK_HSI2C11>;
 			clock-names = "hsi2c";
+
 			status = "disabled";
 		};
 
@@ -546,6 +562,7 @@
 				     <GIC_SPI 356 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_ccore PCLK_RTC>;
 			clock-names = "rtc";
+
 			status = "disabled";
 		};
 
@@ -556,6 +573,7 @@
 			clocks = <&clock_peris PCLK_WDT>;
 			clock-names = "watchdog";
 			samsung,syscon-phandle = <&pmu_system_controller>;
+
 			status = "disabled";
 		};
 
@@ -567,6 +585,7 @@
 				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "job", "mmu", "gpu";
+
 			status = "disabled";
 			/* TODO: operating points for DVFS, cooling device */
 		};
@@ -581,6 +600,7 @@
 				 <&clock_top1 CLK_SCLK_MMC0>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -594,6 +614,7 @@
 				 <&clock_top1 CLK_SCLK_MMC1>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -607,6 +628,7 @@
 				 <&clock_top1 CLK_SCLK_MMC2>;
 			clock-names = "biu", "ciu";
 			fifo-depth = <0x40>;
+
 			status = "disabled";
 		};
 
@@ -617,6 +639,7 @@
 			clocks = <&clock_peric0 PCLK_ADCIF>;
 			clock-names = "adc";
 			#io-channel-cells = <1>;
+
 			status = "disabled";
 		};
 
@@ -660,6 +683,7 @@
 			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
 			phys = <&ufs_phy>;
 			phy-names = "ufs-phy";
+
 			status = "disabled";
 		};
 
