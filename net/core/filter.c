@@ -5645,6 +5645,7 @@ static int sol_ip_sockopt(struct sock *sk, int optname,
 
 	switch (optname) {
 	case IP_TOS:
+	case IP_TRANSPARENT:
 		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
@@ -5671,6 +5672,7 @@ static int sol_ipv6_sockopt(struct sock *sk, int optname,
 	switch (optname) {
 	case IPV6_TCLASS:
 	case IPV6_AUTOFLOWLABEL:
+	case IPV6_TRANSPARENT:
 		if (*optlen != sizeof(int))
 			return -EINVAL;
 		break;
