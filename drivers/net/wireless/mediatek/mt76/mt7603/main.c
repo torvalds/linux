@@ -464,8 +464,10 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 	struct sk_buff_head list;
 	struct sk_buff *skb, *tmp, *last;
 	bool eosp_null, uapsd;
+	unsigned long drained;
 	u16 pending = 0;
 	u8 last_tid;
+	int i;
 
 	__skb_queue_head_init(&list);
 
@@ -488,6 +490,15 @@ mt7603_release_buffered_frames(struct ieee80211_hw *hw,
 	skb_queue_walk(&msta->psq, skb)
 		pending |= BIT(skb->priority);
 	spin_unlock_bh(&dev->ps_lock);
+
+	/*
+	 * Without this, mac80211 keeps the TIM bit set for the station and
+	 * keeps routing every service period to the driver, even though there
+	 * is nothing left to release.
+	 */
+	drained = tids & ~pending;
+	for_each_set_bit(i, &drained, IEEE80211_NUM_TIDS)
+		ieee80211_sta_set_buffered(sta, i, false);
 
 	last = skb_peek_tail(&list);
 	if (!last) {
