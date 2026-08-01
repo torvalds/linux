@@ -81,7 +81,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     dsp@10803000 {
-        compatible =  "mediatek,mt8195-dsp";
+        compatible = "mediatek,mt8195-dsp";
         reg = <0x10803000 0x1000>,
               <0x10840000 0x40000>;
         reg-names = "cfg", "sram";

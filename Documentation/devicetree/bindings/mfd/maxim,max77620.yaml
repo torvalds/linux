@@ -311,7 +311,7 @@ examples:
                 in-sd3-supply = <&vdd_5v0_vbus>;
 
                 in-ldo0-1-supply = <&vdd_1v8_vio>;
-                in-ldo2-supply   = <&vdd_3v3_vbat>;
+                in-ldo2-supply = <&vdd_3v3_vbat>;
                 in-ldo3-5-supply = <&vdd_3v3_vbat>;
                 in-ldo4-6-supply = <&vdd_3v3_vbat>;
                 in-ldo7-8-supply = <&vdd_1v8_vio>;

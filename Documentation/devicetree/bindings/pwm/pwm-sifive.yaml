@@ -62,7 +62,7 @@ additionalProperties: false
 
 examples:
   - |
-    pwm:  pwm@10020000 {
+    pwm@10020000 {
       compatible = "sifive,fu540-c000-pwm", "sifive,pwm0";
       reg = <0x10020000 0x1000>;
       clocks = <&tlclk>;
