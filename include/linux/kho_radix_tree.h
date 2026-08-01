@@ -11,15 +11,19 @@
 /**
  * DOC: Kexec Handover Radix Tree
  *
- * This is a radix tree implementation for tracking physical memory pages
- * across kexec transitions. It was developed for the KHO mechanism but is
- * designed for broader use by any subsystem that needs to preserve pages.
+ * This is a radix tree implementation for tracking numeric keys across kexec
+ * transitions. It was developed for the KHO preserved memory map but is
+ * designed for broader use by any subsystem that needs to track keys.
+ * Conceptually speaking, the data structure is similar to a set. It tracks the
+ * presence or absence of numeric keys.
  *
  * The radix tree is a multi-level tree where leaf nodes are bitmaps
- * representing individual pages. To allow pages of different sizes (orders)
+ * representing individual keys.
+ *
+ * For the KHO preserved memory map, to allow pages of different sizes (orders)
  * to be stored efficiently in a single tree, it uses a unique key encoding
- * scheme. Each key is an unsigned long that combines a page's physical
- * address and its order.
+ * scheme. Each key is an unsigned long that combines a page's physical address
+ * and its order.
  *
  * Client code is responsible for allocating the root node of the tree,
  * initializing the mutex lock, and managing its lifecycle. It must use the
@@ -34,30 +38,24 @@ struct kho_radix_tree {
 	struct mutex lock; /* protects the tree's structure and root pointer */
 };
 
-typedef int (*kho_radix_tree_walk_callback_t)(phys_addr_t phys,
-					      unsigned int order);
+typedef int (*kho_radix_tree_walk_callback_t)(unsigned long key);
 
 #ifdef CONFIG_KEXEC_HANDOVER
 
-int kho_radix_add_page(struct kho_radix_tree *tree, unsigned long pfn,
-		       unsigned int order);
-
-void kho_radix_del_page(struct kho_radix_tree *tree, unsigned long pfn,
-			unsigned int order);
-
+int kho_radix_add_key(struct kho_radix_tree *tree, unsigned long key);
+void kho_radix_del_key(struct kho_radix_tree *tree, unsigned long key);
 int kho_radix_walk_tree(struct kho_radix_tree *tree,
 			kho_radix_tree_walk_callback_t cb);
 
 #else  /* #ifdef CONFIG_KEXEC_HANDOVER */
 
-static inline int kho_radix_add_page(struct kho_radix_tree *tree, long pfn,
-				     unsigned int order)
+static inline int kho_radix_add_key(struct kho_radix_tree *tree, unsigned long key)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline void kho_radix_del_page(struct kho_radix_tree *tree,
-				      unsigned long pfn, unsigned int order) { }
+static inline void kho_radix_del_key(struct kho_radix_tree *tree,
+				     unsigned long key) { }
 
 static inline int kho_radix_walk_tree(struct kho_radix_tree *tree,
 				      kho_radix_tree_walk_callback_t cb)
