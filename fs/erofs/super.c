@@ -607,11 +607,11 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_op = &erofs_sops;
 
 	if (!sbi->domain_id && test_opt(&sbi->opt, INODE_SHARE)) {
-		errorfc(fc, "domain_id is needed when inode_ishare is on");
+		errorfc(fc, "domain_id is needed when inode_share is on");
 		return -EINVAL;
 	}
 	if (test_opt(&sbi->opt, DAX_ALWAYS) && test_opt(&sbi->opt, INODE_SHARE)) {
-		errorfc(fc, "FSDAX is not allowed when inode_ishare is on");
+		errorfc(fc, "FSDAX is not allowed when inode_share is on");
 		return -EINVAL;
 	}
 
