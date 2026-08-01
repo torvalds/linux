@@ -69,6 +69,7 @@ int ksmbd_decompress_request(struct ksmbd_conn *conn)
 	*(__be32 *)out = cpu_to_be32(out_size);
 	rc = smb_compression_decompress(conn->compress_algorithm,
 					conn->compress_chained,
+					conn->compress_pattern,
 					buf, pdu_size, out + 4, out_size);
 	if (rc) {
 		kvfree(out);
