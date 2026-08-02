@@ -557,9 +557,6 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;
 	}
 
-	if (tx->skb->protocol == htons(ETH_P_PREAUTH))
-		info->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-
 	return TX_CONTINUE;
 }
 
