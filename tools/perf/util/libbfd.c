@@ -552,6 +552,11 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 	info_linear = info_node->info_linear;
 	sub_id = dso__bpf_prog(dso)->sub_id;
 
+	/* jited_prog_insns is only valid if bpil_offs_to_addr() converted it */
+	if (!(info_linear->arrays & (1UL << PERF_BPIL_JITED_INSNS))) {
+		ret = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
+		goto out;
+	}
 	info.buffer = (void *)(uintptr_t)(info_linear->info.jited_prog_insns);
 	info.buffer_length = info_linear->info.jited_prog_len;
 
@@ -580,6 +585,12 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 #endif
 	if (disassemble == NULL)
 		abort();
+
+	/* jited_ksyms is only valid if bpil_offs_to_addr() converted it */
+	if (!(info_linear->arrays & (1UL << PERF_BPIL_JITED_KSYMS))) {
+		ret = SYMBOL_ANNOTATE_ERRNO__BPF_MISSING_BTF;
+		goto out;
+	}
 
 	fflush(s);
 	do {
