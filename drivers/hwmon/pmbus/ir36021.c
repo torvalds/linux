@@ -31,21 +31,13 @@ static int ir36021_probe(struct i2c_client *client)
 	u8 buf[I2C_SMBUS_BLOCK_MAX];
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE_DATA
-				     | I2C_FUNC_SMBUS_READ_WORD_DATA
-				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return -ENODEV;
-
-	ret = i2c_smbus_read_i2c_block_data(client, PMBUS_MFR_MODEL, 2, buf);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to read PMBUS_MFR_MODEL\n");
-		return ret;
-	}
-	if (ret != 2 || buf[0] != 0x01 || buf[1] != 0x2d) {
-		dev_err(&client->dev, "MFR_MODEL unrecognised\n");
-		return -ENODEV;
-	}
+	ret = pmbus_read_smbus_i2c_block_data(client, PMBUS_MFR_MODEL, buf);
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to read PMBUS_MFR_MODEL\n");
+	if (ret != 1 || buf[0] != 0x2d)
+		return dev_err_probe(&client->dev, -ENODEV,
+				     "MFR_MODEL unrecognised\n");
 
 	return pmbus_do_probe(client, &ir36021_info);
 }
