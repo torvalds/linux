@@ -1063,10 +1063,12 @@ struct rtw89_mac_gen_def {
 	const u32 *mem_base_addrs;
 	u32 mem_page_size;
 	u32 rx_fltr;
+	u32 default_rx_fltr;
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
 	u32 ps_status;
 	const struct rtw89_mac_mu_gid_addr *mu_gid;
+	u32 boot_dbg;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
@@ -1100,6 +1102,7 @@ struct rtw89_mac_gen_def {
 	int (*cfg_ppdu_status)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 	void (*cfg_phy_rpt)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 	void (*set_edcca_mode)(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal);
+	void (*set_vcore_cfg)(struct rtw89_dev *rtwdev, u8 vlv);
 
 	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
 	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
@@ -1132,6 +1135,8 @@ struct rtw89_mac_gen_def {
 	int (*cnv_efuse_state)(struct rtw89_dev *rtwdev, bool idle);
 	int (*efuse_read_fw_secure)(struct rtw89_dev *rtwdev);
 	int (*efuse_read_ecv)(struct rtw89_dev *rtwdev);
+	int (*efuse_read_thermal_k)(struct rtw89_dev *rtwdev);
+	int (*efuse_read_pwr_data)(struct rtw89_dev *rtwdev);
 
 	int (*cfg_plt)(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt);
 	u16 (*get_plt_cnt)(struct rtw89_dev *rtwdev, u8 band);
@@ -1298,7 +1303,8 @@ rtw89_write32_port_set(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_l
 
 int rtw89_mac_pwr_on(struct rtw89_dev *rtwdev);
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev);
-int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb);
+int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb,
+			   bool bb_preinit);
 int rtw89_mac_preinit(struct rtw89_dev *rtwdev);
 int rtw89_mac_init(struct rtw89_dev *rtwdev);
 int rtw89_mac_dle_init(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
@@ -1455,6 +1461,29 @@ void rtw89_mac_set_edcca_mode(struct rtw89_dev *rtwdev, u8 mac_idx, bool normal)
 		return;
 
 	mac->set_edcca_mode(rtwdev, mac_idx, normal);
+}
+
+static inline
+void rtw89_mac_set_vcore_cfg(struct rtw89_dev *rtwdev, u8 vlv)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->set_vcore_cfg)
+		return;
+
+	mac->set_vcore_cfg(rtwdev, vlv);
+}
+
+static inline
+void rtw89_mac_set_vcore_reset(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (hal->thermal_prot_vlv == 0)
+		return;
+
+	hal->thermal_prot_vlv = 0;
+	rtw89_mac_set_vcore_cfg(rtwdev, 0);
 }
 
 static inline
@@ -1654,6 +1683,7 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_PWR_CUT = 0x10,
 #define XTAL_SI_SMALL_PWR_CUT	BIT(0)
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)
+	XTAL_SI_AONLDO_CTRL = 0x10,
 	XTAL_SI_XTAL_DRV = 0x15,
 #define XTAL_SI_DRV_LATCH	BIT(4)
 	XTAL_SI_XTAL_PLL = 0x16,
@@ -1733,6 +1763,26 @@ static inline int rtw89_mac_efuse_read_ecv(struct rtw89_dev *rtwdev)
 		return -ENOENT;
 
 	return mac->efuse_read_ecv(rtwdev);
+}
+
+static inline int rtw89_mac_efuse_read_thermal_k(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->efuse_read_thermal_k)
+		return -ENOENT;
+
+	return mac->efuse_read_thermal_k(rtwdev);
+}
+
+static inline int rtw89_mac_efuse_read_pwr_data(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	if (!mac->efuse_read_pwr_data)
+		return -ENOENT;
+
+	return mac->efuse_read_pwr_data(rtwdev);
 }
 
 static inline

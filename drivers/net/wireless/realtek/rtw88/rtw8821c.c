@@ -248,7 +248,9 @@ static int rtw8821c_mac_init(struct rtw_dev *rtwdev)
 	rtw_write8_clr(rtwdev, REG_TX_PTCL_CTRL + 1, BIT_SIFS_BK_EN >> 8);
 
 	/* WMAC configuration */
-	rtw_write32(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
+	rtw_write16(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
+	rtwdev->hal.rxfltmap1 = WLAN_RX_FILTER1;
+	rtw_write16(rtwdev, REG_RXFLTMAP1, rtwdev->hal.rxfltmap1);
 	rtw_write16(rtwdev, REG_RXFLTMAP2, WLAN_RX_FILTER2);
 	rtw_write32(rtwdev, REG_RCR, WLAN_RCR_CFG);
 	rtw_write8(rtwdev, REG_RX_PKT_LIMIT, WLAN_RXPKT_MAX_SZ_512);

@@ -1462,12 +1462,7 @@ static bool _rtl8821ae_init_llt_table(struct ieee80211_hw *hw, u32 boundary)
 			return status;
 	}
 
-	status = _rtl8821ae_llt_write(hw, last_entry_of_txpktbuf,
-				      txpktbuf_bndy);
-	if (!status)
-		return status;
-
-	return status;
+	return _rtl8821ae_llt_write(hw, last_entry_of_txpktbuf, txpktbuf_bndy);
 }
 
 static bool _rtl8821ae_dynamic_rqpn(struct ieee80211_hw *hw, u32 boundary,

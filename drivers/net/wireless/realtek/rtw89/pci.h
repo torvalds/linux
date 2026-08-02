@@ -58,7 +58,7 @@
 #define B_AX_DIV			GENMASK(15, 14)
 #define RAC_SET_PPR_V1			0x31
 #define RAC_ANA40			0x40
-#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(8) | BIT(0))
+#define PHY_ERR_IMR_DIS			(BIT(9) | BIT(2) | BIT(1) | BIT(0))
 #define RAC_ANA41			0x41
 #define PHY_ERR_FLAG_EN		        BIT(6)
 
@@ -1022,7 +1022,7 @@
 #define B_BE_PL1_IGNORE_HOT_RST BIT(30)
 #define B_BE_PL1_TIMER_UNIT_MASK GENMASK(19, 17)
 #define PCIE_SER_TIMER_UNIT 0x2
-#define PCIE_SER_WOW_TIMER_UNIT 0x4
+#define PCIE_SER_WOW_TIMER_UNIT 0x7
 #define B_BE_PL1_TIMER_CLEAR BIT(0)
 
 #define R_BE_REG_PL1_MASK 0x34B0
@@ -1138,6 +1138,7 @@
 #define RTW89_PCIE_GEN1_SPEED		0x01
 #define RTW89_PCIE_GEN2_SPEED		0x02
 #define RTW89_PCIE_PHY_RATE		0x82
+#define RTW89_PCIE_EXTENDED_SYNCH	BIT(7)
 #define RTW89_PCIE_PHY_RATE_MASK	GENMASK(1, 0)
 #define RTW89_PCIE_LINK_CHANGE_SPEED	0xA0
 #define RTW89_PCIE_L1SS_STS_V1		0x0168
@@ -1751,6 +1752,7 @@ struct pci_device_id;
 
 int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 void rtw89_pci_remove(struct pci_dev *pdev);
+void rtw89_pci_shutdown(struct pci_dev *pdev);
 void rtw89_pci_basic_cfg(struct rtw89_dev *rtwdev, bool resume);
 void rtw89_pci_ops_reset(struct rtw89_dev *rtwdev);
 int rtw89_pci_ltr_set(struct rtw89_dev *rtwdev, bool en);
