@@ -7013,17 +7013,6 @@ Kernel parameters
 			take as long as they take.  Specifying 300,000
 			for this value provides a 5-minute timeout.
 
-	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
-	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
-	smsc-ircc2.ircc_sir=	[HW] SIR base I/O port
-	smsc-ircc2.ircc_fir=	[HW] FIR base I/O port
-	smsc-ircc2.ircc_irq=	[HW] IRQ line
-	smsc-ircc2.ircc_dma=	[HW] DMA channel
-	smsc-ircc2.ircc_transceiver= [HW] Transceiver type:
-				0: Toshiba Satellite 1800 (GP data pin select)
-				1: Fast pin select (default)
-				2: ATC IRMode
-
 	smt=		[KNL,MIPS,S390,EARLY] Set the maximum number of threads
 			(logical CPUs) to use per physical CPU on systems
 			capable of symmetric multithreading (SMT). Will
