@@ -789,6 +789,7 @@ write_bitmap:
 		if (state == BitNeedSync || state == BitNeedSyncUnwritten)
 			need_resync = !mddev->degraded;
 		else if (state == BitDirty &&
+			 !test_bit(BITMAP_SHUTDOWN, &llbitmap->flags) &&
 			 !timer_pending(&llbitmap->pending_timer))
 			mod_timer(&llbitmap->pending_timer,
 				  jiffies + mddev->bitmap_info.daemon_sleep * HZ);
@@ -981,7 +982,7 @@ static int llbitmap_read_sb(struct llbitmap *llbitmap)
 		else
 			mddev->bitmap_info.space = mddev->bitmap_info.default_space;
 	}
-	llbitmap->flags = le32_to_cpu(sb->state);
+	llbitmap->flags = le32_to_cpu(sb->state) & ~BIT(BITMAP_SHUTDOWN);
 	if (test_and_clear_bit(BITMAP_FIRST_USE, &llbitmap->flags)) {
 		ret = llbitmap_init(llbitmap);
 		goto out_put_page;
@@ -1037,6 +1038,9 @@ static void llbitmap_pending_timer_fn(struct timer_list *pending_timer)
 	struct llbitmap *llbitmap =
 		container_of(pending_timer, struct llbitmap, pending_timer);
 
+	if (test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
+		return;
+
 	if (work_busy(&llbitmap->daemon_work)) {
 		pr_warn("md/llbitmap: %s daemon_work not finished in %lu seconds\n",
 			mdname(llbitmap->mddev),
@@ -1056,6 +1060,9 @@ static void md_llbitmap_daemon_fn(struct work_struct *work)
 	unsigned long end;
 	bool restart;
 	int idx;
+
+	if (test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
+		return;
 
 	if (llbitmap->mddev->degraded)
 		return;
@@ -1096,7 +1103,7 @@ retry:
 		goto retry;
 
 	/* If some page is dirty but not expired, setup timer again */
-	if (restart)
+	if (restart && !test_bit(BITMAP_SHUTDOWN, &llbitmap->flags))
 		mod_timer(&llbitmap->pending_timer,
 			  jiffies + llbitmap->mddev->bitmap_info.daemon_sleep * HZ);
 }
@@ -1179,7 +1186,9 @@ static void llbitmap_destroy(struct mddev *mddev)
 
 	mutex_lock(&mddev->bitmap_info.mutex);
 
-	timer_delete_sync(&llbitmap->pending_timer);
+	set_bit(BITMAP_SHUTDOWN, &llbitmap->flags);
+	timer_shutdown_sync(&llbitmap->pending_timer);
+	cancel_work_sync(&llbitmap->daemon_work);
 	flush_workqueue(md_llbitmap_io_wq);
 	flush_workqueue(md_llbitmap_unplug_wq);
 
@@ -1523,7 +1532,7 @@ static void llbitmap_update_sb(void *data)
 
 	sb = kmap_local_page(sb_page);
 	sb->events = cpu_to_le64(mddev->events);
-	sb->state = cpu_to_le32(llbitmap->flags);
+	sb->state = cpu_to_le32(llbitmap->flags & ~BIT(BITMAP_SHUTDOWN));
 	sb->chunksize = cpu_to_le32(llbitmap->chunksize);
 	sb->sync_size = cpu_to_le64(mddev->resync_max_sectors);
 	sb->events_cleared = cpu_to_le64(llbitmap->events_cleared);
