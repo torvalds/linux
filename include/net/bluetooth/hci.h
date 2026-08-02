@@ -3382,6 +3382,7 @@ struct hci_ev_si_security {
 /* ---- HCI Packet structures ---- */
 #define HCI_COMMAND_HDR_SIZE 3
 #define HCI_EVENT_HDR_SIZE   2
+#define HCI_MAX_EVENT_PLEN   255
 #define HCI_ACL_HDR_SIZE     4
 #define HCI_SCO_HDR_SIZE     3
 #define HCI_ISO_HDR_SIZE     4
