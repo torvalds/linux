@@ -521,7 +521,7 @@ static struct page *llbitmap_read_page(struct llbitmap *llbitmap, int idx)
 	if (page)
 		return page;
 
-	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	page = alloc_page(GFP_NOIO | __GFP_ZERO);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
@@ -616,12 +616,12 @@ static int llbitmap_cache_pages(struct llbitmap *llbitmap)
 	int i;
 
 	llbitmap->pctl = kmalloc_array(nr_pages, sizeof(void *),
-				       GFP_KERNEL | __GFP_ZERO);
+				       GFP_NOIO | __GFP_ZERO);
 	if (!llbitmap->pctl)
 		return -ENOMEM;
 
 	size = round_up(size, cache_line_size());
-	pctl = kmalloc_array(nr_pages, size, GFP_KERNEL | __GFP_ZERO);
+	pctl = kmalloc_array(nr_pages, size, GFP_NOIO | __GFP_ZERO);
 	if (!pctl) {
 		kfree(llbitmap->pctl);
 		return -ENOMEM;
@@ -640,7 +640,7 @@ static int llbitmap_cache_pages(struct llbitmap *llbitmap)
 		}
 
 		if (percpu_ref_init(&pctl->active, active_release,
-				    PERCPU_REF_ALLOW_REINIT, GFP_KERNEL)) {
+				    PERCPU_REF_ALLOW_REINIT, GFP_NOIO)) {
 			__free_page(page);
 			llbitmap_free_pages(llbitmap);
 			return -ENOMEM;
@@ -1110,7 +1110,7 @@ static int llbitmap_create(struct mddev *mddev)
 	if (ret)
 		return ret;
 
-	llbitmap = kzalloc_obj(*llbitmap);
+	llbitmap = kzalloc_obj(*llbitmap, GFP_NOIO);
 	if (!llbitmap)
 		return -ENOMEM;
 
