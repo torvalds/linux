@@ -41,7 +41,7 @@ static const struct af_alg_allowlist_entry skcipher_allowlist[] = {
 	{ "cbc(aes)", true }, /* iwd */
 	{ "cbc(des)", true }, /* iwd */
 	{ "cbc(des3_ede)", true }, /* iwd */
-	{ "cbc(paes)", false }, /* caam and others */
+	{ "cbc(paes)", true }, /* caam and others */
 	{ "ctr(aes)", true }, /* iwd */
 	{ "ecb(aes)", true }, /* iwd, bluez */
 	{ "ecb(des)", true }, /* iwd */
