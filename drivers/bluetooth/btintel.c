@@ -3991,8 +3991,7 @@ int btintel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_event_hdr *hdr = (void *)skb->data;
 	const char diagnostics_hdr[] = { 0x87, 0x80, 0x03 };
 
-	if (skb->len > HCI_EVENT_HDR_SIZE && hdr->evt == 0xff &&
-	    hdr->plen > 0) {
+	if (skb->len > HCI_EVENT_HDR_SIZE && hdr->evt == 0xff) {
 		const void *ptr = skb->data + HCI_EVENT_HDR_SIZE + 1;
 		unsigned int len = skb->len - HCI_EVENT_HDR_SIZE - 1;
 
