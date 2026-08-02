@@ -5054,7 +5054,9 @@ static int ieee80211_probe_peer(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	local_bh_disable();
+	rcu_read_lock();
 	ieee80211_xmit(sdata, sta, skb);
+	rcu_read_unlock();
 	local_bh_enable();
 
 	return 0;
