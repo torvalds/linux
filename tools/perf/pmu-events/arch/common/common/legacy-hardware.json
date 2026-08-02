@@ -51,7 +51,7 @@
   },
   {
     "EventName": "idle-cycles-frontend",
-    "BriefDescription": "Stalled cycles during issue [This event is an alias of stalled-cycles-fronted].",
+    "BriefDescription": "Stalled cycles during issue [This event is an alias of stalled-cycles-frontend].",
     "LegacyConfigCode": "7"
   },
   {
