@@ -932,11 +932,10 @@ struct cxl_port *devm_cxl_add_port(struct device *host,
 
 	parent_port = parent_dport ? parent_dport->port : NULL;
 	if (IS_ERR(port)) {
-		dev_dbg(uport_dev, "Failed to add%s%s%s: %ld\n",
+		dev_dbg(uport_dev, "Failed to add%s%s%s: %pe\n",
 			parent_port ? " port to " : "",
 			parent_port ? dev_name(&parent_port->dev) : "",
-			parent_port ? "" : " root port",
-			PTR_ERR(port));
+			parent_port ? "" : " root port", port);
 	} else {
 		dev_dbg(uport_dev, "%s added%s%s%s\n",
 			dev_name(&port->dev),
@@ -1271,8 +1270,8 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
 				     component_reg_phys, CXL_RESOURCE_NONE);
 	if (IS_ERR(dport)) {
-		dev_dbg(dport_dev, "failed to add dport to %s: %ld\n",
-			dev_name(&port->dev), PTR_ERR(dport));
+		dev_dbg(dport_dev, "failed to add dport to %s: %pe\n",
+			dev_name(&port->dev), dport);
 	} else {
 		dev_dbg(dport_dev, "dport added to %s\n",
 			dev_name(&port->dev));
@@ -1305,8 +1304,8 @@ struct cxl_dport *devm_cxl_add_rch_dport(struct cxl_port *port,
 	dport = __devm_cxl_add_dport(port, dport_dev, port_id,
 				     CXL_RESOURCE_NONE, rcrb);
 	if (IS_ERR(dport)) {
-		dev_dbg(dport_dev, "failed to add RCH dport to %s: %ld\n",
-			dev_name(&port->dev), PTR_ERR(dport));
+		dev_dbg(dport_dev, "failed to add RCH dport to %s: %pe\n",
+			dev_name(&port->dev), dport);
 	} else {
 		dev_dbg(dport_dev, "RCH dport added to %s\n",
 			dev_name(&port->dev));
