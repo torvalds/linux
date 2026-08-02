@@ -6221,9 +6221,11 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	struct r5conf *conf = mddev->private;
 	const int rw = bio_data_dir(bi);
 	struct stripe_request_ctx *ctx;
+	struct bio *front_bio;
 	sector_t logical_sector;
 	enum stripe_result res;
 	int s, stripe_cnt;
+	bool split = false;
 	bool on_wq;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
@@ -6256,6 +6258,18 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		md_write_end(mddev);
 		return true;
 	}
+
+	front_bio = bi;
+	bi = mddev_bio_split_at_reshape_offset(mddev, bi, NULL,
+					       &conf->bio_split);
+	if (!bi) {
+		if (rw == WRITE)
+			md_write_end(mddev);
+		return true;
+	}
+	if (bi != front_bio)
+		split = true;
+	front_bio = bi;
 
 	logical_sector = bi->bi_iter.bi_sector & ~((sector_t)RAID5_STRIPE_SECTORS(conf)-1);
 	bi->bi_next = NULL;
@@ -6348,6 +6362,11 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 		bio_endio(bi);
 
 		wait_for_completion(&done);
+		front_bio->bi_status = BLK_STS_OK;
+		if (split) {
+			submit_bio_noacct(front_bio);
+			return true;
+		}
 		return false;
 	}
 
