@@ -229,6 +229,28 @@ there is no need to consume a maintainer's time with an unimportant report. If
 the issue is clearly trivial and publicly discoverable, you should report it
 directly to the public mailing lists.
 
+At the very least, when using an AI assistant to find and report bugs, make the
+assistant read this file and threat-model.rst before proceeding, and have it
+follow the procedure described in coding-assistants.rst: work on an up-to-date
+mainline tree and note the commit ID, verify the bug is real, write a fix,
+build it warning-free and checkpatch-clean, commit it with a Fixes tag, and
+identify the maintainers with get_maintainer.pl.
+
+On top of that procedure, the AI assistant **MUST**:
+
+1. Prepare a plain-text report explaining the problem. It must contain the
+   four items listed at the top of this file as absolutely necessary: the
+   affected version or commit ID noted while following the procedure above,
+   the description of the problem, the reproducer or its status, and the
+   triggering conditions.
+2. Start the report with a temporary section listing the recipients' addresses
+   (maintainers+list for the patch, maintainers only for the report and
+   reproducer), and with instructions reminding the reporter to check that
+   their email client is properly setup (see email-clients.rst), and leave it
+   to the reporter to remove that temporary section.
+
+A more detailed process is covered at https://github.com/masoncl/kres.git.
+
 Sending the report
 ------------------
 
