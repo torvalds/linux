@@ -1,0 +1,472 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * KUnit test suite for AES-GCM
+ *
+ * Copyright 2026 Google LLC
+ */
+#include <crypto/aes-gcm.h>
+#include <crypto/blake2s.h>
+#include "test-utils.h"
+
+/* The kernel's AES-GCM implementation supports only 12-byte nonces. */
+#define AES_GCM_NONCE_LEN 12
+
+/*
+ * AES-GCM test vectors from the original paper "The Galois/Counter Mode of
+ * Operation (GCM)" by McGrew & Viega.  Vectors with nonce lengths other than 12
+ * bytes are excluded.
+ */
+static const struct aes_gcm_testvec {
+	const char *name;
+	const char *key;
+	size_t key_len;
+	const char *nonce;
+	size_t nonce_len;
+	const char *ad;
+	size_t ad_len;
+	const char *ptext;
+	const char *ctext;
+	size_t data_len;
+	const char *tag;
+	size_t tag_len;
+} aes_gcm_testvecs[] = {
+	/* AES-128 Test Vectors */
+	{
+		.name = "McGrew & Viega Test Case 1",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 16,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "",
+		.ctext = "",
+		.data_len = 0,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\x58\xe2\xfc\xce\xfa\x7e\x30\x61"
+		       "\x36\x7f\x1d\x57\xa4\xe7\x45\x5a",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 2",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 16,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.ctext = "\x03\x88\xda\xce\x60\xb6\xa3\x92"
+			 "\xf3\x28\xc2\xb9\x71\xb2\xfe\x78",
+		.data_len = 16,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\xab\x6e\x47\xd4\x2c\xec\x13\xbd"
+		       "\xf5\x3a\x67\xb2\x12\x57\xbd\xdf",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 3",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08",
+		.key_len = 16,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39\x1a\xaf\xd2\x55",
+		.ctext = "\x42\x83\x1e\xc2\x21\x77\x74\x24"
+			 "\x4b\x72\x21\xb7\x84\xd0\xd4\x9c"
+			 "\xe3\xaa\x21\x2f\x2c\x02\xa4\xe0"
+			 "\x35\xc1\x7e\x23\x29\xac\xa1\x2e"
+			 "\x21\xd5\x14\xb2\x54\x66\x93\x1c"
+			 "\x7d\x8f\x6a\x5a\xac\x84\xaa\x05"
+			 "\x1b\xa3\x0b\x39\x6a\x0a\xac\x97"
+			 "\x3d\x58\xe0\x91\x47\x3f\x59\x85",
+		.data_len = 64,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\x4d\x5c\x2a\xf3\x27\xcd\x64\xa6"
+		       "\x2c\xf3\x5a\xbd\x2b\xa6\xfa\xb4",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 4",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08",
+		.key_len = 16,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39",
+		.ctext = "\x42\x83\x1e\xc2\x21\x77\x74\x24"
+			 "\x4b\x72\x21\xb7\x84\xd0\xd4\x9c"
+			 "\xe3\xaa\x21\x2f\x2c\x02\xa4\xe0"
+			 "\x35\xc1\x7e\x23\x29\xac\xa1\x2e"
+			 "\x21\xd5\x14\xb2\x54\x66\x93\x1c"
+			 "\x7d\x8f\x6a\x5a\xac\x84\xaa\x05"
+			 "\x1b\xa3\x0b\x39\x6a\x0a\xac\x97"
+			 "\x3d\x58\xe0\x91",
+		.data_len = 60,
+		.ad = "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xab\xad\xda\xd2",
+		.ad_len = 20,
+		.tag = "\x5b\xc9\x4f\xbc\x32\x21\xa5\xdb"
+		       "\x94\xfa\xe9\x5a\xe7\x12\x1a\x47",
+		.tag_len = 16,
+	},
+
+	/* AES-192 Test Vectors */
+	{
+		.name = "McGrew & Viega Test Case 7",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 24,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "",
+		.ctext = "",
+		.data_len = 0,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\xcd\x33\xb2\x8a\xc7\x73\xf7\x4b"
+		       "\xa0\x0e\xd1\xf3\x12\x57\x24\x35",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 8",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 24,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.ctext = "\x98\xe7\x24\x7c\x07\xf0\xfe\x41"
+			 "\x1c\x26\x7e\x43\x84\xb0\xf6\x00",
+		.data_len = 16,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\x2f\xf5\x8d\x80\x03\x39\x27\xab"
+		       "\x8e\xf4\xd4\x58\x75\x14\xf0\xfb",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 9",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
+		       "\xfe\xff\xe9\x92\x86\x65\x73\x1c",
+		.key_len = 24,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39\x1a\xaf\xd2\x55",
+		.ctext = "\x39\x80\xca\x0b\x3c\x00\xe8\x41"
+			 "\xeb\x06\xfa\xc4\x87\x2a\x27\x57"
+			 "\x85\x9e\x1c\xea\xa6\xef\xd9\x84"
+			 "\x62\x85\x93\xb4\x0c\xa1\xe1\x9c"
+			 "\x7d\x77\x3d\x00\xc1\x44\xc5\x25"
+			 "\xac\x61\x9d\x18\xc8\x4a\x3f\x47"
+			 "\x18\xe2\x44\x8b\x2f\xe3\x24\xd9"
+			 "\xcc\xda\x27\x10\xac\xad\xe2\x56",
+		.data_len = 64,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\x99\x24\xa7\xc8\x58\x73\x36\xbf"
+		       "\xb1\x18\x02\x4d\xb8\x67\x4a\x14",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 10",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
+		       "\xfe\xff\xe9\x92\x86\x65\x73\x1c",
+		.key_len = 24,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39",
+		.ctext = "\x39\x80\xca\x0b\x3c\x00\xe8\x41"
+			 "\xeb\x06\xfa\xc4\x87\x2a\x27\x57"
+			 "\x85\x9e\x1c\xea\xa6\xef\xd9\x84"
+			 "\x62\x85\x93\xb4\x0c\xa1\xe1\x9c"
+			 "\x7d\x77\x3d\x00\xc1\x44\xc5\x25"
+			 "\xac\x61\x9d\x18\xc8\x4a\x3f\x47"
+			 "\x18\xe2\x44\x8b\x2f\xe3\x24\xd9"
+			 "\xcc\xda\x27\x10",
+		.data_len = 60,
+		.ad = "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xab\xad\xda\xd2",
+		.ad_len = 20,
+		.tag = "\x25\x19\x49\x8e\x80\xf1\x47\x8f"
+		       "\x37\xba\x55\xbd\x6d\x27\x61\x8c",
+		.tag_len = 16,
+	},
+
+	/* AES-256 Test Vectors */
+	{
+		.name = "McGrew & Viega Test Case 13",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 32,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "",
+		.ctext = "",
+		.data_len = 0,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\x53\x0f\x8a\xfb\xc7\x45\x36\xb9"
+		       "\xa9\x63\xb4\xf1\xc4\xcb\x73\x8b",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 14",
+		.key = "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00"
+		       "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.key_len = 32,
+		.nonce = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00",
+		.nonce_len = 12,
+		.ptext = "\x00\x00\x00\x00\x00\x00\x00\x00"
+			 "\x00\x00\x00\x00\x00\x00\x00\x00",
+		.ctext = "\xce\xa7\x40\x3d\x4d\x60\x6b\x6e"
+			 "\x07\x4e\xc5\xd3\xba\xf3\x9d\x18",
+		.data_len = 16,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\xd0\xd1\xc8\xa7\x99\x99\x6b\xf0"
+		       "\x26\x5b\x98\xb5\xd4\x8a\xb9\x19",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 15",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
+		       "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08",
+		.key_len = 32,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39\x1a\xaf\xd2\x55",
+		.ctext = "\x52\x2d\xc1\xf0\x99\x56\x7d\x07"
+			 "\xf4\x7f\x37\xa3\x2a\x84\x42\x7d"
+			 "\x64\x3a\x8c\xdc\xbf\xe5\xc0\xc9"
+			 "\x75\x98\xa2\xbd\x25\x55\xd1\xaa"
+			 "\x8c\xb0\x8e\x48\x59\x0d\xbb\x3d"
+			 "\xa7\xb0\x8b\x10\x56\x82\x88\x38"
+			 "\xc5\xf6\x1e\x63\x93\xba\x7a\x0a"
+			 "\xbc\xc9\xf6\x62\x89\x80\x15\xad",
+		.data_len = 64,
+		.ad = "",
+		.ad_len = 0,
+		.tag = "\xb0\x94\xda\xc5\xd9\x34\x71\xbd"
+		       "\xec\x1a\x50\x22\x70\xe3\xcc\x6c",
+		.tag_len = 16,
+	},
+	{
+		.name = "McGrew & Viega Test Case 16",
+		.key = "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08"
+		       "\xfe\xff\xe9\x92\x86\x65\x73\x1c"
+		       "\x6d\x6a\x8f\x94\x67\x30\x83\x08",
+		.key_len = 32,
+		.nonce = "\xca\xfe\xba\xbe\xfa\xce\xdb\xad"
+			 "\xde\xca\xf8\x88",
+		.nonce_len = 12,
+		.ptext = "\xd9\x31\x32\x25\xf8\x84\x06\xe5"
+			 "\xa5\x59\x09\xc5\xaf\xf5\x26\x9a"
+			 "\x86\xa7\xa9\x53\x15\x34\xf7\xda"
+			 "\x2e\x4c\x30\x3d\x8a\x31\x8a\x72"
+			 "\x1c\x3c\x0c\x95\x95\x68\x09\x53"
+			 "\x2f\xcf\x0e\x24\x49\xa6\xb5\x25"
+			 "\xb1\x6a\xed\xf5\xaa\x0d\xe6\x57"
+			 "\xba\x63\x7b\x39",
+		.ctext = "\x52\x2d\xc1\xf0\x99\x56\x7d\x07"
+			 "\xf4\x7f\x37\xa3\x2a\x84\x42\x7d"
+			 "\x64\x3a\x8c\xdc\xbf\xe5\xc0\xc9"
+			 "\x75\x98\xa2\xbd\x25\x55\xd1\xaa"
+			 "\x8c\xb0\x8e\x48\x59\x0d\xbb\x3d"
+			 "\xa7\xb0\x8b\x10\x56\x82\x88\x38"
+			 "\xc5\xf6\x1e\x63\x93\xba\x7a\x0a"
+			 "\xbc\xc9\xf6\x62",
+		.data_len = 60,
+		.ad = "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xfe\xed\xfa\xce\xde\xad\xbe\xef"
+		      "\xab\xad\xda\xd2",
+		.ad_len = 20,
+		.tag = "\x76\xfc\x6e\xce\x0f\x4e\x17\x68"
+		       "\xcd\xdf\x88\x53\xbb\x2d\x55\x1b",
+		.tag_len = 16,
+	},
+};
+
+static void test_aes_gcm_one_test_vector(struct kunit *test,
+					 const struct aes_gcm_testvec *tv)
+{
+	u8 *ctext = alloc_buf(test, tv->data_len);
+	u8 *decrypted = alloc_buf(test, tv->data_len);
+	u8 *tag = alloc_buf(test, tv->tag_len);
+	struct aes_gcm_key key;
+	int err;
+
+	KUNIT_ASSERT_EQ(test, AES_GCM_NONCE_LEN, tv->nonce_len);
+
+	err = aes_gcm_preparekey(&key, tv->key, tv->key_len, tv->tag_len);
+	KUNIT_ASSERT_EQ_MSG(test, 0, err, "Failed to prepare key for %s",
+			    tv->name);
+
+	aes_gcm_encrypt(ctext, tv->ptext, tv->data_len, tag, tv->ad, tv->ad_len,
+			tv->nonce, &key);
+	KUNIT_ASSERT_MEMEQ_MSG(test, tv->ctext, ctext, tv->data_len,
+			       "Wrong ciphertext for %s", tv->name);
+	KUNIT_ASSERT_MEMEQ_MSG(test, tag, tv->tag, tv->tag_len,
+			       "Wrong tag for %s", tv->name);
+
+	err = aes_gcm_decrypt(decrypted, ctext, tv->data_len, tag, tv->ad,
+			      tv->ad_len, tv->nonce, &key);
+	KUNIT_ASSERT_EQ_MSG(test, 0, err, "Decryption failed for %s", tv->name);
+	KUNIT_ASSERT_MEMEQ_MSG(test, tv->ptext, decrypted, tv->data_len,
+			       "Wrong plaintext for %s", tv->name);
+}
+
+static void test_aes_gcm_test_vectors(struct kunit *test)
+{
+	for (size_t i = 0; i < ARRAY_SIZE(aes_gcm_testvecs); i++)
+		test_aes_gcm_one_test_vector(test, &aes_gcm_testvecs[i]);
+}
+
+static int aes_gcm_init_test(struct aes_gcm_ctx *ctx, u64 data_len, u64 ad_len,
+			     const u8 *nonce, size_t nonce_len,
+			     const struct aes_gcm_key *key)
+{
+	if (nonce_len != AES_GCM_NONCE_LEN)
+		return -EINVAL;
+	/*
+	 * Ignore data_len and ad_len.  Incremental AES-GCM doesn't need them at
+	 * initialization time.
+	 */
+	aes_gcm_init(ctx, nonce, key);
+	return 0;
+}
+
+static int aes_gcm_encrypt_test(u8 *dst, const u8 *src, size_t data_len,
+				u8 *authtag, const u8 *ad, size_t ad_len,
+				const u8 *nonce, size_t nonce_len,
+				const struct aes_gcm_key *key)
+{
+	if (nonce_len != AES_GCM_NONCE_LEN)
+		return -EINVAL;
+	/* aes_gcm_encrypt() returns void. */
+	aes_gcm_encrypt(dst, src, data_len, authtag, ad, ad_len, nonce, key);
+	return 0;
+}
+
+static int aes_gcm_decrypt_test(u8 *dst, const u8 *src, size_t data_len,
+				const u8 *authtag, const u8 *ad, size_t ad_len,
+				const u8 *nonce, size_t nonce_len,
+				const struct aes_gcm_key *key)
+{
+	if (nonce_len != AES_GCM_NONCE_LEN)
+		return -EINVAL;
+	return aes_gcm_decrypt(dst, src, data_len, authtag, ad, ad_len, nonce,
+			       key);
+}
+
+static const size_t aes_gcm_valid_key_lens[] = { 16, 24, 32 };
+#define AEAD_MAX_KEY_LEN 32
+#define AEAD_VALID_KEY_LENS aes_gcm_valid_key_lens
+
+static const size_t aes_gcm_valid_nonce_lens[] = { AES_GCM_NONCE_LEN };
+#define AEAD_MAX_NONCE_LEN AES_GCM_NONCE_LEN
+#define AEAD_VALID_NONCE_LENS aes_gcm_valid_nonce_lens
+
+static const size_t aes_gcm_valid_tag_lens[] = { 4, 8, 12, 13, 14, 15, 16 };
+#define AEAD_MAX_TAG_LEN 16
+#define AEAD_VALID_TAG_LENS aes_gcm_valid_tag_lens
+
+#define AEAD_KEY aes_gcm_key
+#define AEAD_CTX aes_gcm_ctx
+#define AEAD_PREPAREKEY aes_gcm_preparekey
+#define AEAD_ENCRYPT aes_gcm_encrypt_test
+#define AEAD_DECRYPT aes_gcm_decrypt_test
+
+#define AEAD_INIT aes_gcm_init_test
+#define AEAD_AUTH_UPDATE aes_gcm_auth_update
+#define AEAD_ENCRYPT_UPDATE aes_gcm_encrypt_update
+#define AEAD_DECRYPT_UPDATE aes_gcm_decrypt_update
+#define AEAD_ENCRYPT_FINAL aes_gcm_encrypt_final
+#define AEAD_DECRYPT_FINAL aes_gcm_decrypt_final
+
+/* This value was generated by gen-aead-testvecs.py. */
+static const u8 aes_gcm_monte_carlo_checksum[BLAKE2S_HASH_SIZE] = {
+	0x6d, 0xd0, 0x6e, 0x6b, 0xde, 0x3e, 0x92, 0x9f, 0xae, 0x1f, 0xf1,
+	0x84, 0x99, 0x5a, 0x9e, 0x7b, 0xfe, 0x20, 0x9e, 0x22, 0x7c, 0x5f,
+	0x15, 0xb3, 0x59, 0x89, 0xd0, 0xb7, 0x74, 0x5d, 0xd2, 0xa5,
+};
+#define AEAD_MONTE_CARLO_CHECKSUM aes_gcm_monte_carlo_checksum
+
+#include "aead-test-template.h"
+
+static struct kunit_case aes_gcm_test_cases[] = {
+	KUNIT_CASE(test_aes_gcm_test_vectors),
+	AEAD_KUNIT_CASES,
+	{},
+};
+
+static struct kunit_suite aes_gcm_test_suite = {
+	.name = "aes_gcm",
+	.test_cases = aes_gcm_test_cases,
+};
+kunit_test_suite(aes_gcm_test_suite);
+
+MODULE_DESCRIPTION("KUnit tests and benchmark for AES-GCM");
+MODULE_LICENSE("GPL");

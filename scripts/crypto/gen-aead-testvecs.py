@@ -41,6 +41,15 @@ def gen_monte_carlo_checksum(alg):
                 key, tag_length=tag_len
             )
             ct_and_tag = ccm.encrypt(nonce, pt, ad)
+        elif alg == "aes-gcm":
+            key_len = [16, 24, 32][data_len % 3]
+            key = rand_bytes(key_len)
+            nonce = rand_bytes(12)
+            tag_len = [4, 8, 12, 13, 14, 15, 16][data_len % 7]
+            gcm = cryptography.hazmat.primitives.ciphers.aead.AESGCM(key)
+            # python-cryptography supports only 16-byte GCM tags.  However, in
+            # GCM, shorter tags are simply truncated.  Do that below.
+            ct_and_tag = gcm.encrypt(nonce, pt, ad)[: data_len + tag_len]
 
         blake2s.update(ct_and_tag)
 
@@ -53,8 +62,8 @@ def gen_monte_carlo_checksum(alg):
     print("};")
 
 
-if len(sys.argv) != 2 or sys.argv[1] not in ("aes-ccm"):
-    sys.stderr.write("Usage: gen-aead-testvecs.py [aes-ccm]\n")
+if len(sys.argv) != 2 or sys.argv[1] not in ("aes-ccm", "aes-gcm"):
+    sys.stderr.write("Usage: gen-aead-testvecs.py [aes-ccm|aes-gcm]\n")
     sys.exit(1)
 
 gen_monte_carlo_checksum(sys.argv[1])
