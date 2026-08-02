@@ -11,6 +11,9 @@
 #include "mt792x.h"
 #include "mt76_connac2_mac.h"
 
+#define MT792X_USB_TX_TIMEOUT_LIMIT	50000
+#define MT792X_USB_UDMA_IDLE_TIMEOUT	1000
+
 static int mt792xu_read32(struct mt76_dev *dev, u32 addr, void *buf)
 {
 	return __mt76u_vendor_request(dev, MT_VEND_READ_EXT,
@@ -31,10 +34,75 @@ static void mt792xu_reset_work(struct work_struct *work)
 	atomic_set(&dev->usb_reset_pending, 0);
 }
 
+static void mt792xu_queue_usb_reset(struct mt792x_dev *dev, int err)
+{
+	if (!atomic_xchg(&dev->usb_reset_pending, 1)) {
+		dev_warn(dev->mt76.dev,
+			 "USB transport access failed (%d), queueing device reset\n",
+			 err);
+
+		schedule_work(&dev->usb_reset_work);
+	}
+}
+
+static u32 mt792xu_bus_hung_rr(struct mt76_dev *mdev, u32 offset)
+{
+	return 0;
+}
+
+static void mt792xu_bus_hung_wr(struct mt76_dev *mdev, u32 offset, u32 val)
+{
+}
+
+static u32 mt792xu_bus_hung_rmw(struct mt76_dev *mdev, u32 offset,
+				u32 mask, u32 val)
+{
+	return 0;
+}
+
+static void mt792xu_bus_hung_write_copy(struct mt76_dev *mdev, u32 offset,
+					const void *data, int len)
+{
+}
+
+static void mt792xu_bus_hung_read_copy(struct mt76_dev *mdev, u32 offset,
+				       void *data, int len)
+{
+	memset(data, 0, len);
+}
+
+static const struct mt76_bus_ops mt792xu_bus_hung_ops = {
+	.rr = mt792xu_bus_hung_rr,
+	.wr = mt792xu_bus_hung_wr,
+	.rmw = mt792xu_bus_hung_rmw,
+	.write_copy = mt792xu_bus_hung_write_copy,
+	.read_copy = mt792xu_bus_hung_read_copy,
+	.type = MT76_BUS_USB,
+};
+
+static void mt792xu_set_bus_hung(struct mt792x_dev *dev)
+{
+	atomic_set(&dev->mt76.bus_hung, true);
+
+	if (READ_ONCE(dev->mt76.bus) == &mt792xu_bus_hung_ops)
+		return;
+
+	WRITE_ONCE(dev->mt76.bus, &mt792xu_bus_hung_ops);
+}
+
+static void mt792xu_ctrl_timeout(struct mt76_dev *mdev, int err)
+{
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
+
+	mt792xu_set_bus_hung(dev);
+	mt792xu_queue_usb_reset(dev, err);
+}
+
 void mt792xu_reset_work_init(struct mt792x_dev *dev)
 {
 	INIT_WORK(&dev->usb_reset_work, mt792xu_reset_work);
 	atomic_set(&dev->usb_reset_pending, 0);
+	dev->mt76.usb.ctrl_timeout = mt792xu_ctrl_timeout;
 }
 EXPORT_SYMBOL_GPL(mt792xu_reset_work_init);
 
@@ -62,26 +130,23 @@ EXPORT_SYMBOL_GPL(mt792xu_check_bus);
 
 int mt792xu_reset_on_bus_error(struct mt792x_dev *dev)
 {
-	int err = 0;
+	int err;
 
-	if (!atomic_read(&dev->mt76.bus_hung))
-		err = mt792xu_check_bus(dev);
+	/* Once hung, the no-op bus ops stay installed until the queued USB
+	 * reset re-probes the device. Do not clear bus_hung here, or the caller
+	 * would run a full reset over dropped register I/O and report success.
+	 */
+	if (atomic_read(&dev->mt76.bus_hung))
+		return -EIO;
 
+	err = mt792xu_check_bus(dev);
 	if (err) {
-		atomic_set(&dev->mt76.bus_hung, true);
-
-		if (!atomic_xchg(&dev->usb_reset_pending, 1)) {
-			dev_warn(dev->mt76.dev,
-				 "USB transport access failed (%d), queueing device reset\n",
-				 err);
-
-			schedule_work(&dev->usb_reset_work);
-		}
+		mt792xu_set_bus_hung(dev);
+		mt792xu_queue_usb_reset(dev, err);
 
 		return err;
 	}
 
-	atomic_set(&dev->mt76.bus_hung, false);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt792xu_reset_on_bus_error);
@@ -169,9 +234,9 @@ EXPORT_SYMBOL_GPL(mt792xu_mcu_power_on);
 static void mt792xu_cleanup(struct mt792x_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-	mt792xu_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 	mt76u_queues_deinit(&dev->mt76);
+	mt792xu_wfsys_reset(dev);
 }
 
 static u32 mt792xu_uhw_rr(struct mt76_dev *dev, u32 addr)
@@ -281,6 +346,23 @@ static void mt792xu_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
 	mt792xu_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
 }
 
+static void mt792xu_wait_udma_idle(struct mt792x_dev *dev)
+{
+	u32 mask = MT_WL_RX_BUSY | MT_WL_TX_BUSY;
+	u32 val;
+
+	mt76_set(dev, MT_UDMA_WLCFG_0, MT_WL_RX_FLUSH);
+
+	if (mt76_poll_msec(dev, MT_UDMA_WLCFG_0, mask, 0,
+			   MT792X_USB_UDMA_IDLE_TIMEOUT))
+		return;
+
+	val = mt76_rr(dev, MT_UDMA_WLCFG_0);
+
+	dev_warn(dev->mt76.dev,
+		 "UDMA busy before WFSYS reset: WLCFG0=0x%08x\n", val);
+}
+
 struct mt792xu_wfsys_desc {
 	u32 rst_reg;
 	u32 done_reg;
@@ -319,6 +401,10 @@ int mt792xu_dma_init(struct mt792x_dev *dev, bool resume)
 	mt76_set(dev, MT_UDMA_WLCFG_0,
 		 MT_WL_RX_EN | MT_WL_TX_EN |
 		 MT_WL_RX_MPSZ_PAD0 | MT_TICK_1US_EN);
+	mt76_rmw(dev, MT_UDMA_WLCFG_1, MT_WL_TX_TMOUT_LMT,
+		 FIELD_PREP(MT_WL_TX_TMOUT_LMT,
+			    MT792X_USB_TX_TIMEOUT_LIMIT));
+	mt76_set(dev, MT_UDMA_WLCFG_0, MT_WL_TX_TMOUT_FUNC_EN);
 	mt76_clear(dev, MT_UDMA_WLCFG_0,
 		   MT_WL_RX_AGG_TO | MT_WL_RX_AGG_LMT);
 	mt76_clear(dev, MT_UDMA_WLCFG_1, MT_WL_RX_AGG_PKT_LMT);
@@ -344,6 +430,10 @@ int mt792xu_wfsys_reset(struct mt792x_dev *dev)
 	u32 val;
 	int i;
 
+	if (atomic_read(&dev->mt76.bus_hung))
+		return -EIO;
+
+	mt792xu_wait_udma_idle(dev);
 	mt792xu_epctl_rst_opt(dev, false);
 
 	val = mt792xu_uhw_rr(&dev->mt76, desc->rst_reg);
@@ -408,13 +498,27 @@ void mt792xu_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
 
-	mt792xu_reset_work_cleanup(dev);
-	cancel_work_sync(&dev->init_work);
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
+	if (!dev)
 		return;
+
+	set_bit(MT76_RESET, &dev->mphy.state);
+	set_bit(MT76_MCU_RESET, &dev->mphy.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
+	wake_up(&dev->mt76.mcu.wait);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
+
+	cancel_work_sync(&dev->reset_work);
+	cancel_work_sync(&dev->init_work);
+	mt76_worker_disable(&dev->mt76.tx_worker);
+	mt792xu_reset_work_cleanup(dev);
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state)) {
+		set_bit(MT76_REMOVED, &dev->mphy.state);
+		return;
+	}
 
 	mt76_unregister_device(&dev->mt76);
 	mt792xu_cleanup(dev);
+	set_bit(MT76_REMOVED, &dev->mphy.state);
 
 	usb_set_intfdata(usb_intf, NULL);
 
