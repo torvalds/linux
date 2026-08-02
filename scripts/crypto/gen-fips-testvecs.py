@@ -32,18 +32,66 @@ def print_header(file):
 
 def gen_aes_test_data(file):
     fips_test_data = b"fips test data\0\0"
+    fips_test_iv = b"fips test iv\0\0\0\0"
     fips_test_key = b"fips test key\0\0\0"
+    fips_test_xts_key = b"key1" + (b"\0" * 12) + b"key2" + (b"\0" * 12)
 
     print_header(file)
     print_static_u8_array_definition(file, "fips_test_data", fips_test_data)
+    print_static_u8_array_definition(file, "fips_test_iv", fips_test_iv)
     print_static_u8_array_definition(file, "fips_test_key", fips_test_key)
+    print_static_u8_array_definition(file, "fips_test_xts_key", fips_test_xts_key)
 
     aes = cryptography.hazmat.primitives.ciphers.algorithms.AES(fips_test_key)
+
+    # AES-CMAC
     aes_cmac = cryptography.hazmat.primitives.cmac.CMAC(aes)
     aes_cmac.update(fips_test_data)
     print_static_u8_array_definition(
         file, "fips_test_aes_cmac_value", aes_cmac.finalize()
     )
+
+    # AES-ECB
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        aes, cryptography.hazmat.primitives.ciphers.modes.ECB()
+    )
+    encryptor = cipher.encryptor()
+    ctext = encryptor.update(fips_test_data) + encryptor.finalize()
+    print_static_u8_array_definition(file, "fips_test_aes_ecb_ctext", ctext)
+
+    # AES-CBC
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        aes, cryptography.hazmat.primitives.ciphers.modes.CBC(fips_test_iv)
+    )
+    encryptor = cipher.encryptor()
+    ctext = encryptor.update(fips_test_data) + encryptor.finalize()
+    print_static_u8_array_definition(file, "fips_test_aes_cbc_ctext", ctext)
+
+    # AES-CBC-CTS
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        aes, cryptography.hazmat.primitives.ciphers.modes.CBC(fips_test_iv)
+    )
+    encryptor = cipher.encryptor()
+    ctext = encryptor.update(fips_test_data * 2) + encryptor.finalize()
+    ctext = ctext[16:32] + ctext[0:16]
+    print_static_u8_array_definition(file, "fips_test_aes_cbc_cts_ctext", ctext)
+
+    # AES-CTR
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        aes, cryptography.hazmat.primitives.ciphers.modes.CTR(fips_test_iv)
+    )
+    encryptor = cipher.encryptor()
+    ctext = encryptor.update(fips_test_data) + encryptor.finalize()
+    print_static_u8_array_definition(file, "fips_test_aes_ctr_ctext", ctext)
+
+    # AES-XTS
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        cryptography.hazmat.primitives.ciphers.algorithms.AES(fips_test_xts_key),
+        cryptography.hazmat.primitives.ciphers.modes.XTS(fips_test_iv),
+    )
+    encryptor = cipher.encryptor()
+    ctext = encryptor.update(fips_test_data) + encryptor.finalize()
+    print_static_u8_array_definition(file, "fips_test_aes_xts_ctext", ctext)
 
 
 def gen_sha_test_data(file):
