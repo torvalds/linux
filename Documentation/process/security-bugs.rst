@@ -18,6 +18,10 @@ information is helpful.  The following information are absolutely necessary in
 **any** security bug report:
 
   * **affected kernel version range**: with no version indication, your report
+    will not be processed.  Note that a time-dependent version such as "latest
+    mainline" is not acceptable.  A stable identifier such as a commit ID or an
+    exact version is required.  Versions designating kernels not coming from
+    kernel.org (such as distro kernels) are meaningless to maintainers and
     will not be processed.  A significant part of reports are for bugs that
     have already been fixed, so it is extremely important that vulnerabilities
     are verified on recent versions (development tree or latest stable
