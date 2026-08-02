@@ -1785,7 +1785,13 @@ int hci_register_suspend_notifier(struct hci_dev *hdev);
 int hci_unregister_suspend_notifier(struct hci_dev *hdev);
 int hci_suspend_dev(struct hci_dev *hdev);
 int hci_resume_dev(struct hci_dev *hdev);
-int hci_reset_dev(struct hci_dev *hdev);
+int __hci_reset_dev(struct hci_dev *hdev, u8 hw_err_code);
+
+static inline int hci_reset_dev(struct hci_dev *hdev)
+{
+	return __hci_reset_dev(hdev, 0);
+}
+
 int hci_recv_frame(struct hci_dev *hdev, struct sk_buff *skb);
 int hci_recv_diag(struct hci_dev *hdev, struct sk_buff *skb);
 __printf(2, 3) void hci_set_hw_info(struct hci_dev *hdev, const char *fmt, ...);

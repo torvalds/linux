@@ -2852,9 +2852,9 @@ int hci_resume_dev(struct hci_dev *hdev)
 EXPORT_SYMBOL(hci_resume_dev);
 
 /* Reset HCI device */
-int hci_reset_dev(struct hci_dev *hdev)
+int __hci_reset_dev(struct hci_dev *hdev, u8 hw_err_code)
 {
-	static const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, 0x00 };
+	const u8 hw_err[] = { HCI_EV_HARDWARE_ERROR, 0x01, hw_err_code };
 	struct sk_buff *skb;
 
 	skb = bt_skb_alloc(3, GFP_ATOMIC);
@@ -2869,7 +2869,7 @@ int hci_reset_dev(struct hci_dev *hdev)
 	/* Send Hardware Error to upper stack */
 	return hci_recv_frame(hdev, skb);
 }
-EXPORT_SYMBOL(hci_reset_dev);
+EXPORT_SYMBOL(__hci_reset_dev);
 
 static u8 hci_dev_classify_pkt_type(struct hci_dev *hdev, struct sk_buff *skb)
 {
