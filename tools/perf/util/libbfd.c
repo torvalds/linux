@@ -15,6 +15,7 @@
 #ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/libbpf.h>
 #endif
 #include <fcntl.h>
 #include <stdio.h>
@@ -510,7 +511,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 	char tpath[PATH_MAX];
 	size_t buf_size;
 	int nr_skip = 0;
-	char *buf;
+	char *buf = NULL;
 	bfd *bfdf;
 	int ret;
 	FILE *s;
@@ -620,7 +621,7 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 
 		if (!annotate_opts.hide_src_code && srcline) {
 			args->offset = -1;
-			args->line = strdup(srcline);
+			args->line = (char *)srcline;
 			args->line_nr = 0;
 			args->fileloc = NULL;
 			args->ms->sym = sym;
@@ -645,9 +646,12 @@ int symbol__disassemble_bpf_libbfd(struct symbol *sym __maybe_unused,
 
 	ret = 0;
 out:
-	free(prog_linfo);
+	bpf_prog_linfo__free(prog_linfo);
 	btf__free(btf);
-	fclose(s);
+	if (s) {
+		fclose(s);
+		free(buf);
+	}
 	bfd_close(bfdf);
 	return ret;
 #else
