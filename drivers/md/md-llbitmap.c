@@ -1371,11 +1371,20 @@ static int llbitmap_load(struct mddev *mddev)
 {
 	enum llbitmap_action action = BitmapActionReload;
 	struct llbitmap *llbitmap = mddev->bitmap;
+	int ret;
 
 	if (test_and_clear_bit(BITMAP_STALE, &llbitmap->flags))
 		action = BitmapActionStale;
 
+	mutex_lock(&mddev->bitmap_info.mutex);
+	llbitmap_refresh_reshape(llbitmap);
+	ret = llbitmap_expand_pages(llbitmap, llbitmap->chunks);
+	if (ret) {
+		mutex_unlock(&mddev->bitmap_info.mutex);
+		return ret;
+	}
 	llbitmap_state_machine(llbitmap, 0, llbitmap->chunks - 1, action);
+	mutex_unlock(&mddev->bitmap_info.mutex);
 	return 0;
 }
 
@@ -1709,6 +1718,30 @@ static void llbitmap_dirty_bits(struct mddev *mddev, unsigned long s,
 	llbitmap_state_machine(mddev->bitmap, s, e, BitmapActionStartwrite);
 }
 
+static void llbitmap_reshape_finish(struct mddev *mddev)
+{
+	struct llbitmap *llbitmap = mddev->bitmap;
+
+	if (mddev->pers->quiesce)
+		mddev->pers->quiesce(mddev, 1);
+
+	mutex_lock(&mddev->bitmap_info.mutex);
+	llbitmap_flush(mddev);
+
+	llbitmap->chunksize = llbitmap->reshape_chunksize;
+	llbitmap->chunkshift = ffz(~llbitmap->chunksize);
+	llbitmap->chunks = llbitmap->reshape_chunks;
+	llbitmap->sync_size = llbitmap->reshape_sync_size;
+	llbitmap_refresh_reshape(llbitmap);
+	mddev->bitmap_info.chunksize = llbitmap->chunksize;
+	llbitmap_update_sb(llbitmap);
+	__llbitmap_flush(mddev);
+	mutex_unlock(&mddev->bitmap_info.mutex);
+
+	if (mddev->pers->quiesce)
+		mddev->pers->quiesce(mddev, 0);
+}
+
 static void llbitmap_write_sb(struct llbitmap *llbitmap)
 {
 	int nr_blocks = DIV_ROUND_UP(BITMAP_DATA_OFFSET, llbitmap->io_size);
@@ -2000,6 +2033,7 @@ static struct bitmap_operations llbitmap_ops = {
 	.get_stats		= llbitmap_get_stats,
 	.dirty_bits		= llbitmap_dirty_bits,
 	.prepare_range		= llbitmap_prepare_range,
+	.reshape_finish		= llbitmap_reshape_finish,
 	.write_all		= llbitmap_write_all,
 
 	.groups			= md_llbitmap_groups,
