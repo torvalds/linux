@@ -8,6 +8,7 @@
 # Copyright 2025 Google LLC
 
 import cryptography.hazmat.primitives.ciphers
+import cryptography.hazmat.primitives.ciphers.aead
 import cryptography.hazmat.primitives.cmac
 import hashlib
 import hmac
@@ -32,12 +33,14 @@ def print_header(file):
 
 def gen_aes_test_data(file):
     fips_test_data = b"fips test data\0\0"
+    fips_test_ad = b"fips test ad\0\0\0\0"
     fips_test_iv = b"fips test iv\0\0\0\0"
     fips_test_key = b"fips test key\0\0\0"
     fips_test_xts_key = b"key1" + (b"\0" * 12) + b"key2" + (b"\0" * 12)
 
     print_header(file)
     print_static_u8_array_definition(file, "fips_test_data", fips_test_data)
+    print_static_u8_array_definition(file, "fips_test_ad", fips_test_ad)
     print_static_u8_array_definition(file, "fips_test_iv", fips_test_iv)
     print_static_u8_array_definition(file, "fips_test_key", fips_test_key)
     print_static_u8_array_definition(file, "fips_test_xts_key", fips_test_xts_key)
@@ -92,6 +95,26 @@ def gen_aes_test_data(file):
     encryptor = cipher.encryptor()
     ctext = encryptor.update(fips_test_data) + encryptor.finalize()
     print_static_u8_array_definition(file, "fips_test_aes_xts_ctext", ctext)
+
+    # AES-GCM
+    cipher = cryptography.hazmat.primitives.ciphers.aead.AESGCM(fips_test_key)
+    ct_and_tag = cipher.encrypt(
+        nonce=fips_test_iv[:12], data=fips_test_data, associated_data=fips_test_ad
+    )
+    print_static_u8_array_definition(
+        file, "fips_test_aes_gcm_ctext_and_tag", ct_and_tag
+    )
+
+    # AES-CCM
+    cipher = cryptography.hazmat.primitives.ciphers.aead.AESCCM(
+        fips_test_key, tag_length=16
+    )
+    ct_and_tag = cipher.encrypt(
+        nonce=fips_test_iv[:13], data=fips_test_data, associated_data=fips_test_ad
+    )
+    print_static_u8_array_definition(
+        file, "fips_test_aes_ccm_ctext_and_tag", ct_and_tag
+    )
 
 
 def gen_sha_test_data(file):
