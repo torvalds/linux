@@ -178,9 +178,6 @@ regular bug:
     involving tens of millions of threads, tens of thousands of CPUs,
     unrealistic CPU frequencies, RAM sizes or disk capacities, network speeds).
 
-  * bugs whose reproduction requires hardware modification or emulation,
-    including fake USB devices that pretend to be another one.
-
   * as well as issues that can be triggered at a cost that is orders of
     magnitude higher than the expected benefits (e.g. fully functional keyboard
     emulator only to retrieve 7 uninitialized bytes in a structure, or
@@ -211,15 +208,23 @@ regular bug:
     exploitable vector and are not vulnerabilities, though they must be
     reported and fixed.
 
-* **Crafted file system images**:
+* **Non-conforming devices and media**:
+
+  Drivers are implemented against a specification. When a device or a storage
+  medium violates the specification its driver was written against, the
+  resulting misbehaviour is a regular bug to be fixed, not a vulnerability,
+  unless the driver is specifically documented as being hardened against
+  hostile inputs. The following are therefore not considered vulnerabilities:
 
   * bugs triggered by mounting a corrupted or maliciously crafted file system
-    image are generally not vulnerabilities, as the kernel assumes the underlying
-    storage media is under the administrator's control, unless the filesystem
-    driver is specifically documented as being hardened against untrusted media.
-
-  * bugs that are resolved, mitigated, or detected by running a filesystem
+    image: mounting a block device is a privileged operation (see above), and
+    the administrator is responsible for the media they mount. This includes
+    issues that are resolved, mitigated, or detected by running a filesystem
     consistency check (fsck) on the image prior to mounting.
+
+  * bugs whose reproduction requires hardware modification or emulation,
+    including fake USB devices that pretend to be another one, or devices
+    reporting values outside their documented ranges.
 
 * **Physical access**:
 
