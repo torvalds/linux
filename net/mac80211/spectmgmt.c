@@ -227,7 +227,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 {
 	enum nl80211_band new_band = current_band;
 	int new_freq;
-	u8 new_chan_no = 0, new_op_class = 0;
+	int new_chan_no = -1, new_op_class = -1;
 	struct ieee80211_channel *new_chan;
 	struct cfg80211_chan_def new_chandef = {};
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
@@ -256,7 +256,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		new_op_class = ext_chansw_elem->new_operating_class;
 
 		if (!ieee80211_operating_class_to_band(new_op_class, &new_band)) {
-			new_op_class = 0;
+			new_op_class = -1;
 			if (!unprot_action)
 				sdata_info(sdata,
 					   "cannot understand ECSA IE operating class, %d, ignoring\n",
@@ -268,14 +268,14 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (!new_op_class && elems->ch_switch_ie) {
+	if (new_op_class < 0 && elems->ch_switch_ie) {
 		new_chan_no = elems->ch_switch_ie->new_ch_num;
 		csa_ie->count = elems->ch_switch_ie->count;
 		csa_ie->mode = elems->ch_switch_ie->mode;
 	}
 
 	/* nothing here we understand */
-	if (!new_chan_no)
+	if (new_chan_no < 0)
 		return 1;
 
 	/* Mesh Channel Switch Parameters Element */
@@ -349,7 +349,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				get_unaligned_le16(bwi->info.optional);
 	} else if (!wide_bw_chansw_ie || !wbcs_elem_to_chandef(wide_bw_chansw_ie,
 							       &new_chandef)) {
-		if (!ieee80211_operating_class_to_chandef(new_op_class, new_chan,
+		if (new_op_class < 0 ||
+		    !ieee80211_operating_class_to_chandef(new_op_class, new_chan,
 							  &new_chandef))
 			new_chandef = csa_ie->chanreq.oper;
 	}
