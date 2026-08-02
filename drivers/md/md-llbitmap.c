@@ -1126,10 +1126,11 @@ static int llbitmap_create(struct mddev *mddev)
 	mutex_lock(&mddev->bitmap_info.mutex);
 	mddev->bitmap = llbitmap;
 	ret = llbitmap_read_sb(llbitmap);
+	if (ret)
+		mddev->bitmap = NULL;
 	mutex_unlock(&mddev->bitmap_info.mutex);
 	if (ret) {
 		kfree(llbitmap);
-		mddev->bitmap = NULL;
 	}
 
 	return ret;
