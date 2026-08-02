@@ -1398,6 +1398,15 @@ static void alc245_fixup_hp_gpio_led(struct hda_codec *codec,
 	alc_fixup_hp_gpio_led(codec, action, 0, 0x04);
 }
 
+static void alc245_fixup_minisforum_jack_detect(struct hda_codec *codec,
+						const struct hda_fixup *fix,
+						int action)
+{
+	if (action == HDA_FIXUP_ACT_INIT)
+		/* Clear Reset HP JD while preserving the other coefficient bits. */
+		alc_update_coef_idx(codec, 0x4a, BIT(15), 0);
+}
+
 /* turn on/off mic-mute LED per capture hook via VREF change */
 static int vref_micmute_led_set(struct led_classdev *led_cdev,
 				enum led_brightness brightness)
@@ -4237,6 +4246,7 @@ enum {
 	ALC287_FIXUP_LENOVO_THKPAD_WH_ALC1318,
 	ALC256_FIXUP_CHROME_BOOK,
 	ALC245_FIXUP_CLEVO_NOISY_MIC,
+	ALC245_FIXUP_MINISFORUM_JACK_DETECT,
 	ALC269_FIXUP_VAIO_VJFH52_MIC_NO_PRESENCE,
 	ALC233_FIXUP_MEDION_MTL_SPK,
 	ALC269_FIXUP_STARLABS_LIMIT_INT_MIC_BOOST,
@@ -6796,6 +6806,10 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC256_FIXUP_SYSTEM76_MIC_NO_PRESENCE,
 	},
+	[ALC245_FIXUP_MINISFORUM_JACK_DETECT] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = alc245_fixup_minisforum_jack_detect,
+	},
 	[ALC269_FIXUP_VAIO_VJFH52_MIC_NO_PRESENCE] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = (const struct hda_pintbl[]) {
@@ -8167,6 +8181,8 @@ static const struct hda_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1e50, 0x7038, "Positivo DN140", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
 	SND_PCI_QUIRK(0x1ee7, 0x2078, "HONOR BRB-X M1010", ALC2XX_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x1ee7, 0x2081, "HONOR MRB-XXX M1020", ALC256_FIXUP_HONOR_MRB_XXX_M1020_AUDIO),
+	SND_PCI_QUIRK(0x1f4c, 0xb020, "Minisforum AI X1 Pro",
+		      ALC245_FIXUP_MINISFORUM_JACK_DETECT),
 	SND_PCI_QUIRK(0x1f4c, 0xe001, "Minisforum V3 (SE)", ALC245_FIXUP_BASS_HP_DAC),
 	SND_PCI_QUIRK(0x1f66, 0x0105, "Ayaneo Portable Game Player", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x2014, 0x800a, "Positivo ARN50", ALC269_FIXUP_LIMIT_INT_MIC_BOOST),
