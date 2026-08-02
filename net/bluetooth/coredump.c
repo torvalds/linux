@@ -34,8 +34,6 @@ struct hci_devcoredump_skb_pattern {
 		   hci_dmp_cb(skb)->pkt_type, \
 		   hci_devcd_state_name(hdev->dump.state))
 
-#define MAX_DEVCOREDUMP_HDR_SIZE	512	/* bytes */
-
 static int hci_devcd_update_hdr_state(char *buf, size_t size, int state)
 {
 	int len = 0;
@@ -63,7 +61,6 @@ static int hci_devcd_update_state(struct hci_dev *hdev, int state)
 
 static int hci_devcd_mkheader(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	char dump_start[] = "--- Start dump ---\n";
 	char hdr[80];
 	int hdr_len;
 
@@ -74,7 +71,7 @@ static int hci_devcd_mkheader(struct hci_dev *hdev, struct sk_buff *skb)
 	if (hdev->dump.dmp_hdr)
 		hdev->dump.dmp_hdr(hdev, skb);
 
-	skb_put_data(skb, dump_start, strlen(dump_start));
+	skb_put_data(skb, HCI_DEVCD_HDR_END_MARKER, strlen(HCI_DEVCD_HDR_END_MARKER));
 
 	return skb->len;
 }
@@ -154,7 +151,7 @@ static int hci_devcd_prepare(struct hci_dev *hdev, u32 dump_size)
 	int dump_hdr_size;
 	int err = 0;
 
-	skb = alloc_skb(MAX_DEVCOREDUMP_HDR_SIZE, GFP_ATOMIC);
+	skb = alloc_skb(HCI_DEVCD_HDR_SIZE_MAX, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
