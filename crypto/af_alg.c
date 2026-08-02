@@ -145,10 +145,13 @@ int af_alg_check_restriction(const char *name,
 	if (level == 1) {
 		for (const struct af_alg_allowlist_entry *ent = allowlist;
 		     ent->name; ent++) {
-			if (strcmp(name, ent->name) == 0 &&
-			    ((ent->flags & AF_ALG_UNPRIVILEGED) ||
-			     af_alg_capable()))
-				return 0;
+			if (strcmp(name, ent->name) == 0) {
+				if ((ent->flags & AF_ALG_UNPRIVILEGED) ||
+				    af_alg_capable())
+					return 0;
+				/* List contains at most one entry per name. */
+				break;
+			}
 		}
 	}
 	/*
