@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
-#include "fips.h"
+#include "fips-sha.h"
 
 /*
  * On some 32-bit architectures, such as h8300, GCC ends up using over 1 KB of

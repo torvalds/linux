@@ -19,7 +19,7 @@
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/unaligned.h>
-#include "fips.h"
+#include "fips-aes.h"
 
 static const u8 ____cacheline_aligned aes_sbox[] = {
 	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5,

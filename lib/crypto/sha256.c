@@ -17,7 +17,7 @@
 #include <linux/string.h>
 #include <linux/unaligned.h>
 #include <linux/wordpart.h>
-#include "fips.h"
+#include "fips-sha.h"
 
 static const struct sha256_block_state sha224_iv = {
 	.h = {
