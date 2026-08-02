@@ -101,36 +101,10 @@ static int max20830_probe(struct i2c_client *client)
 	device_property_read_u32(&client->dev, "adi,vout-rfb1-ohms", &data->vout_rfb1);
 	device_property_read_u32(&client->dev, "adi,vout-rfb2-ohms", &data->vout_rfb2);
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA) &&
-	    !i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		return -ENODEV;
-
-	/*
-	 * Use i2c_smbus_read_block_data() if supported, otherwise fall back
-	 * to i2c_smbus_read_i2c_block_data() to support I2C controllers
-	 * which do not support SMBus block reads.
-	 */
-	if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA)) {
-		ret = i2c_smbus_read_block_data(client, PMBUS_IC_DEVICE_ID, buf);
-		if (ret < 0)
-			return dev_err_probe(&client->dev, ret,
-					     "Failed to read IC_DEVICE_ID\n");
-	} else {
-		/* Reads 1 length byte + data bytes */
-		ret = i2c_smbus_read_i2c_block_data(client, PMBUS_IC_DEVICE_ID,
-						    MAX20830_IC_DEVICE_ID_LENGTH + 1,
-						    buf);
-		if (ret < 0)
-			return dev_err_probe(&client->dev, ret,
-					     "Failed to read IC_DEVICE_ID\n");
-		/*
-		 * Moves data forward, removing the length byte, this is to
-		 * match the format of i2c_smbus_read_block_data().
-		 * Also adjust return value to reflect length byte removal.
-		 */
-		memmove(buf, buf + 1, MAX20830_IC_DEVICE_ID_LENGTH);
-		ret = ret - 1;
-	}
+	ret = pmbus_read_smbus_i2c_block_data(client, PMBUS_IC_DEVICE_ID, buf);
+	if (ret < 0)
+		return dev_err_probe(&client->dev, ret,
+				     "Failed to read IC_DEVICE_ID\n");
 
 	/* Verify we read the expected number of bytes */
 	if (ret < MAX20830_IC_DEVICE_ID_LENGTH)
