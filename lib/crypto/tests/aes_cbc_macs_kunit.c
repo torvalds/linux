@@ -34,18 +34,9 @@ static void aes_cmac_withtestkey(const u8 *data, size_t data_len,
 static int aes_cbc_macs_suite_init(struct kunit_suite *suite)
 {
 	u8 raw_key[AES_KEYSIZE_256];
-	int err;
 
 	rand_bytes_seeded_from_len(raw_key, sizeof(raw_key));
-	err = aes_cmac_preparekey(&test_key, raw_key, sizeof(raw_key));
-	if (err)
-		return err;
-	return hash_suite_init(suite);
-}
-
-static void aes_cbc_macs_suite_exit(struct kunit_suite *suite)
-{
-	hash_suite_exit(suite);
+	return aes_cmac_preparekey(&test_key, raw_key, sizeof(raw_key));
 }
 
 /* Verify compatibility of the AES-CMAC implementation with RFC 4493. */
@@ -218,7 +209,6 @@ static struct kunit_suite aes_cbc_macs_test_suite = {
 	.name = "aes_cbc_macs",
 	.test_cases = aes_cbc_macs_test_cases,
 	.suite_init = aes_cbc_macs_suite_init,
-	.suite_exit = aes_cbc_macs_suite_exit,
 };
 kunit_test_suite(aes_cbc_macs_test_suite);
 

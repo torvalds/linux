@@ -22,8 +22,6 @@ static struct kunit_case sm3_test_cases[] = {
 static struct kunit_suite sm3_test_suite = {
 	.name = "sm3",
 	.test_cases = sm3_test_cases,
-	.suite_init = hash_suite_init,
-	.suite_exit = hash_suite_exit,
 };
 kunit_test_suite(sm3_test_suite);
 
