@@ -1066,14 +1066,14 @@ retry:
 
 	for (idx = 0; idx < llbitmap->nr_pages; idx++) {
 		struct llbitmap_page_ctl *pctl = llbitmap->pctl[idx];
+		bool flush = test_and_clear_bit(LLPageFlush, &pctl->flags);
 
 		if (idx > 0) {
 			start = end + 1;
 			end = min(end + PAGE_SIZE, llbitmap->chunks - 1);
 		}
 
-		if (!test_bit(LLPageFlush, &pctl->flags) &&
-		    time_before(jiffies, pctl->expire)) {
+		if (!flush && time_before(jiffies, pctl->expire)) {
 			restart = true;
 			continue;
 		}
