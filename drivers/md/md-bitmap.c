@@ -1731,7 +1731,7 @@ static void bitmap_start_write(struct mddev *mddev, sector_t offset,
 }
 
 static void bitmap_prepare_range(struct mddev *mddev, sector_t *offset,
-				 unsigned long *sectors)
+				 unsigned long *sectors, bool discard)
 {
 	if (mddev->pers->bitmap_sector)
 		mddev->pers->bitmap_sector(mddev, offset, sectors);

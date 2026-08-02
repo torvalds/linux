@@ -9428,21 +9428,20 @@ split:
 EXPORT_SYMBOL_GPL(mddev_bio_split_at_reshape_offset);
 
 static void md_bitmap_prepare_range(struct mddev *mddev, sector_t *offset,
-				    unsigned long *sectors)
+				    unsigned long *sectors, bool discard)
 {
-	mddev->bitmap_ops->prepare_range(mddev, offset, sectors);
+	mddev->bitmap_ops->prepare_range(mddev, offset, sectors, discard);
 }
 
 static void md_bitmap_start(struct mddev *mddev,
 			    struct md_io_clone *md_io_clone)
 {
-	md_bitmap_fn *fn = unlikely(md_io_clone->rw == STAT_DISCARD) ?
-			   mddev->bitmap_ops->start_discard :
+	bool discard = md_io_clone->rw == STAT_DISCARD;
+	md_bitmap_fn *fn = discard ? mddev->bitmap_ops->start_discard :
 			   mddev->bitmap_ops->start_write;
 
 	md_bitmap_prepare_range(mddev, &md_io_clone->offset,
-				&md_io_clone->sectors);
-
+				&md_io_clone->sectors, discard);
 	if (!md_io_clone->sectors)
 		return;
 	fn(mddev, md_io_clone->offset, md_io_clone->sectors);

@@ -97,7 +97,8 @@ struct bitmap_operations {
 	/* Prepare a range for this bitmap implementation. */
 	void (*prepare_range)(struct mddev *mddev,
 			      sector_t *offset,
-			      unsigned long *sectors);
+			      unsigned long *sectors,
+			      bool discard);
 	void (*reshape_finish)(struct mddev *mddev);
 	int (*reshape_can_start)(struct mddev *mddev);
 	void (*reshape_mark)(struct mddev *mddev, sector_t old_pos,
