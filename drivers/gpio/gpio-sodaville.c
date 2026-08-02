@@ -158,7 +158,7 @@ static int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 
 	sd->gc->private = sd;
 	ct = sd->gc->chip_types;
-	ct->type = IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW;
+	ct->type = IRQ_TYPE_LEVEL_MASK;
 	ct->regs.eoi = GPSTR;
 	ct->regs.mask = GPIO_INT;
 	ct->chip.irq_mask = irq_gc_mask_clr_bit;

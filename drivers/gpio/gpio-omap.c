@@ -432,8 +432,7 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
 
-	if (!bank->regs->leveldetect0 &&
-		(type & (IRQ_TYPE_LEVEL_LOW|IRQ_TYPE_LEVEL_HIGH)))
+	if (!bank->regs->leveldetect0 && (type & IRQ_TYPE_LEVEL_MASK))
 		return -EINVAL;
 
 	raw_spin_lock_irqsave(&bank->lock, flags);
@@ -450,9 +449,9 @@ static int omap_gpio_irq_type(struct irq_data *d, unsigned type)
 	}
 	raw_spin_unlock_irqrestore(&bank->lock, flags);
 
-	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+	if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
-	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
+	else if (type & IRQ_TYPE_EDGE_BOTH)
 		/*
 		 * Edge IRQs are already cleared/acked in irq_handler and
 		 * not need to be masked, as result handle_edge_irq()
@@ -702,7 +701,7 @@ static void omap_gpio_unmask_irq(struct irq_data *d)
 	 * after enabing the interrupt to clear the wakeup status.
 	 */
 	if (bank->regs->leveldetect0 && bank->regs->wkup_en &&
-	    trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+	    trigger & IRQ_TYPE_LEVEL_MASK)
 		omap_clear_gpio_irqstatus(bank, offset);
 
 	if (trigger)
