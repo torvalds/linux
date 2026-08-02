@@ -1450,22 +1450,27 @@ static void llbitmap_cond_end_sync(struct mddev *mddev, sector_t sector,
 				   bool force)
 {
 	struct llbitmap *llbitmap = mddev->bitmap;
+	sector_t complete;
 
 	if (sector == 0) {
 		llbitmap->last_end_sync = jiffies;
 		return;
 	}
 
-	if (time_before(jiffies, llbitmap->last_end_sync +
-				 HZ * mddev->bitmap_info.daemon_sleep))
+	if (!force && time_before(jiffies, llbitmap->last_end_sync +
+				  HZ * mddev->bitmap_info.daemon_sleep))
 		return;
 
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 
 	mddev->curr_resync_completed = sector;
 	set_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags);
-	llbitmap_state_machine(llbitmap, 0, sector >> llbitmap->chunkshift,
-			       BitmapActionEndsync);
+
+	complete = round_down(sector, llbitmap->chunksize);
+	if (complete)
+		llbitmap_state_machine(llbitmap, 0,
+				       (complete >> llbitmap->chunkshift) - 1,
+				       BitmapActionEndsync);
 	__llbitmap_flush(mddev);
 
 	llbitmap->last_end_sync = jiffies;
