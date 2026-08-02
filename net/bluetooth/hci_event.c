@@ -7604,6 +7604,14 @@ static void hci_le_meta_evt(struct hci_dev *hdev, void *data,
 	subev->func(hdev, data, skb);
 }
 
+static void hci_vendor_evt(struct hci_dev *hdev, void *data, struct sk_buff *skb)
+{
+	if (hdev->handle_ev_vendor && hdev->handle_ev_vendor(hdev, skb))
+		return;
+
+	msft_vendor_evt(hdev, data, skb);
+}
+
 static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
 				 u8 event, struct sk_buff *skb)
 {
@@ -7831,7 +7839,7 @@ static const struct hci_ev {
 	HCI_EV_REQ_VL(HCI_EV_LE_META, hci_le_meta_evt,
 		      sizeof(struct hci_ev_le_meta), HCI_MAX_EVENT_SIZE),
 	/* [0xff = HCI_EV_VENDOR] */
-	HCI_EV_VL(HCI_EV_VENDOR, msft_vendor_evt, 0, HCI_MAX_EVENT_SIZE),
+	HCI_EV_VL(HCI_EV_VENDOR, hci_vendor_evt, 0, HCI_MAX_EVENT_SIZE),
 };
 
 static void hci_event_func(struct hci_dev *hdev, u8 event, struct sk_buff *skb,
