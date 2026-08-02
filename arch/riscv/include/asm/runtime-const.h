@@ -23,6 +23,7 @@
 	typeof(sym) __ret;						\
 	asm_inline(".option push\n\t"					\
 		".option norvc\n\t"					\
+		".option norelax\n\t"					\
 		"1:\t"							\
 		"lui	%[__ret], %%hi(" RUNTIME_MAGIC ")\n\t"		\
 		"addi	%[__ret],%[__ret], %%lo(" RUNTIME_MAGIC ")\n\t"	\
@@ -47,6 +48,7 @@
 #define RISCV_RUNTIME_CONST_64_PREAMBLE				\
 	".option push\n\t"					\
 	".option norvc\n\t"					\
+	".option norelax\n\t"					\
 	"1:\t"							\
 	"lui	%[__ret], %%hi(" RUNTIME_MAGIC ")\n\t"		\
 	"lui	%[__tmp], %%hi(" RUNTIME_MAGIC ")\n\t"		\
