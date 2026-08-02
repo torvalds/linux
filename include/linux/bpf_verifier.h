@@ -15,7 +15,7 @@
  * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
  */
 #define BPF_MAX_VAR_OFF	(1 << 29)
-/* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
+/* Maximum variable size permitted for ARG_MEM_SIZE[_OR_ZERO].  This ensures
  * that converting umax_value to int cannot overflow.
  */
 #define BPF_MAX_VAR_SIZ	(1 << 29)
@@ -1302,7 +1302,6 @@ static inline u32 type_flag(u32 type)
 	return type & ~BPF_BASE_TYPE_MASK;
 }
 
-/* only use after check_attach_btf_id() */
 static inline enum bpf_prog_type resolve_prog_type(const struct bpf_prog *prog)
 {
 	return (prog->type == BPF_PROG_TYPE_EXT && prog->aux->saved_dst_prog_type) ?
@@ -1479,10 +1478,17 @@ struct ret_mem_desc {
 	bool found;
 };
 
+/* A constant scalar argument; Populated by process_const_arg() */
+struct arg_constant_desc {
+	u64 value;
+	bool found;
+};
+
 struct bpf_call_arg_meta {
 	/* Common */
 	struct btf *btf;
 	u32 func_id;
+	const struct bpf_func_proto *fn;
 	u8 release_regno;
 	u32 ret_btf_id;
 	u32 subprogno;
@@ -1496,10 +1502,7 @@ struct bpf_call_arg_meta {
 	u32 kfunc_flags;
 	const struct btf_type *func_proto;
 	const char *func_name;
-	struct {
-		u64 value;
-		bool found;
-	} arg_constant;
+	struct arg_constant_desc arg_constant;
 
 	/* arg_{btf,btf_id,owning_ref} are used by kfunc-specific handling,
 	 * generally to pass info about user-defined local kptr types to later
@@ -1614,6 +1617,7 @@ enum bpf_reg_arg_type {
 
 struct bpf_kfunc_desc {
 	struct btf_func_model func_model;
+	struct bpf_func_proto proto;
 	u32 func_id;
 	s32 imm;
 	u16 offset;
@@ -1621,13 +1625,15 @@ struct bpf_kfunc_desc {
 };
 
 struct bpf_kfunc_desc_tab {
+	u32 nr_descs;
 	/* Sorted by func_id (BTF ID) and offset (fd_array offset) during
 	 * verification. JITs do lookups by bpf_insn, where func_id may not be
 	 * available, therefore at the end of verification do_misc_fixups()
 	 * sorts this by imm and offset.
+	 *
+	 * Grown one entry at a time by bpf_add_kfunc_call().
 	 */
-	struct bpf_kfunc_desc descs[MAX_KFUNC_DESCS];
-	u32 nr_descs;
+	struct bpf_kfunc_desc descs[];
 };
 
 /* Functions exported from verifier.c, used by fixups.c */

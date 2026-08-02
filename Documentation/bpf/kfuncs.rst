@@ -250,6 +250,34 @@ Or::
                 ...
         }
 
+2.3.7 __const_map and __map Annotations
+---------------------------------------
+
+These annotations are used for ``struct bpf_map *`` arguments and distinguish a
+verifier-known map from an opaque one.
+
+``__const_map`` indicates a map must be known at the verification time, i.e. a
+concrete map fd the BPF program references directly.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_wq_init(struct bpf_wq *wq, void *p__const_map,
+                                    unsigned int flags)
+        {
+                ...
+        }
+
+``__map`` indicates an opaque ``struct bpf_map *`` that may be resolved
+at run time. The argument may take either a map fd or a ``PTR_TO_BTF_ID``
+``struct bpf_map`` pointer.
+
+An example is given below::
+
+        __bpf_kfunc void *bpf_arena_alloc_pages(void *p__map, ...)
+        {
+                ...
+        }
+
 .. _BPF_kfunc_nodef:
 
 2.4 Using an existing kernel function
@@ -411,7 +439,7 @@ Example declaration:
 .. code-block:: c
 
 	__bpf_kfunc int bpf_task_work_schedule_signal(struct task_struct *task, struct bpf_task_work *tw,
-						      void *map__map, bpf_task_work_callback_t callback,
+						      void *map__const_map, bpf_task_work_callback_t callback,
 						      struct bpf_prog_aux *aux) { ... }
 
 Example usage in BPF program:

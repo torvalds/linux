@@ -1589,7 +1589,7 @@ int xdp_invalid_ctx(void *ctx)
 __u32 hdr_size = sizeof(struct ethhdr);
 /* Can't pass in variable-sized len to bpf_dynptr_slice */
 SEC("?tc")
-__failure __msg("unbounded memory access")
+__failure __msg("must be a known constant")
 int dynptr_slice_var_len1(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;

@@ -186,7 +186,7 @@ static const struct bpf_func_proto bpf_ima_inode_hash_proto = {
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_ima_inode_hash_btf_ids[0],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.allowed	= bpf_ima_inode_hash_allowed,
 };
 
@@ -205,7 +205,7 @@ static const struct bpf_func_proto bpf_ima_file_hash_proto = {
 	.arg1_type	= ARG_PTR_TO_BTF_ID,
 	.arg1_btf_id	= &bpf_ima_file_hash_btf_ids[0],
 	.arg2_type	= ARG_PTR_TO_UNINIT_MEM,
-	.arg3_type	= ARG_CONST_SIZE,
+	.arg3_type	= ARG_MEM_SIZE,
 	.allowed	= bpf_ima_inode_hash_allowed,
 };
 
