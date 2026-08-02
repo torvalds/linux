@@ -1331,19 +1331,7 @@ static int nxp_check_boot_sign(struct btnxpuart_dev *nxpdev)
 
 static int nxp_set_ind_reset(struct hci_dev *hdev, void *data)
 {
-	static const u8 ir_hw_err[] = { HCI_EV_HARDWARE_ERROR,
-					0x01, BTNXPUART_IR_HW_ERR };
-	struct sk_buff *skb;
-
-	skb = bt_skb_alloc(3, GFP_ATOMIC);
-	if (!skb)
-		return -ENOMEM;
-
-	hci_skb_pkt_type(skb) = HCI_EVENT_PKT;
-	skb_put_data(skb, ir_hw_err, 3);
-
-	/* Inject Hardware Error to upper stack */
-	return hci_recv_frame(hdev, skb);
+	return __hci_reset_dev(hdev, BTNXPUART_IR_HW_ERR);
 }
 
 /* Firmware dump */
