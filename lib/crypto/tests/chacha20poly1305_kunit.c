@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
+#include "test-utils.h"
 
 struct chacha20poly1305_testvec {
 	const u8 *input, *output, *assoc, *nonce, *key;
@@ -8890,11 +8890,8 @@ static void test_chacha20poly1305(struct kunit *test)
 	bool ret;
 	struct scatterlist sg_src[3];
 
-	computed_output = kunit_kmalloc(test, MAXIMUM_TEST_BUFFER_LEN,
-					GFP_KERNEL);
-	input = kunit_kmalloc(test, MAXIMUM_TEST_BUFFER_LEN, GFP_KERNEL);
-	KUNIT_ASSERT_NOT_NULL(test, computed_output);
-	KUNIT_ASSERT_NOT_NULL(test, input);
+	computed_output = alloc_buf(test, MAXIMUM_TEST_BUFFER_LEN);
+	input = alloc_buf(test, MAXIMUM_TEST_BUFFER_LEN);
 
 	for (i = 0; i < ARRAY_SIZE(chacha20poly1305_enc_vectors); ++i) {
 		memset(computed_output, 0, MAXIMUM_TEST_BUFFER_LEN);

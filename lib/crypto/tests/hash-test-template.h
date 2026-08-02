@@ -8,68 +8,12 @@
 #include <kunit/run-in-irq-context.h>
 #include <kunit/test.h>
 #include <linux/vmalloc.h>
+#include "test-utils.h"
 
 /* test_buf is a guarded buffer, i.e. &test_buf[TEST_BUF_LEN] is not mapped. */
 #define TEST_BUF_LEN 16384
 static u8 *test_buf;
-
 static u8 *orig_test_buf;
-
-static u64 random_seed;
-
-/*
- * This is a simple linear congruential generator.  It is used only for testing,
- * which does not require cryptographically secure random numbers.  A hard-coded
- * algorithm is used instead of <linux/prandom.h> so that it matches the
- * algorithm used by the test vector generation script.  This allows the input
- * data in random test vectors to be concisely stored as just the seed.
- */
-static u32 rand32(void)
-{
-	random_seed = (random_seed * 25214903917 + 11) & ((1ULL << 48) - 1);
-	return random_seed >> 16;
-}
-
-static void rand_bytes(u8 *out, size_t len)
-{
-	for (size_t i = 0; i < len; i++)
-		out[i] = rand32();
-}
-
-static void rand_bytes_seeded_from_len(u8 *out, size_t len)
-{
-	random_seed = len;
-	rand_bytes(out, len);
-}
-
-static bool rand_bool(void)
-{
-	return rand32() % 2;
-}
-
-/* Generate a random length, preferring small lengths. */
-static size_t rand_length(size_t max_len)
-{
-	size_t len;
-
-	switch (rand32() % 3) {
-	case 0:
-		len = rand32() % 128;
-		break;
-	case 1:
-		len = rand32() % 3072;
-		break;
-	default:
-		len = rand32();
-		break;
-	}
-	return len % (max_len + 1);
-}
-
-static size_t rand_offset(size_t max_offset)
-{
-	return min(rand32() % 128, max_offset);
-}
 
 static int hash_suite_init(struct kunit_suite *suite)
 {

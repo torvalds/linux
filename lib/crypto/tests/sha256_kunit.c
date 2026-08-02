@@ -4,6 +4,7 @@
  */
 #include <crypto/sha2.h>
 #include "sha256-testvecs.h"
+#include "test-utils.h"
 
 /* Generate the HASH_KUNIT_CASES using hash-test-template.h. */
 #define HASH sha256
@@ -21,26 +22,6 @@
 #define HMAC hmac_sha256
 #define HMAC_USINGRAWKEY hmac_sha256_usingrawkey
 #include "hash-test-template.h"
-
-static void free_guarded_buf(void *buf)
-{
-	vfree(buf);
-}
-
-/*
- * Allocate a KUnit-managed buffer that has length @len bytes immediately
- * followed by an unmapped page, and assert that the allocation succeeds.
- */
-static void *alloc_guarded_buf(struct kunit *test, size_t len)
-{
-	size_t full_len = round_up(len, PAGE_SIZE);
-	void *buf = vmalloc(full_len);
-
-	KUNIT_ASSERT_NOT_NULL(test, buf);
-	KUNIT_ASSERT_EQ(test, 0,
-			kunit_add_action_or_reset(test, free_guarded_buf, buf));
-	return buf + full_len - len;
-}
 
 /*
  * Test for sha256_finup_2x().  Specifically, choose various data lengths and

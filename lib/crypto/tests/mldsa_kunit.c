@@ -8,6 +8,7 @@
 #include <kunit/test.h>
 #include <linux/random.h>
 #include <linux/unaligned.h>
+#include "test-utils.h"
 
 #define Q 8380417 /* The prime q = 2^23 - 2^13 + 1 */
 
@@ -60,14 +61,6 @@ static void do_mldsa_and_assert_success(struct kunit *test,
 	KUNIT_ASSERT_EQ(test, err, 0);
 }
 
-static u8 *kunit_kmemdup_or_fail(struct kunit *test, const u8 *src, size_t len)
-{
-	u8 *dst = kunit_kmalloc(test, len, GFP_KERNEL);
-
-	KUNIT_ASSERT_NOT_NULL(test, dst);
-	return memcpy(dst, src, len);
-}
-
 /*
  * Test that changing coefficients in a valid signature's z vector results in
  * the following behavior from mldsa_verify():
@@ -83,7 +76,7 @@ static u8 *kunit_kmemdup_or_fail(struct kunit *test, const u8 *src, size_t len)
 static void test_mldsa_z_range(struct kunit *test,
 			       const struct mldsa_testvector *tv)
 {
-	u8 *sig = kunit_kmemdup_or_fail(test, tv->sig, tv->sig_len);
+	u8 *sig = memdup_buf(test, tv->sig, tv->sig_len);
 	const int lambda = params[tv->alg].lambda;
 	const s32 gamma1 = params[tv->alg].gamma1;
 	const int beta = params[tv->alg].beta;
@@ -146,7 +139,7 @@ static void test_mldsa_bad_hints(struct kunit *test,
 {
 	const int omega = params[tv->alg].omega;
 	const int k = params[tv->alg].k;
-	u8 *sig = kunit_kmemdup_or_fail(test, tv->sig, tv->sig_len);
+	u8 *sig = memdup_buf(test, tv->sig, tv->sig_len);
 	/* Pointer to the encoded hint vector in the signature */
 	u8 *hintvec = &sig[tv->sig_len - omega - k];
 	u8 h;
@@ -202,9 +195,9 @@ static void test_mldsa_mutation(struct kunit *test,
 	const int msg_len = tv->msg_len;
 	const int pk_len = tv->pk_len;
 	const int num_iter = 200;
-	u8 *sig = kunit_kmemdup_or_fail(test, tv->sig, sig_len);
-	u8 *msg = kunit_kmemdup_or_fail(test, tv->msg, msg_len);
-	u8 *pk = kunit_kmemdup_or_fail(test, tv->pk, pk_len);
+	u8 *sig = memdup_buf(test, tv->sig, sig_len);
+	u8 *msg = memdup_buf(test, tv->msg, msg_len);
+	u8 *pk = memdup_buf(test, tv->pk, pk_len);
 
 	/* Initially the signature is valid. */
 	do_mldsa_and_assert_success(test, tv);
