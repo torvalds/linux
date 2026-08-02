@@ -35,7 +35,7 @@
 #include <net/sock.h>
 
 static const struct af_alg_allowlist_entry aead_allowlist[] = {
-	{ "ccm(aes)", true }, /* bluez */
+	{ "ccm(aes)" }, /* bluez */
 	{},
 };
 

@@ -36,20 +36,20 @@
 #include <net/sock.h>
 
 static const struct af_alg_allowlist_entry skcipher_allowlist[] = {
-	{ "adiantum(xchacha12,aes)", false }, /* cryptsetup */
-	{ "adiantum(xchacha20,aes)", false }, /* cryptsetup */
-	{ "cbc(aes)", true }, /* iwd */
-	{ "cbc(des)", true }, /* iwd */
-	{ "cbc(des3_ede)", true }, /* iwd */
-	{ "cbc(paes)", true }, /* caam and others */
-	{ "ctr(aes)", true }, /* iwd */
-	{ "ecb(aes)", true }, /* iwd, bluez */
-	{ "ecb(des)", true }, /* iwd */
-	{ "hctr2(aes)", false }, /* cryptsetup */
-	{ "xts(aes)", false }, /* cryptsetup benchmark */
-	{ "xts(camellia)", false }, /* cryptsetup */
-	{ "xts(serpent)", false }, /* cryptsetup */
-	{ "xts(twofish)", false }, /* cryptsetup */
+	{ "adiantum(xchacha12,aes)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
+	{ "adiantum(xchacha20,aes)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
+	{ "cbc(aes)" }, /* iwd */
+	{ "cbc(des)" }, /* iwd */
+	{ "cbc(des3_ede)" }, /* iwd */
+	{ "cbc(paes)" }, /* caam and others */
+	{ "ctr(aes)" }, /* iwd */
+	{ "ecb(aes)" }, /* iwd, bluez */
+	{ "ecb(des)" }, /* iwd */
+	{ "hctr2(aes)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
+	{ "xts(aes)", AF_ALG_UNPRIVILEGED }, /* cryptsetup benchmark */
+	{ "xts(camellia)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
+	{ "xts(serpent)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
+	{ "xts(twofish)", AF_ALG_UNPRIVILEGED }, /* cryptsetup */
 	{},
 };
 

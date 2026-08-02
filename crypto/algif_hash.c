@@ -17,20 +17,20 @@
 #include <net/sock.h>
 
 static const struct af_alg_allowlist_entry hash_allowlist[] = {
-	{ "cmac(aes)", true }, /* iwd, bluez */
-	{ "hmac(md5)", true }, /* iwd */
-	{ "hmac(sha1)", true }, /* iwd */
-	{ "hmac(sha224)", true }, /* iwd */
-	{ "hmac(sha256)", true }, /* iwd */
-	{ "hmac(sha384)", true }, /* iwd */
-	{ "hmac(sha512)", true }, /* iwd, sha512hmac */
-	{ "md4", true }, /* iwd */
-	{ "md5", true }, /* iwd */
-	{ "sha1", false }, /* iwd, iproute2 < 7.0 */
-	{ "sha224", true }, /* iwd */
-	{ "sha256", true }, /* iwd */
-	{ "sha384", true }, /* iwd */
-	{ "sha512", true }, /* iwd */
+	{ "cmac(aes)" }, /* iwd, bluez */
+	{ "hmac(md5)" }, /* iwd */
+	{ "hmac(sha1)" }, /* iwd */
+	{ "hmac(sha224)" }, /* iwd */
+	{ "hmac(sha256)" }, /* iwd */
+	{ "hmac(sha384)" }, /* iwd */
+	{ "hmac(sha512)" }, /* iwd, sha512hmac */
+	{ "md4" }, /* iwd */
+	{ "md5" }, /* iwd */
+	{ "sha1", AF_ALG_UNPRIVILEGED }, /* iwd, iproute2 < 7.0 */
+	{ "sha224" }, /* iwd */
+	{ "sha256" }, /* iwd */
+	{ "sha384" }, /* iwd */
+	{ "sha512" }, /* iwd */
 	{},
 };
 

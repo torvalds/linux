@@ -146,7 +146,8 @@ int af_alg_check_restriction(const char *name,
 		for (const struct af_alg_allowlist_entry *ent = allowlist;
 		     ent->name; ent++) {
 			if (strcmp(name, ent->name) == 0 &&
-			    (!ent->privileged || af_alg_capable()))
+			    ((ent->flags & AF_ALG_UNPRIVILEGED) ||
+			     af_alg_capable()))
 				return 0;
 		}
 	}

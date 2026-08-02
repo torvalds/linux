@@ -8,6 +8,7 @@
 #ifndef _CRYPTO_IF_ALG_H
 #define _CRYPTO_IF_ALG_H
 
+#include <linux/bits.h>
 #include <linux/compiler.h>
 #include <linux/completion.h>
 #include <linux/if_alg.h>
@@ -161,9 +162,12 @@ struct af_alg_ctx {
 	unsigned int inflight;
 };
 
+/* Flags for af_alg_allowlist_entry::flags: */
+#define AF_ALG_UNPRIVILEGED BIT(0) /* Unprivileged use is allowed */
+
 struct af_alg_allowlist_entry {
 	const char *name;
-	bool privileged;
+	u32 flags;
 };
 
 int af_alg_register_type(const struct af_alg_type *type);
