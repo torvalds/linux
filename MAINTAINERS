@@ -17711,6 +17711,7 @@ MICROCHIP MCP47A1 DAC DRIVER
 M:	Joshua Crofts <joshua.crofts1@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/dac/microchip,mcp47a1.yaml
+F:	drivers/iio/dac/mcp47a1.c
 
 MICROCHIP MCP9982 TEMPERATURE DRIVER
 M:	Victor Duicu <victor.duicu@microchip.com>
