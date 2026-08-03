@@ -192,6 +192,8 @@ struct sched_ext_entity {
 	atomic_long_t		ops_state;
 	u64			ddsp_dsq_id;
 	u64			ddsp_enq_flags;
+	u64			ddsp_slice;
+	u64			ddsp_vtime;
 	struct scx_dsq_list_node dsq_list;	/* dispatch order */
 	struct rb_node		dsq_priq;	/* p->scx.dsq_vtime order */
 	u32			dsq_seq;

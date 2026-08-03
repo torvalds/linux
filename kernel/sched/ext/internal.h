@@ -1246,6 +1246,8 @@ struct scx_dsp_buf_ent {
 	struct task_struct	*task;
 	unsigned long		qseq;
 	u64			dsq_id;
+	u64			slice;
+	u64			vtime;
 	u64			enq_flags;
 };
 
@@ -1680,6 +1682,8 @@ enum scx_enq_flags {
 	SCX_ENQ_NESTED		= 1LLU << 58,
 	SCX_ENQ_GDSQ_FALLBACK	= 1LLU << 59,	/* fell back to global DSQ */
 	SCX_ENQ_IGNORE_CAPS	= 1LLU << 60,	/* admit to local DSQ ignoring caps */
+	SCX_ENQ_APPLY_SLICE	= 1LLU << 61,	/* apply carried slice/vtime at insertion */
+	SCX_ENQ_SLICE_DFL	= 1LLU << 62,	/* carried slice is a default refill */
 };
 
 enum scx_deq_flags {
