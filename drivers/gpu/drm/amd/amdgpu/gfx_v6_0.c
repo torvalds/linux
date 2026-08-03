@@ -2258,6 +2258,14 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		ring = &adev->gfx.compute_ring[i];
 
+		r = amdgpu_ring_alloc(ring, 2);
+		if (r)
+			return r;
+
+		amdgpu_ring_write(ring, PACKET3_COMPUTE(PACKET3_CLEAR_STATE, 0));
+		amdgpu_ring_write(ring, 0);
+		amdgpu_ring_commit(ring);
+
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
