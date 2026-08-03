@@ -1029,6 +1029,12 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	return ret;
 }
 
+static bool dw_spi_can_use_mem_ops(struct dw_spi *dws)
+{
+	return !dws->mem_ops.exec_op && !(dws->caps & DW_SPI_CAP_CS_OVERRIDE) &&
+	       !dws->set_cs;
+}
+
 /*
  * Initialize the default memory operations if a glue layer hasn't specified
  * custom ones. Direct mapping operations will be preserved anyway since DW SPI
@@ -1040,8 +1046,7 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
  */
 static void dw_spi_init_mem_ops(struct dw_spi *dws)
 {
-	if (!dws->mem_ops.exec_op && !(dws->caps & DW_SPI_CAP_CS_OVERRIDE) &&
-	    !dws->set_cs) {
+	if (dw_spi_can_use_mem_ops(dws)) {
 		dws->mem_ops.adjust_op_size = dw_spi_adjust_mem_op_size;
 		if (dws->caps & DW_SPI_CAP_EMODE) {
 			dws->mem_ops.exec_op = dw_spi_exec_enh_mem_op;
@@ -1101,6 +1106,66 @@ static void dw_spi_cleanup(struct spi_device *spi)
 
 	kfree(chip);
 	spi_set_ctldata(spi, NULL);
+}
+
+static u16 detect_enh_mode(struct dw_spi *dws)
+{
+	u32 tmp_spi_ctrlr0, tmp_ctrlr0;
+	u32 tmp_val, frf_shift;
+	u16 mode = 0;
+
+	if (dw_spi_ver_is_ge(dws, HSSI, 103A))
+		frf_shift = __bf_shf(DW_HSSI_CTRLR0_SPI_FRF_MASK);
+	else if (dw_spi_ver_is_ge(dws, PSSI, 400A))
+		frf_shift = __bf_shf(DW_PSSI_CTRLR0_SPI_FRF_MASK);
+	else
+		return 0;
+
+	tmp_ctrlr0 = dw_readl(dws, DW_SPI_CTRLR0);
+	tmp_spi_ctrlr0 = dw_readl(dws, DW_SPI_SPI_CTRLR0);
+	dw_spi_enable_chip(dws, 0);
+
+	/* test dual mode */
+	tmp_val = DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI << frf_shift;
+	dw_writel(dws, DW_SPI_CTRLR0, tmp_val);
+	if ((tmp_val & dw_readl(dws, DW_SPI_CTRLR0)) == tmp_val)
+		mode |= SPI_TX_DUAL | SPI_RX_DUAL;
+
+	/* test quad mode */
+	tmp_val = DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI << frf_shift;
+	dw_writel(dws, DW_SPI_CTRLR0, tmp_val);
+	if ((tmp_val & dw_readl(dws, DW_SPI_CTRLR0)) == tmp_val)
+		mode |= SPI_TX_QUAD | SPI_RX_QUAD;
+
+	/* test octal mode */
+	tmp_val = DW_SPI_CTRLR0_SPI_FRF_OCT_SPI << frf_shift;
+	dw_writel(dws, DW_SPI_CTRLR0, tmp_val);
+	if ((tmp_val & dw_readl(dws, DW_SPI_CTRLR0)) == tmp_val)
+		mode |= SPI_TX_OCTAL | SPI_RX_OCTAL;
+
+	if (!mode)
+		goto disable_enh;
+
+	/* test clock stretching */
+	dw_writel(dws, DW_SPI_SPI_CTRLR0, DW_SPI_ENH_CTRLR0_CLK_STRETCH_EN);
+	if ((DW_SPI_ENH_CTRLR0_CLK_STRETCH_EN & dw_readl(dws, DW_SPI_SPI_CTRLR0)) !=
+	    DW_SPI_ENH_CTRLR0_CLK_STRETCH_EN) {
+		/*
+		 * If clock stretching is not enabled then do not use
+		 * enhanced mode.
+		 */
+		mode = 0;
+		goto disable_enh;
+	}
+
+	dws->caps |= DW_SPI_CAP_EMODE;
+
+disable_enh:
+	dw_writel(dws, DW_SPI_CTRLR0, tmp_ctrlr0);
+	dw_writel(dws, DW_SPI_SPI_CTRLR0, tmp_spi_ctrlr0);
+	dw_spi_enable_chip(dws, 1);
+
+	return mode;
 }
 
 /* Restart the controller, disable all interrupts, clean rx fifo */
@@ -1182,6 +1247,11 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 		dws->caps |= DW_SPI_CAP_DFS32;
 	}
 
+	dws->ctlr->mode_bits |= SPI_CPOL | SPI_CPHA;
+
+	if (!spi_controller_is_target(dws->ctlr) && dw_spi_can_use_mem_ops(dws))
+		dws->ctlr->mode_bits |= detect_enh_mode(dws);
+
 	/* enable HW fixup for explicit CS deselect for Amazon's alpine chip */
 	if (dws->caps & DW_SPI_CAP_CS_OVERRIDE)
 		dw_writel(dws, DW_SPI_CS_OVERRIDE, 0xF);
@@ -1226,7 +1296,6 @@ int dw_spi_add_controller(struct device *dev, struct dw_spi *dws)
 
 	dw_spi_init_mem_ops(dws);
 
-	ctlr->mode_bits = SPI_CPOL | SPI_CPHA;
 	if (dws->caps & DW_SPI_CAP_DFS32)
 		ctlr->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 	else
