@@ -184,12 +184,6 @@
 #define GEM_DCFG8		0x029C /* Design Config 8 */
 #define GEM_DCFG10		0x02A4 /* Design Config 10 */
 #define GEM_DCFG12		0x02AC /* Design Config 12 */
-#define GEM_ENST_START_TIME_Q0	0x0800 /* ENST Q0 start time */
-#define GEM_ENST_START_TIME_Q1	0x0804 /* ENST Q1 start time */
-#define GEM_ENST_ON_TIME_Q0	0x0820 /* ENST Q0 on time */
-#define GEM_ENST_ON_TIME_Q1	0x0824 /* ENST Q1 on time */
-#define GEM_ENST_OFF_TIME_Q0	0x0840 /* ENST Q0 off time */
-#define GEM_ENST_OFF_TIME_Q1	0x0844 /* ENST Q1 off time */
 #define GEM_ENST_CONTROL	0x0880 /* ENST control register */
 #define GEM_USX_CONTROL		0x0A80 /* High speed PCS control register */
 #define GEM_USX_STATUS		0x0A88 /* High speed PCS status register */
