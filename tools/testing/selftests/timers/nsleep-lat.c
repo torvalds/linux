@@ -65,10 +65,16 @@ int nanosleep_lat_test(int clockid, long long ns)
 	count = 10;
 
 	/* First check relative latency */
-	clock_gettime(clockid, &start);
-	for (i = 0; i < count; i++)
-		clock_nanosleep(clockid, 0, &target, NULL);
-	clock_gettime(clockid, &end);
+	if (clock_gettime(clockid, &start))
+		return KSFT_FAIL;
+
+	for (i = 0; i < count; i++) {
+		if (clock_nanosleep(clockid, 0, &target, NULL))
+			return KSFT_FAIL;
+	}
+
+	if (clock_gettime(clockid, &end))
+		return KSFT_FAIL;
 
 	if (((timespec_sub(start, end)/count)-ns) > UNRESONABLE_LATENCY) {
 		ksft_print_msg("Large rel latency: %lld ns :", (timespec_sub(start, end)/count)-ns);
@@ -77,10 +83,13 @@ int nanosleep_lat_test(int clockid, long long ns)
 
 	/* Next check absolute latency */
 	for (i = 0; i < count; i++) {
-		clock_gettime(clockid, &start);
+		if (clock_gettime(clockid, &start))
+			return KSFT_FAIL;
 		target = timespec_add(start, ns);
-		clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL);
-		clock_gettime(clockid, &end);
+		if (clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL))
+			return KSFT_FAIL;
+		if (clock_gettime(clockid, &end))
+			return KSFT_FAIL;
 		latency += timespec_sub(target, end);
 	}
 
