@@ -28,7 +28,7 @@ static void rv_test_nomiss(struct kunit *test)
 	udelay(10);
 	rv_nomiss_ops.handle_sched_switch(NULL, 0, target, other, TASK_RUNNING);
 	RV_KUNIT_EXPECT_REACTION_HERE(test, ctx) {
-		udelay(15 + *rv_nomiss_ops.deadline_thresh / 1000);
+		udelay(15 + div_u64(*rv_nomiss_ops.deadline_thresh, 1000));
 		rv_nomiss_ops.handle_sched_switch(NULL, 0, other, target, TASK_RUNNING);
 	}
 }
