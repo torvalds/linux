@@ -288,8 +288,9 @@ struct input_handle;
  * @connect: called when attaching a handler to an input device
  * @disconnect: disconnects a handler from input device
  * @start: starts handler for given handle. This function is called by
- *	input core right after connect() method and also when a process
- *	that "grabbed" a device releases it
+ *	input core when device is open and ready to process events,
+ *	and also when device is uninhibited or when a process that "grabbed"
+ *	a device releases it
  * @passive_observer: set to %true by drivers only interested in observing
  *	data stream from devices if there are other users present. Such
  *	drivers will not result in starting underlying hardware device
