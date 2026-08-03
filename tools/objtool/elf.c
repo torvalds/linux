@@ -23,6 +23,7 @@
 #include <linux/log2.h>
 #include <objtool/builtin.h>
 #include <objtool/elf.h>
+#include <objtool/klp.h>
 #include <objtool/warn.h>
 
 static ssize_t demangled_name_len(const char *name);
@@ -625,6 +626,18 @@ static int read_symbols(struct elf *elf)
 			ERROR_ELF("elf_strptr");
 			return -1;
 		}
+
+		/*
+		 * "klp diff" renames the placeholder symbols of KLP relocs to
+		 * hide them from modpost.  Hide the prefix from the rest of
+		 * objtool so its many name-based heuristics (noreturns,
+		 * uaccess safe list, ...) still see the original symbol name.
+		 *
+		 * st_name is left alone, so the renamed symbol is preserved in
+		 * the output file.
+		 */
+		if (strstarts(sym->name, KLP_TOMBSTONE_PREFIX))
+			sym->name += strlen(KLP_TOMBSTONE_PREFIX);
 
 		if ((sym->sym.st_shndx > SHN_UNDEF &&
 		     sym->sym.st_shndx < SHN_LORESERVE) ||
