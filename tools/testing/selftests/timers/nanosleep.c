@@ -30,8 +30,6 @@
 #include "clock-helpers.h"
 #include "kselftest.h"
 
-#define UNSUPPORTED 0xf00f
-
 /* returns 1 if a <= b, 0 otherwise */
 static inline int in_order(struct timespec a, struct timespec b)
 {
@@ -60,15 +58,15 @@ int nanosleep_test(int clockid, long long ns)
 
 	/* First check abs time */
 	if (clock_gettime(clockid, &now))
-		return UNSUPPORTED;
+		return KSFT_SKIP;
 	target = timespec_add(now, ns);
 
 	if (clock_nanosleep(clockid, TIMER_ABSTIME, &target, NULL))
-		return UNSUPPORTED;
+		return KSFT_SKIP;
 	clock_gettime(clockid, &now);
 
 	if (!in_order(target, now))
-		return -1;
+		return KSFT_FAIL;
 
 	/* Second check reltime */
 	clock_gettime(clockid, &now);
@@ -80,8 +78,8 @@ int nanosleep_test(int clockid, long long ns)
 	clock_gettime(clockid, &now);
 
 	if (!in_order(target, now))
-		return -1;
-	return 0;
+		return KSFT_FAIL;
+	return KSFT_PASS;
 }
 
 static void dummy_event_handler(int val)
@@ -100,38 +98,38 @@ static int nanosleep_test_remaining(int clockid)
 	sa.sa_handler = dummy_event_handler;
 	ret = sigaction(SIGALRM, &sa, NULL);
 	if (ret)
-		return -1;
+		return KSFT_FAIL;
 
 	ret = timer_create(clockid, NULL, &timer);
 	if (ret)
-		return -1;
+		return KSFT_FAIL;
 
 	itimer.it_value.tv_nsec = NSEC_PER_SEC / 4;
 	ret = timer_settime(timer, 0, &itimer, NULL);
 	if (ret)
-		return -1;
+		return KSFT_FAIL;
 
 	rqtp.tv_nsec = NSEC_PER_SEC / 2;
 	ret = clock_nanosleep(clockid, 0, &rqtp, &rmtp);
 	if (ret != EINTR)
-		return -1;
+		return KSFT_FAIL;
 
 	ret = timer_delete(timer);
 	if (ret)
-		return -1;
+		return KSFT_FAIL;
 
 	sa.sa_handler = SIG_DFL;
 	ret = sigaction(SIGALRM, &sa, NULL);
 	if (ret)
-		return -1;
+		return KSFT_FAIL;
 
 	if (!in_order((struct timespec) {}, rmtp))
-		return -1;
+		return KSFT_FAIL;
 
 	if (!in_order(rmtp, rqtp))
-		return -1;
+		return KSFT_FAIL;
 
-	return 0;
+	return KSFT_PASS;
 }
 
 int main(int argc, char **argv)
@@ -159,18 +157,18 @@ int main(int argc, char **argv)
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
 			ret = nanosleep_test(clockid, length);
-			if (ret == UNSUPPORTED) {
+			if (ret == KSFT_SKIP) {
 				ksft_test_result_skip("%s\n", clock_name(clockid));
 				goto next;
 			}
-			if (ret < 0) {
+			if (ret == KSFT_FAIL) {
 				ksft_test_result_fail("%s\n", clock_name(clockid));
 				ksft_exit_fail();
 			}
 			length *= 100;
 		}
 		ret = nanosleep_test_remaining(clockid);
-		if (ret < 0) {
+		if (ret == KSFT_FAIL) {
 			ksft_test_result_fail("%s\n", clock_name(clockid));
 			ksft_exit_fail();
 		}
