@@ -8394,6 +8394,11 @@ static bool scx_vet_enq_flags(struct scx_sched *sch, u64 dsq_id, u64 *enq_flags)
 	bool is_local = dsq_id == SCX_DSQ_LOCAL ||
 		(dsq_id & SCX_DSQ_LOCAL_ON) == SCX_DSQ_LOCAL_ON;
 
+	if (unlikely(*enq_flags & __SCX_ENQ_INTERNAL_MASK)) {
+		scx_error(sch, "invalid enq_flags 0x%llx", *enq_flags);
+		return false;
+	}
+
 	if (*enq_flags & SCX_ENQ_IMMED) {
 		if (unlikely(!is_local)) {
 			scx_error(sch, "SCX_ENQ_IMMED on a non-local DSQ 0x%llx", dsq_id);
@@ -8413,11 +8418,6 @@ static bool scx_dsq_insert_preamble(struct scx_sched *sch, struct task_struct *p
 
 	if (unlikely(!p)) {
 		scx_error(sch, "called with NULL task");
-		return false;
-	}
-
-	if (unlikely(*enq_flags & __SCX_ENQ_INTERNAL_MASK)) {
-		scx_error(sch, "invalid enq_flags 0x%llx", *enq_flags);
 		return false;
 	}
 
@@ -8652,7 +8652,8 @@ static const struct btf_kfunc_id_set scx_kfunc_set_enqueue_dispatch = {
 };
 
 static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
-			 struct task_struct *p, u64 dsq_id, u64 enq_flags)
+			 struct task_struct *p, u64 dsq_id, u64 enq_flags,
+			 bool priq)
 {
 	struct scx_dispatch_q *src_dsq = kit->dsq, *dst_dsq;
 	struct scx_sched *sch;
@@ -8673,6 +8674,10 @@ static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
 
 	if (!scx_vet_enq_flags(sch, dsq_id, &enq_flags))
 		return false;
+
+	/* internal bit, can only go in after @enq_flags is vetted */
+	if (priq)
+		enq_flags |= SCX_ENQ_DSQ_PRIQ;
 
 	/*
 	 * If the BPF scheduler keeps calling this function repeatedly, it can
@@ -8930,7 +8935,7 @@ __bpf_kfunc bool scx_bpf_dsq_move(struct bpf_iter_scx_dsq *it__iter,
 				  u64 enq_flags)
 {
 	return scx_dsq_move((struct bpf_iter_scx_dsq_kern *)it__iter,
-			    p, dsq_id, enq_flags);
+			    p, dsq_id, enq_flags, false);
 }
 
 /**
@@ -8955,7 +8960,7 @@ __bpf_kfunc bool scx_bpf_dsq_move_vtime(struct bpf_iter_scx_dsq *it__iter,
 					u64 enq_flags)
 {
 	return scx_dsq_move((struct bpf_iter_scx_dsq_kern *)it__iter,
-			    p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
+			    p, dsq_id, enq_flags, true);
 }
 
 __bpf_kfunc_end_defs();
