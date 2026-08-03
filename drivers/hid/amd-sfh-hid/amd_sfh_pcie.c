@@ -8,11 +8,13 @@
  *	    Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
 
+#include <linux/auxiliary_bus.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/devm-helpers.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmi.h>
+#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
@@ -389,6 +391,51 @@ static const struct attribute_group *amd_sfh_groups[] = {
 	NULL,
 };
 
+static DEFINE_IDA(sfh_tm_ida);
+
+static void amd_sfh_maybe_register_tm(struct amd_mp2_dev *mp2)
+{
+	struct auxiliary_device *adev;
+	bool present;
+	int id;
+
+	if (mp2->tm_auxdev)
+		return;
+
+	present = mp2->sfh1_1_ops ? mp2->dev_en.is_sra_present
+				  : (mp2->mp2_ver == MP2_VER_V2 &&
+				     amd_sfh_op_idx_enabled(mp2));
+	if (!present)
+		return;
+
+	id = ida_alloc(&sfh_tm_ida, GFP_KERNEL);
+	if (id < 0)
+		return;
+
+	adev = auxiliary_device_create(&mp2->pdev->dev, KBUILD_MODNAME,
+				       "tabletmode", NULL, id);
+	if (!adev) {
+		ida_free(&sfh_tm_ida, id);
+		dev_warn(&mp2->pdev->dev, "tabletmode auxdev create failed\n");
+		return;
+	}
+
+	mp2->tm_auxdev = adev;
+}
+
+static void amd_sfh_unregister_tm(struct amd_mp2_dev *mp2)
+{
+	int id;
+
+	if (!mp2->tm_auxdev)
+		return;
+
+	id = mp2->tm_auxdev->id;
+	auxiliary_device_destroy(mp2->tm_auxdev);
+	mp2->tm_auxdev = NULL;
+	ida_free(&sfh_tm_ida, id);
+}
+
 static void sfh1_1_init_work(struct work_struct *work)
 {
 	struct amd_mp2_dev *mp2 = container_of(work, struct amd_mp2_dev, work);
@@ -405,6 +452,7 @@ static void sfh1_1_init_work(struct work_struct *work)
 	if (rc)
 		dev_warn(&mp2->pdev->dev, "failed to update sysfs group\n");
 
+	amd_sfh_maybe_register_tm(mp2);
 }
 
 static void sfh_init_work(struct work_struct *work)
@@ -424,6 +472,7 @@ static void sfh_init_work(struct work_struct *work)
 	sfh_set_emp2(mp2);
 	amd_sfh_clear_intr(mp2);
 	mp2->init_done = 1;
+	amd_sfh_maybe_register_tm(mp2);
 }
 
 static void amd_sfh_remove(struct pci_dev *pdev)
@@ -431,6 +480,7 @@ static void amd_sfh_remove(struct pci_dev *pdev)
 	struct amd_mp2_dev *mp2 = pci_get_drvdata(pdev);
 
 	flush_work(&mp2->work);
+	amd_sfh_unregister_tm(mp2);
 	if (mp2->init_done)
 		mp2->mp2_ops->remove(mp2);
 }

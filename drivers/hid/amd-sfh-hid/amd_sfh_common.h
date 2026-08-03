@@ -10,6 +10,7 @@
 #ifndef AMD_SFH_COMMON_H
 #define AMD_SFH_COMMON_H
 
+#include <linux/auxiliary_bus.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include "amd_sfh_hid.h"
@@ -70,6 +71,7 @@ struct amd_mp2_dev {
 	u8 init_done;
 	u8 rver;
 	u8 mp2_ver;
+	struct auxiliary_device *tm_auxdev;
 };
 
 struct amd_mp2_ops {
