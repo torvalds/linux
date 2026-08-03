@@ -838,20 +838,20 @@ static void reset_idle_masks(struct sched_ext_ops *ops)
 	int node;
 
 	/*
-	 * Consider all online cpus idle. Should converge to the actual state
-	 * quickly.
+	 * Start with all CPUs marked busy. The idle masks are populated when
+	 * bypass is lifted and each idle CPU is forced through an idle re-pick.
+	 * This may temporarily omit idle CPUs but never advertises a busy CPU as
+	 * idle.
 	 */
 	if (!(ops->flags & SCX_OPS_BUILTIN_IDLE_PER_NODE)) {
-		cpumask_copy(idle_cpumask(NUMA_NO_NODE)->cpu, cpu_online_mask);
-		cpumask_copy(idle_cpumask(NUMA_NO_NODE)->smt, cpu_online_mask);
+		cpumask_clear(idle_cpumask(NUMA_NO_NODE)->cpu);
+		cpumask_clear(idle_cpumask(NUMA_NO_NODE)->smt);
 		return;
 	}
 
 	for_each_node(node) {
-		const struct cpumask *node_mask = cpumask_of_node(node);
-
-		cpumask_and(idle_cpumask(node)->cpu, cpu_online_mask, node_mask);
-		cpumask_and(idle_cpumask(node)->smt, cpu_online_mask, node_mask);
+		cpumask_clear(idle_cpumask(node)->cpu);
+		cpumask_clear(idle_cpumask(node)->smt);
 	}
 }
 
