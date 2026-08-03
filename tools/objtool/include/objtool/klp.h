@@ -31,6 +31,21 @@ struct klp_reloc {
 	u32 type;
 };
 
+/*
+ * .klp.symid is used to correlate symbols between vmlinux.o and vmlinux, for
+ * calculating sympos to disambiguate duplicately-named symbols.
+ */
+#define KLP_SYMID_SEC	".klp.symid"
+
+struct klp_symid {
+	u64 id;
+	u64 addr;
+};
+
+struct objtool_file;
+
+int klp_create_symid_sections(struct objtool_file *file);
+
 int cmd_klp_checksum(int argc, const char **argv);
 int cmd_klp_diff(int argc, const char **argv);
 int cmd_klp_post_link(int argc, const char **argv);

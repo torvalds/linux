@@ -839,12 +839,20 @@
 		.stab.index 0 : { *(.stab.index) }			\
 		.stab.indexstr 0 : { *(.stab.indexstr) }
 
+#ifdef CONFIG_KLP_BUILD
+#define KLP_SYMID							\
+		.klp.symid 0 : { *(.klp.symid) }
+#else
+#define KLP_SYMID
+#endif
+
 /* Required sections not related to debugging. */
 #define ELF_DETAILS							\
 		.comment 0 : { *(.comment) }				\
 		.symtab 0 : { *(.symtab) }				\
 		.strtab 0 : { *(.strtab) }				\
-		.shstrtab 0 : { *(.shstrtab) }
+		.shstrtab 0 : { *(.shstrtab) }				\
+		KLP_SYMID
 
 #define MODINFO								\
 		.modinfo : { *(.modinfo) . = ALIGN(8); }

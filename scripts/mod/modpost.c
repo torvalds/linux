@@ -767,6 +767,7 @@ static const char *const section_white_list[] =
 	".llvm.call-graph-profile",	/* call graph */
 	"__llvm_covfun",
 	"__llvm_covmap",
+	".klp.symid",			/* objtool --klp-symids */
 	NULL
 };
 
