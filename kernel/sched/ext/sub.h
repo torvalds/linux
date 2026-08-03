@@ -140,7 +140,7 @@ static inline u64 scx_missing_caps(struct scx_sched *sch, s32 cpu, u64 needed)
 static inline u64 scx_caps_for_enq(u64 enq_flags)
 {
 	/* a restored task must be put into the local DSQ regardless of caps */
-	if (enq_flags & SCX_ENQ_IGNORE_CAPS)
+	if (unlikely(enq_flags & SCX_ENQ_IGNORE_CAPS))
 		return 0;
 	if (enq_flags & SCX_ENQ_IMMED)
 		return SCX_CAP_ENQ_IMMED;
@@ -156,10 +156,13 @@ static inline u64 scx_caps_for_task(struct task_struct *p)
 }
 
 /* the cap @sch needs to preempt @rq's current task, 0 if none */
-static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq)
+static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq, u64 enq_flags)
 {
 	struct task_struct *curr = rq->curr;
 
+	/* a kernel-forced placement preempts regardless of caps */
+	if (unlikely(enq_flags & SCX_ENQ_IGNORE_CAPS))
+		return 0;
 	/* a non-ext task can't be preempted by ext, own-subtree needs no cap */
 	if (curr->sched_class != &ext_sched_class ||
 	    scx_is_descendant(scx_task_sched(curr), sch))
@@ -195,7 +198,7 @@ static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p
 #else	/* CONFIG_EXT_SUB_SCHED */
 
 static inline u64 scx_missing_caps(struct scx_sched *sch, s32 cpu, u64 needed) { return 0; }
-static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq) { return 0; }
+static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq, u64 enq_flags) { return 0; }
 static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p) { return true; }
 
 #endif	/* CONFIG_EXT_SUB_SCHED */

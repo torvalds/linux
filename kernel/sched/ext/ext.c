@@ -8150,8 +8150,9 @@ static bool kick_one_cpu(s32 cpu, struct scx_sched_pcpu *pcpu, struct rq *this_r
 	if (kickable && !scx_missing_caps(pcpu->sch, cpu, SCX_CAP_BASE)) {
 		if (cpumask_test_cpu(cpu, pcpu->cpus_to_preempt)) {
 			if (cur_class == &ext_sched_class) {
-				if (likely(!scx_missing_caps(pcpu->sch, cpu,
-							     scx_caps_for_preempt(pcpu->sch, rq))))
+				u64 caps = scx_caps_for_preempt(pcpu->sch, rq, 0);
+
+				if (likely(!scx_missing_caps(pcpu->sch, cpu, caps)))
 					scx_set_task_slice(rq->curr, 0);
 				else
 					__scx_add_event(pcpu->sch,
