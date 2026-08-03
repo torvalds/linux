@@ -235,9 +235,15 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
+/* Validate skb as an NS/NA and linearize it for br_nd_send()'s ND
+ * option parsing; returns the nd_msg, or NULL on failure.
+ */
 struct nd_msg *br_is_nd_neigh_msg(struct sk_buff *skb)
 {
 	if (ndisc_check_ns_na(skb))
+		return NULL;
+
+	if (skb_linearize(skb))
 		return NULL;
 
 	return (struct nd_msg *)skb_transport_header(skb);
@@ -259,7 +265,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	bool dad;
 	u16 pvid;
 
-	if (!dev || skb_linearize(request))
+	if (!dev)
 		return;
 
 	len = LL_RESERVED_SPACE(dev) + sizeof(struct ipv6hdr) +
@@ -276,8 +282,7 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	skb_set_mac_header(reply, 0);
 
 	daddr = eth_hdr(request)->h_source;
-	ns = (struct nd_msg *)(skb_network_header(request) +
-			       sizeof(struct ipv6hdr));
+	ns = (struct nd_msg *)skb_transport_header(request);
 
 	/* Do we need option processing ? */
 	ns_olen = request->len - (skb_network_offset(request) +
