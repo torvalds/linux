@@ -1800,6 +1800,7 @@ static void ublk_dispatch_req(struct ublk_queue *ubq, struct request *req)
 	u16 tag = req->tag;
 	struct ublk_io *io = &ubq->ios[tag];
 
+	ublk_setup_iod(ubq, req);
 	pr_devel("%s: complete: qid %d tag %d io_flags %x addr %llx\n",
 			__func__, ubq->q_id, req->tag, io->flags,
 			ublk_get_iod(ubq, req->tag)->addr);
@@ -1853,6 +1854,7 @@ static bool __ublk_batch_prep_dispatch(struct ublk_queue *ubq,
 	enum auto_buf_reg_res res = AUTO_BUF_REG_FALLBACK;
 	struct io_uring_cmd *cmd = data->cmd;
 
+	ublk_setup_iod(ubq, req);
 	if (!ublk_start_io(ubq, req, io))
 		return false;
 
@@ -2189,7 +2191,6 @@ static blk_status_t ublk_prep_req(struct ublk_queue *ubq, struct request *rq,
 	if (unlikely(!ublk_validate_req(ubq, rq)))
 		return BLK_STS_IOERR;
 
-	ublk_setup_iod(ubq, rq);
 	blk_mq_start_request(rq);
 	return BLK_STS_OK;
 }
