@@ -411,11 +411,30 @@ static void f2fs_write_end_bio(struct bio *bio)
 	bio_put(bio);
 }
 
-static void f2fs_write_end_io(struct bio *bio)
+static void f2fs_write_end_io_work(struct work_struct *work)
 {
-	iostat_update_and_unbind_ctx(bio);
+	struct bio *bio = &container_of(work, struct f2fs_bio, work)->bio;
 
 	f2fs_write_end_bio(bio);
+}
+
+static void f2fs_write_end_io(struct bio *bio)
+{
+	struct f2fs_sb_info *sbi;
+
+	iostat_update_and_unbind_ctx(bio);
+
+	sbi = bio->bi_private;
+
+	if (in_atomic() && bio->bi_iter.bi_size > sbi->max_atc_write_bio_size) {
+		struct work_struct *w;
+
+		w = &container_of(bio, struct f2fs_bio, bio)->work;
+		INIT_WORK(w, f2fs_write_end_io_work);
+		queue_work(sbi->wq, w);
+	} else {
+		f2fs_write_end_bio(bio);
+	}
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
