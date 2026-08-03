@@ -330,6 +330,16 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		/* CTRLR0[11:10] Transfer Mode */
 		cr0 |= FIELD_PREP(DW_HSSI_CTRLR0_TMOD_MASK, cfg->tmode);
 
+	if (dw_spi_ver_is_ge(dws, HSSI, 103A)) {
+		cr0 &= ~DW_HSSI_CTRLR0_SPI_FRF_MASK;
+		cr0 |= FIELD_PREP(DW_HSSI_CTRLR0_SPI_FRF_MASK,
+				  cfg->spi_frf);
+	} else if (dw_spi_ver_is_ge(dws, PSSI, 400A)) {
+		cr0 &= ~DW_PSSI_CTRLR0_SPI_FRF_MASK;
+		cr0 |= FIELD_PREP(DW_PSSI_CTRLR0_SPI_FRF_MASK,
+				  cfg->spi_frf);
+	}
+
 	dw_writel(dws, DW_SPI_CTRLR0, cr0);
 
 	if (spi_controller_is_target(dws->ctlr))
@@ -422,6 +432,7 @@ static int dw_spi_transfer_one(struct spi_controller *ctlr,
 		.tmode = DW_SPI_CTRLR0_TMOD_TR,
 		.dfs = transfer->bits_per_word,
 		.freq = transfer->speed_hz,
+		.spi_frf = DW_SPI_CTRLR0_SPI_FRF_STD_SPI,
 	};
 	int ret;
 
@@ -677,7 +688,7 @@ static void dw_spi_stop_mem_op(struct dw_spi *dws, struct spi_device *spi)
 static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(mem->spi->controller);
-	struct dw_spi_cfg cfg;
+	struct dw_spi_cfg cfg = {0};
 	unsigned long flags;
 	int ret;
 

@@ -17,6 +17,9 @@
 
 /* Synopsys DW SSI component versions (FourCC sequence) */
 #define DW_HSSI_102A			0x3130322a
+#define DW_HSSI_103A			0x3130332a
+#define DW_HSSI_200A			0x3230302a
+#define DW_PSSI_400A			0x3430302a
 
 /* DW SSI IP-core ID and version check helpers */
 #define dw_spi_ip_is(_dws, _ip) \
@@ -94,6 +97,9 @@
 #define DW_HSSI_CTRLR0_TMOD_MASK		GENMASK(11, 10)
 #define DW_HSSI_CTRLR0_SRL			BIT(13)
 #define DW_HSSI_CTRLR0_MST			BIT(31)
+#define DW_HSSI_CTRLR0_SPI_FRF_MASK		GENMASK(23, 22)
+#define DW_PSSI_CTRLR0_SPI_FRF_MASK		GENMASK(22, 21)
+#define DW_SPI_CTRLR0_SPI_FRF_STD_SPI		0x0
 
 /* Bit fields in CTRLR1 */
 #define DW_SPI_NDF_MASK				GENMASK(15, 0)
@@ -135,6 +141,7 @@ struct dw_spi_cfg {
 	u8 dfs;
 	u32 ndf;
 	u32 freq;
+	u8 spi_frf;
 };
 
 struct dw_spi;
