@@ -20,7 +20,7 @@
 struct timer_list_iter {
 	int cpu;
 	bool second_pass;
-	u64 now;
+	ktime_t now;
 };
 
 /*
@@ -44,19 +44,19 @@ static void SEQ_printf(struct seq_file *m, const char *fmt, ...)
 
 static void
 print_timer(struct seq_file *m, struct hrtimer *taddr, struct hrtimer *timer,
-	    int idx, u64 now)
+	    int idx, ktime_t now)
 {
 	SEQ_printf(m, " #%d: <%p>, %ps", idx, taddr, ACCESS_PRIVATE(timer, function));
 	SEQ_printf(m, ", S:%02x", timer->is_queued);
 	SEQ_printf(m, "\n");
-	SEQ_printf(m, " # expires at %llu-%llu nsecs [in %lld to %lld nsecs]\n",
-		(unsigned long long)ktime_to_ns(hrtimer_get_softexpires(timer)),
-		(unsigned long long)ktime_to_ns(hrtimer_get_expires(timer)),
-		(long long)(ktime_to_ns(hrtimer_get_softexpires(timer)) - now),
-		(long long)(ktime_to_ns(hrtimer_get_expires(timer)) - now));
+	SEQ_printf(m, " # expires at %lld-%lld nsecs [in %lld to %lld nsecs]\n",
+		(long long)hrtimer_get_softexpires(timer),
+		(long long)hrtimer_get_expires(timer),
+		(long long)ktime_sub(hrtimer_get_softexpires(timer), now),
+		(long long)ktime_sub(hrtimer_get_expires(timer), now));
 }
 
-static void print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
+static void print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base, ktime_t now)
 {
 	struct timerqueue_linked_node *curr;
 	struct hrtimer *timer, tmp;
@@ -94,7 +94,7 @@ next_one:
 }
 
 static void
-print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
+print_base(struct seq_file *m, struct hrtimer_clock_base *base, ktime_t now)
 {
 	SEQ_printf(m, "  .base:       %p\n", base);
 	SEQ_printf(m, "  .index:      %d\n", base->index);
@@ -105,10 +105,10 @@ print_base(struct seq_file *m, struct hrtimer_clock_base *base, u64 now)
 		   (long long) base->offset);
 #endif
 	SEQ_printf(m,   "active timers:\n");
-	print_active_timers(m, base, now + ktime_to_ns(base->offset));
+	print_active_timers(m, base, ktime_add(now, base->offset));
 }
 
-static void print_cpu(struct seq_file *m, int cpu, u64 now)
+static void print_cpu(struct seq_file *m, int cpu, ktime_t now)
 {
 	struct hrtimer_cpu_base *cpu_base = &per_cpu(hrtimer_bases, cpu);
 	int i;
@@ -124,12 +124,11 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 #define P(x)				     \
 	SEQ_printf(m, "  .%-15s: %llu\n", #x, \
 		   (unsigned long long)DIAG_READ(cpu_base->x))
-#define P_ns(x) \
-	SEQ_printf(m, "  .%-15s: %llu nsecs\n", #x, \
-		   (unsigned long long)ktime_to_ns(DIAG_READ(cpu_base->x)))
+#define P_ktime(x) \
+	SEQ_printf(m, "  .%-15s: %lld nsecs\n", #x, (long long)DIAG_READ(cpu_base->x))
 
 #ifdef CONFIG_HIGH_RES_TIMERS
-	P_ns(expires_next);
+	P_ktime(expires_next);
 	P(hres_active);
 	P(nr_events);
 	P(nr_retries);
@@ -137,15 +136,14 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	P(max_hang_time);
 #endif
 #undef P
-#undef P_ns
+#undef P_ktime
 
 #ifdef CONFIG_TICK_ONESHOT
 # define P(x) \
 	SEQ_printf(m, "  .%-15s: %llu\n", #x, \
 		   (unsigned long long)DIAG_READ(ts->x))
-# define P_ns(x) \
-	SEQ_printf(m, "  .%-15s: %llu nsecs\n", #x, \
-		   (unsigned long long)ktime_to_ns(DIAG_READ(ts->x)))
+# define P_ktime(x) \
+	SEQ_printf(m, "  .%-15s: %lld nsecs\n", #x, (long long)DIAG_READ(ts->x))
 # define P_flag(x, f)			    \
 	SEQ_printf(m, "  .%-15s: %d\n", #x, !!(DIAG_READ(ts->flags) & (f)))
 
@@ -153,22 +151,22 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 		struct tick_sched *ts = tick_get_tick_sched(cpu);
 		P_flag(nohz, TS_FLAG_NOHZ);
 		P_flag(highres, TS_FLAG_HIGHRES);
-		P_ns(last_tick);
+		P_ktime(last_tick);
 		P_flag(tick_stopped, TS_FLAG_STOPPED);
 		P(idle_calls);
 		P(idle_sleeps);
-		P_ns(idle_entrytime);
-		P_ns(idle_waketime);
+		P_ktime(idle_entrytime);
+		P_ktime(idle_waketime);
 		P(last_jiffies);
 		P(next_timer);
-		P_ns(idle_expires);
+		P_ktime(idle_expires);
 		SEQ_printf(m, "jiffies: %llu\n",
 			   (unsigned long long)jiffies);
 	}
 #endif
 
 #undef P
-#undef P_ns
+#undef P_ktime
 #undef P_flag
 #undef DIAG_READ
 	SEQ_printf(m, "\n");
@@ -201,8 +199,7 @@ print_tickdevice(struct seq_file *m, struct tick_device *td, int cpu)
 	SEQ_printf(m, " mult:           %u\n", dev->mult);
 	SEQ_printf(m, " shift:          %u\n", dev->shift);
 	SEQ_printf(m, " mode:           %d\n", clockevent_get_state(dev));
-	SEQ_printf(m, " next_event:     %lld nsecs\n",
-		   (unsigned long long) ktime_to_ns(dev->next_event));
+	SEQ_printf(m, " next_event:     %lld nsecs\n", (long long)dev->next_event);
 
 	SEQ_printf(m, " set_next_event: %ps\n", dev->set_next_event);
 
@@ -255,17 +252,17 @@ static void timer_list_show_tickdevices_header(struct seq_file *m)
 }
 #endif
 
-static inline void timer_list_header(struct seq_file *m, u64 now)
+static inline void timer_list_header(struct seq_file *m, ktime_t now)
 {
 	SEQ_printf(m, "Timer List Version: v0.11\n");
 	SEQ_printf(m, "HRTIMER_MAX_CLOCK_BASES: %d\n", HRTIMER_MAX_CLOCK_BASES);
-	SEQ_printf(m, "now at %lld nsecs\n", (unsigned long long)now);
+	SEQ_printf(m, "now at %lld nsecs\n", (long long)now);
 	SEQ_printf(m, "\n");
 }
 
 void sysrq_timer_list_show(void)
 {
-	u64 now = ktime_to_ns(ktime_get());
+	ktime_t now = ktime_get();
 	int cpu;
 
 	timer_list_header(NULL, now);
@@ -323,7 +320,7 @@ static void *timer_list_start(struct seq_file *file, loff_t *offset)
 	struct timer_list_iter *iter = file->private;
 
 	if (!*offset)
-		iter->now = ktime_to_ns(ktime_get());
+		iter->now = ktime_get();
 	iter->cpu = -1;
 	iter->second_pass = false;
 	return move_iter(iter, *offset);
