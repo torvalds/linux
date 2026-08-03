@@ -128,10 +128,10 @@ struct rproc_ops {
 	int (*parse_fw)(struct rproc *rproc, const struct firmware *fw);
 	int (*handle_rsc)(struct rproc *rproc, u32 rsc_type, void *rsc,
 			  int offset, int avail);
-	struct resource_table *(*find_loaded_rsc_table)(
-				struct rproc *rproc, const struct firmware *fw);
-	struct resource_table *(*get_loaded_rsc_table)(
-				struct rproc *rproc, size_t *size);
+	struct resource_table *(*find_loaded_rsc_table)(struct rproc *rproc,
+							const struct firmware *fw);
+	struct resource_table *(*get_loaded_rsc_table)(struct rproc *rproc,
+						       size_t *size);
 	int (*load)(struct rproc *rproc, const struct firmware *fw);
 	int (*sanity_check)(struct rproc *rproc, const struct firmware *fw);
 	u64 (*get_boot_addr)(struct rproc *rproc, const struct firmware *fw);
@@ -382,7 +382,6 @@ struct rproc_vring {
  * @index: vdev position versus other vdev declared in resource table
  */
 struct rproc_vdev {
-
 	struct rproc_subdev subdev;
 	struct platform_device *pdev;
 
