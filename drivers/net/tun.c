@@ -98,7 +98,8 @@ static void tun_default_link_ksettings(struct net_device *dev,
 #define TUN_FASYNC	IFF_ATTACH_QUEUE
 
 #define TUN_FEATURES (IFF_NO_PI | IFF_ONE_QUEUE | IFF_VNET_HDR | \
-		      IFF_MULTI_QUEUE | IFF_NAPI | IFF_NAPI_FRAGS)
+		      IFF_MULTI_QUEUE | IFF_NAPI | IFF_NAPI_FRAGS | \
+		      IFF_BACKPRESSURE)
 
 #define GOODCOPY_LEN 128
 
@@ -1063,6 +1064,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct netdev_queue *queue;
 	struct tun_file *tfile;
 	int len = skb->len;
+	int ret;
 
 	rcu_read_lock();
 	tfile = rcu_dereference(tun->tfiles[txq]);
@@ -1117,13 +1119,35 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	nf_reset_ct(skb);
 
-	if (ptr_ring_produce(&tfile->tx_ring, skb)) {
+	queue = netdev_get_tx_queue(dev, txq);
+
+	spin_lock(&tfile->tx_ring.producer_lock);
+	ret = __ptr_ring_produce(&tfile->tx_ring, skb);
+	/* Do not touch the queue state of a device that is going down. */
+	if ((tun->flags & IFF_BACKPRESSURE) && netif_running(dev) &&
+	    !qdisc_txq_has_no_queue(queue) &&
+	    __ptr_ring_check_produce(&tfile->tx_ring) == -ENOSPC) {
+		netif_tx_stop_queue(queue);
+		/* Paired with smp_mb() in __tun_wake_queue() */
+		smp_mb__after_atomic();
+		if (!__ptr_ring_check_produce(&tfile->tx_ring))
+			netif_tx_wake_queue(queue);
+	}
+	spin_unlock(&tfile->tx_ring.producer_lock);
+
+	if (ret) {
+		/* This should be a rare case if IFF_BACKPRESSURE is enabled and
+		 * a qdisc is present, but can happen due to lltx.
+		 * Since skb_tx_timestamp(), skb_orphan(),
+		 * run_ebpf_filter() and pskb_trim() could have tinkered
+		 * with the SKB, returning NETDEV_TX_BUSY is unsafe and
+		 * we must drop instead.
+		 */
 		drop_reason = SKB_DROP_REASON_FULL_RING;
 		goto drop;
 	}
 
 	/* dev->lltx requires to do our own update of trans_start */
-	queue = netdev_get_tx_queue(dev, txq);
 	txq_trans_cond_update(queue);
 
 	/* Notify and wake up reader process */
@@ -2806,8 +2830,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
 	struct tun_struct *tun;
 	struct tun_file *tfile = file->private_data;
+	struct tun_file *ntfile;
 	struct net_device *dev;
-	int err;
+	int err, i;
 
 	if (tfile->detached)
 		return -EINVAL;
@@ -2936,8 +2961,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	/* Make sure persistent devices do not get stuck in
 	 * xoff state.
 	 */
-	if (netif_running(tun->dev))
-		netif_tx_wake_all_queues(tun->dev);
+	for (i = 0; i < tun->numqueues; i++) {
+		ntfile = rtnl_dereference(tun->tfiles[i]);
+		tun_force_wake_queue(tun, ntfile);
+	}
 
 	strscpy(ifr->ifr_name, tun->dev->name);
 	return 0;
