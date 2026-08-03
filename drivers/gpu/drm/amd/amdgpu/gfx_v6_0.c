@@ -2129,12 +2129,24 @@ static int gfx_v6_0_cp_gfx_start(struct amdgpu_device *adev)
 	return 0;
 }
 
+/**
+ * gfx_v6_0_cp_gfx_resume() - Initialize CP rings
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * In GFX6 GPUs, compute takes the same CP path as graphics.
+ * CP ME command parser executes packets for each ring buffer:
+ * RB0 supports graphics, RB1 and RB2 are compute only.
+ * Initialize all three rings before calling gfx_v6_0_cp_gfx_start()
+ * to make sure they are all in a sane state before execution starts.
+ */
 static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
 	u32 tmp;
 	u32 rb_bufsz;
 	int r;
+	int i;
 	u64 rptr_addr;
 
 	WREG32(mmCP_SEM_WAIT_TIMER, 0x0);
@@ -2174,11 +2186,68 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 	WREG32(mmCP_RB0_BASE, ring->gpu_addr >> 8);
 
+	/* ring 1  - compute only */
+	if (adev->gfx.num_compute_rings >= 1) {
+		ring = &adev->gfx.compute_ring[0];
+
+		rb_bufsz = order_base_2(ring->ring_size / 8);
+		tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE / 8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+		tmp |= BUF_SWAP_32BIT;
+#endif
+		WREG32(mmCP_RB1_CNTL, tmp);
+
+		WREG32(mmCP_RB1_CNTL, tmp | CP_RB1_CNTL__RB_RPTR_WR_ENA_MASK);
+		ring->wptr = 0;
+		WREG32(mmCP_RB1_WPTR, ring->wptr);
+
+		rptr_addr = ring->rptr_gpu_addr;
+		WREG32(mmCP_RB1_RPTR_ADDR, lower_32_bits(rptr_addr));
+		WREG32(mmCP_RB1_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
+
+		mdelay(1);
+		WREG32(mmCP_RB1_CNTL, tmp);
+		WREG32(mmCP_RB1_BASE, ring->gpu_addr >> 8);
+	}
+
+	/* ring 2 - compute only */
+	if (adev->gfx.num_compute_rings >= 2) {
+		ring = &adev->gfx.compute_ring[1];
+
+		rb_bufsz = order_base_2(ring->ring_size / 8);
+		tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE / 8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+		tmp |= BUF_SWAP_32BIT;
+#endif
+		WREG32(mmCP_RB2_CNTL, tmp);
+
+		WREG32(mmCP_RB2_CNTL, tmp | CP_RB2_CNTL__RB_RPTR_WR_ENA_MASK);
+		ring->wptr = 0;
+		WREG32(mmCP_RB2_WPTR, ring->wptr);
+		rptr_addr = ring->rptr_gpu_addr;
+		WREG32(mmCP_RB2_RPTR_ADDR, lower_32_bits(rptr_addr));
+		WREG32(mmCP_RB2_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
+
+		mdelay(1);
+		WREG32(mmCP_RB2_CNTL, tmp);
+		WREG32(mmCP_RB2_BASE, ring->gpu_addr >> 8);
+	}
+
 	/* start the rings */
 	gfx_v6_0_cp_gfx_start(adev);
-	r = amdgpu_ring_test_helper(ring);
+
+	/* Wait for the initial packets to finish, run gfx ring test */
+	r = amdgpu_ring_test_helper(&adev->gfx.gfx_ring[0]);
 	if (r)
 		return r;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
+
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
@@ -2222,66 +2291,6 @@ static void gfx_v6_0_ring_set_wptr_compute(struct amdgpu_ring *ring)
 		(void)RREG32(mmCP_RB2_WPTR);
 	}
 
-}
-
-static int gfx_v6_0_cp_compute_resume(struct amdgpu_device *adev)
-{
-	struct amdgpu_ring *ring;
-	u32 tmp;
-	u32 rb_bufsz;
-	int i, r;
-	u64 rptr_addr;
-
-	/* ring1  - compute only */
-	/* Set ring buffer size */
-
-	ring = &adev->gfx.compute_ring[0];
-	rb_bufsz = order_base_2(ring->ring_size / 8);
-	tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
-#ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
-#endif
-	WREG32(mmCP_RB1_CNTL, tmp);
-
-	WREG32(mmCP_RB1_CNTL, tmp | CP_RB1_CNTL__RB_RPTR_WR_ENA_MASK);
-	ring->wptr = 0;
-	WREG32(mmCP_RB1_WPTR, ring->wptr);
-
-	rptr_addr = ring->rptr_gpu_addr;
-	WREG32(mmCP_RB1_RPTR_ADDR, lower_32_bits(rptr_addr));
-	WREG32(mmCP_RB1_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
-
-	mdelay(1);
-	WREG32(mmCP_RB1_CNTL, tmp);
-	WREG32(mmCP_RB1_BASE, ring->gpu_addr >> 8);
-
-	ring = &adev->gfx.compute_ring[1];
-	rb_bufsz = order_base_2(ring->ring_size / 8);
-	tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
-#ifdef __BIG_ENDIAN
-	tmp |= BUF_SWAP_32BIT;
-#endif
-	WREG32(mmCP_RB2_CNTL, tmp);
-
-	WREG32(mmCP_RB2_CNTL, tmp | CP_RB2_CNTL__RB_RPTR_WR_ENA_MASK);
-	ring->wptr = 0;
-	WREG32(mmCP_RB2_WPTR, ring->wptr);
-	rptr_addr = ring->rptr_gpu_addr;
-	WREG32(mmCP_RB2_RPTR_ADDR, lower_32_bits(rptr_addr));
-	WREG32(mmCP_RB2_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
-
-	mdelay(1);
-	WREG32(mmCP_RB2_CNTL, tmp);
-	WREG32(mmCP_RB2_BASE, ring->gpu_addr >> 8);
-
-
-	for (i = 0; i < 2; i++) {
-		r = amdgpu_ring_test_helper(&adev->gfx.compute_ring[i]);
-		if (r)
-			return r;
-	}
-
-	return 0;
 }
 
 static void gfx_v6_0_cp_enable(struct amdgpu_device *adev, bool enable)
@@ -2333,9 +2342,6 @@ static int gfx_v6_0_cp_resume(struct amdgpu_device *adev)
 		return r;
 
 	r = gfx_v6_0_cp_gfx_resume(adev);
-	if (r)
-		return r;
-	r = gfx_v6_0_cp_compute_resume(adev);
 	if (r)
 		return r;
 
