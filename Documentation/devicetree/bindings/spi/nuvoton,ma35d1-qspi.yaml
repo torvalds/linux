@@ -33,6 +33,8 @@ properties:
     maximum: 2
     default: 2
 
+  cs-gpios: false
+
 required:
   - compatible
   - reg
