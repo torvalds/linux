@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 
 #define GPIO_MASK(gpio)		(0x80000000 >> (gpio))
-#define GPIO_MASK2(gpio)	(0xc0000000 >> ((gpio) * 2))
+#define GPIO_MASK2(gpio)	(0xc0000000 >> (((gpio) % 16) * 2))
 
 /* Physical GPIO register layout */
 struct ppc44x_gpio {
