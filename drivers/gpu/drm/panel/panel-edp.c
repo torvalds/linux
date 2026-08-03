@@ -145,6 +145,16 @@ struct panel_delay {
 	unsigned int disable;
 
 	/**
+	 * @pre_unprepare: Time for the end of video data to power off.
+	 *
+	 * The time (in milliseconds) that it needs to have passed between
+	 * the end of valid video data from source and start powering off.
+	 *
+	 * This is T10-min on eDP timing diagrams. It is not common to set.
+	 */
+	unsigned int pre_unprepare;
+
+	/**
 	 * @unprepare: Time to power down completely.
 	 *
 	 * The time (in milliseconds) that it takes for the panel
@@ -413,7 +423,11 @@ static int panel_edp_suspend(struct device *dev)
 
 static int panel_edp_unprepare(struct drm_panel *panel)
 {
+	struct panel_edp *p = to_panel_edp(panel);
 	int ret;
+
+	if (p->desc->delay.pre_unprepare)
+		msleep(p->desc->delay.pre_unprepare);
 
 	ret = pm_runtime_put_sync_suspend(panel->dev);
 	if (ret < 0)
@@ -1810,6 +1824,13 @@ static const struct panel_delay delay_80_500_e80_p2e200 = {
 	.prepare_to_enable = 200,
 };
 
+static const struct panel_delay delay_200_500_e80_pu100 = {
+	.hpd_absent = 200,
+	.unprepare = 500,
+	.enable = 80,
+	.pre_unprepare = 100,
+};
+
 static const struct panel_delay delay_100_500_e200 = {
 	.hpd_absent = 100,
 	.unprepare = 500,
@@ -2182,7 +2203,7 @@ static const struct edp_panel_entry edp_panels[] = {
 
 	EDP_PANEL_ENTRY('T', 'M', 'A', 0x0811, &delay_200_500_e80_d50, "TM140VDXP01-04"),
 	EDP_PANEL_ENTRY('T', 'M', 'A', 0x2094, &delay_200_500_e50_d100, "TL140VDMS03-01"),
-	EDP_PANEL_ENTRY('T', 'M', 'A', 0x2139, &delay_200_500_e50_d100, "TM156VDXP25"),
+	EDP_PANEL_ENTRY('T', 'M', 'A', 0x2139, &delay_200_500_e80_pu100, "TM156VDXP25"),
 
 	{ /* sentinal */ }
 };
