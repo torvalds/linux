@@ -3427,6 +3427,8 @@ static int pmbus_write_smbalert_mask(struct i2c_client *client, u8 page, u8 reg,
 {
 	int ret;
 
+	guard(pmbus_lock)(client);
+
 	ret = _pmbus_write_word_data(client, page, PMBUS_SMBALERT_MASK, reg | (val << 8));
 
 	/*
@@ -3661,6 +3663,8 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 			       sizeof(*entries), GFP_KERNEL);
 	if (!entries)
 		return;
+
+	guard(pmbus_lock)(client);
 
 	/*
 	 * Add device-specific entries.
