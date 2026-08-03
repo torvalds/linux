@@ -552,12 +552,14 @@ int dat_set_slot(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t start, gf
 int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn);
 bool dat_test_age_gfn(union asce asce, gfn_t start, gfn_t end);
 
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_perform_essa(union asce asce, gfn_t gfn, int orc, union essa_state *state, bool *dirty);
 long dat_reset_cmma(union asce asce, gfn_t start_gfn);
 int dat_peek_cmma(gfn_t start, union asce asce, unsigned int *count, u8 *values);
 int dat_get_cmma(union asce asce, gfn_t *start, unsigned int *count, u8 *values, atomic64_t *rem);
 int dat_set_cmma_bits(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 		      unsigned long count, unsigned long mask, const uint8_t *bits);
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 int kvm_s390_mmu_cache_topup(struct kvm_s390_mmu_cache *mc);
 

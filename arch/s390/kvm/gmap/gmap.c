@@ -1101,6 +1101,7 @@ int gmap_protect_rmap(struct kvm_s390_mmu_cache *mc, struct gmap *sg, gfn_t p_gf
 	return 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 static long __set_cmma_clean_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {
 	union pgste pgste;
@@ -1144,6 +1145,7 @@ void _gmap_set_cmma_all(struct gmap *gmap, bool dirty)
 		cond_resched();
 	} while (gfn);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 static void gmap_unshadow_level(struct gmap *sg, gfn_t r_gfn, int level)
 {

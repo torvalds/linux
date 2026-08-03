@@ -1060,6 +1060,7 @@ int dat_set_prefix_notif_bit(union asce asce, gfn_t gfn)
 	return 0;
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 /**
  * dat_perform_essa() - Perform ESSA actions on the PGSTE.
  * @asce: The asce to operate on.
@@ -1337,3 +1338,4 @@ int dat_set_cmma_bits(struct kvm_s390_mmu_cache *mc, union asce asce, gfn_t gfn,
 	}
 	return _dat_walk_gfn_range(gfn, gfn + count, asce, &ops, DAT_WALK_IGN_HOLES, &state);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
