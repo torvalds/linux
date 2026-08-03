@@ -415,7 +415,7 @@ static int eip93_crypto_probe(struct platform_device *pdev)
 	u32 ver, algo_flags;
 	int ret;
 
-	eip93 = devm_kzalloc(dev, sizeof(*eip93), GFP_KERNEL);
+	eip93 = devm_kzalloc(dev, struct_size(eip93, ring, 1), GFP_KERNEL);
 	if (!eip93)
 		return -ENOMEM;
 
@@ -435,10 +435,6 @@ static int eip93_crypto_probe(struct platform_device *pdev)
 					dev_name(eip93->dev), eip93);
 	if (ret)
 		return ret;
-
-	eip93->ring = devm_kcalloc(eip93->dev, 1, sizeof(*eip93->ring), GFP_KERNEL);
-	if (!eip93->ring)
-		return -ENOMEM;
 
 	ret = eip93_desc_init(eip93);
 	if (ret)
