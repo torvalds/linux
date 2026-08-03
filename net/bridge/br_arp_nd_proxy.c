@@ -255,15 +255,16 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 {
 	struct net_device *dev = request->dev;
 	struct net_bridge_vlan_group *vg;
+	struct ndisc_options ndopts;
 	struct nd_msg *na, *ns;
 	struct sk_buff *reply;
 	struct ipv6hdr *pip6;
 	int na_olen = 8; /* opt hdr + ETH_ALEN for target */
 	int ns_olen;
-	int i, len;
 	u8 *daddr;
 	bool dad;
 	u16 pvid;
+	int len;
 
 	if (!dev)
 		return;
@@ -284,20 +285,21 @@ static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
 	daddr = eth_hdr(request)->h_source;
 	ns = (struct nd_msg *)skb_transport_header(request);
 
-	/* Do we need option processing ? */
-	ns_olen = request->len - (skb_network_offset(request) +
-				  sizeof(struct ipv6hdr)) - sizeof(*ns);
-	for (i = 0; i < ns_olen - 1; i += (ns->opt[i + 1] << 3)) {
-		if (!ns->opt[i + 1] || i + (ns->opt[i + 1] << 3) > ns_olen) {
-			kfree_skb(reply);
-			return;
-		}
-		if (ns->opt[i] == ND_OPT_SOURCE_LL_ADDR) {
-			if ((ns->opt[i + 1] << 3) >=
-			    sizeof(struct nd_opt_hdr) + ETH_ALEN)
-				daddr = ns->opt + i + sizeof(struct nd_opt_hdr);
-			break;
-		}
+	/* Derive the option length from the IPv6 payload length so that any
+	 * trailing L2 padding in the skb is not parsed as ND options.
+	 */
+	ns_olen = ntohs(ipv6_hdr(request)->payload_len) - sizeof(*ns);
+	if (!ndisc_parse_options(dev, ns->opt, ns_olen, &ndopts)) {
+		kfree_skb(reply);
+		return;
+	}
+
+	if (ndopts.nd_opts_src_lladdr) {
+		u8 *lladdr;
+
+		lladdr = ndisc_opt_addr_data(ndopts.nd_opts_src_lladdr, dev);
+		if (lladdr)
+			daddr = lladdr;
 	}
 
 	dad = ipv6_addr_any(&ipv6_hdr(request)->saddr);
