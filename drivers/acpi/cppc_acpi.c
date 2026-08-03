@@ -200,6 +200,72 @@ show_cppc_data(cppc_get_perf_ctrs, cppc_perf_fb_ctrs, wraparound_time);
 	((((val) & GENMASK(((reg)->bit_width) - 1, 0)) << (reg)->bit_offset) |		\
 	((prev_val) & ~(GENMASK(((reg)->bit_width) - 1, 0) << (reg)->bit_offset)))	\
 
+static u64 cpc_sysmem_access_size(const struct cpc_register_resource *reg)
+{
+	const struct cpc_reg *gas = &reg->cpc_entry.reg;
+	unsigned int width;
+
+	if (gas->access_width > 4)
+		return 0;
+
+	width = GET_BIT_WIDTH(gas);
+
+	if (width != 8 && width != 16 && width != 32 && width != 64)
+		return 0;
+
+	return width / 8;
+}
+
+static bool cpc_sysmem_access_units_overlap(const struct cpc_register_resource *a,
+					    const struct cpc_register_resource *b)
+{
+	const struct cpc_reg *a_gas = &a->cpc_entry.reg;
+	const struct cpc_reg *b_gas = &b->cpc_entry.reg;
+	u64 a_size = cpc_sysmem_access_size(a);
+	u64 b_size = cpc_sysmem_access_size(b);
+
+	/* Keep the conservative locking path for malformed access widths. */
+	if (!a_size || !b_size)
+		return true;
+
+	if (a_gas->address < b_gas->address)
+		return b_gas->address - a_gas->address < a_size;
+
+	return a_gas->address - b_gas->address < b_size;
+}
+
+static void cpc_mark_rmw_lock_users(struct cpc_desc *cpc_desc)
+{
+	int i, j;
+
+	for (i = 0; i < cpc_desc->num_entries - 2; i++) {
+		struct cpc_register_resource *a = &cpc_desc->cpc_regs[i];
+		struct cpc_reg *gas;
+		u64 access_size;
+
+		if (!CPC_SUPPORTED(a) || !CPC_IN_SYSTEM_MEMORY(a))
+			continue;
+
+		gas = &a->cpc_entry.reg;
+		access_size = cpc_sysmem_access_size(a);
+		if (gas->bit_offset || !access_size ||
+		    gas->bit_width != access_size * 8)
+			a->cpc_entry.use_rmw_lock = true;
+
+		for (j = i + 1; j < cpc_desc->num_entries - 2; j++) {
+			struct cpc_register_resource *b = &cpc_desc->cpc_regs[j];
+
+			if (!CPC_SUPPORTED(b) || !CPC_IN_SYSTEM_MEMORY(b))
+				continue;
+			if (!cpc_sysmem_access_units_overlap(a, b))
+				continue;
+
+			a->cpc_entry.use_rmw_lock = true;
+			b->cpc_entry.use_rmw_lock = true;
+		}
+	}
+}
+
 static ssize_t show_feedback_ctrs(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
@@ -904,6 +970,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 	/* Store CPU Logical ID */
 	cpc_ptr->cpu_id = pr->id;
+	cpc_mark_rmw_lock_users(cpc_ptr);
 	raw_spin_lock_init(&cpc_ptr->rmw_lock);
 
 	/* Parse PSD data for this CPU */
@@ -1123,6 +1190,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 	struct cpc_desc *cpc_desc;
 	unsigned long flags;
+	bool locked = false;
 
 	size = GET_BIT_WIDTH(reg);
 
@@ -1156,18 +1224,20 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 				val, size);
 
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		cpc_desc = per_cpu(cpc_desc_ptr, cpu);
-		if (!cpc_desc) {
-			pr_debug("No CPC descriptor for CPU:%d\n", cpu);
-			return -ENODEV;
-		}
-
 		/*
-		 * Only partial fields need the previous contents to preserve bits
-		 * outside the field. Keep serializing full-width writes because
-		 * another _CPC entry may share the access unit and require RMW.
+		 * The _CPC layout is immutable after probe. The precomputed flag
+		 * retains serialization for partial fields or overlapping access
+		 * units; standalone full-width registers avoid the lock.
 		 */
-		raw_spin_lock_irqsave(&cpc_desc->rmw_lock, flags);
+		locked = reg_res->cpc_entry.use_rmw_lock;
+		if (locked) {
+			cpc_desc = per_cpu(cpc_desc_ptr, cpu);
+			if (!cpc_desc) {
+				pr_debug("No CPC descriptor for CPU:%d\n", cpu);
+				return -ENODEV;
+			}
+			raw_spin_lock_irqsave(&cpc_desc->rmw_lock, flags);
+		}
 
 		if (reg->bit_offset || reg->bit_width != size) {
 			switch (size) {
@@ -1184,8 +1254,9 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 				prev_val = readq_relaxed(vaddr);
 				break;
 			default:
-				raw_spin_unlock_irqrestore(&cpc_desc->rmw_lock,
-							   flags);
+				if (locked)
+					raw_spin_unlock_irqrestore(&cpc_desc->rmw_lock,
+								   flags);
 				return -EFAULT;
 			}
 			val = MASK_VAL_WRITE(reg, prev_val, val);
@@ -1217,7 +1288,7 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 		break;
 	}
 
-	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
+	if (locked)
 		raw_spin_unlock_irqrestore(&cpc_desc->rmw_lock, flags);
 
 	return ret_val;
