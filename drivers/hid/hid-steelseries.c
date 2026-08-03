@@ -21,7 +21,7 @@
 #include "hid-ids.h"
 
 #define STEELSERIES_SRWS1		BIT(0)
-#define STEELSERIES_ARCTIS_1		BIT(1)
+#define STEELSERIES_ARCTIS_1_X		BIT(1)
 #define STEELSERIES_ARCTIS_9		BIT(2)
 #define STEELSERIES_MSI_RGB		BIT(3)
 
@@ -396,7 +396,7 @@ static void steelseries_headset_fetch_battery(struct hid_device *hdev)
 {
 	int ret = 0;
 
-	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1)
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1_X)
 		ret = steelseries_headset_request_battery(hdev,
 			arctis_1_battery_request, sizeof(arctis_1_battery_request));
 	else if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_9)
@@ -829,7 +829,7 @@ static int steelseries_probe(struct hid_device *hdev, const struct hid_device_id
 		return 0;
 	}
 
-	if ((sd->quirks & (STEELSERIES_ARCTIS_1 | STEELSERIES_ARCTIS_9)) &&
+	if ((sd->quirks & (STEELSERIES_ARCTIS_1_X | STEELSERIES_ARCTIS_9)) &&
 	    steelseries_headset_battery_register(sd) < 0)
 		hid_err(sd->hdev,
 			"Failed to register battery for headset\n");
@@ -897,7 +897,7 @@ static uint8_t steelseries_headset_map_capacity(uint8_t capacity, uint8_t min_in
 
 static bool steelseries_is_headset(struct hid_device *hdev)
 {
-	return hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1 ||
+	return hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1_X ||
 	       hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_9;
 }
 
@@ -923,7 +923,7 @@ static int steelseries_headset_raw_event(struct hid_device *hdev,
 	connected = sd->headset_connected;
 	charging = sd->battery_charging;
 
-	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1) {
+	if (hdev->product == USB_DEVICE_ID_STEELSERIES_ARCTIS_1_X) {
 		hid_dbg(sd->hdev,
 			"Parsing raw event for Arctis 1 headset (%*ph)\n", size, read_buf);
 		if (size < ARCTIS_1_BATTERY_RESPONSE_LEN ||
@@ -1010,8 +1010,8 @@ static const struct hid_device_id steelseries_devices[] = {
 	  .driver_data = STEELSERIES_SRWS1 },
 
 	{ /* SteelSeries Arctis 1 Wireless for XBox */
-	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_ARCTIS_1),
-	  .driver_data = STEELSERIES_ARCTIS_1 },
+	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_ARCTIS_1_X),
+	  .driver_data = STEELSERIES_ARCTIS_1_X },
 
 	{ /* SteelSeries Arctis 9 Wireless for XBox */
 	  HID_USB_DEVICE(USB_VENDOR_ID_STEELSERIES, USB_DEVICE_ID_STEELSERIES_ARCTIS_9),
