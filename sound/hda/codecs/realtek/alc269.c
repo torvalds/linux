@@ -4771,9 +4771,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC269_FIXUP_LIMIT_INT_MIC_BOOST] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc269_fixup_limit_int_mic_boost,
-		.chained = true,
-		.chain_id = ALC269_FIXUP_THINKPAD_ACPI,
+		.v.func = alc269_fixup_limit_int_mic_boost
 	},
 	[ALC269_FIXUP_THINKPAD_LIMIT_INT_MIC_BOOST] = {
 		.type = HDA_FIXUP_FUNC,
