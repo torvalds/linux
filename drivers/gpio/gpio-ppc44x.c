@@ -147,7 +147,6 @@ ppc44x_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 static int ppc44x_gpio_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = dev->of_node;
 	struct ppc44x_gpio __iomem *regs;
 	struct ppc44x_gpio_chip *chip;
 	struct gpio_generic_chip_config config;
@@ -179,13 +178,10 @@ static int ppc44x_gpio_probe(struct platform_device *ofdev)
 		return ret;
 
 	gc = &chip->chip.gc;
+	gc->label = dev_name(dev);
 	gc->parent = dev;
 	gc->direction_input = ppc44x_gpio_dir_in;
 	gc->direction_output = ppc44x_gpio_dir_out;
-
-	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
-	if (!gc->label)
-		return -ENOMEM;
 
 	return devm_gpiochip_add_data(dev, gc, chip);
 }
