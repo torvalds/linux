@@ -170,6 +170,10 @@ For new platforms, or additions to existing ones, ``make dtbs_check`` should not
 add any new warnings.  For RISC-V and Samsung SoC, ``make dtbs_check W=1`` is
 required to not add any new warnings.
 
+Additionally new code must not have any scripts/dtc/dt-check-style warnings in
+'relaxed' mode and should have addressed most of the warnings in 'strict' mode
+(the latter mode might produce false positives).
+
 Branches and Pull Requests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
