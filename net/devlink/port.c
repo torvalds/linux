@@ -267,6 +267,8 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 		    nla_put_u32(msg, DEVLINK_ATTR_PORT_PCI_SF_NUMBER,
 				attrs->pci_sf.sf))
 			return -EMSGSIZE;
+		if (nla_put_u8(msg, DEVLINK_ATTR_PORT_EXTERNAL, attrs->pci_sf.external))
+			return -EMSGSIZE;
 		break;
 	case DEVLINK_PORT_FLAVOUR_PHYSICAL:
 	case DEVLINK_PORT_FLAVOUR_CPU:
