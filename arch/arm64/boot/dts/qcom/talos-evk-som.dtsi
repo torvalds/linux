@@ -597,8 +597,8 @@
 };
 
 &usb_qmpphy_2 {
-	vdda-phy-supply = <&vreg_l11a>;
-	vdda-pll-supply = <&vreg_l5a>;
+	vdda-phy-supply = <&vreg_l5a>;
+	vdda-pll-supply = <&vreg_l11a>;
 
 	status = "okay";
 };
