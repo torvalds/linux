@@ -29,8 +29,6 @@
 
 #define UNRESONABLE_LATENCY (40 * NSEC_PER_MSEC)
 
-#define UNSUPPORTED 0xf00f
-
 struct timespec timespec_add(struct timespec ts, unsigned long long ns)
 {
 	ts.tv_nsec += ns;
@@ -60,9 +58,9 @@ int nanosleep_lat_test(int clockid, long long ns)
 	target.tv_nsec = ns%NSEC_PER_SEC;
 
 	if (clock_gettime(clockid, &start))
-		return UNSUPPORTED;
+		return KSFT_SKIP;
 	if (clock_nanosleep(clockid, 0, &target, NULL))
-		return UNSUPPORTED;
+		return KSFT_SKIP;
 
 	count = 10;
 
@@ -74,7 +72,7 @@ int nanosleep_lat_test(int clockid, long long ns)
 
 	if (((timespec_sub(start, end)/count)-ns) > UNRESONABLE_LATENCY) {
 		ksft_print_msg("Large rel latency: %lld ns :", (timespec_sub(start, end)/count)-ns);
-		return -1;
+		return KSFT_FAIL;
 	}
 
 	/* Next check absolute latency */
@@ -88,10 +86,10 @@ int nanosleep_lat_test(int clockid, long long ns)
 
 	if (latency/count > UNRESONABLE_LATENCY) {
 		ksft_print_msg("Large abs latency: %lld ns :", latency/count);
-		return -1;
+		return KSFT_FAIL;
 	}
 
-	return 0;
+	return KSFT_PASS;
 }
 
 int main(int argc, char **argv)
@@ -123,12 +121,7 @@ int main(int argc, char **argv)
 
 		}
 
-		if (ret == UNSUPPORTED) {
-			ksft_test_result_skip("%s\n", clock_name(clockid));
-		} else {
-			ksft_test_result(ret >= 0, "%s\n",
-					 clock_name(clockid));
-		}
+		ksft_test_result_report(ret, "%s\n", clock_name(clockid));
 	}
 
 	ksft_finished();
