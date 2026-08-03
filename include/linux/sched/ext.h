@@ -244,11 +244,11 @@ struct sched_ext_entity {
 	 * to %SCHED_EXT with -%EACCES.
 	 *
 	 * Can be set from ops.init_task() while the BPF scheduler is being
-	 * loaded (!scx_init_task_args->fork). If set and the task's policy is
-	 * already %SCHED_EXT, the task's policy is rejected and forcefully
-	 * reverted to %SCHED_NORMAL. The number of such events are reported
-	 * through /sys/kernel/debug/sched_ext::nr_rejected. Setting this flag
-	 * during fork is not allowed.
+	 * loaded. If set and the task's policy is already %SCHED_EXT, the
+	 * task's policy is rejected and forcefully reverted to %SCHED_NORMAL.
+	 * The number of such events are reported through
+	 * /sys/kernel/sched_ext/nr_rejected. Setting this flag from any other
+	 * ops.init_task() invocation, such as during fork, fails the scheduler.
 	 */
 	bool			disallow;	/* reject switching into SCX */
 

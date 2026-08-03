@@ -3606,6 +3606,9 @@ static int __scx_init_task(struct scx_sched *sch, struct task_struct *p, bool fo
 		} else if (unlikely(fork)) {
 			scx_error(sch, "ops.init_task() set task->scx.disallow for %s[%d] during fork",
 				  p->comm, p->pid);
+		} else if (unlikely(scx_enable_state() != SCX_ENABLING)) {
+			scx_error(sch, "ops.init_task() set task->scx.disallow for %s[%d] outside the enable path",
+				  p->comm, p->pid);
 		} else {
 			struct rq *rq;
 			struct rq_flags rf;
@@ -4577,20 +4580,25 @@ static struct cgroup *root_cgroup(void)
 	return &cgrp_dfl_root.cgrp;
 }
 
+/*
+ * cgroup_lock() must nest outside the rwsem write side: a writer waiting
+ * for cgroup_mutex deadlocks with cgroup teardown, which holds it while
+ * draining a set_* file write blocked on the rwsem behind the writer.
+ */
 static void scx_cgroup_lock(void)
 {
+	cgroup_lock();
 #ifdef CONFIG_EXT_GROUP_SCHED
 	percpu_down_write(&scx_cgroup_ops_rwsem);
 #endif
-	cgroup_lock();
 }
 
 static void scx_cgroup_unlock(void)
 {
-	cgroup_unlock();
 #ifdef CONFIG_EXT_GROUP_SCHED
 	percpu_up_write(&scx_cgroup_ops_rwsem);
 #endif
+	cgroup_unlock();
 }
 #else	/* CONFIG_EXT_GROUP_SCHED || CONFIG_EXT_SUB_SCHED */
 static inline struct cgroup *root_cgroup(void) { return NULL; }
@@ -5929,6 +5937,15 @@ static void scx_sub_disable(struct scx_sched *sch)
 	percpu_down_write(&scx_fork_rwsem);
 	scx_cgroup_lock();
 
+	/*
+	 * An enable that failed before scx_link_sched() never owned a cgroup or
+	 * task and won't be waited on by an ancestor's drain_descendants().
+	 * Nothing to reparent and walking the tasks can misbehave as the task
+	 * ownership invariant (either owned by self or parent) does not hold.
+	 */
+	if (list_empty(&sch->sibling))
+		goto dump;
+
 	set_cgroup_sched(sch_cgroup(sch), parent);
 
 	scx_task_iter_start(&sti, sch->cgrp);
@@ -5941,8 +5958,8 @@ static void scx_sub_disable(struct scx_sched *sch)
 			continue;
 
 		/*
-		 * By the time control reaches here, all descendant schedulers
-		 * should already have been disabled.
+		 * By the time control reaches here, all linked descendant
+		 * schedulers should have been disabled.
 		 */
 		WARN_ON_ONCE(!scx_task_on_sched(sch, p));
 
@@ -5993,15 +6010,22 @@ static void scx_sub_disable(struct scx_sched *sch)
 			/*
 			 * $p is initialized for $parent and still attached to
 			 * @sch. Disable and exit for @sch, switch over to
-			 * $parent, override the state to READY to account for
-			 * $p having already been initialized, and then enable.
+			 * $parent and override the state to READY to account
+			 * for $p having already been initialized.
 			 */
 			scx_disable_and_exit_task(sch, p);
 			scx_set_task_state(p, SCX_TASK_INIT_BEGIN);
 			scx_set_task_state(p, SCX_TASK_INIT);
 			scx_set_task_sched(p, parent);
 			scx_set_task_state(p, SCX_TASK_READY);
-			scx_enable_task(parent, p);
+
+			/*
+			 * A task on a non-ext class, possible under an
+			 * %SCX_OPS_SWITCH_PARTIAL root, stays READY and is
+			 * enabled by switching_to_scx() if it switches over.
+			 */
+			if (p->sched_class == &ext_sched_class)
+				scx_enable_task(parent, p);
 		}
 
 		task_rq_unlock(rq, p, &rf);
@@ -6009,6 +6033,7 @@ static void scx_sub_disable(struct scx_sched *sch)
 	}
 	scx_task_iter_stop(&sti);
 
+dump:
 	scx_disable_dump(sch);
 
 	scx_cgroup_unlock();
@@ -7708,10 +7733,14 @@ static void scx_sub_enable_workfn(struct kthread_work *work)
 
 			/*
 			 * $p is now only initialized for @sch and READY, which
-			 * is what we want. Assign it to @sch and enable.
+			 * is what we want. Assign it to @sch and, if it's on
+			 * the ext class, enable. A non-ext task, possible under
+			 * an %SCX_OPS_SWITCH_PARTIAL root, stays READY and is
+			 * enabled by switching_to_scx() if it switches over.
 			 */
 			scx_set_task_sched(p, sch);
-			scx_enable_task(sch, p);
+			if (p->sched_class == &ext_sched_class)
+				scx_enable_task(sch, p);
 
 			p->scx.flags &= ~SCX_TASK_SUB_INIT;
 		}
