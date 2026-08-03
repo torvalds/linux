@@ -2531,14 +2531,10 @@ static __init int cxl_core_init(void)
 	if (rc)
 		goto err_region;
 
-	rc = cxl_ras_init();
-	if (rc)
-		goto err_ras;
+	cxl_ras_init();
 
 	return 0;
 
-err_ras:
-	cxl_region_exit();
 err_region:
 	bus_unregister(&cxl_bus_type);
 err_bus:

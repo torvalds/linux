@@ -287,10 +287,10 @@ struct cxl_cper_prot_err_work_data {
 
 #ifdef CONFIG_ACPI_APEI_GHES
 int cxl_cper_register_work(struct work_struct *work);
-int cxl_cper_unregister_work(struct work_struct *work);
+void cxl_cper_unregister_work(struct work_struct *work);
 int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd);
-int cxl_cper_register_prot_err_work(struct work_struct *work);
-int cxl_cper_unregister_prot_err_work(struct work_struct *work);
+void cxl_cper_register_prot_err_work(struct work_struct *work);
+void cxl_cper_unregister_prot_err_work(void);
 int cxl_cper_prot_err_kfifo_get(struct cxl_cper_prot_err_work_data *wd);
 #else
 static inline int cxl_cper_register_work(struct work_struct *work)
@@ -298,22 +298,13 @@ static inline int cxl_cper_register_work(struct work_struct *work)
 	return 0;
 }
 
-static inline int cxl_cper_unregister_work(struct work_struct *work)
-{
-	return 0;
-}
+static inline void cxl_cper_unregister_work(struct work_struct *work) { }
 static inline int cxl_cper_kfifo_get(struct cxl_cper_work_data *wd)
 {
 	return 0;
 }
-static inline int cxl_cper_register_prot_err_work(struct work_struct *work)
-{
-	return 0;
-}
-static inline int cxl_cper_unregister_prot_err_work(struct work_struct *work)
-{
-	return 0;
-}
+static inline void cxl_cper_register_prot_err_work(struct work_struct *work) { }
+static inline void cxl_cper_unregister_prot_err_work(void) { }
 static inline int cxl_cper_prot_err_kfifo_get(struct cxl_cper_prot_err_work_data *wd)
 {
 	return 0;
