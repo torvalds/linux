@@ -3101,7 +3101,7 @@ static inline unsigned int clockid_to_tkid(unsigned int id)
 
 static inline struct tk_data *aux_get_tk_data(clockid_t id)
 {
-	if (!clockid_aux_valid(id))
+	if (!clockid_is_aux_clock(id))
 		return NULL;
 	return &timekeeper_data[clockid_to_tkid(id)];
 }
@@ -3196,7 +3196,7 @@ EXPORT_SYMBOL_GPL(ktime_get_aux_ts64);
 
 static int aux_get_res(clockid_t id, struct timespec64 *tp)
 {
-	if (!clockid_aux_valid(id))
+	if (!clockid_is_aux_clock(id))
 		return -ENODEV;
 
 	tp->tv_sec = aux_clock_resolution_ns() / NSEC_PER_SEC;
