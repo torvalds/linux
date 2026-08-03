@@ -124,6 +124,9 @@ const volatile u64 __SCX_ENQ_PREEMPT __weak;
 const volatile u64 __SCX_ENQ_IMMED __weak;
 #define SCX_ENQ_IMMED __SCX_ENQ_IMMED
 
+const volatile u64 __SCX_ENQ_RESCUE __weak;
+#define SCX_ENQ_RESCUE __SCX_ENQ_RESCUE
+
 const volatile u64 __SCX_ENQ_REENQ __weak;
 #define SCX_ENQ_REENQ __SCX_ENQ_REENQ
 
