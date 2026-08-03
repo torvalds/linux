@@ -7533,8 +7533,6 @@ static u8 __get_type_fmodel_flags(const struct btf_type *t)
 {
 	u8 flags = 0;
 
-	if (btf_type_is_struct(t))
-		flags |= BTF_FMODEL_STRUCT_ARG;
 	if (btf_type_is_signed_int(t))
 		flags |= BTF_FMODEL_SIGNED_ARG;
 
