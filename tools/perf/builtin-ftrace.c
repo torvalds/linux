@@ -1607,14 +1607,15 @@ static int parse_filter_event(const struct option *opt, const char *str,
 {
 	struct list_head *head = opt->value;
 	struct filter_entry *entry;
-	char *s, *p;
+	char *s, *p, *tmp;
 	int ret = -ENOMEM;
 
 	s = strdup(str);
 	if (s == NULL)
 		return -ENOMEM;
 
-	while ((p = strsep(&s, ",")) != NULL) {
+	tmp = s;
+	while ((p = strsep(&tmp, ",")) != NULL) {
 		entry = malloc(sizeof(*entry) + strlen(p) + 1);
 		if (entry == NULL)
 			goto out;
