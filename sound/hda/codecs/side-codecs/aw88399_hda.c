@@ -194,7 +194,6 @@ static const struct aw88399_prop_model aw88399_prop_model_table[] = {
 static int aw88399_hda_acpi_probe(struct aw88399_hda *aw88399)
 {
 	struct acpi_device *adev;
-	struct device *physdev;
 	const char *sub;
 	const struct aw88399_prop_model *model;
 
@@ -208,13 +207,13 @@ static int aw88399_hda_acpi_probe(struct aw88399_hda *aw88399)
 		return -ENODEV;
 	}
 
-	physdev = get_device(acpi_get_first_physical_node(adev));
+	struct device *physdev __free(put_device) =
+		get_device(acpi_get_first_physical_node(adev));
 	acpi_dev_put(adev);
 	if (!physdev)
 		return -ENODEV;
 
 	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
-	put_device(physdev);
 	if (IS_ERR_OR_NULL(sub))
 		return 0;
 
