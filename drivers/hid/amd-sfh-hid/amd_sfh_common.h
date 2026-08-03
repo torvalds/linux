@@ -35,6 +35,11 @@ enum cmd_id {
 	STOP_ALL_SENSORS = 8,
 };
 
+enum amd_mp2_version {
+	MP2_VER_V2 = 1,
+	MP2_VER_1_1 = 2,
+};
+
 struct amd_mp2_sensor_info {
 	u8 sensor_idx;
 	u32 period;
@@ -64,6 +69,7 @@ struct amd_mp2_dev {
 	struct mutex lock;
 	u8 init_done;
 	u8 rver;
+	u8 mp2_ver;
 };
 
 struct amd_mp2_ops {

@@ -285,6 +285,7 @@ static void mp2_select_ops(struct amd_mp2_dev *privdata)
 	switch (acs) {
 	case V2_STATUS:
 		privdata->mp2_ops = &amd_sfh_ops_v2;
+		privdata->mp2_ver = MP2_VER_V2;
 		break;
 	default:
 		privdata->mp2_ops = &amd_sfh_ops;
@@ -471,8 +472,9 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (rc)
 		return rc;
 
-	privdata->sfh1_1_ops = (const struct amd_sfh1_1_ops *)id->driver_data;
-	if (privdata->sfh1_1_ops) {
+	privdata->mp2_ver = (enum amd_mp2_version)id->driver_data;
+	if (privdata->mp2_ver >= MP2_VER_1_1) {
+		privdata->sfh1_1_ops = &sfh1_1_ops;
 		if (boot_cpu_data.x86 >= 0x1A)
 			privdata->rver = 1;
 
@@ -540,8 +542,7 @@ static SIMPLE_DEV_PM_OPS(amd_mp2_pm_ops, amd_mp2_pci_suspend,
 
 static const struct pci_device_id amd_mp2_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2) },
-	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2_1_1),
-	  .driver_data = (kernel_ulong_t)&sfh1_1_ops },
+	{ PCI_DEVICE_DATA(AMD, MP2_1_1, MP2_VER_1_1) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, amd_mp2_pci_tbl);
