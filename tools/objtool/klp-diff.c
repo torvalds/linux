@@ -83,6 +83,35 @@ static char *escape_str(const char *orig)
 	return new;
 }
 
+/*
+ * Convert a build-tree object path to a runtime module name: strip
+ * directory components, replace '-' with '_', and remove file
+ * extensions.  Examples:
+ *
+ *   "arch/x86/kvm/kvm" -> "kvm"
+ *   "arch/x86/kvm/kvm-intel" -> "kvm_intel".
+ *
+ * Used by read_exports() to normalize Module.symvers entries and by
+ * __find_modname() as a fallback when .modinfo lacks a "name=" tag.
+ */
+static char *normalize_modname(char *name)
+{
+	char *slash = strrchr(name, '/');
+
+	if (slash)
+		name = slash + 1;
+
+	for (char *c = name; *c; c++) {
+		if (*c == '-')
+			*c = '_';
+		else if (*c == '.') {
+			*c = '\0';
+			break;
+		}
+	}
+	return name;
+}
+
 static int read_exports(void)
 {
 	const char *symvers = "Module.symvers";
@@ -149,6 +178,9 @@ static int read_exports(void)
 			ERROR_GLIBC("strdup");
 			return -1;
 		}
+
+		if (strcmp(export->mod, "vmlinux"))
+			export->mod = normalize_modname(export->mod);
 
 		export->sym = strdup(sym);
 		if (!export->sym) {
@@ -1140,7 +1172,7 @@ static struct export *find_export(struct symbol *sym)
 static const char *__find_modname(struct elfs *e)
 {
 	struct section *sec;
-	char *name, *slash;
+	char *name;
 
 	sec = find_section_by_name(e->orig, ".modinfo");
 	if (!sec) {
@@ -1158,20 +1190,7 @@ static const char *__find_modname(struct elfs *e)
 		return NULL;
 	}
 
-	slash = strrchr(name, '/');
-	if (slash)
-		name = slash + 1;
-
-	for (char *c = name; *c; c++) {
-		if (*c == '-')
-			*c = '_';
-		else if (*c == '.') {
-			*c = '\0';
-			break;
-		}
-	}
-
-	return name;
+	return normalize_modname(name);
 }
 
 /* Get the object's module name as defined by the kernel (and klp_object) */
