@@ -683,8 +683,8 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 				    dev_name(&cxlr->dev));
 	if (IS_ERR(res)) {
 		dev_dbg(&cxlr->dev,
-			"HPA allocation error (%ld) for size:%pap in %s %pr\n",
-			PTR_ERR(res), &size, cxlrd->res->name, cxlrd->res);
+			"HPA allocation error (%pe) for size:%pap in %s %pr\n",
+			res, &size, cxlrd->res->name, cxlrd->res);
 		return PTR_ERR(res);
 	}
 
@@ -3770,9 +3770,9 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 
 	if (IS_ERR(cxlr)) {
 		dev_err(cxlmd->dev.parent,
-			"%s:%s: %s failed assign region: %ld\n",
+			"%s:%s: %s failed assign region: %pe\n",
 			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
-			__func__, PTR_ERR(cxlr));
+			__func__, cxlr);
 		return cxlr;
 	}
 
