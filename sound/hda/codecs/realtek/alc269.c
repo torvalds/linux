@@ -4157,7 +4157,6 @@ enum {
 	ALC269_FIXUP_LEMOTE_A190X,
 	ALC256_FIXUP_INTEL_NUC8_RUGGED,
 	ALC233_FIXUP_INTEL_NUC8_DMIC,
-	ALC233_FIXUP_INTEL_NUC8_BOOST,
 	ALC256_FIXUP_INTEL_NUC10,
 	ALC255_FIXUP_XIAOMI_HEADSET_MIC,
 	ALC274_FIXUP_HP_MIC,
@@ -5149,11 +5148,7 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_inv_dmic,
 		.chained = true,
-		.chain_id = ALC233_FIXUP_INTEL_NUC8_BOOST,
-	},
-	[ALC233_FIXUP_INTEL_NUC8_BOOST] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc269_fixup_limit_int_mic_boost
+		.chain_id = ALC269_FIXUP_LIMIT_INT_MIC_BOOST,
 	},
 	[ALC255_FIXUP_DELL_SPK_NOISE] = {
 		.type = HDA_FIXUP_FUNC,
