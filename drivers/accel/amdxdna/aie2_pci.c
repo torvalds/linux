@@ -420,6 +420,7 @@ static int aie2_hw_start(struct amdxdna_dev *xdna)
 		goto stop_fw;
 	}
 
+	WRITE_ONCE(ndev->last_signal_ts, jiffies);
 	ndev->dev_status = AIE2_DEV_START;
 
 	return 0;

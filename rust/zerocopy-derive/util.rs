@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (BSD-2-Clause OR Apache-2.0) OR MIT
-
+//
 // Copyright 2019 The Fuchsia Authors
 //
 // Licensed under a BSD-style license <LICENSE-BSD>, Apache License, Version 2.0
@@ -98,6 +98,11 @@ impl Ctx {
         }
     }
 
+    pub(crate) fn skip_on_error(mut self) -> Self {
+        self.skip_on_error = true;
+        self
+    }
+
     pub(crate) fn core_path(&self) -> TokenStream {
         let zerocopy_crate = &self.zerocopy_crate;
         quote!(#zerocopy_crate::util::macro_util::core_reexport)
@@ -106,20 +111,21 @@ impl Ctx {
     pub(crate) fn cfg_compile_error(&self) -> TokenStream {
         // By checking both during the compilation of the proc macro *and* in
         // the generated code, we ensure that `--cfg
-        // zerocopy_unstable_derive_on_error` need only be passed *either* when
+        // zerocopy_unstable_linux` need only be passed *either* when
         // compiling this crate *or* when compiling the user's crate. The former
         // is preferable, but in some situations (such as when cross-compiling
         // using `cargo build --target`), it doesn't get propagated to this
         // crate's build by default.
-        if cfg!(zerocopy_unstable_derive_on_error) {
+        if cfg!(zerocopy_unstable_linux) {
             quote!()
         } else if let Some(span) = self.on_error_span {
             let core = self.core_path();
-            let error_message = "`on_error` is experimental; pass '--cfg zerocopy_unstable_derive_on_error' to enable";
+            let error_message =
+                "`on_error` is experimental; pass '--cfg zerocopy_unstable_linux' to enable";
             quote::quote_spanned! {span=>
                 #[allow(unused_attributes, unexpected_cfgs)]
                 const _: () = {
-                    #[cfg(not(zerocopy_unstable_derive_on_error))]
+                    #[cfg(not(zerocopy_unstable_linux))]
                     #core::compile_error!(#error_message);
                 };
             }
@@ -612,6 +618,20 @@ impl<'a> ImplBlockBuilder<'a> {
             }
         };
 
+        let zerocopy_bounds =
+            field_type_bounds
+                .into_iter()
+                .chain(padding_check_bound)
+                .chain(self_bounds)
+                .map(|bound| {
+                    if self.ctx.skip_on_error {
+                        parse_quote!(for<'zc> #bound)
+                    } else {
+                        bound.clone()
+                    }
+                })
+                .collect::<Vec<_>>();
+
         let bounds = self
             .ctx
             .ast
@@ -621,9 +641,7 @@ impl<'a> ImplBlockBuilder<'a> {
             .map(|where_clause| where_clause.predicates.iter())
             .into_iter()
             .flatten()
-            .chain(field_type_bounds.iter())
-            .chain(padding_check_bound.iter())
-            .chain(self_bounds.iter());
+            .chain(zerocopy_bounds.iter());
 
         // The parameters with trait bounds, but without type defaults.
         let mut params: Vec<_> = self

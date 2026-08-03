@@ -43,20 +43,22 @@ struct aie2_ctx_health {
 
 static inline void aie2_tdr_signal(struct amdxdna_dev *xdna)
 {
-	WRITE_ONCE(xdna->dev_handle->tdr_status, AIE2_TDR_SIGNALED);
+	WRITE_ONCE(xdna->dev_handle->last_signal_ts, jiffies);
 }
 
 static bool aie2_tdr_detect(struct amdxdna_dev *xdna)
 {
 	struct amdxdna_dev_hdl *ndev = xdna->dev_handle;
+	unsigned long last = READ_ONCE(ndev->last_signal_ts);
 
-	if (READ_ONCE(ndev->tdr_status) == AIE2_TDR_WAIT) {
-		XDNA_ERR(xdna, "TDR timeout detected");
-		return true;
-	}
+	if (!tdr_timeout_ms)
+		return false;
 
-	WRITE_ONCE(ndev->tdr_status, AIE2_TDR_WAIT);
-	return false;
+	if (!time_after(jiffies, last + msecs_to_jiffies(tdr_timeout_ms)))
+		return false;
+
+	XDNA_ERR(xdna, "TDR timeout detected");
+	return true;
 }
 
 static void aie2_cmd_release(struct kref *ref)
@@ -434,6 +436,12 @@ out:
 		mmput(job->mm);
 		fence = ERR_PTR(ret);
 	} else {
+		/*
+		 * Command is successfully posted to hardware, update the
+		 * tdr timestamp. The total pending commands are limited.
+		 * So there will not be a case that driver keeps posting
+		 * commands without getting any hardware respond.
+		 */
 		aie2_tdr_signal(hwctx->client->xdna);
 	}
 	trace_xdna_job(sched_job, hwctx->name, "sent to device",
@@ -658,7 +666,9 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	const struct drm_sched_init_args args = {
 		.ops = &sched_ops,
 		.credit_limit = HWCTX_MAX_CMDS,
-		.timeout = msecs_to_jiffies(tdr_timeout_ms),
+		.timeout = tdr_timeout_ms ?
+			msecs_to_jiffies(tdr_timeout_ms) :
+			MAX_SCHEDULE_TIMEOUT,
 		.name = "amdxdna_js",
 		.dev = xdna->ddev.dev,
 	};

@@ -30,9 +30,12 @@ struct sdca_function_data;
  * @function: Pointer to the Function that the interrupt is associated with.
  * @entity: Pointer to the Entity that the interrupt is associated with.
  * @control: Pointer to the Control that the interrupt is associated with.
+ * @handler: Handler function to be called for the IRQ.
  * @priv: Pointer to private data for use by the handler.
+ * @free_priv: Pointer to a function that can be used to free the priv data.
  * @irq: IRQ number allocated to this interrupt, also used internally to track
  * the IRQ being assigned.
+ * @early_request: Flag to indicate this IRQ was requested at bus probe time.
  */
 struct sdca_interrupt {
 	const char *name;
@@ -44,10 +47,13 @@ struct sdca_interrupt {
 	struct sdca_function_data *function;
 	struct sdca_entity *entity;
 	struct sdca_control *control;
+	irq_handler_t handler;
 
 	void *priv;
+	void (*free_priv)(struct sdca_interrupt *interrupt);
 
 	int irq;
+	bool early_request;
 };
 
 /**
@@ -86,8 +92,12 @@ int sdca_irq_populate(struct sdca_function_data *function,
 void sdca_irq_cleanup(struct device *dev,
 		      struct sdca_function_data *function,
 		      struct sdca_interrupt_info *info);
-struct sdca_interrupt_info *sdca_irq_allocate(struct device *dev,
-					      struct regmap *regmap, int irq);
+void sdca_irq_cleanup_late(struct device *dev,
+			   struct sdca_function_data *function,
+			   struct sdca_interrupt_info *info);
+
+struct sdca_interrupt_info *devm_sdca_irq_allocate(struct device *dev,
+						   struct regmap *regmap, int irq);
 
 void sdca_irq_enable_early(struct sdca_function_data *function,
 			   struct sdca_interrupt_info *info);

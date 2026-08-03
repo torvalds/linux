@@ -3,6 +3,8 @@
  * Copyright © 2025 Intel Corporation
  */
 
+#include <drm/drm_drv.h>
+
 #include "instructions/xe_mi_commands.h"
 #include "instructions/xe_gpu_commands.h"
 #include "xe_bb.h"
@@ -446,7 +448,7 @@ err_unwind:
 	 */
 	for_each_ccs_rw_ctx(ctx_id) {
 		if (bo->bb_ccs[ctx_id])
-			xe_migrate_ccs_rw_copy_clear(bo, ctx_id);
+			xe_migrate_ccs_rw_copy_clear(bo, ctx_id, true);
 	}
 	return err;
 }
@@ -466,19 +468,27 @@ int xe_sriov_vf_ccs_detach_bo(struct xe_bo *bo)
 	struct xe_device *xe = xe_bo_device(bo);
 	enum xe_sriov_vf_ccs_rw_ctxs ctx_id;
 	struct xe_mem_pool_node *bb;
+	bool bound;
+	int idx;
 
 	xe_assert(xe, IS_VF_CCS_READY(xe));
 
 	if (!xe_bo_has_valid_ccs_bb(bo))
 		return 0;
 
+	bound = drm_dev_enter(&xe->drm, &idx);
+
 	for_each_ccs_rw_ctx(ctx_id) {
 		bb = bo->bb_ccs[ctx_id];
 		if (!bb)
 			continue;
 
-		xe_migrate_ccs_rw_copy_clear(bo, ctx_id);
+		xe_migrate_ccs_rw_copy_clear(bo, ctx_id, bound);
 	}
+
+	if (bound)
+		drm_dev_exit(idx);
+
 	return 0;
 }
 

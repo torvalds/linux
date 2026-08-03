@@ -1273,14 +1273,14 @@ impl Thread {
                         inner.extended_error =
                             ExtendedError::new(info.debug_id as u32, err.reply, source.to_errno());
                     }
-                }
 
-                pr_warn!(
-                    "{}:{} transaction to {} failed: {err:?}",
-                    info.from_pid,
-                    info.from_tid,
-                    info.to_pid
-                );
+                    pr_warn!(
+                        "{}:{} transaction to {} failed: {err:?}",
+                        info.from_pid,
+                        info.from_tid,
+                        info.to_pid
+                    );
+                }
             }
         }
 

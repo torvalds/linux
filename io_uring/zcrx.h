@@ -10,8 +10,9 @@
 
 #define ZCRX_SUPPORTED_REG_FLAGS	(ZCRX_REG_IMPORT | ZCRX_REG_NODEV)
 #define ZCRX_FEATURES			(ZCRX_FEATURE_RX_PAGE_SIZE |\
-					 ZCRX_FEATURE_NOTIFICATION)
-#define ZCRX_NOTIF_TYPE_MASK		((1U << ZCRX_NOTIF_NO_BUFFERS) | (1U << ZCRX_NOTIF_COPY))
+					 ZCRX_FEATURE_EVENT)
+#define ZCRX_EVENT_TYPE_MASK		((1U << ZCRX_EVENT_ALLOC_FAIL) |\
+					 (1U << ZCRX_EVENT_COPY))
 
 struct io_zcrx_mem {
 	unsigned long			size;
@@ -80,7 +81,7 @@ struct io_zcrx_ifq {
 	u32				allowed_notif_mask;
 	u32				fired_notifs;
 	u64				notif_data;
-	struct zcrx_notif_stats		*notif_stats;
+	struct zcrx_stats		*notif_stats;
 };
 
 #if defined(CONFIG_IO_URING_ZCRX)
