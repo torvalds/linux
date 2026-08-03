@@ -72,6 +72,8 @@ const char help_fmt[] =
 "  -J MODE       Fault injection (wrong-cid: dispatch to a cid not held,\n"
 "                init-fail/cgrp-init-fail: fail init_task/cpuctl_init for\n"
 "                \"qmfail*\" comms/cgroups)\n"
+"  -B PPT        Rescue bandwidth in parts per thousand, 0 disables (root only, default 20)\n"
+"  -q US         Rescue batch quantum in microseconds (root only, default 5000)\n"
 "  -v            Print libbpf debug messages\n"
 "  -h            Display this help and exit\n";
 
@@ -106,6 +108,7 @@ struct hier_prev {
 	u64 nr_reenq_cap;
 	u64 nr_reenq_immed;
 	u64 nr_inject_attempts;
+	u64 nr_rescue_dsp;
 };
 
 /* current wall-clock time as "HH:MM:SS" for the startup and interval headers */
@@ -187,14 +190,16 @@ static void print_hier(struct qmap_arena *qa, struct hier_prev *prev, u64 own_cg
 	}
 
 	format_cid_ranges(qa, CID_SHARED, ranges, sizeof(ranges));
-	printf("hier   : nsub=%llu excl=%u shared=%s rr=%s reenq cap/immed +%llu/+%llu inj=+%llu\n",
+	printf("hier   : nsub=%llu excl=%u shared=%s rr=%s reenq cap/immed +%llu/+%llu inj=+%llu rescue=+%llu\n",
 	       (unsigned long long)qa->nr_sub_scheds, qa->part.nr_excl, ranges, rr,
 	       (unsigned long long)(qa->nr_reenq_cap - prev->nr_reenq_cap),
 	       (unsigned long long)(qa->nr_reenq_immed - prev->nr_reenq_immed),
-	       (unsigned long long)(qa->nr_inject_attempts - prev->nr_inject_attempts));
+	       (unsigned long long)(qa->nr_inject_attempts - prev->nr_inject_attempts),
+	       (unsigned long long)(qa->nr_rescue_dsp - prev->nr_rescue_dsp));
 	prev->nr_reenq_cap = qa->nr_reenq_cap;
 	prev->nr_reenq_immed = qa->nr_reenq_immed;
 	prev->nr_inject_attempts = qa->nr_inject_attempts;
+	prev->nr_rescue_dsp = qa->nr_rescue_dsp;
 
 	printf("hier   : %-4s %10s %4s %6s %8s  %s\n",
 	       "", "cgroup", "w", "alloc", "disp/s", "cids");
@@ -256,7 +261,8 @@ restart:
 	skel->rodata->slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 	skel->rodata->max_tasks = 16384;
 
-	while ((opt = getopt(argc, argv, "s:e:t:T:l:b:N:PMHc:d:D:SpIF:C:i:R:J:vh")) != -1) {
+	while ((opt = getopt(argc, argv,
+			     "s:e:t:T:l:b:N:PMHc:d:D:SpIF:C:i:R:J:B:q:vh")) != -1) {
 		switch (opt) {
 		case 's':
 			skel->rodata->slice_ns = strtoull(optarg, NULL, 0) * 1000;
@@ -398,6 +404,17 @@ restart:
 				inject_mode = QMAP_INJ_CGRP_INIT_FAIL;
 			else
 				inject_mode = strtoul(optarg, NULL, 0);
+			break;
+		case 'B': {
+			u32 ppt = strtoul(optarg, NULL, 0);
+
+			if (!ppt)
+				ppt = __COMPAT_ENUM_OR_ZERO("scx_consts", "SCX_RESCUE_DISABLE");
+			skel->struct_ops.qmap_ops->rescue_bandwidth_ppt = ppt;
+			break;
+		}
+		case 'q':
+			skel->struct_ops.qmap_ops->rescue_quantum_us = strtoul(optarg, NULL, 0);
 			break;
 		case 'v':
 			verbose = true;

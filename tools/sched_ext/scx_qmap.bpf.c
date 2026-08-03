@@ -448,31 +448,33 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	taskc->core_sched_seq = qa.core_sched_tail_seqs[idx]++;
 
 	/*
-	 * A node with children delegates most cids. A task of ours that can run
-	 * on none of our self cids (e.g. a per-NUMA kthread pinned to delegated
-	 * cids) would starve in SHARED/FIFO since we never pull those on a
-	 * delegated cid. Force it onto its first allowed cid's local DSQ with
-	 * needs_immed(): if we hold access there it runs, else the kernel
-	 * rejects and bounces it back via REENQ_CAP. Best-effort
-	 * anti-starvation nudge.
+	 * A task of ours that can run on none of our self cids - the parent
+	 * didn't grant them or we delegated them to children - would starve in
+	 * SHARED/FIFO since we only pull from those on self cids.
+	 *
+	 * Force it onto its first allowed cid's local DSQ. If we hold that cid
+	 * it runs. Otherwise the insert carries SCX_ENQ_RESCUE and the kernel
+	 * diverts the task to its rescue path.
 	 */
-	if (qa.nr_sub_scheds && !(enq_flags & SCX_ENQ_REENQ) &&
-	    !cmask_intersects(&taskc->cpus_allowed, &qa.self_cids.mask)) {
+	if (!cmask_intersects(&taskc->cpus_allowed, &qa.self_cids.mask)) {
 		s32 c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
 
 		if (c >= 0 && c < scx_bpf_nr_cids()) {
 			taskc->force_local = false;
+			__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
 			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | c, slice_ns,
-					   enq_flags | needs_immed(c));
+					   enq_flags | needs_immed(c) | SCX_ENQ_RESCUE);
 			return;
 		}
 	}
 
 	/*
 	 * Fault injection: deliberately dispatch one of our own tasks to a cid
-	 * we don't hold. The kernel cap check must reject it and re-enqueue
-	 * with SCX_TASK_REENQ_CAP, so nr_inject_attempts tracks nr_reenq_cap
-	 * and proves delivery-time enforcement. Throttled.
+	 * we don't hold. The inserts carry SCX_ENQ_RESCUE and divert to the
+	 * kernel rescue path, a deterministic rescue-traffic generator. Under
+	 * -B 0 the kernel cap check rejects and re-enqueues them instead, so
+	 * nr_inject_attempts tracks nr_reenq_cap 1:1 and proves delivery-time
+	 * enforcement. Throttled.
 	 */
 	if (qa.inject_mode == QMAP_INJ_WRONG_CID && p->nr_cpus_allowed > 1 &&
 	    !(enq_flags & SCX_ENQ_REENQ)) {
@@ -483,8 +485,9 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 
 			if (bad >= 0 && cmask_test(bad, &taskc->cpus_allowed)) {
 				__sync_fetch_and_add(&qa.nr_inject_attempts, 1);
-				scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | bad,
-						   slice_ns, enq_flags);
+				__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
+				scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | bad, slice_ns,
+						   enq_flags | SCX_ENQ_RESCUE);
 				return;
 			}
 		}
@@ -587,28 +590,46 @@ static void update_core_sched_head_seq(struct task_struct *p)
 }
 
 /*
+ * One pass over SHARED_DSQ: rescue stranded tasks and boost highpri ones. A
+ * task whose cids were lost while it was queued in the fifos would strand on
+ * SHARED_DSQ, which is consumed only on self cids it can't run on - move it to
+ * the kernel rescue path. One whose cids were lost after the highpri cull is
+ * likewise rescued out of HIGHPRI_DSQ below.
+ *
  * To demonstrate the use of scx_bpf_dsq_move(), implement silly selective
- * priority boosting mechanism by scanning SHARED_DSQ looking for highpri tasks,
- * moving them to HIGHPRI_DSQ and then consuming them first. This makes minor
- * difference only when dsp_batch is larger than 1.
+ * priority boosting mechanism by moving highpri tasks to HIGHPRI_DSQ and then
+ * consuming them first. This makes minor difference only when dsp_batch is
+ * larger than 1.
  *
  * scx_bpf_dsq_move[_vtime]() are allowed both from ops.dispatch() and
  * non-rq-lock holding BPF programs. As demonstration, this function is called
  * from qmap_dispatch() and monitor_timerfn().
  */
-static bool dispatch_highpri(bool from_timer)
+static bool scan_shared_dsq(bool from_timer)
 {
 	struct task_struct *p;
 	s32 this_cid = scx_bpf_this_cid();
 	u32 nr_cids = scx_bpf_nr_cids();
 
-	/* scan SHARED_DSQ and move highpri tasks to HIGHPRI_DSQ */
+	/* rescue strands and move highpri tasks to HIGHPRI_DSQ */
 	bpf_for_each(scx_dsq, p, SHARED_DSQ, 0) {
 		static u64 highpri_seq;
 		task_ctx_t *taskc;
+		s32 c;
 
 		if (!(taskc = lookup_task_ctx(p)))
 			return false;
+
+		/* stranded? rescue - it can't be dispatched here either way */
+		if (!cmask_intersects(&taskc->cpus_allowed, &qa.self_cids.mask)) {
+			c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
+			if (c >= 0 && c < scx_bpf_nr_cids()) {
+				__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
+				scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | c,
+						 needs_immed(c) | SCX_ENQ_RESCUE);
+			}
+			continue;
+		}
 
 		if (taskc->highpri) {
 			/* exercise the set_*() and vtime interface too */
@@ -639,8 +660,17 @@ static bool dispatch_highpri(bool from_timer)
 			cid = cmask_next_and_set_wrap(&taskc->cpus_allowed,
 						      &qa.self_cids.mask,
 						      this_cid + 1);
-		if (cid >= nr_cids)
+		if (cid >= nr_cids) {
+			/* stranded after the cull - rescue it from here */
+			s32 c = cmask_next_set_wrap(&taskc->cpus_allowed, 0);
+
+			if (c >= 0 && c < nr_cids) {
+				__sync_fetch_and_add(&qa.nr_rescue_dsp, 1);
+				scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | c,
+						 needs_immed(c) | SCX_ENQ_RESCUE);
+			}
 			continue;
+		}
 
 		if (scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p, SCX_DSQ_LOCAL_ON | cid,
 				     SCX_ENQ_PREEMPT | needs_immed(cid))) {
@@ -669,10 +699,9 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 	struct cpu_ctx __arena *cpuc;
 	task_ctx_t *taskc;
 	u32 batch = dsp_batch ?: 1;
-	s32 owner;
-	s32 i;
+	s32 owner, i;
 
-	if (dispatch_highpri(false))
+	if (scan_shared_dsq(false))
 		return;
 
 	/*
@@ -784,11 +813,10 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 			 */
 			if (!cmask_test(cid, &taskc->cpus_allowed))
 				scx_bpf_kick_cid(scx_bpf_task_cid(p), 0);
-
 			batch--;
 			cpuc->dsp_cnt--;
 			if (!batch || !scx_bpf_dispatch_nr_slots()) {
-				if (dispatch_highpri(false))
+				if (scan_shared_dsq(false))
 					return;
 				scx_bpf_dsq_move_to_local(SHARED_DSQ, needs_immed(cid));
 				return;
@@ -799,6 +827,9 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cid, struct task_struct *prev)
 
 		cpuc->dsp_cnt = 0;
 	}
+
+	if (scan_shared_dsq(false))
+		return;
 
 	/*
 	 * No other tasks. @prev will keep running. Update its core_sched_seq as
@@ -1184,7 +1215,7 @@ static void dump_shared_dsq(void)
 static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 {
 	bpf_rcu_read_lock();
-	dispatch_highpri(true);
+	scan_shared_dsq(true);
 	bpf_rcu_read_unlock();
 
 	monitor_cpuperf();

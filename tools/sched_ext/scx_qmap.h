@@ -175,6 +175,7 @@ struct qmap_arena {
 	u64 nr_reenq_cap;		/* SCX_TASK_REENQ_CAP bounces */
 	u64 nr_reenq_immed;		/* SCX_TASK_REENQ_IMMED bounces */
 	u64 nr_inject_attempts;		/* fault-injection: dispatches to an unheld cid */
+	u64 nr_rescue_dsp;		/* SCX_ENQ_RESCUE dispatch attempts */
 	u32 inject_mode;		/* fault-injection mode (QMAP_INJ_*) */
 };
 
