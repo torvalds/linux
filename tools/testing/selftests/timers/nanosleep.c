@@ -27,43 +27,13 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
+#include "clock-helpers.h"
 #include "kselftest.h"
-
-#define NSEC_PER_SEC 1000000000LL
 
 /* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
 #define CLOCK_HWSPECIFIC		10
 
 #define UNSUPPORTED 0xf00f
-
-char *clockstring(int clockid)
-{
-	switch (clockid) {
-	case CLOCK_REALTIME:
-		return "CLOCK_REALTIME";
-	case CLOCK_MONOTONIC:
-		return "CLOCK_MONOTONIC";
-	case CLOCK_PROCESS_CPUTIME_ID:
-		return "CLOCK_PROCESS_CPUTIME_ID";
-	case CLOCK_THREAD_CPUTIME_ID:
-		return "CLOCK_THREAD_CPUTIME_ID";
-	case CLOCK_MONOTONIC_RAW:
-		return "CLOCK_MONOTONIC_RAW";
-	case CLOCK_REALTIME_COARSE:
-		return "CLOCK_REALTIME_COARSE";
-	case CLOCK_MONOTONIC_COARSE:
-		return "CLOCK_MONOTONIC_COARSE";
-	case CLOCK_BOOTTIME:
-		return "CLOCK_BOOTTIME";
-	case CLOCK_REALTIME_ALARM:
-		return "CLOCK_REALTIME_ALARM";
-	case CLOCK_BOOTTIME_ALARM:
-		return "CLOCK_BOOTTIME_ALARM";
-	case CLOCK_TAI:
-		return "CLOCK_TAI";
-	};
-	return "UNKNOWN_CLOCKID";
-}
 
 /* returns 1 if a <= b, 0 otherwise */
 static inline int in_order(struct timespec a, struct timespec b)
@@ -182,7 +152,7 @@ int main(int argc, char **argv)
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC) {
-			ksft_test_result_skip("%-31s\n", clockstring(clockid));
+			ksft_test_result_skip("%-31s\n", clock_name(clockid));
 			continue;
 		}
 
@@ -192,21 +162,21 @@ int main(int argc, char **argv)
 		while (length <= (NSEC_PER_SEC * 10)) {
 			ret = nanosleep_test(clockid, length);
 			if (ret == UNSUPPORTED) {
-				ksft_test_result_skip("%-31s\n", clockstring(clockid));
+				ksft_test_result_skip("%-31s\n", clock_name(clockid));
 				goto next;
 			}
 			if (ret < 0) {
-				ksft_test_result_fail("%-31s\n", clockstring(clockid));
+				ksft_test_result_fail("%-31s\n", clock_name(clockid));
 				ksft_exit_fail();
 			}
 			length *= 100;
 		}
 		ret = nanosleep_test_remaining(clockid);
 		if (ret < 0) {
-			ksft_test_result_fail("%-31s\n", clockstring(clockid));
+			ksft_test_result_fail("%-31s\n", clock_name(clockid));
 			ksft_exit_fail();
 		}
-		ksft_test_result_pass("%-31s\n", clockstring(clockid));
+		ksft_test_result_pass("%-31s\n", clock_name(clockid));
 next:
 		ret = 0;
 	}
