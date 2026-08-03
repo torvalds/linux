@@ -10,8 +10,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/property.h>
 #include <linux/platform_device.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -242,7 +241,6 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	struct spdif_dev_data *ctx;
 
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -257,7 +255,7 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->base))
 		return PTR_ERR(ctx->base);
 
-	ret = of_property_read_u32(node, "xlnx,spdif-mode", &ctx->mode);
+	ret = device_property_read_u32(dev, "xlnx,spdif-mode", &ctx->mode);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "cannot get SPDIF mode\n");
 
@@ -278,7 +276,7 @@ static int xlnx_spdif_probe(struct platform_device *pdev)
 		dai_drv = &xlnx_spdif_rx_dai;
 	}
 
-	ret = of_property_read_u32(node, "xlnx,aud_clk_i", &ctx->aclk);
+	ret = device_property_read_u32(dev, "xlnx,aud_clk_i", &ctx->aclk);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "cannot get aud_clk_i value\n");
 

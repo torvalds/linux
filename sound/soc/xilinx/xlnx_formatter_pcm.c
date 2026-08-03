@@ -9,8 +9,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/sizes.h>
 
 #include <sound/asoundef.h>
