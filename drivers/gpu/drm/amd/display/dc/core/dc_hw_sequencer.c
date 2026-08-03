@@ -2312,7 +2312,8 @@ void hwss_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				.xfm = pipe_ctx->plane_res.xfm,
 				.dpp = pipe_ctx->plane_res.dpp,
 				.mpc = dc->res_pool->mpc,
-				.mpcc_id = pipe_ctx->plane_res.hubp->inst,
+				.mpcc_id = pipe_ctx->plane_res.hubp ?
+						pipe_ctx->plane_res.hubp->inst : 0,
 				.is_top_pipe = resource_is_pipe_type(pipe_ctx, OPP_HEAD),
 				.stream = pipe_ctx->stream,
 			}
