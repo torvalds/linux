@@ -175,6 +175,7 @@ static inline long scx_hotplug_seq(void)
  * - v6.17: ops.cgroup_set_bandwidth()
  * - v6.19: ops.cgroup_set_idle()
  * - v7.1:  ops.sub_attach(), ops.sub_detach(), ops.sub_cgroup_id
+ * - v7.3:  ops.rescue_bandwidth_ppt, ops.rescue_quantum_us
  */
 #define __SCX_OPS_OPEN(__ops_name, __scx_name, __ops_struct) ({			\
 	struct __scx_name *__oskel;						\
@@ -217,6 +218,16 @@ static inline long scx_hotplug_seq(void)
 	    !__COMPAT_struct_has_field("sched_ext_ops", "sub_cgroup_id")) { \
 		fprintf(stderr, "WARNING: kernel doesn't support ops.sub_cgroup_id\n"); \
 		__skel->struct_ops.__ops_name->sub_cgroup_id = 0;		\
+	}									\
+	if (__skel->struct_ops.__ops_name->rescue_bandwidth_ppt > 0 &&		\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "rescue_bandwidth_ppt")) { \
+		fprintf(stderr, "WARNING: kernel doesn't support ops.rescue_bandwidth_ppt\n"); \
+		__skel->struct_ops.__ops_name->rescue_bandwidth_ppt = 0;	\
+	}									\
+	if (__skel->struct_ops.__ops_name->rescue_quantum_us > 0 &&		\
+	    !__COMPAT_struct_has_field("sched_ext_ops", "rescue_quantum_us")) { \
+		fprintf(stderr, "WARNING: kernel doesn't support ops.rescue_quantum_us\n"); \
+		__skel->struct_ops.__ops_name->rescue_quantum_us = 0;		\
 	}									\
 	__skel; 								\
 })

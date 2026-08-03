@@ -111,6 +111,7 @@ static bool dsq_is_rq_owned(struct scx_dispatch_q *dsq)
 	switch (dsq->id) {
 	case SCX_DSQ_LOCAL:
 	case SCX_DSQ_REJECT:
+	case SCX_DSQ_RESCUE:
 		return true;
 	default:
 		return false;
@@ -1320,7 +1321,8 @@ bool scx_set_task_slice(struct task_struct *p, u64 slice)
  * @rq: rq @p is on
  * @p: task of interest
  *
- * End what rides on the slice - the protection.
+ * End what rides on the slice - the protection, and the rescue if @p is being
+ * rescued.
  *
  * A dequeue normally ends the slice too. The exception is a save/restore pair
  * on the running task. Attribute changes like renice cycle the task through
@@ -1328,11 +1330,13 @@ bool scx_set_task_slice(struct task_struct *p, u64 slice)
  * queued task instead loses its DSQ position on any dequeue and the slice ends
  * with it.
  */
-static void scx_task_slice_ended(struct rq *rq, struct task_struct *p)
+void scx_task_slice_ended(struct rq *rq, struct task_struct *p)
 {
 	lockdep_assert_rq_held(rq);
 
 	p->scx.flags &= ~SCX_TASK_PROTECTED;
+	if (unlikely(p == scx_rescuee(rq)))
+		scx_rescue_end(rq);
 }
 
 /* request @p's slice to be set to @slice, see the write rules above */
@@ -1431,6 +1435,9 @@ static void update_curr_scx(struct rq *rq)
 		if (!curr->scx.slice)
 			touch_core_sched(rq, curr);
 	}
+
+	if (unlikely(curr == scx_rescuee(rq)))
+		scx_rescue_charge(rq, delta_exec);
 
 	dl_server_update(&rq->ext_server, delta_exec);
 }
@@ -1547,9 +1554,13 @@ static void rq_owned_post_enq(struct scx_sched *sch, struct rq *rq,
 {
 	call_task_dequeue(sch, rq, p, 0);
 
-	/* rejected: kick the deferred reenq, skip wakeup/preemption */
-	if (unlikely(dsq->id == SCX_DSQ_REJECT)) {
-		schedule_deferred_locked(rq);
+	/*
+	 * Only local inserts get the wakeup treatment below. Rejects kick the
+	 * deferred reenq and rescue parks are paced by the rescue timer.
+	 */
+	if (unlikely(dsq->id != SCX_DSQ_LOCAL)) {
+		if (dsq->id == SCX_DSQ_REJECT)
+			schedule_deferred_locked(rq);
 		return;
 	}
 
@@ -1863,8 +1874,8 @@ static struct scx_dispatch_q *find_dsq_for_dispatch(struct scx_sched *sch,
 		dsq = find_user_dsq(sch, dsq_id);
 
 	/*
-	 * Built-in DSQs are never inserted into dsq_hash, so REJECT hits the
-	 * error below. It cannot be reached with an ID.
+	 * Built-in DSQs are never inserted into dsq_hash, so REJECT and RESCUE
+	 * hit the error below. They cannot be reached with an ID.
 	 */
 	if (unlikely(!dsq)) {
 		scx_error(sch, "non-existent DSQ 0x%llx", dsq_id);
@@ -2056,6 +2067,7 @@ void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!(sch->ops.flags & SCX_OPS_ENQ_EXITING) &&
 	    unlikely(p->flags & PF_EXITING)) {
 		__scx_add_event(sch, SCX_EV_ENQ_SKIP_EXITING, 1);
+		enq_flags |= SCX_ENQ_RESCUE;	/* avoid looping on cap rejection */
 		goto local;
 	}
 
@@ -2324,9 +2336,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int core_deq_
 	 * information meaningful to the BPF scheduler and can be suppressed by
 	 * skipping the callbacks if the task is !QUEUED.
 	 */
-	if (SCX_HAS_OP(sch, stopping) && task_current(rq, p)) {
+	if (task_current(rq, p) &&
+	    (SCX_HAS_OP(sch, stopping) || unlikely(p == scx_rescuee(rq)))) {
 		update_curr_scx(rq);
-		SCX_CALL_OP_TASK(sch, stopping, rq, p, false);
+		if (SCX_HAS_OP(sch, stopping))
+			SCX_CALL_OP_TASK(sch, stopping, rq, p, false);
 	}
 
 	if (SCX_HAS_OP(sch, quiescent) && !task_on_rq_migrating(p))
@@ -2409,8 +2423,9 @@ void scx_move_local_task_to_local_dsq(struct scx_sched *sch, struct task_struct 
 {
 	struct scx_dispatch_q *dst_dsq = scx_resolve_local_dsq(sch, dst_rq, p, &enq_flags);
 
-	/* @dsq is locked and @p is on @dst_rq */
-	lockdep_assert_held(&src_dsq->lock);
+	/* @p is on @dst_rq, an rq-owned @src_dsq is covered by the rq lock */
+	if (!dsq_is_rq_owned(src_dsq))
+		lockdep_assert_held(&src_dsq->lock);
 	lockdep_assert_rq_held(dst_rq);
 
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
@@ -3144,15 +3159,23 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 			      struct task_struct *next)
 {
 	struct scx_sched *sch = scx_task_sched(p);
+	bool rescue_keep = false;
 
 	/* see kick_sync_wait_bal_cb() */
 	smp_store_release(&rq->scx.kick_sync, rq->scx.kick_sync + 1);
 
 	update_curr_scx(rq);
 
-	/* the slice is consumed, protection ends with it */
-	if (!p->scx.slice)
-		scx_task_slice_ended(rq, p);
+	/*
+	 * If the slice is consumed, protection ends with it. A rescuee
+	 * preempted beforehand keeps going, see scx_rescue_keep().
+	 */
+	if (!p->scx.slice) {
+		if (unlikely(p == scx_rescuee(rq)))
+			rescue_keep = scx_rescue_keep(rq, p);
+		if (!rescue_keep)
+			scx_task_slice_ended(rq, p);
+	}
 
 	/* see dequeue_task_scx() on why we skip when !QUEUED */
 	if (SCX_HAS_OP(sch, stopping) && (p->scx.flags & SCX_TASK_QUEUED))
@@ -3167,15 +3190,34 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * forcing a different task. Leave it at the head of the local
 		 * DSQ unless it was an IMMED task. IMMED tasks should not
 		 * linger on a busy CPU, reenqueue them to the BPF scheduler.
+		 *
+		 * An open rescue must keep @p on the local DSQ even if the
+		 * scheduler zeroed the slice in ops.stopping() above.
 		 */
-		if (p->scx.slice && !scx_bypassing(sch, cpu_of(rq))) {
+		if ((p->scx.slice || unlikely(p == scx_rescuee(rq))) &&
+		    !scx_bypassing(sch, cpu_of(rq))) {
 			if (p->scx.flags & SCX_TASK_IMMED) {
 				p->scx.flags |= SCX_TASK_REENQ_PREEMPTED;
 				scx_do_enqueue_task(rq, p, SCX_ENQ_REENQ, -1);
 				p->scx.flags &= ~SCX_TASK_REENQ_REASON_MASK;
 			} else {
+				u64 enq_flags = 0;
+
+				/*
+				 * Keep a preempted rescue going. If preempted
+				 * by another SCX task, append to the local DSQ,
+				 * see scx_rescue_keep().
+				 */
+				if (unlikely(p == scx_rescuee(rq))) {
+					enq_flags |= SCX_ENQ_IGNORE_CAPS;
+					if (!rescue_keep)
+						enq_flags |= SCX_ENQ_HEAD;
+				} else {
+					enq_flags |= SCX_ENQ_HEAD;
+				}
+
 				scx_dispatch_enqueue(sch, rq, &rq->scx.local_dsq, p, 0, 0,
-						     SCX_ENQ_HEAD);
+						     enq_flags);
 			}
 			goto switch_class;
 		}
@@ -3575,6 +3617,7 @@ static void rq_online_scx(struct rq *rq)
 static void rq_offline_scx(struct rq *rq)
 {
 	rq->scx.flags &= ~SCX_RQ_ONLINE;
+	scx_rescue_flush(rq);
 }
 
 static bool check_rq_for_timeouts(struct rq *rq)
@@ -4244,7 +4287,7 @@ static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 	first = !(*reenq_flags & SCX_REENQ_TSR_NOT_FIRST);
 	*reenq_flags |= SCX_REENQ_TSR_NOT_FIRST;
 
-	if (unlikely(p->scx.flags & SCX_TASK_PROTECTED))
+	if (unlikely((p->scx.flags & SCX_TASK_PROTECTED) || p == scx_rescuee(rq)))
 		return false;
 
 	*reason = SCX_TASK_REENQ_KFUNC;
@@ -4525,6 +4568,13 @@ bool scx_can_stop_tick(struct rq *rq)
 		return true;
 
 	if (scx_bypassing(sch, cpu_of(rq)))
+		return false;
+
+	/*
+	 * A running rescuee's charging and expiry are tick-driven, see
+	 * scx_rescue_charge(). Keep the tick while rescue is in progress.
+	 */
+	if (unlikely(p == scx_rescuee(rq)))
 		return false;
 
 	/*
@@ -6722,6 +6772,7 @@ static void scx_dump_cpu(struct scx_sched *sch, struct seq_buf *s,
 	scx_dump_line(&ns, "CPU %-4d: nr_run=%u flags=0x%x cpu_rel=%d ops_qseq=%lu ksync=%lu",
 		      cpu, rq->scx.nr_running, rq->scx.flags, rq->scx.cpu_released,
 		      rq->scx.ops_qseq, rq->scx.kick_sync);
+	scx_rescue_dump(&ns, rq);
 	scx_dump_line(&ns, "          curr=%s[%d] class=%ps",
 		      rq->curr->comm, rq->curr->pid, rq->curr->sched_class);
 	if (!cpumask_empty(pcpu->cpus_to_kick))
@@ -7393,6 +7444,7 @@ static void scx_root_enable_workfn(struct kthread_work *work)
 	}
 
 	scx_discard_stale_ecaps_syncs();
+	scx_rescue_set_knobs(sch);
 
 	/*
 	 * Keep CPUs stable during enable so that the BPF scheduler can track
@@ -7899,6 +7951,24 @@ static int bpf_scx_init_member(const struct btf_type *t,
 	case offsetof(struct sched_ext_ops, cid_shard_size):
 		ops->cid_shard_size = *(u32 *)(udata + moff);
 		return 1;
+	case offsetof(struct sched_ext_ops, rescue_bandwidth_ppt): {
+		u32 bw_ppt = *(u32 *)(udata + moff);
+
+		if (bw_ppt > SCX_RESCUE_MAX_BW_PPT && bw_ppt != SCX_RESCUE_DISABLE)
+			return -E2BIG;
+		ops->rescue_bandwidth_ppt = bw_ppt;
+		return 1;
+	}
+	case offsetof(struct sched_ext_ops, rescue_quantum_us): {
+		u32 quantum_us = *(u32 *)(udata + moff);
+
+		if (quantum_us > SCX_RESCUE_MAX_QUANTUM_US)
+			return -E2BIG;
+		if (quantum_us && quantum_us < SCX_RESCUE_MIN_QUANTUM_US)
+			return -EINVAL;
+		ops->rescue_quantum_us = quantum_us;
+		return 1;
+	}
 #ifdef CONFIG_EXT_SUB_SCHED
 	case offsetof(struct sched_ext_ops, sub_cgroup_id):
 		ops->sub_cgroup_id = *(u64 *)(udata + moff);
@@ -8521,6 +8591,7 @@ void __init init_sched_ext_class(void)
 		BUG_ON(scx_init_dsq(&rq->scx.local_dsq, SCX_DSQ_LOCAL, NULL));
 #ifdef CONFIG_EXT_SUB_SCHED
 		BUG_ON(scx_init_dsq(&rq->scx.reject_dsq, SCX_DSQ_REJECT, NULL));
+		scx_rescue_init(rq);
 #endif
 
 		INIT_LIST_HEAD(&rq->scx.runnable_list);
@@ -8568,6 +8639,11 @@ static bool scx_vet_enq_flags(struct scx_sched *sch, u64 dsq_id, u64 *enq_flags)
 		}
 	} else if ((sch->ops.flags & SCX_OPS_ALWAYS_ENQ_IMMED) && is_local) {
 		*enq_flags |= SCX_ENQ_IMMED;
+	}
+
+	if (unlikely((*enq_flags & SCX_ENQ_RESCUE) && !is_local)) {
+		scx_error(sch, "SCX_ENQ_RESCUE on a non-local DSQ 0x%llx", dsq_id);
+		return false;
 	}
 
 	return true;
@@ -10751,6 +10827,8 @@ static int __init scx_init(void)
 	CID_OFFSET_MATCH(exit_dump_len, exit_dump_len);
 	CID_OFFSET_MATCH(hotplug_seq, hotplug_seq);
 	CID_OFFSET_MATCH(cid_shard_size, cid_shard_size);
+	CID_OFFSET_MATCH(rescue_bandwidth_ppt, rescue_bandwidth_ppt);
+	CID_OFFSET_MATCH(rescue_quantum_us, rescue_quantum_us);
 	CID_OFFSET_MATCH(sub_cgroup_id, sub_cgroup_id);
 	/* shared callbacks: the union view requires byte-for-byte offset match */
 	CID_OFFSET_MATCH(enqueue, enqueue);

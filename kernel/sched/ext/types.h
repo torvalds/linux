@@ -19,6 +19,15 @@ enum scx_consts {
 	SCX_DSP_MAX_LOOPS		= 32,
 	SCX_WATCHDOG_MAX_TIMEOUT	= 30 * HZ,
 
+	/* rescue knob defaults and limits, see scx_rescue_timerfn() */
+	SCX_RESCUE_DFL_BW_PPT		= 20,		/* parts per thousand, 2% */
+	SCX_RESCUE_MAX_BW_PPT		= 250,		/* 25% */
+	SCX_RESCUE_DISABLE		= U32_MAX,	/* disables rescue */
+	SCX_RESCUE_DFL_QUANTUM_US	= 5000,
+	SCX_RESCUE_MIN_QUANTUM_US	= 1000,
+	SCX_RESCUE_MAX_QUANTUM_US	= 100000,
+	SCX_RESCUE_MIN_SLICE_US		= 1000,		/* floor of the divided slice */
+
 	/* per-CPU chunk size for p->scx.tid allocation, see scx_alloc_tid() */
 	SCX_TID_CHUNK			= 1024,
 

@@ -59,6 +59,7 @@ enum scx_dsq_id_flags {
 	SCX_DSQ_LOCAL		= SCX_DSQ_FLAG_BUILTIN | 2,
 	SCX_DSQ_BYPASS		= SCX_DSQ_FLAG_BUILTIN | 3,
 	SCX_DSQ_REJECT		= SCX_DSQ_FLAG_BUILTIN | 4,	/* internal - see find_dsq_for_dispatch() */
+	SCX_DSQ_RESCUE		= SCX_DSQ_FLAG_BUILTIN | 5,	/* internal - see find_dsq_for_dispatch() */
 	SCX_DSQ_LOCAL_ON	= SCX_DSQ_FLAG_BUILTIN | SCX_DSQ_FLAG_LOCAL_ON,
 	SCX_DSQ_LOCAL_CPU_MASK	= 0xffffffffLLU,
 };

@@ -38,6 +38,13 @@ struct scx_dispatch_q *scx_resolve_local_dsq(struct scx_sched *sch, struct rq *r
 					     struct task_struct *p, u64 *enq_flags);
 bool scx_task_reenq_on_cap_revoke(struct rq *rq, struct task_struct *p);
 void scx_reenq_reject(struct rq *rq);
+void scx_rescue_charge(struct rq *rq, s64 delta_exec);
+void scx_rescue_end(struct rq *rq);
+bool scx_rescue_keep(struct rq *rq, struct task_struct *p);
+void scx_rescue_flush(struct rq *rq);
+void scx_rescue_dump(struct seq_buf *s, struct rq *rq);
+void scx_rescue_set_knobs(struct scx_sched *sch);
+void scx_rescue_init(struct rq *rq);
 
 /*
  * cgrp->scx_sched is written by root/sub enable/disable under all of
@@ -87,6 +94,13 @@ static inline void scx_discard_stale_ecaps_syncs(void) {}
 static inline struct scx_dispatch_q *scx_resolve_local_dsq(struct scx_sched *sch, struct rq *rq, struct task_struct *p, u64 *enq_flags) { return &rq->scx.local_dsq; }
 static inline bool scx_task_reenq_on_cap_revoke(struct rq *rq, struct task_struct *p) { return false; }
 static inline void scx_reenq_reject(struct rq *rq) {}
+static inline void scx_rescue_charge(struct rq *rq, s64 delta_exec) {}
+static inline void scx_rescue_end(struct rq *rq) {}
+static inline bool scx_rescue_keep(struct rq *rq, struct task_struct *p) { return false; }
+static inline void scx_rescue_flush(struct rq *rq) {}
+static inline void scx_rescue_dump(struct seq_buf *s, struct rq *rq) {}
+static inline void scx_rescue_set_knobs(struct scx_sched *sch) {}
+static inline void scx_rescue_init(struct rq *rq) {}
 static inline void scx_dec_has_subs(struct scx_sched *sch) {}
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
@@ -195,11 +209,23 @@ static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p
 	return likely(!scx_missing_caps(scx_task_sched(p), cpu_of(rq), SCX_CAP_BASE));
 }
 
+/* the task admitted for rescue on @rq, NULL if none */
+static inline struct task_struct *scx_rescuee(struct rq *rq)
+{
+	lockdep_assert_rq_held(rq);
+
+	if (!scx_has_subs())
+		return NULL;
+
+	return rq->scx.rescue.curr;
+}
+
 #else	/* CONFIG_EXT_SUB_SCHED */
 
 static inline u64 scx_missing_caps(struct scx_sched *sch, s32 cpu, u64 needed) { return 0; }
 static inline u64 scx_caps_for_preempt(struct scx_sched *sch, struct rq *rq, u64 enq_flags) { return 0; }
 static inline bool scx_task_can_stay_on_cpu(struct rq *rq, struct task_struct *p) { return true; }
+static inline struct task_struct *scx_rescuee(struct rq *rq) { return NULL; }
 
 #endif	/* CONFIG_EXT_SUB_SCHED */
 

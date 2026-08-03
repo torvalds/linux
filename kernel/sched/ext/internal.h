@@ -925,6 +925,37 @@ struct sched_ext_ops {
 	u32 cid_shard_size;
 
 	/**
+	 * @rescue_bandwidth_ppt: Rescue execution bandwidth in parts per thousand
+	 *
+	 * The fraction of each CPU's time that may be consumed running tasks
+	 * from its rescue DSQ. A higher bandwidth admits and escalates rescues
+	 * faster, see @rescue_quantum_us.
+	 *
+	 * Only the root scheduler's value is used. 0 means the default of 20
+	 * (2%). May not exceed 250 (25%). %SCX_RESCUE_DISABLE disables rescue -
+	 * %SCX_ENQ_RESCUE inserts are then rejected like any other insert
+	 * lacking the caps.
+	 */
+	u32 rescue_bandwidth_ppt;
+
+	/**
+	 * @rescue_quantum_us: Rescue execution quantum in microseconds
+	 *
+	 * How much CPU time each rescue gets. Rescues run one at a time per CPU
+	 * and admissions are paced to keep rescue execution within
+	 * @rescue_bandwidth_ppt - with the defaults, one 5ms rescue every
+	 * 250ms. A crowded queue round-robins on the quantum divided across the
+	 * waiters, floored at 1ms. A stuck rescue eventually escalates to
+	 * forced execution. A larger quantum interrupts the CPU less often but
+	 * for longer and spaces rescues further apart.
+	 *
+	 * Only the root scheduler's value is used. 0 means the default (5000).
+	 * Non-zero values must be within [1000, 100000]. Values too short for
+	 * the kernel to meter are lifted silently.
+	 */
+	u32 rescue_quantum_us;
+
+	/**
 	 * @sub_cgroup_id: When >1, attach the scheduler as a sub-scheduler
 	 * on the specified cgroup.
 	 */
@@ -1058,6 +1089,8 @@ struct sched_ext_ops_cid {
 	u32 exit_dump_len;
 	u64 hotplug_seq;
 	u32 cid_shard_size;
+	u32 rescue_bandwidth_ppt;
+	u32 rescue_quantum_us;
 	u64 sub_cgroup_id;
 	char name[SCX_OPS_NAME_LEN];
 
@@ -1211,6 +1244,12 @@ struct scx_event_stats {
 	 * sub-sched lacked SCX_CAP_PERF on the target cid.
 	 */
 	s64		SCX_EV_SUB_CIDPERF_DENIED;
+
+	/*
+	 * The number of times an insert carrying %SCX_ENQ_RESCUE lacked the
+	 * caps for its cid and the task entered the rescue path.
+	 */
+	s64		SCX_EV_SUB_RESCUE;
 };
 
 #define SCX_EVENTS_LIST(SCX_EVENT)					\
@@ -1233,7 +1272,8 @@ struct scx_event_stats {
 	SCX_EVENT(SCX_EV_SUB_PREEMPT_DENIED);				\
 	SCX_EVENT(SCX_EV_SUB_KICK_DENIED);				\
 	SCX_EVENT(SCX_EV_SUB_REENQ_DENIED);				\
-	SCX_EVENT(SCX_EV_SUB_CIDPERF_DENIED)
+	SCX_EVENT(SCX_EV_SUB_CIDPERF_DENIED);				\
+	SCX_EVENT(SCX_EV_SUB_RESCUE)
 
 struct scx_sched;
 
@@ -1657,6 +1697,17 @@ enum scx_enq_flags {
 	SCX_ENQ_IMMED		= 1LLU << 33,
 
 	/*
+	 * Only allowed on local DSQs. If the insert lacks the caps for the
+	 * target cid, divert the task to the CPU's rescue path instead of
+	 * rejecting and reenqueueing, e.g. when the task's affinity is
+	 * restricted to cids the scheduler doesn't hold. The kernel runs
+	 * rescued tasks on the target CPU. Rescue execution is guaranteed to
+	 * make forward progress and is bandwidth-limited, see the
+	 * rescue_bandwidth_ppt and rescue_quantum_us ops fields.
+	 */
+	SCX_ENQ_RESCUE		= 1LLU << 34,
+
+	/*
 	 * The task being enqueued was previously enqueued on a DSQ, but was
 	 * removed and is being re-enqueued. See SCX_TASK_REENQ_* flags to find
 	 * out why a given task is being reenqueued.
@@ -1973,6 +2024,7 @@ void scx_task_iter_unlock(struct scx_task_iter *iter);
 void scx_task_iter_stop(struct scx_task_iter *iter);
 struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter);
 bool scx_set_task_slice(struct task_struct *p, u64 slice);
+void scx_task_slice_ended(struct rq *rq, struct task_struct *p);
 void scx_task_unlink_from_dsq(struct task_struct *p, struct scx_dispatch_q *dsq);
 void scx_dispatch_dequeue(struct rq *rq, struct task_struct *p);
 void scx_do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
@@ -2371,6 +2423,7 @@ static inline struct scx_sched *scx_parent(struct scx_sched *sch)
 	else
 		return NULL;
 }
+
 #else	/* CONFIG_EXT_SUB_SCHED */
 static inline bool scx_has_subs(void) { return false; }
 
@@ -2402,6 +2455,7 @@ static inline struct scx_sched *scx_prog_sched(const struct bpf_prog_aux *aux)
 }
 
 static inline struct scx_sched *scx_parent(struct scx_sched *sch) { return NULL; }
+
 #endif	/* CONFIG_EXT_SUB_SCHED */
 
 #endif /* _KERNEL_SCHED_EXT_INTERNAL_H */

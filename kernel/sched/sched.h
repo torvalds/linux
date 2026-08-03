@@ -794,10 +794,22 @@ enum scx_rq_flags {
 	SCX_RQ_IN_BALANCE	= 1 << 17,
 };
 
+/* per-rq rescue execution state, see scx_rescue_timerfn() */
+struct scx_rq_rescue {
+	struct scx_dispatch_q	dsq;			/* stranded tasks awaiting rescue */
+	s64			budget;			/* execution token bucket, ns */
+	u64			clock;			/* last budget accrual timestamp */
+	struct task_struct	*curr;			/* task being rescued, one at a time */
+	s64			slice;			/* curr's admitted slice */
+	u64			exec_snap;		/* sum_exec_runtime at admission */
+	struct timer_list	timer;			/* paces admission and escalation */
+};
+
 struct scx_rq {
 	struct scx_dispatch_q	local_dsq;
 #ifdef CONFIG_EXT_SUB_SCHED
 	struct scx_dispatch_q	reject_dsq;		/* staging for cap-rejected tasks */
+	struct scx_rq_rescue	rescue;
 #endif
 	struct list_head	runnable_list;		/* runnable tasks on this rq */
 	struct list_head	ddsp_deferred_locals;	/* deferred ddsps from enq */
