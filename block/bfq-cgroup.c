@@ -610,7 +610,7 @@ struct bfq_group *bfq_bio_bfqg(struct bfq_data *bfqd, struct bio *bio)
 	struct bfq_group *bfqg;
 
 	while (blkg) {
-		if (!blkg->online) {
+		if (!data_race(blkg->online)) {
 			blkg = blkg->parent;
 			continue;
 		}
@@ -1168,7 +1168,7 @@ static u64 bfqg_prfill_stat_recursive(struct seq_file *sf,
 		struct blkg_policy_data *pd;
 		struct bfq_stat *stat;
 
-		if (!pos_blkg->online)
+		if (!data_race(pos_blkg->online))
 			continue;
 
 		pd = blkg_to_pd(pos_blkg, &blkcg_policy_bfq);
