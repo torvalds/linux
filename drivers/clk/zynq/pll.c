@@ -42,11 +42,11 @@ struct zynq_pll {
 #define PLL_FBDIV_MAX	66
 
 /**
- * zynq_pll_round_rate() - Round a clock frequency
+ * zynq_pll_determine_rate() - Round a clock frequency
  * @hw:		Handle between common and hardware-specific interfaces
- * @rate:	Desired clock frequency
- * @prate:	Clock frequency of parent clock
- * Return:	frequency closest to @rate the hardware can generate.
+ * @req:	Clock rate request, updated with the frequency closest to the
+ *		requested one that the hardware can generate
+ * Return:	0 always
  */
 static int zynq_pll_determine_rate(struct clk_hw *hw,
 				   struct clk_rate_request *req)
