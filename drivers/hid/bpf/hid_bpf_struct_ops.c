@@ -256,6 +256,11 @@ static void hid_bpf_unreg(void *kdata, struct bpf_link *link)
 
 	mutex_lock(&hdev->bpf.prog_list_lock);
 
+	if (!ops->hdev) {
+		mutex_unlock(&hdev->bpf.prog_list_lock);
+		return;
+	}
+
 	list_del_rcu(&ops->list);
 	synchronize_srcu(&hdev->bpf.srcu);
 	ops->hdev = NULL;
@@ -316,13 +321,17 @@ static struct bpf_struct_ops bpf_hid_bpf_ops = {
 void __hid_bpf_ops_destroy_device(struct hid_device *hdev)
 {
 	struct hid_bpf_ops *e;
+	int count = 0;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(e, &hdev->bpf.prog_list, list) {
-		hid_put_device(hdev);
+	mutex_lock(&hdev->bpf.prog_list_lock);
+	list_for_each_entry(e, &hdev->bpf.prog_list, list) {
 		e->hdev = NULL;
+		count++;
 	}
-	rcu_read_unlock();
+	mutex_unlock(&hdev->bpf.prog_list_lock);
+
+	while (count--)
+		hid_put_device(hdev);
 }
 
 static int __init hid_bpf_struct_ops_init(void)
