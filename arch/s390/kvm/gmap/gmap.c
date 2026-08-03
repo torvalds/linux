@@ -945,6 +945,8 @@ void gmap_split_huge_pages(struct gmap *gmap)
 	} while (start);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
+
 static int _gmap_enable_skeys(struct gmap *gmap)
 {
 	gfn_t start = 0;
@@ -977,6 +979,7 @@ int gmap_enable_skeys(struct gmap *gmap)
 	mmap_write_unlock(gmap->kvm->mm);
 	return rc;
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 static long _destroy_pages_pte(union pte *ptep, gfn_t gfn, gfn_t next, struct dat_walk *walk)
 {

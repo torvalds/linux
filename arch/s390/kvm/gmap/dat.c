@@ -613,6 +613,7 @@ long _dat_walk_gfn_range(gfn_t start, gfn_t end, union asce asce,
 	return dat_crste_walk_range(start, min(end, asce_end(asce)), table, &walk);
 }
 
+#if KVM_S390_MANAGES_S390_GUEST
 int dat_get_storage_key(union asce asce, gfn_t gfn, union skey *skey)
 {
 	union crste *crstep;
@@ -843,6 +844,7 @@ long dat_reset_skeys(union asce asce, gfn_t start)
 
 	return _dat_walk_gfn_range(start, asce_end(asce), asce, &ops, DAT_WALK_IGN_HOLES, NULL);
 }
+#endif /* KVM_S390_MANAGES_S390_GUEST */
 
 struct slot_priv {
 	unsigned long token;
