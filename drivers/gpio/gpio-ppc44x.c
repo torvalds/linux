@@ -158,12 +158,19 @@ static int ppc44x_gpio_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
 	struct device_node *np = dev->of_node;
+	struct ppc44x_gpio __iomem *regs;
 	struct ppc44x_gpio_chip *chip;
 	struct gpio_chip *gc;
+
+	regs = devm_platform_ioremap_resource(ofdev, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
+
+	chip->regs = regs;
 
 	spin_lock_init(&chip->lock);
 
@@ -180,10 +187,6 @@ static int ppc44x_gpio_probe(struct platform_device *ofdev)
 	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
 	if (!gc->label)
 		return -ENOMEM;
-
-	chip->regs = devm_of_iomap(dev, np, 0, NULL);
-	if (IS_ERR(chip->regs))
-		return PTR_ERR(chip->regs);
 
 	return devm_gpiochip_add_data(dev, gc, chip);
 }
