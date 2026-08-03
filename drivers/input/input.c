@@ -318,7 +318,7 @@ static int input_get_disposition(struct input_dev *dev,
 static void input_event_dispose(struct input_dev *dev, int disposition,
 				unsigned int type, unsigned int code, int value)
 {
-	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
+	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event && dev->ready)
 		dev->event(dev, type, code, value);
 
 	if (disposition & INPUT_PASS_TO_HANDLERS) {
@@ -568,6 +568,48 @@ void input_release_device(struct input_handle *handle)
 }
 EXPORT_SYMBOL(input_release_device);
 
+#define INPUT_DO_TOGGLE(dev, type, bits, on)				\
+	do {								\
+		int i;							\
+		bool active;						\
+									\
+		if (!test_bit(EV_##type, dev->evbit))			\
+			break;						\
+									\
+		for_each_set_bit(i, dev->bits##bit, type##_CNT) {	\
+			active = test_bit(i, dev->bits);		\
+			if (!active && !on)				\
+				continue;				\
+									\
+			dev->event(dev, EV_##type, i, on ? active : 0);	\
+		}							\
+	} while (0)
+
+/*
+ * Iterate through the logical state of the input device (LEDs, sounds,
+ * auto-repeat) and explicitly push that state down to the hardware
+ * via dev->event() to match the current logical state (if activate is true),
+ * or forcibly turn off all feedback like LEDs and sounds during teardown
+ * or suspend (if activate is false).
+ *
+ * Primarily used as a state-replay mechanism after a device is opened
+ * or uninhibited, as events might have been dropped by the core while the
+ * hardware was not marked as ready.
+ */
+static void input_dev_toggle(struct input_dev *dev, bool activate)
+{
+	if (!dev->event || !dev->ready)
+		return;
+
+	INPUT_DO_TOGGLE(dev, LED, led, activate);
+	INPUT_DO_TOGGLE(dev, SND, snd, activate);
+
+	if (activate && test_bit(EV_REP, dev->evbit)) {
+		dev->event(dev, EV_REP, REP_PERIOD, dev->rep[REP_PERIOD]);
+		dev->event(dev, EV_REP, REP_DELAY, dev->rep[REP_DELAY]);
+	}
+}
+
 /**
  * input_open_device - open input device
  * @handle: handle through which device is being accessed
@@ -611,6 +653,11 @@ int input_open_device(struct input_handle *handle)
 			}
 		}
 
+		scoped_guard(spinlock_irq, &dev->event_lock) {
+			dev->ready = true;
+			input_dev_toggle(dev, true);
+		}
+
 		if (dev->poller)
 			input_dev_poller_start(dev->poller);
 	}
@@ -651,6 +698,12 @@ void input_close_device(struct input_handle *handle)
 		if (!--dev->users && !dev->inhibited) {
 			if (dev->poller)
 				input_dev_poller_stop(dev->poller);
+
+			scoped_guard(spinlock_irq, &dev->event_lock) {
+				input_dev_toggle(dev, false);
+				dev->ready = false;
+			}
+
 			if (dev->close)
 				dev->close(dev);
 		}
@@ -1702,37 +1755,6 @@ static int input_dev_uevent(const struct device *device, struct kobj_uevent_env 
 	return 0;
 }
 
-#define INPUT_DO_TOGGLE(dev, type, bits, on)				\
-	do {								\
-		int i;							\
-		bool active;						\
-									\
-		if (!test_bit(EV_##type, dev->evbit))			\
-			break;						\
-									\
-		for_each_set_bit(i, dev->bits##bit, type##_CNT) {	\
-			active = test_bit(i, dev->bits);		\
-			if (!active && !on)				\
-				continue;				\
-									\
-			dev->event(dev, EV_##type, i, on ? active : 0);	\
-		}							\
-	} while (0)
-
-static void input_dev_toggle(struct input_dev *dev, bool activate)
-{
-	if (!dev->event)
-		return;
-
-	INPUT_DO_TOGGLE(dev, LED, led, activate);
-	INPUT_DO_TOGGLE(dev, SND, snd, activate);
-
-	if (activate && test_bit(EV_REP, dev->evbit)) {
-		dev->event(dev, EV_REP, REP_PERIOD, dev->rep[REP_PERIOD]);
-		dev->event(dev, EV_REP, REP_DELAY, dev->rep[REP_DELAY]);
-	}
-}
-
 /**
  * input_reset_device() - reset/restore the state of input device
  * @dev: input device whose state needs to be reset
@@ -1760,20 +1782,24 @@ static int input_inhibit_device(struct input_dev *dev)
 		return 0;
 
 	if (dev->users) {
-		if (dev->close)
-			dev->close(dev);
 		if (dev->poller)
 			input_dev_poller_stop(dev->poller);
+
+		scoped_guard(spinlock_irq, &dev->event_lock) {
+			input_dev_toggle(dev, false);
+			dev->ready = false;
+		}
+
+		if (dev->close)
+			dev->close(dev);
 	}
 
 	scoped_guard(spinlock_irq, &dev->event_lock) {
 		input_mt_release_slots(dev);
 		input_dev_release_keys(dev);
 		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
-		input_dev_toggle(dev, false);
+		dev->inhibited = true;
 	}
-
-	dev->inhibited = true;
 
 	return 0;
 }
@@ -1793,6 +1819,9 @@ static int input_uninhibit_device(struct input_dev *dev)
 			if (error)
 				return error;
 		}
+		scoped_guard(spinlock_irq, &dev->event_lock)
+			dev->ready = true;
+
 		if (dev->poller)
 			input_dev_poller_start(dev->poller);
 	}
