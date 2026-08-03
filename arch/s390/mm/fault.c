@@ -406,6 +406,7 @@ NOKPROBE_SYMBOL(do_dat_exception);
 #if IS_ENABLED(CONFIG_KVM)
 
 void do_secure_storage_access(struct pt_regs *regs)
+__context_unsafe(/* folio_walk_end() not instrumented */)
 {
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long addr = get_fault_address(regs);
