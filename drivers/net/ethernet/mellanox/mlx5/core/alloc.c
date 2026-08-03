@@ -437,10 +437,33 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 }
 EXPORT_SYMBOL_GPL(mlx5_frag_buf_free);
 
+static int mlx5_db_dma_pools_debugfs_show(struct seq_file *file, void *priv)
+{
+	struct mlx5_core_dev *dev = file->private;
+	int node;
+
+	mlx5_dma_pools_debugfs_print_header(file);
+
+	for_each_node_state(node, N_POSSIBLE) {
+		struct mlx5_dma_pool *pool = dev->priv.db_node_pools[node];
+
+		if (!pool)
+			continue;
+
+		mlx5_dma_pool_debugfs_stats_print(file, pool);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mlx5_db_dma_pools_debugfs);
+
 void mlx5_db_pools_cleanup(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	int node;
+
+	debugfs_remove(priv->dbg.db_dma_pools_debugfs);
+	priv->dbg.db_dma_pools_debugfs = NULL;
 
 	for_each_node_state(node, N_POSSIBLE)
 		if (priv->db_node_pools[node])
@@ -470,6 +493,10 @@ int mlx5_db_pools_init(struct mlx5_core_dev *dev)
 		}
 		priv->db_node_pools[node] = pool;
 	}
+
+	priv->dbg.db_dma_pools_debugfs =
+		debugfs_create_file("db_dma_pools", 0444, priv->dbg.dbg_root,
+				    dev, &mlx5_db_dma_pools_debugfs_fops);
 
 	return 0;
 }
