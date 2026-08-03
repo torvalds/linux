@@ -4114,7 +4114,6 @@ enum {
 	ALC294_FIXUP_ASUS_ALLY,
 	ALC294_FIXUP_ASUS_ALLY_PINS,
 	ALC294_FIXUP_ASUS_ALLY_VERBS,
-	ALC294_FIXUP_ASUS_ALLY_SPEAKER,
 	ALC294_FIXUP_ASUS_HPE,
 	ALC294_FIXUP_ASUS_COEF_1B,
 	ALC294_FIXUP_ASUS_GX502_HP,
@@ -5732,11 +5731,7 @@ static const struct hda_fixup alc269_fixups[] = {
 			{ }
 		},
 		.chained = true,
-		.chain_id = ALC294_FIXUP_ASUS_ALLY_SPEAKER
-	},
-	[ALC294_FIXUP_ASUS_ALLY_SPEAKER] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc285_fixup_speaker2_to_dac1,
+		.chain_id = ALC285_FIXUP_SPEAKER2_TO_DAC1
 	},
 	[ALC285_FIXUP_THINKPAD_X1_GEN7] = {
 		.type = HDA_FIXUP_FUNC,
