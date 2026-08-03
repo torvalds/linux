@@ -528,7 +528,6 @@ static void ublk_init_iod(struct ublk_queue *ubq, struct request *req,
 
 struct ublk_zoned_report_desc {
 	__u64 sector;
-	__u32 operation;
 	__u32 nr_zones;
 };
 
@@ -658,7 +657,6 @@ static int ublk_report_zones(struct gendisk *disk, sector_t sector,
 			goto out;
 		}
 
-		desc.operation = UBLK_IO_OP_REPORT_ZONES;
 		desc.sector = sector;
 		desc.nr_zones = zones_in_request;
 		ret = ublk_zoned_insert_report_desc(req, &desc);
@@ -731,15 +729,9 @@ static blk_status_t ublk_setup_iod_zoned(struct ublk_queue *ubq,
 		desc = ublk_zoned_get_report_desc(req);
 		if (!desc)
 			return BLK_STS_IOERR;
-		ublk_op = desc->operation;
-		switch (ublk_op) {
-		case UBLK_IO_OP_REPORT_ZONES:
-			ublk_init_iod(ubq, req, ublk_op, desc->nr_zones,
-				      desc->sector);
-			return BLK_STS_OK;
-		default:
-			return BLK_STS_IOERR;
-		}
+		ublk_init_iod(ubq, req, UBLK_IO_OP_REPORT_ZONES, desc->nr_zones,
+			      desc->sector);
+		return BLK_STS_OK;
 	case REQ_OP_DRV_OUT:
 		/* We do not support drv_out */
 		return BLK_STS_NOTSUPP;
