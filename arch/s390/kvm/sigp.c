@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <asm/sigp.h>
 #include "gaccess.h"
-#include "kvm-s390.h"
+#include "s390.h"
 #include "trace.h"
 
 static int __sigp_sense(struct kvm_vcpu *vcpu, struct kvm_vcpu *dst_vcpu,

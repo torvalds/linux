@@ -12,7 +12,7 @@
 #include <linux/kvm_host.h>
 #include <asm/gmap_helpers.h>
 #include <asm/virtio-ccw.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "trace.h"
 #include "trace-s390.h"
 #include "gaccess.h"

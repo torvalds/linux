@@ -17,7 +17,7 @@
 #include <asm/access-regs.h>
 #include <asm/fault.h>
 #include <asm/dat-bits.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "dat.h"
 #include "gmap.h"
 #include "gaccess.h"

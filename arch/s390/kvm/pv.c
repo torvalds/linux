@@ -18,7 +18,7 @@
 #include <linux/sched/mm.h>
 #include <linux/mmu_notifier.h>
 #include <asm/gmap_helpers.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "dat.h"
 #include "gaccess.h"
 #include "gmap.h"

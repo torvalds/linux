@@ -14,7 +14,7 @@
 #include <linux/kvm_host.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
-#include "kvm-s390.h"
+#include "s390.h"
 
 /**
  * kvm_s390_real_to_abs - convert guest real address to guest absolute address

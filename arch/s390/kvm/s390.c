@@ -50,7 +50,7 @@
 #include <asm/fpu.h>
 #include <asm/ap.h>
 #include <asm/uv.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "gaccess.h"
 #include "gmap.h"
 #include "faultin.h"

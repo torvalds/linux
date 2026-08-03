@@ -29,7 +29,7 @@
 #include <asm/nmi.h>
 #include <asm/airq.h>
 #include <asm/tpi.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "gaccess.h"
 #include "trace-s390.h"
 #include "pci.h"

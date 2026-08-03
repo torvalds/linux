@@ -23,7 +23,7 @@
 #include <asm/nmi.h>
 #include <asm/dis.h>
 #include <asm/facility.h>
-#include "kvm-s390.h"
+#include "s390.h"
 #include "gaccess.h"
 #include "gmap.h"
 

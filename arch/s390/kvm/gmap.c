@@ -21,7 +21,7 @@
 
 #include "dat.h"
 #include "gmap.h"
-#include "kvm-s390.h"
+#include "s390.h"
 #include "faultin.h"
 
 static inline bool kvm_s390_is_in_sie(struct kvm_vcpu *vcpu)
