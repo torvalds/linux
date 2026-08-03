@@ -52,13 +52,13 @@ MODULE_DESCRIPTION("FP Software completion module");
 MODULE_LICENSE("GPL v2");
 
 extern long (*alpha_fp_emul_imprecise)(struct pt_regs *, unsigned long);
-extern long (*alpha_fp_emul) (unsigned long pc);
+extern long (*alpha_fp_emul) (unsigned long pc, unsigned long summary);
 
 static long (*save_emul_imprecise)(struct pt_regs *, unsigned long);
-static long (*save_emul) (unsigned long pc);
+static long (*save_emul) (unsigned long pc, unsigned long summary);
 
 long do_alpha_fp_emul_imprecise(struct pt_regs *, unsigned long);
-long do_alpha_fp_emul(unsigned long);
+long do_alpha_fp_emul(unsigned long, unsigned long);
 
 static int alpha_fp_emul_init_module(void)
 {
@@ -86,7 +86,22 @@ module_exit(alpha_fp_emul_cleanup_module);
 
 
 /*
- * Emulate the floating point instruction at address PC.  Returns -1 if the
+ * Exception bits of the exception summary register (EXC_SUM).  Bit 0 is the
+ * software completion bit; bits 1 through 5 report the exceptions the
+ * hardware attributed to the trapping instruction, and lie at the same
+ * positions as the corresponding IEEE_TRAP_ENABLE_* bits.
+ */
+#define EXC_SUM_INV	(1UL << 1)
+#define EXC_SUM_DZE	(1UL << 2)
+#define EXC_SUM_OVF	(1UL << 3)
+#define EXC_SUM_UNF	(1UL << 4)
+#define EXC_SUM_INE	(1UL << 5)
+#define EXC_SUM_MASK	(EXC_SUM_INV | EXC_SUM_DZE | EXC_SUM_OVF	\
+			 | EXC_SUM_UNF | EXC_SUM_INE)
+
+/*
+ * Emulate the floating point instruction at address PC.  SUMMARY is the
+ * exception summary register the trap was delivered with.  Returns -1 if the
  * instruction to be emulated is illegal (such as with the opDEC trap), else
  * the SI_CODE for a SIGFPE signal, else 0 if everything's ok.
  *
@@ -95,7 +110,7 @@ module_exit(alpha_fp_emul_cleanup_module);
  * stick the result of the operation into the appropriate register.
  */
 long
-alpha_fp_emul (unsigned long pc)
+alpha_fp_emul (unsigned long pc, unsigned long summary)
 {
 	FP_DECL_EX;
 	FP_DECL_S(SA); FP_DECL_S(SB); FP_DECL_S(SR);
@@ -300,12 +315,56 @@ done:
 		swcr |= (_fex << IEEE_STATUS_TO_EXCSUM_SHIFT);
 		current_thread_info()->ieee_state
 		  |= (_fex << IEEE_STATUS_TO_EXCSUM_SHIFT);
+	}
 
-		/* Update hardware control register.  */
-		fpcr &= (~FPCR_MASK | FPCR_DYN_MASK);
-		fpcr |= ieee_swcr_to_fpcr(swcr);
-		wrfpcr(fpcr);
+	/*
+	 * EV6 records exception status bits in the FPCR before delivering the
+	 * software completion trap, and swcr_update_status() above merged them
+	 * into SWCR.  Some can be wrong for the instruction we just emulated:
+	 * a CVTTS of a value exactly representable as a subnormal sets FPCR_UNF
+	 * even though the result is exact.  Clear the exceptions the trap
+	 * reported but that soft-fp did not raise.
+	 */
+	if (implver() == IMPLVER_EV6) {
+		unsigned long spurious = summary & EXC_SUM_MASK;
 
+		if (spurious & (EXC_SUM_UNF | EXC_SUM_OVF)) {
+			/*
+			 * EXC_SUM reports only the underflow or overflow,
+			 * but the hardware sets INE alongside it in the FPCR.
+			 */
+			spurious |= EXC_SUM_INE;
+		} else if (!spurious) {
+			/*
+			 * No exception reported, so this was a denormal
+			 * operand trap, for which INE and UNF can be
+			 * fabricated as well.
+			 */
+			spurious = EXC_SUM_INE | EXC_SUM_UNF;
+		}
+
+		/*
+		 * Never clear an exception software has confirmed.  Every
+		 * instruction that genuinely raises one traps for software
+		 * completion and is recorded in ieee_state above, so a bit
+		 * found there -- including one just set from _fex -- belongs
+		 * to this or an earlier instruction and must survive.
+		 */
+		spurious &= ~(current_thread_info()->ieee_state
+			      >> IEEE_STATUS_TO_EXCSUM_SHIFT);
+
+		swcr &= ~(spurious << IEEE_STATUS_TO_EXCSUM_SHIFT);
+	}
+
+	/*
+	 * Update hardware control register.  This has to happen even when
+	 * soft-fp raised nothing, to clear any fabricated bits.
+	 */
+	fpcr &= (~FPCR_MASK | FPCR_DYN_MASK);
+	fpcr |= ieee_swcr_to_fpcr(swcr);
+	wrfpcr(fpcr);
+
+	if (_fex) {
 		/* Do we generate a signal?  */
 		_fex = _fex & swcr & IEEE_TRAP_ENABLE_MASK;
 		si_code = 0;
@@ -387,9 +446,16 @@ alpha_fp_emul_imprecise (struct pt_regs *regs, unsigned long write_mask)
 			break;
 		}
 		if (!write_mask) {
-			/* Re-execute insns in the trap-shadow.  */
+			/*
+			 * Re-execute insns in the trap-shadow.  Pass no
+			 * exception summary: it describes the trap, which
+			 * was taken anywhere in the shadow, and so is not
+			 * attribution for this instruction.  Nothing is
+			 * lost, since only EV6 -- which traps precisely and
+			 * never comes this way -- needs it.
+			 */
 			regs->pc = trigger_pc + 4;
-			si_code = alpha_fp_emul(trigger_pc);
+			si_code = alpha_fp_emul(trigger_pc, 0);
 			goto egress;
 		}
 		trigger_pc -= 4;
