@@ -5209,8 +5209,6 @@ static const struct hda_fixup alc269_fixups[] = {
 	[ALC285_FIXUP_SPEAKER2_TO_DAC1] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc285_fixup_speaker2_to_dac1,
-		.chained = true,
-		.chain_id = ALC269_FIXUP_THINKPAD_ACPI
 	},
 	[ALC285_FIXUP_YOGA_SPEAKER2_TO_DAC1] = {
 		.type = HDA_FIXUP_FUNC,
