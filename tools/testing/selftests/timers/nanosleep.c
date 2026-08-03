@@ -30,9 +30,6 @@
 #include "clock-helpers.h"
 #include "kselftest.h"
 
-/* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
-#define CLOCK_HWSPECIFIC		10
-
 #define UNSUPPORTED 0xf00f
 
 /* returns 1 if a <= b, 0 otherwise */
@@ -141,20 +138,21 @@ int main(int argc, char **argv)
 {
 	long long length;
 	int clockid, ret;
-	int max_clocks = CLOCK_TAI + 1;
+
+	static const clockid_t tested_clocks[] = {
+		CLOCK_REALTIME,
+		CLOCK_MONOTONIC,
+		CLOCK_BOOTTIME,
+		CLOCK_BOOTTIME_ALARM,
+		CLOCK_REALTIME_ALARM,
+		CLOCK_TAI,
+	};
 
 	ksft_print_header();
-	ksft_set_plan(max_clocks);
+	ksft_set_plan(ARRAY_SIZE(tested_clocks));
 
-	for (clockid = CLOCK_REALTIME; clockid < max_clocks; clockid++) {
-
-		/* Skip cputime clockids since nanosleep won't increment cputime */
-		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
-				clockid == CLOCK_THREAD_CPUTIME_ID ||
-				clockid == CLOCK_HWSPECIFIC) {
-			ksft_test_result_skip("%s\n", clock_name(clockid));
-			continue;
-		}
+	for (size_t clock_index = 0; clock_index < ARRAY_SIZE(tested_clocks); clock_index++) {
+		clockid = tested_clocks[clock_index];
 
 		fflush(stdout);
 
