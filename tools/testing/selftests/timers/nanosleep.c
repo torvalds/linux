@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
 				clockid == CLOCK_HWSPECIFIC) {
-			ksft_test_result_skip("%-31s\n", clock_name(clockid));
+			ksft_test_result_skip("%s\n", clock_name(clockid));
 			continue;
 		}
 
@@ -162,21 +162,21 @@ int main(int argc, char **argv)
 		while (length <= (NSEC_PER_SEC * 10)) {
 			ret = nanosleep_test(clockid, length);
 			if (ret == UNSUPPORTED) {
-				ksft_test_result_skip("%-31s\n", clock_name(clockid));
+				ksft_test_result_skip("%s\n", clock_name(clockid));
 				goto next;
 			}
 			if (ret < 0) {
-				ksft_test_result_fail("%-31s\n", clock_name(clockid));
+				ksft_test_result_fail("%s\n", clock_name(clockid));
 				ksft_exit_fail();
 			}
 			length *= 100;
 		}
 		ret = nanosleep_test_remaining(clockid);
 		if (ret < 0) {
-			ksft_test_result_fail("%-31s\n", clock_name(clockid));
+			ksft_test_result_fail("%s\n", clock_name(clockid));
 			ksft_exit_fail();
 		}
-		ksft_test_result_pass("%-31s\n", clock_name(clockid));
+		ksft_test_result_pass("%s\n", clock_name(clockid));
 next:
 		ret = 0;
 	}
