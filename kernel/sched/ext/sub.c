@@ -32,6 +32,8 @@ DEFINE_STATIC_KEY_FALSE(__scx_has_subs);
 static s32 scx_rescue_bw_1024;
 static s64 scx_rescue_quantum_ns;
 static s64 scx_rescue_sat_delta_ns;
+static unsigned long scx_rescue_decay_halflife;
+static unsigned long scx_rescue_overload_after;
 
 /**
  * scx_skip_subtree_pre - Skip @pos's subtree in a pre-order walk
@@ -242,6 +244,23 @@ static s64 scx_rescue_slice_remaining(struct rq *rq)
 	return max(rq->scx.rescue.slice - served, 0);
 }
 
+/*
+ * Decay @pcpu's rescue usage average in place, halving per the knob-derived
+ * halflife, see scx_rescue_set_knobs(). The timestamp advances only by whole
+ * halflives.
+ */
+static u64 scx_rescue_decay_avg(struct scx_sched_pcpu *pcpu)
+{
+	unsigned long halflife = scx_rescue_decay_halflife;
+	u64 n = div_u64(get_jiffies_64() - pcpu->rescue_avg_at, halflife);
+
+	if (n) {
+		pcpu->rescue_avg = n < 64 ? pcpu->rescue_avg >> n : 0;
+		pcpu->rescue_avg_at += n * halflife;
+	}
+	return pcpu->rescue_avg;
+}
+
 /**
  * scx_rescue_charge - Charge the rescuee's runtime
  * @rq: rq the rescuee is running on
@@ -253,6 +272,8 @@ static s64 scx_rescue_slice_remaining(struct rq *rq)
  */
 void scx_rescue_charge(struct rq *rq, s64 delta_exec)
 {
+	struct scx_sched_pcpu *pcpu;
+
 	lockdep_assert_rq_held(rq);
 
 	/*
@@ -262,6 +283,10 @@ void scx_rescue_charge(struct rq *rq, s64 delta_exec)
 	delta_exec = min_t(s64, delta_exec, scx_rescue_quantum_ns + TICK_NSEC);
 
 	rq->scx.rescue.budget -= delta_exec;
+
+	/* per-cpu usage average feeds the overload victim pick */
+	pcpu = per_cpu_ptr(scx_task_sched(rq->curr)->pcpu, cpu_of(rq));
+	pcpu->rescue_avg = scx_rescue_decay_avg(pcpu) + delta_exec;
 
 	if (!scx_rescue_slice_remaining(rq))
 		scx_task_slice_ended(rq, rq->scx.rescue.curr);
@@ -435,6 +460,64 @@ static bool scx_rescue_try_admit(struct rq *rq, struct task_struct *p)
 }
 
 /**
+ * scx_rescue_check_overload - Eject the top rescue consumer on a stuck rescue
+ * @rq: rq whose rescue timer fired
+ *
+ * If the oldest waiter on @rq's rescue DSQ has been queued for too long, rescue
+ * demand on this cpu persistently exceeds the configured bandwidth. Eject the
+ * sub with the highest recent rescue consumption instead of letting the
+ * scheduler stall path blame the waiter's owner, who may just be crowded out.
+ */
+static void scx_rescue_check_overload(struct rq *rq)
+{
+	struct scx_sched *victim = NULL, *pos;
+	struct task_struct *p;
+	int cpu = cpu_of(rq);
+	u64 max_avg = 0;
+	u32 dur_ms;
+
+	lockdep_assert_rq_held(rq);
+
+	p = list_first_entry_or_null(&rq->scx.rescue.dsq.list, struct task_struct,
+				     scx.dsq_list.node);
+	if (!p)
+		return;
+
+	/* has the head waiter been queued for longer than the threshold? */
+	if (time_before(jiffies, p->scx.rescue_at + scx_rescue_overload_after))
+		return;
+
+	/*
+	 * Grace period after the last ejection on this cpu - the freed
+	 * bandwidth gets one threshold's worth of time to drain the backlog
+	 * before another sub is judged.
+	 */
+	if (time_before64(get_jiffies_64(), rq->scx.rescue.kill_at +
+			  scx_rescue_overload_after))
+		return;
+
+	list_for_each_entry_rcu(pos, &scx_sched_all, all) {
+		u64 avg = scx_rescue_decay_avg(per_cpu_ptr(pos->pcpu, cpu));
+
+		/* skip an already-exiting sub, else the ejection is wasted */
+		if (pos->level && avg > max_avg &&
+		    atomic_read(&pos->exit_kind) == SCX_EXIT_NONE) {
+			max_avg = avg;
+			victim = pos;
+		}
+	}
+	if (!victim)
+		return;
+
+	rq->scx.rescue.kill_at = get_jiffies_64();
+	dur_ms = jiffies_to_msecs(jiffies - p->scx.rescue_at);
+	__scx_exit(victim, SCX_EXIT_ERROR_RESCUE, 0, cpu,
+		   "used too much rescue CPU time (%llums) while %s[%d] waited %u.%03us to be rescued",
+		   div_u64(max_avg, NSEC_PER_MSEC), p->comm, p->pid, dur_ms / 1000,
+		   dur_ms % 1000);
+}
+
+/**
  * scx_rescue_timerfn - Drive and pace rescue execution
  * @timer: rq->scx.rescue.timer
  *
@@ -443,7 +526,8 @@ static bool scx_rescue_try_admit(struct rq *rq, struct task_struct *p)
  * full quantum and granted its slice, see scx_rescue_next_slice(). A session
  * whose budget accumulates over two quanta with the admitted rescuee still
  * waiting escalates - the rescuee's remaining slice turns into protected
- * execution and it preempts the current task.
+ * execution and it preempts the current task. An overloaded rescue queue ejects
+ * the top consumer, see scx_rescue_check_overload().
  */
 static void scx_rescue_timerfn(struct timer_list *timer)
 {
@@ -457,6 +541,7 @@ static void scx_rescue_timerfn(struct timer_list *timer)
 		return;
 
 	scx_rescue_accrue(rq);
+	scx_rescue_check_overload(rq);
 
 	if (!p) {
 		s64 slice = scx_rescue_next_slice(rq);
@@ -528,11 +613,28 @@ void scx_rescue_dump(struct seq_buf *s, struct rq *rq)
 		      p ? p->comm : "none", p ? p->pid : -1);
 }
 
+/*
+ * A scheduler whose stall watchdog is shorter than the overload threshold gets
+ * stall-killed over its parked waiters before the overload check can eject the
+ * actual top consumer. The root's knobs set the threshold, warn on any
+ * scheduler that doesn't fit it.
+ */
+static void scx_rescue_check_timeout(struct scx_sched *sch)
+{
+	if (!scx_rescue_bw_1024 || sch->watchdog_timeout > scx_rescue_overload_after)
+		return;
+
+	pr_warn("sched_ext: %s: watchdog timeout %ums <= rescue overload threshold %ums\n",
+		sch->ops.name, jiffies_to_msecs(sch->watchdog_timeout),
+		jiffies_to_msecs(scx_rescue_overload_after));
+}
+
 /* latch the rescue parameters on root scheduler enable */
 void scx_rescue_set_knobs(struct scx_sched *sch)
 {
 	s32 bw_ppt = sch->ops.rescue_bandwidth_ppt ?: SCX_RESCUE_DFL_BW_PPT;
 	s64 quantum_us = sch->ops.rescue_quantum_us ?: SCX_RESCUE_DFL_QUANTUM_US;
+	s64 period_ns;
 
 	if (sch->ops.rescue_bandwidth_ppt == SCX_RESCUE_DISABLE) {
 		scx_rescue_bw_1024 = 0;
@@ -546,21 +648,30 @@ void scx_rescue_set_knobs(struct scx_sched *sch)
 			scx_rescue_bw_1024);
 
 	/*
-	 * A rescued task is guaranteed to run after two full periods - one to
-	 * be admitted, one more to escalate. Require the two periods to fit in
-	 * a quarter of the watchdog timeout, so one full period may take at
-	 * most an eighth.
+	 * The overload threshold and the decay halflife scale with the funding
+	 * period - the time the bucket takes to fund one full quantum.
 	 */
-	if (div_s64(scx_rescue_quantum_ns << SCHED_CAPACITY_SHIFT, scx_rescue_bw_1024) >
-	    jiffies_to_nsecs(sch->watchdog_timeout) / 8)
-		pr_warn("sched_ext: rescue may not run a stuck task before the %ums watchdog timeout, decrease rescue_quantum_us or increase rescue_bandwidth_ppt\n",
-			jiffies_to_msecs(sch->watchdog_timeout));
+	period_ns = div_s64(scx_rescue_quantum_ns << SCHED_CAPACITY_SHIFT, scx_rescue_bw_1024);
+	scx_rescue_overload_after =
+		clamp(nsecs_to_jiffies(SCX_RESCUE_OVERLOAD_MULT * period_ns),
+		      msecs_to_jiffies(SCX_RESCUE_MIN_OVERLOAD_MS),
+		      msecs_to_jiffies(SCX_RESCUE_MAX_OVERLOAD_MS));
+	scx_rescue_decay_halflife = scx_rescue_overload_after / 4;
+
+	/* a single in-budget wait must not cross the overload trigger */
+	if (nsecs_to_jiffies(period_ns) > scx_rescue_overload_after / 2)
+		pr_warn("sched_ext: %s: rescue funding period %lldms > overload threshold %ums / 2\n",
+			sch->ops.name, div_s64(period_ns, NSEC_PER_MSEC),
+			jiffies_to_msecs(scx_rescue_overload_after));
+
+	scx_rescue_check_timeout(sch);
 }
 
 void scx_rescue_init(struct rq *rq)
 {
 	BUG_ON(scx_init_dsq(&rq->scx.rescue.dsq, SCX_DSQ_RESCUE, NULL));
 	timer_setup(&rq->scx.rescue.timer, scx_rescue_timerfn, TIMER_PINNED);
+	rq->scx.rescue.kill_at = get_jiffies_64();
 }
 
 /**
@@ -633,8 +744,10 @@ struct scx_dispatch_q *scx_resolve_local_dsq(struct scx_sched *sch, struct rq *r
 		__scx_add_event(sch, SCX_EV_SUB_RESCUE, 1);
 		if (scx_rescue_try_admit(rq, p))
 			return &rq->scx.local_dsq;
-		else
-			return &rq->scx.rescue.dsq;
+
+		/* queueing, the overload trigger measures the wait from here */
+		p->scx.rescue_at = jiffies;
+		return &rq->scx.rescue.dsq;
 	}
 
 	p->scx.reenq_reason_caps = missing;
@@ -1653,6 +1766,8 @@ void scx_sub_enable_workfn(struct kthread_work *work)
 	ret = scx_validate_ops(sch, ops);
 	if (ret)
 		goto err_disable;
+
+	scx_rescue_check_timeout(sch);
 
 	/*
 	 * Allocate pshard[] before scx_link_sched() publishes @sch into the

@@ -27,6 +27,9 @@ enum scx_consts {
 	SCX_RESCUE_MIN_QUANTUM_US	= 1000,
 	SCX_RESCUE_MAX_QUANTUM_US	= 100000,
 	SCX_RESCUE_MIN_SLICE_US		= 1000,		/* floor of the divided slice */
+	SCX_RESCUE_OVERLOAD_MULT	= 16,		/* overload threshold in funding periods */
+	SCX_RESCUE_MIN_OVERLOAD_MS	= 1000,
+	SCX_RESCUE_MAX_OVERLOAD_MS	= 15000,
 
 	/* per-CPU chunk size for p->scx.tid allocation, see scx_alloc_tid() */
 	SCX_TID_CHUNK			= 1024,

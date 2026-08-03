@@ -803,6 +803,7 @@ struct scx_rq_rescue {
 	s64			slice;			/* curr's admitted slice */
 	u64			exec_snap;		/* sum_exec_runtime at admission */
 	struct timer_list	timer;			/* paces admission and escalation */
+	u64			kill_at;		/* last ejection, init before any */
 };
 
 struct scx_rq {

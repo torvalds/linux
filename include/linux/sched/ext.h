@@ -215,6 +215,9 @@ struct sched_ext_entity {
 #ifdef CONFIG_SCHED_CORE
 	u64			core_sched_at;	/* see scx_prio_less() */
 #endif
+#ifdef CONFIG_EXT_SUB_SCHED
+	unsigned long		rescue_at;	/* queued on a rescue DSQ at, jiffies */
+#endif
 
 	/*
 	 * Unique non-zero task ID assigned at fork. Persists across exec and

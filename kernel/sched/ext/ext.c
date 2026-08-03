@@ -6140,6 +6140,8 @@ static const char *scx_exit_reason(enum scx_exit_kind kind)
 		return "runnable task stall";
 	case SCX_EXIT_ERROR_REENQ:
 		return "reenqueue limit";
+	case SCX_EXIT_ERROR_RESCUE:
+		return "rescue bandwidth overload";
 	default:
 		return "<UNKNOWN>";
 	}

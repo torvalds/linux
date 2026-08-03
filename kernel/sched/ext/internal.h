@@ -57,6 +57,7 @@ enum scx_exit_kind {
 	SCX_EXIT_ERROR_BPF,	/* ERROR but triggered through scx_bpf_error() */
 	SCX_EXIT_ERROR_STALL,	/* watchdog detected stalled runnable tasks */
 	SCX_EXIT_ERROR_REENQ,	/* task hit reenqueue limit without running */
+	SCX_EXIT_ERROR_RESCUE,	/* ejected for overloading rescue execution */
 };
 
 /*
@@ -1340,6 +1341,14 @@ struct scx_sched_pcpu {
 	bool			idle_renotify;
 	/* effective caps as of the last sub_ecaps_updated() delivery */
 	u64			reported_ecaps;
+
+	/*
+	 * Decaying rescue runtime consumed on this cpu, see
+	 * scx_rescue_decay_avg(). Overload on this cpu ejects the sub with the
+	 * largest value. Accessed only under this cpu's rq lock.
+	 */
+	u64			rescue_avg;
+	u64			rescue_avg_at;	/* last decay, jiffies_64 */
 #endif
 
 	/*
