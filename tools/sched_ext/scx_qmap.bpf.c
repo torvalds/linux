@@ -66,7 +66,6 @@ const volatile bool print_msgs;
 const volatile u64 sub_cgroup_id;
 const volatile s32 disallow_tgid;
 const volatile bool suppress_dump;
-const volatile bool always_enq_immed;
 const volatile u32 immed_stress_nth;
 const volatile u32 max_tasks;
 
@@ -229,9 +228,6 @@ static s32 pick_direct_dispatch_cid(struct task_struct *p, s32 prev_cid,
 	u32 nr_cids = scx_bpf_nr_cids();
 	s32 cid;
 	u32 i;
-
-	if (!always_enq_immed && p->nr_cpus_allowed == 1)
-		return prev_cid;
 
 	if (cmask_test(prev_cid, &qa.self_cids.mask) &&
 	    cmask_test_and_clear(prev_cid, &qa.idle_cids.mask))
