@@ -681,7 +681,8 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 							    dev->otherend_id);
 
 		if (state == XenbusStateInitialising &&
-		    (state != dev->state || backend != dev->otherend_id)) {
+		    (state != dev->state ||
+		     (dev->otherend && backend != dev->otherend_id))) {
 			/*
 			 * State has been reset, assume the old one vanished
 			 * and new one needs to be probed.
