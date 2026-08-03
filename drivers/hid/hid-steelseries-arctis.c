@@ -26,6 +26,7 @@ struct steelseries_device_info {
 	unsigned long capabilities;
 
 	u8 sync_interface;
+	u8 async_interface;
 
 	int (*request_status)(struct hid_device *hdev);
 	void (*parse_status)(struct steelseries_device *sd, u8 *data, int size);
@@ -271,7 +272,8 @@ static void steelseries_status_timer_work_handler(struct work_struct *work)
 	sd->info->request_status(sd->hdev);
 
 	spin_lock_irqsave(&sd->lock, flags);
-	if (!sd->removed)
+	/* Async devices push status events themselves; only poll once. */
+	if (!sd->removed && !sd->info->async_interface)
 		schedule_delayed_work(&sd->status_work,
 				msecs_to_jiffies(STEELSERIES_HEADSET_STATUS_TIMEOUT_MS));
 	spin_unlock_irqrestore(&sd->lock, flags);
@@ -318,6 +320,53 @@ static int steelseries_battery_register(struct steelseries_device *sd)
 	return 0;
 }
 
+static struct hid_driver steelseries_arctis_driver;
+
+static struct steelseries_device *
+steelseries_get_sibling_sd(struct hid_device *hdev, int interface_num)
+{
+	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	struct usb_device *usb_dev = interface_to_usbdev(intf);
+	struct usb_interface *sibling_intf;
+	struct hid_device *sibling_hdev;
+	struct steelseries_device *sd = NULL;
+
+	sibling_intf = usb_ifnum_to_if(usb_dev, interface_num);
+	if (!sibling_intf)
+		return NULL;
+
+	/*
+	 * usb_get_intfdata() only yields a hid_device when usbhid is bound;
+	 * gate on the descriptor class so a non-HID sibling (e.g. a crafted
+	 * device exposing storage or audio here) is never treated as one.
+	 */
+	if (sibling_intf->cur_altsetting->desc.bInterfaceClass != USB_INTERFACE_CLASS_HID)
+		return NULL;
+
+	/*
+	 * Take the sibling's device lock across the intfdata read and the
+	 * kref_get so a concurrent unbind cannot free the hid_device underneath
+	 * us; usbhid leaves intfdata dangling on disconnect, so dev.driver is
+	 * the reliable "still bound" test under this lock. Use device_trylock()
+	 * to stay off the lockdep chain of the interface being probed and let
+	 * the caller retry via -EPROBE_DEFER if the sibling is momentarily busy.
+	 */
+	if (!device_trylock(&sibling_intf->dev))
+		return NULL;
+	if (sibling_intf->dev.driver) {
+		sibling_hdev = usb_get_intfdata(sibling_intf);
+		if (sibling_hdev &&
+		    sibling_hdev->driver == &steelseries_arctis_driver) {
+			sd = hid_get_drvdata(sibling_hdev);
+			if (sd)
+				kref_get(&sd->refcnt);
+		}
+	}
+	device_unlock(&sibling_intf->dev);
+
+	return sd;
+}
+
 static int steelseries_arctis_probe(struct hid_device *hdev,
 				    const struct hid_device_id *id)
 {
@@ -339,43 +388,81 @@ static int steelseries_arctis_probe(struct hid_device *hdev,
 	if (ret)
 		return ret;
 
-	/* Let hid-generic handle non-sync interfaces */
-	if (interface_num != info->sync_interface)
+	/* Let hid-generic handle non-vendor or unknown interfaces */
+	if (interface_num != info->sync_interface &&
+	    (!info->async_interface || interface_num != info->async_interface))
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
-	sd = kzalloc_obj(*sd, GFP_KERNEL);
-	if (!sd)
-		return -ENOMEM;
+	if (interface_num == info->sync_interface) {
+		sd = kzalloc_obj(*sd, GFP_KERNEL);
+		if (!sd)
+			return -ENOMEM;
 
-	kref_init(&sd->refcnt);
-	sd->hdev = hdev;
-	sd->info = info;
-	spin_lock_init(&sd->lock);
+		kref_init(&sd->refcnt);
+		sd->hdev = hdev;
+		sd->info = info;
+		spin_lock_init(&sd->lock);
+		INIT_DELAYED_WORK(&sd->status_work, steelseries_status_timer_work_handler);
 
-	hid_set_drvdata(hdev, sd);
+		ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+		if (ret)
+			goto err_free;
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
-	if (ret)
-		goto err_put;
+		ret = hid_hw_open(hdev);
+		if (ret)
+			goto err_stop;
 
-	ret = hid_hw_open(hdev);
-	if (ret)
-		goto err_stop;
+		if (info->capabilities & SS_CAP_BATTERY) {
+			ret = steelseries_battery_register(sd);
+			if (ret < 0)
+				hid_warn(hdev, "Failed to register battery: %d\n", ret);
+		}
 
-	if (info->capabilities & SS_CAP_BATTERY) {
-		ret = steelseries_battery_register(sd);
-		if (ret < 0)
-			hid_warn(hdev, "Failed to register battery: %d\n", ret);
+		/*
+		 * Publish drvdata only once fully initialised: the async sibling
+		 * attaches by reading it, so it must never observe a half-built or
+		 * failed instance. A failed probe never gets here, so the error
+		 * path below has nothing to unpublish.
+		 */
+		hid_set_drvdata(hdev, sd);
+		schedule_delayed_work(&sd->status_work, msecs_to_jiffies(100));
+
+		return 0;
 	}
 
-	INIT_DELAYED_WORK(&sd->status_work, steelseries_status_timer_work_handler);
-	schedule_delayed_work(&sd->status_work, msecs_to_jiffies(100));
+	/*
+	 * The async interface shares the steelseries_device created by the
+	 * sync interface. Defer until the sync interface has probed and
+	 * published its drvdata.
+	 */
+	if (info->async_interface && interface_num == info->async_interface) {
+		sd = steelseries_get_sibling_sd(hdev, info->sync_interface);
+		if (!sd)
+			return -EPROBE_DEFER;
 
-	return 0;
+		hid_set_drvdata(hdev, sd);
+
+		ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+		if (ret) {
+			kref_put(&sd->refcnt, steelseries_device_release);
+			return ret;
+		}
+
+		ret = hid_hw_open(hdev);
+		if (ret) {
+			hid_hw_stop(hdev);
+			kref_put(&sd->refcnt, steelseries_device_release);
+			return ret;
+		}
+		return 0;
+	}
+
+	return -ENODEV;
 
 err_stop:
 	hid_hw_stop(hdev);
-err_put:
+err_free:
+	/* drvdata is unpublished until full success, so no sibling can hold sd. */
 	kref_put(&sd->refcnt, steelseries_device_release);
 	return ret;
 }
@@ -428,9 +515,20 @@ static int steelseries_arctis_raw_event(struct hid_device *hdev,
 	u8 old_capacity;
 	bool old_connected;
 	bool old_charging;
+	bool is_async_interface;
+	unsigned long flags;
 
 	if (!sd)
 		return 0;
+
+	is_async_interface = (hdev != sd->hdev);
+
+	spin_lock_irqsave(&sd->lock, flags);
+
+	if (sd->removed) {
+		spin_unlock_irqrestore(&sd->lock, flags);
+		return 0;
+	}
 
 	old_capacity = sd->battery_capacity;
 	old_connected = sd->headset_connected;
@@ -443,6 +541,10 @@ static int steelseries_arctis_raw_event(struct hid_device *hdev,
 			"Connected status changed from %sconnected to %sconnected\n",
 			old_connected ? "" : "not ",
 			sd->headset_connected ? "" : "not ");
+
+		if (sd->headset_connected && !old_connected &&
+		    sd->info->async_interface && is_async_interface)
+			schedule_delayed_work(&sd->status_work, 0);
 
 		if (sd->battery) {
 			steelseries_headset_set_wireless_status(sd->hdev,
@@ -466,6 +568,8 @@ static int steelseries_arctis_raw_event(struct hid_device *hdev,
 		if (sd->battery)
 			power_supply_changed(sd->battery);
 	}
+
+	spin_unlock_irqrestore(&sd->lock, flags);
 
 	return 0;
 }
