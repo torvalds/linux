@@ -111,11 +111,14 @@ static int nanosleep_test_remaining(int clockid)
 
 	rqtp.tv_nsec = NSEC_PER_SEC / 2;
 	ret = clock_nanosleep(clockid, 0, &rqtp, &rmtp);
-	if (ret != EINTR)
-		return KSFT_FAIL;
 
-	ret = timer_delete(timer);
-	if (ret)
+	if (timer_delete(timer)) {
+		ksft_exit_fail_msg("Unable to delete the timeout timer for %s. "
+				   "This might interfere with following testcases.\n",
+				   clock_name(clockid));
+	}
+
+	if (ret != EINTR)
 		return KSFT_FAIL;
 
 	sa.sa_handler = SIG_DFL;
