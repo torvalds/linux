@@ -142,23 +142,18 @@ static void nanosleep_test_clock(clockid_t clockid)
 
 	while (length <= (NSEC_PER_SEC * 10)) {
 		ret = nanosleep_test(clockid, length);
-		if (ret == KSFT_SKIP) {
-			ksft_test_result_skip("%s\n", clock_name(clockid));
+		if (ret != KSFT_PASS) {
+			ksft_test_result_report(ret, "%s\n", clock_name(clockid));
+			ksft_test_result_skip("%s (remaining)\n", clock_name(clockid));
 			return;
 		}
-		if (ret == KSFT_FAIL) {
-			ksft_test_result_fail("%s\n", clock_name(clockid));
-			ksft_exit_fail();
-		}
+
 		length *= 100;
 	}
+	ksft_test_result_pass("%s\n", clock_name(clockid));
 
 	ret = nanosleep_test_remaining(clockid);
-	if (ret == KSFT_FAIL) {
-		ksft_test_result_fail("%s\n", clock_name(clockid));
-		ksft_exit_fail();
-	}
-	ksft_test_result_pass("%s\n", clock_name(clockid));
+	ksft_test_result_report(ret, "%s (remaining)\n", clock_name(clockid));
 }
 
 int main(int argc, char **argv)
@@ -175,7 +170,7 @@ int main(int argc, char **argv)
 	};
 
 	ksft_print_header();
-	ksft_set_plan(ARRAY_SIZE(tested_clocks));
+	ksft_set_plan(ARRAY_SIZE(tested_clocks) * 2);
 
 	for (size_t clock_index = 0; clock_index < ARRAY_SIZE(tested_clocks); clock_index++) {
 		clockid = tested_clocks[clock_index];
@@ -184,5 +179,5 @@ int main(int argc, char **argv)
 
 		nanosleep_test_clock(clockid);
 	}
-	ksft_exit_pass();
+	ksft_finished();
 }
