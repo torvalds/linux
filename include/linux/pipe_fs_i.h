@@ -92,7 +92,7 @@ struct anon_pipe_prealloc {
  *	@files: number of struct file referring this pipe (protected by ->i_lock)
  *	@r_counter: reader counter
  *	@w_counter: writer counter
- *	@poll_usage: is this pipe used for epoll, which has crazy wakeups?
+ *	@pseudo_edgetrigger: has an EPOLLET consumer, enable per-write wakeups
  *	@fasync_readers: reader side fasync
  *	@fasync_writers: writer side fasync
  *	@bufs: the circular array of pipe buffers
@@ -113,7 +113,7 @@ struct pipe_inode_info {
 	unsigned int files;
 	unsigned int r_counter;
 	unsigned int w_counter;
-	bool poll_usage;
+	bool pseudo_edgetrigger;
 #ifdef CONFIG_WATCH_QUEUE
 	bool note_loss;
 #endif

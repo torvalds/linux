@@ -665,10 +665,9 @@ out:
 	 * how (for example) the GNU make jobserver uses small writes to
 	 * wake up pending jobs
 	 *
-	 * Epoll nonsensically wants a wakeup whether the pipe
-	 * was already empty or not.
+	 * ->pseudo_edgetrigger enables per-write wakeups, see pipe_poll()
 	 */
-	if (was_empty || pipe->poll_usage)
+	if (was_empty || READ_ONCE(pipe->pseudo_edgetrigger))
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	if (wake_next_writer)
@@ -731,7 +730,6 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 }
 
-/* No kernel lock held - fine */
 static __poll_t
 pipe_poll(struct file *filp, poll_table *wait)
 {
@@ -739,9 +737,17 @@ pipe_poll(struct file *filp, poll_table *wait)
 	struct pipe_inode_info *pipe = filp->private_data;
 	union pipe_index idx;
 
-	/* Epoll has some historical nasty semantics, this enables them */
-	if (unlikely(!READ_ONCE(pipe->poll_usage)))
-		WRITE_ONCE(pipe->poll_usage, true);
+	/*
+	 * Legacy epoll(EPOLLET) users depend on historical per-write wakeups,
+	 * see 3a34b13a88ca ("pipe: make pipe writes always wake up readers")
+	 * and the ->pseudo_edgetrigger check in anon_pipe_write().
+	 * Currently io_uring sets EPOLLET for multishot polls, so it gets the
+	 * same behaviour.
+	 */
+	if ((filp->f_mode & FMODE_READ) &&
+	    wait && (wait->_key & EPOLLET) &&
+	    unlikely(!READ_ONCE(pipe->pseudo_edgetrigger)))
+		WRITE_ONCE(pipe->pseudo_edgetrigger, true);
 
 	/*
 	 * Reading pipe state only -- no need for acquiring the semaphore.
