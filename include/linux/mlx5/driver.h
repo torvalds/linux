@@ -569,6 +569,7 @@ enum mlx5_page_mgt_mode {
 };
 
 struct mlx5_frag_buf_node_pools;
+struct mlx5_dma_pool;
 struct mlx5_ft_pool;
 struct mlx5_priv {
 	/* IRQ table valid only for real pci devices PF or VF */
@@ -602,6 +603,7 @@ struct mlx5_priv {
 	struct list_head        pgdir_list;
 
 	struct mlx5_frag_buf_node_pools **frag_buf_node_pools;
+	struct mlx5_dma_pool **db_node_pools;
 	/* end: alloc stuff */
 
 	struct mlx5_adev       **adev;

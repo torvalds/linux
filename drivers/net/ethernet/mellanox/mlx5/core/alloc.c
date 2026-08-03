@@ -444,6 +444,43 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 }
 EXPORT_SYMBOL_GPL(mlx5_frag_buf_free);
 
+void mlx5_db_pools_cleanup(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	int node;
+
+	for_each_node_state(node, N_POSSIBLE)
+		if (priv->db_node_pools[node])
+			mlx5_dma_pool_destroy(priv->db_node_pools[node]);
+
+	kfree(priv->db_node_pools);
+	priv->db_node_pools = NULL;
+}
+
+int mlx5_db_pools_init(struct mlx5_core_dev *dev)
+{
+	struct mlx5_priv *priv = &dev->priv;
+	int node;
+
+	priv->db_node_pools = kzalloc_objs(*priv->db_node_pools, nr_node_ids);
+	if (!priv->db_node_pools)
+		return -ENOMEM;
+
+	for_each_node_state(node, N_POSSIBLE) {
+		struct mlx5_dma_pool *pool;
+
+		pool = mlx5_dma_pool_create(dev, node,
+					    order_base_2(cache_line_size()));
+		if (!pool) {
+			mlx5_db_pools_cleanup(dev);
+			return -ENOMEM;
+		}
+		priv->db_node_pools[node] = pool;
+	}
+
+	return 0;
+}
+
 static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 						 int node)
 {
