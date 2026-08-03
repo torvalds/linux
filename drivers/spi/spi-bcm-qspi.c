@@ -1689,7 +1689,7 @@ void bcm_qspi_remove(struct platform_device *pdev)
 /* function to be called by SoC specific platform driver remove() */
 EXPORT_SYMBOL_GPL(bcm_qspi_remove);
 
-static int __maybe_unused bcm_qspi_suspend(struct device *dev)
+static int bcm_qspi_suspend(struct device *dev)
 {
 	struct bcm_qspi *qspi = dev_get_drvdata(dev);
 	int ret;
@@ -1709,7 +1709,7 @@ static int __maybe_unused bcm_qspi_suspend(struct device *dev)
 	return 0;
 };
 
-static int __maybe_unused bcm_qspi_resume(struct device *dev)
+static int bcm_qspi_resume(struct device *dev)
 {
 	struct bcm_qspi *qspi = dev_get_drvdata(dev);
 	int ret = 0;
@@ -1728,7 +1728,7 @@ static int __maybe_unused bcm_qspi_resume(struct device *dev)
 	return ret;
 }
 
-SIMPLE_DEV_PM_OPS(bcm_qspi_pm_ops, bcm_qspi_suspend, bcm_qspi_resume);
+DEFINE_SIMPLE_DEV_PM_OPS(bcm_qspi_pm_ops, bcm_qspi_suspend, bcm_qspi_resume);
 
 /* pm_ops to be called by SoC specific platform driver */
 EXPORT_SYMBOL_GPL(bcm_qspi_pm_ops);
