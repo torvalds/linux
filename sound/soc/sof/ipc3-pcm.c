@@ -421,6 +421,12 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		dev_dbg(component->dev, "AMD_SDW channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
+	case SOF_DAI_AMD_I2S:
+		rate->min = private->dai_config->acp_i2s.fsync_rate;
+		rate->max = private->dai_config->acp_i2s.fsync_rate;
+		channels->min = private->dai_config->acp_i2s.tdm_slots;
+		channels->max = private->dai_config->acp_i2s.tdm_slots;
+		break;
 	default:
 		dev_err(component->dev, "Invalid DAI type %d\n", private->dai_config->type);
 		break;

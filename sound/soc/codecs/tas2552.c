@@ -495,13 +495,21 @@ static int tas2552_runtime_suspend(struct device *dev)
 static int tas2552_runtime_resume(struct device *dev)
 {
 	struct tas2552_data *tas2552 = dev_get_drvdata(dev);
+	int ret;
 
 	gpiod_set_value_cansleep(tas2552->enable_gpio, 1);
 
 	tas2552_sw_shutdown(tas2552, 0);
 
 	regcache_cache_only(tas2552->regmap, false);
-	regcache_sync(tas2552->regmap);
+	ret = regcache_sync(tas2552->regmap);
+	if (ret) {
+		regcache_cache_only(tas2552->regmap, true);
+		regcache_mark_dirty(tas2552->regmap);
+		tas2552_sw_shutdown(tas2552, 1);
+		gpiod_set_value_cansleep(tas2552->enable_gpio, 0);
+		return ret;
+	}
 
 	return 0;
 }

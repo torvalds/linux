@@ -533,34 +533,25 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 	int err, irq;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
-	if (!i2s) {
-		err = -ENOMEM;
-		goto err;
-	}
+	if (!i2s)
+		return -ENOMEM;
+
 	platform_set_drvdata(pdev, i2s);
 	i2s->dev = &pdev->dev;
 	dev_dbg(&pdev->dev, "dev: %p, i2s: %p\n", &pdev->dev, i2s);
 
 	i2s->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(i2s->regs)) {
-		err = PTR_ERR(i2s->regs);
-		goto err;
-	}
+	if (IS_ERR(i2s->regs))
+		return PTR_ERR(i2s->regs);
 
 	i2s->regmap = devm_regmap_init_mmio(&pdev->dev, i2s->regs,
 					    &xtfpga_i2s_regmap_config);
-	if (IS_ERR(i2s->regmap)) {
-		dev_err(&pdev->dev, "regmap init failed\n");
-		err = PTR_ERR(i2s->regmap);
-		goto err;
-	}
+	if (IS_ERR(i2s->regmap))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->regmap), "regmap init failed\n");
 
 	i2s->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(i2s->clk)) {
-		dev_err(&pdev->dev, "couldn't get clock\n");
-		err = PTR_ERR(i2s->clk);
-		goto err;
-	}
+	if (IS_ERR(i2s->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->clk), "couldn't get clock\n");
 
 	regmap_write(i2s->regmap, XTFPGA_I2S_CONFIG,
 		     (0x1 << XTFPGA_I2S_CONFIG_CHANNEL_BASE));
@@ -568,41 +559,34 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 	regmap_write(i2s->regmap, XTFPGA_I2S_INT_MASK, XTFPGA_I2S_INT_UNDERRUN);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		err = irq;
-		goto err;
-	}
+	if (irq < 0)
+		return irq;
+
 	err = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 					xtfpga_i2s_threaded_irq_handler,
 					IRQF_SHARED | IRQF_ONESHOT,
 					pdev->name, i2s);
-	if (err < 0) {
-		dev_err(&pdev->dev, "request_irq failed\n");
-		goto err;
-	}
+	if (err < 0)
+		return err;
 
 	err = devm_snd_soc_register_component(&pdev->dev,
 					      &xtfpga_i2s_component,
 					      xtfpga_i2s_dai,
 					      ARRAY_SIZE(xtfpga_i2s_dai));
-	if (err < 0) {
-		dev_err(&pdev->dev, "couldn't register component\n");
-		goto err;
-	}
+	if (err < 0)
+		return err;
+
 
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		err = xtfpga_i2s_runtime_resume(&pdev->dev);
-		if (err)
-			goto err_pm_disable;
+		if (err) {
+			pm_runtime_disable(&pdev->dev);
+			return err;
+		}
 	}
-	return 0;
 
-err_pm_disable:
-	pm_runtime_disable(&pdev->dev);
-err:
-	dev_err(&pdev->dev, "%s: err = %d\n", __func__, err);
-	return err;
+	return 0;
 }
 
 static void xtfpga_i2s_remove(struct platform_device *pdev)

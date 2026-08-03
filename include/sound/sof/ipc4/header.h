@@ -187,6 +187,10 @@ enum sof_ipc4_pipeline_state {
 #define SOF_IPC4_GLB_PIPE_EXT_CORE_ID_MASK	GENMASK(23, 20)
 #define SOF_IPC4_GLB_PIPE_EXT_CORE_ID(x)	((x) << SOF_IPC4_GLB_PIPE_EXT_CORE_ID_SHIFT)
 
+#define SOF_IPC4_GLB_PIPE_PAYLOAD_SHIFT		29
+#define SOF_IPC4_GLB_PIPE_PAYLOAD_MASK		BIT(29)
+#define SOF_IPC4_GLB_PIPE_PAYLOAD(x)		((x) << SOF_IPC4_GLB_PIPE_PAYLOAD_SHIFT)
+
 /* pipeline set state ipc msg */
 #define SOF_IPC4_GLB_PIPE_STATE_ID_SHIFT		16
 #define SOF_IPC4_GLB_PIPE_STATE_ID_MASK		GENMASK(23, 16)
@@ -536,12 +540,63 @@ enum sof_ipc4_notification_type {
 	SOF_IPC4_NOTIFY_TYPE_LAST,
 };
 
+enum sof_ipc4_resource_type {
+	SOF_IPC4_MODULE_INSTANCE,
+	SOF_IPC4_PIPELINE,
+	SOF_IPC4_GATEWAY,
+	SOF_IPC4_EDF_TASK,
+	SOF_IPC4_INVALID_RESOURCE_TYPE,
+};
+
+enum sof_ipc4_event_type {
+	/* Underrun detected by the Mixer */
+	SOF_IPC4_MIXER_UNDERRUN_DETECTED = 1,
+	/* Error caught during data processing */
+	SOF_IPC4_PROCESS_DATA_ERROR = 3,
+	/* Underrun detected by gateway. */
+	SOF_IPC4_GATEWAY_UNDERRUN_DETECTED = 6,
+	/* Overrun detected by gateway */
+	SOF_IPC4_GATEWAY_OVERRUN_DETECTED,
+};
+
+/**
+ * struct sof_ipc4_process_data_error_event_data - process data error event payload
+ * @error_code: Error code returned by data processing function
+ */
+struct sof_ipc4_process_data_error_event_data {
+	uint32_t error_code;
+};
+
+/**
+ * struct sof_ipc4_mixer_underrun_event_data - mixer underrun event payload
+ * @eos_flag: Indicates EndOfStream
+ * @data_mixed: Data processed by module (in bytes)
+ * @expected_data_mixed: Expected data to be processed (in bytes)
+ */
+struct sof_ipc4_mixer_underrun_event_data {
+	uint32_t eos_flag;
+	uint32_t data_mixed;
+	uint32_t expected_data_mixed;
+};
+
+/**
+ * union sof_ipc4_resource_event_data - resource event specific payload
+ * @dws: Raw event data payload as six dwords
+ * @process_data_error: SOF_IPC4_PROCESS_DATA_ERROR payload
+ * @mixer_underrun: SOF_IPC4_MIXER_UNDERRUN_DETECTED payload
+ */
+union sof_ipc4_resource_event_data {
+	uint32_t dws[6];
+	struct sof_ipc4_process_data_error_event_data process_data_error;
+	struct sof_ipc4_mixer_underrun_event_data mixer_underrun;
+};
+
 struct sof_ipc4_notify_resource_data {
 	uint32_t resource_type;
 	uint32_t resource_id;
 	uint32_t event_type;
 	uint32_t reserved;
-	uint32_t data[6];
+	union sof_ipc4_resource_event_data data;
 } __packed __aligned(4);
 
 #define SOF_IPC4_DEBUG_DESCRIPTOR_SIZE		12 /* 3 x u32 */
@@ -654,11 +709,81 @@ enum sof_ipc4_mod_init_ext_obj_id {
 	SOF_IPC4_MOD_INIT_DATA_ID_MAX = SOF_IPC4_MOD_INIT_DATA_ID_DP_DATA,
 };
 
-/* DP module memory configuration data object for ext_init object array */
+/* DP module memory configuration data object for object array */
 struct sof_ipc4_mod_init_ext_dp_memory_data {
+	u32 domain_id;			/* userspace domain ID */
+	u32 stack_bytes;		/* required stack size in bytes */
+	u32 heap_bytes;		/* required heap size in bytes */
+} __packed __aligned(4);
+
+/*
+ * This set of macros are very similar to the set above, but these are
+ * for building payload to SOF_IPC4_GLB_CREATE_PIPELINE message.
+ *
+ * Macros for creating struct sof_ipc4_glb_pipe_payload payload with
+ * its associated data. struct sof_ipc4_glb_pipe_payload should be the
+ * first piece of payload following SOF_IPC4_GLB_CREATE_PIPELINE msg,
+ * and its existence is indicated with SOF_IPC4_GLB_PIPE_PAYLOAD bit.
+ *
+ * The macros below apply to sof_ipc4_glb_pipe_payload.word0
+ */
+#define SOF_IPC4_GLB_PIPE_PAYLOAD_WORDS_SHIFT	0
+#define SOF_IPC4_GLB_PIPE_PAYLOAD_WORDS_MASK	GENMASK(23, 0)
+#define SOF_IPC4_GLB_PIPE_PAYLOAD_WORDS(x)	((x) << SOF_IPC4_GLB_PIPE_PAYLOAD_WORDS_SHIFT)
+
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY_SHIFT	24
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY_MASK	BIT(24)
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY(x)	((x) << SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY_SHIFT)
+
+struct sof_ipc4_glb_pipe_payload {
+	u32 word0;
+	u32 rsvd1;
+	u32 rsvd2;
+} __packed __aligned(4);
+
+/*
+ * SOF_IPC4_GLB_CREATE_PIPELINE payload may be followed by arbitrary
+ * number of object array objects. SOF_IPC4_GLB_PIPE_EXT_OBJ_ARRAY-bit
+ * indicates that an array object follows struct
+ * sof_ipc4_glb_pipe_payload.
+ *
+ * The object header's SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST-bit in struct
+ * sof_ipc4_glb_pipe_ext_object indicates if the array is continued
+ * with another object. The header has also fields to identify the
+ * object, SOF_IPC4_GLB_PIPE_EXT_OBJ_ID, and to indicate the object's
+ * size in 32-bit words, SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS, not
+ * including the header itself.
+ *
+ * The macros below apply to sof_ipc4_glb_pipe_ext_object.header
+ */
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST_SHIFT	0
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST_MASK	BIT(0)
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST(x)	((x) << SOF_IPC4_GLB_PIPE_EXT_OBJ_LAST_SHIFT)
+
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ID_SHIFT	1
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ID_MASK	GENMASK(15, 1)
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_ID(x)		((x) << SOF_IPC4_GLB_PIPE_EXT_OBJ_ID_SHIFT)
+
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS_SHIFT	16
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS_MASK	GENMASK(31, 16)
+#define SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS(x)	((x) << SOF_IPC4_GLB_PIPE_EXT_OBJ_WORDS_SHIFT)
+
+struct sof_ipc4_glb_pipe_ext_object {
+	u32 header;
+	u32 data[];
+} __packed __aligned(4);
+
+enum sof_ipc4_glb_pipe_ext_obj_id {
+	SOF_IPC4_GLB_PIPE_DATA_ID_INVALID = 0,
+	SOF_IPC4_GLB_PIPE_DATA_ID_MEM_DATA,
+	SOF_IPC4_GLB_PIPE_DATA_ID_MAX = SOF_IPC4_GLB_PIPE_DATA_ID_MEM_DATA,
+};
+
+/* Pipeline memory configuration data object for ext_init object array */
+struct sof_ipc4_glb_pipe_ext_obj_memory_data {
 	u32 domain_id;		/* userspace domain ID */
-	u32 stack_bytes;	/* stack size in bytes, 0 means default size */
-	u32 heap_bytes;		/* stack size in bytes, 0 means default size */
+	u32 stack_bytes;	/* stack size in bytes */
+	u32 heap_bytes;		/* heap size in bytes */
 } __packed __aligned(4);
 
 /** @}*/

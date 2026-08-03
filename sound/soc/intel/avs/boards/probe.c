@@ -64,7 +64,7 @@ static const struct platform_device_id avs_probe_mb_driver_ids[] = {
 	{
 		.name = "avs_probe_mb",
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, avs_probe_mb_driver_ids);
 

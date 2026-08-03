@@ -385,8 +385,6 @@ static int mtk_adda_pad_top_event(struct snd_soc_dapm_widget *w,
 	if (event == SND_SOC_DAPM_PRE_PMU) {
 		if (afe_priv->mtkaif_protocol == MTKAIF_PROTOCOL_2_CLK_P2)
 			regmap_write(afe->regmap, AFE_AUD_PAD_TOP_CFG0, 0xB8);
-		else if (afe_priv->mtkaif_protocol == MTKAIF_PROTOCOL_2)
-			regmap_write(afe->regmap, AFE_AUD_PAD_TOP_CFG0, 0xB0);
 		else
 			regmap_write(afe->regmap, AFE_AUD_PAD_TOP_CFG0, 0xB0);
 	}

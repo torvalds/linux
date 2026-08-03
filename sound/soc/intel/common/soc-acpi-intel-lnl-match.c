@@ -717,24 +717,28 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.links = lnl_3_in_1_sdca,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-rt711-l0-rt1316-l23-rt714-l1.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0) | BIT(2) | BIT(3),
 		.links = lnl_cs42l43_l0_cs35l56_l23,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-cs42l43-l0-cs35l56-l23.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(1) | BIT(2) | BIT(3),
 		.links = lnl_cs42l43_l2_cs35l56x6_l13,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-cs42l43-l2-cs35l56x6-l13.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0) | BIT(3),
 		.links = lnl_cs42l43_l0_cs35l56_l3,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-cs42l43-l0-cs35l56-l3.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0),
@@ -748,12 +752,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.links = lnl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-rt711.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(2) | BIT(3),
 		.links = lnl_712_only,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-rt712-l2-rt1712-l3.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0),
@@ -766,19 +772,22 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.link_mask = GENMASK(2, 0),
 		.links = lnl_sdw_rt1318_l12_rt714_l0,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-lnl-rt1318-l12-rt714-l0.tplg"
+		.sof_tplg_filename = "sof-lnl-rt1318-l12-rt714-l0.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = GENMASK(2, 0),
 		.links = lnl_sdw_rt1320_l12_rt714_l0,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-lnl-rt1320-l12-rt714-l0.tplg"
+		.sof_tplg_filename = "sof-lnl-rt1320-l12-rt714-l0.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(0) | BIT(1),
 		.links = lnl_sdw_rt713_l0_rt1318_l1,
 		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-lnl-rt713-l0-rt1318-l1.tplg"
+		.sof_tplg_filename = "sof-lnl-rt713-l0-rt1318-l1.tplg",
+		.get_function_tplg_files = sof_sdw_get_tplg_files,
 	},
 	{
 		.link_mask = BIT(1) | BIT(2),

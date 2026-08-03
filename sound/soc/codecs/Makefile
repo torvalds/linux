@@ -55,6 +55,7 @@ snd-soc-aw88395-y := aw88395/aw88395.o
 snd-soc-aw88166-y := aw88166.o
 snd-soc-aw88261-y := aw88261.o
 snd-soc-aw88399-y := aw88399.o
+snd-soc-aw88399-lib-y := aw88399-lib.o
 snd-soc-bd28623-y := bd28623.o
 snd-soc-bt-sco-y := bt-sco.o
 snd-soc-chv3-codec-y := chv3-codec.o
@@ -426,6 +427,7 @@ snd-soc-wm-hubs-y := wm_hubs.o
 snd-soc-wsa881x-y := wsa881x.o
 snd-soc-wsa883x-y := wsa883x.o
 snd-soc-wsa884x-y := wsa884x.o
+snd-soc-wsa885x-y := wsa885x.o
 snd-soc-zl38060-y := zl38060.o
 # Amp
 snd-soc-max9877-y := max9877.o
@@ -496,6 +498,7 @@ obj-$(CONFIG_SND_SOC_AW88395)	+=snd-soc-aw88395.o
 obj-$(CONFIG_SND_SOC_AW88166)	+=snd-soc-aw88166.o
 obj-$(CONFIG_SND_SOC_AW88261)	+=snd-soc-aw88261.o
 obj-$(CONFIG_SND_SOC_AW88399)	+= snd-soc-aw88399.o
+obj-$(CONFIG_SND_SOC_AW88399_LIB) += snd-soc-aw88399-lib.o
 obj-$(CONFIG_SND_SOC_BD28623)	+= snd-soc-bd28623.o
 obj-$(CONFIG_SND_SOC_BT_SCO)	+= snd-soc-bt-sco.o
 obj-$(CONFIG_SND_SOC_CHV3_CODEC) += snd-soc-chv3-codec.o
@@ -876,6 +879,7 @@ obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 obj-$(CONFIG_SND_SOC_WSA881X)	+= snd-soc-wsa881x.o
 obj-$(CONFIG_SND_SOC_WSA883X)	+= snd-soc-wsa883x.o
 obj-$(CONFIG_SND_SOC_WSA884X)	+= snd-soc-wsa884x.o
+obj-$(CONFIG_SND_SOC_WSA885X)	+= snd-soc-wsa885x.o
 obj-$(CONFIG_SND_SOC_ZL38060)	+= snd-soc-zl38060.o
 
 # Amp

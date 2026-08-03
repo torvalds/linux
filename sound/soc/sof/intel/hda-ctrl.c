@@ -186,12 +186,23 @@ EXPORT_SYMBOL_NS(hda_dsp_ctrl_clock_power_gating, "SND_SOC_SOF_INTEL_HDA_COMMON"
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool detect_codec)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
+	struct sof_intel_hda_dev *sof_hda = bus_to_sof_hda(bus);
 	struct hdac_stream *stream;
 	int sd_offset, ret = 0;
 	u32 gctl;
 
 	if (bus->chip_init)
 		return 0;
+
+	/*
+	 * The controller reset clears the ACE2+ link DMA stream allocation
+	 * constraints; reset the masks to reflect this.
+	 */
+	memset(sof_hda->link_dma_active_sdw_mask, 0,
+	       sizeof(sof_hda->link_dma_active_sdw_mask));
+	memset(sof_hda->link_dma_active_multi_mask, 0,
+	       sizeof(sof_hda->link_dma_active_multi_mask));
+	sof_hda->link_dma_out_hda_used_mask = 0;
 
 	hda_codec_set_codec_wakeup(sdev, true);
 
@@ -222,6 +233,14 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev, bool detect_codec)
 
 	/* Accept unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
+
+	/* Perform a one-time enumeration of the Multi-Link capability */
+	ret = hda_bus_ml_init(bus);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: failed to enumerate multi-links\n",
+			__func__);
+		goto err;
+	}
 
 	if (detect_codec)
 		hda_codec_detect_mask(sdev);

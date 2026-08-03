@@ -14,6 +14,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/unaligned.h>
 
 #include "../ops.h"
 #include "acp-dsp-offset.h"
@@ -173,10 +174,31 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	adata = sdev->pdata->hw_pdata;
 
-	if (adata->quirks && adata->quirks->signed_fw_image)
+	if (adata->pci_rev >= ACP7B_PCI_ID) {
+		if (adata->acp_sof_signed_firmware_image) {
+			if (adata->fw_bin_size <= ACP_IMAGE_HEADER_SIZE) {
+				dev_err(sdev->dev, "Invalid signed firmware size %u\n",
+					adata->fw_bin_size);
+				return -EINVAL;
+			}
+			size_fw = get_unaligned_le32(adata->bin_buf +
+						     ACP_IMAGE_HDR_SIZE_FW_SIGNED_OFF);
+			if (!size_fw ||
+			    size_fw > adata->fw_bin_size - ACP_IMAGE_HEADER_SIZE) {
+				dev_err(sdev->dev,
+					"Invalid signed firmware payload size %u (max %u)\n",
+					size_fw, adata->fw_bin_size - ACP_IMAGE_HEADER_SIZE);
+				return -EINVAL;
+			}
+			size_fw += ACP_IMAGE_HEADER_SIZE;
+		} else {
+			size_fw = adata->fw_bin_size;
+		}
+	} else if (adata->quirks && adata->quirks->signed_fw_image) {
 		size_fw = adata->fw_bin_size - ACP_FIRMWARE_SIGNATURE;
-	else
+	} else {
 		size_fw = adata->fw_bin_size;
+	}
 
 	page_count = PAGE_ALIGN(size_fw) >> PAGE_SHIFT;
 	adata->fw_bin_page_count = page_count;
@@ -312,9 +334,14 @@ int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
 	}
 	kfree(fw_filename);
 
-	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_DRAM, 0,
-				      (void *)adata->fw_dbin->data,
-				      adata->fw_dbin->size);
+	if (adata->pci_rev >= ACP7B_PCI_ID)
+		ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_SRAM, 0,
+					      (void *)adata->fw_dbin->data,
+					      adata->fw_dbin->size);
+	else
+		ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_DRAM, 0,
+					      (void *)adata->fw_dbin->data,
+					      adata->fw_dbin->size);
 	return ret;
 }
 EXPORT_SYMBOL_NS(acp_sof_load_signed_firmware, "SND_SOC_SOF_AMD_COMMON");

@@ -32,11 +32,20 @@ static void acpbus_trigger_host_to_dsp_swintr(struct acp_dev_data *adata)
 	struct snd_sof_dev *sdev = adata->dev;
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	u32 swintr_trigger;
+	unsigned int swintr_trigger_reg_offset;
 
+	switch (adata->pci_rev) {
+	case ACP7B_PCI_ID:
+	case ACP7F_PCI_ID:
+		swintr_trigger_reg_offset = ACP7X_DSP_SW_INTR_TRIG_OFFSET;
+		break;
+	default:
+		swintr_trigger_reg_offset = DSP_SW_INTR_TRIG_OFFSET;
+	}
 	swintr_trigger = snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->dsp_intr_base +
-						DSP_SW_INTR_TRIG_OFFSET);
+						swintr_trigger_reg_offset);
 	swintr_trigger |= 0x01;
-	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->dsp_intr_base + DSP_SW_INTR_TRIG_OFFSET,
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, desc->dsp_intr_base + swintr_trigger_reg_offset,
 			  swintr_trigger);
 }
 

@@ -916,10 +916,23 @@ static int rt712_sdca_dmic_dev_resume(struct device *dev)
 	}
 
 	regcache_cache_only(rt712->regmap, false);
-	regcache_sync(rt712->regmap);
+	ret = regcache_sync(rt712->regmap);
+	if (ret)
+		goto err_sync;
+
 	regcache_cache_only(rt712->mbq_regmap, false);
-	regcache_sync(rt712->mbq_regmap);
+	ret = regcache_sync(rt712->mbq_regmap);
+	if (ret)
+		goto err_sync;
+
 	return 0;
+
+err_sync:
+	regcache_cache_only(rt712->regmap, true);
+	regcache_cache_only(rt712->mbq_regmap, true);
+	regcache_mark_dirty(rt712->regmap);
+	regcache_mark_dirty(rt712->mbq_regmap);
+	return ret;
 }
 
 static const struct dev_pm_ops rt712_sdca_dmic_pm = {

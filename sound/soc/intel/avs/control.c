@@ -27,7 +27,7 @@ static struct avs_path_module *avs_get_volume_module(struct avs_dev *adev, u32 i
 	struct avs_path_pipeline *ppl;
 	struct avs_path_module *mod;
 
-	spin_lock(&adev->path_list_lock);
+	guard(spinlock)(&adev->path_list_lock);
 	list_for_each_entry(path, &adev->path_list, node) {
 		list_for_each_entry(ppl, &path->ppl_list, node) {
 			list_for_each_entry(mod, &ppl->mod_list, node) {
@@ -35,14 +35,11 @@ static struct avs_path_module *avs_get_volume_module(struct avs_dev *adev, u32 i
 
 				if ((guid_equal(type, &AVS_PEAKVOL_MOD_UUID) ||
 				     guid_equal(type, &AVS_GAIN_MOD_UUID)) &&
-				    mod->template->ctl_id == id) {
-					spin_unlock(&adev->path_list_lock);
+				    mod->template->ctl_id == id)
 					return mod;
-				}
 			}
 		}
 	}
-	spin_unlock(&adev->path_list_lock);
 
 	return NULL;
 }

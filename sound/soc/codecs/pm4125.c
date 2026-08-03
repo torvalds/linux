@@ -5,6 +5,7 @@
 #include <linux/component.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -1295,7 +1296,7 @@ static const struct irq_domain_ops pm4125_domain_ops = {
 
 static int pm4125_irq_init(struct pm4125_priv *pm4125, struct device *dev)
 {
-	pm4125->virq = irq_domain_add_linear(NULL, 1, &pm4125_domain_ops, NULL);
+	pm4125->virq = irq_domain_create_linear(NULL, 1, &pm4125_domain_ops, NULL);
 	if (!(pm4125->virq)) {
 		dev_err(dev, "%s: Failed to add IRQ domain\n", __func__);
 		return -EINVAL;

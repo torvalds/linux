@@ -952,11 +952,17 @@ static int max98390_suspend(struct device *dev)
 static int max98390_resume(struct device *dev)
 {
 	struct max98390_priv *max98390 = dev_get_drvdata(dev);
+	int ret;
 
 	dev_dbg(dev, "%s:Enter\n", __func__);
 
 	regcache_cache_only(max98390->regmap, false);
-	regcache_sync(max98390->regmap);
+	ret = regcache_sync(max98390->regmap);
+	if (ret) {
+		regcache_cache_only(max98390->regmap, true);
+		regcache_mark_dirty(max98390->regmap);
+		return ret;
+	}
 
 	return 0;
 }

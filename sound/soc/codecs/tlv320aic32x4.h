@@ -3,7 +3,6 @@
  * tlv320aic32x4.h
  */
 
-
 #ifndef _TLV320AIC32X4_H
 #define _TLV320AIC32X4_H
 
@@ -16,7 +15,7 @@ enum aic32x4_type {
 	AIC32X4_TYPE_TAS2505,
 };
 
-extern const struct regmap_config aic32x4_regmap_config;
+extern const struct regmap_range_cfg aic32x4_regmap_pages[];
 int aic32x4_probe(struct device *dev, struct regmap *regmap,
 		  enum aic32x4_type type);
 void aic32x4_remove(struct device *dev);
@@ -24,7 +23,7 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 
 /* tlv320aic32x4 register space (in decimal to match datasheet) */
 
-#define AIC32X4_REG(page, reg)	((page * 128) + reg)
+#define AIC32X4_REG(page, reg)	(((page) * 128) + (reg))
 
 #define	AIC32X4_PSEL		AIC32X4_REG(0, 0)
 
@@ -233,5 +232,32 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name);
 #define AIC32X4_MIN_DOSR_FREQ		2800000
 #define AIC32X4_MAX_CODEC_CLKIN_FREQ    110000000
 #define AIC32X4_MAX_PLL_CLKIN		20000000
+
+#define AIC32X4_PWR_MICBIAS_2075_LDOIN		0x00000001
+#define AIC32X4_PWR_AVDD_DVDD_WEAK_DISABLE	0x00000002
+#define AIC32X4_PWR_AIC32X4_LDO_ENABLE		0x00000004
+#define AIC32X4_PWR_CMMODE_LDOIN_RANGE_18_36	0x00000008
+#define AIC32X4_PWR_CMMODE_HP_LDOIN_POWERED	0x00000010
+
+#define AIC32X4_MICPGA_ROUTE_LMIC_IN2R_10K	0x00000001
+#define AIC32X4_MICPGA_ROUTE_RMIC_IN1L_10K	0x00000002
+
+/* GPIO API */
+#define AIC32X4_MFPX_DEFAULT_VALUE	0xff
+
+#define AIC32X4_MFP1_DIN_DISABLED	0
+#define AIC32X4_MFP1_DIN_ENABLED	0x2
+#define AIC32X4_MFP1_GPIO_IN		0x4
+
+#define AIC32X4_MFP2_GPIO_OUT_LOW	0x0
+#define AIC32X4_MFP2_GPIO_OUT_HIGH	0x1
+
+#define AIC32X4_MFP_GPIO_ENABLED	0x4
+
+#define AIC32X4_MFP5_GPIO_DISABLED	0x0
+#define AIC32X4_MFP5_GPIO_INPUT		0x8
+#define AIC32X4_MFP5_GPIO_OUTPUT	0xc
+#define AIC32X4_MFP5_GPIO_OUT_LOW	0x0
+#define AIC32X4_MFP5_GPIO_OUT_HIGH	0x1
 
 #endif				/* _TLV320AIC32X4_H */

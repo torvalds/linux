@@ -8,6 +8,7 @@
 #include <dt-bindings/sound/samsung-i2s.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
@@ -512,7 +513,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 	u32 mod, mask, val = 0;
 	int ret = 0;
 
-	pm_runtime_get_sync(dai->dev);
+	guard(pm_runtime_active)(dai->dev);
 
 	scoped_guard(spinlock_irqsave, &priv->lock)
 		mod = readl(priv->addr + I2SMOD);
@@ -537,8 +538,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 					&& (mod & cdcon_mask))))) {
 			dev_err(&i2s->pdev->dev,
 				"%s:%d Other DAI busy\n", __func__, __LINE__);
-			ret = -EAGAIN;
-			goto err;
+			return -EAGAIN;
 		}
 
 		if (dir == SND_SOC_CLOCK_IN)
@@ -566,7 +566,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 				} else {
 					priv->rclk_srcrate =
 						clk_get_rate(priv->op_clk);
-					goto done;
+					return 0;
 				}
 			}
 
@@ -580,14 +580,14 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 			if (WARN_ON(IS_ERR(priv->op_clk))) {
 				ret = PTR_ERR(priv->op_clk);
 				priv->op_clk = NULL;
-				goto err;
+				return ret;
 			}
 
 			ret = clk_prepare_enable(priv->op_clk);
 			if (ret) {
 				clk_put(priv->op_clk);
 				priv->op_clk = NULL;
-				goto err;
+				return ret;
 			}
 			priv->rclk_srcrate = clk_get_rate(priv->op_clk);
 
@@ -595,11 +595,10 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 				|| (clk_id && !(mod & rsrc_mask))) {
 			dev_err(&i2s->pdev->dev,
 				"%s:%d Other DAI busy\n", __func__, __LINE__);
-			ret = -EAGAIN;
-			goto err;
+			return -EAGAIN;
 		} else {
 			/* Call can't be on the active DAI */
-			goto done;
+			return 0;
 		}
 
 		if (clk_id == 1)
@@ -607,8 +606,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "We don't serve that!\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	scoped_guard(spinlock_irqsave, &priv->lock) {
@@ -616,13 +614,8 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id, unsigned int rfs,
 		mod = (mod & ~mask) | val;
 		writel(mod, priv->addr + I2SMOD);
 	}
-done:
-	pm_runtime_put(dai->dev);
 
 	return 0;
-err:
-	pm_runtime_put(dai->dev);
-	return ret;
 }
 
 static int i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -1448,10 +1441,10 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 	regs_base = res->start;
 
 	priv->clk = devm_clk_get(&pdev->dev, "iis");
-	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "Failed to get iis clock\n");
-		return PTR_ERR(priv->clk);
-	}
+	if (IS_ERR(priv->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(priv->clk),
+				     "Failed to get iis clock\n");
+
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret != 0) {
@@ -1682,7 +1675,7 @@ static const struct platform_device_id samsung_i2s_driver_ids[] = {
 		.name           = "samsung-i2s",
 		.driver_data	= (kernel_ulong_t)&i2sv3_dai_type,
 	},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, samsung_i2s_driver_ids);
 

@@ -1073,12 +1073,18 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 			 * settings to make sure recording properly.
 			 */
 			if (rt5514->dsp_enabled) {
-				rt5514->dsp_enabled = 0;
-				regmap_multi_reg_write(rt5514->i2c_regmap,
-					rt5514_i2c_patch,
-					ARRAY_SIZE(rt5514_i2c_patch));
+				ret = regmap_multi_reg_write(rt5514->i2c_regmap,
+							     rt5514_i2c_patch,
+							     ARRAY_SIZE(rt5514_i2c_patch));
+				if (ret)
+					return ret;
+
 				regcache_mark_dirty(rt5514->regmap);
-				regcache_sync(rt5514->regmap);
+				ret = regcache_sync(rt5514->regmap);
+				if (ret)
+					return ret;
+
+				rt5514->dsp_enabled = 0;
 			}
 		}
 		break;

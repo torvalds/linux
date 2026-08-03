@@ -7,7 +7,7 @@ config SND_SOC_MEDIATEK
 
 config SND_SOC_MT2701
 	tristate "ASoC support for Mediatek MT2701 chip"
-	depends on ARCH_MEDIATEK
+	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select SND_SOC_MEDIATEK
 	help
 	  This adds ASoC driver for Mediatek MT2701 boards

@@ -309,7 +309,7 @@ static const struct sof_dai_types sof_dais[] = {
 	{"ACPHS_VIRTUAL", SOF_DAI_AMD_HS_VIRTUAL},
 	{"MICFIL", SOF_DAI_IMX_MICFIL},
 	{"ACP_SDW", SOF_DAI_AMD_SDW},
-
+	{"ACPTDM", SOF_DAI_AMD_I2S},
 };
 
 static enum sof_ipc_dai_type find_dai(const char *name)
@@ -1102,7 +1102,7 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 
 	full = NULL;
 	partial = NULL;
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		/* does stream match DAI link ? */
 		if (rtd->dai_link->stream_name) {
 			if (!strcmp(rtd->dai_link->stream_name, w->sname)) {
@@ -1167,7 +1167,7 @@ static void sof_disconnect_dai_widget(struct snd_soc_component *scomp,
 	else
 		return;
 
-	list_for_each_entry(rtd, &card->rtd_list, list) {
+	for_each_card_rtds(card, rtd) {
 		/* does stream match DAI link ? */
 		if (!rtd->dai_link->stream_name ||
 		    !strstr(rtd->dai_link->stream_name, sname))
@@ -1943,8 +1943,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 			       private->array, le32_to_cpu(private->size));
 	if (ret < 0) {
 		dev_err(scomp->dev, "Failed tp parse common DAI link tokens\n");
-		kfree(slink);
-		return ret;
+		goto free_slink;
 	}
 
 	token_list = tplg_ops ? tplg_ops->token_list : NULL;
@@ -1995,6 +1994,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	case SOF_DAI_AMD_HS:
 	case SOF_DAI_AMD_SP_VIRTUAL:
 	case SOF_DAI_AMD_HS_VIRTUAL:
+	case SOF_DAI_AMD_I2S:
 		token_id = SOF_ACPI2S_TOKENS;
 		num_tuples += token_list[SOF_ACPI2S_TOKENS].count;
 		break;
@@ -2013,8 +2013,8 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	/* allocate memory for tuples array */
 	slink->tuples = kzalloc_objs(*slink->tuples, num_tuples);
 	if (!slink->tuples) {
-		kfree(slink);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_slink;
 	}
 
 	if (token_list[SOF_DAI_LINK_TOKENS].tokens) {
@@ -2070,6 +2070,7 @@ out:
 
 err:
 	kfree(slink->tuples);
+free_slink:
 	kfree(slink);
 
 	return ret;

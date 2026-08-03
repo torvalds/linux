@@ -185,17 +185,15 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(drv_data->base);
 
 	ret = of_property_read_u32(node, "xlnx,num-channels", &drv_data->channels);
-	if (ret < 0) {
-		dev_err(dev, "cannot get supported channels\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "cannot get supported channels\n");
+
 	drv_data->channels *= 2;
 
 	ret = of_property_read_u32(node, "xlnx,dwidth", &drv_data->data_width);
-	if (ret < 0) {
-		dev_err(dev, "cannot get data width\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "cannot get data width\n");
+
 	switch (drv_data->data_width) {
 	case 16:
 		format = SNDRV_PCM_FMTBIT_S16_LE;
@@ -233,10 +231,8 @@ static int xlnx_i2s_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &xlnx_i2s_component,
 					      &drv_data->dai_drv, 1);
-	if (ret) {
-		dev_err(&pdev->dev, "i2s component registration failed\n");
+	if (ret)
 		return ret;
-	}
 
 	dev_info(&pdev->dev, "%s DAI registered\n", drv_data->dai_drv.name);
 

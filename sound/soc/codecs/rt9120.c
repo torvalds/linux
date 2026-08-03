@@ -606,12 +606,19 @@ static int rt9120_runtime_suspend(struct device *dev)
 static int rt9120_runtime_resume(struct device *dev)
 {
 	struct rt9120_data *data = dev_get_drvdata(dev);
+	int ret;
 
 	if (data->pwdnn_gpio) {
 		gpiod_set_value(data->pwdnn_gpio, 1);
 		msleep(RT9120_CHIPON_WAITMS);
 		regcache_cache_only(data->regmap, false);
-		regcache_sync(data->regmap);
+		ret = regcache_sync(data->regmap);
+		if (ret) {
+			regcache_cache_only(data->regmap, true);
+			regcache_mark_dirty(data->regmap);
+			gpiod_set_value(data->pwdnn_gpio, 0);
+			return ret;
+		}
 	}
 
 	return 0;

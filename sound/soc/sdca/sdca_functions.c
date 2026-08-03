@@ -1619,7 +1619,7 @@ static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
-static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *function,
+struct sdca_entity *sdca_find_entity_by_label(struct sdca_function_data *function,
 						     const char *entity_label)
 {
 	struct sdca_entity *entity = NULL;
@@ -1648,6 +1648,7 @@ static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *
 
 	return NULL;
 }
+EXPORT_SYMBOL_NS(sdca_find_entity_by_label, "SND_SOC_SDCA");
 
 static struct sdca_entity *find_sdca_entity_by_id(struct sdca_function_data *function,
 						  const int id)
@@ -1688,7 +1689,7 @@ static int find_sdca_entity_connection_iot(struct device *dev,
 		return ret;
 	}
 
-	clock_entity = find_sdca_entity_by_label(function, clock_label);
+	clock_entity = sdca_find_entity_by_label(function, clock_label);
 	if (!clock_entity) {
 		dev_err(dev, "%s: failed to find clock with label %s\n",
 			entity->label, clock_label);
@@ -1873,7 +1874,7 @@ static int find_sdca_entity_connection(struct device *dev,
 			return ret;
 		}
 
-		connected_entity = find_sdca_entity_by_label(function, connected_label);
+		connected_entity = sdca_find_entity_by_label(function, connected_label);
 		if (!connected_entity) {
 			dev_err(dev, "%s: failed to find entity with label %s\n",
 				entity->label, connected_label);

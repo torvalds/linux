@@ -756,7 +756,12 @@ static int rt1316_dev_resume(struct device *dev)
 	}
 
 	regcache_cache_only(rt1316->regmap, false);
-	regcache_sync(rt1316->regmap);
+	ret = regcache_sync(rt1316->regmap);
+	if (ret) {
+		regcache_cache_only(rt1316->regmap, true);
+		regcache_mark_dirty(rt1316->regmap);
+		return ret;
+	}
 
 	return 0;
 }

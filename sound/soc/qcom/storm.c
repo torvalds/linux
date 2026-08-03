@@ -64,21 +64,21 @@ static struct snd_soc_dai_link storm_dai_link = {
 	SND_SOC_DAILINK_REG(hifi),
 };
 
-static int storm_parse_of(struct snd_soc_card *card)
+static int storm_parse_of(struct device *dev)
 {
-	struct snd_soc_dai_link *dai_link = card->dai_link;
-	struct device_node *np = card->dev->of_node;
+	struct snd_soc_dai_link *dai_link = &storm_dai_link;
+	struct device_node *np = dev->of_node;
 
 	dai_link->cpus->of_node = of_parse_phandle(np, "cpu", 0);
 	if (!dai_link->cpus->of_node) {
-		dev_err(card->dev, "error getting cpu phandle\n");
+		dev_err(dev, "error getting cpu phandle\n");
 		return -EINVAL;
 	}
 	dai_link->platforms->of_node = dai_link->cpus->of_node;
 
 	dai_link->codecs->of_node = of_parse_phandle(np, "codec", 0);
 	if (!dai_link->codecs->of_node) {
-		dev_err(card->dev, "error getting codec phandle\n");
+		dev_err(dev, "error getting codec phandle\n");
 		return -EINVAL;
 	}
 
@@ -106,7 +106,7 @@ static int storm_platform_probe(struct platform_device *pdev)
 	card->dai_link	= &storm_dai_link;
 	card->num_links	= 1;
 
-	ret = storm_parse_of(card);
+	ret = storm_parse_of(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "error resolving dai links: %d\n", ret);
 		return ret;

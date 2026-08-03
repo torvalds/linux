@@ -1231,7 +1231,7 @@ static u64 width_find_mask(unsigned int bits)
 	}
 }
 
-static int populate_rate_format(struct device *dev,
+int sdca_asoc_populate_rate_format(struct device *dev,
 				struct sdca_function_data *function,
 				struct sdca_entity *entity,
 				struct snd_soc_pcm_stream *stream)
@@ -1292,6 +1292,7 @@ static int populate_rate_format(struct device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(sdca_asoc_populate_rate_format, "SND_SOC_SDCA");
 
 /**
  * sdca_asoc_populate_dais - fill in an array of DAI drivers for a Function
@@ -1344,7 +1345,7 @@ int sdca_asoc_populate_dais(struct device *dev, struct sdca_function_data *funct
 		stream->channels_min = 1;
 		stream->channels_max = SDCA_MAX_CHANNEL_COUNT;
 
-		ret = populate_rate_format(dev, function, entity, stream);
+		ret = sdca_asoc_populate_rate_format(dev, function, entity, stream);
 		if (ret)
 			return ret;
 

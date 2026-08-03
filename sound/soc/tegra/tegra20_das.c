@@ -167,10 +167,9 @@ static int tegra20_das_probe(struct platform_device *pdev)
 
 	das->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 					    &tegra20_das_regmap_config);
-	if (IS_ERR(das->regmap)) {
-		dev_err(&pdev->dev, "regmap init failed\n");
-		return PTR_ERR(das->regmap);
-	}
+	if (IS_ERR(das->regmap))
+		return dev_err_probe(&pdev->dev, PTR_ERR(das->regmap),
+				     "regmap init failed\n");
 
 	tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_1,
 				       TEGRA20_DAS_DAP_SEL_DAC1);

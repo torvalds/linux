@@ -188,7 +188,7 @@ static int hda_link_dma_hw_params(struct snd_pcm_substream *substream,
 
 	if (!hext_stream) {
 		if (ops->assign_hext_stream)
-			hext_stream = ops->assign_hext_stream(sdev, cpu_dai, substream);
+			hext_stream = ops->assign_hext_stream(sdev, cpu_dai, substream, hlink);
 	}
 
 	if (!hext_stream)

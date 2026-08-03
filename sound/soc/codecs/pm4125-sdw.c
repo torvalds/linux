@@ -464,10 +464,16 @@ static int __maybe_unused pm4125_sdw_runtime_suspend(struct device *dev)
 static int __maybe_unused pm4125_sdw_runtime_resume(struct device *dev)
 {
 	struct pm4125_sdw_priv *priv = dev_get_drvdata(dev);
+	int ret;
 
 	if (priv->regmap) {
 		regcache_cache_only(priv->regmap, false);
-		regcache_sync(priv->regmap);
+		ret = regcache_sync(priv->regmap);
+		if (ret) {
+			regcache_cache_only(priv->regmap, true);
+			regcache_mark_dirty(priv->regmap);
+			return ret;
+		}
 	}
 
 	return 0;

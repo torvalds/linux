@@ -340,7 +340,13 @@ static int cs4349_runtime_resume(struct device *dev)
 	gpiod_set_value_cansleep(cs4349->reset_gpio, 1);
 
 	regcache_cache_only(cs4349->regmap, false);
-	regcache_sync(cs4349->regmap);
+	ret = regcache_sync(cs4349->regmap);
+	if (ret) {
+		regcache_cache_only(cs4349->regmap, true);
+		regcache_mark_dirty(cs4349->regmap);
+		gpiod_set_value_cansleep(cs4349->reset_gpio, 0);
+		return ret;
+	}
 
 	return 0;
 }

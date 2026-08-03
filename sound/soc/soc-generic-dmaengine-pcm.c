@@ -3,6 +3,7 @@
 //  Copyright (C) 2013, Analog Devices Inc.
 //	Author: Lars-Peter Clausen <lars@metafoo.de>
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dmaengine.h>
@@ -395,6 +396,27 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			 */
 			if (PTR_ERR(chan) == -EPROBE_DEFER)
 				return -EPROBE_DEFER;
+
+			bool has_fw_node = dev->of_node || is_acpi_device_node(dev->fwnode);
+			bool name_exists_in_fw = false;
+
+			if (has_fw_node)
+				name_exists_in_fw = device_property_match_string(dev,
+										 "dma-names",
+										 name) >= 0;
+
+			if (has_fw_node && name_exists_in_fw)
+				dev_warn(dev, "DTS/ACPI DMA channel '%s' request failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
+			if (has_fw_node && !name_exists_in_fw)
+				dev_warn(dev, "DTS/ACPI name '%s' not found, legacy failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
+			if (!has_fw_node)
+				dev_warn(dev, "Legacy DMA channel '%s' request failed (%ld)\n",
+					 name, PTR_ERR(chan));
+
 			pcm->chan[i] = NULL;
 		} else {
 			pcm->chan[i] = chan;
@@ -405,6 +427,12 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 
 	if (pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX)
 		pcm->chan[1] = pcm->chan[0];
+
+	if (!pcm->chan[0] &&
+	    !pcm->chan[1]) {
+		dev_err(dev, "no DMA channel found for either playback or capture\n");
+		return -ENODEV;
+	}
 
 	return 0;
 }

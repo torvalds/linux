@@ -1303,11 +1303,11 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 			  struct graph2_custom_hooks *hooks)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
-	int ret;
+	int ret = -ENOMEM;
 
 	struct link_info *li __free(kfree) = kzalloc_obj(*li);
 	if (!li)
-		return -ENOMEM;
+		goto end;
 
 	card->probe	= graph_util_card_probe;
 	card->owner	= THIS_MODULE;
@@ -1316,31 +1316,35 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 	if ((hooks) && (hooks)->hook_pre) {
 		ret = (hooks)->hook_pre(priv);
 		if (ret < 0)
-			goto err;
+			goto end;
 	}
 
 	ret = graph_for_each_link(priv, hooks, li, graph_count);
 	if (!li->link)
 		ret = -EINVAL;
 	if (ret < 0)
-		goto err;
+		goto end;
 
 	ret = simple_util_init_priv(priv, li);
 	if (ret < 0)
-		goto err;
+		goto end;
 
 	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->pa_gpio)) {
 		ret = PTR_ERR(priv->pa_gpio);
 		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
-		goto err;
+		goto end;
 	}
 
-	ret = simple_util_parse_widgets(card, NULL);
+	ret = simple_util_parse_widgets(priv, NULL);
 	if (ret < 0)
-		goto err;
+		goto end;
 
-	ret = simple_util_parse_routing(card, NULL);
+	ret = simple_util_parse_routing(priv, NULL);
+	if (ret < 0)
+		goto end;
+
+	ret = simple_util_parse_aux_devs(priv, NULL);
 	if (ret < 0)
 		goto err;
 
@@ -1349,6 +1353,7 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 	if (ret < 0)
 		goto err;
 
+	/* Card name should be set after graph_for_each_link() */
 	ret = simple_util_parse_card_name(priv, NULL);
 	if (ret < 0)
 		goto err;
@@ -1363,15 +1368,13 @@ int audio_graph2_parse_of(struct simple_util_priv *priv, struct device *dev,
 
 	simple_util_debug_info(priv);
 
-	ret = snd_soc_of_parse_aux_devs(card, "aux-devs");
-	if (ret < 0)
-		goto err;
-
 	ret = devm_snd_soc_register_card(dev, card);
 err:
-	if (ret < 0)
-		dev_err_probe(dev, ret, "parse error\n");
-
+	if (ret < 0) {
+		simple_util_clean_reference(priv);
+		return dev_err_probe(dev, ret, "parse error\n");
+	}
+end:
 	return graph_ret(priv, ret);
 }
 EXPORT_SYMBOL_GPL(audio_graph2_parse_of);

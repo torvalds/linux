@@ -52,7 +52,7 @@ struct spacemit_i2s_dev {
 
 	struct clk *sysclk;
 	struct clk *bclk;
-	struct clk *sspa_clk;
+	struct clk *func_clk;
 	struct clk *sysclk_div;
 	struct clk *c_sysclk;
 	struct clk *c_bclk;
@@ -221,7 +221,7 @@ static int spacemit_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	return clk_set_rate(i2s->sspa_clk, bclk_rate);
+	return clk_set_rate(i2s->func_clk, bclk_rate);
 }
 
 static int spacemit_i2s_set_sysclk(struct snd_soc_dai *cpu_dai, int clk_id,
@@ -335,6 +335,11 @@ static int spacemit_i2s_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const u64 spacemit_i2s_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B;
+
 static const struct snd_soc_dai_ops spacemit_i2s_dai_ops = {
 	.probe = spacemit_i2s_dai_probe,
 	.remove = spacemit_i2s_dai_remove,
@@ -343,6 +348,8 @@ static const struct snd_soc_dai_ops spacemit_i2s_dai_ops = {
 	.set_sysclk = spacemit_i2s_set_sysclk,
 	.set_fmt = spacemit_i2s_set_fmt,
 	.trigger = spacemit_i2s_trigger,
+	.auto_selectable_formats = &spacemit_i2s_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver spacemit_i2s_dai = {
@@ -445,14 +452,14 @@ static int spacemit_i2s_probe(struct platform_device *pdev)
 	if (IS_ERR(i2s->bclk))
 		return dev_err_probe(i2s->dev, PTR_ERR(i2s->bclk), "failed to enable bit clock\n");
 
-	clk = devm_clk_get_enabled(i2s->dev, "sspa_bus");
+	clk = devm_clk_get_enabled(i2s->dev, "bus");
 	if (IS_ERR(clk))
-		return dev_err_probe(i2s->dev, PTR_ERR(clk), "failed to enable sspa_bus clock\n");
+		return dev_err_probe(i2s->dev, PTR_ERR(clk), "failed to enable bus clock\n");
 
-	i2s->sspa_clk = devm_clk_get_enabled(i2s->dev, "sspa");
-	if (IS_ERR(i2s->sspa_clk))
-		return dev_err_probe(i2s->dev, PTR_ERR(i2s->sspa_clk),
-				     "failed to enable sspa clock\n");
+	i2s->func_clk = devm_clk_get_enabled(i2s->dev, "func");
+	if (IS_ERR(i2s->func_clk))
+		return dev_err_probe(i2s->dev, PTR_ERR(i2s->func_clk),
+				     "failed to enable func clock\n");
 
 	i2s->sysclk_div = devm_clk_get_optional_enabled(i2s->dev, "sysclk_div");
 	if (IS_ERR(i2s->sysclk_div))

@@ -6,6 +6,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
@@ -614,6 +615,7 @@ static int tx_macro_mclk_enable(struct tx_macro *tx,
 				bool mclk_enable)
 {
 	struct regmap *regmap = tx->regmap;
+	int ret;
 
 	if (mclk_enable) {
 		if (tx->tx_mclk_users == 0) {
@@ -626,7 +628,9 @@ static int tx_macro_mclk_enable(struct tx_macro *tx,
 					   CDC_TX_FS_CNT_EN_MASK,
 					   CDC_TX_FS_CNT_ENABLE);
 			regcache_mark_dirty(regmap);
-			regcache_sync(regmap);
+			ret = regcache_sync(regmap);
+			if (ret)
+				return ret;
 		}
 		tx->tx_mclk_users++;
 	} else {
@@ -739,11 +743,9 @@ static int tx_macro_mclk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		tx_macro_mclk_enable(tx, true);
-		break;
+		return tx_macro_mclk_enable(tx, true);
 	case SND_SOC_DAPM_POST_PMD:
-		tx_macro_mclk_enable(tx, false);
-		break;
+		return tx_macro_mclk_enable(tx, false);
 	default:
 		break;
 	}
@@ -2149,17 +2151,20 @@ static int swclk_gate_enable(struct clk_hw *hw)
 	struct regmap *regmap = tx->regmap;
 	int ret;
 
-	ret = clk_prepare_enable(tx->mclk);
+	ret = pm_runtime_resume_and_get(tx->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = tx_macro_mclk_enable(tx, true);
 	if (ret) {
-		dev_err(tx->dev, "failed to enable mclk\n");
+		pm_runtime_put_autosuspend(tx->dev);
 		return ret;
 	}
-
-	tx_macro_mclk_enable(tx, true);
 
 	regmap_update_bits(regmap, CDC_TX_CLK_RST_CTRL_SWR_CONTROL,
 			   CDC_TX_SWR_CLK_EN_MASK,
 			   CDC_TX_SWR_CLK_ENABLE);
+
 	return 0;
 }
 
@@ -2172,7 +2177,7 @@ static void swclk_gate_disable(struct clk_hw *hw)
 			   CDC_TX_SWR_CLK_EN_MASK, 0x0);
 
 	tx_macro_mclk_enable(tx, false);
-	clk_disable_unprepare(tx->mclk);
+	pm_runtime_put_autosuspend(tx->dev);
 }
 
 static int swclk_gate_is_enabled(struct clk_hw *hw)
@@ -2315,28 +2320,31 @@ static int tx_macro_probe(struct platform_device *pdev)
 	tx->active_decimator[TX_MACRO_AIF3_CAP] = -1;
 
 	/* set MCLK and NPL rates */
-	clk_set_rate(tx->mclk, MCLK_FREQ);
-	clk_set_rate(tx->npl, MCLK_FREQ);
-
-	ret = clk_prepare_enable(tx->macro);
+	ret = clk_set_rate(tx->mclk, MCLK_FREQ);
 	if (ret)
 		goto err;
 
-	ret = clk_prepare_enable(tx->dcodec);
+	ret = clk_set_rate(tx->npl, MCLK_FREQ);
 	if (ret)
-		goto err_dcodec;
+		goto err;
 
-	ret = clk_prepare_enable(tx->mclk);
+	ret = devm_pm_clk_create(dev);
 	if (ret)
-		goto err_mclk;
+		goto err;
 
-	ret = clk_prepare_enable(tx->npl);
-	if (ret)
-		goto err_npl;
+	ret = of_pm_clk_add_clks(dev);
+	if (ret < 0)
+		goto err;
 
-	ret = clk_prepare_enable(tx->fsgen);
+	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_use_autosuspend(dev);
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		goto err_fsgen;
+		goto err;
+
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		goto err;
 
 
 	/* reset soundwire block */
@@ -2356,30 +2364,21 @@ static int tx_macro_probe(struct platform_device *pdev)
 					      tx_macro_dai,
 					      ARRAY_SIZE(tx_macro_dai));
 	if (ret)
-		goto err_clkout;
-
-	pm_runtime_set_autosuspend_delay(dev, 3000);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_mark_last_busy(dev);
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
+		goto err_rpm_put;
 
 	ret = tx_macro_register_mclk_output(tx);
 	if (ret)
-		goto err_clkout;
+		goto err_rpm_put;
+
+	ret = pm_runtime_put_autosuspend(dev);
+	if (ret < 0)
+		dev_warn(dev, "runtime PM put failed after probe: %d\n", ret);
 
 	return 0;
 
-err_clkout:
-	clk_disable_unprepare(tx->fsgen);
-err_fsgen:
-	clk_disable_unprepare(tx->npl);
-err_npl:
-	clk_disable_unprepare(tx->mclk);
-err_mclk:
-	clk_disable_unprepare(tx->dcodec);
-err_dcodec:
-	clk_disable_unprepare(tx->macro);
+err_rpm_put:
+	if (pm_runtime_put_sync_suspend(dev) < 0)
+		dev_warn(dev, "runtime PM sync suspend failed in probe unwind\n");
 err:
 	lpass_macro_pds_exit(tx->pds);
 
@@ -2390,25 +2389,23 @@ static void tx_macro_remove(struct platform_device *pdev)
 {
 	struct tx_macro *tx = dev_get_drvdata(&pdev->dev);
 
-	clk_disable_unprepare(tx->macro);
-	clk_disable_unprepare(tx->dcodec);
-	clk_disable_unprepare(tx->mclk);
-	clk_disable_unprepare(tx->npl);
-	clk_disable_unprepare(tx->fsgen);
-
 	lpass_macro_pds_exit(tx->pds);
 }
 
 static int tx_macro_runtime_suspend(struct device *dev)
 {
 	struct tx_macro *tx = dev_get_drvdata(dev);
+	int ret;
 
 	regcache_cache_only(tx->regmap, true);
-	regcache_mark_dirty(tx->regmap);
 
-	clk_disable_unprepare(tx->fsgen);
-	clk_disable_unprepare(tx->npl);
-	clk_disable_unprepare(tx->mclk);
+	ret = pm_clk_suspend(dev);
+	if (ret) {
+		regcache_cache_only(tx->regmap, false);
+		return ret;
+	}
+
+	regcache_mark_dirty(tx->regmap);
 
 	return 0;
 }
@@ -2418,34 +2415,23 @@ static int tx_macro_runtime_resume(struct device *dev)
 	struct tx_macro *tx = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(tx->mclk);
+	ret = pm_clk_resume(dev);
 	if (ret) {
-		dev_err(dev, "unable to prepare mclk\n");
+		regcache_cache_only(tx->regmap, true);
+		regcache_mark_dirty(tx->regmap);
 		return ret;
 	}
 
-	ret = clk_prepare_enable(tx->npl);
-	if (ret) {
-		dev_err(dev, "unable to prepare npl\n");
-		goto err_npl;
-	}
-
-	ret = clk_prepare_enable(tx->fsgen);
-	if (ret) {
-		dev_err(dev, "unable to prepare fsgen\n");
-		goto err_fsgen;
-	}
-
 	regcache_cache_only(tx->regmap, false);
-	regcache_sync(tx->regmap);
+	ret = regcache_sync(tx->regmap);
+	if (ret) {
+		regcache_cache_only(tx->regmap, true);
+		regcache_mark_dirty(tx->regmap);
+		pm_clk_suspend(dev);
+		return ret;
+	}
 
 	return 0;
-err_fsgen:
-	clk_disable_unprepare(tx->npl);
-err_npl:
-	clk_disable_unprepare(tx->mclk);
-
-	return ret;
 }
 
 static const struct dev_pm_ops tx_macro_pm_ops = {
