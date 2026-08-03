@@ -214,7 +214,9 @@ static int steelseries_battery_get_property(struct power_supply *psy,
 		if (!sd->headset_connected)
 			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 		else if (sd->battery_charging)
-			val->intval = POWER_SUPPLY_STATUS_CHARGING;
+			val->intval = sd->battery_capacity >= 100 ?
+				POWER_SUPPLY_STATUS_FULL :
+				POWER_SUPPLY_STATUS_CHARGING;
 		else
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
