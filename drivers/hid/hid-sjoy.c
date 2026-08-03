@@ -48,68 +48,56 @@ static int hid_sjoyff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int sjoyff_init(struct hid_device *hid)
+static int sjoy_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct sjoyff_device *sjoyff;
 	struct hid_report *report;
-	struct hid_input *hidinput;
 	struct list_head *report_list =
 			&hid->report_enum[HID_OUTPUT_REPORT].report_list;
-	struct list_head *report_ptr = report_list;
-	struct input_dev *dev;
+	struct input_dev *dev = hidinput->input;
 	int error;
 
-	if (list_empty(report_list)) {
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
+
+	report = list_first_entry_or_null(report_list, struct hid_report, list);
+	if (!report) {
 		hid_err(hid, "no output reports found\n");
 		return -ENODEV;
 	}
-
-	list_for_each_entry(hidinput, &hid->inputs, list) {
-		report_ptr = report_ptr->next;
-
-		if (report_ptr == report_list) {
-			hid_err(hid, "required output report is missing\n");
-			return -ENODEV;
-		}
-
-		report = list_entry(report_ptr, struct hid_report, list);
-		if (report->maxfield < 1) {
-			hid_err(hid, "no fields in the report\n");
-			return -ENODEV;
-		}
-
-		if (report->field[0]->report_count < 3) {
-			hid_err(hid, "not enough values in the field\n");
-			return -ENODEV;
-		}
-
-		sjoyff = kzalloc_obj(struct sjoyff_device);
-		if (!sjoyff)
-			return -ENOMEM;
-
-		dev = hidinput->input;
-
-		set_bit(FF_RUMBLE, dev->ffbit);
-
-		sjoyff->report = report;
-		sjoyff->report->field[0]->value[0] = 0x01;
-		sjoyff->report->field[0]->value[1] = 0x00;
-		sjoyff->report->field[0]->value[2] = 0x00;
-		hid_hw_request(hid, sjoyff->report, HID_REQ_SET_REPORT);
-
-		error = input_ff_create_memless(dev, sjoyff, hid_sjoyff_play);
-		if (error) {
-			kfree(sjoyff);
-			return error;
-		}
+	if (report->maxfield < 1) {
+		hid_err(hid, "no fields in the report\n");
+		return -ENODEV;
 	}
 
-	hid_info(hid, "Force feedback for SmartJoy PLUS PS2/USB adapter\n");
+	if (report->field[0]->report_count < 3) {
+		hid_err(hid, "not enough values in the field\n");
+		return -ENODEV;
+	}
+
+	sjoyff = kzalloc_obj(struct sjoyff_device);
+	if (!sjoyff)
+		return -ENOMEM;
+
+	set_bit(FF_RUMBLE, dev->ffbit);
+
+	sjoyff->report = report;
+	sjoyff->report->field[0]->value[0] = 0x01;
+	sjoyff->report->field[0]->value[1] = 0x00;
+	sjoyff->report->field[0]->value[2] = 0x00;
+	hid_hw_request(hid, sjoyff->report, HID_REQ_SET_REPORT);
+
+	error = input_ff_create_memless(dev, sjoyff, hid_sjoyff_play);
+	if (error) {
+		kfree(sjoyff);
+		return error;
+	}
 
 	return 0;
 }
 #else
-static inline int sjoyff_init(struct hid_device *hid)
+static inline int sjoy_input_configured(struct hid_device *hid,
+					struct hid_input *hidinput)
 {
 	return 0;
 }
@@ -124,20 +112,16 @@ static int sjoy_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "parse failed\n");
-		goto err;
+		return ret;
 	}
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
 		hid_err(hdev, "hw start failed\n");
-		goto err;
+		return ret;
 	}
 
-	sjoyff_init(hdev);
-
 	return 0;
-err:
-	return ret;
 }
 
 static const struct hid_device_id sjoy_devices[] = {
@@ -165,6 +149,7 @@ static struct hid_driver sjoy_driver = {
 	.name = "smartjoyplus",
 	.id_table = sjoy_devices,
 	.probe = sjoy_probe,
+	.input_configured = sjoy_input_configured,
 };
 module_hid_driver(sjoy_driver);
 
