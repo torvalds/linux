@@ -1162,25 +1162,34 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 			return -ENODEV;
 		}
 
+		/*
+		 * Only partial fields need the previous contents to preserve bits
+		 * outside the field. Keep serializing full-width writes because
+		 * another _CPC entry may share the access unit and require RMW.
+		 */
 		raw_spin_lock_irqsave(&cpc_desc->rmw_lock, flags);
-		switch (size) {
-		case 8:
-			prev_val = readb_relaxed(vaddr);
-			break;
-		case 16:
-			prev_val = readw_relaxed(vaddr);
-			break;
-		case 32:
-			prev_val = readl_relaxed(vaddr);
-			break;
-		case 64:
-			prev_val = readq_relaxed(vaddr);
-			break;
-		default:
-			raw_spin_unlock_irqrestore(&cpc_desc->rmw_lock, flags);
-			return -EFAULT;
+
+		if (reg->bit_offset || reg->bit_width != size) {
+			switch (size) {
+			case 8:
+				prev_val = readb_relaxed(vaddr);
+				break;
+			case 16:
+				prev_val = readw_relaxed(vaddr);
+				break;
+			case 32:
+				prev_val = readl_relaxed(vaddr);
+				break;
+			case 64:
+				prev_val = readq_relaxed(vaddr);
+				break;
+			default:
+				raw_spin_unlock_irqrestore(&cpc_desc->rmw_lock,
+							   flags);
+				return -EFAULT;
+			}
+			val = MASK_VAL_WRITE(reg, prev_val, val);
 		}
-		val = MASK_VAL_WRITE(reg, prev_val, val);
 	}
 
 	switch (size) {
