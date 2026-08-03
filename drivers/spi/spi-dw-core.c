@@ -348,6 +348,9 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	if (cfg->tmode == DW_SPI_CTRLR0_TMOD_EPROMREAD ||
 	    cfg->tmode == DW_SPI_CTRLR0_TMOD_RO)
 		dw_writel(dws, DW_SPI_CTRLR1, cfg->ndf ? cfg->ndf - 1 : 0);
+	else if (cfg->tmode == DW_SPI_CTRLR0_TMOD_TO &&
+		 dws->caps & DW_SPI_CAP_EMODE)
+		dw_writel(dws, DW_SPI_CTRLR1, cfg->ndf);
 
 	/* Note DW APB SSI clock divider doesn't support odd numbers */
 	clk_div = (DIV_ROUND_UP(dws->max_freq, cfg->freq) + 1) & 0xfffe;
