@@ -10160,6 +10160,27 @@ __bpf_kfunc struct task_struct *scx_bpf_tid_to_task(u64 tid)
 	return container_of(scx, struct task_struct, scx);
 }
 
+u64 __scx_bpf_now(struct rq *rq)
+{
+	/* the caller must be on @rq's cpu or hold its lock */
+	lockdep_assert((rq == this_rq() && !preemptible()) ||
+		       lockdep_is_held(__rq_lockp(rq)));
+
+	if (smp_load_acquire(&rq->scx.flags) & SCX_RQ_CLK_VALID) {
+		/* if the rq clock is valid, use the cached rq clock */
+		return READ_ONCE(rq->scx.clock);
+	} else {
+		/*
+		 * Otherwise, return a fresh rq clock.
+		 *
+		 * The rq clock is updated outside of the rq lock.
+		 * In this case, keep the updated rq clock invalid so the next
+		 * read outside the rq lock gets a fresh rq clock.
+		 */
+		return sched_clock_cpu(cpu_of(rq));
+	}
+}
+
 /**
  * scx_bpf_now - Returns a high-performance monotonically non-decreasing
  * clock for the current CPU. The clock returned is in nanoseconds.
@@ -10190,36 +10211,14 @@ __bpf_kfunc struct task_struct *scx_bpf_tid_to_task(u64 tid)
  */
 __bpf_kfunc u64 scx_bpf_now(void)
 {
-	struct rq *rq;
-	u64 clock;
-
-	preempt_disable();
-
-	rq = this_rq();
-	if (smp_load_acquire(&rq->scx.flags) & SCX_RQ_CLK_VALID) {
-		/*
-		 * If the rq clock is valid, use the cached rq clock.
-		 *
-		 * Note that scx_bpf_now() is re-entrant between a process
-		 * context and an interrupt context (e.g., timer interrupt).
-		 * However, we don't need to consider the race between them
-		 * because such race is not observable from a caller.
-		 */
-		clock = READ_ONCE(rq->scx.clock);
-	} else {
-		/*
-		 * Otherwise, return a fresh rq clock.
-		 *
-		 * The rq clock is updated outside of the rq lock.
-		 * In this case, keep the updated rq clock invalid so the next
-		 * kfunc call outside the rq lock gets a fresh rq clock.
-		 */
-		clock = sched_clock_cpu(cpu_of(rq));
-	}
-
-	preempt_enable();
-
-	return clock;
+	/*
+	 * Note that scx_bpf_now() is re-entrant between a process context and
+	 * an interrupt context (e.g., timer interrupt). However, we don't need
+	 * to consider the race between them because such race is not observable
+	 * from a caller.
+	 */
+	guard(preempt)();
+	return __scx_bpf_now(this_rq());
 }
 
 static void scx_read_events(struct scx_sched *sch, struct scx_event_stats *events)
