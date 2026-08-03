@@ -105,6 +105,7 @@ pub unsafe trait HasInitData {
 pub struct AllData<T: ?Sized>(PhantomInvariant<T>);
 
 impl<T: ?Sized> Clone for AllData<T> {
+    #[inline]
     fn clone(&self) -> Self {
         *self
     }
@@ -127,6 +128,7 @@ impl<T: ?Sized> AllData<T> {
 unsafe impl<T: ?Sized> HasInitData for T {
     type InitData = AllData<T>;
 
+    #[inline]
     unsafe fn __init_data() -> Self::InitData {
         AllData(PhantomInvariant::new())
     }
@@ -385,12 +387,14 @@ pub struct AlwaysFail<T: ?Sized> {
 
 impl<T: ?Sized> AlwaysFail<T> {
     /// Creates a new initializer that always fails.
+    #[inline]
     pub fn new() -> Self {
         Self { _t: PhantomData }
     }
 }
 
 impl<T: ?Sized> Default for AlwaysFail<T> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -398,6 +402,7 @@ impl<T: ?Sized> Default for AlwaysFail<T> {
 
 // SAFETY: `__init` always fails, which is always okay.
 unsafe impl<T: ?Sized> PinInit<T, ()> for AlwaysFail<T> {
+    #[inline]
     unsafe fn __init(self, _slot: *mut T) -> Result<(), ()> {
         Err(())
     }

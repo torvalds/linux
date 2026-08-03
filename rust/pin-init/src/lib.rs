@@ -955,6 +955,7 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     fn pin_chain<F>(self, f: F) -> ChainPinInit<Self, F, T, E>
     where
         F: FnOnce(Pin<&mut T>) -> Result<(), E>,
@@ -1003,6 +1004,7 @@ where
     I: PinInit<T, E>,
     F: FnOnce(Pin<&mut T>) -> Result<(), E>,
 {
+    #[inline]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__init`.
         let slot = unsafe { __internal::Slot::<__internal::Pinned, _>::new(slot) };
@@ -1068,6 +1070,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     ///     Ok(())
     /// });
     /// ```
+    #[inline]
     fn chain<F>(self, f: F) -> ChainInit<Self, F, T, E>
     where
         F: FnOnce(&mut T) -> Result<(), E>,
@@ -1095,6 +1098,7 @@ where
     I: Init<T, E>,
     F: FnOnce(&mut T) -> Result<(), E>,
 {
+    #[inline]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: All requirements fulfilled since this function is `__init`.
         let slot = unsafe { __internal::Slot::<__internal::Unpinned, _>::new(slot) };
@@ -1175,6 +1179,7 @@ pub const unsafe fn init_from_closure<T: ?Sized, E>(
 ///
 /// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
 ///   pointer must result in a valid `U`.
+#[inline]
 pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl PinInit<U, E> {
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
     // requirements.
@@ -1187,6 +1192,7 @@ pub const unsafe fn cast_pin_init<T, U, E>(init: impl PinInit<T, E>) -> impl Pin
 ///
 /// - `*mut U` must be castable to `*mut T` and any value of type `T` written through such a
 ///   pointer must result in a valid `U`.
+#[inline]
 pub const unsafe fn cast_init<T, U, E>(init: impl Init<T, E>) -> impl Init<U, E> {
     // SAFETY: initialization delegated to a valid initializer. Cast is valid by function safety
     // requirements.
@@ -1283,6 +1289,7 @@ where
 /// let array: Box<[usize; 1_000]> = Box::init(init_array_from_fn(|i| i)).unwrap();
 /// assert_eq!(array.len(), 1_000);
 /// ```
+#[inline]
 pub fn init_array_from_fn<I, const N: usize, T, E>(
     make_init: impl FnMut(usize) -> I,
 ) -> impl Init<[T; N], E>
@@ -1307,6 +1314,7 @@ where
 ///     Arc::pin_init(pin_init_array_from_fn(|i| CMutex::new(i))).unwrap();
 /// assert_eq!(array.len(), 1_000);
 /// ```
+#[inline]
 pub fn pin_init_array_from_fn<I, const N: usize, T, E>(
     make_init: impl FnMut(usize) -> I,
 ) -> impl PinInit<[T; N], E>
@@ -1342,6 +1350,7 @@ where
 /// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
 /// initializer itself will fail with that error. If it returned `Ok`, then it will run the
 /// initializer returned by the [`pin_init!`] invocation.
+#[inline]
 pub fn pin_init_scope<T, E, F, I>(make_init: F) -> impl PinInit<T, E>
 where
     F: FnOnce() -> Result<I, E>,
@@ -1385,6 +1394,7 @@ where
 /// This initializer will first execute `lookup_bar()`, match on it, if it returned an error, the
 /// initializer itself will fail with that error. If it returned `Ok`, then it will run the
 /// initializer returned by the [`init!`] invocation.
+#[inline]
 pub fn init_scope<T, E, F, I>(make_init: F) -> impl Init<T, E>
 where
     F: FnOnce() -> Result<I, E>,
@@ -1409,6 +1419,7 @@ unsafe impl<T> Init<T> for T {}
 // SAFETY: the `__init` function always returns `Ok(())` and initializes every field of
 // `slot`. Additionally, all pinning invariants of `T` are upheld.
 unsafe impl<T> PinInit<T> for T {
+    #[inline]
     unsafe fn __init(self, slot: *mut T) -> Result<(), Infallible> {
         // SAFETY: `slot` is valid for writes by the safety requirements of this function.
         unsafe { slot.write(self) };
@@ -1423,6 +1434,7 @@ unsafe impl<T, E> Init<T, E> for Result<T, E> {}
 // - `Ok(())`, `slot` was initialized and all pinned invariants of `T` are upheld.
 // - `Err(err)`, slot was not written to.
 unsafe impl<T, E> PinInit<T, E> for Result<T, E> {
+    #[inline]
     unsafe fn __init(self, slot: *mut T) -> Result<(), E> {
         // SAFETY: `slot` is valid for writes by the safety requirements of this function.
         unsafe { slot.write(self?) };
@@ -1449,6 +1461,7 @@ pub trait InPlaceWrite<T> {
 impl<T> InPlaceWrite<T> for &'static mut MaybeUninit<T> {
     type Initialized = &'static mut T;
 
+    #[inline]
     fn write_init<E>(self, init: impl Init<T, E>) -> Result<Self::Initialized, E> {
         let slot = self.as_mut_ptr();
 
@@ -1459,6 +1472,7 @@ impl<T> InPlaceWrite<T> for &'static mut MaybeUninit<T> {
         unsafe { Ok(self.assume_init_mut()) }
     }
 
+    #[inline]
     fn write_pin_init<E>(self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E> {
         let slot = self.as_mut_ptr();
 
@@ -1764,6 +1778,7 @@ pub trait Wrapper<T> {
 }
 
 impl<T> Wrapper<T> for UnsafeCell<T> {
+    #[inline]
     fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
         // SAFETY: `UnsafeCell<T>` has a compatible layout to `T`.
         unsafe { cast_pin_init(value_init) }
@@ -1771,6 +1786,7 @@ impl<T> Wrapper<T> for UnsafeCell<T> {
 }
 
 impl<T> Wrapper<T> for MaybeUninit<T> {
+    #[inline]
     fn pin_init<E>(value_init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
         // SAFETY: `MaybeUninit<T>` has a compatible layout to `T`.
         unsafe { cast_pin_init(value_init) }
@@ -1779,6 +1795,7 @@ impl<T> Wrapper<T> for MaybeUninit<T> {
 
 #[cfg(all(feature = "unsafe-pinned", CONFIG_RUSTC_HAS_UNSAFE_PINNED))]
 impl<T> Wrapper<T> for core::pin::UnsafePinned<T> {
+    #[inline]
     fn pin_init<E>(init: impl PinInit<T, E>) -> impl PinInit<Self, E> {
         // SAFETY: `UnsafePinned<T>` has a compatible layout to `T`.
         unsafe { cast_pin_init(init) }
