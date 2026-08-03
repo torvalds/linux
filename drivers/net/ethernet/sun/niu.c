@@ -6021,11 +6021,11 @@ static void niu_set_irq_name(struct niu *np)
 	int port = np->port;
 	int i, j = 1;
 
-	sprintf(np->irq_name[0], "%s:MAC", np->dev->name);
+	snprintf(np->irq_name[0], sizeof(np->irq_name[0]), "%s:MAC", np->dev->name);
 
 	if (port == 0) {
-		sprintf(np->irq_name[1], "%s:MIF", np->dev->name);
-		sprintf(np->irq_name[2], "%s:SYSERR", np->dev->name);
+		snprintf(np->irq_name[1], sizeof(np->irq_name[1]), "%s:MIF", np->dev->name);
+		snprintf(np->irq_name[2], sizeof(np->irq_name[2]), "%s:SYSERR", np->dev->name);
 		j = 3;
 	}
 
