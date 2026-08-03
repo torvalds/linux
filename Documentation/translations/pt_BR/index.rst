@@ -75,6 +75,7 @@ kernel e sobre como ver seu trabalho integrado.
    Regras de licenciamento <process/license-rules>
    Como começar <process/howto>
    Requisitos mínimos <process/changes>
+   CVEs <process/cve>
    Conclave (Continuidade do projeto) <process/conclave>
    Informações sobre clientes de email para Linux <process/email-clients>
    Modelos de Maturidade para Contribuição no Kernel Linux <process/contribution-maturity-model.rst>
