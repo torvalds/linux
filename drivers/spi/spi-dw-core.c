@@ -849,6 +849,19 @@ static void dw_spi_init_enh_mem_buf(struct dw_spi *dws, const struct spi_mem_op 
 	}
 }
 
+static void dw_spi_enh_write_cmd_addr(struct dw_spi *dws, const struct spi_mem_op *op)
+{
+	/* Send cmd as 32 bit value */
+	dw_write_io_reg(dws, DW_SPI_DR, op->cmd.opcode);
+	if (op->addr.nbytes) {
+		dw_write_io_reg(dws, DW_SPI_DR, lower_32_bits(op->addr.val));
+		if (op->addr.nbytes > 4) {
+			/* address more than 32bit */
+			dw_write_io_reg(dws, DW_SPI_DR, upper_32_bits(op->addr.val));
+		}
+	}
+}
+
 static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct spi_controller *ctlr = mem->spi->controller;
@@ -908,6 +921,8 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	dw_spi_update_config(dws, mem->spi, &cfg, &enh_cfg);
 
 	dw_spi_enable_chip(dws, 1);
+
+	dw_spi_enh_write_cmd_addr(dws, op);
 
 	return 0;
 }
