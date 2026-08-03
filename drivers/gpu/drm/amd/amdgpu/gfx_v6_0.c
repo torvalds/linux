@@ -2159,8 +2159,12 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	WREG32(mmSCRATCH_ADDR, 0);
 
 	/* ring 0 - compute and gfx */
-	/* Set ring buffer size */
 	ring = &adev->gfx.gfx_ring[0];
+	*ring->wptr_cpu_addr = 0;
+	*ring->rptr_cpu_addr = 0;
+	amdgpu_ring_clear_ring(ring);
+
+	/* Set ring buffer size */
 	rb_bufsz = order_base_2(ring->ring_size / 8);
 	tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
 
@@ -2172,7 +2176,8 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* Initialize the ring buffer's read and write pointers */
 	WREG32(mmCP_RB0_CNTL, tmp | CP_RB0_CNTL__RB_RPTR_WR_ENA_MASK);
 	ring->wptr = 0;
-	WREG32(mmCP_RB0_WPTR, ring->wptr);
+	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
+	WREG32(mmCP_RB0_RPTR, lower_32_bits(ring->wptr));
 
 	/* set the wb address whether it's enabled or not */
 	rptr_addr = ring->rptr_gpu_addr;
@@ -2189,6 +2194,9 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* ring 1  - compute only */
 	if (adev->gfx.num_compute_rings >= 1) {
 		ring = &adev->gfx.compute_ring[0];
+		*ring->wptr_cpu_addr = 0;
+		*ring->rptr_cpu_addr = 0;
+		amdgpu_ring_clear_ring(ring);
 
 		rb_bufsz = order_base_2(ring->ring_size / 8);
 		tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE / 8) << 8) | rb_bufsz;
@@ -2199,7 +2207,8 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 		WREG32(mmCP_RB1_CNTL, tmp | CP_RB1_CNTL__RB_RPTR_WR_ENA_MASK);
 		ring->wptr = 0;
-		WREG32(mmCP_RB1_WPTR, ring->wptr);
+		WREG32(mmCP_RB1_WPTR, lower_32_bits(ring->wptr));
+		WREG32(mmCP_RB1_RPTR, lower_32_bits(ring->wptr));
 
 		rptr_addr = ring->rptr_gpu_addr;
 		WREG32(mmCP_RB1_RPTR_ADDR, lower_32_bits(rptr_addr));
@@ -2213,6 +2222,9 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 	/* ring 2 - compute only */
 	if (adev->gfx.num_compute_rings >= 2) {
 		ring = &adev->gfx.compute_ring[1];
+		*ring->wptr_cpu_addr = 0;
+		*ring->rptr_cpu_addr = 0;
+		amdgpu_ring_clear_ring(ring);
 
 		rb_bufsz = order_base_2(ring->ring_size / 8);
 		tmp = (order_base_2(AMDGPU_GPU_PAGE_SIZE / 8) << 8) | rb_bufsz;
@@ -2223,7 +2235,9 @@ static int gfx_v6_0_cp_gfx_resume(struct amdgpu_device *adev)
 
 		WREG32(mmCP_RB2_CNTL, tmp | CP_RB2_CNTL__RB_RPTR_WR_ENA_MASK);
 		ring->wptr = 0;
-		WREG32(mmCP_RB2_WPTR, ring->wptr);
+		WREG32(mmCP_RB2_WPTR, lower_32_bits(ring->wptr));
+		WREG32(mmCP_RB2_RPTR, lower_32_bits(ring->wptr));
+
 		rptr_addr = ring->rptr_gpu_addr;
 		WREG32(mmCP_RB2_RPTR_ADDR, lower_32_bits(rptr_addr));
 		WREG32(mmCP_RB2_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
