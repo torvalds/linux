@@ -313,7 +313,7 @@ static u32 dw_spi_prepare_cr0(struct dw_spi *dws, struct spi_device *spi)
 }
 
 void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
-			  struct dw_spi_cfg *cfg)
+			  struct dw_spi_cfg *cfg, struct dw_spi_enh_cfg *enh_cfg)
 {
 	struct dw_spi_chip_data *chip = spi_get_ctldata(spi);
 	u32 cr0 = chip->cr0;
@@ -362,6 +362,15 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 	if (dws->cur_rx_sample_dly != chip->rx_sample_dly) {
 		dw_writel(dws, DW_SPI_RX_SAMPLE_DLY, chip->rx_sample_dly);
 		dws->cur_rx_sample_dly = chip->rx_sample_dly;
+	}
+
+	if (enh_cfg) {
+		cr0 = DW_SPI_ENH_CTRLR0_CLK_STRETCH_EN;
+		cr0 |= FIELD_PREP(DW_SPI_ENH_CTRLR0_WAIT_CYCLE_MASK, enh_cfg->wait_c);
+		cr0 |= FIELD_PREP(DW_SPI_ENH_CTRLR0_INST_L_MASK, enh_cfg->inst_l);
+		cr0 |= FIELD_PREP(DW_SPI_ENH_CTRLR0_ADDR_L_MASK, enh_cfg->addr_l);
+		cr0 |= FIELD_PREP(DW_SPI_ENH_CTRLR0_TRANS_TYPE_MASK, enh_cfg->trans_t);
+		dw_writel(dws, DW_SPI_SPI_CTRLR0, cr0);
 	}
 }
 EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, "SPI_DW_CORE");
@@ -448,7 +457,7 @@ static int dw_spi_transfer_one(struct spi_controller *ctlr,
 
 	dw_spi_enable_chip(dws, 0);
 
-	dw_spi_update_config(dws, spi, &cfg);
+	dw_spi_update_config(dws, spi, &cfg, NULL);
 
 	transfer->effective_speed_hz = dws->current_freq;
 
@@ -715,7 +724,7 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	dw_spi_enable_chip(dws, 0);
 
-	dw_spi_update_config(dws, mem->spi, &cfg);
+	dw_spi_update_config(dws, mem->spi, &cfg, NULL);
 
 	dw_spi_mask_intr(dws, 0xff);
 
