@@ -169,7 +169,7 @@ struct timekeeper {
 	u32			cs_ns_to_cyc_mult;
 	u32			cs_ns_to_cyc_shift;
 	u64			cs_ns_to_cyc_maxns;
-	unsigned int		clock_was_set_seq;
+	u32			clock_was_set_seq;
 	u8			cs_was_changed_seq;
 	u8			clock_valid;
 

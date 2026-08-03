@@ -903,8 +903,8 @@ static void hrtimer_reprogram(struct hrtimer *timer, bool reprogram)
 static bool update_needs_ipi(struct hrtimer_cpu_base *cpu_base, unsigned int active)
 {
 	struct hrtimer_clock_base *base;
-	unsigned int seq;
 	ktime_t expires;
+	u32 seq;
 
 	/*
 	 * Update the base offsets unconditionally so the following

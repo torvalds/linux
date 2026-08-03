@@ -1567,10 +1567,11 @@ int get_device_system_crosststamp(int (*get_time_fn)
 				  struct system_device_crosststamp *xtstamp)
 {
 	u64 syscnt_cycles, cycles, now, interval_start;
-	unsigned int seq, clock_was_set_seq = 0;
 	ktime_t base_sys, base_raw, *offs;
+	u32 clock_was_set_seq = 0;
 	u64 nsec_sys, nsec_raw;
 	u8 cs_was_changed_seq;
+	unsigned int seq;
 	bool do_interp;
 	struct timekeeper *tk;
 	struct tk_data *tkd;
@@ -2843,7 +2844,7 @@ void do_timer(unsigned long ticks)
  *
  * Called from hrtimer_interrupt() or retrigger_next_event()
  */
-ktime_t ktime_get_update_offsets_now(unsigned int *cwsseq, ktime_t *offs_real,
+ktime_t ktime_get_update_offsets_now(u32 *cwsseq, ktime_t *offs_real,
 				     ktime_t *offs_boot, ktime_t *offs_tai)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;

@@ -84,7 +84,7 @@ struct hrtimer_cpu_base {
 	raw_spinlock_t			lock;
 	unsigned int			cpu;
 	unsigned int			active_bases;
-	unsigned int			clock_was_set_seq;
+	u32				clock_was_set_seq;
 	bool				hres_active;
 	bool				deferred_rearm;
 	bool				deferred_needs_update;

@@ -303,7 +303,7 @@ struct system_time_snapshot {
 	ktime_t			monoraw;
 	enum clocksource_ids	cs_id;
 	enum clocksource_ids	hw_csid;
-	unsigned int		clock_was_set_seq;
+	u32			clock_was_set_seq;
 	u8			cs_was_changed_seq;
 	u8			valid;
 };
