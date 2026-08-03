@@ -352,6 +352,8 @@ static void ublk_ctrl_dump(struct ublk_dev *dev)
 	ublk_log("\tmax rq size %d daemon pid %d flags 0x%llx state %s\n",
 			info->max_io_buf_bytes, info->ublksrv_pid, info->flags,
 			ublk_dev_state_desc(dev));
+	if (info->flags & UBLK_F_IO_DESC_SIZE)
+		ublk_log("\tio_desc_size %u\n", info->io_desc_size);
 
 	if (affinity) {
 		char buf[512];
@@ -400,22 +402,22 @@ static struct ublk_dev *ublk_ctrl_init(void)
 	return dev;
 }
 
-static int __ublk_queue_cmd_buf_sz(unsigned depth)
+static size_t __ublk_queue_cmd_buf_sz(const struct ublk_queue *q, __u16 depth)
 {
-	int size =  depth * sizeof(struct ublksrv_io_desc);
-	unsigned int page_sz = getpagesize();
+	size_t size = depth * (size_t)q->io_desc_size;
+	size_t page_sz = getpagesize();
 
 	return round_up(size, page_sz);
 }
 
-static int ublk_queue_max_cmd_buf_sz(void)
+static size_t ublk_queue_max_cmd_buf_sz(const struct ublk_queue *q)
 {
-	return __ublk_queue_cmd_buf_sz(UBLK_MAX_QUEUE_DEPTH);
+	return __ublk_queue_cmd_buf_sz(q, UBLK_MAX_QUEUE_DEPTH);
 }
 
-static int ublk_queue_cmd_buf_sz(struct ublk_queue *q)
+static size_t ublk_queue_cmd_buf_sz(const struct ublk_queue *q)
 {
-	return __ublk_queue_cmd_buf_sz(q->q_depth);
+	return __ublk_queue_cmd_buf_sz(q, q->q_depth);
 }
 
 static void ublk_queue_deinit(struct ublk_queue *q)
@@ -453,7 +455,7 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned long long extra_flags,
 	struct ublk_dev *dev = q->dev;
 	int depth = dev->dev_info.queue_depth;
 	int i;
-	int cmd_buf_size, io_buf_size, integrity_size;
+	size_t cmd_buf_size, io_buf_size, integrity_size;
 	unsigned long off;
 
 	pthread_spin_init(&q->lock, PTHREAD_PROCESS_PRIVATE);
@@ -463,12 +465,13 @@ static int ublk_queue_init(struct ublk_queue *q, unsigned long long extra_flags,
 	q->flags = dev->dev_info.flags;
 	q->flags |= extra_flags;
 	q->metadata_size = metadata_size;
+	q->io_desc_size = dev->dev_info.io_desc_size;
 
 	/* Cache fd in queue for fast path access */
 	q->ublk_fd = dev->fds[0];
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
-	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
+	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz(q);
 	q->io_cmd_buf = mmap(0, cmd_buf_size, PROT_READ,
 			MAP_SHARED | MAP_POPULATE, dev->fds[0], off);
 	if (q->io_cmd_buf == MAP_FAILED) {
@@ -1708,6 +1711,7 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 	info->dev_id = ctx->dev_id;
 	info->nr_hw_queues = nr_queues;
 	info->queue_depth = depth;
+	info->io_desc_size = ctx->io_desc_size;
 	info->flags = ctx->flags;
 	if ((features & UBLK_F_QUIESCE) &&
 			(info->flags & UBLK_F_USER_RECOVERY))
@@ -2069,6 +2073,7 @@ static void __cmd_create_help(char *exe, bool recovery)
 	printf("\t[--integrity_capable] [--integrity_reftag] [--metadata_size SIZE] "
 		 "[--pi_offset OFFSET] [--csum_type ip|t10dif|nvme] [--tag_size SIZE]\n");
 	printf("\t[--batch|-b] [--no_auto_part_scan]\n");
+	printf("\t[--io_desc_size SIZE]\n");
 	printf("\t[target options] [backfile1] [backfile2] ...\n");
 	printf("\tdefault: nr_queues=2(max 32), depth=128(max 1024), dev_id=-1(auto allocation)\n");
 	printf("\tdefault: nthreads=nr_queues");
@@ -2146,6 +2151,7 @@ int main(int argc, char *argv[])
 		{ "shmem_zc",		0,	NULL,  0  },
 		{ "htlb",		1,	NULL,  0  },
 		{ "rdonly_shmem_buf",	0,	NULL,  0  },
+		{ "io_desc_size",	1,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
 	const struct ublk_tgt_ops *ops = NULL;
@@ -2158,6 +2164,7 @@ int main(int argc, char *argv[])
 		.dev_id		=	-1,
 		.tgt_type	=	"unknown",
 		.csum_type	=	LBMD_PI_CSUM_NONE,
+		.io_desc_size	=	sizeof(struct ublksrv_io_desc),
 	};
 	int ret = -EINVAL, i;
 	int tgt_argc = 1;
@@ -2267,6 +2274,10 @@ int main(int argc, char *argv[])
 				ctx.htlb_path = strdup(optarg);
 			if (!strcmp(longopts[option_idx].name, "rdonly_shmem_buf"))
 				ctx.rdonly_shmem_buf = 1;
+			if (!strcmp(longopts[option_idx].name, "io_desc_size")) {
+				ctx.flags |= UBLK_F_IO_DESC_SIZE;
+				ctx.io_desc_size = strtoul(optarg, NULL, 0);
+			}
 			break;
 		case '?':
 			/*

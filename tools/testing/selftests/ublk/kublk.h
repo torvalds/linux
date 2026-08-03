@@ -87,6 +87,7 @@ struct dev_ctx {
 	__u8 pi_offset;
 	__u8 csum_type;
 	__u8 tag_size;
+	__u16 io_desc_size;
 
 	int _evtfd;
 	int _shmid;
@@ -187,6 +188,7 @@ struct ublk_queue {
 	__u64 flags;
 	int ublk_fd;	/* cached ublk char device fd */
 	__u8 metadata_size;
+	__u16 io_desc_size;
 	struct ublk_io ios[UBLK_QUEUE_DEPTH];
 
 	/* used for prep io commands */
@@ -461,9 +463,9 @@ static inline void ublk_mark_io_done(struct ublk_io *io, int res)
 	io->result = res;
 }
 
-static inline const struct ublksrv_io_desc *ublk_get_iod(const struct ublk_queue *q, int tag)
+static inline const struct ublksrv_io_desc *ublk_get_iod(const struct ublk_queue *q, __u16 tag)
 {
-	return &q->io_cmd_buf[tag];
+	return (void *)q->io_cmd_buf + tag * (size_t)q->io_desc_size;
 }
 
 static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)
