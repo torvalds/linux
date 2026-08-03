@@ -1166,8 +1166,9 @@ nxpwifi_get_priv(struct nxpwifi_adapter *adapter,
 }
 
 /* find unused BSS number for new interface */
-static inline u8
-nxpwifi_get_unused_bss_num(struct nxpwifi_adapter *adapter, u8 bss_type)
+static inline int
+nxpwifi_get_unused_bss_num(struct nxpwifi_adapter *adapter, u8 bss_type,
+			   u8 *bss_num)
 {
 	u8 i, j;
 	int index[NXPWIFI_MAX_BSS_NUM];
@@ -1179,9 +1180,14 @@ nxpwifi_get_unused_bss_num(struct nxpwifi_adapter *adapter, u8 bss_type)
 		      NL80211_IFTYPE_UNSPECIFIED)) {
 			index[adapter->priv[i]->bss_num] = 1;
 		}
-	for (j = 0; j < NXPWIFI_MAX_BSS_NUM; j++)
-		if (!index[j])
-			return j;
+
+	for (j = 0; j < NXPWIFI_MAX_BSS_NUM; j++) {
+		if (!index[j]) {
+			*bss_num = j;
+			return 0;
+		}
+	}
+
 	return -ENOENT;
 }
 
@@ -1195,8 +1201,9 @@ nxpwifi_get_unused_priv_by_bss_type(struct nxpwifi_adapter *adapter,
 	for (i = 0; i < adapter->priv_num; i++)
 		if (adapter->priv[i]->bss_mode ==
 		   NL80211_IFTYPE_UNSPECIFIED) {
-			adapter->priv[i]->bss_num =
-				nxpwifi_get_unused_bss_num(adapter, bss_type);
+			if (nxpwifi_get_unused_bss_num(adapter, bss_type,
+						       &adapter->priv[i]->bss_num))
+				return NULL;
 			break;
 		}
 

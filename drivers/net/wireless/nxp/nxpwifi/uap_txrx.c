@@ -246,8 +246,8 @@ int nxpwifi_handle_uap_rx_forward(struct nxpwifi_private *priv,
 		} else {
 			nxpwifi_dbg(adapter, ERROR,
 				    "failed to copy skb for uAP\n");
-				    priv->stats.rx_dropped++;
-				    dev_kfree_skb_any(skb);
+			priv->stats.rx_dropped++;
+			dev_kfree_skb_any(skb);
 			return -ENOMEM;
 		}
 	} else {

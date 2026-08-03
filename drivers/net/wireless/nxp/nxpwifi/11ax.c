@@ -413,7 +413,10 @@ bool nxpwifi_is_11ax_twt_supported(struct nxpwifi_private *priv,
 	struct nxpwifi_ie_types_he_cap *user_he_cap;
 	struct nxpwifi_ie_types_he_cap *hw_he_cap;
 
-	if (bss_desc && (!nxpwifi_is_ap_11ax_twt_supported(bss_desc))) {
+	if (!bss_desc)
+		return false;
+
+	if (!nxpwifi_is_ap_11ax_twt_supported(bss_desc)) {
 		nxpwifi_dbg(priv->adapter, MSG,
 			    "AP don't support twt feature\n");
 		return false;

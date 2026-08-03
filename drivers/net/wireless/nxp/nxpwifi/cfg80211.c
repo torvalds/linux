@@ -717,6 +717,7 @@ nxpwifi_init_new_priv_params(struct nxpwifi_private *priv,
 			     enum nl80211_iftype type)
 {
 	struct nxpwifi_adapter *adapter = priv->adapter;
+	int ret;
 
 	nxpwifi_init_priv(priv);
 
@@ -740,7 +741,15 @@ nxpwifi_init_new_priv_params(struct nxpwifi_private *priv,
 		return -EOPNOTSUPP;
 	}
 
-	priv->bss_num = nxpwifi_get_unused_bss_num(adapter, priv->bss_type);
+	ret = nxpwifi_get_unused_bss_num(adapter, priv->bss_type,
+					 &priv->bss_num);
+
+	if (ret) {
+		nxpwifi_dbg(adapter, ERROR,
+			    "%s: no unused bss_num for type %d\n",
+			    dev->name, priv->bss_type);
+		return ret;
+	}
 
 	flush_workqueue(adapter->workqueue);
 	atomic_set(&adapter->iface_changing, 0);
@@ -943,7 +952,6 @@ nxpwifi_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_STATION:
 			return nxpwifi_change_vif_to_sta(dev, curr_iftype,
 							 type, params);
-			break;
 		default:
 			goto errnotsupp;
 		}
@@ -951,8 +959,6 @@ nxpwifi_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	default:
 		goto errnotsupp;
 	}
-
-	return 0;
 
 errnotsupp:
 	nxpwifi_dbg(priv->adapter, ERROR,

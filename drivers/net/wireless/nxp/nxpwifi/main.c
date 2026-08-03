@@ -204,7 +204,7 @@ static bool nxpwifi_drain_tx(struct nxpwifi_adapter *adapter)
 					  NXPWIFI_ASYNC_CMD);
 			adapter->hs_activated_manually = false;
 		}
-			nxpwifi_process_bypass_tx(adapter);
+		nxpwifi_process_bypass_tx(adapter);
 		if (adapter->hs_activated) {
 			clear_bit(NXPWIFI_IS_HS_CONFIGURED,
 				  &adapter->work_flags);

@@ -1347,7 +1347,8 @@ static int nxpwifi_process_int_status(struct nxpwifi_adapter *adapter, u8 sdio_i
 			     ((rx_blocks * NXPWIFI_SDIO_BLOCK_SIZE) >
 			      card->mpa_rx.buf_size))) {
 				nxpwifi_dbg(adapter, ERROR, "invalid rx_len=%d\n", rx_len);
-				return -EINVAL;
+				ret = -EINVAL;
+				goto term_cmd;
 			}
 
 			rx_len = (u16)(rx_blocks * NXPWIFI_SDIO_BLOCK_SIZE);
