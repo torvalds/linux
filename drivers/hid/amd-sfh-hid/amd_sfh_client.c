@@ -383,3 +383,19 @@ int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 
 	return 0;
 }
+
+bool amd_sfh_op_idx_enabled(struct amd_mp2_dev *mp2)
+{
+	struct amdtp_cl_data *cl = mp2->cl_data;
+	int i;
+
+	if (!cl)
+		return false;
+
+	for (i = 0; i < cl->num_hid_devices; i++)
+		if (cl->sensor_idx[i] == op_idx &&
+		    READ_ONCE(cl->sensor_sts[i]) == SENSOR_ENABLED)
+			return true;
+
+	return false;
+}

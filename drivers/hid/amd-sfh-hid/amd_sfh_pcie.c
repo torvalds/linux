@@ -251,6 +251,8 @@ int amd_mp2_get_sensor_num(struct amd_mp2_dev *privdata, u8 *sensor_id)
 static void amd_mp2_pci_remove(void *privdata)
 {
 	struct amd_mp2_dev *mp2 = privdata;
+
+	sfh_deinit_emp2();
 	amd_sfh_hid_client_deinit(privdata);
 	mp2->mp2_ops->stop_all(mp2);
 	pcim_intx(mp2->pdev, false);
@@ -419,6 +421,7 @@ static void sfh_init_work(struct work_struct *work)
 		return;
 	}
 
+	sfh_set_emp2(mp2);
 	amd_sfh_clear_intr(mp2);
 	mp2->init_done = 1;
 }
@@ -448,6 +451,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	privdata->pdev = pdev;
 	dev_set_drvdata(&pdev->dev, privdata);
+
 	rc = pcim_enable_device(pdev);
 	if (rc)
 		return rc;
