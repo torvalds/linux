@@ -678,9 +678,10 @@ int ksmbd_vfs_check_rename_share(struct ksmbd_work *work,
 	return err;
 }
 
-int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
+int ksmbd_vfs_rename(struct ksmbd_work *work, struct ksmbd_file *old_fp,
 			     char *newname, int flags)
 {
+	const struct path *old_path = &old_fp->filp->f_path;
 	struct dentry *old_child = old_path->dentry;
 	struct path new_path;
 	struct qstr new_last;
@@ -717,8 +718,7 @@ retry:
 	if (err)
 		goto out_drop_write;
 
-	if (!work->tcon->posix_extensions && d_is_dir(old_child) &&
-	    ksmbd_has_open_files(old_child)) {
+	if (d_is_dir(old_child) && ksmbd_has_open_files(old_fp)) {
 		err = -EACCES;
 		goto out3;
 	}

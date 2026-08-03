@@ -1137,8 +1137,9 @@ struct ksmbd_file *ksmbd_lookup_fd_inode(struct dentry *dentry)
 	return NULL;
 }
 
-bool ksmbd_has_open_files(struct dentry *dentry)
+bool ksmbd_has_open_files(struct ksmbd_file *old_fp)
 {
+	struct dentry *dentry = old_fp->filp->f_path.dentry;
 	struct ksmbd_file *fp;
 	unsigned int id;
 	bool ret = false;
@@ -1150,6 +1151,8 @@ bool ksmbd_has_open_files(struct dentry *dentry)
 		if (fp->f_state != FP_INITED)
 			continue;
 		if (fp_dentry == dentry)
+			continue;
+		if (old_fp->is_posix_ctxt && fp->is_posix_ctxt)
 			continue;
 		if (is_subdir(fp_dentry, dentry)) {
 			ret = true;
