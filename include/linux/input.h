@@ -117,7 +117,8 @@ enum input_clock_type {
  *	user opens device and dev->close() is called when the very
  *	last user closes the device
  * @going_away: marks devices that are in a middle of unregistering and
- *	causes input_open_device*() fail with -ENODEV.
+ *	causes input_open_device() and input_inhibit/uninhibit_device()
+ *	to fail with -ENODEV.
  * @dev: driver model's view of this device
  * @h_list: list of input handles associated with the device. When
  *	accessing the list dev->mutex must be held

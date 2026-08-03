@@ -1788,6 +1788,9 @@ static int input_inhibit_device(struct input_dev *dev)
 {
 	guard(mutex)(&dev->mutex);
 
+	if (dev->going_away)
+		return -ENODEV;
+
 	if (dev->inhibited)
 		return 0;
 
@@ -1820,6 +1823,9 @@ static int input_uninhibit_device(struct input_dev *dev)
 	int error;
 
 	guard(mutex)(&dev->mutex);
+
+	if (dev->going_away)
+		return -ENODEV;
 
 	if (!dev->inhibited)
 		return 0;
