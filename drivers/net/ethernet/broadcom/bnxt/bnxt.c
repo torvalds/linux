@@ -11789,12 +11789,13 @@ static void bnxt_irq_affinity_notify(struct irq_affinity_notify *notify,
 {
 	struct bnxt_irq *irq;
 	u16 tag;
-	int err;
 
 	irq = container_of(notify, struct bnxt_irq, affinity_notify);
 
 #ifdef CONFIG_RFS_ACCEL
 	if (irq->bp->dev->rx_cpu_rmap && irq->ring_nr < irq->bp->rx_nr_rings) {
+		int err;
+
 		err = cpu_rmap_update(irq->bp->dev->rx_cpu_rmap, irq->ring_nr,
 				      mask);
 		if (err)
@@ -11812,20 +11813,11 @@ static void bnxt_irq_affinity_notify(struct irq_affinity_notify *notify,
 		return;
 
 	if (pcie_tph_get_cpu_st(irq->bp->pdev, TPH_MEM_TYPE_VM,
-				cpumask_first(irq->cpu_mask), &tag))
+				cpumask_first(mask), &tag))
 		return;
 
-	if (pcie_tph_set_st_entry(irq->bp->pdev, irq->msix_nr, tag))
-		return;
-
-	netdev_lock(irq->bp->dev);
-	if (netif_running(irq->bp->dev)) {
-		err = netdev_rx_queue_restart(irq->bp->dev, irq->ring_nr);
-		if (err)
-			netdev_err(irq->bp->dev,
-				   "RX queue restart failed: err=%d\n", err);
-	}
-	netdev_unlock(irq->bp->dev);
+	WRITE_ONCE(irq->new_tag, tag);
+	bnxt_queue_sp_work(irq->bp, BNXT_TPH_UPDATE_SP_EVENT);
 }
 
 static void bnxt_irq_affinity_release(struct kref *ref)
@@ -11896,6 +11888,8 @@ static void bnxt_free_irq(struct bnxt *bp)
 		}
 
 		irq->requested = 0;
+		irq->tag = 0;
+		irq->new_tag = 0;
 	}
 
 	/* Disable TPH support */
@@ -11933,6 +11927,7 @@ static int bnxt_request_irq(struct bnxt *bp)
 	for (i = 0, j = 0; i < bp->cp_nr_rings; i++) {
 		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
 		struct bnxt_irq *irq = &bp->irq_tbl[map_idx];
+		unsigned int cpu_num;
 		u16 tag;
 
 		if (IS_ENABLED(CONFIG_RFS_ACCEL) &&
@@ -11958,8 +11953,19 @@ static int bnxt_request_irq(struct bnxt *bp)
 		irq->have_cpumask = 1;
 		irq->msix_nr = map_idx;
 		irq->ring_nr = i;
-		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
-				irq->cpu_mask);
+		cpu_num = cpumask_local_spread(i, numa_node);
+		cpumask_set_cpu(cpu_num, irq->cpu_mask);
+
+		/* Init ST table entry if we can get the mapping */
+		if (!pcie_tph_get_cpu_st(bp->pdev, TPH_MEM_TYPE_VM,
+					 cpu_num, &tag)) {
+			pcie_tph_set_st_entry(bp->pdev, irq->msix_nr, tag);
+			irq->tag = tag;
+			irq->new_tag = tag;
+		}
+
+		bnxt_register_irq_notifier(bp, irq);
+
 		rc = irq_update_affinity_hint(irq->vector, irq->cpu_mask);
 		if (rc) {
 			netdev_warn(bp->dev,
@@ -11967,16 +11973,6 @@ static int bnxt_request_irq(struct bnxt *bp)
 				    irq->vector);
 			break;
 		}
-
-		bnxt_register_irq_notifier(bp, irq);
-
-		/* Init ST table entry */
-		if (pcie_tph_get_cpu_st(irq->bp->pdev, TPH_MEM_TYPE_VM,
-					cpumask_first(irq->cpu_mask),
-					&tag))
-			continue;
-
-		pcie_tph_set_st_entry(irq->bp->pdev, irq->msix_nr, tag);
 	}
 	return rc;
 }
@@ -14479,6 +14475,43 @@ static void bnxt_rtnl_unlock_sp(struct bnxt *bp)
 	rtnl_unlock();
 }
 
+static void bnxt_tph_update(struct bnxt *bp)
+{
+	struct net_device *dev = bp->dev;
+	int i;
+
+	bnxt_lock_sp(bp);
+	if (!test_bit(BNXT_STATE_OPEN, &bp->state))
+		goto unlock;
+
+	for (i = 0; i < bp->rx_nr_rings; i++) {
+		struct bnxt_irq *irq;
+		int map_idx, err;
+		u16 tag;
+
+		map_idx = bnxt_cp_num_to_irq_num(bp, i);
+		irq = &bp->irq_tbl[map_idx];
+		tag = READ_ONCE(irq->new_tag);
+		if (irq->tag == tag)
+			continue;
+
+		if (pcie_tph_set_st_entry(bp->pdev, irq->msix_nr, tag))
+			continue;
+
+		err = netdev_rx_queue_restart(dev, irq->ring_nr);
+		if (err) {
+			netdev_err(dev, "RX queue restart failed: err=%d\n",
+				   err);
+			continue;
+		}
+
+		irq->tag = tag;
+	}
+
+unlock:
+	bnxt_unlock_sp(bp);
+}
+
 /* Only called from bnxt_sp_task() */
 static void bnxt_reset(struct bnxt *bp, bool silent)
 {
@@ -14902,6 +14935,9 @@ static void bnxt_sp_task(struct work_struct *work)
 		if (!is_bnxt_fw_ok(bp))
 			bnxt_devlink_health_fw_report(bp);
 	}
+
+	if (test_and_clear_bit(BNXT_TPH_UPDATE_SP_EVENT, &bp->sp_event))
+		bnxt_tph_update(bp);
 
 	smp_mb__before_atomic();
 	clear_bit(BNXT_STATE_IN_SP_TASK, &bp->state);
