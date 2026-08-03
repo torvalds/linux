@@ -386,8 +386,16 @@ static bool rq_is_open(struct rq *rq, u64 enq_flags)
 	 * so allow it to avoid spuriously triggering reenq on a combined
 	 * PREEMPT|IMMED insertion.
 	 */
-	if (enq_flags & SCX_ENQ_PREEMPT)
-		return true;
+	if (enq_flags & SCX_ENQ_PREEMPT) {
+		struct task_struct *curr = rq->curr;
+
+		/*
+		 * A protected slice refuses the preemption and the cpu stays
+		 * occupied. See rq_owned_post_enq().
+		 */
+		return curr->sched_class != &ext_sched_class ||
+			likely(!(curr->scx.flags & SCX_TASK_PROTECTED));
+	}
 
 	/*
 	 * @rq is either in transition to or running an SCX task and can't go
@@ -1224,6 +1232,9 @@ enum scx_slice_oob_consts {
  * only if @p's rq lock is already held, otherwise it bounces through
  * p->scx.slice_oob, applied under @p's rq lock at the next slice consideration.
  *
+ * While %SCX_TASK_PROTECTED is set, every scheduler-reachable slice update is
+ * refused. See set_task_slice_keep_oob().
+ *
  * dsq_vtime orders the next PRIQ insertion and has no running-side consumer, so
  * scx_bpf_task_set_dsq_vtime() writes it directly. Fork-time init and direct
  * BPF stores from non-cid-form schedulers are outside these rules.
@@ -1236,18 +1247,92 @@ static void clear_task_slice_oob(struct task_struct *p)
 		atomic64_set(&p->scx.slice_oob, 0);
 }
 
-/* set @p's slice, leaving any pending out-of-band request in place */
-static void set_task_slice_keep_oob(struct task_struct *p, u64 slice)
+/**
+ * dsq_insert_head - FIFO head insertion honoring %SCX_TASK_PROTECTED
+ * @dsq: DSQ to insert into
+ * @p: task being inserted
+ *
+ * A HEAD insert should land behind any leading protected tasks. Return %true
+ * indicates whether @p became the first entry.
+ */
+static bool dsq_insert_head(struct scx_dispatch_q *dsq, struct task_struct *p)
+{
+	struct list_head *pos = &dsq->list;
+	struct scx_dsq_list_node *node;
+
+	/*
+	 * Only rq-owned DSQs can hold protected tasks and the associated rq
+	 * lock keeps their flags stable.
+	 */
+	if (!dsq_is_rq_owned(dsq)) {
+		list_add(&p->scx.dsq_list.node, &dsq->list);
+		return true;
+	}
+
+	list_for_each_entry(node, &dsq->list, node) {
+		struct task_struct *q;
+
+		if (WARN_ON_ONCE(node->flags & SCX_DSQ_LNODE_ITER_CURSOR))
+			continue;
+
+		q = container_of(node, struct task_struct, scx.dsq_list);
+		if (!(q->scx.flags & SCX_TASK_PROTECTED))
+			break;
+
+		pos = &node->node;
+	}
+
+	list_add(&p->scx.dsq_list.node, pos);
+
+	return pos == &dsq->list;
+}
+
+/**
+ * set_task_slice_keep_oob - Set @p's slice, leaving any pending oob request
+ * @p: task of interest
+ * @slice: slice to set
+ *
+ * While %SCX_TASK_PROTECTED is set, BPF schedulers may not modify the slice.
+ * Refuse and return %false.
+ */
+static bool set_task_slice_keep_oob(struct task_struct *p, u64 slice)
 {
 	lockdep_assert_rq_held(task_rq(p));
+
+	if (unlikely(p->scx.flags & SCX_TASK_PROTECTED))
+		return false;
+
 	p->scx.slice = slice;
+	return true;
 }
 
 /* set @p's slice, superseding any pending out-of-band request */
-void scx_set_task_slice(struct task_struct *p, u64 slice)
+bool scx_set_task_slice(struct task_struct *p, u64 slice)
 {
-	set_task_slice_keep_oob(p, slice);
+	if (!set_task_slice_keep_oob(p, slice))
+		return false;
 	clear_task_slice_oob(p);
+	return true;
+}
+
+/**
+ * scx_task_slice_ended - @p's slice is consumed or given up
+ * @rq: rq @p is on
+ * @p: task of interest
+ *
+ * End what rides on the slice - the protection.
+ *
+ * A dequeue normally ends the slice too. The exception is a save/restore pair
+ * on the running task. Attribute changes like renice cycle the task through
+ * dequeue and enqueue while it keeps executing, so the slice continues. A
+ * queued task instead loses its DSQ position on any dequeue and the slice ends
+ * with it.
+ */
+static void scx_task_slice_ended(struct rq *rq, struct task_struct *p)
+{
+	lockdep_assert_rq_held(rq);
+
+	p->scx.flags &= ~SCX_TASK_PROTECTED;
 }
 
 /* request @p's slice to be set to @slice, see the write rules above */
@@ -1271,8 +1356,9 @@ static void set_task_slice_oob(struct scx_sched *sch, struct task_struct *p, u64
 /*
  * Apply a pending out-of-band slice request under @rq's lock. A request whose
  * packed id no longer matches @p's current owner is dropped. An extension needs
- * baseline cpu access on @p's cid. %SCX_EV_SLICE_DENIED counts the denials.
- * Shortening is always allowed. See the write rules above.
+ * baseline cpu access on @p's cid, shortening is always allowed, and a
+ * protected slice refuses both. %SCX_EV_SLICE_DENIED counts the denials. See
+ * the write rules above.
  */
 static void apply_task_slice_oob(struct rq *rq, struct task_struct *p)
 {
@@ -1301,7 +1387,8 @@ static void apply_task_slice_oob(struct rq *rq, struct task_struct *p)
 		return;
 	}
 
-	set_task_slice_keep_oob(p, slice);
+	if (unlikely(!set_task_slice_keep_oob(p, slice)))
+		__scx_add_event(scx_task_sched(p), SCX_EV_SLICE_DENIED, 1);
 }
 
 /*
@@ -1514,8 +1601,10 @@ static void rq_owned_post_enq(struct scx_sched *sch, struct rq *rq,
 
 	if ((enq_flags & SCX_ENQ_PREEMPT) && p != rq->curr &&
 	    rq->curr->sched_class == &ext_sched_class) {
-		scx_set_task_slice(rq->curr, 0);
-		resched_curr(rq);
+		if (likely(scx_set_task_slice(rq->curr, 0)))
+			resched_curr(rq);
+		else
+			__scx_add_event(sch, SCX_EV_SLICE_DENIED, 1);
 	}
 }
 
@@ -1606,9 +1695,8 @@ static void scx_dispatch_enqueue(struct scx_sched *sch, struct rq *rq,
 				  dsq->id);
 
 		if (enq_flags & (SCX_ENQ_HEAD | SCX_ENQ_PREEMPT)) {
-			list_add(&p->scx.dsq_list.node, &dsq->list);
 			/* new task inserted at head - use fastpath */
-			if (!(dsq->id & SCX_DSQ_FLAG_BUILTIN))
+			if (dsq_insert_head(dsq, p) && !(dsq->id & SCX_DSQ_FLAG_BUILTIN))
 				rcu_assign_pointer(dsq->first_task, p);
 		} else {
 			/*
@@ -2254,6 +2342,11 @@ static bool dequeue_task_scx(struct rq *rq, struct task_struct *p, int core_deq_
 	sub_nr_running(rq, 1);
 
 	scx_dispatch_dequeue(rq, p);
+
+	/* see scx_task_slice_ended() for the save/restore exception */
+	if (!((deq_flags & DEQUEUE_SAVE) && task_current(rq, p)))
+		scx_task_slice_ended(rq, p);
+
 	clear_direct_dispatch(p);
 	return true;
 }
@@ -2262,6 +2355,9 @@ static void yield_task_scx(struct rq *rq)
 {
 	struct task_struct *p = rq->donor;
 	struct scx_sched *sch = scx_task_sched(p);
+
+	/* a yield gives the slice up */
+	scx_task_slice_ended(rq, p);
 
 	if (SCX_HAS_OP(sch, yield))
 		SCX_CALL_OP_2TASKS_RET(sch, yield, rq, p, NULL);
@@ -2273,6 +2369,9 @@ static bool yield_to_task_scx(struct rq *rq, struct task_struct *to)
 {
 	struct task_struct *from = rq->donor;
 	struct scx_sched *sch = scx_task_sched(from);
+
+	/* like a plain yield, giving the slice up ends the protection */
+	scx_task_slice_ended(rq, from);
 
 	if (SCX_HAS_OP(sch, yield) && sch == scx_task_sched(to))
 		return SCX_CALL_OP_2TASKS_RET(sch, yield, rq, from, to);
@@ -2317,7 +2416,7 @@ void scx_move_local_task_to_local_dsq(struct scx_sched *sch, struct task_struct 
 	WARN_ON_ONCE(p->scx.holding_cpu >= 0);
 
 	if (enq_flags & (SCX_ENQ_HEAD | SCX_ENQ_PREEMPT))
-		list_add(&p->scx.dsq_list.node, &dst_dsq->list);
+		dsq_insert_head(dst_dsq, p);
 	else
 		list_add_tail(&p->scx.dsq_list.node, &dst_dsq->list);
 
@@ -3051,6 +3150,10 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 
 	update_curr_scx(rq);
 
+	/* the slice is consumed, protection ends with it */
+	if (!p->scx.slice)
+		scx_task_slice_ended(rq, p);
+
 	/* see dequeue_task_scx() on why we skip when !QUEUED */
 	if (SCX_HAS_OP(sch, stopping) && (p->scx.flags & SCX_TASK_QUEUED))
 		SCX_CALL_OP_TASK(sch, stopping, rq, p, true);
@@ -3204,8 +3307,11 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 	 */
 	if (keep_prev) {
 		p = prev;
-		if (!p->scx.slice)
+		if (!p->scx.slice) {
+			/* the slice is consumed, protection ends */
+			scx_task_slice_ended(rq, p);
 			refill_task_slice_dfl(scx_task_sched(p), p);
+		}
 	} else {
 		p = first_local_task(rq);
 		if (!p)
@@ -3725,6 +3831,7 @@ static void scx_disable_task(struct scx_sched *sch, struct task_struct *p)
 	 * control, after ops.disable() has observed their final values.
 	 */
 	p->scx.dsq_vtime = 0;
+	scx_task_slice_ended(rq, p);
 	scx_set_task_slice(p, 0);
 	p->scx.reenq_cnt = 0;
 
@@ -4136,6 +4243,9 @@ static bool local_task_should_reenq(struct rq *rq, struct task_struct *p,
 
 	first = !(*reenq_flags & SCX_REENQ_TSR_NOT_FIRST);
 	*reenq_flags |= SCX_REENQ_TSR_NOT_FIRST;
+
+	if (unlikely(p->scx.flags & SCX_TASK_PROTECTED))
+		return false;
 
 	*reason = SCX_TASK_REENQ_KFUNC;
 
@@ -5900,6 +6010,13 @@ void scx_bypass(struct scx_sched *sch, bool bypass)
 						 scx.runnable_node) {
 			if (!scx_is_descendant(scx_task_sched(p), sch))
 				continue;
+
+			/*
+			 * Bypass trumps protection. Cycling clears for queued
+			 * tasks but current task needs explicit stripping.
+			 */
+			if (bypass && task_current(rq, p))
+				scx_task_slice_ended(rq, p);
 
 			/* cycling deq/enq is enough, see the function comment */
 			scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE) {
@@ -8197,11 +8314,10 @@ static bool kick_one_cpu(s32 cpu, struct scx_sched_pcpu *pcpu, struct rq *this_r
 			if (cur_class == &ext_sched_class) {
 				u64 caps = scx_caps_for_preempt(pcpu->sch, rq, 0);
 
-				if (likely(!scx_missing_caps(pcpu->sch, cpu, caps)))
-					scx_set_task_slice(rq->curr, 0);
-				else
-					__scx_add_event(pcpu->sch,
-							SCX_EV_SUB_PREEMPT_DENIED, 1);
+				if (unlikely(scx_missing_caps(pcpu->sch, cpu, caps)))
+					__scx_add_event(pcpu->sch, SCX_EV_SUB_PREEMPT_DENIED, 1);
+				else if (unlikely(!scx_set_task_slice(rq->curr, 0)))
+					__scx_add_event(pcpu->sch, SCX_EV_SLICE_DENIED, 1);
 			}
 			cpumask_clear_cpu(cpu, pcpu->cpus_to_preempt);
 		}
@@ -9192,10 +9308,13 @@ __bpf_kfunc bool scx_bpf_task_set_slice(struct task_struct *p, u64 slice,
 
 	/* under the rq lock: apply now, extensions gated on baseline access */
 	if (slice > p->scx.slice &&
-	    unlikely(scx_missing_caps(sch, cpu_of(locked_rq), SCX_CAP_BASE)))
+	    unlikely(scx_missing_caps(sch, cpu_of(locked_rq), SCX_CAP_BASE))) {
 		__scx_add_event(sch, SCX_EV_SLICE_DENIED, 1);
-	else
-		scx_set_task_slice(p, slice);
+		return true;
+	}
+
+	if (unlikely(!scx_set_task_slice(p, slice)))
+		__scx_add_event(sch, SCX_EV_SLICE_DENIED, 1);
 
 	return true;
 }

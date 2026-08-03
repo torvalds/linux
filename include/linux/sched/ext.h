@@ -102,6 +102,7 @@ enum scx_ent_flags {
 	SCX_TASK_DEQD_FOR_SLEEP	= 1 << 3, /* last dequeue was for SLEEP */
 	SCX_TASK_SUB_INIT	= 1 << 4, /* task being initialized for a sub sched */
 	SCX_TASK_IMMED		= 1 << 5, /* task is on local DSQ with %SCX_ENQ_IMMED */
+	SCX_TASK_PROTECTED	= 1 << 6, /* slice and DSQ head position protected */
 
 	/*
 	 * Bits 8 to 10 are used to carry task state:
