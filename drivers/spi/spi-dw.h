@@ -67,6 +67,11 @@
 #define DW_SPI_SPI_CTRLR0		0xf4
 #define DW_SPI_CS_OVERRIDE		0xf4
 
+/* Register offsets (StarFive JHB100 DWC SSI IP-cores) */
+#define DW_SPI_JHB100_INST		0x1000
+#define DW_SPI_JHB100_ADDR		0x1004
+#define DW_SPI_JHB100_FILTER_IMR	0x1008
+
 /* Bit fields in CTRLR0 (DWC APB SSI) */
 #define DW_PSSI_CTRLR0_DFS_MASK			GENMASK(3, 0)
 #define DW_PSSI_CTRLR0_DFS32_MASK		GENMASK(20, 16)
@@ -199,6 +204,7 @@ struct dw_spi {
 	u32			num_cs;		/* chip select lines */
 	u16			bus_num;
 	void (*set_cs)(struct spi_device *spi, bool enable);
+	int (*set_addr_nbyte)(struct spi_device *spi, u8 nbyte);
 
 	/* Current message transfer state info */
 	void			*tx;
@@ -227,6 +233,9 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	const struct dw_spi_dma_ops *dma_ops;
 	struct completion	dma_completion;
+
+#define DW_SPI_QUIRK_JHB100		BIT(0)
+	u32			quirk_flags;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
@@ -294,6 +303,15 @@ static inline void dw_spi_umask_intr(struct dw_spi *dws, u32 mask)
 
 	new_mask = dw_readl(dws, DW_SPI_IMR) | mask;
 	dw_writel(dws, DW_SPI_IMR, new_mask);
+}
+
+/* Disable JHB100 SPI filter IRQ bits */
+static inline void dw_spi_jhb100_mask_intr(struct dw_spi *dws, u32 mask)
+{
+	u32 new_mask;
+
+	new_mask = dw_readl(dws, DW_SPI_JHB100_FILTER_IMR) & ~mask;
+	dw_writel(dws, DW_SPI_JHB100_FILTER_IMR, new_mask);
 }
 
 /*
