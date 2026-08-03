@@ -1140,7 +1140,7 @@ static struct export *find_export(struct symbol *sym)
 static const char *__find_modname(struct elfs *e)
 {
 	struct section *sec;
-	char *name;
+	char *name, *slash;
 
 	sec = find_section_by_name(e->orig, ".modinfo");
 	if (!sec) {
@@ -1158,10 +1158,12 @@ static const char *__find_modname(struct elfs *e)
 		return NULL;
 	}
 
+	slash = strrchr(name, '/');
+	if (slash)
+		name = slash + 1;
+
 	for (char *c = name; *c; c++) {
-		if (*c == '/')
-			name = c + 1;
-		else if (*c == '-')
+		if (*c == '-')
 			*c = '_';
 		else if (*c == '.') {
 			*c = '\0';
