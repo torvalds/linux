@@ -6,8 +6,8 @@
  *    Author(s): Claudio Imbrenda <imbrenda@linux.ibm.com>
  */
 
-#ifndef __KVM_S390_DAT_H
-#define __KVM_S390_DAT_H
+#ifndef ARCH_KVM_GMAP_DAT_H
+#define ARCH_KVM_GMAP_DAT_H
 
 #include <linux/radix-tree.h>
 #include <linux/refcount.h>
@@ -975,4 +975,4 @@ static inline bool crste_is_ucas(union crste crste)
 	return is_pmd(crste) && crste.h.i && crste.h.fc0.tl == 1 && crste.h.fc == 0;
 }
 
-#endif /* __KVM_S390_DAT_H */
+#endif /* ARCH_KVM_GMAP_DAT_H */

@@ -7,8 +7,8 @@
  *               Claudio Imbrenda <imbrenda@linux.ibm.com>
  */
 
-#ifndef ARCH_KVM_S390_GMAP_H
-#define ARCH_KVM_S390_GMAP_H
+#ifndef ARCH_KVM_GMAP_GMAP_H
+#define ARCH_KVM_GMAP_GMAP_H
 
 #include "dat.h"
 
@@ -330,4 +330,4 @@ static inline bool gmap_is_shadow_valid(struct gmap *sg, union asce asce, int ed
 	return sg->guest_asce.val == asce.val && sg->edat_level == edat_level;
 }
 
-#endif /* ARCH_KVM_S390_GMAP_H */
+#endif /* ARCH_KVM_GMAP_GMAP_H */
