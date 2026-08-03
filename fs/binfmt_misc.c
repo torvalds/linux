@@ -289,6 +289,7 @@ static void entry_put_interpreters(struct binfmt_misc_entry *e)
 	list_for_each_entry_safe(interp, tmp, &e->interps, list) {
 		list_del(&interp->list);
 		close_interp_file(interp->file);
+		dec_ucount(interp->ucounts, UCOUNT_BINFMT_MISC_INTERPRETERS);
 		kfree(interp);
 	}
 }
@@ -307,7 +308,8 @@ static void entry_put_interpreters(struct binfmt_misc_entry *e)
  * The caller has to have validated @name and @path, established that @e
  * cannot be matched yet, and owns @f until this succeeds.
  *
- * Return: 0 on success, a negative errno on failure
+ * Return: 0 on success, -ENOSPC if the entry is full or the binder is out of
+ *         UCOUNT_BINFMT_MISC_INTERPRETERS budget, a negative errno on failure
  */
 static int entry_attach_interpreter(struct binfmt_misc_entry *e,
 				    const char *name, const char *path,
@@ -315,22 +317,32 @@ static int entry_attach_interpreter(struct binfmt_misc_entry *e,
 {
 	size_t nlen = strlen(name), plen = strlen(path);
 	struct binfmt_misc_interp *interp;
+	struct ucounts *ucounts;
 
 	if (binfmt_misc_find_interp(&e->interps, name))
 		return -EEXIST;
 	if (list_count_nodes(&e->interps) >= BINFMT_MISC_INTERP_MAX)
 		return -ENOSPC;
 
+	/* The binding keeps a file open, so charge it to whoever binds it. */
+	ucounts = inc_ucount(current_user_ns(), current_euid(),
+			     UCOUNT_BINFMT_MISC_INTERPRETERS);
+	if (!ucounts)
+		return -ENOSPC;
+
 	/* One allocation, both strings in it, like the entry's own buffer. */
 	interp = kmalloc(struct_size(interp, name, nlen + plen + 2),
 			 GFP_KERNEL_ACCOUNT);
-	if (!interp)
+	if (!interp) {
+		dec_ucount(ucounts, UCOUNT_BINFMT_MISC_INTERPRETERS);
 		return -ENOMEM;
+	}
 
 	interp->path = interp->name + nlen + 1;
 	strscpy(interp->name, name, nlen + 1);
 	strscpy(interp->name + nlen + 1, path, plen + 1);
 	interp->file = f;
+	interp->ucounts = ucounts;
 	/* Publish the node: a lockless cat may be walking the list. */
 	list_add_tail_rcu(&interp->list, &e->interps);
 	pr_debug("register: interpreter: %s {%s}\n", name, path);

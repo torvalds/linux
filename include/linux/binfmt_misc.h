@@ -7,6 +7,7 @@
 struct bpf_prog;
 struct file;
 struct linux_binprm;
+struct ucounts;
 struct user_namespace;
 
 #define BINFMT_MISC_OPS_NAME_MAX 16
@@ -21,6 +22,7 @@ struct user_namespace;
  * struct binfmt_misc_interp - an interpreter an entry was registered with
  * @list: link in the entry's list, in registration order
  * @file: the file, opened at registration and never resolved again
+ * @ucounts: the UCOUNT_BINFMT_MISC_INTERPRETERS charge the binding took
  * @path: the path it was registered under, used as the name the interpreter
  *        runs under; stored after @name in the same allocation
  * @name: the name the load program selects it by; empty for the fixed
@@ -33,6 +35,7 @@ struct user_namespace;
 struct binfmt_misc_interp {
 	struct list_head	list;
 	struct file		*file;
+	struct ucounts		*ucounts;
 	const char		*path;
 	char			name[];
 };
