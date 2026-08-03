@@ -19,6 +19,7 @@
 #include <net/addrconf.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
+#include <net/ndisc.h>
 #endif
 
 #include "br_private.h"
@@ -234,16 +235,12 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-struct nd_msg *br_is_nd_neigh_msg(const struct sk_buff *skb)
+struct nd_msg *br_is_nd_neigh_msg(struct sk_buff *skb)
 {
-	struct nd_msg *m = (struct nd_msg *)(ipv6_hdr(skb) + 1);
-
-	if (m->icmph.icmp6_code != 0 ||
-	    (m->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION &&
-	     m->icmph.icmp6_type != NDISC_NEIGHBOUR_ADVERTISEMENT))
+	if (ndisc_check_ns_na(skb))
 		return NULL;
 
-	return m;
+	return (struct nd_msg *)skb_transport_header(skb);
 }
 
 static void br_nd_send(struct net_bridge *br, struct net_bridge_port *p,
