@@ -74,20 +74,15 @@ static void stadia_input_close(struct input_dev *dev)
 	hid_hw_close(hid);
 }
 
-static int stadiaff_init(struct hid_device *hid)
+static int stadia_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct stadiaff_device *stadiaff;
 	struct hid_report *report;
-	struct hid_input *hidinput;
-	struct input_dev *dev;
+	struct input_dev *dev = hidinput->input;
 	int error;
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
-	}
-	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
-	dev = hidinput->input;
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
 
 	report = hid_validate_values(hid, HID_OUTPUT_REPORT,
 				     STADIA_FF_REPORT_ID, 0, 2);
@@ -120,32 +115,6 @@ static int stadiaff_init(struct hid_device *hid)
 	return 0;
 }
 
-static int stadia_probe(struct hid_device *hdev, const struct hid_device_id *id)
-{
-	int ret;
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		return ret;
-	}
-
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		return ret;
-	}
-
-	ret = stadiaff_init(hdev);
-	if (ret) {
-		hid_err(hdev, "force feedback init failed\n");
-		hid_hw_stop(hdev);
-		return ret;
-	}
-
-	return 0;
-}
-
 static const struct hid_device_id stadia_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GOOGLE, USB_DEVICE_ID_GOOGLE_STADIA) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_GOOGLE, USB_DEVICE_ID_GOOGLE_STADIA) },
@@ -156,7 +125,7 @@ MODULE_DEVICE_TABLE(hid, stadia_devices);
 static struct hid_driver stadia_driver = {
 	.name = "stadia",
 	.id_table = stadia_devices,
-	.probe = stadia_probe,
+	.input_configured = stadia_input_configured,
 };
 module_hid_driver(stadia_driver);
 
