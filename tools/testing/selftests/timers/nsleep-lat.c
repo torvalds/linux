@@ -29,9 +29,6 @@
 
 #define UNRESONABLE_LATENCY (40 * NSEC_PER_MSEC)
 
-/* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
-#define CLOCK_HWSPECIFIC		10
-
 #define UNSUPPORTED 0xf00f
 
 struct timespec timespec_add(struct timespec ts, unsigned long long ns)
@@ -97,24 +94,25 @@ int nanosleep_lat_test(int clockid, long long ns)
 	return 0;
 }
 
-#define SKIPPED_CLOCK_COUNT 3
-
 int main(int argc, char **argv)
 {
 	long long length;
 	int clockid, ret;
-	int max_clocks = CLOCK_TAI + 1;
+
+	static const clockid_t tested_clocks[] = {
+		CLOCK_REALTIME,
+		CLOCK_MONOTONIC,
+		CLOCK_BOOTTIME,
+		CLOCK_BOOTTIME_ALARM,
+		CLOCK_REALTIME_ALARM,
+		CLOCK_TAI,
+	};
 
 	ksft_print_header();
-	ksft_set_plan(max_clocks - CLOCK_REALTIME - SKIPPED_CLOCK_COUNT);
+	ksft_set_plan(ARRAY_SIZE(tested_clocks));
 
-	for (clockid = CLOCK_REALTIME; clockid < max_clocks; clockid++) {
-
-		/* Skip cputime clockids since nanosleep won't increment cputime */
-		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
-				clockid == CLOCK_THREAD_CPUTIME_ID ||
-				clockid == CLOCK_HWSPECIFIC)
-			continue;
+	for (size_t clock_index = 0; clock_index < ARRAY_SIZE(tested_clocks); clock_index++) {
+		clockid = tested_clocks[clock_index];
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
