@@ -1468,53 +1468,29 @@ static inline bool ublk_need_unmap_req(const struct request *req)
 	       (req_op(req) == REQ_OP_READ || req_op(req) == REQ_OP_DRV_IN);
 }
 
-static unsigned int ublk_map_io(const struct ublk_queue *ubq,
-				const struct request *req,
+static unsigned int ublk_map_io(const struct request *req,
 				const struct ublk_io *io)
 {
-	const unsigned int rq_bytes = blk_rq_bytes(req);
+	struct iov_iter iter;
+	const int dir = ITER_DEST;
 
-	if (!ublk_need_map_io(ubq))
-		return rq_bytes;
+	if (import_ubuf(dir, u64_to_user_ptr(io->buf.addr), blk_rq_bytes(req),
+			&iter) < 0)
+		return 0;
 
-	/*
-	 * no zero copy, we delay copy WRITE request data into ublksrv
-	 * context and the big benefit is that pinning pages in current
-	 * context is pretty fast, see ublk_pin_user_pages
-	 */
-	if (ublk_need_map_req(req)) {
-		struct iov_iter iter;
-		const int dir = ITER_DEST;
-
-		if (import_ubuf(dir, u64_to_user_ptr(io->buf.addr), rq_bytes,
-				&iter) < 0)
-			return 0;
-
-		return ublk_copy_user_pages(req, 0, &iter, dir);
-	}
-	return rq_bytes;
+	return ublk_copy_user_pages(req, 0, &iter, dir);
 }
 
-static unsigned int ublk_unmap_io(bool need_map,
-		const struct request *req,
+static unsigned int ublk_unmap_io(const struct request *req,
 		const struct ublk_io *io)
 {
-	const unsigned int rq_bytes = blk_rq_bytes(req);
+	struct iov_iter iter;
+	const int dir = ITER_SOURCE;
 
-	if (!need_map)
-		return rq_bytes;
+	if (import_ubuf(dir, u64_to_user_ptr(io->buf.addr), io->res, &iter) < 0)
+		return 0;
 
-	if (ublk_need_unmap_req(req)) {
-		struct iov_iter iter;
-		const int dir = ITER_SOURCE;
-
-		if (import_ubuf(dir, u64_to_user_ptr(io->buf.addr), io->res,
-				&iter) < 0)
-			return 0;
-
-		return ublk_copy_user_pages(req, 0, &iter, dir);
-	}
-	return rq_bytes;
+	return ublk_copy_user_pages(req, 0, &iter, dir);
 }
 
 static bool ublk_validate_req(const struct ublk_queue *ubq,
@@ -1590,22 +1566,13 @@ static inline void __ublk_complete_rq(struct request *req, struct ublk_io *io,
 		goto exit;
 	}
 
-	/*
-	 * FLUSH, DISCARD or WRITE_ZEROES usually won't return bytes returned, so end them
-	 * directly.
-	 *
-	 * Both the two needn't unmap.
-	 */
-	if (req_op(req) != REQ_OP_READ && req_op(req) != REQ_OP_WRITE &&
-	    req_op(req) != REQ_OP_DRV_IN)
-		goto exit;
-
 	/* shmem zero copy: no data to unmap, pages already shared */
-	if (ublk_iod_is_shmem_zc(req->mq_hctx->driver_data, req->tag))
+	if (!need_map || !ublk_need_unmap_req(req) ||
+	    ublk_iod_is_shmem_zc(req->mq_hctx->driver_data, req->tag))
 		goto exit;
 
 	/* for READ request, writing data in iod->addr to rq buffers */
-	unmapped_bytes = ublk_unmap_io(need_map, req, io);
+	unmapped_bytes = ublk_unmap_io(req, io);
 
 	/*
 	 * Extremely impossible since we got data filled in just before
@@ -1771,10 +1738,11 @@ static bool ublk_start_io(const struct ublk_queue *ubq, struct request *req,
 	unsigned mapped_bytes;
 
 	/* shmem zero copy: skip data copy, pages already shared */
-	if (ublk_iod_is_shmem_zc(ubq, req->tag))
+	if (!ublk_need_map_io(ubq) || !ublk_need_map_req(req) ||
+	    ublk_iod_is_shmem_zc(ubq, req->tag))
 		return true;
 
-	mapped_bytes = ublk_map_io(ubq, req, io);
+	mapped_bytes = ublk_map_io(req, io);
 
 	/* partially mapped, update io descriptor */
 	if (unlikely(mapped_bytes != blk_rq_bytes(req))) {
