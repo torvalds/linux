@@ -2280,6 +2280,18 @@ static const BIN_ATTR_RO(report_descriptor, HID_MAX_DESCRIPTOR_SIZE);
 
 static const DEVICE_ATTR_RO(country);
 
+static bool hid_has_ff_input(struct hid_device *hdev)
+{
+	struct hid_input *hidinput;
+
+	list_for_each_entry(hidinput, &hdev->inputs, list) {
+		if (test_bit(EV_FF, hidinput->input->evbit))
+			return true;
+	}
+
+	return false;
+}
+
 int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 {
 	static const char *types[] = { "Device", "Pointer", "Mouse", "Device",
@@ -2329,7 +2341,8 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	hid_process_ordering(hdev);
 
 	if ((hdev->claimed & HID_CLAIMED_INPUT) &&
-			(connect_mask & HID_CONNECT_FF) && hdev->ff_init)
+			(connect_mask & HID_CONNECT_FF) && hdev->ff_init &&
+			!hid_has_ff_input(hdev))
 		hdev->ff_init(hdev);
 
 	len = 0;
