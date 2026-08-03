@@ -204,8 +204,7 @@ static struct platform_driver ppc44x_gpio_driver = {
 	},
 };
 
-static int __init ppc44x_gpio_init(void)
-{
-	return platform_driver_register(&ppc44x_gpio_driver);
-}
-arch_initcall(ppc44x_gpio_init);
+MODULE_DESCRIPTION("PPC44x gpio driver");
+MODULE_LICENSE("GPL");
+
+module_platform_driver(ppc44x_gpio_driver);
