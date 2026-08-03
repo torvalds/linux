@@ -749,6 +749,7 @@ static void cdns_xspi_print_phy_config(struct cdns_xspi_dev *cdns_xspi)
 		 readl(cdns_xspi->auxbase + CDNS_XSPI_CCP_PHY_DLL_SLAVE_CTRL));
 }
 
+#ifdef CONFIG_64BIT
 static struct cdns_xspi_driver_data marvell_driver_data = {
 	.mrvl_hw_overlay = true,
 	.dll_phy_ctrl = MARVELL_REGS_DLL_PHY_CTRL,
@@ -1170,6 +1171,7 @@ static int cdns_xspi_transfer_one_message_b0(struct spi_controller *controller,
 
 	return 0;
 }
+#endif
 
 static int cdns_xspi_probe(struct platform_device *pdev)
 {
@@ -1195,12 +1197,14 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 	host->mem_ops = &cadence_xspi_mem_ops;
 	cdns_xspi->sdma_handler = &cdns_xspi_sdma_handle;
 	cdns_xspi->set_interrupts_handler = &cdns_xspi_set_interrupts;
+#ifdef CONFIG_64BIT
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		host->mem_ops = &marvell_xspi_mem_ops;
 		host->transfer_one_message = cdns_xspi_transfer_one_message_b0;
 		cdns_xspi->sdma_handler = &marvell_xspi_sdma_handle;
 		cdns_xspi->set_interrupts_handler = &marvell_xspi_set_interrupts;
 	}
+#endif
 	host->bus_num = -1;
 
 	platform_set_drvdata(pdev, cdns_xspi);
@@ -1246,6 +1250,7 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef CONFIG_64BIT
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		cdns_xspi->xferbase = devm_platform_ioremap_resource_byname(pdev, "xfer");
 		if (IS_ERR(cdns_xspi->xferbase)) {
@@ -1257,6 +1262,7 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 			}
 		}
 	}
+#endif
 
 	cdns_xspi->irq = platform_get_irq(pdev, 0);
 	if (cdns_xspi->irq < 0)
@@ -1269,10 +1275,12 @@ static int cdns_xspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+#ifdef CONFIG_64BIT
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		cdns_mrvl_xspi_setup_clock(cdns_xspi, MRVL_DEFAULT_CLK);
 		cdns_xspi_configure_phy(cdns_xspi);
 	}
+#endif
 
 	cdns_xspi_print_phy_config(cdns_xspi);
 
@@ -1306,10 +1314,12 @@ static int cdns_xspi_resume(struct device *dev)
 {
 	struct cdns_xspi_dev *cdns_xspi = dev_get_drvdata(dev);
 
+#ifdef CONFIG_64BIT
 	if (cdns_xspi->driver_data->mrvl_hw_overlay) {
 		cdns_mrvl_xspi_setup_clock(cdns_xspi, MRVL_DEFAULT_CLK);
 		cdns_xspi_configure_phy(cdns_xspi);
 	}
+#endif
 
 	cdns_xspi->set_interrupts_handler(cdns_xspi, false);
 
@@ -1324,10 +1334,12 @@ static const struct of_device_id cdns_xspi_of_match[] = {
 		.compatible = "cdns,xspi-nor",
 		.data = &cdns_driver_data,
 	},
+#ifdef CONFIG_64BIT
 	{
 		.compatible = "marvell,cn10-xspi-nor",
 		.data = &marvell_driver_data,
 	},
+#endif
 	{ /* end of table */}
 };
 MODULE_DEVICE_TABLE(of, cdns_xspi_of_match);
