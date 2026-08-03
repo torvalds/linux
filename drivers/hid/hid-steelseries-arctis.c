@@ -8,6 +8,8 @@
 
 #include <linux/device.h>
 #include <linux/hid.h>
+#include <linux/kref.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
 #include <linux/spinlock.h>
@@ -30,6 +32,8 @@ struct steelseries_device_info {
 };
 
 struct steelseries_device {
+	struct kref refcnt;
+
 	struct hid_device *hdev;
 	const struct steelseries_device_info *info;
 
@@ -44,6 +48,14 @@ struct steelseries_device {
 	spinlock_t lock;
 	bool removed;
 };
+
+static void steelseries_device_release(struct kref *ref)
+{
+	struct steelseries_device *sd =
+		container_of(ref, struct steelseries_device, refcnt);
+
+	kfree(sd);
+}
 
 /*
  * Headset report helpers
@@ -267,9 +279,8 @@ static void steelseries_status_timer_work_handler(struct work_struct *work)
 
 static int steelseries_battery_register(struct steelseries_device *sd)
 {
-	static atomic_t battery_no = ATOMIC_INIT(0);
 	struct power_supply_config battery_cfg = { .drv_data = sd, };
-	unsigned long n;
+	struct power_supply *battery;
 	int ret;
 
 	sd->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
@@ -277,9 +288,10 @@ static int steelseries_battery_register(struct steelseries_device *sd)
 	sd->battery_desc.num_properties = ARRAY_SIZE(steelseries_battery_props);
 	sd->battery_desc.get_property = steelseries_battery_get_property;
 	sd->battery_desc.use_for_apm = 0;
-	n = atomic_inc_return(&battery_no) - 1;
 	sd->battery_desc.name = devm_kasprintf(&sd->hdev->dev, GFP_KERNEL,
-						"steelseries_headset_battery_%ld", n);
+					       "steelseries_headset_battery_%s",
+					       sd->hdev->uniq[0] ? sd->hdev->uniq :
+					       dev_name(&sd->hdev->dev));
 	if (!sd->battery_desc.name)
 		return -ENOMEM;
 
@@ -289,17 +301,19 @@ static int steelseries_battery_register(struct steelseries_device *sd)
 	sd->headset_connected = false;
 	steelseries_headset_set_wireless_status(sd->hdev, false);
 
-	sd->battery = devm_power_supply_register(&sd->hdev->dev,
+	battery = power_supply_register(&sd->hdev->dev,
 			&sd->battery_desc, &battery_cfg);
-	if (IS_ERR(sd->battery)) {
-		ret = PTR_ERR(sd->battery);
-		sd->battery = NULL;
+	if (IS_ERR(battery)) {
+		ret = PTR_ERR(battery);
 		hid_err(sd->hdev,
 				"%s:power_supply_register failed with error %d\n",
 				__func__, ret);
 		return ret;
 	}
-	power_supply_powers(sd->battery, &sd->hdev->dev);
+	power_supply_powers(battery, &sd->hdev->dev);
+
+	/* Assign on success only, so a concurrent raw_event never sees an ERR_PTR. */
+	sd->battery = battery;
 
 	return 0;
 }
@@ -329,10 +343,11 @@ static int steelseries_arctis_probe(struct hid_device *hdev,
 	if (interface_num != info->sync_interface)
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
-	sd = devm_kzalloc(&hdev->dev, sizeof(*sd), GFP_KERNEL);
+	sd = kzalloc_obj(*sd, GFP_KERNEL);
 	if (!sd)
 		return -ENOMEM;
 
+	kref_init(&sd->refcnt);
 	sd->hdev = hdev;
 	sd->info = info;
 	spin_lock_init(&sd->lock);
@@ -341,7 +356,7 @@ static int steelseries_arctis_probe(struct hid_device *hdev,
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret)
-		return ret;
+		goto err_put;
 
 	ret = hid_hw_open(hdev);
 	if (ret)
@@ -360,12 +375,15 @@ static int steelseries_arctis_probe(struct hid_device *hdev,
 
 err_stop:
 	hid_hw_stop(hdev);
+err_put:
+	kref_put(&sd->refcnt, steelseries_device_release);
 	return ret;
 }
 
 static void steelseries_arctis_remove(struct hid_device *hdev)
 {
 	struct steelseries_device *sd;
+	struct power_supply *battery;
 	unsigned long flags;
 	struct usb_interface *intf;
 	u8 interface_num;
@@ -387,13 +405,20 @@ static void steelseries_arctis_remove(struct hid_device *hdev)
 	if (interface_num == sd->info->sync_interface) {
 		spin_lock_irqsave(&sd->lock, flags);
 		sd->removed = true;
+		battery = sd->battery;
+		sd->battery = NULL;
 		spin_unlock_irqrestore(&sd->lock, flags);
 
 		cancel_delayed_work_sync(&sd->status_work);
+
+		if (battery)
+			power_supply_unregister(battery);
 	}
 
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
+
+	kref_put(&sd->refcnt, steelseries_device_release);
 }
 
 static int steelseries_arctis_raw_event(struct hid_device *hdev,
