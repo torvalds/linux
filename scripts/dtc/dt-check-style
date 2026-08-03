@@ -82,11 +82,12 @@ class DtsLine:
                  'node_name', 'node_addr', 'label', 'ref_name', 'depth',
                  'closures')
 
-    def __init__(self, lineno, raw, linetype, indent_str, stripped):
+    def __init__(self, lineno, raw, linetype, depth, indent_str, stripped):
         self.lineno = lineno      # 1-based within the block
         self.raw = raw
         self.linetype = linetype
         self.indent_str = indent_str  # leading whitespace as-is
+        self.depth = depth
         self.stripped = stripped
         self.prop_name = None
         self.continuations = []
@@ -94,7 +95,6 @@ class DtsLine:
         self.node_addr = None
         self.label = None
         self.ref_name = None
-        self.depth = 0            # filled in by classify_lines
         self.closures = 1         # count of '}' on a NODE_CLOSE line
 
 
@@ -162,16 +162,14 @@ def classify_lines(text):
         # or a blank line).
         if in_cpp_macro:
             dl = DtsLine(i, raw, LineType.PREPROCESSOR,
-                         indent_str, stripped)
-            dl.depth = depth
+                         depth, indent_str, stripped)
             out.append(dl)
             in_cpp_macro = (bool(stripped) and
                             stripped.rstrip().endswith('\\'))
             continue
 
         if not stripped:
-            dl = DtsLine(i, raw, LineType.BLANK, '', '')
-            dl.depth = depth
+            dl = DtsLine(i, raw, LineType.BLANK, depth, '', '')
             out.append(dl)
             continue
 
@@ -180,15 +178,13 @@ def classify_lines(text):
                      else LineType.COMMENT_BODY)
             if ltype == LineType.COMMENT_END:
                 in_block_comment = False
-            dl = DtsLine(i, raw, ltype, indent_str, stripped)
-            dl.depth = depth
+            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped)
             out.append(dl)
             continue
 
         if (stripped.startswith('#') or stripped.startswith('/')) and is_preprocessor(stripped):
-            dl = DtsLine(i, raw, LineType.PREPROCESSOR,
+            dl = DtsLine(i, raw, LineType.PREPROCESSOR, depth,
                          indent_str, stripped)
-            dl.depth = depth
             out.append(dl)
             prev_complete = True
             in_cpp_macro = stripped.rstrip().endswith('\\')
@@ -205,14 +201,12 @@ def classify_lines(text):
         # structural classification entirely.
         if not code:
             ltype = LineType.COMMENT_START if opens_block else LineType.COMMENT
-            dl = DtsLine(i, raw, ltype, indent_str, stripped)
-            dl.depth = depth
+            dl = DtsLine(i, raw, ltype, depth, indent_str, stripped)
             out.append(dl)
             continue
 
         if not prev_complete:
-            dl = DtsLine(i, raw, LineType.CONTINUATION, indent_str, code)
-            dl.depth = depth
+            dl = DtsLine(i, raw, LineType.CONTINUATION, depth, indent_str, code)
             out.append(dl)
             prev_complete = (code.endswith(';') or
                              code.endswith('{') or
@@ -227,26 +221,23 @@ def classify_lines(text):
         if re_only_closures.match(code):
             closures = code.count('}')
             depth = max(depth - closures, 0)
-            dl = DtsLine(i, raw, LineType.NODE_CLOSE, indent_str, code)
-            dl.depth = depth
+            dl = DtsLine(i, raw, LineType.NODE_CLOSE, depth, indent_str, code)
             dl.closures = closures
             out.append(dl)
             prev_complete = True
             continue
 
         if code.endswith('{'):
-            dl = DtsLine(i, raw, LineType.NODE_OPEN, indent_str, code)
+            dl = DtsLine(i, raw, LineType.NODE_OPEN, depth, indent_str, code)
             parse_node_header(dl)
-            dl.depth = depth
             out.append(dl)
             depth += 1
             prev_complete = True
             continue
 
         # Property (or first line of a multi-line property).
-        dl = DtsLine(i, raw, LineType.PROPERTY, indent_str, code)
+        dl = DtsLine(i, raw, LineType.PROPERTY, depth, indent_str, code)
         parse_property_name(dl)
-        dl.depth = depth
         out.append(dl)
         prev_complete = code.endswith(';')
 
