@@ -71,29 +71,26 @@ static int drff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int drff_init(struct hid_device *hid)
+static int dr_input_configured(struct hid_device *hid, struct hid_input *hidinput)
 {
 	struct drff_device *drff;
 	struct hid_report *report;
-	struct hid_input *hidinput;
 	struct list_head *report_list =
 			&hid->report_enum[HID_OUTPUT_REPORT].report_list;
-	struct input_dev *dev;
+	struct input_dev *dev = hidinput->input;
 	int error;
 
-	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
-		return -ENODEV;
-	}
-	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
-	dev = hidinput->input;
+	if (!list_is_first(&hidinput->list, &hid->inputs))
+		return 0;
 
-	if (list_empty(report_list)) {
+	if (hid->product != 0x0006)
+		return 0;
+
+	report = list_first_entry_or_null(report_list, struct hid_report, list);
+	if (!report) {
 		hid_err(hid, "no output reports found\n");
 		return -ENODEV;
 	}
-
-	report = list_first_entry(report_list, struct hid_report, list);
 	if (report->maxfield < 1) {
 		hid_err(hid, "no fields in the report\n");
 		return -ENODEV;
@@ -108,6 +105,7 @@ static int drff_init(struct hid_device *hid)
 	if (!drff)
 		return -ENOMEM;
 
+	drff->report = report;
 	set_bit(FF_RUMBLE, dev->ffbit);
 
 	error = input_ff_create_memless(dev, drff, drff_play);
@@ -116,7 +114,6 @@ static int drff_init(struct hid_device *hid)
 		return error;
 	}
 
-	drff->report = report;
 	drff->report->field[0]->value[0] = 0xf3;
 	drff->report->field[0]->value[1] = 0x00;
 	drff->report->field[0]->value[2] = 0x00;
@@ -132,7 +129,8 @@ static int drff_init(struct hid_device *hid)
 	return 0;
 }
 #else
-static inline int drff_init(struct hid_device *hid)
+static inline int dr_input_configured(struct hid_device *hid,
+				      struct hid_input *hidinput)
 {
 	return 0;
 }
@@ -266,43 +264,9 @@ static int dr_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	return 0;
 }
 
-static int dr_probe(struct hid_device *hdev, const struct hid_device_id *id)
-{
-	int ret;
-
-	dev_dbg(&hdev->dev, "DragonRise Inc. HID hardware probe...");
-
-	ret = hid_parse(hdev);
-	if (ret) {
-		hid_err(hdev, "parse failed\n");
-		goto err;
-	}
-
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
-	if (ret) {
-		hid_err(hdev, "hw start failed\n");
-		goto err;
-	}
-
-	switch (hdev->product) {
-	case 0x0006:
-		ret = drff_init(hdev);
-		if (ret) {
-			dev_err(&hdev->dev, "force feedback init failed\n");
-			hid_hw_stop(hdev);
-			goto err;
-		}
-		break;
-	}
-
-	return 0;
-err:
-	return ret;
-}
-
 static const struct hid_device_id dr_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, 0x0006),  },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, 0x0011),  },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, 0x0006), },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_DRAGONRISE, 0x0011), },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, dr_devices);
@@ -311,8 +275,8 @@ static struct hid_driver dr_driver = {
 	.name = "dragonrise",
 	.id_table = dr_devices,
 	.report_fixup = dr_report_fixup,
-	.probe = dr_probe,
 	.input_mapping = dr_input_mapping,
+	.input_configured = dr_input_configured,
 };
 module_hid_driver(dr_driver);
 
