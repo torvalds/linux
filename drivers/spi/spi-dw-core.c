@@ -828,6 +828,90 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	return ret;
 }
 
+static void dw_spi_init_enh_mem_buf(struct dw_spi *dws, const struct spi_mem_op *op)
+{
+	dws->n_bytes = 1;
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		dws->rx = op->data.buf.in;
+		dws->rx_len = op->data.nbytes;
+		dws->tx = NULL;
+		dws->tx_len = 0;
+	} else if (op->data.dir == SPI_MEM_DATA_OUT) {
+		dws->tx_len = op->data.nbytes;
+		dws->tx = (void *)op->data.buf.out;
+		dws->rx = NULL;
+		dws->rx_len = 0;
+	} else {
+		dws->rx = NULL;
+		dws->rx_len = 0;
+		dws->tx = NULL;
+		dws->tx_len = 0;
+	}
+}
+
+static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
+{
+	struct spi_controller *ctlr = mem->spi->controller;
+	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
+	struct dw_spi_enh_cfg enh_cfg = {0};
+	struct dw_spi_cfg cfg = {0};
+
+	switch (op->data.buswidth) {
+	case 0:
+	case 1:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_STD_SPI;
+		break;
+	case 2:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_DUAL_SPI;
+		break;
+	case 4:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_QUAD_SPI;
+		break;
+	case 8:
+		cfg.spi_frf = DW_SPI_CTRLR0_SPI_FRF_OCT_SPI;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dw_spi_init_enh_mem_buf(dws, op);
+
+	cfg.dfs = 8;
+	cfg.freq = clamp(op->max_freq, 0U, dws->max_mem_freq);
+	cfg.ndf = op->data.nbytes;
+	if (op->data.dir == SPI_MEM_DATA_IN)
+		cfg.tmode = DW_SPI_CTRLR0_TMOD_RO;
+	else
+		cfg.tmode = DW_SPI_CTRLR0_TMOD_TO;
+
+	if (op->data.buswidth == op->addr.buswidth &&
+	    op->data.buswidth == op->cmd.buswidth)
+		enh_cfg.trans_t = DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT2;
+	else if (op->data.buswidth == op->addr.buswidth)
+		enh_cfg.trans_t = DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT1;
+	else
+		enh_cfg.trans_t = DW_SPI_ENH_CTRLR0_TRANS_TYPE_TT0;
+
+	enh_cfg.addr_l = op->addr.nbytes << 1;
+	if (op->cmd.nbytes == 2)
+		enh_cfg.inst_l = DW_SPI_ENH_CTRLR0_INST_L_INST_L16;
+	else if (op->cmd.nbytes == 1)
+		enh_cfg.inst_l = DW_SPI_ENH_CTRLR0_INST_L_INST_L8;
+	else
+		enh_cfg.inst_l = DW_SPI_ENH_CTRLR0_INST_L_INST_L0;
+
+	if (op->dummy.buswidth)
+		enh_cfg.wait_c = op->dummy.nbytes * BITS_PER_BYTE / op->dummy.buswidth;
+
+	dw_spi_enable_chip(dws, 0);
+
+	dw_spi_update_config(dws, mem->spi, &cfg, &enh_cfg);
+
+	dw_spi_enable_chip(dws, 1);
+
+	return 0;
+}
+
 /*
  * Initialize the default memory operations if a glue layer hasn't specified
  * custom ones. Direct mapping operations will be preserved anyway since DW SPI
@@ -843,14 +927,15 @@ static void dw_spi_init_mem_ops(struct dw_spi *dws)
 	    !dws->set_cs) {
 		dws->mem_ops.adjust_op_size = dw_spi_adjust_mem_op_size;
 		if (dws->caps & DW_SPI_CAP_EMODE) {
+			dws->mem_ops.exec_op = dw_spi_exec_enh_mem_op;
 			dws->mem_ops.supports_op = dw_spi_supports_enh_mem_op;
 			dws->mem_ops.adjust_op_size = dw_spi_adjust_enh_mem_op_size;
 		} else {
+			dws->mem_ops.exec_op = dw_spi_exec_mem_op;
 			dws->mem_ops.supports_op = dw_spi_supports_mem_op;
 			dws->mem_ops.adjust_op_size = dw_spi_adjust_mem_op_size;
 		}
 
-		dws->mem_ops.exec_op = dw_spi_exec_mem_op;
 		if (!dws->max_mem_freq)
 			dws->max_mem_freq = dws->max_freq;
 	}
