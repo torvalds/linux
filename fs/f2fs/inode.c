@@ -9,6 +9,7 @@
 #include <linux/f2fs_fs.h>
 #include <linux/writeback.h>
 #include <linux/sched/mm.h>
+#include <linux/swap.h>
 #include <linux/lz4.h>
 #include <linux/zstd.h>
 #include <linux/fserror.h>
@@ -23,6 +24,18 @@
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 extern const struct address_space_operations f2fs_compress_aops;
 #endif
+
+#define NUM_PREALLOC_EVICT_INODE_WORK 8
+
+static struct kmem_cache *evict_inode_work_cache;
+static mempool_t *evict_inode_work_pool;
+
+struct evict_inode_work {
+	struct work_struct work;
+	struct f2fs_sb_info *sbi;
+	nid_t ino;
+	unsigned int add_ino_entry_bits;
+};
 
 void f2fs_mark_inode_dirty_sync(struct inode *inode, bool sync)
 {
@@ -637,6 +650,9 @@ make_now:
 		inode->i_fop = &f2fs_dir_operations;
 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
 		mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+
+		/* Let's prepare APPEND/UPDATE_INO before future access. */
+		flush_workqueue(sbi->evict_wq);
 	} else if (S_ISLNK(inode->i_mode)) {
 		if (file_is_encrypt(inode))
 			inode->i_op = &f2fs_encrypted_symlink_inode_operations;
@@ -854,6 +870,25 @@ void f2fs_remove_donate_inode(struct inode *inode)
 	spin_unlock(&sbi->inode_lock[DONATE_INODE]);
 }
 
+static void f2fs_record_inode_state(struct f2fs_sb_info *sbi, nid_t ino,
+				    unsigned int bits)
+{
+	if (bits & BIT(APPEND_INO))
+		f2fs_add_ino_entry(sbi, ino, APPEND_INO);
+	if (bits & BIT(UPDATE_INO))
+		f2fs_add_ino_entry(sbi, ino, UPDATE_INO);
+}
+
+static void f2fs_evict_inode_work(struct work_struct *work)
+{
+	struct evict_inode_work *ew =
+		container_of(work, struct evict_inode_work, work);
+
+	f2fs_record_inode_state(ew->sbi, ew->ino, ew->add_ino_entry_bits);
+
+	mempool_free(ew, evict_inode_work_pool);
+}
+
 /*
  * Return true, if we shouldn't go through post_evict_inode.
  */
@@ -988,6 +1023,7 @@ static void f2fs_post_evict_inode(struct inode *inode)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	nid_t xnid = fi->i_xattr_nid;
+	unsigned int record_bits = 0;
 
 	dquot_drop(inode);
 
@@ -1014,12 +1050,32 @@ static void f2fs_post_evict_inode(struct inode *inode)
 							inode->i_ino);
 	if (xnid)
 		invalidate_mapping_pages(NODE_MAPPING(sbi), xnid, xnid);
-	if (inode->i_nlink) {
-		if (is_inode_flag_set(inode, FI_APPEND_WRITE))
-			f2fs_add_ino_entry(sbi, inode->i_ino, APPEND_INO);
-		if (is_inode_flag_set(inode, FI_UPDATE_WRITE))
-			f2fs_add_ino_entry(sbi, inode->i_ino, UPDATE_INO);
+
+	if (!inode->i_nlink)
+		goto skip_record;
+
+	if (is_inode_flag_set(inode, FI_APPEND_WRITE))
+		record_bits = BIT(APPEND_INO);
+	if (is_inode_flag_set(inode, FI_UPDATE_WRITE))
+		record_bits = BIT(UPDATE_INO);
+
+	if (!record_bits)
+		goto skip_record;
+
+	/* Let's do this in workqueue out of the direct reclaim path. */
+	if (current_is_kswapd()) {
+		f2fs_record_inode_state(sbi, inode->i_ino, record_bits);
+	} else {
+		struct evict_inode_work *ew =
+			mempool_alloc(evict_inode_work_pool, GFP_NOFS);
+
+		ew->sbi = sbi;
+		ew->ino = inode->i_ino;
+		ew->add_ino_entry_bits = record_bits;
+		INIT_WORK(&ew->work, f2fs_evict_inode_work);
+		queue_work(sbi->evict_wq, &ew->work);
 	}
+skip_record:
 	if (is_inode_flag_set(inode, FI_FREE_NID)) {
 		f2fs_alloc_nid_failed(sbi, inode->i_ino);
 		clear_inode_flag(inode, FI_FREE_NID);
@@ -1104,4 +1160,30 @@ out:
 
 	/* iput will drop the inode object */
 	iput(inode);
+}
+
+int __init f2fs_init_evict_inode_work(void)
+{
+	evict_inode_work_cache =
+		kmem_cache_create("f2fs_evict_inode_work",
+				  sizeof(struct evict_inode_work), 0, 0, NULL);
+	if (!evict_inode_work_cache)
+		goto fail;
+	evict_inode_work_pool =
+		mempool_create_slab_pool(NUM_PREALLOC_EVICT_INODE_WORK,
+					 evict_inode_work_cache);
+	if (!evict_inode_work_pool)
+		goto fail_free_cache;
+	return 0;
+
+fail_free_cache:
+	kmem_cache_destroy(evict_inode_work_cache);
+fail:
+	return -ENOMEM;
+}
+
+void f2fs_destroy_evict_inode_work(void)
+{
+	mempool_destroy(evict_inode_work_pool);
+	kmem_cache_destroy(evict_inode_work_cache);
 }

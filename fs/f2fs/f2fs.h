@@ -2013,6 +2013,8 @@ struct f2fs_sb_info {
 
 	struct workqueue_struct *wq;		/* bio completion workqueue */
 
+	struct workqueue_struct *evict_wq;	/* inode eviction workqueue */
+
 	/*
 	 * If we are in irq context, let's update error information into
 	 * on-disk superblock in the work.
@@ -3872,6 +3874,8 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc);
 void f2fs_remove_donate_inode(struct inode *inode);
 void f2fs_evict_inode(struct inode *inode);
 void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc);
+int f2fs_init_evict_inode_work(void);
+void f2fs_destroy_evict_inode_work(void);
 
 /*
  * namei.c

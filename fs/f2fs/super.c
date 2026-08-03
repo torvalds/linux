@@ -5739,10 +5739,16 @@ static int __init init_f2fs_fs(void)
 	err = f2fs_init_xattr_cache();
 	if (err)
 		goto free_casefold_cache;
-	err = register_filesystem(&f2fs_fs_type);
+	err = f2fs_init_evict_inode_work();
 	if (err)
 		goto free_xattr_cache;
+	err = register_filesystem(&f2fs_fs_type);
+	if (err)
+		goto free_evict_inode_cache;
 	return 0;
+
+free_evict_inode_cache:
+	f2fs_destroy_evict_inode_work();
 free_xattr_cache:
 	f2fs_destroy_xattr_cache();
 free_casefold_cache:
@@ -5785,6 +5791,7 @@ fail:
 static void __exit exit_f2fs_fs(void)
 {
 	unregister_filesystem(&f2fs_fs_type);
+	f2fs_destroy_evict_inode_work();
 	f2fs_destroy_xattr_cache();
 	f2fs_destroy_casefold_cache();
 	f2fs_destroy_compress_cache();
