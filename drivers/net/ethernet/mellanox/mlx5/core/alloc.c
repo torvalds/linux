@@ -48,13 +48,6 @@
 #define MLX5_FRAG_BUF_POOLS_NUM \
 	(PAGE_SHIFT - MLX5_FRAG_BUF_POOL_MIN_BLOCK_SHIFT + 1)
 
-struct mlx5_db_pgdir {
-	struct list_head	list;
-	unsigned long	       *bitmap;
-	__be32		       *db_page;
-	dma_addr_t		db_dma;
-};
-
 struct mlx5_dma_pool {
 	/* Protects page_list and per-page allocation bitmaps. */
 	struct mutex lock;
@@ -481,106 +474,36 @@ int mlx5_db_pools_init(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
-						 int node)
-{
-	u32 db_per_page = PAGE_SIZE / cache_line_size();
-	struct mlx5_db_pgdir *pgdir;
-
-	pgdir = kzalloc_node(sizeof(*pgdir), GFP_KERNEL, node);
-	if (!pgdir)
-		return NULL;
-
-	pgdir->bitmap = bitmap_zalloc_node(db_per_page, GFP_KERNEL, node);
-	if (!pgdir->bitmap) {
-		kfree(pgdir);
-		return NULL;
-	}
-
-	bitmap_fill(pgdir->bitmap, db_per_page);
-
-	pgdir->db_page = mlx5_dma_zalloc_coherent_node(dev, PAGE_SIZE,
-						       &pgdir->db_dma, node);
-	if (!pgdir->db_page) {
-		bitmap_free(pgdir->bitmap);
-		kfree(pgdir);
-		return NULL;
-	}
-
-	return pgdir;
-}
-
-static int mlx5_alloc_db_from_pgdir(struct mlx5_db_pgdir *pgdir,
-				    struct mlx5_db *db)
-{
-	u32 db_per_page = PAGE_SIZE / cache_line_size();
-	int offset;
-	int i;
-
-	i = find_first_bit(pgdir->bitmap, db_per_page);
-	if (i >= db_per_page)
-		return -ENOMEM;
-
-	__clear_bit(i, pgdir->bitmap);
-
-	db->u.pgdir = pgdir;
-	db->index   = i;
-	offset = db->index * cache_line_size();
-	db->db      = pgdir->db_page + offset / sizeof(*pgdir->db_page);
-	db->dma     = pgdir->db_dma  + offset;
-
-	db->db[0] = 0;
-	db->db[1] = 0;
-
-	return 0;
-}
-
 int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db, int node)
 {
-	struct mlx5_db_pgdir *pgdir;
-	int ret = 0;
+	struct mlx5_dma_pool_page *page;
+	struct mlx5_dma_pool *pool;
+	unsigned long idx;
+	int offset;
 
-	mutex_lock(&dev->priv.pgdir_mutex);
+	node = node == NUMA_NO_NODE ? numa_mem_id() : node;
 
-	list_for_each_entry(pgdir, &dev->priv.pgdir_list, list)
-		if (!mlx5_alloc_db_from_pgdir(pgdir, db))
-			goto out;
+	pool = dev->priv.db_node_pools[node];
+	page = mlx5_dma_pool_alloc(pool, &idx);
+	if (!page)
+		return -ENOMEM;
 
-	pgdir = mlx5_alloc_db_pgdir(dev, node);
-	if (!pgdir) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	offset = idx << pool->block_shift;
+	db->u.pool_page = page;
+	db->index = idx;
+	db->db = (__be32 *)((u8 *)page->buf + offset);
+	db->dma = page->dma + offset;
 
-	list_add(&pgdir->list, &dev->priv.pgdir_list);
-
-	/* This should never fail -- we just allocated an empty page: */
-	WARN_ON(mlx5_alloc_db_from_pgdir(pgdir, db));
-
-out:
-	mutex_unlock(&dev->priv.pgdir_mutex);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx5_db_alloc_node);
 
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {
-	u32 db_per_page = PAGE_SIZE / cache_line_size();
+	struct mlx5_dma_pool_page *page = db->u.pool_page;
+	struct mlx5_dma_pool *pool = page->pool;
 
-	mutex_lock(&dev->priv.pgdir_mutex);
-
-	__set_bit(db->index, db->u.pgdir->bitmap);
-
-	if (bitmap_full(db->u.pgdir->bitmap, db_per_page)) {
-		dma_free_coherent(mlx5_core_dma_dev(dev), PAGE_SIZE,
-				  db->u.pgdir->db_page, db->u.pgdir->db_dma);
-		list_del(&db->u.pgdir->list);
-		bitmap_free(db->u.pgdir->bitmap);
-		kfree(db->u.pgdir);
-	}
-
-	mutex_unlock(&dev->priv.pgdir_mutex);
+	mlx5_dma_pool_free(pool, page, db->index);
 }
 EXPORT_SYMBOL_GPL(mlx5_db_free);
 
