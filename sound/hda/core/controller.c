@@ -688,6 +688,11 @@ int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 			sd_status = snd_hdac_stream_readb(azx_dev, SD_STS);
 			snd_hdac_stream_writeb(azx_dev, SD_STS, SD_INT_MASK);
 			handled |= 1 << azx_dev->index;
+			if (sd_status & (SD_INT_FIFO_ERR | SD_INT_DESC_ERR)) {
+				dev_warn_ratelimited(bus->dev,
+						"stream %u dma error: 0x%02x\n",
+						azx_dev->index, sd_status);
+			}
 			if ((!azx_dev->substream && !azx_dev->cstream) ||
 			    !azx_dev->running || !(sd_status & SD_INT_COMPLETE))
 				continue;
