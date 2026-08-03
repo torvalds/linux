@@ -3229,7 +3229,9 @@ static int __init team_module_init(void)
 {
 	int err;
 
-	register_netdevice_notifier(&team_notifier_block);
+	err = register_netdevice_notifier(&team_notifier_block);
+	if (err)
+		return err;
 
 	err = rtnl_link_register(&team_link_ops);
 	if (err)
