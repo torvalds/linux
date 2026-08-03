@@ -898,65 +898,6 @@ static int correlate_symbols(struct elfs *e)
 	return 0;
 }
 
-/* "sympos" is used by livepatch to disambiguate duplicate symbol names */
-static unsigned long find_sympos(struct elf *elf, struct symbol *sym)
-{
-	bool vmlinux = str_ends_with(objname, "vmlinux.o");
-	unsigned long sympos = 0, nr_matches = 0;
-	bool has_dup = false;
-	struct symbol *s;
-
-	if (sym->bind != STB_LOCAL)
-		return 0;
-
-	if (vmlinux && is_func_sym(sym)) {
-		/*
-		 * HACK: Unfortunately, symbol ordering can differ between
-		 * vmlinux.o and vmlinux due to the linker script emitting
-		 * .text.unlikely* before .text*.  Count .text.unlikely* first.
-		 *
-		 * TODO: Disambiguate symbols more reliably (checksums?)
-		 */
-		for_each_sym(elf, s) {
-			if (strstarts(s->sec->name, ".text.unlikely") &&
-			    !strcmp(s->name, sym->name)) {
-				nr_matches++;
-				if (s == sym)
-					sympos = nr_matches;
-				else
-					has_dup = true;
-			}
-		}
-		for_each_sym(elf, s) {
-			if (!strstarts(s->sec->name, ".text.unlikely") &&
-			    !strcmp(s->name, sym->name)) {
-				nr_matches++;
-				if (s == sym)
-					sympos = nr_matches;
-				else
-					has_dup = true;
-			}
-		}
-	} else {
-		for_each_sym(elf, s) {
-			if (!strcmp(s->name, sym->name)) {
-				nr_matches++;
-				if (s == sym)
-					sympos = nr_matches;
-				else
-					has_dup = true;
-			}
-		}
-	}
-
-	if (!sympos) {
-		ERROR("can't find sympos for %s", sym->name);
-		return ULONG_MAX;
-	}
-
-	return has_dup ? sympos : 0;
-}
-
 static int clone_sym_relocs(struct elfs *e, struct symbol *patched_sym);
 
 static struct symbol *__clone_symbol(struct elf *elf, struct symbol *patched_sym,
@@ -1418,7 +1359,7 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 			return -1;
 
 		sym_orig_name = patched_sym->twin->name;
-		sympos = find_sympos(e->orig, patched_sym->twin);
+		sympos = klp_find_sympos(e->orig, patched_sym->twin);
 		if (sympos == ULONG_MAX)
 			return -1;
 	}
@@ -2036,7 +1977,7 @@ static int create_klp_sections(struct elfs *e)
 
 		/* klp_func_ext.sympos */
 		BUILD_BUG_ON(sizeof(sympos) != sizeof_field(struct klp_func_ext, sympos));
-		sympos = find_sympos(e->orig, sym->clone->twin);
+		sympos = klp_find_sympos(e->orig, sym->clone->twin);
 		if (sympos == ULONG_MAX)
 			return -1;
 		memcpy(func_data + offsetof(struct klp_func_ext, sympos), &sympos,
@@ -2188,6 +2129,9 @@ int cmd_klp_diff(int argc, const char **argv)
 	e.out = NULL;
 
 	if (!e.orig || !e.patched)
+		return -1;
+
+	if (klp_sympos_init(e.orig))
 		return -1;
 
 	if (read_exports())

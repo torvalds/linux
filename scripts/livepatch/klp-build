@@ -611,6 +611,8 @@ copy_orig_objects() {
 	done
 	xtrace_restore
 
+	cp -f "$PWD/vmlinux" "$ORIG_DIR" || die "missing vmlinux"
+
 	mv -f "$TMP_DIR/build.log" "$ORIG_DIR"
 	touch "$TIMESTAMP"
 	touch "$ORIG_DIR/.complete"
@@ -680,6 +682,8 @@ generate_checksums() {
 		cp -f "$file" "$dest"
 		"$OBJTOOL" klp checksum "$dest"
 	done
+
+	[[ -f "$src_dir/vmlinux" ]] && cp -f "$src_dir/vmlinux" "$dest_dir"
 
 	touch "$dest_dir/.complete"
 }
