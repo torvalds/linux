@@ -145,6 +145,8 @@ struct tun_file {
 	struct list_head next;
 	struct tun_struct *detached;
 	struct ptr_ring tx_ring;
+	/* Protected by tx_ring.consumer_lock */
+	int cons_cnt;
 	struct xdp_rxq_info xdp_rxq;
 };
 
@@ -585,11 +587,16 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		u16 index = tfile->queue_index;
 		BUG_ON(index >= tun->numqueues);
 
+		spin_lock(&tfile->tx_ring.consumer_lock);
 		rcu_assign_pointer(tun->tfiles[index],
 				   tun->tfiles[tun->numqueues - 1]);
+		spin_unlock(&tfile->tx_ring.consumer_lock);
 		ntfile = rtnl_dereference(tun->tfiles[index]);
+		spin_lock(&ntfile->tx_ring.consumer_lock);
 		ntfile->queue_index = index;
 		ntfile->xdp_rxq.queue_index = index;
+		ntfile->cons_cnt = 0;
+		spin_unlock(&ntfile->tx_ring.consumer_lock);
 		rcu_assign_pointer(tun->tfiles[tun->numqueues - 1],
 				   NULL);
 
@@ -606,6 +613,14 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 		tun_flow_delete_by_queue(tun, tun->numqueues + 1);
 		/* Drop read queue */
 		tun_queue_purge(tfile);
+		spin_lock_bh(&ntfile->tx_ring.consumer_lock);
+		spin_lock(&ntfile->tx_ring.producer_lock);
+		ntfile->cons_cnt = 0;
+		if (netif_running(tun->dev) &&
+		    __ptr_ring_empty(&ntfile->tx_ring))
+			netif_wake_subqueue(tun->dev, index);
+		spin_unlock(&ntfile->tx_ring.producer_lock);
+		spin_unlock_bh(&ntfile->tx_ring.consumer_lock);
 		tun_set_real_num_queues(tun);
 	} else if (tfile->detached && clean) {
 		tun = tun_enable_queue(tfile);
@@ -687,6 +702,25 @@ static void tun_detach_all(struct net_device *dev)
 		module_put(THIS_MODULE);
 }
 
+static void tun_force_wake_queue(struct tun_struct *tun,
+				 struct tun_file *tfile)
+{
+	/* Ensure that the producer can not stop the
+	 * queue concurrently by taking locks.
+	 */
+	spin_lock_bh(&tfile->tx_ring.consumer_lock);
+	spin_lock(&tfile->tx_ring.producer_lock);
+	tfile->cons_cnt = 0;
+	/* Tested under the locks that tun_net_close() takes, so this can not
+	 * undo its stop. tun_net_open() wakes the queues of a device that
+	 * comes back up.
+	 */
+	if (netif_running(tun->dev))
+		netif_wake_subqueue(tun->dev, tfile->queue_index);
+	spin_unlock(&tfile->tx_ring.producer_lock);
+	spin_unlock_bh(&tfile->tx_ring.consumer_lock);
+}
+
 static int tun_attach(struct tun_struct *tun, struct file *file,
 		      bool skip_filter, bool napi, bool napi_frags,
 		      bool publish_tun)
@@ -730,8 +764,11 @@ static int tun_attach(struct tun_struct *tun, struct file *file,
 		goto out;
 	}
 
+	spin_lock(&tfile->tx_ring.consumer_lock);
 	tfile->queue_index = tun->numqueues;
+	spin_unlock(&tfile->tx_ring.consumer_lock);
 	tfile->socket.sk->sk_shutdown &= ~RCV_SHUTDOWN;
+	tun_force_wake_queue(tun, tfile);
 
 	if (tfile->detached) {
 		/* Re-attach detached tfile, updating XDP queue_index */
@@ -964,6 +1001,24 @@ static int tun_net_open(struct net_device *dev)
 /* Net device close. */
 static int tun_net_close(struct net_device *dev)
 {
+	struct tun_struct *tun = netdev_priv(dev);
+	struct tun_file *tfile;
+	int i;
+
+	/* netif_running() is already false: take both ring locks to keep the
+	 * wake sites out, so the stop below is the last write to
+	 * __QUEUE_STATE_DRV_XOFF.
+	 */
+	for (i = 0; i < tun->numqueues; i++) {
+		tfile = rtnl_dereference(tun->tfiles[i]);
+
+		spin_lock_bh(&tfile->tx_ring.consumer_lock);
+		spin_lock(&tfile->tx_ring.producer_lock);
+		tfile->cons_cnt = 0;
+		spin_unlock(&tfile->tx_ring.producer_lock);
+		spin_unlock_bh(&tfile->tx_ring.consumer_lock);
+	}
+
 	netif_tx_stop_all_queues(dev);
 	return 0;
 }
@@ -2116,13 +2171,61 @@ done:
 	return total;
 }
 
-static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
+/* Callers must hold ring.consumer_lock */
+static void __tun_wake_queue(struct tun_struct *tun,
+			     struct tun_file *tfile, int consumed)
+{
+	u16 queue_index = tfile->queue_index;
+	struct netdev_queue *txq;
+
+	lockdep_assert_held(&tfile->tx_ring.consumer_lock);
+
+	if (!(tun->flags & IFF_BACKPRESSURE))
+		return;
+
+	/* A stop from tun_net_close() is not backpressure, leave it alone. */
+	if (unlikely(!netif_running(tun->dev)))
+		return;
+
+	/* Only the current owner of the slot may wake its subqueue. */
+	if (unlikely(rcu_access_pointer(tun->tfiles[queue_index]) != tfile))
+		return;
+
+	txq = netdev_get_tx_queue(tun->dev, queue_index);
+
+	/* Paired with smp_mb__after_atomic() in tun_net_xmit() */
+	smp_mb();
+	if (netif_tx_queue_stopped(txq)) {
+		tfile->cons_cnt += consumed;
+		if (tfile->cons_cnt >= tfile->tx_ring.size / 2 ||
+		    __ptr_ring_empty(&tfile->tx_ring)) {
+			netif_tx_wake_queue(txq);
+			tfile->cons_cnt = 0;
+		}
+	}
+}
+
+static void *tun_ring_consume(struct tun_struct *tun, struct tun_file *tfile)
+{
+	void *ptr;
+
+	spin_lock(&tfile->tx_ring.consumer_lock);
+	ptr = __ptr_ring_consume(&tfile->tx_ring);
+	if (ptr)
+		__tun_wake_queue(tun, tfile, 1);
+
+	spin_unlock(&tfile->tx_ring.consumer_lock);
+	return ptr;
+}
+
+static void *tun_ring_recv(struct tun_struct *tun, struct tun_file *tfile,
+			   int noblock, int *err)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	void *ptr = NULL;
 	int error = 0;
 
-	ptr = ptr_ring_consume(&tfile->tx_ring);
+	ptr = tun_ring_consume(tun, tfile);
 	if (ptr)
 		goto out;
 	if (noblock) {
@@ -2134,7 +2237,7 @@ static void *tun_ring_recv(struct tun_file *tfile, int noblock, int *err)
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		ptr = ptr_ring_consume(&tfile->tx_ring);
+		ptr = tun_ring_consume(tun, tfile);
 		if (ptr)
 			break;
 		if (signal_pending(current)) {
@@ -2171,7 +2274,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 
 	if (!ptr) {
 		/* Read frames from ring */
-		ptr = tun_ring_recv(tfile, noblock, &err);
+		ptr = tun_ring_recv(tun, tfile, noblock, &err);
 		if (!ptr)
 			return err;
 	}
@@ -3629,6 +3732,13 @@ static int tun_queue_resize(struct tun_struct *tun)
 	ret = ptr_ring_resize_multiple_bh(rings, n,
 					  dev->tx_queue_len, GFP_KERNEL,
 					  tun_ptr_free);
+
+	if (!ret) {
+		for (i = 0; i < tun->numqueues; i++) {
+			tfile = rtnl_dereference(tun->tfiles[i]);
+			tun_force_wake_queue(tun, tfile);
+		}
+	}
 
 	kfree(rings);
 	return ret;
