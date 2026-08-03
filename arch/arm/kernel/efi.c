@@ -6,6 +6,7 @@
 #include <linux/efi.h>
 #include <linux/memblock.h>
 #include <linux/screen_info.h>
+#include <linux/sizes.h>
 
 #include <asm/efi.h>
 #include <asm/mach/map.h>
@@ -53,6 +54,18 @@ int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 		.pfn		= __phys_to_pfn(md->phys_addr),
 		.length		= md->num_pages * EFI_PAGE_SIZE,
 	};
+
+	/*
+	 * Non-LPAE page tables cannot map EFI runtime regions extending
+	 * beyond the 32-bit physical address space.
+	 */
+	if (!IS_ENABLED(CONFIG_ARM_LPAE) &&
+	    (md->phys_addr >= SZ_4G ||
+	     md->num_pages > (SZ_4G - md->phys_addr) / EFI_PAGE_SIZE)) {
+		pr_warn("EFI runtime region at 0x%llx exceeds 32-bit physical address space\n",
+			md->phys_addr);
+		return -ERANGE;
+	}
 
 	/*
 	 * Order is important here: memory regions may have all of the

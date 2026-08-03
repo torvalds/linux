@@ -30,8 +30,6 @@
 #include <linux/sizes.h>
 #include <linux/memblock.h>
 
-#include <asm/cp15.h>
-#include <asm/cputype.h>
 #include <asm/cacheflush.h>
 #include <asm/early_ioremap.h>
 #include <asm/mmu_context.h>
@@ -236,39 +234,6 @@ remap_area_sections(unsigned long virt, unsigned long pfn,
 	return 0;
 }
 
-static int
-remap_area_supersections(unsigned long virt, unsigned long pfn,
-			 size_t size, const struct mem_type *type)
-{
-	unsigned long addr = virt, end = virt + size;
-	pmd_t *pmd = pmd_off_k(addr);
-
-	/*
-	 * Remove and free any PTE-based mapping, and
-	 * sync the current kernel mapping.
-	 */
-	unmap_area_sections(virt, size);
-	do {
-		unsigned long super_pmd_val, i;
-
-		super_pmd_val = __pfn_to_phys(pfn) | type->prot_sect |
-				PMD_SECT_SUPER;
-		super_pmd_val |= ((pfn >> (32 - PAGE_SHIFT)) & 0xf) << 20;
-
-		for (i = 0; i < 8; i++) {
-			pmd[0] = __pmd(super_pmd_val);
-			pmd[1] = __pmd(super_pmd_val);
-			flush_pmd_entry(pmd);
-
-			addr += PMD_SIZE;
-			pmd += 2;
-		}
-
-		pfn += SUPERSECTION_SIZE >> PAGE_SHIFT;
-	} while (addr < end);
-
-	return 0;
-}
 #endif
 
 static void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
@@ -278,15 +243,17 @@ static void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	int err;
 	unsigned long addr;
 	struct vm_struct *area;
-	phys_addr_t paddr = __pfn_to_phys(pfn);
+	phys_addr_t paddr;
 
 #ifndef CONFIG_ARM_LPAE
 	/*
-	 * High mappings must be supersection aligned
+	 * The physical range must not extend beyond the 32-bit
+	 * phys_addr_t
 	 */
-	if (pfn >= 0x100000 && (paddr & ~SUPERSECTION_MASK))
+	if (((u64)pfn << PAGE_SHIFT) + offset + size > SZ_4G)
 		return NULL;
 #endif
+	paddr = __pfn_to_phys(pfn);
 
 	type = get_mem_type(mtype);
 	if (!type)
@@ -300,7 +267,7 @@ static void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	/*
 	 * Try to reuse one of the static mapping whenever possible.
 	 */
-	if (size && !(sizeof(phys_addr_t) == 4 && pfn >= 0x100000)) {
+	if (size) {
 		struct static_vm *svm;
 
 		svm = find_static_vm_paddr(paddr, size, mtype);
@@ -326,13 +293,7 @@ static void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
 	area->phys_addr = paddr;
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
-	if (DOMAIN_IO == 0 &&
-	    (((cpu_architecture() >= CPU_ARCH_ARMv6) && (get_cr() & CR_XP)) ||
-	       cpu_is_xsc3()) && pfn >= 0x100000 &&
-	       !((paddr | size | addr) & ~SUPERSECTION_MASK)) {
-		area->flags |= VM_ARM_SECTION_MAPPING;
-		err = remap_area_supersections(addr, pfn, size, type);
-	} else if (!((paddr | size | addr) & ~PMD_MASK)) {
+	if (!((paddr | size | addr) & ~PMD_MASK)) {
 		area->flags |= VM_ARM_SECTION_MAPPING;
 		err = remap_area_sections(addr, pfn, size, type);
 	} else

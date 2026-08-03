@@ -89,9 +89,9 @@
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 /*
- * Allow 16MB-aligned ioremap pages
+ * Allow 2MB-aligned ioremap pages
  */
-#define IOREMAP_MAX_ORDER	24
+#define IOREMAP_MAX_ORDER	21
 #endif
 
 #define VECTORS_BASE		UL(0xffff0000)
