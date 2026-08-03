@@ -677,10 +677,8 @@ static int cv1800b_i2s_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = devm_snd_dmaengine_pcm_register(dev, &cv1800b_i2s_pcm_config, 0);
-	if (ret) {
-		dev_err(dev, "dmaengine_pcm_register failed: %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
