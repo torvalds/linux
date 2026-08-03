@@ -3,6 +3,8 @@
 # Makefile for the Linux - z/VM Monitor Stream.
 #
 
+CONTEXT_ANALYSIS := y
+
 obj-$(CONFIG_APPLDATA_BASE) += appldata_base.o
 obj-$(CONFIG_APPLDATA_MEM) += appldata_mem.o
 obj-$(CONFIG_APPLDATA_OS) += appldata_os.o

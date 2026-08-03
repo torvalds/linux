@@ -3,6 +3,8 @@
 # Makefile for the linux kernel.
 #
 
+CONTEXT_ANALYSIS := y
+
 ifdef CONFIG_FUNCTION_TRACER
 
 # Do not trace tracer code

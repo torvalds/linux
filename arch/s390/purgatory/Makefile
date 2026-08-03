@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
+CONTEXT_ANALYSIS := y
+
 purgatory-y := head.o purgatory.o string.o sha256.o
 
 targets += $(purgatory-y) purgatory.lds purgatory purgatory.chk purgatory.ro
