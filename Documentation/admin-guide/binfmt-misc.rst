@@ -128,6 +128,11 @@ There are some restrictions:
    named by an absolute path. It is opened when the binary is executed, so
    a relative one would be resolved against the working directory of
    whoever runs the binary
+ - the amount of pre-opened interpreters by ``F``, or bound to a ``B`` entry
+   is limited by the ``/proc/sys/user/max_binfmt_misc_interpreters`` sysctl. A
+   registration past the limit is refused with ``-ENOSPC``. This limits an
+   unprivileged namespace pinning files. A nested namespace can raise only its
+   own limit and every ancestor is charged too
 
 
 To use binfmt_misc you have to mount it first. You can mount it with
@@ -215,10 +220,9 @@ with the credentials the entry file was opened with, exactly the way ``F``
 pre-opens a static entry's interpreter; the paths must be absolute. The
 path is everything past the first space, so there is nothing it cannot
 express, and no interpreter has to fit in a register string. An entry
-binds at most 100 interpreters; a write past that is refused with
-``-ENOSPC``. To bind a file that has no path of its own - already
-unlinked, a ``memfd``, or reachable only in another mount namespace -
-open it and write ``/proc/self/fd/N``.
+binds at most 100 interpreters, and each one is charged against
+``max_binfmt_misc_interpreters`` like any other binding. A write past either
+limit is refused with ``-ENOSPC``.
 
 The ``load`` program then selects one per exec by name with the
 ``bpf_binprm_select_interp()`` kfunc, and every exec runs a clone of the
