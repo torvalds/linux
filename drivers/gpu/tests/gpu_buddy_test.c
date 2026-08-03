@@ -1004,42 +1004,51 @@ static void gpu_test_buddy_alloc_clear(struct kunit *test)
 	gpu_buddy_fini(&mm);
 
 	/*
-	 * Using a non-power-of-two mm size, allocate alternating blocks of 4KiB in an
-	 * even sequence and free them as cleared. All blocks should be marked as
-	 * dirty and the split blocks should be merged back to their original
-	 * size when the blocks clear reset function is called.
+	 * Using a non-power-of-two mm size, allocate all 4KiB blocks and split
+	 * them across two alternating lists, then free one list as cleared and
+	 * the other as dirty. This interleaves cleared and dirty blocks so that
+	 * neighbouring buddies cannot be merged, fragmenting the address space.
+	 * After gpu_buddy_reset_clear(false) every block should be marked dirty
+	 * and the split blocks should be merged back to their original size, so
+	 * clear_avail must drop to 0.
 	 */
 	KUNIT_EXPECT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
 	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
 
-	i = 0;
 	n_pages = mm_size / ps;
-	do {
-		if (i % 2 == 0)
-			KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
-									    ps, ps, &allocated, 0),
-					"buddy_alloc hit an error size=%lu\n", ps);
-	} while (++i < n_pages);
+	for (i = 0; i < n_pages; i++) {
+		struct list_head *list = (i % 2) ? &clean : &dirty;
 
-	gpu_buddy_free_list(&mm, &allocated, GPU_BUDDY_CLEARED);
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list, 0),
+				"buddy_alloc hit an error size=%lu\n", ps);
+	}
+
+	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty, 0);
 	gpu_buddy_reset_clear(&mm, false);
 	KUNIT_EXPECT_EQ(test, mm.clear_avail, 0);
+	gpu_buddy_fini(&mm);
 
 	/*
-	 * Using a non-power-of-two mm size, allocate alternating blocks of 4KiB in an
-	 * odd sequence and free them as cleared. All blocks should be marked as
-	 * cleared and the split blocks should be merged back to their original
-	 * size when the blocks clear reset function is called.
+	 * Repeat the same fragmented setup, but this time call
+	 * gpu_buddy_reset_clear(true). Every block should be marked cleared and
+	 * the split blocks should be merged back to their original size, so the
+	 * whole address space (clear_avail) must equal mm_size.
 	 */
-	i = 0;
-	do {
-		if (i % 2 != 0)
-			KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
-									    ps, ps, &allocated, 0),
-					"buddy_alloc hit an error size=%lu\n", ps);
-	} while (++i < n_pages);
+	KUNIT_EXPECT_FALSE(test, gpu_buddy_init(&mm, mm_size, ps));
+	KUNIT_EXPECT_EQ(test, mm.max_order, max_order);
 
-	gpu_buddy_free_list(&mm, &allocated, GPU_BUDDY_CLEARED);
+	for (i = 0; i < n_pages; i++) {
+		struct list_head *list = (i % 2) ? &clean : &dirty;
+
+		KUNIT_ASSERT_FALSE_MSG(test, gpu_buddy_alloc_blocks(&mm, 0, mm_size,
+								    ps, ps, list, 0),
+				"buddy_alloc hit an error size=%lu\n", ps);
+	}
+
+	gpu_buddy_free_list(&mm, &clean, GPU_BUDDY_CLEARED);
+	gpu_buddy_free_list(&mm, &dirty, 0);
 	gpu_buddy_reset_clear(&mm, true);
 	KUNIT_EXPECT_EQ(test, mm.clear_avail, mm_size);
 	gpu_buddy_fini(&mm);
