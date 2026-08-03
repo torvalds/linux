@@ -484,7 +484,8 @@ static struct aa_loaddata *aa_simple_write_to_buffer(const char __user *userbuf,
 	return data;
 }
 
-#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
+#if defined(CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY) || \
+    defined(CONFIG_SECURITY_APPARMOR_EXPORT_BINARY)
 static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 {
 	if (slen < dlen) {
@@ -519,7 +520,10 @@ cleanup:
 	memcpy(dst, src, slen);
 	return 0;
 }
+#endif
 
+
+#ifdef CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY
 /**
  * aa_get_data_from_compressed - common routine for getting compressed policy
  * from user and get both compressed and uncompressed version.
@@ -531,7 +535,6 @@ cleanup:
  * Returns: kernel buffer containing copy of user buffer data or an
  *          ERR_PTR on failure.
  */
-
 static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf,
 						  size_t buffer_size,
 						  loff_t *pos,
@@ -583,14 +586,6 @@ fail:
 
 }
 #else
-static int decompress_zstd(char *src __always_unused,
-			   size_t slen __always_unused,
-			   char *dst __always_unused,
-			   size_t dlen __always_unused)
-{
-	return -EINVAL;
-}
-
 static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbuf __always_unused,
 						  size_t buffer_size __always_unused,
 						  loff_t *pos __always_unused,
@@ -599,6 +594,7 @@ static struct aa_loaddata *aa_get_data_from_compressed(const char __user *userbu
 	return ERR_PTR(-EINVAL);
 }
 #endif /* CONFIG_SECURITY_APPARMOR_COMPRESSED_POLICY */
+
 struct aa_user_hdr {
 	uint8_t version;
 	uint8_t compress_level;
