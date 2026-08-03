@@ -234,14 +234,9 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-struct nd_msg *br_is_nd_neigh_msg(const struct sk_buff *skb, struct nd_msg *msg)
+struct nd_msg *br_is_nd_neigh_msg(const struct sk_buff *skb)
 {
-	struct nd_msg *m;
-
-	m = skb_header_pointer(skb, skb_network_offset(skb) +
-			       sizeof(struct ipv6hdr), sizeof(*msg), msg);
-	if (!m)
-		return NULL;
+	struct nd_msg *m = (struct nd_msg *)(ipv6_hdr(skb) + 1);
 
 	if (m->icmph.icmp6_code != 0 ||
 	    (m->icmph.icmp6_type != NDISC_NEIGHBOUR_SOLICITATION &&
