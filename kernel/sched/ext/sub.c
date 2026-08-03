@@ -230,7 +230,7 @@ void scx_init_root_caps(struct scx_sched *sch)
 }
 
 /**
- * scx_local_or_reject_dsq - Pick the local or reject DSQ for an insert
+ * scx_resolve_local_dsq - Pick the local or reject DSQ for an insert
  * @sch: enqueuing sub-sched
  * @rq: rq whose local DSQ @p targets
  * @p: task being inserted
@@ -246,8 +246,8 @@ void scx_init_root_caps(struct scx_sched *sch)
  * to and run by its nearest non-bypassing ancestor. If root is bypassing, it
  * always holds all caps.
  */
-struct scx_dispatch_q *scx_local_or_reject_dsq(struct scx_sched *sch, struct rq *rq,
-					       struct task_struct *p, u64 *enq_flags)
+struct scx_dispatch_q *scx_resolve_local_dsq(struct scx_sched *sch, struct rq *rq,
+					     struct task_struct *p, u64 *enq_flags)
 {
 	if (!scx_has_subs())
 		return &rq->scx.local_dsq;

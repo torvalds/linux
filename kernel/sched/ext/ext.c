@@ -1507,7 +1507,7 @@ static void scx_dispatch_enqueue(struct scx_sched *sch, struct rq *rq,
 	bool is_rq_owned = false;
 
 	if (dsq->id == SCX_DSQ_LOCAL) {
-		dsq = scx_local_or_reject_dsq(sch, rq, p, &enq_flags);
+		dsq = scx_resolve_local_dsq(sch, rq, p, &enq_flags);
 		is_rq_owned = true;
 	}
 
@@ -2279,7 +2279,7 @@ static void move_local_task_to_local_dsq(struct scx_sched *sch,
 					 struct scx_dispatch_q *src_dsq,
 					 struct rq *dst_rq)
 {
-	struct scx_dispatch_q *dst_dsq = scx_local_or_reject_dsq(sch, dst_rq, p, &enq_flags);
+	struct scx_dispatch_q *dst_dsq = scx_resolve_local_dsq(sch, dst_rq, p, &enq_flags);
 
 	/* @dsq is locked and @p is on @dst_rq */
 	lockdep_assert_held(&src_dsq->lock);
