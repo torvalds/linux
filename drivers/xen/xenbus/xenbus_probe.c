@@ -687,7 +687,8 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 			 * and new one needs to be probed.
 			 */
 			dev_warn(&dev->dev,
-				 "state reset occurred, reconnecting\n");
+				 "state reset occurred (xenstore state %u, local state %u, xenstore backend %u, local backend %u), reconnecting\n",
+				 state, dev->state, backend, dev->otherend_id);
 			dev->vanished = true;
 		}
 		if (dev->vanished) {
