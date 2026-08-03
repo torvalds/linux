@@ -7734,6 +7734,7 @@ F:	include/linux/dmi.h
 DOCUMENTATION
 M:	Jonathan Corbet <corbet@lwn.net>
 R:	Shuah Khan <skhan@linuxfoundation.org>
+R:	Randy Dunlap <rdunlap@infradead.org>
 L:	linux-doc@vger.kernel.org
 S:	Maintained
 P:	Documentation/doc-guide/maintainer-profile.rst
