@@ -248,6 +248,29 @@ static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t dw_spi_enh_handler(struct dw_spi *dws)
+{
+	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
+
+	if (irq_status & DW_SPI_INT_RXFI) {
+		dw_reader(dws);
+		if (dws->rx_len && dws->rx_len <= dw_readl(dws, DW_SPI_RXFTLR))
+			dw_writel(dws, DW_SPI_RXFTLR, dws->rx_len - 1);
+	}
+
+	if (irq_status & DW_SPI_INT_TXEI)
+		dw_writer(dws);
+
+	if (!dws->tx_len && dws->rx_len) {
+		dw_spi_mask_intr(dws, DW_SPI_INT_TXEI);
+	} else if (!dws->rx_len && !dws->tx_len) {
+		dw_spi_mask_intr(dws, 0xff);
+		spi_finalize_current_transfer(dws->ctlr);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 {
 	struct spi_controller *ctlr = dev_id;
@@ -257,8 +280,15 @@ static irqreturn_t dw_spi_irq(int irq, void *dev_id)
 	if (!irq_status)
 		return IRQ_NONE;
 
-	if (!ctlr->cur_msg) {
+	if (!dws->transfer_handler ||
+	    (!ctlr->cur_msg && dws->transfer_handler == dw_spi_transfer_handler)) {
 		dw_spi_mask_intr(dws, 0xff);
+		return IRQ_HANDLED;
+	}
+	if (dws->transfer_handler == dw_spi_enh_handler &&
+	    !dws->rx_len && !dws->tx_len) {
+		dw_spi_mask_intr(dws, 0xff);
+		spi_finalize_current_transfer(ctlr);
 		return IRQ_HANDLED;
 	}
 
@@ -396,6 +426,33 @@ static void dw_spi_irq_setup(struct dw_spi *dws)
 
 	imask = DW_SPI_INT_TXEI | DW_SPI_INT_TXOI |
 		DW_SPI_INT_RXUI | DW_SPI_INT_RXOI | DW_SPI_INT_RXFI;
+	dw_spi_umask_intr(dws, imask);
+}
+
+static void dw_spi_enh_irq_setup(struct dw_spi *dws)
+{
+	u16 level;
+	u8 imask;
+
+	/*
+	 * Originally Tx and Rx data lengths match. Rx FIFO Threshold level
+	 * will be adjusted at the final stage of the IRQ-based SPI transfer
+	 * execution so not to lose the leftover of the incoming data.
+	 */
+	level = min_t(unsigned int, dws->fifo_len / 2, dws->tx_len);
+	dw_writel(dws, DW_SPI_TXFTLR, level);
+
+	/*
+	 * In enhanced mode if we are reading then tx_len is 0 as we
+	 * have nothing to transmit. Calculate DW_SPI_RXFTLR with
+	 * rx_len.
+	 */
+	level = min_t(unsigned int, dws->fifo_len / 2, dws->rx_len);
+	dw_writel(dws, DW_SPI_RXFTLR, level ? level - 1 : 0);
+
+	dws->transfer_handler = dw_spi_enh_handler;
+
+	imask = DW_SPI_INT_TXEI | DW_SPI_INT_RXFI;
 	dw_spi_umask_intr(dws, imask);
 }
 
@@ -868,6 +925,8 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 	struct dw_spi *dws = spi_controller_get_devdata(ctlr);
 	struct dw_spi_enh_cfg enh_cfg = {0};
 	struct dw_spi_cfg cfg = {0};
+	unsigned long long ms;
+	int ret;
 
 	switch (op->data.buswidth) {
 	case 0:
@@ -920,11 +979,54 @@ static int dw_spi_exec_enh_mem_op(struct spi_mem *mem, const struct spi_mem_op *
 
 	dw_spi_update_config(dws, mem->spi, &cfg, &enh_cfg);
 
+	dw_spi_mask_intr(dws, 0xff);
+	reinit_completion(&ctlr->xfer_completion);
 	dw_spi_enable_chip(dws, 1);
 
 	dw_spi_enh_write_cmd_addr(dws, op);
+	dw_spi_set_cs(mem->spi, false);
 
-	return 0;
+	/*
+	 * FIXME: The exact reason for this delay is not fully understood,
+	 * but empirical testing shows it significantly improves the stability
+	 * of read/write operations. Without this delay, occasional transfer
+	 * errors or timeouts may occur under certain conditions.
+	 * Keeping it as a safeguard based on practical validation.
+	 */
+	udelay(5);
+
+	dw_spi_enh_irq_setup(dws);
+
+	/* Use timeout calculation from spi_transfer_wait() */
+	ms = 8LL * MSEC_PER_SEC * (dws->rx_len ? dws->rx_len : dws->tx_len);
+	do_div(ms, dws->current_freq);
+
+	/*
+	 * Increase it twice and add 200 ms tolerance, use
+	 * predefined maximum in case of overflow.
+	 */
+	ms += ms + 200;
+	if (ms > UINT_MAX)
+		ms = UINT_MAX;
+
+	ms = wait_for_completion_timeout(&ctlr->xfer_completion,
+					 msecs_to_jiffies(ms));
+	if (ms == 0) {
+		dw_spi_mask_intr(dws, 0xff);
+		synchronize_irq(dws->irq);
+		dws->rx = NULL;
+		dws->tx = NULL;
+		dws->rx_len = 0;
+		dws->tx_len = 0;
+		dw_spi_stop_mem_op(dws, mem->spi);
+		return -EIO;
+	}
+
+	ret = dw_spi_wait_mem_op_done(dws);
+
+	dw_spi_stop_mem_op(dws, mem->spi);
+
+	return ret;
 }
 
 /*
