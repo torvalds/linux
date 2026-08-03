@@ -310,11 +310,11 @@ static const char *const audio_sec_mclk_out0_groups[] = {
 };
 
 static const char *const audio_sec_mclk_in1_groups[] = {
-	"gpio37",
+	"gpio39",
 };
 
 static const char *const audio_sec_mclk_out1_groups[] = {
-	"gpio37",
+	"gpio39",
 };
 
 static const char *const audio_sec_groups[] = {
