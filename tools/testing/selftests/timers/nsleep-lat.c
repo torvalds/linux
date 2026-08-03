@@ -27,7 +27,7 @@
 #include "clock-helpers.h"
 #include "kselftest.h"
 
-#define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
+#define UNRESONABLE_LATENCY (40 * NSEC_PER_MSEC)
 
 /* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
 #define CLOCK_HWSPECIFIC		10
