@@ -176,6 +176,8 @@ static const char * const success_tests[] = {
 	"test_task_from_pid_current",
 	"test_task_from_pid_invalid",
 	"task_kfunc_acquire_trusted_walked",
+	"task_kfunc_acquire_after_spin_unlock_non_sleepable",
+	"task_kfunc_acquire_after_spin_unlock_explicit_rcu",
 	"test_task_kfunc_flavor_relo",
 	"test_task_kfunc_flavor_relo_not_found",
 };
