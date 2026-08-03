@@ -11,10 +11,9 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/gpio/driver.h>
+#include <linux/gpio/generic.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -45,9 +44,8 @@ struct ppc44x_gpio {
 };
 
 struct ppc44x_gpio_chip {
-	struct gpio_chip gc;
+	struct gpio_generic_chip chip;
 	void __iomem *regs;
-	spinlock_t lock;
 };
 
 /*
@@ -56,55 +54,34 @@ struct ppc44x_gpio_chip {
  * There are a maximum of 32 gpios in each gpio controller.
  */
 
-static int ppc44x_gpio_get(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct ppc44x_gpio_chip *chip = gpiochip_get_data(gc);
-	struct ppc44x_gpio __iomem *regs = chip->regs;
-
-	return !!(in_be32(&regs->ir) & GPIO_MASK(gpio));
-}
-
 static inline void
 __ppc44x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct ppc44x_gpio_chip *chip = gpiochip_get_data(gc);
-	struct ppc44x_gpio __iomem *regs = chip->regs;
+	struct gpio_generic_chip *gen_gc = &chip->chip;
 
 	if (val)
-		setbits32(&regs->or, GPIO_MASK(gpio));
+		gen_gc->sdata |= GPIO_MASK(gpio);
 	else
-		clrbits32(&regs->or, GPIO_MASK(gpio));
-}
+		gen_gc->sdata &= ~GPIO_MASK(gpio);
 
-static int ppc44x_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
-{
-	struct ppc44x_gpio_chip *chip = gpiochip_get_data(gc);
-	unsigned long flags;
-
-	spin_lock_irqsave(&chip->lock, flags);
-
-	__ppc44x_gpio_set(gc, gpio, val);
-
-	spin_unlock_irqrestore(&chip->lock, flags);
-
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
-
-	return 0;
+	gpio_generic_write_reg(gen_gc, gen_gc->reg_set, gen_gc->sdata);
 }
 
 static int ppc44x_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct ppc44x_gpio_chip *chip = gpiochip_get_data(gc);
+	struct gpio_generic_chip *gen_gc = &chip->chip;
 	struct ppc44x_gpio __iomem *regs = chip->regs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(gpio_generic_lock_irqsave)(gen_gc);
 
 	/* Disable open-drain function */
 	clrbits32(&regs->odr, GPIO_MASK(gpio));
 
 	/* Float the pin */
 	clrbits32(&regs->tcr, GPIO_MASK(gpio));
+	gen_gc->sdir &= ~GPIO_MASK(gpio);
 
 	/* Bits 0-15 use TSRL/OSRL, bits 16-31 use TSRH/OSRH */
 	if (gpio < 16) {
@@ -115,8 +92,6 @@ static int ppc44x_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
 		clrbits32(&regs->tsrh, GPIO_MASK2(gpio));
 	}
 
-	spin_unlock_irqrestore(&chip->lock, flags);
-
 	return 0;
 }
 
@@ -124,10 +99,10 @@ static int
 ppc44x_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	struct ppc44x_gpio_chip *chip = gpiochip_get_data(gc);
+	struct gpio_generic_chip *gen_gc = &chip->chip;
 	struct ppc44x_gpio __iomem *regs = chip->regs;
-	unsigned long flags;
 
-	spin_lock_irqsave(&chip->lock, flags);
+	guard(gpio_generic_lock_irqsave)(gen_gc);
 
 	/* First set initial value */
 	__ppc44x_gpio_set(gc, gpio, val);
@@ -137,6 +112,7 @@ ppc44x_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 
 	/* Drive the pin */
 	setbits32(&regs->tcr, GPIO_MASK(gpio));
+	gen_gc->sdir |= GPIO_MASK(gpio);
 
 	/* Bits 0-15 use TSRL, bits 16-31 use TSRH */
 	if (gpio < 16) {
@@ -146,8 +122,6 @@ ppc44x_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 		clrbits32(&regs->osrh, GPIO_MASK2(gpio));
 		clrbits32(&regs->tsrh, GPIO_MASK2(gpio));
 	}
-
-	spin_unlock_irqrestore(&chip->lock, flags);
 
 	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
 
@@ -160,7 +134,9 @@ static int ppc44x_gpio_probe(struct platform_device *ofdev)
 	struct device_node *np = dev->of_node;
 	struct ppc44x_gpio __iomem *regs;
 	struct ppc44x_gpio_chip *chip;
+	struct gpio_generic_chip_config config;
 	struct gpio_chip *gc;
+	int ret;
 
 	regs = devm_platform_ioremap_resource(ofdev, 0);
 	if (IS_ERR(regs))
@@ -172,17 +148,24 @@ static int ppc44x_gpio_probe(struct platform_device *ofdev)
 
 	chip->regs = regs;
 
-	spin_lock_init(&chip->lock);
+	config = (struct gpio_generic_chip_config) {
+		.dev = dev,
+		.sz = 4,
+		.dat = &regs->ir,
+		.set = &regs->or,
+		.dirout = &regs->tcr,
+		.flags = GPIO_GENERIC_BIG_ENDIAN |
+			 GPIO_GENERIC_BIG_ENDIAN_BYTE_ORDER,
+	};
 
-	gc = &chip->gc;
+	ret = gpio_generic_chip_init(&chip->chip, &config);
+	if (ret)
+		return ret;
 
+	gc = &chip->chip.gc;
 	gc->parent = dev;
-	gc->base = -1;
-	gc->ngpio = 32;
 	gc->direction_input = ppc44x_gpio_dir_in;
 	gc->direction_output = ppc44x_gpio_dir_out;
-	gc->get = ppc44x_gpio_get;
-	gc->set = ppc44x_gpio_set;
 
 	gc->label = devm_kasprintf(dev, GFP_KERNEL, "%pOF", np);
 	if (!gc->label)
