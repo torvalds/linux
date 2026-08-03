@@ -661,7 +661,7 @@ const struct bpf_func_proto bpf_get_stackid_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-static __u64 count_kernel_ip(struct perf_callchain_entry *trace)
+static __u64 count_kernel_ip(const struct perf_callchain_entry *trace)
 {
 	__u64 nr_kernel = 0;
 
@@ -741,15 +741,15 @@ const struct bpf_func_proto bpf_get_stackid_proto_pe = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
-static u32 callchain_store(struct perf_callchain_entry *trace, void *buf,
-			   u32 elem_size, u64 flags)
+static u32 callchain_store(const struct perf_callchain_entry *trace, u32 trace_nr,
+			   void *buf, u32 elem_size, u64 flags)
 {
 	bool user_build_id = flags & BPF_F_USER_BUILD_ID;
 	u32 skip = flags & BPF_F_SKIP_FIELD_MASK;
-	u32 trace_nr, copy_len;
-	u64 *ips;
+	const u64 *ips;
+	u32 copy_len;
 
-	trace_nr = trace->nr - skip;
+	trace_nr = trace_nr - skip;
 	copy_len = trace_nr * elem_size;
 
 	ips = trace->ip + skip;
@@ -833,7 +833,7 @@ static long __bpf_get_stack(struct pt_regs *regs, struct task_struct *task,
 		goto err_fault;
 	}
 
-	trace_nr = callchain_store(trace, buf, elem_size, flags);
+	trace_nr = callchain_store(trace, trace->nr, buf, elem_size, flags);
 
 	/* trace should not be dereferenced after this point */
 	if (may_fault)
@@ -935,8 +935,8 @@ const struct bpf_func_proto bpf_get_task_stack_sleepable_proto = {
 	.arg4_type	= ARG_ANYTHING,
 };
 
-static int __bpf_get_stack_pe(struct perf_callchain_entry *trace, void *buf, u32 size,
-			      u64 flags)
+static int __bpf_get_stack_pe(const struct perf_callchain_entry *trace, u32 trace_nr,
+			      void *buf, u32 size, u64 flags)
 {
 	bool user_build_id = flags & BPF_F_USER_BUILD_ID;
 	u64 skip = flags & BPF_F_SKIP_FIELD_MASK;
@@ -952,12 +952,12 @@ static int __bpf_get_stack_pe(struct perf_callchain_entry *trace, void *buf, u32
 		return -EINVAL;
 
 	max_depth = stack_map_calculate_max_depth(size, elem_size, flags);
-	trace->nr = min_t(u32, trace->nr, max_depth);
+	trace_nr = min_t(u32, trace_nr, max_depth);
 
-	if (trace->nr < skip)
+	if (trace_nr < skip)
 		return -EFAULT;
 
-	nr_trace = callchain_store(trace, buf, elem_size, flags);
+	nr_trace = callchain_store(trace, trace_nr, buf, elem_size, flags);
 	return callchain_finalize(buf, size, nr_trace, elem_size, flags, false /* !may_fault */);
 }
 
@@ -965,8 +965,8 @@ BPF_CALL_4(bpf_get_stack_pe, struct bpf_perf_event_data_kern *, ctx,
 	   void *, buf, u32, size, u64, flags)
 {
 	struct pt_regs *regs = (struct pt_regs *)(ctx->regs);
+	const struct perf_callchain_entry *trace;
 	struct perf_event *event = ctx->event;
-	struct perf_callchain_entry *trace;
 	bool kernel, user;
 	int err = -EINVAL;
 	__u64 nr_kernel;
@@ -989,13 +989,7 @@ BPF_CALL_4(bpf_get_stack_pe, struct bpf_perf_event_data_kern *, ctx,
 	nr_kernel = count_kernel_ip(trace);
 
 	if (kernel) {
-		__u64 nr = trace->nr;
-
-		trace->nr = nr_kernel;
-		err = __bpf_get_stack_pe(trace, buf, size, flags);
-
-		/* restore nr */
-		trace->nr = nr;
+		err = __bpf_get_stack_pe(trace, nr_kernel, buf, size, flags);
 	} else { /* user */
 		u64 skip = flags & BPF_F_SKIP_FIELD_MASK;
 
@@ -1003,7 +997,7 @@ BPF_CALL_4(bpf_get_stack_pe, struct bpf_perf_event_data_kern *, ctx,
 		if (skip > BPF_F_SKIP_FIELD_MASK)
 			goto clear;
 		flags = (flags & ~BPF_F_SKIP_FIELD_MASK) | skip;
-		err = __bpf_get_stack_pe(trace, buf, size, flags);
+		err = __bpf_get_stack_pe(trace, trace->nr, buf, size, flags);
 	}
 
 clear:
