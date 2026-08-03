@@ -38,6 +38,7 @@
 #define _GNU_SOURCE
 #include <elf.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,6 +66,9 @@
 #define BIND_RISCV_PATH	"/tmp/binfmt_bind_riscv"
 #define BIND_EXPECT	"BIND_RAN "
 #define BIND_MAX	100
+#define INTERP_LIMIT	"/proc/sys/user/max_binfmt_misc_interpreters"
+/* Exit status of the binding child when it cannot set up a budget of its own. */
+#define BIND_NO_BUDGET	200
 
 /* A minimal 64-bit little-endian ELF header, padded to the read size. */
 static int create_fake_elf(const char *path, unsigned short machine)
@@ -378,6 +382,57 @@ static int entry_bind(const char *entry, const char *name, const char *path)
 	return entry_command(entry, cmd);
 }
 
+/* Set the interpreter budget of this namespace. */
+static int write_interp_limit(const char *val)
+{
+	ssize_t n;
+	int fd;
+
+	fd = open(INTERP_LIMIT, O_WRONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -1;
+	n = write(fd, val, strlen(val));
+	close(fd);
+	return n < 0 ? -1 : 0;
+}
+
+/*
+ * The errno a bind is refused with when the writer is a child that has spent
+ * the budget of a user namespace of its own, 0 if it succeeded and -1 if the
+ * child could not set itself up. The fd is opened here and inherited, so the
+ * interpreter is still opened with this process's credentials.
+ */
+static int bind_out_of_budget(const char *entry, const char *name,
+			      const char *path)
+{
+	char cmd[PATH_MAX], file[PATH_MAX];
+	int fd, status, retval;
+	pid_t pid;
+
+	snprintf(file, sizeof(file), BINFMT_DIR "/%s", entry);
+	snprintf(cmd, sizeof(cmd), "+%s %s\n", name, path);
+
+	fd = open(file, O_WRONLY | O_CLOEXEC);
+	if (fd < 0)
+		return -1;
+
+	pid = fork();
+	if (pid == 0) {
+		ssize_t n;
+
+		/* A namespace of its own, with nothing left in it to spend. */
+		if (unshare(CLONE_NEWUSER) || write_interp_limit("0"))
+			_exit(BIND_NO_BUDGET);
+		n = write(fd, cmd, strlen(cmd));
+		_exit(n < 0 ? errno : 0);
+	}
+	close(fd);
+	if (pid < 0 || waitpid(pid, &status, 0) != pid || !WIFEXITED(status))
+		return -1;
+	retval = WEXITSTATUS(status);
+	return retval == BIND_NO_BUDGET ? -1 : retval;
+}
+
 FIXTURE(bound_interp) {
 	char obj[PATH_MAX];
 	struct bpf_case c;
@@ -563,6 +618,21 @@ TEST_F(bound_interp, capped_bindings)
 		ASSERT_EQ(entry_bind("test_interp_bind", name, BIND_FIRST), 0);
 	}
 	EXPECT_EQ(entry_bind("test_interp_bind", "over", BIND_FIRST), -ENOSPC);
+}
+
+/* A binding pins a file: it is charged, and refused once the budget is out. */
+TEST_F(bound_interp, bindings_are_charged)
+{
+	int err = bind_out_of_budget("test_interp_bind", "third", BIND_FIRST);
+
+	if (err < 0)
+		SKIP(return, "no user namespaces or no " INTERP_LIMIT);
+
+	/* The charge follows the writer, not the entry file it writes to. */
+	EXPECT_EQ(err, ENOSPC);
+
+	/* The budget was the only thing in the way. */
+	EXPECT_EQ(entry_bind("test_interp_bind", "third", BIND_FIRST), 0);
 }
 
 TEST_HARNESS_MAIN

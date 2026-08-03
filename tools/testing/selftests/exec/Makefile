@@ -25,6 +25,10 @@ TEST_GEN_PROGS += check-exec
 # or an 'F' entry can pin the instance that owns it. Unprivileged, no bpf.
 TEST_GEN_PROGS += binfmt_misc_selfpin
 
+# The interpreters an 'F' or 'B' entry pre-opens are charged against
+# UCOUNT_BINFMT_MISC_INTERPRETERS. Unprivileged, no bpf.
+TEST_GEN_PROGS += binfmt_misc_interplimit
+
 # 'D' (register disabled) binfmt_misc test: an entry that exists but does
 # not dispatch until it is enabled. Static magic entry, no bpf toolchain.
 TEST_GEN_PROGS += binfmt_misc_disabled
@@ -104,6 +108,8 @@ $(OUTPUT)/script-noexec.inc: $(CHECK_EXEC_SAMPLES)/script-noexec.inc
 # CFLAGS for every program in this directory.
 $(OUTPUT)/binfmt_misc_selfpin: CFLAGS += $(TOOLS_INCLUDES)
 $(OUTPUT)/binfmt_misc_selfpin: ../filesystems/utils.c
+$(OUTPUT)/binfmt_misc_interplimit: CFLAGS += $(TOOLS_INCLUDES)
+$(OUTPUT)/binfmt_misc_interplimit: ../filesystems/utils.c
 
 # --- binfmt_misc bpf ('B') handler test ---------------------------------
 # The struct_ops bpf objects are compiled against the running kernel's BTF.
