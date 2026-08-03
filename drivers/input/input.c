@@ -1813,23 +1813,25 @@ static int input_uninhibit_device(struct input_dev *dev)
 	if (!dev->inhibited)
 		return 0;
 
+	dev->inhibited = false;
+
 	if (dev->users) {
 		if (dev->open) {
 			error = dev->open(dev);
-			if (error)
+			if (error) {
+				dev->inhibited = true;
 				return error;
+			}
 		}
 		scoped_guard(spinlock_irq, &dev->event_lock)
 			dev->ready = true;
-
-		if (dev->poller)
-			input_dev_poller_start(dev->poller);
 	}
-
-	dev->inhibited = false;
 
 	scoped_guard(spinlock_irq, &dev->event_lock)
 		input_dev_toggle(dev, true);
+
+	if (dev->users && dev->poller)
+		input_dev_poller_start(dev->poller);
 
 	return 0;
 }
