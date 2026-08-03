@@ -454,18 +454,20 @@ static inline void cdns_xspi_sdma_read(struct cdns_xspi_dev *cdns_xspi, size_t l
 	void *buf = cdns_xspi->in_buffer;
 	size_t offset = 0;
 
-	if (cdns_xspi->dma_data_width == 4) {
+	if (!IS_ENABLED(CONFIG_64BIT) || cdns_xspi->dma_data_width == 4) {
 		if (IS_ALIGNED((uintptr_t)src, 4) && IS_ALIGNED((uintptr_t)buf, 4)) {
 			ioread32_rep(src, buf, len >> 2);
 			offset = len & ~0x3;
 			len -= offset;
 		}
+#ifdef CONFIG_64BIT
 	} else {
 		if (IS_ALIGNED((uintptr_t)src, 8) && IS_ALIGNED((uintptr_t)buf, 8)) {
 			readsq(src, buf, len >> 3);
 			offset = len & ~0x7;
 			len -= offset;
 		}
+#endif
 	}
 	ioread8_rep(src, (u8 *)buf + offset, len);
 }
@@ -476,18 +478,20 @@ static inline void cdns_xspi_sdma_write(struct cdns_xspi_dev *cdns_xspi, size_t 
 	const void *buf = cdns_xspi->out_buffer;
 	size_t offset = 0;
 
-	if (cdns_xspi->dma_data_width == 4) {
+	if (!IS_ENABLED(CONFIG_64BIT) || cdns_xspi->dma_data_width == 4) {
 		if (IS_ALIGNED((uintptr_t)dst, 4) && IS_ALIGNED((uintptr_t)buf, 4)) {
 			iowrite32_rep(dst, buf, len >> 2);
 			offset = len & ~0x3;
 			len -= offset;
 		}
+#ifdef CONFIG_64BIT
 	} else {
 		if (IS_ALIGNED((uintptr_t)dst, 8) && IS_ALIGNED((uintptr_t)buf, 8)) {
 			writesq(dst, buf, len >> 3);
 			offset = len & ~0x7;
 			len -= offset;
 		}
+#endif
 	}
 	iowrite8_rep(dst, (const u8 *)buf + offset, len);
 }
