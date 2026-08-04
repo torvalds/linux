@@ -85,7 +85,6 @@ static int zstd_setup_params(struct zcomp_params *params)
 	return 0;
 
 error:
-	zstd_release_params(params);
 	return -EINVAL;
 }
 
@@ -161,7 +160,6 @@ static int zstd_create(struct zcomp_params *params, struct zcomp_ctx *ctx)
 	return 0;
 
 error:
-	zstd_release_params(params);
 	zstd_destroy(ctx);
 	return -EINVAL;
 }
