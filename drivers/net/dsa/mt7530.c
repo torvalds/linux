@@ -185,14 +185,18 @@ mt7530_mii_read(struct mt7530_priv *priv, u32 reg)
 	return val;
 }
 
-static void
+static int
 mt7530_write(struct mt7530_priv *priv, u32 reg, u32 val)
 {
+	int ret;
+
 	mt7530_mutex_lock(priv);
 
-	mt7530_mii_write(priv, reg, val);
+	ret = mt7530_mii_write(priv, reg, val);
 
 	mt7530_mutex_unlock(priv);
+
+	return ret;
 }
 
 static u32
@@ -249,7 +253,9 @@ mt7530_fdb_cmd(struct mt7530_priv *priv, enum mt7530_fdb_cmd cmd, u32 *rsp)
 
 	/* Set the command operating upon the MAC address entries */
 	val = ATC_BUSY | ATC_MAT(0) | cmd;
-	mt7530_write(priv, MT7530_ATC, val);
+	ret = mt7530_write(priv, MT7530_ATC, val);
+	if (ret)
+		return ret;
 
 	mt7530_mutex_lock(priv);
 
@@ -1632,7 +1638,9 @@ mt7530_vlan_cmd(struct mt7530_priv *priv, enum mt7530_vlan_cmd cmd, u16 vid)
 	int ret;
 
 	val = VTCR_BUSY | VTCR_FUNC(cmd) | vid;
-	mt7530_write(priv, MT7530_VTCR, val);
+	ret = mt7530_write(priv, MT7530_VTCR, val);
+	if (ret)
+		return ret;
 
 	mt7530_mutex_lock(priv);
 
