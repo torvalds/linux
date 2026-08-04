@@ -28,6 +28,8 @@ bool dmem_cgroup_below_min(struct dmem_cgroup_pool_state *root,
 			   struct dmem_cgroup_pool_state *test);
 bool dmem_cgroup_below_low(struct dmem_cgroup_pool_state *root,
 			   struct dmem_cgroup_pool_state *test);
+struct dmem_cgroup_pool_state *dmem_cgroup_get_common_ancestor(struct dmem_cgroup_pool_state *a,
+							       struct dmem_cgroup_pool_state *b);
 
 void dmem_cgroup_pool_state_put(struct dmem_cgroup_pool_state *pool);
 #else
@@ -73,6 +75,13 @@ static inline bool dmem_cgroup_below_low(struct dmem_cgroup_pool_state *root,
 					 struct dmem_cgroup_pool_state *test)
 {
 	return false;
+}
+
+static inline
+struct dmem_cgroup_pool_state *dmem_cgroup_get_common_ancestor(struct dmem_cgroup_pool_state *a,
+							       struct dmem_cgroup_pool_state *b)
+{
+	return NULL;
 }
 
 static inline void dmem_cgroup_pool_state_put(struct dmem_cgroup_pool_state *pool)

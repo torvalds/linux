@@ -762,6 +762,48 @@ bool dmem_cgroup_below_low(struct dmem_cgroup_pool_state *root,
 }
 EXPORT_SYMBOL_GPL(dmem_cgroup_below_low);
 
+/**
+ * dmem_cgroup_get_common_ancestor(): Find the first common ancestor of two pools.
+ * @a: First pool to find the common ancestor of.
+ * @b: First pool to find the common ancestor of.
+ *
+ * Return: The first pool that is a parent of both @a and @b, or NULL if either @a or @b are NULL,
+ * or if such a pool does not exist. A reference to the returned pool is grabbed and must be
+ * released by the caller when it is done using the pool.
+ */
+struct dmem_cgroup_pool_state *dmem_cgroup_get_common_ancestor(struct dmem_cgroup_pool_state *a,
+							       struct dmem_cgroup_pool_state *b)
+{
+	struct cgroup *ancestor_cgroup;
+	struct cgroup_subsys_state *ancestor_css;
+	struct dmemcg_state *ancestor_dmemcs = NULL;
+	struct dmem_cgroup_pool_state *pool = NULL;
+
+	if (!a || !b)
+		return NULL;
+
+	ancestor_cgroup = cgroup_common_ancestor(a->cs->css.cgroup, b->cs->css.cgroup);
+	if (!ancestor_cgroup)
+		return NULL;
+
+	rcu_read_lock();
+	ancestor_css = cgroup_e_css(ancestor_cgroup, &dmem_cgrp_subsys);
+	if (css_tryget(ancestor_css))
+		ancestor_dmemcs = css_to_dmemcs(ancestor_css);
+	rcu_read_unlock();
+
+	if (ancestor_dmemcs) {
+		pool = get_cg_pool_unlocked(css_to_dmemcs(ancestor_css),
+					    a->region);
+		if (WARN_ON(IS_ERR(pool))) {
+			pool = NULL;
+			css_put(ancestor_css);
+		}
+	}
+	return pool;
+}
+EXPORT_SYMBOL_GPL(dmem_cgroup_get_common_ancestor);
+
 static int dmem_cgroup_region_capacity_show(struct seq_file *sf, void *v)
 {
 	struct dmem_cgroup_region *region;
