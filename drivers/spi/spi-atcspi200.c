@@ -638,7 +638,6 @@ disable_clk:
 static DEFINE_SIMPLE_DEV_PM_OPS(atcspi_pm_ops, atcspi_suspend, atcspi_resume);
 
 static const struct of_device_id atcspi_of_match[] = {
-	{ .compatible = "andestech,qilai-spi", },
 	{ .compatible = "andestech,ae350-spi", },
 	{ /* sentinel */ }
 };

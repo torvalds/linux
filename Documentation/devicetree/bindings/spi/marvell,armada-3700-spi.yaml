@@ -28,9 +28,6 @@ properties:
   clocks:
     maxItems: 1
 
-  num-cs:
-    maxItems: 1
-
 required:
   - compatible
   - reg
