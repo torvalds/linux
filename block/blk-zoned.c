@@ -1586,15 +1586,6 @@ static bool blk_zone_wplug_handle_zone_mgmt(struct bio *bio)
 		return true;
 	}
 
-	/*
-	 * No-wait zone management BIOs do not make much sense as the callers
-	 * issue these as blocking operations in most cases. To avoid issues
-	 * with the BIO execution potentially failing with BLK_STS_AGAIN, warn
-	 * about REQ_NOWAIT being set and ignore that flag.
-	 */
-	if (WARN_ON_ONCE(bio->bi_opf & REQ_NOWAIT))
-		bio->bi_opf &= ~REQ_NOWAIT;
-
 	return false;
 }
 
