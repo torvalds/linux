@@ -99,6 +99,8 @@ bool __raw_callee_save___native_vcpu_is_preempted(long cpu);
 
 void __init native_pv_lock_init(void);
 __visible void __native_queued_spin_unlock(struct qspinlock *lock);
+__visible void native_queued_spin_unlock_traced(struct qspinlock *lock);
+__visible void pv_queued_spin_unlock_traced(struct qspinlock *lock);
 bool pv_is_native_spin_unlock(void);
 __visible bool __native_vcpu_is_preempted(long cpu);
 bool pv_is_native_vcpu_is_preempted(void);
