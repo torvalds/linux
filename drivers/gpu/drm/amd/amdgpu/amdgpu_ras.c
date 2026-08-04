@@ -2751,7 +2751,8 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 		}
 
 		if (amdgpu_ras_get_error_query_mode(adev, &error_query_mode)) {
-			if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY) {
+			if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY &&
+			    (ras->gpu_reset_flags & AMDGPU_RAS_GPU_RESET_MODE1_RESET)) {
 				/* wait 500ms to ensure pmfw polling mca bank info done */
 				msleep(500);
 			}
@@ -4422,6 +4423,10 @@ bool amdgpu_ras_get_error_query_mode(struct amdgpu_device *adev,
 
 	if (amdgpu_sriov_vf(adev)) {
 		*error_query_mode = AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY;
+	} else if (amdgpu_uniras_enabled(adev)) {
+		*error_query_mode = amdgpu_ras_mgr_get_debug_mode(adev) ?
+			AMDGPU_RAS_DIRECT_ERROR_QUERY :
+			AMDGPU_RAS_FIRMWARE_ERROR_QUERY;
 	} else {
 		*error_query_mode = AMDGPU_RAS_DIRECT_ERROR_QUERY;
 	}
