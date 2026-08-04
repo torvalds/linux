@@ -13,6 +13,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/firmware/qcom/qcom_pas.h>
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/firmware/qcom/qcom_tzmem.h>
 #include <linux/init.h>
@@ -33,6 +34,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+#include "qcom_pas.h"
 #include "qcom_scm.h"
 #include "qcom_tzmem.h"
 
@@ -57,6 +59,7 @@ struct qcom_scm {
 	int scm_vote_count;
 
 	u64 dload_mode_addr;
+	void __iomem *minidump_sram;
 
 	struct qcom_tzmem_pool *mempool;
 	unsigned int wq_cnt;
@@ -140,6 +143,20 @@ static const u8 qcom_scm_cpu_warm_bits[QCOM_SCM_BOOT_MAX_CPUS] = {
 #define QCOM_DLOAD_FULLDUMP	1
 #define QCOM_DLOAD_MINIDUMP	2
 #define QCOM_DLOAD_BOTHDUMP	3
+
+/* Minidump destination values written to always-on SRAM for boot firmware */
+#define QCOM_MINIDUMP_DEST_USB		0x0
+#define QCOM_MINIDUMP_DEST_STORAGE	0x2
+
+static u32 minidump_dest = QCOM_MINIDUMP_DEST_USB;
+
+static const struct {
+	const char *name;
+	u32 val;
+} minidump_dest_map[] = {
+	{ "usb",     QCOM_MINIDUMP_DEST_USB     },
+	{ "storage", QCOM_MINIDUMP_DEST_STORAGE },
+};
 
 #define QCOM_SCM_DEFAULT_WAITQ_COUNT 1
 
@@ -479,25 +496,6 @@ void qcom_scm_cpu_power_down(u32 flags)
 }
 EXPORT_SYMBOL_GPL(qcom_scm_cpu_power_down);
 
-int qcom_scm_set_remote_state(u32 state, u32 id)
-{
-	struct qcom_scm_desc desc = {
-		.svc = QCOM_SCM_SVC_BOOT,
-		.cmd = QCOM_SCM_BOOT_SET_REMOTE_STATE,
-		.arginfo = QCOM_SCM_ARGS(2),
-		.args[0] = state,
-		.args[1] = id,
-		.owner = ARM_SMCCC_OWNER_SIP,
-	};
-	struct qcom_scm_res res;
-	int ret;
-
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
-
-	return ret ? : res.result[0];
-}
-EXPORT_SYMBOL_GPL(qcom_scm_set_remote_state);
-
 static int qcom_scm_disable_sdi(void)
 {
 	int ret;
@@ -551,45 +549,39 @@ static int qcom_scm_io_rmw(phys_addr_t addr, unsigned int mask, unsigned int val
 	return qcom_scm_io_writel(addr, new);
 }
 
-static void qcom_scm_set_download_mode(u32 dload_mode)
+static void qcom_scm_set_download_mode(struct qcom_scm *scm, u32 dload_mode)
 {
 	int ret = 0;
 
-	if (__scm->dload_mode_addr) {
-		ret = qcom_scm_io_rmw(__scm->dload_mode_addr, QCOM_DLOAD_MASK,
+	if (scm->dload_mode_addr) {
+		ret = qcom_scm_io_rmw(scm->dload_mode_addr, QCOM_DLOAD_MASK,
 				      FIELD_PREP(QCOM_DLOAD_MASK, dload_mode));
-	} else if (__qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_BOOT,
+	} else if (__qcom_scm_is_call_available(scm->dev, QCOM_SCM_SVC_BOOT,
 						QCOM_SCM_BOOT_SET_DLOAD_MODE)) {
-		ret = __qcom_scm_set_dload_mode(__scm->dev, !!dload_mode);
+		ret = __qcom_scm_set_dload_mode(scm->dev, !!dload_mode);
 	} else if (dload_mode) {
-		dev_err(__scm->dev,
+		dev_err(scm->dev,
 			"No available mechanism for setting download mode\n");
 	}
 
 	if (ret)
-		dev_err(__scm->dev, "failed to set download mode: %d\n", ret);
+		dev_err(scm->dev, "failed to set download mode: %d\n", ret);
+
+	/*
+	 * Write the destination into the always-on SRAM so boot firmware
+	 * can read it before DDR is initialised on the next warm reset.
+	 * Only written when minidump is active;
+	 */
+	if (scm->minidump_sram && (dload_mode & QCOM_DLOAD_MINIDUMP))
+		writel_relaxed(minidump_dest, scm->minidump_sram);
 }
 
-/**
- * devm_qcom_scm_pas_context_alloc() - Allocate peripheral authentication service
- *				       context for a given peripheral
- *
- * PAS context is device-resource managed, so the caller does not need
- * to worry about freeing the context memory.
- *
- * @dev:	  PAS firmware device
- * @pas_id:	  peripheral authentication service id
- * @mem_phys:	  Subsystem reserve memory start address
- * @mem_size:	  Subsystem reserve memory size
- *
- * Returns: The new PAS context, or ERR_PTR() on failure.
- */
 struct qcom_scm_pas_context *devm_qcom_scm_pas_context_alloc(struct device *dev,
 							     u32 pas_id,
 							     phys_addr_t mem_phys,
 							     size_t mem_size)
 {
-	struct qcom_scm_pas_context *ctx;
+	struct qcom_pas_context *ctx;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -600,11 +592,12 @@ struct qcom_scm_pas_context *devm_qcom_scm_pas_context_alloc(struct device *dev,
 	ctx->mem_phys = mem_phys;
 	ctx->mem_size = mem_size;
 
-	return ctx;
+	return (struct qcom_scm_pas_context *)ctx;
 }
 EXPORT_SYMBOL_GPL(devm_qcom_scm_pas_context_alloc);
 
-static int __qcom_scm_pas_init_image(u32 pas_id, dma_addr_t mdata_phys,
+static int __qcom_scm_pas_init_image(struct device *dev, u32 pas_id,
+				     dma_addr_t mdata_phys,
 				     struct qcom_scm_res *res)
 {
 	struct qcom_scm_desc desc = {
@@ -626,7 +619,7 @@ static int __qcom_scm_pas_init_image(u32 pas_id, dma_addr_t mdata_phys,
 
 	desc.args[1] = mdata_phys;
 
-	ret = qcom_scm_call(__scm->dev, &desc, res);
+	ret = qcom_scm_call(dev, &desc, res);
 	qcom_scm_bw_disable();
 
 disable_clk:
@@ -635,7 +628,8 @@ disable_clk:
 	return ret;
 }
 
-static int qcom_scm_pas_prep_and_init_image(struct qcom_scm_pas_context *ctx,
+static int qcom_scm_pas_prep_and_init_image(struct device *dev,
+					    struct qcom_pas_context *ctx,
 					    const void *metadata, size_t size)
 {
 	struct qcom_scm_res res;
@@ -650,7 +644,7 @@ static int qcom_scm_pas_prep_and_init_image(struct qcom_scm_pas_context *ctx,
 	memcpy(mdata_buf, metadata, size);
 	mdata_phys = qcom_tzmem_to_phys(mdata_buf);
 
-	ret = __qcom_scm_pas_init_image(ctx->pas_id, mdata_phys, &res);
+	ret = __qcom_scm_pas_init_image(dev, ctx->pas_id, mdata_phys, &res);
 	if (ret < 0)
 		qcom_tzmem_free(mdata_buf);
 	else
@@ -659,25 +653,9 @@ static int qcom_scm_pas_prep_and_init_image(struct qcom_scm_pas_context *ctx,
 	return ret ? : res.result[0];
 }
 
-/**
- * qcom_scm_pas_init_image() - Initialize peripheral authentication service
- *			       state machine for a given peripheral, using the
- *			       metadata
- * @pas_id:	peripheral authentication service id
- * @metadata:	pointer to memory containing ELF header, program header table
- *		and optional blob of data used for authenticating the metadata
- *		and the rest of the firmware
- * @size:	size of the metadata
- * @ctx:	optional pas context
- *
- * Return: 0 on success.
- *
- * Upon successful return, the PAS metadata context (@ctx) will be used to
- * track the metadata allocation, this needs to be released by invoking
- * qcom_scm_pas_metadata_release() by the caller.
- */
-int qcom_scm_pas_init_image(u32 pas_id, const void *metadata, size_t size,
-			    struct qcom_scm_pas_context *ctx)
+static int __qcom_scm_pas_init_image2(struct device *dev, u32 pas_id,
+				      const void *metadata, size_t size,
+				      struct qcom_pas_context *ctx)
 {
 	struct qcom_scm_res res;
 	dma_addr_t mdata_phys;
@@ -685,7 +663,7 @@ int qcom_scm_pas_init_image(u32 pas_id, const void *metadata, size_t size,
 	int ret;
 
 	if (ctx && ctx->use_tzmem)
-		return qcom_scm_pas_prep_and_init_image(ctx, metadata, size);
+		return qcom_scm_pas_prep_and_init_image(dev, ctx, metadata, size);
 
 	/*
 	 * During the scm call memory protection will be enabled for the meta
@@ -699,16 +677,15 @@ int qcom_scm_pas_init_image(u32 pas_id, const void *metadata, size_t size,
 	 * If we pass a buffer that is already part of an SHM Bridge to this
 	 * call, it will fail.
 	 */
-	mdata_buf = dma_alloc_coherent(__scm->dev, size, &mdata_phys,
-				       GFP_KERNEL);
+	mdata_buf = dma_alloc_coherent(dev, size, &mdata_phys, GFP_KERNEL);
 	if (!mdata_buf)
 		return -ENOMEM;
 
 	memcpy(mdata_buf, metadata, size);
 
-	ret = __qcom_scm_pas_init_image(pas_id, mdata_phys, &res);
+	ret = __qcom_scm_pas_init_image(dev, pas_id, mdata_phys, &res);
 	if (ret < 0 || !ctx) {
-		dma_free_coherent(__scm->dev, size, mdata_buf, mdata_phys);
+		dma_free_coherent(dev, size, mdata_buf, mdata_phys);
 	} else if (ctx) {
 		ctx->ptr = mdata_buf;
 		ctx->phys = mdata_phys;
@@ -717,36 +694,35 @@ int qcom_scm_pas_init_image(u32 pas_id, const void *metadata, size_t size,
 
 	return ret ? : res.result[0];
 }
+
+int qcom_scm_pas_init_image(u32 pas_id, const void *metadata, size_t size,
+			    struct qcom_scm_pas_context *ctx)
+{
+	return __qcom_scm_pas_init_image2(__scm->dev, pas_id, metadata, size,
+					  (struct qcom_pas_context *)ctx);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_init_image);
 
-/**
- * qcom_scm_pas_metadata_release() - release metadata context
- * @ctx:	pas context
- */
-void qcom_scm_pas_metadata_release(struct qcom_scm_pas_context *ctx)
+static void __qcom_scm_pas_metadata_release(struct device *dev,
+					    struct qcom_pas_context *ctx)
 {
-	if (!ctx->ptr)
-		return;
-
 	if (ctx->use_tzmem)
 		qcom_tzmem_free(ctx->ptr);
 	else
-		dma_free_coherent(__scm->dev, ctx->size, ctx->ptr, ctx->phys);
+		dma_free_coherent(dev, ctx->size, ctx->ptr, ctx->phys);
 
 	ctx->ptr = NULL;
 }
+
+void qcom_scm_pas_metadata_release(struct qcom_scm_pas_context *ctx)
+{
+	__qcom_scm_pas_metadata_release(__scm->dev,
+					(struct qcom_pas_context *)ctx);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_metadata_release);
 
-/**
- * qcom_scm_pas_mem_setup() - Prepare the memory related to a given peripheral
- *			      for firmware loading
- * @pas_id:	peripheral authentication service id
- * @addr:	start address of memory area to prepare
- * @size:	size of the memory area to prepare
- *
- * Returns 0 on success.
- */
-int qcom_scm_pas_mem_setup(u32 pas_id, phys_addr_t addr, phys_addr_t size)
+static int __qcom_scm_pas_mem_setup(struct device *dev, u32 pas_id,
+				    phys_addr_t addr, phys_addr_t size)
 {
 	int ret;
 	struct qcom_scm_desc desc = {
@@ -768,7 +744,7 @@ int qcom_scm_pas_mem_setup(u32 pas_id, phys_addr_t addr, phys_addr_t size)
 	if (ret)
 		goto disable_clk;
 
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	ret = qcom_scm_call(dev, &desc, &res);
 	qcom_scm_bw_disable();
 
 disable_clk:
@@ -776,9 +752,15 @@ disable_clk:
 
 	return ret ? : res.result[0];
 }
+
+int qcom_scm_pas_mem_setup(u32 pas_id, phys_addr_t addr, phys_addr_t size)
+{
+	return __qcom_scm_pas_mem_setup(__scm->dev, pas_id, addr, size);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_mem_setup);
 
-static void *__qcom_scm_pas_get_rsc_table(u32 pas_id, void *input_rt_tzm,
+static void *__qcom_scm_pas_get_rsc_table(struct device *dev, u32 pas_id,
+					  void *input_rt_tzm,
 					  size_t input_rt_size,
 					  size_t *output_rt_size)
 {
@@ -813,7 +795,7 @@ static void *__qcom_scm_pas_get_rsc_table(u32 pas_id, void *input_rt_tzm,
 	 * with output_rt_tzm buffer with res.result[2] size however, It should not
 	 * be of unresonable size.
 	 */
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	ret = qcom_scm_call(dev, &desc, &res);
 	if (!ret && res.result[2] > SZ_1G) {
 		ret = -E2BIG;
 		goto free_output_rt;
@@ -830,51 +812,11 @@ free_output_rt:
 	return ret ? ERR_PTR(ret) : output_rt_tzm;
 }
 
-/**
- * qcom_scm_pas_get_rsc_table() - Retrieve the resource table in passed output buffer
- *				  for a given peripheral.
- *
- * Qualcomm remote processor may rely on both static and dynamic resources for
- * its functionality. Static resources typically refer to memory-mapped addresses
- * required by the subsystem and are often embedded within the firmware binary
- * and dynamic resources, such as shared memory in DDR etc., are determined at
- * runtime during the boot process.
- *
- * On Qualcomm Technologies devices, it's possible that static resources are not
- * embedded in the firmware binary and instead are provided by TrustZone However,
- * dynamic resources are always expected to come from TrustZone. This indicates
- * that for Qualcomm devices, all resources (static and dynamic) will be provided
- * by TrustZone via the SMC call.
- *
- * If the remote processor firmware binary does contain static resources, they
- * should be passed in input_rt. These will be forwarded to TrustZone for
- * authentication. TrustZone will then append the dynamic resources and return
- * the complete resource table in output_rt_tzm.
- *
- * If the remote processor firmware binary does not include a resource table,
- * the caller of this function should set input_rt as NULL and input_rt_size
- * as zero respectively.
- *
- * More about documentation on resource table data structures can be found in
- * include/linux/remoteproc.h
- *
- * @ctx:	    PAS context
- * @pas_id:	    peripheral authentication service id
- * @input_rt:       resource table buffer which is present in firmware binary
- * @input_rt_size:  size of the resource table present in firmware binary
- * @output_rt_size: TrustZone expects caller should pass worst case size for
- *		    the output_rt_tzm.
- *
- * Return:
- *  On success, returns a pointer to the allocated buffer containing the final
- *  resource table and output_rt_size will have actual resource table size from
- *  TrustZone. The caller is responsible for freeing the buffer. On failure,
- *  returns ERR_PTR(-errno).
- */
-struct resource_table *qcom_scm_pas_get_rsc_table(struct qcom_scm_pas_context *ctx,
-						  void *input_rt,
-						  size_t input_rt_size,
-						  size_t *output_rt_size)
+static void *__qcom_scm_pas_get_rsc_table2(struct device *dev,
+					   struct qcom_pas_context *ctx,
+					   void *input_rt,
+					   size_t input_rt_size,
+					   size_t *output_rt_size)
 {
 	struct resource_table empty_rsc = {};
 	size_t size = SZ_16K;
@@ -909,11 +851,12 @@ struct resource_table *qcom_scm_pas_get_rsc_table(struct qcom_scm_pas_context *c
 
 	memcpy(input_rt_tzm, input_rt, input_rt_size);
 
-	output_rt_tzm = __qcom_scm_pas_get_rsc_table(ctx->pas_id, input_rt_tzm,
+	output_rt_tzm = __qcom_scm_pas_get_rsc_table(dev, ctx->pas_id,
+						     input_rt_tzm,
 						     input_rt_size, &size);
 	if (PTR_ERR(output_rt_tzm) == -EOVERFLOW)
 		/* Try again with the size requested by the TZ */
-		output_rt_tzm = __qcom_scm_pas_get_rsc_table(ctx->pas_id,
+		output_rt_tzm = __qcom_scm_pas_get_rsc_table(dev, ctx->pas_id,
 							     input_rt_tzm,
 							     input_rt_size,
 							     &size);
@@ -943,16 +886,20 @@ disable_clk:
 
 	return ret ? ERR_PTR(ret) : tbl_ptr;
 }
+
+struct resource_table *qcom_scm_pas_get_rsc_table(struct qcom_scm_pas_context *ctx,
+						  void *input_rt,
+						  size_t input_rt_size,
+						  size_t *output_rt_size)
+{
+	return __qcom_scm_pas_get_rsc_table2(__scm->dev,
+					     (struct qcom_pas_context *)ctx,
+					     input_rt, input_rt_size,
+					     output_rt_size);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_get_rsc_table);
 
-/**
- * qcom_scm_pas_auth_and_reset() - Authenticate the given peripheral firmware
- *				   and reset the remote processor
- * @pas_id:	peripheral authentication service id
- *
- * Return 0 on success.
- */
-int qcom_scm_pas_auth_and_reset(u32 pas_id)
+static int __qcom_scm_pas_auth_and_reset(struct device *dev, u32 pas_id)
 {
 	int ret;
 	struct qcom_scm_desc desc = {
@@ -972,7 +919,7 @@ int qcom_scm_pas_auth_and_reset(u32 pas_id)
 	if (ret)
 		goto disable_clk;
 
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	ret = qcom_scm_call(dev, &desc, &res);
 	qcom_scm_bw_disable();
 
 disable_clk:
@@ -980,28 +927,15 @@ disable_clk:
 
 	return ret ? : res.result[0];
 }
+
+int qcom_scm_pas_auth_and_reset(u32 pas_id)
+{
+	return __qcom_scm_pas_auth_and_reset(__scm->dev, pas_id);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_auth_and_reset);
 
-/**
- * qcom_scm_pas_prepare_and_auth_reset() - Prepare, authenticate, and reset the
- *					   remote processor
- *
- * @ctx:	Context saved during call to qcom_scm_pas_context_init()
- *
- * This function performs the necessary steps to prepare a PAS subsystem,
- * authenticate it using the provided metadata, and initiate a reset sequence.
- *
- * It should be used when Linux is in control setting up the IOMMU hardware
- * for remote subsystem during secure firmware loading processes. The preparation
- * step sets up a shmbridge over the firmware memory before TrustZone accesses the
- * firmware memory region for authentication. The authentication step verifies
- * the integrity and authenticity of the firmware or configuration using secure
- * metadata. Finally, the reset step ensures the subsystem starts in a clean and
- * sane state.
- *
- * Return: 0 on success, negative errno on failure.
- */
-int qcom_scm_pas_prepare_and_auth_reset(struct qcom_scm_pas_context *ctx)
+static int __qcom_scm_pas_prepare_and_auth_reset(struct device *dev,
+						 struct qcom_pas_context *ctx)
 {
 	u64 handle;
 	int ret;
@@ -1012,7 +946,7 @@ int qcom_scm_pas_prepare_and_auth_reset(struct qcom_scm_pas_context *ctx)
 	 * memory region and then invokes a call to TrustZone to authenticate.
 	 */
 	if (!ctx->use_tzmem)
-		return qcom_scm_pas_auth_and_reset(ctx->pas_id);
+		return __qcom_scm_pas_auth_and_reset(dev, ctx->pas_id);
 
 	/*
 	 * When Linux runs @ EL2 Linux must create the shmbridge itself and then
@@ -1022,20 +956,45 @@ int qcom_scm_pas_prepare_and_auth_reset(struct qcom_scm_pas_context *ctx)
 	if (ret)
 		return ret;
 
-	ret = qcom_scm_pas_auth_and_reset(ctx->pas_id);
+	ret = __qcom_scm_pas_auth_and_reset(dev, ctx->pas_id);
 	qcom_tzmem_shm_bridge_delete(handle);
 
 	return ret;
 }
+
+int qcom_scm_pas_prepare_and_auth_reset(struct qcom_scm_pas_context *ctx)
+{
+	return __qcom_scm_pas_prepare_and_auth_reset(__scm->dev,
+						     (struct qcom_pas_context *)ctx);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_prepare_and_auth_reset);
 
-/**
- * qcom_scm_pas_shutdown() - Shut down the remote processor
- * @pas_id:	peripheral authentication service id
- *
- * Returns 0 on success.
- */
-int qcom_scm_pas_shutdown(u32 pas_id)
+static int __qcom_scm_pas_set_remote_state(struct device *dev, u32 state,
+					   u32 pas_id)
+{
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_BOOT,
+		.cmd = QCOM_SCM_BOOT_SET_REMOTE_STATE,
+		.arginfo = QCOM_SCM_ARGS(2),
+		.args[0] = state,
+		.args[1] = pas_id,
+		.owner = ARM_SMCCC_OWNER_SIP,
+	};
+	struct qcom_scm_res res;
+	int ret;
+
+	ret = qcom_scm_call(dev, &desc, &res);
+
+	return ret ? : res.result[0];
+}
+
+int qcom_scm_set_remote_state(u32 state, u32 id)
+{
+	return __qcom_scm_pas_set_remote_state(__scm->dev, state, id);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_set_remote_state);
+
+static int __qcom_scm_pas_shutdown(struct device *dev, u32 pas_id)
 {
 	int ret;
 	struct qcom_scm_desc desc = {
@@ -1055,7 +1014,7 @@ int qcom_scm_pas_shutdown(u32 pas_id)
 	if (ret)
 		goto disable_clk;
 
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	ret = qcom_scm_call(dev, &desc, &res);
 	qcom_scm_bw_disable();
 
 disable_clk:
@@ -1063,16 +1022,14 @@ disable_clk:
 
 	return ret ? : res.result[0];
 }
+
+int qcom_scm_pas_shutdown(u32 pas_id)
+{
+	return __qcom_scm_pas_shutdown(__scm->dev, pas_id);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_shutdown);
 
-/**
- * qcom_scm_pas_supported() - Check if the peripheral authentication service is
- *			      available for the given peripherial
- * @pas_id:	peripheral authentication service id
- *
- * Returns true if PAS is supported for this peripheral, otherwise false.
- */
-bool qcom_scm_pas_supported(u32 pas_id)
+static bool __qcom_scm_pas_supported(struct device *dev, u32 pas_id)
 {
 	int ret;
 	struct qcom_scm_desc desc = {
@@ -1084,15 +1041,48 @@ bool qcom_scm_pas_supported(u32 pas_id)
 	};
 	struct qcom_scm_res res;
 
-	if (!__qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
+	if (!__qcom_scm_is_call_available(dev, QCOM_SCM_SVC_PIL,
 					  QCOM_SCM_PIL_PAS_IS_SUPPORTED))
 		return false;
 
-	ret = qcom_scm_call(__scm->dev, &desc, &res);
+	ret = qcom_scm_call(dev, &desc, &res);
 
 	return ret ? false : !!res.result[0];
 }
+
+bool qcom_scm_pas_supported(u32 pas_id)
+{
+	return __qcom_scm_pas_supported(__scm->dev, pas_id);
+}
 EXPORT_SYMBOL_GPL(qcom_scm_pas_supported);
+
+static struct qcom_pas_ops qcom_pas_ops_scm = {
+	.drv_name		= "qcom_scm",
+	.supported		= __qcom_scm_pas_supported,
+	.init_image		= __qcom_scm_pas_init_image2,
+	.mem_setup		= __qcom_scm_pas_mem_setup,
+	.get_rsc_table		= __qcom_scm_pas_get_rsc_table2,
+	.auth_and_reset		= __qcom_scm_pas_auth_and_reset,
+	.prepare_and_auth_reset	= __qcom_scm_pas_prepare_and_auth_reset,
+	.set_remote_state	= __qcom_scm_pas_set_remote_state,
+	.shutdown		= __qcom_scm_pas_shutdown,
+	.metadata_release	= __qcom_scm_pas_metadata_release,
+};
+
+/**
+ * qcom_scm_is_pas_available() - Check if the peripheral authentication service
+ *				 is available via SCM or not
+ *
+ * Returns true if PAS is available, otherwise false.
+ */
+static bool qcom_scm_is_pas_available(void)
+{
+	if (!__qcom_scm_is_call_available(__scm->dev, QCOM_SCM_SVC_PIL,
+					  QCOM_SCM_PIL_PAS_AUTH_AND_RESET))
+		return false;
+
+	return true;
+}
 
 static int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 {
@@ -2040,6 +2030,29 @@ int qcom_scm_gpu_init_regs(u32 gpu_req)
 }
 EXPORT_SYMBOL_GPL(qcom_scm_gpu_init_regs);
 
+static int qcom_scm_map_minidump_sram(struct device *dev, void __iomem **out)
+{
+	struct device_node *np = dev->of_node;
+	struct device_node *sram_np;
+	struct resource res;
+	int ret;
+
+	sram_np = of_parse_phandle(np, "sram", 0);
+	if (!sram_np)
+		return 0;
+
+	ret = of_address_to_resource(sram_np, 0, &res);
+	of_node_put(sram_np);
+	if (ret)
+		return ret;
+
+	*out = devm_ioremap(dev, res.start, resource_size(&res));
+	if (!*out)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int qcom_scm_find_dload_address(struct device *dev, u64 *addr)
 {
 	struct device_node *tcsr;
@@ -2295,6 +2308,7 @@ static const struct of_device_id qcom_scm_qseecom_allowlist[] __maybe_unused = {
 	{ .compatible = "dell,latitude-7455" },
 	{ .compatible = "dell,xps13-9345" },
 	{ .compatible = "ecs,liva-qc710" },
+	{ .compatible = "honor,magicbook-art-14-snapdragon" },
 	{ .compatible = "hp,elitebook-ultra-g1q" },
 	{ .compatible = "hp,omnibook-x14" },
 	{ .compatible = "huawei,gaokun3" },
@@ -2705,6 +2719,7 @@ static int get_download_mode(char *buffer, const struct kernel_param *kp)
 
 static int set_download_mode(const char *val, const struct kernel_param *kp)
 {
+	struct qcom_scm *scm;
 	bool tmp;
 	int ret;
 
@@ -2720,8 +2735,10 @@ static int set_download_mode(const char *val, const struct kernel_param *kp)
 	}
 
 	download_mode = ret;
-	if (__scm)
-		qcom_scm_set_download_mode(download_mode);
+	/* Pairs with smp_store_release() in qcom_scm_probe(). */
+	scm = smp_load_acquire(&__scm);
+	if (scm)
+		qcom_scm_set_download_mode(scm, download_mode);
 
 	return 0;
 }
@@ -2733,6 +2750,47 @@ static const struct kernel_param_ops download_mode_param_ops = {
 
 module_param_cb(download_mode, &download_mode_param_ops, NULL, 0644);
 MODULE_PARM_DESC(download_mode, "download mode: off/0/N for no dump mode, full/on/1/Y for full dump mode, mini for minidump mode and full,mini for both full and minidump mode together are acceptable values");
+
+static int get_minidump_dest(char *buffer, const struct kernel_param *kp)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(minidump_dest_map); i++)
+		if (minidump_dest == minidump_dest_map[i].val)
+			return sysfs_emit(buffer, "%s\n", minidump_dest_map[i].name);
+
+	return sysfs_emit(buffer, "unknown\n");
+}
+
+static int set_minidump_dest(const char *val, const struct kernel_param *kp)
+{
+	struct qcom_scm *scm;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(minidump_dest_map); i++)
+		if (sysfs_streq(val, minidump_dest_map[i].name))
+			break;
+
+	if (i >= ARRAY_SIZE(minidump_dest_map))
+		return -EINVAL;
+
+	minidump_dest = minidump_dest_map[i].val;
+
+	/* Pairs with smp_store_release() in qcom_scm_probe(). */
+	scm = smp_load_acquire(&__scm);
+	if (scm && scm->minidump_sram && (download_mode & QCOM_DLOAD_MINIDUMP))
+		writel_relaxed(minidump_dest, scm->minidump_sram);
+
+	return 0;
+}
+
+static const struct kernel_param_ops minidump_dest_param_ops = {
+	.get = get_minidump_dest,
+	.set = set_minidump_dest,
+};
+
+module_param_cb(minidump_dest, &minidump_dest_param_ops, NULL, 0644);
+MODULE_PARM_DESC(minidump_dest, "Minidump SRAM destination: usb (default) or storage");
 
 static int qcom_scm_probe(struct platform_device *pdev)
 {
@@ -2748,7 +2806,13 @@ static int qcom_scm_probe(struct platform_device *pdev)
 	scm->dev = &pdev->dev;
 	ret = qcom_scm_find_dload_address(&pdev->dev, &scm->dload_mode_addr);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to get download mode address\n");
+
+	ret = qcom_scm_map_minidump_sram(&pdev->dev, &scm->minidump_sram);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to map minidump SRAM\n");
 
 	mutex_init(&scm->scm_bw_lock);
 
@@ -2837,12 +2901,17 @@ static int qcom_scm_probe(struct platform_device *pdev)
 
 	__get_convention();
 
+	if (qcom_scm_is_pas_available()) {
+		qcom_pas_ops_scm.dev = scm->dev;
+		qcom_pas_ops_register(&qcom_pas_ops_scm);
+	}
+
 	/*
 	 * If "download mode" is requested, from this point on warmboot
 	 * will cause the boot stages to enter download mode, unless
 	 * disabled below by a clean shutdown/reboot.
 	 */
-	qcom_scm_set_download_mode(download_mode);
+	qcom_scm_set_download_mode(scm, download_mode);
 
 	/*
 	 * Disable SDI if indicated by DT that it is enabled by default.
@@ -2875,7 +2944,8 @@ static int qcom_scm_probe(struct platform_device *pdev)
 static void qcom_scm_shutdown(struct platform_device *pdev)
 {
 	/* Clean shutdown, disable download mode to allow normal restart */
-	qcom_scm_set_download_mode(QCOM_DLOAD_NODUMP);
+	qcom_scm_set_download_mode(__scm, QCOM_DLOAD_NODUMP);
+	qcom_pas_ops_unregister();
 }
 
 static const struct of_device_id qcom_scm_dt_match[] = {

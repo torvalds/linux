@@ -6,9 +6,29 @@
 
 menu "Qualcomm firmware drivers"
 
+config QCOM_PAS
+	tristate "Qualcomm generic PAS interface driver"
+	help
+	  Enable the generic Peripheral Authentication Service (PAS) provided
+	  by the firmware. It acts as the common layer with different TZ
+	  backends plugged in whether it's an SCM implementation or a proper
+	  TEE bus based PAS service implementation.
+
+config QCOM_PAS_TEE
+	tristate "Qualcomm PAS TEE interface driver"
+	select QCOM_PAS
+	depends on TEE
+	depends on !CPU_BIG_ENDIAN
+	default m if ARCH_QCOM
+	help
+	  Enable the generic Peripheral Authentication Service (PAS) provided
+	  by the firmware TEE implementation as the backend.
+
 config QCOM_SCM
+	tristate "Qualcomm PAS SCM interface driver"
+	select QCOM_PAS
 	select QCOM_TZMEM
-	tristate
+	default y if ARCH_QCOM
 
 config QCOM_TZMEM
 	tristate

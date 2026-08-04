@@ -54,6 +54,8 @@ static const struct subsystem_data subsystems[] = {
 	{ "cdsp1", 607, 12 },
 	{ "gpdsp0", 607, 17 },
 	{ "gpdsp1", 607, 18 },
+	{ "soccp", 607, 19 },
+	{ "dcp", 607, 22 },
 	{ "slpi", 608, 3 },
 	{ "gpu", 609, 0 },
 	{ "display", 610, 0 },

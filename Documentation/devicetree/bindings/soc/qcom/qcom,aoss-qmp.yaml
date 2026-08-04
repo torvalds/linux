@@ -29,6 +29,7 @@ properties:
           - qcom,glymur-aoss-qmp
           - qcom,hawi-aoss-qmp
           - qcom,kaanapali-aoss-qmp
+          - qcom,maili-aoss-qmp
           - qcom,milos-aoss-qmp
           - qcom,qcs615-aoss-qmp
           - qcom,qcs8300-aoss-qmp

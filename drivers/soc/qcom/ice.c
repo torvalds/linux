@@ -126,8 +126,8 @@ static bool qcom_ice_check_supported(struct qcom_ice *ice)
 	int minor = FIELD_GET(GENMASK(23, 16), regval);
 	int step = FIELD_GET(GENMASK(15, 0), regval);
 
-	/* For now this driver only supports ICE version 3 and 4. */
-	if (major != 3 && major != 4) {
+	/* Support ICE version 3 and above. */
+	if (major < 3) {
 		dev_warn(dev, "Unsupported ICE version: v%d.%d.%d\n",
 			 major, minor, step);
 		return false;
