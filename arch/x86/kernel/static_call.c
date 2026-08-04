@@ -4,6 +4,12 @@
 #include <linux/bug.h>
 #include <asm/text-patching.h>
 
+/* Declared locally to avoid pulling asm/paravirt-spinlock.h header. */
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+struct qspinlock;
+void __raw_callee_save___native_queued_spin_unlock(struct qspinlock *lock);
+#endif
+
 enum insn_type {
 	CALL = 0, /* site call */
 	NOP = 1,  /* site cond-call */
@@ -30,6 +36,17 @@ static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
  * ud1    (%edx),%rdi -- see __WARN_trap() / decode_bug()
  */
 static const u8 warninsn[] = { 0x67, 0x48, 0x0f, 0xb9, 0x3a };
+
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+/*
+ * ds ds movb $0, (_ASM_ARG1)
+ */
+#ifdef CONFIG_64BIT
+static const u8 unlockinsn[] = { 0x3e, 0x3e, 0xc6, 0x07, 0x00 };
+#else
+static const u8 unlockinsn[] = { 0x3e, 0x3e, 0xc6, 0x00, 0x00 };
+#endif
+#endif
 
 static u8 __is_Jcc(u8 *insn) /* Jcc.d32 */
 {
@@ -78,6 +95,12 @@ static void __ref __static_call_transform(void *insn, enum insn_type type,
 			emulate = code;
 			code = &warninsn;
 		}
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+		if (func == &__raw_callee_save___native_queued_spin_unlock) {
+			emulate = code;
+			code = &unlockinsn;
+		}
+#endif
 		break;
 
 	case NOP:
@@ -139,6 +162,10 @@ static void __static_call_validate(u8 *insn, bool tail, bool tramp)
 		    !memcmp(insn, xor5rax, 5) ||
 		    !memcmp(insn, warninsn, 5))
 			return;
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+		if (!memcmp(insn, unlockinsn, 5))
+			return;
+#endif
 	}
 
 	/*
