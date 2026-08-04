@@ -665,6 +665,23 @@ static int cat_index(void *key, void *datum, void *datap)
 	return 0;
 }
 
+static int sens_cat_index_check(void *key, void *datum, void *datap)
+{
+	struct policydb *p = datap;
+	struct level_datum *levdatum = datum;
+	struct ebitmap_node *node;
+	u32 bit;
+
+	ebitmap_for_each_positive_bit(&levdatum->level.cat, node, bit) {
+		if (bit >= p->p_cats.nprim || !sym_name(p, SYM_CATS, bit)) {
+			pr_err("SELinux: sensitivity %s allows undefined category %u\n",
+				(const char *)key, bit + 1);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 /* clang-format off */
 static int (*const index_f[SYM_NUM])(void *key, void *datum, void *datap) = {
 	common_index,
@@ -786,6 +803,12 @@ static int policydb_index(struct policydb *p)
 			rc = -EINVAL;
 			goto out;
 		}
+	}
+
+	if (p->mls_enabled) {
+		rc = hashtab_map(&p->p_levels.table, sens_cat_index_check, p);
+		if (rc)
+			goto out;
 	}
 
 	rc = 0;
