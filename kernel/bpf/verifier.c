@@ -20006,6 +20006,30 @@ int bpf_fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		insn_buf[4] = BPF_ALU64_REG(BPF_SUB, BPF_REG_0, BPF_REG_1);
 		insn_buf[5] = BPF_ALU64_IMM(BPF_NEG, BPF_REG_0, 0);
 		*cnt = 6;
+	} else if (desc->func_id == special_kfunc_list[KF_bpf_iter_num_new]) {
+		/* inline bpf_iter_num_new(&it, start, end); R1=&it, R2=start, R3=end */
+		int i = 0;
+
+		/* if (start > end) goto einval; */
+		insn_buf[i++] = BPF_JMP32_REG(BPF_JSGT, BPF_REG_2, BPF_REG_3, 8);
+		/* r0 = (u32)end - (u32)start; if (r0 > BPF_MAX_LOOPS) goto e2big; */
+		insn_buf[i++] = BPF_MOV32_REG(BPF_REG_0, BPF_REG_3);
+		insn_buf[i++] = BPF_ALU32_REG(BPF_SUB, BPF_REG_0, BPF_REG_2);
+		insn_buf[i++] = BPF_JMP_IMM(BPF_JGT, BPF_REG_0, BPF_MAX_LOOPS, 8);
+		/* s->cur = start - 1; s->end = end; return 0; */
+		insn_buf[i++] = BPF_ALU32_IMM(BPF_ADD, BPF_REG_2, -1);
+		insn_buf[i++] = BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_2, 0);
+		insn_buf[i++] = BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_3, 4);
+		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, 0);
+		insn_buf[i++] = BPF_JMP_A(5);
+		/* einval: s->cur = s->end = 0; return -EINVAL; */
+		insn_buf[i++] = BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0);
+		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, -EINVAL);
+		insn_buf[i++] = BPF_JMP_A(2);
+		/* e2big: s->cur = s->end = 0; return -E2BIG; */
+		insn_buf[i++] = BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0);
+		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, -E2BIG);
+		*cnt = i;
 	}
 
 	if (env->insn_aux_data[insn_idx].arg_prog) {
