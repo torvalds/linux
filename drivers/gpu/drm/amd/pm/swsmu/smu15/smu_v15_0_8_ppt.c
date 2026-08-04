@@ -58,6 +58,10 @@
 /* Convert Q10 watts to milliwatts, preserving the fractional part */
 #define SMUQ10_TO_MILLIWATT(x) (SMUQ10_TO_UINT(x) * MILLIWATT_PER_WATT + \
 				((SMUQ10_FRAC(x) * MILLIWATT_PER_WATT) >> 10))
+/* Convert Q10 degrees Celsius to millidegrees, preserving the fractional part */
+#define SMUQ10_TO_MILLICELSIUS(x) \
+	(SMUQ10_TO_UINT(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES + \
+	 ((SMUQ10_FRAC(x) * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES) >> 10))
 
 #define hbm_stack_mask_valid(umc_mask) \
 	(((umc_mask) & 0xF) == 0xF)
@@ -419,8 +423,7 @@ static int smu_v15_0_8_get_smu_metrics_data(struct smu_context *smu,
 		*value = SMUQ10_TO_MILLIWATT(metrics->SocketPower);
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxSocketTemperature);
 		break;
 	case METRICS_TEMPERATURE_MEM:
 	{
@@ -438,19 +441,18 @@ static int smu_v15_0_8_get_smu_metrics_data(struct smu_context *smu,
 				if (!hbm_stack_mask_valid(mask))
 					continue;
 
-				temp = SMUQ10_ROUND(metrics->HbmTemperature[stack_idx]);
+				temp = metrics->HbmTemperature[stack_idx];
 				if (temp > max_hbm_temp)
 					max_hbm_temp = temp;
 			}
 		}
-		*value = max_hbm_temp * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(max_hbm_temp);
 		break;
 	}
 	/* This is the max of all VRs and not just SOC VR.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxVrTemperature);
 		break;
 	default:
 		*value = UINT_MAX;
