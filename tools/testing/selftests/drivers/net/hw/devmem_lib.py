@@ -37,14 +37,13 @@ def configure_nic(cfg):
     rings = ethnl.rings_get({'header': {'dev-index': cfg.ifindex}})
     orig_rx_rings = rings['rx']
     orig_hds_thresh = rings.get('hds-thresh', 0)
-    orig_data_split = rings.get('tcp-data-split', 'unknown')
 
     ethnl.rings_set({'header': {'dev-index': cfg.ifindex},
                      'tcp-data-split': 'enabled',
                      'hds-thresh': 0,
                      'rx': min(64, orig_rx_rings)})
     defer(ethnl.rings_set, {'header': {'dev-index': cfg.ifindex},
-                            'tcp-data-split': orig_data_split,
+                            'tcp-data-split': 'unknown',
                             'hds-thresh': orig_hds_thresh,
                             'rx': orig_rx_rings})
 
