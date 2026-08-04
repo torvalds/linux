@@ -148,6 +148,22 @@ __naked void load_acquire_from_ctx_pointer(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("load-acquire from ctx pointer, same dst and src register")
+__failure __failure_unpriv __msg("BPF_ATOMIC loads from R6 ctx is not allowed")
+__naked void load_acquire_ctx_same_dst_src(void)
+{
+	asm volatile (
+	"r6 = r1;"
+	".8byte %[load_acquire_insn];"	// w6 = load_acquire((u32 *)(r6 + 0));
+	"r0 = 0;"
+	"exit;"
+	:
+	: __imm_insn(load_acquire_insn,
+		     BPF_ATOMIC_OP(BPF_W, BPF_LOAD_ACQ, BPF_REG_6, BPF_REG_6, 0))
+	: __clobber_all);
+}
+
 SEC("xdp")
 __description("load-acquire from pkt pointer")
 __failure __msg("BPF_ATOMIC loads from R2 pkt is not allowed")
