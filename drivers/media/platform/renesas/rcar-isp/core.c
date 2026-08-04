@@ -820,6 +820,7 @@ static int risp_core_probe_resources(struct rcar_isp_core *core,
 		return -ENODEV;
 
 	vspx = of_find_device_by_node(of_vspx);
+	of_node_put(of_vspx);
 	if (!vspx)
 		return -ENODEV;
 
@@ -828,7 +829,7 @@ static int risp_core_probe_resources(struct rcar_isp_core *core,
 
 	ret = vsp1_isp_init(&vspx->dev);
 	if (ret < 0)
-		return ret;
+		goto err_put_vspx;
 
 	/* Attach to the RPP library
 	 *
@@ -839,7 +840,7 @@ static int risp_core_probe_resources(struct rcar_isp_core *core,
 	 */
 	ret = clk_prepare_enable(core->clk);
 	if (ret)
-		return ret;
+		goto err_put_vspx;
 
 	usleep_range(2000, 4000);
 
@@ -847,10 +848,16 @@ static int risp_core_probe_resources(struct rcar_isp_core *core,
 
 	clk_disable_unprepare(core->clk);
 
-	if (!core->rpp)
-		return -ENODEV;
+	if (!core->rpp) {
+		ret = -ENODEV;
+		goto err_put_vspx;
+	}
 
 	return 0;
+
+err_put_vspx:
+	put_device(&vspx->dev);
+	return ret;
 }
 
 int risp_core_probe(struct rcar_isp_core *core, struct platform_device *pdev,
@@ -886,6 +893,7 @@ err_unregister_v4l2:
 	v4l2_device_unregister(&core->v4l2_dev);
 err_destroy_rpp:
 	rppx1_destroy(core->rpp);
+	put_device(core->vspx.dev);
 	return ret;
 }
 
@@ -904,4 +912,5 @@ void risp_core_remove(struct rcar_isp_core *core)
 
 	mutex_destroy(&core->io_lock);
 	rppx1_destroy(core->rpp);
+	put_device(core->vspx.dev);
 }
