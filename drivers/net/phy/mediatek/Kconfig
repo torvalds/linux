@@ -23,9 +23,9 @@ config MEDIATEK_GE_PHY
 
 config MEDIATEK_GE_SOC_PHY
 	tristate "MediaTek SoC Ethernet PHYs"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARM64 || ECONET || COMPILE_TEST
 	depends on ARCH_AIROHA || (ARCH_MEDIATEK && NVMEM_MTK_EFUSE) || \
-		   COMPILE_TEST
+		   ECONET || COMPILE_TEST
 	select MTK_NET_PHYLIB
 	select PHY_PACKAGE
 	help
@@ -35,6 +35,10 @@ config MEDIATEK_GE_SOC_PHY
 	  the MT7981 and MT7988 SoCs. These PHYs need calibration data
 	  present in the SoCs efuse and will dynamically calibrate VCM
 	  (common-mode voltage) during startup.
+
+	  Also include support for the built-in Gigabit Ethernet PHYs of
+	  the Airoha AN7581 and AN7583 SoCs and of the EcoNet EN7528 SoC,
+	  which need no efuse calibration data.
 
 config MTK_NET_PHYLIB
 	tristate
