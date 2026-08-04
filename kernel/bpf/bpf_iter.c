@@ -802,12 +802,11 @@ __bpf_kfunc int *bpf_iter_num_next(struct bpf_iter_num* it)
 {
 	struct bpf_iter_num_kern *s = (void *)it;
 
-	/* check failed initialization or if we are done (same behavior);
-	 * need to be careful about overflow, so convert to s64 for checks,
-	 * e.g., if s->cur == s->end == INT_MAX, we can't just do
-	 * s->cur + 1 >= s->end
+	/*
+	 * s->cur < s->end while iterating, else s->cur == s->end == 0; the signed
+	 * s->cur + 1 >= s->end holds even when s->cur + 1 wraps (start == INT_MIN).
 	 */
-	if ((s64)(s->cur + 1) >= s->end) {
+	if (s->cur + 1 >= s->end) {
 		s->cur = s->end = 0;
 		return NULL;
 	}
