@@ -88,6 +88,89 @@ int iter_err_unsafe_asm_loop(const void *ctx)
 	return 0;
 }
 
+/*
+ * Naked function, so there is no compiler-generated glue and the whole inlined program can be
+ * matched. Pinned to arches whose JITs zero-extend 32-bit writes implicitly
+ * (bpf_jit_needs_zext() == false); on arches that need explicit zero-extension the verifier
+ * interleaves "wN = wN" insns and the fixed shape below would not match. The inlining itself is
+ * arch independent, so checking it on these arches is sufficient.
+ *
+ * bpf_iter_num_new() emits the full range check (distance computation and both the -EINVAL and
+ * -E2BIG error paths); bpf_iter_num_next() and bpf_iter_num_destroy() are inlined too.
+ */
+SEC("raw_tp")
+__arch_x86_64
+__arch_arm64
+__success
+__xlated("r6 = r10")
+__xlated("r6 += -8")
+__xlated("call unknown")
+__xlated("r3 = r0")
+__xlated("r3 &= 65535")
+__xlated("r1 = r6")
+__xlated("r2 = 0")
+/* bpf_iter_num_new(&it, 0, <non-const>) with the range check kept */
+__xlated("if w2 s> w3 goto pc+8")
+__xlated("w0 = w3")
+__xlated("w0 -= w2")
+__xlated("if r0 > 0x800000 goto pc+8")
+__xlated("w2 += -1")
+__xlated("*(u32 *)(r1 +0) = r2")
+__xlated("*(u32 *)(r1 +4) = r3")
+__xlated("r0 = 0")
+__xlated("goto pc+5")
+__xlated("*(u64 *)(r1 +0) = 0")
+__xlated("r0 = -22")
+__xlated("goto pc+2")
+__xlated("*(u64 *)(r1 +0) = 0")
+__xlated("r0 = -7")
+__xlated("r1 = r6")
+/* bpf_iter_num_next(&it) */
+__xlated("r0 = *(u32 *)(r1 +0)")
+__xlated("w0 += 1")
+__xlated("r2 = *(u32 *)(r1 +4)")
+__xlated("if w0 s>= w2 goto pc+3")
+__xlated("*(u32 *)(r1 +0) = r0")
+__xlated("r0 = r1")
+__xlated("goto pc+2")
+__xlated("*(u64 *)(r1 +0) = 0")
+__xlated("r0 = 0")
+__xlated("if r0 != 0x0 goto pc-11")
+__xlated("r1 = r6")
+/* bpf_iter_num_destroy(&it) is inlined to a nop */
+__xlated("goto pc+0")
+__xlated("r0 = 0")
+__xlated("exit")
+int __naked iter_num_new_inlined(void)
+{
+	asm volatile (
+		/* r6 points to struct bpf_iter_num on the stack */
+		"r6 = r10;"
+		"r6 += -8;"
+		/* non-constant end so the range checks are kept */
+		"call %[bpf_get_prandom_u32];"
+		"r3 = r0;"
+		"r3 &= 0xffff;"
+		"r1 = r6;"
+		"r2 = 0;"
+		"call %[bpf_iter_num_new];"
+	"1:"
+		"r1 = r6;"
+		"call %[bpf_iter_num_next];"
+		"if r0 != 0 goto 1b;"
+		"r1 = r6;"
+		"call %[bpf_iter_num_destroy];"
+		"r0 = 0;"
+		"exit;"
+		:
+		: __imm(bpf_get_prandom_u32),
+		  __imm(bpf_iter_num_new),
+		  __imm(bpf_iter_num_next),
+		  __imm(bpf_iter_num_destroy)
+		: __clobber_common, "r6"
+	);
+}
+
 SEC("raw_tp")
 __success
 int iter_while_loop(const void *ctx)
