@@ -24,6 +24,7 @@ struct acpi_dmar_header;
 #define DMAR_INTR_REMAP		0x1
 #define DMAR_X2APIC_OPT_OUT	0x2
 #define DMAR_PLATFORM_OPT_IN	0x4
+#define DMAR_REMAP_OPT_OUT	0x8
 
 struct intel_iommu;
 

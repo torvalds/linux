@@ -1375,6 +1375,9 @@ enum dmar_force_on {
  * - DMAR_USER_OFF
  *     turn off by user opts ("intel_iommu=off" or "iommu=off").
  *
+ * - DMAR_FW_OFF
+ *     turn off due to firmware opt-out (DMAR_REMAP_OPT_OUT)
+ *
  * - '0' is invalid, compared to decide the on/off policy
  *
  */
@@ -1382,6 +1385,7 @@ enum dmar_force_on {
 #define DMAR_ON			1
 #define DMAR_DEFAULT_OFF	-1
 #define DMAR_USER_OFF		-2
+#define DMAR_FW_OFF		-3
 extern int dmar_policy;
 
 static inline bool dmar_policy_on(void)

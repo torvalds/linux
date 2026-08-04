@@ -930,7 +930,9 @@ dmar_validate_one_drhd(struct acpi_dmar_header *entry, void *arg)
  *
  * - DMAR_FORCEON_TBOOT: tboot strictly requires DMA remapping for secure
  *   boot hence supersedes any user opts ("iommu=off" or "intel_iommu=off")
- *   and weaker off policies.
+ *   and weaker off policies. But if firmware forces DMA remapping off (by
+ *   setting DMAR_REMAP_OPT_OUT in the DMAR table), no force_on is allowed.
+ *   Firmware settings must be changed to unblock tboot.
  *
  * - DMAR_FORCEON_PLATFORM: external-facing devices requires DMA
  *   remapping to prevent malicious downstream external devices from
@@ -939,6 +941,7 @@ dmar_validate_one_drhd(struct acpi_dmar_header *entry, void *arg)
  *
  * In a nutshell, "trusted boot environment" is considered stronger than
  * "user choices", which in turn is stronger than "platform opt-in hint".
+ * But they are all meaningless when it's forced off by "firmware".
  */
 bool dmar_can_force_on(enum dmar_force_on force_on)
 {
@@ -976,31 +979,42 @@ static bool dmar_required(void)
 
 void __init detect_intel_iommu(void)
 {
-	int ret;
 	struct dmar_res_callback validate_drhd_cb = {
 		.cb[ACPI_DMAR_TYPE_HARDWARE_UNIT] = &dmar_validate_one_drhd,
 		.ignore_unhandled = true,
 	};
+	struct acpi_table_dmar *dmar;
+	int ret;
 
 	down_write(&dmar_global_lock);
 	if (no_iommu)
 		dmar_policy = DMAR_USER_OFF;
 
 	ret = dmar_table_detect();
-	if (!ret)
-		ret = dmar_walk_dmar_table((struct acpi_table_dmar *)dmar_tbl,
-					   &validate_drhd_cb);
-	if (!ret && !iommu_detected && dmar_required()) {
+	if (!ret) {
+		dmar = (struct acpi_table_dmar *)dmar_tbl;
+		ret = dmar_walk_dmar_table(dmar, &validate_drhd_cb);
+	}
+
+	if (ret)
+		goto out;
+
+	if (dmar->flags & DMAR_REMAP_OPT_OUT) {
+		dmar_policy = DMAR_FW_OFF;
+		pr_info("Firmware forces DMA remapping off\n");
+		pr_info("Any user opt or tboot/platform force_on will be ignored\n");
+	}
+
+	if (!iommu_detected && dmar_required()) {
 		iommu_detected = 1;
 		/* Make sure ACS will be enabled */
 		pci_request_acs();
 	}
 
-	if (!ret) {
-		x86_init.iommu.iommu_init = intel_iommu_init;
-		x86_platform.iommu_shutdown = intel_iommu_shutdown;
-	}
+	x86_init.iommu.iommu_init = intel_iommu_init;
+	x86_platform.iommu_shutdown = intel_iommu_shutdown;
 
+out:
 	if (dmar_tbl) {
 		acpi_put_table(dmar_tbl);
 		dmar_tbl = NULL;
