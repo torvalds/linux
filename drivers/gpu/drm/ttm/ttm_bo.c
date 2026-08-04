@@ -489,8 +489,12 @@ out_no_ref:
 }
 
 struct ttm_bo_alloc_state {
+	/** @charge_pool: The memory pool the resource is charged to */
+	struct dmem_cgroup_pool_state *charge_pool;
 	/** @limit_pool: Which pool limit we should test against */
 	struct dmem_cgroup_pool_state *limit_pool;
+	/** @in_evict: Whether we are currently evicting buffers */
+	bool in_evict;
 };
 
 /**
@@ -518,18 +522,39 @@ static int ttm_bo_alloc_at_place(struct ttm_buffer_object *bo,
 	bool may_evict;
 	int ret;
 
-	may_evict = force_space && place->mem_type != TTM_PL_SYSTEM;
+	may_evict = !alloc_state->in_evict && force_space &&
+		    place->mem_type != TTM_PL_SYSTEM;
+	if (!alloc_state->charge_pool) {
+		ret = ttm_resource_try_charge(bo, place, &alloc_state->charge_pool,
+					      force_space ? &alloc_state->limit_pool
+							  : NULL);
+		if (ret) {
+			/*
+			 * -EAGAIN means the charge failed, which we treat
+			 * like an allocation failure. Therefore, return an
+			 * error code indicating the allocation failed -
+			 * either -EBUSY if the allocation should be
+			 * retried with eviction, or -ENOSPC if there should
+			 * be no second attempt.
+			 */
+			if (ret == -EAGAIN)
+				ret = may_evict ? -EBUSY : -ENOSPC;
+			return ret;
+		}
+	}
 
-	ret = ttm_resource_alloc(bo, place, res,
-				 force_space ? &alloc_state->limit_pool : NULL);
-
+	ret = ttm_resource_alloc(bo, place, res, alloc_state->charge_pool);
 	if (ret) {
 		if (ret == -ENOSPC && may_evict)
-			return -EBUSY;
-
+			ret = -EBUSY;
 		return ret;
 	}
 
+	/*
+	 * Ownership of charge_pool has been transferred to the TTM resource,
+	 * don't make the caller think we still hold a reference to it.
+	 */
+	alloc_state->charge_pool = NULL;
 	return 0;
 }
 
@@ -584,8 +609,10 @@ static s64 ttm_bo_evict_cb(struct ttm_lru_walk *walk, struct ttm_buffer_object *
 
 	evict_walk->evicted++;
 	if (evict_walk->res)
-		lret = ttm_resource_alloc(evict_walk->evictor, evict_walk->place,
-					  evict_walk->res, NULL);
+		lret = ttm_bo_alloc_at_place(evict_walk->evictor,
+					     evict_walk->place, false,
+					     evict_walk->res,
+					     evict_walk->alloc_state);
 	if (lret == 0)
 		return 1;
 out:
@@ -624,6 +651,8 @@ static int ttm_bo_evict_alloc(struct ttm_device *bdev,
 	};
 	s64 lret;
 
+	state->in_evict = true;
+
 	evict_walk.walk.arg.trylock_only = true;
 	lret = ttm_lru_walk_for_evict(&evict_walk.walk, bdev, man, 1);
 
@@ -654,6 +683,7 @@ retry:
 		goto retry;
 	}
 out:
+	state->in_evict = false;
 	if (lret < 0)
 		return lret;
 	if (lret == 0)
@@ -786,6 +816,7 @@ static int ttm_bo_alloc_resource(struct ttm_buffer_object *bo,
 					    &alloc_state);
 
 		if (ret == -ENOSPC) {
+			dmem_cgroup_uncharge(alloc_state.charge_pool, bo->base.size);
 			dmem_cgroup_pool_state_put(alloc_state.limit_pool);
 			continue;
 		} else if (ret == -EBUSY) {
@@ -794,11 +825,15 @@ static int ttm_bo_alloc_resource(struct ttm_buffer_object *bo,
 
 			dmem_cgroup_pool_state_put(alloc_state.limit_pool);
 
-			if (ret == -EBUSY)
-				continue;
-			else if (ret)
+			if (ret) {
+				dmem_cgroup_uncharge(alloc_state.charge_pool,
+						bo->base.size);
+				if (ret == -EBUSY)
+					continue;
 				return ret;
+			}
 		} else if (ret) {
+			dmem_cgroup_uncharge(alloc_state.charge_pool, bo->base.size);
 			dmem_cgroup_pool_state_put(alloc_state.limit_pool);
 			return ret;
 		}
