@@ -71,10 +71,10 @@ impl FbHal for Gb202 {
         super::gb100::pmu_reserved_size_gb100()
     }
 
-    fn non_wpr_heap_size(&self) -> u32 {
+    fn non_wpr_heap_size(&self) -> u64 {
         // Non-WPR heap for GB20x (see Open RM: kgspGetNonWprHeapSize, GB202+).
         // This size is r570-specific.
-        u32::SZ_2M + u32::SZ_128K
+        u64::SZ_2M + u64::SZ_128K
     }
 
     fn frts_size(&self) -> u64 {

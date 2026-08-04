@@ -271,7 +271,7 @@ impl FbLayout {
         };
 
         let non_wpr_heap = {
-            let non_wpr_heap_size = u64::from(hal.non_wpr_heap_size());
+            let non_wpr_heap_size = hal.non_wpr_heap_size();
             FbRange(wpr2.start - non_wpr_heap_size..wpr2.start)
         };
 
