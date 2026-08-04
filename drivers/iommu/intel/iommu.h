@@ -1351,6 +1351,51 @@ static inline bool ecmd_has_pmu_essential(struct intel_iommu *iommu)
 		DMA_ECMD_ECCAP3_ESSENTIAL;
 }
 
+enum dmar_force_on {
+	DMAR_FORCEON_PLATFORM,
+	DMAR_FORCEON_TBOOT
+};
+
+/*
+ * On policies are positive, with more positive value being stronger.
+ * Off policies are negative, with more negative value being stronger.
+ *
+ * 'dmar' here refers to DMA remapping instead of the dmar/iommu unit.
+ *
+ * - DMAR_FORCE_ON:
+ *     force to turn on (e.g. by tboot or platform opt-in).
+ *
+ * - DMAR_ON:
+ *     turn on by build configuration (CONFIG_INTEL_IOMMU_DEFAULT_ON=on)
+ *     or user opts ("intel_iommu=on").
+ *
+ * - DMAR_DEFAULT_OFF
+ *     turn off by build configuration (CONFIG_INTEL_IOMMU_DEFAULT_ON=off).
+ *
+ * - DMAR_USER_OFF
+ *     turn off by user opts ("intel_iommu=off" or "iommu=off").
+ *
+ * - '0' is invalid, compared to decide the on/off policy
+ *
+ */
+#define DMAR_FORCE_ON		2
+#define DMAR_ON			1
+#define DMAR_DEFAULT_OFF	-1
+#define DMAR_USER_OFF		-2
+extern int dmar_policy;
+
+static inline bool dmar_policy_on(void)
+{
+	return dmar_policy > 0;
+}
+
+static inline bool dmar_policy_off(void)
+{
+	return dmar_policy < 0;
+}
+
+bool dmar_can_force_on(enum dmar_force_on force_on);
+
 extern int dmar_disabled;
 extern int intel_iommu_enabled;
 extern int intel_iommu_tboot_noforce;
