@@ -10,5 +10,6 @@
  * It's a different number space from ioctl(), reuse the block's code 0x12.
  */
 #define BLOCK_URING_CMD_DISCARD			_IO(0x12, 0)
+#define BLOCK_URING_CMD_ZONE_RESET_ALL		_IO(0x12, 1)
 
 #endif

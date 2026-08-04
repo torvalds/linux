@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/io_uring/cmd.h>
 #include <linux/blk-integrity.h>
+#include <trace/events/block.h>
 #include <uapi/linux/blkdev.h>
 #include "blk.h"
 #include "blk-crypto-internal.h"
@@ -943,6 +944,40 @@ static int blkdev_cmd_discard(struct io_uring_cmd *cmd)
 	return -EIOCBQUEUED;
 }
 
+static int blkdev_cmd_zone_reset_all(struct io_uring_cmd *cmd)
+{
+	struct blk_iou_cmd *bic = io_uring_cmd_to_pdu(cmd, struct blk_iou_cmd);
+	struct block_device *bdev = I_BDEV(cmd->file->f_mapping->host);
+	struct bio *bio;
+	int err;
+
+	if (!(file_to_blk_mode(cmd->file) & BLK_OPEN_WRITE))
+		return -EBADF;
+	if (bdev_read_only(bdev))
+		return -EPERM;
+	if (!bdev_is_zoned(bdev))
+		return -EOPNOTSUPP;
+	if (bic->start || bic->len)
+		return -EINVAL;
+
+	err = filemap_invalidate_pages(bdev->bd_mapping, 0,
+				bdev_nr_bytes(bdev) - 1, bic->nowait);
+	if (err)
+		return err;
+
+	bio = bio_alloc(bdev, 0, REQ_OP_ZONE_RESET_ALL,
+			bic->nowait ? GFP_NOWAIT : GFP_KERNEL);
+	if (!bio)
+		return -EAGAIN;
+	if (bic->nowait)
+		bio->bi_opf |= REQ_NOWAIT;
+	trace_blkdev_zone_mgmt(bio, 0);
+	bio->bi_private = cmd;
+	bio->bi_end_io = bio_cmd_bio_end_io;
+	submit_bio(bio);
+	return -EIOCBQUEUED;
+}
+
 int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
 	struct blk_iou_cmd *bic = io_uring_cmd_to_pdu(cmd, struct blk_iou_cmd);
@@ -966,6 +1001,8 @@ int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	switch (cmd_op) {
 	case BLOCK_URING_CMD_DISCARD:
 		return blkdev_cmd_discard(cmd);
+	case BLOCK_URING_CMD_ZONE_RESET_ALL:
+		return blkdev_cmd_zone_reset_all(cmd);
 	}
 	return -EINVAL;
 }
