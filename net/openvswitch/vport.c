@@ -240,22 +240,6 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 }
 
 /**
- *	ovs_vport_set_options - modify existing vport device (for kernel callers)
- *
- * @vport: vport to modify.
- * @options: New configuration.
- *
- * Modifies an existing device with the specified configuration (which is
- * dependent on device type).  ovs_mutex must be held.
- */
-int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
-{
-	if (!vport->ops->set_options)
-		return -EOPNOTSUPP;
-	return vport->ops->set_options(vport, options);
-}
-
-/**
  *	ovs_vport_del - delete existing vport device
  *
  * @vport: vport to delete.
@@ -345,44 +329,6 @@ int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb)
 	}
 	nla_nest_end(skb, nla);
 
-	return 0;
-}
-
-/**
- *	ovs_vport_get_options - retrieve device options
- *
- * @vport: vport from which to retrieve the options.
- * @skb: sk_buff where options should be appended.
- *
- * Retrieves the configuration of the given device, appending an
- * %OVS_VPORT_ATTR_OPTIONS attribute that in turn contains nested
- * vport-specific attributes to @skb.
- *
- * Returns 0 if successful, -EMSGSIZE if @skb has insufficient room, or another
- * negative error code if a real error occurred.  If an error occurs, @skb is
- * left unmodified.
- *
- * Must be called with ovs_mutex or rcu_read_lock.
- */
-int ovs_vport_get_options(const struct vport *vport, struct sk_buff *skb)
-{
-	struct nlattr *nla;
-	int err;
-
-	if (!vport->ops->get_options)
-		return 0;
-
-	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_OPTIONS);
-	if (!nla)
-		return -EMSGSIZE;
-
-	err = vport->ops->get_options(vport, skb);
-	if (err) {
-		nla_nest_cancel(skb, nla);
-		return err;
-	}
-
-	nla_nest_end(skb, nla);
 	return 0;
 }
 
