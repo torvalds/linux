@@ -78,6 +78,12 @@ div.kerneltoc { background-color: #eeeeee; }
 div.kerneltoc li.current ul { background-color: white; }
 
 /*
+ * Hide toctree captions on the welcome page, they should only be shown in the
+ * sidebar.
+ */
+section#the-linux-kernel-documentation p.caption { display: none; }
+
+/*
  * The CSS magic to toggle the contents on small screens.
  */
 label.kernel-toc-title { display: none; }
