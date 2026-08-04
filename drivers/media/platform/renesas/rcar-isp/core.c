@@ -870,17 +870,23 @@ int risp_core_probe(struct rcar_isp_core *core, struct platform_device *pdev,
 
 	ret = v4l2_device_register(core->dev, &core->v4l2_dev);
 	if (ret)
-		return ret;
+		goto err_destroy_rpp;
 
 	ret = risp_core_create_subdev(core);
 	if (ret)
-		return ret;
+		goto err_unregister_v4l2;
 
 	mutex_init(&core->io_lock);
 	spin_lock_init(&core->lock);
 	INIT_LIST_HEAD(&core->risp_jobs);
 
 	return 0;
+
+err_unregister_v4l2:
+	v4l2_device_unregister(&core->v4l2_dev);
+err_destroy_rpp:
+	rppx1_destroy(core->rpp);
+	return ret;
 }
 
 void risp_core_remove(struct rcar_isp_core *core)
@@ -894,7 +900,7 @@ void risp_core_remove(struct rcar_isp_core *core)
 	for (unsigned int i = 0; i < RISP_CORE_NUM_PADS; i++)
 		risp_core_io_destroy(&core->io[i]);
 
-	v4l2_device_unregister_subdev(&core->subdev);
+	v4l2_device_unregister(&core->v4l2_dev);
 
 	mutex_destroy(&core->io_lock);
 	rppx1_destroy(core->rpp);
