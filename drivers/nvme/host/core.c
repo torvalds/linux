@@ -33,6 +33,13 @@
 
 #define NVME_MINORS		(1U << MINORBITS)
 
+/*
+ * Write hints (bio->bi_write_stream) are u8, so FDP placement handles beyond
+ * U8_MAX can never be selected. Cap the handle count to bound both the RUH
+ * status buffer and the per-head plids array.
+ */
+#define NVME_MAX_PLIDS		U8_MAX
+
 struct nvme_ns_info {
 	struct nvme_ns_ids ids;
 	u32 nsid;
@@ -2353,7 +2360,7 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	if (!info->runs)
 		return ret;
 
-	size = struct_size(ruhs, ruhsd, S8_MAX - 1);
+	size = struct_size(ruhs, ruhsd, NVME_MAX_PLIDS);
 	ruhs = kzalloc(size, GFP_KERNEL);
 	if (!ruhs)
 		return -ENOMEM;
@@ -2368,7 +2375,7 @@ static int nvme_query_fdp_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		goto free;
 	}
 
-	head->nr_plids = min(le16_to_cpu(ruhs->nruhsd), S8_MAX - 1);
+	head->nr_plids = min(le16_to_cpu(ruhs->nruhsd), NVME_MAX_PLIDS);
 	if (!head->nr_plids)
 		goto free;
 
