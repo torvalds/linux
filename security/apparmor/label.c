@@ -165,7 +165,8 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
  *          ==0 if @a == @b
  *          >0  if @a > @b
  */
-static int vec_cmp(struct aa_profile **a, int an, struct aa_profile **b, int bn)
+static int vec_cmp(struct aa_profile * const *a, int an,
+		   struct aa_profile * const *b, int bn)
 {
 	int i;
 
@@ -473,7 +474,7 @@ fail:
  *          ==0 if a == b
  *          >0  if a > b
  */
-static int label_cmp(struct aa_label *a, struct aa_label *b)
+static int label_cmp(const struct aa_label *a, const struct aa_label *b)
 {
 	AA_BUG(!b);
 
@@ -484,7 +485,7 @@ static int label_cmp(struct aa_label *a, struct aa_label *b)
 }
 
 /* helper fn for label_for_each_confined */
-int aa_label_next_confined(struct aa_label *label, int i)
+int aa_label_next_confined(const struct aa_label *label, int i)
 {
 	AA_BUG(!label);
 	AA_BUG(i < 0);
@@ -507,8 +508,8 @@ int aa_label_next_confined(struct aa_label *label, int i)
  *     else NULL if @sub is a subset of @set
  */
 struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
-					      struct aa_label *set,
-					      struct aa_label *sub)
+					      const struct aa_label *set,
+					      const struct aa_label *sub)
 {
 	AA_BUG(!set);
 	AA_BUG(!I);
@@ -544,7 +545,7 @@ struct aa_profile *__aa_label_next_not_in_set(struct label_it *I,
  * Returns: true if @sub is subset of @set
  *     else false
  */
-bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
+bool aa_label_is_subset(const struct aa_label *set, const struct aa_label *sub)
 {
 	struct label_it i = { };
 
@@ -571,7 +572,8 @@ bool aa_label_is_subset(struct aa_label *set, struct aa_label *sub)
  * Returns: true if @sub is special_subset of @set
  *     else false
  */
-bool aa_label_is_unconfined_subset(struct aa_label *set, struct aa_label *sub)
+bool aa_label_is_unconfined_subset(const struct aa_label *set,
+				   const struct aa_label *sub)
 {
 	struct label_it i = { };
 	struct aa_profile *p;
@@ -991,8 +993,8 @@ struct aa_label *aa_label_insert(struct aa_labelset *ls, struct aa_label *label)
  *     else null if no more profiles
  */
 struct aa_profile *aa_label_next_in_merge(struct label_it *I,
-					  struct aa_label *a,
-					  struct aa_label *b)
+					  const struct aa_label *a,
+					  const struct aa_label *b)
 {
 	AA_BUG(!a);
 	AA_BUG(!b);
