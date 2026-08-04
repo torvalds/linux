@@ -33,12 +33,12 @@
 /* 0 MiB to 4 MiB, size of 4 MiB : RESERVED */
 
 /* 0x00_0040_0000 - 0x7F_FFC0_0000 **/
-/* 4 MiB to 512 GiB, size of 512 GiB less 4 MiB : RESERVED **/
+/* 4 MiB to 512 GiB, size of 512 GiB less 4 MiB : RESERVED */
 
 /* 0x80_0000_0000 ************************************************************/
 
 /* 0x80_0000_0000 - 0x9F_FFFF_FFFF **/
-/* 512 GiB to 640 GiB, size of 128 GiB : GENERAL_HEAP **/
+/* 512 GiB to 640 GiB, size of 128 GiB : GENERAL_HEAP */
 #define ROGUE_GENERAL_HEAP_BASE 0x8000000000ull
 #define ROGUE_GENERAL_HEAP_SIZE SZ_128G
 
@@ -62,7 +62,7 @@
 #define ROGUE_PDSCODEDATA_HEAP_SIZE SZ_4G
 
 /* 0xDB_0000_0000 - 0xDB_FFFF_FFFF */
-/* 876 GiB to 880 GiB, size of 256 MiB (reserved 4GiB) : BRN **/
+/* 876 GiB to 880 GiB, size of 256 MiB (reserved 4GiB) : BRN */
 /*
  * The BRN63142 quirk workaround requires Region Header memory to be at the top
  * of a 16GiB aligned range. This is so when masked with 0x03FFFFFFFF the
@@ -82,7 +82,7 @@
 /* 0xE1_0000_0000 - 0xE1_BFFF_FFFF */
 /* 900 GiB to 903 GiB, size of 3 GiB : RESERVED */
 
-/* 0xE1_C000_000 - 0xE1_FFFF_FFFF */
+/* 0xE1_C000_0000 - 0xE1_FFFF_FFFF */
 /* 903 GiB to 904 GiB, reserved 1 GiB, : FIRMWARE_HEAP */
 #define ROGUE_FW_HEAP_BASE 0xE1C0000000ull
 
@@ -90,7 +90,7 @@
 /* 904 GiB to 912 GiB, size of 8 GiB : FREE */
 
 /* 0xE4_0000_0000 - 0xE7_FFFF_FFFF */
-/* 912 GiB to 968 GiB, size of 16 GiB : TRANSFER_FRAG */
+/* 912 GiB to 928 GiB, size of 16 GiB : TRANSFER_FRAG */
 #define ROGUE_TRANSFER_FRAG_HEAP_BASE 0xE400000000ull
 #define ROGUE_TRANSFER_FRAG_HEAP_SIZE SZ_16G
 
