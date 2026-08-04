@@ -892,6 +892,8 @@ static void bq256xx_charger_reset(void *data)
 
 	if (!IS_ERR_OR_NULL(bq->usb3_phy))
 		usb_unregister_notifier(bq->usb3_phy, &bq->usb_nb);
+
+	cancel_work_sync(&bq->usb_work);
 }
 
 static int bq256xx_set_charger_property(struct power_supply *psy,
@@ -1717,30 +1719,29 @@ static int bq256xx_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(dev, bq256xx_charger_reset, bq);
-	if (ret)
-		return ret;
+	INIT_WORK(&bq->usb_work, bq256xx_usb_work);
+	bq->usb_nb.notifier_call = bq256xx_usb_notifier;
 
 	/* OTG reporting */
 	bq->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (!IS_ERR_OR_NULL(bq->usb2_phy)) {
-		INIT_WORK(&bq->usb_work, bq256xx_usb_work);
-		bq->usb_nb.notifier_call = bq256xx_usb_notifier;
-		usb_register_notifier(bq->usb2_phy, &bq->usb_nb);
-	}
-
 	bq->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
-	if (!IS_ERR_OR_NULL(bq->usb3_phy)) {
-		INIT_WORK(&bq->usb_work, bq256xx_usb_work);
-		bq->usb_nb.notifier_call = bq256xx_usb_notifier;
-		usb_register_notifier(bq->usb3_phy, &bq->usb_nb);
-	}
 
 	ret = bq256xx_power_supply_init(bq, &psy_cfg, dev);
 	if (ret) {
 		dev_err(dev, "Failed to register power supply\n");
 		return ret;
 	}
+
+	/* Register after the power supplies so devm runs it first. */
+	ret = devm_add_action_or_reset(dev, bq256xx_charger_reset, bq);
+	if (ret)
+		return ret;
+
+	if (!IS_ERR_OR_NULL(bq->usb2_phy))
+		usb_register_notifier(bq->usb2_phy, &bq->usb_nb);
+
+	if (!IS_ERR_OR_NULL(bq->usb3_phy))
+		usb_register_notifier(bq->usb3_phy, &bq->usb_nb);
 
 	if (client->irq) {
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
