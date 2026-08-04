@@ -1000,6 +1000,50 @@ static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+/**
+ * tasdevice_get_capture_profile_id - Report current active capture profile
+ * ID to user space
+ * @kcontrol: ALSA kcontrol structure passed from ALSA core
+ * @ucontrol: User-space control element value buffer to write the result back
+ *
+ * This function ensures the returned profile ID is always clamped inside the
+ * valid range advertised by the info callback, preventing accidental invalid
+ * values from being exposed to applications even if internal driver state is
+ * temporarily inconsistent.
+ *
+ * Returns 0 on successful fill of the control value, no error conditions
+ * are defined for this getter callback.
+ */
+static int tasdevice_set_capture_profile_id(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
+	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	unsigned int user_prof_id = ucontrol->value.integer.value[0];
+	unsigned int max_valid_id;
+	int ret = 0;
+
+	/*
+	 * Align valid range with the bound defined in
+	 * tasdevice_info_profile()
+	 */
+	max_valid_id = tas_priv->rcabin.ncfgs - 1;
+
+	/*
+	 * Reject invalid input including zero total configuration edge
+	 * case
+	 */
+	if (tas_priv->rcabin.ncfgs == 0 || user_prof_id > max_valid_id)
+		return -EINVAL;
+
+	if (tas_priv->rcabin.capture_profile_id != user_prof_id) {
+		tas_priv->rcabin.capture_profile_id = user_prof_id;
+		ret = 1;
+	}
+
+	return ret;
+}
+
 static int tasdevice_info_active_num(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
@@ -1080,6 +1124,41 @@ static int tasdevice_get_profile_id(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+/**
+ * tasdevice_get_capture_profile_id - Report current active capture profile
+ * ID to user space
+ * @kcontrol: ALSA kcontrol structure passed from ALSA core
+ * @ucontrol: User-space control element value buffer to write the result back
+ *
+ * This function ensures the returned profile ID is always clamped inside the
+ * valid range advertised by the info callback, preventing accidental invalid
+ * values from being exposed to applications even if internal driver state is
+ * temporarily inconsistent.
+ *
+ * Returns 0 on successful fill of the control value, no error conditions
+ * are defined for this getter callback.
+ */
+static int tasdevice_get_capture_profile_id(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_kcontrol_chip(kcontrol);
+	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	unsigned int max_valid_id, current_prof_id;
+
+	max_valid_id = tas_priv->rcabin.ncfgs > 0 ?
+		(tas_priv->rcabin.ncfgs - 1U) : 0;
+
+	/*
+	 * Cast current profile id to unsigned to match type with max_valid_id,
+	 * avoid signedness mismatch;
+	 */
+	current_prof_id = (unsigned int)tas_priv->rcabin.capture_profile_id;
+	/* Prevent underflow when there are no loaded capture profiles. */
+	ucontrol->value.integer.value[0] = min(current_prof_id, max_valid_id);
+
+	return 0;
+}
+
 static int tasdevice_get_chip_id(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
@@ -1121,6 +1200,41 @@ static int tasdevice_create_control(struct tasdevice_priv *tas_priv)
 
 	ret = snd_soc_add_component_controls(tas_priv->codec,
 		prof_ctrls, nr_controls < mix_index ? nr_controls : mix_index);
+
+	mix_index = 0;
+	switch (tas_priv->chip_id) {
+	case TAS2563:
+	case TAS2568:
+	case TAS2570:
+	case TAS2572:
+	case TAS2573:
+	case TAS2574:
+	case TAS2781:
+	prof_ctrls = devm_kcalloc(tas_priv->dev, nr_controls,
+		sizeof(prof_ctrls[0]), GFP_KERNEL);
+	if (!prof_ctrls) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Create a mixer item for selecting the capture profile */
+	name = devm_kstrdup(tas_priv->dev, "Speaker Capture Profile Id",
+		GFP_KERNEL);
+	if (!name) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	prof_ctrls[mix_index].name = name;
+	prof_ctrls[mix_index].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	prof_ctrls[mix_index].info = tasdevice_info_profile;
+	prof_ctrls[mix_index].get = tasdevice_get_capture_profile_id;
+	prof_ctrls[mix_index].put = tasdevice_set_capture_profile_id;
+	mix_index++;
+
+	ret = snd_soc_add_component_controls(tas_priv->codec,
+		prof_ctrls, nr_controls < mix_index ? nr_controls : mix_index);
+		break;
+	}
 
 out:
 	return ret;
@@ -1773,7 +1887,22 @@ static int tasdevice_dapm_event(struct snd_soc_dapm_widget *w,
 	guard(mutex)(&tas_priv->codec_lock);
 	if (event == SND_SOC_DAPM_PRE_PMD)
 		state = 1;
-	tasdevice_tuning_switch(tas_priv, state);
+	tasdevice_tuning_switch(tas_priv, state, false);
+
+	return 0;
+}
+
+static int tasdevice_capture_dapm_event(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *codec = snd_soc_dapm_to_component(w->dapm);
+	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
+	int state = 0;
+
+	guard(mutex)(&tas_priv->codec_lock);
+	if (event == SND_SOC_DAPM_PRE_PMD)
+		state = 1;
+	tasdevice_tuning_switch(tas_priv, state, true);
 
 	return 0;
 }
@@ -1781,7 +1910,7 @@ static int tasdevice_dapm_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget tasdevice_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("ASI", "ASI Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT_E("ASI OUT", "ASI Capture", 0, SND_SOC_NOPM,
-		0, 0, tasdevice_dapm_event,
+		0, 0, tasdevice_capture_dapm_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_SPK("SPK", tasdevice_dapm_event),
 	SND_SOC_DAPM_OUTPUT("OUT"),

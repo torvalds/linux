@@ -2797,11 +2797,12 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(tasdevice_prmg_load, "SND_SOC_TAS2781_FMWLIB");
 
-void tasdevice_tuning_switch(void *context, int state)
+void tasdevice_tuning_switch(void *context, int state, bool is_cap)
 {
 	struct tasdevice_priv *tas_priv = (struct tasdevice_priv *) context;
 	struct tasdevice_fw *tas_fmw = tas_priv->fmw;
-	int profile_cfg_id = tas_priv->rcabin.profile_cfg_id;
+	int profile_cfg_id = is_cap ? tas_priv->rcabin.capture_profile_id :
+				tas_priv->rcabin.profile_cfg_id;
 
 	/*
 	 * Only RCA-based Playback can still work with no dsp program running
@@ -2818,7 +2819,6 @@ void tasdevice_tuning_switch(void *context, int state)
 	if (state == 0) {
 		if (tas_fmw && tas_priv->cur_prog < tas_fmw->nr_programs) {
 			/* dsp mode or tuning mode */
-			profile_cfg_id = tas_priv->rcabin.profile_cfg_id;
 			tasdevice_select_tuningprm_cfg(tas_priv,
 				tas_priv->cur_prog, tas_priv->cur_conf,
 				profile_cfg_id);
