@@ -5,6 +5,7 @@
 #include <linux/atomic.h> /* for atomic_long_t */
 #include <linux/mm.h> /* for PAGE_SHIFT */
 #include <linux/memcontrol.h> /* for mem_cgroup_swappiness() */
+#include <linux/swap.h> /* for MAX_SWAPFILES_SHIFT, struct swap_info_struct */
 
 struct mempolicy;
 struct swap_iocb;

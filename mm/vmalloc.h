@@ -5,6 +5,8 @@
 #ifndef __MM_VMALLOC_H
 #define __MM_VMALLOC_H
 
+#include <linux/vmalloc.h>
+
 #ifdef CONFIG_MMU
 void __init vmalloc_init(void);
 int __must_check vmap_pages_range_noflush(unsigned long addr, unsigned long end,

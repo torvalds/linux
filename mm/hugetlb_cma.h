@@ -2,6 +2,8 @@
 #ifndef _LINUX_HUGETLB_CMA_H
 #define _LINUX_HUGETLB_CMA_H
 
+#include <linux/hugetlb.h>
+
 #ifdef CONFIG_CMA
 void hugetlb_cma_free_frozen_folio(struct folio *folio);
 struct folio *hugetlb_cma_alloc_frozen_folio(int order, gfp_t gfp_mask,
