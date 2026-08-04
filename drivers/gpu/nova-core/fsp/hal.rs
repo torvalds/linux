@@ -19,6 +19,10 @@ pub(super) trait FspHal {
 
     /// Returns the FSP Chain of Trust protocol version this chipset advertises.
     fn cot_version(&self) -> u16;
+
+    // TODO: consider moving this into the TLV firmware metadata when ready
+    /// Returns the size reserved at the end of the framebuffer, in bytes.
+    fn fb_end_reserved_size(&self) -> u64;
 }
 
 /// Returns the FSP HAL, or `None` if the architecture doesn't support FSP.

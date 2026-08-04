@@ -251,20 +251,32 @@ struct FspCotMessage {
 }
 
 impl FspCotMessage {
+    /// Computes the FRTS vidmem offset for the Chain-of-Trust message. It is measured backwards
+    /// from the end of the framebuffer.
+    fn frts_vidmem_offset(hal: &dyn hal::FspHal, fb_layout: &FbLayout) -> Result<u64> {
+        let mut offset = hal.fb_end_reserved_size();
+
+        // As per OpenRM's `kfspPrepareBootCommands_GH100`.
+        if fb_layout.pmu_reserved_size != 0 {
+            offset = (offset + u64::from(fb_layout.pmu_reserved_size))
+                // The 2 MiB alignment is r570-specific.
+                .align_up(Alignment::new::<SZ_2M>())
+                .ok_or(EINVAL)?;
+        }
+
+        Ok(offset)
+    }
+
     /// Returns an in-place initializer for [`FspCotMessage`].
     fn new<'a>(
         fb_layout: &FbLayout,
         fsp_fw: &'a FspFirmware,
         args: &'a FmcBootArgs<'_>,
     ) -> Result<impl Init<Self> + 'a> {
-        // frts_vidmem_offset is measured from the end of FB, so FRTS sits at
-        // (end of FB) - frts_vidmem_offset.
-        let frts_vidmem_offset = if !args.resume {
-            let frts_reserved_size = fb_layout.heap.len() + u64::from(fb_layout.pmu_reserved_size);
+        let hal = hal::fsp_hal(args.chipset).ok_or(ENOTSUPP)?;
 
-            frts_reserved_size
-                .align_up(Alignment::new::<SZ_2M>())
-                .ok_or(EINVAL)?
+        let frts_vidmem_offset = if !args.resume {
+            Self::frts_vidmem_offset(hal, fb_layout)?
         } else {
             0
         };
@@ -275,7 +287,7 @@ impl FspCotMessage {
             0
         };
 
-        let version = hal::fsp_hal(args.chipset).ok_or(ENOTSUPP)?.cot_version();
+        let version = hal.cot_version();
         let size = num::usize_into_u16::<{ core::mem::size_of::<NvdmPayloadCot>() }>();
 
         Ok(init!(Self {
