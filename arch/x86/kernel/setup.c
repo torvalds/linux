@@ -120,8 +120,7 @@ struct cpuinfo_x86 new_cpu_data;
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);
 
-#if defined(CONFIG_X86_SPEEDSTEP_SMI) || \
-	defined(CONFIG_X86_SPEEDSTEP_SMI_MODULE)
+#if IS_ENABLED(CONFIG_X86_SPEEDSTEP_SMI)
 struct ist_info ist_info;
 EXPORT_SYMBOL(ist_info);
 #else
@@ -230,7 +229,7 @@ char builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
 bool builtin_cmdline_added __ro_after_init;
 #endif
 
-#if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
+#if IS_ENABLED(CONFIG_EDD)
 struct edd edd;
 #ifdef CONFIG_EDD_MODULE
 EXPORT_SYMBOL(edd);

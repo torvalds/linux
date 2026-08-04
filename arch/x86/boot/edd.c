@@ -15,7 +15,7 @@
 #include <linux/edd.h>
 #include "string.h"
 
-#if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
+#if IS_ENABLED(CONFIG_EDD)
 
 /*
  * Read the MBR (first sector) from a specific device.
