@@ -35,7 +35,7 @@
 #include <linux/workqueue.h>
 #include <linux/security.h>
 #include <linux/eventfd.h>
-#include <linux/blkdev.h>
+#include <linux/blk_plug.h>
 #include <linux/compat.h>
 #include <linux/migrate.h>
 #include <linux/ramfs.h>

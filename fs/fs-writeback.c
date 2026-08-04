@@ -25,7 +25,7 @@
 #include <linux/pagemap.h>
 #include <linux/kthread.h>
 #include <linux/writeback.h>
-#include <linux/blkdev.h>
+#include <linux/blk_plug.h>
 #include <linux/backing-dev.h>
 #include <linux/tracepoint.h>
 #include <linux/device.h>

@@ -3,6 +3,7 @@
 #define IOU_CORE_H
 
 #include <linux/errno.h>
+#include <linux/file.h>
 #include <linux/lockdep.h>
 #include <linux/resume_user_mode.h>
 #include <linux/poll.h>
