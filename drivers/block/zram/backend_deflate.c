@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#define pr_fmt(fmt) "deflate: " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -30,7 +32,7 @@ static int deflate_setup_params(struct zcomp_params *params)
 		s32 wb = params->deflate.winbits;
 
 		if ((wb < -15 || wb > -9) && (wb < 9 || wb > 15)) {
-			pr_err("invalid deflate winbits: %d\n", wb);
+			pr_err("invalid winbits %d\n", wb);
 			return -EINVAL;
 		}
 	}

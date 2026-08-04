@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#define pr_fmt(fmt) "842: " fmt
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/sw842.h>
