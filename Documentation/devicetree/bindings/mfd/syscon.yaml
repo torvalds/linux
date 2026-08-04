@@ -74,6 +74,7 @@ properties:
               - hpe,gxp-sysreg
               - loongson,ls1b-syscon
               - loongson,ls1c-syscon
+              - loongson,ls2k0300-chipid-syscon
               - lsi,axxia-syscon
               - marvell,armada-3700-cpu-misc
               - marvell,armada-3700-nb-pm
