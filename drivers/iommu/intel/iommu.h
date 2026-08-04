@@ -1394,6 +1394,11 @@ static inline bool dmar_policy_off(void)
 	return dmar_policy < 0;
 }
 
+static inline bool dmar_policy_force_on(void)
+{
+	return dmar_policy == DMAR_FORCE_ON;
+}
+
 bool dmar_can_force_on(enum dmar_force_on force_on);
 
 extern int dmar_disabled;
