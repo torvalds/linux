@@ -2550,12 +2550,17 @@ static int __init probe_acpi_namespace_devices(void)
 
 static __init int tboot_force_iommu(void)
 {
-	if (!tboot_enabled())
+	if (!tboot_enabled() || intel_iommu_tboot_noforce)
 		return 0;
 
-	if (no_iommu || dmar_disabled)
+	if (!dmar_can_force_on(DMAR_FORCEON_TBOOT))
+		panic("tboot: Failed to force IOMMU on\n");
+
+	if (dmar_policy_off())
 		pr_warn("Forcing Intel-IOMMU to enabled\n");
 
+	/* No concurrent access to dmar_policy at this point. */
+	dmar_policy = DMAR_FORCE_ON;
 	dmar_disabled = 0;
 	no_iommu = 0;
 
@@ -2572,8 +2577,7 @@ int __init intel_iommu_init(void)
 	 * Intel IOMMU is required for a TXT/tboot launch or platform
 	 * opt in, so enforce that.
 	 */
-	force_on = (!intel_iommu_tboot_noforce && tboot_force_iommu()) ||
-		    platform_optin_force_iommu();
+	force_on = tboot_force_iommu() || platform_optin_force_iommu();
 
 	down_write(&dmar_global_lock);
 	if (dmar_table_init()) {
