@@ -3300,6 +3300,10 @@ static void alc287_fixup_legion_16iax10h_aw88399(struct hda_codec *codec,
 		spec->gen.suppress_auto_mic = 1;
 		snd_hda_override_conn_list(codec, 0x17, ARRAY_SIZE(conn), conn);
 		break;
+	case HDA_FIXUP_ACT_BUILD:
+		spec->gen.multiout.max_channels = 2;
+		spec->gen.pcm_rec[0]->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max = 2;
+		break;
 	}
 }
 
