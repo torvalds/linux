@@ -253,6 +253,9 @@ struct snd_soc_component {
 	void *mark_pm;
 
 	struct dentry *debugfs_root;
+
+	/* Component private data */
+	void *priv;
 };
 
 #define for_each_component_dais(component, dai)\
@@ -282,6 +285,14 @@ static inline int snd_soc_component_cache_sync(
 {
 	return regcache_sync(component->regmap);
 }
+
+struct snd_soc_component *snd_soc_component_alloc(struct device *dev);
+
+void snd_soc_component_set_name(struct snd_soc_component *component, const char *name);
+const char *snd_soc_component_name(struct snd_soc_component *component);
+
+void snd_soc_component_set_priv(struct snd_soc_component *component, void *priv);
+void *snd_soc_component_to_priv(struct snd_soc_component *component);
 
 void snd_soc_component_set_aux(struct snd_soc_component *component,
 			       struct snd_soc_aux_dev *aux);
