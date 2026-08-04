@@ -66,6 +66,13 @@ static inline void srr_regs_clobbered(void)
 static inline void nap_adjust_return(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_970_NAP
+	/*
+	 * Adjust the nap return address before irq_exit_rcu(). irq_exit_rcu()
+	 * may invoke softirqs with interrupts re-enabled, allowing a nested
+	 * async interrupt to arrive. If _TLF_NAPPING is still set at that
+	 * point, the nested interrupt would erroneously redirect its own
+	 * return address to power4_idle_nap_return, corrupting the stack.
+	 */
 	if (unlikely(test_thread_local_flags(_TLF_NAPPING))) {
 		/* Can avoid a test-and-clear because NMIs do not call this */
 		clear_thread_local_flags(_TLF_NAPPING);
@@ -286,14 +293,6 @@ static inline void arch_interrupt_async_enter_prepare(struct pt_regs *regs)
 
 static inline void arch_interrupt_async_exit_prepare(struct pt_regs *regs)
 {
-	/*
-	 * Adjust at exit so the main handler sees the true NIA. This must
-	 * come before irq_exit() because irq_exit can enable interrupts, and
-	 * if another interrupt is taken before nap_adjust_return has run
-	 * here, then that interrupt would return directly to idle nap return.
-	 */
-	nap_adjust_return(regs);
-
 	arch_interrupt_exit_prepare(regs);
 }
 

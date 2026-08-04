@@ -796,6 +796,27 @@ static int vcn_v5_0_0_start_dpg_mode(struct amdgpu_vcn_inst *vinst,
 }
 
 /**
+ * vcn_v5_0_0_set_mmhub_eco_sec_level - set vcn sec lvl reg
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * request psp to set sec lvl
+ */
+static int vcn_v5_0_0_set_mmhub_eco_sec_level(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(5, 3, 0)) {
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+			/* Request to PSP to program VCN secure lvl */
+			r = psp_set_mmhub_eco_sec_level(adev);
+		}
+	}
+
+	return r;
+}
+
+/**
  * vcn_v5_0_0_start - VCN start
  *
  * @vinst: VCN instance
@@ -818,6 +839,11 @@ static int vcn_v5_0_0_start(struct amdgpu_vcn_inst *vinst)
 		amdgpu_dpm_enable_vcn(adev, true, i);
 
 	fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
+
+	/* program VCN secure lvl register */
+	r = vcn_v5_0_0_set_mmhub_eco_sec_level(adev);
+	if (r)
+		return r;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		return vcn_v5_0_0_start_dpg_mode(vinst, adev->vcn.inst[i].indirect_sram);
