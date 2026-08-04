@@ -104,6 +104,28 @@ static __always_inline u32  __pv_wait_head_or_lock(struct qspinlock *lock,
 #define queued_spin_lock_slowpath	native_queued_spin_lock_slowpath
 #endif
 
+#if !defined(queued_spin_unlock) && \
+	IS_ENABLED(CONFIG_QUEUED_SPINLOCKS_TRACE_CONTENDED_RELEASE)
+/*
+ * Out-of-line trace-and-release path for queued_spin_unlock(), used when
+ * the contended_release tracepoint is enabled.
+ *
+ * queued_spin_release() is duplicated here on purpose: doing the release
+ * in this function (rather than tracing here and releasing in the caller)
+ * lets queued_spin_unlock() return right after the call, so the
+ * tracepoint-disabled hot path never has to keep lock live across a call
+ * in a callee-saved register. Keep this release in sync with the one in
+ * queued_spin_unlock().
+ */
+void __lockfunc queued_spin_release_traced(struct qspinlock *lock)
+{
+	if (queued_spin_is_contended(lock))
+		trace_call__contended_release(lock);
+	queued_spin_release(lock);
+}
+EXPORT_SYMBOL(queued_spin_release_traced);
+#endif
+
 #endif /* _GEN_PV_LOCK_SLOWPATH */
 
 /**
