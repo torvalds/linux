@@ -2033,10 +2033,6 @@ failure:
 
 static int mes_v11_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = ip_block->adev;
-
-	if (adev->mes.use_rs64mem)
-		amdgpu_mes_rs64mem_fini(&adev->mes);
 	return 0;
 }
 
