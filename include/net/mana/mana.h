@@ -31,6 +31,12 @@ enum TRI_STATE {
 	TRI_STATE_TRUE = 1
 };
 
+/* MANA ethtool private flag bit positions */
+enum mana_priv_flag_bits {
+	MANA_PRIV_FLAG_USE_FULL_PAGE_RXBUF = 0,
+	MANA_PRIV_FLAG_MAX,
+};
+
 /* Number of entries for hardware indirection table must be in power of 2 */
 #define MANA_INDIRECT_TABLE_MAX_SIZE 512
 #define MANA_INDIRECT_TABLE_DEF_SIZE 64
@@ -567,6 +573,8 @@ struct mana_port_context {
 	u32 rxbpre_alloc_size;
 	u32 rxbpre_headroom;
 	u32 rxbpre_frag_count;
+
+	u32 priv_flags;
 
 	struct bpf_prog *bpf_prog;
 
