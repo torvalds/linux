@@ -102,7 +102,7 @@ static int kfd_queue_buffer_svm_get(struct kfd_process_device *pdd, u64 addr, u6
 	mutex_lock(&p->svms.lock);
 
 	/*
-	 * range may split to multiple svm pranges aligned to granularity boundaery.
+	 * range may split to multiple svm pranges aligned to granularity boundary.
 	 */
 	while (size) {
 		uint32_t gpuid, gpuidx;
