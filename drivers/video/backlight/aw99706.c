@@ -60,7 +60,7 @@
 #define AW99706_MTPLDOSEL_REG			0x1E
 #define AW99706_MTPRUN_REG			0x1F
 
-#define RESV	0
+#define RESV	U32_MAX
 
 /* Boost switching frequency table, in Hz */
 static const u32 aw99706_sw_freq_tbl[] = {
@@ -94,17 +94,19 @@ static int aw99706_dt_property_lookup(const struct aw99706_dt_prop *prop,
 	int i;
 
 	if (!prop->lookup_tbl) {
+		if (dt_val > (prop->mask >> __ffs(prop->mask)))
+			return -EINVAL;
 		*val = dt_val;
 		return 0;
 	}
 
 	for (i = 0; i < prop->tbl_size; i++)
-		if (prop->lookup_tbl[i] == dt_val)
+		if (prop->lookup_tbl[i] != RESV && prop->lookup_tbl[i] == dt_val)
 			break;
 
 	*val = i;
 
-	return i == prop->tbl_size ? -1 : 0;
+	return i == prop->tbl_size ? -EINVAL : 0;
 }
 
 #define MIN_ILED_MAX	5000
@@ -116,11 +118,14 @@ aw99706_dt_property_iled_max_convert(const struct aw99706_dt_prop *prop,
 				     u32 dt_val, u8 *val)
 {
 	if (dt_val > MAX_ILED_MAX || dt_val < MIN_ILED_MAX)
-		return -1;
+		return -EINVAL;
+
+	if ((dt_val - MIN_ILED_MAX) % STEP_ILED_MAX)
+		return -EINVAL;
 
 	*val = (dt_val - MIN_ILED_MAX) / STEP_ILED_MAX;
 
-	return (dt_val - MIN_ILED_MAX) % STEP_ILED_MAX;
+	return 0;
 }
 
 static const struct aw99706_dt_prop aw99706_dt_props[] = {
