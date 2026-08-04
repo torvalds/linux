@@ -1651,8 +1651,6 @@ bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
 	default:
 		return false;
 	}
-
-	return false;
 }
 EXPORT_SYMBOL_GPL(blk_zone_plug_bio);
 
