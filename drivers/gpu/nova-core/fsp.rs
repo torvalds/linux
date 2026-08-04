@@ -31,7 +31,7 @@ use crate::{
         fsp::Fsp as FspEngine,
         Falcon, //
     },
-    fb::FbLayout,
+    fb::FbSizes,
     firmware::{
         fsp::{
             FmcSignatures,
@@ -253,12 +253,12 @@ struct FspCotMessage {
 impl FspCotMessage {
     /// Computes the FRTS vidmem offset for the Chain-of-Trust message. It is measured backwards
     /// from the end of the framebuffer.
-    fn frts_vidmem_offset(hal: &dyn hal::FspHal, fb_layout: &FbLayout) -> Result<u64> {
+    fn frts_vidmem_offset(hal: &dyn hal::FspHal, fb_info: &FbSizes) -> Result<u64> {
         let mut offset = hal.fb_end_reserved_size();
 
         // As per OpenRM's `kfspPrepareBootCommands_GH100`.
-        if fb_layout.pmu_reserved_size != 0 {
-            offset = (offset + u64::from(fb_layout.pmu_reserved_size))
+        if fb_info.pmu_reserved_size != 0 {
+            offset = (offset + u64::from(fb_info.pmu_reserved_size))
                 // The 2 MiB alignment is r570-specific.
                 .align_up(Alignment::new::<SZ_2M>())
                 .ok_or(EINVAL)?;
@@ -269,20 +269,20 @@ impl FspCotMessage {
 
     /// Returns an in-place initializer for [`FspCotMessage`].
     fn new<'a>(
-        fb_layout: &FbLayout,
+        fb_info: &FbSizes,
         fsp_fw: &'a FspFirmware,
         args: &'a FmcBootArgs<'_>,
     ) -> Result<impl Init<Self> + 'a> {
         let hal = hal::fsp_hal(args.chipset).ok_or(ENOTSUPP)?;
 
         let frts_vidmem_offset = if !args.resume {
-            Self::frts_vidmem_offset(hal, fb_layout)?
+            Self::frts_vidmem_offset(hal, fb_info)?
         } else {
             0
         };
 
         let frts_size: u32 = if !args.resume {
-            fb_layout.frts.len().try_into()?
+            fb_info.frts_size.try_into()?
         } else {
             0
         };
@@ -538,15 +538,12 @@ impl<'a> Fsp<'a> {
     pub(crate) fn boot_fmc(
         &mut self,
         dev: &device::Device<device::Bound>,
-        fb_layout: &FbLayout,
+        fb_info: &FbSizes,
         args: &FmcBootArgs<'_>,
     ) -> Result {
         dev_dbg!(dev, "Starting FSP boot sequence for {}\n", args.chipset);
 
-        let msg = KBox::init(
-            FspCotMessage::new(fb_layout, &self.fsp_fw, args)?,
-            GFP_KERNEL,
-        )?;
+        let msg = KBox::init(FspCotMessage::new(fb_info, &self.fsp_fw, args)?, GFP_KERNEL)?;
 
         let _response_buf = self.send_sync_fsp(dev, &*msg)?;
 

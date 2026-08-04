@@ -5,13 +5,9 @@ mod ga102;
 mod gh100;
 mod tu102;
 
-use kernel::{
-    dma::Coherent,
-    prelude::*, //
-};
+use kernel::prelude::*;
 
 use crate::{
-    fb::FbLayout,
     firmware::gsp::GspFirmware,
     gpu::{
         Architecture,
@@ -19,8 +15,7 @@ use crate::{
     },
     gsp::{
         Gsp,
-        GspBootContext,
-        GspFwWprMeta, //
+        GspBootContext, //
     },
 };
 
@@ -44,8 +39,7 @@ pub(super) trait GspHal: Send {
         &self,
         gsp: &Gsp,
         ctx: &mut GspBootContext<'_, '_>,
-        fb_layout: &FbLayout,
-        wpr_meta: &Coherent<GspFwWprMeta>,
+        gsp_fw: &GspFirmware,
     ) -> Result<Option<crate::gsp::UnloadBundle>>;
 
     /// Performs HAL-specific post-GSP boot tasks.

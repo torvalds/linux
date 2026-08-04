@@ -16,7 +16,8 @@ use crate::{
         gsp::Gsp as GspEngine,
         Falcon, //
     },
-    fb::FbLayout,
+    fb::FbSizes,
+    firmware::gsp::GspFirmware,
     fsp::FmcBootArgs,
     gsp::{
         hal::{
@@ -144,18 +145,22 @@ impl GspHal for Gh100 {
         &self,
         gsp: &Gsp,
         ctx: &mut GspBootContext<'_, '_>,
-        fb_layout: &FbLayout,
-        wpr_meta: &Coherent<GspFwWprMeta>,
+        gsp_fw: &GspFirmware,
     ) -> Result<Option<crate::gsp::UnloadBundle>> {
         let dev = ctx.dev();
         let chipset = ctx.chipset;
         let gsp_falcon = ctx.gsp_falcon;
 
+        let fb_sizes = FbSizes::new(chipset, ctx.bar, ctx.vgpu.state())?;
+        dev_dbg!(dev, "{:#x?}\n", fb_sizes);
+
+        let wpr_meta =
+            Coherent::init(dev, GFP_KERNEL, GspFwWprMeta::from_sizes(gsp_fw, &fb_sizes))?;
+        let args = FmcBootArgs::new(dev, chipset, &wpr_meta, &gsp.libos, false)?;
+
         let unload_bundle = crate::gsp::UnloadBundle(
             KBox::new(FspUnloadBundle, GFP_KERNEL)? as KBox<dyn UnloadBundle>
         );
-
-        let args = FmcBootArgs::new(dev, chipset, wpr_meta, &gsp.libos, false)?;
 
         // Wait for the GSP RISC-V core to halt in case of error. We create this guard after `args`
         // to make sure that boot args are kept alive until halt, in case they are still being
@@ -167,7 +172,7 @@ impl GspHal for Gh100 {
 
         let fsp = unload_guard.1.fsp.as_mut().ok_or(ENODEV)?;
 
-        fsp.boot_fmc(dev, fb_layout, &args)?;
+        fsp.boot_fmc(dev, &fb_sizes, &args)?;
 
         // Wait for GSP-FMC to release the GSP lockdown, indicating that `args` is not accessed
         // anymore.

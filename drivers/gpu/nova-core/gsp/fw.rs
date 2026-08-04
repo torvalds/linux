@@ -36,7 +36,10 @@ use kernel::{
 };
 
 use crate::{
-    fb::FbLayout,
+    fb::{
+        FbRanges,
+        FbSizes, //
+    },
     firmware::gsp::GspFirmware,
     gpu::{
         Architecture,
@@ -174,10 +177,10 @@ type GspFwWprMetaBootInfo = bindings::GspFwWprMeta__bindgen_ty_1__bindgen_ty_1;
 
 impl GspFwWprMeta {
     /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
-    /// `fb_layout` layout.
-    pub(crate) fn new<'a>(
+    /// framebuffer ranges `ranges`.
+    pub(crate) fn from_ranges<'a>(
         gsp_firmware: &'a GspFirmware,
-        fb_layout: &'a FbLayout,
+        ranges: &'a FbRanges,
     ) -> impl Init<Self> + 'a {
         let init_inner = init!(bindings::GspFwWprMeta {
             // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
@@ -196,25 +199,67 @@ impl GspFwWprMeta {
                     sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
                 },
             },
-            gspFwRsvdStart: fb_layout.non_wpr_heap.start,
-            nonWprHeapOffset: fb_layout.non_wpr_heap.start,
-            nonWprHeapSize: fb_layout.non_wpr_heap.end - fb_layout.non_wpr_heap.start,
-            gspFwWprStart: fb_layout.wpr2.start,
-            gspFwHeapOffset: fb_layout.wpr2_heap.start,
-            gspFwHeapSize: fb_layout.wpr2_heap.end - fb_layout.wpr2_heap.start,
-            gspFwOffset: fb_layout.elf.start,
-            bootBinOffset: fb_layout.boot.start,
-            frtsOffset: fb_layout.frts.start,
-            frtsSize: fb_layout.frts.end - fb_layout.frts.start,
-            gspFwWprEnd: fb_layout
+            gspFwRsvdStart: ranges.non_wpr_heap.start,
+            nonWprHeapOffset: ranges.non_wpr_heap.start,
+            nonWprHeapSize: ranges.non_wpr_heap.len(),
+            gspFwWprStart: ranges.wpr2.start,
+            gspFwHeapOffset: ranges.wpr2_heap.start,
+            gspFwHeapSize: ranges.wpr2_heap.len(),
+            gspFwOffset: ranges.elf.start,
+            bootBinOffset: ranges.boot.start,
+            frtsOffset: ranges.frts.start,
+            frtsSize: ranges.frts.len(),
+            gspFwWprEnd: ranges
                 .vga_workspace
                 .start
                 .align_down(Alignment::new::<SZ_128K>()),
-            gspFwHeapVfPartitionCount: fb_layout.vf_partition_count,
-            fbSize: fb_layout.fb.end - fb_layout.fb.start,
-            vgaWorkspaceOffset: fb_layout.vga_workspace.start,
-            vgaWorkspaceSize: fb_layout.vga_workspace.end - fb_layout.vga_workspace.start,
-            pmuReservedSize: fb_layout.pmu_reserved_size,
+            gspFwHeapVfPartitionCount: ranges.vf_partition_count,
+            fbSize: ranges.fb.len(),
+            vgaWorkspaceOffset: ranges.vga_workspace.start,
+            vgaWorkspaceSize: ranges.vga_workspace.len(),
+            pmuReservedSize: ranges.pmu_reserved_size,
+            ..Zeroable::init_zeroed()
+        });
+
+        init!(GspFwWprMeta {
+            inner <- init_inner,
+        })
+    }
+
+    /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
+    /// framebuffer region sizes `sizes`.
+    ///
+    /// The region offsets are left at zero: the ACR ucode computes them when it sets up WPR2.
+    pub(crate) fn from_sizes<'a>(
+        gsp_firmware: &'a GspFirmware,
+        sizes: &'a FbSizes,
+    ) -> impl Init<Self> + 'a {
+        /// VGA workspace size to reserve at the end of the framebuffer, in bytes.
+        const VGA_WORKSPACE_SIZE: u64 = u64::SZ_128K;
+
+        let init_inner = init!(bindings::GspFwWprMeta {
+            // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
+            magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
+            revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
+            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_handle(),
+            sizeOfRadix3Elf: u64::from_safe_cast(gsp_firmware.size),
+            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_handle(),
+            sizeOfBootloader: u64::from_safe_cast(gsp_firmware.bootloader.ucode.size()),
+            bootloaderCodeOffset: u64::from(gsp_firmware.bootloader.code_offset),
+            bootloaderDataOffset: u64::from(gsp_firmware.bootloader.data_offset),
+            bootloaderManifestOffset: u64::from(gsp_firmware.bootloader.manifest_offset),
+            __bindgen_anon_1: GspFwWprMetaBootResumeInfo {
+                __bindgen_anon_1: GspFwWprMetaBootInfo {
+                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_handle(),
+                    sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
+                },
+            },
+            nonWprHeapSize: sizes.non_wpr_heap_size,
+            gspFwHeapSize: sizes.wpr2_heap_size,
+            frtsSize: sizes.frts_size,
+            gspFwHeapVfPartitionCount: sizes.vf_partition_count,
+            vgaWorkspaceSize: VGA_WORKSPACE_SIZE,
+            pmuReservedSize: sizes.pmu_reserved_size,
             ..Zeroable::init_zeroed()
         });
 

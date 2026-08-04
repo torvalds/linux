@@ -3,7 +3,6 @@
 
 use kernel::{
     bits,
-    dma::Coherent,
     io::poll::read_poll_timeout,
     prelude::*,
     time::Delta,
@@ -16,15 +15,13 @@ use crate::{
         gsp::Gsp,
         Falcon, //
     },
-    fb::FbLayout,
     firmware::{
         gsp::GspFirmware,
         FIRMWARE_VERSION, //
     },
     gsp::{
         cmdq::Cmdq,
-        commands,
-        GspFwWprMeta, //
+        commands, //
     },
 };
 
@@ -50,23 +47,16 @@ impl super::Gsp {
 
         let gsp_fw = KBox::pin_init(GspFirmware::new(dev, chipset, FIRMWARE_VERSION), GFP_KERNEL)?;
 
-        let fb_layout = FbLayout::new(chipset, bar, &gsp_fw, ctx.vgpu.state())?;
-        dev_dbg!(dev, "{:#x?}\n", fb_layout);
-
-        let wpr_meta = Coherent::init(dev, GFP_KERNEL, GspFwWprMeta::new(&gsp_fw, &fb_layout))?;
-
         // Perform the chipset-specific boot sequence, and retrieve the unload bundle.
-        let unload_bundle = hal
-            .boot(&self, &mut ctx, &fb_layout, &wpr_meta)?
-            .or_else(|| {
-                dev_warn!(dev, "The GSP won't be able to unload properly on unbind.\n");
-                dev_warn!(
-                    dev,
-                    "The GPU will need to be reset before the driver can bind again.\n"
-                );
+        let unload_bundle = hal.boot(&self, &mut ctx, &gsp_fw)?.or_else(|| {
+            dev_warn!(dev, "The GSP won't be able to unload properly on unbind.\n");
+            dev_warn!(
+                dev,
+                "The GPU will need to be reset before the driver can bind again.\n"
+            );
 
-                None
-            });
+            None
+        });
 
         let mut unload_guard =
             ScopeGuard::new_with_data((ctx, unload_bundle), |(ctx, unload_bundle)| {

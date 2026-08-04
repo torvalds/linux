@@ -19,7 +19,7 @@ use crate::{
     },
     fb::{
         wpr2_range,
-        FbLayout, //
+        FbRanges, //
     },
     firmware::{
         booter::{
@@ -143,7 +143,7 @@ impl Tu102 {
         falcon: &Falcon<'_, GspEngine>,
         bar: Bar0<'_>,
         bios: &Vbios,
-        fb_layout: &FbLayout,
+        fb_ranges: &FbRanges,
     ) -> Result {
         // Check that the WPR2 region does not already exist - if it does, we cannot run
         // FWSEC-FRTS until the GPU is reset.
@@ -161,8 +161,8 @@ impl Tu102 {
             falcon,
             bios,
             FwsecCommand::Frts {
-                frts_addr: fb_layout.frts.start,
-                frts_size: fb_layout.frts.len(),
+                frts_addr: fb_ranges.frts.start,
+                frts_size: fb_ranges.frts.len(),
             },
         )?;
 
@@ -196,12 +196,12 @@ impl Tu102 {
             return Err(EIO);
         };
 
-        if wpr2_range.start != fb_layout.frts.start {
+        if wpr2_range.start != fb_ranges.frts.start {
             dev_err!(
                 dev,
                 "WPR2 region created at unexpected address {:#x}; expected {:#x}\n",
                 wpr2_range.start,
-                fb_layout.frts.start,
+                fb_ranges.frts.start,
             );
 
             return Err(EIO);
@@ -253,14 +253,24 @@ impl GspHal for Tu102 {
         &self,
         gsp: &Gsp,
         ctx: &mut GspBootContext<'_, '_>,
-        fb_layout: &FbLayout,
-        wpr_meta: &Coherent<GspFwWprMeta>,
+        gsp_fw: &GspFirmware,
     ) -> Result<Option<crate::gsp::UnloadBundle>> {
         let dev = ctx.dev();
         let bar = ctx.bar;
         let chipset = ctx.chipset;
         let gsp_falcon = ctx.gsp_falcon;
         let sec2_falcon = ctx.sec2_falcon;
+
+        let fb_ranges = FbRanges::new(chipset, bar, gsp_fw, ctx.vgpu.state())?;
+        dev_dbg!(dev, "{:#x?}\n", fb_ranges);
+
+        // Declared before the unload guard so that if Booter fails while running, SEC2 is reset
+        // by the guard before this allocation is freed.
+        let wpr_meta = Coherent::init(
+            dev,
+            GFP_KERNEL,
+            GspFwWprMeta::from_ranges(gsp_fw, &fb_ranges),
+        )?;
 
         let bios = Vbios::new(dev, bar)?;
 
@@ -281,8 +291,8 @@ impl GspHal for Tu102 {
         });
 
         // FWSEC-FRTS is not executed on chips where the FRTS region size is 0 (e.g. GA100).
-        if !fb_layout.frts.is_empty() {
-            self.run_fwsec_frts(dev, chipset, gsp_falcon, bar, &bios, fb_layout)?;
+        if !fb_ranges.frts.is_empty() {
+            self.run_fwsec_frts(dev, chipset, gsp_falcon, bar, &bios, &fb_ranges)?;
         }
 
         gsp_falcon.reset()?;
@@ -303,7 +313,7 @@ impl GspHal for Tu102 {
             FIRMWARE_VERSION,
             sec2_falcon,
         )?
-        .run(dev, sec2_falcon, wpr_meta)?;
+        .run(dev, sec2_falcon, &wpr_meta)?;
 
         Ok(unload_guard.dismiss())
     }
