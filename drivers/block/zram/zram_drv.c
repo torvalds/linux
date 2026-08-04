@@ -1543,7 +1543,7 @@ static ssize_t read_block_state(struct file *file, char __user *buf,
 	char *kbuf;
 	ssize_t index, written = 0;
 	struct zram *zram = file->private_data;
-	unsigned long nr_pages = zram->disksize >> PAGE_SHIFT;
+	unsigned long nr_pages;
 
 	kbuf = kvmalloc(count, GFP_KERNEL);
 	if (!kbuf)
@@ -1554,6 +1554,8 @@ static ssize_t read_block_state(struct file *file, char __user *buf,
 		kvfree(kbuf);
 		return -EINVAL;
 	}
+
+	nr_pages = zram->disksize >> PAGE_SHIFT;
 
 	for (index = *ppos; index < nr_pages; index++) {
 		int copied;
