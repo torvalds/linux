@@ -26,7 +26,6 @@ tests="
 	netlink_checks				ovsnl: validate netlink attrs and settings
 	upcall_interfaces			ovs: test the upcall interfaces
 	tunnel_metadata				ovs: test extraction of tunnel metadata
-	tunnel_refcount				ovs: test tunnel vport reference cleanup
 	drop_reason				drop: test drop reasons are emitted
 	pop_vlan				vlan: POP_VLAN action strips tag
 	dec_ttl					ttl: dec_ttl decrements IP TTL
@@ -1206,43 +1205,6 @@ test_tunnel_metadata() {
 		ovs_sbx "${sbxname}" grep -qE "MISS upcall.*${tnl_md}.*${arp_hdr}" \
 			${ovs_dir}/ovs-vxlan0.out || return 1
 	done <<< "${configs}"
-
-	return 0
-}
-
-test_tunnel_refcount() {
-	sbxname="test_tunnel_refcount"
-	sbx_add "${sbxname}" || return 1
-
-	ovs_sbx "${sbxname}" ip netns add trefns || return 1
-	on_exit "ovs_sbx ${sbxname} ip netns del trefns"
-
-	for tun_type in gre vxlan geneve; do
-		info "testing ${tun_type} tunnel vport refcount"
-
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			add-dp dp-${tun_type} || return 1
-
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			add-if --no-lwt -t ${tun_type} \
-			dp-${tun_type} ovs-${tun_type}0 || return 1
-
-		ovs_wait ip -netns trefns link show \
-			ovs-${tun_type}0 >/dev/null 2>&1 || return 1
-
-		info "deleting dp - may hang if reference counting is broken"
-		ovs_sbx "${sbxname}" ip netns exec trefns \
-			python3 $ovs_base/ovs-dpctl.py \
-			del-dp dp-${tun_type} &
-
-		dev_removed() {
-			! ip -netns trefns link show "$1" >/dev/null 2>&1
-		}
-		ovs_wait dev_removed dp-${tun_type} || return 1
-		ovs_wait dev_removed ovs-${tun_type}0 || return 1
-	done
 
 	return 0
 }

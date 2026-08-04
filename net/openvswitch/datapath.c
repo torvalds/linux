@@ -2210,11 +2210,9 @@ static size_t ovs_vport_cmd_msg_size(void)
 	/* OVS_VPORT_ATTR_UPCALL_PID */
 	msgsize += nla_total_size(nr_cpu_ids * sizeof(u32));
 
-	/* OVS_VPORT_ATTR_OPTIONS(OVS_TUNNEL_ATTR_DST_PORT +
-	 *                        OVS_TUNNEL_ATTR_EXTENSION(OVS_VXLAN_EXT_GBP))
+	/* There are no vports supporting OVS_VPORT_ATTR_OPTIONS, so it is
+	 * not included in the message size calculation.
 	 */
-	msgsize += nla_total_size(nla_total_size(sizeof(u16)) +
-				  nla_total_size(nla_total_size(0)));
 
 	return msgsize;
 }
