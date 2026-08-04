@@ -1394,7 +1394,6 @@ static void __meminit pgdat_init_internals(struct pglist_data *pgdat)
 	for (i = 0; i < NR_VMSCAN_THROTTLE; i++)
 		init_waitqueue_head(&pgdat->reclaim_wait[i]);
 
-	pgdat_page_ext_init(pgdat);
 	lruvec_init(&pgdat->__lruvec);
 }
 
