@@ -156,15 +156,15 @@ impl GspHal for Gh100 {
 
         let wpr_meta =
             Coherent::init(dev, GFP_KERNEL, GspFwWprMeta::from_sizes(gsp_fw, &fb_sizes))?;
-        let args = FmcBootArgs::new(dev, chipset, &wpr_meta, &gsp.libos, false)?;
+        let args = FmcBootArgs::new(dev, chipset, wpr_meta, &gsp.libos, false)?;
 
         let unload_bundle = crate::gsp::UnloadBundle(
             KBox::new(FspUnloadBundle, GFP_KERNEL)? as KBox<dyn UnloadBundle>
         );
 
         // Wait for the GSP RISC-V core to halt in case of error. We create this guard after `args`
-        // to make sure that boot args are kept alive until halt, in case they are still being
-        // accessed.
+        // to make sure that the boot args and the WPR metadata they own are kept alive until halt,
+        // in case they are still being accessed.
         let mut unload_guard =
             ScopeGuard::new_with_data((unload_bundle, ctx), |(unload_bundle, ctx)| {
                 let _ = unload_bundle.0.run(ctx);

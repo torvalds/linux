@@ -351,7 +351,7 @@ pub(crate) struct FmcBootArgs<'a> {
     fmc_boot_params: Coherent<GspFmcBootParams>,
     resume: bool,
     // Additional dependencies required to be kept alive for FMC boot.
-    _wpr_meta: &'a Coherent<GspFwWprMeta>,
+    _wpr_meta: Coherent<GspFwWprMeta>,
     _libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
 }
 
@@ -361,7 +361,7 @@ impl<'a> FmcBootArgs<'a> {
     pub(crate) fn new(
         dev: &device::Device<device::Bound>,
         chipset: Chipset,
-        wpr_meta: &'a Coherent<GspFwWprMeta>,
+        wpr_meta: Coherent<GspFwWprMeta>,
         libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
         resume: bool,
     ) -> Result<Self> {
