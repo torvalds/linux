@@ -43,12 +43,26 @@ u32 kvm_random_u32(struct kvm_random_state *state)
 	return state->seed;
 }
 
-/* Returns a random u64 in the inclusive range [min, max] */
-u64 kvm_random_u64_in_range(struct kvm_random_state *state, u64 min,
-			    u64 max)
+/* Returns a random u32 in the inclusive range [min, max] */
+u32 kvm_random_u32_in_range(struct kvm_random_state *state, u32 min, u32 max)
 {
-	u64 value;
-	u64 range;
+	u32 value, range;
+
+	TEST_ASSERT(min <= max, "PEBKAC, min = 0x%x, max = 0x%x", min, max);
+
+	value = kvm_random_u32(state);
+
+	range = max - min;
+	if (range == UINT_MAX)
+		return value;
+
+	return min + (value % (range + 1));
+}
+
+/* Returns a random u64 in the inclusive range [min, max] */
+u64 kvm_random_u64_in_range(struct kvm_random_state *state, u64 min, u64 max)
+{
+	u64 value, range;
 
 	TEST_ASSERT(min <= max, "PEBKAC, min = 0x%lx, max = 0x%lx", min, max);
 
