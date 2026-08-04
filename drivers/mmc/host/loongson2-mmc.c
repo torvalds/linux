@@ -641,8 +641,8 @@ static void ls2k0500_mmc_reorder_cmd_data(struct loongson2_mmc_host *host,
 		return;
 
 	for_each_sg(cmd->data->sg, sg, cmd->data->sg_len, i) {
-		data = sg_virt(&sg[i]);
-		for (j = 0; j < (sg_dma_len(&sg[i]) / 4); j++)
+		data = sg_virt(sg);
+		for (j = 0; j < (sg_dma_len(sg) / 4); j++)
 			if (cmd->opcode == SD_SWITCH)
 				data[j] = bitrev8x4(data[j]);
 			else
@@ -758,8 +758,8 @@ static void ls2k2000_mmc_reorder_cmd_data(struct loongson2_mmc_host *host,
 		return;
 
 	for_each_sg(cmd->data->sg, sg, cmd->data->sg_len, i) {
-		data = sg_virt(&sg[i]);
-		for (j = 0; j < (sg_dma_len(&sg[i]) / 4); j++)
+		data = sg_virt(sg);
+		for (j = 0; j < (sg_dma_len(sg) / 4); j++)
 			data[j] = bitrev8x4(data[j]);
 	}
 }
