@@ -20,6 +20,18 @@ struct {
 	__uint(max_entries, 1);
 } __tasks_kfunc_map SEC(".maps");
 
+struct task_kptr_lock_value {
+	struct bpf_spin_lock lock;
+	struct task_struct __kptr * task;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, struct task_kptr_lock_value);
+	__uint(max_entries, 1);
+} task_kptr_lock_map SEC(".maps");
+
 struct task_struct *bpf_task_acquire(struct task_struct *p) __ksym;
 void bpf_task_release(struct task_struct *p) __ksym;
 struct task_struct *bpf_task_from_pid(s32 pid) __ksym;
