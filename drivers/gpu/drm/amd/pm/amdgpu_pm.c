@@ -34,6 +34,7 @@
 #include <linux/nospec.h>
 #include <linux/pm_runtime.h>
 #include <linux/string_choices.h>
+#include <linux/units.h>
 #include <asm/processor.h>
 
 #define MAX_NUM_OF_FEATURES_PER_SUBSET		8
@@ -4876,9 +4877,8 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 {
 	uint32_t mp1_ver = amdgpu_ip_version(adev, MP1_HWIP, 0);
 	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
-	uint32_t value, mwatt, centiwatt;
 	uint64_t value64 = 0;
-	uint32_t query = 0;
+	uint32_t value;
 	int size;
 
 	/* GPU Clocks */
@@ -4899,25 +4899,22 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 		seq_printf(m, "\t%u mV (VDDGFX)\n", value);
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VDDNB, (void *)&value, &size))
 		seq_printf(m, "\t%u mV (VDDNB)\n", value);
-	size = sizeof(uint32_t);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&query, &size)) {
-		mwatt = query;
-		centiwatt = DIV_ROUND_CLOSEST(mwatt, 10);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_AVG_POWER, (void *)&value, &size)) {
 		if (adev->flags & AMD_IS_APU)
-			seq_printf(m, "\t%u.%02u W (average SoC including CPU)\n", centiwatt / 100, centiwatt % 100);
+			seq_printf(m, "\t%u.%02u W (average SoC including CPU)\n",
+				   (u32)(value / MILLIWATT_PER_WATT), (u32)(value % MILLIWATT_PER_WATT) / 10);
 		else
-			seq_printf(m, "\t%u.%02u W (average SoC)\n", centiwatt / 100, centiwatt % 100);
+			seq_printf(m, "\t%u.%02u W (average SoC)\n",
+				   (u32)(value / MILLIWATT_PER_WATT), (u32)(value % MILLIWATT_PER_WATT) / 10);
 	}
-	size = sizeof(uint32_t);
-	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&query, &size)) {
-		mwatt = query;
-		centiwatt = DIV_ROUND_CLOSEST(mwatt, 10);
+	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GPU_INPUT_POWER, (void *)&value, &size)) {
 		if (adev->flags & AMD_IS_APU)
-			seq_printf(m, "\t%u.%02u W (current SoC including CPU)\n", centiwatt / 100, centiwatt % 100);
+			seq_printf(m, "\t%u.%02u W (current SoC including CPU)\n",
+				   (u32)(value / MILLIWATT_PER_WATT), (u32)(value % MILLIWATT_PER_WATT) / 10);
 		else
-			seq_printf(m, "\t%u.%02u W (current SoC)\n", centiwatt / 100, centiwatt % 100);
+			seq_printf(m, "\t%u.%02u W (current SoC)\n",
+				   (u32)(value / MILLIWATT_PER_WATT), (u32)(value % MILLIWATT_PER_WATT) / 10);
 	}
-	size = sizeof(value);
 	seq_printf(m, "\n");
 
 	/* GPU Temp */
