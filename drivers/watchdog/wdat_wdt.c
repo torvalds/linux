@@ -7,7 +7,9 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -309,6 +311,29 @@ static struct watchdog_ops wdat_wdt_ops = {
 	.set_timeout = wdat_wdt_set_timeout,
 };
 
+static void __iomem *wdat_wdt_map_mem(struct device *dev, struct resource *res)
+{
+	resource_size_t size = resource_size(res);
+	void *addr;
+
+	/* Map memory region without reserving it if it falls inside ACPI NVS */
+	if (region_intersects(res->start, size, IORESOURCE_MEM,
+			      IORES_DESC_ACPI_NV_STORAGE) == REGION_INTERSECTS) {
+		dev_warn(dev, "%pR is inside ACPI NVS, mapping without reservation\n",
+			 res);
+
+		addr = devm_memremap(dev, res->start, size, MEMREMAP_WB);
+		if (IS_ERR(addr)) {
+			dev_err(dev, "failed to map resource %pR\n", res);
+			return IOMEM_ERR_PTR(PTR_ERR(addr));
+		}
+
+		return (void __iomem __force *)addr;
+	}
+
+	return devm_ioremap_resource(dev, res);
+}
+
 static int wdat_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -362,7 +387,7 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		res = &pdev->resource[i];
 		if (resource_type(res) == IORESOURCE_MEM) {
-			reg = devm_ioremap_resource(dev, res);
+			reg = wdat_wdt_map_mem(dev, res);
 			if (IS_ERR(reg)) {
 				ret = PTR_ERR(reg);
 				goto out_put_table;
