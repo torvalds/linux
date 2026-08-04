@@ -13,7 +13,7 @@
 #define IND_SOURCE       (1 << IND_SOURCE_BIT)
 #define IND_FLAGS (IND_DESTINATION | IND_INDIRECTION | IND_DONE | IND_SOURCE)
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 #include <linux/vmcore_info.h>
 #include <linux/crash_reserve.h>
