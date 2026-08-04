@@ -20047,6 +20047,10 @@ int bpf_fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		insn_buf[i++] = BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0);
 		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, 0);
 		*cnt = i;
+	} else if (desc->func_id == special_kfunc_list[KF_bpf_iter_num_destroy]) {
+		/* bpf_iter_num_destroy() is a no-op; emit a nop to drop the call */
+		insn_buf[0] = BPF_JMP_A(0);
+		*cnt = 1;
 	}
 
 	if (env->insn_aux_data[insn_idx].arg_prog) {

@@ -818,9 +818,7 @@ __bpf_kfunc int *bpf_iter_num_next(struct bpf_iter_num* it)
 
 __bpf_kfunc void bpf_iter_num_destroy(struct bpf_iter_num *it)
 {
-	struct bpf_iter_num_kern *s = (void *)it;
-
-	s->cur = s->end = 0;
+	/* no-op */
 }
 
 __bpf_kfunc_end_defs();
