@@ -24,8 +24,19 @@ static void deflate_release_params(struct zcomp_params *params)
 
 static int deflate_setup_params(struct zcomp_params *params)
 {
-	if (params->level == ZCOMP_PARAM_NOT_SET)
+	if (params->dict_sz) {
+		pr_err("dictionary is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (params->level == ZCOMP_PARAM_NOT_SET) {
 		params->level = Z_DEFAULT_COMPRESSION;
+	} else if (params->level < Z_DEFAULT_COMPRESSION ||
+		   params->level > Z_BEST_COMPRESSION) {
+		pr_err("invalid compression level %d\n", params->level);
+		return -EINVAL;
+	}
+
 	if (params->deflate.winbits == ZCOMP_PARAM_NOT_SET) {
 		params->deflate.winbits = DEFLATE_DEF_WINBITS;
 	} else {
