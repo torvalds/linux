@@ -1272,6 +1272,10 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(contention_begin);
 EXPORT_TRACEPOINT_SYMBOL_GPL(contention_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(contended_release);
 
+__weak int arch_contended_release_trace_reg(void) { return 0; }
+
+__weak void arch_contended_release_trace_unreg(void) { }
+
 /**
  * atomic_dec_and_mutex_lock - return holding mutex if we dec to 0
  * @cnt: the atomic which we are to dec

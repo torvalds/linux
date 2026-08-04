@@ -137,7 +137,11 @@ TRACE_EVENT(contention_end,
 	TP_printk("%p (ret=%d)", __entry->lock_addr, __entry->ret)
 );
 
-TRACE_EVENT(contended_release,
+/* kernel/locking/mutex.c */
+int arch_contended_release_trace_reg(void);
+void arch_contended_release_trace_unreg(void);
+
+TRACE_EVENT_FN(contended_release,
 
 	TP_PROTO(void *lock),
 
@@ -151,7 +155,9 @@ TRACE_EVENT(contended_release,
 		__entry->lock_addr = lock;
 	),
 
-	TP_printk("%p", __entry->lock_addr)
+	TP_printk("%p", __entry->lock_addr),
+
+	arch_contended_release_trace_reg, arch_contended_release_trace_unreg
 );
 
 #endif /* _TRACE_LOCK_H */
