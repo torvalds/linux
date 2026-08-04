@@ -759,7 +759,10 @@ static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 			return 0;
 	}
 
-	return (usec * (clk / 1000000)) / 256;
+	/* Receive Interrupt Watchdog Timer (riwt) has a resolution of 256
+	 * ticks.
+	 */
+	return DIV_ROUND_CLOSEST(usec * (clk / USEC_PER_SEC), 256);
 }
 
 static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
@@ -772,7 +775,7 @@ static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
 			return 0;
 	}
 
-	return (riwt * 256) / (clk / 1000000);
+	return DIV_ROUND_CLOSEST(riwt * 256, clk / USEC_PER_SEC);
 }
 
 static int __stmmac_get_coalesce(struct net_device *dev,
