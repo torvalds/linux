@@ -887,14 +887,13 @@ static void bio_cmd_bio_end_io(struct bio *bio)
 	bio_put(bio);
 }
 
-static int blkdev_cmd_discard(struct io_uring_cmd *cmd,
-			      struct block_device *bdev,
-			      uint64_t start, uint64_t len, bool nowait)
+static int blkdev_cmd_discard(struct io_uring_cmd *cmd)
 {
 	struct blk_iou_cmd *bic = io_uring_cmd_to_pdu(cmd, struct blk_iou_cmd);
-	gfp_t gfp = nowait ? GFP_NOWAIT : GFP_KERNEL;
-	sector_t sector = start >> SECTOR_SHIFT;
-	sector_t nr_sects = len >> SECTOR_SHIFT;
+	struct block_device *bdev = I_BDEV(cmd->file->f_mapping->host);
+	gfp_t gfp = bic->nowait ? GFP_NOWAIT : GFP_KERNEL;
+	sector_t sector = bic->start >> SECTOR_SHIFT;
+	sector_t nr_sects = bic->len >> SECTOR_SHIFT;
 	struct bio *prev = NULL, *bio;
 	int err;
 
@@ -904,12 +903,12 @@ static int blkdev_cmd_discard(struct io_uring_cmd *cmd,
 		return -EBADF;
 	if (bdev_read_only(bdev))
 		return -EPERM;
-	err = blk_validate_byte_range(bdev, start, len);
+	err = blk_validate_byte_range(bdev, bic->start, bic->len);
 	if (err)
 		return err;
 
-	err = filemap_invalidate_pages(bdev->bd_mapping, start,
-					start + len - 1, nowait);
+	err = filemap_invalidate_pages(bdev->bd_mapping, bic->start,
+				       bic->start + bic->len - 1, bic->nowait);
 	if (err)
 		return err;
 
@@ -917,7 +916,7 @@ static int blkdev_cmd_discard(struct io_uring_cmd *cmd,
 		bio = blk_alloc_discard_bio(bdev, &sector, &nr_sects, gfp);
 		if (!bio)
 			break;
-		if (nowait) {
+		if (bic->nowait) {
 			/*
 			 * Don't allow multi-bio non-blocking submissions as
 			 * subsequent bios may fail but we won't get a direct
@@ -946,7 +945,6 @@ static int blkdev_cmd_discard(struct io_uring_cmd *cmd,
 
 int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
-	struct block_device *bdev = I_BDEV(cmd->file->f_mapping->host);
 	struct blk_iou_cmd *bic = io_uring_cmd_to_pdu(cmd, struct blk_iou_cmd);
 	u32 cmd_op = cmd->cmd_op;
 
@@ -967,8 +965,7 @@ int blkdev_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 
 	switch (cmd_op) {
 	case BLOCK_URING_CMD_DISCARD:
-		return blkdev_cmd_discard(cmd, bdev, bic->start, bic->len,
-					  bic->nowait);
+		return blkdev_cmd_discard(cmd);
 	}
 	return -EINVAL;
 }
