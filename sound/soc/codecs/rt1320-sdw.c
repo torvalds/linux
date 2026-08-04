@@ -1899,7 +1899,7 @@ static int rt1320_io_init(struct device *dev, struct sdw_slave *slave)
 	dev_dbg(dev, "%s amp func_status=0x%x\n", __func__, amp_func_status);
 
 	/* initialization write */
-	if ((amp_func_status & FUNCTION_NEEDS_INITIALIZATION)) {
+	if ((amp_func_status & FUNCTION_NEEDS_INITIALIZATION) || !rt1320->first_hw_init) {
 		switch (rt1320->dev_id) {
 		case RT1320_DEV_ID:
 			if (rt1320->version_id < RT1320_VC)
