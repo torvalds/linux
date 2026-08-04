@@ -1256,10 +1256,11 @@ static void uvcg_extension_drop(struct config_group *group, struct config_item *
 
 	mutex_lock(&opts->lock);
 
-	config_item_put(item);
 	list_del(&xu->list);
 	kfree(xu->desc.baSourceID);
 	kfree(xu->desc.bmControls);
+
+	config_item_put(item);
 
 	mutex_unlock(&opts->lock);
 }
