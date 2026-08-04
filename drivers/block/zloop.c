@@ -479,7 +479,8 @@ static int zloop_finish_zone(struct zloop_device *zlo, unsigned int zone_no)
 	    zone->cond == BLK_ZONE_COND_FULL)
 		goto unlock;
 
-	if (vfs_truncate(&zone->file->f_path, zlo->zone_size << SECTOR_SHIFT)) {
+	if (vfs_truncate(&zone->file->f_path,
+			 zlo->zone_capacity << SECTOR_SHIFT)) {
 		set_bit(ZLOOP_ZONE_SEQ_ERROR, &zone->flags);
 		ret = -EIO;
 		goto unlock;
