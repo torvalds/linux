@@ -20030,6 +20030,23 @@ int bpf_fixup_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		insn_buf[i++] = BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0);
 		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, -E2BIG);
 		*cnt = i;
+	} else if (desc->func_id == special_kfunc_list[KF_bpf_iter_num_next]) {
+		/* inline bpf_iter_num_next(&it); R1=&it, returns &s->cur or NULL */
+		int i = 0;
+
+		/* r0 = s->cur + 1; if ((s32)r0 >= s->end) goto done; */
+		insn_buf[i++] = BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1, 0);
+		insn_buf[i++] = BPF_ALU32_IMM(BPF_ADD, BPF_REG_0, 1);
+		insn_buf[i++] = BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 4);
+		insn_buf[i++] = BPF_JMP32_REG(BPF_JSGE, BPF_REG_0, BPF_REG_2, 3);
+		/* s->cur = r0; return &s->cur; */
+		insn_buf[i++] = BPF_STX_MEM(BPF_W, BPF_REG_1, BPF_REG_0, 0);
+		insn_buf[i++] = BPF_MOV64_REG(BPF_REG_0, BPF_REG_1);
+		insn_buf[i++] = BPF_JMP_A(2);
+		/* done: s->cur = s->end = 0; return NULL; */
+		insn_buf[i++] = BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0);
+		insn_buf[i++] = BPF_MOV64_IMM(BPF_REG_0, 0);
+		*cnt = i;
 	}
 
 	if (env->insn_aux_data[insn_idx].arg_prog) {
