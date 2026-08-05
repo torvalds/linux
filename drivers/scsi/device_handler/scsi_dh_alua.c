@@ -5,6 +5,7 @@
  * Copyright (C) 2007-2010 Hannes Reinecke, SUSE Linux Products GmbH.
  * All rights reserved.
  */
+#include <linux/bitfield.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -693,8 +694,8 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 				    !(tmp_pg->flags & ALUA_PG_RUNNING)) {
 					struct alua_dh_data *h;
 
-					tmp_pg->state = desc[0] & 0x0f;
-					tmp_pg->pref = desc[0] >> 7;
+					tmp_pg->state = FIELD_GET(SCSI_ACCESS_STATE_MASK, desc[0]);
+					tmp_pg->pref = FIELD_GET(SCSI_ACCESS_STATE_PREFERRED, desc[0]);
 					rcu_read_lock();
 					list_for_each_entry_rcu(h,
 						&tmp_pg->dh_list, node) {
