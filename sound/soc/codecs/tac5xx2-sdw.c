@@ -1940,7 +1940,7 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 						     "failed to allocate %s function data",
 						     func_name);
 			function_data->desc = &peripheral->sdca_data.function[i];
-			ret = sdca_parse_function(dev, peripheral, function_data);
+			ret = sdca_parse_function(dev, function_data);
 			if (!ret)
 				*func_ptr = function_data;
 			else

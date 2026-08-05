@@ -1201,7 +1201,7 @@ int rt766_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 		}
 
 		func_data_ptr->desc = &slave->sdca_data.function[i];
-		ret = sdca_parse_function(dev, slave, func_data_ptr);
+		ret = sdca_parse_function(dev, func_data_ptr);
 		if (ret) {
 			devm_kfree(dev, func_data_ptr);
 			goto _free_dai_drv_;

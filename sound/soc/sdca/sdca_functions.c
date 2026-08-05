@@ -2072,8 +2072,7 @@ static int find_sdca_clusters(struct device *dev,
 	return 0;
 }
 
-static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
-			      struct fwnode_handle *function_node,
+static int find_sdca_filesets(struct device *dev, struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
 	static const int mult_fileset = 3;
@@ -2155,7 +2154,6 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 		set->files = files;
 	}
 
-	function->fdl_data.swft = sdw->sdca_data.swft;
 	function->fdl_data.num_sets = num_sets;
 	function->fdl_data.sets = sets;
 
@@ -2210,13 +2208,11 @@ static int find_sdca_hid(struct device *dev, struct fwnode_handle *function_node
 /**
  * sdca_parse_function - parse ACPI DisCo for a Function
  * @dev: Pointer to device against which function data will be allocated.
- * @sdw: SoundWire slave device to be processed.
  * @function: Pointer to the Function information, to be populated.
  *
  * Return: Returns 0 for success.
  */
-int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_function_data *function)
+int sdca_parse_function(struct device *dev, struct sdca_function_data *function)
 {
 	struct fwnode_handle *node = function->desc->node;
 	u32 tmp;
@@ -2254,7 +2250,7 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	if (ret < 0)
 		return ret;
 
-	ret = find_sdca_filesets(dev, sdw, node, function);
+	ret = find_sdca_filesets(dev, node, function);
 	if (ret)
 		return ret;
 
