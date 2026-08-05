@@ -1394,7 +1394,7 @@ static int ltc4282_setup(struct ltc4282_state *st, struct device *dev)
 	if (!ret) {
 		int reg_val;
 
-		switch (val) {
+		switch (st->vsense_max) {
 		case 12500:
 			reg_val = 0;
 			break;
