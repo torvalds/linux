@@ -216,7 +216,11 @@ static int omap_twl4030_probe(struct platform_device *pdev)
 	if (priv == NULL)
 		return -ENOMEM;
 
-	if (snd_soc_of_parse_card_name(card, "ti,model")) {
+	ret = snd_soc_of_parse_card_name(card, "ti,model");
+	if (ret)
+		return ret;
+
+	if (!card->name) {
 		dev_err(&pdev->dev, "Card name is not provided\n");
 		return -ENODEV;
 	}
