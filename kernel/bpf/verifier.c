@@ -11837,11 +11837,21 @@ static bool is_bpf_stream_kfunc(u32 btf_id)
 	       btf_id == special_kfunc_list[KF_bpf_stream_print_stack];
 }
 
-static bool kfunc_spin_allowed(u32 btf_id)
+static bool kfunc_spin_allowed(struct bpf_verifier_env *env, s32 func_id, s16 offset)
 {
-	return is_bpf_graph_api_kfunc(btf_id) || is_bpf_iter_num_api_kfunc(btf_id) ||
-	       is_bpf_res_spin_lock_kfunc(btf_id) || is_bpf_arena_kfunc(btf_id) ||
-	       is_bpf_stream_kfunc(btf_id);
+	struct bpf_kfunc_meta kfunc;
+	int err;
+
+	if (is_bpf_graph_api_kfunc(func_id) || is_bpf_iter_num_api_kfunc(func_id) ||
+	    is_bpf_res_spin_lock_kfunc(func_id) || is_bpf_arena_kfunc(func_id) ||
+	    is_bpf_stream_kfunc(func_id))
+		return true;
+
+	err = fetch_kfunc_meta(env, func_id, offset, &kfunc);
+	if (err || !kfunc.flags)
+		return false;
+
+	return *kfunc.flags & KF_SPINLOCK_SAFE;
 }
 
 static bool is_sync_callback_calling_kfunc(u32 btf_id)
@@ -17420,7 +17430,7 @@ static int do_check_insn(struct bpf_verifier_env *env, bool *do_print_state)
 				     insn->imm != BPF_FUNC_spin_unlock &&
 				     insn->imm != BPF_FUNC_kptr_xchg) ||
 				    (insn->src_reg == BPF_PSEUDO_KFUNC_CALL &&
-				     (insn->off != 0 || !kfunc_spin_allowed(insn->imm)))) {
+				     !kfunc_spin_allowed(env, insn->imm, insn->off))) {
 					verbose(env,
 						"function calls are not allowed while holding a lock\n");
 					return -EINVAL;
