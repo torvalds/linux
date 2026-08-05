@@ -234,12 +234,12 @@ impl GspSeqCmd {
                 // Reset the GSP to prepare it for resuming.
                 seq.gsp_falcon.reset()?;
 
-                let libos_dma_handle = seq.libos.dma_handle();
+                let libos_dma_address = seq.libos.dma_address();
 
-                // Write the libOS DMA handle to GSP mailboxes.
+                // Write the libOS DMA address to GSP mailboxes.
                 seq.gsp_falcon.write_mailboxes(
-                    Some(libos_dma_handle as u32),
-                    Some((libos_dma_handle >> 32) as u32),
+                    Some(libos_dma_address as u32),
+                    Some((libos_dma_address >> 32) as u32),
                 );
 
                 // Start the SEC2 falcon which will trigger GSP-RM to resume on the GSP.

@@ -294,9 +294,11 @@ impl GspHal for Tu102 {
         }
 
         gsp_falcon.reset()?;
-        let libos_handle = gsp.libos.dma_handle();
-        let (mbox0, mbox1) =
-            gsp_falcon.boot(Some(libos_handle as u32), Some((libos_handle >> 32) as u32))?;
+        let libos_dma_address = gsp.libos.dma_address();
+        let (mbox0, mbox1) = gsp_falcon.boot(
+            Some(libos_dma_address as u32),
+            Some((libos_dma_address >> 32) as u32),
+        )?;
         dev_dbg!(dev, "GSP MBOX0: {:#x}, MBOX1: {:#x}\n", mbox0, mbox1);
 
         dev_dbg!(

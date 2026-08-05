@@ -122,7 +122,7 @@ impl LogBuffer {
     fn new(dev: &device::Device<device::Bound>) -> Result<Self> {
         let obj = Self(Coherent::zeroed(dev, GFP_KERNEL)?);
 
-        let start_addr = obj.0.dma_handle();
+        let start_addr = obj.0.dma_address();
 
         let pte_view = io_project!(
             obj.0,

@@ -64,7 +64,7 @@ impl GspMbox {
         // boot. If the address is still there, keep polling rather than treating it as an error.
         // Any other non-zero mailbox0 value is a GSP-FMC error code.
         if self.mbox0 != 0 {
-            return self.combined_addr() != fmc_boot_params.dma_handle();
+            return self.combined_addr() != fmc_boot_params.dma_address();
         }
 
         !gsp_falcon.riscv_branch_privilege_lockdown()

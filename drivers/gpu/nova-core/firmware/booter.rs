@@ -190,9 +190,11 @@ impl BooterFirmware {
     ) -> Result {
         sec2_falcon.reset()?;
         sec2_falcon.load(self)?;
-        let wpr_handle = wpr_meta.dma_handle();
-        let (mbox0, mbox1) =
-            sec2_falcon.boot(Some(wpr_handle as u32), Some((wpr_handle >> 32) as u32))?;
+        let wpr_dma_address = wpr_meta.dma_address();
+        let (mbox0, mbox1) = sec2_falcon.boot(
+            Some(wpr_dma_address as u32),
+            Some((wpr_dma_address >> 32) as u32),
+        )?;
         dev_dbg!(dev, "SEC2 MBOX0: {:#x}, MBOX1: {:#x}\n", mbox0, mbox1);
 
         if mbox0 != 0 {

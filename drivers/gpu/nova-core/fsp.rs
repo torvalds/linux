@@ -296,12 +296,12 @@ impl FspCotMessage {
         .chain(move |msg| {
             msg.cot.version = version;
             msg.cot.size = size;
-            msg.cot.gsp_fmc_sysmem_offset = fsp_fw.fmc_image.dma_handle();
+            msg.cot.gsp_fmc_sysmem_offset = fsp_fw.fmc_image.dma_address();
             msg.cot.frts_vidmem_offset = frts_vidmem_offset;
             msg.cot.frts_vidmem_size = frts_size;
             // frts_sysmem_* are left at zero because this path places FRTS in vidmem. The sysmem
             // fields point to an FRTS buffer in sysmem instead, for systems without VRAM.
-            msg.cot.gsp_boot_args_sysmem_offset = args.fmc_boot_params.dma_handle();
+            msg.cot.gsp_boot_args_sysmem_offset = args.fmc_boot_params.dma_address();
             msg.cot.sigs = *fsp_fw.fmc_sigs;
 
             Ok(())
@@ -362,7 +362,7 @@ impl<'a> FmcBootArgs<'a> {
         libos: &'a Coherent<[LibosMemoryRegionInitArgument]>,
         resume: bool,
     ) -> Result<Self> {
-        let init = GspFmcBootParams::new(wpr_meta.dma_handle(), libos.dma_handle());
+        let init = GspFmcBootParams::new(wpr_meta.dma_address(), libos.dma_address());
 
         Ok(Self {
             chipset,

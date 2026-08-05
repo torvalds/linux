@@ -61,7 +61,7 @@ impl<'sys> SysmemFlush<'sys> {
     ) -> Result<Self> {
         let page = CoherentHandle::alloc(dev, kernel::page::PAGE_SIZE, GFP_KERNEL)?;
 
-        hal::fb_hal(chipset).write_sysmem_flush_page(bar, page.dma_handle())?;
+        hal::fb_hal(chipset).write_sysmem_flush_page(bar, page.dma_address())?;
 
         Ok(Self {
             chipset,
@@ -76,7 +76,7 @@ impl Drop for SysmemFlush<'_> {
     fn drop(&mut self) {
         let hal = hal::fb_hal(self.chipset);
 
-        if hal.read_sysmem_flush_page(self.bar) == self.page.dma_handle() {
+        if hal.read_sysmem_flush_page(self.bar) == self.page.dma_address() {
             let _ = hal.write_sysmem_flush_page(self.bar, 0).inspect_err(|e| {
                 dev_warn!(
                     &self.device,

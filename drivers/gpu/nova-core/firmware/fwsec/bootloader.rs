@@ -191,7 +191,7 @@ impl FwsecFirmwareWithBl {
                 reserved: [0; 4],
                 signature: [0; 4],
                 ctx_dma: FALCON_DMAIDX_PHYS_SYS_NCOH,
-                code_dma_base: firmware_dma.dma_handle(),
+                code_dma_base: firmware_dma.dma_address(),
                 // `dst_start` is also valid as the source offset since the firmware DMA object is
                 // a mirror image of the target IMEM layout.
                 non_sec_code_off: imem_ns.dst_start,
@@ -203,7 +203,7 @@ impl FwsecFirmwareWithBl {
                 code_entry_point: 0,
                 // Start of data section is the added padding + the DMEM `src_start` field.
                 data_dma_base: firmware_dma
-                    .dma_handle()
+                    .dma_address()
                     .checked_add(u64::from_safe_cast(align_padding))
                     .and_then(|offset| offset.checked_add(dmem.src_start.into()))
                     .ok_or(EOVERFLOW)?,

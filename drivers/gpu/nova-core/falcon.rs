@@ -499,7 +499,7 @@ impl<'a, E: FalconEngine + 'static> Falcon<'a, E> {
         Ok(())
     }
 
-    /// Perform a DMA write according to `load_offsets` from `dma_handle` into the falcon's
+    /// Perform a DMA write according to `load_offsets` from `dma_obj` into the falcon's
     /// `target_mem`.
     ///
     /// `sec` is set if the loaded firmware is expected to run in secure mode.
@@ -514,14 +514,14 @@ impl<'a, E: FalconEngine + 'static> Falcon<'a, E> {
         // For IMEM, we want to use the start offset as a virtual address tag for each page, since
         // code addresses in the firmware (and the boot vector) are virtual.
         //
-        // For DMEM we can fold the start offset into the DMA handle.
+        // For DMEM we can fold the start offset into the DMA address.
         let (src_start, dma_start) = match target_mem {
             FalconMem::ImemSecure | FalconMem::ImemNonSecure => {
-                (load_offsets.src_start, dma_obj.dma_handle())
+                (load_offsets.src_start, dma_obj.dma_address())
             }
             FalconMem::Dmem => (
                 0,
-                dma_obj.dma_handle() + DmaAddress::from(load_offsets.src_start),
+                dma_obj.dma_address() + DmaAddress::from(load_offsets.src_start),
             ),
         };
         if dma_start % DmaAddress::from(DMA_LEN) > 0 {

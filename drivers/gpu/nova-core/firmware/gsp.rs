@@ -140,9 +140,9 @@ impl GspFirmware {
         })
     }
 
-    /// Returns the DMA handle of the radix3 level 0 page table.
-    pub(crate) fn radix3_dma_handle(&self) -> DmaAddress {
-        self.level0.dma_handle()
+    /// Returns the DMA address of the radix3 level 0 page table.
+    pub(crate) fn radix3_dma_address(&self) -> DmaAddress {
+        self.level0.dma_address()
     }
 }
 

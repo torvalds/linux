@@ -186,16 +186,16 @@ impl GspFwWprMeta {
             // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
             magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
             revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
-            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_handle(),
+            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_address(),
             sizeOfRadix3Elf: u64::from_safe_cast(gsp_firmware.size),
-            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_handle(),
+            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_address(),
             sizeOfBootloader: u64::from_safe_cast(gsp_firmware.bootloader.ucode.size()),
             bootloaderCodeOffset: u64::from(gsp_firmware.bootloader.code_offset),
             bootloaderDataOffset: u64::from(gsp_firmware.bootloader.data_offset),
             bootloaderManifestOffset: u64::from(gsp_firmware.bootloader.manifest_offset),
             __bindgen_anon_1: GspFwWprMetaBootResumeInfo {
                 __bindgen_anon_1: GspFwWprMetaBootInfo {
-                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_handle(),
+                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_address(),
                     sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
                 },
             },
@@ -241,16 +241,16 @@ impl GspFwWprMeta {
             // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
             magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
             revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
-            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_handle(),
+            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_address(),
             sizeOfRadix3Elf: u64::from_safe_cast(gsp_firmware.size),
-            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_handle(),
+            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_address(),
             sizeOfBootloader: u64::from_safe_cast(gsp_firmware.bootloader.ucode.size()),
             bootloaderCodeOffset: u64::from(gsp_firmware.bootloader.code_offset),
             bootloaderDataOffset: u64::from(gsp_firmware.bootloader.data_offset),
             bootloaderManifestOffset: u64::from(gsp_firmware.bootloader.manifest_offset),
             __bindgen_anon_1: GspFwWprMetaBootResumeInfo {
                 __bindgen_anon_1: GspFwWprMetaBootInfo {
-                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_handle(),
+                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_address(),
                     sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
                 },
             },
@@ -680,7 +680,7 @@ impl LibosMemoryRegionInitArgument {
 
         let init_inner = init!(bindings::LibosMemoryRegionInitArgument {
             id8: id8(name),
-            pa: obj.dma_handle(),
+            pa: obj.dma_address(),
             size: num::usize_as_u64(obj.size()),
             kind: num::u32_into_u8::<
                 { bindings::LibosMemoryRegionKind_LIBOS_MEMORY_REGION_CONTIGUOUS },
@@ -946,7 +946,7 @@ impl MessageQueueInitArguments {
     /// Creates a new init arguments structure for `cmdq`.
     fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
         init!(MessageQueueInitArguments {
-            sharedMemPhysAddr: cmdq.dma_handle,
+            sharedMemPhysAddr: cmdq.dma_addr,
             pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),
             cmdQueueOffset: num::usize_as_u64(Cmdq::CMDQ_OFFSET),
             statQueueOffset: num::usize_as_u64(Cmdq::STATQ_OFFSET),
