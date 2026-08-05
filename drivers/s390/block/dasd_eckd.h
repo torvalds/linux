@@ -146,6 +146,11 @@ struct eckd_count {
 	__u16 dl;
 } __attribute__ ((packed));
 
+struct eckd_r0 {
+	struct eckd_count count;
+	__u8 data[8];
+} __packed;
+
 /*
  * Extended Address Volume track address: the head field carries the actual
  * head in its low-order 4 bits; the cylinder bits that do not fit the 16-bit
