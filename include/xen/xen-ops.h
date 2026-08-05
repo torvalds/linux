@@ -59,7 +59,6 @@ static inline int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 
 struct vm_area_struct;
 
-#ifdef CONFIG_XEN_AUTO_XLATE
 int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      unsigned long addr,
 			      xen_pfn_t *gfn, int nr,
@@ -68,27 +67,6 @@ int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
 			      struct page **pages);
 int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
 			      int nr, struct page **pages);
-#else
-/*
- * These two functions are called from arch/x86/xen/mmu.c and so stubs
- * are needed for a configuration not specifying CONFIG_XEN_AUTO_XLATE.
- */
-static inline int xen_xlate_remap_gfn_array(struct vm_area_struct *vma,
-					    unsigned long addr,
-					    xen_pfn_t *gfn, int nr,
-					    int *err_ptr, pgprot_t prot,
-					    unsigned int domid,
-					    struct page **pages)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int xen_xlate_unmap_gfn_range(struct vm_area_struct *vma,
-					    int nr, struct page **pages)
-{
-	return -EOPNOTSUPP;
-}
-#endif
 
 int xen_remap_vma_range(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long len);
