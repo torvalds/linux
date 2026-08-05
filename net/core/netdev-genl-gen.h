@@ -12,6 +12,7 @@
 
 #include <uapi/linux/netdev.h>
 #include <net/netdev_netlink.h>
+#include <asm/page.h>
 
 /* Common nested types */
 extern const struct nla_policy netdev_lease_nl_policy[NETDEV_A_LEASE_NETNS_ID + 1];
