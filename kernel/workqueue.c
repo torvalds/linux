@@ -5556,8 +5556,9 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 							ctx->pwq_tbl[cpu]);
 	ctx->dfl_pwq = install_unbound_pwq(ctx->wq, -1, ctx->dfl_pwq);
 
-	/* update node_nr_active->max */
-	wq_update_node_max_active(ctx->wq, -1);
+	/* update node_nr_active->max, which only unbound workqueues have */
+	if (ctx->wq->flags & WQ_UNBOUND)
+		wq_update_node_max_active(ctx->wq, -1);
 
 	mutex_unlock(&ctx->wq->mutex);
 }
