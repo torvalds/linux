@@ -414,8 +414,7 @@ static void stack_map_get_build_id_offset_sleepable(struct bpf_stack_build_id *i
 static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 					  u32 trace_nr, bool user, bool may_fault)
 {
-	struct mmap_unlock_irq_work *work = NULL;
-	bool irq_work_busy = bpf_mmap_unlock_get_irq_work(&work);
+	struct mmap_unlock_irq_work *work;
 	bool has_user_ctx = user && current && current->mm;
 	struct stack_map_build_id_cache cache = {};
 	struct vm_area_struct *vma;
@@ -426,15 +425,16 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 		return;
 	}
 
-	/* If the irq_work is in use, fall back to report ips. Same
-	 * fallback is used for kernel stack (!user) on a stackmap with
-	 * build_id.
-	 */
-	if (!has_user_ctx || irq_work_busy || !mmap_read_trylock(current->mm)) {
-		/* cannot access current->mm, fall back to ips */
-		for (i = 0; i < trace_nr; i++)
-			stack_map_build_id_set_ip(&id_offs[i]);
-		return;
+	if (!has_user_ctx)
+		goto fallback;
+
+	work = bpf_mmap_unlock_guard_get();
+	if (IS_ERR(work))
+		goto fallback;
+
+	if (!mmap_read_trylock(current->mm)) {
+		bpf_mmap_unlock_guard_put(work);
+		goto fallback;
 	}
 
 	for (i = 0; i < trace_nr; i++) {
@@ -465,6 +465,12 @@ static void stack_map_get_build_id_offset(struct bpf_stack_build_id *id_offs,
 						      vma->vm_pgoff);
 	}
 	bpf_mmap_unlock_mm(work, current->mm);
+	return;
+
+fallback:
+	/* cannot access current->mm, fall back to ips */
+	for (i = 0; i < trace_nr; i++)
+		stack_map_build_id_set_ip(&id_offs[i]);
 }
 
 static struct perf_callchain_entry *
