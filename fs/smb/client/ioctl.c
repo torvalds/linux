@@ -527,14 +527,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifs_sb_info *cifs_sb;
-	__u64	ExtAttrBits = 0;
-	bool enable_compression;
-	__u16 compression_state;
-#ifdef CONFIG_CIFS_POSIX
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	__u64   caps;
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-#endif /* CONFIG_CIFS_POSIX */
 
 	xid = get_xid();
 
@@ -545,79 +537,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 		trace_smb3_ioctl(xid, pSMBFile->fid.persistent_fid, command);
 
 	switch (command) {
-		case FS_IOC_GETFLAGS:
-			if (pSMBFile == NULL)
-				break;
-			tcon = tlink_tcon(pSMBFile->tlink);
-#ifdef CONFIG_CIFS_POSIX
-#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-			caps = le64_to_cpu(tcon->fsUnixInfo.Capability);
-			if (CIFS_UNIX_EXTATTR_CAP & caps) {
-				__u64	ExtAttrMask = 0;
-				rc = CIFSGetExtAttr(xid, tcon,
-						    pSMBFile->fid.netfid,
-						    &ExtAttrBits, &ExtAttrMask);
-				if (rc == 0)
-					rc = put_user(ExtAttrBits &
-						FS_FL_USER_VISIBLE,
-						(int __user *)arg);
-				if (rc != -EOPNOTSUPP)
-					break;
-			}
-#endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-#endif /* CONFIG_CIFS_POSIX */
-			if (CIFS_I(inode)->cifsAttrs & FILE_ATTRIBUTE_COMPRESSED)
-				ExtAttrBits |= FS_COMPR_FL;
-
-			rc = put_user(ExtAttrBits & FS_FL_USER_VISIBLE,
-				      (int __user *)arg);
-			break;
-		case FS_IOC_SETFLAGS:
-			if (pSMBFile == NULL)
-				break;
-			tcon = tlink_tcon(pSMBFile->tlink);
-
-			if (get_user(ExtAttrBits, (int __user *)arg)) {
-				rc = -EFAULT;
-				break;
-			}
-
-			/*
-			 * if (CIFS_UNIX_EXTATTR_CAP & caps)
-			 *	rc = CIFSSetExtAttr(xid, tcon,
-			 *		       pSMBFile->fid.netfid,
-			 *		       extAttrBits,
-			 *		       &ExtAttrMask);
-			 * if (rc != -EOPNOTSUPP)
-			 *	break;
-			 */
-
-			/* Currently only flag we can set or clear is compressed. */
-			if (ExtAttrBits & ~FS_COMPR_FL) {
-				rc = -EOPNOTSUPP;
-				break;
-			}
-
-			enable_compression = ExtAttrBits & FS_COMPR_FL;
-			compression_state = enable_compression ?
-				COMPRESSION_FORMAT_DEFAULT :
-				COMPRESSION_FORMAT_NONE;
-
-			rc = cifs_set_compression(xid, filep->f_path.dentry,
-						  tcon, pSMBFile,
-						  compression_state);
-			if (rc == 0) {
-				spin_lock(&inode->i_lock);
-				if (enable_compression)
-					CIFS_I(inode)->cifsAttrs |=
-						FILE_ATTRIBUTE_COMPRESSED;
-				else
-					CIFS_I(inode)->cifsAttrs &=
-						~FILE_ATTRIBUTE_COMPRESSED;
-				spin_unlock(&inode->i_lock);
-			}
-			cifs_dbg(FYI, "set compress flag rc %d\n", rc);
-			break;
 		case CIFS_IOC_COPYCHUNK_FILE:
 			rc = cifs_ioctl_copychunk(xid, filep, arg);
 			break;

@@ -1193,7 +1193,7 @@ int cifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	struct inode *inode = d_inode(dentry);
 	u32 attrs;
 
-	/* Preserve FS_COMPR_FL previously reported by cifs_ioctl(). */
+	/* Report the cached SMB compressed attribute as FS_COMPR_FL. */
 	if (READ_ONCE(CIFS_I(inode)->cifsAttrs) & ATTR_COMPRESSED)
 		fa->flags |= FS_COMPR_FL;
 
