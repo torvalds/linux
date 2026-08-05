@@ -168,19 +168,11 @@ def del_nshapers(cfg, nl_shaper) -> None:
     ksft_eq(len(shapers), 0)
 
 def basic_groups(cfg, nl_shaper) -> None:
-    if not cfg.netdev:
-        raise KsftSkipEx("netdev shaper not supported by the device")
     _require_queues(cfg, 3)
 
-    try:
-        caps = nl_shaper.cap_get({'ifindex': cfg.ifindex,
-                                  'scope':'queue'})
-    except NlError as e:
-        if e.error == 95:
-            raise KsftSkipEx("shapers not supported by the device")
-        raise
-    if not 'support-weight' in caps:
-        raise KsftSkipEx("device does not support queue scope shapers with weight")
+    _require_caps(cfg, nl_shaper, 'netdev', [], "netdev scope not supported by the device")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "queue scope not supported with nesting and weight")
 
     node_handle = nl_shaper.group({
                         'ifindex': cfg.ifindex,
@@ -188,11 +180,14 @@ def basic_groups(cfg, nl_shaper) -> None:
                                    'weight': 1},
                                   {'handle': {'scope': 'queue', 'id': 2},
                                    'weight': 2}],
-                         'handle': {'scope':'netdev'},
-                         'metric': 'bps',
-                         'bw-max': 10000})
+                         'handle': {'scope':'netdev'}})
     ksft_eq(node_handle, {'ifindex': cfg.ifindex,
                           'handle': {'scope': 'netdev'}})
+
+    del_node = defer(_delete_shaper, cfg, nl_shaper, {'scope': 'netdev'})
+    del_queues = [defer(_delete_shaper, cfg, nl_shaper,
+                        {'scope': 'queue', 'id': qid})
+                  for qid in (1, 2)]
 
     shaper = nl_shaper.get({'ifindex': cfg.ifindex,
                             'handle': {'scope': 'queue', 'id': 1}})
@@ -200,19 +195,16 @@ def basic_groups(cfg, nl_shaper) -> None:
                      'parent': {'scope': 'netdev'},
                      'handle': {'scope': 'queue', 'id': 1},
                      'weight': 1 })
+    for dq in del_queues:
+        dq.exec()
 
-    nl_shaper.delete({'ifindex': cfg.ifindex,
-                      'handle': {'scope': 'queue', 'id': 2}})
-    nl_shaper.delete({'ifindex': cfg.ifindex,
-                      'handle': {'scope': 'queue', 'id': 1}})
-
-    # Deleting all the leaves shaper does not affect the node one
-    # when the latter has 'netdev' scope.
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
-    ksft_eq(len(shapers), 1)
+    ksft_eq(shapers, [{'ifindex': cfg.ifindex,
+                       'handle': {'scope': 'netdev'}}])
 
-    nl_shaper.delete({'ifindex': cfg.ifindex,
-                      'handle': {'scope': 'netdev'}})
+    del_node.exec()
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
 
 def qgroups(cfg, nl_shaper) -> None:
     _require_queues(cfg, 4)
