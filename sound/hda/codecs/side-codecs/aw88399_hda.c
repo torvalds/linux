@@ -186,6 +186,8 @@ static const struct aw88399_prop_model aw88399_prop_model_table[] = {
 	{ "17AA3907", aw88399_apply_legion_quirks },
 	{ "17AA3927", aw88399_apply_legion_quirks },
 	{ "17AA3928", aw88399_apply_legion_quirks },
+	{ "17AA3936", aw88399_apply_legion_quirks },
+	{ "17AA3937", aw88399_apply_legion_quirks },
 	{ "17AA3938", aw88399_apply_legion_quirks },
 	{ "17AA3939", aw88399_apply_legion_quirks },
 	{ }
