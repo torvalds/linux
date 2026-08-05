@@ -199,8 +199,8 @@ recs_per_track(struct dasd_eckd_characteristics * rdc,
 static void set_ch_t(struct ch_t *geo, __u32 cyl, __u8 head)
 {
 	geo->cyl = (__u16) cyl;
-	geo->head = cyl >> 16;
-	geo->head <<= 4;
+	geo->head = cyl >> DASD_EAV_CYL_HI_SHIFT;
+	geo->head <<= DASD_EAV_HEAD_HI_SHIFT;
 	geo->head |= head;
 }
 

@@ -146,6 +146,14 @@ struct eckd_count {
 	__u16 dl;
 } __attribute__ ((packed));
 
+/*
+ * Extended Address Volume track address: the head field carries the actual
+ * head in its low-order 4 bits; the cylinder bits that do not fit the 16-bit
+ * cyl field are shifted in just above them.
+ */
+#define DASD_EAV_CYL_HI_SHIFT	16	/* cylinder bits beyond the 16-bit cyl field */
+#define DASD_EAV_HEAD_HI_SHIFT	4	/* head occupies the low-order 4 bits of head */
+
 struct ch_t {
 	__u16 cyl;
 	__u16 head;
