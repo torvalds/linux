@@ -167,20 +167,25 @@ def del_nshapers(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
-def basic_groups(cfg, nl_shaper) -> None:
-    _require_queues(cfg, 3)
+def _group_under_netdev(cfg, nl_shaper, bw_max=None):
+    r"""Group queues under a netdev-scope node; caller owns node teardown.
 
-    _require_caps(cfg, nl_shaper, 'netdev', [], "netdev scope not supported by the device")
-    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
-                  "queue scope not supported with nesting and weight")
+        netdev               netdev
+         /  \      del Q1,Q2
+        Q1  Q2     ------->   (netdev node persists)
+    """
+    group_args = {
+        'ifindex': cfg.ifindex,
+        'leaves': [{'handle': {'scope': 'queue', 'id': 1},
+                    'weight': 1},
+                   {'handle': {'scope': 'queue', 'id': 2},
+                    'weight': 2}],
+        'handle': {'scope': 'netdev'}}
+    if bw_max:
+        group_args['metric'] = 'bps'
+        group_args['bw-max'] = bw_max
 
-    node_handle = nl_shaper.group({
-                        'ifindex': cfg.ifindex,
-                        'leaves':[{'handle': {'scope': 'queue', 'id': 1},
-                                   'weight': 1},
-                                  {'handle': {'scope': 'queue', 'id': 2},
-                                   'weight': 2}],
-                         'handle': {'scope':'netdev'}})
+    node_handle = nl_shaper.group(group_args)
     ksft_eq(node_handle, {'ifindex': cfg.ifindex,
                           'handle': {'scope': 'netdev'}})
 
@@ -194,9 +199,28 @@ def basic_groups(cfg, nl_shaper) -> None:
     ksft_eq(shaper, {'ifindex': cfg.ifindex,
                      'parent': {'scope': 'netdev'},
                      'handle': {'scope': 'queue', 'id': 1},
-                     'weight': 1 })
+                     'weight': 1})
     for dq in del_queues:
         dq.exec()
+
+    # Caller owns the node teardown so it can verify the netdev-scope node
+    # survives leaf deletion before removing it.
+    return del_node
+
+def basic_groups(cfg, nl_shaper) -> None:
+    r"""Group queues under a netdev-scope node, then tear it down.
+
+        netdev
+         /  \
+        Q1  Q2
+    """
+    _require_queues(cfg, 3)
+
+    _require_caps(cfg, nl_shaper, 'netdev', [], "netdev scope not supported by the device")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "queue scope not supported with nesting and weight")
+
+    del_node = _group_under_netdev(cfg, nl_shaper)
 
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
@@ -205,6 +229,34 @@ def basic_groups(cfg, nl_shaper) -> None:
     del_node.exec()
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
+
+def basic_groups_with_rate(cfg, nl_shaper) -> None:
+    r"""Rate-limited netdev-scope node outlives deletion of its leaves.
+
+        netdev[10kbps]          netdev[10kbps]
+          /  \       del Q1,Q2
+        Q1    Q2     ------->    (node persists)
+    """
+    bw_max = 10000
+
+    _require_queues(cfg, 3)
+
+    _require_caps(cfg, nl_shaper, 'netdev', ['support-bw-max', 'support-metric-bps'],
+                  "device does not support netdev scope rate limiting")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support queue scope shapers with nesting and weight")
+
+    del_node = _group_under_netdev(cfg, nl_shaper, bw_max=bw_max)
+
+    # Deleting all the leaves shaper does not affect the node one
+    # when the latter has 'netdev' scope.
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(shapers, [{'ifindex': cfg.ifindex,
+                       'handle': {'scope': 'netdev'},
+                       'metric': 'bps',
+                       'bw-max': bw_max}])
+
+    del_node.exec()
 
 def qgroups(cfg, nl_shaper) -> None:
     _require_queues(cfg, 4)
@@ -488,6 +540,7 @@ def main() -> None:
                   set_nshapers,
                   del_nshapers,
                   basic_groups,
+                  basic_groups_with_rate,
                   qgroups,
                   delegation,
                   dup_leaves,
