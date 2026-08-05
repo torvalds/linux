@@ -205,7 +205,7 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
         continue
 
     print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
-    if wq.attrs.value_() != 0:
+    if wq.flags & WQ_UNBOUND:
         print(f' {cpumask_str(wq.attrs.cpumask):{ucpus_len}}', end='')
     else:
         print(f' {"":{ucpus_len}}', end='')
