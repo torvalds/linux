@@ -107,7 +107,6 @@ struct tas2783_prv {
 
 static const struct reg_default tas2783_reg_default[] = {
 	{TAS2783_AMP_LEVEL, 0x28},
-	{TASDEV_REG_SDW(0, 0, 0x03), 0x28},
 	{TASDEV_REG_SDW(0, 0, 0x04), 0x21},
 	{TASDEV_REG_SDW(0, 0, 0x05), 0x41},
 	{TASDEV_REG_SDW(0, 0, 0x06), 0x00},
