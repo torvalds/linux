@@ -353,17 +353,19 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 	 */
 	lim.dma_alignment = lim.logical_block_size - 1;
 
-	if (device->discipline->has_discard) {
+	if (device->features & DASD_FEATURE_DISCARD) {
 		unsigned int max_bytes;
 
-		lim.discard_granularity = block->bp_block;
-
-		/* Calculate max_discard_sectors and make it PAGE aligned */
-		max_bytes = USHRT_MAX * block->bp_block;
-		max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
-
-		lim.max_hw_discard_sectors = max_bytes / block->bp_block;
-		lim.max_write_zeroes_sectors = lim.max_hw_discard_sectors;
+		if (device->discipline->disc_limits) {
+			device->discipline->disc_limits(block, &lim);
+		} else {
+			lim.discard_granularity = block->bp_block;
+			/* Calculate max_discard_sectors and make it PAGE aligned */
+			max_bytes = USHRT_MAX * block->bp_block;
+			max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
+			lim.max_hw_discard_sectors = max_bytes / block->bp_block;
+			lim.max_write_zeroes_sectors = lim.max_hw_discard_sectors;
+		}
 	}
 	rc = queue_limits_commit_update(block->gdp->queue, &lim);
 	if (rc)
@@ -3124,6 +3126,7 @@ static blk_status_t do_dasd_request(struct blk_mq_hw_ctx *hctx,
 	struct dasd_device *basedev;
 	struct dasd_ccw_req *cqr;
 	blk_status_t rc = BLK_STS_OK;
+	bool complete_noop = false;
 
 	basedev = block->base;
 	spin_lock_irq(&dq->lock);
@@ -3172,6 +3175,17 @@ static blk_status_t do_dasd_request(struct blk_mq_hw_ctx *hctx,
 			rc = BLK_STS_RESOURCE;
 		} else if (PTR_ERR(cqr) == -EINVAL) {
 			rc = BLK_STS_INVAL;
+		} else if (PTR_ERR(cqr) == -EOPNOTSUPP) {
+			/*
+			 * A discard that covers no whole extent releases
+			 * nothing. Discard is advisory, so complete it as a
+			 * benign no-op: the device does support discard, this
+			 * range just does not align to the large ESE extent
+			 * granularity.
+			 * Completed after the lock is dropped.
+			 */
+			rc = BLK_STS_OK;
+			complete_noop = true;
 		} else {
 			DBF_DEV_EVENT(DBF_ERR, basedev,
 				      "CCW creation failed (rc=%ld) on request %p",
@@ -3205,6 +3219,8 @@ static blk_status_t do_dasd_request(struct blk_mq_hw_ctx *hctx,
 
 out:
 	spin_unlock_irq(&dq->lock);
+	if (complete_noop)
+		blk_mq_end_request(req, BLK_STS_OK);
 	return rc;
 }
 
