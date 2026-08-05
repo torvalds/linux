@@ -221,4 +221,6 @@ void print_online_cpus(void);
 void print_offline_cpus(void);
 void print_speed(unsigned long speed, int no_rounding);
 
+void cppc_show_perf_and_freq(unsigned int cpu, int no_rounding);
+
 #endif /* __CPUPOWERUTILS_HELPERS__ */
