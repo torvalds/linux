@@ -929,12 +929,10 @@ static void vmbus_unload_response(struct vmbus_channel_message_header *hdr)
 void vmbus_initiate_unload(bool crash)
 {
 	struct vmbus_channel_message_header hdr;
+	enum vmbus_connect_state old_state;
 
-	if (xchg(&vmbus_connection.conn_state, DISCONNECTED) == DISCONNECTED)
-		return;
-
-	/* Pre-Win2012R2 hosts don't support reconnect */
-	if (vmbus_proto_version < VERSION_WIN8_1)
+	old_state = xchg(&vmbus_connection.conn_state, DISCONNECTED);
+	if (old_state == DISCONNECTED || old_state == CONNECTING)
 		return;
 
 	reinit_completion(&vmbus_connection.unload_event);
