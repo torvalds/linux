@@ -3013,7 +3013,7 @@ static int adapter_indicators_set(struct kvm *kvm,
 	if (!summary_info) {
 		spin_unlock_irqrestore(&adapter->maps_lock, flags);
 		summary_page = pin_map_page(kvm, adapter_int->summary_addr, 0);
-		if (WARN_ON_ONCE(!summary_page))
+		if (!summary_page)
 			return -1;
 		idx = srcu_read_lock(&kvm->srcu);
 		map = page_address(summary_page);
