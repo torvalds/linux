@@ -7,6 +7,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/byteorder/generic.h>
 #include <linux/cleanup.h>
 #include <linux/device.h>
@@ -1369,59 +1370,71 @@ static int find_sdca_entity_hide(struct device *dev,
 				 struct sdca_entity *entity)
 {
 	struct sdca_entity_hide *hide = &entity->hide;
-	unsigned int delay, *af_list = hide->af_number_list;
-	int nval, ret;
+	int num_reports, ret;
+	unsigned int delay;
 
 	ret = fwnode_property_read_u32(entity_node,
-				       "mipi-sdca-RxUMP-ownership-transition-max-delay", &delay);
+				       "mipi-sdca-RxUMP-ownership-transition-max-delay",
+				       &delay);
 	if (!ret)
 		hide->max_delay = delay;
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDTx-supported-report-ids");
-	if (nval > 0) {
-		hide->num_hidtx_ids = nval;
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-HIDTx-supported-report-ids");
+	if (num_reports < 0 && num_reports != -EINVAL) {
+		dev_err(dev, "%pfwP: failed to read hid tx ids: %d\n",
+			entity_node, num_reports);
+		return num_reports;
+	} else if (num_reports > 0) {
+		hide->num_hidtx_ids = num_reports;
 		hide->hidtx_ids = devm_kcalloc(dev, hide->num_hidtx_ids,
 					       sizeof(*hide->hidtx_ids), GFP_KERNEL);
 		if (!hide->hidtx_ids)
 			return -ENOMEM;
 
-		ret = fwnode_property_read_u32_array(entity_node,
-						     "mipi-sdca-HIDTx-supported-report-ids",
-						     hide->hidtx_ids,
-						     hide->num_hidtx_ids);
-		if (ret < 0)
-			return ret;
+		fwnode_property_read_u32_array(entity_node,
+					       "mipi-sdca-HIDTx-supported-report-ids",
+					       hide->hidtx_ids, hide->num_hidtx_ids);
 	}
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-HIDRx-supported-report-ids");
-	if (nval > 0) {
-		hide->num_hidrx_ids = nval;
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-HIDRx-supported-report-ids");
+	if (num_reports < 0 && num_reports != -EINVAL) {
+		dev_err(dev, "%pfwP: failed to read hid rx ids: %d\n",
+			entity_node, num_reports);
+		return num_reports;
+	} else if (num_reports > 0) {
+		hide->num_hidrx_ids = num_reports;
 		hide->hidrx_ids = devm_kcalloc(dev, hide->num_hidrx_ids,
 					       sizeof(*hide->hidrx_ids), GFP_KERNEL);
 		if (!hide->hidrx_ids)
 			return -ENOMEM;
 
-		ret = fwnode_property_read_u32_array(entity_node,
-						     "mipi-sdca-HIDRx-supported-report-ids",
-						     hide->hidrx_ids,
-						     hide->num_hidrx_ids);
-		if (ret < 0)
-			return ret;
+		fwnode_property_read_u32_array(entity_node,
+					       "mipi-sdca-HIDRx-supported-report-ids",
+					       hide->hidrx_ids, hide->num_hidrx_ids);
 	}
 
-	nval = fwnode_property_count_u32(entity_node, "mipi-sdca-hide-related-audio-function-list");
-	if (nval <= 0) {
+	/*
+	 * FIXME: This should probably link to the actual sdca_function_data pointer,
+	 * but updating to do so should probably wait until we have a user.
+	 */
+	num_reports = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-hide-related-audio-function-list");
+	if (num_reports <= 0) {
 		dev_err(dev, "%pfwP: audio function numbers list missing: %d\n",
-			entity_node, nval);
+			entity_node, num_reports);
 		return -EINVAL;
-	} else if (nval > SDCA_MAX_FUNCTION_COUNT) {
-		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n", entity_node);
+	} else if (num_reports > ARRAY_SIZE(hide->af_number_list)) {
+		dev_err(dev, "%pfwP: maximum number of audio function exceeded\n",
+			entity_node);
 		return -EINVAL;
 	}
 
-	hide->hide_reside_function_num = nval;
+	hide->hide_reside_function_num = num_reports;
 	fwnode_property_read_u32_array(entity_node,
-				       "mipi-sdca-hide-related-audio-function-list", af_list, nval);
+				       "mipi-sdca-hide-related-audio-function-list",
+				       hide->af_number_list, num_reports);
 
 	return 0;
 }
@@ -2152,28 +2165,44 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 static int find_sdca_hid(struct device *dev, struct fwnode_handle *function_node,
 			 struct sdca_function_data *function)
 {
-	int nval;
+	int num_desc;
 
-	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
-	if (nval)
-		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
-					      (u8 *)&function->hid.desc, nval);
-
-	if (function->hid.desc.bNumDescriptors) {
-		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
-		if (nval) {
-			unsigned char *report_desc;
-
-			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
-			if (!report_desc)
-				return -ENOMEM;
-
-			function->hid.report_desc = report_desc;
-			fwnode_property_read_u8_array(function_node,
-						      "mipi-sdca-report-descriptor",
-						      report_desc, nval);
-		}
+	num_desc = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
+	if (!num_desc) {
+		return 0;
+	} else if (num_desc < 0) {
+		dev_err(dev, "%pfwP: failed to read hid descriptor: %d\n",
+			function_node, num_desc);
+		return num_desc;
+	} else if (num_desc > sizeof(function->hid.desc)) {
+		dev_err(dev, "%pfwP: hid descriptor too large: %d\n",
+			function_node, num_desc);
+		return -EINVAL;
 	}
+
+	fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
+				      (u8 *)&function->hid.desc, num_desc);
+
+	if (!function->hid.desc.bNumDescriptors)
+		return 0;
+
+	num_desc = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
+	if (num_desc <= 0) {
+		dev_err(dev, "%pfwP: failed to read report descriptor: %d\n",
+			function_node, num_desc);
+
+		if (!num_desc)
+			return -EINVAL;
+
+		return num_desc;
+	}
+
+	function->hid.report_desc = devm_kzalloc(dev, num_desc, GFP_KERNEL);
+	if (!function->hid.report_desc)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
+				      function->hid.report_desc, num_desc);
 
 	return 0;
 }
