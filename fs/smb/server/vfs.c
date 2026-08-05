@@ -718,7 +718,7 @@ retry:
 	if (err)
 		goto out_drop_write;
 
-	if (d_is_dir(old_child) && ksmbd_has_open_files(old_fp)) {
+	if (d_is_dir(old_child) && ksmbd_has_nonposix_open_child(old_fp)) {
 		err = -EACCES;
 		goto out3;
 	}
