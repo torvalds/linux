@@ -5666,6 +5666,28 @@ out_unlock:
 	put_pwq_unlocked(old_pwq);
 }
 
+static int alloc_and_link_percpu_pwqs(struct workqueue_struct *wq)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct pool_workqueue **pwq_p = per_cpu_ptr(wq->cpu_pwq, cpu);
+		struct worker_pool *pool = get_percpu_pool(wq, cpu);
+
+		*pwq_p = kmem_cache_alloc_node(pwq_cache, GFP_KERNEL, pool->node);
+		if (!*pwq_p)
+			return -ENOMEM;
+
+		init_pwq(*pwq_p, wq, pool);
+
+		mutex_lock(&wq->mutex);
+		link_pwq(*pwq_p);
+		mutex_unlock(&wq->mutex);
+	}
+
+	return 0;
+}
+
 static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 {
 	bool highpri = wq->flags & WQ_HIGHPRI;
@@ -5678,25 +5700,8 @@ static int alloc_and_link_pwqs(struct workqueue_struct *wq)
 		goto enomem;
 
 	if (!(wq->flags & WQ_UNBOUND)) {
-		for_each_possible_cpu(cpu) {
-			struct pool_workqueue **pwq_p = per_cpu_ptr(wq->cpu_pwq, cpu);
-			struct worker_pool *pool = get_percpu_pool(wq, cpu);
-
-			*pwq_p = kmem_cache_alloc_node(pwq_cache, GFP_KERNEL,
-						       pool->node);
-			if (!*pwq_p)
-				goto enomem;
-
-			init_pwq(*pwq_p, wq, pool);
-
-			mutex_lock(&wq->mutex);
-			link_pwq(*pwq_p);
-			mutex_unlock(&wq->mutex);
-		}
-		return 0;
-	}
-
-	if (wq->flags & __WQ_ORDERED) {
+		ret = alloc_and_link_percpu_pwqs(wq);
+	} else if (wq->flags & __WQ_ORDERED) {
 		struct pool_workqueue *dfl_pwq;
 
 		ret = apply_workqueue_attrs_locked(wq, ordered_wq_attrs[highpri]);
