@@ -1071,15 +1071,17 @@ static void iaa_desc_complete(struct idxd_desc *idxd_desc,
 		}
 	} else {
 		ctx->req->dlen = idxd_desc->iax_completion->output_size;
+
+		if (!ctx->compress) {
+			update_total_decomp_bytes_in(ctx->req->slen);
+			update_wq_decomp_bytes(iaa_wq->wq, ctx->req->slen);
+		}
 	}
 
 	/* Update stats */
 	if (ctx->compress) {
 		update_total_comp_bytes_out(ctx->req->dlen);
 		update_wq_comp_bytes(iaa_wq->wq, ctx->req->dlen);
-	} else {
-		update_total_decomp_bytes_in(ctx->req->slen);
-		update_wq_decomp_bytes(iaa_wq->wq, ctx->req->slen);
 	}
 
 	if (ctx->compress && compression_ctx->verify_compress) {
@@ -1462,16 +1464,16 @@ static int iaa_decompress(struct crypto_tfm *tfm, struct acomp_req *req,
 		}
 	} else {
 		req->dlen = idxd_desc->iax_completion->output_size;
+
+		/* Update stats */
+		update_total_decomp_bytes_in(slen);
+		update_wq_decomp_bytes(wq, slen);
 	}
 
 	*dlen = req->dlen;
 
 	if (!ctx->async_mode)
 		idxd_free_desc(wq, idxd_desc);
-
-	/* Update stats */
-	update_total_decomp_bytes_in(slen);
-	update_wq_decomp_bytes(wq, slen);
 out:
 	return ret;
 err:
