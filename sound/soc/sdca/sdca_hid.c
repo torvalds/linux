@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/soundwire/sdw.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
@@ -85,10 +86,11 @@ static const struct hid_ll_driver sdw_hid_driver = {
 	.raw_request = sdwhid_raw_request,
 };
 
-int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_entity *entity)
+int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 {
-	struct sdw_bus *bus = sdw->bus;
+	struct device *dev = interrupt->dev;
+	struct sdca_function_data *function = interrupt->function;
+	struct sdca_entity *entity = interrupt->entity;
 	struct hid_device *hid;
 	int ret;
 
@@ -102,12 +104,9 @@ int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
 	hid->bus = BUS_SDW;
 	hid->version = le16_to_cpu(entity->hide.hid_desc.bcdHID);
 
-	snprintf(hid->name, sizeof(hid->name),
-		 "HID sdw:%01x:%01x:%04x:%04x:%02x",
-		 bus->controller_id, bus->link_id, sdw->id.mfg_id,
-		 sdw->id.part_id, sdw->id.class_id);
-
-	snprintf(hid->phys, sizeof(hid->phys), "%s", dev->bus->name);
+	strscpy(hid->phys, dev_name(dev));
+	snprintf(hid->name, sizeof(hid->name), "SDCA %s:%02x",
+		 function->desc->name, function->desc->adr);
 
 	hid->driver_data = entity;
 
@@ -118,7 +117,7 @@ int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
 		return ret;
 	}
 
-	entity->hide.hid = hid;
+	interrupt->priv = hid;
 
 	return 0;
 }
@@ -133,7 +132,7 @@ EXPORT_SYMBOL_NS(sdca_add_hid_device, "SND_SOC_SDCA");
 int sdca_hid_process_report(struct sdca_interrupt *interrupt)
 {
 	struct device *dev = interrupt->dev;
-	struct hid_device *hid = interrupt->entity->hide.hid;
+	struct hid_device *hid = interrupt->priv;
 	void *val __free(kfree) = NULL;
 	int len, ret;
 

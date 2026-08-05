@@ -1116,7 +1116,6 @@ struct sdca_entity_ge {
 
 /**
  * struct sdca_entity_hide - information specific to HIDE Entities
- * @hid: HID device structure
  * @num_hidtx_ids: number of HIDTx Report ID
  * @num_hidrx_ids: number of HIDRx Report ID
  * @hidtx_ids: HIDTx Report ID
@@ -1131,7 +1130,6 @@ struct sdca_entity_ge {
  * @hid_desc: HID descriptor for the HIDE Entity
  */
 struct sdca_entity_hide {
-	struct hid_device *hid;
 	unsigned int *hidtx_ids;
 	unsigned int *hidrx_ids;
 	int num_hidtx_ids;

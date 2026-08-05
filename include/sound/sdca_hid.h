@@ -16,14 +16,12 @@ struct sdca_interrupt;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SDCA_HID)
 
-int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
-			struct sdca_entity *entity);
+int sdca_add_hid_device(struct sdca_interrupt *interrupt);
 int sdca_hid_process_report(struct sdca_interrupt *interrupt);
 
 #else
 
-static inline int sdca_add_hid_device(struct device *dev, struct sdw_slave *sdw,
-				      struct sdca_entity *entity)
+static inline int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 {
 	return 0;
 }

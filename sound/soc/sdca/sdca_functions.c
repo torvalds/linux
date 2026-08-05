@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <sound/sdca.h>
 #include <sound/sdca_function.h>
-#include <sound/sdca_hid.h>
 
 /*
  * Should be long enough to encompass all the MIPI DisCo properties.
@@ -1366,8 +1365,7 @@ bad_list:
 }
 
 static int
-find_sdca_entity_hide(struct device *dev, struct sdw_slave *sdw,
-		      struct fwnode_handle *function_node,
+find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
 		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
 {
 	struct sdca_entity_hide *hide = &entity->hide;
@@ -1440,13 +1438,6 @@ find_sdca_entity_hide(struct device *dev, struct sdw_slave *sdw,
 			hide->hid_report_desc = report_desc;
 			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
 						      report_desc, nval);
-
-			/* add HID device */
-			ret = sdca_add_hid_device(dev, sdw, entity);
-			if (ret) {
-				dev_err(dev, "%pfwP: failed to add HID device: %d\n", entity_node, ret);
-				return ret;
-			}
 		}
 	}
 
@@ -1475,8 +1466,7 @@ static int find_sdca_entity_xu(struct device *dev,
 	return 0;
 }
 
-static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
-			    struct sdca_function_data *function,
+static int find_sdca_entity(struct device *dev, struct sdca_function_data *function,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
 			    struct sdca_entity *entity)
@@ -1528,8 +1518,7 @@ static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
 		break;
 	case SDCA_ENTITY_TYPE_HIDE:
-		ret = find_sdca_entity_hide(dev, sdw, function_node,
-					    entity_node, entity);
+		ret = find_sdca_entity_hide(dev, function_node, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1544,8 +1533,7 @@ static int find_sdca_entity(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
-static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
-			      struct fwnode_handle *function_node,
+static int find_sdca_entities(struct device *dev, struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
 	struct sdca_entity *entities;
@@ -1596,7 +1584,7 @@ static int find_sdca_entities(struct device *dev, struct sdw_slave *sdw,
 			return -EINVAL;
 		}
 
-		ret = find_sdca_entity(dev, sdw, function, function_node,
+		ret = find_sdca_entity(dev, function, function_node,
 				       entity_node, &entities[i]);
 		fwnode_handle_put(entity_node);
 		if (ret)
@@ -2214,7 +2202,7 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	if (ret)
 		return ret;
 
-	ret = find_sdca_entities(dev, sdw, node, function);
+	ret = find_sdca_entities(dev, node, function);
 	if (ret)
 		return ret;
 
