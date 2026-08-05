@@ -1194,7 +1194,7 @@ int cifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa)
 	u32 attrs;
 
 	/* Preserve FS_COMPR_FL previously reported by cifs_ioctl(). */
-	if (CIFS_I(inode)->cifsAttrs & ATTR_COMPRESSED)
+	if (READ_ONCE(CIFS_I(inode)->cifsAttrs) & ATTR_COMPRESSED)
 		fa->flags |= FS_COMPR_FL;
 
 	/*
@@ -1255,6 +1255,7 @@ const struct inode_operations cifs_dir_inode_ops = {
 	.get_acl = cifs_get_acl,
 	.set_acl = cifs_set_acl,
 	.fileattr_get = cifs_fileattr_get,
+	.fileattr_set = cifs_fileattr_set,
 };
 
 const struct inode_operations cifs_file_inode_ops = {
@@ -1266,6 +1267,7 @@ const struct inode_operations cifs_file_inode_ops = {
 	.get_acl = cifs_get_acl,
 	.set_acl = cifs_set_acl,
 	.fileattr_get = cifs_fileattr_get,
+	.fileattr_set = cifs_fileattr_set,
 };
 
 const char *cifs_get_link(struct dentry *dentry, struct inode *inode,

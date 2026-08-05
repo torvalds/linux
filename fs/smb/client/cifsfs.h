@@ -91,6 +91,8 @@ extern const struct inode_operations cifs_namespace_inode_operations;
 
 struct file_kattr;
 int cifs_fileattr_get(struct dentry *dentry, struct file_kattr *fa);
+int cifs_fileattr_set(struct mnt_idmap *idmap, struct dentry *dentry,
+		      struct file_kattr *fa);
 
 
 /* Functions related to files and directories */
