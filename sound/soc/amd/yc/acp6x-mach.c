@@ -857,7 +857,13 @@ static const struct dmi_system_id yc_acp_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vivobook_ASUSLaptop M6500RE_M6500RE"),
 		}
 	},
-
+	{
+		.driver_data = &acp6x_card,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "XIAOMI"),
+			DMI_MATCH(DMI_BOARD_NAME, "TM2423"),
+		}
+	},
 	{}
 };
 
