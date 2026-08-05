@@ -241,7 +241,7 @@ struct ap_card *ap_card_create(int id, struct ap_tapq_hwinfo hwinfo,
 	ac->ap_dev.device_type = comp_type;
 	ac->hwinfo = hwinfo;
 	ac->id = id;
-	ac->maxmsgsize = hwinfo.ml > 0 ?
+	ac->maxmsgsize = hwinfo.ml > 3 ?
 		hwinfo.ml * AP_TAPQ_ML_FIELD_CHUNK_SIZE : AP_DEFAULT_MAX_MSG_SIZE;
 
 	return ac;
