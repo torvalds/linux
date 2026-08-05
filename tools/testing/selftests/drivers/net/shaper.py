@@ -532,6 +532,122 @@ def delegation(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def nested_depth_limit(cfg, nl_shaper) -> None:
+    r"""Nest nodes as deep as the device allows to find the max depth.
+
+        netdev
+          |
+         N1 -- Q1
+          |
+         N2 -- Q2
+          |
+         N3 -- Q3
+          :       (deepen until the driver rejects)
+    """
+    bw_max = 10000
+
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps', 'support-nesting'],
+                  "device does not support node scope shapers with bw_max, metric bps and nesting")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
+
+    nq = _require_queues(cfg, 3)
+
+    node_ids = []
+    cleanups = []
+    queue_id = 1
+    max_depth = 0
+    limit_err = None
+
+    # Create initial node with a queue leaf
+    node_id = nl_shaper.group({
+        'ifindex': cfg.ifindex,
+        'leaves': [{'handle': {'scope': 'queue', 'id': queue_id},
+                     'weight': 1}],
+        'handle': {'scope': 'node'},
+        'metric': 'bps',
+        'bw-max': bw_max})['handle']['id']
+    node_ids.append(node_id)
+    cleanups.append(defer(_delete_shaper, cfg, nl_shaper,
+                          {'scope': 'node', 'id': node_id}))
+    cleanups.append(defer(_delete_shaper, cfg, nl_shaper,
+                          {'scope': 'queue', 'id': queue_id}))
+    max_depth = 1
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'node', 'id': node_id}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'handle': {'scope': 'node', 'id': node_id},
+                     'parent': {'scope': 'netdev'},
+                     'metric': 'bps',
+                     'bw-max': bw_max})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': queue_id}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'parent': {'scope': 'node', 'id': node_id},
+                     'handle': {'scope': 'queue', 'id': queue_id},
+                     'weight': 1})
+    queue_id += 1
+
+    # Keep nesting deeper until the driver rejects or queues run out.
+    while queue_id < nq:
+        parent_id = node_ids[-1]
+        try:
+            node_id = nl_shaper.group({
+                'ifindex': cfg.ifindex,
+                'leaves': [{'handle': {'scope': 'queue',
+                                       'id': queue_id},
+                             'weight': 1}],
+                'handle': {'scope': 'node'},
+                'parent': {'scope': 'node',
+                           'id': parent_id},
+                'metric': 'bps',
+                'bw-max': bw_max})['handle']['id']
+        except NlError as e:
+            # Only treat "cannot nest deeper" errors as the depth limit;
+            # drivers report it differently (EOPNOTSUPP/ENOSPC/E2BIG/EINVAL).
+            # Anything else (ENOMEM, EIO, EPERM, driver bug) is a real failure.
+            if e.error not in (errno.EOPNOTSUPP, errno.ENOSPC,
+                               errno.E2BIG, errno.EINVAL):
+                raise
+            limit_err = e
+            break
+
+        node_ids.append(node_id)
+        cleanups.append(defer(_delete_shaper, cfg, nl_shaper,
+                              {'scope': 'node', 'id': node_id}))
+        cleanups.append(defer(_delete_shaper, cfg, nl_shaper,
+                              {'scope': 'queue', 'id': queue_id}))
+        max_depth += 1
+        shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                                'handle': {'scope': 'node', 'id': node_id}})
+        ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                         'handle': {'scope': 'node', 'id': node_id},
+                         'parent': {'scope': 'node', 'id': parent_id},
+                         'metric': 'bps',
+                         'bw-max': bw_max})
+        shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                                'handle': {'scope': 'queue',
+                                           'id': queue_id}})
+        ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                         'parent': {'scope': 'node', 'id': node_id},
+                         'handle': {'scope': 'queue', 'id': queue_id},
+                         'weight': 1})
+        queue_id += 1
+
+    if limit_err:
+        print(f"# max nesting depth supported: {max_depth} (errno {limit_err.error})")
+    else:
+        print(f"# max nesting depth tested: {max_depth}")
+    ksft_true(max_depth >= 2,
+              f"max nesting depth: {max_depth}")
+
+    # Cleanup: exec the deferred deletes in reverse creation order, so each
+    # queue leaf and deeper node is removed before its parent node.
+    for cleanup in reversed(cleanups):
+        cleanup.exec()
+    ksft_eq(len(nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)), 0)
+
 def queue_update(cfg, nl_shaper) -> None:
     nq = _require_queues(cfg, 4)
     if not cfg.queues:
@@ -648,6 +764,7 @@ def main() -> None:
                   set_node_shaper,
                   group_update_rate,
                   delegation,
+                  nested_depth_limit,
                   dup_leaves,
                   queue_update],
                  args=(cfg, NetshaperFamily()))
