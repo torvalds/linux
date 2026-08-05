@@ -495,6 +495,7 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 	struct smbdirect_recv_io *recv_io;
 	struct smbdirect_recv_io *recv_tmp;
 	LIST_HEAD(all_list);
+	LIST_HEAD(pending_list);
 	unsigned long flags;
 
 	smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
@@ -552,24 +553,29 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 	 * disconnect all pending and ready sockets
 	 *
 	 * We move ready sockets to pending again.
+	 *
+	 * Capture them here -- rdma_lock_handler(sc->rdma.cm_id) is held above,
+	 * so a concurrent CM CONNECT_REQUEST cannot add more; sc->listen.lock
+	 * below only protects the list splice itself -- but DEFER releasing
+	 * them until the listener's cm_id is destroyed:
+	 *
+	 * - smbdirect_socket_release() -> smbdirect_socket_destroy() takes the
+	 *   child's own rdma_lock_handler() lock (&id_priv->handler_mutex).
+	 *   The listener's and the child's cm_id are always different
+	 *   instances, so the nesting cannot really deadlock, but lockdep only
+	 *   sees one lock class and reports "possible recursive locking".
+	 *
+	 * - rdma_destroy_id() of a child before the listener's own
+	 *   rdma_destroy_id() below lets _cma_cancel_listens() walk the freed
+	 *   child id_priv (KASAN slab-use-after-free in __mutex_lock()).
+	 *
+	 * The children are independent sockets whose teardown does not need
+	 * the listener's handler lock.
 	 */
 	spin_lock_irqsave(&sc->listen.lock, flags);
-	list_splice_tail_init(&sc->listen.ready, &all_list);
-	list_splice_tail_init(&sc->listen.pending, &all_list);
+	list_splice_tail_init(&sc->listen.ready, &pending_list);
+	list_splice_tail_init(&sc->listen.pending, &pending_list);
 	spin_unlock_irqrestore(&sc->listen.lock, flags);
-	psockets = list_count_nodes(&all_list);
-	if (sc->listen.backlog != -1) /* was a listener */
-		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-			"release %zu pending sockets\n", psockets);
-	list_for_each_entry_safe(psc, tsc, &all_list, accept.list) {
-		list_del_init(&psc->accept.list);
-		psc->accept.listener = NULL;
-		smbdirect_socket_release(psc);
-	}
-	if (sc->listen.backlog != -1) /* was a listener */
-		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
-			"released %zu pending sockets\n", psockets);
-	INIT_LIST_HEAD(&all_list);
 
 	/* It's not possible for upper layer to get to reassembly */
 	if (sc->listen.backlog == -1) /* was not a listener */
@@ -598,6 +604,26 @@ static void smbdirect_socket_destroy(struct smbdirect_socket *sc)
 		rdma_destroy_id(sc->rdma.cm_id);
 		sc->rdma.cm_id = NULL;
 	}
+
+	/*
+	 * The listener's rdma_lock_handler() lock is dropped and its cm_id is
+	 * destroyed, so it is safe to release the child sockets captured
+	 * above: each release recurses into smbdirect_socket_destroy() and
+	 * takes that child's own handler_mutex without nesting it under the
+	 * listener's, and _cma_cancel_listens() can no longer reach them.
+	 */
+	psockets = list_count_nodes(&pending_list);
+	if (sc->listen.backlog != -1) /* was a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"release %zu pending sockets\n", psockets);
+	list_for_each_entry_safe(psc, tsc, &pending_list, accept.list) {
+		list_del_init(&psc->accept.list);
+		psc->accept.listener = NULL;
+		smbdirect_socket_release(psc);
+	}
+	if (sc->listen.backlog != -1) /* was a listener */
+		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
+			"released %zu pending sockets\n", psockets);
 
 	if (sc->listen.backlog == -1) /* was not a listener */
 		smbdirect_log_rdma_event(sc, SMBDIRECT_LOG_INFO,
