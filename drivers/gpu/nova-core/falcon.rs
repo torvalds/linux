@@ -9,8 +9,7 @@ use kernel::{
     dma::{
         Coherent,
         CoherentBox,
-        DmaAddress,
-        DmaMask, //
+        DmaAddress, //
     },
     io::{
         poll::read_poll_timeout,
@@ -532,12 +531,6 @@ impl<'a, E: FalconEngine + 'static> Falcon<'a, E> {
                 DMA_LEN
             );
             return Err(EINVAL);
-        }
-
-        // The DMATRFBASE/1 register pair only supports a 49-bit address.
-        if dma_start > DmaMask::new::<49>().value() {
-            dev_err!(self.dev, "DMA address {:#x} exceeds 49 bits\n", dma_start);
-            return Err(ERANGE);
         }
 
         // DMA transfers can only be done in units of 256 bytes. Compute how many such transfers we
