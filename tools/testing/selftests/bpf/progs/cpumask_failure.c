@@ -116,9 +116,9 @@ int BPF_PROG(test_cpumask_null, struct task_struct *task, u64 clone_flags)
 	return 0;
 }
 
-SEC("tp_btf/task_newtask")
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
 __failure __msg("R2 must be a rcu pointer")
-int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_flags)
+int BPF_PROG(test_global_mask_out_of_rcu)
 {
 	struct bpf_cpumask *local, *prev;
 
@@ -133,6 +133,10 @@ int BPF_PROG(test_global_mask_out_of_rcu, struct task_struct *task, u64 clone_fl
 		return 0;
 	}
 
+	/*
+	 * Use a sleepable program so explicit RCU is the only source of RCU
+	 * protection.
+	 */
 	bpf_rcu_read_lock();
 	local = global_mask;
 	if (!local) {
