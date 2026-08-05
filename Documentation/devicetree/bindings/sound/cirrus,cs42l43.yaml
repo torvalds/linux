@@ -27,6 +27,7 @@ properties:
     enum:
       - cirrus,cs42l43
       - cirrus,cs42l43b
+      - cirrus,cs42l44
 
   reg:
     maxItems: 1
