@@ -660,6 +660,7 @@ sanity_check:
 			__builtin_return_address(0),
 			ni->ino, ni->nid, ni->blk_addr, ni->version, ni->flag);
 		f2fs_handle_error(sbi, ERROR_INCONSISTENT_NAT);
+		return -EFSCORRUPTED;
 	}
 
 	/* cache nat entry */
