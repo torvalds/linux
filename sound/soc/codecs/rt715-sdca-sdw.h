@@ -102,10 +102,6 @@ static const struct reg_default rt715_reg_defaults_sdca[] = {
 		RT715_SDCA_SMPU_TRIG_EN_CTRL, CH_00), 0x02 },
 	{ SDW_SDCA_CTL(FUN_MIC_ARRAY, RT715_SDCA_SMPU_TRIG_ST_EN,
 		RT715_SDCA_SMPU_TRIG_ST_CTRL, CH_00), 0x00 },
-	{ SDW_SDCA_CTL(FUN_MIC_ARRAY, RT715_SDCA_FU_ADC7_27_VOL,
-		RT715_SDCA_FU_MUTE_CTRL, CH_01), 0x01 },
-	{ SDW_SDCA_CTL(FUN_MIC_ARRAY, RT715_SDCA_FU_ADC7_27_VOL,
-		RT715_SDCA_FU_MUTE_CTRL, CH_02), 0x01 },
 };
 
 static const struct reg_default rt715_mbq_reg_defaults_sdca[] = {
