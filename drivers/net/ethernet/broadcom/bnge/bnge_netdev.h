@@ -561,6 +561,12 @@ struct bnge_napi {
 #define BNGE_VNIC_DEFAULT	0
 #define BNGE_MAX_UC_ADDRS	4
 
+#define BNGE_RX_MASK_CFG_FLAGS				\
+	(CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS |	\
+	 CFA_L2_SET_RX_MASK_REQ_MASK_MCAST |		\
+	 CFA_L2_SET_RX_MASK_REQ_MASK_ALL_MCAST |	\
+	 CFA_L2_SET_RX_MASK_REQ_MASK_BCAST)
+
 struct bnge_vnic_info {
 	u16		fw_vnic_id;
 #define BNGE_MAX_CTX_PER_VNIC	8
