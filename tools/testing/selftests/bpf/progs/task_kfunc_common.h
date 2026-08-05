@@ -38,6 +38,8 @@ struct task_struct *bpf_task_from_pid(s32 pid) __ksym;
 struct task_struct *bpf_task_from_vpid(s32 vpid) __ksym;
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
+void bpf_local_irq_save(unsigned long *flags) __weak __ksym;
+void bpf_local_irq_restore(unsigned long *flags) __weak __ksym;
 
 static inline struct __tasks_kfunc_map_value *tasks_kfunc_map_value_lookup(struct task_struct *p)
 {
