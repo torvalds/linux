@@ -1630,6 +1630,44 @@ dasd_expires_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(expires, 0644, dasd_expires_show, dasd_expires_store);
 
+/* ESE fulltrack write aggressiveness knob (0..100, see DASD_FT_BIAS_*) */
+static ssize_t
+full_track_bias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct dasd_device *device;
+	int len;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+	len = sysfs_emit(buf, "%u\n", device->ft_bias);
+	dasd_put_device(device);
+	return len;
+}
+
+static ssize_t full_track_bias_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct dasd_device *device;
+	unsigned int val;
+
+	if (kstrtouint(buf, 0, &val) || val > DASD_FT_BIAS_MAX)
+		return -EINVAL;
+
+	device = dasd_device_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(device))
+		return -ENODEV;
+
+	device->ft_bias = val;
+	device->fulltrack = val ? 1 : 0;
+
+	dasd_put_device(device);
+	return count;
+}
+
+static DEVICE_ATTR_RW(full_track_bias);
+
 static ssize_t
 dasd_retries_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -2425,6 +2463,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_erplog.attr,
 	&dev_attr_failfast.attr,
 	&dev_attr_expires.attr,
+	&dev_attr_full_track_bias.attr,
 	&dev_attr_retries.attr,
 	&dev_attr_timeout.attr,
 	&dev_attr_reservation_policy.attr,

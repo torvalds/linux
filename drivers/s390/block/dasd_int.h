@@ -629,6 +629,10 @@ struct dasd_device {
 	struct dasd_copy_relation *copy;
 	unsigned long aq_mask;
 	unsigned int aq_timeouts;
+
+	/* ESE fulltrack write control (see full_track_bias sysfs attribute) */
+	unsigned int ft_bias;	/* aggressiveness 0..100: 0=off, 100=always */
+	unsigned int fulltrack;	/* internal: use WRITE_FULL_TRACK for aligned writes */
 };
 
 struct dasd_block {
@@ -685,6 +689,20 @@ struct dasd_queue {
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
 #define DASD_STOPPED_PPRC    32        /* PPRC swap */
 #define DASD_STOPPED_NOSPC   128       /* no space left */
+
+/*
+ * ESE fulltrack write aggressiveness (full_track_bias sysfs attribute), 0..100:
+ *   0   - never use proactively WRITE_FULL_TRACK
+ *   100 - always use proactively WRITE_FULL_TRACK, no probing
+ *   1..99 - adaptive; higher means switch to ft more eagerly
+ * WRITE_FULL_TRACK has an advantage on sparse formatted ESE devices
+ * but it has an overall penalty for maximum throughput for fully
+ * formatted devices.
+ * The default of 50 tries to balance both and do some probing in between
+ * to choose the best mode for default IO.
+ */
+#define DASD_FT_BIAS_MAX	100
+#define DASD_FT_BIAS_DEFAULT	50
 
 /* per device flags */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */

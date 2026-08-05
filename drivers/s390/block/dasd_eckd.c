@@ -47,6 +47,18 @@
 MODULE_DESCRIPTION("S/390 DASD ECKD Disks device driver");
 MODULE_LICENSE("GPL");
 
+/*
+ * Default full-track write bias applied to every ESE volume at online time;
+ * individual volumes can be re-tuned afterwards through their per-device
+ * full_track_bias sysfs attribute. 0 disables full-track writes, 100 always
+ * uses them, 50 (the default) enables the adaptive heuristic. Values above
+ * DASD_FT_BIAS_MAX are capped when applied.
+ */
+static unsigned int full_track_bias = DASD_FT_BIAS_DEFAULT;
+module_param(full_track_bias, uint, 0644);
+MODULE_PARM_DESC(full_track_bias,
+		 "Default ESE full-track write bias 0..100 (0=off, 1..99=adaptive, 100=always)");
+
 static struct dasd_discipline dasd_eckd_discipline;
 
 /* The ccw bus type uses this table to find devices that it sends to
@@ -2147,6 +2159,11 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	device->path_thrhld = DASD_ECKD_PATH_THRHLD;
 	device->path_interval = DASD_ECKD_PATH_INTERVAL;
 	device->aq_timeouts = DASD_RETRIES_MAX;
+
+	/* default ESE fulltrack write aggressiveness from the module parameter */
+	device->ft_bias = min_t(unsigned int, full_track_bias, DASD_FT_BIAS_MAX);
+	/* only the "always" endpoint forces fulltrack unconditionally here */
+	device->fulltrack = (device->ft_bias >= DASD_FT_BIAS_MAX) ? 1 : 0;
 
 	if (private->conf.gneq) {
 		value = 1;
@@ -5201,11 +5218,20 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 		/* do nothing, just fall through to the cmd mode single case */
 	} else if ((data_size <= private->fcx_max_data)
 		   && (fcx_multitrack || (first_trk == last_trk))) {
-		cqr = dasd_eckd_build_cp_tpm_track(startdev, block, req,
-						    first_rec, last_rec,
-						    first_trk, last_trk,
-						    first_offs, last_offs,
-						    blk_per_trk, blksize);
+		if (!first_offs && (last_offs + 1 == blk_per_trk) &&
+		    rq_data_dir(req) == WRITE && basedev->fulltrack) {
+			cqr = dasd_eckd_build_cp_tpm_writefulltrack(startdev, block, req,
+								    first_rec, last_rec,
+								    first_trk, last_trk,
+								    first_offs, last_offs,
+								    blk_per_trk, blksize, NULL);
+		} else {
+			cqr = dasd_eckd_build_cp_tpm_track(startdev, block, req,
+							   first_rec, last_rec,
+							   first_trk, last_trk,
+							   first_offs, last_offs,
+							   blk_per_trk, blksize);
+		}
 		if (IS_ERR(cqr) && (PTR_ERR(cqr) != -EAGAIN) &&
 		    (PTR_ERR(cqr) != -ENOMEM))
 			cqr = NULL;
