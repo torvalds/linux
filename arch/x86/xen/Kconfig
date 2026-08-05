@@ -52,7 +52,7 @@ config XEN_PV_DOM0
 
 config XEN_PVHVM
 	def_bool y
-	depends on XEN && X86_LOCAL_APIC
+	depends on XEN
 
 config XEN_PVHVM_SMP
 	def_bool y
