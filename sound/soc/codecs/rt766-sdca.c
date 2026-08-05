@@ -616,7 +616,7 @@ static int rt766_sdca_pde_event(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(component->dev, rt766->regmap,
+	ret = sdca_asoc_pde_poll_actual_ps(rt766->regmap,
 				   func_num,
 				   pde_num,
 				   from_ps, to_ps,

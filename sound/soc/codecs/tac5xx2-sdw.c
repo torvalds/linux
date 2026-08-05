@@ -800,7 +800,7 @@ static int tac_sdw_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->dev, tac_dev->regmap, function_id, pde_entity,
+	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->regmap, function_id, pde_entity,
 					   SDCA_PDE_PS3, SDCA_PDE_PS0, NULL, 0);
 	if (ret)
 		dev_err(tac_dev->dev, "failed to transition func %d, pde %d from PS3 -> PS0, err=%d\n",
@@ -847,7 +847,7 @@ static int tac_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->dev, tac_dev->regmap, function_id,
+	ret = sdca_asoc_pde_poll_actual_ps(tac_dev->regmap, function_id,
 					   pde_entity, SDCA_PDE_PS0, SDCA_PDE_PS3,
 					   NULL, 0);
 	if (ret)
