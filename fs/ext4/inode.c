@@ -2864,10 +2864,10 @@ static int ext4_do_writepages(struct mpage_da_data *mpd)
 	if (ext4_should_dioread_nolock(inode)) {
 		int bpf = ext4_journal_blocks_per_folio(inode);
 		/*
-		 * We may need to convert up to one extent per block in
-		 * the folio and we may dirty the inode.
+		 * We may need to convert up to one extent per block in the
+		 * folio.
 		 */
-		rsv_blocks = 1 + ext4_ext_index_trans_blocks(inode, bpf);
+		rsv_blocks = ext4_meta_trans_blocks(inode, bpf, bpf, 0);
 	}
 
 	if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
