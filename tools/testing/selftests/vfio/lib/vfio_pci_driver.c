@@ -6,8 +6,8 @@
 extern struct vfio_pci_driver_ops dsa_ops;
 extern struct vfio_pci_driver_ops ioat_ops;
 #endif
-
 extern struct vfio_pci_driver_ops nv_falcon_ops;
+extern struct vfio_pci_driver_ops igb_ops;
 
 static struct vfio_pci_driver_ops *driver_ops[] = {
 #ifdef __x86_64__
@@ -15,6 +15,7 @@ static struct vfio_pci_driver_ops *driver_ops[] = {
 	&ioat_ops,
 #endif
 	&nv_falcon_ops,
+	&igb_ops,
 };
 
 void vfio_pci_driver_probe(struct vfio_pci_device *device)

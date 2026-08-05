@@ -16,6 +16,7 @@ LIBVFIO_C += drivers/dsa/dsa.c
 endif
 
 LIBVFIO_C += drivers/nv_falcon/nv_falcon.c
+LIBVFIO_C += drivers/igb/igb.c
 
 LIBVFIO_OUTPUT := $(OUTPUT)/libvfio
 
