@@ -2069,7 +2069,6 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
 #endif
 	return &mem_section[root][nr & SECTION_ROOT_MASK];
 }
-extern size_t mem_section_usage_size(void);
 
 /*
  * We use the lower bits of the mem_map pointer to store a little bit of

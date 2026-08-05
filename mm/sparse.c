@@ -213,16 +213,6 @@ static void __init memblocks_present(void)
 		memory_present(nid, start, end);
 }
 
-static unsigned long usemap_size(void)
-{
-	return BITS_TO_LONGS(SECTION_BLOCKFLAGS_BITS) * sizeof(unsigned long);
-}
-
-size_t mem_section_usage_size(void)
-{
-	return sizeof(struct mem_section_usage) + usemap_size();
-}
-
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 unsigned long __init section_map_size(void)
 {
