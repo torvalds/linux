@@ -2,13 +2,52 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import errno
+import glob
 
 from lib.py import ksft_run, ksft_exit
-from lib.py import ksft_eq, ksft_raises, ksft_true, KsftSkipEx
+from lib.py import ksft_eq, ksft_true, ksft_raises, KsftSkipEx
 from lib.py import EthtoolFamily, NetshaperFamily
 from lib.py import NetDrvEnv
 from lib.py import NlError
-from lib.py import cmd
+from lib.py import cmd, defer
+
+def _delete_shaper(cfg, nl_shaper, handle) -> None:
+    """ Delete the shaper identified by handle, ignoring a missing-shaper error. """
+    try:
+        nl_shaper.delete({'ifindex': cfg.ifindex,
+                          'handle': handle})
+    except NlError as e:
+        if e.error != errno.ENOENT:
+            raise
+
+def _require_queues(cfg, count):
+    """ Return the netdev TX queue count, skipping the test if fewer than count exist. """
+    qcnt = len(glob.glob(f"/sys/class/net/{cfg.ifname}/queues/tx-*"))
+    if qcnt < count:
+        raise KsftSkipEx(f"netdev has {qcnt} queues, {count} required")
+    return qcnt
+
+def _cap_get(cfg, nl_shaper, scope):
+    """ Return the shaper capabilities for the given scope, caching them on cfg. """
+    if not hasattr(cfg, 'cap_cache'):
+        cfg.cap_cache = {}
+    if scope not in cfg.cap_cache:
+        cfg.cap_cache[scope] = nl_shaper.cap_get({'ifindex': cfg.ifindex,
+                                                  'scope': scope})
+
+    return cfg.cap_cache[scope]
+
+def _require_caps(cfg, nl_shaper, scope, caps, msg) -> None:
+    """ Skip the test unless the given scope advertises all the required caps. """
+    try:
+        supported = _cap_get(cfg, nl_shaper, scope)
+    except NlError as e:
+        if e.error == errno.EOPNOTSUPP:
+            raise KsftSkipEx(f"{scope} scope shapers not supported by the device")
+        raise
+
+    if not set(caps).issubset(supported):
+        raise KsftSkipEx(msg)
 
 def get_shapers(cfg, nl_shaper) -> None:
     try:
@@ -44,17 +83,8 @@ def set_qshapers(cfg, nl_shaper) -> None:
     if not 'support-bw-max' in caps or not 'support-metric-bps' in caps:
         raise KsftSkipEx("device does not support queue scope shapers with bw_max and metric bps")
 
-    cfg.queues = True;
-    netnl = EthtoolFamily()
-    channels = netnl.channels_get({'header': {'dev-index': cfg.ifindex}})
-    if channels['combined-count'] == 0:
-        cfg.rx_type = 'rx'
-        cfg.nr_queues = channels['rx-count']
-    else:
-        cfg.rx_type = 'combined'
-        cfg.nr_queues = channels['combined-count']
-    if cfg.nr_queues < 3:
-        raise KsftSkipEx(f"device does not support enough queues min 3 found {cfg.nr_queues}")
+    _require_queues(cfg, 3)
+    cfg.queues = True
 
     nl_shaper.set({'ifindex': cfg.ifindex,
                    'handle': {'scope': 'queue', 'id': 1},
@@ -140,8 +170,7 @@ def del_nshapers(cfg, nl_shaper) -> None:
 def basic_groups(cfg, nl_shaper) -> None:
     if not cfg.netdev:
         raise KsftSkipEx("netdev shaper not supported by the device")
-    if cfg.nr_queues < 3:
-        raise KsftSkipEx(f"netdev does not have enough queues min 3 reported {cfg.nr_queues}")
+    _require_queues(cfg, 3)
 
     try:
         caps = nl_shaper.cap_get({'ifindex': cfg.ifindex,
@@ -186,28 +215,14 @@ def basic_groups(cfg, nl_shaper) -> None:
                       'handle': {'scope': 'netdev'}})
 
 def qgroups(cfg, nl_shaper) -> None:
-    if cfg.nr_queues < 4:
-        raise KsftSkipEx(f"netdev does not have enough queues min 4 reported {cfg.nr_queues}")
-    try:
-        caps = nl_shaper.cap_get({'ifindex': cfg.ifindex,
-                                  'scope':'node'})
-    except NlError as e:
-        if e.error == 95:
-            raise KsftSkipEx("shapers not supported by the device")
-        raise
-    if not 'support-bw-max' in caps or not 'support-metric-bps' in caps:
-        raise KsftSkipEx("device does not support node scope shapers with bw_max and metric bps")
-    try:
-        caps = nl_shaper.cap_get({'ifindex': cfg.ifindex,
-                                  'scope':'queue'})
-    except NlError as e:
-        if e.error == 95:
-            raise KsftSkipEx("shapers not supported by the device")
-        raise
-    if not 'support-nesting' in caps or not 'support-weight' in caps or not 'support-metric-bps' in caps:
-            raise KsftSkipEx("device does not support nested queue scope shapers with weight")
+    _require_queues(cfg, 4)
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps'],
+                  "device does not support node scope shapers with bw_max and metric bps")
+    _require_caps(cfg, nl_shaper, 'queue',
+                  ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
 
-    cfg.groups = True;
     node_handle = nl_shaper.group({
                    'ifindex': cfg.ifindex,
                    'leaves':[{'handle': {'scope': 'queue', 'id': 1},
@@ -285,17 +300,12 @@ def qgroups(cfg, nl_shaper) -> None:
     ksft_eq(len(shapers), 0)
 
 def delegation(cfg, nl_shaper) -> None:
-    if not cfg.groups:
-        raise KsftSkipEx("device does not support node scope")
-    try:
-        caps = nl_shaper.cap_get({'ifindex': cfg.ifindex,
-                                  'scope':'node'})
-    except NlError as e:
-        if e.error == 95:
-            raise KsftSkipEx("node scope shapers not supported by the device")
-        raise
-    if not 'support-nesting' in caps:
-        raise KsftSkipEx("device does not support node scope shapers nesting")
+    _require_queues(cfg, 4)
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps', 'support-nesting'],
+                  "device does not support node scope shapers with bw_max, metric bps and nesting")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
 
     node_handle = nl_shaper.group({
                    'ifindex': cfg.ifindex,
@@ -376,19 +386,24 @@ def delegation(cfg, nl_shaper) -> None:
     ksft_eq(len(shapers), 0)
 
 def queue_update(cfg, nl_shaper) -> None:
-    if cfg.nr_queues < 4:
-        raise KsftSkipEx(f"netdev does not have enough queues min 4 reported {cfg.nr_queues}")
+    nq = _require_queues(cfg, 4)
     if not cfg.queues:
         raise KsftSkipEx("device does not support queue scope")
+
+    netnl = EthtoolFamily()
+    channels = netnl.channels_get({'header': {'dev-index': cfg.ifindex}})
+    ch_type = 'combined' if channels['combined-count'] else 'tx'
 
     for i in range(3):
         nl_shaper.set({'ifindex': cfg.ifindex,
                        'handle': {'scope': 'queue', 'id': i},
                        'metric': 'bps',
                        'bw-max': (i + 1) * 1000})
+    defer(cmd, f"ethtool -L {cfg.dev['ifname']} {ch_type} {nq}")
+
     # Delete a channel, with no shapers configured on top of the related
     # queue: no changes expected
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 3")
+    cmd(f"ethtool -L {cfg.dev['ifname']} {ch_type} 3")
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
                        'parent': {'scope': 'netdev'},
@@ -408,7 +423,7 @@ def queue_update(cfg, nl_shaper) -> None:
 
     # Delete a channel, with a shaper configured on top of the related
     # queue: the shaper must be deleted, too
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 2")
+    cmd(f"ethtool -L {cfg.dev['ifname']} {ch_type} 2")
 
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
@@ -423,7 +438,7 @@ def queue_update(cfg, nl_shaper) -> None:
                        'bw-max': 2000}])
 
     # Restore the original channels number, no expected changes
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} {cfg.nr_queues}")
+    cmd(f"ethtool -L {cfg.dev['ifname']} {ch_type} {nq}")
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
                        'parent': {'scope': 'netdev'},
@@ -443,25 +458,37 @@ def queue_update(cfg, nl_shaper) -> None:
 
 def dup_leaves(cfg, nl_shaper) -> None:
     """ Ensure that the kernel rejects duplicate leaves. """
-    if not cfg.groups:
-        raise KsftSkipEx("device does not support node scope")
+    _require_caps(cfg, nl_shaper, 'node', ['support-bw-max', 'support-metric-bps'],
+                  "device does not support node scope shapers with bw_max and metric bps")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
 
+    node_handle = None
     with ksft_raises(NlError) as cm:
-        nl_shaper.group({
+        node_handle = nl_shaper.group({
                    'ifindex': cfg.ifindex,
-                   'leaves':[{'handle': {'scope': 'queue', 'id': 0}},
-                             {'handle': {'scope': 'queue', 'id': 0}}],
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 0},
+                              'weight': 1},
+                             {'handle': {'scope': 'queue', 'id': 0},
+                              'weight': 2}],
                    'handle': {'scope':'node'},
                    'metric': 'bps',
                    'bw-max': 10000})
+
+    # Clean up in case the kernel wrongly accepted the request.
+    if node_handle:
+        _delete_shaper(cfg, nl_shaper, node_handle['handle'])
+    _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+
+    # ksft_raises() has already recorded the failure if nothing was raised.
+    if cm.exception is None:
+        return
     ksft_eq(cm.exception.error, errno.EINVAL)
 
 def main() -> None:
     with NetDrvEnv(__file__, queue_count=4) as cfg:
         cfg.queues = False
         cfg.netdev = False
-        cfg.groups = False
-        cfg.nr_queues = 0
         ksft_run([get_shapers,
                   get_caps,
                   set_qshapers,
