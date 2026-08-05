@@ -11802,20 +11802,6 @@ static bool is_bpf_rbtree_api_kfunc(u32 btf_id)
 	       btf_id == special_kfunc_list[KF_bpf_rbtree_right];
 }
 
-static bool is_bpf_iter_num_api_kfunc(u32 btf_id)
-{
-	return btf_id == special_kfunc_list[KF_bpf_iter_num_new] ||
-	       btf_id == special_kfunc_list[KF_bpf_iter_num_next] ||
-	       btf_id == special_kfunc_list[KF_bpf_iter_num_destroy];
-}
-
-static bool is_bpf_graph_api_kfunc(u32 btf_id)
-{
-	return is_bpf_list_api_kfunc(btf_id) ||
-	       is_bpf_rbtree_api_kfunc(btf_id) ||
-	       is_bpf_refcount_acquire_kfunc(btf_id);
-}
-
 static bool is_bpf_res_spin_lock_kfunc(u32 btf_id)
 {
 	return btf_id == special_kfunc_list[KF_bpf_res_spin_lock] ||
@@ -11824,28 +11810,10 @@ static bool is_bpf_res_spin_lock_kfunc(u32 btf_id)
 	       btf_id == special_kfunc_list[KF_bpf_res_spin_unlock_irqrestore];
 }
 
-static bool is_bpf_arena_kfunc(u32 btf_id)
-{
-	return btf_id == special_kfunc_list[KF_bpf_arena_alloc_pages] ||
-	       btf_id == special_kfunc_list[KF_bpf_arena_free_pages] ||
-	       btf_id == special_kfunc_list[KF_bpf_arena_reserve_pages];
-}
-
-static bool is_bpf_stream_kfunc(u32 btf_id)
-{
-	return btf_id == special_kfunc_list[KF_bpf_stream_vprintk] ||
-	       btf_id == special_kfunc_list[KF_bpf_stream_print_stack];
-}
-
 static bool kfunc_spin_allowed(struct bpf_verifier_env *env, s32 func_id, s16 offset)
 {
 	struct bpf_kfunc_meta kfunc;
 	int err;
-
-	if (is_bpf_graph_api_kfunc(func_id) || is_bpf_iter_num_api_kfunc(func_id) ||
-	    is_bpf_res_spin_lock_kfunc(func_id) || is_bpf_arena_kfunc(func_id) ||
-	    is_bpf_stream_kfunc(func_id))
-		return true;
 
 	err = fetch_kfunc_meta(env, func_id, offset, &kfunc);
 	if (err || !kfunc.flags)
