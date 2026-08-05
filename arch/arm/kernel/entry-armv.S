@@ -557,9 +557,16 @@ ENTRY(__switch_to)
 	ldmia	r4, {r4 - sl, fp, ip, lr}	@ Load all regs saved previously
 #ifdef CONFIG_VMAP_STACK
 	@
-	@ Do a dummy read from the new stack while running from the old one so
-	@ that we can rely on do_translation_fault() to fix up any stale PMD
-	@ entries covering the vmalloc region.
+	@ For a non-lazy mm switch, check_vmalloc_seq() has ensured that
+	@ that the active mm's page tables have mappings for the prev
+	@ task's stack and the next task's stack.
+	@
+	@ For a lazy mm switch the active mm's page tables have mappings
+	@ for the prev task's stack but might not have mappings for the
+	@ new task's stack. Do a dummy read from the new stack while
+	@ running from the old stack so that we can rely on
+	@ do_translation_fault() to populate missing PMD entries covering the
+	@ new task's stack in the old task's page tables.
 	@
 	ldr	r2, [ip]
 #ifdef CONFIG_KASAN_VMALLOC

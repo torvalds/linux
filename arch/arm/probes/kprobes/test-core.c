@@ -1649,24 +1649,16 @@ out:
 
 	return ret;
 }
-
+late_initcall(run_all_tests);
 
 /*
  * Module setup
  */
 
-#ifdef MODULE
-
 static void __exit kprobe_test_exit(void)
 {
 }
-
-module_init(run_all_tests)
 module_exit(kprobe_test_exit)
+
+MODULE_DESCRIPTION("Test code for ARM kprobes");
 MODULE_LICENSE("GPL");
-
-#else /* !MODULE */
-
-late_initcall(run_all_tests);
-
-#endif
