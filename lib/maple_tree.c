@@ -356,11 +356,6 @@ static __always_inline bool mte_is_root(const struct maple_enode *node)
 	return ma_is_root(mte_to_node(node));
 }
 
-static inline bool mas_is_root_limits(const struct ma_state *mas)
-{
-	return !mas->min && mas->max == ULONG_MAX;
-}
-
 static __always_inline bool mt_is_alloc(struct maple_tree *mt)
 {
 	return (mt->ma_flags & MT_FLAGS_ALLOC_RANGE);
