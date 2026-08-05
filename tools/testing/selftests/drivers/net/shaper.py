@@ -168,6 +168,73 @@ def del_nshapers(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def set_all_supported_attrs(cfg, nl_shaper) -> None:
+    """ Set every queue-scope attribute the device advertises and verify the read-back. """
+    _require_queues(cfg, 1)
+
+    _require_caps(cfg, nl_shaper, 'queue', [],
+                  "queue scope shapers not supported by the device")
+    caps = _cap_get(cfg, nl_shaper, 'queue')
+
+    attrs = {'ifindex': cfg.ifindex,
+             'handle': {'scope': 'queue', 'id': 0}}
+    expected = {'ifindex': cfg.ifindex,
+                'parent': {'scope': 'netdev'},
+                'handle': {'scope': 'queue', 'id': 0}}
+
+    rate_attrs = {'support-bw-min': ('bw-min', 10000, 100),
+                  'support-bw-max': ('bw-max', 20000, 200),
+                  'support-burst': ('burst', 3000, 30)}
+    rate_attr_supported = any(cap in caps for cap in rate_attrs)
+    bps_supported = 'support-metric-bps' in caps
+    pps_supported = 'support-metric-pps' in caps
+
+    def add_rate_attrs(metric, value_idx) -> None:
+        attrs['metric'] = metric
+        expected['metric'] = metric
+        for cap, (attr, bps_value, pps_value) in rate_attrs.items():
+            if cap not in caps:
+                continue
+
+            value = bps_value if value_idx == 0 else pps_value
+            attrs[attr] = value
+            expected[attr] = value
+
+    if rate_attr_supported:
+        if bps_supported:
+            add_rate_attrs('bps', 0)
+        elif pps_supported:
+            add_rate_attrs('pps', 1)
+
+    if 'support-priority' in caps:
+        attrs['priority'] = 1
+        expected['priority'] = 1
+    if 'support-weight' in caps:
+        attrs['weight'] = 2
+        expected['weight'] = 2
+
+    if len(attrs) == 2:
+        raise KsftSkipEx("device does not advertise any supported queue shaper attributes")
+
+    nl_shaper.set(attrs)
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 0}})
+    ksft_eq(shaper, expected)
+
+    if rate_attr_supported and bps_supported and pps_supported:
+        add_rate_attrs('pps', 1)
+        nl_shaper.set(attrs)
+
+        shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                                'handle': {'scope': 'queue', 'id': 0}})
+        ksft_eq(shaper, expected)
+
+    _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
+
 def _group_under_netdev(cfg, nl_shaper, bw_max=None):
     r"""Group queues under a netdev-scope node; caller owns node teardown.
 
@@ -1084,6 +1151,7 @@ def main() -> None:
                   del_qshapers,
                   set_nshapers,
                   del_nshapers,
+                  set_all_supported_attrs,
                   basic_groups,
                   basic_groups_with_rate,
                   qgroups,
