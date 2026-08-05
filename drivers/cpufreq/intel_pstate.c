@@ -555,47 +555,6 @@ static int intel_pstate_freq_to_hwp(struct cpudata *cpu, int freq)
 	return intel_pstate_freq_to_hwp_rel(cpu, freq, CPUFREQ_RELATION_L);
 }
 
-/**
- * intel_pstate_hybrid_hwp_adjust - Calibrate HWP performance levels.
- * @cpu: Target CPU.
- *
- * On hybrid processors, HWP may expose more performance levels than there are
- * P-states accessible through the PERF_CTL interface.  If that happens, the
- * scaling factor between HWP performance levels and CPU frequency will be less
- * than the scaling factor between P-state values and CPU frequency.
- *
- * In that case, adjust the CPU parameters used in computations accordingly.
- */
-static void intel_pstate_hybrid_hwp_adjust(struct cpudata *cpu)
-{
-	int perf_ctl_max_phys = cpu->pstate.max_pstate_physical;
-	int perf_ctl_scaling = cpu->pstate.perf_ctl_scaling;
-	int perf_ctl_turbo = pstate_funcs.get_turbo(cpu->cpu);
-	int scaling = cpu->pstate.scaling;
-	int freq;
-
-	pr_debug("CPU%d: PERF_CTL max_phys = %d\n", cpu->cpu, perf_ctl_max_phys);
-	pr_debug("CPU%d: PERF_CTL turbo = %d\n", cpu->cpu, perf_ctl_turbo);
-	pr_debug("CPU%d: PERF_CTL scaling = %d\n", cpu->cpu, perf_ctl_scaling);
-	pr_debug("CPU%d: HWP_CAP guaranteed = %d\n", cpu->cpu, cpu->pstate.max_pstate);
-	pr_debug("CPU%d: HWP_CAP highest = %d\n", cpu->cpu, cpu->pstate.turbo_pstate);
-	pr_debug("CPU%d: HWP-to-frequency scaling factor: %d\n", cpu->cpu, scaling);
-
-	if (scaling == perf_ctl_scaling)
-		return;
-
-	hwp_is_hybrid = true;
-
-	freq = perf_ctl_max_phys * perf_ctl_scaling;
-	cpu->pstate.max_pstate_physical = intel_pstate_freq_to_hwp(cpu, freq);
-
-	/*
-	 * Cast the min P-state value retrieved via pstate_funcs.get_min() to
-	 * the effective range of HWP performance levels.
-	 */
-	cpu->pstate.min_pstate = intel_pstate_freq_to_hwp(cpu, cpu->pstate.min_freq);
-}
-
 static bool turbo_is_disabled(void)
 {
 	u64 misc_en;
@@ -2293,34 +2252,70 @@ static int hwp_get_cpu_scaling(int cpu)
 	return intel_pstate_cppc_get_scaling(cpu);
 }
 
+static void intel_pstate_get_hwp_pstates(struct cpudata *cpu)
+{
+	int perf_ctl_max_phys = cpu->pstate.max_pstate_physical;
+	int perf_ctl_scaling = cpu->pstate.perf_ctl_scaling;
+	int perf_ctl_turbo = cpu->pstate.turbo_pstate;
+	int cpuid = cpu->cpu;
+
+	__intel_pstate_get_hwp_cap(cpu);
+
+	if (!pstate_funcs.get_cpu_scaling)
+		return;
+
+	pr_debug("CPU%d: PERF_CTL max_phys = %d\n", cpuid, perf_ctl_max_phys);
+	pr_debug("CPU%d: PERF_CTL turbo = %d\n", cpuid, perf_ctl_turbo);
+	pr_debug("CPU%d: PERF_CTL scaling = %d\n", cpuid, perf_ctl_scaling);
+	pr_debug("CPU%d: PERF_CTL min = %d\n", cpuid, cpu->pstate.min_pstate);
+	pr_debug("CPU%d: HWP_CAP guaranteed = %d\n", cpuid, cpu->pstate.max_pstate);
+	pr_debug("CPU%d: HWP_CAP highest = %d\n", cpuid, cpu->pstate.turbo_pstate);
+
+	cpu->pstate.scaling = pstate_funcs.get_cpu_scaling(cpuid);
+
+	pr_debug("CPU%d: HWP-to-frequency scaling = %d\n", cpuid, cpu->pstate.scaling);
+
+	/*
+	 * On hybrid processors, HWP may expose more performance levels than
+	 * there are P-states accessible through the PERF_CTL interface.  If
+	 * that happens, the scaling between HWP performance levels and CPU
+	 * frequency will be less than the scaling between P-state values and
+	 * CPU frequency.  In that case, update the maximum physical non-turbo
+	 * performance level accordingly.
+	 */
+	if (cpu->pstate.scaling != perf_ctl_scaling) {
+		int freq;
+
+		freq = perf_ctl_max_phys * perf_ctl_scaling;
+		cpu->pstate.max_pstate_physical = intel_pstate_freq_to_hwp(cpu, freq);
+
+		freq = cpu->pstate.min_freq;
+		cpu->pstate.min_pstate = intel_pstate_freq_to_hwp(cpu, freq);
+
+		hwp_is_hybrid = true;
+	}
+	/*
+	 * If the CPU is going online for the first time and it was offline
+	 * initially, asym capacity scaling may need to be updated.
+	 */
+	hybrid_update_capacity(cpu);
+}
+
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 {
 	int perf_ctl_scaling = pstate_funcs.get_scaling();
 
 	cpu->pstate.max_pstate_physical = pstate_funcs.get_max_physical(cpu->cpu);
+	cpu->pstate.turbo_pstate = pstate_funcs.get_turbo(cpu->cpu);
 	cpu->pstate.min_pstate = pstate_funcs.get_min(cpu->cpu);
 	cpu->pstate.min_freq = cpu->pstate.min_pstate * perf_ctl_scaling;
 	cpu->pstate.perf_ctl_scaling = perf_ctl_scaling;
+	cpu->pstate.scaling = perf_ctl_scaling;
 
-	if (hwp_active) {
-		__intel_pstate_get_hwp_cap(cpu);
-
-		if (pstate_funcs.get_cpu_scaling) {
-			cpu->pstate.scaling = pstate_funcs.get_cpu_scaling(cpu->cpu);
-			intel_pstate_hybrid_hwp_adjust(cpu);
-		} else {
-			cpu->pstate.scaling = perf_ctl_scaling;
-		}
-		/*
-		 * If the CPU is going online for the first time and it was
-		 * offline initially, asym capacity scaling needs to be updated.
-		 */
-		hybrid_update_capacity(cpu);
-	} else {
-		cpu->pstate.scaling = perf_ctl_scaling;
+	if (hwp_active)
+		intel_pstate_get_hwp_pstates(cpu);
+	else
 		cpu->pstate.max_pstate = pstate_funcs.get_max(cpu->cpu);
-		cpu->pstate.turbo_pstate = pstate_funcs.get_turbo(cpu->cpu);
-	}
 
 	intel_pstate_update_freq_limits(cpu);
 
