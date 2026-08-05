@@ -275,6 +275,105 @@ def invalid_set_preserves_state(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def mixed_parent_group_requires_parent(cfg, nl_shaper) -> None:
+    r"""Grouping leaves from different nodes requires an explicit parent.
+
+        netdev             netdev
+        /    \             parent=netdev
+       N1     N2  group        N
+       |      |   {Q0,Q1}     / \
+       Q0     Q1  ------->   Q0  Q1
+
+    Without an explicit parent the group is rejected; parent=netdev
+    collapses the leaves into one new node.
+    """
+    _require_queues(cfg, 2)
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps'],
+                  "device does not support node scope shapers with bw_max and metric bps")
+    _require_caps(cfg, nl_shaper, 'queue',
+                  ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
+
+    n1_handle = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 0},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': 10000})
+    n1_id = n1_handle['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+
+    n2_handle = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 2}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': 20000})
+    n2_id = n2_handle['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 1})
+
+    with ksft_raises(NlError):
+        nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 0},
+                              'weight': 3},
+                             {'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 4}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': 30000})
+
+    shaper_q0 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 0}})
+    ksft_eq(shaper_q0, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': n1_id},
+                        'handle': {'scope': 'queue', 'id': 0},
+                        'weight': 1})
+    shaper_q1 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 1}})
+    ksft_eq(shaper_q1, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': n2_id},
+                        'handle': {'scope': 'queue', 'id': 1},
+                        'weight': 2})
+
+    node_handle = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 0},
+                              'weight': 3},
+                             {'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 4}],
+                   'handle': {'scope':'node'},
+                   'parent': {'scope': 'netdev'},
+                   'metric': 'bps',
+                   'bw-max': 30000})
+    node_id = node_handle['handle']['id']
+
+    for old_id in (n1_id, n2_id):
+        with ksft_raises(NlError):
+            nl_shaper.get({'ifindex': cfg.ifindex,
+                           'handle': {'scope': 'node', 'id': old_id}})
+
+    shaper_q0 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 0}})
+    ksft_eq(shaper_q0, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': node_id},
+                        'handle': {'scope': 'queue', 'id': 0},
+                        'weight': 3})
+    shaper_q1 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 1}})
+    ksft_eq(shaper_q1, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': node_id},
+                        'handle': {'scope': 'queue', 'id': 1},
+                        'weight': 4})
+
+    for i in range(2):
+        _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': i})
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
+
 def _group_under_netdev(cfg, nl_shaper, bw_max=None):
     r"""Group queues under a netdev-scope node; caller owns node teardown.
 
@@ -1193,6 +1292,7 @@ def main() -> None:
                   del_nshapers,
                   set_all_supported_attrs,
                   invalid_set_preserves_state,
+                  mixed_parent_group_requires_parent,
                   basic_groups,
                   basic_groups_with_rate,
                   qgroups,
