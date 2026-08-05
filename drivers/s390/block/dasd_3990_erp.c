@@ -2400,6 +2400,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 	erp->startdev = device;
 	erp->memdev   = device;
 	erp->block    = cqr->block;
+	erp->filldata = cqr->filldata;
 	erp->magic    = cqr->magic;
 	erp->expires  = cqr->expires;
 	erp->retries  = device->default_retries;
