@@ -911,6 +911,7 @@ static bool pc_needs_min_freq_change(struct xe_guc_pc *pc)
 static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 {
 	int ret;
+	u32 min_freq;
 
 	lockdep_assert_held(&pc->freq_lock);
 
@@ -933,8 +934,14 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 	 * Same thing happens for Server platforms where min is listed as
 	 * RPMax
 	 */
-	if (pc_get_min_freq(pc) > pc->rp0_freq)
+	min_freq = pc_get_min_freq(pc);
+	if (min_freq > pc->rp0_freq) {
 		ret = pc_set_min_freq(pc, pc->rp0_freq);
+		if (ret)
+			goto out;
+
+		min_freq = pc->rp0_freq;
+	}
 
 	/*
 	 * Setting GT RP min frequency to 1.2GHz by default for
@@ -947,8 +954,8 @@ static int pc_adjust_freq_bounds(struct xe_guc_pc *pc)
 	 * we aren't expecting high power output across board
 	 *
 	 */
-	if (pc_needs_min_freq_change(pc))
-		ret = pc_set_min_freq(pc, max(BMG_MIN_FREQ, pc_get_min_freq(pc)));
+	if (pc_needs_min_freq_change(pc) && min_freq < BMG_MIN_FREQ)
+		ret = pc_set_min_freq(pc, BMG_MIN_FREQ);
 
 out:
 	return ret;
