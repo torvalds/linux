@@ -8,6 +8,7 @@ int idxd_load_iaa_device_defaults(struct idxd_device *idxd)
 	struct idxd_engine *engine;
 	struct idxd_group *group;
 	struct idxd_wq *wq;
+	int i;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return 0;
@@ -41,11 +42,12 @@ int idxd_load_iaa_device_defaults(struct idxd_device *idxd)
 	/* set driver_name to "crypto" */
 	strscpy_pad(wq->driver_name, "crypto");
 
-	engine = idxd->engines[0];
-
-	/* set engine group to 0 */
-	engine->group = idxd->groups[0];
-	engine->group->num_engines++;
+	/* assign all engines to group 0 */
+	for (i = 0; i < idxd->max_engines; i++) {
+		engine = idxd->engines[i];
+		engine->group = group;
+		group->num_engines++;
+	}
 
 	return 0;
 }
