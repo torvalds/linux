@@ -727,14 +727,6 @@ unsigned int regcache_get_val(struct regmap *map, const void *base,
 	return -1;
 }
 
-static int regcache_default_cmp(const void *a, const void *b)
-{
-	const struct reg_default *_a = a;
-	const struct reg_default *_b = b;
-
-	return _a->reg - _b->reg;
-}
-
 int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 {
 	struct reg_default key;
@@ -744,7 +736,7 @@ int regcache_lookup_reg(struct regmap *map, unsigned int reg)
 	key.def = 0;
 
 	r = bsearch(&key, map->reg_defaults, map->num_reg_defaults,
-		    sizeof(struct reg_default), regcache_default_cmp);
+		    sizeof(struct reg_default), regcache_defaults_cmp);
 
 	if (r)
 		return r - map->reg_defaults;
