@@ -724,6 +724,107 @@ def delete_child_reparent(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def move_queue_between_nodes(cfg, nl_shaper) -> None:
+    r"""Move a queue between nodes by re-grouping the destination node.
+
+        netdev                  netdev
+        /    \    .group N2      /    \
+       N1     N2  {Q1,Q3}       N1     N2
+      /  \    |   ------->       |    /  \
+     Q1  Q2  Q3                 Q2  Q1   Q3
+    """
+    n1_bw_max = 10000
+    n2_bw_max = 20000
+
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps', 'support-nesting'],
+                  "device does not support node scope shapers with bw_max, metric bps and nesting")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
+
+    _require_queues(cfg, 4)
+
+    # Create N1 with Q1, Q2
+    n1_handle = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 1},
+                             {'handle': {'scope': 'queue', 'id': 2},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': n1_bw_max})
+    n1_id = n1_handle['handle']['id']
+    for i in range(1, 3):
+        defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': i})
+
+    # Create N2 with Q3
+    n2_handle = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 3},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': n2_bw_max})
+    n2_id = n2_handle['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 3})
+
+    # Move Q1 from N1 to N2 by re-grouping N2 with Q1, Q3
+    nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 2},
+                             {'handle': {'scope': 'queue', 'id': 3},
+                              'weight': 1}],
+                   'handle': {'scope':'node', 'id': n2_id},
+                   'metric': 'bps',
+                   'bw-max': n2_bw_max})
+
+    shaper_n1 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'node', 'id': n1_id}})
+    ksft_eq(shaper_n1, {'ifindex': cfg.ifindex,
+                        'handle': {'scope': 'node', 'id': n1_id},
+                        'parent': {'scope': 'netdev'},
+                        'metric': 'bps',
+                        'bw-max': n1_bw_max})
+    shaper_n2 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'node', 'id': n2_id}})
+    ksft_eq(shaper_n2, {'ifindex': cfg.ifindex,
+                        'handle': {'scope': 'node', 'id': n2_id},
+                        'parent': {'scope': 'netdev'},
+                        'metric': 'bps',
+                        'bw-max': n2_bw_max})
+
+    # Verify Q1 moved to N2
+    shaper_q1 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 1}})
+    ksft_eq(shaper_q1, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': n2_id},
+                        'handle': {'scope': 'queue', 'id': 1},
+                        'weight': 2})
+
+    # Verify Q2 still under N1
+    shaper_q2 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 2}})
+    ksft_eq(shaper_q2, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': n1_id},
+                        'handle': {'scope': 'queue', 'id': 2},
+                        'weight': 1})
+
+    # Verify Q3 remained under N2
+    shaper_q3 = nl_shaper.get({'ifindex': cfg.ifindex,
+                               'handle': {'scope': 'queue', 'id': 3}})
+    ksft_eq(shaper_q3, {'ifindex': cfg.ifindex,
+                        'parent': {'scope': 'node', 'id': n2_id},
+                        'handle': {'scope': 'queue', 'id': 3},
+                        'weight': 1})
+
+    # Cleanup
+    for i in range(1, 4):
+        _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': i})
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
+
 def queue_update(cfg, nl_shaper) -> None:
     nq = _require_queues(cfg, 4)
     if not cfg.queues:
@@ -842,6 +943,7 @@ def main() -> None:
                   delegation,
                   nested_depth_limit,
                   delete_child_reparent,
+                  move_queue_between_nodes,
                   dup_leaves,
                   queue_update],
                  args=(cfg, NetshaperFamily()))
