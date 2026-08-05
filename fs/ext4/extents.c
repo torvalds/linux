@@ -2427,9 +2427,17 @@ int ext4_ext_index_trans_blocks(struct inode *inode, int extents)
 	 */
 	if (extents <= 1)
 		index = (EXT4_MAX_EXTENT_DEPTH * 2) + extents;
-	else
-		index = (EXT4_MAX_EXTENT_DEPTH * 3) +
-			DIV_ROUND_UP(extents, ext4_ext_space_block(inode, 0));
+	else {
+		int ext_max = ext4_ext_space_block(inode, 0);
+
+		index = EXT4_MAX_EXTENT_DEPTH * 3;
+		/*
+		 * Modified extents need not start at the beginning of the
+		 * leaf. Already two extents may need two leaf block
+		 * modifications...
+		 */
+		index += DIV_ROUND_UP(extents + ext_max - 1, ext_max);
+	}
 
 	return index;
 }
