@@ -332,13 +332,20 @@ struct ionic_counter_stats {
 	int queue_stats_count;
 	struct ionic_v1_stat *hdr;
 	struct rdma_stat_desc *stats_hdrs;
-	struct xarray xa_counters;
+	struct ida counter_ida;
 };
 
-struct ionic_counter {
+struct ionic_rdma_counter {
+	struct rdma_counter rdma_counter;
 	void *vals;
 	struct list_head qp_list;
 };
+
+static inline struct ionic_rdma_counter *
+to_ionic_rdma_counter(struct rdma_counter *counter)
+{
+	return container_of(counter, struct ionic_rdma_counter, rdma_counter);
+}
 
 static inline struct ionic_ibdev *to_ionic_ibdev(struct ib_device *ibdev)
 {
