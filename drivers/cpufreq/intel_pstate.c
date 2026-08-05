@@ -303,6 +303,7 @@ static bool per_cpu_limits __ro_after_init;
 static bool hwp_forced __ro_after_init;
 static bool hwp_boost __read_mostly;
 static bool hwp_is_hybrid;
+static u32 hwp_desired_mask __read_mostly = ~0U;
 
 static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
@@ -3150,7 +3151,7 @@ static void intel_cpufreq_hwp_update(struct cpudata *cpu, u32 min, u32 max,
 	value |= HWP_MAX_PERF(max);
 
 	value &= ~HWP_DESIRED_PERF(~0L);
-	value |= HWP_DESIRED_PERF(desired);
+	value |= HWP_DESIRED_PERF(desired & hwp_desired_mask);
 
 	if (value == prev)
 		return;
@@ -3760,9 +3761,9 @@ static bool hwp_check_epp(void)
 
 static bool hwp_check_dec(void)
 {
-	u64 power_ctl;
+	u64 power_ctl = 0;
 
-	rdmsrq(MSR_IA32_POWER_CTL, power_ctl);
+	rdmsrq_safe(MSR_IA32_POWER_CTL, &power_ctl);
 	return !!(power_ctl & BIT(POWER_CTL_DEC_ENABLE));
 }
 
@@ -3787,6 +3788,7 @@ static int __init intel_pstate_init(void)
 	id = x86_match_cpu(hwp_support_ids);
 	if (id) {
 		bool epp_present = hwp_check_epp();
+		bool dec_present = hwp_check_dec();
 
 		/*
 		 * If HWP is enabled already, there is no choice but to deal
@@ -3798,7 +3800,7 @@ static int __init intel_pstate_init(void)
 			no_hwp = 0;
 		} else if (no_load) {
 			return -ENODEV;
-		} else if (!epp_present && !hwp_check_dec()) {
+		} else if (!epp_present && !dec_present) {
 			/*
 			 * Avoid enabling HWP for processors without EPP support
 			 * unless the Dynamic Efficiency Control (DEC) enable
@@ -3819,6 +3821,9 @@ static int __init intel_pstate_init(void)
 			intel_cpufreq.adjust_perf = intel_cpufreq_adjust_perf;
 			if (!default_driver)
 				default_driver = &intel_pstate;
+
+			if (dec_present)
+				hwp_desired_mask = 0;
 
 			if (!id->driver_data)
 				pstate_funcs.get_cpu_scaling = hwp_get_cpu_scaling;
