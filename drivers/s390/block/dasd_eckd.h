@@ -736,6 +736,14 @@ struct dasd_eckd_private {
 
 	/* alias management */
 	struct dasd_uid uid;
+	/*
+	 * Cached copies of conf.ned->ID (the LSS) and conf.ned->unit_addr,
+	 * refreshed under ccwdev_lock. Kept outside uid because create_uid()
+	 * memsets uid before repopulating it, which would expose a transient
+	 * zero to the lockless CCW-build readers.
+	 */
+	__u8 ned_lss;
+	__u8 ned_ua;
 	struct alias_pav_group *pavgroup;
 	struct alias_lcu *lcu;
 	int count;
