@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
+# pylint: disable=too-many-lines
 
 import errno
 import glob
@@ -825,6 +826,154 @@ def move_queue_between_nodes(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def reject_reparenting(cfg, nl_shaper) -> None:
+    r"""Reject reparenting an existing node; the hierarchy stays intact.
+
+        netdev
+        /    \      rejected:  N3 -> netdev
+       N1     N2    rejected:  N1 -> N2
+      /  \    |     (both EOPNOTSUPP)
+     Q1  N3  Q2
+         |
+         Q3
+    """
+    node1_bw_max = 10000
+    node2_bw_max = 5000
+    node3_bw_max = 20000
+
+    _require_caps(cfg, nl_shaper, 'node',
+                  ['support-bw-max', 'support-metric-bps', 'support-nesting'],
+                  "device does not support node scope shapers with bw_max, metric bps and nesting")
+    _require_caps(cfg, nl_shaper, 'queue', ['support-nesting', 'support-weight'],
+                  "device does not support nested queue scope shapers with weight")
+
+    _require_queues(cfg, 4)
+
+    # Create Node1 under netdev with Q1.
+    node1_id = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': node1_bw_max})['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 1})
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'node', 'id': node1_id})
+
+    # Create Node2 under netdev with Q2.
+    node2_id = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 2},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': node2_bw_max})['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 2})
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'node', 'id': node2_id})
+
+    # Create Node3 nested under Node1 with Q3.
+    node3_id = nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 3},
+                              'weight': 1}],
+                   'handle': {'scope':'node'},
+                   'metric': 'bps',
+                   'bw-max': node3_bw_max,
+                   'parent': {'scope': 'node', 'id': node1_id}})['handle']['id']
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 3})
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'node', 'id': node3_id})
+
+    # Reparenting a nested node up to netdev must fail.
+    with ksft_raises(NlError) as cm:
+        nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 3},
+                              'weight': 1}],
+                   'handle': {'scope':'node', 'id': node3_id},
+                   'parent': {'scope': 'netdev'}})
+    if cm.exception:
+        ksft_eq(cm.exception.error, errno.EOPNOTSUPP)
+
+    # Reparenting a node under another node must fail as well.
+    with ksft_raises(NlError) as cm:
+        nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 1}],
+                   'handle': {'scope':'node', 'id': node1_id},
+                   'parent': {'scope': 'node', 'id': node2_id}})
+    if cm.exception:
+        ksft_eq(cm.exception.error, errno.EOPNOTSUPP)
+
+    # Updating a node with the same parent must succeed.
+    nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 1},
+                              'weight': 5}],
+                   'handle': {'scope':'node', 'id': node1_id},
+                   'parent': {'scope': 'netdev'}})
+
+    # Updating a node without specifying the parent must succeed.
+    nl_shaper.group({
+                   'ifindex': cfg.ifindex,
+                   'leaves':[{'handle': {'scope': 'queue', 'id': 2},
+                              'weight': 7}],
+                   'handle': {'scope':'node', 'id': node2_id}})
+
+    # The rejected reparents must have left the hierarchy intact.
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'node', 'id': node1_id}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'handle': {'scope': 'node', 'id': node1_id},
+                     'parent': {'scope': 'netdev'},
+                     'metric': 'bps',
+                     'bw-max': node1_bw_max})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'node', 'id': node2_id}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'handle': {'scope': 'node', 'id': node2_id},
+                     'parent': {'scope': 'netdev'},
+                     'metric': 'bps',
+                     'bw-max': node2_bw_max})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'node', 'id': node3_id}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'handle': {'scope': 'node', 'id': node3_id},
+                     'parent': {'scope': 'node', 'id': node1_id},
+                     'metric': 'bps',
+                     'bw-max': node3_bw_max})
+
+    # Verify the leaf weights were updated and parents unchanged.
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 1}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'parent': {'scope': 'node', 'id': node1_id},
+                     'handle': {'scope': 'queue', 'id': 1},
+                     'weight': 5})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 2}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'parent': {'scope': 'node', 'id': node2_id},
+                     'handle': {'scope': 'queue', 'id': 2},
+                     'weight': 7})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 3}})
+    ksft_eq(shaper, {'ifindex': cfg.ifindex,
+                     'parent': {'scope': 'node', 'id': node3_id},
+                     'handle': {'scope': 'queue', 'id': 3},
+                     'weight': 1})
+
+    # Cleanup. Delete the nodes explicitly instead of relying on the
+    # empty-node auto-delete: a kernel that wrongly accepts a reparent may
+    # mishandle the leaf accounting and leave a node behind. Removing them
+    # by handle keeps a failing run from leaking state into later tests.
+    for i in range(1, 4):
+        _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': i})
+    for nid in (node1_id, node2_id, node3_id):
+        _delete_shaper(cfg, nl_shaper, {'scope': 'node', 'id': nid})
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
+
 def queue_update(cfg, nl_shaper) -> None:
     nq = _require_queues(cfg, 4)
     if not cfg.queues:
@@ -944,6 +1093,7 @@ def main() -> None:
                   nested_depth_limit,
                   delete_child_reparent,
                   move_queue_between_nodes,
+                  reject_reparenting,
                   dup_leaves,
                   queue_update],
                  args=(cfg, NetshaperFamily()))
