@@ -388,7 +388,7 @@ def queue_update(cfg, nl_shaper) -> None:
                        'bw-max': (i + 1) * 1000})
     # Delete a channel, with no shapers configured on top of the related
     # queue: no changes expected
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 3", timeout=10)
+    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 3")
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
                        'parent': {'scope': 'netdev'},
@@ -408,7 +408,7 @@ def queue_update(cfg, nl_shaper) -> None:
 
     # Delete a channel, with a shaper configured on top of the related
     # queue: the shaper must be deleted, too
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 2", timeout=10)
+    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} 2")
 
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
@@ -423,7 +423,7 @@ def queue_update(cfg, nl_shaper) -> None:
                        'bw-max': 2000}])
 
     # Restore the original channels number, no expected changes
-    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} {cfg.nr_queues}", timeout=10)
+    cmd(f"ethtool -L {cfg.dev['ifname']} {cfg.rx_type} {cfg.nr_queues}")
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(shapers, [{'ifindex': cfg.ifindex,
                        'parent': {'scope': 'netdev'},
