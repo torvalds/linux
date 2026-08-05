@@ -21,6 +21,7 @@ community and getting your work upstream.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Working with the development community
 
    Development process <process/development-process>
    Submitting patches <process/submitting-patches>
@@ -37,6 +38,7 @@ kernel.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Internal API manuals
 
    Core API <core-api/index>
    Driver APIs <driver-api/index>
@@ -50,6 +52,7 @@ Various other manuals with useful information for all kernel developers.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Development tools and processes
 
    Licensing rules <process/license-rules>
    Writing documentation <doc-guide/index>
@@ -71,6 +74,7 @@ developers seeking information on the kernel's user-space APIs.
 
 .. toctree::
    :maxdepth: 1
+   :caption: User-oriented documentation
 
    Administration <admin-guide/index>
    Build system <kbuild/index>
@@ -88,6 +92,7 @@ platform firmware.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Firmware-related documentation
 
    Firmware <firmware-guide/index>
    Firmware and Devicetree <devicetree/index>
@@ -98,6 +103,7 @@ Architecture-specific documentation
 
 .. toctree::
    :maxdepth: 2
+   :caption: Architecture-specific documentation
 
    CPU architectures <arch/index>
 
@@ -111,6 +117,7 @@ to reStructuredText format, or are simply too old.
 
 .. toctree::
    :maxdepth: 1
+   :caption: Other documentation
 
    Unsorted documentation <staging/index>
 
@@ -120,6 +127,7 @@ Translations
 
 .. toctree::
    :maxdepth: 2
+   :caption: Translations
 
    Translations <translations/index>
 

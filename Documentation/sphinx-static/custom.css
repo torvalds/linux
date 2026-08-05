@@ -78,6 +78,19 @@ div.kerneltoc { background-color: #eeeeee; }
 div.kerneltoc li.current ul { background-color: white; }
 
 /*
+ * Hide toctree captions on the welcome page, they should only be shown in the
+ * sidebar.
+ */
+section#the-linux-kernel-documentation p.caption { display: none; }
+
+/*
+ * Make section titles bold in the sidebar, and decrease their bottom margin to
+ * group them with their subsections.
+ */
+div.sphinxsidebar p.caption { font-weight: bold; margin-bottom: 0; }
+div.sphinxsidebar p.caption + ul { margin-top: 0; }
+
+/*
  * The CSS magic to toggle the contents on small screens.
  */
 label.kernel-toc-title { display: none; }
