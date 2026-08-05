@@ -1126,8 +1126,6 @@ struct sdca_entity_ge {
  * within this Device
  * @max_delay: the maximum time in microseconds allowed for the Device
  * to change the ownership from Device to Host
- * @hid_report_desc: HID Report Descriptor for the HIDE Entity
- * @hid_desc: HID descriptor for the HIDE Entity
  */
 struct sdca_entity_hide {
 	unsigned int *hidtx_ids;
@@ -1137,8 +1135,6 @@ struct sdca_entity_hide {
 	unsigned int af_number_list[SDCA_MAX_FUNCTION_COUNT];
 	unsigned int hide_reside_function_num;
 	unsigned int max_delay;
-	unsigned char *hid_report_desc;
-	struct hid_descriptor hid_desc;
 };
 
 /**
@@ -1400,6 +1396,16 @@ struct sdca_fdl_data {
 };
 
 /**
+ * struct sdca_function_hid - information about a function's HID descriptors
+ * @report_desc: HID Report Descriptor for the HID Function
+ * @desc: HID descriptor for the HID Function
+ */
+struct sdca_function_hid {
+	unsigned char *report_desc;
+	struct hid_descriptor desc;
+};
+
+/**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
  * @init_table: Pointer to a table of initialization writes.
@@ -1413,6 +1419,7 @@ struct sdca_fdl_data {
  * @reset_max_delay: Maximum Function reset delay in microseconds, before an
  * error should be reported.
  * @fdl_data: FDL data for this Function, if available.
+ * @hid: HID data for this Function, if available.
  */
 struct sdca_function_data {
 	struct sdca_function_desc *desc;
@@ -1428,6 +1435,10 @@ struct sdca_function_data {
 	unsigned int reset_max_delay;
 
 	struct sdca_fdl_data fdl_data;
+
+	union {
+		struct sdca_function_hid hid;
+	};
 };
 
 static inline u32 sdca_range(struct sdca_control_range *range,

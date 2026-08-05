@@ -24,18 +24,18 @@
 
 static int sdwhid_parse(struct hid_device *hid)
 {
-	struct sdca_entity *entity = hid->driver_data;
+	struct sdca_function_data *function = hid->driver_data;
 	unsigned int rsize;
 	int ret;
 
-	rsize = le16_to_cpu(entity->hide.hid_desc.rpt_desc.wDescriptorLength);
+	rsize = le16_to_cpu(function->hid.desc.rpt_desc.wDescriptorLength);
 
 	if (!rsize || rsize > HID_MAX_DESCRIPTOR_SIZE) {
 		dev_err(&hid->dev, "invalid size of report descriptor (%u)\n", rsize);
 		return -EINVAL;
 	}
 
-	ret = hid_parse_report(hid, entity->hide.hid_report_desc, rsize);
+	ret = hid_parse_report(hid, function->hid.report_desc, rsize);
 
 	if (!ret)
 		return 0;
@@ -90,7 +90,6 @@ int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 {
 	struct device *dev = interrupt->dev;
 	struct sdca_function_data *function = interrupt->function;
-	struct sdca_entity *entity = interrupt->entity;
 	struct hid_device *hid;
 	int ret;
 
@@ -102,13 +101,13 @@ int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 
 	hid->dev.parent = dev;
 	hid->bus = BUS_SDW;
-	hid->version = le16_to_cpu(entity->hide.hid_desc.bcdHID);
+	hid->version = le16_to_cpu(function->hid.desc.bcdHID);
 
 	strscpy(hid->phys, dev_name(dev));
 	snprintf(hid->name, sizeof(hid->name), "SDCA %s:%02x",
 		 function->desc->name, function->desc->adr);
 
-	hid->driver_data = entity;
+	hid->driver_data = function;
 
 	ret = hid_add_device(hid);
 	if (ret && ret != -ENODEV) {

@@ -1364,14 +1364,13 @@ bad_list:
 	return -EINVAL;
 }
 
-static int
-find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
-		      struct fwnode_handle *entity_node, struct sdca_entity *entity)
+static int find_sdca_entity_hide(struct device *dev,
+				 struct fwnode_handle *entity_node,
+				 struct sdca_entity *entity)
 {
 	struct sdca_entity_hide *hide = &entity->hide;
 	unsigned int delay, *af_list = hide->af_number_list;
 	int nval, ret;
-	unsigned char *report_desc = NULL;
 
 	ret = fwnode_property_read_u32(entity_node,
 				       "mipi-sdca-RxUMP-ownership-transition-max-delay", &delay);
@@ -1423,23 +1422,6 @@ find_sdca_entity_hide(struct device *dev, struct fwnode_handle *function_node,
 	hide->hide_reside_function_num = nval;
 	fwnode_property_read_u32_array(entity_node,
 				       "mipi-sdca-hide-related-audio-function-list", af_list, nval);
-
-	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
-	if (nval)
-		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
-					      (u8 *)&hide->hid_desc, nval);
-
-	if (hide->hid_desc.bNumDescriptors) {
-		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
-		if (nval) {
-			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
-			if (!report_desc)
-				return -ENOMEM;
-			hide->hid_report_desc = report_desc;
-			fwnode_property_read_u8_array(function_node, "mipi-sdca-report-descriptor",
-						      report_desc, nval);
-		}
-	}
 
 	return 0;
 }
@@ -1518,7 +1500,7 @@ static int find_sdca_entity(struct device *dev, struct sdca_function_data *funct
 		ret = find_sdca_entity_ge(dev, entity_node, entity);
 		break;
 	case SDCA_ENTITY_TYPE_HIDE:
-		ret = find_sdca_entity_hide(dev, function_node, entity_node, entity);
+		ret = find_sdca_entity_hide(dev, entity_node, entity);
 		break;
 	default:
 		break;
@@ -2167,6 +2149,35 @@ static int find_sdca_filesets(struct device *dev, struct sdw_slave *sdw,
 	return 0;
 }
 
+static int find_sdca_hid(struct device *dev, struct fwnode_handle *function_node,
+			 struct sdca_function_data *function)
+{
+	int nval;
+
+	nval = fwnode_property_count_u8(function_node, "mipi-sdca-hid-descriptor");
+	if (nval)
+		fwnode_property_read_u8_array(function_node, "mipi-sdca-hid-descriptor",
+					      (u8 *)&function->hid.desc, nval);
+
+	if (function->hid.desc.bNumDescriptors) {
+		nval = fwnode_property_count_u8(function_node, "mipi-sdca-report-descriptor");
+		if (nval) {
+			unsigned char *report_desc;
+
+			report_desc = devm_kzalloc(dev, nval, GFP_KERNEL);
+			if (!report_desc)
+				return -ENOMEM;
+
+			function->hid.report_desc = report_desc;
+			fwnode_property_read_u8_array(function_node,
+						      "mipi-sdca-report-descriptor",
+						      report_desc, nval);
+		}
+	}
+
+	return 0;
+}
+
 /**
  * sdca_parse_function - parse ACPI DisCo for a Function
  * @dev: Pointer to device against which function data will be allocated.
@@ -2217,6 +2228,16 @@ int sdca_parse_function(struct device *dev, struct sdw_slave *sdw,
 	ret = find_sdca_filesets(dev, sdw, node, function);
 	if (ret)
 		return ret;
+
+	switch (function->desc->type) {
+	case SDCA_FUNCTION_TYPE_HID:
+		ret = find_sdca_hid(dev, node, function);
+		if (ret)
+			return ret;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
