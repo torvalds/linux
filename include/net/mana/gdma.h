@@ -182,6 +182,7 @@ struct gdma_general_req {
 #define GDMA_MESSAGE_V2 2
 #define GDMA_MESSAGE_V3 3
 #define GDMA_MESSAGE_V4 4
+#define GDMA_MESSAGE_V5 5
 
 struct gdma_general_resp {
 	struct gdma_resp_hdr hdr;
@@ -427,6 +428,9 @@ struct gdma_context {
 
 	/* L2 MTU */
 	u16 adapter_mtu;
+
+	/* NIC supports CQE x8 coalescing */
+	bool cqe8_coalescing_sup;
 
 	/* This maps a CQ index to the queue structure. */
 	unsigned int		max_num_cqs;

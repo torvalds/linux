@@ -178,7 +178,7 @@ static void mana_get_strings_stats(struct mana_port_context *apc, u8 **data)
 		ethtool_sprintf(data, "rx_%d_xdp_tx", i);
 		ethtool_sprintf(data, "rx_%d_xdp_redirect", i);
 		ethtool_sprintf(data, "rx_%d_pkt_len0_err", i);
-		for (j = 0; j < MANA_RXCOMP_OOB_NUM_PPI - 1; j++)
+		for (j = 0; j < MANA_CQE_COAL_PKTS_8 - 1; j++)
 			ethtool_sprintf(data,
 					"rx_%d_coalesced_cqe_%d",
 					i,
@@ -241,7 +241,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 	u64 xdp_drop;
 	u64 xdp_tx;
 	u64 pkt_len0_err;
-	u64 coalesced_cqe[MANA_RXCOMP_OOB_NUM_PPI - 1];
+	u64 coalesced_cqe[MANA_CQE_COAL_PKTS_8 - 1];
 	u64 tso_packets;
 	u64 tso_bytes;
 	u64 tso_inner_packets;
@@ -281,7 +281,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 			xdp_tx = rx_stats->xdp_tx;
 			xdp_redirect = rx_stats->xdp_redirect;
 			pkt_len0_err = rx_stats->pkt_len0_err;
-			for (j = 0; j < MANA_RXCOMP_OOB_NUM_PPI - 1; j++)
+			for (j = 0; j < MANA_CQE_COAL_PKTS_8 - 1; j++)
 				coalesced_cqe[j] = rx_stats->coalesced_cqe[j];
 		} while (u64_stats_fetch_retry(&rx_stats->syncp, start));
 
@@ -291,7 +291,7 @@ static void mana_get_ethtool_stats(struct net_device *ndev,
 		data[i++] = xdp_tx;
 		data[i++] = xdp_redirect;
 		data[i++] = pkt_len0_err;
-		for (j = 0; j < MANA_RXCOMP_OOB_NUM_PPI - 1; j++)
+		for (j = 0; j < MANA_CQE_COAL_PKTS_8 - 1; j++)
 			data[i++] = coalesced_cqe[j];
 	}
 
@@ -444,6 +444,7 @@ static int mana_get_coalesce(struct net_device *ndev,
 	struct mana_port_context *apc = netdev_priv(ndev);
 
 	kernel_coal->rx_cqe_frames =
+		apc->cqe8_coalescing_enable ? MANA_CQE_COAL_PKTS_8 :
 		apc->cqe_coalescing_enable ? MANA_RXCOMP_OOB_NUM_PPI : 1;
 
 	kernel_coal->rx_cqe_nsecs = apc->cqe_coalescing_timeout_ns;
@@ -479,15 +480,19 @@ static int mana_set_coalesce(struct net_device *ndev,
 		u16 intr_modr_tx_usec;
 		u16 intr_modr_tx_comp;
 		u8 cqe_coalescing_enable;
+		u8 cqe8_coalescing_enable;
 		bool rx_dim_enabled;
 		bool tx_dim_enabled;
 	} saved;
 	bool modr_changed = false;
 	bool dim_changed = false;
 	struct gdma_context *gc;
+	u32 max_cqe_frames;
 	int err;
 
 	gc = apc->ac->gdma_dev->gdma_context;
+	max_cqe_frames = gc->cqe8_coalescing_sup ? MANA_CQE_COAL_PKTS_8 :
+						   MANA_RXCOMP_OOB_NUM_PPI;
 
 	/* Both static and dynamic interrupt moderation (DIM) rely on the
 	 * same HW capability advertised by the PF.
@@ -502,10 +507,12 @@ static int mana_set_coalesce(struct net_device *ndev,
 	}
 
 	if (kernel_coal->rx_cqe_frames != 1 &&
-	    kernel_coal->rx_cqe_frames != MANA_RXCOMP_OOB_NUM_PPI) {
+	    kernel_coal->rx_cqe_frames != MANA_RXCOMP_OOB_NUM_PPI &&
+	    kernel_coal->rx_cqe_frames != max_cqe_frames) {
 		NL_SET_ERR_MSG_FMT(extack,
-				   "rx-frames must be 1 or %u, got %u",
+				   "rx-frames must be 1 or %u%s, got %u",
 				   MANA_RXCOMP_OOB_NUM_PPI,
+				   gc->cqe8_coalescing_sup ? " or 8" : "",
 				   kernel_coal->rx_cqe_frames);
 		return -EINVAL;
 	}
@@ -550,8 +557,11 @@ static int mana_set_coalesce(struct net_device *ndev,
 	saved.tx_dim_enabled = apc->tx_dim_enabled;
 
 	saved.cqe_coalescing_enable = apc->cqe_coalescing_enable;
+	saved.cqe8_coalescing_enable = apc->cqe8_coalescing_enable;
 	apc->cqe_coalescing_enable =
-		kernel_coal->rx_cqe_frames == MANA_RXCOMP_OOB_NUM_PPI;
+		kernel_coal->rx_cqe_frames >= MANA_RXCOMP_OOB_NUM_PPI;
+	apc->cqe8_coalescing_enable =
+		kernel_coal->rx_cqe_frames == MANA_CQE_COAL_PKTS_8;
 
 	if (!apc->port_is_up) {
 		WRITE_ONCE(apc->rx_dim_enabled, !!ec->use_adaptive_rx_coalesce);
@@ -559,7 +569,8 @@ static int mana_set_coalesce(struct net_device *ndev,
 		return 0;
 	}
 
-	if (apc->cqe_coalescing_enable != saved.cqe_coalescing_enable) {
+	if (apc->cqe_coalescing_enable != saved.cqe_coalescing_enable ||
+	    apc->cqe8_coalescing_enable != saved.cqe8_coalescing_enable) {
 		/* CQE coalescing setting is applied via RSS configuration. */
 		err = mana_config_rss(apc, TRI_STATE_TRUE, false, false);
 		if (err) {
@@ -567,6 +578,8 @@ static int mana_set_coalesce(struct net_device *ndev,
 				   err);
 			apc->cqe_coalescing_enable =
 				saved.cqe_coalescing_enable;
+			apc->cqe8_coalescing_enable =
+				saved.cqe8_coalescing_enable;
 			apc->intr_modr_rx_usec = saved.intr_modr_rx_usec;
 			apc->intr_modr_rx_comp = saved.intr_modr_rx_comp;
 			apc->intr_modr_tx_usec = saved.intr_modr_tx_usec;
