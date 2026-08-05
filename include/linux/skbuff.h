@@ -5004,6 +5004,7 @@ static inline unsigned long skb_get_nfct(const struct sk_buff *skb)
 static inline void skb_set_nfct(struct sk_buff *skb, unsigned long nfct)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
+	DEBUG_NET_WARN_ON_ONCE(skb->_nfct & NFCT_PTRMASK);
 	skb->slow_gro |= !!nfct;
 	skb->_nfct = nfct;
 #endif
