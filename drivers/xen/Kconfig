@@ -311,7 +311,7 @@ config XEN_EFI
 
 config XEN_AUTO_XLATE
 	def_bool y
-	depends on ARM || ARM64 || XEN_PVHVM
+	depends on ARM || ARM64 || X86
 	help
 	  Support for auto-translated physmap guests.
 

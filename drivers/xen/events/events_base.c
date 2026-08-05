@@ -2180,7 +2180,6 @@ static struct irq_chip xen_percpu_chip __read_mostly = {
 };
 
 #ifdef CONFIG_X86
-#ifdef CONFIG_XEN_PVHVM
 /* Vector callbacks are better than PCI interrupts to receive event
  * channel notifications because we can receive vector callbacks on any
  * vcpu and we don't need PCI support or APIC interactions. */
@@ -2242,12 +2241,6 @@ static __init void xen_alloc_callback_vector(void)
 	pr_info("Xen HVM callback vector for event delivery is enabled\n");
 	sysvec_install(HYPERVISOR_CALLBACK_VECTOR, sysvec_xen_hvm_callback);
 }
-#else
-void xen_setup_callback_vector(void) {}
-static inline void xen_init_setup_upcall_vector(void) {}
-int xen_set_upcall_vector(unsigned int cpu) {}
-static inline void xen_alloc_callback_vector(void) {}
-#endif /* CONFIG_XEN_PVHVM */
 #endif /* CONFIG_X86 */
 
 bool xen_fifo_events = true;

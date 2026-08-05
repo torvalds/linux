@@ -833,7 +833,7 @@ static void xenbus_probe(void)
  */
 static bool xs_hvm_defer_init_for_callback(void)
 {
-#ifdef CONFIG_XEN_PVHVM
+#ifdef CONFIG_X86
 	return xen_store_domain_type == XS_HVM &&
 		!xen_have_vector_callback;
 #else
