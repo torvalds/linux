@@ -288,6 +288,12 @@ out:
 	pci_dev_unlock(pdev);
 }
 
+static void __zpci_event_print_error(struct pci_dev *pdev, struct zpci_ccdf_err *ccdf)
+{
+	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
+	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
+}
+
 static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 {
 	struct zpci_dev *zdev = get_zdev_by_fid(ccdf->fid);
@@ -301,24 +307,24 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	zpci_err("error CCDF:\n");
 	zpci_err_hex(ccdf, sizeof(*ccdf));
 
-	if (zdev) {
-		mutex_lock(&zdev->state_lock);
-		rc = clp_refresh_fh(zdev->fid, &fh);
-		if (rc)
-			goto no_pdev;
-		if (!fh || ccdf->fh != fh) {
-			/* Ignore events with stale handles */
-			zpci_dbg(3, "err fid:%x, fh:%x (stale %x)\n",
-				 ccdf->fid, fh, ccdf->fh);
-			goto no_pdev;
-		}
-		zpci_update_fh(zdev, ccdf->fh);
-		if (zdev->zbus->bus)
-			pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
-	}
+	if (!zdev)
+		return __zpci_event_print_error(NULL, ccdf);
 
-	pr_err("%s: Event 0x%x reports an error for PCI function 0x%x\n",
-	       pdev ? pci_name(pdev) : "n/a", ccdf->pec, ccdf->fid);
+	mutex_lock(&zdev->state_lock);
+	rc = clp_refresh_fh(zdev->fid, &fh);
+	if (rc)
+		goto no_pdev;
+	if (!fh || ccdf->fh != fh) {
+		/* Ignore events with stale handles */
+		zpci_dbg(3, "err fid:%x, fh:%x (stale %x)\n",
+			 ccdf->fid, fh, ccdf->fh);
+		goto no_pdev;
+	}
+	zpci_update_fh(zdev, ccdf->fh);
+	if (zdev->zbus->bus)
+		pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
+
+	__zpci_event_print_error(pdev, ccdf);
 
 	if (!pdev)
 		goto no_pdev;
@@ -340,8 +346,7 @@ static void __zpci_event_error(struct zpci_ccdf_err *ccdf)
 	}
 	pci_dev_put(pdev);
 no_pdev:
-	if (zdev)
-		mutex_unlock(&zdev->state_lock);
+	mutex_unlock(&zdev->state_lock);
 	zpci_zdev_put(zdev);
 }
 
