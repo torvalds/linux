@@ -1402,6 +1402,8 @@ static void fjes_remove(struct platform_device *plat_dev)
 	if (adapter->txrx_wq)
 		destroy_workqueue(adapter->txrx_wq);
 
+	cancel_work_sync(&adapter->force_close_task);
+
 	fjes_hw_exit(hw);
 
 	netif_napi_del(&adapter->napi);
