@@ -1126,6 +1126,7 @@ static int sx150x_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_WRITE_WORD_DATA;
 	struct device *dev = &client->dev;
 	struct sx150x_pinctrl *pctl;
+	u32 irq_type;
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, i2c_funcs))
@@ -1225,10 +1226,24 @@ static int sx150x_probe(struct i2c_client *client)
 		girq->handler = handle_bad_irq;
 		girq->threaded = true;
 
+		irq_type = irq_get_trigger_type(client->irq);
+		switch (irq_type) {
+		case IRQF_TRIGGER_FALLING:
+		case IRQF_TRIGGER_LOW:
+			break;
+		case IRQF_TRIGGER_NONE:
+			irq_type = IRQF_TRIGGER_FALLING;
+			break;
+		default:
+			return dev_err_probe(dev, -EINVAL,
+					"unsupported irq trigger type %x\n",
+					irq_type);
+		}
+
 		ret = devm_request_threaded_irq(dev, client->irq, NULL,
 						sx150x_irq_thread_fn,
 						IRQF_ONESHOT | IRQF_SHARED |
-						IRQF_TRIGGER_FALLING,
+						irq_type,
 						client->name, pctl);
 		if (ret < 0)
 			return ret;
