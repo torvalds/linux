@@ -9,8 +9,9 @@
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
-#include <linux/mod_devicetable.h>
+#include <linux/lockdep.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/string_choices.h>
 #include <linux/types.h>
 
@@ -24,15 +25,13 @@ struct gpio_shared_proxy_data {
 };
 
 static int
-gpio_shared_proxy_set_unlocked(struct gpio_shared_proxy_data *proxy,
-			       int (*set_func)(struct gpio_desc *desc, int value),
-			       int value)
+gpio_shared_proxy_set_unlocked(struct gpio_shared_proxy_data *proxy, int value)
 {
 	struct gpio_shared_desc *shared_desc = proxy->shared_desc;
 	struct gpio_desc *desc = shared_desc->desc;
 	int ret = 0;
 
-	gpio_shared_lockdep_assert(shared_desc);
+	lockdep_assert_held(&shared_desc->mutex);
 
 	if (value) {
 	       /* User wants to set value to high. */
@@ -46,7 +45,7 @@ gpio_shared_proxy_set_unlocked(struct gpio_shared_proxy_data *proxy,
 			 * Current value is low, need to actually set value
 			 * to high.
 			 */
-			ret = set_func(desc, 1);
+			ret = gpiod_set_value_cansleep(desc, 1);
 			if (ret)
 				goto out;
 		}
@@ -65,7 +64,7 @@ gpio_shared_proxy_set_unlocked(struct gpio_shared_proxy_data *proxy,
 	/* We previously voted for high. */
 	if (shared_desc->highcnt == 1) {
 		/* This is the last remaining vote for high, set value  to low. */
-		ret = set_func(desc, 0);
+		ret = gpiod_set_value_cansleep(desc, 0);
 		if (ret)
 			goto out;
 	}
@@ -89,7 +88,7 @@ static int gpio_shared_proxy_request(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_shared_proxy_data *proxy = gpiochip_get_data(gc);
 	struct gpio_shared_desc *shared_desc = proxy->shared_desc;
 
-	guard(gpio_shared_desc_lock)(shared_desc);
+	guard(mutex)(&shared_desc->mutex);
 
 	proxy->shared_desc->usecnt++;
 
@@ -105,11 +104,10 @@ static void gpio_shared_proxy_free(struct gpio_chip *gc, unsigned int offset)
 	struct gpio_shared_desc *shared_desc = proxy->shared_desc;
 	int ret;
 
-	guard(gpio_shared_desc_lock)(shared_desc);
+	guard(mutex)(&shared_desc->mutex);
 
 	if (proxy->voted_high) {
-		ret = gpio_shared_proxy_set_unlocked(proxy,
-			shared_desc->can_sleep ? gpiod_set_value_cansleep : gpiod_set_value, 0);
+		ret = gpio_shared_proxy_set_unlocked(proxy, 0);
 		if (ret)
 			dev_err(proxy->dev,
 				"Failed to unset the shared GPIO value on release: %d\n", ret);
@@ -129,7 +127,7 @@ static int gpio_shared_proxy_set_config(struct gpio_chip *gc,
 	struct gpio_desc *desc = shared_desc->desc;
 	int ret;
 
-	guard(gpio_shared_desc_lock)(shared_desc);
+	guard(mutex)(&shared_desc->mutex);
 
 	if (shared_desc->usecnt > 1) {
 		if (shared_desc->cfg != cfg) {
@@ -157,7 +155,7 @@ static int gpio_shared_proxy_direction_input(struct gpio_chip *gc,
 	struct gpio_desc *desc = shared_desc->desc;
 	int dir;
 
-	guard(gpio_shared_desc_lock)(shared_desc);
+	guard(mutex)(&shared_desc->mutex);
 
 	if (shared_desc->usecnt == 1) {
 		dev_dbg(proxy->dev,
@@ -187,7 +185,7 @@ static int gpio_shared_proxy_direction_output(struct gpio_chip *gc,
 	struct gpio_desc *desc = shared_desc->desc;
 	int ret, dir;
 
-	guard(gpio_shared_desc_lock)(shared_desc);
+	guard(mutex)(&shared_desc->mutex);
 
 	if (shared_desc->usecnt == 1) {
 		dev_dbg(proxy->dev,
@@ -219,14 +217,7 @@ static int gpio_shared_proxy_direction_output(struct gpio_chip *gc,
 		return -EPERM;
 	}
 
-	return gpio_shared_proxy_set_unlocked(proxy, gpiod_direction_output, value);
-}
-
-static int gpio_shared_proxy_get(struct gpio_chip *gc, unsigned int offset)
-{
-	struct gpio_shared_proxy_data *proxy = gpiochip_get_data(gc);
-
-	return gpiod_get_value(proxy->shared_desc->desc);
+	return gpio_shared_proxy_set_unlocked(proxy, value);
 }
 
 static int gpio_shared_proxy_get_cansleep(struct gpio_chip *gc,
@@ -237,29 +228,14 @@ static int gpio_shared_proxy_get_cansleep(struct gpio_chip *gc,
 	return gpiod_get_value_cansleep(proxy->shared_desc->desc);
 }
 
-static int gpio_shared_proxy_do_set(struct gpio_shared_proxy_data *proxy,
-				    int (*set_func)(struct gpio_desc *desc, int value),
-				    int value)
-{
-	guard(gpio_shared_desc_lock)(proxy->shared_desc);
-
-	return gpio_shared_proxy_set_unlocked(proxy, set_func, value);
-}
-
-static int gpio_shared_proxy_set(struct gpio_chip *gc, unsigned int offset,
-				 int value)
-{
-	struct gpio_shared_proxy_data *proxy = gpiochip_get_data(gc);
-
-	return gpio_shared_proxy_do_set(proxy, gpiod_set_value, value);
-}
-
 static int gpio_shared_proxy_set_cansleep(struct gpio_chip *gc,
 					  unsigned int offset, int value)
 {
 	struct gpio_shared_proxy_data *proxy = gpiochip_get_data(gc);
 
-	return gpio_shared_proxy_do_set(proxy, gpiod_set_value_cansleep, value);
+	guard(mutex)(&proxy->shared_desc->mutex);
+
+	return gpio_shared_proxy_set_unlocked(proxy, value);
 }
 
 static int gpio_shared_proxy_get_direction(struct gpio_chip *gc,
@@ -302,20 +278,25 @@ static int gpio_shared_proxy_probe(struct auxiliary_device *adev,
 	gc->label = dev_name(dev);
 	gc->parent = dev;
 	gc->owner = THIS_MODULE;
-	gc->can_sleep = shared_desc->can_sleep;
+	/*
+	 * Under the descriptor mutex the proxy may call
+	 * gpiod_set_config()/gpiod_direction_*(), which can reach pinctrl
+	 * paths that take a mutex (e.g. gpiod_set_config() ->
+	 * gpiochip_generic_config() -> pinctrl_gpio_set_config()), independent
+	 * of the underlying chip's can_sleep. So the descriptor lock must be a
+	 * mutex and the proxy gpiochip is therefore always sleeping; drive the
+	 * underlying GPIO through the cansleep value accessors, which are valid
+	 * for both sleeping and non-sleeping chips.
+	 */
+	gc->can_sleep = true;
 
 	gc->request = gpio_shared_proxy_request;
 	gc->free = gpio_shared_proxy_free;
 	gc->set_config = gpio_shared_proxy_set_config;
 	gc->direction_input = gpio_shared_proxy_direction_input;
 	gc->direction_output = gpio_shared_proxy_direction_output;
-	if (gc->can_sleep) {
-		gc->set = gpio_shared_proxy_set_cansleep;
-		gc->get = gpio_shared_proxy_get_cansleep;
-	} else {
-		gc->set = gpio_shared_proxy_set;
-		gc->get = gpio_shared_proxy_get;
-	}
+	gc->set = gpio_shared_proxy_set_cansleep;
+	gc->get = gpio_shared_proxy_get_cansleep;
 	gc->get_direction = gpio_shared_proxy_get_direction;
 	gc->to_irq = gpio_shared_proxy_to_irq;
 

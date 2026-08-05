@@ -20,7 +20,6 @@
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mm.h>
 #include <linux/objtool.h>
 #include <linux/sched.h>

@@ -4,7 +4,7 @@
 
 #include <linux/list.h>
 #include <linux/kobject.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/dmi.h>
 
 /* enum dmi_field is in mod_devicetable.h */
 

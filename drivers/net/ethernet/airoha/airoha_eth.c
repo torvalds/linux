@@ -178,10 +178,15 @@ static void airoha_fe_maccr_init(struct airoha_eth *eth)
 {
 	int p;
 
-	for (p = 1; p <= ARRAY_SIZE(eth->ports); p++)
+	for (p = 1; p <= ARRAY_SIZE(eth->ports); p++) {
 		airoha_fe_set(eth, REG_GDM_FWD_CFG(p),
 			      GDM_TCP_CKSUM_MASK | GDM_UDP_CKSUM_MASK |
 			      GDM_IP4_CKSUM_MASK | GDM_DROP_CRC_ERR_MASK);
+		airoha_fe_rmw(eth, REG_GDM_LEN_CFG(p),
+			      GDM_SHORT_LEN_MASK | GDM_LONG_LEN_MASK,
+			      FIELD_PREP(GDM_SHORT_LEN_MASK, 60) |
+			      FIELD_PREP(GDM_LONG_LEN_MASK, AIROHA_MAX_RX_SIZE));
+	}
 
 	airoha_fe_rmw(eth, REG_CDM_VLAN_CTRL(1), CDM_VLAN_MASK,
 		      FIELD_PREP(CDM_VLAN_MASK, 0x8100));
@@ -944,6 +949,25 @@ static void airoha_qdma_wake_netdev_txqs(struct airoha_queue *q)
 	q->txq_stopped = false;
 }
 
+static void airoha_unmap_xmit_buf(struct airoha_eth *eth,
+				  struct airoha_queue_entry *e)
+{
+	switch (e->dma_type) {
+	case AIROHA_DMA_MAP_PAGE:
+		dma_unmap_page(eth->dev, e->dma_addr, e->dma_len,
+			       DMA_TO_DEVICE);
+		break;
+	case AIROHA_DMA_MAP_SINGLE:
+		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
+				 DMA_TO_DEVICE);
+		break;
+	case AIROHA_DMA_UNMAPPED:
+	default:
+		break;
+	}
+	e->dma_type = AIROHA_DMA_UNMAPPED;
+}
+
 static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct airoha_tx_irq_queue *irq_q;
@@ -1006,9 +1030,7 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 		skb = e->skb;
 		e->skb = NULL;
 
-		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
-				 DMA_TO_DEVICE);
-		e->dma_addr = 0;
+		airoha_unmap_xmit_buf(eth, e);
 		list_add_tail(&e->list, &q->tx_list);
 
 		WRITE_ONCE(desc->msg0, 0);
@@ -1177,12 +1199,10 @@ static void airoha_qdma_tx_cleanup(struct airoha_qdma *qdma)
 			struct airoha_qdma_desc *desc = &q->desc[j];
 			struct sk_buff *skb = e->skb;
 
-			if (!e->dma_addr)
+			if (e->dma_type == AIROHA_DMA_UNMAPPED)
 				continue;
 
-			dma_unmap_single(qdma->eth->dev, e->dma_addr,
-					 e->dma_len, DMA_TO_DEVICE);
-			e->dma_addr = 0;
+			airoha_unmap_xmit_buf(qdma->eth, e);
 			list_add_tail(&e->list, &q->tx_list);
 
 			WRITE_ONCE(desc->ctrl, 0);
@@ -1831,13 +1851,24 @@ static void airoha_update_hw_stats(struct airoha_gdm_dev *dev)
 	spin_unlock(&port->stats_lock);
 }
 
+static void airoha_dev_set_xmit_frame_size(struct net_device *netdev)
+{
+	struct airoha_gdm_dev *dev = netdev_priv(netdev);
+
+	airoha_ppe_set_xmit_frame_size(dev);
+	if (!airoha_is_lan_gdm_dev(dev))
+		airoha_fe_rmw(dev->eth, REG_WAN_MTU0, WAN_MTU0_MASK,
+			      FIELD_PREP(WAN_MTU0_MASK,
+					 VLAN_ETH_HLEN + netdev->mtu));
+}
+
 static int airoha_dev_open(struct net_device *netdev)
 {
-	int err, len = ETH_HLEN + netdev->mtu + ETH_FCS_LEN;
 	struct airoha_gdm_dev *dev = netdev_priv(netdev);
 	struct airoha_gdm_port *port = dev->port;
-	u32 cur_len, pse_port = FE_PSE_PORT_PPE1;
 	struct airoha_qdma *qdma = dev->qdma;
+	u32 pse_port = FE_PSE_PORT_PPE1;
+	int err;
 
 	netif_tx_start_all_queues(netdev);
 	err = airoha_set_vip_for_gdm_port(dev, true);
@@ -1851,19 +1882,7 @@ static int airoha_dev_open(struct net_device *netdev)
 		airoha_fe_clear(qdma->eth, REG_GDM_INGRESS_CFG(port->id),
 				GDM_STAG_EN_MASK);
 
-	cur_len = airoha_fe_get(qdma->eth, REG_GDM_LEN_CFG(port->id),
-				GDM_LONG_LEN_MASK);
-	if (!port->users || len > cur_len) {
-		/* Opening a sibling net_device with a larger MTU updates the
-		 * MTU of already running devices. This is required to allow
-		 * multiple net_devices with different MTUs to share the same
-		 * GDM port.
-		 */
-		airoha_fe_rmw(qdma->eth, REG_GDM_LEN_CFG(port->id),
-			      GDM_SHORT_LEN_MASK | GDM_LONG_LEN_MASK,
-			      FIELD_PREP(GDM_SHORT_LEN_MASK, 60) |
-			      FIELD_PREP(GDM_LONG_LEN_MASK, len));
-	}
+	airoha_dev_set_xmit_frame_size(netdev);
 	port->users++;
 
 	if (!airoha_is_lan_gdm_dev(dev) &&
@@ -1873,30 +1892,6 @@ static int airoha_dev_open(struct net_device *netdev)
 				    pse_port);
 
 	return 0;
-}
-
-static void airoha_set_port_mtu(struct airoha_eth *eth,
-				struct airoha_gdm_port *port)
-{
-	u32 len = 0;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(port->devs); i++) {
-		struct airoha_gdm_dev *dev = port->devs[i];
-		struct net_device *netdev;
-
-		if (!dev)
-			continue;
-
-		netdev = netdev_from_priv(dev);
-		if (netif_running(netdev))
-			len = max_t(u32, len, netdev->mtu);
-	}
-	len += ETH_HLEN + ETH_FCS_LEN;
-
-	airoha_fe_rmw(eth, REG_GDM_LEN_CFG(port->id),
-		      GDM_LONG_LEN_MASK,
-		      FIELD_PREP(GDM_LONG_LEN_MASK, len));
 }
 
 static int airoha_dev_stop(struct net_device *netdev)
@@ -1909,7 +1904,7 @@ static int airoha_dev_stop(struct net_device *netdev)
 	airoha_set_vip_for_gdm_port(dev, false);
 
 	if (--port->users)
-		airoha_set_port_mtu(dev->eth, port);
+		airoha_ppe_set_xmit_frame_size(dev);
 	else
 		airoha_set_gdm_port_fwd_cfg(qdma->eth,
 					    REG_GDM_FWD_CFG(port->id),
@@ -1962,10 +1957,6 @@ static int airoha_enable_gdm2_loopback(struct airoha_gdm_dev *dev)
 		      FIELD_PREP(LPBK_CHAN_MASK, chan) |
 		      LBK_GAP_MODE_MASK | LBK_LEN_MODE_MASK |
 		      LBK_CHAN_MODE_MASK | LPBK_EN_MASK);
-	airoha_fe_rmw(eth, REG_GDM_LEN_CFG(AIROHA_GDM2_IDX),
-		      GDM_SHORT_LEN_MASK | GDM_LONG_LEN_MASK,
-		      FIELD_PREP(GDM_SHORT_LEN_MASK, 60) |
-		      FIELD_PREP(GDM_LONG_LEN_MASK, AIROHA_MAX_MTU));
 	/* Forward the traffic to the proper GDM port */
 	pse_port = port->id == AIROHA_GDM3_IDX ? FE_PSE_PORT_GDM3
 					       : FE_PSE_PORT_GDM4;
@@ -2098,7 +2089,7 @@ static int airoha_dev_change_mtu(struct net_device *netdev, int mtu)
 
 	WRITE_ONCE(netdev->mtu, mtu);
 	if (port->users)
-		airoha_set_port_mtu(dev->eth, port);
+		airoha_dev_set_xmit_frame_size(netdev);
 
 	return 0;
 }
@@ -2193,8 +2184,8 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	struct netdev_queue *txq;
 	struct airoha_queue *q;
 	LIST_HEAD(tx_list);
+	dma_addr_t addr;
 	int i = 0, qid;
-	void *data;
 	u16 index;
 	u8 fport;
 
@@ -2250,23 +2241,21 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
-	len = skb_headlen(skb);
-	data = skb->data;
-
 	e = list_first_entry(&q->tx_list, struct airoha_queue_entry,
 			     list);
+	len = skb_headlen(skb);
+	addr = dma_map_single(netdev->dev.parent, skb->data, len,
+			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(netdev->dev.parent, addr)))
+		goto error_unlock;
+
+	e->dma_type = AIROHA_DMA_MAP_SINGLE;
 	index = e - q->entry;
 
 	while (true) {
 		struct airoha_qdma_desc *desc = &q->desc[index];
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		dma_addr_t addr;
 		u32 val;
-
-		addr = dma_map_single(netdev->dev.parent, data, len,
-				      DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(netdev->dev.parent, addr)))
-			goto error_unmap;
 
 		list_move_tail(&e->list, &tx_list);
 		e->skb = i == nr_frags - 1 ? skb : NULL;
@@ -2291,8 +2280,13 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 		if (++i == nr_frags)
 			break;
 
-		data = skb_frag_address(frag);
 		len = skb_frag_size(frag);
+		addr = skb_frag_dma_map(netdev->dev.parent, frag, 0, len,
+					DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(netdev->dev.parent, addr)))
+			goto error_unmap;
+
+		e->dma_type = AIROHA_DMA_MAP_PAGE;
 	}
 	q->queued += i;
 
@@ -2313,11 +2307,8 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 
 error_unmap:
-	list_for_each_entry(e, &tx_list, list) {
-		dma_unmap_single(netdev->dev.parent, e->dma_addr, e->dma_len,
-				 DMA_TO_DEVICE);
-		e->dma_addr = 0;
-	}
+	list_for_each_entry(e, &tx_list, list)
+		airoha_unmap_xmit_buf(dev->eth, e);
 	list_splice(&tx_list, &q->tx_list);
 error_unlock:
 	spin_unlock_bh(&q->lock);

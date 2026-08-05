@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/math.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>

@@ -461,6 +461,24 @@ struct xe_reg_sr;
 		XE_RTP_PASTE_FOREACH(ACTION_, COMMA, (__VA_ARGS__))	\
 	}
 
+/*
+ * Note: ARRAY_SIZE() cannot be used here because it expands through
+ * __must_be_array() -> __BUILD_BUG_ON_ZERO_MSG() -> _Static_assert inside
+ * sizeof(struct{}), which clang < 21 rejects when the compound literal
+ * contains non-compile-time-constant initializers.
+ */
+#define XE_RTP_TABLE_SR(...) { \
+	.entries = (const struct xe_rtp_entry_sr[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry_sr[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry_sr), \
+}
+
+#define XE_RTP_TABLE(...) { \
+	.entries = (const struct xe_rtp_entry[]){__VA_ARGS__}, \
+	.n_entries = sizeof((const struct xe_rtp_entry[]){__VA_ARGS__}) / \
+		sizeof(struct xe_rtp_entry), \
+}
+
 #define XE_RTP_PROCESS_CTX_INITIALIZER(arg__) _Generic((arg__),							\
 	struct xe_hw_engine * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_ENGINE },	\
 	struct xe_gt * :	(struct xe_rtp_process_ctx){ { (void *)(arg__) }, XE_RTP_PROCESS_TYPE_GT },	\
@@ -471,12 +489,12 @@ void xe_rtp_process_ctx_enable_active_tracking(struct xe_rtp_process_ctx *ctx,
 					       size_t n_entries);
 
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
-			  const struct xe_rtp_entry_sr *entries,
-			  size_t n_entries, struct xe_reg_sr *sr,
+			  const struct xe_rtp_table_sr *table,
+			  struct xe_reg_sr *sr,
 			  bool process_in_vf);
 
 void xe_rtp_process(struct xe_rtp_process_ctx *ctx,
-		    const struct xe_rtp_entry *entries);
+		    const struct xe_rtp_table *table);
 
 /* Match functions to be used with XE_RTP_MATCH_FUNC */
 

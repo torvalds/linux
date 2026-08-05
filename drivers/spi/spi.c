@@ -19,7 +19,6 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
-#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
@@ -3670,6 +3669,9 @@ static inline void __spi_mark_resumed(struct spi_controller *ctlr)
 int spi_controller_suspend(struct spi_controller *ctlr)
 {
 	int ret = 0;
+
+	if (ctlr->cur_msg && spi_controller_is_target(ctlr) && ctlr->target_abort)
+		ctlr->target_abort(ctlr);
 
 	/* Basically no-ops for non-queued controllers */
 	if (ctlr->queued) {

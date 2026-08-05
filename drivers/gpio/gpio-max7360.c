@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/max7360.h>
 #include <linux/minmax.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

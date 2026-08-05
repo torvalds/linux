@@ -24,7 +24,7 @@
 #define LINUX_PCI_H
 
 #include <linux/args.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/pci.h>
 
 #include <linux/types.h>
 #include <linux/sizes.h>

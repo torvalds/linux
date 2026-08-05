@@ -187,6 +187,8 @@ mediatek_gpio_irq_type(struct irq_data *d, unsigned int type)
 	struct mtk_gc *rg = gpiochip_get_data(gc);
 	u32 mask = BIT(mt7621_gpio_hwirq_to_offset(d->hwirq, rg));
 
+	guard(gpio_generic_lock_irqsave)(&rg->chip);
+
 	if (type == IRQ_TYPE_PROBE) {
 		if ((rg->rising | rg->falling |
 		     rg->hlevel | rg->llevel) & mask)
@@ -270,9 +272,9 @@ static const struct irq_chip mt7621_irq_chip = {
 };
 
 static void
-mt7621_gpio_remove(struct platform_device *pdev)
+mt7621_gpio_remove(void *data)
 {
-	struct mtk *priv = platform_get_drvdata(pdev);
+	struct mtk *priv = data;
 	int offset, virq;
 
 	if (priv->gpio_irq > 0)
@@ -464,23 +466,23 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	mtk->num_gpios = MTK_BANK_WIDTH * MTK_BANK_CNT;
 	platform_set_drvdata(pdev, mtk);
 
+	if (mtk->gpio_irq > 0) {
+		ret = mt7621_gpio_irq_setup(pdev, mtk);
+		if (ret)
+			return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, mt7621_gpio_remove, mtk);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < MTK_BANK_CNT; i++) {
 		ret = mediatek_gpio_bank_probe(dev, i);
 		if (ret)
 			return ret;
 	}
 
-	if (mtk->gpio_irq > 0) {
-		ret = mt7621_gpio_irq_setup(pdev, mtk);
-		if (ret)
-			goto fail;
-	}
-
 	return 0;
-
-fail:
-	mt7621_gpio_remove(pdev);
-	return ret;
 }
 
 static const struct of_device_id mediatek_gpio_match[] = {
@@ -491,7 +493,6 @@ MODULE_DEVICE_TABLE(of, mediatek_gpio_match);
 
 static struct platform_driver mediatek_gpio_driver = {
 	.probe = mediatek_gpio_probe,
-	.remove = mt7621_gpio_remove,
 	.driver = {
 		.name = "mt7621_gpio",
 		.of_match_table = mediatek_gpio_match,

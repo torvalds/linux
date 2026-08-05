@@ -680,8 +680,8 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	/* Update VM owner at userq submit-time for page-fault attribution. */
 	amdgpu_vm_set_task_info(&fpriv->vm);
 
-	r = xa_err(xa_store_irq(&adev->userq_doorbell_xa, index, queue,
-				GFP_KERNEL));
+	r = xa_insert_irq(&adev->userq_doorbell_xa, index, queue,
+			  GFP_KERNEL);
 	if (r)
 		goto clean_mqd;
 

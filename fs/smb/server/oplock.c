@@ -278,9 +278,23 @@ struct oplock_info *opinfo_get(struct ksmbd_file *fp)
 	return opinfo;
 }
 
-static struct oplock_info *opinfo_get_list(struct ksmbd_inode *ci)
+struct oplock_snapshot {
+	bool durable_open;
+	bool durable_detached;
+	unsigned long long fid;
+};
+
+static struct oplock_info *opinfo_get_list(struct ksmbd_inode *ci,
+					   struct ksmbd_file *skip_fp,
+					   struct oplock_snapshot *snapshot)
 {
 	struct oplock_info *opinfo;
+
+	if (snapshot) {
+		snapshot->durable_open = false;
+		snapshot->durable_detached = false;
+		snapshot->fid = KSMBD_NO_FID;
+	}
 
 	down_read(&ci->m_lock);
 	opinfo = list_first_entry_or_null(&ci->m_op_list, struct oplock_info,
@@ -294,6 +308,16 @@ static struct oplock_info *opinfo_get_list(struct ksmbd_inode *ci)
 				atomic_dec(&opinfo->refcount);
 				opinfo = NULL;
 			}
+		}
+
+		if (opinfo && snapshot && opinfo->o_fp &&
+		    opinfo->o_fp != skip_fp &&
+		    READ_ONCE(opinfo->o_fp->is_durable)) {
+			snapshot->durable_open = true;
+			snapshot->durable_detached =
+				!READ_ONCE(opinfo->o_fp->conn) ||
+				!READ_ONCE(opinfo->o_fp->tcon);
+			snapshot->fid = opinfo->fid;
 		}
 	}
 	up_read(&ci->m_lock);
@@ -314,7 +338,7 @@ void opinfo_put(struct oplock_info *opinfo)
 
 static bool ksmbd_inode_has_lease(struct ksmbd_inode *ci)
 {
-	struct oplock_info *opinfo = opinfo_get_list(ci);
+	struct oplock_info *opinfo = opinfo_get_list(ci, NULL, NULL);
 	bool is_lease;
 
 	if (!opinfo)
@@ -1180,6 +1204,36 @@ again:
 	return err;
 }
 
+struct oplock_break_entry {
+	struct list_head	list;
+	struct oplock_info	*opinfo;
+};
+
+static int oplock_break_add(struct list_head *head, struct oplock_info *opinfo)
+{
+	struct oplock_break_entry *ent;
+
+	ent = kmalloc_obj(struct oplock_break_entry, KSMBD_DEFAULT_GFP);
+	if (!ent)
+		return -ENOMEM;
+
+	ent->opinfo = opinfo;
+	list_add_tail(&ent->list, head);
+	return 0;
+}
+
+static void oplock_break_drain_none(struct list_head *head)
+{
+	struct oplock_break_entry *ent, *tmp;
+
+	list_for_each_entry_safe(ent, tmp, head, list) {
+		oplock_break(ent->opinfo, SMB2_OPLOCK_LEVEL_NONE, NULL, false);
+		list_del(&ent->list);
+		opinfo_put(ent->opinfo);
+		kfree(ent);
+	}
+}
+
 void destroy_lease_table(struct ksmbd_conn *conn)
 {
 	struct lease_table *lb, *lbtmp;
@@ -1289,6 +1343,7 @@ void smb_send_parent_lease_break_noti(struct ksmbd_file *fp,
 {
 	struct oplock_info *opinfo;
 	struct ksmbd_inode *p_ci = NULL;
+	LIST_HEAD(brk_list);
 
 	if (lctx->version != 2)
 		return;
@@ -1314,11 +1369,13 @@ void smb_send_parent_lease_break_noti(struct ksmbd_file *fp,
 				continue;
 			}
 
-			oplock_break(opinfo, SMB2_OPLOCK_LEVEL_NONE, NULL, false);
-			opinfo_put(opinfo);
+			if (oplock_break_add(&brk_list, opinfo))
+				opinfo_put(opinfo);
 		}
 	}
 	up_read(&p_ci->m_lock);
+
+	oplock_break_drain_none(&brk_list);
 
 	ksmbd_inode_put(p_ci);
 }
@@ -1327,6 +1384,7 @@ void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp)
 {
 	struct oplock_info *opinfo;
 	struct ksmbd_inode *p_ci = NULL;
+	LIST_HEAD(brk_list);
 
 	rcu_read_lock();
 	opinfo = rcu_dereference(fp->f_opinfo);
@@ -1355,11 +1413,13 @@ void smb_lazy_parent_lease_break_close(struct ksmbd_file *fp)
 				continue;
 			}
 
-			oplock_break(opinfo, SMB2_OPLOCK_LEVEL_NONE, NULL, false);
-			opinfo_put(opinfo);
+			if (oplock_break_add(&brk_list, opinfo))
+				opinfo_put(opinfo);
 		}
 	}
 	up_read(&p_ci->m_lock);
+
+	oplock_break_drain_none(&brk_list);
 
 	ksmbd_inode_put(p_ci);
 }
@@ -1385,6 +1445,7 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 	struct oplock_info *opinfo = NULL, *prev_opinfo = NULL;
 	struct ksmbd_inode *ci = fp->f_ci;
 	struct lease_table *new_lb = NULL;
+	struct oplock_snapshot prev_op_snapshot;
 	bool prev_op_has_lease;
 	bool prev_durable_open = false;
 	bool prev_durable_detached = false;
@@ -1452,7 +1513,7 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 			goto out;
 		}
 	}
-	prev_opinfo = opinfo_get_list(ci);
+	prev_opinfo = opinfo_get_list(ci, fp, &prev_op_snapshot);
 	if (!prev_opinfo ||
 	    (prev_opinfo->level == SMB2_OPLOCK_LEVEL_NONE && lctx)) {
 		opinfo_put(prev_opinfo);
@@ -1474,13 +1535,9 @@ int smb_grant_oplock(struct ksmbd_work *work, int req_op_level, u64 pid,
 		goto op_break_not_needed;
 	}
 
-	if (prev_opinfo->o_fp && prev_opinfo->o_fp != fp &&
-	    prev_opinfo->o_fp->is_durable) {
-		prev_durable_open = true;
-		prev_durable_detached = !prev_opinfo->o_fp->conn ||
-					!prev_opinfo->o_fp->tcon;
-		prev_fid = prev_opinfo->fid;
-	}
+	prev_durable_open = prev_op_snapshot.durable_open;
+	prev_durable_detached = prev_op_snapshot.durable_detached;
+	prev_fid = prev_op_snapshot.fid;
 
 	err = oplock_break(prev_opinfo, break_level, work,
 			   share_ret < 0 && prev_opinfo->is_lease);
@@ -1571,7 +1628,7 @@ static bool smb_break_all_write_oplock(struct ksmbd_work *work,
 	struct oplock_info *brk_opinfo;
 	bool sent_break = false;
 
-	brk_opinfo = opinfo_get_list(fp->f_ci);
+	brk_opinfo = opinfo_get_list(fp->f_ci, NULL, NULL);
 	if (!brk_opinfo)
 		return false;
 	if (brk_opinfo->level != SMB2_OPLOCK_LEVEL_BATCH &&
@@ -1602,9 +1659,11 @@ static void __smb_break_all_levII_oplock(struct ksmbd_work *work,
 					 bool send_interim, bool send_oplock_break)
 {
 	struct oplock_info *op, *brk_op;
+	struct oplock_break_entry *ent, *tmp;
 	struct ksmbd_inode *ci;
 	struct ksmbd_conn *conn = work->conn;
 	bool sent_interim = false;
+	LIST_HEAD(brk_list);
 
 	if (!test_share_config_flag(work->tcon->share_conf,
 				    KSMBD_SHARE_FLAG_OPLOCKS))
@@ -1646,6 +1705,22 @@ static void __smb_break_all_levII_oplock(struct ksmbd_work *work,
 			    SMB2_LEASE_KEY_SIZE))
 			goto next;
 		brk_op->open_trunc = is_trunc;
+
+		/*
+		 * Defer the break until ci->m_lock is released: oplock_break()
+		 * may block waiting for the lease break acknowledgment, and the
+		 * close that wakes that wait needs ci->m_lock for write.
+		 */
+		if (!oplock_break_add(&brk_list, brk_op))
+			continue;
+next:
+		opinfo_put(brk_op);
+	}
+	up_read(&ci->m_lock);
+
+	list_for_each_entry_safe(ent, tmp, &brk_list, list) {
+		brk_op = ent->opinfo;
+
 		if (!brk_op->is_lease && !send_oplock_break) {
 			brk_op->level = SMB2_OPLOCK_LEVEL_NONE;
 			brk_op->op_state = OPLOCK_STATE_NONE;
@@ -1657,10 +1732,10 @@ static void __smb_break_all_levII_oplock(struct ksmbd_work *work,
 				     false);
 		}
 		sent_interim = true;
-next:
+		list_del(&ent->list);
 		opinfo_put(brk_op);
+		kfree(ent);
 	}
-	up_read(&ci->m_lock);
 
 	if (op)
 		opinfo_put(op);

@@ -207,6 +207,7 @@ int panthor_device_init(struct panthor_device *ptdev)
 	*dummy_page_virt = 1;
 
 	INIT_WORK(&ptdev->reset.work, panthor_device_reset_work);
+	disable_work(&ptdev->reset.work);
 	ptdev->reset.wq = alloc_ordered_workqueue("panthor-reset-wq", 0);
 	if (!ptdev->reset.wq)
 		return -ENOMEM;
@@ -284,6 +285,9 @@ int panthor_device_init(struct panthor_device *ptdev)
 		goto err_unplug_fw;
 
 	panthor_gem_init(ptdev);
+
+	/* Now that everything is initialized, we can enable the reset work. */
+	enable_work(&ptdev->reset.work);
 
 	/* ~3 frames */
 	pm_runtime_set_autosuspend_delay(ptdev->base.dev, 50);

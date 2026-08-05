@@ -8,7 +8,6 @@
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>

@@ -70,14 +70,14 @@
 #include <xen/gntalloc.h>
 #include <xen/events.h>
 
-static int limit = 1024;
-module_param(limit, int, 0644);
+static unsigned int limit = 1024;
+module_param(limit, uint, 0644);
 MODULE_PARM_DESC(limit, "Maximum number of grants that may be allocated by "
 		"the gntalloc device");
 
 static LIST_HEAD(gref_list);
 static DEFINE_MUTEX(gref_mutex);
-static int gref_size;
+static unsigned int gref_size;
 
 struct notify_info {
 	uint16_t pgoff:12;    /* Bits 0-11: Offset of the byte to clear */
@@ -272,11 +272,18 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 	int rc = 0;
 	struct ioctl_gntalloc_alloc_gref op;
 	uint32_t *gref_ids;
+	unsigned int limit_snapshot;
 
 	pr_debug("%s: priv %p\n", __func__, priv);
 
 	if (copy_from_user(&op, arg, sizeof(op))) {
 		rc = -EFAULT;
+		goto out;
+	}
+
+	limit_snapshot = READ_ONCE(limit);
+	if (op.count > limit_snapshot) {
+		rc = -ENOSPC;
 		goto out;
 	}
 
@@ -292,14 +299,16 @@ static long gntalloc_ioctl_alloc(struct gntalloc_file_private_data *priv,
 	 * are about to enforce, removing them here is a good idea.
 	 */
 	do_cleanup();
-	if (gref_size + op.count > limit) {
+	limit_snapshot = READ_ONCE(limit);
+	if (gref_size > limit_snapshot ||
+	    op.count > limit_snapshot - gref_size) {
 		mutex_unlock(&gref_mutex);
 		rc = -ENOSPC;
 		goto out_free;
 	}
 	gref_size += op.count;
 	op.index = priv->index;
-	priv->index += op.count * PAGE_SIZE;
+	priv->index += (uint64_t)op.count * PAGE_SIZE;
 	mutex_unlock(&gref_mutex);
 
 	rc = add_grefs(&op, gref_ids, priv);

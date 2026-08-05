@@ -87,8 +87,10 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 	__be16 *tag;
 	u16 rx;
 
-	if (unlikely(!pskb_may_pull(skb, YT921X_TAG_LEN)))
+	if (unlikely(!pskb_may_pull(skb, YT921X_TAG_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	tag = dsa_etype_header_pos_rx(skb);
 
@@ -96,6 +98,7 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 		dev_warn_ratelimited(&netdev->dev,
 				     "Unexpected EtherType 0x%04x\n",
 				     ntohs(tag[0]));
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -104,6 +107,7 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely((rx & YT921X_TAG_PORT_EN) == 0)) {
 		dev_warn_ratelimited(&netdev->dev,
 				     "Unexpected rx tag 0x%04x\n", rx);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -112,6 +116,7 @@ yt921x_tag_rcv(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(!skb->dev)) {
 		dev_warn_ratelimited(&netdev->dev,
 				     "Couldn't decode source port %u\n", port);
+		kfree_skb(skb);
 		return NULL;
 	}
 
