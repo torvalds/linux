@@ -35,21 +35,21 @@
  * Translation of compile time offsets to generic runtime pointers:
  */
 
-static inline struct cpuid_regs *
-cpuid_table_regs_p(const struct cpuid_table *t, unsigned long regs_offset)
+static inline struct cpuid_regs *cpuid_table_regs_p(const struct cpuid_table *t,
+						    unsigned long regs_offset)
 {
 	return (struct cpuid_regs *)((unsigned long)(&t->leaves) + regs_offset);
 }
 
-static inline struct leaf_parse_info *
-cpuid_table_info_p(const struct cpuid_table *t, unsigned long info_offset)
+static inline struct leaf_parse_info *cpuid_table_info_p(const struct cpuid_table *t,
+							 unsigned long info_offset)
 {
 	return (struct leaf_parse_info *)((unsigned long)(&t->leaves) + info_offset);
 }
 
 /**
- * struct cpuid_read_output - Output of a CPUID read operation
- * @regs:	Pointer to an array of CPUID outputs, where each array element covers the
+ * struct cpuid_output - Output of a CPUID operation
+ * @regs:	Pointer to an array of CPUID results, where each array element covers the
  *		full EAX->EDX output range.
  * @info:	Pointer to query info; for saving the number of filled elements at @regs.
  *
@@ -59,7 +59,7 @@ cpuid_table_info_p(const struct cpuid_table *t, unsigned long info_offset)
  *
  * See struct cpuid_parse_entry.read().
  */
-struct cpuid_read_output {
+struct cpuid_output {
 	struct cpuid_regs	*regs;
 	struct leaf_parse_info	*info;
 };
@@ -74,8 +74,8 @@ struct cpuid_read_output {
  *		passed to cpuid_table_info_p().
  * @maxcnt:	Maximum number of output storage entries available for the CPUID query.
  * @read:	Read function for this entry.  It must save the parsed CPUID output to the passed
- *		'struct cpuid_read_output'->regs array of size >= @maxcnt.  It must set
- *		'struct cpuid_read_output'->info.nr_entries to the number of CPUID output entries
+ *		'struct cpuid_output'->regs array of size >= @maxcnt.  It must set
+ *		'struct cpuid_output'->info.nr_entries to the number of CPUID output entries
  *		parsed and filled.  A generic implementation is provided at cpuid_read_generic().
  */
 struct cpuid_parse_entry {
@@ -84,7 +84,7 @@ struct cpuid_parse_entry {
 	unsigned int	regs_offs;
 	unsigned int	info_offs;
 	unsigned int	maxcnt;
-	void		(*read)(const struct cpuid_parse_entry *e, const struct cpuid_read_output *o);
+	void		(*read)(const struct cpuid_parse_entry *e, const struct cpuid_output *o);
 };
 
 #define __CPUID_PARSE_ENTRY(_leaf, _subleaf, _suffix, _reader_fn)		\
