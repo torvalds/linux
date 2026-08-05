@@ -77,7 +77,7 @@ static ssize_t lcd_power_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->get_power)
-		rc = sprintf(buf, "%d\n", ld->ops->get_power(ld));
+		rc = sysfs_emit(buf, "%d\n", ld->ops->get_power(ld));
 	else
 		rc = -ENXIO;
 	mutex_unlock(&ld->ops_lock);
@@ -118,7 +118,7 @@ static ssize_t contrast_show(struct device *dev,
 
 	mutex_lock(&ld->ops_lock);
 	if (ld->ops && ld->ops->get_contrast)
-		rc = sprintf(buf, "%d\n", ld->ops->get_contrast(ld));
+		rc = sysfs_emit(buf, "%d\n", ld->ops->get_contrast(ld));
 	mutex_unlock(&ld->ops_lock);
 
 	return rc;
@@ -154,7 +154,7 @@ static ssize_t max_contrast_show(struct device *dev,
 {
 	struct lcd_device *ld = to_lcd_device(dev);
 
-	return sprintf(buf, "%d\n", ld->props.max_contrast);
+	return sysfs_emit(buf, "%d\n", ld->props.max_contrast);
 }
 static DEVICE_ATTR_RO(max_contrast);
 
