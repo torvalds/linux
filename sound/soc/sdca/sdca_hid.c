@@ -86,6 +86,12 @@ static const struct hid_ll_driver sdw_hid_driver = {
 	.raw_request = sdwhid_raw_request,
 };
 
+/**
+ * sdca_add_hid_device - create a new SDCA HID device
+ * @interrupt: Pointer to the SDCA interrupt information structure.
+ *
+ * Return: Zero on success, and a negative error code on failure.
+ */
 int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 {
 	struct device *dev = interrupt->dev;
