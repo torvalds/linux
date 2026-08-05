@@ -331,6 +331,26 @@ static void nbd_mark_nsock_dead(struct nbd_device *nbd, struct nbd_sock *nsock,
 	nsock->sent = 0;
 }
 
+static void nbd_apply_limits(struct queue_limits *lim, u32 flags)
+{
+	lim->features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA | BLK_FEAT_ROTATIONAL);
+	lim->max_hw_discard_sectors = 0;
+	lim->max_write_zeroes_sectors = 0;
+
+	if (flags & NBD_FLAG_SEND_TRIM)
+		lim->max_hw_discard_sectors = UINT_MAX >> SECTOR_SHIFT;
+	if (flags & NBD_FLAG_SEND_FLUSH) {
+		lim->features |= BLK_FEAT_WRITE_CACHE;
+		if (flags & NBD_FLAG_SEND_FUA)
+			lim->features |= BLK_FEAT_FUA;
+	}
+
+	if (flags & NBD_FLAG_ROTATIONAL)
+		lim->features |= BLK_FEAT_ROTATIONAL;
+	if (flags & NBD_FLAG_SEND_WRITE_ZEROES)
+		lim->max_write_zeroes_sectors = UINT_MAX >> SECTOR_SHIFT;
+}
+
 static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize, loff_t blksize)
 {
 	struct queue_limits lim;
@@ -352,23 +372,7 @@ static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize, loff_t blksize)
 		return 0;
 
 	lim = queue_limits_start_update(nbd->disk->queue);
-	if (nbd->config->flags & NBD_FLAG_SEND_TRIM)
-		lim.max_hw_discard_sectors = UINT_MAX >> SECTOR_SHIFT;
-	else
-		lim.max_hw_discard_sectors = 0;
-	if (!(nbd->config->flags & NBD_FLAG_SEND_FLUSH)) {
-		lim.features &= ~(BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA);
-	} else if (nbd->config->flags & NBD_FLAG_SEND_FUA) {
-		lim.features |= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA;
-	} else {
-		lim.features |= BLK_FEAT_WRITE_CACHE;
-		lim.features &= ~BLK_FEAT_FUA;
-	}
-	if (nbd->config->flags & NBD_FLAG_ROTATIONAL)
-		lim.features |= BLK_FEAT_ROTATIONAL;
-	if (nbd->config->flags & NBD_FLAG_SEND_WRITE_ZEROES)
-		lim.max_write_zeroes_sectors = UINT_MAX >> SECTOR_SHIFT;
-
+	nbd_apply_limits(&lim, nbd->config->flags);
 	lim.logical_block_size = blksize;
 	lim.physical_block_size = blksize;
 	error = queue_limits_commit_update_frozen(nbd->disk->queue, &lim);
@@ -1469,8 +1473,13 @@ static void nbd_config_put(struct nbd_device *nbd)
 	if (refcount_dec_and_mutex_lock(&nbd->config_refs,
 					&nbd->config_lock)) {
 		struct nbd_config *config = nbd->config;
+		struct queue_limits lim;
 		nbd_dev_dbg_close(nbd);
 		invalidate_disk(nbd->disk);
+		/* reset queue limits to default */
+		lim = queue_limits_start_update(nbd->disk->queue);
+		nbd_apply_limits(&lim, 0);
+		queue_limits_commit_update(nbd->disk->queue, &lim);
 		if (nbd->config->bytesize)
 			kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 		if (test_and_clear_bit(NBD_RT_HAS_PID_FILE,
