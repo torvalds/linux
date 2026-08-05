@@ -371,7 +371,7 @@ struct workqueue_struct {
 	int			saved_max_active; /* WQ: saved max_active */
 	int			saved_min_active; /* WQ: saved min_active */
 
-	struct workqueue_attrs	*unbound_attrs;	/* PW: only for unbound wqs */
+	struct workqueue_attrs	*attrs;	/* PW: workqueue attributes */
 	struct pool_workqueue __rcu *dfl_pwq;   /* PW: only for unbound wqs */
 
 #ifdef CONFIG_SYSFS
@@ -759,7 +759,7 @@ static struct pool_workqueue *unbound_pwq(struct workqueue_struct *wq, int cpu)
  * unbound_effective_cpumask - effective cpumask of an unbound workqueue
  * @wq: workqueue of interest
  *
- * @wq->unbound_attrs->cpumask contains the cpumask requested by the user which
+ * @wq->attrs->cpumask contains the cpumask requested by the user which
  * is masked with wq_unbound_cpumask to determine the effective cpumask. The
  * default pwq is always mapped to the pool with the current effective cpumask.
  */
@@ -5098,7 +5098,7 @@ static void rcu_free_wq(struct rcu_head *rcu)
 
 	wq_free_lockdep(wq);
 	free_percpu(wq->cpu_pwq);
-	free_workqueue_attrs(wq->unbound_attrs);
+	free_workqueue_attrs(wq->attrs);
 	kfree(wq);
 }
 
@@ -5548,7 +5548,7 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 	/* all pwqs have been created successfully, let's install'em */
 	mutex_lock(&ctx->wq->mutex);
 
-	copy_workqueue_attrs(ctx->wq->unbound_attrs, ctx->attrs);
+	copy_workqueue_attrs(ctx->wq->attrs, ctx->attrs);
 
 	/* save the previous pwqs and install the new ones */
 	for_each_possible_cpu(cpu)
@@ -5635,7 +5635,7 @@ static void unbound_wq_update_pwq(struct workqueue_struct *wq, int cpu)
 
 	lockdep_assert_held(&wq_pool_mutex);
 
-	if (!(wq->flags & WQ_UNBOUND) || wq->unbound_attrs->ordered)
+	if (!(wq->flags & WQ_UNBOUND) || wq->attrs->ordered)
 		return;
 
 	/*
@@ -5645,7 +5645,7 @@ static void unbound_wq_update_pwq(struct workqueue_struct *wq, int cpu)
 	 */
 	target_attrs = unbound_wq_update_pwq_attrs_buf;
 
-	copy_workqueue_attrs(target_attrs, wq->unbound_attrs);
+	copy_workqueue_attrs(target_attrs, wq->attrs);
 	wqattrs_actualize_cpumask(target_attrs, wq_unbound_cpumask);
 
 	/* nothing to do if the target cpumask matches the current pwq */
@@ -5903,8 +5903,8 @@ static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 		return NULL;
 
 	if (flags & WQ_UNBOUND) {
-		wq->unbound_attrs = alloc_workqueue_attrs_noprof();
-		if (!wq->unbound_attrs)
+		wq->attrs = alloc_workqueue_attrs_noprof();
+		if (!wq->attrs)
 			goto err_free_wq;
 	}
 
@@ -5999,7 +5999,7 @@ err_unlock_free_node_nr_active:
 		free_node_nr_active(wq->node_nr_active);
 	}
 err_free_wq:
-	free_workqueue_attrs(wq->unbound_attrs);
+	free_workqueue_attrs(wq->attrs);
 	kfree(wq);
 	return NULL;
 err_unlock_destroy:
@@ -6943,7 +6943,7 @@ int workqueue_online_cpu(unsigned int cpu)
 
 	/* update pod affinity of unbound workqueues */
 	list_for_each_entry(wq, &workqueues, list) {
-		struct workqueue_attrs *attrs = wq->unbound_attrs;
+		struct workqueue_attrs *attrs = wq->attrs;
 
 		if (wq->flags & WQ_UNBOUND) {
 			const struct wq_pod_type *pt = wqattrs_pod_type(attrs);
@@ -6978,7 +6978,7 @@ int workqueue_offline_cpu(unsigned int cpu)
 	cpumask_clear_cpu(cpu, wq_online_cpumask);
 
 	list_for_each_entry(wq, &workqueues, list) {
-		struct workqueue_attrs *attrs = wq->unbound_attrs;
+		struct workqueue_attrs *attrs = wq->attrs;
 
 		if (wq->flags & WQ_UNBOUND) {
 			const struct wq_pod_type *pt = wqattrs_pod_type(attrs);
@@ -7158,7 +7158,7 @@ static int workqueue_apply_unbound_cpumask(const cpumask_var_t unbound_cpumask)
 		if (!(wq->flags & WQ_UNBOUND) || (wq->flags & __WQ_DESTROYING))
 			continue;
 
-		ctx = apply_wqattrs_prepare(wq, wq->unbound_attrs, unbound_cpumask);
+		ctx = apply_wqattrs_prepare(wq, wq->attrs, unbound_cpumask);
 		if (IS_ERR(ctx)) {
 			ret = PTR_ERR(ctx);
 			break;
@@ -7376,7 +7376,7 @@ static ssize_t wq_nice_show(struct device *dev, struct device_attribute *attr,
 	int written;
 
 	mutex_lock(&wq->mutex);
-	written = scnprintf(buf, PAGE_SIZE, "%d\n", wq->unbound_attrs->nice);
+	written = scnprintf(buf, PAGE_SIZE, "%d\n", wq->attrs->nice);
 	mutex_unlock(&wq->mutex);
 
 	return written;
@@ -7393,7 +7393,7 @@ static struct workqueue_attrs *wq_sysfs_prep_attrs(struct workqueue_struct *wq)
 	if (!attrs)
 		return NULL;
 
-	copy_workqueue_attrs(attrs, wq->unbound_attrs);
+	copy_workqueue_attrs(attrs, wq->attrs);
 	return attrs;
 }
 
@@ -7430,7 +7430,7 @@ static ssize_t wq_cpumask_show(struct device *dev,
 
 	mutex_lock(&wq->mutex);
 	written = scnprintf(buf, PAGE_SIZE, "%*pb\n",
-			    cpumask_pr_args(wq->unbound_attrs->cpumask));
+			    cpumask_pr_args(wq->attrs->cpumask));
 	mutex_unlock(&wq->mutex);
 	return written;
 }
@@ -7466,13 +7466,13 @@ static ssize_t wq_affn_scope_show(struct device *dev,
 	int written;
 
 	mutex_lock(&wq->mutex);
-	if (wq->unbound_attrs->affn_scope == WQ_AFFN_DFL)
+	if (wq->attrs->affn_scope == WQ_AFFN_DFL)
 		written = scnprintf(buf, PAGE_SIZE, "%s (%s)\n",
 				    wq_affn_names[WQ_AFFN_DFL],
 				    wq_affn_names[wq_affn_dfl]);
 	else
 		written = scnprintf(buf, PAGE_SIZE, "%s\n",
-				    wq_affn_names[wq->unbound_attrs->affn_scope]);
+				    wq_affn_names[wq->attrs->affn_scope]);
 	mutex_unlock(&wq->mutex);
 
 	return written;
@@ -7507,7 +7507,7 @@ static ssize_t wq_affinity_strict_show(struct device *dev,
 	struct workqueue_struct *wq = dev_to_wq(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			 wq->unbound_attrs->affn_strict);
+			 wq->attrs->affn_strict);
 }
 
 static ssize_t wq_affinity_strict_store(struct device *dev,
@@ -7680,7 +7680,7 @@ int workqueue_sysfs_register(struct workqueue_struct *wq)
 	dev_set_name(&wq_dev->dev, "%s", wq->name);
 
 	/*
-	 * unbound_attrs are created separately.  Suppress uevent until
+	 * attrs are created separately.  Suppress uevent until
 	 * everything is ready.
 	 */
 	dev_set_uevent_suppress(&wq_dev->dev, true);

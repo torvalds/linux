@@ -85,7 +85,7 @@ def wq_type_str(wq):
         if wq.flags & WQ_ORDERED:
             return f'{"ordered":{wq_type_len}}'
         else:
-            if wq.unbound_attrs.affn_strict:
+            if wq.attrs.affn_strict:
                 return f'{"unbound,S":{wq_type_len}}'
             else:
                 return f'{"unbound":{wq_type_len}}'
@@ -205,8 +205,8 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
         continue
 
     print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
-    if wq.unbound_attrs.value_() != 0:
-        print(f' {cpumask_str(wq.unbound_attrs.cpumask):{ucpus_len}}', end='')
+    if wq.attrs.value_() != 0:
+        print(f' {cpumask_str(wq.attrs.cpumask):{ucpus_len}}', end='')
     else:
         print(f' {"":{ucpus_len}}', end='')
 
