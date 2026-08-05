@@ -1971,7 +1971,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 
 		/* walk the alias backwards to extract the id and work out
 		 * the 'stem' string */
-		while (isdigit(*(end-1)) && end > start)
+		while (end > start && isdigit(*(end - 1)))
 			end--;
 		len = end - start;
 
