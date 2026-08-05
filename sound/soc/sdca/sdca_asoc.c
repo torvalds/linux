@@ -458,7 +458,7 @@ static int entity_pde_event(struct snd_soc_dapm_widget *widget,
 					   entity->pde.max_delay,
 					   entity->pde.num_max_delay);
 	if (ret)
-		dev_err(component->dev, "%s: PDE transition %x -> %x failed, err=%d\n",
+		dev_err(component->dev, "%s: pde transition %x -> %x failed: %d\n",
 			entity->label, from, to, ret);
 
 	return ret;
