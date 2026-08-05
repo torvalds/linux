@@ -2160,11 +2160,6 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	device->path_interval = DASD_ECKD_PATH_INTERVAL;
 	device->aq_timeouts = DASD_RETRIES_MAX;
 
-	/* default ESE fulltrack write aggressiveness from the module parameter */
-	device->ft_bias = min_t(unsigned int, full_track_bias, DASD_FT_BIAS_MAX);
-	/* only the "always" endpoint forces fulltrack unconditionally here */
-	device->fulltrack = (device->ft_bias >= DASD_FT_BIAS_MAX) ? 1 : 0;
-
 	if (private->conf.gneq) {
 		value = 1;
 		for (i = 0; i < private->conf.gneq->timeout.value; i++)
@@ -2218,6 +2213,13 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 
 	/* Read Volume Information */
 	dasd_eckd_read_vol_info(device);
+
+	/*
+	 * is_ese() now reflects the hardware ESE state, so derive the default
+	 * fulltrack write bias from the module parameter.
+	 */
+	device->ft_bias = min_t(unsigned int, full_track_bias, DASD_FT_BIAS_MAX);
+	dasd_ft_bias_apply(device);
 
 	/* Read Extent Pool Information */
 	dasd_eckd_read_ext_pool_info(device);
@@ -3171,6 +3173,13 @@ out:
 static int dasd_eckd_format_device(struct dasd_device *base,
 				   struct format_data_t *fdata, int enable_pav)
 {
+	/*
+	 * A full format (start_unit == 0) returns the device to a fully sparse
+	 * state, so restart the heuristic from ft1 without an offline cycle.
+	 */
+	if (fdata->start_unit == 0)
+		dasd_ft_bias_apply(base);
+
 	return dasd_eckd_format_process_data(base, fdata, enable_pav, 0, NULL,
 					     0, NULL);
 }
@@ -3230,6 +3239,69 @@ static void clear_format_track(struct dasd_format_entry *format,
 	spin_unlock_irqrestore(&block->format_lock, flags);
 }
 
+/*
+ * Adaptive ft_bias heuristic, called once per IO from dasd_eckd_build_cp().
+ * Probes the device formatting state by briefly switching to ft0 and measuring
+ * the NRF rate; parameters are derived from ft_bias.
+ */
+static void dasd_ese_heuristic_tick(struct dasd_device *basedev)
+{
+	int ios, nrf, rate;
+
+	if (atomic_inc_return(&basedev->ese_io_cnt) < (int)basedev->ese_probe_interval)
+		return;
+
+	/*
+	 * One wins the race to evaluate, the rest see ios == 0 after the
+	 * xchg and return early, preventing redundant state transitions.
+	 */
+	ios = atomic_xchg(&basedev->ese_io_cnt, 0);
+	if (ios <= 0)
+		return;
+
+	switch (basedev->ese_probe_state) {
+	case DASD_ESE_HEU_FT1_ACTIVE:
+		/* Start ft0 probe window, reset NRF counter for clean measurement */
+		basedev->fulltrack          = 0;
+		basedev->ese_probe_state    = DASD_ESE_HEU_PROBING;
+		basedev->ese_probe_interval = basedev->ese_heu_probe_window;
+		atomic_set(&basedev->ese_nrf_window, 0);
+		break;
+
+	case DASD_ESE_HEU_PROBING:
+	case DASD_ESE_HEU_FT0_STABLE:
+		nrf  = atomic_xchg(&basedev->ese_nrf_window, 0);
+		rate = (int)((u64)nrf * 1000 / ios);
+		if (rate > (int)basedev->ese_heu_nrf_high) {
+			/* NRF rate high: device still sparse, ft1 is better */
+			basedev->fulltrack          = 1;
+			basedev->ese_probe_state    = DASD_ESE_HEU_FT1_ACTIVE;
+			basedev->ese_probe_interval = basedev->ese_heu_start_interval;
+		} else if (basedev->ese_probe_state == DASD_ESE_HEU_PROBING) {
+			/*
+			 * NRF rate low: device mostly formatted, ft0 is faster.
+			 * Re-probe frequently at first, then back off below.
+			 */
+			basedev->fulltrack          = 0;
+			basedev->ese_probe_state    = DASD_ESE_HEU_FT0_STABLE;
+			basedev->ese_probe_interval = basedev->ese_heu_probe_window;
+		} else {
+			/*
+			 * Still stable in ft0: re-assert plain-write mode so a
+			 * fulltrack value left behind by a racing sysfs write
+			 * self-corrects, and back off the re-probe interval
+			 * (double it, capped at max_interval) so a long-lived
+			 * formatted device is not probed more often than needed.
+			 */
+			basedev->fulltrack          = 0;
+			basedev->ese_probe_interval =
+				min(basedev->ese_probe_interval * 2,
+				    basedev->ese_heu_max_interval);
+		}
+		break;
+	}
+}
+
 static void dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_req *cqr,
 				 struct irb *irb)
 {
@@ -3254,6 +3326,8 @@ static void dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_r
 	block = cqr->block;
 	base = block->base;
 	private = base->private;
+	if (dasd_ese_adaptive(base))
+		atomic_inc(&base->ese_nrf_window);
 	blksize = block->bp_block;
 	recs_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
 
@@ -4016,6 +4090,14 @@ static int dasd_eckd_release_space_full(struct dasd_device *device)
 		return PTR_ERR(cqr);
 
 	rc = dasd_sleep_on_interruptible(cqr);
+
+	if (!rc) {
+		/*
+		 * Releasing all space (RAS) wipes every track and the device is fully
+		 * sparse again, so restart the heuristic from ft1.
+		 */
+		dasd_ft_bias_apply(device);
+	}
 
 	dasd_sfree_request(cqr, cqr->memdev);
 
@@ -5185,6 +5267,11 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	struct dasd_ccw_req *cqr;
 
 	basedev = block->base;
+	if (dasd_ese_adaptive(basedev))
+		dasd_ese_heuristic_tick(basedev);
+	else
+		/* re-assert the endpoint mode: a stale heuristic write cannot stick */
+		basedev->fulltrack = (basedev->ft_bias >= DASD_FT_BIAS_MAX) ? 1 : 0;
 	private = basedev->private;
 
 	/* Calculate number of blocks/records per track. */
