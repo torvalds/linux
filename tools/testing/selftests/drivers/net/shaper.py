@@ -235,6 +235,46 @@ def set_all_supported_attrs(cfg, nl_shaper) -> None:
     shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
     ksft_eq(len(shapers), 0)
 
+def invalid_set_preserves_state(cfg, nl_shaper) -> None:
+    """ Verify a rejected .set leaves the existing shaper configuration unchanged. """
+    nq = _require_queues(cfg, 1)
+    _require_caps(cfg, nl_shaper, 'queue',
+                  ['support-bw-max', 'support-metric-bps'],
+                  "device does not support queue scope bw_max with bps metric")
+
+    initial = {'ifindex': cfg.ifindex,
+               'parent': {'scope': 'netdev'},
+               'handle': {'scope': 'queue', 'id': 0},
+               'metric': 'bps',
+               'bw-max': 10000}
+    nl_shaper.set({'ifindex': cfg.ifindex,
+                   'handle': {'scope': 'queue', 'id': 0},
+                   'metric': 'bps',
+                   'bw-max': 10000})
+    defer(_delete_shaper, cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+
+    with ksft_raises(NlError):
+        nl_shaper.set({'ifindex': cfg.ifindex,
+                       'handle': {'scope': 'node', 'id': 0},
+                       'metric': 'bps',
+                       'bw-max': 20000})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 0}})
+    ksft_eq(shaper, initial)
+
+    with ksft_raises(NlError):
+        nl_shaper.set({'ifindex': cfg.ifindex,
+                       'handle': {'scope': 'queue', 'id': nq},
+                       'metric': 'bps',
+                       'bw-max': 20000})
+    shaper = nl_shaper.get({'ifindex': cfg.ifindex,
+                            'handle': {'scope': 'queue', 'id': 0}})
+    ksft_eq(shaper, initial)
+
+    _delete_shaper(cfg, nl_shaper, {'scope': 'queue', 'id': 0})
+    shapers = nl_shaper.get({'ifindex': cfg.ifindex}, dump=True)
+    ksft_eq(len(shapers), 0)
+
 def _group_under_netdev(cfg, nl_shaper, bw_max=None):
     r"""Group queues under a netdev-scope node; caller owns node teardown.
 
@@ -1152,6 +1192,7 @@ def main() -> None:
                   set_nshapers,
                   del_nshapers,
                   set_all_supported_attrs,
+                  invalid_set_preserves_state,
                   basic_groups,
                   basic_groups_with_rate,
                   qgroups,
