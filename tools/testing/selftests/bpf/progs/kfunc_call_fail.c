@@ -4,6 +4,18 @@
 #include <bpf/bpf_helpers.h>
 #include "../test_kmods/bpf_testmod_kfunc.h"
 
+static struct bpf_spin_lock kfunc_call_lock SEC(".data.A");
+
+SEC("?tc")
+int kfunc_call_test_spin_lock_unsafe(struct __sk_buff *skb)
+{
+	bpf_spin_lock(&kfunc_call_lock);
+	bpf_kfunc_trigger_ctx_check();
+	bpf_spin_unlock(&kfunc_call_lock);
+
+	return 0;
+}
+
 struct syscall_test_args {
 	__u8 data[16];
 	size_t size;
