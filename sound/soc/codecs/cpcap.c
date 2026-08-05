@@ -1256,6 +1256,7 @@ static int cpcap_voice_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *dai)
 {
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_component *component = dai->component;
 	struct device *dev = component->dev;
 	struct cpcap_audio *cpcap = snd_soc_component_get_drvdata(component);
@@ -1289,7 +1290,7 @@ static int cpcap_voice_hw_params(struct snd_pcm_substream *substream,
 			return err;
 	}
 
-	return 0;
+	return snd_soc_runtime_set_dai_fmt(rtd, rtd->dai_link->dai_fmt);
 }
 
 static int cpcap_voice_set_dai_sysclk(struct snd_soc_dai *codec_dai, int clk_id,
