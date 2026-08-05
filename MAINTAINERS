@@ -4634,7 +4634,7 @@ F:	rust/helpers/cpumask.c
 
 BITMAP API [RUST]
 M:	Alice Ryhl <aliceryhl@google.com>
-M:	Burak Emir <bqe@google.com>
+M:	Burak Emir <burak.emir@gmail.com>
 R:	Yury Norov <yury.norov@gmail.com>
 S:	Maintained
 F:	lib/find_bit_benchmark_rust.rs
@@ -9617,7 +9617,7 @@ M:	Chao Yu <chao@kernel.org>
 R:	Yue Hu <zbestahu@gmail.com>
 R:	Jeffle Xu <jefflexu@linux.alibaba.com>
 R:	Sandeep Dhavale <dhavale@google.com>
-R:	Hongbo Li <lihongbo22@huawei.com>
+R:	Hongbo Li <hongbohbli@tencent.com>
 R:	Chunhai Guo <guochunhai@vivo.com>
 L:	linux-erofs@lists.ozlabs.org
 S:	Maintained
@@ -14193,7 +14193,7 @@ F:	virt/kvm/*
 KERNEL VIRTUAL MACHINE FOR ARM64 (KVM/arm64)
 M:	Marc Zyngier <maz@kernel.org>
 M:	Oliver Upton <oupton@kernel.org>
-R:	Fuad Tabba <tabba@google.com>
+R:	Fuad Tabba <fuad.tabba@linux.dev>
 R:	Joey Gouly <joey.gouly@arm.com>
 R:	Steffen Eiden <seiden@linux.ibm.com>
 R:	Suzuki K Poulose <suzuki.poulose@arm.com>
@@ -14887,7 +14887,7 @@ X:	drivers/macintosh/via-macii.c
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Madhavan Srinivasan <maddy@linux.ibm.com>
-M:	Michael Ellerman <mpe@ellerman.id.au>
+R:	Michael Ellerman <mpe@ellerman.id.au>
 R:	Nicholas Piggin <npiggin@gmail.com>
 R:	Christophe Leroy (CS GROUP) <chleroy@kernel.org>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -17253,7 +17253,7 @@ M:	Lorenzo Stoakes <ljs@kernel.org>
 R:	Zi Yan <ziy@nvidia.com>
 R:	Baolin Wang <baolin.wang@linux.alibaba.com>
 R:	Liam R. Howlett <liam@infradead.org>
-R:	Nico Pache <npache@redhat.com>
+R:	Nico Pache <nico.pache@linux.dev>
 R:	Ryan Roberts <ryan.roberts@arm.com>
 R:	Dev Jain <dev.jain@arm.com>
 R:	Barry Song <baohua@kernel.org>
@@ -20692,7 +20692,6 @@ F:	include/linux/switchtec.h
 F:	include/uapi/linux/switchtec_ioctl.h
 
 PCI DRIVER FOR MOBIVEIL PCIE IP
-M:	Karthikeyan Mitran <m.karthikeyan@mobiveil.co.in>
 M:	Hou Zhiqiang <Zhiqiang.Hou@nxp.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
@@ -22736,7 +22735,8 @@ F:	drivers/watchdog/realtek_otto_wdt.c
 
 REALTEK RTL83xx SMI DSA ROUTER CHIPS
 M:	Linus Walleij <linusw@kernel.org>
-M:	Alvin Šipraga <alsi@bang-olufsen.dk>
+M:	Luiz Angelo Daros de Luca <luizluca@gmail.com>
+R:	Alvin Šipraga <alvin.sipraga@analog.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/realtek.yaml
 F:	drivers/net/dsa/realtek/*
@@ -24633,8 +24633,7 @@ SHARED MEMORY COMMUNICATIONS (SMC) SOCKETS
 M:	D. Wythe <alibuda@linux.alibaba.com>
 M:	Dust Li <dust.li@linux.alibaba.com>
 M:	Sidraya Jayagond <sidraya@linux.ibm.com>
-M:	Wenjia Zhang <wenjia@linux.ibm.com>
-R:	Mahanta Jambigi <mjambigi@linux.ibm.com>
+M:	Mahanta Jambigi <mjambigi@linux.ibm.com>
 R:	Tony Lu <tonylu@linux.alibaba.com>
 R:	Wen Gu <guwen@linux.alibaba.com>
 L:	linux-rdma@vger.kernel.org

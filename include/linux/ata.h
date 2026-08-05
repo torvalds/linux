@@ -762,8 +762,7 @@ static inline bool ata_id_sense_reporting_enabled(const u16 *id)
 	return id[ATA_ID_COMMAND_SET_4] & BIT(6);
 }
 
-/**
- *
+/*
  * Word: 206 - SCT Command Transport
  *    15:12 - Vendor Specific
  *     11:6 - Reserved
@@ -810,8 +809,9 @@ static inline bool ata_id_sct_supported(const u16 *id)
  *
  *	The practical impact of this is that ata_id_major_version cannot
  *	reliably report on drives below ATA3.
+ *
+ *	Returns: major version of ATA drive level or %0 if unknown
  */
-
 static inline unsigned int ata_id_major_version(const u16 *id)
 {
 	unsigned int mver;
