@@ -1070,6 +1070,16 @@ retry_lock:
 	if (ret)
 		goto unlock_all;
 
+	/*
+	 * PRT/sparse mappings are kept off the vm_bo state lists, so
+	 * amdgpu_vm_handle_moved() does not touch them. Refresh their PTEs
+	 * explicitly here (as the CS path does) so sparse mappings survive a
+	 * VRAM-lost reset.
+	 */
+	ret = amdgpu_vm_bo_update(adev, fpriv->prt_va, false);
+	if (ret)
+		goto unlock_all;
+
 	key = 0;
 	/* Validate User Ptr BOs */
 	list_for_each_entry(bo_va, &vm->always_valid.idle, base.vm_status) {
@@ -1127,6 +1137,12 @@ retry_lock:
 	 */
 	list_for_each_entry(bo_va, &vm->always_valid.idle, base.vm_status)
 		dma_fence_wait(bo_va->last_pt_update, false);
+	/*
+	 * The PRT bo_va is kept off the state lists, so its PTE update fence
+	 * lands in prt_va->last_pt_update rather than vm->last_update; wait on
+	 * it explicitly (as the CS path syncs it) before restarting queues.
+	 */
+	dma_fence_wait(fpriv->prt_va->last_pt_update, false);
 	dma_fence_wait(vm->last_update, false);
 
 	xa_for_each(&uq_mgr->userq_xa, tmp_key, queue) {

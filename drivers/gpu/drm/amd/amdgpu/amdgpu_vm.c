@@ -1408,7 +1408,13 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 			amdgpu_vm_bo_evicted(&bo_va->base);
 		else
 			amdgpu_vm_bo_idle(&bo_va->base);
-	} else {
+	} else if (bo) {
+		/*
+		 * A PRT/sparse mapping has no BO and is kept off the vm_bo
+		 * state lists (see amdgpu_vm_bo_base_init()); putting it on the
+		 * idle list here would let amdgpu_vm_handle_moved() dereference
+		 * the NULL bo after a reset.
+		 */
 		amdgpu_vm_bo_idle(&bo_va->base);
 	}
 
