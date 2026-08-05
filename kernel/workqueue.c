@@ -1615,9 +1615,8 @@ static bool is_percpu_pool(struct worker_pool *pool)
  * @wq: workqueue of interest
  * @node: NUMA node, can be %NUMA_NO_NODE
  *
- * Determine wq_node_nr_active to use for @wq on @node. Returns:
- *
- * - %NULL for per-cpu workqueues as they don't need to use shared nr_active.
+ * Determine wq_node_nr_active to use for @wq on @node. @wq must be unbound.
+ * Returns:
  *
  * - node_nr_active[nr_node_ids] if @node is %NUMA_NO_NODE.
  *
@@ -1626,7 +1625,7 @@ static bool is_percpu_pool(struct worker_pool *pool)
 static struct wq_node_nr_active *wq_node_nr_active(struct workqueue_struct *wq,
 						   int node)
 {
-	if (!(wq->flags & WQ_UNBOUND))
+	if (WARN_ON_ONCE(!(wq->flags & WQ_UNBOUND)))
 		return NULL;
 
 	if (node == NUMA_NO_NODE)
@@ -1782,19 +1781,24 @@ static bool pwq_tryinc_nr_active(struct pool_workqueue *pwq, bool fill)
 {
 	struct workqueue_struct *wq = pwq->wq;
 	struct worker_pool *pool = pwq->pool;
-	struct wq_node_nr_active *nna = wq_node_nr_active(wq, pool->node);
+	struct wq_node_nr_active *nna;
 	bool obtained = false;
 
 	lockdep_assert_held(&pool->lock);
 
-	if (!nna) {
-		/* BH or per-cpu workqueue, pwq->nr_active is sufficient */
+	/*
+	 * A concurrency-managed per-cpu pool accounts nr_active per pwq, so
+	 * pwq->nr_active against wq->max_active is sufficient.
+	 */
+	if (is_percpu_pool(pool)) {
 		obtained = pwq->nr_active < READ_ONCE(wq->max_active);
 		goto out;
 	}
 
 	if (unlikely(pwq->plugged))
 		return false;
+
+	nna = wq_node_nr_active(wq, pool->node);
 
 	/*
 	 * Unbound workqueue uses per-node shared nr_active $nna. If @pwq is
@@ -2013,7 +2017,7 @@ out_unlock:
 static void pwq_dec_nr_active(struct pool_workqueue *pwq)
 {
 	struct worker_pool *pool = pwq->pool;
-	struct wq_node_nr_active *nna = wq_node_nr_active(pwq->wq, pool->node);
+	struct wq_node_nr_active *nna;
 
 	lockdep_assert_held(&pool->lock);
 
@@ -2024,13 +2028,15 @@ static void pwq_dec_nr_active(struct pool_workqueue *pwq)
 	pwq->nr_active--;
 
 	/*
-	 * For a percpu workqueue, it's simple. Just need to kick the first
+	 * A concurrency-managed per-cpu pool only needs to kick the first
 	 * inactive work item on @pwq itself.
 	 */
-	if (!nna) {
+	if (is_percpu_pool(pool)) {
 		pwq_activate_first_inactive(pwq, false);
 		return;
 	}
+
+	nna = wq_node_nr_active(pwq->wq, pool->node);
 
 	/*
 	 * If @pwq is for an unbound workqueue, it's more complicated because
