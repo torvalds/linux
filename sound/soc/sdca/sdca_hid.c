@@ -123,6 +123,18 @@ int sdca_add_hid_device(struct sdca_interrupt *interrupt)
 EXPORT_SYMBOL_NS(sdca_add_hid_device, "SND_SOC_SDCA");
 
 /**
+ * sdca_destroy_hid_device - destroy the HID device
+ * @interrupt: Pointer to the SDCA interrupt information structure.
+ */
+void sdca_destroy_hid_device(struct sdca_interrupt *interrupt)
+{
+	struct hid_device *hid = interrupt->priv;
+
+	hid_destroy_device(hid);
+}
+EXPORT_SYMBOL_NS(sdca_destroy_hid_device, "SND_SOC_SDCA");
+
+/**
  * sdca_hid_process_report - read a HID event from the device and report
  * @interrupt: Pointer to the SDCA interrupt information structure.
  *
