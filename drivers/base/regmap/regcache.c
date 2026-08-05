@@ -123,6 +123,8 @@ static void regcache_hw_exit(struct regmap *map)
 
 int regcache_init(struct regmap *map, const struct regmap_config *config)
 {
+	bool sort_defaults = false;
+	unsigned int reg_prev = 0;
 	int count = 0;
 	int ret;
 	int i;
@@ -149,9 +151,15 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < config->num_reg_defaults; i++)
+	for (i = 0; i < config->num_reg_defaults; i++) {
 		if (config->reg_defaults[i].reg % map->reg_stride)
 			return -EINVAL;
+
+		if (reg_prev > config->reg_defaults[i].reg)
+			sort_defaults = true;
+
+		reg_prev = config->reg_defaults[i].reg;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(cache_types); i++)
 		if (cache_types[i]->type == map->cache_type)
@@ -186,6 +194,13 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 					sizeof(*map->reg_defaults), GFP_KERNEL);
 		if (!tmp_buf)
 			return -ENOMEM;
+
+		/* regcache_lookup_reg() bsearch()es this array */
+		if (sort_defaults) {
+			dev_warn(map->dev,
+				 "Driver needs fixing: Unsorted reg_defaults, sorting the copy\n");
+			regcache_sort_defaults(tmp_buf, map->num_reg_defaults);
+		}
 		map->reg_defaults = tmp_buf;
 	} else if (map->num_reg_defaults_raw) {
 		count = regcache_count_cacheable_registers(map);
