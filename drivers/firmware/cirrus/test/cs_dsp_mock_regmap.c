@@ -147,7 +147,7 @@ static const struct reg_default halo_register_defaults[] = {
 	{ 0x2b805c0, 0 },	/* HALO_SCRATCH1 */
 	{ 0x2b805c8, 0 },	/* HALO_SCRATCH2 */
 	{ 0x2b805d0, 0 },	/* HALO_SCRATCH3 */
-	{ 0x2b805c8, 0 },	/* HALO_SCRATCH4 */
+	{ 0x2b805d8, 0 },	/* HALO_SCRATCH4 */
 	{ 0x2bc1000, 0 },	/* HALO_CCM_CORE_CONTROL */
 	{ 0x2bc7000, 0 },	/* HALO_WDT_CONTROL */
 
