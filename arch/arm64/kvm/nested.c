@@ -1058,6 +1058,12 @@ static void kvm_invalidate_vncr_ipa(struct kvm *kvm, u64 start, u64 end)
 	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
 		return;
 
+	/*
+	 * Note that invalidating the VNCR on the back of an MMU notifier
+	 * doesn't require messing with the invalidation counter for a
+	 * parallel walk. The notifier itself will have bumped the counter,
+	 * making sure we rewalk.
+	 */
 	kvm_for_each_vncr_tlb(i, vcpu, vt, kvm)
 		if (vncr_tlb_intersects(vt, vt->wr.pa, start, end - start))
 			invalidate_vncr(vt);
@@ -1084,6 +1090,15 @@ static void invalidate_vncr_va(struct kvm *kvm,
 	unsigned long i;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	/*
+	 * We might be performing a parallel S1 walk, so bump up the
+	 * invalidation counter even in the absence of an actual VNCR TLB
+	 * invalidation, as this could indicate that the guest has gone
+	 * through a BBM sequence.
+	 */
+	kvm->mmu_invalidate_seq++;
+	smp_wmb();
 
 	kvm_for_each_vncr_tlb(i, vcpu, vt, kvm) {
 		switch (scope->type) {
@@ -1419,14 +1434,14 @@ static int kvm_translate_vncr(struct kvm_vcpu *vcpu, bool *is_gmem)
 
 	va =  read_vncr_el2(vcpu);
 
+	mmu_seq = vcpu->kvm->mmu_invalidate_seq;
+	smp_rmb();
+
 	ret = __kvm_translate_va(vcpu, &vt->wi, &vt->wr, va);
 	if (ret)
 		return ret;
 
 	write_fault = kvm_is_write_fault(vcpu);
-
-	mmu_seq = vcpu->kvm->mmu_invalidate_seq;
-	smp_rmb();
 
 	gfn = vt->wr.pa >> PAGE_SHIFT;
 	memslot = gfn_to_memslot(vcpu->kvm, gfn);
