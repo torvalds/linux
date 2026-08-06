@@ -1149,7 +1149,7 @@ static int aw88261_dev_init(struct aw88261 *aw88261, struct aw_container *aw_cfg
 
 static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	struct aw_container *aw_cfg;
 	const char *fw_name;
 	int ret;
@@ -1169,13 +1169,11 @@ static int aw88261_request_firmware_file(struct aw88261 *aw88261)
 			fw_name, cont ? cont->size : 0);
 
 	aw_cfg = devm_kzalloc(aw88261->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw_cfg) {
-		release_firmware(cont);
+	if (!aw_cfg)
 		return -ENOMEM;
-	}
+
 	aw_cfg->len = (int)cont->size;
 	memcpy(aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	aw88261->aw_cfg = aw_cfg;
 
