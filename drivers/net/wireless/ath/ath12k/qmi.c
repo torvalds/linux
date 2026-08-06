@@ -3431,7 +3431,7 @@ out:
 }
 
 static int ath12k_qmi_wlanfw_mode_send(struct ath12k_base *ab,
-				       u32 mode)
+				       enum ath12k_qmi_firmware_mode mode)
 {
 	struct qmi_wlanfw_wlan_mode_req_msg_v01 req = {};
 	struct qmi_wlanfw_wlan_mode_resp_msg_v01 resp = {};
@@ -3460,7 +3460,7 @@ static int ath12k_qmi_wlanfw_mode_send(struct ath12k_base *ab,
 
 	ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH12K_QMI_WLANFW_TIMEOUT_MS));
 	if (ret < 0) {
-		if (mode == ATH12K_FIRMWARE_MODE_OFF && ret == -ENETRESET) {
+		if (mode == ATH12K_QMI_FIRMWARE_MODE_OFF && ret == -ENETRESET) {
 			ath12k_warn(ab, "WLFW service is dis-connected\n");
 			return 0;
 		}
@@ -3623,7 +3623,7 @@ void ath12k_qmi_firmware_stop(struct ath12k_base *ab)
 
 	clear_bit(ATH12K_FLAG_QMI_FW_READY_COMPLETE, &ab->dev_flags);
 
-	ret = ath12k_qmi_wlanfw_mode_send(ab, ATH12K_FIRMWARE_MODE_OFF);
+	ret = ath12k_qmi_wlanfw_mode_send(ab, ATH12K_QMI_FIRMWARE_MODE_OFF);
 	if (ret < 0) {
 		ath12k_warn(ab, "qmi failed to send wlan mode off\n");
 		return;
@@ -3631,7 +3631,7 @@ void ath12k_qmi_firmware_stop(struct ath12k_base *ab)
 }
 
 int ath12k_qmi_firmware_start(struct ath12k_base *ab,
-			      u32 mode)
+			      enum ath12k_qmi_firmware_mode mode)
 {
 	int ret;
 
