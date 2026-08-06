@@ -99,9 +99,9 @@ class SphinxBuilder:
 
     def get_path(self, path, use_cwd=False, abs_path=False):
         """
-        Ancillary routine to handle patches the right way, as shell does.
+        Ancillary routine to handle paths the right way, as shell does.
 
-        It first expands "~" and "~user". Then, if patch is not absolute,
+        It first expands "~" and "~user". Then, if path is not absolute,
         join self.srctree. Finally, if requested, convert to abspath.
         """
 
