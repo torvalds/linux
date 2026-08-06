@@ -1463,6 +1463,13 @@ config NUMA_EMU
 	  into virtual nodes when booted with "numa=fake=N", where N is the
 	  number of nodes. This is only useful for debugging.
 
+config GENERIC_ARCH_NUMA
+	bool
+	select NUMA_MEMBLKS
+	help
+	  Enable support for generic NUMA implementation. Currently, RISC-V
+	  and ARM64 use it.
+
 config ARCH_HAS_USER_SHADOW_STACK
 	bool
 	help
