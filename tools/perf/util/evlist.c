@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <fcntl.h>
 #include <linux/bitops.h>
@@ -1561,6 +1562,20 @@ int evlist__prepare_workload(struct evlist *evlist, struct target *target, const
 {
 	int child_ready_pipe[2], go_pipe[2];
 	char bf;
+
+	if (target__none(target)) {
+		const char *cmd = strrchr(argv[0], '/');
+
+		if (cmd)
+			cmd++;
+		else
+			cmd = argv[0];
+
+		if (!strcmp(cmd, "sleep")) {
+			ui__warning("workload '%s' specified without the system-wide (-a) option\n",
+				    cmd);
+		}
+	}
 
 	evlist__set_workload_cork_fd(evlist, -1);
 
