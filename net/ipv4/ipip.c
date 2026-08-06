@@ -360,6 +360,9 @@ static int ipip_fill_forward_path(struct net_device_path_ctx *ctx,
 	const struct iphdr *tiph = &tunnel->parms.iph;
 	struct rtable *rt;
 
+	if (ctx->ether_type != cpu_to_be16(ETH_P_IP))
+		return -EOPNOTSUPP;
+
 	if (tunnel->collect_md)
 		return -EOPNOTSUPP;
 
