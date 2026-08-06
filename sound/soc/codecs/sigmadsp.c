@@ -484,7 +484,7 @@ static void devm_sigmadsp_release(struct device *dev, void *res)
 static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 {
 	const struct sigma_firmware_header *ssfw_head;
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int ret;
 	u32 crc;
 
@@ -492,7 +492,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 	ret = request_firmware(&fw, name, sigmadsp->dev);
 	if (ret) {
 		pr_debug("%s: request_firmware() failed with %i\n", __func__, ret);
-		goto done;
+		return ret;
 	}
 
 	/* then verify the header */
@@ -506,13 +506,13 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 	 */
 	if (fw->size < sizeof(*ssfw_head) || fw->size >= 0x4000000) {
 		dev_err(sigmadsp->dev, "Failed to load firmware: Invalid size\n");
-		goto done;
+		return -EINVAL;
 	}
 
 	ssfw_head = (void *)fw->data;
 	if (memcmp(ssfw_head->magic, SIGMA_MAGIC, ARRAY_SIZE(ssfw_head->magic))) {
 		dev_err(sigmadsp->dev, "Failed to load firmware: Invalid magic\n");
-		goto done;
+		return -EINVAL;
 	}
 
 	crc = crc32(0, fw->data + sizeof(*ssfw_head),
@@ -521,7 +521,7 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 	if (crc != le32_to_cpu(ssfw_head->crc)) {
 		dev_err(sigmadsp->dev, "Failed to load firmware: Wrong crc checksum: expected %x got %x\n",
 			le32_to_cpu(ssfw_head->crc), crc);
-		goto done;
+		return -EINVAL;
 	}
 
 	switch (ssfw_head->version) {
@@ -541,9 +541,6 @@ static int sigmadsp_firmware_load(struct sigmadsp *sigmadsp, const char *name)
 
 	if (ret)
 		sigmadsp_firmware_release(sigmadsp);
-
-done:
-	release_firmware(fw);
 
 	return ret;
 }
