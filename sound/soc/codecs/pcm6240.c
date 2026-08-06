@@ -1577,10 +1577,10 @@ static int pcmdevice_comp_probe(struct snd_soc_component *comp)
 {
 	struct pcmdevice_priv *pcm_dev = snd_soc_component_get_drvdata(comp);
 	struct i2c_adapter *adap = pcm_dev->client->adapter;
-	const struct firmware *fw_entry = NULL;
+	const struct firmware *fw_entry __free(firmware) = NULL;
 	int ret, i, j;
 
-	mutex_lock(&pcm_dev->codec_lock);
+	guard(mutex)(&pcm_dev->codec_lock);
 
 	pcm_dev->component = comp;
 
@@ -1588,7 +1588,7 @@ static int pcmdevice_comp_probe(struct snd_soc_component *comp)
 		for (j = 0; j < 2; j++) {
 			ret = pcmdev_gain_ctrl_add(pcm_dev, i, j);
 			if (ret < 0)
-				goto out;
+				return ret;
 		}
 	}
 
@@ -1621,21 +1621,17 @@ static int pcmdevice_comp_probe(struct snd_soc_component *comp)
 	if (ret) {
 		dev_err(pcm_dev->dev, "%s: request %s err = %d\n", __func__,
 			pcm_dev->bin_name, ret);
-		goto out;
+		return ret;
 	}
 
 	ret = pcmdev_regbin_ready(fw_entry, pcm_dev);
 	if (ret) {
 		dev_err(pcm_dev->dev, "%s: %s parse err = %d\n", __func__,
 			pcm_dev->bin_name, ret);
-		goto out;
+		return ret;
 	}
-	ret = pcmdev_profile_ctrl_add(pcm_dev);
-out:
-	release_firmware(fw_entry);
 
-	mutex_unlock(&pcm_dev->codec_lock);
-	return ret;
+	return pcmdev_profile_ctrl_add(pcm_dev);
 }
 
 
