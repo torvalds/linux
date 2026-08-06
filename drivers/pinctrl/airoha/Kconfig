@@ -15,6 +15,7 @@ config PINCTRL_AIROHA
 	select REGMAP_MMIO
 	imply PINCTRL_AIROHA_AN7581
 	imply PINCTRL_AIROHA_AN7583
+	imply PINCTRL_AIROHA_EN7523
 	help
 	  Shared pin controller and gpio driver code for different
 	  Airoha SoCs.
@@ -34,5 +35,13 @@ config PINCTRL_AIROHA_AN7583
 	help
 	  Say yes here to support pin controller and gpio driver
 	  on Airoha AN7583, AN7553, AN7567 and other compatible SoCs.
+
+config PINCTRL_AIROHA_EN7523
+	tristate "EN7523 pinctrl"
+	depends on ARM || COMPILE_TEST
+	depends on PINCTRL_AIROHA
+	help
+	  Say yes here to support pin controller and gpio driver
+	  on Airoha EN7523, EN7529, EN7562 and other compatible SoCs.
 
 endmenu
