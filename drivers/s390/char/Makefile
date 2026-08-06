@@ -3,6 +3,8 @@
 # S/390 character devices
 #
 
+CONTEXT_ANALYSIS := y
+
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace early setup code
 CFLAGS_REMOVE_sclp_early_core.o	= $(CC_FLAGS_FTRACE)
