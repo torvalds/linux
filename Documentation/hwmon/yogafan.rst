@@ -99,6 +99,11 @@ immediately to ensure the user knows the fan has stopped.
  82XV / 83DV    | LOQ 15/16        | 0xFE/0xFF | \_SB.PCI0.LPC0.EC0.FANS /FA2S  | 16-bit | 1
  83AK           | ThinkBook G6     | 0x06      | \_SB.PCI0.LPC0.EC0.FAN0        |  8-bit | 100
  81X1           | Flex 5           | 0x06      | \_SB.PCI0.LPC0.EC0.FAN0        |  8-bit | 100
+ 83KF           | XiaoXinPro 13ARE | 0x06/0xFE | \_SB.PCI0.LPC0.EC0.FANS/FA2S   |  8-bit | 100
+ 82KU           | IdeaPad 3 15ALC6 | 0x06      | \_SB.PCI0.LPC0.EC0.FAN0        |  8-bit | 100
+ 83RU           | Legion Pro 7 16  | 0x03/0x06 | \_SB.PCI0.LPC0.EC0.FANS/FA2S   |  8-bit | 100
+ 83KF           | Yoga Pro 7 14IAH | 0x06      | \_SB.PC00.LPCB.EC0.FANS        |  8-bit | 100
+ 83BS           | Yoga 7 16ARP8    | 0x03/0x06 | \_SB.PCI0.LPC0.EC0.FANS/FA2S   |  8-bit | 100
  *Legacy*       | Pre-2020 Models  | 0x06      | \_SB.PCI0.LPC.EC.FAN0          |  8-bit | 100
  ----------------------------------------------------------------------------------------------------
 
@@ -116,7 +121,6 @@ METHODOLOGY & IDENTIFICATION:
 3. DATA-WIDTH ANALYSIS (THE MULTIPLIER):
    - 8-bit (Multiplier 100): Standard for Yoga/IdeaPad. Raw values (0-255).
    - 16-bit (Multiplier 1): Standard for Legion/LOQ. Two registers (0xFE/0xFF).
-
 
 References
 ----------
@@ -136,3 +140,24 @@ References
 4. **Lenovo IdeaPad Laptop Driver:** Reference for DMI-based hardware
    feature gating in Lenovo laptops.
    https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/ideapad-laptop.c
+
+5. **Lenovo Product Specifications Reference (PSREF):** Official hardware layout index
+   and spec sheets for active and withdrawn Lenovo laptop models.
+   https://psref.lenovo.com/l/withdrawn/
+
+6. **Yogafan Master Quirk Database:** Master spreadsheet mapping Lenovo Product
+   Specifications Reference (PSREF) to explicit EC offsets, register widths, paths, and multipliers.
+   https://github.com/sergiomelas/lenovo-linux-drivers/blob/main/Lenovo_Drivers/Prototype/PSREF/yogafan_v3_quirks_database.ods
+
+7. **Yogafan ACPI DSDT Repository:** Central repository containing user-contributed raw
+   and decompiled ACPI DSDT firmware dumps used for path verification and hardware expansions.
+   https://github.com/sergiomelas/lenovo-linux-drivers/tree/main/Lenovo_Drivers/Prototype/DSDT
+
+Contributors & DSDT Providers:
+------------------------------
+- **Sarbajit Sarkar** (Lenovo LOQ 15IAX9)
+- **HinataKato** (XiaoXin Pro 13ARE 2020 - 83KF)
+- **PenPenIsGod** (IdeaPad 3 15ALC6 - 82KU & Legion Pro 7 16AFR10H - 83RU)
+- **unlockxiaom** (Legion Pro 7 16AFR10H - 83RU, Yoga Pro 7 14IAH10 - 83KF, ThinkCentre M80q)
+- **Phani Pavan K** (Yoga Pro 7 14IAH10 - 83KF)
+- **Splarkszter** (Yoga 7 16ARP8 - 83BS)
