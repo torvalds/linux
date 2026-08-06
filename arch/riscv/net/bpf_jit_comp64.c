@@ -1994,7 +1994,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		/* ret can be 1 (skip-zext); extable entry still needs to be added */
 		if (ret >= 0)
 			ret = add_exception_handler(insn,
-				insn->imm == BPF_LOAD_ACQ ? rd : REG_DONT_CLEAR_MARKER,
+				bpf_atomic_is_load_acq(insn) ? rd : REG_DONT_CLEAR_MARKER,
 				ctx) ?: ret;
 
 		if (ret)
