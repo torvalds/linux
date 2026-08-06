@@ -287,7 +287,7 @@ author = "The kernel development community"
 try:
     makefile_version = None
     makefile_patchlevel = None
-    with open("../Makefile", encoding="utf=8") as fp:
+    with open("../Makefile", encoding="utf-8") as fp:
         for line in fp:
             key, val = [x.strip() for x in line.split("=", 2)]
             if key == "VERSION":
