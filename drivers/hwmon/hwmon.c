@@ -341,7 +341,7 @@ static int hwmon_match_device(struct device *dev, const void *data)
 	return dev->class == &hwmon_class;
 }
 
-static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
+static ssize_t pec_show(struct device *dev, const struct device_attribute *dummy,
 			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -349,7 +349,7 @@ static ssize_t pec_show(struct device *dev, struct device_attribute *dummy,
 	return sysfs_emit(buf, "%d\n", !!(client->flags & I2C_CLIENT_PEC));
 }
 
-static ssize_t pec_store(struct device *dev, struct device_attribute *devattr,
+static ssize_t pec_store(struct device *dev, const struct device_attribute *devattr,
 			 const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -390,7 +390,7 @@ put:
 	return err;
 }
 
-static DEVICE_ATTR_RW(pec);
+static const DEVICE_ATTR_RW(pec);
 
 static void hwmon_remove_pec(void *dev)
 {

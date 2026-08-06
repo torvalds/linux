@@ -15,10 +15,10 @@ struct sensor_device_attribute{
 	int index;
 };
 #define to_sensor_dev_attr(_dev_attr) \
-	container_of(_dev_attr, struct sensor_device_attribute, dev_attr)
+	container_of_const(_dev_attr, struct sensor_device_attribute, dev_attr)
 
-#define SENSOR_ATTR(_name, _mode, _show, _store, _index)	\
-	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
+#define SENSOR_ATTR(_name, _mode, _show, _store, _index)		\
+	{ .dev_attr = __DEVICE_ATTR(_name, _mode, _show, _store),	\
 	  .index = _index }
 
 #define SENSOR_ATTR_RO(_name, _func, _index)			\
@@ -49,11 +49,11 @@ struct sensor_device_attribute_2 {
 	u8 nr;
 };
 #define to_sensor_dev_attr_2(_dev_attr) \
-	container_of(_dev_attr, struct sensor_device_attribute_2, dev_attr)
+	container_of_const(_dev_attr, struct sensor_device_attribute_2, dev_attr)
 
-#define SENSOR_ATTR_2(_name, _mode, _show, _store, _nr, _index)	\
-	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
-	  .index = _index,					\
+#define SENSOR_ATTR_2(_name, _mode, _show, _store, _nr, _index)		\
+	{ .dev_attr = __DEVICE_ATTR(_name, _mode, _show, _store),	\
+	  .index = _index,						\
 	  .nr = _nr }
 
 #define SENSOR_ATTR_2_RO(_name, _func, _nr, _index)		\
