@@ -248,7 +248,7 @@ static const struct snd_kcontrol_new aw87390_controls[] = {
 
 static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	int ret;
 
 	aw87390->aw_pa->fw_status = AW87390_DEV_FW_FAILED;
@@ -263,14 +263,11 @@ static int aw87390_request_firmware_file(struct aw87390 *aw87390)
 
 	aw87390->aw_cfg = devm_kzalloc(aw87390->aw_pa->dev,
 				struct_size(aw87390->aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw87390->aw_cfg) {
-		release_firmware(cont);
+	if (!aw87390->aw_cfg)
 		return -ENOMEM;
-	}
 
 	aw87390->aw_cfg->len = cont->size;
 	memcpy(aw87390->aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	ret = aw88395_dev_load_acf_check(aw87390->aw_pa, aw87390->aw_cfg);
 	if (ret) {
