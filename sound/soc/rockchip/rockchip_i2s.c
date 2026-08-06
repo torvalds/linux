@@ -829,16 +829,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 					      &rockchip_i2s_component,
 					      dai, 1);
 
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
