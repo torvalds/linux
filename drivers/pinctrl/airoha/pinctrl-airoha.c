@@ -2840,7 +2840,7 @@ static int airoha_pinctrl_get_conf(struct airoha_pinctrl *pinctrl,
 	if (regmap_read(pinctrl->chip_scu, reg->offset, val))
 		return -EINVAL;
 
-	*val = (*val & reg->mask) >> __ffs(reg->mask);
+	*val = field_get(reg->mask, *val);
 
 	return 0;
 }
@@ -2862,7 +2862,7 @@ static int airoha_pinctrl_set_conf(struct airoha_pinctrl *pinctrl,
 
 
 	if (regmap_update_bits(pinctrl->chip_scu, reg->offset, reg->mask,
-				val << __ffs(reg->mask)))
+			       field_prep(reg->mask, val)))
 		return -EINVAL;
 
 	return 0;
@@ -2994,7 +2994,7 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 			      unsigned int num_configs)
 {
 	struct airoha_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctrl_dev);
-	int i;
+	int i, err;
 
 	for (i = 0; i < num_configs; i++) {
 		u32 param = pinconf_to_config_param(configs[i]);
@@ -3002,16 +3002,35 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
-			airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 0);
-			airoha_pinctrl_set_pullup_conf(pinctrl, pin, 0);
+			err = airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 0);
+			if (err)
+				return err;
+
+			err = airoha_pinctrl_set_pullup_conf(pinctrl, pin, 0);
+			if (err)
+				return err;
+
 			break;
+
 		case PIN_CONFIG_BIAS_PULL_UP:
-			airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 0);
-			airoha_pinctrl_set_pullup_conf(pinctrl, pin, 1);
+			err = airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 0);
+			if (err)
+				return err;
+
+			err = airoha_pinctrl_set_pullup_conf(pinctrl, pin, 1);
+			if (err)
+				return err;
+
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
-			airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 1);
-			airoha_pinctrl_set_pullup_conf(pinctrl, pin, 0);
+			err = airoha_pinctrl_set_pulldown_conf(pinctrl, pin, 1);
+			if (err)
+				return err;
+
+			err = airoha_pinctrl_set_pullup_conf(pinctrl, pin, 0);
+			if (err)
+				return err;
+
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH: {
 			u32 e2 = 0, e4 = 0;
@@ -3033,18 +3052,29 @@ static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
 				return -EINVAL;
 			}
 
-			airoha_pinctrl_set_drive_e2_conf(pinctrl, pin, e2);
-			airoha_pinctrl_set_drive_e4_conf(pinctrl, pin, e4);
+			err = airoha_pinctrl_set_drive_e2_conf(pinctrl,
+							       pin, e2);
+			if (err)
+				return err;
+
+			err = airoha_pinctrl_set_drive_e4_conf(pinctrl,
+							       pin, e4);
+			if (err)
+				return err;
+
 			break;
 		}
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-			airoha_pinctrl_set_pcie_rst_od_conf(pinctrl, pin, !!arg);
+			err = airoha_pinctrl_set_pcie_rst_od_conf(pinctrl,
+								  pin, !!arg);
+			if (err)
+				return err;
+
 			break;
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		case PIN_CONFIG_INPUT_ENABLE:
 		case PIN_CONFIG_LEVEL: {
 			bool input = param == PIN_CONFIG_INPUT_ENABLE;
-			int err;
 
 			err = airoha_pinmux_set_direction(pctrl_dev, NULL, pin,
 							  input);
