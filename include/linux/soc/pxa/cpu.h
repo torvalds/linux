@@ -177,7 +177,7 @@
 	({						\
 		__cpu_is_pxa300(id)			\
 			|| __cpu_is_pxa310(id)		\
-			|| __cpu_is_pxa320(id)		\
+			|| __cpu_is_pxa320(id);		\
 	 })
 #else
 #define __cpu_is_pxa3xx(id)	(0)
