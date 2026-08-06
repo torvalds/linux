@@ -45,6 +45,18 @@ int nxpwifi_wait_queue_complete(struct nxpwifi_adapter *adapter,
 		nxpwifi_dbg(adapter, ERROR, "cmd_wait_q terminated: %d\n",
 			    status);
 		nxpwifi_cancel_all_pending_cmd(adapter);
+
+		/*
+		 * The response path writes through cmd_node->data_buf. The
+		 * caller can release a stack-allocated data_buf after an
+		 * interrupted wait while a late response is still pending.
+		 * Detach it from the current command before returning.
+		 */
+		spin_lock_bh(&adapter->nxpwifi_cmd_lock);
+		if (adapter->curr_cmd == cmd_queued)
+			adapter->curr_cmd->data_buf = NULL;
+		spin_unlock_bh(&adapter->nxpwifi_cmd_lock);
+
 		return status;
 	}
 

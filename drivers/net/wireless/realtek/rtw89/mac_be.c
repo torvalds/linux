@@ -641,6 +641,7 @@ static void set_cpu_en(struct rtw89_dev *rtwdev, bool include_bb)
 static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	u32 val32;
 	int ret;
 
@@ -651,8 +652,10 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM1);
 	if (val32) {
-		rtw89_warn(rtwdev, "[SER] AON L2 Debug register not empty before Boot.\n");
-		rtw89_warn(rtwdev, "[SER] %s: R_BE_UDM1 = 0x%x\n", __func__, val32);
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+			    "[SER] AON L2 Debug register not empty before Boot.\n");
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+			    "[SER] %s: R_BE_UDM1 = 0x%x\n", __func__, val32);
 	}
 	val32 = rtw89_read32(rtwdev, R_BE_UDM2);
 	if (val32) {
@@ -683,6 +686,8 @@ static int wcpu_on(struct rtw89_dev *rtwdev, u8 boot_reason, bool dlfw)
 	if (chip->chip_id != RTL8922A)
 		rtw89_write32_set(rtwdev, R_BE_WCPU_FW_CTRL, B_BE_HOST_EXIST);
 
+	rtw89_write32_mask(rtwdev, R_BE_WCPU_FW_CTRL,
+			   B_BE_WCPU_ROM_CUT_VAL_MASK, hal->cv + 1);
 	rtw89_write16_mask(rtwdev, R_BE_BOOT_REASON, B_BE_BOOT_REASON_MASK, boot_reason);
 	rtw89_write32_clr(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_WCPU_EN);
 	rtw89_write32_clr(rtwdev, R_BE_PLATFORM_ENABLE, B_BE_HOLD_AFTER_RESET);
@@ -924,11 +929,7 @@ static int sys_init_be(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	ret = chip_func_en_be(rtwdev);
-	if (ret)
-		return ret;
-
-	return ret;
+	return chip_func_en_be(rtwdev);
 }
 
 static int mac_func_en_be(struct rtw89_dev *rtwdev)
@@ -1196,6 +1197,9 @@ static int scheduler_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 
 	rtw89_io_pack(rtwdev);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MISC_1, mac_idx);
+	rtw89_write32_set(rtwdev, reg, B_BE_EN_TX_FINISH_PRD_RESP);
+
 	if (chip->chip_id == RTL8922D) {
 		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_SCH_EXT_CTRL, mac_idx);
 		rtw89_write32_set(rtwdev, reg, B_BE_CWCNT_PLUS_MODE);
@@ -1324,11 +1328,7 @@ static int rx_fltr_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 	rtw89_mac_typ_fltr_opt_be(rtwdev, RTW89_DATA, RTW89_FWD_TO_HOST, mac_idx);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_RX_FLTR_OPT, mac_idx);
-	val = B_BE_A_BC_CAM_MATCH | B_BE_A_UC_CAM_MATCH | B_BE_A_MC |
-	      B_BE_A_BC | B_BE_A_A1_MATCH | B_BE_SNIFFER_MODE |
-	      u32_encode_bits(15, B_BE_UID_FILTER_MASK);
-	rtw89_write32(rtwdev, reg, val);
-	u32p_replace_bits(&rtwdev->hal.rx_fltr, 15, B_BE_UID_FILTER_MASK);
+	rtw89_write32(rtwdev, reg, rtwdev->hal.rx_fltr);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PLCP_HDR_FLTR, mac_idx);
 	val = B_BE_HE_SIGB_CRC_CHK | B_BE_VHT_MU_SIGB_CRC_CHK |
@@ -2458,29 +2458,26 @@ EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v3);
 
 int rtw89_mac_cfg_ctrl_path_v2(struct rtw89_dev *rtwdev, bool wl)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
-	struct rtw89_mac_ax_wl_act *gbt = dm->gnt.bt;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_mac_ax_coex_gnt gnt = {};
 	int i;
 
 	if (wl)
 		return 0;
 
 	for (i = 0; i < RTW89_PHY_NUM; i++) {
-		g[i].gnt_bt_sw_en = 1;
-		g[i].gnt_bt = 1;
-		g[i].gnt_wl_sw_en = 1;
-		g[i].gnt_wl = 0;
-		gbt[i].wlan_act = 1;
-		gbt[i].wlan_act_en = 0;
+		gnt.band[i].gnt_bt_sw_en = 1;
+		gnt.band[i].gnt_bt = 1;
+		gnt.band[i].gnt_wl_sw_en = 1;
+		gnt.band[i].gnt_wl = 0;
+		gnt.bt[i].wlan_act = 1;
+		gnt.bt[i].wlan_act_en = 0;
 	}
 
 	if (chip->chip_id == RTL8922A)
-		return rtw89_mac_cfg_gnt_v2(rtwdev, &dm->gnt);
+		return rtw89_mac_cfg_gnt_v2(rtwdev, &gnt);
 	else
-		return rtw89_mac_cfg_gnt_v3(rtwdev, &dm->gnt);
+		return rtw89_mac_cfg_gnt_v3(rtwdev, &gnt);
 
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v2);
@@ -2665,6 +2662,43 @@ void rtw89_mac_set_edcca_mode_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool norm
 				  resp_normal_punc, mac_idx);
 		rtw89_write16_idx(rtwdev, R_BE_WMAC_OTHERS_RESP_EHT_LEG_PUNC,
 				  resp_normal_punc, mac_idx);
+	}
+}
+
+static
+void rtw89_mac_set_vcore_cfg_be(struct rtw89_dev *rtwdev, u8 vlv)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 val32;
+	u8 target;
+	u8 vpwm;
+	int i;
+
+	if (rtwdev->chip->chip_id != RTL8922D)
+		return;
+
+	target = clamp(hal->thermal_prot_vmax - vlv,
+		       hal->thermal_prot_vmin, hal->thermal_prot_vmax);
+
+	val32 = rtw89_read32(rtwdev, R_BE_SPS_DIG_ON_CTRL0);
+	vpwm = u32_get_bits(val32, B_BE_PWMTUNE_MASK);
+	val32 &= ~B_BE_PWMTUNE_MASK;
+
+	if (vpwm == target)
+		return;
+
+	for (i = 0; i < RTW89_THERMAL_PROT_VLV_MAX; i++) {
+		if (vpwm > target)
+			vpwm--;
+		else
+			vpwm++;
+
+		rtw89_write32(rtwdev, R_BE_SPS_DIG_ON_CTRL0, val32 | vpwm);
+
+		if (vpwm == target)
+			break;
+
+		mdelay(50);
 	}
 }
 
@@ -3238,10 +3272,12 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_be,
 	.mem_page_size = MAC_MEM_DUMP_PAGE_SIZE_BE,
 	.rx_fltr = R_BE_RX_FLTR_OPT,
+	.default_rx_fltr = DEFAULT_BE_RX_FLTR,
 	.port_base = &rtw89_port_base_be,
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
 	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
 	.mu_gid = &rtw89_mac_mu_gid_addr_be,
+	.boot_dbg = R_BE_BOOT_DBG,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,
@@ -3279,6 +3315,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_be,
 	.cfg_phy_rpt = rtw89_mac_cfg_phy_rpt_be,
 	.set_edcca_mode = rtw89_mac_set_edcca_mode_be,
+	.set_vcore_cfg = rtw89_mac_set_vcore_cfg_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,
@@ -3304,6 +3341,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
 	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_be,
 	.efuse_read_ecv = rtw89_efuse_read_ecv_be,
+	.efuse_read_thermal_k = rtw89_efuse_read_thermal_k_be,
+	.efuse_read_pwr_data = rtw89_efuse_read_pwr_data_be,
 
 	.cfg_plt = rtw89_mac_cfg_plt_be,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_be,

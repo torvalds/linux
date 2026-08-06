@@ -32,6 +32,7 @@ static const struct rtw89_usb_info rtw8852c_usb_info = {
 static const struct rtw89_driver_info rtw89_8852cu_info = {
 	.chip = &rtw8852c_chip_info,
 	.variant = NULL,
+	.board = NULL,
 	.quirks = NULL,
 	.dev_id_quirks = 0,
 	.bus = {
@@ -39,11 +40,65 @@ static const struct rtw89_driver_info rtw89_8852cu_info = {
 	},
 };
 
+static const struct rtw89_led_gpio_entry rtw8852cu_valve_led_gpios[] = {
+	{
+		.pin = 8,
+		.color = LED_COLOR_ID_WHITE,
+		.intensity = 0,
+		.pinmux = {.addr = R_AX_GPIO8_15_FUNC_SEL,
+			   .mask = GENMASK(3, 0),
+			   .data = 0xf},
+		.mode = {.addr = R_AX_GPIO_EXT_CTRL + 2, .data = BIT(0) | BIT(8)},
+		.out = {.addr = R_AX_GPIO_EXT_CTRL + 1, .data = BIT(0)},
+	}, {
+		.pin = 18,
+		.color = LED_COLOR_ID_RED,
+		.intensity = 0,
+		.pinmux = {.addr = R_AX_GPIO16_23_FUNC_SEL,
+			   .mask = GENMASK(11, 8),
+			   .data = 0xf},
+		.mode = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 2,
+			 .data = BIT(2) | BIT(10)},
+		.out = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 1, .data = BIT(2)},
+	}, {
+		.pin = 16,
+		.color = LED_COLOR_ID_GREEN,
+		.intensity = 1,
+		.pinmux = {.addr = R_AX_GPIO16_23_FUNC_SEL,
+			   .mask = GENMASK(3, 0),
+			   .data = 0xf},
+		.mode = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 2,
+			 .data = BIT(0) | BIT(8)},
+		.out = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 1, .data = BIT(0)},
+	}, {
+		.pin = 17,
+		.color = LED_COLOR_ID_BLUE,
+		.intensity = 0,
+		.pinmux = {.addr = R_AX_GPIO16_23_FUNC_SEL,
+			   .mask = GENMASK(7, 4),
+			   .data = 0xf},
+		.mode = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 2,
+			 .data = BIT(1) | BIT(9)},
+		.out = {.addr = R_AX_GPIO_16_TO_18_EXT_CTRL + 1, .data = BIT(1)},
+	},
+};
+
+static const struct rtw89_led_desc rtw8852cu_valve_led_desc = {
+	.gpios = rtw8852cu_valve_led_gpios,
+	.n_gpio = ARRAY_SIZE(rtw8852cu_valve_led_gpios),
+};
+
+static const struct rtw89_board_variant rtw89_8852cu_valve_board = {
+	.led_desc = &rtw8852cu_valve_led_desc,
+};
+
 static const struct rtw89_driver_info rtw89_8852cu_valve_info = {
 	.chip = &rtw8852c_chip_info,
 	.variant = NULL,
+	.board = &rtw89_8852cu_valve_board,
 	.quirks = NULL,
-	.dev_id_quirks = BIT(RTW89_QUIRK_HW_INFO_SYSFS),
+	.dev_id_quirks = BIT(RTW89_QUIRK_HW_INFO_SYSFS) |
+			 BIT(RTW89_QUIRK_DISABLE_2GHZ),
 	.bus = {
 		.usb = &rtw8852c_usb_info,
 	},

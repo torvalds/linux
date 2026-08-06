@@ -1558,6 +1558,8 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags)) {
 			rtw89_mac_efuse_read_ecv(rtwdev);
 			mac->efuse_read_fw_secure(rtwdev);
+			rtw89_mac_efuse_read_thermal_k(rtwdev);
+			rtw89_mac_efuse_read_pwr_data(rtwdev);
 		}
 
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
@@ -1600,6 +1602,8 @@ int rtw89_mac_pwr_on(struct rtw89_dev *rtwdev)
 
 void rtw89_mac_pwr_off(struct rtw89_dev *rtwdev)
 {
+	rtw89_mac_set_vcore_reset(rtwdev);
+
 	rtw89_mac_power_switch(rtwdev, false);
 }
 
@@ -1706,11 +1710,7 @@ static int sys_init_ax(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	ret = chip_func_en_ax(rtwdev);
-	if (ret)
-		return ret;
-
-	return ret;
+	return chip_func_en_ax(rtwdev);
 }
 
 const struct rtw89_mac_size_set rtw89_mac_size = {
@@ -4304,13 +4304,14 @@ int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw89_mac_disable_bb_rf);
 
-int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb)
+int rtw89_mac_partial_init(struct rtw89_dev *rtwdev, bool include_bb,
+			   bool bb_preinit)
 {
 	int ret;
 
 	rtw89_mac_ctrl_hci_dma_trx(rtwdev, true);
 
-	if (include_bb) {
+	if (include_bb || bb_preinit) {
 		/* Only call BB preinit including configuration of BB MCU for
 		 * the chips which need to download BB MCU firmware. Otherwise,
 		 * calling preinit later to prevent touching registers affecting
@@ -4363,7 +4364,7 @@ int rtw89_mac_init(struct rtw89_dev *rtwdev)
 	bool include_bb = !!chip->bbmcu_nr;
 	int ret;
 
-	ret = rtw89_mac_partial_init(rtwdev, include_bb);
+	ret = rtw89_mac_partial_init(rtwdev, include_bb, include_bb);
 	if (ret)
 		goto fail;
 
@@ -5167,7 +5168,7 @@ static void rtw89_mac_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, ies->data,
 				  ies->len);
 
-	if (!elem || elem->datalen < 10 ||
+	if (!elem || elem->datalen < 11 ||
 	    !(elem->data[10] & WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT))
 		*tolerated = false;
 	rcu_read_unlock();
@@ -6534,8 +6535,6 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[0].gnt_bt)
 		val |= B_AX_GNT_BT_RFC_S0_VAL | B_AX_GNT_BT_RX_VAL |
 		       B_AX_GNT_BT_TX_VAL;
-	else
-		val |= B_AX_WL_ACT_VAL;
 
 	if (gnt_cfg->band[0].gnt_bt_sw_en)
 		val |= B_AX_GNT_BT_RFC_S0_SWCTRL | B_AX_GNT_BT_RX_SWCTRL |
@@ -6552,8 +6551,6 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[1].gnt_bt)
 		val |= B_AX_GNT_BT_RFC_S1_VAL | B_AX_GNT_BT_RX_VAL |
 		       B_AX_GNT_BT_TX_VAL;
-	else
-		val |= B_AX_WL_ACT_VAL;
 
 	if (gnt_cfg->band[1].gnt_bt_sw_en)
 		val |= B_AX_GNT_BT_RFC_S1_SWCTRL | B_AX_GNT_BT_RX_SWCTRL |
@@ -6566,6 +6563,15 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 	if (gnt_cfg->band[1].gnt_wl_sw_en)
 		val |= B_AX_GNT_WL_RFC_S1_SWCTRL | B_AX_GNT_WL_RX_SWCTRL |
 		       B_AX_GNT_WL_TX_SWCTRL | B_AX_GNT_WL_BB_SWCTRL;
+
+	if (gnt_cfg->bt[0].wlan_act_en)
+		val |= B_AX_WL_ACT_SWCTRL;
+	if (gnt_cfg->bt[0].wlan_act)
+		val |= B_AX_WL_ACT_VAL;
+	if (gnt_cfg->bt[1].wlan_act_en)
+		val |= B_AX_WL_ACT2_SWCTRL;
+	if (gnt_cfg->bt[1].wlan_act)
+		val |= B_AX_WL_ACT2_VAL;
 
 	rtw89_write32(rtwdev, R_AX_GNT_SW_CTRL, val);
 
@@ -6641,22 +6647,20 @@ EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path);
 
 int rtw89_mac_cfg_ctrl_path_v1(struct rtw89_dev *rtwdev, bool wl)
 {
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_mac_ax_gnt *g = dm->gnt.band;
+	struct rtw89_mac_ax_coex_gnt gnt = {};
 	int i;
 
 	if (wl)
 		return 0;
 
 	for (i = 0; i < RTW89_PHY_NUM; i++) {
-		g[i].gnt_bt_sw_en = 1;
-		g[i].gnt_bt = 1;
-		g[i].gnt_wl_sw_en = 1;
-		g[i].gnt_wl = 0;
+		gnt.band[i].gnt_bt_sw_en = 1;
+		gnt.band[i].gnt_bt = 1;
+		gnt.band[i].gnt_wl_sw_en = 1;
+		gnt.band[i].gnt_wl = 0;
 	}
 
-	return rtw89_mac_cfg_gnt_v1(rtwdev, &dm->gnt);
+	return rtw89_mac_cfg_gnt_v1(rtwdev, &gnt);
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_ctrl_path_v1);
 
@@ -7043,10 +7047,22 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 {
 #define MAC_AX_DFLT_TX_TIME 5280
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 mac_idx = rtwsta_link->rtwvif_link->mac_idx;
 	u32 max_tx_time = tx_time == 0 ? MAC_AX_DFLT_TX_TIME : tx_time;
+	struct rtw89_entity_conf conf;
+	const struct rtw89_chan *chan;
 	u32 reg;
 	int ret = 0;
+
+	if (chip->txtime_limit_2ghz) {
+		rtw89_entity_get_conf(rtwdev, &conf);
+		chan = conf.chans[mac_idx];
+
+		if (chan->band_type == RTW89_BAND_2G)
+			max_tx_time = min_t(u32, max_tx_time,
+					    chip->txtime_limit_2ghz);
+	}
 
 	if (rtwsta_link->cctl_tx_time) {
 		rtwsta_link->ampdu_max_time = (max_tx_time - 512) >> 9;
@@ -7058,9 +7074,13 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 			return ret;
 		}
 
+		if (chip->chip_gen == RTW89_CHIP_AX)
+			max_tx_time >>= 5;
+		else
+			max_tx_time = max_tx_time * 1000 >> 15;
+
 		reg = rtw89_mac_reg_by_idx(rtwdev, mac->agg_limit.addr, mac_idx);
-		rtw89_write32_mask(rtwdev, reg, mac->agg_limit.mask,
-				   max_tx_time >> 5);
+		rtw89_write32_mask(rtwdev, reg, mac->agg_limit.mask, max_tx_time);
 	}
 
 	return ret;
@@ -7434,10 +7454,12 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.mem_base_addrs = rtw89_mac_mem_base_addrs_ax,
 	.mem_page_size = MAC_MEM_DUMP_PAGE_SIZE_AX,
 	.rx_fltr = R_AX_RX_FLTR_OPT,
+	.default_rx_fltr = DEFAULT_AX_RX_FLTR,
 	.port_base = &rtw89_port_base_ax,
 	.agg_len_ht = R_AX_AGG_LEN_HT_0,
 	.ps_status = R_AX_PPWRBIT_SETTING,
 	.mu_gid = &rtw89_mac_mu_gid_addr_ax,
+	.boot_dbg = R_AX_BOOT_DBG,
 
 	.muedca_ctrl = {
 		.addr = R_AX_MUEDCA_EN,
@@ -7475,6 +7497,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_ax,
 	.cfg_phy_rpt = NULL,
 	.set_edcca_mode = NULL,
+	.set_vcore_cfg = NULL,
 
 	.dle_mix_cfg = dle_mix_cfg_ax,
 	.chk_dle_rdy = chk_dle_rdy_ax,
@@ -7500,6 +7523,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
 	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_ax,
 	.efuse_read_ecv = NULL,
+	.efuse_read_thermal_k = NULL,
+	.efuse_read_pwr_data = NULL,
 
 	.cfg_plt = rtw89_mac_cfg_plt_ax,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_ax,

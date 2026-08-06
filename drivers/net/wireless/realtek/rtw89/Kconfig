@@ -41,6 +41,9 @@ config RTW89_8852C
 config RTW89_8922A
 	tristate
 
+config RTW89_8922D
+	tristate
+
 config RTW89_8851BE
 	tristate "Realtek 8851BE PCI wireless network (Wi-Fi 6) adapter"
 	depends on PCI
@@ -169,6 +172,18 @@ config RTW89_8922AU
 	  802.11be USB wireless network (Wi-Fi 7) adapter
 	  supporting 2x2 2GHz/5GHz/6GHz 4096-QAM 160MHz channels.
 
+config RTW89_8922DE
+	tristate "Realtek 8922DE/8922DE-VS PCI wireless network (Wi-Fi 7) adapter"
+	depends on PCI
+	select RTW89_CORE
+	select RTW89_PCI
+	select RTW89_8922D
+	help
+	  Select this option will enable support for 8922DE/8922DE-VS chipset
+
+	  802.11be PCIe wireless network (Wi-Fi 7) adapter
+	  supporting 2x2 2GHz/5GHz/6GHz 4096/1024-QAM 160MHz channels.
+
 config RTW89_DEBUG
 	bool
 
@@ -189,5 +204,19 @@ config RTW89_DEBUGFS
 	  Enable debugfs support
 
 	  If unsure, say Y to simplify debug problems
+
+config RTW89_LEDS
+	bool
+	depends on RTW89_CORE
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	imply MAC80211_LEDS
+	default y
+
+config RTW89_LEDS_MC
+	bool
+	depends on RTW89_LEDS
+	depends on LEDS_CLASS_MULTICOLOR
+	imply LEDS_TRIGGER_TIMER
+	default y
 
 endif

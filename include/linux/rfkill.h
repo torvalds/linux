@@ -100,7 +100,8 @@ struct rfkill * __must_check rfkill_alloc(const char *name,
 int __must_check rfkill_register(struct rfkill *rfkill);
 
 /**
- * rfkill_pause_polling(struct rfkill *rfkill)
+ * rfkill_pause_polling - Pause polling
+ * @rfkill: rfkill struct
  *
  * Pause polling -- say transmitter is off for other reasons.
  * NOTE: not necessary for suspend/resume -- in that case the
@@ -110,9 +111,9 @@ int __must_check rfkill_register(struct rfkill *rfkill);
 void rfkill_pause_polling(struct rfkill *rfkill);
 
 /**
- * rfkill_resume_polling(struct rfkill *rfkill)
+ * rfkill_resume_polling - Resume polling
+ * @rfkill: rfkill struct
  *
- * Resume polling
  * NOTE: not necessary for suspend/resume -- in that case the
  * core stops polling anyway
  */
@@ -325,6 +326,8 @@ static inline enum rfkill_type rfkill_find_type(const char *name)
 #ifdef CONFIG_RFKILL_LEDS
 /**
  * rfkill_get_led_trigger_name - Get the LED trigger name for the button's LED.
+ * @rfkill: rfkill struct
+ *
  * This function might return a NULL pointer if registering of the
  * LED trigger failed. Use this as "default_trigger" for the LED.
  */

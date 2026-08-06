@@ -597,7 +597,7 @@ static void mm81x_yaps_q_chip_full_timer_init(struct mm81x_yaps *yaps)
 
 static void mm81x_yaps_q_chip_full_timer_finish(struct mm81x_yaps *yaps)
 {
-	timer_delete_sync_try(&yaps->chip_queue_full.timer);
+	timer_shutdown_sync(&yaps->chip_queue_full.timer);
 }
 
 int mm81x_yaps_init(struct mm81x *mors)

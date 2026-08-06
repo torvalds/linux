@@ -799,34 +799,33 @@ int nxpwifi_recv_packet_to_monif(struct nxpwifi_private *priv,
 		__le16 acc_le;
 		u8 flags = 0;
 
-		if (ext.timestamp.position <= 15) {
-			hdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_TIMESTAMP));
-			off = ALIGN(off, 8);
+		hdr->it_present |=
+			cpu_to_le32(BIT(IEEE80211_RADIOTAP_TIMESTAMP));
+		off = ALIGN(off, 8);
 
-			if (ext.timestamp.flags & 0x01) {
-				flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_32BIT;
-				ts = (u32)ext.timestamp.device_timestamp;
-			} else {
-				flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_64BIT;
-				ts = ext.timestamp.device_timestamp;
-			}
-
-			ts_le = cpu_to_le64(ts);
-			memcpy(rthdr + off, &ts_le, sizeof(ts_le));
-			off += sizeof(ts_le);
-
-			if (ext.timestamp.flags & 0x02) {
-				accuracy = ext.timestamp.accuracy;
-				flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_ACCURACY;
-			}
-
-			acc_le = cpu_to_le16(accuracy);
-			memcpy(rthdr + off, &acc_le, sizeof(acc_le));
-			off += sizeof(acc_le);
-			rthdr[off++] = (ext.timestamp.unit & 0x0f) |
-					((ext.timestamp.position & 0x0f) << 4);
-			rthdr[off++] = flags;
+		if (ext.timestamp.flags & 0x01) {
+			flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_32BIT;
+			ts = (u32)ext.timestamp.device_timestamp;
+		} else {
+			flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_64BIT;
+			ts = ext.timestamp.device_timestamp;
 		}
+
+		ts_le = cpu_to_le64(ts);
+		memcpy(rthdr + off, &ts_le, sizeof(ts_le));
+		off += sizeof(ts_le);
+
+		if (ext.timestamp.flags & 0x02) {
+			accuracy = ext.timestamp.accuracy;
+			flags |= IEEE80211_RADIOTAP_TIMESTAMP_FLAG_ACCURACY;
+		}
+
+		acc_le = cpu_to_le16(accuracy);
+		memcpy(rthdr + off, &acc_le, sizeof(acc_le));
+		off += sizeof(acc_le);
+		rthdr[off++] = (ext.timestamp.unit & 0x0f) |
+				((ext.timestamp.position & 0x0f) << 4);
+		rthdr[off++] = flags;
 	}
 
 	if (format == NXPWIFI_RATE_FORMAT_HE && has_ext) {

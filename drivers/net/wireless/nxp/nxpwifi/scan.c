@@ -1255,6 +1255,9 @@ int nxpwifi_update_bss_desc_with_ie(struct nxpwifi_adapter *adapter,
 				(u16)(current_ptr - bss_entry->beacon_buf);
 			break;
 		case WLAN_EID_EXTENSION:
+			if (!element_len)
+				return -EINVAL;
+
 			elem = (struct element *)current_ptr;
 
 			switch (elem->data[0]) {

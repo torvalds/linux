@@ -64,6 +64,14 @@ enum offs_rev {
 	MIB_BSCR7,
 	MIB_BSCR17,
 	MIB_TRDR1,
+	MIB_TSCR0,
+	MIB_TSCR1,
+	MIB_TSCR2,
+	MIB_TSCR3,
+	MIB_TSCR4,
+	MIB_TSCR5,
+	MIB_TSCR6,
+	MIB_TSCR7,
 	HIF_REMAP_L1,
 	HIF_REMAP_BASE_L1,
 	HIF_REMAP_L2,
@@ -250,9 +258,9 @@ enum offs_rev {
 #define MT_MIB_BSCR7(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR7))
 #define MT_MIB_BSCR17(_band)			MT_WF_MIB(_band, __OFFS(MIB_BSCR17))
 
-#define MT_MIB_TSCR5(_band)			MT_WF_MIB(_band, 0x6c4)
-#define MT_MIB_TSCR6(_band)			MT_WF_MIB(_band, 0x6c8)
-#define MT_MIB_TSCR7(_band)			MT_WF_MIB(_band, 0x6d0)
+#define MT_MIB_TSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR5))
+#define MT_MIB_TSCR6(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR6))
+#define MT_MIB_TSCR7(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR7))
 
 #define MT_MIB_RSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR1))
 /* rx mpdu counter, full 32 bits */
@@ -268,14 +276,14 @@ enum offs_rev {
 #define MT_MIB_RSCR36(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR36))
 
 /* tx ampdu cnt, full 32 bits */
-#define MT_MIB_TSCR0(_band)			MT_WF_MIB(_band, 0x6b0)
-#define MT_MIB_TSCR2(_band)			MT_WF_MIB(_band, 0x6b8)
+#define MT_MIB_TSCR0(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR0))
+#define MT_MIB_TSCR2(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR2))
 
 /* counts all mpdus in ampdu, regardless of success */
-#define MT_MIB_TSCR3(_band)			MT_WF_MIB(_band, 0x6bc)
+#define MT_MIB_TSCR3(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR3))
 
 /* counts all successfully tx'd mpdus in ampdu */
-#define MT_MIB_TSCR4(_band)			MT_WF_MIB(_band, 0x6c0)
+#define MT_MIB_TSCR4(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR4))
 
 /* rx ampdu count, 32-bit */
 #define MT_MIB_RSCR27(_band)			MT_WF_MIB(_band, __OFFS(MIB_RSCR27))
@@ -299,7 +307,7 @@ enum offs_rev {
 #define MT_MIB_RVSR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_RVSR1))
 
 /* rx blockack count, 32 bits */
-#define MT_MIB_TSCR1(_band)			MT_WF_MIB(_band, 0x6b4)
+#define MT_MIB_TSCR1(_band)			MT_WF_MIB(_band, __OFFS(MIB_TSCR1))
 
 #define MT_MIB_BTSCR0(_band)			MT_WF_MIB(_band, 0x5e0)
 #define MT_MIB_BTSCR5(_band)			MT_WF_MIB(_band, __OFFS(MIB_BTSCR5))

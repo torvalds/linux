@@ -10,10 +10,13 @@
 #include <linux/dmi.h>
 #include <linux/firmware.h>
 #include <linux/iopoll.h>
+#include <linux/leds.h>
+#include <linux/led-class-multicolor.h>
 #include <linux/workqueue.h>
 #include <net/mac80211.h>
 
 struct rtw89_dev;
+struct rtw89_bb_ctx;
 struct rtw89_pci_info;
 struct rtw89_usb_info;
 struct rtw89_mac_gen_def;
@@ -1321,6 +1324,17 @@ struct rtw89_mac_ax_gnt {
 	u8 gnt_wl;
 } __packed;
 
+struct rtw89_btc_gnt_ctrl {
+	u8 gnt_zb_sw_en;
+	u8 gnt_zb;
+	u8 gnt_bt1_sw_en;
+	u8 gnt_bt1;
+	u8 gnt_bt0_sw_en;
+	u8 gnt_bt0;
+	u8 gnt_wl_sw_en;
+	u8 gnt_wl;
+} __packed;
+
 struct rtw89_mac_ax_wl_act {
 	u8 wlan_act_en;
 	u8 wlan_act;
@@ -1369,6 +1383,8 @@ enum rtw89_btc_btinfo {
 	BTC_BTINFO_MAX
 };
 
+#define BTC_BTINFO_BISTDMA 0x48 /* cmd value that identifies BISTDMA data */
+
 enum rtw89_btc_dcnt {
 	BTC_DCNT_RUN = 0x0,
 	BTC_DCNT_CX_RUNINFO,
@@ -1394,6 +1410,7 @@ enum rtw89_btc_dcnt {
 	BTC_DCNT_WL_FW_VER_MATCH,
 	BTC_DCNT_NULL_TX_FAIL,
 	BTC_DCNT_WL_STA_NTFY,
+	BTC_DCNT_W2B_SCBD_NOSYNC,
 	BTC_DCNT_NUM,
 };
 
@@ -1415,6 +1432,7 @@ enum rtw89_btc_wl_state_cnt {
 	BTC_WCNT_RX_ERR_LAST,
 	BTC_WCNT_RX_ERR_LAST2S,
 	BTC_WCNT_RX_LAST,
+	BTC_WCNT_SCBDUPDATE2,
 	BTC_WCNT_NUM
 };
 
@@ -1431,18 +1449,43 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_ROLESW,
 	BTC_BCNT_AFH,
 	BTC_BCNT_INFOUPDATE,
+	BTC_BCNT_LEAUDIO_INFOUPDATE,
 	BTC_BCNT_INFOSAME,
+	BTC_BCNT_LEAUDIO_INFOSAME,
 	BTC_BCNT_SCBDUPDATE,
 	BTC_BCNT_HIPRI_TX,
 	BTC_BCNT_HIPRI_RX,
 	BTC_BCNT_LOPRI_TX,
 	BTC_BCNT_LOPRI_RX,
-	BTC_BCNT_POLUT,
 	BTC_BCNT_POLUT_NOW,
 	BTC_BCNT_POLUT_DIFF,
 	BTC_BCNT_RATECHG,
-	BTC_BCNT_BTTXPWR_UPDATE,
+	BTC_BCNT_AFH_CONFLICT,
+	BTC_BCNT_AFH_LE_CONFLICT,
+	BTC_BCNT_AFH_UPDATE,
+	BTC_BCNT_AFH_LE_UPDATE,
+	BTC_BCNT_AFH_CHN,
+	BTC_BCNT_AFH_LE_CHN,
+	BTC_BCNT_TXPWR_UPDATE,
+	BTC_BCNT_PROTECT,
 	BTC_BCNT_NUM,
+};
+
+enum rtw89_btc_bt_mech_type {
+	BTC_MECH_TDD = 0,
+	BTC_MECH_FDD = 1,
+};
+
+enum rtw89_btc_bt_rf_band {
+	BTC_BT_B2G = 0x0, /* 2.4GHz */
+	BTC_BT_B5G = 0x1, /* 5GHz or 6GHz */
+	BTC_BT_BMAX = 0x2
+};
+
+enum rtw89_btc_io_offload_type {
+	BTC_IO_OFLD_NO_SUPPORT = 0,
+	BTC_IO_OFLD_MAC_API = 1,
+	BTC_IO_OFLD_BTC_H2C = 2
 };
 
 enum rtw89_btc_bt_profile {
@@ -1451,10 +1494,16 @@ enum rtw89_btc_bt_profile {
 	BTC_BT_HID = BIT(1),
 	BTC_BT_A2DP = BIT(2),
 	BTC_BT_PAN = BIT(3),
+	BTC_BT_BIS = BIT(4),
+	BTC_BT_CIS = BIT(5),
+	BTC_BT_THREAD = BIT(6),
+	BTC_BT_ULL = BIT(7),
+	BTC_BT_LEGACY = 0xf,
+	BTC_BT_FULL = 0x3f,
 	BTC_PROFILE_MAX = 4,
 };
 
-struct rtw89_btc_ant_info {
+struct rtw89_btc_ant_info_v0 {
 	u8 type;  /* shared, dedicated */
 	u8 num;
 	u8 isolation;
@@ -1477,6 +1526,50 @@ struct rtw89_btc_ant_info_v7 {
 	u8 rsvd;
 } __packed;
 
+struct rtw89_btc_ant_info_v10 {
+	u8 type;  /* shared, dedicated(non-shared) */
+	u8 num;   /* antenna count  */
+	u8 isolation; /* Ant-Iso between WL/BT */
+	u8 single_pos; /* wifi 1ss-1ant at 0:S0 or 1:S1 */
+
+	u8 stream_cnt; /* spatial_stream count: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;    /* BT0 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 btg1_pos;   /* BT1 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
+	u8 ant_xmap[2][4];
+} __packed;
+
+struct rtw89_btc_ant_info_v11 {
+	u8 type;
+	u8 num;
+	u8 isolation;
+	u8 single_pos;
+
+	u8 stream_cnt;
+	u8 path_pos;   /* WL path position: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;
+	u8 btg1_pos;
+	u8 func[5];
+	u8 ant_xmap[2][4];
+	u8 rsvd0[3];
+} __packed;
+
+struct rtw89_btc_ant_info {
+	u8 type;  /* shared, dedicated(non-shared) */
+	u8 num;   /* antenna count  */
+	u8 isolation; /* Ant-Iso between WL/BT */
+	u8 single_pos; /* wifi 1ss-1ant at 0:S0 or 1:S1 */
+
+	u8 stream_cnt; /* spatial_stream count: Tx[7:4], Rx[3:0] */
+	u8 btg_pos;    /* BT0 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 btg1_pos;   /* BT1 btg-circuit at 0:WL-S0/1:WL-S1 */
+	u8 path_pos;   /* WL path position: Tx[7:4], Rx[3:0] */
+	u8 func[5]; /* function at 1~5 Ant refer to enum btc_bt_func_type */
+	u8 ant_xmap[2][4];
+
+	u8 diversity; /* only for wifi use 1-antenna */
+};
+
 enum rtw89_tfc_dir {
 	RTW89_TFC_UL,
 	RTW89_TFC_DL,
@@ -1485,19 +1578,20 @@ enum rtw89_tfc_dir {
 struct rtw89_btc_wl_smap {
 	u32 busy: 1;
 	u32 scan: 1;
-	u32 connecting: 1;
+	u32 dhcp: 1;
 	u32 roaming: 1;
-	u32 dbccing: 1;
+	u32 transacting: 1;
 	u32 _4way: 1;
+	u32 handshake: 1;
 	u32 rf_off: 1;
-	u32 lps: 2;
-	u32 ips: 1;
-	u32 init_ok: 1;
-	u32 traffic_dir : 2;
 	u32 rf_off_pre: 1;
+	u32 ips: 1;
+	u32 lps: 2;
 	u32 lps_pre: 2;
 	u32 lps_exiting: 1;
 	u32 emlsr: 1;
+	u32 init_ok: 1;
+	u32 traffic_dir : 2;
 };
 
 enum rtw89_tfc_interval {
@@ -1663,23 +1757,25 @@ struct rtw89_btc_bt_ver_info {
 };
 
 struct rtw89_btc_bool_sta_chg {
-	u32 now: 1;
-	u32 last: 1;
-	u32 remain: 1;
-	u32 srvd: 29;
+	u8 now: 1;
+	u8 last: 1;
+	u8 remain: 1;
+	u8 srvd: 5;
 };
 
 struct rtw89_btc_u8_sta_chg {
 	u8 now;
 	u8 last;
-	u8 remain;
+	u8 chg;
 	u8 rsvd;
 };
 
 struct rtw89_btc_wl_scan_info {
 	u8 band[RTW89_PHY_NUM];
 	u8 phy_map;
-	u8 rsvd;
+	u8 hw_band_map;
+	u8 type;
+	u8 fw_scan;
 };
 
 struct rtw89_btc_wl_dbcc_info {
@@ -1688,6 +1784,25 @@ struct rtw89_btc_wl_dbcc_info {
 	u8 real_band[RTW89_PHY_NUM];
 	u8 role[RTW89_PHY_NUM]; /* role in each phy */
 };
+
+struct rtw89_btc_wl_mlo_info_v2 {
+	u8 wmode[RTW89_PHY_NUM];
+	u8 ch_type[RTW89_PHY_NUM];
+	u8 hwb_rf_band[RTW89_PHY_NUM];
+	u8 path_rf_band[RTW89_PHY_NUM];
+
+	u8 wtype;
+	u8 mrcx_mode;
+	u8 mrcx_act_hwb_map;
+	u8 mrcx_bt_slot_rsp;
+
+	u8 rf_combination;
+	u8 mlo_en;
+	u8 mlo_adie;
+	u8 dual_hw_band_en;
+
+	__le32 link_status;
+} __packed;
 
 struct rtw89_btc_wl_mlo_info {
 	u8 wmode[RTW89_PHY_NUM]; /* enum phl_mr_wmode */
@@ -1796,10 +1911,11 @@ struct rtw89_btc_wl_role_info_bpos {
 	u16 nan: 1;
 };
 
-struct rtw89_btc_wl_scc_ctrl {
-	u8 null_role1;
-	u8 null_role2;
-	u8 ebt_null; /* if tx null at EBT slot */
+struct rtw89_btc_eslot_ctrl {
+	u8 en;  /* 1: toggle tx-flow-ctrl (null 0/1), tx-pause by Ext-slot */
+	u8 nulltx_role1;
+	u8 nulltx_role2;
+	u8 nulltx_pre_time; /* null-tx time prior to EBT-start (from E2G-end) */
 };
 
 union rtw89_btc_wl_role_info_map {
@@ -1807,7 +1923,7 @@ union rtw89_btc_wl_role_info_map {
 	struct rtw89_btc_wl_role_info_bpos role;
 };
 
-struct rtw89_btc_wl_role_info { /* struct size must be n*4 bytes */
+struct rtw89_btc_wl_role_info_v0 { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
 	u8 link_mode;
 	union rtw89_btc_wl_role_info_map role_map;
@@ -1844,7 +1960,7 @@ struct rtw89_btc_wl_role_info_v2 { /* struct size must be n*4 bytes */
 	u32 rsvd: 27;
 };
 
-struct rtw89_btc_wl_rlink { /* H2C info, struct size must be n*4 bytes */
+struct rtw89_btc_wl_rlink_v0 { /* H2C info, struct size must be n*4 bytes */
 	u8 connected;
 	u8 pid;
 	u8 phy;
@@ -1861,6 +1977,28 @@ struct rtw89_btc_wl_rlink { /* H2C info, struct size must be n*4 bytes */
 	u8 mode; /* wifi protocol */
 } __packed;
 
+struct rtw89_btc_wl_rlink_v10 { /* H2C info, struct size must be n*4 bytes */
+	u8 connected;
+	u8 pid;
+	u8 phy;
+	u8 noa;
+
+	u8 rf_band; /* enum band_type RF band: 2.4G/5G/6G */
+	u8 active; /* 0:rlink is under doze */
+	u8 bw; /* enum channel_width */
+	u8 role; /*enum role_type */
+
+	u8 ch;
+	u8 noa_dur; /* ms */
+	u8 client_cnt; /* for Role = P2P-Go/AP */
+	u8 mode; /* wifi protocol */
+
+	u8 mac_id;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+} __packed;
+
 #define RTW89_BE_BTC_WL_MAX_ROLE_NUMBER 6
 struct rtw89_btc_wl_role_info_v7 { /* struct size must be n*4 bytes */
 	u8 connect_cnt;
@@ -1870,12 +2008,12 @@ struct rtw89_btc_wl_role_info_v7 { /* struct size must be n*4 bytes */
 
 	struct rtw89_btc_wl_active_role_v7 active_role[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER];
 
-	u32 role_map;
-	u32 mrole_type; /* btc_wl_mrole_type */
-	u32 mrole_noa_duration; /* ms */
-	u32 dbcc_en;
-	u32 dbcc_chg;
-	u32 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	__le32 role_map;
+	__le32 mrole_type; /* btc_wl_mrole_type */
+	__le32 mrole_noa_duration; /* ms */
+	__le32 dbcc_en;
+	__le32 dbcc_chg;
+	__le32 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
 } __packed;
 
 struct rtw89_btc_wl_role_info_v8 { /* H2C info, struct size must be n*4 bytes */
@@ -1889,14 +2027,94 @@ struct rtw89_btc_wl_role_info_v8 { /* H2C info, struct size must be n*4 bytes */
 	u8 dbcc_chg;
 	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
 
-	struct rtw89_btc_wl_rlink rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	struct rtw89_btc_wl_rlink_v0 rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
 
-	u32 role_map;
-	u32 mrole_type; /* btc_wl_mrole_type */
-	u32 mrole_noa_duration; /* ms */
+	__le32 role_map;
+	__le32 mrole_type; /* btc_wl_mrole_type */
+	__le32 mrole_noa_duration; /* ms */
 } __packed;
 
+struct rtw89_btc_wl_role_info_v10 { /* H2C info, struct size must be n*4 bytes */
+	struct rtw89_btc_wl_rlink_v10 rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	u8 link_mode;
+	u8 link_mode_hb1;
+	u8 p2p_exist;
+	u8 p2p_exist_hb1;
+
+	u8 pta_req_band;
+	u8 dbcc_en; /* 1+1 and 2.4G-included */
+	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	u8 rsvd;
+
+	__le32 role_map;
+	__le32 role_map_hb1;
+	__le32 mrole_type; /* btc_wl_mrole_type: [31:16]:band1, [15:0]:band0 */
+} __packed;
+
+struct rtw89_btc_wl_rlink { /* Logic dynamic using */
+	u8 connected;
+	u8 pid;
+	u8 phy;
+	u8 noa;
+
+	u8 rf_band; /* enum band_type RF band: 2.4G/5G/6G */
+	u8 active; /* 0:rlink is under doze */
+	u8 bw; /* enum channel_width */
+	u8 role; /*enum role_type */
+
+	u8 ch;
+	u8 noa_dur; /* ms */
+	u8 client_cnt; /* for Role = P2P-Go/AP */
+	u8 mode; /* wifi protocol */
+
+	/*v0 v1*/
+	u16 tx_lvl;
+	u16 rx_lvl;
+	u16 tx_rate;
+	u16 rx_rate;
+
+	/* v7 */
+	u8 client_ps; /*v7 v2 v1 v0*/
+
+	/* v10 */
+	u8 mac_id;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+};
+
+struct rtw89_btc_wl_role_info { /* Logic dynamic using */
+	struct rtw89_btc_wl_rlink rlink[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	u8 link_mode;
+	u8 link_mode_hb1;
+	u8 p2p_exist;
+	u8 p2p_exist_hb1;
+
+	u8 pta_req_band;
+	u8 dbcc_en; /* 1+1 and 2.4G-included */
+	u8 dbcc_2g_phy; /* which phy operate in 2G, HW_PHY_0 or HW_PHY_1 */
+	u8 rsvd;
+
+	u32 role_map;
+	u32 role_map_hb1;
+	u32 mrole_type; /* btc_wl_mrole_type: [31:16]:band1, [15:0]:band0 */
+
+	/* Before v10 use this linkmode */
+	u8 link_mode_v0;
+
+	/* v7 */
+	u8 connect_cnt;
+	u32 dbcc_chg; /* v7 v2*/
+
+	/* v8 */
+	u8 link_mode_chg; /* v8, v7 v2*/
+	u8 p2p_2g; /* v8, v7 */
+	u32 mrole_noa_duration; /* v8, v7 v2*/
+};
+
 struct rtw89_btc_wl_ver_info {
+	char build_time[12];
+	char build_date[12];
 	u32 fw_coex; /* match with which coex_ver */
 	u32 fw;
 	u32 mac;
@@ -1908,7 +2126,7 @@ struct rtw89_btc_wl_afh_info {
 	u8 en;
 	u8 ch;
 	u8 bw;
-	u8 rsvd;
+	u8 band;
 } __packed;
 
 struct rtw89_btc_wl_rfk_info {
@@ -1931,6 +2149,8 @@ struct rtw89_btc_bt_smap {
 	u32 sco_busy: 1;
 	u32 mesh_busy: 1;
 	u32 inq_pag: 1;
+	u32 profile_map: 8;
+	u32 rsvd: 18;
 };
 
 union rtw89_btc_bt_state_map {
@@ -1949,14 +2169,57 @@ struct rtw89_btc_bt_txpwr_desc {
 	u8 le_gain_index;
 };
 
+struct rtw89_btc_bt_leaudio_info {
+	u8 cmd;
+	u8 len;
+	u8 bis_cis;
+#define RTW89_BTC_LEAU_INFO_L2_BIS_EX BIT(0)
+#define RTW89_BTC_LEAU_INFO_L2_BIS_CNT GENMASK(3, 1)
+#define RTW89_BTC_LEAU_INFO_L2_CIS_EX BIT(4)
+#define RTW89_BTC_LEAU_INFO_L2_CIS_CNT GENMASK(7, 5)
+	u8 rssi;
+	__le32 hbrsvd;
+} __packed;
+
+struct rtw89_btc_bt_bistdma_info_le {
+	u8 cmd;
+	u8 len;
+	u8 bis; /* BIT(2) ~ BIT(7) is rsvd */
+#define RTW89_BTC_BIS_INFO_L2_START_END BIT(0) /* 0: BIS start, 1: BIS end */
+#define RTW89_BTC_BIS_INFO_L2_TRX BIT(1) /* 0: BIS Tx, 1: BIS Rx */
+	u8 diff_t_lb;
+	u8 diff_t_hb; /* diff_t = (diff_t_hb * 256 + diff_t_lb) * 0.625 ms */
+	u8 hb1rsvd;
+	u8 hb2rsvd;
+	u8 hb3rsvd;
+} __packed;
+
+struct rtw89_btc_bt_leaudio_desc {
+	u32 bis_exist: 1;
+	u32 bis_exist_last: 1;
+	u32 cis_exist: 1;
+	u32 cis_exist_last: 1;
+	u32 bis_cnt: 3;
+	u32 cis_cnt: 3;
+	u32 rssi: 8;
+	u32 bis_cnt_last: 3;
+	u32 cis_cnt_last: 3;
+	u32 bis_trx: 1;
+	u32 bis_start_end: 1;
+	u32 rsvd: 6;
+
+	u16 diff_t;
+};
+
 struct rtw89_btc_bt_link_info {
-	struct rtw89_btc_u8_sta_chg profile_cnt;
+	struct rtw89_btc_u8_sta_chg link_cnt;
 	struct rtw89_btc_bool_sta_chg multi_link;
 	struct rtw89_btc_bool_sta_chg relink;
 	struct rtw89_btc_bt_hfp_desc hfp_desc;
 	struct rtw89_btc_bt_hid_desc hid_desc;
 	struct rtw89_btc_bt_a2dp_desc a2dp_desc;
 	struct rtw89_btc_bt_pan_desc pan_desc;
+	struct rtw89_btc_bt_leaudio_desc leaudio_desc;
 	union rtw89_btc_bt_state_map status;
 	struct rtw89_btc_bt_txpwr_desc bt_txpwr_desc;
 
@@ -1965,20 +2228,83 @@ struct rtw89_btc_bt_link_info {
 	u8 rssi_state[BTC_BT_RSSI_THMAX];
 	u8 afh_map[BTC_BT_AFH_GROUP];
 	u8 afh_map_le[BTC_BT_AFH_LE_GROUP];
+	u8 rssi;
 
-	u32 role_sw: 1;
-	u32 slave_role: 1;
-	u32 afh_update: 1;
-	u32 cqddr: 1;
-	u32 rssi: 8;
-	u32 tx_3m: 1;
-	u32 rsvd: 19;
+	u8 role_sw: 1;
+	u8 slave_role: 1;
+	u8 afh_update: 1;
+	u8 cqddr: 1;
+	u8 tx_3m: 1;
+	u8 inq: 1;
+	u8 pag: 1;
+	u8 igno_wl: 1;
+
+	u8 ble_scan_en: 1;
+	u8 reinit: 1;
+	u8 rsvd: 6;
+
+	u8 leaudio_raw_info[BTC_BTINFO_MAX]; /* raw LE audio info from BT mailbox */
+	u8 bistdma_raw_info[BTC_BTINFO_MAX]; /* raw BIS-TDMA info from BT mailbox */
 };
 
-struct rtw89_btc_3rdcx_info {
-	u8 type;   /* 0: none, 1:zigbee, 2:LTE  */
-	u8 hw_coex;
-	u16 rsvd;
+struct rtw89_btc_bind_bt_status {
+	u8 a2dp_active: 1;
+	u8 a2dp_sink: 1;
+	u8 pan_active: 1;
+	u8 connect: 1;
+	u8 inq_page: 1;
+	u8 multi_link: 1;
+	u8 slave_role: 1;
+	u8 page: 1;
+
+	u8 hfp_exist: 1;
+	u8 hid_exist: 1;
+	u8 a2dp_exist: 1;
+	u8 pan_exist: 1;
+	u8 bis_exist: 1;
+	u8 cis_exist: 1;
+	u8 thread_exist: 1;
+	u8 ull_exist: 1;
+
+	u8 hid_cnt;
+	u8 hid_type;
+	u8 cis_cnt;
+	u8 link_cnt;
+
+	u16 a2dp_vendor_id;
+};
+
+struct rtw89_btc_bind_info {
+	u8 wl_hwb_sel; /* map */
+	u8 wl_link_mode;
+	u8 wl_bg_mode;
+	u8 rf_band; /* map, 0: no any rf-band bind */
+	u8 bt_sel; /* map */
+	u8 bt_link_weight; /* select the highest weight between bt/rf-band */
+
+	u32 bt_profile; /* map */
+	struct rtw89_btc_bind_bt_status bt_smap;
+};
+
+struct rtw89_btc_extsoc_info {
+	u8 chip_id;
+	u8 max_tx_pwr;
+	u8 rf_band_map;
+	u8 ant_iso_to_wl;
+
+	u8 link_weight[BTC_BT_BMAX];
+
+	u8 func_type; /* 0: none, 1:zigbee, 2:LTE */
+	u8 hw_coex; /* Hard-Wire coex interface support */
+	u8 pta_type; /* 0: RTK 4-wire mode, 1: 3-wire mode */
+	u8 pta_req_exist;
+
+	u32 hpta_cfg;
+	u32 hmbx_cfg;
+	u32 swout_cfg;
+	u32 swin_cfg;
+	u32 profile_map[BTC_BT_BMAX];
+	u32 bcnt[BTC_BCNT_NUM];
 };
 
 struct rtw89_btc_dm_emap {
@@ -2006,6 +2332,7 @@ struct rtw89_btc_dm_emap {
 	u32 h2c_buffer_over: 1;
 	u32 bt_tx_hang: 1; /* for SNR too low bug, BT has no Tx req*/
 	u32 wl_no_sta_ntfy: 1;
+	u32 w2b_scbd_no_sync: 1;
 
 	u32 h2c_bmap_mismatch: 1;
 	u32 c2h_bmap_mismatch: 1;
@@ -2042,16 +2369,13 @@ struct rtw89_btc_wl_nhm {
 };
 
 struct rtw89_btc_wl_info {
-	struct rtw89_btc_wl_link_info link_info[RTW89_PORT_NUM];
 	struct rtw89_btc_wl_link_info rlink_info[RTW89_BE_BTC_WL_MAX_ROLE_NUMBER][RTW89_MAC_NUM];
+	struct rtw89_btc_chdef rf_ch_info[RTW89_PHY_NUM];
 	struct rtw89_btc_wl_rfk_info rfk_info;
-	struct rtw89_btc_wl_ver_info  ver_info;
-	struct rtw89_btc_wl_afh_info afh_info;
+	struct rtw89_btc_wl_ver_info ver_info;
+	struct rtw89_btc_wl_afh_info afh_info[RTW89_MAC_NUM][RTW89_BAND_NUM];
+	struct rtw89_btc_wl_afh_info afh_info_last[RTW89_MAC_NUM][RTW89_BAND_NUM];
 	struct rtw89_btc_wl_role_info role_info;
-	struct rtw89_btc_wl_role_info_v1 role_info_v1;
-	struct rtw89_btc_wl_role_info_v2 role_info_v2;
-	struct rtw89_btc_wl_role_info_v7 role_info_v7;
-	struct rtw89_btc_wl_role_info_v8 role_info_v8;
 	struct rtw89_btc_wl_scan_info scan_info;
 	struct rtw89_btc_wl_dbcc_info dbcc_info;
 	struct rtw89_btc_wl_mlo_info mlo_info;
@@ -2065,23 +2389,32 @@ struct rtw89_btc_wl_info {
 	u8 coex_mode;
 	u8 pta_req_mac;
 	u8 bt_polut_type[RTW89_PHY_NUM]; /* BT polluted WL-Tx type for phy0/1  */
+	u8 rf_band_map[RTW89_PHY_NUM]; /* rf_band bit-map */
+	u8 ch_map[12];
+	u8 ch_map_le[5];
 
-	bool is_5g_hi_channel;
+	bool is_5g_hi_ch;
+	bool is_5g_hi_ch_hb1;
 	bool go_client_exist;
+	bool go_client_exist_hb1;
 	bool noa_exist;
+	bool noa_exist_hb1;
 	bool pta_reg_mac_chg;
 	bool bg_mode;
+	bool bg_mode_hb1;
 	bool he_mode;
-	bool scbd_change;
+	bool scbd_chg[BTC_ALL_BT];
 	bool fw_ver_mismatch;
 	bool client_cnt_inc_2g;
 	bool link_mode_chg;
 	bool dbcc_chg;
-	u32 scbd;
+	u32 scbd[BTC_ALL_BT];
+	u32 scbd_rb[BTC_ALL_BT];
+	u32 wcnt[BTC_WCNT_NUM];
 };
 
-struct rtw89_btc_module {
-	struct rtw89_btc_ant_info ant;
+struct rtw89_btc_module_v0 {
+	struct rtw89_btc_ant_info_v0 ant;
 	u8 rfe_type;
 	u8 cv;
 
@@ -2107,9 +2440,55 @@ struct rtw89_btc_module_v7 {
 	struct rtw89_btc_ant_info_v7 ant;
 } __packed;
 
+struct rtw89_btc_module_v10 {
+	u8 rfe_type;
+	u8 wa_type; /* Refer to enum btc_wa_type */
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos; /* wl-end view: get from efuse, must compare bt.btg_type*/
+	u8 bt0_sw_type; /* BT Ant-switch: None(non-share), Int(BTG), Ext(SPDT)*/
+	u8 bt1_pos; /* BTC_BT_ALONE or BTC_BT_BTG */
+	u8 bt1_sw_type;
+
+	struct rtw89_btc_ant_info_v10 ant;
+} __packed;
+
+struct rtw89_btc_module_v11 {
+	u8 rfe_type;
+	u8 wa_type;
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos;
+	u8 bt0_sw_type;
+	u8 bt1_pos;
+	u8 bt1_sw_type;
+
+	struct rtw89_btc_ant_info_v11 ant;
+} __packed;
+
 union rtw89_btc_module_info {
-	struct rtw89_btc_module md;
+	struct rtw89_btc_module_v0 md_v0;
 	struct rtw89_btc_module_v7 md_v7;
+	struct rtw89_btc_module_v10 md_v10;
+	struct rtw89_btc_module_v11 md_v11;
+};
+
+struct rtw89_btc_module {
+	u8 rfe_type;
+	u8 wa_type; /* Refer to enum btc_wa_type */
+	u8 kt_ver;
+	u8 kt_ver_adie;
+
+	u8 bt0_pos; /* wl-end view: get from efuse, must compare bt.btg_type*/
+	u8 bt0_sw_type; /* BT Ant-switch: None(non-share), Int(BTG), Ext(SPDT)*/
+	u8 bt1_pos; /* BTC_BT_ALONE or BTC_BT_BTG */
+	u8 bt1_sw_type;
+
+	u8 bt_solo;
+
+	struct rtw89_btc_ant_info ant;
 };
 
 #define RTW89_BTC_DM_MAXSTEP 30
@@ -2121,8 +2500,8 @@ struct rtw89_btc_dm_step {
 	bool step_ov;
 };
 
-struct rtw89_btc_init_info {
-	struct rtw89_btc_module module;
+struct rtw89_btc_init_info_v0 {
+	struct rtw89_btc_module_v0 module;
 	u8 wl_guard_ch;
 
 	u8 wl_only: 1;
@@ -2132,7 +2511,7 @@ struct rtw89_btc_init_info {
 	u8 bt_only: 1;
 
 	u16 rsvd;
-};
+} __packed;
 
 struct rtw89_btc_init_info_v7 {
 	u8 wl_guard_ch;
@@ -2148,15 +2527,90 @@ struct rtw89_btc_init_info_v7 {
 	struct rtw89_btc_module_v7 module;
 } __packed;
 
+struct rtw89_btc_init_info_v107 {
+	u8 wl_guard_ch;
+	u8 wl_only;
+	u8 wl_init_ok;
+	u8 dbcc_en;
+
+	u8 cx_other;
+	u8 bt_only;
+	u8 rsvd;
+	u8 rsvd1;
+
+	struct rtw89_btc_module_v7 module;
+} __packed;
+
+struct rtw89_btc_init_info_v10 {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	struct rtw89_btc_module_v10 module;
+} __packed;
+
+struct rtw89_btc_init_info_v11 {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	struct rtw89_btc_module_v11 module;
+};
+
 union rtw89_btc_init_info_u {
-	struct rtw89_btc_init_info init;
+	struct rtw89_btc_init_info_v0 init_v0;
 	struct rtw89_btc_init_info_v7 init_v7;
+	struct rtw89_btc_init_info_v10 init_v10;
+	struct rtw89_btc_init_info_v107 init_v107;
+	struct rtw89_btc_init_info_v11 init_v11;
+};
+
+struct rtw89_btc_init_info {
+	u8 endian_type; /* 0: little-endian, 1:big-endian */
+	u8 init_mode; /* refer to enum BTC_MODE_xxx  */
+	u8 wl_init_ok;
+	u8 bt0_function;
+
+	u8 bt1_function;
+	u8 bt2_function;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	u8 dbcc_en;
+	u8 cx_other;
+	u8 bt_only;
+	u8 wl_only;
+
+	u8 wl_guard_ch;
+
+	struct rtw89_btc_module module;
 };
 
 struct rtw89_btc_wl_tx_limit_para {
 	u16 enable;
 	u32 tx_time;	/* unit: us */
 	u16 tx_retry;
+};
+
+struct rtw89_btc_wl_trx_nss_para {
+	u8 tx_limit;
+	u8 rx_limit;
+	u8 tx_ss;
+	u8 rx_ss;
+	u8 tx_path;
+	u8 rx_path;
 };
 
 enum rtw89_btc_bt_scan_type {
@@ -2176,8 +2630,21 @@ enum rtw89_btc_ble_scan_type {
 	CXSCAN_MAX
 };
 
+enum rtw89_btc_bt_func_type {
+	BTC_BTF_NONE = 0,
+	BTC_BTF_BT = BIT(0),
+	BTC_BTF_ZB = BIT(1),
+	BTC_BTF_THREAD = BIT(2),
+	BTC_BTF_24GPRO = BIT(3), /* 2.4GHz Proprietary */
+	BTC_BTF_ULL = BIT(4),
+};
+
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_ENABLE BIT(0)
 #define RTW89_BTC_BTC_SCAN_V1_FLAG_INTERLACE BIT(1)
+#define RTW89_BTC_BT_DEF_BR_TX_PWR 4
+#define RTW89_BTC_BT_DEF_LE_TX_PWR 4
+#define RTW89_BTC_DEFAULT_ANISO 10
+#define RTW89_BTC_BT_DEF_LE_TX_PWR_1 10
 
 struct rtw89_btc_bt_scan_info_v1 {
 	__le16 win;
@@ -2212,14 +2679,24 @@ struct rtw89_btc_fbtc_btscan_v7 {
 	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
 } __packed;
 
+struct rtw89_btc_fbtc_btscan_v8 {
+	u8 fver; /* btc_ver::fcxbtscan */
+	u8 type;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
+	u8 rsvd1;
+	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
+} __packed;
+
 union rtw89_btc_fbtc_btscan {
 	struct rtw89_btc_fbtc_btscan_v1 v1;
 	struct rtw89_btc_fbtc_btscan_v2 v2;
 	struct rtw89_btc_fbtc_btscan_v7 v7;
+	struct rtw89_btc_fbtc_btscan_v8 v8;
 };
 
 struct rtw89_btc_bt_info {
 	struct rtw89_btc_bt_link_info link_info;
+	struct rtw89_btc_bt_link_info link_info_56g;
 	struct rtw89_btc_bt_scan_info_v1 scan_info_v1[BTC_SCAN_MAX1];
 	struct rtw89_btc_bt_scan_info_v2 scan_info_v2[CXSCAN_MAX];
 	struct rtw89_btc_bt_ver_info ver_info;
@@ -2228,11 +2705,28 @@ struct rtw89_btc_bt_info {
 	struct rtw89_btc_rf_para rf_para;
 	union rtw89_btc_bt_rfk_info_map rfk_info;
 
-	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
+	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox (2.4G) */
+	u8 raw_info_56g[BTC_BTINFO_MAX]; /* raw bt info from mailbox (5/6G) */
 	u8 txpwr_info[BTC_BTINFO_MAX];
+	u8 link_weight[BTC_BT_BMAX]; /* Link Weight for RF-band/HWB selection */
 	u8 rssi_level;
+	u8 rf_band_map;
+	u8 func_type;
+	u8 tx_power_now;
+	u8 tx_power_now_6g;
+	u8 ant_iso_to_wl; /* ant isolation between BTx and WL */
+
+	u8 fw_ver_mismatch: 1;
+	u8 band_56G_support: 1;
+	u8 hi_lna_rx: 1;
+	u8 lna_constrain: 3;
+	u8 hi_lna_rx_6g: 1;
+	u8 lna_constrain_6g: 3;
+	u8 rsvd: 6;
 
 	u32 scbd;
+	u32 scbd_rb;
+	u32 scbd_c2h;
 	u32 feature;
 
 	u32 mbx_avl: 1;
@@ -2244,11 +2738,19 @@ struct rtw89_btc_bt_info {
 	u32 inq: 1;
 	u32 pag: 1;
 	u32 run_patch_code: 1;
-	u32 hi_lna_rx: 1;
 	u32 scan_rx_low_pri: 1;
 	u32 scan_info_update: 1;
-	u32 lna_constrain: 3;
-	u32 rsvd: 17;
+	u32 rsvd1: 22;
+
+	u32 bcnt[BTC_BCNT_NUM];
+};
+
+#define RTW89_BTC_WL_DEF_TX_PWR GENMASK(7, 0)
+struct rtw89_btc_rf_trx_para_v0 {
+	u32 wl_tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	u32 wl_rx_gain;  /* rx gain table index (TBD.) */
+	u8 bt_tx_power; /* decrease Tx power (dB) */
+	u8 bt_rx_gain;  /* LNA constrain level */
 };
 
 struct rtw89_btc_rf_trx_para_v9 {
@@ -2262,18 +2764,18 @@ struct rtw89_btc_rf_trx_para_v9 {
 
 struct rtw89_btc_cx {
 	struct rtw89_btc_wl_info wl;
-	struct rtw89_btc_bt_info bt;
-	struct rtw89_btc_3rdcx_info other;
+	struct rtw89_btc_bt_info bt0;
+	struct rtw89_btc_bt_info bt1;
+	struct rtw89_btc_extsoc_info bt_ext;
+	struct rtw89_btc_rf_trx_para_v9 rf_para;
 	u32 state_map;
-	u32 cnt_bt[BTC_BCNT_NUM];
-	u32 cnt_wl[BTC_WCNT_NUM];
 };
 
 struct rtw89_btc_fbtc_tdma {
 	u8 type; /* btc_ver::fcxtdma */
 	u8 rxflctrl;
-	u8 txpause;
-	u8 wtgle_n;
+	u8 txflctrl;
+	u8 bind;
 	u8 leak_n;
 	u8 ext_ctrl;
 	u8 rxflctrl_role;
@@ -2463,6 +2965,43 @@ struct rtw89_btc_fbtc_rpt_ctrl_v8 {
 	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
 } __packed;
 
+#define RTW89_BTC_TIME_DATE_FMT 12
+struct rtw89_btc_fbtc_rpt_ctrl_v9 {
+	u8 fver;
+	u8 ext_req_exist;
+	u8 pta_owner;
+	u8 rsvd;
+
+	u8 build_time[RTW89_BTC_TIME_DATE_FMT];
+	u8 build_date[RTW89_BTC_TIME_DATE_FMT];
+
+	u8 gnt_val[RTW89_PHY_NUM][4]; /* gwl/gbt012 refer to struct btc_gnt_ctrl */
+	__le16 bt_cnt[BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v8 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_v11 {
+	u8 fver;
+	u8 rsvd0;
+	u8 rpt_len_max_l; /* BTC_RPT_MAX bit0~7 */
+	u8 rpt_len_max_h; /* BTC_RPT_MAX bit8~15 */
+
+	u8 build_time[12];
+	u8 build_date[12];
+
+	u8 gnt_val[RTW89_PHY_NUM][8]; /* gwl/gbt012 refer to struct btc_gnt_ctrl */
+	__le16 bt_cnt[BTC_ALL_BT_EZL][BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v8 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+
+	__le32 error_code;
+	__le32 scbd_w2b[2];
+	__le32 scbd_b2w[2];
+} __packed;
+
 union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
 	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
@@ -2470,6 +3009,8 @@ union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v105 v105;
 	struct rtw89_btc_fbtc_rpt_ctrl_v7 v7;
 	struct rtw89_btc_fbtc_rpt_ctrl_v8 v8;
+	struct rtw89_btc_fbtc_rpt_ctrl_v9 v9;
+	struct rtw89_btc_fbtc_rpt_ctrl_v11 v11;
 };
 
 enum rtw89_fbtc_ext_ctrl_type {
@@ -2575,14 +3116,55 @@ enum rtw89_btc_afh_map_type { /*AFH MAP TYPE */
 	RPT_BT_AFH_SEQ_LE = 0x20
 };
 
-#define BTC_DBG_MAX1  32
+enum btc_wl_gpio_debug {
+	BTC_DBG_GNT_BT = 0,
+	BTC_DBG_GNT_WL = 1,
+	BTC_DBG_GNT_BT1 = 2,
+	BTC_DBG_GNT_WL1 = 3,
+	/* The following signals should 0-1 tiggle by each function-call */
+	BTC_DBG_BCN_EARLY = 4,
+	BTC_DBG_WL_NULL0 = 5,
+	BTC_DBG_WL_NULL1 = 6,
+	BTC_DBG_WL_RXISR = 7,
+	BTC_DBG_TDMA_ENTRY = 8,
+	BTC_DBG_A2DP_EMPTY = 9,
+	BTC_DBG_BT_RETRY = 10,
+	/* The following signals should 0-1 tiggle by state L/H */
+	BTC_DBG_BT_RELINK = 11,
+	BTC_DBG_SLOT_WL = 12,
+	BTC_DBG_SLOT_BT = 13,
+	/* The following signals should 0-1 tiggle by external*/
+	BTC_DBG_WL_ERR = 14,
+	BTC_DBG_WL_OK = 15,
+	/* The following signals appear only 1-active at same time*/
+	BTC_DBG_SLOT_B2W = 16,
+	BTC_DBG_SLOT_W1 = 17,
+	BTC_DBG_SLOT_W2 = 18,
+	BTC_DBG_SLOT_W2B = 19,
+	BTC_DBG_SLOT_B1 = 20,
+	BTC_DBG_SLOT_B2 = 21,
+	BTC_DBG_SLOT_B3 = 22,
+	BTC_DBG_SLOT_B4 = 23,
+	BTC_DBG_SLOT_LK = 24,
+	BTC_DBG_SLOT_E2G = 25,
+	BTC_DBG_SLOT_E5G = 26,
+	BTC_DBG_SLOT_EBT = 27,
+	BTC_DBG_SLOT_WLK = 28,
+	BTC_DBG_SLOT_B1FDD = 29,
+	BTC_DBG_BT_CHANGE = 30,
+	/* The following signals should 0-1 tiggle by external*/
+	BTC_DBG_WL_CCA = 31,
+
+	BTC_DBG_NUM,
+};
+
 struct rtw89_btc_fbtc_gpio_dbg_v1 {
 	u8 fver; /* btc_ver::fcxgpiodbg */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
 	__le32 pre_state; /* the debug signal is 1 or 0  */
-	u8 gpio_map[BTC_DBG_MAX1]; /*the debug signals to GPIO-Position */
+	u8 gpio_map[BTC_DBG_NUM]; /*the debug signals to GPIO-Position */
 } __packed;
 
 struct rtw89_btc_fbtc_gpio_dbg_v7 {
@@ -2591,7 +3173,7 @@ struct rtw89_btc_fbtc_gpio_dbg_v7 {
 	u8 rsvd1;
 	u8 rsvd2;
 
-	u8 gpio_map[BTC_DBG_MAX1];
+	u8 gpio_map[BTC_DBG_NUM];
 
 	__le32 en_map;
 	__le32 pre_state;
@@ -2600,6 +3182,120 @@ struct rtw89_btc_fbtc_gpio_dbg_v7 {
 union rtw89_btc_fbtc_gpio_dbg {
 	struct rtw89_btc_fbtc_gpio_dbg_v1 v1;
 	struct rtw89_btc_fbtc_gpio_dbg_v7 v7;
+};
+
+/*
+ * SET_GPIO_CTRL payload (max len = 7 bytes)
+ *
+ * type = CXDGPIO_EN_MAP
+ *   data.val[31:0] = debug signal enable map
+ *
+ * type = CXDGPIO_MUX_MAP
+ *   data.mux.sig  = debug signal id
+ *   data.mux.gpio = GPIO id
+ *
+ * type = CXDGPIO_EXT_HPTA / CXDGPIO_EXT_HMBX / CXDGPIO_EXT_SWOUT
+ *   data.map.map_low  = GPIO 7~0 map
+ *   data.map.map_high = GPIO 15~8 map
+ *
+ * type = CXDGPIO_EXT_SWIN
+ *   data.swin.in_map_low  = GPIO 7~0 input-en-map
+ *   data.swin.in_map_high = GPIO 15~8 input-en-map
+ *   data.swin.int_map_low = GPIO 7~0 interrupt source map
+ *   data.swin.int_map_high = GPIO 15~8 interrupt source map
+ */
+#define CXDGPIO_SET_L4 4
+#define CXDGPIO_SET_L2 2
+struct rtw89_fbtc_h2c_set_gpio_en_map {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u32 en_map;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_mux {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 sig;
+	u8 gpio;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_pta {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_mb {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_swout {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 map_low;
+	u8 map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_ext_swin {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 in_map_low;
+	u8 in_map_high;
+	u8 int_map_low;
+	u8 int_map_high;
+};
+
+struct rtw89_fbtc_h2c_set_gpio_2b {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 data[CXDGPIO_SET_L2];
+} __packed;
+
+struct rtw89_fbtc_h2c_set_gpio_4b {
+	u8 type; /* gpio_type */
+	u8 fver; /* FCX_VER_GPIODBG */
+	u8 dlen;
+	u8 data[CXDGPIO_SET_L4];
+} __packed;
+
+union rtw89_fbtc_h2c_set_gpio_en_map_u {
+	struct rtw89_fbtc_h2c_set_gpio_4b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_en_map data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_mux_u {
+	struct rtw89_fbtc_h2c_set_gpio_2b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_mux data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_ext_pta_u {
+	struct rtw89_fbtc_h2c_set_gpio_2b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_ext_pta data;
+};
+
+union rtw89_fbtc_h2c_set_gpio_ext_swin_u {
+	struct rtw89_fbtc_h2c_set_gpio_4b fmt;
+	struct rtw89_fbtc_h2c_set_gpio_ext_swin data;
+};
+
+struct rtw89_fbtc_h2c_set_gpio {
+	union rtw89_fbtc_h2c_set_gpio_en_map_u en_map;
+	union rtw89_fbtc_h2c_set_gpio_mux_u mux;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_pta;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_mb;
+	union rtw89_fbtc_h2c_set_gpio_ext_pta_u ext_swout;
+	union rtw89_fbtc_h2c_set_gpio_ext_swin_u ext_swin;
 };
 
 struct rtw89_btc_fbtc_mreg_val_v1 {
@@ -2660,6 +3356,14 @@ struct rtw89_btc_fbtc_slot_v7 {
 	__le32 cxtbl;
 } __packed;
 
+struct rtw89_btc_fbtc_slots_v2 {
+	u8 fver; /* btc_ver::fcxslots */
+	u8 tbl_num;
+	__le16 rsvd;
+	__le32 update_map;
+	struct rtw89_btc_fbtc_slot_v7 slot[CXST_MAX];
+} __packed;
+
 struct rtw89_btc_fbtc_slot_u16 {
 	__le16 dur; /* slot duration */
 	__le16 cxtype;
@@ -2685,6 +3389,7 @@ struct rtw89_btc_fbtc_slots_v7 {
 
 union rtw89_btc_fbtc_slots_info {
 	struct rtw89_btc_fbtc_slots v1;
+	struct rtw89_btc_fbtc_slots_v2 v2;
 	struct rtw89_btc_fbtc_slots_v7 v7;
 } __packed;
 
@@ -2912,6 +3617,26 @@ struct rtw89_btc_fbtc_cysta_v5 { /* statistics for cycles */
 	__le32 except_map;
 } __packed;
 
+struct rtw89_btc_fbtc_cysta_v105 {
+	u8 fver;
+	u8 rsvd;
+	u8 collision_cnt;
+	u8 except_cnt;
+	u8 wl_rx_err_ratio[BTC_CYCLE_SLOT_MAX];
+
+	__le16 skip_cnt;
+	__le16 cycles;
+
+	__le16 slot_step_time[BTC_CYCLE_SLOT_MAX];
+	__le16 slot_cnt[CXST_MAX];
+	__le16 bcn_cnt[CXBCN_MAX];
+	struct rtw89_btc_fbtc_cycle_time_info_v5 cycle_time;
+	struct rtw89_btc_fbtc_cycle_leak_info leak_slot;
+	struct rtw89_btc_fbtc_cycle_a2dp_empty_info a2dp_ept;
+	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 a2dp_trx[BTC_CYCLE_SLOT_MAX];
+	__le32 except_map;
+} __packed;
+
 struct rtw89_btc_fbtc_cysta_v7 { /* statistics for cycles */
 	u8 fver;
 	u8 rsvd;
@@ -2941,6 +3666,7 @@ union rtw89_btc_fbtc_cysta_info {
 	struct rtw89_btc_fbtc_cysta_v3 v3;
 	struct rtw89_btc_fbtc_cysta_v4 v4;
 	struct rtw89_btc_fbtc_cysta_v5 v5;
+	struct rtw89_btc_fbtc_cysta_v105 v105;
 	struct rtw89_btc_fbtc_cysta_v7 v7;
 };
 
@@ -2999,9 +3725,21 @@ struct rtw89_btc_fbtc_btver_v7 {
 	__le32 feature;
 } __packed;
 
+struct rtw89_btc_fbtc_btver_v8 {
+	u8 fver;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
+	u8 rsvd1;
+	u8 rsvd2;
+
+	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
+	__le32 fw_ver;
+	__le32 feature;
+} __packed;
+
 union rtw89_btc_fbtc_btver {
 	struct rtw89_btc_fbtc_btver_v1 v1;
 	struct rtw89_btc_fbtc_btver_v7 v7;
+	struct rtw89_btc_fbtc_btver_v8 v8;
 } __packed;
 
 struct rtw89_btc_fbtc_btafh {
@@ -3037,6 +3775,18 @@ struct rtw89_btc_fbtc_btafh_v7 {
 	u8 afh_le_b[4];
 } __packed;
 
+struct rtw89_btc_fbtc_btafh_v8 {
+	u8 fver;
+	u8 map_type;
+	u8 bt_id; /* 0:BT0, 1:BT1 */
+	u8 rsvd1;
+	u8 afh_l[4]; /*bit0:2402, bit1:2403.... bit31:2433 */
+	u8 afh_m[4]; /*bit0:2434, bit1:2435.... bit31:2465 */
+	u8 afh_h[4]; /*bit0:2466, bit1:2467.....bit14:2480 */
+	u8 afh_le_a[4];
+	u8 afh_le_b[4];
+} __packed;
+
 struct rtw89_btc_fbtc_btdevinfo {
 	u8 fver; /* btc_ver::fcxbtdevinfo */
 	u8 rsvd;
@@ -3045,24 +3795,18 @@ struct rtw89_btc_fbtc_btdevinfo {
 	__le32 flush_time;
 } __packed;
 
-#define RTW89_BTC_WL_DEF_TX_PWR GENMASK(7, 0)
-struct rtw89_btc_rf_trx_para {
-	u32 wl_tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
-	u32 wl_rx_gain;  /* rx gain table index (TBD.) */
-	u8 bt_tx_power; /* decrease Tx power (dB) */
-	u8 bt_rx_gain;  /* LNA constrain level */
-};
-
 struct rtw89_btc_trx_info {
 	u8 tx_lvl;
 	u8 rx_lvl;
 	u8 wl_rssi;
 	u8 bt_rssi;
 
-	s8 tx_power; /* absolute Tx power (dBm), 0xff-> no BTC control */
-	s8 rx_gain;  /* rx gain table index (TBD.) */
-	s8 bt_tx_power; /* decrease Tx power (dB) */
-	s8 bt_rx_gain;  /* LNA constrain level */
+	s8 wl_tx_power[RTW89_PHY_NUM]; /* absolute Tx power (dBm), 0xff-> no BTC control */
+	s8 wl_rx_gain[RTW89_PHY_NUM];  /* rx gain table index (TBD.) */
+	s8 bt_tx_power[BTC_ALL_BT]; /* decrease Tx power (dB) */
+	s8 bt_rx_gain[BTC_ALL_BT];  /* LNA constrain level */
+	s8 zb_tx_power[BTC_ALL_BT];
+	s8 zb_rx_gain[BTC_ALL_BT];
 
 	u8 cn; /* condition_num */
 	s8 nhm;
@@ -3083,21 +3827,210 @@ enum btc_rf_path {
 	BTC_RF_NUM,
 };
 
-struct rtw89_btc_fbtc_outsrc_set_info {
-	u8 rf_band[BTC_RF_NUM]; /* 0:2G, 1:non-2G */
+struct rtw89_btc_fbtc_outsrc_set_info_v1 {
+	u8 rf_band[BTC_RF_NUM];
 	u8 btg_rx[BTC_RF_NUM];
 	u8 nbtg_tx[BTC_RF_NUM];
 
-	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM]; /* refer to btc_gnt_ctrl */
-	struct rtw89_mac_ax_wl_act wlact_set[BTC_RF_NUM]; /* BT0/BT1 */
+	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT];
 
 	u8 pta_req_hw_band;
 	u8 rf_gbt_source;
+	u8 bt_enable_state;
+	u8 wl_btg_standby_chg;
+
+	u8 fbd_group_en[RTW89_MAC_NUM][2];
+	__le16 rf_center_freq[RTW89_MAC_NUM];
+	__le16 fbd_group_bound[RTW89_MAC_NUM][2];
+	__le16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT];
 } __packed;
+
+struct rtw89_btc_fbtc_outsrc_set_info_v6 {
+	u8 rf_band[BTC_RF_NUM];
+	u8 btg_rx[BTC_RF_NUM];
+	u8 nbtg_tx[BTC_RF_NUM];
+
+	struct rtw89_btc_gnt_ctrl gnt_set[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
+
+	u8 pta_req_hw_band;
+	u8 rf_gbt_source;
+	u8 bt_enable_state;
+	u8 bt_plut_type;
+	u8 wl_tx_limit_en;
+	u8 fc_exec;
+	u8 wl_btg_standby_chg;
+	u8 rsvd;
+	u8 bb_path_sel_bt[BTC_RF_NUM];
+	u8 bb_phy_sel_bt[RTW89_PHY_NUM];
+	u8 fbd_group_en[RTW89_MAC_NUM][2];
+	__le16 rf_center_freq[RTW89_MAC_NUM];
+	__le16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT_EZL];
+	__le16 fbd_group_bound[RTW89_MAC_NUM][2];
+	__le32 wl_tx_limit_time;
+} __packed;
+
+struct rtw89_btc_fbtc_outsrc_set_info {
+	u8 rf_band[BTC_RF_NUM]; /* 0:2GHz/1:5GHz for MPI_bb_hwsi_ignore_gnt_wl() */
+	u8 btg_rx[BTC_RF_NUM]; /* for MPI_bb_btg_bt_rx() */
+	u8 nbtg_tx[BTC_RF_NUM]; /* for MPI_bb_nbtg_bt_tx pre=AGC control */
+
+	struct rtw89_mac_ax_gnt gnt_set[BTC_RF_NUM]; /* refer to btc_gnt_ctrl */
+	struct rtw89_btc_gnt_ctrl gnt_set_be[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
+
+	u8 pta_req_hw_band; /* Bind PTA to HWB0 or HWB1, only for 8922a 1-PTA */
+	u8 rf_gbt_source; /* gbt from S0 or S1 for RF 0x2[9], only for 8922a */
+
+	/* The followngs are for 8922c/d  new Multi-PTA design */
+	/* 0:BT0/1:BT1/2:ZB on/off for MAC(0xe580[0]/0xe680[0])/ RF 0x4[3:2] */
+	u8 bt_enable_state;
+	u8 bt_plut_type;   /* BT polluted type, refer to enum btc_plt_map */
+
+	u8 wl_tx_limit_en;
+	u8 fc_exec;
+	u8 wl_btg_standby_chg; /* keep RX-IQGen on in standby mode */
+	u8 rsvd;
+
+	u8 bb_path_sel_bt[BTC_RF_NUM]; /* bb s0(1) select GNT_BT0 or BT1 */
+	u8 bb_phy_sel_bt[RTW89_PHY_NUM]; /* bb phy0(1) select GNT_BT0 or BT1 */
+
+	/* forbidden group-> bit[1]:fbd rf-band, bit[0]: fbd enable */
+	u8 fbd_group_en[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+
+	/* bit[15]-> 0:2G/1:5G,6G, bit[14:0]-> WL HWBx ch freq in MHz */
+	u16 rf_center_freq[RTW89_MAC_NUM]; /* HWB0/1 */
+
+	/* 11-bit in MHz, freq diff threshold */
+	u16 freq_diff_thres[RTW89_MAC_NUM][BTC_ALL_BT_EZL]; /* HWB0/1 vs.BT0/1/2 */
+
+	/* forbidden group boundary: [15:8]->UP, [7:0]->LO */
+	u16 fbd_group_bound[RTW89_MAC_NUM][2]; /* HWB0/1 +.Group0/1 */
+
+	u32 wl_tx_limit_time;
+};
 
 union rtw89_btc_fbtc_slot_u {
 	struct rtw89_btc_fbtc_slot v1[CXST_MAX];
 	struct rtw89_btc_fbtc_slot_v7 v7[CXST_MAX];
+};
+
+struct rtw89_btc_fddr_cell {
+	u8 en;
+	u8 wl_rx_max;
+	u8 wl_rx_min;
+};
+
+struct rtw89_btc_fddr_result {
+	u8 wl_rx_limit;
+	u8 wl_rx_limit_step[6]; /* record search process */
+	u8 search_cnt; /* the rx-limit serach count */
+	u32 wl_tp;
+	u32 wl_tp_step[6]; /* record search process */
+};
+
+struct rtw89_btc_fddr_train_info {
+	u8 rx_limit_pre;
+	u8 rx_limit_now;
+
+	u32 tp_rec_cnt;
+	u32 tp_avg_cnt;
+
+	u32 wl_tp_pre;
+	u32 wl_tp_now;
+};
+
+struct rtw89_btc_fddr_info {
+	u8 state; /* refer to enum btc_fddr_state */
+	u8 cell_now; /* wl rssi_level after filter LNA != 6 */
+	u8 cell_change;
+	u8 wl_low_rate;
+
+	u8 tp_setup_time; /* calculate TP after this value (in second) */
+	u8 tp_hold_time; /* TP calculation period (in second) */
+	u8 wl_rssi_thres[BTC_WL_RSSI_THMAX]; /* index 0 -> Max RSSI */
+
+	u8 search_mode; /* 0: search, 1:look-up  */
+	u8 search_dir; /* 0: Max->Min, 1:Min->Max */
+
+	struct rtw89_btc_fddr_train_info tctrl; /* train flag */
+	struct rtw89_btc_fddr_result cell_result[BTC_WL_RSSI_THMAX + 1];
+	struct rtw89_btc_fddr_cell cell[BTC_WL_RSSI_THMAX + 1]; /* parameters */
+
+	u16 wl_rx_rate_thres; /* switch to TDD if rx_rate < this threshold */
+
+	u32 nrsn_map; /* the reason map for no-run fdd-traing */
+	u32 wl_rx_rate_now;
+};
+
+struct rtw89_btc_rpt_ctrl_a2dp_empty {
+	u32 cnt_empty; /* a2dp empty count */
+	u32 cnt_flowctrl; /* a2dp empty flow control counter */
+	u32 cnt_tx;
+	u32 cnt_ack;
+	u32 cnt_nack;
+};
+
+struct rtw89_btc_fddt_bt_stat {
+	struct rtw89_btc_rpt_ctrl_a2dp_empty a2dp_last;
+	u32 retry_last;
+};
+
+struct rtw89_btc_fddt_cell {
+	s8 wl_pwr_min;
+	s8 wl_pwr_max;
+	s8 bt_pwr_dec_max;
+	s8 bt_rx_gain;
+};
+
+struct rtw89_btc_fddt_fail_check { /* for cell stay in training */
+	u8 check_map; /* check pass condition if bit-map = 1 */
+	u8 bt_no_empty_cnt; /* 0-fail if no bt-empty >= th in train_cycle */
+	u8 wl_tp_ratio; /* 1-fail if wl tp rise ratio < th */
+	u8 wl_kpibtr_ratio; /* 2-fail if phase_now_tp < phase_last_tp * kpibtr_ratio */
+};
+
+struct rtw89_btc_fddt_break_check { /* for cell stay in training or train-ok */
+	u8 check_map; /* check break condition if bit-map = 1 */
+	u8 bt_no_empty_cnt; /* 0-break if no empty count >= th */
+	u8 wl_tp_ratio; /* 1-break if wl tp ratio < th (%) */
+	u8 wl_tp_low_bound; /* 2-break if wl tp (in Mbps) < th */
+
+	u8 cn; /* 3-break if (cn >= cn_limit) >= th cycle */
+	u8 cell_chg; /* 4-break if non-matched-RSSI >= th cycle */
+	s8 nhm_limit; /* 5-break if nhm >= th --> ill-condition */
+	u8 cn_limit; /* if condition number >= th --> ill-condition */
+};
+
+struct rtw89_btc_fddt_time_ctrl {
+	/* 1 TDD cycle = w1 + b1, FDD 1cycle = w1fdd-slot + b1fdd-slot */
+	u8 m_cycle; /* KPI Moving-Average-Cycle: 1~32 cycles */
+	u8 w_cycle; /* Start to calcul WKPI after this if train-phase change */
+	u8 k_cycle; /* Total kpi-estimate cycles for each training-step */
+	u8 rsvd;
+};
+
+struct rtw89_btc_fddt_train_info {
+	struct rtw89_btc_fddt_time_ctrl t_ctrl;
+	struct rtw89_btc_fddt_break_check b_chk;
+	struct rtw89_btc_fddt_fail_check f_chk;
+	struct rtw89_btc_fddt_cell cell_ul[5][5];
+	struct rtw89_btc_fddt_cell cell_dl[5][5];
+};
+
+struct rtw89_btc_fddt_info {
+	u8 type; /* refer to enum btc_fddt_type */
+	u8 result; /* fw send fdd-training status by c2h */
+	u8 state; /* refer to enum btc_fddt_state */
+
+	u8 wl_iot[6]; /* wl bssid  */
+	u16 bt_iot; /* bt vendor-id */
+
+	u32 nrsn_map; /* the reason map for no-run fdd-traing */
+	struct rtw89_btc_fddt_bt_stat bt_stat; /* bt statistics */
+	struct rtw89_btc_fddt_train_info train;
+	struct rtw89_btc_fddt_train_info train_now;
 };
 
 struct rtw89_btc_dm {
@@ -3107,16 +4040,37 @@ struct rtw89_btc_dm {
 	union rtw89_btc_fbtc_slot_u slot_now;
 	struct rtw89_btc_fbtc_tdma tdma;
 	struct rtw89_btc_fbtc_tdma tdma_now;
-	struct rtw89_mac_ax_coex_gnt gnt;
-	union rtw89_btc_init_info_u init_info; /* pass to wl_fw if offload */
-	struct rtw89_btc_rf_trx_para rf_trx_para;
+	struct rtw89_btc_gnt_ctrl gnt_set[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_btc_gnt_ctrl gnt_val[RTW89_MAC_AX_COEX_GNT_NR];
+	struct rtw89_mac_ax_wl_act wlact_set[BTC_ALL_BT_EZL];
+	struct rtw89_btc_init_info init_info; /* pass to wl_fw if offload */
+	struct rtw89_btc_rf_trx_para_v9 rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
-	struct rtw89_btc_wl_scc_ctrl wl_scc;
+	struct rtw89_btc_eslot_ctrl eslot_ctrl;
 	struct rtw89_btc_trx_info trx_info;
 	union rtw89_btc_dm_error_map error;
+	struct rtw89_btc_bind_info tdd_bind;
+	struct rtw89_btc_bind_info fdd_bind;
+	struct rtw89_btc_fddt_info fddt_info;
+	struct rtw89_btc_fddr_info fddr_info;
+	struct rtw89_btc_wl_trx_nss_para wl_trx_nss;
 	u32 cnt_dm[BTC_DCNT_NUM];
 	u32 cnt_notify[BTC_NCNT_NUM];
+	u8 ant_xmap[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* WL-BT ANT interact-map */
+	u8 xtk_xmap[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* 1: If RSSI<(BT-Pin -SIR) */
+	u8 sit_xmap[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* WL-BT space interact-map */
+	u8 fit_xmap[RTW89_PHY_NUM][BTC_ALL_BT_EZL]; /* HWB-BT freq interact-map */
+	u8 tdd_map[BTC_RF_NUM][BTC_ALL_BT_EZL];  /* WL-BT tdd-map */
+	u8 fdd_map[BTC_RF_NUM][BTC_ALL_BT_EZL];  /* WL-BT fdd-map */
+	u8 corx_map[BTC_RF_NUM][BTC_ALL_BT_EZL]; /* WL-BT Co-Rx */
+
+	u8 sit_xmap_last[BTC_RF_NUM][BTC_ALL_BT_EZL];
+	u8 fit_xmap_last[RTW89_PHY_NUM][BTC_ALL_BT_EZL];
+
+	u8 tdd_rssi_thres;  /* The FDD/TDD switch RSSI (in %) */
+	u8 sir_thres; /* WL(Signal) to BT(interference Pin) ratio */
+	u8 sir_state[BTC_ALL_BT_EZL]; /* 1: WL RSSI > BTx-interference */
 
 	u32 update_slot_map;
 	u32 set_ant_path;
@@ -3146,22 +4100,62 @@ struct rtw89_btc_dm {
 
 	u8 run_reason;
 	u8 run_action;
+	u8 wl_tx_pwr_phy_map;
+	u8 vid;
+	u8 client_ps_tdma_on;
+	u8 wl_trx_nss_en;
 
 	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
 	u8 freerun_chk: 1;
 	u8 wl_pre_agc_rb: 2;
 	u8 bt_select: 2; /* 0:s0, 1:s1, 2:s0 & s1, refer to enum btc_bt_index */
+
 	u8 slot_req_more: 1;
+	u8 out_of_band: 1;
+	u8 fdd_en: 1;
+	u8 tdd_en: 1;
+	u8 lps_ctrl_scbd: 1;
+	u8 lps_ctrl_change: 1;
+	u8 bis_tdma: 1; /* BIS TDMA mode active */
+	u8 scbd_write_instant;
+	bool scbd_b2w_update;
+	bool scbd_w2b_update;
+	bool pre_agc_chg;
+};
+
+struct rtw89_fbtc_wl_ctrl_info {
+	u8 rf_band_map[RTW89_MAC_NUM];
+	u8 rf_ch[RTW89_MAC_NUM];
+
+	u8 client_pstdma_on;
+	u8 fw_scan;
+	u8 rfk_state;
+	u8 rfk_type;
+
+	u32 smap_val;
 };
 
 struct rtw89_btc_ctrl {
+	u32 manual;
+	u32 igno_bt: 1;
+	u32 always_freerun: 1;
+	u32 trace_step: 16;
+
+	u8 wl_only;
+	u8 bt_only;
+
+	u8 ntfy_type;
+	struct rtw89_fbtc_wl_ctrl_info wl_ctrl_info;
+};
+
+struct rtw89_btc_ctrl_v0 {
 	u32 manual: 1;
 	u32 igno_bt: 1;
 	u32 always_freerun: 1;
 	u32 trace_step: 16;
 	u32 rsvd: 12;
-};
+} __packed;
 
 struct rtw89_btc_ctrl_v7 {
 	u8 manual;
@@ -3170,10 +4164,31 @@ struct rtw89_btc_ctrl_v7 {
 	u8 rsvd;
 } __packed;
 
-union rtw89_btc_ctrl_list {
-	struct rtw89_btc_ctrl ctrl;
-	struct rtw89_btc_ctrl_v7 ctrl_v7;
-};
+struct rtw89_fbtc_wl_ctrl_info_v9 {
+	u8 rf_band_map[RTW89_MAC_NUM];
+	u8 rf_ch[RTW89_MAC_NUM];
+
+	u8 client_pstdma_on;
+	u8 fw_scan;
+	u8 rfk_state;
+	u8 rfk_type;
+
+	__le32 smap_val;
+} __packed;
+
+struct rtw89_btc_ctrl_v9 {
+	u8 manual;
+	u8 always_freerun;
+	u8 wl_only;
+	u8 bt_only;
+
+	u8 ntfy_type;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+
+	struct rtw89_fbtc_wl_ctrl_info_v9 wl_ctrl_info;
+} __packed;
 
 struct rtw89_btc_dbg {
 	/* cmd "rb" */
@@ -3193,6 +4208,9 @@ enum rtw89_btc_btf_fw_event {
 	BTF_EVNT_BUF_OVERFLOW,
 	BTF_EVNT_C2H_LOOPBACK,
 	BTF_EVNT_BT_QUERY_TXPWR, /* fwc2hfunc > 3 */
+	BTF_EVNT_ZB_INFO = 11,
+	BTF_EVNT_ZB_CH = 12,
+	BTF_EVNT_ZB_QUERY_TXPWR = 13,
 	BTF_EVNT_MAX,
 };
 
@@ -3242,6 +4260,7 @@ union rtw89_btc_fbtc_btafh_info {
 	struct rtw89_btc_fbtc_btafh v1;
 	struct rtw89_btc_fbtc_btafh_v2 v2;
 	struct rtw89_btc_fbtc_btafh_v7 v7;
+	struct rtw89_btc_fbtc_btafh_v8 v8;
 };
 
 struct rtw89_btc_report_ctrl_state {
@@ -3334,12 +4353,13 @@ struct rtw89_btc_ver {
 
 	u8 fwevntrptl;
 	u8 fwc2hfunc;
-	u8 drvinfo_type;
+	u8 drvinfo_ver;
 	u16 info_buf;
 	u8 max_role_num;
 	u8 fcxosi;
 	u8 fcxmlo;
 	u8 bt_desired;
+	u8 fcxtrx;
 };
 
 struct rtw89_btc_btf_fwinfo {
@@ -3369,34 +4389,41 @@ struct rtw89_btc_btf_fwinfo {
 };
 
 #define RTW89_BTC_POLICY_MAXLEN 512
+#define BTC_H2C_MAXLENC 2020
 
 struct rtw89_btc {
 	const struct rtw89_btc_ver *ver;
 
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
-	union rtw89_btc_ctrl_list ctrl;
-	union rtw89_btc_module_info mdinfo;
+	struct rtw89_btc_ctrl ctrl;
+	struct rtw89_btc_module mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
+	struct rtw89_fbtc_h2c_set_gpio gpio;
 
 	struct wiphy_work eapol_notify_work;
 	struct wiphy_work arp_notify_work;
 	struct wiphy_work dhcp_notify_work;
 	struct wiphy_work icmp_notify_work;
 
-	u32 bt_req_len;
+	u32 bt_req_len[RTW89_PHY_NUM];
 
 	u8 policy[RTW89_BTC_POLICY_MAXLEN];
+	u8 hbuf[BTC_H2C_MAXLENC]; /* H2C Macro buffer */
+	u8 hbuf_cnt; /* H2C cmd count in buffer */
 	u8 ant_type;
 	u8 btg_pos;
+	u8 io_oflld_type;
 	u16 policy_len;
 	u16 policy_type;
+	u16 hbuf_len; /* H2C used length, it sshould be <= BTC_H2C_MAXLEN */
 	u32 hubmsg_cnt;
 	bool bt_req_en;
 	bool update_policy_force;
-	bool lps;
+	bool btc_ctrl_lps;
 	bool manual_ctrl;
+	bool cli_h2c_cmd;
 };
 
 enum rtw89_btc_hmsg {
@@ -3624,6 +4651,8 @@ struct rtw89_sta_link {
 struct rtw89_efuse {
 	bool valid;
 	bool power_k_valid;
+	bool vcore_valid;
+	bool dswr_valid;
 	u8 xtal_cap;
 	u8 addr[ETH_ALEN];
 	u8 rfe_type;
@@ -3633,6 +4662,8 @@ struct rtw89_efuse {
 	u8 bt_setting_3;
 	u8 sn[RTW89_EFUSE_SN_LEN];
 	u8 uuid[RTW89_EFUSE_UUID_LEN];
+	u8 vcore_vmax_reduce;
+	u8 dswr_vmin;
 };
 
 struct rtw89_phy_rate_pattern {
@@ -3912,6 +4943,8 @@ struct rtw89_chip_ops {
 				    enum rtw89_rf_path path,
 				    enum rtw89_phy_idx phy_idx,
 				    struct rtw89_phy_calc_efuse_gain *calc);
+	void (*path_diff_update)(struct rtw89_dev *rtwdev,
+				 struct rtw89_bb_ctx *bb);
 	int (*pwr_on_func)(struct rtw89_dev *rtwdev);
 	int (*pwr_off_func)(struct rtw89_dev *rtwdev);
 	void (*query_rxdesc)(struct rtw89_dev *rtwdev,
@@ -4294,8 +5327,12 @@ struct rtw89_txpwr_rule_6ghz {
 };
 
 struct rtw89_tx_shape {
-	const u8 (*lmt)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
-	const u8 (*lmt_ru)[RTW89_BAND_NUM][RTW89_REGD_NUM];
+	const u8 (*lmt)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM]
+		       [NUM_OF_RTW89_REG_6GHZ_POWER];
+	const u8 (*lmt_ru)[RTW89_BAND_NUM][RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER];
+
+	const u8 (*lmt_v0)[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
+	const u8 (*lmt_ru_v0)[RTW89_BAND_NUM][RTW89_REGD_NUM];
 };
 
 struct rtw89_rfe_parms {
@@ -4389,12 +5426,13 @@ struct rtw89_txpwr_lmt_ru_6ghz_data {
 
 struct rtw89_tx_shape_lmt_data {
 	struct rtw89_txpwr_conf conf;
-	u8 v[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM];
+	u8 v[RTW89_BAND_NUM][RTW89_RS_TX_SHAPE_NUM][RTW89_REGD_NUM]
+	    [NUM_OF_RTW89_REG_6GHZ_POWER];
 };
 
 struct rtw89_tx_shape_lmt_ru_data {
 	struct rtw89_txpwr_conf conf;
-	u8 v[RTW89_BAND_NUM][RTW89_REGD_NUM];
+	u8 v[RTW89_BAND_NUM][RTW89_REGD_NUM][NUM_OF_RTW89_REG_6GHZ_POWER];
 };
 
 struct rtw89_rfe_data {
@@ -4646,6 +5684,32 @@ struct rtw89_chanctx_listener {
 #define RTW89_NHM_TH_NUM 11
 #define RTW89_NHM_RPT_NUM 12
 
+#define RTW89_LED_MAX_NUM  4
+
+struct rtw89_led_gpio_entry {
+	u8 pin;
+	unsigned int color;
+	u8 intensity;
+	struct rtw89_reg3_def pinmux;
+	struct rtw89_reg2_def mode;
+	struct rtw89_reg2_def out;
+};
+
+struct rtw89_led_desc {
+	const struct rtw89_led_gpio_entry *gpios;
+	u8 n_gpio;
+};
+
+struct rtw89_led {
+	bool registered;
+	const struct rtw89_led_desc *desc;
+	struct led_classdev led;
+	struct led_classdev_mc led_mc;
+	struct mc_subled subled[RTW89_LED_MAX_NUM];
+	enum led_brightness brightness_cache[RTW89_LED_MAX_NUM];
+	char name[32];
+};
+
 struct rtw89_chip_info {
 	enum rtw89_core_chip_id chip_id;
 	enum rtw89_chip_gen chip_gen;
@@ -4739,16 +5803,17 @@ struct rtw89_chip_info {
 	u8 mailbox;
 
 	u8 afh_guard_ch;
+	u16 fdd_iso_freq;
 	const u8 *wl_rssi_thres;
 	const u8 *bt_rssi_thres;
 	u8 rssi_tol;
 
 	u8 mon_reg_num;
 	const struct rtw89_btc_fbtc_mreg *mon_reg;
-	u8 rf_para_ulink_num;
-	const struct rtw89_btc_rf_trx_para *rf_para_ulink;
-	u8 rf_para_dlink_num;
-	const struct rtw89_btc_rf_trx_para *rf_para_dlink;
+	const struct rtw89_btc_rf_trx_para_v0 *rf_para_ulink_v0;
+	const struct rtw89_btc_rf_trx_para_v0 *rf_para_dlink_v0;
+	u8 rf_para_ulink_num_v0;
+	u8 rf_para_dlink_num_v0;
 	const struct rtw89_btc_rf_trx_para_v9 *rf_para_ulink_v9;
 	const struct rtw89_btc_rf_trx_para_v9 *rf_para_dlink_v9;
 	u8 rf_para_ulink_num_v9;
@@ -4790,6 +5855,7 @@ struct rtw89_chip_info {
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const struct rtw89_xtal_info *xtal_info;
 	unsigned long default_quirks; /* bitmap of rtw89_quirks */
+	u16 txtime_limit_2ghz;
 };
 
 struct rtw89_chip_variant {
@@ -4797,6 +5863,10 @@ struct rtw89_chip_variant {
 	u32 fw_min_ver_code;
 	const struct rtw89_fw_def *fw_def_override;
 	const struct rtw89_qta_def *qta_def_override;
+};
+
+struct rtw89_board_variant {
+	const struct rtw89_led_desc *led_desc;
 };
 
 union rtw89_bus_info {
@@ -4807,6 +5877,7 @@ union rtw89_bus_info {
 struct rtw89_driver_info {
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_chip_variant *variant;
+	const struct rtw89_board_variant *board;
 	const struct dmi_system_id *quirks;
 	unsigned long dev_id_quirks; /* bitmap of rtw89_quirks */
 	union rtw89_bus_info bus;
@@ -4917,6 +5988,8 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_BEACON_FILTER,
 	RTW89_FW_FEATURE_MACID_PAUSE_SLEEP,
 	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V0,
+	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V1,
+	RTW89_FW_FEATURE_SCAN_OFFLOAD_BE_V2,
 	RTW89_FW_FEATURE_WOW_REASON_V1,
 	RTW89_FW_FEATURE_GROUP(WITH_RFK_PRE_NOTIFY,
 			       RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V0,
@@ -4931,6 +6004,7 @@ enum rtw89_fw_feature {
 	),
 	RTW89_FW_FEATURE_RFK_RXDCK_V0,
 	RTW89_FW_FEATURE_RFK_IQK_V0,
+	RTW89_FW_FEATURE_RFK_TXIQK_V0,
 	RTW89_FW_FEATURE_NO_WOW_CPU_IO_RX,
 	RTW89_FW_FEATURE_NOTIFY_AP_INFO,
 	RTW89_FW_FEATURE_CH_INFO_BE_V0,
@@ -5300,10 +6374,13 @@ enum rtw89_dm_type {
 	RTW89_DM_HW_SCAN,
 	RTW89_DM_INACTIVE_PS,
 	RTW89_DM_DIG_PD,
+	RTW89_DM_VCORE,
 };
 
 #define RTW89_THERMAL_PROT_LV_MAX 5
 #define RTW89_THERMAL_PROT_STEP 5 /* -5% for each level */
+#define RTW89_THERMAL_PROT_VLV_MAX 6
+#define RTW89_THERMAL_PROT_VLV_TH_OFFSET 20
 
 struct rtw89_hal {
 	u32 rx_fltr;
@@ -5342,6 +6419,10 @@ struct rtw89_hal {
 	u8 thermal_prot_th;
 	u8 thermal_prot_lv; /* 0 ~ RTW89_THERMAL_PROT_LV_MAX */
 
+	u8 thermal_prot_vmax;
+	u8 thermal_prot_vmin;
+	u8 thermal_prot_vlv; /* 0 ~ RTW89_THERMAL_PROT_VLV_MAX (6) */
+
 	u8 fixed_dig_pd_th; /* v = (X(dBm) + 102)/2 */
 	s8 fixed_dig_cck_pd_th; /* dBm */
 };
@@ -5373,6 +6454,7 @@ enum rtw89_flags {
 	RTW89_FLAG_CHANGING_INTERFACE,
 	RTW89_FLAG_HW_RFKILL_STATE,
 	RTW89_FLAG_UNPLUGGED,
+	RTW89_FLAG_SHUTDOWN,
 
 	NUM_OF_RTW89_FLAGS,
 };
@@ -5382,6 +6464,7 @@ enum rtw89_quirks {
 	RTW89_QUIRK_THERMAL_PROT_120C,
 	RTW89_QUIRK_THERMAL_PROT_110C,
 	RTW89_QUIRK_HW_INFO_SYSFS,
+	RTW89_QUIRK_DISABLE_2GHZ,
 
 	NUM_OF_RTW89_QUIRKS,
 };
@@ -5467,6 +6550,14 @@ struct rtw89_beacon_stat {
 };
 
 DECLARE_EWMA(thermal, 4, 4);
+DECLARE_EWMA(path_diff, 4, 2);
+
+struct rtw89_phy_path_diff {
+	struct ewma_path_diff avg;
+	u8 raw;
+	bool bf_smo_en;
+	u8 link_mode;
+};
 
 #define RTW89_TX_RATE_NR 40
 struct rtw89_phy_stat {
@@ -5484,11 +6575,43 @@ enum rtw89_rfk_report_state {
 	RTW89_RFK_STATE_H2C_CMD_ERR = 0x4,
 };
 
+enum rtw89_rfk_report_types {
+	RTW89_RFK_REPORT_PRE_NTFY,
+	RTW89_RFK_REPORT_TSSI,
+	RTW89_RFK_REPORT_IQK,
+	RTW89_RFK_REPORT_DPK,
+	RTW89_RFK_REPORT_TXGAPK,
+	RTW89_RFK_REPORT_DACK,
+	RTW89_RFK_REPORT_RX_DCK,
+	RTW89_RFK_REPORT_TX_IQK,
+	RTW89_RFK_REPORT_CIM3k,
+
+	NUM_OF_RTW89_RFK_REPORT_TYPES,
+};
+
+#define RTW89_RFK_RECORD_PATH_NR 2
+#define RTW89_RFK_RECORD_HISTORY_NR 10
+
+struct rtw89_rfk_record {
+	u32 ch[RTW89_RFK_RECORD_PATH_NR];
+	u32 cv[RTW89_RFK_RECORD_PATH_NR];
+	u32 c5[RTW89_RFK_RECORD_PATH_NR];
+	enum rtw89_phy_idx phy_idx;
+	enum rtw89_rfk_report_state states[NUM_OF_RTW89_RFK_REPORT_TYPES];
+};
+
 struct rtw89_rfk_wait_info {
 	struct completion completion;
 	ktime_t start_time;
 	enum rtw89_rfk_report_state state;
 	u8 version;
+
+	int record_idx;
+	struct rtw89_rfk_record *record_ptr;
+	struct rtw89_rfk_record records[RTW89_RFK_RECORD_HISTORY_NR];
+
+	int record_tssi_idx;
+	u32 tssi_code[RTW89_RFK_RECORD_HISTORY_NR][RTW89_RFK_RECORD_PATH_NR];
 };
 
 #define RTW89_DACK_PATH_NR 2
@@ -5567,6 +6690,7 @@ struct rtw89_iqk_info {
 	u8 iqk_table_idx[RTW89_IQK_PATH_NR];
 	u32 lok_idac[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
 	u32 lok_vbuf[RTW89_IQK_CHS_NR][RTW89_IQK_PATH_NR];
+	u32 iqc_bak[2];
 };
 
 #define RTW89_DPK_RF_PATH 2
@@ -5836,6 +6960,8 @@ struct rtw89_power_trim_info {
 	u8 pa_bias_trim[RF_PATH_MAX];
 	u8 pad_bias_trim[RF_PATH_MAX];
 	u8 vco_trim[RF_PATH_MAX];
+
+	s16 thermal_k;
 };
 
 enum rtw89_regd_func {
@@ -6059,6 +7185,9 @@ struct rtw89_hw_scan_info {
 	struct list_head chan_list;
 	struct rtw89_chan op_chan;
 	struct rtw89_hw_scan_extra_op extra_op;
+	u8 wildcard_pkt_id[NUM_NL80211_BANDS];
+	u16 ssid_total_len;
+	int n_ssids;
 	bool connected;
 	bool abort;
 	u16 delay; /* in unit of ms */
@@ -6431,6 +7560,7 @@ struct rtw89_dev {
 	struct rtw89_hw_scan_info scan_info;
 	const struct rtw89_chip_info *chip;
 	const struct rtw89_chip_variant *variant;
+	const struct rtw89_board_variant *board;
 	const struct rtw89_pci_info *pci_info;
 	const struct rtw89_rfe_parms *rfe_parms;
 	struct rtw89_hal hal;
@@ -6525,6 +7655,7 @@ struct rtw89_dev {
 		struct rtw89_pmac_stat_info pmac_stat;
 		struct rtw89_tx_stat_info tx_stat;
 		struct rtw89_diag_bb diag;
+		struct rtw89_phy_path_diff path_diff;
 	} bbs[RTW89_PHY_NUM];
 
 	struct wiphy_delayed_work track_work;
@@ -6560,6 +7691,7 @@ struct rtw89_dev {
 
 	struct rtw89_debugfs *debugfs;
 	struct rtw89_vif *pure_monitor_mode_vif;
+	struct rtw89_led led;
 
 	/* HCI related data, keep last */
 	u8 priv[] __aligned(sizeof(void *));
@@ -7569,8 +8701,12 @@ static inline void rtw89_chip_bb_sethw(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
+	rtw89_io_pack(rtwdev);
+
 	if (chip->ops->bb_sethw)
 		chip->ops->bb_sethw(rtwdev);
+
+	rtw89_io_unpack(rtwdev);
 }
 
 static inline void rtw89_chip_rfk_init(struct rtw89_dev *rtwdev)
@@ -7634,6 +8770,15 @@ static inline void rtw89_chip_power_trim(struct rtw89_dev *rtwdev)
 
 	if (chip->ops->power_trim)
 		chip->ops->power_trim(rtwdev);
+}
+
+static inline void rtw89_chip_path_diff_update(struct rtw89_dev *rtwdev,
+					       struct rtw89_bb_ctx *bb)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->path_diff_update)
+		chip->ops->path_diff_update(rtwdev, bb);
 }
 
 static inline void __rtw89_chip_init_txpwr_unit(struct rtw89_dev *rtwdev,
@@ -7785,6 +8930,30 @@ static inline u8 rtw89_regd_get(struct rtw89_dev *rtwdev, u8 band)
 		return RTW89_ETSI;
 
 	return txpwr_regd;
+}
+
+static inline u8 rtw89_get_tx_shape_idx(struct rtw89_dev *rtwdev, u8 band,
+					enum rtw89_rate_section rs)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_tx_shape *tx_shape = &rfe_parms->tx_shape;
+	u8 reg6_pwr = regulatory->reg_6ghz_power;
+	u8 regd = rtw89_regd_get(rtwdev, band);
+
+	if (unlikely(rs >= RTW89_RS_TX_SHAPE_NUM))
+		rs = RTW89_RS_OFDM;
+
+	if (!tx_shape->lmt)
+		goto v0;
+
+	if (band != RTW89_BAND_6G)
+		reg6_pwr = RTW89_REG_6GHZ_POWER_DFLT;
+
+	return (*tx_shape->lmt)[band][rs][regd][reg6_pwr];
+
+v0:
+	return (*tx_shape->lmt_v0)[band][rs][regd];
 }
 
 static inline void rtw89_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
@@ -8210,7 +9379,9 @@ int rtw89_reg_6ghz_recalc(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvi
 void rtw89_core_update_p2p_ps(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      struct ieee80211_bss_conf *bss_conf);
-void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev, enum rtw89_btc_hmsg event);
+void rtw89_core_ntfy_btc_event(struct rtw89_dev *rtwdev,
+			       enum rtw89_btc_hmsg event,
+			       enum rtw89_phy_idx phy_idx);
 int rtw89_core_mlsr_switch(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   unsigned int link_id);
 void rtw89_core_dm_disable_cfg(struct rtw89_dev *rtwdev, u32 new);

@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "fw.h"
 #include "phy.h"
 #include "reg.h"
 #include "rtw8852c_table.h"
@@ -57109,23 +57110,23 @@ const struct rtw89_txpwr_table rtw89_8852c_byr_table = {
 	.load = rtw89_phy_load_txpwr_byrate,
 };
 
-const struct rtw89_txpwr_track_cfg rtw89_8852c_trk_cfg = {
-	.delta_swingidx_6gb_n = _txpwr_track_delta_swingidx_6gb_n,
-	.delta_swingidx_6gb_p = _txpwr_track_delta_swingidx_6gb_p,
-	.delta_swingidx_6ga_n = _txpwr_track_delta_swingidx_6ga_n,
-	.delta_swingidx_6ga_p = _txpwr_track_delta_swingidx_6ga_p,
-	.delta_swingidx_5gb_n = _txpwr_track_delta_swingidx_5gb_n,
-	.delta_swingidx_5gb_p = _txpwr_track_delta_swingidx_5gb_p,
-	.delta_swingidx_5ga_n = _txpwr_track_delta_swingidx_5ga_n,
-	.delta_swingidx_5ga_p = _txpwr_track_delta_swingidx_5ga_p,
-	.delta_swingidx_2gb_n = _txpwr_track_delta_swingidx_2gb_n,
-	.delta_swingidx_2gb_p = _txpwr_track_delta_swingidx_2gb_p,
-	.delta_swingidx_2ga_n = _txpwr_track_delta_swingidx_2ga_n,
-	.delta_swingidx_2ga_p = _txpwr_track_delta_swingidx_2ga_p,
-	.delta_swingidx_2g_cck_b_n = _txpwr_track_delta_swingidx_2g_cck_b_n,
-	.delta_swingidx_2g_cck_b_p = _txpwr_track_delta_swingidx_2g_cck_b_p,
-	.delta_swingidx_2g_cck_a_n = _txpwr_track_delta_swingidx_2g_cck_a_n,
-	.delta_swingidx_2g_cck_a_p = _txpwr_track_delta_swingidx_2g_cck_a_p,
+const struct rtw89_fw_txpwr_track_cfg rtw89_8852c_trk_cfg = {
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_6GB_N] = _txpwr_track_delta_swingidx_6gb_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_6GB_P] = _txpwr_track_delta_swingidx_6gb_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_6GA_N] = _txpwr_track_delta_swingidx_6ga_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_6GA_P] = _txpwr_track_delta_swingidx_6ga_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GB_N] = _txpwr_track_delta_swingidx_5gb_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GB_P] = _txpwr_track_delta_swingidx_5gb_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GA_N] = _txpwr_track_delta_swingidx_5ga_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_5GA_P] = _txpwr_track_delta_swingidx_5ga_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GB_N] = &_txpwr_track_delta_swingidx_2gb_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GB_P] = &_txpwr_track_delta_swingidx_2gb_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GA_N] = &_txpwr_track_delta_swingidx_2ga_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2GA_P] = &_txpwr_track_delta_swingidx_2ga_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_N] = &_txpwr_track_delta_swingidx_2g_cck_b_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_P] = &_txpwr_track_delta_swingidx_2g_cck_b_p,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N] = &_txpwr_track_delta_swingidx_2g_cck_a_n,
+	.delta[RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P] = &_txpwr_track_delta_swingidx_2g_cck_a_p,
 };
 
 const struct rtw89_phy_tssi_dbw_table rtw89_8852c_tssi_dbw_table = {
@@ -57153,7 +57154,7 @@ const struct rtw89_rfe_parms rtw89_8852c_dflt_parms = {
 		.lmt_ru = &rtw89_8852c_txpwr_lmt_ru_6g,
 	},
 	.tx_shape = {
-		.lmt = &rtw89_8852c_tx_shape_lmt,
-		.lmt_ru = &rtw89_8852c_tx_shape_lmt_ru,
+		.lmt_v0 = &rtw89_8852c_tx_shape_lmt,
+		.lmt_ru_v0 = &rtw89_8852c_tx_shape_lmt_ru,
 	},
 };

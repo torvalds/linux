@@ -13,7 +13,7 @@ extern const struct rtw89_phy_table rtw89_8852c_phy_radioa_table;
 extern const struct rtw89_phy_table rtw89_8852c_phy_radiob_table;
 extern const struct rtw89_phy_table rtw89_8852c_phy_nctl_table;
 extern const struct rtw89_phy_tssi_dbw_table rtw89_8852c_tssi_dbw_table;
-extern const struct rtw89_txpwr_track_cfg rtw89_8852c_trk_cfg;
+extern const struct rtw89_fw_txpwr_track_cfg rtw89_8852c_trk_cfg;
 extern const struct rtw89_rfe_parms rtw89_8852c_dflt_parms;
 
 #endif

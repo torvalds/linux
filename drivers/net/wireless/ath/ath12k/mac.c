@@ -859,7 +859,7 @@ struct ath12k *ath12k_mac_get_ar_by_pdev_id(struct ath12k_base *ab, u32 pdev_id)
 		return NULL;
 
 	for (i = 0; i < ab->num_radios; i++) {
-		if (ab->fw_mode == ATH12K_FIRMWARE_MODE_FTM)
+		if (ab->fw_mode == ATH12K_QMI_FIRMWARE_MODE_FTM)
 			pdev = &ab->pdevs[i];
 		else
 			pdev = rcu_dereference(ab->pdevs_active[i]);

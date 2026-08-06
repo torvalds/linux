@@ -85,13 +85,22 @@ static void _patch_pcie_power_wake_be(struct rtw89_dev *rtwdev, bool power_up)
 
 static void _patch_pre_init_be(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	struct pci_dev *pdev = rtwpci->pdev;
 
-	if (!(rtwdev->chip->chip_id == RTL8922D && hal->cid == RTL8922D_CID7090))
+	if (rtwdev->chip->chip_id != RTL8922D)
 		return;
+
+	if (hal->cid != RTL8922D_CID7090)
+		goto set_ts1;
 
 	rtw89_write16_clr(rtwdev, R_RAC_DIRECT_OFFSET_BE_LANE0_G2 +
 				  RAC_ANA14 * RAC_MULT, EIEOS_L1SS_WAIT_CLKRDY);
+
+set_ts1:
+	pci_clear_and_set_config_dword(pdev, RTW89_PCIE_L1_STS_V1,
+				       0, RTW89_PCIE_EXTENDED_SYNCH);
 }
 
 static void rtw89_pci_set_io_rcy_be(struct rtw89_dev *rtwdev)

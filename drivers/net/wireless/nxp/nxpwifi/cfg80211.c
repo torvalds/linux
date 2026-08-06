@@ -150,7 +150,7 @@ nxpwifi_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
 /* cfg80211 operation handler to transmit a management frame. */
 static int
 nxpwifi_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			 struct cfg80211_mgmt_tx_params *params, u64 *cookie)
+			 struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
 	const u8 *buf = params->buf;
 	size_t len = params->len;
@@ -212,14 +212,13 @@ nxpwifi_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	tx_info->pkt_len = pkt_len;
 
 	nxpwifi_form_mgmt_frame(skb, buf, len);
-	*cookie = nxpwifi_roc_cookie(priv->adapter);
 
 	if (ieee80211_is_action(mgmt->frame_control))
 		skb = nxpwifi_clone_skb_for_tx_status(priv,
 						      skb,
-				NXPWIFI_BUF_FLAG_ACTION_TX_STATUS, cookie);
+				NXPWIFI_BUF_FLAG_ACTION_TX_STATUS, &cookie);
 	else
-		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true,
+		cfg80211_mgmt_tx_status(wdev, cookie, buf, len, true,
 					GFP_ATOMIC);
 
 	nxpwifi_queue_tx_pkt(priv, skb);
@@ -254,14 +253,14 @@ static int
 nxpwifi_cfg80211_remain_on_channel(struct wiphy *wiphy,
 				   struct wireless_dev *wdev,
 				   struct ieee80211_channel *chan,
-				   unsigned int duration, u64 *cookie,
+				   unsigned int duration, u64 cookie,
 				   const u8 *rx_addr)
 {
 	struct nxpwifi_private *priv = nxpwifi_netdev_get_priv(wdev->netdev);
 	struct nxpwifi_adapter *adapter = priv->adapter;
 	int ret;
 
-	if (!chan || !cookie) {
+	if (!chan) {
 		nxpwifi_dbg(adapter, ERROR, "Invalid parameter for ROC\n");
 		return -EINVAL;
 	}
@@ -277,15 +276,14 @@ nxpwifi_cfg80211_remain_on_channel(struct wiphy *wiphy,
 					 duration);
 
 	if (!ret) {
-		*cookie = nxpwifi_roc_cookie(adapter);
-		priv->roc_cfg.cookie = *cookie;
+		priv->roc_cfg.cookie = cookie;
 		priv->roc_cfg.chan = *chan;
 
-		cfg80211_ready_on_channel(wdev, *cookie, chan,
+		cfg80211_ready_on_channel(wdev, cookie, chan,
 					  duration, GFP_ATOMIC);
 
 		nxpwifi_dbg(adapter, INFO,
-			    "info: ROC, cookie = 0x%llx\n", *cookie);
+			    "info: ROC, cookie = 0x%llx\n", cookie);
 	}
 
 	return ret;
@@ -719,6 +717,7 @@ nxpwifi_init_new_priv_params(struct nxpwifi_private *priv,
 			     enum nl80211_iftype type)
 {
 	struct nxpwifi_adapter *adapter = priv->adapter;
+	int ret;
 
 	nxpwifi_init_priv(priv);
 
@@ -742,7 +741,15 @@ nxpwifi_init_new_priv_params(struct nxpwifi_private *priv,
 		return -EOPNOTSUPP;
 	}
 
-	priv->bss_num = nxpwifi_get_unused_bss_num(adapter, priv->bss_type);
+	ret = nxpwifi_get_unused_bss_num(adapter, priv->bss_type,
+					 &priv->bss_num);
+
+	if (ret) {
+		nxpwifi_dbg(adapter, ERROR,
+			    "%s: no unused bss_num for type %d\n",
+			    dev->name, priv->bss_type);
+		return ret;
+	}
 
 	flush_workqueue(adapter->workqueue);
 	atomic_set(&adapter->iface_changing, 0);
@@ -945,7 +952,6 @@ nxpwifi_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 		case NL80211_IFTYPE_STATION:
 			return nxpwifi_change_vif_to_sta(dev, curr_iftype,
 							 type, params);
-			break;
 		default:
 			goto errnotsupp;
 		}
@@ -953,8 +959,6 @@ nxpwifi_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	default:
 		goto errnotsupp;
 	}
-
-	return 0;
 
 errnotsupp:
 	nxpwifi_dbg(priv->adapter, ERROR,
@@ -3618,7 +3622,7 @@ nxpwifi_cfg80211_disassociate(struct wiphy *wiphy,
 static int
 nxpwifi_cfg80211_probe_peer(struct wiphy *wiphy,
 			      struct net_device *dev, const u8 *peer,
-			      u64 *cookie)
+			      u64 cookie)
 {
 	/*
 	 * hostapd looks for NL80211_CMD_PROBE_CLIENT support; otherwise,

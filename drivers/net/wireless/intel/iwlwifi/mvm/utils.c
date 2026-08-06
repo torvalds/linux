@@ -73,8 +73,8 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	return ret;
 }
 
-int iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
-			 u32 flags, u16 len, const void *data)
+int _iwl_mvm_send_cmd_pdu(struct iwl_mvm *mvm, u32 id,
+			  u32 flags, u16 len, const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
@@ -137,8 +137,8 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 /*
  * We assume that the caller set the status to the sucess value
  */
-int iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id, u16 len,
-				const void *data, u32 *status)
+int _iwl_mvm_send_cmd_pdu_status(struct iwl_mvm *mvm, u32 id, u16 len,
+				 const void *data, u32 *status)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
@@ -689,36 +689,6 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 	return bss_iter_data.vif;
 }
 
-struct iwl_bss_find_iter_data {
-	struct ieee80211_vif *vif;
-	u32 macid;
-};
-
-static void iwl_mvm_bss_find_iface_iterator(void *_data, u8 *mac,
-					    struct ieee80211_vif *vif)
-{
-	struct iwl_bss_find_iter_data *data = _data;
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (mvmvif->id == data->macid)
-		data->vif = vif;
-}
-
-struct ieee80211_vif *iwl_mvm_get_vif_by_macid(struct iwl_mvm *mvm, u32 macid)
-{
-	struct iwl_bss_find_iter_data data = {
-		.macid = macid,
-	};
-
-	lockdep_assert_held(&mvm->mutex);
-
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_bss_find_iface_iterator, &data);
-
-	return data.vif;
-}
-
 struct iwl_sta_iter_data {
 	bool assoc;
 };
@@ -1055,7 +1025,7 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	/*
 	 * If the current load isn't low we need to force re-evaluation
 	 * in the TCM period, so that we can return to low load if there
-	 * was no traffic at all (and thus iwl_mvm_recalc_tcm didn't get
+	 * was no traffic at all (and thus iwl_mvm_tcm_work() didn't get
 	 * triggered by traffic).
 	 */
 	if (load != IWL_MVM_TRAFFIC_LOW)
@@ -1081,8 +1051,11 @@ static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
 	return 0;
 }
 
-void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
+void iwl_mvm_tcm_work(struct work_struct *work)
 {
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct iwl_mvm *mvm = container_of(delayed_work, struct iwl_mvm,
+					   tcm.work);
 	unsigned long ts = jiffies;
 	bool handle_uapsd =
 		time_after(ts, mvm->tcm.uapsd_nonagg_ts +
@@ -1117,15 +1090,6 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 	spin_unlock(&mvm->tcm.lock);
 
 	iwl_mvm_tcm_results(mvm);
-}
-
-void iwl_mvm_tcm_work(struct work_struct *work)
-{
-	struct delayed_work *delayed_work = to_delayed_work(work);
-	struct iwl_mvm *mvm = container_of(delayed_work, struct iwl_mvm,
-					   tcm.work);
-
-	iwl_mvm_recalc_tcm(mvm);
 }
 
 void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel)

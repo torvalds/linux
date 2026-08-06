@@ -451,7 +451,7 @@ void
 nxpwifi_11n_delete_tx_ba_stream_tbl_entry(struct nxpwifi_private *priv,
 					  struct nxpwifi_tx_ba_stream_tbl *tbl)
 {
-	if (!tbl && nxpwifi_is_tx_ba_stream_ptr_valid(priv, tbl))
+	if (!tbl || nxpwifi_is_tx_ba_stream_ptr_valid(priv, tbl))
 		return;
 
 	nxpwifi_dbg(priv->adapter, INFO,
@@ -694,7 +694,7 @@ int nxpwifi_get_tx_ba_stream_tbl(struct nxpwifi_private *priv,
 /* Delete Tx BA stream entry by RA. */
 void nxpwifi_del_tx_ba_stream_tbl_by_ra(struct nxpwifi_private *priv, u8 *ra)
 {
-	struct nxpwifi_tx_ba_stream_tbl *tbl;
+	struct nxpwifi_tx_ba_stream_tbl *tbl, *tmp;
 	int i;
 
 	if (!ra)
@@ -702,7 +702,8 @@ void nxpwifi_del_tx_ba_stream_tbl_by_ra(struct nxpwifi_private *priv, u8 *ra)
 
 	for (i = 0; i < MAX_NUM_TID; i++) {
 		spin_lock_bh(&priv->tx_ba_stream_tbl_lock[i]);
-		list_for_each_entry_rcu(tbl, &priv->tx_ba_stream_tbl_ptr[i], list)
+		list_for_each_entry_safe(tbl, tmp,
+					 &priv->tx_ba_stream_tbl_ptr[i], list)
 			if (!memcmp(tbl->ra, ra, ETH_ALEN))
 				nxpwifi_11n_delete_tx_ba_stream_tbl_entry(priv, tbl);
 

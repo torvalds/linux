@@ -60,8 +60,8 @@ void mm81x_rc_init(struct mm81x *mors)
 
 void mm81x_rc_deinit(struct mm81x *mors)
 {
+	timer_shutdown_sync(&mors->mrc.timer);
 	cancel_work_sync(&mors->mrc.work);
-	timer_delete_sync_try(&mors->mrc.timer);
 }
 
 static void mm81x_rc_sta_config_guard_per_bw(struct ieee80211_sta *sta,

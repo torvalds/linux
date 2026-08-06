@@ -5554,7 +5554,7 @@ brcmf_cfg80211_update_mgmt_frame_registrations(struct wiphy *wiphy,
 
 int
 brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-		       struct cfg80211_mgmt_tx_params *params, u64 *cookie)
+		       struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct ieee80211_channel *chan = params->chan;
@@ -5572,8 +5572,6 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	__le32 hw_ch;
 
 	brcmf_dbg(TRACE, "Enter\n");
-
-	*cookie = 0;
 
 	mgmt = (const struct ieee80211_mgmt *)buf;
 
@@ -5605,7 +5603,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 					    BRCMF_VNDR_IE_PRBRSP_FLAG,
 					    &buf[ie_offset],
 					    ie_len);
-		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, true,
+		cfg80211_mgmt_tx_status(wdev, cookie, buf, len, true,
 					GFP_KERNEL);
 	} else if (ieee80211_is_action(mgmt->frame_control)) {
 		if (len > BRCMF_FIL_ACTION_FRAME_SIZE + DOT11_MGMT_HDR_LEN) {
@@ -5621,7 +5619,7 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		}
 		action_frame = &af_params->action_frame;
 		/* Add the packet Id */
-		action_frame->packet_id = cpu_to_le32(*cookie);
+		action_frame->packet_id = cpu_to_le32(cookie);
 		/* Add BSSID */
 		memcpy(&action_frame->da[0], &mgmt->da[0], ETH_ALEN);
 		memcpy(&af_params->bssid[0], &mgmt->bssid[0], ETH_ALEN);
@@ -5649,12 +5647,12 @@ brcmf_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		       le16_to_cpu(action_frame->len));
 
 		brcmf_dbg(TRACE, "Action frame, cookie=%lld, len=%d, channel=%d\n",
-			  *cookie, le16_to_cpu(action_frame->len),
+			  cookie, le16_to_cpu(action_frame->len),
 			  le32_to_cpu(af_params->channel));
 
 		ack = brcmf_p2p_send_action_frame(vif->ifp, af_params);
 
-		cfg80211_mgmt_tx_status(wdev, *cookie, buf, len, ack,
+		cfg80211_mgmt_tx_status(wdev, cookie, buf, len, ack,
 					GFP_KERNEL);
 free:
 		kfree(af_params);

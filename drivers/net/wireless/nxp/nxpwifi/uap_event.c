@@ -107,11 +107,29 @@ nxpwifi_uap_event_sta_assoc(struct nxpwifi_private *priv)
 			len = ETH_ALEN;
 
 		if (len != -1) {
+			u16 evt_len = le16_to_cpu(event->len);
+
 			sinfo->assoc_req_ies = &event->data[len];
 			len = (u8 *)sinfo->assoc_req_ies -
 			      (u8 *)&event->frame_control;
-			sinfo->assoc_req_ies_len =
-				le16_to_cpu(event->len) - (u16)len;
+
+			/*
+			 * event->len is reported by the device firmware
+			 * and is not otherwise validated. Reject a length
+			 * that underflows the header or that would place
+			 * the association request IEs outside the fixed
+			 * event_body[] buffer.
+			 */
+			if (evt_len < len ||
+			    (u8 *)&event->frame_control + evt_len >
+			    adapter->event_body + MAX_EVENT_SIZE) {
+				nxpwifi_dbg(adapter, ERROR,
+					    "invalid STA assoc event length\n");
+				kfree(sinfo);
+				return -EINVAL;
+			}
+
+			sinfo->assoc_req_ies_len = evt_len - (u16)len;
 		}
 	}
 	cfg80211_new_sta(priv->netdev->ieee80211_ptr, event->sta_addr, sinfo,

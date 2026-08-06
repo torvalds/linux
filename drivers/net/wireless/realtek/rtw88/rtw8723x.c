@@ -356,7 +356,8 @@ static int __rtw8723x_mac_init(struct rtw_dev *rtwdev)
 	rtw_write32(rtwdev, REG_TCR, BIT_TCR_CFG);
 
 	rtw_write16(rtwdev, REG_RXFLTMAP0, WLAN_RX_FILTER0);
-	rtw_write16(rtwdev, REG_RXFLTMAP1, WLAN_RX_FILTER1);
+	rtwdev->hal.rxfltmap1 = WLAN_RX_FILTER1;
+	rtw_write16(rtwdev, REG_RXFLTMAP1, rtwdev->hal.rxfltmap1);
 	rtw_write16(rtwdev, REG_RXFLTMAP2, WLAN_RX_FILTER2);
 	rtw_write32(rtwdev, REG_RCR, WLAN_RCR_CFG);
 

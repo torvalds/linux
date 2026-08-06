@@ -446,15 +446,13 @@ qtnf_update_mgmt_frame_registrations(struct wiphy *wiphy,
 
 static int
 qtnf_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-	     struct cfg80211_mgmt_tx_params *params, u64 *cookie)
+	     struct cfg80211_mgmt_tx_params *params, u64 cookie)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	const struct ieee80211_mgmt *mgmt_frame = (void *)params->buf;
 	u32 short_cookie = get_random_u32();
 	u16 flags = 0;
 	u16 freq;
-
-	*cookie = short_cookie;
 
 	if (params->offchan)
 		flags |= QLINK_FRAME_TX_FLAG_OFFCHAN;

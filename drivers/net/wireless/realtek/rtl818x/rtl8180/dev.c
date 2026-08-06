@@ -1652,7 +1652,7 @@ static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 
 static void rtl8180_eeprom_read(struct rtl8180_priv *priv)
 {
-	struct eeprom_93cx6 eeprom;
+	struct eeprom_93cx6 eeprom = {};
 	int eeprom_cck_table_adr;
 	u16 eeprom_val;
 	int i;

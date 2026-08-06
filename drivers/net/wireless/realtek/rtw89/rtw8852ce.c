@@ -101,6 +101,7 @@ static const struct dmi_system_id rtw8852c_pci_quirks[] = {
 static const struct rtw89_driver_info rtw89_8852ce_info = {
 	.chip = &rtw8852c_chip_info,
 	.variant = NULL,
+	.board = NULL,
 	.quirks = rtw8852c_pci_quirks,
 	.dev_id_quirks = 0,
 	.bus = {
@@ -122,6 +123,7 @@ static struct pci_driver rtw89_8852ce_driver = {
 	.id_table	= rtw89_8852ce_id_table,
 	.probe		= rtw89_pci_probe,
 	.remove		= rtw89_pci_remove,
+	.shutdown	= rtw89_pci_shutdown,
 	.driver.pm	= &rtw89_pm_ops,
 	.err_handler    = &rtw89_pci_err_handler,
 };

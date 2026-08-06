@@ -1827,56 +1827,30 @@ static u8 rtw8852a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 
 static void rtw8852a_btc_set_rfe(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_btc_ver *ver = rtwdev->btc.ver;
-	union rtw89_btc_module_info *md = &rtwdev->btc.mdinfo;
+	struct rtw89_btc_module *md = &rtwdev->btc.mdinfo;
 
-	if (ver->fcxinit == 7) {
-		md->md_v7.rfe_type = rtwdev->efuse.rfe_type;
-		md->md_v7.kt_ver = rtwdev->hal.cv;
-		md->md_v7.bt_solo = 0;
-		md->md_v7.switch_type = BTC_SWITCH_INTERNAL;
+	md->rfe_type = rtwdev->efuse.rfe_type;
+	md->kt_ver = rtwdev->hal.cv;
+	md->bt_solo = 0;
+	md->bt0_sw_type = BTC_SWITCH_INTERNAL;
 
-		if (md->md_v7.rfe_type > 0)
-			md->md_v7.ant.num = (md->md_v7.rfe_type % 2 ? 2 : 3);
-		else
-			md->md_v7.ant.num = 2;
+	if (md->rfe_type > 0)
+		md->ant.num = (md->rfe_type % 2 ? 2 : 3);
+	else
+		md->ant.num = 2;
 
-		md->md_v7.ant.diversity = 0;
-		md->md_v7.ant.isolation = 10;
+	md->ant.diversity = 0;
+	md->ant.isolation = 10;
 
-		if (md->md_v7.ant.num == 3) {
-			md->md_v7.ant.type = BTC_ANT_DEDICATED;
-			md->md_v7.bt_pos = BTC_BT_ALONE;
-		} else {
-			md->md_v7.ant.type = BTC_ANT_SHARED;
-			md->md_v7.bt_pos = BTC_BT_BTG;
-		}
-		rtwdev->btc.btg_pos = md->md_v7.ant.btg_pos;
-		rtwdev->btc.ant_type = md->md_v7.ant.type;
+	if (md->ant.num == 3) {
+		md->ant.type = BTC_ANT_DEDICATED;
+		md->bt0_pos = BTC_BT_ALONE;
 	} else {
-		md->md.rfe_type = rtwdev->efuse.rfe_type;
-		md->md.cv = rtwdev->hal.cv;
-		md->md.bt_solo = 0;
-		md->md.switch_type = BTC_SWITCH_INTERNAL;
-
-		if (md->md.rfe_type > 0)
-			md->md.ant.num = (md->md.rfe_type % 2 ? 2 : 3);
-		else
-			md->md.ant.num = 2;
-
-		md->md.ant.diversity = 0;
-		md->md.ant.isolation = 10;
-
-		if (md->md.ant.num == 3) {
-			md->md.ant.type = BTC_ANT_DEDICATED;
-			md->md.bt_pos = BTC_BT_ALONE;
-		} else {
-			md->md.ant.type = BTC_ANT_SHARED;
-			md->md.bt_pos = BTC_BT_BTG;
-		}
-		rtwdev->btc.btg_pos = md->md.ant.btg_pos;
-		rtwdev->btc.ant_type = md->md.ant.type;
+		md->ant.type = BTC_ANT_SHARED;
+		md->bt0_pos = BTC_BT_BTG;
 	}
+	rtwdev->btc.btg_pos = md->ant.btg_pos;
+	rtwdev->btc.ant_type = md->ant.type;
 }
 
 static
@@ -1945,7 +1919,6 @@ static void rtw8852a_btc_init_cfg(struct rtw89_dev *rtwdev)
 	 /* enable BT counter 0xda40[16,2] = 2b'11 */
 	rtw89_write32_set(rtwdev,
 			  R_AX_CSR_MODE, B_AX_BT_CNT_RST | B_AX_STATIS_BT_EN);
-	btc->cx.wl.status.map.init_ok = true;
 }
 
 static
@@ -2049,7 +2022,7 @@ s8 rtw8852a_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
 	return clamp_t(s8, val + 6, -100, 0) + 100;
 }
 
-static struct rtw89_btc_rf_trx_para rtw89_btc_8852a_rf_ul[] = {
+static struct rtw89_btc_rf_trx_para_v0 rtw89_btc_8852a_rf_ul_v0[] = {
 	{255, 0, 0, 7}, /* 0 -> original */
 	{255, 2, 0, 7}, /* 1 -> for BT-connected ACI issue && BTG co-rx */
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
@@ -2061,7 +2034,7 @@ static struct rtw89_btc_rf_trx_para rtw89_btc_8852a_rf_ul[] = {
 	{13, 1, 0, 7}
 };
 
-static struct rtw89_btc_rf_trx_para rtw89_btc_8852a_rf_dl[] = {
+static struct rtw89_btc_rf_trx_para_v0 rtw89_btc_8852a_rf_dl_v0[] = {
 	{255, 0, 0, 7}, /* 0 -> original */
 	{255, 2, 0, 7}, /* 1 -> reserved for shared-antenna */
 	{255, 0, 0, 7}, /* 2 ->reserved for shared-antenna */
@@ -2105,12 +2078,12 @@ void rtw8852a_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 		return;
 
 	val = rtw89_read32(rtwdev, R_AX_BT_STAST_HIGH);
-	cx->cnt_bt[BTC_BCNT_HIPRI_TX] = FIELD_GET(B_AX_STATIS_BT_HI_TX_MASK, val);
-	cx->cnt_bt[BTC_BCNT_HIPRI_RX] = FIELD_GET(B_AX_STATIS_BT_HI_RX_MASK, val);
+	cx->bt0.bcnt[BTC_BCNT_HIPRI_TX] = FIELD_GET(B_AX_STATIS_BT_HI_TX_MASK, val);
+	cx->bt0.bcnt[BTC_BCNT_HIPRI_RX] = FIELD_GET(B_AX_STATIS_BT_HI_RX_MASK, val);
 
 	val = rtw89_read32(rtwdev, R_AX_BT_STAST_LOW);
-	cx->cnt_bt[BTC_BCNT_LOPRI_TX] = FIELD_GET(B_AX_STATIS_BT_LO_TX_1_MASK, val);
-	cx->cnt_bt[BTC_BCNT_LOPRI_RX] = FIELD_GET(B_AX_STATIS_BT_LO_RX_1_MASK, val);
+	cx->bt0.bcnt[BTC_BCNT_LOPRI_TX] = FIELD_GET(B_AX_STATIS_BT_LO_TX_1_MASK, val);
+	cx->bt0.bcnt[BTC_BCNT_LOPRI_RX] = FIELD_GET(B_AX_STATIS_BT_LO_RX_1_MASK, val);
 
 	/* clock-gate off before reset counter*/
 	rtw89_write32_set(rtwdev, R_AX_BTC_CFG, B_AX_DIS_BTC_CLK_G);
@@ -2212,7 +2185,7 @@ static void rtw8852a_query_ppdu(struct rtw89_dev *rtwdev,
 	u8 raw;
 
 	if (!status->signal) {
-		if (phy_ppdu->to_self)
+		if (phy_ppdu->to_self && ewma_rssi_read(&bb->bcn_rssi))
 			raw = ewma_rssi_read(&bb->bcn_rssi);
 		else
 			raw = max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]);
@@ -2326,6 +2299,7 @@ static const struct rtw89_chip_ops rtw8852a_chip_ops = {
 	.set_txpwr_ul_tb_offset	= rtw8852a_set_txpwr_ul_tb_offset,
 	.digital_pwr_comp	= NULL,
 	.calc_rx_gain_normal	= NULL,
+	.path_diff_update	= NULL,
 	.pwr_on_func		= NULL,
 	.pwr_off_func		= NULL,
 	.query_rxdesc		= rtw89_core_query_rxdesc,
@@ -2373,7 +2347,8 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	},
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 0,
-	.needed_fw_elms		= 0,
+	.needed_fw_elms		= RTW89_AX_GEN_DEF_NEEDED_FW_ELEMENTS_RTL8852A |
+				  BIT(__RTW89_FW_ELEMENT_ID_INTL_TRANSITION),
 	.fw_blacklist		= NULL,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,
@@ -2463,15 +2438,16 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.mailbox		= 0x1,
 
 	.afh_guard_ch		= 6,
+	.fdd_iso_freq		= 1000,
 	.wl_rssi_thres		= rtw89_btc_8852a_wl_rssi_thres,
 	.bt_rssi_thres		= rtw89_btc_8852a_bt_rssi_thres,
 	.rssi_tol		= 2,
 	.mon_reg_num		= ARRAY_SIZE(rtw89_btc_8852a_mon_reg),
 	.mon_reg		= rtw89_btc_8852a_mon_reg,
-	.rf_para_ulink_num	= ARRAY_SIZE(rtw89_btc_8852a_rf_ul),
-	.rf_para_ulink		= rtw89_btc_8852a_rf_ul,
-	.rf_para_dlink_num	= ARRAY_SIZE(rtw89_btc_8852a_rf_dl),
-	.rf_para_dlink		= rtw89_btc_8852a_rf_dl,
+	.rf_para_ulink_v0	= rtw89_btc_8852a_rf_ul_v0,
+	.rf_para_dlink_v0	= rtw89_btc_8852a_rf_dl_v0,
+	.rf_para_ulink_num_v0	= ARRAY_SIZE(rtw89_btc_8852a_rf_ul_v0),
+	.rf_para_dlink_num_v0	= ARRAY_SIZE(rtw89_btc_8852a_rf_dl_v0),
 	.rf_para_ulink_v9	= NULL,
 	.rf_para_dlink_v9	= NULL,
 	.rf_para_ulink_num_v9	= 0,
@@ -2516,6 +2492,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 #endif
 	.xtal_info		= &rtw8852a_xtal_info,
 	.default_quirks		= 0,
+	.txtime_limit_2ghz	= 0,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 

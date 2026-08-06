@@ -2349,7 +2349,7 @@ static void mm81x_stale_tx_status_timer(struct timer_list *t)
 
 static void mm81x_stale_tx_status_timer_finish(struct mm81x *mors)
 {
-	timer_delete_sync_try(&mors->stale_status.timer);
+	timer_shutdown_sync(&mors->stale_status.timer);
 }
 
 static void mm81x_mac_stale_tx_status_timer_init(struct mm81x *mors)

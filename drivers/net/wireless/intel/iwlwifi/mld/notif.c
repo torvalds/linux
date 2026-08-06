@@ -298,7 +298,8 @@ CMD_VERSIONS(channel_survey_notif,
 CMD_VERSIONS(mfuart_notif,
 	     CMD_VER_ENTRY(2, iwl_mfuart_load_notif))
 CMD_VERSIONS(update_mcc,
-	     CMD_VER_ENTRY(1, iwl_mcc_chub_notif))
+	     CMD_VER_ENTRY(1, iwl_mcc_chub_notif)
+	     CMD_VER_ENTRY(2, iwl_mcc_chub_notif))
 CMD_VERSIONS(session_prot_notif,
 	     CMD_VER_ENTRY(3, iwl_session_prot_notif))
 CMD_VERSIONS(missed_beacon_notif,
@@ -517,7 +518,7 @@ iwl_mld_notif_is_valid(struct iwl_mld *mld, struct iwl_rx_packet *pkt,
 			    handler->cmd_id, notif_ver,
 			    handler->sizes[handler->n_sizes - 1].ver);
 
-	return size < handler->sizes[handler->n_sizes - 1].size;
+	return false;
 }
 
 struct iwl_async_handler_entry {

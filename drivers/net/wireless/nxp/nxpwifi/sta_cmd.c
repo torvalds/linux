@@ -2133,6 +2133,9 @@ nxpwifi_ret_sta_robust_coex(struct nxpwifi_private *priv,
 	u16 action = le16_to_cpu(coex->action);
 	u32 mode;
 
+	if (!is_timeshare)
+		return 0;
+
 	coex_tlv = (struct nxpwifi_ie_types_robust_coex
 		    *)((u8 *)coex + sizeof(struct host_cmd_ds_robust_coex));
 	if (action == HOST_ACT_GEN_GET) {
@@ -2679,6 +2682,10 @@ nxpwifi_ret_sta_hs_wakeup_reason(struct nxpwifi_private *priv,
 {
 	struct host_cmd_ds_wakeup_reason *wakeup_reason =
 		(struct host_cmd_ds_wakeup_reason *)data_buf;
+
+	if (!wakeup_reason)
+		return 0;
+
 	wakeup_reason->wakeup_reason =
 		resp->params.hs_wakeup_reason.wakeup_reason;
 
@@ -2770,6 +2777,9 @@ nxpwifi_ret_sta_get_chan_info(struct nxpwifi_private *priv,
 	struct nxpwifi_channel_band *channel_band =
 		(struct nxpwifi_channel_band *)data_buf;
 	struct host_cmd_tlv_channel_band *tlv_band_channel;
+
+	if (!channel_band)
+		return 0;
 
 	tlv_band_channel =
 	(struct host_cmd_tlv_channel_band *)sta_cfg_cmd->tlv_buffer;

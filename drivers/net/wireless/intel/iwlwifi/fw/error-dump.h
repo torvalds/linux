@@ -352,7 +352,7 @@ struct iwl_fw_ini_error_dump_register {
  * struct iwl_fw_ini_dump_cfg_name - configuration name
  * @image_type: image type the configuration is related to
  * @cfg_name_len: length of the configuration name
- * @cfg_name: name of the configuraiton
+ * @cfg_name: name of the configuration
  */
 struct iwl_fw_ini_dump_cfg_name {
 	__le32 image_type;

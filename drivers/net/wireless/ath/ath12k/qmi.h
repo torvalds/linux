@@ -32,7 +32,6 @@
 #define QMI_WLFW_FW_READY_IND_V01		0x0038
 
 #define QMI_WLANFW_MAX_DATA_SIZE_V01		6144
-#define ATH12K_FIRMWARE_MODE_OFF		4
 
 #define ATH12K_BOARD_ID_DEFAULT	0xFF
 
@@ -602,6 +601,17 @@ enum ath12k_qmi_mem_mode {
 	ATH12K_QMI_MEMORY_MODE_LOW_512_M,
 };
 
+enum ath12k_qmi_firmware_mode {
+	/* the default mode, standard 802.11 functionality */
+	ATH12K_QMI_FIRMWARE_MODE_NORMAL,
+
+	/* factory tests etc */
+	ATH12K_QMI_FIRMWARE_MODE_FTM,
+
+	/* firmware offline; values 2-3 reserved by firmware ABI */
+	ATH12K_QMI_FIRMWARE_MODE_OFF = 4,
+};
+
 static inline void ath12k_qmi_set_event_block(struct ath12k_qmi *qmi, bool block)
 {
 	lockdep_assert_held(&qmi->event_lock);
@@ -617,7 +627,7 @@ static inline bool ath12k_qmi_get_event_block(struct ath12k_qmi *qmi)
 }
 
 int ath12k_qmi_firmware_start(struct ath12k_base *ab,
-			      u32 mode);
+			      enum ath12k_qmi_firmware_mode mode);
 void ath12k_qmi_firmware_stop(struct ath12k_base *ab);
 void ath12k_qmi_deinit_service(struct ath12k_base *ab);
 int ath12k_qmi_init_service(struct ath12k_base *ab);
