@@ -291,6 +291,13 @@ static inline u64 decode_range_tlbi(u64 val, u64 *range, u16 *asid)
 
 	base	= (val & GENMASK(36, 0)) << shift;
 
+	/*
+	 * We only deal with at most 48bit VA/IPA, so 48 is where we
+	 * sign-extend from. Should we support FEAT_L{VP}A* at some point,
+	 * this will need to be revisited.
+	 */
+	base	= (u64)sign_extend64(base, 48);
+
 	if (asid)
 		*asid = FIELD_GET(TLBIR_ASID_MASK, val);
 
