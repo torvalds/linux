@@ -483,7 +483,7 @@ typedef int (*mlx5e_fp_xmit_xdp_frame_check)(struct mlx5e_xdpsq *);
 typedef bool (*mlx5e_fp_xmit_xdp_frame)(struct mlx5e_xdpsq *,
 					struct mlx5e_xmit_data *,
 					int,
-					struct xsk_tx_metadata *);
+					struct xsk_tx_metadata **);
 
 struct mlx5e_xdpsq {
 	/* data path */
