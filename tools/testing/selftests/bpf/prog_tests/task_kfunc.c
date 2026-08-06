@@ -178,6 +178,12 @@ static const char * const success_tests[] = {
 	"task_kfunc_acquire_trusted_walked",
 	"task_kfunc_acquire_after_spin_unlock_non_sleepable",
 	"task_kfunc_acquire_after_spin_unlock_explicit_rcu",
+	"task_kfunc_acquire_after_spin_unlock_preempt_disabled",
+	"task_kfunc_acquire_after_spin_unlock_irq_disabled",
+	"task_kfunc_acquire_after_rcu_unlock_preempt_disabled",
+	"task_kfunc_acquire_after_rcu_unlock_irq_disabled",
+	"task_kfunc_acquire_after_preempt_enable_explicit_rcu",
+	"task_kfunc_acquire_after_irq_restore_explicit_rcu",
 	"test_task_kfunc_flavor_relo",
 	"test_task_kfunc_flavor_relo_not_found",
 };
