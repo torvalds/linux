@@ -153,7 +153,7 @@ struct nf_flowtable_ctx {
 		/* Tunnel IP header size */
 		u32 hdr_size;
 		/* IP tunnel protocol */
-		u8 proto;
+		u8 inner_proto;
 	} tun;
 };
 
@@ -194,7 +194,7 @@ static void nf_flow_tuple_encap(struct nf_flowtable_ctx *ctx,
 	switch (inner_proto) {
 	case htons(ETH_P_IP):
 		iph = (struct iphdr *)(skb_network_header(skb) + offset);
-		if (ctx->tun.proto == IPPROTO_IPIP) {
+		if (ctx->tun.inner_proto == IPPROTO_IPIP) {
 			tuple->tun.dst_v4.s_addr = iph->daddr;
 			tuple->tun.src_v4.s_addr = iph->saddr;
 			tuple->tun.inner_proto = IPPROTO_IPIP;
@@ -202,7 +202,7 @@ static void nf_flow_tuple_encap(struct nf_flowtable_ctx *ctx,
 		break;
 	case htons(ETH_P_IPV6):
 		ip6h = (struct ipv6hdr *)(skb_network_header(skb) + offset);
-		if (ctx->tun.proto == IPPROTO_IPV6) {
+		if (ctx->tun.inner_proto == IPPROTO_IPV6) {
 			tuple->tun.dst_v6 = ip6h->daddr;
 			tuple->tun.src_v6 = ip6h->saddr;
 			tuple->tun.inner_proto = IPPROTO_IPV6;
@@ -329,7 +329,7 @@ static bool nf_flow_ip4_tunnel_proto(struct nf_flowtable_ctx *ctx,
 		return false;
 
 	if (iph->protocol == IPPROTO_IPIP) {
-		ctx->tun.proto = iph->protocol;
+		ctx->tun.inner_proto = iph->protocol;
 		ctx->tun.hdr_size = size;
 		ctx->offset += ctx->tun.hdr_size;
 	}
@@ -354,7 +354,7 @@ static bool nf_flow_ip6_tunnel_proto(struct nf_flowtable_ctx *ctx,
 		return false;
 
 	if (ip6h->nexthdr == IPPROTO_IPV6) {
-		ctx->tun.proto = ip6h->nexthdr;
+		ctx->tun.inner_proto = ip6h->nexthdr;
 		ctx->tun.hdr_size = sizeof(*ip6h);
 		ctx->offset += ctx->tun.hdr_size;
 	}
@@ -368,8 +368,8 @@ static bool nf_flow_ip6_tunnel_proto(struct nf_flowtable_ctx *ctx,
 static void nf_flow_ip_tunnel_pop(struct nf_flowtable_ctx *ctx,
 				  struct sk_buff *skb)
 {
-	if (ctx->tun.proto != IPPROTO_IPIP &&
-	    ctx->tun.proto != IPPROTO_IPV6)
+	if (ctx->tun.inner_proto != IPPROTO_IPIP &&
+	    ctx->tun.inner_proto != IPPROTO_IPV6)
 		return;
 
 	skb_pull(skb, ctx->tun.hdr_size);
