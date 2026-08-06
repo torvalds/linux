@@ -510,18 +510,6 @@ static const struct regmap_config tac_regmap = {
 	.use_single_write = true,
 };
 
-/* Check if device has DSP algo that needs status monitoring */
-static bool tac_has_dsp_algo(struct tac5xx2_prv *tac_dev)
-{
-	switch (tac_dev->part_id) {
-	case 0x5682:
-	case 0x2883:
-		return true;
-	default:
-		return false;
-	}
-}
-
 /* Check if device has UAJ (Universal Audio Jack) support */
 static bool tac_has_uaj_support(struct tac5xx2_prv *tac_dev)
 {
@@ -2016,17 +2004,13 @@ static s32 tac_sdw_probe(struct sdw_slave *peripheral,
 	tac_dev->jack_type = 0;
 	init_completion(&tac_dev->fw_caching_complete);
 
-	if (tac_has_dsp_algo(tac_dev)) {
-		tac_generate_fw_name(peripheral, tac_dev->fw_binaryname,
-				     sizeof(tac_dev->fw_binaryname));
+	tac_generate_fw_name(peripheral, tac_dev->fw_binaryname,
+			     sizeof(tac_dev->fw_binaryname));
 
-		ret = tac_load_and_cache_firmware_async(tac_dev);
-		if (ret) {
-			complete_all(&tac_dev->fw_caching_complete);
-			dev_dbg(dev, "failed to load fw: %d, use rom mode\n", ret);
-		}
-	} else {
+	ret = tac_load_and_cache_firmware_async(tac_dev);
+	if (ret) {
 		complete_all(&tac_dev->fw_caching_complete);
+		dev_dbg(dev, "failed to load fw: %d, use rom mode\n", ret);
 	}
 
 	ret = tac_init(tac_dev);
