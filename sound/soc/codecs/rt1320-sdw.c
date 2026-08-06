@@ -1786,7 +1786,7 @@ static int rt1320_r0_cali_put(struct snd_kcontrol *kcontrol,
 static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 {
 	struct sdw_slave *slave = rt1320->sdw_slave;
-	const struct firmware *patch;
+	const struct firmware *patch __free(firmware) = NULL;
 	const char *filename;
 	unsigned int addr, val, min_addr, max_addr;
 	const unsigned char *ptr;
@@ -1840,17 +1840,15 @@ static void rt1320_load_mcu_patch(struct rt1320_sdw_priv *rt1320)
 
 				if (addr > max_addr || addr < min_addr) {
 					dev_err(&slave->dev, "%s: the address 0x%x is wrong", __func__, addr);
-					goto _exit_;
+					return;
 				}
 				if (val > 0xff) {
 					dev_err(&slave->dev, "%s: the value 0x%x is wrong", __func__, val);
-					goto _exit_;
+					return;
 				}
 				regmap_write(rt1320->regmap, addr, val);
 			}
 		}
-_exit_:
-		release_firmware(patch);
 	}
 }
 
@@ -1924,7 +1922,7 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 	struct device *dev = &rt1320->sdw_slave->dev;
 	static const char func_tag[] = "FUNC";
 	static const char xu_tag[] = "XU";
-	const struct firmware *rae_fw = NULL;
+	const struct firmware *rae_fw __free(firmware) = NULL;
 	unsigned int fw_offset;
 	unsigned char *fw_data;
 	unsigned char *param_data;
@@ -1977,7 +1975,6 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 			}
 			if (!retry && !(value & 0x40)) {
 				dev_err(dev, "%s: RAE is not ready to load\n", __func__);
-				release_firmware(rae_fw);
 				return -ETIMEDOUT;
 			}
 			break;
@@ -1998,7 +1995,6 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 			}
 			if (!retry && !(value & 0x40)) {
 				dev_err(dev, "%s: RAE is not ready to load\n", __func__);
-				release_firmware(rae_fw);
 				return -ETIMEDOUT;
 			}
 			break;
@@ -2057,7 +2053,6 @@ static int rt1320_rae_load(struct rt1320_sdw_priv *rt1320)
 		}
 
 		regcache_cache_bypass(rt1320->regmap, false);
-		release_firmware(rae_fw);
 
 	} else {
 		dev_err(dev, "%s: Failed to load %s firmware\n", __func__, rae_filename);
@@ -2124,7 +2119,7 @@ struct rt1320_dspfwheader {
 	struct rt1320_dspfwheader *fwheader;
 	struct rt1320_imageinfo *ptr_img;
 	struct sdw_bpt_section sec[10];
-	const struct firmware *fw = NULL;
+	const struct firmware *fw __free(firmware) = NULL;
 	unsigned char *fw_data;
 	bool dev_fw_match = false;
 	static const char hdr_sig[] = "AFX";
@@ -2178,7 +2173,6 @@ struct rt1320_dspfwheader {
 
 		if (fwheader->sync != 0x0a1c5679) {
 			dev_err(dev, "%s: FW sync error\n", __func__);
-			release_firmware(fw);
 			goto _exit_;
 		}
 
@@ -2256,7 +2250,6 @@ struct rt1320_dspfwheader {
 		}
 
 		regcache_cache_bypass(rt1320->regmap, false);
-		release_firmware(fw);
 
 		if (!dev_fw_match) {
 			dev_err(dev, "%s: FW file doesn't match to device\n", __func__);
