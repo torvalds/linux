@@ -298,6 +298,14 @@ void folio_add_lru(struct folio *folio);
 void folio_mark_accessed(struct folio *folio);
 void lru_add_drain_all(void);
 
+enum lru_cache_drained {
+	LRU_CACHE_NOT_DRAINED,
+	LRU_CACHE_DRAINED,
+	LRU_CACHE_DRAINED_ALL,
+};
+void lru_cache_drain_for_folio(const struct folio *folio,
+		unsigned int extra_refs, enum lru_cache_drained *drained);
+
 /* linux/mm/folio-compat.c */
 void mark_page_accessed(struct page *page);
 
