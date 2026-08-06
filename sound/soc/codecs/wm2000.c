@@ -796,7 +796,7 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 	struct wm2000_priv *wm2000;
 	struct wm2000_platform_data *pdata;
 	const char *filename;
-	const struct firmware *fw = NULL;
+	const struct firmware *fw __free(firmware) = NULL;
 	int ret, i;
 	unsigned int reg;
 	u16 id;
@@ -814,7 +814,7 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 		ret = PTR_ERR(wm2000->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto out;
+		return ret;
 	}
 
 	for (i = 0; i < WM2000_NUM_SUPPLIES; i++)
@@ -908,9 +908,6 @@ static int wm2000_i2c_probe(struct i2c_client *i2c)
 
 err_supplies:
 	regulator_bulk_disable(WM2000_NUM_SUPPLIES, wm2000->supplies);
-
-out:
-	release_firmware(fw);
 	return ret;
 }
 
