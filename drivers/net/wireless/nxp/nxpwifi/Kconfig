@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config NXPWIFI
-	tristate "NXP WiFi Driver"
+	tristate "NXP WiFi Driver" if COMPILE_TEST
 	depends on CFG80211
 	help
 	  This adds support for wireless adapters based on NXP
@@ -11,7 +11,8 @@ config NXPWIFI
 
 config NXPWIFI_SDIO
 	tristate "NXP WiFi Driver for IW61x"
-	depends on NXPWIFI && MMC
+	depends on CFG80211 && MMC
+	select NXPWIFI
 	select FW_LOADER
 	select WANT_DEV_COREDUMP
 	help
