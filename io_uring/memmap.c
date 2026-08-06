@@ -16,8 +16,10 @@
 #include "zcrx.h"
 
 static bool io_mem_alloc_compound(struct page **pages, int nr_pages,
-				  size_t size, gfp_t gfp)
+				  size_t size, gfp_t gfp,
+				  struct user_struct *user)
 {
+	unsigned long nr_compound, extra;
 	struct page *page;
 	int i, order;
 
@@ -27,9 +29,22 @@ static bool io_mem_alloc_compound(struct page **pages, int nr_pages,
 	else if (order)
 		gfp |= __GFP_COMP;
 
-	page = alloc_pages(gfp, order);
-	if (!page)
+	/*
+	 * get_order() rounds a non power of two size up, so the allocation
+	 * can hold more pages than the region exposes. Account those too,
+	 * and leave the compound allocation alone if they do not fit.
+	 */
+	nr_compound = 1UL << order;
+	extra = nr_compound - nr_pages;
+	if (extra && user && __io_account_mem(user, extra))
 		return false;
+
+	page = alloc_pages(gfp, order);
+	if (!page) {
+		if (extra && user)
+			__io_unaccount_mem(user, extra);
+		return false;
+	}
 
 	for (i = 0; i < nr_pages; i++)
 		pages[i] = page + i;
@@ -105,8 +120,15 @@ void io_free_region(struct user_struct *user, struct io_mapped_region *mr)
 	}
 	if ((mr->flags & IO_REGION_F_VMAP) && mr->ptr)
 		vunmap(mr->ptr);
-	if (mr->nr_pages && user)
-		__io_unaccount_mem(user, mr->nr_pages);
+	if (mr->nr_pages && user) {
+		unsigned long nr_accounted = mr->nr_pages;
+
+		/* a compound region was accounted for the whole allocation */
+		if (mr->flags & IO_REGION_F_SINGLE_REF)
+			nr_accounted = 1UL << get_order(io_region_size(mr));
+
+		__io_unaccount_mem(user, nr_accounted);
+	}
 
 	memset(mr, 0, sizeof(*mr));
 }
@@ -151,7 +173,8 @@ static int io_region_pin_pages(struct io_mapped_region *mr,
 
 static int io_region_allocate_pages(struct io_mapped_region *mr,
 				    struct io_uring_region_desc *reg,
-				    unsigned long mmap_offset)
+				    unsigned long mmap_offset,
+				    struct user_struct *user)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
 	size_t size = io_region_size(mr);
@@ -162,7 +185,7 @@ static int io_region_allocate_pages(struct io_mapped_region *mr,
 	if (!pages)
 		return -ENOMEM;
 
-	if (io_mem_alloc_compound(pages, mr->nr_pages, size, gfp)) {
+	if (io_mem_alloc_compound(pages, mr->nr_pages, size, gfp, user)) {
 		mr->flags |= IO_REGION_F_SINGLE_REF;
 		goto done;
 	}
@@ -217,7 +240,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (reg->flags & IORING_MEM_REGION_TYPE_USER)
 		ret = io_region_pin_pages(mr, reg);
 	else
-		ret = io_region_allocate_pages(mr, reg, mmap_offset);
+		ret = io_region_allocate_pages(mr, reg, mmap_offset, ctx->user);
 	if (ret)
 		goto out_free;
 
