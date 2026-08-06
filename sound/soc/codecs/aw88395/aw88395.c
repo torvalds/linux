@@ -457,7 +457,7 @@ static void aw88395_hw_reset(struct aw88395 *aw88395)
 
 static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	struct aw_container *aw_cfg;
 	int ret;
 
@@ -473,13 +473,11 @@ static int aw88395_request_firmware_file(struct aw88395 *aw88395)
 			AW88395_ACF_FILE, cont ? cont->size : 0);
 
 	aw_cfg = devm_kzalloc(aw88395->aw_pa->dev, struct_size(aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw_cfg) {
-		release_firmware(cont);
+	if (!aw_cfg)
 		return -ENOMEM;
-	}
+
 	aw_cfg->len = (int)cont->size;
 	memcpy(aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	aw88395->aw_cfg = aw_cfg;
 
