@@ -361,23 +361,28 @@ impl TableBuilder {
         }
     }
 
-    /// Adds a new entry to the table.
-    pub fn add(&mut self, freq: Hertz, flags: u32, driver_data: u32) -> Result {
+    /// Adds a raw frequency-table entry.
+    fn push(&mut self, frequency: u32, flags: u32, driver_data: u32) -> Result {
         // Adds the new entry at the end of the vector.
         Ok(self.entries.push(
             bindings::cpufreq_frequency_table {
                 flags,
                 driver_data,
-                frequency: freq.as_khz() as u32,
+                frequency,
             },
             GFP_KERNEL,
         )?)
     }
 
+    /// Adds a new entry to the table.
+    pub fn add(&mut self, freq: Hertz, flags: u32, driver_data: u32) -> Result {
+        self.push(freq.as_khz() as u32, flags, driver_data)
+    }
+
     /// Consumes the [`TableBuilder`] and returns [`TableBox`].
     pub fn to_table(mut self) -> Result<TableBox> {
         // Add last entry to the table.
-        self.add(Hertz(c_ulong::MAX), 0, 0)?;
+        self.push(bindings::CPUFREQ_TABLE_END as u32, 0, 0)?;
 
         TableBox::new(self.entries)
     }
@@ -823,7 +828,9 @@ pub trait Driver {
     }
 
     /// Driver's `bios_limit` callback.
-    fn bios_limit(_policy: &mut Policy, _limit: &mut u32) -> Result {
+    ///
+    /// Returns HW/BIOS max frequency limitations for the CPU.
+    fn bios_limit(_policy: &mut Policy) -> Result<u32> {
         build_error!(VTABLE_DEFAULT_ERROR)
     }
 
@@ -1359,9 +1366,12 @@ impl<T: Driver> Registration<T> {
 
         from_result(|| {
             let mut policy = PolicyCpu::from_cpu(cpu_id)?;
-
+            let val = T::bios_limit(&mut policy)?;
             // SAFETY: `limit` is guaranteed by the C code to be valid.
-            T::bios_limit(&mut policy, &mut (unsafe { *limit })).map(|()| 0)
+            unsafe {
+                *limit = val;
+            }
+            Ok(0)
         })
     }
 
