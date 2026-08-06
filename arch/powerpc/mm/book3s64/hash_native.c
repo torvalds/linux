@@ -184,9 +184,14 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		va |= ssize << 8;
 		sllp = get_sllp_encoding(apsize);
 		va |= sllp << 5;
-		asm volatile(ASM_FTR_IFSET("tlbiel %0", PPC_TLBIEL_v205(%0, 0), %1)
-			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
-			     : "memory");
+
+		if (cpu_has_feature(CPU_FTR_ARCH_32)) {
+			asm volatile(PPC_TLBIEL(%0, %1, 0, 0, 0) : : "r"(va), "r"(0) : "memory");
+		} else {
+			asm volatile(ASM_FTR_IFSET("tlbiel %0", PPC_TLBIEL_v205(%0, 0), %1)
+				     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+				     : "memory");
+		}
 		break;
 	default:
 		/* We need 14 to 14 + i bits of va */
@@ -203,9 +208,14 @@ static inline void __tlbiel(unsigned long vpn, int psize, int apsize, int ssize)
 		 */
 		va |= (vpn & 0xfe);
 		va |= 1; /* L */
-		asm volatile(ASM_FTR_IFSET("tlbiel %0", PPC_TLBIEL_v205(%0, 1), %1)
-			     : : "r" (va), "i" (CPU_FTR_ARCH_206)
-			     : "memory");
+
+		if (cpu_has_feature(CPU_FTR_ARCH_32)) {
+			asm volatile(PPC_TLBIEL(%0, %1, 0, 0, 0) : : "r"(va), "r"(0) : "memory");
+		} else {
+			asm volatile(ASM_FTR_IFSET("tlbiel %0", PPC_TLBIEL_v205(%0, 1), %1)
+				     : : "r" (va), "i" (CPU_FTR_ARCH_206)
+				     : "memory");
+		}
 		break;
 	}
 	trace_tlbie(0, 1, va, 0, 0, 0, 0);
