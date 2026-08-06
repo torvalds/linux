@@ -3468,7 +3468,15 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	fs_info->sectorsize = sectorsize;
 	fs_info->sectorsize_bits = ilog2(sectorsize);
 	fs_info->block_min_order = ilog2(round_up(sectorsize, PAGE_SIZE) >> PAGE_SHIFT);
-	fs_info->block_max_order = calc_block_max_order(fs_info->sectorsize_bits);
+	/*
+	 * For HIGHMEM, a large folio cannot be mapped in one go, breaking a lot
+	 * of basic assumptions for btrfs IOs.
+	 * Disable large folios for such 32-bit systems.
+	 */
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		fs_info->block_max_order = fs_info->block_min_order;
+	else
+		fs_info->block_max_order = calc_block_max_order(fs_info->sectorsize_bits);
 	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) / fs_info->csum_size;
 	fs_info->stripesize = stripesize;
 	fs_info->fs_devices->fs_info = fs_info;
