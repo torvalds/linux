@@ -1856,7 +1856,6 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	/* Set up our datapath device. */
 	parms.name = nla_data(a[OVS_DP_ATTR_NAME]);
 	parms.type = OVS_VPORT_TYPE_INTERNAL;
-	parms.options = NULL;
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
 	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
@@ -2172,10 +2171,6 @@ static int ovs_vport_cmd_fill_info(struct vport *vport, struct sk_buff *skb,
 	if (ovs_vport_get_upcall_portids(vport, skb))
 		goto nla_put_failure;
 
-	err = ovs_vport_get_options(vport, skb);
-	if (err == -EMSGSIZE)
-		goto error;
-
 	genlmsg_end(skb, ovs_header);
 	return 0;
 
@@ -2183,7 +2178,6 @@ nla_put_failure_unlock:
 	rcu_read_unlock();
 nla_put_failure:
 	err = -EMSGSIZE;
-error:
 	genlmsg_cancel(skb, ovs_header);
 	return err;
 }
@@ -2209,12 +2203,6 @@ static size_t ovs_vport_cmd_msg_size(void)
 
 	/* OVS_VPORT_ATTR_UPCALL_PID */
 	msgsize += nla_total_size(nr_cpu_ids * sizeof(u32));
-
-	/* OVS_VPORT_ATTR_OPTIONS(OVS_TUNNEL_ATTR_DST_PORT +
-	 *                        OVS_TUNNEL_ATTR_EXTENSION(OVS_VXLAN_EXT_GBP))
-	 */
-	msgsize += nla_total_size(nla_total_size(sizeof(u16)) +
-				  nla_total_size(nla_total_size(0)));
 
 	return msgsize;
 }
@@ -2343,7 +2331,6 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 
 	ovs_lock();
-restart:
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
 	err = -ENODEV;
 	if (!dp)
@@ -2367,7 +2354,6 @@ restart:
 	}
 
 	parms.name = nla_data(a[OVS_VPORT_ATTR_NAME]);
-	parms.options = a[OVS_VPORT_ATTR_OPTIONS];
 	parms.dp = dp;
 	parms.port_no = port_no;
 	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
@@ -2376,11 +2362,8 @@ restart:
 
 	vport = new_vport(&parms);
 	err = PTR_ERR(vport);
-	if (IS_ERR(vport)) {
-		if (err == -EAGAIN)
-			goto restart;
+	if (IS_ERR(vport))
 		goto exit_unlock_free;
-	}
 
 	err = ovs_vport_cmd_fill_info(vport, reply, genl_info_net(info),
 				      info->snd_portid, info->snd_seq, 0,
@@ -2429,11 +2412,10 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (a[OVS_VPORT_ATTR_OPTIONS]) {
-		err = ovs_vport_set_options(vport, a[OVS_VPORT_ATTR_OPTIONS]);
-		if (err)
-			goto exit_unlock_free;
+		/* There are no vport types that support legacy options. */
+		err = -EOPNOTSUPP;
+		goto exit_unlock_free;
 	}
-
 
 	if (a[OVS_VPORT_ATTR_UPCALL_PID]) {
 		struct nlattr *ids = a[OVS_VPORT_ATTR_UPCALL_PID];
@@ -2608,7 +2590,7 @@ static const struct nla_policy vport_policy[OVS_VPORT_ATTR_MAX + 1] = {
 	[OVS_VPORT_ATTR_PORT_NO] = { .type = NLA_U32 },
 	[OVS_VPORT_ATTR_TYPE] = { .type = NLA_U32 },
 	[OVS_VPORT_ATTR_UPCALL_PID] = { .type = NLA_UNSPEC },
-	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED },
+	[OVS_VPORT_ATTR_OPTIONS] = { .type = NLA_NESTED }, /* Unused. */
 	[OVS_VPORT_ATTR_IFINDEX] = NLA_POLICY_MIN(NLA_S32, 0),
 	[OVS_VPORT_ATTR_NETNSID] = { .type = NLA_S32 },
 	[OVS_VPORT_ATTR_UPCALL_STATS] = { .type = NLA_NESTED },

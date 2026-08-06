@@ -359,9 +359,6 @@ struct vxlan_dev {
 					 VXLAN_F_MC_ROUTE          |	\
 					 0)
 
-struct net_device *vxlan_dev_create(struct net *net, const char *name,
-				    u8 name_assign_type, struct vxlan_config *conf);
-
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)
 {

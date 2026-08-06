@@ -73,7 +73,7 @@ static struct net_device *get_dpdev(const struct datapath *dp)
 	return local->dev;
 }
 
-struct vport *ovs_netdev_link(struct vport *vport, bool tunnel)
+static struct vport *ovs_netdev_link(struct vport *vport)
 {
 	int err;
 
@@ -112,15 +112,12 @@ struct vport *ovs_netdev_link(struct vport *vport, bool tunnel)
 error_master_upper_dev_unlink:
 	netdev_upper_dev_unlink(vport->dev, get_dpdev(vport->dp));
 error_put_unlock:
-	if (tunnel && vport->dev->reg_state == NETREG_REGISTERED)
-		rtnl_delete_link(vport->dev, 0, NULL);
 	netdev_put(vport->dev, &vport->dev_tracker);
 	rtnl_unlock();
 error_free_vport:
 	ovs_vport_free(vport);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(ovs_netdev_link);
 
 static struct vport *netdev_create(const struct vport_parms *parms)
 {
@@ -152,7 +149,7 @@ static struct vport *netdev_create(const struct vport_parms *parms)
 		goto error_put;
 	}
 
-	return ovs_netdev_link(vport, false);
+	return ovs_netdev_link(vport);
 error_put:
 	netdev_put(vport->dev, &vport->dev_tracker);
 error_free_vport:
@@ -203,28 +200,6 @@ static void netdev_destroy(struct vport *vport)
 
 	call_rcu(&vport->rcu, vport_netdev_free);
 }
-
-void ovs_netdev_tunnel_destroy(struct vport *vport)
-{
-	rtnl_lock();
-	if (netif_is_ovs_port(vport->dev))
-		ovs_netdev_detach_dev(vport);
-
-	/* We can be invoked by both explicit vport deletion and
-	 * underlying netdev deregistration; delete the link only
-	 * if it's not already shutting down.
-	 */
-	if (vport->dev->reg_state == NETREG_REGISTERED)
-		rtnl_delete_link(vport->dev, 0, NULL);
-
-	/* We can't put the device reference yet, since it can still be in
-	 * use, but rtnl_unlock()->netdev_run_todo() will block until all
-	 * the references are released, so the RCU call must be before it.
-	 */
-	call_rcu(&vport->rcu, vport_netdev_free);
-	rtnl_unlock();
-}
-EXPORT_SYMBOL_GPL(ovs_netdev_tunnel_destroy);
 
 /* Returns null if this device is not attached to a datapath. */
 struct vport *ovs_netdev_get_vport(struct net_device *dev)

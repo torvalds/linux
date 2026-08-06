@@ -2364,9 +2364,6 @@ class OvsDatapath(GenericNetlinkSocket):
 class OvsVport(GenericNetlinkSocket):
     OVS_VPORT_TYPE_NETDEV = 1
     OVS_VPORT_TYPE_INTERNAL = 2
-    OVS_VPORT_TYPE_GRE = 3
-    OVS_VPORT_TYPE_VXLAN = 4
-    OVS_VPORT_TYPE_GENEVE = 5
 
     class ovs_vport_msg(ovs_dp_msg):
         nla_map = (
@@ -2374,20 +2371,13 @@ class OvsVport(GenericNetlinkSocket):
             ("OVS_VPORT_ATTR_PORT_NO", "uint32"),
             ("OVS_VPORT_ATTR_TYPE", "uint32"),
             ("OVS_VPORT_ATTR_NAME", "asciiz"),
-            ("OVS_VPORT_ATTR_OPTIONS", "vportopts"),
+            ("OVS_VPORT_ATTR_OPTIONS", "none"),
             ("OVS_VPORT_ATTR_UPCALL_PID", "array(uint32)"),
             ("OVS_VPORT_ATTR_STATS", "vportstats"),
             ("OVS_VPORT_ATTR_PAD", "none"),
             ("OVS_VPORT_ATTR_IFINDEX", "uint32"),
             ("OVS_VPORT_ATTR_NETNSID", "uint32"),
         )
-
-        class vportopts(nla):
-            nla_map = (
-                ("OVS_TUNNEL_ATTR_UNSPEC", "none"),
-                ("OVS_TUNNEL_ATTR_DST_PORT", "uint16"),
-                ("OVS_TUNNEL_ATTR_EXTENSION", "none"),
-            )
 
         class vportstats(nla):
             fields = (
@@ -2406,25 +2396,13 @@ class OvsVport(GenericNetlinkSocket):
             return "netdev"
         elif vport_type == OvsVport.OVS_VPORT_TYPE_INTERNAL:
             return "internal"
-        elif vport_type == OvsVport.OVS_VPORT_TYPE_GRE:
-            return "gre"
-        elif vport_type == OvsVport.OVS_VPORT_TYPE_VXLAN:
-            return "vxlan"
-        elif vport_type == OvsVport.OVS_VPORT_TYPE_GENEVE:
-            return "geneve"
         raise ValueError("Unknown vport type:%d" % vport_type)
 
     def str_to_type(vport_type):
-        if vport_type == "netdev":
+        if vport_type in ["netdev", "gre", "vxlan", "geneve"]:
             return OvsVport.OVS_VPORT_TYPE_NETDEV
         elif vport_type == "internal":
             return OvsVport.OVS_VPORT_TYPE_INTERNAL
-        elif vport_type == "gre":
-            return OvsVport.OVS_VPORT_TYPE_GRE
-        elif vport_type == "vxlan":
-            return OvsVport.OVS_VPORT_TYPE_VXLAN
-        elif vport_type == "geneve":
-            return OvsVport.OVS_VPORT_TYPE_GENEVE
         raise ValueError("Unknown vport type: '%s'" % vport_type)
 
     def __init__(self, packet=OvsPacket()):
@@ -2457,16 +2435,18 @@ class OvsVport(GenericNetlinkSocket):
                 raise ne
         return reply
 
-    def attach(self, dpindex, vport_ifname, ptype, dport, lwt):
+    def attach(self, dpindex, vport_ifname, ptype, dport):
         msg = OvsVport.ovs_vport_msg()
 
         msg["cmd"] = OVS_VPORT_CMD_NEW
         msg["version"] = OVS_DATAPATH_VERSION
         msg["reserved"] = 0
         msg["dpifindex"] = dpindex
-        port_type = OvsVport.str_to_type(ptype)
 
         msg["attrs"].append(["OVS_VPORT_ATTR_NAME", vport_ifname])
+        msg["attrs"].append(
+            ["OVS_VPORT_ATTR_TYPE", OvsVport.str_to_type(ptype)]
+        )
         msg["attrs"].append(
             ["OVS_VPORT_ATTR_UPCALL_PID", [self.upcall_packet.epid]]
         )
@@ -2480,36 +2460,21 @@ class OvsVport(GenericNetlinkSocket):
                 if not dport:
                     dport = tnl[1]
 
-                if not lwt:
-                    if tnl[0] == "gre":
-                        # GRE tunnels have no options.
-                        break
+                ipr = pyroute2.iproute.IPRoute()
 
-                    vportopt = OvsVport.ovs_vport_msg.vportopts()
-                    vportopt["attrs"].append(
-                        ["OVS_TUNNEL_ATTR_DST_PORT", dport]
-                    )
-                    msg["attrs"].append(
-                        ["OVS_VPORT_ATTR_OPTIONS", vportopt]
-                    )
-                else:
-                    port_type = OvsVport.OVS_VPORT_TYPE_NETDEV
-                    ipr = pyroute2.iproute.IPRoute()
-
-                    if tnl[0] == "geneve":
-                        ipr.link("add", ifname=vport_ifname, kind=tnl[0],
-                                 geneve_port=dport,
-                                 geneve_collect_metadata=True,
-                                 geneve_udp_zero_csum6_rx=1)
-                    elif tnl[0] == "gre":
-                        ipr.link("add", ifname=vport_ifname, kind="gretap",
-                                 gre_collect_metadata=True)
-                    elif tnl[0] == "vxlan":
-                        ipr.link("add", ifname=vport_ifname, kind=tnl[0],
-                                 vxlan_learning=0, vxlan_collect_metadata=1,
-                                 vxlan_udp_zero_csum6_rx=1, vxlan_port=dport)
+                if tnl[0] == "geneve":
+                    ipr.link("add", ifname=vport_ifname, kind=tnl[0],
+                             geneve_port=dport,
+                             geneve_collect_metadata=True,
+                             geneve_udp_zero_csum6_rx=1)
+                elif tnl[0] == "gre":
+                    ipr.link("add", ifname=vport_ifname, kind="gretap",
+                             gre_collect_metadata=True)
+                elif tnl[0] == "vxlan":
+                    ipr.link("add", ifname=vport_ifname, kind=tnl[0],
+                             vxlan_learning=0, vxlan_collect_metadata=1,
+                             vxlan_udp_zero_csum6_rx=1, vxlan_port=dport)
                 break
-        msg["attrs"].append(["OVS_VPORT_ATTR_TYPE", port_type])
 
         try:
             reply = self.nlm_request(
@@ -2937,19 +2902,12 @@ def print_ovsdp_full(dp_lookup_rep, ifindex, ndb=NDB(), vpl=OvsVport()):
     for iface in ndb.interfaces:
         rep = vpl.info(iface.ifname, ifindex)
         if rep is not None:
-            opts = ""
-            vpo = rep.get_attr("OVS_VPORT_ATTR_OPTIONS")
-            if vpo:
-                dpo = vpo.get_attr("OVS_TUNNEL_ATTR_DST_PORT")
-                if dpo:
-                    opts += " tnl-dport:%s" % dpo
             print(
-                "  port %d: %s (%s%s)"
+                "  port %d: %s (%s)"
                 % (
                     rep.get_attr("OVS_VPORT_ATTR_PORT_NO"),
                     rep.get_attr("OVS_VPORT_ATTR_NAME"),
                     OvsVport.type_to_str(rep.get_attr("OVS_VPORT_ATTR_TYPE")),
-                    opts,
                 )
             )
 
@@ -3021,13 +2979,6 @@ def main(argv):
         type=int,
         default=0,
         help="Destination port (0 for default)"
-    )
-    addifcmd.add_argument(
-        "-l",
-        "--lwt",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Use LWT infrastructure instead of vport (default true)."
     )
     delifcmd = subparsers.add_parser("del-if")
     delifcmd.add_argument("dpname", help="Datapath Name")
@@ -3108,7 +3059,7 @@ def main(argv):
             return 1
         dpindex = rep["dpifindex"]
         rep = ovsvp.attach(rep["dpifindex"], args.addif, args.ptype,
-                           args.dport, args.lwt)
+                           args.dport)
         msg = "vport '%s'" % args.addif
         if rep and rep["header"]["error"] is None:
             msg += " added."

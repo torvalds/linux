@@ -34,9 +34,6 @@ void ovs_vport_get_stats(struct vport *, struct ovs_vport_stats *);
 
 int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb);
 
-int ovs_vport_set_options(struct vport *, struct nlattr *options);
-int ovs_vport_get_options(const struct vport *, struct sk_buff *);
-
 int ovs_vport_set_upcall_portids(struct vport *, const struct nlattr *pids);
 int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
@@ -92,8 +89,6 @@ struct vport {
  *
  * @name: New vport's name.
  * @type: New vport's type.
- * @options: %OVS_VPORT_ATTR_OPTIONS attribute from Netlink message, %NULL if
- * none was supplied.
  * @desired_ifindex: New vport's ifindex.
  * @dp: New vport's datapath.
  * @port_no: New vport's port number.
@@ -104,7 +99,6 @@ struct vport_parms {
 	const char *name;
 	enum ovs_vport_type type;
 	int desired_ifindex;
-	struct nlattr *options;
 
 	/* For ovs_vport_alloc(). */
 	struct datapath *dp;
@@ -120,14 +114,8 @@ struct vport_parms {
  * a new vport allocated with ovs_vport_alloc(), otherwise an ERR_PTR() value.
  * @destroy: Destroys a vport.  Must call vport_free() on the vport but not
  * before an RCU grace period has elapsed.
- * @set_options: Modify the configuration of an existing vport.  May be %NULL
- * if modification is not supported.
- * @get_options: Appends vport-specific attributes for the configuration of an
- * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
- * have any configuration.
  * @send: Send a packet on the device.
  * zero for dropped packets or negative for error.
- * @owner: Module that implements this vport type.
  * @list: List entry in the global list of vport types.
  */
 struct vport_ops {
@@ -137,11 +125,7 @@ struct vport_ops {
 	struct vport *(*create)(const struct vport_parms *);
 	void (*destroy)(struct vport *);
 
-	int (*set_options)(struct vport *, struct nlattr *);
-	int (*get_options)(const struct vport *, struct sk_buff *);
-
 	int (*send)(struct sk_buff *skb);
-	struct module *owner;
 	struct list_head list;
 };
 
@@ -205,12 +189,7 @@ static inline const char *ovs_vport_name(struct vport *vport)
 	return vport->dev->name;
 }
 
-int __ovs_vport_ops_register(struct vport_ops *ops);
-#define ovs_vport_ops_register(ops)		\
-	({					\
-		(ops)->owner = THIS_MODULE;	\
-		__ovs_vport_ops_register(ops);	\
-	})
+int ovs_vport_ops_register(struct vport_ops *ops);
 
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto);
