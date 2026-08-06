@@ -14978,6 +14978,7 @@ static void bnxt_unmap_bars(struct bnxt *bp, struct pci_dev *pdev)
 
 static void bnxt_cleanup_pci(struct bnxt *bp)
 {
+	pci_disable_ptm(bp->pdev);
 	bnxt_unmap_bars(bp, bp->pdev);
 	pci_release_regions(bp->pdev);
 	if (pci_is_enabled(bp->pdev))
@@ -15545,6 +15546,8 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 		rc = -ENOMEM;
 		goto init_err_release;
 	}
+
+	pci_enable_ptm(pdev);
 
 	INIT_WORK(&bp->sp_task, bnxt_sp_task);
 	INIT_DELAYED_WORK(&bp->fw_reset_task, bnxt_fw_reset_task);
