@@ -561,8 +561,8 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	 * pointer command pending because the device can choose to start any
 	 * stream once the endpoint is on the HW schedule.
 	 */
-	if ((ep_state & EP_STOP_CMD_PENDING) || (ep_state & SET_DEQ_PENDING) ||
-	    (ep_state & EP_HALTED) || (ep_state & EP_CLEARING_TT))
+	if (ep_state & (EP_STOP_CMD_PENDING | SET_DEQ_PENDING | EP_HALTED |
+			EP_CLEARING_TT | EP_DROP_PENDING))
 		return;
 
 	trace_xhci_ring_ep_doorbell(slot_id, DB_VALUE(ep_index, stream_id));
@@ -995,8 +995,10 @@ static int xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 	 * Can cause host hang.
 	 * Device will be reset to recover an inactive link, so don't do anything
 	 */
-	if (rhub_port->link_inactive || !rhub_port->connected)
+	if (rhub_port->link_inactive || !rhub_port->connected) {
+		ep->ep_state |= EP_DROP_PENDING;
 		return -ENODEV;
+	}
 
 	/* add td to cancelled list and let reset ep handler take care of it */
 	if (reset_type == EP_HARD_RESET) {
@@ -1066,6 +1068,13 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 				  td->urb, td->urb->stream_id);
 			continue;
 		}
+
+		/* device disconnected or link error, ep will be dropped */
+		if (ep->ep_state & EP_DROP_PENDING) {
+			td->cancel_status = TD_CLEARED;
+			continue;
+		}
+
 		/*
 		 * If a ring stopped on the TD we need to cancel then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
@@ -1295,6 +1304,10 @@ reset_done:
 			break;
 		}
 	}
+
+	/* link is inactive or disconnected, ep is not running and shouldn't be restarted */
+	if (ep->vdev->rhub_port->link_inactive || !ep->vdev->rhub_port->connected)
+		ep->ep_state |= EP_DROP_PENDING;
 
 	/* will queue a set TR deq if stopped on a cancelled, uncleared TD */
 	xhci_invalidate_cancelled_tds(ep);
