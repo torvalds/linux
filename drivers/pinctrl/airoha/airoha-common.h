@@ -130,6 +130,8 @@ struct airoha_pinctrl {
 };
 
 struct airoha_pinctrl_match_data {
+	const char *pinctrl_name;
+	struct module *pinctrl_owner;
 	const struct pinctrl_pin_desc *pins;
 	const unsigned int num_pins;
 	const struct pingroup *grps;
@@ -138,5 +140,7 @@ struct airoha_pinctrl_match_data {
 	const unsigned int num_funcs;
 	const struct airoha_pinctrl_confs_info confs_info[AIROHA_PINCTRL_CONFS_MAX];
 };
+
+int airoha_pinctrl_probe(struct platform_device *pdev);
 
 #endif

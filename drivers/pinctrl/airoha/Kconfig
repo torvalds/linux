@@ -3,9 +3,9 @@ menu "Airoha pinctrl drivers"
 	depends on ARCH_AIROHA || COMPILE_TEST
 
 config PINCTRL_AIROHA
-	tristate "Airoha EN7581 pin control"
+	tristate "Airoha pin control"
 	depends on OF
-	depends on ARM64 || COMPILE_TEST
+	depends on ARCH_AIROHA || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
@@ -13,8 +13,26 @@ config PINCTRL_AIROHA
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select REGMAP_MMIO
+	imply PINCTRL_AIROHA_AN7581
+	imply PINCTRL_AIROHA_AN7583
+	help
+	  Shared pin controller and gpio driver code for different
+	  Airoha SoCs.
+
+config PINCTRL_AIROHA_AN7581
+	tristate "AN7581 pinctrl"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_AIROHA
 	help
 	  Say yes here to support pin controller and gpio driver
-	  on Airoha EN7581 SoC.
+	  on Airoha AN7581, AN7566, AN7551 and other compatible SoCs.
+
+config PINCTRL_AIROHA_AN7583
+	tristate "AN7583 pinctrl"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_AIROHA
+	help
+	  Say yes here to support pin controller and gpio driver
+	  on Airoha AN7583, AN7553, AN7567 and other compatible SoCs.
 
 endmenu
