@@ -57,6 +57,8 @@
 #include <linux/slab.h>
 #include <linux/string_choices.h>
 #include <linux/dma-mapping.h>
+#include <linux/bitfield.h>
+
 #include "xhci.h"
 #include "xhci-trace.h"
 
@@ -3954,7 +3956,7 @@ static unsigned int xhci_get_last_burst_packet_count(struct xhci_hcd *xhci,
 /* Returns the Isochronous Scheduling Threshold in Microframes. 1 Frame is 8 Microframes. */
 static int xhci_ist_microframes(struct xhci_hcd *xhci)
 {
-	int ist = HCS_IST_VALUE(xhci->hcs_params2);
+	int ist = FIELD_GET(HCS_IST_VALUE, xhci->hcs_params2);
 
 	if (xhci->hcs_params2 & HCS_IST_UNIT)
 		ist *= 8;

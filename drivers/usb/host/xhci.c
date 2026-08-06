@@ -21,6 +21,7 @@
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/xhci-sideband.h>
+#include <linux/bitfield.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -3507,7 +3508,7 @@ static void xhci_calculate_streams_entries(struct xhci_hcd *xhci,
 	 * level page entries), but that's an optional feature for xHCI host
 	 * controllers. xHCs must support at least 4 stream IDs.
 	 */
-	max_streams = HCC_MAX_PSA(xhci->hcc_params);
+	max_streams = GET_MAX_PSA_SIZE(xhci->hcc_params);
 	if (*num_stream_ctxs > max_streams) {
 		xhci_dbg(xhci, "xHCI HW only supports %u stream ctx entries.\n",
 				max_streams);
@@ -3637,7 +3638,7 @@ static int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
 
 	/* MaxPSASize value 0 (2 streams) means streams are not supported */
 	if ((xhci->quirks & XHCI_BROKEN_STREAMS) ||
-			HCC_MAX_PSA(xhci->hcc_params) < 4) {
+			GET_MAX_PSA_SIZE(xhci->hcc_params) < 4) {
 		xhci_dbg(xhci, "xHCI controller does not support streams.\n");
 		return -ENOSYS;
 	}
@@ -4608,7 +4609,7 @@ static int xhci_calculate_hird_besl(struct xhci_hcd *xhci,
 	int besl_device = 0;
 	u32 field;
 
-	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	u2del = FIELD_GET(HCS_U2_LATENCY, xhci->hcs_params3);
 	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
 
 	if (field & USB_BESL_SUPPORT) {
@@ -5460,26 +5461,28 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 		xhci_warn(xhci, "Host controller not accessible, removed?\n");
 		return -ENODEV;
 	}
-	xhci->op_regs = hcd->regs + HC_LENGTH(hc_capbase);
+	xhci->op_regs = hcd->regs + FIELD_GET(HC_LENGTH, hc_capbase);
+
 	xhci->run_regs = hcd->regs +
 		(readl(&xhci->cap_regs->run_regs_off) & RTSOFF_MASK);
 	/* Cache read-only capability registers */
 	hcs_params1 = readl(&xhci->cap_regs->hcs_params1);
 	xhci->hcs_params2 = readl(&xhci->cap_regs->hcs_params2);
 	xhci->hcs_params3 = readl(&xhci->cap_regs->hcs_params3);
-	xhci->hci_version = HC_VERSION(hc_capbase);
+	xhci->hci_version = FIELD_GET(HC_VERSION, hc_capbase);
 	xhci->hcc_params = readl(&xhci->cap_regs->hcc_params);
 	if (xhci->hci_version > 0x100)
 		xhci->hcc_params2 = readl(&xhci->cap_regs->hcc_params2);
 
 	xhci->dma_mask_bits = 64;
-	xhci->max_slots = min(HCS_MAX_SLOTS(hcs_params1), MAX_HC_SLOTS);
-	xhci->max_ports = min(HCS_MAX_PORTS(hcs_params1), MAX_HC_PORTS);
+	xhci->max_slots = min(FIELD_GET(HCS_SLOTS_MASK, hcs_params1), MAX_HC_SLOTS);
+	xhci->max_ports = min(FIELD_GET(HCS_MAX_PORTS, hcs_params1), MAX_HC_PORTS);
+
 	/* xhci-plat or xhci-pci might have set max_interrupters already */
 	if (!xhci->max_interrupters)
-		xhci->max_interrupters = min(HCS_MAX_INTRS(hcs_params1), MAX_HC_INTRS);
-	else if (xhci->max_interrupters > HCS_MAX_INTRS(hcs_params1))
-		xhci->max_interrupters = HCS_MAX_INTRS(hcs_params1);
+		xhci->max_interrupters = min(FIELD_GET(HCS_MAX_INTRS, hcs_params1), MAX_HC_INTRS);
+	else if (xhci->max_interrupters > FIELD_GET(HCS_MAX_INTRS, hcs_params1))
+		xhci->max_interrupters = FIELD_GET(HCS_MAX_INTRS, hcs_params1);
 
 	xhci->quirks |= quirks;
 
