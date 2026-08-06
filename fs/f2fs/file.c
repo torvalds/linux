@@ -813,12 +813,18 @@ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
 
 	if (IS_DEVICE_ALIASING(inode)) {
 		struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
-		struct extent_info ei = et->largest;
+		struct extent_info ei;
+
+		read_lock(&et->lock);
+		ei = et->largest;
+		read_unlock(&et->lock);
 
 		f2fs_invalidate_blocks(sbi, ei.blk, ei.len);
 
 		dec_valid_block_count(sbi, inode, ei.len);
 		f2fs_update_time(sbi, REQ_TIME);
+
+		f2fs_drop_extent_tree(inode);
 
 		f2fs_folio_put(ifolio, true);
 		goto out;
@@ -1100,8 +1106,9 @@ int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if ((attr->ia_valid & ATTR_SIZE)) {
 		if (mapping_large_folio_support(inode->i_mapping))
 			return -EOPNOTSUPP;
-		if (!f2fs_is_compress_backend_ready(inode) ||
-				IS_DEVICE_ALIASING(inode))
+		if (IS_DEVICE_ALIASING(inode))
+			return -EPERM;
+		if (!f2fs_is_compress_backend_ready(inode))
 			return -EOPNOTSUPP;
 		if (is_inode_flag_set(inode, FI_COMPRESS_RELEASED) &&
 			!IS_ALIGNED(attr->ia_size,
@@ -2139,6 +2146,9 @@ static int f2fs_setflags_common(struct inode *inode, u32 iflags, u32 mask)
 	if (IS_NOQUOTA(inode))
 		return -EPERM;
 
+	if (IS_DEVICE_ALIASING(inode))
+		return -EPERM;
+
 	if ((iflags ^ masked_flags) & F2FS_CASEFOLD_FL) {
 		if (!f2fs_sb_has_casefold(F2FS_I_SB(inode)))
 			return -EOPNOTSUPP;
@@ -2685,6 +2695,17 @@ static int f2fs_ioc_get_encryption_policy(struct file *filp, unsigned long arg)
 	if (!f2fs_sb_has_encrypt(F2FS_I_SB(file_inode(filp))))
 		return -EOPNOTSUPP;
 	return fscrypt_ioctl_get_policy(filp, (void __user *)arg);
+}
+
+static int f2fs_ioc_get_dev_alias_status(struct file *filp, unsigned long arg)
+{
+	struct inode *inode = file_inode(filp);
+
+	if (!IS_DEVICE_ALIASING(inode))
+		return -EINVAL;
+
+	return put_user(F2FS_HAS_BLOCKS(inode) ? F2FS_DEV_ALIAS_STATUS_RESERVED :
+				F2FS_DEV_ALIAS_STATUS_RELEASED, (u32 __user *)arg);
 }
 
 static int f2fs_ioc_get_encryption_pwsalt(struct file *filp, unsigned long arg)
@@ -3637,6 +3658,241 @@ static int f2fs_ioc_get_dev_alias_file(struct file *filp, unsigned long arg)
 			(u32 __user *)arg);
 }
 
+static bool f2fs_get_dev_alias_extent(struct f2fs_sb_info *sbi,
+				       struct dentry *dentry,
+				       struct extent_info *ei)
+{
+	int i;
+
+	for (i = 1; i < sbi->s_ndevs; i++) {
+		char *name = strrchr(FDEV(i).path, '/');
+
+		name = name ? name + 1 : FDEV(i).path;
+		if (strcmp(name, dentry->d_name.name))
+			continue;
+
+		ei->blk = FDEV(i).start_blk;
+		ei->len = FDEV(i).total_segments << sbi->log_blocks_per_seg;
+		ei->fofs = 0;
+		return true;
+	}
+	return false;
+}
+
+static int f2fs_ioc_reserve_dev_alias(struct file *filp)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
+	struct extent_info ei;
+	struct cp_control cpc = { CP_SYNC, 0, 0, 0 };
+	struct f2fs_lock_context lc, glc;
+	blkcnt_t count;
+	unsigned int start, end;
+	int type, err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
+		return -EINVAL;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
+
+	inode_lock(inode);
+
+	if (!IS_DEVICE_ALIASING(inode)) {
+		err = -EINVAL;
+		goto out_inode_unlock;
+	}
+
+	if (F2FS_HAS_BLOCKS(inode)) {
+		err = 0;
+		goto out_inode_unlock;
+	}
+
+	if (!f2fs_get_dev_alias_extent(sbi, filp->f_path.dentry, &ei)) {
+		f2fs_warn(sbi, "device alias file (%s, ino=%llu) has no matching device",
+			  filp->f_path.dentry->d_name.name,
+			  (unsigned long long)inode->i_ino);
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
+		err = -EFSCORRUPTED;
+		goto out_inode_unlock;
+	}
+
+	spin_lock(&sbi->stat_lock);
+	if (sbi->total_valid_block_count + ei.len >
+			get_available_block_count(sbi, inode, true)) {
+		spin_unlock(&sbi->stat_lock);
+		err = -ENOSPC;
+		goto out_inode_unlock;
+	}
+	sbi->alias_reserved_blocks += ei.len;
+	spin_unlock(&sbi->stat_lock);
+
+	spin_lock(&FREE_I(sbi)->segmap_lock);
+	FDEV(f2fs_target_device_index(sbi, ei.blk)).is_reserving = true;
+	spin_unlock(&FREE_I(sbi)->segmap_lock);
+
+	start = GET_SEGNO(sbi, ei.blk);
+	end = GET_SEGNO(sbi, ei.blk + ei.len - 1);
+
+	/* Acquire gc_lock for victim reset, curseg resize, and range GC */
+	f2fs_down_write_trace(&sbi->gc_lock, &glc);
+
+	/* Reset the victim information to prevent GC from targeting the range */
+	f2fs_reset_gc_victim_resource(sbi, start, end);
+
+	/* Move out cursegs from the target range */
+	for (type = CURSEG_HOT_DATA; type < NR_CURSEG_PERSIST_TYPE; type++) {
+		err = f2fs_allocate_segment_for_resize(sbi, type, start, end);
+		if (err)
+			goto out_gc_unlock;
+	}
+
+	f2fs_lock_op(sbi, &lc);
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+		err = -EINVAL;
+		f2fs_unlock_op(sbi, &lc);
+		goto out_gc_unlock;
+	}
+
+	/* do GC to move out valid blocks in the range all at once! */
+	err = f2fs_gc_range(sbi, start, end, false, 0);
+	if (err) {
+		f2fs_unlock_op(sbi, &lc);
+		goto out_gc_unlock;
+	}
+
+	count = ei.len;
+	err = inc_valid_block_count(sbi, inode, &count, false, true);
+	if (err) {
+		f2fs_unlock_op(sbi, &lc);
+		goto out_gc_unlock;
+	}
+
+	write_lock(&et->lock);
+	et->largest = ei;
+	write_unlock(&et->lock);
+	clear_inode_flag(inode, FI_NO_EXTENT);
+
+	f2fs_reserve_device_alias(sbi, ei.blk, ei.len);
+
+	i_size_write(inode, (loff_t)ei.len << sbi->log_blocksize);
+	f2fs_update_inode_page(inode);
+
+	spin_lock(&FREE_I(sbi)->segmap_lock);
+	FDEV(f2fs_target_device_index(sbi, ei.blk)).is_reserving = false;
+	spin_unlock(&FREE_I(sbi)->segmap_lock);
+
+	f2fs_unlock_op(sbi, &lc);
+	f2fs_up_write_trace(&sbi->gc_lock, &glc);
+
+	inode_unlock(inode);
+	mnt_drop_write_file(filp);
+
+	return f2fs_write_checkpoint(sbi, &cpc);
+
+out_gc_unlock:
+	spin_lock(&sbi->stat_lock);
+	sbi->alias_reserved_blocks -= ei.len;
+	spin_unlock(&sbi->stat_lock);
+
+	spin_lock(&FREE_I(sbi)->segmap_lock);
+	FDEV(f2fs_target_device_index(sbi, ei.blk)).is_reserving = false;
+	spin_unlock(&FREE_I(sbi)->segmap_lock);
+	f2fs_up_write_trace(&sbi->gc_lock, &glc);
+
+out_inode_unlock:
+	inode_unlock(inode);
+	mnt_drop_write_file(filp);
+	return err;
+}
+
+static int f2fs_ioc_release_dev_alias(struct file *filp)
+{
+	struct inode *inode = file_inode(filp);
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct extent_tree *et = F2FS_I(inode)->extent_tree[EX_READ];
+	struct extent_info ei = {0, };
+	struct cp_control cpc = { CP_SYNC, 0, 0, 0 };
+	struct f2fs_lock_context lc, glc;
+	int err;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
+		return -EINVAL;
+
+	err = mnt_want_write_file(filp);
+	if (err)
+		return err;
+
+	inode_lock(inode);
+
+	if (!IS_DEVICE_ALIASING(inode)) {
+		err = -EINVAL;
+		goto out_inode_unlock;
+	}
+
+	if (!F2FS_HAS_BLOCKS(inode)) {
+		err = 0;
+		goto out_inode_unlock;
+	}
+
+	err = filemap_write_and_wait(inode->i_mapping);
+	if (err)
+		goto out_inode_unlock;
+
+	read_lock(&et->lock);
+	ei = et->largest;
+	read_unlock(&et->lock);
+
+	f2fs_down_write_trace(&sbi->gc_lock, &glc);
+	f2fs_lock_op(sbi, &lc);
+
+	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED))) {
+		err = -EINVAL;
+		f2fs_unlock_op(sbi, &lc);
+		f2fs_up_write_trace(&sbi->gc_lock, &glc);
+		goto out_inode_unlock;
+	}
+
+	filemap_invalidate_lock(inode->i_mapping);
+	truncate_setsize(inode, 0);
+
+	err = f2fs_truncate_blocks(inode, 0, false);
+	if (err)
+		i_size_write(inode, (loff_t)ei.len << sbi->log_blocksize);
+	filemap_invalidate_unlock(inode->i_mapping);
+
+	if (err) {
+		f2fs_unlock_op(sbi, &lc);
+		f2fs_up_write_trace(&sbi->gc_lock, &glc);
+		goto out_inode_unlock;
+	}
+
+	f2fs_update_inode_page(inode);
+
+	f2fs_unlock_op(sbi, &lc);
+	f2fs_up_write_trace(&sbi->gc_lock, &glc);
+
+	inode_unlock(inode);
+	mnt_drop_write_file(filp);
+
+	return f2fs_write_checkpoint(sbi, &cpc);
+
+out_inode_unlock:
+	inode_unlock(inode);
+	mnt_drop_write_file(filp);
+	return err;
+}
+
 static int f2fs_ioc_io_prio(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);
@@ -4062,7 +4318,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count,
 		}
 
 		ret = inc_valid_block_count(sbi, dn->inode,
-						&to_reserved, false);
+						&to_reserved, false, false);
 		if (unlikely(ret))
 			return ret;
 
@@ -4763,8 +5019,14 @@ static long __f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return f2fs_ioc_compress_file(filp);
 	case F2FS_IOC_GET_DEV_ALIAS_FILE:
 		return f2fs_ioc_get_dev_alias_file(filp, arg);
+	case F2FS_IOC_GET_DEV_ALIAS_STATUS:
+		return f2fs_ioc_get_dev_alias_status(filp, arg);
 	case F2FS_IOC_IO_PRIO:
 		return f2fs_ioc_io_prio(filp, arg);
+	case F2FS_IOC_RESERVE_DEV_ALIAS:
+		return f2fs_ioc_reserve_dev_alias(filp);
+	case F2FS_IOC_RELEASE_DEV_ALIAS:
+		return f2fs_ioc_release_dev_alias(filp);
 	default:
 		return -ENOTTY;
 	}
@@ -5551,7 +5813,10 @@ long f2fs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_DECOMPRESS_FILE:
 	case F2FS_IOC_COMPRESS_FILE:
 	case F2FS_IOC_GET_DEV_ALIAS_FILE:
+	case F2FS_IOC_GET_DEV_ALIAS_STATUS:
 	case F2FS_IOC_IO_PRIO:
+	case F2FS_IOC_RESERVE_DEV_ALIAS:
+	case F2FS_IOC_RELEASE_DEV_ALIAS:
 		break;
 	default:
 		return -ENOIOCTLCMD;

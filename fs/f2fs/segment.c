@@ -261,7 +261,7 @@ retry:
 	} else {
 		blkcnt_t count = 1;
 
-		err = inc_valid_block_count(sbi, inode, &count, true);
+		err = inc_valid_block_count(sbi, inode, &count, true, false);
 		if (err) {
 			f2fs_put_dnode(&dn);
 			return err;
@@ -2539,35 +2539,42 @@ static int update_sit_entry_for_alloc(struct f2fs_sb_info *sbi, struct seg_entry
 				unsigned int segno, block_t blkaddr, unsigned int offset, int del)
 {
 	bool exist;
+	int del_count = del;
+	int i;
 
-	exist = f2fs_test_and_set_bit(offset, se->cur_valid_map);
-	if (unlikely(exist)) {
-		f2fs_err(sbi, "Bitmap was wrongly set, blk:%u", blkaddr);
-		f2fs_bug_on(sbi, 1);
-		se->valid_blocks--;
-		del = 0;
-	}
+	f2fs_bug_on(sbi, GET_SEGNO(sbi, blkaddr) != GET_SEGNO(sbi, blkaddr + del_count - 1));
 
-	if (f2fs_block_unit_discard(sbi) &&
-			!f2fs_test_and_set_bit(offset, se->discard_map))
-		sbi->discard_blks--;
-
-	/*
-	 * SSR should never reuse block which is checkpointed
-	 * or newly invalidated.
-	 */
-	if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED)) {
-		if (!f2fs_test_and_set_bit(offset, se->ckpt_valid_map)) {
-			se->ckpt_valid_blocks++;
-			if (__is_large_section(sbi))
-				get_sec_entry(sbi, segno)->ckpt_valid_blocks++;
+	for (i = 0; i < del_count; i++) {
+		exist = f2fs_test_and_set_bit(offset + i, se->cur_valid_map);
+		if (unlikely(exist)) {
+			f2fs_err(sbi, "Bitmap was wrongly set, blk:%u", blkaddr + i);
+			f2fs_bug_on(sbi, 1);
+			se->valid_blocks--;
+			del -= 1;
+			continue;
 		}
-	}
 
-	if (!f2fs_test_bit(offset, se->ckpt_valid_map)) {
-		se->ckpt_valid_blocks += del;
-		if (__is_large_section(sbi))
-			get_sec_entry(sbi, segno)->ckpt_valid_blocks += del;
+		if (f2fs_block_unit_discard(sbi) &&
+				!f2fs_test_and_set_bit(offset + i, se->discard_map))
+			sbi->discard_blks--;
+
+		/*
+		 * SSR should never reuse block which is checkpointed
+		 * or newly invalidated.
+		 */
+		if (!is_sbi_flag_set(sbi, SBI_CP_DISABLED)) {
+			if (!f2fs_test_and_set_bit(offset + i, se->ckpt_valid_map)) {
+				se->ckpt_valid_blocks++;
+				if (__is_large_section(sbi))
+					get_sec_entry(sbi, segno)->ckpt_valid_blocks++;
+			}
+		}
+
+		if (!f2fs_test_bit(offset + i, se->ckpt_valid_map)) {
+			se->ckpt_valid_blocks += 1;
+			if (__is_large_section(sbi))
+				get_sec_entry(sbi, segno)->ckpt_valid_blocks += 1;
+		}
 	}
 
 	if (__is_large_section(sbi))
@@ -2622,8 +2629,13 @@ void f2fs_invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr,
 	unsigned int segno = GET_SEGNO(sbi, addr);
 	struct sit_info *sit_i = SIT_I(sbi);
 	block_t addr_start = addr, addr_end = addr + len - 1;
-	unsigned int seg_num = GET_SEGNO(sbi, addr_end) - segno + 1;
+	unsigned int seg_num;
 	unsigned int i = 1, max_blocks = sbi->blocks_per_seg, cnt;
+
+	if (len == 0)
+		return;
+
+	seg_num = GET_SEGNO(sbi, addr_end) - segno + 1;
 
 	f2fs_bug_on(sbi, addr == NULL_ADDR);
 	if (addr == NEW_ADDR || addr == COMPRESS_ADDR)
@@ -2642,6 +2654,52 @@ void f2fs_invalidate_blocks(struct f2fs_sb_info *sbi, block_t addr,
 	do {
 		update_segment_mtime(sbi, addr_start, 0);
 		update_sit_entry(sbi, addr_start, -cnt);
+
+		/* add it into dirty seglist */
+		locate_dirty_segment(sbi, segno);
+
+		/* update @addr_start and @cnt and @segno */
+		addr_start = START_BLOCK(sbi, ++segno);
+		if (++i == seg_num)
+			cnt = GET_BLKOFF_FROM_SEG0(sbi, addr_end) + 1;
+		else
+			cnt = max_blocks;
+	} while (i <= seg_num);
+
+	up_write(&sit_i->sentry_lock);
+}
+
+void f2fs_reserve_device_alias(struct f2fs_sb_info *sbi, block_t addr,
+				unsigned int len)
+{
+	unsigned int segno = GET_SEGNO(sbi, addr);
+	struct sit_info *sit_i = SIT_I(sbi);
+	block_t addr_start = addr, addr_end = addr + len - 1;
+	unsigned int seg_num;
+	unsigned int i = 1, max_blocks = sbi->blocks_per_seg, cnt;
+
+	if (len == 0)
+		return;
+
+	seg_num = GET_SEGNO(sbi, addr_end) - segno + 1;
+
+	down_write(&sit_i->sentry_lock);
+
+	if (seg_num == 1)
+		cnt = len;
+	else
+		cnt = max_blocks - GET_BLKOFF_FROM_SEG0(sbi, addr);
+
+	do {
+		update_segment_mtime(sbi, addr_start, 0);
+		update_sit_entry(sbi, addr_start, cnt);
+		__set_test_and_inuse(sbi, segno);
+
+		/* Remove the segment from PRE (prefree) to prevent checkpoint from freeing it! */
+		mutex_lock(&DIRTY_I(sbi)->seglist_lock);
+		if (test_and_clear_bit(segno, DIRTY_I(sbi)->dirty_segmap[PRE]))
+			DIRTY_I(sbi)->nr_dirty[PRE]--;
+		mutex_unlock(&DIRTY_I(sbi)->seglist_lock);
 
 		/* add it into dirty seglist */
 		locate_dirty_segment(sbi, segno);
@@ -2795,8 +2853,13 @@ static int is_next_segment_free(struct f2fs_sb_info *sbi,
 	unsigned int segno = curseg->segno + 1;
 	struct free_segmap_info *free_i = FREE_I(sbi);
 
-	if (segno < MAIN_SEGS(sbi) && segno % SEGS_PER_SEC(sbi))
+	if (segno < MAIN_SEGS(sbi) && segno % SEGS_PER_SEC(sbi)) {
+		int devi = f2fs_target_device_index(sbi, START_BLOCK(sbi, segno));
+
+		if (f2fs_dev_is_reserving(sbi, devi))
+			return 0;
 		return !test_bit(segno, free_i->free_segmap);
+	}
 	return 0;
 }
 
@@ -2815,7 +2878,8 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 	unsigned int alloc_policy = sbi->allocate_section_policy;
 	unsigned int alloc_hint = sbi->allocate_section_hint;
 	bool init = true;
-	int i;
+	bool looped = false;
+	int i, devi;
 	int ret = 0;
 
 	spin_lock(&free_i->segmap_lock);
@@ -2828,8 +2892,13 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 	if (!new_sec && ((*newseg + 1) % SEGS_PER_SEC(sbi))) {
 		segno = find_next_zero_bit(free_i->free_segmap,
 			GET_SEG_FROM_SEC(sbi, hint + 1), *newseg + 1);
-		if (segno < GET_SEG_FROM_SEC(sbi, hint + 1))
+		if (segno < GET_SEG_FROM_SEC(sbi, hint + 1)) {
+			devi = f2fs_target_device_index(sbi, START_BLOCK(sbi, segno));
+
+			if (f2fs_dev_is_alloc_blocked(sbi, devi, pinning))
+				goto find_other_zone;
 			goto got_it;
+		}
 	}
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -2865,33 +2934,42 @@ static int get_new_segment(struct f2fs_sb_info *sbi,
 find_other_zone:
 	secno = find_next_zero_bit(free_i->free_secmap, MAIN_SECS(sbi), hint);
 
-#ifdef CONFIG_BLK_DEV_ZONED
-	if (secno >= MAIN_SECS(sbi) && f2fs_sb_has_blkzoned(sbi)) {
-		/* Write only to sequential zones */
-		if (sbi->blkzone_alloc_policy == BLKZONE_ALLOC_ONLY_SEQ) {
-			hint = GET_SEC_FROM_SEG(sbi, sbi->first_seq_zone_segno);
-			secno = find_next_zero_bit(free_i->free_secmap, MAIN_SECS(sbi), hint);
-		} else
-			secno = find_first_zero_bit(free_i->free_secmap,
-								MAIN_SECS(sbi));
-		if (secno >= MAIN_SECS(sbi)) {
-			ret = -ENOSPC;
-			f2fs_bug_on(sbi, 1);
-			goto out_unlock;
-		}
-	}
-#endif
-
 	if (secno >= MAIN_SECS(sbi)) {
-		secno = find_first_zero_bit(free_i->free_secmap,
-							MAIN_SECS(sbi));
-		if (secno >= MAIN_SECS(sbi)) {
+		if (looped) {
 			ret = -ENOSPC;
 			f2fs_bug_on(sbi, !pinning);
 			goto out_unlock;
 		}
+		hint = 0;
+#ifdef CONFIG_BLK_DEV_ZONED
+		/* Write only to sequential zones */
+		if (f2fs_sb_has_blkzoned(sbi) &&
+			sbi->blkzone_alloc_policy == BLKZONE_ALLOC_ONLY_SEQ)
+			hint = GET_SEC_FROM_SEG(sbi, sbi->first_seq_zone_segno);
+#endif
+		looped = true;
+		goto find_other_zone;
 	}
+
 	segno = GET_SEG_FROM_SEC(sbi, secno);
+
+	devi = f2fs_target_device_index(sbi, START_BLOCK(sbi, segno));
+
+	if (f2fs_dev_is_alloc_blocked(sbi, devi, pinning)) {
+		while (devi < sbi->s_ndevs &&
+			f2fs_dev_is_alloc_blocked(sbi, devi, pinning)) {
+			unsigned int end_segno = GET_SEGNO(sbi, FDEV(devi).end_blk);
+
+			hint = GET_SEC_FROM_SEG(sbi, end_segno) + 1;
+			devi++;
+		}
+		goto find_other_zone;
+	}
+
+	if (sec_usage_check(sbi, secno)) {
+		hint = secno + 1;
+		goto find_other_zone;
+	}
 	zoneno = GET_ZONE_FROM_SEC(sbi, secno);
 
 	/* give up on finding another zone */

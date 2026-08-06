@@ -1045,6 +1045,41 @@ So, the key idea is, user can do any file operations on /dev/vdc, and
 reclaim the space after the use, while the space is counted as /data.
 That doesn't require modifying partition size and filesystem format.
 
+Dynamic Device Aliasing Management
+----------------------------------
+
+In addition to static device aliasing by deleting the aliasing file, F2FS
+supports dynamic management of device aliasing. This mechanism allows the system
+to dynamically transition partition ownership between F2FS userdata and external
+entities (e.g., zRAM, raw partition) based on system requirements without
+deleting the master aliasing file or requiring unmount/remount.
+
+The master aliasing file is created during the initial format of the file system
+and remains as a persistent control entity (ioctl gateway) in the root directory.
+
+- Partition Reservation (In-service to Aliased)
+  When a specific partition needs to be dedicated to external services (e.g., zRAM),
+  a user can reserve the device alias range via ioctl. The kernel resets GC victim
+  information for the target range, marks segments as in-use to prevent new
+  allocations, and triggers forced GC to migrate existing valid data out of the
+  range. Finally, it reserves these blocks in the SIT to effectively exclude the
+  device from the usable capacity.
+
+- Partition Release (Aliased to In-service)
+  When external usage concludes, the space is reclaimed not by deleting the file,
+  but through the release ioctl. The kernel truncates blocks associated with
+  the file, releasing them back to general filesystem allocation.
+
+.. code-block::
+
+   # f2fs_io dev_alias release /mnt/f2fs/vdc.file
+   # df -h
+   /dev/vdb                            64G  753M   64G   2% /mnt/f2fs
+
+   # f2fs_io dev_alias reserve /mnt/f2fs/vdc.file
+   # df -h
+   /dev/vdb                            64G   33G   32G  52% /mnt/f2fs
+
 Per-file Read-Only Large Folio Support
 --------------------------------------
 
