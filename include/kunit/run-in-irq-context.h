@@ -137,6 +137,8 @@ static inline void kunit_run_irq_test(struct kunit *test, bool (*func)(void *),
 	/* Cancel the timer and work. */
 	hrtimer_cancel(&state.timer);
 	flush_work(&state.bh_work);
+	destroy_hrtimer_on_stack(&state.timer);
+	destroy_work_on_stack(&state.bh_work);
 
 	/* Sanity check: the timer and BH functions should have been run. */
 	KUNIT_EXPECT_GT_MSG(test, atomic_read(&state.hardirq_func_calls), 0,
