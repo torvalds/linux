@@ -106,7 +106,8 @@ config BTRFS_EXPERIMENTAL
 
 	  - extent tree v2 - complex rework of extent tracking
 
-	  - block size > page size support
+	  - block size > page size support - needs transparent huge page and
+					     non-HIGHMEM system
 
 	  - huge folios for data - folios can be as large as 2MiB now
 

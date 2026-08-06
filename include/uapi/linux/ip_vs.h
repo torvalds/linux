@@ -29,12 +29,6 @@
 #define IP_VS_SVC_F_SCHED_SH_PORT	IP_VS_SVC_F_SCHED2 /* SH use port */
 
 /*
- *      Destination Server Flags
- */
-#define IP_VS_DEST_F_AVAILABLE	0x0001		/* server is available */
-#define IP_VS_DEST_F_OVERLOAD	0x0002		/* server is overloaded */
-
-/*
  *      IPVS sync daemon states
  */
 #define IP_VS_STATE_NONE	0x0000		/* daemon is stopped */

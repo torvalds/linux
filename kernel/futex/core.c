@@ -1783,14 +1783,15 @@ void futex_hash_free(struct mm_struct *mm)
 
 static bool futex_pivot_pending(struct mm_struct *mm)
 {
+	struct futex_mm_phash *mmph = &mm->futex.phash;
 	struct futex_private_hash *fph;
 
-	guard(rcu)();
+	guard(mutex)(&mmph->lock);
 
-	if (!mm->futex.phash.hash_new)
+	if (!mmph->hash_new)
 		return true;
 
-	fph = rcu_dereference(mm->futex.phash.hash);
+	fph = rcu_dereference_raw(mmph->hash);
 	return futex_ref_is_dead(fph);
 }
 

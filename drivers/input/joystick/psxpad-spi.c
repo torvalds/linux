@@ -373,6 +373,7 @@ static int psxpad_spi_probe(struct spi_device *spi)
 		return err;
 	}
 
+	spi_set_drvdata(spi, pad);
 	pm_runtime_enable(&spi->dev);
 
 	return 0;

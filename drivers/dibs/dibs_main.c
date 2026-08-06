@@ -128,6 +128,7 @@ static void dibs_dev_release(struct device *dev)
 
 	dibs = container_of(dev, struct dibs_dev, dev);
 
+	kfree(dibs->dmb_clientid_arr);
 	kfree(dibs);
 }
 
@@ -194,12 +195,13 @@ int dibs_dev_add(struct dibs_dev *dibs)
 
 	ret = device_add(&dibs->dev);
 	if (ret)
-		goto free_client_arr;
+		return ret;
 
 	ret = sysfs_create_group(&dibs->dev.kobj, &dibs_dev_attr_group);
 	if (ret) {
 		dev_err(&dibs->dev, "sysfs_create_group failed for dibs_dev\n");
-		goto err_device_del;
+		device_del(&dibs->dev);
+		return ret;
 	}
 	mutex_lock(&dibs_dev_list.mutex);
 	mutex_lock(&clients_lock);
@@ -214,13 +216,6 @@ int dibs_dev_add(struct dibs_dev *dibs)
 	mutex_unlock(&dibs_dev_list.mutex);
 
 	return 0;
-
-err_device_del:
-	device_del(&dibs->dev);
-free_client_arr:
-	kfree(dibs->dmb_clientid_arr);
-	return ret;
-
 }
 EXPORT_SYMBOL_GPL(dibs_dev_add);
 
@@ -247,7 +242,6 @@ void dibs_dev_del(struct dibs_dev *dibs)
 	mutex_unlock(&dibs_dev_list.mutex);
 
 	device_del(&dibs->dev);
-	kfree(dibs->dmb_clientid_arr);
 }
 EXPORT_SYMBOL_GPL(dibs_dev_del);
 

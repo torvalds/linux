@@ -702,5 +702,45 @@
             "$TC qdisc del dev $DUMMY clsact",
             "$TC qdisc del dev $DUMMY root handle 1:"
         ]
+    },
+    {
+        "id": "c7a3",
+        "name": "Verify act_ct drops a packet whose header checks fail",
+        "category": [
+            "actions",
+            "ct",
+            "scapy"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            [
+                "$TC qdisc del dev $DEV1 clsact",
+                0,
+                1,
+                2,
+                255
+            ],
+            "$TC qdisc add dev $DEV1 clsact"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DEV1 ingress protocol all prio 1 matchall action ct",
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 10,
+                "packet": "Ether(type=0x86dd)/IPv6(nh=0, plen=0, src='::1', dst='::2')"
+            }
+        ],
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DEV1 clsact",
+        "matchPattern": "dropped 10",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact"
+        ]
     }
 ]
