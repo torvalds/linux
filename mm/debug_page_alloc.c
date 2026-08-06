@@ -22,8 +22,8 @@ static int __init debug_guardpage_minorder_setup(char *buf)
 {
 	unsigned int res;
 
-	if (kstrtouint(buf, 10, &res) < 0 ||  res > MAX_PAGE_ORDER / 2) {
-		pr_err("Bad debug_guardpage_minorder value: %s\n", buf);
+	if (!buf || kstrtouint(buf, 10, &res) < 0 || res > MAX_PAGE_ORDER / 2) {
+		pr_err("Bad debug_guardpage_minorder value: %s\n", buf ?: "(missing)");
 		return 0;
 	}
 	_debug_guardpage_minorder = res;
