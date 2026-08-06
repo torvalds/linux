@@ -555,7 +555,7 @@ static int zloop_do_rw(struct zloop_cmd *cmd)
 		iov_iter_bvec(&iter, rw,
 			__bvec_iter_bvec(rq->bio->bi_io_vec, rq->bio->bi_iter),
 					nr_bvec, blk_rq_bytes(rq));
-		iter.iov_offset = rq->bio->bi_iter.bi_bvec_done;
+		iter.iov_offset = rq->bio->bi_iter.bi_offset;
 	}
 
 	cmd->iocb.ki_pos = (cmd->sector - zone->start) << SECTOR_SHIFT;

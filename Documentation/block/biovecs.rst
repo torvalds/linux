@@ -16,16 +16,16 @@ bv_len by the number of bytes completed in that biovec.
 In the new scheme of things, everything that must be mutated in order to
 partially complete a bio is segregated into struct bvec_iter: bi_sector,
 bi_size and bi_idx have been moved there; and instead of modifying bv_offset
-and bv_len, struct bvec_iter has bi_bvec_done, which represents the number of
+and bv_len, struct bvec_iter has bi_offset, which represents the number of
 bytes completed in the current bvec.
 
 There are a bunch of new helper macros for hiding the gory details - in
 particular, presenting the illusion of partially completed biovecs so that
-normal code doesn't have to deal with bi_bvec_done.
+normal code doesn't have to deal with bi_offset.
 
  * Driver code should no longer refer to biovecs directly; we now have
    bio_iovec() and bio_iter_iovec() macros that return literal struct biovecs,
-   constructed from the raw biovecs but taking into account bi_bvec_done and
+   constructed from the raw biovecs but taking into account bi_offset and
    bi_size.
 
    bio_for_each_segment() has been updated to take a bvec_iter argument
@@ -101,7 +101,7 @@ Other implications:
    I.e. instead of using bio_iovec_idx() (or bio->bi_iovec[bio->bi_idx]), you
    now use bio_iter_iovec(), which takes a bvec_iter and returns a
    literal struct bio_vec - constructed on the fly from the raw biovec but
-   taking into account bi_bvec_done (and bi_size).
+   taking into account bi_offset (and bi_size).
 
  * bi_vcnt can't be trusted or relied upon by driver code - i.e. anything that
    doesn't actually own the bio. The reason is twofold: firstly, it's not

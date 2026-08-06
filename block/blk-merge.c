@@ -33,7 +33,7 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
 
 	bio_advance_iter(bio, &iter, iter.bi_size);
 
-	if (!iter.bi_bvec_done)
+	if (!iter.bi_offset)
 		idx = iter.bi_idx - 1;
 	else	/* in the middle of bvec */
 		idx = iter.bi_idx;
@@ -41,11 +41,11 @@ static inline void bio_get_last_bvec(struct bio *bio, struct bio_vec *bv)
 	*bv = bio->bi_io_vec[idx];
 
 	/*
-	 * iter.bi_bvec_done records actual length of the last bvec
+	 * iter.bi_offset records actual length of the last bvec
 	 * if this bio ends in the middle of one io vector
 	 */
-	if (iter.bi_bvec_done)
-		bv->bv_len = iter.bi_bvec_done;
+	if (iter.bi_offset)
+		bv->bv_len = iter.bi_offset;
 }
 
 static inline bool bio_will_gap(struct request_queue *q,

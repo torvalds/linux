@@ -74,7 +74,7 @@ static inline struct bvec_iter init_bvec_iter_for_bio(struct bio *bio)
 		.bi_sector = 0,
 		.bi_size = bio_size,
 		.bi_idx = 0,
-		.bi_bvec_done = 0,
+		.bi_offset = 0,
 	};
 }
 
