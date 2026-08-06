@@ -873,6 +873,8 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 
 	if (kmb_i2s->use_pio) {
 		irq = platform_get_irq_optional(pdev, 0);
+		if (irq == -EPROBE_DEFER)
+			return irq;
 		if (irq > 0) {
 			ret = devm_request_irq(dev, irq, kmb_i2s_irq_handler, 0,
 					       pdev->name, kmb_i2s);
