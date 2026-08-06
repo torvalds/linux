@@ -7568,6 +7568,10 @@ Kernel parameters
 			See Documentation/admin-guide/mm/transhuge.rst for more
 			details.
 
+	tlbi=		[X86-64]
+			Format: {ipi}
+			ipi: switch to IPI-based TLB flushing
+
 	topology=	[S390,EARLY]
 			Format: {off | on}
 			Specify if the kernel should make use of the cpu
