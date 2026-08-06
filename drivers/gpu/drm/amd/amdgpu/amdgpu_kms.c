@@ -1210,7 +1210,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 					return -EINVAL;
 				}
 			}
-			ui32 >>= 8;
+			ui32 /= MILLIWATT_PER_WATT;
 			break;
 		case AMDGPU_INFO_SENSOR_GPU_INPUT_POWER:
 			/* get input GPU power */
@@ -1219,7 +1219,7 @@ int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 						   (void *)&ui32, &ui32_size)) {
 				return -EINVAL;
 			}
-			ui32 >>= 8;
+			ui32 /= MILLIWATT_PER_WATT;
 			break;
 		case AMDGPU_INFO_SENSOR_VDDNB:
 			/* get VDDNB in millivolts */

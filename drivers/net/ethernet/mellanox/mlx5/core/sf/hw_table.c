@@ -459,3 +459,25 @@ bool mlx5_sf_hw_table_supported(const struct mlx5_core_dev *dev)
 {
 	return !!dev->priv.sf_hw_table;
 }
+
+void mlx5_sf_hw_table_esw_changed_event_handler(struct mlx5_core_dev *dev)
+{
+	struct mlx5_sf_hw_table *table;
+	struct mlx5_sf_hwc_table *hwc;
+	int i;
+
+	table = dev->priv.sf_hw_table;
+	if (!table)
+		return;
+
+	mutex_lock(&table->table_lock);
+	hwc = &table->hwc[MLX5_SF_HWC_EXT_HOST];
+	for (i = 0; i < hwc->max_fn; i++) {
+		struct mlx5_sf_hw *sf_hw;
+
+		sf_hw = &hwc->sfs[i];
+		if (sf_hw->allocated && sf_hw->pending_delete)
+			mlx5_sf_hw_table_hwc_sf_free(dev, hwc, i);
+	}
+	mutex_unlock(&table->table_lock);
+}

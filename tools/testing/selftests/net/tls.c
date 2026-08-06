@@ -835,6 +835,43 @@ TEST_F(tls, send_and_splice)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+TEST_F(tls, splice_onto_full_record)
+{
+	char mem_send[4608];
+	char mem_recv[4608];
+	int frag_len = 100;
+	int nfrags, i, off;
+	int p[2];
+
+	memrnd(mem_send, sizeof(mem_send));
+	ASSERT_GE(pipe(p), 0);
+
+	for (nfrags = 16; nfrags <= 44; nfrags++) {
+		for (i = 0, off = 0; i < nfrags; i++, off += frag_len) {
+			EXPECT_EQ(write(p[1], mem_send + off, frag_len), frag_len);
+			EXPECT_EQ(splice(p[0], NULL, self->fd, NULL, frag_len,
+					 SPLICE_F_MORE), frag_len);
+		}
+
+		EXPECT_EQ(send(self->fd, mem_send + off, 1, MSG_MORE), 1);
+		off++;
+
+		EXPECT_EQ(write(p[1], mem_send + off, frag_len), frag_len);
+		EXPECT_EQ(splice(p[0], NULL, self->fd, NULL, frag_len,
+				 SPLICE_F_MORE), frag_len);
+		off += frag_len;
+
+		EXPECT_EQ(send(self->fd, mem_send + off, 1, 0), 1);
+		off++;
+
+		EXPECT_EQ(recv(self->cfd, mem_recv, off, MSG_WAITALL), off);
+		EXPECT_EQ(memcmp(mem_send, mem_recv, off), 0);
+	}
+
+	close(p[0]);
+	close(p[1]);
+}
+
 TEST_F(tls, splice_to_pipe)
 {
 	int send_len = TLS_PAYLOAD_MAX_LEN;
@@ -1802,6 +1839,63 @@ TEST_F(tls, recv_efault)
 }
 
 #define TLS_RECORD_TYPE_HANDSHAKE      0x16
+
+TEST_F(tls_basic, recvmsg_nopad_retry_iov)
+{
+	char payload[32];
+	char first_iov[sizeof(payload)];
+	char later_iov[sizeof(payload) * 2];
+	char expected_later_iov[sizeof(later_iov)];
+	char cbuf[CMSG_SPACE(sizeof(char))];
+	struct tls_crypto_info_keys tls13;
+	struct iovec iov[] = {
+		{ .iov_base = first_iov, .iov_len = sizeof(first_iov) },
+		{ .iov_base = later_iov, .iov_len = sizeof(later_iov) },
+	};
+	struct msghdr msg = {
+		.msg_iov = iov,
+		.msg_iovlen = ARRAY_SIZE(iov),
+		.msg_control = cbuf,
+		.msg_controllen = sizeof(cbuf),
+	};
+	int one = 1;
+	int ret;
+	int i;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	tls_crypto_info_init(TLS_1_3_VERSION, TLS_CIPHER_AES_GCM_128,
+			     &tls13, 0);
+
+	ret = setsockopt(self->fd, SOL_TLS, TLS_TX, &tls13, tls13.len);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls13, tls13.len);
+	ASSERT_EQ(ret, 0);
+
+	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+			 &one, sizeof(one));
+	ASSERT_EQ(ret, 0);
+
+	for (i = 0; i < sizeof(payload); i++)
+		payload[i] = 0x40 + i;
+	memset(first_iov, 0xa5, sizeof(first_iov));
+	memset(later_iov, 0x5a, sizeof(later_iov));
+	memset(expected_later_iov, 0x5a, sizeof(expected_later_iov));
+
+	/* A control record forces optimistic TLS 1.3 RX to retry. */
+	ret = tls_send_cmsg(self->fd, TLS_RECORD_TYPE_HANDSHAKE,
+			    payload, sizeof(payload), 0);
+	ASSERT_EQ(ret, sizeof(payload));
+
+	ret = recvmsg(self->cfd, &msg, 0);
+	ASSERT_EQ(ret, sizeof(payload));
+	EXPECT_EQ(memcmp(first_iov, payload, sizeof(payload)), 0);
+	EXPECT_EQ(memcmp(later_iov, expected_later_iov,
+			 sizeof(later_iov)), 0);
+}
+
 /* key_update, length 1, update_not_requested */
 static const char key_update_msg[] = "\x18\x00\x00\x01\x00";
 static void tls_send_keyupdate(struct __test_metadata *_metadata, int fd)

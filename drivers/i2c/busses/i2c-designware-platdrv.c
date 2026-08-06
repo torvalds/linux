@@ -8,12 +8,14 @@
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
  */
+#include <linux/acpi.h>
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -130,6 +132,80 @@ static int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev)
 	return 0;
 }
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_GPIOLIB)
+/*
+ * Check whether an ACPI GpioInt resource's referenced GPIO controller
+ * has finished probing. Resources with no named controller (resource
+ * source string) are skipped, since they can't be resolved to a
+ * struct device.
+ */
+static int check_gpioint_resource(struct acpi_resource *ares, void *data)
+{
+	struct acpi_resource_gpio *agpio;
+	struct acpi_device *gpio_adev;
+	struct device *gpio_dev;
+	acpi_handle handle;
+	acpi_status status;
+
+	if (!acpi_gpio_get_irq_resource(ares, &agpio))
+		return 1; /* not a GpioInt resource, skip */
+
+	if (!agpio->resource_source.string_length)
+		return 1; /* no named controller, skip */
+
+	status = acpi_get_handle(NULL, agpio->resource_source.string_ptr, &handle);
+	if (ACPI_FAILURE(status))
+		return 1;
+
+	gpio_adev = acpi_fetch_acpi_dev(handle);
+	if (!gpio_adev)
+		return 1;
+
+	struct gpio_device *gdev __free(gpio_device_put) =
+		gpio_device_find_by_fwnode(acpi_fwnode_handle(gpio_adev));
+	if (!gdev)
+		return -EPROBE_DEFER; /* controller not registered yet: abort walk */
+
+	gpio_dev = gpio_device_to_device(gdev)->parent;
+
+	guard(device)(gpio_dev);
+	if (!device_is_bound(gpio_dev))
+		return -EPROBE_DEFER; /* controller not bound yet: abort walk */
+
+	return 1; /* bound, skip adding to resource list, continue walk */
+}
+
+static int check_child_gpioint(struct acpi_device *adev, void *data)
+{
+	LIST_HEAD(res_list);
+	int ret;
+
+	ret = acpi_dev_get_resources(adev, &res_list, check_gpioint_resource, NULL);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&res_list);
+
+	return 0;
+}
+
+static int i2c_dw_check_gpio_dependencies(struct device *dev)
+{
+	struct acpi_device *adev;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return 0;
+
+	return acpi_dev_for_each_child(adev, check_child_gpioint, NULL);
+}
+#else
+static int i2c_dw_check_gpio_dependencies(struct device *dev)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI && CONFIG_GPIOLIB */
+
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	u32 flags = (uintptr_t)device_get_match_data(&pdev->dev);
@@ -137,6 +213,10 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	struct dw_i2c_dev *dev;
 	int irq, ret;
+
+	ret = i2c_dw_check_gpio_dependencies(device);
+	if (ret)
+		return ret;
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq == -ENXIO)

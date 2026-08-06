@@ -141,7 +141,7 @@ int sdca_ump_read_message(struct device *dev,
 		return ret;
 	}
 
-	if (msg_len > buf_len - msg_offset) {
+	if (msg_offset + msg_len > buf_len) {
 		dev_err(dev, "%s: message too big for UMP buffer: %d\n",
 			entity->label, msg_len);
 		return -EINVAL;
@@ -207,7 +207,7 @@ int sdca_ump_write_message(struct device *dev,
 	buf_len = sdca_range(range, SDCA_MESSAGEOFFSET_BUFFER_LENGTH, 0);
 	ump_mode = sdca_range(range, SDCA_MESSAGEOFFSET_UMP_MODE, 0);
 
-	if (msg_len > buf_len - msg_offset) {
+	if (msg_offset + msg_len > buf_len) {
 		dev_err(dev, "%s: message too big for UMP buffer: %d\n",
 			entity->label, msg_len);
 		return -EINVAL;
