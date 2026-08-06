@@ -986,14 +986,16 @@ static int xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
 				struct xhci_td *td,
 				enum xhci_ep_reset_type reset_type)
 {
+	struct xhci_port *rhub_port = ep->vdev->rhub_port;
 	unsigned int slot_id = ep->vdev->slot_id;
 	int err;
 
 	/*
-	 * Avoid resetting endpoint if link is inactive. Can cause host hang.
-	 * Device will be reset soon to recover the link so don't do anything
+	 * Avoid resetting endpoint if link is inactive or device disonnected.
+	 * Can cause host hang.
+	 * Device will be reset to recover an inactive link, so don't do anything
 	 */
-	if (ep->vdev->rhub_port->link_inactive)
+	if (rhub_port->link_inactive || !rhub_port->connected)
 		return -ENODEV;
 
 	/* add td to cancelled list and let reset ep handler take care of it */
@@ -2053,8 +2055,10 @@ static void handle_port_status(struct xhci_hcd *xhci, union xhci_trb *event)
 	 * Tag broken links to avoid retries while hub driver sorts it out.
 	 * Link status is not relible while port is in reset.
 	 */
-	if (!(portsc & PORT_RESET))
+	if (!(portsc & PORT_RESET)) {
 		port->link_inactive = (pls == XDEV_INACTIVE);
+		port->connected = !!(portsc & PORT_CONNECT);
+	}
 
 	if ((portsc & PORT_PLC) && (portsc & PORT_PLS_MASK) == XDEV_RESUME) {
 		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
