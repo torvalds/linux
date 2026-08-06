@@ -921,10 +921,10 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 static int fsl_xcvr_load_firmware(struct fsl_xcvr *xcvr)
 {
 	struct device *dev = &xcvr->pdev->dev;
-	const struct firmware *fw;
 	int ret = 0, rem, off, out, page = 0, size = FSL_XCVR_REG_OFFSET;
 	u32 mask, val;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, xcvr->soc_data->fw_name, dev);
 	if (ret) {
 		dev_err(dev, "failed to request firmware.\n");
@@ -936,7 +936,6 @@ static int fsl_xcvr_load_firmware(struct fsl_xcvr *xcvr)
 	/* RAM is 20KiB = 16KiB code + 4KiB data => max 10 pages 2KiB each */
 	if (rem > 16384) {
 		dev_err(dev, "FW size %d is bigger than 16KiB.\n", rem);
-		release_firmware(fw);
 		return -ENOMEM;
 	}
 
@@ -947,7 +946,7 @@ static int fsl_xcvr_load_firmware(struct fsl_xcvr *xcvr)
 		if (ret < 0) {
 			dev_err(dev, "FW: failed to set page %d, err=%d\n",
 				page, ret);
-			goto err_firmware;
+			return ret;
 		}
 
 		off = page * size;
@@ -967,11 +966,6 @@ static int fsl_xcvr_load_firmware(struct fsl_xcvr *xcvr)
 			memset_io(xcvr->ram_addr, 0, size);
 		}
 	}
-
-err_firmware:
-	release_firmware(fw);
-	if (ret < 0)
-		return ret;
 
 	/* configure watermarks */
 	mask = FSL_XCVR_EXT_CTRL_RX_FWM_MASK | FSL_XCVR_EXT_CTRL_TX_FWM_MASK;
