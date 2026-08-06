@@ -372,7 +372,7 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 		int arp_validate = nla_get_u32(data[IFLA_BOND_ARP_VALIDATE]);
 
 		if (arp_validate && miimon) {
-			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_INTERVAL],
+			NL_SET_ERR_MSG_ATTR(extack, data[IFLA_BOND_ARP_VALIDATE],
 					    "ARP validating cannot be used with MII monitoring");
 			return -EINVAL;
 		}
