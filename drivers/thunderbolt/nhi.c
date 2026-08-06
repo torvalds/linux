@@ -1175,6 +1175,32 @@ static void nhi_reset(struct tb_nhi *nhi)
 	dev_warn(nhi->dev, "timeout resetting host router\n");
 }
 
+/**
+ * nhi_reset_interface() - Reset the host interface
+ * @nhi: Host interface to reset
+ *
+ * Brings the registers in the memory BAR back to their default state and
+ * clears the End-to-End Flow Control state. The caller is responsible for
+ * stopping the control channel over the reset because it clears the ring
+ * state as well.
+ */
+void nhi_reset_interface(struct tb_nhi *nhi)
+{
+	u32 val;
+
+	val = ioread32(nhi->iobase + REG_CAPS);
+	/* Only v1 host interfaces implement the reset */
+	if (FIELD_GET(REG_CAPS_VERSION_MASK, val) >= REG_CAPS_VERSION_2)
+		return;
+
+	dev_dbg(nhi->dev, "issuing host interface reset\n");
+
+	iowrite32(REG_HOST_INTERFACE_RESET_RST,
+		  nhi->iobase + REG_HOST_INTERFACE_RESET);
+	/* Wait for tHIReset (10 ms) to complete */
+	usleep_range(10000, 20000);
+}
+
 static struct tb *nhi_select_cm(struct tb_nhi *nhi)
 {
 	struct tb *tb;

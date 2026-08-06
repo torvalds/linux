@@ -62,6 +62,27 @@ static void nhi_pci_check_quirks(struct tb_nhi_pci *nhi_pci)
 			nhi->quirks |= QUIRK_E2E;
 			break;
 		}
+	} else if (pdev->vendor == PCI_VENDOR_ID_AMD) {
+		switch (pdev->device) {
+		case PCI_DEVICE_ID_AMD_1AH_M60H_NHI0:
+		case PCI_DEVICE_ID_AMD_1AH_M60H_NHI1:
+		case PCI_DEVICE_ID_AMD_1AH_M68H_NHI0:
+		case PCI_DEVICE_ID_AMD_1AH_M68H_NHI1:
+		case PCI_DEVICE_ID_AMD_1AH_M80H_NHI0:
+		case PCI_DEVICE_ID_AMD_1AH_M80H_NHI1:
+		case PCI_DEVICE_ID_AMD_1AH_M80H_NHI2:
+		case PCI_DEVICE_ID_AMD_1AH_M24H_NHI0:
+		case PCI_DEVICE_ID_AMD_1AH_M24H_NHI1:
+		case PCI_DEVICE_ID_AMD_1AH_M70H_NHI0:
+		case PCI_DEVICE_ID_AMD_1AH_M70H_NHI1:
+			/*
+			 * These AMD hosts may hang the Tx ring when the
+			 * DMA paths are torn down so they need the host
+			 * interface reset after each teardown.
+			 */
+			nhi->quirks |= QUIRK_RESET_DMA_ON_TEARDOWN;
+			break;
+		}
 	}
 }
 
@@ -258,6 +279,7 @@ static const struct tb_nhi_ops pci_nhi_default_ops = {
 	.shutdown = nhi_pci_release_irq,
 	.is_present = nhi_pci_is_present,
 	.init_interrupts = nhi_pci_init_msi,
+	.reset_interface = nhi_reset_interface,
 };
 
 /* Ice Lake specific NHI operations */
@@ -441,6 +463,7 @@ static const struct tb_nhi_ops icl_nhi_ops = {
 	.release_ring_irq = nhi_pci_ring_release_msix,
 	.is_present = nhi_pci_is_present,
 	.init_interrupts = nhi_pci_init_msi,
+	.reset_interface = nhi_reset_interface,
 };
 
 static int nhi_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
