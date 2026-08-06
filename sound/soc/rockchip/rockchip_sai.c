@@ -1434,8 +1434,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		ret = devm_request_irq(&pdev->dev, irq, rockchip_sai_isr,
 				       IRQF_SHARED, node->name, sai);
 		if (ret)
-			return dev_err_probe(&pdev->dev, ret,
-					     "Failed to request irq %d\n", irq);
+			return ret;
 	} else {
 		dev_dbg(&pdev->dev, "Asked for an IRQ but got %d\n", irq);
 	}
@@ -1458,7 +1457,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 
 	ret = rockchip_sai_parse_paths(sai, node);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "Failed to parse paths\n");
+		return ret;
 
 	/*
 	 * From here on, all register accesses need to be wrapped in
