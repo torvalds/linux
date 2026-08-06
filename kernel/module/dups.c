@@ -104,28 +104,31 @@ static void kmod_dup_request_delete(struct work_struct *work)
 	put_kmod_req(kmod_req);
 }
 
+static struct kmod_dup_req *alloc_kmod_req(const char *module_name)
+{
+	struct kmod_dup_req *kmod_req = kzalloc_obj(*kmod_req);
+
+	if (!kmod_req)
+		return NULL;
+
+	refcount_set(&kmod_req->refcount, 1);
+	strscpy(kmod_req->name, module_name);
+	INIT_DELAYED_WORK(&kmod_req->delete_work, kmod_dup_request_delete);
+	init_completion(&kmod_req->first_req_done);
+	return kmod_req;
+}
+
 bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 {
-	struct kmod_dup_req *kmod_req, *new_kmod_req;
+	struct kmod_dup_req *kmod_req;
 	int ret;
-
-	/*
-	 * Pre-allocate the entry in case we have to use it later
-	 * to avoid contention with the mutex.
-	 */
-	new_kmod_req = kzalloc_obj(*new_kmod_req);
-	if (!new_kmod_req)
-		return false;
-
-	refcount_set(&new_kmod_req->refcount, 1);
-	strscpy(new_kmod_req->name, module_name);
-	INIT_DELAYED_WORK(&new_kmod_req->delete_work, kmod_dup_request_delete);
-	init_completion(&new_kmod_req->first_req_done);
 
 	mutex_lock(&kmod_dup_mutex);
 
 	kmod_req = kmod_dup_request_lookup(module_name);
 	if (!kmod_req) {
+		struct kmod_dup_req *new_kmod_req;
+
 		/*
 		 * If the first request that came through for a module
 		 * was with request_module_nowait() we cannot wait for it
@@ -138,7 +141,6 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 		 * would benefit from duplicate detection.
 		 */
 		if (!wait) {
-			kfree(new_kmod_req);
 			pr_debug("New request_module_nowait() for %s -- cannot track duplicates for this request\n", module_name);
 			mutex_unlock(&kmod_dup_mutex);
 			return false;
@@ -149,6 +151,11 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 		 * keep tab on duplicates later.
 		 */
 		pr_debug("New request_module() for %s\n", module_name);
+		new_kmod_req = alloc_kmod_req(module_name);
+		if (!new_kmod_req) {
+			mutex_unlock(&kmod_dup_mutex);
+			return false;
+		}
 		list_add(&new_kmod_req->list, &dup_kmod_reqs);
 		mutex_unlock(&kmod_dup_mutex);
 		return false;
@@ -158,7 +165,6 @@ bool kmod_dup_request_exists_wait(char *module_name, bool wait, int *dup_ret)
 	mutex_unlock(&kmod_dup_mutex);
 
 	/* We are dealing with a duplicate request now */
-	kfree(new_kmod_req);
 
 	/*
 	 * To fix these try to use try_then_request_module() instead as that
