@@ -915,6 +915,14 @@ void _cifsFileInfo_put(struct cifsFileInfo *cifs_file,
 		cifs_set_oplock_level(cifsi, 0);
 	}
 
+	if (OPEN_FMODE(cifs_file->f_flags) & FMODE_WRITE) {
+		/* Stamp while open_file_lock is held; covers all close paths
+		 * including background I/O. Pairs with smp_load_acquire() in
+		 * is_size_safe_to_change().
+		 */
+		smp_store_release(&cifsi->time_last_write, jiffies);
+	}
+
 	spin_unlock(&cifsi->open_file_lock);
 	spin_unlock(&tcon->open_file_lock);
 
@@ -1429,15 +1437,6 @@ void smb2_deferred_work_close(struct work_struct *work)
 	cifs_del_deferred_close(cfile);
 	cfile->deferred_close_scheduled = false;
 	spin_unlock(&cinode->deferred_lock);
-	/*
-	 * Refresh time_last_write immediately before the actual server close
-	 * so the protection window is anchored to the real close time, not
-	 * the earlier userspace close time stored by cifs_close().
-	 */
-	if (OPEN_FMODE(cfile->f_flags) & FMODE_WRITE) {
-		/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-		smp_store_release(&cinode->time_last_write, jiffies);
-	}
 	_cifsFileInfo_put(cfile, true, false);
 }
 
@@ -1467,10 +1466,6 @@ int cifs_close(struct inode *inode, struct file *file)
 	if (file->private_data != NULL) {
 		cfile = file->private_data;
 		file->private_data = NULL;
-		if (file->f_mode & FMODE_WRITE) {
-			/* Pairs with smp_load_acquire() in is_size_safe_to_change(). */
-			smp_store_release(&cinode->time_last_write, jiffies);
-		}
 		dclose = kmalloc_obj(struct cifs_deferred_close);
 		if ((cfile->status_file_deleted == false) &&
 		    (smb2_can_defer_close(inode, dclose))) {
@@ -3276,13 +3271,13 @@ bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 	 * No writable handles open. Check whether we are within the attribute
 	 * cache validity window of a recent local modification.
 	 *
-	 * For the close() path: cifs_close() calls smp_store_release() on
-	 * time_last_write before _cifsFileInfo_put() removes the handle under
-	 * open_file_lock. That spin_unlock() is a store-release that pairs
-	 * with the spin_lock() (load-acquire) in is_inode_writable() above,
-	 * so if is_inode_writable() returned false the smp_load_acquire()
-	 * below is guaranteed to observe any time_last_write update from a
-	 * concurrent close().
+	 * For the close() path: _cifsFileInfo_put() stamps time_last_write
+	 * (via smp_store_release()) before releasing open_file_lock. That
+	 * spin_unlock() is a store-release that pairs with the spin_lock()
+	 * (load-acquire) in is_inode_writable() above, so if
+	 * is_inode_writable() returned false the smp_load_acquire() below is
+	 * guaranteed to observe any time_last_write update from a concurrent
+	 * close(), covering all close paths including background I/O.
 	 *
 	 * For the setattr/truncate paths: those callers use smp_store_release()
 	 * directly; the smp_load_acquire() below pairs with that store. There
@@ -3297,7 +3292,7 @@ bool is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file,
 	 * jiffies is still close to INITIAL_JIFFIES on 32-bit systems.
 	 */
 	if (from_readdir) {
-		/* Pairs with smp_store_release() at close and truncate sites. */
+		/* Pairs with smp_store_release() in _cifsFileInfo_put() and setattr. */
 		tlw = smp_load_acquire(&cifsInode->time_last_write);
 		if (tlw && time_before(jiffies, tlw + cifs_sb->ctx->acregmax))
 			return false;

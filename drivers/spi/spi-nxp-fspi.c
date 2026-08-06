@@ -340,6 +340,18 @@ struct nxp_fspi_devtype_data {
 	unsigned int quirks;
 	unsigned int lut_num;
 	bool little_endian;
+	/*
+	 * The max clock rate (Hz) that FlexSPI can output to the device
+	 * in SDR mode (RXCLKSRC=0). Defaults to 66MHz if zero.
+	 * Some SoCs (e.g. LX2160A) support up to 100MHz in SDR mode.
+	 */
+	unsigned long max_sdr_rate;
+	/*
+	 * The max clock rate (Hz) that FlexSPI can output to the device
+	 * in DTR mode (RXCLKSRC=3). Defaults to 166MHz if zero.
+	 * Some SoCs (e.g. i.MX95, i.MX8QM, i.MX8DXL) support up to 200MHz.
+	 */
+	unsigned long max_dtr_rate;
 };
 
 static struct nxp_fspi_devtype_data lx2160a_data = {
@@ -349,6 +361,10 @@ static struct nxp_fspi_devtype_data lx2160a_data = {
 	.quirks = FSPI_QUIRK_DISABLE_DTR,
 	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
+	/*
+	 * LX2160ACEC: SDR RXCLKSRC=0 max 100MHz, DTR disabled via quirk.
+	 */
+	.max_sdr_rate = 100000000,
 };
 
 static struct nxp_fspi_devtype_data imx8mm_data = {
@@ -358,6 +374,21 @@ static struct nxp_fspi_devtype_data imx8mm_data = {
 	.quirks = 0,
 	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
+	/* IMX8MMCEC §3.9.10: SDR RXCLKSRC=0 max 66MHz, DDR RXCLKSRC=3 max 166MHz */
+	.max_sdr_rate = 66000000,
+	.max_dtr_rate = 166000000,
+};
+
+static struct nxp_fspi_devtype_data imx8mp_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.lut_num = 32,
+	.little_endian = true,  /* little-endian    */
+	/* IMX8MPCEC: SDR RXCLKSRC=0 max 66MHz, DDR RXCLKSRC=3 max 166MHz */
+	.max_sdr_rate = 66000000,
+	.max_dtr_rate = 166000000,
 };
 
 static struct nxp_fspi_devtype_data imx8qxp_data = {
@@ -367,6 +398,12 @@ static struct nxp_fspi_devtype_data imx8qxp_data = {
 	.quirks = 0,
 	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
+	/*
+	 * IMX8QXPCEC: SDR RXCLKSRC=0 max 60MHz, DDR RXCLKSRC=3 max 200MHz.
+	 * i.MX8QM and i.MX8DXL share the same FlexSPI IP and limits.
+	 */
+	.max_sdr_rate = 60000000,
+	.max_dtr_rate = 200000000,
 };
 
 static struct nxp_fspi_devtype_data imx8dxl_data = {
@@ -376,6 +413,12 @@ static struct nxp_fspi_devtype_data imx8dxl_data = {
 	.quirks = FSPI_QUIRK_USE_IP_ONLY,
 	.lut_num = 32,
 	.little_endian = true,  /* little-endian    */
+	/*
+	 * IMX8DXLCEC (i.MX 8XLite): SDR RXCLKSRC=0 max 60MHz,
+	 * DDR RXCLKSRC=3 max 200MHz.
+	 */
+	.max_sdr_rate = 60000000,
+	.max_dtr_rate = 200000000,
 };
 
 static struct nxp_fspi_devtype_data imx8ulp_data = {
@@ -385,6 +428,29 @@ static struct nxp_fspi_devtype_data imx8ulp_data = {
 	.quirks = 0,
 	.lut_num = 16,
 	.little_endian = true,  /* little-endian    */
+	/*
+	 * IMX8ULPCEC §7.3.1, Normal Drive (ND, 1.0V) mode:
+	 * SDR RXCLKSRC=0 max 60MHz, DDR RXCLKSRC=3 max 166MHz.
+	 * Note: Overdrive (OD, 1.05V) allows up to 180MHz DTR
+	 * but is not the default use case.
+	 */
+	.max_sdr_rate = 60000000,
+	.max_dtr_rate = 166000000,
+};
+
+static struct nxp_fspi_devtype_data imx95_data = {
+	.rxfifo = SZ_512,       /* (64  * 64 bits)  */
+	.txfifo = SZ_1K,        /* (128 * 64 bits)  */
+	.ahb_buf_size = SZ_2K,  /* (256 * 64 bits)  */
+	.quirks = 0,
+	.lut_num = 32,
+	.little_endian = true,  /* little-endian    */
+	/*
+	 * IMX95CEC Rev.8 §4.11.7: SDR RXCLKSRC=0 max 66MHz,
+	 * DDR RXCLKSRC=3 max 200MHz (Nominal/Overdrive mode).
+	 */
+	.max_sdr_rate = 66000000,
+	.max_dtr_rate = 200000000,
 };
 
 struct nxp_fspi {
@@ -691,10 +757,20 @@ static void nxp_fspi_select_rx_sample_clk_source(struct nxp_fspi *f,
 	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
 	if (op_is_dtr) {
 		reg |= FSPI_MCR0_RXCLKSRC(3);
-		f->max_rate = 166000000;
+		/*
+		 * Use the SoC-specific DTR max rate if provided, otherwise
+		 * fall back to 166MHz (limit from IMX8MN datasheet §3.9.9).
+		 */
+		f->max_rate = f->devtype_data->max_dtr_rate ?
+			      f->devtype_data->max_dtr_rate : 166000000;
 	} else {	/*select mode 0 */
 		reg &= ~FSPI_MCR0_RXCLKSRC(3);
-		f->max_rate = 66000000;
+		/*
+		 * Use the SoC-specific SDR max rate if provided, otherwise
+		 * fall back to 66MHz (limit from IMX8MN datasheet §3.9.9).
+		 */
+		f->max_rate = f->devtype_data->max_sdr_rate ?
+			      f->devtype_data->max_sdr_rate : 66000000;
 	}
 	fspi_writel(f, reg, f->iobase + FSPI_MCR0);
 }
@@ -783,14 +859,15 @@ static void nxp_fspi_dll_override(struct nxp_fspi *f)
  * Value for rest of the CS FLSHxxCR0 register would be zero.
  *
  */
-static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
-				const struct spi_mem_op *op)
+static int nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
+			       const struct spi_mem_op *op)
 {
 	/* flexspi only support one DTR mode: 8D-8D-8D */
 	bool op_is_dtr = op->cmd.dtr && op->addr.dtr && op->dummy.dtr && op->data.dtr;
 	unsigned long rate = op->max_freq;
 	int ret;
 	uint64_t size_kb;
+	u32 reg;
 
 	/*
 	 * Return when following condition all meet,
@@ -804,7 +881,7 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	if ((f->selected == spi_get_chipselect(spi, 0)) &&
 	    (!!(f->flags & FSPI_DTR_MODE) == op_is_dtr) &&
 	    (f->pre_op_rate == op->max_freq))
-		return;
+		return 0;
 
 	/* Reset FLSHxxCR0 registers */
 	fspi_writel(f, 0, f->iobase + FSPI_FLSHA1CR0);
@@ -819,6 +896,15 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 		    4 * spi_get_chipselect(spi, 0));
 
 	dev_dbg(f->dev, "Target device [CS:%x] selected\n", spi_get_chipselect(spi, 0));
+
+	/*
+	 * Per the FlexSPI reference manual (initialization sequence), MCR0 and
+	 * the DLL control registers should be configured while the module is in
+	 * stop mode (MCR0[MDIS] = 1). Enter stop mode before reconfiguring the
+	 * RX sample clock source and the DLL, then exit stop mode afterwards.
+	 */
+	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
+	fspi_writel(f, reg | FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
 
 	nxp_fspi_select_rx_sample_clk_source(f, op_is_dtr);
 	rate = min(f->max_rate, op->max_freq);
@@ -836,12 +922,19 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	nxp_fspi_clk_disable_unprep(f);
 
 	ret = clk_set_rate(f->clk, rate);
-	if (ret)
-		return;
+	if (ret) {
+		/*
+		 * clk_set_rate() failed with the clocks already disabled.
+		 * Re-enable them so the enable count matches what the caller's
+		 * pm_runtime_put() (runtime_suspend) will drop.
+		 */
+		nxp_fspi_clk_prep_enable(f);
+		return ret;
+	}
 
 	ret = nxp_fspi_clk_prep_enable(f);
 	if (ret)
-		return;
+		return ret;
 
 	/*
 	 * If clock rate > 100MHz, then switch from DLL override mode to
@@ -852,9 +945,15 @@ static void nxp_fspi_select_mem(struct nxp_fspi *f, struct spi_device *spi,
 	else
 		nxp_fspi_dll_override(f);
 
+	/* Exit stop mode now that MCR0 and the DLL have been reconfigured. */
+	reg = fspi_readl(f, f->iobase + FSPI_MCR0);
+	fspi_writel(f, reg & ~FSPI_MCR0_MDIS, f->iobase + FSPI_MCR0);
+
 	f->pre_op_rate = op->max_freq;
 
 	f->selected = spi_get_chipselect(spi, 0);
+
+	return 0;
 }
 
 static int nxp_fspi_read_ahb(struct nxp_fspi *f, const struct spi_mem_op *op)
@@ -1042,7 +1141,16 @@ static int nxp_fspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 				   FSPI_STS0_ARB_IDLE, 1, POLL_TOUT, true);
 	WARN_ON(err);
 
-	nxp_fspi_select_mem(f, mem->spi, op);
+	err = nxp_fspi_select_mem(f, mem->spi, op);
+	if (err) {
+		/*
+		 * On failure the FlexSPI clock may be left disabled, so avoid
+		 * any further register access (which would trigger a synchronous
+		 * external abort) and bail out.
+		 */
+		pm_runtime_put_autosuspend(f->dev);
+		return err;
+	}
 
 	nxp_fspi_prepare_lut(f, op);
 	/*
@@ -1444,10 +1552,11 @@ static const struct dev_pm_ops nxp_fspi_pm_ops = {
 static const struct of_device_id nxp_fspi_dt_ids[] = {
 	{ .compatible = "nxp,lx2160a-fspi", .data = (void *)&lx2160a_data, },
 	{ .compatible = "nxp,imx8mm-fspi", .data = (void *)&imx8mm_data, },
-	{ .compatible = "nxp,imx8mp-fspi", .data = (void *)&imx8mm_data, },
+	{ .compatible = "nxp,imx8mp-fspi", .data = (void *)&imx8mp_data, },
 	{ .compatible = "nxp,imx8qxp-fspi", .data = (void *)&imx8qxp_data, },
 	{ .compatible = "nxp,imx8dxl-fspi", .data = (void *)&imx8dxl_data, },
 	{ .compatible = "nxp,imx8ulp-fspi", .data = (void *)&imx8ulp_data, },
+	{ .compatible = "nxp,imx95-fspi",   .data = (void *)&imx95_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, nxp_fspi_dt_ids);
