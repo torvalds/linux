@@ -388,12 +388,19 @@ struct s1_walk_result {
 	bool	failed;
 };
 
+#define S1_MMU_DISABLED		(-127)
+
 static inline void fail_s1_walk(struct s1_walk_result *wr, u8 fst, bool s1ptw)
 {
 	wr->fst		= fst;
 	wr->ptw		= s1ptw;
 	wr->s2		= s1ptw;
 	wr->failed	= true;
+}
+
+static inline bool s1_walk_translated(struct s1_walk_result *wr)
+{
+	return wr->level != S1_MMU_DISABLED;
 }
 
 int __kvm_translate_va(struct kvm_vcpu *vcpu, struct s1_walk_info *wi,

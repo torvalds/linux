@@ -1578,6 +1578,10 @@ static void kvm_map_l1_vncr(struct kvm_vcpu *vcpu)
 	if (!vt->valid)
 		return;
 
+	/* We cache the MMU state in the TLB. Check that it matches. */
+	if (!!(vcpu_read_sys_reg(vcpu, SCTLR_EL2) & SCTLR_ELx_M) != s1_walk_translated(&vt->wr))
+		return;
+
 	if (read_vncr_el2(vcpu) != vt->gva)
 		return;
 
