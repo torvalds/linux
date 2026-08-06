@@ -664,6 +664,8 @@ static void print_uptime(struct seq_file *seqf, u8 cmd)
 	long val;
 	int ret;
 
+	guard(hwmon_lock)(priv->hwmon_dev);
+
 	ret = corsairpsu_get_value(priv, cmd, 0, &val);
 	if (ret < 0) {
 		seq_puts(seqf, "N/A\n");
@@ -722,6 +724,8 @@ static int ocpmode_show(struct seq_file *seqf, void *unused)
 	struct corsairpsu_data *priv = seqf->private;
 	long val;
 	int ret;
+
+	guard(hwmon_lock)(priv->hwmon_dev);
 
 	/*
 	 * The rail mode is switchable on the fly. The RAW interface can be used for this. But it
