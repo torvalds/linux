@@ -14,15 +14,22 @@ description:
   provides up to 5 independent DPLL channels, up to 10 differential or
   single-ended inputs and 10 differential or 20 single-ended outputs.
   These devices support both I2C and SPI interfaces.
+  The ZL3064x line card timing ICs  share the ZL3073x register map
+  and are described with a fallback to the register equivalent ZL3073x
+  part.
 
 properties:
   compatible:
-    enum:
-      - microchip,zl30731
-      - microchip,zl30732
-      - microchip,zl30733
-      - microchip,zl30734
-      - microchip,zl30735
+    oneOf:
+      - enum:
+          - microchip,zl30731
+          - microchip,zl30732
+          - microchip,zl30733
+          - microchip,zl30734
+          - microchip,zl30735
+      - items:
+          - const: microchip,zl30643
+          - const: microchip,zl30733
 
   reg:
     maxItems: 1
