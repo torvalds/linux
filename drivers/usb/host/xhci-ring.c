@@ -575,9 +575,8 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 }
 
 /* Ring the doorbell for any rings with pending URBs */
-static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
-		unsigned int slot_id,
-		unsigned int ep_index)
+void xhci_ring_doorbell_for_active_rings(struct xhci_hcd *xhci, unsigned int slot_id,
+					 unsigned int ep_index)
 {
 	unsigned int stream_id;
 	struct xhci_virt_ep *ep;
@@ -598,13 +597,6 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 			xhci_ring_ep_doorbell(xhci, slot_id, ep_index,
 						stream_id);
 	}
-}
-
-void xhci_ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
-		unsigned int slot_id,
-		unsigned int ep_index)
-{
-	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
 static struct xhci_virt_ep *xhci_get_virt_ep(struct xhci_hcd *xhci,
@@ -1303,7 +1295,7 @@ reset_done:
 
 	/* Otherwise ring the doorbell(s) to restart queued transfers */
 	xhci_giveback_invalidated_tds(ep);
-	ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+	xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
 static void xhci_kill_ring_urbs(struct xhci_hcd *xhci, struct xhci_ring *ring)
@@ -1546,13 +1538,13 @@ cleanup:
 			 __func__);
 		xhci_invalidate_cancelled_tds(ep);
 		/* Try to restart the endpoint if all is done */
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+		xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 		/* Start giving back any TDs invalidated above */
 		xhci_giveback_invalidated_tds(ep);
 	} else {
 		/* Restart any rings with pending URBs */
 		xhci_dbg(ep->xhci, "%s: All TDs cleared, ring doorbell\n", __func__);
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+		xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 	}
 }
 
@@ -1587,7 +1579,7 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 
 	/* if this was a soft reset, then restart */
 	if ((le32_to_cpu(trb->generic.field[3])) & TRB_TSP)
-		ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
+		xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
 static void xhci_handle_cmd_enable_slot(int slot_id, struct xhci_command *command,
