@@ -3955,6 +3955,23 @@ static int xhci_ist_microframes(struct xhci_hcd *xhci)
 	return ist;
 }
 
+
+static bool xhci_isoc_td_uses_frame_id(struct xhci_hcd *xhci, struct urb *urb,
+				       struct xhci_virt_ep *ep, int i)
+{
+	if (urb->transfer_flags & URB_ISO_ASAP)
+		return false;
+
+	if (xhci->hcc_params & HCC_CFC)
+		return true;
+
+	/* set frame id for first TD of first URB in stream */
+	if (ep->next_uframe == -1 && i == 0)
+		return true;
+
+	return false;
+}
+
 /*
  * Check if frame is in the valid frame window, including start and end.
  * If start > end then assume window wrapped around at a limit the frame
@@ -4066,7 +4083,6 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int i, j;
 	bool more_trbs_coming;
 	struct xhci_virt_ep *xep;
-	int frame_id;
 	int uinterval = urb->interval;
 	int start_uframe;
 
@@ -4122,12 +4138,13 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		}
 		td = &urb_priv->td[i];
 
-		/* use SIA as default, if frame id is used overwrite it */
-		sia_frame_id = TRB_SIA;
-		if (!(urb->transfer_flags & URB_ISO_ASAP) && (xhci->hcc_params & HCC_CFC)) {
-			frame_id = (start_uframe + i * uinterval) / 8;
-			frame_id %= MAX_FRAMES;
-			sia_frame_id = TRB_FRAME_ID(frame_id);
+
+		/* Choose SIA or frame ID based scheduling for this TD */
+		if (xhci_isoc_td_uses_frame_id(xhci, urb, xep, i)) {
+			sia_frame_id = (start_uframe + i * uinterval) / 8;
+			sia_frame_id = TRB_FRAME_ID(sia_frame_id % MAX_FRAMES);
+		} else {
+			sia_frame_id = TRB_SIA;
 		}
 
 		/*
