@@ -835,6 +835,43 @@ TEST_F(tls, send_and_splice)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+TEST_F(tls, splice_onto_full_record)
+{
+	char mem_send[4608];
+	char mem_recv[4608];
+	int frag_len = 100;
+	int nfrags, i, off;
+	int p[2];
+
+	memrnd(mem_send, sizeof(mem_send));
+	ASSERT_GE(pipe(p), 0);
+
+	for (nfrags = 16; nfrags <= 44; nfrags++) {
+		for (i = 0, off = 0; i < nfrags; i++, off += frag_len) {
+			EXPECT_EQ(write(p[1], mem_send + off, frag_len), frag_len);
+			EXPECT_EQ(splice(p[0], NULL, self->fd, NULL, frag_len,
+					 SPLICE_F_MORE), frag_len);
+		}
+
+		EXPECT_EQ(send(self->fd, mem_send + off, 1, MSG_MORE), 1);
+		off++;
+
+		EXPECT_EQ(write(p[1], mem_send + off, frag_len), frag_len);
+		EXPECT_EQ(splice(p[0], NULL, self->fd, NULL, frag_len,
+				 SPLICE_F_MORE), frag_len);
+		off += frag_len;
+
+		EXPECT_EQ(send(self->fd, mem_send + off, 1, 0), 1);
+		off++;
+
+		EXPECT_EQ(recv(self->cfd, mem_recv, off, MSG_WAITALL), off);
+		EXPECT_EQ(memcmp(mem_send, mem_recv, off), 0);
+	}
+
+	close(p[0]);
+	close(p[1]);
+}
+
 TEST_F(tls, splice_to_pipe)
 {
 	int send_len = TLS_PAYLOAD_MAX_LEN;
