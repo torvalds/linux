@@ -916,7 +916,7 @@ static void xhci_dequeue_td(struct xhci_hcd *xhci, struct xhci_td *td, struct xh
 }
 
 /* Complete the cancelled URBs we unlinked from td_list. */
-static void xhci_giveback_invalidated_tds(struct xhci_virt_ep *ep)
+static void xhci_giveback_invalidated_tds(struct xhci_hcd *xhci, struct xhci_virt_ep *ep)
 {
 	struct xhci_ring *ring;
 	struct xhci_td *td, *tmp_td;
@@ -924,17 +924,17 @@ static void xhci_giveback_invalidated_tds(struct xhci_virt_ep *ep)
 	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list,
 				 cancelled_td_list) {
 
-		ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
+		ring = xhci_urb_to_transfer_ring(xhci, td->urb);
 
 		if (td->cancel_status == TD_CLEARED) {
-			xhci_dbg(ep->xhci, "%s: Giveback cancelled URB %p TD\n",
+			xhci_dbg(xhci, "%s: Giveback cancelled URB %p TD\n",
 				 __func__, td->urb);
-			xhci_td_cleanup(ep->xhci, td, ring, td->status);
+			xhci_td_cleanup(xhci, td, ring, td->status);
 		} else {
-			xhci_dbg(ep->xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
+			xhci_dbg(xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
 				 __func__, td->urb, td->cancel_status);
 		}
-		if (ep->xhci->xhc_state & XHCI_STATE_DYING)
+		if (xhci->xhc_state & XHCI_STATE_DYING)
 			return;
 	}
 }
@@ -1017,9 +1017,8 @@ static int xhci_handle_halted_endpoint(struct xhci_hcd *xhci,
  * only call this when ring is not in a running state
  */
 
-static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
+static int xhci_invalidate_cancelled_tds(struct xhci_hcd *xhci, struct xhci_virt_ep *ep)
 {
-	struct xhci_hcd		*xhci;
 	struct xhci_td		*td = NULL;
 	struct xhci_td		*tmp_td = NULL;
 	struct xhci_td		*cached_td = NULL;
@@ -1033,8 +1032,6 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 	 */
 	if (ep->ep_state & SET_DEQ_PENDING)
 		return 0;
-
-	xhci = ep->xhci;
 
 	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list, cancelled_td_list) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
@@ -1136,23 +1133,23 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
  *
  * Call under xhci->lock on a stopped endpoint.
  */
-void xhci_process_cancelled_tds(struct xhci_virt_ep *ep)
+void xhci_process_cancelled_tds(struct xhci_hcd *xhci, struct xhci_virt_ep *ep)
 {
-	xhci_invalidate_cancelled_tds(ep);
-	xhci_giveback_invalidated_tds(ep);
+	xhci_invalidate_cancelled_tds(xhci, ep);
+	xhci_giveback_invalidated_tds(xhci, ep);
 }
 
 /*
  * Returns the TD the endpoint ring halted on.
  * Only call for non-running rings without streams.
  */
-static struct xhci_td *find_halted_td(struct xhci_virt_ep *ep)
+static struct xhci_td *find_halted_td(struct xhci_hcd *xhci, struct xhci_virt_ep *ep)
 {
 	struct xhci_td	*td;
 	u64		hw_deq;
 
 	if (!list_empty(&ep->ring->td_list)) { /* Not streams compatible */
-		hw_deq = xhci_get_hw_deq(ep->xhci, ep->vdev, ep->ep_index, 0);
+		hw_deq = xhci_get_hw_deq(xhci, ep->vdev, ep->ep_index, 0);
 		hw_deq &= TR_DEQ_PTR_MASK;
 		td = list_first_entry(&ep->ring->td_list, struct xhci_td, td_list);
 		if (trb_in_td(td, hw_deq))
@@ -1227,7 +1224,7 @@ static void xhci_handle_cmd_stop_ep(struct xhci_hcd *xhci, int slot_id,
 				reset_type = EP_SOFT_RESET;
 			} else {
 				reset_type = EP_HARD_RESET;
-				td = find_halted_td(ep);
+				td = find_halted_td(xhci, ep);
 				if (td)
 					td->status = -EPROTO;
 			}
@@ -1290,11 +1287,11 @@ reset_done:
 		ep->ep_state |= EP_DROP_PENDING;
 
 	/* will queue a set TR deq if stopped on a cancelled, uncleared TD */
-	xhci_invalidate_cancelled_tds(ep);
+	xhci_invalidate_cancelled_tds(xhci, ep);
 	ep->ep_state &= ~EP_STOP_CMD_PENDING;
 
 	/* Otherwise ring the doorbell(s) to restart queued transfers */
-	xhci_giveback_invalidated_tds(ep);
+	xhci_giveback_invalidated_tds(xhci, ep);
 	xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 }
 
@@ -1516,14 +1513,14 @@ static void xhci_handle_cmd_set_deq(struct xhci_hcd *xhci, int slot_id,
 	/* HW cached TDs cleared from cache, give them back */
 	list_for_each_entry_safe(td, tmp_td, &ep->cancelled_td_list,
 				 cancelled_td_list) {
-		ep_ring = xhci_urb_to_transfer_ring(ep->xhci, td->urb);
+		ep_ring = xhci_urb_to_transfer_ring(xhci, td->urb);
 		if (td->cancel_status == TD_CLEARING_CACHE) {
 			td->cancel_status = TD_CLEARED;
-			xhci_dbg(ep->xhci, "%s: Giveback cancelled URB %p TD\n",
+			xhci_dbg(xhci, "%s: Giveback cancelled URB %p TD\n",
 				 __func__, td->urb);
-			xhci_td_cleanup(ep->xhci, td, ep_ring, td->status);
+			xhci_td_cleanup(xhci, td, ep_ring, td->status);
 		} else {
-			xhci_dbg(ep->xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
+			xhci_dbg(xhci, "%s: Keep cancelled URB %p TD as cancel_status is %d\n",
 				 __func__, td->urb, td->cancel_status);
 		}
 	}
@@ -1534,16 +1531,16 @@ cleanup:
 
 	/* Check for deferred or newly cancelled TDs */
 	if (!list_empty(&ep->cancelled_td_list)) {
-		xhci_dbg(ep->xhci, "%s: Pending TDs to clear, continuing with invalidation\n",
+		xhci_dbg(xhci, "%s: Pending TDs to clear, continuing with invalidation\n",
 			 __func__);
-		xhci_invalidate_cancelled_tds(ep);
+		xhci_invalidate_cancelled_tds(xhci, ep);
 		/* Try to restart the endpoint if all is done */
 		xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 		/* Start giving back any TDs invalidated above */
-		xhci_giveback_invalidated_tds(ep);
+		xhci_giveback_invalidated_tds(xhci, ep);
 	} else {
 		/* Restart any rings with pending URBs */
-		xhci_dbg(ep->xhci, "%s: All TDs cleared, ring doorbell\n", __func__);
+		xhci_dbg(xhci, "%s: All TDs cleared, ring doorbell\n", __func__);
 		xhci_ring_doorbell_for_active_rings(xhci, slot_id, ep_index);
 	}
 }
@@ -1570,12 +1567,12 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		"Ignoring reset ep completion code of %u", cmd_comp_code);
 
 	/* Cleanup cancelled TDs as ep is stopped. May queue a Set TR Deq cmd */
-	xhci_invalidate_cancelled_tds(ep);
+	xhci_invalidate_cancelled_tds(xhci, ep);
 
 	/* Clear our internal halted state */
 	ep->ep_state &= ~EP_HALTED;
 
-	xhci_giveback_invalidated_tds(ep);
+	xhci_giveback_invalidated_tds(xhci, ep);
 
 	/* if this was a soft reset, then restart */
 	if ((le32_to_cpu(trb->generic.field[3])) & TRB_TSP)
