@@ -71,27 +71,27 @@ struct hwmon_thermal_data {
 };
 
 static ssize_t
-name_show(struct device *dev, struct device_attribute *attr, char *buf)
+name_show(struct device *dev, const struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->name);
 }
-static DEVICE_ATTR_RO(name);
+static const DEVICE_ATTR_RO(name);
 
 static ssize_t
-label_show(struct device *dev, struct device_attribute *attr, char *buf)
+label_show(struct device *dev, const struct device_attribute *attr, char *buf)
 {
 	return sysfs_emit(buf, "%s\n", to_hwmon_device(dev)->label);
 }
-static DEVICE_ATTR_RO(label);
+static const DEVICE_ATTR_RO(label);
 
-static struct attribute *hwmon_dev_attrs[] = {
+static const struct attribute *const hwmon_dev_attrs[] = {
 	&dev_attr_name.attr,
 	&dev_attr_label.attr,
 	NULL
 };
 
 static umode_t hwmon_dev_attr_is_visible(struct kobject *kobj,
-					 struct attribute *attr, int n)
+					 const struct attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct hwmon_device *hdev = to_hwmon_device(dev);
@@ -106,8 +106,8 @@ static umode_t hwmon_dev_attr_is_visible(struct kobject *kobj,
 }
 
 static const struct attribute_group hwmon_dev_attr_group = {
-	.attrs		= hwmon_dev_attrs,
-	.is_visible	= hwmon_dev_attr_is_visible,
+	.attrs_const		= hwmon_dev_attrs,
+	.is_visible_const	= hwmon_dev_attr_is_visible,
 };
 
 static const struct attribute_group *hwmon_dev_attr_groups[] = {
