@@ -147,6 +147,7 @@ static bool ip_has_options(unsigned int thoff)
 
 struct nf_flowtable_ctx {
 	const struct net_device	*in;
+	__be16			ether_type;
 	u32			offset;
 	u32			hdrsize;
 	struct {
@@ -161,7 +162,6 @@ static void nf_flow_tuple_encap(struct nf_flowtable_ctx *ctx,
 				struct sk_buff *skb,
 				struct flow_offload_tuple *tuple)
 {
-	__be16 inner_proto = skb->protocol;
 	struct vlan_ethhdr *veth;
 	struct pppoe_hdr *phdr;
 	struct ipv6hdr *ip6h;
@@ -179,19 +179,17 @@ static void nf_flow_tuple_encap(struct nf_flowtable_ctx *ctx,
 		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
 		tuple->encap[i].id = ntohs(veth->h_vlan_TCI);
 		tuple->encap[i].proto = skb->protocol;
-		inner_proto = veth->h_vlan_encapsulated_proto;
 		offset += VLAN_HLEN;
 		break;
 	case htons(ETH_P_PPP_SES):
 		phdr = (struct pppoe_hdr *)skb_network_header(skb);
 		tuple->encap[i].id = ntohs(phdr->sid);
 		tuple->encap[i].proto = skb->protocol;
-		inner_proto = *((__be16 *)(phdr + 1));
 		offset += PPPOE_SES_HLEN;
 		break;
 	}
 
-	switch (inner_proto) {
+	switch (ctx->ether_type) {
 	case htons(ETH_P_IP):
 		iph = (struct iphdr *)(skb_network_header(skb) + offset);
 		if (ctx->tun.inner_proto == IPPROTO_IPIP) {
@@ -377,10 +375,10 @@ static void nf_flow_ip_tunnel_pop(struct nf_flowtable_ctx *ctx,
 }
 
 static bool nf_flow_skb_encap_protocol(struct nf_flowtable_ctx *ctx,
-				       struct sk_buff *skb, __be16 proto)
+				       struct sk_buff *skb)
 {
-	__be16 inner_proto = skb->protocol;
 	struct vlan_ethhdr *veth;
+	__be16 ether_type;
 	bool ret = false;
 
 	switch (skb->protocol) {
@@ -389,22 +387,27 @@ static bool nf_flow_skb_encap_protocol(struct nf_flowtable_ctx *ctx,
 			return false;
 
 		veth = (struct vlan_ethhdr *)skb_mac_header(skb);
-		if (veth->h_vlan_encapsulated_proto == proto) {
-			ctx->offset += VLAN_HLEN;
-			inner_proto = proto;
-			ret = true;
-		}
+		ctx->ether_type = veth->h_vlan_encapsulated_proto;
+		ctx->offset += VLAN_HLEN;
+		ret = true;
 		break;
 	case htons(ETH_P_PPP_SES):
-		if (nf_flow_pppoe_proto(skb, &inner_proto) &&
-		    inner_proto == proto) {
-			ctx->offset += PPPOE_SES_HLEN;
-			ret = true;
-		}
+		if (!nf_flow_pppoe_proto(skb, &ether_type))
+			return false;
+
+		ctx->ether_type = ether_type;
+		ctx->offset += PPPOE_SES_HLEN;
+		ret = true;
 		break;
+	case htons(ETH_P_IP):
+	case htons(ETH_P_IPV6):
+		ctx->ether_type = skb->protocol;
+		break;
+	default:
+		return false;
 	}
 
-	switch (inner_proto) {
+	switch (ctx->ether_type) {
 	case htons(ETH_P_IP):
 		ret = nf_flow_ip4_tunnel_proto(ctx, skb);
 		break;
@@ -456,7 +459,10 @@ nf_flow_offload_lookup(struct nf_flowtable_ctx *ctx,
 {
 	struct flow_offload_tuple tuple = {};
 
-	if (!nf_flow_skb_encap_protocol(ctx, skb, htons(ETH_P_IP)))
+	if (!nf_flow_skb_encap_protocol(ctx, skb))
+		return NULL;
+
+	if (unlikely(ctx->ether_type != htons(ETH_P_IP)))
 		return NULL;
 
 	if (nf_flow_tuple_ip(ctx, skb, &tuple) < 0)
@@ -1103,7 +1109,10 @@ nf_flow_offload_ipv6_lookup(struct nf_flowtable_ctx *ctx,
 {
 	struct flow_offload_tuple tuple = {};
 
-	if (!nf_flow_skb_encap_protocol(ctx, skb, htons(ETH_P_IPV6)))
+	if (!nf_flow_skb_encap_protocol(ctx, skb))
+		return NULL;
+
+	if (unlikely(ctx->ether_type != htons(ETH_P_IPV6)))
 		return NULL;
 
 	if (nf_flow_tuple_ipv6(ctx, skb, &tuple) < 0)
