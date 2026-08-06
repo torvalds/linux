@@ -303,6 +303,17 @@
 #define AIROHA_PIN_BANK_SIZE			(AIROHA_NUM_PINS / 2)
 #define AIROHA_REG_GPIOCTRL_NUM_PIN		(AIROHA_NUM_PINS / 4)
 
+struct airoha_gpiochip_regs {
+	/* gpio */
+	const u32 *data;
+	const u32 *dir;
+	const u32 *out;
+	/* irq */
+	const u32 *status;
+	const u32 *level;
+	const u32 *edge;
+};
+
 static const u32 gpio_data_regs[] = {
 	REG_GPIO_DATA,
 	REG_GPIO_DATA1
@@ -339,6 +350,15 @@ static const u32 irq_edge_regs[] = {
 	REG_GPIO_INT_EDGE3
 };
 
+static struct airoha_gpiochip_regs airoha_gpiochip_regs = {
+	.data = gpio_data_regs,
+	.dir = gpio_dir_regs,
+	.out = gpio_out_regs,
+	.status = irq_status_regs,
+	.level = irq_level_regs,
+	.edge = irq_edge_regs,
+};
+
 struct airoha_pinctrl_reg {
 	u32 offset;
 	u32 mask;
@@ -372,19 +392,6 @@ struct airoha_pinctrl_conf {
 	struct airoha_pinctrl_reg reg;
 };
 
-struct airoha_pinctrl_gpiochip {
-	struct gpio_chip chip;
-
-	/* gpio */
-	const u32 *data;
-	const u32 *dir;
-	const u32 *out;
-	/* irq */
-	const u32 *status;
-	const u32 *level;
-	const u32 *edge;
-};
-
 struct airoha_pinctrl_confs_info {
 	const struct airoha_pinctrl_conf *confs;
 	unsigned int num_confs;
@@ -411,7 +418,8 @@ struct airoha_pinctrl {
 	struct regmap *chip_scu;
 	struct regmap *regmap;
 
-	struct airoha_pinctrl_gpiochip gpiochip;
+	struct gpio_chip gpiochip;
+	struct airoha_gpiochip_regs *gpio_regs;
 };
 
 struct airoha_pinctrl_match_data {
@@ -2504,7 +2512,7 @@ static int airoha_gpio_set(struct gpio_chip *chip, unsigned int gpio,
 	u8 index = gpio / AIROHA_PIN_BANK_SIZE;
 
 	return regmap_update_bits(pinctrl->regmap,
-				  pinctrl->gpiochip.data[index],
+				  pinctrl->gpio_regs->data[index],
 				  BIT(offset), value ? BIT(offset) : 0);
 }
 
@@ -2516,7 +2524,7 @@ static int airoha_gpio_get(struct gpio_chip *chip, unsigned int gpio)
 	int err;
 
 	err = regmap_read(pinctrl->regmap,
-			  pinctrl->gpiochip.data[index], &val);
+			  pinctrl->gpio_regs->data[index], &val);
 
 	return err ? err : !!(val & BIT(pin));
 }
@@ -2529,7 +2537,8 @@ static int airoha_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	int err;
 
 	index = gpio / AIROHA_REG_GPIOCTRL_NUM_PIN;
-	err = regmap_read(pinctrl->regmap, pinctrl->gpiochip.dir[index], &val);
+	err = regmap_read(pinctrl->regmap,
+			  pinctrl->gpio_regs->dir[index], &val);
 	if (err)
 		return err;
 
@@ -2547,7 +2556,8 @@ static int airoha_gpio_set_direction(struct gpio_chip *chip, unsigned int gpio,
 	/* set output enable */
 	mask = BIT(gpio % AIROHA_PIN_BANK_SIZE);
 	index = gpio / AIROHA_PIN_BANK_SIZE;
-	err = regmap_update_bits(pinctrl->regmap, pinctrl->gpiochip.out[index],
+	err = regmap_update_bits(pinctrl->regmap,
+				 pinctrl->gpio_regs->out[index],
 				 mask, !input ? mask : 0);
 	if (err)
 		return err;
@@ -2557,7 +2567,7 @@ static int airoha_gpio_set_direction(struct gpio_chip *chip, unsigned int gpio,
 	index = gpio / AIROHA_REG_GPIOCTRL_NUM_PIN;
 
 	return regmap_update_bits(pinctrl->regmap,
-				  pinctrl->gpiochip.dir[index], mask,
+				  pinctrl->gpio_regs->dir[index], mask,
 				  !input ? mask : 0);
 }
 
@@ -2584,7 +2594,7 @@ static void airoha_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct airoha_pinctrl *pinctrl = gpiochip_get_data(gc);
-	struct airoha_pinctrl_gpiochip *gpiochip = &pinctrl->gpiochip;
+	struct airoha_gpiochip_regs *gpio_regs = pinctrl->gpio_regs;
 	u8 offset = data->hwirq % AIROHA_REG_GPIOCTRL_NUM_PIN;
 	u8 index = data->hwirq / AIROHA_REG_GPIOCTRL_NUM_PIN;
 	u32 mask = GENMASK(2 * offset + 1, 2 * offset);
@@ -2599,18 +2609,18 @@ static void airoha_irq_unmask(struct irq_data *data)
 		val = val << 1;
 		fallthrough;
 	case IRQ_TYPE_LEVEL_HIGH:
-		regmap_update_bits(pinctrl->regmap, gpiochip->level[index],
+		regmap_update_bits(pinctrl->regmap, gpio_regs->level[index],
 				   mask, val);
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
 		val = val << 1;
 		fallthrough;
 	case IRQ_TYPE_EDGE_RISING:
-		regmap_update_bits(pinctrl->regmap, gpiochip->edge[index],
+		regmap_update_bits(pinctrl->regmap, gpio_regs->edge[index],
 				   mask, val);
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		regmap_set_bits(pinctrl->regmap, gpiochip->edge[index], mask);
+		regmap_set_bits(pinctrl->regmap, gpio_regs->edge[index], mask);
 		break;
 	default:
 		break;
@@ -2621,7 +2631,7 @@ static void airoha_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct airoha_pinctrl *pinctrl = gpiochip_get_data(gc);
-	struct airoha_pinctrl_gpiochip *gpiochip = &pinctrl->gpiochip;
+	struct airoha_gpiochip_regs *gpio_regs = pinctrl->gpio_regs;
 	u8 offset = data->hwirq % AIROHA_REG_GPIOCTRL_NUM_PIN;
 	u8 index = data->hwirq / AIROHA_REG_GPIOCTRL_NUM_PIN;
 	u32 mask = GENMASK(2 * offset + 1, 2 * offset);
@@ -2629,8 +2639,8 @@ static void airoha_irq_mask(struct irq_data *data)
 	if (data->hwirq >= AIROHA_NUM_PINS)
 		return;
 
-	regmap_clear_bits(pinctrl->regmap, gpiochip->level[index], mask);
-	regmap_clear_bits(pinctrl->regmap, gpiochip->edge[index], mask);
+	regmap_clear_bits(pinctrl->regmap, gpio_regs->level[index], mask);
+	regmap_clear_bits(pinctrl->regmap, gpio_regs->edge[index], mask);
 	gpiochip_disable_irq(gc, irqd_to_hwirq(data));
 }
 
@@ -2638,14 +2648,14 @@ static void airoha_irq_ack(struct irq_data *data)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
 	struct airoha_pinctrl *pinctrl = gpiochip_get_data(gc);
-	struct airoha_pinctrl_gpiochip *gpiochip = &pinctrl->gpiochip;
+	struct airoha_gpiochip_regs *gpio_regs = pinctrl->gpio_regs;
 	u8 offset = data->hwirq % AIROHA_PIN_BANK_SIZE;
 	u8 index = data->hwirq / AIROHA_PIN_BANK_SIZE;
 
 	if (data->hwirq >= AIROHA_NUM_PINS)
 		return;
 
-	regmap_write(pinctrl->regmap, gpiochip->status[index], BIT(offset));
+	regmap_write(pinctrl->regmap, gpio_regs->status[index], BIT(offset));
 }
 
 static int airoha_irq_type(struct irq_data *data, unsigned int type)
@@ -2684,12 +2694,12 @@ static irqreturn_t airoha_irq_handler(int irq, void *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(irq_status_regs); i++) {
-		struct gpio_irq_chip *girq = &pinctrl->gpiochip.chip.irq;
+		struct gpio_irq_chip *girq = &pinctrl->gpiochip.irq;
 		u32 regmap;
 		unsigned long status;
 		int irq;
 
-		if (regmap_read(pinctrl->regmap, pinctrl->gpiochip.status[i],
+		if (regmap_read(pinctrl->regmap, pinctrl->gpio_regs->status[i],
 				&regmap))
 			continue;
 
@@ -2699,7 +2709,7 @@ static irqreturn_t airoha_irq_handler(int irq, void *data)
 
 			generic_handle_domain_irq(girq->domain, offset);
 			regmap_write(pinctrl->regmap,
-				     pinctrl->gpiochip.status[i], BIT(irq));
+				     pinctrl->gpio_regs->status[i], BIT(irq));
 		}
 		handled |= !!status;
 	}
@@ -2720,8 +2730,7 @@ static const struct irq_chip airoha_gpio_irq_chip = {
 static int airoha_pinctrl_add_gpiochip(struct airoha_pinctrl *pinctrl,
 					struct platform_device *pdev)
 {
-	struct airoha_pinctrl_gpiochip *chip = &pinctrl->gpiochip;
-	struct gpio_chip *gc = &chip->chip;
+	struct gpio_chip *gc = &pinctrl->gpiochip;
 	struct gpio_irq_chip *girq = &gc->irq;
 	struct device *dev = &pdev->dev;
 	int irq, err;
@@ -2819,7 +2828,7 @@ static int airoha_pinmux_set_direction(struct pinctrl_dev *pctrl_dev,
 	if (pin < 0)
 		return pin;
 
-	return airoha_gpio_set_direction(&pinctrl->gpiochip.chip, pin, input);
+	return airoha_gpio_set_direction(&pinctrl->gpiochip, pin, input);
 }
 
 static const struct pinmux_ops airoha_pmxops = {
@@ -2932,7 +2941,7 @@ static int airoha_pinconf_get_direction(struct pinctrl_dev *pctrl_dev, u32 p)
 	if (pin < 0)
 		return pin;
 
-	ret = airoha_gpio_get_direction(&pinctrl->gpiochip.chip, pin);
+	ret = airoha_gpio_get_direction(&pinctrl->gpiochip, pin);
 	if (ret < 0)
 		return ret;
 
@@ -3010,7 +3019,7 @@ static int airoha_pinconf_set_pin_value(struct pinctrl_dev *pctrl_dev,
 	if (pin < 0)
 		return pin;
 
-	return airoha_gpio_set(&pinctrl->gpiochip.chip, pin, value);
+	return airoha_gpio_set(&pinctrl->gpiochip, pin, value);
 }
 
 static int airoha_pinconf_set(struct pinctrl_dev *pctrl_dev,
@@ -3213,16 +3222,7 @@ static int airoha_pinctrl_probe(struct platform_device *pdev)
 	pinctrl->desc.pins = data->pins;
 	pinctrl->desc.npins = data->num_pins;
 
-	/*
-	 * some pinctrl operations (ex: get_direction) might use gpio registers
-	 * before gpio chip abstraction will be completely initialized.
-	 */
-	pinctrl->gpiochip.data = gpio_data_regs;
-	pinctrl->gpiochip.dir = gpio_dir_regs;
-	pinctrl->gpiochip.out = gpio_out_regs;
-	pinctrl->gpiochip.status = irq_status_regs;
-	pinctrl->gpiochip.level = irq_level_regs;
-	pinctrl->gpiochip.edge = irq_edge_regs;
+	pinctrl->gpio_regs = &airoha_gpiochip_regs;
 
 	err = devm_pinctrl_register_and_init(dev, &pinctrl->desc,
 					     pinctrl, &pinctrl->ctrl);
