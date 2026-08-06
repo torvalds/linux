@@ -9,6 +9,8 @@
  * Handle individual btree records
  */
 
+#include <linux/limits.h>
+
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 
@@ -20,41 +22,49 @@ static int hfs_btree_inc_height(struct hfs_btree *);
 u16 hfs_brec_lenoff(struct hfs_bnode *node, u16 rec, u16 *off)
 {
 	__be16 retval[2];
-	u16 dataoff;
+	u16 data_off;
+	u16 next_off;
 
-	dataoff = node->tree->node_size - (rec + 2) * 2;
-	hfs_bnode_read(node, retval, dataoff, 4);
+	if (hfs_brec_record_invalid(node, rec)) {
+		*off = U16_MAX;
+		return U16_MAX;
+	}
+
+	data_off = node->tree->node_size - (rec + 2) * 2;
+	hfs_bnode_read(node, retval, data_off, 4);
 	*off = be16_to_cpu(retval[1]);
-	return be16_to_cpu(retval[0]) - *off;
+	next_off = be16_to_cpu(retval[0]);
+	if (hfs_brec_offsets_invalid(node, *off, next_off)) {
+		*off = U16_MAX;
+		return U16_MAX;
+	}
+	return next_off - *off;
 }
 
 /* Get the length of the key from a keyed record */
 u16 hfs_brec_keylen(struct hfs_bnode *node, u16 rec)
 {
-	u16 retval, recoff;
+	u16 retval, recoff, len;
 
 	if (node->type != HFS_NODE_INDEX && node->type != HFS_NODE_LEAF)
 		return 0;
+	if (hfs_brec_record_invalid(node, rec))
+		return U16_MAX;
 
 	if ((node->type == HFS_NODE_INDEX) &&
 	   !(node->tree->attributes & HFS_TREE_VARIDXKEYS) &&
 	   (node->tree->cnid != HFSPLUS_ATTR_CNID)) {
 		retval = node->tree->max_key_len + 2;
 	} else {
-		recoff = hfs_bnode_read_u16(node,
-			node->tree->node_size - (rec + 1) * 2);
-		if (!recoff)
-			return 0;
-		if (recoff > node->tree->node_size - 2) {
-			pr_err("recoff %d too large\n", recoff);
-			return 0;
-		}
+		len = hfs_brec_lenoff(node, rec, &recoff);
+		if (hfs_brec_len_invalid(node, len))
+			return len;
 
 		retval = hfs_bnode_read_u16(node, recoff) + 2;
 		if (retval > node->tree->max_key_len + 2) {
 			pr_err("keylen %d too large\n",
 				retval);
-			retval = 0;
+			retval = U16_MAX;
 		}
 	}
 	return retval;
@@ -181,14 +191,20 @@ int hfs_brec_remove(struct hfs_find_data *fd)
 	struct hfs_btree *tree;
 	struct hfs_bnode *node, *parent;
 	int end_off, rec_off, data_off, size;
+	int res;
 
 	tree = fd->tree;
 	node = fd->bnode;
 again:
+	if (hfs_brec_record_invalid(node, fd->record))
+		return -EINVAL;
+
 	rec_off = tree->node_size - (fd->record + 2) * 2;
 	end_off = tree->node_size - (node->num_recs + 1) * 2;
 
 	if (node->type == HFS_NODE_LEAF) {
+		if (tree->leaf_count == 0)
+			return -EINVAL;
 		tree->leaf_count--;
 		mark_inode_dirty(tree->inode);
 	}
@@ -205,7 +221,9 @@ again:
 		hfs_bnode_put(node);
 		node = fd->bnode = parent;
 
-		__hfs_brec_find(node, fd, hfs_find_rec_by_key);
+		res = __hfs_brec_find(node, fd, hfs_find_rec_by_key);
+		if (res && res != -ENOENT)
+			return res;
 		goto again;
 	}
 	hfs_bnode_write_u16(node,
@@ -368,6 +386,7 @@ static int hfs_brec_update_parent(struct hfs_find_data *fd)
 	int newkeylen, diff;
 	int rec, rec_off, end_rec_off;
 	int start_off, end_off;
+	int res;
 
 	tree = fd->tree;
 	node = fd->bnode;
@@ -379,7 +398,9 @@ again:
 	parent = hfs_bnode_find(tree, node->parent);
 	if (IS_ERR(parent))
 		return PTR_ERR(parent);
-	__hfs_brec_find(parent, fd, hfs_find_rec_by_key);
+	res = __hfs_brec_find(parent, fd, hfs_find_rec_by_key);
+	if (res && res != -ENOENT)
+		return res;
 	if (fd->record < 0)
 		return -ENOENT;
 	hfs_bnode_dump(parent);
