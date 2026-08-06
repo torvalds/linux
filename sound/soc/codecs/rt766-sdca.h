@@ -8,6 +8,7 @@
 #ifndef __RT766_H__
 #define __RT766_H__
 
+#include <linux/hid.h>
 #include <linux/pm.h>
 #include <linux/regmap.h>
 #include <linux/soundwire/sdw.h>
@@ -41,6 +42,7 @@ struct  rt766_sdca_priv {
 	struct sdca_function_data *sa_func_data;
 	struct sdca_function_data *hid_func_data;
 	struct sdca_interrupt_info *irq_info;
+	struct hid_device *hid;
 };
 
 /* vendor registers */

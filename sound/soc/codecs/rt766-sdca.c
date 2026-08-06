@@ -22,6 +22,7 @@
 #include <sound/sdca.h>
 #include <sound/sdca_asoc.h>
 #include <sound/sdca_function.h>
+#include <sound/sdca_hid.h>
 #include <sound/sdca_regmap.h>
 #include <sound/sdca_interrupts.h>
 #include <linux/slab.h>
@@ -33,7 +34,6 @@
 static int rt766_sdca_btn_detect(struct sdca_interrupt *interrupt)
 {
 	struct rt766_sdca_priv *rt766 = interrupt->priv;
-	struct sdca_entity *ent_hid = interrupt->entity;
 	unsigned char *buf = NULL;
 	unsigned int offset, owner, length;
 	unsigned int det_mode, idx, val;
@@ -85,8 +85,8 @@ static int rt766_sdca_btn_detect(struct sdca_interrupt *interrupt)
 			buf[idx] = val & 0xff;
 		}
 
-		if (ent_hid)
-			hid_input_report(ent_hid->hide.hid, HID_INPUT_REPORT,
+		if (rt766->hid)
+			hid_input_report(rt766->hid, HID_INPUT_REPORT,
 				buf, length, 1);
 	}
 
@@ -191,6 +191,13 @@ static irqreturn_t rt766_sdca_irq_jd_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void rt766_sdca_destroy_hid_device(struct sdca_interrupt *interrupt)
+{
+	struct rt766_sdca_priv *rt766 = interrupt->priv;
+
+	hid_destroy_device(rt766->hid);
+}
+
 static int rt766_sdca_irq_ctl(struct rt766_sdca_priv *rt766,
 							  struct sdca_function_data *function,
 							  struct snd_soc_component *component,
@@ -230,6 +237,15 @@ static int rt766_sdca_irq_ctl(struct rt766_sdca_priv *rt766,
 								interrupt);
 				if (ret)
 					return ret;
+
+				if (handler == rt766_sdca_irq_btn_handler) {
+					ret = sdca_add_hid_device(interrupt);
+					if (ret)
+						return ret;
+
+					interrupt->free_priv = rt766_sdca_destroy_hid_device;
+					rt766->hid = interrupt->priv;
+				}
 
 				interrupt->priv = rt766;
 				ret = sdca_irq_request(dev, info, irq, interrupt->name,
@@ -616,7 +632,7 @@ static int rt766_sdca_pde_event(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 
-	ret = sdca_asoc_pde_poll_actual_ps(component->dev, rt766->regmap,
+	ret = sdca_asoc_pde_poll_actual_ps(rt766->regmap,
 				   func_num,
 				   pde_num,
 				   from_ps, to_ps,
@@ -1185,7 +1201,7 @@ int rt766_sdca_init(struct device *dev, struct regmap *regmap, struct sdw_slave 
 		}
 
 		func_data_ptr->desc = &slave->sdca_data.function[i];
-		ret = sdca_parse_function(dev, slave, func_data_ptr);
+		ret = sdca_parse_function(dev, func_data_ptr);
 		if (ret) {
 			devm_kfree(dev, func_data_ptr);
 			goto _free_dai_drv_;

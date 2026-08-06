@@ -107,9 +107,9 @@ int sdca_asoc_q78_put_volsw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol);
 int sdca_asoc_q78_get_volsw(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol);
-int sdca_asoc_pde_poll_actual_ps(struct device *dev, struct regmap *regmap,
+int sdca_asoc_pde_poll_actual_ps(struct regmap *regmap,
 				 int function_id, int entity_id,
-			    int from_ps, int to_ps,
-			    const struct sdca_pde_delay *pde_delays,
-			    int num_delays);
+				 int from_ps, int to_ps,
+				 const struct sdca_pde_delay *pde_delays,
+				 int num_delays);
 #endif // __SDCA_ASOC_H__
