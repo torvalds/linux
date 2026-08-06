@@ -162,7 +162,7 @@ static int zl38_fw_send_xaddr(struct regmap *regmap, const void *data)
 static int zl38_load_firmware(struct device *dev, struct regmap *regmap)
 {
 	const struct ihex_binrec *rec;
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	u32 addr;
 	u16 len;
 	int err;
@@ -180,7 +180,7 @@ static int zl38_load_firmware(struct device *dev, struct regmap *regmap)
 		return err;
 	err = zl38_fw_enter_boot_mode(regmap);
 	if (err)
-		goto out;
+		return err;
 	rec = (const struct ihex_binrec *)fw->data;
 	while (rec) {
 		addr = be32_to_cpu(rec->addr);
@@ -195,15 +195,12 @@ static int zl38_load_firmware(struct device *dev, struct regmap *regmap)
 			err = -EINVAL;
 		}
 		if (err)
-			goto out;
+			return err;
 		/* next ! */
 		rec = ihex_next_binrec(rec);
 	}
-	err = zl38_fw_go(regmap);
 
-out:
-	release_firmware(fw);
-	return err;
+	return zl38_fw_go(regmap);
 }
 
 
