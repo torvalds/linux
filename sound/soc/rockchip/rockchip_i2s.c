@@ -767,16 +767,14 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	/* try to prepare related clocks */
 	i2s->hclk = devm_clk_get_enabled(&pdev->dev, "i2s_hclk");
-	if (IS_ERR(i2s->hclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s bus clock\n");
-		return PTR_ERR(i2s->hclk);
-	}
+	if (IS_ERR(i2s->hclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->hclk),
+				     "Can't retrieve i2s bus clock\n");
 
 	i2s->mclk = devm_clk_get(&pdev->dev, "i2s_clk");
-	if (IS_ERR(i2s->mclk)) {
-		dev_err(&pdev->dev, "Can't retrieve i2s master clock\n");
-		return PTR_ERR(i2s->mclk);
-	}
+	if (IS_ERR(i2s->mclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->mclk),
+				     "Can't retrieve i2s master clock\n");
 
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
