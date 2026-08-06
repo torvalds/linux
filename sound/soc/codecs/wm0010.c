@@ -333,7 +333,6 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 	struct wm0010_boot_xfer *xfer;
 	int ret;
 	DECLARE_COMPLETION_ONSTACK(done);
-	const struct firmware *fw;
 	const struct dfw_binrec *rec;
 	const struct dfw_inforec *inforec;
 	u64 *img;
@@ -342,6 +341,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 	INIT_LIST_HEAD(&xfer_list);
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, name, component->dev);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to request application(%s): %d\n",
@@ -360,16 +360,14 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 	/* First record should be INFO */
 	if (rec->command != DFW_CMD_INFO) {
 		dev_err(component->dev, "First record not INFO\r\n");
-		ret = -EINVAL;
-		goto abort;
+		return -EINVAL;
 	}
 
 	if (inforec->info_version != INFO_VERSION) {
 		dev_err(component->dev,
 			"Unsupported version (%02d) of INFO record\r\n",
 			inforec->info_version);
-		ret = -EINVAL;
-		goto abort;
+		return -EINVAL;
 	}
 
 	dev_dbg(component->dev, "Version v%02d INFO record found\r\n",
@@ -378,8 +376,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 	/* Check it's a DSP file */
 	if (dsp != DEVICE_ID_WM0010) {
 		dev_err(component->dev, "Not a WM0010 firmware file.\r\n");
-		ret = -EINVAL;
-		goto abort;
+		return -EINVAL;
 	}
 
 	/* Skip the info record as we don't need to send it */
@@ -404,14 +401,14 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 		out = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!out) {
 			ret = -ENOMEM;
-			goto abort1;
+			goto abort;
 		}
 		xfer->t.rx_buf = out;
 
 		img = kzalloc(len, GFP_KERNEL | GFP_DMA);
 		if (!img) {
 			ret = -ENOMEM;
-			goto abort1;
+			goto abort;
 		}
 		xfer->t.tx_buf = img;
 
@@ -449,13 +446,13 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 		ret = spi_async(spi, &xfer->m);
 		if (ret != 0) {
 			dev_err(component->dev, "Write failed: %d\n", ret);
-			goto abort1;
+			goto abort;
 		}
 
 		if (wm0010->boot_failed) {
 			dev_dbg(component->dev, "Boot fail!\n");
 			ret = -EINVAL;
-			goto abort1;
+			goto abort;
 		}
 	}
 
@@ -463,7 +460,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 	ret = 0;
 
-abort1:
+abort:
 	while (!list_empty(&xfer_list)) {
 		xfer = list_first_entry(&xfer_list, struct wm0010_boot_xfer,
 					list);
@@ -473,8 +470,6 @@ abort1:
 		kfree(xfer);
 	}
 
-abort:
-	release_firmware(fw);
 	return ret;
 }
 
@@ -482,14 +477,12 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 {
 	struct spi_device *spi = to_spi_device(component->dev);
 	struct wm0010_priv *wm0010 = snd_soc_component_get_drvdata(component);
-	const struct firmware *fw;
 	struct spi_message m;
 	struct spi_transfer t;
-	u32 *img;
-	u8 *out;
 	int i;
 	int ret = 0;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, "wm0010_stage2.bin", component->dev);
 	if (ret != 0) {
 		dev_err(component->dev, "Failed to request stage2 loader: %d\n",
@@ -500,17 +493,15 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 	dev_dbg(component->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
 
 	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kmemdup(&fw->data[0], fw->size, GFP_KERNEL | GFP_DMA);
-	if (!img) {
-		ret = -ENOMEM;
-		goto abort2;
-	}
+	u32 *img __free(kfree) =
+		kmemdup(&fw->data[0], fw->size, GFP_KERNEL | GFP_DMA);
+	if (!img)
+		return -ENOMEM;
 
-	out = kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
-	if (!out) {
-		ret = -ENOMEM;
-		goto abort1;
-	}
+	u8 *out __free(kfree) =
+		kzalloc(fw->size, GFP_KERNEL | GFP_DMA);
+	if (!out)
+		return -ENOMEM;
 
 	spi_message_init(&m);
 	memset(&t, 0, sizeof(t));
@@ -527,7 +518,7 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 	ret = spi_sync(spi, &m);
 	if (ret != 0) {
 		dev_err(component->dev, "Initial download failed: %d\n", ret);
-		goto abort;
+		return ret;
 	}
 
 	/* Look for errors from the boot ROM */
@@ -536,18 +527,11 @@ static int wm0010_stage2_load(struct snd_soc_component *component)
 			dev_err(component->dev, "Boot ROM error: %x in %d\n",
 				out[i], i);
 			wm0010_mark_boot_failure(wm0010);
-			ret = -EBUSY;
-			goto abort;
+			return -EBUSY;
 		}
 	}
-abort:
-	kfree(out);
-abort1:
-	kfree(img);
-abort2:
-	release_firmware(fw);
 
-	return ret;
+	return 0;
 }
 
 static int wm0010_boot(struct snd_soc_component *component)
