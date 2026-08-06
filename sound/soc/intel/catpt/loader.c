@@ -568,27 +568,24 @@ static int catpt_request_load_firmware(struct catpt_dev *cdev, struct dma_chan *
 				       const char *name, bool restore)
 {
 	struct catpt_fw_hdr *fw;
-	struct firmware *img;
 	dma_addr_t paddr;
 	void *vaddr;
 	int ret;
 
-	ret = request_firmware((const struct firmware **)&img, name, cdev->dev);
+	const struct firmware *img __free(firmware) = NULL;
+	ret = request_firmware(&img, name, cdev->dev);
 	if (ret)
 		return ret;
 
 	fw = (struct catpt_fw_hdr *)img->data;
 	if (strncmp(fw->signature, FW_SIGNATURE, FW_SIGNATURE_SIZE)) {
 		dev_err(cdev->dev, "firmware signature mismatch\n");
-		ret = -EINVAL;
-		goto release_fw;
+		return -EINVAL;
 	}
 
 	vaddr = dma_alloc_coherent(cdev->dev, img->size, &paddr, GFP_KERNEL);
-	if (!vaddr) {
-		ret = -ENOMEM;
-		goto release_fw;
-	}
+	if (!vaddr)
+		return -ENOMEM;
 
 	memcpy(vaddr, img->data, img->size);
 	fw = (struct catpt_fw_hdr *)vaddr;
@@ -598,8 +595,6 @@ static int catpt_request_load_firmware(struct catpt_dev *cdev, struct dma_chan *
 		ret = catpt_load_firmware(cdev, chan, paddr, fw);
 
 	dma_free_coherent(cdev->dev, img->size, vaddr, paddr);
-release_fw:
-	release_firmware(img);
 	return ret;
 }
 
