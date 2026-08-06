@@ -367,15 +367,16 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 {
 	struct aa_label *label;
 	int error = 0;
+	bool needput;
 
 	if (!path_mediated_fs(old_dentry))
 		return 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label))
 		error = aa_path_link(current_cred(), label, old_dentry, new_dir,
 				     new_dentry);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -386,13 +387,14 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 {
 	struct aa_label *label;
 	int error = 0;
+	bool needput;
 
 	if (!path_mediated_fs(old_dentry))
 		return 0;
 	if ((flags & RENAME_EXCHANGE) && !path_mediated_fs(new_dentry))
 		return 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		struct mnt_idmap *idmap = mnt_idmap(old_dir->mnt);
 		vfsuid_t vfsuid;
@@ -438,7 +440,7 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 					     AA_MAY_CREATE, &cond);
 
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -505,11 +507,12 @@ static int apparmor_file_open(struct file *file)
 static int apparmor_file_alloc_security(struct file *file)
 {
 	struct aa_file_ctx *ctx = file_ctx(file);
-	struct aa_label *label = begin_current_label_crit_section();
+	bool needput;
+	struct aa_label *label = begin_current_label_crit_section(&needput);
 
 	spin_lock_init(&ctx->lock);
 	rcu_assign_pointer(ctx->label, aa_get_label(label));
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 	return 0;
 }
 
@@ -524,11 +527,12 @@ static void apparmor_file_free_security(struct file *file)
 static int common_file_perm(const char *op, struct file *file, u32 mask)
 {
 	struct aa_label *label;
+	bool needput;
 	int error = 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_file_perm(op, current_cred(), label, file, mask, false);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -849,6 +853,7 @@ static int do_setattr(u64 attr, void *value, size_t size)
 	char *command, *largs = NULL, *args = value;
 	size_t arg_size;
 	int error;
+	bool needput;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_NONE, AA_CLASS_NONE,
 			  OP_SETPROCATTR);
 
@@ -906,7 +911,7 @@ out:
 	return error;
 
 fail:
-	ad.subj_label = begin_current_label_crit_section();
+	ad.subj_label = begin_current_label_crit_section(&needput);
 	if (attr == LSM_ATTR_CURRENT)
 		ad.info = "current";
 	else if (attr == LSM_ATTR_EXEC)
@@ -915,7 +920,7 @@ fail:
 		ad.info = "invalid";
 	ad.error = error = -EINVAL;
 	aa_audit_msg(AUDIT_APPARMOR_DENIED, &ad, NULL);
-	end_current_label_crit_section(ad.subj_label);
+	end_current_label_crit_section(ad.subj_label, needput);
 	goto out;
 }
 
@@ -1046,18 +1051,19 @@ static int apparmor_userns_create(const struct cred *cred)
 	struct aa_label *label;
 	struct aa_profile *profile;
 	int error = 0;
+	bool needput;
 	DEFINE_AUDIT_DATA(ad, LSM_AUDIT_DATA_TASK, AA_CLASS_NS,
 			  OP_USERNS_CREATE);
 
 	ad.subj_cred = current_cred();
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		error = fn_for_each(label, profile,
 				    aa_profile_ns_perm(profile, &ad,
 						       AA_USERNS_CREATE));
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -1251,13 +1257,14 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 {
 	struct aa_label *label;
 	int error = 0;
+	bool needput;
 
 	AA_BUG(in_interrupt());
 
 	if (kern)
 		return 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		if (family == PF_UNIX)
 			error = aa_unix_create_perm(label, family, type,
@@ -1267,7 +1274,7 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 					   AA_MAY_CREATE, family, type,
 					   protocol);
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -1314,9 +1321,10 @@ static int apparmor_socket_socketpair(struct socket *socka,
 	struct aa_sk_ctx *a_ctx = aa_sock(socka->sk);
 	struct aa_sk_ctx *b_ctx = aa_sock(sockb->sk);
 	struct aa_label *label;
+	bool needput;
 
 	/* socks not live yet - initial values set in sk_alloc */
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (rcu_access_pointer(a_ctx->label) != label) {
 		AA_BUG("a_ctx != label");
 		aa_put_label(rcu_dereference_protected(a_ctx->label, true));
@@ -1332,7 +1340,7 @@ static int apparmor_socket_socketpair(struct socket *socka,
 		/* unix socket pairs by-pass unix_stream_connect */
 		unix_connect_peers(a_ctx, b_ctx);
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return 0;
 }
@@ -1563,13 +1571,14 @@ static int apparmor_socket_getpeersec_stream(struct socket *sock,
 	int slen, error = 0;
 	struct aa_label *label;
 	struct aa_label *peer;
+	bool needput;
 
 	peer = sk_peer_get_label(sock->sk);
 	if (IS_ERR(peer)) {
 		error = PTR_ERR(peer);
 		goto done;
 	}
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	slen = aa_label_asxprint(&name, labels_ns(label), peer,
 				 FLAG_SHOW_MODE | FLAG_VIEW_SUBNS |
 				 FLAG_HIDDEN_UNCONFINED, GFP_KERNEL);
@@ -1590,7 +1599,7 @@ done_len:
 		error = -EFAULT;
 
 done_put:
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 	aa_put_label(peer);
 done:
 	kfree(name);

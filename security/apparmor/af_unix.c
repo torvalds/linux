@@ -463,13 +463,14 @@ static int aa_unix_label_sk_perm(const struct cred *subj_cred,
 int aa_unix_sock_perm(const char *op, u32 request, struct socket *sock)
 {
 	struct aa_label *label;
+	bool needput;
 	int error;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_unix_label_sk_perm(current_cred(), label, op,
 				      request, sock->sk,
 				      is_unix_fs(sock->sk) ? &unix_sk(sock->sk)->path : NULL);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -490,13 +491,14 @@ int aa_unix_bind_perm(struct socket *sock, struct sockaddr *addr,
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
+	bool needput;
 	int error = 0;
 
 	error = valid_addr(addr, addrlen);
 	if (error)
 		return error;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	/* fs bind is handled by mknod */
 	if (!unconfined(label)) {
 		DEFINE_AUDIT_SK(ad, OP_BIND, current_cred(), sock->sk);
@@ -507,7 +509,7 @@ int aa_unix_bind_perm(struct socket *sock, struct sockaddr *addr,
 		error = fn_for_each_confined(label, profile,
 				profile_bind_perm(profile, sock->sk, &ad));
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -529,9 +531,10 @@ int aa_unix_listen_perm(struct socket *sock, int backlog)
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
+	bool needput;
 	int error = 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		DEFINE_AUDIT_SK(ad, OP_LISTEN, current_cred(), sock->sk);
 
@@ -539,7 +542,7 @@ int aa_unix_listen_perm(struct socket *sock, int backlog)
 				profile_listen_perm(profile, sock->sk,
 						    backlog, &ad));
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -550,16 +553,17 @@ int aa_unix_accept_perm(struct socket *sock, struct socket *newsock)
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
+	bool needput;
 	int error = 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		DEFINE_AUDIT_SK(ad, OP_ACCEPT, current_cred(), sock->sk);
 
 		error = fn_for_each_confined(label, profile,
 				profile_accept_perm(profile, sock->sk, &ad));
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
@@ -583,9 +587,10 @@ int aa_unix_opt_perm(const char *op, u32 request, struct socket *sock,
 {
 	struct aa_profile *profile;
 	struct aa_label *label;
+	bool needput;
 	int error = 0;
 
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	if (!unconfined(label)) {
 		DEFINE_AUDIT_SK(ad, op, current_cred(), sock->sk);
 
@@ -593,7 +598,7 @@ int aa_unix_opt_perm(const char *op, u32 request, struct socket *sock,
 				profile_opt_perm(profile, request, sock->sk,
 						 optname, &ad));
 	}
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }

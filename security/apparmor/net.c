@@ -308,15 +308,16 @@ static int aa_label_sk_perm(const struct cred *subj_cred,
 int aa_sk_perm(const char *op, u32 request, struct sock *sk)
 {
 	struct aa_label *label;
+	bool needput;
 	int error;
 
 	AA_BUG(!sk);
 	AA_BUG(in_interrupt());
 
 	/* TODO: switch to begin_current_label ???? */
-	label = begin_current_label_crit_section();
+	label = begin_current_label_crit_section(&needput);
 	error = aa_label_sk_perm(current_cred(), label, op, request, sk);
-	end_current_label_crit_section(label);
+	end_current_label_crit_section(label, needput);
 
 	return error;
 }
