@@ -1085,7 +1085,7 @@ static void unpopulated_written_test(const char *name, char *mem, long size,
 	memset(mem, 1, size);
 	if (use_thp &&
 	    (madvise(mem, size, MADV_COLLAPSE) ||
-	     !check_huge_anon(mem, size / hpage_size, hpage_size))) {
+	     !check_huge_anon(mem, size, size / hpage_size, hpage_size))) {
 		ksft_test_result_skip("%s could not form a THP\n", name);
 		goto out;
 	}
