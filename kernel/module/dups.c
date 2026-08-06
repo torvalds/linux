@@ -72,11 +72,9 @@ static struct kmod_dup_req *kmod_dup_request_lookup(char *module_name)
 	lockdep_assert_held(&kmod_dup_mutex);
 
 	list_for_each_entry(kmod_req, &dup_kmod_reqs, list) {
-		if (strlen(kmod_req->name) == strlen(module_name) &&
-		    !memcmp(kmod_req->name, module_name, strlen(module_name))) {
+		if (!strcmp(kmod_req->name, module_name))
 			return kmod_req;
-                }
-        }
+	}
 
 	return NULL;
 }
