@@ -724,7 +724,8 @@ static const int an7583_pon_tod_1pps_pins[] = { 32 };
 static const int an7583_gsw_tod_1pps_pins[] = { 32 };
 static const int an7583_sipo_pins[] = { 34, 35 };
 static const int an7583_sipo_rclk_pins[] = { 34, 35, 33 };
-static const int an7583_mdio_pins[] = { 43, 44 };
+static const int an7583_mdio_pins[] = { 53, 54 };
+static const int an7583_mdio1_pins[] = { 43, 44 };
 static const int an7583_uart2_pins[] = { 34, 35 };
 static const int an7583_uart2_cts_rts_pins[] = { 32, 33 };
 static const int an7583_hsuart_pins[] = { 30, 31 };
@@ -809,6 +810,7 @@ static const struct pingroup an7583_pinctrl_groups[] = {
 	PINCTRL_PIN_GROUP("sipo", an7583_sipo),
 	PINCTRL_PIN_GROUP("sipo_rclk", an7583_sipo_rclk),
 	PINCTRL_PIN_GROUP("mdio", an7583_mdio),
+	PINCTRL_PIN_GROUP("mdio1", an7583_mdio1),
 	PINCTRL_PIN_GROUP("uart2", an7583_uart2),
 	PINCTRL_PIN_GROUP("uart2_cts_rts", an7583_uart2_cts_rts),
 	PINCTRL_PIN_GROUP("hsuart", an7583_hsuart),
@@ -1081,16 +1083,10 @@ static const struct airoha_pinctrl_func_group an7583_mdio_func_group[] = {
 		.regmap[0] = {
 			AIROHA_FUNC_MUX,
 			REG_GPIO_PON_MODE,
-			GPIO_SGMII_MDIO_MODE_MASK,
-			GPIO_SGMII_MDIO_MODE_MASK
+			AN7583_MDC_0_GPIO_MODE_MASK | AN7583_MDIO_0_GPIO_MODE_MASK,
+			0
 		},
-		.regmap[1] = {
-			AIROHA_FUNC_MUX,
-			REG_GPIO_SPI_CS1_MODE,
-			AN7583_GPIO_MDC_IO_MASTER_MODE_MASK,
-			AN7583_GPIO_MDC_IO_MASTER_MODE_MASK
-		},
-		.regmap_size = 2,
+		.regmap_size = 1,
 	},
 };
 
