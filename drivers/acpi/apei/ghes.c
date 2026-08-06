@@ -576,7 +576,7 @@ static bool ghes_handle_arm_hw_error(struct acpi_hest_generic_data *gdata,
 		return false;
 
 	p = (char *)(err + 1);
-	length -= sizeof(err);
+	length -= sizeof(*err);
 
 	for (i = 0; i < err->err_info_num; i++) {
 		struct cper_arm_err_info *err_info;
