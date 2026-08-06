@@ -44,12 +44,9 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <linux/ptrace.h>
+#include <asm/unistd.h>
 
 #include "kselftest.h"
-
-#ifndef __NR_write
-#define __NR_write 64
-#endif
 
 #define PTRACE_EVENT_MASK(status) ((status) >> 16)
 

@@ -34,12 +34,9 @@
 #include <linux/elf.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
+#include <asm/unistd.h>
 
 #include "kselftest.h"
-
-#ifndef __NR_write
-#define __NR_write 64
-#endif
 
 #define EXPECTED_TESTS 1
 
