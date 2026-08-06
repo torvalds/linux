@@ -408,9 +408,10 @@ static int rawmidi_open_priv(struct snd_rawmidi *rmidi, int subdevice, int mode,
 	return 0;
 }
 
-/* called from sound/core/seq/seq_midi.c */
-int snd_rawmidi_kernel_open(struct snd_rawmidi *rmidi, int subdevice,
-			    int mode, struct snd_rawmidi_file *rfile)
+/* called from sound/core/seq/seq_midi.c and sound/core/ump.c */
+int snd_rawmidi_kernel_open_nested(struct snd_rawmidi *rmidi, int subdevice,
+				   int mode, struct snd_rawmidi_file *rfile,
+				   int depth)
 {
 	int err;
 
@@ -419,13 +420,14 @@ int snd_rawmidi_kernel_open(struct snd_rawmidi *rmidi, int subdevice,
 	if (!try_module_get(rmidi->card->module))
 		return -ENXIO;
 
-	guard(mutex)(&rmidi->open_mutex);
+	mutex_lock_nested(&rmidi->open_mutex, depth);
 	err = rawmidi_open_priv(rmidi, subdevice, mode, rfile);
 	if (err < 0)
 		module_put(rmidi->card->module);
+	mutex_unlock(&rmidi->open_mutex);
 	return err;
 }
-EXPORT_SYMBOL(snd_rawmidi_kernel_open);
+EXPORT_SYMBOL(snd_rawmidi_kernel_open_nested);
 
 static int snd_rawmidi_open(struct inode *inode, struct file *file)
 {
