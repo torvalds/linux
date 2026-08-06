@@ -415,6 +415,8 @@ static void test_double_dereference(const char *str, int len,
 		ptr += 5;
 		for (; ptr < end; ptr++) {
 			if (ptr[0] == '-' && ptr[1] == '>') {
+				pr_warn("TRACE EVENT ERROR: Event %s has double dereference in TP_printk: %.*s\n",
+					trace_event_name(call), len, str);
 				WARN_ONCE(1, "Event %s has double dereference in TP_printk: %.*s\n",
 					  trace_event_name(call), len, str);
 				return;
