@@ -2133,6 +2133,7 @@ static int mpam_msc_drv_probe(struct platform_device *pdev)
 static struct platform_driver mpam_msc_driver = {
 	.driver = {
 		.name = "mpam_msc",
+		.suppress_bind_attrs = true,
 	},
 	.probe = mpam_msc_drv_probe,
 	.remove = mpam_msc_drv_remove,
