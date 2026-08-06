@@ -44,6 +44,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_nvl_machines[] = {
 	},
 	{
 		.comp_ids = &nvl_rt5682_rt5682s_hp,
+		.drv_name = "nvl_rt5682_c1_h02",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &nvl_lt6911_hdmi,
+		.sof_tplg_filename = "sof-nvl-rt5682-ssp1-hdmi-ssp02.tplg",
+	},
+	{
+		.comp_ids = &nvl_rt5682_rt5682s_hp,
 		.drv_name = "sof_rt5682",
 		.sof_tplg_filename = "sof-nvl-rt5682", /* the tplg suffix is added at run time */
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
