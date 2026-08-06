@@ -3956,80 +3956,77 @@ static int xhci_ist_microframes(struct xhci_hcd *xhci)
 }
 
 /*
- * Calculates Frame ID field of the isochronous TRB identifies the
- * target frame that the Interval associated with this Isochronous
- * Transfer Descriptor will start on. Refer to 4.11.2.5 in 1.1 spec.
- *
- * Returns actual frame id on success, negative value on error.
+ * Check if frame is in the valid frame window, including start and end.
+ * If start > end then assume window wrapped around at a limit the frame
+ * value won't exceed.
  */
-static int xhci_get_isoc_frame_id(struct xhci_hcd *xhci,
-		struct urb *urb, int index)
+static bool xhci_frame_in_range(u32 frame, u32 start, u32 end)
 {
-	int start_frame, ist, ret = 0;
-	int start_frame_id, end_frame_id, current_frame_id;
+	/* frame window end wrapped around */
+	if (start > end)
+		return frame >= start || frame <= end;
 
-	if (urb->dev->speed == USB_SPEED_LOW ||
-			urb->dev->speed == USB_SPEED_FULL)
-		start_frame = urb->start_frame + index * urb->interval;
-	else
-		start_frame = (urb->start_frame + index * urb->interval) >> 3;
+	return frame >= start && frame <= end;
+}
 
+/*
+ * Set the urb->start_frame of the URB.
+ *
+ * Returns microframe index of first TD
+ */
+static int xhci_get_isoc_start_frame(struct xhci_hcd *xhci, struct urb *urb,
+				     struct xhci_virt_ep *ep)
+{
+	u32 curr_frame, start_uframe;
+	u32 urb_start, urb_end;
+	u32 win_start, win_end;
+	bool frame_unit;
+	int uinterval;
+	u32 mfindex;
+	int ist;
+
+	/* check if urb uses frame units instead of microframes */
+	frame_unit = (urb->dev->speed == USB_SPEED_FULL ||
+		     urb->dev->speed == USB_SPEED_LOW);
+
+	uinterval = urb->interval;
+	if (frame_unit)
+		uinterval *= 8;
+
+	/* get current microframe index and isoc scheduling threshold */
+	mfindex = readl(&xhci->run_regs->microframe_index);
 	ist = xhci_ist_microframes(xhci);
 
-	/* Software shall not schedule an Isoch TD with a Frame ID value that
-	 * is less than the Start Frame ID or greater than the End Frame ID,
-	 * where:
-	 *
-	 * End Frame ID = (Current MFINDEX register value + 895 ms.) MOD 2048
-	 * Start Frame ID = (Current MFINDEX register value + IST + 1) MOD 2048
-	 *
-	 * Both the End Frame ID and Start Frame ID values are calculated
-	 * in microframes. When software determines the valid Frame ID value;
-	 * The End Frame ID value should be rounded down to the nearest Frame
-	 * boundary, and the Start Frame ID value should be rounded up to the
-	 * nearest Frame boundary.
-	 */
-	current_frame_id = readl(&xhci->run_regs->microframe_index);
-	start_frame_id = roundup(current_frame_id + ist + 1, 8);
-	end_frame_id = rounddown(current_frame_id + 895 * 8, 8);
+	/* calculate valid frame window, in frame units, see xhci 4.11.2.5 */
+	curr_frame = MFINDEX_TO_FRAME(mfindex);
+	win_start = (curr_frame + DIV_ROUND_UP_POW2(ist, 8) + 1) % MAX_FRAMES;
+	win_end = (curr_frame + 895) % MAX_FRAMES;
 
-	start_frame &= 0x7ff;
-	start_frame_id = (start_frame_id >> 3) & 0x7ff;
-	end_frame_id = (end_frame_id >> 3) & 0x7ff;
-
-	if (start_frame_id < end_frame_id) {
-		if (start_frame > end_frame_id ||
-				start_frame < start_frame_id)
-			ret = -EINVAL;
-	} else if (start_frame_id > end_frame_id) {
-		if ((start_frame > end_frame_id &&
-				start_frame < start_frame_id))
-			ret = -EINVAL;
+	/* Is this the first URB starting the whole isoc data flow? */
+	if (ep->next_uframe < 0) {
+		/* align first URB to next interval boundary, or at last to full frame */
+		start_uframe = mfindex + ist + XHCI_CFC_DELAY;
+		start_uframe = roundup(start_uframe, 8);
+		start_uframe = roundup(start_uframe, uinterval) % MAX_UFRAMES;
 	} else {
-			ret = -EINVAL;
-	}
+		/* URB is mid stream and expected to handle the next frame */
+		start_uframe = ep->next_uframe;
+		urb_start = start_uframe / 8;
+		urb_end = (start_uframe + urb->number_of_packets * uinterval) / 8;
+		urb_end %= MAX_FRAMES;
 
-	if (index == 0) {
-		if (ret == -EINVAL || start_frame == start_frame_id) {
-			start_frame = start_frame_id + 1;
-			if (urb->dev->speed == USB_SPEED_LOW ||
-					urb->dev->speed == USB_SPEED_FULL)
-				urb->start_frame = start_frame;
-			else
-				urb->start_frame = start_frame << 3;
-			ret = 0;
-		}
-	}
+		if (!xhci_frame_in_range(urb_start, win_start, win_end))
+			xhci_dbg(xhci, "Ill-timed isoc URB %p for start frame %d, range %d-%d\n",
+				 urb, urb_start, win_start, win_end);
 
-	if (ret) {
-		xhci_warn(xhci, "Frame ID %d (reg %d, index %d) beyond range (%d, %d)\n",
-				start_frame, current_frame_id, index,
-				start_frame_id, end_frame_id);
-		xhci_warn(xhci, "Ignore frame ID field, use SIA bit instead\n");
-		return ret;
+		if (!xhci_frame_in_range(urb_end, win_start, win_end))
+			xhci_dbg(xhci, "Ill-timed isoc URB %p for end frame %d, range %d-%d\n",
+				 urb, urb_start, win_start, win_end);
 	}
+	/* set urb->start_frame */
+	urb->start_frame = frame_unit ? start_uframe / 8 : start_uframe;
 
-	return start_frame;
+	return start_uframe;
 }
 
 /* Check if we should generate event interrupt for a TD in an isoc URB */
@@ -4070,6 +4067,8 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	bool more_trbs_coming;
 	struct xhci_virt_ep *xep;
 	int frame_id;
+	int uinterval = urb->interval;
+	int start_uframe;
 
 	xep = &xhci->devs[slot_id]->eps[ep_index];
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
@@ -4085,6 +4084,12 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	start_cycle = ep_ring->cycle_state;
 
 	urb_priv = urb->hcpriv;
+
+	if (urb->dev->speed == USB_SPEED_FULL || urb->dev->speed == USB_SPEED_LOW)
+		uinterval = urb->interval * 8;
+
+	start_uframe = xhci_get_isoc_start_frame(xhci, urb, xep);
+
 	/* Queue the TRBs for each TD, even if they are zero-length */
 	for (i = 0; i < num_tds; i++) {
 		unsigned int total_pkt_count, max_pkt;
@@ -4116,14 +4121,15 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			goto cleanup;
 		}
 		td = &urb_priv->td[i];
+
 		/* use SIA as default, if frame id is used overwrite it */
 		sia_frame_id = TRB_SIA;
-		if (!(urb->transfer_flags & URB_ISO_ASAP) &&
-		    (xhci->hcc_params & HCC_CFC)) {
-			frame_id = xhci_get_isoc_frame_id(xhci, urb, i);
-			if (frame_id >= 0)
-				sia_frame_id = TRB_FRAME_ID(frame_id);
+		if (!(urb->transfer_flags & URB_ISO_ASAP) && (xhci->hcc_params & HCC_CFC)) {
+			frame_id = (start_uframe + i * uinterval) / 8;
+			frame_id %= MAX_FRAMES;
+			sia_frame_id = TRB_FRAME_ID(frame_id);
 		}
+
 		/*
 		 * Set isoc specific data for the first TRB in a TD.
 		 * Prevent HW from getting the TRBs by keeping the cycle state
@@ -4202,9 +4208,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		}
 	}
 
-	/* store the next frame id */
-	if (xhci->hcc_params & HCC_CFC)
-		xep->next_frame_id = urb->start_frame + num_tds * urb->interval;
+	xep->next_uframe = (start_uframe + num_tds * uinterval) % MAX_UFRAMES;
 
 	if (xhci_to_hcd(xhci)->self.bandwidth_isoc_reqs == 0) {
 		if (xhci->quirks & XHCI_AMD_PLL_FIX)
@@ -4251,11 +4255,9 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_virt_device *xdev;
 	struct xhci_ring *ep_ring;
 	struct xhci_ep_ctx *ep_ctx;
-	int start_frame;
+	struct xhci_virt_ep *xep;
 	int num_tds, num_trbs, i;
 	int ret;
-	struct xhci_virt_ep *xep;
-	int ist;
 
 	xdev = xhci->devs[slot_id];
 	xep = &xhci->devs[slot_id]->eps[ep_index];
@@ -4281,38 +4283,12 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 */
 	check_interval(urb, ep_ctx);
 
-	/* Calculate the start frame and put it in urb->start_frame. */
-	if ((xhci->hcc_params & HCC_CFC) && !list_empty(&ep_ring->td_list)) {
-		if (GET_EP_CTX_STATE(ep_ctx) ==	EP_STATE_RUNNING) {
-			urb->start_frame = xep->next_frame_id;
-			goto skip_start_over;
-		}
-	}
-
-	start_frame = readl(&xhci->run_regs->microframe_index);
-	start_frame &= 0x3fff;
 	/*
-	 * Round up to the next frame and consider the time before trb really
-	 * gets scheduled by hardare.
+	 * Check if this starts the isoc data flow. Relies on hw setting ep ctx
+	 * state after doorbell ring. Consider adding list_empty(td_list) check
 	 */
-	ist = xhci_ist_microframes(xhci);
-	start_frame += ist + XHCI_CFC_DELAY;
-	start_frame = roundup(start_frame, 8);
-
-	/*
-	 * Round up to the next ESIT (Endpoint Service Interval Time) if ESIT
-	 * is greate than 8 microframes.
-	 */
-	if (urb->dev->speed == USB_SPEED_LOW ||
-			urb->dev->speed == USB_SPEED_FULL) {
-		start_frame = roundup(start_frame, urb->interval << 3);
-		urb->start_frame = start_frame >> 3;
-	} else {
-		start_frame = roundup(start_frame, urb->interval);
-		urb->start_frame = start_frame;
-	}
-
-skip_start_over:
+	if (GET_EP_CTX_STATE(ep_ctx) != EP_STATE_RUNNING)
+		xep->next_uframe = -1;
 
 	return xhci_queue_isoc_tx(xhci, mem_flags, urb, slot_id, ep_index);
 }

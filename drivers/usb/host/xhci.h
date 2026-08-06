@@ -290,6 +290,11 @@ struct xhci_run_regs {
 	struct xhci_intr_reg	ir_set[1024];
 };
 
+/* Bits [13:3] of the microframe index equals the 1ms frame index */
+#define MFINDEX_TO_FRAME(p)	(((p) >> 3) & 0x7ff)
+#define MAX_FRAMES		2048
+#define MAX_UFRAMES		(MAX_FRAMES * 8)
+
 /**
  * struct doorbell_array
  *
@@ -699,7 +704,7 @@ struct xhci_virt_ep {
 	struct list_head	bw_endpoint_list;
 	unsigned long		stop_time;
 	/* Isoch Frame ID checking storage */
-	int			next_frame_id;
+	int			next_uframe;
 	/* Use new Isoch TRB layout needed for extended TBC support */
 	bool			use_extended_tbc;
 	/* set if this endpoint is controlled via sideband access*/
