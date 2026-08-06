@@ -1428,6 +1428,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 				     "Failed to initialize regmap\n");
 
 	irq = platform_get_irq_optional(pdev, 0);
+	if (irq == -EPROBE_DEFER)
+		return irq;
 	if (irq > 0) {
 		ret = devm_request_irq(&pdev->dev, irq, rockchip_sai_isr,
 				       IRQF_SHARED, node->name, sai);
