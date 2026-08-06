@@ -459,12 +459,6 @@ nf_flow_offload_lookup(struct nf_flowtable_ctx *ctx,
 {
 	struct flow_offload_tuple tuple = {};
 
-	if (!nf_flow_skb_encap_protocol(ctx, skb))
-		return NULL;
-
-	if (unlikely(ctx->ether_type != htons(ETH_P_IP)))
-		return NULL;
-
 	if (nf_flow_tuple_ip(ctx, skb, &tuple) < 0)
 		return NULL;
 
@@ -877,6 +871,12 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 	};
 	int ret;
 
+	if (!nf_flow_skb_encap_protocol(&ctx, skb))
+		return NF_ACCEPT;
+
+	if (unlikely(ctx.ether_type != htons(ETH_P_IP)))
+		return NF_ACCEPT;
+
 	tuplehash = nf_flow_offload_lookup(&ctx, flow_table, skb);
 	if (!tuplehash)
 		return NF_ACCEPT;
@@ -1117,12 +1117,6 @@ nf_flow_offload_ipv6_lookup(struct nf_flowtable_ctx *ctx,
 {
 	struct flow_offload_tuple tuple = {};
 
-	if (!nf_flow_skb_encap_protocol(ctx, skb))
-		return NULL;
-
-	if (unlikely(ctx->ether_type != htons(ETH_P_IPV6)))
-		return NULL;
-
 	if (nf_flow_tuple_ipv6(ctx, skb, &tuple) < 0)
 		return NULL;
 
@@ -1205,6 +1199,12 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 		.in	= state->in,
 	};
 	int ret;
+
+	if (!nf_flow_skb_encap_protocol(&ctx, skb))
+		return NF_ACCEPT;
+
+	if (unlikely(ctx.ether_type != htons(ETH_P_IPV6)))
+		return NF_ACCEPT;
 
 	tuplehash = nf_flow_offload_ipv6_lookup(&ctx, flow_table, skb);
 	if (!tuplehash)
