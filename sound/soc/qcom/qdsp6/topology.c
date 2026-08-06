@@ -1416,7 +1416,6 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 {
 	struct snd_soc_card *card = component->card;
 	struct device *dev = component->dev;
-	const struct firmware *fw;
 	int ret;
 
 	/* Inline with Qualcomm UCM configs and linux-firmware path */
@@ -1426,6 +1425,7 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 	if (!tplg_fw_name)
 		return -ENOMEM;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, tplg_fw_name, dev);
 	if (ret < 0) {
 		dev_err(dev, "tplg firmware loading %s failed %d\n", tplg_fw_name, ret);
@@ -1437,8 +1437,6 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "tplg component load failed: %d\n", ret);
 	}
-
-	release_firmware(fw);
 
 	return ret;
 }
