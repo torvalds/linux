@@ -10,6 +10,7 @@
 #ifndef _NILFS_SUFILE_H
 #define _NILFS_SUFILE_H
 
+#include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include "mdt.h"
@@ -53,6 +54,33 @@ int nilfs_sufile_resize(struct inode *sufile, __u64 newnsegs);
 int nilfs_sufile_read(struct super_block *sb, size_t susize,
 		      struct nilfs_inode *raw_inode, struct inode **inodep);
 int nilfs_sufile_trim_fs(struct inode *sufile, struct fstrim_range *range);
+
+/**
+ * nilfs_sufile_warn_on_error - warn on unexpected sufile error
+ * @sufile: inode of segment usage file
+ * @err: status code returned by a sufile function
+ *
+ * Even if buffer heads of blocks containing segment usage entries have
+ * been dirtied in advance by calling functions such as
+ * nilfs_sufile_mark_dirty() or nilfs_sufile_{alloc,free}(), those buffers
+ * can be discarded from memory after the file system detects corruption and
+ * degrades to read-only mode, which may cause sufile operations, including
+ * cancel operations, to return errors.  nilfs_sufile_warn_on_error() is used
+ * to detect unexpected errors other than during read-only degradation.
+ *
+ * Return: 0 if @err is 0, %-EROFS if in read-only degraded mode, and %-EIO
+ * otherwise.
+ */
+#define nilfs_sufile_warn_on_error(sufile, err)				\
+	({								\
+		int _err = (err);					\
+									\
+		if (unlikely(_err))					\
+			_err = WARN_ONCE(!sb_rdonly((sufile)->i_sb),	\
+				"unexpected sufile error %d\n", _err) ? \
+				-EIO : -EROFS;				\
+		_err;							\
+	})
 
 /**
  * nilfs_sufile_scrap - make a segment garbage
