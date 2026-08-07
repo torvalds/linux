@@ -361,8 +361,8 @@ MODULE_DEVICE_TABLE(i2c, ipmb_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id acpi_ipmb_id[] = {
-	{ "IPMB0001", 0 },
-	{},
+	{ .id = "IPMB0001" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, acpi_ipmb_id);
 #endif
