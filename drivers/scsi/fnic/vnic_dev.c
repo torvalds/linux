@@ -381,7 +381,7 @@ static int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		if (result->color == color) {
 			if (result->error) {
 				err = -(int) result->error;
-				if (err != ERR_ECMDUNKNOWN ||
+				if (err != -ERR_ECMDUNKNOWN ||
 						cmd != CMD_CAPABILITY)
 					pr_err("%s:Error %d devcmd %d\n",
 						pci_name(vdev->pdev),
