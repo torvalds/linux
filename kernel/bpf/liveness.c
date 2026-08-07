@@ -2232,6 +2232,7 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 	struct bpf_insn *insns = env->prog->insnsi;
 	struct insn_live_regs *state;
 	int insn_cnt = env->prog->len;
+	u64 pos, insn_pos;
 	int err = 0, i, j;
 	bool changed;
 
@@ -2291,9 +2292,18 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 	}
 
 	for (i = 0; i < insn_cnt; ++i) {
+		int def32 = bpf_insn_def32(env->prog, &insns[i]);
+		u32 out = state[i].out;
 		u32 in = state[i].in;
 
 		insn_aux[i].live_regs_before = mask_lo(in) | mask_hi(in);
+		/*
+		 * On architectures where 32-bit operations do not reset upper halves
+		 * of the registers, the verifier needs to zero extend a destination
+		 * register if an instruction defines a 32-bit subregister and the
+		 * upper half of that register is alive after the instruction.
+		 */
+		insn_aux[i].zext_dst = def32 >= 0 && (mask_hi(out) & BIT(def32));
 	}
 
 	if (env->log.level & BPF_LOG_LEVEL2) {
@@ -2310,7 +2320,11 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 				else
 					verbose(env, ".");
 			verbose(env, " ");
+			pos = env->log.end_pos;
 			bpf_verbose_insn(env, &insns[i]);
+			insn_pos = env->log.end_pos;
+			if (insn_aux[i].zext_dst)
+				verbose(env, "%*c; zext", bpf_vlog_alignment(insn_pos - pos), ' ');
 			verbose(env, "\n");
 			if (bpf_is_ldimm64(&insns[i]))
 				i++;

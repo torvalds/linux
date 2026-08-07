@@ -68,8 +68,8 @@ static int insn_def_regno(const struct bpf_insn *insn)
  * code only. It returns TRUE if the source or destination register operates
  * on 64-bit, otherwise return FALSE.
  */
-bool bpf_is_reg64(struct bpf_insn *insn,
-		  u32 regno, struct bpf_reg_state *reg, enum bpf_reg_arg_type t)
+static bool bpf_is_reg64(struct bpf_prog *prog, struct bpf_insn *insn,
+			 u32 regno, struct bpf_reg_state *reg, enum bpf_reg_arg_type t)
 {
 	u8 code, class, op;
 
@@ -101,6 +101,10 @@ bool bpf_is_reg64(struct bpf_insn *insn,
 	}
 
 	if (class == BPF_ALU64 && op == BPF_END && (insn->imm == 16 || insn->imm == 32))
+		return false;
+
+	/* address space casts converted to BPF_ALU, see bpf_do_misc_fixups() */
+	if (is_addr_space_cast32(prog, insn))
 		return false;
 
 	if (class == BPF_ALU64 || class == BPF_JMP ||
@@ -154,15 +158,18 @@ bool bpf_is_reg64(struct bpf_insn *insn,
 	return true;
 }
 
-/* Return TRUE if INSN has defined any 32-bit value explicitly. */
-static bool insn_has_def32(struct bpf_insn *insn)
+/*
+ * Return the 32-bit subregister defined by INSN, or -1 if INSN does not
+ * explicitly define a 32-bit value.
+ */
+int bpf_insn_def32(struct bpf_prog *prog, struct bpf_insn *insn)
 {
 	int dst_reg = insn_def_regno(insn);
 
-	if (dst_reg == -1)
-		return false;
+	if (dst_reg < 0 || bpf_is_reg64(prog, insn, dst_reg, NULL, DST_OP))
+		return -1;
 
-	return !bpf_is_reg64(insn, dst_reg, NULL, DST_OP);
+	return dst_reg;
 }
 
 static int kfunc_desc_cmp_by_imm_off(const void *a, const void *b)
@@ -279,7 +286,7 @@ static void adjust_insn_aux_data(struct bpf_verifier_env *env,
 	 * (cnt == 1) is taken or not. There is no guarantee INSN at OFF is the
 	 * original insn at old prog.
 	 */
-	data[off].zext_dst = insn_has_def32(insn + off + cnt - 1);
+	data[off].zext_dst = bpf_insn_def32(new_prog, insn + off + cnt - 1) >= 0;
 
 	if (cnt == 1)
 		return;
@@ -291,7 +298,7 @@ static void adjust_insn_aux_data(struct bpf_verifier_env *env,
 	for (i = off; i < off + cnt - 1; i++) {
 		/* Expand insni[off]'s seen count to the patched range. */
 		data[i].seen = old_seen;
-		data[i].zext_dst = insn_has_def32(insn + i);
+		data[i].zext_dst = bpf_insn_def32(new_prog, insn + i) >= 0;
 	}
 
 	/*
@@ -730,7 +737,7 @@ int bpf_opt_subreg_zext_lo32_rnd_hi32(struct bpf_verifier_env *env,
 			 *       BPF_STX + SRC_OP, so it is safe to pass NULL
 			 *       here.
 			 */
-			if (bpf_is_reg64(&insn, load_reg, NULL, DST_OP)) {
+			if (bpf_is_reg64(env->prog, &insn, load_reg, NULL, DST_OP)) {
 				if (class == BPF_LD &&
 				    BPF_MODE(code) == BPF_IMM)
 					i++;
