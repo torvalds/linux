@@ -1485,7 +1485,7 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 	int nr_vcpus;
 
 	rcu_read_lock();
-	vsie_page = radix_tree_lookup(&kvm->arch.vsie.addr_to_page, addr >> 9);
+	vsie_page = radix_tree_lookup(&kvm->arch.vsie.addr_to_page, addr >> SCB_ALIGNMENT_SHIFT);
 	rcu_read_unlock();
 	if (vsie_page) {
 		if (try_get_vsie_page(vsie_page)) {
@@ -1526,13 +1526,14 @@ static struct vsie_page *get_vsie_page(struct kvm *kvm, unsigned long addr)
 		}
 		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  vsie_page->scb_gpa >> 9);
+					  vsie_page->scb_gpa >> SCB_ALIGNMENT_SHIFT);
 	}
 	/* Mark it as invalid until it resides in the tree. */
 	vsie_page->scb_gpa = ULONG_MAX;
 
 	/* Double use of the same address or allocation failure. */
-	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> 9, vsie_page)) {
+	if (radix_tree_insert(&kvm->arch.vsie.addr_to_page, addr >> SCB_ALIGNMENT_SHIFT,
+			      vsie_page)) {
 		put_vsie_page(vsie_page);
 		mutex_unlock(&kvm->arch.vsie.mutex);
 		return NULL;
@@ -1630,7 +1631,7 @@ void kvm_s390_vsie_destroy(struct kvm *kvm)
 		/* free the radix tree entry */
 		if (vsie_page->scb_gpa != ULONG_MAX)
 			radix_tree_delete(&kvm->arch.vsie.addr_to_page,
-					  vsie_page->scb_gpa >> 9);
+					  vsie_page->scb_gpa >> SCB_ALIGNMENT_SHIFT);
 		free_page((unsigned long)vsie_page);
 	}
 	kvm->arch.vsie.page_count = 0;
