@@ -235,11 +235,13 @@ struct ufs_query {
  * @type: device management command type - Query, NOP OUT
  * @lock: lock to allow one command at a time
  * @query: Device management query information
+ * @tag: tag of the reserved request in use
  */
 struct ufs_dev_cmd {
 	enum dev_cmd_type type;
 	struct mutex lock;
 	struct ufs_query query;
+	u8 tag;
 };
 
 /**
@@ -954,9 +956,13 @@ enum ufshcd_mcq_opr {
  * @ucdl_base_addr: UFS Command Descriptor base address
  * @utrdl_base_addr: UTP Transfer Request Descriptor base address
  * @utmrdl_base_addr: UTP Task Management Descriptor base address
+ * @devman_ucd_base_addr: UFS Command Descriptor base address for the reserved
+ *	device management tag (has a larger response area)
  * @ucdl_dma_addr: UFS Command Descriptor DMA address
  * @utrdl_dma_addr: UTRDL DMA address
  * @utmrdl_dma_addr: UTMRDL DMA address
+ * @devman_ucd_dma_addr: UFS Command Descriptor DMA address for the reserved
+ *	device management tag
  * @host: Scsi_Host instance of the driver
  * @dev: device handle
  * @ufs_device_wlun: WLUN that controls the entire UFS device.
@@ -1098,11 +1104,13 @@ struct ufs_hba {
 	struct utp_transfer_cmd_desc *ucdl_base_addr;
 	struct utp_transfer_req_desc *utrdl_base_addr;
 	struct utp_task_req_desc *utmrdl_base_addr;
+	struct utp_devman_cmd_desc *devman_ucd_base_addr;
 
 	/* DMA memory reference */
 	dma_addr_t ucdl_dma_addr;
 	dma_addr_t utrdl_dma_addr;
 	dma_addr_t utmrdl_dma_addr;
+	dma_addr_t devman_ucd_dma_addr;
 
 	struct Scsi_Host *host;
 	struct device *dev;
@@ -1359,6 +1367,18 @@ ufs_hba_from_crypto_profile(struct blk_crypto_profile *profile)
 static inline size_t ufshcd_get_ucd_size(const struct ufs_hba *hba)
 {
 	return sizeof(struct utp_transfer_cmd_desc) + SG_ALL * ufshcd_sg_entry_size(hba);
+}
+
+/*
+ * Two entries should be enough for the largest devman PRDT transfer (4 KiB),
+ * like advanced RPMB.
+ */
+#define UFSHCD_DEVMAN_SG_ENTRIES	2
+
+static inline size_t ufshcd_get_devman_ucd_size(const struct ufs_hba *hba)
+{
+	return sizeof(struct utp_devman_cmd_desc) +
+		UFSHCD_DEVMAN_SG_ENTRIES * ufshcd_sg_entry_size(hba);
 }
 
 /* Returns true if clocks can be gated. Otherwise false */
