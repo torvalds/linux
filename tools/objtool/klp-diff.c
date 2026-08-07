@@ -30,7 +30,9 @@ struct elfs {
 
 struct export {
 	struct hlist_node hash;
-	char *mod, *sym;
+	char *mod;
+	char *sym;
+	bool mod_ns;
 };
 
 bool debug, debug_correlate, debug_clone;
@@ -135,7 +137,7 @@ static int read_exports(void)
 	}
 
 	while (fgets(line, 1024, file)) {
-		char *sym, *mod, *type;
+		char *sym, *mod, *type, *namespace;
 		struct export *export;
 
 		sym = strchr(line, '\t');
@@ -162,6 +164,14 @@ static int read_exports(void)
 
 		*type++ = '\0';
 
+		namespace = strchr(type, '\t');
+		if (!namespace) {
+			ERROR("malformed Module.symvers (namespace) at line %d", line_num);
+			return -1;
+		}
+
+		*namespace++ = '\0';
+
 		if (*sym == '\0' || *mod == '\0') {
 			ERROR("malformed Module.symvers at line %d", line_num);
 			return -1;
@@ -187,6 +197,9 @@ static int read_exports(void)
 			ERROR_GLIBC("strdup");
 			return -1;
 		}
+
+		/* EXPORT_SYMBOL_FOR_MODULES() */
+		export->mod_ns = strstarts(namespace, "module:");
 
 		hash_add(exports, &export->hash, str_hash(sym));
 	}
@@ -1175,11 +1188,16 @@ static bool klp_reloc_needed(struct reloc *patched_reloc)
 	 * clusterfunk that is late module patching, the patch module is
 	 * allowed to be loaded before any modules it depends on.
 	 *
-	 * If exported by vmlinux, a normal reloc will do.
+	 * If exported by vmlinux to all modules, a normal reloc will do.
 	 */
 	export = find_export(patched_sym);
-	if (export)
-		return strcmp(export->mod, "vmlinux");
+	if (export) {
+		if (strcmp(export->mod, "vmlinux"))
+			return true;
+
+		/* EXPORT_SYMBOL_FOR_MODULES() gets a klp reloc */
+		return export->mod_ns;
+	}
 
 	if (!patched_sym->twin) {
 		/*
