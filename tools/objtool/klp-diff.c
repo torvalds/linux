@@ -1628,13 +1628,17 @@ static int create_fake_symbols(struct elf *elf)
 	for_each_reloc(sec->rsec, reloc) {
 		unsigned long offset, size;
 		struct reloc *next_reloc;
+		bool last = true;
 
 		if (annotype(elf, sec, reloc) != ANNOTYPE_DATA_SPECIAL)
 			continue;
 
 		offset = reloc_addend(reloc);
 
-		size = 0;
+		/*
+		 * Find the start of the next entry so the fake symbol size can
+		 * be calculated.
+		 */
 		next_reloc = reloc;
 		for_each_reloc_continue(sec->rsec, next_reloc) {
 			if (annotype(elf, sec, next_reloc) != ANNOTYPE_DATA_SPECIAL ||
@@ -1642,10 +1646,15 @@ static int create_fake_symbols(struct elf *elf)
 				continue;
 
 			size = reloc_addend(next_reloc) - offset;
+			last = false;
 			break;
 		}
 
-		if (!size)
+		/*
+		 * If no next entry found, this is the last entry, so its size
+		 * is from the current offset to the end of the section.
+		 */
+		if (last)
 			size = sec_size(reloc->sym->sec) - offset;
 
 		if (create_fake_symbol(elf, reloc->sym->sec, offset, size))
