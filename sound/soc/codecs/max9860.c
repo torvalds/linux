@@ -48,7 +48,6 @@ static int max9860_dvddio_event(struct notifier_block *nb,
 }
 
 static const struct reg_default max9860_reg_defaults[] = {
-	{ MAX9860_PWRMAN,       0x00 },
 	{ MAX9860_INTEN,        0x00 },
 	{ MAX9860_SYSCLK,       0x00 },
 	{ MAX9860_AUDIOCLKHIGH, 0x00 },
@@ -62,6 +61,7 @@ static const struct reg_default max9860_reg_defaults[] = {
 	{ MAX9860_MICGAIN,      0x00 },
 	{ MAX9860_MICADC,       0x00 },
 	{ MAX9860_NOISEGATE,    0x00 },
+	{ MAX9860_PWRMAN,       0x00 },
 };
 
 static bool max9860_readable(struct device *dev, unsigned int reg)
