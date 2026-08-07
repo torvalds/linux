@@ -1105,6 +1105,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	ubi->ref_count -= 1;
 	if (ubi->ref_count) {
 		if (!anyway) {
+			put_device(&ubi->dev);
 			spin_unlock(&ubi_devices_lock);
 			return -EBUSY;
 		}
