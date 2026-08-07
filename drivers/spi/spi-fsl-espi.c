@@ -580,7 +580,6 @@ static irqreturn_t fsl_espi_irq(s32 irq, void *context_data)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM
 static int fsl_espi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -606,7 +605,6 @@ static int fsl_espi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static size_t fsl_espi_max_message_size(struct spi_device *spi)
 {
@@ -785,7 +783,6 @@ static void of_fsl_espi_remove(struct platform_device *dev)
 	pm_runtime_disable(&dev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int of_fsl_espi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -811,12 +808,10 @@ static int of_fsl_espi_resume(struct device *dev)
 
 	return spi_controller_resume(host);
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops espi_pm = {
-	SET_RUNTIME_PM_OPS(fsl_espi_runtime_suspend,
-			   fsl_espi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(of_fsl_espi_suspend, of_fsl_espi_resume)
+	RUNTIME_PM_OPS(fsl_espi_runtime_suspend, fsl_espi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(of_fsl_espi_suspend, of_fsl_espi_resume)
 };
 
 static const struct of_device_id of_fsl_espi_match[] = {
@@ -829,7 +824,7 @@ static struct platform_driver fsl_espi_driver = {
 	.driver = {
 		.name = "fsl_espi",
 		.of_match_table = of_fsl_espi_match,
-		.pm = &espi_pm,
+		.pm = pm_ptr(&espi_pm),
 	},
 	.probe		= of_fsl_espi_probe,
 	.remove		= of_fsl_espi_remove,

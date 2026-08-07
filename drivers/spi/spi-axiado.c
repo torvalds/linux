@@ -902,7 +902,7 @@ static void ax_spi_remove(struct platform_device *pdev)
  *
  * Return:	0 on success and error value on error
  */
-static int __maybe_unused ax_spi_suspend(struct device *dev)
+static int ax_spi_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 
@@ -917,7 +917,7 @@ static int __maybe_unused ax_spi_suspend(struct device *dev)
  *
  * Return:	0 on success and error value on error
  */
-static int __maybe_unused ax_spi_resume(struct device *dev)
+static int ax_spi_resume(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 	struct ax_spi *xspi = spi_controller_get_devdata(ctlr);
@@ -934,7 +934,7 @@ static int __maybe_unused ax_spi_resume(struct device *dev)
  *
  * Return:	0 on success and error value on error
  */
-static int __maybe_unused ax_spi_runtime_resume(struct device *dev)
+static int ax_spi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 	struct ax_spi *xspi = spi_controller_get_devdata(ctlr);
@@ -963,7 +963,7 @@ static int __maybe_unused ax_spi_runtime_resume(struct device *dev)
  *
  * Return:	Always 0
  */
-static int __maybe_unused ax_spi_runtime_suspend(struct device *dev)
+static int ax_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 	struct ax_spi *xspi = spi_controller_get_devdata(ctlr);
@@ -975,9 +975,8 @@ static int __maybe_unused ax_spi_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops ax_spi_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(ax_spi_runtime_suspend,
-			   ax_spi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(ax_spi_suspend, ax_spi_resume)
+	RUNTIME_PM_OPS(ax_spi_runtime_suspend, ax_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(ax_spi_suspend, ax_spi_resume)
 };
 
 static const struct of_device_id ax_spi_of_match[] = {
@@ -993,7 +992,7 @@ static struct platform_driver ax_spi_driver = {
 	.driver = {
 		.name = AX_SPI_NAME,
 		.of_match_table = ax_spi_of_match,
-		.pm = &ax_spi_dev_pm_ops,
+		.pm = pm_ptr(&ax_spi_dev_pm_ops),
 	},
 };
 

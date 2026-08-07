@@ -563,7 +563,6 @@ static void bcmbca_hsspi_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &bcmbca_hsspi_group);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bcmbca_hsspi_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -608,10 +607,9 @@ static int bcmbca_hsspi_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(bcmbca_hsspi_pm_ops, bcmbca_hsspi_suspend,
-			 bcmbca_hsspi_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(bcmbca_hsspi_pm_ops, bcmbca_hsspi_suspend,
+				bcmbca_hsspi_resume);
 
 static const struct of_device_id bcmbca_hsspi_of_match[] = {
 	{ .compatible = "brcm,bcmbca-hsspi-v1.1", },
@@ -623,7 +621,7 @@ MODULE_DEVICE_TABLE(of, bcmbca_hsspi_of_match);
 static struct platform_driver bcmbca_hsspi_driver = {
 	.driver = {
 		   .name = "bcmbca-hsspi",
-		   .pm = &bcmbca_hsspi_pm_ops,
+		   .pm = pm_sleep_ptr(&bcmbca_hsspi_pm_ops),
 		   .of_match_table = bcmbca_hsspi_of_match,
 		   },
 	.probe = bcmbca_hsspi_probe,

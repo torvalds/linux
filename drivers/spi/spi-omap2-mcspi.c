@@ -1620,7 +1620,7 @@ static void omap2_mcspi_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:omap2_mcspi");
 
-static int __maybe_unused omap2_mcspi_suspend(struct device *dev)
+static int omap2_mcspi_suspend(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 	struct omap2_mcspi *mcspi = spi_controller_get_devdata(ctlr);
@@ -1639,7 +1639,7 @@ static int __maybe_unused omap2_mcspi_suspend(struct device *dev)
 	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused omap2_mcspi_resume(struct device *dev)
+static int omap2_mcspi_resume(struct device *dev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(dev);
 	struct omap2_mcspi *mcspi = spi_controller_get_devdata(ctlr);
@@ -1654,8 +1654,7 @@ static int __maybe_unused omap2_mcspi_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops omap2_mcspi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap2_mcspi_suspend,
-				omap2_mcspi_resume)
+	SYSTEM_SLEEP_PM_OPS(omap2_mcspi_suspend, omap2_mcspi_resume)
 	.runtime_suspend	= omap_mcspi_runtime_suspend,
 	.runtime_resume		= omap_mcspi_runtime_resume,
 };
@@ -1663,7 +1662,7 @@ static const struct dev_pm_ops omap2_mcspi_pm_ops = {
 static struct platform_driver omap2_mcspi_driver = {
 	.driver = {
 		.name =		"omap2_mcspi",
-		.pm =		&omap2_mcspi_pm_ops,
+		.pm =		pm_ptr(&omap2_mcspi_pm_ops),
 		.of_match_table = omap_mcspi_of_match,
 	},
 	.probe =	omap2_mcspi_probe,

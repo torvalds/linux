@@ -141,7 +141,7 @@ static struct platform_driver bcm_iproc_driver = {
 	.remove			= bcm_iproc_remove,
 	.driver = {
 		.name		= "bcm_iproc",
-		.pm		= &bcm_qspi_pm_ops,
+		.pm		= pm_sleep_ptr(&bcm_qspi_pm_ops),
 		.of_match_table = bcm_iproc_of_match,
 	}
 };

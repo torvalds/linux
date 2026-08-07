@@ -1578,7 +1578,7 @@ static void atmel_qspi_remove(struct platform_device *pdev)
 	}
 }
 
-static int __maybe_unused atmel_qspi_suspend(struct device *dev)
+static int atmel_qspi_suspend(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
@@ -1605,7 +1605,7 @@ static int __maybe_unused atmel_qspi_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused atmel_qspi_resume(struct device *dev)
+static int atmel_qspi_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
@@ -1637,7 +1637,7 @@ static int __maybe_unused atmel_qspi_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused atmel_qspi_runtime_suspend(struct device *dev)
+static int atmel_qspi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
@@ -1648,7 +1648,7 @@ static int __maybe_unused atmel_qspi_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused atmel_qspi_runtime_resume(struct device *dev)
+static int atmel_qspi_runtime_resume(struct device *dev)
 {
 	struct spi_controller *ctrl = dev_get_drvdata(dev);
 	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
@@ -1665,10 +1665,10 @@ static int __maybe_unused atmel_qspi_runtime_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops __maybe_unused atmel_qspi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(atmel_qspi_suspend, atmel_qspi_resume)
-	SET_RUNTIME_PM_OPS(atmel_qspi_runtime_suspend,
-			   atmel_qspi_runtime_resume, NULL)
+static const struct dev_pm_ops atmel_qspi_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(atmel_qspi_suspend, atmel_qspi_resume)
+	RUNTIME_PM_OPS(atmel_qspi_runtime_suspend,
+		       atmel_qspi_runtime_resume, NULL)
 };
 
 static const struct atmel_qspi_caps atmel_sama5d2_qspi_caps = {};

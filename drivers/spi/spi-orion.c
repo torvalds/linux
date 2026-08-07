@@ -100,10 +100,8 @@ struct orion_spi {
 	struct orion_child_options	child[ORION_NUM_CHIPSELECTS];
 };
 
-#ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev);
 static int orion_spi_runtime_resume(struct device *dev);
-#endif
 
 static inline void __iomem *spi_reg(struct orion_spi *orion_spi, u32 reg)
 {
@@ -804,7 +802,6 @@ static void orion_spi_remove(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
-#ifdef CONFIG_PM
 static int orion_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *host = dev_get_drvdata(dev);
@@ -823,18 +820,17 @@ static int orion_spi_runtime_resume(struct device *dev)
 	clk_prepare_enable(spi->axi_clk);
 	return clk_prepare_enable(spi->clk);
 }
-#endif
 
 static const struct dev_pm_ops orion_spi_pm_ops = {
-	SET_RUNTIME_PM_OPS(orion_spi_runtime_suspend,
-			   orion_spi_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(orion_spi_runtime_suspend,
+		       orion_spi_runtime_resume,
+		       NULL)
 };
 
 static struct platform_driver orion_spi_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-		.pm	= &orion_spi_pm_ops,
+		.pm	= pm_ptr(&orion_spi_pm_ops),
 		.of_match_table = of_match_ptr(orion_spi_of_match_table),
 	},
 	.probe		= orion_spi_probe,
