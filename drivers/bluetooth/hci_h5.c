@@ -1124,10 +1124,10 @@ static const struct h5_device_data h5_data_rtl8723bs = {
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id h5_acpi_match[] = {
 #ifdef CONFIG_BT_HCIUART_RTL
-	{ "OBDA0623", (kernel_ulong_t)&h5_data_rtl8723bs },
-	{ "OBDA8723", (kernel_ulong_t)&h5_data_rtl8723bs },
+	{ .id = "OBDA0623", .driver_data = (kernel_ulong_t)&h5_data_rtl8723bs },
+	{ .id = "OBDA8723", .driver_data = (kernel_ulong_t)&h5_data_rtl8723bs },
 #endif
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, h5_acpi_match);
 #endif
