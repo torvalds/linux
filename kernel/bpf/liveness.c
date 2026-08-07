@@ -497,7 +497,6 @@ static void print_instance(struct bpf_verifier_env *env, struct func_instance *i
 		pos = env->log.end_pos;
 		verbose(env, "%3d: ", insn_idx);
 		bpf_verbose_insn(env, &insns[insn_idx]);
-		bpf_vlog_reset(&env->log, env->log.end_pos - 1); /* remove \n */
 		insn_pos = env->log.end_pos;
 		verbose(env, "%*c;", bpf_vlog_alignment(insn_pos - pos), ' ');
 		pos = env->log.end_pos;
@@ -1043,7 +1042,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tr%d: ", i); verbose_arg_track(env, &at_in[i]);
@@ -1058,7 +1056,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tsa%d: ", i); verbose_arg_track(env, &at_in[ai]);
@@ -1070,7 +1067,6 @@ static void arg_track_log(struct bpf_verifier_env *env, struct bpf_insn *insn, i
 		if (!printed) {
 			verbose(env, "%3d: ", idx);
 			bpf_verbose_insn(env, insn);
-			bpf_vlog_reset(&env->log, env->log.end_pos - 1);
 			printed = true;
 		}
 		verbose(env, "\tfp%+d: ", -(i + 1) * 8); verbose_arg_track(env, &at_stack_in[i]);
@@ -1545,6 +1541,7 @@ static void print_subprog_arg_access(struct bpf_verifier_env *env,
 
 		verbose(env, "%3d: ", idx);
 		bpf_verbose_insn(env, &insns[idx]);
+		verbose(env, "\n");
 
 		/* Collect what needs printing */
 		if (is_ldx_stx_call &&
@@ -2285,6 +2282,7 @@ int bpf_compute_live_registers(struct bpf_verifier_env *env)
 					verbose(env, ".");
 			verbose(env, " ");
 			bpf_verbose_insn(env, &insns[i]);
+			verbose(env, "\n");
 			if (bpf_is_ldimm64(&insns[i]))
 				i++;
 		}

@@ -139,7 +139,7 @@ static void print_bpf_end_insn(bpf_insn_print_t verbose,
 			       void *private_data,
 			       const struct bpf_insn *insn)
 {
-	verbose(private_data, "(%02x) r%d = %s%d r%d\n",
+	verbose(private_data, "(%02x) r%d = %s%d r%d",
 		insn->code, insn->dst_reg,
 		BPF_SRC(insn->code) == BPF_TO_BE ? "be" : "le",
 		insn->imm, insn->dst_reg);
@@ -149,7 +149,7 @@ static void print_bpf_bswap_insn(bpf_insn_print_t verbose,
 			       void *private_data,
 			       const struct bpf_insn *insn)
 {
-	verbose(private_data, "(%02x) r%d = bswap%d r%d\n",
+	verbose(private_data, "(%02x) r%d = bswap%d r%d",
 		insn->code, insn->dst_reg,
 		insn->imm, insn->dst_reg);
 }
@@ -197,19 +197,19 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			else
 				print_bpf_end_insn(verbose, cbs->private_data, insn);
 		} else if (BPF_OP(insn->code) == BPF_NEG) {
-			verbose(cbs->private_data, "(%02x) %c%d = -%c%d\n",
+			verbose(cbs->private_data, "(%02x) %c%d = -%c%d",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg);
 		} else if (is_addr_space_cast(insn)) {
-			verbose(cbs->private_data, "(%02x) r%d = addr_space_cast(r%d, %u, %u)\n",
+			verbose(cbs->private_data, "(%02x) r%d = addr_space_cast(r%d, %u, %u)",
 				insn->code, insn->dst_reg,
 				insn->src_reg, ((u32)insn->imm) >> 16, (u16)insn->imm);
 		} else if (is_mov_percpu_addr(insn)) {
-			verbose(cbs->private_data, "(%02x) r%d = &(void __percpu *)(r%d)\n",
+			verbose(cbs->private_data, "(%02x) r%d = &(void __percpu *)(r%d)",
 				insn->code, insn->dst_reg, insn->src_reg);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
-			verbose(cbs->private_data, "(%02x) %c%d %s %s%c%d\n",
+			verbose(cbs->private_data, "(%02x) %c%d %s %s%c%d",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
 				is_sdiv_smod(insn) ? bpf_alu_sign_string[BPF_OP(insn->code) >> 4]
@@ -218,7 +218,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				class == BPF_ALU ? 'w' : 'r',
 				insn->src_reg);
 		} else {
-			verbose(cbs->private_data, "(%02x) %c%d %s %d\n",
+			verbose(cbs->private_data, "(%02x) %c%d %s %d",
 				insn->code, class == BPF_ALU ? 'w' : 'r',
 				insn->dst_reg,
 				is_sdiv_smod(insn) ? bpf_alu_sign_string[BPF_OP(insn->code) >> 4]
@@ -227,7 +227,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		}
 	} else if (class == BPF_STX) {
 		if (BPF_MODE(insn->code) == BPF_MEM)
-			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = r%d\n",
+			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = r%d",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg,
@@ -235,7 +235,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 		else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
 			 (insn->imm == BPF_ADD || insn->imm == BPF_AND ||
 			  insn->imm == BPF_OR || insn->imm == BPF_XOR)) {
-			verbose(cbs->private_data, "(%02x) lock *(%s *)(r%d %+d) %s r%d\n",
+			verbose(cbs->private_data, "(%02x) lock *(%s *)(r%d %+d) %s r%d",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off,
@@ -246,7 +246,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			    insn->imm == (BPF_AND | BPF_FETCH) ||
 			    insn->imm == (BPF_OR | BPF_FETCH) ||
 			    insn->imm == (BPF_XOR | BPF_FETCH))) {
-			verbose(cbs->private_data, "(%02x) r%d = atomic%s_fetch_%s((%s *)(r%d %+d), r%d)\n",
+			verbose(cbs->private_data, "(%02x) r%d = atomic%s_fetch_%s((%s *)(r%d %+d), r%d)",
 				insn->code, insn->src_reg,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_atomic_alu_string[BPF_OP(insn->imm) >> 4],
@@ -254,7 +254,7 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->dst_reg, insn->off, insn->src_reg);
 		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
 			   insn->imm == BPF_CMPXCHG) {
-			verbose(cbs->private_data, "(%02x) r0 = atomic%s_cmpxchg((%s *)(r%d %+d), r0, r%d)\n",
+			verbose(cbs->private_data, "(%02x) r0 = atomic%s_cmpxchg((%s *)(r%d %+d), r0, r%d)",
 				insn->code,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
@@ -262,44 +262,44 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->src_reg);
 		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
 			   insn->imm == BPF_XCHG) {
-			verbose(cbs->private_data, "(%02x) r%d = atomic%s_xchg((%s *)(r%d %+d), r%d)\n",
+			verbose(cbs->private_data, "(%02x) r%d = atomic%s_xchg((%s *)(r%d %+d), r%d)",
 				insn->code, insn->src_reg,
 				BPF_SIZE(insn->code) == BPF_DW ? "64" : "",
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off, insn->src_reg);
 		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
 			   insn->imm == BPF_LOAD_ACQ) {
-			verbose(cbs->private_data, "(%02x) r%d = load_acquire((%s *)(r%d %+d))\n",
+			verbose(cbs->private_data, "(%02x) r%d = load_acquire((%s *)(r%d %+d))",
 				insn->code, insn->dst_reg,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->src_reg, insn->off);
 		} else if (BPF_MODE(insn->code) == BPF_ATOMIC &&
 			   insn->imm == BPF_STORE_REL) {
-			verbose(cbs->private_data, "(%02x) store_release((%s *)(r%d %+d), r%d)\n",
+			verbose(cbs->private_data, "(%02x) store_release((%s *)(r%d %+d), r%d)",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg, insn->off, insn->src_reg);
 		} else {
-			verbose(cbs->private_data, "BUG_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_%02x", insn->code);
 		}
 	} else if (class == BPF_ST) {
 		if (BPF_MODE(insn->code) == BPF_MEM) {
-			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d\n",
+			verbose(cbs->private_data, "(%02x) *(%s *)(r%d %+d) = %d",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->dst_reg,
 				insn->off, insn->imm);
 		} else if (BPF_MODE(insn->code) == 0xc0 /* BPF_NOSPEC, no UAPI */) {
-			verbose(cbs->private_data, "(%02x) nospec\n", insn->code);
+			verbose(cbs->private_data, "(%02x) nospec", insn->code);
 		} else {
-			verbose(cbs->private_data, "BUG_st_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_st_%02x", insn->code);
 		}
 	} else if (class == BPF_LDX) {
 		if (BPF_MODE(insn->code) != BPF_MEM && BPF_MODE(insn->code) != BPF_MEMSX) {
-			verbose(cbs->private_data, "BUG_ldx_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_ldx_%02x", insn->code);
 			return;
 		}
-		verbose(cbs->private_data, "(%02x) r%d = *(%s *)(r%d %+d)\n",
+		verbose(cbs->private_data, "(%02x) r%d = *(%s *)(r%d %+d)",
 			insn->code, insn->dst_reg,
 			BPF_MODE(insn->code) == BPF_MEM ?
 				 bpf_ldst_string[BPF_SIZE(insn->code) >> 3] :
@@ -307,12 +307,12 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			insn->src_reg, insn->off);
 	} else if (class == BPF_LD) {
 		if (BPF_MODE(insn->code) == BPF_ABS) {
-			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[%d]\n",
+			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[%d]",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->imm);
 		} else if (BPF_MODE(insn->code) == BPF_IND) {
-			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[r%d + %d]\n",
+			verbose(cbs->private_data, "(%02x) r0 = *(%s *)skb[r%d + %d]",
 				insn->code,
 				bpf_ldst_string[BPF_SIZE(insn->code) >> 3],
 				insn->src_reg, insn->imm);
@@ -332,12 +332,12 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			if (is_ptr && !allow_ptr_leaks)
 				imm = 0;
 
-			verbose(cbs->private_data, "(%02x) r%d = %s\n",
+			verbose(cbs->private_data, "(%02x) r%d = %s",
 				insn->code, insn->dst_reg,
 				__func_imm_name(cbs, insn, imm,
 						tmp, sizeof(tmp)));
 		} else {
-			verbose(cbs->private_data, "BUG_ld_%02x\n", insn->code);
+			verbose(cbs->private_data, "BUG_ld_%02x", insn->code);
 			return;
 		}
 	} else if (class == BPF_JMP32 || class == BPF_JMP) {
@@ -347,35 +347,35 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 			char tmp[64];
 
 			if (insn->src_reg == BPF_PSEUDO_CALL) {
-				verbose(cbs->private_data, "(%02x) call pc%s\n",
+				verbose(cbs->private_data, "(%02x) call pc%s",
 					insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)));
 			} else {
 				strcpy(tmp, "unknown");
-				verbose(cbs->private_data, "(%02x) call %s#%d\n", insn->code,
+				verbose(cbs->private_data, "(%02x) call %s#%d", insn->code,
 					__func_get_name(cbs, insn,
 							tmp, sizeof(tmp)),
 					insn->imm);
 			}
 		} else if (insn->code == (BPF_JMP | BPF_JA)) {
-			verbose(cbs->private_data, "(%02x) goto pc%+d\n",
+			verbose(cbs->private_data, "(%02x) goto pc%+d",
 				insn->code, insn->off);
 		} else if (insn->code == (BPF_JMP | BPF_JA | BPF_X)) {
-			verbose(cbs->private_data, "(%02x) gotox r%d\n",
+			verbose(cbs->private_data, "(%02x) gotox r%d",
 				insn->code, insn->dst_reg);
 		} else if (insn->code == (BPF_JMP | BPF_JCOND) &&
 			   insn->src_reg == BPF_MAY_GOTO) {
-			verbose(cbs->private_data, "(%02x) may_goto pc%+d\n",
+			verbose(cbs->private_data, "(%02x) may_goto pc%+d",
 				insn->code, insn->off);
 		} else if (insn->code == (BPF_JMP32 | BPF_JA)) {
-			verbose(cbs->private_data, "(%02x) gotol pc%+d\n",
+			verbose(cbs->private_data, "(%02x) gotol pc%+d",
 				insn->code, insn->imm);
 		} else if (insn->code == (BPF_JMP | BPF_EXIT)) {
-			verbose(cbs->private_data, "(%02x) exit\n", insn->code);
+			verbose(cbs->private_data, "(%02x) exit", insn->code);
 		} else if (BPF_SRC(insn->code) == BPF_X) {
 			verbose(cbs->private_data,
-				"(%02x) if %c%d %s %c%d goto pc%+d\n",
+				"(%02x) if %c%d %s %c%d goto pc%+d",
 				insn->code, class == BPF_JMP32 ? 'w' : 'r',
 				insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
@@ -383,14 +383,14 @@ void print_bpf_insn(const struct bpf_insn_cbs *cbs,
 				insn->src_reg, insn->off);
 		} else {
 			verbose(cbs->private_data,
-				"(%02x) if %c%d %s 0x%x goto pc%+d\n",
+				"(%02x) if %c%d %s 0x%x goto pc%+d",
 				insn->code, class == BPF_JMP32 ? 'w' : 'r',
 				insn->dst_reg,
 				bpf_jmp_string[BPF_OP(insn->code) >> 4],
 				(u32)insn->imm, insn->off);
 		}
 	} else {
-		verbose(cbs->private_data, "(%02x) %s\n",
+		verbose(cbs->private_data, "(%02x) %s",
 			insn->code, bpf_class_string[class]);
 	}
 }

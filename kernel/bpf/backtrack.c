@@ -285,6 +285,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 		verbose(env, "stack=%s before ", env->tmp_str_buf);
 		verbose(env, "%d: ", idx);
 		bpf_verbose_insn(env, insn);
+		verbose(env, "\n");
 	}
 
 	/* If there is a history record that some registers gained range at this insn,
