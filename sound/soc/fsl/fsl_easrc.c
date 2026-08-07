@@ -2364,6 +2364,7 @@ static int fsl_easrc_runtime_resume(struct device *dev)
 			goto disable_mem_clk;
 	}
 
+	return 0;
 disable_mem_clk:
 	clk_disable_unprepare(easrc->mem_clk);
 	return ret;
