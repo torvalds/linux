@@ -2149,6 +2149,8 @@ int cmd_kvm(int argc, const char **argv)
 	if (!argc)
 		usage_with_options(kvm_usage, kvm_options);
 
+	thread__set_priv_destructor(free);
+
 	if (!perf_host)
 		perf_guest = 1;
 
