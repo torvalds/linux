@@ -1718,20 +1718,20 @@ enum vm_fault_reason {
 			VM_FAULT_SIGSEGV | VM_FAULT_HWPOISON |	\
 			VM_FAULT_HWPOISON_LARGE | VM_FAULT_FALLBACK)
 
-#define VM_FAULT_RESULT_TRACE \
-	{ VM_FAULT_OOM,                 "OOM" },	\
-	{ VM_FAULT_SIGBUS,              "SIGBUS" },	\
-	{ VM_FAULT_MAJOR,               "MAJOR" },	\
-	{ VM_FAULT_HWPOISON,            "HWPOISON" },	\
-	{ VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" },	\
-	{ VM_FAULT_SIGSEGV,             "SIGSEGV" },	\
-	{ VM_FAULT_NOPAGE,              "NOPAGE" },	\
-	{ VM_FAULT_LOCKED,              "LOCKED" },	\
-	{ VM_FAULT_RETRY,               "RETRY" },	\
-	{ VM_FAULT_FALLBACK,            "FALLBACK" },	\
-	{ VM_FAULT_DONE_COW,            "DONE_COW" },	\
-	{ VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" },	\
-	{ VM_FAULT_COMPLETED,           "COMPLETED" }
+#define VM_FAULT_RESULT_TRACE						\
+	{ (__force u32)VM_FAULT_OOM,                 "OOM" },		\
+	{ (__force u32)VM_FAULT_SIGBUS,              "SIGBUS" },	\
+	{ (__force u32)VM_FAULT_MAJOR,               "MAJOR" },		\
+	{ (__force u32)VM_FAULT_HWPOISON,            "HWPOISON" },	\
+	{ (__force u32)VM_FAULT_HWPOISON_LARGE,      "HWPOISON_LARGE" }, \
+	{ (__force u32)VM_FAULT_SIGSEGV,             "SIGSEGV" },	\
+	{ (__force u32)VM_FAULT_NOPAGE,              "NOPAGE" },	\
+	{ (__force u32)VM_FAULT_LOCKED,              "LOCKED" },	\
+	{ (__force u32)VM_FAULT_RETRY,               "RETRY" },		\
+	{ (__force u32)VM_FAULT_FALLBACK,            "FALLBACK" },	\
+	{ (__force u32)VM_FAULT_DONE_COW,            "DONE_COW" },	\
+	{ (__force u32)VM_FAULT_NEEDDSYNC,           "NEEDDSYNC" },	\
+	{ (__force u32)VM_FAULT_COMPLETED,           "COMPLETED" }
 
 struct vm_special_mapping {
 	const char *name;	/* The name, e.g. "[vdso]". */
