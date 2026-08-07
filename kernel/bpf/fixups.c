@@ -20,6 +20,26 @@ static bool is_cmpxchg_insn(const struct bpf_insn *insn)
 	       insn->imm == BPF_CMPXCHG;
 }
 
+/* Returns true if 'insn' is an address space cast instruction translated as BPF_ALU op */
+static bool is_addr_space_cast32(struct bpf_prog *prog, const struct bpf_insn *insn)
+{
+	struct bpf_map *arena = (struct bpf_map *)prog->aux->arena;
+
+	if (insn->code != (BPF_ALU64 | BPF_MOV | BPF_X) || insn->off != BPF_ADDR_SPACE_CAST)
+		return false;
+
+	/* cast from as(1) to as(0) */
+	if (insn->imm == 1)
+		return true;
+
+	/* cast from as(0) to as(1) */
+	if (insn->imm == 1 << 16)
+		return arena && arena->map_flags & BPF_F_NO_USER_CONV;
+
+	/* non-BPF_F_NO_USER_CONV cast from as(0) to as(1) should be handled by JIT */
+	return false;
+}
+
 /* Return the regno defined by the insn, or -1. */
 static int insn_def_regno(const struct bpf_insn *insn)
 {
@@ -1513,15 +1533,12 @@ int bpf_do_misc_fixups(struct bpf_verifier_env *env)
 	}
 
 	for (i = 0; i < insn_cnt;) {
-		if (insn->code == (BPF_ALU64 | BPF_MOV | BPF_X) && insn->imm) {
-			if ((insn->off == BPF_ADDR_SPACE_CAST && insn->imm == 1) ||
-			    (((struct bpf_map *)env->prog->aux->arena)->map_flags & BPF_F_NO_USER_CONV)) {
-				/* convert to 32-bit mov that clears upper 32-bit */
-				insn->code = BPF_ALU | BPF_MOV | BPF_X;
-				/* clear off and imm, so it's a normal 'wX = wY' from JIT pov */
-				insn->off = 0;
-				insn->imm = 0;
-			} /* cast from as(0) to as(1) should be handled by JIT */
+		if (is_addr_space_cast32(env->prog, insn)) {
+			/* convert to 32-bit mov that clears upper 32-bit */
+			insn->code = BPF_ALU | BPF_MOV | BPF_X;
+			/* clear off and imm, so it's a normal 'wX = wY' from JIT pov */
+			insn->off = 0;
+			insn->imm = 0;
 			goto next_insn;
 		}
 
