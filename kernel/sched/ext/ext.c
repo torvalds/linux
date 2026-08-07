@@ -2797,6 +2797,7 @@ enum scx_dsp_verdict {
 	SCX_DSP_NONE,		/* nothing to run */
 	SCX_DSP_LOCAL,		/* local DSQ has tasks */
 	SCX_DSP_PREV,		/* keep running @prev */
+	SCX_DSP_RETRY,		/* pick helpers only: restart the pick */
 };
 
 /*
@@ -3142,12 +3143,12 @@ static void put_prev_task_scx(struct rq *rq, struct task_struct *p,
 		 * ops.enqueue() that @p is the only one available for this cpu,
 		 * which should trigger an explicit follow-up scheduling event.
 		 *
-		 * Core scheduling can force this CPU idle while @p stays
-		 * runnable. @p's cookie then won't match the core's, so skip
-		 * the warning in that case.
+		 * Under core scheduling, a pick dispatches only when nothing is
+		 * locally runnable and can legitimately go idle with @p still
+		 * runnable (see do_pick_task_scx()).
 		 */
 		if (next && sched_class_above(&ext_sched_class, next->sched_class)) {
-			WARN_ON_ONCE(sched_cpu_cookie_match(rq, p) &&
+			WARN_ON_ONCE(!sched_core_enabled(rq) &&
 				     !(sch->ops.flags & SCX_OPS_ENQ_LAST));
 			do_enqueue_task(rq, p, SCX_ENQ_LAST, -1);
 		} else {
@@ -3241,6 +3242,70 @@ static enum scx_dsp_verdict dispatch_pick(struct rq *rq, struct rq_flags *rf,
 	return verdict;
 }
 
+#ifdef CONFIG_SCHED_CORE
+/*
+ * Dispatch for a pick when core scheduling is enabled. The selection picks for
+ * all SMT siblings and the rq_i->core_pick state it builds must stay atomic
+ * throughout. If the dispatch released the rq lock, anything can have happened
+ * in between - return %SCX_DSP_RETRY to restart the selection against current
+ * state.
+ */
+static enum scx_dsp_verdict dispatch_core_pick(struct rq *rq, struct rq_flags *rf,
+					       struct task_struct *prev)
+{
+	enum scx_dsp_verdict verdict;
+	u32 seq = rq->scx.lock_drop_seq;
+
+	/* another dispatch is in flight on @rq, let that handle it */
+	if (rq->scx.flags & SCX_RQ_IN_BALANCE)
+		return SCX_DSP_NONE;
+
+	rq_unpin_lock(rq, rf);
+
+	verdict = balance_one(rq, prev);
+
+	if (cpu_of(rq) == smp_processor_id()) {
+		maybe_queue_balance_callback(rq);
+
+		/* see dispatch_pick() */
+		if (unlikely(rq->scx.kick_sync_pending)) {
+			rq->scx.kick_sync_pending = false;
+			queue_balance_callback(rq, &rq->scx.kick_sync_bal_cb,
+					       kick_sync_wait_bal_cb);
+		}
+	} else if (unlikely(rq->scx.flags & SCX_RQ_BAL_CB_PENDING)) {
+		/*
+		 * Balance callbacks must run in the context that queued them,
+		 * so they can't be queued on another CPU's rq. Run the deferred
+		 * work directly instead.
+		 */
+		rq->scx.flags &= ~SCX_RQ_BAL_CB_PENDING;
+		run_deferred(rq);
+	}
+
+	rq_repin_lock(rq, rf);
+
+	/* if balance_one() released the rq lock, restart the selection */
+	if (rq->scx.lock_drop_seq != seq)
+		return SCX_DSP_RETRY;
+
+	/* see dispatch_pick() */
+	if (unlikely(verdict == SCX_DSP_PREV &&
+		     prev->sched_class != &ext_sched_class)) {
+		WARN_ON_ONCE(scx_enable_state() == SCX_ENABLED);
+		verdict = SCX_DSP_LOCAL;
+	}
+
+	return verdict;
+}
+#else	/* CONFIG_SCHED_CORE */
+static enum scx_dsp_verdict dispatch_core_pick(struct rq *rq, struct rq_flags *rf,
+					       struct task_struct *prev)
+{
+	return SCX_DSP_NONE;
+}
+#endif	/* CONFIG_SCHED_CORE */
+
 static struct task_struct *
 do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 {
@@ -3253,7 +3318,13 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 
 	rq_modified_begin(rq, &ext_sched_class);
 
-	verdict = dispatch_pick(rq, rf, prev);
+	if (sched_core_enabled(rq))
+		verdict = dispatch_core_pick(rq, rf, prev);
+	else
+		verdict = dispatch_pick(rq, rf, prev);
+
+	if (verdict == SCX_DSP_RETRY)
+		return RETRY_TASK;
 
 	/*
 	 * If any higher-priority sched class enqueued a runnable task on this
@@ -3267,9 +3338,8 @@ do_pick_task_scx(struct rq *rq, struct rq_flags *rf, bool force_scx)
 		return RETRY_TASK;
 
 	/*
-	 * If balance_one() is telling us to keep running @prev, replenish slice
-	 * if necessary and keep running @prev. Otherwise, pop the first one
-	 * from the local DSQ.
+	 * If we're keeping @prev, replenish slice if necessary and keep running
+	 * @prev. Otherwise, pop the first one from the local DSQ.
 	 */
 	if (verdict == SCX_DSP_PREV) {
 		p = prev;
