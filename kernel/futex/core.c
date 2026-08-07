@@ -45,6 +45,7 @@
 #include <linux/rseq.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/kmemleak.h>
 
 #include <vdso/futex.h>
 
@@ -2028,6 +2029,7 @@ static int __init futex_init(void)
 	order = get_order(size);
 
 	__futex_queues = kcalloc(nr_node_ids, sizeof(*__futex_queues), GFP_KERNEL);
+	kmemleak_not_leak(__futex_queues);
 
 	runtime_const_init(shift, __futex_shift);
 	runtime_const_init(mask,  __futex_mask);
