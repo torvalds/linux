@@ -119,12 +119,13 @@ static inline struct i3c_hci *to_i3c_hci(struct i3c_master_controller *m)
 }
 
 /**
- * i3c_hci_sysdev() - Get the device to use for DMA
+ * i3c_hci_sysdev() - Get the device to use for DMA and system PM
  * @dev: Device the HCI controller is bound to
  *
  * When an IOMMU is enabled, DMA API calls must use the device that IOMMU
  * setup was done for.  Under PCI enumeration that is the PCI device, not
- * the "mipi-i3c-hci" platform device below it.
+ * the "mipi-i3c-hci" platform device below it.  The same device owns
+ * system PM and wakeup configuration.
  *
  * Return: @dev's parent if it is a PCI device, otherwise @dev.
  */
@@ -1179,6 +1180,9 @@ static int i3c_hci_probe(struct platform_device *pdev)
 
 	if (hci->quirks & HCI_QUIRK_RPM_IBI_ALLOWED)
 		hci->master.rpm_ibi_allowed = true;
+
+	if (device_can_wakeup(i3c_hci_sysdev(&pdev->dev)))
+		hci->master.ibi_wakeup = true;
 
 	return i3c_master_register(&hci->master, &pdev->dev, &i3c_hci_ops, false);
 }
