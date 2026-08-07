@@ -58,6 +58,17 @@
  *             __BTF_ID__func__vfs_fallocate__5:
  *             .zero 4
  *	       .word (1 << 3) | (1 << 1) | (1 << 2)
+ *
+ * In addition to resolving BTF IDs, resolve_btfids performs kernel-specific
+ * BTF-to-BTF transformations for kfuncs found in BTF_SET8_KFUNCS sets. For
+ * each such kfunc it:
+ *
+ *   - emits a "bpf_kfunc" decl tag, and "bpf_fastcall" when KF_FASTCALL is set;
+ *   - wraps the return value and/or arguments flagged KF_ARENA_RET,
+ *     KF_ARENA_ARG1 or KF_ARENA_ARG2 with the "address_space(1)" type attribute;
+ *   - rewrites the prototype of KF_IMPLICIT_ARGS kfuncs.
+ *
+ * These kfunc annotations were historically produced by pahole.
  */
 
 #define  _GNU_SOURCE
