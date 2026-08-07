@@ -137,15 +137,23 @@ static int lochnagar_sc_set_usb_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return lochnagar_sc_check_fmt(dai, fmt, SND_SOC_DAIFMT_CBP_CFP);
 }
 
+static const u64 lochnagar_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops lochnagar_sc_line_ops = {
 	.startup = lochnagar_sc_line_startup,
 	.shutdown = lochnagar_sc_line_shutdown,
 	.set_fmt = lochnagar_sc_set_line_fmt,
+	.auto_selectable_formats = &lochnagar_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static const struct snd_soc_dai_ops lochnagar_sc_usb_ops = {
 	.startup = lochnagar_sc_startup,
 	.set_fmt = lochnagar_sc_set_usb_fmt,
+	.auto_selectable_formats = &lochnagar_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
