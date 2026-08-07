@@ -367,6 +367,11 @@ static unsigned long find_vmlinux_sympos(struct symbol *sym)
 	return sympos;
 }
 
+static bool is_init_sym(struct symbol *sym)
+{
+	return strstarts(sym->sec->name, ".init");
+}
+
 /*
  * "sympos" is used by livepatch to disambiguate duplicate symbol names.
  */
@@ -375,6 +380,11 @@ unsigned long klp_find_sympos(struct elf *elf, struct symbol *sym)
 	unsigned long sympos = 0, nr_matches = 0;
 	bool has_dup = false;
 	struct symbol *s;
+
+	if (is_init_sym(sym)) {
+		ERROR("%s: can't patch or reference init code/data", sym->name);
+		return ULONG_MAX;
+	}
 
 	if (sym->bind != STB_LOCAL)
 		return 0;
