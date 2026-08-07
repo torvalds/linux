@@ -4444,15 +4444,12 @@ hugetlb_early_param("default_hugepagesz", default_hugepagesz_setup);
 void __init hugetlb_bootmem_set_nodes(void)
 {
 	int i, nid;
-	unsigned long start_pfn, end_pfn;
 
 	if (!nodes_empty(hugetlb_bootmem_nodes))
 		return;
 
-	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
-		if (end_pfn > start_pfn)
-			node_set(nid, hugetlb_bootmem_nodes);
-	}
+	for_each_mem_pfn_range(i, MAX_NUMNODES, NULL, NULL, &nid)
+		node_set(nid, hugetlb_bootmem_nodes);
 }
 
 void __init hugetlb_bootmem_alloc(void)

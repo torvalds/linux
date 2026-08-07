@@ -332,8 +332,7 @@ static unsigned long __init early_calculate_totalpages(void)
 		unsigned long pages = end_pfn - start_pfn;
 
 		totalpages += pages;
-		if (pages)
-			node_set_state(nid, N_MEMORY);
+		node_set_state(nid, N_MEMORY);
 	}
 	return totalpages;
 }
