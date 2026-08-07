@@ -2773,7 +2773,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	ha->isp_ops->reset_chip(vha);
 
 	/* Check for secure flash support */
-	if (IS_QLA28XX(ha)) {
+	if (IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		if (rd_reg_word(&reg->mailbox12) & BIT_0)
 			ha->flags.secure_adapter = 1;
 		ql_log(ql_log_info, vha, 0xffff, "Secure Adapter: %s\n",
@@ -3733,7 +3733,7 @@ int qla2x00_alloc_fce_trace(scsi_qla_host_t *vha)
 		return -EINVAL;
 
 	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha) && !IS_QLA29XX(ha))
 		return -EINVAL;
 
 	if (ha->fce) {
@@ -3814,6 +3814,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
 	struct qla2xxx_fw_dump *fw_dump;
+	size_t req_entry_size = qla_req_entry_size(ha);
+	size_t rsp_entry_size = qla_rsp_entry_size(ha);
 
 	if (ha->fw_dump) {
 		ql_dbg(ql_dbg_init, vha, 0x00bd,
@@ -3852,9 +3854,9 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			 * Resizing must be done at end-of-dump processing.
 			 */
 			mq_size += (ha->max_req_queues - 1) *
-			    (req->length * sizeof(request_t));
+			    (req->length * req_entry_size);
 			mq_size += (ha->max_rsp_queues - 1) *
-			    (rsp->length * sizeof(response_t));
+			    (rsp->length * rsp_entry_size);
 		}
 		if (ha->tgt.atio_ring)
 			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
@@ -3868,7 +3870,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			eft_size = EFT_SIZE;
 	}
 
-	if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+	if (IS_QLA27XX(ha) || IS_QLA28XX(ha) || IS_QLA29XX(ha)) {
 		struct fwdt *fwdt = ha->fwdt;
 		uint j;
 
@@ -3890,8 +3892,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 		/* Add space for spare MPI fw dump. */
 		dump_size += ha->fwdt[1].dump_size;
 	} else {
-		req_q_size = req->length * sizeof(request_t);
-		rsp_q_size = rsp->length * sizeof(response_t);
+		req_q_size = req->length * req_entry_size;
+		rsp_q_size = rsp->length * rsp_entry_size;
 		dump_size = offsetof(struct qla2xxx_fw_dump, isp);
 		dump_size += fixed_size + mem_size + req_q_size + rsp_q_size
 			+ eft_size;
@@ -3937,7 +3939,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				    "Allocated (%d KB) for firmware dump.\n",
 				    dump_size / 1024);
 
-				if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+				if (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+				    IS_QLA29XX(ha)) {
 					ha->mpi_fw_dump = (char *)fw_dump +
 						ha->fwdt[1].dump_size;
 					mutex_unlock(&ha->optrom_mutex);
@@ -4194,11 +4197,11 @@ qla24xx_detect_sfp(scsi_qla_host_t *vha)
 	used_nvram = 0;
 	ha->flags.lr_detected = 0;
 	if (IS_BPM_RANGE_CAPABLE(ha) &&
-	    (nv->enhanced_features & NEF_LR_DIST_ENABLE)) {
+	    (le16_to_cpu(nv->enhanced_features) & NEF_LR_DIST_ENABLE)) {
 		used_nvram = 1;
 		ha->flags.lr_detected = 1;
 		ha->lr_distance =
-		    (nv->enhanced_features >> LR_DIST_NV_POS)
+		    (le16_to_cpu(nv->enhanced_features) >> LR_DIST_NV_POS)
 		     & LR_DIST_NV_MASK;
 	}
 
@@ -4478,15 +4481,33 @@ void
 qla2x00_init_response_q_entries(struct rsp_que *rsp)
 {
 	uint16_t cnt;
-	response_t *pkt;
 
 	rsp->ring_ptr = rsp->ring;
 	rsp->ring_index    = 0;
 	rsp->status_srb = NULL;
-	pkt = rsp->ring_ptr;
-	for (cnt = 0; cnt < rsp->length; cnt++) {
-		pkt->signature = RESPONSE_PROCESSED;
-		pkt++;
+
+	if (rsp->hw && IS_QLA29XX(rsp->hw)) {
+		/*
+		 * 29xx uses a 128-byte response-ring stride.  The signature
+		 * field offset matches response_t, but the entry pitch is
+		 * sizeof(struct response_ext); walk via ring_ext_ptr / struct response_ext.
+		 */
+		struct response_ext *pkt;
+
+		rsp->ring_ext_ptr = rsp->ring_ext;
+		pkt = rsp->ring_ext_ptr;
+		for (cnt = 0; cnt < rsp->length; cnt++) {
+			pkt->signature = RESPONSE_PROCESSED;
+			pkt++;
+		}
+	} else {
+		response_t *pkt;
+
+		pkt = rsp->ring_ptr;
+		for (cnt = 0; cnt < rsp->length; cnt++) {
+			pkt->signature = RESPONSE_PROCESSED;
+			pkt++;
+		}
 	}
 }
 
@@ -4772,7 +4793,14 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		ql_dbg(ql_dbg_init, vha, 0x00fd,
 		    "Speed set by user : %s Gbps \n",
 		    qla2x00_get_link_speed_str(ha, ha->set_data_rate));
-		icb->firmware_options_3 = cpu_to_le32(ha->set_data_rate << 13);
+		/*
+		 * The ICB data-rate field is 3 bits (bits 13-15); rates above
+		 * 64G do not fit and would overflow into bit 16 (75 ohm
+		 * termination select). Such rates are forced via MBC_DATA_RATE.
+		 */
+		if (ha->set_data_rate <= PORT_SPEED_64GB)
+			icb->firmware_options_3 =
+			    cpu_to_le32(ha->set_data_rate << 13);
 	}
 
 	/* PCI posting */
@@ -4807,7 +4835,12 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
-		req->out_ptr = (uint16_t *)(req->ring + req->length);
+		if (IS_QLA29XX(ha))
+			req->out_ptr =
+			    (uint16_t *)(req->ring_ext + req->length);
+		else
+			req->out_ptr =
+			    (uint16_t *)(req->ring + req->length);
 		*req->out_ptr = 0;
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
@@ -4818,13 +4851,19 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req->ring_ptr  = req->ring;
 		req->ring_index    = 0;
 		req->cnt      = req->length;
+		if (IS_QLA29XX(ha))
+			req->ring_ext_ptr = req->ring_ext;
 	}
 
 	for (que = 0; que < ha->max_rsp_queues; que++) {
 		rsp = ha->rsp_q_map[que];
 		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
-		rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
+		if (IS_QLA29XX(ha))
+			rsp->in_ptr =
+			    (uint16_t *)(rsp->ring_ext + rsp->length);
+		else
+			rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
 		/* Initialize response queue entries */
 		if (IS_QLAFX00(ha))
@@ -8669,7 +8708,8 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 			for (i = 0; i < dlen; i++)
 				dcode[i] = swab32(dcode[i]);
 
-			rval = qla2x00_load_ram(vha, req->dma, risc_addr, dlen);
+			rval = qla2x00_load_ram(vha, req->dma, risc_addr,
+			    dlen, 0);
 			if (rval) {
 				ql_log(ql_log_fatal, vha, 0x008f,
 				    "-> Failed load firmware fragment %u.\n",
@@ -8839,7 +8879,7 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 				wcode[i] = swab16((__force u32)fwcode[i]);
 
 			rval = qla2x00_load_ram(vha, req->dma, risc_addr,
-			    wlen);
+			    wlen, 0);
 			if (rval) {
 				ql_log(ql_log_fatal, vha, 0x008a,
 				    "Failed to load segment %d of firmware.\n",
@@ -8929,7 +8969,8 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 			for (i = 0; i < dlen; i++)
 				dcode[i] = swab32((__force u32)fwcode[i]);
 
-			rval = qla2x00_load_ram(vha, req->dma, risc_addr, dlen);
+			rval = qla2x00_load_ram(vha, req->dma, risc_addr,
+			    dlen, 0);
 			if (rval) {
 				ql_log(ql_log_fatal, vha, 0x0098,
 				    "-> Failed load firmware fragment %u.\n",
@@ -9128,6 +9169,539 @@ exit_load_risc:
 	return rval;
 }
 
+static int qla29xx_validate_firmware_image(scsi_qla_host_t *vha,
+					   __be32 *dword)
+{
+	if (be32_to_cpu(dword[0]) != LD_FL_HEADER_SIGNATURE) {
+		ql_dbg(ql_dbg_init, vha, 0x0093,
+		       "Firmware image Signature does not match (0x%x).\n",
+		       be32_to_cpu(dword[0]));
+		return QLA_FUNCTION_FAILED;
+	}
+	if (be32_to_cpu(dword[2]) != LD_FL_HEADER_VERSION) {
+		ql_dbg(ql_dbg_init, vha, 0x0093,
+		       "Firmware image Version does not match (0x%x).\n",
+		       be32_to_cpu(dword[2]));
+		return QLA_FUNCTION_FAILED;
+	}
+	return QLA_SUCCESS;
+}
+
+static int qla29xx_process_rd_image(struct scsi_qla_host *vha,
+				    struct fcop_header *header,
+				    __be32 *fwcode, int section,
+				    uint32_t risc_addr, uint32_t section_size)
+{
+	int rval = QLA_SUCCESS;
+	uint32_t *dcode = NULL;
+	struct qla_hw_data *ha = vha->hw;
+	struct req_que *req = ha->req_q_map[0];
+	int num_segments = 0, segment = 0;
+	int chunks_per_segment = 0, chunk = 0;
+	int is_first_chunk = 0;
+	int is_last_chunk = 0;
+	int is_first_segment = 0;
+	int is_last_segment = 0;
+	int opt = 0;
+	uint32_t size = 0;
+	uint32_t size_remainder = 0;
+	uint32_t seg_size_remainder = 0;
+	int i = 0;
+
+	dcode = (uint32_t *)req->ring;
+
+	if (section == TIM) {
+		if (section_size > req->length * qla_req_entry_size(ha)) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			    "TIM section too large (0x%x bytes, ring 0x%lx bytes).\n",
+			    section_size,
+			    req->length * qla_req_entry_size(ha));
+			return QLA_FUNCTION_FAILED;
+		}
+
+		opt = BIT_15 | BIT_2 | BIT_1 | BIT_0;
+		for (i = 0; i < (section_size >> 2); i++)
+			dcode[i] = swab32((__force u32)fwcode[i]);
+
+		ql_dbg(ql_dbg_init, vha, 0x0098,
+		       "TIM : process_rd_image [opt 0x%x]\n", opt);
+		rval = qla2x00_load_ram(vha, req->dma, risc_addr,
+					section_size >> 2, opt);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "-> Failed load TIM\n");
+			return QLA_FUNCTION_FAILED;
+		}
+	} else {
+		size_remainder = section_size;
+		num_segments += (section_size % header->segment_size == 0) ?
+			(section_size / header->segment_size) :
+			(section_size / header->segment_size) + 1;
+		chunks_per_segment =
+			(header->segment_size % CHUNK_SIZE == 0) ?
+			(header->segment_size / CHUNK_SIZE) :
+			(header->segment_size / CHUNK_SIZE) + 1;
+
+		ql_dbg(ql_dbg_init, vha, 0x0098,
+		       "num seg 0x%x chunk per seg 0x%x\n",
+		       num_segments, chunks_per_segment);
+
+		for (segment = 0; segment < num_segments; segment++) {
+			for (chunk = 0; chunk < chunks_per_segment; chunk++) {
+				is_first_chunk = (chunk == 0);
+				if (chunk == 0) {
+					if (size_remainder >=
+					    header->segment_size)
+						seg_size_remainder =
+							header->segment_size;
+					else
+						seg_size_remainder =
+							size_remainder;
+				}
+
+				is_first_segment =
+					(section == ARR1 && segment == 0);
+				is_last_segment =
+					(section == ARR2 &&
+					 (segment == (num_segments - 1)));
+				is_last_chunk =
+					(chunk == (chunks_per_segment - 1) ||
+					 size_remainder <= CHUNK_SIZE);
+
+				if (seg_size_remainder < CHUNK_SIZE)
+					size = seg_size_remainder % CHUNK_SIZE;
+				else
+					size = CHUNK_SIZE;
+
+				ql_dbg(ql_dbg_init, vha, 0x0098,
+				       "[%d]chunk 0x%x segment 0x%x first_segment 0x%x first_chunk 0x%x last_segment 0x%x last_chunk 0x%x\n",
+				       __LINE__, chunk, segment,
+				       is_first_segment, is_first_chunk,
+				       is_last_segment, is_last_chunk);
+
+				opt = BIT_2;
+				if (is_first_chunk)
+					opt |= BIT_0;
+				if (is_last_chunk)
+					opt |= BIT_1;
+				if (is_first_segment)
+					opt |= BIT_3;
+				if (is_last_segment)
+					opt |= BIT_4;
+
+				for (i = 0; i < (size >> 2); i++)
+					dcode[i] =
+					    swab32((__force u32)fwcode[i]);
+
+				ql_dbg(ql_dbg_init, vha, 0x0098,
+				       "ARR[0x%x] : opt 0x%x\n", size, opt);
+				rval = qla2x00_load_ram(vha, req->dma,
+							risc_addr,
+							size >> 2, opt);
+				if (rval) {
+					ql_log(ql_log_fatal, vha, 0x0098,
+					       "-> Failed load ram\n");
+					return QLA_FUNCTION_FAILED;
+				}
+
+				fwcode += size >> 2;
+				size_remainder -= size;
+				seg_size_remainder -= size;
+				if (size_remainder == 0)
+					break;
+			}
+			risc_addr += header->segment_size >> 2;
+		}
+	}
+	return rval;
+}
+
+static int
+qla29xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
+{
+	int rval;
+	struct fcop_header *header;
+	uint32_t *dcode = NULL;
+	struct fw_blob *blob;
+	__be32 *fwcode, *array1_addr, *array3_addr;
+	uint templates;
+	uint32_t array_size, risc_attr = 0;
+	ulong i;
+	uint j;
+	ulong dlen, array3_offset;
+	size_t max_dwords;
+	struct qla_hw_data *ha = vha->hw;
+	struct fwdt *fwdt = ha->fwdt;
+
+	header = vmalloc(sizeof(*header));
+	if (!header)
+		return QLA_FUNCTION_FAILED;
+
+	ql_dbg(ql_dbg_init, vha, 0x0090,
+	       "-> FW: Loading via request-firmware.\n");
+
+	blob = qla2x00_request_firmware(vha);
+	if (!blob) {
+		ql_log(ql_log_warn, vha, 0x0092,
+		       "-> Firmware file not found.\n");
+		vfree(header);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	fwcode = (__force __be32 *)blob->fw->data;
+
+	if (blob->fw->size < sizeof(*header)) {
+		ql_log(ql_log_fatal, vha, 0x0093,
+		       "Firmware image too small (%zu bytes, need %zu).\n",
+		       blob->fw->size, sizeof(*header));
+		vfree(header);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	rval = qla29xx_validate_firmware_image(vha, fwcode);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_fatal, vha, 0x0093,
+		       "Unable to verify integrity of firmware image\n");
+		vfree(header);
+		return QLA_FUNCTION_FAILED;
+	}
+
+	/* byte-swap big-endian firmware header to CPU endian */
+	for (i = 0; i < sizeof(*header) / sizeof(__be32); i++)
+		((uint32_t *)header)[i] = be32_to_cpu(fwcode[i]);
+
+	/*
+	 * Section lengths are dword counts from the firmware image. Reject
+	 * values that would overflow the u32 fields on conversion to bytes
+	 * (<< 2) or that exceed the image, before using them below.
+	 */
+	max_dwords = blob->fw->size >> 2;
+	if (header->header_length > max_dwords ||
+	    header->tim_length > max_dwords ||
+	    header->array1_length > max_dwords ||
+	    header->array2_length > max_dwords ||
+	    header->array3_length > max_dwords ||
+	    header->array4_length > max_dwords) {
+		ql_log(ql_log_fatal, vha, 0x0098,
+		       "FW image has invalid section length.\n");
+		goto img_corrupt;
+	}
+
+	header->header_length <<= 2;
+	header->tim_length <<= 2;
+	header->array1_length <<= 2;
+	header->array2_length <<= 2;
+	header->array3_length <<= 2;
+	header->array4_length <<= 2;
+
+	if (!header->segment_size) {
+		ql_log(ql_log_fatal, vha, 0x0098,
+		       "FW image has zero segment_size.\n");
+		goto img_corrupt;
+	}
+
+	{
+		size_t fw_size = blob->fw->size;
+		size_t offset;
+
+		/* TIM */
+		offset = header->header_length;
+		if (offset + header->tim_length > fw_size) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "FW image too small for TIM (%#zx > %#zx).\n",
+			       offset + header->tim_length, fw_size);
+			goto img_corrupt;
+		}
+		rval = qla29xx_process_rd_image(vha, header,
+			(__be32 *)((char *)fwcode + offset),
+			TIM, TIM_DEST_ADDR, header->tim_length);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "-> Failed load TIM\n");
+			goto img_corrupt;
+		}
+
+		/* Array 1 */
+		offset += header->tim_length;
+		if (offset + header->array1_length > fw_size) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "FW image too small for Arr1 (%#zx > %#zx).\n",
+			       offset + header->array1_length, fw_size);
+			goto img_corrupt;
+		}
+		rval = qla29xx_process_rd_image(vha, header,
+			(__be32 *)((char *)fwcode + offset),
+			ARR1, header->array1_destination_addr,
+			header->array1_length);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "-> Failed load Arr1\n");
+			goto img_corrupt;
+		}
+
+		/* Array 2 */
+		offset += header->array1_length;
+		if (offset + header->array2_length > fw_size) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "FW image too small for Arr2 (%#zx > %#zx).\n",
+			       offset + header->array2_length, fw_size);
+			goto img_corrupt;
+		}
+		rval = qla29xx_process_rd_image(vha, header,
+			(__be32 *)((char *)fwcode + offset),
+			ARR2, header->array2_destination_addr,
+			header->array2_length);
+		if (rval) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "-> Failed load Arr2\n");
+			goto img_corrupt;
+		}
+
+		/* Array 3: FW_DUMP template */
+		if (offset + 10 * sizeof(__be32) > fw_size) {
+			ql_log(ql_log_fatal, vha, 0x0098,
+			       "FW image too small for risc_attr.\n");
+			goto img_corrupt;
+		}
+		array1_addr = (__be32 *)((char *)fwcode +
+				header->header_length +
+				header->tim_length);
+		risc_attr = be32_to_cpu(array1_addr[9]);
+	}
+	templates = (risc_attr & BIT_9) ? 2 : 1;
+	ql_dbg(ql_dbg_init, vha, 0x0160,
+	       "-> templates = %u\n", templates);
+
+	array3_offset = header->header_length + header->tim_length +
+		header->array1_length + header->array2_length;
+	if (array3_offset > blob->fw->size) {
+		ql_log(ql_log_fatal, vha, 0x0098,
+		       "FW image too small for Arr3 (%#lx > %#zx).\n",
+		       array3_offset, blob->fw->size);
+		goto img_corrupt;
+	}
+
+	array3_addr = (__be32 *)(((char *)fwcode) + array3_offset);
+	for (j = 0; j < templates; j++, fwdt++) {
+		vfree(fwdt->template);
+		fwdt->template = NULL;
+		fwdt->length = 0;
+
+		if ((char *)&array3_addr[7] >
+		    (char *)blob->fw->data + blob->fw->size) {
+			ql_log(ql_log_warn, vha, 0x0169,
+			       "-> fwdt%u template header exceeds firmware blob.\n",
+			       j);
+			goto failed;
+		}
+
+		array_size = be32_to_cpu(array3_addr[2]);
+		ql_dbg(ql_dbg_init, vha, 0x0161,
+		       "-> fwdt%u template array at %p (%#x dwords)\n",
+		       j, array3_addr, array_size);
+
+		if (!array_size || !~array_size || array_size <= 8) {
+			ql_dbg(ql_dbg_init, vha, 0x0162,
+			       "-> fwdt%u failed to read array\n", j);
+			goto failed;
+		}
+
+		array3_addr += 7;
+		array_size -= 8;
+
+		if ((char *)&array3_addr[array_size] >
+		    (char *)blob->fw->data + blob->fw->size) {
+			ql_log(ql_log_warn, vha, 0x0163,
+			    "-> fwdt%u template array exceeds firmware blob.\n",
+			    j);
+			goto failed;
+		}
+
+		ql_dbg(ql_dbg_init, vha, 0x0163,
+		       "-> fwdt%u template allocate template %#x words...\n",
+		       j, array_size);
+		fwdt->template = vmalloc_array(array_size, sizeof(*dcode));
+		if (!fwdt->template) {
+			ql_log(ql_log_warn, vha, 0x0164,
+			       "-> fwdt%u failed allocate template.\n", j);
+			goto failed;
+		}
+
+		dcode = fwdt->template;
+		for (i = 0; i < array_size; i++)
+			dcode[i] = (__force u32)array3_addr[i];
+
+		if (!qla27xx_fwdt_template_valid(dcode)) {
+			ql_log(ql_log_warn, vha, 0x0165,
+			       "-> fwdt%u failed template validate\n", j);
+			goto failed;
+		}
+
+		dlen = qla27xx_fwdt_template_size(dcode);
+		ql_dbg(ql_dbg_init, vha, 0x0166,
+		       "-> fwdt%u template size %#lx bytes (%#lx words)\n",
+		       j, dlen, dlen / sizeof(*dcode));
+		if (dlen > array_size * sizeof(*dcode)) {
+			ql_log(ql_log_warn, vha, 0x0167,
+			       "-> fwdt%u template exceeds array (%-lu bytes)\n",
+			       j, dlen - array_size * sizeof(*dcode));
+			goto failed;
+		}
+
+		fwdt->length = dlen;
+		ql_dbg(ql_dbg_init, vha, 0x0168,
+		       "-> fwdt%u loaded template ok\n", j);
+
+		array3_addr += array_size + 1;
+	}
+	vfree(header);
+	return QLA_SUCCESS;
+
+failed:
+	vfree(fwdt->template);
+	fwdt->template = NULL;
+	fwdt->length = 0;
+img_corrupt:
+	vfree(header);
+	return QLA_FUNCTION_FAILED;
+}
+
+static int
+qla29xx_load_fw_template(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	struct fwdt *fwdt = ha->fwdt;
+	uint templates = 1;
+	void *fw_dump_tmplt;
+	uint32_t *dcode;
+	void *buf = NULL;
+	uint32_t len;
+	uint32_t template_size;
+	uint j = 0;
+	int rval = 0;
+
+	ql_dbg(ql_dbg_init, vha, 0x01bf,
+	       "-> templates = %u fw_dump_tmplt_len = 0x%x\n",
+	       templates, ha->fw_dump_tmplt_len);
+
+	if (!ha->fw_dump_tmplt_len) {
+		ql_dbg(ql_dbg_init, vha, 0x01bf,
+		       "no fw dump template available\n");
+		return QLA_SUCCESS;
+	}
+
+	fw_dump_tmplt = kzalloc(ha->fw_dump_tmplt_len, GFP_KERNEL);
+	if (!fw_dump_tmplt) {
+		ql_log(ql_log_info, vha, 0x0013,
+		       "Unable to allocate memory\n");
+		return QLA_FUNCTION_FAILED;
+	}
+
+	buf = qla29xx_read_optrom_data(vha, FLT_REG_FW_DUMP_TMPLT, 0,
+				       fw_dump_tmplt, 0,
+				       ha->fw_dump_tmplt_len);
+	if (!buf) {
+		ql_log(ql_log_info, vha, 0x0013,
+		       "Unable to read fw dump temp info.\n");
+		goto free_fw_dump;
+	}
+
+	ql_dump_buffer(ql_dbg_init, vha, 0x006b, fw_dump_tmplt,
+		       min_t(uint32_t, ha->fw_dump_tmplt_len, 1024));
+
+	for (j = 0; j < templates; j++, fwdt++) {
+		vfree(fwdt->template);
+		fwdt->template = NULL;
+		fwdt->length = 0;
+
+		template_size = le32_to_cpu(((__le32 *)fw_dump_tmplt)[2]);
+
+		ql_dbg(ql_dbg_init, vha, 0x0161,
+		       "-> fwdt%u template array at %p (0x%x bytes)\n",
+		       j, fw_dump_tmplt, template_size);
+
+		if (!template_size || !~template_size ||
+		    template_size > ha->fw_dump_tmplt_len) {
+			ql_dbg(ql_dbg_init, vha, 0x0162,
+			       "-> fwdt%u failed to read array\n", j);
+			goto failed;
+		}
+
+		fwdt->template = vmalloc(template_size);
+		if (!fwdt->template) {
+			ql_log(ql_log_warn, vha, 0x0164,
+			       "-> fwdt%u failed allocate template.\n", j);
+			goto failed;
+		}
+
+		dcode = fwdt->template;
+		memcpy((char *)dcode, (char *)fw_dump_tmplt, template_size);
+
+		if (!qla27xx_fwdt_template_valid(dcode)) {
+			ql_log(ql_log_warn, vha, 0x0165,
+			       "-> fwdt%u failed template validate (rval %x)\n",
+			       j, rval);
+			goto failed;
+		}
+
+		len = qla27xx_fwdt_template_size(dcode);
+		if (len > template_size) {
+			ql_log(ql_log_warn, vha, 0x0167,
+			       "-> fwdt%u template exceeds array (%-u bytes)\n",
+			       j, len - template_size);
+			goto failed;
+		}
+
+		fwdt->length = len;
+	}
+
+	kfree(fw_dump_tmplt);
+	return QLA_SUCCESS;
+
+failed:
+	if (fwdt->template) {
+		vfree(fwdt->template);
+		fwdt->template = NULL;
+		fwdt->length = 0;
+	}
+free_fw_dump:
+	kfree(fw_dump_tmplt);
+	return QLA_FUNCTION_FAILED;
+}
+
+int
+qla29xx_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
+{
+	int rval;
+
+	*srisc_addr = 0x100000;
+
+	if (ql2xfwloadbin == 2) {
+		rval = qla29xx_load_risc_blob(vha, srisc_addr);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_fatal, vha, 0x019e,
+			       "Failed to load firmware from file.\n");
+			return QLA_FUNCTION_FAILED;
+		}
+	} else {
+		rval = qla28xx_load_flash_firmware(vha);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_fatal, vha, 0x019e,
+			       "Failed to load flash firmware.\n");
+			return QLA_FUNCTION_FAILED;
+		}
+
+		rval = qla29xx_load_fw_template(vha);
+		if (rval != QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0x01bd,
+			       "failed to read firmware template\n");
+			return QLA_FUNCTION_FAILED;
+		}
+	}
+
+	return rval;
+}
+
 void
 qla2x00_try_to_stop_firmware(scsi_qla_host_t *vha)
 {
@@ -9306,35 +9880,98 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (IS_P3P_TYPE(ha) || IS_QLA8031(ha))
 		ha->vpd_size = FA_VPD_SIZE_82XX;
 
-	if (IS_QLA28XX(ha) || IS_QLA27XX(ha))
-		qla28xx_get_aux_images(vha, &active_regions);
-
 	/* Get VPD data into cache */
 	ha->vpd = ha->nvram + VPD_OFFSET;
 
-	faddr = ha->flt_region_vpd;
-	if (IS_QLA28XX(ha)) {
-		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
-			faddr = ha->flt_region_vpd_sec;
+	if (IS_QLA29XX(ha)) {
+		uint16_t fw_options = 0, r_code;
+		uint32_t vpd_r[] = {FLT_REG_VPD_0, FLT_REG_VPD_1,
+				    FLT_REG_VPD_2, FLT_REG_VPD_3};
+		uint32_t nvram_r[] = {FLT_REG_NVRAM_0, FLT_REG_NVRAM_1,
+				      FLT_REG_NVRAM_2, FLT_REG_NVRAM_3};
+		void *buf;
+
+		BUILD_BUG_ON((VPD_OFFSET + FA_NVRAM_VPD_SIZE +
+			      sizeof(struct qla_flash_memo_block)) >
+			     MAX_NVRAM_SIZE);
+
+		ha->fiv = (struct qla_flash_memo_block *)
+			((char *)ha->vpd + ha->vpd_size);
+
+		buf = qla29xx_read_optrom_data(vha, FLT_REG_FMB_PRI,
+					       fw_options, ha->fiv, 0,
+					       sizeof(struct qla_flash_memo_block));
+		if (!buf) {
+			ql_log(ql_log_info, vha, 0x01be,
+			    "Unable to read Flash Image Version.\n");
+		} else if (ha->fiv->signature != QLFC_FMB_SIG) {
+			ql_log(ql_log_warn, vha, 0x01bf,
+			    "Invalid FMB signature %#x, expected %#x.\n",
+			    le32_to_cpu(ha->fiv->signature),
+			    le32_to_cpu(QLFC_FMB_SIG));
+			ha->fiv = NULL;
+		} else {
+			ql_log(ql_log_info, vha, 0x0024,
+			    "Flash Image Version %u.%02u.%02u\n",
+			    ha->fiv->mbi_ver.major,
+			    ha->fiv->mbi_ver.minor,
+			    ha->fiv->mbi_ver.sub);
+		}
+
+		if (ha->port_no >= ARRAY_SIZE(vpd_r)) {
+			ql_log(ql_log_warn, vha, 0x002e,
+			    "Invalid port number %u, skipping VPD/NVRAM read.\n",
+			    ha->port_no);
+			goto out_29xx;
+		}
+
+		r_code = vpd_r[ha->port_no];
+		buf = qla29xx_read_optrom_data(vha, r_code, fw_options,
+					       ha->vpd, 0, ha->vpd_size);
+		if (!buf)
+			ql_log(ql_log_info, vha, 0x002d,
+			    "Unable to read VPD info.\n");
+
+		r_code = nvram_r[ha->port_no];
+		buf = qla29xx_read_optrom_data(vha, r_code, fw_options,
+					       ha->nvram, 0, ha->nvram_size);
+		if (!buf)
+			ql_log(ql_log_info, vha, 0x0013,
+			    "Unable to read nvram config info.\n");
+	} else {
+		if (IS_QLA28XX(ha) || IS_QLA27XX(ha))
+			qla28xx_get_aux_images(vha, &active_regions);
+
+		faddr = ha->flt_region_vpd;
+		if (IS_QLA28XX(ha)) {
+			if (active_regions.aux.vpd_nvram ==
+			    QLA27XX_SECONDARY_IMAGE)
+				faddr = ha->flt_region_vpd_sec;
+			ql_dbg(ql_dbg_init, vha, 0x0110,
+			    "Loading %s nvram image.\n",
+			    active_regions.aux.vpd_nvram ==
+			    QLA27XX_PRIMARY_IMAGE ?
+			    "primary" : "secondary");
+		}
+		ha->isp_ops->read_optrom(vha, ha->vpd, faddr << 2,
+					 ha->vpd_size);
+
+		/* Get NVRAM data into cache and calculate checksum. */
+		faddr = ha->flt_region_nvram;
+		if (IS_QLA28XX(ha)) {
+			if (active_regions.aux.vpd_nvram ==
+			    QLA27XX_SECONDARY_IMAGE)
+				faddr = ha->flt_region_nvram_sec;
+		}
 		ql_dbg(ql_dbg_init, vha, 0x0110,
 		    "Loading %s nvram image.\n",
 		    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
 		    "primary" : "secondary");
+		ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2,
+					 ha->nvram_size);
 	}
-	ha->isp_ops->read_optrom(vha, ha->vpd, faddr << 2, ha->vpd_size);
 
-	/* Get NVRAM data into cache and calculate checksum. */
-	faddr = ha->flt_region_nvram;
-	if (IS_QLA28XX(ha)) {
-		if (active_regions.aux.vpd_nvram == QLA27XX_SECONDARY_IMAGE)
-			faddr = ha->flt_region_nvram_sec;
-	}
-	ql_dbg(ql_dbg_init, vha, 0x0110,
-	    "Loading %s nvram image.\n",
-	    active_regions.aux.vpd_nvram == QLA27XX_PRIMARY_IMAGE ?
-	    "primary" : "secondary");
-	ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2, ha->nvram_size);
-
+out_29xx:
 	dptr = (__force __le32 *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
@@ -9386,7 +10023,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		nv->login_timeout = cpu_to_le16(0);
 		nv->firmware_options_1 =
 		    cpu_to_le32(BIT_14|BIT_13|BIT_2|BIT_1);
-		nv->firmware_options_2 = cpu_to_le32(2 << 4);
+		if (IS_QLA29XX(ha))
+			nv->firmware_options_2 = cpu_to_le32(BIT_4);
+		else
+			nv->firmware_options_2 = cpu_to_le32(BIT_5);
 		nv->firmware_options_2 |= cpu_to_le32(BIT_12);
 		nv->firmware_options_3 = cpu_to_le32(2 << 13);
 		nv->host_p = cpu_to_le32(BIT_11|BIT_10);
@@ -9468,9 +10108,13 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		icb->node_name[0] &= 0xF0;
 	}
 
-	if (IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
-		if ((nv->enhanced_features & BIT_7) == 0)
+	/* SCM Enabled in NVRAM */
+	if (IS_QLA29XX(ha) || IS_QLA28XX(ha) || IS_QLA27XX(ha)) {
+		if ((le16_to_cpu(nv->enhanced_features) & BIT_7) == 0) {
+			ql_log(ql_log_info, vha, 0x0062,
+			       "USCM enabled in NVRAM\n");
 			ha->flags.scm_supported_a = 1;
+		}
 	}
 
 	/* Set host adapter parameters. */
@@ -9546,7 +10190,8 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 
 	/* if not running MSI-X we need handshaking on interrupts */
 	if (!vha->hw->flags.msix_enabled &&
-	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha)))
+	    (IS_QLA83XX(ha) || IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+	     IS_QLA29XX(ha)))
 		icb->firmware_options_2 |= cpu_to_le32(BIT_22);
 
 	/* Enable ZIO. */
