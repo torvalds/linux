@@ -89,7 +89,7 @@ static inline int execmem_restore_rox(void *ptr, size_t size) { return 0; }
  * @end:	address space end (inclusive)
  * @fallback_start: start of the secondary address space range for fallback
  *                  allocations on architectures that require it
- * @fallback_end:   start of the secondary address space (inclusive)
+ * @fallback_end:   end of the secondary address space (inclusive)
  * @pgprot:	permissions for memory in this address space
  * @alignment:	alignment required for text allocations
  * @flags:	options for memory allocations for this range
