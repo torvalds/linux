@@ -856,7 +856,7 @@ static int exec_mmap(struct linux_binprm *bprm)
 	tsk = current;
 	old_mm = current->mm;
 	/* Clean up futexes and release the mm */
-	exec_mm_release(tsk, old_mm);
+	mm_exit_exec_release(tsk, old_mm);
 
 	ret = down_write_killable(&tsk->signal->exec_update_lock);
 	if (ret)

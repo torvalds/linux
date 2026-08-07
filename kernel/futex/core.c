@@ -1537,30 +1537,27 @@ static void futex_cleanup_end(struct task_struct *tsk)
 	mutex_unlock(&tsk->futex.exit_mutex);
 }
 
-void futex_exit_release(struct task_struct *tsk)
+/*
+ * Invoked from mm_exit_exec_release() to cleanup the robust lists and pi state
+ * of the outgoing task.
+ *
+ * exec() makes it interesting for futexes because the TID of the task stays the
+ * same, but from a futex perspective the task has to be treated like an exiting
+ * task. This is especially important for the sanity check for private futexes
+ * in attach_to_pi_owner() which compares the owner's mm with the waiter's mm.
+ *
+ * That check would give the wrong answer if futex_cleanup_end() would
+ * set the state to FUTEX_STATE_OK as long as the task still has the old
+ * mm.
+ *
+ * After the task has switched to the new mm it sets it to
+ * FUTEX_STATE_OK again in futex_exec_done().
+ */
+void futex_exit_exec_release(struct task_struct *tsk)
 {
 	futex_cleanup_begin(tsk);
 	futex_cleanup(tsk);
 	futex_cleanup_end(tsk);
-}
-
-void futex_exec_release(struct task_struct *tsk)
-{
-	/*
-	 * exec() makes it interesting for futexes because the TID of the task
-	 * stays the same, but from a futex perspective the task has to be
-	 * treated like an exiting task. This is especially important for the
-	 * sanity check for private futexes in attach_to_pi_owner() which
-	 * compares the owner's mm with the waiter's mm.
-	 *
-	 * That check would give the wrong answer if futex_cleanup_end() would
-	 * set the state to FUTEX_STATE_OK as long as the task still has the old
-	 * mm.
-	 *
-	 * After the task has switched to the new mm it sets it to
-	 * FUTEX_STATE_OK again in futex_exec_done().
-	 */
-	futex_exit_release(tsk);
 }
 
 /*
