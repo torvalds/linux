@@ -105,6 +105,7 @@ struct test_env {
 	struct test_selector tmon_selector;
 	bool verifier_stats;
 	bool debug;
+	bool error_summary;
 	enum verbosity verbosity;
 
 	bool jit_enabled;
