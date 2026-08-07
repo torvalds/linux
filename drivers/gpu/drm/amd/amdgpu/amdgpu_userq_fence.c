@@ -191,14 +191,15 @@ void amdgpu_userq_fence_driver_destroy(struct kref *ref)
 	struct dma_fence *f;
 
 	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
+	lockdep_assert_held(&fence_drv->fence_list_lock);
 	list_for_each_entry_safe(fence, tmp, &fence_drv->fences, link) {
 		f = &fence->base;
-
-		if (!dma_fence_is_signaled(f)) {
+		spin_lock(dma_fence_spinlock(f));
+		if (!dma_fence_is_signaled_locked(f)) {
 			dma_fence_set_error(f, -ECANCELED);
-			dma_fence_signal(f);
+			dma_fence_signal_locked(f);
 		}
-
+		spin_unlock(dma_fence_spinlock(f));
 		list_del(&fence->link);
 		dma_fence_put(f);
 	}
@@ -423,11 +424,16 @@ amdgpu_userq_fence_driver_set_error(struct amdgpu_userq_fence *fence,
 	struct dma_fence *f;
 
 	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
-
+	lockdep_assert_held(&fence_drv->fence_list_lock);
 	f = rcu_dereference_protected(&fence->base,
 				      lockdep_is_held(&fence_drv->fence_list_lock));
-	if (f && !dma_fence_is_signaled_locked(f))
-		dma_fence_set_error(f, error);
+	if (f) {
+		/* nest f->lock inside fence_list_lock */
+		spin_lock(dma_fence_spinlock(f));
+		if (!dma_fence_is_signaled_locked(f))
+			dma_fence_set_error(f, error);
+		spin_unlock(dma_fence_spinlock(f));
+	}
 	spin_unlock_irqrestore(&fence_drv->fence_list_lock, flags);
 }
 
