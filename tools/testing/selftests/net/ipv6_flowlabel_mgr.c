@@ -8,11 +8,14 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/in6.h>
+#include <net/if.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -306,6 +309,30 @@ static void run_tests(int fd)
 	}
 }
 
+static void setup(void)
+{
+	struct ifreq ifr = {
+		.ifr_name = "lo"
+	};
+	int ctl;
+
+	if (unshare(CLONE_NEWNET))
+		error(1, errno, "unshare");
+
+	ctl = socket(AF_LOCAL, SOCK_STREAM, 0);
+	if (ctl == -1)
+		error(1, errno, "socket");
+
+	if (ioctl(ctl, SIOCGIFFLAGS, &ifr))
+		error(1, errno, "ioctl SIOCGIFFLAGS");
+	ifr.ifr_flags |= IFF_UP;
+	if (ioctl(ctl, SIOCSIFFLAGS, &ifr))
+		error(1, errno, "ioctl: bring lo up");
+
+	if (close(ctl))
+		error(1, errno, "close");
+}
+
 static void parse_opts(int argc, char **argv)
 {
 	int c;
@@ -329,6 +356,7 @@ int main(int argc, char **argv)
 	int fd;
 
 	parse_opts(argc, argv);
+	setup();
 
 	fd = socket(PF_INET6, SOCK_DGRAM, 0);
 	if (fd == -1)
