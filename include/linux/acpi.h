@@ -94,6 +94,12 @@ static inline void acpi_preset_companion(struct device *dev,
 	ACPI_COMPANION_SET(dev, acpi_find_child_device(parent, addr, false));
 }
 
+static inline void acpi_device_clear_deps(struct device *dev)
+{
+	if (has_acpi_companion(dev))
+		acpi_dev_clear_dependencies(ACPI_COMPANION(dev));
+}
+
 static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
 	return dev_name(&adev->dev);
@@ -360,9 +366,10 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 int acpi_isa_irq_to_gsi (unsigned isa_irq, u32 *gsi);
 
 typedef struct fwnode_handle *(*acpi_gsi_domain_disp_fn)(u32);
+typedef acpi_handle (*acpi_gsi_handle_disp_fn)(u32);
 
 void acpi_set_irq_model(enum acpi_irq_model_id model,
-			acpi_gsi_domain_disp_fn fn);
+			acpi_gsi_domain_disp_fn fn, acpi_gsi_handle_disp_fn gsi_dep_fn);
 acpi_gsi_domain_disp_fn acpi_get_gsi_dispatcher(void);
 void acpi_set_gsi_to_irq_fallback(u32 (*)(u32));
 
@@ -371,6 +378,8 @@ struct irq_domain *acpi_irq_create_hierarchy(unsigned int flags,
 					     struct fwnode_handle *fwnode,
 					     const struct irq_domain_ops *ops,
 					     void *host_data);
+
+u32 acpi_irq_add_auto_dep(acpi_handle handle);
 
 #ifdef CONFIG_X86_IO_APIC
 extern int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity);
@@ -907,6 +916,8 @@ static inline void acpi_preset_companion(struct device *dev,
 					 struct acpi_device *parent, u64 addr)
 {
 }
+
+static inline void acpi_device_clear_deps(struct device *dev) {}
 
 static inline const char *acpi_dev_name(struct acpi_device *adev)
 {
