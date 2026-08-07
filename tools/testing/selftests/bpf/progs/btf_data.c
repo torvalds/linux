@@ -58,3 +58,13 @@ int kfunc_b(struct root_struct *root)
 {
 	return 0;
 }
+
+struct root_struct *kfunc_c(struct root_struct *a, struct root_struct *b)
+{
+	return a;
+}
+
+int kfunc_d(struct root_struct *a, struct root_struct *b)
+{
+	return 0;
+}
