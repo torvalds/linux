@@ -135,6 +135,21 @@ int amdgpu_lockdep_init(void)
 	lockdep_set_class(&locks->srbm_mutex, &amdgpu_srbm_lock_key);
 	lockdep_set_class(&locks->grbm_idx_mutex, &amdgpu_grbm_lock_key);
 	lockdep_set_class(&locks->mmio_idx_lock, &amdgpu_mmio_lock_key);
+
+	/*
+	 * Register fs_reclaim lock class FIRST, before taking any locks.
+	 *
+	 * This acquire/release pair does NOT create a static lockdep edge
+	 * (no locks are held between acquire and release). It only registers
+	 * the fs_reclaim lock class with lockdep.
+	 *
+	 * The actual fs_reclaim -> notifier_lock dependency is established at
+	 * RUNTIME when memory reclaim invokes MMU notifiers:
+	 *   fs_reclaim (held by reclaim) -> notifier_lock (acquired in callback)
+	 */
+	fs_reclaim_acquire(GFP_KERNEL);
+	fs_reclaim_release(GFP_KERNEL);
+
 	/*
 	 * Take locks in the correct order to train lockdep.
 	 * This establishes the dependency chain.
@@ -154,11 +169,6 @@ int amdgpu_lockdep_init(void)
 
 	/* Level 6: Reset control lock */
 	mutex_lock(&locks->reset_lock);
-	/*
-	 * Mark potential memory reclaim boundary.
-	 * GPU operations might trigger memory allocation/reclaim.
-	 */
-	fs_reclaim_acquire(GFP_KERNEL);
 
 	/* Level 7: SRBM register access */
 	mutex_lock(&locks->srbm_mutex);
@@ -176,7 +186,6 @@ int amdgpu_lockdep_init(void)
 	spin_unlock_irqrestore(&locks->mmio_idx_lock, flags);
 	mutex_unlock(&locks->grbm_idx_mutex);
 	mutex_unlock(&locks->srbm_mutex);
-	fs_reclaim_release(GFP_KERNEL);
 
 	mutex_unlock(&locks->reset_lock);
 	up_read(&reset_domain->sem);

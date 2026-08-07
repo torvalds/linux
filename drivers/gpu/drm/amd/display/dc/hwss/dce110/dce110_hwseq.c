@@ -1348,7 +1348,10 @@ void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 		 * process the mute state, especially after link re-establishment
 		 * with HDMI 2.0 scrambling enabled.
 		 */
-		if (enable && pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg)) {
+		if (enable && pipe_ctx->stream_res.tg &&
+		    pipe_ctx->stream_res.tg->funcs->is_tg_enabled &&
+		    pipe_ctx->stream_res.tg->funcs->wait_for_state &&
+		    pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg)) {
 			int i;
 
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
