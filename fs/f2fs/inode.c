@@ -855,15 +855,12 @@ void f2fs_remove_donate_inode(struct inode *inode)
 }
 
 /*
- * Called at the last iput() if i_nlink is zero
+ * Return true, if we shouldn't go through post_evict_inode.
  */
-void f2fs_evict_inode(struct inode *inode)
+static bool f2fs_pre_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
-	nid_t xnid = fi->i_xattr_nid;
-	int err = 0;
-	bool freeze_protected = false;
 
 	f2fs_abort_atomic_write(inode, true);
 
@@ -883,13 +880,13 @@ void f2fs_evict_inode(struct inode *inode)
 	truncate_inode_pages_final(&inode->i_data);
 
 	if ((inode->i_nlink || is_bad_inode(inode)) &&
-		test_opt(sbi, COMPRESS_CACHE) && f2fs_compressed_file(inode))
+	    test_opt(sbi, COMPRESS_CACHE) && f2fs_compressed_file(inode))
 		f2fs_invalidate_compress_pages(sbi, inode->i_ino);
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
-			inode->i_ino == F2FS_META_INO(sbi) ||
-			inode->i_ino == F2FS_COMPRESS_INO(sbi))
-		goto out_clear;
+	    inode->i_ino == F2FS_META_INO(sbi) ||
+	    inode->i_ino == F2FS_COMPRESS_INO(sbi))
+		return true;
 
 	f2fs_bug_on(sbi, get_dirty_pages(inode));
 	f2fs_remove_dirty_inode(inode);
@@ -898,14 +895,18 @@ void f2fs_evict_inode(struct inode *inode)
 	if (!IS_DEVICE_ALIASING(inode))
 		f2fs_destroy_extent_tree(inode);
 
-	if (inode->i_nlink || is_bad_inode(inode))
-		goto no_delete;
+	return false;
+}
 
-	err = f2fs_dquot_initialize(inode);
-	if (err) {
-		err = 0;
+static void f2fs_delete_inode(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	bool freeze_protected = false;
+	struct f2fs_lock_context lc;
+	int err = 0;
+
+	if (f2fs_dquot_initialize(inode))
 		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
-	}
 
 	f2fs_remove_ino_entry(sbi, inode->i_ino, APPEND_INO);
 	f2fs_remove_ino_entry(sbi, inode->i_ino, UPDATE_INO);
@@ -924,30 +925,30 @@ retry:
 	if (time_to_inject(sbi, FAULT_EVICT_INODE))
 		err = -EIO;
 
-	if (!err) {
-		struct f2fs_lock_context lc;
+	if (err)
+		goto error_check;
 
-		f2fs_lock_op(sbi, &lc);
-		err = f2fs_remove_inode_page(inode);
-		f2fs_unlock_op(sbi, &lc);
-		if (err == -ENOENT) {
-			err = 0;
+	f2fs_lock_op(sbi, &lc);
+	err = f2fs_remove_inode_page(inode);
+	f2fs_unlock_op(sbi, &lc);
 
-			/*
-			 * in fuzzed image, another node may has the same
-			 * block address as inode's, if it was truncated
-			 * previously, truncation of inode node will fail.
-			 */
-			if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
-				f2fs_warn(F2FS_I_SB(inode),
-					"f2fs_evict_inode: inconsistent node id, ino:%llu",
-					inode->i_ino);
-				f2fs_inode_synced(inode);
-				set_sbi_flag(sbi, SBI_NEED_FSCK);
-			}
+	if (err == -ENOENT) {
+		err = 0;
+
+		/*
+		 * in fuzzed image, another node may has the same
+		 * block address as inode's, if it was truncated
+		 * previously, truncation of inode node will fail.
+		 */
+		if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+			f2fs_warn(F2FS_I_SB(inode),
+				"f2fs_evict_inode: inconsistent node id, ino:%llu",
+				inode->i_ino);
+			f2fs_inode_synced(inode);
+			set_sbi_flag(sbi, SBI_NEED_FSCK);
 		}
 	}
-
+error_check:
 	/* give more chances, if ENOMEM case */
 	if (err == -ENOMEM) {
 		err = 0;
@@ -957,27 +958,37 @@ retry:
 	if (IS_DEVICE_ALIASING(inode))
 		f2fs_destroy_extent_tree(inode);
 
-	if (err) {
-		f2fs_update_inode_page(inode);
-		if (dquot_initialize_needed(inode))
-			set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+	if (!err)
+		goto unfreeze_out;
 
-		/*
-		 * If both f2fs_truncate() and f2fs_update_inode_page() failed
-		 * due to fuzzed corrupted inode, call f2fs_inode_synced() to
-		 * avoid triggering later f2fs_bug_on().
-		 */
-		if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
-			f2fs_warn(sbi,
-				"f2fs_evict_inode: inode is dirty, ino:%llu",
-				inode->i_ino);
-			f2fs_inode_synced(inode);
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
-		}
+	f2fs_update_inode_page(inode);
+
+	if (dquot_initialize_needed(inode))
+		set_sbi_flag(sbi, SBI_QUOTA_NEED_REPAIR);
+
+	/*
+	 * If both f2fs_truncate() and f2fs_update_inode_page() failed
+	 * due to fuzzed corrupted inode, call f2fs_inode_synced() to
+	 * avoid triggering later f2fs_bug_on().
+	 */
+	if (is_inode_flag_set(inode, FI_DIRTY_INODE)) {
+		f2fs_warn(sbi,
+			"f2fs_evict_inode: inode is dirty, ino:%llu",
+			inode->i_ino);
+		f2fs_inode_synced(inode);
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
 	}
+unfreeze_out:
 	if (freeze_protected)
 		sb_end_intwrite(inode->i_sb);
-no_delete:
+}
+
+static void f2fs_post_evict_inode(struct inode *inode)
+{
+	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
+	nid_t xnid = fi->i_xattr_nid;
+
 	dquot_drop(inode);
 
 	stat_dec_inline_xattr(inode);
@@ -1019,7 +1030,22 @@ no_delete:
 		 * In that case, f2fs_check_nid_range() is enough to give a clue.
 		 */
 	}
-out_clear:
+}
+
+/*
+ * Called at the last iput() if i_nlink is zero
+ */
+void f2fs_evict_inode(struct inode *inode)
+{
+	if (f2fs_pre_evict_inode(inode))
+		goto clear_out;
+
+	if (!inode->i_nlink && !is_bad_inode(inode))
+		f2fs_delete_inode(inode);
+
+	f2fs_post_evict_inode(inode);
+
+clear_out:
 	fscrypt_put_encryption_info(inode);
 	clear_inode(inode);
 }
