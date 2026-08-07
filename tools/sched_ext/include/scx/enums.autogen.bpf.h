@@ -22,9 +22,6 @@ const volatile u64 __SCX_RQ_CAN_STOP_TICK __weak;
 const volatile u64 __SCX_RQ_BAL_PENDING __weak;
 #define SCX_RQ_BAL_PENDING __SCX_RQ_BAL_PENDING
 
-const volatile u64 __SCX_RQ_BAL_KEEP __weak;
-#define SCX_RQ_BAL_KEEP __SCX_RQ_BAL_KEEP
-
 const volatile u64 __SCX_RQ_BYPASSING __weak;
 #define SCX_RQ_BYPASSING __SCX_RQ_BYPASSING
 
