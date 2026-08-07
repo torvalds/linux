@@ -330,13 +330,6 @@ static void __io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
 	}
 }
 
-static void io_zcrx_unmap_area(struct io_zcrx_ifq *ifq,
-				struct io_zcrx_area *area)
-{
-	guard(mutex)(&ifq->pp_lock);
-	__io_zcrx_unmap_area(ifq, area);
-}
-
 static void io_zcrx_unmap_areas(struct io_zcrx_ifq *ifq)
 {
 	unsigned area_idx;
@@ -508,6 +501,8 @@ static int __zcrx_create_area(struct io_zcrx_ifq *ifq,
 	unsigned nr_iovs;
 	int i, ret;
 
+	lockdep_assert_held(&ifq->pp_lock);
+
 	if (rx_buf_len) {
 		if (!is_power_of_2(rx_buf_len) || rx_buf_len < PAGE_SIZE)
 			return -EINVAL;
@@ -579,7 +574,7 @@ static int __zcrx_create_area(struct io_zcrx_ifq *ifq,
 		return 0;
 err:
 	if (area) {
-		io_zcrx_unmap_area(ifq, area);
+		__io_zcrx_unmap_area(ifq, area);
 		io_zcrx_free_area(ifq, area);
 	}
 	return ret;
@@ -589,6 +584,7 @@ static int io_zcrx_create_area(struct io_zcrx_ifq *ifq,
 			       struct io_uring_zcrx_area_reg *area_reg,
 			       struct io_uring_zcrx_ifq_reg *reg)
 {
+	guard(mutex)(&ifq->pp_lock);
 	return __zcrx_create_area(ifq, area_reg, reg->rx_buf_len);
 }
 
