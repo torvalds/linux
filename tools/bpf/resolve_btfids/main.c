@@ -1379,6 +1379,12 @@ static int finalize_btf(struct object *obj)
 	struct btf *base_btf = obj->base_btf, *btf = obj->btf;
 	int err;
 
+	err = btf__dedup(obj->btf, NULL);
+	if (err) {
+		pr_err("FAILED to dedup BTF: %s\n", strerror(errno));
+		goto out_err;
+	}
+
 	if (obj->base_btf && obj->distill_base) {
 		err = btf__distill_base(obj->btf, &base_btf, &btf);
 		if (err) {
