@@ -1527,11 +1527,9 @@ static void futex_cleanup_begin(struct task_struct *tsk)
 static void futex_cleanup_end(struct task_struct *tsk, int state)
 	__releases(&tsk->futex.exit_mutex)
 {
-	/*
-	 * Lockless store. The only side effect is that an observer might
-	 * take another loop until it becomes visible.
-	 */
-	tsk->futex.state = state;
+	scoped_guard(raw_spinlock_irq, &tsk->pi_lock)
+		tsk->futex.state = state;
+
 	/*
 	 * Drop the exit protection. This unblocks waiters which observed
 	 * FUTEX_STATE_EXITING to reevaluate the state.
