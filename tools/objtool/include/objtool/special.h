@@ -32,6 +32,13 @@ int special_get_alts(struct elf *elf, struct list_head *alts);
 
 void arch_handle_alternative(struct special_alt *alt);
 
+/*
+ * Should the reloc at @offset -- the "new" (replacement) field of a special
+ * section group entry -- be ignored?  The meaning of a zero-length replacement
+ * is arch specific, so the arch decides.
+ */
+bool arch_alt_ignore_new_reloc(struct section *sec, unsigned long offset);
+
 bool arch_support_alt_relocation(struct special_alt *special_alt,
 				 struct instruction *insn,
 				 struct reloc *reloc);

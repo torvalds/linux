@@ -12,7 +12,7 @@
 #include <objtool/arch.h>
 #include <objtool/klp.h>
 #include <objtool/util.h>
-#include <arch/special.h>
+#include <objtool/special.h>
 
 #include <linux/align.h>
 #include <linux/objtool_types.h>
@@ -1536,6 +1536,10 @@ static int clone_sym_relocs(struct elfs *e, struct symbol *patched_sym)
 		 */
 		if (patched_reloc->sym->sec &&
 		    !strcmp(patched_reloc->sym->sec->name, ".altinstr_aux"))
+			continue;
+
+		if (arch_alt_ignore_new_reloc(patched_sym->sec,
+					      reloc_offset(patched_reloc)))
 			continue;
 
 		ret = convert_reloc_sym(e->patched, patched_reloc);
