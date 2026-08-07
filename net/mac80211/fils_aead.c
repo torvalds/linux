@@ -24,7 +24,7 @@ static int aes_s2v(const u8 *in_key, size_t key_len,
 		   size_t num_elem, const u8 *addr[], size_t len[], u8 *v)
 {
 	u8 d[AES_BLOCK_SIZE], tmp[AES_BLOCK_SIZE] = {};
-	struct aes_cmac_key key;
+	struct aes_cmac_key key __cleanup(aes_cmac_zeroize_key);
 	struct aes_cmac_ctx ctx;
 	size_t i;
 	int res;
@@ -62,7 +62,6 @@ static int aes_s2v(const u8 *in_key, size_t key_len,
 	aes_cmac_update(&ctx, d, AES_BLOCK_SIZE);
 	aes_cmac_final(&ctx, v);
 
-	memzero_explicit(&key, sizeof(key));
 	return 0;
 }
 
