@@ -19,19 +19,11 @@
 #include <objtool/util.h>
 #include <linux/livepatch_external.h>
 
-static int fix_klp_relocs(struct elf *elf)
+static int fix_klp_reloc_sec(struct elf *elf, struct section *symtab,
+			     struct section *klp_relocs)
 {
-	struct section *symtab, *klp_relocs;
-
-	klp_relocs = find_section_by_name(elf, KLP_RELOCS_SEC);
-	if (!klp_relocs)
-		return 0;
-
-	symtab = find_section_by_name(elf, ".symtab");
-	if (!symtab) {
-		ERROR("missing .symtab");
-		return -1;
-	}
+	/* section format: __klp_relocs.sec_objname */
+	const char *sec_objname = klp_relocs->name + strlen(KLP_RELOCS_SEC ".");
 
 	for (int i = 0; i < sec_size(klp_relocs) / sizeof(struct klp_reloc); i++) {
 		struct klp_reloc *klp_reloc;
@@ -39,7 +31,6 @@ static int fix_klp_relocs(struct elf *elf)
 		struct section *sec, *tmp, *klp_rsec;
 		unsigned long offset;
 		struct reloc *reloc;
-		char sym_modname[64];
 		char rsec_name[SEC_NAME_LEN];
 		u64 addend;
 		struct symbol *sym, *klp_sym;
@@ -55,7 +46,7 @@ static int fix_klp_relocs(struct elf *elf)
 		reloc = find_reloc_by_dest(elf, klp_relocs,
 					   klp_reloc_off + offsetof(struct klp_reloc, offset));
 		if (!reloc) {
-			ERROR("malformed " KLP_RELOCS_SEC " section");
+			ERROR("malformed %s section", klp_relocs->name);
 			return -1;
 		}
 
@@ -66,16 +57,12 @@ static int fix_klp_relocs(struct elf *elf)
 		reloc = find_reloc_by_dest(elf, klp_relocs,
 					   klp_reloc_off + offsetof(struct klp_reloc, sym));
 		if (!reloc) {
-			ERROR("malformed " KLP_RELOCS_SEC " section");
+			ERROR("malformed %s section", klp_relocs->name);
 			return -1;
 		}
 
 		klp_sym = reloc->sym;
 		addend = reloc_addend(reloc);
-
-		/* symbol format: .klp.sym.modname.sym_name,sympos */
-		if (sscanf(klp_sym->name + strlen(KLP_SYM_PREFIX), "%55[^.]", sym_modname) != 1)
-			ERROR("can't find modname in klp symbol '%s'", klp_sym->name);
 
 		/*
 		 * Create the KLP rela:
@@ -84,7 +71,7 @@ static int fix_klp_relocs(struct elf *elf)
 		/* section format: .klp.rela.sec_objname.section_name */
 		if (snprintf_check(rsec_name, SEC_NAME_LEN,
 				   KLP_RELOC_SEC_PREFIX "%s.%s",
-				   sym_modname, sec->name))
+				   sec_objname, sec->name))
 			return -1;
 
 		klp_rsec = find_section_by_name(elf, rsec_name);
@@ -134,10 +121,32 @@ static int fix_klp_relocs(struct elf *elf)
 	return 0;
 }
 
+static int fix_klp_relocs(struct elf *elf)
+{
+	struct section *symtab, *sec;
+
+	symtab = find_section_by_name(elf, ".symtab");
+	if (!symtab) {
+		ERROR("missing .symtab");
+		return -1;
+	}
+
+	for_each_sec(elf, sec) {
+		if (strncmp(sec->name, KLP_RELOCS_SEC ".",
+			    strlen(KLP_RELOCS_SEC ".")))
+			continue;
+
+		if (fix_klp_reloc_sec(elf, symtab, sec))
+			return -1;
+	}
+
+	return 0;
+}
+
 /*
  * This runs on the livepatch module after all other linking has been done.  It
- * converts the intermediate __klp_relocs section into proper KLP relocs to be
- * processed by livepatch.  This needs to run last to avoid linker wreckage.
+ * converts the intermediate __klp_relocs.* sections into proper KLP relocs to
+ * be processed by livepatch.  This needs to run last to avoid linker wreckage.
  * Linkers don't tend to handle the "two rela sections for a single base
  * section" case very well, nor do they appreciate SHN_LIVEPATCH.
  */

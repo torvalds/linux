@@ -14,11 +14,15 @@
 #define KLP_FUNCS_SEC	".init.klp_funcs"
 
 /*
- * __klp_relocs is an intermediate section which are created by klp diff and
- * converted into KLP symbols/relas by "objtool klp post-link".  This is needed
- * to work around the linker, which doesn't preserve SHN_LIVEPATCH or
+ * __klp_relocs.<objname> are intermediate sections which are created by klp
+ * diff and converted into KLP symbols/relas by "objtool klp post-link".  This
+ * is needed to work around the linker, which doesn't preserve SHN_LIVEPATCH or
  * SHF_RELA_LIVEPATCH, nor does it support having two RELA sections for a
  * single PROGBITS section.
+ *
+ * "objname" is the name of the object being patched ("vmlinux" or a module
+ * name).  post-link uses it to name the resulting
+ * .klp.rela.objname.section_name sections.
  */
 #define KLP_RELOCS_SEC	"__klp_relocs"
 #define KLP_STRINGS_SEC	".rodata.klp.str1.1"

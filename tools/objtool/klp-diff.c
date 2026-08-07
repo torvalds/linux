@@ -1381,8 +1381,8 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 	}
 
 	/*
-	 * Create the __klp_relocs entry.  This will be converted to an actual
-	 * KLP rela by "objtool klp post-link".
+	 * Create the __klp_relocs.<objname> entry.  This will be converted to
+	 * an actual KLP rela by "objtool klp post-link".
 	 *
 	 * This intermediate step is necessary to prevent corruption by the
 	 * linker, which doesn't know how to properly handle two rela sections
@@ -1390,7 +1390,18 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 	 */
 
 	if (!klp_relocs) {
-		klp_relocs = elf_create_section(e->out, KLP_RELOCS_SEC, 0,
+		const char *objname = find_modname(e);
+		char sec_name[SEC_NAME_LEN];
+
+		if (!objname)
+			return -1;
+
+		/* section format: __klp_relocs.objname */
+		if (snprintf_check(sec_name, SEC_NAME_LEN,
+				   KLP_RELOCS_SEC ".%s", objname))
+			return -1;
+
+		klp_relocs = elf_create_section(e->out, sec_name, 0,
 						0, SHT_PROGBITS, 8, SHF_ALLOC);
 		if (!klp_relocs)
 			return -1;
