@@ -447,6 +447,7 @@ enum p_state_switch_method {
 	P_STATE_SUB_VP,
 	P_STATE_DRR_SUB_VP,
 	P_STATE_V_BLANK_SUB_VP,
+	P_STATE_ALT,
 };
 
 struct dsc_padding_params {

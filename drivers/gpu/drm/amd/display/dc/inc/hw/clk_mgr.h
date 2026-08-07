@@ -427,6 +427,7 @@ struct clk_mgr_funcs {
 			struct block_sequence_state *seq_state);
 
 	void (*execute_clk_mgr_block_sequence)(struct clk_mgr *clk_mgr);
+	void (*request_dtbclk)(struct clk_mgr *clk_mgr_base, bool enable);
 };
 
 struct clk_mgr {

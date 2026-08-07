@@ -635,6 +635,7 @@ struct queue {
 	void *gang_ctx_bo;
 	uint64_t gang_ctx_gpu_addr;
 	void *gang_ctx_cpu_ptr;
+	uint32_t gang_ctx_array_index;
 
 	struct amdgpu_bo *wptr_bo_gart;
 };
@@ -871,6 +872,8 @@ struct kfd_process_device {
 	uint64_t proc_ctx_gpu_addr;
 	void *proc_ctx_cpu_ptr;
 
+	uint32_t proc_ctx_array_index;
+
 	/* Tracks queue reset status */
 	bool has_reset_queue;
 
@@ -895,7 +898,7 @@ struct svm_range_list {
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
 	struct task_struct		*faulting_task;
 	/* check point ts decides if page fault recovery need be dropped */
-	uint64_t			checkpoint_ts[MAX_GPU_INSTANCE];
+	atomic64_t			checkpoint_ts[MAX_GPU_INSTANCE];
 
 	/* Default granularity to use in buffer migration
 	 * and restoration of backing memory while handling

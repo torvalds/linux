@@ -40,16 +40,19 @@ static void dml21_populate_pmo_options(struct dml2_pmo_options *pmo_options,
 	pmo_options->force_mandatory_uclk_pstate_support = config->pmo.force_mandatory_uclk_pstate_support;
 }
 
-static enum dml2_project_id dml21_dcn_revision_to_dml2_project_id(enum dce_version dcn_version)
+static enum dml2_project_id dml21_dcn_revision_to_dml2_project_id(const struct dc *in_dc)
 {
 	enum dml2_project_id project_id;
-	switch (dcn_version) {
+	switch (in_dc->ctx->dce_version) {
 	case DCN_VERSION_4_01:
 		project_id = dml2_project_dcn4x_stage2_auto_drr_svp;
 		break;
 	case DCN_VERSION_4_2:
 	case DCN_VERSION_4_2B:
 		project_id = dml2_project_dcn42;
+		break;
+	case DCN_VERSION_6_0:
+		project_id = dml2_project_dcn6x_soc_var_a;
 		break;
 	default:
 		project_id = dml2_project_invalid;
@@ -64,7 +67,7 @@ void dml21_populate_dml_init_params(struct dml2_initialize_instance_in_out *dml_
 		const struct dml2_configuration_options *config,
 		const struct dc *in_dc)
 {
-	dml_init->options.project_id = dml21_dcn_revision_to_dml2_project_id(in_dc->ctx->dce_version);
+	dml_init->options.project_id = dml21_dcn_revision_to_dml2_project_id(in_dc);
 
 	if (config->use_native_soc_bb_construction) {
 		in_dc->soc_and_ip_translator->translator_funcs->get_soc_bb(&dml_init->soc_bb, in_dc, config);
@@ -75,6 +78,9 @@ void dml21_populate_dml_init_params(struct dml2_initialize_instance_in_out *dml_
 	}
 
 	dml21_populate_pmo_options(&dml_init->options.pmo_options, in_dc, config);
+
+	if (in_dc->clk_mgr && in_dc->clk_mgr->bw_params)
+		dml_init->overrides.explicit_qos_model = in_dc->clk_mgr->bw_params->utm_qos_model;
 }
 
 static unsigned int calc_max_hardware_v_total(const struct dc_stream_state *stream)
@@ -528,7 +534,6 @@ static void populate_dml21_surface_config_from_plane_state(
 	switch (plane_state->tiling_info.gfxversion) {
 	case DcGfxVersion7:
 	case DcGfxVersion8:
-		break;
 	case DcGfxVersion9:
 	case DcGfxVersion10:
 	case DcGfxVersion11:
@@ -606,6 +611,36 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
 		plane->pixel_format = dml2_rgbe_alpha;
 		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P208:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P208:
+		plane->pixel_format = dml2_422_planar_8;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P210:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P210:
+		plane->pixel_format = dml2_422_planar_10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P212:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P212:
+		plane->pixel_format = dml2_422_planar_12;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbYCrY:
+		plane->pixel_format = dml2_422_packed_8;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_CbYCrY:
+		plane->pixel_format = dml2_422_packed_10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_CbYCrY:
+		plane->pixel_format = dml2_422_packed_12;
+		break;
 	default:
 		plane->pixel_format = dml2_444_32;
 		break;
@@ -639,6 +674,8 @@ static void populate_dml21_plane_config_from_plane_state(struct dml2_context *dm
 			(scaler_data->taps.h_taps_c > 1) || (scaler_data->taps.v_taps_c > 1))
 			plane->composition.scaler_info.enabled = true;
 	}
+
+	plane->composition.scaler_info.upsp_enabled = (scaler_data->upsp != UPSP_BYPASS);
 
 	/* always_scale is only used for debug purposes not used in production but has to be
 	 * maintained for certain complainces. */
@@ -836,6 +873,9 @@ static enum dml2_uclk_pstate_change_strategy dml21_force_pstate_method_to_uclk_s
 	case dml2_force_pstate_method_subvp:
 		val = dml2_uclk_pstate_change_strategy_force_mall_svp;
 		break;
+	case dml2_force_pstate_method_alternate:
+		val = dml2_uclk_pstate_change_strategy_force_alternate;
+		break;
 	case dml2_force_pstate_method_auto:
 	default:
 		val = dml2_uclk_pstate_change_strategy_auto;
@@ -952,6 +992,9 @@ void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state 
 	context->bw_ctx.bw.dcn.clk.socclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.socclk_khz;
 	context->bw_ctx.bw.dcn.clk.subvp_prefetch_dramclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.uclk_khz;
 	context->bw_ctx.bw.dcn.clk.subvp_prefetch_fclk_khz = in_ctx->v21.mode_programming.programming->min_clocks.dcn4x.svp_prefetch_no_throttle.fclk_khz;
+	context->bw_ctx.bw.dcn.clk.utm_latency_ub_index = 0; /* TODO - derive from qos model */
+	context->bw_ctx.bw.dcn.clk.utm_nominal_bandwidth_lb_Kbps = (unsigned int) in_ctx->v21.mode_programming.programming->qos_bound.bandwidth_lb.dcn5.non_urgent_bandwidth_kbps;
+	context->bw_ctx.bw.dcn.clk.utm_urgent_bandwidth_lb_Kbps = (unsigned int) in_ctx->v21.mode_programming.programming->qos_bound.bandwidth_lb.dcn5.urgent_bandwidth_kbps;
 	context->bw_ctx.bw.dcn.clk.stutter_efficiency.base_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->stutter.base_percent_efficiency;
 	context->bw_ctx.bw.dcn.clk.stutter_efficiency.low_power_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->stutter.low_power_percent_efficiency;
 	context->bw_ctx.bw.dcn.clk.stutter_efficiency.z8_stutter_efficiency = (uint8_t)in_ctx->v21.mode_programming.programming->informative.power_management.z8.stutter_efficiency;
@@ -1060,6 +1103,9 @@ void dml21_set_dc_p_state_type(
 		else
 			pipe_ctx->p_state_type = P_STATE_FPO;
 		break;
+	case dml2_pstate_method_alternate:
+		pipe_ctx->p_state_type = P_STATE_ALT;
+		break;
 	default:
 		pipe_ctx->p_state_type = P_STATE_UNKNOWN;
 		break;
@@ -1087,6 +1133,9 @@ void dml21_init_min_clocks_for_dc_state(struct dml2_context *in_ctx, struct dc_s
 	min_clocks->subvp_prefetch_dramclk_khz = 0;
 	min_clocks->subvp_prefetch_fclk_khz = 0;
 	min_clocks->phyclk_khz = in_ctx->v21.dml_init.soc_bb.clk_table.phyclk.clk_values_khz[lowest_dpm_state_index];
+	min_clocks->utm_latency_ub_index = 0; /* TODO - derive from qos model */
+	min_clocks->utm_nominal_bandwidth_lb_Kbps = 0;
+	min_clocks->utm_urgent_bandwidth_lb_Kbps = 0;
 	min_clocks->stutter_efficiency.base_efficiency = 1;
 	min_clocks->stutter_efficiency.low_power_efficiency = 1;
 	min_clocks->stutter_efficiency.z8_stutter_efficiency = 1;

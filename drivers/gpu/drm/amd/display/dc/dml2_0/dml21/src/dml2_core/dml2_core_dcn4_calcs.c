@@ -13094,6 +13094,7 @@ void dml2_core_calcs_get_stream_fams2_programming(const struct dml2_core_interna
 			(uint16_t)stream_pstate_meta->method_subvp.common.allow_end_otg_vline;
 		base_programming->config.bits.clamp_vtotal_min = true;
 		break;
+	case dml2_pstate_method_alternate:
 	case dml2_pstate_method_reserved_hw:
 	case dml2_pstate_method_reserved_fw:
 	case dml2_pstate_method_reserved_fw_drr_clamped:

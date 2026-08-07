@@ -102,6 +102,7 @@ enum dml2_uclk_pstate_change_strategy {
 	dml2_uclk_pstate_change_strategy_force_drr = 3,
 	dml2_uclk_pstate_change_strategy_force_mall_svp = 4,
 	dml2_uclk_pstate_change_strategy_force_mall_full_frame = 5,
+	dml2_uclk_pstate_change_strategy_force_alternate = 6,
 };
 
 enum dml2_svp_mode_override {
@@ -474,6 +475,15 @@ struct dml2_display_cfg {
 				bool value;
 			} force_nom_det_size_kbytes;
 
+			struct {
+				bool enable; // So copy time can be forced to 0
+				unsigned int copy_time_us;
+			} force_alt_chan_copy_time;
+
+			struct {
+				bool enable; // So fw delay can be forced to 0
+				unsigned int fw_delay_us;
+			} force_alt_chan_fw_delay;
 			bool mode_support_check_disable;
 			bool mcache_admissibility_check_disable;
 			bool surface_viewport_size_check_disable;

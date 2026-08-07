@@ -260,6 +260,35 @@ static int smu_v14_0_0_system_features_control(struct smu_context *smu, bool en)
 	return ret;
 }
 
+/**
+ * smu_v14_0_0_find_clk_level - find the closest DPM level for a frequency
+ * @freqs: array of frequencies (one per DPM level)
+ * @count: number of valid entries in @freqs
+ * @target: the frequency to match
+ *
+ * Returns the index of the DPM level whose frequency is closest to @target.
+ * If an exact match exists it is preferred; otherwise the nearest level by
+ * absolute difference is returned.
+ */
+static uint8_t smu_v14_0_0_find_clk_level(const uint32_t *freqs, uint8_t count,
+					   uint32_t target)
+{
+	uint8_t i, closest = 0;
+	uint32_t best_diff = U32_MAX;
+
+	for (i = 0; i < count; i++) {
+		uint32_t diff = abs((int)target - (int)freqs[i]);
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			closest = i;
+		}
+		if (freqs[i] == target)
+			return i;
+	}
+	return closest;
+}
+
 static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 					    MetricsMember_t member,
 					    uint32_t *value)
@@ -284,7 +313,30 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->VclkFrequency;
 		break;
 	case METRICS_AVERAGE_DCLK:
+		/*
+		 * SmuMetrics_t has no DclkFrequency field.  DCLK and VCLK
+		 * share the same DPM level count, so find the DPM level
+		 * whose VCLK matches the reported VclkFrequency and return
+		 * the DCLK frequency at that level.
+		 */
 		*value = 0;
+		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			DpmClocks_t_v14_0_1 *clk_table = smu->smu_table.clocks_table;
+			uint8_t lvl = smu_v14_0_0_find_clk_level(
+					clk_table->VClocks0,
+					clk_table->Vcn0ClkLevelsEnabled,
+					metrics->VclkFrequency);
+
+			*value = clk_table->DClocks0[lvl];
+		} else {
+			DpmClocks_t *clk_table = smu->smu_table.clocks_table;
+			uint8_t lvl = smu_v14_0_0_find_clk_level(
+					clk_table->VClocks,
+					clk_table->VcnClkLevelsEnabled,
+					metrics->VclkFrequency);
+
+			*value = clk_table->DClocks[lvl];
+		}
 		break;
 	case METRICS_AVERAGE_UCLK:
 		*value = metrics->MemclkFrequency;
@@ -682,6 +734,11 @@ static int smu_v14_0_1_get_dpm_freq_by_index(struct smu_context *smu,
 			return -EINVAL;
 		*freq = clk_table->FclkClocks_Freq[dpm_level];
 		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= clk_table->NumDcfClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level];
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -725,6 +782,11 @@ static int smu_v14_0_0_get_dpm_freq_by_index(struct smu_context *smu,
 		if (dpm_level >= clk_table->NumFclkLevelsEnabled)
 			return -EINVAL;
 		*freq = clk_table->FclkClocks_Freq[dpm_level];
+		break;
+	case SMU_DCEFCLK:
+		if (dpm_level >= clk_table->NumDcfClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->DcfClocks[dpm_level];
 		break;
 	default:
 		return -EINVAL;
@@ -1089,6 +1151,9 @@ static int smu_v14_0_1_get_dpm_level_count(struct smu_context *smu,
 	case SMU_FCLK:
 		*count = clk_table->NumFclkLevelsEnabled;
 		break;
+	case SMU_DCEFCLK:
+		*count = clk_table->NumDcfClkLevelsEnabled;
+		break;
 	default:
 		break;
 	}
@@ -1117,6 +1182,9 @@ static int smu_v14_0_0_get_dpm_level_count(struct smu_context *smu,
 		break;
 	case SMU_FCLK:
 		*count = clk_table->NumFclkLevelsEnabled;
+		break;
+	case SMU_DCEFCLK:
+		*count = clk_table->NumDcfClkLevelsEnabled;
 		break;
 	default:
 		break;
@@ -1174,14 +1242,41 @@ static int smu_v14_0_0_emit_clk_levels(struct smu_context *smu,
 		if (ret)
 			return ret;
 
+		/*
+		 * Build a frequency table and use find_clk_level() to
+		 * locate the closest DPM level.  The SMU often reports
+		 * time-averaged frequencies that do not match any DPM
+		 * entry exactly.
+		 */
+		{
+			uint32_t freqs[NUM_SOCCLK_DPM_LEVELS];
+			int active;
+
+			for (i = 0; i < count; i++) {
+				idx = (clk_type == SMU_MCLK) ? (count - i - 1) : i;
+				ret = smu_v14_0_common_get_dpm_freq_by_index(smu, clk_type, idx, &freqs[i]);
+				if (ret)
+					return ret;
+			}
+
+			active = smu_v14_0_0_find_clk_level(freqs, count, cur_value);
+
+			for (i = 0; i < count; i++)
+				size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n",
+						      i, freqs[i],
+						      i == active ? "*" : "");
+		}
+		break;
+	case SMU_DCEFCLK:
+		ret = smu_v14_0_common_get_dpm_level_count(smu, clk_type, &count);
+		if (ret)
+			return ret;
+
 		for (i = 0; i < count; i++) {
-			idx = (clk_type == SMU_MCLK) ? (count - i - 1) : i;
-			ret = smu_v14_0_common_get_dpm_freq_by_index(smu, clk_type, idx, &value);
+			ret = smu_v14_0_common_get_dpm_freq_by_index(smu, clk_type, i, &value);
 			if (ret)
 				return ret;
-
-			size += sysfs_emit_at(buf, size, "%d: %uMhz %s\n", i, value,
-					      cur_value == value ? "*" : "");
+			size += sysfs_emit_at(buf, size, "%d: %uMhz\n", i, value);
 		}
 		break;
 	case SMU_GFXCLK:

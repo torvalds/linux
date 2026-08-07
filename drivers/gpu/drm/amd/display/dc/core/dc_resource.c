@@ -80,6 +80,7 @@
 #include "dcn401/dcn401_resource.h"
 #include "dcn42/dcn42_resource.h"
 #include "dcn42b/dcn42b_resource.h"
+#include "dcn60/dcn60_resource.h"
 #if defined(CONFIG_DRM_AMD_DC_FP)
 #include "dc_spl_translate.h"
 #endif
@@ -261,6 +262,9 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	case AMDGPU_FAMILY_GC_11_5_4:
 			dc_version = DCN_VERSION_4_2;
 	break;
+	case AMDGPU_FAMILY_GC_13_0_1:
+			dc_version = DCN_VERSION_6_0;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -382,6 +386,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_4_2B:
 		res_pool = dcn42b_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_6_0:
+		res_pool = dcn60_create_resource_pool(init_data, dc);
 		break;
 #endif /* CONFIG_DRM_AMD_DC_FP */
 	default:
@@ -817,6 +824,36 @@ static enum dc_pixel_format convert_pixel_format_to_dalsurface(
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr:
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb:
 		dal_pixel_format = PIXEL_FORMAT_420BPP10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P208:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P208:
+		dal_pixel_format = PIXEL_FORMAT_422BPP8;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P210:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P210:
+		dal_pixel_format = PIXEL_FORMAT_422BPP10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrCb_P212:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbCr_P212:
+		dal_pixel_format = PIXEL_FORMAT_422BPP12;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_CbYCrY:
+		dal_pixel_format = PIXEL_FORMAT_422BPP8;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_10bpc_CbYCrY:
+		dal_pixel_format = PIXEL_FORMAT_422BPP10;
+		break;
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_YCrYCb:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_YCbYCr:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_CrYCbY:
+	case SURFACE_PIXEL_FORMAT_VIDEO_422_12bpc_CbYCrY:
+		dal_pixel_format = PIXEL_FORMAT_422BPP12;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
@@ -1516,6 +1553,15 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 	}
 }
 
+enum upsp_mode resource_is_upsp_required(enum surface_pixel_format format)
+{
+	if (format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN && format <= SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb) //420 Formats
+		return UPSP_HORIZONTAL_VERTICAL_UPSAMPLING;
+	if (format > SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb && format < SURFACE_PIXEL_FORMAT_SUBSAMPLE_END) //422 Formats
+		return UPSP_HORIZONTAL_UPSAMPLING_ONLY;
+	return UPSP_BYPASS;
+}
+
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -1561,6 +1607,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
 		pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
+		pipe_ctx->plane_res.scl_data.upsp = resource_is_upsp_required(plane_state->format);
 
 		// Convert pipe_ctx to respective input params for SPL
 		translate_SPL_in_params_from_pipe_ctx(pipe_ctx, spl_in);

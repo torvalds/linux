@@ -151,3 +151,13 @@ GPIO_DCN42B = hw_translate_dcn42b.o hw_factory_dcn42b.o
 AMD_DAL_GPIO_DCN42B = $(addprefix $(AMDDALPATH)/dc/gpio/dcn42b/,$(GPIO_DCN42B))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN42B)
+
+###############################################################################
+# DCN 6.0
+###############################################################################
+
+GPIO_DCN60 = hw_translate_dcn60.o hw_factory_dcn60.o
+
+AMD_DAL_GPIO_DCN60 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn60/,$(GPIO_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN60)

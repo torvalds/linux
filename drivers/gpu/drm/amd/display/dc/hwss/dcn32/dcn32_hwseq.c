@@ -544,7 +544,10 @@ bool dcn32_set_input_transfer_func(struct dc *dc,
 	if (plane_state->in_transfer_func.type == TF_TYPE_PREDEFINED)
 		tf = plane_state->in_transfer_func.tf;
 
-	dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
+	if (dpp_base->funcs->dpp_set_pregam_state)
+		dpp_base->funcs->dpp_set_pregam_state(dpp_base, tf, plane_state->scaling_linearity);
+	else
+		dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
 
 	if (plane_state->in_transfer_func.type == TF_TYPE_HWPWL)
 		params = &plane_state->in_transfer_func.pwl;

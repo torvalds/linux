@@ -59,7 +59,8 @@ struct cursor_attribute_cache_hubp {
 		struct {
 			uint32_t              dst_y_offset: 8;
 			uint32_t          chunk_hdl_adjust: 2;
-			uint32_t                  reserved: 22;
+			uint32_t force_cursor_to_disp_pref: 1;
+			uint32_t                  reserved: 21;
 		} bits;
 		uint32_t raw;
 	} settings;

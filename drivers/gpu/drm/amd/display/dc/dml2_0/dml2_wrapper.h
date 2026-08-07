@@ -55,6 +55,12 @@ struct dml2_soc_mall_info {
 	unsigned int mblk_height_8bpe_pixels;
 };
 
+struct dml2_soc_alt_ch_info {
+	unsigned int region_size_bytes[2];
+	/* bits 47:16 of the base address */
+	unsigned int region_base_addr_47_16[2];
+};
+
 // Output of DML2 for clock requirements
 struct dml2_dcn_clocks {
 	unsigned int dispclk_khz;
@@ -204,6 +210,7 @@ enum dml2_force_pstate_methods {
 	dml2_force_pstate_method_vblank,
 	dml2_force_pstate_method_drr,
 	dml2_force_pstate_method_subvp,
+	dml2_force_pstate_method_alternate,
 };
 
 struct dml2_configuration_options {
@@ -226,6 +233,7 @@ struct dml2_configuration_options {
 		struct dml2_dc_svp_callbacks callbacks;
 	} svp_pstate;
 	struct dml2_soc_mall_info mall_cfg;
+	struct dml2_soc_alt_ch_info alt_ch_cfg;
 	struct dml2_soc_bbox_overrides bbox_overrides;
 	unsigned int max_segments_per_hubp;
 	unsigned int det_segment_size;

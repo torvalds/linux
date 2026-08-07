@@ -577,6 +577,10 @@ static bool construct_phy(struct dc_link *link,
 		link->is_internal_display = (disp_connect_caps_info.INTERNAL_DISPLAY != 0);
 		DC_LOG_DC("BIOS object table - is_internal_display: %d", link->is_internal_display);
 		link->no_ddc_pin = disp_connect_caps_info.NO_DDC_PIN != 0;
+		//reworked DP port on N-1 board, for testing on N-1, to be removed when IFWI ready
+		if (link->dc->config.dp_connector_no_native_i2c &&
+			(link->link_id.enum_id == link->dc->config.link_index_with_no_ddc))
+			link->no_ddc_pin = true;
 		link->force_to_use_aux = link->dc->config.dp_connector_no_native_i2c
 				&& link->no_ddc_pin;
 	}
@@ -642,6 +646,7 @@ static bool construct_phy(struct dc_link *link,
 			link->hpd_src = hpd_info.hpd_int_gpio_uid - 1;
 			link->irq_source_hpd =  DC_IRQ_SOURCE_HPD1 + link->hpd_src;
 			enc_init_data.hpd_source = link->hpd_src;
+			enc_init_data.hpd_active_high = (hpd_info.hpd_active == 0) ? true : false;
 			DC_LOG_DC("BIOS object table - hpd_int_gpio_uid id: %d", hpd_info.hpd_int_gpio_uid);
 		} else {
 			ASSERT(0);

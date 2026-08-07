@@ -26,7 +26,7 @@
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_ras_mgr.h"
 #include "amdgpu_ras_eeprom_i2c.h"
-#include "ras_eeprom.h"
+#include "eeprom.h"
 
 /* These are memory addresses as would be seen by one or more EEPROM
  * chips strung on the I2C bus, usually by manipulating pins 1-3 of a

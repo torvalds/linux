@@ -148,6 +148,21 @@
 #define regDP_SYM32_ENC2_DP_SYM32_ENC_HBLANK_CONTROL                                                    0x3813
 #define regDP_SYM32_ENC2_DP_SYM32_ENC_HBLANK_CONTROL_BASE_IDX                                           2
 
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE__SHIFT                                         0x0
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE__SHIFT                               0x4
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE_MASK                                           0x00000001L
+#define DP_SYM32_ENC0_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE_MASK                                 0x00000010L
+#define DP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH__SHIFT                         0x0
+#define DP_SYM32_ENC0_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH_MASK                           0x0000FFFFL
+
+
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE__SHIFT                                         0x0
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE__SHIFT                               0x4
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_ENABLE_MASK                                           0x00000001L
+#define DP_SYM32_ENC1_DP_SYM32_ENC_VID_CRC_CONTROL__CRC_CONT_MODE_ENABLE_MASK                                 0x00000010L
+#define DP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH__SHIFT                         0x0
+#define DP_SYM32_ENC1_DP_SYM32_ENC_HBLANK_CONTROL__HBLANK_MINIMUM_SYMBOL_WIDTH_MASK                           0x0000FFFFL
+
 enum dcn401_clk_src_array_id {
 	DCN401_CLK_SRC_PLL0,
 	DCN401_CLK_SRC_PLL1,
@@ -370,10 +385,10 @@ static const struct dcn10_link_enc_mask le_mask = {
 static struct dcn31_hpo_dp_stream_encoder_registers hpo_dp_stream_enc_regs[4];
 
 static const struct dcn31_hpo_dp_stream_encoder_shift hpo_dp_se_shift = {
-	DCN4_2B_HPO_DP_STREAM_ENC_MASK_SH_LIST(__SHIFT)};
+	DCN4_2_HPO_DP_STREAM_ENC_MASK_SH_LIST(__SHIFT)};
 
 static const struct dcn31_hpo_dp_stream_encoder_mask hpo_dp_se_mask = {
-	DCN4_2B_HPO_DP_STREAM_ENC_MASK_SH_LIST(_MASK)};
+	DCN4_2_HPO_DP_STREAM_ENC_MASK_SH_LIST(_MASK)};
 
 #define hpo_dp_link_encoder_reg_init(id) \
 	DCN42B_HPO_DP_LINK_ENC_REG_LIST_RI(id)
@@ -770,6 +785,7 @@ static const struct dc_plane_cap plane_cap = {
 	.min_height = 64};
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.clock_trace = true,

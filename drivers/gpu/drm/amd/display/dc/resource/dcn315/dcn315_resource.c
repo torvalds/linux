@@ -659,11 +659,11 @@ static const struct dcn_optc_registers optc_regs[] = {
 };
 
 static const struct dcn_optc_shift optc_shift = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_1(__SHIFT)
+	OPTC_COMMON_MASK_SH_LIST_DCN31X(__SHIFT)
 };
 
 static const struct dcn_optc_mask optc_mask = {
-	OPTC_COMMON_MASK_SH_LIST_DCN3_1(_MASK)
+	OPTC_COMMON_MASK_SH_LIST_DCN31X(_MASK)
 };
 
 #define hubp_regs(id)\
@@ -914,6 +914,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_z10 = true, /*hw not support it*/
 	.disable_dmcu = true,
 	.force_abm_enable = false,
@@ -2076,6 +2077,7 @@ static bool dcn315_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;

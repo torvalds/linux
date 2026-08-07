@@ -147,7 +147,7 @@ STATIC_IFN_KUNIT int dm_encoder_helper_atomic_check(struct drm_encoder *encoder,
 		int max_bpc = conn_state->max_requested_bpc;
 
 		is_y420 = drm_mode_is_420_also(&connector->display_info, adjusted_mode) &&
-			  aconnector->force_yuv420_output;
+			  aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR420;
 		color_depth = amdgpu_dm_convert_color_depth_from_display_info(connector,
 								    is_y420,
 								    max_bpc);
@@ -855,16 +855,15 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
 	const struct drm_connector *connector,
 	const struct drm_connector_state *connector_state,
 	const struct dc_stream_state *old_stream,
-	int requested_bpc)
+	int requested_bpc,
+	enum dc_pixel_encoding requested_encoding,
+	bool is_hdmi_ep)
 {
-	bool is_dp_or_hdmi = dc_is_hdmi_signal(stream->signal) || dc_is_dp_signal(stream->signal);
 	struct dc_crtc_timing *timing_out = &stream->timing;
 	const struct drm_display_info *info = &connector->display_info;
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct hdmi_vendor_infoframe hv_frame;
 	struct hdmi_avi_infoframe avi_frame;
-	bool want_420;
-	bool want_422;
 	ssize_t err;
 
 	if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
@@ -878,40 +877,13 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
 	timing_out->v_border_top = 0;
 	timing_out->v_border_bottom = 0;
 
-	want_420 = (aconnector && aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR420) ||
-		   (connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR420);
-	want_422 = (aconnector && aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR422) ||
-		   (connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR422);
-
-	if (drm_mode_is_420_only(info, mode_in) &&
-	    (want_420 || connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_AUTO)) {
-		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
-	} else if (drm_mode_is_420_also(info, mode_in) && want_420) {
-		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
-	} else if ((info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422)) &&
-		   want_422 && is_dp_or_hdmi) {
-		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR422;
-	} else if (connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR444 &&
-		   (info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444)) &&
-		   is_dp_or_hdmi) {
-		timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR444;
-	} else if (connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_RGB444 ||
-		   connector_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_AUTO) {
-		timing_out->pixel_encoding = PIXEL_ENCODING_RGB;
-	} else {
-		/*
-		 * If a format was explicitly requested but the requested format
-		 * can't be satisfied, set it to an invalid value so that an
-		 * error bubbles up to userspace. This way, userspace knows it
-		 * needs to make a better choice.
-		 */
-		if (connector_state->color_format != DRM_CONNECTOR_COLOR_FORMAT_AUTO)
-			timing_out->pixel_encoding = PIXEL_ENCODING_UNDEFINED;
-		else if (drm_mode_is_420_only(info, mode_in))
-			timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
-		else
-			timing_out->pixel_encoding = PIXEL_ENCODING_RGB;
-	}
+	/*
+	 * The pixel encoding to use is decided entirely by the caller (see
+	 * amdgpu_dm_create_validate_stream_for_sink()), which enumerates only
+	 * the encodings the sink actually advertises. This helper must not
+	 * second-guess that choice; it simply applies it.
+	 */
+	timing_out->pixel_encoding = requested_encoding;
 
 	timing_out->timing_3d_format = TIMING_3D_FORMAT_NONE;
 	timing_out->display_color_depth = amdgpu_dm_convert_color_depth_from_display_info(
@@ -977,14 +949,15 @@ STATIC_IFN_KUNIT void fill_stream_properties_from_drm_display_mode(
 
 	stream->out_transfer_func.type = TF_TYPE_PREDEFINED;
 	stream->out_transfer_func.tf = TRANSFER_FUNCTION_SRGB;
-	if (stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
-		if (!adjust_colour_depth_from_display_info(timing_out, info) &&
-		    drm_mode_is_420_also(info, mode_in) &&
-		    timing_out->pixel_encoding != PIXEL_ENCODING_YCBCR420) {
-			timing_out->pixel_encoding = PIXEL_ENCODING_YCBCR420;
-			adjust_colour_depth_from_display_info(timing_out, info);
-		}
-	}
+
+	/* Clamp the HDMI colour depth to what the sink's max TMDS clock
+	 * allows. The pixel encoding is fixed by the caller and must not be
+	 * changed here: the caller already enumerates YCbCr420 as its own
+	 * candidate, so silently switching to it would hide an enumeration
+	 * bug and produce a stream the caller never asked to validate.
+	 */
+	if (is_hdmi_ep)
+		adjust_colour_depth_from_display_info(timing_out, info);
 
 	stream->output_color_space = amdgpu_dm_get_output_color_space(timing_out, connector_state);
 	stream->content_type = get_output_content_type(connector_state);
@@ -1451,7 +1424,9 @@ create_stream_for_sink(struct drm_connector *connector,
 		       const struct drm_display_mode *drm_mode,
 		       const struct dm_connector_state *dm_state,
 		       const struct dc_stream_state *old_stream,
-		       int requested_bpc)
+		       int requested_bpc,
+		       enum dc_pixel_encoding requested_encoding,
+		       bool is_hdmi_ep)
 {
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_dm_connector *aconnector = NULL;
@@ -1562,11 +1537,11 @@ create_stream_for_sink(struct drm_connector *connector,
 	if (!scale || mode_refresh != preferred_refresh)
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, connector, con_state, NULL,
-			requested_bpc);
+			requested_bpc, requested_encoding, is_hdmi_ep);
 	else
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, connector, con_state, old_stream,
-			requested_bpc);
+			requested_bpc, requested_encoding, is_hdmi_ep);
 
 	/* The rest isn't needed for writeback connectors */
 	if (!aconnector)
@@ -2271,13 +2246,32 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 					  const struct dm_connector_state *dm_state,
 					  const struct dc_stream_state *old_stream)
 {
+	/*
+	 * Ordered lists of the encodings and bit depths we are willing to
+	 * validate, best quality/bandwidth first. The per-sink masks built
+	 * below gate which of these entries are actually attempted.
+	 */
+	static const enum dc_pixel_encoding encoding_order[] = {
+		PIXEL_ENCODING_YCBCR444,
+		PIXEL_ENCODING_RGB,
+		PIXEL_ENCODING_YCBCR422,
+		PIXEL_ENCODING_YCBCR420,
+	};
+	static const u8 bpc_order[] = { 16, 12, 10, 8, 6 };
+
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
-	struct dc_stream_state *stream;
+	const struct drm_display_info *info = &connector->display_info;
+	struct dc_stream_state *stream = NULL;
 	const struct drm_connector_state *drm_state = dm_state ? &dm_state->base : NULL;
 	int requested_bpc = drm_state ? drm_state->max_requested_bpc : 8;
 	enum dc_status dc_result = DC_OK;
-	uint8_t bpc_limit = 6;
+	enum signal_type signal = SIGNAL_TYPE_NONE;
+	bool want_420, want_422, is_dp_or_hdmi;
+	u32 encoding_mask = 0;
+	u32 bpc_mask = 0;
+	bool is_hdmi_ep = false;
+	unsigned int i, j;
 
 	if (!dm_state)
 		return NULL;
@@ -2285,90 +2279,181 @@ amdgpu_dm_create_validate_stream_for_sink(struct drm_connector *connector,
 	if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
 		aconnector = to_amdgpu_dm_connector(connector);
 
-	if (aconnector &&
-	    (aconnector->dc_link->connector_signal == SIGNAL_TYPE_HDMI_TYPE_A ||
-	     aconnector->dc_link->connector_signal == SIGNAL_TYPE_HDMI_FRL ||
-	     aconnector->dc_link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER))
-		bpc_limit = 8;
-
-	do {
-		drm_dbg_kms(connector->dev, "Trying with %d bpc\n", requested_bpc);
-		stream = create_stream_for_sink(connector, drm_mode,
-						dm_state, old_stream,
-						requested_bpc);
-		if (stream == NULL) {
+	/*
+	 * Writeback connectors have no sink EDID to enumerate against. They
+	 * only ever use RGB at the requested depth, so build and validate a
+	 * single stream directly and return it (dc_validate_stream() is not
+	 * meaningful for the writeback path).
+	 */
+	if (!aconnector) {
+		stream = create_stream_for_sink(connector, drm_mode, dm_state,
+						old_stream, requested_bpc,
+						PIXEL_ENCODING_RGB, is_hdmi_ep);
+		if (!stream)
 			drm_err(adev_to_drm(adev), "Failed to create stream for sink!\n");
-			break;
-		}
+		return stream;
+	}
 
-		dc_result = dc_validate_stream(adev->dm.dc, stream);
+	signal = aconnector->dc_link->connector_signal;
 
-		if (!aconnector) /* writeback connector */
-			return stream;
+	/*
+	 * Determine whether this is a native HDMI sink or a DP->HDMI dongle.
+	 * Since we check for it a few times below, cache the result.
+	 */
+	is_hdmi_ep = (signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+		     signal == SIGNAL_TYPE_HDMI_FRL 	||
+		     aconnector->dc_link->dpcd_caps.dongle_type ==
+			     DISPLAY_DONGLE_DP_HDMI_CONVERTER);
+	is_dp_or_hdmi = dc_is_hdmi_signal(signal) || dc_is_dp_signal(signal);
 
-		if (dc_result == DC_OK && stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
-			dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
+	/*
+	 * Build the set of pixel encodings this sink advertises, so we only
+	 * ever validate combinations the display can actually accept. Ordered
+	 * best-first: RGB / YCbCr444 (full bandwidth) -> YCbCr422 -> YCbCr420.
+	 *
+	 *  - RGB is the mandatory baseline and always available.
+	 *  - YCbCr444 is only meaningful for native HDMI sinks.
+	 *  - A 420-only mode collapses the mask to YCbCr420 alone.
+	 *  - The debugfs force_yuv_pixel_format override pins the encoding to a
+	 *    single dc_pixel_encoding when set (PIXEL_ENCODING_UNDEFINED means
+	 *    "no override"). An explicit YCbCr420 force is honoured even on
+	 *    modes the sink only lists as RGB/4:4:4 capable
+	 *    (drm_mode_is_420_also() clear), as required for HDMI compliance
+	 *    testing; dc_validate_stream() still rejects anything the link
+	 *    genuinely cannot carry. The YCbCr422/YCbCr444 forces stay gated on
+	 *    the sink's advertised caps.
+	 */
+	want_420 = (aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR420) ||
+		(drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR420);
+	want_422 = (aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR422) ||
+		(drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR422);
 
-		if (dc_result == DC_OK)
-			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
+	if (drm_mode_is_420_only(info, drm_mode) &&
+	    (want_420 || (drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_AUTO))) {
+		encoding_mask = BIT(PIXEL_ENCODING_YCBCR420);
+	} else if (drm_mode_is_420_also(info, drm_mode) && want_420) {
+		encoding_mask = BIT(PIXEL_ENCODING_YCBCR420);
+	} else if ((info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422)) &&
+		   want_422 && is_dp_or_hdmi) {
+		encoding_mask = BIT(PIXEL_ENCODING_YCBCR422);
+	} else if (((aconnector->force_yuv_pixel_format == PIXEL_ENCODING_YCBCR444) ||
+		    (drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_YCBCR444)) &&
+		   (info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444)) &&
+		   is_dp_or_hdmi) {
+		encoding_mask = BIT(PIXEL_ENCODING_YCBCR444);
+	} else if (drm_state && drm_state->color_format == DRM_CONNECTOR_COLOR_FORMAT_RGB444) {
+		encoding_mask = BIT(PIXEL_ENCODING_RGB);
+	} else {
+		encoding_mask = BIT(PIXEL_ENCODING_RGB);
 
-		if (dc_result == DC_OK)
-			dc_result = dm_validate_stream_color_format(drm_state, stream);
+		if ((info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR444)) &&
+		    is_hdmi_ep)
+			encoding_mask |= BIT(PIXEL_ENCODING_YCBCR444);
 
-		if (dc_result != DC_OK) {
-			drm_dbg_kms(connector->dev, "Pruned mode %d x %d (clk %d) %s %s -- %s\n",
+		if (info->color_formats & BIT(DRM_OUTPUT_COLOR_FORMAT_YCBCR422))
+			encoding_mask |= BIT(PIXEL_ENCODING_YCBCR422);
+
+		if (drm_mode_is_420_also(info, drm_mode))
+			encoding_mask |= BIT(PIXEL_ENCODING_YCBCR420);
+	}
+
+	/*
+	 * Build the set of bit depths to try, high-to-low. Start from the
+	 * atomic-requested cap and clear anything the sink cannot do:
+	 *
+	 *  - Never exceed the requested bpc.
+	 *  - HDMI/FRL and DP->HDMI dongles have no defined 6 bpc mode.
+	 *  - Any depth above the EDID-reported bpc is dropped.
+	 *
+	 * amdgpu_dm_convert_color_depth_from_display_info() applies the final
+	 * per-encoding cap (e.g. YCbCr420 deep-colour limits) when the stream
+	 * is built, so this mask only needs the coarse sink limits.
+	 */
+	for (j = 0; j < ARRAY_SIZE(bpc_order); j++) {
+		u8 bpc = bpc_order[j];
+
+		if (requested_bpc > 0 && bpc > requested_bpc)
+			continue;
+
+		if (bpc == 6 && is_hdmi_ep)
+			continue;
+
+		if (info->bpc && bpc > info->bpc)
+			continue;
+
+		bpc_mask |= BIT(bpc);
+	}
+
+	/*
+	 * Enumerate the supported (encoding, bpc) combinations in priority
+	 * order and return the first that validates. Because the masks only
+	 * contain sink-supported entries, this is generic across connector
+	 * types and needs no encoding-specific fallback afterwards.
+	 *
+	 * The selection lives entirely on the stack and is passed by value to
+	 * create_stream_for_sink(); no shared connector state is mutated. This
+	 * matters because this helper runs concurrently from the connector
+	 * probe worker (->mode_valid) and from a compositor's atomic check on
+	 * the same connector.
+	 */
+	for (i = 0; i < ARRAY_SIZE(encoding_order); i++) {
+		enum dc_pixel_encoding enc = encoding_order[i];
+
+		if (!(encoding_mask & BIT(enc)))
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(bpc_order); j++) {
+			u8 bpc = bpc_order[j];
+
+			if (!(bpc_mask & BIT(bpc)))
+				continue;
+
+			drm_dbg_kms(connector->dev,
+				    "Trying %s with %d bpc (encoding_mask=0x%x bpc_mask=0x%x requested_bpc=%d drm max_bpc)\n",
+				    dc_pixel_encoding_to_str(enc), bpc,
+				    encoding_mask, bpc_mask, requested_bpc);
+
+			stream = create_stream_for_sink(connector, drm_mode,
+							dm_state, old_stream,
+							bpc, enc, is_hdmi_ep);
+			if (stream == NULL) {
+				drm_err(adev_to_drm(adev), "Failed to create stream for sink!\n");
+				return NULL;
+			}
+
+			dc_result = dc_validate_stream(adev->dm.dc, stream);
+
+			if (dc_result == DC_OK &&
+			    stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
+				dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
+
+			if (dc_result == DC_OK)
+				dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
+
+			if (dc_result == DC_OK)
+				dc_result = dm_validate_stream_color_format(drm_state, stream);
+
+			if (dc_result == DC_OK)
+				return stream;
+
+			drm_dbg_kms(connector->dev, "Pruned mode %d x %d (refresh rate %d) %s %s -- %s\n",
 				      drm_mode->hdisplay,
 				      drm_mode->vdisplay,
-				      drm_mode->clock,
+				      drm_mode_vrefresh(drm_mode),
 				      dc_pixel_encoding_to_str(stream->timing.pixel_encoding),
 				      dc_color_depth_to_str(stream->timing.display_color_depth),
 				      dc_status_to_str(dc_result));
 
 			dc_stream_release(stream);
 			stream = NULL;
-			requested_bpc -= 2; /* lower bpc to retry validation */
 		}
-
-	} while (stream == NULL && requested_bpc >= bpc_limit);
-
-	switch (dc_result) {
-	/*
-	 * If we failed to validate DP bandwidth stream with the requested RGB color depth,
-	 * we try to fallback and configure in order:
-	 * YUV422 (8bpc, 6bpc)
-	 * YUV420 (8bpc, 6bpc)
-	 */
-	case DC_FAIL_ENC_VALIDATE:
-	case DC_EXCEED_DONGLE_CAP:
-	case DC_NO_DP_LINK_BANDWIDTH:
-		/* recursively entered twice and already tried both YUV422 and YUV420 */
-		if (aconnector->force_yuv422_output && aconnector->force_yuv420_output)
-			break;
-		/* first failure; try YUV422 */
-		if (!aconnector->force_yuv422_output) {
-			drm_dbg_kms(connector->dev, "%s:%d Validation failed with %d, retrying w/ YUV422\n",
-				    __func__, __LINE__, dc_result);
-			aconnector->force_yuv422_output = true;
-		/* recursively entered and YUV422 failed, try YUV420 */
-		} else if (!aconnector->force_yuv420_output) {
-			drm_dbg_kms(connector->dev, "%s:%d Validation failed with %d, retrying w/ YUV420\n",
-				    __func__, __LINE__, dc_result);
-			aconnector->force_yuv420_output = true;
-		}
-		stream = amdgpu_dm_create_validate_stream_for_sink(connector, drm_mode,
-							 dm_state, old_stream);
-		aconnector->force_yuv422_output = false;
-		aconnector->force_yuv420_output = false;
-		break;
-	case DC_OK:
-		break;
-	default:
-		drm_dbg_kms(connector->dev, "%s:%d Unhandled validation failure %d\n",
-			    __func__, __LINE__, dc_result);
-		break;
 	}
 
-	return stream;
+	/*
+	 * Every sink-supported combination was exhausted without validating;
+	 * the mode is genuinely unsupported on this link.
+	 */
+	return NULL;
 }
 EXPORT_IF_KUNIT(amdgpu_dm_create_validate_stream_for_sink);
 
@@ -3068,7 +3153,7 @@ static void hdmi_frl_status_polling_work(struct work_struct *work)
 		if (!dc_is_hdmi_signal(dc_link->connector_signal))
 			continue;
 
-		if (dc_link->connector_signal != SIGNAL_TYPE_HDMI_FRL)
+		if (dc_link->frl_link_settings.frl_link_rate == 0)
 			continue;
 
 		link_update = dc_link_frl_poll_status_flag(dc_link);

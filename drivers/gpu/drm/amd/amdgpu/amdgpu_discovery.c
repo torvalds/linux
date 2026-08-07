@@ -334,6 +334,19 @@ static int amdgpu_discovery_get_tmr_info(struct amdgpu_device *adev,
 			goto out;
 		}
 	} else {
+		if (adev->discovery.offset) {
+			u32 signature;
+
+			/* If VRAM holds a valid discovery signature at the default
+			 * discovery offset, use it as-is.
+			 */
+			amdgpu_device_vram_access(adev, adev->discovery.offset,
+						  &signature, sizeof(signature),
+						  false);
+			if (le32_to_cpu(signature) == BINARY_SIGNATURE)
+				goto out;
+		}
+
 		tmr_size = RREG32(mmDRIVER_SCRATCH_2);
 		if (tmr_size) {
 			/* It's preferred to transition to PSP mailbox reg interface
@@ -2658,6 +2671,7 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(4, 1, 0):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			/* TODO: Fix IP version. DC code expects version 4.0.1 */
 			if (adev->ip_versions[DCE_HWIP][0] == IP_VERSION(4, 1, 0))
 				adev->ip_versions[DCE_HWIP][0] = IP_VERSION(4, 0, 1);

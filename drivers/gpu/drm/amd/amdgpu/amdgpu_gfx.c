@@ -866,7 +866,8 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
  * @queue_id: queue ID of the faulty ring
  *
  * This function handles privileged instruction faults by identifying
- * the faulty ring (gfx or compute) and triggering a scheduler fault
+ * the faulty ring (gfx or compute) and triggering a scheduler fault, or by
+ * recovering the faulting user queue.
  */
 void amdgpu_gfx_handle_priv_fault(struct amdgpu_device *adev,
 					struct amdgpu_iv_entry *entry,
@@ -901,12 +902,25 @@ void amdgpu_gfx_handle_priv_fault(struct amdgpu_device *adev,
 		}
 	}
 
+	/* No KQ matched: the faulting slot belongs to a user queue. */
+	if (adev->gfx.disable_uq)
+		return;
+
 	doorbell_offset = entry->src_data[0] & AMDGPU_CTXID0_DOORBELL_ID_MASK;
 
-	/* No KQ matched: HW slot is a MES-scheduled user queue. */
-	if (adev->enable_mes && doorbell_offset)
+	/*
+	 * A compute user-queue fault IV carries the doorbell offset, so reset
+	 * the queue directly from it. A gfx user-queue fault is raised by the
+	 * ME and carries only the HW slot (no doorbell); record the slot and
+	 * let the worker read the doorbell back from the HQD.
+	 */
+	if (doorbell_offset) {
 		amdgpu_userq_process_reset_irq(adev, entry->pasid,
 					       doorbell_offset);
+	} else {
+		set_bit(pipe_id | (queue_id << 2), &adev->gfx.userq_priv_fault_slots);
+		schedule_work(&adev->gfx.userq_priv_fault_work);
+	}
 }
 
 static void amdgpu_gfx_do_off_ctrl(struct amdgpu_device *adev, bool enable,

@@ -389,6 +389,16 @@ struct dc_csc_adjustments {
 	struct fixed31_32 hue;
 };
 
+enum dc_scaling_linearity {
+	DC_SCALING_LINEARITY_LINEAR,
+	DC_SCALING_LINEARITY_SOURCE,
+};
+
+enum dc_blending_linearity {
+	DC_BLENDING_LINEARITY_LINEAR,
+	DC_BLENDING_LINEARITY_SOURCE,
+};
+
 /* Scaling format */
 enum scaling_transformation {
 	SCALING_TRANSFORMATION_UNINITIALIZED,
@@ -1035,8 +1045,9 @@ enum backlight_control_type {
 	BACKLIGHT_CONTROL_AMD_AUX = 2,
 };
 
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 #define MAX_CRC_WINDOW_NUM	2
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 
 struct otg_phy_mux {
 	uint8_t phy_output_num;

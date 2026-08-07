@@ -604,10 +604,15 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	/* Enable or disable CRTC CRC generation */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
-		if (!dc_stream_configure_crc(stream_state->ctx->dc,
-					     stream_state, NULL, enable, enable, 0, true, crc_poly_mode)) {
-			ret = -EINVAL;
-			goto unlock;
+		int i;
+
+		for (i = 0; i < MAX_CRC_WINDOW_NUM; i++) {
+			if (!dc_stream_configure_crc(stream_state->ctx->dc,
+						     stream_state, NULL, enable, enable,
+						     i, true, crc_poly_mode)) {
+				ret = -EINVAL;
+				goto unlock;
+			}
 		}
 	}
 

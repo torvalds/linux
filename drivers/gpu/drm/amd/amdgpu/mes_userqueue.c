@@ -26,6 +26,7 @@
 #include "amdgpu_gfx.h"
 #include "mes_userqueue.h"
 #include "amdgpu_userq_fence.h"
+#include "amdgpu_trace.h"
 
 #define AMDGPU_USERQ_PROC_CTX_SZ PAGE_SIZE
 #define AMDGPU_USERQ_GANG_CTX_SZ PAGE_SIZE
@@ -143,10 +144,23 @@ static int mes_userq_map(struct amdgpu_usermode_queue *queue)
 	queue_input.doorbell_offset = userq_props->doorbell_index;
 	queue_input.page_table_base_addr = amdgpu_gmc_pd_addr(queue->vm->root.bo);
 	queue_input.wptr_mc_addr = queue->wptr_obj.gpu_addr;
+
 	if (mes->use_rs64mem) {
-		amdgpu_mes_alloc_proc_ctx_index(mes, queue);
-		queue_input.process_context_array_index = queue->proc_ctx_array_index;
-		amdgpu_mes_alloc_gang_ctx_index(mes, queue);
+		 if (!uq_mgr->proc_ctx_allocated) {
+			r = amdgpu_mes_alloc_proc_ctx_index(mes, &uq_mgr->proc_ctx_array_index);
+			if (r) {
+				DRM_ERROR("Failed to allocate userq process index err:%d\n", r);
+				return r;
+			}
+			uq_mgr->proc_ctx_allocated = true;
+		}
+
+		r = amdgpu_mes_alloc_gang_ctx_index(mes, &queue->gang_ctx_array_index);
+		if (r) {
+			DRM_ERROR("Failed to allocate userq gang index err:%d\n", r);
+			return r;
+		}
+		queue_input.process_context_array_index = uq_mgr->proc_ctx_array_index;
 		queue_input.gang_context_array_index = queue->gang_ctx_array_index;
 	}
 	amdgpu_mes_lock(&adev->mes);
@@ -179,10 +193,8 @@ static int mes_userq_unmap(struct amdgpu_usermode_queue *queue)
 	amdgpu_mes_lock(&adev->mes);
 	r = adev->mes.funcs->remove_hw_queue(&adev->mes, &queue_input);
 	amdgpu_mes_unlock(&adev->mes);
-	if (mes->use_rs64mem) {
-		amdgpu_mes_free_proc_ctx_index(mes, queue);
-		amdgpu_mes_free_gang_ctx_index(mes, queue);
-	}
+	if (mes->use_rs64mem)
+		amdgpu_mes_free_gang_ctx_index(mes, queue->gang_ctx_array_index);
 	if (r)
 		DRM_ERROR("Failed to unmap queue in HW, err (%d)\n", r);
 	return r;
@@ -205,7 +217,16 @@ int mes_userq_reset(struct amdgpu_usermode_queue *queue)
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
 		return r;
-	return mes_userq_unmap(queue);
+
+	/* mes_userq_unmap() does not update queue->state; mark it UNMAPPED so the
+	 * destroy path does not issue a second REMOVE_QUEUE for the removed queue.
+	 */
+	r = mes_userq_unmap(queue);
+	if (!r) {
+		trace_amdgpu_userq_state_changed(queue, AMDGPU_USERQ_STATE_UNMAPPED);
+		queue->state = AMDGPU_USERQ_STATE_UNMAPPED;
+	}
+	return r;
 }
 
 int mes_userq_reset_queue(struct amdgpu_device *adev,

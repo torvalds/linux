@@ -805,6 +805,13 @@ void mod_power_replay_notify_mode_change(struct mod_power *mod_power,
 	core_power = MOD_POWER_TO_CORE(mod_power);
 	active_replay_events = core_power->map[stream_index].replay_events;
 
+	/* forced psr is active for seamless switch.
+	 * Re-running edp_setup_psr would disturb the freeze,
+	 * so skip the PSR re-setup until forced psr releases the override.
+	 */
+	if (active_replay_events & replay_event_os_override_hold)
+		return;
+
 	link->replay_settings.replay_smu_opt_enable =
 		(link->replay_settings.config.replay_smu_opt_supported &&
 		mod_power_only_edp(dc->current_state, stream));

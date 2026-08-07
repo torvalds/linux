@@ -704,6 +704,7 @@ static const struct resource_caps res_cap_dcn42 = {
 	.num_vmid = 16,
 	.num_mpc_3dlut = 2,
 	.num_dsc = 4,
+	.num_rmcm = 2,
 };
 
 static const struct dc_plane_cap plane_cap = {
@@ -727,6 +728,7 @@ static const struct dc_plane_cap plane_cap = {
 	.min_height = 64};
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.clock_trace = true,
@@ -2066,6 +2068,7 @@ static bool dcn42_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 0;
 	dc->caps.color.dpp.ogam_ram = 0;

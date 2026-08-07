@@ -702,6 +702,7 @@ struct dce_hwseq_registers {
 	uint32_t DOMAIN25_PG_STATUS;
 	uint32_t DOMAIN26_PG_CONFIG;
 	uint32_t DOMAIN26_PG_STATUS;
+	uint32_t HDCP_INTERRUPT_DEST;
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -1254,6 +1255,12 @@ struct dce_hwseq_registers {
 	type DOMAIN26_POWER_GATE; \
 	type DOMAIN26_PGFSM_PWR_STATUS;
 
+#define HWSEQ_DCN60_REG_FIELD_LIST(type) \
+	type DOUT_IHC_HDCP0_I2C_XFER_REQ_INTERRUPT_DEST; \
+	type DOUT_IHC_HDCP1_I2C_XFER_REQ_INTERRUPT_DEST; \
+	type DOUT_IHC_HDCP2_I2C_XFER_REQ_INTERRUPT_DEST; \
+	type DOUT_IHC_HDCP3_I2C_XFER_REQ_INTERRUPT_DEST;
+
 struct dce_hwseq_shift {
 	HWSEQ_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN_REG_FIELD_LIST(uint8_t)
@@ -1263,6 +1270,7 @@ struct dce_hwseq_shift {
 	HWSEQ_DCN35_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN401_REG_FIELD_LIST(uint8_t)
 	HWSEQ_DCN42_REG_FIELD_LIST(uint8_t)
+	HWSEQ_DCN60_REG_FIELD_LIST(uint8_t)
 };
 
 struct dce_hwseq_mask {
@@ -1274,6 +1282,7 @@ struct dce_hwseq_mask {
 	HWSEQ_DCN35_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN401_REG_FIELD_LIST(uint32_t)
 	HWSEQ_DCN42_REG_FIELD_LIST(uint32_t)
+	HWSEQ_DCN60_REG_FIELD_LIST(uint32_t)
 };
 
 

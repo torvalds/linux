@@ -74,6 +74,9 @@ MODULE_FIRMWARE("amdgpu/smu_13_0_14.bin");
 	[smu_feature] = { 1, (smu_13_0_6_feature) }
 
 #define FEATURE_MASK(feature) (1ULL << feature)
+
+static int smu_v13_0_6_init_ppt_limits(struct smu_context *smu);
+
 static const struct smu_feature_bits smu_v13_0_6_dpm_features = {
 	.bits = {
 		SMU_FEATURE_BIT_INIT(FEATURE_DATA_CALCULATION),
@@ -1150,7 +1153,7 @@ static int smu_v13_0_6_set_default_dpm_table(struct smu_context *smu)
 		}
 	}
 
-	return 0;
+	return smu_v13_0_6_init_ppt_limits(smu);
 }
 
 static int smu_v13_0_6_setup_pptable(struct smu_context *smu)
@@ -1699,54 +1702,82 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 	return ret;
 }
 
-static int smu_v13_0_6_get_power_limit(struct smu_context *smu,
-						uint32_t *current_power_limit,
-						uint32_t *default_power_limit,
-						uint32_t *max_power_limit,
-						uint32_t *min_power_limit)
+static int smu_v13_0_6_get_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t *ppt_limit)
 {
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct PPTable_t *pptable =
-		(struct PPTable_t *)smu_table->driver_pptable;
-	uint32_t power_limit = 0;
 	int ret;
 
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit, &power_limit);
-
+	if (limit_type == SMU_PPT_LIMIT_PPT1) {
+		if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(FAST_PPT)))
+			return -EOPNOTSUPP;
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPptLimit,
+					       ppt_limit);
+	} else {
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetPptLimit,
+					       ppt_limit);
+	}
 	if (ret) {
 		dev_err(smu->adev->dev, "Couldn't get PPT limit");
 		return -EINVAL;
 	}
 
-	if (current_power_limit)
-		*current_power_limit = power_limit;
-	if (default_power_limit)
-		*default_power_limit = pptable->MaxSocketPowerLimit;
-
-	if (max_power_limit) {
-		*max_power_limit = pptable->MaxSocketPowerLimit;
-	}
-
-	if (min_power_limit)
-		*min_power_limit = 0;
 	return 0;
 }
 
-static int smu_v13_0_6_set_power_limit(struct smu_context *smu,
-				       enum smu_ppt_limit_type limit_type,
-				       uint32_t limit)
+static int smu_v13_0_6_init_ppt_limits(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
+	int i;
+
+	for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].default_value =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].max =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].min = 0;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_max =
+			pptable->MaxSocketPowerLimit;
+		smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT0].od_min = 0;
+	}
+	smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT0);
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(FAST_PPT))) {
+		for (i = SMU_POWER_SOURCE_AC; i < SMU_POWER_SOURCE_COUNT; i++) {
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].default_value =
+				pptable->PPT1Default;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].max =
+				pptable->PPT1Max;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].min =
+				pptable->PPT1Min;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].od_max =
+				pptable->PPT1Max;
+			smu->ppt_limits.range[i][SMU_PPT_LIMIT_PPT1].od_min =
+				pptable->PPT1Min;
+		}
+		smu->ppt_limits.supported_mask |= BIT(SMU_PPT_LIMIT_PPT1);
+	}
+
+	return 0;
+}
+
+static int smu_v13_0_6_set_ppt_limit(struct smu_context *smu,
+				     enum smu_ppt_limit_type limit_type,
+				     uint32_t limit)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
 	int ret;
 
-	if (limit_type == SMU_FAST_PPT_LIMIT) {
+	if (limit_type == SMU_PPT_LIMIT_PPT1) {
 		if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(FAST_PPT)))
 			return -EOPNOTSUPP;
 		if (limit > pptable->PPT1Max || limit < pptable->PPT1Min) {
 			dev_err(smu->adev->dev,
-				"New power limit (%d) should be between min %d max %d\n",
+				"New PPT limit (%d) should be between min %d max %d\n",
 				limit, pptable->PPT1Min, pptable->PPT1Max);
 			return -EINVAL;
 		}
@@ -1757,43 +1788,7 @@ static int smu_v13_0_6_set_power_limit(struct smu_context *smu,
 		return ret;
 	}
 
-	return smu_v13_0_set_power_limit(smu, limit_type, limit);
-}
-
-static int smu_v13_0_6_get_ppt_limit(struct smu_context *smu,
-				     uint32_t *ppt_limit,
-				     enum smu_ppt_limit_type type,
-				     enum smu_ppt_limit_level level)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct PPTable_t *pptable =
-		(struct PPTable_t *)smu_table->driver_pptable;
-	int ret = 0;
-
-	if (type == SMU_FAST_PPT_LIMIT) {
-		if (!smu_v13_0_6_cap_supported(smu, SMU_CAP(FAST_PPT)))
-			return -EOPNOTSUPP;
-		switch (level) {
-		case SMU_PPT_LIMIT_MAX:
-			*ppt_limit = pptable->PPT1Max;
-			break;
-		case SMU_PPT_LIMIT_CURRENT:
-			ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetFastPptLimit, ppt_limit);
-			if (ret)
-				dev_err(smu->adev->dev, "Get fast PPT limit failed!\n");
-			break;
-		case SMU_PPT_LIMIT_DEFAULT:
-			*ppt_limit = pptable->PPT1Default;
-			break;
-		case SMU_PPT_LIMIT_MIN:
-			*ppt_limit = pptable->PPT1Min;
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
-		return ret;
-	}
-	return -EOPNOTSUPP;
+	return smu_v13_0_set_ppt_limit(smu, limit_type, limit);
 }
 
 static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
@@ -3284,7 +3279,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.force_clk_levels = smu_v13_0_6_force_clk_levels,
 	.read_sensor = smu_v13_0_6_read_sensor,
 	.set_performance_level = smu_v13_0_6_set_performance_level,
-	.get_power_limit = smu_v13_0_6_get_power_limit,
+	.get_ppt_limit = smu_v13_0_6_get_ppt_limit,
 	.is_dpm_running = smu_v13_0_6_is_dpm_running,
 	.get_unique_id = smu_v13_0_6_get_unique_id,
 	.init_microcode = smu_v13_0_6_init_microcode,
@@ -3302,8 +3297,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.system_features_control = smu_v13_0_6_system_features_control,
 	.get_enabled_mask = smu_v13_0_6_get_enabled_mask,
 	.feature_is_enabled = smu_cmn_feature_is_enabled,
-	.set_power_limit = smu_v13_0_6_set_power_limit,
-	.get_ppt_limit = smu_v13_0_6_get_ppt_limit,
+	.set_ppt_limit = smu_v13_0_6_set_ppt_limit,
 	.set_xgmi_pstate = smu_v13_0_set_xgmi_pstate,
 	.register_irq_handler = smu_v13_0_6_register_irq_handler,
 	.enable_thermal_alert = smu_v13_0_enable_thermal_alert,

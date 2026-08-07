@@ -1286,6 +1286,8 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		return;
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
+		if (link->forced_psr_active)
+			return;
 		if (!link->skip_implict_edp_power_control && hws)
 			hws->funcs.edp_backlight_control(link, false);
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
@@ -1347,7 +1349,10 @@ void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 		 * process the mute state, especially after link re-establishment
 		 * with HDMI 2.0 scrambling enabled.
 		 */
-		if (enable && pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg)) {
+		if (enable && pipe_ctx->stream_res.tg &&
+		    pipe_ctx->stream_res.tg->funcs->is_tg_enabled &&
+		    pipe_ctx->stream_res.tg->funcs->wait_for_state &&
+		    pipe_ctx->stream_res.tg->funcs->is_tg_enabled(pipe_ctx->stream_res.tg)) {
 			int i;
 
 			pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg, CRTC_STATE_VACTIVE);
@@ -1811,7 +1816,9 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 			dc->link_srv->set_dsc_enable(pipe_ctx, true);
 	}
 
-	if (!stream->dpms_off)
+	if (!stream->dpms_off &&
+	    !(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->forced_psr_active))
 		dc->link_srv->set_dpms_on(context, pipe_ctx);
 
 	/* DCN3.1 FPGA Workaround
@@ -1830,7 +1837,9 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 	 * is constructed with the same sink). Make sure not to override
 	 * and link programming on the main.
 	 */
-	if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
+	if (dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM &&
+	    !(link->connector_signal == SIGNAL_TYPE_EDP &&
+	      link->forced_psr_active)) {
 		pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 		pipe_ctx->stream->link->replay_settings.replay_feature_enabled = false;
 	}
@@ -3487,6 +3496,17 @@ void dce110_enable_tmds_link_output(struct dc_link *link,
 			signal,
 			pixel_clock);
 	link->phy_state.symclk_state = SYMCLK_ON_TX_ON;
+
+	// For dongle Type 2 with no I2C support on board, setup sw mode of Ri/Pj check with proper aux instance
+	if (link->force_to_use_aux) {
+		if (link->link_enc && link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode)
+			link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode(link->link_enc,
+				link->aux_hw_inst, true);
+	} else
+		// For HDMI setup hw mode of Ri/Pj check with proper ddc pin instance
+		if (link->link_enc && link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode)
+			link->link_enc->funcs->setup_ri_pj_check_in_sw_or_hw_mode(link->link_enc,
+				link->ddc_hw_inst, false);
 }
 
 static void dce110_enable_analog_link_output(

@@ -203,6 +203,14 @@ void dm_helpers_mccs_vcp_set(
 #define EXPORT_IF_KUNIT(symbol)
 #endif
 
+bool dm_helpers_submit_i2c_over_aux(
+	struct ddc_service *ddc,
+	uint32_t address,
+	uint8_t offset,
+	uint8_t *cmdBuffer,
+	uint32_t len,
+	bool read);
+
 bool dm_helpers_dp_handle_test_pattern_request(
 		struct dc_context *ctx,
 		const struct dc_link *link,

@@ -1165,6 +1165,7 @@ static bool dcn201_resource_construct(
 	dc->caps.color.dpp.post_csc = 0;
 	dc->caps.color.dpp.gamma_corr = 0;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 1;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
 	dc->caps.color.dpp.ogam_ram = 1;

@@ -305,19 +305,21 @@ static struct dcn10_link_enc_aux_registers link_enc_aux_regs[5];
 
 static struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[5];
 
-#define link_regs_init(id, phyid)\
-	LE_DCN401_REG_LIST_RI(id)
+#define link_regs_init(id, phyid) \
+	LE_DCN401_REG_LIST_RI(id), \
+	LE_DCN60_REG_LIST_RI(id)
 
 static struct dcn10_link_enc_registers link_enc_regs[4];
 
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN401(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN401(__SHIFT), \
+	LINK_ENCODER_MASK_SH_LIST_DCN60_ON_DCN401(__SHIFT)
 };
 
-
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN401(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN401(_MASK), \
+	LINK_ENCODER_MASK_SH_LIST_DCN60_ON_DCN401(_MASK)
 };
 
 
@@ -602,8 +604,12 @@ static const struct dccg_mask dccg_mask = {
 
 static struct dce_hwseq_registers hwseq_reg;
 
-#define hwseq_reg_init()\
-	HWSEQ_DCN401_REG_LIST()
+#define HWSEQ_DCN60_REG_LIST() \
+	SR(HDCP_INTERRUPT_DEST)
+
+#define hwseq_reg_init() \
+	HWSEQ_DCN401_REG_LIST(), \
+	HWSEQ_DCN60_REG_LIST()
 
 #define HWSEQ_DCN401_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
@@ -651,12 +657,20 @@ static struct dce_hwseq_registers hwseq_reg;
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_UNASSIGNED_PWR_MODE, mask_sh), \
 	HWS_SF(, ODM_MEM_PWR_CTRL3, ODM_MEM_VBLANK_PWR_MODE, mask_sh)
 
+#define HWSEQ_DCN60_MASK_SH_LIST(mask_sh) \
+	HWS_SF(, HDCP_INTERRUPT_DEST, DOUT_IHC_HDCP0_I2C_XFER_REQ_INTERRUPT_DEST, mask_sh), \
+	HWS_SF(, HDCP_INTERRUPT_DEST, DOUT_IHC_HDCP1_I2C_XFER_REQ_INTERRUPT_DEST, mask_sh), \
+	HWS_SF(, HDCP_INTERRUPT_DEST, DOUT_IHC_HDCP2_I2C_XFER_REQ_INTERRUPT_DEST, mask_sh), \
+	HWS_SF(, HDCP_INTERRUPT_DEST, DOUT_IHC_HDCP3_I2C_XFER_REQ_INTERRUPT_DEST, mask_sh)
+
 static const struct dce_hwseq_shift hwseq_shift = {
-		HWSEQ_DCN401_MASK_SH_LIST(__SHIFT)
+		HWSEQ_DCN401_MASK_SH_LIST(__SHIFT), \
+		HWSEQ_DCN60_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dce_hwseq_mask hwseq_mask = {
-		HWSEQ_DCN401_MASK_SH_LIST(_MASK)
+		HWSEQ_DCN401_MASK_SH_LIST(_MASK), \
+		HWSEQ_DCN60_MASK_SH_LIST(_MASK)
 };
 
 #define vmid_regs_init(id)\
@@ -734,6 +748,7 @@ static const struct dc_plane_cap plane_cap = {
 };
 
 static const struct dc_debug_options debug_defaults_drv = {
+	.limit_ffe = 3,
 	.disable_dmcu = true,
 	.force_abm_enable = false,
 	.clock_trace = true,
@@ -2111,6 +2126,7 @@ static bool dcn401_resource_construct(
 	dc->caps.color.dpp.post_csc = 1;
 	dc->caps.color.dpp.gamma_corr = 1;
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
+	dc->caps.color.dpp.upsp_pre_scaler = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 0;
 	dc->caps.color.dpp.ogam_ram = 0;

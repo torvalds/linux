@@ -25,6 +25,7 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_exec.h>
 #include <linux/pm_runtime.h>
+#include <linux/overflow.h>
 #include <drm/drm_drv.h>
 
 #include "amdgpu.h"
@@ -238,24 +239,30 @@ int amdgpu_userq_input_va_validate(struct amdgpu_device *adev,
 {
 	struct amdgpu_bo_va_mapping *va_map;
 	struct amdgpu_vm *vm = queue->vm;
-	u64 user_addr;
-	u64 size;
+	u64 start_addr;
+	u64 end_addr;
+	u64 start_page;
 
 	/* Caller must hold vm->root.bo reservation */
 	dma_resv_assert_held(queue->vm->root.bo->tbo.base.resv);
 
-	user_addr = (addr & AMDGPU_GMC_HOLE_MASK) >> AMDGPU_GPU_PAGE_SHIFT;
-	size = expected_size >> AMDGPU_GPU_PAGE_SHIFT;
+	if (!expected_size)
+		return -EINVAL;
 
-	va_map = amdgpu_vm_bo_lookup_mapping(vm, user_addr);
+	start_addr = addr & AMDGPU_GMC_HOLE_MASK;
+	if (check_add_overflow(start_addr, expected_size - 1, &end_addr))
+		return -EINVAL;
+
+	start_page = start_addr >> AMDGPU_GPU_PAGE_SHIFT;
+
+	va_map = amdgpu_vm_bo_lookup_mapping(vm, start_page);
 	if (!va_map)
 		return -EINVAL;
 
-	/* Only validate the userq whether resident in the VM mapping range */
-	if (user_addr >= va_map->start  &&
-	    va_map->last - user_addr + 1 >= size) {
+	/* Lookup guarantees start_page is mapped; ensure full span is covered. */
+	if ((end_addr >> AMDGPU_GPU_PAGE_SHIFT) <= va_map->last) {
 		va_map->bo_va->userq_va_mapped = true;
-		*va_out = user_addr;
+		*va_out = start_page;
 		return 0;
 	}
 
@@ -738,7 +745,12 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (!adev->userq_halt_for_enforce_isolation ||
 	    ((queue->queue_type != AMDGPU_HW_IP_GFX) &&
 	     (queue->queue_type != AMDGPU_HW_IP_COMPUTE))) {
+		/* Serialize the map against an in-progress GPU reset (MES is
+		 * unresponsive during recovery), matching amdgpu_userq_cleanup().
+		 */
+		down_read(&adev->reset_domain->sem);
 		r = amdgpu_userq_map_helper(queue);
+		up_read(&adev->reset_domain->sem);
 		if (r) {
 			drm_file_err(uq_mgr->file, "Failed to map Queue\n");
 			trace_amdgpu_userq_create_end(queue, r);
@@ -1250,6 +1262,7 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct drm_file *f
 	xa_init_flags(&userq_mgr->userq_xa, XA_FLAGS_ALLOC);
 	userq_mgr->adev = adev;
 	userq_mgr->file = file_priv;
+	userq_mgr->proc_ctx_allocated = false;
 	mutex_init(&userq_mgr->proc_ctx_lock);
 
 	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userq_restore_worker);
@@ -1278,6 +1291,7 @@ void amdgpu_userq_mgr_cancel_resume(struct amdgpu_userq_mgr *userq_mgr)
 
 void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 {
+	struct amdgpu_mes *mes = &userq_mgr->adev->mes;
 	struct amdgpu_usermode_queue *queue;
 	unsigned long queue_id = 0;
 
@@ -1304,6 +1318,10 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 	 */
 	cancel_work_sync(&userq_mgr->reset_work);
 
+	if (userq_mgr->proc_ctx_allocated) {
+		amdgpu_mes_free_proc_ctx_index(mes, userq_mgr->proc_ctx_array_index);
+		userq_mgr->proc_ctx_allocated = false;
+	}
 	amdgpu_bo_free_kernel(&userq_mgr->proc_ctx_obj.obj,
 			      &userq_mgr->proc_ctx_obj.gpu_addr,
 			      &userq_mgr->proc_ctx_obj.cpu_ptr);

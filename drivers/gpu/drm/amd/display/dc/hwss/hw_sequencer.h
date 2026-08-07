@@ -145,6 +145,9 @@ struct set_output_transfer_func_params {
 	bool is_top_pipe;
 	const struct dc_stream_state *stream;
 };
+struct program_upsp_params {
+	struct pipe_ctx *pipe_ctx;
+};
 
 struct update_visual_confirm_params {
 	struct dc *dc;
@@ -1030,6 +1033,7 @@ union block_sequence_params {
 	struct setup_dpp_params setup_dpp_params;
 	struct program_bias_and_scale_params program_bias_and_scale_params;
 	struct set_output_transfer_func_params set_output_transfer_func_params;
+	struct program_upsp_params program_upsp_params;
 	struct update_visual_confirm_params update_visual_confirm_params;
 	struct power_on_mpc_mem_pwr_params power_on_mpc_mem_pwr_params;
 	struct set_output_csc_params set_output_csc_params;
@@ -1207,6 +1211,7 @@ enum block_sequence_func {
 	DPP_PROGRAM_BIAS_AND_SCALE,
 	DPP_SET_OUTPUT_TRANSFER_FUNC,
 	DPP_SET_HDR_MULTIPLIER,
+	DPP_PROGRAM_UPSP,
 	MPC_UPDATE_VISUAL_CONFIRM,
 	MPC_POWER_ON_MPC_MEM_PWR,
 	MPC_SET_OUTPUT_CSC,
@@ -1501,7 +1506,7 @@ struct hw_sequencer_funcs {
 	void (*program_output_csc)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			enum dc_color_space colorspace,
 			uint16_t *matrix, int opp_id);
-	void (*trigger_3dlut_dma_load)(struct dc *dc, struct pipe_ctx *pipe_ctx);
+	void (*trigger_3dlut_dma_load)(struct pipe_ctx *pipe_ctx);
 
 	/* VM Related */
 	int (*init_sys_ctx)(struct dce_hwseq *hws,
@@ -1783,6 +1788,16 @@ void hwss_build_fast_sequence(struct dc *dc,
 		struct dc_stream_status *stream_status,
 		struct dc_state *context);
 
+void hwss_build_full_sequence(struct dc *dc,
+	struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
+	unsigned int *num_steps,
+	struct dc_state *context, bool program_phantom_pipe);
+
+void hwss_build_post_unlock_full_sequence(struct dc *dc,
+	struct block_sequence block_sequence[MAX_HWSS_BLOCK_SEQUENCE_SIZE],
+	unsigned int *num_steps,
+	struct dc_state *context);
+
 void hwss_wait_for_all_blank_complete(struct dc *dc,
 		struct dc_state *context);
 
@@ -1805,6 +1820,8 @@ void hwss_program_manual_trigger(union block_sequence_params *params);
 void hwss_setup_dpp(union block_sequence_params *params);
 
 void hwss_program_bias_and_scale(union block_sequence_params *params);
+
+void hwss_program_upsp(union block_sequence_params *params);
 
 void hwss_power_on_mpc_mem_pwr(union block_sequence_params *params);
 

@@ -189,13 +189,17 @@ void fill_stream_properties_from_drm_display_mode(
 	const struct drm_connector *connector,
 	const struct drm_connector_state *connector_state,
 	const struct dc_stream_state *old_stream,
-	int requested_bpc);
+	int requested_bpc,
+	enum dc_pixel_encoding requested_encoding,
+	bool is_hdmi_ep);
 struct dc_stream_state *
 create_stream_for_sink(struct drm_connector *connector,
 		       const struct drm_display_mode *drm_mode,
 		       const struct dm_connector_state *dm_state,
 		       const struct dc_stream_state *old_stream,
-		       int requested_bpc);
+		       int requested_bpc,
+		       enum dc_pixel_encoding requested_encoding,
+		       bool is_hdmi_ep);
 enum drm_connector_status
 amdgpu_dm_connector_poll(struct amdgpu_dm_connector *aconnector, bool force);
 enum drm_connector_status

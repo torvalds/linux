@@ -3027,13 +3027,14 @@ static struct dc_update_descriptor det_surface_update(
 		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 	}
 
-	if ((u->cm && u->cm->flags.bits.blend_enable) ||
+	if ((u->cm && (u->cm->flags.bits.blend_enable ||
+			u->cm->flags.bits.blend_enable != u->surface->cm.flags.bits.blend_enable)) ||
 			(u->gamma && dce_use_lut(u->plane_info ? u->plane_info->format : u->surface->format))) {
 		update_bits->gamma_change = 1;
 		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 	}
 
-	if (u->cm && (u->cm->flags.bits.lut3d_enable || u->cm->flags.bits.shaper_enable)) {
+	if (u->cm && (u->cm->flags.bits.lut3d_enable || u->surface->cm.flags.bits.lut3d_enable)) {
 		update_bits->lut_3d = 1;
 		elevate_update_type(&overall_type, UPDATE_TYPE_FAST, LOCK_DESCRIPTOR_STREAM);
 	}
@@ -3075,23 +3076,10 @@ static struct dc_update_descriptor det_surface_update(
 			}
 		};
 
-		if (u->cm->flags.bits.shaper_enable != u->surface->cm.flags.bits.shaper_enable
-				|| u->cm->flags.bits.blend_enable != u->surface->cm.flags.bits.blend_enable
-				|| u->cm->flags.bits.lut3d_enable != u->surface->cm.flags.bits.lut3d_enable
-				|| u->cm->flags.bits.lut3d_dma_enable != u->surface->cm.flags.bits.lut3d_dma_enable) {
-			update_bits->mcm_transfer_function_enable_change = 1;
-			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
-		}
-
 		if ((u->cm->flags.all != blend_only_flags.all && u->cm->flags.all != 0) ||
 				(u->surface->cm.flags.all != blend_only_flags.all && u->surface->cm.flags.all != 0)) {
 			elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 		}
-	}
-
-	if (update_bits->lut_3d &&
-			!u->surface->cm.flags.bits.lut3d_dma_enable) {
-		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 
 	if (check_config->enable_legacy_fast_update &&
@@ -3099,7 +3087,8 @@ static struct dc_update_descriptor det_surface_update(
 			update_bits->gamut_remap_change ||
 			update_bits->input_csc_change ||
 			update_bits->cm_hist_change ||
-			update_bits->coeff_reduction_change)) {
+			update_bits->coeff_reduction_change ||
+			update_bits->cursor_csc_color_matrix_change)) {
 		elevate_update_type(&overall_type, UPDATE_TYPE_FULL, LOCK_DESCRIPTOR_GLOBAL);
 	}
 	return overall_type;
@@ -3403,6 +3392,10 @@ static void copy_surface_update_to_plane(
 				srf_update->plane_info->dcc;
 		surface->layer_index =
 				srf_update->plane_info->layer_index;
+		surface->scaling_linearity =
+				srf_update->plane_info->scaling_linearity;
+		surface->cositing =
+				srf_update->plane_info->cositing;
 	}
 
 	if (srf_update->gamma) {
@@ -3441,46 +3434,6 @@ static void copy_surface_update_to_plane(
 		memcpy(&surface->cm, srf_update->cm, sizeof(surface->cm));
 		surface->cm.refcount = refcount;
 
-#ifndef TRIM_CM2
-		/* Populate mcm_luts from cm for legacy consumers (dml2, hwseq) */
-		surface->mcm_luts.lut1d_func = &surface->cm.blend_func;
-		surface->mcm_luts.shaper = &surface->cm.shaper_func;
-		if (srf_update->cm->flags.bits.lut3d_dma_enable) {
-			surface->mcm_luts.lut3d_data.lut3d_src = DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.addr = surface->cm.lut3d_dma.addr;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.layout =
-				(surface->cm.lut3d_dma.swizzle == CM_LUT_3D_SWIZZLE_LINEAR_RGB) ?
-					DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_RGB :
-				(surface->cm.lut3d_dma.swizzle == CM_LUT_3D_SWIZZLE_LINEAR_BGR) ?
-					DC_CM2_GPU_MEM_LAYOUT_3D_SWIZZLE_LINEAR_BGR :
-					DC_CM2_GPU_MEM_LAYOUT_1D_PACKED_LINEAR;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.format_params.format =
-				(surface->cm.lut3d_dma.format == CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12MSB) ?
-					DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12MSB :
-				(surface->cm.lut3d_dma.format == CM_LUT_PIXEL_FORMAT_RGBA16161616_UNORM_12LSB) ?
-					DC_CM2_GPU_MEM_FORMAT_16161616_UNORM_12LSB :
-					DC_CM2_GPU_MEM_FORMAT_16161616_FLOAT_FP1_5_10;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.bias =
-				surface->cm.lut3d_dma.bias;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.format_params.float_params.scale =
-				surface->cm.lut3d_dma.scale;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.component_order =
-				DC_CM2_GPU_MEM_PIXEL_COMPONENT_ORDER_RGBA;
-			surface->mcm_luts.lut3d_data.gpu_mem_params.size = DC_CM2_GPU_MEM_SIZE_TRANSFORMED;
-			surface->mcm_luts.lut3d_data.mpc_3dlut_enable = (srf_update->cm->flags.bits.lut3d_enable != 0);
-		} else {
-			surface->mcm_luts.lut3d_data.lut3d_src = DC_CM2_TRANSFER_FUNC_SOURCE_SYSMEM;
-			surface->mcm_luts.lut3d_data.lut3d_func = &surface->cm.lut3d_func;
-		}
-
-		if (srf_update->cm->flags.bits.shaper_enable &&
-				srf_update->cm->flags.bits.lut3d_enable)
-			surface->mcm_shaper_3dlut_setting = DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT;
-		else if (srf_update->cm->flags.bits.shaper_enable)
-			surface->mcm_shaper_3dlut_setting = DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER;
-		else
-			surface->mcm_shaper_3dlut_setting = DC_CM2_SHAPER_3DLUT_SETTING_BYPASS_ALL;
-#endif /* TRIM_CM2 */
 	}
 
 	if (srf_update->hdr_mult.value)
@@ -3490,12 +3443,6 @@ static void copy_surface_update_to_plane(
 	if (srf_update->sdr_white_level_nits)
 		surface->sdr_white_level_nits =
 				srf_update->sdr_white_level_nits;
-
-	if (srf_update->cm &&
-			(srf_update->cm->flags.bits.blend_enable ||
-			srf_update->cm->flags.bits.shaper_enable ||
-			srf_update->cm->flags.bits.lut3d_enable))
-		surface->lut_bank_a = !surface->lut_bank_a;
 
 	if (srf_update->input_csc_color_matrix)
 		surface->input_csc_color_matrix =
@@ -3657,6 +3604,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 		stream->scaler_sharpener_update = *update->scaler_sharpener_update;
 	if (update->sharpening_required)
 		stream->sharpening_required = *update->sharpening_required;
+
+	if (update->blending_linearity)
+		stream->blending_linearity = *update->blending_linearity;
 
 	if (update->drr_trigger_mode) {
 		stream->drr_trigger_mode = *update->drr_trigger_mode;
@@ -5235,7 +5185,7 @@ static void commit_planes_for_stream(struct dc *dc,
 						srf_updates[i].cm->flags.bits.lut3d_enable &&
 						srf_updates[i].cm->flags.bits.lut3d_dma_enable &&
 						dc->hwss.trigger_3dlut_dma_load)
-					dc->hwss.trigger_3dlut_dma_load(dc, pipe_ctx);
+					dc->hwss.trigger_3dlut_dma_load(pipe_ctx);
 
 				/*program triple buffer after lock based on flip type*/
 				if (dc->hwss.program_triplebuffer != NULL && dc->debug.enable_tri_buf) {

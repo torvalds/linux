@@ -248,3 +248,305 @@ struct hw_gpio_pin *dal_hw_ddc_get_pin(struct gpio *gpio)
 
 	return &hw_ddc->base.base;
 }
+
+static void store_registers_ddc_i3cpad(
+	struct hw_ddc *ddc)
+{
+	switch (ddc->base.base.id) {
+	case GPIO_ID_DDC_DATA:
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, &ddc->base.store.mask);
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_DATA_A, &ddc->base.store.a);
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_DATA_EN, &ddc->base.store.en);
+		break;
+	case GPIO_ID_DDC_CLOCK:
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, &ddc->base.store.mask);
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_CLK_A, &ddc->base.store.a);
+		REG_GET(dc_i3cpad_control0, DC_I3CPAD_CLK_EN, &ddc->base.store.en);
+		break;
+	default:
+		break;
+	}
+}
+
+static void restore_registers_ddc_i3cpad(
+	struct hw_ddc *ddc)
+{
+	switch (ddc->base.base.id) {
+	case GPIO_ID_DDC_DATA:
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, ddc->base.store.mask);
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_A, ddc->base.store.a);
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_EN, ddc->base.store.en);
+		break;
+	case GPIO_ID_DDC_CLOCK:
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, ddc->base.store.mask);
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_A, ddc->base.store.a);
+		REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_EN, ddc->base.store.en);
+		break;
+	default:
+		break;
+	}
+}
+
+bool dal_hw_ddc_open_i3cpad(
+	struct hw_gpio_pin *ptr,
+	enum gpio_mode mode)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+
+	store_registers_ddc_i3cpad(ddc);
+
+	ptr->opened = (dal_hw_ddc_config_mode_i3cpad(ddc, mode) == GPIO_RESULT_OK);
+
+	return ptr->opened;
+}
+
+enum gpio_result dal_hw_ddc_get_value_i3cpad(
+	const struct hw_gpio_pin *ptr,
+	uint32_t *value)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+	enum gpio_result result = GPIO_RESULT_OK;
+
+	switch (ptr->mode) {
+	case GPIO_MODE_INPUT:
+	case GPIO_MODE_OUTPUT:
+	case GPIO_MODE_HARDWARE:
+	case GPIO_MODE_FAST_OUTPUT:
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_GET(dc_i3cpad_control0, DC_I3CPAD_DATA_Y, value);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_GET(dc_i3cpad_control0, DC_I3CPAD_CLK_Y, value);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		result = GPIO_RESULT_NON_SPECIFIC_ERROR;
+	}
+	return result;
+}
+
+enum gpio_result dal_hw_ddc_set_value_i3cpad(
+	const struct hw_gpio_pin *ptr,
+	uint32_t value)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+
+	switch (ptr->mode) {
+	case GPIO_MODE_OUTPUT:
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_A, value);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_A, value);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+	case GPIO_MODE_FAST_OUTPUT:
+		/* We use (EN) to faster switch (used in DDC GPIO).
+		 * So (A) is grounded, output is driven by (EN = 0)
+		 * to pull the line down (output == 0) and (EN=1)
+		 * then output is tri-state */
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_EN, value);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_EN, value);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+	default:
+		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+	}
+}
+
+enum gpio_result dal_hw_ddc_change_mode_i3cpad(
+	struct hw_gpio_pin *ptr,
+	enum gpio_mode mode)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+
+	return dal_hw_ddc_config_mode_i3cpad(ddc, mode);
+}
+
+enum gpio_result dal_hw_ddc_config_mode_i3cpad(
+	struct hw_ddc *ddc,
+	enum gpio_mode mode)
+{
+	ddc->base.base.mode = mode;
+
+	switch (mode) {
+	case GPIO_MODE_INPUT:
+		/* turn off output enable, act as input pin;
+		 * program the pin as GPIO, mask out signal driven by HW
+		 */
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_EN, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, 1);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_EN, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, 1);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+
+	case GPIO_MODE_OUTPUT:
+		/* turn on output enable, act as output pin;
+		 * program the pin as GPIO, mask out signal driven by HW
+		 */
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_A, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, 1);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_A, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, 1);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+
+	case GPIO_MODE_FAST_OUTPUT:
+		/* grounding the A register then use the EN register bit
+		 * will have faster effect on the rise time
+		 */
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DATA_A, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, 1);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_CLK_A, 0);
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, 1);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+
+	case GPIO_MODE_HARDWARE:
+		/* program the pin as tri-state, pin is driven by HW */
+		switch (ddc->base.base.id) {
+		case GPIO_ID_DDC_DATA:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCDATA_MASK, 0);
+			break;
+		case GPIO_ID_DDC_CLOCK:
+			REG_UPDATE(dc_i3cpad_control0, DC_I3CPAD_DDCCLK_MASK, 0);
+			break;
+		default:
+			break;
+		}
+		return GPIO_RESULT_OK;
+
+	default:
+	case GPIO_MODE_INTERRUPT:
+	/* Interrupt mode supported only by HPD (IrqGpio) old pins. */
+		return GPIO_RESULT_NON_SPECIFIC_ERROR;
+	}
+}
+
+static enum gpio_result dal_hw_ddc_set_config_i3cpad(
+	struct hw_gpio_pin *ptr,
+	const struct gpio_config_data *config_data)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+
+	switch (config_data->config.ddc.type) {
+	/* For ASICs with i3cpad module there is no dual pad mode for i3cpads */
+	case GPIO_DDC_CONFIG_TYPE_MODE_I2C:
+		/* Enable the RX for the PAD (it is disabled by default). */
+		REG_UPDATE(dc_i3cpad_control1, DC_I3CPAD_RXSEL, 0);
+		return GPIO_RESULT_OK;
+	case GPIO_DDC_CONFIG_TYPE_MODE_AUX:
+		return GPIO_RESULT_OK;
+
+	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_CONNECT:
+		REG_UPDATE_3(ddc_setup,
+			DC_I2C_DDC1_ENABLE, 1,
+			DC_I2C_DDC1_EDID_DETECT_ENABLE, 1,
+			DC_I2C_DDC1_EDID_DETECT_MODE, 0);
+		return GPIO_RESULT_OK;
+
+	case GPIO_DDC_CONFIG_TYPE_POLL_FOR_DISCONNECT:
+		REG_UPDATE_3(ddc_setup,
+			DC_I2C_DDC1_ENABLE, 1,
+			DC_I2C_DDC1_EDID_DETECT_ENABLE, 1,
+			DC_I2C_DDC1_EDID_DETECT_MODE, 1);
+		return GPIO_RESULT_OK;
+
+	case GPIO_DDC_CONFIG_TYPE_DISABLE_POLLING:
+		REG_UPDATE_2(ddc_setup,
+			DC_I2C_DDC1_ENABLE, 0,
+			DC_I2C_DDC1_EDID_DETECT_ENABLE, 0);
+		return GPIO_RESULT_OK;
+	}
+
+	BREAK_TO_DEBUGGER();
+	return GPIO_RESULT_NON_SPECIFIC_ERROR;
+}
+
+void dal_hw_ddc_close_i3cpad(
+	struct hw_gpio_pin *ptr)
+{
+	struct hw_ddc *ddc = HW_DDC_FROM_BASE(ptr);
+
+	restore_registers_ddc_i3cpad(ddc);
+
+	ptr->mode = GPIO_MODE_UNKNOWN;
+	ptr->opened = false;
+}
+
+static const struct hw_gpio_pin_funcs funcs_i3cpad = {
+	.destroy = dal_hw_ddc_destroy,
+	.open = dal_hw_ddc_open_i3cpad,
+	.get_value = dal_hw_ddc_get_value_i3cpad,
+	.set_value = dal_hw_ddc_set_value_i3cpad,
+	.set_config = dal_hw_ddc_set_config_i3cpad,
+	.change_mode = dal_hw_ddc_change_mode_i3cpad,
+	.close = dal_hw_ddc_close_i3cpad,
+};
+
+static void dal_hw_ddc_construct_i3cpad(
+	struct hw_ddc *ddc,
+	enum gpio_id id,
+	uint32_t en,
+	struct dc_context *ctx)
+{
+	dal_hw_gpio_construct(&ddc->base, id, en, ctx);
+	ddc->base.base.funcs = &funcs_i3cpad;
+}
+
+void dal_hw_ddc_init_i3cpad(
+	struct hw_ddc **hw_ddc,
+	struct dc_context *ctx,
+	enum gpio_id id,
+	uint32_t en)
+{
+	if (en > GPIO_DDC_LINE_MAX) {
+		ASSERT_CRITICAL(false);
+		*hw_ddc = NULL;
+	}
+
+	*hw_ddc = kzalloc(sizeof(struct hw_ddc), GFP_KERNEL);
+	if (!*hw_ddc) {
+		ASSERT_CRITICAL(false);
+		return;
+	}
+
+	dal_hw_ddc_construct_i3cpad(*hw_ddc, id, en, ctx);
+}

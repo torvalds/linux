@@ -800,9 +800,24 @@ int amdgpu_ras_mgr_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 int amdgpu_ras_mgr_set_debug_mode(struct amdgpu_device *adev, bool enable)
 {
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+	int ret;
 
 	if (!ras_mgr || !ras_mgr->ras_core || !ras_mgr->ras_is_ready)
 		return false;
 
-	return ras_core_set_debug_mode(ras_mgr->ras_core, enable);
+	ret = ras_core_set_debug_mode(ras_mgr->ras_core, enable);
+	if (!ret)
+		ras_mgr->is_debug_mode = enable;
+
+	return ret;
+}
+
+bool amdgpu_ras_mgr_get_debug_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	if (!ras_mgr || !ras_mgr->ras_core || !ras_mgr->ras_is_ready)
+		return true;
+
+	return ras_mgr->is_debug_mode;
 }

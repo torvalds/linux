@@ -125,6 +125,8 @@ struct ddc_registers {
 	uint32_t ddc_setup;
 	uint32_t phy_aux_cntl;
 	uint32_t dc_gpio_aux_ctrl_5;
+	uint32_t dc_i3cpad_control0;
+	uint32_t dc_i3cpad_control1;
 };
 
 struct ddc_sh_mask {
@@ -142,6 +144,19 @@ struct ddc_sh_mask {
 	//phy_aux_cntl
 	uint32_t AUX_PAD_RXSEL;
 	uint32_t DDC_PAD_I2CMODE;
+	//dc_i3cpad_control0
+	uint32_t DC_I3CPAD_DDCCLK_MASK;
+	uint32_t DC_I3CPAD_DDCDATA_MASK;
+	uint32_t DC_I3CPAD_PD_EN;
+	uint32_t DC_I3CPAD_CLK_A;
+	uint32_t DC_I3CPAD_DATA_A;
+	uint32_t DC_I3CPAD_CLK_EN;
+	uint32_t DC_I3CPAD_DATA_EN;
+	uint32_t DC_I3CPAD_CLK_Y;
+	uint32_t DC_I3CPAD_DATA_Y;
+	//dc_i3cpad_control1
+	uint32_t DC_I3CPAD_STR;
+	uint32_t DC_I3CPAD_RXSEL;
 };
 
 

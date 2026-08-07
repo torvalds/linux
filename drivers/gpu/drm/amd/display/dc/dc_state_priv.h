@@ -125,4 +125,5 @@ bool dc_state_can_clear_stream_cursor_subvp_limit(const struct dc_stream_state *
 
 bool dc_state_is_subvp_in_use(struct dc_state *state);
 
+bool dc_state_is_alt_in_use(const struct dc *dc, const struct dc_state *state);
 #endif /* _DC_STATE_PRIV_H_ */

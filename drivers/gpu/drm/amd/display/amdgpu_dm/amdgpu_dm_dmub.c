@@ -63,6 +63,7 @@ MODULE_FIRMWARE(FIRMWARE_DCN_36_DMUB);
 MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
 MODULE_FIRMWARE(FIRMWARE_DCN_42_DMUB);
 MODULE_FIRMWARE(FIRMWARE_DCN_42B_DMUB);
+MODULE_FIRMWARE(FIRMWARE_DCN_60_DMUB);
 
 /**
  * dm_dmub_aux_setconfig_callback - Callback for AUX or SET_CONFIG command.
@@ -408,6 +409,9 @@ STATIC_IFN_KUNIT void *dm_dmub_get_vbios_bounding_box(struct amdgpu_device *adev
 	case IP_VERSION(4, 2, 1):
 		bb_size = sizeof(struct dml2_soc_bb);
 		break;
+	case IP_VERSION(6, 0, 0):
+		bb_size = sizeof(struct dmub_soc_bb_params);
+		break;
 	default:
 		return NULL;
 	}
@@ -559,6 +563,9 @@ int dm_dmub_sw_init(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 2, 1):
 		dmub_asic = DMUB_ASIC_DCN42B;
+		break;
+	case IP_VERSION(6, 0, 0):
+		dmub_asic = DMUB_ASIC_DCN60;
 		break;
 	default:
 		/* ASIC doesn't support DMUB. */
@@ -751,6 +758,9 @@ int dm_init_microcode(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 2, 1):
 		fw_name_dmub = FIRMWARE_DCN_42B_DMUB;
+		break;
+	case IP_VERSION(6, 0, 0):
+		fw_name_dmub = FIRMWARE_DCN_60_DMUB;
 		break;
 	default:
 		/* ASIC doesn't support DMUB. */

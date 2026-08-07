@@ -3199,57 +3199,42 @@ static const struct {
 };
 
 /*
- * Force YUV420 output if available from the given mode
+ * Force a specific pixel encoding for the given connector, overriding the
+ * encoding that stream validation would otherwise pick. The value is an
+ * enum dc_pixel_encoding:
+ *
+ *   0 - PIXEL_ENCODING_UNDEFINED (no override, default)
+ *   1 - PIXEL_ENCODING_RGB
+ *   2 - PIXEL_ENCODING_YCBCR422
+ *   3 - PIXEL_ENCODING_YCBCR444
+ *   4 - PIXEL_ENCODING_YCBCR420
  */
-static int force_yuv420_output_set(void *data, u64 val)
+static int force_yuv_pixel_format_set(void *data, u64 val)
 {
 	struct amdgpu_dm_connector *connector = data;
 
-	connector->force_yuv420_output = (bool)val;
-	connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR420;
+	if (val >= PIXEL_ENCODING_COUNT)
+		return -EINVAL;
+
+	connector->force_yuv_pixel_format = (uint8_t)val;
 
 	return 0;
 }
 
 /*
- * Check if YUV420 is forced when available from the given mode
+ * Read back the pixel encoding currently forced on the given connector.
  */
-static int force_yuv420_output_get(void *data, u64 *val)
+static int force_yuv_pixel_format_get(void *data, u64 *val)
 {
 	struct amdgpu_dm_connector *connector = data;
 
-	*val = connector->force_yuv420_output;
+	*val = connector->force_yuv_pixel_format;
 
 	return 0;
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv420_output_fops, force_yuv420_output_get,
-			 force_yuv420_output_set, "%llu\n");
-
-static int force_yuv422_output_set(void *data, u64 val)
-{
-      struct amdgpu_dm_connector *connector = data;
-
-      connector->force_yuv422_output = (bool)val;
-      connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR422;
-
-      return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv422_output_fops, NULL,
-                       force_yuv422_output_set, "%llu\n");
-
-static int force_yuv444_output_set(void *data, u64 val)
-{
-      struct amdgpu_dm_connector *connector = data;
-
-      connector->force_yuv_pixel_format = PIXEL_ENCODING_YCBCR444;
-
-      return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(force_yuv444_output_fops, NULL,
-                       force_yuv444_output_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(force_yuv_pixel_format_fops, force_yuv_pixel_format_get,
+			 force_yuv_pixel_format_set, "%llu\n");
 
 /*
  *  Read Replay state
@@ -3699,9 +3684,7 @@ static const struct {
 	char *name;
 	const struct file_operations *fops;
 } connector_debugfs_entries[] = {
-		{"force_yuv420_output", &force_yuv420_output_fops},
-		{"force_yuv422_output", &force_yuv422_output_fops},
-		{"force_yuv444_output", &force_yuv444_output_fops},
+		{"force_yuv_pixel_format", &force_yuv_pixel_format_fops},
 		{"trigger_hotplug", &trigger_hotplug_debugfs_fops},
 		{"internal_display", &internal_display_fops},
 		{"odm_combine_segments", &odm_combine_segments_fops}

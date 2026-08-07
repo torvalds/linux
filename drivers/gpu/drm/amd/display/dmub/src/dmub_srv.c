@@ -42,6 +42,7 @@
 #include "dmub_dcn401.h"
 #include "dmub_dcn42.h"
 #include "dmub_dcn42b.h"
+#include "dmub_dcn60.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -527,6 +528,57 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->read_reg_outbox0_rsp_int_status = dmub_dcn401_read_reg_outbox0_rsp_int_status;
 		funcs->enable_reg_inbox0_rsp_int = dmub_dcn401_enable_reg_inbox0_rsp_int;
 		funcs->enable_reg_outbox0_rdy_int = dmub_dcn401_enable_reg_outbox0_rdy_int;
+		break;
+	case DMUB_ASIC_DCN60:
+		dmub->regs_dcn60 = &dmub_srv_dcn60_regs;
+		funcs->configure_dmub_in_system_memory = dmub_dcn60_configure_dmub_in_system_memory;
+		funcs->send_inbox0_cmd = dmub_dcn60_send_inbox0_cmd;
+		funcs->clear_inbox0_ack_register = dmub_dcn60_clear_inbox0_ack_register;
+		funcs->read_inbox0_ack_register = dmub_dcn60_read_inbox0_ack_register;
+		funcs->reset = dmub_dcn60_reset;
+		funcs->reset_release = dmub_dcn60_reset_release;
+		funcs->backdoor_load = dmub_dcn60_backdoor_load;
+		funcs->backdoor_load_zfb_mode = dmub_dcn60_backdoor_load_zfb_mode;
+		funcs->setup_windows = dmub_dcn60_setup_windows;
+		funcs->setup_mailbox = dmub_dcn60_setup_mailbox;
+		funcs->get_inbox1_wptr = dmub_dcn60_get_inbox1_wptr;
+		funcs->get_inbox1_rptr = dmub_dcn60_get_inbox1_rptr;
+		funcs->set_inbox1_wptr = dmub_dcn60_set_inbox1_wptr;
+		funcs->setup_out_mailbox = dmub_dcn60_setup_out_mailbox;
+		funcs->get_outbox1_wptr = dmub_dcn60_get_outbox1_wptr;
+		funcs->set_outbox1_rptr = dmub_dcn60_set_outbox1_rptr;
+		funcs->is_supported = dmub_dcn60_is_supported;
+		funcs->is_hw_init = dmub_dcn60_is_hw_init;
+		funcs->set_gpint = dmub_dcn60_set_gpint;
+		funcs->is_gpint_acked = dmub_dcn60_is_gpint_acked;
+		funcs->get_gpint_response = dmub_dcn60_get_gpint_response;
+		funcs->get_gpint_dataout = dmub_dcn60_get_gpint_dataout;
+		funcs->get_fw_status = dmub_dcn60_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn60_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn60_skip_dmub_panel_power_sequence;
+		//outbox0 call stacks
+		funcs->setup_outbox0 = dmub_dcn60_setup_outbox0;
+		funcs->get_outbox0_wptr = dmub_dcn60_get_outbox0_wptr;
+		funcs->set_outbox0_rptr = dmub_dcn60_set_outbox0_rptr;
+
+		funcs->get_current_time = dmub_dcn60_get_current_time;
+		funcs->get_diagnostic_data = dmub_dcn60_get_diagnostic_data;
+
+		funcs->send_reg_inbox0_cmd_msg = dmub_dcn60_send_reg_inbox0_cmd_msg;
+		funcs->read_reg_inbox0_rsp_int_status = dmub_dcn60_read_reg_inbox0_rsp_int_status;
+		funcs->read_reg_inbox0_cmd_rsp = dmub_dcn60_read_reg_inbox0_cmd_rsp;
+		funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn60_write_reg_inbox0_rsp_int_ack;
+		funcs->clear_reg_inbox0_rsp_int_ack = dmub_dcn60_clear_reg_inbox0_rsp_int_ack;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn60_enable_reg_inbox0_rsp_int;
+		default_inbox_type = DMUB_CMD_INTERFACE_FB; // still default to FB for now
+
+		funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn60_write_reg_outbox0_rdy_int_ack;
+		funcs->read_reg_outbox0_msg = dmub_dcn60_read_reg_outbox0_msg;
+		funcs->write_reg_outbox0_rsp = dmub_dcn60_write_reg_outbox0_rsp;
+		funcs->read_reg_outbox0_rdy_int_status = dmub_dcn60_read_reg_outbox0_rdy_int_status;
+		funcs->read_reg_outbox0_rsp_int_status = dmub_dcn60_read_reg_outbox0_rsp_int_status;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn60_enable_reg_inbox0_rsp_int;
+		funcs->enable_reg_outbox0_rdy_int = dmub_dcn60_enable_reg_outbox0_rdy_int;
 		break;
 	default:
 		return false;

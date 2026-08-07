@@ -607,6 +607,11 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		init_data.flags.unify_link_enc_assignment = true;
 		init_data.flags.usb4_bw_alloc_support = true;
 	}
+
+	/* DCN201 audio desyncs using DP SS */
+	if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
+		init_data.flags.ignore_dpref_ss = true;
+
 	retrieve_dmi_info(&adev->dm);
 	if (adev->dm.edp0_on_dp1_quirk)
 		init_data.flags.support_edp0_on_dp1 = true;
@@ -1011,6 +1016,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			return 0;
 		default:
 			break;
@@ -2410,6 +2416,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(4, 0, 1):
 	case IP_VERSION(4, 2, 0):
 	case IP_VERSION(4, 2, 1):
+	case IP_VERSION(6, 0, 0):
 		if (amdgpu_dm_register_outbox_irq_handlers(dm->adev)) {
 			drm_err(adev_to_drm(adev), "DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -2436,6 +2443,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			psr_feature_enabled = true;
 			break;
 		default:
@@ -2455,6 +2463,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			replay_feature_enabled = true;
 			break;
 
@@ -2617,6 +2626,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			if (amdgpu_dm_dcn10_register_irq_handlers(dm->adev)) {
 				drm_err(adev_to_drm(adev), "DM: Failed to initialize IRQ\n");
 				goto fail;
@@ -2829,6 +2839,7 @@ static int dm_early_init(struct amdgpu_ip_block *ip_block)
 		case IP_VERSION(4, 0, 1):
 		case IP_VERSION(4, 2, 0):
 		case IP_VERSION(4, 2, 1):
+		case IP_VERSION(6, 0, 0):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
 			adev->mode_info.num_dig = 4;
@@ -4655,21 +4666,19 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	wb_info = kzalloc_obj(*wb_info);
 	if (!wb_info) {
 		drm_err(adev_to_drm(adev), "Failed to allocate wb_info\n");
-		return;
+		goto cleanup;
 	}
 
 	acrtc = to_amdgpu_crtc(wb_conn->encoder.crtc);
 	if (!acrtc) {
 		drm_err(adev_to_drm(adev), "no amdgpu_crtc found\n");
-		kfree(wb_info);
-		return;
+		goto cleanup;
 	}
 
 	afb = to_amdgpu_framebuffer(new_con_state->writeback_job->fb);
 	if (!afb) {
 		drm_err(adev_to_drm(adev), "No amdgpu_framebuffer found\n");
-		kfree(wb_info);
-		return;
+		goto cleanup;
 	}
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -4677,6 +4686,11 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 			pipe = &dm->dc->current_state->res_ctx.pipe_ctx[i];
 			break;
 		}
+	}
+
+	if (!pipe) {
+		drm_err(adev_to_drm(adev), "No pipe found for stream\n");
+		goto cleanup;
 	}
 
 	/* fill in wb_info */
@@ -4752,6 +4766,9 @@ static void dm_set_writeback(struct amdgpu_display_manager *dm,
 	WARN_ON(drm_crtc_vblank_get(&acrtc->base));
 	acrtc->wb_frame_done = false;
 	acrtc->wb_pending = true;
+
+cleanup:
+	kfree(wb_info);
 }
 
 static void amdgpu_dm_update_hdcp(struct drm_atomic_commit *state)
@@ -6330,12 +6347,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		if (dm_new_crtc_state->cursor_mode == DM_CURSOR_OVERLAY_MODE)
 			continue;
 
-		/* Check if rotation or scaling is enabled on DCN401 */
-		if ((drm_plane_mask(crtc->cursor) &
-		     new_crtc_state->plane_mask) &&
-		    (amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 1) ||
-		     amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 2, 0) ||
-		     amdgpu_ip_version(adev, DCE_HWIP, 0) == IP_VERSION(4, 0, 1))) {
+		/* Check if rotation or scaling is enabled on DCN 4x and above */
+		if ((drm_plane_mask(crtc->cursor) & new_crtc_state->plane_mask) &&
+		    (amdgpu_ip_version(adev, DCE_HWIP, 0) >= IP_VERSION(4, 0, 1))) {
 			new_cursor_state = drm_atomic_get_new_plane_state(state, crtc->cursor);
 
 			is_rotated = new_cursor_state &&

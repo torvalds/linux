@@ -815,14 +815,17 @@ int smu_v13_0_init_max_sustainable_clocks(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v13_0_get_current_power_limit(struct smu_context *smu,
-				      uint32_t *power_limit)
+int smu_v13_0_get_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t *ppt_limit)
 {
 	int power_src;
 	int ret = 0;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
+		return -EOPNOTSUPP;
 
 	power_src = smu_cmn_to_asic_specific_index(smu,
 						   CMN2ASIC_MAPPING_PWR,
@@ -835,34 +838,32 @@ int smu_v13_0_get_current_power_limit(struct smu_context *smu,
 	ret = smu_cmn_send_smc_msg_with_param(smu,
 					      SMU_MSG_GetPptLimit,
 					      power_src << 16,
-					      power_limit);
+					      ppt_limit);
 	if (ret)
 		dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
 
 	return ret;
 }
 
-int smu_v13_0_set_power_limit(struct smu_context *smu,
-			      enum smu_ppt_limit_type limit_type,
-			      uint32_t limit)
+int smu_v13_0_set_ppt_limit(struct smu_context *smu,
+			    enum smu_ppt_limit_type limit_type,
+			    uint32_t limit)
 {
 	int ret = 0;
 
-	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+	if (limit_type != SMU_PPT_LIMIT_PPT0)
 		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
+		dev_err(smu->adev->dev, "Setting new PPT limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit, NULL);
 	if (ret) {
-		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
+		dev_err(smu->adev->dev, "[%s] Set PPT limit failed!\n", __func__);
 		return ret;
 	}
-
-	smu->current_power_limit = limit;
 
 	return 0;
 }

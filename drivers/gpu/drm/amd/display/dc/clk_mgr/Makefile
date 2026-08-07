@@ -195,4 +195,13 @@ AMD_DAL_CLK_MGR_DCN42B = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn42b/,$(CLK_MGR_
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN42B)
 
+
+###############################################################################
+# DCN60
+###############################################################################
+CLK_MGR_DCN60 = dcn60_clk_mgr.o dcn60_clk_mgr_smu_msg.o
+
+AMD_DAL_CLK_MGR_DCN60 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn60/,$(CLK_MGR_DCN60))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN60)
 endif

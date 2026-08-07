@@ -117,6 +117,7 @@ struct dml2_soc_power_management_parameters {
 	double g6_temp_read_blackout_us[DML_MAX_CLK_TABLE_SIZE];
 	double type_b_dram_clk_change_blackout_us;
 	double type_b_ppt_blackout_us;
+	unsigned int alternate_dram_carveout_size_mb; // size per aperture - assumed same for both apertures for now
 };
 
 struct dml2_clk_table {
@@ -213,6 +214,7 @@ struct dml2_ip_capabilities {
 	unsigned int ppt_max_allow_delay_us;
 	unsigned int temp_read_max_allow_delay_us;
 	unsigned int dummy_pstate_max_allow_delay_us;
+	unsigned int vblank_nom_default_us;
 	/* FAMS2 delays */
 	struct {
 		unsigned int max_allow_delay_us;

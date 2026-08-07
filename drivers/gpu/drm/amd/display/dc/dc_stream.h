@@ -329,6 +329,9 @@ struct dc_stream_state {
 
 	enum dc_drr_trigger_mode drr_trigger_mode;
 
+
+	enum dc_blending_linearity blending_linearity;
+	struct dc_update_scratch_space *update_scratch;
 	bool firmware_controlled_hdr_info_packet;
 };
 
@@ -379,6 +382,8 @@ struct dc_stream_update {
 	bool *hw_cursor_req;
 	bool *scaler_sharpener_update;
 	bool *sharpening_required;
+
+	enum dc_blending_linearity *blending_linearity;
 
 	enum dc_drr_trigger_mode *drr_trigger_mode;
 };

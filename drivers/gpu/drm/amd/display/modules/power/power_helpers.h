@@ -102,6 +102,13 @@ struct pwr_backlight_properties {
 	unsigned int max_brightness_millinits;
 	unsigned int nits_range;
 
+	/* Backlight control type of the associated link. Cached here so the
+	 * brightness translation helpers can select the correct mapping
+	 * (legacy vs. VESA AUX zero-anchored) without threading the type
+	 * through every call.
+	 */
+	enum backlight_control_type backlight_control_type;
+
 	bool backlight_caps_valid;
 	bool use_custom_backlight_caps;
 	unsigned int custom_backlight_caps_config_no;
@@ -190,6 +197,8 @@ void reset_replay_dsync_error_count(struct dc_link *link);
 void change_replay_to_psr(struct dc_link *link);
 void change_psr_to_replay(struct dc_link *link);
 void initialize_backlight_caps(struct core_power *core_power, unsigned int inst);
+void mod_power_set_backlight_control_type(struct core_power *core_power,
+		unsigned int inst, enum backlight_control_type backlight_control_type);
 unsigned int backlight_millipercent_to_pwm(
 		struct core_power *core_power, unsigned int millipercent, unsigned int inst);
 unsigned int backlight_millipercent_to_millinit(

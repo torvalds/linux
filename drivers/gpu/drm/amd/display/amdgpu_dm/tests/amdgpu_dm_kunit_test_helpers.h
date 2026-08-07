@@ -13,6 +13,7 @@
 struct amdgpu_device;
 struct amdgpu_display_manager;
 struct amdgpu_dm_connector;
+struct clk_mgr;
 struct dc;
 struct dc_link;
 struct dc_state;
@@ -25,6 +26,8 @@ struct dc_link *dm_kunit_alloc_link(struct kunit *test);
 struct dc_link *dm_kunit_alloc_link_with_ctx(struct kunit *test);
 struct amdgpu_display_manager *dm_kunit_alloc_dm(struct kunit *test);
 struct drm_device *dm_kunit_alloc_drm_with_connector_list(struct kunit *test);
+struct dc_state *dm_kunit_alloc_dc_state(struct kunit *test);
+struct clk_mgr *dm_kunit_alloc_clk_mgr(struct kunit *test);
 struct dc_stream_state *dm_kunit_alloc_stream(struct kunit *test,
 					      struct dc_link *link);
 void dm_kunit_add_stream_to_state(struct kunit *test, struct dc_state *state,
