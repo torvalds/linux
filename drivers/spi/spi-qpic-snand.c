@@ -52,6 +52,7 @@
 #define SPINAND_READ_CACHE		0x0b
 #define SPINAND_READ			0x13
 #define SPINAND_READ_QUAD		0xeb
+#define SPINAND_READ_MACRONIX		0x6b
 #define SPINAND_ERASE			0xd8
 #define SPINAND_WRITE_EN		0x06
 #define SPINAND_PROGRAM_EXECUTE		0x10
@@ -1036,6 +1037,7 @@ static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc,
 	case SPINAND_READ:
 	case SPINAND_READ_QUAD:
 	case SPINAND_READ_CACHE:
+	case SPINAND_READ_MACRONIX:
 		if (snandc->qspi->raw_rw) {
 			*cmd = (PAGE_ACC | LAST_PAGE | transfer_mode |
 					SPI_WP | SPI_HOLD | OP_PAGE_READ);
