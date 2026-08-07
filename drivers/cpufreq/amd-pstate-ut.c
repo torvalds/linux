@@ -59,6 +59,7 @@ static int amd_pstate_ut_check_freq(u32 index);
 static int amd_pstate_ut_epp(u32 index);
 static int amd_pstate_ut_check_driver(u32 index);
 static int amd_pstate_ut_check_freq_attrs(u32 index);
+static int amd_pstate_ut_check_floor_freq(u32 index);
 
 static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_acpi_cpc_valid",    amd_pstate_ut_acpi_cpc_valid   },
@@ -68,6 +69,7 @@ static struct amd_pstate_ut_struct amd_pstate_ut_cases[] = {
 	{"amd_pstate_ut_epp",               amd_pstate_ut_epp              },
 	{"amd_pstate_ut_check_driver",      amd_pstate_ut_check_driver     },
 	{"amd_pstate_ut_check_freq_attrs",  amd_pstate_ut_check_freq_attrs },
+	{"amd_pstate_ut_check_floor_freq",  amd_pstate_ut_check_floor_freq },
 };
 
 static bool test_in_list(const char *list, const char *name)
@@ -275,6 +277,7 @@ static int amd_pstate_set_mode(enum amd_pstate_mode mode)
 static int amd_pstate_ut_epp(u32 index)
 {
 	static const char * const epp_strings[] = {
+		"dynamic",
 		"power",
 		"balance_power",
 		"balance_performance",
@@ -282,10 +285,10 @@ static int amd_pstate_ut_epp(u32 index)
 	};
 	char *buf __free(cleanup_page) = NULL;
 	struct cpufreq_policy *policy = NULL;
+	unsigned long orig_dynamic_epp = 0;
 	enum amd_pstate_mode orig_mode;
 	struct amd_cpudata *cpudata;
 	unsigned long orig_policy;
-	bool orig_dynamic_epp;
 	int ret, cpu = 0;
 	u16 epp;
 	int i;
@@ -294,9 +297,11 @@ static int amd_pstate_ut_epp(u32 index)
 	if (!policy)
 		return -ENODEV;
 
-	cpudata = policy->driver_data;
 	orig_mode = amd_pstate_get_status();
-	orig_dynamic_epp = cpudata->dynamic_epp;
+	if (policy->driver_data) {
+		cpudata = policy->driver_data;
+		orig_dynamic_epp = cpudata->dynamic_epp;
+	}
 
 	/* Drop reference before potential driver change. */
 	cpufreq_cpu_put(policy);
@@ -320,16 +325,6 @@ static int amd_pstate_ut_epp(u32 index)
 	cpudata = policy->driver_data;
 	orig_policy = cpudata->policy;
 	cpudata->policy = CPUFREQ_POLICY_POWERSAVE;
-
-	/*
-	 * Disable dynamic EPP before running test. If "orig_dynamic_epp" is
-	 * true, the  driver will do a redundant switch at the end and there
-	 * is no need for enabling it again at the end of the test.
-	 */
-	if (cpudata->dynamic_epp) {
-		pr_debug("Dynamic EPP is enabled, disabling it\n");
-		amd_pstate_clear_dynamic_epp(policy);
-	}
 
 	for (epp = 0; epp <= U8_MAX; epp++) {
 		u8 val;
@@ -367,6 +362,11 @@ static int amd_pstate_ut_epp(u32 index)
 		if (ret < 0)
 			goto out;
 		strreplace(buf, '\n', '\0');
+		/*
+		 * "dynamic" mode reports the EPP as "dynamic(profile:X)"
+		 * Trim at "(" and just compare tie the epp string.
+		 */
+		strreplace(buf, '(', '\0');
 
 		if (strcmp(buf, epp_strings[i])) {
 			pr_err("String EPP value mismatch: %s != %s\n", buf, epp_strings[i]);
@@ -380,16 +380,21 @@ static int amd_pstate_ut_epp(u32 index)
 out:
 	if (policy) {
 		cpudata->policy = orig_policy;
+		/*
+		 * If the driver had enabled dynamic_epp to begin with,
+		 * restore it here before dropping policy reference.
+		 */
+		if (orig_dynamic_epp) {
+			int ret2;
+
+			ret2 = store_energy_performance_preference(policy,
+								  epp_strings[0],
+								  strlen(epp_strings[0]));
+			if (!ret && (ret2 < 0))
+				ret = ret2;
+		}
 		up_write(&policy->rwsem);
 		cpufreq_cpu_put(policy);
-	}
-
-	if (orig_dynamic_epp) {
-		int ret2;
-
-		ret2 = amd_pstate_set_mode(AMD_PSTATE_DISABLE);
-		if (!ret && ret2)
-			ret = ret2;
 	}
 
 	if (orig_mode != amd_pstate_get_status()) {
@@ -557,9 +562,88 @@ out:
 	return ret;
 }
 
+static int amd_pstate_ut_check_floor_freq(u32 index)
+{
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
+	char *buf __free(cleanup_page) = NULL;
+	unsigned int orig_floor_freq;
+	unsigned int floor_freq;
+	int ret, cpu = 0;
+
+	if (!cpu_feature_enabled(X86_FEATURE_CPPC_PERF_PRIO))
+		return -EOPNOTSUPP;
+
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy)
+		return -ENODEV;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	guard(rwsem_write)(&policy->rwsem);
+
+	if (!policy->driver_data)
+		return -ENODEV;
+
+	/* Retrieve original floor frequency */
+	memset(buf, 0, PAGE_SIZE);
+	ret = show_amd_pstate_floor_freq(policy, buf);
+	if (ret < 0)
+		return ret;
+
+	ret = kstrtou32(buf, 0, &orig_floor_freq);
+	if (ret)
+		return ret;
+
+	memset(buf, 0, PAGE_SIZE);
+	snprintf(buf, PAGE_SIZE, "%u", policy->cpuinfo.min_freq);
+
+	/* Set floor frequency to cpuinfo.min_freq */
+	ret = store_amd_pstate_floor_freq(policy, buf, strlen(buf));
+	if (ret < 0) {
+		pr_err("Failed to set floor frequency to %s\n", buf);
+		return ret;
+	}
+
+	memset(buf, 0, PAGE_SIZE);
+	ret = show_amd_pstate_floor_freq(policy, buf);
+	if (ret < 0)
+		return ret;
+
+	strreplace(buf, '\n', '\0');
+	ret = kstrtou32(buf, 0, &floor_freq);
+	if (ret)
+		return ret;
+
+	/* Confirm sysfs reflects the change correctly. */
+	if (floor_freq != policy->cpuinfo.min_freq) {
+		pr_err("Floor frequency value mismatch: %u != %u\n",
+		       floor_freq, policy->cpuinfo.min_freq);
+		return -EINVAL;
+	}
+
+	memset(buf, 0, PAGE_SIZE);
+	snprintf(buf, PAGE_SIZE, "%u", orig_floor_freq);
+
+	/* Restore the original value. */
+	ret = store_amd_pstate_floor_freq(policy, buf, strlen(buf));
+	if (ret < 0) {
+		pr_err("Failed to restore floor frequency to %s\n", buf);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int __init amd_pstate_ut_init(void)
 {
 	u32 i = 0, arr_size = ARRAY_SIZE(amd_pstate_ut_cases);
+	enum amd_pstate_mode mode = amd_pstate_get_status();
+
+	/* don't test if no running amd-pstate driver */
+	if (mode == AMD_PSTATE_UNDEFINED || mode == AMD_PSTATE_DISABLE)
+		return -EOPNOTSUPP;
 
 	for (i = 0; i < arr_size; i++) {
 		int ret;
@@ -570,10 +654,16 @@ static int __init amd_pstate_ut_init(void)
 
 		ret = amd_pstate_ut_cases[i].func(i);
 
-		if (ret)
+		if (ret) {
+			/* Platform does not support the feature being tested. */
+			if (ret == -EOPNOTSUPP) {
+				pr_err("%-4d %-20s\t skipped!\n", i+1, amd_pstate_ut_cases[i].name);
+				continue;
+			}
 			pr_err("%-4d %-20s\t fail: %d!\n", i+1, amd_pstate_ut_cases[i].name, ret);
-		else
+		} else {
 			pr_info("%-4d %-20s\t success!\n", i+1, amd_pstate_ut_cases[i].name);
+		}
 	}
 
 	return 0;

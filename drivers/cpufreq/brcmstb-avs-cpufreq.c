@@ -584,11 +584,8 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 	ret = devm_request_irq(dev, priv->host_irq, irq_handler,
 			       IRQF_TRIGGER_RISING,
 			       BRCM_AVS_HOST_INTR, priv);
-	if (ret && priv->host_irq >= 0) {
-		dev_err(dev, "IRQ request failed: %s (%d) -- %d\n",
-			BRCM_AVS_HOST_INTR, priv->host_irq, ret);
+	if (ret && priv->host_irq >= 0)
 		goto unmap_intr_base;
-	}
 
 	if (brcm_avs_is_firmware_loaded(priv))
 		return 0;
