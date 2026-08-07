@@ -46,14 +46,19 @@
 
 #define SPINAND_RESET			0xff
 #define SPINAND_READID			0x9f
+#define SPINAND_FEATURE_ADDR		0xb0
 #define SPINAND_GET_FEATURE		0x0f
 #define SPINAND_SET_FEATURE		0x1f
+#define SPINAND_READ_CACHE		0x0b
 #define SPINAND_READ			0x13
+#define SPINAND_READ_QUAD		0xeb
 #define SPINAND_ERASE			0xd8
 #define SPINAND_WRITE_EN		0x06
 #define SPINAND_PROGRAM_EXECUTE		0x10
 #define SPINAND_PROGRAM_LOAD		0x84
+#define SPINAND_PROGRAM_LOAD_QUAD	0x34
 
+#define QUAD_WIDTH			0x4
 #define ACC_FEATURE			0xe
 #define BAD_BLOCK_MARKER_SIZE		0x2
 #define OOB_BUF_SIZE			128
@@ -114,6 +119,7 @@ struct qpic_spi_nand {
 	bool oob_rw;
 	bool page_rw;
 	bool raw_rw;
+	bool quad_mode;
 };
 
 static void qcom_spi_set_read_loc_first(struct qcom_nand_controller *snandc,
@@ -1004,8 +1010,15 @@ static int qcom_spi_read_page_oob(struct qcom_nand_controller *snandc,
 	return qcom_spi_check_error(snandc);
 }
 
-static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc, u32 opcode, u32 *cmd)
+static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc,
+				const struct spi_mem_op *op, u32 *cmd)
 {
+	u32 opcode = op->cmd.opcode;
+	u32 transfer_mode = SPI_TRANSFER_MODE_x1;
+
+	if (snandc->qspi->quad_mode && op->data.buswidth == QUAD_WIDTH)
+		transfer_mode = SPI_TRANSFER_MODE_x4;
+
 	switch (opcode) {
 	case SPINAND_RESET:
 		*cmd = (SPI_WP | SPI_HOLD | SPI_TRANSFER_MODE_x1 | OP_RESET_DEVICE);
@@ -1021,11 +1034,13 @@ static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc, u32 opcode,
 			QPIC_SET_FEATURE);
 		break;
 	case SPINAND_READ:
+	case SPINAND_READ_QUAD:
+	case SPINAND_READ_CACHE:
 		if (snandc->qspi->raw_rw) {
-			*cmd = (PAGE_ACC | LAST_PAGE | SPI_TRANSFER_MODE_x1 |
+			*cmd = (PAGE_ACC | LAST_PAGE | transfer_mode |
 					SPI_WP | SPI_HOLD | OP_PAGE_READ);
 		} else {
-			*cmd = (PAGE_ACC | LAST_PAGE | SPI_TRANSFER_MODE_x1 |
+			*cmd = (PAGE_ACC | LAST_PAGE | transfer_mode |
 					SPI_WP | SPI_HOLD | OP_PAGE_READ_WITH_ECC);
 		}
 
@@ -1038,11 +1053,14 @@ static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc, u32 opcode,
 		*cmd = SPINAND_WRITE_EN;
 		break;
 	case SPINAND_PROGRAM_EXECUTE:
-		*cmd = (PAGE_ACC | LAST_PAGE | SPI_TRANSFER_MODE_x1 |
-				SPI_WP | SPI_HOLD | OP_PROGRAM_PAGE);
+		*cmd = (PAGE_ACC | LAST_PAGE | transfer_mode |
+			SPI_WP | SPI_HOLD | OP_PROGRAM_PAGE);
 		break;
 	case SPINAND_PROGRAM_LOAD:
 		*cmd = SPINAND_PROGRAM_LOAD;
+		break;
+	case SPINAND_PROGRAM_LOAD_QUAD:
+		*cmd = SPINAND_PROGRAM_LOAD_QUAD;
 		break;
 	default:
 		dev_err(snandc->dev, "Opcode not supported: %u\n", opcode);
@@ -1055,6 +1073,16 @@ static int qcom_spi_cmd_mapping(struct qcom_nand_controller *snandc, u32 opcode,
 static int qcom_spi_read_page(struct qcom_nand_controller *snandc,
 			      const struct spi_mem_op *op)
 {
+	int ret;
+	u32 cmd;
+
+	/* Update the cached command for the cache-read opcode and bus width. */
+	ret = qcom_spi_cmd_mapping(snandc, op, &cmd);
+	if (ret < 0)
+		return ret;
+
+	snandc->qspi->cmd = cpu_to_le32(cmd);
+
 	if (snandc->qspi->page_rw && snandc->qspi->raw_rw)
 		return qcom_spi_read_page_raw(snandc, op);
 
@@ -1322,11 +1350,12 @@ static int qcom_spi_write_page(struct qcom_nand_controller *snandc,
 	int ret;
 	u32 cmd;
 
-	ret = qcom_spi_cmd_mapping(snandc, op->cmd.opcode, &cmd);
+	ret = qcom_spi_cmd_mapping(snandc, op, &cmd);
 	if (ret < 0)
 		return ret;
 
-	if (op->cmd.opcode == SPINAND_PROGRAM_LOAD)
+	if (op->cmd.opcode == SPINAND_PROGRAM_LOAD ||
+	    op->cmd.opcode == SPINAND_PROGRAM_LOAD_QUAD)
 		snandc->qspi->data_buf = (u8 *)op->data.buf.out;
 
 	return 0;
@@ -1338,7 +1367,7 @@ static int qcom_spi_send_cmdaddr(struct qcom_nand_controller *snandc,
 	u32 cmd;
 	int ret, opcode;
 
-	ret = qcom_spi_cmd_mapping(snandc, op->cmd.opcode, &cmd);
+	ret = qcom_spi_cmd_mapping(snandc, op, &cmd);
 	if (ret < 0)
 		return ret;
 
@@ -1457,6 +1486,22 @@ static int qcom_spi_io_op(struct qcom_nand_controller *snandc, const struct spi_
 		val = le32_to_cpu(*(__le32 *)snandc->reg_read_buf);
 		val >>= 8;
 		memcpy(op->data.buf.in, &val, snandc->buf_count);
+
+		/*
+		 * Track QUAD mode state from configuration register.
+		 * When core layer reads register 0xB0 (CFG), check if
+		 * QUAD enable bit (bit 0) is set and update our state
+		 * accordingly for future READ/WRITE operations.
+		 */
+		if (op->addr.val == SPINAND_FEATURE_ADDR) {
+			bool quad_enabled = !!((u8)val & BIT(0));
+
+			if (snandc->qspi->quad_mode != quad_enabled) {
+				snandc->qspi->quad_mode = quad_enabled;
+				dev_info(snandc->dev, "SPI NAND QUAD mode: %s\n",
+					 quad_enabled ? "enabled" : "disabled");
+			}
+		}
 	}
 
 	return 0;
@@ -1497,7 +1542,8 @@ static bool qcom_spi_supports_op(struct spi_mem *mem, const struct spi_mem_op *o
 
 	return ((!op->addr.nbytes || op->addr.buswidth == 1) &&
 		(!op->dummy.nbytes || op->dummy.buswidth == 1) &&
-		(!op->data.nbytes || op->data.buswidth == 1));
+		(!op->data.nbytes || op->data.buswidth == 1 ||
+		 op->data.buswidth == 4));
 }
 
 static int qcom_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
@@ -1547,6 +1593,9 @@ static int qcom_spi_probe(struct platform_device *pdev)
 	qspi = devm_kzalloc(dev, sizeof(*qspi), GFP_KERNEL);
 	if (!qspi)
 		return -ENOMEM;
+
+	/* Initialize QUAD mode state */
+	qspi->quad_mode = false;
 
 	ctlr = __devm_spi_alloc_controller(dev, sizeof(*snandc), false);
 	if (!ctlr)
