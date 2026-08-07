@@ -1692,6 +1692,7 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 	struct io_kiocb *req = args->req;
 	struct sk_buff *frag_iter;
 	unsigned start, start_off = offset;
+	struct skb_shared_info *shi;
 	int i, ret = 0;
 
 	len = min_t(size_t, len, desc->count);
@@ -1727,16 +1728,14 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 	}
 
 	start = skb_headlen(skb);
+	shi = skb_shinfo(skb);
 
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const skb_frag_t *frag;
-		unsigned frag_end;
+	for (i = 0; i < shi->nr_frags; i++) {
+		const skb_frag_t *frag = &shi->frags[i];
+		unsigned frag_end = start + skb_frag_size(frag);
 
 		if (WARN_ON(start > offset + len))
 			return -EFAULT;
-
-		frag = &skb_shinfo(skb)->frags[i];
-		frag_end = start + skb_frag_size(frag);
 
 		if (offset < frag_end) {
 			unsigned copy = min(frag_end - offset, len);
