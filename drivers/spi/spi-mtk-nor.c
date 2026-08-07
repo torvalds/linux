@@ -905,6 +905,7 @@ static int mtk_nor_probe(struct platform_device *pdev)
 				       pdev->name, sp);
 		if (ret < 0) {
 			dev_warn(sp->dev, "failed to request IRQ.");
+			goto err_disable_clk;
 		} else {
 			init_completion(&sp->op_done);
 			sp->has_irq = true;
