@@ -33,10 +33,7 @@ enum vsie_page_flags {
 
 struct vsie_page {
 	struct kvm_s390_sie_block scb_s;	/* 0x0000 */
-	/*
-	 * the backup info for machine check. ensure it's at
-	 * the same offset as that in struct sie_page!
-	 */
+	/* backup info for machine check */
 	struct mcck_volatile_info mcck_info;    /* 0x0200 */
 	/*
 	 * The pinned original scb. Be aware that other VCPUs can modify
@@ -71,6 +68,7 @@ struct vsie_page {
 };
 
 static_assert(sizeof(struct vsie_page) == PAGE_SIZE);
+static_assert(offsetof(struct vsie_page, mcck_info) == offsetof(struct sie_page, mcck_info));
 
 /* trigger a validity icpt for the given scb */
 static int set_validity_icpt(struct kvm_s390_sie_block *scb,
