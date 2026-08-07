@@ -65,8 +65,7 @@ class AbiRegex(AbiParser):
         (re.compile(r"\[[^\]]+\]"), "\\\\w\xf7"),
 
         (re.compile(r"XX+"), "\\\\w\xf7"),
-        (re.compile(r"([^A-Z])[XYZ]([^A-Z])"), "\\1\\\\w\xf7\\2"),
-        (re.compile(r"([^A-Z])[XYZ]$"), "\\1\\\\w\xf7"),
+        (re.compile(r"(?<![A-Z])[XYZ](?![A-Z])"), "\\\\w\xf7"),
         (re.compile(r"_[AB]_"), "_\\\\w\xf7_"),
 
         # Recover [0-9] type of patterns
