@@ -1142,6 +1142,33 @@ void *dpll_pin_on_pin_priv(struct dpll_pin *parent,
 	return reg->priv;
 }
 
+/**
+ * dpll_pin_own_dpll_ref_first - find the first owner dpll ref of a pin
+ * @pin: pointer to a dpll pin
+ *
+ * Search pin's dpll_refs for a ref whose dpll matches the pin's
+ * (module, clock_id) tuple, i.e. the dpll registered by the driver
+ * that created the pin. This ensures pin-level attributes are
+ * reported and modified using the owner's ops even when the pin is
+ * also registered with dplls from other drivers.
+ *
+ * Return: pointer to the owner's dpll_pin_ref, or NULL if no
+ * owner ref is found.
+ */
+struct dpll_pin_ref *dpll_pin_own_dpll_ref_first(struct dpll_pin *pin)
+{
+	struct dpll_pin_ref *ref;
+	unsigned long i;
+
+	xa_for_each(&pin->dpll_refs, i, ref) {
+		if (ref->dpll->module == pin->module &&
+		    ref->dpll->clock_id == pin->clock_id)
+			return ref;
+	}
+
+	return NULL;
+}
+
 const struct dpll_pin_ops *dpll_pin_ops(struct dpll_pin_ref *ref)
 {
 	struct dpll_pin_registration *reg;

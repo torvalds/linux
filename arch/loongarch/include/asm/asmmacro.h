@@ -14,7 +14,7 @@
 #ifdef CONFIG_64BIT
 #define TASK_STRUCT_OFFSET 0
 #else
-#define TASK_STRUCT_OFFSET 2000
+#define TASK_STRUCT_OFFSET 2040
 #endif
 
 	.macro	cpu_save_nonscratch thread

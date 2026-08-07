@@ -13,7 +13,7 @@ static bool ovl_is_escaped_xattr(struct super_block *sb, const char *name)
 			       OVL_XATTR_ESCAPE_USER_PREFIX_LEN) == 0;
 	else
 		return strncmp(name, OVL_XATTR_ESCAPE_TRUSTED_PREFIX,
-			       OVL_XATTR_ESCAPE_TRUSTED_PREFIX_LEN - 1) == 0;
+			       OVL_XATTR_ESCAPE_TRUSTED_PREFIX_LEN) == 0;
 }
 
 static bool ovl_is_own_xattr(struct super_block *sb, const char *name)

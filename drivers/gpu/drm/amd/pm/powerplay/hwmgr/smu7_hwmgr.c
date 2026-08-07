@@ -4062,7 +4062,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 	    (adev->asic_type != CHIP_FIJI) &&
 	    (adev->asic_type != CHIP_TONGA)) {
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetCurrPkgPwr, 0, &tmp);
-		*query = tmp;
+		*query = PP_PWR_Q24_8_TO_MW(tmp);
 
 		if (tmp != 0)
 			return 0;
@@ -4081,7 +4081,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 		if (tmp != 0)
 			break;
 	}
-	*query = tmp;
+	*query = PP_PWR_Q24_8_TO_MW(tmp);
 
 	return 0;
 }

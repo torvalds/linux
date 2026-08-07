@@ -179,6 +179,7 @@ enum netdev_work_core {
 void __netdev_work_core_sched(struct net_device *dev, unsigned long event);
 unsigned long
 __netdev_work_core_cancel(struct net_device *dev, unsigned long mask);
+void netdev_work_cancel_all(struct net_device *dev);
 
 void __dev_notify_flags(struct net_device *dev, unsigned int old_flags,
 			unsigned int gchanges, u32 portid,
