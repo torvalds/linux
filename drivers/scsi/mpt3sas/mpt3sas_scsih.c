@@ -5472,7 +5472,7 @@ static enum scsi_qc_status scsih_qcmd(struct Scsi_Host *shost,
 	 * Avoid error handling escallation when device is disconnected
 	 */
 	if (handle == MPT3SAS_INVALID_DEVICE_HANDLE || sas_device_priv_data->block) {
-		if (scmd->device->host->shost_state == SHOST_RECOVERY &&
+		if (scsi_get_host_state(scmd->device->host) == SHOST_RECOVERY &&
 		    scmd->cmnd[0] == TEST_UNIT_READY) {
 			scsi_build_sense(scmd, 0, UNIT_ATTENTION, 0x29, 0x07);
 			scsi_done(scmd);
