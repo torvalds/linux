@@ -30,6 +30,7 @@
 
 static const char * const discarded_secs[] = {
 	".discard",
+	".exitcall.exit",
 	".modinfo",
 	".no_trim_symbol",
 	"__tracepoint_check",
