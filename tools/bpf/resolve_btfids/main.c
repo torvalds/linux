@@ -161,6 +161,10 @@ struct object {
 	u32 addr_syms_cap;
 };
 
+#define DECL_TAG_FASTCALL "bpf_fastcall"
+#define DECL_TAG_KFUNC "bpf_kfunc"
+
+#define KF_FASTCALL	(1 << 12)
 #define KF_ARENA_RET	(1 << 13)
 #define KF_ARENA_ARG1	(1 << 14)
 #define KF_ARENA_ARG2	(1 << 15)
@@ -1233,7 +1237,7 @@ static int process_kfunc_with_implicit_args(struct btf2btf_context *ctx, struct 
 			continue;
 
 		tag_name = btf__name_by_offset(btf, t->name_off);
-		if (strcmp(tag_name, "bpf_kfunc") == 0)
+		if (strcmp(tag_name, DECL_TAG_KFUNC) == 0)
 			continue;
 
 		idx = btf_decl_tag(t)->component_idx;
@@ -1404,6 +1408,21 @@ static int process_kfunc_with_arena_flags(struct btf2btf_context *ctx,
 	return 0;
 }
 
+static int add_decl_tag(struct btf2btf_context *ctx, const char *tag_name,
+			u32 target_btf_id, int component_idx)
+{
+	s32 new_id;
+
+	new_id = btf__add_decl_tag(ctx->btf, tag_name, target_btf_id, component_idx);
+	if (new_id < 0) {
+		pr_err("ERROR: resolve_btfids: failed to add '%s' decl tag for BTF id %u: %d\n",
+		       tag_name, target_btf_id, new_id);
+		return new_id;
+	}
+
+	return push_decl_tag_id(ctx, new_id);
+}
+
 static int btf2btf(struct object *obj)
 {
 	struct btf2btf_context ctx = {};
@@ -1416,6 +1435,16 @@ static int btf2btf(struct object *obj)
 
 	for (next = rb_first(&ctx.kfuncs); next; next = rb_next(next)) {
 		struct kfunc *kfunc = rb_entry(next, struct kfunc, rb_node);
+
+		err = add_decl_tag(&ctx, DECL_TAG_KFUNC, kfunc->btf_id, -1);
+		if (err)
+			goto out;
+
+		if (kfunc->flags & KF_FASTCALL) {
+			err = add_decl_tag(&ctx, DECL_TAG_FASTCALL, kfunc->btf_id, -1);
+			if (err)
+				goto out;
+		}
 
 		if (kfunc->flags & KF_IMPLICIT_ARGS) {
 			err = process_kfunc_with_implicit_args(&ctx, kfunc);
