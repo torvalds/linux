@@ -942,7 +942,7 @@ unsigned long read_num(const char *path)
 {
 	char buf[21];
 
-	if (read_file(path, buf, sizeof(buf)) < 0)
+	if (!read_file(path, buf, sizeof(buf)))
 		ksft_exit_fail_perror("read_file()");
 
 	return strtoul(buf, NULL, 10);
