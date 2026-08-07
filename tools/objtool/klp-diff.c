@@ -118,7 +118,7 @@ static int read_exports(void)
 {
 	const char *symvers = "Module.symvers";
 	char line[1024], *path = NULL;
-	unsigned int line_num = 1;
+	unsigned int line_num = 0;
 	FILE *file;
 
 	file = fopen(symvers, "r");
@@ -139,6 +139,8 @@ static int read_exports(void)
 	while (fgets(line, 1024, file)) {
 		char *sym, *mod, *type, *namespace;
 		struct export *export;
+
+		line_num++;
 
 		sym = strchr(line, '\t');
 		if (!sym) {
