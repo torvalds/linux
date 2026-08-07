@@ -16727,7 +16727,6 @@ bool bpf_get_call_summary(struct bpf_verifier_env *env, struct bpf_insn *call,
 	int i;
 
 	if (bpf_helper_call(call)) {
-
 		if (bpf_get_helper_proto(env, call->imm, &fn) < 0)
 			/* error would be reported later */
 			return false;
