@@ -161,8 +161,12 @@ struct object {
 	u32 addr_syms_cap;
 };
 
+#define KF_ARENA_RET	(1 << 13)
+#define KF_ARENA_ARG1	(1 << 14)
+#define KF_ARENA_ARG2	(1 << 15)
 #define KF_IMPLICIT_ARGS (1 << 16)
 #define KF_IMPL_SUFFIX "_impl"
+#define TYPE_ATTR_ARENA "address_space(1)"
 
 struct kfunc {
 	struct rb_node rb_node;
@@ -1280,6 +1284,126 @@ add_new_proto:
 	return 0;
 }
 
+static bool is_arena_arg(struct kfunc *kfunc, u32 idx)
+{
+	switch (idx) {
+	case 0:
+		return kfunc->flags & KF_ARENA_ARG1;
+	case 1:
+		return kfunc->flags & KF_ARENA_ARG2;
+	default:
+		return false;
+	}
+}
+
+static s32 arena_tag_ptr(struct btf *btf, u32 ptr_id, struct kfunc *kfunc)
+{
+	const struct btf_type *ptr = btf__type_by_id(btf, ptr_id);
+	s32 tag_id, new_ptr_id;
+
+	if (!btf_is_ptr(ptr)) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: arena type is not a pointer\n",
+		       kfunc->name);
+		return -EINVAL;
+	}
+
+	tag_id = btf__add_type_attr(btf, TYPE_ATTR_ARENA, ptr->type);
+	if (tag_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a type attr to BTF: %d\n",
+		       kfunc->name, tag_id);
+		return tag_id;
+	}
+
+	new_ptr_id = btf__add_ptr(btf, tag_id);
+	if (new_ptr_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a pointer to BTF: %d\n",
+		       kfunc->name, new_ptr_id);
+	}
+
+	return new_ptr_id;
+}
+
+/*
+ * Add a FUNC_PROTO for @kfunc with each relevant pointer tagged with
+ * an "address_space(1)" attribute. The original proto may be shared
+ * with other FUNCs, so it is never modified in place.
+ */
+static s32 add_arena_tagged_proto(struct btf *btf, struct kfunc *kfunc)
+{
+	const struct btf_type *func = btf__type_by_id(btf, kfunc->btf_id);
+	u32 proto_id = func->type;
+	const struct btf_type *proto = btf__type_by_id(btf, proto_id);
+	u32 nr_params = btf_vlen(proto);
+	s32 ret_type_id = proto->type;
+	const struct btf_type *t;
+	struct btf_param *params;
+	s32 new_proto_id, id;
+	const char *name;
+	int err, i;
+
+	if (kfunc->flags & KF_ARENA_RET) {
+		ret_type_id = arena_tag_ptr(btf, ret_type_id, kfunc);
+		if (ret_type_id < 0)
+			return ret_type_id;
+	}
+
+	new_proto_id = btf__add_func_proto(btf, ret_type_id);
+	if (new_proto_id < 0) {
+		pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a func proto to BTF: %d\n",
+		       kfunc->name, new_proto_id);
+		return new_proto_id;
+	}
+
+	for (i = 0; i < nr_params; i++) {
+		/* btf__add_func_param() below may move the proto, re-fetch */
+		proto = btf__type_by_id(btf, proto_id);
+		name = btf__name_by_offset(btf, btf_params(proto)[i].name_off);
+
+		err = btf__add_func_param(btf, name ?: "", btf_params(proto)[i].type);
+		if (err < 0) {
+			pr_err("ERROR: resolve_btfids: kfunc %s: failed to add a proto param to BTF: %d\n",
+			       kfunc->name, err);
+			return err;
+		}
+	}
+
+	for (i = 0; i < nr_params; i++) {
+		if (!is_arena_arg(kfunc, i))
+			continue;
+
+		t = btf__type_by_id(btf, new_proto_id);
+		params = btf_params(t);
+
+		id = arena_tag_ptr(btf, params[i].type, kfunc);
+		if (id < 0)
+			return id;
+
+		t = btf__type_by_id(btf, new_proto_id);
+		params = btf_params(t);
+		params[i].type = id;
+	}
+
+	pr_debug("added arena-tagged proto for kfunc %s: %d\n", kfunc->name, new_proto_id);
+
+	return new_proto_id;
+}
+
+static int process_kfunc_with_arena_flags(struct btf2btf_context *ctx,
+					  struct kfunc *kfunc)
+{
+	struct btf_type *t;
+	s32 proto_id;
+
+	proto_id = add_arena_tagged_proto(ctx->btf, kfunc);
+	if (proto_id < 0)
+		return proto_id;
+
+	t = (struct btf_type *)btf__type_by_id(ctx->btf, kfunc->btf_id);
+	t->type = proto_id;
+
+	return 0;
+}
+
 static int btf2btf(struct object *obj)
 {
 	struct btf2btf_context ctx = {};
@@ -1293,12 +1417,17 @@ static int btf2btf(struct object *obj)
 	for (next = rb_first(&ctx.kfuncs); next; next = rb_next(next)) {
 		struct kfunc *kfunc = rb_entry(next, struct kfunc, rb_node);
 
-		if (!(kfunc->flags & KF_IMPLICIT_ARGS))
-			continue;
+		if (kfunc->flags & KF_IMPLICIT_ARGS) {
+			err = process_kfunc_with_implicit_args(&ctx, kfunc);
+			if (err)
+				goto out;
+		}
 
-		err = process_kfunc_with_implicit_args(&ctx, kfunc);
-		if (err)
-			goto out;
+		if (kfunc->flags & (KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2)) {
+			err = process_kfunc_with_arena_flags(&ctx, kfunc);
+			if (err)
+				goto out;
+		}
 	}
 
 	err = 0;
