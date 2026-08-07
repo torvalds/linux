@@ -14650,6 +14650,13 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/hardening
 F:	scripts/leaking_addresses.pl
 
+LEAPIO SCSI RAID DRIVER
+M:	Dongdong Hao <doubled@leap-io-kernel.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	Documentation/scsi/leapraid.rst
+F:	drivers/scsi/leapraid/
+
 LED SUBSYSTEM
 M:	Lee Jones <lee@kernel.org>
 M:	Pavel Machek <pavel@kernel.org>
