@@ -306,6 +306,12 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 		goto done;
 	}
 
+	if (vha->hw->flags.t262_fail) {
+		ql_dbg(ql_dbg_misc, vha, 0xd045,
+		    "%s: failed previously\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
 	dwords = end - start + 1;
 	if (buf) {
 		buf += *len;
@@ -314,7 +320,12 @@ qla27xx_fwdt_entry_t262(struct scsi_qla_host *vha,
 			ql_dbg(ql_dbg_async, vha, 0xffff,
 			    "%s: dump ram MB failed. Area %xh start %lxh end %lxh\n",
 			    __func__, area, start, end);
-			return INVALID_ENTRY;
+
+			if (rc == QLA_FUNCTION_TIMEOUT)
+				vha->hw->flags.t262_fail = 1;
+
+			qla27xx_skip_entry(ent, buf);
+			goto done;
 		}
 	}
 	*len += dwords * sizeof(uint32_t);
@@ -536,13 +547,12 @@ qla27xx_fwdt_entry_t269(struct scsi_qla_host *vha,
 {
 	ql_dbg(ql_dbg_misc, vha, 0xd20d,
 	    "%s: scratch [%lx]\n", __func__, *len);
-	qla27xx_insert32(0xaaaaaaaa, buf, len);
-	qla27xx_insert32(0xbbbbbbbb, buf, len);
-	qla27xx_insert32(0xcccccccc, buf, len);
-	qla27xx_insert32(0xdddddddd, buf, len);
-	qla27xx_insert32(*len + sizeof(uint32_t), buf, len);
+
+	/* The data format is based on entry type t260. */
+	qla27xx_insert32(offsetof(struct device_reg_24xx, mailbox0), buf, len);
+	qla27xx_insertbuf(vha->hw->mbregs, sizeof(vha->hw->mbregs), buf, len);
 	if (buf)
-		ent->t269.scratch_size = 5 * sizeof(uint32_t);
+		ent->t269.scratch_size = sizeof(uint32_t) + sizeof(vha->hw->mbregs);
 
 	return qla27xx_next_entry(ent);
 }
@@ -589,17 +599,37 @@ qla27xx_fwdt_entry_t272(struct scsi_qla_host *vha,
 {
 	ulong dwords = le32_to_cpu(ent->t272.count);
 	ulong start = le32_to_cpu(ent->t272.addr);
+	int rc;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd210,
 	    "%s: rdremram [%lx]\n", __func__, *len);
+
+	if (vha->hw->flags.t272_fail) {
+		ql_dbg(ql_dbg_misc, vha, 0xd04f,
+		    "%s: failed previously\n", __func__);
+		qla27xx_skip_entry(ent, buf);
+		goto done;
+	}
+
 	if (buf) {
 		ql_dbg(ql_dbg_misc, vha, 0xd02c,
 		    "%s: @%lx -> (%lx dwords)\n", __func__, start, dwords);
 		buf += *len;
-		qla27xx_dump_mpi_ram(vha->hw, start, buf, dwords, &buf);
+		rc = qla27xx_dump_mpi_ram(vha->hw, start, buf, dwords, &buf);
+		if (rc != QLA_SUCCESS) {
+			ql_log(ql_log_warn, vha, 0xd01b,
+			    "%s: dump mpi MB failed. Start %lxh dwords %lxh\n",
+			    __func__, start, dwords);
+
+			if (rc == QLA_FUNCTION_TIMEOUT)
+				vha->hw->flags.t272_fail = 1;
+
+			qla27xx_skip_entry(ent, buf);
+			goto done;
+		}
 	}
 	*len += dwords * sizeof(uint32_t);
-
+done:
 	return qla27xx_next_entry(ent);
 }
 

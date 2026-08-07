@@ -228,7 +228,7 @@ qla2x00_async_iocb_timeout(void *data)
 	srb_t *sp = data;
 	fc_port_t *fcport = sp->fcport;
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
-	int rc, h;
+	int rc, h, found;
 	unsigned long flags;
 
 	if (fcport) {
@@ -251,6 +251,7 @@ qla2x00_async_iocb_timeout(void *data)
 			lio->u.logio.data[1] =
 				lio->u.logio.flags & SRB_LOGIN_RETRIED ?
 				QLA_LOGIO_LOGIN_RETRIED : 0;
+			found = 0;
 			spin_lock_irqsave(sp->qpair->qp_lock_ptr, flags);
 			for (h = 1; h < sp->qpair->req->num_outstanding_cmds;
 			    h++) {
@@ -258,11 +259,19 @@ qla2x00_async_iocb_timeout(void *data)
 				    sp) {
 					sp->qpair->req->outstanding_cmds[h] =
 					    NULL;
+					found = 1;
 					break;
 				}
 			}
 			spin_unlock_irqrestore(sp->qpair->qp_lock_ptr, flags);
-			sp->done(sp, QLA_FUNCTION_TIMEOUT);
+			/*
+			 * Only complete the command if this path removed it
+			 * from outstanding_cmds.  Otherwise the ISR already
+			 * completed it and a second sp->done() would race the
+			 * submitter's freeing of the on-stack completion.
+			 */
+			if (found)
+				sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		}
 		break;
 	case SRB_LOGOUT_CMD:
@@ -275,6 +284,7 @@ qla2x00_async_iocb_timeout(void *data)
 	default:
 		rc = qla24xx_async_abort_cmd(sp, false);
 		if (rc) {
+			found = 0;
 			spin_lock_irqsave(sp->qpair->qp_lock_ptr, flags);
 			for (h = 1; h < sp->qpair->req->num_outstanding_cmds;
 			    h++) {
@@ -282,11 +292,19 @@ qla2x00_async_iocb_timeout(void *data)
 				    sp) {
 					sp->qpair->req->outstanding_cmds[h] =
 					    NULL;
+					found = 1;
 					break;
 				}
 			}
 			spin_unlock_irqrestore(sp->qpair->qp_lock_ptr, flags);
-			sp->done(sp, QLA_FUNCTION_TIMEOUT);
+			/*
+			 * Only complete the command if this path removed it
+			 * from outstanding_cmds.  Otherwise the ISR already
+			 * completed it and a second sp->done() would race the
+			 * submitter's freeing of the on-stack completion.
+			 */
+			if (found)
+				sp->done(sp, QLA_FUNCTION_TIMEOUT);
 		}
 		break;
 	}
@@ -3275,47 +3293,37 @@ qla81xx_reset_mpi(scsi_qla_host_t *vha)
 	return qla81xx_write_mpi_register(vha, mb);
 }
 
-static int
-qla_chk_risc_recovery(scsi_qla_host_t *vha)
+/* save MB regs at start of day for fw dump */
+static void
+qla_save_mbregs(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	__le16 __iomem *mbptr = &reg->mailbox0;
 	int i;
-	u16 mb[32];
-	int rc = QLA_SUCCESS;
+	u16 *mb = ha->mbregs;
 
-	if (!IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-		return rc;
+	if ((!IS_QLA27XX(ha) && !IS_QLA28XX(ha) && !IS_QLA29XX(ha)) ||
+	    vha->flags.init_done)
+		return;
 
-	/* this check is only valid after RISC reset */
-	mb[0] = rd_reg_word(mbptr);
-	mbptr++;
-	if (mb[0] == 0xf) {
-		rc = QLA_FUNCTION_FAILED;
-
-		for (i = 1; i < 32; i++) {
-			mb[i] = rd_reg_word(mbptr);
-			mbptr++;
-		}
-
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[0-7] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[0], mb[1], mb[2], mb[3], mb[4], mb[5], mb[6], mb[7]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[8-15] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[8], mb[9], mb[10], mb[11], mb[12], mb[13], mb[14],
-		       mb[15]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[16-23] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[16], mb[17], mb[18], mb[19], mb[20], mb[21], mb[22],
-		       mb[23]);
-		ql_log(ql_log_warn, vha, 0x1015,
-		       "RISC reset failed. mb[24-31] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
-		       mb[24], mb[25], mb[26], mb[27], mb[28], mb[29], mb[30],
-		       mb[31]);
+	for (i = 0; i < 32; i++) {
+		mb[i] = rd_reg_word(mbptr);
+		mbptr++;
 	}
-	return rc;
+
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[0-7] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[0], mb[1], mb[2], mb[3], mb[4], mb[5], mb[6], mb[7]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[8-15] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[8], mb[9], mb[10], mb[11], mb[12], mb[13], mb[14], mb[15]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[16-23] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[16], mb[17], mb[18], mb[19], mb[20], mb[21], mb[22], mb[23]);
+	ql_log(ql_log_info, vha, 0x1015,
+	    "mb[24-31] %04xh %04xh %04xh %04xh %04xh %04xh %04xh %04xh\n",
+	    mb[24], mb[25], mb[26], mb[27], mb[28], mb[29], mb[30], mb[31]);
 }
 
 /**
@@ -3334,7 +3342,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	uint16_t wd;
 	static int abts_cnt; /* ISP abort retry counts */
 	int rval = QLA_SUCCESS;
-	int print = 1;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -3431,9 +3438,6 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		barrier();
 		if (cnt) {
 			mdelay(1);
-			if (print && qla_chk_risc_recovery(vha))
-				print = 0;
-
 			wd = rd_reg_word(&reg->mailbox0);
 		} else {
 			rval = QLA_FUNCTION_TIMEOUT;
@@ -3452,6 +3456,8 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	     rd_reg_word(&reg->mailbox0));
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	qla_save_mbregs(vha);
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x015f,
 	    "Driver in %s mode\n",
@@ -3764,11 +3770,27 @@ int qla2x00_alloc_fce_trace(scsi_qla_host_t *vha)
 
 void qla2x00_free_fce_trace(struct qla_hw_data *ha)
 {
-	if (!ha->fce)
+	void *fce;
+	dma_addr_t fce_dma;
+	unsigned long flags;
+
+	/*
+	 * Unpublish ha->fce under hardware_lock so a firmware dump in
+	 * progress (which reads ha->fce under the same lock) cannot race
+	 * with the buffer being freed.
+	 */
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	if (!ha->fce) {
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		return;
-	dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce, ha->fce_dma);
+	}
+	fce = ha->fce;
+	fce_dma = ha->fce_dma;
 	ha->fce = NULL;
 	ha->fce_dma = 0;
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	dma_free_coherent(&ha->pdev->dev, FCE_SIZE, fce, fce_dma);
 }
 
 static void
@@ -3813,18 +3835,11 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct rsp_que *rsp = ha->rsp_q_map[0];
-	struct qla2xxx_fw_dump *fw_dump;
+	struct qla2xxx_fw_dump *fw_dump, *prev_fw_dump;
+	void *prev_mpi_fw_dump;
 	size_t req_entry_size = qla_req_entry_size(ha);
 	size_t rsp_entry_size = qla_rsp_entry_size(ha);
 
-	if (ha->fw_dump) {
-		ql_dbg(ql_dbg_init, vha, 0x00bd,
-		    "Firmware dump already allocated.\n");
-		return;
-	}
-
-	ha->fw_dumped = 0;
-	ha->fw_dump_cap_flags = 0;
 	dump_size = fixed_size = mem_size = eft_size = fce_size = mq_size = 0;
 	req_q_size = rsp_q_size = 0;
 
@@ -3907,13 +3922,11 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				ha->exlogin_size;
 	}
 
+	ql_dbg(ql_dbg_init, vha, 0x00c5,
+	    "%s dump_size %d fw_dump_len %d fw_dump_alloc_len %d\n",
+	    __func__, dump_size, ha->fw_dump_len, ha->fw_dump_alloc_len);
+
 	if (!ha->fw_dump_len || dump_size > ha->fw_dump_alloc_len) {
-
-		ql_dbg(ql_dbg_init, vha, 0x00c5,
-		    "%s dump_size %d fw_dump_len %d fw_dump_alloc_len %d\n",
-		    __func__, dump_size, ha->fw_dump_len,
-		    ha->fw_dump_alloc_len);
-
 		fw_dump = vmalloc(dump_size);
 		if (!fw_dump) {
 			ql_log(ql_log_warn, vha, 0x00c4,
@@ -3921,9 +3934,26 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			    dump_size / 1024);
 		} else {
 			mutex_lock(&ha->optrom_mutex);
-			if (ha->fw_dumped) {
-				memcpy(fw_dump, ha->fw_dump, ha->fw_dump_len);
-				vfree(ha->fw_dump);
+
+			if (ha->fw_dumped || ha->mpi_fw_dumped) {
+				prev_fw_dump = ha->fw_dump;
+
+				if (ha->fw_dumped)
+					memcpy(fw_dump, prev_fw_dump,
+					    ha->fw_dump_len);
+
+				if (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+				    IS_QLA29XX(ha)) {
+					prev_mpi_fw_dump = ha->mpi_fw_dump;
+					ha->mpi_fw_dump = (char *)fw_dump +
+						ha->fwdt[0].dump_size;
+
+					if (ha->mpi_fw_dumped)
+						memcpy(ha->mpi_fw_dump,
+						    prev_mpi_fw_dump,
+						    ha->mpi_fw_dump_len);
+				}
+				vfree(prev_fw_dump);
 				ha->fw_dump = fw_dump;
 				ha->fw_dump_alloc_len =  dump_size;
 				ql_dbg(ql_dbg_init, vha, 0x00c5,
@@ -3942,7 +3972,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				if (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
 				    IS_QLA29XX(ha)) {
 					ha->mpi_fw_dump = (char *)fw_dump +
-						ha->fwdt[1].dump_size;
+						ha->fwdt[0].dump_size;
 					mutex_unlock(&ha->optrom_mutex);
 					return;
 				}
@@ -4339,6 +4369,16 @@ execute_fw_with_lr:
 
 		rval = qla2x00_verify_checksum(vha, srisc_address);
 		if (rval == QLA_SUCCESS) {
+			/*
+			 * Alloc a guestimate dump buffer to capture any failure
+			 * during early phase of driver load.
+			 */
+			if (ql2xallocfwdump &&
+			    (IS_QLA27XX(ha) || IS_QLA28XX(ha) ||
+			     IS_QLA29XX(ha)) &&
+			    !vha->flags.init_done)
+				qla2x00_alloc_fw_dump(vha);
+
 			/* Start firmware execution. */
 			ql_dbg(ql_dbg_init, vha, 0x00ca,
 			    "Starting firmware.\n");
@@ -4390,6 +4430,19 @@ enable_82xx_npiv:
 					    MIN_MULTI_ID_FABRIC))
 						ha->max_npiv_vports =
 						    MIN_MULTI_ID_FABRIC - 1;
+
+					/*
+					 * The VP_CTRL IOCB selects target VPs
+					 * through the fixed vp_idx_map bitmap,
+					 * so a vp_index beyond it can be enabled
+					 * via VP_CONFIG but never disabled via
+					 * VP_CTRL, leaking the VP.  Cap the count
+					 * to the bitmap capacity.
+					 */
+					if (ha->max_npiv_vports >=
+					    VP_CTRL_IDX_MAP_BITS)
+						ha->max_npiv_vports =
+						    VP_CTRL_IDX_MAP_BITS - 1;
 				}
 				qlt_config_nvram_with_fw_version(vha);
 				qla2x00_get_resource_cnts(vha);
@@ -4935,6 +4988,8 @@ next_check:
 		ql_dbg(ql_dbg_init, vha, 0x00d3,
 		    "Init Firmware -- success.\n");
 		vha->u_ql2xexchoffld = vha->u_ql2xiniexchg = 0;
+		vha->hw->flags.t262_fail = 0;
+		vha->hw->flags.t272_fail = 0;
 	}
 
 	return (rval);
@@ -5655,6 +5710,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	INIT_LIST_HEAD(&fcport->gnl_entry);
 	INIT_LIST_HEAD(&fcport->list);
 	INIT_LIST_HEAD(&fcport->unsol_ctx_head);
+	spin_lock_init(&fcport->unsol_ctx_lock);
 
 	INIT_LIST_HEAD(&fcport->sess_cmd_list);
 	spin_lock_init(&fcport->sess_cmd_lock);
@@ -10671,10 +10727,27 @@ int qla2xxx_delete_qpair(struct scsi_qla_host *vha, struct qla_qpair *qpair)
 {
 	int ret = QLA_FUNCTION_FAILED;
 	struct qla_hw_data *ha = qpair->hw;
+	struct rsp_que *rsp = qpair->rsp;
 
 	qpair->delete_in_progress = 1;
 
 	qla_free_buf_pool(qpair);
+
+	/*
+	 * The response-queue interrupt schedules qla_do_work(), which
+	 * dereferences qpair->rsp->req.  Release the interrupt and flush
+	 * any pending work before the request queue is freed below so a
+	 * late completion cannot touch the freed request queue.  The
+	 * firmware queue-delete order (request then response) is kept.
+	 */
+	if (rsp && rsp->msix && rsp->msix->have_irq) {
+		free_irq(rsp->msix->vector, rsp->msix->handle);
+		rsp->msix->have_irq = 0;
+		rsp->msix->in_use = 0;
+		rsp->msix->handle = NULL;
+	}
+	if (rsp && ha->wq)
+		cancel_work_sync(&qpair->q_work);
 
 	ret = qla25xx_delete_req_que(vha, qpair->req);
 	if (ret != QLA_SUCCESS)

@@ -560,8 +560,9 @@ static void set_chunk_mpi_bits(uint16_t *options, int count, int total)
  * @vha: Pointer to SCSI QLogic host structure.
  * @opts: Options for the operation.
  * @buf: Buffer to read from/write to.
- * @offset: Offset into the device memory.
- * @length: Length of data, in bytes.
+ * @offset: MPI RAM address, in 32-bit words (MBC_LOAD_DUMP_MPI_RAM is
+ *	    word-addressed; not a byte offset).
+ * @length: Length of data, in bytes (converted internally to a word count).
  * @op: Operation, either QLA29XX_MPI_OP_DUMP or QLA29XX_MPI_OP_LOAD.
  *
  * Returns:
