@@ -441,22 +441,25 @@ impl Delta {
     /// to the value in the [`Delta`].
     #[inline]
     pub fn as_micros_ceil(self) -> i64 {
+        // Only positive values need to be rounded up: truncating division already
+        // rounds towards zero, i.e. up, for negative values.
+        //
+        // The usual `(nanos + d - 1) / d` is not used because the addition overflows
+        // once `nanos` exceeds `i64::MAX - (d - 1)`; saturating the addition instead
+        // would drop the rounding bias and return a result one unit too small.
         let n = self.as_nanos();
-        let n = if n >= 0 {
-            n.saturating_add(NSEC_PER_USEC - 1)
-        } else {
-            n
-        };
+
+        let (n, add) = if n > 0 { (n - 1, 1) } else { (n, 0) };
 
         #[cfg(CONFIG_64BIT)]
         {
-            n / NSEC_PER_USEC
+            n / NSEC_PER_USEC + add
         }
 
         #[cfg(not(CONFIG_64BIT))]
         // SAFETY: It is always safe to call `ktime_to_us()` with any value.
         unsafe {
-            bindings::ktime_to_us(n)
+            bindings::ktime_to_us(n) + add
         }
     }
 
