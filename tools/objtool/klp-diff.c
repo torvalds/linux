@@ -1296,6 +1296,28 @@ static int convert_reloc_sym(struct elf *elf, struct reloc *reloc)
 }
 
 /*
+ * Check if the original module already has a dependency on dep_mod, i.e. it
+ * already references at least one export from that module.
+ */
+static bool has_module_dep(struct elfs *e, const char *dep_mod)
+{
+	struct symbol *sym;
+
+	for_each_sym(e->orig, sym) {
+		struct export *exp;
+
+		if (!is_undef_sym(sym) || is_weak_sym(sym))
+			continue;
+
+		exp = find_export(sym);
+		if (exp && !strcmp(exp->mod, dep_mod))
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * Convert a regular relocation to a klp relocation (sort of).
  */
 static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
@@ -1314,8 +1336,17 @@ static int clone_reloc_klp(struct elfs *e, struct reloc *patched_reloc,
 	unsigned long sympos;
 
 	if (!patched_sym->twin) {
-		ERROR("unexpected klp reloc for new symbol %s", patched_sym->name);
-		return -1;
+		if (!export) {
+			ERROR("unexpected klp reloc for new symbol %s", patched_sym->name);
+			return -1;
+		}
+
+		if (strcmp(export->mod, "vmlinux") &&
+		    !has_module_dep(e, export->mod)) {
+			ERROR("%s: new reference to %s (exported by %s) would create an undeclared module dependency",
+			      patched_sym->name, export->sym, export->mod);
+			return -1;
+		}
 	}
 
 	/*
