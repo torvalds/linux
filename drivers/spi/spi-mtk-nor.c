@@ -895,6 +895,10 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	irq = platform_get_irq_optional(pdev, 0);
 
 	if (irq < 0) {
+		if (irq != -ENXIO) {
+			ret = irq;
+			goto err_disable_clk;
+		}
 		dev_warn(sp->dev, "IRQ not available.");
 	} else {
 		ret = devm_request_irq(sp->dev, irq, mtk_nor_irq_handler, 0,
@@ -928,6 +932,7 @@ err_probe:
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 
+err_disable_clk:
 	mtk_nor_disable_clk(sp);
 
 	return ret;
