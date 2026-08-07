@@ -17,20 +17,6 @@ nodemask_t numa_nodes_parsed __initdata;
 static struct numa_meminfo numa_meminfo __initdata_or_meminfo;
 static struct numa_meminfo numa_reserved_meminfo __initdata_or_meminfo;
 
-/*
- * Set nodes, which have memory in @mi, in *@nodemask.
- */
-static void __init numa_nodemask_from_meminfo(nodemask_t *nodemask,
-					      const struct numa_meminfo *mi)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mi->blk); i++)
-		if (mi->blk[i].start != mi->blk[i].end &&
-		    mi->blk[i].nid != NUMA_NO_NODE)
-			node_set(mi->blk[i].nid, *nodemask);
-}
-
 /**
  * numa_reset_distance - Reset NUMA distance table
  *
@@ -56,7 +42,6 @@ static int __init numa_alloc_distance(void)
 
 	/* size the new table and allocate it */
 	nodes_parsed = numa_nodes_parsed;
-	numa_nodemask_from_meminfo(&nodes_parsed, &numa_meminfo);
 
 	for_each_node_mask(i, nodes_parsed)
 		cnt = i;
@@ -135,13 +120,20 @@ EXPORT_SYMBOL(__node_distance);
 static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
 				     struct numa_meminfo *mi)
 {
+	/* whine about and ignore invalid nid */
+	if (nid < 0 || nid >= MAX_NUMNODES) {
+		pr_warn("Warning: invalid memblk node id %d [mem %#010Lx-%#010Lx]\n",
+			nid, start, end - 1);
+		return -EINVAL;
+	}
+
 	/* ignore zero length blks */
 	if (start == end)
 		return 0;
 
-	/* whine about and ignore invalid blks */
-	if (start > end || nid < 0 || nid >= MAX_NUMNODES) {
-		pr_warn("Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+	/* whine about and ignore invalid ranges */
+	if (start > end) {
+		pr_warn("Warning: invalid memblk range for node %d [mem %#010Lx-%#010Lx]\n",
 			nid, start, end - 1);
 		return 0;
 	}
@@ -193,13 +185,20 @@ static void __init numa_move_tail_memblk(struct numa_meminfo *dst, int idx,
  * @end: End address of the new memblk
  *
  * Add a new memblk to the default numa_meminfo.
+ * On success @nid is also set in numa_nodes_parsed.
  *
  * RETURNS:
  * 0 on success, -errno on failure.
  */
 int __init numa_add_memblk(int nid, u64 start, u64 end)
 {
-	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
+	int ret;
+
+	ret = numa_add_memblk_to(nid, start, end, &numa_meminfo);
+	if (!ret)
+		node_set(nid, numa_nodes_parsed);
+
+	return ret;
 }
 
 /**
@@ -256,8 +255,7 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi)
 
 		/* preserve info for non-RAM areas above 'max_pfn': */
 		if (bi->end > high) {
-			numa_add_memblk_to(bi->nid, high, bi->end,
-					   &numa_reserved_meminfo);
+			numa_add_reserved_memblk(bi->nid, high, bi->end);
 			bi->end = high;
 		}
 
@@ -401,7 +399,6 @@ static int __init numa_register_meminfo(struct numa_meminfo *mi)
 
 	/* Account for nodes with cpus and no memory */
 	node_possible_map = numa_nodes_parsed;
-	numa_nodemask_from_meminfo(&node_possible_map, mi);
 	if (WARN_ON(nodes_empty(node_possible_map)))
 		return -EINVAL;
 
