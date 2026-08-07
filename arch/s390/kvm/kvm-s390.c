@@ -455,8 +455,7 @@ static void __init kvm_s390_cpu_feat_init(void)
 	    !test_facility(3) || !nested)
 		return;
 	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
-	if (sclp.has_64bscao)
-		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_64BSCAO);
+	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_64BSCAO);
 	if (sclp.has_siif)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIIF);
 	if (sclp.has_gpere)
