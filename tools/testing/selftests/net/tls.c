@@ -24,6 +24,7 @@
 #include "kselftest_harness.h"
 
 #define TLS_PAYLOAD_MAX_LEN 16384
+#define TLS_HDR_LEN 5
 #define SOL_TLS 282
 
 static int fips_enabled;
@@ -2732,26 +2733,81 @@ TEST_F(tls_err, bad_rec)
 	EXPECT_EQ(errno, EAGAIN);
 }
 
+/* cfd carries a byte stream, so one recv() can return part of a
+ * record. Take the fragment length from the record header and wait
+ * for the remainder.
+ */
+static void tls_send_bad_auth(struct __test_metadata *_metadata,
+			      int fd, int cfd, int fd2)
+{
+	char buf[128];
+	int len;
+
+	memrnd(buf, sizeof(buf) / 2);
+	ASSERT_EQ(send(fd, buf, sizeof(buf) / 2, 0), sizeof(buf) / 2);
+
+	ASSERT_EQ(recv(cfd, buf, TLS_HDR_LEN, MSG_WAITALL), TLS_HDR_LEN);
+
+	len = ((unsigned char)buf[3] << 8) | (unsigned char)buf[4];
+	ASSERT_GT(len, 0);
+	ASSERT_LE(len, (int)sizeof(buf) - TLS_HDR_LEN);
+
+	ASSERT_EQ(recv(cfd, buf + TLS_HDR_LEN, len, MSG_WAITALL), len);
+
+	buf[TLS_HDR_LEN + len - 1]++;
+
+	ASSERT_EQ(send(fd2, buf, TLS_HDR_LEN + len, 0), TLS_HDR_LEN + len);
+}
+
 TEST_F(tls_err, bad_auth)
 {
 	char buf[128];
-	int n;
 
 	if (self->notls)
 		SKIP(return, "no TLS support");
 
-	memrnd(buf, sizeof(buf) / 2);
-	EXPECT_EQ(send(self->fd, buf, sizeof(buf) / 2, 0), sizeof(buf) / 2);
-	n = recv(self->cfd, buf, sizeof(buf), 0);
-	EXPECT_GT(n, sizeof(buf) / 2);
+	tls_send_bad_auth(_metadata, self->fd, self->cfd, self->fd2);
 
-	buf[n - 1]++;
-
-	EXPECT_EQ(send(self->fd2, buf, n, 0), n);
 	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
 	EXPECT_EQ(errno, EBADMSG);
 	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
 	EXPECT_EQ(errno, EBADMSG);
+}
+
+/* A record that did not authenticate breaks the connection for every
+ * reader, splice included.
+ *
+ * The two decrypt paths reach that result differently. A synchronous
+ * decrypt leaves the record parsed, so the splice re-runs the decrypt
+ * and fails on the record itself; the ctx->async_wait.err check in
+ * tls_sw_splice_read() is not what stops it. Only an asynchronous
+ * decrypt, which needs a TLS 1.2 socket and an AEAD advertising
+ * CRYPTO_ALG_ASYNC, consumes the record before the failure is
+ * recorded, leaving that check the sole reason the splice fails.
+ */
+TEST_F(tls_err, bad_auth_splice)
+{
+	char buf[128];
+	ssize_t ret;
+	int p[2];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	tls_send_bad_auth(_metadata, self->fd, self->cfd, self->fd2);
+
+	EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+	EXPECT_EQ(errno, EBADMSG);
+
+	ASSERT_GE(pipe(p), 0);
+
+	ret = splice(self->cfd2, NULL, p[1], NULL, sizeof(buf),
+		     SPLICE_F_NONBLOCK);
+	EXPECT_EQ(ret, -1);
+	EXPECT_EQ(errno, EBADMSG);
+
+	close(p[0]);
+	close(p[1]);
 }
 
 TEST_F(tls_err, bad_in_large_read)
@@ -3009,7 +3065,6 @@ static size_t parse_tls_records(struct __test_metadata *_metadata,
 {
 	const __u8 *rec = rx_buf;
 	size_t total_plaintext_rx = 0;
-	const __u8 rec_header_len = 5;
 
 	while (rec < rx_buf + rx_len) {
 		__u16 record_payload_len;
@@ -3029,7 +3084,7 @@ static size_t parse_tls_records(struct __test_metadata *_metadata,
 
 		/* Plaintext must not exceed the specified limit */
 		ASSERT_LE(plaintext_len, max_payload_len);
-		rec += rec_header_len + record_payload_len;
+		rec += TLS_HDR_LEN + record_payload_len;
 	}
 
 	return total_plaintext_rx;
