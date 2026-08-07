@@ -1263,6 +1263,12 @@ static int isst_if_get_perf_level_mask(void __user *argp)
 	if (!power_domain_info)
 		return -EINVAL;
 
+	if (cpumask.level > power_domain_info->max_level)
+		return -EINVAL;
+
+	if (!(power_domain_info->pp_header.level_en_mask & BIT(cpumask.level)))
+		return -EINVAL;
+
 	_read_pp_level_info("mask", mask, cpumask.level, SST_PP_INFO_2_OFFSET,
 			    SST_PP_RSLVD_CORE_MASK_START, SST_PP_RSLVD_CORE_MASK_WIDTH,
 			    SST_MUL_FACTOR_NONE)
@@ -1342,6 +1348,9 @@ static int isst_if_get_base_freq_mask(void __user *argp)
 
 	power_domain_info = get_instance(cpumask.socket_id, cpumask.power_domain_id);
 	if (!power_domain_info)
+		return -EINVAL;
+
+	if (cpumask.level > power_domain_info->max_level)
 		return -EINVAL;
 
 	_read_bf_level_info("BF-cpumask", mask, cpumask.level, SST_BF_INFO_1_OFFSET,
