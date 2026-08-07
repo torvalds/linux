@@ -164,7 +164,7 @@ static inline void swap_buf(const u8 *src, u8 *dst, size_t len)
 static int smp_aes_cmac(const u8 k[16], const u8 *m, size_t len, u8 mac[16])
 {
 	uint8_t tmp[16], mac_msb[16], msg_msb[CMAC_MSG_MAX];
-	struct aes_cmac_key key;
+	struct aes_cmac_key key __cleanup(aes_cmac_zeroize_key);
 	int err;
 
 	if (len > CMAC_MSG_MAX)
@@ -178,6 +178,7 @@ static int smp_aes_cmac(const u8 k[16], const u8 *m, size_t len, u8 mac[16])
 	SMP_DBG("key %16phN", k);
 
 	err = aes_cmac_preparekey(&key, tmp, 16);
+	memzero_explicit(tmp, sizeof(tmp));
 	if (WARN_ON_ONCE(err)) /* Should never happen, as 16 is valid keylen */
 		return err;
 	aes_cmac(&key, msg_msb, len, mac_msb);
