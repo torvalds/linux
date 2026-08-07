@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <error.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <linux/in6.h>
 #include <net/if.h>
@@ -168,6 +169,23 @@ static void tcp_connect(int listener, uint32_t flowlabel,
 	*accepted = afd;
 }
 
+static bool disable_flowlabel_consistency(void)
+{
+	int fd;
+
+	fd = open("/proc/sys/net/ipv6/flowlabel_consistency", O_WRONLY);
+	if (fd == -1)
+		return false;
+
+	if (write(fd, "0", 1) != 1) {
+		close(fd);
+		return false;
+	}
+	close(fd);
+
+	return true;
+}
+
 static void run_tests(int fd)
 {
 	int wstatus;
@@ -306,6 +324,54 @@ static void run_tests(int fd)
 		close(remote_afd);
 		close(remote_cfd);
 		close(remote_listener);
+	}
+
+	if (!disable_flowlabel_consistency()) {
+		fprintf(stderr,
+			"[INFO] skip REFLECT: cannot disable net.ipv6.flowlabel_consistency\n");
+	} else {
+		struct in6_flowlabel_req reflect_query = {
+			.flr_action = IPV6_FL_A_GET,
+		};
+		struct in6_flowlabel_req reflect_off = {
+			.flr_action = IPV6_FL_A_PUT,
+			.flr_flags = IPV6_FL_F_REFLECT,
+		};
+		struct in6_flowlabel_req reflect_on = {
+			.flr_action = IPV6_FL_A_GET,
+			.flr_flags = IPV6_FL_F_REFLECT,
+		};
+		socklen_t reflect_query_len = sizeof(reflect_query);
+		int reflect_listener = tcp_listen();
+		int reflect_cfd, reflect_afd;
+
+		explain("Enable REFLECT on listener before client connects");
+		expect_pass(setsockopt(reflect_listener, SOL_IPV6,
+				       IPV6_FLOWLABEL_MGR, &reflect_on,
+				       sizeof(reflect_on)));
+
+		tcp_connect(reflect_listener, 8, &reflect_cfd, &reflect_afd);
+
+		explain("accepted socket's label should be reflected");
+		expect_pass(getsockopt(reflect_afd, SOL_IPV6,
+				       IPV6_FLOWLABEL_MGR, &reflect_query,
+				       &reflect_query_len));
+		if (ntohl(reflect_query.flr_label) != 8)
+			error(1, 0, "unexpected reflected flowlabel %u",
+			      ntohl(reflect_query.flr_label));
+
+		explain("PUT+REFLECT disables reflection on accepted socket");
+		expect_pass(setsockopt(reflect_afd, SOL_IPV6,
+				       IPV6_FLOWLABEL_MGR, &reflect_off,
+				       sizeof(reflect_off)));
+		explain("cannot disable reflection twice");
+		expect_fail(setsockopt(reflect_afd, SOL_IPV6,
+				       IPV6_FLOWLABEL_MGR, &reflect_off,
+				       sizeof(reflect_off)));
+
+		close(reflect_afd);
+		close(reflect_cfd);
+		close(reflect_listener);
 	}
 }
 
