@@ -8,6 +8,7 @@
 #define _CRYPTO_AES_CBC_MACS_H
 
 #include <crypto/aes.h>
+#include <linux/string.h>
 
 /**
  * struct aes_cmac_key - Prepared key for AES-CMAC or AES-XCBC-MAC
@@ -23,6 +24,19 @@ struct aes_cmac_key {
 		__be64 w[2];
 	} k_final[2];
 };
+
+/**
+ * aes_cmac_zeroize_key() - Zeroize an aes_cmac_key structure
+ * @key: The location of the key structure that should be zeroized
+ *
+ * Explicitly fills the aes_cmac_key with zeroes. This should be done once
+ * the key is not required anymore to avoid that its contents are leaked
+ * on the stack or heap (if not using kfree_sensitive()).
+ */
+static inline void aes_cmac_zeroize_key(struct aes_cmac_key *key)
+{
+	memzero_explicit(key, sizeof(*key));
+}
 
 /**
  * struct aes_cmac_ctx - Context for computing an AES-CMAC or AES-XCBC-MAC value
@@ -41,11 +55,28 @@ struct aes_cmac_ctx {
 };
 
 /**
+ * aes_cmac_zeroize_ctx() - Zeroize an aes_cmac_ctx structure
+ * @ctx: The location of the context that should be zeroized
+ *
+ * Explicitly fills the aes_cmac_ctx with zeroes. This should be done once
+ * the context is not required anymore to avoid that its contents are
+ * leaked on the stack or heap. Only required if not using aes_cmac_final().
+ */
+static inline void aes_cmac_zeroize_ctx(struct aes_cmac_ctx *ctx)
+{
+	memzero_explicit(ctx, sizeof(*ctx));
+}
+
+/**
  * aes_cmac_preparekey() - Prepare a key for AES-CMAC
  * @key: (output) The key struct to initialize
  * @in_key: The raw AES key
  * @key_len: Length of the raw key in bytes.  The supported values are
  *	     AES_KEYSIZE_128, AES_KEYSIZE_192, and AES_KEYSIZE_256.
+ *
+ * On success, the caller should ensure that the prepared key is zeroized
+ * at the end of its lifetime, e.g. by calling aes_cmac_zeroize_key() or
+ * kfree_sensitive().
  *
  * Context: Any context.
  * Return: 0 on success or -EINVAL if the given key length is invalid.  No other
@@ -79,6 +110,9 @@ void aes_xcbcmac_preparekey(struct aes_cmac_key *key,
  *
  * This supports both AES-CMAC and AES-XCBC-MAC.  Which one is done depends on
  * whether aes_cmac_preparekey() or aes_xcbcmac_preparekey() was called.
+ *
+ * The caller should ensure that the context is zeroized at the end of its
+ * lifetime, e.g. by calling aes_cmac_final() or aes_cmac_zeroize_ctx().
  */
 static inline void aes_cmac_init(struct aes_cmac_ctx *ctx,
 				 const struct aes_cmac_key *key)
