@@ -12,6 +12,8 @@
 
 #define BTF_DATA_FILE "resolve_btfids.test.o.BTF"
 
+#define DECL_TAG_FASTCALL "bpf_fastcall"
+#define DECL_TAG_KFUNC "bpf_kfunc"
 #define TYPE_ATTR_ARENA "address_space(1)"
 
 #ifndef KF_FASTCALL
@@ -176,6 +178,28 @@ static int resolve_symbols(struct btf *btf)
 	return 0;
 }
 
+static bool btf_has_decl_tag(struct btf *btf, const char *tag_name, s32 target_id)
+{
+	const struct btf_type *t;
+	const char *name;
+	int nr, id;
+
+	nr = btf__type_cnt(btf);
+	for (id = 1; id < nr; id++) {
+		t = btf__type_by_id(btf, id);
+		if (!btf_is_decl_tag(t))
+			continue;
+		if (t->type != (__u32)target_id)
+			continue;
+		if (btf_decl_tag(t)->component_idx != -1)
+			continue;
+		name = btf__name_by_offset(btf, t->name_off);
+		if (strcmp(name, tag_name) == 0)
+			return true;
+	}
+	return false;
+}
+
 static void check_kfunc_set(struct btf_id_set8 *set)
 {
 	unsigned int i, j;
@@ -259,6 +283,22 @@ void test_resolve_btfids(void)
 
 	check_kfunc_set(&test_kfunc_set);
 	check_kfunc_set(&test_kfunc_set_rev);
+
+	/* Check resolve_btfids emitted a bpf_kfunc decl_tag for each kfunc */
+	for (i = 0; i < ARRAY_SIZE(kfunc_symbols); i++) {
+		ASSERT_TRUE(btf_has_decl_tag(btf, DECL_TAG_KFUNC,
+					     kfunc_symbols[i].id),
+			    kfunc_symbols[i].name);
+	}
+
+	/* Check resolve_btfids emitted bpf_fastcall for KF_FASTCALL kfuncs */
+	for (i = 0; i < ARRAY_SIZE(kfunc_symbols); i++) {
+		if (kfunc_symbols[i].flags & KF_FASTCALL) {
+			ASSERT_TRUE(btf_has_decl_tag(btf, DECL_TAG_FASTCALL,
+						     kfunc_symbols[i].id),
+				    kfunc_symbols[i].name);
+		}
+	}
 
 	/*
 	 * Check resolve_btfids wrapped exactly the arena-flagged return/args
