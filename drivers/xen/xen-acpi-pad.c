@@ -17,8 +17,6 @@
 #include <xen/xen-ops.h>
 #include <asm/xen/hypercall.h>
 
-#define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
-#define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
 #define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
 static DEFINE_MUTEX(xen_cpu_lock);
 
@@ -116,9 +114,6 @@ static int acpi_pad_probe(struct platform_device *pdev)
 	device = ACPI_COMPANION(&pdev->dev);
 	if (!device)
 		return -ENODEV;
-
-	strcpy(acpi_device_name(device), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
 	status = acpi_install_notify_handler(device->handle,
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify, device);
