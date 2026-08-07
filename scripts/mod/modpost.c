@@ -74,7 +74,7 @@ static unsigned int nr_unresolved;
 
 #define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
 
-void modpost_log(bool is_error, const char *fmt, ...)
+void modpost_log(bool is_error, struct module *mod, const char *fmt, ...)
 {
 	va_list arglist;
 
@@ -87,10 +87,16 @@ void modpost_log(bool is_error, const char *fmt, ...)
 
 	fprintf(stderr, "modpost: ");
 
+	if (mod)
+		fprintf(stderr, "%s%s: ", mod->name, mod->is_vmlinux ? "" : ".ko");
+
 	va_start(arglist, fmt);
 	vfprintf(stderr, fmt, arglist);
 	va_end(arglist);
 }
+
+#define mod_warn(mod, fmt, args...)	modpost_log(false, mod, fmt, ##args)
+#define mod_error(mod, fmt, args...)	modpost_log(true, mod, fmt, ##args)
 
 static inline bool strends(const char *str, const char *postfix)
 {
@@ -1772,7 +1778,7 @@ static void check_exports(struct module *mod)
 		exp = find_symbol(s->name);
 		if (!exp) {
 			if (!s->weak && nr_unresolved++ < MAX_UNRESOLVED_REPORTS)
-				modpost_log(!warn_unresolved,
+				modpost_log(!warn_unresolved, NULL,
 					    "\"%s\" [%s.ko] undefined!\n",
 					    s->name, mod->name);
 			continue;
@@ -1792,7 +1798,7 @@ static void check_exports(struct module *mod)
 
 		if (!verify_module_namespace(exp->namespace, basename) &&
 		    !contains_namespace(&mod->imported_namespaces, exp->namespace)) {
-			modpost_log(!allow_missing_ns_imports,
+			modpost_log(!allow_missing_ns_imports, NULL,
 				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
 				    basename, exp->name, exp->namespace);
 			add_namespace(&mod->missing_namespaces, exp->namespace);
