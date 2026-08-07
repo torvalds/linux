@@ -86,26 +86,25 @@ const struct kvm_stats_header kvm_vcpu_stats_header = {
 		       sizeof(kvm_vcpu_stats_desc),
 };
 
-/* TODO: use vcpu_printf() */
 void kvmppc_dump_vcpu(struct kvm_vcpu *vcpu)
 {
 	int i;
 
-	printk("pc:   %08lx msr:  %08llx\n", vcpu->arch.regs.nip,
-			vcpu->arch.shared->msr);
-	printk("lr:   %08lx ctr:  %08lx\n", vcpu->arch.regs.link,
-			vcpu->arch.regs.ctr);
-	printk("srr0: %08llx srr1: %08llx\n", vcpu->arch.shared->srr0,
-					    vcpu->arch.shared->srr1);
+	vcpu_err(vcpu, "pc:   %08lx msr:  %08llx\n", vcpu->arch.regs.nip,
+		 vcpu->arch.shared->msr);
+	vcpu_err(vcpu, "lr:   %08lx ctr:  %08lx\n", vcpu->arch.regs.link,
+		 vcpu->arch.regs.ctr);
+	vcpu_err(vcpu, "srr0: %08llx srr1: %08llx\n", vcpu->arch.shared->srr0,
+		 vcpu->arch.shared->srr1);
 
-	printk("exceptions: %08lx\n", vcpu->arch.pending_exceptions);
+	vcpu_err(vcpu, "exceptions: %08lx\n", vcpu->arch.pending_exceptions);
 
 	for (i = 0; i < 32; i += 4) {
-		printk("gpr%02d: %08lx %08lx %08lx %08lx\n", i,
-		       kvmppc_get_gpr(vcpu, i),
-		       kvmppc_get_gpr(vcpu, i+1),
-		       kvmppc_get_gpr(vcpu, i+2),
-		       kvmppc_get_gpr(vcpu, i+3));
+		vcpu_err(vcpu, "gpr%02d: %08lx %08lx %08lx %08lx\n", i,
+			 kvmppc_get_gpr(vcpu, i),
+			 kvmppc_get_gpr(vcpu, i+1),
+			 kvmppc_get_gpr(vcpu, i+2),
+			 kvmppc_get_gpr(vcpu, i+3));
 	}
 }
 
