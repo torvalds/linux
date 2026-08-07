@@ -1055,6 +1055,7 @@ static struct msi_ec_conf CONF12 __initdata = {
 
 static const char * const ALLOWED_FW_13[] __initconst = {
 	"1594EMS1.109", // MSI Prestige 16 Studio A13VE
+	"17L1EMS1.107", // MSI Katana GF76 11UEK
 	NULL
 };
 
