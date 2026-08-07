@@ -31,6 +31,7 @@
 static const char * const discarded_secs[] = {
 	".discard",
 	".modinfo",
+	".no_trim_symbol",
 	"__tracepoint_check",
 };
 
