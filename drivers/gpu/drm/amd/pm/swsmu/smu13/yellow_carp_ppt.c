@@ -372,7 +372,7 @@ static int yellow_carp_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->UvdActivity / 100;
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		*value = (metrics->CurrentSocketPower << 8) / 1000;
+		*value = metrics->CurrentSocketPower;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->GfxTemperature / 100 *

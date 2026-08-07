@@ -67,7 +67,18 @@ This package provides debug information for the kernel image and modules from th
 %undefine _unique_debug_srcs
 %undefine _debugsource_packages
 %undefine _debuginfo_subpackages
+
+# Preserve .BTF and .BTF.base sections in kernel modules during debuginfo
+# stripping. find-debuginfo.sh uses eu-strip which removes non-allocated ELF
+# sections like .BTF by default. .BTF.base is required for BTF distillation
+# support; without it, module BTF validation fails.
+%global with_keep_section %(%{__find_debuginfo} --help 2>&1 | grep -c keep-section)
+%if %{with_keep_section}
+%global _find_debuginfo_opts -r --keep-section .BTF --keep-section .BTF.base
+%else
 %global _find_debuginfo_opts -r
+%endif
+
 %global _missing_build_ids_terminate_build 1
 %global _no_recompute_build_ids 1
 %{debug_package}

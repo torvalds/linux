@@ -258,7 +258,8 @@ static int fdl_load_file(struct sdca_interrupt *interrupt,
 
 	if (!swf) {
 		dev_err(dev, "failed to locate SWF\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto error;
 	}
 
 	dev_info(dev, "loading SWF: %x-%x-%x\n",
@@ -270,6 +271,8 @@ static int fdl_load_file(struct sdca_interrupt *interrupt,
 				     SDCA_CTL_XU_FDL_MESSAGEOFFSET, fdl_file->fdl_offset,
 				     SDCA_CTL_XU_FDL_MESSAGELENGTH, swf->data,
 				     swf->file_length - offsetof(struct acpi_sw_file, data));
+
+error:
 	release_firmware(firmware);
 	return ret;
 }
@@ -481,10 +484,9 @@ EXPORT_SYMBOL_NS_GPL(sdca_fdl_process, "SND_SOC_SDCA");
  */
 int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 {
-	struct device *dev = interrupt->dev;
 	struct fdl_state *fdl_state;
 
-	fdl_state = devm_kzalloc(dev, sizeof(*fdl_state), GFP_KERNEL);
+	fdl_state = kzalloc_obj(*fdl_state);
 	if (!fdl_state)
 		return -ENOMEM;
 
@@ -499,3 +501,13 @@ int sdca_fdl_alloc_state(struct sdca_interrupt *interrupt)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(sdca_fdl_alloc_state, "SND_SOC_SDCA");
+
+/**
+ * sdca_fdl_free_state - free state for an FDL interrupt
+ * @interrupt: SDCA interrupt structure.
+ */
+void sdca_fdl_free_state(struct sdca_interrupt *interrupt)
+{
+	kfree(interrupt->priv);
+}
+EXPORT_SYMBOL_NS_GPL(sdca_fdl_free_state, "SND_SOC_SDCA");

@@ -111,8 +111,8 @@ static void class_boot_work(struct work_struct *work)
 
 	regcache_cache_only(drv->dev_regmap, false);
 
-	drv->irq_info = sdca_irq_allocate(drv->dev, drv->dev_regmap,
-					  drv->sdw->irq);
+	drv->irq_info = devm_sdca_irq_allocate(drv->dev, drv->dev_regmap,
+					       drv->sdw->irq);
 	if (IS_ERR(drv->irq_info))
 		goto err;
 
