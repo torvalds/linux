@@ -11,6 +11,7 @@
 #include <linux/msi.h>
 #include <linux/irqdomain.h>
 #include <linux/export.h>
+#include <linux/uaccess.h>
 
 #include <net/mana/mana.h>
 #include <net/mana/hw_channel.h>
@@ -374,28 +375,96 @@ int mana_gd_send_request(struct gdma_context *gc, u32 req_len, const void *req,
 EXPORT_SYMBOL_NS(mana_gd_send_request, "NET_MANA");
 
 int mana_gd_alloc_memory(struct gdma_context *gc, unsigned int length,
-			 struct gdma_mem_info *gmi)
+			 struct gdma_mem_info *gmi, bool allow_scatter)
 {
+	unsigned int npages, i;
 	dma_addr_t dma_handle;
+	bool can_fallback;
 	void *buf;
 
 	if (length < MANA_PAGE_SIZE || !is_power_of_2(length))
 		return -EINVAL;
 
 	gmi->dev = gc->dev;
-	buf = dma_alloc_coherent(gmi->dev, length, &dma_handle, GFP_KERNEL);
-	if (!buf)
+
+	/* An allocation that fits in one page does not benefit from
+	 * fallback.
+	 */
+	can_fallback = allow_scatter && length > PAGE_SIZE;
+
+	/* Warn only when there is no fallback to rescue the failure. */
+	buf = dma_alloc_coherent(gmi->dev, length, &dma_handle,
+				 GFP_KERNEL |
+				 (can_fallback ? __GFP_NOWARN : 0));
+	if (buf) {
+		gmi->dma_handle = dma_handle;
+		gmi->virt_addr = buf;
+		gmi->length = length;
+		gmi->nr_pages = 0;
+		return 0;
+	}
+
+	if (!can_fallback)
 		return -ENOMEM;
 
-	gmi->dma_handle = dma_handle;
-	gmi->virt_addr = buf;
+	/* length is a power of 2 above PAGE_SIZE, so this divides exactly. */
+	npages = length / PAGE_SIZE;
+
+	gmi->pages_va = kvcalloc(npages, sizeof(*gmi->pages_va), GFP_KERNEL);
+	if (!gmi->pages_va)
+		return -ENOMEM;
+
+	gmi->pages_dma = kvcalloc(npages, sizeof(*gmi->pages_dma), GFP_KERNEL);
+	if (!gmi->pages_dma)
+		goto free_va;
+
+	for (i = 0; i < npages; i++) {
+		gmi->pages_va[i] = dma_alloc_coherent(gmi->dev, PAGE_SIZE,
+						      &gmi->pages_dma[i],
+						      GFP_KERNEL);
+		if (!gmi->pages_va[i])
+			goto free_pages;
+	}
+
+	dev_info_ratelimited(gmi->dev,
+			     "contiguous %u-byte DMA alloc failed; using %u scattered pages\n",
+			     length, npages);
+
+	gmi->virt_addr = NULL;
+	gmi->dma_handle = 0;
 	gmi->length = length;
+	gmi->nr_pages = npages;
 
 	return 0;
+
+free_pages:
+	while (i--)
+		dma_free_coherent(gmi->dev, PAGE_SIZE, gmi->pages_va[i],
+				  gmi->pages_dma[i]);
+	kvfree(gmi->pages_dma);
+	gmi->pages_dma = NULL;
+free_va:
+	kvfree(gmi->pages_va);
+	gmi->pages_va = NULL;
+	return -ENOMEM;
 }
 
 void mana_gd_free_memory(struct gdma_mem_info *gmi)
 {
+	unsigned int i;
+
+	if (gmi->nr_pages > 0) {
+		for (i = 0; i < gmi->nr_pages; i++)
+			dma_free_coherent(gmi->dev, PAGE_SIZE, gmi->pages_va[i],
+					  gmi->pages_dma[i]);
+		kvfree(gmi->pages_va);
+		kvfree(gmi->pages_dma);
+		gmi->pages_va = NULL;
+		gmi->pages_dma = NULL;
+		gmi->nr_pages = 0;
+		return;
+	}
+
 	dma_free_coherent(gmi->dev, gmi->length, gmi->virt_addr,
 			  gmi->dma_handle);
 }
@@ -756,15 +825,64 @@ int mana_schedule_serv_work(struct gdma_context *gc, enum gdma_eqe_type type)
 /* Return the CPU address of byte @offset within a queue's ring buffer. */
 static void *mana_gd_ring_ptr(const struct gdma_queue *q, u32 offset)
 {
+	const struct gdma_mem_info *gmi = &q->mem_info;
+
+	if (gmi->nr_pages > 0)
+		return (u8 *)gmi->pages_va[offset / PAGE_SIZE] +
+		       (offset & (PAGE_SIZE - 1));
+
 	return q->queue_mem_ptr + offset;
 }
 
-/* Number of bytes from @offset to the end of the ring buffer, i.e. the point
- * at which ring access wraps back to the start.
+/* Number of bytes from @offset to the end of the CPU-contiguous region: the
+ * rest of the ring, or the rest of the current page when scattered.
  */
 static u32 mana_gd_ring_contig_avail(const struct gdma_queue *q, u32 offset)
 {
+	if (q->mem_info.nr_pages > 0)
+		return PAGE_SIZE - (offset & (PAGE_SIZE - 1));
+
 	return q->queue_size - offset;
+}
+
+/* Copy up to @count bytes from ring offset *@pos of @q into user buffer @buf,
+ * so a scattered ring reads back as if it were contiguous. Returns bytes
+ * copied, 0 at end of ring, or a negative errno.
+ */
+ssize_t mana_gd_read_ring(struct gdma_queue *q, char __user *buf,
+			  size_t count, loff_t *pos)
+{
+	u32 size = q->queue_size;
+	loff_t off = *pos;
+	size_t copied = 0;
+
+	if (off < 0)
+		return -EINVAL;
+	if (off >= size || !count)
+		return 0;
+	count = min_t(size_t, count, size - off);
+
+	while (count) {
+		u32 offset = off;
+		u32 avail = mana_gd_ring_contig_avail(q, offset);
+		size_t chunk = min_t(size_t, count, avail);
+		size_t left = copy_to_user(buf, mana_gd_ring_ptr(q, offset),
+					   chunk);
+
+		chunk -= left;
+		buf += chunk;
+		off += chunk;
+		copied += chunk;
+		count -= chunk;
+		if (left)
+			break;
+	}
+
+	if (!copied)
+		return -EFAULT;
+
+	*pos = off;
+	return copied;
 }
 
 static void mana_gd_process_eqe(struct gdma_queue *eq)
@@ -1118,7 +1236,7 @@ int mana_gd_create_hwc_queue(struct gdma_dev *gd,
 		return -ENOMEM;
 
 	gmi = &queue->mem_info;
-	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
+	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi, false);
 	if (err) {
 		dev_err(gc->dev, "GDMA queue type: %d, size: %u, gdma memory allocation err: %d\n",
 			spec->type, spec->queue_size, err);
@@ -1193,7 +1311,7 @@ static int mana_gd_create_dma_region(struct gdma_dev *gd,
 	if (length < MANA_PAGE_SIZE || !is_power_of_2(length))
 		return -EINVAL;
 
-	if (!MANA_PAGE_ALIGNED(gmi->virt_addr))
+	if (gmi->nr_pages == 0 && !MANA_PAGE_ALIGNED(gmi->virt_addr))
 		return -EINVAL;
 
 	hwc = gc->hwc.driver_data;
@@ -1213,8 +1331,24 @@ static int mana_gd_create_dma_region(struct gdma_dev *gd,
 	req->page_count = num_page;
 	req->page_addr_list_len = num_page;
 
-	for (i = 0; i < num_page; i++)
-		req->page_addr_list[i] = gmi->dma_handle +  i * MANA_PAGE_SIZE;
+	if (gmi->nr_pages > 0) {
+		unsigned int subpages = PAGE_SIZE / MANA_PAGE_SIZE;
+		unsigned int idx = 0;
+		unsigned int pg, sub;
+
+		/* Each PAGE_SIZE chunk is physically contiguous and contains
+		 * PAGE_SIZE / MANA_PAGE_SIZE consecutive device pages.
+		 */
+		for (pg = 0; pg < gmi->nr_pages; pg++)
+			for (sub = 0; sub < subpages; sub++)
+				req->page_addr_list[idx++] =
+					gmi->pages_dma[pg] +
+					sub * MANA_PAGE_SIZE;
+	} else {
+		for (i = 0; i < num_page; i++)
+			req->page_addr_list[i] =
+				gmi->dma_handle + i * MANA_PAGE_SIZE;
+	}
 
 	err = mana_gd_send_request(gc, req_msg_size, req, sizeof(resp), &resp);
 	if (err)
@@ -1257,7 +1391,7 @@ int mana_gd_create_mana_eq(struct gdma_dev *gd,
 		return -ENOMEM;
 
 	gmi = &queue->mem_info;
-	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
+	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi, true);
 	if (err) {
 		dev_err(gc->dev, "GDMA queue type: %d, size: %u, gdma memory allocation err: %d\n",
 			spec->type, spec->queue_size, err);
@@ -1312,7 +1446,7 @@ int mana_gd_create_mana_wq_cq(struct gdma_dev *gd,
 	queue->id = INVALID_QUEUE_ID;
 
 	gmi = &queue->mem_info;
-	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi);
+	err = mana_gd_alloc_memory(gc, spec->queue_size, gmi, true);
 	if (err) {
 		dev_err(gc->dev, "GDMA queue type: %d, size: %u, memory allocation err: %d\n",
 			spec->type, spec->queue_size, err);
