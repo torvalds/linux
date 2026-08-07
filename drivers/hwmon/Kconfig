@@ -515,8 +515,8 @@ config SENSORS_CORSAIR_PSU
 	  If you say yes here you get support for Corsair PSUs with a HID
 	  interface.
 	  Currently this driver supports the (RM/HX)550i, (RM/HX)650i,
-	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i and HX1200i power supplies
-	  by Corsair.
+	  (RM/HX)750i, (RM/HX)850i, (RM/HX)1000i, HX1200i and HX1500i power
+	  supplies by Corsair.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called corsair-psu.
