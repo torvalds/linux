@@ -1656,8 +1656,8 @@ done:
 
 static void calculate_summary_and_print_errors(struct test_env *env)
 {
-	int i;
-	int succ_cnt = 0, fail_cnt = 0, sub_succ_cnt = 0, skip_cnt = 0;
+	int i, j;
+	int succ_cnt = 0, fail_cnt = 0, sub_succ_cnt = 0, sub_fail_cnt = 0, skip_cnt = 0;
 	json_writer_t *w = NULL;
 
 	for (i = 0; i < prog_test_cnt; i++) {
@@ -1670,10 +1670,14 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 		sub_succ_cnt += state->sub_succ_cnt;
 		skip_cnt += state->skip_cnt;
 
-		if (state->error_cnt)
+		if (state->error_cnt) {
 			fail_cnt++;
-		else if (!test->not_built)
+			for (j = 0; j < state->subtest_num; j++)
+				if (state->subtest_states[j].error_cnt)
+					sub_fail_cnt++;
+		} else if (!test->not_built) {
 			succ_cnt++;
+		}
 	}
 
 	if (env->json) {
@@ -1688,6 +1692,7 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 		jsonw_uint_field(w, "success_subtest", sub_succ_cnt);
 		jsonw_uint_field(w, "skipped", skip_cnt);
 		jsonw_uint_field(w, "failed", fail_cnt);
+		jsonw_uint_field(w, "failed_subtest", sub_fail_cnt);
 		jsonw_name(w, "results");
 		jsonw_start_array(w);
 	}
@@ -1728,12 +1733,12 @@ static void calculate_summary_and_print_errors(struct test_env *env)
 		fclose(env->json);
 
 	if (env->not_built_cnt)
-		printf("Summary: %d/%d PASSED, %d SKIPPED (%d not built), %d FAILED\n",
+		printf("Summary: %d/%d PASSED, %d SKIPPED (%d not built), %d/%d FAILED\n",
 		       succ_cnt, sub_succ_cnt, skip_cnt, env->not_built_cnt,
-		       fail_cnt);
+		       fail_cnt, sub_fail_cnt);
 	else
-		printf("Summary: %d/%d PASSED, %d SKIPPED, %d FAILED\n",
-		       succ_cnt, sub_succ_cnt, skip_cnt, fail_cnt);
+		printf("Summary: %d/%d PASSED, %d SKIPPED, %d/%d FAILED\n",
+		       succ_cnt, sub_succ_cnt, skip_cnt, fail_cnt, sub_fail_cnt);
 
 	env->succ_cnt = succ_cnt;
 	env->sub_succ_cnt = sub_succ_cnt;
