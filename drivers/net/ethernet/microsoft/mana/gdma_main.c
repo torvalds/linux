@@ -753,11 +753,24 @@ int mana_schedule_serv_work(struct gdma_context *gc, enum gdma_eqe_type type)
 	return 0;
 }
 
+/* Return the CPU address of byte @offset within a queue's ring buffer. */
+static void *mana_gd_ring_ptr(const struct gdma_queue *q, u32 offset)
+{
+	return q->queue_mem_ptr + offset;
+}
+
+/* Number of bytes from @offset to the end of the ring buffer, i.e. the point
+ * at which ring access wraps back to the start.
+ */
+static u32 mana_gd_ring_contig_avail(const struct gdma_queue *q, u32 offset)
+{
+	return q->queue_size - offset;
+}
+
 static void mana_gd_process_eqe(struct gdma_queue *eq)
 {
 	u32 head = eq->head % (eq->queue_size / GDMA_EQE_SIZE);
 	struct gdma_context *gc = eq->gdma_dev->gdma_context;
-	struct gdma_eqe *eq_eqe_ptr = eq->queue_mem_ptr;
 	union gdma_eqe_info eqe_info;
 	enum gdma_eqe_type type;
 	struct gdma_event event;
@@ -765,7 +778,7 @@ static void mana_gd_process_eqe(struct gdma_queue *eq)
 	struct gdma_eqe *eqe;
 	u32 cq_id;
 
-	eqe = &eq_eqe_ptr[head];
+	eqe = mana_gd_ring_ptr(eq, head * sizeof(*eqe));
 	eqe_info.as_uint32 = eqe->eqe_info;
 	type = eqe_info.type;
 
@@ -829,7 +842,6 @@ static void mana_gd_process_eq_events(void *arg)
 {
 	u32 owner_bits, new_bits, old_bits;
 	union gdma_eqe_info eqe_info;
-	struct gdma_eqe *eq_eqe_ptr;
 	struct gdma_queue *eq = arg;
 	struct gdma_context *gc;
 	struct gdma_eqe *eqe;
@@ -839,11 +851,10 @@ static void mana_gd_process_eq_events(void *arg)
 	gc = eq->gdma_dev->gdma_context;
 
 	num_eqe = eq->queue_size / GDMA_EQE_SIZE;
-	eq_eqe_ptr = eq->queue_mem_ptr;
 
 	/* Process up to 5 EQEs at a time, and update the HW head. */
 	for (i = 0; i < 5; i++) {
-		eqe = &eq_eqe_ptr[eq->head % num_eqe];
+		eqe = mana_gd_ring_ptr(eq, (eq->head % num_eqe) * sizeof(*eqe));
 		eqe_info.as_uint32 = eqe->eqe_info;
 		owner_bits = eqe_info.owner_bits;
 
@@ -1508,7 +1519,7 @@ u8 *mana_gd_get_wqe_ptr(const struct gdma_queue *wq, u32 wqe_offset)
 
 	WARN_ON_ONCE((offset + GDMA_WQE_BU_SIZE) > wq->queue_size);
 
-	return wq->queue_mem_ptr + offset;
+	return mana_gd_ring_ptr(wq, offset);
 }
 
 static u32 mana_gd_write_client_oob(const struct gdma_wqe_request *wqe_req,
@@ -1554,27 +1565,24 @@ static u32 mana_gd_write_client_oob(const struct gdma_wqe_request *wqe_req,
 	return sizeof(header) + client_oob_size;
 }
 
-static void mana_gd_write_sgl(struct gdma_queue *wq, u8 *wqe_ptr,
+static void mana_gd_write_sgl(struct gdma_queue *wq, u32 sgl_offset,
 			      const struct gdma_wqe_request *wqe_req)
 {
+	u32 size_to_end = mana_gd_ring_contig_avail(wq, sgl_offset);
 	u32 sgl_size = sizeof(struct gdma_sge) * wqe_req->num_sge;
 	const u8 *address = (u8 *)wqe_req->sgl;
-	u8 *base_ptr, *end_ptr;
-	u32 size_to_end;
-
-	base_ptr = wq->queue_mem_ptr;
-	end_ptr = base_ptr + wq->queue_size;
-	size_to_end = (u32)(end_ptr - wqe_ptr);
 
 	if (size_to_end < sgl_size) {
-		memcpy(wqe_ptr, address, size_to_end);
+		memcpy(mana_gd_ring_ptr(wq, sgl_offset), address, size_to_end);
 
-		wqe_ptr = base_ptr;
 		address += size_to_end;
 		sgl_size -= size_to_end;
+		sgl_offset += size_to_end;
+		if (sgl_offset == wq->queue_size)
+			sgl_offset = 0;
 	}
 
-	memcpy(wqe_ptr, address, sgl_size);
+	memcpy(mana_gd_ring_ptr(wq, sgl_offset), address, sgl_size);
 }
 
 int mana_gd_post_work_request(struct gdma_queue *wq,
@@ -1584,8 +1592,12 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 	u32 client_oob_size = wqe_req->inline_oob_size;
 	u32 sgl_data_size;
 	u32 max_wqe_size;
+	u32 wqe_offset;
+	u32 sgl_offset;
 	u32 wqe_size;
+	u32 oob_len;
 	u8 *wqe_ptr;
+	u32 head;
 
 	if (wqe_req->num_sge == 0)
 		return -EINVAL;
@@ -1617,13 +1629,17 @@ int mana_gd_post_work_request(struct gdma_queue *wq,
 	if (wqe_info)
 		wqe_info->wqe_size_in_bu = wqe_size / GDMA_WQE_BU_SIZE;
 
-	wqe_ptr = mana_gd_get_wqe_ptr(wq, wq->head);
-	wqe_ptr += mana_gd_write_client_oob(wqe_req, wq->type, client_oob_size,
-					    sgl_data_size, wqe_ptr);
-	if (wqe_ptr >= (u8 *)wq->queue_mem_ptr + wq->queue_size)
-		wqe_ptr -= wq->queue_size;
+	head = wq->head;
+	wqe_offset = (head * GDMA_WQE_BU_SIZE) & (wq->queue_size - 1);
+	wqe_ptr = mana_gd_get_wqe_ptr(wq, head);
+	oob_len = mana_gd_write_client_oob(wqe_req, wq->type, client_oob_size,
+					   sgl_data_size, wqe_ptr);
 
-	mana_gd_write_sgl(wq, wqe_ptr, wqe_req);
+	sgl_offset = wqe_offset + oob_len;
+	if (sgl_offset >= wq->queue_size)
+		sgl_offset -= wq->queue_size;
+
+	mana_gd_write_sgl(wq, sgl_offset, wqe_req);
 
 	wq->head += wqe_size / GDMA_WQE_BU_SIZE;
 
@@ -1653,11 +1669,10 @@ int mana_gd_post_and_ring(struct gdma_queue *queue,
 static int mana_gd_read_cqe(struct gdma_queue *cq, struct gdma_comp *comp)
 {
 	unsigned int num_cqe = cq->queue_size / sizeof(struct gdma_cqe);
-	struct gdma_cqe *cq_cqe = cq->queue_mem_ptr;
 	u32 owner_bits, new_bits, old_bits;
 	struct gdma_cqe *cqe;
 
-	cqe = &cq_cqe[cq->head % num_cqe];
+	cqe = mana_gd_ring_ptr(cq, (cq->head % num_cqe) * sizeof(*cqe));
 	owner_bits = cqe->cqe_info.owner_bits;
 
 	old_bits = (cq->head / num_cqe - 1) & GDMA_CQE_OWNER_MASK;
