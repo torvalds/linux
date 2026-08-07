@@ -297,7 +297,7 @@ static int xgene_rng_init(struct hwrng *rng)
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_rng_acpi_match[] = {
-	{ "APMC0D18", },
+	{ .id = "APMC0D18" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, xgene_rng_acpi_match);
