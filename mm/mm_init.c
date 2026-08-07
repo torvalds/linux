@@ -2214,10 +2214,13 @@ bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 	}
 
 	/*
-	 * There were no pages to initialize and free which means the zone's
-	 * memory map is completely initialized.
+	 * The loop only tests spfn before entering an iteration, so on exit it
+	 * may point up to a section past the end of the zone.  When it does,
+	 * the rest of the zone has already been handed to
+	 * deferred_init_memmap_chunk() and nothing is left to initialize.
 	 */
-	pgdat->first_deferred_pfn = nr_pages ? spfn : ULONG_MAX;
+	pgdat->first_deferred_pfn =
+		spfn < zone_end_pfn(zone) ? spfn : ULONG_MAX;
 
 	pgdat_resize_unlock(pgdat, &flags);
 
