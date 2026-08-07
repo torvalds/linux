@@ -1592,6 +1592,7 @@ hclge_query_reg_info(struct hclge_dev *hdev,
 	}
 
 	kfree(msg->desc);
+	msg->desc = NULL;
 }
 
 static void hclge_query_reg_info_of_ssu(struct hclge_dev *hdev)
