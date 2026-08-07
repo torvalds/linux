@@ -3332,6 +3332,16 @@ static int madera_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
+static const u64 madera_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_A	|
+	SND_SOC_POSSIBLE_DAIFMT_DSP_B	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_IF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_NF	|
+	SND_SOC_POSSIBLE_DAIFMT_IB_IF;
+
 const struct snd_soc_dai_ops madera_dai_ops = {
 	.startup = &madera_startup,
 	.set_fmt = &madera_set_fmt,
@@ -3339,6 +3349,8 @@ const struct snd_soc_dai_ops madera_dai_ops = {
 	.hw_params = &madera_hw_params,
 	.set_sysclk = &madera_dai_set_sysclk,
 	.set_tristate = &madera_set_tristate,
+	.auto_selectable_formats = &madera_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 EXPORT_SYMBOL_GPL(madera_dai_ops);
 
