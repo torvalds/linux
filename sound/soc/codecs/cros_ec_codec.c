@@ -320,10 +320,18 @@ static int i2s_rx_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 				    (uint8_t *)&p, sizeof(p), NULL, 0);
 }
 
+static const u64 i2s_rx_selectable_formats =
+	SND_SOC_POSSIBLE_DAIFMT_I2S	|
+	SND_SOC_POSSIBLE_DAIFMT_RIGHT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_LEFT_J	|
+	SND_SOC_POSSIBLE_DAIFMT_NB_NF;
+
 static const struct snd_soc_dai_ops i2s_rx_dai_ops = {
 	.hw_params = i2s_rx_hw_params,
 	.set_fmt = i2s_rx_set_fmt,
 	.set_bclk_ratio = i2s_rx_set_bclk_ratio,
+	.auto_selectable_formats = &i2s_rx_selectable_formats,
+	.num_auto_selectable_formats = 1,
 };
 
 static int i2s_rx_event(struct snd_soc_dapm_widget *w,
