@@ -1630,6 +1630,7 @@ static int create_fake_symbol(struct elf *elf, struct section *sec,
 			      unsigned long offset, size_t size)
 {
 	char name[SYM_NAME_LEN];
+	struct symbol *sym;
 	unsigned int type;
 	static int ctr;
 	char *c;
@@ -1646,7 +1647,24 @@ static int create_fake_symbol(struct elf *elf, struct section *sec,
 	 *	       while still allowing objdump to disassemble it.
 	 */
 	type = is_text_sec(sec) ? STT_NOTYPE : STT_OBJECT;
-	return elf_create_symbol(elf, name, sec, STB_LOCAL, type, offset, size) ? 0 : -1;
+
+	sym = elf_create_symbol(elf, name, sec, STB_LOCAL, type, offset, size);
+	if (!sym)
+		return -1;
+
+	sym->fake = 1;
+	return 0;
+}
+
+static bool has_fake_symbols(struct section *sec)
+{
+	struct symbol *sym;
+
+	sec_for_each_sym(sec, sym)
+		if (sym->fake)
+			return true;
+
+	return false;
 }
 
 /*
@@ -1738,7 +1756,11 @@ entsize:
 		unsigned int entry_size;
 		unsigned long offset;
 
-		if (!is_special_section(sec) || find_symbol_by_offset(sec, 0))
+		if (!is_special_section(sec))
+			continue;
+
+		/* Skip sections already handled by step 1 above */
+		if (has_fake_symbols(sec))
 			continue;
 
 		if (!sec->rsec) {
