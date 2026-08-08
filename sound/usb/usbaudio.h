@@ -260,6 +260,10 @@ extern bool snd_usb_skip_validation;
  *  to insufficient buffer depth combined with xHCI scheduling variability.
  *  The larger buffer (MAX_URBS = 12, ~64ms) absorbs system scheduling
  *  jitter during boot, while URB_ISO_ASAP ensures consistent xHCI scheduling.
+ * QUIRK_FLAG_ALWAYS_SET_RATE:
+ *  Issue SET_CUR for the sample rate even when the clock already reports the
+ *  requested rate.  A device advertising a single rate is otherwise never sent
+ *  the request at all, and some require it before streaming will start.
  */
 
 enum {
@@ -295,6 +299,7 @@ enum {
 	QUIRK_TYPE_IFB_SILENCE_ON_EMPTY		= 29,
 	QUIRK_TYPE_MIXER_GET_CUR_BROKEN		= 30,
 	QUIRK_TYPE_PLAYBACK_URB_FIXUP		= 31,
+	QUIRK_TYPE_ALWAYS_SET_RATE		= 32,
 /* Please also edit snd_usb_audio_quirk_flag_names */
 };
 
@@ -332,5 +337,6 @@ enum {
 #define QUIRK_FLAG_IFB_SILENCE_ON_EMPTY		QUIRK_FLAG(IFB_SILENCE_ON_EMPTY)
 #define QUIRK_FLAG_MIXER_GET_CUR_BROKEN		QUIRK_FLAG(MIXER_GET_CUR_BROKEN)
 #define QUIRK_FLAG_PLAYBACK_URB_FIXUP		QUIRK_FLAG(PLAYBACK_URB_FIXUP)
+#define QUIRK_FLAG_ALWAYS_SET_RATE		QUIRK_FLAG(ALWAYS_SET_RATE)
 
 #endif /* __USBAUDIO_H */
