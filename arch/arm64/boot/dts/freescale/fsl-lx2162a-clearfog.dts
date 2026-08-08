@@ -8,7 +8,7 @@
 
 #include <dt-bindings/leds/common.h>
 
-#include "fsl-lx2160a-rev2.dtsi"
+#include "fsl-lx2162a.dtsi"
 #include "fsl-lx2162a-sr-som.dtsi"
 
 / {
@@ -364,6 +364,10 @@
 };
 
 &pcs_mdio18 {
+	status = "okay";
+};
+
+&serdes_1 {
 	status = "okay";
 };
 

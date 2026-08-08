@@ -423,7 +423,7 @@
 		refclk-frequency = <25000000>;
 		reset-gpios = <&lsio_gpio1 2 GPIO_ACTIVE_LOW>;
 	};
-	
+
 	/* On Module Audio Codec */
 	sgtl5000: audio-codec@a {
 		compatible = "fsl,sgtl5000";

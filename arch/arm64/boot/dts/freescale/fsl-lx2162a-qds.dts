@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "fsl-lx2160a-rev2.dtsi"
+#include "fsl-lx2162a.dtsi"
 
 / {
 	model = "NXP Layerscape LX2162AQDS";

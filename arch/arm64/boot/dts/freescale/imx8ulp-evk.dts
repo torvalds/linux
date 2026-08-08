@@ -5,6 +5,7 @@
 
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "imx8ulp.dtsi"
 
 / {
@@ -18,6 +19,18 @@
 
 	chosen {
 		stdout-path = &lpuart5;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		button-power-on {
+			label = "PowerOn";
+			gpios = <&gpiof 31 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+		};
 	};
 
 	memory@80000000 {
@@ -42,8 +55,8 @@
 			no-map;
 		};
 
-		rsc_table: rsc-table@1fff8000 {
-			reg = <0 0x1fff8000 0 0x1000>;
+		rsc_table: rsc-table@20000000 {
+			reg = <0 0x20000000 0 0x1000>;
 			no-map;
 		};
 
@@ -151,6 +164,24 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&pinctrl_lpuart5>;
 	pinctrl-1 = <&pinctrl_lpuart5>;
+	status = "okay";
+};
+
+&lpuart6 {
+	/* BT */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpuart6>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "nxp,88w8987-bt";
+	};
+};
+
+&lpuart7 {
+	/* FT4232 PortD: need to connect J25/J26 2-3 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpuart7>;
 	status = "okay";
 };
 
@@ -292,15 +323,15 @@
 &iomuxc1 {
 	pinctrl_enet: enetgrp {
 		fsl,pins = <
-			MX8ULP_PAD_PTE15__ENET0_MDC     0x43
-			MX8ULP_PAD_PTE14__ENET0_MDIO    0x43
-			MX8ULP_PAD_PTE17__ENET0_RXER    0x43
+			MX8ULP_PAD_PTE15__ENET0_MDC     0x7
+			MX8ULP_PAD_PTE14__ENET0_MDIO    0x7
+			MX8ULP_PAD_PTE17__ENET0_RXER    0x7
 			MX8ULP_PAD_PTE18__ENET0_CRS_DV  0x43
 			MX8ULP_PAD_PTF1__ENET0_RXD0     0x43
 			MX8ULP_PAD_PTE20__ENET0_RXD1    0x43
-			MX8ULP_PAD_PTE16__ENET0_TXEN    0x43
-			MX8ULP_PAD_PTE23__ENET0_TXD0    0x43
-			MX8ULP_PAD_PTE22__ENET0_TXD1    0x43
+			MX8ULP_PAD_PTE16__ENET0_TXEN    0x7
+			MX8ULP_PAD_PTE23__ENET0_TXD0    0x7
+			MX8ULP_PAD_PTE22__ENET0_TXD1    0x7
 			MX8ULP_PAD_PTE19__ENET0_REFCLK  0x43
 			MX8ULP_PAD_PTF10__ENET0_1588_CLKIN 0x43
 		>;
@@ -323,10 +354,32 @@
 		>;
 	};
 
+	pinctrl_gpio_keys: gpiokeysgrp {
+		fsl,pins = <
+			MX8ULP_PAD_PTF31__PTF31		0x3
+		>;
+	};
+
 	pinctrl_lpuart5: lpuart5grp {
 		fsl,pins = <
 			MX8ULP_PAD_PTF14__LPUART5_TX	0x3
 			MX8ULP_PAD_PTF15__LPUART5_RX	0x3
+		>;
+	};
+
+	pinctrl_lpuart6: lpuart6grp {
+		fsl,pins = <
+			MX8ULP_PAD_PTE10__LPUART6_TX	0x3
+			MX8ULP_PAD_PTE11__LPUART6_RX	0x3
+			MX8ULP_PAD_PTE9__LPUART6_RTS_B	0x3
+			MX8ULP_PAD_PTE8__LPUART6_CTS_B	0x3
+		>;
+	};
+
+	pinctrl_lpuart7: lpuart7grp {
+		fsl,pins = <
+			MX8ULP_PAD_PTF22__LPUART7_TX	0x3
+			MX8ULP_PAD_PTF23__LPUART7_RX	0x3
 		>;
 	};
 

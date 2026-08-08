@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file for LX2162 SoC
+//
+// Copyright 2026 NXP
+
+#include "fsl-lx216x.dtsi"
+#include "fsl-lx216xa-pcie-gen3.dtsi"
+#include "fsl-lx2162a-serdes.dtsi"

@@ -3,6 +3,27 @@
  * Copyright 2019-2020 NXP
  *	Dong Aisheng <aisheng.dong@nxp.com>
  */
+&lsio_subsys {
+	lsio_mu8: mailbox@5d230000 {
+		compatible = "fsl,imx8qm-mu", "fsl,imx6sx-mu";
+		reg = <0x5d230000 0x10000>;
+		interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <2>;
+		power-domains = <&pd IMX_SC_R_MU_8A>;
+		status = "disabled";
+	};
+
+	lsio_mu8b: mailbox@5d2c0000 {
+		compatible = "fsl,imx8qm-mu", "fsl,imx6sx-mu";
+		reg = <0x5d2c0000 0x10000>;
+		interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
+		#mbox-cells = <2>;
+		fsl,mu-side-b;
+		power-domains = <&pd IMX_SC_R_MU_8B>;
+		status = "disabled";
+	};
+
+};
 
 &lsio_gpio0 {
 	compatible = "fsl,imx8qm-gpio", "fsl,imx35-gpio";

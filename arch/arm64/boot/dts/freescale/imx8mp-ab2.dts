@@ -775,6 +775,10 @@
 	status = "okay";
 };
 
+&mu2 {
+	status = "okay";
+};
+
 &pwm1 {
 	pinctrl-0 = <&pinctrl_pwm1>;
 	pinctrl-names = "default";

@@ -215,7 +215,7 @@
 		compatible = "gpio-vibrator";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_haptic>;
-	        enable-gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&reg_3v3_p>;
 	};
 
@@ -856,7 +856,7 @@
 
 	pinctrl_wifi_pwr_en: wifipwrengrp {
 		fsl,pins = <
-			MX8MQ_IOMUXC_NAND_CLE_GPIO3_IO5         0x06
+			MX8MQ_IOMUXC_NAND_CLE_GPIO3_IO5		0x06
 		>;
 	};
 

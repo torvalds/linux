@@ -74,6 +74,31 @@
 };
 
 &audio_subsys {
+	spdif1: spdif@59030000 {
+		compatible = "fsl,imx8qm-spdif";
+		reg = <0x59030000 0x10000>;
+		interrupts =  <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>, /* rx */
+			      <GIC_SPI 462 IRQ_TYPE_LEVEL_HIGH>; /* tx */
+		clocks = <&spdif1_lpcg IMX_LPCG_CLK_4>, /* core */
+			 <&clk_dummy>, /* rxtx0 */
+			 <&spdif1_lpcg IMX_LPCG_CLK_5>, /* rxtx1 */
+			 <&clk_dummy>, /* rxtx2 */
+			 <&clk_dummy>, /* rxtx3 */
+			 <&clk_dummy>, /* rxtx4 */
+			 <&audio_ipg_clk>, /* rxtx5 */
+			 <&clk_dummy>, /* rxtx6 */
+			 <&clk_dummy>, /* rxtx7 */
+			 <&clk_dummy>; /* spba */
+		clock-names = "core", "rxtx0",
+			      "rxtx1", "rxtx2",
+			      "rxtx3", "rxtx4",
+			      "rxtx5", "rxtx6",
+			      "rxtx7", "spba";
+		dmas = <&edma0 10 0 5>, <&edma0 11 0 4>;
+		dma-names = "rx", "tx";
+		power-domains = <&pd IMX_SC_R_SPDIF_1>;
+		status = "disabled";
+	};
 
 	sai4: sai@59080000 {
 		compatible = "fsl,imx8qm-sai";
@@ -106,6 +131,19 @@
 		dmas = <&edma0 19 0 0>;
 		fsl,dataline = <0 0x0 0xf>;
 		power-domains = <&pd IMX_SC_R_SAI_5>;
+		status = "disabled";
+	};
+
+	spdif1_lpcg: clock-controller@59430000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x59430000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&acm IMX_ADMA_ACM_SPDIF1_TX_CLK_SEL>,
+			 <&audio_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_5>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "spdif1_lpcg_tx_clk",
+				     "spdif1_lpcg_gclkw";
+		power-domains = <&pd IMX_SC_R_SPDIF_1>;
 		status = "disabled";
 	};
 
