@@ -236,13 +236,13 @@
 
 	gic: interrupt-controller@8d000000 {
 		compatible = "arm,gic-v3";
-                #interrupt-cells = <3>;
-                #address-cells = <2>;
-                #size-cells = <2>;
-                ranges;
-                interrupt-controller;
-                #redistributor-regions = <1>;
-                redistributor-stride = <0x0 0x30000>;
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+		#redistributor-regions = <1>;
+		redistributor-stride = <0x0 0x30000>;
 		reg = <0x0 0x8d000000 0 0x10000>,	/* GICD */
 		      <0x0 0x8d100000 0 0x300000>,	/* GICR */
 		      <0x0 0xfe000000 0 0x10000>,	/* GICC */
