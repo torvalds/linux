@@ -1274,6 +1274,15 @@ struct bpf_tramp_nodes {
 	int nr_nodes;
 };
 
+/*
+ * The arena base against which a struct_ops trampoline converts the
+ * arguments marked with BTF_FMODEL_ARENA_ARG while saving them into the BPF
+ * ctx, ctx[arg] = (u32)(kaddr - kern_vm_start). Zero when the trampoline
+ * converts nothing.
+ */
+u64 bpf_tramp_arena_base(const struct btf_func_model *m,
+			 struct bpf_tramp_nodes *tnodes, u32 flags);
+
 struct bpf_tramp_run_ctx;
 
 /* Different use cases for BPF trampoline:
