@@ -25,31 +25,7 @@
 	};
 
 	chosen {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
 		stdout-path = "serial0:115200n8";
-
-		framebuffer0: framebuffer@e3940000 {
-			compatible = "simple-framebuffer";
-			reg = <0x0 0xe3940000 0x0 (2392 * 1080 * 4)>;
-			width = <1080>;
-			height = <2392>;
-			stride = <(1080 * 4)>;
-			format = "a8r8g8b8";
-			panel = <&panel>;
-			interconnects = <&mmss_noc MASTER_MDP QCOM_ICC_TAG_ALWAYS
-					 &mc_virt SLAVE_EBI1 QCOM_ICC_TAG_ALWAYS>;
-			clocks = <&gcc GCC_DISP_HF_AXI_CLK>;
-
-			/* Dummy panel for simple-framebuffer dimension info */
-			panel: dummy-panel {
-				compatible = "boe,bf068mwm-td0";
-				height-mm = <157>;
-				width-mm = <71>;
-			};
-		};
 	};
 
 	gpio-keys {
@@ -130,15 +106,6 @@
 			console-size = <0x200000>;
 			mem-type = <2>;
 			pmsg-size = <0x200000>;
-		};
-
-		/*
-		 * ABL is powering down display and controller if this node is
-		 * not named exactly "splash_region".
-		 */
-		splash_region@e3940000 {
-			reg = <0x0 0xe3940000 0x0 0x2b00000>;
-			no-map;
 		};
 	};
 };
@@ -505,11 +472,6 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 	};
-};
-
-&dispcc {
-	/* Disable for now so simple-framebuffer continues working */
-	status = "disabled";
 };
 
 &gcc {

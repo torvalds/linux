@@ -39,9 +39,9 @@
 
 		stdout-path = "serial0:115200n8";
 
-		framebuffer0: framebuffer@a000000 {
+		framebuffer {
 			compatible = "simple-framebuffer";
-			reg = <0x0 0xe1000000 0x0 (2400 * 1080 * 4)>;
+			memory-region = <&cont_splash_mem>;
 			width = <1080>;
 			height = <2400>;
 			stride = <(1080 * 4)>;
@@ -553,9 +553,8 @@
 };
 
 &ipa {
-	qcom,gsi-loader = "self";
-	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/qcm6490/SHIFT/otter/ipa_fws.mbn";
+
 	status = "okay";
 };
 

@@ -472,6 +472,12 @@
 	};
 };
 
+&iris {
+	firmware-name = "qcom/vpu/vpu20_p4_sm8350.mbn";
+
+	status = "okay";
+};
+
 &mdss {
 	status = "okay";
 };
@@ -923,8 +929,7 @@
 };
 
 &ipa {
-	qcom,gsi-loader = "self";
-	memory-region = <&pil_ipa_fw_mem>;
-	status = "okay";
 	firmware-name = "qcom/sm8350/ipa_fws.mbn";
+
+	status = "okay";
 };

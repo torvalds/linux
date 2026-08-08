@@ -1866,7 +1866,7 @@
 				};
 			};
 
-			spi8_default: spi8_default-state {
+			spi8_default: spi8-default-state {
 				mosi-pins {
 					pins = "gpio45";
 					function = "blsp_spi8";

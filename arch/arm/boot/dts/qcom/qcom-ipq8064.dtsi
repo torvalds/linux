@@ -591,7 +591,7 @@
 
 		nss_common: syscon@3000000 {
 			compatible = "syscon";
-			reg = <0x03000000 0x0000FFFF>;
+			reg = <0x03000000 0x0000ffff>;
 		};
 
 		usb3_0: usb@100f8800 {
@@ -1241,7 +1241,7 @@
 
 		qsgmii_csr: syscon@1bb00000 {
 			compatible = "syscon";
-			reg = <0x1bb00000 0x000001FF>;
+			reg = <0x1bb00000 0x000001ff>;
 		};
 
 		lcc: clock-controller@28000000 {

@@ -418,7 +418,6 @@
 
 &pcie1 {
 	status = "okay";
-	perst-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
 
 	vddpe-3v3-supply = <&nvme_3v3_regulator>;
 
@@ -431,6 +430,10 @@
 
 	vdda-phy-supply = <&vreg_l10c_0p8>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
+&pcie1_port0 {
+	reset-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
 };
 
 &pmk8350_vadc {

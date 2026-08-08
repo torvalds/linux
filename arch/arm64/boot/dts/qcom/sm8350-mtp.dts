@@ -378,7 +378,5 @@
 };
 
 &ipa {
-	qcom,gsi-loader = "self";
-	memory-region = <&pil_ipa_fw_mem>;
 	status = "okay";
 };

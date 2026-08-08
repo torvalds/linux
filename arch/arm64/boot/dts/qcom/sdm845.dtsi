@@ -2780,6 +2780,9 @@
 			qcom,smem-state-names = "ipa-clock-enabled-valid",
 						"ipa-clock-enabled";
 
+			qcom,gsi-loader = "self";
+			memory-region = <&ipa_fw_mem>;
+
 			sram = <&ipa_modem_tables>;
 
 			status = "disabled";
@@ -5102,7 +5105,7 @@
 
 		pdc_intc: interrupt-controller@b220000 {
 			compatible = "qcom,sdm845-pdc", "qcom,pdc";
-			reg = <0 0x0b220000 0 0x30000>;
+			reg = <0 0x0b220000 0 0x10000>;
 			qcom,pdc-ranges = <0 480 94>, <94 609 15>, <115 630 7>;
 			#interrupt-cells = <2>;
 			interrupt-parent = <&intc>;

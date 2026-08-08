@@ -553,9 +553,8 @@
 };
 
 &ipa {
-	qcom,gsi-loader = "self";
-	memory-region = <&pil_ipa_fw_mem>;
 	firmware-name = "qcom/sm8350/Sony/sagami/ipa_fws.mbn";
+
 	status = "okay";
 };
 

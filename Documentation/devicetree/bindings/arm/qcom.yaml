@@ -51,15 +51,33 @@ properties:
 
       - items:
           - enum:
-              - qcom,apq8060-dragonboard
-              - qcom,msm8660-surf
-          - const: qcom,msm8660
-
-      - items:
-          - enum:
               - qcom,apq8084-mtp
               - qcom,apq8084-sbc
           - const: qcom,apq8084
+
+      - items:
+          - const: qcom,eliza-cqs-evk
+          - const: qcom,eliza-cqs-som
+          - const: qcom,eliza
+
+      - items:
+          - enum:
+              - sony,karin_windy
+          - const: qcom,apq8094
+
+      - items:
+          - enum:
+              - arrow,apq8096-db820c
+              - inforce,ifc6640
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
+
+      - items:
+          - const: arrow,apq8096sg-db820c
+          - const: arrow,apq8096-db820c
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096sg
+          - const: qcom,apq8096
 
       - items:
           - enum:
@@ -73,8 +91,99 @@ properties:
 
       - items:
           - enum:
+              - 8dev,jalapeno
+              - alfa-network,ap120c-ac
+          - const: qcom,ipq4018
+
+      - items:
+          - enum:
+              - qcom,ipq4019-ap-dk01.1-c1
+              - qcom,ipq4019-ap-dk04.1-c3
+              - qcom,ipq4019-ap-dk07.1-c1
+              - qcom,ipq4019-ap-dk07.1-c2
+              - qcom,ipq4019-dk04.1-c1
+          - const: qcom,ipq4019
+
+      - items:
+          - enum:
+              - qcom,ipq5018-rdp432-c2
+              - tplink,archer-ax55-v1
+          - const: qcom,ipq5018
+
+      - items:
+          - enum:
+              - qcom,ipq5210-rdp504
+          - const: qcom,ipq5210
+
+      - items:
+          - enum:
+              - qcom,ipq5332-ap-mi01.2
+              - qcom,ipq5332-ap-mi01.3
+              - qcom,ipq5332-ap-mi01.6
+              - qcom,ipq5332-ap-mi01.9
+          - const: qcom,ipq5332
+
+      - items:
+          - enum:
+              - qcom,ipq5424-rdp466
+          - const: qcom,ipq5424
+
+      - items:
+          - enum:
+              - qcom,ipq6018-cp01
+              - qcom,ipq6018-cp01-c1
+          - const: qcom,ipq6018
+
+      - items:
+          - enum:
+              - mikrotik,rb3011
+              - qcom,ipq8064-ap148
+          - const: qcom,ipq8064
+
+      - items:
+          - enum:
+              - qcom,ipq8074-hk01
+              - qcom,ipq8074-hk10-c1
+              - qcom,ipq8074-hk10-c2
+          - const: qcom,ipq8074
+
+      - items:
+          - enum:
+              - qcom,ipq9574-ap-al02-c2
+              - qcom,ipq9574-ap-al02-c2-emmc
+              - qcom,ipq9574-ap-al02-c6
+              - qcom,ipq9574-ap-al02-c7
+              - qcom,ipq9574-ap-al02-c7-emmc
+              - qcom,ipq9574-ap-al02-c8
+              - qcom,ipq9574-ap-al02-c9
+          - const: qcom,ipq9574
+
+      - items:
+          - enum:
+              - qcom,ipq9650-rdp488
+          - const: qcom,ipq9650
+
+      - items:
+          - enum:
+              - qcom,hawi-mtp
+          - const: qcom,hawi
+
+      - items:
+          - enum:
+              - qcom,kaanapali-mtp
+              - qcom,kaanapali-qrd
+          - const: qcom,kaanapali
+
+      - items:
+          - enum:
               - qcom,mahua-crd
           - const: qcom,mahua
+
+      - description: Sierra Wireless MangOH Green with WP8548 Module
+        items:
+          - const: swir,mangoh-green-wp8548
+          - const: swir,wp8548
+          - const: qcom,mdm9615
 
       - items:
           - enum:
@@ -88,6 +197,7 @@ properties:
               - microsoft,makepeace
               - microsoft,moneypenny
               - motorola,falcon
+              - motorola,titan
               - samsung,ms013g
               - samsung,s3ve3g
           - const: qcom,msm8226
@@ -99,13 +209,72 @@ properties:
               - microsoft,tesla
               - motorola,peregrine
               - samsung,matisselte
+              - sony,eagle
           - const: qcom,msm8926
           - const: qcom,msm8226
 
       - items:
           - enum:
+              - qcom,apq8060-dragonboard
+              - qcom,msm8660-surf
+          - const: qcom,msm8660
+
+      - items:
+          - enum:
+              - acer,a1-724
+              - alcatel,idol347
+              - asus,z00l
+              - gplus,fl8005a
+              - huawei,g7
+              - lg,c50
+              - lg,m216
+              - longcheer,l8910
+              - longcheer,l8150
+              - motorola,harpia
+              - motorola,osprey
+              - motorola,surnia
+              - qcom,msm8916-mtp
+              - samsung,a3u-eur
+              - samsung,a5u-eur
+              - samsung,coreprimeltevzw
+              - samsung,e5
+              - samsung,e7
+              - samsung,fortuna3g
+              - samsung,gprimeltecan
+              - samsung,grandmax
+              - samsung,grandprimelte
+              - samsung,gt510
+              - samsung,gt58
+              - samsung,j3ltetw
+              - samsung,j5
+              - samsung,j5x
+              - samsung,rossa
+              - samsung,serranove
+              - thwc,uf896
+              - thwc,ufi001c
+              - wiko,chuppito
+              - wingtech,wt86518
+              - wingtech,wt86528
+              - wingtech,wt88047
+              - yiming,uz801-v3
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - xiaomi,riva
+              - xiaomi,rolex
+              - xiaomi,tiare
+          - const: qcom,msm8917
+
+      - items:
+          - enum:
               - wingtech,wt82918hd
           - const: qcom,msm8929
+
+      - items:
+          - enum:
+              - xiaomi,land
+          - const: qcom,msm8937
 
       - items:
           - enum:
@@ -118,6 +287,16 @@ properties:
               - wingtech,wt82918
               - wingtech,wt82918hdhw39
           - const: qcom,msm8939
+
+      - items:
+          - enum:
+              - flipkart,rimob
+              - motorola,potter
+              - xiaomi,daisy
+              - xiaomi,mido
+              - xiaomi,tissot
+              - xiaomi,vince
+          - const: qcom,msm8953
 
       - items:
           - enum:
@@ -172,78 +351,11 @@ properties:
 
       - items:
           - enum:
-              - acer,a1-724
-              - alcatel,idol347
-              - asus,z00l
-              - gplus,fl8005a
-              - huawei,g7
-              - lg,c50
-              - lg,m216
-              - longcheer,l8910
-              - longcheer,l8150
-              - motorola,harpia
-              - motorola,osprey
-              - motorola,surnia
-              - qcom,msm8916-mtp
-              - samsung,a3u-eur
-              - samsung,a5u-eur
-              - samsung,coreprimeltevzw
-              - samsung,e5
-              - samsung,e7
-              - samsung,fortuna3g
-              - samsung,gprimeltecan
-              - samsung,grandmax
-              - samsung,grandprimelte
-              - samsung,gt510
-              - samsung,gt58
-              - samsung,j3ltetw
-              - samsung,j5
-              - samsung,j5x
-              - samsung,rossa
-              - samsung,serranove
-              - thwc,uf896
-              - thwc,ufi001c
-              - wiko,chuppito
-              - wingtech,wt86518
-              - wingtech,wt86528
-              - wingtech,wt88047
-              - yiming,uz801-v3
-          - const: qcom,msm8916
-
-      - items:
-          - enum:
-              - xiaomi,riva
-              - xiaomi,rolex
-              - xiaomi,tiare
-          - const: qcom,msm8917
-
-      - items:
-          - enum:
-              - xiaomi,land
-          - const: qcom,msm8937
-
-      - items:
-          - enum:
-              - flipkart,rimob
-              - motorola,potter
-              - xiaomi,daisy
-              - xiaomi,mido
-              - xiaomi,tissot
-              - xiaomi,vince
-          - const: qcom,msm8953
-
-      - items:
-          - enum:
               - lg,bullhead
               - lg,h815
               - microsoft,talkman
               - xiaomi,libra
           - const: qcom,msm8992
-
-      - items:
-          - enum:
-              - sony,karin_windy
-          - const: qcom,apq8094
 
       - items:
           - enum:
@@ -255,20 +367,6 @@ properties:
               - sony,sumire-row
               - sony,suzuran-row
           - const: qcom,msm8994
-
-      - items:
-          - enum:
-              - arrow,apq8096-db820c
-              - inforce,ifc6640
-          - const: qcom,apq8096-sbc
-          - const: qcom,apq8096
-
-      - items:
-          - const: arrow,apq8096sg-db820c
-          - const: arrow,apq8096-db820c
-          - const: qcom,apq8096-sbc
-          - const: qcom,apq8096sg
-          - const: qcom,apq8096
 
       - items:
           - enum:
@@ -303,86 +401,6 @@ properties:
               - xiaomi,sagit
           - const: qcom,msm8998
 
-      - items:
-          - enum:
-              - 8dev,jalapeno
-              - alfa-network,ap120c-ac
-          - const: qcom,ipq4018
-
-      - items:
-          - enum:
-              - qcom,ipq4019-ap-dk01.1-c1
-              - qcom,ipq4019-ap-dk04.1-c3
-              - qcom,ipq4019-ap-dk07.1-c1
-              - qcom,ipq4019-ap-dk07.1-c2
-              - qcom,ipq4019-dk04.1-c1
-          - const: qcom,ipq4019
-
-      - items:
-          - enum:
-              - qcom,ipq5018-rdp432-c2
-              - tplink,archer-ax55-v1
-          - const: qcom,ipq5018
-
-      - items:
-          - enum:
-              - qcom,ipq5210-rdp504
-          - const: qcom,ipq5210
-
-      - items:
-          - enum:
-              - qcom,ipq5332-ap-mi01.2
-              - qcom,ipq5332-ap-mi01.3
-              - qcom,ipq5332-ap-mi01.6
-              - qcom,ipq5332-ap-mi01.9
-          - const: qcom,ipq5332
-
-      - items:
-          - enum:
-              - qcom,ipq5424-rdp466
-          - const: qcom,ipq5424
-
-      - items:
-          - enum:
-              - mikrotik,rb3011
-              - qcom,ipq8064-ap148
-          - const: qcom,ipq8064
-
-      - items:
-          - enum:
-              - qcom,ipq8074-hk01
-              - qcom,ipq8074-hk10-c1
-              - qcom,ipq8074-hk10-c2
-          - const: qcom,ipq8074
-
-      - items:
-          - enum:
-              - qcom,ipq9574-ap-al02-c2
-              - qcom,ipq9574-ap-al02-c2-emmc
-              - qcom,ipq9574-ap-al02-c6
-              - qcom,ipq9574-ap-al02-c7
-              - qcom,ipq9574-ap-al02-c7-emmc
-              - qcom,ipq9574-ap-al02-c8
-              - qcom,ipq9574-ap-al02-c9
-          - const: qcom,ipq9574
-
-      - items:
-          - enum:
-              - qcom,ipq9650-rdp488
-          - const: qcom,ipq9650
-
-      - items:
-          - enum:
-              - qcom,kaanapali-mtp
-              - qcom,kaanapali-qrd
-          - const: qcom,kaanapali
-
-      - description: Sierra Wireless MangOH Green with WP8548 Module
-        items:
-          - const: swir,mangoh-green-wp8548
-          - const: swir,wp8548
-          - const: qcom,mdm9615
-
       - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
@@ -401,7 +419,22 @@ properties:
               - shift,otter
               - thundercomm,minipc-g1iot
               - thundercomm,rubikpi3
+              - vicharak,axon-mini
           - const: qcom,qcm6490
+
+      - items:
+          - enum:
+              - qcom,qcs404-evb-1000
+              - qcom,qcs404-evb-4000
+          - const: qcom,qcs404-evb
+          - const: qcom,qcs404
+
+      - items:
+          - enum:
+              - arduino,monza
+              - qcom,monaco-evk
+              - qcom,qcs8300-ride
+          - const: qcom,qcs8300
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
         items:
@@ -415,6 +448,31 @@ properties:
           - enum:
               - qcom,qru1000-idp
           - const: qcom,qru1000
+
+      - items:
+          - enum:
+              - qcom,sa8155p-adp
+          - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - qcom,sa8295p-adp
+              - qcom,sa8540p-ride
+          - const: qcom,sa8540p
+
+      - items:
+          - enum:
+              - qcom,sa8775p-ride
+              - qcom,sa8775p-ride-r3
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
+              - qcom,lemans-evk
+              - qcom,qcs9100-ride
+              - qcom,qcs9100-ride-r3
+          - const: qcom,qcs9100
+          - const: qcom,sa8775p
 
       - description: Qualcomm AR2 Gen1 platform
         items:
@@ -828,14 +886,6 @@ properties:
           - const: google,zombie-sku514
           - const: qcom,sc7280
 
-      - description: Xiaomi Poco F1
-        items:
-          - enum:
-              - xiaomi,beryllium-ebbg
-              - xiaomi,beryllium-tianma
-          - const: xiaomi,beryllium
-          - const: qcom,sdm845
-
       - items:
           - enum:
               - lenovo,flex-5g
@@ -855,6 +905,11 @@ properties:
 
       - items:
           - enum:
+              - inforce,ifc6560
+          - const: qcom,sda660
+
+      - items:
+          - enum:
               - lenovo,tbx605f
               - motorola,ali
           - const: qcom,sdm450
@@ -866,11 +921,6 @@ properties:
               - sony,pioneer-row
               - sony,voyager-row
           - const: qcom,sdm630
-
-      - items:
-          - enum:
-              - inforce,ifc6560
-          - const: qcom,sda660
 
       - items:
           - enum:
@@ -899,74 +949,13 @@ properties:
           - const: google,bonito
           - const: qcom,sdm670
 
-      - items:
+      - description: Xiaomi Poco F1
+        items:
           - enum:
-              - qcom,sdx55-mtp
-              - qcom,sdx55-telit-fn980-tlb
-              - qcom,sdx55-t55
-          - const: qcom,sdx55
-
-      - items:
-          - enum:
-              - qcom,sdx65-mtp
-          - const: qcom,sdx65
-
-      - items:
-          - enum:
-              - qcom,sdx75-idp
-          - const: qcom,sdx75
-
-      - items:
-          - enum:
-              - qcom,ipq6018-cp01
-              - qcom,ipq6018-cp01-c1
-          - const: qcom,ipq6018
-
-      - items:
-          - enum:
-              - qcom,qcs404-evb-1000
-              - qcom,qcs404-evb-4000
-          - const: qcom,qcs404-evb
-          - const: qcom,qcs404
-
-      - items:
-          - enum:
-              - arduino,monza
-              - qcom,monaco-evk
-              - qcom,qcs8300-ride
-          - const: qcom,qcs8300
-
-      - items:
-          - enum:
-              - qcom,qcs615-ride
-              - qcom,talos-evk
-          - const: qcom,qcs615
-          - const: qcom,sm6150
-
-      - items:
-          - enum:
-              - qcom,sa8155p-adp
-          - const: qcom,sa8155p
-
-      - items:
-          - enum:
-              - qcom,sa8295p-adp
-              - qcom,sa8540p-ride
-          - const: qcom,sa8540p
-
-      - items:
-          - enum:
-              - qcom,sa8775p-ride
-              - qcom,sa8775p-ride-r3
-          - const: qcom,sa8775p
-
-      - items:
-          - enum:
-              - qcom,lemans-evk
-              - qcom,qcs9100-ride
-              - qcom,qcs9100-ride-r3
-          - const: qcom,qcs9100
-          - const: qcom,sa8775p
+              - xiaomi,beryllium-ebbg
+              - xiaomi,beryllium-tianma
+          - const: xiaomi,beryllium
+          - const: qcom,sdm845
 
       - items:
           - enum:
@@ -988,6 +977,41 @@ properties:
               - thundercomm,db845c
               - xiaomi,polaris
           - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - qcom,shikra-cqm-evk
+          - const: qcom,shikra-cqm-som
+          - const: qcom,shikra
+
+      - items:
+          - enum:
+              - qcom,shikra-cqs-evk
+          - const: qcom,shikra-cqs-som
+          - const: qcom,shikra
+
+      - items:
+          - enum:
+              - qcom,shikra-iqs-evk
+          - const: qcom,shikra-iqs-som
+          - const: qcom,shikra
+
+      - items:
+          - enum:
+              - qcom,sdx55-mtp
+              - qcom,sdx55-telit-fn980-tlb
+              - qcom,sdx55-t55
+          - const: qcom,sdx55
+
+      - items:
+          - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
+
+      - items:
+          - enum:
+              - qcom,sdx75-idp
+          - const: qcom,sdx75
 
       - items:
           - enum:
@@ -1026,6 +1050,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs615-ride
+              - qcom,talos-evk
+          - const: qcom,qcs615
+          - const: qcom,sm6150
+
+      - items:
+          - enum:
               - sony,pdx213
           - const: qcom,sm6350
 
@@ -1054,6 +1085,7 @@ properties:
           - enum:
               - motorola,dubai
               - nothing,spacewar
+              - xiaomi,taoyao
           - const: qcom,sm7325
 
       - items:
@@ -1114,6 +1146,12 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs8550-rb5gen2
+          - const: qcom,qcs8550
+          - const: qcom,sm8550
+
+      - items:
+          - enum:
               - ayaneo,pocket-s2
               - qcom,sm8650-hdk
               - qcom,sm8650-mtp
@@ -1160,6 +1198,7 @@ properties:
               - dell,inspiron-14-plus-7441
               - dell,latitude-7455
               - dell,xps13-9345
+              - honor,magicbook-art-14-snapdragon
               - hp,elitebook-ultra-g1q
               - hp,omnibook-x14
               - lenovo,ideacentre-mini-01q8x10

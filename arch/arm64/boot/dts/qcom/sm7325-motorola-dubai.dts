@@ -727,9 +727,6 @@
 
 &ipa {
 	firmware-name = "qcom/sm7325/motorola/dubai/yupik_ipa_fws.mbn";
-	memory-region = <&ipa_fw_mem>;
-
-	qcom,gsi-loader = "self";
 
 	status = "okay";
 };

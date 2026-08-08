@@ -55,7 +55,7 @@
 		regulator-max-microvolt = <3700000>;
 	};
 
-	vreg_bob_3p3: pmx65_bob {
+	vreg_bob_3p3: pmx65-bob-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vreg_bob_3p3";
 		regulator-min-microvolt = <3300000>;
