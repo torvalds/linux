@@ -431,6 +431,10 @@
 	};
 };
 
+&mipi_pcie_analog_dphy {
+	status = "okay";
+};
+
 &pdm {
 	pinctrl-0 = <&pdm_dclk_a14_pins>, <&pdm_din0_pins>,
 		    <&pdm_din1_pins>, <&pdm_din2_pins>, <&pdm_din3_pins>;
@@ -445,6 +449,10 @@
 
 &pcieB {
 	reset-gpios = <&gpio GPIOZ_10 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+};
+
+&pcie_phy {
 	status = "okay";
 };
 
