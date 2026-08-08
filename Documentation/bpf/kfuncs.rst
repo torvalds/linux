@@ -278,6 +278,33 @@ An example is given below::
                 ...
         }
 
+2.3.8 __arena and __arena__nullable Annotations
+-----------------------------------------------
+
+Both annotations indicate that the pointer argument points into the
+calling program's arena. The JIT rebases the value at the call site so
+the kfunc receives a directly dereferenceable kernel address, subject to
+the access rules described in :ref:`BPF_kfunc_arena_access` (at most
+``GUARD_SZ / 2``, 32 KiB, past the pointer in a single unchecked access).
+
+With ``__arena`` the rebase is unconditional and the argument is never
+NULL: a value whose lower 32 bits are zero arrives as the arena base
+address (arena offset 0). The kfunc must not check the argument for NULL.
+With ``__arena__nullable`` such a value arrives as NULL instead and the
+kfunc must check before dereferencing.
+
+An example is given below::
+
+        __bpf_kfunc int bpf_process_item(struct item *item__arena)
+        {
+        ...
+        }
+
+Calling such a kfunc requires the program to use an arena map and a JIT with
+arena argument support (currently x86-64); verification fails otherwise. The
+program can pass any value without compromising the kernel. A value that does
+not point into the arena is a program bug.
+
 .. _BPF_kfunc_nodef:
 
 2.4 Using an existing kernel function
@@ -521,6 +548,8 @@ nf_conn *`` (e.g. ``bpf_ct_change_timeout()``).
 In order to accommodate such requirements, the verifier will enforce strict
 PTR_TO_BTF_ID type matching if two types have the exact same name, with one
 being suffixed with ``___init``.
+
+.. _BPF_kfunc_arena_access:
 
 2.8 Accessing arena memory through kfunc arguments
 --------------------------------------------------

@@ -10777,7 +10777,8 @@ static bool is_kfunc_arg_refcounted_kptr(const struct btf *btf, const struct btf
 
 static bool is_kfunc_arg_nullable(const struct btf *btf, const struct btf_param *arg)
 {
-	return btf_param_match_suffix(btf, arg, "__nullable");
+	return btf_param_match_suffix(btf, arg, "__nullable") ||
+	       btf_param_match_suffix(btf, arg, "__arena");
 }
 
 static bool is_kfunc_arg_nonown_allowed(const struct btf *btf, const struct btf_param *arg)
@@ -10793,6 +10794,12 @@ static bool is_kfunc_arg_const_str(const struct btf *btf, const struct btf_param
 static bool is_kfunc_arg_irq_flag(const struct btf *btf, const struct btf_param *arg)
 {
 	return btf_param_match_suffix(btf, arg, "__irq_flag");
+}
+
+static bool is_kfunc_arg_arena(const struct btf *btf, const struct btf_param *arg)
+{
+	return btf_param_match_suffix(btf, arg, "__arena__nullable") ||
+	       btf_param_match_suffix(btf, arg, "__arena");
 }
 
 static bool is_kfunc_arg_scalar_with_name(const struct btf *btf,
@@ -11015,6 +11022,7 @@ enum kfunc_ptr_arg_type {
 	KF_ARG_PTR_TO_IRQ_FLAG,
 	KF_ARG_PTR_TO_RES_SPIN_LOCK,
 	KF_ARG_PTR_TO_TASK_WORK,
+	KF_ARG_PTR_TO_ARENA,
 };
 
 enum special_kfunc_type {
@@ -11300,7 +11308,6 @@ get_kfunc_arg_type(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 			reg_arg_name(env, argno), btf_type_str(t));
 		return -EINVAL;
 	}
-
 	ref_t = btf_type_skip_modifiers(meta->btf, t->type, NULL);
 	ref_tname = btf_name_by_offset(meta->btf, ref_t->name_off);
 
@@ -11349,7 +11356,30 @@ get_kfunc_arg_type(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 		arg_type = KF_ARG_PTR_TO_RES_SPIN_LOCK;
 	else if (is_kfunc_arg_callback(env, meta->btf, &args[arg]))
 		arg_type = KF_ARG_PTR_TO_CALLBACK;
-	else if (arg + 1 < nargs &&
+	else if (is_kfunc_arg_arena(meta->btf, &args[arg])) {
+		if (!bpf_jit_supports_arena_args()) {
+			verbose(env, "JIT does not support kfunc %s() with arena pointer arguments\n",
+				meta->func_name);
+			return -ENOTSUPP;
+		}
+		if (!env->prog->aux->arena) {
+			verbose(env,
+				"%s arena pointer requires a program with an associated arena\n",
+				reg_arg_name(env, argno));
+			return -EINVAL;
+		}
+		if (reg_from_argno(argno) < 0) {
+			verbose(env, "%s arena pointer cannot be a stack argument\n",
+				reg_arg_name(env, argno));
+			return -EINVAL;
+		}
+		/*
+		 * Both suffixes accept a constant zero. The function model determines
+		 * whether the JIT rebases it to the arena base or preserves NULL.
+		 * The common nullable path below records that verifier property.
+		 */
+		arg_type = KF_ARG_PTR_TO_ARENA;
+	} else if (arg + 1 < nargs &&
 		 (is_kfunc_arg_mem_size(meta->btf, &args[arg + 1]) ||
 		  is_kfunc_arg_const_mem_size(meta->btf, &args[arg + 1]))) {
 		if (!btf_type_is_void(ref_t) && !btf_type_is_scalar(ref_t) &&
@@ -12024,7 +12054,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
 
 		if (btf_type_is_ptr(t) && (bpf_register_is_null(reg) || type_may_be_null(reg->type)) &&
-		    !is_kfunc_arg_nullable(meta->btf, &args[i])) {
+		    !type_may_be_null(kf_arg_type)) {
 			verbose(env, "Possibly NULL pointer passed to trusted %s\n",
 				reg_arg_name(env, argno));
 			return -EACCES;
@@ -12077,6 +12107,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		case KF_ARG_PTR_TO_TASK_WORK:
 		case KF_ARG_PTR_TO_IRQ_FLAG:
 		case KF_ARG_PTR_TO_RES_SPIN_LOCK:
+		case KF_ARG_PTR_TO_ARENA:
 			break;
 		case KF_ARG_PTR_TO_DYNPTR:
 			arg_type = ARG_PTR_TO_DYNPTR;
@@ -12141,6 +12172,13 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 				if (ret < 0)
 					return -EINVAL;
 				meta->ret_btf_id  = ret;
+			}
+			break;
+		case KF_ARG_PTR_TO_ARENA:
+			if (reg->type != PTR_TO_ARENA && reg->type != SCALAR_VALUE) {
+				verbose(env, "%s is not a pointer to arena or scalar\n",
+					reg_arg_name(env, argno));
+				return -EINVAL;
 			}
 			break;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
