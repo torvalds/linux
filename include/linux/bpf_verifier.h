@@ -1172,8 +1172,8 @@ static inline void bpf_trampoline_unpack_key(u64 key, u32 *obj_id, u32 *btf_id)
 		*btf_id = key & 0x7FFFFFFF;
 }
 
-int bpf_check_btf_info_early(struct bpf_verifier_env *env,
-			     const union bpf_attr *attr, bpfptr_t uattr);
+int bpf_prepare_btf_info(struct bpf_verifier_env *env,
+			 const union bpf_attr *attr, bpfptr_t uattr);
 int bpf_check_btf_info(struct bpf_verifier_env *env,
 		       const union bpf_attr *attr, bpfptr_t uattr);
 
@@ -1295,6 +1295,16 @@ static inline u32 base_type(u32 type)
 static inline u32 type_flag(u32 type)
 {
 	return type & ~BPF_BASE_TYPE_MASK;
+}
+
+static inline bool bpf_prog_has_arena_ctx_arg(const struct bpf_prog *prog)
+{
+	int i;
+
+	for (i = 0; i < prog->aux->ctx_arg_info_size; i++)
+		if (base_type(prog->aux->ctx_arg_info[i].reg_type) == PTR_TO_ARENA)
+			return true;
+	return false;
 }
 
 static inline enum bpf_prog_type resolve_prog_type(const struct bpf_prog *prog)

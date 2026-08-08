@@ -2837,7 +2837,7 @@ int bpf_add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, u16 offset)
 	return 0;
 }
 
-static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
+static int add_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *subprog = env->subprog_info;
 	int i, ret, insn_cnt = env->prog->len, ex_cb_insn;
@@ -2849,8 +2849,7 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 		return ret;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		if (!bpf_pseudo_func(insn) && !bpf_pseudo_call(insn) &&
-		    !bpf_pseudo_kfunc_call(insn))
+		if (!bpf_pseudo_func(insn) && !bpf_pseudo_call(insn))
 			continue;
 
 		if (!env->bpf_capable) {
@@ -2858,11 +2857,7 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 			return -EPERM;
 		}
 
-		if (bpf_pseudo_func(insn) || bpf_pseudo_call(insn))
-			ret = add_subprog(env, i + insn->imm + 1);
-		else
-			ret = bpf_add_kfunc_call(env, insn->imm, insn->off);
-
+		ret = add_subprog(env, i + insn->imm + 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -2896,6 +2891,28 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 	if (env->log.level & BPF_LOG_LEVEL2)
 		for (i = 0; i < env->subprog_cnt; i++)
 			verbose(env, "func#%d @%d\n", i, subprog[i].start);
+
+	return 0;
+}
+
+static int add_kfuncs(struct bpf_verifier_env *env)
+{
+	struct bpf_insn *insn = env->prog->insnsi;
+	int i, ret, insn_cnt = env->prog->len;
+
+	for (i = 0; i < insn_cnt; i++, insn++) {
+		if (!bpf_pseudo_kfunc_call(insn))
+			continue;
+
+		if (!env->bpf_capable) {
+			verbose(env, "loading/calling other bpf or kernel functions are allowed for CAP_BPF and CAP_SYS_ADMIN\n");
+			return -EPERM;
+		}
+
+		ret = bpf_add_kfunc_call(env, insn->imm, insn->off);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -10760,7 +10777,8 @@ static bool is_kfunc_arg_refcounted_kptr(const struct btf *btf, const struct btf
 
 static bool is_kfunc_arg_nullable(const struct btf *btf, const struct btf_param *arg)
 {
-	return btf_param_match_suffix(btf, arg, "__nullable");
+	return btf_param_match_suffix(btf, arg, "__nullable") ||
+	       btf_param_match_suffix(btf, arg, "__arena");
 }
 
 static bool is_kfunc_arg_nonown_allowed(const struct btf *btf, const struct btf_param *arg)
@@ -10776,6 +10794,12 @@ static bool is_kfunc_arg_const_str(const struct btf *btf, const struct btf_param
 static bool is_kfunc_arg_irq_flag(const struct btf *btf, const struct btf_param *arg)
 {
 	return btf_param_match_suffix(btf, arg, "__irq_flag");
+}
+
+static bool is_kfunc_arg_arena(const struct btf *btf, const struct btf_param *arg)
+{
+	return btf_param_match_suffix(btf, arg, "__arena__nullable") ||
+	       btf_param_match_suffix(btf, arg, "__arena");
 }
 
 static bool is_kfunc_arg_scalar_with_name(const struct btf *btf,
@@ -10998,6 +11022,7 @@ enum kfunc_ptr_arg_type {
 	KF_ARG_PTR_TO_IRQ_FLAG,
 	KF_ARG_PTR_TO_RES_SPIN_LOCK,
 	KF_ARG_PTR_TO_TASK_WORK,
+	KF_ARG_PTR_TO_ARENA,
 };
 
 enum special_kfunc_type {
@@ -11283,7 +11308,6 @@ get_kfunc_arg_type(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 			reg_arg_name(env, argno), btf_type_str(t));
 		return -EINVAL;
 	}
-
 	ref_t = btf_type_skip_modifiers(meta->btf, t->type, NULL);
 	ref_tname = btf_name_by_offset(meta->btf, ref_t->name_off);
 
@@ -11332,7 +11356,30 @@ get_kfunc_arg_type(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 		arg_type = KF_ARG_PTR_TO_RES_SPIN_LOCK;
 	else if (is_kfunc_arg_callback(env, meta->btf, &args[arg]))
 		arg_type = KF_ARG_PTR_TO_CALLBACK;
-	else if (arg + 1 < nargs &&
+	else if (is_kfunc_arg_arena(meta->btf, &args[arg])) {
+		if (!bpf_jit_supports_arena_args()) {
+			verbose(env, "JIT does not support kfunc %s() with arena pointer arguments\n",
+				meta->func_name);
+			return -ENOTSUPP;
+		}
+		if (!env->prog->aux->arena) {
+			verbose(env,
+				"%s arena pointer requires a program with an associated arena\n",
+				reg_arg_name(env, argno));
+			return -EINVAL;
+		}
+		if (reg_from_argno(argno) < 0) {
+			verbose(env, "%s arena pointer cannot be a stack argument\n",
+				reg_arg_name(env, argno));
+			return -EINVAL;
+		}
+		/*
+		 * Both suffixes accept a constant zero. The function model determines
+		 * whether the JIT rebases it to the arena base or preserves NULL.
+		 * The common nullable path below records that verifier property.
+		 */
+		arg_type = KF_ARG_PTR_TO_ARENA;
+	} else if (arg + 1 < nargs &&
 		 (is_kfunc_arg_mem_size(meta->btf, &args[arg + 1]) ||
 		  is_kfunc_arg_const_mem_size(meta->btf, &args[arg + 1]))) {
 		if (!btf_type_is_void(ref_t) && !btf_type_is_scalar(ref_t) &&
@@ -12007,7 +12054,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
 
 		if (btf_type_is_ptr(t) && (bpf_register_is_null(reg) || type_may_be_null(reg->type)) &&
-		    !is_kfunc_arg_nullable(meta->btf, &args[i])) {
+		    !type_may_be_null(kf_arg_type)) {
 			verbose(env, "Possibly NULL pointer passed to trusted %s\n",
 				reg_arg_name(env, argno));
 			return -EACCES;
@@ -12060,6 +12107,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 		case KF_ARG_PTR_TO_TASK_WORK:
 		case KF_ARG_PTR_TO_IRQ_FLAG:
 		case KF_ARG_PTR_TO_RES_SPIN_LOCK:
+		case KF_ARG_PTR_TO_ARENA:
 			break;
 		case KF_ARG_PTR_TO_DYNPTR:
 			arg_type = ARG_PTR_TO_DYNPTR;
@@ -12124,6 +12172,13 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_call_arg_me
 				if (ret < 0)
 					return -EINVAL;
 				meta->ret_btf_id  = ret;
+			}
+			break;
+		case KF_ARG_PTR_TO_ARENA:
+			if (reg->type != PTR_TO_ARENA && reg->type != SCALAR_VALUE) {
+				verbose(env, "%s is not a pointer to arena or scalar\n",
+					reg_arg_name(env, argno));
+				return -EINVAL;
 			}
 			break;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
@@ -18630,6 +18685,7 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 {
 	const struct btf_type *t, *func_proto;
 	const struct bpf_struct_ops_desc *st_ops_desc;
+	const struct bpf_struct_ops_arg_info *arg_info;
 	const struct bpf_struct_ops *st_ops;
 	const struct btf_member *member;
 	struct bpf_prog *prog = env->prog;
@@ -18708,10 +18764,23 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 		return -EACCES;
 	}
 
-	for (i = 0; i < st_ops_desc->arg_info[member_idx].cnt; i++) {
-		if (st_ops_desc->arg_info[member_idx].info[i].refcounted) {
+	arg_info = &st_ops_desc->arg_info[member_idx];
+	for (i = 0; i < arg_info->cnt; i++) {
+		const struct bpf_ctx_arg_aux *info = &arg_info->info[i];
+
+		if (info->refcounted)
 			has_refcounted_arg = true;
-			break;
+		if (base_type(info->reg_type) == PTR_TO_ARENA) {
+			if (!bpf_jit_supports_arena_args()) {
+				verbose(env, "JIT does not support arena arguments\n");
+				return -ENOTSUPP;
+			}
+			if (!prog->aux->arena) {
+				verbose(env,
+					"arena argument of %s requires a program with an associated arena\n",
+					mname);
+				return -EINVAL;
+			}
 		}
 	}
 
@@ -18732,8 +18801,7 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 	prog->aux->attach_func_name = mname;
 	env->ops = st_ops->verifier_ops;
 
-	return bpf_prog_ctx_arg_info_init(prog, st_ops_desc->arg_info[member_idx].info,
-					  st_ops_desc->arg_info[member_idx].cnt);
+	return bpf_prog_ctx_arg_info_init(prog, arg_info->info, arg_info->cnt);
 }
 #define SECURITY_PREFIX "security_"
 
@@ -18999,6 +19067,16 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 		if (subprog == -1) {
 			bpf_log(log, "Subprog %s doesn't exist\n", tname);
 			return -EINVAL;
+		}
+		/*
+		 * A struct_ops indirect trampoline converts arena arguments
+		 * before invoking its program. A tracing or extension program
+		 * attached to the main program would see the converted offset as a
+		 * regular BTF pointer.
+		 */
+		if (subprog == 0 && bpf_prog_has_arena_ctx_arg(tgt_prog)) {
+			bpf_log(log, "Cannot attach to a target with arena context arguments\n");
+			return -EOPNOTSUPP;
 		}
 		if (aux->func && aux->func[subprog]->aux->exception_cb) {
 			bpf_log(log,
@@ -20135,11 +20213,13 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 		INIT_LIST_HEAD(&env->explored_states[i]);
 	INIT_LIST_HEAD(&env->free_list);
 
-	ret = bpf_check_btf_info_early(env, attr, uattr);
+	/* Prepare BTF and func_info needed to discover all subprograms. */
+	ret = bpf_prepare_btf_info(env, attr, uattr);
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = add_subprog_and_kfunc(env);
+	/* Discover all subprograms before validating their layout and BTF. */
+	ret = add_subprogs(env);
 	if (ret < 0)
 		goto skip_full_check;
 
@@ -20147,11 +20227,18 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 	if (ret < 0)
 		goto skip_full_check;
 
+	/* Validate BTF against the complete subprogram layout and apply CO-RE. */
 	ret = bpf_check_btf_info(env, attr, uattr);
 	if (ret < 0)
 		goto skip_full_check;
 
+	/* Validate instructions and resolve the program's referenced resources. */
 	ret = check_and_resolve_insns(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	/* Build kfunc prototypes after resolving program resources. */
+	ret = add_kfuncs(env);
 	if (ret < 0)
 		goto skip_full_check;
 

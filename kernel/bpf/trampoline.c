@@ -529,6 +529,36 @@ bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_a
 	return tnodes;
 }
 
+/*
+ * The arena base against which save_args() converts the arguments marked
+ * with BTF_FMODEL_ARENA_ARG. Only the struct_ops indirect trampoline
+ * converts: it dispatches to a single prog whose arena is known at
+ * generation time. Return 0 when there is nothing to convert.
+ */
+u64 bpf_tramp_arena_base(const struct btf_func_model *m,
+			 struct bpf_tramp_nodes *tnodes, u32 flags)
+{
+	const struct bpf_prog *prog;
+	int i;
+
+	if (!(flags & BPF_TRAMP_F_INDIRECT) ||
+	    tnodes[BPF_TRAMP_FENTRY].nr_nodes != 1)
+		return 0;
+
+	for (i = 0; i < m->nr_args; i++)
+		if (m->arg_flags[i] & BTF_FMODEL_ARENA_ARG)
+			break;
+	if (i == m->nr_args)
+		return 0;
+
+	/* Verification rejects an arena argument without an arena. */
+	prog = tnodes[BPF_TRAMP_FENTRY].nodes[0]->link->prog;
+	if (WARN_ON_ONCE(!prog->aux->arena))
+		return 0;
+
+	return bpf_arena_get_kern_vm_start(prog->aux->arena);
+}
+
 static void bpf_tramp_image_free(struct bpf_tramp_image *im)
 {
 	bpf_image_ksym_del(&im->ksym);
@@ -920,6 +950,13 @@ static int __bpf_trampoline_link_prog(struct bpf_tramp_node *node,
 	int cnt = 0, i;
 
 	kind = bpf_attach_type_to_tramp(node->link->prog);
+	/*
+	 * Arena ctx args are converted only by struct_ops indirect
+	 * trampolines. They must never be attached to a generic trampoline.
+	 */
+	if (WARN_ON_ONCE(bpf_prog_has_arena_ctx_arg(node->link->prog)))
+		return -ENOTSUPP;
+
 	if (tr->extension_prog)
 		/* cannot attach fentry/fexit if extension prog is attached.
 		 * cannot overwrite extension prog either.

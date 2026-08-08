@@ -1195,6 +1195,12 @@ struct bpf_prog_offload {
 /* The argument is signed. */
 #define BTF_FMODEL_SIGNED_ARG		BIT(1)
 
+/* The argument is an arena pointer. */
+#define BTF_FMODEL_ARENA_ARG		BIT(2)
+
+/* The argument is nullable. */
+#define BTF_FMODEL_NULLABLE_ARG		BIT(3)
+
 struct btf_func_model {
 	u8 ret_size;
 	u8 ret_flags;
@@ -1267,6 +1273,15 @@ struct bpf_tramp_nodes {
 	struct bpf_tramp_node *nodes[BPF_MAX_TRAMP_LINKS];
 	int nr_nodes;
 };
+
+/*
+ * The arena base against which a struct_ops trampoline converts the
+ * arguments marked with BTF_FMODEL_ARENA_ARG while saving them into the BPF
+ * ctx, ctx[arg] = (u32)(kaddr - kern_vm_start). Zero when the trampoline
+ * converts nothing.
+ */
+u64 bpf_tramp_arena_base(const struct btf_func_model *m,
+			 struct bpf_tramp_nodes *tnodes, u32 flags);
 
 struct bpf_tramp_run_ctx;
 
