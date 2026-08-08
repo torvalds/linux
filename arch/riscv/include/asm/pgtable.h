@@ -578,6 +578,14 @@ static inline void update_mmu_cache_range(struct vm_fault *vmf,
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SVVPTC))
 		return;
 
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SVINVAL)) {
+		local_sfence_w_inval();
+		while (nr--)
+			local_sinval_vma(address + nr * PAGE_SIZE, asid);
+		local_sfence_inval_ir();
+		return;
+	}
+
 	/*
 	 * The kernel assumes that TLBs don't cache invalid entries, but
 	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, not a
