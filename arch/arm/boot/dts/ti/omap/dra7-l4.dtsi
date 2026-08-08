@@ -64,7 +64,7 @@
 				ranges = <0 0 0x2000>;
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon", "simple-bus";
+					compatible = "ti,dra7-scm-conf", "syscon", "simple-bus";
 					reg = <0x0 0x1400>;
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -1695,9 +1695,9 @@
 				reg = <0x0 0x100>;
 				interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 				clock-frequency = <48000000>;
-			                        status = "disabled";
 				dmas = <&sdma_xbar 55>, <&sdma_xbar 56>;
 				dma-names = "tx", "rx";
+				status = "disabled";
 			};
 		};
 

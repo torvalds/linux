@@ -29,7 +29,7 @@
 		>;
 	};
 
- 	hsusb0_pins: hsusb0-pins {
+	hsusb0_pins: hsusb0-pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x21a2, PIN_OUTPUT | MUX_MODE0)		/* hsusb0_clk.hsusb0_clk */
 			OMAP3_CORE1_IOPAD(0x21a4, PIN_OUTPUT | MUX_MODE0)		/* hsusb0_stp.hsusb0_stp */

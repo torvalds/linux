@@ -420,7 +420,7 @@
 		st,mod-12b = <1>; /* 12-bit ADC */
 		st,ref-sel = <0>; /* internal ADC reference */
 		st,adc-freq = <1>; /* 3.25 MHz ADC clock speed */
-		st,sample-time = <4>; /* ADC converstion time: 80 clocks */
+		st,sample-time = <4>; /* ADC conversion time: 80 clocks */
 
 		stmpe_adc {
 			compatible = "st,stmpe-adc";

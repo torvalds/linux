@@ -99,7 +99,7 @@
 };
 
 &mmc1 {
-        status = "disabled";
+	status = "disabled";
 };
 
 &mmc2 {
@@ -111,7 +111,7 @@
 };
 
 &mmc3 {
-        status = "disabled";
+	status = "disabled";
 };
 
 &pincntl {

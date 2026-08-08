@@ -213,7 +213,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
 	clock-frequency = <400000>;
-	/* User DIP swithes [1:8] / User LEDS [1:2] */
+	/* User DIP switches [1:8] / User LEDS [1:2] */
 	tca6416: gpio@21 {
 		compatible = "ti,tca6416";
 		reg = <0x21>;

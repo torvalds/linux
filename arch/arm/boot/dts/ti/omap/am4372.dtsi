@@ -476,6 +476,17 @@
 					reg = <0x32000 0x58>;
 				};
 
+				pruss1_iep: iep@2e000 {
+					compatible = "ti,am4376-icss-iep";
+					reg = <0x2e000 0x31c>;
+					clocks = <&pruss1_iepclk_mux>;
+				};
+
+				pruss1_ecap: ecap@30000 {
+					compatible = "ti,pruss-ecap";
+					reg = <0x30000 0x60>;
+				};
+
 				pruss1_intc: interrupt-controller@20000 {
 					compatible = "ti,pruss-intc";
 					reg = <0x20000 0x2000>;

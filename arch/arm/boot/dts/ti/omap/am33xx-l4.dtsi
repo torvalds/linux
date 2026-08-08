@@ -308,7 +308,7 @@
 				};
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon", "simple-bus";
+					compatible = "ti,am3352-scm-conf", "syscon", "simple-bus";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -894,6 +894,17 @@
 				pruss_mii_rt: mii-rt@32000 {
 					compatible = "ti,pruss-mii", "syscon";
 					reg = <0x32000 0x58>;
+				};
+
+				pruss_iep: iep@2e000 {
+					compatible = "ti,am3356-icss-iep";
+					reg = <0x2e000 0x31c>;
+					clocks = <&pruss_iepclk_mux>;
+				};
+
+				pruss_ecap: ecap@30000 {
+					compatible = "ti,pruss-ecap";
+					reg = <0x30000 0x60>;
 				};
 
 				pruss_intc: interrupt-controller@20000 {
@@ -1859,7 +1870,7 @@
 
 			gpio2: gpio@0 {
 				compatible = "ti,omap4-gpio";
-                                gpio-ranges =	<&am33xx_pinmux  0 34 18>,
+				gpio-ranges =	<&am33xx_pinmux  0 34 18>,
 						<&am33xx_pinmux 18 77  4>,
 						<&am33xx_pinmux 22 56 10>;
 				gpio-controller;
