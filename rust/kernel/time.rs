@@ -246,7 +246,7 @@ impl<C: ClockSource> ops::Sub for Instant<C> {
     #[inline]
     fn sub(self, other: Instant<C>) -> Delta {
         Delta {
-            nanos: self.inner - other.inner,
+            value: self.inner - other.inner,
         }
     }
 }
@@ -258,7 +258,7 @@ impl<T: ClockSource> ops::Add<Delta> for Instant<T> {
     fn add(self, rhs: Delta) -> Self::Output {
         // INVARIANT: With arithmetic over/underflow checks enabled, this will panic if we overflow
         // (e.g. go above `KTIME_MAX`)
-        let res = self.inner + rhs.nanos;
+        let res = self.inner + rhs.value;
 
         // INVARIANT: With overflow checks enabled, we verify here that the value is >= 0
         #[cfg(CONFIG_RUST_OVERFLOW_CHECKS)]
@@ -278,7 +278,7 @@ impl<T: ClockSource> ops::Sub<Delta> for Instant<T> {
     fn sub(self, rhs: Delta) -> Self::Output {
         // INVARIANT: With arithmetic over/underflow checks enabled, this will panic if we overflow
         // (e.g. go above `KTIME_MAX`)
-        let res = self.inner - rhs.nanos;
+        let res = self.inner - rhs.value;
 
         // INVARIANT: With overflow checks enabled, we verify here that the value is >= 0
         #[cfg(CONFIG_RUST_OVERFLOW_CHECKS)]
@@ -291,14 +291,38 @@ impl<T: ClockSource> ops::Sub<Delta> for Instant<T> {
     }
 }
 
+mod private {
+    pub trait Sealed {}
+
+    impl Sealed for super::Nsec {}
+}
+
+/// A trait for time units.
+pub trait TimeUnit: private::Sealed {
+    /// The underlying representation of the time unit.
+    type Repr: Copy + Clone + PartialEq + PartialOrd + Eq + Ord + core::fmt::Debug;
+}
+
+/// A time unit of nanoseconds.
+///
+/// A [`Delta<Nsec>`] stores its value as [`i64`] nanoseconds and can represent
+/// any [`i64`] value, including negative, zero, and positive numbers.
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
+pub enum Nsec {}
+
+impl TimeUnit for Nsec {
+    type Repr = i64;
+}
+
 /// A span of time.
 ///
-/// This struct represents a span of time, with its value stored as nanoseconds.
-/// The value can represent any valid i64 value, including negative, zero, and
-/// positive numbers.
+/// The span is stored in the unit given by the type parameter `U` (see
+/// [`TimeUnit`]); its value has type `U::Repr`. `U` defaults to [`Nsec`], so a
+/// plain [`Delta`] is a span in nanoseconds. The value can be negative, zero, or
+/// positive.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
-pub struct Delta {
-    nanos: i64,
+pub struct Delta<U: TimeUnit = Nsec> {
+    value: U::Repr,
 }
 
 impl ops::Add for Delta {
@@ -307,7 +331,7 @@ impl ops::Add for Delta {
     #[inline]
     fn add(self, rhs: Self) -> Self {
         Self {
-            nanos: self.nanos + rhs.nanos,
+            value: self.value + rhs.value,
         }
     }
 }
@@ -315,7 +339,7 @@ impl ops::Add for Delta {
 impl ops::AddAssign for Delta {
     #[inline]
     fn add_assign(&mut self, rhs: Self) {
-        self.nanos += rhs.nanos;
+        self.value += rhs.value;
     }
 }
 
@@ -325,7 +349,7 @@ impl ops::Sub for Delta {
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         Self {
-            nanos: self.nanos - rhs.nanos,
+            value: self.value - rhs.value,
         }
     }
 }
@@ -333,7 +357,7 @@ impl ops::Sub for Delta {
 impl ops::SubAssign for Delta {
     #[inline]
     fn sub_assign(&mut self, rhs: Self) {
-        self.nanos -= rhs.nanos;
+        self.value -= rhs.value;
     }
 }
 
@@ -343,7 +367,7 @@ impl ops::Mul<i64> for Delta {
     #[inline]
     fn mul(self, rhs: i64) -> Self::Output {
         Self {
-            nanos: self.nanos * rhs,
+            value: self.value * rhs,
         }
     }
 }
@@ -351,7 +375,7 @@ impl ops::Mul<i64> for Delta {
 impl ops::MulAssign<i64> for Delta {
     #[inline]
     fn mul_assign(&mut self, rhs: i64) {
-        self.nanos *= rhs;
+        self.value *= rhs;
     }
 }
 
@@ -362,25 +386,25 @@ impl ops::Div for Delta {
     fn div(self, rhs: Self) -> Self::Output {
         #[cfg(CONFIG_64BIT)]
         {
-            self.nanos / rhs.nanos
+            self.value / rhs.value
         }
 
         #[cfg(not(CONFIG_64BIT))]
         {
             // SAFETY: This function is always safe to call regardless of the input values
-            unsafe { bindings::div64_s64(self.nanos, rhs.nanos) }
+            unsafe { bindings::div64_s64(self.value, rhs.value) }
         }
     }
 }
 
 impl Delta {
     /// A span of time equal to zero.
-    pub const ZERO: Self = Self { nanos: 0 };
+    pub const ZERO: Self = Self { value: 0 };
 
     /// Create a new [`Delta`] from a number of nanoseconds.
     #[inline]
     pub const fn from_nanos(nanos: i64) -> Self {
-        Self { nanos }
+        Self { value: nanos }
     }
 
     /// Create a new [`Delta`] from a number of microseconds.
@@ -391,7 +415,7 @@ impl Delta {
     #[inline]
     pub const fn from_micros(micros: i64) -> Self {
         Self {
-            nanos: micros.saturating_mul(NSEC_PER_USEC),
+            value: micros.saturating_mul(NSEC_PER_USEC),
         }
     }
 
@@ -403,7 +427,7 @@ impl Delta {
     #[inline]
     pub const fn from_millis(millis: i64) -> Self {
         Self {
-            nanos: millis.saturating_mul(NSEC_PER_MSEC),
+            value: millis.saturating_mul(NSEC_PER_MSEC),
         }
     }
 
@@ -415,7 +439,7 @@ impl Delta {
     #[inline]
     pub const fn from_secs(secs: i64) -> Self {
         Self {
-            nanos: secs.saturating_mul(NSEC_PER_SEC),
+            value: secs.saturating_mul(NSEC_PER_SEC),
         }
     }
 
@@ -434,7 +458,7 @@ impl Delta {
     /// Return the number of nanoseconds in the [`Delta`].
     #[inline]
     pub const fn as_nanos(self) -> i64 {
-        self.nanos
+        self.value
     }
 
     /// Return the smallest number of microseconds greater than or equal
@@ -487,7 +511,7 @@ impl Delta {
         #[cfg(CONFIG_64BIT)]
         {
             Self {
-                nanos: self.as_nanos() % i64::from(dividend),
+                value: self.as_nanos() % i64::from(dividend),
             }
         }
 
@@ -499,7 +523,7 @@ impl Delta {
             unsafe { bindings::div_s64_rem(self.as_nanos(), dividend, &mut rem) };
 
             Self {
-                nanos: i64::from(rem),
+                value: i64::from(rem),
             }
         }
     }
