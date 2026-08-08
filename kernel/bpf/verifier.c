@@ -19068,6 +19068,16 @@ int bpf_check_attach_target(struct bpf_verifier_log *log,
 			bpf_log(log, "Subprog %s doesn't exist\n", tname);
 			return -EINVAL;
 		}
+		/*
+		 * A struct_ops indirect trampoline converts arena arguments
+		 * before invoking its program. A tracing or extension program
+		 * attached to the main program would see the converted offset as a
+		 * regular BTF pointer.
+		 */
+		if (subprog == 0 && bpf_prog_has_arena_ctx_arg(tgt_prog)) {
+			bpf_log(log, "Cannot attach to a target with arena context arguments\n");
+			return -EOPNOTSUPP;
+		}
 		if (aux->func && aux->func[subprog]->aux->exception_cb) {
 			bpf_log(log,
 				"%s programs cannot attach to exception callback\n",
