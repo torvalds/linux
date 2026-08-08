@@ -2837,7 +2837,7 @@ int bpf_add_kfunc_call(struct bpf_verifier_env *env, u32 func_id, u16 offset)
 	return 0;
 }
 
-static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
+static int add_subprogs(struct bpf_verifier_env *env)
 {
 	struct bpf_subprog_info *subprog = env->subprog_info;
 	int i, ret, insn_cnt = env->prog->len, ex_cb_insn;
@@ -2849,8 +2849,7 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 		return ret;
 
 	for (i = 0; i < insn_cnt; i++, insn++) {
-		if (!bpf_pseudo_func(insn) && !bpf_pseudo_call(insn) &&
-		    !bpf_pseudo_kfunc_call(insn))
+		if (!bpf_pseudo_func(insn) && !bpf_pseudo_call(insn))
 			continue;
 
 		if (!env->bpf_capable) {
@@ -2858,11 +2857,7 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 			return -EPERM;
 		}
 
-		if (bpf_pseudo_func(insn) || bpf_pseudo_call(insn))
-			ret = add_subprog(env, i + insn->imm + 1);
-		else
-			ret = bpf_add_kfunc_call(env, insn->imm, insn->off);
-
+		ret = add_subprog(env, i + insn->imm + 1);
 		if (ret < 0)
 			return ret;
 	}
@@ -2896,6 +2891,28 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 	if (env->log.level & BPF_LOG_LEVEL2)
 		for (i = 0; i < env->subprog_cnt; i++)
 			verbose(env, "func#%d @%d\n", i, subprog[i].start);
+
+	return 0;
+}
+
+static int add_kfuncs(struct bpf_verifier_env *env)
+{
+	struct bpf_insn *insn = env->prog->insnsi;
+	int i, ret, insn_cnt = env->prog->len;
+
+	for (i = 0; i < insn_cnt; i++, insn++) {
+		if (!bpf_pseudo_kfunc_call(insn))
+			continue;
+
+		if (!env->bpf_capable) {
+			verbose(env, "loading/calling other bpf or kernel functions are allowed for CAP_BPF and CAP_SYS_ADMIN\n");
+			return -EPERM;
+		}
+
+		ret = bpf_add_kfunc_call(env, insn->imm, insn->off);
+		if (ret < 0)
+			return ret;
+	}
 
 	return 0;
 }
@@ -20140,7 +20157,13 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = add_subprog_and_kfunc(env);
+	/* Discover all subprograms before validating their layout and BTF. */
+	ret = add_subprogs(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	/* Collect the kfunc descriptors used during verification. */
+	ret = add_kfuncs(env);
 	if (ret < 0)
 		goto skip_full_check;
 
