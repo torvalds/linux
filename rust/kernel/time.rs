@@ -295,6 +295,7 @@ mod private {
     pub trait Sealed {}
 
     impl Sealed for super::Nsec {}
+    impl Sealed for super::Jiffy {}
 }
 
 /// A trait for time units.
@@ -314,6 +315,17 @@ impl TimeUnit for Nsec {
     type Repr = i64;
 }
 
+/// A time unit of jiffies.
+///
+/// A [`Delta<Jiffy>`] stores its value as [`isize`] jiffies and can represent
+/// any [`isize`] value, including negative, zero, and positive numbers.
+#[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
+pub enum Jiffy {}
+
+impl TimeUnit for Jiffy {
+    type Repr = isize;
+}
+
 /// A span of time.
 ///
 /// The span is stored in the unit given by the type parameter `U` (see
@@ -323,6 +335,20 @@ impl TimeUnit for Nsec {
 #[derive(Copy, Clone, PartialEq, PartialOrd, Eq, Ord, Debug)]
 pub struct Delta<U: TimeUnit = Nsec> {
     value: U::Repr,
+}
+
+impl Delta<Jiffy> {
+    /// Create a new [`Delta`] from a number of jiffies.
+    #[inline]
+    pub const fn from_jiffies(jiffies: isize) -> Self {
+        Self { value: jiffies }
+    }
+
+    /// Return the number of jiffies in the [`Delta`].
+    #[inline]
+    pub const fn as_jiffies(self) -> isize {
+        self.value
+    }
 }
 
 impl ops::Add for Delta {
