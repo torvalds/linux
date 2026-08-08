@@ -7,7 +7,7 @@
 #include <linux/reboot.h>
 #include <linux/pm.h>
 
-static void default_power_off(void)
+static void __noreturn default_power_off(void)
 {
 	while (1)
 		wait_for_interrupt();
