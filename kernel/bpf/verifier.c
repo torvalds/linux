@@ -20162,11 +20162,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 	if (ret < 0)
 		goto skip_full_check;
 
-	/* Collect the kfunc descriptors used during verification. */
-	ret = add_kfuncs(env);
-	if (ret < 0)
-		goto skip_full_check;
-
 	ret = check_subprogs(env);
 	if (ret < 0)
 		goto skip_full_check;
@@ -20176,7 +20171,13 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr, bpfptr_t uattr,
 	if (ret < 0)
 		goto skip_full_check;
 
+	/* Validate instructions and resolve the program's referenced resources. */
 	ret = check_and_resolve_insns(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	/* Build kfunc prototypes after resolving program resources. */
+	ret = add_kfuncs(env);
 	if (ret < 0)
 		goto skip_full_check;
 
