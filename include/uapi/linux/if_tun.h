@@ -69,6 +69,10 @@
 #define IFF_NAPI_FRAGS	0x0020
 /* Used in TUNSETIFF to bring up tun/tap without carrier */
 #define IFF_NO_CARRIER	0x0040
+/* Stop the queue instead of dropping when the internal ring is full, so an
+ * attached qdisc applies backpressure instead of being bypassed.
+ */
+#define IFF_BACKPRESSURE	0x0080
 #define IFF_NO_PI	0x1000
 /* This flag has no real effect */
 #define IFF_ONE_QUEUE	0x2000
