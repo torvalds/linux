@@ -528,6 +528,20 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 	hyp_vcpu->vcpu.arch.cflags = READ_ONCE(host_vcpu->arch.cflags);
 	hyp_vcpu->vcpu.arch.mp_state.mp_state = KVM_MP_STATE_STOPPED;
 
+	if (!pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
+		/*
+		 * Timer offsets are pointing to the untrusted KVM copy,
+		 * which is pinned in __pkvm_init_vm() for the VM life time.
+		 * It is worth noting that hyp_vm->host_kvm points to an EL2
+		 * linear map address and timer_get_offset() will use
+		 * kern_hyp_va() which is safe as it is idempotent.
+		 */
+		vcpu_vtimer(&hyp_vcpu->vcpu)->offset.vm_offset =
+			&hyp_vm->host_kvm->arch.timer_data.voffset;
+		vcpu_ptimer(&hyp_vcpu->vcpu)->offset.vm_offset =
+			&hyp_vm->host_kvm->arch.timer_data.poffset;
+	}
+
 	ret = pkvm_vcpu_init_sysregs(hyp_vcpu);
 	if (ret)
 		goto done;

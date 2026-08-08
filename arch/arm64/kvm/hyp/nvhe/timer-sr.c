@@ -45,11 +45,11 @@ void __timer_enable_traps(struct kvm_vcpu *vcpu)
 	/*
 	 * Disallow physical timer access for the guest
 	 * Physical counter access is allowed if no offset is enforced
-	 * or running protected (we don't offset anything in this case).
+	 * or running a protected VM (we don't offset anything in this case).
 	 */
 	clr = CNTHCTL_EL1PCEN;
-	if (is_protected_kvm_enabled() ||
-	    !kern_hyp_va(vcpu->kvm)->arch.timer_data.poffset)
+	if (vcpu_is_protected(vcpu) ||
+	    !timer_get_offset(vcpu_ptimer(vcpu)))
 		set |= CNTHCTL_EL1PCTEN;
 	else
 		clr |= CNTHCTL_EL1PCTEN;
