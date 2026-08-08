@@ -48,7 +48,7 @@ gateway_create()
 	ip -n ${g_ns} link add br0 type bridge
 	ip -n ${g_ns} link set br0 up
 	ip -n ${g_ns} addr add ${g_ip4}/24 dev br0
-	ip -n ${g_ns} addr add ${g_ip6}/24 dev br0
+	ip -n ${g_ns} addr add ${g_ip6}/24 dev br0 nodad
 }
 
 gateway_destroy()
@@ -75,7 +75,7 @@ server_create()
 
 	ip -n ${s_ns} link set bond0 up
 	ip -n ${s_ns} addr add ${s_ip4}/24 dev bond0
-	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0
+	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0 nodad
 }
 
 # Reset bond with new mode and options
@@ -97,9 +97,7 @@ bond_reset()
 
 	ip -n ${s_ns} link set bond0 up
 	ip -n ${s_ns} addr add ${s_ip4}/24 dev bond0
-	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0
-	# Wait for IPv6 address ready as it needs DAD
-	slowwait 2 ip netns exec ${s_ns} ping6 ${c_ip6} -c 1 -W 0.1 &> /dev/null
+	ip -n ${s_ns} addr add ${s_ip6}/24 dev bond0 nodad
 }
 
 server_destroy()
@@ -124,7 +122,7 @@ client_create()
 
 	ip -n ${c_ns} link set eth0 up
 	ip -n ${c_ns} addr add ${c_ip4}/24 dev eth0
-	ip -n ${c_ns} addr add ${c_ip6}/24 dev eth0
+	ip -n ${c_ns} addr add ${c_ip6}/24 dev eth0 nodad
 }
 
 client_destroy()
