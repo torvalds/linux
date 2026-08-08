@@ -48,6 +48,8 @@ traffic_test()
 	# shellcheck disable=SC2086 # needs split options
 	run_on "$neigh" "$MZ" "$neigh" -q -d 10usec -c "$num_rx" $pkt_format
 
+	hw_stats_settle "$int"
+
 	for i in "${!counters[@]}"; do
 		read -r int grp cnt target exact_check xfail_message \
 			<<< "${counters[$i]}"
