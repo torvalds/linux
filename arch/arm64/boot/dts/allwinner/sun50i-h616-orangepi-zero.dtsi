@@ -99,7 +99,7 @@
 	status = "okay";
 };
 
-&spi0  {
+&spi0 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>, <&spi0_cs0_pin>;

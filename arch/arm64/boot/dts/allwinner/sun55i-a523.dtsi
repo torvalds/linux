@@ -156,6 +156,13 @@
 			};
 
 			/omit-if-no-ref/
+			ir_rx_pin: ir-rx-pi-pin {
+				pins = "PI8";
+				allwinner,pinmux = <3>;
+				function = "cir_rx";
+			};
+
+			/omit-if-no-ref/
 			ledc_ph_pin: ledc-ph-pin {
 				pins = "PH19";
 				function = "ledc";
@@ -214,6 +221,13 @@
 				pins = "PB8";
 				function = "spdif";
 				allwinner,pinmux = <2>;
+			};
+
+			/omit-if-no-ref/
+			spdif_out_ph_pin: spdif-ph-pin {
+				pins = "PH7";
+				function = "spdif";
+				allwinner,pinmux = <4>;
 			};
 
 			/omit-if-no-ref/
@@ -325,6 +339,17 @@
 				      "iosc", "losc-fanout";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+		};
+
+		ir: ir@2005000 {
+			compatible = "allwinner,sun55i-a523-ir",
+				     "allwinner,sun6i-a31-ir";
+			reg = <0x02005000 0x400>;
+			interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_IR_RX>, <&ccu CLK_IR_RX>;
+			clock-names = "apb", "ir";
+			resets = <&ccu RST_BUS_IR_RX>;
+			status = "disabled";
 		};
 
 		ledc: led-controller@2008000 {
@@ -927,6 +952,24 @@
 				allwinner,pinmux = <2>;
 				function = "r_i2c0";
 			};
+
+			/omit-if-no-ref/
+			r_ir_rx_pin: r-ir-rx-pl-pin {
+				pins = "PL11";
+				allwinner,pinmux = <2>;
+				function = "s_cir_rx";
+			};
+		};
+
+		r_ir: ir@7040000 {
+			compatible = "allwinner,sun55i-a523-ir",
+				     "allwinner,sun6i-a31-ir";
+			reg = <0x07040000 0x400>;
+			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&r_ccu CLK_BUS_R_IR_RX>, <&r_ccu CLK_R_IR_RX>;
+			clock-names = "apb", "ir";
+			resets = <&r_ccu RST_BUS_R_IR_RX>;
+			status = "disabled";
 		};
 
 		pck600: power-controller@7060000 {
