@@ -220,6 +220,15 @@ class SphinxBuilder:
         self.pdflatex = os.environ.get("PDFLATEX", "xelatex")
 
         #
+        # Add localversion* to kernelversion if present
+        #
+        for file in glob(os.environ["srctree"] + "/localversion*"):
+            if not file.endswith(".orig"):
+                with open(file, 'r', encoding='utf-8') as f:
+                    text = f.read()
+                    self.kernelversion += text
+
+        #
         # Kernel main Makefile defines a PYTHON3 variable whose default is
         # "python3". When set to a different value, it allows running a
         # diferent version than the default official python3 package.
