@@ -4004,6 +4004,14 @@ int ip6_del_rt(struct net *net, struct fib6_info *rt, bool skip_notify)
 	return __ip6_del_rt(rt, &info);
 }
 
+int ip6_del_rt_reason(struct net *net, struct fib6_info *rt,
+		      enum rt_del_reason del_reason)
+{
+	struct nl_info info = { .nl_net = net };
+
+	return __ip6_del_rt(rt, &info);
+}
+
 static int __ip6_del_rt_siblings(struct fib6_info *rt, struct fib6_config *cfg)
 {
 	struct nl_info *info = &cfg->fc_nlinfo;
