@@ -626,7 +626,7 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 
 	ret = mark_block_group_to_copy(fs_info, src_device);
 	if (ret)
-		return ret;
+		goto leave;
 
 	down_write(&dev_replace->rwsem);
 	dev_replace->replace_task = current;
