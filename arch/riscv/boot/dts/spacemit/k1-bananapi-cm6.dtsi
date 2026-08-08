@@ -1,57 +1,28 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2025 Michael Opdenacker <michael.opdenacker@rootcommit.com>
+ * Copyright (C) 2026 Junhui Liu <junhui.liu@pigmoral.tech>
  */
-
-/dts-v1/;
 
 #include "k1.dtsi"
 #include "k1-pinctrl.dtsi"
 
 / {
-	model = "OrangePi R2S";
-	compatible = "xunlong,orangepi-r2s", "spacemit,k1";
+	model = "Banana Pi BPI-CM6 Module";
+	compatible = "bananapi,bpi-cm6", "spacemit,k1";
 
 	aliases {
+		i2c2 = &i2c2;
 		i2c8 = &i2c8;
-		serial0 = &uart0;
-		ethernet0 = &eth0;
-		ethernet1 = &eth1;
 	};
 
-	chosen {
-		stdout-path = "serial0";
-	};
-
-	pcie_vcc3v3: regulator-pcie-vcc3v3 {
+	reg_vcc_4v: regulator-vcc-4v {
 		compatible = "regulator-fixed";
-		regulator-name = "pcie_vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	vcc4v0: regulator-vcc4v0 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc4v0";
-		regulator-always-on;
-		regulator-boot-on;
+		regulator-name = "VCC4V0_SYS";
 		regulator-min-microvolt = <4000000>;
 		regulator-max-microvolt = <4000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
-
-	vcc5v0_usb: regulator-vcc5v0-usb {
-		compatible = "regulator-fixed";
-		enable-active-high;
-		gpios = <&gpio K1_GPIO(126) GPIO_ACTIVE_HIGH>;
-		regulator-name = "vcc5v0_usb";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-};
-
-&combo_phy {
-	status = "okay";
 };
 
 &emmc {
@@ -65,49 +36,58 @@
 };
 
 &eth0 {
+	nvmem-cells = <&mac_address 0>;
+	nvmem-cell-names = "mac-address";
 	phy-handle = <&rgmii0>;
 	phy-mode = "rgmii-id";
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_cfg>, <&gmac0_clk_ref_cfg>;
+	pinctrl-0 = <&gmac0_cfg>;
 	rx-internal-delay-ps = <0>;
 	tx-internal-delay-ps = <0>;
-	status = "okay";
 
 	mdio-bus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
 
-		reset-gpios = <&gpio K1_GPIO(110) GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio K1_GPIO(45) GPIO_ACTIVE_LOW>;
 		reset-delay-us = <10000>;
 		reset-post-delay-us = <100000>;
 
 		rgmii0: phy@1 {
 			reg = <0x1>;
-			motorcomm,auto-sleep-disabled;
 		};
 	};
 };
 
-&eth1 {
-	phy-handle = <&rgmii1>;
-	phy-mode = "rgmii-id";
+&pdma {
+	status = "okay";
+};
+
+&i2c2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1_cfg>, <&gmac1_clk_ref_cfg>;
-	rx-internal-delay-ps = <0>;
-	tx-internal-delay-ps = <250>;
+	pinctrl-0 = <&i2c2_0_cfg>;
 	status = "okay";
 
-	mdio-bus {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		vcc-supply = <&buck3_1v8>;
+		pagesize = <16>;
+		read-only;
+		size = <256>;
 
-		reset-gpios = <&gpio K1_GPIO(115) GPIO_ACTIVE_LOW>;
-		reset-delay-us = <10000>;
-		reset-post-delay-us = <100000>;
+		nvmem-layout {
+			compatible = "onie,tlv-layout";
 
-		rgmii1: phy@1 {
-			reg = <0x1>;
-			motorcomm,auto-sleep-disabled;
+			mac_address: mac-address {
+				#nvmem-cell-cells = <1>;
+			};
+
+			num-macs {
+			};
+
+			serial-number {
+			};
 		};
 	};
 };
@@ -121,13 +101,13 @@
 		compatible = "spacemit,p1";
 		reg = <0x41>;
 		interrupts = <64>;
-		vin1-supply = <&vcc4v0>;
-		vin2-supply = <&vcc4v0>;
-		vin3-supply = <&vcc4v0>;
-		vin4-supply = <&vcc4v0>;
-		vin5-supply = <&vcc4v0>;
-		vin6-supply = <&vcc4v0>;
-		aldoin-supply = <&vcc4v0>;
+		vin1-supply = <&reg_vcc_4v>;
+		vin2-supply = <&reg_vcc_4v>;
+		vin3-supply = <&reg_vcc_4v>;
+		vin4-supply = <&reg_vcc_4v>;
+		vin5-supply = <&reg_vcc_4v>;
+		vin6-supply = <&reg_vcc_4v>;
+		aldoin-supply = <&reg_vcc_4v>;
 		dldoin1-supply = <&buck5>;
 		dldoin2-supply = <&buck5>;
 
@@ -153,7 +133,7 @@
 				regulator-always-on;
 			};
 
-			buck4_3v3: buck4 {
+			buck4 {
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-ramp-delay = <5000>;
@@ -174,7 +154,7 @@
 				regulator-always-on;
 			};
 
-			aldo1_3v3: aldo1 {
+			aldo1: aldo1 {
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <3400000>;
 				regulator-boot-on;
@@ -234,54 +214,4 @@
 			};
 		};
 	};
-};
-
-&pcie1_phy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie1_3_cfg>;
-	status = "okay";
-};
-
-&pcie1_port {
-	phys = <&pcie1_phy>;
-	vpcie3v3-supply = <&pcie_vcc3v3>;
-};
-
-&pcie1 {
-	status = "okay";
-};
-
-&pcie2_phy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie2_4_cfg>;
-	status = "okay";
-};
-
-&pcie2_port {
-	phys = <&pcie2_phy>;
-	vpcie3v3-supply = <&pcie_vcc3v3>;
-};
-
-&pcie2 {
-	status = "okay";
-};
-
-&pdma {
-	status = "okay";
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_2_cfg>;
-	status = "okay";
-};
-
-&usbphy2 {
-	status = "okay";
-};
-
-&usb_dwc3 {
-	dr_mode = "host";
-	vbus-supply = <&vcc5v0_usb>;
-	status = "okay";
 };
