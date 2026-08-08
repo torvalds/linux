@@ -61,9 +61,9 @@ void __timer_enable_traps(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Trap the virtual counter/timer if we have a broken cntvoff
-	 * implementation.
+	 * implementation and non zero offset as in timer_set_traps()
 	 */
-	if (has_broken_cntvoff())
+	if (has_broken_cntvoff() && timer_get_offset(vcpu_vtimer(vcpu)))
 		set |= CNTHCTL_EL1TVT | CNTHCTL_EL1TVCT;
 
 	sysreg_clear_set(cnthctl_el2, clr, set);
