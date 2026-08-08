@@ -691,6 +691,12 @@ properties:
           - const: google,veyron
           - const: rockchip,rk3288
 
+      - description: Graperain G3568 series board
+        items:
+          - enum:
+              - graperain,g3568-v2
+          - const: rockchip,rk3568
+
       - description: H96 Max V58 TV Box
         items:
           - const: haochuangyi,h96-max-v58
@@ -730,6 +736,11 @@ properties:
         items:
           - const: hardkernel,odroid-m2
           - const: rockchip,rk3588s
+
+      - description: HINLINK H28K
+        items:
+          - const: hinlink,h28k
+          - const: rockchip,rk3528
 
       - description: HINLINK H66K / H68K
         items:
@@ -785,6 +796,11 @@ properties:
         items:
           - const: lckfb,tspi-rk3566
           - const: rockchip,rk3566
+
+      - description: LCKFB Taishan Pi 3M RK3576
+        items:
+          - const: lckfb,tspi-3m-rk3576
+          - const: rockchip,rk3576
 
       - description: LinkEase EasePi R1
         items:
@@ -1313,6 +1329,16 @@ properties:
           - const: turing,rk1
           - const: rockchip,rk3588
 
+      - description: Vicharak Axon
+        items:
+          - const: vicharak,axon
+          - const: rockchip,rk3588
+
+      - description: Vicharak Vaaman2
+        items:
+          - const: vicharak,vaaman2
+          - const: rockchip,rk3588
+
       - description: WolfVision PF5 mainboard
         items:
           - const: wolfvision,rk3568-pf5
@@ -1345,6 +1371,7 @@ properties:
         items:
           - enum:
               - xunlong,orangepi-5
+              - xunlong,orangepi-5-pro
               - xunlong,orangepi-5b
           - const: rockchip,rk3588s
 
@@ -1353,6 +1380,11 @@ properties:
           - const: xunlong,orangepi-cm5-base
           - const: xunlong,orangepi-cm5
           - const: rockchip,rk3588s
+
+      - description: Youyeetoo YY3588
+        items:
+          - const: youyeetoo,yy3588
+          - const: rockchip,rk3588
 
       - description: Zkmagic A95X Z2
         items:
