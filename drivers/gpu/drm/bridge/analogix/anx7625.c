@@ -2993,8 +2993,8 @@ static void anx7625_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id anx7625_id[] = {
-	{ "anx7625" },
-	{}
+	{ .name = "anx7625" },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(i2c, anx7625_id);

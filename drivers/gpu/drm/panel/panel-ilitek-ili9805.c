@@ -25,22 +25,8 @@
 #define ILI9805_SETEXTC_PARAMETER2		(0x98)
 #define ILI9805_SETEXTC_PARAMETER3		(0x05)
 
-#define ILI9805_INSTR(_delay, ...) { \
-		.delay = (_delay), \
-		.len = sizeof((u8[]) {__VA_ARGS__}), \
-		.data = (u8[]){__VA_ARGS__} \
-	}
-
-struct ili9805_instr {
-	size_t len;
-	const u8 *data;
-	u32 delay;
-};
-
 struct ili9805_desc {
-	const char *name;
-	const struct ili9805_instr *init;
-	const size_t init_length;
+	void (*init)(struct mipi_dsi_multi_context *ctx);
 	const struct drm_display_mode *mode;
 	u32 width_mm;
 	u32 height_mm;
@@ -56,65 +42,80 @@ struct ili9805 {
 	struct gpio_desc	*reset_gpio;
 };
 
-static const struct ili9805_instr gpm1780a0_init[] = {
-	ILI9805_INSTR(100, ILI9805_EXTCMD_CMD_SET_ENABLE_REG, ILI9805_SETEXTC_PARAMETER1,
-		      ILI9805_SETEXTC_PARAMETER2, ILI9805_SETEXTC_PARAMETER3),
-	ILI9805_INSTR(100, 0xFD, 0x0F, 0x10, 0x44, 0x00),
-	ILI9805_INSTR(0, 0xf8, 0x18, 0x02, 0x02, 0x18, 0x02, 0x02, 0x30, 0x00,
-		      0x00, 0x30, 0x00, 0x00, 0x30, 0x00, 0x00),
-	ILI9805_INSTR(0, 0xB8, 0x62),
-	ILI9805_INSTR(0, 0xF1, 0x00),
-	ILI9805_INSTR(0, 0xF2, 0x00, 0x58, 0x40),
-	ILI9805_INSTR(0, 0xF3, 0x60, 0x83, 0x04),
-	ILI9805_INSTR(0, 0xFC, 0x04, 0x0F, 0x01),
-	ILI9805_INSTR(0, 0xEB, 0x08, 0x0F),
-	ILI9805_INSTR(0, 0xe0, 0x00, 0x08, 0x0d, 0x0e, 0x0e, 0x0d, 0x0a, 0x08, 0x04,
-		      0x08, 0x0d, 0x0f, 0x0b, 0x1c, 0x14, 0x0a),
-	ILI9805_INSTR(0, 0xe1, 0x00, 0x08, 0x0d, 0x0e, 0x0e, 0x0d, 0x0a, 0x08, 0x04,
-		      0x08, 0x0d, 0x0f, 0x0b, 0x1c, 0x14, 0x0a),
-	ILI9805_INSTR(10, 0xc1, 0x13, 0x39, 0x19, 0x06),
-	ILI9805_INSTR(10, 0xc7, 0xe5),
-	ILI9805_INSTR(10, 0xB1, 0x00, 0x12, 0x14),
-	ILI9805_INSTR(10, 0xB4, 0x02),
-	ILI9805_INSTR(0, 0xBB, 0x14, 0x55),
-	ILI9805_INSTR(0, MIPI_DCS_SET_ADDRESS_MODE, 0x08),
-	ILI9805_INSTR(0, MIPI_DCS_SET_PIXEL_FORMAT, 0x77),
-	ILI9805_INSTR(0, 0x20),
-	ILI9805_INSTR(0, 0xB0, 0x01),
-	ILI9805_INSTR(0, 0xB6, 0x31, 0x00, 0xef),
-	ILI9805_INSTR(0, 0xDF, 0x23),
-	ILI9805_INSTR(0, 0xB9, 0x02, 0x00),
-};
+static void gpm1780a0_init(struct mipi_dsi_multi_context *ctx)
+{
+	mipi_dsi_dcs_write_seq_multi(ctx, ILI9805_EXTCMD_CMD_SET_ENABLE_REG,
+				     ILI9805_SETEXTC_PARAMETER1, ILI9805_SETEXTC_PARAMETER2,
+				     ILI9805_SETEXTC_PARAMETER3);
+	mipi_dsi_msleep(ctx, 100);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xfd, 0x0f, 0x10, 0x44, 0x00);
+	mipi_dsi_msleep(ctx, 100);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf8, 0x18, 0x02, 0x02, 0x18, 0x02, 0x02, 0x30, 0x00,
+				     0x00, 0x30, 0x00, 0x00, 0x30, 0x00, 0x00);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb8, 0x62);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf1, 0x00);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf2, 0x00, 0x58, 0x40);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf3, 0x60, 0x83, 0x04);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0x04, 0x0f, 0x01);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xeb, 0x08, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xe0, 0x00, 0x08, 0x0d, 0x0e, 0x0e, 0x0d, 0x0a, 0x08,
+				     0x04, 0x08, 0x0d, 0x0f, 0x0b, 0x1c, 0x14, 0x0a);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xe1, 0x00, 0x08, 0x0d, 0x0e, 0x0e, 0x0d, 0x0a, 0x08,
+				     0x04, 0x08, 0x0d, 0x0f, 0x0b, 0x1c, 0x14, 0x0a);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xc1, 0x13, 0x39, 0x19, 0x06);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xc7, 0xe5);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb1, 0x00, 0x12, 0x14);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb4, 0x02);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xbb, 0x14, 0x55);
+	mipi_dsi_dcs_write_seq_multi(ctx, MIPI_DCS_SET_ADDRESS_MODE, 0x08);
+	mipi_dsi_dcs_set_pixel_format_multi(ctx, 0x77);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0x20);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb0, 0x01);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb6, 0x31, 0x00, 0xef);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xdf, 0x23);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb9, 0x02, 0x00);
+}
 
-static const struct ili9805_instr tm041xdhg01_init[] = {
-	ILI9805_INSTR(100, ILI9805_EXTCMD_CMD_SET_ENABLE_REG, ILI9805_SETEXTC_PARAMETER1,
-		      ILI9805_SETEXTC_PARAMETER2, ILI9805_SETEXTC_PARAMETER3),
-	ILI9805_INSTR(100, 0xFD, 0x0F, 0x13, 0x44, 0x00),
-	ILI9805_INSTR(0, 0xf8, 0x18, 0x02, 0x02, 0x18, 0x02, 0x02, 0x30, 0x01,
-		      0x01, 0x30, 0x01, 0x01, 0x30, 0x01, 0x01),
-	ILI9805_INSTR(0, 0xB8, 0x74),
-	ILI9805_INSTR(0, 0xF1, 0x00),
-	ILI9805_INSTR(0, 0xF2, 0x00, 0x58, 0x40),
-	ILI9805_INSTR(0, 0xFC, 0x04, 0x0F, 0x01),
-	ILI9805_INSTR(0, 0xEB, 0x08, 0x0F),
-	ILI9805_INSTR(0, 0xe0, 0x01, 0x0d, 0x15, 0x0e, 0x0f, 0x0f, 0x0b, 0x08, 0x04,
-		      0x07, 0x0a, 0x0d, 0x0c, 0x15, 0x0f, 0x08),
-	ILI9805_INSTR(0, 0xe1, 0x01, 0x0d, 0x15, 0x0e, 0x0f, 0x0f, 0x0b, 0x08, 0x04,
-		      0x07, 0x0a, 0x0d, 0x0c, 0x15, 0x0f, 0x08),
-	ILI9805_INSTR(10, 0xc1, 0x15, 0x03, 0x03, 0x31),
-	ILI9805_INSTR(10, 0xB1, 0x00, 0x12, 0x14),
-	ILI9805_INSTR(10, 0xB4, 0x02),
-	ILI9805_INSTR(0, 0xBB, 0x14, 0x55),
-	ILI9805_INSTR(0, MIPI_DCS_SET_ADDRESS_MODE, 0x0a),
-	ILI9805_INSTR(0, MIPI_DCS_SET_PIXEL_FORMAT, 0x77),
-	ILI9805_INSTR(0, 0x20),
-	ILI9805_INSTR(0, 0xB0, 0x00),
-	ILI9805_INSTR(0, 0xB6, 0x01),
-	ILI9805_INSTR(0, 0xc2, 0x11),
-	ILI9805_INSTR(0, 0x51, 0xFF),
-	ILI9805_INSTR(0, 0x53, 0x24),
-	ILI9805_INSTR(0, 0x55, 0x00),
-};
+static void tm041xdhg01_init(struct mipi_dsi_multi_context *ctx)
+{
+	mipi_dsi_dcs_write_seq_multi(ctx, ILI9805_EXTCMD_CMD_SET_ENABLE_REG,
+				     ILI9805_SETEXTC_PARAMETER1, ILI9805_SETEXTC_PARAMETER2,
+				     ILI9805_SETEXTC_PARAMETER3);
+	mipi_dsi_msleep(ctx, 100);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xfd, 0x0f, 0x13, 0x44, 0x00);
+	mipi_dsi_msleep(ctx, 100);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf8, 0x18, 0x02, 0x02, 0x18, 0x02, 0x02, 0x30, 0x01,
+				     0x01, 0x30, 0x01, 0x01, 0x30, 0x01, 0x01);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb8, 0x74);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf1, 0x00);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xf2, 0x00, 0x58, 0x40);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xfc, 0x04, 0x0f, 0x01);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xeb, 0x08, 0x0f);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xe0, 0x01, 0x0d, 0x15, 0x0e, 0x0f, 0x0f, 0x0b, 0x08,
+				     0x04, 0x07, 0x0a, 0x0d, 0x0c, 0x15, 0x0f, 0x08);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xe1, 0x01, 0x0d, 0x15, 0x0e, 0x0f, 0x0f, 0x0b, 0x08,
+				     0x04, 0x07, 0x0a, 0x0d, 0x0c, 0x15, 0x0f, 0x08);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xc1, 0x15, 0x03, 0x03, 0x31);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb1, 0x00, 0x12, 0x14);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb4, 0x02);
+	mipi_dsi_msleep(ctx, 10);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xbb, 0x14, 0x55);
+	mipi_dsi_dcs_write_seq_multi(ctx, MIPI_DCS_SET_ADDRESS_MODE, 0x0a);
+	mipi_dsi_dcs_set_pixel_format_multi(ctx, 0x77);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0x20);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb0, 0x00);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xb6, 0x01);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0xc2, 0x11);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0x51, 0xff);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0x53, 0x24);
+	mipi_dsi_dcs_write_seq_multi(ctx, 0x55, 0x00);
+}
 
 static inline struct ili9805 *panel_to_ili9805(struct drm_panel *panel)
 {
@@ -148,47 +149,24 @@ static int ili9805_power_on(struct ili9805 *ctx)
 	return 0;
 }
 
-static int ili9805_power_off(struct ili9805 *ctx)
+static void ili9805_power_off(struct ili9805 *ctx)
 {
 	gpiod_set_value(ctx->reset_gpio, 0);
 	regulator_disable(ctx->dvdd);
 	regulator_disable(ctx->avdd);
-
-	return 0;
 }
 
 static int ili9805_activate(struct ili9805 *ctx)
 {
-	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct device *dev = &dsi->dev;
-	int i, ret;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	for (i = 0; i < ctx->desc->init_length; i++) {
-		const struct ili9805_instr *instr = &ctx->desc->init[i];
+	ctx->desc->init(&dsi_ctx);
 
-		ret = mipi_dsi_dcs_write_buffer(ctx->dsi, instr->data, instr->len);
-		if (ret < 0)
-			return ret;
+	mipi_dsi_dcs_exit_sleep_mode_multi(&dsi_ctx);
+	mipi_dsi_usleep_range(&dsi_ctx, 5000, 6000);
+	mipi_dsi_dcs_set_display_on_multi(&dsi_ctx);
 
-		if (instr->delay > 0)
-			msleep(instr->delay);
-	}
-
-	ret = mipi_dsi_dcs_exit_sleep_mode(ctx->dsi);
-	if (ret) {
-		dev_err(dev, "Failed to exit sleep mode (%d)\n", ret);
-		return ret;
-	}
-
-	usleep_range(5000, 6000);
-
-	ret = mipi_dsi_dcs_set_display_on(ctx->dsi);
-	if (ret) {
-		dev_err(dev, "Failed to set display ON (%d)\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return dsi_ctx.accum_err;
 }
 
 static int ili9805_prepare(struct drm_panel *panel)
@@ -209,27 +187,13 @@ static int ili9805_prepare(struct drm_panel *panel)
 	return 0;
 }
 
-static int ili9805_deactivate(struct ili9805 *ctx)
+static void ili9805_deactivate(struct ili9805 *ctx)
 {
-	struct mipi_dsi_device *dsi = ctx->dsi;
-	struct device *dev = &dsi->dev;
-	int ret;
+	struct mipi_dsi_multi_context dsi_ctx = { .dsi = ctx->dsi };
 
-	ret = mipi_dsi_dcs_set_display_off(ctx->dsi);
-	if (ret < 0) {
-		dev_err(dev, "Failed to set display OFF (%d)\n", ret);
-		return ret;
-	}
-
-	usleep_range(5000, 10000);
-
-	ret = mipi_dsi_dcs_enter_sleep_mode(ctx->dsi);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enter sleep mode (%d)\n", ret);
-		return ret;
-	}
-
-	return 0;
+	mipi_dsi_dcs_set_display_off_multi(&dsi_ctx);
+	mipi_dsi_usleep_range(&dsi_ctx, 5000, 10000);
+	mipi_dsi_dcs_enter_sleep_mode_multi(&dsi_ctx);
 }
 
 static int ili9805_unprepare(struct drm_panel *panel)
@@ -271,7 +235,7 @@ static const struct drm_display_mode tm041xdhg01_timing = {
 };
 
 static int ili9805_get_modes(struct drm_panel *panel,
-			      struct drm_connector *connector)
+			     struct drm_connector *connector)
 {
 	struct ili9805 *ctx = panel_to_ili9805(panel);
 	struct drm_display_mode *mode;
@@ -368,7 +332,6 @@ static void ili9805_dsi_remove(struct mipi_dsi_device *dsi)
 
 static const struct ili9805_desc gpm1780a0_desc = {
 	.init = gpm1780a0_init,
-	.init_length = ARRAY_SIZE(gpm1780a0_init),
 	.mode = &gpm1780a0_timing,
 	.width_mm = 65,
 	.height_mm = 65,
@@ -376,7 +339,6 @@ static const struct ili9805_desc gpm1780a0_desc = {
 
 static const struct ili9805_desc tm041xdhg01_desc = {
 	.init = tm041xdhg01_init,
-	.init_length = ARRAY_SIZE(tm041xdhg01_init),
 	.mode = &tm041xdhg01_timing,
 	.width_mm = 42,
 	.height_mm = 96,

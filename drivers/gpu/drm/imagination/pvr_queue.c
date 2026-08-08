@@ -17,6 +17,7 @@
 #include "pvr_rogue_fwif_client.h"
 
 #define MAX_DEADLINE_MS 30000
+#define SCHED_TIMEOUT_PERIOD (2 * MAX_DEADLINE_MS)
 
 #define CTX_COMPUTE_CCCB_SIZE_LOG2 15
 #define CTX_FRAG_CCCB_SIZE_LOG2 15
@@ -1283,7 +1284,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 		.submit_wq = pvr_dev->sched_wq,
 		.credit_limit = 64 * 1024,
 		.hang_limit = 1,
-		.timeout = msecs_to_jiffies(500),
+		.timeout = msecs_to_jiffies(SCHED_TIMEOUT_PERIOD),
 		.timeout_wq = pvr_dev->sched_wq,
 		.name = "pvr-queue",
 		.dev = pvr_dev->base.dev,

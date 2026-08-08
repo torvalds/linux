@@ -1229,8 +1229,8 @@ static void lt9611_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lt9611_id[] = {
-	{ "lontium,lt9611" },
-	{}
+	{ .name = "lontium,lt9611" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lt9611_id);
 

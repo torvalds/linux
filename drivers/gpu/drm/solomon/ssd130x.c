@@ -14,6 +14,7 @@
 #include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/math.h>
 #include <linux/property.h>
 #include <linux/pwm.h>
 #include <linux/regulator/consumer.h>
@@ -139,6 +140,11 @@
 #define SSD133X_SET_CLOCK_FREQ			0xb3
 #define SSD133X_SET_PRECHARGE_VOLTAGE		0xbb
 #define SSD133X_SET_VCOMH_VOLTAGE		0xbe
+
+/* ssd133x A/B/C channel contrast at full brightness (white balance) */
+#define SSD133X_DEFAULT_CONTRAST_A		0x91
+#define SSD133X_DEFAULT_CONTRAST_B		0x50
+#define SSD133X_DEFAULT_CONTRAST_C		0x7d
 
 #define MAX_CONTRAST 255
 
@@ -582,12 +588,37 @@ static int ssd132x_init(struct ssd130x_device *ssd130x)
 	return ssd130x_run_cmd_seq(ssd130x, cmds);
 }
 
-static int ssd133x_init(struct ssd130x_device *ssd130x)
+/* Scale a channel's white-balance calibration contrast by the requested brightness */
+static u8 ssd130x_scale_contrast(u8 calibration, u32 brightness)
+{
+	return DIV_ROUND_CLOSEST(calibration * brightness, MAX_CONTRAST);
+}
+
+/*
+ * The A/B/C contrast channels drive sub-pixels whose OLED materials differ
+ * in luminous efficiency, so the per-channel values are a white-balance
+ * calibration.  Scale them by the requested brightness instead of
+ * overwriting them, to keep the white point while dimming.
+ */
+static int ssd133x_set_contrast(struct ssd130x_device *ssd130x, u32 brightness)
 {
 	const u8 cmds[] = {
-		2, SSD133X_CONTRAST_A, 0x91,
-		2, SSD133X_CONTRAST_B, 0x50,
-		2, SSD133X_CONTRAST_C, 0x7d,
+		2, SSD133X_CONTRAST_A,
+		ssd130x_scale_contrast(SSD133X_DEFAULT_CONTRAST_A, brightness),
+		2, SSD133X_CONTRAST_B,
+		ssd130x_scale_contrast(SSD133X_DEFAULT_CONTRAST_B, brightness),
+		2, SSD133X_CONTRAST_C,
+		ssd130x_scale_contrast(SSD133X_DEFAULT_CONTRAST_C, brightness),
+		0,
+	};
+
+	return ssd130x_run_cmd_seq(ssd130x, cmds);
+}
+
+static int ssd133x_init(struct ssd130x_device *ssd130x)
+{
+	int ret;
+	const u8 cmds[] = {
 		2, SSD133X_SET_MASTER_CURRENT, 0x06,
 		3, SSD133X_SET_COL_RANGE, 0x00, ssd130x->width - 1,
 		3, SSD133X_SET_ROW_RANGE, 0x00, ssd130x->height - 1,
@@ -613,6 +644,10 @@ static int ssd133x_init(struct ssd130x_device *ssd130x)
 		2, SSD133X_SET_VCOMH_VOLTAGE, 0x3e,
 		0,
 	};
+
+	ret = ssd133x_set_contrast(ssd130x, ssd130x->contrast);
+	if (ret < 0)
+		return ret;
 
 	return ssd130x_run_cmd_seq(ssd130x, cmds);
 }
@@ -1676,8 +1711,25 @@ static int ssd130x_update_bl(struct backlight_device *bdev)
 	return 0;
 }
 
-static const struct backlight_ops ssd130xfb_bl_ops = {
-	.update_status	= ssd130x_update_bl,
+static int ssd133x_update_bl(struct backlight_device *bdev)
+{
+	struct ssd130x_device *ssd130x = bl_get_data(bdev);
+
+	ssd130x->contrast = backlight_get_brightness(bdev);
+
+	return ssd133x_set_contrast(ssd130x, ssd130x->contrast);
+}
+
+static const struct backlight_ops ssd130xfb_bl_ops[] = {
+	[SSD130X_FAMILY] = {
+		.update_status	= ssd130x_update_bl,
+	},
+	[SSD132X_FAMILY] = {
+		.update_status	= ssd130x_update_bl,
+	},
+	[SSD133X_FAMILY] = {
+		.update_status	= ssd133x_update_bl,
+	},
 };
 
 static void ssd130x_parse_properties(struct ssd130x_device *ssd130x)
@@ -1884,7 +1936,8 @@ struct ssd130x_device *ssd130x_probe(struct device *dev, struct regmap *regmap)
 		return ERR_PTR(ret);
 
 	bl = devm_backlight_device_register(dev, dev_name(dev), dev, ssd130x,
-					    &ssd130xfb_bl_ops, NULL);
+					    &ssd130xfb_bl_ops[ssd130x->device_info->family_id],
+					    NULL);
 	if (IS_ERR(bl))
 		return ERR_PTR(dev_err_probe(dev, PTR_ERR(bl),
 					     "Unable to register backlight device\n"));

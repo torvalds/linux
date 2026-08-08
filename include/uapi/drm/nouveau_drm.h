@@ -89,6 +89,7 @@ struct drm_nouveau_getparam {
 #define NOUVEAU_FIFO_ENGINE_PPP 0x04
 #define NOUVEAU_FIFO_ENGINE_BSP 0x08
 #define NOUVEAU_FIFO_ENGINE_CE  0x30
+#define NOUVEAU_FIFO_ENGINE_NVDEC 0x300
 
 struct drm_nouveau_channel_alloc {
 	__u32     fb_ctxdma_handle;

@@ -84,8 +84,10 @@ struct pvr_gem_object {
 	/**
 	 * @base: The underlying &struct drm_gem_shmem_object.
 	 *
-	 * Do not access this member directly, instead call
-	 * shem_gem_from_pvr_gem().
+	 * .. note::
+	 *
+	 *    This member should not be accessed directly, but instead by
+	 *    calling shmem_gem_from_pvr_gem().
 	 */
 	struct drm_gem_shmem_object base;
 
@@ -97,12 +99,6 @@ struct pvr_gem_object {
 	 * changed after creation.
 	 *
 	 * Must be a combination of DRM_PVR_BO_* and/or PVR_BO_* flags.
-	 *
-	 * .. note::
-	 *
-	 *    This member is declared const to indicate that none of these
-	 *    options may change or be changed throughout the object's
-	 *    lifetime.
 	 */
 	u64 flags;
 

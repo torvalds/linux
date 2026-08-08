@@ -22,12 +22,12 @@ struct pvr_device_features {
 	bool has_coreid_per_os;
 	bool has_dynamic_dust_power;
 	bool has_ecc_rams;
-	bool has_fb_cdc_v4;
-	bool has_fbc_max_default_descriptors;
-	bool has_fbc_max_large_descriptors;
 	bool has_fbcdc;
 	bool has_fbcdc_algorithm;
 	bool has_fbcdc_architecture;
+	bool has_fbc_max_default_descriptors;
+	bool has_fbc_max_large_descriptors;
+	bool has_fb_cdc_v4;
 	bool has_gpu_multicore_support;
 	bool has_gpu_virtualisation;
 	bool has_gs_rta_support;

@@ -10,7 +10,7 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		4
-#define DRIVER_PATCHLEVEL	2
+#define DRIVER_PATCHLEVEL	3
 
 /*
  * 1.1.1:
@@ -39,6 +39,8 @@
  *      - add variable page sizes and compression for Turing+
  * 1.4.2:
  *      - tell userspace LPTE/SPTE races are fixed.
+ * 1.4.3:
+ *      - VDEC contexts can be created.
  */
 
 #include <linux/notifier.h>

@@ -534,10 +534,10 @@ static void ps8622_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ps8622_i2c_table[] = {
-	/* Device type, max_lane_count */
-	{"ps8622", 1},
-	{"ps8625", 2},
-	{},
+	/* Device type, driver_data holds the maximal lane_count */
+	{ .name = "ps8622", .driver_data = 1 },
+	{ .name = "ps8625", .driver_data = 2 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ps8622_i2c_table);
 

@@ -1,6 +1,8 @@
 #ifndef __NV50_KMS_WNDW_H__
 #define __NV50_KMS_WNDW_H__
 #define nv50_wndw(p) container_of((p), struct nv50_wndw, plane)
+#include <drm/drm_blend.h>
+
 #include "disp.h"
 #include "atom.h"
 #include "lut.h"
@@ -44,6 +46,7 @@ void nv50_wndw_flush_clr(struct nv50_wndw *, u32 *interlock, bool flush,
 			 struct nv50_wndw_atom *);
 void nv50_wndw_ntfy_enable(struct nv50_wndw *, struct nv50_wndw_atom *);
 int nv50_wndw_wait_armed(struct nv50_wndw *, struct nv50_wndw_atom *);
+void nv50_wndw_default_state(struct nv50_wndw *wndw);
 
 struct nv50_wndw_func {
 	int (*acquire)(struct nv50_wndw *, struct nv50_wndw_atom *asyw,
@@ -74,6 +77,7 @@ struct nv50_wndw_func {
 	int (*image_clr)(struct nv50_wndw *);
 	int (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	unsigned int blend_modes;
 
 	int (*update)(struct nv50_wndw *, u32 *interlock);
 };
@@ -139,4 +143,11 @@ int wndwca7e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
 
 int nv50_wndw_new(struct nouveau_drm *, enum drm_plane_type, int index,
 		  struct nv50_wndw **);
+
+/* A set of blend modes supported by all wndws */
+#define WNDW_BLEND_MODES                \
+	(  BIT(DRM_MODE_BLEND_COVERAGE) \
+	 | BIT(DRM_MODE_BLEND_PREMULTI) \
+	 | BIT(DRM_MODE_BLEND_PIXEL_NONE))
+
 #endif

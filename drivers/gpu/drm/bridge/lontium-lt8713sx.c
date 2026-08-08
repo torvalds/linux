@@ -572,7 +572,7 @@ static void lt8713sx_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id lt8713sx_id[] = {
-	{ "lontium,lt8713sx", 0 },
+	{ .name = "lontium,lt8713sx" },
 	{ /* sentinel */ }
 };
 

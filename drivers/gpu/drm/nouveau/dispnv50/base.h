@@ -1,5 +1,7 @@
 #ifndef __NV50_KMS_BASE_H__
 #define __NV50_KMS_BASE_H__
+#include <drm/drm_blend.h>
+
 #include "wndw.h"
 
 int base507c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
@@ -24,4 +26,8 @@ extern const struct nv50_wndw_func base907c;
 int base917c_new(struct nouveau_drm *, int, s32, struct nv50_wndw **);
 
 int nv50_base_new(struct nouveau_drm *, int head, struct nv50_wndw **);
+
+/* The only blend mode supported by base channels */
+#define BASE_BLEND_MODES BIT(DRM_MODE_BLEND_PIXEL_NONE)
+
 #endif
