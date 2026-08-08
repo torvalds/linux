@@ -450,7 +450,7 @@
 	pdb_ti_hsc1: power-monitor@11 {
 		compatible = "ti,lm5066i";
 		reg = <0x11>;
-		shunt-resistor-micro-ohms = <763>;
+		shunt-resistor-micro-ohms = <1000>;
 	};
 
 	pdb_mps_hsc2: power-monitor@12 {
@@ -461,7 +461,7 @@
 	pdb_ti_hsc2: power-monitor@13 {
 		compatible = "ti,lm5066i";
 		reg = <0x13>;
-		shunt-resistor-micro-ohms = <294>;
+		shunt-resistor-micro-ohms = <321>;
 	};
 
 	pdb_mps_hsc3: power-monitor@14 {
@@ -472,7 +472,7 @@
 	pdb_ti_hsc3: power-monitor@15 {
 		compatible = "ti,lm5066i";
 		reg = <0x15>;
-		shunt-resistor-micro-ohms = <294>;
+		shunt-resistor-micro-ohms = <321>;
 	};
 
 	pdb_mps_hsc4: power-monitor@16 {
@@ -483,7 +483,7 @@
 	pdb_ti_hsc4: power-monitor@17 {
 		compatible = "ti,lm5066i";
 		reg = <0x17>;
-		shunt-resistor-micro-ohms = <381>;
+		shunt-resistor-micro-ohms = <500>;
 	};
 
 	pdb_ioexp_20: gpio@20 {
@@ -578,8 +578,8 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <ASPEED_GPIO(B, 6) IRQ_TYPE_LEVEL_LOW>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <ASPEED_GPIO(C, 6) IRQ_TYPE_LEVEL_LOW>;
 
 		gpio-line-names =
 			"", "", "", "",
@@ -592,7 +592,7 @@
 		pwrgd-rmc-hog {
 			gpio-hog;
 			gpios = <14 GPIO_ACTIVE_LOW>;
-			output-low;
+			output-high;
 		};
 	};
 
