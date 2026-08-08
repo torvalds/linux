@@ -1951,7 +1951,7 @@ static int smu_v15_0_8_set_performance_level(struct smu_context *smu,
 	struct smu_dpm_table *gfx_table = &dpm_context->dpm_tables.gfx_table;
 	struct smu_dpm_table *uclk_table = &dpm_context->dpm_tables.uclk_table;
 	struct smu_umd_pstate_table *pstate_table = &smu->pstate_table;
-	int ret;
+	int ret = 0;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM:
@@ -1991,9 +1991,6 @@ static int smu_v15_0_8_set_performance_level(struct smu_context *smu,
 			pstate_table->uclk_pstate.curr.max =
 				SMU_DPM_TABLE_MAX(uclk_table);
 		}
-
-		if (ret)
-			goto out;
 
 		smu_cmn_reset_custom_level(smu);
 
