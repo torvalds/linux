@@ -202,6 +202,11 @@ void __init apply_boot_alternatives(void)
 		apply_vdso_alternatives(vdso_cfi_start,
 					__vdso_alternatives_start_cfi_offset,
 					__vdso_alternatives_end_cfi_offset);
+
+	if (IS_ENABLED(CONFIG_COMPAT))
+		apply_vdso_alternatives(compat_vdso_start,
+					compat__vdso_alternatives_start_offset,
+					compat__vdso_alternatives_end_offset);
 }
 
 /*
