@@ -1919,7 +1919,11 @@ static void sfp_hwmon_remove(struct sfp *sfp)
 	if (!IS_ERR_OR_NULL(sfp->hwmon_dev)) {
 		hwmon_device_unregister(sfp->hwmon_dev);
 		sfp->hwmon_dev = NULL;
+	}
+
+	if (!IS_ERR_OR_NULL(sfp->hwmon_name)) {
 		kfree(sfp->hwmon_name);
+		sfp->hwmon_name = NULL;
 	}
 }
 
