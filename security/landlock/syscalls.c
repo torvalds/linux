@@ -169,7 +169,7 @@ static const struct file_operations ruleset_fops = {
  * If the change involves a fix that requires userspace awareness, also update
  * the errata documentation in Documentation/userspace-api/landlock.rst .
  */
-const int landlock_abi_version = 10;
+const int landlock_abi_version = 11;
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -502,11 +502,17 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  *         - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
  *         - %LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF
  *         - %LANDLOCK_RESTRICT_SELF_TSYNC
+ *         - %LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS
  *
  * This system call enforces a Landlock ruleset on the current thread.
  * Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
  * namespace or is running with no_new_privs.  This avoids scenarios where
  * unprivileged tasks can affect the behavior of privileged children.
+ *
+ * With %LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS, the no_new_privs attribute of the
+ * calling thread is set only once the enforcement of the ruleset succeeded,
+ * which fulfills the above requirement: no_new_privs is set if and only if the
+ * call succeeds.
  *
  * Return: 0 on success, or -errno on failure.  Possible returned errors are:
  *
@@ -514,9 +520,10 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * - %EINVAL: @flags contains an unknown bit.
  * - %EBADF: @ruleset_fd is not a file descriptor for the current thread;
  * - %EBADFD: @ruleset_fd is not a ruleset file descriptor;
- * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
- *   current thread is not running with no_new_privs, or it doesn't have
- *   %CAP_SYS_ADMIN in its namespace.
+ * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or
+ *   %LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS is not set while the current thread
+ *   is not running with no_new_privs and doesn't have %CAP_SYS_ADMIN in its
+ *   namespace.
  * - %E2BIG: The maximum number of stacked rulesets is reached for the current
  *   thread.
  *
@@ -541,9 +548,11 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 
 	/*
 	 * Similar checks as for seccomp(2), except that an -EPERM may be
-	 * returned.
+	 * returned.  LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS fulfills this
+	 * requirement.
 	 */
-	if (!task_no_new_privs(current) &&
+	if (!(flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) &&
+	    !task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -620,12 +629,16 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 
 	if (flags & LANDLOCK_RESTRICT_SELF_TSYNC) {
 		const int err = landlock_restrict_sibling_threads(
-			current_cred(), new_cred);
+			current_cred(), new_cred, flags);
 		if (err) {
 			abort_creds(new_cred);
 			return err;
 		}
 	}
+
+	/* Sets no_new_privs past the last point of failure. */
+	if (flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS)
+		task_set_no_new_privs(current);
 
 	return commit_creds(new_cred);
 }

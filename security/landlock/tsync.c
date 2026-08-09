@@ -17,6 +17,7 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/task_work.h>
+#include <uapi/linux/landlock.h>
 
 #include "cred.h"
 #include "tsync.h"
@@ -466,7 +467,8 @@ static void cancel_tsync_works(const struct tsync_works *works,
  * restrict_sibling_threads - enables a Landlock policy for all sibling threads
  */
 int landlock_restrict_sibling_threads(const struct cred *old_cred,
-				      const struct cred *new_cred)
+				      const struct cred *new_cred,
+				      const u32 restrict_flags)
 {
 	int err;
 	struct tsync_shared_context shared_ctx;
@@ -481,7 +483,9 @@ int landlock_restrict_sibling_threads(const struct cred *old_cred,
 	init_completion(&shared_ctx.all_finished);
 	shared_ctx.old_cred = old_cred;
 	shared_ctx.new_cred = new_cred;
-	shared_ctx.set_no_new_privs = task_no_new_privs(current);
+	shared_ctx.set_no_new_privs =
+		(restrict_flags & LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS) ||
+		task_no_new_privs(current);
 
 	/*
 	 * Serialize concurrent TSYNC operations to prevent deadlocks when

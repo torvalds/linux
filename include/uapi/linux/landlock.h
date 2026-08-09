@@ -191,12 +191,25 @@ struct landlock_ruleset_attr {
  *
  *     If the calling thread is running with no_new_privs, this operation
  *     enables no_new_privs on the sibling threads as well.
+ *
+ * The following flag ties the no_new_privs attribute to the ruleset
+ * enforcement:
+ *
+ * %LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS
+ *     Sets the no_new_privs attribute of the calling thread only once the
+ *     enforcement of the ruleset succeeded: no_new_privs is set if and only
+ *     if sys_landlock_restrict_self() succeeds.  This removes the need for a
+ *     prior :manpage:`prctl(2)` ``PR_SET_NO_NEW_PRIVS`` call (or
+ *     %CAP_SYS_ADMIN use).  This flag requires a ruleset.  When
+ *     combined with %LANDLOCK_RESTRICT_SELF_TSYNC, no_new_privs is set on the
+ *     sibling threads as well.
  */
 /* clang-format off */
 #define LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF		(1U << 0)
 #define LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON			(1U << 1)
 #define LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF		(1U << 2)
 #define LANDLOCK_RESTRICT_SELF_TSYNC				(1U << 3)
+#define LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS			(1U << 4)
 /* clang-format on */
 
 /**
