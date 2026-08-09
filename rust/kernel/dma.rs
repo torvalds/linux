@@ -449,7 +449,7 @@ impl<T: AsBytes + FromBytes> CoherentBox<[T]> {
         // - `T: AsBytes + FromBytes` guarantees all bit patterns are valid, so partial writes on
         //   error cannot leave the element in an invalid state.
         // - The DMA address has not been exposed yet, so there is no concurrent device access.
-        unsafe { init.__init(ptr)? };
+        unsafe { pin_init::raw_try_init(ptr, init)? };
 
         Ok(())
     }
@@ -791,10 +791,10 @@ impl<T: AsBytes + FromBytes> Coherent<T> {
 
         // SAFETY:
         // - `ptr` is valid, properly aligned, and points to exclusively owned memory.
-        // - If `__init` fails, `self` is dropped, which safely frees the underlying `Coherent`'s
-        //   DMA memory. `T: AsBytes + FromBytes` ensures there are no complex `Drop` requirements
-        //   we are bypassing.
-        unsafe { init.__init(ptr)? };
+        // - If `raw_try_init` fails, `self` is dropped, which safely frees the underlying
+        //   `Coherent`'s DMA memory. `T: AsBytes + FromBytes` ensures there are no complex `Drop`
+        //   requirements we are bypassing.
+        unsafe { pin_init::raw_try_init(ptr, init)? };
 
         Ok(dmem)
     }

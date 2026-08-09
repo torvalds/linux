@@ -717,7 +717,7 @@ impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid.
-        unsafe { init.__init(slot)? };
+        unsafe { pin_init::raw_try_init(slot, init)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { self.assume_init() })
     }
@@ -727,7 +727,7 @@ impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
         let slot = self.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
-        unsafe { init.__pinned_init(slot)? };
+        unsafe { pin_init::raw_try_init(slot, init)? };
         // SAFETY: All fields have been initialized.
         Ok(unsafe { self.assume_init() }.into())
     }
@@ -795,7 +795,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     #[inline]
     pub fn init_with<E>(mut self, init: impl Init<T, E>) -> core::result::Result<UniqueArc<T>, E> {
         // SAFETY: The supplied pointer is valid for initialization.
-        match unsafe { init.__init(self.as_mut_ptr()) } {
+        match unsafe { pin_init::raw_try_init(self.as_mut_ptr(), init) } {
             // SAFETY: Initialization completed successfully.
             Ok(()) => Ok(unsafe { self.assume_init() }),
             Err(err) => Err(err),
@@ -810,7 +810,7 @@ impl<T> UniqueArc<MaybeUninit<T>> {
     ) -> core::result::Result<Pin<UniqueArc<T>>, E> {
         // SAFETY: The supplied pointer is valid for initialization and we will later pin the value
         // to ensure it does not move.
-        match unsafe { init.__pinned_init(self.as_mut_ptr()) } {
+        match unsafe { pin_init::raw_try_init(self.as_mut_ptr(), init) } {
             // SAFETY: Initialization completed successfully.
             Ok(()) => Ok(unsafe { self.assume_init() }.into()),
             Err(err) => Err(err),
