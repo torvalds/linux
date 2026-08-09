@@ -1,5 +1,5 @@
 """Type stubs for the perf Python module."""
-from typing import Callable, Dict, List, Optional, Any, Iterator
+from typing import Callable, Dict, List, Optional, Any, Iterator, Union
 
 def config_get(name: str) -> Optional[str]:
     """Get a configuration value from perf config.
@@ -12,7 +12,7 @@ def config_get(name: str) -> Optional[str]:
     """
     ...
 
-def metrics() -> List[Dict[str, str]]:
+def metrics() -> List[Dict[str, Union[str, List[str]]]]:
     """Get a list of available metrics.
 
     Returns:
