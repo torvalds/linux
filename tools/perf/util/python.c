@@ -2825,6 +2825,8 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 
 	evlist = pevlist->evlist;
 	list = PyList_New(0);
+	if (!list)
+		return NULL;
 
 	for (i = 0; i < evlist__core(evlist)->pollfd.nr; ++i) {
 		PyObject *file;
@@ -2843,6 +2845,7 @@ static PyObject *pyrf_evlist__get_pollfd(struct pyrf_evlist *pevlist,
 
 	return list;
 free_list:
+	Py_XDECREF(list);
 	return PyErr_NoMemory();
 }
 
