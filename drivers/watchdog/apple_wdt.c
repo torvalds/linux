@@ -139,7 +139,7 @@ static int apple_wdt_restart(struct watchdog_device *wdd, unsigned long mode,
 	return 0;
 }
 
-static struct watchdog_ops apple_wdt_ops = {
+static const struct watchdog_ops apple_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = apple_wdt_start,
 	.stop = apple_wdt_stop,
@@ -149,7 +149,7 @@ static struct watchdog_ops apple_wdt_ops = {
 	.restart = apple_wdt_restart,
 };
 
-static struct watchdog_info apple_wdt_info = {
+static const struct watchdog_info apple_wdt_info = {
 	.identity = "Apple SoC Watchdog",
 	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
 };
