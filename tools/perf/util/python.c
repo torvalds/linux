@@ -3,6 +3,7 @@
 #include <Python.h>
 
 #include <inttypes.h>
+#include <string.h>
 
 #include <linux/err.h>
 #include <poll.h>
@@ -3627,7 +3628,7 @@ static int pyrf_data__init(struct pyrf_data *pdata, PyObject *args, PyObject *kw
 	if (pdata->data.open)
 		perf_data__close(&pdata->data);
 	free((char *)pdata->data.path);
-	pdata->data.path = NULL;
+	memset(&pdata->data, 0, sizeof(pdata->data));
 
 	if (fd != -1) {
 		struct stat st;
