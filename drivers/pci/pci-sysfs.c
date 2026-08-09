@@ -1212,6 +1212,9 @@ static ssize_t pci_resource_io(struct file *filp, struct kobject *kobj,
 	if (port + count - 1 > pci_resource_end(pdev, bar))
 		return -EINVAL;
 
+	if (!IS_ALIGNED(port, count))
+		return -EINVAL;
+
 	switch (count) {
 	case 1:
 		if (write)
