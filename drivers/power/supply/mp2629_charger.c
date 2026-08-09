@@ -13,7 +13,6 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/mp2629.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>

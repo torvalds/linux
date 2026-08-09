@@ -367,7 +367,7 @@ static long nsm_dev_ioctl(struct file *file, unsigned int cmd,
 	/* Copy user argument struct to kernel argument struct */
 	r = -EFAULT;
 	if (copy_from_user(&raw, argp, _IOC_SIZE(cmd)))
-		goto out;
+		return r;
 
 	mutex_lock(&nsm->lock);
 
@@ -413,6 +413,7 @@ static int nsm_device_init_vq(struct virtio_device *vdev)
 }
 
 static const struct file_operations nsm_dev_fops = {
+	.owner = THIS_MODULE,
 	.unlocked_ioctl = nsm_dev_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };

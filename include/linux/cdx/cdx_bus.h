@@ -11,7 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/cdx.h>
 #include <linux/msi.h>
 
 #define MAX_CDX_DEV_RESOURCES	4

@@ -337,7 +337,7 @@
 #define MMUEXT_MARK_SUPER       19
 #define MMUEXT_UNMARK_SUPER     20
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 struct mmuext_op {
 	unsigned int cmd;
 	union {
@@ -415,7 +415,7 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 
 #define MAX_VMASST_TYPE 5
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 typedef uint16_t domid_t;
 
@@ -760,11 +760,11 @@ struct tmem_op {
 
 DEFINE_GUEST_HANDLE(u64);
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 /* In assembly code we cannot use C numeric constant suffixes. */
 #define mk_unsigned_long(x) x
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #endif /* __XEN_PUBLIC_XEN_H__ */

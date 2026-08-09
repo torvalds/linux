@@ -98,11 +98,11 @@ measures whose purpose is to avoid crossing a security boundary when certain
 classes of bugs are found, but a failure of these extra protections do not
 constitute a vulnerability alone.
 
-What does not constitute a security bug
----------------------------------------
+What classes of problems are not considered vulnerabilities
+-----------------------------------------------------------
 
 In the Linux kernel's threat model, the following classes of problems are
-**NOT** considered as Linux Kernel security bugs. However, when it is believed
+**NOT** considered Linux Kernel vulnerabilities. However, when it is believed
 that the kernel could do better, they should be reported, so that they can be
 reviewed and fixed where reasonably possible, but they will be handled as any
 regular bug:
@@ -111,8 +111,8 @@ regular bug:
 
   * outdated kernels and particularly end-of-life branches are out of the scope
     of the kernel's threat model: administrators are responsible for keeping
-    their system up to date. For a bug to qualify as a security bug, it must be
-    demonstrated that it affects actively maintained versions.
+    their system up to date. For a bug to qualify as a vulnerability, it must
+    be demonstrated that it affects actively maintained versions.
 
   * build-level: changes to the kernel configuration that are explicitly
     documented as lowering the security level (e.g. ``CONFIG_NOMMU``), or
@@ -178,9 +178,6 @@ regular bug:
     involving tens of millions of threads, tens of thousands of CPUs,
     unrealistic CPU frequencies, RAM sizes or disk capacities, network speeds).
 
-  * issues whose reproduction requires hardware modification or emulation,
-    including fake USB devices that pretend to be another one.
-
   * as well as issues that can be triggered at a cost that is orders of
     magnitude higher than the expected benefits (e.g. fully functional keyboard
     emulator only to retrieve 7 uninitialized bytes in a structure, or
@@ -208,18 +205,26 @@ regular bug:
     messages.
 
   * Leaks of kernel memory addresses/pointers do not constitute an immediately
-    exploitable vector and are not security bugs, though they must be reported
-    and fixed.
+    exploitable vector and are not vulnerabilities, though they must be
+    reported and fixed.
 
-* **Crafted file system images**:
+* **Non-conforming devices and media**:
+
+  Drivers are implemented against a specification. When a device or a storage
+  medium violates the specification its driver was written against, the
+  resulting misbehaviour is a regular bug to be fixed, not a vulnerability,
+  unless the driver is specifically documented as being hardened against
+  hostile inputs. The following are therefore not considered vulnerabilities:
 
   * bugs triggered by mounting a corrupted or maliciously crafted file system
-    image are generally not security bugs, as the kernel assumes the underlying
-    storage media is under the administrator's control, unless the filesystem
-    driver is specifically documented as being hardened against untrusted media.
-
-  * issues that are resolved, mitigated, or detected by running a filesystem
+    image: mounting a block device is a privileged operation (see above), and
+    the administrator is responsible for the media they mount. This includes
+    issues that are resolved, mitigated, or detected by running a filesystem
     consistency check (fsck) on the image prior to mounting.
+
+  * bugs whose reproduction requires hardware modification or emulation,
+    including fake USB devices that pretend to be another one, or devices
+    reporting values outside their documented ranges.
 
 * **Physical access**:
 
@@ -232,4 +237,4 @@ regular bug:
 * **Functional and performance regressions**:
 
   Any issue that can be mitigated by setting proper permissions and limits
-  doesn't qualify as a security bug.
+  doesn't qualify as a vulnerability.

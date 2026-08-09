@@ -8,7 +8,6 @@
 #include <linux/firmware/imx/sci.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>

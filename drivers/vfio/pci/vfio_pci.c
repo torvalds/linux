@@ -125,9 +125,30 @@ static int vfio_pci_open_device(struct vfio_device *core_vdev)
 	return 0;
 }
 
+static int vfio_pci_init_dev(struct vfio_device *core_vdev)
+{
+	struct vfio_pci_core_device *vdev =
+		container_of(core_vdev, struct vfio_pci_core_device, vdev);
+
+	/*
+	 * These behaviors originated in vfio-pci and moved into
+	 * vfio-pci-core when the driver was split; vfio-pci remains the
+	 * only driver that toggles them.  Latch our module parameters per
+	 * device at init time so that later parameter changes do not
+	 * affect already-initialized devices.
+	 */
+	vdev->nointxmask = nointxmask;
+	vdev->disable_idle_d3 = disable_idle_d3;
+#ifdef CONFIG_VFIO_PCI_VGA
+	vdev->disable_vga = disable_vga;
+#endif
+
+	return vfio_pci_core_init_dev(core_vdev);
+}
+
 static const struct vfio_device_ops vfio_pci_ops = {
 	.name		= "vfio-pci",
-	.init		= vfio_pci_core_init_dev,
+	.init		= vfio_pci_init_dev,
 	.release	= vfio_pci_core_release_dev,
 	.open_device	= vfio_pci_open_device,
 	.close_device	= vfio_pci_core_close_device,
@@ -256,13 +277,6 @@ static void __init vfio_pci_fill_ids(void)
 static int __init vfio_pci_init(void)
 {
 	int ret;
-	bool is_disable_vga = true;
-
-#ifdef CONFIG_VFIO_PCI_VGA
-	is_disable_vga = disable_vga;
-#endif
-
-	vfio_pci_core_set_params(nointxmask, is_disable_vga, disable_idle_d3);
 
 	/* Register and scan for devices */
 	ret = pci_register_driver(&vfio_pci_driver);

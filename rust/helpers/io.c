@@ -3,6 +3,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 
+#ifdef CONFIG_HAS_IOMEM
 __rust_helper void __iomem *rust_helper_ioremap(phys_addr_t offset, size_t size)
 {
 	return ioremap(offset, size);
@@ -18,6 +19,7 @@ __rust_helper void rust_helper_iounmap(void __iomem *addr)
 {
 	iounmap(addr);
 }
+#endif /* CONFIG_HAS_IOMEM */
 
 __rust_helper void rust_helper_memcpy_fromio(void *dst,
 					     const volatile void __iomem *src,

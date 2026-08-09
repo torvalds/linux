@@ -1287,7 +1287,6 @@ static struct sk_buff *cake_ack_filter(struct cake_sched_data *q,
 
 			seglen = ipv6_payload_len(skb, ipv6h_check);
 		} else {
-			WARN_ON(1);  /* shouldn't happen */
 			continue;
 		}
 
@@ -1389,10 +1388,7 @@ static u32 cake_calc_overhead(struct cake_sched_data *qd, u32 len, u32 off)
 	if (qd->min_netlen > len)
 		WRITE_ONCE(qd->min_netlen, len);
 
-	len += q->rate_overhead;
-
-	if (len < q->rate_mpu)
-		len = q->rate_mpu;
+	len = max((s32)len + q->rate_overhead, (s32)q->rate_mpu);
 
 	if (q->atm_mode == CAKE_ATM_ATM) {
 		len += 47;
@@ -1730,7 +1726,7 @@ static u32 cake_classify(struct Qdisc *sch, struct cake_tin_data **t,
 		goto hash;
 
 	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
-	result = tcf_classify(skb, NULL, filter, &res, false);
+	result = tcf_classify_qdisc(skb, filter, &res, false);
 
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -2612,9 +2608,11 @@ static void cake_configure_rates(struct Qdisc *sch, u64 rate, bool rate_adjust)
 		break;
 	}
 
-	for (c = qd->tin_cnt; c < CAKE_MAX_TINS; c++) {
-		cake_clear_tin(sch, c);
-		qd->tins[c].cparams.mtu_time = qd->tins[ft].cparams.mtu_time;
+	if (!rate_adjust) {
+		for (c = qd->tin_cnt; c < CAKE_MAX_TINS; c++) {
+			cake_clear_tin(sch, c);
+			qd->tins[c].cparams.mtu_time = qd->tins[ft].cparams.mtu_time;
+		}
 	}
 
 	qd->rate_ns   = qd->tins[ft].tin_rate_ns;

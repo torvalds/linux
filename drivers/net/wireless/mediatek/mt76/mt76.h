@@ -1647,7 +1647,7 @@ int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
 int mt76_testmode_set_state(struct mt76_phy *phy, enum mt76_testmode_state state);
 int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len);
 
-#ifdef CONFIG_MT76_NPU
+#if IS_ENABLED(CONFIG_MT76_NPU)
 void mt76_npu_check_ppe(struct mt76_dev *dev, struct sk_buff *skb,
 			u32 info);
 int mt76_npu_dma_add_buf(struct mt76_phy *phy, struct mt76_queue *q,
@@ -1736,12 +1736,12 @@ static inline int mt76_npu_send_txrx_addr(struct mt76_dev *dev, int ifindex,
 
 static inline bool mt76_npu_device_active(struct mt76_dev *dev)
 {
-	return !!rcu_access_pointer(dev->mmio.npu);
+	return mt76_is_mmio(dev) && !!rcu_access_pointer(dev->mmio.npu);
 }
 
 static inline bool mt76_ppe_device_active(struct mt76_dev *dev)
 {
-	return !!rcu_access_pointer(dev->mmio.ppe_dev);
+	return mt76_is_mmio(dev) && !!rcu_access_pointer(dev->mmio.ppe_dev);
 }
 
 static inline int mt76_npu_send_msg(struct airoha_npu *npu, int ifindex,

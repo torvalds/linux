@@ -1370,16 +1370,19 @@ int kvm_pgtable_stage2_relax_perms(struct kvm_pgtable *pgt, u64 addr,
 	if (prot & KVM_PGTABLE_PROT_W)
 		set |= KVM_PTE_LEAF_ATTR_LO_S2_S2AP_W;
 
-	ret = stage2_set_xn_attr(prot, &xn);
-	if (ret)
-		return ret;
+	if (prot & KVM_PGTABLE_PROT_X) {
+		ret = stage2_set_xn_attr(prot, &xn);
+		if (ret)
+			return ret;
 
-	set |= xn & KVM_PTE_LEAF_ATTR_HI_S2_XN;
-	clr |= ~xn & KVM_PTE_LEAF_ATTR_HI_S2_XN;
+		set |= xn & KVM_PTE_LEAF_ATTR_HI_S2_XN;
+		clr |= ~xn & KVM_PTE_LEAF_ATTR_HI_S2_XN;
+	}
 
 	ret = stage2_update_leaf_attrs(pgt, addr, 1, set, clr, NULL, &level, flags);
 	if (!ret || ret == -EAGAIN)
-		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa_nsh, pgt->mmu, addr, level);
+		kvm_call_hyp(__kvm_tlb_flush_vmid_ipa_nsh, pgt->mmu, addr,
+			     (ret == -EAGAIN) ? TLBI_TTL_UNKNOWN : level);
 	return ret;
 }
 

@@ -2562,9 +2562,12 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 				     "Couldn't get our power regulator\n");
 
 	ctx->iovcc = devm_regulator_get_optional(&dsi->dev, "iovcc");
-	if (IS_ERR(ctx->iovcc))
-		return dev_err_probe(&dsi->dev, PTR_ERR(ctx->iovcc),
+	if (IS_ERR(ctx->iovcc)) {
+		if (PTR_ERR(ctx->iovcc) != -ENODEV)
+			return dev_err_probe(&dsi->dev, PTR_ERR(ctx->iovcc),
 				     "Couldn't get our iovcc regulator\n");
+		ctx->iovcc = NULL;
+	}
 
 	ctx->reset = devm_gpiod_get_optional(&dsi->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset))

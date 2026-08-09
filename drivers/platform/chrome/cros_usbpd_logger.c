@@ -8,7 +8,6 @@
 #include <linux/devm-helpers.h>
 #include <linux/ktime.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>

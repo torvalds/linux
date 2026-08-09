@@ -8,7 +8,6 @@
  * Copyright (c) 2017 Andreas Färber
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>

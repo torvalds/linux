@@ -226,4 +226,21 @@ int null_check(void *ctx)
 	return 0;
 }
 
+SEC("socket")
+__success
+__retval(1)
+int ldx_is_ok_commuted_addr(void *ctx)
+{
+	int v, *p, *derived;
+
+	v = 1;
+	p = bpf_rdonly_cast(&v, 0);
+	asm volatile ("%[dst] = 0;"
+		"%[dst] += %[src];"
+		: [dst]"=&r"(derived)
+		: [src]"r"(p)
+		: "memory");
+	return *derived;
+}
+
 char _license[] SEC("license") = "GPL";

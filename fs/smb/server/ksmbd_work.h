@@ -67,6 +67,13 @@ struct ksmbd_work {
 	/* Number of granted credits */
 	unsigned int			credits_granted;
 
+	/*
+	 * Credit charge added to conn->outstanding_credits at receive time
+	 * for the SMB2 PDU currently being processed, pending release.  Zero
+	 * once the charge has been returned (on the response or error path).
+	 */
+	unsigned short			credit_charge;
+
 	/* response smb header size */
 	unsigned int                    response_sz;
 

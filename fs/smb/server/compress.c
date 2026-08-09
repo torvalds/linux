@@ -46,17 +46,27 @@ int ksmbd_decompress_request(struct ksmbd_conn *conn)
 		return -EINVAL;
 
 	orig_size = le32_to_cpu(hdr->OriginalCompressedSegmentSize);
+	/*
+	 * For chained transforms the top-level header is only eight bytes; the
+	 * Flags field overlays the first payload header. Reject unknown Flags
+	 * and unnegotiated chained mode before allocating the output buffer.
+	 */
 	if (hdr->Flags == cpu_to_le16(SMB2_COMPRESSION_FLAG_CHAINED)) {
+		if (!conn->compress_chained)
+			return -EINVAL;
 		out_size = orig_size;
-	} else {
+	} else if (hdr->Flags == cpu_to_le16(SMB2_COMPRESSION_FLAG_NONE)) {
 		offset = le32_to_cpu(hdr->Offset);
 		if (offset > pdu_size - sizeof(*hdr) ||
 		    check_add_overflow(orig_size, offset, &out_size))
 			return -EINVAL;
+	} else {
+		return -EINVAL;
 	}
 
-	max_allowed_pdu_size = SMB3_MAX_MSGSIZE + conn->vals->max_write_size;
-	if (out_size > max_allowed_pdu_size ||
+	max_allowed_pdu_size = ksmbd_max_allowed_pdu_size(conn);
+	if (out_size < sizeof(struct smb2_pdu) ||
+	    out_size > max_allowed_pdu_size ||
 	    out_size > MAX_STREAM_PROT_LEN)
 		return -EINVAL;
 
@@ -68,6 +78,7 @@ int ksmbd_decompress_request(struct ksmbd_conn *conn)
 	*(__be32 *)out = cpu_to_be32(out_size);
 	rc = smb_compression_decompress(conn->compress_algorithm,
 					conn->compress_chained,
+					conn->compress_pattern,
 					buf, pdu_size, out + 4, out_size);
 	if (rc) {
 		kvfree(out);

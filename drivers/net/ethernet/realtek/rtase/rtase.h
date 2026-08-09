@@ -192,6 +192,12 @@ enum rtase_sw_flag_content {
 	RTASE_SWF_MSIX_ENABLED = BIT(2),
 };
 
+enum rtase_parse_result {
+	RTASE_PARSE_OK,
+	RTASE_PARSE_SKIP,
+	RTASE_PARSE_DROP,
+};
+
 #define RSVD_MASK 0x3FFFC000
 
 struct rtase_tx_desc {
@@ -362,5 +368,7 @@ struct rtase_private {
 #define RTASE_TCPHO_MASK GENMASK(24, 18)
 
 #define RTASE_MSS_MASK GENMASK(28, 18)
+
+#define RTASE_MIN_PAD_LEN 47
 
 #endif /* RTASE_H */

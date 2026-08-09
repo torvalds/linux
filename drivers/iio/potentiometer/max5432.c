@@ -11,7 +11,6 @@
 #include <linux/iio/iio.h>
 #include <linux/limits.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
 /* All chip variants have 32 wiper positions. */

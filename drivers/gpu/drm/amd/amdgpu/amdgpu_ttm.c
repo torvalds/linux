@@ -208,9 +208,10 @@ static int amdgpu_ttm_map_buffer(struct amdgpu_ttm_buffer_entity *entity,
 	void *cpu_addr;
 	uint64_t flags;
 	int r;
+	const u64 GTT_MAX_PAGES = (AMDGPU_GTT_MAX_TRANSFER_SIZE >> PAGE_SHIFT);
 
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
-	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
+	       GTT_MAX_PAGES * AMDGPU_GPU_PAGES_IN_CPU_PAGE * 8);
 
 	if (WARN_ON(mem->mem_type == AMDGPU_PL_PREEMPT))
 		return -EINVAL;
@@ -230,7 +231,7 @@ static int amdgpu_ttm_map_buffer(struct amdgpu_ttm_buffer_entity *entity,
 	offset = mm_cur->start & ~PAGE_MASK;
 
 	num_pages = PFN_UP(*size + offset);
-	num_pages = min_t(uint32_t, num_pages, AMDGPU_GTT_MAX_TRANSFER_SIZE);
+	num_pages = min_t(uint32_t, num_pages, GTT_MAX_PAGES);
 
 	*size = min(*size, (uint64_t)num_pages * PAGE_SIZE - offset);
 
@@ -2033,6 +2034,7 @@ static int amdgpu_ttm_buffer_entity_init(struct amdgpu_gtt_mgr *mgr,
 					 u32 num_gart_windows)
 {
 	int i, r, num_pages;
+	const u64 GTT_MAX_PAGES = (AMDGPU_GTT_MAX_TRANSFER_SIZE >> PAGE_SHIFT);
 
 	r = drm_sched_entity_init(&entity->base, prio, scheds, num_schedulers, NULL);
 	if (r)
@@ -2045,7 +2047,7 @@ static int amdgpu_ttm_buffer_entity_init(struct amdgpu_gtt_mgr *mgr,
 	if (num_gart_windows == 0)
 		return 0;
 
-	num_pages = num_gart_windows * AMDGPU_GTT_MAX_TRANSFER_SIZE;
+	num_pages = num_gart_windows * GTT_MAX_PAGES;
 	r = amdgpu_gtt_mgr_alloc_entries(mgr, &entity->gart_node, num_pages,
 					 DRM_MM_INSERT_BEST);
 	if (r) {
@@ -2056,7 +2058,7 @@ static int amdgpu_ttm_buffer_entity_init(struct amdgpu_gtt_mgr *mgr,
 	for (i = 0; i < num_gart_windows; i++) {
 		entity->gart_window_offs[i] =
 			amdgpu_gtt_node_to_byte_offset(&entity->gart_node) +
-				i * AMDGPU_GTT_MAX_TRANSFER_SIZE * PAGE_SIZE;
+				i * GTT_MAX_PAGES * PAGE_SIZE;
 	}
 
 	return 0;
@@ -2122,7 +2124,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	if (adev->gmc.xgmi.connected_to_cpu)
 		adev->mman.aper_base_kaddr = ioremap_cache(adev->gmc.aper_base,
 				adev->gmc.visible_vram_size);
-
 	else if (adev->gmc.is_app_apu)
 		DRM_DEBUG_DRIVER(
 			"No need to ioremap when real vram size is 0\n");
@@ -2164,6 +2165,18 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				configured_size, gtt_size);
 
 		gtt_size = configured_size;
+	}
+
+	/* Cap GTT so that it does not exceed total physical RAM. */
+	if (adev->flags & AMD_IS_APU) {
+		u64 phys_ram = (u64)totalram_pages() << PAGE_SHIFT;
+
+		if (gtt_size > phys_ram) {
+			gtt_size = phys_ram;
+			dev_info(adev->dev,
+				 "Capping GTT to %uM to not exceed available system memory\n",
+				 (unsigned int)(gtt_size / (1024 * 1024)));
+		}
 	}
 
 	/* Initialize GTT memory pool */
@@ -2246,8 +2259,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
  */
 void amdgpu_ttm_fini(struct amdgpu_device *adev)
 {
-	int idx;
-
 	if (!adev->mman.initialized)
 		return;
 
@@ -2270,13 +2281,9 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	amdgpu_ttm_unmark_vram_reserved(adev, AMDGPU_RESV_FW_VRAM_USAGE);
 	amdgpu_ttm_unmark_vram_reserved(adev, AMDGPU_RESV_DRV_VRAM_USAGE);
 
-	if (drm_dev_enter(adev_to_drm(adev), &idx)) {
-
-		if (adev->mman.aper_base_kaddr)
-			iounmap(adev->mman.aper_base_kaddr);
+	if (adev->mman.aper_base_kaddr) {
+		iounmap(adev->mman.aper_base_kaddr);
 		adev->mman.aper_base_kaddr = NULL;
-
-		drm_dev_exit(idx);
 	}
 
 	if (!adev->gmc.is_app_apu)
@@ -2686,12 +2693,22 @@ void amdgpu_sdma_set_buffer_funcs_scheds(struct amdgpu_device *adev,
 		return;
 	}
 
-	/* Navi1x's workaround requires us to limit to a single SDMA sched
-	 * for ttm.
-	 */
 	hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
-	adev->mman.num_buffer_funcs_scheds = hub->sdma_invalidation_workaround ?
-		1 : n;
+
+	/*
+	 * Allow using multiple SDMA schedulers only on GPUs where
+	 * we are allowed to do concurrent VM flushes.
+	 * This consideration is necessary because all GART windows
+	 * are mapped in VMID 0 (the kernel VMID) so each buffer
+	 * entity would flush VMID 0 concurrently.
+	 *
+	 * Also consider the SDMA invalidation workaround on
+	 * Navi 1x GPUs, which also prevents us from using
+	 * multiple SDMA engines on VMID 0 at the same time.
+	 */
+	adev->mman.num_buffer_funcs_scheds =
+		(adev->vm_manager.concurrent_flush &&
+		 !hub->sdma_invalidation_workaround) ? n : 1;
 }
 
 #if defined(CONFIG_DEBUG_FS)

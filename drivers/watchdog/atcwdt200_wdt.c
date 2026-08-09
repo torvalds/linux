@@ -260,9 +260,9 @@ static void atcwdt_get_timeout_params(struct atcwdt_drv *drv_data,
  * register to determine the interrupt timer type supported by the hardware.
  *
  * Note: This function must only be called when the ATCWDT200 watchdog is
- * disabled. If the watchdog is enabled, this function returns TMR_UNKNOWN.
+ * disabled. If the watchdog is enabled, this function returns -EBUSY.
  *
- * Returns: The interrupt timer type supported by the hardware.
+ * Returns: 0 on success or negative error code on failure.
  */
 static int atcwdt_get_int_timer_type(struct atcwdt_drv *drv_data)
 {
@@ -274,7 +274,8 @@ static int atcwdt_get_int_timer_type(struct atcwdt_drv *drv_data)
 	regmap_read(drv_data->regmap, REG_CTRL, &val);
 	if (val & CTRL_WDT_EN) {
 		spin_unlock(&drv_data->lock);
-		return TMR_UNKNOWN;
+		return dev_err_probe(dev, -EBUSY,
+				     "Watchdog is enabled, cannot detect timer type\n");
 	}
 
 	/*

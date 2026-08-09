@@ -337,7 +337,7 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 
 	ptr = io_uring_validate_mmap_request(filp, pgoff);
 	if (IS_ERR(ptr))
-		return -ENOMEM;
+		return PTR_ERR(ptr);
 
 	/*
 	 * Some architectures have strong cache aliasing requirements.

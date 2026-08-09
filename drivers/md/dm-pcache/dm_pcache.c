@@ -168,6 +168,10 @@ static int parse_cache_opts(struct dm_pcache *pcache, struct dm_arg_set *as,
 		argc--;
 
 		if (!strcmp(arg, "cache_mode")) {
+			if (!argc) {
+				*error = "Missing value for cache_mode";
+				return -EINVAL;
+			}
 			arg = dm_shift_arg(as);
 			if (!strcmp(arg, "writeback")) {
 				opts->cache_mode = PCACHE_CACHE_MODE_WRITEBACK;
@@ -177,6 +181,10 @@ static int parse_cache_opts(struct dm_pcache *pcache, struct dm_arg_set *as,
 			}
 			argc--;
 		} else if (!strcmp(arg, "data_crc")) {
+			if (!argc) {
+				*error = "Missing value for data_crc";
+				return -EINVAL;
+			}
 			arg = dm_shift_arg(as);
 			if (!strcmp(arg, "true")) {
 				opts->data_crc = true;

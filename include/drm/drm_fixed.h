@@ -79,7 +79,8 @@ static inline u32 dfixed_div(fixed20_12 A, fixed20_12 B)
 #define DRM_FIXED_ALMOST_ONE	(DRM_FIXED_ONE - DRM_FIXED_EPSILON)
 
 /**
- * @drm_sm2fixp
+ * drm_sm2fixp() - convert signed-magnitude to fixed point
+ * @a: 1.31.32 signed-magnitude fixed point
  *
  * Convert a 1.31.32 signed-magnitude fixed point to 32.32
  * 2s-complement fixed point

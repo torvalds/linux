@@ -44,7 +44,7 @@ class cmd:
     Use bkg() instead to run a command in the background.
     """
     def __init__(self, comm, shell=None, fail=True, expect_fail=False, ns=None,
-                 background=False, host=None, timeout=5, ksft_ready=None,
+                 background=False, host=None, timeout=20, ksft_ready=None,
                  ksft_wait=None):
         if ns:
             if hasattr(ns, 'user_ns_path'):
@@ -113,7 +113,7 @@ class cmd:
 
         return stdout, stderr
 
-    def process(self, terminate=True, fail=None, expect_fail=False, timeout=5):
+    def process(self, terminate=True, fail=None, expect_fail=False, timeout=20):
         if fail is None:
             fail = not terminate
 

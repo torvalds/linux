@@ -1099,7 +1099,7 @@ static int switchtec_dma_chan_init(struct switchtec_dma_dev *swdma_dev,
 	dev_dbg(&pdev->dev, "Channel %d: SE buffer count %d\n", i, se_buf_len);
 
 	thresh = se_buf_len / 2;
-	valid_en_se |= FIELD_GET(SE_THRESH_MASK, thresh);
+	valid_en_se |= FIELD_PREP(SE_THRESH_MASK, thresh);
 	writel(valid_en_se, &swdma_chan->mmio_chan_fw->valid_en_se);
 
 	/* request irqs */

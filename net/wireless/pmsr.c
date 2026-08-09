@@ -125,6 +125,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_LCI],
 				    "FTM: LCI request not supported");
+		return -EOPNOTSUPP;
 	}
 
 	out->ftm.request_civicloc =
@@ -133,6 +134,7 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 		NL_SET_ERR_MSG_ATTR(info->extack,
 				    tb[NL80211_PMSR_FTM_REQ_ATTR_REQUEST_CIVICLOC],
 			    "FTM: civic location request not supported");
+		return -EOPNOTSUPP;
 	}
 
 	out->ftm.trigger_based =
@@ -261,8 +263,9 @@ static int pmsr_parse_ftm(struct cfg80211_registered_device *rdev,
 				       "FTM: nominal time is required for PD NTB ranging");
 			return -EINVAL;
 		}
-		out->ftm.nominal_time =
-			nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]);
+		if (tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME])
+			out->ftm.nominal_time =
+				nla_get_u32(tb[NL80211_PMSR_FTM_REQ_ATTR_NOMINAL_TIME]);
 
 		if (tb[NL80211_PMSR_FTM_REQ_ATTR_MIN_TIME_BETWEEN_MEASUREMENTS])
 			out->ftm.min_time_between_measurements =
@@ -310,6 +313,7 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 {
 	struct nlattr *tb[NL80211_PMSR_PEER_ATTR_MAX + 1];
 	struct nlattr *req[NL80211_PMSR_REQ_ATTR_MAX + 1];
+	bool have_measurement_type = false;
 	struct nlattr *treq;
 	int err, rem;
 
@@ -376,6 +380,14 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 	}
 
 	nla_for_each_nested(treq, req[NL80211_PMSR_REQ_ATTR_DATA], rem) {
+		if (have_measurement_type) {
+			NL_SET_ERR_MSG_ATTR(info->extack, treq,
+					    "multiple measurement types in request data");
+			return -EINVAL;
+		}
+
+		have_measurement_type = true;
+
 		switch (nla_type(treq)) {
 		case NL80211_PMSR_TYPE_FTM:
 			err = pmsr_parse_ftm(rdev, treq, out, info);
@@ -385,10 +397,16 @@ static int pmsr_parse_peer(struct cfg80211_registered_device *rdev,
 					    "unsupported measurement type");
 			err = -EINVAL;
 		}
+		if (err)
+			return err;
 	}
 
-	if (err)
-		return err;
+	if (!have_measurement_type) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    req[NL80211_PMSR_REQ_ATTR_DATA],
+				    "missing measurement type in request data");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -402,6 +420,7 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 	const struct cfg80211_pmsr_capabilities *capa;
 	struct cfg80211_pmsr_request *req;
 	struct nlattr *peers, *peer;
+	u64 cookie;
 
 	capa = rdev->wiphy.pmsr_capa;
 
@@ -425,6 +444,11 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 					    "Too many peers used");
 			return -EINVAL;
 		}
+	}
+
+	if (!count) {
+		NL_SET_ERR_MSG_ATTR(info->extack, peers, "No peers specified");
+		return -EINVAL;
 	}
 
 	req = kzalloc_flex(*req, peers, count);
@@ -498,14 +522,27 @@ int nl80211_pmsr_start(struct sk_buff *skb, struct genl_info *info)
 	}
 	req->cookie = cfg80211_assign_cookie(rdev);
 	req->nl_portid = info->snd_portid;
+	cookie = req->cookie;
+
+	/*
+	 * Add to the list before the driver call; under races or broken
+	 * drivers, completion may free the request before rdev_start_pmsr()
+	 * returns. Use the saved cookie below.
+	 */
+	spin_lock_bh(&wdev->pmsr_lock);
+	list_add_tail(&req->list, &wdev->pmsr_list);
+	spin_unlock_bh(&wdev->pmsr_lock);
 
 	err = rdev_start_pmsr(rdev, wdev, req);
-	if (err)
+	if (err) {
+		/* An error return leaves the request owned by this path. */
+		spin_lock_bh(&wdev->pmsr_lock);
+		list_del(&req->list);
+		spin_unlock_bh(&wdev->pmsr_lock);
 		goto out_err;
+	}
 
-	list_add_tail(&req->list, &wdev->pmsr_list);
-
-	nl_set_extack_cookie_u64(info->extack, req->cookie);
+	nl_set_extack_cookie_u64(info->extack, cookie);
 	return 0;
 out_err:
 	kfree(req);
@@ -807,12 +844,10 @@ static void cfg80211_pmsr_process_abort(struct wireless_dev *wdev)
 	}
 }
 
-void cfg80211_pmsr_free_wk(struct work_struct *work)
+void cfg80211_pmsr_free_wk(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct wireless_dev *wdev = container_of(work, struct wireless_dev,
 						 pmsr_free_wk);
-
-	guard(wiphy)(wdev->wiphy);
 
 	cfg80211_pmsr_process_abort(wdev);
 }
@@ -829,7 +864,7 @@ void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev)
 	}
 	spin_unlock_bh(&wdev->pmsr_lock);
 
-	cancel_work_sync(&wdev->pmsr_free_wk);
+	wiphy_work_cancel(wdev->wiphy, &wdev->pmsr_free_wk);
 	if (found)
 		cfg80211_pmsr_process_abort(wdev);
 
@@ -844,7 +879,7 @@ void cfg80211_release_pmsr(struct wireless_dev *wdev, u32 portid)
 	list_for_each_entry(req, &wdev->pmsr_list, list) {
 		if (req->nl_portid == portid) {
 			req->nl_portid = 0;
-			schedule_work(&wdev->pmsr_free_wk);
+			wiphy_work_queue(wdev->wiphy, &wdev->pmsr_free_wk);
 		}
 	}
 	spin_unlock_bh(&wdev->pmsr_lock);

@@ -14,7 +14,7 @@
 #define _LINUX_SURFACE_AGGREGATOR_DEVICE_H
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/ssam.h>
 #include <linux/property.h>
 #include <linux/types.h>
 

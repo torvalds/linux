@@ -182,6 +182,12 @@ struct v3d_dev {
 	 */
 	struct mutex reset_lock;
 
+	/* Ordered workqueue shared by every queue's scheduler timeout work.
+	 * V3D reset is global to all queues, so the timeout handlers must not
+	 * run concurrently.
+	 */
+	struct workqueue_struct *reset_wq;
+
 	/* Lock taken when creating and pushing the GPU scheduler
 	 * jobs, to keep the sched-fence seqnos in order.
 	 */
@@ -571,6 +577,8 @@ extern bool super_pages;
 void v3d_init_hw_state(struct v3d_dev *v3d);
 int v3d_gem_init(struct drm_device *dev);
 void v3d_gem_destroy(struct drm_device *dev);
+void v3d_idle_axi(struct v3d_dev *v3d, int core);
+void v3d_idle_gca(struct v3d_dev *v3d);
 void v3d_reset_sms(struct v3d_dev *v3d);
 void v3d_reset(struct v3d_dev *v3d);
 void v3d_invalidate_caches(struct v3d_dev *v3d);

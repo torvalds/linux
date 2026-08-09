@@ -212,10 +212,6 @@ struct smb2_file_ea_info {
 	__le32 EASize;
 } __packed;
 
-struct smb2_file_alloc_info {
-	__le64 AllocationSize;
-} __packed;
-
 struct smb2_file_disposition_info {
 	__u8 DeletePending;
 } __packed;

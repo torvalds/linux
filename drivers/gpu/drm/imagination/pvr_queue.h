@@ -158,7 +158,7 @@ struct pvr_queue *pvr_queue_create(struct pvr_context *ctx,
 
 void pvr_queue_kill(struct pvr_queue *queue);
 
-void pvr_queue_destroy(struct pvr_queue *queue);
+void pvr_queue_destroy(struct pvr_queue *queue, bool cleanup_queue_entity);
 
 void pvr_queue_process(struct pvr_queue *queue);
 

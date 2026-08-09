@@ -164,20 +164,4 @@ acpi_ut_safe_strncat(char *dest,
 	return (FALSE);
 }
 
-void acpi_ut_safe_strncpy(char *dest, char *source, acpi_size dest_size)
-{
-	/* Always terminate destination string */
-
-#ifdef __KERNEL__
-	strscpy_pad(dest, source, dest_size);
-#else
-	/*
-	 * strscpy_pad() is not defined in ACPICA tools builds, so use strncpy()
-	 * and directly NUL-terminate the destination string in that case.
-	 */
-	strncpy(dest, source, dest_size);
-	dest[dest_size - 1] = 0;
-#endif
-}
-
 #endif

@@ -4,7 +4,6 @@
  */
 
 #include <linux/mhi.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>

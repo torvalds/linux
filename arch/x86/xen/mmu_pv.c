@@ -2291,18 +2291,19 @@ static void xen_remap_exchanged_ptes(unsigned long vaddr, int order,
 }
 
 /*
- * Perform the hypercall to exchange a region of our pfns to point to
- * memory with the required contiguous alignment.  Takes the pfns as
- * input, and populates mfns as output.
+ * Perform the hypercall to exchange a region of our pages to point to memory
+ * with the required contiguous alignment.  Takes as input the mfns to trade
+ * in (mfns_in) and the pfns where the new pages are to appear (fns_inout),
+ * and populates mfns as output (fns_inout).
  *
  * Returns a success code indicating whether the hypervisor was able to
  * satisfy the request or not.
  */
 static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
-			       unsigned long *pfns_in,
+			       unsigned long *mfns_in,
 			       unsigned long extents_out,
 			       unsigned int order_out,
-			       unsigned long *mfns_out,
+			       unsigned long *fns_inout,
 			       unsigned int address_bits)
 {
 	long rc;
@@ -2312,13 +2313,13 @@ static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
 		.in = {
 			.nr_extents   = extents_in,
 			.extent_order = order_in,
-			.extent_start = pfns_in,
+			.extent_start = mfns_in,
 			.domid        = DOMID_SELF
 		},
 		.out = {
 			.nr_extents   = extents_out,
 			.extent_order = order_out,
-			.extent_start = mfns_out,
+			.extent_start = fns_inout,
 			.address_bits = address_bits,
 			.domid        = DOMID_SELF
 		}

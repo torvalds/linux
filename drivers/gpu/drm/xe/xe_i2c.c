@@ -94,6 +94,9 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 	struct pci_dev *pci = to_pci_dev(i2c->drm_dev);
 	struct platform_device *pdev;
 	int ret;
+	u32 id;
+
+	id = (pci_domain_nr(pci->bus) << 16) | pci_dev_id(pci);
 
 	/*
 	 * Not using platform_device_register_full() here because we don't have
@@ -101,7 +104,7 @@ static int xe_i2c_register_adapter(struct xe_i2c *i2c)
 	 * uses that handle, but it may be called before
 	 * platform_device_register_full() is done.
 	 */
-	pdev = platform_device_alloc(adapter_name, pci_dev_id(pci));
+	pdev = platform_device_alloc(adapter_name, id);
 	if (!pdev)
 		return -ENOMEM;
 

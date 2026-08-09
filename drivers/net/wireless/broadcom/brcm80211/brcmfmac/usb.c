@@ -1260,6 +1260,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 		ret = -ENOMEM;
 		goto fail;
 	}
+	mutex_init(&bus->bus_reset_lock);
 
 	bus->dev = dev;
 	bus_pub->bus = bus;
@@ -1328,6 +1329,8 @@ brcmf_usb_disconnect_cb(struct brcmf_usbdev_info *devinfo)
 	if (!devinfo)
 		return;
 	brcmf_dbg(USB, "Enter, bus_pub %p\n", devinfo);
+
+	brcmf_bus_cancel_reset_work(devinfo->bus_pub.bus);
 
 	brcmf_detach(devinfo->dev);
 	brcmf_free(devinfo->dev);

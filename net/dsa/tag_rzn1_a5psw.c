@@ -48,7 +48,7 @@ static struct sk_buff *a5psw_tag_xmit(struct sk_buff *skb, struct net_device *de
 	 * least 60 bytes otherwise they will be discarded when they enter the
 	 * switch port logic.
 	 */
-	if (__skb_put_padto(skb, ETH_ZLEN, false))
+	if (eth_skb_pad(skb))
 		return NULL;
 
 	/* provide 'A5PSW_TAG_LEN' bytes additional space */
@@ -77,6 +77,7 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 	if (unlikely(!pskb_may_pull(skb, A5PSW_TAG_LEN))) {
 		dev_warn_ratelimited(&dev->dev,
 				     "Dropping packet, cannot pull\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -84,14 +85,17 @@ static struct sk_buff *a5psw_tag_rcv(struct sk_buff *skb,
 
 	if (tag->ctrl_tag != htons(ETH_P_DSA_A5PSW)) {
 		dev_warn_ratelimited(&dev->dev, "Dropping packet due to invalid TAG marker\n");
+		kfree_skb(skb);
 		return NULL;
 	}
 
 	port = FIELD_GET(A5PSW_CTRL_DATA_PORT, ntohs(tag->ctrl_data));
 
 	skb->dev = dsa_conduit_find_user(dev, 0, port);
-	if (!skb->dev)
+	if (!skb->dev) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	skb_pull_rcsum(skb, A5PSW_TAG_LEN);
 	dsa_strip_etype_header(skb, A5PSW_TAG_LEN);

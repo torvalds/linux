@@ -16,23 +16,32 @@ echo > dynamic_events
 FUNC1='foo_bar*'
 FUNC2='vfs_read'
 
+:;: "Save enabled functions count" ;:
+ecount=`cat enabled_functions | wc -l`
+
+count_enabled_functions() {
+    count=`cat enabled_functions | wc -l`
+    count=$(($count-$ecount))
+    echo $count
+}
+
 :;: "Add an event on the test module" ;:
 echo "f:test1 $FUNC1" >> dynamic_events
 echo 1 > events/fprobes/test1/enable
 
 :;: "Ensure it is enabled" ;:
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -ne 0
 
 :;: "Check the enabled_functions is cleared on unloading" ;:
 rmmod trace-events-sample
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -eq 0
 
 :;: "Check it is kept clean" ;:
 modprobe trace-events-sample
 echo 1 > events/fprobes/test1/enable || echo "OK"
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -eq 0
 
 :;: "Add another event not on the test module" ;:
@@ -40,19 +49,19 @@ echo "f:test2 $FUNC2" >> dynamic_events
 echo 1 > events/fprobes/test2/enable
 
 :;: "Ensure it is enabled" ;:
-ofuncs=`cat enabled_functions | wc -l`
+ofuncs=`count_enabled_functions`
 test $ofuncs -ne 0
 
 :;: "Disable and remove the first event"
 echo 0 > events/fprobes/test1/enable
 echo "-:fprobes/test1" >> dynamic_events
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $ofuncs -eq $funcs
 
 :;: "Disable and remove other events" ;:
 echo 0 > events/fprobes/enable
 echo > dynamic_events
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -eq 0
 
 rmmod trace-events-sample
@@ -63,12 +72,12 @@ echo "f:test1 $FUNC1" >> dynamic_events
 echo 1 > events/fprobes/test1/enable
 echo "f:test2 $FUNC2" >> dynamic_events
 echo 1 > events/fprobes/test2/enable
-ofuncs=`cat enabled_functions | wc -l`
+ofuncs=`count_enabled_functions`
 test $ofuncs -ne 0
 
 :;: "Unload module (ftrace entry should be removed)" ;:
 rmmod trace-events-sample
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -ne 0
 test $ofuncs -ne $funcs
 
@@ -77,7 +86,7 @@ echo 0 > events/fprobes/test2/enable
 echo "-:fprobes/test2" >> dynamic_events
 
 :;: "Ensure ftrace is disabled." ;:
-funcs=`cat enabled_functions | wc -l`
+funcs=`count_enabled_functions`
 test $funcs -eq 0
 
 echo 0 > events/fprobes/enable
