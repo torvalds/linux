@@ -61,6 +61,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/prefetch.h>
+#include <linux/ptp_classify.h>
 #include <linux/rtnetlink.h>
 #include <linux/tcp.h>
 #include <asm/irq.h>
@@ -1252,6 +1253,199 @@ static u32 rtase_tx_csum(struct sk_buff *skb, const struct net_device *dev)
 	return csum_cmd;
 }
 
+static enum rtase_parse_result rtase_get_l3_proto(struct sk_buff *skb,
+						  __be16 *proto,
+						  u32 *network_offset)
+{
+	struct vlan_hdr *vh, _vh;
+	struct ethhdr *eh, _eh;
+	u32 offset = ETH_HLEN;
+
+	eh = skb_header_pointer(skb, 0, sizeof(_eh), &_eh);
+	if (!eh)
+		return RTASE_PARSE_DROP;
+
+	*proto = eh->h_proto;
+
+	while (eth_type_vlan(*proto)) {
+		vh = skb_header_pointer(skb, offset, sizeof(_vh), &_vh);
+		if (!vh)
+			return RTASE_PARSE_DROP;
+
+		*proto = vh->h_vlan_encapsulated_proto;
+		offset += VLAN_HLEN;
+	}
+
+	*network_offset = offset;
+
+	return RTASE_PARSE_OK;
+}
+
+static bool rtase_pad_to_transport_len(struct sk_buff *skb,
+				       u32 transport_offset,
+				       u32 pad_to_len)
+{
+	u32 trans_data_len;
+	u32 pad_len;
+
+	trans_data_len = skb->len - transport_offset;
+	if (trans_data_len >= pad_to_len)
+		return true;
+
+	if (skb_is_nonlinear(skb)) {
+		if (skb_linearize(skb))
+			return false;
+	}
+
+	pad_len = pad_to_len - trans_data_len;
+	if (__skb_put_padto(skb, skb->len + pad_len, false))
+		return false;
+
+	return true;
+}
+
+static enum rtase_parse_result rtase_get_transport_offset(struct sk_buff *skb,
+							  u32 *transport_offset,
+							  u8 *transport_proto,
+							  u32 *pad_to_len)
+{
+	enum rtase_parse_result ret;
+	struct ipv6hdr *i6h, _i6h;
+	struct iphdr *ih, _ih;
+	bool non_first_frag;
+	__be16 proto;
+	u32 offset;
+	u32 no;
+
+	ret = rtase_get_l3_proto(skb, &proto, &no);
+	if (ret != RTASE_PARSE_OK)
+		return ret;
+
+	switch (proto) {
+	case htons(ETH_P_IP):
+		ih = skb_header_pointer(skb, no, sizeof(_ih), &_ih);
+		if (!ih)
+			return RTASE_PARSE_DROP;
+
+		if (ih->ihl < 5)
+			return RTASE_PARSE_DROP;
+
+		offset = no + ih->ihl * 4;
+		if (offset > skb->len)
+			return RTASE_PARSE_DROP;
+
+		non_first_frag = ntohs(ih->frag_off) & IP_OFFSET;
+
+		if (ih->protocol == IPPROTO_TCP) {
+			if (skb->len - offset < sizeof(struct tcphdr)) {
+				if (non_first_frag) {
+					*transport_offset = offset;
+					*transport_proto = IPPROTO_TCP;
+					*pad_to_len = sizeof(struct tcphdr);
+
+					return RTASE_PARSE_OK;
+				}
+
+				return RTASE_PARSE_DROP;
+			}
+
+			return RTASE_PARSE_SKIP;
+		}
+
+		if (ih->protocol != IPPROTO_UDP)
+			return RTASE_PARSE_SKIP;
+
+		*transport_offset = offset;
+		*transport_proto = IPPROTO_UDP;
+
+		if (skb->len - offset < sizeof(struct udphdr)) {
+			if (non_first_frag) {
+				*pad_to_len = sizeof(struct udphdr);
+
+				return RTASE_PARSE_OK;
+			}
+
+			return RTASE_PARSE_DROP;
+		}
+
+		return RTASE_PARSE_OK;
+
+	case htons(ETH_P_IPV6):
+		i6h = skb_header_pointer(skb, no, sizeof(_i6h), &_i6h);
+		if (!i6h)
+			return RTASE_PARSE_DROP;
+
+		offset = no + sizeof(*i6h);
+
+		if (i6h->nexthdr == IPPROTO_TCP) {
+			if (skb->len - offset < sizeof(struct tcphdr))
+				return RTASE_PARSE_DROP;
+
+			return RTASE_PARSE_SKIP;
+		}
+
+		if (i6h->nexthdr != IPPROTO_UDP)
+			return RTASE_PARSE_SKIP;
+
+		if (skb->len - offset < sizeof(struct udphdr))
+			return RTASE_PARSE_DROP;
+
+		*transport_offset = offset;
+		*transport_proto = IPPROTO_UDP;
+
+		return RTASE_PARSE_OK;
+
+	default:
+		return RTASE_PARSE_SKIP;
+	}
+}
+
+static bool rtase_skb_pad(struct sk_buff *skb)
+{
+	enum rtase_parse_result ret;
+	u32 transport_offset;
+	__be16 *dest, _dest;
+	u32 trans_data_len;
+	u32 pad_to_len = 0;
+	u8 transport_proto;
+	u16 dest_port;
+
+	ret = rtase_get_transport_offset(skb, &transport_offset,
+					 &transport_proto, &pad_to_len);
+	if (ret == RTASE_PARSE_SKIP) {
+		return true;
+	} else if (ret == RTASE_PARSE_DROP) {
+		netdev_dbg(skb->dev, "drop malformed packet\n");
+		return false;
+	}
+
+	if (pad_to_len &&
+	    !rtase_pad_to_transport_len(skb, transport_offset, pad_to_len))
+		return false;
+
+	if (transport_proto != IPPROTO_UDP)
+		return true;
+
+	trans_data_len = skb->len - transport_offset;
+	if (trans_data_len < offsetof(struct udphdr, len) ||
+	    trans_data_len >= RTASE_MIN_PAD_LEN)
+		return true;
+
+	dest = skb_header_pointer(skb,
+				  transport_offset +
+				  offsetof(struct udphdr, dest),
+				  sizeof(_dest), &_dest);
+	if (!dest)
+		return true;
+
+	dest_port = ntohs(*dest);
+	if (dest_port != PTP_EV_PORT && dest_port != PTP_GEN_PORT)
+		return true;
+
+	return rtase_pad_to_transport_len(skb, transport_offset,
+					  RTASE_MIN_PAD_LEN);
+}
+
 static int rtase_xmit_frags(struct rtase_ring *ring, struct sk_buff *skb,
 			    u32 opts1, u32 opts2)
 {
@@ -1364,6 +1558,9 @@ static netdev_tx_t rtase_start_xmit(struct sk_buff *skb,
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		opts2 |= rtase_tx_csum(skb, dev);
 	}
+
+	if (!rtase_skb_pad(skb))
+		goto err_dma_0;
 
 	frags = rtase_xmit_frags(ring, skb, opts1, opts2);
 	if (unlikely(frags < 0))

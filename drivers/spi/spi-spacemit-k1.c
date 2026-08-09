@@ -494,8 +494,8 @@ static bool k1_spi_write(struct k1_spi_driver_data *drv_data, u32 val)
 {
 	unsigned int count;
 
-	/* Get the number of open slots in the FIFO; zero means all */
-	count = FIELD_GET(SSP_STATUS_TFL, val) ? : K1_SPI_FIFO_SIZE;
+	/* Get the number of free slots in the FIFO */
+	count = K1_SPI_FIFO_SIZE - FIELD_GET(SSP_STATUS_TFL, val);
 
 	/*
 	 * Limit how much we try to send at a time, to reduce the

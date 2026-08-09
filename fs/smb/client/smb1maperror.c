@@ -10,6 +10,9 @@
  */
 
 #include <linux/bsearch.h>
+
+#include <kunit/visibility.h>
+
 #include "cifsproto.h"
 #include "smb1proto.h"
 #include "smberr.h"
@@ -239,48 +242,45 @@ int __init smb1_init_maperror(void)
 }
 
 #if IS_ENABLED(CONFIG_SMB1_KUNIT_TESTS)
-#define EXPORT_SYMBOL_FOR_SMB_TEST(sym) \
-	EXPORT_SYMBOL_FOR_MODULES(sym, "smb1maperror_test")
-
 const struct ntstatus_to_dos_err *
 search_ntstatus_to_dos_map_test(__u32 ntstatus)
 {
 	return search_ntstatus_to_dos_map(ntstatus);
 }
-EXPORT_SYMBOL_FOR_SMB_TEST(search_ntstatus_to_dos_map_test);
+EXPORT_SYMBOL_IF_KUNIT(search_ntstatus_to_dos_map_test);
 
 const struct ntstatus_to_dos_err *
 ntstatus_to_dos_map_test = ntstatus_to_dos_map;
-EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_map_test);
+EXPORT_SYMBOL_IF_KUNIT(ntstatus_to_dos_map_test);
 
 unsigned int ntstatus_to_dos_num = ARRAY_SIZE(ntstatus_to_dos_map);
-EXPORT_SYMBOL_FOR_SMB_TEST(ntstatus_to_dos_num);
+EXPORT_SYMBOL_IF_KUNIT(ntstatus_to_dos_num);
 
 const struct smb_to_posix_error *
 search_mapping_table_ERRDOS_test(__u16 smb_err)
 {
 	return search_mapping_table_ERRDOS(smb_err);
 }
-EXPORT_SYMBOL_FOR_SMB_TEST(search_mapping_table_ERRDOS_test);
+EXPORT_SYMBOL_IF_KUNIT(search_mapping_table_ERRDOS_test);
 
 const struct smb_to_posix_error *
 mapping_table_ERRDOS_test = mapping_table_ERRDOS;
-EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRDOS_test);
+EXPORT_SYMBOL_IF_KUNIT(mapping_table_ERRDOS_test);
 
 unsigned int mapping_table_ERRDOS_num = ARRAY_SIZE(mapping_table_ERRDOS);
-EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRDOS_num);
+EXPORT_SYMBOL_IF_KUNIT(mapping_table_ERRDOS_num);
 
 const struct smb_to_posix_error *
 search_mapping_table_ERRSRV_test(__u16 smb_err)
 {
 	return search_mapping_table_ERRSRV(smb_err);
 }
-EXPORT_SYMBOL_FOR_SMB_TEST(search_mapping_table_ERRSRV_test);
+EXPORT_SYMBOL_IF_KUNIT(search_mapping_table_ERRSRV_test);
 
 const struct smb_to_posix_error *
 mapping_table_ERRSRV_test = mapping_table_ERRSRV;
-EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRSRV_test);
+EXPORT_SYMBOL_IF_KUNIT(mapping_table_ERRSRV_test);
 
 unsigned int mapping_table_ERRSRV_num = ARRAY_SIZE(mapping_table_ERRSRV);
-EXPORT_SYMBOL_FOR_SMB_TEST(mapping_table_ERRSRV_num);
+EXPORT_SYMBOL_IF_KUNIT(mapping_table_ERRSRV_num);
 #endif

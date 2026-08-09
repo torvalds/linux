@@ -9,6 +9,10 @@
 	};
 
 	bus@0 {
+		dma-controller@8400000 {
+			status = "okay";
+		};
+
 		serial@c4e0000 {
 			status = "okay";
 		};

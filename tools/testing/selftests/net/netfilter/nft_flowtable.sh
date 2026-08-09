@@ -736,6 +736,61 @@ if ! test_tcp_forwarding_nat "$ns1" "$ns2" 1 "on bridge"; then
 	ret=1
 fi
 
+if ip -net "$nsr1" link show tun0 > /dev/null 2>&1 &&
+   ip -net "$nsr2" link show tun0 > /dev/null 2>&1; then
+	ip -net "$nsr1" route change default via 192.168.100.2
+	ip -net "$nsr2" route change default via 192.168.100.1
+	ip -6 -net "$nsr1" route delete default
+	ip -6 -net "$nsr1" route add default via fee1:3::2
+	ip -6 -net "$nsr2" route delete default
+	ip -6 -net "$nsr2" route add default via fee1:3::1
+	ip -net "$ns2" route add default via 10.0.2.1
+	ip -6 -net "$ns2" route add default via dead:2::1
+
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "tun0" tcp dport 12345 ct mark set 1 flow add @f1 counter name routed_orig accept'
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "tun6" tcp dport 12345 ct mark set 1 flow add @f1 counter name routed_orig accept'
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "veth0" tcp sport 12345 ct mark set 1 flow add @f1 counter name routed_repl accept'
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "br0" tcp sport 12345 ct mark set 1 flow add @f1 counter name routed_repl accept'
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "tun0" accept'
+	ip netns exec "$nsr1" nft -a insert rule inet filter forward \
+		'meta oif "tun6" accept'
+
+	ip netns exec "$nsr1" nft reset counters table inet filter >/dev/null
+
+	if test_tcp_forwarding "$ns1" "$ns2" 1 4 10.0.2.99 12345; then
+		check_counters "bridge + IPIP tunnel"
+	else
+		echo "FAIL: flow offload for ns1/ns2 with bridge + IPIP tunnel" 1>&2
+		ip netns exec "$nsr1" nft list ruleset
+		ret=1
+	fi
+
+	if test_tcp_forwarding "$ns1" "$ns2" 1 6 "[dead:2::99]" 12345; then
+		check_counters "bridge + IP6IP6 tunnel"
+	else
+		echo "FAIL: flow offload for ns1/ns2 with bridge + IP6IP6 tunnel" 1>&2
+		ip netns exec "$nsr1" nft list ruleset
+		ret=1
+	fi
+
+	ip -net "$nsr1" route change default via 192.168.10.2
+	ip -net "$nsr2" route change default via 192.168.10.1
+	ip -net "$ns2" route del default via 10.0.2.1
+	ip -6 -net "$nsr1" route delete default
+	ip -6 -net "$nsr1" route add default via fee1:2::2
+	ip -6 -net "$nsr2" route delete default
+	ip -6 -net "$nsr2" route add default via fee1:2::1
+	ip -6 -net "$ns2" route del default via dead:2::1
+else
+	echo "SKIP: bridge + tunnel flowtable regression (tun0 missing)"
+	[ "$ret" -eq 0 ] && ret=$ksft_skip
+fi
+
 
 # Another test:
 # Add bridge interface br0 to Router1, with NAT and VLAN.

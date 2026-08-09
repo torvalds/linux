@@ -3626,6 +3626,13 @@ S: 69 rue Dunois
 S: 75013 Paris
 S: France
 
+N: Wolfram Sang
+E: wsa@kernel.org
+W: sang-engineering.com
+P: rsa4096/140DE4CC14A029B6 3991 B1EA B9E2 6751 A4F7 645D 140D E4CC 14A0 29B6
+D: I2C Maintainer 2012 - 2026
+S: Berlin, Germany
+
 N: Aleksa Sarai
 E: cyphar@cyphar.com
 W: https://www.cyphar.com/

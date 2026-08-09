@@ -766,7 +766,7 @@ static int import_zcrx(struct io_ring_ctx *ctx,
 		return -EINVAL;
 	if (reg->if_rxq || reg->rq_entries || reg->area_ptr || reg->region_ptr)
 		return -EINVAL;
-	if (reg->notif_desc)
+	if (reg->event_desc)
 		return -EINVAL;
 	if (reg->flags & ~ZCRX_REG_IMPORT)
 		return -EINVAL;
@@ -855,7 +855,7 @@ netdev_put_unlock:
 
 static int zcrx_validate_notif_stats(struct io_zcrx_ifq *ifq,
 				     const struct io_uring_zcrx_ifq_reg *reg,
-				     const struct zcrx_notification_desc *notif)
+				     const struct zcrx_event_desc *notif)
 {
 	size_t stats_off = notif->stats_offset;
 	size_t used, end;
@@ -863,12 +863,12 @@ static int zcrx_validate_notif_stats(struct io_zcrx_ifq *ifq,
 	used = reg->offsets.rqes +
 	       sizeof(struct io_uring_zcrx_rqe) * reg->rq_entries;
 
-	if (!IS_ALIGNED(stats_off, __alignof__(struct zcrx_notif_stats)))
+	if (!IS_ALIGNED(stats_off, __alignof__(struct zcrx_stats)))
 		return -EINVAL;
 	if (stats_off < used)
 		return -ERANGE;
 	if (check_add_overflow(stats_off,
-			       sizeof(struct zcrx_notif_stats),
+			       	sizeof(struct zcrx_stats),
 			       &end))
 		return -ERANGE;
 	if (end > io_region_size(&ifq->rq_region))
@@ -883,7 +883,7 @@ static int zcrx_validate_notif_stats(struct io_zcrx_ifq *ifq,
 int io_register_zcrx(struct io_ring_ctx *ctx,
 		     struct io_uring_zcrx_ifq_reg __user *arg)
 {
-	struct zcrx_notification_desc notif;
+	struct zcrx_event_desc notif;
 	struct io_uring_zcrx_area_reg area;
 	struct io_uring_zcrx_ifq_reg reg;
 	struct io_uring_region_desc rd;
@@ -928,14 +928,14 @@ int io_register_zcrx(struct io_ring_ctx *ctx,
 		return -EFAULT;
 
 	memset(&notif, 0, sizeof(notif));
-	if (reg.notif_desc && copy_from_user(&notif, u64_to_user_ptr(reg.notif_desc),
+	if (reg.event_desc && copy_from_user(&notif, u64_to_user_ptr(reg.event_desc),
 					     sizeof(notif)))
 		return -EFAULT;
-	if (notif.type_mask & ~ZCRX_NOTIF_TYPE_MASK)
+	if (notif.type_mask & ~ZCRX_EVENT_TYPE_MASK)
 		return -EINVAL;
-	if (notif.flags & ~ZCRX_NOTIF_DESC_FLAG_STATS)
+	if (notif.flags & ~ZCRX_EVENT_DESC_FLAG_STATS)
 		return -EINVAL;
-	if (!(notif.flags & ZCRX_NOTIF_DESC_FLAG_STATS)) {
+	if (!(notif.flags & ZCRX_EVENT_DESC_FLAG_STATS)) {
 		if (notif.stats_offset)
 			return -EINVAL;
 	}
@@ -970,7 +970,7 @@ int io_register_zcrx(struct io_ring_ctx *ctx,
 	if (ret)
 		goto err;
 
-	if (notif.flags & ZCRX_NOTIF_DESC_FLAG_STATS) {
+	if (notif.flags & ZCRX_EVENT_DESC_FLAG_STATS) {
 		ret = zcrx_validate_notif_stats(ifq, &reg, &notif);
 		if (ret)
 			goto err;
@@ -1244,7 +1244,7 @@ static netmem_ref io_pp_zc_alloc_netmems(struct page_pool *pp, gfp_t gfp)
 
 	allocated = io_zcrx_refill_slow(pp, ifq, netmems, to_alloc);
 	if (!allocated) {
-		zcrx_send_notif(ifq, ZCRX_NOTIF_NO_BUFFERS);
+		zcrx_send_notif(ifq, ZCRX_EVENT_ALLOC_FAIL);
 		return 0;
 	}
 out_return:
@@ -1406,16 +1406,16 @@ static int zcrx_flush_rq(struct io_ring_ctx *ctx, struct io_zcrx_ifq *zcrx,
 static int zcrx_arm_notif(struct io_ring_ctx *ctx, struct io_zcrx_ifq *zcrx,
 			  struct zcrx_ctrl *ctrl)
 {
-	const struct zcrx_ctrl_arm_notif *an = &ctrl->zc_arm_notif;
+	const struct zcrx_ctrl_arm_event *an = &ctrl->zc_arm_event;
 	unsigned type_mask;
 
-	if (an->notif_type >= __ZCRX_NOTIF_TYPE_LAST)
+	if (an->event_type >= __ZCRX_EVENT_TYPE_LAST)
 		return -EINVAL;
 	if (!mem_is_zero(&an->__resv, sizeof(an->__resv)))
 		return -EINVAL;
 
 	guard(spinlock_bh)(&zcrx->ctx_lock);
-	type_mask = 1U << an->notif_type;
+	type_mask = 1U << an->event_type;
 	if (type_mask & ~zcrx->fired_notifs)
 		return -EINVAL;
 	zcrx->fired_notifs &= ~type_mask;
@@ -1428,7 +1428,7 @@ int io_zcrx_ctrl(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 	struct io_zcrx_ifq *zcrx;
 
 	BUILD_BUG_ON(sizeof(ctrl.zc_export) != sizeof(ctrl.zc_flush));
-	BUILD_BUG_ON(sizeof(ctrl.zc_export) != sizeof(ctrl.zc_arm_notif));
+	BUILD_BUG_ON(sizeof(ctrl.zc_export) != sizeof(ctrl.zc_arm_event));
 
 	if (nr_args)
 		return -EINVAL;
@@ -1446,7 +1446,7 @@ int io_zcrx_ctrl(struct io_ring_ctx *ctx, void __user *arg, unsigned nr_args)
 		return zcrx_flush_rq(ctx, zcrx, &ctrl);
 	case ZCRX_CTRL_EXPORT:
 		return zcrx_export(ctx, zcrx, &ctrl, arg);
-	case ZCRX_CTRL_ARM_NOTIFICATION:
+	case ZCRX_CTRL_ARM_EVENT:
 		return zcrx_arm_notif(ctx, zcrx, &ctrl);
 	}
 
@@ -1592,7 +1592,7 @@ static int io_zcrx_copy_frag(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 			zcrx_stat_add(&ifq->notif_stats->copy_count, 1);
 			zcrx_stat_add(&ifq->notif_stats->copy_bytes, ret);
 		}
-		zcrx_send_notif(ifq, ZCRX_NOTIF_COPY);
+		zcrx_send_notif(ifq, ZCRX_EVENT_COPY);
 	}
 
 	return ret;

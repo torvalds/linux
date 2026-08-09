@@ -493,8 +493,9 @@ a freshly woken up task gets on a CPU.
 Where to Look
 =============
 
-* ``include/linux/sched/ext.h`` defines the core data structures, ops table
-  and constants.
+* ``include/linux/sched/ext.h`` defines the core data structures and
+  constants, while the ops table (``struct sched_ext_ops``) is defined in
+  ``kernel/sched/ext/internal.h``.
 
 * ``kernel/sched/ext/ext.c`` contains sched_ext core implementation and helpers.
   The functions prefixed with ``scx_bpf_`` can be called from the BPF
@@ -555,7 +556,8 @@ ABI Instability
 ===============
 
 The APIs provided by sched_ext to BPF schedulers programs have no stability
-guarantees. This includes the ops table callbacks and constants defined in
+guarantees. This includes the ops table callbacks defined in
+``kernel/sched/ext/internal.h`` and the constants defined in
 ``include/linux/sched/ext.h``, as well as the ``scx_bpf_`` kfuncs defined in
 ``kernel/sched/ext/ext.c`` and ``kernel/sched/ext/idle.c``.
 

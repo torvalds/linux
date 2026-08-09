@@ -1552,12 +1552,9 @@ static u16 mpam_wa_t241_calc_min_from_max(struct mpam_props *props,
 static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 				      struct mpam_config *cfg)
 {
-	u32 pri_val = 0;
 	u16 cmax = MPAMCFG_CMAX_CMAX;
 	struct mpam_msc *msc = ris->vmsc->msc;
 	struct mpam_props *rprops = &ris->props;
-	u16 dspri = GENMASK(rprops->dspri_wd, 0);
-	u16 intpri = GENMASK(rprops->intpri_wd, 0);
 
 	mutex_lock(&msc->part_sel_lock);
 	__mpam_part_sel(ris->ris_idx, partid, msc);
@@ -1583,9 +1580,9 @@ static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 
 	if (mpam_has_feature(mpam_feat_mbw_part, rprops)) {
 		if (mpam_has_feature(mpam_feat_mbw_part, cfg))
-			mpam_reset_msc_bitmap(msc, MPAMCFG_MBW_PBM, rprops->mbw_pbm_bits);
-		else
 			mpam_write_partsel_reg(msc, MBW_PBM, cfg->mbw_pbm);
+		else
+			mpam_reset_msc_bitmap(msc, MPAMCFG_MBW_PBM, rprops->mbw_pbm_bits);
 	}
 
 	if (mpam_has_feature(mpam_feat_mbw_min, rprops)) {
@@ -1622,16 +1619,25 @@ static void mpam_reprogram_ris_partid(struct mpam_msc_ris *ris, u16 partid,
 
 	if (mpam_has_feature(mpam_feat_intpri_part, rprops) ||
 	    mpam_has_feature(mpam_feat_dspri_part, rprops)) {
-		/* aces high? */
-		if (!mpam_has_feature(mpam_feat_intpri_part_0_low, rprops))
-			intpri = 0;
-		if (!mpam_has_feature(mpam_feat_dspri_part_0_low, rprops))
-			dspri = 0;
+		u32 pri_val = 0;
 
-		if (mpam_has_feature(mpam_feat_intpri_part, rprops))
+		if (mpam_has_feature(mpam_feat_intpri_part, rprops)) {
+			u16 intpri = GENMASK(rprops->intpri_wd - 1, 0);
+
+			/* aces high? */
+			if (!mpam_has_feature(mpam_feat_intpri_part_0_low, rprops))
+				intpri = 0;
+
 			pri_val |= FIELD_PREP(MPAMCFG_PRI_INTPRI, intpri);
-		if (mpam_has_feature(mpam_feat_dspri_part, rprops))
+		}
+		if (mpam_has_feature(mpam_feat_dspri_part, rprops)) {
+			u16 dspri = GENMASK(rprops->dspri_wd - 1, 0);
+
+			if (!mpam_has_feature(mpam_feat_dspri_part_0_low, rprops))
+				dspri = 0;
+
 			pri_val |= FIELD_PREP(MPAMCFG_PRI_DSPRI, dspri);
+		}
 
 		mpam_write_partsel_reg(msc, PRI, pri_val);
 	}
@@ -2606,8 +2612,10 @@ static void __destroy_component_cfg(struct mpam_component *comp)
 		msc = vmsc->msc;
 
 		if (mpam_mon_sel_lock(msc)) {
-			list_for_each_entry(ris, &vmsc->ris, vmsc_list)
-				add_to_garbage(ris->mbwu_state);
+			list_for_each_entry(ris, &vmsc->ris, vmsc_list) {
+				if (ris->mbwu_state)
+					add_to_garbage(ris->mbwu_state);
+			}
 			mpam_mon_sel_unlock(msc);
 		}
 	}

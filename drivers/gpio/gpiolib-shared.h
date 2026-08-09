@@ -41,7 +41,8 @@ struct gpio_shared_desc {
 	struct gpio_desc *desc;
 	unsigned long cfg;
 	unsigned int usecnt;
-	unsigned int highcnt;
+	unsigned int votecnt;
+	int def_val;
 	struct mutex mutex; /* serializes all proxy operations on this descriptor */
 };
 

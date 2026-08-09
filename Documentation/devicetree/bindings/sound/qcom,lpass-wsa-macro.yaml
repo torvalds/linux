@@ -20,6 +20,7 @@ properties:
           - qcom,sc8280xp-lpass-wsa-macro
       - items:
           - enum:
+              - qcom,eliza-lpass-wsa-macro
               - qcom,glymur-lpass-wsa-macro
               - qcom,kaanapali-lpass-wsa-macro
               - qcom,sm8650-lpass-wsa-macro

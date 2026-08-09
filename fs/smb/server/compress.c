@@ -56,7 +56,8 @@ int ksmbd_decompress_request(struct ksmbd_conn *conn)
 	}
 
 	max_allowed_pdu_size = SMB3_MAX_MSGSIZE + conn->vals->max_write_size;
-	if (out_size > max_allowed_pdu_size ||
+	if (out_size < sizeof(struct smb2_pdu) ||
+	    out_size > max_allowed_pdu_size ||
 	    out_size > MAX_STREAM_PROT_LEN)
 		return -EINVAL;
 

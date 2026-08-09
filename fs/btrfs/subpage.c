@@ -359,6 +359,23 @@ void btrfs_subpage_set_dirty(const struct btrfs_fs_info *fs_info,
 	folio_mark_dirty(folio);
 }
 
+static void folio_clear_tags(struct folio *folio)
+{
+	struct address_space *mapping = folio_mapping(folio);
+	XA_STATE(xas, &mapping->i_pages, folio->index);
+	unsigned long flags;
+
+	ASSERT(folio_test_locked(folio));
+	ASSERT(mapping);
+	ASSERT(mapping_use_writeback_tags(mapping));
+
+	xas_lock_irqsave(&xas, flags);
+	xas_load(&xas);
+	xas_clear_mark(&xas, PAGECACHE_TAG_DIRTY);
+	xas_clear_mark(&xas, PAGECACHE_TAG_TOWRITE);
+	xas_unlock_irqrestore(&xas, flags);
+}
+
 /*
  * Extra clear_and_test function for subpage dirty bitmap.
  *
@@ -403,7 +420,6 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	unsigned int start_bit = subpage_calc_start_bit(fs_info, folio,
 							writeback, start, len);
 	unsigned long flags;
-	bool keep_write;
 
 	spin_lock_irqsave(&bfs->lock, flags);
 	bitmap_set(bfs->bitmaps, start_bit, len >> fs_info->sectorsize_bits);
@@ -413,10 +429,14 @@ void btrfs_subpage_set_writeback(const struct btrfs_fs_info *fs_info,
 	 * folio. Doing so can cause WB_SYNC_ALL writepages() to overlook it,
 	 * assume writeback is complete, and exit too early — violating sync
 	 * ordering guarantees.
+	 *
+	 * Instead we manually clear the DIRTY and TOWRITE tags after the folio
+	 * is no longer dirty.
 	 */
-	keep_write = folio_test_dirty(folio);
 	if (!folio_test_writeback(folio))
-		__folio_start_writeback(folio, keep_write);
+		__folio_start_writeback(folio, true);
+	if (!folio_test_dirty(folio))
+		folio_clear_tags(folio);
 	spin_unlock_irqrestore(&bfs->lock, flags);
 }
 
