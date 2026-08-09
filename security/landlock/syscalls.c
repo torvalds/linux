@@ -535,6 +535,10 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	if (!is_initialized())
 		return -EOPNOTSUPP;
 
+	if ((flags | LANDLOCK_MASK_RESTRICT_SELF) !=
+	    LANDLOCK_MASK_RESTRICT_SELF)
+		return -EINVAL;
+
 	/*
 	 * Similar checks as for seccomp(2), except that an -EPERM may be
 	 * returned.
@@ -542,10 +546,6 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	if (!task_no_new_privs(current) &&
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
-
-	if ((flags | LANDLOCK_MASK_RESTRICT_SELF) !=
-	    LANDLOCK_MASK_RESTRICT_SELF)
-		return -EINVAL;
 
 	/* Translates "off" flag to boolean. */
 	log_same_exec = !(flags & LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF);
