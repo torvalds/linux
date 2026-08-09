@@ -1678,6 +1678,7 @@ static PyObject *pyrf_pmu__name(PyObject *self)
 {
 	struct pyrf_pmu *ppmu = (void *)self;
 
+	CHECK_INITIALIZED(ppmu->pmu, "pmu");
 	return PyUnicode_FromString(ppmu->pmu->name);
 }
 
@@ -1727,9 +1728,12 @@ static int pyrf_pmu__events_cb(void *state, struct pmu_event_info *info)
 static PyObject *pyrf_pmu__events(PyObject *self)
 {
 	struct pyrf_pmu *ppmu = (void *)self;
-	PyObject *py_list = PyList_New(0);
+	PyObject *py_list;
 	int ret;
 
+	CHECK_INITIALIZED(ppmu->pmu, "pmu");
+
+	py_list = PyList_New(0);
 	if (!py_list)
 		return NULL;
 
@@ -1750,6 +1754,7 @@ static PyObject *pyrf_pmu__repr(PyObject *self)
 {
 	struct pyrf_pmu *ppmu = (void *)self;
 
+	CHECK_INITIALIZED(ppmu->pmu, "pmu");
 	return PyUnicode_FromFormat("pmu(%s)", ppmu->pmu->name);
 }
 
@@ -3764,21 +3769,25 @@ static PyMethodDef pyrf_thread__methods[] = {
 
 static PyObject *pyrf_thread__get_pid(struct pyrf_thread *pthread, void *closure __maybe_unused)
 {
+	CHECK_INITIALIZED(pthread->thread, "thread");
 	return PyLong_FromLong(thread__pid(pthread->thread));
 }
 
 static PyObject *pyrf_thread__get_tid(struct pyrf_thread *pthread, void *closure __maybe_unused)
 {
+	CHECK_INITIALIZED(pthread->thread, "thread");
 	return PyLong_FromLong(thread__tid(pthread->thread));
 }
 
 static PyObject *pyrf_thread__get_ppid(struct pyrf_thread *pthread, void *closure __maybe_unused)
 {
+	CHECK_INITIALIZED(pthread->thread, "thread");
 	return PyLong_FromLong(thread__ppid(pthread->thread));
 }
 
 static PyObject *pyrf_thread__get_cpu(struct pyrf_thread *pthread, void *closure __maybe_unused)
 {
+	CHECK_INITIALIZED(pthread->thread, "thread");
 	return PyLong_FromLong(thread__cpu(pthread->thread));
 }
 
