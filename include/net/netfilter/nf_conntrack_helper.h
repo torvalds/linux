@@ -106,6 +106,7 @@ void nf_ct_helper_init(struct nf_conntrack_helper *helper,
 int nf_conntrack_helper_register(struct nf_conntrack_helper *, struct nf_conntrack_helper **);
 int __nf_conntrack_helper_register(struct nf_conntrack_helper *);
 void nf_conntrack_helper_unregister(struct nf_conntrack_helper *);
+void nf_conntrack_helper_release(struct nf_conntrack_helper *);
 
 int nf_conntrack_helpers_register(struct nf_conntrack_helper *, unsigned int,
 				  struct nf_conntrack_helper **);
