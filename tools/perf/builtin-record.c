@@ -2258,6 +2258,8 @@ static int record__setup_sb_evlist(struct record *rec)
 
 		if (evlist__add_bpf_sb_event(rec->sb_evlist, perf_session__env(rec->session))) {
 			pr_err("Couldn't ask for PERF_RECORD_BPF_EVENT side band events.\n.");
+			evlist__put(rec->sb_evlist);
+			rec->sb_evlist = NULL;
 			return -1;
 		}
 	}
