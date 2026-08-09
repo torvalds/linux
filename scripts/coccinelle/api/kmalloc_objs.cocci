@@ -20,6 +20,10 @@ def alloc_array(name):
 		func = "kzalloc_objs"
 	elif name == "kvcalloc":
 		func = "kvzalloc_objs"
+	elif name == "devm_kmalloc_array":
+		func = "devm_kmalloc_objs"
+	elif name == "devm_kcalloc":
+		func = "devm_kzalloc_objs"
 	else:
 		print(f"Unknown transform for {name}", file=sys.stderr)
 	return func
@@ -41,6 +45,15 @@ def alloc_array(name):
 //
 // Everything else gets the sizeof() extracted for the kmalloc_obj()
 // type/var argument.
+//
+// The device-managed allocators differ from the plain ones only by taking
+// the managing "struct device *" as a leading argument, so rather than
+// repeating every pattern for them, the leading arguments are captured in
+// an "expression list" metavariable and replayed on the replacement side.
+// ARGS is empty for the plain allocators, in which case Coccinelle drops
+// the separating comma as well. Note that there is no devm_kvmalloc
+// family, and that the devm array helpers only exist as
+// (dev, count, size, gfp).
 //
 // The first matching alternative below wins, so the exclusions must come
 // before the more general conversions.
@@ -81,150 +94,155 @@ expression GFP;
 expression COUNT;
 expression FLEX;
 expression E;
-identifier ALLOC =~ "^kv?[mz]alloc$";
+expression list ARGS;
+identifier ALLOC = {kmalloc,kzalloc,kvmalloc,kvzalloc,
+		    devm_kmalloc,devm_kzalloc};
 fresh identifier ALLOC_OBJ = ALLOC ## "_obj";
 fresh identifier ALLOC_FLEX = ALLOC ## "_flex";
-identifier ALLOC_ARRAY = {kmalloc_array,kvmalloc_array,kcalloc,kvcalloc};
+identifier ALLOC_ARRAY = {kmalloc_array,kvmalloc_array,kcalloc,kvcalloc,
+			  devm_kmalloc_array,devm_kcalloc};
 fresh identifier ALLOC_OBJS = script:python(ALLOC_ARRAY) { alloc_array(ALLOC_ARRAY) };
 @@
 
 (
 // Convert a single object sized by its target: p = kmalloc(sizeof(*p), gfp)
--	VAR = ALLOC((sizeof(*VAR)), GFP)
-+	VAR = ALLOC_OBJ(*VAR, GFP)
+-	VAR = ALLOC(ARGS, (sizeof(*VAR)), GFP)
++	VAR = ALLOC_OBJ(ARGS, *VAR, GFP)
 |
 // Exclude byte buffers and integral pointers: kmalloc(sizeof(u8), gfp),
 //   kmalloc(sizeof("str"), gfp), kmalloc(sizeof(char *), gfp)
-	ALLOC((\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
+	ALLOC(ARGS, (\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
 		sizeof(BYTE_TYPES *)\|sizeof(MULTIBYTE_TYPES *)\)), GFP)
 |
 // Exclude anything assigned to a byte pointer:
 //   u8 *buf = kmalloc(sizeof(*hdr), gfp)
-	BYTES = ALLOC((\(sizeof(E)\|sizeof(TYPE)\)), GFP)
+	BYTES = ALLOC(ARGS, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
 |
 // Convert a multi-byte type to a pointer to it:
 //   u32 *p = kmalloc(sizeof(u32), gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC((sizeof(MULTIBYTE_TYPES)), GFP)
-+		ALLOC_OBJ(MULTIBYTE_TYPES, GFP)
+-		ALLOC(ARGS, (sizeof(MULTIBYTE_TYPES)), GFP)
++		ALLOC_OBJ(ARGS, MULTIBYTE_TYPES, GFP)
 |
 // Same by expression: u32 *p = kmalloc(sizeof(p[0]), gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC((sizeof(MULTIBYTE)), GFP)
-+		ALLOC_OBJ(MULTIBYTE, GFP)
+-		ALLOC(ARGS, (sizeof(MULTIBYTE)), GFP)
++		ALLOC_OBJ(ARGS, MULTIBYTE, GFP)
 |
 // Exclude other multi-byte sizes, e.g. to pointers to arrays: s16 (*p)[2] = ...
-	ALLOC((\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), GFP)
+	ALLOC(ARGS, (\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), GFP)
 |
 // Exclude anything else assigned to a multi-byte pointer:
 //   u32 *p = kmalloc(sizeof(*hdr), gfp)
-	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC((\(sizeof(E)\|sizeof(TYPE)\)), GFP)
+	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC(ARGS, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
 |
 // Exclude void pointers, to be checked by hand: kmalloc(sizeof(void *), gfp)
-	ALLOC((sizeof(void *)), GFP)
+	ALLOC(ARGS, (sizeof(void *)), GFP)
 |
 // Convert any other expression: p = kmalloc(sizeof(s->item), gfp)
--	ALLOC((sizeof(E)), GFP)
-+	ALLOC_OBJ(E, GFP)
+-	ALLOC(ARGS, (sizeof(E)), GFP)
++	ALLOC_OBJ(ARGS, E, GFP)
 |
 // Convert any other type: p = kmalloc(sizeof(struct item), gfp)
--	ALLOC((sizeof(TYPE)), GFP)
-+	ALLOC_OBJ(TYPE, GFP)
+-	ALLOC(ARGS, (sizeof(TYPE)), GFP)
++	ALLOC_OBJ(ARGS, TYPE, GFP)
 |
 // The same, for arrays allocated as (count, size):
 // Exclude byte buffers and integral pointers: kcalloc(n, sizeof(u8), gfp),
 //   kcalloc(n, sizeof(char *), gfp)
-	ALLOC_ARRAY(COUNT, (\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
+	ALLOC_ARRAY(ARGS, COUNT, (\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
 			    sizeof(BYTE_TYPES *)\|sizeof(MULTIBYTE_TYPES *)\)), GFP)
 |
 // Exclude arrays assigned to a byte pointer:
 //   u8 *buf = kcalloc(n, sizeof(*hdr), gfp)
-	BYTES = ALLOC_ARRAY(COUNT, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
+	BYTES = ALLOC_ARRAY(ARGS, COUNT, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
 |
 // Convert a multi-byte array to a pointer to it:
 //   u32 *p = kcalloc(n, sizeof(u32), gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC_ARRAY(COUNT, (sizeof(MULTIBYTE_TYPES)), GFP)
-+		ALLOC_OBJS(MULTIBYTE_TYPES, COUNT, GFP)
+-		ALLOC_ARRAY(ARGS, COUNT, (sizeof(MULTIBYTE_TYPES)), GFP)
++		ALLOC_OBJS(ARGS, MULTIBYTE_TYPES, COUNT, GFP)
 |
 // Same by expression: u32 *p = kcalloc(n, sizeof(*p), gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC_ARRAY(COUNT, (sizeof(MULTIBYTE)), GFP)
-+		ALLOC_OBJS(MULTIBYTE, COUNT, GFP)
+-		ALLOC_ARRAY(ARGS, COUNT, (sizeof(MULTIBYTE)), GFP)
++		ALLOC_OBJS(ARGS, MULTIBYTE, COUNT, GFP)
 |
 // Exclude other multi-byte arrays:
 //   s16 (*pairs)[2] = kcalloc(n, sizeof(s16), gfp)
-	ALLOC_ARRAY(COUNT, (\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), GFP)
+	ALLOC_ARRAY(ARGS, COUNT, (\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), GFP)
 |
 // Exclude other arrays assigned to a multi-byte pointer:
 //   u32 *p = kcalloc(n, sizeof(*hdr), gfp)
-	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC_ARRAY(COUNT, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
+	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC_ARRAY(ARGS, COUNT, (\(sizeof(E)\|sizeof(TYPE)\)), GFP)
 |
 // Exclude arrays of void pointers: kcalloc(n, sizeof(void *), gfp)
-	ALLOC_ARRAY(COUNT, (sizeof(void *)), GFP)
+	ALLOC_ARRAY(ARGS, COUNT, (sizeof(void *)), GFP)
 |
 // Convert any other expression: p = kcalloc(n, sizeof(*p), gfp)
--	ALLOC_ARRAY(COUNT, (sizeof(E)), GFP)
-+	ALLOC_OBJS(E, COUNT, GFP)
+-	ALLOC_ARRAY(ARGS, COUNT, (sizeof(E)), GFP)
++	ALLOC_OBJS(ARGS, E, COUNT, GFP)
 |
 // Convert any other type: p = kcalloc(n, sizeof(struct item), gfp)
--	ALLOC_ARRAY(COUNT, (sizeof(TYPE)), GFP)
-+	ALLOC_OBJS(TYPE, COUNT, GFP)
+-	ALLOC_ARRAY(ARGS, COUNT, (sizeof(TYPE)), GFP)
++	ALLOC_OBJS(ARGS, TYPE, COUNT, GFP)
 |
 // The same, for arrays allocated as (size, count):
 // Exclude byte buffers and integral pointers: kcalloc(sizeof(u8), n, gfp),
 //   kcalloc(sizeof(char *), n, gfp)
-	ALLOC_ARRAY((\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
+	ALLOC_ARRAY(ARGS, (\(sizeof(STRING)\|sizeof(BYTE_TYPES)\|
 		      sizeof(BYTE_TYPES *)\|sizeof(MULTIBYTE_TYPES *)\)), COUNT, GFP)
 |
 // Exclude arrays assigned to a byte pointer:
 //   u8 *buf = kcalloc(sizeof(*hdr), n, gfp)
-	BYTES = ALLOC_ARRAY((\(sizeof(E)\|sizeof(TYPE)\)), COUNT, GFP)
+	BYTES = ALLOC_ARRAY(ARGS, (\(sizeof(E)\|sizeof(TYPE)\)), COUNT, GFP)
 |
 // Convert a multi-byte array to a pointer to it:
 //   u32 *p = kcalloc(sizeof(u32), n, gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC_ARRAY((sizeof(MULTIBYTE_TYPES)), COUNT, GFP)
-+		ALLOC_OBJS(MULTIBYTE_TYPES, COUNT, GFP)
+-		ALLOC_ARRAY(ARGS, (sizeof(MULTIBYTE_TYPES)), COUNT, GFP)
++		ALLOC_OBJS(ARGS, MULTIBYTE_TYPES, COUNT, GFP)
 |
 // Same by expression: u32 *p = kcalloc(sizeof(*p), n, gfp)
 	\(MULTIBYTES\|CONST_MULTIBYTES\) =
--		ALLOC_ARRAY((sizeof(MULTIBYTE)), COUNT, GFP)
-+		ALLOC_OBJS(MULTIBYTE, COUNT, GFP)
+-		ALLOC_ARRAY(ARGS, (sizeof(MULTIBYTE)), COUNT, GFP)
++		ALLOC_OBJS(ARGS, MULTIBYTE, COUNT, GFP)
 |
 // Exclude other multi-byte arrays:
 //   s16 (*pairs)[2] = kcalloc(sizeof(s16), n, gfp)
-	ALLOC_ARRAY((\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), COUNT, GFP)
+	ALLOC_ARRAY(ARGS, (\(sizeof(MULTIBYTE_TYPES)\|sizeof(MULTIBYTE)\)), COUNT, GFP)
 |
 // Exclude other arrays assigned to a multi-byte pointer:
 //   u32 *p = kcalloc(sizeof(*hdr), n, gfp)
-	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC_ARRAY((\(sizeof(E)\|sizeof(TYPE)\)), COUNT, GFP)
+	\(MULTIBYTES\|CONST_MULTIBYTES\) = ALLOC_ARRAY(ARGS, (\(sizeof(E)\|sizeof(TYPE)\)), COUNT, GFP)
 |
 // Exclude arrays of void pointers: kcalloc(sizeof(void *), n, gfp)
-	ALLOC_ARRAY((sizeof(void *)), COUNT, GFP)
+	ALLOC_ARRAY(ARGS, (sizeof(void *)), COUNT, GFP)
 |
 // Convert any other expression: p = kcalloc(sizeof(*p), n, gfp)
--	ALLOC_ARRAY((sizeof(E)), COUNT, GFP)
-+	ALLOC_OBJS(E, COUNT, GFP)
+-	ALLOC_ARRAY(ARGS, (sizeof(E)), COUNT, GFP)
++	ALLOC_OBJS(ARGS, E, COUNT, GFP)
 |
 // Convert any other type: p = kcalloc(sizeof(struct item), n, gfp)
--	ALLOC_ARRAY((sizeof(TYPE)), COUNT, GFP)
-+	ALLOC_OBJS(TYPE, COUNT, GFP)
+-	ALLOC_ARRAY(ARGS, (sizeof(TYPE)), COUNT, GFP)
++	ALLOC_OBJS(ARGS, TYPE, COUNT, GFP)
 |
 // Convert flexible array structures: p = kmalloc(struct_size(p, data, n), gfp)
--	ALLOC(struct_size(VAR, FLEX, COUNT), GFP)
-+	ALLOC_FLEX(*VAR, FLEX, COUNT, GFP)
+-	ALLOC(ARGS, struct_size(VAR, FLEX, COUNT), GFP)
++	ALLOC_FLEX(ARGS, *VAR, FLEX, COUNT, GFP)
 |
 // Same by type: kmalloc(struct_size_t(struct item, data, n), gfp)
--	ALLOC(struct_size_t(TYPE, FLEX, COUNT), GFP)
-+	ALLOC_FLEX(TYPE, FLEX, COUNT, GFP)
+-	ALLOC(ARGS, struct_size_t(TYPE, FLEX, COUNT), GFP)
++	ALLOC_FLEX(ARGS, TYPE, FLEX, COUNT, GFP)
 )
 
 @drop_gfp_kernel depends on patch && !(file in "tools") && !(file in "samples")@
 identifier ALLOC = {kmalloc_obj,kmalloc_objs,kmalloc_flex,
 		    kzalloc_obj,kzalloc_objs,kzalloc_flex,
 		    kvmalloc_obj,kvmalloc_objs,kvmalloc_flex,
-		    kvzalloc_obj,kvzalloc_objs,kvzalloc_flex};
+		    kvzalloc_obj,kvzalloc_objs,kvzalloc_flex,
+		    devm_kmalloc_obj,devm_kmalloc_objs,devm_kmalloc_flex,
+		    devm_kzalloc_obj,devm_kzalloc_objs,devm_kzalloc_flex};
 @@
 
 	ALLOC(...
