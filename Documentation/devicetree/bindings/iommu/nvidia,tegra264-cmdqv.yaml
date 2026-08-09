@@ -38,5 +38,5 @@ examples:
     cmdqv@5200000 {
             compatible = "nvidia,tegra264-cmdqv";
             reg = <0x5200000 0x830000>;
-            interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
+            interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>;
     };
