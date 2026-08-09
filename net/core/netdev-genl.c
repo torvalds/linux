@@ -1107,7 +1107,9 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 			goto err_unbind;
 	}
 
-	nla_put_u32(rsp, NETDEV_A_DMABUF_ID, binding->id);
+	/* rsp was allocated large enough */
+	WARN_ON_ONCE(nla_put_u32(rsp, NETDEV_A_DMABUF_ID, binding->id));
+
 	genlmsg_end(rsp, hdr);
 
 	err = genlmsg_reply(rsp, info);
@@ -1241,7 +1243,9 @@ int netdev_nl_bind_tx_doit(struct sk_buff *skb, struct genl_info *info)
 		goto err_unlock_bind_dev;
 	}
 
-	nla_put_u32(rsp, NETDEV_A_DMABUF_ID, binding->id);
+	/* rsp was allocated large enough */
+	WARN_ON_ONCE(nla_put_u32(rsp, NETDEV_A_DMABUF_ID, binding->id));
+
 	genlmsg_end(rsp, hdr);
 
 	if (bind_dev != netdev)
@@ -1408,7 +1412,9 @@ int netdev_nl_queue_create_doit(struct sk_buff *skb, struct genl_info *info)
 
 	netdev_rx_queue_lease(rxq, rxq_lease);
 
-	nla_put_u32(rsp, NETDEV_A_QUEUE_ID, queue_id);
+	/* rsp was allocated large enough */
+	WARN_ON_ONCE(nla_put_u32(rsp, NETDEV_A_QUEUE_ID, queue_id));
+
 	genlmsg_end(rsp, hdr);
 
 	netdev_unlock(dev_lease);
