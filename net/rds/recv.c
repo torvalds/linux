@@ -47,6 +47,7 @@ void rds_inc_init(struct rds_incoming *inc, struct rds_connection *conn,
 	refcount_set(&inc->i_refcount, 1);
 	INIT_LIST_HEAD(&inc->i_item);
 	inc->i_conn = conn;
+	inc->i_conn_path = NULL;
 	inc->i_saddr = *saddr;
 	inc->i_usercopy.rdma_cookie = 0;
 	inc->i_usercopy.rx_tstamp = ktime_set(0, 0);
