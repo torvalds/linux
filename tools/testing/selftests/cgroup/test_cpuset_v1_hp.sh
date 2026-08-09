@@ -14,7 +14,7 @@ skip_test() {
 [[ $(id -u) -eq 0 ]] || skip_test "Test must be run as root!"
 
 # Find cpuset v1 mount point
-CPUSET=$(mount -t cgroup | grep cpuset | head -1 | awk -e '{print $3}')
+CPUSET=$(mount -t cgroup | grep cpuset | head -1 | awk '{print $3}')
 [[ -n "$CPUSET" ]] || skip_test "cpuset v1 mount point not found!"
 
 #
