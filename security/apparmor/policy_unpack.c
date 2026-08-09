@@ -731,7 +731,7 @@ static bool verify_tags(struct aa_tags_struct *tags, const char **info)
 		/* count followed by count indexes into hdrs */
 		u32 cnt = tags->sets.table[i];
 
-		if (i+cnt >= tags->sets.size) {
+		if ((u64)i + cnt >= tags->sets.size) {
 			AA_DEBUG(DEBUG_UNPACK,
 				 "tagset too large %d+%d > sets.table[%d]",
 				 i, cnt, tags->sets.size);
