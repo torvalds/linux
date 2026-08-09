@@ -2211,11 +2211,6 @@ static PyObject *pyrf_evsel__read(struct pyrf_evsel *pevsel,
 
 	CHECK_INITIALIZED(evsel, "evsel");
 
-	count_values = PyObject_New(struct pyrf_counts_values,
-							       &pyrf_counts_values__type);
-	if (!count_values)
-		return NULL;
-
 	if (!PyArg_ParseTuple(args, "ii", &cpu, &thread))
 		return NULL;
 
@@ -2233,6 +2228,10 @@ static PyObject *pyrf_evsel__read(struct pyrf_evsel *pevsel,
 
 	if (evsel__ensure_counts(evsel))
 		return PyErr_NoMemory();
+
+	count_values = PyObject_New(struct pyrf_counts_values, &pyrf_counts_values__type);
+	if (!count_values)
+		return NULL;
 
 	/* Set up pointers to the old and newly read counter values. */
 	old_count = perf_counts(evsel->prev_raw_counts, cpu_idx, thread_idx);
