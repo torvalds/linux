@@ -40,12 +40,18 @@
 
 &pcie0 {
 	status = "okay";
-	perst-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
+};
+
+&pcie0_port0 {
+	reset-gpios = <&tlmm 58 GPIO_ACTIVE_LOW>;
 };
 
 &pcie1 {
 	status = "okay";
-	perst-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+};
+
+&pcie1_port0 {
+	reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
 };
 
 &pcie_qmp0 {

@@ -27,7 +27,6 @@
 
 /* The following reserved memory regions have different addresses or sizes */
 /delete-node/ &adsp_mem;
-/delete-node/ &adsp_rpc_remote_heap_mem;
 /delete-node/ &cdsp_mem;
 /delete-node/ &rmtfs_mem;
 
@@ -200,11 +199,6 @@
 
 		neuron_block_1_mem: neuron-block@d7f80000 {
 			reg = <0x0 0xd7f80000 0x0 0x80000>;
-			no-map;
-		};
-
-		adsp_rpc_remote_heap_mem: adsp-rpc-remote-heap@e0400000 {
-			reg = <0x0 0xe0400000 0x0 0x800000>;
 			no-map;
 		};
 

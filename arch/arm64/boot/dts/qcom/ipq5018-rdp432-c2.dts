@@ -34,14 +34,16 @@
 	pinctrl-0 = <&pcie0_default>;
 	pinctrl-names = "default";
 
-	perst-gpios = <&tlmm 15 GPIO_ACTIVE_LOW>;
-	wake-gpios = <&tlmm 16 GPIO_ACTIVE_LOW>;
-
 	status = "okay";
 };
 
 &pcie0_phy {
 	status = "okay";
+};
+
+&pcie0_port0 {
+	reset-gpios = <&tlmm 15 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 16 GPIO_ACTIVE_LOW>;
 };
 
 &sdhc_1 {

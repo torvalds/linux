@@ -3682,8 +3682,8 @@
 
 			operating-points-v2 = <&pcie0_opp_table>;
 
-			iommu-map = <0     &apps_smmu 0x1400 0x1>,
-				    <0x100 &apps_smmu 0x1401 0x1>;
+			iommu-map = <0     &apps_smmu 0x1400 0x0 0x1>,
+				    <0x100 &apps_smmu 0x1401 0x0 0x1>;
 
 			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH 0>,
 					<0 0 0 2 &intc 0 0 GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -3875,8 +3875,8 @@
 
 			operating-points-v2 = <&pcie1_opp_table>;
 
-			iommu-map = <0     &apps_smmu 0x1480 0x1>,
-				    <0x100 &apps_smmu 0x1481 0x1>;
+			iommu-map = <0     &apps_smmu 0x1480 0x0 0x1>,
+				    <0x100 &apps_smmu 0x1481 0x0 0x1>;
 
 			interrupt-map = <0 0 0 1 &intc 0 0 GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH 0>,
 					<0 0 0 2 &intc 0 0 GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH 0>,
@@ -5351,6 +5351,8 @@
 			clock-names = "camnoc_axi",
 				      "cpas_ahb",
 				      "cci";
+			assigned-clocks = <&camcc CAM_CC_CCI_0_CLK>;
+			assigned-clock-rates = <37500000>;
 			pinctrl-0 = <&cci0_0_default &cci0_1_default>;
 			pinctrl-1 = <&cci0_0_sleep &cci0_1_sleep>;
 			pinctrl-names = "default", "sleep";
@@ -5384,6 +5386,8 @@
 			clock-names = "camnoc_axi",
 				      "cpas_ahb",
 				      "cci";
+			assigned-clocks = <&camcc CAM_CC_CCI_1_CLK>;
+			assigned-clock-rates = <37500000>;
 			pinctrl-0 = <&cci1_0_default &cci1_1_default>;
 			pinctrl-1 = <&cci1_0_sleep &cci1_1_sleep>;
 			pinctrl-names = "default", "sleep";
@@ -5417,6 +5421,8 @@
 			clock-names = "camnoc_axi",
 				      "cpas_ahb",
 				      "cci";
+			assigned-clocks = <&camcc CAM_CC_CCI_2_CLK>;
+			assigned-clock-rates = <37500000>;
 			pinctrl-0 = <&cci2_0_default &cci2_1_default>;
 			pinctrl-1 = <&cci2_0_sleep &cci2_1_sleep>;
 			pinctrl-names = "default", "sleep";

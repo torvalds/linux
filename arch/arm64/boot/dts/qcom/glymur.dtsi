@@ -2827,7 +2827,7 @@
 			#interconnect-cells = <2>;
 		};
 
-		pcie4: pci@1bf0000 {
+		pcie4: pcie@1bf0000 {
 			device_type = "pci";
 			compatible = "qcom,glymur-pcie", "qcom,pcie-x1e80100";
 			reg = <0x0 0x01bf0000 0x0 0x3000>,
@@ -3043,7 +3043,7 @@
 			status = "disabled";
 		};
 
-		pcie5: pci@1b40000 {
+		pcie5: pcie@1b40000 {
 			device_type = "pci";
 			compatible = "qcom,glymur-pcie", "qcom,pcie-x1e80100";
 			reg = <0x0 0x01b40000 0x0 0x3000>,
@@ -3315,7 +3315,7 @@
 			status = "disabled";
 		};
 
-		pcie6: pci@1c00000 {
+		pcie6: pcie@1c00000 {
 			device_type = "pci";
 			compatible = "qcom,glymur-pcie", "qcom,pcie-x1e80100";
 			reg = <0x0 0x01c00000 0x0 0x3000>,
@@ -3531,7 +3531,7 @@
 			status = "disabled";
 		};
 
-		pcie3b: pci@1b80000 {
+		pcie3b: pcie@1b80000 {
 			device_type = "pci";
 			compatible = "qcom,glymur-pcie", "qcom,pcie-x1e80100";
 			reg = <0x0 0x01b80000 0x0 0x3000>,
@@ -4603,6 +4603,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4678,6 +4679,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4753,6 +4755,7 @@
 			snps,dis_enblslpm_quirk;
 
 			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 
@@ -4838,9 +4841,11 @@
 			snps,dis_u2_susphy_quirk;
 			snps,dis_enblslpm_quirk;
 
-			dr_mode = "host";
-
 			maximum-speed = "high-speed";
+
+			qcom,select-utmi-as-pipe-clk;
+			usb-role-switch;
+			wakeup-source;
 
 			status = "disabled";
 		};
@@ -4912,6 +4917,7 @@
 			snps,dis_enblslpm_quirk;
 
 			dr_mode = "host";
+			wakeup-source;
 
 			status = "disabled";
 		};
@@ -5422,9 +5428,13 @@
 		pdc: interrupt-controller@b220000 {
 			compatible = "qcom,glymur-pdc", "qcom,pdc";
 			reg = <0x0 0x0b220000 0x0 0x10000>;
-			qcom,pdc-ranges = <0 745 51>,
-					  <51 527 47>,
-					  <98 609 32>,
+			qcom,pdc-ranges = <0 745 38>,
+					  <40 785 11>,
+					  <51 527 4>,
+					  <57 533 10>,
+					  <70 546 4>,
+					  <75 551 18>,
+					  <108 619 22>,
 					  <130 717 12>,
 					  <142 251 5>,
 					  <147 796 16>,

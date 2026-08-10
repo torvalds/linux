@@ -428,8 +428,8 @@
 &ufs_mem_phy {
 	status = "okay";
 
-	vdda-phy-supply = <&vreg_l8c_1p2>;
-	vdda-pll-supply = <&vreg_l5a_0p88>;
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l8c_1p2>;
 };
 
 &usb_1 {
@@ -474,8 +474,8 @@
 
 &usb_2_qmpphy {
 	status = "okay";
-	vdda-phy-supply = <&vreg_l8c_1p2>;
-	vdda-pll-supply = <&vdda_usb_ss_dp_core_1>;
+	vdda-phy-supply = <&vdda_usb_ss_dp_core_1>;
+	vdda-pll-supply = <&vreg_l8c_1p2>;
 };
 
 &pcie0 {

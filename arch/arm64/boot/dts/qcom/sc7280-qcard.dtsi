@@ -465,8 +465,8 @@ mos_bt_uart: &uart7 {
 };
 
 &usb_1_qmpphy {
-	vdda-phy-supply = <&vdd_a_usbssdp_0_1p2>;
-	vdda-pll-supply = <&vdd_a_usbssdp_0_core>;
+	vdda-phy-supply = <&vdd_a_usbssdp_0_core>;
+	vdda-pll-supply = <&vdd_a_usbssdp_0_1p2>;
 };
 
 &usb_2_hsphy {
