@@ -779,7 +779,15 @@ static int btmtksdio_close(struct hci_dev *hdev)
 
 	sdio_release_irq(bdev->func);
 
+	/* No new work can be scheduled after sdio_release_irq(), so cancel the
+	 * work outside the sdio host lock. btmtksdio_txrx_work() also claims
+	 * the host, so canceling it while holding the lock would deadlock.
+	 */
+	sdio_release_host(bdev->func);
+
 	cancel_work_sync(&bdev->txrx_work);
+
+	sdio_claim_host(bdev->func);
 
 	btmtksdio_fw_pmctrl(bdev);
 
@@ -1324,7 +1332,21 @@ static void btmtksdio_reset(struct hci_dev *hdev)
 
 	sdio_writel(bdev->func, C_INT_EN_CLR, MTK_REG_CHLPCR, NULL);
 	skb_queue_purge(&bdev->txq);
+
+	/* Unregister the IRQ before releasing the host lock so that a
+	 * concurrently running btmtksdio_txrx_work() cannot re-enable the
+	 * device interrupt (C_INT_EN_SET) and be rescheduled while the device
+	 * is being reset. btmtksdio_txrx_work() also claims the host, so the
+	 * work must be cancelled outside the sdio host lock to avoid a
+	 * deadlock. The IRQ is re-claimed by btmtksdio_open() when the HCI
+	 * device is re-opened after the reset.
+	 */
+	sdio_release_irq(bdev->func);
+	sdio_release_host(bdev->func);
+
 	cancel_work_sync(&bdev->txrx_work);
+
+	sdio_claim_host(bdev->func);
 
 	gpiod_set_value_cansleep(bdev->reset, 1);
 	msleep(100);
