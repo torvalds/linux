@@ -67,3 +67,13 @@ config QE_USB
 	default y if USB_FSL_QE
 	help
 	  QE USB Controller support
+
+config QE_GPIO
+	bool "QE GPIO support"
+	depends on QUICC_ENGINE
+	depends on !SPARC # Should be OF_IRQ but it leads to circ. dependency
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB
+	help
+	  Say Y here if you're going to use hardware that connects to the
+	  QE GPIOs.
