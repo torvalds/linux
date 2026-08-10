@@ -13,7 +13,7 @@ static void __net_init __xfrm_sysctl_init(struct net *net)
 }
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table xfrm_table[] = {
+static const struct ctl_table xfrm_table[] = {
 	{
 		.procname	= "xfrm_aevent_etime",
 		.maxlen		= sizeof(u32),
