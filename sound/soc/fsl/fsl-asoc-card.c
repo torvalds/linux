@@ -658,8 +658,14 @@ static int fsl_asoc_card_cs42888_codec_init(struct fsl_asoc_card_priv *priv)
 {
 	unsigned long mclk_freq = priv->codec_priv[0].mclk_freq;
 
-	priv->cpu_priv.sysclk_freq[TX] = mclk_freq;
-	priv->cpu_priv.sysclk_freq[RX] = mclk_freq;
+	/*
+	 * Set CPU sysclk frequency from codec MCLK only if not already
+	 * set by the CPU DAI init (e.g. ESAI extal clock takes precedence).
+	 */
+	if (!priv->cpu_priv.sysclk_freq[TX])
+		priv->cpu_priv.sysclk_freq[TX] = mclk_freq;
+	if (!priv->cpu_priv.sysclk_freq[RX])
+		priv->cpu_priv.sysclk_freq[RX] = mclk_freq;
 
 	priv->constraint_channels = &cs42888_channel_constraints;
 	if (mclk_freq % 12288000 == 0)
@@ -868,16 +874,172 @@ static struct notifier_block mic_jack_nb = {
 	.notifier_call = mic_jack_event,
 };
 
-static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
+/*
+ * fsl_asoc_card_init_cpu - configure CPU DAI-specific settings.
+ *
+ * Called from late_probe() when the CPU DAI component is guaranteed bound.
+ */
+static int fsl_asoc_card_init_cpu(struct snd_soc_card *card,
+				  struct snd_soc_pcm_runtime *rtd)
 {
 	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
-	struct snd_soc_pcm_runtime *rtd = list_first_entry(
-			&card->rtd_list, struct snd_soc_pcm_runtime, list);
+	struct device_node *np = priv->pdev->dev.of_node;
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	const char *comp_drv_name = cpu_dai->component->driver->name;
+	struct device *dev = card->dev;
+	int ret;
+
+	if (!strcmp(comp_drv_name, "fsl-ssi")) {
+		/* Only SSI needs to configure AUDMUX */
+		ret = fsl_asoc_card_audmux_init(np, priv);
+		if (ret) {
+			dev_err(dev, "failed to init audmux\n");
+			return ret;
+		}
+	} else if (!strcmp(comp_drv_name, "fsl-esai")) {
+		struct clk *esai_clk = clk_get(cpu_dai->dev, "extal");
+
+		if (!IS_ERR(esai_clk)) {
+			priv->cpu_priv.sysclk_freq[TX] = clk_get_rate(esai_clk);
+			priv->cpu_priv.sysclk_freq[RX] = clk_get_rate(esai_clk);
+			clk_put(esai_clk);
+		} else {
+			dev_warn(dev, "failed to get ESAI extal clock: %ld\n", PTR_ERR(esai_clk));
+		}
+
+		priv->cpu_priv.sysclk_id[TX] = ESAI_HCKT_EXTAL;
+		priv->cpu_priv.sysclk_id[RX] = ESAI_HCKR_EXTAL;
+	} else if (!strcmp(comp_drv_name, "fsl-sai")) {
+		priv->cpu_priv.sysclk_id[TX] = FSL_SAI_CLK_MAST1;
+		priv->cpu_priv.sysclk_id[RX] = FSL_SAI_CLK_MAST1;
+
+		if (priv->pdata->exclude_format)
+			priv->exclude_format = priv->pdata->exclude_format;
+	}
+
+	return 0;
+}
+
+/*
+ * fsl_asoc_card_init_codecs - read codec MCLK rates and set codec sysclk.
+ *
+ * Called from late_probe() after all components are bound.
+ */
+static int fsl_asoc_card_init_codecs(struct snd_soc_card *card,
+				     struct snd_soc_pcm_runtime *rtd)
+{
+	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
+	const struct fsl_asoc_card_pdata *pdata = priv->pdata;
 	struct snd_soc_dai *codec_dai;
 	struct codec_priv *codec_priv;
 	struct device *dev = card->dev;
 	int codec_idx;
 	int ret;
+
+	/* Read MCLK rate from each bound codec component */
+	for_each_rtd_codec_dais(rtd, codec_idx, codec_dai) {
+		struct clk *codec_clk = clk_get(codec_dai->component->dev, NULL);
+
+		codec_priv = &priv->codec_priv[codec_idx];
+		if (!IS_ERR(codec_clk)) {
+			codec_priv->mclk_freq = clk_get_rate(codec_clk);
+			clk_put(codec_clk);
+		}
+	}
+
+	if (pdata->codec_init) {
+		ret = pdata->codec_init(priv);
+		if (ret)
+			return ret;
+	}
+
+	for_each_rtd_codec_dais(rtd, codec_idx, codec_dai) {
+		codec_priv = &priv->codec_priv[codec_idx];
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, codec_priv->mclk_id,
+					     codec_priv->mclk_freq, SND_SOC_CLOCK_IN);
+		if (ret && ret != -ENOTSUPP) {
+			dev_err(dev, "failed to set sysclk in %s\n", __func__);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static void fsl_asoc_card_free_jack(struct snd_soc_card *card)
+{
+	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
+
+	if (priv->hp_jack.gpio.desc) {
+		snd_soc_jack_notifier_unregister(&priv->hp_jack.jack, &hp_jack_nb);
+		snd_soc_jack_free_gpios(&priv->hp_jack.jack, 1, &priv->hp_jack.gpio);
+		priv->hp_jack.gpio.desc = NULL;
+	}
+
+	if (priv->mic_jack.gpio.desc) {
+		snd_soc_jack_notifier_unregister(&priv->mic_jack.jack, &mic_jack_nb);
+		snd_soc_jack_free_gpios(&priv->mic_jack.jack, 1, &priv->mic_jack.gpio);
+		priv->mic_jack.gpio.desc = NULL;
+	}
+}
+
+/*
+ * fsl_asoc_card_init_jack - register optional headphone and mic jacks.
+ *
+ * Called from late_probe() once per card bind cycle.
+ */
+static int fsl_asoc_card_init_jack(struct snd_soc_card *card)
+{
+	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
+	struct device_node *np = priv->pdev->dev.of_node;
+	int ret;
+
+	/*
+	 * Properties "hp-det-gpios" and "mic-det-gpios" are optional.
+	 * simple_util_init_jack() checks for the GPIO property and
+	 * does nothing if it is absent.
+	 */
+	if (of_property_present(np, "hp-det-gpios") ||
+	    of_property_present(np, "hp-det-gpio") /* deprecated */) {
+		ret = simple_util_init_jack(card, &priv->hp_jack,
+					    1, NULL, "Headphone Jack");
+		if (ret)
+			return ret;
+
+		snd_soc_jack_notifier_register(&priv->hp_jack.jack, &hp_jack_nb);
+	}
+
+	if (of_property_present(np, "mic-det-gpios") ||
+	    of_property_present(np, "mic-det-gpio") /* deprecated */) {
+		ret = simple_util_init_jack(card, &priv->mic_jack,
+					    0, NULL, "Mic Jack");
+		if (ret)
+			return ret;
+
+		snd_soc_jack_notifier_register(&priv->mic_jack.jack, &mic_jack_nb);
+	}
+
+	return 0;
+}
+
+static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
+{
+	struct fsl_asoc_card_priv *priv = snd_soc_card_get_drvdata(card);
+	struct snd_soc_pcm_runtime *rtd;
+	int ret;
+
+	/* Use the first rtd which carries the CPU+codec DAIs */
+	rtd = list_first_entry(&card->rtd_list,
+			       struct snd_soc_pcm_runtime, list);
+
+	ret = fsl_asoc_card_init_jack(card);
+	if (ret)
+		goto jack_fail;
+
+	ret = fsl_asoc_card_init_cpu(card, rtd);
+	if (ret)
+		goto jack_fail;
 
 	if (fsl_asoc_card_is_ac97(priv)) {
 #if IS_ENABLED(CONFIG_SND_AC97_CODEC)
@@ -896,16 +1058,20 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 		return 0;
 	}
 
-	for_each_rtd_codec_dais(rtd, codec_idx, codec_dai) {
-		codec_priv = &priv->codec_priv[codec_idx];
+	ret = fsl_asoc_card_init_codecs(card, rtd);
+	if (ret)
+		goto jack_fail;
 
-		ret = snd_soc_dai_set_sysclk(codec_dai, codec_priv->mclk_id,
-					codec_priv->mclk_freq, SND_SOC_CLOCK_IN);
-		if (ret && ret != -ENOTSUPP) {
-			dev_err(dev, "failed to set sysclk in %s\n", __func__);
-			return ret;
-		}
-	}
+	return 0;
+
+jack_fail:
+	fsl_asoc_card_free_jack(card);
+	return ret;
+}
+
+static int fsl_asoc_card_card_remove(struct snd_soc_card *card)
+{
+	fsl_asoc_card_free_jack(card);
 
 	return 0;
 }
@@ -919,13 +1085,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	struct platform_device *asrc_pdev = NULL;
 	struct device_node *bitclkprovider = NULL;
 	struct device_node *frameprovider = NULL;
-	struct platform_device *cpu_pdev;
 	struct fsl_asoc_card_priv *priv;
 	const struct fsl_asoc_card_pdata *pdata;
-	struct device *codec_dev[2] = { NULL, NULL };
 	struct snd_soc_dai_link_component *dlc;
-	const char *codec_dai_name[2];
-	const char *codec_dev_name[2];
+	const char *codec_dai_name[2] = { NULL, NULL };
 	u32 asrc_fmt = 0;
 	int codec_idx;
 	u32 width;
@@ -938,8 +1101,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 
 	pdata = of_device_get_match_data(&pdev->dev);
-	if (!pdata)
+	if (!pdata) {
+		dev_err(&pdev->dev, "unknown Device Tree compatible\n");
 		return -EINVAL;
+	}
 	priv->pdata = pdata;
 
 	cpu_np = of_parse_phandle(np, "audio-cpu", 0);
@@ -954,57 +1119,12 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	cpu_pdev = of_find_device_by_node(cpu_np);
-	if (!cpu_pdev) {
-		dev_err(&pdev->dev, "failed to find CPU DAI device\n");
-		ret = -EINVAL;
-		goto fail;
-	}
-
 	codec_np[0] = of_parse_phandle(np, "audio-codec", 0);
 	codec_np[1] = of_parse_phandle(np, "audio-codec", 1);
-
-	for (codec_idx = 0; codec_idx < 2; codec_idx++) {
-		if (codec_np[codec_idx]) {
-			struct platform_device *codec_pdev;
-			struct i2c_client *codec_i2c;
-
-			codec_i2c = of_find_i2c_device_by_node(codec_np[codec_idx]);
-			if (codec_i2c) {
-				codec_dev[codec_idx] = &codec_i2c->dev;
-				codec_dev_name[codec_idx] = codec_i2c->name;
-			}
-			if (!codec_dev[codec_idx]) {
-				codec_pdev = of_find_device_by_node(codec_np[codec_idx]);
-				if (codec_pdev) {
-					codec_dev[codec_idx] = &codec_pdev->dev;
-					codec_dev_name[codec_idx] = codec_pdev->name;
-				}
-			}
-		}
-	}
 
 	asrc_np = of_parse_phandle(np, "audio-asrc", 0);
 	if (asrc_np)
 		asrc_pdev = of_find_device_by_node(asrc_np);
-
-	/* Get the MCLK rate only, and leave it controlled by CODEC drivers */
-	for (codec_idx = 0; codec_idx < 2; codec_idx++) {
-		if (codec_dev[codec_idx]) {
-			struct clk *codec_clk = clk_get(codec_dev[codec_idx], NULL);
-
-			if (!IS_ERR(codec_clk)) {
-				priv->codec_priv[codec_idx].mclk_freq = clk_get_rate(codec_clk);
-				clk_put(codec_clk);
-			}
-		}
-	}
-
-	if (pdata->codec_init) {
-		ret = pdata->codec_init(priv);
-		if (ret)
-			goto asrc_fail;
-	}
 
 	/* Default sample rate and format, will be updated in hw_params() */
 	priv->sample_rate = 44100;
@@ -1086,9 +1206,6 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	priv->card.dapm_routes = pdata->dapm_routes;
 	priv->card.num_dapm_routes = pdata->num_dapm_routes;
 
-	if (pdata->exclude_format && of_node_name_eq(cpu_np, "sai"))
-		priv->exclude_format = pdata->exclude_format;
-
 	if (pdata->probe_init) {
 		ret = pdata->probe_init(codec_np, cpu_np,
 					codec_dai_name, priv);
@@ -1139,51 +1256,21 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 	of_node_put(bitclkprovider);
 	of_node_put(frameprovider);
 
-	if (!fsl_asoc_card_is_ac97(priv) && !codec_dev[0]
-	    && codec_dai_name[0] != snd_soc_dummy_dlc.dai_name) {
-		dev_dbg(&pdev->dev, "failed to find codec device\n");
-		ret = -EPROBE_DEFER;
-		goto asrc_fail;
-	}
-
-	/* Common settings for corresponding Freescale CPU DAI driver */
-	if (of_node_name_eq(cpu_np, "ssi")) {
-		/* Only SSI needs to configure AUDMUX */
-		ret = fsl_asoc_card_audmux_init(np, priv);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to init audmux\n");
-			goto asrc_fail;
-		}
-	} else if (of_node_name_eq(cpu_np, "esai")) {
-		struct clk *esai_clk = clk_get(&cpu_pdev->dev, "extal");
-
-		if (!IS_ERR(esai_clk)) {
-			priv->cpu_priv.sysclk_freq[TX] = clk_get_rate(esai_clk);
-			priv->cpu_priv.sysclk_freq[RX] = clk_get_rate(esai_clk);
-			clk_put(esai_clk);
-		} else if (PTR_ERR(esai_clk) == -EPROBE_DEFER) {
-			ret = -EPROBE_DEFER;
-			goto asrc_fail;
-		}
-
-		priv->cpu_priv.sysclk_id[1] = ESAI_HCKT_EXTAL;
-		priv->cpu_priv.sysclk_id[0] = ESAI_HCKR_EXTAL;
-	} else if (of_node_name_eq(cpu_np, "sai")) {
-		priv->cpu_priv.sysclk_id[1] = FSL_SAI_CLK_MAST1;
-		priv->cpu_priv.sysclk_id[0] = FSL_SAI_CLK_MAST1;
-	}
-
 	/* Initialize sound card */
 	priv->card.dev = &pdev->dev;
 	priv->card.owner = THIS_MODULE;
 	ret = snd_soc_of_parse_card_name(&priv->card, "model");
 	if (ret) {
-		snprintf(priv->name, sizeof(priv->name), "%s-audio",
-			 fsl_asoc_card_is_ac97(priv) ? "ac97" : codec_dev_name[0]);
-		priv->card.name = priv->name;
+		/*
+		 * "model" is required by the DT binding. Enforce it here so
+		 * the driver fails with a clear message.
+		 */
+		dev_err(&pdev->dev, "Error parsing card name: %d\n", ret);
+		goto asrc_fail;
 	}
 	priv->card.dai_link = priv->dai_link;
 	priv->card.late_probe = fsl_asoc_card_late_probe;
+	priv->card.remove = fsl_asoc_card_card_remove;
 	priv->card.dapm_widgets = fsl_asoc_card_dapm_widgets;
 	priv->card.num_dapm_widgets = ARRAY_SIZE(fsl_asoc_card_dapm_widgets);
 
@@ -1290,39 +1377,10 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		goto asrc_fail;
 	}
 
-	/*
-	 * Properties "hp-det-gpios" and "mic-det-gpios" are optional, and
-	 * simple_util_init_jack() uses these properties for creating
-	 * Headphone Jack and Microphone Jack.
-	 *
-	 * The notifier is initialized in snd_soc_card_jack_new(), then
-	 * snd_soc_jack_notifier_register can be called.
-	 */
-	if (of_property_present(np, "hp-det-gpios") ||
-	    of_property_present(np, "hp-det-gpio") /* deprecated */) {
-		ret = simple_util_init_jack(&priv->card, &priv->hp_jack,
-					    1, NULL, "Headphone Jack");
-		if (ret)
-			goto asrc_fail;
-
-		snd_soc_jack_notifier_register(&priv->hp_jack.jack, &hp_jack_nb);
-	}
-
-	if (of_property_present(np, "mic-det-gpios") ||
-	    of_property_present(np, "mic-det-gpio") /* deprecated */) {
-		ret = simple_util_init_jack(&priv->card, &priv->mic_jack,
-					    0, NULL, "Mic Jack");
-		if (ret)
-			goto asrc_fail;
-
-		snd_soc_jack_notifier_register(&priv->mic_jack.jack, &mic_jack_nb);
-	}
-
 asrc_fail:
 	of_node_put(asrc_np);
 	of_node_put(codec_np[0]);
 	of_node_put(codec_np[1]);
-	put_device(&cpu_pdev->dev);
 fail:
 	of_node_put(cpu_np);
 
