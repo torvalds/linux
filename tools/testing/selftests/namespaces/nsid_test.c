@@ -649,8 +649,6 @@ TEST_F(nsid, timens_separate)
 		/* Fork a grandchild to actually enter the new namespace */
 		pid_t grandchild = fork();
 		if (grandchild == 0) {
-			/* Grandchild is in the new namespace */
-			write(pipefd[1], "Y", 1);
 			close(pipefd[1]);
 			pause();
 			_exit(0);
@@ -771,8 +769,6 @@ TEST_F(nsid, pidns_separate)
 		/* Fork a grandchild to actually enter the new namespace */
 		pid_t grandchild = fork();
 		if (grandchild == 0) {
-			/* Grandchild is in the new namespace */
-			write(pipefd[1], "Y", 1);
 			close(pipefd[1]);
 			pause();
 			_exit(0);
