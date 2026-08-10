@@ -1610,7 +1610,7 @@ nilfs_segctor_update_payload_blocknr(struct nilfs_sc_info *sci,
 	struct nilfs_finfo *finfo = NULL;
 	union nilfs_binfo binfo;
 	struct buffer_head *bh, *bh_org;
-	ino_t ino = 0;
+	u64 ino = 0;
 	int err = 0;
 
 	if (!nfinfo)

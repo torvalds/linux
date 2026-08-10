@@ -34,7 +34,7 @@ enum {
 
 /* work structure for recovery */
 struct nilfs_recovery_block {
-	ino_t ino;		/*
+	u64 ino;		/*
 				 * Inode number of the file that this block
 				 * belongs to
 				 */
@@ -333,7 +333,7 @@ static int nilfs_scan_dsync_log(struct the_nilfs *nilfs, sector_t start_blocknr,
 	unsigned int offset;
 	u32 nfinfo, sumbytes;
 	sector_t blocknr;
-	ino_t ino;
+	u64 ino;
 	int err = -EIO;
 
 	nfinfo = le32_to_cpu(sum->ss_nfinfo);

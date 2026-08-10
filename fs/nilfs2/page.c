@@ -154,7 +154,7 @@ void nilfs_folio_bug(struct folio *folio)
 {
 	struct buffer_head *bh, *head;
 	struct address_space *m;
-	unsigned long ino;
+	u64 ino;
 
 	if (unlikely(!folio)) {
 		printk(KERN_CRIT "NILFS_FOLIO_BUG(NULL)\n");
@@ -164,10 +164,9 @@ void nilfs_folio_bug(struct folio *folio)
 	m = folio->mapping;
 	ino = m ? m->host->i_ino : 0;
 
-	printk(KERN_CRIT "NILFS_FOLIO_BUG(%p): cnt=%d index#=%llu flags=0x%lx "
-	       "mapping=%p ino=%lu\n",
-	       folio, folio_ref_count(folio),
-	       (unsigned long long)folio->index, folio->flags.f, m, ino);
+	printk(KERN_CRIT "NILFS_FOLIO_BUG(%p): cnt=%d index#=%lu flags=0x%lx  mapping=%p ino=%llu\n",
+		folio, folio_ref_count(folio), folio->index, folio->flags.f,
+		m, ino);
 
 	head = folio_buffers(folio);
 	if (head) {
