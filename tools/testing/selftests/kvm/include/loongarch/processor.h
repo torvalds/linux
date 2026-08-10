@@ -70,6 +70,16 @@
 #define PS_64K				0x00000010
 #define PS_DEFAULT_SIZE			PS_16K
 
+#define LOONGARCH_CPUCFG2		0x2
+#define  CPUCFG2_FP			BIT(0)
+#define  CPUCFG2_FPSP			BIT(1)
+#define  CPUCFG2_FPDP			BIT(2)
+#define  CPUCFG2_FPVERS			GENMASK(5, 3)
+#define  CPUCFG2_LSX			BIT(6)
+#define  CPUCFG2_LASX			BIT(7)
+#define  CPUCFG2_LLFTP			BIT(14)
+#define  CPUCFG2_LLFTPREV		GENMASK(17, 15)
+
 /* LoongArch Basic CSR registers */
 #define LOONGARCH_CSR_CRMD		0x0 /* Current mode info */
 #define  CSR_CRMD_PG_SHIFT		4
