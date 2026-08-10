@@ -681,9 +681,6 @@ void xe_ras_init(struct xe_device *xe)
 {
 	int ret;
 
-	if (!xe->info.has_drm_ras)
-		return;
-
 	xe_drm_ras_init(xe);
 
 	if (!xe->info.has_sysctrl)
