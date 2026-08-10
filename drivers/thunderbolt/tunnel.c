@@ -1778,8 +1778,7 @@ static int tb_dma_reserve_credits(struct tb_path_hop *hop, unsigned int credits)
 		if (available < TB_MIN_DMA_CREDITS)
 			return -ENOSPC;
 
-		while (credits > available)
-			credits--;
+		credits = min(credits, available);
 
 		tb_port_dbg(port, "reserving %u credits for DMA path\n",
 			    credits);
