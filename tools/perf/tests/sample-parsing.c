@@ -86,10 +86,27 @@ static bool samples_same(struct perf_sample *s1,
 			COMP(read.time_running);
 		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
 		if (read_format & PERF_FORMAT_GROUP) {
+			struct sample_read_value *v1 = s1->read.group.values;
+			struct sample_read_value *v2 = s2->read.group.values;
+
 			for (i = 0; i < s1->read.group.nr; i++) {
-				/* FIXME: check values without LOST */
-				if (read_format & PERF_FORMAT_LOST)
-					MCOMP(read.group.values[i]);
+				if (v1->value != v2->value) {
+					pr_debug("Samples differ at 'read.group.values[].value'\n");
+					return false;
+				}
+
+				if (v1->id != v2->id) {
+					pr_debug("Samples differ at 'read.group.values[].id'\n");
+					return false;
+				}
+
+				if (read_format & PERF_FORMAT_LOST &&
+				    v1->lost != v2->lost) {
+					pr_debug("Samples differ at 'read.group.values[].lost'\n");
+					return false;
+				}
+				v1 = next_sample_read_value(v1, read_format);
+				v2 = next_sample_read_value(v2, read_format);
 			}
 		} else {
 			COMP(read.one.id);
@@ -279,6 +296,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		},
 	};
 	struct sample_read_value values[] = {{1, 5, 0}, {9, 3, 0}, {2, 7, 0}, {6, 4, 1},};
+	struct sample_read_value packed_values[ARRAY_SIZE(values)];
 	struct perf_sample sample_out, sample_out_endian;
 	size_t i, sz, bufsz;
 	int err, ret = -1;
@@ -303,8 +321,19 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		*(i + (u8 *)regs) = i & 0xfe;
 
 	if (read_format & PERF_FORMAT_GROUP) {
-		sample.read.group.nr     = 4;
-		sample.read.group.values = values;
+		size_t vsz = sample_read_value_size(read_format);
+
+		/*
+		 * evsel__parse_sample() points read.group.values at the event
+		 * data, where the entries are packed according to read_format,
+		 * so build the input the same way.  Otherwise the fields
+		 * compared afterwards are just overlapping bytes.
+		 */
+		for (i = 0; i < ARRAY_SIZE(values); i++)
+			memcpy((void *)packed_values + i * vsz, &values[i], vsz);
+
+		sample.read.group.nr     = ARRAY_SIZE(values);
+		sample.read.group.values = packed_values;
 	} else {
 		sample.read.one.value = 0x08789faeb786aa87ULL;
 		sample.read.one.id    = 99;
