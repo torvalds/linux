@@ -2899,7 +2899,7 @@ static int vsock_net_child_mode_string(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table vsock_table[] = {
+static const struct ctl_table vsock_table[] = {
 	{
 		.procname	= "ns_mode",
 		.data		= &init_net.vsock.mode,
@@ -2925,20 +2925,31 @@ static struct ctl_table vsock_table[] = {
 	},
 };
 
-static int __net_init vsock_sysctl_register(struct net *net)
+static const struct ctl_table *vsock_table_dup(struct net *net)
 {
 	struct ctl_table *table;
+
+	table = kmemdup(vsock_table, sizeof(vsock_table), GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	table[0].data = &net->vsock.mode;
+	table[1].data = &net->vsock.child_ns_mode;
+	table[2].data = &net->vsock.g2h_fallback;
+
+	return table;
+}
+
+static int __net_init vsock_sysctl_register(struct net *net)
+{
+	const struct ctl_table *table;
 
 	if (net_eq(net, &init_net)) {
 		table = vsock_table;
 	} else {
-		table = kmemdup(vsock_table, sizeof(vsock_table), GFP_KERNEL);
+		table = vsock_table_dup(net);
 		if (!table)
 			goto err_alloc;
-
-		table[0].data = &net->vsock.mode;
-		table[1].data = &net->vsock.child_ns_mode;
-		table[2].data = &net->vsock.g2h_fallback;
 	}
 
 	net->vsock.sysctl_hdr = register_net_sysctl_sz(net, "net/vsock", table,
