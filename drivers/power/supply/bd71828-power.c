@@ -192,12 +192,13 @@ static int bd71828_get_current_ds_adc(struct bd71828_power *pwr, int *curr, int 
 {
 	__be16 tmp_curr;
 	char *tmp = (char *)&tmp_curr;
-	int dir = 1;
 	int regs[] = { pwr->regs->ibat, pwr->regs->ibat_avg };
 	int *vals[] = { curr, curr_avg };
 	int ret, i;
 
-	for (dir = 1, i = 0; i < ARRAY_SIZE(regs); i++) {
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		int dir = 1;
+
 		ret = regmap_bulk_read(pwr->regmap, regs[i], &tmp_curr,
 				       sizeof(tmp_curr));
 		if (ret)
