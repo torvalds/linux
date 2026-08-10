@@ -8,17 +8,16 @@ use crate::{
     device,
     devres::Devres,
     io::{
-        Io,
+        IoBackend,
+        IoBase,
         IoCapable,
-        IoKnownSize,
         Mmio,
-        MmioRaw, //
+        MmioBackend,
+        MmioRaw,
+        Region, //
     },
-    prelude::*, //
-};
-use core::{
-    marker::PhantomData,
-    ops::Deref, //
+    prelude::*,
+    ptr::KnownSize, //
 };
 
 /// Represents the size of a PCI configuration space.
@@ -46,68 +45,95 @@ impl ConfigSpaceSize {
     }
 }
 
-/// Marker type for normal (256-byte) PCI configuration space.
-pub struct Normal;
+/// Alias for normal (256-byte) PCI configuration space.
+pub type Normal = Region<256>;
 
-/// Marker type for extended (4096-byte) PCIe configuration space.
-pub struct Extended;
+/// Alias for extended (4096-byte) PCIe configuration space.
+pub type Extended = Region<4096>;
 
-/// Trait for PCI configuration space size markers.
-///
-/// This trait is implemented by [`Normal`] and [`Extended`] to provide
-/// compile-time knowledge of the configuration space size.
-pub trait ConfigSpaceKind {
-    /// The size of this configuration space in bytes.
-    const SIZE: usize;
-}
-
-impl ConfigSpaceKind for Normal {
-    const SIZE: usize = 256;
-}
-
-impl ConfigSpaceKind for Extended {
-    const SIZE: usize = 4096;
-}
-
-/// The PCI configuration space of a device.
+/// A view of PCI configuration space of a device.
 ///
 /// Provides typed read and write accessors for configuration registers
 /// using the standard `pci_read_config_*` and `pci_write_config_*` helpers.
 ///
-/// The generic parameter `S` indicates the maximum size of the configuration space.
-/// Use [`Normal`] for 256-byte legacy configuration space or [`Extended`] for
-/// 4096-byte PCIe extended configuration space (default).
-pub struct ConfigSpace<'a, S: ConfigSpaceKind = Extended> {
+/// The generic parameter `T` is the type of the view. The full configuration space is also a
+/// special type of view; in such cases, `T` can be [`Normal`] for 256-byte legacy configuration
+/// space or [`Extended`] for 4096-byte PCIe extended configuration space (default).
+///
+/// # Invariants
+///
+/// `ptr` is aligned and range `ptr..ptr + KnownSize::size(ptr)` is within
+/// `0..pdev.cfg_size().into_raw()`.
+pub struct ConfigSpace<'a, T: ?Sized = Extended> {
     pub(crate) pdev: &'a Device<device::Bound>,
-    _marker: PhantomData<S>,
+    ptr: *mut T,
+}
+
+impl<T: ?Sized> Copy for ConfigSpace<'_, T> {}
+impl<T: ?Sized> Clone for ConfigSpace<'_, T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+// SAFETY: `ConfigSpace<'_, T>` is conceptually `&T` but in I/O memory.
+unsafe impl<T: ?Sized + Sync> Send for ConfigSpace<'_, T> {}
+
+// SAFETY: `ConfigSpace<'_, T>` is conceptually `&T` but in I/O memory.
+unsafe impl<T: ?Sized + Sync> Sync for ConfigSpace<'_, T> {}
+
+/// I/O Backend for PCI configuration space.
+pub struct ConfigSpaceBackend;
+
+impl IoBackend for ConfigSpaceBackend {
+    type View<'a, T: ?Sized + KnownSize> = ConfigSpace<'a, T>;
+
+    #[inline]
+    fn as_ptr<'a, T: ?Sized + KnownSize>(view: ConfigSpace<'a, T>) -> *mut T {
+        view.ptr
+    }
+
+    #[inline]
+    unsafe fn project_view<'a, T: ?Sized + KnownSize, U: ?Sized + KnownSize>(
+        view: Self::View<'a, T>,
+        ptr: *mut U,
+    ) -> Self::View<'a, U> {
+        // INVARIANT: Per safety requirement.
+        ConfigSpace {
+            pdev: view.pdev,
+            ptr,
+        }
+    }
 }
 
 /// Implements [`IoCapable`] on [`ConfigSpace`] for `$ty` using `$read_fn` and `$write_fn`.
 macro_rules! impl_config_space_io_capable {
     ($ty:ty, $read_fn:ident, $write_fn:ident) => {
-        impl<'a, S: ConfigSpaceKind> IoCapable<$ty> for ConfigSpace<'a, S> {
-            unsafe fn io_read(&self, address: usize) -> $ty {
+        impl IoCapable<$ty> for ConfigSpaceBackend {
+            fn io_read(view: ConfigSpace<'_, $ty>) -> $ty {
+                // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                // so the value always fits within `i32` without truncation or sign change.
+                let addr = view.ptr.addr() as i32;
+
                 let mut val: $ty = 0;
 
                 // Return value from C function is ignored in infallible accessors.
-                let _ret =
-                    // SAFETY: By the type invariant `self.pdev` is a valid address.
-                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
-                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
-                    // so the value always fits within `i32` without truncation or sign change.
-                    unsafe { bindings::$read_fn(self.pdev.as_raw(), address as i32, &mut val) };
-
+                // SAFETY: By the type invariant `pdev` is a valid address.
+                let _ = unsafe { bindings::$read_fn(view.pdev.as_raw(), addr, &mut val) };
                 val
             }
 
-            unsafe fn io_write(&self, value: $ty, address: usize) {
+            fn io_write(view: ConfigSpace<'_, $ty>, value: $ty) {
+                // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
+                // signed offset parameter. PCI configuration space size is at most 4096 bytes,
+                // so the value always fits within `i32` without truncation or sign change.
+                let addr = view.ptr.addr() as i32;
+
                 // Return value from C function is ignored in infallible accessors.
-                let _ret =
-                    // SAFETY: By the type invariant `self.pdev` is a valid address.
-                    // CAST: The offset is cast to `i32` because the C functions expect a 32-bit
-                    // signed offset parameter. PCI configuration space size is at most 4096 bytes,
-                    // so the value always fits within `i32` without truncation or sign change.
-                    unsafe { bindings::$write_fn(self.pdev.as_raw(), address as i32, value) };
+                // SAFETY: By the type invariant `pdev` is a valid address.
+                let _ = unsafe { bindings::$write_fn(view.pdev.as_raw(), addr, value) };
             }
         }
     };
@@ -118,22 +144,14 @@ impl_config_space_io_capable!(u8, pci_read_config_byte, pci_write_config_byte);
 impl_config_space_io_capable!(u16, pci_read_config_word, pci_write_config_word);
 impl_config_space_io_capable!(u32, pci_read_config_dword, pci_write_config_dword);
 
-impl<'a, S: ConfigSpaceKind> Io for ConfigSpace<'a, S> {
-    /// Returns the base address of the I/O region. It is always 0 for configuration space.
-    #[inline]
-    fn addr(&self) -> usize {
-        0
-    }
+impl<'a, T: ?Sized + KnownSize> IoBase<'a> for ConfigSpace<'a, T> {
+    type Backend = ConfigSpaceBackend;
+    type Target = T;
 
-    /// Returns the maximum size of the configuration space.
     #[inline]
-    fn maxsize(&self) -> usize {
-        self.pdev.cfg_size().into_raw()
+    fn as_view(self) -> ConfigSpace<'a, T> {
+        self
     }
-}
-
-impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {
-    const MIN_SIZE: usize = S::SIZE;
 }
 
 /// A PCI BAR to perform I/O-Operations on.
@@ -147,7 +165,7 @@ impl<'a, S: ConfigSpaceKind> IoKnownSize for ConfigSpace<'a, S> {
 /// memory mapped PCI BAR and its size.
 pub struct Bar<'a, const SIZE: usize = 0> {
     pdev: &'a Device<device::Bound>,
-    io: MmioRaw<SIZE>,
+    io: MmioRaw<crate::io::Region<SIZE>>,
     num: i32,
 }
 
@@ -187,7 +205,7 @@ impl<'a, const SIZE: usize> Bar<'a, SIZE> {
             return Err(ENOMEM);
         }
 
-        let io = match MmioRaw::new(ioptr, len as usize) {
+        let io = match MmioRaw::new_region(ioptr, len as usize) {
             Ok(io) => io,
             Err(err) => {
                 // SAFETY:
@@ -249,12 +267,14 @@ impl<const SIZE: usize> Drop for Bar<'_, SIZE> {
     }
 }
 
-impl<const SIZE: usize> Deref for Bar<'_, SIZE> {
-    type Target = Mmio<SIZE>;
+impl<'a, const SIZE: usize> IoBase<'a> for &'a Bar<'_, SIZE> {
+    type Backend = MmioBackend;
+    type Target = crate::io::Region<SIZE>;
 
-    fn deref(&self) -> &Self::Target {
+    #[inline]
+    fn as_view(self) -> Mmio<'a, Self::Target> {
         // SAFETY: By the type invariant of `Self`, the MMIO range in `self.io` is properly mapped.
-        unsafe { Mmio::from_raw(&self.io) }
+        unsafe { Mmio::from_raw(self.io) }
     }
 }
 
@@ -289,23 +309,25 @@ impl Device<device::Bound> {
         }
     }
 
-    /// Return an initialized normal (256-byte) config space object.
+    /// Return a view of the normal (256-byte) config space.
     pub fn config_space<'a>(&'a self) -> ConfigSpace<'a, Normal> {
+        // INVARIANT: null is aligned and the range is within config space.
         ConfigSpace {
             pdev: self,
-            _marker: PhantomData,
+            ptr: Normal::ptr_from_raw_parts_mut(core::ptr::null_mut(), self.cfg_size().into_raw()),
         }
     }
 
-    /// Return an initialized extended (4096-byte) config space object.
+    /// Return a view of the extended (4096-byte) config space.
     pub fn config_space_extended<'a>(&'a self) -> Result<ConfigSpace<'a, Extended>> {
         if self.cfg_size() != ConfigSpaceSize::Extended {
             return Err(EINVAL);
         }
 
+        // INVARIANT: null is aligned and we just checked the `cfg_size`.
         Ok(ConfigSpace {
             pdev: self,
-            _marker: PhantomData,
+            ptr: Extended::ptr_from_raw_parts_mut(core::ptr::null_mut(), 4096),
         })
     }
 }

@@ -2,7 +2,10 @@
 
 use kernel::{
     auxiliary,
-    device::Core,
+    device::{
+        Core,
+        DeviceContext, //
+    },
     drm::{
         self,
         gem,
@@ -17,18 +20,14 @@ use crate::gem::NovaObject;
 
 pub(crate) struct NovaDriver;
 
-pub(crate) struct Nova {
+pub(crate) struct Nova<'bound> {
     #[expect(unused)]
     drm: ARef<drm::Device<NovaDriver>>,
+    _reg: drm::Registration<'bound, NovaDriver>,
 }
 
 /// Convienence type alias for the DRM device type for this driver
-pub(crate) type NovaDevice<Ctx = drm::Registered> = drm::Device<NovaDriver, Ctx>;
-
-#[pin_data]
-pub(crate) struct NovaData {
-    pub(crate) adev: ARef<auxiliary::Device>,
-}
+pub(crate) type NovaDevice<Ctx = drm::Normal> = drm::Device<NovaDriver, Ctx>;
 
 const INFO: drm::DriverInfo = drm::DriverInfo {
     major: 0,
@@ -53,27 +52,32 @@ kernel::auxiliary_device_table!(
 
 impl auxiliary::Driver for NovaDriver {
     type IdInfo = ();
-    type Data<'bound> = Nova;
+    type Data<'bound> = Nova<'bound>;
     const ID_TABLE: auxiliary::IdTable<Self::IdInfo> = &AUX_TABLE;
 
     fn probe<'bound>(
         adev: &'bound auxiliary::Device<Core<'_>>,
         _info: &'bound Self::IdInfo,
     ) -> impl PinInit<Self::Data<'bound>, Error> + 'bound {
-        let data = try_pin_init!(NovaData { adev: adev.into() });
+        let drm = drm::UnregisteredDevice::<Self>::new(adev, Ok(()))?;
+        // SAFETY: `reg` is stored in `Nova` and dropped when the driver is unbound; it is
+        // never forgotten.
+        let reg = unsafe { drm::Registration::new(adev.as_ref(), drm, (), 0)? };
 
-        let drm = drm::UnregisteredDevice::<Self>::new(adev.as_ref(), data)?;
-        let drm = drm::Registration::new_foreign_owned(drm, adev.as_ref(), 0)?;
-
-        Ok(Nova { drm: drm.into() })
+        Ok(Nova {
+            drm: reg.device().into(),
+            _reg: reg,
+        })
     }
 }
 
 #[vtable]
 impl drm::Driver for NovaDriver {
-    type Data = NovaData;
+    type Data = ();
+    type RegistrationData<'a> = ();
     type File = File;
-    type Object<Ctx: drm::DeviceContext> = gem::Object<NovaObject, Ctx>;
+    type Object = gem::Object<NovaObject>;
+    type ParentDevice<Ctx: DeviceContext> = auxiliary::Device<Ctx>;
 
     const INFO: drm::DriverInfo = INFO;
 

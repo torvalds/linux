@@ -72,10 +72,12 @@ pub struct GpuVm<T: DriverGpuVm> {
     data: UnsafeCell<T>,
 }
 
-// SAFETY: The GPUVM api does not assume that it is tied to a specific thread. The destructor will
-// drop the `data` field, which is okay because it is guaranteed `Send` by the `DriverGpuVm` trait.
+// SAFETY: It is safe to send a `GpuVm<T>` to another thread: all data reachable through it
+// (`T`, `T::VmBoData`, and the GEM `T::Object`) is `Send` by the `DriverGpuVm` bounds.
 unsafe impl<T: DriverGpuVm> Send for GpuVm<T> {}
-// SAFETY: The GPUVM api is designed to allow &self methods to be called in parallel.
+// SAFETY: It is safe to share a `&GpuVm<T>` between threads: `&self` methods only alias data
+// that is `Sync` by the `DriverGpuVm` bounds, and any thread may drop that data, or upgrade the
+// reference and ultimately drop `T`, which the same bounds make `Send`.
 unsafe impl<T: DriverGpuVm> Sync for GpuVm<T> {}
 
 // SAFETY: By type invariants, the allocation is managed by the refcount in `self.vm`.
@@ -116,9 +118,9 @@ impl<T: DriverGpuVm> GpuVm<T> {
 
     /// Creates a GPUVM instance.
     #[expect(clippy::new_ret_no_self)]
-    pub fn new<E>(
+    pub fn new<E, Ctx: drm::DeviceContext>(
         name: &'static CStr,
-        dev: &drm::Device<T::Driver>,
+        dev: &drm::Device<T::Driver, Ctx>,
         r_obj: &T::Object,
         range: Range<u64>,
         reserve_range: Range<u64>,
@@ -250,21 +252,27 @@ impl<T: DriverGpuVm> GpuVm<T> {
 }
 
 /// The manager for a GPUVM.
-pub trait DriverGpuVm: Sized + Send {
+pub trait DriverGpuVm: Sized + Send + Sync {
     /// Parent `Driver` for this object.
-    type Driver: drm::Driver<Object = Self::Object>;
+    type Driver: drm::Driver;
 
     /// The kind of GEM object stored in this GPUVM.
-    type Object: IntoGEMObject;
+    type Object: drm::driver::AllocImpl<Driver = Self::Driver> + Send + Sync;
 
     /// Data stored with each [`struct drm_gpuva`](struct@GpuVa).
-    type VaData;
+    ///
+    /// Only `Send` is required: the data has a single owner at all times, moving
+    /// between threads by value (handed back as a [`GpuVaRemoved`]) but never
+    /// accessed by two threads concurrently.
+    type VaData: Send;
 
     /// Data stored with each [`struct drm_gpuvm_bo`](struct@GpuVmBo).
-    type VmBoData;
+    type VmBoData: Send + Sync;
 
     /// The private data passed to callbacks.
-    type SmContext<'ctx>;
+    type SmContext<'ctx>
+    where
+        Self: 'ctx;
 
     /// Indicates that a new mapping should be created.
     fn sm_step_map<'op, 'ctx>(
@@ -296,11 +304,9 @@ pub trait DriverGpuVm: Sized + Send {
 /// # Invariants
 ///
 /// Each `GpuVm` instance has at most one `UniqueRefGpuVm` reference.
+// `Send`/`Sync` derive from `ARef<GpuVm<T>>`; the trait bounds make them correct for the unique
+// handle's `&mut T` access.
 pub struct UniqueRefGpuVm<T: DriverGpuVm>(ARef<GpuVm<T>>);
-
-// SAFETY: The GPUVM api is designed to allow &self methods to be called in parallel, and
-// concurrent access to `data` is safe due to the `T: Sync` requirement.
-unsafe impl<T: DriverGpuVm + Sync> Sync for UniqueRefGpuVm<T> {}
 
 impl<T: DriverGpuVm> UniqueRefGpuVm<T> {
     /// Access the data owned by this `UniqueRefGpuVm` immutably.

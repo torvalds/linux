@@ -6,7 +6,8 @@ use kernel::prelude::*;
 use kernel::{
     device,
     dma::Coherent,
-    io::Io, //
+    io::Io,
+    types::ScopeGuard, //
 };
 
 use crate::{
@@ -16,7 +17,10 @@ use crate::{
         sec2::Sec2,
         Falcon, //
     },
-    fb::FbLayout,
+    fb::{
+        wpr2_range,
+        FbRanges, //
+    },
     firmware::{
         booter::{
             BooterFirmware,
@@ -27,24 +31,20 @@ use crate::{
             FwsecCommand,
             FwsecFirmware, //
         },
-        gsp::GspFirmware,
-        FIRMWARE_VERSION, //
+        gsp::GspFirmware, //
     },
     gpu::Chipset,
     gsp::{
-        boot::BootUnloadGuard,
         hal::{
             GspHal,
             UnloadBundle, //
         },
-        sequencer::{
-            GspSequencer,
-            GspSequencerParams, //
-        },
+        regs,
+        sequencer::GspSequencer,
         Gsp,
+        GspBootContext,
         GspFwWprMeta, //
     },
-    regs,
     vbios::Vbios, //
 };
 
@@ -58,32 +58,15 @@ enum FwsecUnloadFirmware {
 }
 
 impl FwsecUnloadFirmware {
-    /// Loads the FWSEC SB firmware, as well as its bootloader if `chipset` requires it.
-    fn new(
-        dev: &device::Device<device::Bound>,
-        bar: Bar0<'_>,
-        chipset: Chipset,
-        bios: &Vbios,
-        gsp_falcon: &Falcon<GspEngine>,
-    ) -> Result<Self> {
-        let fwsec_sb = FwsecFirmware::new(dev, gsp_falcon, bar, bios, FwsecCommand::Sb)?;
-
-        Ok(if chipset.needs_fwsec_bootloader() {
-            Self::WithBl(FwsecFirmwareWithBl::new(fwsec_sb, dev, chipset)?)
-        } else {
-            Self::WithoutBl(fwsec_sb)
-        })
-    }
-
     /// Runs the FWSEC SB firmware.
     fn run(
         &self,
         dev: &device::Device<device::Bound>,
         bar: Bar0<'_>,
-        gsp_falcon: &Falcon<GspEngine>,
+        gsp_falcon: &Falcon<'_, GspEngine>,
     ) -> Result {
         match self {
-            Self::WithoutBl(fw) => fw.run(dev, gsp_falcon, bar),
+            Self::WithoutBl(fw) => fw.run(dev, gsp_falcon),
             Self::WithBl(fw) => fw.run(dev, gsp_falcon, bar),
         }
     }
@@ -96,210 +79,225 @@ struct Sec2UnloadBundle {
     booter_unloader: BooterFirmware,
 }
 
-impl Sec2UnloadBundle {
-    /// Load and prepare the resources required to properly reset the GSP after it has been stopped.
-    fn build(
-        dev: &device::Device<device::Bound>,
-        bar: Bar0<'_>,
-        chipset: Chipset,
-        bios: &Vbios,
-        gsp_falcon: &Falcon<GspEngine>,
-        sec2_falcon: &Falcon<Sec2>,
-    ) -> Result<KBox<dyn UnloadBundle>> {
-        KBox::new(
-            Self {
-                fwsec_sb: FwsecUnloadFirmware::new(dev, bar, chipset, bios, gsp_falcon)?,
-                booter_unloader: BooterFirmware::new(
-                    dev,
-                    BooterKind::Unloader,
-                    chipset,
-                    FIRMWARE_VERSION,
-                    sec2_falcon,
-                    bar,
-                )?,
-            },
-            GFP_KERNEL,
-        )
-        .map(|b| b as KBox<dyn UnloadBundle>)
-        .map_err(Into::into)
-    }
-}
-
 impl UnloadBundle for Sec2UnloadBundle {
-    fn run(
-        &self,
-        dev: &device::Device<device::Bound>,
-        bar: Bar0<'_>,
-        gsp_falcon: &Falcon<GspEngine>,
-        sec2_falcon: &Falcon<Sec2>,
-    ) -> Result {
+    fn run(&self, ctx: &mut GspBootContext<'_, '_>) -> Result {
+        let dev = ctx.dev();
+        let bar = ctx.bar;
+
         // Run FWSEC-SB to reset the GSP falcon to its pre-libos state.
-        self.fwsec_sb.run(dev, bar, gsp_falcon)?;
+        // Log errors but keep going if it fails.
+        let fwsec_sb_res = self
+            .fwsec_sb
+            .run(dev, bar, ctx.gsp_falcon)
+            .inspect_err(|e| dev_err!(dev, "FWSEC-SB failed to run: {:?}\n", e));
 
         // Remove WPR2 region if set.
-        let wpr2_hi = bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI);
-        if wpr2_hi.is_wpr2_set() {
-            sec2_falcon.reset(bar)?;
-            sec2_falcon.load(dev, bar, &self.booter_unloader)?;
+        let booter_unloader_res = (|| {
+            if wpr2_range(bar).is_none() {
+                return Ok(());
+            }
+
+            ctx.sec2_falcon.reset()?;
+            ctx.sec2_falcon.load(&self.booter_unloader)?;
 
             // Sentinel value to confirm that Booter Unloader has run.
             const MAILBOX_SENTINEL: u32 = 0xff;
-            let (mbox0, _) =
-                sec2_falcon.boot(bar, Some(MAILBOX_SENTINEL), Some(MAILBOX_SENTINEL))?;
+            let (mbox0, _) = ctx
+                .sec2_falcon
+                .boot(Some(MAILBOX_SENTINEL), Some(MAILBOX_SENTINEL))?;
             if mbox0 != 0 {
                 dev_err!(dev, "Booter Unloader returned error 0x{:x}\n", mbox0);
                 return Err(EINVAL);
             }
 
             // Confirm that the WPR2 region has been removed.
-            let wpr2_hi = bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI);
-            if wpr2_hi.is_wpr2_set() {
+            if wpr2_range(bar).is_some() {
                 dev_err!(
                     dev,
                     "WPR2 region still set after Booter Unloader returned\n"
                 );
                 return Err(EBUSY);
             }
-        }
 
-        Ok(())
+            Ok(())
+        })()
+        .inspect_err(|e| dev_err!(dev, "Booter Unloader failed to run: {:?}\n", e));
+
+        fwsec_sb_res.and(booter_unloader_res)
     }
 }
 
-/// Helper function to load and run the FWSEC-FRTS firmware and confirm that it has properly
-/// created the WPR2 region.
-fn run_fwsec_frts(
-    dev: &device::Device<device::Bound>,
-    chipset: Chipset,
-    falcon: &Falcon<GspEngine>,
-    bar: Bar0<'_>,
-    bios: &Vbios,
-    fb_layout: &FbLayout,
-) -> Result {
-    // Check that the WPR2 region does not already exist - if it does, we cannot run
-    // FWSEC-FRTS until the GPU is reset.
-    if bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI).higher_bound() != 0 {
-        dev_err!(
+pub(super) struct Tu102 {
+    /// If `true`, then the FWSEC-FRTS bootloader will be used to load the actual firmware.
+    pub(super) needs_fwsec_bootloader: bool,
+}
+
+impl Tu102 {
+    /// Helper method to load and run the FWSEC-FRTS firmware and confirm that it has properly
+    /// created the WPR2 region.
+    fn run_fwsec_frts(
+        &self,
+        dev: &device::Device<device::Bound>,
+        chipset: Chipset,
+        falcon: &Falcon<'_, GspEngine>,
+        bar: Bar0<'_>,
+        bios: &Vbios,
+        fb_ranges: &FbRanges,
+    ) -> Result {
+        // Check that the WPR2 region does not already exist - if it does, we cannot run
+        // FWSEC-FRTS until the GPU is reset.
+        if wpr2_range(bar).is_some() {
+            dev_err!(
+                dev,
+                "WPR2 region already exists - GPU needs to be reset to proceed\n"
+            );
+            return Err(EBUSY);
+        }
+
+        // FWSEC-FRTS will create the WPR2 region.
+        let fwsec_frts = FwsecFirmware::new(
             dev,
-            "WPR2 region already exists - GPU needs to be reset to proceed\n"
-        );
-        return Err(EBUSY);
-    }
+            falcon,
+            bios,
+            FwsecCommand::Frts {
+                frts_addr: fb_ranges.frts.start,
+                frts_size: fb_ranges.frts.len(),
+            },
+        )?;
 
-    // FWSEC-FRTS will create the WPR2 region.
-    let fwsec_frts = FwsecFirmware::new(
-        dev,
-        falcon,
-        bar,
-        bios,
-        FwsecCommand::Frts {
-            frts_addr: fb_layout.frts.start,
-            frts_size: fb_layout.frts.len(),
-        },
-    )?;
+        if self.needs_fwsec_bootloader {
+            let fwsec_frts_bl = FwsecFirmwareWithBl::new(fwsec_frts, dev, chipset)?;
+            // Load and run the bootloader, which will load FWSEC-FRTS and run it.
+            fwsec_frts_bl.run(dev, falcon, bar)?;
+        } else {
+            // Load and run FWSEC-FRTS directly.
+            fwsec_frts.run(dev, falcon)?;
+        }
 
-    if chipset.needs_fwsec_bootloader() {
-        let fwsec_frts_bl = FwsecFirmwareWithBl::new(fwsec_frts, dev, chipset)?;
-        // Load and run the bootloader, which will load FWSEC-FRTS and run it.
-        fwsec_frts_bl.run(dev, falcon, bar)?;
-    } else {
-        // Load and run FWSEC-FRTS directly.
-        fwsec_frts.run(dev, falcon, bar)?;
-    }
+        // SCRATCH_E contains the error code for FWSEC-FRTS.
+        let frts_status = bar
+            .read(regs::NV_PBUS_SW_SCRATCH_0E_FRTS_ERR)
+            .frts_err_code();
+        if frts_status != 0 {
+            dev_err!(
+                dev,
+                "FWSEC-FRTS returned with error code {:#x}\n",
+                frts_status
+            );
 
-    // SCRATCH_E contains the error code for FWSEC-FRTS.
-    let frts_status = bar
-        .read(regs::NV_PBUS_SW_SCRATCH_0E_FRTS_ERR)
-        .frts_err_code();
-    if frts_status != 0 {
-        dev_err!(
-            dev,
-            "FWSEC-FRTS returned with error code {:#x}\n",
-            frts_status
-        );
+            return Err(EIO);
+        }
 
-        return Err(EIO);
-    }
-
-    // Check that the WPR2 region has been created as we requested.
-    let (wpr2_lo, wpr2_hi) = (
-        bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_LO).lower_bound(),
-        bar.read(regs::NV_PFB_PRI_MMU_WPR2_ADDR_HI).higher_bound(),
-    );
-
-    match (wpr2_lo, wpr2_hi) {
-        (_, 0) => {
+        // Check that the WPR2 region has been created as we requested.
+        let Some(wpr2_range) = wpr2_range(bar) else {
             dev_err!(dev, "WPR2 region not created after running FWSEC-FRTS\n");
 
-            Err(EIO)
-        }
-        (wpr2_lo, _) if wpr2_lo != fb_layout.frts.start => {
+            return Err(EIO);
+        };
+
+        if wpr2_range.start != fb_ranges.frts.start {
             dev_err!(
                 dev,
                 "WPR2 region created at unexpected address {:#x}; expected {:#x}\n",
-                wpr2_lo,
-                fb_layout.frts.start,
+                wpr2_range.start,
+                fb_ranges.frts.start,
             );
 
-            Err(EIO)
+            return Err(EIO);
         }
-        (wpr2_lo, wpr2_hi) => {
-            dev_dbg!(dev, "WPR2: {:#x}-{:#x}\n", wpr2_lo, wpr2_hi);
-            dev_dbg!(dev, "GPU instance built\n");
 
-            Ok(())
-        }
+        dev_dbg!(dev, "WPR2: {:#x}-{:#x}\n", wpr2_range.start, wpr2_range.end);
+        dev_dbg!(dev, "GPU instance built\n");
+
+        Ok(())
+    }
+
+    /// Load and prepare the resources required to properly reset the GSP after it has been stopped.
+    fn build_unload_bundle(
+        &self,
+        dev: &device::Device<device::Bound>,
+        chipset: Chipset,
+        bios: &Vbios,
+        gsp_falcon: &Falcon<'_, GspEngine>,
+        sec2_falcon: &Falcon<'_, Sec2>,
+    ) -> Result<crate::gsp::UnloadBundle> {
+        // Load the FWSEC SB firmware, as well as its bootloader if required.
+        let fwsec_sb = FwsecFirmware::new(dev, gsp_falcon, bios, FwsecCommand::Sb)?;
+        let fwsec_sb = if self.needs_fwsec_bootloader {
+            FwsecUnloadFirmware::WithBl(FwsecFirmwareWithBl::new(fwsec_sb, dev, chipset)?)
+        } else {
+            FwsecUnloadFirmware::WithoutBl(fwsec_sb)
+        };
+
+        KBox::new(
+            Sec2UnloadBundle {
+                fwsec_sb,
+                booter_unloader: BooterFirmware::new(
+                    dev,
+                    BooterKind::Unloader,
+                    chipset,
+                    sec2_falcon,
+                )?,
+            },
+            GFP_KERNEL,
+        )
+        .map(|b| crate::gsp::UnloadBundle(b))
+        .map_err(Into::into)
     }
 }
 
-struct Tu102;
-
 impl GspHal for Tu102 {
-    fn boot<'a>(
+    fn boot(
         &self,
-        gsp: &'a Gsp,
-        dev: &'a device::Device<device::Bound>,
-        bar: Bar0<'a>,
-        chipset: Chipset,
-        fb_layout: &FbLayout,
-        wpr_meta: &Coherent<GspFwWprMeta>,
-        gsp_falcon: &'a Falcon<GspEngine>,
-        sec2_falcon: &'a Falcon<Sec2>,
-    ) -> Result<BootUnloadGuard<'a>> {
+        gsp: &Gsp,
+        ctx: &mut GspBootContext<'_, '_>,
+        gsp_fw: &GspFirmware,
+    ) -> Result<Option<crate::gsp::UnloadBundle>> {
+        let dev = ctx.dev();
+        let bar = ctx.bar;
+        let chipset = ctx.chipset;
+        let gsp_falcon = ctx.gsp_falcon;
+        let sec2_falcon = ctx.sec2_falcon;
+
+        let fb_ranges = FbRanges::new(chipset, bar, gsp_fw, ctx.vgpu.state())?;
+        dev_dbg!(dev, "{:#x?}\n", fb_ranges);
+
+        // Declared before the unload guard so that if Booter fails while running, SEC2 is reset
+        // by the guard before this allocation is freed.
+        let wpr_meta = Coherent::init(
+            dev,
+            GFP_KERNEL,
+            GspFwWprMeta::from_ranges(gsp_fw, &fb_ranges),
+        )?;
+
         let bios = Vbios::new(dev, bar)?;
 
         // Try and prepare the unload bundle.
         //
         // If the unload bundle creation fails, the GPU will need to be reset before the driver can
         // be probed again.
-        let unload_bundle =
-            Sec2UnloadBundle::build(dev, bar, chipset, &bios, gsp_falcon, sec2_falcon)
-                .inspect_err(|e| {
-                    dev_warn!(dev, "Failed to prepare unload firmware: {:?}\n", e);
-                    dev_warn!(dev, "The GSP won't be able to unload properly on unbind.\n");
-                    dev_warn!(
-                        dev,
-                        "The GPU will need to be reset before the driver can bind again.\n"
-                    );
-                })
-                .ok()
-                .map(crate::gsp::UnloadBundle);
+        let unload_bundle = self
+            .build_unload_bundle(dev, chipset, &bios, gsp_falcon, sec2_falcon)
+            .inspect_err(|e| dev_warn!(dev, "Failed to prepare unload firmware: {:?}\n", e))
+            .ok();
 
-        // Wrap the unload bundle into a drop guard so it is automatically run upon failure.
-        let unload_guard =
-            BootUnloadGuard::new(gsp, dev, bar, gsp_falcon, sec2_falcon, unload_bundle);
+        // Run the unload bundle to try and recover the GSP if an error occurs.
+        let unload_guard = ScopeGuard::new_with_data(unload_bundle, |unload_bundle| {
+            if let Some(unload_bundle) = unload_bundle {
+                let _ = unload_bundle.0.run(ctx);
+            }
+        });
 
         // FWSEC-FRTS is not executed on chips where the FRTS region size is 0 (e.g. GA100).
-        if !fb_layout.frts.is_empty() {
-            run_fwsec_frts(dev, chipset, gsp_falcon, bar, &bios, fb_layout)?;
+        if !fb_ranges.frts.is_empty() {
+            self.run_fwsec_frts(dev, chipset, gsp_falcon, bar, &bios, &fb_ranges)?;
         }
 
-        gsp_falcon.reset(bar)?;
-        let libos_handle = gsp.libos.dma_handle();
+        gsp_falcon.reset()?;
+        let libos_dma_address = gsp.libos.dma_address();
         let (mbox0, mbox1) = gsp_falcon.boot(
-            bar,
-            Some(libos_handle as u32),
-            Some((libos_handle >> 32) as u32),
+            Some(libos_dma_address as u32),
+            Some((libos_dma_address >> 32) as u32),
         )?;
         dev_dbg!(dev, "GSP MBOX0: {:#x}, MBOX1: {:#x}\n", mbox0, mbox1);
 
@@ -308,42 +306,30 @@ impl GspHal for Tu102 {
             "Using SEC2 to load and run the booter_load firmware...\n"
         );
 
-        BooterFirmware::new(
+        BooterFirmware::new(dev, BooterKind::Loader, chipset, sec2_falcon)?.run(
             dev,
-            BooterKind::Loader,
-            chipset,
-            FIRMWARE_VERSION,
             sec2_falcon,
-            bar,
-        )?
-        .run(dev, bar, sec2_falcon, wpr_meta)?;
+            &wpr_meta,
+        )?;
 
-        Ok(unload_guard)
+        Ok(unload_guard.dismiss())
     }
 
     fn post_boot(
         &self,
         gsp: &Gsp,
-        dev: &device::Device<device::Bound>,
-        bar: Bar0<'_>,
+        ctx: &mut GspBootContext<'_, '_>,
         gsp_fw: &GspFirmware,
-        gsp_falcon: &Falcon<GspEngine>,
-        sec2_falcon: &Falcon<Sec2>,
     ) -> Result {
-        // Create and run the GSP sequencer.
-        let seq_params = GspSequencerParams {
-            bootloader_app_version: gsp_fw.bootloader.app_version,
-            libos_dma_handle: gsp.libos.dma_handle(),
-            gsp_falcon,
-            sec2_falcon,
-            dev,
-            bar,
-        };
-        GspSequencer::run(&gsp.cmdq, seq_params)?;
+        GspSequencer::run(&gsp.cmdq, ctx, &gsp.libos, gsp_fw.bootloader.app_version)?;
 
         Ok(())
     }
 }
 
-const TU102: Tu102 = Tu102;
+/// The TU102 HAL requires the use of the FWSEC bootloader.
+const TU102: Tu102 = Tu102 {
+    needs_fwsec_bootloader: true,
+};
+
 pub(super) const TU102_HAL: &dyn GspHal = &TU102;

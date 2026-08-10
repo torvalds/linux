@@ -10,7 +10,15 @@ use r570_144 as bindings;
 use core::ops::Range;
 
 use kernel::{
-    dma::Coherent,
+    bitfield,
+    dma::{
+        Coherent,
+        CoherentView, //
+    },
+    io::{
+        io_read,
+        io_write, //
+    },
     prelude::*,
     ptr::{
         Alignable,
@@ -28,7 +36,10 @@ use kernel::{
 };
 
 use crate::{
-    fb::FbLayout,
+    fb::{
+        FbRanges,
+        FbSizes, //
+    },
     firmware::gsp::GspFirmware,
     gpu::{
         Architecture,
@@ -43,59 +54,6 @@ use crate::{
         FromSafeCast, //
     },
 };
-
-// TODO: Replace with `IoView` projections once available.
-pub(super) mod gsp_mem {
-    use core::sync::atomic::{
-        fence,
-        Ordering, //
-    };
-
-    use kernel::{
-        dma::Coherent,
-        dma_read,
-        dma_write, //
-    };
-
-    use crate::gsp::cmdq::{
-        GspMem,
-        MSGQ_NUM_PAGES, //
-    };
-
-    pub(in crate::gsp) fn gsp_write_ptr(qs: &Coherent<GspMem>) -> u32 {
-        dma_read!(qs, .gspq.tx.0.writePtr) % MSGQ_NUM_PAGES
-    }
-
-    pub(in crate::gsp) fn gsp_read_ptr(qs: &Coherent<GspMem>) -> u32 {
-        dma_read!(qs, .gspq.rx.0.readPtr) % MSGQ_NUM_PAGES
-    }
-
-    pub(in crate::gsp) fn cpu_read_ptr(qs: &Coherent<GspMem>) -> u32 {
-        dma_read!(qs, .cpuq.rx.0.readPtr) % MSGQ_NUM_PAGES
-    }
-
-    pub(in crate::gsp) fn advance_cpu_read_ptr(qs: &Coherent<GspMem>, count: u32) {
-        let rptr = cpu_read_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
-
-        // Ensure read pointer is properly ordered.
-        fence(Ordering::SeqCst);
-
-        dma_write!(qs, .cpuq.rx.0.readPtr, rptr);
-    }
-
-    pub(in crate::gsp) fn cpu_write_ptr(qs: &Coherent<GspMem>) -> u32 {
-        dma_read!(qs, .cpuq.tx.0.writePtr) % MSGQ_NUM_PAGES
-    }
-
-    pub(in crate::gsp) fn advance_cpu_write_ptr(qs: &Coherent<GspMem>, count: u32) {
-        let wptr = cpu_write_ptr(qs).wrapping_add(count) % MSGQ_NUM_PAGES;
-
-        dma_write!(qs, .cpuq.tx.0.writePtr, wptr);
-
-        // Ensure all command data is visible before triggering the GSP read.
-        fence(Ordering::SeqCst);
-    }
-}
 
 /// Maximum size of a single GSP message queue element in bytes.
 pub(crate) const GSP_MSG_QUEUE_ELEMENT_SIZE_MAX: usize =
@@ -177,6 +135,11 @@ impl LibosParams {
         }
     }
 
+    /// Returns the WPR heap size to reserve when vGPU is enabled.
+    pub(crate) fn vgpu_wpr_heap_size() -> u64 {
+        u64::from(bindings::GSP_FW_HEAP_SIZE_VGPU_DEFAULT)
+    }
+
     /// Returns the amount of memory (in bytes) to allocate for the WPR heap for a framebuffer size
     /// of `fb_size` (in bytes) for `chipset`.
     pub(crate) fn wpr_heap_size(&self, chipset: Chipset, fb_size: u64) -> Result<u64> {
@@ -214,48 +177,89 @@ type GspFwWprMetaBootInfo = bindings::GspFwWprMeta__bindgen_ty_1__bindgen_ty_1;
 
 impl GspFwWprMeta {
     /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
-    /// `fb_layout` layout.
-    pub(crate) fn new<'a>(
+    /// framebuffer ranges `ranges`.
+    pub(crate) fn from_ranges<'a>(
         gsp_firmware: &'a GspFirmware,
-        fb_layout: &'a FbLayout,
+        ranges: &'a FbRanges,
     ) -> impl Init<Self> + 'a {
-        #[allow(non_snake_case)]
         let init_inner = init!(bindings::GspFwWprMeta {
             // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
             magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
             revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
-            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_handle(),
+            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_address(),
             sizeOfRadix3Elf: u64::from_safe_cast(gsp_firmware.size),
-            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_handle(),
+            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_address(),
             sizeOfBootloader: u64::from_safe_cast(gsp_firmware.bootloader.ucode.size()),
             bootloaderCodeOffset: u64::from(gsp_firmware.bootloader.code_offset),
             bootloaderDataOffset: u64::from(gsp_firmware.bootloader.data_offset),
             bootloaderManifestOffset: u64::from(gsp_firmware.bootloader.manifest_offset),
             __bindgen_anon_1: GspFwWprMetaBootResumeInfo {
                 __bindgen_anon_1: GspFwWprMetaBootInfo {
-                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_handle(),
+                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_address(),
                     sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
                 },
             },
-            gspFwRsvdStart: fb_layout.heap.start,
-            nonWprHeapOffset: fb_layout.heap.start,
-            nonWprHeapSize: fb_layout.heap.end - fb_layout.heap.start,
-            gspFwWprStart: fb_layout.wpr2.start,
-            gspFwHeapOffset: fb_layout.wpr2_heap.start,
-            gspFwHeapSize: fb_layout.wpr2_heap.end - fb_layout.wpr2_heap.start,
-            gspFwOffset: fb_layout.elf.start,
-            bootBinOffset: fb_layout.boot.start,
-            frtsOffset: fb_layout.frts.start,
-            frtsSize: fb_layout.frts.end - fb_layout.frts.start,
-            gspFwWprEnd: fb_layout
+            gspFwRsvdStart: ranges.non_wpr_heap.start,
+            nonWprHeapOffset: ranges.non_wpr_heap.start,
+            nonWprHeapSize: ranges.non_wpr_heap.len(),
+            gspFwWprStart: ranges.wpr2.start,
+            gspFwHeapOffset: ranges.wpr2_heap.start,
+            gspFwHeapSize: ranges.wpr2_heap.len(),
+            gspFwOffset: ranges.elf.start,
+            bootBinOffset: ranges.boot.start,
+            frtsOffset: ranges.frts.start,
+            frtsSize: ranges.frts.len(),
+            gspFwWprEnd: ranges
                 .vga_workspace
                 .start
                 .align_down(Alignment::new::<SZ_128K>()),
-            gspFwHeapVfPartitionCount: fb_layout.vf_partition_count,
-            fbSize: fb_layout.fb.end - fb_layout.fb.start,
-            vgaWorkspaceOffset: fb_layout.vga_workspace.start,
-            vgaWorkspaceSize: fb_layout.vga_workspace.end - fb_layout.vga_workspace.start,
-            pmuReservedSize: fb_layout.pmu_reserved_size,
+            gspFwHeapVfPartitionCount: ranges.vf_partition_count,
+            fbSize: ranges.fb.len(),
+            vgaWorkspaceOffset: ranges.vga_workspace.start,
+            vgaWorkspaceSize: ranges.vga_workspace.len(),
+            pmuReservedSize: ranges.pmu_reserved_size,
+            ..Zeroable::init_zeroed()
+        });
+
+        init!(GspFwWprMeta {
+            inner <- init_inner,
+        })
+    }
+
+    /// Returns an initializer for a `GspFwWprMeta` suitable for booting `gsp_firmware` using the
+    /// framebuffer region sizes `sizes`.
+    ///
+    /// The region offsets are left at zero: the ACR ucode computes them when it sets up WPR2.
+    pub(crate) fn from_sizes<'a>(
+        gsp_firmware: &'a GspFirmware,
+        sizes: &'a FbSizes,
+    ) -> impl Init<Self> + 'a {
+        /// VGA workspace size to reserve at the end of the framebuffer, in bytes.
+        const VGA_WORKSPACE_SIZE: u64 = u64::SZ_128K;
+
+        let init_inner = init!(bindings::GspFwWprMeta {
+            // CAST: we want to store the bits of `GSP_FW_WPR_META_MAGIC` unmodified.
+            magic: bindings::GSP_FW_WPR_META_MAGIC as u64,
+            revision: u64::from(bindings::GSP_FW_WPR_META_REVISION),
+            sysmemAddrOfRadix3Elf: gsp_firmware.radix3_dma_address(),
+            sizeOfRadix3Elf: u64::from_safe_cast(gsp_firmware.size),
+            sysmemAddrOfBootloader: gsp_firmware.bootloader.ucode.dma_address(),
+            sizeOfBootloader: u64::from_safe_cast(gsp_firmware.bootloader.ucode.size()),
+            bootloaderCodeOffset: u64::from(gsp_firmware.bootloader.code_offset),
+            bootloaderDataOffset: u64::from(gsp_firmware.bootloader.data_offset),
+            bootloaderManifestOffset: u64::from(gsp_firmware.bootloader.manifest_offset),
+            __bindgen_anon_1: GspFwWprMetaBootResumeInfo {
+                __bindgen_anon_1: GspFwWprMetaBootInfo {
+                    sysmemAddrOfSignature: gsp_firmware.signatures.dma_address(),
+                    sizeOfSignature: u64::from_safe_cast(gsp_firmware.signatures.size()),
+                },
+            },
+            nonWprHeapSize: sizes.non_wpr_heap_size,
+            gspFwHeapSize: sizes.wpr2_heap_size,
+            frtsSize: sizes.frts_size,
+            gspFwHeapVfPartitionCount: sizes.vf_partition_count,
+            vgaWorkspaceSize: VGA_WORKSPACE_SIZE,
+            pmuReservedSize: sizes.pmu_reserved_size,
             ..Zeroable::init_zeroed()
         });
 
@@ -674,10 +678,9 @@ impl LibosMemoryRegionInitArgument {
             u64::from_ne_bytes(bytes)
         }
 
-        #[allow(non_snake_case)]
         let init_inner = init!(bindings::LibosMemoryRegionInitArgument {
             id8: id8(name),
-            pa: obj.dma_handle(),
+            pa: obj.dma_address(),
             size: num::usize_as_u64(obj.size()),
             kind: num::u32_into_u8::<
                 { bindings::LibosMemoryRegionKind_LIBOS_MEMORY_REGION_CONTIGUOUS },
@@ -720,6 +723,16 @@ impl MsgqTxHeader {
             entryOff: num::usize_into_u32::<GSP_PAGE_SIZE>(),
         })
     }
+
+    /// Returns the value of the write pointer for this queue.
+    pub(crate) fn write_ptr(this: CoherentView<'_, Self>) -> u32 {
+        io_read!(this, .0.writePtr)
+    }
+
+    /// Sets the value of the write pointer for this queue.
+    pub(crate) fn set_write_ptr(this: CoherentView<'_, Self>, val: u32) {
+        io_write!(this, .0.writePtr, val)
+    }
 }
 
 // SAFETY: Padding is explicit and does not contain uninitialized data.
@@ -735,6 +748,16 @@ impl MsgqRxHeader {
     pub(crate) fn new() -> Self {
         Self(Default::default())
     }
+
+    /// Returns the value of the read pointer for this queue.
+    pub(crate) fn read_ptr(this: CoherentView<'_, Self>) -> u32 {
+        io_read!(this, .0.readPtr)
+    }
+
+    /// Sets the value of the read pointer for this queue.
+    pub(crate) fn set_read_ptr(this: CoherentView<'_, Self>, val: u32) {
+        io_write!(this, .0.readPtr, val)
+    }
 }
 
 // SAFETY: Padding is explicit and does not contain uninitialized data.
@@ -742,8 +765,8 @@ unsafe impl AsBytes for MsgqRxHeader {}
 
 bitfield! {
     struct MsgHeaderVersion(u32) {
-        31:24 major as u8;
-        23:16 minor as u8;
+        31:24 major;
+        23:16 minor;
     }
 }
 
@@ -752,9 +775,9 @@ impl MsgHeaderVersion {
     const MINOR_TOT: u8 = 0;
 
     fn new() -> Self {
-        Self::default()
-            .set_major(Self::MAJOR_TOT)
-            .set_minor(Self::MINOR_TOT)
+        Self::zeroed()
+            .with_major(Self::MAJOR_TOT)
+            .with_minor(Self::MINOR_TOT)
     }
 }
 
@@ -793,7 +816,6 @@ impl GspMsgElement {
     /// * `sequence` - Sequence number of the message.
     /// * `cmd_size` - Size of the command (not including the message element), in bytes.
     /// * `function` - Function of the message.
-    #[allow(non_snake_case)]
     pub(crate) fn init(
         sequence: u32,
         cmd_size: usize,
@@ -876,7 +898,6 @@ pub(crate) struct GspArgumentsCached {
 impl GspArgumentsCached {
     /// Creates the arguments for starting the GSP up using `cmdq` as its command queue.
     pub(crate) fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
-        #[allow(non_snake_case)]
         let init_inner = init!(bindings::GSP_ARGUMENTS_CACHED {
             messageQueueInitArguments <- MessageQueueInitArguments::new(cmdq),
             bDmemStack: 1,
@@ -923,10 +944,9 @@ type MessageQueueInitArguments = bindings::MESSAGE_QUEUE_INIT_ARGUMENTS;
 
 impl MessageQueueInitArguments {
     /// Creates a new init arguments structure for `cmdq`.
-    #[allow(non_snake_case)]
     fn new(cmdq: &Cmdq) -> impl Init<Self> + '_ {
         init!(MessageQueueInitArguments {
-            sharedMemPhysAddr: cmdq.dma_handle,
+            sharedMemPhysAddr: cmdq.dma_addr,
             pageTableEntryCount: num::usize_into_u32::<{ Cmdq::NUM_PTES }>(),
             cmdQueueOffset: num::usize_as_u64(Cmdq::CMDQ_OFFSET),
             statQueueOffset: num::usize_as_u64(Cmdq::STATQ_OFFSET),
@@ -947,7 +967,6 @@ type GspAcrBootGspRmParams = bindings::GSP_ACR_BOOT_GSP_RM_PARAMS;
 
 impl GspAcrBootGspRmParams {
     fn new(target: GspDmaTarget, wpr_meta_addr: u64) -> impl Init<Self> {
-        #[allow(non_snake_case)]
         let params = init!(Self {
             target: target as u32,
             gspRmDescSize: num::usize_into_u32::<{ size_of::<GspFwWprMeta>() }>(),
@@ -966,7 +985,6 @@ type GspRmParams = bindings::GSP_RM_PARAMS;
 
 impl GspRmParams {
     fn new(target: GspDmaTarget, libos_addr: u64) -> impl Init<Self> {
-        #[allow(non_snake_case)]
         let params = init!(Self {
             target: target as u32,
             bootArgsOffset: libos_addr,
@@ -986,7 +1004,6 @@ unsafe impl FromBytes for GspFmcBootParams {}
 
 impl GspFmcBootParams {
     pub(crate) fn new(wpr_meta_addr: u64, libos_addr: u64) -> impl Init<Self> {
-        #[allow(non_snake_case)]
         let init = init!(Self {
             // Blackwell FSP obtains WPR info from other sources, so
             // wprCarveoutOffset and wprCarveoutSize are left zero.
