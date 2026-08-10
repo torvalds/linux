@@ -3045,6 +3045,7 @@ int ntfs_inode_add_attrlist(struct ntfs_inode *ni)
 	struct attr_list_entry *ale = NULL;
 	struct mft_record *ni_mrec;
 	u32 attr_al_len;
+	bool free_empty_extents = true;
 
 	if (!ni)
 		return -EINVAL;
@@ -3144,6 +3145,7 @@ int ntfs_inode_add_attrlist(struct ntfs_inode *ni)
 		ntfs_error(ni->vol->sb, "Couldn't add $ATTRIBUTE_LIST to MFT");
 		goto rollback;
 	}
+	free_empty_extents = false;
 
 	err = ntfs_attrlist_update(ni);
 	if (err < 0)
@@ -3163,6 +3165,8 @@ remove_attrlist_record:
 				CASE_SENSITIVE, 0, NULL, 0, ctx)) {
 		if (ntfs_attr_record_rm(ctx))
 			ntfs_error(ni->vol->sb, "Rollback failed to remove attrlist");
+		else
+			free_empty_extents = true;
 	} else {
 		ntfs_error(ni->vol->sb, "Rollback failed to find attrlist");
 	}
@@ -3201,6 +3205,11 @@ rollback:
 	ni->attr_list_size = 0;
 	NInoClearAttrList(ni);
 	NInoClearAttrListDirty(ni);
+	ntfs_attr_put_search_ctx(ctx);
+	ctx = NULL;
+	if (free_empty_extents && ntfs_inode_free_empty_extents(ni))
+		ntfs_error(ni->vol->sb, "Rollback failed to free empty extent");
+	goto err_out;
 put_err_out:
 	ntfs_attr_put_search_ctx(ctx);
 err_out:
@@ -3284,6 +3293,55 @@ out:
 	ntfs_destroy_ext_inode(ni);
 	err = 0;
 	ntfs_debug("\n");
+	return err;
+}
+
+/*
+ * ntfs_inode_free_empty_extents - free empty extent MFT records
+ * @ni: base inode whose empty extent records should be freed
+ *
+ * The caller must ensure that no on-disk attribute list references an empty
+ * extent record and must hold @ni->mrec_lock to serialize the extent array.
+ */
+int ntfs_inode_free_empty_extents(struct ntfs_inode *ni)
+{
+	int err = 0, i = 0;
+
+	if (!ni || ni->nr_extents < 0)
+		return -EINVAL;
+
+	mutex_lock(&ni->extent_lock);
+	while (i < ni->nr_extents) {
+		struct ntfs_inode *ext_ni = ni->ext.extent_ntfs_inos[i];
+		struct mft_record *m;
+		int ret;
+
+		m = map_mft_record(ext_ni);
+		if (IS_ERR(m)) {
+			if (!err)
+				err = PTR_ERR(m);
+			i++;
+			continue;
+		}
+		if (le32_to_cpu(m->bytes_in_use) -
+				le16_to_cpu(m->attrs_offset) != 8) {
+			unmap_mft_record(ext_ni);
+			i++;
+			continue;
+		}
+		unmap_mft_record(ext_ni);
+
+		ret = ntfs_mft_record_free(ni->vol, ext_ni);
+		if (ret) {
+			if (!err)
+				err = ret;
+			i++;
+			continue;
+		}
+		ntfs_inode_close(ext_ni);
+		/* ntfs_inode_close() removed this entry from the extent array. */
+	}
+	mutex_unlock(&ni->extent_lock);
 	return err;
 }
 
@@ -3386,6 +3444,9 @@ int ntfs_inode_free_space(struct ntfs_inode *ni, int size)
 	 * Chkdsk complain if $STANDARD_INFORMATION is not in the base MFT
 	 * record.
 	 *
+	 * $INDEX_ROOT must remain resident, but its attribute record may be moved
+	 * to an extent MFT record when the base record needs room for the list.
+	 *
 	 * Also we can't move $ATTRIBUTE_LIST from base MFT_RECORD, so position
 	 * search context on first attribute after $STANDARD_INFORMATION and
 	 * $ATTRIBUTE_LIST.
@@ -3425,9 +3486,6 @@ retry:
 
 		if (ntfs_inode_base(ctx->ntfs_ino)->mft_no == FILE_MFT &&
 				ctx->attr->type == AT_DATA)
-			goto retry;
-
-		if (ctx->attr->type == AT_INDEX_ROOT)
 			goto retry;
 
 		record_size = le32_to_cpu(ctx->attr->length);
