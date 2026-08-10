@@ -512,20 +512,6 @@ static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
 								  NULL, "bin");
 			return;
 		}
-
-		/*
-		 * Check for system-specific bin files without wmfw before
-		 * falling back to generic firmware
-		 */
-		if (amp_name)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  base_name, system_name, amp_name, "bin");
-		if (!*coeff_firmware)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  base_name, system_name, NULL, "bin");
-
-		if (*coeff_firmware)
-			return;
 	}
 
 	ret = cs35l56_hda_request_firmware_file(cs35l56, wmfw_firmware, wmfw_filename,
@@ -616,13 +602,15 @@ static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 					   &wmfw_firmware, &wmfw_filename,
 					   &coeff_firmware, &coeff_filename);
 
-	/*
-	 * If the BIOS didn't patch the firmware a bin file is mandatory to
-	 * enable the ASP·
-	 */
-	if (!coeff_firmware && firmware_missing) {
-		dev_err(cs35l56->base.dev, ".bin file required but not found\n");
-		goto err_fw_release;
+	/* If the BIOS didn't patch the firmware a wmfw and bin file are mandatory */
+	if (firmware_missing) {
+		if (!wmfw_firmware) {
+			dev_err(cs35l56->base.dev, ".%s file required but not found\n", "wmfw");
+			goto err_fw_release;
+		} else if (!coeff_firmware) {
+			dev_err(cs35l56->base.dev, ".%s file required but not found\n", "bin");
+			goto err_fw_release;
+		}
 	}
 
 	mutex_lock(&cs35l56->base.irq_lock);

@@ -21,6 +21,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_zone_alloc.h"
+#include "xfs_sysfs.h"
 #include "xfs_zone_priv.h"
 #include "xfs_zones.h"
 #include "xfs_trace.h"
@@ -1420,11 +1421,17 @@ xfs_mount_zones(
 	if (error)
 		goto out_free_zone_info;
 
+	error = xfs_zoned_sysfs_init(mp);
+	if (error)
+		goto out_zone_gc_unmount;
+
 	xfs_info(mp, "%u zones of %u blocks (%u max open zones)",
 		 mp->m_sb.sb_rgcount, iz.zone_capacity, mp->m_max_open_zones);
 	trace_xfs_zones_mount(mp);
 	return 0;
 
+out_zone_gc_unmount:
+	xfs_zone_gc_unmount(mp);
 out_free_zone_info:
 	xfs_free_zone_info(mp->m_zone_info);
 	return error;
@@ -1434,6 +1441,7 @@ void
 xfs_unmount_zones(
 	struct xfs_mount	*mp)
 {
+	xfs_zoned_sysfs_del(mp);
 	xfs_zone_gc_unmount(mp);
 	xfs_free_zone_info(mp->m_zone_info);
 }

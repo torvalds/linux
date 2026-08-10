@@ -327,9 +327,11 @@ static int kvm_sbi_fwft_set(struct kvm_vcpu *vcpu, u32 feature,
 	if (conf->flags & SBI_FWFT_SET_FLAG_LOCK)
 		return SBI_ERR_DENIED_LOCKED;
 
-	conf->flags = flags;
+	ret = conf->feature->set(vcpu, conf, false, value);
+	if (ret == SBI_SUCCESS)
+		conf->flags = flags;
 
-	return conf->feature->set(vcpu, conf, false, value);
+	return ret;
 }
 
 static int kvm_sbi_fwft_get(struct kvm_vcpu *vcpu, unsigned long feature,

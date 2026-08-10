@@ -4,7 +4,7 @@
  * Derived from the PCAN project file driver/src/pcan_pccard.c
  *
  * Copyright (C) 2006-2025 PEAK System-Technik GmbH
- * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
+ * Author: Stéphane Grosjean <s.grosjean@peak-system.fr>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,7 +19,7 @@
 #include <linux/can/dev.h>
 #include "sja1000.h"
 
-MODULE_AUTHOR("Stéphane Grosjean <stephane.grosjean@hms-networks.com>");
+MODULE_AUTHOR("Stéphane Grosjean <s.grosjean@peak-system.fr>");
 MODULE_DESCRIPTION("CAN driver for PEAK-System PCAN-PC Cards");
 MODULE_LICENSE("GPL v2");
 

@@ -6,6 +6,6 @@ Digital signature algorithms
 ML-DSA
 ------
 
-Support for the ML-DSA digital signature algorithm.
+This API provides support for the ML-DSA digital signature algorithm.
 
 .. kernel-doc:: include/crypto/mldsa.h

@@ -302,6 +302,7 @@ void capture_urb_complete(struct urb *urb)
 	}
 
 	usb_get_urb(urb);
+	usb_anchor_urb(urb, &tascam->capture_anchor);
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret < 0) {
 		dev_err_ratelimited(tascam->card->dev,

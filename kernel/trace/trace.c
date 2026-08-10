@@ -1788,7 +1788,7 @@ void trace_buffered_event_enable(void)
 
 		per_cpu(trace_buffered_event, cpu) = event;
 
-		scoped_guard(preempt,) {
+		scoped_guard(preempt) {
 			if (cpu == smp_processor_id() &&
 			    __this_cpu_read(trace_buffered_event) !=
 			    per_cpu(trace_buffered_event, cpu))
@@ -6187,7 +6187,7 @@ char *trace_user_fault_read(struct trace_user_buf_info *tinfo,
 {
 	int cpu = smp_processor_id();
 	char *buffer = per_cpu_ptr(tinfo->tbuf, cpu)->buf;
-	unsigned int cnt;
+	unsigned long long cnt;
 	int trys = 0;
 	int ret;
 

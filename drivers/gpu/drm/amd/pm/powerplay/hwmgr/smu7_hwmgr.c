@@ -4062,7 +4062,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 	    (adev->asic_type != CHIP_FIJI) &&
 	    (adev->asic_type != CHIP_TONGA)) {
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetCurrPkgPwr, 0, &tmp);
-		*query = tmp;
+		*query = PP_PWR_Q24_8_TO_MW(tmp);
 
 		if (tmp != 0)
 			return 0;
@@ -4081,7 +4081,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 		if (tmp != 0)
 			break;
 	}
-	*query = tmp;
+	*query = PP_PWR_Q24_8_TO_MW(tmp);
 
 	return 0;
 }
@@ -5857,15 +5857,19 @@ static int smu7_power_off_asic(struct pp_hwmgr *hwmgr)
 static void smu7_notify_ac_dc(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 
-	/* Check if the platform already manages the AC/DC switch via dedicated GPIO. */
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+	/*
+	 * Check if the platform already manages the AC/DC switch via dedicated GPIO.
+	 * Otherwise SMU automatically notices DC, but needs to be notified of AC.
+	 */
+	if (adev->pm.ac_power &&
+	    phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_AutomaticDCTransition))
-		return;
-
-	/* The SMU automatically notices DC, but needs to be notified when switching to AC. */
-	if (adev->pm.ac_power)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunningOnAC, NULL);
+
+	/* Recompute clocks with updated max_limits. */
+	pp_funcs->pm_compute_clocks(adev->powerplay.pp_handle);
 }
 
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {

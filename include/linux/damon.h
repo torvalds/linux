@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * DAMON api
- *
- * Author: SeongJae Park <sj@kernel.org>
  */
 
 #ifndef _DAMON_H_

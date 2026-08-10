@@ -160,9 +160,6 @@ bool mls_level_isvalid(const struct policydb *p, const struct mls_level *l)
 {
 	const char *name;
 	const struct level_datum *levdatum;
-	struct ebitmap_node *node;
-	u32 bit;
-	int rc;
 
 	if (!l->sens || l->sens > p->p_levels.nprim)
 		return false;
@@ -176,21 +173,14 @@ bool mls_level_isvalid(const struct policydb *p, const struct mls_level *l)
 		return false;
 
 	/*
-	 * Validate that all bits set in l->cat are also be set in
-	 * levdatum->level->cat and no bit in l->cat is larger than
-	 * p->p_cats.nprim.
+	 * l is valid iff every bit in l->cat is set in levdatum->level.cat
+	 * and no bit in l->cat is larger than p->p_cats.nprim.
+	 * policydb_index() has already verified that every bit set in
+	 * levdatum->level.cat names a defined category, so containment is
+	 * sufficient here.
 	 */
-	rc = ebitmap_contains(&levdatum->level.cat, &l->cat,
-			      p->p_cats.nprim);
-	if (!rc)
-		return false;
-
-	ebitmap_for_each_positive_bit(&levdatum->level.cat, node, bit) {
-		if (!sym_name(p, SYM_CATS, bit))
-			return false;
-	}
-
-	return true;
+	return ebitmap_contains(&levdatum->level.cat, &l->cat,
+				p->p_cats.nprim);
 }
 
 bool mls_range_isvalid(const struct policydb *p, const struct mls_range *r)

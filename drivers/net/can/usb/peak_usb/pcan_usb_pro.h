@@ -4,7 +4,7 @@
  * Derived from the PCAN project file driver/src/pcan_usbpro_fw.h
  *
  * Copyright (C) 2003-2025 PEAK System-Technik GmbH
- * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
+ * Author: Stéphane Grosjean <s.grosjean@peak-system.fr>
  */
 #ifndef PCAN_USB_PRO_H
 #define PCAN_USB_PRO_H

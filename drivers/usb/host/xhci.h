@@ -190,13 +190,13 @@ struct xhci_op_regs {
 
 /* CRCR - Command Ring Control Register - cmd_ring bitmasks */
 /* bit 0 - Cycle bit indicates the ownership of the command ring */
-#define CMD_RING_CYCLE		BIT(0)
+#define CMD_RING_CYCLE		BIT_ULL(0)
 /* stop ring operation after completion of the currently executing command */
-#define CMD_RING_PAUSE		BIT(1)
+#define CMD_RING_PAUSE		BIT_ULL(1)
 /* stop ring immediately - abort the currently executing command */
-#define CMD_RING_ABORT		BIT(2)
+#define CMD_RING_ABORT		BIT_ULL(2)
 /* true: command ring is running */
-#define CMD_RING_RUNNING	BIT(3)
+#define CMD_RING_RUNNING	BIT_ULL(3)
 /* bits 63:6 - Command Ring pointer */
 #define CMD_RING_PTR_MASK	GENMASK_ULL(63, 6)
 
@@ -271,7 +271,7 @@ struct xhci_intr_reg {
  * bit 3 - Event Handler Busy (EHB), whether the event ring is scheduled to be serviced by
  * a work queue (or delayed service routine)?
  */
-#define ERST_EHB		BIT(3)
+#define ERST_EHB		BIT_ULL(3)
 /* bits 63:4 - Event Ring Dequeue Pointer */
 #define ERST_PTR_MASK		GENMASK_ULL(63, 4)
 
@@ -502,7 +502,7 @@ struct xhci_ep_ctx {
 #define CTX_TO_MAX_ESIT_PAYLOAD(p)	(((p) >> 16) & 0xffff)
 
 /* deq bitmasks */
-#define EP_CTX_CYCLE_MASK		BIT(0)
+#define EP_CTX_CYCLE_MASK		BIT_ULL(0)
 /* bits 63:4 - TR Dequeue Pointer */
 #define TR_DEQ_PTR_MASK			GENMASK_ULL(63, 4)
 
@@ -1526,6 +1526,7 @@ struct xhci_hcd {
 	/* imod_interval in ns (I * 250ns) */
 	u32		imod_interval;
 	u32		page_size;
+	unsigned int	dma_mask_bits;
 	/* MSI-X/MSI vectors */
 	int		nvecs;
 	/* optional clocks */

@@ -1120,6 +1120,10 @@ void iwl_mld_handle_tx_resp_notif(struct iwl_mld *mld,
 	ssn = le32_to_cpup((__le32 *)agg_status +
 			   tx_resp->frame_count) & 0xFFFF;
 
+	if (IWL_FW_CHECK(mld, txq_id >= ARRAY_SIZE(mld->fw_id_to_txq),
+			 "Invalid txq id %d\n", txq_id))
+		return;
+
 	__skb_queue_head_init(&skbs);
 
 	/* we can free until ssn % q.n_bd not inclusive */

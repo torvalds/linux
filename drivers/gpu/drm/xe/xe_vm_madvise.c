@@ -332,6 +332,20 @@ static int xe_vm_invalidate_madvise_range(struct xe_vm *vm, u64 start, u64 end)
 	return err;
 }
 
+/**
+ * madvise_range_needs_invalidation() - Check whether madvise needs invalidation
+ * @args: madvise ioctl arguments
+ *
+ * Purgeable state updates only touch VMA/BO metadata. PTEs stay valid and are
+ * zapped only if the BO is later purged.
+ *
+ * Return: true when the update needs PTE invalidation.
+ */
+static bool madvise_range_needs_invalidation(const struct drm_xe_madvise *args)
+{
+	return args->type != DRM_XE_VMA_ATTR_PURGEABLE_STATE;
+}
+
 static bool madvise_args_are_sane(struct xe_device *xe, const struct drm_xe_madvise *args)
 {
 	if (XE_IOCTL_DBG(xe, !args))
@@ -708,8 +722,9 @@ int xe_vm_madvise_ioctl(struct drm_device *dev, void *data, struct drm_file *fil
 	madvise_funcs[attr_type](xe, vm, madvise_range.vmas, madvise_range.num_vmas, args,
 				 &details);
 
-	err = xe_vm_invalidate_madvise_range(vm, madvise_range.addr,
-					     madvise_range.addr + args->range);
+	if (madvise_range_needs_invalidation(args))
+		err = xe_vm_invalidate_madvise_range(vm, madvise_range.addr,
+						     madvise_range.addr + args->range);
 
 	if (madvise_range.has_svm_userptr_vmas)
 		xe_svm_notifier_unlock(vm);

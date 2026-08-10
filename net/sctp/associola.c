@@ -573,6 +573,10 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		if (ch->transport == peer)
 			ch->transport = NULL;
 
+	list_for_each_entry(ch, &asoc->outqueue.control_chunk_list, list)
+		if (ch->transport == peer)
+			ch->transport = NULL;
+
 	asoc->peer.transport_count--;
 
 	sctp_ulpevent_notify_peer_addr_change(peer, SCTP_ADDR_REMOVED, 0);
@@ -613,6 +617,9 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		}
 		return peer;
 	}
+
+	if (asoc->peer.transport_count == U16_MAX)
+		return NULL;
 
 	peer = sctp_transport_new(asoc->base.net, addr, gfp);
 	if (!peer)

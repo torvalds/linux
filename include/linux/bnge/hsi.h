@@ -8317,8 +8317,7 @@ struct hwrm_ring_alloc_output {
 	__le16	req_type;
 	__le16	seq_id;
 	__le16	resp_len;
-	__le16	ring_id;
-	__le16	logical_ring_id;
+	__le32	ring_id;
 	u8	push_buffer_index;
 	#define RING_ALLOC_RESP_PUSH_BUFFER_INDEX_PING_BUFFER 0x0UL
 	#define RING_ALLOC_RESP_PUSH_BUFFER_INDEX_PONG_BUFFER 0x1UL
@@ -8345,10 +8344,10 @@ struct hwrm_ring_free_input {
 	u8	flags;
 	#define RING_FREE_REQ_FLAGS_VIRTIO_RING_VALID 0x1UL
 	#define RING_FREE_REQ_FLAGS_LAST             RING_FREE_REQ_FLAGS_VIRTIO_RING_VALID
-	__le16	ring_id;
+	__le16	unused_1;
 	__le32	prod_idx;
 	__le32	opaque;
-	__le32	unused_1;
+	__le32	ring_id;
 };
 
 /* hwrm_ring_free_output (size:128b/16B) */

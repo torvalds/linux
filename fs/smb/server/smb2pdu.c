@@ -1325,6 +1325,8 @@ static __le32 deassemble_neg_contexts(struct ksmbd_conn *conn,
  * smb2_handle_negotiate() - handler for smb2 negotiate command
  * @work:	smb work containing smb request buffer
  *
+ * The caller holds conn->srv_mutex.
+ *
  * Return:      0
  */
 int smb2_handle_negotiate(struct ksmbd_work *work)
@@ -1338,13 +1340,6 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 
 	ksmbd_debug(SMB, "Received negotiate request\n");
 	conn->need_neg = false;
-	if (ksmbd_conn_good(conn)) {
-		pr_err("conn->tcp_status is already in CifsGood State\n");
-		work->send_no_response = 1;
-		return rc;
-	}
-
-	ksmbd_conn_lock(conn);
 	smb2_buf_len = get_rfc1002_len(work->request_buf);
 	smb2_neg_size = offsetof(struct smb2_negotiate_req, Dialects);
 	if (smb2_neg_size > smb2_buf_len) {
@@ -1495,7 +1490,6 @@ int smb2_handle_negotiate(struct ksmbd_work *work)
 	ksmbd_conn_set_need_setup(conn);
 
 err_out:
-	ksmbd_conn_unlock(conn);
 	if (rc)
 		rsp->hdr.Status = STATUS_INSUFFICIENT_RESOURCES;
 
@@ -1689,7 +1683,7 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	struct ksmbd_user *user;
-	char channel_key[SMB2_NTLMV2_SESSKEY_SIZE] = {};
+	char channel_key[CIFS_KEY_SIZE] = {};
 	char *auth_key = conn->binding ? channel_key : sess->sess_key;
 	u64 prev_id;
 	bool binding = conn->binding;
@@ -1716,11 +1710,6 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 		ksmbd_debug(SMB, "Unknown user name or an error\n");
 		return -EPERM;
 	}
-
-	/* Check for previous session */
-	prev_id = le64_to_cpu(req->PreviousSessionId);
-	if (prev_id && prev_id != sess->id)
-		destroy_previous_session(conn, user, prev_id);
 
 	if (sess->state == SMB2_SESSION_VALID) {
 		/*
@@ -1760,6 +1749,10 @@ static int ntlm_authenticate(struct ksmbd_work *work,
 			goto out;
 		}
 	}
+
+	prev_id = le64_to_cpu(req->PreviousSessionId);
+	if (prev_id && prev_id != sess->id)
+		destroy_previous_session(conn, sess->user, prev_id);
 
 	/*
 	 * If session state is SMB2_SESSION_VALID, We can assume
@@ -1826,7 +1819,7 @@ static int krb5_authenticate(struct ksmbd_work *work,
 	struct ksmbd_conn *conn = work->conn;
 	struct ksmbd_session *sess = work->sess;
 	char *in_blob, *out_blob;
-	char channel_key[SMB2_NTLMV2_SESSKEY_SIZE] = {};
+	char channel_key[CIFS_KEY_SIZE] = {};
 	char *auth_key = conn->binding ? channel_key : sess->sess_key;
 	u64 prev_sess_id;
 	bool binding = conn->binding;
@@ -1976,7 +1969,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 			goto out_err;
 		}
 
-		if (strncmp(conn->ClientGUID, sess->ClientGUID,
+		if (memcmp(conn->ClientGUID, sess->ClientGUID,
 			    SMB2_CLIENT_GUID_SIZE)) {
 			rc = -ENOENT;
 			goto out_err;
@@ -6597,9 +6590,8 @@ static int smb2_rename(struct ksmbd_work *work,
 			pr_err("failed to store stream name in xattr: %d\n",
 			       rc);
 			rc = -EINVAL;
-			goto out;
 		}
-
+		kfree(xattr_stream_name);
 		goto out;
 	}
 
@@ -6781,6 +6773,7 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 	 */
 
 	loff_t alloc_blks;
+	u64 alloc_size;
 	struct inode *inode;
 	struct kstat stat;
 	int rc;
@@ -6796,7 +6789,19 @@ static int set_file_allocation_info(struct ksmbd_work *work,
 	if (rc)
 		return rc;
 
-	alloc_blks = (le64_to_cpu(file_alloc_info->AllocationSize) + 511) >> 9;
+	/*
+	 * AllocationSize is fully client-controlled (the caller only
+	 * validates the fixed 8-byte buffer length). Reject values that
+	 * would overflow the "round up to 512-byte blocks" conversion
+	 * below instead of silently wrapping it to a tiny block count,
+	 * which would truncate the file to a size the client never
+	 * asked for.
+	 */
+	alloc_size = le64_to_cpu(file_alloc_info->AllocationSize);
+	if (alloc_size > MAX_LFS_FILESIZE - 511)
+		return -EINVAL;
+
+	alloc_blks = (alloc_size + 511) >> 9;
 	inode = file_inode(fp->filp);
 
 	if (alloc_blks > stat.blocks) {
@@ -7432,6 +7437,15 @@ int smb2_read(struct ksmbd_work *work)
 		err = nbytes;
 		goto out;
 	}
+
+	/*
+	 * ksmbd_vfs_read() fills only nbytes; the [nbytes, ALIGN(nbytes, 8))
+	 * tail of the un-zeroed buffer is transmitted as compound-response
+	 * alignment padding, leaking uninitialized kernel memory to the
+	 * client.  Zero just that tail.
+	 */
+	if (nbytes & 7)
+		memset(aux_payload_buf + nbytes, 0, ALIGN(nbytes, 8) - nbytes);
 
 	if ((nbytes == 0 && length != 0) || nbytes < mincount) {
 		kvfree(aux_payload_buf);
@@ -8676,7 +8690,7 @@ static int fsctl_validate_negotiate_info(struct ksmbd_conn *conn,
 		goto err_out;
 	}
 
-	if (strncmp(neg_req->Guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE)) {
+	if (memcmp(neg_req->Guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE)) {
 		ret = -EINVAL;
 		goto err_out;
 	}
@@ -9575,8 +9589,7 @@ bool smb2_is_sign_req(struct ksmbd_work *work, unsigned int command)
 	struct smb2_hdr *rcv_hdr2 = smb_get_msg(work->request_buf);
 
 	if ((rcv_hdr2->Flags & SMB2_FLAGS_SIGNED) &&
-	    command != SMB2_NEGOTIATE_HE &&
-	    command != SMB2_OPLOCK_BREAK_HE)
+	    command != SMB2_NEGOTIATE_HE)
 		return true;
 
 	return false;
@@ -9787,22 +9800,21 @@ void smb3_preauth_hash_rsp(struct ksmbd_work *work)
 	}
 
 	if (le16_to_cpu(rsp->Command) == SMB2_SESSION_SETUP_HE && sess) {
-		__u8 *hash_value;
+		ksmbd_conn_lock(conn);
 
 		if (conn->binding) {
 			struct preauth_session *preauth_sess;
 
 			preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
-			if (!preauth_sess)
-				return;
-			hash_value = preauth_sess->Preauth_HashValue;
-		} else {
-			hash_value = sess->Preauth_HashValue;
-			if (!hash_value)
-				return;
+			if (preauth_sess)
+				ksmbd_gen_preauth_integrity_hash(conn,
+					work->response_buf,
+					preauth_sess->Preauth_HashValue);
+		} else if (sess->Preauth_HashValue) {
+			ksmbd_gen_preauth_integrity_hash(conn, work->response_buf,
+					 sess->Preauth_HashValue);
 		}
-		ksmbd_gen_preauth_integrity_hash(conn, work->response_buf,
-						 hash_value);
+		ksmbd_conn_unlock(conn);
 	}
 }
 

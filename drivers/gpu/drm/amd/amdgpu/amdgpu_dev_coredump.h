@@ -34,8 +34,8 @@
 struct amdgpu_coredump_ring {
 	u64				rptr;
 	u64				wptr;
+	u32				*ring_dw;
 	u32				ring_index;
-	u32				offset;
 };
 
 struct amdgpu_coredump_ib_info {
@@ -53,7 +53,6 @@ struct amdgpu_coredump_info {
 	struct amdgpu_ring              *ring;
 
 	struct amdgpu_coredump_ring	*rings;
-	u32				*rings_dw;
 	u32				num_rings;
 
 	/* Readable form of coredevdump, generate once to speed up
@@ -63,6 +62,7 @@ struct amdgpu_coredump_info {
 	char				*formatted;
 
 	unsigned int			pasid;
+	unsigned int			vmid;
 	int				num_ibs;
 	struct amdgpu_coredump_ib_info	ibs[] __counted_by(num_ibs);
 };
