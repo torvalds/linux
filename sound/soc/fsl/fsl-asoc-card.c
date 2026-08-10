@@ -69,7 +69,6 @@ static const struct snd_pcm_hw_constraint_list cs42888_channel_constraints = {
 
 /**
  * struct codec_priv - CODEC private data
- * @mclk: Main clock of the CODEC
  * @mclk_freq: Clock rate of MCLK
  * @free_freq: Clock rate of MCLK for hw_free()
  * @mclk_id: MCLK (or main clock) id for set_sysclk()
@@ -80,7 +79,6 @@ static const struct snd_pcm_hw_constraint_list cs42888_channel_constraints = {
  *                 to stay within PLL frequency limits
  */
 struct codec_priv {
-	struct clk *mclk;
 	unsigned long mclk_freq;
 	unsigned long free_freq;
 	u32 mclk_id;
@@ -680,9 +678,6 @@ static int fsl_asoc_card_late_probe(struct snd_soc_card *card)
 			dev_err(dev, "failed to set sysclk in %s\n", __func__);
 			return ret;
 		}
-
-		if (!IS_ERR_OR_NULL(codec_priv->mclk))
-			clk_prepare_enable(codec_priv->mclk);
 	}
 
 	return 0;
@@ -933,8 +928,6 @@ static int fsl_asoc_card_probe(struct platform_device *pdev)
 		priv->codec_priv[0].fll_id = NAU8822_CLK_PLL;
 		priv->codec_priv[0].pll_id = NAU8822_CLK_PLL;
 		priv->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
-		if (codec_dev[0])
-			priv->codec_priv[0].mclk = devm_clk_get(codec_dev[0], NULL);
 	} else if (of_device_is_compatible(np, "fsl,imx-audio-wm8904")) {
 		codec_dai_name[0] = "wm8904-hifi";
 		priv->codec_priv[0].mclk_id = WM8904_FLL_MCLK;
