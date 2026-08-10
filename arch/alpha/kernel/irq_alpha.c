@@ -52,8 +52,19 @@ do_entInt(unsigned long type, unsigned long vector,
 	 * Note that there is no matching local_irq_enable() due to
 	 * severe problems with RTI at IPL0 and some MILO PALcode
 	 * (namely LX164).
+	 *
+	 * PALcode has already raised PS.IPL to the level of the interrupt
+	 * being delivered.  For an IPL 7 entry - a machine check or a system
+	 * event - that is IPL_MAX, which is what arch_irqs_disabled() tests
+	 * for, so local_irq_disable() would decide interrupts were already
+	 * off and skip trace_hardirqs_off().  lockdep would then spend the
+	 * whole handler believing interrupts are enabled.  Drive the
+	 * annotation from lockdep's own state rather than the hardware IPL.
 	 */
-	local_irq_disable();
+	raw_local_irq_disable();
+	if (lockdep_hardirqs_enabled())
+		trace_hardirqs_off();
+
 	old_regs = set_irq_regs(regs);
 
 	switch (type) {
