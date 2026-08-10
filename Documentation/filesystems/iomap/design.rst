@@ -43,7 +43,7 @@ as:
  * lseek ``SEEK_DATA`` and ``SEEK_HOLE``
  * swapfile activation
 
-This origins of this library is the file I/O path that XFS once used; it
+The origins of this library is the file I/O path that XFS once used; it
 has now been extended to cover several other operations.
 
 Who Should Read This?
