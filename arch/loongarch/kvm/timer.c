@@ -135,6 +135,8 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 		delta = ktime_to_tick(vcpu, ktime_sub(expire, now));
 	else if (cfg & CSR_TCFG_PERIOD) {
 		period = cfg & CSR_TCFG_VAL;
+		if (!period)
+			period = 1;
 		delta = ktime_to_tick(vcpu, ktime_sub(now, expire));
 		delta = period - (delta % period);
 
