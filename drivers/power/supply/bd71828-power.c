@@ -456,8 +456,10 @@ static int bd71828_charger_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		ret = get_chg_online(pwr, &online);
-		if (!ret)
-			val->intval = online;
+		if (ret)
+			return ret;
+
+		val->intval = online;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = bd7182x_read16_himask(pwr, pwr->regs->vdcin,
@@ -1218,7 +1220,9 @@ static int bd71828_power_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret, "sense resistor missing\n");
 
 	dev_set_drvdata(&pdev->dev, pwr);
-	bd71828_init_hardware(pwr);
+	ret = bd71828_init_hardware(pwr);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "hardware init failed\n");
 
 	bat_cfg.drv_data	= pwr;
 	bat_cfg.fwnode		= dev_fwnode(&pdev->dev);
