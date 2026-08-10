@@ -114,7 +114,7 @@ static int kvm_dmsintc_ctrl_access(struct kvm_device *dev,
 		}
 		break;
 	default:
-		kvm_err("%s: unknown dmsintc register, addr = %d\n", __func__, addr);
+		kvm_pr_unimpl("%s: unknown dmsintc register, addr = %d\n", __func__, addr);
 		return -ENXIO;
 	}
 
@@ -128,7 +128,7 @@ static int kvm_dmsintc_set_attr(struct kvm_device *dev,
 	case KVM_DEV_LOONGARCH_DMSINTC_GRP_CTRL:
 		return kvm_dmsintc_ctrl_access(dev, attr, true);
 	default:
-		kvm_err("%s: unknown group (%d)\n", __func__, attr->group);
+		kvm_pr_unimpl("%s: unknown group (%d)\n", __func__, attr->group);
 		return -EINVAL;
 	}
 }
@@ -139,13 +139,13 @@ static int kvm_dmsintc_create(struct kvm_device *dev, u32 type)
 	struct loongarch_dmsintc *s;
 
 	if (!dev) {
-		kvm_err("%s: kvm_device ptr is invalid!\n", __func__);
+		kvm_pr_unimpl("%s: kvm_device ptr is invalid!\n", __func__);
 		return -EINVAL;
 	}
 
 	kvm = dev->kvm;
 	if (kvm->arch.dmsintc) {
-		kvm_err("%s: LoongArch DMSINTC has already been created!\n", __func__);
+		kvm_pr_unimpl("%s: LoongArch DMSINTC has already been created!\n", __func__);
 		return -EINVAL;
 	}
 

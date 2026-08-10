@@ -48,7 +48,7 @@ static void eiointc_update_irq(struct loongarch_eiointc *s, int irq, int level)
 	cpu = s->sw_coremap[irq];
 	vcpu = kvm_get_vcpu_by_id(s->kvm, cpu);
 	if (unlikely(vcpu == NULL)) {
-		kvm_err("%s: invalid target cpu: %d\n", __func__, cpu);
+		kvm_pr_unimpl("%s: invalid target cpu: %d\n", __func__, cpu);
 		return;
 	}
 
@@ -169,12 +169,12 @@ static int kvm_eiointc_read(struct kvm_vcpu *vcpu,
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
-		kvm_err("%s: eiointc irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: eiointc irqchip not valid!\n", __func__);
 		return 0;
 	}
 
 	if (addr & (len - 1)) {
-		kvm_err("%s: eiointc not aligned addr %llx len %d\n", __func__, addr, len);
+		kvm_pr_unimpl("%s: eiointc not aligned addr %llx len %d\n", __func__, addr, len);
 		return 0;
 	}
 
@@ -301,12 +301,12 @@ static int kvm_eiointc_write(struct kvm_vcpu *vcpu,
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
-		kvm_err("%s: eiointc irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: eiointc irqchip not valid!\n", __func__);
 		return 0;
 	}
 
 	if (addr & (len - 1)) {
-		kvm_err("%s: eiointc not aligned addr %llx len %d\n", __func__, addr, len);
+		kvm_pr_unimpl("%s: eiointc not aligned addr %llx len %d\n", __func__, addr, len);
 		return 0;
 	}
 
@@ -349,7 +349,7 @@ static int kvm_eiointc_virt_read(struct kvm_vcpu *vcpu,
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
-		kvm_err("%s: eiointc irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: eiointc irqchip not valid!\n", __func__);
 		return 0;
 	}
 
@@ -379,7 +379,7 @@ static int kvm_eiointc_virt_write(struct kvm_vcpu *vcpu,
 	struct loongarch_eiointc *eiointc = vcpu->kvm->arch.eiointc;
 
 	if (!eiointc) {
-		kvm_err("%s: eiointc irqchip not valid!\n", __func__);
+		kvm_pr_unimpl("%s: eiointc irqchip not valid!\n", __func__);
 		return 0;
 	}
 
@@ -506,7 +506,7 @@ static int kvm_eiointc_regs_access(struct kvm_device *dev,
 		p = (void *)s->coremap + offset * 4;
 		break;
 	default:
-		kvm_err("%s: unknown eiointc register, addr = %d\n", __func__, addr);
+		kvm_pr_unimpl("%s: unknown eiointc register, addr = %d\n", __func__, addr);
 		return -EINVAL;
 	}
 
@@ -550,7 +550,7 @@ static int kvm_eiointc_sw_status_access(struct kvm_device *dev,
 		p = &s->status;
 		break;
 	default:
-		kvm_err("%s: unknown eiointc register, addr = %d\n", __func__, addr);
+		kvm_pr_unimpl("%s: unknown eiointc register, addr = %d\n", __func__, addr);
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&s->lock, flags);
