@@ -22,7 +22,7 @@
 #include "fnic_trace.h"
 #include "fdls_fc.h"
 
-#if IS_ENABLED(CONFIG_NVME_FC)
+#if IS_REACHABLE(CONFIG_NVME_FC)
 
 static bool nvfnic_ls_req_cleanup(struct fnic_iport_s *iport,
 				  struct nvmefc_ls_req *lsreq,

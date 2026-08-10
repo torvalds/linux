@@ -61,7 +61,7 @@ struct nvfnic_ls_req {
 	unsigned int flags;
 };
 
-#if IS_ENABLED(CONFIG_NVME_FC)
+#if IS_REACHABLE(CONFIG_NVME_FC)
 int nvfnic_nvme_io_done_handler(void *arg);
 struct fnic_io_req *nvfnic_find_io_req_by_tag(struct fnic *fnic, uint16_t tag);
 void nvfnic_reset_fcpio_tag_pool(struct fnic_iport_s *iport);
