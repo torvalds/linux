@@ -150,7 +150,7 @@
 				regulator-always-on;
 			};
 
-			vcca_18: REG7  {
+			vcca_18: REG7 {
 				regulator-name = "vcca_18";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;

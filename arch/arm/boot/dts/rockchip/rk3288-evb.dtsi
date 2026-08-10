@@ -40,7 +40,7 @@
 			press-threshold-microvolt = <1000000>;
 		};
 
-		button-home  {
+		button-home {
 			label = "Home";
 			linux,code = <KEY_HOME>;
 			press-threshold-microvolt = <1300000>;
