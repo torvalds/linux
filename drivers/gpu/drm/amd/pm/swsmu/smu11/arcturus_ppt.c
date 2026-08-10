@@ -658,7 +658,7 @@ static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->VcnActivityPercentage;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->AverageSocketPower << 8;
+		*value = metrics->AverageSocketPower * MILLIWATT_PER_WATT;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->TemperatureEdge *

@@ -9,6 +9,7 @@ use crate::{
     prelude::*, //
 };
 
+#[cfg(CONFIG_HAS_IOMEM)]
 pub mod mem;
 pub mod poll;
 pub mod register;
@@ -80,6 +81,7 @@ impl<const SIZE: usize> MmioRaw<SIZE> {
 /// # Examples
 ///
 /// ```no_run
+/// # #![cfg(CONFIG_HAS_IOMEM)]
 /// use kernel::{
 ///     bindings,
 ///     ffi::c_void,
