@@ -156,13 +156,12 @@ static int k1_tsensor_set_trips(struct thermal_zone_device *tz, int low, int hig
 	struct k1_tsensor *ts = ch->ts;
 	u32 val;
 
-	if (low >= high)
-		return -EINVAL;
-
 	low = clamp_val(low / 1000 + TEMPERATURE_OFFSET, TEMPERATURE_OFFSET,
 			FIELD_MAX(K1_TSENSOR_THRSH_LOW_MASK));
 	high = clamp_val(high / 1000 + TEMPERATURE_OFFSET, TEMPERATURE_OFFSET,
 			 FIELD_MAX(K1_TSENSOR_THRSH_HIGH_MASK));
+	if (low >= high)
+		return -EINVAL;
 
 	val = readl(ts->base + K1_TSENSOR_THRSH_REG(ch->id));
 
@@ -199,6 +198,39 @@ static irqreturn_t k1_tsensor_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void k1_tsensor_shutdown(struct k1_tsensor *ts)
+{
+	u32 val;
+
+	/* Disable all interrupts */
+	writel(0xffffffff, ts->base + K1_TSENSOR_INT_EN_REG);
+
+	/* Disable all sensors */
+	val = readl(ts->base + K1_TSENSOR_EN_REG);
+	val &= ~K1_TSENSOR_EN_ALL;
+	writel(val, ts->base + K1_TSENSOR_EN_REG);
+
+	/* Clear the sampling configuration set by k1_tsensor_init() */
+	val = readl(ts->base + K1_TSENSOR_TIME_REG);
+	val &= ~(K1_TSENSOR_TIME_FILTER_PERIOD |
+		 K1_TSENSOR_TIME_ADC_CNT_RST |
+		 K1_TSENSOR_TIME_WAIT_REF_CNT);
+	writel(val, ts->base + K1_TSENSOR_TIME_REG);
+
+	/* Clear the control bits configured by k1_tsensor_init() */
+	val = readl(ts->base + K1_TSENSOR_PCTRL_REG);
+	val &= ~(K1_TSENSOR_PCTRL_RAW_SEL |
+		 K1_TSENSOR_PCTRL_TEMP_MODE |
+		 K1_TSENSOR_PCTRL_HW_AUTO_MODE |
+		 K1_TSENSOR_PCTRL_ENABLE);
+	writel(val, ts->base + K1_TSENSOR_PCTRL_REG);
+}
+
+static void k1_tsensor_shutdown_action(void *data)
+{
+	k1_tsensor_shutdown(data);
+}
+
 static int k1_tsensor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -229,34 +261,48 @@ static int k1_tsensor_probe(struct platform_device *pdev)
 
 	k1_tsensor_init(ts);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_threaded_irq(dev, irq, NULL,
-					k1_tsensor_irq_thread,
-					IRQF_ONESHOT, "k1_tsensor", ts);
-	if (ret < 0)
-		return ret;
-
 	for (i = 0; i < MAX_SENSOR_NUMBER; ++i) {
 		ts->ch[i].id = i;
 		ts->ch[i].ts = ts;
 		ts->ch[i].tzd = devm_thermal_of_zone_register(dev, i, ts->ch + i, &k1_tsensor_ops);
-		if (IS_ERR(ts->ch[i].tzd))
-			return PTR_ERR(ts->ch[i].tzd);
+		if (IS_ERR(ts->ch[i].tzd)) {
+			ret = PTR_ERR(ts->ch[i].tzd);
+			goto err_shutdown;
+		}
 
 		/* Attach sysfs hwmon attributes for userspace monitoring */
 		ret = devm_thermal_add_hwmon_sysfs(dev, ts->ch[i].tzd);
 		if (ret)
 			dev_warn(dev, "Failed to add hwmon sysfs attributes\n");
-
-		k1_tsensor_enable_irq(ts->ch + i);
 	}
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto err_shutdown;
+	}
+
+	ret = devm_request_threaded_irq(dev, irq, NULL,
+					k1_tsensor_irq_thread,
+					IRQF_ONESHOT, "k1_tsensor", ts);
+	if (ret < 0)
+		goto err_shutdown;
+
+	ret = devm_add_action_or_reset(dev, k1_tsensor_shutdown_action, ts);
+	if (ret)
+		return ret;
+
+	/* Enable interrupts only after all zones and the handler are ready */
+	for (i = 0; i < MAX_SENSOR_NUMBER; ++i)
+		k1_tsensor_enable_irq(ts->ch + i);
 
 	platform_set_drvdata(pdev, ts);
 
 	return 0;
+
+err_shutdown:
+	k1_tsensor_shutdown(ts);
+	return ret;
 }
 
 static const struct of_device_id k1_tsensor_dt_ids[] = {

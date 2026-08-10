@@ -94,12 +94,23 @@ allOf:
         nvmem-cell-names:
           minItems: 2
 
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - mediatek,mt8196-lvts-ap
+                - mediatek,mt8196-lvts-mcu
+    then:
+      required:
+        - resets
+
 required:
   - compatible
   - reg
   - interrupts
   - clocks
-  - resets
   - nvmem-cells
   - nvmem-cell-names
 

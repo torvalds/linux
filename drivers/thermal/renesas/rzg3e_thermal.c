@@ -461,10 +461,8 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, irq, rzg3e_thermal_irq,
 					rzg3e_thermal_irq_thread,
 					IRQF_ONESHOT, "rzg3e_thermal", priv);
-	if (ret) {
-		dev_err(dev, "Failed to request IRQ: %d\n", ret);
+	if (ret)
 		goto err_pm_put;
-	}
 
 	/* Add hwmon sysfs interface */
 	ret = devm_thermal_add_hwmon_sysfs(dev, priv->zone);

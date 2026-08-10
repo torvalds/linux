@@ -356,8 +356,7 @@ static int brcmstb_thermal_probe(struct platform_device *pdev)
 						IRQF_ONESHOT,
 						DRV_NAME, priv);
 		if (ret < 0)
-			return dev_err_probe(&pdev->dev, ret,
-						"could not request IRQ\n");
+			return ret;
 	}
 
 	dev_info(&pdev->dev, "registered AVS TMON of-sensor driver\n");

@@ -444,7 +444,7 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 
 	ret = thermal_zone_device_enable(tz);
 	if (ret) {
-		pr_err("Failed to enabled thermal zone '%s', id=%d: %d\n",
+		pr_err("Failed to enable thermal zone '%s', id=%d: %d\n",
 		       tz->type, tz->id, ret);
 		thermal_of_zone_unregister(tz);
 		return ERR_PTR(ret);

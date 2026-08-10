@@ -58,6 +58,7 @@ properties:
               - qcom,glymur-tsens
               - qcom,hawi-tsens
               - qcom,kaanapali-tsens
+              - qcom,maili-tsens
               - qcom,milos-tsens
               - qcom,nord-tsens
               - qcom,msm8953-tsens
