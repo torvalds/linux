@@ -1,0 +1,140 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/ti,omap-l4.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI OMAP SoCs L4 interconnect bus
+
+maintainers:
+  - Eduard Bostina <egbostina@gmail.com>
+
+description:
+  These bindings describe the OMAP SoCs L4 interconnect bus.
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ti,omap2-l4
+          - ti,omap2-l4-wkup
+          - ti,omap3-l4-core
+          - ti,omap4-l4-abe
+          - ti,omap4-l4-cfg
+          - ti,omap4-l4-per
+          - ti,omap4-l4-wkup
+          - ti,omap5-l4-abe
+          - ti,omap5-l4-cfg
+          - ti,omap5-l4-per
+          - ti,omap5-l4-wkup
+          - ti,dra7-l4-cfg
+          - ti,dra7-l4-per1
+          - ti,dra7-l4-per2
+          - ti,dra7-l4-per3
+          - ti,dra7-l4-wkup
+          - ti,am33xx-l4-fast
+          - ti,am33xx-l4-fw
+          - ti,am33xx-l4-mpuss
+          - ti,am33xx-l4-per
+          - ti,am33xx-l4-wkup
+          - ti,am4-l4-fast
+          - ti,am4-l4-per
+          - ti,am4-l4-wkup
+          - ti,dm814-l4hs
+          - ti,dm814-l4ls
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - ti,omap2-l4
+          - ti,omap2-l4-wkup
+          - ti,omap3-l4-core
+          - ti,omap4-l4-abe
+          - ti,omap4-l4-cfg
+          - ti,omap4-l4-per
+          - ti,omap4-l4-wkup
+          - ti,omap5-l4-abe
+          - ti,omap5-l4-cfg
+          - ti,omap5-l4-per
+          - ti,omap5-l4-wkup
+          - ti,dra7-l4-cfg
+          - ti,dra7-l4-per1
+          - ti,dra7-l4-per2
+          - ti,dra7-l4-per3
+          - ti,dra7-l4-wkup
+          - ti,am33xx-l4-fast
+          - ti,am33xx-l4-fw
+          - ti,am33xx-l4-mpuss
+          - ti,am33xx-l4-per
+          - ti,am33xx-l4-wkup
+          - ti,am4-l4-fast
+          - ti,am4-l4-per
+          - ti,am4-l4-wkup
+          - ti,dm814-l4hs
+          - ti,dm814-l4ls
+      - enum:
+          - simple-bus
+          - simple-pm-bus
+
+  reg:
+    minItems: 1
+    maxItems: 6
+
+  reg-names:
+    minItems: 1
+    maxItems: 6
+    items:
+      enum:
+        - ap
+        - la
+        - ia0
+        - ia1
+        - ia2
+        - ia3
+
+  ranges: true
+
+  dma-ranges: true
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fck
+
+  power-domains:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+required:
+  - compatible
+  - ranges
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    bus@48000000 {
+        compatible = "ti,omap4-l4-per", "simple-bus";
+        reg = <0x48000000 0x800>,
+              <0x48000800 0x800>,
+              <0x48001000 0x400>,
+              <0x48001400 0x400>,
+              <0x48001800 0x400>,
+              <0x48001c00 0x400>;
+        reg-names = "ap", "la", "ia0", "ia1", "ia2", "ia3";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x48000000 0x100000>;
+    };
