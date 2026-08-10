@@ -717,10 +717,11 @@ static int __deliver_to_subscribers(struct snd_seq_client *client,
 	
 	/* lock list */
 	if (atomic)
-		read_lock(&grp->list_lock);
+		rcu_read_lock();
 	else
 		down_read_nested(&grp->list_mutex, hop);
-	list_for_each_entry(subs, &grp->list_head, src_list) {
+	hlist_for_each_entry_rcu(subs, &grp->list_head, src_list,
+				 lockdep_is_held(&grp->list_mutex)) {
 		/* both ports ready? */
 		if (atomic_read(&subs->ref_count) != 2)
 			continue;
@@ -741,7 +742,7 @@ static int __deliver_to_subscribers(struct snd_seq_client *client,
 		memcpy(event, &event_saved, saved_size);
 	}
 	if (atomic)
-		read_unlock(&grp->list_lock);
+		rcu_read_unlock();
 	else
 		up_read(&grp->list_mutex);
 	memcpy(event, &event_saved, saved_size);
@@ -1938,7 +1939,7 @@ static int snd_seq_ioctl_query_subs(struct snd_seq_client *client, void *arg)
 {
 	struct snd_seq_query_subs *subs = arg;
 	struct snd_seq_port_subs_info *group;
-	struct list_head *p;
+	struct hlist_node *p;
 	int i;
 
 	struct snd_seq_client *cptr __free(snd_seq_client) =
@@ -1965,15 +1966,15 @@ static int snd_seq_ioctl_query_subs(struct snd_seq_client *client, void *arg)
 	/* search for the subscriber */
 	subs->num_subs = group->count;
 	i = 0;
-	list_for_each(p, &group->list_head) {
+	hlist_for_each(p, &group->list_head) {
 		if (i++ == subs->index) {
 			/* found! */
 			struct snd_seq_subscribers *s;
 			if (subs->type == SNDRV_SEQ_QUERY_SUBS_READ) {
-				s = list_entry(p, struct snd_seq_subscribers, src_list);
+				s = hlist_entry(p, struct snd_seq_subscribers, src_list);
 				subs->addr = s->info.dest;
 			} else {
-				s = list_entry(p, struct snd_seq_subscribers, dest_list);
+				s = hlist_entry(p, struct snd_seq_subscribers, dest_list);
 				subs->addr = s->info.sender;
 			}
 			subs->flags = s->info.flags;
@@ -2529,19 +2530,19 @@ static void snd_seq_info_dump_subscribers(struct snd_info_buffer *buffer,
 					  struct snd_seq_port_subs_info *group,
 					  int is_src, char *msg)
 {
-	struct list_head *p;
+	struct hlist_node *p;
 	struct snd_seq_subscribers *s;
 	int count = 0;
 
 	guard(rwsem_read)(&group->list_mutex);
-	if (list_empty(&group->list_head))
+	if (hlist_empty(&group->list_head))
 		return;
 	snd_iprintf(buffer, msg);
-	list_for_each(p, &group->list_head) {
+	hlist_for_each(p, &group->list_head) {
 		if (is_src)
-			s = list_entry(p, struct snd_seq_subscribers, src_list);
+			s = hlist_entry(p, struct snd_seq_subscribers, src_list);
 		else
-			s = list_entry(p, struct snd_seq_subscribers, dest_list);
+			s = hlist_entry(p, struct snd_seq_subscribers, dest_list);
 		if (count++)
 			snd_iprintf(buffer, ", ");
 		snd_iprintf(buffer, "%d:%d",
