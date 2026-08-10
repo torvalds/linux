@@ -105,6 +105,9 @@ static int sdw_bus_probe(struct device *dev)
 	}
 	slave->index = ret;
 
+	/* Create IRQ mapping now so the driver can get it in probe() */
+	sdw_irq_create_mapping(slave);
+
 	ret = drv->probe(slave, id);
 	if (ret) {
 		ida_free(&slave->bus->slave_ida, slave->index);
@@ -116,9 +119,6 @@ static int sdw_bus_probe(struct device *dev)
 	/* device is probed so let's read the properties now */
 	if (drv->ops && drv->ops->read_prop)
 		drv->ops->read_prop(slave);
-
-	if (slave->prop.use_domain_irq)
-		sdw_irq_create_mapping(slave);
 
 	/* init the dynamic sysfs attributes we need */
 	ret = sdw_slave_sysfs_dpn_init(slave);
