@@ -1048,7 +1048,7 @@ static int acpi_video_bus_check(struct acpi_video_bus *video)
 	if (!video)
 		return -EINVAL;
 
-	dev = acpi_get_pci_dev(video->device->handle);
+	dev = acpi_dev_get_pci_dev(video->device);
 	if (!dev)
 		return -ENODEV;
 	pci_dev_put(dev);
@@ -1702,7 +1702,6 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 {
 	struct backlight_properties props;
 	struct pci_dev *pdev;
-	acpi_handle acpi_parent;
 	struct device *parent = NULL;
 	int result;
 	static int count;
@@ -1717,13 +1716,9 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 		return;
 	count++;
 
-	if (ACPI_SUCCESS(acpi_get_parent(device->dev->handle, &acpi_parent))) {
-		pdev = acpi_get_pci_dev(acpi_parent);
-		if (pdev) {
-			parent = &pdev->dev;
-			pci_dev_put(pdev);
-		}
-	}
+	pdev = acpi_dev_get_pci_dev(acpi_dev_parent(device->dev));
+	if (pdev)
+		parent = &pdev->dev;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
 	props.type = BACKLIGHT_FIRMWARE;
@@ -1734,6 +1729,7 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 						      device,
 						      &acpi_backlight_ops,
 						      &props);
+	put_device(parent);
 	kfree(name);
 	if (IS_ERR(device->backlight)) {
 		device->backlight = NULL;

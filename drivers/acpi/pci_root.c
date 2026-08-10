@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) "ACPI: " fmt
 
+#include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -292,41 +293,37 @@ struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 EXPORT_SYMBOL_GPL(acpi_pci_find_root);
 
 /**
- * acpi_get_pci_dev - convert ACPI CA handle to struct pci_dev
- * @handle: the handle in question
+ * acpi_dev_get_pci_dev - Get a struct pci_dev for a given ACPI device
+ * @adev: Target ACPI device.
  *
- * Given an ACPI CA handle, the desired PCI device is located in the
- * list of PCI devices.
+ * Find the PCI device associated with @adev, if any, and bump up its reference
+ * counter.
  *
- * If the device is found, its reference count is increased and this
- * function returns a pointer to its data structure.  The caller must
- * decrement the reference count by calling pci_dev_put().
- * If no device is found, %NULL is returned.
+ * Callers are responsible for dropping the PCI device reference obtained by
+ * this function.
+ *
+ * Return: The struct pci_dev pointer of a reference-counted PCI device on
+ * success or NULL on failure.
  */
-struct pci_dev *acpi_get_pci_dev(acpi_handle handle)
+struct pci_dev *acpi_dev_get_pci_dev(struct acpi_device *adev)
 {
-	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct acpi_device_physical_node *pn;
-	struct pci_dev *pci_dev = NULL;
 
 	if (!adev)
 		return NULL;
 
-	mutex_lock(&adev->physical_node_lock);
+	guard(mutex)(&adev->physical_node_lock);
 
 	list_for_each_entry(pn, &adev->physical_node_list, node) {
 		if (dev_is_pci(pn->dev)) {
 			get_device(pn->dev);
-			pci_dev = to_pci_dev(pn->dev);
-			break;
+			return to_pci_dev(pn->dev);
 		}
 	}
 
-	mutex_unlock(&adev->physical_node_lock);
-
-	return pci_dev;
+	return NULL;
 }
-EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
+EXPORT_SYMBOL_GPL(acpi_dev_get_pci_dev);
 
 /**
  * acpi_pci_osc_control_set - Request control of PCI root _OSC features.
@@ -574,6 +571,13 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 		return;
 	}
 
+	if (!is_pcie(root) && !is_cxl(root) && !acpi_has_method(handle, "_OSC")) {
+		dev_dbg(&device->dev, "Non-PCIe host bridge without _OSC, skipping\n");
+
+		*no_aspm = 1;
+		return;
+	}
+
 	support = calculate_support();
 
 	decode_osc_support(root, "OS supports", support);
@@ -614,10 +618,6 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 		 * root scan.
 		 */
 		*no_aspm = 1;
-
-		/* _OSC is optional for PCI host bridges */
-		if (status == AE_NOT_FOUND && !is_pcie(root))
-			return;
 
 		if (control) {
 			decode_osc_control(root, "OS requested", requested);
@@ -725,7 +725,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		dev_err(&device->dev,
 			"Bus %04x:%02x not present in PCI namespace\n",
 			root->segment, (unsigned int)root->secondary.start);
-		device->driver_data = NULL;
 		result = -ENODEV;
 		goto remove_dmar;
 	}
@@ -765,6 +764,7 @@ remove_dmar:
 	if (hotadd)
 		dmar_device_remove(handle);
 end:
+	device->driver_data = NULL;
 	kfree(root);
 	return result;
 }
@@ -788,6 +788,7 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_unlock_rescan_remove();
 
+	device->driver_data = NULL;
 	kfree(root);
 }
 
