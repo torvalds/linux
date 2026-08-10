@@ -152,12 +152,26 @@ enum target_state {
 };
 
 /**
+ * struct netcons_userdata - Formatted userdata payload of a target.
+ * @rcu:	Used to free the payload after a grace period.
+ * @length:	Length of @data, excluding the NUL terminator.
+ * @data:	Formatted " key=value\n" entries, NUL terminated.
+ *
+ * Immutable once published, so the transmit path never observes @data and
+ * @length disagreeing.
+ */
+struct netcons_userdata {
+	struct rcu_head		rcu;
+	size_t			length;
+	char			data[];
+};
+
+/**
  * struct netconsole_target - Represents a configured netconsole target.
  * @list:	Links this target into the target_list.
  * @group:	Links us into the configfs subsystem hierarchy.
  * @userdata_group:	Links to the userdata configfs hierarchy
- * @userdata:		Cached, formatted string of append
- * @userdata_length:	String length of userdata.
+ * @userdata:		Cached, formatted userdata payload. RCU protected.
  * @sysdata:		Cached, formatted string of append
  * @sysdata_fields:	Sysdata features enabled.
  * @msgcounter:	Message sent counter.
@@ -198,8 +212,7 @@ struct netconsole_target {
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 	struct config_group	group;
 	struct config_group	userdata_group;
-	char			*userdata;
-	size_t			userdata_length;
+	struct netcons_userdata __rcu *userdata;
 	char			sysdata[MAX_EXTRADATA_ENTRY_LEN * MAX_SYSDATA_ITEMS];
 
 	/* bit-wise with sysdata_feature bits */
@@ -1351,12 +1364,11 @@ static int calc_userdata_len(struct netconsole_target *nt)
 
 static int update_userdata(struct netconsole_target *nt)
 {
+	struct netcons_userdata *new = NULL;
+	struct netcons_userdata *old;
 	struct userdatum *udm_item;
 	struct config_item *item;
 	struct list_head *entry;
-	char *old_buf = NULL;
-	char *new_buf = NULL;
-	unsigned long flags;
 	int offset = 0;
 	int len;
 
@@ -1368,8 +1380,8 @@ static int update_userdata(struct netconsole_target *nt)
 
 	/* Allocate new buffer */
 	if (len) {
-		new_buf = kmalloc(len + 1, GFP_KERNEL);
-		if (!new_buf)
+		new = kmalloc_flex(*new, data, len + 1);
+		if (!new)
 			return -ENOMEM;
 	}
 
@@ -1379,22 +1391,21 @@ static int update_userdata(struct netconsole_target *nt)
 		udm_item = to_userdatum(item);
 		/* Skip userdata with no value set */
 		if (udm_item->value[0]) {
-			offset += scnprintf(&new_buf[offset], len + 1 - offset,
+			offset += scnprintf(&new->data[offset],
+					    len + 1 - offset,
 					    " %s=%s\n", item->ci_name,
 					    udm_item->value);
 		}
 	}
 
 	WARN_ON_ONCE(offset != len);
+	if (new)
+		new->length = offset;
 
-	/* Switch to new buffer and free old buffer */
-	spin_lock_irqsave(&target_list_lock, flags);
-	old_buf = nt->userdata;
-	nt->userdata = new_buf;
-	nt->userdata_length = offset;
-	spin_unlock_irqrestore(&target_list_lock, flags);
-
-	kfree(old_buf);
+	/* Writers are serialized by dynamic_netconsole_mutex. */
+	old = rcu_replace_pointer(nt->userdata, new,
+				  lockdep_is_held(&dynamic_netconsole_mutex));
+	kfree_rcu(old, rcu);
 
 	return 0;
 }
@@ -1684,7 +1695,7 @@ static void netconsole_target_release(struct config_item *item)
 {
 	struct netconsole_target *nt = to_target(item);
 
-	kfree(nt->userdata);
+	kfree(rcu_access_pointer(nt->userdata));
 	kfree(nt);
 }
 
@@ -2227,14 +2238,13 @@ static void send_udp(struct netconsole_target *nt, const char *msg, int len)
 static void send_msg_no_fragmentation(struct netconsole_target *nt,
 				      const char *msg,
 				      int msg_len,
-				      int release_len)
+				      int release_len,
+				      const struct netcons_userdata *userdata)
 {
-	const char *userdata = NULL;
 	const char *sysdata = NULL;
 	const char *release;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata = nt->userdata;
 	sysdata = nt->sysdata;
 #endif
 
@@ -2251,7 +2261,7 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 	if (userdata)
 		msg_len += scnprintf(&nt->buf[msg_len],
 				     sizeof(nt->buf) - msg_len, "%s",
-				     userdata);
+				     userdata->data);
 
 	if (sysdata)
 		msg_len += scnprintf(&nt->buf[msg_len],
@@ -2271,7 +2281,8 @@ static void append_release(char *buf)
 
 static void send_fragmented_body(struct netconsole_target *nt,
 				 const char *msgbody_ptr, int header_len,
-				 int msgbody_len, int sysdata_len)
+				 int msgbody_len, int sysdata_len,
+				 const struct netcons_userdata *userdata)
 {
 	const char *userdata_ptr = NULL;
 	const char *sysdata_ptr = NULL;
@@ -2282,12 +2293,12 @@ static void send_fragmented_body(struct netconsole_target *nt,
 	int userdata_len = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata_ptr = nt->userdata;
 	sysdata_ptr = nt->sysdata;
-	userdata_len = nt->userdata_length;
 #endif
-	if (WARN_ON_ONCE(!userdata_ptr && userdata_len != 0))
-		return;
+	if (userdata) {
+		userdata_ptr = userdata->data;
+		userdata_len = userdata->length;
+	}
 
 	if (WARN_ON_ONCE(!sysdata_ptr && sysdata_len != 0))
 		return;
@@ -2364,7 +2375,8 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 				const char *msg,
 				int msg_len,
 				int release_len,
-				int sysdata_len)
+				int sysdata_len,
+				const struct netcons_userdata *userdata)
 {
 	int header_len, msgbody_len;
 	const char *msgbody;
@@ -2393,7 +2405,7 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 	 * will be replaced
 	 */
 	send_fragmented_body(nt, msgbody, header_len, msgbody_len,
-			     sysdata_len);
+			     sysdata_len, userdata);
 }
 
 /**
@@ -2408,25 +2420,33 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 static void send_ext_msg_udp(struct netconsole_target *nt,
 			     struct nbcon_write_context *wctxt)
 {
+	const struct netcons_userdata *userdata = NULL;
 	int userdata_len = 0;
 	int release_len = 0;
 	int sysdata_len = 0;
 	int len;
 
+	/* Keeps the payload picked below alive until the last send_udp(). */
+	rcu_read_lock();
+
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
 	sysdata_len = prepare_sysdata(nt, wctxt);
-	userdata_len = nt->userdata_length;
+	userdata = rcu_dereference(nt->userdata);
+	if (userdata)
+		userdata_len = userdata->length;
 #endif
 	if (nt->release)
 		release_len = strlen(init_utsname()->release) + 1;
 
 	len = wctxt->len + release_len + sysdata_len + userdata_len;
 	if (len <= MAX_PRINT_CHUNK)
-		return send_msg_no_fragmentation(nt, wctxt->outbuf,
-						 wctxt->len, release_len);
+		send_msg_no_fragmentation(nt, wctxt->outbuf, wctxt->len,
+					  release_len, userdata);
+	else
+		send_msg_fragmented(nt, wctxt->outbuf, wctxt->len, release_len,
+				    sysdata_len, userdata);
 
-	return send_msg_fragmented(nt, wctxt->outbuf, wctxt->len, release_len,
-				   sysdata_len);
+	rcu_read_unlock();
 }
 
 static void send_msg_udp(struct netconsole_target *nt, const char *msg,
@@ -2669,7 +2689,7 @@ static void free_param_target(struct netconsole_target *nt)
 		netconsole_skb_pool_flush(nt);
 	netpoll_cleanup(&nt->np);
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
-	kfree(nt->userdata);
+	kfree(rcu_access_pointer(nt->userdata));
 #endif
 	kfree(nt);
 }
