@@ -48,8 +48,7 @@ properties:
     const: 1
 
   clock-controller:
-    $ref: /schemas/clock/xlnx,versal-clk.yaml#
-    description: The clock controller is a hardware block of Xilinx versal
+    description: The clock controller is a hardware block of Xilinx SoC
       clock tree. It reads required input clock frequencies from the devicetree
       and acts as clock provider for all clock consumers of PS clocks.list of
       clock specifiers which are external input clocks to the given clock
@@ -113,10 +112,14 @@ allOf:
             const: xlnx,zynqmp-firmware
     then:
       properties:
+        clock-controller:
+          $ref: /schemas/clock/xlnx,zynqmp-clk.yaml#
         pinctrl:
           $ref: /schemas/pinctrl/xlnx,zynqmp-pinctrl.yaml#
     else:
       properties:
+        clock-controller:
+          $ref: /schemas/clock/xlnx,versal-clk.yaml#
         pinctrl:
           $ref: /schemas/pinctrl/xlnx,versal-pinctrl.yaml#
 
@@ -132,6 +135,14 @@ examples:
       zynqmp_firmware: zynqmp-firmware {
         compatible = "xlnx,zynqmp-firmware";
         #power-domain-cells = <1>;
+        clock-controller {
+          compatible = "xlnx,zynqmp-clk";
+          clocks = <&pss_ref_clk>, <&video_clk>, <&pss_alt_ref_clk>,
+                   <&aux_ref_clk>, <&gt_crx_ref_clk>;
+          clock-names = "pss_ref_clk", "video_clk", "pss_alt_ref_clk",
+                        "aux_ref_clk", "gt_crx_ref_clk";
+          #clock-cells = <1>;
+        };
         soc-nvmem {
           compatible = "xlnx,zynqmp-nvmem-fw";
           nvmem-layout {
