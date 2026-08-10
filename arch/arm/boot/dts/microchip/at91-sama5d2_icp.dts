@@ -451,10 +451,10 @@
 	};
 
 	pinctrl_i2c1_gpio: i2c1_gpio {
-                pinmux = <PIN_PD19__GPIO>,
-                         <PIN_PD20__GPIO>;
-                bias-disable;
-        };
+		pinmux = <PIN_PD19__GPIO>,
+			 <PIN_PD20__GPIO>;
+		bias-disable;
+	};
 
 	pinctrl_key_gpio_default: key_gpio_default {
 		pinmux = <PIN_PD0__GPIO>;

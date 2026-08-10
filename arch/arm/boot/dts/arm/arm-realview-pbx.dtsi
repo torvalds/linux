@@ -52,7 +52,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-        };
+	};
 
 	veth: regulator-veth {
 		compatible = "regulator-fixed";
@@ -373,7 +373,7 @@
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10011000 0x1000>;
 			clocks = <&sp810_syscon0 0>,
-			         <&sp810_syscon0 1>,
+				 <&sp810_syscon0 1>,
 				 <&pclk>;
 			clock-names = "timerclk0",
 				    "timerclk1",
@@ -384,7 +384,7 @@
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x10012000 0x1000>;
 			clocks = <&sp810_syscon0 2>,
-			         <&sp810_syscon0 3>,
+				 <&sp810_syscon0 3>,
 				 <&pclk>;
 			clock-names = "timerclk2",
 				    "timerclk3",

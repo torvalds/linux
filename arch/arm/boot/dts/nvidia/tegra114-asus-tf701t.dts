@@ -386,7 +386,7 @@
 				nvidia,open-drain = <TEGRA_PIN_ENABLE>;
 				nvidia,lock = <TEGRA_PIN_DISABLE>;
 			};
-			
+
 			ddc-i2c {
 				nvidia,pins = "ddc_scl_pv4",
 					      "ddc_sda_pv5";
