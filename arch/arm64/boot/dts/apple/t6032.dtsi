@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0+ OR MIT
 /*
- * Apple T6022 "M2 Ultra" SoC
+ * Apple T6032 "M3 Ultra" SoC
  *
- * Other names: H14J, "Rhodes 2C"
+ * Other names: H15J, "Palma 2C"
  *
  * Copyright The Asahi Linux Contributors
  */
@@ -16,15 +16,18 @@
 
 #include "multi-die-cpp.h"
 
-#include "t602x-common.dtsi"
+#include "t6031-base.dtsi"
 
 / {
-	compatible = "apple,t6022", "apple,arm-platform";
+	compatible = "apple,t6032", "apple,arm-platform";
 
 	#address-cells = <2>;
 	#size-cells = <2>;
 
 	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
 		cpu-map {
 			cluster3 {
 				core0 {
@@ -54,6 +57,12 @@
 				core3 {
 					cpu = <&cpu_p23>;
 				};
+				core4 {
+					cpu = <&cpu_p24>;
+				};
+				core5 {
+					cpu = <&cpu_p25>;
+				};
 			};
 
 			cluster5 {
@@ -69,67 +78,61 @@
 				core3 {
 					cpu = <&cpu_p33>;
 				};
+				core4 {
+					cpu = <&cpu_p34>;
+				};
+				core5 {
+					cpu = <&cpu_p35>;
+				};
 			};
 		};
 
 		cpu_e10: cpu@800 {
-			compatible = "apple,blizzard";
+			compatible = "apple,sawtooth";
 			device_type = "cpu";
 			reg = <0x0 0x800>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* to be filled by loader */
 			next-level-cache = <&l2_cache_3>;
-			i-cache-size  = <0x20000>;
+			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
-			operating-points-v2 = <&blizzard_opp>;
-			capacity-dmips-mhz = <756>;
-			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_e11: cpu@801 {
-			compatible = "apple,blizzard";
+			compatible = "apple,sawtooth";
 			device_type = "cpu";
 			reg = <0x0 0x801>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* to be filled by loader */
 			next-level-cache = <&l2_cache_3>;
-			i-cache-size  = <0x20000>;
+			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
-			operating-points-v2 = <&blizzard_opp>;
-			capacity-dmips-mhz = <756>;
-			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_e12: cpu@802 {
-			compatible = "apple,blizzard";
+			compatible = "apple,sawtooth";
 			device_type = "cpu";
 			reg = <0x0 0x802>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* to be filled by loader */
 			next-level-cache = <&l2_cache_3>;
-			i-cache-size  = <0x20000>;
+			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
-			operating-points-v2 = <&blizzard_opp>;
-			capacity-dmips-mhz = <756>;
-			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_e13: cpu@803 {
-			compatible = "apple,blizzard";
+			compatible = "apple,sawtooth";
 			device_type = "cpu";
 			reg = <0x0 0x803>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0 0>; /* to be filled by loader */
 			next-level-cache = <&l2_cache_3>;
-			i-cache-size  = <0x20000>;
+			i-cache-size = <0x20000>;
 			d-cache-size = <0x10000>;
-			operating-points-v2 = <&blizzard_opp>;
-			capacity-dmips-mhz = <756>;
-			performance-domains = <&cpufreq_e_die1>;
 		};
 
 		cpu_p20: cpu@10900 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10900>;
 			enable-method = "spin-table";
@@ -137,13 +140,10 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p21: cpu@10901 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10901>;
 			enable-method = "spin-table";
@@ -151,13 +151,10 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p22: cpu@10902 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10902>;
 			enable-method = "spin-table";
@@ -165,13 +162,10 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p0_die1>;
 		};
 
 		cpu_p23: cpu@10903 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10903>;
 			enable-method = "spin-table";
@@ -179,13 +173,32 @@
 			next-level-cache = <&l2_cache_4>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p0_die1>;
+		};
+
+		cpu_p24: cpu@10904 {
+			compatible = "apple,everest";
+			device_type = "cpu";
+			reg = <0x0 0x10904>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
+		};
+
+		cpu_p25: cpu@10905 {
+			compatible = "apple,everest";
+			device_type = "cpu";
+			reg = <0x0 0x10905>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_4>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		cpu_p30: cpu@10a00 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10a00>;
 			enable-method = "spin-table";
@@ -193,13 +206,10 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p31: cpu@10a01 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10a01>;
 			enable-method = "spin-table";
@@ -207,13 +217,10 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p32: cpu@10a02 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10a02>;
 			enable-method = "spin-table";
@@ -221,13 +228,10 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p1_die1>;
 		};
 
 		cpu_p33: cpu@10a03 {
-			compatible = "apple,avalanche";
+			compatible = "apple,everest";
 			device_type = "cpu";
 			reg = <0x0 0x10a03>;
 			enable-method = "spin-table";
@@ -235,9 +239,28 @@
 			next-level-cache = <&l2_cache_5>;
 			i-cache-size = <0x30000>;
 			d-cache-size = <0x20000>;
-			operating-points-v2 = <&avalanche_opp>;
-			capacity-dmips-mhz = <1024>;
-			performance-domains = <&cpufreq_p1_die1>;
+		};
+
+		cpu_p34: cpu@10a04 {
+			compatible = "apple,everest";
+			device_type = "cpu";
+			reg = <0x0 0x10a04>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
+		};
+
+		cpu_p35: cpu@10a05 {
+			compatible = "apple,everest";
+			device_type = "cpu";
+			reg = <0x0 0x10a05>;
+			enable-method = "spin-table";
+			cpu-release-addr = <0 0>; /* To be filled by loader */
+			next-level-cache = <&l2_cache_5>;
+			i-cache-size = <0x30000>;
+			d-cache-size = <0x20000>;
 		};
 
 		l2_cache_3: l2-cache-3 {
@@ -260,7 +283,7 @@
 			cache-unified;
 			cache-size = <0x1000000>;
 		};
-	};
+	 };
 
 	die0: soc@200000000 {
 		compatible = "simple-bus";
@@ -296,12 +319,12 @@
 #define DIE_NO 0
 
 &die0 {
-	#include "t602x-die0.dtsi"
-	#include "t602x-dieX.dtsi"
+	#include "t6031-die0.dtsi"
+	#include "t6031-dieX.dtsi"
 };
 
-#include "t602x-pmgr.dtsi"
-#include "t602x-gpio-pins.dtsi"
+#include "t6031-pmgr.dtsi"
+#include "t6031-gpio-pins.dtsi"
 
 #undef DIE
 #undef DIE_NO
@@ -310,42 +333,84 @@
 #define DIE_NO 1
 
 &die1 {
-	#include "t602x-dieX.dtsi"
-	#include "t602x-nvme.dtsi"
+	#include "t6031-dieX.dtsi"
 };
 
-#include "t602x-pmgr.dtsi"
+#include "t6031-pmgr.dtsi"
 
 /delete-node/ &ps_pmp_die1;
 
 #undef DIE
 #undef DIE_NO
 
-&aic {
-	affinities {
-		e-core-pmu-affinity {
-			apple,fiq-index = <AIC_CPU_PMU_E>;
-			cpus = <&cpu_e00 &cpu_e01 &cpu_e02 &cpu_e03
-				&cpu_e10 &cpu_e11 &cpu_e12 &cpu_e13>;
-		};
+/* delete non-present DISP power-states */
+/delete-node/ &ps_disp_cpu;
+/delete-node/ &ps_disp_cpu_die1;
+/delete-node/ &ps_disp_fe;
+/delete-node/ &ps_disp_fe_die1;
+/delete-node/ &ps_disp_sys;
+/delete-node/ &ps_disp_sys_die1;
 
-		p-core-pmu-affinity {
-			apple,fiq-index = <AIC_CPU_PMU_P>;
-			cpus = <&cpu_p00 &cpu_p01 &cpu_p02 &cpu_p03
-				&cpu_p10 &cpu_p11 &cpu_p12 &cpu_p13
-				&cpu_p20 &cpu_p21 &cpu_p22 &cpu_p23
-				&cpu_p30 &cpu_p31 &cpu_p32 &cpu_p33>;
-		};
-	};
+/* delete non-present ISP power-states */
+/delete-node/ &ps_dprx;
+/delete-node/ &ps_dprx_die1;
+/delete-node/ &ps_isp_be;
+/delete-node/ &ps_isp_be_die1;
+/delete-node/ &ps_isp_clr;
+/delete-node/ &ps_isp_clr_die1;
+/delete-node/ &ps_isp_cpu;
+/delete-node/ &ps_isp_cpu_die1;
+/delete-node/ &ps_isp_fe;
+/delete-node/ &ps_isp_fe_die1;
+/delete-node/ &ps_isp_secure;
+/delete-node/ &ps_isp_secure_die1;
+/delete-node/ &ps_isp_sys;
+/delete-node/ &ps_isp_sys_die1;
+
+&ps_afi_d2d_0 {
+	status = "okay";
 };
 
-&ps_gfx {
-	// On t6022, the die0 GPU power domain needs both AFR power domains
-	power-domains = <&ps_afr>, <&ps_afr_die1>;
+&ps_afi_d2d_0_die1 {
+	status = "okay";
 };
 
-&gpu {
-	compatible = "apple,agx-g14d", "apple,agx-g14s";
+&ps_afi_d2d_1 {
+	status = "okay";
 };
 
-#include "hwmon-common.dtsi"
+&ps_afi_d2d_1_die1 {
+	status = "okay";
+};
+
+&ps_afc_d2d_0 {
+	status = "okay";
+};
+
+&ps_afc_d2d_0_die1{
+	status = "okay";
+};
+
+&ps_afc_d2d_1 {
+	status = "okay";
+};
+
+&ps_afc_d2d_1_die1 {
+	status = "okay";
+};
+
+&ps_afr_d2d_0 {
+	status = "okay";
+};
+
+&ps_afr_d2d_0_die1 {
+	status = "okay";
+};
+
+&ps_afr_d2d_1 {
+	status = "okay";
+};
+
+&ps_afr_d2d_1_die1 {
+	status = "okay";
+};

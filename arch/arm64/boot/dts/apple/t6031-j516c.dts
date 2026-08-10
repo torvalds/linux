@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * MacBook Pro (16-inch, M3 Max, 16 CPU cores, Nov 2023)
+ *
+ * target-type: J516c
+ *
+ * Copyright The Asahi Linux Contributors
+ */
+
+/dts-v1/;
+
+#include "t6031.dtsi"
+#include "t603x-j514-j516.dtsi"
+
+/ {
+	compatible = "apple,j516c", "apple,t6031", "apple,arm-platform";
+	model = "Apple MacBook Pro (16-inch, M3 Max, 16 CPU cores, Nov 2023)";
+};
