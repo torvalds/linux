@@ -48,8 +48,8 @@ struct snd_seq_client_port *snd_seq_port_use_ptr(struct snd_seq_client *client,
 
 	if (client == NULL)
 		return NULL;
-	guard(read_lock)(&client->ports_lock);
-	list_for_each_entry(port, &client->ports_list_head, list) {
+	guard(rcu)();
+	list_for_each_entry_rcu(port, &client->ports_list_head, list) {
 		if (port->addr.port == num) {
 			if (port->closing)
 				break; /* deleting now */
@@ -71,8 +71,8 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 
 	num = pinfo->addr.port;
 	found = NULL;
-	guard(read_lock)(&client->ports_lock);
-	list_for_each_entry(port, &client->ports_list_head, list) {
+	guard(rcu)();
+	list_for_each_entry_rcu(port, &client->ports_list_head, list) {
 		if ((port->capability & SNDRV_SEQ_PORT_CAP_INACTIVE) &&
 		    !check_inactive)
 			continue; /* skip inactive ports */
@@ -153,7 +153,6 @@ int snd_seq_insert_port(struct snd_seq_client *client, int port,
 
 	num = max(port, 0);
 	guard(mutex)(&client->ports_mutex);
-	guard(write_lock_irq)(&client->ports_lock);
 	struct list_head *insert_before = &client->ports_list_head;
 	list_for_each_entry(p, &client->ports_list_head, list) {
 		if (p->addr.port == port)
@@ -165,12 +164,13 @@ int snd_seq_insert_port(struct snd_seq_client *client, int port,
 		if (port < 0) /* auto-probe mode */
 			num = p->addr.port + 1;
 	}
-	/* insert the new port */
-	list_add_tail(&new_port->list, insert_before);
-	client->num_ports++;
+	/* finish initializing the port before publishing it to RCU readers */
 	new_port->addr.port = num;	/* store the port number in the port */
 	if (!new_port->name[0])
 		sprintf(new_port->name, "port-%d", num);
+	/* insert the new port */
+	list_add_tail_rcu(&new_port->list, insert_before);
+	client->num_ports++;
 
 	return num;
 }
@@ -253,7 +253,13 @@ static int port_delete(struct snd_seq_client *client,
 {
 	/* set closing flag and wait for all port access are gone */
 	port->closing = 1;
-	snd_use_lock_sync(&port->use_lock); 
+	/* the port has already been unlinked from the client's port list;
+	 * wait for a grace period so that RCU readers still traversing the
+	 * list can no longer take a new use_lock reference, then drain the
+	 * outstanding references before freeing
+	 */
+	synchronize_rcu();
+	snd_use_lock_sync(&port->use_lock);
 
 	/* clear subscribers info */
 	clear_subscriber_list(client, port, &port->c_src, true);
@@ -276,11 +282,10 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 	struct snd_seq_client_port *found = NULL, *p;
 
 	scoped_guard(mutex, &client->ports_mutex) {
-		guard(write_lock_irq)(&client->ports_lock);
 		list_for_each_entry(p, &client->ports_list_head, list) {
 			if (p->addr.port == port) {
 				/* ok found.  delete from the list at first */
-				list_del(&p->list);
+				list_del_rcu(&p->list);
 				client->num_ports--;
 				found = p;
 				break;
@@ -296,26 +301,16 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 /* delete the all ports belonging to the given client */
 int snd_seq_delete_all_ports(struct snd_seq_client *client)
 {
-	struct list_head deleted_list;
 	struct snd_seq_client_port *port, *tmp;
-	
-	/* move the port list to deleted_list, and
-	 * clear the port list in the client data.
+
+	/* unlink and delete each port; port_delete() waits for an RCU grace
+	 * period before draining the port, so concurrent lockless readers can
+	 * no longer take a new use_lock reference on it
 	 */
 	guard(mutex)(&client->ports_mutex);
-	scoped_guard(write_lock_irq, &client->ports_lock) {
-		if (!list_empty(&client->ports_list_head)) {
-			list_add(&deleted_list, &client->ports_list_head);
-			list_del_init(&client->ports_list_head);
-		} else {
-			INIT_LIST_HEAD(&deleted_list);
-		}
-		client->num_ports = 0;
-	}
-
-	/* remove each port in deleted_list */
-	list_for_each_entry_safe(port, tmp, &deleted_list, list) {
-		list_del(&port->list);
+	list_for_each_entry_safe(port, tmp, &client->ports_list_head, list) {
+		list_del_rcu(&port->list);
+		client->num_ports--;
 		snd_seq_system_client_ev_port_exit(port->addr.client, port->addr.port);
 		port_delete(client, port);
 	}

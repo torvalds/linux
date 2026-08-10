@@ -212,7 +212,6 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 	}
 	client->type = NO_CLIENT;
 	snd_use_lock_init(&client->use_lock);
-	rwlock_init(&client->ports_lock);
 	mutex_init(&client->ports_mutex);
 	INIT_LIST_HEAD(&client->ports_list_head);
 	mutex_init(&client->ioctl_mutex);
