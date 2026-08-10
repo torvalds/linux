@@ -640,7 +640,6 @@ static const enum power_supply_property bd71828_charger_props[] = {
 
 static const enum power_supply_property bd71828_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
-	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
