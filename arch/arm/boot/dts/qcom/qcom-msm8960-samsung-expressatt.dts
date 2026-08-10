@@ -52,6 +52,40 @@
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
+
+	touchkey_enable: touchkey-enable {
+		compatible = "regulator-fixed";
+		regulator-name = "touchkey_enable";
+		gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	i2c-gpio-touchkey {
+		compatible = "i2c-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		sda-gpios = <&tlmm 71 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 72 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		pinctrl-0 = <&touchkey_i2c_pins>;
+		pinctrl-names = "default";
+		i2c-gpio,delay-us = <2>;
+
+		touchkey@20 {
+			compatible = "coreriver,tc360-touchkey";
+			reg = <0x20>;
+
+			interrupts-extended = <&tlmm 52 IRQ_TYPE_EDGE_FALLING>;
+			pinctrl-0 = <&touchkey_irq_pin>;
+			pinctrl-names = "default";
+
+			vddio-supply = <&touchkey_enable>;
+			vdd-supply = <&pm8921_l29>;
+			vcc-supply = <&pm8921_l29>;
+
+			linux,keycodes = <KEY_MENU KEY_BACK>;
+		};
+	};
 };
 
 &gsbi2 {
@@ -197,6 +231,20 @@
 			drive-strength = <2>;
 			bias-disable;
 		};
+	};
+
+	touchkey_i2c_pins: touchkey-i2c-state {
+		pins = "gpio71", "gpio72";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	touchkey_irq_pin: touchkey-irq-state {
+		pins = "gpio52";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };
 
@@ -417,6 +465,12 @@
 			regulator-always-on;
 			regulator-min-microvolt = <1225000>;
 			regulator-max-microvolt = <1225000>;
+			bias-pull-down;
+		};
+
+		pm8921_l29: l29 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
 			bias-pull-down;
 		};
 
