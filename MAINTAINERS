@@ -9308,9 +9308,8 @@ S:	Maintained
 F:	drivers/edac/octeon_edac*
 
 EDAC-CAVIUM THUNDERX
-M:	Robert Richter <rric@kernel.org>
 L:	linux-edac@vger.kernel.org
-S:	Odd Fixes
+S:	Orphan
 F:	drivers/edac/thunderx_edac*
 
 EDAC-CORE
