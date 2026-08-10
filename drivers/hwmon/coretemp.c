@@ -650,6 +650,7 @@ static void coretemp_device_remove(int zoneid)
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 
 	ida_destroy(&pdata->ida);
+	kfree(pdata->core_data);
 	kfree(pdata);
 	platform_device_unregister(pdev);
 }
