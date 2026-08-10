@@ -1042,12 +1042,14 @@ static int zloop_get_block_size(struct zloop_device *zlo,
 	 * Use the dio alignment of the file system if provided.  The incoming
 	 * request's bio_vec is forwarded to the backing file unchanged, so its
 	 * required memory alignment becomes the device's dma_alignment when
-	 * used for direct-io.
+	 * used for direct-io.  The file system reports zeroed alignments if the
+	 * file can't be used for direct-io at all, so fall back to the block
+	 * device limits in that case.
 	 */
 	if (!vfs_getattr(&zone->file->f_path, &st, STATX_DIOALIGN, 0) &&
-	    (st.result_mask & STATX_DIOALIGN)) {
+	    (st.result_mask & STATX_DIOALIGN) && st.dio_mem_align) {
 		zlo->block_size = st.dio_offset_align;
-		zlo->dio_mem_align = st.dio_mem_align - 1;
+		zlo->dio_mem_align = min(st.dio_mem_align - 1, PAGE_SIZE - 1);
 	} else if (sb_bdev) {
 		zlo->block_size = bdev_physical_block_size(sb_bdev);
 		zlo->dio_mem_align = bdev_dma_alignment(sb_bdev);
