@@ -507,3 +507,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	}
 }
 EXPORT_SYMBOL(fw_core_handle_bus_reset);
+
+#ifdef CONFIG_FIREWIRE_KUNIT_NODE_TREE_TEST
+#include "node-tree-test.c"
+#endif
