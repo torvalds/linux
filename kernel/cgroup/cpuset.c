@@ -1587,7 +1587,7 @@ static int remote_partition_enable(struct cpuset *cs, int new_prs,
 	cpumask_copy(cs->effective_xcpus, tmp->new_cpus);
 	spin_unlock_irq(&callback_lock);
 	cpuset_force_rebuild();
-	cs->prs_err = 0;
+	WRITE_ONCE(cs->prs_err, 0);
 
 	/*
 	 * Propagate changes in top_cpuset's effective_cpus down the hierarchy.
@@ -1661,7 +1661,7 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	WARN_ON_ONCE(!cpumask_subset(cs->effective_xcpus, subpartitions_cpus));
 
 	if (cpumask_empty(excpus)) {
-		cs->prs_err = PERR_CPUSEMPTY;
+		WRITE_ONCE(cs->prs_err, PERR_CPUSEMPTY);
 		goto invalidate;
 	}
 
@@ -1676,13 +1676,13 @@ static void remote_cpus_update(struct cpuset *cs, struct cpumask *xcpus,
 	if (adding) {
 		WARN_ON_ONCE(cpumask_intersects(tmp->addmask, subpartitions_cpus));
 		if (!capable(CAP_SYS_ADMIN))
-			cs->prs_err = PERR_ACCESS;
+			WRITE_ONCE(cs->prs_err, PERR_ACCESS);
 		else if (cpumask_intersects(tmp->addmask, subpartitions_cpus) ||
 			 cpumask_subset(top_cpuset.effective_cpus, tmp->addmask))
-			cs->prs_err = PERR_NOCPUS;
+			WRITE_ONCE(cs->prs_err, PERR_NOCPUS);
 		else if ((prs == PRS_ISOLATED) &&
 			 !isolated_cpus_can_update(tmp->addmask, tmp->delmask))
-			cs->prs_err = PERR_HKEEPING;
+			WRITE_ONCE(cs->prs_err, PERR_HKEEPING);
 		if (cs->prs_err)
 			goto invalidate;
 	}
@@ -2110,13 +2110,13 @@ static void compute_partition_effective_cpumask(struct cpuset *cs,
 		 * partition root.
 		 */
 		WARN_ON_ONCE(is_remote_partition(child));
-		child->prs_err = 0;
+		WRITE_ONCE(child->prs_err, 0);
 		if (!cpumask_subset(child->effective_xcpus,
 				    cs->effective_xcpus))
-			child->prs_err = PERR_INVCPUS;
+			WRITE_ONCE(child->prs_err, PERR_INVCPUS);
 		else if (populated &&
 			 cpumask_subset(new_ecpus, child->effective_xcpus))
-			child->prs_err = PERR_NOCPUS;
+			WRITE_ONCE(child->prs_err, PERR_NOCPUS);
 
 		if (child->prs_err) {
 			int old_prs = child->partition_root_state;
@@ -2420,8 +2420,10 @@ static void partition_cpus_change(struct cpuset *cs, struct cpuset *trialcs,
 		return;
 
 	prs_err = validate_partition(cs, trialcs);
-	if (prs_err)
-		trialcs->prs_err = cs->prs_err = prs_err;
+	if (prs_err) {
+		WRITE_ONCE(cs->prs_err, prs_err);
+		trialcs->prs_err = prs_err;
+	}
 
 	if (is_remote_partition(cs)) {
 		if (trialcs->prs_err)
@@ -3939,7 +3941,7 @@ static void cpuset_hotplug_update_tasks(struct cpuset *cs, struct tmpmasks *tmp)
 	if (remote && (cpumask_empty(subpartitions_cpus) ||
 			(cpumask_empty(&new_cpus) &&
 			 partition_is_populated(cs, NULL)))) {
-		cs->prs_err = PERR_HOTPLUG;
+		WRITE_ONCE(cs->prs_err, PERR_HOTPLUG);
 		remote_partition_disable(cs, tmp);
 		compute_effective_cpumask(&new_cpus, cs, parent);
 		remote = false;
