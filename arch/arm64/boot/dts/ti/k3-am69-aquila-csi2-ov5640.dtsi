@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) Toradex
+ *
+ * Common device tree include for Toradex OV5640 CSI Camera on Aquila CSI_2.
+ * Used on Development Board (J71).
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+
+&{/} {
+	clock_camera_csi_2: clock-camera-csi-2 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+	};
+
+	regulator_camera_csi_2: regulator-camera-csi-2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_16_csi_2>;
+		/* Aquila GPIO_16_CSI_2 - Camera Connector 24 */
+		gpio = <&wkup_gpio0 39 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-name = "V_CSI_2";
+		startup-delay-us = <5000>;
+	};
+};
+
+&csi1_port0 {
+	status = "okay";
+
+	csi1_port0_in: endpoint {
+		remote-endpoint = <&csi1_port0_cam_out>;
+		bus-type = <4>; /* CSI2 DPHY. */
+		clock-lanes = <0>;
+		data-lanes = <1 2>;
+	};
+};
+
+&dphy1 {
+	status = "okay";
+};
+
+/* Aquila I2C_5_CSI2 */
+&main_i2c2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_13_csi_2>, <&pinctrl_gpio_14_csi_2>;
+		clocks = <&clock_camera_csi_2>;
+		clock-names = "xclk";
+		AVDD-supply = <&regulator_camera_csi_2>;
+		DOVDD-supply = <&regulator_camera_csi_2>;
+		DVDD-supply = <&regulator_camera_csi_2>;
+		/* Aquila GPIO_14_CSI_2 - Camera Connector 22 */
+		powerdown-gpios = <&wkup_gpio0 33 GPIO_ACTIVE_HIGH>;
+		/* Aquila GPIO_13_CSI_2 - Camera Connector 11 */
+		reset-gpios = <&wkup_gpio0 32 GPIO_ACTIVE_LOW>;
+
+		port {
+			csi1_port0_cam_out: endpoint {
+				remote-endpoint = <&csi1_port0_in>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&ti_csi2rx1 {
+	status = "okay";
+};

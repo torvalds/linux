@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (c) Toradex
+ *
+ * Toradex CSI Camera Set 5MP OV5640 on Aquila CSI_1.
+ * Used on Development Board (J70). Uses a 27 MHz oscillator.
+ *
+ * https://developer.toradex.com/hardware/accessories/cameras/csi-camera-module-5mp-ov5640-arducam
+ * https://www.toradex.com/accessories/csi-camera-ov5640
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include "k3-am69-aquila-csi1-ov5640.dtsi"
+
+&clock_camera_csi_1 {
+	clock-frequency = <27000000>;
+};
