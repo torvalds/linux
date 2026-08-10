@@ -269,7 +269,7 @@
 #define APPLE_S5L_UTRSTAT_RXTO		BIT(9)
 #define APPLE_S5L_UTRSTAT_ALL_FLAGS	GENMASK(9, 3)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/serial_core.h>
 
@@ -294,7 +294,7 @@ struct s3c2410_uartcfg {
 	unsigned long	   ufcon;	 /* value of ufcon for port */
 };
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* __ASM_ARM_REGS_SERIAL_H */
 
