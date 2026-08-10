@@ -1538,17 +1538,14 @@ static int peb2466_fw_parse(struct snd_soc_component *component,
 
 static int peb2466_load_coeffs(struct snd_soc_component *component, const char *fw_name)
 {
-	const struct firmware *fw;
+	const struct firmware *fw __free(firmware) = NULL;
 	int ret;
 
 	ret = request_firmware(&fw, fw_name, component->dev);
 	if (ret)
 		return ret;
 
-	ret = peb2466_fw_parse(component, fw->data, fw->size);
-	release_firmware(fw);
-
-	return ret;
+	return peb2466_fw_parse(component, fw->data, fw->size);
 }
 
 static int peb2466_component_probe(struct snd_soc_component *component)

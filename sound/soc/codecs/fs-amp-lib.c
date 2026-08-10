@@ -221,7 +221,7 @@ static void fs_print_firmware_info(struct fs_amp_lib *amp_lib)
 
 int fs_amp_load_firmware(struct fs_amp_lib *amp_lib, const char *name)
 {
-	const struct firmware *cont;
+	const struct firmware *cont __free(firmware) = NULL;
 	struct fs_fwm_header *hdr;
 	int ret;
 
@@ -237,7 +237,6 @@ int fs_amp_load_firmware(struct fs_amp_lib *amp_lib, const char *name)
 	dev_info(amp_lib->dev, "Loading %s - size: %zu\n", name, cont->size);
 
 	hdr = devm_kmemdup(amp_lib->dev, cont->data, cont->size, GFP_KERNEL);
-	release_firmware(cont);
 	if (!hdr)
 		return -ENOMEM;
 

@@ -457,7 +457,6 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 	struct tas5805m_priv *tas5805m;
 	char filename[128];
 	const char *config_name;
-	const struct firmware *fw;
 	int ret;
 
 	regmap = devm_regmap_init_i2c(i2c, &tas5805m_regmap);
@@ -502,24 +501,20 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 
 	snprintf(filename, sizeof(filename), "tas5805m_dsp_%s.bin",
 		 config_name);
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = request_firmware(&fw, filename, dev);
 	if (ret)
 		return ret;
 
 	if ((fw->size < 2) || (fw->size & 1)) {
 		dev_err(dev, "firmware is invalid\n");
-		release_firmware(fw);
 		return -EINVAL;
 	}
 
 	tas5805m->dsp_cfg_len = fw->size;
 	tas5805m->dsp_cfg_data = devm_kmemdup(dev, fw->data, fw->size, GFP_KERNEL);
-	if (!tas5805m->dsp_cfg_data) {
-		release_firmware(fw);
+	if (!tas5805m->dsp_cfg_data)
 		return -ENOMEM;
-	}
-
-	release_firmware(fw);
 
 	/* Do the first part of the power-on here, while we can expect
 	 * the I2S interface to be quiet. We must raise PDN# and then

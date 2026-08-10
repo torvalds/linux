@@ -16,20 +16,19 @@ static int sof_test_firmware_file(struct device *dev,
 				  enum sof_ipc_type *ipc_type_to_adjust)
 {
 	enum sof_ipc_type fw_ipc_type;
-	const struct firmware *fw;
-	const char *fw_filename;
 	const u32 *magic;
 	int ret;
 
-	fw_filename = kasprintf(GFP_KERNEL, "%s/%s", profile->fw_path,
-				profile->fw_name);
+	const char *fw_filename __free(kfree) =
+		kasprintf(GFP_KERNEL, "%s/%s", profile->fw_path,
+			  profile->fw_name);
 	if (!fw_filename)
 		return -ENOMEM;
 
+	const struct firmware *fw __free(firmware) = NULL;
 	ret = firmware_request_nowarn(&fw, fw_filename, dev);
 	if (ret < 0) {
 		dev_dbg(dev, "Failed to open firmware file: %s\n", fw_filename);
-		kfree(fw_filename);
 		return ret;
 	}
 
@@ -44,8 +43,7 @@ static int sof_test_firmware_file(struct device *dev,
 		break;
 	default:
 		dev_err(dev, "Invalid firmware magic: %#x\n", *magic);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	if (ipc_type_to_adjust) {
@@ -54,13 +52,10 @@ static int sof_test_firmware_file(struct device *dev,
 		dev_err(dev,
 			"ipc type mismatch between %s and expected: %d vs %d\n",
 			fw_filename, fw_ipc_type, profile->ipc_type);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-out:
-	release_firmware(fw);
-	kfree(fw_filename);
 
-	return ret;
+	return 0;
 }
 
 static int sof_test_topology_file(struct device *dev,

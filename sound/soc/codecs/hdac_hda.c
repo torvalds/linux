@@ -437,7 +437,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (loadable_patch[hda_pvt->dev_index] && *loadable_patch[hda_pvt->dev_index]) {
-		const struct firmware *fw;
+		const struct firmware *fw __free(firmware) = NULL;
 
 		dev_info(&hdev->dev, "Applying patch firmware '%s'\n",
 			 loadable_patch[hda_pvt->dev_index]);
@@ -451,7 +451,6 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 				dev_err(&hdev->dev, "%s: failed to load hda patch %d\n", __func__, ret);
 				goto error_no_pm;
 			}
-			release_firmware(fw);
 		}
 	}
 #endif

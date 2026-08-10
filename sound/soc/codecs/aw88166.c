@@ -1570,7 +1570,7 @@ static int aw88166_dev_init(struct aw88166 *aw88166, struct aw_container *aw_cfg
 
 static int aw88166_request_firmware_file(struct aw88166 *aw88166)
 {
-	const struct firmware *cont = NULL;
+	const struct firmware *cont __free(firmware) = NULL;
 	const char *fw_name;
 	int ret;
 
@@ -1590,13 +1590,11 @@ static int aw88166_request_firmware_file(struct aw88166 *aw88166)
 
 	aw88166->aw_cfg = devm_kzalloc(aw88166->aw_pa->dev,
 			struct_size(aw88166->aw_cfg, data, cont->size), GFP_KERNEL);
-	if (!aw88166->aw_cfg) {
-		release_firmware(cont);
+	if (!aw88166->aw_cfg)
 		return -ENOMEM;
-	}
+
 	aw88166->aw_cfg->len = (int)cont->size;
 	memcpy(aw88166->aw_cfg->data, cont->data, cont->size);
-	release_firmware(cont);
 
 	ret = aw88395_dev_load_acf_check(aw88166->aw_pa, aw88166->aw_cfg);
 	if (ret) {

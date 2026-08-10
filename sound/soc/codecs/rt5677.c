@@ -849,11 +849,11 @@ static int rt5677_parse_and_load_dsp(struct rt5677_priv *rt5677, const u8 *buf,
 
 static int rt5677_load_dsp_from_file(struct rt5677_priv *rt5677)
 {
-	const struct firmware *fwp;
 	struct device *dev = rt5677->component->dev;
-	int ret = 0;
+	int ret;
 
 	/* Load dsp firmware from rt5677_elf_vad file */
+	const struct firmware *fwp __free(firmware) = NULL;
 	ret = request_firmware(&fwp, "rt5677_elf_vad", dev);
 	if (ret) {
 		dev_err(dev, "Request rt5677_elf_vad failed %d\n", ret);
@@ -861,9 +861,7 @@ static int rt5677_load_dsp_from_file(struct rt5677_priv *rt5677)
 	}
 	dev_info(dev, "Requested rt5677_elf_vad (%zu)\n", fwp->size);
 
-	ret = rt5677_parse_and_load_dsp(rt5677, fwp->data, fwp->size);
-	release_firmware(fwp);
-	return ret;
+	return rt5677_parse_and_load_dsp(rt5677, fwp->data, fwp->size);
 }
 
 static int rt5677_set_dsp_vad(struct snd_soc_component *component, bool on)
