@@ -485,7 +485,7 @@ where
     /// assert_eq!(v_shifted.get(), 0xff);
     /// ```
     pub fn shr<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES + SHIFT >= N) }
+        const_assert!(RES + SHIFT >= N);
 
         // SAFETY: We shift the value right by `SHIFT`, reducing the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N - SHIFT`.
@@ -506,7 +506,7 @@ where
     /// assert_eq!(v_shifted.get(), 0xff00);
     /// ```
     pub fn shl<const SHIFT: u32, const RES: u32>(self) -> Bounded<T, RES> {
-        const { assert!(RES >= N + SHIFT) }
+        const_assert!(RES >= N + SHIFT);
 
         // SAFETY: We shift the value left by `SHIFT`, augmenting the number of bits needed to
         // represent the shifted value by as much, and just asserted that `RES >= N + SHIFT`.
