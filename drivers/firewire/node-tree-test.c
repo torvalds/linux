@@ -506,6 +506,86 @@ static void node_tree_test_four_nodes_case3(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, data->release_count, 4);
 }
 
+static void node_tree_test_invalid_extended_self_id_sequence(struct kunit *test)
+{
+	// Use the same node tree as node_tree_test_four_nodes_case1, except for the invalid
+	// content of self ID packet for the phy 3.
+	static const u32 self_id_sequence[] = {
+		0x80000094,
+		0x81000080,
+		0x820000bc,
+		0x830000d1, // Invalid.
+	};
+	struct private_data *data = test->priv;
+	struct fw_card *card = data->card;
+
+	card->node_id = LOCAL_BUS | 0x03;
+
+	// TODO: Memory leak.
+	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
+	KUNIT_EXPECT_NULL(test, card->local_node);
+}
+
+static void node_tree_test_invalid_phy_id(struct kunit *test)
+{
+	// Use the same node tree as node_tree_test_four_nodes_case1, except for the invalid
+	// phy ID for phy 3.
+	static const u32 self_id_sequence[] = {
+		0x80000094,
+		0x81000080,
+		0x820000bc,
+		0x8f0000d0, // Invalid.
+	};
+	struct private_data *data = test->priv;
+	struct fw_card *card = data->card;
+
+	card->node_id = LOCAL_BUS | 0x03;
+
+	// TODO: Memory leak.
+	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
+	KUNIT_EXPECT_NULL(test, card->local_node);
+}
+
+static void node_tree_test_invalid_child_port_count(struct kunit *test)
+{
+	// Use the same node tree as node_tree_test_four_nodes_case1, except for the invalid
+	// count of child ports for phy 3.
+	static const u32 self_id_sequence[] = {
+		0x80000094,
+		0x81000080,
+		0x820000bc,
+		0x830000fc, // Invalid.
+	};
+	struct private_data *data = test->priv;
+	struct fw_card *card = data->card;
+
+	card->node_id = LOCAL_BUS | 0x03;
+
+	// TODO: Memory leak.
+	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
+	KUNIT_EXPECT_NULL(test, card->local_node);
+}
+
+static void node_tree_test_invalid_parent_port_count(struct kunit *test)
+{
+	// Use the same node tree as node_tree_test_four_nodes_case1, except for the invalid
+	// count of parent ports for phy 3.
+	static const u32 self_id_sequence[] = {
+		0x80000094,
+		0x81000080,
+		0x820000bc,
+		0x830000e8, // Invalid.
+	};
+	struct private_data *data = test->priv;
+	struct fw_card *card = data->card;
+
+	card->node_id = LOCAL_BUS | 0x03;
+
+	// TODO: Memory leak.
+	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
+	KUNIT_EXPECT_NULL(test, card->local_node);
+}
+
 static struct kunit_case node_tree_test_cases[] = {
 	KUNIT_CASE(node_tree_test_two_nodes),
 	KUNIT_CASE(node_tree_test_two_nodes_1394a),
@@ -515,6 +595,10 @@ static struct kunit_case node_tree_test_cases[] = {
 	KUNIT_CASE(node_tree_test_four_nodes_case1),
 	KUNIT_CASE(node_tree_test_four_nodes_case2),
 	KUNIT_CASE(node_tree_test_four_nodes_case3),
+	KUNIT_CASE(node_tree_test_invalid_extended_self_id_sequence),
+	KUNIT_CASE(node_tree_test_invalid_phy_id),
+	KUNIT_CASE(node_tree_test_invalid_child_port_count),
+	KUNIT_CASE(node_tree_test_invalid_parent_port_count),
 	{}
 };
 
