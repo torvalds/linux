@@ -59,7 +59,7 @@ static DEFINE_MUTEX(register_mutex);
  * client table
  */
 static char clienttablock[SNDRV_SEQ_MAX_CLIENTS];
-static struct snd_seq_client *clienttab[SNDRV_SEQ_MAX_CLIENTS];
+static struct snd_seq_client __rcu *clienttab[SNDRV_SEQ_MAX_CLIENTS];
 static struct snd_seq_usage client_usage;
 
 /*
@@ -95,15 +95,23 @@ static inline int snd_seq_write_pool_allocated(struct snd_seq_client *client)
 	return snd_seq_total_cells(client->pool) > 0;
 }
 
-/* return pointer to client structure for specified id */
-static struct snd_seq_client *clientptr(int clientid)
+/* return pointer to client structure for specified id; call under RCU read-lock */
+static struct snd_seq_client *__clientptr(int clientid)
 {
 	if (clientid < 0 || clientid >= SNDRV_SEQ_MAX_CLIENTS) {
 		pr_debug("ALSA: seq: oops. Trying to get pointer to client %d\n",
 			   clientid);
 		return NULL;
 	}
-	return clienttab[clientid];
+	return rcu_dereference_check(clienttab[clientid],
+				    lockdep_is_held(&clients_lock));
+}
+
+/* return pointer to client structure for specified id */
+static struct snd_seq_client *clientptr(int clientid)
+{
+	guard(rcu)();
+	return __clientptr(clientid);
 }
 
 static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
@@ -115,8 +123,8 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 			   clientid);
 		return NULL;
 	}
-	scoped_guard(spinlock_irqsave, &clients_lock) {
-		client = clientptr(clientid);
+	scoped_guard(rcu) {
+		client = __clientptr(clientid);
 		if (client)
 			return snd_seq_client_ref(client);
 		if (clienttablock[clientid])
@@ -150,8 +158,8 @@ static struct snd_seq_client *client_use_ptr(int clientid, bool load_module)
 				snd_seq_device_load_drivers();
 			}
 		}
-		scoped_guard(spinlock_irqsave, &clients_lock) {
-			client = clientptr(clientid);
+		scoped_guard(rcu) {
+			client = __clientptr(clientid);
 			if (client)
 				return snd_seq_client_ref(client);
 		}
@@ -223,14 +231,17 @@ static struct snd_seq_client *seq_create_client1(int client_index, int poolsize)
 			for (c = SNDRV_SEQ_DYNAMIC_CLIENTS_BEGIN;
 			     c < SNDRV_SEQ_MAX_CLIENTS;
 			     c++) {
-				if (clienttab[c] || clienttablock[c])
+				if (rcu_access_pointer(clienttab[c]) || clienttablock[c])
 					continue;
-				clienttab[client->number = c] = client;
+				client->number = c;
+				rcu_assign_pointer(clienttab[c], client);
 				return client;
 			}
 		} else {
-			if (clienttab[client_index] == NULL && !clienttablock[client_index]) {
-				clienttab[client->number = client_index] = client;
+			if (rcu_access_pointer(clienttab[client_index]) == NULL &&
+			    !clienttablock[client_index]) {
+				client->number = client_index;
+				rcu_assign_pointer(clienttab[client_index], client);
 				return client;
 			}
 		}
@@ -248,10 +259,16 @@ static int seq_free_client1(struct snd_seq_client *client)
 		return 0;
 	scoped_guard(spinlock_irq, &clients_lock) {
 		clienttablock[client->number] = 1;
-		clienttab[client->number] = NULL;
+		rcu_assign_pointer(clienttab[client->number], NULL);
 	}
 	snd_seq_delete_all_ports(client);
 	snd_seq_queue_client_leave(client->number);
+	/* the client has been unpublished from the table; wait for a grace
+	 * period so that lockless readers (snd_seq_client_use_ptr()) that
+	 * observed the old pointer can no longer take a new use_lock
+	 * reference, then drain the outstanding references before freeing
+	 */
+	synchronize_rcu();
 	snd_use_lock_sync(&client->use_lock);
 	if (client->pool)
 		snd_seq_pool_delete(&client->pool);
