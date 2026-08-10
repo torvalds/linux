@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 
 #include <linux/soc/qcom/ubwc.h>
+#include <linux/soc/qcom/smem.h>
 
 static const struct qcom_ubwc_cfg_data no_ubwc_data = {
 	/* no UBWC, no HBB */
@@ -168,9 +169,25 @@ static const struct of_device_id qcom_ubwc_configs[] __maybe_unused = {
 	{ }
 };
 
+static struct qcom_ubwc_cfg_data *cfg;
+static DEFINE_MUTEX(cfg_mutex);
+/**
+ * qcom_ubwc_config_get_data() - Retrieve UBWC data for the platform.
+ *
+ * Return: Pointer to valid struct qcom_ubwc_cfg_data on success, negative
+ * errno on failure. Note that this may return EPROBE_DEFER.
+ */
 const struct qcom_ubwc_cfg_data *qcom_ubwc_config_get_data(void)
 {
 	const struct qcom_ubwc_cfg_data *data;
+	int hbb;
+
+	guard(mutex)(&cfg_mutex);
+	if (cfg)
+		return cfg;
+
+	if (!qcom_smem_is_available())
+		return ERR_PTR(-EPROBE_DEFER);
 
 	data = of_machine_get_match_data(qcom_ubwc_configs);
 	if (!data) {
@@ -178,9 +195,30 @@ const struct qcom_ubwc_cfg_data *qcom_ubwc_config_get_data(void)
 		return ERR_PTR(-EINVAL);
 	}
 
-	return data;
+	hbb = qcom_smem_dram_get_hbb();
+	if (hbb == -ENODATA) {
+		/* Lack of HBB data is OK - it was only introduced later */
+		return data;
+	} else if (hbb < 0) {
+		pr_err("Couldn't get HBB data from SMEM: %d\n", hbb);
+		return ERR_PTR(hbb);
+	}
+
+	cfg = kmemdup(data, sizeof(*data), GFP_KERNEL);
+	if (!cfg)
+		return ERR_PTR(-ENOMEM);
+
+	cfg->highest_bank_bit = hbb;
+
+	return cfg;
 }
 EXPORT_SYMBOL_GPL(qcom_ubwc_config_get_data);
+
+static void __exit ubwc_config_exit(void)
+{
+	kfree(cfg);
+}
+module_exit(ubwc_config_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("UBWC config database for QTI SoCs");

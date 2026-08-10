@@ -4,6 +4,7 @@
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/debugfs.h>
 #include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -15,6 +16,8 @@
 #include <linux/slab.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/socinfo.h>
+
+#include "smem.h"
 
 /*
  * The Qualcomm shared memory system is a allocate only heap structure that
@@ -267,6 +270,7 @@ struct smem_region {
  * @partitions: list of partitions of current processor/host
  * @item_count: max accepted item number
  * @socinfo:	platform device pointer
+ * @debugfs_dir: directory for SMEM-related debugfs attributes
  * @num_regions: number of @regions
  * @regions:	list of the memory regions defining the shared memory
  */
@@ -281,7 +285,9 @@ struct qcom_smem {
 	struct smem_partition global_partition;
 	struct xarray partitions;
 
-	unsigned num_regions;
+	struct dentry *debugfs_dir;
+
+	unsigned int num_regions;
 	struct smem_region regions[] __counted_by(num_regions);
 };
 
@@ -399,7 +405,7 @@ EXPORT_SYMBOL_GPL(qcom_smem_is_available);
 
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_partition *part,
-				   unsigned item,
+				   unsigned int item,
 				   size_t size)
 {
 	struct smem_private_entry *hdr, *end;
@@ -460,7 +466,7 @@ bad_canary:
 }
 
 static int qcom_smem_alloc_global(struct qcom_smem *smem,
-				  unsigned item,
+				  unsigned int item,
 				  size_t size)
 {
 	struct smem_global_entry *entry;
@@ -503,7 +509,7 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
  *
  * Return: 0 on success, negative errno on failure.
  */
-int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
+int qcom_smem_alloc(unsigned int host, unsigned int item, size_t size)
 {
 	struct smem_partition *part;
 	unsigned long flags;
@@ -544,7 +550,7 @@ int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 EXPORT_SYMBOL_GPL(qcom_smem_alloc);
 
 static void *qcom_smem_get_global(struct qcom_smem *smem,
-				  unsigned item,
+				  unsigned int item,
 				  size_t *size)
 {
 	struct smem_header *header;
@@ -553,7 +559,6 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 	u64 entry_offset;
 	u32 e_size;
 	u32 aux_base;
-	unsigned i;
 
 	header = smem->regions[0].virt_base;
 	entry = &header->toc[item];
@@ -562,7 +567,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 
 	aux_base = le32_to_cpu(entry->aux_base) & AUX_BASE_MASK;
 
-	for (i = 0; i < smem->num_regions; i++) {
+	for (unsigned int i = 0; i < smem->num_regions; i++) {
 		region = &smem->regions[i];
 
 		if ((u32)region->aux_base == aux_base || !aux_base) {
@@ -584,7 +589,7 @@ static void *qcom_smem_get_global(struct qcom_smem *smem,
 
 static void *qcom_smem_get_private(struct qcom_smem *smem,
 				   struct smem_partition *part,
-				   unsigned item,
+				   unsigned int item,
 				   size_t *size)
 {
 	struct smem_private_entry *e, *end;
@@ -672,6 +677,30 @@ invalid_canary:
 	return ERR_PTR(-EINVAL);
 }
 
+void *__qcom_smem_get(struct qcom_smem *smem, unsigned int host, unsigned int item, size_t *size)
+{
+	struct smem_partition *part;
+	void *ptr;
+
+	if (IS_ERR(smem))
+		return smem;
+
+	if (item >= smem->item_count)
+		return ERR_PTR(-EINVAL);
+
+	part = xa_load(&smem->partitions, host);
+	if (part) {
+		ptr = qcom_smem_get_private(smem, part, item, size);
+	} else if (smem->global_partition.virt_base) {
+		part = &smem->global_partition;
+		ptr = qcom_smem_get_private(smem, part, item, size);
+	} else {
+		ptr = qcom_smem_get_global(smem, item, size);
+	}
+
+	return ptr;
+}
+
 /**
  * qcom_smem_get() - resolve ptr of size of a smem item
  * @host:	the remote processor, or -1
@@ -683,28 +712,9 @@ invalid_canary:
  *
  * Return: a pointer to an SMEM item on success, ERR_PTR() on failure.
  */
-void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
+void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
 {
-	struct smem_partition *part;
-	void *ptr;
-
-	if (IS_ERR(__smem))
-		return __smem;
-
-	if (item >= __smem->item_count)
-		return ERR_PTR(-EINVAL);
-
-	part = xa_load(&__smem->partitions, host);
-	if (part) {
-		ptr = qcom_smem_get_private(__smem, part, item, size);
-	} else if (__smem->global_partition.virt_base) {
-		part = &__smem->global_partition;
-		ptr = qcom_smem_get_private(__smem, part, item, size);
-	} else {
-		ptr = qcom_smem_get_global(__smem, item, size);
-	}
-
-	return ptr;
+	return __qcom_smem_get(__smem, host, item, size);
 }
 EXPORT_SYMBOL_GPL(qcom_smem_get);
 
@@ -717,12 +727,12 @@ EXPORT_SYMBOL_GPL(qcom_smem_get);
  *
  * Return: number of available bytes on success, negative errno on failure.
  */
-int qcom_smem_get_free_space(unsigned host)
+int qcom_smem_get_free_space(unsigned int host)
 {
 	struct smem_partition *part;
 	struct smem_partition_header *phdr;
 	struct smem_header *header;
-	unsigned ret;
+	unsigned int ret;
 
 	if (IS_ERR(__smem))
 		return PTR_ERR(__smem);
@@ -1237,19 +1247,26 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -ENOENT)
 		return ret;
 
+	smem->debugfs_dir = smem_dram_parse(smem, smem->dev);
+
 	__smem = smem;
 
 	smem->socinfo = platform_device_register_data(&pdev->dev, "qcom-socinfo",
 						      PLATFORM_DEVID_NONE, NULL,
 						      0);
-	if (IS_ERR(smem->socinfo))
+	if (IS_ERR(smem->socinfo)) {
+		debugfs_remove_recursive(smem->debugfs_dir);
+
 		dev_dbg(&pdev->dev, "failed to register socinfo device\n");
+	}
 
 	return 0;
 }
 
 static void qcom_smem_remove(struct platform_device *pdev)
 {
+	debugfs_remove_recursive(__smem->debugfs_dir);
+
 	platform_device_unregister(__smem->socinfo);
 
 	xa_destroy(&__smem->partitions);
