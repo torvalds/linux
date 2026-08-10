@@ -4225,6 +4225,10 @@ static int ti_sci_probe(struct platform_device *pdev)
 	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
 	if (ret) {
 		dev_err(dev, "platform_populate failed %pe\n", ERR_PTR(ret));
+		of_platform_depopulate(dev);
+		mutex_lock(&ti_sci_list_mutex);
+		list_del(&info->node);
+		mutex_unlock(&ti_sci_list_mutex);
 		goto out;
 	}
 	return 0;
