@@ -395,20 +395,54 @@ EXPORT_SYMBOL_GPL(hci_uart_register_device_priv);
 void hci_uart_unregister_device(struct hci_uart *hu)
 {
 	struct hci_dev *hdev = hu->hdev;
+	bool proto_ready;
 
+	/* Wait for init_ready to finish to prevent registration races */
 	cancel_work_sync(&hu->init_ready);
-	if (test_bit(HCI_UART_REGISTERED, &hu->flags))
-		hci_unregister_dev(hdev);
-	hci_free_dev(hdev);
 
+	proto_ready = test_bit(HCI_UART_PROTO_READY, &hu->flags);
+	if (proto_ready) {
+		/* Clear HCI_UART_PROTO_READY under the write lock so a
+		 * concurrent hci_uart_tx_wakeup() cannot re-schedule
+		 * write_work via the write_wakeup callback once the device
+		 * is torn down.
+		 */
+		percpu_down_write(&hu->proto_lock);
+		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+		percpu_up_write(&hu->proto_lock);
+	}
+
+	/* Unconditionally cancel write_work AFTER clearing PROTO_READY.
+	 * This ensures that concurrent protocol timers cannot requeue
+	 * write_work, permanently preventing double-free races and UAFs,
+	 * and guarantees no write_work is in flight before the serdev
+	 * device is closed.
+	 */
 	cancel_work_sync(&hu->write_work);
 
+	/* Free any partially transmitted frame left over by write_work now
+	 * that the transmit path is fully quiesced. hci_uart_close() would
+	 * skip hci_uart_flush() because HCI_UART_PROTO_READY is cleared.
+	 */
+	if (hu->tx_skb) {
+		kfree_skb(hu->tx_skb);
+		hu->tx_skb = NULL;
+	}
+
+	if (test_bit(HCI_UART_REGISTERED, &hu->flags))
+		hci_unregister_dev(hdev);
+
+	/* Close the protocol before freeing hdev (intrinsically purges queues).
+	 * Some protocol close handlers (e.g. qca_close) may still access the
+	 * serdev device, so keep the serdev port open until this completes.
+	 */
 	hu->proto->close(hu);
 
-	if (test_bit(HCI_UART_PROTO_READY, &hu->flags)) {
-		clear_bit(HCI_UART_PROTO_READY, &hu->flags);
+	if (proto_ready)
 		serdev_device_close(hu->serdev);
-	}
+
+	hci_free_dev(hdev);
+
 	percpu_free_rwsem(&hu->proto_lock);
 }
 EXPORT_SYMBOL_GPL(hci_uart_unregister_device);
