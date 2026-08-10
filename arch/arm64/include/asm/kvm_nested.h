@@ -305,6 +305,12 @@ static inline u64 decode_range_tlbi(u64 val, u64 *range, u16 *asid)
 	num	= FIELD_GET(GENMASK(43, 39), val);
 	*range	= __TLBI_RANGE_PAGES(num, scale) << shift;
 
+	/* Cap the range to the correct half of the address space */
+	if (!(base & BIT(48)))
+		*range = min(*range, (BIT(48) - base));
+	else
+		*range = min(*range, ~base + 1);
+
 	return base;
 }
 
