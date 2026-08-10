@@ -96,11 +96,13 @@ int txgbe_read_eeprom_hostif(struct wx *wx,
 	dword_len = round_up(length, 4) >> 2;
 
 	for (i = 0; i < dword_len; i++) {
+		u32 copy_len = min_t(u32, 4, length - i * 4);
+
 		value = rd32a(wx, WX_FW2SW_MBOX, i + offset);
 		le32_to_cpus(&value);
 
-		memcpy(data, &value, 4);
-		data += 4;
+		memcpy(data, &value, copy_len);
+		data += copy_len;
 	}
 
 	return 0;

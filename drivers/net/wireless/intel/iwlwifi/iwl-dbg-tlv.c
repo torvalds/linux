@@ -475,6 +475,7 @@ static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
 {
 	const struct iwl_ucode_tlv *tlv;
 	u32 tlv_len;
+	size_t aligned_tlv_len;
 
 	while (len >= sizeof(*tlv)) {
 		len -= sizeof(*tlv);
@@ -487,8 +488,16 @@ static int iwl_dbg_tlv_parse_bin(struct iwl_trans *trans, const u8 *data,
 				len, tlv_len);
 			return -EINVAL;
 		}
-		len -= ALIGN(tlv_len, 4);
-		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
+
+		aligned_tlv_len = ALIGN(tlv_len, 4);
+		if (len < aligned_tlv_len) {
+			IWL_ERR(trans, "invalid aligned TLV len: %zd/%zu\n",
+				len, aligned_tlv_len);
+			return -EINVAL;
+		}
+
+		len -= aligned_tlv_len;
+		data += sizeof(*tlv) + aligned_tlv_len;
 
 		iwl_dbg_tlv_alloc(trans, tlv, true);
 	}

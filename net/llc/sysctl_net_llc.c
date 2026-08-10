@@ -47,7 +47,7 @@ static struct ctl_table_header *llc_station_header;
 
 int __init llc_sysctl_init(void)
 {
-	struct ctl_table empty[1] = {};
+	static struct ctl_table empty[1] = {};
 	llc2_timeout_header = register_net_sysctl(&init_net, "net/llc/llc2/timeout", llc2_timeout_table);
 	llc_station_header = register_net_sysctl_sz(&init_net, "net/llc/station", empty, 0);
 

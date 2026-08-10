@@ -314,7 +314,7 @@ static int mlx5_query_module_id(struct mlx5_core_dev *dev, int module_num,
 		return -EIO;
 	}
 
-	ptr = MLX5_ADDR_OF(mcia_reg, out, dword_0);
+	ptr = MLX5_ADDR_OF(mcia_reg, out, dwords);
 
 	*module_id = ptr[0];
 
@@ -399,7 +399,7 @@ static int mlx5_query_mcia(struct mlx5_core_dev *dev,
 		return -EIO;
 	}
 
-	ptr = MLX5_ADDR_OF(mcia_reg, out, dword_0);
+	ptr = MLX5_ADDR_OF(mcia_reg, out, dwords);
 	memcpy(data, ptr, size);
 
 	return size;
@@ -906,25 +906,6 @@ int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size)
 
 	return mlx5_core_access_reg(mdev, mtpps, mtpps_size, out,
 				    sizeof(out), MLX5_REG_MTPPS, 0, 1);
-}
-
-int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode)
-{
-	u32 out[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
-	u32 in[MLX5_ST_SZ_DW(mtppse_reg)] = {0};
-	int err = 0;
-
-	MLX5_SET(mtppse_reg, in, pin, pin);
-
-	err = mlx5_core_access_reg(mdev, in, sizeof(in), out,
-				   sizeof(out), MLX5_REG_MTPPSE, 0, 0);
-	if (err)
-		return err;
-
-	*arm = MLX5_GET(mtppse_reg, in, event_arm);
-	*mode = MLX5_GET(mtppse_reg, in, event_generation_mode);
-
-	return err;
 }
 
 int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode)

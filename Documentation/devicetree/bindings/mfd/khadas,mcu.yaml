@@ -28,7 +28,6 @@ properties:
 
   fan-supply:
     description: Phandle to the regulator that powers the fan.
-    $ref: /schemas/types.yaml#/definitions/phandle
 
 required:
   - compatible

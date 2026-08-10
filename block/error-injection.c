@@ -120,13 +120,13 @@ static void error_inject_removeall(struct gendisk *disk)
 	struct blk_error_inject *inj;
 
 	mutex_lock(&disk->error_injection_lock);
-	clear_bit(GD_ERROR_INJECT, &disk->state);
+	if (test_and_clear_bit(GD_ERROR_INJECT, &disk->state))
+		static_branch_dec(&blk_error_injection_enabled);
 	while ((inj = list_first_entry_or_null(&disk->error_injection_list,
 			struct blk_error_inject, entry))) {
 		list_del_rcu(&inj->entry);
 		kfree_rcu_mightsleep(inj);
 	}
-	static_branch_dec(&blk_error_injection_enabled);
 	mutex_unlock(&disk->error_injection_lock);
 }
 
@@ -276,9 +276,10 @@ static int blk_error_injection_show(struct seq_file *s, void *private)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(inj, &disk->error_injection_list, entry) {
-		seq_printf(s, "%llu:%llu status=%s,chance=%u",
-			inj->start, inj->end,
-			blk_status_to_tag(inj->status), inj->chance);
+		seq_printf(s, "%llu:%llu op=%s,status=%s,chance=%u",
+			   inj->start, inj->end,
+			   blk_op_str(inj->op),
+			   blk_status_to_tag(inj->status), inj->chance);
 		seq_putc(s, '\n');
 	}
 	rcu_read_unlock();

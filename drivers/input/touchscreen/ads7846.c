@@ -134,6 +134,9 @@ struct ads7846 {
 	bool			disabled;	/* P: lock */
 	bool			suspended;	/* P: lock */
 
+	int			(*setup_spi_msg)(struct ads7846 *ts,
+					const struct ads7846_platform_data *pdata);
+	void			(*read_state)(struct ads7846 *ts);
 	int			(*filter)(void *data, int data_idx, int *val);
 	void			*filter_data;
 	int			(*get_pendown_state)(void);
@@ -325,7 +328,6 @@ struct ser_req {
 	u8			ref_on;
 	u8			command;
 	u8			ref_off;
-	u16			scratch;
 	struct spi_message	msg;
 	struct spi_transfer	xfer[8];
 	/*
@@ -333,6 +335,7 @@ struct ser_req {
 	 * transfer buffers to live in their own cache lines.
 	 */
 	__be16 sample ____cacheline_aligned;
+	u16			scratch;
 };
 
 struct ads7845_ser_req {
@@ -403,8 +406,7 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 	spi_message_add_tail(&req->xfer[5], &req->msg);
 
 	/* clear the command register */
-	req->scratch = 0;
-	req->xfer[6].tx_buf = &req->scratch;
+	req->xfer[6].rx_buf = &req->scratch;
 	req->xfer[6].len = 1;
 	spi_message_add_tail(&req->xfer[6], &req->msg);
 
@@ -789,6 +791,22 @@ static int ads7846_filter(struct ads7846 *ts)
 	return 0;
 }
 
+static int ads7846_filter_one(struct ads7846 *ts, unsigned int cmd_idx)
+{
+	struct ads7846_packet *packet = ts->packet;
+	struct ads7846_buf_layout *l = &packet->l[cmd_idx];
+	int action, val;
+
+	val = ads7846_get_value(&packet->rx[l->offset + l->count - 1]);
+	action = ts->filter(ts->filter_data, cmd_idx, &val);
+	if (action == ADS7846_FILTER_REPEAT)
+		return -EAGAIN;
+	else if (action != ADS7846_FILTER_OK)
+		return -EIO;
+	ads7846_set_cmd_val(ts, cmd_idx, val);
+	return 0;
+}
+
 static void ads7846_wait_for_hsync(struct ads7846 *ts)
 {
 	if (ts->wait_for_sync) {
@@ -809,6 +827,45 @@ static void ads7846_wait_for_hsync(struct ads7846 *ts)
 	/* Then we wait for it do de-assert */
 	while (gpiod_get_value(ts->gpio_hsync))
 		cpu_relax();
+}
+
+static void ads7846_halfd_read_state(struct ads7846 *ts)
+{
+	struct ads7846_packet *packet = ts->packet;
+	int msg_idx = 0;
+
+	packet->ignore = false;
+
+	while (msg_idx < ts->msg_count) {
+		int error;
+
+		ads7846_wait_for_hsync(ts);
+
+		error = spi_sync(ts->spi, &ts->msg[msg_idx]);
+		if (error) {
+			dev_err_ratelimited(&ts->spi->dev, "spi_sync --> %d\n",
+					    error);
+			packet->ignore = true;
+			return;
+		}
+
+		/*
+		 * Last message is power down request, no need to convert
+		 * or filter the value.
+		 */
+		if (msg_idx == ts->msg_count - 1)
+			break;
+
+		error = ads7846_filter_one(ts, msg_idx);
+		if (error == -EAGAIN) {
+			continue;
+		} else if (error) {
+			packet->ignore = true;
+			msg_idx = ts->msg_count - 1;
+		} else {
+			msg_idx++;
+		}
+	}
 }
 
 static void ads7846_read_state(struct ads7846 *ts)
@@ -939,7 +996,7 @@ static irqreturn_t ads7846_irq(int irq, void *handle)
 	while (!ts->stopped && get_pendown_state(ts)) {
 
 		/* pen is down, continue with the measurement */
-		ads7846_read_state(ts);
+		ts->read_state(ts);
 
 		if (!ts->stopped)
 			ads7846_report_state(ts);
@@ -1019,6 +1076,102 @@ static int ads7846_setup_pendown(struct spi_device *spi,
 					   pdata->gpio_pendown_debounce);
 	}
 
+	return 0;
+}
+
+/*
+ * Set up the transfers to read touchscreen state; this assumes we
+ * use formula #2 for pressure, not #3.
+ */
+static int ads7846_halfd_spi_msg(struct ads7846 *ts,
+				 const struct ads7846_platform_data *pdata)
+{
+	struct spi_message *m = ts->msg;
+	struct spi_transfer *x = ts->xfer;
+	struct ads7846_packet *packet = ts->packet;
+	int vref = pdata->keep_vref_on;
+	unsigned int offset = 0;
+	unsigned int cmd_idx, b;
+	size_t size = 0;
+
+	if (pdata->settle_delay_usecs)
+		packet->count = 2;
+	else
+		packet->count = 1;
+
+	if (ts->model == 7846)
+		packet->cmds = 5; /* x, y, z1, z2, pwdown */
+	else
+		packet->cmds = 3; /* x, y, pwdown */
+
+	for (cmd_idx = 0; cmd_idx < packet->cmds; cmd_idx++) {
+		struct ads7846_buf_layout *l = &packet->l[cmd_idx];
+		unsigned int max_count;
+
+		if (cmd_idx == packet->cmds - 1) {
+			cmd_idx = ADS7846_PWDOWN;
+			max_count = 1;
+		} else {
+			max_count = packet->count;
+		}
+
+		l->offset = offset;
+		offset += max_count;
+		l->count = max_count;
+		l->skip = 0;
+		size += sizeof(*packet->rx) * max_count;
+	}
+
+	/* We use two transfers per command. */
+	if (ARRAY_SIZE(ts->xfer) < offset * 2)
+		return -ENOMEM;
+
+	packet->rx = devm_kzalloc(&ts->spi->dev, size, GFP_KERNEL);
+	if (!packet->rx)
+		return -ENOMEM;
+
+	if (ts->model == 7873) {
+		/*
+		 * The AD7873 is almost identical to the ADS7846
+		 * keep VREF off during differential/ratiometric
+		 * conversion modes.
+		 */
+		ts->model = 7846;
+		vref = 0;
+	}
+
+	ts->msg_count = 0;
+
+	for (cmd_idx = 0; cmd_idx < packet->cmds; cmd_idx++) {
+		struct ads7846_buf_layout *l = &packet->l[cmd_idx];
+		u8 cmd;
+
+		ts->msg_count++;
+		spi_message_init(m);
+		m->context = ts;
+
+		if (cmd_idx == packet->cmds - 1)
+			cmd_idx = ADS7846_PWDOWN;
+
+		cmd = ads7846_get_cmd(cmd_idx, vref);
+
+		for (b = 0; b < l->count; b++) {
+			packet->rx[l->offset + b].cmd = cmd;
+			x->tx_buf = &packet->rx[l->offset + b].cmd;
+			x->len = 1;
+			spi_message_add_tail(x, m);
+			x++;
+			x->rx_buf = &packet->rx[l->offset + b].data;
+			x->len = 2;
+			if (b < l->count - 1 && l->count > 1) {
+				x->delay.value = pdata->settle_delay_usecs;
+				x->delay.unit = SPI_DELAY_UNIT_USECS;
+			}
+			spi_message_add_tail(x, m);
+			x++;
+		}
+		m++;
+	}
 	return 0;
 }
 
@@ -1236,6 +1389,14 @@ static int ads7846_probe(struct spi_device *spi)
 	if (!ts)
 		return -ENOMEM;
 
+	if (spi->controller->flags & SPI_CONTROLLER_HALF_DUPLEX) {
+		ts->setup_spi_msg = ads7846_halfd_spi_msg;
+		ts->read_state    = ads7846_halfd_read_state;
+	} else {
+		ts->setup_spi_msg = ads7846_setup_spi_msg;
+		ts->read_state    = ads7846_read_state;
+	}
+
 	packet = devm_kzalloc(dev, sizeof(struct ads7846_packet), GFP_KERNEL);
 	if (!packet)
 		return -ENOMEM;
@@ -1330,7 +1491,9 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->core_prop.swap_x_y = true;
 	}
 
-	ads7846_setup_spi_msg(ts, pdata);
+	err = ts->setup_spi_msg(ts, pdata);
+	if (err)
+		return err;
 
 	ts->reg = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(ts->reg)) {

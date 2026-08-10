@@ -40,7 +40,6 @@ LIBBPF_DESTDIR := $(LIBBPF_OUT)
 LIBBPF_INCLUDE := $(LIBBPF_DESTDIR)include
 
 SUBCMD_DESTDIR := $(SUBCMD_OUT)
-SUBCMD_INCLUDE := $(SUBCMD_DESTDIR)include
 
 BINARY     := $(OUTPUT)/resolve_btfids
 BINARY_IN  := $(BINARY)-in.o
@@ -56,7 +55,7 @@ $(OUTPUT) $(OUTPUT)/libsubcmd $(LIBBPF_OUT):
 $(SUBCMDOBJ): fixdep FORCE | $(OUTPUT)/libsubcmd
 	$(Q)$(MAKE) -C $(SUBCMD_SRC) OUTPUT=$(SUBCMD_OUT) \
 		    DESTDIR=$(SUBCMD_DESTDIR) $(HOST_OVERRIDES) prefix= subdir= \
-		    $(abspath $@) install_headers
+		    $(abspath $@)
 
 $(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OUT)
 	$(Q)$(MAKE) $(submake_extras) -C $(LIBBPF_SRC) OUTPUT=$(LIBBPF_OUT)    \
@@ -77,7 +76,7 @@ HOSTCFLAGS_resolve_btfids += -g \
           -I$(srctree)/tools/include \
           -I$(srctree)/tools/include/uapi \
           -I$(LIBBPF_INCLUDE) \
-          -I$(SUBCMD_INCLUDE) \
+          -I$(srctree)/tools/lib \
           $(LIBELF_FLAGS) \
           -Wall -Werror
 

@@ -2152,7 +2152,8 @@ static gpa_t svm_translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa,
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 
-	BUG_ON(!mmu_is_nested(vcpu));
+	if (WARN_ON_ONCE(!mmu_is_nested(vcpu)))
+		return gpa;
 
 	/* Non-GMET walks are always user-walks */
 	if (!(svm->nested.ctl.misc_ctl & SVM_MISC_ENABLE_GMET))

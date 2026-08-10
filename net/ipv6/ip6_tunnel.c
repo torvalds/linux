@@ -684,6 +684,9 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (!skb2)
 			return 0;
 
+		/* Remove debris left by outer IPv6 stack. */
+		memset(IP6CB(skb2), 0, sizeof(*IP6CB(skb2)));
+
 		skb_dst_drop(skb2);
 		skb_pull(skb2, offset);
 		skb_reset_network_header(skb2);
@@ -1851,6 +1854,13 @@ static int ip6_tnl_fill_forward_path(struct net_device_path_ctx *ctx,
 	struct dst_entry *dst;
 	int err;
 
+	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT)) {
+		/* encaplimit option is currently not supported is
+		 * sw-acceleration path.
+		 */
+		return -EOPNOTSUPP;
+	}
+
 	dst = ip6_route_output(dev_net(ctx->dev), NULL, &fl6);
 	if (!dst->error) {
 		path->type = DEV_PATH_TUN;
@@ -2102,6 +2112,9 @@ static int ip6_tnl_changelink(struct net_device *dev, struct nlattr *tb[],
 	struct net *net = t->net;
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
 	struct ip_tunnel_encap ipencap;
+
+	if (!rtnl_dev_link_net_capable(dev, net))
+		return -EPERM;
 
 	if (dev == ip6n->fb_tnl_dev) {
 		if (ip_tunnel_netlink_encap_parms(data, &ipencap)) {

@@ -1680,6 +1680,7 @@ static void nvmet_tcp_state_change(struct sock *sk)
 	switch (sk->sk_state) {
 	case TCP_FIN_WAIT2:
 	case TCP_LAST_ACK:
+	case TCP_CLOSING:
 		break;
 	case TCP_FIN_WAIT1:
 	case TCP_CLOSE_WAIT:

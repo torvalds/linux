@@ -85,7 +85,7 @@ __naked void stack_bitwise_and_zero_included(void)
 	r2 += -64;					\
 	r4 = 0;						\
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
-	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
+	 * ARG_MEM_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory at &fp[-64] is\
 	 * not initialized.				\
 	 */						\
@@ -278,7 +278,7 @@ __naked void stack_jmp_no_min_check(void)
 	r2 += -64;					\
 	r4 = 0;						\
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
-	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
+	 * ARG_MEM_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory at &fp[-64] is\
 	 * not initialized.				\
 	 */						\
@@ -778,7 +778,7 @@ __naked void variable_memory_8_bytes_leak(void)
 	r3 += 1;					\
 	r4 = 0;						\
 	/* Call bpf_ringbuf_output(), it is one of a few helper functions with\
-	 * ARG_CONST_SIZE_OR_ZERO parameter allowed in unpriv mode.\
+	 * ARG_MEM_SIZE_OR_ZERO parameter allowed in unpriv mode.\
 	 * For unpriv this should signal an error, because memory region [1, 64]\
 	 * at &fp[-64] is not fully initialized.	\
 	 */						\

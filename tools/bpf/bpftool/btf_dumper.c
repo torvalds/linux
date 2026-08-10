@@ -476,8 +476,8 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	if (!t)
 		return -EINVAL;
 
-	kind_flag = BTF_INFO_KFLAG(t->info);
-	vlen = BTF_INFO_VLEN(t->info);
+	kind_flag = btf_kflag(t);
+	vlen = btf_vlen(t);
 	jsonw_start_object(d->jw);
 	m = (struct btf_member *)(t + 1);
 
@@ -535,7 +535,7 @@ static int btf_dumper_datasec(const struct btf_dumper *d, __u32 type_id,
 	if (!t)
 		return -EINVAL;
 
-	vlen = BTF_INFO_VLEN(t->info);
+	vlen = btf_vlen(t);
 	vsi = (struct btf_var_secinfo *)(t + 1);
 
 	jsonw_start_object(d->jw);
@@ -557,7 +557,7 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 {
 	const struct btf_type *t = btf__type_by_id(d->btf, type_id);
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_INT:
 		return btf_dumper_int(t, bit_offset, data, d->jw,
 				     d->is_plain_text);
@@ -631,7 +631,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 
 	t = btf__type_by_id(btf, type_id);
 
-	switch (BTF_INFO_KIND(t->info)) {
+	switch (btf_kind(t)) {
 	case BTF_KIND_INT:
 	case BTF_KIND_TYPEDEF:
 	case BTF_KIND_FLOAT:
@@ -661,7 +661,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 		break;
 	case BTF_KIND_FWD:
 		BTF_PRINT_ARG("%s %s ",
-			      BTF_INFO_KFLAG(t->info) ? "union" : "struct",
+			      btf_kflag(t) ? "union" : "struct",
 			      btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_VOLATILE:
@@ -718,7 +718,7 @@ static int btf_dump_func(const struct btf *btf, char *func_sig,
 		BTF_PRINT_ARG("%s(", btf__name_by_offset(btf, func->name_off));
 	else
 		BTF_PRINT_ARG("(");
-	vlen = BTF_INFO_VLEN(func_proto->info);
+	vlen = btf_vlen(func_proto);
 	for (i = 0; i < vlen; i++) {
 		struct btf_param *arg = &((struct btf_param *)(func_proto + 1))[i];
 

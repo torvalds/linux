@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/interconnect.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
@@ -147,6 +148,12 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status,
 			return ret;
 	}
 
+	if (status == GDSC_ON) {
+		ret = icc_set_bw(sc->icc_path, 1, 1);
+		if (ret)
+			goto err_disable_supply;
+	}
+
 	ret = gdsc_update_collapse_bit(sc, status == GDSC_OFF);
 
 	/* If disabling votable gdscs, don't poll on status */
@@ -177,11 +184,23 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status,
 	ret = gdsc_poll_status(sc, status);
 	WARN(ret, "%s status stuck at 'o%s'", sc->pd.name, status ? "ff" : "n");
 
+	if (!ret && status == GDSC_OFF) {
+		ret = icc_set_bw(sc->icc_path, 0, 0);
+		if (ret)
+			return ret;
+	}
+
 	if (!ret && status == GDSC_OFF && sc->rsupply) {
 		ret = regulator_disable(sc->rsupply);
 		if (ret < 0)
 			return ret;
 	}
+
+	return ret;
+
+err_disable_supply:
+	if (status == GDSC_ON && sc->rsupply)
+		regulator_disable(sc->rsupply);
 
 	return ret;
 }
@@ -583,6 +602,20 @@ int gdsc_register(struct gdsc_desc *desc,
 				     GFP_KERNEL);
 	if (!data->domains)
 		return -ENOMEM;
+
+	for (i = 0; i < num; i++) {
+		if (!scs[i] || !scs[i]->needs_icc)
+			continue;
+
+		scs[i]->icc_path = devm_of_icc_get_by_index(dev, scs[i]->icc_path_index);
+		if (IS_ERR(scs[i]->icc_path)) {
+			ret = PTR_ERR(scs[i]->icc_path);
+			if (ret != -ENODEV)
+				return ret;
+
+			scs[i]->icc_path = NULL;
+		}
+	}
 
 	for (i = 0; i < num; i++) {
 		if (!scs[i] || !scs[i]->supply)

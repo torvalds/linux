@@ -1168,9 +1168,6 @@ struct iwl_mvm {
 	struct ieee80211_vif __rcu *csa_tx_blocked_vif;
 	u8 csa_tx_block_bcn_timeout;
 
-	/* system time of last beacon (for AP/GO interface) */
-	u32 ap_last_beacon_gp2;
-
 	/* indicates that we transmitted the last beacon */
 	bool ibss_manager;
 

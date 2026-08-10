@@ -9,7 +9,11 @@
 #define XELPG_GGTT_PTE_PAT0	BIT_ULL(52)
 #define XELPG_GGTT_PTE_PAT1	BIT_ULL(53)
 
-#define XE_PTE_ADDR_MASK	GENMASK_ULL(51, 12)
+/*
+ * Mask for PTE address bits [51:shift].
+ * shift is the lower address boundary of page.
+ */
+#define XE_PAGE_ADDR_MASK(shift)	GENMASK_ULL(51, (shift))
 #define GGTT_PTE_VFID		GENMASK_ULL(11, 2)
 
 #define GUC_GGTT_TOP		0xFEE00000

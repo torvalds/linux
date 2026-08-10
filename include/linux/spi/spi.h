@@ -12,7 +12,9 @@
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kthread.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/acpi.h>
+#include <linux/device-id/of.h>
+#include <linux/device-id/spi.h>
 #include <linux/overflow.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>

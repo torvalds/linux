@@ -19,7 +19,6 @@
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/math64.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/pm.h>

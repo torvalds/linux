@@ -49,6 +49,7 @@ class CTransforms:
         (CMatch("DEFINE_DMA_UNMAP_ADDR"), r"dma_addr_t \1"),
         (CMatch("DEFINE_DMA_UNMAP_LEN"), r"__u32 \1"),
         (CMatch("VIRTIO_DECLARE_FEATURES"), r"union { u64 \1; u64 \1_array[VIRTIO_FEATURES_U64S]; }"),
+        (CMatch("__SYSFS_FUNCTION_ALTERNATIVE"), r"union { \1+ }"),
         (CMatch("__attribute__"), ""),
 
         #
@@ -102,6 +103,8 @@ class CTransforms:
         (CMatch("__no_context_analysis"), ""),
         (CMatch("__attribute_const__"), ""),
         (CMatch("__attribute__"), ""),
+        (CMatch("STATIC_IFN_KUNIT"), ""),
+        (CMatch("INLINE_IFN_KUNIT"), ""),
 
         #
         # HACK: this is similar to process_export() hack. It is meant to
@@ -118,6 +121,7 @@ class CTransforms:
         (CMatch("__guarded_by"), ""),
         (CMatch("__pt_guarded_by"), ""),
         (CMatch("LIST_HEAD"), r"struct list_head \1"),
+        (CMatch("DECLARE_PER_CPU"), r"\1 \2[PER_CPU]; }"),
 
         (KernRe(r"(?://.*)$"), ""),
         (KernRe(r"(?:/\*.*\*/)"), ""),

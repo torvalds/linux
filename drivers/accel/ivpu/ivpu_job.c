@@ -208,9 +208,9 @@ static int ivpu_hws_cmdq_init(struct ivpu_file_priv *file_priv, struct ivpu_cmdq
 	ret = ivpu_jsm_hws_set_context_sched_properties(vdev, file_priv->ctx.id, cmdq->id,
 							priority);
 	if (ret)
-		return ret;
+		ivpu_jsm_hws_destroy_cmdq(vdev, file_priv->ctx.id, cmdq->id);
 
-	return 0;
+	return ret;
 }
 
 static int ivpu_register_db(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)
@@ -281,10 +281,10 @@ static int ivpu_cmdq_register(struct ivpu_file_priv *file_priv, struct ivpu_cmdq
 	}
 
 	ret = ivpu_register_db(file_priv, cmdq);
-	if (ret)
-		return ret;
+	if (ret && vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
+		ivpu_jsm_hws_destroy_cmdq(vdev, file_priv->ctx.id, cmdq->id);
 
-	return 0;
+	return ret;
 }
 
 static int ivpu_cmdq_unregister(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *cmdq)

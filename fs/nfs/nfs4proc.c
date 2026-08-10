@@ -10364,6 +10364,7 @@ static void nfs41_free_stateid_release(void *calldata)
 	struct nfs_free_stateid_data *data = calldata;
 	struct nfs_client *clp = data->server->nfs_client;
 
+	nfs_sb_deactive(data->server->super);
 	nfs_put_client(clp);
 	kfree(calldata);
 }
@@ -10402,17 +10403,22 @@ static int nfs41_free_stateid(struct nfs_server *server,
 	struct nfs_free_stateid_data *data;
 	struct rpc_task *task;
 	struct nfs_client *clp = server->nfs_client;
+	int ret = -EIO;
 
 	if (!refcount_inc_not_zero(&clp->cl_count))
-		return -EIO;
+		return ret;
+	if (!nfs_sb_active(server->super))
+		goto out_put_clp;
 
 	nfs4_state_protect(clp, NFS_SP4_MACH_CRED_STATEID,
 		&task_setup.rpc_client, &msg);
 
 	dprintk("NFS call  free_stateid %p\n", stateid);
 	data = kmalloc_obj(*data);
-	if (!data)
-		return -ENOMEM;
+	if (!data) {
+		ret = -ENOMEM;
+		goto out_put_server;
+	}
 	data->server = server;
 	nfs4_stateid_copy(&data->args.stateid, stateid);
 
@@ -10428,6 +10434,11 @@ static int nfs41_free_stateid(struct nfs_server *server,
 	rpc_put_task(task);
 	stateid->type = NFS4_FREED_STATEID_TYPE;
 	return 0;
+out_put_server:
+	nfs_sb_deactive(server->super);
+out_put_clp:
+	nfs_put_client(clp);
+	return ret;
 }
 
 static void
@@ -10585,7 +10596,8 @@ const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 {
 	ssize_t error, error2, error3;
-	size_t left = size;
+	ssize_t left = size;
+	ssize_t left2;
 
 	error = generic_listxattr(dentry, list, left);
 	if (error < 0)
@@ -10595,10 +10607,13 @@ static ssize_t nfs4_listxattr(struct dentry *dentry, char *list, size_t size)
 		left -= error;
 	}
 
-	error2 = security_inode_listsecurity(d_inode(dentry), &list, &left);
+	left2 = left;
+	error2 = security_inode_listsecurity(d_inode(dentry), &list, &left2);
 	if (error2 < 0)
 		return error2;
-	error2 = size - error - left;
+	error2 = left - left2;
+	if (list)
+		left -= error2;
 
 	error3 = nfs4_listxattr_nfs4_user(d_inode(dentry), list, left);
 	if (error3 < 0)

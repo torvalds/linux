@@ -613,6 +613,16 @@ static int fprobe_fgraph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops
 			continue;
 
 		data_size = fp->entry_data_size;
+		/*
+		 * The list may have grown since it was sized, so this node
+		 * may not fit. Skip it as missed rather than overrun the
+		 * reservation.
+		 */
+		if (fp->exit_handler &&
+		    used + FPROBE_HEADER_SIZE_IN_LONG + SIZE_IN_LONG(data_size) > reserved_words) {
+			fp->nmissed++;
+			continue;
+		}
 		if (data_size && fp->exit_handler)
 			data = fgraph_data + used + FPROBE_HEADER_SIZE_IN_LONG;
 		else
@@ -951,10 +961,8 @@ int register_fprobe(struct fprobe *fp, const char *filter, const char *notfilter
 		return -ENOMEM;
 
 	ret = get_ips_from_filter(filter, notfilter, addrs, mods, num);
-	if (ret < 0)
-		return ret;
-
-	ret = register_fprobe_ips(fp, addrs, ret);
+	if (ret >= 0)
+		ret = register_fprobe_ips(fp, addrs, ret);
 
 	for (int i = 0; i < num; i++) {
 		if (mods[i])

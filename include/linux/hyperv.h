@@ -21,7 +21,7 @@
 #include <linux/timer.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/hv_vmbus.h>
 #include <linux/interrupt.h>
 #include <linux/reciprocal_div.h>
 #include <hyperv/hvhdk.h>

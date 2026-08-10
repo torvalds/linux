@@ -12,16 +12,9 @@
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <kunit/visibility.h>
 
 #include "dev.h"
-
-static void netdev_rx_mode_work(struct work_struct *work);
-
-static LIST_HEAD(rx_mode_list);
-static DEFINE_SPINLOCK(rx_mode_lock);
-static DECLARE_WORK(rx_mode_work, netdev_rx_mode_work);
 
 /*
  * General list handling functions
@@ -1281,7 +1274,7 @@ void netif_rx_mode_cancel_retry(struct net_device *dev)
 	dev->rx_mode_retry_count = 0;
 }
 
-static void netif_rx_mode_run(struct net_device *dev)
+void netif_rx_mode_run(struct net_device *dev)
 {
 	struct netdev_hw_addr_list uc_snap, mc_snap, uc_ref, mc_ref;
 	const struct net_device_ops *ops = dev->netdev_ops;
@@ -1339,49 +1332,9 @@ static void netif_rx_mode_run(struct net_device *dev)
 	}
 }
 
-static void netdev_rx_mode_work(struct work_struct *work)
-{
-	struct net_device *dev;
-
-	rtnl_lock();
-
-	while (true) {
-		spin_lock_bh(&rx_mode_lock);
-		if (list_empty(&rx_mode_list)) {
-			spin_unlock_bh(&rx_mode_lock);
-			break;
-		}
-		dev = list_first_entry(&rx_mode_list, struct net_device,
-				       rx_mode_node);
-		list_del_init(&dev->rx_mode_node);
-		/* We must free netdev tracker under
-		 * the spinlock protection.
-		 */
-		netdev_tracker_free(dev, &dev->rx_mode_tracker);
-		spin_unlock_bh(&rx_mode_lock);
-
-		netdev_lock_ops(dev);
-		netif_rx_mode_run(dev);
-		netdev_unlock_ops(dev);
-		/* Use __dev_put() because netdev_tracker_free() was already
-		 * called above. Must be after netdev_unlock_ops() to prevent
-		 * netdev_run_todo() from freeing the device while still in use.
-		 */
-		__dev_put(dev);
-	}
-
-	rtnl_unlock();
-}
-
 static void netif_rx_mode_queue(struct net_device *dev)
 {
-	spin_lock_bh(&rx_mode_lock);
-	if (list_empty(&dev->rx_mode_node)) {
-		list_add_tail(&dev->rx_mode_node, &rx_mode_list);
-		netdev_hold(dev, &dev->rx_mode_tracker, GFP_ATOMIC);
-	}
-	spin_unlock_bh(&rx_mode_lock);
-	schedule_work(&rx_mode_work);
+	__netdev_work_core_sched(dev, NETDEV_WORK_RX_MODE);
 }
 
 static void netif_rx_mode_retry(struct timer_list *t)
@@ -1394,7 +1347,6 @@ static void netif_rx_mode_retry(struct timer_list *t)
 
 void netif_rx_mode_init(struct net_device *dev)
 {
-	INIT_LIST_HEAD(&dev->rx_mode_node);
 	__hw_addr_init(&dev->rx_mode_addr_cache);
 	timer_setup(&dev->rx_mode_retry_timer, netif_rx_mode_retry, 0);
 }
@@ -1442,24 +1394,6 @@ void dev_set_rx_mode(struct net_device *dev)
 	netif_addr_unlock_bh(dev);
 }
 
-bool netif_rx_mode_clean(struct net_device *dev)
-{
-	bool clean = false;
-
-	spin_lock_bh(&rx_mode_lock);
-	if (!list_empty(&dev->rx_mode_node)) {
-		list_del_init(&dev->rx_mode_node);
-		clean = true;
-		/* We must release netdev tracker under
-		 * the spinlock protection.
-		 */
-		netdev_tracker_free(dev, &dev->rx_mode_tracker);
-	}
-	spin_unlock_bh(&rx_mode_lock);
-
-	return clean;
-}
-
 /**
  * netif_rx_mode_sync() - sync rx mode inline
  * @dev: network device
@@ -1473,11 +1407,6 @@ bool netif_rx_mode_clean(struct net_device *dev)
  */
 void netif_rx_mode_sync(struct net_device *dev)
 {
-	if (netif_rx_mode_clean(dev)) {
+	if (__netdev_work_core_cancel(dev, NETDEV_WORK_RX_MODE))
 		netif_rx_mode_run(dev);
-		/* Use __dev_put() because netdev_tracker_free() was already
-		 * called inside netif_rx_mode_clean().
-		 */
-		__dev_put(dev);
-	}
 }

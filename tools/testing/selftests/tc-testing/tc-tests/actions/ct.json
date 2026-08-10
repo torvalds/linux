@@ -664,5 +664,43 @@
         "teardown": [
             "$TC qdisc del dev $DEV1 ingress_block 21 clsact"
         ]
+    },
+    {
+        "id": "9c2a",
+        "name": "Act_ct preserves skb cb across defrag before prio dequeue",
+        "category": [
+            "actions",
+            "ct",
+            "scapy"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$TC qdisc add dev $DUMMY root handle 1: prio",
+            "$TC qdisc add dev $DUMMY clsact",
+            "$TC qdisc add dev $DEV1 clsact",
+            "$TC filter add dev $DEV1 ingress protocol ip prio 1 matchall action mirred egress redirect dev $DUMMY"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY egress protocol ip prio 1 matchall action ct zone 1 pipe",
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 1,
+                "packet": "[Ether()/frag for frag in fragment(IP(src='10.0.0.10', dst='10.0.0.1', id=1)/UDP(sport=12345, dport=9)/Raw(b'A' * 4000), fragsize=1400)]"
+            }
+        ],
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc show dev $DUMMY | grep -A 1 '^qdisc prio 1:'",
+        "matchPattern": "Sent [1-9][0-9]* bytes [1-9][0-9]* pkt",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 clsact",
+            "$TC qdisc del dev $DUMMY clsact",
+            "$TC qdisc del dev $DUMMY root handle 1:"
+        ]
     }
 ]

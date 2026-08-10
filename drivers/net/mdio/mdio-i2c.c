@@ -419,50 +419,6 @@ static int i2c_mii_write_rollball(struct mii_bus *bus, int phy_id, int devad,
 	return 0;
 }
 
-static int i2c_mii_probe_rollball(struct i2c_adapter *i2c)
-{
-	u8 data_buf[] = { ROLLBALL_DATA_ADDR, 0x01, 0x00, 0x00 };
-	u8 cmd_buf[]  = { ROLLBALL_CMD_ADDR, ROLLBALL_CMD_READ };
-	u8 cmd_addr   = ROLLBALL_CMD_ADDR;
-	struct i2c_msg msgs[2];
-	u8 result;
-	int ret;
-	int i;
-
-	msgs[0].addr  = ROLLBALL_PHY_I2C_ADDR;
-	msgs[0].flags = 0;
-	msgs[0].len   = sizeof(data_buf);
-	msgs[0].buf   = data_buf;
-	msgs[1].addr  = ROLLBALL_PHY_I2C_ADDR;
-	msgs[1].flags = 0;
-	msgs[1].len   = sizeof(cmd_buf);
-	msgs[1].buf   = cmd_buf;
-
-	ret = i2c_transfer_rollball(i2c, msgs, ARRAY_SIZE(msgs));
-	if (ret < 0)
-		return -ENODEV;
-
-	msgs[0].addr  = ROLLBALL_PHY_I2C_ADDR;
-	msgs[0].flags = 0;
-	msgs[0].len   = 1;
-	msgs[0].buf   = &cmd_addr;
-	msgs[1].addr  = ROLLBALL_PHY_I2C_ADDR;
-	msgs[1].flags = I2C_M_RD;
-	msgs[1].len   = 1;
-	msgs[1].buf   = &result;
-
-	for (i = 0; i < 10; i++) {
-		msleep(20);
-		ret = i2c_transfer_rollball(i2c, msgs, ARRAY_SIZE(msgs));
-		if (ret < 0)
-			return -ENODEV;
-		if (result == ROLLBALL_CMD_DONE)
-			return 0;
-	}
-
-	return -ENODEV;
-}
-
 static int i2c_mii_init_rollball(struct i2c_adapter *i2c)
 {
 	struct i2c_msg msg;
@@ -482,11 +438,11 @@ static int i2c_mii_init_rollball(struct i2c_adapter *i2c)
 
 	ret = i2c_transfer(i2c, &msg, 1);
 	if (ret < 0)
-		return -ENODEV;
-	if (ret != 1)
+		return ret;
+	else if (ret != 1)
 		return -EIO;
-
-	return i2c_mii_probe_rollball(i2c);
+	else
+		return 0;
 }
 
 static bool mdio_i2c_check_functionality(struct i2c_adapter *i2c,
@@ -531,10 +487,9 @@ struct mii_bus *mdio_i2c_alloc(struct device *parent, struct i2c_adapter *i2c,
 	case MDIO_I2C_ROLLBALL:
 		ret = i2c_mii_init_rollball(i2c);
 		if (ret < 0) {
-			if (ret != -ENODEV)
-				dev_err(parent,
-					"Cannot initialize RollBall MDIO I2C protocol: %d\n",
-					ret);
+			dev_err(parent,
+				"Cannot initialize RollBall MDIO I2C protocol: %d\n",
+				ret);
 			mdiobus_free(mii);
 			return ERR_PTR(ret);
 		}

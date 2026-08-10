@@ -1192,6 +1192,15 @@ no_data_attr_special_case:
 		vi->i_flags |= S_IMMUTABLE;
 
 	/*
+	 * System files such as $Bitmap and $MFT are maintained by the driver
+	 * itself, and writing them from userspace corrupts the volume.
+	 * Always make them immutable regardless of the sys_immutable option.
+	 * Directories are skipped so the root and $Extend stay usable.
+	 */
+	if (ni->mft_no < FILE_first_user && S_ISREG(vi->i_mode))
+		vi->i_flags |= S_IMMUTABLE;
+
+	/*
 	 * The number of 512-byte blocks used on disk (for stat). This is in so
 	 * far inaccurate as it doesn't account for any named streams or other
 	 * special non-resident attributes, but that is how Windows works, too,

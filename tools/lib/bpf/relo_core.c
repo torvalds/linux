@@ -216,7 +216,7 @@ recur:
 		goto recur;
 	}
 	default:
-		pr_warn("unexpected kind %s relocated, local [%d], target [%d]\n",
+		pr_warn("unexpected kind %s relocated, local [%u], target [%u]\n",
 			btf_kind_str(local_type), local_id, targ_id);
 		return 0;
 	}
@@ -384,7 +384,7 @@ int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 				return sz;
 			spec->bit_offset += access_idx * sz * 8;
 		} else {
-			pr_warn("prog '%s': relo for [%u] %s (at idx %d) captures type [%d] of unexpected kind %s\n",
+			pr_warn("prog '%s': relo for [%u] %s (at idx %d) captures type [%u] of unexpected kind %s\n",
 				prog_name, relo->type_id, spec_str, i, id, btf_kind_str(t));
 			return -EINVAL;
 		}
@@ -725,7 +725,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 				return -EINVAL;
 			*val = sz;
 		} else {
-			pr_warn("prog '%s': relo %d at insn #%d can't be applied to array access\n",
+			pr_warn("prog '%s': relo %u at insn #%u can't be applied to array access\n",
 				prog_name, relo->kind, relo->insn_off / 8);
 			return -EINVAL;
 		}
@@ -747,7 +747,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		while (bit_off + bit_sz - byte_off * 8 > byte_sz * 8) {
 			if (byte_sz >= 8) {
 				/* bitfield can't be read with 64-bit read */
-				pr_warn("prog '%s': relo %d at insn #%d can't be satisfied for bitfield\n",
+				pr_warn("prog '%s': relo %u at insn #%u can't be satisfied for bitfield\n",
 					prog_name, relo->kind, relo->insn_off / 8);
 				return -E2BIG;
 			}
@@ -971,7 +971,7 @@ done:
 		err = 0;
 	} else if (err == -EOPNOTSUPP) {
 		/* EOPNOTSUPP means unknown/unsupported relocation */
-		pr_warn("prog '%s': relo #%d: unrecognized CO-RE relocation %s (%d) at insn #%d\n",
+		pr_warn("prog '%s': relo #%d: unrecognized CO-RE relocation %s (%u) at insn #%u\n",
 			prog_name, relo_idx, core_relo_kind_str(relo->kind),
 			relo->kind, relo->insn_off / 8);
 	}
@@ -1067,7 +1067,7 @@ poison:
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
 		if (res->validate && insn->imm != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %llu -> %llu\n",
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %d, exp %llu -> %llu\n",
 				prog_name, relo_idx,
 				insn_idx, insn->imm, (unsigned long long)orig_val,
 				(unsigned long long)new_val);
@@ -1083,7 +1083,7 @@ poison:
 	case BPF_ST:
 	case BPF_STX:
 		if (res->validate && insn->off != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %u, exp %llu -> %llu\n",
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %d, exp %llu -> %llu\n",
 				prog_name, relo_idx, insn_idx, insn->off, (unsigned long long)orig_val,
 				(unsigned long long)new_val);
 			return -EINVAL;
@@ -1159,7 +1159,7 @@ poison:
 	default:
 		pr_warn("prog '%s': relo #%d: trying to relocate unrecognized insn #%d, code:0x%x, src:0x%x, dst:0x%x, off:0x%x, imm:0x%x\n",
 			prog_name, relo_idx, insn_idx, insn->code,
-			insn->src_reg, insn->dst_reg, insn->off, insn->imm);
+			(unsigned)insn->src_reg, (unsigned)insn->dst_reg, (unsigned)insn->off, (unsigned)insn->imm);
 		return -EINVAL;
 	}
 
@@ -1323,7 +1323,7 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 		const char *spec_str;
 
 		spec_str = btf__name_by_offset(local_btf, relo->access_str_off);
-		pr_warn("prog '%s': relo #%d: parsing [%d] %s %s + %s failed: %d\n",
+		pr_warn("prog '%s': relo #%d: parsing [%u] %s %s + %s failed: %d\n",
 			prog_name, relo_idx, local_id, btf_kind_str(local_type),
 			str_is_empty(local_name) ? "<anon>" : local_name,
 			spec_str ?: "<?>", err);
@@ -1346,7 +1346,7 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 
 	/* libbpf doesn't support candidate search for anonymous types */
 	if (str_is_empty(local_name)) {
-		pr_warn("prog '%s': relo #%d: <%s> (%d) relocation doesn't support anonymous types\n",
+		pr_warn("prog '%s': relo #%d: <%s> (%u) relocation doesn't support anonymous types\n",
 			prog_name, relo_idx, core_relo_kind_str(relo->kind), relo->kind);
 		return -EOPNOTSUPP;
 	}
@@ -1697,7 +1697,7 @@ recur:
 		goto recur;
 	}
 	default:
-		pr_warn("unexpected kind %s relocated, local [%d], target [%d]\n",
+		pr_warn("unexpected kind %s relocated, local [%u], target [%u]\n",
 			btf_kind_str(local_t), local_id, targ_id);
 		return 0;
 	}

@@ -63,12 +63,12 @@ int __ip4_datagram_connect(struct sock *sk, struct sockaddr_unsized *uaddr, int 
 	}
 
 	/* Update addresses before rehashing */
-	inet->inet_daddr = fl4->daddr;
+	WRITE_ONCE(inet->inet_daddr, fl4->daddr);
 	inet->inet_dport = usin->sin_port;
 	if (!inet->inet_saddr)
 		inet->inet_saddr = fl4->saddr;
 	if (!inet->inet_rcv_saddr) {
-		inet->inet_rcv_saddr = fl4->saddr;
+		WRITE_ONCE(inet->inet_rcv_saddr, fl4->saddr);
 		if (sk->sk_prot->rehash)
 			sk->sk_prot->rehash(sk);
 	}

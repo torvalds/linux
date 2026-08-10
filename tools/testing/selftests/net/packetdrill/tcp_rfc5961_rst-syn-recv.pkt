@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// RFC 9293 Section 3.10.7.4: in SYN-RECEIVED, an exact RST resets
+// the connection.  A non-exact in-window RST elicits a challenge ACK,
+// while an out-of-window RST is silently discarded.
+
+`./defaults.sh`
+
+// An exact RST removes the request socket.
+   0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+  +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+  +0 bind(3, ..., ...) = 0
+  +0 listen(3, 1) = 0
+  +0 < S 0:0(0) win 1000 <mss 1000,sackOK,nop,nop,nop,wscale 0>
+  +0 > S. 0:0(0) ack 1 <...>
+  +0 < R 1:1(0) win 1000
+ +.1 < . 1:1(0) ack 1 win 1000
+  +0 > R 1:1(0)
+  +0 close(3) = 0
+
+// A non-exact in-window RST gets a challenge ACK and the request survives.
+  +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+  +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+  +0 bind(3, ..., ...) = 0
+  +0 listen(3, 1) = 0
+  +0 < S 0:0(0) win 1000 <mss 1000,sackOK,nop,nop,nop,wscale 0>
+  +0 > S. 0:0(0) ack 1 <...>
+  +0 < R 2:2(0) win 1000
+  +0 > . 1:1(0) ack 1
+  +0 < . 1:1(0) ack 1 win 1000
+  +0 accept(3, ..., ...) = 4
+  +0 close(4) = 0
+  +0 close(3) = 0
+
+// RST sequence validation precedes ACK validation.  Even an RST|ACK
+// with an unacceptable ACK value gets a challenge ACK.
+  +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+  +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+  +0 bind(3, ..., ...) = 0
+  +0 listen(3, 1) = 0
+  +0 < S 0:0(0) win 1000 <mss 1000,sackOK,nop,nop,nop,wscale 0>
+  +0 > S. 0:0(0) ack 1 <...>
+  +0 < R. 2:2(0) ack 100 win 1000
+  +0 > . 1:1(0) ack 1
+  +0 < . 1:1(0) ack 1 win 1000
+  +0 accept(3, ..., ...) = 4
+  +0 close(4) = 0
+  +0 close(3) = 0
+
+// An out-of-window RST is silent and does not remove the request.
+  +0 socket(..., SOCK_STREAM|SOCK_NONBLOCK, IPPROTO_TCP) = 3
+  +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+  +0 bind(3, ..., ...) = 0
+  +0 listen(3, 1) = 0
+  +0 < S 0:0(0) win 1000 <mss 1000,sackOK,nop,nop,nop,wscale 0>
+  +0 > S. 0:0(0) ack 1 <...>
+  +0 < R 100001:100001(0) win 1000
+ +.1 < . 1:1(0) ack 1 win 1000
+  +0 accept(3, ..., ...) = 4
+  +0 close(4) = 0
+  +0 close(3) = 0

@@ -103,7 +103,7 @@ enum rtca3_alrm_set_step {
 
 /**
  * struct rtca3_ppb_per_cycle - PPB per cycle
- * @ten_sec: PPB per cycle in 10 seconds adjutment mode
+ * @ten_sec: PPB per cycle in 10 seconds adjustment mode
  * @sixty_sec: PPB per cycle in 60 seconds adjustment mode
  */
 struct rtca3_ppb_per_cycle {
@@ -228,12 +228,19 @@ static void rtca3_prepare_cntalrm_regs_for_read(struct rtca3_priv *priv, bool cn
 	}
 }
 
+static u32 rtca3_decode_year(u8 mask, u16 year)
+{
+	u8 y = FIELD_GET(mask, year);
+	u32 century = bcd2bin((y == 0x99) ? 0x19 : 0x20);
+
+	return (century * 100 + bcd2bin(y)) - 1900;
+}
+
 static int rtca3_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rtca3_priv *priv = dev_get_drvdata(dev);
 	u8 sec, min, hour, wday, mday, month, tmp;
 	u8 trials = 0;
-	u32 year100;
 	u16 year;
 
 	guard(spinlock_irqsave)(&priv->lock);
@@ -274,9 +281,7 @@ static int rtca3_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKCNT_WK, wday));
 	tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYCNT_DAY, mday));
 	tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONCNT_MONTH, month)) - 1;
-	year = FIELD_GET(RTCA3_RYRCNT_YEAR, year);
-	year100 = bcd2bin((year == 0x99) ? 0x19 : 0x20);
-	tm->tm_year = (year100 * 100 + bcd2bin(year)) - 1900;
+	tm->tm_year = rtca3_decode_year(RTCA3_RYRCNT_YEAR, year);
 
 	return 0;
 }
@@ -354,7 +359,6 @@ static int rtca3_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	struct rtca3_priv *priv = dev_get_drvdata(dev);
 	u8 sec, min, hour, wday, mday, month;
 	struct rtc_time *tm = &wkalrm->time;
-	u32 year100;
 	u16 year;
 
 	guard(spinlock_irqsave)(&priv->lock);
@@ -373,9 +377,7 @@ static int rtca3_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	tm->tm_wday = bcd2bin(FIELD_GET(RTCA3_RWKAR_DAYW, wday));
 	tm->tm_mday = bcd2bin(FIELD_GET(RTCA3_RDAYAR_DATE, mday));
 	tm->tm_mon = bcd2bin(FIELD_GET(RTCA3_RMONAR_MON, month)) - 1;
-	year = FIELD_GET(RTCA3_RYRAR_YR, year);
-	year100 = bcd2bin((year == 0x99) ? 0x19 : 0x20);
-	tm->tm_year = (year100 * 100 + bcd2bin(year)) - 1900;
+	tm->tm_year = rtca3_decode_year(RTCA3_RYRAR_YR, year);
 
 	wkalrm->enabled = !!(readb(priv->base + RTCA3_RCR1) & RTCA3_RCR1_AIE);
 
@@ -455,7 +457,7 @@ setup_failed:
 		 * specified timeout for setup.
 		 */
 		writeb(rcr1 & ~RTCA3_RCR1_PIE, priv->base + RTCA3_RCR1);
-		readb_poll_timeout_atomic(priv->base + RTCA3_RCR1, tmp, !(tmp & ~RTCA3_RCR1_PIE),
+		readb_poll_timeout_atomic(priv->base + RTCA3_RCR1, tmp, !(tmp & RTCA3_RCR1_PIE),
 					  10, RTCA3_DEFAULT_TIMEOUT_US);
 		atomic_set(&priv->alrm_sstep, RTCA3_ALRM_SSTEP_DONE);
 	}
@@ -634,6 +636,8 @@ static int rtca3_initial_setup(struct clk *clk, struct rtca3_priv *priv)
 	writeb(0, priv->base + RTCA3_RADJ);
 	ret = readb_poll_timeout(priv->base + RTCA3_RADJ, tmp, !tmp, 10,
 				 RTCA3_DEFAULT_TIMEOUT_US);
+	if (ret)
+		return ret;
 
 	/* Start the RTC and enable automatic time error adjustment. */
 	mask = RTCA3_RCR2_START | RTCA3_RCR2_AADJE;
@@ -700,7 +704,7 @@ static void rtca3_action(void *data)
 
 	ret = reset_control_assert(priv->rstc);
 	if (ret)
-		dev_err(dev, "Failed to de-assert reset!");
+		dev_err(dev, "Failed to assert reset!");
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret < 0)

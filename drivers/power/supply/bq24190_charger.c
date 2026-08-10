@@ -5,7 +5,6 @@
  * Author: Mark A. Greer <mgreer@animalcreek.com>
  */
 
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>

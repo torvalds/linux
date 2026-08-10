@@ -289,6 +289,7 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 	int ret;
 	const char *comp = NULL;
 	u32 inode_flags;
+	bool prop_set = false;
 
 	if (btrfs_root_readonly(root))
 		return -EROFS;
@@ -401,16 +402,15 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 	if (comp) {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression",
 				     comp, strlen(comp), 0);
-		if (unlikely(ret)) {
-			btrfs_abort_transaction(trans, ret);
+		if (ret)
 			goto out_end_trans;
-		}
+		prop_set = true;
 	} else {
 		ret = btrfs_set_prop(trans, inode, "btrfs.compression", NULL, 0, 0);
-		if (unlikely(ret && ret != -ENODATA)) {
-			btrfs_abort_transaction(trans, ret);
+		prop_set = (ret == 0);
+		/* If ret == -ENODATA ignore and proceed to update inode item. */
+		if (ret && ret != -ENODATA)
 			goto out_end_trans;
-		}
 	}
 
 update_flags:
@@ -420,6 +420,12 @@ update_flags:
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_set_ctime_current(&inode->vfs_inode);
 	ret = btrfs_update_inode(trans, inode);
+	/*
+	 * If we set a property or deleted one, we must abort if we fail to
+	 * update the inode, to avoid persisting an inconsistent state.
+	 */
+	if (unlikely(ret && prop_set))
+		btrfs_abort_transaction(trans, ret);
 
  out_end_trans:
 	btrfs_end_transaction(trans);
@@ -2042,6 +2048,7 @@ static int _btrfs_ioctl_get_subvol_info(struct inode *inode,
 			ret = -ENOENT;
 			goto out;
 		}
+		ret = 0;
 	}
 
 out:
@@ -5198,7 +5205,7 @@ static int btrfs_ioctl_get_csums(struct file *file, void __user *argp)
 	struct btrfs_inode *inode = BTRFS_I(vfs_inode);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
-	struct btrfs_ioctl_get_csums_args args;
+	struct btrfs_ioctl_get_csums_args args = { 0 };
 	BTRFS_PATH_AUTO_FREE(path);
 	const u64 ino = btrfs_ino(inode);
 	const u32 csum_size = fs_info->csum_size;

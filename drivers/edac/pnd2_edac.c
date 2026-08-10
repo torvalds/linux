@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/math64.h>
 #include <linux/mmzone.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>

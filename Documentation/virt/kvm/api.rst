@@ -6840,7 +6840,7 @@ s390 specific.
 		} s390_ucontrol;
 
 s390 specific. A page fault has occurred for a user controlled virtual
-machine (KVM_VM_S390_UNCONTROL) on its host page table that cannot be
+machine (KVM_VM_S390_UCONTROL) on its host page table that cannot be
 resolved by the kernel.
 The program code and the translation exception code that were placed
 in the cpu's lowcore are presented here as defined by the z Architecture
@@ -8413,6 +8413,12 @@ When this capability is enabled all memory in memslots must be mapped as
 ``MAP_ANONYMOUS`` or with a RAM-based file mapping (``tmpfs``, ``memfd``),
 attempts to create a memslot with an invalid mmap will result in an
 -EINVAL return.
+
+``guest_memfd``, even though it is an anonymous file, is not supported with MTE.
+Attempting to create a memslot backed by ``guest_memfd`` when the MTE capability
+is enabled, or attempting to enable the MTE capability after
+``guest_memfd``-backed memslots have been created, will result in an -EINVAL
+return.
 
 When enabled the VMM may make use of the ``KVM_ARM_MTE_COPY_TAGS`` ioctl to
 perform a bulk copy of tags to/from the guest.

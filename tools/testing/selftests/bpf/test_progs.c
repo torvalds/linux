@@ -573,18 +573,19 @@ bool test__start_subtest_with_desc(const char *subtest_name, const char *subtest
 	struct subtest_state *subtest_state;
 	const char *subtest_display_name;
 	size_t sub_state_size = sizeof(*subtest_state);
+	void *tmp;
 
 	if (env.subtest_state)
 		test__end_subtest();
 
 	state->subtest_num++;
-	state->subtest_states =
-		realloc(state->subtest_states,
-			state->subtest_num * sub_state_size);
-	if (!state->subtest_states) {
+	tmp = realloc(state->subtest_states, state->subtest_num * sub_state_size);
+	if (!tmp) {
+		state->subtest_num--;
 		fprintf(stderr, "Not enough memory to allocate subtest result\n");
 		return false;
 	}
+	state->subtest_states = tmp;
 
 	subtest_state = &state->subtest_states[state->subtest_num - 1];
 
@@ -730,11 +731,14 @@ int compare_map_keys(int map1_fd, int map2_fd)
 int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len)
 {
 	__u32 key, next_key, *cur_key_p, *next_key_p;
-	char *val_buf1, *val_buf2;
-	int i, err = 0;
+	char *val_buf1 = NULL, *val_buf2 = NULL;
+	int i, err = -ENOMEM;
 
 	val_buf1 = malloc(stack_trace_len);
 	val_buf2 = malloc(stack_trace_len);
+	if (!val_buf1 || !val_buf2)
+		goto out;
+	err = 0;
 	cur_key_p = NULL;
 	next_key_p = &key;
 	while (bpf_map_get_next_key(smap_fd, cur_key_p, next_key_p) == 0) {
@@ -1513,12 +1517,14 @@ static int dispatch_thread_send_subtests(int sock_fd, struct test_state *state)
 	struct subtest_state *subtest_state;
 	int subtest_num = state->subtest_num;
 
-	state->subtest_states = malloc(subtest_num * sizeof(*subtest_state));
+	state->subtest_states = calloc(subtest_num, sizeof(*subtest_state));
+	if (!state->subtest_states) {
+		state->subtest_num = 0;
+		return -ENOMEM;
+	}
 
 	for (int i = 0; i < subtest_num; i++) {
 		subtest_state = &state->subtest_states[i];
-
-		memset(subtest_state, 0, sizeof(*subtest_state));
 
 		if (read_prog_test_msg(sock_fd, &msg, MSG_SUBTEST_DONE))
 			return 1;
@@ -1741,7 +1747,7 @@ static void server_main(void)
 		data[i].worker_id = i;
 		data[i].sock_fd = env.worker_socks[i];
 		rc = pthread_create(&dispatcher_threads[i], NULL, dispatch_thread, &data[i]);
-		if (rc < 0) {
+		if (rc) {
 			perror("Failed to launch dispatcher thread");
 			exit(EXIT_ERR_SETUP_INFRA);
 		}
@@ -1886,7 +1892,6 @@ static int worker_main_send_subtests(int sock, struct test_state *state)
 			worker_main_send_log(sock, subtest_state->log_buf, subtest_state->log_cnt);
 
 		free_subtest_state(subtest_state);
-		free(subtest_state->name);
 	}
 
 out:

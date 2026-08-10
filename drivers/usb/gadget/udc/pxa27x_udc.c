@@ -2374,9 +2374,10 @@ static int pxa_udc_probe(struct platform_device *pdev)
 	struct pxa_udc *udc = &memory;
 	int retval = 0;
 
-	udc->gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_ASIS);
+	udc->gpiod = devm_gpiod_get_optional(&pdev->dev, NULL, GPIOD_ASIS);
 	if (IS_ERR(udc->gpiod))
-		return PTR_ERR(udc->gpiod);
+		return dev_err_probe(&pdev->dev, PTR_ERR(udc->gpiod),
+				     "Couldn't find or request D+ gpio\n");
 
 	udc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(udc->regs))
@@ -2395,11 +2396,6 @@ static int pxa_udc_probe(struct platform_device *pdev)
 		udc->transceiver = usb_get_phy(USB_PHY_TYPE_USB2);
 	}
 
-	if (IS_ERR(udc->gpiod)) {
-		dev_err(&pdev->dev, "Couldn't find or request D+ gpio : %ld\n",
-			PTR_ERR(udc->gpiod));
-		return PTR_ERR(udc->gpiod);
-	}
 	if (udc->gpiod)
 		gpiod_direction_output(udc->gpiod, 0);
 

@@ -200,9 +200,23 @@ void ksmbd_conn_r_count_dec(struct ksmbd_conn *conn);
  * This is a hack. We will move status to a proper place once we land
  * a multi-sessions support.
  */
+static inline bool ksmbd_conn_new(struct ksmbd_conn *conn)
+{
+	return READ_ONCE(conn->status) == KSMBD_SESS_NEW;
+}
+
 static inline bool ksmbd_conn_good(struct ksmbd_conn *conn)
 {
 	return READ_ONCE(conn->status) == KSMBD_SESS_GOOD;
+}
+
+static inline unsigned int
+ksmbd_max_allowed_pdu_size(struct ksmbd_conn *conn)
+{
+	if (ksmbd_conn_good(conn))
+		return SMB3_MAX_MSGSIZE + conn->vals->max_write_size;
+
+	return SMB3_MAX_MSGSIZE;
 }
 
 static inline bool ksmbd_conn_need_negotiate(struct ksmbd_conn *conn)

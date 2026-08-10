@@ -60,6 +60,116 @@ __naked void stack_read_priv_vs_unpriv(void)
 }
 
 SEC("cgroup/skb")
+__description("variable-offset stack read preserves spilled zero")
+__success
+__log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8")
+__msg("R3=0")
+__retval(0)
+__naked void stack_read_var_off_preserves_spilled_zero(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	*(u64*)(r10 - 8) = r0;			\
+	r2 = *(u32*)(r1 + 0);				\
+	r2 &= 7;					\
+	r2 -= 8;					\
+	r2 += r10;					\
+	r3 = *(u8*)(r2 + 0);				\
+	r1 = r10;					\
+	r1 += -1;					\
+	r1 += r3;					\
+	*(u8*)(r1 + 0) = r3;			\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("cgroup/skb")
+__description("variable-offset stack read preserves spilled zero across slots")
+__success
+__log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8,-16")
+__msg("R3=0")
+__retval(0)
+__naked void stack_read_var_off_preserves_spilled_zero_across_slots(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	*(u64*)(r10 - 8) = r0;			\
+	*(u64*)(r10 - 16) = r0;			\
+	r2 = *(u32*)(r1 + 0);				\
+	r2 &= 15;					\
+	r2 -= 16;					\
+	r2 += r10;					\
+	r3 = *(u8*)(r2 + 0);				\
+	r1 = r10;					\
+	r1 += -1;					\
+	r1 += r3;					\
+	*(u8*)(r1 + 0) = r3;			\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("cgroup/skb")
+__description("variable-offset stack read preserves partial spilled zero")
+__success
+__log_level(2)
+__msg("mark_precise: frame0: regs= stack=-8")
+__msg("R3=0")
+__retval(0)
+__naked void stack_read_var_off_preserves_partial_spilled_zero(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	*(u8*)(r10 - 9) = r0;			\
+	*(u8*)(r10 - 10) = r0;			\
+	*(u8*)(r10 - 11) = r0;			\
+	*(u8*)(r10 - 12) = r0;			\
+	*(u8*)(r10 - 13) = r0;			\
+	*(u8*)(r10 - 14) = r0;			\
+	*(u8*)(r10 - 15) = r0;			\
+	*(u32*)(r10 - 8) = r0;			\
+	r2 = *(u32*)(r1 + 0);				\
+	r2 &= 15;					\
+	if r2 > 10 goto l0_%=;			\
+	r2 -= 15;					\
+	r2 += r10;					\
+	r3 = *(u8*)(r2 + 0);				\
+	r1 = r10;					\
+	r1 += -1;					\
+	r1 += r3;					\
+	*(u8*)(r1 + 0) = r3;			\
+l0_%=: r0 = 0;					\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("cgroup/skb")
+__description("variable-offset stack read partial spill with misc data")
+__failure
+__msg("invalid variable-offset write to stack R1")
+__naked void stack_read_var_off_partial_spill_with_misc_data(void)
+{
+	asm volatile ("					\
+	r0 = 0;						\
+	*(u32*)(r10 - 8) = r0;			\
+	r2 = *(u32*)(r1 + 0);				\
+	r2 &= 7;					\
+	r2 -= 8;					\
+	r2 += r10;					\
+	r3 = *(u8*)(r2 + 0);				\
+	r1 = r10;					\
+	r1 += -1;					\
+	r1 += r3;					\
+	*(u8*)(r1 + 0) = 0;			\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("cgroup/skb")
 __description("variable-offset stack read, uninitialized")
 __success
 __failure_unpriv __msg_unpriv("R2 variable stack access prohibited for !root")

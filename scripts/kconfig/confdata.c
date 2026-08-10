@@ -206,6 +206,78 @@ static void conf_message(const char *fmt, ...)
 	va_end(ap);
 }
 
+static void conf_changed_input_warning(const char *s)
+{
+	fputs(s, stderr);
+}
+
+static bool conf_warn_changed_input_enabled(void)
+{
+	const char *env = getenv("KCONFIG_WARN_CHANGED_INPUT");
+
+	return env && *env;
+}
+
+static const char *sym_get_user_value_string(struct symbol *sym)
+{
+	switch (sym->type) {
+	case S_BOOLEAN:
+	case S_TRISTATE:
+		switch (sym->def[S_DEF_USER].tri) {
+		case yes:
+			return "y";
+		case mod:
+			return "m";
+		default:
+			return "n";
+		}
+	default:
+		return sym->def[S_DEF_USER].val ?: "";
+	}
+}
+
+static bool sym_user_value_changed(struct symbol *sym)
+{
+	if (!sym_has_value(sym) || sym->type == S_UNKNOWN)
+		return false;
+
+	switch (sym->type) {
+	case S_BOOLEAN:
+	case S_TRISTATE:
+		return sym->def[S_DEF_USER].tri != sym_get_tristate_value(sym);
+	default:
+		return strcmp(sym_get_user_value_string(sym),
+			      sym_get_string_value(sym));
+	}
+}
+
+static void conf_clear_written_flags(void)
+{
+	struct symbol *sym;
+
+	for_all_symbols(sym)
+		sym->flags &= ~SYMBOL_WRITTEN;
+}
+
+static void conf_append_changed_input_warning(struct gstr *gs,
+					      struct symbol *sym,
+					      bool *changed_input_found)
+{
+	if (!sym_user_value_changed(sym))
+		return;
+
+	if (!*changed_input_found) {
+		str_printf(gs,
+			   "warning: user-provided values changed by Kconfig:\n");
+		*changed_input_found = true;
+	}
+
+	str_printf(gs, "  %s%s: %s -> %s\n",
+		   CONFIG_, sym->name,
+		   sym_get_user_value_string(sym),
+		   sym_get_string_value(sym));
+}
+
 const char *conf_get_configname(void)
 {
 	char *name = getenv("KCONFIG_CONFIG");
@@ -759,11 +831,15 @@ int conf_write_defconfig(const char *filename)
 {
 	struct symbol *sym;
 	struct menu *menu;
+	struct gstr gs;
 	FILE *out;
+	bool warn_changed_input = conf_warn_changed_input_enabled();
+	bool changed_input_found = false;
 
 	out = fopen(filename, "w");
 	if (!out)
 		return 1;
+	gs = str_new();
 
 	sym_clear_all_valid();
 
@@ -772,10 +848,14 @@ int conf_write_defconfig(const char *filename)
 
 		sym = menu->sym;
 
-		if (!sym || sym_is_choice(sym))
+		if (!sym || sym_is_choice(sym) || sym->flags & SYMBOL_WRITTEN)
 			continue;
 
 		sym_calc_value(sym);
+		if (warn_changed_input)
+			conf_append_changed_input_warning(&gs, sym,
+							  &changed_input_found);
+		sym->flags |= SYMBOL_WRITTEN;
 		if (!(sym->flags & SYMBOL_WRITE))
 			continue;
 		sym->flags &= ~SYMBOL_WRITE;
@@ -798,6 +878,13 @@ int conf_write_defconfig(const char *filename)
 		print_symbol_for_dotconfig(out, sym);
 	}
 	fclose(out);
+
+	conf_clear_written_flags();
+
+	if (changed_input_found)
+		conf_changed_input_warning(str_get(&gs));
+
+	str_free(&gs);
 	return 0;
 }
 
@@ -809,7 +896,10 @@ int conf_write(const char *name)
 	const char *str;
 	char tmpname[PATH_MAX + 1], oldname[PATH_MAX + 1];
 	char *env;
+	struct gstr gs;
 	bool need_newline = false;
+	bool warn_changed_input = conf_warn_changed_input_enabled();
+	bool changed_input_found = false;
 
 	if (!name)
 		name = conf_get_configname();
@@ -838,6 +928,7 @@ int conf_write(const char *name)
 	}
 	if (!out)
 		return 1;
+	gs = str_new();
 
 	conf_write_heading(out, &comment_style_pound);
 
@@ -859,13 +950,16 @@ int conf_write(const char *name)
 		} else if (!sym_is_choice(sym) &&
 			   !(sym->flags & SYMBOL_WRITTEN)) {
 			sym_calc_value(sym);
+			if (warn_changed_input)
+				conf_append_changed_input_warning(&gs, sym,
+								  &changed_input_found);
+			sym->flags |= SYMBOL_WRITTEN;
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
 			if (need_newline) {
 				fprintf(out, "\n");
 				need_newline = false;
 			}
-			sym->flags |= SYMBOL_WRITTEN;
 			print_symbol_for_dotconfig(out, sym);
 		}
 
@@ -892,8 +986,12 @@ end_check:
 	}
 	fclose(out);
 
-	for_all_symbols(sym)
-		sym->flags &= ~SYMBOL_WRITTEN;
+	conf_clear_written_flags();
+
+	if (changed_input_found)
+		conf_changed_input_warning(str_get(&gs));
+
+	str_free(&gs);
 
 	if (*tmpname) {
 		if (is_same(name, tmpname)) {

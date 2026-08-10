@@ -1434,7 +1434,6 @@ enum kvm_mmu_type {
 };
 
 struct kvm_arch {
-	unsigned long n_used_mmu_pages;
 	unsigned long n_requested_mmu_pages;
 	unsigned long n_max_mmu_pages;
 	unsigned int indirect_shadow_pages;
@@ -1700,6 +1699,7 @@ struct kvm_vm_stat {
 	u64 mmu_recycled;
 	u64 mmu_cache_miss;
 	u64 mmu_unsync;
+	u64 mmu_shadow_pages;
 	union {
 		struct {
 			atomic64_t pages_4k;
@@ -1858,7 +1858,7 @@ struct kvm_x86_ops {
 	 * Can potentially get non-canonical addresses through INVLPGs, which
 	 * the implementation may choose to ignore if appropriate.
 	 */
-	void (*flush_tlb_gva)(struct kvm_vcpu *vcpu, gva_t addr);
+	void (*flush_tlb_gva)(struct kvm_vcpu *vcpu, gva_t addr, bool *full);
 
 	/*
 	 * Flush any TLB entries created by the guest.  Like tlb_flush_gva(),
@@ -2523,16 +2523,6 @@ static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_call(vcpu_unblocking)(vcpu);
-}
-
-static inline int kvm_cpu_get_apicid(int mps_cpu)
-{
-#ifdef CONFIG_X86_LOCAL_APIC
-	return default_cpu_present_to_apicid(mps_cpu);
-#else
-	WARN_ON_ONCE(1);
-	return BAD_APICID;
-#endif
 }
 
 int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);

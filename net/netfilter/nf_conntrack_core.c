@@ -1471,6 +1471,31 @@ static bool gc_worker_can_early_drop(const struct nf_conn *ct)
 	return false;
 }
 
+static void nf_ct_help_gc(struct nf_conn *ct)
+{
+	struct nf_conn_help *help;
+
+	if (!refcount_inc_not_zero(&ct->ct_general.use))
+		return;
+
+	/* load ->status after refcount increase */
+	smp_acquire__after_ctrl_dep();
+
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct)) {
+		nf_ct_put(ct);
+		return;
+	}
+
+	/* re-check helper due to SLAB_TYPESAFE_BY_RCU */
+	if (test_bit(IPS_HELPER_BIT, &ct->status)) {
+		help = nfct_help(ct);
+		if (help)
+			nf_ct_expectation_gc(help);
+	}
+
+	nf_ct_put(ct);
+}
+
 static void gc_worker(struct work_struct *work)
 {
 	unsigned int i, hashsz, nf_conntrack_max95 = 0;
@@ -1543,7 +1568,13 @@ static void gc_worker(struct work_struct *work)
 			expires = (expires - (long)next_run) / ++count;
 			next_run += expires;
 
-			if (nf_conntrack_max95 == 0 || gc_worker_skip_ct(tmp))
+			if (gc_worker_skip_ct(tmp))
+				continue;
+
+			if (test_bit(IPS_HELPER_BIT, &tmp->status))
+				nf_ct_help_gc(tmp);
+
+			if (nf_conntrack_max95 == 0)
 				continue;
 
 			net = nf_ct_net(tmp);

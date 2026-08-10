@@ -427,6 +427,7 @@ union MESAPI__SUSPEND {
 		uint32_t		suspend_fence_value;
 
 		struct MES_API_STATUS	api_status;
+		uint32_t		doorbell_offset;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -444,6 +445,7 @@ union MESAPI__RESUME {
 		uint64_t		gang_context_addr;
 
 		struct MES_API_STATUS	api_status;
+		uint32_t		doorbell_offset;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

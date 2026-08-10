@@ -9,7 +9,6 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
-#include <linux/mod_devicetable.h>
 #include <linux/pci_regs.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -47,7 +46,6 @@
 #define PCIE_APP_IRN_INTD		BIT(16)
 #define PCIE_APP_IRN_MSG_LTR		BIT(18)
 #define PCIE_APP_IRN_SYS_ERR_RC		BIT(29)
-#define PCIE_APP_INTX_OFST		12
 
 #define PCIE_APP_IRN_INT \
 	(PCIE_APP_IRN_AER_REPORT | PCIE_APP_IRN_PME | \
@@ -196,6 +194,13 @@ static void intel_pcie_device_rst_deassert(struct intel_pcie *pcie)
 	gpiod_set_value_cansleep(pcie->reset_gpio, 0);
 }
 
+static void intel_pcie_core_irq_enable(struct intel_pcie *pcie)
+{
+	pcie_app_wr(pcie, PCIE_APP_IRNEN, 0);
+	pcie_app_wr(pcie, PCIE_APP_IRNCR, PCIE_APP_IRN_INT);
+	pcie_app_wr(pcie, PCIE_APP_IRNEN, PCIE_APP_IRN_INT);
+}
+
 static void intel_pcie_core_irq_disable(struct intel_pcie *pcie)
 {
 	pcie_app_wr(pcie, PCIE_APP_IRNEN, 0);
@@ -278,6 +283,16 @@ static void intel_pcie_turn_off(struct intel_pcie *pcie)
 	pcie_rc_cfg_wr_mask(pcie, PCI_COMMAND, PCI_COMMAND_MEMORY, 0);
 }
 
+static int intel_pcie_start_link(struct dw_pcie *pci)
+{
+	struct intel_pcie *pcie = dev_get_drvdata(pci->dev);
+
+	intel_pcie_device_rst_deassert(pcie);
+	intel_pcie_ltssm_enable(pcie);
+
+	return 0;
+}
+
 static int intel_pcie_host_setup(struct intel_pcie *pcie)
 {
 	int ret;
@@ -285,49 +300,33 @@ static int intel_pcie_host_setup(struct intel_pcie *pcie)
 
 	intel_pcie_core_rst_assert(pcie);
 	intel_pcie_device_rst_assert(pcie);
-
-	ret = phy_init(pcie->phy);
-	if (ret)
-		return ret;
-
 	intel_pcie_core_rst_deassert(pcie);
 
+	/* Controller clock must be provided earlier than PHY */
 	ret = clk_prepare_enable(pcie->core_clk);
 	if (ret) {
 		dev_err(pcie->pci.dev, "Core clock enable failed: %d\n", ret);
 		goto clk_err;
 	}
 
-	pci->atu_base = pci->dbi_base + 0xC0000;
+	ret = phy_init(pcie->phy);
+	if (ret)
+		goto phy_err;
 
 	intel_pcie_ltssm_disable(pcie);
 	intel_pcie_link_setup(pcie);
 	intel_pcie_init_n_fts(pci);
 
-	ret = dw_pcie_setup_rc(&pci->pp);
-	if (ret)
-		goto app_init_err;
-
 	dw_pcie_upconfig_setup(pci);
 
-	intel_pcie_device_rst_deassert(pcie);
-	intel_pcie_ltssm_enable(pcie);
-
-	ret = dw_pcie_wait_for_link(pci);
-	if (ret)
-		goto app_init_err;
-
-	/* Enable integrated interrupts */
-	pcie_app_wr_mask(pcie, PCIE_APP_IRNEN, PCIE_APP_IRN_INT,
-			 PCIE_APP_IRN_INT);
+	intel_pcie_core_irq_enable(pcie);
 
 	return 0;
 
-app_init_err:
+phy_err:
 	clk_disable_unprepare(pcie->core_clk);
 clk_err:
 	intel_pcie_core_rst_assert(pcie);
-	phy_exit(pcie->phy);
 
 	return ret;
 }
@@ -381,6 +380,7 @@ static int intel_pcie_rc_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_ops intel_pcie_ops = {
+	.start_link = intel_pcie_start_link,
 };
 
 static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
@@ -392,6 +392,7 @@ static int intel_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct intel_pcie *pcie;
 	struct dw_pcie_rp *pp;
+	struct resource *res;
 	struct dw_pcie *pci;
 	int ret;
 
@@ -415,6 +416,32 @@ static int intel_pcie_probe(struct platform_device *pdev)
 
 	pci->ops = &intel_pcie_ops;
 	pp->ops = &intel_pcie_dw_ops;
+
+	/*
+	 * If the 'atu' region is not available in the devicetree, use the
+	 * default offset from DBI region for backwards compatibility. The
+	 * 'atu' region should always be specified in the devicetree, as
+	 * this is a hardware-specific address that should not be defined
+	 * in the driver.
+	 */
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
+	if (!res) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+		pci->dbi_base = devm_pci_remap_cfg_resource(pci->dev, res);
+		if (IS_ERR(pci->dbi_base))
+			return PTR_ERR(pci->dbi_base);
+
+		pci->dbi_phys_addr = res->start;
+		pci->atu_base = devm_ioremap(dev, res->start + 0xC0000, SZ_4K);
+		if (!pci->atu_base) {
+			dev_err(dev, "failed to remap ATU space\n");
+			return -ENOMEM;
+		}
+
+		pci->atu_size = SZ_4K;
+		pci->atu_phys_addr = res->start + 0xC0000;
+		dev_warn(dev, "ATU region not specified in DT. Using default offset\n");
+	}
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {

@@ -807,12 +807,12 @@ static int s5m_rtc_suspend(struct device *dev)
 static SIMPLE_DEV_PM_OPS(s5m_rtc_pm_ops, s5m_rtc_suspend, s5m_rtc_resume);
 
 static const struct platform_device_id s5m_rtc_id[] = {
-	{ "s5m-rtc",		S5M8767X },
-	{ "s2mpg10-rtc",	S2MPG10 },
-	{ "s2mps13-rtc",	S2MPS13X },
-	{ "s2mps14-rtc",	S2MPS14X },
-	{ "s2mps15-rtc",	S2MPS15X },
-	{ },
+	{ .name = "s5m-rtc",     .driver_data = S5M8767X },
+	{ .name = "s2mpg10-rtc", .driver_data = S2MPG10 },
+	{ .name = "s2mps13-rtc", .driver_data = S2MPS13X },
+	{ .name = "s2mps14-rtc", .driver_data = S2MPS14X },
+	{ .name = "s2mps15-rtc", .driver_data = S2MPS15X },
+	{ }
 };
 MODULE_DEVICE_TABLE(platform, s5m_rtc_id);
 

@@ -731,18 +731,21 @@ static __init int mctp_i3c_mod_init(void)
 	int rc;
 
 	rc = i3c_register_notifier(&mctp_i3c_notifier);
-	if (rc < 0) {
-		i3c_driver_unregister(&mctp_i3c_driver);
+	if (rc < 0)
 		return rc;
-	}
 
 	i3c_for_each_bus_locked(mctp_i3c_bus_add_new, NULL);
 
 	rc = i3c_driver_register(&mctp_i3c_driver);
 	if (rc < 0)
-		return rc;
+		goto err_unregister_notifier;
 
 	return 0;
+
+err_unregister_notifier:
+	i3c_unregister_notifier(&mctp_i3c_notifier);
+	mctp_i3c_bus_remove_all();
+	return rc;
 }
 
 static __exit void mctp_i3c_mod_exit(void)

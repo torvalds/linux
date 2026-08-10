@@ -8,7 +8,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
@@ -751,8 +750,10 @@ static int rt1316_dev_resume(struct device *dev)
 		return 0;
 
 	ret = sdw_slave_wait_for_init(slave, RT1316_PROBE_TIMEOUT);
-	if (ret)
+	if (ret) {
+		sdw_show_ping_status(slave->bus, true);
 		return ret;
+	}
 
 	regcache_cache_only(rt1316->regmap, false);
 	regcache_sync(rt1316->regmap);

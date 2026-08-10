@@ -4,6 +4,18 @@
 #include <bpf/bpf_helpers.h>
 #include "../test_kmods/bpf_testmod_kfunc.h"
 
+struct map_uninit_value {
+	struct prog_test_ref_kfunc __kptr_untrusted *unref_ptr;
+	__u32 data;
+} __attribute__((packed));
+
+struct {
+	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+	__type(key, int);
+	__type(value, struct map_uninit_value);
+	__uint(max_entries, 1);
+} pcpu_array SEC(".maps");
+
 struct map_value {
 	struct prog_test_ref_kfunc __kptr_untrusted *unref_ptr;
 	struct prog_test_ref_kfunc __kptr *ref_ptr;

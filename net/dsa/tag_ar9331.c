@@ -51,8 +51,10 @@ static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
 	u8 ver, port;
 	u16 hdr;
 
-	if (unlikely(!pskb_may_pull(skb, AR9331_HDR_LEN)))
+	if (unlikely(!pskb_may_pull(skb, AR9331_HDR_LEN))) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	hdr = le16_to_cpu(*(__le16 *)skb_mac_header(skb));
 
@@ -60,12 +62,14 @@ static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
 	if (unlikely(ver != AR9331_HDR_VERSION)) {
 		netdev_warn_once(ndev, "%s:%i wrong header version 0x%2x\n",
 				 __func__, __LINE__, hdr);
+		kfree_skb(skb);
 		return NULL;
 	}
 
 	if (unlikely(hdr & AR9331_HDR_FROM_CPU)) {
 		netdev_warn_once(ndev, "%s:%i packet should not be from cpu 0x%2x\n",
 				 __func__, __LINE__, hdr);
+		kfree_skb(skb);
 		return NULL;
 	}
 
@@ -75,8 +79,10 @@ static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
 	port = FIELD_GET(AR9331_HDR_PORT_NUM_MASK, hdr);
 
 	skb->dev = dsa_conduit_find_user(ndev, 0, port);
-	if (!skb->dev)
+	if (!skb->dev) {
+		kfree_skb(skb);
 		return NULL;
+	}
 
 	return skb;
 }

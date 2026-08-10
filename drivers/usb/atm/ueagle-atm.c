@@ -594,7 +594,9 @@ static int uea_send_modem_cmd(struct usb_device *usb,
 static void uea_upload_pre_firmware(const struct firmware *fw_entry,
 								void *context)
 {
-	struct usb_device *usb = context;
+	struct usb_interface *intf = context;
+	struct usb_device *usb = interface_to_usbdev(intf);
+	struct completion *fw_done = usb_get_intfdata(intf);
 	const u8 *pfw;
 	u8 value;
 	u32 crc = 0;
@@ -663,15 +665,17 @@ err_fw_corrupted:
 	uea_err(usb, "firmware is corrupted\n");
 err:
 	release_firmware(fw_entry);
+	complete(fw_done);
 }
 
 /*
  * uea_load_firmware - Load usb firmware for pre-firmware devices.
  */
-static int uea_load_firmware(struct usb_device *usb, unsigned int ver)
+static int uea_load_firmware(struct usb_interface *intf, unsigned int ver)
 {
 	int ret;
 	char *fw_name = EAGLE_FIRMWARE;
+	struct usb_device *usb = interface_to_usbdev(intf);
 
 	uea_info(usb, "pre-firmware device, uploading firmware\n");
 
@@ -694,7 +698,7 @@ static int uea_load_firmware(struct usb_device *usb, unsigned int ver)
 	}
 
 	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev,
-					GFP_KERNEL, usb,
+					GFP_KERNEL, intf,
 					uea_upload_pre_firmware);
 	if (ret)
 		uea_err(usb, "firmware %s is not available\n", fw_name);
@@ -2545,6 +2549,7 @@ static struct usbatm_driver uea_usbatm_driver = {
 static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
+	bool single_iface = usb->config->desc.bNumInterfaces == 1;
 	int ret;
 
 	uea_dbg(usb, "ADSL device found with vid (%#X) pid (%#X) Rev (%#X): %s\n",
@@ -2553,10 +2558,41 @@ static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		le16_to_cpu(usb->descriptor.bcdDevice),
 		chip_name[UEA_CHIP_VERSION(id)]);
 
+	/*
+	 * uea_probe() decides between the pre-firmware and post-firmware case
+	 * from the USB id and stores a different object as interface data in
+	 * each case: a struct completion for a pre-firmware device, a struct
+	 * usbatm_data for a post-firmware one. uea_disconnect() instead tells
+	 * the two apart by the number of interfaces (a pre-firmware device
+	 * exposes a single interface, ADI930 has 2 and eagle has 3). A crafted
+	 * device advertising a pre-firmware id together with a multi-interface
+	 * descriptor (or the other way around) makes the two disagree, so that
+	 * usbatm_usb_disconnect() treats the small completion object as a
+	 * struct usbatm_data and reads out of bounds. Reject such inconsistent
+	 * descriptors so both paths make the same decision.
+	 */
+	if (UEA_IS_PREFIRM(id) != single_iface)
+		return -ENODEV;
+
 	usb_reset_device(usb);
 
-	if (UEA_IS_PREFIRM(id))
-		return uea_load_firmware(usb, UEA_CHIP_VERSION(id));
+	if (UEA_IS_PREFIRM(id)) {
+		struct completion *fw_done;
+
+		/* Wait for the firmware load to be done, in .disconnect() */
+		fw_done = kzalloc_obj(*fw_done);
+		if (!fw_done)
+			return -ENOMEM;
+
+		init_completion(fw_done);
+		usb_set_intfdata(intf, fw_done);
+
+		ret = uea_load_firmware(intf, UEA_CHIP_VERSION(id));
+		if (ret)
+			kfree(fw_done);
+
+		return ret;
+	}
 
 	ret = usbatm_usb_probe(intf, id, &uea_usbatm_driver);
 	if (ret == 0) {
@@ -2586,6 +2622,13 @@ static void uea_disconnect(struct usb_interface *intf)
 		usbatm_usb_disconnect(intf);
 		mutex_unlock(&uea_mutex);
 		uea_info(usb, "ADSL device removed\n");
+	} else if (usb->config->desc.bNumInterfaces == 1) {
+		struct completion *fw_done = usb_get_intfdata(intf);
+
+		uea_dbg(usb, "pre-firmware device, waiting firmware upload\n");
+		wait_for_completion(fw_done);
+		uea_dbg(usb, "pre-firmware device, finished waiting\n");
+		kfree(fw_done);
 	}
 }
 

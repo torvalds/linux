@@ -6,7 +6,6 @@
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/mhi.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/time64.h>
 #include <linux/timer.h>

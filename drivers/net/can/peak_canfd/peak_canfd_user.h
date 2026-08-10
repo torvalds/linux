@@ -2,7 +2,7 @@
 /* CAN driver for PEAK System micro-CAN based adapters
  *
  * Copyright (C) 2003-2025 PEAK System-Technik GmbH
- * Author: Stéphane Grosjean <stephane.grosjean@hms-networks.com>
+ * Author: Stéphane Grosjean <s.grosjean@peak-system.fr>
  */
 #ifndef PEAK_CANFD_USER_H
 #define PEAK_CANFD_USER_H

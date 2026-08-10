@@ -122,4 +122,13 @@ static inline struct llist_node *mpscq_pop(struct mpscq *q,
 	return NULL;
 }
 
+/*
+ * Returns true if the most recent mpscq_pop() that returned a node also
+ * emptied the queue. Consumer must be serialized.
+ */
+static inline bool mpscq_pop_emptied(struct mpscq *q, struct llist_node *head)
+{
+	return head == &q->stub;
+}
+
 #endif /* IOU_MPSCQ_H */

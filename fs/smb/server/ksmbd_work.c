@@ -16,6 +16,36 @@
 static struct kmem_cache *work_cache;
 static struct workqueue_struct *ksmbd_wq;
 
+static int ksmbd_reserve_iov(struct ksmbd_work *work, int need_iov_cnt)
+{
+	struct kvec *new;
+	int new_alloc_cnt = work->iov_alloc_cnt;
+
+	if (work->iov_alloc_cnt >= work->iov_cnt + need_iov_cnt)
+		return 0;
+
+	do {
+		new_alloc_cnt += KSMBD_WORK_INLINE_IOVS;
+	} while (new_alloc_cnt < work->iov_cnt + need_iov_cnt);
+
+	if (work->iov == work->iov_inline) {
+		new = kcalloc(new_alloc_cnt, sizeof(*new), KSMBD_DEFAULT_GFP);
+		if (!new)
+			return -ENOMEM;
+
+		memcpy(new, work->iov_inline, sizeof(work->iov_inline));
+	} else {
+		new = krealloc(work->iov, sizeof(*new) * new_alloc_cnt,
+			       KSMBD_DEFAULT_GFP | __GFP_ZERO);
+		if (!new)
+			return -ENOMEM;
+	}
+
+	work->iov = new;
+	work->iov_alloc_cnt = new_alloc_cnt;
+	return 0;
+}
+
 struct ksmbd_work *ksmbd_alloc_work_struct(void)
 {
 	struct ksmbd_work *work = kmem_cache_zalloc(work_cache, KSMBD_DEFAULT_GFP);
@@ -27,13 +57,8 @@ struct ksmbd_work *ksmbd_alloc_work_struct(void)
 		INIT_LIST_HEAD(&work->async_request_entry);
 		INIT_LIST_HEAD(&work->fp_entry);
 		INIT_LIST_HEAD(&work->aux_read_list);
-		work->iov_alloc_cnt = 4;
-		work->iov = kzalloc_objs(struct kvec, work->iov_alloc_cnt,
-					 KSMBD_DEFAULT_GFP);
-		if (!work->iov) {
-			kmem_cache_free(work_cache, work);
-			work = NULL;
-		}
+		work->iov_alloc_cnt = ARRAY_SIZE(work->iov_inline);
+		work->iov = work->iov_inline;
 	}
 	return work;
 }
@@ -55,7 +80,8 @@ void ksmbd_free_work_struct(struct ksmbd_work *work)
 	kfree(work->tr_buf);
 	kvfree(work->compress_buf);
 	kvfree(work->request_buf);
-	kfree(work->iov);
+	if (work->iov != work->iov_inline)
+		kfree(work->iov);
 
 	if (work->async_id)
 		ksmbd_release_id(&work->conn->async_ida, work->async_id);
@@ -117,19 +143,9 @@ static int __ksmbd_iov_pin_rsp(struct ksmbd_work *work, void *ib, int len,
 			return -ENOMEM;
 	}
 
-	if (work->iov_alloc_cnt < work->iov_cnt + need_iov_cnt) {
-		struct kvec *new;
-
-		work->iov_alloc_cnt += 4;
-		new = krealloc(work->iov,
-			       sizeof(struct kvec) * work->iov_alloc_cnt,
-			       KSMBD_DEFAULT_GFP | __GFP_ZERO);
-		if (!new) {
-			kfree(ar);
-			work->iov_alloc_cnt -= 4;
-			return -ENOMEM;
-		}
-		work->iov = new;
+	if (ksmbd_reserve_iov(work, need_iov_cnt)) {
+		kfree(ar);
+		return -ENOMEM;
 	}
 
 	/* Plus rfc_length size on first iov */

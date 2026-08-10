@@ -3423,6 +3423,36 @@ static int npc_create_srch_order(int cnt)
 	return 0;
 }
 
+static int npc_subbanks_srch_order_init(struct rvu *rvu)
+{
+	struct npc_subbank *sb;
+	int sb_idx;
+	int i, j;
+	int rc;
+
+	for (i = 0; i < npc_priv->num_subbanks; i++) {
+		sb_idx = subbank_srch_order[i];
+		sb = &npc_priv->sb[sb_idx];
+		sb->arr_idx = i;
+
+		dev_dbg(rvu->dev, "%s: sb->idx=%u sb->arr_idx=%u\n",
+			__func__, sb->idx, sb->arr_idx);
+
+		rc = xa_err(xa_store(&npc_priv->xa_sb_free, sb->arr_idx,
+				     xa_mk_value(sb->idx), GFP_KERNEL));
+		if (rc) {
+			dev_err(rvu->dev,
+				"%s: xa_store(xa_sb_free) failed at slot %d (sb=%d): %d\n",
+				__func__, i, sb_idx, rc);
+			for (j = 0; j < i; j++)
+				xa_erase(&npc_priv->xa_sb_free, j);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
 static void npc_subbank_init(struct rvu *rvu, struct npc_subbank *sb, int idx)
 {
 	mutex_init(&sb->lock);
@@ -3435,16 +3465,6 @@ static void npc_subbank_init(struct rvu *rvu, struct npc_subbank *sb, int idx)
 
 	sb->flags = NPC_SUBBANK_FLAG_FREE;
 	sb->idx = idx;
-	sb->arr_idx = subbank_srch_order[idx];
-
-	dev_dbg(rvu->dev, "%s: sb->idx=%u sb->arr_idx=%u\n",
-		__func__, sb->idx, sb->arr_idx);
-
-	/* Keep first and last subbank at end of free array; so that
-	 * it will be used at last
-	 */
-	xa_store(&npc_priv->xa_sb_free, sb->arr_idx,
-		 xa_mk_value(sb->idx), GFP_KERNEL);
 }
 
 static int npc_pcifunc_map_create(struct rvu *rvu)
@@ -3569,15 +3589,18 @@ static int npc_defrag_alloc_free_slots(struct rvu *rvu,
 	alloc_cnt2 = 0;
 
 	rc = __npc_subbank_alloc(rvu, sb,
-				 NPC_MCAM_KEY_X2, sb->b0b,
+				 f->key_type, sb->b0b,
 				 sb->b0t,
 				 NPC_MCAM_LOWER_PRIO,
 				 false, cnt, save, cnt, true,
 				 &alloc_cnt1);
 
-	if (alloc_cnt1 < cnt) {
+	/* X4 entries only occupy bank 0 (b0b..b0t); see npc_subbank_idx_2_mcam_idx().
+	 * X2 uses both halves of the subbank, so spill into bank 1 if needed.
+	 */
+	if (alloc_cnt1 < cnt && f->key_type == NPC_MCAM_KEY_X2) {
 		rc = __npc_subbank_alloc(rvu, sb,
-					 NPC_MCAM_KEY_X2, sb->b1b,
+					 f->key_type, sb->b1b,
 					 sb->b1t,
 					 NPC_MCAM_LOWER_PRIO,
 					 false, cnt - alloc_cnt1,
@@ -4635,6 +4658,7 @@ static int npc_priv_init(struct rvu *rvu)
 	int num_subbanks, subbank_depth;
 	u64 npc_const1, npc_const2 = 0;
 	struct npc_subbank *sb;
+	int ret = -ENOMEM;
 	u64 cfg;
 	int i;
 
@@ -4727,13 +4751,19 @@ static int npc_priv_init(struct rvu *rvu)
 	for (i = 0, sb = npc_priv->sb; i < num_subbanks; i++, sb++)
 		npc_subbank_init(rvu, sb, i);
 
+	ret = npc_subbanks_srch_order_init(rvu);
+	if (ret)
+		goto fail3;
+
 	/* Get number of pcifuncs in the system */
 	npc_priv->pf_cnt = npc_pcifunc_map_create(rvu);
 	npc_priv->xa_pf2idx_map = kcalloc(npc_priv->pf_cnt,
 					  sizeof(struct xarray),
 					  GFP_KERNEL);
-	if (!npc_priv->xa_pf2idx_map)
+	if (!npc_priv->xa_pf2idx_map) {
+		ret = -ENOMEM;
 		goto fail3;
+	}
 
 	for (i = 0; i < npc_priv->pf_cnt; i++)
 		xa_init_flags(&npc_priv->xa_pf2idx_map[i], XA_FLAGS_ALLOC);
@@ -4760,7 +4790,7 @@ fail2:
 fail1:
 	kfree(npc_priv);
 	npc_priv = NULL;
-	return -ENOMEM;
+	return ret;
 }
 
 void npc_cn20k_deinit(struct rvu *rvu)

@@ -158,6 +158,7 @@
 #define __arch_arm64		__arch("ARM64")
 #define __arch_riscv64		__arch("RISCV64")
 #define __arch_s390x		__arch("s390x")
+#define __arch_loongarch	__arch("LOONGARCH")
 #define __caps_unpriv(caps)	__test_tag("test_caps_unpriv=" EXPAND_QUOTE(caps))
 #define __load_if_JITed()	__test_tag("load_mode=jited")
 #define __load_if_no_JITed()	__test_tag("load_mode=no_jited")
@@ -263,9 +264,12 @@
 #endif
 
 #if __clang_major__ >= 18 && defined(ENABLE_ATOMICS_TESTS) &&		\
-	(defined(__TARGET_ARCH_arm64) || defined(__TARGET_ARCH_x86) ||	\
-	(defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) || \
-	defined(__TARGET_ARCH_powerpc) || defined(__TARGET_ARCH_loongarch))
+	(defined(__TARGET_ARCH_arm64) ||				\
+	 defined(__TARGET_ARCH_x86) ||					\
+	 (defined(__TARGET_ARCH_riscv) && __riscv_xlen == 64) ||	\
+	 defined(__TARGET_ARCH_s390) ||					\
+	 defined(__TARGET_ARCH_powerpc) ||				\
+	 defined(__TARGET_ARCH_loongarch))
 #define CAN_USE_LOAD_ACQ_STORE_REL
 #endif
 

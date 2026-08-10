@@ -14,7 +14,6 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/mod_devicetable.h>
 #include <linux/notifier.h>
 #include <linux/printk.h>
 #include <linux/types.h>
