@@ -443,8 +443,6 @@ static const struct bus_type nsim_bus = {
 	.num_vf		= nsim_num_vf,
 };
 
-#define NSIM_BUS_DEV_MAX_VFS 4
-
 static struct nsim_bus_dev *
 nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queues)
 {
@@ -464,7 +462,6 @@ nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queu
 	nsim_bus_dev->port_count = port_count;
 	nsim_bus_dev->num_queues = num_queues;
 	nsim_bus_dev->initial_net = current->nsproxy->net_ns;
-	nsim_bus_dev->max_vfs = NSIM_BUS_DEV_MAX_VFS;
 	/* Disallow using nsim_bus_dev */
 	smp_store_release(&nsim_bus_dev->init, false);
 
