@@ -484,11 +484,7 @@ static int cs35l56_sdw_probe(struct sdw_slave *peripheral, const struct sdw_devi
 	/* Start in cache-only until device is enumerated */
 	regcache_cache_only(cs35l56->base.regmap, true);
 
-	ret = cs35l56_common_probe(cs35l56);
-	if (ret != 0)
-		return ret;
-
-	return 0;
+	return cs35l56_common_probe(cs35l56, -EINVAL);
 }
 
 static void cs35l56_sdw_remove(struct sdw_slave *peripheral)

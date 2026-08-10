@@ -1942,7 +1942,7 @@ static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l5
 	return ret;
 }
 
-int cs35l56_common_probe(struct cs35l56_private *cs35l56)
+int cs35l56_common_probe(struct cs35l56_private *cs35l56, int irq)
 {
 	int ret;
 
@@ -2019,15 +2019,23 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 			goto err_remove_wm_adsp;
 	}
 
+	ret = cs35l56_irq_request(&cs35l56->base, irq);
+	if (ret)
+		goto err_remove_wm_adsp;
+
 	ret = snd_soc_register_component(cs35l56->base.dev,
 					 &soc_component_dev_cs35l56,
 					 cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
 	if (ret < 0) {
 		dev_err_probe(cs35l56->base.dev, ret, "Register codec failed\n");
-		goto err_remove_wm_adsp;
+		goto err_free_irq;
 	}
 
 	return 0;
+
+err_free_irq:
+	if (cs35l56->base.irq)
+		devm_free_irq(cs35l56->base.dev, cs35l56->base.irq, &cs35l56->base);
 
 err_remove_wm_adsp:
 	wm_adsp2_remove(&cs35l56->dsp);
