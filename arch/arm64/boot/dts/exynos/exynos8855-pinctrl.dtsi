@@ -462,7 +462,7 @@
 };
 
 &pinctrl_hsi_ufs {
-	gpf3: gpf3-gpio-bank{
+	gpf3: gpf3-gpio-bank {
 		gpio-controller;
 		#gpio-cells = <2>;
 

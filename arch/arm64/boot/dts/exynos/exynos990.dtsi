@@ -243,8 +243,7 @@
 			      <0x10106000 0x2000>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
-			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) |
-						 IRQ_TYPE_LEVEL_HIGH)>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 			#address-cells = <0>;
 			#size-cells = <1>;
 		};
@@ -320,6 +319,7 @@
 			clock-names = "phy", "ref";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <1>;
+
 			status = "disabled";
 		};
 
@@ -332,6 +332,7 @@
 			clock-names = "bus_early", "ref";
 			#address-cells = <1>;
 			#size-cells = <1>;
+
 			status = "disabled";
 
 			usbdrd_dwc3: usb@0 {
