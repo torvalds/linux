@@ -225,12 +225,12 @@ static int bd71815_get_temp(struct bd71828_power *pwr, int *temp)
 	if (ret)
 		return ret;
 
-	t = 200 - t;
-
 	if (t > 200) {
 		dev_err(pwr->dev, "Failed to read battery temperature\n");
 		return -ENODATA;
 	}
+
+	*temp = 200 - t;
 
 	return 0;
 }
