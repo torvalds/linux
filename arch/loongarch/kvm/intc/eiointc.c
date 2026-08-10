@@ -17,7 +17,8 @@ static void eiointc_set_sw_coreisr(struct loongarch_eiointc *s)
 		if (!(s->status & BIT(EIOINTC_ENABLE_INT_ENCODE))) {
 			ipnum = count_trailing_zeros(ipnum);
 			ipnum = ipnum < 4 ? ipnum : 0;
-		}
+		} else
+			ipnum = ipnum < LOONGSON_IP_NUM ? ipnum : 0;
 
 		cpuid = ((u8 *)s->coremap)[irq];
 		vcpu = kvm_get_vcpu_by_cpuid(s->kvm, cpuid);
@@ -36,13 +37,13 @@ static void eiointc_update_irq(struct loongarch_eiointc *s, int irq, int level)
 {
 	int ipnum, cpu, found;
 	struct kvm_vcpu *vcpu;
-	struct kvm_interrupt vcpu_irq;
 
 	ipnum = (s->ipmap >> (irq / 32 * 8)) & 0xff;
 	if (!(s->status & BIT(EIOINTC_ENABLE_INT_ENCODE))) {
 		ipnum = count_trailing_zeros(ipnum);
 		ipnum = ipnum < 4 ? ipnum : 0;
-	}
+	} else
+		ipnum = ipnum < LOONGSON_IP_NUM ? ipnum : 0;
 
 	cpu = s->sw_coremap[irq];
 	vcpu = kvm_get_vcpu_by_id(s->kvm, cpu);
@@ -67,8 +68,11 @@ static void eiointc_update_irq(struct loongarch_eiointc *s, int irq, int level)
 	if (found < EIOINTC_IRQS)
 		return; /* other irq is handling, needn't update parent irq */
 
-	vcpu_irq.irq = level ? (INT_HWI0 + ipnum) : -(INT_HWI0 + ipnum);
-	kvm_vcpu_ioctl_interrupt(vcpu, &vcpu_irq);
+	if (level)
+		kvm_queue_irq(vcpu, INT_HWI0 + ipnum);
+	else
+		kvm_dequeue_irq(vcpu, INT_HWI0 + ipnum);
+	kvm_vcpu_kick(vcpu);
 }
 
 static inline void eiointc_update_sw_coremap(struct loongarch_eiointc *s,

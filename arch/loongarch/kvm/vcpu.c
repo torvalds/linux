@@ -1465,6 +1465,9 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	if (vector >= EXCCODE_INT_NUM)
 		return -EINVAL;
 
+	if (kvm_arch_irqchip_in_kernel(vcpu->kvm))
+		return -EINVAL;
+
 	if (!kvm_guest_has_msgint(&vcpu->arch) && (vector == INT_AVEC))
 		return -EINVAL;
 

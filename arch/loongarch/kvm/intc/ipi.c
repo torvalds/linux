@@ -10,16 +10,15 @@
 static void ipi_set(struct kvm_vcpu *vcpu, uint32_t data)
 {
 	uint32_t status;
-	struct kvm_interrupt irq;
 
 	spin_lock(&vcpu->arch.ipi_state.lock);
 	status = vcpu->arch.ipi_state.status;
 	vcpu->arch.ipi_state.status |= data;
-	spin_unlock(&vcpu->arch.ipi_state.lock);
 	if ((status == 0) && data) {
-		irq.irq = LARCH_INT_IPI;
-		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+		kvm_queue_irq(vcpu, LARCH_INT_IPI);
+		kvm_vcpu_kick(vcpu);
 	}
+	spin_unlock(&vcpu->arch.ipi_state.lock);
 }
 
 static void ipi_send(struct kvm *kvm, uint64_t data)
@@ -40,16 +39,15 @@ static void ipi_send(struct kvm *kvm, uint64_t data)
 static void ipi_clear(struct kvm_vcpu *vcpu, uint64_t data)
 {
 	uint32_t status;
-	struct kvm_interrupt irq;
 
 	spin_lock(&vcpu->arch.ipi_state.lock);
 	vcpu->arch.ipi_state.status &= ~data;
 	status = vcpu->arch.ipi_state.status;
-	spin_unlock(&vcpu->arch.ipi_state.lock);
 	if (status == 0) {
-		irq.irq = -LARCH_INT_IPI;
-		kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+		kvm_dequeue_irq(vcpu, LARCH_INT_IPI);
+		kvm_vcpu_kick(vcpu);
 	}
+	spin_unlock(&vcpu->arch.ipi_state.lock);
 }
 
 static uint64_t read_mailbox(struct kvm_vcpu *vcpu, int offset, int len)

@@ -46,7 +46,6 @@ void dmsintc_inject_irq(struct kvm_vcpu *vcpu)
 int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm,
 				struct kvm_vcpu *vcpu, u32 vector, int level)
 {
-	struct kvm_interrupt vcpu_irq;
 	struct dmsintc_state *ds = &vcpu->arch.dmsintc_state;
 
 	if (!level)
@@ -56,9 +55,11 @@ int dmsintc_deliver_msi_to_vcpu(struct kvm *kvm,
 	if (!ds)
 		return -ENODEV;
 
-	vcpu_irq.irq = INT_AVEC;
+	if (!kvm_guest_has_msgint(&vcpu->arch))
+		return -EINVAL;
+
 	set_bit(vector, (unsigned long *)&ds->vector_map);
-	kvm_vcpu_ioctl_interrupt(vcpu, &vcpu_irq);
+	kvm_queue_irq(vcpu, INT_AVEC);
 	kvm_vcpu_kick(vcpu);
 
 	return 0;
