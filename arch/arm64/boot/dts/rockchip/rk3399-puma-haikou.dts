@@ -85,7 +85,7 @@
 		};
 	};
 
-	sgtl5000_clk: sgtl5000-oscillator  {
+	sgtl5000_clk: sgtl5000-oscillator {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24576000>;

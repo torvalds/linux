@@ -66,10 +66,23 @@ properties:
               - anbernic,rg-ds
           - const: rockchip,rk3568
 
+      - description: Anbernic RK3576 Handheld Gaming Console
+        items:
+          - enum:
+              - anbernic,rg-vita-pro
+          - const: rockchip,rk3576
+
       - description: Ariaboard Photonicat
         items:
           - const: ariaboard,photonicat
           - const: rockchip,rk3568
+
+      - description: ArmSoM CM5 Module based boards
+        items:
+          - enum:
+              - armsom,cm5-io
+          - const: armsom,cm5
+          - const: rockchip,rk3576
 
       - description: ArmSoM Sige1 board
         items:
@@ -197,6 +210,11 @@ properties:
         items:
           - const: embedfire,lubancat-2
           - const: rockchip,rk3568
+
+      - description: EmbedFire LubanCat 4
+        items:
+          - const: embedfire,lubancat-4
+          - const: rockchip,rk3588s
 
       - description: Engicam PX30.Core C.TOUCH 2.0
         items:
@@ -802,6 +820,11 @@ properties:
           - const: lckfb,tspi-3m-rk3576
           - const: rockchip,rk3576
 
+      - description: LincPlus LincStation E1
+        items:
+          - const: techvision,tvd8322r
+          - const: rockchip,rk3568
+
       - description: LinkEase EasePi R1
         items:
           - const: linkease,easepi-r1
@@ -1333,6 +1356,11 @@ properties:
         items:
           - const: vicharak,axon
           - const: rockchip,rk3588
+
+      - description: Vicharak Vaaman
+        items:
+          - const: vicharak,vaaman
+          - const: rockchip,rk3399
 
       - description: Vicharak Vaaman2
         items:
