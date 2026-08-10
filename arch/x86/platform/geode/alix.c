@@ -7,10 +7,6 @@
  * Copyright (C) 2008 Constantin Baranov <const@mimas.ru>
  * Copyright (C) 2011 Ed Wildgoose <kernel@wildgooses.com>
  *                and Philip Prindeville <philipp@redfish-solutions.com>
- *
- * TODO: There are large similarities with leds-net5501.c
- * by Alessandro Zummo <a.zummo@towertech.it>
- * In the future leds-net5501.c should be migrated over to platform
  */
 
 #include <linux/kernel.h>
