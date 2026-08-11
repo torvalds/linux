@@ -370,9 +370,14 @@ void kasan_quarantine_remove_cache(struct kmem_cache *cache)
 
 	raw_spin_lock_irqsave(&quarantine_lock, flags);
 	for (i = 0; i < QUARANTINE_BATCHES; i++) {
+		size_t old_bytes;
+
 		if (qlist_empty(&global_quarantine[i]))
 			continue;
+		old_bytes = global_quarantine[i].bytes;
 		qlist_move_cache(&global_quarantine[i], &to_free, cache);
+		WRITE_ONCE(quarantine_size, quarantine_size -
+			   (old_bytes - global_quarantine[i].bytes));
 		/* Scanning whole quarantine can take a while. */
 		raw_spin_unlock_irqrestore(&quarantine_lock, flags);
 		cond_resched();
