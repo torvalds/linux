@@ -12,6 +12,7 @@ import time
 from lib.py import ksft_exit, ksft_run, ksft_variants
 from lib.py import KsftNamedVariant, KsftSkipEx
 from lib.py import NetDrvEpEnv, bkg, cmd, defer, tc
+from lib.py import CmdExitFailure
 
 
 def test_so_txtime(cfg, clockid, ipver, args_tx, args_rx, expect_success):
@@ -45,6 +46,10 @@ def _qdisc_setup(ifname, qdisc, optargs=""):
     """
     orig = tc(f"qdisc show dev {ifname} root", json=True)[0].get("kind", None)
     defer(tc, f"qdisc replace dev {ifname} root {orig}")
+    try:
+        tc(f"qdisc del dev {ifname} root")
+    except CmdExitFailure:
+        pass
     tc(f"qdisc replace dev {ifname} root handle 1: {qdisc} {optargs}")
 
 
