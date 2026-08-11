@@ -9,6 +9,7 @@
 #ifndef _LINUX_LANDLOCK_H
 #define _LINUX_LANDLOCK_H
 
+#include <linux/types.h>
 #include <uapi/linux/landlock.h>
 
 /*

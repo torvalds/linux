@@ -38,6 +38,8 @@
 #include "setup.h"
 #include "tsync.h"
 
+#include <trace/events/landlock.h>
+
 static bool is_initialized(void)
 {
 	if (likely(landlock_initialized))
@@ -280,6 +282,15 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 	ruleset->quiet_masks.fs = ruleset_attr.quiet_access_fs;
 	ruleset->quiet_masks.net = ruleset_attr.quiet_access_net;
 	ruleset->quiet_masks.scope = ruleset_attr.quiet_scoped;
+
+	/*
+	 * Emits before anon_inode_getfd() installs the file descriptor, while
+	 * the ruleset is still private to this thread: no lock is needed, and
+	 * the event cannot race a concurrent close() freeing the ruleset under
+	 * the tracepoint's BTF read.  This is the last point at which the
+	 * ruleset is guaranteed alive and unshared.
+	 */
+	trace_landlock_create_ruleset(ruleset);
 
 	/* Creates anonymous FD referring to the ruleset. */
 	ruleset_fd = anon_inode_getfd("[landlock-ruleset]", &ruleset_fops,

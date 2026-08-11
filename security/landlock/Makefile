@@ -18,3 +18,5 @@ landlock-$(CONFIG_SECURITY_LANDLOCK_LOG) += \
 	log.o
 
 landlock-$(CONFIG_AUDIT) += audit.o
+
+landlock-$(CONFIG_TRACEPOINTS) += trace.o

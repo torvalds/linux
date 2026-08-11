@@ -23,9 +23,12 @@
 #include <uapi/linux/landlock.h>
 
 #include "access.h"
+#include "id.h"
 #include "limits.h"
 #include "object.h"
 #include "ruleset.h"
+
+#include <trace/events/landlock.h>
 
 struct landlock_ruleset *
 landlock_create_ruleset(const access_mask_t fs_access_mask,
@@ -49,6 +52,10 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 #if IS_ENABLED(CONFIG_INET)
 	new_ruleset->rules.root_net_port = RB_ROOT;
 #endif /* IS_ENABLED(CONFIG_INET) */
+
+#ifdef CONFIG_TRACEPOINTS
+	new_ruleset->id = landlock_get_id_range(1);
+#endif /* CONFIG_TRACEPOINTS */
 
 	/* Should already be checked in landlock_create_ruleset(). */
 	if (fs_access_mask) {
@@ -325,6 +332,7 @@ void landlock_free_rules(struct landlock_rules *const rules)
 static void free_ruleset(struct landlock_ruleset *const ruleset)
 {
 	might_sleep();
+	trace_landlock_free_ruleset(ruleset);
 	landlock_free_rules(&ruleset->rules);
 	kfree(ruleset);
 }

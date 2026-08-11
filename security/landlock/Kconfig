@@ -24,7 +24,7 @@ config SECURITY_LANDLOCK
 config SECURITY_LANDLOCK_LOG
 	bool
 	depends on SECURITY_LANDLOCK
-	default y if AUDIT
+	default y if AUDIT || TRACEPOINTS
 
 config SECURITY_LANDLOCK_KUNIT_TEST
 	bool "KUnit tests for Landlock" if !KUNIT_ALL_TESTS
