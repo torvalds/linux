@@ -2978,16 +2978,8 @@ static void pch_udc_shutdown(struct pci_dev *pdev)
 	pch_udc_set_disconnect(dev);
 }
 
-static void pch_udc_remove(struct pci_dev *pdev)
+static void pch_udc_cleanup(struct pch_udc_dev *dev)
 {
-	struct pch_udc_dev	*dev = pci_get_drvdata(pdev);
-
-	usb_del_gadget_udc(&dev->gadget);
-
-	/* gadget driver must not be registered */
-	if (dev->driver)
-		dev_err(&pdev->dev,
-			"%s: gadget driver still bound!!!\n", __func__);
 	/* dma pool cleanup */
 	dma_pool_destroy(dev->data_requests);
 
@@ -3013,6 +3005,20 @@ static void pch_udc_remove(struct pci_dev *pdev)
 	pch_vbus_gpio_free(dev);
 
 	pch_udc_exit(dev);
+}
+
+static void pch_udc_remove(struct pci_dev *pdev)
+{
+	struct pch_udc_dev	*dev = pci_get_drvdata(pdev);
+
+	usb_del_gadget_udc(&dev->gadget);
+
+	/* gadget driver must not be registered */
+	if (dev->driver)
+		dev_err(&pdev->dev,
+			"%s: gadget driver still bound!!!\n", __func__);
+
+	pch_udc_cleanup(dev);
 }
 
 static int __maybe_unused pch_udc_suspend(struct device *d)
@@ -3105,7 +3111,7 @@ static int pch_udc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 finished:
-	pch_udc_remove(pdev);
+	pch_udc_cleanup(dev);
 	return retval;
 }
 
