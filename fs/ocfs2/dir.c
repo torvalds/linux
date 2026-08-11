@@ -1945,7 +1945,10 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 		 * dirent right now.  Scan from the start of the block
 		 * to make sure. */
 		if (!inode_eq_iversion(inode, *f_version)) {
-			for (i = 0; i < sb->s_blocksize && i < offset; ) {
+			for (i = 0; i + OCFS2_DIR_REC_LEN(1) <= sb->s_blocksize &&
+			     i < offset;) {
+				unsigned int rec_len;
+
 				de = (struct ocfs2_dir_entry *) (bh->b_data + i);
 				/* It's too expensive to do a full
 				 * dirent test each time round this
@@ -1953,10 +1956,11 @@ static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 				 * least that it is non-zero.  A
 				 * failure will be detected in the
 				 * dirent test below. */
-				if (le16_to_cpu(de->rec_len) <
-				    OCFS2_DIR_REC_LEN(1))
+				rec_len = le16_to_cpu(de->rec_len);
+				if (rec_len < OCFS2_DIR_REC_LEN(1) ||
+				    i + rec_len > sb->s_blocksize)
 					break;
-				i += le16_to_cpu(de->rec_len);
+				i += rec_len;
 			}
 			offset = i;
 			ctx->pos = (ctx->pos & ~((loff_t)sb->s_blocksize - 1))
