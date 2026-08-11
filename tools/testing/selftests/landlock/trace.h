@@ -146,13 +146,14 @@
 	"sport=[0-9]\\+ "            \
 	"dport=[0-9]\\+$"
 
-#define REGEX_DENY_PTRACE(task)  \
-	TRACE_PREFIX(task)       \
-	"landlock_deny_ptrace: " \
-	"domain=[0-9a-f]\\+ "    \
-	"same_exec=[01] "        \
-	"logged=[01] "           \
-	"tracee_pid=[0-9]\\+ "   \
+#define REGEX_DENY_PTRACE(task)      \
+	TRACE_PREFIX(task)           \
+	"landlock_deny_ptrace: "     \
+	"domain=[0-9a-f]\\+ "        \
+	"same_exec=[01] "            \
+	"logged=[01] "               \
+	"tracee_domain=[0-9a-f]\\+ " \
+	"tracee_pid=[0-9]\\+ "       \
 	"tracee_comm=[^ ]*$"
 
 #define REGEX_DENY_SCOPE_SIGNAL(task)  \
@@ -161,6 +162,7 @@
 	"domain=[0-9a-f]\\+ "          \
 	"same_exec=[01] "              \
 	"logged=[01] "                 \
+	"target_domain=[0-9a-f]\\+ "   \
 	"target_pid=[0-9]\\+ "         \
 	"target_comm=[^ ]*$"
 
@@ -170,6 +172,7 @@
 	"domain=[0-9a-f]\\+ "                        \
 	"same_exec=[01] "                            \
 	"logged=[01] "                               \
+	"peer_domain=[0-9a-f]\\+ "                   \
 	"peer_pid=[0-9]\\+ "                         \
 	"sun_path=[^ ]*$"
 
