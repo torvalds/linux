@@ -234,11 +234,49 @@ struct landlock_domain {
 	};
 };
 
+/**
+ * landlock_union_access_masks - Return all access rights handled in the
+ *				 domain
+ *
+ * @domain: Landlock ruleset (used as a domain)
+ *
+ * Return: An access_masks result of the OR of all the domain's access masks.
+ */
+static inline struct access_masks
+landlock_union_access_masks(const struct landlock_ruleset *const domain)
+{
+	union access_masks_all matches = {};
+	size_t layer_level;
+
+	for (layer_level = 0; layer_level < domain->num_layers; layer_level++) {
+		union access_masks_all layer = {
+			.masks = domain->access_masks[layer_level],
+		};
+
+		matches.all |= layer.all;
+	}
+
+	return matches.masks;
+}
+
 void landlock_put_domain(struct landlock_domain *const domain);
 void landlock_put_domain_deferred(struct landlock_domain *const domain);
 
 DEFINE_FREE(landlock_put_domain, struct landlock_domain *,
 	    if (!IS_ERR_OR_NULL(_T)) landlock_put_domain(_T))
+
+const struct landlock_rule *
+landlock_find_rule(const struct landlock_ruleset *const ruleset,
+		   const struct landlock_id id);
+
+bool landlock_unmask_layers(const struct landlock_rule *const rule,
+			    struct layer_masks *masks);
+
+access_mask_t
+landlock_init_layer_masks(const struct landlock_ruleset *const domain,
+			  const access_mask_t access_request,
+			  struct layer_masks *masks,
+			  const enum landlock_key_type key_type);
 
 static inline void landlock_get_domain(struct landlock_domain *const domain)
 {

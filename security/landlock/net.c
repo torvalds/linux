@@ -15,6 +15,7 @@
 #include "audit.h"
 #include "common.h"
 #include "cred.h"
+#include "domain.h"
 #include "limits.h"
 #include "net.h"
 #include "ruleset.h"

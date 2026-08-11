@@ -11,11 +11,15 @@
 #include <kunit/test.h>
 #include <linux/bitops.h>
 #include <linux/bits.h>
+#include <linux/cleanup.h>
 #include <linux/cred.h>
+#include <linux/err.h>
 #include <linux/file.h>
 #include <linux/mm.h>
+#include <linux/overflow.h>
 #include <linux/path.h>
 #include <linux/pid.h>
+#include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
@@ -27,6 +31,7 @@
 #include "common.h"
 #include "domain.h"
 #include "id.h"
+#include "limits.h"
 #include "ruleset.h"
 
 static void free_domain(struct landlock_domain *const domain)
@@ -58,6 +63,163 @@ void landlock_put_domain_deferred(struct landlock_domain *const domain)
 		INIT_WORK(&domain->work_free, free_domain_work);
 		schedule_work(&domain->work_free);
 	}
+}
+
+/* The returned access has the same lifetime as the domain. */
+const struct landlock_rule *
+landlock_find_rule(const struct landlock_ruleset *const ruleset,
+		   const struct landlock_id id)
+{
+	const struct rb_root *root;
+	const struct rb_node *node;
+
+	root = landlock_get_rule_root((struct landlock_rules *)&ruleset->rules,
+				      id.type);
+	if (IS_ERR(root))
+		return NULL;
+	node = root->rb_node;
+
+	while (node) {
+		struct landlock_rule *this =
+			rb_entry(node, struct landlock_rule, node);
+
+		if (this->key.data == id.key.data)
+			return this;
+		if (this->key.data < id.key.data)
+			node = node->rb_right;
+		else
+			node = node->rb_left;
+	}
+	return NULL;
+}
+
+/**
+ * landlock_unmask_layers - Remove the access rights in @masks which are
+ *                          granted in @rule
+ *
+ * Updates the set of (per-layer) unfulfilled access rights @masks so that all
+ * the access rights granted in @rule are removed from it (because they are now
+ * fulfilled).
+ *
+ * @rule: A rule that grants a set of access rights for each layer.
+ * @masks: A matrix of unfulfilled access rights for each layer.
+ *
+ * Return: True if the request is allowed (i.e. the access rights granted all
+ * remaining unfulfilled access rights and masks has no leftover set bits).
+ */
+bool landlock_unmask_layers(const struct landlock_rule *const rule,
+			    struct layer_masks *masks)
+{
+	if (!masks)
+		return true;
+	if (!rule)
+		return false;
+
+	/*
+	 * An access is granted if, for each policy layer, at least one rule
+	 * encountered on the pathwalk grants the requested access, regardless
+	 * of its position in the layer stack.  We must then check the remaining
+	 * layers for each inode, from the first added layer to the last one.
+	 * When there are multiple requested accesses, for each policy layer,
+	 * the full set of requested accesses may not be granted by only one
+	 * rule, but by the union (binary OR) of multiple rules.  For example,
+	 * /a/b <execute> + /a <read> grants /a/b <execute + read>.
+	 *
+	 * This function is called once per matching rule during the pathwalk,
+	 * progressively clearing bits in @masks.  The overall access decision
+	 * is per-layer: access is granted iff masks->layers[l].access == 0 for
+	 * all layers l.  When two independent mechanisms can each grant access
+	 * within a layer (e.g. a path rule OR a scope exception), the
+	 * composition must evaluate per-layer: FOR-ALL l (A(l) OR B(l)), not
+	 * (FOR-ALL l A(l)) OR (FOR-ALL l B(l)), to prevent bypass when
+	 * different layers grant via different mechanisms.
+	 */
+	for (size_t i = 0; i < rule->num_layers; i++) {
+		const struct landlock_layer *const layer = &rule->layers[i];
+
+		/* Clear the bits where the layer in the rule grants access. */
+		masks->layers[layer->level - 1].access &= ~layer->access;
+
+#ifdef CONFIG_AUDIT
+		/* Collect rule flags for each layer. */
+		if (layer->flags.quiet)
+			masks->layers[layer->level - 1].quiet = true;
+#endif /* CONFIG_AUDIT */
+	}
+
+	for (size_t i = 0; i < ARRAY_SIZE(masks->layers); i++) {
+		if (masks->layers[i].access)
+			return false;
+	}
+	return true;
+}
+
+typedef access_mask_t
+get_access_mask_t(const struct landlock_ruleset *const ruleset,
+		  const u16 layer_level);
+
+/**
+ * landlock_init_layer_masks - Initialize layer masks from an access request
+ *
+ * Populates @masks such that for each access right in @access_request, the bits
+ * for all the layers are set where this access right is handled.  Rule flags
+ * are also zeroed.
+ *
+ * @domain: The domain that defines the current restrictions.
+ * @access_request: The requested access rights to check.
+ * @masks: Layer access masks to populate.
+ * @key_type: The key type to switch between access masks of different types.
+ *
+ * Return: An access mask where each access right bit is set which is handled in
+ * any of the active layers in @domain.
+ */
+access_mask_t
+landlock_init_layer_masks(const struct landlock_ruleset *const domain,
+			  const access_mask_t access_request,
+			  struct layer_masks *const masks,
+			  const enum landlock_key_type key_type)
+{
+	access_mask_t handled_accesses = 0;
+	get_access_mask_t *get_access_mask;
+
+	switch (key_type) {
+	case LANDLOCK_KEY_INODE:
+		get_access_mask = landlock_get_fs_access_mask;
+		break;
+
+#if IS_ENABLED(CONFIG_INET)
+	case LANDLOCK_KEY_NET_PORT:
+		get_access_mask = landlock_get_net_access_mask;
+		break;
+#endif /* IS_ENABLED(CONFIG_INET) */
+
+	default:
+		WARN_ON_ONCE(1);
+		return 0;
+	}
+
+	/* An empty access request can happen because of O_WRONLY | O_RDWR. */
+	if (!access_request)
+		return 0;
+
+	for (size_t i = 0; i < domain->num_layers; i++) {
+		const access_mask_t handled = get_access_mask(domain, i);
+
+		masks->layers[i].access = access_request & handled;
+		handled_accesses |= masks->layers[i].access;
+#ifdef CONFIG_AUDIT
+		masks->layers[i].quiet = false;
+#endif /* CONFIG_AUDIT */
+	}
+	for (size_t i = domain->num_layers; i < ARRAY_SIZE(masks->layers);
+	     i++) {
+		masks->layers[i].access = 0;
+#ifdef CONFIG_AUDIT
+		masks->layers[i].quiet = false;
+#endif /* CONFIG_AUDIT */
+	}
+
+	return handled_accesses;
 }
 
 #ifdef CONFIG_AUDIT
