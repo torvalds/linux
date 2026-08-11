@@ -2285,10 +2285,20 @@ static u64 rk_hdptx_phy_clk_calc_rate_from_pll_cfg(struct rk_hdptx_phy *hdptx)
 		sdm = div_u64(PLL_REF_CLK * ropll_hw.sdc_deno *
 			      ropll_hw.pms_mdiv * ropll_hw.sdm_num, val);
 
-		if (ropll_hw.sdm_num_sign)
+		if (ropll_hw.sdm_num_sign) {
+			if (sdm > fout) {
+				/*
+				 * Similarly to the case above, it is expected
+				 * the next .set_rate() will help with recovery.
+				 */
+				dev_dbg(hdptx->dev, "Invalid ROPLL hw state: sdm > fout\n");
+				return 0;
+			}
+
 			fout = fout - sdm;
-		else
+		} else {
 			fout = fout + sdm;
+		}
 	}
 
 	return DIV_ROUND_CLOSEST_ULL(fout * 2 * 8, ropll_hw.pms_sdiv * 10 * bpc);
