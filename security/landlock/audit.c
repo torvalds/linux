@@ -7,6 +7,7 @@
 
 #include <linux/audit.h>
 #include <linux/bitops.h>
+#include <linux/landlock.h>
 #include <linux/lsm_audit.h>
 #include <linux/pid.h>
 #include <uapi/linux/landlock.h>
@@ -19,37 +20,27 @@
 #include "limits.h"
 #include "log.h"
 
-static const char *const fs_access_strings[] = {
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_EXECUTE)] = "fs.execute",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_WRITE_FILE)] = "fs.write_file",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_READ_FILE)] = "fs.read_file",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_READ_DIR)] = "fs.read_dir",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_REMOVE_DIR)] = "fs.remove_dir",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_REMOVE_FILE)] = "fs.remove_file",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_CHAR)] = "fs.make_char",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_DIR)] = "fs.make_dir",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_REG)] = "fs.make_reg",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_SOCK)] = "fs.make_sock",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_FIFO)] = "fs.make_fifo",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_BLOCK)] = "fs.make_block",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_MAKE_SYM)] = "fs.make_sym",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_REFER)] = "fs.refer",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_TRUNCATE)] = "fs.truncate",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_IOCTL_DEV)] = "fs.ioctl_dev",
-	[BIT_INDEX(LANDLOCK_ACCESS_FS_RESOLVE_UNIX)] = "fs.resolve_unix",
-};
+/*
+ * Access-right and scope names are built from the lists shared with the trace
+ * events (see <linux/landlock.h>).  The designated initializer places each name
+ * at its bit index, so the lookup stays O(1) and does not depend on the entry
+ * order.  log_blockers() adds the "fs."/"net."/"scope." category prefix.
+ */
+#define _LANDLOCK_NAME_ENTRY(mask, name) [BIT_INDEX(mask)] = name
+
+static const char *const fs_access_strings[] = { _LANDLOCK_ACCESS_FS_NAMES };
 
 static_assert(ARRAY_SIZE(fs_access_strings) == LANDLOCK_NUM_ACCESS_FS);
 
-static const char *const net_access_strings[] = {
-	[BIT_INDEX(LANDLOCK_ACCESS_NET_BIND_TCP)] = "net.bind_tcp",
-	[BIT_INDEX(LANDLOCK_ACCESS_NET_CONNECT_TCP)] = "net.connect_tcp",
-	[BIT_INDEX(LANDLOCK_ACCESS_NET_BIND_UDP)] = "net.bind_udp",
-	[BIT_INDEX(LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP)] =
-		"net.connect_send_udp",
-};
+static const char *const net_access_strings[] = { _LANDLOCK_ACCESS_NET_NAMES };
 
 static_assert(ARRAY_SIZE(net_access_strings) == LANDLOCK_NUM_ACCESS_NET);
+
+static const char *const scope_strings[] = { _LANDLOCK_SCOPE_NAMES };
+
+static_assert(ARRAY_SIZE(scope_strings) == LANDLOCK_NUM_SCOPE);
+
+#undef _LANDLOCK_NAME_ENTRY
 
 static __attribute_const__ const char *
 get_blocker(const enum landlock_request_type type,
@@ -62,7 +53,7 @@ get_blocker(const enum landlock_request_type type,
 
 	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
 		WARN_ON_ONCE(access_bit != -1);
-		return "fs.change_topology";
+		return "change_topology";
 
 	case LANDLOCK_REQUEST_FS_ACCESS:
 		if (WARN_ON_ONCE(access_bit >= ARRAY_SIZE(fs_access_strings)))
@@ -76,15 +67,45 @@ get_blocker(const enum landlock_request_type type,
 
 	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
 		WARN_ON_ONCE(access_bit != -1);
-		return "scope.abstract_unix_socket";
+		return scope_strings[BIT_INDEX(
+			LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET)];
 
 	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
 		WARN_ON_ONCE(access_bit != -1);
-		return "scope.signal";
+		return scope_strings[BIT_INDEX(LANDLOCK_SCOPE_SIGNAL)];
 	}
 
 	WARN_ON_ONCE(1);
 	return "unknown";
+}
+
+/*
+ * Returns the audit category prefix prepended to the unprefixed blocker name
+ * returned by get_blocker() (filesystem and network access rights,
+ * change_topology, and scopes).  The ptrace blocker is standalone and carries
+ * its full name in get_blocker(), so it uses no prefix.
+ */
+static __attribute_const__ const char *
+blocker_prefix(const enum landlock_request_type type)
+{
+	switch (type) {
+	case LANDLOCK_REQUEST_PTRACE:
+		return "";
+
+	case LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY:
+	case LANDLOCK_REQUEST_FS_ACCESS:
+		return "fs.";
+
+	case LANDLOCK_REQUEST_NET_ACCESS:
+		return "net.";
+
+	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
+	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
+		return "scope.";
+	}
+
+	WARN_ON_ONCE(1);
+	return "";
 }
 
 static void log_blockers(struct audit_buffer *const ab,
@@ -92,16 +113,17 @@ static void log_blockers(struct audit_buffer *const ab,
 			 const access_mask_t access)
 {
 	const unsigned long access_mask = access;
+	const char *const prefix = blocker_prefix(type);
 	unsigned long access_bit;
 	bool is_first = true;
 
 	for_each_set_bit(access_bit, &access_mask, BITS_PER_TYPE(access)) {
-		audit_log_format(ab, "%s%s", is_first ? "" : ",",
+		audit_log_format(ab, "%s%s%s", is_first ? "" : ",", prefix,
 				 get_blocker(type, access_bit));
 		is_first = false;
 	}
 	if (is_first)
-		audit_log_format(ab, "%s", get_blocker(type, -1));
+		audit_log_format(ab, "%s%s", prefix, get_blocker(type, -1));
 }
 
 static void log_domain(struct landlock_hierarchy *const hierarchy)
