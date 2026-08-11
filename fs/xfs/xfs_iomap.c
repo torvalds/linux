@@ -1083,11 +1083,7 @@ xfs_zoned_direct_write_iomap_begin(
 			return error;
 	}
 
-	iomap->type = IOMAP_MAPPED;
-	iomap->bdev = ip->i_mount->m_rtdev_targp->bt_bdev;
-	iomap->offset = offset;
-	iomap->length = length;
-	iomap->flags = IOMAP_F_ANON_WRITE | IOMAP_F_DIRTY;
+	xfs_iomap_set_anon_write(ip, iomap, offset, length);
 	return 0;
 }
 

@@ -633,12 +633,8 @@ xfs_zoned_map_blocks(
 			XFS_BMAPI_REMAP);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	wpc->iomap.type = IOMAP_MAPPED;
-	wpc->iomap.bdev = mp->m_rtdev_targp->bt_bdev;
-	wpc->iomap.offset = offset;
-	wpc->iomap.length = XFS_FSB_TO_B(mp, count_fsb);
-	wpc->iomap.flags = IOMAP_F_ANON_WRITE | IOMAP_F_DIRTY;
-
+	xfs_iomap_set_anon_write(ip, &wpc->iomap, offset,
+			XFS_FSB_TO_B(mp, count_fsb));
 	trace_xfs_zoned_map_blocks(ip, offset, wpc->iomap.length);
 	return 0;
 }
