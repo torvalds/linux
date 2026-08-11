@@ -38,7 +38,13 @@ ifeq ($(ARCH),loongarch64)
        SRCARCH := loongarch
 endif
 
-LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
+# Probe for __LP64__ only when the compiler is installed: this runs at
+# parse time for every target, including ones that never compile, e.g.
+# install-build-deps, and would otherwise spew "gcc: not found" when the
+# compiler is not yet installed. Only the first word of CC is consulted,
+# as CC may carry arguments, e.g. 'ccache gcc'. When the guard fails it
+# prints nothing, leaving LP64 unset, as if the probe had failed.
+LP64 := $(shell if command -v $(firstword ${CC}) >/dev/null 2>&1; then echo __LP64__ | ${CC} ${CFLAGS} -E -x c -; fi | tail -n 1)
 ifeq ($(LP64), 1)
   IS_64_BIT := 1
 else

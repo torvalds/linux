@@ -98,7 +98,13 @@ else
   $(call allow-override,LLVM_STRIP,llvm-strip)
 endif
 
-CC_NO_CLANG := $(shell $(CC) -dM -E -x c /dev/null | grep -Fq "__clang__"; echo $$?)
+# The CC_NO_CLANG probe also runs at parse time for targets that never
+# compile, so guard it with 'command -v': when the compiler is not yet
+# installed, e.g. the first install-build-deps run, it would otherwise
+# spew "gcc: not found". Only the first word of CC is consulted, as CC
+# may carry arguments, e.g. 'ccache gcc'. A missing compiler leaves
+# CC_NO_CLANG at 1, as if the probe had failed.
+CC_NO_CLANG := $(shell if command -v $(firstword $(CC)) >/dev/null 2>&1; then $(CC) -dM -E -x c /dev/null; fi | grep -Fq "__clang__"; echo $$?)
 
 # Some tools require bpftool
 SYSTEM_BPFTOOL	?= bpftool
