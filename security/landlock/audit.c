@@ -136,104 +136,32 @@ static void log_domain(struct landlock_hierarchy *const hierarchy)
 	WRITE_ONCE(hierarchy->log_status, LANDLOCK_LOG_RECORDED);
 }
 
-static access_mask_t
-pick_access_mask_for_request_type(const enum landlock_request_type type,
-				  const struct access_masks access_masks)
-{
-	switch (type) {
-	case LANDLOCK_REQUEST_FS_ACCESS:
-		return access_masks.fs;
-	case LANDLOCK_REQUEST_NET_ACCESS:
-		return access_masks.net;
-	default:
-		WARN_ONCE(1, "Invalid request type %d passed to %s", type,
-			  __func__);
-		return 0;
-	}
-}
-
 /**
  * landlock_audit_denial - Create an audit record for a denied access request
  *
- * @subject: The Landlock subject's credential denying an action.
  * @request: Detail of the user space request.
  * @youngest_denied: The youngest hierarchy node that denied the access.
- * @youngest_layer: The layer index of @youngest_denied.
  * @missing: The set of denied access rights.
- * @object_quiet_flag: Whether the object denied by @youngest_denied is
- *                     covered by a quiet rule in that layer.
+ * @logged: Whether the denial is selected for logging, as computed by
+ *          landlock_log_denial() (domain policy and quiet rules).
  *
- * Called from landlock_log_denial() with the same arguments.
+ * Emits the record when audit is enabled and the denial is selected for
+ * logging.
  */
-void landlock_audit_denial(const struct landlock_cred_security *const subject,
-			   const struct landlock_request *const request,
+void landlock_audit_denial(const struct landlock_request *const request,
 			   struct landlock_hierarchy *const youngest_denied,
-			   const size_t youngest_layer,
-			   const access_mask_t missing,
-			   const bool object_quiet_flag)
+			   const access_mask_t missing, const bool logged)
 {
 	struct audit_buffer *ab;
-	bool quiet_applicable_to_access = false;
 
 	if (!audit_enabled)
 		return;
 
-	/* Checks if the current exec was restricting itself. */
-	if (subject->domain_exec & BIT(youngest_layer)) {
-		/* Ignores denials for the same execution. */
-		if (!youngest_denied->log_same_exec)
-			return;
-	} else {
-		/* Ignores denials after a new execution. */
-		if (!youngest_denied->log_new_exec)
-			return;
-	}
-
 	/*
-	 * Checks if the object is marked quiet by the layer that denied the
-	 * request.  If it's a different layer that marked it as quiet, but that
-	 * layer is not the one that denied the request, we should still audit
-	 * log the denial.
+	 * Skips denials the domain's policy or a quiet rule excludes from
+	 * logging (folded into @logged by landlock_log_denial()).
 	 */
-	if (object_quiet_flag) {
-		/*
-		 * We now check if the denied requests are all covered by the
-		 * layer's quiet access bits.
-		 */
-		const access_mask_t quiet_mask =
-			pick_access_mask_for_request_type(
-				request->type, youngest_denied->quiet_masks);
-
-		quiet_applicable_to_access = (quiet_mask & missing) == missing;
-	} else {
-		/*
-		 * Either the object is not quiet, or this is a scope request.
-		 * We check request->type to distinguish between the two cases.
-		 */
-		const access_mask_t quiet_mask =
-			youngest_denied->quiet_masks.scope;
-
-		switch (request->type) {
-		case LANDLOCK_REQUEST_SCOPE_SIGNAL:
-			quiet_applicable_to_access =
-				!!(quiet_mask & LANDLOCK_SCOPE_SIGNAL);
-			break;
-		case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
-			quiet_applicable_to_access =
-				!!(quiet_mask &
-				   LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
-			break;
-		/*
-		 * Leave LANDLOCK_REQUEST_PTRACE and
-		 * LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY unhandled for now - they
-		 * are never quiet.
-		 */
-		default:
-			break;
-		}
-	}
-
-	if (quiet_applicable_to_access)
+	if (!logged)
 		return;
 
 	/* Uses consistent allocation flags wrt common_lsm_audit(). */

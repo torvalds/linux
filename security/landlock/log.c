@@ -3,6 +3,7 @@
  * Landlock - Log helpers
  *
  * Copyright © 2023-2025 Microsoft Corporation
+ * Copyright © 2026 Cloudflare, Inc.
  */
 
 #include <kunit/test.h>
@@ -405,6 +406,86 @@ static bool is_valid_request(const struct landlock_request *const request)
 	return true;
 }
 
+static access_mask_t
+pick_access_mask_for_request_type(const enum landlock_request_type type,
+				  const struct access_masks access_masks)
+{
+	switch (type) {
+	case LANDLOCK_REQUEST_FS_ACCESS:
+		return access_masks.fs;
+	case LANDLOCK_REQUEST_NET_ACCESS:
+		return access_masks.net;
+	default:
+		WARN_ONCE(1, "Invalid request type %d passed to %s", type,
+			  __func__);
+		return 0;
+	}
+}
+
+/*
+ * Whether a quiet rule silences the denial: the rule must cover the whole
+ * denied access in the layer that denied it (a quiet rule in a non-denying
+ * layer does not suppress the denial).
+ */
+static bool
+is_denial_quieted(const struct landlock_request *const request,
+		  const struct landlock_hierarchy *const youngest_denied,
+		  const access_mask_t missing, const bool object_quiet_flag)
+{
+	if (object_quiet_flag) {
+		const access_mask_t quiet_mask =
+			pick_access_mask_for_request_type(
+				request->type, youngest_denied->quiet_masks);
+
+		return (quiet_mask & missing) == missing;
+	}
+
+	/*
+	 * Either the object is not quiet, or this is a scope request.  We check
+	 * request->type to distinguish between the two cases.
+	 */
+	switch (request->type) {
+	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
+		return !!(youngest_denied->quiet_masks.scope &
+			  LANDLOCK_SCOPE_SIGNAL);
+	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
+		return !!(youngest_denied->quiet_masks.scope &
+			  LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
+	/*
+	 * Leave LANDLOCK_REQUEST_PTRACE and LANDLOCK_REQUEST_FS_CHANGE_TOPOLOGY
+	 * unhandled for now - they are never quiet.
+	 */
+	default:
+		return false;
+	}
+}
+
+/*
+ * Computes whether a denial from youngest_denied is selected for logging by the
+ * domain's policy: its logging must not be disabled (by both per-execution
+ * flags being off, or by an ancestor's
+ * LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF), the per-execution flag matching
+ * same_exec must be set, and no quiet rule may cover the denied access.
+ * landlock_log_denial() computes this once and passes it to
+ * landlock_audit_denial(), which additionally requires audit_enabled.
+ */
+static bool
+is_denial_logged(const struct landlock_request *const request,
+		 const struct landlock_hierarchy *const youngest_denied,
+		 const access_mask_t missing, const bool same_exec,
+		 const bool object_quiet_flag)
+{
+	if (READ_ONCE(youngest_denied->log_status) == LANDLOCK_LOG_DISABLED)
+		return false;
+
+	if (!(same_exec ? youngest_denied->log_same_exec :
+			  youngest_denied->log_new_exec))
+		return false;
+
+	return !is_denial_quieted(request, youngest_denied, missing,
+				  object_quiet_flag);
+}
+
 /**
  * landlock_log_denial - Log a denied access
  *
@@ -451,8 +532,9 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 			get_hierarchy(subject->domain, youngest_layer);
 	}
 
-	if (READ_ONCE(youngest_denied->log_status) == LANDLOCK_LOG_DISABLED)
-		return;
+	const bool same_exec = !!(subject->domain_exec & BIT(youngest_layer));
+	const bool logged = is_denial_logged(request, youngest_denied, missing,
+					     same_exec, object_quiet_flag);
 
 	/*
 	 * Consistently keeps track of the number of denied access requests even
@@ -461,8 +543,7 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 	 */
 	atomic64_inc(&youngest_denied->num_denials);
 
-	landlock_audit_denial(subject, request, youngest_denied, youngest_layer,
-			      missing, object_quiet_flag);
+	landlock_audit_denial(request, youngest_denied, missing, logged);
 }
 
 /**

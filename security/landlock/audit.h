@@ -12,18 +12,14 @@
 
 #include "access.h"
 
-struct landlock_cred_security;
 struct landlock_hierarchy;
 struct landlock_request;
 
 #ifdef CONFIG_AUDIT
 
-void landlock_audit_denial(const struct landlock_cred_security *const subject,
-			   const struct landlock_request *const request,
+void landlock_audit_denial(const struct landlock_request *const request,
 			   struct landlock_hierarchy *const youngest_denied,
-			   const size_t youngest_layer,
-			   const access_mask_t missing,
-			   const bool object_quiet_flag);
+			   const access_mask_t missing, const bool logged);
 
 void landlock_audit_free_domain(
 	const struct landlock_hierarchy *const hierarchy);
@@ -31,11 +27,9 @@ void landlock_audit_free_domain(
 #else /* CONFIG_AUDIT */
 
 static inline void
-landlock_audit_denial(const struct landlock_cred_security *const subject,
-		      const struct landlock_request *const request,
+landlock_audit_denial(const struct landlock_request *const request,
 		      struct landlock_hierarchy *const youngest_denied,
-		      const size_t youngest_layer, const access_mask_t missing,
-		      const bool object_quiet_flag)
+		      const access_mask_t missing, const bool logged)
 {
 }
 
