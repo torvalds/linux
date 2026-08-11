@@ -2475,7 +2475,7 @@ int smb2_sess_setup(struct ksmbd_work *work)
 						ksmbd_preauth_session_lookup(conn, sess->id);
 					if (preauth_sess) {
 						list_del(&preauth_sess->preauth_entry);
-						kfree(preauth_sess);
+						kfree_sensitive(preauth_sess);
 					}
 				}
 			} else {
@@ -2529,7 +2529,7 @@ out_err:
 			preauth_sess = ksmbd_preauth_session_lookup(conn, sess->id);
 			if (preauth_sess) {
 				list_del(&preauth_sess->preauth_entry);
-				kfree(preauth_sess);
+				kfree_sensitive(preauth_sess);
 			}
 		}
 
