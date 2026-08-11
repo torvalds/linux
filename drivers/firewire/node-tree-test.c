@@ -521,7 +521,6 @@ static void node_tree_test_invalid_extended_self_id_sequence(struct kunit *test)
 
 	card->node_id = LOCAL_BUS | 0x03;
 
-	// TODO: Memory leak.
 	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
 	KUNIT_EXPECT_NULL(test, card->local_node);
 }
@@ -541,7 +540,6 @@ static void node_tree_test_invalid_phy_id(struct kunit *test)
 
 	card->node_id = LOCAL_BUS | 0x03;
 
-	// TODO: Memory leak.
 	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
 	KUNIT_EXPECT_NULL(test, card->local_node);
 }
@@ -561,7 +559,6 @@ static void node_tree_test_invalid_child_port_count(struct kunit *test)
 
 	card->node_id = LOCAL_BUS | 0x03;
 
-	// TODO: Memory leak.
 	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
 	KUNIT_EXPECT_NULL(test, card->local_node);
 }
@@ -581,7 +578,6 @@ static void node_tree_test_invalid_parent_port_count(struct kunit *test)
 
 	card->node_id = LOCAL_BUS | 0x03;
 
-	// TODO: Memory leak.
 	card->local_node = build_tree(card, self_id_sequence, ARRAY_SIZE(self_id_sequence), 123);
 	KUNIT_EXPECT_NULL(test, card->local_node);
 }
