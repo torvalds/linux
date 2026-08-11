@@ -156,6 +156,8 @@ static const u16 mxuport_mux50u_fw_ver_offsets[] = {
 #define UPORT_EVENT_LSR			4 /* Line status */
 #define UPORT_EVENT_MCR			5 /* Modem control */
 
+#define UPORT_REQUEST_SEND_NEXT		0x80
+
 /* Definitions for serial event type */
 #define SERIAL_EV_CTS			0x0008	/* CTS changed state */
 #define SERIAL_EV_DSR			0x0010	/* DSR changed state */
@@ -202,6 +204,8 @@ static const u16 mxuport_mux50u_fw_ver_offsets[] = {
 
 /* This structure holds all of the local port information */
 struct mxuport_port {
+	u32 sent_payload;
+	u8 hold_reason;
 	u8 mcr_state;		/* Last MCR state */
 	u8 msr_state;		/* Last MSR state */
 	struct mutex mutex;	/* Protects mcr_state */
@@ -256,6 +260,13 @@ static const struct usb_device_id mxuport_idtable[] = {
 
 MODULE_DEVICE_TABLE(usb, mxuport_idtable);
 
+static bool mxuport_write_ready(struct usb_serial_port *port)
+{
+	struct mxuport_port *mxport = usb_get_serial_port_data(port);
+
+	return !(mxport->hold_reason & MX_WAIT_FOR_SEND_NEXT);
+}
+
 /*
  * Add a four byte header containing the port number and the number of
  * bytes of data in the message. Return the number of bytes in the
@@ -264,20 +275,38 @@ MODULE_DEVICE_TABLE(usb, mxuport_idtable);
 static int mxuport_prepare_write_buffer(struct usb_serial_port *port,
 					void *dest, size_t size)
 {
+	struct mxuport_port *mxport = usb_get_serial_port_data(port);
+	bool request_send_next;
+	unsigned long flags;
 	u8 *buf = dest;
 	int count;
 
-	count = kfifo_out_locked(&port->write_fifo, buf + HEADER_SIZE,
-				 size - HEADER_SIZE,
-				 &port->lock);
+	spin_lock_irqsave(&port->lock, flags);
+	count = kfifo_out(&port->write_fifo, buf + HEADER_SIZE, size - HEADER_SIZE);
+	mxport->sent_payload += count;
+	request_send_next = mxport->sent_payload >= port->bulk_out_size;
+	if (request_send_next)
+		mxport->hold_reason |= MX_WAIT_FOR_SEND_NEXT;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	put_unaligned_be16(port->port_number, buf);
 	put_unaligned_be16(count, buf + 2);
+
+	if (request_send_next)
+		buf[0] |= UPORT_REQUEST_SEND_NEXT;
 
 	dev_dbg(&port->dev, "%s - size %zd count %d\n", __func__,
 		size, count);
 
 	return count + HEADER_SIZE;
+}
+
+static void mxuport_write_rollback(struct usb_serial_port *port, int count)
+{
+	struct mxuport_port *mxport = usb_get_serial_port_data(port);
+
+	mxport->sent_payload -= count - HEADER_SIZE;
+	mxport->hold_reason &= ~MX_WAIT_FOR_SEND_NEXT;
 }
 
 /* Read the given buffer in from the control pipe. */
@@ -498,14 +527,24 @@ static void mxuport_lsr_event(struct usb_serial_port *port, u8 buf[4])
 static void mxuport_process_read_urb_event(struct usb_serial_port *port,
 					   u8 buf[4], u32 event)
 {
+	struct mxuport_port *mxport = usb_get_serial_port_data(port);
+	bool resume_tx = false;
+	unsigned long flags;
+
 	dev_dbg(&port->dev, "%s - receive event : %04x\n", __func__, event);
 
 	switch (event) {
 	case UPORT_EVENT_SEND_NEXT:
-		/*
-		 * Sent as part of the flow control on device buffers.
-		 * Not currently used.
-		 */
+		spin_lock_irqsave(&port->lock, flags);
+		if (mxport->hold_reason & MX_WAIT_FOR_SEND_NEXT) {
+			mxport->hold_reason &= ~MX_WAIT_FOR_SEND_NEXT;
+			mxport->sent_payload = 0;
+			resume_tx = true;
+		}
+		spin_unlock_irqrestore(&port->lock, flags);
+
+		if (resume_tx)
+			usb_serial_generic_write_start(port, GFP_ATOMIC);
 		break;
 	case UPORT_EVENT_MSR:
 		mxuport_msr_event(port, buf);
@@ -1353,6 +1392,7 @@ static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct mxuport_port *mxport = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
+	unsigned long flags;
 	int err;
 
 	/* Set receive host (enable) */
@@ -1372,6 +1412,11 @@ static int mxuport_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* Initial port termios */
 	if (tty)
 		mxuport_set_termios(tty, port, NULL);
+
+	spin_lock_irqsave(&port->lock, flags);
+	mxport->sent_payload = 0;
+	mxport->hold_reason &= ~MX_WAIT_FOR_SEND_NEXT;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	/*
 	 * TODO: use RQ_VENDOR_GET_MSR, once we know what it
@@ -1466,7 +1511,9 @@ static struct usb_serial_driver mxuport_device = {
 	.tiocmset		= mxuport_tiocmset,
 	.dtr_rts		= mxuport_dtr_rts,
 	.process_read_urb	= mxuport_process_read_urb,
+	.write_ready		= mxuport_write_ready,
 	.prepare_write_buffer	= mxuport_prepare_write_buffer,
+	.write_rollback		= mxuport_write_rollback,
 	.resume			= mxuport_resume,
 };
 
