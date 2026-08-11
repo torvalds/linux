@@ -25,6 +25,8 @@
 	TRACEFS_LANDLOCK_DIR "/landlock_create_ruleset/enable"
 #define TRACEFS_CREATE_DOMAIN_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_create_domain/enable"
+#define TRACEFS_ENFORCE_DOMAIN_ENABLE \
+	TRACEFS_LANDLOCK_DIR "/landlock_enforce_domain/enable"
 #define TRACEFS_ADD_RULE_FS_ENABLE \
 	TRACEFS_LANDLOCK_DIR "/landlock_add_rule_fs/enable"
 #define TRACEFS_ADD_RULE_NET_ENABLE \
