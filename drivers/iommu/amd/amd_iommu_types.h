@@ -160,6 +160,7 @@
 #define EVENT_FLAG_RW		0x020
 #define EVENT_FLAG_I		0x008
 #define EVENT_FLAG_PPR_RX	0x001
+#define EVENT_FLAG_PPR_GN	0x200
 
 /* feature control bits */
 #define CONTROL_IOMMU_EN	0

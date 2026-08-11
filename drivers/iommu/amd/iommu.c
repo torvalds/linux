@@ -92,6 +92,9 @@ static void clone_aliases(struct amd_iommu *iommu, struct device *dev);
 
 static int iommu_completion_wait(struct amd_iommu *iommu);
 
+static int __amd_iommu_complete_ppr(struct device *dev, u32 pasid,
+				    int status, int tag, bool gn);
+
 /****************************************************************************
  *
  * Helper functions
@@ -912,6 +915,7 @@ static void amd_iommu_report_ppr_err(struct amd_iommu *iommu, volatile u32 *even
 	struct device *dev = iommu->iommu.dev;
 	u32 pasid = PPR_PASID(*((u64 *)event));
 	int tag = event[1] & 0x03FF;
+	bool gn;
 
 	dev_err_ratelimited(dev, "Event logged [INVALID_PPR_REQUEST device=%04x:%02x:%02x.%x "
 			    "pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
@@ -932,7 +936,9 @@ static void amd_iommu_report_ppr_err(struct amd_iommu *iommu, volatile u32 *even
 		return;
 	}
 
-	amd_iommu_complete_ppr(&pdev->dev, pasid, IOMMU_PAGE_RESP_FAILURE, tag);
+	gn = (flags & EVENT_FLAG_PPR_GN);
+
+	__amd_iommu_complete_ppr(&pdev->dev, pasid, IOMMU_PAGE_RESP_FAILURE, tag, gn);
 	pci_dev_put(pdev);
 }
 
@@ -1372,7 +1378,7 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 }
 
 static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, u32 pasid,
-			       int status, int tag, u8 gn)
+			       int status, int tag, bool gn)
 {
 	memset(cmd, 0, sizeof(*cmd));
 
@@ -1867,7 +1873,8 @@ static void dev_flush_pasid_all(struct iommu_dev_data *dev_data,
 	amd_iommu_dev_flush_pasid_pages(dev_data, pasid, 0, U64_MAX);
 }
 
-int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
+static int __amd_iommu_complete_ppr(struct device *dev, u32 pasid,
+				    int status, int tag, bool gn)
 {
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
@@ -1876,10 +1883,19 @@ int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
 	dev_data = dev_iommu_priv_get(dev);
 	iommu    = get_amd_iommu_from_dev(dev);
 
-	build_complete_ppr(&cmd, dev_data->devid, pasid, status,
-			   tag, dev_data->pri_tlp);
+	build_complete_ppr(&cmd, dev_data->devid, pasid, status, tag, gn);
 
 	return iommu_queue_command(iommu, &cmd);
+}
+
+int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
+{
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	bool gn;
+
+	gn = pdom_is_v2_pgtbl_mode(dev_data->domain);
+
+	return __amd_iommu_complete_ppr(dev, pasid, status, tag, gn);
 }
 
 /****************************************************************************
