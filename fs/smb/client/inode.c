@@ -1215,7 +1215,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		break;
 	case IO_REPARSE_TAG_INTERNAL:
 		rc = 0;
-		if (le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY) {
+		if (cifs_open_data_attrs(data) & ATTR_DIRECTORY) {
 			cifs_create_junction_fattr(fattr, sb);
 			goto out;
 		}
@@ -1239,7 +1239,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 			 */
 			if (rc == -EOPNOTSUPP &&
 			    IS_REPARSE_TAG_NAME_SURROGATE(data->reparse.tag) &&
-			    (le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY)) {
+			    (cifs_open_data_attrs(data) & ATTR_DIRECTORY)) {
 				rc = 0;
 				cifs_create_junction_fattr(fattr, sb);
 				goto out;
@@ -1257,13 +1257,14 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		}
 
 		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK && !rc) {
-			bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+			bool directory = cifs_open_data_attrs(data) & ATTR_DIRECTORY;
+
 			rc = smb2_fix_symlink_target_type(&data->symlink_target, directory, cifs_sb);
 		}
 		break;
 	}
 
-	if (tcon->posix_extensions)
+	if (data->contains_posix_file_info)
 		smb311_posix_info_to_fattr(fattr, data, sb);
 	else
 		cifs_open_info_to_fattr(fattr, data, sb);

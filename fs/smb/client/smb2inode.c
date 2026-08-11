@@ -22,6 +22,7 @@
 #include "smb2glob.h"
 #include "smb2proto.h"
 #include "cached_dir.h"
+#include "reparse.h"
 #include "../common/smb2status.h"
 #include "../common/smbfsctl.h"
 
@@ -1002,12 +1003,13 @@ int smb2_query_path_info(const unsigned int xid,
 		/*
 		 * If the symlink was already parsed in create response then it is needed to fix
 		 * its type now (after the second call with OPEN_REPARSE_POINT which filled the
-		 * data->fi.Attributes). If the symlink was not parsed in create response then
+		 * metadata attributes). If the symlink was not parsed in create response then
 		 * the data->symlink_target was not filled yet and then the type will be fixed
 		 * later after data->symlink_target is filled.
 		 */
 		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK && !rc && data->symlink_target) {
-			bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+			bool directory = cifs_open_data_attrs(data) & ATTR_DIRECTORY;
+
 			rc = smb2_fix_symlink_target_type(&data->symlink_target, directory, cifs_sb);
 		}
 		break;
