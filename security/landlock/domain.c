@@ -172,11 +172,11 @@ bool landlock_unmask_layers(const struct landlock_rule *const rule,
 		/* Clear the bits where the layer in the rule grants access. */
 		masks->layers[layer->level - 1].access &= ~layer->access;
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 		/* Collect rule flags for each layer. */
 		if (layer->flags.quiet)
 			masks->layers[layer->level - 1].quiet = true;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 
 	for (size_t i = 0; i < ARRAY_SIZE(masks->layers); i++) {
@@ -239,16 +239,16 @@ landlock_init_layer_masks(const struct landlock_domain *const domain,
 
 		masks->layers[i].access = access_request & handled;
 		handled_accesses |= masks->layers[i].access;
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 		masks->layers[i].quiet = false;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 	for (size_t i = domain->num_layers; i < ARRAY_SIZE(masks->layers);
 	     i++) {
 		masks->layers[i].access = 0;
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 		masks->layers[i].quiet = false;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 
 	return handled_accesses;
@@ -465,14 +465,14 @@ landlock_merge_ruleset(struct landlock_domain *const parent,
 	if (err)
 		return ERR_PTR(err);
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 	new_dom->hierarchy->quiet_masks = ruleset->quiet_masks;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	return no_free_ptr(new_dom);
 }
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 
 /**
  * get_current_exe - Get the current's executable path, if any
@@ -754,4 +754,4 @@ kunit_test_suite(test_suite);
 
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
 
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */

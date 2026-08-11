@@ -57,7 +57,7 @@ struct landlock_file_security {
 	 */
 	access_mask_t allowed_access;
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 	/**
 	 * @deny_masks: Domain layer levels that deny an optional access (see
 	 * _LANDLOCK_ACCESS_FS_OPTIONAL).
@@ -75,7 +75,7 @@ struct landlock_file_security {
 	 * LANDLOCK_SCOPE_SIGNAL.
 	 */
 	u8 fown_layer;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	/**
 	 * @fown_subject: Landlock credential of the task that set the PID that
@@ -97,7 +97,7 @@ struct landlock_file_security {
 	struct pid *fown_tg;
 };
 
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 
 /* Makes sure all layers can be identified. */
 /* clang-format off */
@@ -113,7 +113,7 @@ static_assert(BITS_PER_TYPE(typeof_member(struct landlock_file_security,
 					  quiet_optional_accesses)) >=
 	      HWEIGHT(_LANDLOCK_ACCESS_FS_OPTIONAL));
 
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 /**
  * struct landlock_superblock_security - Superblock security blob

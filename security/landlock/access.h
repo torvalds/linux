@@ -74,13 +74,13 @@ struct layer_mask {
 	 * @access: The unfulfilled access rights for this layer.
 	 */
 	access_mask_t access : LANDLOCK_NUM_ACCESS_MAX;
-#ifdef CONFIG_AUDIT
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
 	/**
 	 * @quiet: Whether we have encountered a rule with the quiet flag for
 	 * this layer.  Used to control logging.
 	 */
 	access_mask_t quiet : 1;
-#endif /* CONFIG_AUDIT */
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 } __packed __aligned(sizeof(access_mask_t));
 
 /*
