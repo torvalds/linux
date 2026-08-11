@@ -239,6 +239,25 @@ pub extern "C" fn {kunit_name}(__kunit_test: *mut ::kernel::bindings::kunit) {{
 
 const __LOG_PREFIX: &[u8] = b"rust_doctests_kernel\0";
 
+/// Dummy module type for doctest context.
+#[allow(dead_code)]
+struct LocalModule;
+
+use kernel::{{
+    str::CStr,
+    ModuleMetadata,
+    ThisModule, //
+}};
+use core::ptr::null_mut;
+
+impl ModuleMetadata for LocalModule {{
+    const NAME: &'static CStr = c"rust_doctests_kernel";
+    const THIS_MODULE: ThisModule = {{
+        // SAFETY: `try_module_get`/`module_put` handle null module pointers gracefully.
+        unsafe {{ ThisModule::from_ptr(null_mut()) }}
+    }};
+}}
+
 {rust_tests}
 "#
     )
