@@ -118,6 +118,8 @@ struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid)
 		switch (type) {
 		case KVM_DEV_TYPE_ARM_VGIC_V5:
 			intid = vgic_v5_get_hwirq_id(intid);
+			if (intid >= VGIC_V5_NR_PRIVATE_IRQS)
+				return NULL;
 			intid = array_index_nospec(intid, VGIC_V5_NR_PRIVATE_IRQS);
 			break;
 		default:
