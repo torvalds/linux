@@ -56,6 +56,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_nvl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB,
 	},
+	/* place amp/hdmi-in only boards in the end of table */
+	{
+		.id = "INTC10B0",
+		.drv_name = "nvl_lt6911_hdmi_ssp",
+		.sof_tplg_filename = "sof-nvl-hdmi-ssp02.tplg",
+	},
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_nvl_machines);
