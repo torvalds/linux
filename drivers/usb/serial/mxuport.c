@@ -28,14 +28,14 @@
 /* Definitions for the vendor ID and device ID */
 #define MX_USBSERIAL_VID	0x110A
 #define MX_UPORT1250_PID	0x1250
-#define MX_UPORT1251_PID	0x1251
+#define MX_UPORT1250I_PID	0x1251
 #define MX_UPORT1410_PID	0x1410
 #define MX_UPORT1450_PID	0x1450
-#define MX_UPORT1451_PID	0x1451
-#define MX_UPORT1618_PID	0x1618
-#define MX_UPORT1658_PID	0x1658
-#define MX_UPORT1613_PID	0x1613
-#define MX_UPORT1653_PID	0x1653
+#define MX_UPORT1450I_PID	0x1451
+#define MX_UPORT1610_8_PID	0x1618
+#define MX_UPORT1650_8_PID	0x1658
+#define MX_UPORT1610_16_PID	0x1613
+#define MX_UPORT1650_16_PID	0x1653
 
 /* Definitions for USB info */
 #define HEADER_SIZE		4
@@ -157,26 +157,21 @@ struct mxuport_port {
 #define MX_PORTS_OFFSET			1
 #define MX_PORTS(n)			(((n) - MX_PORTS_OFFSET) & MX_PORTS_MASK)
 
+#define MX_DEVICE(pid, ports)					\
+	{ USB_DEVICE(MX_USBSERIAL_VID, pid),			\
+	  .driver_info = MX_PORTS(ports) }
+
 /* Table of devices that work with this driver */
 static const struct usb_device_id mxuport_idtable[] = {
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1250_PID),
-	  .driver_info = MX_PORTS(2) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1251_PID),
-	  .driver_info = MX_PORTS(2) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1410_PID),
-	  .driver_info = MX_PORTS(4) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1450_PID),
-	  .driver_info = MX_PORTS(4) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1451_PID),
-	  .driver_info = MX_PORTS(4) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1618_PID),
-	  .driver_info = MX_PORTS(8) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1658_PID),
-	  .driver_info = MX_PORTS(8) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1613_PID),
-	  .driver_info = MX_PORTS(16) },
-	{ USB_DEVICE(MX_USBSERIAL_VID, MX_UPORT1653_PID),
-	  .driver_info = MX_PORTS(16) },
+	MX_DEVICE(MX_UPORT1250_PID,	 2),
+	MX_DEVICE(MX_UPORT1250I_PID,	 2),
+	MX_DEVICE(MX_UPORT1410_PID,	 4),
+	MX_DEVICE(MX_UPORT1450_PID,	 4),
+	MX_DEVICE(MX_UPORT1450I_PID,	 4),
+	MX_DEVICE(MX_UPORT1610_8_PID,	 8),
+	MX_DEVICE(MX_UPORT1650_8_PID,	 8),
+	MX_DEVICE(MX_UPORT1610_16_PID,	16),
+	MX_DEVICE(MX_UPORT1650_16_PID,	16),
 	{}			/* Terminating entry */
 };
 
