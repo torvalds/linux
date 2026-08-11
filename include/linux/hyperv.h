@@ -1214,6 +1214,13 @@ extern int vmbus_establish_gpadl_caller_decrypted(struct vmbus_channel *channel,
 extern int vmbus_teardown_gpadl(struct vmbus_channel *channel,
 				     struct vmbus_gpadl *gpadl);
 
+extern void *vmbus_alloc_buffer(struct vmbus_channel *channel,
+				u32 size,
+				struct page ***chunks_out,
+				u32 *chunk_cnt_out);
+
+extern void vmbus_free_buffer(void *addr, struct page **chunks, u32 chunk_cnt);
+
 void vmbus_reset_channel_cb(struct vmbus_channel *channel);
 
 extern int vmbus_recvpacket(struct vmbus_channel *channel,
