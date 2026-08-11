@@ -177,7 +177,7 @@ LD += $(EXTRA_LDFLAGS)
 # Some distros provide the command $(CROSS_COMPILE)pkg-config for
 # searching packges installed with Multiarch. Use it for cross
 # compilation if it is existed.
-ifneq (, $(shell which $(CROSS_COMPILE)pkg-config))
+ifneq (, $(shell command -v $(CROSS_COMPILE)pkg-config 2>/dev/null))
   PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
 else
   PKG_CONFIG ?= pkg-config
@@ -214,7 +214,12 @@ AWK     = awk
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean python-clean TAGS tags cscope help
+# install-build-deps runs the install-build-deps.sh script, which
+# derives the package list from the feature test sources in
+# tools/build/feature/, so it needs neither the fixdep build nor a
+# config/feature detection pass: in a fresh container without gcc or
+# pkg-config those would fail before the script could install them.
+NON_CONFIG_TARGETS := clean python-clean TAGS tags cscope help install-build-deps
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
@@ -748,6 +753,7 @@ help:
 	@echo '  HINT: use "prefix" or "DESTDIR" to install to a particular'
 	@echo '        path like "make prefix=/usr/local install install-doc"'
 	@echo '  install	- install compiled binaries'
+	@echo '  install-build-deps - install the development packages needed to build'
 	@echo '  install-doc	- install *all* documentation'
 	@echo '  install-man	- install manpage documentation'
 	@echo '  install-html	- install html documentation'
@@ -892,6 +898,14 @@ install-bin: install-tools install-tests
 
 install: install-bin try-install-man
 
+# Install the development packages needed to build perf, derived from the
+# feature tests in tools/build/feature/.  This first installs just the
+# base toolchain; per-distro package mappings are added by the follow-up
+# commits.  INSTALL_BUILD_DEPS_ARGS, when set, is passed to the script, so
+# extra options like --list, --dry-run or --distro can be given from make.
+install-build-deps:
+	$(Q)$(SHELL) $(srctree)/tools/perf/scripts/install-build-deps.sh $(INSTALL_BUILD_DEPS_ARGS)
+
 install-python_ext:
 	$(PYTHON_WORD) util/setup.py $(python_setup_quiet) install --root='/$(DESTDIR_SQ)'
 
@@ -960,7 +974,7 @@ endif
 
 FORCE:
 
-.PHONY: all install clean config-clean strip install-gtk
+.PHONY: all install install-build-deps clean config-clean strip install-gtk
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
 .PHONY: .FORCE-PERF-VERSION-FILE TAGS tags cscope FORCE prepare bpf-skel-prepare
 .PHONY: python_perf_target
