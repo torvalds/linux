@@ -4,6 +4,7 @@
  *
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2026 Cloudflare, Inc.
  */
 
 #include <linux/bits.h>
@@ -306,11 +307,19 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 			.quiet = !!(flags & LANDLOCK_ADD_RULE_QUIET),
 		},
 	} };
+	int err;
 
 	build_check_layer();
 	lockdep_assert_held(&ruleset->lock);
-	return landlock_store_rule(&ruleset->rules, id, &layers,
-				   ARRAY_SIZE(layers));
+	err = landlock_store_rule(&ruleset->rules, id, &layers,
+				  ARRAY_SIZE(layers));
+
+#ifdef CONFIG_TRACEPOINTS
+	if (!err)
+		ruleset->version++;
+#endif /* CONFIG_TRACEPOINTS */
+
+	return err;
 }
 
 void landlock_free_rules(struct landlock_rules *const rules)

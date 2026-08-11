@@ -53,6 +53,8 @@
 #include "ruleset.h"
 #include "setup.h"
 
+#include <trace/events/landlock.h>
+
 /* Underlying object management */
 
 static void release_inode(struct landlock_object *const object)
@@ -347,7 +349,24 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 		return PTR_ERR(id.key.object);
 	mutex_lock(&ruleset->lock);
 	err = landlock_insert_rule(ruleset, id, access_rights, flags);
+
+	/*
+	 * Emit after the rule insertion succeeds, so every event corresponds to
+	 * a rule that is actually in the ruleset.  The ruleset lock is still
+	 * held for BTF consistency (enforced by lockdep_assert_held in
+	 * TP_fast_assign).
+	 */
+	if (!err && trace_landlock_add_rule_fs_enabled()) {
+		char *buffer __free(__putname) = __getname();
+		const char *pathname =
+			buffer ? resolve_path_for_trace(path, buffer) :
+				 "<no_mem>";
+
+		trace_landlock_add_rule_fs(ruleset, access_rights, path,
+					   pathname);
+	}
 	mutex_unlock(&ruleset->lock);
+
 	/*
 	 * No need to check for an error because landlock_insert_rule()
 	 * increments the refcount for the new object if needed.

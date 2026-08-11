@@ -20,6 +20,8 @@
 #include "net.h"
 #include "ruleset.h"
 
+#include <trace/events/landlock.h>
+
 int landlock_append_net_rule(struct landlock_ruleset *const ruleset,
 			     const u16 port, access_mask_t access_rights,
 			     const u32 flags)
@@ -37,6 +39,15 @@ int landlock_append_net_rule(struct landlock_ruleset *const ruleset,
 
 	mutex_lock(&ruleset->lock);
 	err = landlock_insert_rule(ruleset, id, access_rights, flags);
+
+	/*
+	 * Emit after the rule insertion succeeds, so every event corresponds to
+	 * a rule that is actually in the ruleset.  The ruleset lock is still
+	 * held for BTF consistency (enforced by lockdep_assert_held in
+	 * TP_fast_assign).
+	 */
+	if (!err)
+		trace_landlock_add_rule_net(ruleset, access_rights, port);
 	mutex_unlock(&ruleset->lock);
 
 	return err;

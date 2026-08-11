@@ -168,6 +168,13 @@ struct landlock_ruleset {
 
 #ifdef CONFIG_TRACEPOINTS
 	/**
+	 * @version: Counter incremented on each successful
+	 * landlock_add_rule(2), including when it only extends an existing
+	 * rule's access rights.  Used by tracepoints to correlate a domain with
+	 * the exact ruleset state it was created from.  Protected by @lock.
+	 */
+	u32 version;
+	/**
 	 * @id: Unique identifier for this ruleset, used for tracing.
 	 */
 	u64 id;
