@@ -85,15 +85,18 @@ static void drm_sched_rq_update_tree_locked(struct drm_sched_entity *entity,
 
 /**
  * drm_sched_rq_init - initialize a given run queue struct
+ * @sched: scheduler instance to associate with this run queue
  * @rq: scheduler run queue
  *
  * Initializes a scheduler runqueue.
  */
-void drm_sched_rq_init(struct drm_sched_rq *rq)
+void drm_sched_rq_init(struct drm_gpu_scheduler *sched,
+		       struct drm_sched_rq *rq)
 {
 	spin_lock_init(&rq->lock);
 	INIT_LIST_HEAD(&rq->entities);
 	rq->rb_tree_root = RB_ROOT_CACHED;
+	rq->sched = sched;
 	rq->head_prio = DRM_SCHED_PRIORITY_INVALID;
 }
 
@@ -162,8 +165,7 @@ drm_sched_entity_restore_vruntime(struct drm_sched_entity *entity,
 				  enum drm_sched_priority rq_prio)
 {
 	struct drm_sched_entity_stats *stats = entity->stats;
-	struct drm_gpu_scheduler *sched =
-			container_of(entity->rq, typeof(*sched), rq);
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	enum drm_sched_priority prio = entity->priority;
 	unsigned long avg_us, sched_avg_us;
 	ktime_t vruntime;
@@ -263,8 +265,8 @@ drm_sched_rq_add_entity(struct drm_sched_entity *entity)
 	}
 
 	rq = entity->rq;
-	sched = container_of(rq, typeof(*sched), rq);
 	spin_lock(&rq->lock);
+	sched = rq->sched;
 
 	if (list_empty(&entity->list)) {
 		atomic_inc(sched->score);
@@ -291,8 +293,6 @@ drm_sched_rq_add_entity(struct drm_sched_entity *entity)
 void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 				struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = container_of(rq, typeof(*sched), rq);
-
 	lockdep_assert_held(&entity->lock);
 
 	if (list_empty(&entity->list))
@@ -300,7 +300,7 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 
 	spin_lock(&rq->lock);
 
-	atomic_dec(sched->score);
+	atomic_dec(rq->sched->score);
 	list_del_init(&entity->list);
 
 	drm_sched_rq_remove_tree_locked(entity, rq);
@@ -356,7 +356,7 @@ void drm_sched_rq_pop_entity(struct drm_sched_entity *entity)
 struct drm_sched_entity *
 drm_sched_select_entity(struct drm_gpu_scheduler *sched)
 {
-	struct drm_sched_rq *rq = &sched->rq;
+	struct drm_sched_rq *rq = sched->rq;
 	struct rb_node *rb;
 
 	spin_lock(&rq->lock);
