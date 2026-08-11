@@ -983,6 +983,7 @@ static void gicv5_cpu_disable_interrupts(void)
 
 	cr0 = FIELD_PREP(ICC_CR0_EL1_EN, 0);
 	write_sysreg_s(cr0, SYS_ICC_CR0_EL1);
+	isb();
 }
 
 static void gicv5_cpu_enable_interrupts(void)
