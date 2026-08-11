@@ -119,8 +119,8 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 
 	while (enumerator.quadlet_count > 0) {
 		unsigned int child_port_count = 0;
+		unsigned int parent_port_count = 0;
 		unsigned int total_port_count = 0;
-		unsigned int parent_count = 0;
 		unsigned int quadlet_count;
 		const u32 *self_id_sequence;
 		unsigned int port_capacity;
@@ -148,16 +148,19 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 			switch (port_status) {
 			case PHY_PACKET_SELF_ID_PORT_STATUS_CHILD:
 				++child_port_count;
-				fallthrough;
+				break;
 			case PHY_PACKET_SELF_ID_PORT_STATUS_PARENT:
+				++parent_port_count;
+				break;
 			case PHY_PACKET_SELF_ID_PORT_STATUS_NCONN:
 				++total_port_count;
-				fallthrough;
+				break;
 			case PHY_PACKET_SELF_ID_PORT_STATUS_NONE:
 			default:
 				break;
 			}
 		}
+		total_port_count += child_port_count + parent_port_count;
 
 		if (phy_id != phy_packet_self_id_get_phy_id(self_id_sequence[0])) {
 			fw_err(card, "PHY ID mismatch in self ID: %d != %d\n",
@@ -203,7 +206,6 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 				// we temporarily abuse node->color for remembering the entry in
 				// the node->ports array where the parent node should be.  Later,
 				// when we handle the parent node, we fix up the reference.
-				++parent_count;
 				node->color = port_index;
 				break;
 
@@ -223,10 +225,10 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 
 		// Check that the node reports exactly one parent port, except for the root, which
 		// of course should have no parents.
-		if ((enumerator.quadlet_count == 0 && parent_count != 0) ||
-		    (enumerator.quadlet_count > 0 && parent_count != 1)) {
+		if ((enumerator.quadlet_count == 0 && parent_port_count != 0) ||
+		    (enumerator.quadlet_count > 0 && parent_port_count != 1)) {
 			fw_err(card, "parent port inconsistency for node %d: "
-			       "parent_count=%d\n", phy_id, parent_count);
+			       "parent_count=%d\n", phy_id, parent_port_count);
 			return NULL;
 		}
 
@@ -235,7 +237,7 @@ static struct fw_node *build_tree(struct fw_card *card, const u32 *sid, int self
 		list_add_tail(&node->link, &stack);
 		stack_depth += 1 - child_port_count;
 
-		if (node->phy_speed == SCODE_BETA && parent_count + child_port_count > 1)
+		if (node->phy_speed == SCODE_BETA && parent_port_count + child_port_count > 1)
 			beta_repeaters_present = true;
 
 		// If PHYs report different gap counts, set an invalid count which will force a gap
