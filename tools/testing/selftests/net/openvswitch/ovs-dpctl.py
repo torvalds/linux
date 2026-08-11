@@ -1985,6 +1985,11 @@ class ovskey(nla):
                 ovskey.ovs_key_udp,
             ),
             (
+                "OVS_KEY_ATTR_SCTP",
+                "sctp",
+                ovskey.ovs_key_sctp,
+            ),
+            (
                 "OVS_KEY_ATTR_ICMP",
                 "icmp",
                 ovskey.ovs_key_icmp,
