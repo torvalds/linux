@@ -378,8 +378,11 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 
 	vgdev->ddev->mode_config.fb_modifiers_not_supported = true;
 
-	for (i = 0 ; i < vgdev->num_scanouts; ++i)
-		vgdev_output_init(vgdev, i);
+	for (i = 0; i < vgdev->num_scanouts; ++i) {
+		ret = vgdev_output_init(vgdev, i);
+		if (ret)
+			return ret;
+	}
 
 	ret = drm_vblank_init(vgdev->ddev, vgdev->num_scanouts);
 	if (ret)
