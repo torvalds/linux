@@ -113,6 +113,7 @@
 #define FEATURE_SNPAVICSUP_GAM(x) \
 	(FIELD_GET(FEATURE_SNPAVICSUP, x) == 0x1)
 #define FEATURE_HT_RANGE_IGNORE		BIT_ULL(11)
+#define FEATURE_SNP_PAGE_MODE0_SUP	BIT_ULL(13)
 
 #define FEATURE_NUM_INT_REMAP_SUP	GENMASK_ULL(9, 8)
 #define FEATURE_NUM_INT_REMAP_SUP_2K(x) \
@@ -418,6 +419,9 @@ extern bool amd_iommu_dump;
 		if (amd_iommu_dump)				\
 			pr_info(format, ## arg);	\
 	} while(0);
+
+/* SNP page mode 0 support */
+extern bool amd_iommu_snp_mode0_sup;
 
 /* global flag if IOMMUs cache non-present entries */
 extern bool amd_iommu_np_cache;

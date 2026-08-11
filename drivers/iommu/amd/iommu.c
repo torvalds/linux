@@ -2953,9 +2953,9 @@ static int amd_iommu_identity_attach(struct iommu_domain *dom, struct device *de
 {
 	/*
 	 * Don't allow attaching a device to the identity domain if SNP is
-	 * enabled.
+	 * enabled and SNP Mode0 support is not present.
 	 */
-	if (amd_iommu_snp_en)
+	if (amd_iommu_snp_en && !amd_iommu_snp_mode0_sup)
 		return -EINVAL;
 
 	return amd_iommu_attach_device(dom, dev, old);
