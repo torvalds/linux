@@ -1414,7 +1414,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       dev_name(pctrl->dev), pctrl);
 	if (ret)
-		return dev_err_probe(pctrl->dev, ret, "failed to request interrupt\n");
+		return ret;
 
 	/* Setup IRQ chip */
 	girq = &pctrl->chip.irq;
