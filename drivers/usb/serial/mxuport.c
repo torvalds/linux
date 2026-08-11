@@ -6,10 +6,20 @@
  *	Copyright (c) 2013 Andrew Lunn <andrew@lunn.ch>
  *
  *	Supports the following Moxa USB to serial converters:
- *	 2 ports : UPort 1250, UPort 1250I
- *	 4 ports : UPort 1410, UPort 1450, UPort 1450I
- *	 8 ports : UPort 1610-8, UPort 1650-8
- *	16 ports : UPort 1610-16, UPort 1650-16
+ *
+ *	UPort G1:
+ *		UPort 1250, UPort 1250I
+ *		UPort 1410, UPort 1450, UPort 1450I
+ *		UPort 1610-8, UPort 1650-8
+ *		UPort 1610-16, UPort 1650-16
+ *	UPort G2:
+ *		UPort 1250-G2, UPort 1250I-G2
+ *		UPort 1410-G2, UPort 1450-G2, UPort 1450I-G2
+ *		UPort 1610-8-G2, UPort 1650-8-G2
+ *		UPort 1650-8-G2-Hub, UPort 1650I-8-G2
+ *	Platform UART:
+ *		MU250U, MU450U, MU850U
+ *		MUx50U-3, MUx50U-5, MUx50U-6, MUx50U-7
  */
 
 #include <linux/kernel.h>
@@ -37,6 +47,24 @@
 #define MX_UPORT1610_16_PID	0x1613
 #define MX_UPORT1650_16_PID	0x1653
 
+#define MX_UPORT1250_G2_PID		0x1252
+#define MX_UPORT1250I_G2_PID		0x1253
+#define MX_UPORT1410_G2_PID		0x1411
+#define MX_UPORT1450_G2_PID		0x1452
+#define MX_UPORT1450I_G2_PID		0x1453
+#define MX_UPORT1610_8_G2_PID		0x1619
+#define MX_UPORT1650_8_G2_PID		0x1659
+#define MX_UPORT1650_8_G2_HUB_PID	0x165a
+#define MX_UPORT1650I_8_G2_PID		0x165b
+
+#define MX_MU250U_PID		0x0250
+#define MX_MU450U_PID		0x0450
+#define MX_MU850U_PID		0x0850
+#define MX_MUX50U_6_PID		0x7002
+#define MX_MUX50U_3_PID		0x7003
+#define MX_MUX50U_5_PID		0x7004
+#define MX_MUX50U_7_PID		0x7005
+
 /* Definitions for USB info */
 #define HEADER_SIZE		4
 #define EVENT_LENGTH		8
@@ -46,6 +74,13 @@
 #define MX_FW_VER_BYTE1_OFF		0x20
 #define MX_FW_VER_BYTE2_OFF		0x24
 #define MX_FW_VER_BYTE3_OFF		0x28
+#define MX_MUX50U_FW_VER_BYTE1_OFF	0x86
+#define MX_MUX50U_FW_VER_BYTE2_OFF	0x88
+#define MX_MUX50U_FW_VER_BYTE3_OFF	0x8a
+
+#define MX_SYS_REG_REMAP_OFF		0x20
+#define MX_PWR_REMAP_MASK		0x03
+#define MX_REMAP_TO_SRAM		0x02
 
 struct mxuport_fw_version {
 	u8 major;
@@ -58,6 +93,12 @@ static const u16 mxuport_fw_ver_offsets[] = {
 	MX_FW_VER_BYTE1_OFF,
 	MX_FW_VER_BYTE2_OFF,
 	MX_FW_VER_BYTE3_OFF,
+};
+
+static const u16 mxuport_mux50u_fw_ver_offsets[] = {
+	MX_MUX50U_FW_VER_BYTE1_OFF,
+	MX_MUX50U_FW_VER_BYTE2_OFF,
+	MX_MUX50U_FW_VER_BYTE3_OFF,
 };
 
 /* Definitions for USB vendor request */
@@ -95,6 +136,8 @@ static const u16 mxuport_fw_ver_offsets[] = {
 
 #define RQ_VENDOR_RESET_DEVICE		0x23 /* Try to reset the device */
 #define RQ_VENDOR_QUERY_FW_CONFIG	0x24
+
+#define RQ_VENDOR_GET_SYS_REG		0x34
 
 #define RQ_VENDOR_GET_VERSION		0x81 /* Get firmware version */
 #define RQ_VENDOR_GET_PAGE		0x82 /* Read flash page */
@@ -170,21 +213,44 @@ struct mxuport_port {
 #define MX_PORTS_OFFSET			1
 #define MX_PORTS(n)			(((n) - MX_PORTS_OFFSET) & MX_PORTS_MASK)
 
-#define MX_DEVICE(pid, ports)					\
+#define MX_FAMILY_MASK			GENMASK(5, 4)
+#define MX_UPORT_G1			0
+#define MX_UPORT_G2			BIT(4)
+#define MX_PLATFORM_UART		BIT(5)
+#define MX_FAMILY(info)			((info) & MX_FAMILY_MASK)
+#define MX_DEVICE_INFO(ports, family)	(MX_PORTS(ports) | (family))
+
+#define MX_DEVICE(pid, ports, family)				\
 	{ USB_DEVICE(MX_USBSERIAL_VID, pid),			\
-	  .driver_info = MX_PORTS(ports) }
+	  .driver_info = MX_DEVICE_INFO(ports, family) }
 
 /* Table of devices that work with this driver */
 static const struct usb_device_id mxuport_idtable[] = {
-	MX_DEVICE(MX_UPORT1250_PID,	 2),
-	MX_DEVICE(MX_UPORT1250I_PID,	 2),
-	MX_DEVICE(MX_UPORT1410_PID,	 4),
-	MX_DEVICE(MX_UPORT1450_PID,	 4),
-	MX_DEVICE(MX_UPORT1450I_PID,	 4),
-	MX_DEVICE(MX_UPORT1610_8_PID,	 8),
-	MX_DEVICE(MX_UPORT1650_8_PID,	 8),
-	MX_DEVICE(MX_UPORT1610_16_PID,	16),
-	MX_DEVICE(MX_UPORT1650_16_PID,	16),
+	MX_DEVICE(MX_UPORT1250_PID,	     2, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1250I_PID,	     2, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1410_PID,	     4, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1450_PID,	     4, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1450I_PID,	     4, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1610_8_PID,	     8, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1650_8_PID,	     8, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1610_16_PID,	    16, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1650_16_PID,	    16, MX_UPORT_G1),
+	MX_DEVICE(MX_UPORT1250_G2_PID,	     2, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1250I_G2_PID,	     2, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1410_G2_PID,	     4, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1450_G2_PID,	     4, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1450I_G2_PID,	     4, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1610_8_G2_PID,     8, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1650_8_G2_PID,     8, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1650_8_G2_HUB_PID, 8, MX_UPORT_G2),
+	MX_DEVICE(MX_UPORT1650I_8_G2_PID,    8, MX_UPORT_G2),
+	MX_DEVICE(MX_MU250U_PID,	     2, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MU450U_PID,	     4, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MU850U_PID,	     8, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MUX50U_6_PID,	     6, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MUX50U_3_PID,	     3, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MUX50U_5_PID,	     5, MX_PLATFORM_UART),
+	MX_DEVICE(MX_MUX50U_7_PID,	     7, MX_PLATFORM_UART),
 	{}			/* Terminating entry */
 };
 
@@ -1000,6 +1066,56 @@ static int mxuport_parse_fw_version(const struct firmware *fw,
 	return 0;
 }
 
+static bool mxuport_is_mux50u_device(unsigned long features)
+{
+	switch (MX_FAMILY(features)) {
+	case MX_UPORT_G2:
+	case MX_PLATFORM_UART:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void mxuport_get_fw_name(unsigned long features, u16 productid,
+				char *buf, size_t size)
+{
+	switch (MX_FAMILY(features)) {
+	case MX_UPORT_G2:
+		strscpy(buf, "moxa/moxa-up-mux50u.fw", size);
+		break;
+	case MX_PLATFORM_UART:
+		strscpy(buf, "moxa/moxa-pf-mux50u.fw", size);
+		break;
+	default:
+		snprintf(buf, size, "moxa/moxa-%04x.fw", productid);
+		break;
+	}
+}
+
+static int mxuport_fw_running_from_sram(struct usb_serial *serial, bool *from_sram)
+{
+	int err;
+	u32 reg;
+	u8 *buf;
+
+	buf = kzalloc_objs(*buf, sizeof(reg));
+	if (!buf)
+		return -ENOMEM;
+
+	err = mxuport_recv_ctrl_urb(serial, RQ_VENDOR_GET_SYS_REG,
+				    MX_SYS_REG_REMAP_OFF, 0, buf, sizeof(reg));
+	if (err < 0)
+		goto out;
+
+	reg = get_unaligned_be32(buf);
+	*from_sram = (((reg >> 24) & MX_PWR_REMAP_MASK) == MX_REMAP_TO_SRAM);
+	err = 0;
+out:
+	kfree(buf);
+	return err;
+}
+
 /* Get the version of the firmware currently running. */
 static int mxuport_get_fw_version(struct usb_serial *serial,
 				  struct mxuport_fw_version *version)
@@ -1080,7 +1196,10 @@ static int mxuport_probe(struct usb_serial *serial,
 {
 	u16 productid = le16_to_cpu(serial->dev->descriptor.idProduct);
 	struct mxuport_fw_version version, local_ver;
+	unsigned long features = id->driver_info;
 	const struct firmware *fw_p = NULL;
+	const u16 *fw_version_offsets;
+	bool download_fw, from_sram;
 	char buf[32];
 	int err;
 
@@ -1098,7 +1217,12 @@ static int mxuport_probe(struct usb_serial *serial,
 	dev_dbg(&serial->interface->dev, "Device firmware version v%u.%u.%u\n",
 		version.major, version.minor, version.build);
 
-	snprintf(buf, sizeof(buf) - 1, "moxa/moxa-%04x.fw", productid);
+	if (mxuport_is_mux50u_device(features))
+		fw_version_offsets = mxuport_mux50u_fw_ver_offsets;
+	else
+		fw_version_offsets = mxuport_fw_ver_offsets;
+
+	mxuport_get_fw_name(features, productid, buf, sizeof(buf));
 
 	err = request_firmware(&fw_p, buf, &serial->interface->dev);
 	if (err) {
@@ -1108,7 +1232,7 @@ static int mxuport_probe(struct usb_serial *serial,
 		/* Use the firmware already in the device */
 		err = 0;
 	} else {
-		err = mxuport_parse_fw_version(fw_p, mxuport_fw_ver_offsets, &local_ver);
+		err = mxuport_parse_fw_version(fw_p, fw_version_offsets, &local_ver);
 		if (err) {
 			dev_err(&serial->interface->dev,
 				"Firmware %s is too short\n", buf);
@@ -1119,7 +1243,17 @@ static int mxuport_probe(struct usb_serial *serial,
 			"Available firmware version v%u.%u.%u\n",
 			local_ver.major, local_ver.minor, local_ver.build);
 
-		if (local_ver.value > version.value) {
+		if (mxuport_is_mux50u_device(features)) {
+			err = mxuport_fw_running_from_sram(serial, &from_sram);
+			if (err)
+				goto out;
+
+			download_fw = !from_sram;
+		} else {
+			download_fw = local_ver.value > version.value;
+		}
+
+		if (download_fw) {
 			err = mxuport_download_fw(serial, fw_p);
 			if (err)
 				goto out;
