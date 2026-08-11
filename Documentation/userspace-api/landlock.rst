@@ -762,6 +762,8 @@ Starting with the Landlock ABI version 6, it is possible to restrict
 :manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
 ``scoped`` ruleset attribute.
 
+.. _landlock_log_flags:
+
 Logging (ABI < 7)
 -----------------
 
@@ -769,8 +771,13 @@ Starting with the Landlock ABI version 7, it is possible to control logging of
 Landlock audit events with the ``LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF``,
 ``LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON``, and
 ``LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF`` flags passed to
-sys_landlock_restrict_self().  See Documentation/admin-guide/LSM/landlock.rst
-for more details on audit.
+sys_landlock_restrict_self().  These flags control audit record generation.
+Landlock tracepoints are not affected by these flags and always fire when
+enabled, providing an alternative observability channel for debugging and
+monitoring.  See Documentation/admin-guide/LSM/landlock.rst for more
+details on audit and tracepoints, and
+Documentation/trace/events-landlock.rst for the complete trace event
+reference.
 
 Thread synchronization (ABI < 8)
 --------------------------------
@@ -925,6 +932,7 @@ Additional documentation
 ========================
 
 * Documentation/admin-guide/LSM/landlock.rst
+* Documentation/trace/events-landlock.rst
 * Documentation/security/landlock.rst
 * https://landlock.io
 

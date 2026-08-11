@@ -14597,6 +14597,7 @@ W:	https://landlock.io
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/mic/linux.git
 F:	Documentation/admin-guide/LSM/landlock.rst
 F:	Documentation/security/landlock.rst
+F:	Documentation/trace/events-landlock.rst
 F:	Documentation/userspace-api/landlock.rst
 F:	fs/ioctl.c
 F:	include/linux/landlock.h
