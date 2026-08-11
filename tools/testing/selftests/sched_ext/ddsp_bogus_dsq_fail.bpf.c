@@ -14,18 +14,16 @@ s32 BPF_STRUCT_OPS(ddsp_bogus_dsq_fail_select_cpu, struct task_struct *p,
 		   s32 prev_cpu, u64 wake_flags)
 {
 	s32 cpu = scx_bpf_pick_idle_cpu(p->cpus_ptr, 0);
+	if (cpu < 0)
+		cpu = prev_cpu;
 
-	if (cpu >= 0) {
-		/*
-		 * If we dispatch to a bogus DSQ that will fall back to the
-		 * builtin global DSQ, we fail gracefully.
-		 */
-		scx_bpf_dsq_insert_vtime(p, 0xcafef00d, SCX_SLICE_DFL,
-				       p->scx.dsq_vtime, 0);
-		return cpu;
-	}
-
-	return prev_cpu;
+	/*
+	 * If we dispatch to a bogus DSQ that will fall back to the
+	 * builtin global DSQ, we fail gracefully.
+	 */
+	scx_bpf_dsq_insert_vtime(p, 0xcafef00d, SCX_SLICE_DFL,
+				 p->scx.dsq_vtime, 0);
+	return cpu;
 }
 
 void BPF_STRUCT_OPS(ddsp_bogus_dsq_fail_exit, struct scx_exit_info *ei)
