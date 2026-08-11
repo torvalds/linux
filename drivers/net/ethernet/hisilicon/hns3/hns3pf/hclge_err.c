@@ -1592,6 +1592,7 @@ hclge_query_reg_info(struct hclge_dev *hdev,
 	}
 
 	kfree(msg->desc);
+	msg->desc = NULL;
 }
 
 static void hclge_query_reg_info_of_ssu(struct hclge_dev *hdev)
@@ -1761,7 +1762,7 @@ static const struct hclge_hw_type_id hclge_hw_type_id_st[] = {
 	},
 };
 
-static void hclge_log_error(struct device *dev, char *reg,
+static void hclge_log_error(struct device *dev, const char *reg,
 			    const struct hclge_hw_error *err,
 			    u32 err_sts, unsigned long *reset_requests)
 {
