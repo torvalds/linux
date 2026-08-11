@@ -44,6 +44,9 @@
 
 #include "audit.h"
 #include "common.h"
+#include "trace.h"
+
+#define TRACE_TASK "fs_test"
 
 #ifndef renameat2
 int renameat2(int olddirfd, const char *oldpath, int newdirfd,
@@ -10434,6 +10437,486 @@ TEST_F(audit_quiet_rename, quiet_behind_mountpoint_disconnected)
 
 	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
 	ASSERT_EQ(0, records.access);
+}
+
+/* clang-format off */
+FIXTURE(trace_layout1) {
+	/* clang-format on */
+	int tracefs_ok;
+};
+
+FIXTURE_SETUP(trace_layout1)
+{
+	struct stat st;
+
+	/*
+	 * Check tracefs availability before creating the layout, following the
+	 * layout3_fs pattern: skip before any layout creation to avoid leaving
+	 * stale TMP_DIR on skip.
+	 */
+	if (stat(TRACEFS_LANDLOCK_DIR, &st)) {
+		self->tracefs_ok = 0;
+		SKIP(return, "tracefs not available");
+	}
+	self->tracefs_ok = 1;
+
+	/* Isolate tracefs state (PID filter, event enables). */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, unshare(CLONE_NEWNS));
+	ASSERT_EQ(0, mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	prepare_layout(_metadata);
+	create_layout1(_metadata);
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_fixture_setup());
+	ASSERT_EQ(0, tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, true));
+	ASSERT_EQ(0, tracefs_clear());
+	ASSERT_EQ(0, tracefs_set_pid_filter(getpid()));
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+}
+
+FIXTURE_TEARDOWN_PARENT(trace_layout1)
+{
+	if (!self->tracefs_ok)
+		return;
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	tracefs_enable_event(TRACEFS_CHECK_RULE_FS_ENABLE, false);
+	tracefs_clear_pid_filter();
+	tracefs_fixture_teardown();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	remove_layout1(_metadata);
+	cleanup_layout(_metadata);
+}
+
+/*
+ * Verifies that check_rule_fs events include correct field values: domain, dev,
+ * ino, access_request, and grants.  All values are verified against stat() of
+ * the rule path on a deterministic tmpfs layout.
+ */
+TEST_F(trace_layout1, check_rule_fs_fields)
+{
+	struct stat dir_stat;
+	char expected_dev[32];
+	char expected_ino[32];
+	char *buf;
+	char field[64];
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	ASSERT_EQ(0, stat(dir_s1d1, &dir_stat));
+	snprintf(expected_dev, sizeof(expected_dev), "%u:%u",
+		 major(dir_stat.st_dev), minor(dir_stat.st_dev));
+	snprintf(expected_ino, sizeof(expected_ino), "%lu", dir_stat.st_ino);
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	sandbox_child_fs_access(_metadata, dir_s1d1,
+				LANDLOCK_ACCESS_FS_READ_DIR,
+				LANDLOCK_ACCESS_FS_READ_DIR, dir_s1d1);
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	buf = tracefs_read_trace();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_NE(NULL, buf);
+
+	EXPECT_EQ(1,
+		  tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK)))
+	{
+		TH_LOG("Expected 1 check_rule_fs event\n%s", buf);
+	}
+
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "dev", field, sizeof(field)));
+	EXPECT_STREQ(expected_dev, field)
+	{
+		TH_LOG("Expected dev=%s, got %s", expected_dev, field);
+	}
+
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "ino", field, sizeof(field)));
+	EXPECT_STREQ(expected_ino, field)
+	{
+		TH_LOG("Expected ino=%s, got %s", expected_ino, field);
+	}
+
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "access_request", field,
+					   sizeof(field)));
+	EXPECT_STREQ("read_dir", field)
+	{
+		TH_LOG("Expected access_request=read_dir, got %s", field);
+	}
+
+	/*
+	 * The domain handles only READ_DIR, so the rule carries the
+	 * unhandled-rights padding; intersecting with the request leaves just
+	 * the requested read_dir (no padding, no hex).
+	 */
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "grants", field, sizeof(field)));
+	EXPECT_STREQ("{read_dir}", field)
+	{
+		TH_LOG("Expected grants={read_dir}, got %s", field);
+	}
+
+	free(buf);
+}
+
+/*
+ * Verifies check_rule_fs behavior with multiple rules.  With rules at s1d1 and
+ * s1d2 (a child of s1d1), accessing s1d2 produces only 1 event because the
+ * pathwalk short-circuits after the first rule fully unmasks the single layer.
+ */
+TEST_F(trace_layout1, check_rule_fs_multiple_rules)
+{
+	pid_t pid;
+	int status;
+	char *buf;
+	int count;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	pid = fork();
+	ASSERT_LE(0, pid);
+
+	if (pid == 0) {
+		struct landlock_ruleset_attr attr = {
+			.handled_access_fs = LANDLOCK_ACCESS_FS_READ_DIR,
+		};
+		struct landlock_path_beneath_attr path_beneath = {
+			.allowed_access = LANDLOCK_ACCESS_FS_READ_DIR,
+		};
+		int ruleset_fd, fd;
+
+		ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+		if (ruleset_fd < 0)
+			_exit(1);
+
+		path_beneath.parent_fd =
+			open(dir_s1d1, O_PATH | O_DIRECTORY | O_CLOEXEC);
+		if (path_beneath.parent_fd < 0)
+			_exit(1);
+		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				      &path_beneath, 0))
+			_exit(1);
+		close(path_beneath.parent_fd);
+
+		path_beneath.parent_fd =
+			open(dir_s1d2, O_PATH | O_DIRECTORY | O_CLOEXEC);
+		if (path_beneath.parent_fd < 0)
+			_exit(1);
+		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				      &path_beneath, 0))
+			_exit(1);
+		close(path_beneath.parent_fd);
+
+		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+		if (landlock_restrict_self(ruleset_fd, 0))
+			_exit(1);
+		close(ruleset_fd);
+
+		fd = open(dir_s1d2, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (fd >= 0)
+			close(fd);
+		_exit(0);
+	}
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	buf = tracefs_read_trace();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_NE(NULL, buf);
+
+	/*
+	 * Only 1 check_rule_fs event: the rule on dir_s1d2 fully unmasked the
+	 * single layer, so the pathwalk short-circuits before reaching the
+	 * dir_s1d1 rule.
+	 */
+	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 check_rule_fs event, got %d\n%s", count,
+		       buf);
+	}
+
+	free(buf);
+}
+
+/*
+ * Verifies the grants array is intersected with the request: a handled,
+ * granted, but unrequested right (execute) is filtered out, leaving only the
+ * requested read_dir.
+ */
+TEST_F(trace_layout1, check_rule_fs_request_subset)
+{
+	char *buf;
+	char field[64];
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	/*
+	 * Handle and grant READ_DIR|EXECUTE; the open only requests read_dir.
+	 */
+	sandbox_child_fs_access(
+		_metadata, dir_s1d1,
+		LANDLOCK_ACCESS_FS_READ_DIR | LANDLOCK_ACCESS_FS_EXECUTE,
+		LANDLOCK_ACCESS_FS_READ_DIR | LANDLOCK_ACCESS_FS_EXECUTE,
+		dir_s1d1);
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	buf = tracefs_read_trace();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_NE(NULL, buf);
+
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "access_request", field,
+					   sizeof(field)));
+	EXPECT_STREQ("read_dir", field);
+
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "grants", field, sizeof(field)));
+	EXPECT_STREQ("{read_dir}", field);
+
+	free(buf);
+}
+
+/*
+ * Verifies that the optional TRUNCATE access right, which hook_file_open()
+ * speculatively evaluates on every open, appears in the access_request= and
+ * grants= fields.  Opening file1_s1d1 read-only needs only read_file, but the
+ * open hook also evaluates truncate; the domain handles and the rule grants
+ * both, so the event reports access_request=read_file|truncate and
+ * grants={read_file|truncate}, and the open is allowed.
+ */
+TEST_F(trace_layout1, check_rule_fs_optional_access)
+{
+	pid_t pid;
+	int status;
+	char *buf;
+	char field[64];
+	int count;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	pid = fork();
+	ASSERT_LE(0, pid);
+
+	if (pid == 0) {
+		struct landlock_ruleset_attr attr = {
+			.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE |
+					     LANDLOCK_ACCESS_FS_TRUNCATE,
+		};
+		struct landlock_path_beneath_attr path_beneath = {
+			.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE |
+					  LANDLOCK_ACCESS_FS_TRUNCATE,
+		};
+		int ruleset_fd, fd;
+
+		ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+		if (ruleset_fd < 0)
+			_exit(1);
+
+		path_beneath.parent_fd =
+			open(dir_s1d1, O_PATH | O_DIRECTORY | O_CLOEXEC);
+		if (path_beneath.parent_fd < 0)
+			_exit(1);
+		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				      &path_beneath, 0))
+			_exit(1);
+		close(path_beneath.parent_fd);
+
+		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+		if (landlock_restrict_self(ruleset_fd, 0))
+			_exit(1);
+		close(ruleset_fd);
+
+		/* Read-only open needs only read_file; truncate is optional. */
+		fd = open(file1_s1d1, O_RDONLY | O_CLOEXEC);
+		if (fd < 0)
+			_exit(1);
+		close(fd);
+		_exit(0);
+	}
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	/* The open is allowed: the required read_file is granted. */
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	buf = tracefs_read_trace();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_NE(NULL, buf);
+
+	/* The rule at dir_s1d1 matches when opening file1_s1d1. */
+	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
+	EXPECT_EQ(1, count)
+	{
+		TH_LOG("Expected 1 check_rule_fs event, got %d\n%s", count,
+		       buf);
+	}
+
+	/* The open hook adds the optional truncate to the request. */
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "access_request", field,
+					   sizeof(field)));
+	EXPECT_STREQ("read_file|truncate", field);
+
+	/* The rule grants both, so truncate appears in the grants array. */
+	ASSERT_EQ(0, tracefs_extract_field(buf, REGEX_CHECK_RULE_FS(TRACE_TASK),
+					   "grants", field, sizeof(field)));
+	EXPECT_STREQ("{read_file|truncate}", field);
+
+	free(buf);
+}
+
+/*
+ * Verifies that check_rule_fs fires for a rule that matches the inode even when
+ * it grants none of the requested rights, so the grants set is empty.  Landlock
+ * cannot know a rule ignores the request before reading it, so the event is
+ * still emitted (grants={}), which lets a tracer see that the rule matched.
+ * The domain handles READ_DIR|EXECUTE, dir_s1d2 grants only EXECUTE and its
+ * parent dir_s1d1 grants only READ_DIR.  Reading dir_s1d2 (requesting read_dir)
+ * first matches the dir_s1d2 rule, which grants nothing requested (grants={});
+ * walking up to dir_s1d1 then grants read_dir (grants={read_dir}) and allows
+ * the access.
+ */
+TEST_F(trace_layout1, check_rule_fs_empty_grant)
+{
+	pid_t pid;
+	int status;
+	char *buf;
+	int count;
+
+	if (!self->tracefs_ok)
+		SKIP(return, "tracefs not available");
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_EQ(0, tracefs_clear());
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+
+	pid = fork();
+	ASSERT_LE(0, pid);
+
+	if (pid == 0) {
+		struct landlock_ruleset_attr attr = {
+			.handled_access_fs = LANDLOCK_ACCESS_FS_READ_DIR |
+					     LANDLOCK_ACCESS_FS_EXECUTE,
+		};
+		struct landlock_path_beneath_attr path_beneath = {};
+		int ruleset_fd, fd;
+
+		ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+		if (ruleset_fd < 0)
+			_exit(1);
+
+		/* Parent dir_s1d1 grants only READ_DIR. */
+		path_beneath.allowed_access = LANDLOCK_ACCESS_FS_READ_DIR;
+		path_beneath.parent_fd =
+			open(dir_s1d1, O_PATH | O_DIRECTORY | O_CLOEXEC);
+		if (path_beneath.parent_fd < 0)
+			_exit(1);
+		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				      &path_beneath, 0))
+			_exit(1);
+		close(path_beneath.parent_fd);
+
+		/* Child dir_s1d2 grants only EXECUTE. */
+		path_beneath.allowed_access = LANDLOCK_ACCESS_FS_EXECUTE;
+		path_beneath.parent_fd =
+			open(dir_s1d2, O_PATH | O_DIRECTORY | O_CLOEXEC);
+		if (path_beneath.parent_fd < 0)
+			_exit(1);
+		if (landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+				      &path_beneath, 0))
+			_exit(1);
+		close(path_beneath.parent_fd);
+
+		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+		if (landlock_restrict_self(ruleset_fd, 0))
+			_exit(1);
+		close(ruleset_fd);
+
+		fd = open(dir_s1d2, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		if (fd < 0)
+			_exit(1);
+		close(fd);
+		_exit(0);
+	}
+
+	ASSERT_EQ(pid, waitpid(pid, &status, 0));
+	ASSERT_TRUE(WIFEXITED(status));
+	EXPECT_EQ(0, WEXITSTATUS(status));
+
+	set_cap(_metadata, CAP_DAC_OVERRIDE);
+	buf = tracefs_read_trace();
+	clear_cap(_metadata, CAP_DAC_OVERRIDE);
+	ASSERT_NE(NULL, buf);
+
+	/*
+	 * dir_s1d2 (grants nothing requested) then dir_s1d1 (grants read_dir).
+	 */
+	count = tracefs_count_matches(buf, REGEX_CHECK_RULE_FS(TRACE_TASK));
+	EXPECT_EQ(2, count)
+	{
+		TH_LOG("Expected 2 check_rule_fs events, got %d\n%s", count,
+		       buf);
+	}
+
+	/* The dir_s1d2 rule matches the inode but grants none of read_dir. */
+	EXPECT_EQ(
+		1,
+		tracefs_count_matches(
+			buf,
+			TRACE_PREFIX(
+				TRACE_TASK) "landlock_check_rule_fs: domain=[0-9a-f]\\+ "
+					    "access_request=read_dir "
+					    "dev=[0-9]\\+:[0-9]\\+ ino=[0-9]\\+ "
+					    "grants={}$"))
+	{
+		TH_LOG("Expected a grants={} event\n%s", buf);
+	}
+
+	/* Walking up to dir_s1d1 grants the requested read_dir. */
+	EXPECT_EQ(
+		1,
+		tracefs_count_matches(
+			buf,
+			TRACE_PREFIX(
+				TRACE_TASK) "landlock_check_rule_fs: domain=[0-9a-f]\\+ "
+					    "access_request=read_dir "
+					    "dev=[0-9]\\+:[0-9]\\+ ino=[0-9]\\+ "
+					    "grants={read_dir}$"))
+	{
+		TH_LOG("Expected a grants={read_dir} event\n%s", buf);
+	}
+
+	free(buf);
 }
 
 TEST_HARNESS_MAIN
