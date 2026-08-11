@@ -791,7 +791,8 @@ int kvm_vgic_hyp_init(void)
 
 	if (has_mask && !gic_kvm_info->maint_irq) {
 		kvm_err("No vgic maintenance irq\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto out_free;
 	}
 
 	/*
@@ -824,6 +825,7 @@ int kvm_vgic_hyp_init(void)
 
 	kvm_vgic_global_state.maint_irq = gic_kvm_info->maint_irq;
 
+out_free:
 	kfree(gic_kvm_info);
 	gic_kvm_info = NULL;
 
