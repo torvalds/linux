@@ -13,13 +13,30 @@
 # that provides the headers/libraries it checks, so that a subsequent
 # 'make -C tools/perf' build enables the corresponding perf features.
 #
-# Supported distros, each mapping validated in a fresh container, so the
-# host system is not modified:
+# Currently supported distros, each validated in a fresh container:
 #
 #   - Fedora, on dnf, validated on Fedora 44, in a toolbx container:
 #
 #           toolbox create fedora:44
 #           toolbox enter fedora:44
+#
+#   - Ubuntu, on apt-get, validated on Ubuntu 26.04, in a distrobox
+#     container:
+#
+#           distrobox create --image ubuntu:26.04
+#           distrobox enter ubuntu-26-04
+#
+#     The apt-get install runs with a noninteractive debconf frontend:
+#     default-jdk, needed by the jvmti feature tests, pulls in tzdata,
+#     which prompts for the timezone on a terminal and would block the
+#     install, e.g. in a container shared with an interactive session.
+#
+# Running inside a container keeps the host system unmodified.
+#
+# Debian, which shares the Ubuntu package mapping, is the next planned
+# distro to be enabled once that mapping is validated on a Debian
+# release (trixie), as is RHEL support, once its (largely similar to
+# Fedora) package mapping is validated there.
 #
 # Usage: install-build-deps.sh [OPTIONS]
 #
@@ -27,7 +44,7 @@
 #    --list       list the packages that would be installed, then exit
 #    --dry-run    show the install command that would be run, without
 #                 running it
-#    --distro ID  force a distro: fedora (default: auto-detect)
+#    --distro ID  force a distro: fedora, ubuntu (default: auto-detect)
 #    -h, --help   print this help message
 #
 # Requires root (or passwordless sudo) to actually install packages.
@@ -49,11 +66,12 @@ it, so the corresponding feature gets enabled on a build.
 Options:
     --list      list the packages that would be installed, then exit
     --dry-run   show the install command that would be run, without running it
-    --distro ID force a distro: fedora
+    --distro ID force a distro: fedora, ubuntu
     -h, --help  print this help message
 
-Distro supported: Fedora (dnf), validated on a fresh Fedora 44 toolbx
-container.
+Distros supported: Fedora (dnf), validated in a toolbx container on
+Fedora 44, and Ubuntu (apt-get), validated in a distrobox container on
+Ubuntu 26.04.
 EOF
 	exit 0
 }
@@ -151,9 +169,109 @@ fedora_pkg_for() {
 	# and CoreSight (ifdef CORESIGHT), are deliberately not mapped.
 	# libaio is not mapped either: its
 	# test uses the POSIX AIO API (aio.h, aio_*, -lrt), provided by
-	# glibc headers (pulled in by the glibc-devel base package), not
-	# the native libaio.h/io_submit API that libaio-devel provides.
+	# glibc headers (pulled in by the libc headers package) in the
+	# base set, not the native libaio.h/io_submit API that
+	# libaio-devel provides.
 }
+
+# ---------------------------------------------------------------------
+# Return the Debian/Ubuntu package(s) providing the devel requirements
+# of a feature test in tools/build/feature/.  This mapping is shared by
+# Debian and Ubuntu, whose package names for these devel packages match,
+# and is validated on Ubuntu 26.04; Debian (trixie) will be enabled
+# once the same mapping is validated on it.
+# ---------------------------------------------------------------------
+debian_pkg_for() {
+	local feat="$1"
+	case "$feat" in
+	libelf|libelf-getphdrnum|libelf-gelf_getnote|libelf-getshdrstrndx)
+		echo "libelf-dev"
+		;;
+	libelf-zstd)
+		echo "libelf-dev libzstd-dev"
+		;;
+	libdw)
+		echo "libdw-dev"
+		;;
+	libdebuginfod)
+		echo "libdebuginfod-dev"
+		;;
+	libnuma|numa_num_possible_cpus)
+		echo "libnuma-dev"
+		;;
+	libzstd)
+		echo "libzstd-dev"
+		;;
+	zlib)
+		echo "zlib1g-dev"
+		;;
+	lzma)
+		echo "liblzma-dev"
+		;;
+	libslang)
+		echo "libslang2-dev"
+		;;
+	libcapstone)
+		echo "libcapstone-dev"
+		;;
+	libpython)
+		echo "python3-dev"
+		;;
+	libtraceevent)
+		echo "libtraceevent-dev"
+		;;
+	# The cxa-demangle feature test links against libstdc++ builtin
+	# demangling, so on Debian-derived distros it is covered by the
+	# g++ base package below, which pulls in libstdc++-*-dev.
+	cxa-demangle)
+		;;
+	libbpf)
+		echo "libbpf-dev"
+		;;
+	babeltrace2-ctf-writer)
+		echo "libbabeltrace2-dev"
+		;;
+	libopenssl)
+		echo "libssl-dev"
+		;;
+	libpfm4)
+		echo "libpfm4-dev"
+		;;
+	sdt)
+		echo "systemtap-sdt-dev"
+		;;
+	# test-clang-bpf-co-re.c invokes the clang binary (not libclang-cpp),
+	# so clang suffices; llvm-dev brings llvm-config, needed by the
+	# llvm/llvm-perf tests below.
+	clang-bpf-co-re)
+		echo "clang llvm-dev"
+		;;
+	llvm|llvm-perf)
+		echo "llvm-dev"
+		;;
+	jvmti|jvmti-cmlr)
+		echo "default-jdk"
+		;;
+	esac
+	# Same rationale as in fedora_pkg_for() above for unmapped tests.
+}
+
+# Base packages needed by any perf build, regardless of feature tests:
+# compiler, libc headers, flex/bison for the parser, kernel headers
+# for UAPI headers with no in-tree copy, e.g. <linux/capability.h>, and
+# gcc-c++ (dnf) / g++ (apt) is needed by the C++-based feature tests
+# (cxa-demangle, llvm, llvm-perf), compiled with $(CXX), and
+# pulls in libstdc++-devel / libstdc++-*-dev.
+# python3-setuptools is needed to build the python binding (perf's
+# util/setup.py uses it; without it binding is skipped with a warning).
+# rust is not a header-based feature test: test-rust.bin just checks
+# "$(RUSTC) --version" (tools/build/feature/Makefile), so it is mapped
+# here like the other toolchain packages.
+fedora_base_pkgs="gcc gcc-c++ make flex bison glibc-devel kernel-headers python3-setuptools rust"
+# pkg-config mirrors the pkgconf-pkg-config package that Fedora
+# installs by default, needed by the babeltrace2 feature test and
+# libopenssl's pkg-config checks.
+debian_base_pkgs="gcc g++ make pkg-config flex bison libc6-dev linux-libc-dev python3-setuptools rustc"
 
 # ---------------------------------------------------------------------
 # Distro detection
@@ -168,6 +286,9 @@ detect_distro() {
 	case "$id" in
 	fedora)			echo "fedora" ;;
 	ubuntu)			echo "ubuntu" ;;
+	# Debian shares the Ubuntu package mapping, but it is only validated
+	# on Ubuntu so far, so don't auto-detect it yet.
+	debian)			echo "" ;;
 	# RHEL and its derivatives share most Fedora package names, but the
 	# mapping is only validated on Fedora, so don't auto-detect them.
 	rhel|centos|rocky|alma|ol) echo "" ;;
@@ -188,44 +309,34 @@ feature_tests() {
 	done
 }
 
-# Base packages needed by any build, regardless of feature tests:
-# compiler, libc headers, flex/bison for the parser, kernel headers
-# for UAPI headers with no in-tree copy, e.g. <linux/capability.h>, and
-# gcc-c++ is needed by the C++-based feature tests (cxa-demangle, llvm,
-# llvm-perf), which are compiled with $(CXX), pulling in
-# libstdc++-devel.  python3-setuptools is needed to build the python
-# (perf's util/setup.py uses it); rust is checked by the rust feature
-# test (test-rust.bin just runs "$(RUSTC) --version").
-
-fedora_base_pkgs="gcc gcc-c++ make flex bison glibc-devel kernel-headers python3-setuptools rust"
-debian_base_pkgs="gcc g++ make flex bison libc6-dev linux-libc-dev python3-setuptools rustc"
-
 # ---------------------------------------------------------------------
-# Assemble the unique package list: the base toolchain plus, for each
-# feature test the distro's package mapping knows about, its package(s).
-# Installing an already-present package is a no-op for both dnf and
-# apt-get, making this idempotent.
+# Assemble the unique package list.  Since the full feature set is mapped
+# unconditionally, this installs the complete devel environment; installing
+# an already-present package is a no-op for both dnf and apt-get, making
+# this idempotent.
 # ---------------------------------------------------------------------
 package_set() {
 	local distro="$1" srcdir="$2"
 	local feat pkg pkgs
-
 	case "$distro" in
 	fedora)	pkgs="$fedora_base_pkgs" ;;
 	ubuntu)	pkgs="$debian_base_pkgs" ;;
 	esac
 
-	if [ "$distro" = "fedora" ]; then
-		for feat in $(feature_tests "$srcdir"); do
+	for feat in $(feature_tests "$srcdir"); do
+		if [ "$distro" = "fedora" ]; then
 			pkg=$(fedora_pkg_for "$feat")
-			for pkg in $pkg; do
-				case " $pkgs " in
-				*" $pkg "*) ;;
-				*) pkgs="$pkgs $pkg" ;;
-				esac
-			done
+		else
+			pkg=$(debian_pkg_for "$feat")
+		fi
+		[ -n "$pkg" ] || continue
+		for pkg in $pkg; do
+			case " $pkgs " in
+			*" $pkg "*) ;;
+			*) pkgs="$pkgs $pkg" ;;
+			esac
 		done
-	fi
+	done
 	echo "$pkgs"
 }
 
@@ -240,14 +351,23 @@ install_cmd() {
 		echo "dnf install -y $*"
 		;;
 	ubuntu)
-		# a fresh container has no package index, so update first.
-		echo "apt-get update && apt-get install -y $*"
+		# a fresh container has no package index, so update first; run
+		# with a noninteractive debconf frontend: default-jdk, used by
+		# the jvmti feature tests, pulls in tzdata, which prompts for
+		# the timezone on a terminal and would block the install.  The
+		# env var prefix works with the 'sh -c' invocation below, and
+		# shows up in --dry-run.
+		echo "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y $*"
 		;;
 	esac
 }
 
 main() {
 	local action="install"
+	# Package accumulation happens in package_set(), which, together
+	# with the *_pkg_for() helpers, declares the per-feature 'pkg'
+	# locals; main() holds no per-feature package state, just the
+	# distro-wide list assembled by package_set().
 	local srcdir distro pkgs cmd
 
 	while [ $# -gt 0 ]; do
@@ -271,7 +391,7 @@ main() {
 	fedora|ubuntu) ;;
 	*)
 		echo "error: unsupported distro (got '$distro'); the package mapping is not validated on other distros." >&2
-		echo "Supported and validated: Fedora 44 (fresh toolbx container)." >&2
+		echo "Supported and validated: Fedora 44 (toolbx container), Ubuntu 26.04 (distrobox container)." >&2
 		exit 1
 		;;
 	esac

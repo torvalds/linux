@@ -899,9 +899,9 @@ install-bin: install-tools install-tests
 install: install-bin try-install-man
 
 # Install the development packages needed to build perf, derived from the
-# feature tests in tools/build/feature/.  This first installs just the
-# base toolchain; per-distro package mappings are added by the follow-up
-# commits.  INSTALL_BUILD_DEPS_ARGS, when set, is passed to the script, so
+# feature tests in tools/build/feature/.  Currently supported: the Fedora
+# (dnf) and Ubuntu (apt) package mappings, see the script.
+# INSTALL_BUILD_DEPS_ARGS, when set, is passed to the script, so
 # extra options like --list, --dry-run or --distro can be given from make.
 install-build-deps:
 	$(Q)$(SHELL) $(srctree)/tools/perf/scripts/install-build-deps.sh $(INSTALL_BUILD_DEPS_ARGS)
