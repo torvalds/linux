@@ -41,8 +41,8 @@
  * Return: True if @parent is an ancestor of or equal to @child, false
  * otherwise.
  */
-static bool domain_scope_le(const struct landlock_ruleset *const parent,
-			    const struct landlock_ruleset *const child)
+static bool domain_scope_le(const struct landlock_domain *const parent,
+			    const struct landlock_domain *const child)
 {
 	const struct landlock_hierarchy *walker;
 
@@ -63,8 +63,8 @@ static bool domain_scope_le(const struct landlock_ruleset *const parent,
 	return false;
 }
 
-static int domain_ptrace(const struct landlock_ruleset *const parent,
-			 const struct landlock_ruleset *const child)
+static int domain_ptrace(const struct landlock_domain *const parent,
+			 const struct landlock_domain *const child)
 {
 	if (domain_scope_le(parent, child))
 		return 0;
@@ -96,7 +96,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 		return 0;
 
 	scoped_guard(rcu) {
-		const struct landlock_ruleset *const child_dom =
+		const struct landlock_domain *const child_dom =
 			landlock_get_task_domain(child);
 		err = domain_ptrace(parent_subject->domain, child_dom);
 	}
@@ -135,7 +135,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 static int hook_ptrace_traceme(struct task_struct *const parent)
 {
 	const struct landlock_cred_security *parent_subject;
-	const struct landlock_ruleset *child_dom;
+	const struct landlock_domain *child_dom;
 	int err;
 
 	child_dom = landlock_get_current_domain();
@@ -176,8 +176,8 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
  * Return: True if @server is in a different domain from @client and @client
  * is scoped to access @server (i.e. access should be denied), false otherwise.
  */
-static bool domain_is_scoped(const struct landlock_ruleset *const client,
-			     const struct landlock_ruleset *const server,
+static bool domain_is_scoped(const struct landlock_domain *const client,
+			     const struct landlock_domain *const server,
 			     access_mask_t scope)
 {
 	int client_layer, server_layer;
@@ -236,9 +236,9 @@ static bool domain_is_scoped(const struct landlock_ruleset *const client,
 }
 
 static bool sock_is_scoped(struct sock *const other,
-			   const struct landlock_ruleset *const domain)
+			   const struct landlock_domain *const domain)
 {
-	const struct landlock_ruleset *dom_other;
+	const struct landlock_domain *dom_other;
 
 	/* The credentials will not change. */
 	lockdep_assert_held(&unix_sk(other)->lock);

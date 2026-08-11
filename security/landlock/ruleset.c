@@ -20,39 +20,12 @@
 #include <linux/refcount.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
 #include <uapi/linux/landlock.h>
 
 #include "access.h"
-#include "domain.h"
 #include "limits.h"
 #include "object.h"
 #include "ruleset.h"
-
-static struct landlock_ruleset *create_ruleset(const u32 num_layers)
-{
-	struct landlock_ruleset *new_ruleset;
-
-	new_ruleset = kzalloc_flex(*new_ruleset, access_masks, num_layers,
-				   GFP_KERNEL_ACCOUNT);
-	if (!new_ruleset)
-		return ERR_PTR(-ENOMEM);
-	refcount_set(&new_ruleset->usage, 1);
-	mutex_init(&new_ruleset->lock);
-	new_ruleset->rules.root_inode = RB_ROOT;
-
-#if IS_ENABLED(CONFIG_INET)
-	new_ruleset->rules.root_net_port = RB_ROOT;
-#endif /* IS_ENABLED(CONFIG_INET) */
-
-	new_ruleset->num_layers = num_layers;
-	/*
-	 * hierarchy = NULL
-	 * rules.num_rules = 0
-	 * access_masks[] = 0
-	 */
-	return new_ruleset;
-}
 
 struct landlock_ruleset *
 landlock_create_ruleset(const access_mask_t fs_access_mask,
@@ -64,15 +37,40 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 	/* Informs about useless ruleset. */
 	if (!fs_access_mask && !net_access_mask && !scope_mask)
 		return ERR_PTR(-ENOMSG);
-	new_ruleset = create_ruleset(1);
-	if (IS_ERR(new_ruleset))
-		return new_ruleset;
-	if (fs_access_mask)
-		landlock_add_fs_access_mask(new_ruleset, fs_access_mask, 0);
-	if (net_access_mask)
-		landlock_add_net_access_mask(new_ruleset, net_access_mask, 0);
-	if (scope_mask)
-		landlock_add_scope_mask(new_ruleset, scope_mask, 0);
+
+	new_ruleset = kzalloc_obj(*new_ruleset, GFP_KERNEL_ACCOUNT);
+	if (!new_ruleset)
+		return ERR_PTR(-ENOMEM);
+
+	refcount_set(&new_ruleset->usage, 1);
+	mutex_init(&new_ruleset->lock);
+	new_ruleset->rules.root_inode = RB_ROOT;
+
+#if IS_ENABLED(CONFIG_INET)
+	new_ruleset->rules.root_net_port = RB_ROOT;
+#endif /* IS_ENABLED(CONFIG_INET) */
+
+	/* Should already be checked in landlock_create_ruleset(). */
+	if (fs_access_mask) {
+		const access_mask_t mask = fs_access_mask &
+					   LANDLOCK_MASK_ACCESS_FS;
+
+		WARN_ON_ONCE(fs_access_mask != mask);
+		new_ruleset->handled_masks.fs |= mask;
+	}
+	if (net_access_mask) {
+		const access_mask_t mask = net_access_mask &
+					   LANDLOCK_MASK_ACCESS_NET;
+
+		WARN_ON_ONCE(net_access_mask != mask);
+		new_ruleset->handled_masks.net |= mask;
+	}
+	if (scope_mask) {
+		const access_mask_t mask = scope_mask & LANDLOCK_MASK_SCOPE;
+
+		WARN_ON_ONCE(scope_mask != mask);
+		new_ruleset->handled_masks.scope |= mask;
+	}
 	return new_ruleset;
 }
 
@@ -129,7 +127,7 @@ create_rule(const struct landlock_id id,
 		return ERR_PTR(-ENOMEM);
 	RB_CLEAR_NODE(&new_rule->node);
 	if (is_object_pointer(id.type)) {
-		/* This should have been caught by insert_rule(). */
+		/* This should have been caught by landlock_store_rule(). */
 		WARN_ON_ONCE(!id.key.object);
 		landlock_get_object(id.key.object);
 	}
@@ -143,12 +141,6 @@ create_rule(const struct landlock_id id,
 		/* Adds a copy of @new_layer on the layer stack. */
 		new_rule->layers[new_rule->num_layers - 1] = *new_layer;
 	return new_rule;
-}
-
-static struct rb_root *get_root(struct landlock_ruleset *const ruleset,
-				const enum landlock_key_type key_type)
-{
-	return landlock_get_rule_root(&ruleset->rules, key_type);
 }
 
 static void free_rule(struct landlock_rule *const rule,
@@ -167,16 +159,12 @@ static void build_check_ruleset(void)
 	const struct landlock_rules rules = {
 		.num_rules = ~0,
 	};
-	const struct landlock_ruleset ruleset = {
-		.num_layers = ~0,
-	};
 
 	BUILD_BUG_ON(rules.num_rules < LANDLOCK_MAX_NUM_RULES);
-	BUILD_BUG_ON(ruleset.num_layers < LANDLOCK_MAX_NUM_LAYERS);
 }
 
 /**
- * insert_rule - Create and insert a rule into the rule storage
+ * landlock_store_rule - Create and insert a rule into the rule storage
  *
  * @rules: The rule storage to be updated.  The caller is responsible for
  *         any required locking.  For rulesets, this means holding
@@ -198,10 +186,10 @@ static void build_check_ruleset(void)
  *
  * Return: 0 on success, -errno on failure.
  */
-static int insert_rule(struct landlock_rules *const rules,
-		       const struct landlock_id id,
-		       const struct landlock_layer (*layers)[],
-		       const size_t num_layers)
+int landlock_store_rule(struct landlock_rules *const rules,
+			const struct landlock_id id,
+			const struct landlock_layer (*layers)[],
+			const size_t num_layers)
 {
 	struct rb_node **walker_node;
 	struct rb_node *parent_node = NULL;
@@ -241,7 +229,7 @@ static int insert_rule(struct landlock_rules *const rules,
 		if ((*layers)[0].level == 0) {
 			/*
 			 * Extends access rights when the request comes from
-			 * landlock_add_rule(2), i.e. contained by a ruleset.
+			 * landlock_add_rule(2), i.e. @rules is not a domain.
 			 */
 			if (WARN_ON_ONCE(this->num_layers != 1))
 				return -EINVAL;
@@ -303,7 +291,9 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 {
 	struct landlock_layer layers[] = { {
 		.access = access,
-		/* When @level is zero, insert_rule() extends @ruleset. */
+		/*
+		 * When @level is zero, landlock_store_rule() extends @ruleset.
+		 */
 		.level = 0,
 		.flags = {
 			.quiet = !!(flags & LANDLOCK_ADD_RULE_QUIET),
@@ -312,171 +302,8 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 
 	build_check_layer();
 	lockdep_assert_held(&ruleset->lock);
-	return insert_rule(&ruleset->rules, id, &layers, ARRAY_SIZE(layers));
-}
-
-static int merge_tree(struct landlock_ruleset *const dst,
-		      struct landlock_ruleset *const src,
-		      const enum landlock_key_type key_type)
-{
-	struct landlock_rule *walker_rule, *next_rule;
-	struct rb_root *src_root;
-	int err = 0;
-
-	might_sleep();
-	lockdep_assert_held(&dst->lock);
-	lockdep_assert_held(&src->lock);
-
-	src_root = get_root(src, key_type);
-	if (IS_ERR(src_root))
-		return PTR_ERR(src_root);
-
-	/* Merges the @src tree. */
-	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule, src_root,
-					     node) {
-		struct landlock_layer layers[] = { {
-			.level = dst->num_layers,
-		} };
-		const struct landlock_id id = {
-			.key = walker_rule->key,
-			.type = key_type,
-		};
-
-		if (WARN_ON_ONCE(walker_rule->num_layers != 1))
-			return -EINVAL;
-
-		if (WARN_ON_ONCE(walker_rule->layers[0].level != 0))
-			return -EINVAL;
-
-		layers[0].access = walker_rule->layers[0].access;
-		layers[0].flags = walker_rule->layers[0].flags;
-
-		err = insert_rule(&dst->rules, id, &layers, ARRAY_SIZE(layers));
-		if (err)
-			return err;
-	}
-	return err;
-}
-
-static int merge_ruleset(struct landlock_ruleset *const dst,
-			 struct landlock_ruleset *const src)
-{
-	int err = 0;
-
-	might_sleep();
-	/* Should already be checked by landlock_merge_ruleset() */
-	if (WARN_ON_ONCE(!src))
-		return 0;
-	/* Only merge into a domain. */
-	if (WARN_ON_ONCE(!dst || !dst->hierarchy))
-		return -EINVAL;
-
-	/* Locks @dst first because we are its only owner. */
-	mutex_lock(&dst->lock);
-	mutex_lock_nested(&src->lock, SINGLE_DEPTH_NESTING);
-
-	/* Stacks the new layer. */
-	if (WARN_ON_ONCE(src->num_layers != 1 || dst->num_layers < 1)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-	dst->access_masks[dst->num_layers - 1] =
-		landlock_upgrade_handled_access_masks(src->access_masks[0]);
-
-	/* Merges the @src inode tree. */
-	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
-	if (err)
-		goto out_unlock;
-
-#if IS_ENABLED(CONFIG_INET)
-	/* Merges the @src network port tree. */
-	err = merge_tree(dst, src, LANDLOCK_KEY_NET_PORT);
-	if (err)
-		goto out_unlock;
-#endif /* IS_ENABLED(CONFIG_INET) */
-
-out_unlock:
-	mutex_unlock(&src->lock);
-	mutex_unlock(&dst->lock);
-	return err;
-}
-
-static int inherit_tree(struct landlock_ruleset *const parent,
-			struct landlock_ruleset *const child,
-			const enum landlock_key_type key_type)
-{
-	struct landlock_rule *walker_rule, *next_rule;
-	struct rb_root *parent_root;
-	int err = 0;
-
-	might_sleep();
-	lockdep_assert_held(&parent->lock);
-	lockdep_assert_held(&child->lock);
-
-	parent_root = get_root(parent, key_type);
-	if (IS_ERR(parent_root))
-		return PTR_ERR(parent_root);
-
-	/* Copies the @parent inode or network tree. */
-	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule,
-					     parent_root, node) {
-		const struct landlock_id id = {
-			.key = walker_rule->key,
-			.type = key_type,
-		};
-
-		err = insert_rule(&child->rules, id, &walker_rule->layers,
-				  walker_rule->num_layers);
-		if (err)
-			return err;
-	}
-	return err;
-}
-
-static int inherit_ruleset(struct landlock_ruleset *const parent,
-			   struct landlock_ruleset *const child)
-{
-	int err = 0;
-
-	might_sleep();
-	if (!parent)
-		return 0;
-
-	/* Locks @child first because we are its only owner. */
-	mutex_lock(&child->lock);
-	mutex_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
-
-	/* Copies the @parent inode tree. */
-	err = inherit_tree(parent, child, LANDLOCK_KEY_INODE);
-	if (err)
-		goto out_unlock;
-
-#if IS_ENABLED(CONFIG_INET)
-	/* Copies the @parent network port tree. */
-	err = inherit_tree(parent, child, LANDLOCK_KEY_NET_PORT);
-	if (err)
-		goto out_unlock;
-#endif /* IS_ENABLED(CONFIG_INET) */
-
-	if (WARN_ON_ONCE(child->num_layers <= parent->num_layers)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-	/* Copies the parent layer stack and leaves a space for the new layer. */
-	memcpy(child->access_masks, parent->access_masks,
-	       flex_array_size(parent, access_masks, parent->num_layers));
-
-	if (WARN_ON_ONCE(!parent->hierarchy)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-	landlock_get_hierarchy(parent->hierarchy);
-	child->hierarchy->parent = parent->hierarchy;
-
-out_unlock:
-	mutex_unlock(&parent->lock);
-	mutex_unlock(&child->lock);
-	return err;
+	return landlock_store_rule(&ruleset->rules, id, &layers,
+				   ARRAY_SIZE(layers));
 }
 
 void landlock_free_rules(struct landlock_rules *const rules)
@@ -499,7 +326,6 @@ static void free_ruleset(struct landlock_ruleset *const ruleset)
 {
 	might_sleep();
 	landlock_free_rules(&ruleset->rules);
-	landlock_put_hierarchy(ruleset->hierarchy);
 	kfree(ruleset);
 }
 
@@ -508,86 +334,4 @@ void landlock_put_ruleset(struct landlock_ruleset *const ruleset)
 	might_sleep();
 	if (ruleset && refcount_dec_and_test(&ruleset->usage))
 		free_ruleset(ruleset);
-}
-
-static void free_ruleset_work(struct work_struct *const work)
-{
-	struct landlock_ruleset *ruleset;
-
-	ruleset = container_of(work, struct landlock_ruleset, work_free);
-	free_ruleset(ruleset);
-}
-
-/* Only called by hook_cred_free(). */
-void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset)
-{
-	if (ruleset && refcount_dec_and_test(&ruleset->usage)) {
-		INIT_WORK(&ruleset->work_free, free_ruleset_work);
-		schedule_work(&ruleset->work_free);
-	}
-}
-
-/**
- * landlock_merge_ruleset - Merge a ruleset with a domain
- *
- * @parent: Parent domain.
- * @ruleset: New ruleset to be merged.
- *
- * The current task is requesting to be restricted.  The subjective credentials
- * must not be in an overridden state. cf. landlock_init_hierarchy_log().
- *
- * Return: A new domain merging @parent and @ruleset on success, or ERR_PTR()
- * on failure.  If @parent is NULL, the new domain duplicates @ruleset.
- */
-struct landlock_ruleset *
-landlock_merge_ruleset(struct landlock_ruleset *const parent,
-		       struct landlock_ruleset *const ruleset)
-{
-	struct landlock_ruleset *new_dom __free(landlock_put_ruleset) = NULL;
-	u32 num_layers;
-	int err;
-
-	might_sleep();
-	if (WARN_ON_ONCE(!ruleset || parent == ruleset))
-		return ERR_PTR(-EINVAL);
-
-	if (parent) {
-		if (parent->num_layers >= LANDLOCK_MAX_NUM_LAYERS)
-			return ERR_PTR(-E2BIG);
-		num_layers = parent->num_layers + 1;
-	} else {
-		num_layers = 1;
-	}
-
-	/* Creates a new domain... */
-	new_dom = create_ruleset(num_layers);
-	if (IS_ERR(new_dom))
-		return new_dom;
-
-	new_dom->hierarchy =
-		kzalloc_obj(*new_dom->hierarchy, GFP_KERNEL_ACCOUNT);
-	if (!new_dom->hierarchy)
-		return ERR_PTR(-ENOMEM);
-
-	refcount_set(&new_dom->hierarchy->usage, 1);
-
-	/* ...as a child of @parent... */
-	err = inherit_ruleset(parent, new_dom);
-	if (err)
-		return ERR_PTR(err);
-
-	/* ...and including @ruleset. */
-	err = merge_ruleset(new_dom, ruleset);
-	if (err)
-		return ERR_PTR(err);
-
-	err = landlock_init_hierarchy_log(new_dom->hierarchy);
-	if (err)
-		return ERR_PTR(err);
-
-#ifdef CONFIG_AUDIT
-	new_dom->hierarchy->quiet_masks = ruleset->quiet_masks;
-#endif /* CONFIG_AUDIT */
-
-	return no_free_ptr(new_dom);
 }

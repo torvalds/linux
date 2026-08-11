@@ -14,13 +14,10 @@
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
-#include <linux/workqueue.h>
 
 #include "access.h"
 #include "limits.h"
 #include "object.h"
-
-struct landlock_hierarchy;
 
 /**
  * struct landlock_layer - Access rights for a given layer
@@ -158,60 +155,26 @@ struct landlock_ruleset {
 	 * @rules: Red-black tree storage for rules.
 	 */
 	struct landlock_rules rules;
-
 	/**
-	 * @hierarchy: Enables hierarchy identification even when a parent
-	 * domain vanishes.  This is needed for the ptrace protection.
+	 * @lock: Protects against concurrent modifications of @rules, if @usage
+	 * is greater than zero.
 	 */
-	struct landlock_hierarchy *hierarchy;
-	union {
-		/**
-		 * @work_free: Enables to free a ruleset within a lockless
-		 * section.  This is only used by
-		 * landlock_put_ruleset_deferred() when @usage reaches zero.
-		 * The fields @lock, @usage, @num_layers, @quiet_masks and
-		 * @access_masks are then unused.
-		 */
-		struct work_struct work_free;
-		struct {
-			/**
-			 * @lock: Protects against concurrent modifications of
-			 * @root, if @usage is greater than zero.
-			 */
-			struct mutex lock;
-			/**
-			 * @usage: Number of processes (i.e. domains) or file
-			 * descriptors referencing this ruleset.
-			 */
-			refcount_t usage;
-			/**
-			 * @num_layers: Number of layers that are used in this
-			 * ruleset.  This enables to check that all the layers
-			 * allow an access request.  A value of 0 identifies a
-			 * non-merged ruleset (i.e. not a domain).
-			 */
-			u32 num_layers;
-			/**
-			 * @quiet_masks: Stores the quiet flags for an unmerged
-			 * ruleset.  For a merged domain, this is stored in each
-			 * layer's struct landlock_hierarchy instead.
-			 */
-			struct access_masks quiet_masks;
-			/**
-			 * @access_masks: Contains the subset of filesystem and
-			 * network actions that are restricted by a ruleset.
-			 * A domain saves all layers of merged rulesets in a
-			 * stack (FAM), starting from the first layer to the
-			 * last one.  These layers are used when merging
-			 * rulesets, for user space backward compatibility
-			 * (i.e. future-proof), and to properly handle merged
-			 * rulesets without overlapping access rights.  These
-			 * layers are set once and never changed for the
-			 * lifetime of the ruleset.
-			 */
-			struct access_masks access_masks[];
-		};
-	};
+	struct mutex lock;
+	/**
+	 * @usage: Number of file descriptors referencing this ruleset.
+	 */
+	refcount_t usage;
+	/**
+	 * @quiet_masks: Stores the quiet flags for an unmerged ruleset.  For a
+	 * merged domain, this is stored in each layer's struct
+	 * landlock_hierarchy instead.
+	 */
+	struct access_masks quiet_masks;
+	/**
+	 * @handled_masks: Contains the subset of filesystem and network actions
+	 * that are handled by this ruleset.
+	 */
+	struct access_masks handled_masks;
 };
 
 struct landlock_ruleset *
@@ -220,7 +183,6 @@ landlock_create_ruleset(const access_mask_t access_mask_fs,
 			const access_mask_t scope_mask);
 
 void landlock_put_ruleset(struct landlock_ruleset *const ruleset);
-void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset);
 
 DEFINE_FREE(landlock_put_ruleset, struct landlock_ruleset *,
 	    if (!IS_ERR_OR_NULL(_T)) landlock_put_ruleset(_T))
@@ -229,11 +191,12 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 			 const struct landlock_id id,
 			 const access_mask_t access, const u32 flags);
 
-void landlock_free_rules(struct landlock_rules *const rules);
+int landlock_store_rule(struct landlock_rules *const rules,
+			const struct landlock_id id,
+			const struct landlock_layer (*layers)[],
+			const size_t num_layers);
 
-struct landlock_ruleset *
-landlock_merge_ruleset(struct landlock_ruleset *const parent,
-		       struct landlock_ruleset *const ruleset);
+void landlock_free_rules(struct landlock_rules *const rules);
 
 /**
  * landlock_get_rule_root - Get the root of a rule tree by key type
@@ -266,64 +229,6 @@ static inline void landlock_get_ruleset(struct landlock_ruleset *const ruleset)
 {
 	if (ruleset)
 		refcount_inc(&ruleset->usage);
-}
-
-static inline void
-landlock_add_fs_access_mask(struct landlock_ruleset *const ruleset,
-			    const access_mask_t fs_access_mask,
-			    const u16 layer_level)
-{
-	access_mask_t fs_mask = fs_access_mask & LANDLOCK_MASK_ACCESS_FS;
-
-	/* Should already be checked in sys_landlock_create_ruleset(). */
-	WARN_ON_ONCE(fs_access_mask != fs_mask);
-	ruleset->access_masks[layer_level].fs |= fs_mask;
-}
-
-static inline void
-landlock_add_net_access_mask(struct landlock_ruleset *const ruleset,
-			     const access_mask_t net_access_mask,
-			     const u16 layer_level)
-{
-	access_mask_t net_mask = net_access_mask & LANDLOCK_MASK_ACCESS_NET;
-
-	/* Should already be checked in sys_landlock_create_ruleset(). */
-	WARN_ON_ONCE(net_access_mask != net_mask);
-	ruleset->access_masks[layer_level].net |= net_mask;
-}
-
-static inline void
-landlock_add_scope_mask(struct landlock_ruleset *const ruleset,
-			const access_mask_t scope_mask, const u16 layer_level)
-{
-	access_mask_t mask = scope_mask & LANDLOCK_MASK_SCOPE;
-
-	/* Should already be checked in sys_landlock_create_ruleset(). */
-	WARN_ON_ONCE(scope_mask != mask);
-	ruleset->access_masks[layer_level].scope |= mask;
-}
-
-static inline access_mask_t
-landlock_get_fs_access_mask(const struct landlock_ruleset *const ruleset,
-			    const u16 layer_level)
-{
-	/* Handles all initially denied by default access rights. */
-	return ruleset->access_masks[layer_level].fs |
-	       _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
-}
-
-static inline access_mask_t
-landlock_get_net_access_mask(const struct landlock_ruleset *const ruleset,
-			     const u16 layer_level)
-{
-	return ruleset->access_masks[layer_level].net;
-}
-
-static inline access_mask_t
-landlock_get_scope_mask(const struct landlock_ruleset *const ruleset,
-			const u16 layer_level)
-{
-	return ruleset->access_masks[layer_level].scope;
 }
 
 #endif /* _SECURITY_LANDLOCK_RULESET_H */

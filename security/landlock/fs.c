@@ -337,12 +337,11 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 	if (!d_is_dir(path->dentry) &&
 	    !access_mask_subset(access_rights, ACCESS_FILE))
 		return -EINVAL;
-	if (WARN_ON_ONCE(ruleset->num_layers != 1))
-		return -EINVAL;
 
 	/* Transforms relative access rights to absolute ones. */
 	access_rights |= LANDLOCK_MASK_ACCESS_FS &
-			 ~landlock_get_fs_access_mask(ruleset, 0);
+			 ~(ruleset->handled_masks.fs |
+			   _LANDLOCK_ACCESS_FS_INITIALLY_DENIED);
 	id.key.object = get_inode_object(d_backing_inode(path->dentry));
 	if (IS_ERR(id.key.object))
 		return PTR_ERR(id.key.object);
@@ -365,7 +364,7 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
  * Returns NULL if no rule is found or if @dentry is negative.
  */
 static const struct landlock_rule *
-find_rule(const struct landlock_ruleset *const domain,
+find_rule(const struct landlock_domain *const domain,
 	  const struct dentry *const dentry)
 {
 	const struct landlock_rule *rule;
@@ -750,7 +749,7 @@ static void test_is_eacces_with_write(struct kunit *const test)
  * Return: True if the access request is granted, false otherwise.
  */
 static bool
-is_access_to_paths_allowed(const struct landlock_ruleset *const domain,
+is_access_to_paths_allowed(const struct landlock_domain *const domain,
 			   const struct path *const path,
 			   const access_mask_t access_request_parent1,
 			   struct layer_masks *layer_masks_parent1,
@@ -1051,7 +1050,7 @@ static access_mask_t maybe_remove(const struct dentry *const dentry)
  * Return: True if all the domain access rights are allowed for @dir, false if
  * the walk reached @mnt_root.
  */
-static bool collect_domain_accesses(const struct landlock_ruleset *const domain,
+static bool collect_domain_accesses(const struct landlock_domain *const domain,
 				    const struct dentry *const mnt_root,
 				    struct dentry *dir,
 				    struct layer_masks *layer_masks_dom)
@@ -1612,8 +1611,8 @@ static int hook_path_truncate(const struct path *const path)
  * @masks: Layer access masks to unmask
  * @access: Access bits that control scoping
  */
-static void unmask_scoped_access(const struct landlock_ruleset *const client,
-				 const struct landlock_ruleset *const server,
+static void unmask_scoped_access(const struct landlock_domain *const client,
+				 const struct landlock_domain *const server,
 				 struct layer_masks *const masks,
 				 const access_mask_t access)
 {
@@ -1667,7 +1666,7 @@ static void unmask_scoped_access(const struct landlock_ruleset *const client,
 static int hook_unix_find(const struct path *const path, struct sock *other,
 			  int flags)
 {
-	const struct landlock_ruleset *dom_other;
+	const struct landlock_domain *dom_other;
 	const struct landlock_cred_security *subject;
 	struct layer_masks layer_masks;
 	struct landlock_request request = {};
@@ -1962,7 +1961,7 @@ static bool control_current_fowner(struct fown_struct *const fown)
 
 static void hook_file_set_fowner(struct file *file)
 {
-	struct landlock_ruleset *prev_dom;
+	struct landlock_domain *prev_dom;
 	struct landlock_cred_security fown_subject = {};
 	struct pid *prev_tg, *fown_tg = NULL;
 	size_t fown_layer = 0;
@@ -1975,7 +1974,7 @@ static void hook_file_set_fowner(struct file *file)
 			landlock_get_applicable_subject(
 				current_cred(), signal_scope, &fown_layer);
 		if (new_subject) {
-			landlock_get_ruleset(new_subject->domain);
+			landlock_get_domain(new_subject->domain);
 			fown_subject = *new_subject;
 			fown_tg = get_pid(task_tgid(current));
 		}
@@ -1990,14 +1989,14 @@ static void hook_file_set_fowner(struct file *file)
 #endif /* CONFIG_AUDIT*/
 
 	/* May be called in an RCU read-side critical section. */
-	landlock_put_ruleset_deferred(prev_dom);
+	landlock_put_domain_deferred(prev_dom);
 	put_pid(prev_tg);
 }
 
 static void hook_file_free_security(struct file *file)
 {
 	put_pid(landlock_file(file)->fown_tg);
-	landlock_put_ruleset_deferred(landlock_file(file)->fown_subject.domain);
+	landlock_put_domain_deferred(landlock_file(file)->fown_subject.domain);
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {

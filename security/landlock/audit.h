@@ -12,7 +12,9 @@
 #include <linux/lsm_audit.h>
 
 #include "access.h"
-#include "cred.h"
+
+struct landlock_cred_security;
+struct landlock_hierarchy;
 
 enum landlock_request_type {
 	LANDLOCK_REQUEST_PTRACE = 1,

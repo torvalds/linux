@@ -138,7 +138,7 @@ static void log_domain(struct landlock_hierarchy *const hierarchy)
 }
 
 static struct landlock_hierarchy *
-get_hierarchy(const struct landlock_ruleset *const domain, const size_t layer)
+get_hierarchy(const struct landlock_domain *const domain, const size_t layer)
 {
 	struct landlock_hierarchy *hierarchy = domain->hierarchy;
 	ssize_t i;
@@ -171,7 +171,7 @@ static void test_get_hierarchy(struct kunit *const test)
 		.parent = &dom1_hierarchy,
 		.id = 30,
 	};
-	struct landlock_ruleset dom2 = {
+	struct landlock_domain dom2 = {
 		.hierarchy = &dom2_hierarchy,
 		.num_layers = 3,
 	};
@@ -185,7 +185,7 @@ static void test_get_hierarchy(struct kunit *const test)
 #endif /* CONFIG_SECURITY_LANDLOCK_KUNIT_TEST */
 
 /* Get the youngest layer that denied the access_request. */
-static size_t get_denied_layer(const struct landlock_ruleset *const domain,
+static size_t get_denied_layer(const struct landlock_domain *const domain,
 			       access_mask_t *const access_request,
 			       const struct layer_masks *masks)
 {
@@ -205,7 +205,7 @@ static size_t get_denied_layer(const struct landlock_ruleset *const domain,
 
 static void test_get_denied_layer(struct kunit *const test)
 {
-	const struct landlock_ruleset dom = {
+	const struct landlock_domain dom = {
 		.num_layers = 5,
 	};
 	const struct layer_masks masks = {
@@ -682,8 +682,8 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
  * Only domains which previously appeared in the audit logs are logged again.
  * This is useful to know when a domain will never show again in the audit log.
  *
- * Called in a work queue scheduled by landlock_put_ruleset_deferred() called
- * by hook_cred_free().
+ * Called in a work queue scheduled by landlock_put_domain_deferred() called by
+ * hook_cred_free().
  */
 void landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy)
 {

@@ -203,7 +203,7 @@ struct landlock_domain {
 		 * @work_free: Enables to free a domain within a lockless
 		 * section.  This is only used by landlock_put_domain_deferred()
 		 * when @usage reaches zero.  The fields @usage, @num_layers and
-		 * @access_masks are then unused.
+		 * @handled_masks are then unused.
 		 */
 		struct work_struct work_free;
 		struct {
@@ -219,7 +219,7 @@ struct landlock_domain {
 			 */
 			u32 num_layers;
 			/**
-			 * @access_masks: Contains the subset of filesystem and
+			 * @handled_masks: Contains the subset of filesystem and
 			 * network actions that are restricted by a domain.  A
 			 * domain saves all layers of merged rulesets in a stack
 			 * (FAM), starting from the first layer to the last one.
@@ -229,28 +229,51 @@ struct landlock_domain {
 			 * overlapping access rights.  These layers are set once
 			 * and never changed for the lifetime of the domain.
 			 */
-			struct access_masks access_masks[];
+			struct access_masks handled_masks[];
 		};
 	};
 };
+
+static inline access_mask_t
+landlock_get_fs_access_mask(const struct landlock_domain *const domain,
+			    const u16 layer_level)
+{
+	/* Handles all initially denied by default access rights. */
+	return domain->handled_masks[layer_level].fs |
+	       _LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
+}
+
+static inline access_mask_t
+landlock_get_net_access_mask(const struct landlock_domain *const domain,
+			     const u16 layer_level)
+{
+	return domain->handled_masks[layer_level].net;
+}
+
+static inline access_mask_t
+landlock_get_scope_mask(const struct landlock_domain *const domain,
+			const u16 layer_level)
+{
+	return domain->handled_masks[layer_level].scope;
+}
 
 /**
  * landlock_union_access_masks - Return all access rights handled in the
  *				 domain
  *
- * @domain: Landlock ruleset (used as a domain)
+ * @domain: Landlock domain
  *
  * Return: An access_masks result of the OR of all the domain's access masks.
  */
 static inline struct access_masks
-landlock_union_access_masks(const struct landlock_ruleset *const domain)
+landlock_union_access_masks(const struct landlock_domain *const domain)
 {
 	union access_masks_all matches = {};
 	size_t layer_level;
 
 	for (layer_level = 0; layer_level < domain->num_layers; layer_level++) {
 		union access_masks_all layer = {
-			.masks = domain->access_masks[layer_level],
+			.masks = domain->handled_masks[layer_level],
 		};
 
 		matches.all |= layer.all;
@@ -265,15 +288,19 @@ void landlock_put_domain_deferred(struct landlock_domain *const domain);
 DEFINE_FREE(landlock_put_domain, struct landlock_domain *,
 	    if (!IS_ERR_OR_NULL(_T)) landlock_put_domain(_T))
 
+struct landlock_domain *
+landlock_merge_ruleset(struct landlock_domain *const parent,
+		       struct landlock_ruleset *const ruleset);
+
 const struct landlock_rule *
-landlock_find_rule(const struct landlock_ruleset *const ruleset,
+landlock_find_rule(const struct landlock_domain *const domain,
 		   const struct landlock_id id);
 
 bool landlock_unmask_layers(const struct landlock_rule *const rule,
 			    struct layer_masks *masks);
 
 access_mask_t
-landlock_init_layer_masks(const struct landlock_ruleset *const domain,
+landlock_init_layer_masks(const struct landlock_domain *const domain,
 			  const access_mask_t access_request,
 			  struct layer_masks *masks,
 			  const enum landlock_key_type key_type);

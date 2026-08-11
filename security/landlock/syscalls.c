@@ -308,8 +308,6 @@ static struct landlock_ruleset *get_ruleset_from_fd(const int fd,
 	if (!(fd_file(ruleset_f)->f_mode & mode))
 		return ERR_PTR(-EPERM);
 	ruleset = fd_file(ruleset_f)->private_data;
-	if (WARN_ON_ONCE(ruleset->num_layers != 1))
-		return ERR_PTR(-EINVAL);
 	landlock_get_ruleset(ruleset);
 	return ruleset;
 }
@@ -367,7 +365,7 @@ static int add_rule_path_beneath(struct landlock_ruleset *const ruleset,
 		return -ENOMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
-	mask = ruleset->access_masks[0].fs;
+	mask = ruleset->handled_masks.fs;
 	if ((path_beneath_attr.allowed_access | mask) != mask)
 		return -EINVAL;
 
@@ -408,7 +406,7 @@ static int add_rule_net_port(struct landlock_ruleset *ruleset,
 		return -ENOMSG;
 
 	/* Checks that allowed_access matches the @ruleset constraints. */
-	mask = landlock_get_net_access_mask(ruleset, 0);
+	mask = ruleset->handled_masks.net;
 	if ((net_port_attr.allowed_access | mask) != mask)
 		return -EINVAL;
 
@@ -604,7 +602,7 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		 * manipulating the current credentials because they are
 		 * dedicated per thread.
 		 */
-		struct landlock_ruleset *const new_dom =
+		struct landlock_domain *const new_dom =
 			landlock_merge_ruleset(new_llcred->domain, ruleset);
 		if (IS_ERR(new_dom)) {
 			abort_creds(new_cred);
@@ -619,7 +617,7 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 #endif /* CONFIG_AUDIT */
 
 		/* Replaces the old (prepared) domain. */
-		landlock_put_ruleset(new_llcred->domain);
+		landlock_put_domain(new_llcred->domain);
 		new_llcred->domain = new_dom;
 
 #ifdef CONFIG_AUDIT
