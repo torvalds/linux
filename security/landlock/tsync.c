@@ -22,6 +22,8 @@
 #include "cred.h"
 #include "tsync.h"
 
+#include <trace/events/landlock.h>
+
 /*
  * Shared state between multiple threads which are enforcing Landlock rulesets
  * in lockstep with each other.
@@ -79,6 +81,8 @@ struct tsync_work {
  */
 static void restrict_one_thread(struct tsync_shared_context *ctx)
 {
+	const struct landlock_domain *new_dom =
+		landlock_cred(ctx->new_cred)->domain;
 	int err;
 	struct cred *cred = NULL;
 
@@ -146,6 +150,18 @@ static void restrict_one_thread(struct tsync_shared_context *ctx)
 		task_set_no_new_privs(current);
 
 	commit_creds(cred);
+
+	/*
+	 * Emitted strictly after commit_creds() and before the out: label, so
+	 * it fires only for a thread now enforcing new_dom, and every
+	 * non-concluding (complete == false) event happens-before the
+	 * operation's single concluding one.  Skipped on the flags-only path,
+	 * where old_cred and new_cred carry the same domain.  A sibling never
+	 * concludes the operation and its enforcement is always process-wide.
+	 */
+	if (new_dom != landlock_cred(ctx->old_cred)->domain)
+		trace_landlock_enforce_domain(new_dom, false, true,
+					      task_no_new_privs(current));
 
 out:
 	/* Notify the calling thread once all threads are done */

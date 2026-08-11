@@ -340,6 +340,66 @@ TRACE_EVENT(landlock_create_domain,
 );
 
 /**
+ * landlock_enforce_domain - Domain enforced on a thread
+ *
+ * @domain: Domain now enforced on the current thread (never NULL,
+ *          immutable; read locklessly).  Correlate to
+ *          landlock_create_domain via @domain->hierarchy->id for the
+ *          source ruleset and requesting thread, or read
+ *          @domain->hierarchy->details for the requesting process.
+ * @complete: Set on the single event that concludes the operation, after
+ *            all its other enforcements; filter on it for one event per
+ *            operation.
+ * @process_wide: The enforcement covers every eligible (non-exiting)
+ *                thread of the process: set when the caller used
+ *                %LANDLOCK_RESTRICT_SELF_TSYNC or the process is
+ *                single-threaded.  A lone thread whose group still
+ *                holds a zombie leader is not counted single-threaded,
+ *                so process_wide == 0 never proves the opposite.
+ * @no_new_privs: The enforcing thread's no_new_privs state at
+ *                enforcement time: 1 if set (by a prior
+ *                :manpage:`prctl(2)` %PR_SET_NO_NEW_PRIVS or by
+ *                %LANDLOCK_RESTRICT_SELF_NO_NEW_PRIVS), 0 if the domain
+ *                was enforced with %CAP_SYS_ADMIN instead.
+ *
+ * Emitted for each thread sys_landlock_restrict_self() enforces the
+ * domain on, in that thread's own context, right after its
+ * commit_creds(), so it fires only once the thread is irreversibly
+ * enforcing the domain (aborted operations emit none).  Not
+ * balanced; every enforcement falls between the domain's
+ * landlock_create_domain and landlock_free_domain events.
+ *
+ * @complete == 1 && @process_wide == 1 means the whole process is
+ * sandboxed by @domain, durably (Landlock domains are monotonic and
+ * inherited on :manpage:`clone(2)`).
+ */
+TRACE_EVENT(landlock_enforce_domain,
+
+	TP_PROTO(const struct landlock_domain *domain, bool complete,
+		 bool process_wide, bool no_new_privs),
+
+	TP_ARGS(domain, complete, process_wide, no_new_privs),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		complete	)
+		__field(	bool,		process_wide	)
+		__field(	bool,		no_new_privs	)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= domain->hierarchy->id;
+		__entry->complete	= complete;
+		__entry->process_wide	= process_wide;
+		__entry->no_new_privs	= no_new_privs;
+	),
+
+	TP_printk("domain=%llx complete=%d process_wide=%d no_new_privs=%d",
+		__entry->domain_id, __entry->complete, __entry->process_wide,
+		__entry->no_new_privs)
+);
+
+/**
  * landlock_free_domain - Domain freed
  *
  * @hierarchy: Hierarchy node being freed (never NULL).
