@@ -6485,21 +6485,12 @@ static int check_atomic_rmw(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 
-	if (insn->imm & BPF_FETCH) {
-		if (insn->imm == BPF_CMPXCHG)
-			load_reg = BPF_REG_0;
-		else
-			load_reg = insn->src_reg;
-
+	load_reg = bpf_atomic_load_reg(insn);
+	if (load_reg >= 0) {
 		/* check and record load of old value */
 		err = check_reg_arg(env, load_reg, DST_OP);
 		if (err)
 			return err;
-	} else {
-		/* This instruction accesses a memory location but doesn't
-		 * actually load it into a register.
-		 */
-		load_reg = -1;
 	}
 
 	dst_reg = cur_regs(env) + insn->dst_reg;

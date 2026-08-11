@@ -199,14 +199,9 @@ process_call:
 			ci_out[r] = unknown;
 		break;
 	case BPF_STX:
-		if (mode != BPF_ATOMIC)
-			break;
-		if (insn->imm == BPF_CMPXCHG)
-			ci_out[BPF_REG_0] = unknown;
-		else if (insn->imm == BPF_LOAD_ACQ)
-			*dst = unknown;
-		else if (insn->imm & BPF_FETCH)
-			*src = unknown;
+		r = bpf_atomic_load_reg(insn);
+		if (r >= 0)
+			ci_out[r] = unknown;
 		break;
 	}
 }
