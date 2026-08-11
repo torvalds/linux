@@ -913,9 +913,10 @@ static void amd_iommu_report_ppr_err(struct amd_iommu *iommu, volatile u32 *even
 	u32 pasid = PPR_PASID(*((u64 *)event));
 	int tag = event[1] & 0x03FF;
 
-	dev_err(dev, "Event logged [INVALID_PPR_REQUEST device=%04x:%02x:%02x.%x pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
-		iommu->pci_seg->id, PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-		pasid, address, flags, tag);
+	dev_err_ratelimited(dev, "Event logged [INVALID_PPR_REQUEST device=%04x:%02x:%02x.%x "
+			    "pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
+			    iommu->pci_seg->id, PCI_BUS_NUM(devid), PCI_SLOT(devid),
+			    PCI_FUNC(devid), pasid, address, flags, tag);
 
 	/* Skip COMPLETE_PPR_REQUEST response if RX=1 */
 	if (flags & EVENT_FLAG_PPR_RX)
