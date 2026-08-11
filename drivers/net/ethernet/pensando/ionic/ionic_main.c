@@ -269,6 +269,8 @@ bool ionic_notifyq_service(struct ionic_cq *cq)
 	if ((s64)(eid - lif->last_eid) <= 0)
 		return false;
 
+	dma_rmb();
+
 	lif->last_eid = eid;
 
 	dev_dbg(lif->ionic->dev, "notifyq event:\n");
@@ -313,6 +315,8 @@ bool ionic_adminq_service(struct ionic_cq *cq)
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;
+
+	dma_rmb();
 
 	/* check for empty queue */
 	if (q->tail_idx == q->head_idx)

@@ -734,6 +734,8 @@ static bool __ionic_rx_service(struct ionic_cq *cq, struct bpf_prog *xdp_prog)
 	if (!color_match(comp->pkt_type_color, cq->done_color))
 		return false;
 
+	dma_rmb();
+
 	/* check for empty queue */
 	if (q->tail_idx == q->head_idx)
 		return false;
@@ -1248,6 +1250,8 @@ static bool ionic_tx_service(struct ionic_cq *cq,
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;
+
+	dma_rmb();
 
 	/* clean the related q entries, there could be
 	 * several q entries completed for each cq completion
