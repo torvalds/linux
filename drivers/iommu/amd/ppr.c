@@ -130,7 +130,7 @@ static void iommu_call_iopf_notifier(struct amd_iommu *iommu, u64 *raw)
 	event.fault.prm.perm = ppr_flag_to_fault_perm(PPR_FLAGS(raw[0]));
 	event.fault.prm.addr = (u64)(raw[1] & PAGE_MASK);
 	event.fault.prm.pasid = PPR_PASID(raw[0]);
-	event.fault.prm.grpid = PPR_TAG(raw[0]) & 0x1FF;
+	event.fault.prm.grpid = PPR_TAG(raw[0]);
 
 	/*
 	 * PASID zero is used for requests from the I/O device without
@@ -140,25 +140,25 @@ static void iommu_call_iopf_notifier(struct amd_iommu *iommu, u64 *raw)
 	if (event.fault.prm.pasid == 0 ||
 	    event.fault.prm.pasid >= dev_data->max_pasids) {
 		pr_info_ratelimited("Invalid PASID : 0x%x, device : 0x%x\n",
-				    event.fault.prm.pasid, pdev->dev.id);
+				    event.fault.prm.pasid, dev_data->devid);
 		goto out;
 	}
 
 	event.fault.prm.flags |= IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID;
 	event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
-	if (PPR_TAG(raw[0]) & 0x200)
+	if (PPR_TAG_LAST_PAGE(raw[0]))
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE;
 
 	/* Submit event */
 	iommu_report_device_fault(&pdev->dev, &event);
-
+	pci_dev_put(pdev);
 	return;
 
 out:
 	/* Nobody cared, abort */
 	amd_iommu_complete_ppr(&pdev->dev, PPR_PASID(raw[0]),
-			       IOMMU_PAGE_RESP_FAILURE,
-			       PPR_TAG(raw[0]) & 0x1FF);
+			       IOMMU_PAGE_RESP_FAILURE, PPR_TAG(raw[0]));
+	pci_dev_put(pdev);
 }
 
 void amd_iommu_poll_ppr_log(struct amd_iommu *iommu)

@@ -538,7 +538,7 @@ reserve_iova(struct iova_domain *iovad,
 				break;
 	}
 
-	/* We are here either because this is the first reserver node
+	/* We are here either because this is the first reserved node
 	 * or need to insert remaining non overlap addr range
 	 */
 	iova = __insert_new_range(iovad, pfn_lo, pfn_hi);
@@ -620,6 +620,9 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 {
 	unsigned long flags;
 	int i;
+
+	if (!mag)
+		return;
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
@@ -739,12 +742,6 @@ int iova_domain_init_rcaches(struct iova_domain *iovad)
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 
 			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = iova_magazine_alloc(GFP_KERNEL);
-			cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
-			if (!cpu_rcache->loaded || !cpu_rcache->prev) {
-				ret = -ENOMEM;
-				goto out_err;
-			}
 		}
 	}
 
@@ -777,19 +774,23 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
-	if (!iova_magazine_full(cpu_rcache->loaded)) {
+	if (cpu_rcache->loaded && !iova_magazine_full(cpu_rcache->loaded)) {
 		can_insert = true;
-	} else if (!iova_magazine_full(cpu_rcache->prev)) {
+	} else if (cpu_rcache->prev && !iova_magazine_full(cpu_rcache->prev)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
 		struct iova_magazine *new_mag = iova_magazine_alloc(GFP_ATOMIC);
 
 		if (new_mag) {
-			spin_lock(&rcache->lock);
-			iova_depot_push(rcache, cpu_rcache->loaded);
-			spin_unlock(&rcache->lock);
-			schedule_delayed_work(&rcache->work, IOVA_DEPOT_DELAY);
+			if (cpu_rcache->loaded && !cpu_rcache->prev) {
+				cpu_rcache->prev = cpu_rcache->loaded;
+			} else if (cpu_rcache->loaded) {
+				spin_lock(&rcache->lock);
+				iova_depot_push(rcache, cpu_rcache->loaded);
+				spin_unlock(&rcache->lock);
+				schedule_delayed_work(&rcache->work, IOVA_DEPOT_DELAY);
+			}
 
 			cpu_rcache->loaded = new_mag;
 			can_insert = true;
@@ -831,9 +832,9 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
-	if (!iova_magazine_empty(cpu_rcache->loaded)) {
+	if (cpu_rcache->loaded && !iova_magazine_empty(cpu_rcache->loaded)) {
 		has_pfn = true;
-	} else if (!iova_magazine_empty(cpu_rcache->prev)) {
+	} else if (cpu_rcache->prev && !iova_magazine_empty(cpu_rcache->prev)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		has_pfn = true;
 	} else {

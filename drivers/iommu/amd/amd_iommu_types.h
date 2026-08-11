@@ -113,6 +113,7 @@
 #define FEATURE_SNPAVICSUP_GAM(x) \
 	(FIELD_GET(FEATURE_SNPAVICSUP, x) == 0x1)
 #define FEATURE_HT_RANGE_IGNORE		BIT_ULL(11)
+#define FEATURE_SNP_PAGE_MODE0_SUP	BIT_ULL(13)
 
 #define FEATURE_NUM_INT_REMAP_SUP	GENMASK_ULL(9, 8)
 #define FEATURE_NUM_INT_REMAP_SUP_2K(x) \
@@ -159,6 +160,8 @@
 #define EVENT_FLAGS_SHIFT	0x10
 #define EVENT_FLAG_RW		0x020
 #define EVENT_FLAG_I		0x008
+#define EVENT_FLAG_PPR_RX	0x001
+#define EVENT_FLAG_PPR_GN	0x200
 
 /* feature control bits */
 #define CONTROL_IOMMU_EN	0
@@ -280,7 +283,8 @@
 #define PPR_REQ_TYPE(x)		(((x) >> 60) & 0xfULL)
 #define PPR_FLAGS(x)		(((x) >> 48) & 0xfffULL)
 #define PPR_DEVID(x)		((x) & 0xffffULL)
-#define PPR_TAG(x)		(((x) >> 32) & 0x3ffULL)
+#define PPR_TAG(x)		(((x) >> 32) & 0x1ffULL)
+#define PPR_TAG_LAST_PAGE(x)	(((x) >> 32) & 0x200ULL)
 #define PPR_PASID1(x)		(((x) >> 16) & 0xffffULL)
 #define PPR_PASID2(x)		(((x) >> 42) & 0xfULL)
 #define PPR_PASID(x)		((PPR_PASID2(x) << 16) | PPR_PASID1(x))
@@ -415,6 +419,9 @@ extern bool amd_iommu_dump;
 		if (amd_iommu_dump)				\
 			pr_info(format, ## arg);	\
 	} while(0);
+
+/* SNP page mode 0 support */
+extern bool amd_iommu_snp_mode0_sup;
 
 /* global flag if IOMMUs cache non-present entries */
 extern bool amd_iommu_np_cache;

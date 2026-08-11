@@ -92,6 +92,9 @@ static void clone_aliases(struct amd_iommu *iommu, struct device *dev);
 
 static int iommu_completion_wait(struct amd_iommu *iommu);
 
+static int __amd_iommu_complete_ppr(struct device *dev, u32 pasid,
+				    int status, int tag, bool gn);
+
 /****************************************************************************
  *
  * Helper functions
@@ -456,7 +459,7 @@ static void clone_aliases(struct amd_iommu *iommu, struct device *dev)
 
 	/*
 	 * The IVRS alias stored in the alias table may not be
-	 * part of the PCI DMA aliases if it's bus differs
+	 * part of the PCI DMA aliases if its bus differs
 	 * from the original device.
 	 */
 	clone_alias(pdev, iommu->pci_seg->alias_table[pci_dev_id(pdev)], pdev);
@@ -505,7 +508,7 @@ static struct iommu_dev_data *find_dev_data(struct amd_iommu *iommu, u16 devid)
 }
 
 /*
-* Find or create an IOMMU group for a acpihid device.
+* Find or create an IOMMU group for an acpihid device.
 */
 static struct iommu_group *acpihid_device_group(struct device *dev)
 {
@@ -905,10 +908,44 @@ out:
 		pci_dev_put(pdev);
 }
 
+static void amd_iommu_report_ppr_err(struct amd_iommu *iommu, volatile u32 *event,
+				     u16 devid, u64 address, int flags)
+{
+	struct pci_dev *pdev;
+	struct device *dev = iommu->iommu.dev;
+	u32 pasid = PPR_PASID(*((u64 *)event));
+	int tag = event[1] & 0x03FF;
+	bool gn;
+
+	dev_err_ratelimited(dev, "Event logged [INVALID_PPR_REQUEST device=%04x:%02x:%02x.%x "
+			    "pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
+			    iommu->pci_seg->id, PCI_BUS_NUM(devid), PCI_SLOT(devid),
+			    PCI_FUNC(devid), pasid, address, flags, tag);
+
+	/* Skip COMPLETE_PPR_REQUEST response if RX=1 */
+	if (flags & EVENT_FLAG_PPR_RX)
+		return;
+
+	pdev = pci_get_domain_bus_and_slot(iommu->pci_seg->id, PCI_BUS_NUM(devid),
+					   devid & 0xff);
+	if (!pdev)
+		return;
+
+	if (!dev_iommu_priv_get(&pdev->dev)) {
+		pci_dev_put(pdev);
+		return;
+	}
+
+	gn = (flags & EVENT_FLAG_PPR_GN);
+
+	__amd_iommu_complete_ppr(&pdev->dev, pasid, IOMMU_PAGE_RESP_FAILURE, tag, gn);
+	pci_dev_put(pdev);
+}
+
 static void iommu_print_event(struct amd_iommu *iommu, void *__evt)
 {
 	struct device *dev = iommu->iommu.dev;
-	int type, devid, flags, tag;
+	int type, devid, flags;
 	volatile u32 *event = __evt;
 	int count = 0;
 	u64 address, ctrl;
@@ -982,11 +1019,7 @@ retry:
 		amd_iommu_report_rmp_hw_error(iommu, event);
 		break;
 	case EVENT_TYPE_INV_PPR_REQ:
-		pasid = PPR_PASID(*((u64 *)__evt));
-		tag = event[1] & 0x03FF;
-		dev_err(dev, "Event logged [INVALID_PPR_REQUEST device=%04x:%02x:%02x.%x pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
-			iommu->pci_seg->id, PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
-			pasid, address, flags, tag);
+		amd_iommu_report_ppr_err(iommu, event, devid, address, flags);
 		break;
 	default:
 		dev_err(dev, "Event logged [UNKNOWN event[0]=0x%08x event[1]=0x%08x event[2]=0x%08x event[3]=0x%08x\n",
@@ -1268,7 +1301,7 @@ static void build_inv_dte(struct iommu_cmd *cmd, u16 devid)
 
 /*
  * Builds an invalidation address which is suitable for one page or multiple
- * pages. Sets the size bit (S) as needed is more than one page is flushed.
+ * pages. Sets the size bit (S) as needed if more than one page is flushed.
  */
 static inline u64 build_inv_address(u64 address, u64 last)
 {
@@ -1345,7 +1378,7 @@ static void build_inv_iotlb_pages(struct iommu_cmd *cmd, u16 devid, int qdep,
 }
 
 static void build_complete_ppr(struct iommu_cmd *cmd, u16 devid, u32 pasid,
-			       int status, int tag, u8 gn)
+			       int status, int tag, bool gn)
 {
 	memset(cmd, 0, sizeof(*cmd));
 
@@ -1850,7 +1883,8 @@ static void dev_flush_pasid_all(struct iommu_dev_data *dev_data,
 	amd_iommu_dev_flush_pasid_pages(dev_data, pasid, 0, U64_MAX);
 }
 
-int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
+static int __amd_iommu_complete_ppr(struct device *dev, u32 pasid,
+				    int status, int tag, bool gn)
 {
 	struct iommu_dev_data *dev_data;
 	struct amd_iommu *iommu;
@@ -1859,10 +1893,19 @@ int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
 	dev_data = dev_iommu_priv_get(dev);
 	iommu    = get_amd_iommu_from_dev(dev);
 
-	build_complete_ppr(&cmd, dev_data->devid, pasid, status,
-			   tag, dev_data->pri_tlp);
+	build_complete_ppr(&cmd, dev_data->devid, pasid, status, tag, gn);
 
 	return iommu_queue_command(iommu, &cmd);
+}
+
+int amd_iommu_complete_ppr(struct device *dev, u32 pasid, int status, int tag)
+{
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	bool gn;
+
+	gn = pdom_is_v2_pgtbl_mode(dev_data->domain);
+
+	return __amd_iommu_complete_ppr(dev, pasid, status, tag, gn);
 }
 
 /****************************************************************************
@@ -2920,9 +2963,9 @@ static int amd_iommu_identity_attach(struct iommu_domain *dom, struct device *de
 {
 	/*
 	 * Don't allow attaching a device to the identity domain if SNP is
-	 * enabled.
+	 * enabled and SNP Mode0 support is not present.
 	 */
-	if (amd_iommu_snp_en)
+	if (amd_iommu_snp_en && !amd_iommu_snp_mode0_sup)
 		return -EINVAL;
 
 	return amd_iommu_attach_device(dom, dev, old);
@@ -3697,7 +3740,7 @@ static void fill_msi_msg(struct msi_msg *msg, u32 index)
 	/*
 	 * The struct msi_msg.dest_mode_logical is used to set the DM bit
 	 * in MSI Message Address Register. For device w/ 2K int-remap support,
-	 * this is bit must be set to 1 regardless of the actual destination
+	 * this bit must be set to 1 regardless of the actual destination
 	 * mode, which is signified by the IRTE[DM].
 	 */
 	if (FEATURE_NUM_INT_REMAP_SUP_2K(amd_iommu_efr2))

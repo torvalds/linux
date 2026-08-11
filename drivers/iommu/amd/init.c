@@ -180,6 +180,9 @@ bool amd_iommu_hatdis;
 bool amd_iommu_snp_en;
 EXPORT_SYMBOL(amd_iommu_snp_en);
 
+/* SNP page mode 0 support */
+bool amd_iommu_snp_mode0_sup;
+
 LIST_HEAD(amd_iommu_pci_seg_list);	/* list of all PCI segments */
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the system */
 LIST_HEAD(amd_ivhd_dev_flags_list);	/* list of all IVHD device entry settings */
@@ -3085,20 +3088,44 @@ static void __init free_iommu_resources(void)
 	free_pci_segments();
 }
 
-/* SB IOAPIC is always on this device in AMD systems */
-#define IOAPIC_SB_DEVID		((0x00 << 8) | PCI_DEVFN(0x14, 0))
+static bool __init check_sb_ioapic(int devid)
+{
+	u8 bus = PCI_BUS_NUM(devid);
+	u8 devfn = devid & 0xff;
+	u16 val;
 
-/* SB IOAPIC for Hygon family 18h model 4h is on the device 0xb */
-#define IOAPIC_SB_DEVID_FAM18H_M4H	((0x00 << 8) | PCI_DEVFN(0xb, 0))
+	val = read_pci_config_16(bus, PCI_SLOT(devfn), PCI_FUNC(devfn),
+				 PCI_CLASS_DEVICE);
+
+	/*
+	 * The SB IOAPIC is integrated into the FCH (Southbridge), which is
+	 * exposed as an SMBus or ISA bridge in PCI config space.
+	 */
+	return val == PCI_CLASS_SERIAL_SMBUS || val == PCI_CLASS_BRIDGE_ISA;
+}
+
+/*
+ * The Southbridge IOAPIC is assigned a GSI Base of 0 (handling interrupts
+ * 0 through 23).
+ */
+static int __init get_sb_ioapic_id(void)
+{
+	int idx = mp_find_ioapic(0);
+
+	if (idx < 0)
+		return -ENODEV;
+
+	return mpc_ioapic_id(idx);
+}
 
 static bool __init check_ioapic_information(void)
 {
 	const char *fw_bug = FW_BUG;
 	bool ret, has_sb_ioapic;
-	int idx;
+	int idx, sb_apicid;
 
 	has_sb_ioapic = false;
-	ret           = false;
+	ret           = true;
 
 	/*
 	 * If we have map overrides on the kernel command line the
@@ -3108,6 +3135,16 @@ static bool __init check_ioapic_information(void)
 	if (cmdline_maps)
 		fw_bug = "";
 
+	sb_apicid = get_sb_ioapic_id();
+	if (sb_apicid < 0) {
+		/*
+		 * Lack of SB IOAPIC registration is not a firmware bug,
+		 * e.g. kernel booted with noapic or noacpi.
+		 */
+		fw_bug = "";
+		goto out;
+	}
+
 	for (idx = 0; idx < nr_ioapics; idx++) {
 		int devid, id = mpc_ioapic_id(idx);
 
@@ -3116,17 +3153,11 @@ static bool __init check_ioapic_information(void)
 			pr_err("%s: IOAPIC[%d] not in IVRS table\n",
 				fw_bug, id);
 			ret = false;
-		} else if (devid == IOAPIC_SB_DEVID ||
-			   (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON &&
-			    boot_cpu_data.x86 == 0x18 &&
-			    boot_cpu_data.x86_model >= 0x4 &&
-			    boot_cpu_data.x86_model <= 0xf &&
-			    devid == IOAPIC_SB_DEVID_FAM18H_M4H)) {
+		} else if (id == sb_apicid && check_sb_ioapic(devid)) {
 			has_sb_ioapic = true;
-			ret           = true;
 		}
 	}
-
+out:
 	if (!has_sb_ioapic) {
 		/*
 		 * We expect the SB IOAPIC to be listed in the IVRS
@@ -3137,6 +3168,7 @@ static bool __init check_ioapic_information(void)
 		 * device id for the IOAPIC in the system.
 		 */
 		pr_err("%s: No southbridge IOAPIC found\n", fw_bug);
+		ret = false;
 	}
 
 	if (!ret)
@@ -3365,18 +3397,28 @@ static __init void iommu_snp_enable(void)
 #ifdef CONFIG_KVM_AMD_SEV
 	if (!cc_platform_has(CC_ATTR_HOST_SEV_SNP))
 		return;
-	/*
-	 * The SNP support requires that IOMMU must be enabled, and is
-	 * configured with V1 page table (DTE[Mode] = 0 is not supported).
-	 */
-	if (no_iommu || iommu_default_passthrough()) {
-		pr_warn("SNP: IOMMU disabled or configured in passthrough mode, SNP cannot be supported.\n");
+
+	/* SNP support required IOMMU to be ON */
+	if (no_iommu) {
+		pr_warn("SNP: IOMMU disabled, SNP cannot be supported.\n");
 		goto disable_snp;
 	}
 
-	if (amd_iommu_pgtable != PD_MODE_V1) {
-		pr_warn("SNP: IOMMU is configured with V2 page table mode, SNP cannot be supported.\n");
-		goto disable_snp;
+	amd_iommu_snp_mode0_sup = check_feature2(FEATURE_SNP_PAGE_MODE0_SUP);
+	/*
+	 * If SNP page mode 0 is not enabled, then SNP support requires that IOMMU
+	 * must be configured with V1 page table (DTE[Mode] != 0).
+	 */
+	if (!amd_iommu_snp_mode0_sup) {
+		if (iommu_default_passthrough()) {
+			pr_warn("SNP: IOMMU configured in passthrough mode, SNP cannot be supported.\n");
+			goto disable_snp;
+		}
+
+		if (amd_iommu_pgtable != PD_MODE_V1) {
+			pr_warn("SNP: IOMMU is configured with V2 page table mode, SNP cannot be supported.\n");
+			goto disable_snp;
+		}
 	}
 
 	amd_iommu_snp_en = check_feature(FEATURE_SNP);
@@ -3917,12 +3959,15 @@ bool amd_iommu_pasid_supported(void)
 	    amd_iommu_gpt_level != PAGE_MODE_5_LEVEL)
 		return false;
 
+	if (!amd_iommu_gt_ppr_supported())
+		return false;
+
 	/*
-	 * Since DTE[Mode]=0 is prohibited on SNP-enabled system
-	 * (i.e. EFR[SNPSup]=1), IOMMUv2 page table cannot be used without
-	 * setting up IOMMUv1 page table.
+	 * If SNP page mode 0 is not supported, then DTE[Mode]=0 is prohibited
+	 * on SNP-enabled system (i.e. EFR[SNPSup]=1). IOMMUv2 page table
+	 * cannot be used without setting up IOMMUv1 page table.
 	 */
-	return amd_iommu_gt_ppr_supported() && !amd_iommu_snp_en;
+	return (!amd_iommu_snp_en) || (amd_iommu_snp_en && amd_iommu_snp_mode0_sup);
 }
 
 struct amd_iommu *get_amd_iommu(unsigned int idx)
