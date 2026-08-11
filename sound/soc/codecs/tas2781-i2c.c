@@ -1001,18 +1001,25 @@ static int tasdevice_set_profile_id(struct snd_kcontrol *kcontrol,
 }
 
 /**
- * tasdevice_get_capture_profile_id - Report current active capture profile
- * ID to user space
- * @kcontrol: ALSA kcontrol structure passed from ALSA core
- * @ucontrol: User-space control element value buffer to write the result back
+ * tasdevice_set_capture_profile_id - Set runtime capture profile index via
+ * ALSA control
+ * @kcontrol: ALSA kcontrol handle that triggers this operation
+ * @ucontrol: User space control value carrying the new profile index
  *
- * This function ensures the returned profile ID is always clamped inside the
- * valid range advertised by the info callback, preventing accidental invalid
- * values from being exposed to applications even if internal driver state is
- * temporarily inconsistent.
+ * This mixer control handler validates the user-provided capture profile ID
+ * against the maximum valid index parsed from the loaded DSP firmware,
+ * then updates the runtime stored capture profile ID only if the new value
+ * differs from the current active one. It will immediately return -EINVAL
+ * if the submitted profile ID falls outside the valid range, including the
+ * edge case that no valid configuration blocks are detected in firmware.
  *
- * Returns 0 on successful fill of the control value, no error conditions
- * are defined for this getter callback.
+ * No actual DSP register write is performed in this handler. The updated
+ * profile ID will be applied to the hardware when the next ALSA capture
+ * stream starts up. Caller does not need to take extra codec lock here,
+ * as the ALSA control core already guarantees serialized execution.
+ *
+ * Return: 1 if profile ID value was changed, 0 if no modification needed,
+ *	   -EINVAL if the input profile ID is out of valid range
  */
 static int tasdevice_set_capture_profile_id(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
