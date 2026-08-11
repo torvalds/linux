@@ -184,6 +184,8 @@ void arch_efi_call_virt_setup(void)
 		efi_virtmap_load();
 	}
 
+	__efi_fpsimd_begin();
+
 	/*
 	 * Enable access to the valid TTBR0_EL1 and invoke the errata
 	 * workaround directly since there is no return from exception when
@@ -191,8 +193,6 @@ void arch_efi_call_virt_setup(void)
 	 */
 	uaccess_ttbr0_enable();
 	post_ttbr_update_workaround();
-
-	__efi_fpsimd_begin();
 }
 
 void arch_efi_call_virt_teardown(void)
