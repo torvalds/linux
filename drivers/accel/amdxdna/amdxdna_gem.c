@@ -436,6 +436,23 @@ static void amdxdna_gem_dev_obj_free(struct drm_gem_object *gobj)
 	amdxdna_gem_destroy_obj(abo);
 }
 
+static void amdxdna_mark_mapp_invalid(struct amdxdna_gem_obj *abo,
+				      struct vm_area_struct *vma)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(to_gobj(abo)->dev);
+	struct amdxdna_umap *mapp;
+
+	down_write(&xdna->notifier_lock);
+	abo->mem.map_invalid = true;
+	list_for_each_entry(mapp, &abo->mem.umap_list, node) {
+		if (compare_range(mapp, vma->vm_mm, vma->vm_start, vma->vm_end)) {
+			mapp->invalid = true;
+			break;
+		}
+	}
+	up_write(&xdna->notifier_lock);
+}
+
 static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 				struct vm_area_struct *vma)
 {
@@ -450,26 +467,17 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 			XDNA_ERR(xdna, "Failed shmem mmap %d", ret);
 			return ret;
 		}
-
-		/* The buffer is based on memory pages. Fix the flag. */
-		vm_flags_mod(vma, VM_MIXEDMAP, VM_PFNMAP);
-		ret = vm_insert_pages(vma, vma->vm_start, abo->base.pages,
-				      &num_pages);
+	} else {
+		vma->vm_private_data = NULL;
+		vma->vm_ops = NULL;
+		ret = dma_buf_mmap(abo->dma_buf, vma, 0);
 		if (ret) {
-			XDNA_ERR(xdna, "Failed insert pages %d", ret);
-			vma->vm_ops->close(vma);
+			XDNA_ERR(xdna, "Failed to mmap dma buf %d", ret);
 			return ret;
 		}
 
-		return 0;
-	}
-
-	vma->vm_private_data = NULL;
-	vma->vm_ops = NULL;
-	ret = dma_buf_mmap(abo->dma_buf, vma, 0);
-	if (ret) {
-		XDNA_ERR(xdna, "Failed to mmap dma buf %d", ret);
-		return ret;
+		/* Drop the reference drm_gem_mmap_obj() acquired.*/
+		drm_gem_object_put(to_gobj(abo));
 	}
 
 	do {
@@ -478,16 +486,13 @@ static int amdxdna_insert_pages(struct amdxdna_gem_obj *abo,
 		fault_ret = handle_mm_fault(vma, vma->vm_start + offset,
 					    FAULT_FLAG_WRITE, NULL);
 		if (fault_ret & VM_FAULT_ERROR) {
-			vma->vm_ops->close(vma);
 			XDNA_ERR(xdna, "Fault in page failed");
-			return -EFAULT;
+			amdxdna_mark_mapp_invalid(abo, vma);
+			break;
 		}
 
 		offset += PAGE_SIZE;
 	} while (--num_pages);
-
-	/* Drop the reference drm_gem_mmap_obj() acquired.*/
-	drm_gem_object_put(to_gobj(abo));
 
 	return 0;
 }

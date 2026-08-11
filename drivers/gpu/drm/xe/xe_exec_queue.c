@@ -805,6 +805,9 @@ static int exec_queue_set_hang_replay_state(struct xe_device *xe,
 	u64 __user *address = u64_to_user_ptr(value);
 	void *ptr;
 
+	if (q->replay_state)
+		return -EINVAL;
+
 	ptr = vmemdup_user(address, size);
 	if (XE_IOCTL_DBG(xe, IS_ERR(ptr)))
 		return PTR_ERR(ptr);
