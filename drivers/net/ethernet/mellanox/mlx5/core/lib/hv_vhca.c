@@ -44,12 +44,12 @@ struct mlx5_hv_vhca *mlx5_hv_vhca_create(struct mlx5_core_dev *dev)
 
 	hv_vhca = kzalloc_obj(*hv_vhca);
 	if (!hv_vhca)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	hv_vhca->work_queue = create_singlethread_workqueue("mlx5_hv_vhca");
 	if (!hv_vhca->work_queue) {
 		kfree(hv_vhca);
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 	}
 
 	hv_vhca->dev = dev;
@@ -60,7 +60,7 @@ struct mlx5_hv_vhca *mlx5_hv_vhca_create(struct mlx5_core_dev *dev)
 
 void mlx5_hv_vhca_destroy(struct mlx5_hv_vhca *hv_vhca)
 {
-	if (IS_ERR_OR_NULL(hv_vhca))
+	if (!hv_vhca)
 		return;
 
 	destroy_workqueue(hv_vhca->work_queue);
@@ -198,28 +198,26 @@ static void mlx5_hv_vhca_control_agent_destroy(struct mlx5_hv_vhca_agent *agent)
 	mlx5_hv_vhca_agent_destroy(agent);
 }
 
-int mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca)
+void mlx5_hv_vhca_init(struct mlx5_hv_vhca *hv_vhca)
 {
 	struct mlx5_hv_vhca_agent *agent;
 	int err;
 
-	if (IS_ERR_OR_NULL(hv_vhca))
-		return IS_ERR_OR_NULL(hv_vhca);
+	if (!hv_vhca)
+		return;
 
 	err = mlx5_hv_register_invalidate(hv_vhca->dev, hv_vhca,
 					  mlx5_hv_vhca_invalidate);
 	if (err)
-		return err;
+		return;
 
 	agent = mlx5_hv_vhca_control_agent_create(hv_vhca);
 	if (IS_ERR_OR_NULL(agent)) {
 		mlx5_hv_unregister_invalidate(hv_vhca->dev);
-		return IS_ERR_OR_NULL(agent);
+		return;
 	}
 
 	hv_vhca->agents[MLX5_HV_VHCA_AGENT_CONTROL] = agent;
-
-	return 0;
 }
 
 void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca)
@@ -227,7 +225,7 @@ void mlx5_hv_vhca_cleanup(struct mlx5_hv_vhca *hv_vhca)
 	struct mlx5_hv_vhca_agent *agent;
 	int i;
 
-	if (IS_ERR_OR_NULL(hv_vhca))
+	if (!hv_vhca)
 		return;
 
 	agent = hv_vhca->agents[MLX5_HV_VHCA_AGENT_CONTROL];
@@ -261,7 +259,7 @@ mlx5_hv_vhca_agent_create(struct mlx5_hv_vhca *hv_vhca,
 {
 	struct mlx5_hv_vhca_agent *agent;
 
-	if (IS_ERR_OR_NULL(hv_vhca))
+	if (!hv_vhca)
 		return ERR_PTR(-ENOMEM);
 
 	if (type >= MLX5_HV_VHCA_AGENT_MAX)
