@@ -562,11 +562,12 @@ static void __kvm_s390_exit(void)
 static int kvm_s390_keyop(struct kvm_s390_mmu_cache *mc, struct kvm *kvm, int op,
 			  unsigned long addr, union skey skey)
 {
-	union asce asce = kvm->arch.gmap->asce;
 	gfn_t gfn = gpa_to_gfn(addr);
+	union asce asce;
 	int r;
 
 	guard(read_lock)(&kvm->mmu_lock);
+	asce = kvm->arch.gmap->asce;
 
 	switch (op) {
 	case KVM_S390_KEYOP_SSKE:
