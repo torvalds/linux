@@ -142,7 +142,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
         }
 
         // SAFETY: `idrv` is guaranteed to be a valid `DriverType`.
-        to_result(unsafe { bindings::i2c_register_driver(module.0, idrv.get()) })
+        to_result(unsafe { bindings::i2c_register_driver(module.as_ptr(), idrv.get()) })
     }
 
     unsafe fn unregister(idrv: &Opaque<Self::DriverType>) {

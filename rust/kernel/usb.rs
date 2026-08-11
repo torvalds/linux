@@ -63,7 +63,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
 
         // SAFETY: `udrv` is guaranteed to be a valid `DriverType`.
         to_result(unsafe {
-            bindings::usb_register_driver(udrv.get(), module.0, name.as_char_ptr())
+            bindings::usb_register_driver(udrv.get(), module.as_ptr(), name.as_char_ptr())
         })
     }
 
