@@ -358,6 +358,7 @@ config ARCH_R8A78000
 	default y if ARCH_RENESAS
 	default ARCH_RENESAS
 	select ARCH_RCAR_GEN5
+	select MDLC_R8A78000
 	help
 	  This enables support for the Renesas R-Car X5H SoC.
 
