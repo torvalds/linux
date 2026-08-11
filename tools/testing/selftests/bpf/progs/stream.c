@@ -229,6 +229,107 @@ int stream_arena_load_acquire_fault(void *ctx)
 	return val;
 }
 
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stderr("ERROR: Arena WRITE access at unmapped address 0x{{.*}}")
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_arena_xchg_fault(void *ctx)
+{
+	static const struct bpf_insn xchg_insn = {
+		.code	 = 0xc3,	/* BPF_STX | BPF_ATOMIC | BPF_W */
+		.dst_reg = 1,		/* BPF_REG_1 */
+		.src_reg = 2,		/* BPF_REG_2 */
+		.off	 = 0x7fff,
+		.imm	 = 0xe1,	/* BPF_XCHG */
+	};
+	struct bpf_arena *ptr = (void *)&arena;
+	u64 user_vm_start, val;
+
+	/*
+	 * Prevent GCC bounds warning: casting &arena to struct bpf_arena *
+	 * triggers bounds checking since the map definition is smaller than
+	 * struct bpf_arena. barrier_var() makes the pointer opaque to GCC,
+	 * preventing the bounds analysis.
+	 */
+	barrier_var(ptr);
+	user_vm_start = ptr->user_vm_start;
+	fault_addr = user_vm_start + 0x7fff;
+	bpf_addr_space_cast(user_vm_start, 0, 1);
+	/*
+	 * A read-modify-write carrying BPF_FETCH writes to memory, so the fault
+	 * has to be reported as a WRITE from the dst_reg address, but it also
+	 * reads the old value into src_reg, so the exception handler has to
+	 * clear src_reg. Poison it up front, the returned value must be 0.
+	 */
+	asm volatile (
+		"r1 = %[user_vm_start];"
+		"r2 = 1;"
+		".8byte %[xchg_insn];" /* r2 = xchg((u32 *)(r1 + 0x7fff), r2) */
+		"%[val] = r2;"
+		: [val] "=r" (val)
+		: [user_vm_start] "r" (user_vm_start),
+		  __imm_insn(xchg_insn, xchg_insn)
+		: "r1", "r2"
+	);
+	return val;
+}
+
+SEC("syscall")
+__arch_x86_64
+__arch_arm64
+__success __retval(0)
+__stderr("ERROR: Arena WRITE access at unmapped address 0x{{.*}}")
+__stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
+__stderr("Call trace:\n"
+"{{([a-zA-Z_][a-zA-Z0-9_]*\\+0x[0-9a-fA-F]+/0x[0-9a-fA-F]+\n"
+"|[ \t]+[^\n]+\n)*}}")
+int stream_arena_cmpxchg_fault(void *ctx)
+{
+	static const struct bpf_insn cmpxchg_insn = {
+		.code	 = 0xc3,	/* BPF_STX | BPF_ATOMIC | BPF_W */
+		.dst_reg = 1,		/* BPF_REG_1 */
+		.src_reg = 2,		/* BPF_REG_2 */
+		.off	 = 0x7fff,
+		.imm	 = 0xf1,	/* BPF_CMPXCHG */
+	};
+	struct bpf_arena *ptr = (void *)&arena;
+	u64 user_vm_start, val;
+
+	/*
+	 * Prevent GCC bounds warning: casting &arena to struct bpf_arena *
+	 * triggers bounds checking since the map definition is smaller than
+	 * struct bpf_arena. barrier_var() makes the pointer opaque to GCC,
+	 * preventing the bounds analysis.
+	 */
+	barrier_var(ptr);
+	user_vm_start = ptr->user_vm_start;
+	fault_addr = user_vm_start + 0x7fff;
+	bpf_addr_space_cast(user_vm_start, 0, 1);
+	/*
+	 * Same as the exchange above, except that a BPF_CMPXCHG reads the old
+	 * value into r0 rather than into src_reg, so r0 is the register the
+	 * exception handler has to clear. It doubles as the compare value, but
+	 * the comparison never happens since the access faults first.
+	 */
+	asm volatile (
+		"r1 = %[user_vm_start];"
+		"r0 = 1;"
+		"r2 = 2;"
+		".8byte %[cmpxchg_insn];" /* r0 = cmpxchg((u32 *)(r1 + 0x7fff), r0, r2) */
+		"%[val] = r0;"
+		: [val] "=r" (val)
+		: [user_vm_start] "r" (user_vm_start),
+		  __imm_insn(cmpxchg_insn, cmpxchg_insn)
+		: "r0", "r1", "r2"
+	);
+	return val;
+}
+
 static __noinline void subprog(void)
 {
 	int __arena *addr = (int __arena *)0xdeadbeef;
