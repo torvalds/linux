@@ -16,8 +16,10 @@
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 
+struct dentry;
 struct landlock_domain;
 struct landlock_hierarchy;
+struct landlock_rule;
 struct landlock_ruleset;
 struct path;
 
@@ -59,6 +61,77 @@ __trace_print_untrusted_str(struct trace_seq *p, const char *src, size_t len)
 		return NULL;
 	}
 	seq_buf_commit(&p->seq, escaped_size);
+	trace_seq_putc(p, 0);
+	return ret;
+}
+
+/*
+ * Fills the dense per-domain-layer array layers (one access mask per layer,
+ * indexed by level - 1) from rule's sparse layer stack, keeping only the
+ * requested rights (access_request).  Layers with no matching rule entry get
+ * a zero mask.  Shared by the check_rule_fs and check_rule_net events.
+ *
+ * rule->layers is sorted by ascending level, with levels in the domain's
+ * [1, num_layers] range (see landlock_merge_ruleset()), so every entry maps
+ * to a slot.  A leftover entry would be a malformed rule; the zero-filled
+ * slots keep the output and the array bounds safe regardless.
+ */
+static inline void
+__trace_landlock_fill_layers(access_mask_t *const layers,
+			     const size_t num_layers,
+			     const struct landlock_rule *const rule,
+			     const access_mask_t access_request)
+{
+	size_t i = 0;
+
+	for (size_t level = 1; level <= num_layers; level++) {
+		access_mask_t grants = 0;
+
+		if (i < rule->num_layers && level == rule->layers[i].level) {
+			grants = rule->layers[i].access & access_request;
+			i++;
+		}
+		layers[level - 1] = grants;
+	}
+
+	/* A leftover entry means an out-of-range or unsorted rule level. */
+	WARN_ON_ONCE(i < rule->num_layers);
+}
+
+/*
+ * Renders the dense per-domain-layer access array as symbolic flag names for
+ * the grants field: layers wrapped in "{}", flags within a layer joined by
+ * "|", layers separated by ",", an empty layer rendered as nothing.
+ * Open-codes the flag walk because trace_print_flags_seq() NUL-terminates per
+ * call and so cannot be chained into a single field.  The shared names table
+ * covers every access right, so masked bits are always named.  Returns the
+ * trace_seq position like __print_flags().
+ */
+static inline const char *__trace_landlock_print_layers(
+	struct trace_seq *p, const access_mask_t *const layers,
+	const size_t num_layers, const struct trace_print_flags *const names,
+	const size_t names_size)
+{
+	const char *const ret = trace_seq_buffer_ptr(p);
+
+	trace_seq_putc(p, '{');
+	for (size_t i = 0; i < num_layers; i++) {
+		access_mask_t mask = layers[i];
+		bool first = true;
+
+		if (i)
+			trace_seq_putc(p, ',');
+		for (size_t j = 0; mask && j < names_size; j++) {
+			if ((mask & names[j].mask) != names[j].mask)
+				continue;
+			if (!first)
+				trace_seq_putc(p, '|');
+			trace_seq_puts(p, names[j].name);
+			mask &= ~names[j].mask;
+			first = false;
+		}
+	}
+	trace_seq_putc(p, '}');
 	trace_seq_putc(p, 0);
 	return ret;
 }
@@ -123,7 +196,33 @@ __trace_print_untrusted_str(struct trace_seq *p, const char *src, size_t len)
  * (e.g. network ports are __u64 in host endianness, like
  * landlock_net_port_attr.port).  Per-event details, such as where a value
  * is byte-swapped, live in the field's own kdoc.
+ *
+ * Rule-check fields
+ * ~~~~~~~~~~~~~~~~~
+ *
+ * The check_rule events fire during an access check, once per matching
+ * rule, before the final allow-or-deny verdict.  They share domain (the
+ * enforcing domain being evaluated), access_request (the access mask being
+ * checked), and rule (the matching rule, with per-layer access masks).
  */
+
+/*
+ * Prints a per-layer access mask array (the dynamic array @array) as symbolic
+ * flag names using the shared @flag_names list (a _LANDLOCK_*_NAMES macro).
+ * Stays outside CREATE_TRACE_POINTS: TP_printk is expanded in the print-output
+ * pass where that macro is undefined.
+ */
+#define __print_landlock_layers(array, flag_names...)			\
+	({								\
+		static const struct trace_print_flags __layer_names[] = { \
+			flag_names					\
+		};							\
+		__trace_landlock_print_layers(				\
+			p, __get_dynamic_array(array),			\
+			__get_dynamic_array_len(array) /		\
+				sizeof(access_mask_t),			\
+			__layer_names, ARRAY_SIZE(__layer_names));	\
+	})
 
 /**
  * landlock_create_ruleset - New ruleset created
@@ -430,6 +529,103 @@ TRACE_EVENT(landlock_free_domain,
 
 	TP_printk("domain=%llx denials=%llu",
 		__entry->domain_id, __entry->denials)
+);
+
+/**
+ * landlock_check_rule_fs - Filesystem rule evaluated during access check
+ *
+ * @domain: Enforcing domain (never NULL).
+ * @rule: Matching rule with per-layer access masks (never NULL).
+ * @access_request: Access mask evaluated against the rule (the domain's
+ *                   handled mask during rename/link double-checks).
+ * @dentry: Filesystem dentry being checked (never NULL).
+ *
+ * Emitted for each rule that matches during a filesystem access check.
+ * The grants array shows the requested rights the rule grants at each
+ * domain layer.  See Documentation/trace/events-landlock.rst for how to
+ * interpret it.
+ */
+TRACE_EVENT(landlock_check_rule_fs,
+
+	TP_PROTO(const struct landlock_domain *domain,
+		 const struct landlock_rule *rule,
+		 access_mask_t access_request, const struct dentry *dentry),
+
+	TP_ARGS(domain, rule, access_request, dentry),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	access_mask_t,	access_request	)
+		__field(	dev_t,		dev		)
+		__field(	ino_t,		ino		)
+		__dynamic_array(access_mask_t,	grants,
+				domain->num_layers)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= domain->hierarchy->id;
+		__entry->access_request	= access_request;
+		__entry->dev		= dentry->d_sb->s_dev;
+		__entry->ino		= d_backing_inode(dentry)->i_ino;
+
+		__trace_landlock_fill_layers(__get_dynamic_array(grants),
+					     __get_dynamic_array_len(grants) /
+						     sizeof(access_mask_t),
+					     rule, access_request);
+	),
+
+	TP_printk("domain=%llx access_request=%s dev=%u:%u ino=%lu grants=%s",
+		__entry->domain_id,
+		__print_flags(__entry->access_request, "|", _LANDLOCK_ACCESS_FS_NAMES),
+		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
+		__print_landlock_layers(grants, _LANDLOCK_ACCESS_FS_NAMES))
+);
+
+/**
+ * landlock_check_rule_net - Network port rule evaluated during access check
+ *
+ * @domain: Enforcing domain (never NULL).
+ * @rule: Matching rule with per-layer access masks (never NULL).
+ * @access_request: Access mask being requested.
+ * @port: Network port being checked (host endianness).
+ *
+ * Emitted for each rule that matches during a network access check.  The
+ * grants array shows the requested rights the rule grants at each domain
+ * layer.  See Documentation/trace/events-landlock.rst for how to
+ * interpret it.
+ */
+TRACE_EVENT(landlock_check_rule_net,
+
+	TP_PROTO(const struct landlock_domain *domain,
+		 const struct landlock_rule *rule,
+		 access_mask_t access_request, __u64 port),
+
+	TP_ARGS(domain, rule, access_request, port),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	access_mask_t,	access_request	)
+		__field(	__u64,		port		)
+		__dynamic_array(access_mask_t,	grants,
+				domain->num_layers)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= domain->hierarchy->id;
+		__entry->access_request	= access_request;
+		__entry->port		= port;
+
+		__trace_landlock_fill_layers(__get_dynamic_array(grants),
+					     __get_dynamic_array_len(grants) /
+						     sizeof(access_mask_t),
+					     rule, access_request);
+	),
+
+	TP_printk("domain=%llx access_request=%s port=%llu grants=%s",
+		__entry->domain_id,
+		__print_flags(__entry->access_request, "|", _LANDLOCK_ACCESS_NET_NAMES),
+		__entry->port,
+		__print_landlock_layers(grants, _LANDLOCK_ACCESS_NET_NAMES))
 );
 
 #undef _LANDLOCK_NAME_ENTRY

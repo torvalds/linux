@@ -98,9 +98,9 @@ void landlock_put_domain_deferred(struct landlock_domain *const domain)
 }
 
 /* The returned access has the same lifetime as the domain. */
-const struct landlock_rule *
-landlock_find_rule(const struct landlock_domain *const domain,
-		   const struct landlock_id id)
+static const struct landlock_rule *
+find_rule(const struct landlock_domain *const domain,
+	  const struct landlock_id id)
 {
 	const struct rb_root *root;
 	const struct rb_node *node;
@@ -127,25 +127,37 @@ landlock_find_rule(const struct landlock_domain *const domain,
 
 /**
  * landlock_unmask_layers - Remove the access rights in @masks which are
- *                          granted in @rule
+ *                          granted by a matching rule
  *
- * Updates the set of (per-layer) unfulfilled access rights @masks so that all
- * the access rights granted in @rule are removed from it (because they are now
- * fulfilled).
+ * Looks up the rule matching @id in @domain, then updates the set of
+ * (per-layer) unfulfilled access rights @masks so that all the access rights
+ * granted by that rule are removed (because they are now fulfilled).
  *
- * @rule: A rule that grants a set of access rights for each layer.
+ * @domain: The Landlock domain to search for a matching rule.
+ * @id: Identifier for the rule target (e.g. inode, port).
  * @masks: A matrix of unfulfilled access rights for each layer.
+ * @matched_rule: Optional output for the matched rule (for tracing); set to
+ *                the matching rule when non-NULL, unchanged otherwise.
  *
  * Return: True if the request is allowed (i.e. the access rights granted all
  * remaining unfulfilled access rights and masks has no leftover set bits).
  */
-bool landlock_unmask_layers(const struct landlock_rule *const rule,
-			    struct layer_masks *masks)
+bool landlock_unmask_layers(const struct landlock_domain *const domain,
+			    const struct landlock_id id,
+			    struct layer_masks *masks,
+			    const struct landlock_rule **matched_rule)
 {
+	const struct landlock_rule *rule;
+
 	if (!masks)
 		return true;
+
+	rule = find_rule(domain, id);
 	if (!rule)
 		return false;
+
+	if (matched_rule)
+		*matched_rule = rule;
 
 	/*
 	 * An access is granted if, for each policy layer, at least one rule

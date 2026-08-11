@@ -306,12 +306,10 @@ struct landlock_domain *
 landlock_merge_ruleset(struct landlock_domain *const parent,
 		       struct landlock_ruleset *const ruleset);
 
-const struct landlock_rule *
-landlock_find_rule(const struct landlock_domain *const domain,
-		   const struct landlock_id id);
-
-bool landlock_unmask_layers(const struct landlock_rule *const rule,
-			    struct layer_masks *masks);
+bool landlock_unmask_layers(const struct landlock_domain *const domain,
+			    const struct landlock_id id,
+			    struct layer_masks *masks,
+			    const struct landlock_rule **matched_rule);
 
 access_mask_t
 landlock_init_layer_masks(const struct landlock_domain *const domain,
