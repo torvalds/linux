@@ -8,11 +8,11 @@ landlock-y := \
 	cred.o \
 	task.o \
 	fs.o \
-	tsync.o
+	tsync.o \
+	domain.o
 
 landlock-$(CONFIG_INET) += net.o
 
 landlock-$(CONFIG_AUDIT) += \
 	id.o \
-	audit.o \
-	domain.o
+	audit.o

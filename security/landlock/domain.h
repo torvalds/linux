@@ -5,11 +5,13 @@
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
  * Copyright © 2024-2025 Microsoft Corporation
+ * Copyright © 2026 Cloudflare, Inc.
  */
 
 #ifndef _SECURITY_LANDLOCK_DOMAIN_H
 #define _SECURITY_LANDLOCK_DOMAIN_H
 
+#include <linux/cleanup.h>
 #include <linux/limits.h>
 #include <linux/mm.h>
 #include <linux/path.h>
@@ -17,9 +19,11 @@
 #include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include "access.h"
 #include "audit.h"
+#include "ruleset.h"
 
 enum landlock_log_status {
 	LANDLOCK_LOG_PENDING = 0,
@@ -174,6 +178,72 @@ static inline void landlock_put_hierarchy(struct landlock_hierarchy *hierarchy)
 		hierarchy = hierarchy->parent;
 		kfree(freeme);
 	}
+}
+
+/**
+ * struct landlock_domain - Immutable Landlock domain
+ *
+ * A domain is created from a ruleset by landlock_merge_ruleset() and enforced
+ * on a task.  Once created, its rules and access masks are immutable.  Unlike
+ * &struct landlock_ruleset, a domain has no lock field.
+ */
+struct landlock_domain {
+	/**
+	 * @rules: Red-black tree storage for rules.
+	 */
+	struct landlock_rules rules;
+	/**
+	 * @hierarchy: Enables hierarchy identification even when a parent
+	 * domain vanishes.  This is needed for the ptrace and scope
+	 * restrictions.
+	 */
+	struct landlock_hierarchy *hierarchy;
+	union {
+		/**
+		 * @work_free: Enables to free a domain within a lockless
+		 * section.  This is only used by landlock_put_domain_deferred()
+		 * when @usage reaches zero.  The fields @usage, @num_layers and
+		 * @access_masks are then unused.
+		 */
+		struct work_struct work_free;
+		struct {
+			/**
+			 * @usage: Number of credentials referencing this
+			 * domain.
+			 */
+			refcount_t usage;
+			/**
+			 * @num_layers: Number of layers that are used in this
+			 * domain.  This enables to check that all the layers
+			 * allow an access request.
+			 */
+			u32 num_layers;
+			/**
+			 * @access_masks: Contains the subset of filesystem and
+			 * network actions that are restricted by a domain.  A
+			 * domain saves all layers of merged rulesets in a stack
+			 * (FAM), starting from the first layer to the last one.
+			 * These layers are used when merging rulesets, for user
+			 * space backward compatibility (i.e. future-proof), and
+			 * to properly handle merged rulesets without
+			 * overlapping access rights.  These layers are set once
+			 * and never changed for the lifetime of the domain.
+			 */
+			struct access_masks access_masks[];
+		};
+	};
+};
+
+void landlock_put_domain(struct landlock_domain *const domain);
+void landlock_put_domain_deferred(struct landlock_domain *const domain);
+
+DEFINE_FREE(landlock_put_domain, struct landlock_domain *,
+	    if (!IS_ERR_OR_NULL(_T)) landlock_put_domain(_T))
+
+static inline void landlock_get_domain(struct landlock_domain *const domain)
+{
+	if (domain)
+		refcount_inc(&domain->usage);
 }
 
 #endif /* _SECURITY_LANDLOCK_DOMAIN_H */

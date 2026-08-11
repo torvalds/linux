@@ -68,13 +68,12 @@ union landlock_key {
  */
 enum landlock_key_type {
 	/**
-	 * @LANDLOCK_KEY_INODE: Type of &landlock_ruleset.root_inode's node
-	 * keys.
+	 * @LANDLOCK_KEY_INODE: Type of &landlock_rules.root_inode's node keys.
 	 */
 	LANDLOCK_KEY_INODE = 1,
 	/**
-	 * @LANDLOCK_KEY_NET_PORT: Type of &landlock_ruleset.root_net_port's
-	 * node keys.
+	 * @LANDLOCK_KEY_NET_PORT: Type of &landlock_rules.root_net_port's node
+	 * keys.
 	 */
 	LANDLOCK_KEY_NET_PORT,
 };
@@ -122,6 +121,33 @@ struct landlock_rule {
 };
 
 /**
+ * struct landlock_rules - Red-black tree storage for Landlock rules
+ *
+ * This structure holds the rule trees shared by both rulesets and domains.
+ */
+struct landlock_rules {
+	/**
+	 * @root_inode: Root of a red-black tree containing &struct
+	 * landlock_rule nodes with inode object.  Immutable for domains.
+	 */
+	struct rb_root root_inode;
+
+#if IS_ENABLED(CONFIG_INET)
+	/**
+	 * @root_net_port: Root of a red-black tree containing &struct
+	 * landlock_rule nodes with network port.  Immutable for domains.
+	 */
+	struct rb_root root_net_port;
+#endif /* IS_ENABLED(CONFIG_INET) */
+
+	/**
+	 * @num_rules: Number of non-overlapping (i.e. not for the same object)
+	 * rules in this tree storage.
+	 */
+	u32 num_rules;
+};
+
+/**
  * struct landlock_ruleset - Landlock ruleset
  *
  * This data structure must contain unique entries, be updatable, and quick to
@@ -129,22 +155,9 @@ struct landlock_rule {
  */
 struct landlock_ruleset {
 	/**
-	 * @root_inode: Root of a red-black tree containing &struct
-	 * landlock_rule nodes with inode object.  Once a ruleset is tied to a
-	 * process (i.e. as a domain), this tree is immutable until @usage
-	 * reaches zero.
+	 * @rules: Red-black tree storage for rules.
 	 */
-	struct rb_root root_inode;
-
-#if IS_ENABLED(CONFIG_INET)
-	/**
-	 * @root_net_port: Root of a red-black tree containing &struct
-	 * landlock_rule nodes with network port. Once a ruleset is tied to a
-	 * process (i.e. as a domain), this tree is immutable until @usage
-	 * reaches zero.
-	 */
-	struct rb_root root_net_port;
-#endif /* IS_ENABLED(CONFIG_INET) */
+	struct landlock_rules rules;
 
 	/**
 	 * @hierarchy: Enables hierarchy identification even when a parent
@@ -156,8 +169,8 @@ struct landlock_ruleset {
 		 * @work_free: Enables to free a ruleset within a lockless
 		 * section.  This is only used by
 		 * landlock_put_ruleset_deferred() when @usage reaches zero.
-		 * The fields @lock, @usage, @num_rules, @num_layers,
-		 * @quiet_masks and @access_masks are then unused.
+		 * The fields @lock, @usage, @num_layers, @quiet_masks and
+		 * @access_masks are then unused.
 		 */
 		struct work_struct work_free;
 		struct {
@@ -171,11 +184,6 @@ struct landlock_ruleset {
 			 * descriptors referencing this ruleset.
 			 */
 			refcount_t usage;
-			/**
-			 * @num_rules: Number of non-overlapping (i.e. not for
-			 * the same object) rules in this ruleset.
-			 */
-			u32 num_rules;
 			/**
 			 * @num_layers: Number of layers that are used in this
 			 * ruleset.  This enables to check that all the layers
@@ -221,6 +229,8 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 			 const struct landlock_id id,
 			 const access_mask_t access, const u32 flags);
 
+void landlock_free_rules(struct landlock_rules *const rules);
+
 struct landlock_ruleset *
 landlock_merge_ruleset(struct landlock_ruleset *const parent,
 		       struct landlock_ruleset *const ruleset);
@@ -228,6 +238,33 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 const struct landlock_rule *
 landlock_find_rule(const struct landlock_ruleset *const ruleset,
 		   const struct landlock_id id);
+
+/**
+ * landlock_get_rule_root - Get the root of a rule tree by key type
+ *
+ * @rules: The rules storage to look up.
+ * @key_type: The type of key to select the tree for.
+ *
+ * Return: A pointer to the rb_root, or ERR_PTR(-EINVAL) on unknown type.
+ */
+static inline struct rb_root *
+landlock_get_rule_root(struct landlock_rules *const rules,
+		       const enum landlock_key_type key_type)
+{
+	switch (key_type) {
+	case LANDLOCK_KEY_INODE:
+		return &rules->root_inode;
+
+#if IS_ENABLED(CONFIG_INET)
+	case LANDLOCK_KEY_NET_PORT:
+		return &rules->root_net_port;
+#endif /* IS_ENABLED(CONFIG_INET) */
+
+	default:
+		WARN_ON_ONCE(1);
+		return ERR_PTR(-EINVAL);
+	}
+}
 
 static inline void landlock_get_ruleset(struct landlock_ruleset *const ruleset)
 {

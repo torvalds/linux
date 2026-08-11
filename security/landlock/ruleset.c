@@ -39,16 +39,16 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&new_ruleset->usage, 1);
 	mutex_init(&new_ruleset->lock);
-	new_ruleset->root_inode = RB_ROOT;
+	new_ruleset->rules.root_inode = RB_ROOT;
 
 #if IS_ENABLED(CONFIG_INET)
-	new_ruleset->root_net_port = RB_ROOT;
+	new_ruleset->rules.root_net_port = RB_ROOT;
 #endif /* IS_ENABLED(CONFIG_INET) */
 
 	new_ruleset->num_layers = num_layers;
 	/*
 	 * hierarchy = NULL
-	 * num_rules = 0
+	 * rules.num_rules = 0
 	 * access_masks[] = 0
 	 */
 	return new_ruleset;
@@ -148,19 +148,7 @@ create_rule(const struct landlock_id id,
 static struct rb_root *get_root(struct landlock_ruleset *const ruleset,
 				const enum landlock_key_type key_type)
 {
-	switch (key_type) {
-	case LANDLOCK_KEY_INODE:
-		return &ruleset->root_inode;
-
-#if IS_ENABLED(CONFIG_INET)
-	case LANDLOCK_KEY_NET_PORT:
-		return &ruleset->root_net_port;
-#endif /* IS_ENABLED(CONFIG_INET) */
-
-	default:
-		WARN_ON_ONCE(1);
-		return ERR_PTR(-EINVAL);
-	}
+	return landlock_get_rule_root(&ruleset->rules, key_type);
 }
 
 static void free_rule(struct landlock_rule *const rule,
@@ -176,19 +164,24 @@ static void free_rule(struct landlock_rule *const rule,
 
 static void build_check_ruleset(void)
 {
-	const struct landlock_ruleset ruleset = {
+	const struct landlock_rules rules = {
 		.num_rules = ~0,
+	};
+	const struct landlock_ruleset ruleset = {
 		.num_layers = ~0,
 	};
 
-	BUILD_BUG_ON(ruleset.num_rules < LANDLOCK_MAX_NUM_RULES);
+	BUILD_BUG_ON(rules.num_rules < LANDLOCK_MAX_NUM_RULES);
 	BUILD_BUG_ON(ruleset.num_layers < LANDLOCK_MAX_NUM_LAYERS);
 }
 
 /**
- * insert_rule - Create and insert a rule in a ruleset
+ * insert_rule - Create and insert a rule into the rule storage
  *
- * @ruleset: The ruleset to be updated.
+ * @rules: The rule storage to be updated.  The caller is responsible for
+ *         any required locking.  For rulesets, this means holding
+ *         &landlock_ruleset.lock.  For domains under construction, no lock is
+ *         needed because the domain is not yet visible to other tasks.
  * @id: The ID to build the new rule with.  The underlying kernel object, if
  *      any, must be held by the caller.
  * @layers: One or multiple layers to be copied into the new rule.
@@ -196,16 +189,16 @@ static void build_check_ruleset(void)
  *
  * When user space requests to add a new rule to a ruleset, @layers only
  * contains one entry and this entry is not assigned to any level.  In this
- * case, the new rule will extend @ruleset, similarly to a boolean OR between
+ * case, the new rule will extend @rules, similarly to a boolean OR between
  * access rights.
  *
  * When merging a ruleset in a domain, or copying a domain, @layers will be
- * added to @ruleset as new constraints, similarly to a boolean AND between
- * access rights.
+ * added to @rules as new constraints, similarly to a boolean AND between access
+ * rights.
  *
  * Return: 0 on success, -errno on failure.
  */
-static int insert_rule(struct landlock_ruleset *const ruleset,
+static int insert_rule(struct landlock_rules *const rules,
 		       const struct landlock_id id,
 		       const struct landlock_layer (*layers)[],
 		       const size_t num_layers)
@@ -216,14 +209,13 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 	struct rb_root *root;
 
 	might_sleep();
-	lockdep_assert_held(&ruleset->lock);
 	if (WARN_ON_ONCE(!layers))
 		return -ENOENT;
 
 	if (is_object_pointer(id.type) && WARN_ON_ONCE(!id.key.object))
 		return -ENOENT;
 
-	root = get_root(ruleset, id.type);
+	root = landlock_get_rule_root(rules, id.type);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 
@@ -249,7 +241,7 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 		if ((*layers)[0].level == 0) {
 			/*
 			 * Extends access rights when the request comes from
-			 * landlock_add_rule(2), i.e. @ruleset is not a domain.
+			 * landlock_add_rule(2), i.e. contained by a ruleset.
 			 */
 			if (WARN_ON_ONCE(this->num_layers != 1))
 				return -EINVAL;
@@ -278,14 +270,14 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 
 	/* There is no match for @id. */
 	build_check_ruleset();
-	if (ruleset->num_rules >= LANDLOCK_MAX_NUM_RULES)
+	if (rules->num_rules >= LANDLOCK_MAX_NUM_RULES)
 		return -E2BIG;
 	new_rule = create_rule(id, layers, num_layers, NULL);
 	if (IS_ERR(new_rule))
 		return PTR_ERR(new_rule);
 	rb_link_node(&new_rule->node, parent_node, walker_node);
 	rb_insert_color(&new_rule->node, root);
-	ruleset->num_rules++;
+	rules->num_rules++;
 	return 0;
 }
 
@@ -319,7 +311,8 @@ int landlock_insert_rule(struct landlock_ruleset *const ruleset,
 	} };
 
 	build_check_layer();
-	return insert_rule(ruleset, id, &layers, ARRAY_SIZE(layers));
+	lockdep_assert_held(&ruleset->lock);
+	return insert_rule(&ruleset->rules, id, &layers, ARRAY_SIZE(layers));
 }
 
 static int merge_tree(struct landlock_ruleset *const dst,
@@ -358,7 +351,7 @@ static int merge_tree(struct landlock_ruleset *const dst,
 		layers[0].access = walker_rule->layers[0].access;
 		layers[0].flags = walker_rule->layers[0].flags;
 
-		err = insert_rule(dst, id, &layers, ARRAY_SIZE(layers));
+		err = insert_rule(&dst->rules, id, &layers, ARRAY_SIZE(layers));
 		if (err)
 			return err;
 	}
@@ -432,7 +425,7 @@ static int inherit_tree(struct landlock_ruleset *const parent,
 			.type = key_type,
 		};
 
-		err = insert_rule(child, id, &walker_rule->layers,
+		err = insert_rule(&child->rules, id, &walker_rule->layers,
 				  walker_rule->num_layers);
 		if (err)
 			return err;
@@ -486,21 +479,26 @@ out_unlock:
 	return err;
 }
 
-static void free_ruleset(struct landlock_ruleset *const ruleset)
+void landlock_free_rules(struct landlock_rules *const rules)
 {
 	struct landlock_rule *freeme, *next;
 
 	might_sleep();
-	rbtree_postorder_for_each_entry_safe(freeme, next, &ruleset->root_inode,
+	rbtree_postorder_for_each_entry_safe(freeme, next, &rules->root_inode,
 					     node)
 		free_rule(freeme, LANDLOCK_KEY_INODE);
 
 #if IS_ENABLED(CONFIG_INET)
 	rbtree_postorder_for_each_entry_safe(freeme, next,
-					     &ruleset->root_net_port, node)
+					     &rules->root_net_port, node)
 		free_rule(freeme, LANDLOCK_KEY_NET_PORT);
 #endif /* IS_ENABLED(CONFIG_INET) */
+}
 
+static void free_ruleset(struct landlock_ruleset *const ruleset)
+{
+	might_sleep();
+	landlock_free_rules(&ruleset->rules);
 	landlock_put_hierarchy(ruleset->hierarchy);
 	kfree(ruleset);
 }
@@ -604,7 +602,8 @@ landlock_find_rule(const struct landlock_ruleset *const ruleset,
 	const struct rb_root *root;
 	const struct rb_node *node;
 
-	root = get_root((struct landlock_ruleset *)ruleset, id.type);
+	root = landlock_get_rule_root((struct landlock_rules *)&ruleset->rules,
+				      id.type);
 	if (IS_ERR(root))
 		return NULL;
 	node = root->rb_node;
