@@ -900,7 +900,8 @@ install: install-bin try-install-man
 
 # Install the development packages needed to build perf, derived from the
 # feature tests in tools/build/feature/.  Currently supported: the Fedora
-# (dnf) and Ubuntu (apt) package mappings, see the script.
+# (dnf), Ubuntu (apt) and Debian (apt, reusing the Ubuntu mapping)
+# package mappings, see the script.
 # INSTALL_BUILD_DEPS_ARGS, when set, is passed to the script, so
 # extra options like --list, --dry-run or --distro can be given from make.
 install-build-deps:

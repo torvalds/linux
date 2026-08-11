@@ -31,12 +31,17 @@
 #     which prompts for the timezone on a terminal and would block the
 #     install, e.g. in a container shared with an interactive session.
 #
+#   - Debian, on apt-get, reusing the Ubuntu mapping, validated on
+#     Debian 13 (trixie), in a distrobox container:
+#
+#           distrobox create --image debian:trixie
+#           distrobox enter debian-trixie
+#
 # Running inside a container keeps the host system unmodified.
 #
-# Debian, which shares the Ubuntu package mapping, is the next planned
-# distro to be enabled once that mapping is validated on a Debian
-# release (trixie), as is RHEL support, once its (largely similar to
-# Fedora) package mapping is validated there.
+# RHEL support, whose package mapping is largely similar to Fedora's,
+# is the next planned distro, to be enabled once that mapping is
+# validated there.
 #
 # Usage: install-build-deps.sh [OPTIONS]
 #
@@ -44,7 +49,7 @@
 #    --list       list the packages that would be installed, then exit
 #    --dry-run    show the install command that would be run, without
 #                 running it
-#    --distro ID  force a distro: fedora, ubuntu (default: auto-detect)
+#    --distro ID  force a distro: fedora, ubuntu, debian (default: auto-detect)
 #    -h, --help   print this help message
 #
 # Requires root (or passwordless sudo) to actually install packages.
@@ -66,12 +71,13 @@ it, so the corresponding feature gets enabled on a build.
 Options:
     --list      list the packages that would be installed, then exit
     --dry-run   show the install command that would be run, without running it
-    --distro ID force a distro: fedora, ubuntu
+    --distro ID force a distro: fedora, ubuntu, debian
     -h, --help  print this help message
 
 Distros supported: Fedora (dnf), validated in a toolbx container on
-Fedora 44, and Ubuntu (apt-get), validated in a distrobox container on
-Ubuntu 26.04.
+Fedora 44, Ubuntu (apt-get), validated in a distrobox container on
+Ubuntu 26.04, and Debian (apt-get), reusing the Ubuntu mapping,
+validated in a distrobox container on Debian 13 (trixie).
 EOF
 	exit 0
 }
@@ -178,8 +184,7 @@ fedora_pkg_for() {
 # Return the Debian/Ubuntu package(s) providing the devel requirements
 # of a feature test in tools/build/feature/.  This mapping is shared by
 # Debian and Ubuntu, whose package names for these devel packages match,
-# and is validated on Ubuntu 26.04; Debian (trixie) will be enabled
-# once the same mapping is validated on it.
+# and is validated on Ubuntu 26.04 and Debian 13 (trixie).
 # ---------------------------------------------------------------------
 debian_pkg_for() {
 	local feat="$1"
@@ -286,9 +291,7 @@ detect_distro() {
 	case "$id" in
 	fedora)			echo "fedora" ;;
 	ubuntu)			echo "ubuntu" ;;
-	# Debian shares the Ubuntu package mapping, but it is only validated
-	# on Ubuntu so far, so don't auto-detect it yet.
-	debian)			echo "" ;;
+	debian)			echo "debian" ;;
 	# RHEL and its derivatives share most Fedora package names, but the
 	# mapping is only validated on Fedora, so don't auto-detect them.
 	rhel|centos|rocky|alma|ol) echo "" ;;
@@ -320,7 +323,7 @@ package_set() {
 	local feat pkg pkgs
 	case "$distro" in
 	fedora)	pkgs="$fedora_base_pkgs" ;;
-	ubuntu)	pkgs="$debian_base_pkgs" ;;
+	ubuntu|debian)	pkgs="$debian_base_pkgs" ;;
 	esac
 
 	for feat in $(feature_tests "$srcdir"); do
@@ -350,7 +353,7 @@ install_cmd() {
 	fedora)
 		echo "dnf install -y $*"
 		;;
-	ubuntu)
+	ubuntu|debian)
 		# a fresh container has no package index, so update first; run
 		# with a noninteractive debconf frontend: default-jdk, used by
 		# the jvmti feature tests, pulls in tzdata, which prompts for
@@ -388,10 +391,10 @@ main() {
 	srcdir=$(cd "$(dirname "$0")/../../.." && pwd)
 	distro=$(detect_distro)
 	case "$distro" in
-	fedora|ubuntu) ;;
+	fedora|ubuntu|debian) ;;
 	*)
 		echo "error: unsupported distro (got '$distro'); the package mapping is not validated on other distros." >&2
-		echo "Supported and validated: Fedora 44 (toolbx container), Ubuntu 26.04 (distrobox container)." >&2
+		echo "Supported and validated: Fedora 44 (toolbx container), Ubuntu 26.04 and Debian 13 (distrobox containers)." >&2
 		exit 1
 		;;
 	esac
