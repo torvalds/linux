@@ -556,7 +556,7 @@ static __poll_t ppp_poll(struct file *file, poll_table *wait)
 		return 0;
 	poll_wait(file, &pf->rwait, wait);
 	mask = EPOLLOUT | EPOLLWRNORM;
-	if (skb_peek(&pf->rq))
+	if (!skb_queue_empty_lockless(&pf->rq))
 		mask |= EPOLLIN | EPOLLRDNORM;
 	if (pf->dead)
 		mask |= EPOLLHUP;
