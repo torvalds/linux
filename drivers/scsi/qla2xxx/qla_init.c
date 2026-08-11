@@ -9269,7 +9269,7 @@ static int qla29xx_process_rd_image(struct scsi_qla_host *vha,
 	if (section == TIM) {
 		if (section_size > req->length * qla_req_entry_size(ha)) {
 			ql_log(ql_log_fatal, vha, 0x0098,
-			    "TIM section too large (0x%x bytes, ring 0x%lx bytes).\n",
+			    "TIM section too large (0x%x bytes, ring 0x%zx bytes).\n",
 			    section_size,
 			    req->length * qla_req_entry_size(ha));
 			return QLA_FUNCTION_FAILED;
