@@ -89,8 +89,10 @@ xfs_ioend_put_open_zones(
 	/*
 	 * Put the open zone for all ioends merged into this one (if any).
 	 */
-	list_for_each_entry(tmp, &ioend->io_list, io_list)
-		xfs_open_zone_put(tmp->io_private);
+	list_for_each_entry(tmp, &ioend->io_list, io_list) {
+		if (tmp->io_private)
+			xfs_open_zone_put(tmp->io_private);
+	}
 
 	/*
 	 * The main ioend might not have an open zone if the submission failed
