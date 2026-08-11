@@ -544,6 +544,8 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 	 */
 	atomic64_inc(&youngest_denied->num_denials);
 
+	landlock_trace_denial(request, youngest_denied, missing, same_exec,
+			      logged);
 	landlock_audit_denial(request, youngest_denied, missing, logged);
 }
 

@@ -22,6 +22,7 @@ struct landlock_hierarchy;
 struct landlock_rule;
 struct landlock_ruleset;
 struct path;
+struct sock;
 
 #ifdef CREATE_TRACE_POINTS
 
@@ -204,6 +205,20 @@ static inline const char *__trace_landlock_print_layers(
  * rule, before the final allow-or-deny verdict.  They share domain (the
  * enforcing domain being evaluated), access_request (the access mask being
  * checked), and rule (the matching rule, with per-layer access masks).
+ *
+ * Denial fields
+ * ~~~~~~~~~~~~~
+ *
+ * Every denial event shares three fields.  domain is the ID of the
+ * innermost domain that blocked the access.  same_exec tells whether the
+ * current task is the same executable that entered that domain.  logged is
+ * the domain's audit-logging decision for this denial (its log_status is
+ * enabled and the per-execution flag selected by same_exec is set); a
+ * stateless ftrace filter can select the denials the domain submits to
+ * audit with logged==1, without reconstructing it from the per-execution
+ * log flags.  Denial events order their fields as domain, same_exec,
+ * logged, then blockers (deny_access events only), then the type-specific
+ * object fields, then any variable-length field.
  */
 
 /*
@@ -626,6 +641,120 @@ TRACE_EVENT(landlock_check_rule_net,
 		__print_flags(__entry->access_request, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->port,
 		__print_landlock_layers(grants, _LANDLOCK_ACCESS_NET_NAMES))
+);
+
+/**
+ * landlock_deny_access_fs - Filesystem access denied
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: The domain's audit-logging decision for this denial.
+ * @blockers: Access mask that was blocked (zero for a mount-topology
+ *            change, whose only blocker is the operation itself).
+ * @path: Filesystem path that was denied (never NULL).
+ * @pathname: Resolved path string (never NULL; an error placeholder on
+ *            resolution failure).
+ *
+ * Emitted when a Landlock domain denies a filesystem access.
+ */
+TRACE_EVENT(landlock_deny_access_fs,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, access_mask_t blockers, const struct path *path,
+		 const char *pathname),
+
+	TP_ARGS(hierarchy, same_exec, logged, blockers, path, pathname),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	access_mask_t,	blockers	)
+		__field(	dev_t,		dev		)
+		__field(	ino_t,		ino		)
+		__string(	pathname,	pathname	)
+	),
+
+	TP_fast_assign(
+		const struct inode *inode = d_backing_inode(path->dentry);
+
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->blockers	= blockers;
+		__entry->dev		= path->dentry->d_sb->s_dev;
+		/*
+		 * A negative dentry has no backing inode, so mirror the
+		 * guard in dump_common_audit_data() and report inode 0.
+		 */
+		__entry->ino		= inode ? inode->i_ino : 0;
+		__assign_str(pathname);
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s dev=%u:%u ino=%lu path=%s",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_FS_NAMES),
+		MAJOR(__entry->dev), MINOR(__entry->dev), __entry->ino,
+		__trace_print_untrusted_str(p, __get_str(pathname),
+					    __get_dynamic_array_len(pathname) - 1))
+);
+
+/**
+ * landlock_deny_access_net - Network access denied
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: The domain's audit-logging decision for this denial.
+ * @blockers: Access mask that was blocked.
+ * @sk: Socket object (never NULL), read without a socket lock, so its
+ *      fields are a best-effort snapshot.  The denied endpoint is not
+ *      available: the hook runs before :manpage:`bind(2)` /
+ *      :manpage:`connect(2)` sets the socket addresses.
+ * @sport: Source port in host endianness, set for bind denials (zero for
+ *         an autobind/ephemeral port); zero for connect and send denials.
+ * @dport: Destination port in host endianness, set for connect and send
+ *         denials; zero for bind denials, and also zero for a UDP send to
+ *         an AF_UNSPEC address on an IPv6 socket (indistinguishable from a
+ *         real destination port 0).  The bind-vs-connect direction is
+ *         given by @blockers, not by which port is set.
+ *
+ * Emitted when a Landlock domain denies a network operation.
+ *
+ * The port fields are converted from the socket's network byte order to
+ * host endianness before emitting.
+ */
+TRACE_EVENT(landlock_deny_access_net,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, access_mask_t blockers, const struct sock *sk,
+		 __u64 sport, __u64 dport),
+
+	TP_ARGS(hierarchy, same_exec, logged, blockers, sk, sport, dport),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	access_mask_t,	blockers	)
+		__field(	__u64,		sport		)
+		__field(	__u64,		dport		)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->blockers	= blockers;
+		__entry->sport		= sport;
+		__entry->dport		= dport;
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d blockers=%s sport=%llu dport=%llu",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_NET_NAMES),
+		__entry->sport, __entry->dport)
 );
 
 #undef _LANDLOCK_NAME_ENTRY
