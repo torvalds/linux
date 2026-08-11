@@ -2,7 +2,7 @@
 /*
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
-
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/module.h>
