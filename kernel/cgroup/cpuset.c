@@ -2859,7 +2859,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 {
 	struct cpuset *trialcs;
 	int balance_flag_changed;
-	int spread_flag_changed;
+	int spread_page_changed;
 	int err;
 
 	trialcs = dup_or_alloc_cpuset(cs);
@@ -2878,8 +2878,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 	balance_flag_changed = (is_sched_load_balance(cs) !=
 				is_sched_load_balance(trialcs));
 
-	spread_flag_changed = ((is_spread_slab(cs) != is_spread_slab(trialcs))
-			|| (is_spread_page(cs) != is_spread_page(trialcs)));
+	spread_page_changed = is_spread_page(cs) != is_spread_page(trialcs);
 
 	spin_lock_irq(&callback_lock);
 	cs->flags = trialcs->flags;
@@ -2892,7 +2891,7 @@ int cpuset_update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
 			rebuild_sched_domains_locked();
 	}
 
-	if (spread_flag_changed)
+	if (spread_page_changed)
 		cpuset1_update_tasks_flags(cs);
 out:
 	free_cpuset(trialcs);
@@ -4462,14 +4461,10 @@ void cpuset_nodes_allowed(struct cgroup *cgroup, nodemask_t *mask)
  * cpuset_spread_node() - On which node to begin search for a page
  * @rotor: round robin rotor
  *
- * If a task is marked PF_SPREAD_PAGE or PF_SPREAD_SLAB (as for
- * tasks in a cpuset with is_spread_page or is_spread_slab set),
- * and if the memory allocation used cpuset_mem_spread_node()
- * to determine on which node to start looking, as it will for
- * certain page cache or slab cache pages such as used for file
- * system buffers and inode caches, then instead of starting on the
- * local node to look for a free page, rather spread the starting
- * node around the tasks mems_allowed nodes.
+ * If a task is marked PFA_SPREAD_PAGE and a page cache allocation uses
+ * cpuset_mem_spread_node() to determine where to start looking, spread the
+ * starting node around the task's mems_allowed nodes instead of starting on
+ * the local node.
  *
  * We don't have to worry about the returned node being offline
  * because "it can't happen", and even if it did, it would be ok.
