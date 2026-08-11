@@ -202,9 +202,10 @@ static int airoha_npu_load_firmware(struct device *dev, void __iomem *addr,
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, fw_name, dev);
+	ret = request_firmware_direct(&fw, fw_name, dev);
 	if (ret)
-		return ret == -ENOENT ? -EPROBE_DEFER : ret;
+		return dev_err_probe(dev, ret == -ENOENT ? -EPROBE_DEFER : ret,
+				     "failed to load %s\n", fw_name);
 
 	if (fw->size > fw_max_size) {
 		dev_err(dev, "%s: fw size too overlimit (%zu)\n",
@@ -230,7 +231,8 @@ airoha_npu_load_firmware_from_dts(struct device *dev, void __iomem *addr,
 	ret = of_property_read_string_array(dev->of_node, "firmware-name",
 					    fw_names, ARRAY_SIZE(fw_names));
 	if (ret != ARRAY_SIZE(fw_names))
-		return -EINVAL;
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid firmware-name property\n");
 
 	ret = airoha_npu_load_firmware(dev, addr, fw_names[0],
 				       NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
@@ -772,7 +774,7 @@ static int airoha_npu_probe(struct platform_device *pdev)
 
 	err = airoha_npu_run_firmware(dev, base, &res);
 	if (err)
-		return dev_err_probe(dev, err, "failed to run npu firmware\n");
+		return err;
 
 	regmap_write(npu->regmap, REG_CR_NPU_MIB(10),
 		     res.start + NPU_EN7581_FIRMWARE_RV32_MAX_SIZE);
