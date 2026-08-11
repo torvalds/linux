@@ -15,6 +15,7 @@
 #include <linux/string_helpers.h>
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
+#include <net/af_unix.h>
 
 struct dentry;
 struct landlock_domain;
@@ -23,6 +24,7 @@ struct landlock_rule;
 struct landlock_ruleset;
 struct path;
 struct sock;
+struct task_struct;
 
 #ifdef CREATE_TRACE_POINTS
 
@@ -151,6 +153,18 @@ static inline const char *__trace_landlock_print_layers(
  * A new tracepoint must uphold them, and an eBPF consumer can rely on
  * them.
  *
+ * Decision context
+ * ~~~~~~~~~~~~~~~~
+ *
+ * A denial event, together with the lifecycle events, exposes the full
+ * set of inputs the verdict consumed, so a consumer that tracked domain
+ * creation (landlock_create_ruleset, landlock_create_domain) can verify
+ * or reproduce the Landlock decision rather than merely observe it
+ * happened.  In who/what/why terms: who is the denying domain (the domain
+ * field, always the subject that enforced the policy, never the current
+ * task), what is the operation and its object, and why is every other
+ * input the verdict weighed.
+ *
  * Lifecycle consistency
  * ~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -219,6 +233,18 @@ static inline const char *__trace_landlock_print_layers(
  * log flags.  Denial events order their fields as domain, same_exec,
  * logged, then blockers (deny_access events only), then the type-specific
  * object fields, then any variable-length field.
+ *
+ * Relational referents
+ * ~~~~~~~~~~~~~~~~~~~~~
+ *
+ * A scope or ptrace verdict compares two domains, so the other party's
+ * domain is part of the decision context.  It is exposed as a scalar
+ * domain ID (0 when that party is unsandboxed): target_domain (signal),
+ * peer_domain (abstract unix socket), tracee_domain (ptrace).  With both
+ * IDs in the stream, a consumer that tracked domain creation can relate
+ * the two parties without kernel-internal state.  The ID is a scalar
+ * snapshot, not a live domain pointer that could dangle: an optional
+ * relational referent is a scalar (0 sentinel), not a nullable pointer.
  */
 
 /*
@@ -755,6 +781,178 @@ TRACE_EVENT(landlock_deny_access_net,
 		__entry->domain_id, __entry->same_exec, __entry->logged,
 		__print_flags(__entry->blockers, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->sport, __entry->dport)
+);
+
+/**
+ * landlock_deny_ptrace - Ptrace access denied by a Landlock domain
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: The domain's audit-logging decision for this denial.
+ * @tracee_domain_id: The tracee's Landlock domain ID, or 0 if the tracee
+ *                    is unsandboxed.
+ * @tracee: The target task ptrace acted on (never NULL).  tracee_pid is
+ *          the init-namespace TGID (like audit's opid).
+ *
+ * Emitted when a Landlock domain denies a ptrace operation.
+ */
+TRACE_EVENT(landlock_deny_ptrace,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, u64 tracee_domain_id,
+		 const struct task_struct *tracee),
+
+	TP_ARGS(hierarchy, same_exec, logged, tracee_domain_id, tracee),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	__u64,		tracee_domain_id)
+		__field(	pid_t,		tracee_pid	)
+		__string(	tracee_comm,	tracee->comm	)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->tracee_domain_id = tracee_domain_id;
+		__entry->tracee_pid	= task_tgid_nr((struct task_struct *)tracee);
+		__assign_str(tracee_comm);
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d tracee_domain=%llx tracee_pid=%d tracee_comm=%s",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__entry->tracee_domain_id, __entry->tracee_pid,
+		__trace_print_untrusted_str(p, __get_str(tracee_comm),
+					    __get_dynamic_array_len(tracee_comm) - 1))
+);
+
+/**
+ * landlock_deny_scope_signal - Signal delivery denied by
+ *                               LANDLOCK_SCOPE_SIGNAL
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: The domain's audit-logging decision for this denial.
+ * @target_domain_id: The target's Landlock domain ID, or 0 if the target
+ *                    is unsandboxed.
+ * @target: The task the signal was aimed at (never NULL).  target_pid is
+ *          the init-namespace TGID (like audit's opid).
+ *
+ * Emitted when a Landlock domain denies signal delivery to a scoped-out
+ * target.
+ */
+TRACE_EVENT(landlock_deny_scope_signal,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, u64 target_domain_id,
+		 const struct task_struct *target),
+
+	TP_ARGS(hierarchy, same_exec, logged, target_domain_id, target),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	__u64,		target_domain_id)
+		__field(	pid_t,		target_pid	)
+		__string(	target_comm,	target->comm	)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->target_domain_id = target_domain_id;
+		__entry->target_pid	= task_tgid_nr((struct task_struct *)target);
+		__assign_str(target_comm);
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d target_domain=%llx target_pid=%d target_comm=%s",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__entry->target_domain_id, __entry->target_pid,
+		__trace_print_untrusted_str(p, __get_str(target_comm),
+					    __get_dynamic_array_len(target_comm) - 1))
+);
+
+/**
+ * landlock_deny_scope_abstract_unix_socket - Abstract unix socket access
+ *     denied by LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+ *
+ * @hierarchy: Denying domain's hierarchy node (never NULL); its id is the
+ *             domain field.
+ * @same_exec: Whether the current task entered the denying domain itself.
+ * @logged: The domain's audit-logging decision for this denial.
+ * @peer_domain_id: The peer's Landlock domain ID, or 0 if the peer is
+ *                  unsandboxed.
+ * @peer: Peer socket (never NULL).  peer_pid is best-effort: it is 0 for
+ *        a datagram peer (no SO_PEERCRED), so sun_path is the reliable
+ *        peer identifier.
+ *
+ * Emitted when a Landlock domain denies access to a scoped-out abstract
+ * unix socket.
+ */
+TRACE_EVENT(landlock_deny_scope_abstract_unix_socket,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy, bool same_exec,
+		 bool logged, u64 peer_domain_id, const struct sock *peer),
+
+	TP_ARGS(hierarchy, same_exec, logged, peer_domain_id, peer),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	bool,		same_exec	)
+		__field(	bool,		logged		)
+		__field(	__u64,		peer_domain_id	)
+		__field(	pid_t,		peer_pid	)
+		/*
+		 * Abstract socket names are untrusted binary data from
+		 * user space.  Use __string_len because abstract names
+		 * are not NUL-terminated; their length is determined by
+		 * addr->len.  unix_sk(peer)->addr is stable here because
+		 * the caller (hook_unix_stream_connect or
+		 * hook_unix_may_send) holds unix_state_lock(peer).
+		 */
+		__string_len(	sun_path,
+				unix_sk(peer)->addr ?
+					unix_sk(peer)->addr->name->sun_path + 1 :
+					"",
+				unix_sk(peer)->addr ?
+					unix_sk(peer)->addr->len -
+						offsetof(struct sockaddr_un,
+							 sun_path) - 1 :
+					0)
+	),
+
+	TP_fast_assign(
+		struct pid *peer_pid;
+
+		lockdep_assert_held(&unix_sk(peer)->lock);
+		__entry->domain_id	= hierarchy->id;
+		__entry->same_exec	= same_exec;
+		__entry->logged		= logged;
+		__entry->peer_domain_id	= peer_domain_id;
+		/*
+		 * Best-effort (0 for a datagram peer).  sk_peer_pid is
+		 * canonically guarded by sk->sk_peer_lock, but the target
+		 * peer's peercred is set once and not updated concurrently in
+		 * these hooks, so this READ_ONCE() is safe; sun_path is the
+		 * reliable identifier.
+		 */
+		peer_pid		= READ_ONCE(peer->sk_peer_pid);
+		__entry->peer_pid	= peer_pid ? pid_nr(peer_pid) : 0;
+		__assign_str(sun_path);
+	),
+
+	TP_printk("domain=%llx same_exec=%d logged=%d peer_domain=%llx peer_pid=%d sun_path=%s",
+		__entry->domain_id, __entry->same_exec, __entry->logged,
+		__entry->peer_domain_id, __entry->peer_pid,
+		__trace_print_untrusted_str(p, __get_str(sun_path),
+					    __get_dynamic_array_len(sun_path) - 1))
 );
 
 #undef _LANDLOCK_NAME_ENTRY

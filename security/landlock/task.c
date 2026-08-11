@@ -88,6 +88,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 				    const unsigned int mode)
 {
 	const struct landlock_cred_security *parent_subject;
+	u64 tracee_domain_id = 0;
 	int err;
 
 	/* Quick return for non-landlocked tasks. */
@@ -99,6 +100,10 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 		const struct landlock_domain *const child_dom =
 			landlock_get_task_domain(child);
 		err = domain_ptrace(parent_subject->domain, child_dom);
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+		if (child_dom)
+			tracee_domain_id = child_dom->hierarchy->id;
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 
 	if (!err)
@@ -116,6 +121,7 @@ static int hook_ptrace_access_check(struct task_struct *const child,
 				.u.tsk = child,
 			},
 			.layer_plus_one = parent_subject->domain->num_layers,
+			.other_domain_id = tracee_domain_id,
 		});
 
 	return err;
@@ -136,6 +142,7 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 {
 	const struct landlock_cred_security *parent_subject;
 	const struct landlock_domain *child_dom;
+	u64 tracee_domain_id = 0;
 	int err;
 
 	child_dom = landlock_get_current_domain();
@@ -146,6 +153,12 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 
 	if (!err)
 		return 0;
+
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+	/* The tracee is the current task; its domain is stable here. */
+	if (child_dom)
+		tracee_domain_id = child_dom->hierarchy->id;
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 
 	/*
 	 * For the ptrace_traceme case, we log the domain which is the cause of
@@ -161,6 +174,7 @@ static int hook_ptrace_traceme(struct task_struct *const parent)
 			.u.tsk = current,
 		},
 		.layer_plus_one = parent_subject->domain->num_layers,
+		.other_domain_id = tracee_domain_id,
 	});
 	return err;
 }
@@ -236,7 +250,8 @@ static bool domain_is_scoped(const struct landlock_domain *const client,
 }
 
 static bool sock_is_scoped(struct sock *const other,
-			   const struct landlock_domain *const domain)
+			   const struct landlock_domain *const domain,
+			   u64 *const peer_domain_id)
 {
 	const struct landlock_domain *dom_other;
 
@@ -254,6 +269,9 @@ static bool sock_is_scoped(struct sock *const other,
 		return false;
 
 	dom_other = landlock_cred(other->sk_socket->file->f_cred)->domain;
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+	*peer_domain_id = dom_other ? dom_other->hierarchy->id : 0;
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	return domain_is_scoped(domain, dom_other,
 				LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET);
 }
@@ -281,6 +299,7 @@ static int hook_unix_stream_connect(struct sock *const sock,
 				    struct sock *const newsk)
 {
 	size_t handle_layer;
+	u64 peer_domain_id = 0;
 	const struct landlock_cred_security *const subject =
 		landlock_get_applicable_subject(current_cred(), unix_scope,
 						&handle_layer);
@@ -292,7 +311,7 @@ static int hook_unix_stream_connect(struct sock *const sock,
 	if (!is_abstract_socket(other))
 		return 0;
 
-	if (!sock_is_scoped(other, subject->domain))
+	if (!sock_is_scoped(other, subject->domain, &peer_domain_id))
 		return 0;
 
 	landlock_log_denial(subject, &(struct landlock_request) {
@@ -304,6 +323,7 @@ static int hook_unix_stream_connect(struct sock *const sock,
 			},
 		},
 		.layer_plus_one = handle_layer + 1,
+		.other_domain_id = peer_domain_id,
 	});
 	return -EPERM;
 }
@@ -312,6 +332,7 @@ static int hook_unix_may_send(struct socket *const sock,
 			      struct socket *const other)
 {
 	size_t handle_layer;
+	u64 peer_domain_id = 0;
 	const struct landlock_cred_security *const subject =
 		landlock_get_applicable_subject(current_cred(), unix_scope,
 						&handle_layer);
@@ -329,7 +350,7 @@ static int hook_unix_may_send(struct socket *const sock,
 	if (!is_abstract_socket(other->sk))
 		return 0;
 
-	if (!sock_is_scoped(other->sk, subject->domain))
+	if (!sock_is_scoped(other->sk, subject->domain, &peer_domain_id))
 		return 0;
 
 	landlock_log_denial(subject, &(struct landlock_request) {
@@ -341,6 +362,7 @@ static int hook_unix_may_send(struct socket *const sock,
 			},
 		},
 		.layer_plus_one = handle_layer + 1,
+		.other_domain_id = peer_domain_id,
 	});
 	return -EPERM;
 }
@@ -355,6 +377,7 @@ static int hook_task_kill(struct task_struct *const p,
 {
 	bool is_scoped;
 	size_t handle_layer;
+	u64 target_domain_id = 0;
 	const struct landlock_cred_security *subject;
 
 	if (!cred) {
@@ -381,9 +404,15 @@ static int hook_task_kill(struct task_struct *const p,
 		return 0;
 
 	scoped_guard(rcu) {
-		is_scoped = domain_is_scoped(subject->domain,
-					     landlock_get_task_domain(p),
+		const struct landlock_domain *const other =
+			landlock_get_task_domain(p);
+
+		is_scoped = domain_is_scoped(subject->domain, other,
 					     signal_scope.scope);
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+		if (other)
+			target_domain_id = other->hierarchy->id;
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 
 	if (!is_scoped)
@@ -396,6 +425,7 @@ static int hook_task_kill(struct task_struct *const p,
 			.u.tsk = p,
 		},
 		.layer_plus_one = handle_layer + 1,
+		.other_domain_id = target_domain_id,
 	});
 	return -EPERM;
 }
@@ -405,6 +435,7 @@ static int hook_file_send_sigiotask(struct task_struct *tsk,
 {
 	const struct landlock_cred_security *subject;
 	bool is_scoped = false;
+	u64 target_domain_id = 0;
 
 	/* Lock already held by send_sigio() and send_sigurg(). */
 	lockdep_assert_held(&fown->lock);
@@ -432,9 +463,15 @@ static int hook_file_send_sigiotask(struct task_struct *tsk,
 		return 0;
 
 	scoped_guard(rcu) {
-		is_scoped = domain_is_scoped(subject->domain,
-					     landlock_get_task_domain(tsk),
+		const struct landlock_domain *const other =
+			landlock_get_task_domain(tsk);
+
+		is_scoped = domain_is_scoped(subject->domain, other,
 					     signal_scope.scope);
+#ifdef CONFIG_SECURITY_LANDLOCK_LOG
+		if (other)
+			target_domain_id = other->hierarchy->id;
+#endif /* CONFIG_SECURITY_LANDLOCK_LOG */
 	}
 
 	if (!is_scoped)
@@ -449,6 +486,7 @@ static int hook_file_send_sigiotask(struct task_struct *tsk,
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG
 		.layer_plus_one = landlock_file(fown->file)->fown_layer + 1,
 #endif /* CONFIG_SECURITY_LANDLOCK_LOG */
+		.other_domain_id = target_domain_id,
 	});
 	return -EPERM;
 }

@@ -157,7 +157,29 @@ void landlock_trace_denial(
 				ntohs(request->audit.u.net->sport),
 				ntohs(request->audit.u.net->dport));
 		break;
+	case LANDLOCK_REQUEST_PTRACE:
+		if (trace_landlock_deny_ptrace_enabled())
+			trace_landlock_deny_ptrace(youngest_denied, same_exec,
+						   logged,
+						   request->other_domain_id,
+						   request->audit.u.tsk);
+		break;
+	case LANDLOCK_REQUEST_SCOPE_SIGNAL:
+		if (trace_landlock_deny_scope_signal_enabled())
+			trace_landlock_deny_scope_signal(
+				youngest_denied, same_exec, logged,
+				request->other_domain_id, request->audit.u.tsk);
+		break;
+	case LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET:
+		if (trace_landlock_deny_scope_abstract_unix_socket_enabled())
+			trace_landlock_deny_scope_abstract_unix_socket(
+				youngest_denied, same_exec, logged,
+				request->other_domain_id,
+				request->audit.u.net->sk);
+		break;
 	default:
+		WARN_ONCE(1, "Unhandled Landlock request type %d",
+			  request->type);
 		break;
 	}
 }

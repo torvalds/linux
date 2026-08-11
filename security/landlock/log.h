@@ -3,6 +3,7 @@
  * Landlock - Log helpers
  *
  * Copyright © 2023-2025 Microsoft Corporation
+ * Copyright © 2026 Cloudflare, Inc.
  */
 
 #ifndef _SECURITY_LANDLOCK_LOG_H
@@ -50,6 +51,14 @@ struct landlock_request {
 	const access_mask_t all_existing_optional_access;
 	deny_masks_t deny_masks;
 	optional_access_t quiet_optional_accesses;
+
+	/*
+	 * Other-party domain ID for a relational (scope/ptrace) denial, or 0 if
+	 * that party is unsandboxed.  An ID, not a pointer: the other task can
+	 * replace its credential and free the domain it referenced.  Trace path
+	 * only; audit ignores it.
+	 */
+	u64 other_domain_id;
 };
 
 #ifdef CONFIG_SECURITY_LANDLOCK_LOG
