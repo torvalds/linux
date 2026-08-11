@@ -271,40 +271,12 @@ static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 	return ret;
 }
 
-static void sh_pfc_fwnode_put(void *data)
-{
-	fwnode_handle_put(data);
-}
-
 static int gpio_function_setup(struct sh_pfc_chip *chip)
 {
 	struct sh_pfc *pfc = chip->pfc;
 	struct gpio_chip *gc = &chip->gpio_chip;
-	struct fwnode_handle *fwnode = dev_fwnode(pfc->dev);
 
 	gc->request = gpio_function_request;
-
-	if (is_software_node(fwnode)) {
-		fwnode = fwnode_get_named_child_node(fwnode, "functions");
-		if (fwnode) {
-			int ret;
-
-			ret = devm_add_action_or_reset(pfc->dev,
-						       sh_pfc_fwnode_put,
-						       fwnode);
-			if (ret)
-				return ret;
-
-			gc->fwnode = fwnode;
-		}
-	}
-
-	/*
-	 * If we did not find 'functions' node, explicitly mask the parent's
-	 * fwnode to prevent gpiolib from reusing it for function GPIOs.
-	 */
-	if (!gc->fwnode)
-		gc->fwnode = ERR_PTR(-ENODEV);
 
 	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
