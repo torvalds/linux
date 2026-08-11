@@ -1433,6 +1433,8 @@ static int isst_if_get_tpmi_instance_count(void __user *argp)
 		return -EINVAL;
 
 	sst_inst = isst_common.sst_inst[tpmi_inst.socket_id];
+	if (!sst_inst)
+		return -EINVAL;
 
 	tpmi_inst.count = isst_instance_count(sst_inst);
 
