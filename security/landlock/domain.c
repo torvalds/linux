@@ -310,31 +310,28 @@ static int merge_ruleset(struct landlock_domain *const dst,
 	if (WARN_ON_ONCE(!dst || !dst->hierarchy))
 		return -EINVAL;
 
-	mutex_lock(&src->lock);
+	lockdep_assert_held(&src->lock);
 
 	/* Stacks the new layer. */
-	if (WARN_ON_ONCE(dst->num_layers < 1)) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
+	if (WARN_ON_ONCE(dst->num_layers < 1))
+		return -EINVAL;
+
 	dst->handled_masks[dst->num_layers - 1] =
 		landlock_upgrade_handled_access_masks(src->handled_masks);
 
 	/* Merges the @src inode tree. */
 	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
 	if (err)
-		goto out_unlock;
+		return err;
 
 #if IS_ENABLED(CONFIG_INET)
 	/* Merges the @src network port tree. */
 	err = merge_tree(dst, src, LANDLOCK_KEY_NET_PORT);
 	if (err)
-		goto out_unlock;
+		return err;
 #endif /* IS_ENABLED(CONFIG_INET) */
 
-out_unlock:
-	mutex_unlock(&src->lock);
-	return err;
+	return 0;
 }
 
 static int inherit_tree(struct landlock_domain *const parent,
@@ -416,6 +413,8 @@ static int inherit_ruleset(struct landlock_domain *const parent,
  * The current task is requesting to be restricted.  The subjective credentials
  * must not be in an overridden state. cf. landlock_init_hierarchy_log().
  *
+ * The caller must hold @ruleset->lock.
+ *
  * Return: A new domain merging @parent and @ruleset on success, or ERR_PTR() on
  * failure.  If @parent is NULL, the new domain duplicates @ruleset.
  */
@@ -428,6 +427,7 @@ landlock_merge_ruleset(struct landlock_domain *const parent,
 	int err;
 
 	might_sleep();
+	lockdep_assert_held(&ruleset->lock);
 	if (WARN_ON_ONCE(!ruleset))
 		return ERR_PTR(-EINVAL);
 
@@ -576,7 +576,13 @@ int landlock_init_hierarchy_log(struct landlock_hierarchy *const hierarchy)
 
 	hierarchy->details = details;
 	hierarchy->id = landlock_get_id_range(1);
-	hierarchy->log_status = LANDLOCK_LOG_PENDING;
+	/*
+	 * The hierarchy is born unobservable: landlock_restrict_self() moves it
+	 * out of LANDLOCK_LOG_UNCOMMITTED once it has emitted the creation
+	 * event, so the matching free_domain event fires for it and not for a
+	 * hierarchy whose creation was never observed.
+	 */
+	hierarchy->log_status = LANDLOCK_LOG_UNCOMMITTED;
 	hierarchy->log_same_exec = true;
 	hierarchy->log_new_exec = false;
 	atomic64_set(&hierarchy->num_denials, 0);

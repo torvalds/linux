@@ -16,6 +16,8 @@
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 
+struct landlock_domain;
+struct landlock_hierarchy;
 struct landlock_ruleset;
 struct path;
 
@@ -288,6 +290,86 @@ TRACE_EVENT(landlock_add_rule_net,
 		__entry->ruleset_id, __entry->ruleset_version,
 		__print_flags(__entry->access_rights, "|", _LANDLOCK_ACCESS_NET_NAMES),
 		__entry->port)
+);
+
+/**
+ * landlock_create_domain - New domain created
+ *
+ * @domain: Newly created domain (never NULL, immutable after creation).
+ *          @domain->hierarchy->id is its unique ID, shared with the
+ *          landlock_enforce_domain and landlock_free_domain events;
+ *          @domain->hierarchy->details holds the requesting process.
+ * @ruleset: Source ruleset frozen into the domain (never NULL).  The
+ *           ruleset lock is held across the emission, so a BPF program
+ *           reading it via BTF sees the exact merged ruleset;
+ *           @ruleset->id / @ruleset->version identify it.
+ *
+ * Emitted by sys_landlock_restrict_self() once, in the requesting
+ * thread's context, right after the merge and before thread-sync.  The
+ * flags-only path (ruleset_fd == -1) creates no domain and does not
+ * emit this event.  Paired with the per-thread landlock_enforce_domain
+ * (join on @domain->hierarchy->id) and balanced by a matching
+ * landlock_free_domain event.
+ */
+TRACE_EVENT(landlock_create_domain,
+
+	TP_PROTO(const struct landlock_domain *domain,
+		 const struct landlock_ruleset *ruleset),
+
+	TP_ARGS(domain, ruleset),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	__u64,		parent_id	)
+		__field(	__u64,		ruleset_id	)
+		__field(	__u32,		ruleset_version	)
+	),
+
+	TP_fast_assign(
+		lockdep_assert_held(&ruleset->lock);
+		__entry->domain_id	= domain->hierarchy->id;
+		__entry->parent_id	= domain->hierarchy->parent ?
+					  domain->hierarchy->parent->id : 0;
+		__entry->ruleset_id	= ruleset->id;
+		__entry->ruleset_version = ruleset->version;
+	),
+
+	TP_printk("domain=%llx parent=%llx ruleset=%llx.%u",
+		__entry->domain_id, __entry->parent_id,
+		__entry->ruleset_id, __entry->ruleset_version)
+);
+
+/**
+ * landlock_free_domain - Domain freed
+ *
+ * @hierarchy: Hierarchy node being freed (never NULL).
+ *
+ * Emitted when the hierarchy node's last reference is dropped: its
+ * refcount reaches zero after all child domains have released their
+ * parent reference.  A committed domain is
+ * freed from a kworker via landlock_put_domain_deferred() (the credential
+ * free path runs in RCU context, where sleeping is forbidden), so the
+ * current task is not the sandboxed task that triggered the free.  Balanced
+ * by a matching landlock_create_domain event.
+ */
+TRACE_EVENT(landlock_free_domain,
+
+	TP_PROTO(const struct landlock_hierarchy *hierarchy),
+
+	TP_ARGS(hierarchy),
+
+	TP_STRUCT__entry(
+		__field(	__u64,		domain_id	)
+		__field(	__u64,		denials		)
+	),
+
+	TP_fast_assign(
+		__entry->domain_id	= hierarchy->id;
+		__entry->denials	= atomic64_read(&hierarchy->num_denials);
+	),
+
+	TP_printk("domain=%llx denials=%llu",
+		__entry->domain_id, __entry->denials)
 );
 
 #undef _LANDLOCK_NAME_ENTRY

@@ -18,6 +18,7 @@
 #include "limits.h"
 #include "log.h"
 #include "ruleset.h"
+#include "trace.h"
 
 static struct landlock_hierarchy *
 get_hierarchy(const struct landlock_domain *const domain, const size_t layer)
@@ -551,14 +552,15 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
  *
  * @hierarchy: The domain's hierarchy being deallocated.
  *
- * Called in a work queue scheduled by landlock_put_domain_deferred() called by
- * hook_cred_free().
+ * Called from landlock_put_domain_deferred() (via a work queue scheduled by
+ * hook_cred_free()) or directly from landlock_put_domain().
  */
 void landlock_log_free_domain(const struct landlock_hierarchy *const hierarchy)
 {
 	if (WARN_ON_ONCE(!hierarchy))
 		return;
 
+	landlock_trace_free_domain(hierarchy);
 	landlock_audit_free_domain(hierarchy);
 }
 

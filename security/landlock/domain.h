@@ -26,7 +26,21 @@
 #include "ruleset.h"
 
 enum landlock_log_status {
-	LANDLOCK_LOG_PENDING = 0,
+	/*
+	 * Hierarchy whose creation event has not been emitted, so it is not yet
+	 * observable from user space.  A hierarchy is born in this state (the
+	 * zero value, so a partially initialized hierarchy defaults to "not
+	 * observable") and leaves it when landlock_restrict_self() emits its
+	 * creation event, right after the merge and before the thread-sync
+	 * wait.  No trace free_domain event (and no audit deallocation record)
+	 * fires while a hierarchy is in this state, so a hierarchy that never
+	 * became observable (e.g. its initialization failed) is freed silently.
+	 * A domain aborted by a thread-sync failure already emitted its
+	 * creation event, so it is no longer UNCOMMITTED and does fire
+	 * free_domain.
+	 */
+	LANDLOCK_LOG_UNCOMMITTED = 0,
+	LANDLOCK_LOG_PENDING,
 	LANDLOCK_LOG_RECORDED,
 	LANDLOCK_LOG_DISABLED,
 };
