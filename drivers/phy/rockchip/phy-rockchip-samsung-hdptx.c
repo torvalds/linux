@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2021-2022 Rockchip Electronics Co., Ltd.
- * Copyright (c) 2024 Collabora Ltd.
+ * Copyright (c) 2024-2026 Collabora Ltd.
  *
  * Author: Algea Cao <algea.cao@rock-chips.com>
  * Author: Cristian Ciocaltea <cristian.ciocaltea@collabora.com>
@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/hw_bitfield.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -949,7 +950,9 @@ static void rk_hdptx_pre_power_up(struct rk_hdptx_phy *hdptx)
 	reset_control_assert(hdptx->rsts[RST_CMN].rstc);
 	reset_control_assert(hdptx->rsts[RST_INIT].rstc);
 
-	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
+	val = (FIELD_PREP_WM16(HDPTX_I_PLL_EN, 0) |
+	       FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 0) |
+	       FIELD_PREP_WM16(HDPTX_I_BGR_EN, 0));
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0, val);
 }
 
@@ -960,8 +963,8 @@ static int rk_hdptx_post_enable_lane(struct rk_hdptx_phy *hdptx)
 
 	reset_control_deassert(hdptx->rsts[RST_LANE].rstc);
 
-	val = (HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16 |
-	       HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN;
+	val = (FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 1) |
+	       FIELD_PREP_WM16(HDPTX_I_BGR_EN, 1));
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0, val);
 
 	/* 3 lanes FRL mode */
@@ -990,16 +993,15 @@ static int rk_hdptx_post_enable_pll(struct rk_hdptx_phy *hdptx)
 	u32 val;
 	int ret;
 
-	val = (HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16 |
-	       HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN;
+	val = (FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 1) |
+	       FIELD_PREP_WM16(HDPTX_I_BGR_EN, 1));
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0, val);
 
 	usleep_range(10, 15);
 	reset_control_deassert(hdptx->rsts[RST_INIT].rstc);
 
 	usleep_range(10, 15);
-	val = HDPTX_I_PLL_EN << 16 | HDPTX_I_PLL_EN;
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0, val);
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(HDPTX_I_PLL_EN, 1));
 
 	usleep_range(10, 15);
 	reset_control_deassert(hdptx->rsts[RST_CMN].rstc);
@@ -1037,7 +1039,9 @@ static void rk_hdptx_phy_disable(struct rk_hdptx_phy *hdptx)
 	reset_control_assert(hdptx->rsts[RST_CMN].rstc);
 	reset_control_assert(hdptx->rsts[RST_INIT].rstc);
 
-	val = (HDPTX_I_PLL_EN | HDPTX_I_BIAS_EN | HDPTX_I_BGR_EN) << 16;
+	val = (FIELD_PREP_WM16(HDPTX_I_PLL_EN, 0) |
+	       FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 0) |
+	       FIELD_PREP_WM16(HDPTX_I_BGR_EN, 0));
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0, val);
 }
 
@@ -1135,7 +1139,7 @@ static int rk_hdptx_frl_lcpll_cmn_config(struct rk_hdptx_phy *hdptx)
 
 	rk_hdptx_pre_power_up(hdptx);
 
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0, LC_REF_CLK_SEL << 16);
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(LC_REF_CLK_SEL, 0));
 
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_cmn_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_frl_lcpll_cmn_init_seq);
@@ -1178,8 +1182,7 @@ static int rk_hdptx_frl_lcpll_ropll_cmn_config(struct rk_hdptx_phy *hdptx)
 	rk_hdptx_pre_power_up(hdptx);
 
 	/* ROPLL input reference clock from LCPLL (cascade mode) */
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     (LC_REF_CLK_SEL << 16) | LC_REF_CLK_SEL);
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(LC_REF_CLK_SEL, 1));
 
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_cmn_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_frl_lcpll_ropll_cmn_init_seq);
@@ -1218,7 +1221,7 @@ static int rk_hdptx_tmds_ropll_cmn_config(struct rk_hdptx_phy *hdptx)
 
 	rk_hdptx_pre_power_up(hdptx);
 
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0, LC_REF_CLK_SEL << 16);
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(LC_REF_CLK_SEL, 0));
 
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_common_cmn_init_seq);
 	rk_hdptx_multi_reg_write(hdptx, rk_hdptx_tmds_cmn_init_seq);
@@ -1336,11 +1339,9 @@ static void rk_hdptx_dp_reset(struct rk_hdptx_phy *hdptx)
 			   FIELD_PREP(LN_TX_DRV_EI_EN_MASK, 0));
 
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_PLL_EN << 16 | FIELD_PREP(HDPTX_I_PLL_EN, 0x0));
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_BIAS_EN << 16 | FIELD_PREP(HDPTX_I_BIAS_EN, 0x0));
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_BGR_EN << 16 | FIELD_PREP(HDPTX_I_BGR_EN, 0x0));
+		     FIELD_PREP_WM16(HDPTX_I_PLL_EN, 0) |
+		     FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 0) |
+		     FIELD_PREP_WM16(HDPTX_I_BGR_EN, 0));
 }
 
 static int rk_hdptx_phy_consumer_get(struct rk_hdptx_phy *hdptx)
@@ -1616,9 +1617,8 @@ static int rk_hdptx_dp_aux_init(struct rk_hdptx_phy *hdptx)
 			   FIELD_PREP(OVRD_SB_VREG_EN_MASK, 0x1));
 
 	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_BGR_EN << 16 | FIELD_PREP(HDPTX_I_BGR_EN, 0x1));
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_BIAS_EN << 16 | FIELD_PREP(HDPTX_I_BIAS_EN, 0x1));
+		     FIELD_PREP_WM16(HDPTX_I_BGR_EN, 1) |
+		     FIELD_PREP_WM16(HDPTX_I_BIAS_EN, 1));
 	usleep_range(20, 25);
 
 	reset_control_deassert(hdptx->rsts[RST_INIT].rstc);
@@ -1665,7 +1665,7 @@ static int rk_hdptx_phy_power_on(struct phy *phy)
 
 	if (mode == PHY_MODE_DP) {
 		regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-			     HDPTX_MODE_SEL << 16 | FIELD_PREP(HDPTX_MODE_SEL, 0x1));
+			     FIELD_PREP_WM16(HDPTX_MODE_SEL, 1));
 
 		for (lane = 0; lane < 4; lane++) {
 			regmap_update_bits(hdptx->regmap, LANE_REG(031e) + 0x400 * lane,
@@ -1693,7 +1693,7 @@ static int rk_hdptx_phy_power_on(struct phy *phy)
 
 		if (!ret) {
 			regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-				     HDPTX_MODE_SEL << 16 | FIELD_PREP(HDPTX_MODE_SEL, 0x0));
+				     FIELD_PREP_WM16(HDPTX_MODE_SEL, 0));
 
 			if (hdptx->hdmi_cfg.mode == PHY_HDMI_MODE_FRL)
 				ret = rk_hdptx_frl_lcpll_mode_config(hdptx);
@@ -1828,8 +1828,7 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 	u32 bw, status;
 	int ret;
 
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_PLL_EN << 16 | FIELD_PREP(HDPTX_I_PLL_EN, 0x0));
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(HDPTX_I_PLL_EN, 0));
 
 	switch (dp->link_rate) {
 	case 1620:
@@ -1885,8 +1884,7 @@ static int rk_hdptx_phy_set_rate(struct rk_hdptx_phy *hdptx,
 	regmap_update_bits(hdptx->regmap, CMN_REG(0095), DP_TX_LINK_BW_MASK,
 			   FIELD_PREP(DP_TX_LINK_BW_MASK, bw));
 
-	regmap_write(hdptx->grf, GRF_HDPTX_CON0,
-		     HDPTX_I_PLL_EN << 16 | FIELD_PREP(HDPTX_I_PLL_EN, 0x1));
+	regmap_write(hdptx->grf, GRF_HDPTX_CON0, FIELD_PREP_WM16(HDPTX_I_PLL_EN, 1));
 
 	ret = regmap_read_poll_timeout(hdptx->grf, GRF_HDPTX_STATUS,
 				       status, FIELD_GET(HDPTX_O_PLL_LOCK_DONE, status),
