@@ -685,7 +685,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 		goto failed;
 	}
 
-	strcpy(req->device, dev->name);
+	strscpy(req->device, dev->name, sizeof(req->device));
 	up_write(&bnep_session_sem);
 	return 0;
 
@@ -727,7 +727,7 @@ static void __bnep_copy_ci(struct bnep_conninfo *ci, struct bnep_session *s)
 
 	memset(ci, 0, sizeof(*ci));
 	memcpy(ci->dst, s->eh.h_source, ETH_ALEN);
-	strcpy(ci->device, s->dev->name);
+	strscpy(ci->device, s->dev->name, sizeof(ci->device));
 	ci->flags = s->flags & valid_flags;
 	ci->state = s->state;
 	ci->role  = s->role;
