@@ -1857,14 +1857,18 @@ static int futex_hash_allocate(unsigned int hash_slots, unsigned int flags)
 	}
 
 	if (!mm->futex.phash.ref) {
-		/*
-		 * This will always be allocated by the first thread and
-		 * therefore requires no locking.
-		 */
-		mm->futex.phash.ref = alloc_percpu(unsigned int);
-		if (!mm->futex.phash.ref)
+		unsigned int __percpu *ref = alloc_percpu(unsigned int);
+
+		if (!ref)
 			return -ENOMEM;
-		this_cpu_inc(*mm->futex.phash.ref); /* 0 -> 1 */
+
+		/*
+		 * Tasks sharing the mm can run this concurrently, so take the
+		 * initial reference before publishing the counter.
+		 */
+		this_cpu_inc(*ref); /* 0 -> 1 */
+		if (cmpxchg(&mm->futex.phash.ref, NULL, ref))
+			free_percpu(ref);
 	}
 
 	fph = kvzalloc(struct_size(fph, queues, hash_slots),
