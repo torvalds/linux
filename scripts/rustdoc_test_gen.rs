@@ -240,7 +240,6 @@ pub extern "C" fn {kunit_name}(__kunit_test: *mut ::kernel::bindings::kunit) {{
 const __LOG_PREFIX: &[u8] = b"rust_doctests_kernel\0";
 
 /// Dummy module type for doctest context.
-#[allow(dead_code)]
 struct LocalModule;
 
 use kernel::{{
