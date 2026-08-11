@@ -1518,8 +1518,8 @@ int arch_prepare_bpf_dispatcher(void *image, void *buf, s64 *funcs, int num_func
 
 int bpf_trampoline_multi_attach(struct bpf_prog *prog, u32 *ids,
 				struct bpf_tracing_multi_link *link);
-int bpf_trampoline_multi_detach(struct bpf_prog *prog,
-				struct bpf_tracing_multi_link *link);
+void bpf_trampoline_multi_detach(struct bpf_prog *prog,
+				 struct bpf_tracing_multi_link *link);
 void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags);
 
 /*
@@ -1639,10 +1639,9 @@ static inline int bpf_trampoline_multi_attach(struct bpf_prog *prog, u32 *ids,
 {
 	return -ENOTSUPP;
 }
-static inline int bpf_trampoline_multi_detach(struct bpf_prog *prog,
-					      struct bpf_tracing_multi_link *link)
+static inline void bpf_trampoline_multi_detach(struct bpf_prog *prog,
+					       struct bpf_tracing_multi_link *link)
 {
-	return -ENOTSUPP;
 }
 static inline void bpf_trampoline_set_flags(struct bpf_trampoline *tr, u32 flags) {}
 #endif

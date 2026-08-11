@@ -3687,7 +3687,7 @@ static void bpf_tracing_multi_link_release(struct bpf_link *link)
 	struct bpf_tracing_multi_link *tr_link =
 		container_of(link, struct bpf_tracing_multi_link, link);
 
-	WARN_ON_ONCE(bpf_trampoline_multi_detach(link->prog, tr_link));
+	bpf_trampoline_multi_detach(link->prog, tr_link);
 }
 
 static void bpf_tracing_multi_link_dealloc(struct bpf_link *link)

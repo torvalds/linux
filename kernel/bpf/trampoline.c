@@ -1766,7 +1766,8 @@ rollback_put:
 	return err;
 }
 
-int bpf_trampoline_multi_detach(struct bpf_prog *prog, struct bpf_tracing_multi_link *link)
+void bpf_trampoline_multi_detach(struct bpf_prog *prog,
+				 struct bpf_tracing_multi_link *link)
 {
 	struct bpf_tracing_multi_data *data = &link->data;
 	struct bpf_tracing_multi_node *mnode;
@@ -1796,7 +1797,6 @@ int bpf_trampoline_multi_detach(struct bpf_prog *prog, struct bpf_tracing_multi_
 		bpf_trampoline_put(mnode->trampoline);
 
 	clear_tracing_multi_data(data);
-	return 0;
 }
 
 #undef for_each_mnode_cnt
