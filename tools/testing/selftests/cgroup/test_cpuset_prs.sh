@@ -502,6 +502,12 @@ REMOTE_TEST_MATRIX=(
 	"  C1-4:P1   .   C1-2:P1  C1-3:P2  .       .  \
 	      .      .     P0      C2-3    .       .     p1:1,4|c11:1|c12:2-3 \
 							 p1:P1|c11:P0|c12:P2 2-3"
+	# Changing a sibling partition's cpuset.cpus to overlap with another
+	# sibling partition should invalidate itself and return only actually
+	# allocated CPUs (effective_xcpus) to the parent.
+	"  C1-4:P1   .   C1-2:P1  C2-4:P2  .       .  \
+	      .      .     .       C1-2    .       .     p1:3-4|c11:1-2|c12:3-4 \
+							 p1:P1|c11:P1|c12:P-2"
 	# Cpusets with empty cpuset.cpus should inherit parent's effective_cpus
 	"  C1-4:P1 C5-6   C1-2     .       C5      .  \
 	      .      P1    P1      .       .       .     p1:3-4|p2:5-6|c11:1-2|c12:3-4|c21:5|c22:5-6 \
