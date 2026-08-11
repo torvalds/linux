@@ -1685,8 +1685,6 @@ static int rk_hdptx_phy_power_on(struct phy *phy)
 		rk_hdptx_dp_pll_init(hdptx);
 
 		ret = rk_hdptx_dp_aux_init(hdptx);
-		if (ret)
-			rk_hdptx_phy_consumer_put(hdptx, true);
 	} else {
 		dev_dbg(hdptx->dev, "%s rate=%llu bpc=%u\n", __func__,
 			hdptx->hdmi_cfg.rate, hdptx->hdmi_cfg.bpc);
@@ -1703,10 +1701,10 @@ static int rk_hdptx_phy_power_on(struct phy *phy)
 			else
 				ret = rk_hdptx_tmds_ropll_mode_config(hdptx);
 		}
-
-		if (ret)
-			rk_hdptx_phy_consumer_put(hdptx, true);
 	}
+
+	if (ret)
+		rk_hdptx_phy_consumer_put(hdptx, true);
 
 	return ret;
 }
