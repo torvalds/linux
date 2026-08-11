@@ -633,6 +633,21 @@ static const struct export_operations erofs_export_ops = {
 	.get_parent = erofs_get_parent,
 };
 
+int erofs_setup_managed_cache(struct super_block *sb)
+{
+	if (!EROFS_SB(sb)->managed_cache) {
+		struct inode *inode = new_inode(sb);
+
+		if (!inode)
+			return -ENOMEM;
+		set_nlink(inode, 1);
+		inode->i_size = OFFSET_MAX;
+		mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
+		EROFS_SB(sb)->managed_cache = inode;
+	}
+	return 0;
+}
+
 static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
@@ -654,7 +669,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	sbi->blkszbits = PAGE_SHIFT;
-	if (!sb->s_bdev) {
+	if (erofs_is_fileio_mode(sbi)) {
 		/*
 		 * (File-backed mounts) EROFS claims it's safe to nest other
 		 * fs contexts (including its own) due to self-controlled RO
@@ -669,19 +684,19 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		 * It MUST change if another fs plans to support them, which
 		 * may also require adjusting FILESYSTEM_MAX_STACK_DEPTH.
 		 */
-		if (erofs_is_fileio_mode(sbi)) {
-			inode = file_inode(sbi->dif0.file);
-			if ((inode->i_sb->s_op == &erofs_sops &&
-			     !inode->i_sb->s_bdev) ||
-			    inode->i_sb->s_stack_depth) {
-				erofs_err(sb, "file-backed mounts cannot be applied to stacked fses");
-				return -ENOTBLK;
-			}
+		inode = file_inode(sbi->dif0.file);
+		if ((inode->i_sb->s_op == &erofs_sops &&
+		     !inode->i_sb->s_bdev) || inode->i_sb->s_stack_depth) {
+			erofs_err(sb, "file-backed mounts cannot be applied to stacked fses");
+			return -ENOTBLK;
 		}
 		sb->s_blocksize = PAGE_SIZE;
 		sb->s_blocksize_bits = PAGE_SHIFT;
 
 		err = super_setup_bdi(sb);
+		if (err)
+			return err;
+		err = erofs_setup_managed_cache(sb);
 		if (err)
 			return err;
 
@@ -913,10 +928,8 @@ static void erofs_drop_internal_inodes(struct erofs_sb_info *sbi)
 	sbi->packed_inode = NULL;
 	iput(sbi->metabox_inode);
 	sbi->metabox_inode = NULL;
-#ifdef CONFIG_EROFS_FS_ZIP
 	iput(sbi->managed_cache);
 	sbi->managed_cache = NULL;
-#endif
 }
 
 static void erofs_kill_sb(struct super_block *sb)
