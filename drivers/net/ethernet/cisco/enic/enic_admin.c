@@ -19,6 +19,7 @@
 #include "cq_enet_desc.h"
 #include "wq_enet_desc.h"
 #include "rq_enet_desc.h"
+#include "enic_mbox.h"
 
 /* Retry interval for a failed admin RQ refill.  Short so the control
  * channel recovers quickly once memory is available again.
@@ -217,7 +218,26 @@ unsigned int enic_admin_rq_cq_service(struct enic *enic)
 			goto next_desc;
 		}
 
-		enic_admin_msg_enqueue(enic, buf->os_buf, bytes_written);
+		if (enic->admin_rq_handler) {
+			u16 sender_vlan;
+
+			/* Firmware sets the CQ VLAN field to identify the
+			 * sender: 0 = PF, 1-based = VF index.  Overwrite
+			 * the untrusted src_vnic_id in the MBOX header with
+			 * the hardware-verified value.
+			 */
+			sender_vlan = le16_to_cpu(rq_desc->vlan);
+			if (bytes_written >= sizeof(struct enic_mbox_hdr)) {
+				struct enic_mbox_hdr *hdr = buf->os_buf;
+
+				hdr->src_vnic_id = (sender_vlan == 0) ?
+					cpu_to_le16(ENIC_MBOX_DST_PF) :
+					cpu_to_le16(sender_vlan - 1);
+			}
+
+			enic_admin_msg_enqueue(enic, buf->os_buf,
+					       bytes_written);
+		}
 
 next_desc:
 		enic_admin_rq_buf_clean(rq, rq->to_clean);
@@ -490,8 +510,9 @@ static void enic_admin_init_resources(struct enic *enic)
 		     VNIC_CQ_MSG_DISABLE,
 		     intr_offset,
 		     0 /* cq_message_addr */);
+	/* coalescing_timer, coalescing_type, mask_on_assertion */
 	vnic_intr_init(&enic->admin_intr,
-		       0, 0, 1); /* coalescing_timer, coalescing_type, mask_on_assertion */
+		       0, 0, 1);
 }
 
 static void enic_admin_msg_drain(struct enic *enic)
@@ -513,6 +534,13 @@ int enic_admin_channel_open(struct enic *enic)
 
 	if (!enic->has_admin_channel)
 		return -ENODEV;
+
+	/* Keep MBOX sends disabled for the entire open sequence.  It is
+	 * cleared only after every resource is allocated and enabled below,
+	 * so any early error return here leaves sends disabled and a
+	 * concurrent sender cannot touch a half-open or freed admin_wq.
+	 */
+	WRITE_ONCE(enic->mbox_send_disabled, true);
 
 	err = enic_admin_alloc_resources(enic);
 	if (err) {
@@ -556,6 +584,14 @@ int enic_admin_channel_open(struct enic *enic)
 
 	vnic_intr_unmask(&enic->admin_intr);
 
+	/* Only now that the admin WQ/RQ/CQ and interrupt are fully allocated,
+	 * programmed and enabled is it safe to allow MBOX sends.  Clearing this
+	 * earlier opened a window where a concurrent sender (e.g. link-notify
+	 * work scheduled by a post-reset link-up) could call enic_mbox_send_msg()
+	 * against a not-yet-allocated admin_wq and crash.
+	 */
+	WRITE_ONCE(enic->mbox_send_disabled, false);
+
 	netdev_dbg(enic->netdev,
 		   "admin channel open: intr=%u wq_avail=%u rq_avail=%u cq0_color=%u cq1_color=%u\n",
 		   enic->admin_intr_index,
@@ -596,6 +632,8 @@ void enic_admin_channel_close(struct enic *enic)
 	 */
 	if (!enic->admin_chan_up)
 		return;
+
+	WRITE_ONCE(enic->mbox_send_disabled, true);
 
 	netdev_dbg(enic->netdev, "admin channel close\n");
 
