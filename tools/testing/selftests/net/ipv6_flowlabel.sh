@@ -8,7 +8,7 @@
 set -e
 
 echo "TEST management"
-./in_netns.sh ./ipv6_flowlabel_mgr
+./ipv6_flowlabel_mgr
 
 echo "TEST datapath"
 ./in_netns.sh \
