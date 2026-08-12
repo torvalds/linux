@@ -1,0 +1,164 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2026 Amlogic, Inc. All rights reserved
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/amlogic,a9-peripherals-clkc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic A9 Series Peripherals Clock Controller
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+  - Jerome Brunet <jbrunet@baylibre.com>
+  - Jian Hu <jian.hu@amlogic.com>
+  - Xianwei Zhao <xianwei.zhao@amlogic.com>
+
+properties:
+  compatible:
+    const: amlogic,a9-peripherals-clkc
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    minItems: 27
+    items:
+      - description: input oscillator
+      - description: input fclk div 2
+      - description: input fclk div 3
+      - description: input fclk div 4
+      - description: input fclk div 5
+      - description: input fclk div 7
+      - description: input fclk div 2p5
+      - description: input sys clk
+      - description: input gp1 pll
+      - description: input gp2 pll
+      - description: input sys pll div 16
+      - description: input cpu clk div 16
+      - description: input a78 clk div 16
+      - description: input dsu clk div 16
+      - description: input rtc clk
+      - description: input gp0 pll
+      - description: input hifi0 pll
+      - description: input hifi1 pll
+      - description: input mclk0 pll
+      - description: input mclk1 pll
+      - description: input video1 pll
+      - description: input video2 pll
+      - description: input hdmi out2 clk
+      - description: input hdmi pixel clk
+      - description: input pixel0 pll
+      - description: input pixel1 pll
+      - description: input ddr pll test clk
+      - description: external input rmii oscillator (optional)
+
+  clock-names:
+    minItems: 27
+    items:
+      - const: xtal
+      - const: fdiv2
+      - const: fdiv3
+      - const: fdiv4
+      - const: fdiv5
+      - const: fdiv7
+      - const: fdiv2p5
+      - const: sys
+      - const: gp1
+      - const: gp2
+      - const: sysplldiv16
+      - const: cpudiv16
+      - const: a78div16
+      - const: dsudiv16
+      - const: rtc
+      - const: gp0
+      - const: hifi0
+      - const: hifi1
+      - const: mclk0
+      - const: mclk1
+      - const: vid1
+      - const: vid2
+      - const: hdmiout2
+      - const: hdmipix
+      - const: pix0
+      - const: pix1
+      - const: ddr_test
+      - const: ext_rmii
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    soc {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        clock-controller@200 {
+            compatible = "amlogic,a9-peripherals-clkc";
+            reg = <0x0 0x200 0x0 0x2f8>;
+            #clock-cells = <1>;
+            clocks = <&xtal>,
+                     <&scmi_clk 10>,
+                     <&scmi_clk 12>,
+                     <&scmi_clk 14>,
+                     <&scmi_clk 16>,
+                     <&scmi_clk 18>,
+                     <&scmi_clk 20>,
+                     <&scmi_clk 21>,
+                     <&scmi_clk 33>,
+                     <&scmi_clk 34>,
+                     <&scmi_clk 35>,
+                     <&scmi_clk 36>,
+                     <&scmi_clk 37>,
+                     <&scmi_clk 38>,
+                     <&scmi_clk 40>,
+                     <&gp0 3>,
+                     <&hifi0 3>,
+                     <&hifi1 3>,
+                     <&mclk0 3>,
+                     <&mclk1 3>,
+                     <&vid1>,
+                     <&vid2>,
+                     <&hdmitx 10>,
+                     <&hdmitx 11>,
+                     <&pix0>,
+                     <&pix1>,
+                     <&ddr 3>;
+            clock-names = "xtal",
+                          "fdiv2",
+                          "fdiv3",
+                          "fdiv4",
+                          "fdiv5",
+                          "fdiv7",
+                          "fdiv2p5",
+                          "sys",
+                          "gp1",
+                          "gp2",
+                          "sysplldiv16",
+                          "cpudiv16",
+                          "a78div16",
+                          "dsudiv16",
+                          "rtc",
+                          "gp0",
+                          "hifi0",
+                          "hifi1",
+                          "mclk0",
+                          "mclk1",
+                          "vid1",
+                          "vid2",
+                          "hdmiout2",
+                          "hdmipix",
+                          "pix0",
+                          "pix1",
+                          "ddr_test";
+        };
+    };

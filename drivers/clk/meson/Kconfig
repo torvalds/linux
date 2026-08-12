@@ -132,6 +132,33 @@ config COMMON_CLK_A1_PERIPHERALS
 	  device, A1 SoC Family. Say Y if you want A1 Peripherals clock
 	  controller to work.
 
+config COMMON_CLK_A9_PERIPHERALS
+	tristate "Amlogic A9 SoC peripherals clock controller support"
+	depends on ARM64 || COMPILE_TEST
+	default ARCH_MESON
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	imply COMMON_CLK_SCMI
+	help
+	  Support for the peripherals clock controller on Amlogic A311Y3 based
+	  device, AKA A9. Peripherals are required by most peripheral to operate.
+	  Say Y if you want A9 peripherals clock controller to work.
+
+config COMMON_CLK_A9_AO
+	tristate "Amlogic A9 SoC AO clock controller support"
+	depends on ARM64 || COMPILE_TEST
+	default ARCH_MESON
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_CLKC_UTILS
+	select COMMON_CLK_MESON_DUALDIV
+	imply COMMON_CLK_SCMI
+	help
+	  Support for the AO clock controller on Amlogic A311Y3 based
+	  device, AKA A9.
+	  Say Y if you want A9 AO clock controller to work.
+
 config COMMON_CLK_C3_PLL
 	tristate "Amlogic C3 PLL clock controller"
 	depends on ARM64
