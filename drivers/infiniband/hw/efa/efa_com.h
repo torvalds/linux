@@ -22,6 +22,9 @@
 
 #define EFA_MAX_HANDLERS 256
 
+#define EFA_ADMIN_V1_PROTO_VER 0
+#define EFA_ADMIN_V2_PROTO_VER 1
+
 struct efa_com_admin_cq {
 	struct efa_admin_acq_entry *entries;
 	dma_addr_t dma_addr;
@@ -35,8 +38,11 @@ struct efa_com_admin_cq {
 struct efa_com_admin_sq {
 	u8 *buffer;
 	u16 entry_size;
+	u16 payload_offset;
+	u16 max_payload_size;
 	dma_addr_t dma_addr;
 	spinlock_t lock; /* Protects ASQ */
+	u8 proto_ver;
 
 	u32 __iomem *db_addr;
 

@@ -25,11 +25,16 @@
 
 #define EFA_CRC16_INIT_VAL 0xffff
 
-#define EFA_CRC_MIN_ADMIN_API_VERSION_MAJOR 0
-#define EFA_CRC_MIN_ADMIN_API_VERSION_MINOR 2
+#define EFA_ADMIN_SQ_MAX_ENT_SIZE sizeof(struct efa_admin_aq_entry_v2)
 
-#define EFA_MIN_ADMIN_API_VERSION_MAJOR 0
-#define EFA_MIN_ADMIN_API_VERSION_MINOR 1
+#define EFA_CRC_MIN_API_VERSION_MAJOR 0
+#define EFA_CRC_MIN_API_VERSION_MINOR 2
+
+#define EFA_ADMIN_V2_MIN_API_VERSION_MAJOR 0
+#define EFA_ADMIN_V2_MIN_API_VERSION_MINOR 3
+
+#define EFA_MIN_API_VERSION_MAJOR 0
+#define EFA_MIN_API_VERSION_MINOR 1
 
 enum efa_cmd_status {
 	EFA_CMD_UNUSED,
@@ -80,6 +85,16 @@ void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low)
 {
 	*addr_low = lower_32_bits(addr);
 	*addr_high = upper_32_bits(addr);
+}
+
+static u32 efa_com_construct_ver(u32 major, u32 minor)
+{
+	u32 ver = 0;
+
+	EFA_SET(&ver, EFA_REGS_VERSION_MAJOR_VERSION, major);
+	EFA_SET(&ver, EFA_REGS_VERSION_MINOR_VERSION, minor);
+
+	return ver;
 }
 
 static u32 efa_com_reg_read32(struct efa_com_dev *edev, u16 offset)
@@ -138,10 +153,23 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 {
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_com_admin_sq *sq = &aq->sq;
+	u32 aq_caps = 0, admin_v2_min_ver = 0;
 	u32 addr_high, addr_low;
-	u32 aq_caps = 0;
 
-	sq->entry_size = sizeof(struct efa_admin_aq_entry);
+	admin_v2_min_ver = efa_com_construct_ver(EFA_ADMIN_V2_MIN_API_VERSION_MAJOR,
+						 EFA_ADMIN_V2_MIN_API_VERSION_MINOR);
+	if (edev->dev_api_ver >= admin_v2_min_ver) {
+		sq->entry_size = sizeof(struct efa_admin_aq_entry_v2);
+		sq->payload_offset = offsetof(struct efa_admin_aq_entry_v2, request_payload);
+		sq->proto_ver = EFA_ADMIN_V2_PROTO_VER;
+	} else {
+		sq->entry_size = sizeof(struct efa_admin_aq_entry);
+		sq->payload_offset = offsetof(struct efa_admin_aq_entry, request_payload);
+		sq->proto_ver = EFA_ADMIN_V1_PROTO_VER;
+	}
+
+	sq->max_payload_size = sq->entry_size - sq->payload_offset;
+
 	sq->buffer = dma_alloc_coherent(aq->dmadev, aq->depth * sq->entry_size,
 					&sq->dma_addr, GFP_KERNEL);
 	if (!sq->buffer)
@@ -184,8 +212,8 @@ static int efa_com_admin_init_cq(struct efa_com_dev *edev)
 
 	spin_lock_init(&cq->lock);
 
-	EFA_SET(&crc_min_ver, EFA_REGS_VERSION_MAJOR_VERSION, EFA_CRC_MIN_ADMIN_API_VERSION_MAJOR);
-	EFA_SET(&crc_min_ver, EFA_REGS_VERSION_MINOR_VERSION, EFA_CRC_MIN_ADMIN_API_VERSION_MINOR);
+	crc_min_ver = efa_com_construct_ver(EFA_CRC_MIN_API_VERSION_MAJOR,
+					    EFA_CRC_MIN_API_VERSION_MINOR);
 	if (edev->dev_api_ver >= crc_min_ver)
 		cq->validate_checksum = true;
 
@@ -321,13 +349,45 @@ static inline struct efa_comp_ctx *efa_com_get_comp_ctx_by_cmd_id(struct efa_com
 	return &aq->comp_ctx[ctx_id];
 }
 
+static u16 efa_com_calc_crc16_checksum(u8 *buff, u32 buff_size)
+{
+	return crc16(EFA_CRC16_INIT_VAL, buff, buff_size) ^ EFA_CRC16_INIT_VAL;
+}
+
+static void efa_com_construct_aq_entry(struct efa_com_admin_queue *aq, u8 *aq_entry, u16 cmd_id,
+				       u8 opcode, u8 flags, void *payload, size_t payload_size)
+{
+	struct efa_admin_aq_common_desc_v2 *common_v2 = NULL;
+	struct efa_admin_aq_common_desc *common;
+	struct efa_com_admin_sq *sq = &aq->sq;
+
+	if (sq->proto_ver == EFA_ADMIN_V1_PROTO_VER) {
+		common = (struct efa_admin_aq_common_desc *)aq_entry;
+	} else {
+		common_v2 = (struct efa_admin_aq_common_desc_v2 *)aq_entry;
+		common = &common_v2->common;
+	}
+
+	common->command_id = cmd_id;
+	common->opcode = opcode;
+	common->flags = flags;
+	EFA_SET(&common->flags, EFA_ADMIN_AQ_COMMON_DESC_PHASE, sq->phase);
+
+	if (payload)
+		memcpy(aq_entry + sq->payload_offset, payload, payload_size);
+
+	if (common_v2)
+		common_v2->checksum = efa_com_calc_crc16_checksum(aq_entry, sq->entry_size);
+}
+
 static void __efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 				       struct efa_comp_ctx *comp_ctx,
-				       struct efa_admin_aq_entry *cmd,
-				       size_t cmd_size_in_bytes,
+				       u8 opcode, u8 flags,
+				       void *payload, size_t payload_size,
 				       struct efa_admin_acq_entry *comp,
 				       size_t comp_size_in_bytes)
 {
+	u8 aq_entry[EFA_ADMIN_SQ_MAX_ENT_SIZE] __aligned(sizeof(u64)) = {};
 	u16 queue_size_mask, cmd_id, ctx_id, pi;
 	struct efa_com_admin_sq *sq = &aq->sq;
 	u8 *aqe;
@@ -341,21 +401,19 @@ static void __efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 	cmd_id |= sq->pc << ilog2(aq->depth);
 	cmd_id &= EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
 
-	cmd->aq_common_descriptor.command_id = cmd_id;
-	EFA_SET(&cmd->aq_common_descriptor.flags,
-		EFA_ADMIN_AQ_COMMON_DESC_PHASE, sq->phase);
+	efa_com_construct_aq_entry(aq, aq_entry, cmd_id, opcode, flags, payload, payload_size);
 
 	comp_ctx->status = EFA_CMD_SUBMITTED;
 	comp_ctx->comp_size = comp_size_in_bytes;
 	comp_ctx->user_cqe = comp;
-	comp_ctx->cmd_opcode = cmd->aq_common_descriptor.opcode;
+	comp_ctx->cmd_opcode = opcode;
 	comp_ctx->cmd_id = cmd_id;
 
 	reinit_completion(&comp_ctx->wait_event);
 
 	aqe = sq->buffer + sq->entry_size * pi;
 	memset(aqe, 0, sq->entry_size);
-	memcpy(aqe, cmd, cmd_size_in_bytes);
+	memcpy(aqe, aq_entry, sq->entry_size);
 
 	sq->pc++;
 	atomic64_inc(&aq->stats.submitted_cmd);
@@ -399,8 +457,8 @@ static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
 
 static int efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 				    struct efa_comp_ctx *comp_ctx,
-				    struct efa_admin_aq_entry *cmd,
-				    size_t cmd_size_in_bytes,
+				    u8 opcode, u8 flags,
+				    void *payload, size_t payload_size,
 				    struct efa_admin_acq_entry *comp,
 				    size_t comp_size_in_bytes)
 {
@@ -411,8 +469,8 @@ static int efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 		return -ENODEV;
 	}
 
-	__efa_com_submit_admin_cmd(aq, comp_ctx, cmd, cmd_size_in_bytes, comp,
-				   comp_size_in_bytes);
+	__efa_com_submit_admin_cmd(aq, comp_ctx, opcode, flags, payload,
+				   payload_size, comp, comp_size_in_bytes);
 	spin_unlock(&aq->sq.lock);
 
 	return 0;
@@ -426,7 +484,7 @@ static bool efa_com_cqe_checksum_valid(struct efa_com_admin_queue *aq,
 
 	cqe->acq_common_descriptor.checksum = 0;
 
-	calc_checksum = crc16(EFA_CRC16_INIT_VAL, (u8 *)cqe, sizeof(*cqe)) ^ EFA_CRC16_INIT_VAL;
+	calc_checksum = efa_com_calc_crc16_checksum((u8 *)cqe, sizeof(*cqe));
 	if (calc_checksum != cqe_checksum) {
 		ibdev_err(aq->efa_dev,
 			  "Received completion with invalid checksum, cqe[%u], calc[%u], sq producer[%d], sq consumer[%d], cq consumer[%d]\n",
@@ -647,11 +705,10 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		     void *payload, size_t payload_size,
 		     struct efa_admin_acq_entry *comp, size_t comp_size)
 {
-	struct efa_admin_aq_entry aq_entry = {};
 	struct efa_comp_ctx *comp_ctx;
 	int err;
 
-	if (payload_size > sizeof(aq_entry.request_payload))
+	if (payload_size > aq->sq.max_payload_size)
 		return -EINVAL;
 
 	might_sleep();
@@ -669,12 +726,8 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		return -EINVAL;
 	}
 
-	aq_entry.aq_common_descriptor.opcode = opcode;
-	aq_entry.aq_common_descriptor.flags = flags;
-	if (payload)
-		memcpy(aq_entry.request_payload, payload, payload_size);
-
-	err = efa_com_submit_admin_cmd(aq, comp_ctx, &aq_entry, sizeof(aq_entry), comp, comp_size);
+	err = efa_com_submit_admin_cmd(aq, comp_ctx, opcode, flags, payload, payload_size, comp,
+				       comp_size);
 	if (err) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
@@ -1003,8 +1056,8 @@ int efa_com_validate_version(struct efa_com_dev *edev)
 		  EFA_GET(&ver, EFA_REGS_VERSION_MAJOR_VERSION),
 		  EFA_GET(&ver, EFA_REGS_VERSION_MINOR_VERSION));
 
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MAJOR_VERSION, EFA_MIN_ADMIN_API_VERSION_MAJOR);
-	EFA_SET(&min_ver, EFA_REGS_VERSION_MINOR_VERSION, EFA_MIN_ADMIN_API_VERSION_MINOR);
+	min_ver = efa_com_construct_ver(EFA_MIN_API_VERSION_MAJOR,
+					EFA_MIN_API_VERSION_MINOR);
 	if (ver < min_ver) {
 		ibdev_err(edev->efa_dev,
 			  "EFA version is lower than the minimal version the driver supports\n");
