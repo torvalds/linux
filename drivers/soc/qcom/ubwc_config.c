@@ -105,6 +105,13 @@ static const struct qcom_ubwc_cfg_data milos_data = {
 	.highest_bank_bit = 15,
 };
 
+static const struct qcom_ubwc_cfg_data ubwc_7_0_hbb16 = {
+	.ubwc_enc_version = UBWC_7_0,
+	.flags = UBWC_SWIZZLE_ENABLE_LVL2 |
+		 UBWC_SWIZZLE_ENABLE_LVL3,
+	.highest_bank_bit = 16,
+};
+
 static const struct of_device_id qcom_ubwc_configs[] __maybe_unused = {
 	{ .compatible = "qcom,apq8016", .data = &no_ubwc_data },
 	{ .compatible = "qcom,apq8026", .data = &no_ubwc_data },
@@ -112,6 +119,7 @@ static const struct of_device_id qcom_ubwc_configs[] __maybe_unused = {
 	{ .compatible = "qcom,apq8096", .data = &ubwc_1_0_hbb15 },
 	{ .compatible = "qcom,eliza", .data = &ubwc_5_0_hbb15 },
 	{ .compatible = "qcom,glymur", .data = &glymur_data},
+	{ .compatible = "qcom,hawi", .data = &ubwc_7_0_hbb16 },
 	{ .compatible = "qcom,kaanapali", .data = &ubwc_6_0_hbb16 },
 	{ .compatible = "qcom,mahua", .data = &glymur_data },
 	{ .compatible = "qcom,milos", .data = &milos_data },
