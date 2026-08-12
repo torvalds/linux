@@ -957,7 +957,7 @@ static const struct btf_kfunc_id_set scx_kfunc_set_cid = {
 /**
  * scx_cmask_ref_init - Bind a scx_cmask_ref to a BPF-arena cmask
  * @sch: scheduler whose arena hosts @src
- * @src: BPF-supplied cmask pointer
+ * @src: BPF-supplied cmask, rebased to its kernel address
  * @ref: output ref
  *
  * Snapshot @src's @base, @nr_cids and @alloc_words. The snapshot is necessary
@@ -969,20 +969,19 @@ static const struct btf_kfunc_id_set scx_kfunc_set_cid = {
 int scx_cmask_ref_init(struct scx_sched *sch, const struct scx_cmask *src,
 		       struct scx_cmask_ref *ref)
 {
-	struct scx_cmask *kern_src = scx_arena_to_kaddr(sch, src);
 	u32 base, nr_cids, alloc_words, npossible = num_possible_cpus();
 	s32 *cid_to_shard;
 
-	base = READ_ONCE(kern_src->base);
-	nr_cids = READ_ONCE(kern_src->nr_cids);
-	alloc_words = READ_ONCE(kern_src->alloc_words);
+	base = READ_ONCE(src->base);
+	nr_cids = READ_ONCE(src->nr_cids);
+	alloc_words = READ_ONCE(src->alloc_words);
 
 	if (unlikely(base >= npossible || nr_cids > npossible - base ||
 		     SCX_CMASK_NR_WORDS(nr_cids) > alloc_words))
 		return -EINVAL;
 
 	ref->sch = sch;
-	ref->src = kern_src;
+	ref->src = (struct scx_cmask *)src;
 	ref->base = base;
 	ref->nr_cids = nr_cids;
 

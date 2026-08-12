@@ -10677,20 +10677,20 @@ out:
 
 #ifndef CONFIG_EXT_SUB_SCHED
 __bpf_kfunc s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps,
-				  const struct scx_cmask *cmask__ign,
-				  struct scx_cmask *denied_out__ign,
+				  const struct scx_cmask *cmask__arena,
+				  struct scx_cmask *denied_out__arena__nullable,
 				  const struct bpf_prog_aux *aux)
 {
 	return -EOPNOTSUPP;
 }
 
 __bpf_kfunc void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps,
-				    const struct scx_cmask *cmask__ign,
+				    const struct scx_cmask *cmask__arena,
 				    const struct bpf_prog_aux *aux)
 {
 }
 
-__bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out__ign,
+__bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out__arena,
 				 const struct bpf_prog_aux *aux)
 {
 	return -EOPNOTSUPP;

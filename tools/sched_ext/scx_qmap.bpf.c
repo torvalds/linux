@@ -1385,8 +1385,8 @@ __noinline void compute_partition(void)
 	}
 
 	/* find out the cids we hold */
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ, (void *)(long)&qa.held_excl.mask);
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, (void *)(long)&qa.held_shared.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ, &qa.held_excl.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, &qa.held_shared.mask);
 	cmask_andnot(&qa.held_shared.mask, &qa.held_excl.mask);	/* held only as ENQ_IMMED */
 
 	qa.part.nr_shared = 0;
@@ -1613,13 +1613,13 @@ __noinline void apply_partition(void)
 		cmask_andnot(&qa.to_grant_cids.mask, &ssc->prev_granted.mask);
 
 		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				   (void *)(long)&qa.prev_rr_cids.mask);
+				   &qa.prev_rr_cids.mask);
 		scx_bpf_sub_revoke(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
 				   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				   (void *)(long)&qa.to_revoke_cids.mask);
+				   &qa.to_revoke_cids.mask);
 		scx_bpf_sub_grant(cgid, SCX_CAP_ENQ | SCX_CAP_PREEMPT |
 				  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-				  (void *)(long)&qa.to_grant_cids.mask, NULL);
+				  &qa.to_grant_cids.mask, NULL);
 	}
 
 	/* the current holder of the shared pool gets ENQ_IMMED on all of it */
@@ -1636,7 +1636,7 @@ __noinline void apply_partition(void)
 		if (holder_cgid)
 			scx_bpf_sub_grant(holder_cgid,
 					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					  (void *)(long)&qa.rr_cids.mask, NULL);
+					  &qa.rr_cids.mask, NULL);
 	}
 }
 
@@ -1728,11 +1728,11 @@ static void rr_advance(void)
 		if (old_cgid)
 			scx_bpf_sub_revoke(old_cgid,
 					   SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					   (void *)(long)&qa.rr_cids.mask);
+					   &qa.rr_cids.mask);
 		if (new_cgid)
 			scx_bpf_sub_grant(new_cgid,
 					  SCX_CAP_ENQ_IMMED | SCX_CAP_PERF,
-					  (void *)(long)&qa.rr_cids.mask, NULL);
+					  &qa.rr_cids.mask, NULL);
 	}
 
 	part_end();
@@ -1840,8 +1840,8 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init)
 	cmask_init(&qa.held_excl.mask, 0, nr_cids);
 	cmask_init(&qa.held_shared.mask, 0, nr_cids);
 
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ, (void *)(long)&qa.held_excl.mask);
-	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, (void *)(long)&qa.held_shared.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ, &qa.held_excl.mask);
+	scx_bpf_sub_caps(0, SCX_CAP_ENQ_IMMED, &qa.held_shared.mask);
 	cmask_andnot(&qa.held_shared.mask, &qa.held_excl.mask);
 
 	bpf_for(i, 0, MAX_SUB_SCHEDS) {

@@ -2287,26 +2287,26 @@ static s32 sub_cap_preamble(u64 cgroup_id, u64 caps, const struct bpf_prog_aux *
 }
 
 /**
- * scx_bpf_sub_grant - Grant @caps on @cmask__ign's cids to a direct child
+ * scx_bpf_sub_grant - Grant @caps on a cmask's cids to a direct child
  * @cgroup_id: cgroup id of the direct child sub-sched
  * @caps: bitmask of SCX_CAP_* to grant
- * @cmask__ign: cid cmask to grant @caps on (arena pointer)
- * @denied_out__ign: optional arena cmask accumulating refused cids
+ * @cmask__arena: cid cmask to grant @caps on
+ * @denied_out__arena__nullable: optional cmask accumulating refused cids
  * @aux: implicit BPF argument
  *
- * A cid in @cmask__ign is granted to the child only if the parent holds every
- * requested cap on it. Refused cids are OR'd into @denied_out__ign when
- * provided. Refusals outside @denied_out__ign's range are not recorded.
+ * A cid in @cmask__arena is granted to the child only if the parent holds every
+ * requested cap on it. Refused cids are OR'd into the denied mask when
+ * provided. Refusals outside the denied mask's range are not recorded.
  *
- * All-or-nothing keeps the caller-visible result binary per cid, so
- * @denied_out__ign is one mask to interpret rather than a per-cap matrix.
+ * All-or-nothing keeps the caller-visible result binary per cid, so the denied
+ * mask is one mask to interpret rather than a per-cap matrix.
  *
  * Return 0 on full success, -EPERM if any cid was refused, or a negative
  * errno on other failures.
  */
 __bpf_kfunc s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps,
-				  const struct scx_cmask *cmask__ign,
-				  struct scx_cmask *denied_out__ign,
+				  const struct scx_cmask *cmask__arena,
+				  struct scx_cmask *denied_out__arena__nullable,
 				  const struct bpf_prog_aux *aux)
 {
 	struct scx_cmask_ref ref, denied_ref;
@@ -2321,14 +2321,14 @@ __bpf_kfunc s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps,
 	if (ret)
 		return ret;
 
-	ret = scx_cmask_ref_init(parent, cmask__ign, &ref);
+	ret = scx_cmask_ref_init(parent, cmask__arena, &ref);
 	if (ret) {
 		scx_error(parent, "invalid cmask (%d)", ret);
 		return ret;
 	}
 
-	if (denied_out__ign) {
-		ret = scx_cmask_ref_init(parent, denied_out__ign, &denied_ref);
+	if (denied_out__arena__nullable) {
+		ret = scx_cmask_ref_init(parent, denied_out__arena__nullable, &denied_ref);
 		if (ret) {
 			scx_error(parent, "invalid denied_out (%d)", ret);
 			return ret;
@@ -2395,10 +2395,10 @@ __bpf_kfunc s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps,
 			}
 		}
 
-		/* record cids that didn't make it through into @denied_out */
+		/* record cids that didn't make it into the denied mask */
 		if (!scx_cmask_subset(slice, granted_cids)) {
 			any_denied = true;
-			if (denied_out__ign) {
+			if (denied_out__arena__nullable) {
 				SCX_CMASK_DEFINE_SHARD(denied, slice->base, slice->nr_cids);
 
 				scx_cmask_copy(denied, slice);
@@ -2414,19 +2414,18 @@ __bpf_kfunc s32 scx_bpf_sub_grant(u64 cgroup_id, u64 caps,
 }
 
 /**
- * scx_bpf_sub_revoke - Revoke @caps on @cmask__ign's cids from @child
+ * scx_bpf_sub_revoke - Revoke @caps on a cmask's cids from a direct child
  * @cgroup_id: cgroup id of the direct child sub-sched
  * @caps: bitmask of SCX_CAP_* to revoke
- * @cmask__ign: cid cmask to revoke @caps on (arena pointer)
+ * @cmask__arena: cid cmask to revoke @caps on
  * @aux: implicit BPF argument
  *
- * Clear @caps bits on @cmask__ign from the child named by @cgroup_id and all
+ * Clear @caps bits on @cmask__arena from the child named by @cgroup_id and all
  * its descendants. The origin parent's pshard lock is held across the subtree
- * walk so a concurrent grant from the origin parent observes the revoked
- * state.
+ * walk so a concurrent grant from the origin parent observes the revoked state.
  */
 __bpf_kfunc void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps,
-				    const struct scx_cmask *cmask__ign,
+				    const struct scx_cmask *cmask__arena,
 				    const struct bpf_prog_aux *aux)
 {
 	struct scx_cmask_ref ref;
@@ -2439,7 +2438,7 @@ __bpf_kfunc void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps,
 	if (sub_cap_preamble(cgroup_id, caps, aux, &parent, &child))
 		return;
 
-	ret = scx_cmask_ref_init(parent, cmask__ign, &ref);
+	ret = scx_cmask_ref_init(parent, cmask__arena, &ref);
 	if (ret) {
 		scx_error(parent, "invalid cmask (%d)", ret);
 		return;
@@ -2509,7 +2508,7 @@ __bpf_kfunc void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps,
  * scx_bpf_sub_caps - Read self's or a direct child's cap cmasks
  * @cgroup_id: 0 for self, or a direct child's cgroup id
  * @caps: one or more SCX_CAP_* bits
- * @out__ign: arena cmask to receive the union of @caps within its range
+ * @out__arena: cmask to receive the union of @caps within its range
  * @aux: implicit BPF argument
  *
  * Read the cap cmasks granted on each cid for self (@cgroup_id 0) or a direct
@@ -2519,7 +2518,7 @@ __bpf_kfunc void scx_bpf_sub_revoke(u64 cgroup_id, u64 caps,
  * Return 0, -ENODEV if @cgroup_id names no direct child, or -EINVAL on bad
  * inputs.
  */
-__bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out__ign,
+__bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out__arena,
 				 const struct bpf_prog_aux *aux)
 {
 	struct scx_cmask_ref ref;
@@ -2569,7 +2568,7 @@ __bpf_kfunc s32 scx_bpf_sub_caps(u64 cgroup_id, u64 caps, struct scx_cmask *out_
 		return -ENODEV;
 	}
 
-	ret = scx_cmask_ref_init(sch, out__ign, &ref);
+	ret = scx_cmask_ref_init(sch, out__arena, &ref);
 	if (ret) {
 		scx_error(sch, "invalid out (%d)", ret);
 		return ret;

@@ -187,9 +187,9 @@ struct scx_cmask {
 /*
  * scx_cmask_ref: validated reference to a BPF-arena cmask.
  *
- * scx_cmask_ref_init() normalizes the pointer into the arena and snapshots
- * @base/@nr_cids. The snapshot is what downstream code uses for sizing - the
- * live header can be mutated concurrently by BPF.
+ * scx_cmask_ref_init() snapshots @base/@nr_cids. The snapshot is what
+ * downstream code uses for sizing - the live header can be mutated concurrently
+ * by BPF.
  *
  * scx_cmask_ref_shard() reads one shard into a cmask. scx_cmask_ref_or() and
  * scx_cmask_ref_copy() write back into the referenced arena cmask, bounded by
