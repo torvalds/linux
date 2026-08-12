@@ -874,6 +874,8 @@ static int __init gic_acpi_parse_iaffid(union acpi_subtable_headers *header,
 		return 0;
 
 	cpu = get_logical_index(gicc->arm_mpidr);
+	if (cpu < 0)
+		return 0;
 
 	if (gicc->iaffid & ~GENMASK(current_iaffid_bits - 1, 0)) {
 		pr_warn("CPU %d iaffid 0x%x exceeds IRS iaffid bits\n", cpu, gicc->iaffid);
