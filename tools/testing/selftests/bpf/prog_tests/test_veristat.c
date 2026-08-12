@@ -82,7 +82,7 @@ static void test_set_global_vars_succeeds(void)
 	    " -G \"struct11 [ 7 ] [ 5 ] .struct2[0][1].u.mat[3][0] = 175\" " \
 	    " -vl2 > %s", fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("=0xf000000000000001 ", "var_s64 = 0xf000000000000001");
 	__CHECK_STR("=0xfedcba9876543210 ", "var_u64 = 0xfedcba9876543210");
 	__CHECK_STR("=0x80000000 ", "var_s32 = -0x80000000");
@@ -124,7 +124,7 @@ static void test_set_global_vars_from_file_succeeds(void)
 	syncfs(fd);
 	SYS(out, "%s set_global_vars.bpf.o -G \"@%s\" -vl2 > %s",
 	    fix->veristat, input_file, fix->tmpfile);
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("=0x8000 ", "var_s16 = -32768");
 	__CHECK_STR("=0xecec ", "var_u16 = 60652");
 
@@ -142,7 +142,7 @@ static void test_set_global_vars_out_of_range(void)
 		 "%s set_global_vars.bpf.o -G \"var_s32 = 2147483648\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("is out of range [-2147483648; 2147483647]", "out of range");
 
 out:
@@ -157,7 +157,7 @@ static void test_unsupported_ptr_array_type(void)
 		 "%s set_global_vars.bpf.o -G \"ptr_arr[0] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Can't set ptr_arr[0]. Only ints and enums are supported", "ptr_arr");
 
 out:
@@ -172,7 +172,7 @@ static void test_array_out_of_bounds(void)
 		 "%s set_global_vars.bpf.o -G \"arr[99] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Array index 99 is out of bounds", "arr[99]");
 
 out:
@@ -187,7 +187,7 @@ static void test_array_index_not_found(void)
 		 "%s set_global_vars.bpf.o -G \"arr[EG2] = 0\" -vl2 2> %s",
 		 fix->veristat, fix->tmpfile);
 
-	read(fix->fd, fix->output, fix->sz);
+	read_output(fix);
 	__CHECK_STR("Can't resolve enum value EG2", "arr[EG2]");
 
 out:
