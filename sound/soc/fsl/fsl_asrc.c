@@ -1358,7 +1358,7 @@ static int fsl_asrc_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32(np, "fsl,asrc-format", &asrc_fmt);
-	asrc->asrc_format = (__force snd_pcm_format_t)asrc_fmt;
+	asrc->asrc_format = asrc_fmt;
 	if (ret) {
 		ret = of_property_read_u32(np, "fsl,asrc-width", &width);
 		if (ret) {
