@@ -249,6 +249,8 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	if (!rc)
 		memcpy(shdr->Signature, smb2_signature, SMB2_SIGNATURE_SIZE);
 
+	memzero_explicit(key, sizeof(key));
+	memzero_explicit(&hmac_ctx, sizeof(hmac_ctx));
 	return rc;
 }
 
@@ -283,6 +285,7 @@ static void generate_key(struct cifs_ses *ses, struct kvec label,
 	hmac_sha256_final(&hmac_ctx, prfhash);
 
 	memcpy(key, prfhash, key_size);
+	memzero_explicit(prfhash, sizeof(prfhash));
 }
 
 struct derivation {
@@ -482,6 +485,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	memset(shdr->Signature, 0x0, SMB2_SIGNATURE_SIZE);
 
 	rc = aes_cmac_preparekey(&cmac_key, key, SMB2_CMACAES_SIZE);
+	memzero_explicit(key, sizeof(key));
 	if (rc) {
 		cifs_server_dbg(VFS, "%s: Could not set key for cmac aes\n", __func__);
 		return rc;
