@@ -182,7 +182,7 @@ static u32 igc_fpe_map_preempt_tc_to_queue(const struct igc_adapter *adapter,
 	struct net_device *dev = adapter->netdev;
 	u32 i, queue = 0;
 
-	for (i = 0; i < dev->num_tc; i++) {
+	for (i = 0; i < netdev_get_num_tc(dev); i++) {
 		struct netdev_tc_txq res;
 		u32 offset, count;
 

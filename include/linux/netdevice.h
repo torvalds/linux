@@ -2678,7 +2678,7 @@ int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)
 static inline
 int netdev_set_prio_tc_map(struct net_device *dev, u8 prio, u8 tc)
 {
-	if (tc >= dev->num_tc)
+	if (tc >= READ_ONCE(dev->num_tc))
 		return -EINVAL;
 
 	dev->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
@@ -2691,9 +2691,9 @@ int netdev_set_tc_queue(struct net_device *dev, u8 tc, u16 count, u16 offset);
 int netdev_set_num_tc(struct net_device *dev, u8 num_tc);
 
 static inline
-int netdev_get_num_tc(struct net_device *dev)
+int netdev_get_num_tc(const struct net_device *dev)
 {
-	return dev->num_tc;
+	return READ_ONCE(dev->num_tc);
 }
 
 static inline void net_prefetch(void *p)
@@ -2720,7 +2720,7 @@ int netdev_bind_sb_channel_queue(struct net_device *dev,
 int netdev_set_sb_channel(struct net_device *dev, u16 channel);
 static inline int netdev_get_sb_channel(struct net_device *dev)
 {
-	return max_t(int, -dev->num_tc, 0);
+	return max_t(int, -READ_ONCE(dev->num_tc), 0);
 }
 
 static inline

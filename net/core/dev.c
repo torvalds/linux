@@ -2660,7 +2660,7 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 	/* If TC0 is invalidated disable TC mapping */
 	if (res.offset + res.count > txq) {
 		netdev_warn(dev, "Number of in use tx queues changed invalidating tc mappings. Priority traffic classification disabled!\n");
-		dev->num_tc = 0;
+		WRITE_ONCE(dev->num_tc, 0);
 		return;
 	}
 
@@ -2679,7 +2679,7 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 
 int netdev_txq_to_tc(struct net_device *dev, unsigned int txq)
 {
-	if (dev->num_tc) {
+	if (READ_ONCE(dev->num_tc)) {
 		struct netdev_tc_txq *tc = &dev->tc_to_txq[0];
 		int i;
 
@@ -2881,18 +2881,19 @@ int __netif_set_xps_queue(struct net_device *dev, const unsigned long *mask,
 			  u16 index, enum xps_map_type type)
 {
 	struct xps_dev_maps *dev_maps, *new_dev_maps = NULL, *old_dev_maps = NULL;
+	int maps_sz, num_tc = 1, tc = 0, dev_num_tc;
 	const unsigned long *online_mask = NULL;
 	bool active = false, copy = false;
 	int i, j, tci, numa_node_id = -2;
-	int maps_sz, num_tc = 1, tc = 0;
 	struct xps_map *map, *new_map;
 	unsigned int nr_ids;
 
 	WARN_ON_ONCE(index >= dev->num_tx_queues);
 
-	if (dev->num_tc) {
+	dev_num_tc = READ_ONCE(dev->num_tc);
+	if (dev_num_tc) {
 		/* Do not allow XPS on subordinate device directly */
-		num_tc = dev->num_tc;
+		num_tc = dev_num_tc;
 		if (num_tc < 0)
 			return -EINVAL;
 
@@ -3116,7 +3117,7 @@ void netdev_reset_tc(struct net_device *dev)
 	netdev_unbind_all_sb_channels(dev);
 
 	/* Reset TC configuration of device */
-	dev->num_tc = 0;
+	WRITE_ONCE(dev->num_tc, 0);
 	for (i = 0; i < TC_MAX_QUEUE; i++)
 		WRITE_ONCE(dev->tc_to_txq[i].combined, 0);
 	memset(dev->prio_tc_map, 0, sizeof(dev->prio_tc_map));
@@ -3130,7 +3131,7 @@ int netdev_set_tc_queue(struct net_device *dev, u8 tc, u16 count, u16 offset)
 		.offset = offset,
 	};
 
-	if (tc >= dev->num_tc)
+	if (tc >= READ_ONCE(dev->num_tc))
 		return -EINVAL;
 
 #ifdef CONFIG_XPS
@@ -3151,7 +3152,7 @@ int netdev_set_num_tc(struct net_device *dev, u8 num_tc)
 #endif
 	netdev_unbind_all_sb_channels(dev);
 
-	dev->num_tc = num_tc;
+	WRITE_ONCE(dev->num_tc, num_tc);
 	return 0;
 }
 EXPORT_SYMBOL(netdev_set_num_tc);
@@ -3181,7 +3182,7 @@ int netdev_bind_sb_channel_queue(struct net_device *dev,
 				 u8 tc, u16 count, u16 offset)
 {
 	/* Make certain the sb_dev and dev are already configured */
-	if (sb_dev->num_tc >= 0 || tc >= dev->num_tc)
+	if (READ_ONCE(sb_dev->num_tc) >= 0 || tc >= READ_ONCE(dev->num_tc))
 		return -EINVAL;
 
 	/* We cannot hand out queues we don't have */
@@ -3220,7 +3221,7 @@ int netdev_set_sb_channel(struct net_device *dev, u16 channel)
 	if (channel > S16_MAX)
 		return -EINVAL;
 
-	dev->num_tc = -channel;
+	WRITE_ONCE(dev->num_tc, -channel);
 
 	return 0;
 }
@@ -3249,7 +3250,7 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 		if (rc)
 			return rc;
 
-		if (dev->num_tc)
+		if (READ_ONCE(dev->num_tc))
 			netif_setup_tc(dev, txq);
 
 		net_shaper_set_real_num_tx_queues(dev, txq);
@@ -3558,7 +3559,7 @@ static u16 skb_tx_hash(const struct net_device *dev,
 	u16 qoffset = 0;
 	u16 qcount = dev->real_num_tx_queues;
 
-	if (dev->num_tc) {
+	if (READ_ONCE(dev->num_tc)) {
 		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
 		struct netdev_tc_txq res;
 
