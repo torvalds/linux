@@ -722,9 +722,12 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 	if (rc)
 		return rc;
 
-	if (!ptep)
+	if (!ptep) {
+		if (!oldkey)
+			oldkey = &prev;
 		return page_cond_set_storage_key(large_crste_to_phys(*crstep, gfn), skey, oldkey,
 						 nq, mr, mc);
+	}
 
 	old = pgste_get_lock(ptep);
 	pgste = old;
