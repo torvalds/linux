@@ -862,6 +862,9 @@ void __init gicv5_init_lpi_domain(void)
 
 void __init gicv5_free_lpi_domain(void)
 {
+	if (!gicv5_global_data.lpi_domain)
+		return;
+
 	irq_domain_remove(gicv5_global_data.lpi_domain);
 	gicv5_global_data.lpi_domain = NULL;
 }
