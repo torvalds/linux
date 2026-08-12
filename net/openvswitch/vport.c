@@ -157,7 +157,6 @@ err_kfree_vport:
 	kfree(vport);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(ovs_vport_alloc);
 
 /**
  *	ovs_vport_free - uninitialize and free vport
@@ -178,7 +177,6 @@ void ovs_vport_free(struct vport *vport)
 	free_percpu(vport->upcall_stats);
 	kfree(vport);
 }
-EXPORT_SYMBOL_GPL(ovs_vport_free);
 
 static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 {
