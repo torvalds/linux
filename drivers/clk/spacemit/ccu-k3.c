@@ -218,11 +218,19 @@ static const struct clk_parent_data i2s_sysclk_src_parents[] = {
 	CCU_PARENT_HW(pll1_d96_25p6),
 	CCU_PARENT_HW(i2s_153p6_base),
 };
-CCU_MUX_GATE_DEFINE(i2s_sysclk_src, i2s_sysclk_src_parents, MPMU_ISCCR, 30, 1, BIT(31), 0);
+CCU_MUX_GATE_DEFINE(i2s_sysclk_src, i2s_sysclk_src_parents, MPMU_ISCCR1, 30, 1, BIT(31), 0);
 
-CCU_DDN_DEFINE(i2s1_sysclk, i2s_sysclk_src, MPMU_ISCCR, 0, 15, 15, 12, 1, 0);
+CCU_DDN_DEFINE(i2s_sysclk, i2s_sysclk_src, MPMU_ISCCR1, 0, 15, 15, 12, 1, 0);
 
-CCU_DIV_GATE_DEFINE(i2s_bclk, CCU_PARENT_HW(i2s1_sysclk), MPMU_ISCCR, 27, 2, BIT(29), 0);
+CCU_FACTOR_DEFINE(i2s_bclk_factor, CCU_PARENT_HW(i2s_sysclk), 2, 1);
+/*
+ * Divider of i2s_bclk always implies a 1/2 factor, which is
+ * described by i2s_bclk_factor.
+ */
+CCU_DIV_GATE_DEFINE(i2s_bclk, CCU_PARENT_HW(i2s_bclk_factor), MPMU_ISCCR1, 27, 2, BIT(29), 0);
+
+CCU_MUX_GATE_DEFINE(i2s1_sysclk_src, i2s_sysclk_src_parents, MPMU_ISCCR0, 30, 1, BIT(31), 0);
+CCU_DDN_DEFINE(i2s1_sysclk, i2s1_sysclk_src, MPMU_ISCCR0, 0, 15, 15, 12, 1, 0);
 
 static const struct clk_parent_data i2s_sysclk_parents[] = {
 	CCU_PARENT_HW(pll1_d4_614p4),
@@ -236,14 +244,14 @@ CCU_MUX_DEFINE(i2s3_sysclk_sel, i2s_sysclk_parents, MPMU_I2S_SYSCLK_CTRL, 12, 2,
 CCU_MUX_DEFINE(i2s4_sysclk_sel, i2s_sysclk_parents, MPMU_I2S_SYSCLK_CTRL, 16, 2, 0);
 CCU_MUX_DEFINE(i2s5_sysclk_sel, i2s_sysclk_parents, MPMU_I2S_SYSCLK_CTRL, 20, 2, 0);
 
-CCU_DDN_DEFINE(i2s0_sysclk_div, i2s0_sysclk_sel, MPMU_I2S0_SYSCLK, 0, 16, 16, 16, 1, 0);
-CCU_DDN_DEFINE(i2s2_sysclk_div, i2s2_sysclk_sel, MPMU_I2S2_SYSCLK, 0, 16, 16, 16, 1, 0);
-CCU_DDN_DEFINE(i2s3_sysclk_div, i2s3_sysclk_sel, MPMU_I2S3_SYSCLK, 0, 16, 16, 16, 1, 0);
-CCU_DDN_DEFINE(i2s4_sysclk_div, i2s4_sysclk_sel, MPMU_I2S4_SYSCLK, 0, 16, 16, 16, 1, 0);
-CCU_DDN_DEFINE(i2s5_sysclk_div, i2s5_sysclk_sel, MPMU_I2S5_SYSCLK, 0, 16, 16, 16, 1, 0);
+CCU_DDN_DEFINE(i2s0_sysclk_div, i2s0_sysclk_sel, MPMU_I2S0_SYSCLK, 0, 16, 16, 16, 2, 0);
+CCU_DDN_DEFINE(i2s2_sysclk_div, i2s2_sysclk_sel, MPMU_I2S2_SYSCLK, 0, 16, 16, 16, 2, 0);
+CCU_DDN_DEFINE(i2s3_sysclk_div, i2s3_sysclk_sel, MPMU_I2S3_SYSCLK, 0, 16, 16, 16, 2, 0);
+CCU_DDN_DEFINE(i2s4_sysclk_div, i2s4_sysclk_sel, MPMU_I2S4_SYSCLK, 0, 16, 16, 16, 2, 0);
+CCU_DDN_DEFINE(i2s5_sysclk_div, i2s5_sysclk_sel, MPMU_I2S5_SYSCLK, 0, 16, 16, 16, 2, 0);
 
 static const struct clk_parent_data i2s2_sysclk_parents[] = {
-	CCU_PARENT_HW(i2s1_sysclk),
+	CCU_PARENT_HW(i2s_sysclk),
 	CCU_PARENT_HW(i2s2_sysclk_div),
 };
 CCU_GATE_DEFINE(i2s0_sysclk, CCU_PARENT_HW(i2s0_sysclk_div), MPMU_I2S_SYSCLK_CTRL, BIT(2), 0);
@@ -926,14 +934,15 @@ CCU_MUX_DIV_GATE_FC_DEFINE(dpu_aclk, dpu_aclk_parents, APMU_LCD_CLK_RES_CTRL5, 1
 			   20, 3, BIT(16), 0);
 
 static const struct clk_parent_data ufs_aclk_parents[] = {
-	CCU_PARENT_HW(pll1_d6_409p6),
 	CCU_PARENT_HW(pll1_d5_491p52),
-	CCU_PARENT_HW(pll1_d4_614p4),
-	CCU_PARENT_HW(pll1_d8_307p2),
-	CCU_PARENT_HW(pll2_d4),
+	CCU_PARENT_HW(pll1_d6_409p6),
+	CCU_PARENT_HW(pll2_d6),
+	CCU_PARENT_HW(pll2_d5),
 };
 CCU_MUX_DIV_GATE_FC_DEFINE(ufs_aclk, ufs_aclk_parents, APMU_UFS_CLK_RES_CTRL, 5, 3, BIT(8),
 			   2, 3, BIT(1), 0);
+
+CCU_FACTOR_DEFINE(ufs_refclk, CCU_PARENT_HW(pll1_d64_38p4), 2, 1);
 
 static const struct clk_parent_data edp0_pclk_parents[] = {
 	CCU_PARENT_HW(lcd_pxclk),
@@ -1161,8 +1170,11 @@ static struct clk_hw *k3_ccu_mpmu_hws[] = {
 	[CLK_MPMU_I2S_153P6]		= &i2s_153p6.common.hw,
 	[CLK_MPMU_I2S_153P6_BASE]	= &i2s_153p6_base.common.hw,
 	[CLK_MPMU_I2S_SYSCLK_SRC]	= &i2s_sysclk_src.common.hw,
-	[CLK_MPMU_I2S1_SYSCLK]		= &i2s1_sysclk.common.hw,
+	[CLK_MPMU_I2S_SYSCLK]		= &i2s_sysclk.common.hw,
+	[CLK_MPMU_I2S_BCLK_FACTOR]	= &i2s_bclk_factor.common.hw,
 	[CLK_MPMU_I2S_BCLK]		= &i2s_bclk.common.hw,
+	[CLK_MPMU_I2S1_SYSCLK_SRC]	= &i2s1_sysclk_src.common.hw,
+	[CLK_MPMU_I2S1_SYSCLK]		= &i2s1_sysclk.common.hw,
 	[CLK_MPMU_I2S0_SYSCLK_SEL]	= &i2s0_sysclk_sel.common.hw,
 	[CLK_MPMU_I2S2_SYSCLK_SEL]	= &i2s2_sysclk_sel.common.hw,
 	[CLK_MPMU_I2S3_SYSCLK_SEL]	= &i2s3_sysclk_sel.common.hw,
@@ -1392,6 +1404,7 @@ static struct clk_hw *k3_ccu_apmu_hws[] = {
 	[CLK_APMU_DSI4LN2_DPU_ACLK]	= &dsi4ln2_dpu_aclk.common.hw,
 	[CLK_APMU_DPU_ACLK]		= &dpu_aclk.common.hw,
 	[CLK_APMU_UFS_ACLK]		= &ufs_aclk.common.hw,
+	[CLK_APMU_UFS_REFCLK]		= &ufs_refclk.common.hw,
 	[CLK_APMU_EDP0_PXCLK]		= &edp0_pxclk.common.hw,
 	[CLK_APMU_EDP1_PXCLK]		= &edp1_pxclk.common.hw,
 	[CLK_APMU_PCIE_PORTA_MSTE]	= &pciea_mstr_clk.common.hw,

@@ -45,7 +45,8 @@
 #define POSR_PLL7_LOCK			BIT(30)
 #define POSR_PLL8_LOCK			BIT(31)
 #define MPMU_SUCCR			0x0014
-#define MPMU_ISCCR			0x0044
+#define MPMU_ISCCR0			0x0040
+#define MPMU_ISCCR1			0x0044
 #define MPMU_WDTPCR			0x0200
 #define MPMU_RIPCCR			0x0210
 #define MPMU_ACGR			0x1024
