@@ -765,7 +765,7 @@ unsigned int snd_hdac_stream_format_bits(snd_pcm_format_t format, snd_pcm_subfor
 
 	params_set_format(&params, snd_hdac_format_normalize(format));
 	snd_mask_set(hw_param_mask(&params, SNDRV_PCM_HW_PARAM_SUBFORMAT),
-		     (__force unsigned int)subformat);
+		     subformat);
 
 	bits = snd_pcm_hw_params_bits(&params);
 	if (maxbits)
