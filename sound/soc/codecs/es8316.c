@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -29,6 +30,13 @@
  */
 static const unsigned int supported_mclk_lrck_ratios[] = {
 	256, 384, 400, 500, 512, 768, 1024
+};
+
+static const char * const es8316_supply_names[] = {
+	"avdd",
+	"cpvdd",
+	"dvdd",
+	"pvdd",
 };
 
 struct es8316_priv {
@@ -865,6 +873,11 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c_client, es8316);
+
+	ret = devm_regulator_bulk_get_enable(dev, ARRAY_SIZE(es8316_supply_names),
+					     es8316_supply_names);
+	if (ret)
+		return dev_err_probe(dev, ret, "unable to enable supplies\n");
 
 	es8316->regmap = devm_regmap_init_i2c(i2c_client, &es8316_regmap);
 	if (IS_ERR(es8316->regmap))
