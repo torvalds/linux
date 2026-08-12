@@ -44,6 +44,8 @@ struct imx95_blk_ctl_clk_dev_data {
 	const char * const *parent_names;
 	u32 num_parents;
 	u32 reg;
+	u32 reg_init_msk;
+	u32 reg_init_val;
 	u32 bit_idx;
 	u32 bit_width;
 	u32 clk_type;
@@ -286,10 +288,22 @@ static const struct imx95_blk_ctl_dev_data netcmix_dev_data = {
 static const struct imx95_blk_ctl_clk_dev_data hsio_blk_ctl_clk_dev_data[] = {
 	[0] = {
 		.name = "hsio_blk_ctl_clk",
+		.parent_names = (const char *[]){ "func_out_en", },
+		.num_parents = 1,
+		.reg = 0,
+		.reg_init_msk = GENMASK(10, 7),
+		.reg_init_val = GENMASK(10, 7),
+		.bit_idx = 6,
+		.bit_width = 1,
+		.type = CLK_GATE,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+	[1] = {
+		.name = "func_out_en",
 		.parent_names = (const char *[]){ "hsio_pll", },
 		.num_parents = 1,
 		.reg = 0,
-		.bit_idx = 6,
+		.bit_idx = 2,
 		.bit_width = 1,
 		.type = CLK_GATE,
 		.flags = CLK_SET_RATE_PARENT,
@@ -297,7 +311,7 @@ static const struct imx95_blk_ctl_clk_dev_data hsio_blk_ctl_clk_dev_data[] = {
 };
 
 static const struct imx95_blk_ctl_dev_data hsio_blk_ctl_dev_data = {
-	.num_clks = 1,
+	.num_clks = ARRAY_SIZE(hsio_blk_ctl_clk_dev_data),
 	.clk_dev_data = hsio_blk_ctl_clk_dev_data,
 	.clk_reg_offset = 0,
 };
@@ -399,6 +413,9 @@ static int imx95_bc_probe(struct platform_device *pdev)
 	for (i = 0; i < bc->pdata->num_clks; i++) {
 		const struct imx95_blk_ctl_clk_dev_data *data = &bc->pdata->clk_dev_data[i];
 		void __iomem *reg = base + data->reg;
+
+		if (data->reg_init_msk)
+			writel((readl(reg) & ~data->reg_init_msk) | data->reg_init_val, reg);
 
 		if (data->type == CLK_MUX) {
 			hws[i] = clk_hw_register_mux(dev, data->name, data->parent_names,
