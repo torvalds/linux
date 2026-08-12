@@ -439,8 +439,12 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		return 0;
 
 	for (tc = 0; tc < num_tc; tc++) {
-		net_dev->tc_to_txq[tc].offset = tc * efx->n_tx_channels;
-		net_dev->tc_to_txq[tc].count = efx->n_tx_channels;
+		struct netdev_tc_txq res = {
+			.offset = tc * efx->n_tx_channels,
+			.count = efx->n_tx_channels,
+		};
+
+		WRITE_ONCE(net_dev->tc_to_txq[tc].combined, res.combined);
 	}
 
 	if (num_tc > net_dev->num_tc) {

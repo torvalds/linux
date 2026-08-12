@@ -183,13 +183,15 @@ static u32 igc_fpe_map_preempt_tc_to_queue(const struct igc_adapter *adapter,
 	u32 i, queue = 0;
 
 	for (i = 0; i < dev->num_tc; i++) {
+		struct netdev_tc_txq res;
 		u32 offset, count;
 
 		if (!(preemptible_tcs & BIT(i)))
 			continue;
 
-		offset = dev->tc_to_txq[i].offset;
-		count = dev->tc_to_txq[i].count;
+		res.combined = READ_ONCE(dev->tc_to_txq[i].combined);
+		offset = res.offset;
+		count = res.count;
 		queue |= GENMASK(offset + count - 1, offset);
 	}
 

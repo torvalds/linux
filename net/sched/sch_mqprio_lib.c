@@ -108,8 +108,11 @@ void mqprio_qopt_reconstruct(struct net_device *dev, struct tc_mqprio_qopt *qopt
 	memcpy(qopt->prio_tc_map, dev->prio_tc_map, sizeof(qopt->prio_tc_map));
 
 	for (tc = 0; tc < num_tc; tc++) {
-		qopt->count[tc] = dev->tc_to_txq[tc].count;
-		qopt->offset[tc] = dev->tc_to_txq[tc].offset;
+		struct netdev_tc_txq res;
+
+		res.combined = READ_ONCE(dev->tc_to_txq[tc].combined);
+		qopt->count[tc] = res.count;
+		qopt->offset[tc] = res.offset;
 	}
 }
 EXPORT_SYMBOL_GPL(mqprio_qopt_reconstruct);
