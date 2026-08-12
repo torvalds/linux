@@ -199,7 +199,7 @@ int gicv5_irs_iste_alloc(const u32 lpi)
 	if (!gicv5_global_data.ist.l2)
 		return 0;
 
-	irs_data = per_cpu(per_cpu_irs_data, smp_processor_id());
+	irs_data = per_cpu(per_cpu_irs_data, 0);
 	if (!irs_data)
 		return -ENOENT;
 
