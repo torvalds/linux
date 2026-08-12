@@ -5456,7 +5456,8 @@ long kvm_arch_vcpu_unlocked_ioctl(struct file *filp, unsigned int ioctl,
 
 		if (copy_from_user(&s390irq, argp, sizeof(s390irq)))
 			return -EFAULT;
-		rc = kvm_s390_inject_vcpu(vcpu, &s390irq);
+		scoped_guard(srcu, &vcpu->kvm->srcu)
+			rc = kvm_s390_inject_vcpu(vcpu, &s390irq);
 		break;
 	}
 	case KVM_S390_INTERRUPT: {
@@ -5469,7 +5470,8 @@ long kvm_arch_vcpu_unlocked_ioctl(struct file *filp, unsigned int ioctl,
 			return -EFAULT;
 		if (s390int_to_s390irq(&s390int, &s390irq))
 			return -EINVAL;
-		rc = kvm_s390_inject_vcpu(vcpu, &s390irq);
+		scoped_guard(srcu, &vcpu->kvm->srcu)
+			rc = kvm_s390_inject_vcpu(vcpu, &s390irq);
 		break;
 	}
 	default:
