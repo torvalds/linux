@@ -55,13 +55,7 @@ struct efa_admin_ctrl_buff_info {
 struct efa_admin_aq_entry {
 	struct efa_admin_aq_common_desc aq_common_descriptor;
 
-	union {
-		u32 inline_data_w1[3];
-
-		struct efa_admin_ctrl_buff_info control_buffer;
-	} u;
-
-	u32 inline_data_w4[12];
+	u32 request_payload[15];
 };
 
 struct efa_admin_acq_common_desc {

@@ -102,9 +102,6 @@ struct efa_admin_qp_alloc_size {
 };
 
 struct efa_admin_create_qp_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* Protection Domain associated with this QP */
 	u16 pd;
 
@@ -167,7 +164,7 @@ struct efa_admin_create_qp_cmd {
 
 	/* MBZ */
 	u32 reserved2;
-};
+} __packed;
 
 struct efa_admin_create_qp_resp {
 	/* Common Admin Queue completion descriptor */
@@ -208,9 +205,6 @@ struct efa_admin_create_qp_resp {
 };
 
 struct efa_admin_modify_qp_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/*
 	 * Mask indicating which fields should be updated
 	 * 0 : qp_state
@@ -246,7 +240,7 @@ struct efa_admin_modify_qp_cmd {
 
 	/* MBZ */
 	u16 reserved2;
-};
+} __packed;
 
 struct efa_admin_modify_qp_resp {
 	/* Common Admin Queue completion descriptor */
@@ -254,12 +248,9 @@ struct efa_admin_modify_qp_resp {
 };
 
 struct efa_admin_query_qp_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* QP handle returned by create_qp command */
 	u32 qp_handle;
-};
+} __packed;
 
 struct efa_admin_query_qp_resp {
 	/* Common Admin Queue completion descriptor */
@@ -285,12 +276,9 @@ struct efa_admin_query_qp_resp {
 };
 
 struct efa_admin_destroy_qp_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* QP handle returned by create_qp command */
 	u32 qp_handle;
-};
+} __packed;
 
 struct efa_admin_destroy_qp_resp {
 	/* Common Admin Queue completion descriptor */
@@ -302,9 +290,6 @@ struct efa_admin_destroy_qp_resp {
  * once for the same destination
  */
 struct efa_admin_create_ah_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* Destination address in network byte order */
 	u8 dest_addr[16];
 
@@ -313,7 +298,7 @@ struct efa_admin_create_ah_cmd {
 
 	/* MBZ */
 	u16 reserved;
-};
+} __packed;
 
 struct efa_admin_create_ah_resp {
 	/* Common Admin Queue completion descriptor */
@@ -327,15 +312,12 @@ struct efa_admin_create_ah_resp {
 };
 
 struct efa_admin_destroy_ah_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* Target interface address handle (opaque) */
 	u16 ah;
 
 	/* PD number */
 	u16 pd;
-};
+} __packed;
 
 struct efa_admin_destroy_ah_resp {
 	/* Common Admin Queue completion descriptor */
@@ -349,9 +331,6 @@ struct efa_admin_destroy_ah_resp {
  * on users working with very large datasets (i.e. full GPU memory mapping).
  */
 struct efa_admin_reg_mr_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* Protection Domain */
 	u16 pd;
 
@@ -413,7 +392,7 @@ struct efa_admin_reg_mr_cmd {
 	 * the region.
 	 */
 	u64 iova;
-};
+} __packed;
 
 struct efa_admin_reg_mr_resp {
 	/* Common Admin Queue completion descriptor */
@@ -459,12 +438,9 @@ struct efa_admin_reg_mr_resp {
 };
 
 struct efa_admin_dereg_mr_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* L_Key, memory region's l_key */
 	u32 l_key;
-};
+} __packed;
 
 struct efa_admin_dereg_mr_resp {
 	/* Common Admin Queue completion descriptor */
@@ -476,9 +452,6 @@ struct efa_admin_dereg_mr_resp {
  * Addresses in kernel verbs semantics, ready for fast registration use.
  */
 struct efa_admin_alloc_mr_cmd {
-	/* Common Admin Queue descriptor */
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/* Protection Domain */
 	u16 pd;
 
@@ -487,7 +460,7 @@ struct efa_admin_alloc_mr_cmd {
 
 	/* Maximum number of pages this MR supports. */
 	u32 max_pages;
-};
+} __packed;
 
 struct efa_admin_alloc_mr_resp {
 	/* Common Admin Queue completion descriptor */
@@ -507,8 +480,6 @@ struct efa_admin_alloc_mr_resp {
 };
 
 struct efa_admin_create_cq_cmd {
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	/*
 	 * 4:0 : reserved5 - MBZ
 	 * 5 : interrupt_mode_enabled - if set, cq operates
@@ -561,7 +532,7 @@ struct efa_admin_create_cq_cmd {
 
 	/* UAR number */
 	u16 uar;
-};
+} __packed;
 
 struct efa_admin_create_cq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -582,13 +553,11 @@ struct efa_admin_create_cq_resp {
 };
 
 struct efa_admin_destroy_cq_cmd {
-	struct efa_admin_aq_common_desc aq_common_desc;
-
 	u16 cq_idx;
 
 	/* MBZ */
 	u16 reserved1;
-};
+} __packed;
 
 struct efa_admin_destroy_cq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -599,14 +568,7 @@ struct efa_admin_destroy_cq_resp {
  * buffer pointed by AQ entry
  */
 struct efa_admin_aq_get_stats_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
-	union {
-		/* command specific inline data */
-		u32 inline_data_w1[3];
-
-		struct efa_admin_ctrl_buff_info control_buffer;
-	} u;
+	struct efa_admin_ctrl_buff_info control_buffer;
 
 	/* stats type as defined in enum efa_admin_get_stats_type */
 	u8 type;
@@ -615,7 +577,7 @@ struct efa_admin_aq_get_stats_cmd {
 	u8 scope;
 
 	u16 scope_modifier;
-};
+} __packed;
 
 struct efa_admin_basic_stats {
 	u64 tx_bytes;
@@ -903,14 +865,12 @@ struct efa_admin_hw_hints {
 };
 
 struct efa_admin_get_feature_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	struct efa_admin_ctrl_buff_info control_buffer;
 
 	struct efa_admin_get_set_feature_common_desc feature_common;
 
 	u32 raw[11];
-};
+} __packed;
 
 struct efa_admin_get_feature_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -935,8 +895,6 @@ struct efa_admin_get_feature_resp {
 };
 
 struct efa_admin_set_feature_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	struct efa_admin_ctrl_buff_info control_buffer;
 
 	struct efa_admin_get_set_feature_common_desc feature_common;
@@ -947,7 +905,7 @@ struct efa_admin_set_feature_cmd {
 		/* AENQ configuration */
 		struct efa_admin_feature_aenq_desc aenq;
 	} u;
-};
+} __packed;
 
 struct efa_admin_set_feature_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -955,10 +913,6 @@ struct efa_admin_set_feature_resp {
 	union {
 		u32 raw[14];
 	} u;
-};
-
-struct efa_admin_alloc_pd_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
 };
 
 struct efa_admin_alloc_pd_resp {
@@ -972,21 +926,15 @@ struct efa_admin_alloc_pd_resp {
 };
 
 struct efa_admin_dealloc_pd_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* PD number */
 	u16 pd;
 
 	/* MBZ */
 	u16 reserved;
-};
+} __packed;
 
 struct efa_admin_dealloc_pd_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
-};
-
-struct efa_admin_alloc_uar_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
 };
 
 struct efa_admin_alloc_uar_resp {
@@ -1000,22 +948,18 @@ struct efa_admin_alloc_uar_resp {
 };
 
 struct efa_admin_dealloc_uar_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* UAR number */
 	u16 uar;
 
 	/* MBZ */
 	u16 reserved;
-};
+} __packed;
 
 struct efa_admin_dealloc_uar_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
 struct efa_admin_create_eq_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* Size of the EQ in entries, must be power of 2 */
 	u16 depth;
 
@@ -1041,7 +985,7 @@ struct efa_admin_create_eq_cmd {
 
 	/* MBZ */
 	u32 reserved;
-};
+} __packed;
 
 struct efa_admin_create_eq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1054,14 +998,12 @@ struct efa_admin_create_eq_resp {
 };
 
 struct efa_admin_destroy_eq_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* EQ number */
 	u16 eqn;
 
 	/* MBZ */
 	u16 reserved;
-};
+} __packed;
 
 struct efa_admin_destroy_eq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1134,10 +1076,8 @@ struct efa_admin_host_info {
 };
 
 struct efa_admin_service_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	u8 buffer[60];
-};
+} __packed;
 
 struct efa_admin_service_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1147,8 +1087,6 @@ struct efa_admin_service_resp {
 
 /* Create Counter command */
 struct efa_admin_create_event_counter_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* UAR number */
 	u16 uar;
 
@@ -1157,7 +1095,7 @@ struct efa_admin_create_event_counter_cmd {
 
 	/* Counter physical address */
 	u64 paddr;
-};
+} __packed;
 
 struct efa_admin_create_event_counter_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1170,11 +1108,9 @@ struct efa_admin_create_event_counter_resp {
 };
 
 struct efa_admin_destroy_event_counter_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* Counter handle */
 	u32 cntr_handle;
-};
+} __packed;
 
 struct efa_admin_destroy_event_counter_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1206,8 +1142,6 @@ struct efa_admin_event_counter_attach_qp_events {
 };
 
 struct efa_admin_attach_detach_event_counter_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* Counter handle */
 	u32 cntr_handle;
 
@@ -1220,7 +1154,7 @@ struct efa_admin_attach_detach_event_counter_cmd {
 	union {
 		struct efa_admin_event_counter_attach_qp_events qp_events;
 	} u;
-};
+} __packed;
 
 struct efa_admin_attach_detach_event_counter_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
@@ -1235,8 +1169,6 @@ enum efa_admin_event_counter_modify_ops {
 };
 
 struct efa_admin_modify_event_counter_cmd {
-	struct efa_admin_aq_common_desc aq_common_descriptor;
-
 	/* Counter handle */
 	u32 cntr_handle;
 
@@ -1248,7 +1180,7 @@ struct efa_admin_modify_event_counter_cmd {
 
 	/* Value for SET or ADD */
 	u64 value;
-};
+} __packed;
 
 struct efa_admin_modify_event_counter_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;

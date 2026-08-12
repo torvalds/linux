@@ -634,8 +634,10 @@ static int efa_com_wait_and_process_admin_cq(struct efa_comp_ctx *comp_ctx,
 /**
  * efa_com_cmd_exec - Execute admin command
  * @aq: admin queue.
- * @cmd: the admin command to execute.
- * @cmd_size: the command size.
+ * @opcode: the admin command opcode.
+ * @flags: the admin command header flags.
+ * @payload: the admin command payload.
+ * @payload_size: the payload size.
  * @comp: command completion return entry.
  * @comp_size: command completion size.
  * Submit an admin command and then wait until the device will return a
@@ -645,22 +647,24 @@ static int efa_com_wait_and_process_admin_cq(struct efa_comp_ctx *comp_ctx,
  * @return - 0 on success, negative value on failure.
  */
 int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
-		     struct efa_admin_aq_entry *cmd,
-		     size_t cmd_size,
-		     struct efa_admin_acq_entry *comp,
-		     size_t comp_size)
+		     u8 opcode, u8 flags,
+		     void *payload, size_t payload_size,
+		     struct efa_admin_acq_entry *comp, size_t comp_size)
 {
+	struct efa_admin_aq_entry aq_entry = {};
 	struct efa_comp_ctx *comp_ctx;
 	int err;
+
+	if (payload_size > sizeof(aq_entry.request_payload))
+		return -EINVAL;
 
 	might_sleep();
 
 	/* In case of queue FULL */
 	down(&aq->avail_cmds);
 
-	ibdev_dbg(aq->efa_dev, "%s (opcode %d)\n",
-		  efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-		  cmd->aq_common_descriptor.opcode);
+	ibdev_dbg(aq->efa_dev, "%s (opcode %d)\n", efa_com_cmd_str(opcode),
+		  opcode);
 
 	comp_ctx = efa_com_alloc_comp_ctx(aq);
 	if (!comp_ctx) {
@@ -669,13 +673,17 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		return -EINVAL;
 	}
 
-	err = efa_com_submit_admin_cmd(aq, comp_ctx, cmd, cmd_size, comp, comp_size);
+	aq_entry.aq_common_descriptor.opcode = opcode;
+	aq_entry.aq_common_descriptor.flags = flags;
+	if (payload)
+		memcpy(aq_entry.request_payload, payload, payload_size);
+
+	err = efa_com_submit_admin_cmd(aq, comp_ctx, &aq_entry, sizeof(aq_entry), comp, comp_size);
 	if (err) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
 			"Failed to submit command %s (opcode %u) err %d\n",
-			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode, err);
+			efa_com_cmd_str(opcode), opcode, err);
 
 		efa_com_dealloc_comp_ctx(aq, comp_ctx);
 		up(&aq->avail_cmds);
@@ -688,8 +696,7 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 		ibdev_err_ratelimited(
 			aq->efa_dev,
 			"Failed to process command %s (opcode %u) err %d\n",
-			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
-			cmd->aq_common_descriptor.opcode, err);
+			efa_com_cmd_str(opcode), opcode, err);
 		atomic64_inc(&aq->stats.cmd_err);
 	}
 
@@ -1156,7 +1163,6 @@ static int efa_com_create_eq(struct efa_com_dev *edev,
 	struct efa_admin_create_eq_cmd cmd = {};
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_CREATE_EQ;
 	EFA_SET(&cmd.caps, EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS,
 		params->entry_size_in_bytes / 4);
 	cmd.depth = params->depth;
@@ -1166,11 +1172,9 @@ static int efa_com_create_eq(struct efa_com_dev *edev,
 	efa_com_set_dma_addr(params->dma_addr, &cmd.ba.mem_addr_high,
 			     &cmd.ba.mem_addr_low);
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_CREATE_EQ, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to create eq[%d]\n", err);
@@ -1190,14 +1194,11 @@ static void efa_com_destroy_eq(struct efa_com_dev *edev,
 	struct efa_admin_destroy_eq_cmd cmd = {};
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DESTROY_EQ;
 	cmd.eqn = params->eqn;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DESTROY_EQ, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err)
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to destroy EQ-%u [%d]\n", cmd.eqn,

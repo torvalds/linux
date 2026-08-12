@@ -17,8 +17,6 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	create_qp_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_QP;
-
 	create_qp_cmd.pd = params->pd;
 	create_qp_cmd.qp_type = params->qp_type;
 	create_qp_cmd.rq_base_addr = params->rq_base_addr;
@@ -41,9 +39,8 @@ int efa_com_create_qp(struct efa_com_dev *edev,
 	if (params->sq_64_bit_req_id)
 		EFA_SET(&create_qp_cmd.flags, EFA_ADMIN_CREATE_QP_CMD_SQ_64_BIT_REQ_ID, 1);
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&create_qp_cmd,
-			       sizeof(create_qp_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_CREATE_QP, 0,
+			       &create_qp_cmd, sizeof(create_qp_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -71,7 +68,6 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	struct efa_admin_modify_qp_resp resp;
 	int err;
 
-	cmd.aq_common_desc.opcode = EFA_ADMIN_MODIFY_QP;
 	cmd.modify_mask = params->modify_mask;
 	cmd.qp_handle = params->qp_handle;
 	cmd.qp_state = params->qp_state;
@@ -81,11 +77,9 @@ int efa_com_modify_qp(struct efa_com_dev *edev,
 	cmd.sq_drained_async_notify = params->sq_drained_async_notify;
 	cmd.rnr_retry = params->rnr_retry;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_MODIFY_QP, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(
 			edev->efa_dev,
@@ -106,14 +100,11 @@ int efa_com_query_qp(struct efa_com_dev *edev,
 	struct efa_admin_query_qp_resp resp;
 	int err;
 
-	cmd.aq_common_desc.opcode = EFA_ADMIN_QUERY_QP;
 	cmd.qp_handle = params->qp_handle;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_QUERY_QP, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to query qp-%u [%d]\n",
@@ -138,12 +129,10 @@ int efa_com_destroy_qp(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	qp_cmd.aq_common_desc.opcode = EFA_ADMIN_DESTROY_QP;
 	qp_cmd.qp_handle = params->qp_handle;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&qp_cmd,
-			       sizeof(qp_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DESTROY_QP, 0,
+			       &qp_cmd, sizeof(qp_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -165,7 +154,6 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	create_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_CQ;
 	EFA_SET(&create_cmd.cq_caps_2,
 		EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS,
 		params->entry_size_in_bytes / 4);
@@ -190,9 +178,8 @@ int efa_com_create_cq(struct efa_com_dev *edev,
 			     &create_cmd.cq_ba.mem_addr_high,
 			     &create_cmd.cq_ba.mem_addr_low);
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&create_cmd,
-			       sizeof(create_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_CREATE_CQ, 0,
+			       &create_cmd, sizeof(create_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -219,11 +206,9 @@ int efa_com_destroy_cq(struct efa_com_dev *edev,
 	int err;
 
 	destroy_cmd.cq_idx = params->cq_idx;
-	destroy_cmd.aq_common_desc.opcode = EFA_ADMIN_DESTROY_CQ;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&destroy_cmd,
-			       sizeof(destroy_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DESTROY_CQ, 0,
+			       &destroy_cmd, sizeof(destroy_cmd),
 			       (struct efa_admin_acq_entry *)&destroy_resp,
 			       sizeof(destroy_resp));
 
@@ -244,9 +229,9 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 	struct efa_admin_reg_mr_resp cmd_completion;
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_admin_reg_mr_cmd mr_cmd = {};
+	u8 flags = 0;
 	int err;
 
-	mr_cmd.aq_common_desc.opcode = EFA_ADMIN_REG_MR;
 	mr_cmd.pd = params->pd;
 	mr_cmd.mr_length = params->mr_length_in_bytes;
 	EFA_SET(&mr_cmd.flags, EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT,
@@ -264,16 +249,13 @@ int efa_com_register_mr(struct efa_com_dev *edev,
 			params->pbl.pbl.address.mem_addr_low;
 		mr_cmd.pbl.pbl.address.mem_addr_high =
 			params->pbl.pbl.address.mem_addr_high;
-		EFA_SET(&mr_cmd.aq_common_desc.flags,
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
+		EFA_SET(&flags, EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		if (params->indirect)
-			EFA_SET(&mr_cmd.aq_common_desc.flags,
-				EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
+			EFA_SET(&flags, EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT, 1);
 	}
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&mr_cmd,
-			       sizeof(mr_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_REG_MR, flags,
+			       &mr_cmd, sizeof(mr_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -305,12 +287,10 @@ int efa_com_dereg_mr(struct efa_com_dev *edev,
 	struct efa_admin_dereg_mr_cmd mr_cmd = {};
 	int err;
 
-	mr_cmd.aq_common_desc.opcode = EFA_ADMIN_DEREG_MR;
 	mr_cmd.l_key = params->l_key;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&mr_cmd,
-			       sizeof(mr_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DEREG_MR, 0,
+			       &mr_cmd, sizeof(mr_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -345,14 +325,11 @@ int efa_com_create_ah(struct efa_com_dev *edev,
 		return 0;
 	}
 
-	ah_cmd.aq_common_desc.opcode = EFA_ADMIN_CREATE_AH;
-
 	memcpy(ah_cmd.dest_addr, params->dest_addr, sizeof(ah_cmd.dest_addr));
 	ah_cmd.pd = params->pdn;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&ah_cmd,
-			       sizeof(ah_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_CREATE_AH, 0,
+			       &ah_cmd, sizeof(ah_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -389,13 +366,11 @@ int efa_com_destroy_ah(struct efa_com_dev *edev,
 	if (entry->usecnt > 1)
 		goto out_put;
 
-	ah_cmd.aq_common_desc.opcode = EFA_ADMIN_DESTROY_AH;
 	ah_cmd.ah = entry->ah;
 	ah_cmd.pd = entry->key.pd;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&ah_cmd,
-			       sizeof(ah_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DESTROY_AH, 0,
+			       &ah_cmd, sizeof(ah_cmd),
 			       (struct efa_admin_acq_entry *)&cmd_completion,
 			       sizeof(cmd_completion));
 	if (err) {
@@ -436,6 +411,7 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 {
 	struct efa_admin_get_feature_cmd get_cmd = {};
 	struct efa_com_admin_queue *aq;
+	u8 flags = 0;
 	int err;
 
 	if (!efa_com_check_supported_feature_id(edev, feature_id)) {
@@ -447,11 +423,8 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 
 	aq = &edev->aq;
 
-	get_cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_FEATURE;
-
 	if (control_buff_size)
-		EFA_SET(&get_cmd.aq_common_descriptor.flags,
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
+		EFA_SET(&flags, EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 
 	efa_com_set_dma_addr(control_buf_dma_addr,
 			     &get_cmd.control_buffer.address.mem_addr_high,
@@ -459,12 +432,9 @@ static int efa_com_get_feature_ex(struct efa_com_dev *edev,
 
 	get_cmd.control_buffer.length = control_buff_size;
 	get_cmd.feature_common.feature_id = feature_id;
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)
-			       &get_cmd,
-			       sizeof(get_cmd),
-			       (struct efa_admin_acq_entry *)
-			       get_resp,
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_GET_FEATURE, flags,
+			       &get_cmd, sizeof(get_cmd),
+			       (struct efa_admin_acq_entry *)get_resp,
 			       sizeof(*get_resp));
 
 	if (err) {
@@ -630,6 +600,7 @@ int efa_com_set_feature_ex(struct efa_com_dev *edev,
 			   u32 control_buff_size)
 {
 	struct efa_com_admin_queue *aq;
+	u8 flags = 0;
 	int err;
 
 	if (!efa_com_check_supported_feature_id(edev, feature_id)) {
@@ -641,11 +612,8 @@ int efa_com_set_feature_ex(struct efa_com_dev *edev,
 
 	aq = &edev->aq;
 
-	set_cmd->aq_common_descriptor.opcode = EFA_ADMIN_SET_FEATURE;
 	if (control_buff_size) {
-		set_cmd->aq_common_descriptor.flags = 0;
-		EFA_SET(&set_cmd->aq_common_descriptor.flags,
-			EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
+		EFA_SET(&flags, EFA_ADMIN_AQ_COMMON_DESC_CTRL_DATA, 1);
 		efa_com_set_dma_addr(control_buf_dma_addr,
 				     &set_cmd->control_buffer.address.mem_addr_high,
 				     &set_cmd->control_buffer.address.mem_addr_low);
@@ -653,9 +621,8 @@ int efa_com_set_feature_ex(struct efa_com_dev *edev,
 
 	set_cmd->control_buffer.length = control_buff_size;
 	set_cmd->feature_common.feature_id = feature_id;
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)set_cmd,
-			       sizeof(*set_cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_SET_FEATURE, flags,
+			       set_cmd, sizeof(*set_cmd),
 			       (struct efa_admin_acq_entry *)set_resp,
 			       sizeof(*set_resp));
 
@@ -726,17 +693,12 @@ int efa_com_alloc_pd(struct efa_com_dev *edev,
 		     struct efa_com_alloc_pd_result *result)
 {
 	struct efa_com_admin_queue *aq = &edev->aq;
-	struct efa_admin_alloc_pd_cmd cmd = {};
 	struct efa_admin_alloc_pd_resp resp;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_ALLOC_PD;
-
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_ALLOC_PD, 0,
+			       NULL, 0,
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to allocate pd[%d]\n", err);
@@ -756,14 +718,11 @@ int efa_com_dealloc_pd(struct efa_com_dev *edev,
 	struct efa_admin_dealloc_pd_resp resp;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DEALLOC_PD;
 	cmd.pd = params->pdn;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DEALLOC_PD, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to deallocate pd-%u [%d]\n",
@@ -778,17 +737,12 @@ int efa_com_alloc_uar(struct efa_com_dev *edev,
 		      struct efa_com_alloc_uar_result *result)
 {
 	struct efa_com_admin_queue *aq = &edev->aq;
-	struct efa_admin_alloc_uar_cmd cmd = {};
 	struct efa_admin_alloc_uar_resp resp;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_ALLOC_UAR;
-
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_ALLOC_UAR, 0,
+			       NULL, 0,
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to allocate uar[%d]\n", err);
@@ -808,14 +762,11 @@ int efa_com_dealloc_uar(struct efa_com_dev *edev,
 	struct efa_admin_dealloc_uar_resp resp;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DEALLOC_UAR;
 	cmd.uar = params->uarn;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DEALLOC_UAR, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
 				      "Failed to deallocate uar-%u [%d]\n",
@@ -840,16 +791,13 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 	struct efa_admin_basic_stats *bs;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_GET_STATS;
 	cmd.type = params->type;
 	cmd.scope = params->scope;
 	cmd.scope_modifier = params->scope_modifier;
 
-	err = efa_com_cmd_exec(aq,
-			       (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
-			       (struct efa_admin_acq_entry *)&resp,
-			       sizeof(resp));
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_GET_STATS, 0,
+			       &cmd, sizeof(cmd),
+			       (struct efa_admin_acq_entry *)&resp, sizeof(resp));
 	if (err) {
 		ibdev_err_ratelimited(
 			edev->efa_dev,
@@ -910,12 +858,11 @@ int efa_com_create_event_counter(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_CREATE_EVENT_COUNTER;
 	cmd.uar = params->uarn;
 	cmd.paddr = params->dma_addr;
 
-	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_CREATE_EVENT_COUNTER, 0,
+			       &cmd, sizeof(cmd),
 			       (struct efa_admin_acq_entry *)&resp,
 			       sizeof(resp));
 	if (err) {
@@ -937,11 +884,10 @@ int efa_com_destroy_event_counter(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_DESTROY_EVENT_COUNTER;
 	cmd.cntr_handle = params->cntr_handle;
 
-	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_DESTROY_EVENT_COUNTER, 0,
+			       &cmd, sizeof(cmd),
 			       (struct efa_admin_acq_entry *)&resp,
 			       sizeof(resp));
 	if (err) {
@@ -963,14 +909,13 @@ static int efa_com_attach_detach_event_counter(struct efa_com_dev *edev, u8 opco
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = opcode;
 	cmd.cntr_handle = cntr_handle;
 	cmd.attach_type = EFA_ADMIN_EVENT_COUNTER_ATTACH_QP_EVENTS;
 	cmd.u.qp_events.qp_handle = qp_handle;
 	cmd.u.qp_events.events = events;
 
-	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
+	err = efa_com_cmd_exec(aq, opcode, 0,
+			       &cmd, sizeof(cmd),
 			       (struct efa_admin_acq_entry *)&resp,
 			       sizeof(resp));
 	if (err) {
@@ -1014,13 +959,12 @@ int efa_com_modify_event_counter(struct efa_com_dev *edev,
 	struct efa_com_admin_queue *aq = &edev->aq;
 	int err;
 
-	cmd.aq_common_descriptor.opcode = EFA_ADMIN_MODIFY_EVENT_COUNTER;
 	cmd.cntr_handle = params->cntr_handle;
 	cmd.operation = params->operation;
 	cmd.value = params->value;
 
-	err = efa_com_cmd_exec(aq, (struct efa_admin_aq_entry *)&cmd,
-			       sizeof(cmd),
+	err = efa_com_cmd_exec(aq, EFA_ADMIN_MODIFY_EVENT_COUNTER, 0,
+			       &cmd, sizeof(cmd),
 			       (struct efa_admin_acq_entry *)&resp,
 			       sizeof(resp));
 	if (err) {
