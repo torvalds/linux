@@ -87,25 +87,13 @@ static void gicv5_ppi_priority_init(void)
 
 static void gicv5_hwirq_init(irq_hw_number_t hwirq, u8 priority, u8 hwirq_type)
 {
-	u64 cdpri, cdaff;
-	u16 iaffid;
-	int ret;
+	u64 cdpri;
 
 	if (hwirq_type == GICV5_HWIRQ_TYPE_LPI || hwirq_type == GICV5_HWIRQ_TYPE_SPI) {
 		cdpri = FIELD_PREP(GICV5_GIC_CDPRI_PRIORITY_MASK, priority)	|
 			FIELD_PREP(GICV5_GIC_CDPRI_TYPE_MASK, hwirq_type)	|
 			FIELD_PREP(GICV5_GIC_CDPRI_ID_MASK, hwirq);
 		gic_insn(cdpri, CDPRI);
-
-		ret = gicv5_irs_cpu_to_iaffid(smp_processor_id(), &iaffid);
-
-		if (WARN_ON_ONCE(ret))
-			return;
-
-		cdaff = FIELD_PREP(GICV5_GIC_CDAFF_IAFFID_MASK, iaffid)		|
-			FIELD_PREP(GICV5_GIC_CDAFF_TYPE_MASK, hwirq_type)	|
-			FIELD_PREP(GICV5_GIC_CDAFF_ID_MASK, hwirq);
-		gic_insn(cdaff, CDAFF);
 	}
 }
 
@@ -548,6 +536,7 @@ static const struct irq_chip gicv5_spi_irq_chip = {
 	.irq_get_irqchip_state	= gicv5_spi_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gicv5_spi_irq_set_irqchip_state,
 	.flags			= IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_AFFINITY_PRE_STARTUP |
 				  IRQCHIP_SKIP_SET_WAKE	  |
 				  IRQCHIP_MASK_ON_SUSPEND,
 };
@@ -561,7 +550,8 @@ static const struct irq_chip gicv5_lpi_irq_chip = {
 	.irq_retrigger		= gicv5_lpi_irq_retrigger,
 	.irq_get_irqchip_state	= gicv5_lpi_irq_get_irqchip_state,
 	.irq_set_irqchip_state	= gicv5_lpi_irq_set_irqchip_state,
-	.flags			= IRQCHIP_SKIP_SET_WAKE	  |
+	.flags			= IRQCHIP_AFFINITY_PRE_STARTUP |
+				  IRQCHIP_SKIP_SET_WAKE	  |
 				  IRQCHIP_MASK_ON_SUSPEND,
 };
 
