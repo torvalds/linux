@@ -273,6 +273,11 @@ static inline int gisa_tac_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
 	return test_and_clear_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
 }
 
+static inline int gisa_test_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
+{
+	return test_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *)gisa);
+}
+
 static inline unsigned long pending_irqs_no_gisa(struct kvm_vcpu *vcpu)
 {
 	unsigned long pending = vcpu->kvm->arch.float_int.pending_irqs |
@@ -2242,7 +2247,7 @@ static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 				ret = -ENOMEM;
 				goto out_nolock;
 			}
-			if (gisa_tac_ipm_gisc(gi->origin, i)) {
+			if (gisa_test_ipm_gisc(gi->origin, i)) {
 				irq = (struct kvm_s390_irq *) &buf[n];
 				irq->type = KVM_S390_INT_IO(1, 0, 0, 0);
 				irq->u.io.io_int_word = isc_to_int_word(i);
