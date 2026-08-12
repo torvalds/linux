@@ -6542,14 +6542,19 @@ S:	Maintained
 F:	Documentation/security/snp-tdx-threat-model.rst
 
 CONFIGFS
-M:	Andreas Hindborg <a.hindborg@kernel.org>
-R:	Breno Leitao <leitao@debian.org>
+M:	Breno Leitao <leitao@debian.org>
+R:	Andreas Hindborg <a.hindborg@kernel.org>
+T:	https://git.kernel.org/pub/scm/linux/kernel/git/leitao/linux.git configfs-next
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/a.hindborg/linux.git configfs-next
 F:	fs/configfs/
 F:	include/linux/configfs.h
-F:	rust/kernel/configfs.rs
 F:	samples/configfs/
+
+CONFIGFS [RUST]
+M:	Andreas Hindborg <a.hindborg@kernel.org>
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/a.hindborg/linux.git configfs-next
+F:	rust/kernel/configfs.rs
 F:	samples/rust/rust_configfs.rs
 
 CONGATEC BOARD CONTROLLER MFD DRIVER
