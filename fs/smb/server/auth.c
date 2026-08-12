@@ -122,6 +122,8 @@ static int calc_ntlmv2_hash(struct ksmbd_conn *conn, struct ksmbd_session *sess,
 out:
 	kfree(uniname);
 	kfree(domain);
+	if (ret)	/* Done by hmac_md5_final() already if ret == 0 */
+		memzero_explicit(&ctx, sizeof(ctx));
 	return ret;
 }
 
@@ -466,7 +468,8 @@ int ksmbd_krb5_authenticate(struct ksmbd_session *sess, char *in_blob,
 	sess->kerberos_expiry = resp->session_expiry;
 	retval = 0;
 out:
-	kvfree(resp);
+	kvfree_sensitive(resp, sizeof(*resp) + resp->session_key_len +
+				resp->spnego_blob_len);
 	return retval;
 }
 #else
@@ -558,6 +561,7 @@ static void generate_key(struct ksmbd_conn *conn, const char *sess_key,
 
 	hmac_sha256_final(&ctx, prfhash);
 	memcpy(key, prfhash, key_size);
+	memzero_explicit(prfhash, sizeof(prfhash));
 }
 
 static int generate_smb3signingkey(struct ksmbd_session *sess,
@@ -863,7 +867,8 @@ int ksmbd_crypt_message(struct ksmbd_work *work, struct kvec *iov,
 		ctx = ksmbd_crypto_ctx_find_ccm();
 	if (!ctx) {
 		pr_err("crypto alloc failed\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto zeroize_key;
 	}
 
 	if (conn->cipher_type == SMB2_ENCRYPTION_AES128_GCM ||
@@ -943,5 +948,8 @@ free_req:
 	aead_request_free(req);
 free_ctx:
 	ksmbd_release_crypto_ctx(ctx);
+zeroize_key:
+	memzero_explicit(key, sizeof(key));
+	memzero_explicit(sign, sizeof(sign));
 	return rc;
 }
