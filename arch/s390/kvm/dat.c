@@ -737,6 +737,7 @@ int dat_cond_set_storage_key(struct kvm_s390_mmu_cache *mmc, union asce asce, gf
 	pgste.fp = skey.fp;
 	pgste.gc = skey.c;
 	pgste.gr = skey.r;
+	prev.skey = 0;
 
 	if (!ptep->h.i) {
 		rc = page_cond_set_storage_key(pte_origin(*ptep), skey, &prev, nq, mr, mc);
