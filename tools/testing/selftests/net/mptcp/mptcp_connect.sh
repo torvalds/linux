@@ -373,7 +373,7 @@ do_transfer()
 		fi
 
 		local capfile="${capprefix}-${connector_ns:0:3}-${listener_ns:0:3}-${cl_proto}-${srv_proto}-${connect_addr}-${port}"
-		local capopt="-i any -s 65535 -B 32768 ${capuser}"
+		local capopt="-i any -s 128 -B 32768 ${capuser}"
 
 		ip netns exec ${listener_ns} tcpdump ${capopt} \
 			-w "${capfile}-listener.pcap" >> "${capout}" 2>&1 &
