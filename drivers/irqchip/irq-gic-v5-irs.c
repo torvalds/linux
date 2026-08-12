@@ -488,6 +488,12 @@ static int gicv5_irs_wait_for_idle(struct gicv5_irs_chip_data *irs_data)
 					GICV5_IRS_CR0_IDLE, NULL);
 }
 
+static void __init gicv5_irs_disable(struct gicv5_irs_chip_data *irs_data)
+{
+	irs_writel_relaxed(irs_data, 0, GICV5_IRS_CR0);
+	gicv5_irs_wait_for_idle(irs_data);
+}
+
 void gicv5_irs_syncr(void)
 {
 	struct gicv5_irs_chip_data *irs_data;
@@ -786,6 +792,7 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 
 out_iomem:
 	gicv5_irs_clear_affinity(irs_data);
+	gicv5_irs_disable(irs_data);
 	iounmap(irs_base);
 out_err:
 	kfree(irs_data);
@@ -801,6 +808,7 @@ void __init gicv5_irs_remove(void)
 
 	list_for_each_entry_safe(irs_data, tmp_data, &irs_nodes, entry) {
 		gicv5_irs_clear_affinity(irs_data);
+		gicv5_irs_disable(irs_data);
 		iounmap(irs_data->irs_base);
 		list_del(&irs_data->entry);
 		kfree(irs_data);
@@ -968,6 +976,7 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 
 out_map:
 	gicv5_irs_clear_affinity(irs_data);
+	gicv5_irs_disable(irs_data);
 	iounmap(irs_base);
 out_release:
 	release_mem_region(r->start, resource_size(r));
