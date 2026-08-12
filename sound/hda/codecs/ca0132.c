@@ -9628,6 +9628,7 @@ static void ca0132_free(struct hda_codec *codec)
 #endif
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
+	codec->spec = NULL;
 }
 
 static void dbpro_free(struct hda_codec *codec)
@@ -9638,6 +9639,7 @@ static void dbpro_free(struct hda_codec *codec)
 
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
+	codec->spec = NULL;
 }
 
 static void ca0132_config(struct hda_codec *codec)
