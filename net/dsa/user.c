@@ -2779,7 +2779,7 @@ int dsa_user_create(struct dsa_port *port)
 	user_dev = alloc_netdev_mqs(sizeof(struct dsa_user_priv), name,
 				    assign_type, ether_setup,
 				    ds->num_tx_queues, 1);
-	if (user_dev == NULL)
+	if (!user_dev)
 		return -ENOMEM;
 
 	user_dev->rtnl_link_ops = &dsa_link_ops;

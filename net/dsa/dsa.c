@@ -1383,7 +1383,7 @@ static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
 
 static int dev_is_class(struct device *dev, const void *class)
 {
-	if (dev->class != NULL && !strcmp(dev->class->name, class))
+	if (dev->class && !strcmp(dev->class->name, class))
 		return 1;
 
 	return 0;
