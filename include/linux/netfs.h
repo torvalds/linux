@@ -191,7 +191,6 @@ struct netfs_io_subrequest {
 #define NETFS_SREQ_COPY_TO_CACHE	0	/* Set if should copy the data to the cache */
 #define NETFS_SREQ_CLEAR_TAIL		1	/* Set if the rest of the read should be cleared */
 #define NETFS_SREQ_MADE_PROGRESS	4	/* Set if we transferred at least some data */
-#define NETFS_SREQ_ONDEMAND		5	/* Set if it's from on-demand read mode */
 #define NETFS_SREQ_BOUNDARY		6	/* Set if ends on hard boundary (eg. ceph object) */
 #define NETFS_SREQ_HIT_EOF		7	/* Set if short due to EOF */
 #define NETFS_SREQ_IN_PROGRESS		8	/* Unlocked when the subrequest completes */
@@ -373,14 +372,6 @@ struct netfs_cache_ops {
 	int (*prepare_write)(struct netfs_cache_resources *cres,
 			     loff_t *_start, size_t *_len, size_t upper_len,
 			     loff_t i_size, bool no_space_allocated_yet);
-
-	/* Prepare an on-demand read operation, shortening it to a cached/uncached
-	 * boundary as appropriate.
-	 */
-	enum netfs_io_source (*prepare_ondemand_read)(struct netfs_cache_resources *cres,
-						      loff_t start, size_t *_len,
-						      loff_t i_size,
-						      unsigned long *_flags, ino_t ino);
 
 	/* Query the occupancy of the cache in a region, returning where the
 	 * next chunk of data starts and how long it is.
