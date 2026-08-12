@@ -870,9 +870,7 @@ static void caps_updated_deliver(struct list_head *to_deliver)
 				break;
 
 			/* caps != 0 only when deliverable (has_op, above) */
-			SCX_CALL_OP(sch, sub_caps_updated, NULL,
-				    scx_kaddr_to_arena(sch, cu->cmask_arena_out),
-				    caps);
+			SCX_CALL_OP(sch, sub_caps_updated, NULL, cu->cmask_arena_out, caps);
 		}
 	}
 }

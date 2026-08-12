@@ -1049,7 +1049,7 @@ struct sched_ext_ops_cid {
 				   struct task_struct *b);
 	void (*set_weight)(struct task_struct *p, u32 weight);
 	void (*set_cmask)(struct task_struct *p,
-			   const struct scx_cmask *cmask);
+			   const struct scx_cmask *cmask__arena);
 	void (*update_idle)(s32 cid, bool idle);
 	s32 (*init_task)(struct task_struct *p,
 			  struct scx_init_task_args *args);
@@ -1075,7 +1075,7 @@ struct sched_ext_ops_cid {
 #endif	/* CONFIG_EXT_GROUP_SCHED */
 	s32 (*sub_attach)(struct scx_sub_attach_args *args);
 	void (*sub_detach)(struct scx_sub_detach_args *args);
-	void (*sub_caps_updated)(const struct scx_cmask *cmask, u64 caps);
+	void (*sub_caps_updated)(const struct scx_cmask *cmask__arena, u64 caps);
 	void (*sub_ecaps_updated)(s32 cid, u64 before, u64 after);
 	void (*cid_online)(s32 cid);
 	void (*cid_offline)(s32 cid);
@@ -1534,8 +1534,7 @@ struct scx_sched {
 	 *
 	 * @arena_pool sub-allocates @arena_map. Each gen_pool chunk is added
 	 * at the kernel-side mapping address. @arena_kern_base is the start
-	 * of the arena's kern_vm range. See scx_arena_to_kaddr() and
-	 * scx_kaddr_to_arena().
+	 * of the arena's kern_vm range. See scx_arena_to_kaddr().
 	 */
 	struct bpf_map		*arena_map;
 	struct gen_pool		*arena_pool;
@@ -1544,7 +1543,7 @@ struct scx_sched {
 	/*
 	 * Per-CPU arena cmask used by scx_call_op_set_cpumask() to hand a cmask
 	 * to ops_cid.set_cmask(). The kernel writes through the stored kern_va
-	 * and hands BPF its arena pointer via scx_kaddr_to_arena().
+	 * and passes it to the callback's __arena argument.
 	 */
 	struct scx_cmask * __percpu *set_cmask_scratch;
 
@@ -1652,16 +1651,6 @@ struct scx_sched {
 static inline void *scx_arena_to_kaddr(struct scx_sched *sch, const void *bpf_ptr)
 {
 	return (void *)(sch->arena_kern_base + (u32)(uintptr_t)bpf_ptr);
-}
-
-/**
- * scx_kaddr_to_arena - Translate a kernel arena address to its BPF form
- * @sch: scheduler whose arena hosts @kaddr
- * @kaddr: kernel-side arena address, supplied by trusted kernel code
- */
-static inline void *scx_kaddr_to_arena(struct scx_sched *sch, const void *kaddr)
-{
-	return (void *)((uintptr_t)kaddr - sch->arena_kern_base);
 }
 
 enum scx_wake_flags {
