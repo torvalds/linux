@@ -145,7 +145,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_RATE_8000_768000	(SNDRV_PCM_RATE_8000_384000|\
 					 SNDRV_PCM_RATE_705600|\
 					 SNDRV_PCM_RATE_768000)
-#define _SNDRV_PCM_FMTBIT(fmt)		(1ULL << (__force int)SNDRV_PCM_FORMAT_##fmt)
+#define _SNDRV_PCM_FMTBIT(fmt)		(1ULL << SNDRV_PCM_FORMAT_##fmt)
 #define SNDRV_PCM_FMTBIT_S8		_SNDRV_PCM_FMTBIT(S8)
 #define SNDRV_PCM_FMTBIT_U8		_SNDRV_PCM_FMTBIT(U8)
 #define SNDRV_PCM_FMTBIT_S16_LE		_SNDRV_PCM_FMTBIT(S16_LE)
@@ -228,7 +228,7 @@ struct snd_pcm_ops {
 #define SNDRV_PCM_FMTBIT_U20		SNDRV_PCM_FMTBIT_U20_BE
 #endif
 
-#define _SNDRV_PCM_SUBFMTBIT(fmt)	BIT((__force int)SNDRV_PCM_SUBFORMAT_##fmt)
+#define _SNDRV_PCM_SUBFMTBIT(fmt)	BIT(SNDRV_PCM_SUBFORMAT_##fmt)
 #define SNDRV_PCM_SUBFMTBIT_STD		_SNDRV_PCM_SUBFMTBIT(STD)
 #define SNDRV_PCM_SUBFMTBIT_MSBITS_MAX	_SNDRV_PCM_SUBFMTBIT(MSBITS_MAX)
 #define SNDRV_PCM_SUBFMTBIT_MSBITS_20	_SNDRV_PCM_SUBFMTBIT(MSBITS_20)
@@ -1515,7 +1515,7 @@ int snd_pcm_add_chmap_ctls(struct snd_pcm *pcm, int stream,
  */
 static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
 {
-	return 1ULL << (__force int) pcm_format;
+	return 1ULL << pcm_format;
 }
 
 /**
@@ -1523,9 +1523,7 @@ static inline u64 pcm_format_to_bits(snd_pcm_format_t pcm_format)
  * @f: the iterator variable in snd_pcm_format_t type
  */
 #define pcm_for_each_format(f)						\
-	for ((f) = SNDRV_PCM_FORMAT_FIRST;				\
-	     (__force int)(f) <= (__force int)SNDRV_PCM_FORMAT_LAST;	\
-	     (f) = (__force snd_pcm_format_t)((__force int)(f) + 1))
+	for ((f) = SNDRV_PCM_FORMAT_FIRST; (f) <= SNDRV_PCM_FORMAT_LAST; (f)++)
 
 /* printk helpers */
 #define pcm_err(pcm, fmt, args...) \
