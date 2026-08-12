@@ -2181,6 +2181,74 @@ static void enic_set_api_busy(struct enic *enic, bool busy)
 	spin_unlock(&enic->enic_api_lock);
 }
 
+/* The admin/MBOX channel exists on a V2 PF while SR-IOV is enabled and on
+ * every V2 VF.  A reset wipes the admin WQ/RQ/CQ, so such devices must tear
+ * the channel down before the reset and re-establish it afterwards.
+ */
+static bool enic_has_admin_chan(struct enic *enic)
+{
+	return enic_is_sriov_vf_v2(enic) ||
+	       (enic_sriov_enabled(enic) && enic->vf_type == ENIC_VF_TYPE_V2);
+}
+
+/* Re-establish the admin/MBOX channel after a reset has re-created the data
+ * path.  Mirrors the relevant part of the probe / SR-IOV-enable sequence:
+ * reinitialise MBOX and reopen the channel, then for a VF re-run the PF
+ * handshake (the reset wiped the VF's admin QP, so the VF must register
+ * again), or for a PF re-push the current link state to registered VFs.
+ */
+static void enic_admin_chan_reopen(struct enic *enic)
+{
+	int err;
+
+	/* Install the MBOX receive handler and reset the sequence number
+	 * before opening the channel, so the handler is in place before the
+	 * admin interrupt is unmasked and no early completion is dropped.
+	 */
+	enic_mbox_init(enic);
+
+	/* A reset destroys the VF's local admin QP, so the VF can no longer
+	 * rely on its previous registration.  The PF may retain stale software
+	 * registration state until the VF successfully registers again.
+	 * Clear the local flag before reopening so a failed reopen or
+	 * re-handshake cannot leave the VF believing it has a usable PF
+	 * registration over a dead channel.
+	 */
+	if (enic_is_sriov_vf_v2(enic))
+		enic->vf_registered = false;
+
+	err = enic_admin_channel_open(enic);
+	if (err) {
+		netdev_err(enic->netdev,
+			   "admin channel reopen after reset failed: %d\n", err);
+		return;
+	}
+
+	if (enic_is_sriov_vf_v2(enic)) {
+		err = enic_mbox_vf_capability_check(enic);
+		if (err) {
+			netdev_err(enic->netdev,
+				   "MBOX capability check after reset failed: %d\n",
+				   err);
+			enic_admin_channel_close(enic);
+			return;
+		}
+		err = enic_mbox_vf_register(enic);
+		if (err) {
+			netdev_err(enic->netdev,
+				   "MBOX VF re-registration after reset failed: %d\n",
+				   err);
+			enic_admin_channel_close(enic);
+		}
+	} else {
+		/* The link came back up during enic_open() above while MBOX
+		 * sends were still disabled (channel not yet reopened), so that
+		 * link-notify was dropped.  Re-push current link state now.
+		 */
+		schedule_work(&enic->link_notify_work);
+	}
+}
+
 static void enic_reset(struct work_struct *work)
 {
 	struct enic *enic = container_of(work, struct enic, reset);
@@ -2199,8 +2267,7 @@ static void enic_reset(struct work_struct *work)
 	 * DMAs from the about-to-be-reset rings) and frees the admin resources
 	 * so they are cleanly re-allocated afterwards.
 	 */
-	if (enic_sriov_enabled(enic) &&
-	    enic->vf_type == ENIC_VF_TYPE_V2)
+	if (enic_has_admin_chan(enic))
 		enic_admin_channel_close(enic);
 
 	enic_stop(enic->netdev);
@@ -2214,25 +2281,13 @@ static void enic_reset(struct work_struct *work)
 
 	enic_open(enic->netdev);
 
-	/* Re-establish the admin/MBOX channel after the data path is back up,
-	 * mirroring the SR-IOV enable path (channel open + mbox init).  The
-	 * channel was fully torn down by enic_admin_channel_close() above.
+	/* Re-establish the admin/MBOX channel after the data path is back up.
+	 * It was fully torn down by enic_admin_channel_close() above;
+	 * enic_admin_chan_reopen() reopens it and, for a PF re-pushes link
+	 * state, or for a VF re-runs the probe-time PF handshake.
 	 */
-	if (enic_sriov_enabled(enic) &&
-	    enic->vf_type == ENIC_VF_TYPE_V2) {
-		if (enic_admin_channel_open(enic)) {
-			netdev_err(enic->netdev,
-				   "admin channel reopen after reset failed\n");
-		} else {
-			enic_mbox_init(enic);
-			/* The link came back up during enic_open() above
-			 * while MBOX sends were still disabled (channel not
-			 * yet reopened), so that link-notify was dropped.
-			 * Re-push current link state to registered VFs now.
-			 */
-			schedule_work(&enic->link_notify_work);
-		}
-	}
+	if (enic_has_admin_chan(enic))
+		enic_admin_chan_reopen(enic);
 
 	/* Allow infiniband to fiddle with the device again */
 	enic_set_api_busy(enic, false);
@@ -2255,8 +2310,7 @@ static void enic_tx_hang_reset(struct work_struct *work)
 	 * the same reason as the soft reset path: stop the admin QP and free
 	 * the admin resources before the hardware queues are wiped.
 	 */
-	if (enic_sriov_enabled(enic) &&
-	    enic->vf_type == ENIC_VF_TYPE_V2)
+	if (enic_has_admin_chan(enic))
 		enic_admin_channel_close(enic);
 
 	enic_dev_hang_notify(enic);
@@ -2271,25 +2325,13 @@ static void enic_tx_hang_reset(struct work_struct *work)
 
 	enic_open(enic->netdev);
 
-	/* Re-establish the admin/MBOX channel after the data path is back up,
-	 * mirroring the SR-IOV enable path (channel open + mbox init).  The
-	 * channel was fully torn down by enic_admin_channel_close() above.
+	/* Re-establish the admin/MBOX channel after the data path is back up.
+	 * It was fully torn down by enic_admin_channel_close() above;
+	 * enic_admin_chan_reopen() reopens it and, for a PF re-pushes link
+	 * state, or for a VF re-runs the probe-time PF handshake.
 	 */
-	if (enic_sriov_enabled(enic) &&
-	    enic->vf_type == ENIC_VF_TYPE_V2) {
-		if (enic_admin_channel_open(enic)) {
-			netdev_err(enic->netdev,
-				   "admin channel reopen after reset failed\n");
-		} else {
-			enic_mbox_init(enic);
-			/* The link came back up during enic_open() above
-			 * while MBOX sends were still disabled (channel not
-			 * yet reopened), so that link-notify was dropped.
-			 * Re-push current link state to registered VFs now.
-			 */
-			schedule_work(&enic->link_notify_work);
-		}
-	}
+	if (enic_has_admin_chan(enic))
+		enic_admin_chan_reopen(enic);
 
 	/* Allow infiniband to fiddle with the device again */
 	enic_set_api_busy(enic, false);
