@@ -315,7 +315,8 @@ static void winwing_haptic_rumble_cb(struct work_struct *work)
 static int winwing_play_effect(struct input_dev *dev, void *context,
 		struct ff_effect *effect)
 {
-	struct winwing_drv_data *data = (struct winwing_drv_data *) context;
+	struct hid_device *hdev = input_get_drvdata(dev);
+	struct winwing_drv_data *data = hid_get_drvdata(hdev);
 
 	if (effect->type != FF_RUMBLE)
 		return 0;
@@ -342,7 +343,12 @@ static int winwing_init_ff(struct hid_device *hdev, struct hid_input *hidinput)
 
 	input_set_capability(hidinput->input, EV_FF, FF_RUMBLE);
 
-	return input_ff_create_memless(hidinput->input, data,
+	/*
+	 * input_ff_create_memless() takes ownership of the context pointer
+	 * and frees it on teardown; do not hand it the devm-managed drvdata.
+	 * winwing_play_effect() fetches it from the input device instead.
+	 */
+	return input_ff_create_memless(hidinput->input, NULL,
 			winwing_play_effect);
 }
 
