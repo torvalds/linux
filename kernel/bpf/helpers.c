@@ -3395,11 +3395,13 @@ __bpf_kfunc void bpf_throw(u64 cookie)
 		WARN_ON_ONCE(!ctx.aux->exception_boundary);
 	WARN_ON_ONCE(!ctx.bp);
 	WARN_ON_ONCE(!ctx.cnt);
-	/* Prevent KASAN false positives for CONFIG_KASAN_STACK by unpoisoning
+	/*
+	 * Prevent KASAN false positives for CONFIG_KASAN_STACK by unpoisoning
 	 * deeper stack depths than ctx.sp as we do not return from bpf_throw,
-	 * which skips compiler generated instrumentation to do the same.
+	 * which skips compiler generated instrumentation to do the same. Some
+	 * architectures cannot recover sp while unwinding, so fall back to bp.
 	 */
-	kasan_unpoison_task_stack_below((void *)(long)ctx.sp);
+	kasan_unpoison_task_stack_below((void *)(long)(ctx.sp ?: ctx.bp));
 	ctx.aux->bpf_exception_cb(cookie, ctx.sp + ctx.aux->stack_arg_sp_adjust, ctx.bp, 0, 0);
 	WARN(1, "A call to BPF exception callback should never return\n");
 }
