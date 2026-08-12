@@ -740,6 +740,7 @@ static int __init gicv5_irs_init(struct gicv5_irs_chip_data *irs_data)
 static int __init gicv5_irs_of_init(struct device_node *node)
 {
 	struct gicv5_irs_chip_data *irs_data;
+	struct resource res;
 	void __iomem *irs_base;
 	u8 iaffid_bits;
 	u32 idr;
@@ -757,6 +758,11 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 		goto out_err;
 	}
 
+	if (of_address_to_resource(node, ret, &res)) {
+		ret = -EINVAL;
+		goto out_err;
+	}
+
 	irs_base = of_io_request_and_map(node, ret, of_node_full_name(node));
 	if (IS_ERR(irs_base)) {
 		pr_err("%pOF: unable to map GICv5 IRS registers\n", node);
@@ -765,6 +771,7 @@ static int __init gicv5_irs_of_init(struct device_node *node)
 	}
 
 	irs_data->fwnode = of_fwnode_handle(node);
+	irs_data->res = res;
 	gicv5_irs_init_bases(irs_data, irs_base, of_property_read_bool(node, "dma-noncoherent"));
 
 	idr = irs_readl_relaxed(irs_data, GICV5_IRS_IDR1);
@@ -794,6 +801,7 @@ out_iomem:
 	gicv5_irs_clear_affinity(irs_data);
 	gicv5_irs_disable(irs_data);
 	iounmap(irs_base);
+	release_mem_region(res.start, resource_size(&res));
 out_err:
 	kfree(irs_data);
 	return ret;
@@ -810,6 +818,7 @@ void __init gicv5_irs_remove(void)
 		gicv5_irs_clear_affinity(irs_data);
 		gicv5_irs_disable(irs_data);
 		iounmap(irs_data->irs_base);
+		release_mem_region(irs_data->res.start, resource_size(&irs_data->res));
 		list_del(&irs_data->entry);
 		kfree(irs_data);
 	}
@@ -958,6 +967,7 @@ static int __init gic_acpi_parse_madt_irs(union acpi_subtable_headers *header,
 	}
 
 	gicv5_irs_init_bases(irs_data, irs_base, irs->flags & ACPI_MADT_IRS_NON_COHERENT);
+	irs_data->res = *r;
 
 	gicv5_irs_acpi_init_affinity(irs->irs_id, irs_data);
 

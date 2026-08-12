@@ -6,6 +6,7 @@
 #define __LINUX_IRQCHIP_ARM_GIC_V5_H
 
 #include <linux/iopoll.h>
+#include <linux/ioport.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp.h>
@@ -324,6 +325,7 @@ struct gicv5_irs_chip_data {
 	struct list_head	entry;
 	struct fwnode_handle	*fwnode;
 	void __iomem		*irs_base;
+	struct resource		res;
 	u32			flags;
 	u32			spi_min;
 	u32			spi_range;
