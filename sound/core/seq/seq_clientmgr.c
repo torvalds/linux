@@ -530,9 +530,8 @@ static struct snd_seq_client *get_event_dest_client(struct snd_seq_event *event)
  * Return the error event.
  *
  * If the receiver client is a user client, the original event is
- * encapsulated in SNDRV_SEQ_EVENT_BOUNCE as variable length event.  If
- * the original event is also variable length, the external data is
- * copied after the event record. 
+ * encapsulated in SNDRV_SEQ_EVENT_BOUNCE as variable length event.  The
+ * external data of a variable length event is not copied along.
  * If the receiver client is a kernel client, the original event is
  * quoted in SNDRV_SEQ_EVENT_KERNEL_ERROR, since this requires no extra
  * kmalloc.

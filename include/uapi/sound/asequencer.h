@@ -308,16 +308,6 @@ struct snd_seq_ump_event {
 	};
 };
 
-/*
- * bounce event - stored as variable size data
- */
-struct snd_seq_event_bounce {
-	int err;
-	struct snd_seq_event event;
-	/* external data follows here. */
-};
-
-
 	/* system information */
 struct snd_seq_system_info {
 	int queues;			/* maximum queues count */
