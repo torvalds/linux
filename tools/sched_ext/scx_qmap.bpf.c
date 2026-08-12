@@ -80,14 +80,6 @@ const volatile u64 round_robin_ns;
  */
 const volatile u32 cid_override_mode;
 const volatile u32 cid_override_nr_shards;
-/*
- * Arrays live in bss (writable) because scx_bpf_cid_override()'s BPF
- * verifier signature treats its len-paired pointers as read/write - rodata
- * fails verification with "write into map forbidden". Userspace populates
- * them before SCX_OPS_LOAD, same as rodata, and nothing writes them after.
- */
-s32 cid_override_cpu_to_cid[SCX_QMAP_MAX_CPUS];
-s32 cid_override_shard_start[SCX_QMAP_MAX_CPUS];
 
 UEI_DEFINE(uei);
 
@@ -1761,17 +1753,15 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(qmap_init_cids)
 	if (!cid_override_mode)
 		return 0;
 
-	/* bound the count so the verifier accepts cpu_to_cid's mem/len pair */
+	/* the arena arrays are sized SCX_QMAP_MAX_CPUS */
 	if (nr_cpu_ids > SCX_QMAP_MAX_CPUS) {
 		scx_bpf_error("nr_cpu_ids=%u exceeds SCX_QMAP_MAX_CPUS=%d",
 			      nr_cpu_ids, SCX_QMAP_MAX_CPUS);
 		return -EINVAL;
 	}
 
-	scx_bpf_cid_override((const s32 *)cid_override_cpu_to_cid,
-			     nr_cpu_ids * sizeof(s32),
-			     (const s32 *)cid_override_shard_start,
-			     cid_override_nr_shards * sizeof(s32));
+	scx_bpf_cid_override(qa.cid_override_cpu_to_cid, nr_cpu_ids,
+			     qa.cid_override_shard_start, cid_override_nr_shards);
 	return 0;
 }
 

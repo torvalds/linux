@@ -131,6 +131,10 @@ struct qmap_arena {
 
 	struct cpu_ctx cpu_ctxs[SCX_QMAP_MAX_CPUS];
 
+	/* cid-override test input, populated by the loader before attach */
+	__s32 cid_override_cpu_to_cid[SCX_QMAP_MAX_CPUS];
+	__s32 cid_override_shard_start[SCX_QMAP_MAX_CPUS];
+
 	/* task_ctx slab; allocated and threaded by qmap_init() */
 	struct task_ctx __arena *task_ctxs;
 	struct task_ctx __arena *task_free_head;

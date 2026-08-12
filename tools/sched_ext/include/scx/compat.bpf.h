@@ -125,15 +125,17 @@ static inline bool scx_bpf_sub_dispatch(u64 cgroup_id)
  * v7.3: scx_bpf_cid_override() for explicit cid and shard mapping. Ignore if
  * missing.
  */
-void scx_bpf_cid_override___compat(const s32 *cpu_to_cid, u32 cpu_to_cid__sz,
-				    const s32 *shard_start, u32 shard_start__sz) __ksym __weak;
+void scx_bpf_cid_override___compat(const s32 __arena *cpu_to_cid__arena,
+				   u32 cpu_to_cid_cnt,
+				   const s32 __arena *shard_start__arena,
+				   u32 shard_start_cnt) __ksym __weak;
 
-static inline void scx_bpf_cid_override(const s32 *cpu_to_cid, u32 cpu_to_cid__sz,
-					 const s32 *shard_start, u32 shard_start__sz)
+static inline void scx_bpf_cid_override(const s32 __arena *cpu_to_cid, u32 cpu_to_cid_cnt,
+					const s32 __arena *shard_start, u32 shard_start_cnt)
 {
 	if (bpf_ksym_exists(scx_bpf_cid_override___compat))
-		scx_bpf_cid_override___compat(cpu_to_cid, cpu_to_cid__sz,
-					      shard_start, shard_start__sz);
+		scx_bpf_cid_override___compat(cpu_to_cid, cpu_to_cid_cnt,
+					      shard_start, shard_start_cnt);
 }
 
 /**
