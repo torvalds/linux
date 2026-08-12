@@ -402,13 +402,17 @@ static int adjust_subprog_starts_after_remove(struct bpf_verifier_env *env,
 			sizeof(*env->subprog_info) * move);
 		env->subprog_cnt -= j - i;
 
-		/* remove func_info */
+		/* remove func_info and its aux */
 		if (aux->func_info) {
 			move = aux->func_info_cnt - j;
 
 			memmove(aux->func_info + i,
 				aux->func_info + j,
 				sizeof(*aux->func_info) * move);
+			if (aux->func_info_aux)
+				memmove(aux->func_info_aux + i,
+					aux->func_info_aux + j,
+					sizeof(*aux->func_info_aux) * move);
 			aux->func_info_cnt -= j - i;
 			/* func_info->insn_off is set after all code rewrites,
 			 * in adjust_btf_func() - no need to adjust
