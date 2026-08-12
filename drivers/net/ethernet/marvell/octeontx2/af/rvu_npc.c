@@ -4303,6 +4303,43 @@ int rvu_mbox_handler_npc_set_pkind(struct rvu *rvu, struct npc_set_pkind *req,
 				      req->skip_size);
 }
 
+int rvu_mbox_handler_npc_read_default_rule(struct rvu *rvu,
+					   struct msg_req *req,
+					   struct npc_mcam_read_base_rule_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int index, blkaddr, nixlf, rc;
+	u16 pcifunc = req->hdr.pcifunc;
+	u8 intf, enable;
+
+	if (is_cn20k(rvu->pdev))
+		return NPC_MCAM_INVALID_REQ;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	rc = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
+	if (rc < 0)
+		return rc;
+
+	/* Read the default ucast entry */
+	mutex_lock(&mcam->lock);
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
+					 NIXLF_UCAST_ENTRY);
+	if (index < 0) {
+		mutex_unlock(&mcam->lock);
+		return NIX_AF_ERR_AF_LF_INVALID;
+	}
+
+	/* Read the mcam entry */
+	npc_read_mcam_entry(rvu, mcam, blkaddr, index, &rsp->entry, &intf,
+			    &enable);
+	mutex_unlock(&mcam->lock);
+
+	return 0;
+}
+
 int rvu_mbox_handler_npc_read_base_steer_rule(struct rvu *rvu,
 					      struct msg_req *req,
 					      struct npc_mcam_read_base_rule_rsp *rsp)
