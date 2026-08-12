@@ -33,7 +33,8 @@ struct efa_com_admin_cq {
 };
 
 struct efa_com_admin_sq {
-	struct efa_admin_aq_entry *entries;
+	u8 *buffer;
+	u16 entry_size;
 	dma_addr_t dma_addr;
 	spinlock_t lock; /* Protects ASQ */
 

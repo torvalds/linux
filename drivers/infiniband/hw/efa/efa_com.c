@@ -138,14 +138,13 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 {
 	struct efa_com_admin_queue *aq = &edev->aq;
 	struct efa_com_admin_sq *sq = &aq->sq;
-	u16 size = aq->depth * sizeof(*sq->entries);
+	u32 addr_high, addr_low;
 	u32 aq_caps = 0;
-	u32 addr_high;
-	u32 addr_low;
 
-	sq->entries =
-		dma_alloc_coherent(aq->dmadev, size, &sq->dma_addr, GFP_KERNEL);
-	if (!sq->entries)
+	sq->entry_size = sizeof(struct efa_admin_aq_entry);
+	sq->buffer = dma_alloc_coherent(aq->dmadev, aq->depth * sq->entry_size,
+					&sq->dma_addr, GFP_KERNEL);
+	if (!sq->buffer)
 		return -ENOMEM;
 
 	spin_lock_init(&sq->lock);
@@ -163,8 +162,7 @@ static int efa_com_admin_init_sq(struct efa_com_dev *edev)
 	writel(addr_high, edev->reg_bar + EFA_REGS_AQ_BASE_HI_OFF);
 
 	EFA_SET(&aq_caps, EFA_REGS_AQ_CAPS_AQ_DEPTH, aq->depth);
-	EFA_SET(&aq_caps, EFA_REGS_AQ_CAPS_AQ_ENTRY_SIZE,
-		sizeof(struct efa_admin_aq_entry));
+	EFA_SET(&aq_caps, EFA_REGS_AQ_CAPS_AQ_ENTRY_SIZE, sq->entry_size);
 
 	writel(aq_caps, edev->reg_bar + EFA_REGS_AQ_CAPS_OFF);
 
@@ -330,24 +328,22 @@ static void __efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 				       struct efa_admin_acq_entry *comp,
 				       size_t comp_size_in_bytes)
 {
-	struct efa_admin_aq_entry *aqe;
-	u16 queue_size_mask;
-	u16 cmd_id;
-	u16 ctx_id;
-	u16 pi;
+	u16 queue_size_mask, cmd_id, ctx_id, pi;
+	struct efa_com_admin_sq *sq = &aq->sq;
+	u8 *aqe;
 
 	queue_size_mask = aq->depth - 1;
-	pi = aq->sq.pc & queue_size_mask;
+	pi = sq->pc & queue_size_mask;
 	ctx_id = efa_com_get_comp_ctx_id(aq, comp_ctx);
 
 	/* cmd_id LSBs are the ctx_id and MSBs are entropy bits from pc */
 	cmd_id = ctx_id & queue_size_mask;
-	cmd_id |= aq->sq.pc << ilog2(aq->depth);
+	cmd_id |= sq->pc << ilog2(aq->depth);
 	cmd_id &= EFA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
 
 	cmd->aq_common_descriptor.command_id = cmd_id;
 	EFA_SET(&cmd->aq_common_descriptor.flags,
-		EFA_ADMIN_AQ_COMMON_DESC_PHASE, aq->sq.phase);
+		EFA_ADMIN_AQ_COMMON_DESC_PHASE, sq->phase);
 
 	comp_ctx->status = EFA_CMD_SUBMITTED;
 	comp_ctx->comp_size = comp_size_in_bytes;
@@ -357,18 +353,18 @@ static void __efa_com_submit_admin_cmd(struct efa_com_admin_queue *aq,
 
 	reinit_completion(&comp_ctx->wait_event);
 
-	aqe = &aq->sq.entries[pi];
-	memset(aqe, 0, sizeof(*aqe));
+	aqe = sq->buffer + sq->entry_size * pi;
+	memset(aqe, 0, sq->entry_size);
 	memcpy(aqe, cmd, cmd_size_in_bytes);
 
-	aq->sq.pc++;
+	sq->pc++;
 	atomic64_inc(&aq->stats.submitted_cmd);
 
-	if ((aq->sq.pc & queue_size_mask) == 0)
-		aq->sq.phase = !aq->sq.phase;
+	if ((sq->pc & queue_size_mask) == 0)
+		sq->phase = !sq->phase;
 
 	/* barrier not needed in case of writel */
-	writel(aq->sq.pc, aq->sq.db_addr);
+	writel(sq->pc, sq->db_addr);
 }
 
 static inline int efa_com_init_comp_ctxt(struct efa_com_admin_queue *aq)
@@ -723,8 +719,8 @@ void efa_com_admin_destroy(struct efa_com_dev *edev)
 	devm_kfree(edev->dmadev, aq->comp_ctx_pool);
 	devm_kfree(edev->dmadev, aq->comp_ctx);
 
-	size = aq->depth * sizeof(*sq->entries);
-	dma_free_coherent(edev->dmadev, size, sq->entries, sq->dma_addr);
+	size = aq->depth * sq->entry_size;
+	dma_free_coherent(edev->dmadev, size, sq->buffer, sq->dma_addr);
 
 	size = aq->depth * sizeof(*cq->entries);
 	dma_free_coherent(edev->dmadev, size, cq->entries, cq->dma_addr);
@@ -843,8 +839,8 @@ err_destroy_cq:
 	dma_free_coherent(edev->dmadev, aq->depth * sizeof(*aq->cq.entries),
 			  aq->cq.entries, aq->cq.dma_addr);
 err_destroy_sq:
-	dma_free_coherent(edev->dmadev, aq->depth * sizeof(*aq->sq.entries),
-			  aq->sq.entries, aq->sq.dma_addr);
+	dma_free_coherent(edev->dmadev, aq->depth * aq->sq.entry_size,
+			  aq->sq.buffer, aq->sq.dma_addr);
 err_destroy_comp_ctxt:
 	devm_kfree(edev->dmadev, aq->comp_ctx);
 err_destroy_ah_cache:
