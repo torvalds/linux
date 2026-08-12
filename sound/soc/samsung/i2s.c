@@ -1116,14 +1116,30 @@ static const struct snd_soc_dapm_widget samsung_i2s_widgets[] = {
 
 static const struct snd_soc_dapm_route samsung_i2s_dapm_routes[] = {
 	{ "Playback Mixer", NULL, "Primary Playback" },
-	{ "Playback Mixer", NULL, "Secondary Playback" },
-
 	{ "Mixer DAI TX", NULL, "Playback Mixer" },
 	{ "Primary Capture", NULL, "Mixer DAI RX" },
 };
 
+static const struct snd_soc_dapm_route samsung_i2s_dapm_routes_sec_play[] = {
+	{ "Playback Mixer", NULL, "Secondary Playback" },
+};
+
+static int samsung_i2s_component_probe(struct snd_soc_component *component)
+{
+	struct samsung_i2s_priv *priv = snd_soc_component_get_drvdata(component);
+
+	if (priv->quirks & QUIRK_SEC_DAI)
+		snd_soc_dapm_add_routes(snd_soc_component_to_dapm(component),
+					samsung_i2s_dapm_routes_sec_play,
+					ARRAY_SIZE(samsung_i2s_dapm_routes_sec_play));
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver samsung_i2s_component = {
 	.name = "samsung-i2s",
+
+	.probe = samsung_i2s_component_probe,
 
 	.dapm_widgets = samsung_i2s_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(samsung_i2s_widgets),
@@ -1650,8 +1666,7 @@ static const struct samsung_i2s_dai_data i2sv6_dai_type __maybe_unused = {
 };
 
 static const struct samsung_i2s_dai_data i2sv7_dai_type __maybe_unused = {
-	.quirks = QUIRK_PRI_6CHAN | QUIRK_SEC_DAI | QUIRK_NEED_RSTCLR |
-			QUIRK_SUPPORTS_TDM,
+	.quirks = QUIRK_PRI_6CHAN | QUIRK_NEED_RSTCLR | QUIRK_SUPPORTS_TDM,
 	.pcm_rates = SNDRV_PCM_RATE_8000_192000,
 	.i2s_variant_regs = &i2sv7_regs,
 };
