@@ -182,7 +182,7 @@ static const struct regmap_config aiu_regmap_cfg = {
 	.max_register	= 0x2ac,
 };
 
-const struct gx_formatter_driver aiu_formatter_i2s_drv = {
+static const struct gx_formatter_driver aiu_formatter_i2s_drv = {
 	.regmap_cfg	= &aiu_regmap_cfg,
 	.ops		= &aiu_formatter_i2s_ops,
 };
