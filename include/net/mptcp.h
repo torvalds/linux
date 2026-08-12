@@ -19,10 +19,6 @@ struct seq_file;
 
 /* MPTCP sk_buff extension data */
 struct mptcp_ext {
-	union {
-		u64	data_ack;
-		u32	data_ack32;
-	};
 	u64		data_seq;
 	u32		subflow_seq;
 	u16		data_len;
