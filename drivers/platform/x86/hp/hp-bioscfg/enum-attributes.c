@@ -228,6 +228,8 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 				kfree(str_value);
 				str_value = NULL;
 			}
+			if (size)
+				elem += size - 1;
 			break;
 
 		case SECURITY_LEVEL:
@@ -281,6 +283,8 @@ static int hp_populate_enumeration_elements_from_package(union acpi_object *enum
 				kfree(str_value);
 				str_value = NULL;
 			}
+			if (size)
+				elem += (size < MAX_VALUES_SIZE ? size : MAX_VALUES_SIZE) - 1;
 			break;
 		default:
 			pr_warn("Invalid element: %d found in Enumeration attribute or data may be malformed\n", elem);

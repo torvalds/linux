@@ -232,6 +232,8 @@ static int hp_populate_ordered_list_elements_from_package(union acpi_object *ord
 				kfree(str_value);
 				str_value = NULL;
 			}
+			if (size)
+				elem += size - 1;
 			break;
 
 		case SECURITY_LEVEL:

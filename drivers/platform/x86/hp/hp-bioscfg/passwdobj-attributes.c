@@ -321,6 +321,8 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 				str_value = NULL;
 
 			}
+			if (size)
+				elem += size - 1;
 			break;
 		case SECURITY_LEVEL:
 			password_data->common.security_level = int_value;
@@ -367,6 +369,8 @@ static int hp_populate_password_elements_from_package(union acpi_object *passwor
 				str_value = NULL;
 
 			}
+			if (size)
+				elem += size - 1;
 			break;
 		case PSWD_IS_SET:
 			password_data->is_enabled = int_value;

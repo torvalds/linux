@@ -243,6 +243,8 @@ static int hp_populate_integer_elements_from_package(union acpi_object *integer_
 				kfree(str_value);
 				str_value = NULL;
 			}
+			if (size)
+				elem += size - 1;
 			break;
 
 		case SECURITY_LEVEL:
