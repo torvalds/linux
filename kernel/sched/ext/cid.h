@@ -67,6 +67,7 @@ extern s32 __rcu *scx_shard_node;
 extern struct scx_cid_shard __rcu *scx_cid_shard_ranges;
 extern struct scx_cid_topo __rcu *scx_cid_topo;
 extern struct btf_id_set8 scx_kfunc_ids_init_cids;
+extern struct btf_id_set8 scx_kfunc_ids_cid;
 
 void scx_cmask_clear(struct scx_cmask *m);
 void scx_cmask_fill(struct scx_cmask *m);

@@ -2222,7 +2222,7 @@ __bpf_kfunc_start_defs();
  */
 __bpf_kfunc bool scx_bpf_sub_dispatch(u64 cgroup_id, const struct bpf_prog_aux *aux)
 {
-	struct rq *this_rq = this_rq();
+	struct rq *rq = scx_locked_rq();
 	struct scx_sched *parent, *child;
 
 	guard(rcu)();
@@ -2246,11 +2246,11 @@ __bpf_kfunc bool scx_bpf_sub_dispatch(u64 cgroup_id, const struct bpf_prog_aux *
 	 * its inserts would only be rejected. ecaps are synced at the top of
 	 * balance_one() before dispatch, so this reflects the in-effect state.
 	 */
-	if (scx_missing_caps(child, cpu_of(this_rq), SCX_CAP_BASE))
+	if (scx_missing_caps(child, cpu_of(rq), SCX_CAP_BASE))
 		return false;
 
-	return scx_dispatch_sched(child, this_rq, this_rq->scx.sub_dispatch_prev,
-				  true);
+	return scx_dispatch_sched(child, rq, rq->scx.sub_dispatch_prev, true) !=
+		SCX_DSP_NONE;
 }
 
 /* Validate common inputs. On success, *parent_out and *child_out are set. */
