@@ -5788,7 +5788,8 @@ static int ca0132_alt_mic_boost_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.enumerated.items = MIC_BOOST_NUM_OF_STEPS;
 	if (uinfo->value.enumerated.item >= MIC_BOOST_NUM_OF_STEPS)
 		uinfo->value.enumerated.item = MIC_BOOST_NUM_OF_STEPS - 1;
-	sprintf(namestr, "%d %s", (uinfo->value.enumerated.item * 10), sfx);
+	snprintf(namestr, sizeof(namestr), "%d %s",
+		 (uinfo->value.enumerated.item * 10), sfx);
 	strscpy(uinfo->value.enumerated.name, namestr);
 	return 0;
 }
@@ -5840,9 +5841,9 @@ static int ae5_headphone_gain_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.enumerated.items = AE5_HEADPHONE_GAIN_MAX;
 	if (uinfo->value.enumerated.item >= AE5_HEADPHONE_GAIN_MAX)
 		uinfo->value.enumerated.item = AE5_HEADPHONE_GAIN_MAX - 1;
-	sprintf(namestr, "%s %s",
-		ae5_headphone_gain_presets[uinfo->value.enumerated.item].name,
-		sfx);
+	snprintf(namestr, sizeof(namestr), "%s %s",
+		 ae5_headphone_gain_presets[uinfo->value.enumerated.item].name,
+		 sfx);
 	strscpy(uinfo->value.enumerated.name, namestr);
 	return 0;
 }
@@ -5894,8 +5895,8 @@ static int ae5_sound_filter_info(struct snd_kcontrol *kcontrol,
 	uinfo->value.enumerated.items = AE5_SOUND_FILTER_MAX;
 	if (uinfo->value.enumerated.item >= AE5_SOUND_FILTER_MAX)
 		uinfo->value.enumerated.item = AE5_SOUND_FILTER_MAX - 1;
-	sprintf(namestr, "%s",
-			ae5_filter_presets[uinfo->value.enumerated.item].name);
+	snprintf(namestr, sizeof(namestr), "%s",
+		 ae5_filter_presets[uinfo->value.enumerated.item].name);
 	strscpy(uinfo->value.enumerated.name, namestr);
 	return 0;
 }
@@ -6632,7 +6633,7 @@ static int ca0132_alt_add_effect_slider(struct hda_codec *codec, hda_nid_t nid,
 	struct snd_kcontrol_new knew =
 		HDA_CODEC_VOLUME_MONO(namestr, nid, 1, 0, type);
 
-	sprintf(namestr, "FX: %s %s Volume", pfx, dirstr[dir]);
+	snprintf(namestr, sizeof(namestr), "FX: %s %s Volume", pfx, dirstr[dir]);
 
 	knew.tlv.c = NULL;
 
@@ -6671,9 +6672,9 @@ static int add_fx_switch(struct hda_codec *codec, hda_nid_t nid,
 	 * prefix to OutFX or InFX enable controls.
 	 */
 	if (ca0132_use_alt_controls(spec) && (nid <= IN_EFFECT_END_NID))
-		sprintf(namestr, "FX: %s %s Switch", pfx, dirstr[dir]);
+		snprintf(namestr, sizeof(namestr), "FX: %s %s Switch", pfx, dirstr[dir]);
 	else
-		sprintf(namestr, "%s %s Switch", pfx, dirstr[dir]);
+		snprintf(namestr, sizeof(namestr), "%s %s Switch", pfx, dirstr[dir]);
 
 	return snd_hda_ctl_add(codec, nid, snd_ctl_new1(&knew, codec));
 }
