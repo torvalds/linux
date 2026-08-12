@@ -670,7 +670,8 @@ void mptcp_pm_subflow_check_next(struct mptcp_sock *msk,
 	if (mptcp_pm_is_userspace(msk)) {
 		if (update_subflows) {
 			spin_lock_bh(&pm->lock);
-			pm->extra_subflows--;
+			if (!WARN_ON_ONCE(pm->extra_subflows == 0))
+				pm->extra_subflows--;
 			spin_unlock_bh(&pm->lock);
 		}
 		return;
