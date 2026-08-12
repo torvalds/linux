@@ -923,11 +923,8 @@ static void pgste_set_unlock_multiple(union pte *first, int n, union pgste *pgst
 {
 	int i;
 
-	for (i = 0; i < n; i++) {
-		if (!pgstes[i].pcl)
-			break;
+	for (i = 0; i < n; i++)
 		pgste_set_unlock(first + i, pgstes[i]);
-	}
 }
 
 static bool pgste_get_trylock_multiple(union pte *first, int n, union pgste *pgstes)
@@ -940,7 +937,7 @@ static bool pgste_get_trylock_multiple(union pte *first, int n, union pgste *pgs
 	}
 	if (i == n)
 		return true;
-	pgste_set_unlock_multiple(first, n, pgstes);
+	pgste_set_unlock_multiple(first, i, pgstes);
 	return false;
 }
 
