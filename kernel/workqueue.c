@@ -1625,8 +1625,7 @@ static bool is_percpu_pool(struct worker_pool *pool)
 static struct wq_node_nr_active *wq_node_nr_active(struct workqueue_struct *wq,
 						   int node)
 {
-	if (WARN_ON_ONCE(!(wq->flags & WQ_UNBOUND)))
-		return NULL;
+	BUG_ON(!(wq->flags & WQ_UNBOUND));
 
 	if (node == NUMA_NO_NODE)
 		node = nr_node_ids;
