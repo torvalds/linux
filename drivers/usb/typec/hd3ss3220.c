@@ -218,7 +218,7 @@ static void hd3ss3220_regulator_control(struct hd3ss3220 *hd3ss3220, bool on)
 
 	if (ret)
 		dev_err(hd3ss3220->dev,
-			"vbus regulator %s failed: %d\n", on ? "disable" : "enable", ret);
+			"vbus regulator %s failed: %d\n", on ? "enable" : "disable", ret);
 }
 
 static void hd3ss3220_set_role(struct hd3ss3220 *hd3ss3220)
