@@ -338,10 +338,10 @@ struct snd_seq_running_info {
 
 
 	/* client types */
-typedef int __bitwise snd_seq_client_type_t;
-#define	NO_CLIENT	((__force snd_seq_client_type_t) 0)
-#define	USER_CLIENT	((__force snd_seq_client_type_t) 1)
-#define	KERNEL_CLIENT	((__force snd_seq_client_type_t) 2)
+typedef int snd_seq_client_type_t;
+#define	NO_CLIENT	0
+#define	USER_CLIENT	1
+#define	KERNEL_CLIENT	2
                         
 	/* event filter flags */
 #define SNDRV_SEQ_FILTER_BROADCAST	(1U<<0)	/* accept broadcast messages */
