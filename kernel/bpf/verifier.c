@@ -18448,6 +18448,7 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 	struct bpf_prog_aux *aux = env->prog->aux;
 	struct bpf_verifier_state *state;
 	struct bpf_reg_state *regs;
+	u32 insn_processed = env->insn_processed;
 	int ret, i;
 
 	env->prev_linfo = NULL;
@@ -18590,6 +18591,15 @@ out:
 	if (!ret && pop_log)
 		bpf_vlog_reset(&env->log, 0);
 	free_states(env);
+
+	/*
+	 * The override is needed to account for async subprograms, which
+	 * are verified with their own set of stack frames and thus are
+	 * not accounted as callees by account_current_path().
+	 * Accumulate their total counts as total counts of the main or
+	 * global subprog hosting the async call.
+	 */
+	env->subprog_info[subprog].insns_total = env->insn_processed - insn_processed;
 	return ret;
 }
 
