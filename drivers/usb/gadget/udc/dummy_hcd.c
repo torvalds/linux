@@ -2596,6 +2596,15 @@ static int dummy_setup(struct usb_hcd *hcd)
 		dum->ss_hcd->dum = dum;
 		hcd->speed = HCD_USB3;
 		hcd->self.root_hub->speed = USB_SPEED_SUPER;
+
+		/*
+		 * xHCI-class SuperSpeed controllers have no maxpacket
+		 * alignment requirement for non-final SG segments.  Only
+		 * relax the constraint on the SS bus; the HS bus keeps
+		 * emulating the alignment requirement of EHCI-class
+		 * controllers.
+		 */
+		hcd->self.no_sg_constraint = 1;
 	}
 	return 0;
 }
