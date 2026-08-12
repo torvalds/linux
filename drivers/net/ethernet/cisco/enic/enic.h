@@ -292,6 +292,11 @@ struct enic {
 
 	/* Admin channel resources for SR-IOV MBOX */
 	bool has_admin_channel;
+	/* true only while the admin WQ/RQ/CQ are allocated and enabled; gates
+	 * enic_admin_channel_close() so it is a no-op after a failed (re)open
+	 * left the resources freed.
+	 */
+	bool admin_chan_up;
 	struct vnic_wq admin_wq;
 	struct vnic_rq admin_rq;
 	struct vnic_cq admin_cq[2];
