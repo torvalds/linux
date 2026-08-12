@@ -17,8 +17,8 @@
 	.name = #fmt,								\
 }
 
-#define WRONG_FORMAT_1 (__force snd_pcm_format_t)((__force int)SNDRV_PCM_FORMAT_LAST + 1)
-#define WRONG_FORMAT_2 (__force snd_pcm_format_t)-1
+#define WRONG_FORMAT_1 (SNDRV_PCM_FORMAT_LAST + 1)
+#define WRONG_FORMAT_2 -1
 
 #define VALID_NAME "ValidName"
 #define NAME_W_SPEC_CHARS "In%v@1id name"
