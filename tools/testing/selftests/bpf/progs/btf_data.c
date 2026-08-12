@@ -68,3 +68,23 @@ int kfunc_d(struct root_struct *a, struct root_struct *b)
 {
 	return 0;
 }
+
+int kfunc_e(struct root_struct *a__arena,
+	    struct root_struct *b__arena__nullable,
+	    struct root_struct *c__arena,
+	    struct root_struct *d__arena__nullable,
+	    struct root_struct *e__arena)
+{
+	return 0;
+}
+
+int kfunc_f(struct root_struct *a, struct root_struct *b__arena, int flags)
+{
+	return 0;
+}
+
+struct root_struct *kfunc_g(struct root_struct *a__arena,
+			    struct root_struct *b__arena__nullable)
+{
+	return a__arena;
+}
