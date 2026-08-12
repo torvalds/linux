@@ -26,16 +26,22 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 3
     items:
       - description: AUDIO_EXTAL clock input
       - description: RTXIN clock input
       - description: QEXTAL clock input
+      - description: AUDIO_CLKB clock input
+      - description: AUDIO_CLKC clock input
 
   clock-names:
+    minItems: 3
     items:
       - const: audio_extal
       - const: rtxin
       - const: qextal
+      - const: audio_clkb
+      - const: audio_clkc
 
   '#clock-cells':
     description: |
