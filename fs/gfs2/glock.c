@@ -183,7 +183,7 @@ static void gfs2_free_dead_glocks(struct gfs2_sbd *sdp)
 
 struct gfs2_glock *gfs2_glock_hold(struct gfs2_glock *gl)
 {
-	if (!lockref_get_not_dead(&gl->gl_lockref))
+	if (!lockref_get_not_zero(&gl->gl_lockref))
 		GLOCK_BUG_ON(gl, 1);
 	return gl;
 }
@@ -1769,7 +1769,9 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
 	unsigned long delay = 0;
 
-	gfs2_glock_hold(gl);
+	if (!lockref_get_not_dead(&gl->gl_lockref))
+		return;
+
 	spin_lock(&gl->gl_lockref.lock);
 	if (!list_empty(&gl->gl_holders) &&
 	    glock_type(gl) == LM_TYPE_INODE) {
