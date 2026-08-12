@@ -6317,7 +6317,7 @@ bool workqueue_congested(int cpu, struct workqueue_struct *wq)
 	if (cpu == WORK_CPU_UNBOUND)
 		cpu = smp_processor_id();
 
-	pwq = *per_cpu_ptr(wq->cpu_pwq, cpu);
+	pwq = rcu_dereference_sched(*per_cpu_ptr(wq->cpu_pwq, cpu));
 	ret = !list_empty(&pwq->inactive_works);
 
 	preempt_enable();
