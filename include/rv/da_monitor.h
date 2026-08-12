@@ -24,7 +24,7 @@
 
 /*
  * Per-cpu variables require a unique name although static in some
- * configurations (e.g. CONFIG_DEBUG_FORCE_WEAK_PER_CPU or alpha modules).
+ * configurations (e.g. alpha modules).
  */
 #define DA_MON_NAME CONCATENATE(da_mon_, MONITOR_NAME)
 
