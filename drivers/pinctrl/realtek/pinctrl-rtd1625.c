@@ -986,7 +986,7 @@ static const char * const rtd1625_iso_pwm0_loc2_groups[] = {
 };
 
 static const char * const rtd1625_iso_spdif_in_coaxial_groups[] = {
-	"gpio_163", "spdif_sel", "spdif_in_mode"
+	"gpio_163", "spdif_in_mode"
 };
 
 static const char * const rtd1625_iso_spdif_in_gpio_groups[] = {
