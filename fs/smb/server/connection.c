@@ -190,7 +190,7 @@ static void __ksmbd_conn_release_work(struct work_struct *work)
 
 	ida_destroy(&conn->async_ida);
 	conn->transport->ops->free_transport(conn->transport);
-	kfree(conn);
+	kfree_sensitive(conn);
 }
 
 /**
@@ -256,7 +256,7 @@ void ksmbd_conn_free(struct ksmbd_conn *conn)
 	 */
 	xa_destroy(&conn->sessions);
 	kvfree(conn->request_buf);
-	kfree(conn->preauth_info);
+	kfree_sensitive(conn->preauth_info);
 	kfree(conn->mechToken);
 	ksmbd_preauth_session_destroy(conn);
 	ksmbd_conn_put(conn);
@@ -794,7 +794,7 @@ again:
 		if (atomic_dec_and_test(&target->refcnt)) {
 			ida_destroy(&target->async_ida);
 			t->ops->free_transport(t);
-			kfree(target);
+			kfree_sensitive(target);
 		}
 		goto again;
 	}
