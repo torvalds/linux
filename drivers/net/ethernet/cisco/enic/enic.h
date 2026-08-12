@@ -258,6 +258,8 @@ struct enic {
 	u32 tx_coalesce_usecs;
 	u16 num_vfs;
 	enum enic_vf_type vf_type;
+	bool vf_registered;
+	u32 pf_cap_version;
 	unsigned int enable_count;
 	spinlock_t enic_api_lock;
 	bool enic_api_busy;
@@ -313,6 +315,16 @@ struct enic {
 	/* MBOX protocol state — mbox_lock serializes admin WQ sends */
 	struct mutex mbox_lock;
 	u64 mbox_msg_num;
+	/* MBOX request-reply state.  mbox_expected_reply is written and
+	 * cleared by the process-context request helpers (capability/register/
+	 * unregister) and only read by the admin_msg_work receive handlers, so
+	 * it is annotated with READ_ONCE()/WRITE_ONCE() rather than locked:
+	 * only one request is in flight at a time (requesters run under RTNL or
+	 * single-threaded probe/remove), so each request is serialized and its
+	 * reply completes mbox_comp before the next request is issued.
+	 */
+	struct completion mbox_comp;
+	u8 mbox_expected_reply;
 
 	/* PF: per-VF MBOX state, allocated when SRIOV V2 is enabled */
 	struct enic_vf_state {
