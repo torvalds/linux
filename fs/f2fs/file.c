@@ -3828,7 +3828,7 @@ static int f2fs_ioc_reserve_dev_alias(struct file *filp)
 	}
 
 	/* do GC to move out valid blocks in the range all at once! */
-	err = f2fs_gc_range(sbi, start, end, false, 0);
+	err = f2fs_gc_range(sbi, start, end, false, 0, false);
 	if (err) {
 		f2fs_unlock_op(sbi, &lc);
 		goto out_gc_unlock;
