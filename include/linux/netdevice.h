@@ -2672,7 +2672,7 @@ static inline bool netif_elide_gro(const struct net_device *dev)
 static inline
 int netdev_get_prio_tc_map(const struct net_device *dev, u32 prio)
 {
-	return dev->prio_tc_map[prio & TC_BITMASK];
+	return READ_ONCE(dev->prio_tc_map[prio & TC_BITMASK]);
 }
 
 static inline
@@ -2681,7 +2681,7 @@ int netdev_set_prio_tc_map(struct net_device *dev, u8 prio, u8 tc)
 	if (tc >= READ_ONCE(dev->num_tc))
 		return -EINVAL;
 
-	dev->prio_tc_map[prio & TC_BITMASK] = tc & TC_BITMASK;
+	WRITE_ONCE(dev->prio_tc_map[prio & TC_BITMASK], tc & TC_BITMASK);
 	return 0;
 }
 

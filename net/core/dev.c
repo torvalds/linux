@@ -3120,7 +3120,8 @@ void netdev_reset_tc(struct net_device *dev)
 	WRITE_ONCE(dev->num_tc, 0);
 	for (i = 0; i < TC_MAX_QUEUE; i++)
 		WRITE_ONCE(dev->tc_to_txq[i].combined, 0);
-	memset(dev->prio_tc_map, 0, sizeof(dev->prio_tc_map));
+	for (i = 0; i <= TC_BITMASK; i++)
+		WRITE_ONCE(dev->prio_tc_map[i], 0);
 }
 EXPORT_SYMBOL(netdev_reset_tc);
 
@@ -3168,7 +3169,8 @@ void netdev_unbind_sb_channel(struct net_device *dev,
 #endif
 	for (i = 0; i < TC_MAX_QUEUE; i++)
 		WRITE_ONCE(sb_dev->tc_to_txq[i].combined, 0);
-	memset(sb_dev->prio_tc_map, 0, sizeof(sb_dev->prio_tc_map));
+	for (i = 0; i <= TC_BITMASK; i++)
+		WRITE_ONCE(sb_dev->prio_tc_map[i], 0);
 
 	while (txq-- != &dev->_tx[0]) {
 		if (txq->sb_dev == sb_dev)

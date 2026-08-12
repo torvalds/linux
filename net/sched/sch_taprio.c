@@ -1813,7 +1813,7 @@ static int taprio_mqprio_cmp(const struct net_device *dev,
 	}
 
 	for (i = 0; i <= TC_BITMASK; i++)
-		if (dev->prio_tc_map[i] != mqprio->prio_tc_map[i])
+		if (netdev_get_prio_tc_map(dev, i) != mqprio->prio_tc_map[i])
 			return -1;
 
 	return 0;

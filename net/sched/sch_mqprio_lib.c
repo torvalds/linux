@@ -105,7 +105,8 @@ void mqprio_qopt_reconstruct(struct net_device *dev, struct tc_mqprio_qopt *qopt
 	int tc, num_tc = netdev_get_num_tc(dev);
 
 	qopt->num_tc = num_tc;
-	memcpy(qopt->prio_tc_map, dev->prio_tc_map, sizeof(qopt->prio_tc_map));
+	for (tc = 0; tc <= TC_BITMASK; tc++)
+		qopt->prio_tc_map[tc] = netdev_get_prio_tc_map(dev, tc);
 
 	for (tc = 0; tc < num_tc; tc++) {
 		struct netdev_tc_txq res;
