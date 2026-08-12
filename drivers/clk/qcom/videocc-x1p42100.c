@@ -526,7 +526,7 @@ static struct clk_alpha_pll *video_cc_x1p42100_plls[] = {
 	&video_cc_pll1,
 };
 
-static u32 video_cc_x1p42100_critical_cbcrs[] = {
+static const u32 video_cc_x1p42100_critical_cbcrs[] = {
 	0x80f4, /* VIDEO_CC_AHB_CLK */
 	0x8150, /* VIDEO_CC_SLEEP_CLK */
 	0x8124, /* VIDEO_CC_XO_CLK */
@@ -540,7 +540,7 @@ static const struct regmap_config video_cc_x1p42100_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_driver_data video_cc_x1p42100_driver_data = {
+static const struct qcom_cc_driver_data video_cc_x1p42100_driver_data = {
 	.alpha_plls = video_cc_x1p42100_plls,
 	.num_alpha_plls = ARRAY_SIZE(video_cc_x1p42100_plls),
 	.clk_cbcrs = video_cc_x1p42100_critical_cbcrs,

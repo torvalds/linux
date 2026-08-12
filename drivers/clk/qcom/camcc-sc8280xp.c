@@ -1753,24 +1753,6 @@ static struct clk_branch camcc_csiphy3_clk = {
 	},
 };
 
-static struct clk_branch camcc_gdsc_clk = {
-	.halt_reg = 0xc1e4,
-	.halt_check = BRANCH_HALT,
-	.clkr = {
-		.enable_reg = 0xc1e4,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "camcc_gdsc_clk",
-			.parent_hws = (const struct clk_hw*[]){
-				&camcc_xo_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch camcc_icp_ahb_clk = {
 	.halt_reg = 0xc0d8,
 	.halt_check = BRANCH_HALT,
@@ -2839,7 +2821,6 @@ static struct clk_regmap *camcc_sc8280xp_clocks[] = {
 	[CAMCC_CSIPHY2_CLK] = &camcc_csiphy2_clk.clkr,
 	[CAMCC_CSIPHY3_CLK] = &camcc_csiphy3_clk.clkr,
 	[CAMCC_FAST_AHB_CLK_SRC] = &camcc_fast_ahb_clk_src.clkr,
-	[CAMCC_GDSC_CLK] = &camcc_gdsc_clk.clkr,
 	[CAMCC_ICP_AHB_CLK] = &camcc_icp_ahb_clk.clkr,
 	[CAMCC_ICP_CLK] = &camcc_icp_clk.clkr,
 	[CAMCC_ICP_CLK_SRC] = &camcc_icp_clk_src.clkr,
