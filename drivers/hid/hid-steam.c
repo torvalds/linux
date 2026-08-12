@@ -44,6 +44,7 @@
 #include <linux/delay.h>
 #include <linux/power_supply.h>
 #include <linux/unaligned.h>
+#include <linux/usb.h>
 #include "hid-ids.h"
 
 MODULE_DESCRIPTION("HID driver for Valve Steam Controller");
@@ -58,6 +59,8 @@ static LIST_HEAD(steam_devices);
 
 #define STEAM_QUIRK_WIRELESS		BIT(0)
 #define STEAM_QUIRK_DECK		BIT(1)
+#define STEAM_QUIRK_IBEX		BIT(2)
+#define STEAM_QUIRK_BLE			BIT(3)
 
 /* Touch pads are 40 mm in diameter and 65535 units */
 #define STEAM_PAD_RESOLUTION 1638
@@ -310,9 +313,81 @@ enum {
 	TRACKPAD_GESTURE_KEYBOARD,
 };
 
+/* Report identifiers (Ibex only) */
+enum {
+	/* Feature */
+	REPORT_ID_FEATURES_CONTROLLER	= 1,
+	REPORT_ID_FEATURES_DONGLE	= 2,
+
+	/* Input */
+	REPORT_ID_INPUT			= 0x42,
+	REPORT_ID_BATTERY		= 0x43,
+	REPORT_ID_INPUT2		= 0x45,
+	REPORT_ID_WIRELESS_EVENT	= 0x79,
+
+	/* Output */
+	REPORT_ID_HAPTIC_RUMBLE		= 0x80,
+	REPORT_ID_HAPTIC_PULSE		= 0x81,
+	REPORT_ID_HAPTIC_COMMAND	= 0x82,
+	REPORT_ID_HAPTIC_LFO_TONE	= 0x83,
+	REPORT_ID_HAPTIC_LOG_SWEEP	= 0x84,
+	REPORT_ID_HAPTIC_SCRIPT		= 0x85,
+};
+
+/* Ibex charge state */
+enum {
+	CHARGE_STATE_DISCHARGING	= 1,
+	CHARGE_STATE_CHARGING		= 2,
+	CHARGE_STATE_CHARGING_DONE	= 4,
+};
+
+/* Ibex wireless events */
+enum {
+	WIRELESS_EVENT_DISCONNECT	= 1,
+	WIRELESS_EVENT_CONNECT		= 2,
+	WIRELESS_EVENT_PAIR		= 3,
+};
+
 struct steam_controller_attribute {
 	unsigned char tag;
 	__le32 value;
+} __packed;
+
+struct steam_ibex_battery_status {
+	u8 charge_state;
+	u8 battery_level;
+	__le16 battery_voltage;
+	__le16 system_voltage;
+	__le16 input_voltage;
+	__le16 battery_current;
+	__le16 input_current;
+	__le16 temperature;
+};
+
+struct steam_ibex_haptic_rumble {
+	u8 type;
+	__le16 intensity;
+	struct {
+		__le16 speed;
+		u8 gain;
+	} __packed left, right;
+} __packed;
+static_assert(sizeof(struct steam_ibex_haptic_rumble) == 9);
+
+struct steam_ibex_haptic_pulse {
+	u8 side;
+	__le16 on_us;
+	__le16 off_us;
+	__le16 repeat_count;
+} __packed;
+static_assert(sizeof(struct steam_ibex_haptic_pulse) == 7);
+
+struct steam_ibex_output_report {
+	u8 id;
+	union {
+		struct steam_ibex_haptic_rumble rumble;
+		struct steam_ibex_haptic_pulse pulse;
+	};
 } __packed;
 
 /* Pad identifiers for the deck */
@@ -339,7 +414,10 @@ struct steam_device {
 	struct power_supply_desc battery_desc;
 	struct power_supply __rcu *battery;
 	u8 battery_charge;
-	u16 voltage;
+	u8 battery_status;
+	u16 battery_temp;
+	u16 battery_voltage;
+	u16 battery_current;
 	struct delayed_work mode_switch;
 	bool did_mode_switch;
 	bool gamepad_mode;
@@ -351,12 +429,14 @@ struct steam_device {
 	unsigned int sensor_update_rate_us;
 };
 
-static int steam_recv_report(struct steam_device *steam,
-		u8 *data, int size)
+static int steam_recv_report_id(struct steam_device *steam,
+		u8 *data, int size, u8 report_id)
 {
 	struct hid_report *r;
 	u8 *buf;
+	unsigned int retries = 50;
 	int ret;
+	u32 len;
 
 	/*
 	 * All reports start with a two byte header.
@@ -365,13 +445,14 @@ static int steam_recv_report(struct steam_device *steam,
 	if (size < 2)
 		return -EINVAL;
 
-	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0];
+	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[report_id];
 	if (!r) {
-		hid_err(steam->hdev, "No HID_FEATURE_REPORT submitted -  nothing to read\n");
+		hid_err(steam->hdev, "No HID_FEATURE_REPORT present for ID %u\n", report_id);
 		return -EINVAL;
 	}
 
-	if (hid_report_len(r) < 64)
+	len = hid_report_len(r);
+	if (len < 64)
 		return -EINVAL;
 
 	buf = hid_alloc_report_buf(r, GFP_KERNEL);
@@ -379,22 +460,36 @@ static int steam_recv_report(struct steam_device *steam,
 		return -ENOMEM;
 
 	/*
-	 * The report ID is always 0, so strip the first byte from the output.
+	 * The report ID is consistent, so strip the first byte from the output.
 	 * hid_report_len() is not counting the report ID, so +1 to the length
 	 * or else we get a EOVERFLOW. We are safe from a buffer overflow
 	 * because hid_alloc_report_buf() allocates +7 bytes.
 	 */
-	ret = hid_hw_raw_request(steam->hdev, 0x00,
-			buf, hid_report_len(r) + 1,
-			HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+	if (!(steam->quirks & STEAM_QUIRK_IBEX))
+		len += 1;
+
+	/*
+	 * Sometimes the wireless controller fails with EPIPE
+	 * when sending a feature report.
+	 * Doing a HID_REQ_GET_REPORT and waiting for a while
+	 * seems to fix that.
+	 */
+	do {
+		ret = hid_hw_raw_request(steam->hdev, report_id,
+				buf, len,
+				HID_FEATURE_REPORT, HID_REQ_GET_REPORT);
+		if (ret != -EPIPE)
+			break;
+		msleep(20);
+	} while (--retries);
 	if (ret > 0) {
 		/* Remove the report ID from the return buffer */
 		ret--;
 		size = min(size, ret);
 		memcpy(data, buf + 1, size);
 	}
-	kfree(buf);
 
+	kfree(buf);
 	if (ret < 0)
 		hid_err(steam->hdev, "%s: error %d\n", __func__, ret);
 	else
@@ -414,41 +509,47 @@ static int steam_recv_report(struct steam_device *steam,
 	return size;
 }
 
-static int steam_send_report(struct steam_device *steam,
-		u8 *cmd, int size)
+static int steam_send_report_id(struct steam_device *steam,
+		u8 *cmd, int size, u8 report_id)
 {
 	struct hid_report *r;
 	u8 *buf;
 	unsigned int retries = 50;
 	int ret;
+	u32 len;
 
-	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0];
+	r = steam->hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[report_id];
 	if (!r) {
-		hid_err(steam->hdev, "No HID_FEATURE_REPORT submitted -  nothing to read\n");
+		hid_err(steam->hdev, "No HID_FEATURE_REPORT present for ID %u\n", report_id);
 		return -EINVAL;
 	}
 
-	if (hid_report_len(r) < 64)
+	len = hid_report_len(r);
+	if (len < 64)
 		return -EINVAL;
 
 	buf = hid_alloc_report_buf(r, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	/* The report ID is always 0 */
+	/* The report ID is always consistent */
+	buf[0] = report_id;
 	memcpy(buf + 1, cmd, size);
 
 	hid_dbg(steam->hdev, "Sending report %*ph\n", size, cmd);
 
+	if (!(steam->quirks & STEAM_QUIRK_IBEX))
+		len += 1;
+
 	/*
 	 * Sometimes the wireless controller fails with EPIPE
 	 * when sending a feature report.
-	 * Doing a HID_REQ_GET_REPORT and waiting for a while
+	 * Doing a HID_REQ_SET_REPORT and waiting for a while
 	 * seems to fix that.
 	 */
 	do {
-		ret = hid_hw_raw_request(steam->hdev, 0,
-				buf, max(size, 64) + 1,
+		ret = hid_hw_raw_request(steam->hdev, report_id,
+				buf, max(size + 1, len),
 				HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		if (ret != -EPIPE)
 			break;
@@ -460,6 +561,19 @@ static int steam_send_report(struct steam_device *steam,
 		hid_err(steam->hdev, "%s: error %d (%*ph)\n", __func__,
 				ret, size, cmd);
 	return ret;
+}
+
+static int steam_send_report(struct steam_device *steam,
+		u8 *cmd, int size)
+{
+	u8 report_id;
+
+	if (steam->quirks & STEAM_QUIRK_IBEX)
+		report_id = REPORT_ID_FEATURES_CONTROLLER;
+	else
+		report_id = 0;
+
+	return steam_send_report_id(steam, cmd, size, report_id);
 }
 
 static inline int steam_send_report_byte(struct steam_device *steam, u8 cmd)
@@ -474,7 +588,6 @@ static int steam_write_settings(struct steam_device *steam,
 	u8 reg;
 	u16 val;
 	u8 cmd[64] = {ID_SET_SETTINGS_VALUES, 0x00};
-	int ret;
 	va_list args;
 
 	va_start(args, steam);
@@ -490,30 +603,21 @@ static int steam_write_settings(struct steam_device *steam,
 	}
 	va_end(args);
 
-	ret = steam_send_report(steam, cmd, 2 + cmd[1]);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Sometimes a lingering report for this command can
-	 * get read back instead of the last set report if
-	 * this isn't explicitly queried
-	 */
-	return steam_recv_report(steam, cmd, 2 + cmd[1]);
+	return steam_send_report(steam, cmd, 2 + cmd[1]);
 }
 
-static int steam_exchange_report(struct steam_device *steam, u8 *cmd, int csize,
-		u8 *reply, int rsize)
+static int steam_exchange_report_id(struct steam_device *steam, u8 *cmd, int csize,
+		u8 *reply, int rsize, u8 report_id)
 {
 	unsigned int retries = 5;
 	int ret;
 
 	guard(mutex)(&steam->report_mutex);
 	do {
-		ret = steam_send_report(steam, cmd, csize);
+		ret = steam_send_report_id(steam, cmd, csize, report_id);
 		if (ret < 0)
 			return ret;
-		ret = steam_recv_report(steam, reply, rsize);
+		ret = steam_recv_report_id(steam, reply, rsize, report_id);
 		/*
 		 * Sometimes this can fail on the first few tries on the Steam
 		 * Controller (2015). It appears to be a firmware bug, and Steam
@@ -537,6 +641,19 @@ static int steam_exchange_report(struct steam_device *steam, u8 *cmd, int csize,
 	} while (retries--);
 
 	return ret;
+}
+
+static int steam_exchange_report(struct steam_device *steam, u8 *cmd, int csize,
+		u8 *reply, int rsize)
+{
+	u8 report_id;
+
+	if (steam->quirks & STEAM_QUIRK_IBEX)
+		report_id = REPORT_ID_FEATURES_CONTROLLER;
+	else
+		report_id = 0;
+
+	return steam_exchange_report_id(steam, cmd, csize, reply, rsize, report_id);
 }
 
 static int steam_get_serial(struct steam_device *steam)
@@ -592,15 +709,29 @@ static int steam_get_attributes(struct steam_device *steam)
 	return 0;
 }
 
-/*
- * This command requests the wireless adaptor to post an event
- * with the connection status. Useful if this driver is loaded when
- * the controller is already connected.
- */
-static inline int steam_request_conn_status(struct steam_device *steam)
+static int steam_get_conn_status(struct steam_device *steam)
 {
+	int ret = 0;
+	u8 cmd[] = {ID_DONGLE_GET_WIRELESS_STATE};
+	u8 reply[3] = {};
+	u8 report_id;
+
+	if (steam->quirks & STEAM_QUIRK_IBEX)
+		report_id = REPORT_ID_FEATURES_DONGLE;
+	else
+		report_id = 0;
+
 	guard(mutex)(&steam->report_mutex);
-	return steam_send_report_byte(steam, ID_DONGLE_GET_WIRELESS_STATE);
+	ret = steam_exchange_report_id(steam, cmd, sizeof(cmd), reply, sizeof(reply), report_id);
+	if (ret < 0)
+		return ret;
+	if (reply[0] != ID_DONGLE_GET_WIRELESS_STATE || reply[1] < 1) {
+		hid_err(steam->hdev, "%s: invalid reply (%*ph)\n", __func__,
+				(int)sizeof(reply), reply);
+		return -EIO;
+	}
+
+	return reply[2];
 }
 
 /*
@@ -613,24 +744,42 @@ static inline int steam_haptic_pulse(struct steam_device *steam, u8 pad,
 				u16 duration, u16 interval, u16 count, u8 gain)
 {
 	int ret;
-	u8 report[10] = {ID_TRIGGER_HAPTIC_PULSE, 8};
 
 	/* Left and right are swapped on this report for legacy reasons */
 	if (pad < STEAM_PAD_BOTH)
 		pad ^= 1;
 
-	report[2] = pad;
-	report[3] = duration & 0xFF;
-	report[4] = duration >> 8;
-	report[5] = interval & 0xFF;
-	report[6] = interval >> 8;
-	report[7] = count & 0xFF;
-	report[8] = count >> 8;
-	report[9] = gain;
+	if (steam->quirks & STEAM_QUIRK_IBEX) {
+		struct steam_ibex_output_report *report =
+			kzalloc(sizeof(struct steam_ibex_output_report), GFP_KERNEL);
 
-	mutex_lock(&steam->report_mutex);
-	ret = steam_send_report(steam, report, sizeof(report));
-	mutex_unlock(&steam->report_mutex);
+		if (!report)
+			return -ENOMEM;
+
+		report->id = REPORT_ID_HAPTIC_PULSE;
+		report->pulse.side = pad;
+		put_unaligned_le16(duration, &report->pulse.on_us);
+		put_unaligned_le16(interval, &report->pulse.off_us);
+		put_unaligned_le16(count, &report->pulse.repeat_count);
+
+		ret = hid_hw_output_report(steam->hdev, (u8 *)report, 8);
+
+		kfree(report);
+	} else {
+		u8 report[10] = {ID_TRIGGER_HAPTIC_PULSE, 8, pad};
+
+		report[3] = duration & 0xFF;
+		report[4] = duration >> 8;
+		report[5] = interval & 0xFF;
+		report[6] = interval >> 8;
+		report[7] = count & 0xFF;
+		report[8] = count >> 8;
+		report[9] = gain;
+
+		guard(mutex)(&steam->report_mutex);
+		ret = steam_send_report(steam, report, 10);
+	}
+
 	return ret;
 }
 
@@ -639,20 +788,39 @@ static inline int steam_haptic_rumble(struct steam_device *steam,
 				u8 left_gain, u8 right_gain)
 {
 	int ret;
-	u8 report[11] = {ID_TRIGGER_RUMBLE_CMD, 9};
 
-	report[3] = intensity & 0xFF;
-	report[4] = intensity >> 8;
-	report[5] = left_speed & 0xFF;
-	report[6] = left_speed >> 8;
-	report[7] = right_speed & 0xFF;
-	report[8] = right_speed >> 8;
-	report[9] = left_gain;
-	report[10] = right_gain;
+	if (steam->quirks & STEAM_QUIRK_IBEX) {
+		struct steam_ibex_output_report *report =
+			kzalloc(sizeof(struct steam_ibex_output_report), GFP_KERNEL);
 
-	mutex_lock(&steam->report_mutex);
-	ret = steam_send_report(steam, report, sizeof(report));
-	mutex_unlock(&steam->report_mutex);
+		if (!report)
+			return -ENOMEM;
+
+		report->id = REPORT_ID_HAPTIC_RUMBLE;
+		put_unaligned_le16(intensity, &report->rumble.intensity);
+		put_unaligned_le16(left_speed, &report->rumble.left.speed);
+		report->rumble.left.gain = left_gain;
+		put_unaligned_le16(right_speed, &report->rumble.right.speed);
+		report->rumble.right.gain = right_gain;
+
+		ret = hid_hw_output_report(steam->hdev, (u8 *)report, 10);
+
+		kfree(report);
+	} else {
+		u8 report[11] = {ID_TRIGGER_RUMBLE_CMD, 9};
+
+		report[3] = intensity & 0xFF;
+		report[4] = intensity >> 8;
+		report[5] = left_speed & 0xFF;
+		report[6] = left_speed >> 8;
+		report[7] = right_speed & 0xFF;
+		report[8] = right_speed >> 8;
+		report[9] = left_gain;
+		report[10] = right_gain;
+
+		guard(mutex)(&steam->report_mutex);
+		ret = steam_send_report(steam, report, sizeof(report));
+	}
 	return ret;
 }
 
@@ -714,20 +882,18 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 		/* disable esc, enter, cursor */
 		steam_send_report_byte(steam, ID_CLEAR_DIGITAL_MAPPINGS);
 
-		if (steam->quirks & STEAM_QUIRK_DECK) {
+		if (steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX))
+			steam_write_settings(steam,
+				/* disable lizard mode */
+				SETTING_LIZARD_MODE, 0,
+				/* disable watchdog that tests if Steam is active */
+				SETTING_STEAM_WATCHDOG_ENABLE, 0,
+				0);
+		else
 			steam_write_settings(steam,
 				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
 				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
-				SETTING_LEFT_TRACKPAD_CLICK_PRESSURE, 0xFFFF, /* disable haptic click */
-				SETTING_RIGHT_TRACKPAD_CLICK_PRESSURE, 0xFFFF, /* disable haptic click */
-				SETTING_STEAM_WATCHDOG_ENABLE, 0, /* disable watchdog that tests if Steam is active */
 				0);
-		} else {
-			steam_write_settings(steam,
-				SETTING_LEFT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
-				SETTING_RIGHT_TRACKPAD_MODE, TRACKPAD_NONE, /* disable mouse */
-				0);
-		}
 	}
 	mutex_unlock(&steam->report_mutex);
 }
@@ -743,7 +909,7 @@ static int steam_input_open(struct input_dev *dev)
 	 * Controller. On the Steam Deck, this is toggled manually by holding
 	 * the options button instead, handled by steam_mode_switch_cb.
 	 */
-	if (!(steam->quirks & STEAM_QUIRK_DECK)) {
+	if (!(steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX))) {
 		spin_lock_irqsave(&steam->lock, flags);
 		set_lizard_mode = !steam->client_opened && lizard_mode;
 		spin_unlock_irqrestore(&steam->lock, flags);
@@ -760,7 +926,7 @@ static void steam_input_close(struct input_dev *dev)
 	unsigned long flags;
 	bool set_lizard_mode;
 
-	if (!(steam->quirks & STEAM_QUIRK_DECK)) {
+	if (!(steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX))) {
 		spin_lock_irqsave(&steam->lock, flags);
 		set_lizard_mode = !steam->client_opened && lizard_mode;
 		spin_unlock_irqrestore(&steam->lock, flags);
@@ -818,24 +984,39 @@ static int steam_battery_get_property(struct power_supply *psy,
 {
 	struct steam_device *steam = power_supply_get_drvdata(psy);
 	unsigned long flags;
-	s16 volts;
+	u16 volts;
+	u16 curr;
+	u16 temp;
 	u8 batt;
+	u8 status;
 	int ret = 0;
 
 	spin_lock_irqsave(&steam->lock, flags);
-	volts = steam->voltage;
+	volts = steam->battery_voltage;
+	curr = steam->battery_current;
 	batt = steam->battery_charge;
+	temp = steam->battery_temp;
+	status = steam->battery_status;
 	spin_unlock_irqrestore(&steam->lock, flags);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = 1;
 		break;
+	case POWER_SUPPLY_PROP_STATUS:
+		val->intval = status;
+		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = volts * 1000; /* mV -> uV */
+		break;
+	case POWER_SUPPLY_PROP_CURRENT_NOW:
+		val->intval = curr * 1000; /* mA -> uA */
+		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = temp / 100; /* thousandths °C -> tenths °C */
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = batt;
@@ -847,6 +1028,16 @@ static int steam_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static enum power_supply_property steam_ibex_battery_props[] = {
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_SCOPE,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_TEMP,
+};
+
 static int steam_battery_register(struct steam_device *steam)
 {
 	struct power_supply *battery;
@@ -855,19 +1046,35 @@ static int steam_battery_register(struct steam_device *steam)
 	int ret;
 
 	steam->battery_desc.type = POWER_SUPPLY_TYPE_BATTERY;
-	steam->battery_desc.properties = steam_battery_props;
-	steam->battery_desc.num_properties = ARRAY_SIZE(steam_battery_props);
+	if (steam->quirks & STEAM_QUIRK_IBEX) {
+		steam->battery_desc.properties = steam_ibex_battery_props;
+		steam->battery_desc.num_properties = ARRAY_SIZE(steam_ibex_battery_props);
+		/*
+		 * Ibex needs a shorter name as it has a temperature and the
+		 * thermal zone name length limit is 20 characters. It's more
+		 * ambiguous sounding, so let's only use it when needed.
+		 */
+		steam->battery_desc.name = devm_kasprintf(&steam->hdev->dev,
+				GFP_KERNEL, "steam-%s",
+				steam->serial_no);
+	} else {
+		steam->battery_desc.properties = steam_battery_props;
+		steam->battery_desc.num_properties = ARRAY_SIZE(steam_battery_props);
+		steam->battery_desc.name = devm_kasprintf(&steam->hdev->dev,
+				GFP_KERNEL, "steam-controller-%s-battery",
+				steam->serial_no);
+	}
 	steam->battery_desc.get_property = steam_battery_get_property;
-	steam->battery_desc.name = devm_kasprintf(&steam->hdev->dev,
-			GFP_KERNEL, "steam-controller-%s-battery",
-			steam->serial_no);
 	if (!steam->battery_desc.name)
 		return -ENOMEM;
 
 	/* avoid the warning of 0% battery while waiting for the first info */
 	spin_lock_irqsave(&steam->lock, flags);
-	steam->voltage = 3000;
+	steam->battery_voltage = 3000;
 	steam->battery_charge = 100;
+	steam->battery_current = 0;
+	steam->battery_temp = 20000;
+	steam->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
 	spin_unlock_irqrestore(&steam->lock, flags);
 
 	battery = power_supply_register(&steam->hdev->dev,
@@ -939,7 +1146,7 @@ static int steam_input_register(struct steam_device *steam)
 	input_set_capability(input, EV_KEY, BTN_THUMB2);
 	input_set_capability(input, EV_KEY, BTN_GRIPL);
 	input_set_capability(input, EV_KEY, BTN_GRIPR);
-	if (steam->quirks & STEAM_QUIRK_DECK) {
+	if (steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX)) {
 		input_set_capability(input, EV_KEY, BTN_BASE);
 		input_set_capability(input, EV_KEY, BTN_GRIPL2);
 		input_set_capability(input, EV_KEY, BTN_GRIPR2);
@@ -953,7 +1160,7 @@ static int steam_input_register(struct steam_device *steam)
 	input_set_abs_params(input, ABS_HAT0Y, -32767, 32767,
 			STEAM_PAD_FUZZ, 0);
 
-	if (steam->quirks & STEAM_QUIRK_DECK) {
+	if (steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX)) {
 		input_set_abs_params(input, ABS_HAT2Y, 0, 32767, 0, 0);
 		input_set_abs_params(input, ABS_HAT2X, 0, 32767, 0, 0);
 
@@ -993,7 +1200,7 @@ static int steam_input_register(struct steam_device *steam)
 	input_abs_set_res(input, ABS_HAT0Y, STEAM_PAD_RESOLUTION);
 
 #ifdef CONFIG_STEAM_FF
-	if (steam->quirks & STEAM_QUIRK_DECK) {
+	if (steam->quirks & (STEAM_QUIRK_DECK | STEAM_QUIRK_IBEX)) {
 		input_set_capability(input, EV_FF, FF_RUMBLE);
 		ret = input_ff_create_memless(input, NULL, steam_play_effect);
 		if (ret)
@@ -1018,6 +1225,7 @@ static int steam_sensors_register(struct steam_device *steam)
 	struct hid_device *hdev = steam->hdev;
 	struct input_dev *sensors;
 	int ret;
+	bool needs_open_close;
 
 	rcu_read_lock();
 	sensors = rcu_dereference(steam->sensors);
@@ -1033,7 +1241,27 @@ static int steam_sensors_register(struct steam_device *steam)
 
 	input_set_drvdata(sensors, steam);
 	sensors->dev.parent = &hdev->dev;
-	if (!(steam->quirks & STEAM_QUIRK_DECK)) {
+
+	/*
+	 * The open/close calls are needed in these specific cases:
+	 *
+	 * - Steam Controller (2015): Always
+	 * - Steam Deck: Never
+	 * - Steam Controller (2026): Only when wireless/BLE
+	 */
+	if (steam->quirks & STEAM_QUIRK_DECK)
+		needs_open_close = false;
+	else if (steam->quirks & (STEAM_QUIRK_WIRELESS | STEAM_QUIRK_BLE))
+		/* Both wireless Steam Controller setups */
+		needs_open_close = true;
+	else if (steam->quirks & STEAM_QUIRK_IBEX)
+		/* Wired Steam Controller (2026) */
+		needs_open_close = false;
+	else
+		/* Wired Steam Controller (2015) */
+		needs_open_close = true;
+
+	if (needs_open_close) {
 		sensors->open = steam_sensor_open;
 		sensors->close = steam_sensor_close;
 	}
@@ -1145,7 +1373,6 @@ static int steam_register(struct steam_device *steam)
 	 * This function can be called several times in a row with the
 	 * wireless adaptor, without steam_unregister() between them, because
 	 * another client send a get_connection_status command, for example.
-	 * The battery and serial number are set just once per device.
 	 */
 	if (steam->registered)
 		return 0;
@@ -1168,7 +1395,7 @@ static int steam_register(struct steam_device *steam)
 			steam->serial_no);
 
 	/* ignore battery errors, we can live without it */
-	if (steam->quirks & STEAM_QUIRK_WIRELESS)
+	if (steam->quirks & (STEAM_QUIRK_WIRELESS | STEAM_QUIRK_IBEX))
 		steam_battery_register(steam);
 
 	steam_set_lizard_mode(steam, lizard_mode);
@@ -1213,7 +1440,6 @@ static void steam_unregister(struct steam_device *steam)
 	mutex_lock(&steam_devices_lock);
 	list_del_init(&steam->list);
 	mutex_unlock(&steam_devices_lock);
-	steam->serial_no[0] = 0;
 }
 
 static void steam_work_connect_cb(struct work_struct *work)
@@ -1271,21 +1497,46 @@ static void steam_mode_switch_cb(struct work_struct *work)
 	}
 }
 
-static bool steam_is_valve_interface(struct hid_device *hdev)
+static bool steam_is_valve_interface(struct hid_device *hdev, int quirks)
 {
 	struct hid_report_enum *rep_enum;
 
 	/*
-	 * The wired device creates 3 interfaces:
+	 * The 2015 wired controller creates 3 interfaces:
 	 *  0: emulated mouse.
 	 *  1: emulated keyboard.
 	 *  2: the real game pad.
-	 * The wireless device creates 5 interfaces:
+	 * The 2015 wireless adapter creates 5 interfaces:
 	 *  0: emulated keyboard.
-	 *  1-4: slots where up to 4 real game pads will be connected to.
-	 * We know which one is the real gamepad interface because they are the
-	 * only ones with a feature report.
+	 *  1-4: slots where up to 4 real controllers will be connected to.
+	 * The Steam Deck creates 5 interfaces:
+	 *  0: emulated mouse.
+	 *  1: emulated keyboard.
+	 *  2: the real game pad.
+	 *  3-4: internal device comms (not HID).
+	 * The 2026 wired controller creates 1 unified interface.
+	 * The 2026 wireless puck creates 7 interfaces:
+	 *  0-1: internal device comms (not HID).
+	 *  2-5: slots where up to 4 real controllers will be connected to.
+	 *  6: basic pogo pin interface.
+	 *
+	 * We know which one is the real controller interface for the pre-2026
+	 * controllers because they are the only ones with a feature report.
+	 *
+	 * The puck's pogo pin interface should be ignored as it's stripped
+	 * down. It has one collection with usage page FF00 with usage ID 2.
 	 */
+	if (quirks & STEAM_QUIRK_IBEX) {
+		/* There is only one BLE HID interface */
+		if (quirks & STEAM_QUIRK_BLE)
+			return true;
+
+		if (hdev->maxcollection < 1)
+			return true;
+
+		return hdev->collection[0].usage != 0xFF000002;
+	}
+
 	rep_enum = &hdev->report_enum[HID_FEATURE_REPORT];
 	return !list_empty(&rep_enum->report_list);
 }
@@ -1345,6 +1596,14 @@ static int steam_client_ll_raw_request(struct hid_device *hdev,
 			report_type, reqtype);
 }
 
+static int steam_client_ll_output_report(struct hid_device *hdev,
+				u8 *buf, size_t count)
+{
+	struct steam_device *steam = hdev->driver_data;
+
+	return hid_hw_output_report(steam->hdev, buf, count);
+}
+
 static const struct hid_ll_driver steam_client_ll_driver = {
 	.parse = steam_client_ll_parse,
 	.start = steam_client_ll_start,
@@ -1352,6 +1611,7 @@ static const struct hid_ll_driver steam_client_ll_driver = {
 	.open = steam_client_ll_open,
 	.close = steam_client_ll_close,
 	.raw_request = steam_client_ll_raw_request,
+	.output_report = steam_client_ll_output_report,
 };
 
 static struct hid_device *steam_create_client_hid(struct hid_device *hdev)
@@ -1406,7 +1666,7 @@ static int steam_probe(struct hid_device *hdev,
 	 * The non-valve interfaces (mouse and keyboard emulation) are
 	 * connected without changes.
 	 */
-	if (!steam_is_valve_interface(hdev))
+	if (!steam_is_valve_interface(hdev, id->driver_data))
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 
 	steam = devm_kzalloc(&hdev->dev, sizeof(*steam), GFP_KERNEL);
@@ -1445,14 +1705,21 @@ static int steam_probe(struct hid_device *hdev,
 		goto err_hw_stop;
 	}
 
+	steam->connected = true;
+
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
 		hid_info(hdev, "Steam wireless receiver connected");
 		/* If using a wireless adaptor ask for connection status */
 		steam->connected = false;
-		steam_request_conn_status(steam);
-	} else {
-		/* A wired connection is always present */
-		steam->connected = true;
+		ret = steam_get_conn_status(steam);
+		if (ret < 0)
+			hid_err(hdev,
+				"%s:steam_get_conn_status failed with error %d\n",
+				__func__, ret);
+		else if (ret == WIRELESS_EVENT_CONNECT)
+			steam->connected = true;
+	}
+	if (steam->connected) {
 		ret = steam_register(steam);
 		if (ret) {
 			hid_err(hdev,
@@ -1963,12 +2230,222 @@ static void steam_do_battery_event(struct steam_device *steam,
 	battery = rcu_dereference(steam->battery);
 	if (likely(battery)) {
 		spin_lock_irqsave(&steam->lock, flags);
-		steam->voltage = volts;
+		steam->battery_voltage = volts;
 		steam->battery_charge = batt;
 		spin_unlock_irqrestore(&steam->lock, flags);
 		power_supply_changed(battery);
 	}
 	rcu_read_unlock();
+}
+
+/*
+ * The size for this message payload is 53 in REPORT_ID_INPUT and 45 in REPORT_ID_INPUT2.
+ * The values are:
+ *  (* values only in REPORT_ID_INPUT)
+ *  Offset| Type  | Mapped to |Meaning
+ * -------+-------+-----------+--------------------------
+ *  1     | u8    | --        | sequence number
+ *  2-5   | u32   | see below | buttons
+ *  6-7   | s16   | ABS_HAT2Y | left trigger (uncalibrated)
+ *  8-9   | s16   | ABS_HAT2X | right trigger (uncalibrated)
+ *  10-11 | s16   | ABS_X     | left joystick X
+ *  12-13 | s16   | ABS_Y     | left joystick Y
+ *  14-15 | s16   | ABS_RX    | right joystick X
+ *  16-17 | s16   | ABS_RY    | right joystick Y
+ *  18-19 | s16   | ABS_HAT0X | left-pad X value
+ *  20-21 | s16   | ABS_HAT0Y | left-pad Y value
+ *  22-23 | u16   | --        | left pad pressure
+ *  24-25 | s16   | ABS_HAT1X | right-pad X value
+ *  26-27 | s16   | ABS_HAT1Y | right-pad Y value
+ *  28-29 | u16   | --        | right pad pressure
+ *  30-33 | u32   | IMU MSC_TIMESTAMP | IMU timestamp
+ *  34-35 | s16   | IMU ABS_X | accelerometer X value
+ *  36-37 | s16   | IMU ABS_Z | accelerometer Y value
+ *  38-39 | s16   | IMU ABS_Y | accelerometer Z value
+ *  40-41 | s16   | IMU ABS_RX | gyro X value
+ *  42-43 | s16   | IMU ABS_RZ | gyro Y value
+ *  44-45 | s16   | IMU ABS_RY | gyro Z value
+ *  46-47 | s16   | --        | * quaternion W value
+ *  48-49 | s16   | --        | * quaternion X value
+ *  50-51 | s16   | --        | * quaternion Y value
+ *  52-53 | s16   | --        | * quaternion Z value
+ *
+ * The buttons are:
+ *  Bit  | Mapped to  | Description
+ * ------+------------+--------------------------------
+ *  2.0  | BTN_A      | button A
+ *  2.1  | BTN_B      | button B
+ *  2.2  | BTN_X      | button X
+ *  2.3  | BTN_Y      | button Y
+ *  2.4  | BTN_BASE   | quick access button
+ *  2.5  | BTN_THUMBR | right joystick clicked
+ *  2.6  | BTN_START  | menu
+ *  2.7  | BTN_GRIPR  | right top grip button
+ *  3.0  | BTN_GRIPR2 | right bottom grip button
+ *  3.1  | BTN_TR     | right shoulder
+ *  3.2  | BTN_DPAD_DOWN  | left-pad down
+ *  3.3  | BTN_DPAD_RIGHT | left-pad right
+ *  3.4  | BTN_DPAD_LEFT  | left-pad left
+ *  3.5  | BTN_DPAD_UP    | left-pad up
+ *  3.6  | BTN_SELECT | view
+ *  3.7  | BTN_THUMBL | left joystick clicked
+ *  4.0  | BTN_MODE   | steam logo
+ *  4.1  | BTN_GRIPL  | left top grip button
+ *  4.2  | BTN_GRIPL2 | left bottom grip button
+ *  4.3  | BTN_TL     | left shoulder
+ *  4.4  | --         | right joystick touched
+ *  4.5  | --         | right pad touched
+ *  4.6  | BTN_THUMB2 | right pad pressed
+ *  4.7  | BTN_TR2    | right trigger fully pressed
+ *  5.0  | --         | left joystick touched
+ *  5.1  | --         | left pad touched
+ *  5.2  | BTN_THUMB  | left pad pressed
+ *  5.3  | BTN_TL2    | left trigger fully pressed
+ *  5.4  | --         | right grip touch
+ *  5.5  | --         | left grip touch
+ *  5.6  | --         | unmapped
+ *  5.7  | --         | unmapped
+ */
+
+static const struct steam_button_mapping steam_ibex_button_mappings[] = {
+	{ BTN_A,		2, 0 },
+	{ BTN_B,		2, 1 },
+	{ BTN_X,		2, 2 },
+	{ BTN_Y,		2, 3 },
+	{ BTN_BASE,		2, 4 },
+	{ BTN_THUMBR,		2, 5 },
+	{ BTN_START,		2, 6 },
+	{ BTN_GRIPR,		2, 7 },
+	{ BTN_GRIPR2,		3, 0 },
+	{ BTN_TR,		3, 1 },
+	{ BTN_DPAD_DOWN,	3, 2 },
+	{ BTN_DPAD_RIGHT,	3, 3 },
+	{ BTN_DPAD_LEFT,	3, 4 },
+	{ BTN_DPAD_UP,		3, 5 },
+	{ BTN_SELECT,		3, 6 },
+	{ BTN_THUMBL,		3, 7 },
+	{ BTN_MODE,		4, 0 },
+	{ BTN_GRIPL,		4, 1 },
+	{ BTN_GRIPL2,		4, 2 },
+	{ BTN_TL,		4, 3 },
+	{ BTN_THUMB2,		4, 6 },
+	{ BTN_TR2,		4, 7 },
+	{ BTN_THUMB,		5, 2 },
+	{ BTN_TL2,		5, 3 },
+	{ /* sentinel */ },
+};
+
+static const struct steam_axis_mapping steam_ibex_axis_mappings[] = {
+	{ ABS_X,	 1, 10 },
+	{ ABS_Y,	-1, 12 },
+	{ ABS_RX,	 1, 14 },
+	{ ABS_RY,	-1, 16 },
+	{ ABS_HAT2Y,	 1, 6 },
+	{ ABS_HAT2X,	 1, 8 },
+	{ /* sentinel */ },
+};
+
+static const struct steam_axis_mapping steam_ibex_imu_mappings[] = {
+	{ ABS_X,   1, 34 },
+	{ ABS_Z,  -1, 36 },
+	{ ABS_Y,   1, 38 },
+	{ ABS_RX,  1, 40 },
+	{ ABS_RZ, -1, 42 },
+	{ ABS_RY,  1, 44 },
+	{ /* sentinel */ },
+};
+
+static void steam_do_ibex_input_event(struct steam_device *steam,
+		struct input_dev *input, const u8 *data)
+{
+	bool start_pressed;
+	bool lpad_touched, rpad_touched;
+
+	start_pressed = data[2] & BIT(6);
+
+	if (!start_pressed && steam->did_mode_switch) {
+		steam->did_mode_switch = false;
+		cancel_delayed_work(&steam->mode_switch);
+	} else if (!steam->client_opened && start_pressed && !steam->did_mode_switch) {
+		steam->did_mode_switch = true;
+		schedule_delayed_work(&steam->mode_switch, 45 * HZ / 100);
+	}
+
+	if (!steam->gamepad_mode && lizard_mode)
+		return;
+
+	lpad_touched = data[5] & BIT(1);
+	rpad_touched = data[4] & BIT(5);
+
+	if (lpad_touched) {
+		input_report_abs(input, ABS_HAT0X, steam_le16(data + 18));
+		input_report_abs(input, ABS_HAT0Y, steam_le16(data + 20));
+	} else {
+		input_report_abs(input, ABS_HAT0X, 0);
+		input_report_abs(input, ABS_HAT0Y, 0);
+	}
+
+	if (rpad_touched) {
+		input_report_abs(input, ABS_HAT1X, steam_le16(data + 24));
+		input_report_abs(input, ABS_HAT1Y, steam_le16(data + 26));
+	} else {
+		input_report_abs(input, ABS_HAT1X, 0);
+		input_report_abs(input, ABS_HAT1Y, 0);
+	}
+	steam_map_buttons(input, steam_ibex_button_mappings, data);
+	steam_map_axes(input, steam_ibex_axis_mappings, data);
+
+	input_sync(input);
+}
+
+static void steam_do_ibex_sensors_event(struct steam_device *steam,
+		struct input_dev *sensors, const u8 *data)
+{
+	u32 timestamp;
+
+	if (!steam->gamepad_mode && lizard_mode)
+		return;
+
+	timestamp = (u32) get_unaligned_le32((__le32 *)&data[30]);
+	input_event(sensors, EV_MSC, MSC_TIMESTAMP, timestamp);
+	steam_map_axes(sensors, steam_ibex_imu_mappings, data);
+
+	input_sync(sensors);
+}
+
+static void steam_do_ibex_battery_event(struct steam_device *steam,
+		struct power_supply *battery,
+		const struct steam_ibex_battery_status *data)
+{
+	unsigned long flags;
+
+	/* Creating the battery may have failed */
+	guard(rcu)();
+	battery = rcu_dereference(steam->battery);
+	if (!likely(battery))
+		return;
+
+	spin_lock_irqsave(&steam->lock, flags);
+	steam->battery_voltage = get_unaligned_le16(&data->battery_voltage);
+	steam->battery_current = get_unaligned_le16(&data->battery_current);
+	steam->battery_temp = get_unaligned_le16(&data->temperature);
+	steam->battery_charge = data->battery_level;
+	switch (data->charge_state) {
+	case CHARGE_STATE_CHARGING:
+		steam->battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		break;
+	case CHARGE_STATE_DISCHARGING:
+		steam->battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+		break;
+	case CHARGE_STATE_CHARGING_DONE:
+		steam->battery_status = POWER_SUPPLY_STATUS_FULL;
+		break;
+	default:
+		steam->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		break;
+	}
+	spin_unlock_irqrestore(&steam->lock, flags);
+	power_supply_changed(battery);
 }
 
 static int steam_raw_event(struct hid_device *hdev,
@@ -1984,8 +2461,84 @@ static int steam_raw_event(struct hid_device *hdev,
 		return 0;
 
 	if (steam->client_opened)
-		hid_input_report(steam->client_hdev, HID_FEATURE_REPORT,
-				data, size, 0);
+		hid_input_report(steam->client_hdev, report->type, data, size, 0);
+
+	/* Ibex uses a different report format */
+	if (steam->quirks & STEAM_QUIRK_IBEX) {
+		if (report->type != HID_INPUT_REPORT)
+			return 0;
+
+		switch (report->id) {
+		case REPORT_ID_INPUT:
+			if (size != 54)
+				return 0;
+			if (steam->client_opened)
+				return 0;
+			rcu_read_lock();
+			input = rcu_dereference(steam->input);
+			if (likely(input)) {
+				steam_do_ibex_input_event(steam, input, data);
+			} else {
+				dbg_hid("%s: input data without connect event\n",
+					__func__);
+				steam_do_connect_event(steam, true);
+			}
+			sensors = rcu_dereference(steam->sensors);
+			if (likely(sensors))
+				steam_do_ibex_sensors_event(steam, sensors, data);
+			rcu_read_unlock();
+			break;
+		case REPORT_ID_INPUT2:
+			if (size != 46)
+				return 0;
+			if (steam->client_opened)
+				return 0;
+			rcu_read_lock();
+			input = rcu_dereference(steam->input);
+			if (likely(input)) {
+				steam_do_ibex_input_event(steam, input, data);
+			} else {
+				dbg_hid("%s: input data without connect event\n",
+					__func__);
+				steam_do_connect_event(steam, true);
+			}
+			sensors = rcu_dereference(steam->sensors);
+			if (likely(sensors))
+				steam_do_ibex_sensors_event(steam, sensors, data);
+			rcu_read_unlock();
+			break;
+		case REPORT_ID_BATTERY:
+			if (size != 15)
+				return 0;
+			rcu_read_lock();
+			battery = rcu_dereference(steam->battery);
+			if (likely(battery)) {
+				steam_do_ibex_battery_event(steam, battery,
+					(const struct steam_ibex_battery_status *)&data[1]);
+			} else {
+				dbg_hid("%s: battery data without connect event\n",
+					__func__);
+				steam_do_connect_event(steam, true);
+			}
+			rcu_read_unlock();
+			break;
+		case REPORT_ID_WIRELESS_EVENT:
+			if (size != 2)
+				return 0;
+			switch (data[1]) {
+			case WIRELESS_EVENT_DISCONNECT:
+				steam_do_connect_event(steam, false);
+				break;
+			case WIRELESS_EVENT_CONNECT:
+				steam_do_connect_event(steam, true);
+				break;
+			}
+			break;
+		}
+
+		return 0;
+	}
+
 	/*
 	 * All messages are size=64, all values little-endian.
 	 * The format is:
@@ -2107,6 +2660,26 @@ static const struct hid_device_id steam_controllers[] = {
 	  HID_USB_DEVICE(USB_VENDOR_ID_VALVE,
 		USB_DEVICE_ID_STEAM_DECK),
 	  .driver_data = STEAM_QUIRK_DECK
+	},
+	{ /* Steam Controller (2026) wired */
+	  HID_USB_DEVICE(USB_VENDOR_ID_VALVE,
+		USB_DEVICE_ID_STEAM_CONTROLLER_IBEX),
+	  .driver_data = STEAM_QUIRK_IBEX
+	},
+	{ /* Steam Controller (2026) BLE */
+	  HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_VALVE,
+		USB_DEVICE_ID_STEAM_CONTROLLER_IBEX_BLE),
+	  .driver_data = STEAM_QUIRK_IBEX | STEAM_QUIRK_BLE
+	},
+	{ /* Steam Controller (2026) Puck */
+	  HID_USB_DEVICE(USB_VENDOR_ID_VALVE,
+		USB_DEVICE_ID_STEAM_CONTROLLER_PROTEUS),
+	  .driver_data = STEAM_QUIRK_IBEX | STEAM_QUIRK_WIRELESS
+	},
+	{ /* Steam Controller (2026) Steam Machine internal receiver */
+	  HID_USB_DEVICE(USB_VENDOR_ID_VALVE,
+		USB_DEVICE_ID_STEAM_CONTROLLER_NEREID),
+	  .driver_data = STEAM_QUIRK_IBEX | STEAM_QUIRK_WIRELESS
 	},
 	{}
 };
