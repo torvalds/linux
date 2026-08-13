@@ -922,6 +922,7 @@ static bool unix_custom_sockopt(int optname)
 {
 	switch (optname) {
 	case SO_INQ:
+	case SO_RIGHTS_NOTRUNC:
 		return true;
 	default:
 		return false;
@@ -957,6 +958,14 @@ static int unix_setsockopt(struct socket *sock, int level, int optname,
 
 		WRITE_ONCE(u->recvmsg_inq, val);
 		break;
+
+	case SO_RIGHTS_NOTRUNC:
+		if (val > 1 || val < 0)
+			return -EINVAL;
+
+		WRITE_ONCE(u->scm_rights_notrunc, val);
+		break;
+
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1746,9 +1755,10 @@ restart:
 	init_peercred(newsk, &peercred);
 
 	newu = unix_sk(newsk);
-	newu->listener = other;
-	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
 	otheru = unix_sk(other);
+	newu->listener = other;
+	newu->scm_rights_notrunc = READ_ONCE(otheru->scm_rights_notrunc);
+	RCU_INIT_POINTER(newsk->sk_wq, &newu->peer_wq);
 
 	/* copy address information from listening to new sock
 	 *
