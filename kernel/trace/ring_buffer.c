@@ -598,7 +598,6 @@ struct trace_buffer {
 	struct ring_buffer_meta		*meta;
 
 	unsigned int			subbuf_order;
-	unsigned int			max_data_size;
 };
 
 static __always_inline unsigned int rb_subbuf_size(struct trace_buffer *buffer)
@@ -618,6 +617,23 @@ static __always_inline unsigned int rb_subbuf_size(struct trace_buffer *buffer)
 static __always_inline unsigned int rb_subbuf_capacity(struct trace_buffer *buffer)
 {
 	return rb_subbuf_size(buffer) - BUF_PAGE_HDR_SIZE;
+}
+
+/**
+ * rb_subbuf_max_data_size - Get the maximum payload size of a single event
+ * @buffer:	A trace buffer
+ *
+ * Return: The maximum data payload size that can be stored in a single event.
+ */
+static __always_inline unsigned int rb_subbuf_max_data_size(struct trace_buffer *buffer)
+{
+	struct ring_buffer_event *event;
+
+	/*
+	 * surely rb_subbuf_capacity() is bigger than
+	 * RINGBUF_TYPE_DATA_TYPE_LEN_MAX (see ring_buffer_event_length).
+	 */
+	return rb_subbuf_capacity(buffer) - RB_EVNT_HDR_SIZE - sizeof(event->array[0]);
 }
 
 /**
@@ -2772,9 +2788,6 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 
 	buffer->subbuf_order = order;
 	subbuf_size = (PAGE_SIZE << order);
-
-	/* Max payload is buffer page size - header (8bytes) */
-	buffer->max_data_size = rb_subbuf_capacity(buffer) - (sizeof(u32) * 2);
 
 	buffer->flags = flags;
 	buffer->clock = trace_clock_local;
@@ -4941,7 +4954,7 @@ rb_reserve_next_event(struct trace_buffer *buffer,
 	if (ring_buffer_time_stamp_abs(cpu_buffer->buffer)) {
 		add_ts_default = RB_ADD_STAMP_ABSOLUTE;
 		info.length += RB_LEN_TIME_EXTEND;
-		if (info.length > cpu_buffer->buffer->max_data_size)
+		if (info.length > rb_subbuf_max_data_size(cpu_buffer->buffer))
 			goto out_fail;
 	} else {
 		add_ts_default = RB_ADD_STAMP_NONE;
@@ -5016,7 +5029,7 @@ ring_buffer_lock_reserve(struct trace_buffer *buffer, unsigned long length)
 	if (unlikely(atomic_read(&cpu_buffer->record_disabled)))
 		goto out;
 
-	if (unlikely(length > buffer->max_data_size))
+	if (unlikely(length > rb_subbuf_max_data_size(buffer)))
 		goto out;
 
 	if (unlikely(trace_recursive_lock(cpu_buffer)))
@@ -5163,7 +5176,7 @@ int ring_buffer_write(struct trace_buffer *buffer,
 	if (atomic_read(&cpu_buffer->record_disabled))
 		return -EBUSY;
 
-	if (length > buffer->max_data_size)
+	if (length > rb_subbuf_max_data_size(buffer))
 		return -EBUSY;
 
 	if (unlikely(trace_recursive_lock(cpu_buffer)))
@@ -6522,8 +6535,9 @@ unsigned long ring_buffer_max_event_size(struct trace_buffer *buffer)
 {
 	/* If abs timestamp is requested, events have a timestamp too */
 	if (ring_buffer_time_stamp_abs(buffer))
-		return buffer->max_data_size - RB_LEN_TIME_EXTEND;
-	return buffer->max_data_size;
+		return rb_subbuf_max_data_size(buffer) - RB_LEN_TIME_EXTEND;
+
+	return rb_subbuf_max_data_size(buffer);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_max_event_size);
 
@@ -7941,7 +7955,7 @@ consume:
 			 * missed events, then record it there.
 			 */
 			commit = rb_page_size(reader);
-			if (rb_subbuf_capacity(buffer) - commit >= sizeof(missed_events)) {
+			if (rb_page_capacity(reader) - commit >= sizeof(missed_events)) {
 				memcpy(&dpage->data[commit], &missed_events,
 				       sizeof(missed_events));
 				local_add(RB_MISSED_STORED, &dpage->commit);
