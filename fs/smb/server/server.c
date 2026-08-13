@@ -596,11 +596,16 @@ static int ksmbd_server_shutdown(void)
 {
 	WRITE_ONCE(server_conf.state, SERVER_STATE_SHUTTING_DOWN);
 
-	ksmbd_proc_cleanup();
 	class_unregister(&ksmbd_control_class);
 	ksmbd_workqueue_destroy();
 	ksmbd_ipc_release();
 	ksmbd_conn_transport_destroy();
+	/*
+	 * ksmbd_conn_transport_destroy() calls delete_proc_clients() and destroys
+	 * sessions. ksmbd_session_destroy() removes each session's proc entry.
+	 * Keep the procfs tree alive until these entries have been removed.
+	 */
+	ksmbd_proc_cleanup();
 	ksmbd_crypto_destroy();
 	ksmbd_free_global_file_table();
 	destroy_lease_table(NULL);
