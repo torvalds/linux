@@ -502,7 +502,6 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 	}
 
 out_deassert_cs:
-	nuvoton_qspi_set_bus_width(qspi, 1, SPI_MEM_DATA_IN);
 	nuvoton_qspi_mem_set_cs(spi, false);
 
 	return ret;
@@ -556,7 +555,6 @@ static int nuvoton_qspi_transfer_one(struct spi_controller *ctlr,
 	nuvoton_qspi_set_bus_width(qspi, buswidth, dir);
 	ret = nuvoton_qspi_txrx(qspi, xfer->tx_buf, xfer->rx_buf,
 				xfer->len);
-	nuvoton_qspi_set_bus_width(qspi, 1, SPI_MEM_DATA_IN);
 
 	return ret;
 }
