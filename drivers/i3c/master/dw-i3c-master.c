@@ -921,7 +921,7 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 		goto rpm_out;
 	}
 	cmd = &xfer->cmds[0];
-	cmd->cmd_hi = 0x1;
+	cmd->cmd_hi = COMMAND_PORT_TRANSFER_ARG;
 	cmd->cmd_lo = COMMAND_PORT_DEV_COUNT(master->maxdevs - pos) |
 		      COMMAND_PORT_DEV_INDEX(pos) |
 		      COMMAND_PORT_CMD(I3C_CCC_ENTDAA) |
