@@ -395,9 +395,6 @@ static bool nuvoton_qspi_mem_supports_op(struct spi_mem *mem,
 	    op->dummy.buswidth > 4 || op->data.buswidth > 4)
 		return false;
 
-	if (op->cmd.nbytes != 1)
-		return false;
-
 	if (op->addr.nbytes > 4)
 		return false;
 
@@ -459,8 +456,7 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 {
 	struct spi_device *spi = mem->spi;
 	struct nuvoton_qspi *qspi = spi_controller_get_devdata(spi->controller);
-	u8 opcode = op->cmd.opcode;
-	u8 addr[4];
+	u8 cmd[2], addr[4];
 	int ret;
 	int i;
 
@@ -470,12 +466,15 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 
 	nuvoton_qspi_mem_set_cs(spi, true);
 
+	for (i = 0; i < op->cmd.nbytes; i++)
+		cmd[i] = op->cmd.opcode >> (8 * (op->cmd.nbytes - i - 1));
+
 	ret = nuvoton_qspi_configure_bus(spi, op->cmd.buswidth, SPI_MEM_DATA_OUT,
 					 op->max_freq);
 	if (ret)
 		goto out_deassert_cs;
 
-	ret = nuvoton_qspi_txrx(qspi, &opcode, NULL, 1);
+	ret = nuvoton_qspi_txrx(qspi, cmd, NULL, op->cmd.nbytes);
 	if (ret)
 		goto out_deassert_cs;
 
