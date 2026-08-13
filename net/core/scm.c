@@ -523,9 +523,6 @@ static bool __scm_recv_common(struct sock *sk, struct msghdr *msg,
 
 	scm_passec(sk, msg, scm);
 
-	if (scm->fp)
-		scm_detach_fds(msg, scm);
-
 	return true;
 }
 
@@ -544,6 +541,9 @@ void scm_recv_unix(struct socket *sock, struct msghdr *msg,
 {
 	if (!__scm_recv_common(sock->sk, msg, scm, flags))
 		return;
+
+	if (scm->fp)
+		scm_detach_fds(msg, scm);
 
 	if (sock->sk->sk_scm_pidfd)
 		scm_pidfd_recv(msg, scm);
