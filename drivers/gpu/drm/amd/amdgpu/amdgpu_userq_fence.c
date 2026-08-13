@@ -537,7 +537,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	 * amdgpu_userq_ensure_ev_fence() can't be called while holding the resv
 	 * locks.
 	 */
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES,
 		      (num_read_bo_handles + num_write_bo_handles));
 
 	drm_exec_until_all_locked(&exec) {
