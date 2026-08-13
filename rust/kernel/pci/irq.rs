@@ -8,10 +8,7 @@ use crate::{
     device,
     device::Bound,
     error::to_result,
-    irq::{
-        self,
-        IrqRequest, //
-    },
+    irq::IrqRequest,
     prelude::*, //
 };
 use core::num::NonZero;
@@ -70,9 +67,8 @@ impl IrqTypes {
 
 /// A resolved IRQ vector from a PCI interrupt vector allocation.
 ///
-/// Created by [`IrqVectorRegistration::index`] and consumed by [`Device::request_irq`] or
-/// [`Device::request_threaded_irq`]. Borrows the [`IrqVectorRegistration`] it was derived from,
-/// so the allocation stays live until the handler is freed.
+/// Created by [`IrqVectorRegistration::index`]. Convert to [`IrqRequest`] via [`From`] to register
+/// a handler with [`irq::Registration::new`](crate::irq::Registration::new).
 pub struct IrqVector<'a> {
     request: IrqRequest<'a>,
     reg: &'a IrqVectorRegistration<'a>,
@@ -153,40 +149,6 @@ impl Drop for IrqVectorRegistration<'_> {
 }
 
 impl Device<device::Bound> {
-    /// Returns a [`kernel::irq::Registration`] for the given IRQ vector.
-    ///
-    /// # Safety
-    ///
-    /// Callers must not `mem::forget()` the resulting [`irq::Registration`] or otherwise prevent
-    /// its [`Drop`] implementation from running.
-    pub unsafe fn request_irq<'a, T: crate::irq::Handler + 'a>(
-        &'a self,
-        vector: IrqVector<'a>,
-        flags: irq::Flags,
-        name: &'static CStr,
-        handler: impl PinInit<T, Error> + 'a,
-    ) -> impl PinInit<irq::Registration<'a, T>, Error> + 'a {
-        // SAFETY: Caller guarantees the Registration will not be leaked.
-        unsafe { irq::Registration::<T>::new(vector.into(), flags, name, handler) }
-    }
-
-    /// Returns a [`kernel::irq::ThreadedRegistration`] for the given IRQ vector.
-    ///
-    /// # Safety
-    ///
-    /// Callers must not `mem::forget()` the resulting [`irq::ThreadedRegistration`] or otherwise
-    /// prevent its [`Drop`] implementation from running.
-    pub unsafe fn request_threaded_irq<'a, T: crate::irq::ThreadedHandler + 'a>(
-        &'a self,
-        vector: IrqVector<'a>,
-        flags: irq::Flags,
-        name: &'static CStr,
-        handler: impl PinInit<T, Error> + 'a,
-    ) -> impl PinInit<irq::ThreadedRegistration<'a, T>, Error> + 'a {
-        // SAFETY: Caller guarantees the Registration will not be leaked.
-        unsafe { irq::ThreadedRegistration::<T>::new(vector.into(), flags, name, handler) }
-    }
-
     /// Allocate IRQ vectors for this PCI device.
     ///
     /// Allocates between `min_vecs` and `max_vecs` interrupt vectors for the device.
@@ -195,8 +157,8 @@ impl Device<device::Bound> {
     /// will try them in order of preference: MSI-X first, then MSI, then INTx interrupts.
     ///
     /// The allocated vectors are freed when the returned [`IrqVectorRegistration`] is dropped.
-    /// IRQ handlers registered via [`Self::request_irq`] or [`Self::request_threaded_irq`]
-    /// borrow from the registration, so the compiler ensures they are freed first.
+    /// Use [`IrqVectorRegistration::index`] to obtain an [`IrqVector`] for a given vector
+    /// index.
     ///
     /// # Arguments
     ///
