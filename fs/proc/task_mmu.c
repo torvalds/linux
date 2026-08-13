@@ -1693,7 +1693,7 @@ static inline bool pte_is_pinned(struct vm_area_struct *vma, unsigned long addr,
 
 	if (!pte_write(pte))
 		return false;
-	if (!is_cow_mapping(vma->vm_flags))
+	if (!vma_is_cow_mapping(vma))
 		return false;
 	if (likely(!mm_flags_test(MMF_HAS_PINNED, vma->vm_mm)))
 		return false;
