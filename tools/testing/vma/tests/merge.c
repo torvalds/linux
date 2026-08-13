@@ -45,6 +45,7 @@ void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
 	vmg->start = start;
 	vmg->end = end;
 	vmg->pgoff = pgoff;
+	vmg->anon_pgoff = start >> PAGE_SHIFT;
 	vmg->vma_flags = vma_flags;
 
 	vmg->just_expand = false;
@@ -108,6 +109,7 @@ static bool test_simple_merge(void)
 		.end = 0x2000,
 		.vma_flags = vma_flags,
 		.pgoff = 1,
+		.anon_pgoff = 1,
 	};
 
 	ASSERT_FALSE(attach_vma(&mm, vma_left));
@@ -1431,7 +1433,7 @@ static bool test_expand_only_mode(void)
 	struct mm_struct mm = {};
 	VMA_ITERATOR(vmi, &mm, 0);
 	struct vm_area_struct *vma_prev, *vma;
-	VMG_STATE(vmg, &mm, &vmi, 0x5000, 0x9000, vma_flags, 5);
+	VMG_STATE(vmg, &mm, &vmi, 0x5000, 0x9000, vma_flags, 5, 5);
 
 	/*
 	 * Place a VMA prior to the one we're expanding so we assert that we do
