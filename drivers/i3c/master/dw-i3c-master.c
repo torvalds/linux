@@ -248,10 +248,10 @@ struct dw_i3c_cmd {
 	u32 cmd_lo;
 	u32 cmd_hi;
 	u16 tx_len;
-	const void *tx_buf;
 	u16 rx_len;
-	void *rx_buf;
 	u8 error;
+	const void *tx_buf;
+	void *rx_buf;
 };
 
 struct dw_i3c_xfer {
