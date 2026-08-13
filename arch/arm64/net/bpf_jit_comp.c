@@ -1256,6 +1256,43 @@ static void emit_stack_arg_store_imm(s32 imm, s16 bpf_off, const u8 tmp, struct 
 	}
 }
 
+/*
+ * Rebase the __arena args of a kfunc call to arena kernel addresses,
+ * xN = kern_vm_start + (u32)xN, with the arena base register holding
+ * kern_vm_start. A nullable arg preserves NULL by skipping the add, tested
+ * on the truncated value as arena NULL is offset 0.
+ */
+static int emit_kfunc_arena_args(struct jit_ctx *ctx, const struct bpf_insn *insn)
+{
+	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
+	const struct btf_func_model *fm;
+	int i;
+
+	fm = bpf_jit_find_kfunc_model(ctx->prog, insn);
+	if (!fm)
+		return -EINVAL;
+
+	for (i = 0; i < min_t(int, fm->nr_args, MAX_BPF_FUNC_REG_ARGS); i++) {
+		const u8 reg = bpf2a64[BPF_REG_1 + i];
+		u8 flags = fm->arg_flags[i];
+
+		if (!(flags & BTF_FMODEL_ARENA_ARG))
+			continue;
+		if (WARN_ON_ONCE(!ctx->arena_vm_start))
+			return -EINVAL;
+
+		if (flags & BTF_FMODEL_NULLABLE_ARG) {
+			/* 32-bit mov clears the upper 32 bits */
+			emit(A64_MOV(0, reg, reg), ctx);
+			/* skip the add so that NULL stays NULL */
+			emit(A64_CBZ(0, reg, 2), ctx);
+		}
+		emit(A64_ADD_UXTW(reg, arena_vm_base, reg), ctx);
+	}
+
+	return 0;
+}
+
 /* JITs an eBPF instruction.
  * Returns:
  * 0  - successfully JITed an 8-byte eBPF instruction.
@@ -1678,6 +1715,11 @@ emit_cond_jmp:
 					    &func_addr, &func_addr_fixed);
 		if (ret < 0)
 			return ret;
+		if (insn->src_reg == BPF_PSEUDO_KFUNC_CALL) {
+			ret = emit_kfunc_arena_args(ctx, insn);
+			if (ret < 0)
+				return ret;
+		}
 		emit_call(func_addr, ctx);
 		/*
 		 * Call to arch_bpf_timed_may_goto() is emitted by the
