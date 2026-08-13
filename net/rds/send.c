@@ -200,6 +200,14 @@ int rds_send_xmit(struct rds_conn_path *cp)
 restart:
 	batch_count = 0;
 
+	/* The drop processing after over_batch relies on
+	 * rds_send_remove_from_sock() emptying to_be_dropped entry by
+	 * entry; warn if that post-condition ever stops holding, and
+	 * re-initialize the list head.
+	 */
+	WARN_ON_ONCE(!list_empty(&to_be_dropped));
+	INIT_LIST_HEAD(&to_be_dropped);
+
 	/*
 	 * sendmsg calls here after having queued its message on the send
 	 * queue.  We only have one task feeding the connection at a time.  If
