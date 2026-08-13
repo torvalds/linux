@@ -150,7 +150,6 @@ TEST_GEN_FILES := \
 	ip_local_port_range \
 	ipsec \
 	ipv6_flowlabel \
-	ipv6_flowlabel_mgr \
 	msg_zerocopy \
 	nettest \
 	psock_fanout \
@@ -183,6 +182,7 @@ TEST_GEN_PROGS := \
 	epoll_busy_poll \
 	getsockopt_iter \
 	icmp_rfc4884 \
+	ipv6_flowlabel_mgr \
 	ipv6_fragmentation \
 	proc_net_pktgen \
 	reuseaddr_conflict \
