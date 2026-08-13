@@ -63,6 +63,16 @@ config NET_DSA_MT7530_MMIO
 	  are directly mapped into the SoCs register space rather than being
 	  accessible via MDIO.
 
+config NET_DSA_MT7628
+	tristate "MediaTek MT7628 Embedded Ethernet switch support"
+	depends on HAS_IOMEM && (SOC_MT7620 || COMPILE_TEST)
+	select NET_DSA_TAG_MT7628
+	select MEDIATEK_FE_SOC_PHY
+	select REGMAP_MMIO
+	help
+	  This enables support for the built-in Ethernet switch found
+	  in the MT7628 SoC.
+
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
 	select NET_DSA_TAG_TRAILER
