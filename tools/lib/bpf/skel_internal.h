@@ -131,8 +131,10 @@ static inline void skel_free_map_data(void *p, __u64 addr, size_t sz)
 {
 	if (addr != ~0ULL)
 		kvfree(p);
-	/* When addr == ~0ULL the 'p' points to
-	 * ((struct bpf_array *)map)->value. See skel_finalize_map_data.
+	/*
+	 * When addr == ~0ULL the init buffer has already been released.
+	 * For skel_finalize_map_data(), 'p' points to
+	 * ((struct bpf_array *)map)->value.
 	 */
 }
 
@@ -168,6 +170,15 @@ static inline void *skel_finalize_map_data(__u64 *init_val, size_t mmap_sz, int 
 out:
 	bpf_map_put(map);
 	return addr;
+}
+
+static inline int skel_protect_map_data(void *p, __u64 *init_val, size_t sz)
+{
+	(void)sz;
+
+	kvfree(p);
+	*init_val = ~0ULL;
+	return 0;
 }
 
 #else
@@ -207,6 +218,15 @@ static inline void *skel_finalize_map_data(__u64 *init_val, size_t mmap_sz, int 
 	if (addr == (void *) -1)
 		return NULL;
 	return addr;
+}
+
+static inline int skel_protect_map_data(void *p, __u64 *init_val, size_t sz)
+{
+	(void)init_val;
+
+	if (mprotect(p, sz, PROT_READ))
+		return -errno;
+	return 0;
 }
 #endif
 
