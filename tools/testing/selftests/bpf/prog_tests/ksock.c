@@ -6,6 +6,7 @@
 #include "test_progs.h"
 #include "network_helpers.h"
 #include "ksock_lsm.skel.h"
+#include "ksock_lsm_verifier.skel.h"
 
 #define NS_TEST "ksock_lsm_ns"
 #define RECV_PORT 7777
@@ -121,4 +122,9 @@ fail:
 		close_netns(env.nstoken);
 	remove_netns(NS_TEST);
 	ksock_lsm__destroy(skel);
+}
+
+void test_ksock_lsm_verifier(void)
+{
+	RUN_TESTS(ksock_lsm_verifier);
 }
