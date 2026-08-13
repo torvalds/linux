@@ -22,7 +22,7 @@ enum scx_dsp_verdict {
 };
 
 /*
- * One user of this function is scx_bpf_dispatch() which can be called
+ * One user of this function is scx_bpf_sub_dispatch() which can be called
  * recursively as sub-sched dispatches nest. Always inline to reduce stack usage
  * from the call frame.
  */
