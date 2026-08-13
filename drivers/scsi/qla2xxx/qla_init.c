@@ -2302,7 +2302,7 @@ int qla_get_tmf(struct tmf_arg *arg)
 		if (TMF_NOT_READY(fcport)) {
 			ql_log(ql_log_warn, vha, 0x802c,
 			    "Unable to acquire TM resource due to disruption.\n");
-			rc = EIO;
+			rc = -EIO;
 			break;
 		}
 		if (ha->active_tmf < MAX_ACTIVE_TMF &&
