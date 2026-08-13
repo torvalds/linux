@@ -2283,6 +2283,13 @@ static bool is_fifo(const char *const path)
 	return stat(path, &st) == 0 && S_ISFIFO(st.st_mode);
 }
 
+static bool is_missing(const char *const path)
+{
+	struct stat st;
+
+	return stat(path, &st) == -1 && errno == ENOENT;
+}
+
 TEST_F_FORK(layout1, rename_whiteout_allowed)
 {
 	const struct rule rules[] = {
@@ -6635,6 +6642,8 @@ static const char lower_fo1[] = LOWER_DATA "/fo1";
 static const char lower_do1[] = LOWER_DATA "/do1";
 static const char lower_do1_fo2[] = LOWER_DATA "/do1/fo2";
 static const char lower_do1_fl3[] = LOWER_DATA "/do1/fl3";
+/* lower_pl1 is a FIFO and is deliberately not in the lists below. */
+static const char lower_pl1[] = LOWER_DATA "/pl1";
 
 static const char (*lower_base_files[])[] = {
 	&lower_fl1,
@@ -6684,6 +6693,8 @@ static const char (*upper_sub_files[])[] = {
 #define MERGE_BASE TMP_DIR "/merge"
 #define MERGE_DATA MERGE_BASE "/data"
 static const char merge_fl1[] = MERGE_DATA "/fl1";
+/* merge_pl1 is a FIFO and is deliberately not in the lists below. */
+static const char merge_pl1[] = MERGE_DATA "/pl1";
 static const char merge_dl1[] = MERGE_DATA "/dl1";
 static const char merge_dl1_fl2[] = MERGE_DATA "/dl1/fl2";
 static const char merge_fu1[] = MERGE_DATA "/fu1";
@@ -6724,7 +6735,8 @@ static const char (*merge_sub_files[])[] = {
  * │       │   ├── fl3
  * │       │   └── fo2
  * │       ├── fl1
- * │       └── fo1
+ * │       ├── fo1
+ * │       └── pl1 [FIFO]
  * ├── merge
  * │   └── data
  * │       ├── dl1
@@ -6737,7 +6749,8 @@ static const char (*merge_sub_files[])[] = {
  * │       │   └── fu2
  * │       ├── fl1
  * │       ├── fo1
- * │       └── fu1
+ * │       ├── fu1
+ * │       └── pl1 [FIFO]
  * └── upper
  *     ├── data
  *     │   ├── do1
@@ -6775,6 +6788,7 @@ FIXTURE_SETUP(layout2_overlay)
 	create_file(_metadata, lower_fo1);
 	create_file(_metadata, lower_do1_fo2);
 	create_file(_metadata, lower_do1_fl3);
+	ASSERT_EQ(0, mknod(lower_pl1, S_IFIFO | 0600, 0));
 
 	create_directory(_metadata, UPPER_BASE);
 	set_cap(_metadata, CAP_SYS_ADMIN);
@@ -6807,6 +6821,7 @@ FIXTURE_TEARDOWN_PARENT(layout2_overlay)
 	EXPECT_EQ(0, remove_path(lower_fl1));
 	EXPECT_EQ(0, remove_path(lower_do1_fo2));
 	EXPECT_EQ(0, remove_path(lower_fo1));
+	EXPECT_EQ(0, remove_path(lower_pl1));
 
 	/* umount(LOWER_BASE)) is handled by namespace lifetime. */
 	EXPECT_EQ(0, remove_path(LOWER_BASE));
@@ -7125,6 +7140,43 @@ TEST_F_FORK(layout2_overlay, same_content_different_file)
 	for_each_path(merge_sub_files, path_entry, i) {
 		ASSERT_EQ(0, test_open(path_entry, O_RDWR));
 	}
+}
+
+TEST_F_FORK(layout2_overlay, rename_in_overlay_without_make_reg)
+{
+	const char *const merge_pl1_renamed = MERGE_DATA "/pl1_renamed";
+
+	if (self->skip_test)
+		SKIP(return, "overlayfs is not supported (test)");
+
+	/*
+	 * merge_pl1 is a FIFO which only exists in the lower layer.  Before
+	 * the rename, the upper layer has no entry under this name.
+	 */
+	ASSERT_TRUE(is_fifo(merge_pl1));
+	ASSERT_TRUE(is_missing(UPPER_DATA "/pl1"));
+
+	/* MAKE_REG is restricted, but MAKE_FIFO is not. */
+	enforce_fs(_metadata, LANDLOCK_ACCESS_FS_MAKE_REG, NULL);
+
+	/*
+	 * Rename the FIFO through OverlayFS.  merge_pl1 originates from the
+	 * lower layer, so this triggers a copy-up and creates the whiteout in
+	 * the upper layer to hide the lower layer FIFO file.  Even though
+	 * MAKE_REG is restricted, the rename on the OverlayFS works.
+	 */
+	EXPECT_EQ(0, rename(merge_pl1, merge_pl1_renamed));
+
+	/* Check that the rename worked. */
+	EXPECT_TRUE(is_fifo(merge_pl1_renamed));
+	EXPECT_TRUE(is_missing(merge_pl1));
+
+	/*
+	 * Check that the whiteout object was created on the underlying "upper"
+	 * filesystem during the rename.  This is OK because the whiteout object
+	 * was created by OverlayFS, not by the calling task.
+	 */
+	EXPECT_TRUE(is_whiteout(UPPER_DATA "/pl1"));
 }
 
 FIXTURE(layout3_fs)
