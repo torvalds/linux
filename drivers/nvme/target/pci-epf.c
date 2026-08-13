@@ -2081,7 +2081,7 @@ static int nvmet_pci_epf_create_ctrl(struct nvmet_pci_epf *nvme_epf,
 	}
 
 	/* Allocate our queues, up to the maximum number. */
-	ctrl->nr_queues = min(ctrl->tctrl->subsys->max_qid + 1, max_nr_queues);
+	ctrl->nr_queues = min(ctrl->tctrl->max_qid + 1, max_nr_queues);
 	ret = nvmet_pci_epf_alloc_queues(ctrl);
 	if (ret)
 		goto out_put_ctrl;
