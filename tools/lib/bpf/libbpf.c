@@ -541,6 +541,7 @@ struct bpf_struct_ops {
 };
 
 #define DATA_SEC ".data"
+#define PERCPU_SEC ".percpu"
 #define BSS_SEC ".bss"
 #define RODATA_SEC ".rodata"
 #define KCONFIG_SEC ".kconfig"
@@ -555,6 +556,7 @@ enum libbpf_map_type {
 	LIBBPF_MAP_BSS,
 	LIBBPF_MAP_RODATA,
 	LIBBPF_MAP_KCONFIG,
+	LIBBPF_MAP_PERCPU,
 };
 
 struct bpf_map_def {
@@ -666,6 +668,7 @@ enum sec_type {
 	SEC_DATA,
 	SEC_RODATA,
 	SEC_ST_OPS,
+	SEC_PERCPU,
 };
 
 struct elf_sec_desc {
@@ -1839,6 +1842,8 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 	switch (map->def.type) {
 	case BPF_MAP_TYPE_ARRAY:
 		return array_map_mmap_sz(map->def.value_size, map->def.max_entries);
+	case BPF_MAP_TYPE_PERCPU_ARRAY:
+		return map->def.value_size;
 	case BPF_MAP_TYPE_ARENA:
 		return page_sz * map->def.max_entries;
 	default:
@@ -1866,7 +1871,8 @@ static int bpf_map_mmap_resize(struct bpf_map *map, size_t old_sz, size_t new_sz
 	return 0;
 }
 
-static char *internal_map_name(struct bpf_object *obj, const char *real_name)
+static char *internal_map_name(struct bpf_object *obj, const char *real_name,
+			       enum libbpf_map_type type)
 {
 	char map_name[BPF_OBJ_NAME_LEN], *p;
 	int pfx_len, sfx_len = max((size_t)7, strlen(real_name));
@@ -1907,8 +1913,11 @@ static char *internal_map_name(struct bpf_object *obj, const char *real_name)
 	if (sfx_len >= BPF_OBJ_NAME_LEN)
 		sfx_len = BPF_OBJ_NAME_LEN - 1;
 
-	/* if there are two or more dots in map name, it's a custom dot map */
-	if (strchr(real_name + 1, '.') != NULL)
+	/*
+	 * Don't prefix the bpf_object name if this is a custom dot map
+	 * (containing two or more dots) or a percpu data map.
+	 */
+	if (strchr(real_name + 1, '.') != NULL || type == LIBBPF_MAP_PERCPU)
 		pfx_len = 0;
 	else
 		pfx_len = min((size_t)BPF_OBJ_NAME_LEN - sfx_len - 1, strlen(obj->name));
@@ -1941,6 +1950,13 @@ static bool map_is_mmapable(struct bpf_object *obj, struct bpf_map *map)
 	if (!map->btf_value_type_id)
 		return false;
 
+	/*
+	 * The internal PERCPU maps are not mmapble because the underlying
+	 * percpu_array maps do not have mmap support.
+	 */
+	if (map->libbpf_type == LIBBPF_MAP_PERCPU)
+		return false;
+
 	t = btf__type_by_id(obj->btf, map->btf_value_type_id);
 	if (!btf_is_datasec(t))
 		return false;
@@ -1962,6 +1978,7 @@ static int
 bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 			      const char *real_name, int sec_idx, void *data, size_t data_sz)
 {
+	bool is_percpu = type == LIBBPF_MAP_PERCPU;
 	struct bpf_map_def *def;
 	struct bpf_map *map;
 	size_t mmap_sz;
@@ -1975,7 +1992,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	map->sec_idx = sec_idx;
 	map->sec_offset = 0;
 	map->real_name = strdup(real_name);
-	map->name = internal_map_name(obj, real_name);
+	map->name = internal_map_name(obj, real_name, type);
 	if (!map->real_name || !map->name) {
 		zfree(&map->real_name);
 		zfree(&map->name);
@@ -1983,7 +2000,7 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	}
 
 	def = &map->def;
-	def->type = BPF_MAP_TYPE_ARRAY;
+	def->type = is_percpu ? BPF_MAP_TYPE_PERCPU_ARRAY : BPF_MAP_TYPE_ARRAY;
 	def->key_size = sizeof(int);
 	def->value_size = data_sz;
 	def->max_entries = 1;
@@ -1996,8 +2013,9 @@ bpf_object__init_internal_map(struct bpf_object *obj, enum libbpf_map_type type,
 	if (map_is_mmapable(obj, map))
 		def->map_flags |= BPF_F_MMAPABLE;
 
-	pr_debug("map '%s' (global data): at sec_idx %d, offset %zu, flags %x.\n",
-		 map->name, map->sec_idx, map->sec_offset, def->map_flags);
+	pr_debug("map '%s' (global %sdata): at sec_idx %d, offset %zu, flags %x.\n",
+		 map->name, is_percpu ? "percpu " : "", map->sec_idx,
+		 map->sec_offset, def->map_flags);
 
 	mmap_sz = bpf_map_mmap_sz(map);
 	map->mmaped = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
@@ -2055,6 +2073,13 @@ static int bpf_object__init_global_data_maps(struct bpf_object *obj)
 			err = bpf_object__init_internal_map(obj, LIBBPF_MAP_BSS,
 							    sec_name, sec_idx,
 							    NULL,
+							    sec_desc->data->d_size);
+			break;
+		case SEC_PERCPU:
+			sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, sec_idx));
+			err = bpf_object__init_internal_map(obj, LIBBPF_MAP_PERCPU,
+							    sec_name, sec_idx,
+							    sec_desc->data->d_buf,
 							    sec_desc->data->d_size);
 			break;
 		default:
@@ -4016,6 +4041,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				sec_desc->sec_type = SEC_RODATA;
 				sec_desc->shdr = sh;
 				sec_desc->data = data;
+			} else if (strcmp(name, PERCPU_SEC) == 0 ||
+				   str_has_pfx(name, PERCPU_SEC ".")) {
+				sec_desc->sec_type = SEC_PERCPU;
+				sec_desc->shdr = sh;
+				sec_desc->data = data;
 			} else if (strcmp(name, STRUCT_OPS_SEC) == 0 ||
 				   strcmp(name, STRUCT_OPS_LINK_SEC) == 0 ||
 				   strcmp(name, "?" STRUCT_OPS_SEC) == 0 ||
@@ -4544,6 +4574,7 @@ static bool bpf_object__shndx_is_data(const struct bpf_object *obj,
 	case SEC_BSS:
 	case SEC_DATA:
 	case SEC_RODATA:
+	case SEC_PERCPU:
 		return true;
 	default:
 		return false;
@@ -4569,6 +4600,8 @@ bpf_object__section_to_libbpf_map_type(const struct bpf_object *obj, int shndx)
 		return LIBBPF_MAP_DATA;
 	case SEC_RODATA:
 		return LIBBPF_MAP_RODATA;
+	case SEC_PERCPU:
+		return LIBBPF_MAP_PERCPU;
 	default:
 		return LIBBPF_MAP_UNSPEC;
 	}
@@ -4944,7 +4977,7 @@ static int map_fill_btf_type_info(struct bpf_object *obj, struct bpf_map *map)
 
 	/*
 	 * LLVM annotates global data differently in BTF, that is,
-	 * only as '.data', '.bss' or '.rodata'.
+	 * only as '.data', '.bss', '.percpu' or '.rodata'.
 	 */
 	if (!bpf_map__is_internal(map))
 		return -ENOENT;
@@ -5293,18 +5326,20 @@ static int
 bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 {
 	enum libbpf_map_type map_type = map->libbpf_type;
+	bool is_percpu = map_type == LIBBPF_MAP_PERCPU;
+	const __u64 update_flags = is_percpu ? BPF_F_ALL_CPUS : 0;
 	int err, zero = 0;
 	size_t mmap_sz;
 
 	if (obj->gen_loader) {
 		bpf_gen__map_update_elem(obj->gen_loader, map - obj->maps,
-					 map->mmaped, map->def.value_size);
+					 map->mmaped, map->def.value_size, update_flags);
 		if (map_type == LIBBPF_MAP_RODATA || map_type == LIBBPF_MAP_KCONFIG)
 			bpf_gen__map_freeze(obj->gen_loader, map - obj->maps);
 		return 0;
 	}
 
-	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, 0);
+	err = bpf_map_update_elem(map->fd, &zero, map->mmaped, update_flags);
 	if (err) {
 		err = -errno;
 		pr_warn("map '%s': failed to set initial contents: %s\n",
@@ -5349,6 +5384,13 @@ bpf_object__populate_internal_map(struct bpf_object *obj, struct bpf_map *map)
 			return err;
 		}
 		map->mmaped = mmaped;
+	} else if (is_percpu) {
+		if (mprotect(map->mmaped, mmap_sz, PROT_READ)) {
+			err = -errno;
+			pr_warn("map '%s': failed to mprotect() contents: %s\n",
+				bpf_map__name(map), errstr(err));
+			return err;
+		}
 	} else if (map->mmaped) {
 		munmap(map->mmaped, mmap_sz);
 		map->mmaped = NULL;
@@ -5624,9 +5666,16 @@ bpf_object__create_maps(struct bpf_object *obj)
 		 * runtime due to bpf_program__set_autoload(prog, false),
 		 * bpf_object loading will succeed just fine even on old
 		 * kernels.
+		 * Same skipping applies to percpu data.
 		 */
-		if (bpf_map__is_internal(map) && !kernel_supports(obj, FEAT_GLOBAL_DATA))
-			map->autocreate = false;
+		if (bpf_map__is_internal(map)) {
+			bool is_percpu = map->libbpf_type == LIBBPF_MAP_PERCPU;
+			enum kern_feature_id feat_id;
+
+			feat_id = is_percpu ? FEAT_PERCPU_DATA : FEAT_GLOBAL_DATA;
+			if (!kernel_supports(obj, feat_id))
+				map->autocreate = false;
+		}
 
 		if (!map->autocreate) {
 			pr_debug("map '%s': skipped auto-creating...\n", map->name);
@@ -10807,10 +10856,15 @@ static bool map_uses_real_name(const struct bpf_map *map)
 	 * such map's corresponding ELF section name as a map name.
 	 * This check distinguishes .data/.rodata from .data.* and .rodata.*
 	 * maps to know which name has to be returned to the user.
+	 * Map name of the custom .percpu.* maps might be truncated to
+	 * BPF_OBJ_NAME_LEN-1 chars in internal_map_name(). Hence, percpu data
+	 * maps must use real name for their user-visible name.
 	 */
 	if (map->libbpf_type == LIBBPF_MAP_DATA && strcmp(map->real_name, DATA_SEC) != 0)
 		return true;
 	if (map->libbpf_type == LIBBPF_MAP_RODATA && strcmp(map->real_name, RODATA_SEC) != 0)
+		return true;
+	if (map->libbpf_type == LIBBPF_MAP_PERCPU)
 		return true;
 	return false;
 }
@@ -10976,7 +11030,8 @@ int bpf_map__set_value_size(struct bpf_map *map, __u32 size)
 		size_t mmap_old_sz, mmap_new_sz;
 		int err;
 
-		if (map->def.type != BPF_MAP_TYPE_ARRAY)
+		if (map->def.type != BPF_MAP_TYPE_ARRAY &&
+		    map->def.type != BPF_MAP_TYPE_PERCPU_ARRAY)
 			return libbpf_err(-EOPNOTSUPP);
 
 		mmap_old_sz = bpf_map_mmap_sz(map);
