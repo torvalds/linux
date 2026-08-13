@@ -51,12 +51,24 @@ static void l1_svm_code(struct svm_test_data *svm)
 	x2apic_write_reg(APIC_TASKPRI, 0);
 }
 
-static void l1_vmx_code(struct vmx_pages *vmx)
+static void l1_vmx_code(struct vmx_pages *vmx, struct hyperv_test_pages *hv_pages)
 {
 	u64 control;
 
+	if (hv_pages) {
+		wrmsr(HV_X64_MSR_GUEST_OS_ID, HYPERV_LINUX_OS_ID);
+		enable_vp_assist(hv_pages->vp_assist_gpa, hv_pages->vp_assist);
+		evmcs_enable();
+	}
+
 	GUEST_ASSERT_EQ(prepare_for_vmx_operation(vmx), true);
-	GUEST_ASSERT_EQ(load_vmcs(vmx), true);
+
+	if (hv_pages) {
+		GUEST_ASSERT(load_evmcs(hv_pages));
+		current_evmcs->hv_enlightenments_control.msr_bitmap = 1;
+	} else {
+		GUEST_ASSERT(load_vmcs(vmx));
+	}
 
 	prepare_vmcs(vmx, NULL);
 	GUEST_ASSERT_EQ(vmwrite(GUEST_RIP, (unsigned long)l2_guest_code), 0);
@@ -127,14 +139,14 @@ static void l1_test_x2apic_intercepts(void)
 	nr_irqs = 0;
 }
 
-static void l1_guest_code(void *test_data)
+static void l1_guest_code(void *test_data, void *hv_pages)
 {
 	x2apic_enable();
 
 	if (this_cpu_has(X86_FEATURE_SVM))
 		l1_svm_code(test_data);
 	else
-		l1_vmx_code(test_data);
+		l1_vmx_code(test_data, hv_pages);
 
 	GUEST_ASSERT_EQ(x2apic_read_reg(APIC_TASKPRI), 0);
 	x2apic_write_reg(APIC_TASKPRI, 0xf0);
@@ -149,9 +161,9 @@ static void l1_guest_code(void *test_data)
 	GUEST_DONE();
 }
 
-static void __test_x2apic_intercepts(bool with_inhibit_apicv)
+static void test_x2apic_intercepts(bool with_inhibit_apicv, bool use_evmcs)
 {
-	gva_t nested_test_data_gva;
+	gva_t nested_test_data_gva, hv_pages_gva = 0;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
@@ -170,7 +182,14 @@ static void __test_x2apic_intercepts(bool with_inhibit_apicv)
 	else
 		vcpu_alloc_vmx(vm, &nested_test_data_gva);
 
-	vcpu_args_set(vcpu, 1, nested_test_data_gva);
+	if (use_evmcs) {
+		vcpu_set_hv_cpuid(vcpu);
+		vcpu_enable_evmcs(vcpu);
+
+		vcpu_alloc_hyperv_test_pages(vm, &hv_pages_gva);
+	}
+
+	vcpu_args_set(vcpu, 2, nested_test_data_gva, hv_pages_gva);
 
 	vcpu_run(vcpu);
 
@@ -193,6 +212,11 @@ int main(int argc, char *argv[])
 {
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM) || kvm_cpu_has(X86_FEATURE_VMX));
 
-	test_x2apic_intercepts(true);
-	test_x2apic_intercepts(false);
+	test_x2apic_intercepts(true, false);
+	test_x2apic_intercepts(false, false);
+
+	if (kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
+		test_x2apic_intercepts(true, true);
+		test_x2apic_intercepts(false, true);
+	}
 }
