@@ -5582,6 +5582,8 @@ int bpf_map_direct_read(struct bpf_map *map, int off, int size, u64 *val,
 	u64 addr;
 	int err;
 
+	if (map->map_type == BPF_MAP_TYPE_INSN_ARRAY || map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY)
+		return -EINVAL;
 	err = map->ops->map_direct_value_addr(map, &addr, off);
 	if (err)
 		return err;
@@ -6095,6 +6097,8 @@ static int check_map_mem_read(struct bpf_verifier_env *env, struct bpf_reg_state
 		add_scalar_to_reg(&regs[value_regno], off);
 		regs[value_regno].type = PTR_TO_INSN;
 		return 0;
+	case BPF_MAP_TYPE_PERCPU_ARRAY:
+		goto reg_unknown;
 	default:
 		break;
 	}
@@ -6116,6 +6120,7 @@ static int check_map_mem_read(struct bpf_verifier_env *env, struct bpf_reg_state
 		return 0;
 	}
 
+reg_unknown:
 	mark_reg_unknown(env, regs, value_regno);
 	return 0;
 }
@@ -8125,6 +8130,12 @@ static int check_arg_const_str(struct bpf_verifier_env *env,
 
 	if (map->map_type == BPF_MAP_TYPE_INSN_ARRAY) {
 		verbose(env, "%s points to insn_array map which cannot be used as const string\n",
+			reg_arg_name(env, argno));
+		return -EACCES;
+	}
+
+	if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
+		verbose(env, "%s points to percpu_array map which cannot be used as const string\n",
 			reg_arg_name(env, argno));
 		return -EACCES;
 	}
