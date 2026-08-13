@@ -2393,6 +2393,11 @@ bool bpf_jit_supports_stack_args(void)
 	return true;
 }
 
+bool bpf_jit_supports_arena_args(void)
+{
+	return true;
+}
+
 void *bpf_arch_text_copy(void *dst, void *src, size_t len)
 {
 	if (!aarch64_insn_copy(dst, src, len))
@@ -2566,26 +2571,58 @@ static void clear_garbage(struct jit_ctx *ctx, int reg, int effective_bytes)
 	}
 }
 
+/*
+ * Convert an arena kernel address into the arena pointer form on its way into
+ * the BPF ctx, dst = (u32)(src - kern_vm_start), with @base_lo holding the low
+ * 32 bits of kern_vm_start. A nullable arg preserves NULL, tested on the full
+ * 64-bit kernel pointer. The 32-bit subtraction both truncates and clears the
+ * upper half, so the stored value satisfies the JIT invariant for arena
+ * pointer registers.
+ */
+static void emit_arena_arg_conv(struct jit_ctx *ctx, u8 dst, u8 src, bool nullable, u8 base_lo)
+{
+	if (nullable) {
+		if (dst != src)
+			emit(A64_MOV(1, dst, src), ctx);
+		/* skip the subtraction so that NULL stays NULL */
+		emit(A64_CBZ(1, dst, 2), ctx);
+		src = dst;
+	}
+	emit(A64_SUB(0, dst, src, base_lo), ctx);
+}
+
 static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
 		      const struct btf_func_model *m, const struct arg_aux *a,
-		      bool for_call_origin, bool is_struct_ops)
+		      bool for_call_origin, bool is_struct_ops, u64 arena_base)
 {
-	int i;
-	int reg;
-	int doff;
-	int soff;
-	int slots;
 	u8 tmp = bpf2a64[TMP_REG_1];
+	u8 base_lo = bpf2a64[TMP_REG_2];
+	int i, reg, doff, soff, slots;
+
+	/* only the low 32 bits of the base take part in the subtraction */
+	if (arena_base)
+		emit_a64_mov_i(0, base_lo, (s32)(u32)arena_base, ctx);
 
 	/* store arguments to the stack for the bpf program, or restore
 	 * arguments from stack for the original function
 	 */
-	for (reg = 0; reg < a->regs_for_args; reg++) {
-		emit(for_call_origin ?
-		     A64_LDR64I(reg, A64_SP, bargs_off) :
-		     A64_STR64I(reg, A64_SP, bargs_off),
-		     ctx);
-		bargs_off += 8;
+	for (i = 0, reg = 0; i < a->args_in_regs; i++) {
+		bool arena_arg = arena_base && (m->arg_flags[i] & BTF_FMODEL_ARENA_ARG);
+		bool nullable = m->arg_flags[i] & BTF_FMODEL_NULLABLE_ARG;
+
+		slots = (m->arg_size[i] + 7) / 8;
+		while (slots-- > 0) {
+			if (for_call_origin) {
+				emit(A64_LDR64I(reg, A64_SP, bargs_off), ctx);
+			} else if (arena_arg) {
+				emit_arena_arg_conv(ctx, tmp, reg, nullable, base_lo);
+				emit(A64_STR64I(tmp, A64_SP, bargs_off), ctx);
+			} else {
+				emit(A64_STR64I(reg, A64_SP, bargs_off), ctx);
+			}
+			reg++;
+			bargs_off += 8;
+		}
 	}
 
 	/*
@@ -2601,6 +2638,9 @@ static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
 
 	/* save on stack arguments */
 	for (i = a->args_in_regs; i < m->nr_args; i++) {
+		bool arena_arg = arena_base && (m->arg_flags[i] & BTF_FMODEL_ARENA_ARG);
+		bool nullable = m->arg_flags[i] & BTF_FMODEL_NULLABLE_ARG;
+
 		slots = (m->arg_size[i] + 7) / 8;
 		/* verifier ensures arg_size <= 16, so slots equals 1 or 2 */
 		while (slots-- > 0) {
@@ -2610,6 +2650,15 @@ static void save_args(struct jit_ctx *ctx, int bargs_off, int oargs_off,
 			 */
 			if (slots == 0 && !for_call_origin)
 				clear_garbage(ctx, tmp, m->arg_size[i] % 8);
+			/*
+			 * No guard on for_call_origin here: only the indirect
+			 * trampoline is given a base, and it never calls the
+			 * original function, so arguments are never converted
+			 * on their way back out to it. See the WARN_ON_ONCE()
+			 * in prepare_trampoline().
+			 */
+			if (arena_arg)
+				emit_arena_arg_conv(ctx, tmp, tmp, nullable, base_lo);
 			emit(A64_STR64I(tmp, A64_SP, doff), ctx);
 			soff += 8;
 			doff += 8;
@@ -2669,7 +2718,20 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	bool is_struct_ops = is_struct_ops_tramp(fentry);
 	int cookie_off, cookie_cnt, cookie_bargs_off;
 	int fsession_cnt = bpf_fsession_cnt(tnodes);
+	u64 arena_base;
 	u64 func_meta;
+
+	/*
+	 * F_INDIRECT is only compatible with F_RET_FENTRY_RET, it is explicitly
+	 * incompatible with F_CALL_ORIG | F_SKIP_FRAME | F_IP_ARG because
+	 * @func_addr. Arena conversion relies on this: bpf_tramp_arena_base()
+	 * only returns a base for the indirect trampoline, which therefore
+	 * never calls the original function with converted arguments.
+	 */
+	WARN_ON_ONCE((flags & BPF_TRAMP_F_INDIRECT) &&
+		     (flags & ~(BPF_TRAMP_F_INDIRECT | BPF_TRAMP_F_RET_FENTRY_RET)));
+
+	arena_base = bpf_tramp_arena_base(m, tnodes, flags);
 
 	/* trampoline stack layout:
 	 *                    [ parent ip         ]
@@ -2786,7 +2848,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	store_func_meta(ctx, func_meta, func_meta_off);
 
 	/* save args for bpf */
-	save_args(ctx, bargs_off, oargs_off, m, a, false, is_struct_ops);
+	save_args(ctx, bargs_off, oargs_off, m, a, false, is_struct_ops, arena_base);
 
 	/* save callee saved registers */
 	emit(A64_STR64I(A64_R(19), A64_SP, regs_off), ctx);
@@ -2834,8 +2896,8 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 	}
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		/* save args for original func */
-		save_args(ctx, bargs_off, oargs_off, m, a, true, is_struct_ops);
+		/* the original func takes kernel addresses, never converted ones */
+		save_args(ctx, bargs_off, oargs_off, m, a, true, is_struct_ops, 0);
 		/* call original func */
 		emit(A64_LDR64I(A64_R(10), A64_SP, retaddr_off), ctx);
 		emit(A64_ADR(A64_LR, AARCH64_INSN_SIZE * 2), ctx);
