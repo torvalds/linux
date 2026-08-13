@@ -152,6 +152,20 @@ pub use uapi;
 /// Prefix to appear before log messages printed from within the `kernel` crate.
 const __LOG_PREFIX: &[u8] = b"rust_kernel\0";
 
+/// Dummy module type for `#[vtable]` `impl` blocks within the `kernel` crate (e.g. KUnit tests).
+// The `allow` is needed since it may be unused (e.g. KUnit tests may be disabled).
+#[allow(dead_code)]
+struct LocalModule;
+
+impl ModuleMetadata for LocalModule {
+    const NAME: &'static str::CStr = c"rust_kernel";
+
+    const THIS_MODULE: ThisModule = {
+        // SAFETY: `try_module_get`/`module_put` handle null module pointers gracefully.
+        unsafe { ThisModule::from_ptr(core::ptr::null_mut()) }
+    };
+}
+
 #[cfg(not(testlib))]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo<'_>) -> ! {
