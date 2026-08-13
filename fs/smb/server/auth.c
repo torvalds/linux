@@ -729,7 +729,7 @@ static int ksmbd_get_encryption_key(struct ksmbd_work *work, __u64 ses_id,
 		 * that the command can reach the session setup handler. Other
 		 * commands are rejected there with STATUS_NETWORK_SESSION_EXPIRED.
 		 */
-		sess = ksmbd_session_lookup(work->conn, ses_id);
+		sess = ksmbd_session_lookup_all_states(work->conn, ses_id);
 		if (sess && sess->state != SMB2_SESSION_VALID &&
 		    (sess->state != SMB2_SESSION_EXPIRED ||
 		     !sess->kerberos_expiry)) {

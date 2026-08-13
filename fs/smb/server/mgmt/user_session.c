@@ -551,11 +551,18 @@ struct ksmbd_session *ksmbd_session_lookup_all_states(struct ksmbd_conn *conn,
 						      unsigned long long id)
 {
 	struct ksmbd_session *sess;
+	bool channel_found;
 
 	sess = ksmbd_session_lookup(conn, id);
-	if (!sess && conn->binding) {
+	if (!sess) {
 		sess = ksmbd_session_lookup_slowpath(id);
-		if (sess && !xa_load(&sess->ksmbd_chann_list, (long)conn)) {
+		if (!sess)
+			return NULL;
+
+		down_read(&sess->chann_lock);
+		channel_found = xa_load(&sess->ksmbd_chann_list, (long)conn);
+		up_read(&sess->chann_lock);
+		if (!channel_found) {
 			ksmbd_user_session_put(sess);
 			sess = NULL;
 		}
