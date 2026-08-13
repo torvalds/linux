@@ -28,6 +28,10 @@ static void l2_guest_code(void)
 {
 	if (inhibit_apicv)
 		wrmsr(MSR_IA32_APICBASE, rdmsr(MSR_IA32_APICBASE) & GENMASK_ULL(11, 0));
+
+	x2apic_write_reg(APIC_TASKPRI, 0xf0);
+	GUEST_ASSERT_EQ(x2apic_read_reg(APIC_TASKPRI), 0xf0);
+
 	asm volatile("cpuid" ::: "eax", "ebx", "ecx", "edx");
 }
 
@@ -73,10 +77,22 @@ static void l1_guest_code(void *test_data)
 
 	sti_nop();
 
+	GUEST_ASSERT_EQ(x2apic_read_reg(APIC_TASKPRI), 0xf0);
+
 	x2apic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_INT_ASSERT | POSTED_INTR_VECTOR);
+	GUEST_ASSERT_EQ(nr_irqs, 0);
+
+	x2apic_write_reg(APIC_TASKPRI, 0xff);
+	GUEST_ASSERT_EQ(x2apic_read_reg(APIC_TASKPRI), 0xff);
 	x2apic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_INT_ASSERT | POSTED_INTR_WAKEUP_VECTOR);
+	GUEST_ASSERT_EQ(nr_irqs, 0);
+
+	x2apic_write_reg(APIC_TASKPRI, 0);
+	GUEST_ASSERT_EQ(x2apic_read_reg(APIC_TASKPRI), 0);
+
 	x2apic_write_reg(APIC_ICR, APIC_DEST_SELF | APIC_INT_ASSERT | POSTED_INTR_NESTED_VECTOR);
 	GUEST_ASSERT_EQ(nr_irqs, 3);
+
 	GUEST_DONE();
 }
 
