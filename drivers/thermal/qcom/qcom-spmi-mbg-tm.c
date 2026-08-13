@@ -254,3 +254,4 @@ module_platform_driver(mbg_tm_driver);
 
 MODULE_DESCRIPTION("PMIC MBG Temperature monitor driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_CONSUMER");
