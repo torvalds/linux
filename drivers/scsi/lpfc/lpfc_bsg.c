@@ -1329,10 +1329,8 @@ lpfc_bsg_hba_get_event(struct bsg_job *job)
 	else
 		bsg_reply->reply_payload_rcv_len = 0;
 
-	if (evt_dat) {
-		kfree(evt_dat->data);
-		kfree(evt_dat);
-	}
+	kfree(evt_dat->data);
+	kfree(evt_dat);
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
 	lpfc_bsg_event_unref(evt);
