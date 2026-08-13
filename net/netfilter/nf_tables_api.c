@@ -7191,7 +7191,30 @@ static void nft_setelem_remove(const struct net *net,
 }
 
 static void nft_trans_elems_remove(const struct nft_ctx *ctx,
-				   const struct nft_trans_elem *te)
+				   const struct nft_trans_elem *te,
+				   bool notify)
+{
+	int i;
+
+	for (i = 0; i < te->nelems; i++) {
+		WARN_ON_ONCE(te->elems[i].update);
+
+		if (notify) {
+			nf_tables_setelem_notify(ctx, te->set,
+						 te->elems[i].priv,
+						 te->nft_trans.msg_type);
+		}
+
+		nft_setelem_remove(ctx->net, te->set, te->elems[i].priv);
+		if (!nft_setelem_is_catchall(te->set, te->elems[i].priv)) {
+			atomic_dec(&te->set->nelems);
+			te->set->ndeact--;
+		}
+	}
+}
+
+static void nft_trans_elems_remove_notify(const struct nft_ctx *ctx,
+					  const struct nft_trans_elem *te)
 {
 	int i;
 
@@ -7201,12 +7224,6 @@ static void nft_trans_elems_remove(const struct nft_ctx *ctx,
 		nf_tables_setelem_notify(ctx, te->set,
 					 te->elems[i].priv,
 					 te->nft_trans.msg_type);
-
-		nft_setelem_remove(ctx->net, te->set, te->elems[i].priv);
-		if (!nft_setelem_is_catchall(te->set, te->elems[i].priv)) {
-			atomic_dec(&te->set->nelems);
-			te->set->ndeact--;
-		}
 	}
 }
 
@@ -10863,9 +10880,29 @@ static void nf_tables_commit_audit_log(struct list_head *adl, u32 generation)
 	}
 }
 
-static void nft_set_commit_update(struct nftables_pernet *nft_net)
+static void nft_set_commit_update(struct nft_ctx *ctx,
+				  struct nftables_pernet *nft_net)
 {
 	struct nft_set *set, *next;
+	struct nft_trans_elem *te;
+	struct nft_trans *trans;
+
+	if (list_empty(&nft_net->set_update_list))
+		return;
+
+	list_for_each_entry(trans, &nft_net->commit_list, list) {
+		nft_ctx_update(ctx, trans);
+
+		switch (trans->msg_type) {
+		case NFT_MSG_DELSETELEM:
+			te = nft_trans_container_elem(trans);
+			if (!te->set->ops->commit)
+				break;
+
+			nft_trans_elems_remove(ctx, te, false);
+			break;
+		}
+	}
 
 	list_for_each_entry_safe(set, next, &nft_net->set_update_list, pending_update) {
 		list_del_init(&set->pending_update);
@@ -10974,6 +11011,8 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 	}
 
 	/* step 2.  Make rules_gen_X visible to packet path */
+	nft_set_commit_update(&ctx, nft_net);
+
 	list_for_each_entry(table, &nft_net->tables, list) {
 		list_for_each_entry(chain, &table->chains, list)
 			nf_tables_commit_chain(net, chain);
@@ -11111,7 +11150,10 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 		case NFT_MSG_DELSETELEM:
 		case NFT_MSG_DESTROYSETELEM:
 			te = nft_trans_container_elem(trans);
-			nft_trans_elems_remove(&ctx, te);
+			if (te->set->ops->commit)
+				nft_trans_elems_remove_notify(&ctx, te);
+			else
+				nft_trans_elems_remove(&ctx, te, true);
 			break;
 		case NFT_MSG_NEWOBJ:
 			if (nft_trans_obj_update(trans)) {
@@ -11179,8 +11221,6 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			break;
 		}
 	}
-
-	nft_set_commit_update(nft_net);
 
 	nft_commit_notify(net, NETLINK_CB(skb).portid);
 	nf_tables_gen_notify(net, skb, NFT_MSG_NEWGEN);
