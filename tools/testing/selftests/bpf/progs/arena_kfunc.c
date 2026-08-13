@@ -27,6 +27,7 @@ volatile u64 stash;
 
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __success __retval(0)
 int arena_arg_forms(void *ctx)
 {
@@ -70,6 +71,7 @@ int arena_arg_forms(void *ctx)
  */
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __success __retval(0)
 int arena_arg_rebase(void *ctx)
 {
@@ -111,6 +113,7 @@ int arena_arg_rebase(void *ctx)
 
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __success __retval(0)
 int arena_args5(void *ctx)
 {
@@ -142,6 +145,7 @@ int arena_args5(void *ctx)
 
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __success __retval(0)
 int arena_arg_mixed(void *ctx)
 {
@@ -169,6 +173,7 @@ int arena_arg_mixed(void *ctx)
 /* kernel-side faults on unpopulated pages recover via the scratch page */
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __success __retval(0)
 int arena_arg_unpopulated(void *ctx)
 {
@@ -189,6 +194,7 @@ int arena_arg_unpopulated(void *ctx)
 
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __failure __msg("arena pointer requires a program with an associated arena")
 int arena_arg_no_arena(void *ctx)
 {
@@ -198,6 +204,7 @@ int arena_arg_no_arena(void *ctx)
 
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __failure __msg("is not a pointer to arena or scalar")
 int arena_arg_bad_reg(void *ctx)
 {
@@ -213,6 +220,7 @@ int arena_arg_bad_reg(void *ctx)
 	defined(__BPF_FEATURE_STACK_ARGUMENT)
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __failure __msg("arena pointer cannot be a stack argument")
 int arena_arg_stack(void *ctx)
 {
@@ -223,6 +231,7 @@ int arena_arg_stack(void *ctx)
 #else
 SEC("syscall")
 __arch_x86_64
+__arch_arm64
 __description("arena_arg_stack: not supported, dummy test")
 __success
 int arena_arg_stack(void *ctx)
