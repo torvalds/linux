@@ -115,10 +115,11 @@ static int nuvoton_qspi_reset_fifo(struct nuvoton_qspi *qspi)
 {
 	u32 val;
 
-	val = nuvoton_qspi_read(qspi, NUVOTON_QSPI_FIFOCTL_OFFSET);
-	val |= NUVOTON_QSPI_FIFOCTL_TXRST_MASK |
-	       NUVOTON_QSPI_FIFOCTL_RXRST_MASK;
-	nuvoton_qspi_write(qspi, val, NUVOTON_QSPI_FIFOCTL_OFFSET);
+	nuvoton_qspi_update_bits(qspi, NUVOTON_QSPI_FIFOCTL_OFFSET,
+				 NUVOTON_QSPI_FIFOCTL_TXRST_MASK |
+				 NUVOTON_QSPI_FIFOCTL_RXRST_MASK,
+				 NUVOTON_QSPI_FIFOCTL_TXRST_MASK |
+				 NUVOTON_QSPI_FIFOCTL_RXRST_MASK);
 
 	/*
 	 * Give the controller a short time to latch the FIFO reset request
@@ -356,9 +357,9 @@ static int nuvoton_qspi_hw_init(struct nuvoton_qspi *qspi)
 				 NUVOTON_QSPI_CTL_LSB_MASK,
 				 NUVOTON_QSPI_CTL_TXNEG_MASK);
 
-	val = nuvoton_qspi_read(qspi, NUVOTON_QSPI_CTL_OFFSET);
-	nuvoton_qspi_write(qspi, val | NUVOTON_QSPI_CTL_SPIEN_MASK,
-			   NUVOTON_QSPI_CTL_OFFSET);
+	nuvoton_qspi_update_bits(qspi, NUVOTON_QSPI_CTL_OFFSET,
+				 NUVOTON_QSPI_CTL_SPIEN_MASK,
+				 NUVOTON_QSPI_CTL_SPIEN_MASK);
 
 	ret = readl_poll_timeout(qspi->regs + NUVOTON_QSPI_STATUS_OFFSET, val,
 				 (val & NUVOTON_QSPI_STATUS_SPIENSTS_MASK),
