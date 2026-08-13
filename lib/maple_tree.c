@@ -3590,7 +3590,7 @@ set_content:
 
 /**
  * mas_prealloc_calc() - Calculate number of nodes needed for a
- * given store oepration
+ * given store operation
  * @wr_mas: The maple write state
  * @entry: The entry to store into the tree
  *
