@@ -78,6 +78,27 @@ definitions:
       -
         name: rta-used
         type: u32
+  -
+    name: del-reason
+    type: enum
+    name-prefix: rt-del-reason-
+    enum-name: rt-del-reason
+    doc: |
+      Why the kernel deleted a route. New causes may be appended. The
+      value space is family-agnostic, a value is never reinterpreted
+      per address family.
+    entries:
+      -
+        name: unspec
+        doc: The deletion path does not record a cause.
+      -
+        name: expired
+        doc: The RTF_EXPIRES lifetime ran out and the route was garbage
+          collected.
+      -
+        name: ra-withdrawn
+        doc: A Router Advertisement withdrew the route with a zero
+          lifetime.
 
 attribute-sets:
   -
@@ -185,6 +206,18 @@ attribute-sets:
         type: u32
         byte-order: big-endian
         display-hint: hex
+      -
+        name: del-reason
+        type: u32
+        enum: del-reason
+        doc: |
+          Emitted only on RTM_DELROUTE notifications, and only when the
+          deletion path records a cause. An absent attribute means
+          either an older kernel or a deletion path that does not
+          record its cause, consumers must treat absent and unspec
+          identically. Currently only IPv6 deletion paths record a
+          cause. The attribute is notification-only, the kernel rejects
+          it in requests.
   -
     name: metrics
     name-prefix: rtax-
@@ -299,6 +332,7 @@ operations:
             - dport
             - nh-id
             - flowlabel
+            - del-reason
       dump:
         request:
           value: 26
@@ -313,7 +347,35 @@ operations:
       do:
         request:
           value: 24
-          attributes: *all-route-attrs
+          attributes: &route-req-attrs
+            - dst
+            - src
+            - iif
+            - oif
+            - gateway
+            - priority
+            - prefsrc
+            - metrics
+            - multipath
+            - flow
+            - cacheinfo
+            - table
+            - mark
+            - mfc-stats
+            - via
+            - newdst
+            - pref
+            - encap-type
+            - encap
+            - expires
+            - pad
+            - uid
+            - ttl-propagate
+            - ip-proto
+            - sport
+            - dport
+            - nh-id
+            - flowlabel
     -
       name: delroute
       doc: Delete an existing route
@@ -321,4 +383,23 @@ operations:
       do:
         request:
           value: 25
-          attributes: *all-route-attrs
+          attributes: *route-req-attrs
+    -
+      name: newroute-ntf
+      doc: Notification about a created route.
+      value: 24
+      notify: getroute
+    -
+      name: delroute-ntf
+      doc: Notification about a deleted route.
+      value: 25
+      notify: getroute
+
+mcast-groups:
+  list:
+    -
+      name: rtnlgrp-ipv4-route
+      value: 7
+    -
+      name: rtnlgrp-ipv6-route
+      value: 11
