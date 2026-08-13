@@ -404,15 +404,37 @@ void ksmbd_conn_unlock(struct ksmbd_conn *conn)
 	mutex_unlock(&conn->srv_mutex);
 }
 
-void ksmbd_all_conn_set_status(u64 sess_id, u32 status)
+static bool ksmbd_session_is_bound_to_conn(struct ksmbd_session *sess,
+					   struct ksmbd_conn *conn)
+{
+	bool found;
+
+	rcu_read_lock();
+	found = xa_load(&conn->sessions, sess->id) == sess;
+	rcu_read_unlock();
+	if (found)
+		return true;
+
+	down_read(&sess->chann_lock);
+	found = xa_load(&sess->ksmbd_chann_list, (long)conn);
+	up_read(&sess->chann_lock);
+	return found;
+}
+
+void ksmbd_all_conn_set_status(struct ksmbd_session *sess, u32 status)
 {
 	struct ksmbd_conn *conn;
 	int bkt;
 
 	down_read(&conn_list_lock);
 	hash_for_each(conn_list, bkt, conn, hlist) {
-		if (conn->binding || xa_load(&conn->sessions, sess_id))
-			WRITE_ONCE(conn->status, status);
+		if (ksmbd_session_is_bound_to_conn(sess, conn)) {
+			spin_lock(&conn->request_lock);
+			if (!ksmbd_conn_exiting(conn) &&
+			    !ksmbd_conn_releasing(conn))
+				WRITE_ONCE(conn->status, status);
+			spin_unlock(&conn->request_lock);
+		}
 	}
 	up_read(&conn_list_lock);
 }
@@ -422,7 +444,8 @@ void ksmbd_conn_wait_idle(struct ksmbd_conn *conn)
 	wait_event(conn->req_running_q, atomic_read(&conn->req_running) < 2);
 }
 
-int ksmbd_conn_wait_idle_sess_id(struct ksmbd_conn *curr_conn, u64 sess_id)
+int ksmbd_conn_wait_idle_sess(struct ksmbd_conn *curr_conn,
+			      struct ksmbd_session *sess)
 {
 	struct ksmbd_conn *conn;
 	int rc, retry_count = 0, max_timeout = 120;
@@ -434,7 +457,7 @@ retry_idle:
 
 	down_read(&conn_list_lock);
 	hash_for_each(conn_list, bkt, conn, hlist) {
-		if (conn->binding || xa_load(&conn->sessions, sess_id)) {
+		if (ksmbd_session_is_bound_to_conn(sess, conn)) {
 			rcount = (conn == curr_conn) ? 2 : 1;
 			if (atomic_read(&conn->req_running) >= rcount) {
 				rc = wait_event_timeout(conn->req_running_q,
@@ -780,8 +803,10 @@ again:
 		 * handler exited its receive loop for an unrelated
 		 * reason).
 		 */
-		if (READ_ONCE(conn->status) != KSMBD_SESS_RELEASING)
+		spin_lock(&conn->request_lock);
+		if (!ksmbd_conn_releasing(conn))
 			ksmbd_conn_set_exiting(conn);
+		spin_unlock(&conn->request_lock);
 		target = conn;
 		break;
 	}
