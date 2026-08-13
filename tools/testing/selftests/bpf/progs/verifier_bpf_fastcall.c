@@ -665,6 +665,7 @@ __naked void may_goto_interaction_x86_64(void)
 SEC("raw_tp")
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __log_level(4)
 __msg("subprog 0 (may_goto_interaction) main {{.*}} stack 24")
 /* may_goto counter at -24 */

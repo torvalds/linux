@@ -12,6 +12,7 @@ __arch_x86_64
 __arch_s390x
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -33,6 +34,7 @@ __arch_x86_64
 __arch_s390x
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -56,6 +58,7 @@ __arch_x86_64
 __arch_s390x
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __xlated("0: r0 = 1")
 __xlated("1: exit")
 __success
@@ -83,6 +86,7 @@ __arch_x86_64
 __arch_s390x
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __xlated("0: *(u64 *)(r10 -16) = 65535")
 __xlated("1: *(u64 *)(r10 -8) = 0")
 __xlated("2: r12 = *(u64 *)(r10 -16)")
@@ -120,6 +124,7 @@ __arch_x86_64
 __arch_s390x
 __arch_arm64
 __arch_riscv64
+__arch_loongarch
 __success
 __retval(0)
 __naked void timed_may_goto_preserves_regs(void)

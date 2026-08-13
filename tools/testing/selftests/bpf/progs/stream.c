@@ -65,6 +65,7 @@ __arch_x86_64
 __arch_arm64
 __arch_s390x
 __arch_riscv64
+__arch_loongarch
 __success __retval(0)
 __stderr("ERROR: Timeout detected for may_goto instruction")
 __stderr("CPU: {{[0-9]+}} UID: 0 PID: {{[0-9]+}} Comm: {{.*}}")
