@@ -40,6 +40,9 @@ static ssize_t mana_dbg_q_read(struct file *filp, char __user *buf, size_t count
 {
 	struct gdma_queue *gdma_q = filp->private_data;
 
+	if (gdma_q->mem_info.nr_pages)
+		return mana_gd_read_ring(gdma_q, buf, count, pos);
+
 	return simple_read_from_buffer(buf, count, pos, gdma_q->queue_mem_ptr,
 				       gdma_q->queue_size);
 }
