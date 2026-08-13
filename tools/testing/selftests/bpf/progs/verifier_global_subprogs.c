@@ -54,8 +54,13 @@ __msg("Validating global_good() func")
 __msg("('global_good') is safe for any args that match its prototype")
 __msg("subprog 0 (chained_global_func_calls_success) main insns_self 7 insns_total 7 stack")
 __msg("subprog {{[0-9]+}} (global_calls_good_only) global insns_self 2 insns_total 2 stack")
+#if defined(__BPF_CPU_VERSION__) && __BPF_CPU_VERSION__ >= 4
+__msg("subprog {{[0-9]+}} (global_good) global insns_self 3 insns_total 3 stack")
+__msg("processed 12 insns")
+#else
 __msg("subprog {{[0-9]+}} (global_good) global insns_self 5 insns_total 5 stack")
 __msg("processed 14 insns")
+#endif
 int chained_global_func_calls_success(void)
 {
 	int sum = 0;
