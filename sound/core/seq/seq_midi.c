@@ -42,6 +42,8 @@ struct seq_midisynth {
 	struct snd_rawmidi *rmidi;
 	int device;
 	int subdevice;
+	struct snd_rawmidi_substream __rcu *input_substream;
+	snd_use_lock_t input_use_lock;	/* in-flight event_input users */
 	struct snd_rawmidi_file input_rfile;
 	snd_use_lock_t output_use_lock;	/* in-flight event_input users */
 	struct snd_rawmidi_substream __rcu *output_substream;
@@ -76,6 +78,14 @@ static void snd_midi_input_event(struct snd_rawmidi_substream *substream)
 	msynth = runtime->private_data;
 	if (msynth == NULL)
 		return;
+
+	scoped_guard(rcu) {
+		if (rcu_dereference(msynth->input_substream) != substream)
+			return;
+
+		snd_use_lock_use(&msynth->input_use_lock);
+	}
+
 	memset(&ev, 0, sizeof(ev));
 	while (runtime->avail > 0) {
 		res = snd_rawmidi_kernel_read(substream, buf, sizeof(buf));
@@ -95,6 +105,8 @@ static void snd_midi_input_event(struct snd_rawmidi_substream *substream)
 			memset(&ev, 0, sizeof(ev));
 		}
 	}
+
+	snd_use_lock_free(&msynth->input_use_lock);
 }
 
 static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, int count)
@@ -177,6 +189,7 @@ static int snd_seq_midisynth_new(struct seq_midisynth *msynth,
 	msynth->card = card;
 	msynth->device = device;
 	msynth->subdevice = subdevice;
+	snd_use_lock_init(&msynth->input_use_lock);
 	snd_use_lock_init(&msynth->output_use_lock);
 	return 0;
 }
@@ -187,28 +200,31 @@ static int midisynth_subscribe(void *private_data, struct snd_seq_port_subscribe
 	int err;
 	struct seq_midisynth *msynth = private_data;
 	struct snd_rawmidi_runtime *runtime;
+	struct snd_rawmidi_file rfile = {};
 	struct snd_rawmidi_params params;
 
 	/* open midi port */
 	err = snd_rawmidi_kernel_open(msynth->rmidi, msynth->subdevice,
 				      SNDRV_RAWMIDI_LFLG_INPUT,
-				      &msynth->input_rfile);
+				      &rfile);
 	if (err < 0) {
 		pr_debug("ALSA: seq_midi: midi input open failed!!!\n");
 		return err;
 	}
-	runtime = msynth->input_rfile.input->runtime;
+	runtime = rfile.input->runtime;
 	memset(&params, 0, sizeof(params));
 	params.avail_min = 1;
 	params.buffer_size = input_buffer_size;
-	err = snd_rawmidi_input_params(msynth->input_rfile.input, &params);
+	err = snd_rawmidi_input_params(rfile.input, &params);
 	if (err < 0) {
-		snd_rawmidi_kernel_release(&msynth->input_rfile);
+		snd_rawmidi_kernel_release(&rfile);
 		return err;
 	}
 	snd_midi_event_reset_encode(msynth->parser);
 	runtime->event = snd_midi_input_event;
 	runtime->private_data = msynth;
+	msynth->input_rfile = rfile;
+	rcu_assign_pointer(msynth->input_substream, rfile.input);
 	snd_rawmidi_kernel_read(msynth->input_rfile.input, NULL, 0);
 	return 0;
 }
@@ -218,10 +234,19 @@ static int midisynth_unsubscribe(void *private_data, struct snd_seq_port_subscri
 {
 	int err;
 	struct seq_midisynth *msynth = private_data;
+	struct snd_rawmidi_file rfile;
 
-	if (snd_BUG_ON(!msynth->input_rfile.input))
+	rcu_assign_pointer(msynth->input_substream, NULL);
+	synchronize_rcu();
+	snd_use_lock_sync(&msynth->input_use_lock);
+
+	rfile = msynth->input_rfile;
+	msynth->input_rfile = (struct snd_rawmidi_file){};
+
+	if (snd_BUG_ON(!rfile.input))
 		return -EINVAL;
-	err = snd_rawmidi_kernel_release(&msynth->input_rfile);
+
+	err = snd_rawmidi_kernel_release(&rfile);
 	return err;
 }
 
