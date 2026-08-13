@@ -6078,6 +6078,48 @@ static void add_scalar_to_reg(struct bpf_reg_state *dst_reg, s64 val)
 	reg_bounds_sync(dst_reg);
 }
 
+static int check_map_mem_read(struct bpf_verifier_env *env, struct bpf_reg_state *reg, int off,
+			      int bpf_size, int value_regno, bool is_ldsx)
+{
+	struct bpf_reg_state *regs = cur_regs(env);
+	int size = bpf_size_to_bytes(bpf_size);
+	struct bpf_map *map = reg->map_ptr;
+
+	switch (map->map_type) {
+	case BPF_MAP_TYPE_INSN_ARRAY:
+		if (bpf_size != BPF_DW) {
+			verbose(env, "Invalid read of %d bytes from insn_array\n", size);
+			return -EACCES;
+		}
+		regs[value_regno] = *reg;
+		add_scalar_to_reg(&regs[value_regno], off);
+		regs[value_regno].type = PTR_TO_INSN;
+		return 0;
+	default:
+		break;
+	}
+
+	/* If map is read-only, track its contents as scalars. */
+	if (tnum_is_const(reg->var_off) &&
+	    bpf_map_is_rdonly(map) &&
+	    map->ops->map_direct_value_addr) {
+		int map_off = off + reg->var_off.value;
+		u64 val = 0;
+		int err;
+
+		err = bpf_map_direct_read(map, map_off, size, &val, is_ldsx);
+		if (err)
+			return err;
+
+		regs[value_regno].type = SCALAR_VALUE;
+		__mark_reg_known(&regs[value_regno], val);
+		return 0;
+	}
+
+	mark_reg_unknown(env, regs, value_regno);
+	return 0;
+}
+
 /* check whether memory at (regno + off) is accessible for t = (read | write)
  * if t==write, value_regno is a register which value is stored into memory
  * if t==read, value_regno is a register which will receive the value from memory
@@ -6132,38 +6174,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, struct b
 		if (kptr_field) {
 			err = check_map_kptr_access(env, value_regno, insn_idx, kptr_field);
 		} else if (t == BPF_READ && value_regno >= 0) {
-			struct bpf_map *map = reg->map_ptr;
-
-			/*
-			 * If map is read-only, track its contents as scalars,
-			 * unless it is an insn array (see the special case below)
-			 */
-			if (tnum_is_const(reg->var_off) &&
-			    bpf_map_is_rdonly(map) &&
-			    map->ops->map_direct_value_addr &&
-			    map->map_type != BPF_MAP_TYPE_INSN_ARRAY) {
-				int map_off = off + reg->var_off.value;
-				u64 val = 0;
-
-				err = bpf_map_direct_read(map, map_off, size,
-							  &val, is_ldsx);
-				if (err)
-					return err;
-
-				regs[value_regno].type = SCALAR_VALUE;
-				__mark_reg_known(&regs[value_regno], val);
-			} else if (map->map_type == BPF_MAP_TYPE_INSN_ARRAY) {
-				if (bpf_size != BPF_DW) {
-					verbose(env, "Invalid read of %d bytes from insn_array\n",
-						     size);
-					return -EACCES;
-				}
-				regs[value_regno] = *reg;
-				add_scalar_to_reg(&regs[value_regno], off);
-				regs[value_regno].type = PTR_TO_INSN;
-			} else {
-				mark_reg_unknown(env, regs, value_regno);
-			}
+			err = check_map_mem_read(env, reg, off, bpf_size, value_regno, is_ldsx);
 		}
 	} else if (base_type(reg->type) == PTR_TO_MEM) {
 		bool rdonly_mem = type_is_rdonly_mem(reg->type);
