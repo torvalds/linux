@@ -3435,7 +3435,7 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	raddr = addr + 0x7ff000UL;
 	rrp = &pdev->resource[2];
 	if ((rrp->flags & IORESOURCE_MEM) &&
-	    request_mem_region(rrp->start, resource_size(rrp), "atyfb")) {
+	    devm_request_mem_region(&pdev->dev, rrp->start, resource_size(rrp), "atyfb")) {
 		par->aux_start = rrp->start;
 		par->aux_size = resource_size(rrp);
 		raddr = rrp->start;
@@ -3448,9 +3448,9 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	 * By using strong UC we force the MTRR to never have an
 	 * effect on the MMIO region on both non-PAT and PAT systems.
 	 */
-	par->ati_regbase = ioremap_uc(info->fix.mmio_start, 0x1000);
+	par->ati_regbase = devm_ioremap_uc(&pdev->dev, info->fix.mmio_start, 0x1000);
 #else
-	par->ati_regbase = ioremap(info->fix.mmio_start, 0x1000);
+	par->ati_regbase = devm_ioremap(&pdev->dev, info->fix.mmio_start, 0x1000);
 #endif
 	if (par->ati_regbase == NULL)
 		return -ENOMEM;
@@ -3490,8 +3490,8 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 
 	aty_fudge_framebuffer_len(info);
 
-	info->screen_base = ioremap_wc(info->fix.smem_start,
-				       info->fix.smem_len);
+	info->screen_base = devm_ioremap_wc(&pdev->dev, info->fix.smem_start,
+					    info->fix.smem_len);
 	if (info->screen_base == NULL) {
 		ret = -ENOMEM;
 		goto atyfb_setup_generic_fail;
@@ -3511,12 +3511,9 @@ static int atyfb_setup_generic(struct pci_dev *pdev, struct fb_info *info,
 	return 0;
 
 atyfb_setup_generic_fail:
-	iounmap(par->ati_regbase);
+	/* devm handles cleanup automatically on probe failure */
 	par->ati_regbase = NULL;
-	if (info->screen_base) {
-		iounmap(info->screen_base);
-		info->screen_base = NULL;
-	}
+	info->screen_base = NULL;
 	return ret;
 }
 
@@ -3536,7 +3533,7 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 		return rc;
 
 	/* Enable device in PCI config */
-	if (pci_enable_device(pdev)) {
+	if (pcim_enable_device(pdev)) {
 		PRINTKE("Cannot enable PCI device\n");
 		return -ENXIO;
 	}
@@ -3552,7 +3549,7 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 	/* Reserve space */
 	res_start = rp->start;
 	res_size = resource_size(rp);
-	if (!request_mem_region(res_start, res_size, "atyfb"))
+	if (!pcim_request_region(pdev, rp - pdev->resource, "atyfb"))
 		return -EBUSY;
 
 	/* Allocate framebuffer */
@@ -3612,17 +3609,9 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 err_release_io:
 #ifdef __sparc__
 	kfree(par->mmap_map);
-#else
-	if (par->ati_regbase)
-		iounmap(par->ati_regbase);
-	if (info->screen_base)
-		iounmap(info->screen_base);
 #endif
+	/* devm handles cleanup automatically for non-sparc PCI devices */
 err_release_mem:
-	if (par->aux_start)
-		release_mem_region(par->aux_start, par->aux_size);
-
-	release_mem_region(par->res_start, par->res_size);
 	framebuffer_release(info);
 
 	return rc;
@@ -3733,10 +3722,13 @@ static void atyfb_remove(struct fb_info *info)
 	arch_phys_wc_del(par->wc_cookie);
 
 #ifndef __sparc__
-	if (par->ati_regbase)
-		iounmap(par->ati_regbase);
-	if (info->screen_base)
-		iounmap(info->screen_base);
+	/* For PCI devices, devm handles unmapping automatically */
+	if (par->bus_type != PCI) {
+		if (par->ati_regbase)
+			iounmap(par->ati_regbase);
+		if (info->screen_base)
+			iounmap(info->screen_base);
+	}
 #ifdef __BIG_ENDIAN
 	if (info->sprite.addr)
 		iounmap(info->sprite.addr);
@@ -3745,10 +3737,7 @@ static void atyfb_remove(struct fb_info *info)
 #ifdef __sparc__
 	kfree(par->mmap_map);
 #endif
-	if (par->aux_start)
-		release_mem_region(par->aux_start, par->aux_size);
-
-	if (par->res_start)
+	if (par->res_start && par->bus_type != PCI)
 		release_mem_region(par->res_start, par->res_size);
 
 	framebuffer_release(info);
