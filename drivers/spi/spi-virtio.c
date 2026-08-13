@@ -358,6 +358,8 @@ static int virtio_spi_probe(struct virtio_device *vdev)
 	if (ret)
 		return dev_err_probe(&vdev->dev, ret, "Cannot register virtqueue cleanup\n");
 
+	virtio_device_ready(vdev);
+
 	/* Use devm version to register controller */
 	ret = devm_spi_register_controller(&vdev->dev, ctrl);
 	if (ret)
