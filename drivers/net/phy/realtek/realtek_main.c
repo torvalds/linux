@@ -1370,7 +1370,7 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	if (devnum == MDIO_MMD_VEND2)
 		ret = rtlgen_write_vend2(phydev, regnum, val);
 	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV)
-		ret = rtlgen_write_vend2(phydev, regnum, RTL_MDIO_AN_EEE_ADV);
+		ret = rtlgen_write_vend2(phydev, RTL_MDIO_AN_EEE_ADV, val);
 	else
 		ret = -EOPNOTSUPP;
 
