@@ -93,13 +93,13 @@ scheduler has been loaded):
     # cat /sys/kernel/sched_ext/enable_seq
     1
 
-Each running scheduler also exposes a per-scheduler ``events`` file under
-``/sys/kernel/sched_ext/<scheduler-name>/events`` that tracks diagnostic
-counters. Each counter occupies one ``name value`` line:
+Each running scheduler exposes an ``events`` file under its sysfs kobject
+(``/sys/kernel/sched_ext/root/events`` for the root scheduler) that tracks
+diagnostic counters. Each counter occupies one ``name value`` line:
 
 .. code-block:: none
 
-    # cat /sys/kernel/sched_ext/simple/events
+    # cat /sys/kernel/sched_ext/root/events
     SCX_EV_SELECT_CPU_FALLBACK 0
     SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE 0
     SCX_EV_DISPATCH_KEEP_LAST 123
@@ -153,6 +153,7 @@ detailed information:
     switching_all : 1
     switched_all  : 1
     enable_state  : enabled (2)
+    aborting      : False
     bypass_depth  : 0
     nr_rejected   : 0
     enable_seq    : 1
