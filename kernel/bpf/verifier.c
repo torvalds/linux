@@ -635,7 +635,6 @@ static void __mark_dynptr_reg(struct bpf_reg_state *reg,
 			      enum bpf_dynptr_type type,
 			      bool first_slot, int id, int parent_id);
 
-
 static void mark_dynptr_stack_regs(struct bpf_verifier_env *env,
 				   struct bpf_reg_state *sreg1,
 				   struct bpf_reg_state *sreg2,
@@ -1674,7 +1673,6 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
 	return true;
 }
 
-
 void bpf_free_backedges(struct bpf_scc_visit *visit)
 {
 	struct bpf_scc_backedge *backedge, *next;
@@ -2290,7 +2288,6 @@ static struct bpf_verifier_state *push_async_cb(struct bpf_verifier_env *env,
 	elem->st.frame[0] = frame;
 	return &elem->st;
 }
-
 
 static int cmp_subprogs(const void *a, const void *b)
 {
@@ -3969,7 +3966,6 @@ static int check_stack_read(struct bpf_verifier_env *env,
 	return err;
 }
 
-
 /* check_stack_write dispatches to check_stack_write_fixed_off or
  * check_stack_write_var_off.
  *
@@ -4766,7 +4762,6 @@ static int check_sock_access(struct bpf_verifier_env *env, int insn_idx,
 	default:
 		valid = false;
 	}
-
 
 	if (valid) {
 		env->insn_aux_data[insn_idx].ctx_field_size =
@@ -6635,7 +6630,6 @@ static int check_stack_range_initialized(
 	if (err)
 		return err;
 
-
 	if (tnum_is_const(reg->var_off)) {
 		min_off = max_off = reg->var_off.value + off;
 	} else {
@@ -7346,7 +7340,6 @@ static bool is_iter_new_kfunc(struct bpf_call_arg_meta *meta)
 {
 	return meta->kfunc_flags & KF_ITER_NEW;
 }
-
 
 static bool is_iter_destroy_kfunc(struct bpf_call_arg_meta *meta)
 {
@@ -11606,7 +11599,6 @@ static int process_irq_flag(struct bpf_verifier_env *env, struct bpf_reg_state *
 	}
 	return 0;
 }
-
 
 static int ref_set_non_owning(struct bpf_verifier_env *env, struct bpf_reg_state *reg)
 {
@@ -16412,7 +16404,6 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 	return 0;
 }
 
-
 static bool return_retval_range(struct bpf_verifier_env *env, struct bpf_retval_range *range)
 {
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
@@ -18361,8 +18352,6 @@ static void release_insn_arrays(struct bpf_verifier_env *env)
 		bpf_insn_array_release(env->insn_array_maps[i]);
 }
 
-
-
 /* The verifier does more data flow analysis than llvm and will not
  * explore branches that are dead at run time. Malicious programs can
  * have dead code too. Therefore replace all dead at-run-time code
@@ -18389,8 +18378,6 @@ static void sanitize_dead_code(struct bpf_verifier_env *env)
 		aux_data[i].zext_dst = false;
 	}
 }
-
-
 
 static void free_states(struct bpf_verifier_env *env)
 {
@@ -18677,7 +18664,6 @@ static int do_check_main(struct bpf_verifier_env *env)
 		env->prog->aux->stack_depth = env->subprog_info[0].stack_depth;
 	return ret;
 }
-
 
 static void print_verification_stats(struct bpf_verifier_env *env)
 {

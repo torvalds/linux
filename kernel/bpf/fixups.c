@@ -1466,7 +1466,6 @@ int bpf_fixup_call_args(struct bpf_verifier_env *env)
 	return err;
 }
 
-
 /* The function requires that first instruction in 'patch' is insnsi[prog->len - 1] */
 static int add_hidden_subprog(struct bpf_verifier_env *env, struct bpf_insn *patch, int len)
 {

@@ -2534,7 +2534,6 @@ static void btf_bitfield_show(void *data, u8 bits_offset,
 	btf_int128_print(show, print_num);
 }
 
-
 static void btf_int_bits_show(const struct btf *btf,
 			      const struct btf_type *t,
 			      void *data, u8 bits_offset,
