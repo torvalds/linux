@@ -64,8 +64,8 @@
  * each such kfunc it:
  *
  *   - emits a "bpf_kfunc" decl tag, and "bpf_fastcall" when KF_FASTCALL is set;
- *   - wraps the return value and/or arguments flagged KF_ARENA_RET,
- *     KF_ARENA_ARG1 or KF_ARENA_ARG2 with the "address_space(1)" type attribute;
+ *   - wraps the return value and/or arguments that use arena pointers
+ *     with the "address_space(1)" type attribute;
  *   - rewrites the prototype of KF_IMPLICIT_ARGS kfuncs.
  *
  * These kfunc annotations were historically produced by pahole.
@@ -182,6 +182,8 @@ struct object {
 #define KF_IMPLICIT_ARGS (1 << 16)
 #define KF_IMPL_SUFFIX "_impl"
 #define TYPE_ATTR_ARENA "address_space(1)"
+#define PARAM_SUFFIX_ARENA "__arena"
+#define PARAM_SUFFIX_ARENA_NULLABLE "__arena__nullable"
 
 struct kfunc {
 	struct rb_node rb_node;
@@ -1067,6 +1069,22 @@ static int collect_decl_tags(struct btf2btf_context *ctx)
 	return 0;
 }
 
+static bool param_name_has_suffix(const char *name, const char *suffix)
+{
+	size_t name_len = strlen(name);
+	size_t suffix_len = strlen(suffix);
+
+	return name_len >= suffix_len && !strcmp(name + name_len - suffix_len, suffix);
+}
+
+static bool is_arena_param(const struct btf *btf, const struct btf_param *param)
+{
+	const char *name = btf__name_by_offset(btf, param->name_off);
+
+	return param_name_has_suffix(name, PARAM_SUFFIX_ARENA) ||
+	       param_name_has_suffix(name, PARAM_SUFFIX_ARENA_NULLABLE);
+}
+
 static int collect_kfuncs(struct object *obj, struct btf2btf_context *ctx)
 {
 	Elf_Data *idlist = obj->efile.idlist;
@@ -1299,8 +1317,12 @@ add_new_proto:
 	return 0;
 }
 
-static bool is_arena_arg(struct kfunc *kfunc, u32 idx)
+static bool is_arena_arg(const struct btf *btf, const struct kfunc *kfunc,
+			 const struct btf_param *param, u32 idx)
 {
+	if (is_arena_param(btf, param))
+		return true;
+
 	switch (idx) {
 	case 0:
 		return kfunc->flags & KF_ARENA_ARG1;
@@ -1339,22 +1361,35 @@ static s32 arena_tag_ptr(struct btf *btf, u32 ptr_id, struct kfunc *kfunc)
 }
 
 /*
- * Add a FUNC_PROTO for @kfunc with each relevant pointer tagged with
- * an "address_space(1)" attribute. The original proto may be shared
- * with other FUNCs, so it is never modified in place.
+ * Add a FUNC_PROTO for @kfunc with each arena pointer tagged with an
+ * "address_space(1)" attribute. The original proto may be shared with
+ * other FUNCs, so it is never modified in place. Returns the original
+ * proto id when @kfunc has no arena return value or arguments.
  */
 static s32 add_arena_tagged_proto(struct btf *btf, struct kfunc *kfunc)
 {
 	const struct btf_type *func = btf__type_by_id(btf, kfunc->btf_id);
 	u32 proto_id = func->type;
 	const struct btf_type *proto = btf__type_by_id(btf, proto_id);
+	const struct btf_param *params = btf_params(proto);
 	u32 nr_params = btf_vlen(proto);
 	s32 ret_type_id = proto->type;
 	const struct btf_type *t;
-	struct btf_param *params;
+	struct btf_param *tag_params;
 	s32 new_proto_id, id;
 	const char *name;
+	bool has_arena_arg = false;
 	int err, i;
+
+	for (i = 0; i < nr_params; i++) {
+		if (is_arena_arg(btf, kfunc, &params[i], i)) {
+			has_arena_arg = true;
+			break;
+		}
+	}
+
+	if (!(kfunc->flags & KF_ARENA_RET) && !has_arena_arg)
+		return proto_id;
 
 	if (kfunc->flags & KF_ARENA_RET) {
 		ret_type_id = arena_tag_ptr(btf, ret_type_id, kfunc);
@@ -1383,19 +1418,18 @@ static s32 add_arena_tagged_proto(struct btf *btf, struct kfunc *kfunc)
 	}
 
 	for (i = 0; i < nr_params; i++) {
-		if (!is_arena_arg(kfunc, i))
+		t = btf__type_by_id(btf, new_proto_id);
+		tag_params = btf_params(t);
+		if (!is_arena_arg(btf, kfunc, &tag_params[i], i))
 			continue;
 
-		t = btf__type_by_id(btf, new_proto_id);
-		params = btf_params(t);
-
-		id = arena_tag_ptr(btf, params[i].type, kfunc);
+		id = arena_tag_ptr(btf, tag_params[i].type, kfunc);
 		if (id < 0)
 			return id;
 
 		t = btf__type_by_id(btf, new_proto_id);
-		params = btf_params(t);
-		params[i].type = id;
+		tag_params = btf_params(t);
+		tag_params[i].type = id;
 	}
 
 	pr_debug("added arena-tagged proto for kfunc %s: %d\n", kfunc->name, new_proto_id);
@@ -1403,7 +1437,7 @@ static s32 add_arena_tagged_proto(struct btf *btf, struct kfunc *kfunc)
 	return new_proto_id;
 }
 
-static int process_kfunc_with_arena_flags(struct btf2btf_context *ctx,
+static int process_kfunc_with_arena_attrs(struct btf2btf_context *ctx,
 					  struct kfunc *kfunc)
 {
 	struct btf_type *t;
@@ -1463,11 +1497,9 @@ static int btf2btf(struct object *obj)
 				goto out;
 		}
 
-		if (kfunc->flags & (KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2)) {
-			err = process_kfunc_with_arena_flags(&ctx, kfunc);
-			if (err)
-				goto out;
-		}
+		err = process_kfunc_with_arena_attrs(&ctx, kfunc);
+		if (err)
+			goto out;
 	}
 
 	err = 0;

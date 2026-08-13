@@ -15,6 +15,7 @@
 #define DECL_TAG_FASTCALL "bpf_fastcall"
 #define DECL_TAG_KFUNC "bpf_kfunc"
 #define TYPE_ATTR_ARENA "address_space(1)"
+#define ARENA_ARG(n) (1U << (n))
 
 #ifndef KF_FASTCALL
 #define KF_FASTCALL (1 << 12)
@@ -49,13 +50,20 @@ struct kfunc_symbol {
 	const char	*name;
 	s32		 id;
 	u32		 flags;
+	u32		 arena_args;
+	bool		 arena_ret;
 };
 
 static struct kfunc_symbol kfunc_symbols[] = {
-	{ "kfunc_a", -1, 0 },
-	{ "kfunc_b", -1, KF_FASTCALL },
-	{ "kfunc_c", -1, KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2 },
-	{ "kfunc_d", -1, KF_ARENA_ARG2 },
+	{ "kfunc_a", -1, 0, 0, false },
+	{ "kfunc_b", -1, KF_FASTCALL, 0, false },
+	{ "kfunc_c", -1, KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2,
+	  ARENA_ARG(0) | ARENA_ARG(1), true },
+	{ "kfunc_d", -1, KF_ARENA_ARG2, ARENA_ARG(1), false },
+	{ "kfunc_e", -1, 0, ARENA_ARG(0) | ARENA_ARG(1) | ARENA_ARG(2) |
+	  ARENA_ARG(3) | ARENA_ARG(4), false },
+	{ "kfunc_f", -1, 0, ARENA_ARG(1), false },
+	{ "kfunc_g", -1, KF_ARENA_RET, ARENA_ARG(0) | ARENA_ARG(1), true },
 };
 
 /* Align the .BTF_ids section to 4 bytes */
@@ -105,6 +113,9 @@ BTF_ID_FLAGS(func, kfunc_a)
 BTF_ID_FLAGS(func, kfunc_b, KF_FASTCALL)
 BTF_ID_FLAGS(func, kfunc_c, KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2)
 BTF_ID_FLAGS(func, kfunc_d, KF_ARENA_ARG2)
+BTF_ID_FLAGS(func, kfunc_e)
+BTF_ID_FLAGS(func, kfunc_f)
+BTF_ID_FLAGS(func, kfunc_g, KF_ARENA_RET)
 BTF_KFUNCS_END(test_kfunc_set)
 
 /*
@@ -112,6 +123,9 @@ BTF_KFUNCS_END(test_kfunc_set)
  * actually sort at least one of the two sets.
  */
 BTF_KFUNCS_START(test_kfunc_set_rev)
+BTF_ID_FLAGS(func, kfunc_g, KF_ARENA_RET)
+BTF_ID_FLAGS(func, kfunc_f)
+BTF_ID_FLAGS(func, kfunc_e)
 BTF_ID_FLAGS(func, kfunc_d, KF_ARENA_ARG2)
 BTF_ID_FLAGS(func, kfunc_c, KF_ARENA_RET | KF_ARENA_ARG1 | KF_ARENA_ARG2)
 BTF_ID_FLAGS(func, kfunc_b, KF_FASTCALL)
@@ -301,15 +315,15 @@ void test_resolve_btfids(void)
 	}
 
 	/*
-	 * Check resolve_btfids wrapped exactly the arena-flagged return/args
-	 * with the address_space(1) type attribute, and left other
+	 * Check resolve_btfids wrapped exactly the arena-flagged or suffixed
+	 * return/args with the address_space(1) type attribute, and left other
 	 * pointers/returns untouched.
 	 */
 	for (i = 0; i < ARRAY_SIZE(kfunc_symbols); i++) {
 		const struct btf_type *fn, *proto;
 		const struct btf_param *params;
 		const char *name = kfunc_symbols[i].name;
-		u32 fl = kfunc_symbols[i].flags;
+		u32 arena_args = kfunc_symbols[i].arena_args;
 		__u32 nr;
 
 		fn = btf__type_by_id(btf, kfunc_symbols[i].id);
@@ -322,15 +336,10 @@ void test_resolve_btfids(void)
 		nr = btf_vlen(proto);
 
 		ASSERT_EQ(is_arena_tagged_ptr(btf, proto->type),
-			  !!(fl & KF_ARENA_RET), name);
-		if (nr > 0) {
-			ASSERT_EQ(is_arena_tagged_ptr(btf, params[0].type),
-				  !!(fl & KF_ARENA_ARG1), name);
-		}
-		if (nr > 1) {
-			ASSERT_EQ(is_arena_tagged_ptr(btf, params[1].type),
-				  !!(fl & KF_ARENA_ARG2), name);
-		}
+			  kfunc_symbols[i].arena_ret, name);
+		for (j = 0; j < nr; j++)
+			ASSERT_EQ(is_arena_tagged_ptr(btf, params[j].type),
+				  !!(arena_args & ARENA_ARG(j)), name);
 	}
 
 out:
