@@ -702,10 +702,10 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 					   args->in.queue_size,
 					   &queue->userq_vas.va.queue_rb) ||
 	    amdgpu_userq_input_va_validate(adev, queue, args->in.rptr_va,
-					   AMDGPU_GPU_PAGE_SIZE,
+					   sizeof(u64),
 					   &queue->userq_vas.va.rptr) ||
 	    amdgpu_userq_input_va_validate(adev, queue, args->in.wptr_va,
-					   AMDGPU_GPU_PAGE_SIZE,
+					   sizeof(u64),
 					   &queue->userq_vas.va.wptr)) {
 		r = -EINVAL;
 		amdgpu_bo_unreserve(fpriv->vm.root.bo);
@@ -848,6 +848,12 @@ static int amdgpu_userq_input_args_validate(struct drm_device *dev,
 
 		if (!args->in.wptr_va || !args->in.rptr_va) {
 			drm_file_err(filp, "invalidate userq queue rptr or wptr\n");
+			return -EINVAL;
+		}
+
+		if (!IS_ALIGNED(args->in.wptr_va, sizeof(u64)) ||
+		    !IS_ALIGNED(args->in.rptr_va, sizeof(u64))) {
+			drm_file_err(filp, "user queue rptr or wptr is not 8-byte aligned\n");
 			return -EINVAL;
 		}
 		break;
