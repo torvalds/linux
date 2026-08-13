@@ -15,6 +15,7 @@
 #define POSTED_INTR_WAKEUP_VECTOR	0xf1
 #define POSTED_INTR_NESTED_VECTOR	0xf0
 
+static bool inhibit_apicv;
 static volatile unsigned int nr_irqs;
 
 static void guest_irq_handler(struct ex_regs *regs)
@@ -25,7 +26,8 @@ static void guest_irq_handler(struct ex_regs *regs)
 
 static void l2_guest_code(void)
 {
-	wrmsr(MSR_IA32_APICBASE, rdmsr(MSR_IA32_APICBASE) & GENMASK_ULL(11, 0));
+	if (inhibit_apicv)
+		wrmsr(MSR_IA32_APICBASE, rdmsr(MSR_IA32_APICBASE) & GENMASK_ULL(11, 0));
 	asm volatile("cpuid" ::: "eax", "ebx", "ecx", "edx");
 }
 
@@ -78,19 +80,19 @@ static void l1_guest_code(void *test_data)
 	GUEST_DONE();
 }
 
-int main(int argc, char *argv[])
+static void __test_x2apic_intercepts(void)
 {
 	gva_t nested_test_data_gva;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
 
-	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM) || kvm_cpu_has(X86_FEATURE_VMX));
-
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 	vm_install_exception_handler(vm, POSTED_INTR_VECTOR, guest_irq_handler);
 	vm_install_exception_handler(vm, POSTED_INTR_WAKEUP_VECTOR, guest_irq_handler);
 	vm_install_exception_handler(vm, POSTED_INTR_NESTED_VECTOR, guest_irq_handler);
+
+	sync_global_to_guest(vm, inhibit_apicv);
 
 	if (kvm_cpu_has(X86_FEATURE_SVM))
 		vcpu_alloc_svm(vm, &nested_test_data_gva);
@@ -114,4 +116,19 @@ int main(int argc, char *argv[])
 	}
 
 	kvm_vm_free(vm);
+}
+
+#define test_x2apic_intercepts(inhibit_apic_setting)	\
+do {							\
+	inhibit_apic_setting;				\
+							\
+	__test_x2apic_intercepts();			\
+} while (0)
+
+int main(int argc, char *argv[])
+{
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM) || kvm_cpu_has(X86_FEATURE_VMX));
+
+	test_x2apic_intercepts(inhibit_apicv = true);
+	test_x2apic_intercepts(inhibit_apicv = false);
 }
