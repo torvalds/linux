@@ -11792,6 +11792,9 @@ static void bnxt_irq_affinity_notify(struct irq_affinity_notify *notify,
 
 	irq = container_of(notify, struct bnxt_irq, affinity_notify);
 
+	cpumask_copy(irq->bp->ring_cpu_mask[irq->ring_nr], mask);
+	set_bit(irq->ring_nr, irq->bp->ring_affinity_set);
+
 #ifdef CONFIG_RFS_ACCEL
 	if (irq->bp->dev->rx_cpu_rmap && irq->ring_nr < irq->bp->rx_nr_rings) {
 		int err;
@@ -11806,8 +11809,6 @@ static void bnxt_irq_affinity_notify(struct irq_affinity_notify *notify,
 
 	if (!irq->bp->tph_mode)
 		return;
-
-	cpumask_copy(irq->cpu_mask, mask);
 
 	if (irq->ring_nr >= irq->bp->rx_nr_rings)
 		return;
@@ -11850,10 +11851,6 @@ static void bnxt_register_irq_notifier(struct bnxt *bp, struct bnxt_irq *irq)
 
 	irq->bp = bp;
 
-	/* Nothing to do if TPH is not enabled */
-	if (!bp->tph_mode)
-		return;
-
 	/* Register IRQ affinity notifier */
 	notify = &irq->affinity_notify;
 	notify->irq = irq->vector;
@@ -11861,6 +11858,41 @@ static void bnxt_register_irq_notifier(struct bnxt *bp, struct bnxt_irq *irq)
 	notify->release = bnxt_irq_affinity_release;
 
 	irq_set_affinity_notifier(irq->vector, notify);
+}
+
+static int bnxt_alloc_ring_cpu_masks(struct bnxt *bp)
+{
+	int i;
+
+	bp->ring_cpu_mask = kzalloc_objs(*bp->ring_cpu_mask, bp->max_irqs);
+	if (!bp->ring_cpu_mask)
+		return -ENOMEM;
+
+	bp->ring_affinity_set = bitmap_zalloc(bp->max_irqs, GFP_KERNEL);
+	if (!bp->ring_affinity_set)
+		return -ENOMEM;
+
+	for (i = 0; i < bp->max_irqs; i++)
+		if (!zalloc_cpumask_var(&bp->ring_cpu_mask[i], GFP_KERNEL))
+			return -ENOMEM;
+
+	return 0;
+}
+
+static void bnxt_free_ring_cpu_masks(struct bnxt *bp)
+{
+	int i;
+
+	if (!bp->ring_cpu_mask)
+		return;
+
+	for (i = 0; i < bp->max_irqs; i++)
+		free_cpumask_var(bp->ring_cpu_mask[i]);
+
+	bitmap_free(bp->ring_affinity_set);
+	bp->ring_affinity_set = NULL;
+	kfree(bp->ring_cpu_mask);
+	bp->ring_cpu_mask = NULL;
 }
 
 static void bnxt_free_irq(struct bnxt *bp)
@@ -11877,13 +11909,7 @@ static void bnxt_free_irq(struct bnxt *bp)
 		irq = &bp->irq_tbl[map_idx];
 		if (irq->requested) {
 			bnxt_release_irq_notifier(irq);
-
-			if (irq->have_cpumask) {
-				irq_update_affinity_hint(irq->vector, NULL);
-				free_cpumask_var(irq->cpu_mask);
-				irq->have_cpumask = 0;
-			}
-
+			irq_update_affinity_hint(irq->vector, NULL);
 			free_irq(irq->vector, bp->bnapi[i]);
 		}
 
@@ -11925,9 +11951,9 @@ static int bnxt_request_irq(struct bnxt *bp)
 		bp->tph_mode = PCI_TPH_ST_IV_MODE;
 
 	for (i = 0, j = 0; i < bp->cp_nr_rings; i++) {
+		struct cpumask *cpu_mask = bp->ring_cpu_mask[i];
 		int map_idx = bnxt_cp_num_to_irq_num(bp, i);
 		struct bnxt_irq *irq = &bp->irq_tbl[map_idx];
-		unsigned int cpu_num;
 		u16 tag;
 
 		if (IS_ENABLED(CONFIG_RFS_ACCEL) &&
@@ -11946,19 +11972,24 @@ static int bnxt_request_irq(struct bnxt *bp)
 
 		netif_napi_set_irq_locked(&bp->bnapi[i]->napi, irq->vector);
 		irq->requested = 1;
-
-		if (!zalloc_cpumask_var(&irq->cpu_mask, GFP_KERNEL))
-			continue;
-
-		irq->have_cpumask = 1;
 		irq->msix_nr = map_idx;
 		irq->ring_nr = i;
-		cpu_num = cpumask_local_spread(i, numa_node);
-		cpumask_set_cpu(cpu_num, irq->cpu_mask);
+
+		/* Reuse the mask recorded before the IRQs were freed. Nothing
+		 * was recorded yet on the very first request, and the mask
+		 * may have gone stale if the CPUs went offline in between.
+		 */
+		if (!test_bit(i, bp->ring_affinity_set) ||
+		    !cpumask_intersects(cpu_mask, cpu_online_mask)) {
+			clear_bit(i, bp->ring_affinity_set);
+			cpumask_clear(cpu_mask);
+			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+					cpu_mask);
+		}
 
 		/* Init ST table entry if we can get the mapping */
 		if (!pcie_tph_get_cpu_st(bp->pdev, TPH_MEM_TYPE_VM,
-					 cpu_num, &tag)) {
+					 cpumask_first(cpu_mask), &tag)) {
 			pcie_tph_set_st_entry(bp->pdev, irq->msix_nr, tag);
 			irq->tag = tag;
 			irq->new_tag = tag;
@@ -11966,10 +11997,19 @@ static int bnxt_request_irq(struct bnxt *bp)
 
 		bnxt_register_irq_notifier(bp, irq);
 
-		rc = irq_update_affinity_hint(irq->vector, irq->cpu_mask);
+		/* Only put the IRQ back where it was configured to be, our own
+		 * placement is just a hint, the core spreads within
+		 * irq_default_affinity which we know nothing about.
+		 * Set after installing the notifier, if we race with the user
+		 * it's better to overwrite than miss the notification.
+		 */
+		if (test_bit(i, bp->ring_affinity_set))
+			rc = irq_set_affinity_and_hint(irq->vector, cpu_mask);
+		else
+			rc = irq_update_affinity_hint(irq->vector, cpu_mask);
 		if (rc) {
 			netdev_warn(bp->dev,
-				    "Update affinity hint failed, IRQ = %d\n",
+				    "Setting IRQ affinity failed, IRQ = %d\n",
 				    irq->vector);
 			break;
 		}
@@ -16610,6 +16650,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	bnxt_shutdown_tc(bp);
 
 	bnxt_clear_int_mode(bp);
+	bnxt_free_ring_cpu_masks(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_hwmon_uninit(bp);
@@ -17048,6 +17089,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bp->msg_enable = BNXT_DEF_MSG_ENABLE;
 	bnxt_set_max_func_irqs(bp, max_irqs);
 
+	bp->max_irqs = max_irqs;
+	rc = bnxt_alloc_ring_cpu_masks(bp);
+	if (rc)
+		goto init_err_free;
+
 	if (bnxt_vf_pciid(bp->board_idx))
 		bp->flags |= BNXT_FLAG_VF;
 
@@ -17297,6 +17343,7 @@ init_err_pci_clean:
 	bp->rss_indir_tbl = NULL;
 
 init_err_free:
+	bnxt_free_ring_cpu_masks(bp);
 	free_netdev(dev);
 	return rc;
 }
