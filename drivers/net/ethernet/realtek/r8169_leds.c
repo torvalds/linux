@@ -31,6 +31,7 @@ struct r8169_led_classdev {
 	struct led_classdev led;
 	struct net_device *ndev;
 	int index;
+	char name[LED_MAX_NAME_SIZE];
 };
 
 #define lcdev_to_r8169_ldev(lcdev) container_of(lcdev, struct r8169_led_classdev, led)
@@ -131,13 +132,12 @@ static void rtl8168_setup_ldev(struct r8169_led_classdev *ldev,
 {
 	struct rtl8169_private *tp = netdev_priv(ndev);
 	struct led_classdev *led_cdev = &ldev->led;
-	char led_name[LED_MAX_NAME_SIZE];
 
 	ldev->ndev = ndev;
 	ldev->index = index;
 
-	r8169_get_led_name(tp, index, led_name, LED_MAX_NAME_SIZE);
-	led_cdev->name = led_name;
+	r8169_get_led_name(tp, index, ldev->name, sizeof(ldev->name));
+	led_cdev->name = ldev->name;
 	led_cdev->hw_control_trigger = "netdev";
 	led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
 	led_cdev->hw_control_is_supported = rtl8168_led_hw_control_is_supported;
@@ -230,13 +230,12 @@ static void rtl8125_setup_led_ldev(struct r8169_led_classdev *ldev,
 {
 	struct rtl8169_private *tp = netdev_priv(ndev);
 	struct led_classdev *led_cdev = &ldev->led;
-	char led_name[LED_MAX_NAME_SIZE];
 
 	ldev->ndev = ndev;
 	ldev->index = index;
 
-	r8169_get_led_name(tp, index, led_name, LED_MAX_NAME_SIZE);
-	led_cdev->name = led_name;
+	r8169_get_led_name(tp, index, ldev->name, sizeof(ldev->name));
+	led_cdev->name = ldev->name;
 	led_cdev->hw_control_trigger = "netdev";
 	led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
 	led_cdev->hw_control_is_supported = rtl8125_led_hw_control_is_supported;
