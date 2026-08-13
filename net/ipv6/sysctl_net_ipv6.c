@@ -61,7 +61,7 @@ proc_rt6_multipath_hash_fields(const struct ctl_table *table, int write, void *b
 	return ret;
 }
 
-static struct ctl_table ipv6_table_template[] = {
+static const struct ctl_table ipv6_table_template[] = {
 	{
 		.procname	= "bindv6only",
 		.data		= &init_net.ipv6.sysctl.bindv6only,
