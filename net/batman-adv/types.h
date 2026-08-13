@@ -1827,10 +1827,10 @@ struct batadv_bla_claim {
 	/** @hash_entry: hlist node for &batadv_priv_bla.claim_hash */
 	struct hlist_node hash_entry;
 
-	/** @refcount: number of contexts the object is used */
+	/** @rcu: struct used for freeing in an RCU-safe manner */
 	struct rcu_head rcu;
 
-	/** @rcu: struct used for freeing in an RCU-safe manner */
+	/** @refcount: number of contexts the object is used */
 	struct kref refcount;
 };
 #endif

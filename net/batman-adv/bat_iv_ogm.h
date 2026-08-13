@@ -10,5 +10,6 @@
 #include "main.h"
 
 int batadv_iv_init(void);
+void batadv_iv_deinit(void);
 
 #endif /* _NET_BATMAN_ADV_BAT_IV_OGM_H_ */

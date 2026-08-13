@@ -42,7 +42,8 @@ void batadv_algo_init(void)
  */
 struct batadv_algo_ops *batadv_algo_get(const char *name)
 {
-	struct batadv_algo_ops *bat_algo_ops = NULL, *bat_algo_ops_tmp;
+	struct batadv_algo_ops *bat_algo_ops = NULL;
+	struct batadv_algo_ops *bat_algo_ops_tmp;
 
 	hlist_for_each_entry(bat_algo_ops_tmp, &batadv_algo_list, list) {
 		if (strcmp(bat_algo_ops_tmp->name, name) != 0)
@@ -116,12 +117,23 @@ int batadv_algo_select(struct batadv_priv *bat_priv, const char *name)
 	return 0;
 }
 
+/**
+ * batadv_param_set_ra() - Validate and store routing_algo module parameter
+ * @val: new value for the routing_algo module parameter
+ * @kp: kernel parameter description used to store the value
+ *
+ * Check that the requested algorithm is known to batman-adv and then store
+ * the name as the new default routing algorithm.
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 {
 	struct batadv_algo_ops *bat_algo_ops;
 	char *algo_name = (char *)val;
-	size_t name_len = strlen(algo_name);
+	size_t name_len;
 
+	name_len = strlen(algo_name);
 	if (name_len > 0 && algo_name[name_len - 1] == '\n')
 		algo_name[name_len - 1] = '\0';
 

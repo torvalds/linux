@@ -18,21 +18,35 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-/* callback to a compare function.  should compare 2 element data for their
- * keys
+/**
+ * typedef batadv_hashdata_compare_cb - hash element comparison callback
+ * @node: hlist node of the element currently stored in the bucket
+ * @key: opaque payload to compare @node's key against
  *
- * Return: true if same and false if not same
+ * Compare hash element by its keys.
+ *
+ * Return: true if both elements are considered equal, false otherwise.
  */
-typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *,
-					   const void *);
+typedef bool (*batadv_hashdata_compare_cb)(const struct hlist_node *node,
+					   const void *key);
 
-/* the hashfunction
+/**
+ * typedef batadv_hashdata_choose_cb - hash bucket selection callback
+ * @key: opaque payload whose key selects the bucket
+ * @size: number of buckets in the hash table
  *
- * Return: an index based on the key in the data of the first argument and the
- * size the second
+ * Return: bucket index derived from the key in @key and the table @size.
  */
-typedef u32 (*batadv_hashdata_choose_cb)(const void *, u32);
-typedef void (*batadv_hashdata_free_cb)(struct hlist_node *, void *);
+typedef u32 (*batadv_hashdata_choose_cb)(const void *key, u32 size);
+
+/**
+ * typedef batadv_hashdata_free_cb - hash element free callback
+ * @node: hlist node of the element being removed
+ * @arg: opaque caller-supplied argument forwarded from the caller
+ *
+ * Release a previously inserted hash element.
+ */
+typedef void (*batadv_hashdata_free_cb)(struct hlist_node *node, void *arg);
 
 /**
  * struct batadv_hashtable - Wrapper of simple hlist based hashtable
@@ -78,11 +92,11 @@ static inline int batadv_hash_add(struct batadv_hashtable *hash,
 				  const void *data,
 				  struct hlist_node *data_node)
 {
-	u32 index;
-	int ret = -1;
+	spinlock_t *list_lock; /* spinlock to protect write access */
 	struct hlist_head *head;
 	struct hlist_node *node;
-	spinlock_t *list_lock; /* spinlock to protect write access */
+	int ret = -1;
+	u32 index;
 
 	if (!hash)
 		goto out;
@@ -131,10 +145,10 @@ static inline void *batadv_hash_remove(struct batadv_hashtable *hash,
 				       batadv_hashdata_choose_cb choose,
 				       void *data)
 {
-	u32 index;
 	struct hlist_node *node;
 	struct hlist_head *head;
 	void *data_save = NULL;
+	u32 index;
 
 	index = choose(data, hash->size);
 	head = &hash->table[index];

@@ -197,6 +197,17 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	return ret;
 }
 
+/**
+ * batadv_is_valid_iface() - check whether a net_device can be used as a hard
+ *  interface
+ * @net_dev: the net_device to check
+ *
+ * Refuse loopback devices, non-Ethernet devices, devices with a non-Ethernet
+ * address length and any device that is already part of a batman-adv mesh
+ * interface stack.
+ *
+ * Return: true if @net_dev can be used as a hard interface, false otherwise
+ */
 static bool batadv_is_valid_iface(const struct net_device *net_dev)
 {
 	if (net_dev->flags & IFF_LOOPBACK)
@@ -339,8 +350,8 @@ static bool batadv_is_cfg80211_netdev(struct net_device *net_device)
  */
 static u32 batadv_wifi_flags_evaluate(struct net_device *net_device)
 {
-	u32 wifi_flags = 0;
 	struct net_device *real_netdev;
+	u32 wifi_flags = 0;
 
 	if (batadv_is_wext_netdev(net_device))
 		wifi_flags |= BATADV_HARDIF_WIFI_WEXT_DIRECT;
@@ -434,8 +445,8 @@ int batadv_hardif_no_broadcast(struct batadv_hard_iface *if_outgoing,
 			       u8 *orig_addr, u8 *orig_neigh)
 {
 	struct batadv_hardif_neigh_node *hardif_neigh;
-	struct hlist_node *first;
 	int ret = BATADV_HARDIF_BCAST_OK;
+	struct hlist_node *first;
 
 	rcu_read_lock();
 
@@ -467,6 +478,14 @@ out:
 	return ret;
 }
 
+/**
+ * batadv_hardif_get_active() - retrieve an active hard interface for a mesh
+ *  interface
+ * @mesh_iface: mesh interface to search
+ *
+ * Return: first hard interface in BATADV_IF_ACTIVE state attached to
+ *  @mesh_iface, or NULL if none is active.
+ */
 static struct batadv_hard_iface *
 batadv_hardif_get_active(struct net_device *mesh_iface)
 {
@@ -487,6 +506,15 @@ out:
 	return hard_iface;
 }
 
+/**
+ * batadv_primary_if_update_addr() - propagate the new primary interface MAC
+ *  address to all dependent components
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @oldif: previously used primary interface, or NULL if none
+ *
+ * Inform DAT and BLA that the originator address has changed so they can
+ * adjust their state accordingly.
+ */
 static void batadv_primary_if_update_addr(struct batadv_priv *bat_priv,
 					  struct batadv_hard_iface *oldif)
 {
@@ -502,6 +530,15 @@ out:
 	batadv_hardif_put(primary_if);
 }
 
+/**
+ * batadv_primary_if_select() - select the new primary interface
+ * @bat_priv: the bat priv with all the mesh interface information
+ * @new_hard_iface: new primary interface, may be NULL
+ *
+ * Replace the currently selected primary interface with @new_hard_iface,
+ * invoke the algorithm-specific primary_set hook and update the originator
+ * MAC address.
+ */
 static void batadv_primary_if_select(struct batadv_priv *bat_priv,
 				     struct batadv_hard_iface *new_hard_iface)
 {
@@ -525,6 +562,13 @@ out:
 	batadv_hardif_put(curr_hard_iface);
 }
 
+/**
+ * batadv_hardif_is_iface_up() - check whether the underlying net_device of a
+ *  hard interface is up
+ * @hard_iface: the hard interface to check
+ *
+ * Return: true if the underlying net_device has the IFF_UP flag set
+ */
 static bool
 batadv_hardif_is_iface_up(const struct batadv_hard_iface *hard_iface)
 {
@@ -534,6 +578,15 @@ batadv_hardif_is_iface_up(const struct batadv_hard_iface *hard_iface)
 	return false;
 }
 
+/**
+ * batadv_check_known_mac_addr() - warn about duplicate hard interface MAC
+ *  addresses
+ * @hard_iface: hard interface that was just added or had its MAC changed
+ *
+ * Iterate over all hard interfaces of the same mesh interface and emit a
+ * warning if another in-use interface shares the same MAC address as
+ * @hard_iface.
+ */
 static void batadv_check_known_mac_addr(const struct batadv_hard_iface *hard_iface)
 {
 	struct net_device *mesh_iface = hard_iface->mesh_iface;
@@ -666,11 +719,20 @@ void batadv_update_min_mtu(struct net_device *mesh_iface)
 	batadv_tt_local_resize_to_mtu(mesh_iface);
 }
 
+/**
+ * batadv_hardif_activate_interface() - move a hard interface to the active
+ *  state
+ * @hard_iface: the interface that has come up
+ *
+ * Activate an interface, select it as the primary interface if no
+ * primary is currently active and invoke the algorithm-specific
+ * activate hook.
+ */
 static void
 batadv_hardif_activate_interface(struct batadv_hard_iface *hard_iface)
 {
-	struct batadv_priv *bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_priv *bat_priv;
 
 	if (hard_iface->if_status != BATADV_IF_INACTIVE)
 		goto out;
@@ -699,6 +761,14 @@ out:
 	batadv_hardif_put(primary_if);
 }
 
+/**
+ * batadv_hardif_deactivate_interface() - move a hard interface to the
+ *  inactive state
+ * @hard_iface: the interface that went down
+ *
+ * Demote @hard_iface to BATADV_IF_INACTIVE and recalculate the mesh minimum
+ * MTU based on the remaining active interfaces.
+ */
 static void
 batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 {
@@ -724,10 +794,10 @@ batadv_hardif_deactivate_interface(struct batadv_hard_iface *hard_iface)
 int batadv_hardif_enable_interface(struct net_device *net_dev,
 				   struct net_device *mesh_iface)
 {
-	struct batadv_priv *bat_priv;
-	__be16 ethertype = htons(ETH_P_BATMAN);
 	int max_header_len = batadv_max_header_len();
+	__be16 ethertype = htons(ETH_P_BATMAN);
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_priv *bat_priv;
 	unsigned int required_mtu;
 	unsigned int hardif_mtu;
 	bool fragmentation;
@@ -1020,12 +1090,24 @@ static void batadv_wifi_net_device_event(unsigned long event,
 	}
 }
 
+/**
+ * batadv_hard_if_event() - netdevice notifier callback for hard interfaces
+ * @this: notifier block (unused)
+ * @event: the NETDEV_* event to handle
+ * @ptr: notifier info pointing to the affected net_device
+ *
+ * Dispatch netdevice events that affect potential or existing hard
+ * interfaces. Mesh interfaces are handled separately by
+ * batadv_hard_if_event_meshif().
+ *
+ * Return: NOTIFY_DONE
+ */
 static int batadv_hard_if_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
-	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_hard_iface *hard_iface;
 	struct batadv_priv *bat_priv;
 
 	if (batadv_meshif_is_valid(net_dev))
