@@ -778,7 +778,7 @@ amdgpu_userq_wait_return_fence_info(struct drm_device *dev, struct drm_file *fil
 	/* Lock all the GEM objects */
 	num_read_bo_handles = wait_info->num_bo_read_handles;
 	num_write_bo_handles = wait_info->num_bo_write_handles;
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT | DRM_EXEC_IGNORE_DUPLICATES,
 		      num_read_bo_handles + num_write_bo_handles);
 
 	drm_exec_until_all_locked(&exec) {
