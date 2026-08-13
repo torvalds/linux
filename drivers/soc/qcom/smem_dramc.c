@@ -448,7 +448,7 @@ struct dentry *smem_dram_parse(struct qcom_smem *smem, struct device *dev)
 		return ERR_PTR(-ENODATA);
 
 	ver = smem_dram_infer_struct_version(actual_size);
-	if (ver < 0) {
+	if ((int)ver < 0) {
 		/* Some SoCs don't provide data that's useful for us */
 		return ERR_PTR(-ENODATA);
 	} else if (ver == INFO_UNKNOWN) {
