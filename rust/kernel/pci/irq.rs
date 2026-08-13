@@ -7,17 +7,14 @@ use crate::{
     bindings,
     device,
     device::Bound,
-    devres,
     error::to_result,
     irq::{
         self,
         IrqRequest, //
     },
-    prelude::*,
-    str::CStr,
-    sync::aref::ARef, //
+    prelude::*, //
 };
-use core::ops::RangeInclusive;
+use core::num::NonZero;
 
 /// IRQ type flags for PCI interrupt allocation.
 #[derive(Debug, Clone, Copy)]
@@ -78,6 +75,7 @@ impl IrqTypes {
 #[derive(Clone, Copy)]
 pub struct IrqVector<'a> {
     dev: &'a Device<Bound>,
+    reg: &'a IrqVectorRegistration<'a>,
     index: u32,
 }
 
@@ -86,15 +84,22 @@ impl<'a> IrqVector<'a> {
     ///
     /// # Safety
     ///
-    /// - `index` must be a valid IRQ vector index for `dev`.
-    /// - `dev` must point to a [`Device`] that has successfully allocated IRQ vectors.
-    unsafe fn new(dev: &'a Device<Bound>, index: u32) -> Self {
-        Self { dev, index }
+    /// - `index` must be a valid IRQ vector index for `reg`.
+    /// - `dev` must be the device `reg` was allocated from.
+    #[inline]
+    unsafe fn new(dev: &'a Device<Bound>, reg: &'a IrqVectorRegistration<'a>, index: u32) -> Self {
+        Self { dev, reg, index }
     }
 
     /// Returns the raw vector index.
     fn index(&self) -> u32 {
         self.index
+    }
+
+    /// Returns the [`IrqVectorRegistration`] this vector was derived from.
+    #[inline]
+    pub fn vectors(&self) -> &'a IrqVectorRegistration<'a> {
+        self.reg
     }
 }
 
@@ -102,71 +107,60 @@ impl<'a> TryInto<IrqRequest<'a>> for IrqVector<'a> {
     type Error = Error;
 
     fn try_into(self) -> Result<IrqRequest<'a>> {
-        // SAFETY: `self.as_raw` returns a valid pointer to a `struct pci_dev`.
+        // SAFETY: `self.dev.as_raw()` returns a valid pointer to a `struct pci_dev`.
         let irq = unsafe { bindings::pci_irq_vector(self.dev.as_raw(), self.index()) };
         if irq < 0 {
             return Err(crate::error::Error::from_errno(irq));
         }
-        // SAFETY: `irq` is guaranteed to be a valid IRQ number for `&self`.
+        // SAFETY: `irq` is guaranteed to be a valid IRQ number for `self.dev`.
         Ok(unsafe { IrqRequest::new(self.dev.as_ref(), irq as u32) })
     }
 }
 
-/// Represents an IRQ vector allocation for a PCI device.
+/// An allocation of PCI interrupt vectors for a device.
 ///
-/// This type ensures that IRQ vectors are properly allocated and freed by
-/// tying the allocation to the lifetime of this registration object.
+/// This type owns the vector allocation; dropping it frees the vectors. IRQ handlers borrow from
+/// this registration and must be dropped before it is.
 ///
 /// # Invariants
 ///
-/// The [`Device`] has successfully allocated IRQ vectors.
-struct IrqVectorRegistration {
-    dev: ARef<Device>,
+/// `dev` has an allocation of `len` interrupt vectors.
+pub struct IrqVectorRegistration<'a> {
+    dev: &'a Device<Bound>,
+    len: NonZero<usize>,
 }
 
-impl IrqVectorRegistration {
-    /// Allocate and register IRQ vectors for the given PCI device.
+impl<'a> IrqVectorRegistration<'a> {
+    /// Returns the number of allocated vectors.
     ///
-    /// Allocates IRQ vectors and registers them with devres for automatic cleanup.
-    /// Returns a range of valid IRQ vectors.
-    fn register<'a>(
-        dev: &'a Device<Bound>,
-        min_vecs: u32,
-        max_vecs: u32,
-        irq_types: IrqTypes,
-    ) -> Result<RangeInclusive<IrqVector<'a>>> {
-        // SAFETY:
-        // - `dev.as_raw()` is guaranteed to be a valid pointer to a `struct pci_dev`
-        //   by the type invariant of `Device`.
-        // - `pci_alloc_irq_vectors` internally validates all other parameters
-        //   and returns error codes.
-        let ret = unsafe {
-            bindings::pci_alloc_irq_vectors(dev.as_raw(), min_vecs, max_vecs, irq_types.as_raw())
-        };
+    /// This is at least the `min_vecs` that [`Device::alloc_irq_vectors`] was asked for.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.len.get()
+    }
 
-        to_result(ret)?;
-        let count = ret as u32;
+    /// Returns the [`IrqVector`] at `index`.
+    ///
+    /// Returns [`EINVAL`] if the `index` is out of bounds for the length reported by
+    /// [`Self::len()`].
+    #[inline]
+    pub fn index(&self, index: usize) -> Result<IrqVector<'_>> {
+        if index >= self.len.get() {
+            return Err(EINVAL);
+        }
 
-        // SAFETY:
-        // - `pci_alloc_irq_vectors` returns the number of allocated vectors on success.
-        // - Vectors are 0-based, so valid indices are [0, count-1].
-        // - `pci_alloc_irq_vectors` guarantees `count >= min_vecs > 0`, so both `0` and
-        //   `count - 1` are valid IRQ vector indices for `dev`.
-        let range = unsafe { IrqVector::new(dev, 0)..=IrqVector::new(dev, count - 1) };
-
-        // INVARIANT: The IRQ vector allocation for `dev` above was successful.
-        let irq_vecs = Self { dev: dev.into() };
-        devres::register(dev.as_ref(), irq_vecs, GFP_KERNEL)?;
-
-        Ok(range)
+        // SAFETY: `index` is within bounds of this registration's allocation, and `self.dev` is
+        // the device it was allocated from.
+        Ok(unsafe { IrqVector::new(self.dev, self, index as u32) })
     }
 }
 
-impl Drop for IrqVectorRegistration {
+impl Drop for IrqVectorRegistration<'_> {
+    #[inline]
     fn drop(&mut self) {
-        // SAFETY:
-        // - By the type invariant, `self.dev.as_raw()` is a valid pointer to a `struct pci_dev`.
-        // - `self.dev` has successfully allocated IRQ vectors.
+        // SAFETY: By the type invariant, `self.dev.as_raw()` is a valid pointer to a
+        // `struct pci_dev` that has successfully allocated IRQ vectors.
         unsafe { bindings::pci_free_irq_vectors(self.dev.as_raw()) };
     }
 }
@@ -214,15 +208,16 @@ impl Device<device::Bound> {
         })
     }
 
-    /// Allocate IRQ vectors for this PCI device with automatic cleanup.
+    /// Allocate IRQ vectors for this PCI device.
     ///
     /// Allocates between `min_vecs` and `max_vecs` interrupt vectors for the device.
     /// The allocation will use MSI-X, MSI, or INTx interrupts based on the `irq_types`
     /// parameter and hardware capabilities. When multiple types are specified, the kernel
     /// will try them in order of preference: MSI-X first, then MSI, then INTx interrupts.
     ///
-    /// The allocated vectors are automatically freed when the device is unbound, using the
-    /// devres (device resource management) system.
+    /// The allocated vectors are freed when the returned [`IrqVectorRegistration`] is dropped.
+    /// IRQ handlers registered via [`Self::request_irq`] or [`Self::request_threaded_irq`]
+    /// borrow from the registration, so the compiler ensures they are freed first.
     ///
     /// # Arguments
     ///
@@ -232,8 +227,8 @@ impl Device<device::Bound> {
     ///
     /// # Returns
     ///
-    /// Returns a range of IRQ vectors that were successfully allocated, or an error if the
-    /// allocation fails or cannot meet the minimum requirement.
+    /// Returns the IRQ vector registration, or an error if `min_vecs` vectors cannot be
+    /// allocated.
     ///
     /// # Examples
     ///
@@ -256,7 +251,20 @@ impl Device<device::Bound> {
         min_vecs: u32,
         max_vecs: u32,
         irq_types: IrqTypes,
-    ) -> Result<RangeInclusive<IrqVector<'_>>> {
-        IrqVectorRegistration::register(self, min_vecs, max_vecs, irq_types)
+    ) -> Result<IrqVectorRegistration<'_>> {
+        // SAFETY:
+        // - `self.as_raw()` is guaranteed to be a valid pointer to a `struct pci_dev`
+        //   by the type invariant of `Device`.
+        // - `pci_alloc_irq_vectors` internally validates all other parameters
+        //   and returns error codes.
+        let ret = unsafe {
+            bindings::pci_alloc_irq_vectors(self.as_raw(), min_vecs, max_vecs, irq_types.as_raw())
+        };
+        to_result(ret)?;
+
+        let len = NonZero::new(ret as usize).ok_or(EINVAL)?;
+
+        // INVARIANT: `pci_alloc_irq_vectors()` allocated `len` vectors for `self`.
+        Ok(IrqVectorRegistration { dev: self, len })
     }
 }
