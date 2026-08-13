@@ -31,6 +31,10 @@ static void netdev_work_enqueue(struct net_device *dev, unsigned long events,
 		return;
 
 	spin_lock_bh(&netdev_work_lock);
+	if (!dev_isalive(dev)) {
+		spin_unlock_bh(&netdev_work_lock);
+		return;
+	}
 	if (list_empty(&dev->work_node)) {
 		list_add_tail(&dev->work_node, &netdev_work_list);
 		netdev_hold(dev, &dev->work_tracker, GFP_ATOMIC);
@@ -59,6 +63,18 @@ netdev_work_dequeue(struct net_device *dev, unsigned long *pending,
 	spin_unlock_bh(&netdev_work_lock);
 
 	return events;
+}
+
+void netdev_work_cancel_all(struct net_device *dev)
+{
+	spin_lock_bh(&netdev_work_lock);
+	dev->work_pending = 0;
+	dev->work_core_pending = 0;
+	if (!list_empty(&dev->work_node)) {
+		list_del_init(&dev->work_node);
+		netdev_put(dev, &dev->work_tracker);
+	}
+	spin_unlock_bh(&netdev_work_lock);
 }
 
 void netdev_work_sched(struct net_device *dev, unsigned long events)
