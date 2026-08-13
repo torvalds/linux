@@ -21,8 +21,17 @@ config MEDIATEK_GE_PHY
 	  common operations with MediaTek SoC built-in Gigabit
 	  Ethernet PHYs.
 
+config MEDIATEK_FE_SOC_PHY
+	tristate "MediaTek SoC Fast Ethernet PHYs"
+	depends on SOC_MT7620 || COMPILE_TEST
+	help
+	  Support for MediaTek MT7628 built-in Fast Ethernet PHYs.
+	  This driver only sets an initialization bit required for the PHY
+	  to establish 100 Mbps links. All other PHY operations are handled
+	  by the kernel's generic PHY code.
+
 config MEDIATEK_GE_SOC_PHY
-	tristate "MediaTek SoC Ethernet PHYs"
+	tristate "MediaTek SoC Gigabit Ethernet PHYs"
 	depends on ARM64 || ECONET || COMPILE_TEST
 	depends on ARCH_AIROHA || (ARCH_MEDIATEK && NVMEM_MTK_EFUSE) || \
 		   ECONET || COMPILE_TEST
