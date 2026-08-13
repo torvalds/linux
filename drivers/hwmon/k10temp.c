@@ -207,6 +207,10 @@ static const char *k10temp_temp_label[] = {
 	"Tccd10",
 	"Tccd11",
 	"Tccd12",
+	"Tccd13",
+	"Tccd14",
+	"Tccd15",
+	"Tccd16",
 };
 
 static int k10temp_read_labels(struct device *dev,
@@ -243,7 +247,7 @@ static int k10temp_read_temp(struct device *dev, u32 attr, int channel,
 			if (*val < 0 && !data->disp_negative)
 				*val = 0;
 			break;
-		case 2 ... 13:		/* Tccd{1-12} */
+		case 2 ... 17:		/* Tccd{1-16} */
 			ret = read_ccd_temp_reg(data, channel - 2, &regval);
 
 			if (ret)
@@ -372,6 +376,10 @@ static const struct hwmon_channel_info * const k10temp_info[] = {
 			   HWMON_T_INPUT | HWMON_T_MAX |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
 			   HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
+			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_LABEL,
@@ -515,6 +523,10 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	} else if (boot_cpu_data.x86 == 0x1a) {
 		switch (boot_cpu_data.x86_model) {
+		case 0x00 ... 0x2f:	/* Zen5 Turin */
+			data->ccd_offset = 0x1F0;
+			k10temp_get_ccd_support(data, 16);
+			break;
 		case 0x40 ... 0x4f:	/* Zen5 Ryzen Desktop */
 			data->ccd_offset = 0x308;
 			k10temp_get_ccd_support(data, 8);
