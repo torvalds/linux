@@ -33,9 +33,10 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            const: everest,es8316
-    else:
+          not:
+            contains:
+              const: everest,es8316
+    then:
       properties:
         avdd-supply: false
         cpvdd-supply: false
