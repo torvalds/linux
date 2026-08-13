@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: June 2026
+:Date: August 2026
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -555,6 +555,9 @@ in the running kernel.
 
 .. kernel-doc:: security/landlock/errata/abi-1.h
     :doc: erratum_3
+
+.. kernel-doc:: security/landlock/errata/abi-1.h
+    :doc: erratum_4
 
 How to check for errata
 ~~~~~~~~~~~~~~~~~~~~~~~
