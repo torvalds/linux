@@ -1124,6 +1124,66 @@ void release_async_work(struct ksmbd_work *work)
 	}
 }
 
+static int smb2_send_interim_work(struct ksmbd_work *in_work,
+				  struct ksmbd_work *work, bool eor)
+{
+	int err = 0;
+
+	in_work->encrypted = work->encrypted;
+	if (work->encrypted && work->sess && work->sess->enc &&
+	    work->conn->ops->encrypt_resp) {
+		in_work->sess = work->sess;
+		err = work->conn->ops->encrypt_resp(in_work);
+		in_work->sess = NULL;
+	}
+	if (err)
+		return err;
+
+	return eor ? ksmbd_conn_write_eor(in_work) :
+		ksmbd_conn_write(in_work);
+}
+
+static int smb2_send_interim_prefix_work(struct ksmbd_work *work)
+{
+	struct ksmbd_work *in_work;
+	unsigned int len, copied = 0;
+	char *dst;
+	int err = -ENOMEM;
+	int i;
+
+	len = get_rfc1002_len(work->iov[0].iov_base);
+	in_work = ksmbd_alloc_work_struct();
+	if (!in_work)
+		return err;
+
+	in_work->response_buf = kvzalloc(len + 4, KSMBD_DEFAULT_GFP);
+	if (!in_work->response_buf)
+		goto out;
+	in_work->response_sz = len + 4;
+	in_work->conn = work->conn;
+	dst = in_work->response_buf + 4;
+	for (i = 1; i <= work->iov_idx; i++) {
+		if (work->iov[i].iov_len > len - copied) {
+			err = -EINVAL;
+			goto out;
+		}
+		memcpy(dst + copied, work->iov[i].iov_base,
+		       work->iov[i].iov_len);
+		copied += work->iov[i].iov_len;
+	}
+	if (copied != len) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = ksmbd_iov_pin_rsp(in_work, dst, len);
+	if (!err)
+		err = smb2_send_interim_work(in_work, work, true);
+out:
+	ksmbd_free_work_struct(in_work);
+	return err;
+}
+
 static void smb2_send_interim_compound_prefix(struct ksmbd_work *work)
 {
 	struct smb2_hdr *req_hdr;
@@ -1152,7 +1212,7 @@ static void smb2_send_interim_compound_prefix(struct ksmbd_work *work)
 	    work->conn->ops->set_sign_rsp)
 		work->conn->ops->set_sign_rsp(work);
 
-	err = ksmbd_conn_write_eor(work);
+	err = smb2_send_interim_prefix_work(work);
 	if (err)
 		ksmbd_debug(SMB, "failed to send compound interim prefix: %d\n",
 			    err);
@@ -1193,7 +1253,8 @@ void smb2_send_interim_resp(struct ksmbd_work *work, __le32 status)
 	smb2_set_err_rsp(in_work);
 	rsp_hdr->Status = status;
 
-	ksmbd_conn_write_eor(in_work);
+	if (smb2_send_interim_work(in_work, work, true))
+		ksmbd_debug(SMB, "failed to send interim response\n");
 	ksmbd_free_work_struct(in_work);
 }
 
@@ -11310,7 +11371,8 @@ int smb2_notify(struct ksmbd_work *work)
 		in_work->async_id = work->async_id;
 		work->async_id = 0;
 		release_async_work(work);
-		ksmbd_conn_write(in_work);
+		if (smb2_send_interim_work(in_work, work, false))
+			ksmbd_debug(SMB, "failed to send notify cleanup\n");
 		ksmbd_free_work_struct(in_work);
 		work->send_no_response = 1;
 		return 0;
@@ -11415,7 +11477,8 @@ int smb2_notify(struct ksmbd_work *work)
 		in_work->cancel_fn = NULL;
 		in_work->asynchronous = false;
 		ksmbd_fd_put(work, fp);
-		ksmbd_conn_write(in_work);
+		if (smb2_send_interim_work(in_work, work, false))
+			ksmbd_debug(SMB, "failed to send notify cleanup\n");
 		ksmbd_free_work_struct(in_work);
 		work->send_no_response = 1;
 		return 0;
