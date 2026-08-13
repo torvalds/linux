@@ -68,32 +68,25 @@ impl IrqTypes {
     }
 }
 
-/// Represents an allocated IRQ vector for a specific PCI device.
+/// A resolved IRQ vector from a PCI interrupt vector allocation.
 ///
-/// This type ties an IRQ vector to the device it was allocated for,
-/// ensuring the vector is only used with the correct device.
-#[derive(Clone, Copy)]
+/// Created by [`IrqVectorRegistration::index`] and consumed by [`Device::request_irq`] or
+/// [`Device::request_threaded_irq`]. Borrows the [`IrqVectorRegistration`] it was derived from,
+/// so the allocation stays live until the handler is freed.
 pub struct IrqVector<'a> {
-    dev: &'a Device<Bound>,
+    request: IrqRequest<'a>,
     reg: &'a IrqVectorRegistration<'a>,
-    index: u32,
 }
 
 impl<'a> IrqVector<'a> {
-    /// Creates a new [`IrqVector`] for the given device and index.
+    /// Creates a new [`IrqVector`] with an already resolved [`IrqRequest`].
     ///
     /// # Safety
     ///
-    /// - `index` must be a valid IRQ vector index for `reg`.
-    /// - `dev` must be the device `reg` was allocated from.
+    /// `request` must have been resolved from `reg`.
     #[inline]
-    unsafe fn new(dev: &'a Device<Bound>, reg: &'a IrqVectorRegistration<'a>, index: u32) -> Self {
-        Self { dev, reg, index }
-    }
-
-    /// Returns the raw vector index.
-    fn index(&self) -> u32 {
-        self.index
+    unsafe fn new(request: IrqRequest<'a>, reg: &'a IrqVectorRegistration<'a>) -> Self {
+        Self { request, reg }
     }
 
     /// Returns the [`IrqVectorRegistration`] this vector was derived from.
@@ -103,17 +96,10 @@ impl<'a> IrqVector<'a> {
     }
 }
 
-impl<'a> TryInto<IrqRequest<'a>> for IrqVector<'a> {
-    type Error = Error;
-
-    fn try_into(self) -> Result<IrqRequest<'a>> {
-        // SAFETY: `self.dev.as_raw()` returns a valid pointer to a `struct pci_dev`.
-        let irq = unsafe { bindings::pci_irq_vector(self.dev.as_raw(), self.index()) };
-        if irq < 0 {
-            return Err(crate::error::Error::from_errno(irq));
-        }
-        // SAFETY: `irq` is guaranteed to be a valid IRQ number for `self.dev`.
-        Ok(unsafe { IrqRequest::new(self.dev.as_ref(), irq as u32) })
+impl<'a> From<IrqVector<'a>> for IrqRequest<'a> {
+    #[inline]
+    fn from(vector: IrqVector<'a>) -> Self {
+        vector.request
     }
 }
 
@@ -146,13 +132,14 @@ impl<'a> IrqVectorRegistration<'a> {
     /// [`Self::len()`].
     #[inline]
     pub fn index(&self, index: usize) -> Result<IrqVector<'_>> {
-        if index >= self.len.get() {
-            return Err(EINVAL);
+        // SAFETY: `self.dev.as_raw()` is a valid pointer to a `struct pci_dev`.
+        let irq = unsafe { bindings::pci_irq_vector(self.dev.as_raw(), index as u32) };
+        if irq < 0 {
+            return Err(Error::from_errno(irq));
         }
 
-        // SAFETY: `index` is within bounds of this registration's allocation, and `self.dev` is
-        // the device it was allocated from.
-        Ok(unsafe { IrqVector::new(self.dev, self, index as u32) })
+        // SAFETY: `irq` is a valid IRQ number for `self.dev`, resolved from this registration.
+        Ok(unsafe { IrqVector::new(IrqRequest::new(self.dev.as_ref(), irq as u32), self) })
     }
 }
 
@@ -179,12 +166,8 @@ impl Device<device::Bound> {
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
     ) -> impl PinInit<irq::Registration<'a, T>, Error> + 'a {
-        pin_init::pin_init_scope(move || {
-            let request = vector.try_into()?;
-
-            // SAFETY: Caller guarantees the Registration will not be leaked.
-            Ok(unsafe { irq::Registration::<T>::new(request, flags, name, handler) })
-        })
+        // SAFETY: Caller guarantees the Registration will not be leaked.
+        unsafe { irq::Registration::<T>::new(vector.into(), flags, name, handler) }
     }
 
     /// Returns a [`kernel::irq::ThreadedRegistration`] for the given IRQ vector.
@@ -200,12 +183,8 @@ impl Device<device::Bound> {
         name: &'static CStr,
         handler: impl PinInit<T, Error> + 'a,
     ) -> impl PinInit<irq::ThreadedRegistration<'a, T>, Error> + 'a {
-        pin_init::pin_init_scope(move || {
-            let request = vector.try_into()?;
-
-            // SAFETY: Caller guarantees the Registration will not be leaked.
-            Ok(unsafe { irq::ThreadedRegistration::<T>::new(request, flags, name, handler) })
-        })
+        // SAFETY: Caller guarantees the Registration will not be leaked.
+        unsafe { irq::ThreadedRegistration::<T>::new(vector.into(), flags, name, handler) }
     }
 
     /// Allocate IRQ vectors for this PCI device.
