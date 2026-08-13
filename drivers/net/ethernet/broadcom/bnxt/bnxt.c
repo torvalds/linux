@@ -11592,7 +11592,7 @@ static int bnxt_get_num_msix(struct bnxt *bp)
 
 static int bnxt_init_int_mode(struct bnxt *bp)
 {
-	int i, total_vecs, max, rc = 0, min = 1, ulp_msix, tx_cp, tbl_size;
+	int i, total_vecs, max, rc, min = 1, ulp_msix, tx_cp, tbl_size;
 
 	total_vecs = bnxt_get_num_msix(bp);
 	max = bnxt_get_max_func_irqs(bp);
@@ -11617,26 +11617,26 @@ static int bnxt_init_int_mode(struct bnxt *bp)
 	if (pci_msix_can_alloc_dyn(bp->pdev))
 		tbl_size = max;
 	bp->irq_tbl = kzalloc_objs(*bp->irq_tbl, tbl_size);
-	if (bp->irq_tbl) {
-		for (i = 0; i < total_vecs; i++)
-			bp->irq_tbl[i].vector = pci_irq_vector(bp->pdev, i);
-
-		bp->total_irqs = total_vecs;
-		/* Trim rings based upon num of vectors allocated */
-		rc = bnxt_trim_rings(bp, &bp->rx_nr_rings, &bp->tx_nr_rings,
-				     total_vecs - ulp_msix, min == 1);
-		if (rc)
-			goto msix_setup_exit;
-
-		tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
-		bp->cp_nr_rings = (min == 1) ?
-				  max_t(int, tx_cp, bp->rx_nr_rings) :
-				  tx_cp + bp->rx_nr_rings;
-
-	} else {
+	if (!bp->irq_tbl) {
 		rc = -ENOMEM;
 		goto msix_setup_exit;
 	}
+
+	for (i = 0; i < total_vecs; i++)
+		bp->irq_tbl[i].vector = pci_irq_vector(bp->pdev, i);
+
+	bp->total_irqs = total_vecs;
+	/* Trim rings based upon num of vectors allocated */
+	rc = bnxt_trim_rings(bp, &bp->rx_nr_rings, &bp->tx_nr_rings,
+			     total_vecs - ulp_msix, min == 1);
+	if (rc)
+		goto msix_setup_exit;
+
+	tx_cp = bnxt_num_tx_to_cp(bp, bp->tx_nr_rings);
+	bp->cp_nr_rings = (min == 1) ?
+			  max_t(int, tx_cp, bp->rx_nr_rings) :
+			  tx_cp + bp->rx_nr_rings;
+
 	return 0;
 
 msix_setup_exit:
