@@ -123,7 +123,6 @@ out:
 	return err;
 }
 
-
 static long __stack_map_get(struct bpf_map *map, void *value, bool delete)
 {
 	struct bpf_queue_stack *qs = bpf_queue_stack(map);

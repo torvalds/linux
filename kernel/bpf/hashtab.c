@@ -998,7 +998,6 @@ static void dec_elem_count(struct bpf_htab *htab)
 		atomic_dec(&htab->count);
 }
 
-
 static void free_htab_elem(struct bpf_htab *htab, struct htab_elem *l)
 {
 	htab_put_fd_value(htab, l);
@@ -2969,7 +2968,6 @@ static int rhtab_delete_elem(struct bpf_rhtab *rhtab, struct rhtab_elem *elem, v
 	bpf_mem_cache_free_rcu(&rhtab->ma, elem);
 	return 0;
 }
-
 
 static long rhtab_map_delete_elem(struct bpf_map *map, void *key)
 {

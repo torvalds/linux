@@ -636,7 +636,6 @@ int bpf_map_alloc_pages(const struct bpf_map *map, int nid,
 	return ret;
 }
 
-
 static int btf_field_cmp(const void *a, const void *b)
 {
 	const struct btf_field *f1 = a, *f2 = b;
@@ -1829,7 +1828,6 @@ free_key:
 	kvfree(key);
 	return err;
 }
-
 
 #define BPF_MAP_UPDATE_ELEM_LAST_FIELD flags
 
@@ -3496,7 +3494,6 @@ int bpf_link_prime(struct bpf_link *link, struct bpf_link_primer *primer)
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
 		return fd;
-
 
 	id = bpf_link_alloc_id(link);
 	if (id < 0) {
@@ -5505,7 +5502,6 @@ static int bpf_link_get_info_by_fd(struct file *file,
 	return 0;
 }
 
-
 static int token_get_info_by_fd(struct file *file,
 				struct bpf_token *token,
 				const union bpf_attr *attr,
@@ -6506,7 +6502,6 @@ BPF_CALL_3(bpf_sys_bpf, int, cmd, union bpf_attr *, attr, u32, attr_size)
 	}
 	return __sys_bpf(cmd, KERNEL_BPFPTR(attr), attr_size, KERNEL_BPFPTR(NULL), 0);
 }
-
 
 /* To shut up -Wmissing-prototypes.
  * This function is used by the kernel light skeleton

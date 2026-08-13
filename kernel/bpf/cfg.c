@@ -47,7 +47,6 @@ enum {
 	BRANCH = 2,
 };
 
-
 static void mark_subprog_changes_pkt_data(struct bpf_verifier_env *env, int off)
 {
 	struct bpf_subprog_info *subprog;
