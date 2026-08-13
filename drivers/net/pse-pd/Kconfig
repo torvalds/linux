@@ -13,6 +13,12 @@ menuconfig PSE_CONTROLLER
 
 if PSE_CONTROLLER
 
+config PSE_REALTEK_MCU
+	tristate
+	help
+	  Shared core for the Realtek PSE MCU driver. This is selected
+	  automatically by the transport options below.
+
 config PSE_REGULATOR
 	tristate "Regulator based PSE controller"
 	help
