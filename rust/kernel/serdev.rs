@@ -87,7 +87,7 @@ unsafe impl<T: Driver> driver::RegistrationOps for Adapter<T> {
         }
 
         // SAFETY: `sdrv` is guaranteed to be a valid `DriverType`.
-        to_result(unsafe { bindings::__serdev_device_driver_register(sdrv.get(), module.0) })
+        to_result(unsafe { bindings::__serdev_device_driver_register(sdrv.get(), module.as_ptr()) })
     }
 
     unsafe fn unregister(sdrv: &Opaque<Self::DriverType>) {
