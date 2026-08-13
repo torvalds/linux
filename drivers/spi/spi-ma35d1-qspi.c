@@ -31,6 +31,7 @@
 #define NUVOTON_QSPI_RX_OFFSET		0x30 /* Data Receive Register, RO */
 
 /* QSPI Control Register bit masks */
+#define NUVOTON_QSPI_CTL_DTREN_MASK	BIT(23) /* DTR I/O Mode Enable */
 #define NUVOTON_QSPI_CTL_QUADIOEN_MASK	BIT(22) /* Quad I/O Mode Enable */
 #define NUVOTON_QSPI_CTL_DUALIOEN_MASK	BIT(21) /* Dual I/O Mode Enable */
 #define NUVOTON_QSPI_CTL_DATDIR_MASK	BIT(20) /* Data Port Direction Control */
@@ -131,7 +132,7 @@ static int nuvoton_qspi_reset_fifo(struct nuvoton_qspi *qspi)
 					 1, NUVOTON_QSPI_TIMEOUT_US);
 }
 
-static int nuvoton_qspi_set_speed(struct spi_device *spi, u32 speed_hz)
+static int nuvoton_qspi_set_speed(struct spi_device *spi, u32 speed_hz, bool dtr)
 {
 	struct nuvoton_qspi *qspi = spi_controller_get_devdata(spi->controller);
 	unsigned long clk_rate;
@@ -142,6 +143,10 @@ static int nuvoton_qspi_set_speed(struct spi_device *spi, u32 speed_hz)
 
 	if (!speed_hz)
 		return -EINVAL;
+
+	/* Experimentally, when enabling DTR the frequency is cut in half */
+	if (dtr)
+		speed_hz *= 2;
 
 	if (qspi->speed_hz == speed_hz)
 		return 0;
@@ -215,15 +220,18 @@ static int nuvoton_qspi_setup_transfer(struct spi_device *spi, u8 bpw)
 static int nuvoton_qspi_configure_bus(struct spi_device *spi,
 				      unsigned int buswidth,
 				      enum spi_mem_data_dir dir,
-				      u32 speed_hz)
+				      u32 speed_hz, bool dtr)
 {
 	struct nuvoton_qspi *qspi = spi_controller_get_devdata(spi->controller);
 	u32 ctl = 0;
 	int ret;
 
-	ret = nuvoton_qspi_set_speed(spi, speed_hz);
+	ret = nuvoton_qspi_set_speed(spi, speed_hz, dtr);
 	if (ret)
 		return ret;
+
+	if (dtr)
+		ctl |= NUVOTON_QSPI_CTL_DTREN_MASK;
 
 	if (buswidth == 4)
 		ctl |= NUVOTON_QSPI_CTL_QUADIOEN_MASK;
@@ -234,6 +242,7 @@ static int nuvoton_qspi_configure_bus(struct spi_device *spi,
 		ctl |= NUVOTON_QSPI_CTL_DATDIR_MASK;
 
 	nuvoton_qspi_update_bits(qspi, NUVOTON_QSPI_CTL_OFFSET,
+				 NUVOTON_QSPI_CTL_DTREN_MASK |
 				 NUVOTON_QSPI_CTL_QUADIOEN_MASK |
 				 NUVOTON_QSPI_CTL_DUALIOEN_MASK |
 				 NUVOTON_QSPI_CTL_DATDIR_MASK, ctl);
@@ -470,7 +479,7 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 		cmd[i] = op->cmd.opcode >> (8 * (op->cmd.nbytes - i - 1));
 
 	ret = nuvoton_qspi_configure_bus(spi, op->cmd.buswidth, SPI_MEM_DATA_OUT,
-					 op->max_freq);
+					 op->max_freq, op->cmd.dtr);
 	if (ret)
 		goto out_deassert_cs;
 
@@ -483,7 +492,7 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 			addr[i] = op->addr.val >> (8 * (op->addr.nbytes - i - 1));
 
 		ret = nuvoton_qspi_configure_bus(spi, op->addr.buswidth, SPI_MEM_DATA_OUT,
-						 op->max_freq);
+						 op->max_freq, op->addr.dtr);
 		if (ret)
 			goto out_deassert_cs;
 
@@ -494,7 +503,7 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 
 	if (op->dummy.nbytes) {
 		ret = nuvoton_qspi_configure_bus(spi, op->dummy.buswidth, SPI_MEM_DATA_OUT,
-						 op->max_freq);
+						 op->max_freq, op->dummy.dtr);
 		if (ret)
 			goto out_deassert_cs;
 
@@ -505,7 +514,7 @@ static int nuvoton_qspi_mem_exec_op(struct spi_mem *mem,
 
 	if (op->data.nbytes) {
 		ret = nuvoton_qspi_configure_bus(spi, op->data.buswidth, op->data.dir,
-						 op->max_freq);
+						 op->max_freq, op->data.dtr);
 		if (ret)
 			goto out_deassert_cs;
 
@@ -531,6 +540,7 @@ static const struct spi_controller_mem_ops nuvoton_qspi_mem_ops = {
 
 static const struct spi_controller_mem_caps nuvoton_qspi_mem_caps = {
 	.per_op_freq = true,
+	.dtr = true,
 };
 
 static int nuvoton_qspi_transfer_one(struct spi_controller *ctlr,
@@ -567,7 +577,8 @@ static int nuvoton_qspi_transfer_one(struct spi_controller *ctlr,
 			buswidth = 2;
 	}
 
-	ret = nuvoton_qspi_configure_bus(spi, buswidth, dir, xfer->speed_hz);
+	ret = nuvoton_qspi_configure_bus(spi, buswidth, dir, xfer->speed_hz,
+					 xfer->dtr_mode);
 	if (ret)
 		return ret;
 
