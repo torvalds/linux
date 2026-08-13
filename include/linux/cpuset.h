@@ -279,6 +279,7 @@ static inline void dl_rebuild_rd_accounting(void)
 
 static inline void rebuild_sched_domains(void)
 {
+	guard(cpus_read_lock)();
 	partition_sched_domains(1, NULL, NULL);
 }
 
