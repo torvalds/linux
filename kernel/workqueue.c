@@ -1309,13 +1309,14 @@ static bool kick_pool_pick(struct worker_pool *pool, struct task_struct **wakep)
 	 * its affinity scope. Repatriate.
 	 */
 	if (!pool->attrs->affn_strict &&
-	    !cpumask_test_cpu(p->wake_cpu, pool->attrs->__pod_cpumask)) {
+	    !cpumask_test_cpu(READ_ONCE(p->wake_cpu),
+			      pool->attrs->__pod_cpumask)) {
 		struct work_struct *work = list_first_entry(&pool->worklist,
 						struct work_struct, entry);
 		int wake_cpu = cpumask_any_and_distribute(pool->attrs->__pod_cpumask,
 							  cpu_online_mask);
 		if (wake_cpu < nr_cpu_ids) {
-			p->wake_cpu = wake_cpu;
+			WRITE_ONCE(p->wake_cpu, wake_cpu);
 			get_work_pwq(work)->stats[PWQ_STAT_REPATRIATED]++;
 		}
 	}
