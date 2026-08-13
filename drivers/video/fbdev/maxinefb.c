@@ -71,6 +71,8 @@ static void maxinefb_ims332_write_register(int regno, register unsigned int val)
 	*((volatile unsigned short *) (wptr)) = val;
 }
 
+#if 0
+/* dead code: leave here for hardware interface documentation */
 static unsigned int maxinefb_ims332_read_register(int regno)
 {
 	register unsigned char *regs = (char *) MAXINEFB_IMS332_ADDRESS;
@@ -83,6 +85,7 @@ static unsigned int maxinefb_ims332_read_register(int regno)
 
 	return (j & 0xffff) | ((k & 0xff00) << 8);
 }
+#endif
 
 /* Set the palette */
 static int maxinefb_setcolreg(unsigned regno, unsigned red, unsigned green,
