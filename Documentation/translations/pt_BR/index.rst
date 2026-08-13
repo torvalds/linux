@@ -66,29 +66,4 @@ kernel e sobre como ver seu trabalho integrado.
 .. toctree::
    :maxdepth: 1
 
-   Introdução <process/1.Intro>
-   Guia do Processo de Desenvolvimento <process/development-process>
-   Como aplicar patches <process/applying-patches>
-   Backporting e resolução de conflitos <process/backporting>
-   Como não Deixar as ioctls malfeitas <process/botching-up-ioctls>
-   Index de documentos do Kernel <process/kernel-docs>
-   Regras de licenciamento <process/license-rules>
-   Como começar <process/howto>
-   Requisitos mínimos <process/changes>
-   CVEs <process/cve>
-   Conclave (Continuidade do projeto) <process/conclave>
-   Informações sobre clientes de email para Linux <process/email-clients>
-   Modelos de Maturidade para Contribuição no Kernel Linux <process/contribution-maturity-model.rst>
-   Manuais dos mantenedores <process/maintainer-handbooks>
-   Processo do subsistema de rede (netdev) <process/maintainer-netdev>
-   Processo do subsistema SoC <process/maintainer-soc>
-   Conformidade de DTS para SoC <process/maintainer-soc-clean-dts>
-   Estilo de gerenciamento do kernel Linux <process/management-style>
-   Processo do subsistema KVM x86 <process/maintainer-kvm-x86>
-   Adicionando uma nova chamada de Sistema <process/adding-syscalls>
-   Declaração sobre Drivers do Kernel <process/kernel-driver-statement>
-   Lista de verificação para submissão de patches do kernel Linux <process/submit-checklist>
-   Interpretação do Código de Conduta do Kernel Linux <process/code-of-conduct-interpretation>
-   Código de Conduta de Compromisso do Colaborador <process/code-of-conduct>
-   Interfaces, recursos de linguagem, atributos e convenções obsoletos <process/deprecated>
-   Falhas de segurança <process/security-bugs>
+   process/index
