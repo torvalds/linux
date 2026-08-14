@@ -9169,6 +9169,12 @@ static void smb2_remove_blocked_lock(void **argv)
 	locks_wake_up(flock);
 }
 
+static void smb2_free_lock(struct file_lock *flock)
+{
+	ksmbd_vfs_posix_lock_unblock(flock);
+	locks_free_lock(flock);
+}
+
 static void smb2_free_blocked_lock(struct file_lock *flock)
 {
 	ksmbd_vfs_posix_lock_unblock(flock);
@@ -9355,14 +9361,14 @@ int smb2_lock(struct ksmbd_work *work)
 					    cmp_lock->end == smb_lock->end &&
 					    !lock_defer_pending(cmp_lock->fl)) {
 						nolock = 0;
-						list_del(&cmp_lock->flist);
-						list_del(&cmp_lock->clist);
+						list_del_init(&cmp_lock->flist);
+						list_del_init(&cmp_lock->clist);
 						cmp_lock->conn = NULL;
 						spin_unlock(&conn->llist_lock);
 						up_read(&conn_list_lock);
 
 						ksmbd_conn_put(conn);
-						locks_free_lock(cmp_lock->fl);
+						smb2_free_lock(cmp_lock->fl);
 						kfree(cmp_lock);
 						goto out_check_cl;
 					}
@@ -9527,7 +9533,8 @@ lock_success:
 	/* publish only once the whole batch has committed */
 	if (!list_empty(&rollback_list)) {
 		spin_lock(&work->conn->llist_lock);
-		list_for_each_entry(smb_lock, &rollback_list, llist) {
+		list_for_each_entry_safe(smb_lock, tmp, &rollback_list, llist) {
+			list_del_init(&smb_lock->llist);
 			smb_lock->conn = ksmbd_conn_get(work->conn);
 			list_add_tail(&smb_lock->clist,
 				      &work->conn->lock_list);
@@ -9567,7 +9574,7 @@ out:
 		}
 
 		list_del(&smb_lock->llist);
-		locks_free_lock(smb_lock->fl);
+		smb2_free_lock(smb_lock->fl);
 		if (rlock)
 			locks_free_lock(rlock);
 		kfree(smb_lock);
