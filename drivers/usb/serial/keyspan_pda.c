@@ -31,7 +31,6 @@
 struct keyspan_pda_private {
 	int			tx_room;
 	struct work_struct	unthrottle_work;
-	struct usb_serial	*serial;
 	struct usb_serial_port	*port;
 	bool			throttled;
 	bool			throttle_req;
