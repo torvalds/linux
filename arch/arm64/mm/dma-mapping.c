@@ -42,6 +42,11 @@ void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
 	int cls = cache_line_size_of_cpu();
 
+	if (!coherent && !CLIDR_LOC(read_sysreg(clidr_el1))) {
+		dev_warn(dev, "CLIDR_EL1.LoC == 0, treating as coherent\n");
+		coherent = true;
+	}
+
 	WARN_TAINT(!coherent && cls > ARCH_DMA_MINALIGN,
 		   TAINT_CPU_OUT_OF_SPEC,
 		   "%s %s: ARCH_DMA_MINALIGN smaller than CTR_EL0.CWG (%d < %d)",
