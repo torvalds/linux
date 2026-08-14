@@ -424,6 +424,9 @@ static uverbs_api_ioctl_handler_fn uverbs_get_handler_fn(struct ib_udata *udata)
 
 	lockdep_assert_held(&bundle->ufile->device->disassociate_srcu);
 
+	if (!bundle->method_elm)
+		return NULL;
+
 	return srcu_dereference(bundle->method_elm->handler,
 				&bundle->ufile->device->disassociate_srcu);
 }
