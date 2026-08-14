@@ -44,11 +44,16 @@ static bool nft_is_valid_ether_device(const struct net_device *dev)
 
 static int nft_dev_fill_forward_path(const struct dst_entry *dst_cache,
 				     const struct nf_conn *ct,
-				     enum ip_conntrack_dir dir, u8 *ha,
+				     enum ip_conntrack_dir dir,
+				     u8 *ha, __be16 ether_type,
 				     struct net_device_path_stack *stack)
 {
 	const void *daddr = &ct->tuplehash[!dir].tuple.src.u3;
 	struct net_device *dev = dst_cache->dev;
+	struct net_device_path_ctx ctx = {
+		.dev = dev,
+		.ether_type = ether_type,
+	};
 	struct neighbour *n;
 	u8 nud_state;
 
@@ -71,7 +76,9 @@ static int nft_dev_fill_forward_path(const struct dst_entry *dst_cache,
 		return -1;
 
 out:
-	return dev_fill_forward_path(dev, ha, stack);
+	ether_addr_copy(ctx.daddr, ha);
+
+	return dev_fill_forward_path(&ctx, stack);
 }
 
 struct nft_forward_info {
@@ -126,7 +133,7 @@ static int nft_dev_path_info(struct net_device_path_stack *stack,
 
 				info->tun.src_v6 = path->tun.src_v6;
 				info->tun.dst_v6 = path->tun.dst_v6;
-				info->tun.l3_proto = path->tun.l3_proto;
+				info->tun.inner_proto = path->tun.inner_proto;
 				info->tun_dst = path->tun.dst;
 				info->num_tuns++;
 			} else {
@@ -223,7 +230,7 @@ static int nft_dev_forward_path(const struct nft_pktinfo *pkt,
 	unsigned char ha[ETH_ALEN];
 	int i;
 
-	if (nft_dev_fill_forward_path(dst, ct, dir, ha, &stack) < 0 ||
+	if (nft_dev_fill_forward_path(dst, ct, dir, ha, pkt->ethertype, &stack) < 0 ||
 	    nft_dev_path_info(&stack, &info, ha, ft) < 0)
 		return -ENOENT;
 
@@ -238,7 +245,7 @@ static int nft_dev_forward_path(const struct nft_pktinfo *pkt,
 	if (info.num_tuns) {
 		route->tuple[!dir].in.tun.src_v6 = info.tun.dst_v6;
 		route->tuple[!dir].in.tun.dst_v6 = info.tun.src_v6;
-		route->tuple[!dir].in.tun.l3_proto = info.tun.l3_proto;
+		route->tuple[!dir].in.tun.inner_proto = info.tun.inner_proto;
 		route->tuple[!dir].in.num_tuns = info.num_tuns;
 		dst_release(route->tuple[dir].dst);
 		route->tuple[dir].dst = info.tun_dst;

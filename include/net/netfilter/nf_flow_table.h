@@ -117,7 +117,7 @@ struct flow_offload_tunnel {
 		struct in6_addr	dst_v6;
 	};
 
-	u8	l3_proto;
+	u8	inner_proto;
 };
 
 struct flow_offload_tuple {
