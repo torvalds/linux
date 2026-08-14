@@ -34,6 +34,67 @@ START_TEST(test_strtoi)
 }
 END_TEST
 
+struct cpu_list_iterate_cb_data {
+	int index;
+	int *values;
+};
+
+static int cpu_list_iterate_callback(int cpu, void *data)
+{
+	struct cpu_list_iterate_cb_data *cb_data = data;
+
+	ck_assert_int_eq(cpu, cb_data->values[cb_data->index++]);
+
+	return 0;
+}
+
+static int cpu_list_iterate_callback_error(int cpu, void *data)
+{
+	struct cpu_list_iterate_cb_data *cb_data = data;
+
+	if (cpu > 10)
+		return -42;
+
+	ck_assert_int_eq(cpu, cb_data->values[cb_data->index++]);
+
+	return 0;
+}
+
+START_TEST(test_cpu_list_iterate)
+{
+	struct cpu_list_iterate_cb_data cb_data;
+	int test_data_1[] = {1, 2, 3, 4};
+	int test_data_2[] = {1, 2, 10, 11, 12};
+
+	cb_data.index = 0;
+
+	cb_data.values = test_data_1;
+	ck_assert_int_eq(cpu_list_iterate("1,2,3,4", cpu_list_iterate_callback, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+	cb_data.index = 0;
+	ck_assert_int_eq(cpu_list_iterate("1-4", cpu_list_iterate_callback, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+	cb_data.index = 0;
+	ck_assert_int_eq(cpu_list_iterate("1,2-3,4", cpu_list_iterate_callback, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+	cb_data.index = 0;
+	ck_assert_int_eq(cpu_list_iterate("1-3,4", cpu_list_iterate_callback, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+	cb_data.index = 0;
+	ck_assert_int_eq(cpu_list_iterate("1,2-4", cpu_list_iterate_callback, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+
+	cb_data.index = 0;
+	ck_assert_int_eq(cpu_list_iterate("1,2-4", cpu_list_iterate_callback_error, &cb_data), 4);
+	ck_assert_int_eq(cb_data.index, 4);
+	cb_data.index = 0;
+	cb_data.values = test_data_2;
+	ck_assert_int_eq(cpu_list_iterate("1,2,10-12", cpu_list_iterate_callback_error, &cb_data),
+			 -42);
+	ck_assert_int_eq(cb_data.index, 3);
+}
+END_TEST
+
 START_TEST(test_parse_cpu_set)
 {
 	cpu_set_t set;
@@ -98,6 +159,7 @@ Suite *utils_suite(void)
 	TCase *tc = tcase_create("core");
 
 	tcase_add_test(tc, test_strtoi);
+	tcase_add_test(tc, test_cpu_list_iterate);
 	tcase_add_test(tc, test_parse_cpu_set);
 	tcase_add_test(tc, test_parse_prio);
 
