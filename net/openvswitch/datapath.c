@@ -467,6 +467,9 @@ static int queue_userspace_packet(struct datapath *dp, struct sk_buff *skb,
 	if (!dp_ifindex)
 		return -ENODEV;
 
+	if (!skb_frags_readable(skb))
+		return -EFAULT;
+
 	if (skb_vlan_tag_present(skb)) {
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (!nskb)

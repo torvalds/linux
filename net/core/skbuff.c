@@ -3870,7 +3870,8 @@ EXPORT_SYMBOL_GPL(skb_zerocopy_headlen);
  *	Return value:
  *	0: everything is OK
  *	-ENOMEM: couldn't orphan frags of @from due to lack of memory
- *	-EFAULT: skb_copy_bits() found some problem with skb geometry
+ *	-EFAULT: skb_copy_bits() found some problem with skb geometry, or readable head
+ *      payload would be mixed with unreadable frags.
  */
 int
 skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
@@ -3905,10 +3906,17 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 		}
 	}
 
+	if (!skb_frags_readable(from) && j > 0 && len) {
+		put_page(virt_to_head_page(from->head));
+		return -EFAULT;
+	}
+
 	skb_len_add(to, len + plen);
 
 	if (unlikely(skb_orphan_frags(from, GFP_ATOMIC))) {
 		skb_tx_error(from);
+		if (j > 0)
+			put_page(virt_to_head_page(from->head));
 		return -ENOMEM;
 	}
 	skb_zerocopy_clone(to, from, GFP_ATOMIC);
@@ -3927,6 +3935,9 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 		j++;
 	}
 	skb_shinfo(to)->nr_frags = j;
+
+	if (i > 0 && from->unreadable)
+		to->unreadable = 1;
 
 	return 0;
 }
