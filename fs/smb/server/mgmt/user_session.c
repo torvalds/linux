@@ -740,11 +740,11 @@ static struct ksmbd_session *__session_create(int protocol)
 
 	down_write(&sessions_table_lock);
 	hash_add(sessions_table, &sess->hlist, sess->id);
+	ksmbd_counter_inc(KSMBD_COUNTER_SESSIONS);
 	up_write(&sessions_table_lock);
 
 	if (create_proc_session(sess))
 		pr_warn_ratelimited("Unable to create session %llu procfs entry\n", sess->id);
-	ksmbd_counter_inc(KSMBD_COUNTER_SESSIONS);
 	return sess;
 
 error:
