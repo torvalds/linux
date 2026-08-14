@@ -1257,6 +1257,99 @@ static int resume_single_queue(struct device_queue_manager *dqm,
 	return 0;
 }
 
+/* Unpin the MQD BO at S4 suspend so it is evicted into the hibernation image;
+ * dqm_repin_mqd_bo() pins it back on resume. Gated on adev->in_s4 so runtime
+ * eviction is untouched.
+ */
+static void dqm_evict_mqd_bo(struct device_queue_manager *dqm, struct queue *q)
+{
+	struct mqd_manager *mqd_mgr;
+	struct amdgpu_bo *bo;
+
+	if (!dqm->dev->adev->in_s4)
+		return;
+	if (!mqd_on_vram(dqm->dev->adev))
+		return;
+	if (q->properties.type != KFD_QUEUE_TYPE_COMPUTE)
+		return;
+	if (!q->mqd_mem_obj || !q->mqd_mem_obj->mem)
+		return;
+
+	/* Without update_mqd_gpu_addr() the MQD self-address cannot be fixed up
+	 * after a repin, so skip eviction (with a warning) instead of faulting.
+	 */
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(q->properties.type)];
+	if (!mqd_mgr->update_mqd_gpu_addr) {
+		dev_warn_once(dqm->dev->adev->dev,
+			      "MQD is in VRAM but update_mqd_gpu_addr is not implemented; skipping hibernation eviction\n");
+		return;
+	}
+
+	bo = q->mqd_mem_obj->mem;
+	if (amdgpu_bo_reserve(bo, false))
+		return;
+
+	amdgpu_bo_unpin(bo);
+	amdgpu_bo_unreserve(bo);
+	q->mqd = NULL;
+	q->needs_mqd_repin = true;
+}
+
+/* Repin the MQD BO to VRAM and refresh the cached mapping and GPU addresses.
+ * Used both on resume and when a queue is destroyed before resume has repinned
+ * it. A no-op unless a repin is owed (needs_mqd_repin set).
+ */
+static int dqm_repin_mqd_bo(struct device_queue_manager *dqm, struct queue *q)
+{
+	struct mqd_manager *mqd_mgr;
+	struct amdgpu_bo *bo;
+	void *cpu_ptr;
+	int r;
+
+	if (!q->needs_mqd_repin)
+		return 0;
+	if (!q->mqd_mem_obj || !q->mqd_mem_obj->mem)
+		return 0;
+
+	bo = q->mqd_mem_obj->mem;
+	r = amdgpu_bo_reserve(bo, false);
+	if (r)
+		return r;
+	r = amdgpu_bo_pin(bo, AMDGPU_GEM_DOMAIN_VRAM);
+	if (r) {
+		amdgpu_bo_unreserve(bo);
+		dev_err(dqm->dev->adev->dev,
+			"Failed to repin MQD of queue %d to VRAM: %d\n",
+			q->properties.queue_id, r);
+		return r;
+	}
+	/* The BO may have moved; refresh the kernel mapping and gpu address. */
+	amdgpu_bo_kunmap(bo);
+	r = amdgpu_bo_kmap(bo, &cpu_ptr);
+	amdgpu_bo_unreserve(bo);
+	if (r) {
+		dev_err(dqm->dev->adev->dev,
+			"Failed to remap MQD of queue %d: %d\n",
+			q->properties.queue_id, r);
+		return r;
+	}
+
+	q->mqd_mem_obj->cpu_ptr = cpu_ptr;
+	q->mqd_mem_obj->gpu_addr = amdgpu_bo_gpu_offset(bo);
+	q->gart_mqd_addr = q->mqd_mem_obj->gpu_addr;
+	q->mqd = cpu_ptr;
+
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
+	if (mqd_mgr->update_mqd_gpu_addr)
+		mqd_mgr->update_mqd_gpu_addr(mqd_mgr, q->mqd,
+					     q->mqd_mem_obj,
+					     &q->properties);
+
+	q->needs_mqd_repin = false;
+	return 0;
+}
+
 static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
@@ -1353,6 +1446,8 @@ static int evict_process_queues_cpsch(struct device_queue_manager *dqm,
 				goto out;
 			}
 		}
+
+		dqm_evict_mqd_bo(dqm, q);
 	}
 
 	if (!dqm->dev->kfd->shared_resources.enable_mes) {
@@ -1491,6 +1586,13 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 		q->properties.is_active = true;
 		increment_queue_count(dqm, &pdd->qpd, q);
+
+		retval = dqm_repin_mqd_bo(dqm, q);
+		if (retval) {
+			dev_err(dev, "Failed to repin MQD for queue %d\n",
+				q->properties.queue_id);
+			goto out;
+		}
 
 		if (dqm->dev->kfd->shared_resources.enable_mes) {
 			retval = add_queue_mes(dqm, q, qpd);
@@ -2763,6 +2865,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 				qpd->pqm->process, q->device,
 				-1, false, NULL, 0);
 
+	/* Repin the MQD BO if still evicted for hibernation, before it is freed. */
+	dqm_repin_mqd_bo(dqm, q);
 	mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 
 	return retval;
@@ -3020,6 +3124,8 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 		list_del(&q->list);
 		qpd->queue_count--;
 		dqm_unlock(dqm);
+		/* Repin the MQD BO if still evicted for hibernation, before free. */
+		dqm_repin_mqd_bo(dqm, q);
 		mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 		dqm_lock(dqm);
 	}

@@ -690,7 +690,7 @@ enum kfd_criu_op {
 };
 
 /**
- * kfd_ioctl_criu_args - Arguments perform CRIU operation
+ * struct kfd_ioctl_criu_args - Arguments perform CRIU operation
  * @devices:		[in/out] User pointer to memory location for devices information.
  * 			This is an array of type kfd_criu_device_bucket.
  * @bos:		[in/out] User pointer to memory location for BOs information
@@ -698,11 +698,11 @@ enum kfd_criu_op {
  * @priv_data:		[in/out] User pointer to memory location for private data
  * @priv_data_size:	[in/out] Size of priv_data in bytes
  * @num_devices:	[in/out] Number of GPUs used by process. Size of @devices array.
- * @num_bos		[in/out] Number of BOs used by process. Size of @bos array.
+ * @num_bos:		[in/out] Number of BOs used by process. Size of @bos array.
  * @num_objects:	[in/out] Number of objects used by process. Objects are opaque to
  *				 user application.
  * @pid:		[in/out] PID of the process being checkpointed
- * @op			[in] Type of operation (kfd_criu_op)
+ * @op:			[in] Type of operation (kfd_criu_op)
  *
  * Return: 0 on success, -errno on failure
  */
@@ -764,7 +764,7 @@ enum kfd_mmio_remap {
 #define KFD_IOCTL_SVM_FLAG_EXT_COHERENT        0x00000080
 
 /**
- * kfd_ioctl_svm_op - SVM ioctl operations
+ * enum kfd_ioctl_svm_op - SVM ioctl operations
  *
  * @KFD_IOCTL_SVM_OP_SET_ATTR: Modify one or more attributes
  * @KFD_IOCTL_SVM_OP_GET_ATTR: Query one or more attributes
@@ -786,7 +786,7 @@ enum kfd_ioctl_svm_location {
 };
 
 /**
- * kfd_ioctl_svm_attr_type - SVM attribute types
+ * enum kfd_ioctl_svm_attr_type - SVM attribute types
  *
  * @KFD_IOCTL_SVM_ATTR_PREFERRED_LOC: gpuid of the preferred location, 0 for
  *                                    system memory
@@ -815,7 +815,7 @@ enum kfd_ioctl_svm_attr_type {
 };
 
 /**
- * kfd_ioctl_svm_attribute - Attributes as pairs of type and value
+ * struct kfd_ioctl_svm_attribute - Attributes as pairs of type and value
  *
  * The meaning of the @value depends on the attribute type.
  *
@@ -828,7 +828,7 @@ struct kfd_ioctl_svm_attribute {
 };
 
 /**
- * kfd_ioctl_svm_args - Arguments for SVM ioctl
+ * struct kfd_ioctl_svm_args - Arguments for SVM ioctl
  *
  * @op specifies the operation to perform (see enum
  * @kfd_ioctl_svm_op).  @start_addr and @size are common for all
@@ -875,7 +875,7 @@ struct kfd_ioctl_svm_args {
 };
 
 /**
- * kfd_ioctl_set_xnack_mode_args - Arguments for set_xnack_mode
+ * struct kfd_ioctl_set_xnack_mode_args - Arguments for set_xnack_mode
  *
  * @xnack_enabled:       [in/out] Whether to enable XNACK mode for this process
  *
@@ -1055,15 +1055,15 @@ struct kfd_runtime_info {
 #define KFD_RUNTIME_ENABLE_MODE_TTMP_SAVE_MASK	2
 
 /**
- * kfd_ioctl_runtime_enable_args - Arguments for runtime enable
+ * struct kfd_ioctl_runtime_enable_args - Arguments for runtime enable
  *
  * Coordinates debug exception signalling and debug device enablement with runtime.
  *
- * @r_debug - pointer to user struct for sharing information between ROCr and the debuggger
- * @mode_mask - mask to set mode
+ * @r_debug: pointer to user struct for sharing information between ROCr and the debuggger
+ * @mode_mask: mask to set mode
  *	KFD_RUNTIME_ENABLE_MODE_ENABLE_MASK - enable runtime for debugging, otherwise disable
  *	KFD_RUNTIME_ENABLE_MODE_TTMP_SAVE_MASK - enable trap temporary setup (ignore on disable)
- * @capabilities_mask - mask to notify runtime on what KFD supports
+ * @capabilities_mask: mask to notify runtime on what KFD supports
  *
  * Return - 0 on SUCCESS.
  *	  - EBUSY if runtime enable call already pending.
@@ -1158,17 +1158,15 @@ enum kfd_dbg_trap_operations {
 };
 
 /**
- * kfd_ioctl_dbg_trap_enable_args
- *
- *     Arguments for KFD_IOC_DBG_TRAP_ENABLE.
+ * struct kfd_ioctl_dbg_trap_enable_args - Arguments for KFD_IOC_DBG_TRAP_ENABLE.
  *
  *     Enables debug session for target process. Call @op KFD_IOC_DBG_TRAP_DISABLE in
  *     kfd_ioctl_dbg_trap_args to disable debug session.
  *
- *     @exception_mask (IN)	- exceptions to raise to the debugger
- *     @rinfo_ptr      (IN)	- pointer to runtime info buffer (see kfd_runtime_info)
- *     @rinfo_size     (IN/OUT)	- size of runtime info buffer in bytes
- *     @dbg_fd	       (IN)	- fd the KFD will nofify the debugger with of raised
+ *     @exception_mask: (IN) - exceptions to raise to the debugger
+ *     @rinfo_ptr:      (IN) - pointer to runtime info buffer (see kfd_runtime_info)
+ *     @rinfo_size:     (IN/OUT) - size of runtime info buffer in bytes
+ *     @dbg_fd:	        (IN) - fd the KFD will nofify the debugger with of raised
  *				  exceptions set in exception_mask.
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
@@ -1188,15 +1186,14 @@ struct kfd_ioctl_dbg_trap_enable_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_send_runtime_event_args
+ * struct kfd_ioctl_dbg_trap_send_runtime_event_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SEND_RUNTIME_EVENT.
  *
- *
- *     Arguments for KFD_IOC_DBG_TRAP_SEND_RUNTIME_EVENT.
  *     Raises exceptions to runtime.
  *
- *     @exception_mask (IN) - exceptions to raise to runtime
- *     @gpu_id	       (IN) - target device id
- *     @queue_id       (IN) - target queue id
+ *     @exception_mask: (IN) - exceptions to raise to runtime
+ *     @gpu_id:	        (IN) - target device id
+ *     @queue_id:       (IN) - target queue id
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
@@ -1213,12 +1210,12 @@ struct kfd_ioctl_dbg_trap_send_runtime_event_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_exceptions_enabled_args
+ * struct kfd_ioctl_dbg_trap_set_exceptions_enabled_args - Arguments for
+ * KFD_IOC_SET_EXCEPTIONS_ENABLED
  *
- *     Arguments for KFD_IOC_SET_EXCEPTIONS_ENABLED
  *     Set new exceptions to be raised to the debugger.
  *
- *     @exception_mask (IN) - new exceptions to raise the debugger
+ *     @exception_mask: (IN) - new exceptions to raise the debugger
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
@@ -1228,16 +1225,16 @@ struct kfd_ioctl_dbg_trap_set_exceptions_enabled_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_wave_launch_override_args
+ * struct kfd_ioctl_dbg_trap_set_wave_launch_override_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_OVERRIDE
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_OVERRIDE
  *     Enable HW exceptions to raise trap.
  *
- *     @override_mode	     (IN)     - see kfd_dbg_trap_override_mode
- *     @enable_mask	     (IN/OUT) - reference kfd_dbg_trap_mask.
+ *     @override_mode:	     (IN)     - see kfd_dbg_trap_override_mode
+ *     @enable_mask:	     (IN/OUT) - reference kfd_dbg_trap_mask.
  *					IN is the override modes requested to be enabled.
  *					OUT is referenced in Return below.
- *     @support_request_mask (IN/OUT) - reference kfd_dbg_trap_mask.
+ *     @support_request_mask: (IN/OUT) - reference kfd_dbg_trap_mask.
  *					IN is the override modes requested for support check.
  *					OUT is referenced in Return below.
  *
@@ -1254,36 +1251,38 @@ struct kfd_ioctl_dbg_trap_set_wave_launch_override_args {
 	__u32 override_mode;
 	__u32 enable_mask;
 	__u32 support_request_mask;
+	/* private: */
 	__u32 pad;
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_wave_launch_mode_args
+ * struct kfd_ioctl_dbg_trap_set_wave_launch_mode_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_MODE
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SET_WAVE_LAUNCH_MODE
  *     Set wave launch mode.
  *
- *     @mode (IN) - see kfd_dbg_trap_wave_launch_mode
+ *     @launch_mode: (IN) - see kfd_dbg_trap_wave_launch_mode
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
  */
 struct kfd_ioctl_dbg_trap_set_wave_launch_mode_args {
 	__u32 launch_mode;
+	/* private: */
 	__u32 pad;
 };
 
 /**
- * kfd_ioctl_dbg_trap_suspend_queues_ags
+ * struct kfd_ioctl_dbg_trap_suspend_queues_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SUSPEND_QUEUES
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SUSPEND_QUEUES
  *     Suspend queues.
  *
- *     @exception_mask	(IN) - raised exceptions to clear
- *     @queue_array_ptr (IN) - pointer to array of queue ids (u32 per queue id)
+ *     @exception_mask:	(IN) - raised exceptions to clear
+ *     @queue_array_ptr: (IN) - pointer to array of queue ids (u32 per queue id)
  *			       to suspend
- *     @num_queues	(IN) - number of queues to suspend in @queue_array_ptr
- *     @grace_period	(IN) - wave time allowance before preemption
+ *     @num_queues:	(IN) - number of queues to suspend in @queue_array_ptr
+ *     @grace_period:	(IN) - wave time allowance before preemption
  *			       per 1K GPU clock cycle unit
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
@@ -1311,14 +1310,14 @@ struct kfd_ioctl_dbg_trap_suspend_queues_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_resume_queues_args
+ * struct kfd_ioctl_dbg_trap_resume_queues_args - Arguments for
+ * KFD_IOC_DBG_TRAP_RESUME_QUEUES
  *
- *     Arguments for KFD_IOC_DBG_TRAP_RESUME_QUEUES
  *     Resume queues.
  *
- *     @queue_array_ptr (IN) - pointer to array of queue ids (u32 per queue id)
+ *     @queue_array_ptr: (IN) - pointer to array of queue ids (u32 per queue id)
  *			       to resume
- *     @num_queues	(IN) - number of queues to resume in @queue_array_ptr
+ *     @num_queues:	(IN) - number of queues to resume in @queue_array_ptr
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - Number of queues resumed on SUCCESS.
@@ -1331,20 +1330,21 @@ struct kfd_ioctl_dbg_trap_suspend_queues_args {
 struct kfd_ioctl_dbg_trap_resume_queues_args {
 	__u64 queue_array_ptr;
 	__u32 num_queues;
+	/* private: */
 	__u32 pad;
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_node_address_watch_args
+ * struct kfd_ioctl_dbg_trap_set_node_address_watch_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SET_NODE_ADDRESS_WATCH
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SET_NODE_ADDRESS_WATCH
  *     Sets address watch for device.
  *
- *     @address	(IN)  - watch address to set
- *     @mode    (IN)  - see kfd_dbg_trap_address_watch_mode
- *     @mask    (IN)  - watch address mask
- *     @gpu_id  (IN)  - target gpu to set watch point
- *     @id      (OUT) - watch id allocated
+ *     @address: (IN)  - watch address to set
+ *     @mode:    (IN)  - see kfd_dbg_trap_address_watch_mode
+ *     @mask:    (IN)  - watch address mask
+ *     @gpu_id:  (IN)  - target gpu to set watch point
+ *     @id:      (OUT) - watch id allocated
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
@@ -1361,13 +1361,13 @@ struct kfd_ioctl_dbg_trap_set_node_address_watch_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_clear_node_address_watch_args
+ * struct kfd_ioctl_dbg_trap_clear_node_address_watch_args - Arguments for
+ * KFD_IOC_DBG_TRAP_CLEAR_NODE_ADDRESS_WATCH
  *
- *     Arguments for KFD_IOC_DBG_TRAP_CLEAR_NODE_ADDRESS_WATCH
  *     Clear address watch for device.
  *
- *     @gpu_id  (IN)  - target device to clear watch point
- *     @id      (IN) - allocated watch id to clear
+ *     @gpu_id:  (IN)  - target device to clear watch point
+ *     @id:      (IN) - allocated watch id to clear
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
@@ -1380,12 +1380,12 @@ struct kfd_ioctl_dbg_trap_clear_node_address_watch_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_set_flags_args
+ * struct kfd_ioctl_dbg_trap_set_flags_args - Arguments for
+ * KFD_IOC_DBG_TRAP_SET_FLAGS
  *
- *     Arguments for KFD_IOC_DBG_TRAP_SET_FLAGS
  *     Sets flags for wave behaviour.
  *
- *     @flags (IN/OUT) - IN = flags to enable, OUT = flags previously enabled
+ *     @flags: (IN/OUT) - IN = flags to enable, OUT = flags previously enabled
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on SUCCESS.
@@ -1393,13 +1393,13 @@ struct kfd_ioctl_dbg_trap_clear_node_address_watch_args {
  */
 struct kfd_ioctl_dbg_trap_set_flags_args {
 	__u32 flags;
+	/* private: */
 	__u32 pad;
 };
 
 /**
- * kfd_ioctl_dbg_trap_query_debug_event_args
- *
- *     Arguments for KFD_IOC_DBG_TRAP_QUERY_DEBUG_EVENT
+ * struct kfd_ioctl_dbg_trap_query_debug_event_args - Arguments for
+ * KFD_IOC_DBG_TRAP_QUERY_DEBUG_EVENT
  *
  *     Find one or more raised exceptions. This function can return multiple
  *     exceptions from a single queue or a single device with one call. To find
@@ -1409,9 +1409,9 @@ struct kfd_ioctl_dbg_trap_set_flags_args {
  *     However, clearing an exception prevents retrieving further information
  *     about it with KFD_IOC_DBG_TRAP_QUERY_EXCEPTION_INFO.
  *
- *     @exception_mask (IN/OUT) - exception to clear (IN) and raised (OUT)
- *     @gpu_id	       (OUT)    - gpu id of exceptions raised
- *     @queue_id       (OUT)    - queue id of exceptions raised
+ *     @exception_mask: (IN/OUT) - exception to clear (IN) and raised (OUT)
+ *     @gpu_id:	        (OUT)    - gpu id of exceptions raised
+ *     @queue_id:       (OUT)    - queue id of exceptions raised
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
  *     Return - 0 on raised exception found
@@ -1426,16 +1426,16 @@ struct kfd_ioctl_dbg_trap_query_debug_event_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_query_exception_info_args
+ * struct kfd_ioctl_dbg_trap_query_exception_info_args - Arguments for
+ * KFD_IOC_DBG_TRAP_QUERY_EXCEPTION_INFO
  *
- *     Arguments KFD_IOC_DBG_TRAP_QUERY_EXCEPTION_INFO
  *     Get additional info on raised exception.
  *
- *     @info_ptr	(IN)	 - pointer to exception info buffer to copy to
- *     @info_size	(IN/OUT) - exception info buffer size (bytes)
- *     @source_id	(IN)     - target gpu or queue id
- *     @exception_code	(IN)     - target exception
- *     @clear_exception	(IN)     - clear raised @exception_code exception
+ *     @info_ptr:	(IN)	 - pointer to exception info buffer to copy to
+ *     @info_size:	(IN/OUT) - exception info buffer size (bytes)
+ *     @source_id:	(IN)     - target gpu or queue id
+ *     @exception_code:	(IN)     - target exception
+ *     @clear_exception: (IN)     - clear raised @exception_code exception
  *				   (0 = false, 1 = true)
  *
  *     Generic errors apply (see kfd_dbg_trap_operations).
@@ -1455,20 +1455,20 @@ struct kfd_ioctl_dbg_trap_query_exception_info_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_get_queue_snapshot_args
+ * struct kfd_ioctl_dbg_trap_queue_snapshot_args - Arguments for
+ * KFD_IOC_DBG_TRAP_GET_QUEUE_SNAPSHOT
  *
- *     Arguments KFD_IOC_DBG_TRAP_GET_QUEUE_SNAPSHOT
  *     Get queue information.
  *
- *     @exception_mask	 (IN)	  - exceptions raised to clear
- *     @snapshot_buf_ptr (IN)	  - queue snapshot entry buffer (see kfd_queue_snapshot_entry)
- *     @num_queues	 (IN/OUT) - number of queue snapshot entries
+ *     @exception_mask:	 (IN)	  - exceptions raised to clear
+ *     @snapshot_buf_ptr: (IN)	  - queue snapshot entry buffer (see kfd_queue_snapshot_entry)
+ *     @num_queues:	 (IN/OUT) - number of queue snapshot entries
  *         The debugger specifies the size of the array allocated in @num_queues.
  *         KFD returns the number of queues that actually existed. If this is
  *         larger than the size specified by the debugger, KFD will not overflow
  *         the array allocated by the debugger.
  *
- *     @entry_size	 (IN/OUT) - size per entry in bytes
+ *     @entry_size:	 (IN/OUT) - size per entry in bytes
  *         The debugger specifies sizeof(struct kfd_queue_snapshot_entry) in
  *         @entry_size. KFD returns the number of bytes actually populated per
  *         entry. The debugger should use the KFD_IOCTL_MINOR_VERSION to determine,
@@ -1491,20 +1491,20 @@ struct kfd_ioctl_dbg_trap_queue_snapshot_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_get_device_snapshot_args
+ * struct kfd_ioctl_dbg_trap_device_snapshot_args - Arguments for
+ * KFD_IOC_DBG_TRAP_GET_DEVICE_SNAPSHOT
  *
- *     Arguments for KFD_IOC_DBG_TRAP_GET_DEVICE_SNAPSHOT
  *     Get device information.
  *
- *     @exception_mask	 (IN)	  - exceptions raised to clear
- *     @snapshot_buf_ptr (IN)	  - pointer to snapshot buffer (see kfd_dbg_device_info_entry)
- *     @num_devices	 (IN/OUT) - number of debug devices to snapshot
+ *     @exception_mask:	  (IN)	  - exceptions raised to clear
+ *     @snapshot_buf_ptr: (IN)	  - pointer to snapshot buffer (see kfd_dbg_device_info_entry)
+ *     @num_devices:	  (IN/OUT) - number of debug devices to snapshot
  *         The debugger specifies the size of the array allocated in @num_devices.
  *         KFD returns the number of devices that actually existed. If this is
  *         larger than the size specified by the debugger, KFD will not overflow
  *         the array allocated by the debugger.
  *
- *     @entry_size	 (IN/OUT) - size per entry in bytes
+ *     @entry_size:	  (IN/OUT) - size per entry in bytes
  *         The debugger specifies sizeof(struct kfd_dbg_device_info_entry) in
  *         @entry_size. KFD returns the number of bytes actually populated. The
  *         debugger should use KFD_IOCTL_MINOR_VERSION to determine, which fields
@@ -1527,12 +1527,10 @@ struct kfd_ioctl_dbg_trap_device_snapshot_args {
 };
 
 /**
- * kfd_ioctl_dbg_trap_args
+ * struct kfd_ioctl_dbg_trap_args - Arguments to debug target process.
  *
- * Arguments to debug target process.
- *
- *     @pid - target process to debug
- *     @op  - debug operation (see kfd_dbg_trap_operations)
+ *     @pid: target process to debug
+ *     @op:  debug operation (see kfd_dbg_trap_operations)
  *
  *     @op determines which union struct args to use.
  *     Refer to kern docs for each kfd_ioctl_dbg_trap_*_args struct.
@@ -1567,7 +1565,7 @@ enum kfd_profiler_ops {
 };
 
 /**
- * Enables/Disables GPU Specific profiler settings
+ * struct kfd_ioctl_pmc_settings - Enables/Disables GPU Specific profiler settings
  */
 struct kfd_ioctl_pmc_settings {
 	__u32 gpu_id;             /* This is the user_gpu_id */

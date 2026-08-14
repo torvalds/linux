@@ -117,6 +117,14 @@ struct mqd_manager {
 				const void *ctl_stack_src,
 				const u32 ctl_stack_size);
 
+	/* Patch the MQD's cached self GPU address after the MQD BO has moved
+	 * (e.g. repinned to a new VRAM location on hibernation resume). The MQD
+	 * contents are otherwise preserved.
+	 */
+	void	(*update_mqd_gpu_addr)(struct mqd_manager *mm, void *mqd,
+				       struct kfd_mem_obj *mqd_mem_obj,
+				       struct queue_properties *p);
+
 #if defined(CONFIG_DEBUG_FS)
 	int	(*debugfs_show_mqd)(struct seq_file *m, void *data);
 #endif

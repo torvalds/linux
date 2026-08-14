@@ -434,23 +434,19 @@ int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
 		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		*value = SMUQ10_ROUND(metrics->SocketPower) *
-			 MILLIWATT_PER_WATT;
+		*value = SMUQ10_TO_MILLIWATT(metrics->SocketPower);
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxSocketTemperature);
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = SMUQ10_ROUND(metrics->MaxHbmTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxHbmTemperature);
 		break;
 	/* This is the max of all VRs and not just SOC VR.
 	 * No need to define another data type for the same.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
-			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		*value = SMUQ10_TO_MILLICELSIUS(metrics->MaxVrTemperature);
 		break;
 	default:
 		*value = UINT_MAX;
