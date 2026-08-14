@@ -400,10 +400,10 @@ static inline void scx_bpf_reenqueue_local(void)
 }
 
 /*
- * v6.20: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
+ * v7.1: New scx_bpf_dsq_reenq() that allows re-enqueues on more DSQs. This
  * will eventually deprecate scx_bpf_reenqueue_local().
  */
-void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags, const struct bpf_prog_aux *aux__prog) __ksym __weak;
+void scx_bpf_dsq_reenq___compat(u64 dsq_id, u64 reenq_flags) __ksym __weak;
 
 static inline bool __COMPAT_has_generic_reenq(void)
 {
@@ -413,7 +413,7 @@ static inline bool __COMPAT_has_generic_reenq(void)
 static inline void scx_bpf_dsq_reenq(u64 dsq_id, u64 reenq_flags)
 {
 	if (bpf_ksym_exists(scx_bpf_dsq_reenq___compat))
-		scx_bpf_dsq_reenq___compat(dsq_id, reenq_flags, NULL);
+		scx_bpf_dsq_reenq___compat(dsq_id, reenq_flags);
 	else if (dsq_id == SCX_DSQ_LOCAL && reenq_flags == 0)
 		scx_bpf_reenqueue_local();
 	else
