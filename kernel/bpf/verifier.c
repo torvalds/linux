@@ -17840,17 +17840,6 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 			       !reg_type_mismatch_ok(prev));
 }
 
-static bool is_ptr_to_mem_or_btf_id(enum bpf_reg_type type)
-{
-	switch (base_type(type)) {
-	case PTR_TO_MEM:
-	case PTR_TO_BTF_ID:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static bool is_ptr_to_mem(enum bpf_reg_type type)
 {
 	return base_type(type) == PTR_TO_MEM;
@@ -17890,8 +17879,8 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 		 * Reject it.
 		 */
 		if (allow_trust_mismatch &&
-		    is_ptr_to_mem_or_btf_id(type) &&
-		    is_ptr_to_mem_or_btf_id(*prev_type)) {
+		    bpf_is_ptr_to_mem_or_btf_id(type) &&
+		    bpf_is_ptr_to_mem_or_btf_id(*prev_type)) {
 			/*
 			 * Have to support a use case when one path through
 			 * the program yields a TRUSTED pointer while another
