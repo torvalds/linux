@@ -1841,9 +1841,8 @@ static size_t bpf_map_mmap_sz(const struct bpf_map *map)
 
 	switch (map->def.type) {
 	case BPF_MAP_TYPE_ARRAY:
-		return array_map_mmap_sz(map->def.value_size, map->def.max_entries);
 	case BPF_MAP_TYPE_PERCPU_ARRAY:
-		return map->def.value_size;
+		return array_map_mmap_sz(map->def.value_size, map->def.max_entries);
 	case BPF_MAP_TYPE_ARENA:
 		return page_sz * map->def.max_entries;
 	default:
@@ -1951,7 +1950,7 @@ static bool map_is_mmapable(struct bpf_object *obj, struct bpf_map *map)
 		return false;
 
 	/*
-	 * The internal PERCPU maps are not mmapble because the underlying
+	 * The internal PERCPU maps are not mmapable because the underlying
 	 * percpu_array maps do not have mmap support.
 	 */
 	if (map->libbpf_type == LIBBPF_MAP_PERCPU)
@@ -2831,7 +2830,7 @@ static size_t adjust_ringbuf_sz(size_t sz)
 		return 0;
 	/* Kernel expects BPF_MAP_TYPE_RINGBUF's max_entries to be
 	 * a power-of-2 multiple of kernel's page size. If user diligently
-	 * satisified these conditions, pass the size through.
+	 * satisfied these conditions, pass the size through.
 	 */
 	if ((sz % page_sz) == 0 && is_pow_of_2(sz / page_sz))
 		return sz;
@@ -6989,7 +6988,7 @@ bpf_object__reloc_code(struct bpf_object *obj, struct bpf_program *main_prog,
  *    +-----------+------+------+
  *
  * At this point, we relocate subA calls, then go one level up and finish with
- * relocatin mainA calls. mainA is done.
+ * relocation mainA calls. mainA is done.
  *
  * For mainB process is similar but results in different order. We start with
  * mainB and skip subA and subB, as mainB never calls them (at least
@@ -7936,7 +7935,7 @@ static int libbpf_prepare_prog_load(struct bpf_program *prog,
 		prog->attach_btf_id = btf_type_id;
 
 		/* but by now libbpf common logic is not utilizing
-		 * prog->atach_btf_obj_fd/prog->attach_btf_id anymore because
+		 * prog->attach_btf_obj_fd/prog->attach_btf_id anymore because
 		 * this callback is called after opts were populated by
 		 * libbpf, so this callback has to update opts explicitly here
 		 */
@@ -14219,7 +14218,7 @@ perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
 		if (((void *)ehdr) + ehdr_size > base + mmap_size) {
 			void *copy_start = ehdr;
 			size_t len_first = base + mmap_size - copy_start;
-			size_t len_secnd = ehdr_size - len_first;
+			size_t len_second = ehdr_size - len_first;
 
 			if (*copy_size < ehdr_size) {
 				free(*copy_mem);
@@ -14233,7 +14232,7 @@ perf_event_read_simple(void *mmap_mem, size_t mmap_size, size_t page_size,
 			}
 
 			memcpy(*copy_mem, copy_start, len_first);
-			memcpy(*copy_mem + len_first, base, len_secnd);
+			memcpy(*copy_mem + len_first, base, len_second);
 			ehdr = *copy_mem;
 		}
 
@@ -14251,7 +14250,7 @@ struct perf_buffer;
 
 struct perf_buffer_params {
 	struct perf_event_attr *attr;
-	/* if event_cb is specified, it takes precendence */
+	/* if event_cb is specified, it takes precedence */
 	perf_buffer_event_fn event_cb;
 	/* sample_cb and lost_cb are higher-level common-case callbacks */
 	perf_buffer_sample_fn sample_cb;
