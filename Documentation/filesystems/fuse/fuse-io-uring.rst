@@ -11,6 +11,9 @@ and works. For generic details about FUSE see fuse.rst.
 This document also covers the current interface, which is
 still in development and might change.
 
+For the userspace protocol, see
+Documentation/filesystems/fuse/uapi/fuse-uapi-io-uring.rst.
+
 Limitations
 ===========
 As of now not all requests types are supported through io-uring, userspace
@@ -95,5 +98,34 @@ Sending requests with CQEs
  |    <fuse_unlink()                         |
  |  <sys_unlink()                            |
 
+Buffer pools
+============
 
+Without a buffer pool, every entry needs to pass a dedicated payload buffer
+large enough for the maximum payload size. A buffer pool decouples entries
+from payload buffers. The server hands the kernel one contiguous buffer pool
+of memory and when the kernel sends the server a request, it indicates the
+offset into the pool for that request's payload. Internally, the kernel is
+able to manage/optimize the buffer pool memory however it likes.
 
+A server may also register the pool region with io_uring as a fixed buffer.
+The backing pages are then pinned once, avoiding per-request pinning and
+address translation. This also allows servers to use the same registered
+buffers for subsequent backing store I/O through io-uring, keeping data
+in the same pinned pages without additional pinning / mapping overhead.
+
+Zero-copy
+=========
+
+Zero-copy lets the server read from / write to the client's pages (pinned
+user pages for direct I/O, or page-cache folios for buffered I/O) without an
+intermediary payload copy. This requires CAP_SYS_ADMIN privileges.
+
+When a fuse request arrives for a file that opted into zero-copy, the kernel
+registers the relevant pages (pinned user pages for direct i/o or underlying
+page cache folios for buffered i/o) into a sparse slot in the server's
+io_uring registered buffer table. The server can then operate on these pages
+directly using io-uring fixed buffer operations (eg read_fixed / write_fixed)
+and the kernel unregisters these pages when the request completes.
+Non-page-backed args (eg op out headers) will go through the payload buffer as
+normal.
