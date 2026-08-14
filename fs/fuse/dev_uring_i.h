@@ -79,6 +79,10 @@ struct fuse_ring_ent {
 	/* buffer id in the pool, if bufpools are used. ignored otherwise */
 	unsigned int buf_id;
 
+	/* true if the request's pages are being zero-copied */
+	bool zero_copied;
+	unsigned int zero_copy_index;
+
 	/* the ring queue that owns the request */
 	struct fuse_ring_queue *queue;
 
@@ -142,6 +146,8 @@ struct fuse_ring_queue {
 
 	/* only allocated when payload_mode == FUSE_PAYLOAD_BUFPOOL */
 	struct fuse_bufpool *bufpool;
+
+	bool zero_copy;
 };
 
 /*

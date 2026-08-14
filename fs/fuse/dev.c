@@ -1248,11 +1248,25 @@ int fuse_copy_folio(struct fuse_copy_state *cs, struct folio **foliop,
 
 	if (folio) {
 		size = folio_size(folio);
-		if (zeroing && count < size)
-			folio_zero_range(folio, 0, size);
+		if (zeroing && count < size) {
+			/*
+			 * When the copy is skipped the folio already holds the
+			 * payload, so only the bytes outside [offset, offset +
+			 * count) may be zeroed.
+			 *
+			 * Otherwise, the whole folio is cleared first so that a
+			 * failed copy leaves zeros rather than stale folio
+			 * contents.
+			 */
+			if (cs->skip_folio_copy)
+				folio_zero_segments(folio, 0, offset,
+						    offset + count, size);
+			else
+				folio_zero_range(folio, 0, size);
+		}
 	}
 
-	while (count) {
+	while (!cs->skip_folio_copy && count) {
 		if (cs->write && cs->pipebufs && folio) {
 			/*
 			 * Can't control lifetime of pipe buffers, so always
@@ -1345,6 +1359,10 @@ int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	for (i = 0; !err && i < numargs; i++)  {
 		struct fuse_arg *arg = &args[i];
 		if (i == numargs - 1 && argpages)
+			/*
+			 * if cs->skip_folio_copy is set, this just does any
+			 * needed zeroing. No copying is involved.
+			 */
 			err = fuse_copy_folios(cs, arg->size, zeroing);
 		else
 			err = fuse_copy_one(cs, arg->value, arg->size);
