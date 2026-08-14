@@ -135,6 +135,7 @@ struct fuse_ring {
 	bool ready;
 };
 
+void fuse_uring_conn_init(struct fuse_chan *fch);
 void fuse_uring_stop_queues(struct fuse_ring *ring);
 void fuse_uring_abort_end_requests(struct fuse_ring *ring);
 int fuse_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags);
@@ -173,6 +174,10 @@ static inline bool fuse_uring_ready(struct fuse_chan *fch)
 }
 
 #else /* CONFIG_FUSE_IO_URING */
+
+static inline void fuse_uring_conn_init(struct fuse_chan *fch)
+{
+}
 
 static inline void fuse_uring_abort(struct fuse_chan *fch)
 {

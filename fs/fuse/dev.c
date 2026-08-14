@@ -75,6 +75,9 @@ void fuse_chan_set_initialized(struct fuse_chan *fch, struct fuse_chan_param *pa
 		fch->minor = param->minor;
 		fch->max_write = param->max_write;
 		fch->max_pages = param->max_pages;
+
+		if (param->io_uring_enabled)
+			fuse_uring_conn_init(fch);
 	}
 
 	/* Pairs with smp_load_acquire() readers of fch->initialized */
@@ -410,11 +413,6 @@ unsigned int fuse_chan_num_waiting(struct fuse_chan *fch)
 void fuse_chan_set_fc(struct fuse_chan *fch, struct fuse_conn *fc)
 {
 	fch->conn = fc;
-}
-
-void fuse_chan_io_uring_enable(struct fuse_chan *fch)
-{
-	fch->io_uring = 1;
 }
 
 void fuse_pqueue_init(struct fuse_pqueue *fpq)
