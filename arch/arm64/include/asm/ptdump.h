@@ -52,6 +52,8 @@ struct ptdump_pg_state {
 	const struct addr_marker *marker;
 	const struct mm_struct *mm;
 	unsigned long start_address;
+	/* exclusive end, ULONG_MAX represents an end at 1 << 64 */
+	unsigned long end_address;
 	int level;
 	ptval_t current_prot;
 	bool check_wx;

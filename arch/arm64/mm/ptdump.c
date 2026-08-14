@@ -278,9 +278,19 @@ void note_page_pgd(struct ptdump_state *pt_st, unsigned long addr, pgd_t pgd)
 
 void note_page_flush(struct ptdump_state *pt_st)
 {
+	struct ptdump_pg_state *st = container_of(pt_st, struct ptdump_pg_state, ptdump);
+	unsigned long end = st->end_address;
 	pte_t pte_zero = {0};
 
-	note_page(pt_st, 0, -1, pte_val(pte_zero));
+	/*
+	 * Address spaces that end at 1 << 64 have end_address == ULONG_MAX,
+	 * but note_page() expects the exclusive end. In this case adjust end
+	 * to the wraparound value 0.
+	 */
+	if (end == ULONG_MAX)
+		end = 0;
+
+	note_page(pt_st, end, -1, pte_val(pte_zero));
 }
 
 static void arm64_ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm)
@@ -303,6 +313,7 @@ void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
 		.marker = info->markers,
 		.mm = info->mm,
 		.pg_level = &kernel_pg_levels[0],
+		.end_address = end,
 		.level = -1,
 		.ptdump = {
 			.note_page_pte = note_page_pte,
@@ -344,6 +355,7 @@ bool ptdump_check_wx(void)
 			{ -1, NULL},
 		},
 		.pg_level = &kernel_pg_levels[0],
+		.end_address = ~0UL,
 		.level = -1,
 		.check_wx = true,
 		.ptdump = {
