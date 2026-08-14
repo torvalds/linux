@@ -53,6 +53,9 @@ EXPORT_SYMBOL_GPL(blkcg_root);
 struct cgroup_subsys_state * const blkcg_root_css = &blkcg_root.css;
 EXPORT_SYMBOL_GPL(blkcg_root_css);
 
+/* number of blkcgs with a non-zero congestion_count */
+atomic_t blkcg_nr_congested __read_mostly = ATOMIC_INIT(0);
+
 static struct blkcg_policy *blkcg_policy[BLKCG_MAX_POLS];
 
 static LIST_HEAD(all_blkcgs);		/* protected by blkcg_pol_mutex */
@@ -1350,6 +1353,16 @@ static void blkcg_css_free(struct cgroup_subsys_state *css)
 	struct blkcg *blkcg = css_to_blkcg(css);
 	int i;
 
+	/*
+	 * Every blkg holds a reference on this css and drops any delay it
+	 * still has from pd_free_fn(), so this is expected to be zero.  Should
+	 * a policy ever leave one behind, drop it here rather than let it pin
+	 * blkcg_nr_congested and disable the fast path for the rest of the
+	 * boot.  Nothing can race with us at this point.
+	 */
+	if (WARN_ON_ONCE(atomic_xchg(&blkcg->congestion_count, 0) > 0))
+		atomic_dec(&blkcg_nr_congested);
+
 	mutex_lock(&blkcg_pol_mutex);
 
 	list_del(&blkcg->all_blkcgs_node);
@@ -2228,7 +2241,7 @@ void blk_cgroup_bio_start(struct bio *bio)
 	put_cpu();
 }
 
-bool blk_cgroup_congested(void)
+bool __blk_cgroup_congested(void)
 {
 	struct blkcg *blkcg;
 	bool ret = false;
