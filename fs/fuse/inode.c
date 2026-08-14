@@ -1482,7 +1482,7 @@ static struct fuse_init_args *fuse_new_init(struct fuse_mount *fm)
 	 * the reply - server is either sending IORING_OP_URING_CMD or not.
 	 */
 	if (fuse_uring_enabled())
-		flags |= FUSE_OVER_IO_URING;
+		flags |= FUSE_OVER_IO_URING | FUSE_HAS_IO_URING_BUFPOOL;
 
 	ia->in.flags = flags;
 	ia->in.flags2 = flags >> 32;

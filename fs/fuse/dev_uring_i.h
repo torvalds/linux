@@ -7,6 +7,8 @@
 #ifndef _FS_FUSE_DEV_URING_I_H
 #define _FS_FUSE_DEV_URING_I_H
 
+#include <linux/uio.h>
+
 #include "fuse_dev_i.h"
 
 #ifdef CONFIG_FUSE_IO_URING
@@ -36,11 +38,38 @@ enum fuse_ring_req_state {
 	FRRS_RELEASED,
 };
 
+/* how a queue's payload buffers are provided */
+enum fuse_queue_payload_mode {
+	/* not yet committed (a bufpool may still be added) */
+	FUSE_PAYLOAD_UNSET = 0,
+	/* each entry registers its own payload buffer */
+	FUSE_PAYLOAD_PER_ENT,
+	/* each entry's payload buffer is assigned from a bufpool */
+	FUSE_PAYLOAD_BUFPOOL,
+};
+
+struct fuse_bufpool {
+	/* starting uaddr of the bufpool */
+	uintptr_t base_uaddr;
+
+	/* size of each buffer in the pool */
+	size_t buf_size;
+
+	/* total number of buffers in the pool */
+	unsigned int nr_bufs;
+
+	/* bitmap tracking which buffers are free */
+	unsigned long free_map[];
+};
+
 /** A fuse ring entry, part of the ring queue */
 struct fuse_ring_ent {
 	/* userspace buffer */
 	struct fuse_uring_req_header __user *headers;
-	void __user *payload;
+	struct iovec payload;
+
+	/* buffer id in the pool, if bufpools are used. ignored otherwise */
+	unsigned int buf_id;
 
 	/* the ring queue that owns the request */
 	struct fuse_ring_queue *queue;
@@ -99,6 +128,12 @@ struct fuse_ring_queue {
 	unsigned int active_background;
 
 	bool stopped;
+
+	/* how this queue's payload buffers are provided */
+	enum fuse_queue_payload_mode payload_mode;
+
+	/* only allocated when payload_mode == FUSE_PAYLOAD_BUFPOOL */
+	struct fuse_bufpool *bufpool;
 };
 
 /*
