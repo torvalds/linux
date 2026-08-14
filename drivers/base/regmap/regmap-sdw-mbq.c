@@ -56,10 +56,10 @@ static int regmap_sdw_mbq_poll_busy(struct sdw_slave *slave, unsigned int reg,
 	reg = SDW_SDCA_CTL(SDW_SDCA_CTL_FUNC(reg), 0,
 			   SDCA_CTL_ENTITY_0_FUNCTION_STATUS, 0);
 
-	if (ctx->readable_reg(dev, reg)) {
+	if (!ctx->readable_reg || ctx->readable_reg(dev, reg)) {
 		ret = read_poll_timeout(sdw_read_no_pm, val,
 					val < 0 || !(val & SDCA_CTL_ENTITY_0_FUNCTION_BUSY),
-					ctx->cfg.timeout_us, ctx->cfg.retry_us,
+					ctx->cfg.retry_us, ctx->cfg.timeout_us,
 					false, slave, reg);
 		if (val < 0)
 			return val;
