@@ -2157,6 +2157,7 @@ config SND_SOC_TAC5XX2_SDW
 	tristate "Texas Instruments TAC5XX2 SoundWire Smart Amplifier"
 	depends on SOUNDWIRE
 	depends on SND_SOC_SDCA
+	select REGMAP_SOUNDWIRE_MBQ
 	help
 	  This option enables support for Texas Instruments TAC5XX2 family
 	  of SoundWire Smart Amplifiers. This includes TAC5572, TAC5672,
