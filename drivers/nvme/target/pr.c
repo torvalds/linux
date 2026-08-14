@@ -8,7 +8,7 @@
 #include <linux/unaligned.h>
 #include "nvmet.h"
 
-#define NVMET_PR_NOTIFI_MASK_ALL \
+#define NVMET_PR_NOTIFY_MASK_ALL \
 	(1 << NVME_PR_NOTIFY_BIT_REG_PREEMPTED | \
 	 1 << NVME_PR_NOTIFY_BIT_RESV_RELEASED | \
 	 1 << NVME_PR_NOTIFY_BIT_RESV_PREEMPTED)
@@ -44,7 +44,7 @@ u16 nvmet_set_feat_resv_notif_mask(struct nvmet_req *req, u32 mask)
 	unsigned long idx;
 	u16 status;
 
-	if (mask & ~(NVMET_PR_NOTIFI_MASK_ALL)) {
+	if (mask & ~(NVMET_PR_NOTIFY_MASK_ALL)) {
 		req->error_loc = offsetof(struct nvme_common_command, cdw11);
 		return NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 	}
@@ -169,7 +169,7 @@ static void nvmet_pr_resv_released(struct nvmet_pr *pr, uuid_t *hostid)
 			nvmet_pr_add_resv_log(ctrl,
 				NVME_PR_LOG_RESERVATION_RELEASED, ns->nsid);
 			nvmet_add_async_event(ctrl, NVME_AER_CSS,
-				NVME_AEN_RESV_LOG_PAGE_AVALIABLE,
+				NVME_AEN_RESV_LOG_PAGE_AVAILABLE,
 				NVME_LOG_RESERVATION);
 		}
 	}
@@ -188,7 +188,7 @@ static void nvmet_pr_send_event_to_host(struct nvmet_pr *pr, uuid_t *hostid,
 		if (uuid_equal(hostid, &ctrl->hostid)) {
 			nvmet_pr_add_resv_log(ctrl, log_type, ns->nsid);
 			nvmet_add_async_event(ctrl, NVME_AER_CSS,
-				NVME_AEN_RESV_LOG_PAGE_AVALIABLE,
+				NVME_AEN_RESV_LOG_PAGE_AVAILABLE,
 				NVME_LOG_RESERVATION);
 		}
 	}
@@ -201,7 +201,7 @@ static void nvmet_pr_resv_preempted(struct nvmet_pr *pr, uuid_t *hostid)
 		return;
 
 	nvmet_pr_send_event_to_host(pr, hostid,
-		NVME_PR_LOG_RESERVATOIN_PREEMPTED);
+		NVME_PR_LOG_RESERVATION_PREEMPTED);
 }
 
 static void nvmet_pr_registration_preempted(struct nvmet_pr *pr,
@@ -355,8 +355,14 @@ static u16 nvmet_pr_replace(struct nvmet_req *req,
 	u16 status = NVME_SC_RESERVATION_CONFLICT | NVME_STATUS_DNR;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	struct nvmet_pr *pr = &req->ns->pr;
-	struct nvmet_pr_registrant *reg;
+	struct nvmet_pr_registrant *reg, *new = NULL;
 	u64 nrkey = le64_to_cpu(d->nrkey);
+
+	if (ignore_key && nrkey) {
+		new = kzalloc_obj(*new);
+		if (!new)
+			return NVME_SC_INTERNAL;
+	}
 
 	down(&pr->pr_sem);
 	list_for_each_entry_rcu(reg, &pr->registrant_list, entry) {
@@ -365,9 +371,26 @@ static u16 nvmet_pr_replace(struct nvmet_req *req,
 				status = nvmet_pr_update_reg_attr(pr, reg,
 						nvmet_pr_update_reg_rkey,
 						&nrkey);
-			break;
+			goto free_data;
 		}
 	}
+
+	if (ignore_key) {
+		if (!nrkey) {
+			status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+			goto free_data;
+		}
+		INIT_LIST_HEAD(&new->entry);
+		new->rkey = nrkey;
+		uuid_copy(&new->hostid, &ctrl->hostid);
+		list_add_tail_rcu(&new->entry, &pr->registrant_list);
+		status = NVME_SC_SUCCESS;
+		goto out;
+	}
+
+free_data:
+	kfree(new);
+out:
 	up(&pr->pr_sem);
 	return status;
 }

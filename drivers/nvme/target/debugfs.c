@@ -153,6 +153,109 @@ static int nvmet_ctrl_tls_concat_show(struct seq_file *m, void *p)
 NVMET_DEBUGFS_ATTR(nvmet_ctrl_tls_concat);
 #endif
 
+static const char *const nvmet_pr_type_names[] = {
+	[NVME_PR_WRITE_EXCLUSIVE]		= "write_exclusive",
+	[NVME_PR_EXCLUSIVE_ACCESS]		= "exclusive_access",
+	[NVME_PR_WRITE_EXCLUSIVE_REG_ONLY]	= "write_exclusive_reg_only",
+	[NVME_PR_EXCLUSIVE_ACCESS_REG_ONLY]	= "exclusive_access_reg_only",
+	[NVME_PR_WRITE_EXCLUSIVE_ALL_REGS]	= "write_exclusive_all_regs",
+	[NVME_PR_EXCLUSIVE_ACCESS_ALL_REGS]	= "exclusive_access_all_regs",
+};
+
+static const char *nvmet_pr_type_to_str(enum nvme_pr_type type)
+{
+	if (type < ARRAY_SIZE(nvmet_pr_type_names) &&
+	    nvmet_pr_type_names[type])
+		return nvmet_pr_type_names[type];
+	return "unknown";
+}
+
+static const char *const nvmet_pr_notify_names[] = {
+	[NVME_PR_NOTIFY_BIT_REG_PREEMPTED]	= "reg_preempted",
+	[NVME_PR_NOTIFY_BIT_RESV_RELEASED]	= "resv_released",
+	[NVME_PR_NOTIFY_BIT_RESV_PREEMPTED]	= "resv_preempted",
+};
+
+static void nvmet_pr_notify_mask_to_str(struct seq_file *m, unsigned long mask)
+{
+	bool sep = false;
+	int i;
+
+	if (!mask) {
+		seq_puts(m, "none");
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_pr_notify_names); i++) {
+		if (!test_bit(i, &mask) || !nvmet_pr_notify_names[i])
+			continue;
+		if (sep)
+			seq_putc(m, ',');
+		seq_puts(m, nvmet_pr_notify_names[i]);
+		sep = true;
+	}
+}
+
+static int nvmet_ns_pr_show(struct seq_file *m, void *p)
+{
+	struct nvmet_ns *ns = m->private;
+	struct nvmet_pr *pr = &ns->pr;
+	struct nvmet_pr_registrant *holder, *reg;
+
+	seq_printf(m, "enable=%d\n", pr->enable);
+	if (!pr->enable)
+		return 0;
+
+	seq_printf(m, "generation=%u\n", atomic_read(&pr->generation));
+	seq_puts(m, "notify_mask=");
+	nvmet_pr_notify_mask_to_str(m, pr->notify_mask);
+	seq_putc(m, '\n');
+
+	rcu_read_lock();
+	holder = rcu_dereference(pr->holder);
+	if (holder) {
+		seq_printf(m, "rtype=%s\n",
+			   nvmet_pr_type_to_str(holder->rtype));
+		seq_printf(m, "holder=%pUb,0x%llx\n",
+			   &holder->hostid, holder->rkey);
+	} else {
+		seq_puts(m, "rtype=none\n");
+		seq_puts(m, "holder=none\n");
+	}
+
+	list_for_each_entry_rcu(reg, &pr->registrant_list, entry) {
+		seq_printf(m, "reg=%pUb,0x%llx\n",
+			   &reg->hostid, reg->rkey);
+	}
+	rcu_read_unlock();
+
+	return 0;
+}
+NVMET_DEBUGFS_ATTR(nvmet_ns_pr);
+
+void nvmet_debugfs_ns_setup(struct nvmet_ns *ns)
+{
+	char name[16];
+	struct dentry *parent = ns->subsys->debugfs_dir;
+
+	if (!parent)
+		return;
+	snprintf(name, sizeof(name), "ns%u", ns->nsid);
+	ns->debugfs_dir = debugfs_create_dir(name, parent);
+	if (IS_ERR(ns->debugfs_dir)) {
+		ns->debugfs_dir = NULL;
+		return;
+	}
+	debugfs_create_file("reservation", 0400, ns->debugfs_dir, ns,
+			    &nvmet_ns_pr_fops);
+}
+
+void nvmet_debugfs_ns_free(struct nvmet_ns *ns)
+{
+	debugfs_remove_recursive(ns->debugfs_dir);
+	ns->debugfs_dir = NULL;
+}
+
 int nvmet_debugfs_ctrl_setup(struct nvmet_ctrl *ctrl)
 {
 	char name[32];
