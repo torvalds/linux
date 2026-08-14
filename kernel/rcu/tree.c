@@ -357,9 +357,10 @@ bool rcu_watching_zero_in_eqs(int cpu, int *vp)
  */
 notrace void rcu_momentary_eqs(void)
 {
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
 	int seq;
 
-	raw_cpu_write(rcu_data.rcu_need_heavy_qs, false);
+	WRITE_ONCE(rdp->rcu_need_heavy_qs, false);
 	seq = ct_state_inc(2 * CT_RCU_WATCHING);
 	/* It is illegal to call this from idle state. */
 	WARN_ON_ONCE(!(seq & CT_RCU_WATCHING));
@@ -2543,7 +2544,7 @@ rcu_check_quiescent_state(struct rcu_data *rdp)
 	 * Was there a quiescent state since the beginning of the grace
 	 * period? If no, then exit and wait for the next call.
 	 */
-	if (rdp->cpu_no_qs.b.norm)
+	if (READ_ONCE(rdp->cpu_no_qs.b.norm))
 		return;
 
 	/*
@@ -2674,7 +2675,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 			// reporting, so check time limits for them.
 			if (rdp->rcu_cpu_kthread_status == RCU_KTHREAD_RUNNING &&
 			    rcu_do_batch_check_time(count, tlimit, jlimit_check, jlimit)) {
-				rdp->rcu_cpu_has_work = 1;
+				WRITE_ONCE(rdp->rcu_cpu_has_work, 1);
 				break;
 			}
 		}
@@ -2910,7 +2911,7 @@ static __latent_entropy void rcu_core(void)
 			rcu_accelerate_cbs_unlocked(rnp, rdp);
 	}
 
-	rcu_check_gp_start_stall(rnp, rdp, rcu_jiffies_till_stall_check());
+	rcu_check_gp_start_stall(rnp, rcu_jiffies_till_stall_check());
 
 	/* If there are callbacks ready, invoke them. */
 	if (!rcu_rdp_is_offloaded(rdp) && rcu_segcblist_ready_cbs(&rdp->cblist) &&
@@ -2951,7 +2952,7 @@ static void invoke_rcu_core_kthread(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
+	this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
 	t = __this_cpu_read(rcu_data.rcu_cpu_kthread_task);
 	if (t != NULL && t != current)
 		rcu_wake_cond(t, __this_cpu_read(rcu_data.rcu_cpu_kthread_status));
@@ -2978,7 +2979,7 @@ static void rcu_cpu_kthread_park(unsigned int cpu)
 
 static int rcu_cpu_kthread_should_run(unsigned int cpu)
 {
-	return __this_cpu_read(rcu_data.rcu_cpu_has_work);
+	return this_cpu_read(rcu_data.rcu_cpu_has_work);
 }
 
 /*
@@ -2999,7 +3000,7 @@ static void rcu_cpu_kthread(unsigned int cpu)
 		local_bh_disable();
 		*statusp = RCU_KTHREAD_RUNNING;
 		local_irq_disable();
-		work = *workp;
+		work = READ_ONCE(*workp);
 		WRITE_ONCE(*workp, 0);
 		local_irq_enable();
 		if (work)
@@ -3044,7 +3045,7 @@ static int __init rcu_spawn_core_kthreads(void)
 	return 0;
 }
 
-static void rcutree_enqueue(struct rcu_data *rdp, struct rcu_head *head, rcu_callback_t func)
+static void rcutree_enqueue(struct rcu_data *rdp, struct rcu_head *head)
 {
 	rcu_segcblist_enqueue(&rdp->cblist, head);
 	trace_rcu_callback(rcu_state.name, head,
@@ -3056,9 +3057,9 @@ static void rcutree_enqueue(struct rcu_data *rdp, struct rcu_head *head, rcu_cal
  * Handle any core-RCU processing required by a call_rcu() invocation.
  */
 static void call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
-			  rcu_callback_t func, unsigned long flags)
+			  unsigned long flags)
 {
-	rcutree_enqueue(rdp, head, func);
+	rcutree_enqueue(rdp, head);
 	/*
 	 * If called from an extended quiescent state, invoke the RCU
 	 * core in order to force a re-evaluation of RCU's idleness.
@@ -3199,9 +3200,9 @@ __call_rcu_common(struct rcu_head *head, rcu_callback_t func, bool lazy_in)
 	check_cb_ovld(rdp);
 
 	if (unlikely(rcu_rdp_is_offloaded(rdp)))
-		call_rcu_nocb(rdp, head, func, flags, lazy);
+		call_rcu_nocb(rdp, head, flags, lazy);
 	else
-		call_rcu_core(rdp, head, func, flags);
+		call_rcu_core(rdp, head, flags);
 	local_irq_restore(flags);
 }
 

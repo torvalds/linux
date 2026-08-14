@@ -657,13 +657,13 @@ static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_alldone,
 }
 
 static void call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *head,
-			  rcu_callback_t func, unsigned long flags, bool lazy)
+			  unsigned long flags, bool lazy)
 {
 	bool was_alldone;
 
 	if (!rcu_nocb_try_bypass(rdp, head, &was_alldone, flags, lazy)) {
 		/* Not enqueued on bypass but locked, do regular enqueue */
-		rcutree_enqueue(rdp, head, func);
+		rcutree_enqueue(rdp, head);
 		__call_rcu_nocb_wake(rdp, was_alldone, flags); /* unlocks */
 	}
 }
@@ -1736,7 +1736,7 @@ static bool rcu_nocb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 }
 
 static void call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *head,
-			  rcu_callback_t func, unsigned long flags, bool lazy)
+			  unsigned long flags, bool lazy)
 {
 	WARN_ON_ONCE(1);  /* Should be dead code! */
 }

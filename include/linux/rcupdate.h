@@ -217,15 +217,15 @@ static inline void exit_tasks_rcu_finish(void) { }
 /**
  * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
- * This macro resembles cond_resched(), except that it is defined to
+ * This function resembles cond_resched(), except that it is defined to
  * report potential quiescent states to RCU-tasks even if the cond_resched()
  * machinery were to be shut off, as some advocate for PREEMPTION kernels.
  */
-#define cond_resched_tasks_rcu_qs() \
-do { \
-	rcu_tasks_qs(current, false); \
-	cond_resched(); \
-} while (0)
+static inline void cond_resched_tasks_rcu_qs(void)
+{
+	rcu_tasks_qs(current, false);
+	cond_resched();
+}
 
 /**
  * rcu_softirq_qs_periodic - Report RCU and RCU-Tasks quiescent states
@@ -499,12 +499,12 @@ context_unsafe(								\
  */
 #define unrcu_pointer(p) __unrcu_pointer(p, __UNIQUE_ID(rcu))
 
-#define __rcu_access_pointer(p, local, space) \
+#define __rcu_access_pointer(p, local, space) context_unsafe( \
 ({ \
 	typeof(*p) *local = (typeof(*p) *__force)READ_ONCE(p); \
 	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(local)); \
-})
+}) )
 #define __rcu_dereference_check(p, local, c, space) \
 ({ \
 	/* Dependency order vs. p above. */ \
