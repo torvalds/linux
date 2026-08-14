@@ -5988,7 +5988,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 		return -EACCES;
 	}
 
-	if (atype != BPF_READ && (type_flag(reg->type) & PTR_UNTRUSTED)) {
+	if (atype != BPF_READ && bpf_may_fault_on_deref(reg->type)) {
 		verbose(env, "only read is supported\n");
 		return -EACCES;
 	}
