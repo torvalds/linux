@@ -384,6 +384,7 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 		inode_flags &= ~BTRFS_INODE_COMPRESS;
 		inode_flags |= BTRFS_INODE_NOCOMPRESS;
 	} else if (fsflags & FS_COMPR_FL) {
+		enum btrfs_compression_type comp_type;
 
 		if (IS_SWAPFILE(&inode->vfs_inode))
 			return -ETXTBSY;
@@ -391,9 +392,23 @@ int btrfs_fileattr_set(struct mnt_idmap *idmap,
 		inode_flags |= BTRFS_INODE_COMPRESS;
 		inode_flags &= ~BTRFS_INODE_NOCOMPRESS;
 
-		comp = btrfs_compress_type2str(fs_info->compress_type);
-		if (!comp || comp[0] == 0)
-			comp = btrfs_compress_type2str(BTRFS_COMPRESS_ZLIB);
+		/*
+		 * Keep the algorithm recorded in the compression property,
+		 * otherwise changing an unrelated attribute would reset it to
+		 * the mount default, since FS_IOC_SETFLAGS callers write back
+		 * the whole flag set they got from FS_IOC_GETFLAGS and that
+		 * includes FS_COMPR_FL for any inode carrying the property.
+		 *
+		 * Inodes with the compress flag set but no property keep using
+		 * the mount default, so they behave as before.
+		 */
+		if (inode->prop_compress)
+			comp_type = inode->prop_compress;
+		else if (fs_info->compress_type)
+			comp_type = fs_info->compress_type;
+		else
+			comp_type = BTRFS_COMPRESS_ZLIB;
+		comp = btrfs_compress_type2str(comp_type);
 	} else {
 		inode_flags &= ~(BTRFS_INODE_COMPRESS | BTRFS_INODE_NOCOMPRESS);
 	}
