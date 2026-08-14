@@ -418,19 +418,12 @@ static void amdgpu_userq_wait_for_last_fence(struct amdgpu_usermode_queue *queue
 	dma_fence_wait(f, false);
 }
 
-static void amdgpu_userq_cleanup(struct amdgpu_usermode_queue *queue)
+static void amdgpu_userq_detach_doorbell(struct amdgpu_usermode_queue *queue)
 {
-	struct amdgpu_userq_mgr *uq_mgr = queue->userq_mgr;
-	struct amdgpu_device *adev = uq_mgr->adev;
+	struct amdgpu_device *adev = queue->userq_mgr->adev;
 
-	/* Wait for mode-1 reset to complete */
 	down_read(&adev->reset_domain->sem);
-
-	/* Use interrupt-safe locking since IRQ handlers may access these XArrays */
 	xa_erase_irq(&adev->userq_doorbell_xa, queue->doorbell_index);
-	amdgpu_userq_fence_driver_free(queue);
-	queue->fence_drv = NULL;
-
 	up_read(&adev->reset_domain->sem);
 }
 
@@ -551,18 +544,19 @@ amdgpu_userq_destroy(struct amdgpu_userq_mgr *uq_mgr, struct amdgpu_usermode_que
 
 	cancel_delayed_work_sync(&uq_mgr->resume_work);
 
-	/* Cancel any pending hang detection work and cleanup */
-	cancel_delayed_work_sync(&queue->hang_detect_work);
-
 	mutex_lock(&uq_mgr->userq_mutex);
 	amdgpu_userq_wait_for_last_fence(queue);
+
+	amdgpu_userq_detach_doorbell(queue);
+	cancel_delayed_work_sync(&queue->hang_detect_work);
 
 #if defined(CONFIG_DEBUG_FS)
 	debugfs_remove_recursive(queue->debugfs_queue);
 #endif
 	r = amdgpu_userq_unmap_helper(queue);
 	atomic_dec(&uq_mgr->userq_count[queue->queue_type]);
-	amdgpu_userq_cleanup(queue);
+	amdgpu_userq_fence_driver_free(queue);
+	queue->fence_drv = NULL;
 	mutex_unlock(&uq_mgr->userq_mutex);
 
 	/*
@@ -574,7 +568,6 @@ amdgpu_userq_destroy(struct amdgpu_userq_mgr *uq_mgr, struct amdgpu_usermode_que
 	if (r)
 		queue_work(adev->reset_domain->wq, &uq_mgr->reset_work);
 
-	cancel_delayed_work_sync(&queue->hang_detect_work);
 	uq_funcs->mqd_destroy(queue);
 	queue->userq_mgr = NULL;
 
@@ -748,7 +741,7 @@ amdgpu_userq_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	    ((queue->queue_type != AMDGPU_HW_IP_GFX) &&
 	     (queue->queue_type != AMDGPU_HW_IP_COMPUTE))) {
 		/* Serialize the map against an in-progress GPU reset (MES is
-		 * unresponsive during recovery), matching amdgpu_userq_cleanup().
+		 * unresponsive during recovery), matching amdgpu_userq_detach_doorbell().
 		 */
 		down_read(&adev->reset_domain->sem);
 		r = amdgpu_userq_map_helper(queue);
