@@ -1876,10 +1876,8 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, irq, xgene_pmu_isr,
 				IRQF_NOBALANCING | IRQF_NO_THREAD,
 				dev_name(&pdev->dev), xgene_pmu);
-	if (rc) {
-		dev_err(&pdev->dev, "Could not request IRQ %d\n", irq);
+	if (rc)
 		return rc;
-	}
 
 	xgene_pmu->irq = irq;
 

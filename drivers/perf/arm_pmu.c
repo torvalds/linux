@@ -931,8 +931,13 @@ int armpmu_register(struct arm_pmu *pmu)
 	/*
 	 * By this stage we know our supported CPUs on either DT/ACPI platforms,
 	 * detect the SMT implementation.
+	 * On SMT CPUs, the PMCCNTR_EL0 increments from the processor clock rather
+	 * than the PE clock (ARM DDI0487 L.b D13.1.3) which means it'll continue
+	 * counting on a WFI PE if one of its SMT sibling is not idle on a
+	 * multi-threaded implementation. So don't use it on SMT cores.
 	 */
-	pmu->has_smt = topology_core_has_smt(cpumask_first(&pmu->supported_cpus));
+	pmu->avoid_pmccntr |=
+		topology_core_has_smt(cpumask_first(&pmu->supported_cpus));
 
 	if (!pmu->set_event_filter)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;

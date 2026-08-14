@@ -22,7 +22,7 @@ static DEFINE_PER_CPU(int, pmu_irqs);
 static int arm_pmu_acpi_register_irq(int cpu)
 {
 	struct acpi_madt_generic_interrupt *gicc;
-	int gsi, trigger;
+	int gsi;
 
 	gicc = acpi_cpu_get_madt_gicc(cpu);
 
@@ -38,11 +38,6 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	if (!gsi)
 		return 0;
 
-	if (gicc->flags & ACPI_MADT_PERFORMANCE_IRQ_MODE)
-		trigger = ACPI_EDGE_SENSITIVE;
-	else
-		trigger = ACPI_LEVEL_SENSITIVE;
-
 	/*
 	 * Helpfully, the MADT GICC doesn't have a polarity flag for the
 	 * "performance interrupt". Luckily, on compliant GICs the polarity is
@@ -53,8 +48,12 @@ static int arm_pmu_acpi_register_irq(int cpu)
 	 * may not match the real polarity, but that should not matter.
 	 *
 	 * Other interrupt controllers are not supported with ACPI.
+	 *
+	 * The spec also indicates that the PMU interrupt can be edge
+	 * triggered, which doesn't make any sense (SW needs to clear the
+	 * interrupt condition for the level to drop). Ignore the silly flag.
 	 */
-	return acpi_register_gsi(NULL, gsi, trigger, ACPI_ACTIVE_HIGH);
+	return acpi_register_gsi(NULL, gsi, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_HIGH);
 }
 
 static void arm_pmu_acpi_unregister_irq(int cpu)

@@ -11,6 +11,7 @@
 #include <linux/cpumask.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/hrtimer.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/pcie-dwc.h>
@@ -83,6 +84,7 @@ enum dwc_pcie_event_type {
 
 #define DWC_PCIE_LANE_EVENT_MAX_PERIOD		GENMASK_ULL(31, 0)
 #define DWC_PCIE_MAX_PERIOD			GENMASK_ULL(63, 0)
+#define DWC_PCIE_PMU_TIMER_PERIOD_NS		(2 * NSEC_PER_SEC)
 
 struct dwc_pcie_pmu {
 	struct pmu		pmu;
@@ -93,6 +95,8 @@ struct dwc_pcie_pmu {
 	/* Groups #6 and #7 */
 	DECLARE_BITMAP(lane_events, 2 * DWC_PCIE_LANE_MAX_EVENTS_PER_GROUP);
 	struct perf_event	*time_based_event;
+	bool			timer_enable;
+	struct hrtimer		hrtimer;
 
 	struct hlist_node	cpuhp_node;
 	int			on_cpu;
@@ -354,6 +358,26 @@ static u64 dwc_pcie_pmu_read_time_based_counter(struct perf_event *event)
 	return val;
 }
 
+static void dwc_pcie_pmu_reset_time_based_counter(struct perf_event *event)
+{
+	struct dwc_pcie_pmu *pcie_pmu = to_dwc_pcie_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
+	u64 prev;
+
+	dwc_pcie_pmu_time_based_event_enable(pcie_pmu, false);
+
+	/*
+	 * The hardware counter is reset to zero when disabled. Synchronize
+	 * prev_count so that the next event_update() computes the correct
+	 * delta against the new counter baseline.
+	 */
+	do {
+		prev = local64_read(&hwc->prev_count);
+	} while (local64_cmpxchg(&hwc->prev_count, prev, 0) != prev);
+
+	dwc_pcie_pmu_time_based_event_enable(pcie_pmu, true);
+}
+
 static void dwc_pcie_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -429,6 +453,26 @@ static int dwc_pcie_pmu_validate_group(struct perf_event *event)
 	return 0;
 }
 
+static enum hrtimer_restart dwc_pcie_pmu_hrtimer_callback(struct hrtimer *hrtimer)
+{
+	struct dwc_pcie_pmu *pcie_pmu = container_of(hrtimer, struct dwc_pcie_pmu, hrtimer);
+	struct perf_event *event = pcie_pmu->time_based_event;
+	struct hw_perf_event *hwc;
+
+	if (!event)
+		return HRTIMER_NORESTART;
+
+	hwc = &event->hw;
+	if (hwc->state & PERF_HES_STOPPED)
+		return HRTIMER_NORESTART;
+
+	dwc_pcie_pmu_event_update(event);
+	dwc_pcie_pmu_reset_time_based_counter(event);
+	hrtimer_forward_now(hrtimer, ns_to_ktime(DWC_PCIE_PMU_TIMER_PERIOD_NS));
+
+	return HRTIMER_RESTART;
+}
+
 static int dwc_pcie_pmu_event_init(struct perf_event *event)
 {
 	struct dwc_pcie_pmu *pcie_pmu = to_dwc_pcie_pmu(event->pmu);
@@ -478,10 +522,15 @@ static void dwc_pcie_pmu_event_start(struct perf_event *event, int flags)
 	hwc->state = 0;
 	local64_set(&hwc->prev_count, 0);
 
-	if (type == DWC_PCIE_LANE_EVENT)
+	if (type == DWC_PCIE_LANE_EVENT) {
 		dwc_pcie_pmu_lane_event_enable(pcie_pmu, event, true);
-	else if (type == DWC_PCIE_TIME_BASE_EVENT)
+	} else if (type == DWC_PCIE_TIME_BASE_EVENT) {
 		dwc_pcie_pmu_time_based_event_enable(pcie_pmu, true);
+		if (pcie_pmu->timer_enable)
+			hrtimer_start(&pcie_pmu->hrtimer,
+				      ns_to_ktime(DWC_PCIE_PMU_TIMER_PERIOD_NS),
+				      HRTIMER_MODE_REL_PINNED_HARD);
+	}
 }
 
 static void dwc_pcie_pmu_event_stop(struct perf_event *event, int flags)
@@ -495,10 +544,14 @@ static void dwc_pcie_pmu_event_stop(struct perf_event *event, int flags)
 
 	dwc_pcie_pmu_event_update(event);
 
-	if (type == DWC_PCIE_LANE_EVENT)
+	if (type == DWC_PCIE_LANE_EVENT) {
 		dwc_pcie_pmu_lane_event_enable(pcie_pmu, event, false);
-	else if (type == DWC_PCIE_TIME_BASE_EVENT)
+	} else if (type == DWC_PCIE_TIME_BASE_EVENT) {
 		dwc_pcie_pmu_time_based_event_enable(pcie_pmu, false);
+
+		if (pcie_pmu->timer_enable)
+			hrtimer_cancel(&pcie_pmu->hrtimer);
+	}
 
 	hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 }
@@ -726,6 +779,16 @@ static int dwc_pcie_pmu_probe(struct platform_device *plat_dev)
 	pcie_pmu->ras_des_offset = vsec;
 	pcie_pmu->nr_lanes = pcie_get_width_cap(pdev);
 	pcie_pmu->on_cpu = -1;
+	hrtimer_setup(&pcie_pmu->hrtimer, dwc_pcie_pmu_hrtimer_callback,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL_PINNED_HARD);
+
+	/*
+	 * Use timer for updating time-based counts on platforms known
+	 * to have narrowed counter.
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_PICOHEART)
+		pcie_pmu->timer_enable = true;
+
 	pcie_pmu->pmu = (struct pmu){
 		.name		= name,
 		.parent		= &plat_dev->dev,
