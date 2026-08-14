@@ -11058,9 +11058,15 @@ static void smb2_notify_cancel_deferred(struct work_struct *w)
 {
 	struct notify_cancel_ctx *ctx =
 		container_of(w, struct notify_cancel_ctx, work);
+	struct ksmbd_conn *conn = ctx->in_work->conn;
 
 	smb2_complete_notify_cancel(ctx->in_work);
 	kfree(ctx);
+	/*
+	 * The connection teardown waits for r_count before destroying
+	 * connection sessions and their proc entries.
+	 */
+	ksmbd_conn_r_count_dec(conn);
 }
 
 static struct ksmbd_work *smb2_notify_cancel_claim(void **argv)
@@ -11119,6 +11125,12 @@ static void smb2_notify_cancel_fn(void **argv)
 	}
 	ctx->in_work = in_work;
 	INIT_WORK(&ctx->work, smb2_notify_cancel_deferred);
+	/*
+	 * This deferred work can outlive the connection handler's receive loop.
+	 * Keep teardown from destroying the connection's sessions until the
+	 * deferred response has finished using them.
+	 */
+	ksmbd_conn_r_count_inc(conn);
 	schedule_work(&ctx->work);
 }
 
