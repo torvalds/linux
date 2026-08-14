@@ -125,6 +125,50 @@ void osnoise_put_cpus(struct osnoise_context *context)
 }
 
 /*
+ * osnoise_get_cpu_count - get the number of CPUs as seen by the osnoise tracer
+ *
+ * Write "all" to osnoise/cpus and read back the real kernel-side list
+ * of all possible cpus. Restore the original value afterwards.
+ *
+ * Returns the number of CPUs, or -1 on error.
+ */
+int osnoise_get_cpu_count(void)
+{
+	char *orig, *readback;
+	int max_cpu;
+
+	orig = tracefs_instance_file_read(NULL, "osnoise/cpus", NULL);
+	if (!orig)
+		return -1;
+
+	if (tracefs_instance_file_write(NULL, "osnoise/cpus", "all\n") < 0) {
+		free(orig);
+		return -1;
+	}
+
+	readback = tracefs_instance_file_read(NULL, "osnoise/cpus", NULL);
+	if (!readback) {
+		tracefs_instance_file_write(NULL, "osnoise/cpus", orig);
+		free(orig);
+		return -1;
+	}
+
+	max_cpu = get_max_cpu_from_list(readback);
+	free(readback);
+
+	if (tracefs_instance_file_write(NULL, "osnoise/cpus", orig) < 0) {
+		free(orig);
+		return -1;
+	}
+	free(orig);
+
+	if (max_cpu < 0)
+		return -1;
+
+	return max_cpu + 1;
+}
+
+/*
  * osnoise_read_ll_config - read a long long value from a config
  *
  * returns -1 on error.

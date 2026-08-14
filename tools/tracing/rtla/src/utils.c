@@ -161,6 +161,22 @@ static int max_cpu_callback(int i, void *data)
 	return 0;
 }
 
+/*
+ * get_max_cpu_from_list - get the maximum CPU in a CPU list
+ *
+ * Returns maximum CPU number, or -1 on error
+ */
+int get_max_cpu_from_list(const char *cpu_list)
+{
+	int max_cpu = -1;
+
+	if (cpu_list_iterate(cpu_list, max_cpu_callback, &max_cpu) < 0)
+		return -1;
+
+	return max_cpu;
+}
+
+
 static int tmp_cpu_set_callback(int i, void *data)
 {
 	bool *cpu_set = data;

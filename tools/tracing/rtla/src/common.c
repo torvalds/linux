@@ -62,10 +62,21 @@ static void unset_signals(struct common_params *params)
 int
 common_apply_config(struct osnoise_tool *tool, struct common_params *params)
 {
-	int retval, i;
+	int retval, i, tracer_cpus;
 
 	if (!params->sleep_time)
 		params->sleep_time = 1;
+
+	tracer_cpus = osnoise_get_cpu_count();
+	if (tracer_cpus < 0) {
+		err_msg("Failed to get tracer cpu count from osnoise/cpus\n");
+		goto out_err;
+	}
+	if (tracer_cpus != nr_cpus) {
+		err_msg("Kernel reports %d cpus but rtla sees %d\n",
+			tracer_cpus, nr_cpus);
+		goto out_err;
+	}
 
 	retval = osnoise_set_cpus(tool->context, params->cpus ? params->cpus : "all");
 	if (retval) {

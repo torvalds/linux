@@ -168,6 +168,7 @@ should_continue_tracing(const struct common_params *params)
 int
 common_threshold_handler(const struct osnoise_tool *tool);
 
+int osnoise_get_cpu_count(void);
 int osnoise_set_cpus(struct osnoise_context *context, char *cpus);
 void osnoise_restore_cpus(struct osnoise_context *context);
 
