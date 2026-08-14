@@ -298,15 +298,20 @@ function irritator_handler
 	add	x0, x0, #1
 	str	x0, [x2, #ucontext_regs + 8 * 23]
 
+#ifndef SSVE
 	// Corrupt some random Z-regs
 	movi	v0.8b, #1
 	movi	v9.16b, #2
 	movi	v31.8b, #3
 	// And P0
 	ptrue	p0.d
-#ifndef SSVE
 	// And FFR
 	wrffr	p15.b
+#else
+	// Enter and exit streaming mode, will reset all of the V, Z, P
+	// and FFR registers that the system has.
+	smstart_sm
+	smstop
 #endif
 
 	ret
