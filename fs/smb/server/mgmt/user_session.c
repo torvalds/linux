@@ -413,6 +413,12 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	kfree_sensitive(sess);
 }
 
+static void ksmbd_session_remove_from_table(struct ksmbd_session *sess)
+{
+	hash_del(&sess->hlist);
+	ksmbd_counter_dec(KSMBD_COUNTER_SESSIONS);
+}
+
 struct ksmbd_session *__session_lookup(unsigned long long id)
 {
 	struct ksmbd_session *sess;
@@ -439,7 +445,7 @@ static void ksmbd_expire_session(struct ksmbd_conn *conn)
 		     time_after(jiffies,
 			       sess->last_active + SMB2_SESSION_TIMEOUT))) {
 			xa_erase(&conn->sessions, sess->id);
-			hash_del(&sess->hlist);
+			ksmbd_session_remove_from_table(sess);
 			ksmbd_session_destroy(sess);
 			continue;
 		}
@@ -460,7 +466,7 @@ int ksmbd_session_register(struct ksmbd_conn *conn,
 			      KSMBD_DEFAULT_GFP));
 	if (ret) {
 		down_write(&sessions_table_lock);
-		hash_del(&sess->hlist);
+		ksmbd_session_remove_from_table(sess);
 		up_write(&sessions_table_lock);
 		ksmbd_user_session_put(sess);
 	}
@@ -493,7 +499,7 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 	hash_for_each_safe(sessions_table, bkt, tmp, sess, hlist) {
 		if (!ksmbd_chann_del(conn, sess) &&
 		    xa_empty(&sess->ksmbd_chann_list)) {
-			hash_del(&sess->hlist);
+			ksmbd_session_remove_from_table(sess);
 			down_write(&conn->session_lock);
 			xa_erase(&conn->sessions, sess->id);
 			up_write(&conn->session_lock);
@@ -507,7 +513,7 @@ void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 		ksmbd_chann_del(conn, sess);
 		if (xa_empty(&sess->ksmbd_chann_list)) {
 			xa_erase(&conn->sessions, sess->id);
-			hash_del(&sess->hlist);
+			ksmbd_session_remove_from_table(sess);
 			if (atomic_dec_and_test(&sess->refcnt))
 				ksmbd_session_destroy(sess);
 		}
