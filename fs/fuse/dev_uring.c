@@ -281,7 +281,8 @@ void fuse_uring_conn_init(struct fuse_chan *fch)
 }
 
 static struct fuse_ring_queue *fuse_uring_create_queue(struct fuse_ring *ring,
-						       int qid)
+						       int qid,
+						       bool fail_if_exists)
 {
 	struct fuse_chan *fch = ring->chan;
 	struct fuse_ring_queue *queue;
@@ -289,11 +290,11 @@ static struct fuse_ring_queue *fuse_uring_create_queue(struct fuse_ring *ring,
 
 	queue = kzalloc_obj(*queue, GFP_KERNEL_ACCOUNT);
 	if (!queue)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	pq = fuse_pqueue_alloc();
 	if (!pq) {
 		kfree(queue);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	queue->qid = qid;
@@ -316,7 +317,7 @@ static struct fuse_ring_queue *fuse_uring_create_queue(struct fuse_ring *ring,
 		spin_unlock(&fch->lock);
 		kfree(queue->fpq.processing);
 		kfree(queue);
-		return ring->queues[qid];
+		return fail_if_exists ? ERR_PTR(-EEXIST) : ring->queues[qid];
 	}
 
 	/*
@@ -1189,9 +1190,9 @@ static int fuse_uring_register(struct io_uring_cmd *cmd,
 
 	queue = READ_ONCE(ring->queues[qid]);
 	if (!queue) {
-		queue = fuse_uring_create_queue(ring, qid);
-		if (!queue)
-			return -ENOMEM;
+		queue = fuse_uring_create_queue(ring, qid, false);
+		if (IS_ERR(queue))
+			return PTR_ERR(queue);
 	}
 
 	/*
@@ -1204,6 +1205,30 @@ static int fuse_uring_register(struct io_uring_cmd *cmd,
 		return PTR_ERR(ent);
 
 	return fuse_uring_do_register(ent, cmd, issue_flags);
+}
+
+static int fuse_uring_add_queue(struct io_uring_cmd *cmd, struct fuse_chan *fch)
+{
+	const struct fuse_uring_cmd_req *cmd_req =
+		io_uring_sqe128_cmd(cmd->sqe, struct fuse_uring_cmd_req);
+	struct fuse_ring *ring = smp_load_acquire(&fch->ring);
+	unsigned int qid = READ_ONCE(cmd_req->qid);
+	uint64_t flags = READ_ONCE(cmd_req->flags);
+	struct fuse_ring_queue *queue;
+
+	if (!ring || flags)
+		return -EINVAL;
+
+	if (qid >= ring->nr_queues) {
+		pr_info_ratelimited("fuse: Invalid ring qid %u\n", qid);
+		return -EINVAL;
+	}
+
+	queue = fuse_uring_create_queue(ring, qid, true);
+	if (IS_ERR(queue))
+		return PTR_ERR(queue);
+
+	return 0;
 }
 
 /*
@@ -1272,6 +1297,12 @@ int fuse_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 			return err;
 		}
 		break;
+	case FUSE_IO_URING_CMD_ADD_QUEUE:
+		err = fuse_uring_add_queue(cmd, fch);
+		if (err)
+			pr_info_once("FUSE_IO_URING_CMD_ADD_QUEUE failed err=%d\n",
+				     err);
+		return err;
 	default:
 		return -EINVAL;
 	}
