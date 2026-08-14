@@ -697,6 +697,7 @@ static void leapraid_fw_mmap_open(struct vm_area_struct *vma)
 	if (!adapter)
 		return;
 
+	get_device(&adapter->shost->shost_gendev);
 	atomic_inc(&adapter->fw_log_desc.mmap_refcnt);
 }
 
@@ -767,7 +768,6 @@ static int leapraid_fw_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = adapter;
 	vma->vm_ops = &leapraid_fw_mmap_vm_ops;
 	leapraid_fw_mmap_open(vma);
-	adapter = NULL;
 
 	rc = 0;
 out_put:
