@@ -130,7 +130,7 @@ static struct kvm_ptdump_guest_state *kvm_ptdump_parser_create(struct kvm_s2_mmu
 	}
 
 	st->ipa_marker[0].name		= "Guest IPA";
-	st->ipa_marker[1].start_address = BIT(pgtable->ia_bits);
+	st->ipa_marker[1].start_address = ULONG_MAX;
 
 	st->mmu				= mmu;
 	return st;
@@ -148,18 +148,21 @@ static int kvm_ptdump_guest_show(struct seq_file *m, void *unused)
 		.flags	= KVM_PGTABLE_WALK_LEAF,
 	};
 
+	guard(write_lock)(&kvm->mmu_lock);
 	st->parser_state = (struct ptdump_pg_state) {
 		.marker		= &st->ipa_marker[0],
+		.end_address	= BIT(mmu->pgt->ia_bits),
 		.level		= -1,
 		.pg_level	= &st->level[0],
 		.seq		= m,
 	};
 
-	write_lock(&kvm->mmu_lock);
 	ret = kvm_pgtable_walk(mmu->pgt, 0, BIT(mmu->pgt->ia_bits), &walker);
-	write_unlock(&kvm->mmu_lock);
+	if (ret)
+		return ret;
+	note_page_flush(&st->parser_state.ptdump);
 
-	return ret;
+	return 0;
 }
 
 static int kvm_ptdump_guest_open(struct inode *m, struct file *file)
