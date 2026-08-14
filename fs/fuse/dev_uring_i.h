@@ -49,6 +49,14 @@ enum fuse_queue_payload_mode {
 };
 
 struct fuse_bufpool {
+	bool registered;
+
+	/*
+	 * io_uring registered buffer table index for this pool, bound at
+	 * ADD_BUFPOOL time. Only valid if the bufpool is registered
+	 */
+	u16 registered_index;
+
 	/* starting uaddr of the bufpool */
 	uintptr_t base_uaddr;
 

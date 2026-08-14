@@ -47,6 +47,27 @@ static inline bool bufpool_enabled(struct fuse_ring_queue *queue)
 	return queue->payload_mode == FUSE_PAYLOAD_BUFPOOL;
 }
 
+static inline bool bufpool_registered(struct fuse_ring_queue *queue)
+{
+	return queue->bufpool && queue->bufpool->registered;
+}
+
+/*
+ * For a registered bufpool, every sqe that drives a payload import (REGISTER,
+ * COMMIT_AND_FETCH) must carry the registered buffer index of the pool.
+ * This also must be called from the command's issue handler, where cmd->sqe is
+ * still valid
+ */
+static inline bool fuse_uring_cmd_index_ok(struct io_uring_cmd *cmd,
+					   struct fuse_ring_queue *queue)
+{
+	if (!bufpool_registered(queue))
+		return true;
+
+	return (cmd->flags & IORING_URING_CMD_FIXED) &&
+	       READ_ONCE(cmd->sqe->buf_index) == queue->bufpool->registered_index;
+}
+
 static void uring_cmd_set_ring_ent(struct io_uring_cmd *cmd,
 				   struct fuse_ring_ent *ring_ent)
 {
@@ -653,19 +674,42 @@ static int copy_header_from_ring(struct fuse_ring_ent *ent,
 	return 0;
 }
 
+static int fuse_uring_import_payload(struct fuse_ring_ent *ent, int dir,
+				     struct iov_iter *iter,
+				     unsigned int issue_flags)
+{
+	void __user *base = ent->payload.iov_base;
+	size_t len = ent->payload.iov_len;
+	int err = 0;
+
+	if (!base) {
+		memset(iter, 0, sizeof(*iter));
+		return 0;
+	}
+
+	if (bufpool_registered(ent->queue))
+		err = io_uring_cmd_import_fixed((u64)(uintptr_t)base, len, dir,
+						iter, ent->cmd, issue_flags);
+	else
+		err = import_ubuf(dir, base, len, iter);
+
+	if (err)
+		pr_info_ratelimited("fuse: Import of user buffer failed\n");
+
+	return err;
+}
+
 static int setup_fuse_copy_state(struct fuse_copy_state *cs,
 				 struct fuse_req *req,
 				 struct fuse_ring_ent *ent, int dir,
-				 struct iov_iter *iter)
+				 struct iov_iter *iter,
+				 unsigned int issue_flags)
 {
 	int err;
 
-	err = import_ubuf(dir, ent->payload.iov_base, ent->payload.iov_len,
-			  iter);
-	if (err) {
-		pr_info_ratelimited("fuse: Import of user buffer failed\n");
+	err = fuse_uring_import_payload(ent, dir, iter, issue_flags);
+	if (err)
 		return err;
-	}
 
 	fuse_copy_init(cs, dir == ITER_DEST, iter);
 
@@ -676,7 +720,8 @@ static int setup_fuse_copy_state(struct fuse_copy_state *cs,
 }
 
 static int fuse_uring_copy_from_ring(struct fuse_req *req,
-				     struct fuse_ring_ent *ent)
+				     struct fuse_ring_ent *ent,
+				     unsigned int issue_flags)
 {
 	struct fuse_copy_state cs;
 	struct fuse_args *args = req->args;
@@ -689,7 +734,8 @@ static int fuse_uring_copy_from_ring(struct fuse_req *req,
 	if (err)
 		return err;
 
-	err = setup_fuse_copy_state(&cs, req, ent, ITER_SOURCE, &iter);
+	err = setup_fuse_copy_state(&cs, req, ent, ITER_SOURCE, &iter,
+				    issue_flags);
 	if (err)
 		return err;
 
@@ -702,7 +748,8 @@ static int fuse_uring_copy_from_ring(struct fuse_req *req,
  * Copy data from the req to the ring buffer
  */
 static int fuse_uring_args_to_ring(struct fuse_req *req,
-				   struct fuse_ring_ent *ent)
+				   struct fuse_ring_ent *ent,
+				   unsigned int issue_flags)
 {
 	struct fuse_copy_state cs;
 	struct fuse_args *args = req->args;
@@ -715,7 +762,8 @@ static int fuse_uring_args_to_ring(struct fuse_req *req,
 		.commit_id = req->in.h.unique,
 	};
 
-	err = setup_fuse_copy_state(&cs, req, ent, ITER_DEST, &iter);
+	err = setup_fuse_copy_state(&cs, req, ent, ITER_DEST, &iter,
+				    issue_flags);
 	if (err)
 		return err;
 
@@ -754,7 +802,8 @@ static int fuse_uring_args_to_ring(struct fuse_req *req,
 }
 
 static int fuse_uring_copy_to_ring(struct fuse_ring_ent *ent,
-				   struct fuse_req *req)
+				   struct fuse_req *req,
+				   unsigned int issue_flags)
 {
 	struct fuse_ring_queue *queue = ent->queue;
 	int err;
@@ -771,7 +820,7 @@ static int fuse_uring_copy_to_ring(struct fuse_ring_ent *ent,
 		return err;
 
 	/* copy the request */
-	err = fuse_uring_args_to_ring(req, ent);
+	err = fuse_uring_args_to_ring(req, ent, issue_flags);
 	if (unlikely(err)) {
 		pr_info_ratelimited("Copy to ring failed: %d\n", err);
 		return err;
@@ -868,11 +917,12 @@ static int fuse_uring_prep_buffer(struct fuse_ring_ent *ent,
 }
 
 static int fuse_uring_prepare_send(struct fuse_ring_ent *ent,
-				   struct fuse_req *req)
+				   struct fuse_req *req,
+				   unsigned int issue_flags)
 {
 	int err;
 
-	err = fuse_uring_copy_to_ring(ent, req);
+	err = fuse_uring_copy_to_ring(ent, req, issue_flags);
 	if (!err) {
 		set_bit(FR_SENT, &req->flags);
 		trace_fuse_request_sent(req);
@@ -983,7 +1033,7 @@ static void fuse_uring_commit(struct fuse_ring_ent *ent, struct fuse_req *req,
 		goto out;
 	}
 
-	err = fuse_uring_copy_from_ring(req, ent);
+	err = fuse_uring_copy_from_ring(req, ent, issue_flags);
 out:
 	fuse_uring_req_end(ent, req, err);
 }
@@ -995,7 +1045,8 @@ out:
  * Else, there is no next fuse request and this returns false.
  */
 static bool fuse_uring_get_next_fuse_req(struct fuse_ring_ent *ent,
-					 struct fuse_ring_queue *queue)
+					 struct fuse_ring_queue *queue,
+					 unsigned int issue_flags)
 {
 	int err;
 	struct fuse_req *req;
@@ -1007,7 +1058,7 @@ retry:
 	spin_unlock(&queue->lock);
 
 	if (req) {
-		err = fuse_uring_prepare_send(ent, req);
+		err = fuse_uring_prepare_send(ent, req, issue_flags);
 		if (err)
 			goto retry;
 	}
@@ -1081,6 +1132,11 @@ static int fuse_uring_commit_fetch(struct io_uring_cmd *cmd, int issue_flags,
 		return err;
 	}
 
+	if (!fuse_uring_cmd_index_ok(cmd, queue)) {
+		spin_unlock(&queue->lock);
+		return -EINVAL;
+	}
+
 	/* Find a request based on the unique ID of the fuse request
 	 * This should get revised, as it needs a hash calculation and list
 	 * search. And full struct fuse_pqueue is needed (memory overhead).
@@ -1126,7 +1182,7 @@ static int fuse_uring_commit_fetch(struct io_uring_cmd *cmd, int issue_flags,
 	 * available and the cmd only returns to userspace when there's a
 	 * next request and an available buffer.
 	 */
-	if (fuse_uring_get_next_fuse_req(ent, queue))
+	if (fuse_uring_get_next_fuse_req(ent, queue, issue_flags))
 		fuse_uring_send(ent, cmd, 0, issue_flags);
 	return 0;
 }
@@ -1252,7 +1308,8 @@ fuse_uring_create_ring_ent(struct io_uring_cmd *cmd,
 
 	spin_lock(&queue->lock);
 	if (bufpool_enabled(queue)) {
-		if (payload->iov_base || payload->iov_len) {
+		if (payload->iov_base || payload->iov_len ||
+		    !fuse_uring_cmd_index_ok(cmd, queue)) {
 			spin_unlock(&queue->lock);
 			return ERR_PTR(err);
 		}
@@ -1362,6 +1419,7 @@ static int fuse_uring_add_bufpool(struct io_uring_cmd *cmd,
 	uintptr_t pool_uaddr;
 	unsigned int pool_len, nr_bufs;
 	size_t pool_size, buf_size;
+	bool registered = cmd->flags & IORING_URING_CMD_FIXED;
 
 	if (!ring || qid >= ring->nr_queues || flags)
 		return -EINVAL;
@@ -1395,6 +1453,17 @@ static int fuse_uring_add_bufpool(struct io_uring_cmd *cmd,
 	pool->nr_bufs = nr_bufs;
 	/* all buffers are free */
 	bitmap_set(pool->free_map, 0, nr_bufs);
+
+	/*
+	 * A registered bufpool is reached through an io_uring fixed buffer, so
+	 * the pool is registered iff this command was submitted with
+	 * IORING_URING_CMD_FIXED. The registered buffer index is taken from
+	 * sqe->buf_index.
+	 */
+	if (registered) {
+		pool->registered = true;
+		pool->registered_index = READ_ONCE(cmd->sqe->buf_index);
+	}
 
 	spin_lock(&queue->lock);
 	if (queue->payload_mode != FUSE_PAYLOAD_UNSET) {
@@ -1508,9 +1577,10 @@ static void fuse_uring_send_in_task(struct io_tw_req tw_req, io_tw_token_t tw)
 	int err;
 
 	if (!tw.cancel) {
-		err = fuse_uring_prepare_send(ent, ent->fuse_req);
+		err = fuse_uring_prepare_send(ent, ent->fuse_req, issue_flags);
 		if (err) {
-			if (!fuse_uring_get_next_fuse_req(ent, queue))
+			if (!fuse_uring_get_next_fuse_req(ent, queue,
+							  issue_flags))
 				return;
 			err = 0;
 		}
