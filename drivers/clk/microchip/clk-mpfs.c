@@ -285,7 +285,7 @@ static int mpfs_cfg_clk_set_rate(struct clk_hw *hw, unsigned long rate, unsigned
 
 	mask = clk_div_mask(cfg->width) << cfg->shift;
 	val = divider_setting << cfg->shift;
-	regmap_update_bits(cfg->map, cfg->map_offset, val, mask);
+	regmap_update_bits(cfg->map, cfg->map_offset, mask, val);
 
 	return 0;
 }
