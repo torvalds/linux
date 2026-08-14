@@ -937,7 +937,8 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 		/* last one */ {""}
 	};
 
-	if (WARN_ON(user_ns != current_user_ns()))
+	/* The fscontext fd may have been passed to another user namespace. */
+	if (user_ns != current_user_ns())
 		return -EINVAL;
 
 	/* Never exec off this instance and never let anything stack on it. */
