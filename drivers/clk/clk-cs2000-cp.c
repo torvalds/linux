@@ -404,11 +404,7 @@ static int cs2000_enable(struct clk_hw *hw)
 	if (ret < 0)
 		return ret;
 
-	ret = cs2000_wait_pll_lock(priv);
-	if (ret < 0)
-		return ret;
-
-	return ret;
+	return cs2000_wait_pll_lock(priv);
 }
 
 static void cs2000_disable(struct clk_hw *hw)

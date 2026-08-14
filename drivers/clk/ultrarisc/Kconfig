@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config CLK_ULTRARISC
+	tristate
+	depends on OF
+	depends on ARCH_ULTRARISC || COMPILE_TEST
+
+config CLK_ULTRARISC_DP1000
+	tristate "UltraRISC DP1000 clock controller"
+	select CLK_ULTRARISC
+	depends on OF && HAS_IOMEM
+	depends on ARCH_ULTRARISC || COMPILE_TEST
+	default ARCH_ULTRARISC
+	help
+	  This driver provides the clock controller for the UltraRISC
+	  DP1000 SoC. It exposes the PLL output, derived fixed-factor
+	  clocks, programmable divider clocks, and peripheral gate
+	  clocks to Linux consumers.

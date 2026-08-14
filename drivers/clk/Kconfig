@@ -155,12 +155,12 @@ config COMMON_CLK_SI514
 	  generator.
 
 config COMMON_CLK_SI544
-	tristate "Clock driver for SiLabs 544 devices"
+	tristate "Clock driver for SiLabs 544 and compatible devices"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  This driver supports the Silicon Labs 544 programmable clock
-	  generator.
+	  This driver supports the Silicon Labs 544/549 programmable clock
+	  generators.
 
 config COMMON_CLK_SI570
 	tristate "Clock driver for SiLabs 570 and compatible devices"
@@ -278,7 +278,7 @@ config COMMON_CLK_LAN966X
 	tristate "Generic Clock Controller driver for LAN966X SoC"
 	depends on HAS_IOMEM
 	depends on OF
-	depends on SOC_LAN966 || ARCH_LAN969X || COMPILE_TEST
+	depends on SOC_LAN966 || ARCH_LAN969X || MCHP_LAN966X_PCI || COMPILE_TEST
 	help
 	  This driver provides support for Generic Clock Controller(GCK) on
 	  LAN966X SoC. GCK generates and supplies clock to various peripherals
@@ -509,6 +509,7 @@ source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/aspeed/Kconfig"
 source "drivers/clk/bcm/Kconfig"
+source "drivers/clk/cix/Kconfig"
 source "drivers/clk/eswin/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
@@ -541,6 +542,7 @@ source "drivers/clk/tenstorrent/Kconfig"
 source "drivers/clk/thead/Kconfig"
 source "drivers/clk/stm32/Kconfig"
 source "drivers/clk/ti/Kconfig"
+source "drivers/clk/ultrarisc/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
 source "drivers/clk/visconti/Kconfig"
 source "drivers/clk/x86/Kconfig"

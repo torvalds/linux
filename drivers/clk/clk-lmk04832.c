@@ -815,13 +815,6 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(lmk->regmap, LMK04832_REG_SYNC,
-				 LMK04832_BIT_SYNC_MODE,
-				 FIELD_PREP(LMK04832_BIT_SYNC_MODE,
-					    lmk->sync_mode));
-	if (ret)
-		return ret;
-
 	/*
 	 * 9. (optional) if SCLKx_y_DIS_MODE was used to mute SYSREF outputs
 	 *    during the SYNC event, restore SCLKx_y_DIS_MODE=0 for active state,
@@ -836,7 +829,10 @@ static int lmk04832_sclk_sync_sequence(struct lmk04832 *lmk)
 	 *     SYNC pulse to delay the output by some number of VCO counts).
 	 */
 
-	return ret;
+	return regmap_update_bits(lmk->regmap, LMK04832_REG_SYNC,
+				  LMK04832_BIT_SYNC_MODE,
+				  FIELD_PREP(LMK04832_BIT_SYNC_MODE,
+					     lmk->sync_mode));
 }
 
 static int lmk04832_sclk_is_enabled(struct clk_hw *hw)

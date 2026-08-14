@@ -204,7 +204,7 @@ int eswin_clk_register_pll(struct device *dev, struct eswin_pll_clock *clks,
 			   int nums, struct eswin_clock_data *data)
 {
 	struct eswin_clk_pll *p_clk = NULL;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *clk_hw;
 	int i, ret;
 
@@ -419,7 +419,7 @@ struct clk_hw *eswin_register_clkdiv(struct device *dev, unsigned int id,
 				     unsigned long priv_flag, spinlock_t *lock)
 {
 	struct eswin_divider_clock *dclk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *clk_hw;
 	int ret;
 

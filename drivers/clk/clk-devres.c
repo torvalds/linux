@@ -222,6 +222,13 @@ err_clk_get:
 	return ret;
 }
 
+int __must_check devm_clk_bulk_get_enable(struct device *dev, int num_clks,
+					  struct clk_bulk_data *clks)
+{
+	return __devm_clk_bulk_get_enable(dev, num_clks, clks, false);
+}
+EXPORT_SYMBOL_GPL(devm_clk_bulk_get_enable);
+
 int __must_check devm_clk_bulk_get_optional_enable(struct device *dev, int num_clks,
 						   struct clk_bulk_data *clks)
 {
