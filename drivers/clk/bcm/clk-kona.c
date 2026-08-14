@@ -1098,8 +1098,7 @@ static u8 kona_peri_clk_get_parent(struct clk_hw *hw)
 
 	index = selector_read_index(bcm_clk->ccu, &data->sel);
 
-	/* Not all callers would handle an out-of-range value gracefully */
-	return index == BAD_CLK_INDEX ? 0 : index;
+	return index;
 }
 
 static int kona_peri_clk_set_rate(struct clk_hw *hw, unsigned long rate,

@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/eswin,eic7700-hspcrg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ESWIN EIC7700 HSP Clock and Reset Generator
+
+maintainers:
+  - Xuyang Dong <dongxuyang@eswincomputing.com>
+
+description:
+  Clock and reset generator for the ESWIN EIC7700 HSP (high-speed peripherals).
+
+properties:
+  compatible:
+    const: eswin,eic7700-hspcrg
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: HSP configuration top clock
+      - description: MMC top clock
+      - description: SATA top clock
+
+  clock-names:
+    items:
+      - const: cfg
+      - const: mmc
+      - const: sata
+
+  '#clock-cells':
+    const: 1
+    description:
+      See <dt-bindings/clock/eswin,eic7700-hspcrg.h> for valid indices.
+
+  '#reset-cells':
+    const: 1
+    description:
+      See <dt-bindings/reset/eswin,eic7700-hspcrg.h> for valid indices.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - '#clock-cells'
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@50440000 {
+        compatible = "eswin,eic7700-hspcrg";
+        reg = <0x50440000 0x2000>;
+        clocks = <&clock 171>, <&clock 254>, <&clock 187>;
+        clock-names = "cfg", "mmc", "sata";
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+    };

@@ -1425,10 +1425,10 @@ si53351_of_clk_get(struct of_phandle_args *clkspec, void *data)
 #endif /* CONFIG_OF */
 
 static const struct i2c_device_id si5351_i2c_ids[] = {
-	{ "si5351a", SI5351_VARIANT_A },
-	{ "si5351a-msop", SI5351_VARIANT_A3 },
-	{ "si5351b", SI5351_VARIANT_B },
-	{ "si5351c", SI5351_VARIANT_C },
+	{ .name = "si5351a", .driver_data = SI5351_VARIANT_A },
+	{ .name = "si5351a-msop", .driver_data = SI5351_VARIANT_A3 },
+	{ .name = "si5351b", .driver_data = SI5351_VARIANT_B },
+	{ .name = "si5351c", .driver_data = SI5351_VARIANT_C },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);

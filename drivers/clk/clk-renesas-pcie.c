@@ -394,9 +394,9 @@ static const struct rs9_chip_info renesas_9fgv0841_info = {
 };
 
 static const struct i2c_device_id rs9_id[] = {
-	{ "9fgv0241", .driver_data = (kernel_ulong_t)&renesas_9fgv0241_info },
-	{ "9fgv0441", .driver_data = (kernel_ulong_t)&renesas_9fgv0441_info },
-	{ "9fgv0841", .driver_data = (kernel_ulong_t)&renesas_9fgv0841_info },
+	{ .name = "9fgv0241", .driver_data = (kernel_ulong_t)&renesas_9fgv0241_info },
+	{ .name = "9fgv0441", .driver_data = (kernel_ulong_t)&renesas_9fgv0441_info },
+	{ .name = "9fgv0841", .driver_data = (kernel_ulong_t)&renesas_9fgv0841_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rs9_id);

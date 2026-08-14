@@ -122,8 +122,8 @@ static const struct of_device_id cs2000_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs2000_of_match);
 
 static const struct i2c_device_id cs2000_id[] = {
-	{ "cs2000-cp", },
-	{}
+	{ .name = "cs2000-cp" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cs2000_id);
 

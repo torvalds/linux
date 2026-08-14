@@ -175,10 +175,6 @@
 #define LMK04832_REG_RB_HOLDOVER	0x188
 #define LMK04832_REG_SPI_LOCK		0x555
 
-enum lmk04832_device_types {
-	LMK04832,
-};
-
 /**
  * struct lmk04832_device_info - Holds static device information that is
  *                               specific to the chip revision
@@ -197,14 +193,12 @@ struct lmk04832_device_info {
 	unsigned int vco1_range[2];
 };
 
-static const struct lmk04832_device_info lmk04832_device_info[] = {
-	[LMK04832] = {
-		.pid = 0x63d1, /* WARNING PROD_ID is inverted in the datasheet */
-		.maskrev = 0x70,
-		.num_channels = 14,
-		.vco0_range = { 2440, 2580 },
-		.vco1_range = { 2945, 3255 },
-	},
+static const struct lmk04832_device_info lmk04832_device_info = {
+	.pid = 0x63d1, /* WARNING PROD_ID is inverted in the datasheet */
+	.maskrev = 0x70,
+	.num_channels = 14,
+	.vco0_range = { 2440, 2580 },
+	.vco1_range = { 2945, 3255 },
 };
 
 enum lmk04832_rdbk_type {
@@ -422,11 +416,10 @@ static unsigned long lmk04832_vco_recalc_rate(struct clk_hw *hw,
  */
 static int lmk04832_check_vco_ranges(struct lmk04832 *lmk, unsigned long rate)
 {
-	struct spi_device *spi = to_spi_device(lmk->dev);
 	const struct lmk04832_device_info *info;
 	unsigned long mhz = rate / 1000000;
 
-	info = &lmk04832_device_info[spi_get_device_id(spi)->driver_data];
+	info = &lmk04832_device_info;
 
 	if (mhz >= info->vco0_range[0] && mhz <= info->vco0_range[1])
 		return LMK04832_VAL_VCO_MUX_VCO0;
@@ -1405,7 +1398,7 @@ static int lmk04832_probe(struct spi_device *spi)
 	int ret;
 	int i;
 
-	info = &lmk04832_device_info[spi_get_device_id(spi)->driver_data];
+	info = &lmk04832_device_info;
 
 	lmk = devm_kzalloc(&spi->dev, sizeof(struct lmk04832), GFP_KERNEL);
 	if (!lmk)
@@ -1553,8 +1546,8 @@ static int lmk04832_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id lmk04832_id[] = {
-	{ "lmk04832", LMK04832 },
-	{}
+	{ .name = "lmk04832" },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, lmk04832_id);
 

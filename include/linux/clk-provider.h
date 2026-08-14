@@ -6,31 +6,44 @@
 #ifndef __LINUX_CLK_PROVIDER_H
 #define __LINUX_CLK_PROVIDER_H
 
+#include <dt-bindings/clock/clock.h>
 #include <linux/of.h>
 #include <linux/of_clk.h>
 
-/*
- * flags used across common struct clk.  these flags should only affect the
- * top-level framework.  custom flags for dealing with hardware specifics
- * belong in struct clk_foo
+/**
+ * DOC: clk framework flags
  *
- * Please update clk_flags[] in drivers/clk/clk.c when making changes here!
+ * Flags used across common struct clk. These flags should only affect the
+ * top-level framework. Custom flags for dealing with hardware specifics
+ * belong in struct clk_foo.
+ *
+ * * CLK_SET_RATE_GATE - must be gated across rate change
+ * * CLK_SET_PARENT_GATE - must be gated across re-parent
+ * * CLK_SET_RATE_PARENT - propagate rate change up one level
+ * * CLK_IGNORE_UNUSED - do not gate even if unused
+ * * CLK_GET_RATE_NOCACHE - do not use the cached clk rate
+ * * CLK_SET_RATE_NO_REPARENT - don't re-parent on rate change
+ * * CLK_GET_ACCURACY_NOCACHE - do not use the cached clk accuracy
+ * * CLK_RECALC_NEW_RATES - recalc rates after notifications
+ * * CLK_SET_RATE_UNGATE - clock needs to run to set rate
+ * * CLK_IS_CRITICAL - do not gate, ever
+ * * CLK_OPS_PARENT_ENABLE - parents need enable during gate/ungate, set rate and re-parent
+ * * CLK_DUTY_CYCLE_PARENT - duty cycle call may be forwarded to the parent clock
  */
-#define CLK_SET_RATE_GATE	BIT(0) /* must be gated across rate change */
-#define CLK_SET_PARENT_GATE	BIT(1) /* must be gated across re-parent */
-#define CLK_SET_RATE_PARENT	BIT(2) /* propagate rate change up one level */
-#define CLK_IGNORE_UNUSED	BIT(3) /* do not gate even if unused */
+/* Please update clk_flags[] in drivers/clk/clk.c when making changes here! */
+#define CLK_SET_RATE_GATE	BIT(0)
+#define CLK_SET_PARENT_GATE	BIT(1)
+#define CLK_SET_RATE_PARENT	BIT(2)
+#define CLK_IGNORE_UNUSED	BIT(3)
 				/* unused */
 				/* unused */
-#define CLK_GET_RATE_NOCACHE	BIT(6) /* do not use the cached clk rate */
-#define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
-#define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
-#define CLK_RECALC_NEW_RATES	BIT(9) /* recalc rates after notifications */
-#define CLK_SET_RATE_UNGATE	BIT(10) /* clock needs to run to set rate */
-#define CLK_IS_CRITICAL		BIT(11) /* do not gate, ever */
-/* parents need enable during gate/ungate, set rate and re-parent */
+#define CLK_GET_RATE_NOCACHE	BIT(6)
+#define CLK_SET_RATE_NO_REPARENT BIT(7)
+#define CLK_GET_ACCURACY_NOCACHE BIT(8)
+#define CLK_RECALC_NEW_RATES	BIT(9)
+#define CLK_SET_RATE_UNGATE	BIT(10)
+#define CLK_IS_CRITICAL		BIT(11)
 #define CLK_OPS_PARENT_ENABLE	BIT(12)
-/* duty cycle call may be forwarded to the parent clock */
 #define CLK_DUTY_CYCLE_PARENT	BIT(13)
 
 struct clk;
@@ -82,6 +95,26 @@ void clk_hw_forward_rate_request(const struct clk_hw *core,
 struct clk_duty {
 	unsigned int num;
 	unsigned int den;
+};
+
+enum clk_ssc_method {
+	CLK_SPREAD_NO		= CLK_SSC_NO_SPREAD,
+	CLK_SPREAD_CENTER	= CLK_SSC_CENTER_SPREAD,
+	CLK_SPREAD_UP		= CLK_SSC_UP_SPREAD,
+	CLK_SPREAD_DOWN		= CLK_SSC_DOWN_SPREAD,
+};
+
+/**
+ * struct clk_spread_spectrum - Structure encoding spread spectrum of a clock
+ *
+ * @modfreq_hz:		Modulation frequency
+ * @spread_bp:		Modulation percent in permyriad
+ * @method:		Modulation method
+ */
+struct clk_spread_spectrum {
+	u32 modfreq_hz;
+	u32 spread_bp;
+	enum clk_ssc_method method;
 };
 
 /**
@@ -174,6 +207,12 @@ struct clk_duty {
  *		separately via calls to .set_parent and .set_rate.
  *		Returns 0 on success, -EERROR otherwise.
  *
+ * @set_spread_spectrum: Optional callback used to configure the spread
+ *		spectrum modulation frequency, percentage, and method
+ *		to reduce EMI by spreading the clock frequency over a
+ *		wider range.
+ *		Returns 0 on success, -EERROR otherwise.
+ *
  * @recalc_accuracy: Recalculate the accuracy of this clock. The clock accuracy
  *		is expressed in ppb (parts per billion). The parent accuracy is
  *		an input parameter.
@@ -249,6 +288,8 @@ struct clk_ops {
 	int		(*set_rate_and_parent)(struct clk_hw *hw,
 				    unsigned long rate,
 				    unsigned long parent_rate, u8 index);
+	int		(*set_spread_spectrum)(struct clk_hw *hw,
+					       const struct clk_spread_spectrum *ss_conf);
 	unsigned long	(*recalc_accuracy)(struct clk_hw *hw,
 					   unsigned long parent_accuracy);
 	int		(*get_phase)(struct clk_hw *hw);
@@ -1431,11 +1472,14 @@ int clk_mux_determine_rate_flags(struct clk_hw *hw,
 				 unsigned long flags);
 int clk_hw_determine_rate_no_reparent(struct clk_hw *hw,
 				      struct clk_rate_request *req);
+int clk_determine_rate_noop(struct clk_hw *hw, struct clk_rate_request *req);
 void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent);
 void clk_hw_get_rate_range(struct clk_hw *hw, unsigned long *min_rate,
 			   unsigned long *max_rate);
 void clk_hw_set_rate_range(struct clk_hw *hw, unsigned long min_rate,
 			   unsigned long max_rate);
+int clk_hw_set_spread_spectrum(struct clk_hw *hw,
+			       const struct clk_spread_spectrum *ss_conf);
 
 static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
 {

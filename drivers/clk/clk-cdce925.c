@@ -826,10 +826,10 @@ static const struct clk_cdce925_chip_info clk_cdce949_info = {
 };
 
 static const struct i2c_device_id cdce925_id[] = {
-	{ "cdce913", (kernel_ulong_t)&clk_cdce913_info },
-	{ "cdce925", (kernel_ulong_t)&clk_cdce925_info },
-	{ "cdce937", (kernel_ulong_t)&clk_cdce937_info },
-	{ "cdce949", (kernel_ulong_t)&clk_cdce949_info },
+	{ .name = "cdce913", .driver_data = (kernel_ulong_t)&clk_cdce913_info },
+	{ .name = "cdce925", .driver_data = (kernel_ulong_t)&clk_cdce925_info },
+	{ .name = "cdce937", .driver_data = (kernel_ulong_t)&clk_cdce937_info },
+	{ .name = "cdce949", .driver_data = (kernel_ulong_t)&clk_cdce949_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cdce925_id);
