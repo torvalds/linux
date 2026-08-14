@@ -896,6 +896,7 @@ config SND_SOC_CS35L56_SDW
 	tristate "Cirrus Logic CS35L56 CODEC (SDW)"
 	depends on SOUNDWIRE
 	select REGMAP_SOUNDWIRE
+	select IRQ_DOMAIN
 	select SND_SOC_CS35L56
 	select SND_SOC_CS35L56_SHARED
 	help
