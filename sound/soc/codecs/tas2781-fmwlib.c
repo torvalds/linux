@@ -1849,16 +1849,26 @@ static int tasdev_load_blk(struct tasdevice_priv *tas_priv,
 			}
 		}
 		if (ret == -EAGAIN) {
-			if (block->nr_retry > 0)
+			if (block->nr_retry > 0) {
+				/* Give the hardware time to stabilize before
+				 * next block re-transmission attempt.
+				 */
+				usleep_range(2000, 2500);
 				continue;
+			}
 		} else if (ret < 0) /*err in current device, skip it*/
 			break;
 
 		if (block->is_pchksum_present) {
 			ret = tasdev_block_chksum(tas_priv, block, chn);
 			if (ret == -EAGAIN) {
-				if (block->nr_retry > 0)
+				if (block->nr_retry > 0) {
+					/* Give the bus time to recover after
+					 * a checksum mismatch error.
+					 */
+					usleep_range(2000, 2500);
 					continue;
+				}
 			} else if (ret < 0) /*err in current device, skip it*/
 				break;
 		}
