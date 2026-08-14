@@ -32,6 +32,10 @@ __jited("	movl	%edi, %edi")
 __jited("	addq	%r12, %rdi")
 __jited("...")
 __jited("	callq	{{.*}}")
+__arch_arm64
+__jited("...")
+__jited("	add	x0, x28, w0, uxtw")
+__jited("	{{(bl|mov)	.*}}")
 __success
 int arena_arg_jit_rebase(void *ctx)
 {
@@ -48,6 +52,12 @@ __jited("	testl	%edi, %edi")
 __jited("	je	L0")
 __jited("	addq	%r12, %rdi")
 __jited("L0:	callq	{{.*}}")
+__arch_arm64
+__jited("...")
+__jited("	mov	w0, w0")
+__jited("	cbz	w0, L0")
+__jited("	add	x0, x28, w0, uxtw")
+__jited("L0:	{{.*}}")
 __success
 int arena_arg_jit_nullable(void *ctx)
 {
@@ -72,6 +82,16 @@ __jited("	testl	%r8d, %r8d")
 __jited("	je	L0")
 __jited("	addq	%r12, %r8")
 __jited("L0:	callq	{{.*}}")
+__arch_arm64
+__jited("...")
+__jited("	add	x0, x28, w0, uxtw")
+__jited("	add	x1, x28, w1, uxtw")
+__jited("	add	x2, x28, w2, uxtw")
+__jited("	add	x3, x28, w3, uxtw")
+__jited("	mov	w4, w4")
+__jited("	cbz	w4, L0")
+__jited("	add	x4, x28, w4, uxtw")
+__jited("L0:	{{.*}}")
 __success
 int arena_arg_jit_args5(void *ctx)
 {

@@ -59,11 +59,28 @@ int test_arena_stack_cb(unsigned long long *ctx)
 	return 0;
 }
 
+SEC("struct_ops/test_arena_multislot")
+int test_arena_multislot_cb(unsigned long long *ctx)
+{
+	u64 __arena *ptr = (u64 __arena *)ctx[2];
+
+	arena_touch++;
+	/*
+	 * The 16-byte struct occupies ctx[0] and ctx[1], so @ptr is argument
+	 * one but slot two. Getting that wrong hands the callback a scalar.
+	 */
+	if (ctx[0] != 11 || ctx[1] != 22)
+		return 0xbad;
+	*ptr += 1;
+	return 0;
+}
+
 SEC(".struct_ops.link")
 struct bpf_testmod_ops3 testmod_arena = {
 	.test_arena = (void *)test_arena_cb,
 	.test_arena_nullable = (void *)test_arena_nullable_cb,
 	.test_arena_stack = (void *)test_arena_stack_cb,
+	.test_arena_multislot = (void *)test_arena_multislot_cb,
 };
 
 SEC("syscall")
@@ -108,6 +125,13 @@ int trigger(void *ctx)
 		return 8;
 	if (*val != 44)
 		return 9;
+
+	/* a multi-slot arg precedes the arena pointer here */
+	ret = bpf_testmod_ops3_call_test_arena_multislot((u64 *)val);
+	if (ret)
+		return 10;
+	if (*val != 45)
+		return 11;
 
 	bpf_arena_free_pages(&arena, (void __arena *)val, 1);
 #endif

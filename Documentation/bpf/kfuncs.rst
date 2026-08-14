@@ -301,9 +301,9 @@ An example is given below::
         }
 
 Calling such a kfunc requires the program to use an arena map and a JIT with
-arena argument support (currently x86-64); verification fails otherwise. The
-program can pass any value without compromising the kernel. A value that does
-not point into the arena is a program bug.
+arena argument support (currently x86-64 and arm64); verification fails
+otherwise. The program can pass any value without compromising the kernel. A
+value that does not point into the arena is a program bug.
 
 The suffixes have the same meaning on the arguments of struct_ops stub
 functions, with the conversion running in the opposite direction. The
