@@ -1560,6 +1560,7 @@ static inline int spi_unmap_msg(struct spi_controller *ctlr,
 				struct spi_message *msg)
 {
 	struct spi_transfer *xfer;
+	int ret;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/*
@@ -1572,7 +1573,12 @@ static inline int spi_unmap_msg(struct spi_controller *ctlr,
 			xfer->rx_buf = NULL;
 	}
 
-	return __spi_unmap_msg(ctlr, msg);
+	ret = __spi_unmap_msg(ctlr, msg);
+
+	ctlr->cur_rx_dma_dev = NULL;
+	ctlr->cur_tx_dma_dev = NULL;
+
+	return ret;
 }
 
 static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
