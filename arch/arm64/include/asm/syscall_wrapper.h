@@ -10,12 +10,12 @@
 
 #include <asm/ptrace.h>
 
-#define SC_ARM64_REGS_TO_ARGS(x, ...)				\
+#ifdef CONFIG_COMPAT
+
+#define COMPAT_SC_ARM64_REGS_TO_ARGS(x, ...)			\
 	__MAP(x,__SC_ARGS					\
 	      ,,regs->regs[0],,regs->regs[1],,regs->regs[2]	\
 	      ,,regs->regs[3],,regs->regs[4],,regs->regs[5])
-
-#ifdef CONFIG_COMPAT
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)						\
 	asmlinkage long __arm64_compat_sys##name(const struct pt_regs *regs);		\
@@ -24,7 +24,7 @@
 	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
 	asmlinkage long __arm64_compat_sys##name(const struct pt_regs *regs)		\
 	{										\
-		return __se_compat_sys##name(SC_ARM64_REGS_TO_ARGS(x,__VA_ARGS__));	\
+		return __se_compat_sys##name(COMPAT_SC_ARM64_REGS_TO_ARGS(x,__VA_ARGS__));	\
 	}										\
 	static long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))		\
 	{										\
@@ -45,6 +45,11 @@
 	}
 
 #endif /* CONFIG_COMPAT */
+
+#define SC_ARM64_REGS_TO_ARGS(x, ...)				\
+	__MAP(x,__SC_ARGS					\
+	      ,,regs->orig_x0,,regs->regs[1],,regs->regs[2]	\
+	      ,,regs->regs[3],,regs->regs[4],,regs->regs[5])
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
 	asmlinkage long __arm64_sys##name(const struct pt_regs *regs);		\
