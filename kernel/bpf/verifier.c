@@ -17815,6 +17815,8 @@ static bool reg_type_mismatch_ok(enum bpf_reg_type type)
 	case PTR_TO_BTF_ID:
 	case PTR_TO_ARENA:
 		return false;
+	case PTR_TO_MEM:
+		return !bpf_may_fault_on_deref(type);
 	default:
 		return true;
 	}
