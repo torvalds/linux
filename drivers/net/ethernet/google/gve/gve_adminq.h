@@ -656,5 +656,7 @@ int gve_adminq_report_nic_ts(struct gve_priv *priv,
 struct gve_ptype_lut;
 int gve_adminq_get_ptype_map_dqo(struct gve_priv *priv,
 				 struct gve_ptype_lut *ptype_lut);
+int gve_set_num_ntfy_blks(struct gve_priv *priv);
+void gve_set_num_queues(struct gve_priv *priv);
 
 #endif /* _GVE_ADMINQ_H */
