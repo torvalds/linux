@@ -1418,7 +1418,29 @@ void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
 	spi_unmap_buf_attrs(ctlr, dev, sgt, dir, 0);
 }
 
-static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg);
+static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
+{
+	struct device *rx_dev = ctlr->cur_rx_dma_dev;
+	struct device *tx_dev = ctlr->cur_tx_dma_dev;
+	struct spi_transfer *xfer;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		/* The sync has already been done after each transfer. */
+		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
+
+		if (xfer->rx_sg_mapped)
+			spi_unmap_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
+					    DMA_FROM_DEVICE, attrs);
+		xfer->rx_sg_mapped = false;
+
+		if (xfer->tx_sg_mapped)
+			spi_unmap_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
+					    DMA_TO_DEVICE, attrs);
+		xfer->tx_sg_mapped = false;
+	}
+
+	return 0;
+}
 
 static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
@@ -1485,30 +1507,6 @@ unwind:
 	__spi_unmap_msg(ctlr, msg);
 
 	return ret;
-}
-
-static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
-{
-	struct device *rx_dev = ctlr->cur_rx_dma_dev;
-	struct device *tx_dev = ctlr->cur_tx_dma_dev;
-	struct spi_transfer *xfer;
-
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* The sync has already been done after each transfer. */
-		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
-
-		if (xfer->rx_sg_mapped)
-			spi_unmap_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
-					    DMA_FROM_DEVICE, attrs);
-		xfer->rx_sg_mapped = false;
-
-		if (xfer->tx_sg_mapped)
-			spi_unmap_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
-					    DMA_TO_DEVICE, attrs);
-		xfer->tx_sg_mapped = false;
-	}
-
-	return 0;
 }
 
 static void spi_dma_sync_for_device(struct spi_controller *ctlr,
