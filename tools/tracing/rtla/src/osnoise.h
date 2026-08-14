@@ -56,6 +56,8 @@ void osnoise_restore_timerlat_align_us(struct osnoise_context *context);
 int osnoise_set_timerlat_align(struct osnoise_context *context, bool onoff);
 
 int osnoise_set_irq_disable(struct osnoise_context *context, bool onoff);
+
+void osnoise_report_invalid_events(struct osnoise_tool *tool);
 void osnoise_report_missed_events(struct osnoise_tool *tool);
 int osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params);
 

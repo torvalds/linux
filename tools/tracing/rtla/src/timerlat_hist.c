@@ -682,6 +682,7 @@ timerlat_print_stats(struct osnoise_tool *tool)
 
 	timerlat_print_summary(params, trace, data);
 	timerlat_print_stats_all(params, trace, data);
+	osnoise_report_invalid_events(tool);
 	osnoise_report_missed_events(tool);
 }
 

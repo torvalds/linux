@@ -114,8 +114,6 @@ struct common_params {
 	struct timerlat_u_params user;
 };
 
-extern int nr_cpus;
-
 #define for_each_monitored_cpu(cpu, common) \
 	for (cpu = 0; cpu < nr_cpus; cpu++) \
 		if (!(common)->cpus || CPU_ISSET(cpu, &(common)->monitored_cpus))

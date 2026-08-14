@@ -40,6 +40,8 @@ static inline bool str_has_prefix(const char *str, const char *prefix)
 }
 
 extern bool config_debug;
+extern int nr_cpus;
+
 void debug_msg(const char *fmt, ...);
 void err_msg(const char *fmt, ...);
 void fatal(const char *fmt, ...);

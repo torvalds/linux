@@ -138,6 +138,12 @@ collect_registered_events(struct tep_event *event, struct tep_record *record,
 	struct trace_instance *trace = context;
 	struct trace_seq *s = trace->seq;
 
+	if (cpu >= nr_cpus) {
+		/* Kernel reports event on CPU we don't see, corrupt data? */
+		trace->invalid_events++;
+		return 0;
+	}
+
 	trace->processed_events++;
 
 	if (!event->handler)
@@ -236,6 +242,7 @@ int trace_instance_init(struct trace_instance *trace, char *tool_name)
 				     trace);
 
 	trace->processed_events = 0;
+	trace->invalid_events = 0;
 
 	return 0;
 
