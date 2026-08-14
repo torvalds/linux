@@ -762,12 +762,12 @@ void ceph_destroy_client(struct ceph_client *client)
 
 	atomic_set(&client->msgr.stopping, 1);
 
+	ceph_debugfs_client_cleanup(client);
+
 	/* unmount */
 	ceph_osdc_stop(&client->osdc);
 	ceph_monc_stop(&client->monc);
 	ceph_messenger_fini(&client->msgr);
-
-	ceph_debugfs_client_cleanup(client);
 
 	ceph_destroy_options(client->options);
 

@@ -9,7 +9,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/module.h>
-#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/scmi_protocol.h>
 #include <linux/seq_file.h>

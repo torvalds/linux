@@ -12,7 +12,6 @@
 #include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/kstrtox.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/regulator/consumer.h>

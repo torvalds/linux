@@ -3096,7 +3096,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu *
 		process_info->eviction_fence = new_fence;
 		replace_eviction_fence(ef, dma_fence_get(&new_fence->base));
 	} else {
-		WARN_ONCE(*ef != &process_info->eviction_fence->base,
+		WARN_ONCE(rcu_access_pointer(*ef) != &process_info->eviction_fence->base,
 			  "KFD eviction fence doesn't match KGD process_info");
 	}
 

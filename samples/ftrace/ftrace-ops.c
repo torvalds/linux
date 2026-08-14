@@ -232,8 +232,8 @@ static int __init ftrace_ops_sample_init(void)
 	ops_destroy(ops_irrelevant, nr_ops_irrelevant);
 
 	/*
-	 * The benchmark completed sucessfully, but there's no reason to keep
-	 * the module around. Return an error do the user doesn't have to
+	 * The benchmark completed successfully, but there's no reason to keep
+	 * the module around. Return an error so the user doesn't have to
 	 * manually unload the module.
 	 */
 	return -EINVAL;

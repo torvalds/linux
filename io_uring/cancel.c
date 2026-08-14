@@ -660,6 +660,6 @@ end_wait:
 		 */
 		atomic_dec(&tctx->in_cancel);
 		/* for exec all current's requests should be gone, kill tctx */
-		__io_uring_free(current);
+		io_uring_free_tctx(current);
 	}
 }

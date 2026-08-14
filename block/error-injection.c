@@ -276,9 +276,10 @@ static int blk_error_injection_show(struct seq_file *s, void *private)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(inj, &disk->error_injection_list, entry) {
-		seq_printf(s, "%llu:%llu status=%s,chance=%u",
-			inj->start, inj->end,
-			blk_status_to_tag(inj->status), inj->chance);
+		seq_printf(s, "%llu:%llu op=%s,status=%s,chance=%u",
+			   inj->start, inj->end,
+			   blk_op_str(inj->op),
+			   blk_status_to_tag(inj->status), inj->chance);
 		seq_putc(s, '\n');
 	}
 	rcu_read_unlock();

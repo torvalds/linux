@@ -18,9 +18,15 @@ static struct iwl_mcc_update_resp_v8 *
 iwl_mld_copy_mcc_resp(const struct iwl_rx_packet *pkt)
 {
 	const struct iwl_mcc_update_resp_v8 *mcc_resp_v8 = (const void *)pkt->data;
-	int n_channels = __le32_to_cpu(mcc_resp_v8->n_channels);
 	struct iwl_mcc_update_resp_v8 *resp_cp;
-	int notif_len = struct_size(resp_cp, channels, n_channels);
+	int n_channels;
+	int notif_len;
+
+	if (iwl_rx_packet_payload_len(pkt) < sizeof(*mcc_resp_v8))
+		return ERR_PTR(-EINVAL);
+
+	n_channels = __le32_to_cpu(mcc_resp_v8->n_channels);
+	notif_len = struct_size(resp_cp, channels, n_channels);
 
 	if (iwl_rx_packet_payload_len(pkt) != notif_len)
 		return ERR_PTR(-EINVAL);

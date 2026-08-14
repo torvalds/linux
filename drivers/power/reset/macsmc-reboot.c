@@ -7,7 +7,6 @@
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/macsmc.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/platform_device.h>

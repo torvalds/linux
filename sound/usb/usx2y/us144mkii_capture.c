@@ -312,6 +312,7 @@ void capture_urb_complete(struct urb *urb)
 		usb_put_urb(urb);
 		atomic_dec(
 			&tascam->active_urbs); /* Decrement on failed resubmission */
+		return;
 	}
 out:
 	usb_put_urb(urb);

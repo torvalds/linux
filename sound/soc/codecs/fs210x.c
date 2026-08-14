@@ -607,6 +607,7 @@ tag_power_down:
 
 	regcache_cache_bypass(fs210x->regmap, false);
 	if (!ret) {
+		regcache_cache_only(fs210x->regmap, false);
 		regcache_mark_dirty(fs210x->regmap);
 		regcache_sync(fs210x->regmap);
 		fs210x->is_inited = true;

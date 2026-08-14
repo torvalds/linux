@@ -781,6 +781,23 @@ static const struct kobj_type xfs_zoned_ktype = {
 };
 
 int
+xfs_zoned_sysfs_init(struct xfs_mount *mp)
+{
+	if (!IS_ENABLED(CONFIG_XFS_RT) || !xfs_has_zoned(mp))
+		return 0;
+
+	return xfs_sysfs_init(&mp->m_zoned_kobj, &xfs_zoned_ktype,
+			&mp->m_kobj, "zoned");
+}
+
+void
+xfs_zoned_sysfs_del(struct xfs_mount *mp)
+{
+	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp))
+		xfs_sysfs_del(&mp->m_zoned_kobj);
+}
+
+int
 xfs_mount_sysfs_init(
 	struct xfs_mount	*mp)
 {
@@ -820,14 +837,6 @@ xfs_mount_sysfs_init(
 	if (error)
 		goto out_remove_error_dir;
 
-	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp)) {
-		/* .../xfs/<dev>/zoned/ */
-		error = xfs_sysfs_init(&mp->m_zoned_kobj, &xfs_zoned_ktype,
-					&mp->m_kobj, "zoned");
-		if (error)
-			goto out_remove_error_dir;
-	}
-
 	return 0;
 
 out_remove_error_dir:
@@ -845,9 +854,6 @@ xfs_mount_sysfs_del(
 {
 	struct xfs_error_cfg	*cfg;
 	int			i, j;
-
-	if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp))
-		xfs_sysfs_del(&mp->m_zoned_kobj);
 
 	for (i = 0; i < XFS_ERR_CLASS_MAX; i++) {
 		for (j = 0; j < XFS_ERR_ERRNO_MAX; j++) {

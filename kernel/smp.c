@@ -137,9 +137,9 @@ csd_do_func(smp_call_func_t func, void *info, call_single_data_t *csd)
 	trace_csd_function_exit(func, csd);
 }
 
-#ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
-
 static DEFINE_STATIC_KEY_MAYBE(CONFIG_CSD_LOCK_WAIT_DEBUG_DEFAULT, csdlock_debug_enabled);
+
+#ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
 
 /*
  * Parse the csdlock_debug= kernel boot parameter.
@@ -342,6 +342,10 @@ static __always_inline void csd_lock_wait(call_single_data_t *csd)
 	smp_cond_load_acquire(&csd->node.u_flags, !(VAL & CSD_FLAG_LOCK));
 }
 #else
+static __always_inline void __csd_lock_wait(call_single_data_t *csd)
+{
+}
+
 static void csd_lock_record(call_single_data_t *csd)
 {
 }
@@ -354,8 +358,23 @@ static __always_inline void csd_lock_wait(call_single_data_t *csd)
 
 static __always_inline void csd_lock(call_single_data_t *csd)
 {
-	csd_lock_wait(csd);
-	csd->node.u_flags |= CSD_FLAG_LOCK;
+	if (IS_ENABLED(CONFIG_CSD_LOCK_WAIT_DEBUG) &&
+	    static_branch_unlikely(&csdlock_debug_enabled)) {
+
+		for (;;) {
+			unsigned int flags;
+
+			__csd_lock_wait(csd);
+			flags = READ_ONCE(csd->node.u_flags);
+
+			if (!(flags & CSD_FLAG_LOCK) &&
+			    try_cmpxchg_acquire(&csd->node.u_flags, &flags, flags | CSD_FLAG_LOCK))
+				break;
+		}
+	} else {
+		csd_lock_wait(csd);
+		csd->node.u_flags |= CSD_FLAG_LOCK;
+	}
 
 	/*
 	 * prevent CPU from reordering the above assignment
@@ -380,7 +399,8 @@ static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);
 #ifdef CONFIG_CSD_LOCK_WAIT_DEBUG
 static call_single_data_t *get_single_csd_data(int cpu)
 {
-	if (static_branch_unlikely(&csdlock_debug_enabled))
+	if (static_branch_unlikely(&csdlock_debug_enabled) &&
+	    (unsigned int)cpu < nr_cpu_ids)
 		return per_cpu_ptr(&csd_data, cpu);
 	return this_cpu_ptr(&csd_data);
 }

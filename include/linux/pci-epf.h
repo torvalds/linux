@@ -11,7 +11,7 @@
 
 #include <linux/configfs.h>
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
+#include <linux/device-id/pci.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
 

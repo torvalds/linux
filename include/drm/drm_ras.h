@@ -6,6 +6,8 @@
 #ifndef __DRM_RAS_H__
 #define __DRM_RAS_H__
 
+#include <linux/types.h>
+
 #include <uapi/drm/drm_ras.h>
 
 /**

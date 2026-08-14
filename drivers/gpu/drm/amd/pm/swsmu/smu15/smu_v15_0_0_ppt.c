@@ -168,7 +168,7 @@ static int smu_v15_0_0_init_smc_tables(struct smu_context *smu)
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
-	SMU_TABLE_INIT(tables, SMU_TABLE_DPMCLOCKS, sizeof(DpmClocks_t),
+	SMU_TABLE_INIT(tables, SMU_TABLE_DPMCLOCKS, sizeof(DpmClocks_t_v15_0_5),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
 		PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
@@ -178,7 +178,7 @@ static int smu_v15_0_0_init_smc_tables(struct smu_context *smu)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->clocks_table = kzalloc_obj(DpmClocks_t);
+	smu_table->clocks_table = kzalloc_obj(DpmClocks_t_v15_0_5);
 	if (!smu_table->clocks_table)
 		goto err1_out;
 
@@ -378,8 +378,7 @@ static int smu_v15_0_0_get_smu_metrics_data(struct smu_context *smu,
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
 	case METRICS_CURR_SOCKETPOWER:
-		*value = (metrics->SocketPower / 1000 << 8) +
-		(metrics->SocketPower % 1000 / 10);
+		*value = metrics->SocketPower;
 		break;
 	case METRICS_TEMPERATURE_EDGE:
 		*value = metrics->GfxTemperature / 100 *
@@ -752,11 +751,48 @@ static int smu_v15_0_0_get_dpm_freq_by_index(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v15_0_5_get_dpm_freq_by_index(struct smu_context *smu,
+						enum smu_clk_type clk_type,
+						uint32_t dpm_level,
+						uint32_t *freq)
+{
+	DpmClocks_t_v15_0_5 *clk_table = smu->smu_table.clocks_table;
+
+	if (!clk_table || clk_type >= SMU_CLK_COUNT)
+		return -EINVAL;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		if (dpm_level >= clk_table->NumSocClkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->SocClocks[dpm_level];
+		break;
+	case SMU_UCLK:
+	case SMU_MCLK:
+		if (dpm_level >= clk_table->NumMemPstatesEnabled)
+			return -EINVAL;
+		*freq = clk_table->MemPstateTable[dpm_level].MemClk;
+		break;
+	case SMU_FCLK:
+		if (dpm_level >= clk_table->NumFclkLevelsEnabled)
+			return -EINVAL;
+		*freq = clk_table->FclkClocks_Freq[dpm_level];
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int smu_v15_0_common_get_dpm_freq_by_index(struct smu_context *smu,
 						enum smu_clk_type clk_type,
 						uint32_t dpm_level,
 						uint32_t *freq)
 {
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 5))
+		smu_v15_0_5_get_dpm_freq_by_index(smu, clk_type, dpm_level, freq);
+	else
 		smu_v15_0_0_get_dpm_freq_by_index(smu, clk_type, dpm_level, freq);
 
 	return 0;
@@ -907,12 +943,116 @@ failed:
 	return ret;
 }
 
+static int smu_v15_0_5_get_dpm_ultimate_freq(struct smu_context *smu,
+							enum smu_clk_type clk_type,
+							uint32_t *min,
+							uint32_t *max)
+{
+	DpmClocks_t_v15_0_5 *clk_table = smu->smu_table.clocks_table;
+	uint32_t clock_limit;
+	uint32_t max_dpm_level, min_dpm_level;
+	int ret = 0;
+
+	if (!smu_v15_0_0_clk_dpm_is_enabled(smu, clk_type)) {
+		switch (clk_type) {
+		case SMU_MCLK:
+		case SMU_UCLK:
+			clock_limit = smu->smu_table.boot_values.uclk;
+			break;
+		case SMU_FCLK:
+			clock_limit = smu->smu_table.boot_values.fclk;
+			break;
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			clock_limit = smu->smu_table.boot_values.gfxclk;
+			break;
+		case SMU_SOCCLK:
+			clock_limit = smu->smu_table.boot_values.socclk;
+			break;
+		default:
+			clock_limit = 0;
+			break;
+		}
+
+		/* clock in Mhz unit */
+		if (min)
+			*min = clock_limit / 100;
+		if (max)
+			*max = clock_limit / 100;
+
+		return 0;
+	}
+
+	if (max) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			*max = clk_table->MaxGfxClk;
+			break;
+		case SMU_MCLK:
+		case SMU_UCLK:
+			max_dpm_level = 0;
+			break;
+		case SMU_FCLK:
+			max_dpm_level = clk_table->NumFclkLevelsEnabled - 1;
+			break;
+		case SMU_SOCCLK:
+			max_dpm_level = clk_table->NumSocClkLevelsEnabled - 1;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+
+		if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK) {
+			ret = smu_v15_0_common_get_dpm_freq_by_index(smu, clk_type,
+				max_dpm_level, max);
+			if (ret)
+				goto failed;
+		}
+	}
+
+	if (min) {
+		switch (clk_type) {
+		case SMU_GFXCLK:
+		case SMU_SCLK:
+			*min = clk_table->MinGfxClk;
+			break;
+		case SMU_MCLK:
+		case SMU_UCLK:
+			min_dpm_level = clk_table->NumMemPstatesEnabled - 1;
+			break;
+		case SMU_FCLK:
+			min_dpm_level = 0;
+			break;
+		case SMU_SOCCLK:
+			min_dpm_level = 0;
+			break;
+		default:
+			ret = -EINVAL;
+			goto failed;
+		}
+
+		if (clk_type != SMU_GFXCLK && clk_type != SMU_SCLK) {
+			ret = smu_v15_0_common_get_dpm_freq_by_index(smu, clk_type,
+				min_dpm_level, min);
+			if (ret)
+				goto failed;
+		}
+	}
+
+failed:
+	return ret;
+}
+
 static int smu_v15_0_common_get_dpm_ultimate_freq(struct smu_context *smu,
 							enum smu_clk_type clk_type,
 							uint32_t *min,
 							uint32_t *max)
 {
-	if (clk_type != SMU_VCLK1 && clk_type != SMU_DCLK1)
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 5))
+		smu_v15_0_5_get_dpm_ultimate_freq(smu, clk_type, min, max);
+	else if (clk_type != SMU_VCLK1 && clk_type != SMU_DCLK1)
 		smu_v15_0_0_get_dpm_ultimate_freq(smu, clk_type, min, max);
 
 	return 0;
@@ -986,11 +1126,36 @@ static int smu_v15_0_0_get_dpm_level_count(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v15_0_5_get_dpm_level_count(struct smu_context *smu,
+					   enum smu_clk_type clk_type,
+					   uint32_t *count)
+{
+	DpmClocks_t_v15_0_5 *clk_table = smu->smu_table.clocks_table;
+
+	switch (clk_type) {
+	case SMU_SOCCLK:
+		*count = clk_table->NumSocClkLevelsEnabled;
+		break;
+	case SMU_MCLK:
+		*count = clk_table->NumMemPstatesEnabled;
+		break;
+	case SMU_FCLK:
+		*count = clk_table->NumFclkLevelsEnabled;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int smu_v15_0_common_get_dpm_level_count(struct smu_context *smu,
 					   enum smu_clk_type clk_type,
 					   uint32_t *count)
 {
-	if (clk_type != SMU_VCLK1 && clk_type != SMU_DCLK1)
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 5))
+		smu_v15_0_5_get_dpm_level_count(smu, clk_type, count);
+	else if (clk_type != SMU_VCLK1 && clk_type != SMU_DCLK1)
 		smu_v15_0_0_get_dpm_level_count(smu, clk_type, count);
 
 	return 0;
@@ -1177,7 +1342,8 @@ static int smu_v15_0_common_get_dpm_profile_freq(struct smu_context *smu,
 			smu_v15_0_common_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &clk_limit);
 		break;
 	case SMU_FCLK:
-		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 0))
+		if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 0) ||
+			amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 9))
 			smu_v15_0_common_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &clk_limit);
 		else
 			clk_limit = SMU_15_0_UMD_PSTATE_FCLK;
@@ -1362,9 +1528,24 @@ static int smu_v15_0_0_set_fine_grain_gfx_freq_parameters(struct smu_context *sm
 	return 0;
 }
 
+static int smu_v15_0_5_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
+{
+	DpmClocks_t_v15_0_5 *clk_table = smu->smu_table.clocks_table;
+
+	smu->gfx_default_hard_min_freq = clk_table->MinGfxClk;
+	smu->gfx_default_soft_max_freq = clk_table->MaxGfxClk;
+	smu->gfx_actual_hard_min_freq = 0;
+	smu->gfx_actual_soft_max_freq = 0;
+
+	return 0;
+}
+
 static int smu_v15_0_common_set_fine_grain_gfx_freq_parameters(struct smu_context *smu)
 {
-	smu_v15_0_0_set_fine_grain_gfx_freq_parameters(smu);
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 5))
+		smu_v15_0_5_set_fine_grain_gfx_freq_parameters(smu);
+	else
+		smu_v15_0_0_set_fine_grain_gfx_freq_parameters(smu);
 
 	return 0;
 }
@@ -1404,9 +1585,36 @@ static int smu_v15_0_0_get_dpm_table(struct smu_context *smu, struct dpm_clocks 
 	return 0;
 }
 
+static int smu_v15_0_5_get_dpm_table(struct smu_context *smu, struct dpm_clocks *clock_table)
+{
+	DpmClocks_t_v15_0_5 *clk_table = smu->smu_table.clocks_table;
+	uint8_t idx;
+
+	/*
+	 * Only the Clock information of SOC and
+	 * VPE is copied to provide VPE DPM settings for use.
+	 */
+	for (idx = 0; idx < NUM_SOCCLK_DPM_LEVELS; idx++) {
+		clock_table->SocClocks[idx].Freq =
+			(idx < clk_table->NumSocClkLevelsEnabled) ? clk_table->SocClocks[idx]:0;
+		clock_table->SocClocks[idx].Vol = 0;
+	}
+
+	for (idx = 0; idx < NUM_VPE_DPM_LEVELS; idx++) {
+		clock_table->VPEClocks[idx].Freq =
+			(idx < clk_table->VpeClkLevelsEnabled) ? clk_table->VPEClocks[idx]:0;
+		clock_table->VPEClocks[idx].Vol = 0;
+	}
+
+	return 0;
+}
+
 static int smu_v15_0_common_get_dpm_table(struct smu_context *smu, struct dpm_clocks *clock_table)
 {
-	smu_v15_0_0_get_dpm_table(smu, clock_table);
+	if (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(15, 0, 5))
+		smu_v15_0_5_get_dpm_table(smu, clock_table);
+	else
+		smu_v15_0_0_get_dpm_table(smu, clock_table);
 
 	return 0;
 }
