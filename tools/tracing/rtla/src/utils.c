@@ -108,6 +108,153 @@ void get_duration(time_t start_time, char *output, int output_size)
 }
 
 /*
+ * cpu_list_iterate - parse a cpu list and call a function on each element
+ *
+ * If callback returns a non-zero value, the iteration is stopped.
+ *
+ * Returns the number of cpus in the list (including duplicates) on success,
+ * callback return value on break, and -1 on error.
+ */
+int cpu_list_iterate(const char *cpu_list, int (*callback)(int, void *), void *data)
+{
+	const char *p;
+	int i, cpu, end_cpu, count = 0, retval;
+
+	for (p = cpu_list; *p && *p != '\n'; ) {
+		cpu = atoi(p);
+		if (cpu < 0 || (!cpu && *p != '0'))
+			return -1;
+
+		while (isdigit(*p))
+			p++;
+		if (*p == '-') {
+			p++;
+			end_cpu = atoi(p);
+			if (end_cpu < cpu || (!end_cpu && *p != '0'))
+				return -1;
+			while (isdigit(*p))
+				p++;
+		} else
+			end_cpu = cpu;
+
+		for (i = cpu; i <= end_cpu; i++) {
+			retval = callback(i, data);
+			if (retval)
+				return retval;
+			++count;
+		}
+
+		if (*p == ',')
+			p++;
+	}
+
+	return count;
+}
+
+static int max_cpu_callback(int i, void *data)
+{
+	int *max_cpu = data;
+
+	if (i > *max_cpu)
+		*max_cpu = i;
+
+	return 0;
+}
+
+static int tmp_cpu_set_callback(int i, void *data)
+{
+	bool *cpu_set = data;
+
+	cpu_set[i] = true;
+
+	return 0;
+}
+
+/*
+ * get_possible_cpus - get the number of possible CPUs from sysfs
+ *
+ * Parse /sys/devices/system/cpu/possible to determine the number of
+ * possible CPUs. Only contiguous zero-based CPUs lists are accepted.
+ *
+ * Returns the number of possible CPUs, or a negative value on error:
+ * - -1 if the file is unreadable,
+ * - -2 if parsing failed,
+ * - -3 if the cpu list is non-zero-based or non-contiguous.
+ */
+int get_possible_cpus(void)
+{
+	char *str = NULL;
+	size_t len = 0;
+	int nr_cpus = 0, max_cpu = -1, i;
+	FILE *fp;
+	bool *cpu_set;
+
+	fp = fopen("/sys/devices/system/cpu/possible", "r");
+	if (!fp)
+		return -1;
+
+	if (getline(&str, &len, fp) < 1) {
+		/* cpu string should be at least 1 character */
+		if (str)
+			free(str);
+		fclose(fp);
+		return -1;
+	}
+
+	fclose(fp);
+
+	/* get maximum cpu number */
+	if (cpu_list_iterate(str, max_cpu_callback, &max_cpu) < 0) {
+		free(str);
+		return -2;
+	}
+
+	if (max_cpu < 0 || max_cpu == INT_MAX) {
+		/* empty or bogus cpu list */
+		free(str);
+		return -2;
+	}
+
+	/* get max cpu using dynamic array, as nr_cpus might be > 1024 */
+	cpu_set = calloc(max_cpu + 1, sizeof(bool));
+	if (!cpu_set) {
+		free(str);
+		return -2;
+	}
+	if (cpu_list_iterate(str, tmp_cpu_set_callback, cpu_set) < 0) {
+		free(str);
+		free(cpu_set);
+		return -2;
+	}
+	for (i = 0; i <= max_cpu; i++) {
+		if (cpu_set[i])
+			++nr_cpus;
+	}
+	free(cpu_set);
+
+	free(str);
+
+	if (max_cpu >= nr_cpus)
+		/* rtla assumes cpu < nr_cpus for all cpus */
+		return -3;
+
+	return nr_cpus;
+}
+
+static int cpu_set_callback(int i, void *data)
+{
+	cpu_set_t *set = data;
+
+	if (i >= nr_cpus || i >= CPU_SETSIZE)
+		return -1;
+
+	debug_msg("cpu_set: adding cpu %d\n", i);
+	CPU_SET(i, set);
+
+	return 0;
+}
+
+/*
  * parse_cpu_set - parse a cpu_list filling cpu_set_t argument
  *
  * Receives a cpu list, like 1-3,5 (cpus 1, 2, 3, 5), and then set
@@ -117,48 +264,14 @@ void get_duration(time_t start_time, char *output, int output_size)
  */
 int parse_cpu_set(char *cpu_list, cpu_set_t *set)
 {
-	const char *p;
-	int end_cpu;
-	int cpu;
-	int i;
-
 	CPU_ZERO(set);
 
-	for (p = cpu_list; *p; ) {
-		cpu = atoi(p);
-		if (cpu < 0 || (!cpu && *p != '0') || cpu >= nr_cpus)
-			goto err;
-
-		while (isdigit(*p))
-			p++;
-		if (*p == '-') {
-			p++;
-			end_cpu = atoi(p);
-			if (end_cpu < cpu || (!end_cpu && *p != '0') || end_cpu >= nr_cpus)
-				goto err;
-			while (isdigit(*p))
-				p++;
-		} else
-			end_cpu = cpu;
-
-		if (cpu == end_cpu) {
-			debug_msg("cpu_set: adding cpu %d\n", cpu);
-			CPU_SET(cpu, set);
-		} else {
-			for (i = cpu; i <= end_cpu; i++) {
-				debug_msg("cpu_set: adding cpu %d\n", i);
-				CPU_SET(i, set);
-			}
-		}
-
-		if (*p == ',')
-			p++;
+	if (cpu_list_iterate(cpu_list, cpu_set_callback, set) < 0) {
+		debug_msg("Error parsing the cpu set %s\n", cpu_list);
+		return 1;
 	}
 
 	return 0;
-err:
-	debug_msg("Error parsing the cpu set %s\n", cpu_list);
-	return 1;
 }
 
 /*

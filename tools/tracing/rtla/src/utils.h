@@ -47,6 +47,9 @@ void fatal(const char *fmt, ...);
 long parse_seconds_duration(char *val);
 void get_duration(time_t start_time, char *output, int output_size);
 
+int cpu_list_iterate(const char *cpu_list, int (*callback)(int, void *), void *data);
+int get_possible_cpus(void);
+
 long long get_llong_from_str(char *start);
 
 static inline void

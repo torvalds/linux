@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/sysinfo.h>
 
 #include "common.h"
 
@@ -155,7 +154,20 @@ int run_tool(struct tool_ops *ops, int argc, char *argv[])
 	bool stopped;
 	int retval;
 
-	nr_cpus = get_nprocs_conf();
+	nr_cpus = get_possible_cpus();
+	if (nr_cpus == -1) {
+		err_msg("Could not read number of possible cpus\n");
+		goto out_exit;
+	}
+	if (nr_cpus == -2) {
+		err_msg("Could not parse number of possible cpus\n");
+		goto out_exit;
+	}
+	if (nr_cpus == -3) {
+		err_msg("Unsupported non-contiguous or non-zero-based CPU topology\n");
+		goto out_exit;
+	}
+
 	params = ops->parse_args(argc, argv);
 	if (!params)
 		exit(1);
