@@ -49,7 +49,7 @@ static void drm_sched_rq_update_prio(struct drm_sched_rq *rq)
 	rq->head_prio = prio;
 }
 
-static void drm_sched_rq_remove_tree_locked(struct drm_sched_entity *entity,
+static void drm_sched_rq_remove_fifo_locked(struct drm_sched_entity *entity,
 					    struct drm_sched_rq *rq)
 {
 	lockdep_assert_held(&entity->lock);
@@ -62,7 +62,7 @@ static void drm_sched_rq_remove_tree_locked(struct drm_sched_entity *entity,
 	}
 }
 
-static void drm_sched_rq_update_tree_locked(struct drm_sched_entity *entity,
+static void drm_sched_rq_update_fifo_locked(struct drm_sched_entity *entity,
 					    struct drm_sched_rq *rq,
 					    ktime_t ts)
 {
@@ -74,7 +74,7 @@ static void drm_sched_rq_update_tree_locked(struct drm_sched_entity *entity,
 	lockdep_assert_held(&entity->lock);
 	lockdep_assert_held(&rq->lock);
 
-	drm_sched_rq_remove_tree_locked(entity, rq);
+	drm_sched_rq_remove_fifo_locked(entity, rq);
 
 	entity->oldest_job_waiting = ts;
 
@@ -85,15 +85,18 @@ static void drm_sched_rq_update_tree_locked(struct drm_sched_entity *entity,
 
 /**
  * drm_sched_rq_init - initialize a given run queue struct
+ * @sched: scheduler instance to associate with this run queue
  * @rq: scheduler run queue
  *
  * Initializes a scheduler runqueue.
  */
-void drm_sched_rq_init(struct drm_sched_rq *rq)
+void drm_sched_rq_init(struct drm_gpu_scheduler *sched,
+		       struct drm_sched_rq *rq)
 {
 	spin_lock_init(&rq->lock);
 	INIT_LIST_HEAD(&rq->entities);
 	rq->rb_tree_root = RB_ROOT_CACHED;
+	rq->sched = sched;
 	rq->head_prio = DRM_SCHED_PRIORITY_INVALID;
 }
 
@@ -162,8 +165,7 @@ drm_sched_entity_restore_vruntime(struct drm_sched_entity *entity,
 				  enum drm_sched_priority rq_prio)
 {
 	struct drm_sched_entity_stats *stats = entity->stats;
-	struct drm_gpu_scheduler *sched =
-			container_of(entity->rq, typeof(*sched), rq);
+	struct drm_gpu_scheduler *sched = entity->rq->sched;
 	enum drm_sched_priority prio = entity->priority;
 	unsigned long avg_us, sched_avg_us;
 	ktime_t vruntime;
@@ -237,9 +239,15 @@ static ktime_t drm_sched_entity_update_vruntime(struct drm_sched_entity *entity)
 	return runtime;
 }
 
+static ktime_t drm_sched_entity_get_job_ts(struct drm_sched_entity *entity)
+{
+	return drm_sched_entity_update_vruntime(entity);
+}
+
 /**
  * drm_sched_rq_add_entity - add an entity
  * @entity: scheduler entity
+ * @ts: submission timestamp
  *
  * Adds a scheduler entity to the run queue.
  *
@@ -247,11 +255,10 @@ static ktime_t drm_sched_entity_update_vruntime(struct drm_sched_entity *entity)
  * been stopped and cannot be submitted to.
  */
 struct drm_gpu_scheduler *
-drm_sched_rq_add_entity(struct drm_sched_entity *entity)
+drm_sched_rq_add_entity(struct drm_sched_entity *entity, ktime_t ts)
 {
 	struct drm_gpu_scheduler *sched;
 	struct drm_sched_rq *rq;
-	ktime_t ts;
 
 	/* Add the entity to the run queue */
 	spin_lock(&entity->lock);
@@ -263,17 +270,23 @@ drm_sched_rq_add_entity(struct drm_sched_entity *entity)
 	}
 
 	rq = entity->rq;
-	sched = container_of(rq, typeof(*sched), rq);
 	spin_lock(&rq->lock);
+	sched = rq->sched;
 
 	if (list_empty(&entity->list)) {
 		atomic_inc(sched->score);
 		list_add_tail(&entity->list, &rq->entities);
 	}
 
-	ts = drm_sched_rq_get_min_vruntime(rq);
-	ts = drm_sched_entity_restore_vruntime(entity, ts, rq->head_prio);
-	drm_sched_rq_update_tree_locked(entity, rq, ts);
+	if (drm_sched_policy == DRM_SCHED_POLICY_FAIR) {
+		ts = drm_sched_rq_get_min_vruntime(rq);
+		ts = drm_sched_entity_restore_vruntime(entity, ts,
+						       rq->head_prio);
+	} else if (drm_sched_policy == DRM_SCHED_POLICY_RR) {
+		ts = entity->rr_ts;
+	}
+
+	drm_sched_rq_update_fifo_locked(entity, rq, ts);
 
 	spin_unlock(&rq->lock);
 	spin_unlock(&entity->lock);
@@ -291,8 +304,6 @@ drm_sched_rq_add_entity(struct drm_sched_entity *entity)
 void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 				struct drm_sched_entity *entity)
 {
-	struct drm_gpu_scheduler *sched = container_of(rq, typeof(*sched), rq);
-
 	lockdep_assert_held(&entity->lock);
 
 	if (list_empty(&entity->list))
@@ -300,12 +311,28 @@ void drm_sched_rq_remove_entity(struct drm_sched_rq *rq,
 
 	spin_lock(&rq->lock);
 
-	atomic_dec(sched->score);
+	atomic_dec(rq->sched->score);
 	list_del_init(&entity->list);
 
-	drm_sched_rq_remove_tree_locked(entity, rq);
+	drm_sched_rq_remove_fifo_locked(entity, rq);
 
 	spin_unlock(&rq->lock);
+}
+
+static ktime_t
+drm_sched_rq_next_rr_ts(struct drm_sched_rq *rq,
+			struct drm_sched_entity *entity)
+{
+	ktime_t ts;
+
+	lockdep_assert_held(&entity->lock);
+	lockdep_assert_held(&rq->lock);
+
+	ts = ktime_add_ns(rq->rr_ts, 1);
+	entity->rr_ts = ts;
+	rq->rr_ts = ts;
+
+	return ts;
 }
 
 /**
@@ -330,22 +357,32 @@ void drm_sched_rq_pop_entity(struct drm_sched_entity *entity)
 	if (next_job) {
 		ktime_t ts;
 
-		ts = drm_sched_entity_update_vruntime(entity);
-		drm_sched_rq_update_tree_locked(entity, rq, ts);
-	} else {
-		ktime_t min_vruntime;
+		if (drm_sched_policy == DRM_SCHED_POLICY_FAIR)
+			ts = drm_sched_entity_get_job_ts(entity);
+		else if (drm_sched_policy == DRM_SCHED_POLICY_FIFO)
+			ts = next_job->submit_ts;
+		else
+			ts = drm_sched_rq_next_rr_ts(rq, entity);
 
-		drm_sched_rq_remove_tree_locked(entity, rq);
-		min_vruntime = drm_sched_rq_get_min_vruntime(rq);
-		drm_sched_entity_save_vruntime(entity, min_vruntime);
+		drm_sched_rq_update_fifo_locked(entity, rq, ts);
+	} else {
+		drm_sched_rq_remove_fifo_locked(entity, rq);
+
+		if (drm_sched_policy == DRM_SCHED_POLICY_FAIR) {
+			ktime_t min_vruntime;
+
+			min_vruntime = drm_sched_rq_get_min_vruntime(rq);
+			drm_sched_entity_save_vruntime(entity, min_vruntime);
+		}
 	}
 	spin_unlock(&rq->lock);
 	spin_unlock(&entity->lock);
 }
 
 /**
- * drm_sched_select_entity - Select an entity which provides a job to run
+ * drm_sched_rq_select_entity - Select an entity which provides a job to run
  * @sched: the gpu scheduler
+ * @rq: scheduler run queue to check.
  *
  * Find oldest waiting ready entity.
  *
@@ -354,9 +391,9 @@ void drm_sched_rq_pop_entity(struct drm_sched_entity *entity)
  * its job; return NULL, if no ready entity was found.
  */
 struct drm_sched_entity *
-drm_sched_select_entity(struct drm_gpu_scheduler *sched)
+drm_sched_rq_select_entity(struct drm_gpu_scheduler *sched,
+			   struct drm_sched_rq *rq)
 {
-	struct drm_sched_rq *rq = &sched->rq;
 	struct rb_node *rb;
 
 	spin_lock(&rq->lock);
