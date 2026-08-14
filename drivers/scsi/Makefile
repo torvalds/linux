@@ -15,6 +15,7 @@
 # *!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!*!
 
 CONTEXT_ANALYSIS_constants.o := y
+CONTEXT_ANALYSIS_hosts.o := y
 CONTEXT_ANALYSIS_scsi.o := y
 CONTEXT_ANALYSIS_scsi_common.o := y
 CONTEXT_ANALYSIS_scsi_devinfo.o := y
