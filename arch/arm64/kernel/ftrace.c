@@ -409,7 +409,8 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_modify_code(pc, old, new, true);
 }
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+#if defined(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS) || \
+	defined(CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS)
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
@@ -417,7 +418,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 	u32 old, new;
 	int ret;
 
-	ret = ftrace_rec_set_ops(rec, arm64_rec_get_ops(rec));
+	ret = ftrace_rec_update_ops(rec);
 	if (ret)
 		return ret;
 
