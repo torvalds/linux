@@ -321,7 +321,7 @@ static unsigned long ringbuf_avail_data_sz(struct bpf_ringbuf *rb)
 	if (unlikely(rb->overwrite_mode)) {
 		over_pos = smp_load_acquire(&rb->overwrite_pos);
 		prod_pos = smp_load_acquire(&rb->producer_pos);
-		return prod_pos - max(cons_pos, over_pos);
+		return min(prod_pos - cons_pos, prod_pos - over_pos);
 	} else {
 		prod_pos = smp_load_acquire(&rb->producer_pos);
 		return prod_pos - cons_pos;
