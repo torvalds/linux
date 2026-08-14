@@ -1370,6 +1370,19 @@ config SPI_SPIDEV
 	help
 	  This supports user mode SPI protocol drivers.
 
+config SPI_DMA_KUNIT_TEST
+	tristate "KUnit tests for SPI core DMA mapping" if !KUNIT_ALL_TESTS
+	depends on KUNIT && HAS_DMA
+	default KUNIT_ALL_TESTS
+	help
+	  Build KUnit tests for SPI core DMA mapping. The tests exercise
+	  partial TX and RX mapping failures, verify that the mapping state is
+	  unwound, and check that the current DMA devices identify the owner of
+	  those mappings when the error is returned. They also cover a
+	  successful mapping and a message which requires no mapping.
+
+	  If unsure say N.
+
 config SPI_LOOPBACK_TEST
 	tristate "spi loopback test framework support"
 	depends on m

@@ -4,6 +4,7 @@
 // Copyright (C) 2005 David Brownell
 // Copyright (C) 2008 Secret Lab Technologies Ltd.
 
+#include <kunit/visibility.h>
 #include <linux/acpi.h>
 #include <linux/cache.h>
 #include <linux/clk/clk-conf.h>
@@ -1418,74 +1419,8 @@ void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
 	spi_unmap_buf_attrs(ctlr, dev, sgt, dir, 0);
 }
 
-static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
-{
-	struct device *tx_dev, *rx_dev;
-	struct spi_transfer *xfer;
-	int ret;
-
-	if (!ctlr->can_dma)
-		return 0;
-
-	if (ctlr->dma_tx)
-		tx_dev = ctlr->dma_tx->device->dev;
-	else if (ctlr->dma_map_dev)
-		tx_dev = ctlr->dma_map_dev;
-	else
-		tx_dev = ctlr->dev.parent;
-
-	if (ctlr->dma_rx)
-		rx_dev = ctlr->dma_rx->device->dev;
-	else if (ctlr->dma_map_dev)
-		rx_dev = ctlr->dma_map_dev;
-	else
-		rx_dev = ctlr->dev.parent;
-
-	ret = -ENOMSG;
-	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-		/* The sync is done before each transfer. */
-		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
-
-		if (!ctlr->can_dma(ctlr, msg->spi, xfer))
-			continue;
-
-		if (xfer->tx_buf != NULL) {
-			ret = spi_map_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
-						(void *)xfer->tx_buf,
-						xfer->len, DMA_TO_DEVICE,
-						attrs);
-			if (ret != 0)
-				return ret;
-
-			xfer->tx_sg_mapped = true;
-		}
-
-		if (xfer->rx_buf != NULL) {
-			ret = spi_map_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
-						xfer->rx_buf, xfer->len,
-						DMA_FROM_DEVICE, attrs);
-			if (ret != 0) {
-				spi_unmap_buf_attrs(ctlr, tx_dev,
-						&xfer->tx_sg, DMA_TO_DEVICE,
-						attrs);
-
-				return ret;
-			}
-
-			xfer->rx_sg_mapped = true;
-		}
-	}
-	/* No transfer has been mapped, bail out with success */
-	if (ret)
-		return 0;
-
-	ctlr->cur_rx_dma_dev = rx_dev;
-	ctlr->cur_tx_dma_dev = tx_dev;
-
-	return 0;
-}
-
-static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
+VISIBLE_IF_KUNIT
+int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
@@ -1508,6 +1443,76 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(__spi_unmap_msg);
+
+VISIBLE_IF_KUNIT
+int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
+{
+	struct device *tx_dev, *rx_dev;
+	struct spi_transfer *xfer;
+	int ret;
+
+	if (!ctlr->can_dma)
+		return 0;
+
+	if (ctlr->dma_tx)
+		tx_dev = ctlr->dma_tx->device->dev;
+	else if (ctlr->dma_map_dev)
+		tx_dev = ctlr->dma_map_dev;
+	else
+		tx_dev = ctlr->dev.parent;
+
+	if (ctlr->dma_rx)
+		rx_dev = ctlr->dma_rx->device->dev;
+	else if (ctlr->dma_map_dev)
+		rx_dev = ctlr->dma_map_dev;
+	else
+		rx_dev = ctlr->dev.parent;
+
+	/*
+	 * Store the devices before mapping so partial failures can be unwound
+	 * with the device that created each mapping.
+	 */
+	ctlr->cur_tx_dma_dev = tx_dev;
+	ctlr->cur_rx_dma_dev = rx_dev;
+
+	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		/* The sync is done before each transfer. */
+		unsigned long attrs = DMA_ATTR_SKIP_CPU_SYNC;
+
+		if (!ctlr->can_dma(ctlr, msg->spi, xfer))
+			continue;
+
+		if (xfer->tx_buf != NULL) {
+			ret = spi_map_buf_attrs(ctlr, tx_dev, &xfer->tx_sg,
+						(void *)xfer->tx_buf,
+						xfer->len, DMA_TO_DEVICE,
+						attrs);
+			if (ret)
+				goto unwind;
+
+			xfer->tx_sg_mapped = true;
+		}
+
+		if (xfer->rx_buf != NULL) {
+			ret = spi_map_buf_attrs(ctlr, rx_dev, &xfer->rx_sg,
+						xfer->rx_buf, xfer->len,
+						DMA_FROM_DEVICE, attrs);
+			if (ret)
+				goto unwind;
+
+			xfer->rx_sg_mapped = true;
+		}
+	}
+
+	return 0;
+
+unwind:
+	__spi_unmap_msg(ctlr, msg);
+
+	return ret;
+}
+EXPORT_SYMBOL_IF_KUNIT(__spi_map_msg);
 
 static void spi_dma_sync_for_device(struct spi_controller *ctlr,
 				    struct spi_transfer *xfer)
@@ -1560,6 +1565,7 @@ static inline int spi_unmap_msg(struct spi_controller *ctlr,
 				struct spi_message *msg)
 {
 	struct spi_transfer *xfer;
+	int ret;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		/*
@@ -1572,7 +1578,12 @@ static inline int spi_unmap_msg(struct spi_controller *ctlr,
 			xfer->rx_buf = NULL;
 	}
 
-	return __spi_unmap_msg(ctlr, msg);
+	ret = __spi_unmap_msg(ctlr, msg);
+
+	ctlr->cur_rx_dma_dev = NULL;
+	ctlr->cur_tx_dma_dev = NULL;
+
+	return ret;
 }
 
 static int spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
