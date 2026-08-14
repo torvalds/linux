@@ -180,7 +180,8 @@ static int proc_show_files(struct seq_file *m, void *v)
 
 static int create_proc_files(void)
 {
-	ksmbd_proc_create("files", proc_show_files, NULL);
+	if (!ksmbd_proc_create("files", proc_show_files, NULL))
+		return -ENOMEM;
 	return 0;
 }
 #else
@@ -1828,7 +1829,8 @@ void ksmbd_close_session_fds(struct ksmbd_work *work)
 
 int ksmbd_init_global_file_table(void)
 {
-	create_proc_files();
+	if (create_proc_files())
+		pr_warn("Unable to create files procfs entry\n");
 	return ksmbd_init_file_table(&global_ft);
 }
 

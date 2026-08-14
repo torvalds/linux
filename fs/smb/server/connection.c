@@ -787,7 +787,8 @@ int ksmbd_conn_transport_init(void)
 	}
 out:
 	mutex_unlock(&init_lock);
-	create_proc_clients();
+	if (create_proc_clients())
+		pr_warn("Unable to create clients procfs entry\n");
 	return ret;
 }
 

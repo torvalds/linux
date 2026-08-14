@@ -663,8 +663,12 @@ static int __init ksmbd_server_init(void)
 	ret = ksmbd_proc_init();
 	if (ret)
 		goto err_unregister;
-	create_proc_sessions();
-	create_proc_shares();
+
+	if (create_proc_sessions())
+		pr_warn("Unable to create sessions procfs entry\n");
+
+	if (create_proc_shares())
+		pr_warn("Unable to create shares procfs entry\n");
 
 	ksmbd_server_tcp_callbacks_init();
 

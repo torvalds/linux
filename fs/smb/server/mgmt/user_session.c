@@ -204,6 +204,8 @@ static int create_proc_session(struct ksmbd_session *sess)
 	snprintf(name, sizeof(name), "sessions/%llu", sess->id);
 	sess->proc_entry = ksmbd_proc_create(name,
 					     show_proc_session, sess);
+	if (!sess->proc_entry)
+		return -ENOMEM;
 	return 0;
 }
 
@@ -729,7 +731,8 @@ static struct ksmbd_session *__session_create(int protocol)
 	hash_add(sessions_table, &sess->hlist, sess->id);
 	up_write(&sessions_table_lock);
 
-	create_proc_session(sess);
+	if (create_proc_session(sess))
+		pr_warn_ratelimited("Unable to create session %llu procfs entry\n", sess->id);
 	ksmbd_counter_inc(KSMBD_COUNTER_SESSIONS);
 	return sess;
 
