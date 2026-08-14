@@ -62,9 +62,9 @@ int verifier_snprintf(void *ctx)
 }
 
 volatile const __u32 num_cpus = 0;
-volatile const int offsetof_num;
+volatile const int num_off;
 volatile const int elem_sz;
-__u32 percpu_data_sum = 0;
+__u32 sum = 0;
 bool run_iter = false;
 
 SEC("iter/bpf_map_elem")
@@ -80,7 +80,7 @@ int dump_percpu_data(struct bpf_iter__bpf_map_elem *ctx)
 	run_iter = true;
 
 	for (i = 0; i < num_cpus; i++) {
-		percpu_data_sum += *(int *) (pptr + offsetof_num);
+		sum += *(int *) (pptr + num_off);
 		pptr += elem_sz;
 	}
 	return 0;

@@ -345,8 +345,8 @@ static void test_global_percpu_data_iter(void)
 		return;
 
 	skel->rodata->num_cpus = num_cpus;
-	skel->rodata->offsetof_num = offsetof(struct test_global_percpu_data__percpu, struct_data);
-	skel->rodata->offsetof_num += sizeof(skel->percpu->struct_data) - sizeof(int);
+	skel->rodata->num_off = offsetof(struct test_global_percpu_data__percpu,
+					 struct_data.nums[6]);
 	skel->rodata->elem_sz = roundup(sizeof(struct test_global_percpu_data__percpu), 8);
 	skel->percpu->struct_data.nums[6] = 0xc0de;
 
@@ -369,7 +369,7 @@ static void test_global_percpu_data_iter(void)
 		do { } while (0);
 	ASSERT_EQ(len, 0, "read iter");
 	ASSERT_TRUE(skel->bss->run_iter, "run_iter");
-	ASSERT_EQ(skel->bss->percpu_data_sum, 0xc0de * num_cpus, "percpu_data_sum");
+	ASSERT_EQ(skel->bss->sum, 0xc0de * num_cpus, "sum");
 
 	close(fd);
 out:
