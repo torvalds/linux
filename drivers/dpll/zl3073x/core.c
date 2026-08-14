@@ -511,6 +511,11 @@ zl3073x_dev_state_fetch(struct zl3073x_dev *zldev)
 	int rc;
 	u8 i;
 
+	rc = zl3073x_read_u16(zldev, ZL_REG_OUTPUT_STEP_TIME_MASK,
+			      &zldev->out_step_time_mask);
+	if (rc)
+		return rc;
+
 	for (i = 0; i < ZL3073X_NUM_REFS; i++) {
 		rc = zl3073x_ref_state_fetch(zldev, i);
 		if (rc) {
@@ -1034,6 +1039,14 @@ int zl3073x_dev_probe(struct zl3073x_dev *zldev)
 	 * and/or polls are required to be done atomically.
 	 */
 	rc = devm_mutex_init(zldev->dev, &zldev->multiop_lock);
+	if (rc)
+		return dev_err_probe(zldev->dev, rc,
+				     "Failed to initialize mutex\n");
+	rc = devm_mutex_init(zldev->dev, &zldev->phase_step_lock);
+	if (rc)
+		return dev_err_probe(zldev->dev, rc,
+				     "Failed to initialize mutex\n");
+	rc = devm_mutex_init(zldev->dev, &zldev->tie_lock);
 	if (rc)
 		return dev_err_probe(zldev->dev, rc,
 				     "Failed to initialize mutex\n");

@@ -26,6 +26,10 @@ struct zl3073x_dpll;
 #define ZL_POLL_HWREG_TIMEOUT_US	(50 * USEC_PER_MSEC)
 #define ZL_POLL_MB_TIMEOUT_US		(30 * USEC_PER_MSEC)
 #define ZL_POLL_PHASE_ERR_TIMEOUT_US	(50 * USEC_PER_MSEC)
+#define ZL_POLL_PHASE_STEP_TIMEOUT_US	(3000 * USEC_PER_MSEC)
+#define ZL_POLL_TIE_WR_TIMEOUT_US	(1000 * USEC_PER_MSEC)
+#define ZL_POLL_TOD_RD_TIMEOUT_US	(30 * USEC_PER_MSEC)
+#define ZL_POLL_TOD_WR_TIMEOUT_US	(1000 * USEC_PER_MSEC)
 
 enum zl3073x_flags {
 	ZL3073X_FLAG_REF_PHASE_COMP_32_BIT,
@@ -55,6 +59,8 @@ struct zl3073x_chip_info {
  * @regmap: regmap to access device registers
  * @info: detected chip info
  * @multiop_lock: to serialize multiple register operations
+ * @tie_lock: to serialize TIE write operations
+ * @phase_step_lock: to serialize output phase step operations
  * @ref: array of input references' invariants
  * @out: array of outs' invariants
  * @synth: array of synths' invariants
@@ -63,6 +69,7 @@ struct zl3073x_chip_info {
  * @kworker: thread for periodic work
  * @work: periodic work
  * @clock_id: clock id of the device
+ * @out_step_time_mask: output step-time mask (device-global)
  * @phase_avg_factor: phase offset measurement averaging factor
  * @freq_monitor: is frequency monitor enabled
  */
@@ -71,6 +78,8 @@ struct zl3073x_dev {
 	struct regmap			*regmap;
 	const struct zl3073x_chip_info	*info;
 	struct mutex			multiop_lock;
+	struct mutex			tie_lock;
+	struct mutex			phase_step_lock;
 
 	/* Invariants */
 	struct zl3073x_ref	ref[ZL3073X_NUM_REFS];
@@ -87,6 +96,7 @@ struct zl3073x_dev {
 
 	/* Per-chip parameters */
 	u64			clock_id;
+	u16			out_step_time_mask;
 	u8			phase_avg_factor;
 	bool			freq_monitor;
 };
@@ -306,6 +316,19 @@ zl3073x_dev_out_is_enabled(struct zl3073x_dev *zldev, u8 index)
 	synth = zl3073x_synth_state_get(zldev, synth_id);
 
 	return zl3073x_synth_is_enabled(synth) && zl3073x_out_is_enabled(out);
+}
+
+/**
+ * zl3073x_dev_out_is_stepped - check if output is in step-time mask
+ * @zldev: pointer to zl3073x device
+ * @index: output index
+ *
+ * Return: true if output is affected by step-time operations
+ */
+static inline bool
+zl3073x_dev_out_is_stepped(struct zl3073x_dev *zldev, u8 index)
+{
+	return !!(zldev->out_step_time_mask & BIT(index));
 }
 
 /**
