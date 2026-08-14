@@ -1064,7 +1064,7 @@ struct leapraid_starget_priv {
  * @starget_priv: Associated target private data.
  * @lun: Logical Unit Number.
  * @flg: Flags.
- * @ncq_cmd_prio_enable: Enables NCQ command priority for RT I/O.
+ * @ncq_prio_enable: Enables NCQ command priority for RT I/O.
  * @block: Block flag.
  * @deleted: Deletion flag.
  * @sep: SEP flag.
@@ -1073,7 +1073,7 @@ struct leapraid_sdev_priv {
 	struct leapraid_starget_priv *starget_priv;
 	unsigned int lun;
 	u32 flg;
-	u8 ncq_cmd_prio_enable;
+	u8 ncq_prio_enable;
 	u8 block;
 	u8 deleted;
 	u8 sep;
