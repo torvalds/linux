@@ -52,14 +52,34 @@ static noinstr irqentry_state_t arm64_enter_from_kernel_mode(struct pt_regs *reg
  * After this function returns it is not safe to call regular kernel code,
  * instrumentable code, or any code which may trigger an exception.
  */
-static void noinstr arm64_exit_to_kernel_mode(struct pt_regs *regs,
-					      irqentry_state_t state)
+static void noinstr __arm64_exit_to_kernel_mode(struct pt_regs *regs,
+						irqentry_state_t state)
 {
-	local_irq_disable();
-	irqentry_exit_to_kernel_mode_preempt(regs, state);
 	local_daif_mask();
 	mte_check_tfsr_exit();
 	irqentry_exit_to_kernel_mode_after_preempt(regs, state);
+}
+
+/*
+ * We are returning from the context which allows involuntary kernel preemption
+ */
+static void noinstr arm64_exit_to_kernel_mode_preempt(struct pt_regs *regs,
+						      irqentry_state_t state)
+{
+	irqentry_exit_to_kernel_mode_preempt(regs, state);
+	__arm64_exit_to_kernel_mode(regs, state);
+}
+
+static void noinstr arm64_exit_to_kernel_mode(struct pt_regs *regs,
+					      irqentry_state_t state)
+{
+	if (!regs_irqs_disabled(regs)) {
+		local_irq_disable();
+		arm64_exit_to_kernel_mode_preempt(regs, state);
+		return;
+	}
+
+	__arm64_exit_to_kernel_mode(regs, state);
 }
 
 static __always_inline void arm64_syscall_enter_from_user_mode(struct pt_regs *regs)
@@ -495,6 +515,7 @@ static __always_inline void __el1_pnmi(struct pt_regs *regs,
 
 	state = irqentry_nmi_enter(regs);
 	do_interrupt_handler(regs, handler);
+	local_daif_mask();
 	irqentry_nmi_exit(regs, state);
 }
 
@@ -509,7 +530,7 @@ static __always_inline void __el1_irq(struct pt_regs *regs,
 	do_interrupt_handler(regs, handler);
 	irq_exit_rcu();
 
-	arm64_exit_to_kernel_mode(regs, state);
+	arm64_exit_to_kernel_mode_preempt(regs, state);
 }
 static void noinstr el1_interrupt(struct pt_regs *regs,
 				  void (*handler)(struct pt_regs *))
@@ -540,6 +561,7 @@ asmlinkage void noinstr el1h_64_error_handler(struct pt_regs *regs)
 	local_daif_restore(DAIF_ERRCTX);
 	state = irqentry_nmi_enter(regs);
 	do_serror(regs, esr);
+	local_daif_mask();
 	irqentry_nmi_exit(regs, state);
 }
 

@@ -867,10 +867,7 @@ static void __gic_handle_irq_from_irqson(struct pt_regs *regs)
 		nmi_exit();
 	}
 
-	if (gic_prio_masking_enabled()) {
-		gic_pmr_mask_irqs();
-		gic_arch_enable_irqs();
-	}
+	gic_unmask_pnmis();
 
 	if (!is_nmi)
 		__gic_handle_irq(irqnr, regs);
