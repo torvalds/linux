@@ -1017,11 +1017,15 @@ void scx_process_sync_ecaps(struct rq *rq, struct task_struct *prev)
 		 * invocation is equivalent to the dispatch path and may drop
 		 * and re-acquire the rq lock temporarily while the rest of
 		 * @batch is held privately, see scx_discard_ecaps_to_sync().
+		 * The dispatch kfuncs resolve their context on the executing
+		 * cpu, which under core scheduling can differ from @rq's cpu,
+		 * so the context is set up there. The rq recorded in it keeps
+		 * the dispatches targeting @rq.
 		 */
 		if (ecaps != pcpu->reported_ecaps &&
 		    SCX_HAS_OP(pcpu->sch, sub_ecaps_updated) &&
 		    !scx_bypassing(pcpu->sch, cpu)) {
-			struct scx_dsp_ctx *dspc = &pcpu->dsp_ctx;
+			struct scx_dsp_ctx *dspc = &this_cpu_ptr(pcpu->sch->pcpu)->dsp_ctx;
 
 			dspc->rq = rq;
 			/* stash @prev so nested dispatches can access it */
