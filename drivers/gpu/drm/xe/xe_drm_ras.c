@@ -199,6 +199,9 @@ int xe_drm_ras_init(struct xe_device *xe)
 	struct drm_ras_node *node;
 	int err;
 
+	if (!xe->info.has_drm_ras)
+		return 0;
+
 	node = drmm_kcalloc(&xe->drm, DRM_XE_RAS_ERR_SEV_MAX, sizeof(*node), GFP_KERNEL);
 	if (!node)
 		return -ENOMEM;

@@ -681,9 +681,6 @@ void xe_ras_init(struct xe_device *xe)
 {
 	int ret;
 
-	if (!xe->info.has_drm_ras)
-		return;
-
 	xe_drm_ras_init(xe);
 
 	if (!xe->info.has_sysctrl)
@@ -692,12 +689,6 @@ void xe_ras_init(struct xe_device *xe)
 	if (IS_ENABLED(CONFIG_PCIEAER))
 		ras_usp_aer_init(xe);
 
-	/*
-	 * During probe, process and log any errors detected by firmware while the driver was not
-	 * loaded. Critical errors such as Punit and CSC are reported through Pcode init failure,
-	 * causing the driver to enter survivability mode.
-	 */
-	xe_ras_process_errors(xe);
 	ret = devm_device_add_group(xe->drm.dev, &gpu_health_group);
 	if (ret)
 		xe_err(xe, "Failed to create GPU health sysfs, err=%d\n", ret);
