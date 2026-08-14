@@ -4,6 +4,7 @@
 // Copyright (C) 2005 David Brownell
 // Copyright (C) 2008 Secret Lab Technologies Ltd.
 
+#include <kunit/visibility.h>
 #include <linux/acpi.h>
 #include <linux/cache.h>
 #include <linux/clk/clk-conf.h>
@@ -1418,7 +1419,8 @@ void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
 	spi_unmap_buf_attrs(ctlr, dev, sgt, dir, 0);
 }
 
-static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
+VISIBLE_IF_KUNIT
+int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	struct device *rx_dev = ctlr->cur_rx_dma_dev;
 	struct device *tx_dev = ctlr->cur_tx_dma_dev;
@@ -1441,8 +1443,10 @@ static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 	return 0;
 }
+EXPORT_SYMBOL_IF_KUNIT(__spi_unmap_msg);
 
-static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
+VISIBLE_IF_KUNIT
+int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
 	struct device *tx_dev, *rx_dev;
 	struct spi_transfer *xfer;
@@ -1508,6 +1512,7 @@ unwind:
 
 	return ret;
 }
+EXPORT_SYMBOL_IF_KUNIT(__spi_map_msg);
 
 static void spi_dma_sync_for_device(struct spi_controller *ctlr,
 				    struct spi_transfer *xfer)
