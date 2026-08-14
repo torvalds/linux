@@ -37,7 +37,7 @@ static noinline bool leapraid_shost_in_recovery(struct Scsi_Host *shost)
 {
 	enum scsi_host_state state;
 
-	state = READ_ONCE(shost->shost_state);
+	state = scsi_get_host_state(shost);
 	return state == SHOST_RECOVERY ||
 	       state == SHOST_CANCEL_RECOVERY ||
 	       state == SHOST_DEL_RECOVERY ||
