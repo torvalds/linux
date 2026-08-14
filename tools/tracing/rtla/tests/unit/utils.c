@@ -95,6 +95,14 @@ START_TEST(test_cpu_list_iterate)
 }
 END_TEST
 
+START_TEST(test_get_max_cpu_from_list)
+{
+	ck_assert_int_eq(get_max_cpu_from_list("1,2,3,4-60"), 60);
+	ck_assert_int_eq(get_max_cpu_from_list("2,1-7,4"), 7);
+	ck_assert_int_eq(get_max_cpu_from_list("invalid"), -1);
+}
+END_TEST
+
 START_TEST(test_parse_cpu_set)
 {
 	cpu_set_t set;
@@ -160,6 +168,7 @@ Suite *utils_suite(void)
 
 	tcase_add_test(tc, test_strtoi);
 	tcase_add_test(tc, test_cpu_list_iterate);
+	tcase_add_test(tc, test_get_max_cpu_from_list);
 	tcase_add_test(tc, test_parse_cpu_set);
 	tcase_add_test(tc, test_parse_prio);
 
