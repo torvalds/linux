@@ -160,7 +160,7 @@ static int __init maxinefb_init(void)
 	fb_alloc_cmap(&fb_info.cmap, 256, 0);
 
 	if (register_framebuffer(&fb_info) < 0)
-		return 1;
+		return -ENODEV;
 	return 0;
 }
 
