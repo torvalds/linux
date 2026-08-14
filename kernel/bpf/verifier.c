@@ -5025,19 +5025,11 @@ static bool is_load_acq_unsafe(struct bpf_verifier_env *env, int regno,
 	 * A BPF_LOAD_ACQ is not rewritten to a BPF_PROBE_MEM load by the
 	 * verifier, unlike a regular BPF_LDX. The JIT would emit a plain load
 	 * with no exception table entry, so a fault (e.g. NULL deref) crashes
-	 * the kernel instead of being handled.
-	 *
-	 * Reject the source pointer types that a BPF_LDX would have had that
-	 * fault protection applied to, i.e. the ones bpf_convert_ctx_accesses()
-	 * turns into BPF_PROBE_MEM: a bare PTR_TO_BTF_ID and any PTR_UNTRUSTED
-	 * pointer (untrusted btf ids, untrusted MEM_ALLOC, rdonly untrusted
-	 * memory). A PTR_TRUSTED pointer is not among them, is not converted,
-	 * and stays allowed. Same for the other flagged PTR_TO_BTF_ID variants
-	 * (MEM_ALLOC, MEM_RCU, ...), hence the exact match on the base type.
+	 * the kernel instead of being handled. Reject the source pointer types
+	 * that would have needed that protection, the remaining ones stay
+	 * allowed.
 	 */
-	return insn->imm == BPF_LOAD_ACQ &&
-	       (reg->type == PTR_TO_BTF_ID ||
-		(type_flag(reg->type) & PTR_UNTRUSTED));
+	return insn->imm == BPF_LOAD_ACQ && bpf_may_fault_on_deref(reg->type);
 }
 
 /* Return false if @regno contains a pointer whose type isn't supported for
@@ -17862,11 +17854,24 @@ static bool is_ptr_to_mem(enum bpf_reg_type type)
 	return base_type(type) == PTR_TO_MEM;
 }
 
+static enum bpf_reg_type merge_ptr_types(enum bpf_reg_type type_a,
+					 enum bpf_reg_type type_b)
+{
+	bool to_mem = is_ptr_to_mem(type_a) || is_ptr_to_mem(type_b);
+	enum bpf_reg_type type_merged = to_mem ? PTR_TO_MEM : PTR_TO_BTF_ID;
+
+	if (bpf_may_fault_on_deref(type_a) || bpf_may_fault_on_deref(type_b))
+		type_merged |= to_mem ? MEM_RDONLY | PTR_UNTRUSTED :
+					PTR_UNTRUSTED;
+	else
+		type_merged |= ((type_a | type_b) & MEM_RDONLY);
+	return type_merged;
+}
+
 static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
 			     bool allow_trust_mismatch)
 {
 	enum bpf_reg_type *prev_type = &env->insn_aux_data[env->insn_idx].ptr_type;
-	enum bpf_reg_type merged_type;
 
 	if (*prev_type == NOT_INIT) {
 		/* Saw a valid insn
@@ -17887,20 +17892,12 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 		    is_ptr_to_mem_or_btf_id(*prev_type)) {
 			/*
 			 * Have to support a use case when one path through
-			 * the program yields TRUSTED pointer while another
-			 * is UNTRUSTED. Fallback to UNTRUSTED to generate
-			 * BPF_PROBE_MEM/BPF_PROBE_MEMSX.
-			 * Same behavior of MEM_RDONLY flag.
+			 * the program yields a TRUSTED pointer while another
+			 * is UNTRUSTED. Merge them into a type which keeps
+			 * the BPF_PROBE_MEM/BPF_PROBE_MEMSX rewrite when
+			 * either side needs it.
 			 */
-			if (is_ptr_to_mem(type) || is_ptr_to_mem(*prev_type))
-				merged_type = PTR_TO_MEM;
-			else
-				merged_type = PTR_TO_BTF_ID;
-			if ((type & PTR_UNTRUSTED) || (*prev_type & PTR_UNTRUSTED))
-				merged_type |= PTR_UNTRUSTED;
-			if ((type & MEM_RDONLY) || (*prev_type & MEM_RDONLY))
-				merged_type |= MEM_RDONLY;
-			*prev_type = merged_type;
+			*prev_type = merge_ptr_types(type, *prev_type);
 		} else {
 			verbose(env, "same insn cannot be used with different pointers\n");
 			return -EINVAL;

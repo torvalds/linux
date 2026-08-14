@@ -1308,6 +1308,16 @@ static inline u32 type_flag(u32 type)
 	return type & ~BPF_BASE_TYPE_MASK;
 }
 
+static inline bool bpf_may_fault_on_deref(enum bpf_reg_type type)
+{
+	/*
+	 * The pointer types which must not be dereferenced without fault
+	 * protection, that is, the ones bpf_convert_ctx_accesses() has to
+	 * turn a BPF_LDX into a BPF_PROBE_MEM one for.
+	 */
+	return type == PTR_TO_BTF_ID || (type_flag(type) & PTR_UNTRUSTED);
+}
+
 static inline bool bpf_prog_has_arena_ctx_arg(const struct bpf_prog *prog)
 {
 	int i;
