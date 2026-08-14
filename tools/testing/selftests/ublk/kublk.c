@@ -8,6 +8,13 @@
 #include "kublk.h"
 
 #define MAX_NR_TGT_ARG 	64
+#define KUBLK_PARAM_LOGICAL_BS_SHIFT		9
+#define KUBLK_PARAM_PHYSICAL_BS_SHIFT		12
+#define KUBLK_PARAM_ZONE_SECTORS		128
+#define KUBLK_PARAM_NR_ZONES			16
+#define KUBLK_PARAM_DEV_SECTORS			\
+	(KUBLK_PARAM_ZONE_SECTORS * KUBLK_PARAM_NR_ZONES)
+#define KUBLK_PARAM_ZONE_APPEND_SECTORS		8
 
 unsigned int ublk_dbg_mask = UBLK_LOG;
 static const struct ublk_tgt_ops *tgt_ops_list[] = {
@@ -225,6 +232,55 @@ static int ublk_ctrl_get_features(struct ublk_dev *dev,
 	};
 
 	return __ublk_ctrl_cmd(dev, &data);
+}
+
+static int parse_param_types(const char *arg, __u32 *types)
+{
+	char buf[128], *save = NULL, *tok;
+
+	if (strlen(arg) >= sizeof(buf))
+		return -EINVAL;
+
+	strcpy(buf, arg);
+	*types = 0;
+	tok = strtok_r(buf, ",", &save);
+	while (tok) {
+		if (!strcmp(tok, "none"))
+			;
+		else if (!strcmp(tok, "basic"))
+			*types |= UBLK_PARAM_TYPE_BASIC;
+		else if (!strcmp(tok, "zoned"))
+			*types |= UBLK_PARAM_TYPE_ZONED;
+		else
+			return -EINVAL;
+		tok = strtok_r(NULL, ",", &save);
+	}
+
+	return 0;
+}
+
+static void ublk_init_params_from_ctx(const struct dev_ctx *ctx,
+				      struct ublk_params *params)
+{
+	const struct params_ctx *p = &ctx->params;
+
+	*params = (struct ublk_params) {
+		.types = p->types,
+		.basic = {
+			.logical_bs_shift	= p->logical_bs_shift,
+			.physical_bs_shift	= p->physical_bs_shift,
+			.io_min_shift		= p->io_min_shift,
+			.io_opt_shift		= p->io_opt_shift,
+			.max_sectors		= p->max_sectors,
+			.chunk_sectors		= p->chunk_sectors,
+			.dev_sectors		= p->dev_sectors,
+		},
+		.zoned = {
+			.max_open_zones		= p->max_open_zones,
+			.max_active_zones	= p->max_active_zones,
+			.max_zone_append_sectors = p->max_zone_append_sectors,
+		},
+	};
 }
 
 static int ublk_ctrl_update_size(struct ublk_dev *dev,
@@ -1772,6 +1828,51 @@ fail:
 
 static int __cmd_dev_list(struct dev_ctx *ctx);
 
+static int cmd_dev_set_params(struct dev_ctx *ctx)
+{
+	struct ublksrv_ctrl_dev_info *info;
+	struct ublk_params params;
+	struct ublk_dev *dev;
+	__u64 features;
+	int ret, del_ret;
+
+	dev = ublk_ctrl_init();
+	if (!dev)
+		return -ENODEV;
+
+	ret = ublk_ctrl_get_features(dev, &features);
+	if (ret < 0)
+		goto out;
+
+	if (!(features & UBLK_F_CMD_IOCTL_ENCODE)) {
+		ret = -ENOTSUP;
+		goto out;
+	}
+
+	info = &dev->dev_info;
+	info->dev_id = ctx->dev_id;
+	info->nr_hw_queues = ctx->nr_hw_queues;
+	info->queue_depth = ctx->queue_depth;
+	info->io_desc_size = ctx->io_desc_size;
+	info->flags = ctx->flags;
+
+	ret = ublk_ctrl_add_dev(dev);
+	if (ret < 0)
+		goto out;
+
+	ublk_init_params_from_ctx(ctx, &params);
+
+	ret = ublk_ctrl_set_params(dev, &params);
+	printf("SET_PARAMS returned %d\n", ret);
+
+	del_ret = ublk_ctrl_del_dev(dev);
+	if (del_ret < 0 && ret == 0)
+		ret = del_ret;
+out:
+	ublk_ctrl_deinit(dev);
+	return ret < 0 ? ret : 0;
+}
+
 static int cmd_dev_add(struct dev_ctx *ctx)
 {
 	int res;
@@ -2117,6 +2218,9 @@ static int cmd_dev_help(char *exe)
 	printf("\t --safe only stop if device has no active openers\n\n");
 	printf("%s list [-n dev_id] -a \n", exe);
 	printf("\t -a list all devices, -n list specified device, default -a \n\n");
+	printf("%s set_params [-n dev_id] [-q nr_queues] [-d depth] [-u] [--zoned]\n", exe);
+	printf("\t[--param_types basic[,zoned]|none]\n");
+	printf("\t issue ADD_DEV, SET_PARAMS and DEL_DEV without START_DEV\n\n");
 	printf("%s features\n", exe);
 	printf("%s update_size -n dev_id -s|--size size_in_bytes \n", exe);
 	printf("%s quiesce -n dev_id\n", exe);
@@ -2160,6 +2264,18 @@ int main(int argc, char *argv[])
 		{ "htlb",		1,	NULL,  0  },
 		{ "rdonly_shmem_buf",	0,	NULL,  0  },
 		{ "io_desc_size",	1,	NULL,  0  },
+		{ "zoned",		0,	NULL,  0  },
+		{ "param_types",	1,	NULL,  0  },
+		{ "logical_bs_shift",	1,	NULL,  0  },
+		{ "physical_bs_shift",	1,	NULL,  0  },
+		{ "io_min_shift",	1,	NULL,  0  },
+		{ "io_opt_shift",	1,	NULL,  0  },
+		{ "max_sectors",	1,	NULL,  0  },
+		{ "chunk_sectors",	1,	NULL,  0  },
+		{ "dev_sectors",	1,	NULL,  0  },
+		{ "max_zone_append_sectors", 1, NULL,  0  },
+		{ "max_open_zones",	1,	NULL,  0  },
+		{ "max_active_zones",	1,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
 	const struct ublk_tgt_ops *ops = NULL;
@@ -2173,6 +2289,19 @@ int main(int argc, char *argv[])
 		.tgt_type	=	"unknown",
 		.csum_type	=	LBMD_PI_CSUM_NONE,
 		.io_desc_size	=	sizeof(struct ublksrv_io_desc),
+		.params = {
+			.types			= UBLK_PARAM_TYPE_BASIC,
+			.logical_bs_shift	= KUBLK_PARAM_LOGICAL_BS_SHIFT,
+			.physical_bs_shift	= KUBLK_PARAM_PHYSICAL_BS_SHIFT,
+			.io_min_shift		= KUBLK_PARAM_LOGICAL_BS_SHIFT,
+			.io_opt_shift		= KUBLK_PARAM_PHYSICAL_BS_SHIFT,
+			.max_sectors		=
+				UBLK_IO_MAX_BYTES >> KUBLK_PARAM_LOGICAL_BS_SHIFT,
+			.chunk_sectors		= KUBLK_PARAM_ZONE_SECTORS,
+			.dev_sectors		= KUBLK_PARAM_DEV_SECTORS,
+			.max_zone_append_sectors =
+				KUBLK_PARAM_ZONE_APPEND_SECTORS,
+		},
 	};
 	int ret = -EINVAL, i;
 	int tgt_argc = 1;
@@ -2288,6 +2417,34 @@ int main(int argc, char *argv[])
 				ctx.flags |= UBLK_F_IO_DESC_SIZE;
 				ctx.io_desc_size = strtoul(optarg, NULL, 0);
 			}
+			if (!strcmp(longopts[option_idx].name, "zoned"))
+				ctx.flags |= UBLK_F_ZONED;
+			if (!strcmp(longopts[option_idx].name, "param_types")) {
+				ret = parse_param_types(optarg, &ctx.params.types);
+				if (ret)
+					return ret;
+			}
+			if (!strcmp(longopts[option_idx].name, "logical_bs_shift"))
+				ctx.params.logical_bs_shift = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "physical_bs_shift"))
+				ctx.params.physical_bs_shift = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "io_min_shift"))
+				ctx.params.io_min_shift = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "io_opt_shift"))
+				ctx.params.io_opt_shift = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "max_sectors"))
+				ctx.params.max_sectors = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "chunk_sectors"))
+				ctx.params.chunk_sectors = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "dev_sectors"))
+				ctx.params.dev_sectors = strtoull(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "max_zone_append_sectors"))
+				ctx.params.max_zone_append_sectors =
+					strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "max_open_zones"))
+				ctx.params.max_open_zones = strtoul(optarg, NULL, 0);
+			if (!strcmp(longopts[option_idx].name, "max_active_zones"))
+				ctx.params.max_active_zones = strtoul(optarg, NULL, 0);
 			break;
 		case '?':
 			/*
@@ -2377,7 +2534,9 @@ int main(int argc, char *argv[])
 		ops->parse_cmd_line(&ctx, tgt_argc, tgt_argv);
 	}
 
-	if (!strcmp(cmd, "add"))
+	if (!strcmp(cmd, "set_params"))
+		ret = cmd_dev_set_params(&ctx);
+	else if (!strcmp(cmd, "add"))
 		ret = cmd_dev_add(&ctx);
 	else if (!strcmp(cmd, "recover")) {
 		if (ctx.dev_id < 0) {

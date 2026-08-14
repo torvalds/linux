@@ -63,6 +63,22 @@ struct fault_inject_ctx {
 	bool die_during_fetch;
 };
 
+struct params_ctx {
+	__u32 types;
+
+	__u32 logical_bs_shift;
+	__u32 physical_bs_shift;
+	__u32 io_min_shift;
+	__u32 io_opt_shift;
+	__u32 max_sectors;
+	__u32 chunk_sectors;
+	__u64 dev_sectors;
+
+	__u32 max_open_zones;
+	__u32 max_active_zones;
+	__u32 max_zone_append_sectors;
+};
+
 struct dev_ctx {
 	char tgt_type[16];
 	unsigned long flags;
@@ -98,6 +114,8 @@ struct dev_ctx {
 
 	/* for 'update_size' command */
 	unsigned long long size;
+
+	struct params_ctx params;
 
 	char *htlb_path;
 
