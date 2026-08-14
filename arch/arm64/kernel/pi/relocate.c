@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 // Copyright 2023 Google LLC
 // Authors: Ard Biesheuvel <ardb@google.com>
-//          Peter Collingbourne <pcc@google.com>
+//          Peter Collingbourne <peter@pcc.me.uk>
 
 #include <linux/elf.h>
 #include <linux/init.h>

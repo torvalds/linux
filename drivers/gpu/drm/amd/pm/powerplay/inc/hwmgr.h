@@ -35,6 +35,11 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
+/* Decode legacy unsigned Q24.8 watts to internal milliwatts. */
+#define PP_PWR_Q24_8_TO_MW(power) \
+	DIV_ROUND_CLOSEST_ULL((u64)(power) * MILLIWATT_PER_WATT, \
+			      BIT(8))
+
 #define VOLTAGE_SCALE 4
 #define VOLTAGE_VID_OFFSET_SCALE1   625
 #define VOLTAGE_VID_OFFSET_SCALE2   100

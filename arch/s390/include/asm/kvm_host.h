@@ -440,6 +440,7 @@ struct kvm_vcpu_arch {
 	bool skey_enabled;
 	/* Indicator if the access registers have been loaded from guest */
 	bool acrs_loaded;
+	bool initialized;
 	struct kvm_s390_pv_vcpu pv;
 	union diag318_info diag318_info;
 	struct kvm_s390_mmu_cache *mc;
@@ -476,6 +477,11 @@ struct s390_map_info {
 	__u64 guest_addr;
 	__u64 addr;
 	struct page *page;
+	/*
+	 * True if the page is long-term pinned. False if long-term pinning
+	 * failed and this entry exists only to preserve MAP/UNMAP symmetry.
+	 */
+	bool pinned;
 };
 
 struct s390_io_adapter {

@@ -311,7 +311,7 @@ void vmw_bo_dirty_transfer_to_res(struct vmw_resource *res)
 		return;
 
 	cur = max(res_start, dirty->start);
-	res_end = max(res_end, dirty->end);
+	res_end = min(res_end, dirty->end);
 	while (cur < res_end) {
 		unsigned long num;
 
@@ -347,7 +347,7 @@ void vmw_bo_dirty_clear(struct vmw_bo *vbo)
 		return;
 
 	cur = max(res_start, dirty->start);
-	res_end = max(res_end, dirty->end);
+	res_end = min(res_end, dirty->end);
 	while (cur < res_end) {
 		unsigned long num;
 

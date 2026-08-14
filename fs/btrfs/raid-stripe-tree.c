@@ -414,6 +414,12 @@ int btrfs_get_raid_extent_offset(struct btrfs_fs_info *fs_info,
 	int slot;
 	int ret;
 
+	if (unlikely(!stripe_root)) {
+		btrfs_err_rl(fs_info, "missing raid stripe tree root for logical %llu",
+			     logical);
+		return -EUCLEAN;
+	}
+
 	stripe_key.objectid = logical;
 	stripe_key.type = BTRFS_RAID_STRIPE_KEY;
 	stripe_key.offset = 0;

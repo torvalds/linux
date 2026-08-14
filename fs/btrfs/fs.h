@@ -713,6 +713,8 @@ struct btrfs_fs_info {
 	struct btrfs_workqueue *endio_write_workers;
 	struct btrfs_workqueue *endio_freespace_worker;
 	struct btrfs_workqueue *caching_workers;
+
+	struct workqueue_struct *fixup_workers;
 	struct btrfs_workqueue *delayed_workers;
 
 	struct task_struct *transaction_kthread;
@@ -1159,6 +1161,15 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 #define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
 
+static inline bool btrfs_is_full_ro(const struct btrfs_fs_info *fs_info)
+{
+	if (!sb_rdonly(fs_info->sb))
+		return false;
+	if (unlikely(fs_info->mount_opt & BTRFS_MOUNT_FULL_RO_MASK))
+		return true;
+	return false;
+}
+
 static inline bool btrfs_fs_closing(const struct btrfs_fs_info *fs_info)
 {
 	return unlikely(test_bit(BTRFS_FS_CLOSING_START, &fs_info->flags));
@@ -1190,6 +1201,16 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 {
 	clear_and_wake_up_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
 }
+
+/*
+ * We use the folio owner_2 flag to indicate the folio has blocks that were
+ * dirtied without a space reservation and need the writepage fixup before
+ * writeback. For bs < folio_size the fixup bitmap tracks the affected
+ * blocks.
+ */
+#define folio_test_fixup_pending(folio) folio_test_owner_2(folio)
+#define folio_set_fixup_pending(folio) folio_set_owner_2(folio)
+#define folio_clear_fixup_pending(folio) folio_clear_owner_2(folio)
 
 #define BTRFS_FS_ERROR(fs_info)	(READ_ONCE((fs_info)->fs_error))
 
